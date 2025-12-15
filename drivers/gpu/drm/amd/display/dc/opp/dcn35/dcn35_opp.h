@@ -31,7 +31,8 @@
 
 #define OPP_REG_VARIABLE_LIST_DCN3_5  \
 	OPP_REG_VARIABLE_LIST_DCN2_0; \
-	uint32_t OPP_TOP_CLK_CONTROL
+	uint32_t OPP_TOP_CLK_CONTROL; \
+	uint32_t OPP_ABM_CONTROL
 
 #define OPP_MASK_SH_LIST_DCN35(mask_sh)  \
 	OPP_MASK_SH_LIST_DCN20(mask_sh), \
@@ -64,4 +65,5 @@ void dcn35_opp_construct(struct dcn20_opp *oppn20,
 
 void dcn35_opp_set_fgcg(struct dcn20_opp *oppn20, bool enable);
 
+void dcn35_opp_read_reg_state(struct output_pixel_processor *opp, struct dcn_opp_reg_state *opp_reg_state);
 #endif

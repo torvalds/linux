@@ -8,20 +8,23 @@
 #include "intel_fb.h"
 #include "intel_panic.h"
 #include "xe_bo.h"
+#include "xe_res_cursor.h"
 
 struct intel_panic {
-	struct page **pages;
+	struct xe_res_cursor res;
+	struct iosys_map vmap;
+
 	int page;
-	void *vaddr;
 };
 
 static void xe_panic_kunmap(struct intel_panic *panic)
 {
-	if (panic->vaddr) {
-		drm_clflush_virt_range(panic->vaddr, PAGE_SIZE);
-		kunmap_local(panic->vaddr);
-		panic->vaddr = NULL;
+	if (!panic->vmap.is_iomem && iosys_map_is_set(&panic->vmap)) {
+		drm_clflush_virt_range(panic->vmap.vaddr, PAGE_SIZE);
+		kunmap_local(panic->vmap.vaddr);
 	}
+	iosys_map_clear(&panic->vmap);
+	panic->page = -1;
 }
 
 /*
@@ -46,15 +49,29 @@ static void xe_panic_page_set_pixel(struct drm_scanout_buffer *sb, unsigned int 
 	new_page = offset >> PAGE_SHIFT;
 	offset = offset % PAGE_SIZE;
 	if (new_page != panic->page) {
-		xe_panic_kunmap(panic);
+		if (xe_bo_is_vram(bo)) {
+			/* Display is always mapped on root tile */
+			struct xe_vram_region *vram = xe_bo_device(bo)->mem.vram;
+
+			if (panic->page < 0 || new_page < panic->page) {
+				xe_res_first(bo->ttm.resource, new_page * PAGE_SIZE,
+					     bo->ttm.base.size - new_page * PAGE_SIZE, &panic->res);
+			} else {
+				xe_res_next(&panic->res, PAGE_SIZE * (new_page - panic->page));
+			}
+			iosys_map_set_vaddr_iomem(&panic->vmap,
+						  vram->mapping + panic->res.start);
+		} else {
+			xe_panic_kunmap(panic);
+			iosys_map_set_vaddr(&panic->vmap,
+					    ttm_bo_kmap_try_from_panic(&bo->ttm,
+								       new_page));
+		}
 		panic->page = new_page;
-		panic->vaddr = ttm_bo_kmap_try_from_panic(&bo->ttm,
-							  panic->page);
 	}
-	if (panic->vaddr) {
-		u32 *pix = panic->vaddr + offset;
-		*pix = color;
-	}
+
+	if (iosys_map_is_set(&panic->vmap))
+		iosys_map_wr(&panic->vmap, offset, u32, color);
 }
 
 struct intel_panic *intel_panic_alloc(void)
@@ -68,6 +85,12 @@ struct intel_panic *intel_panic_alloc(void)
 
 int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
 {
+	struct intel_framebuffer *fb = (struct intel_framebuffer *)sb->private;
+	struct xe_bo *bo = gem_to_xe_bo(intel_fb_bo(&fb->base));
+
+	if (xe_bo_is_vram(bo) && !xe_bo_is_visible_vram(bo))
+		return -ENODEV;
+
 	panic->page = -1;
 	sb->set_pixel = xe_panic_page_set_pixel;
 	return 0;
@@ -76,5 +99,4 @@ int intel_panic_setup(struct intel_panic *panic, struct drm_scanout_buffer *sb)
 void intel_panic_finish(struct intel_panic *panic)
 {
 	xe_panic_kunmap(panic);
-	panic->page = -1;
 }

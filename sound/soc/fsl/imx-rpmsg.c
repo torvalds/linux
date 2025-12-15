@@ -72,7 +72,7 @@ static int imx_rpmsg_late_probe(struct snd_soc_card *card)
 					of_property_read_string_index(data->card.dev->of_node,
 								      "ignore-suspend-widgets",
 								      i, &widgets);
-					dapm = snd_soc_component_get_dapm(codec_comp);
+					dapm = snd_soc_component_to_dapm(codec_comp);
 					snd_soc_dapm_ignore_suspend(dapm, widgets);
 				}
 			}

@@ -157,7 +157,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family, i
 	memset(&vcc->local, 0, sizeof(struct sockaddr_atmsvc));
 	memset(&vcc->remote, 0, sizeof(struct sockaddr_atmsvc));
 	vcc->qos.txtp.max_sdu = 1 << 16; /* for meta VCs */
-	refcount_set(&sk->sk_wmem_alloc, 1);
+	refcount_set(&sk->sk_wmem_alloc, SK_WMEM_ALLOC_BIAS);
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
@@ -881,7 +881,7 @@ out_atmproc_exit:
 out_atmsvc_exit:
 	atmsvc_exit();
 out_atmpvc_exit:
-	atmsvc_exit();
+	atmpvc_exit();
 out_unregister_vcc_proto:
 	proto_unregister(&vcc_proto);
 	goto out;

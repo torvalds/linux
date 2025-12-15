@@ -1047,7 +1047,6 @@ static void nau8821_eject_jack(struct nau8821 *nau8821)
 {
 	struct snd_soc_dapm_context *dapm = nau8821->dapm;
 	struct regmap *regmap = nau8821->regmap;
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 
 	/* Detach 2kOhm Resistors from MICBIAS to MICGND */
 	regmap_update_bits(regmap, NAU8821_R74_MIC_BIAS,
@@ -1055,7 +1054,7 @@ static void nau8821_eject_jack(struct nau8821 *nau8821)
 	/* HPL/HPR short to ground */
 	regmap_update_bits(regmap, NAU8821_R0D_JACK_DET_CTRL,
 		NAU8821_SPKR_DWN1R | NAU8821_SPKR_DWN1L, 0);
-	snd_soc_component_disable_pin(component, "MICBIAS");
+	snd_soc_dapm_disable_pin(dapm, "MICBIAS");
 	snd_soc_dapm_sync(dapm);
 
 	/* Disable & mask both insertion & ejection IRQs */
@@ -1080,7 +1079,7 @@ static void nau8821_eject_jack(struct nau8821 *nau8821)
 		NAU8821_JACK_DET_DB_BYPASS, NAU8821_JACK_DET_DB_BYPASS);
 
 	/* Close clock for jack type detection at manual mode */
-	if (dapm->bias_level < SND_SOC_BIAS_PREPARE)
+	if (snd_soc_dapm_get_bias_level(dapm) < SND_SOC_BIAS_PREPARE)
 		nau8821_configure_sysclk(nau8821, NAU8821_CLK_DIS, 0);
 
 	/* Recover to normal channel input */
@@ -1106,7 +1105,6 @@ static void nau8821_jdet_work(struct work_struct *work)
 	struct nau8821 *nau8821 =
 		container_of(work, struct nau8821, jdet_work.work);
 	struct snd_soc_dapm_context *dapm = nau8821->dapm;
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct regmap *regmap = nau8821->regmap;
 	int jack_status_reg, mic_detected, event = 0, event_mask = 0;
 
@@ -1133,13 +1131,13 @@ static void nau8821_jdet_work(struct work_struct *work)
 				NAU8821_IRQ_KEY_RELEASE_DIS |
 				NAU8821_IRQ_KEY_PRESS_DIS, 0);
 		} else {
-			snd_soc_component_disable_pin(component, "MICBIAS");
-			snd_soc_dapm_sync(nau8821->dapm);
+			snd_soc_dapm_disable_pin(dapm, "MICBIAS");
+			snd_soc_dapm_sync(dapm);
 		}
 	} else {
 		dev_dbg(nau8821->dev, "Headphone connected\n");
 		event |= SND_JACK_HEADPHONE;
-		snd_soc_component_disable_pin(component, "MICBIAS");
+		snd_soc_dapm_disable_pin(dapm, "MICBIAS");
 		snd_soc_dapm_sync(dapm);
 	}
 
@@ -1162,7 +1160,7 @@ static void nau8821_setup_inserted_irq(struct nau8821 *nau8821)
 	nau8821_irq_status_clear(regmap, NAU8821_JACK_INSERT_DETECTED);
 
 	/* Enable internal VCO needed for interruptions */
-	if (nau8821->dapm->bias_level < SND_SOC_BIAS_PREPARE)
+	if (snd_soc_dapm_get_bias_level(nau8821->dapm) < SND_SOC_BIAS_PREPARE)
 		nau8821_configure_sysclk(nau8821, NAU8821_CLK_INTERNAL, 0);
 
 	/* Chip needs one FSCLK cycle in order to generate interruptions,
@@ -1191,7 +1189,6 @@ static irqreturn_t nau8821_interrupt(int irq, void *data)
 {
 	struct nau8821 *nau8821 = (struct nau8821 *)data;
 	struct regmap *regmap = nau8821->regmap;
-	struct snd_soc_component *component;
 	int active_irq, event = 0, event_mask = 0;
 
 	if (regmap_read(regmap, NAU8821_R10_IRQ_STATUS, &active_irq)) {
@@ -1222,8 +1219,7 @@ static irqreturn_t nau8821_interrupt(int irq, void *data)
 			NAU8821_MICDET_MASK, NAU8821_MICDET_EN);
 		if (nau8821_is_jack_inserted(regmap)) {
 			/* Detect microphone and jack type */
-			component = snd_soc_dapm_to_component(nau8821->dapm);
-			snd_soc_component_force_enable_pin(component, "MICBIAS");
+			snd_soc_dapm_force_enable_pin(nau8821->dapm, "MICBIAS");
 			snd_soc_dapm_sync(nau8821->dapm);
 			schedule_delayed_work(&nau8821->jdet_work, msecs_to_jiffies(20));
 			/* Turn off insertion interruption at manual mode */
@@ -1261,8 +1257,7 @@ static const struct regmap_config nau8821_regmap_config = {
 static int nau8821_component_probe(struct snd_soc_component *component)
 {
 	struct nau8821 *nau8821 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	nau8821->dapm = dapm;
 
@@ -1564,8 +1559,7 @@ static int nau8821_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_STANDBY:
 		/* Setup codec configuration after resume */
-		if (snd_soc_component_get_bias_level(component) ==
-			SND_SOC_BIAS_OFF)
+		if (snd_soc_dapm_get_bias_level(nau8821->dapm) == SND_SOC_BIAS_OFF)
 			nau8821_resume_setup(nau8821);
 		break;
 
@@ -1603,9 +1597,9 @@ static int __maybe_unused nau8821_suspend(struct snd_soc_component *component)
 
 	if (nau8821->irq)
 		disable_irq(nau8821->irq);
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(nau8821->dapm, SND_SOC_BIAS_OFF);
 	/* Power down codec power; don't support button wakeup */
-	snd_soc_component_disable_pin(component, "MICBIAS");
+	snd_soc_dapm_disable_pin(nau8821->dapm, "MICBIAS");
 	snd_soc_dapm_sync(nau8821->dapm);
 	regcache_cache_only(nau8821->regmap, true);
 	regcache_mark_dirty(nau8821->regmap);

@@ -35,9 +35,13 @@ properties:
         description: PHYs that implement IEEE802.3 clause 45
       - pattern: "^ethernet-phy-id[a-f0-9]{4}\\.[a-f0-9]{4}$"
         description:
-          If the PHY reports an incorrect ID (or none at all) then the
-          compatible list may contain an entry with the correct PHY ID
-          in the above form.
+          PHYs contain identification registers. These will be read to
+          identify the PHY. If the PHY reports an incorrect ID, or the
+          PHY requires a specific initialization sequence (like a
+          particular order of clocks, resets, power supplies), in
+          order to be able to read the ID registers, then the
+          compatible list must contain an entry with the correct PHY
+          ID in the above form.
           The first group of digits is the 16 bit Phy Identifier 1
           register, this is the chip vendor OUI bits 3:18. The
           second group of digits is the Phy Identifier 2 register,

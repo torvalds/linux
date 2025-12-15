@@ -247,45 +247,43 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 	memset(res, 0, sizeof(*res));
 }
 
-int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
-		       bool enable_mc_lb)
+int mlx5e_modify_tirs_lb(struct mlx5_core_dev *mdev, bool enable_uc_lb,
+			 bool enable_mc_lb)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_tir_builder *builder;
 	struct mlx5e_tir *tir;
-	u8 lb_flags = 0;
-	int err  = 0;
-	u32 tirn = 0;
-	int inlen;
-	void *in;
+	int err = 0;
 
-	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
+	builder = mlx5e_tir_builder_alloc(true);
+	if (!builder)
 		return -ENOMEM;
 
-	if (enable_uc_lb)
-		lb_flags = MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
-
-	if (enable_mc_lb)
-		lb_flags |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
-
-	if (lb_flags)
-		MLX5_SET(modify_tir_in, in, ctx.self_lb_block, lb_flags);
-
-	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
+	mlx5e_tir_builder_build_self_lb_block(builder, enable_uc_lb,
+					      enable_mc_lb);
 
 	mutex_lock(&mdev->mlx5e_res.hw_objs.td.list_lock);
 	list_for_each_entry(tir, &mdev->mlx5e_res.hw_objs.td.tirs_list, list) {
-		tirn = tir->tirn;
-		err = mlx5_core_modify_tir(mdev, tirn, in);
-		if (err)
+		err = mlx5e_tir_modify(tir, builder);
+		if (err) {
+			mlx5_core_err(mdev,
+				      "modify tir(0x%x) enable_lb uc(%d) mc(%d) failed, %d\n",
+				      mlx5e_tir_get_tirn(tir),
+				      enable_uc_lb, enable_mc_lb, err);
 			break;
+		}
 	}
 	mutex_unlock(&mdev->mlx5e_res.hw_objs.td.list_lock);
 
-	kvfree(in);
-	if (err)
-		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
+	mlx5e_tir_builder_free(builder);
 
 	return err;
+}
+
+int mlx5e_refresh_tirs(struct mlx5_core_dev *mdev, bool enable_uc_lb,
+		       bool enable_mc_lb)
+{
+	if (MLX5_CAP_GEN(mdev, tis_tir_td_order))
+		return 0; /* refresh not needed */
+
+	return mlx5e_modify_tirs_lb(mdev, enable_uc_lb, enable_mc_lb);
 }

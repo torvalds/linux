@@ -72,7 +72,7 @@ required:
   - reg-names
   - interrupts
   - msi-controller
-  - "#interrupt-cells"
+  - '#interrupt-cells'
   - interrupt-map-mask
   - interrupt-map
 

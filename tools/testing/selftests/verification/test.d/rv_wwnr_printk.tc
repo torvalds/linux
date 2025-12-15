@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# description: Test wwnr monitor with printk reactor
+# requires: available_reactors wwnr:monitor printk:reactor stress-ng:program
+
+load() { # returns true if there was a reaction
+	local lines_before num
+	num=$((($(nproc) + 1) / 2))
+	lines_before=$(dmesg | wc -l)
+	stress-ng --cpu-sched "$num" --timer "$num" -t 5 -q
+	dmesg | tail -n $((lines_before + 1)) | grep -q "rv: monitor wwnr does not allow event"
+}
+
+echo 1 > monitors/wwnr/enable
+echo printk > monitors/wwnr/reactors
+
+load
+
+echo 0 > monitoring_on
+! load
+echo 1 > monitoring_on
+
+load
+
+echo 0 > reacting_on
+! load
+echo 1 > reacting_on
+
+echo nop > monitors/wwnr/reactors
+echo 0 > monitors/wwnr/enable

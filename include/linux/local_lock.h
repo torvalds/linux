@@ -6,6 +6,7 @@
 
 /**
  * local_lock_init - Runtime initialize a lock instance
+ * @lock:	The lock variable
  */
 #define local_lock_init(lock)		__local_lock_init(lock)
 
@@ -52,7 +53,8 @@
 	__local_unlock_irqrestore(this_cpu_ptr(lock), flags)
 
 /**
- * local_lock_init - Runtime initialize a lock instance
+ * local_trylock_init - Runtime initialize a lock instance
+ * @lock:	The lock variable
  */
 #define local_trylock_init(lock)	__local_trylock_init(lock)
 

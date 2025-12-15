@@ -7,6 +7,7 @@
 #define _AMDXDNA_GEM_H_
 
 #include <linux/hmm.h>
+#include "amdxdna_pci_drv.h"
 
 struct amdxdna_umap {
 	struct vm_area_struct		*vma;
@@ -60,6 +61,11 @@ struct amdxdna_gem_obj *amdxdna_gem_get_obj(struct amdxdna_client *client,
 static inline void amdxdna_gem_put_obj(struct amdxdna_gem_obj *abo)
 {
 	drm_gem_object_put(to_gobj(abo));
+}
+
+static inline u64 amdxdna_dev_bo_offset(struct amdxdna_gem_obj *abo)
+{
+	return abo->mem.dev_addr - abo->client->dev_heap->mem.dev_addr;
 }
 
 void amdxdna_umap_put(struct amdxdna_umap *mapp);

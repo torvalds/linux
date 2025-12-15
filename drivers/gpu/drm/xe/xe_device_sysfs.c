@@ -38,13 +38,8 @@ vram_d3cold_threshold_show(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct xe_device *xe = pdev_to_xe_device(pdev);
-	int ret;
 
-	xe_pm_runtime_get(xe);
-	ret = sysfs_emit(buf, "%d\n", xe->d3cold.vram_threshold);
-	xe_pm_runtime_put(xe);
-
-	return ret;
+	return sysfs_emit(buf, "%d\n", xe->d3cold.vram_threshold);
 }
 
 static ssize_t
@@ -173,11 +168,8 @@ static umode_t late_bind_attr_is_visible(struct kobject *kobj,
 	u32 cap = 0;
 	int ret;
 
-	xe_pm_runtime_get(xe);
-
 	ret = xe_pcode_read(root, PCODE_MBOX(PCODE_LATE_BINDING, GET_CAPABILITY_STATUS, 0),
 			    &cap, NULL);
-	xe_pm_runtime_put(xe);
 	if (ret)
 		return 0;
 

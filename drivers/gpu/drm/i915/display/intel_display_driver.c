@@ -14,11 +14,12 @@
 #include <drm/drm_client_event.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_privacy_screen_consumer.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
-#include "i915_utils.h"
+#include "i915_utils.h" /* for i915_inject_probe_failure() */
 #include "i9xx_wm.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
@@ -28,12 +29,15 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
+#include "intel_cursor.h"
+#include "intel_dbuf_bw.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"
 #include "intel_display_driver.h"
 #include "intel_display_irq.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_dkl_phy.h"
 #include "intel_dmc.h"
@@ -145,17 +149,7 @@ static void intel_mode_config_init(struct intel_display *display)
 		mode_config->max_height = 2048;
 	}
 
-	if (display->platform.i845g || display->platform.i865g) {
-		mode_config->cursor_width = display->platform.i845g ? 64 : 512;
-		mode_config->cursor_height = 1023;
-	} else if (display->platform.i830 || display->platform.i85x ||
-		   display->platform.i915g || display->platform.i915gm) {
-		mode_config->cursor_width = 64;
-		mode_config->cursor_height = 64;
-	} else {
-		mode_config->cursor_width = 256;
-		mode_config->cursor_height = 256;
-	}
+	intel_cursor_mode_config_init(display);
 }
 
 static void intel_mode_config_cleanup(struct intel_display *display)
@@ -282,6 +276,10 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 		goto cleanup_wq_unordered;
 
 	ret = intel_dbuf_init(display);
+	if (ret)
+		goto cleanup_wq_unordered;
+
+	ret = intel_dbuf_bw_init(display);
 	if (ret)
 		goto cleanup_wq_unordered;
 
@@ -482,7 +480,6 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	intel_dpll_init(display);
 	intel_fdi_pll_freq_update(display);
 
-	intel_update_czclk(display);
 	intel_display_driver_init_hw(display);
 	intel_dpll_update_ref_clks(display);
 

@@ -1421,9 +1421,12 @@ static int cpufreq_policy_online(struct cpufreq_policy *policy,
 		 * If there is a problem with its frequency table, take it
 		 * offline and drop it.
 		 */
-		ret = cpufreq_table_validate_and_sort(policy);
-		if (ret)
-			goto out_offline_policy;
+		if (policy->freq_table_sorted != CPUFREQ_TABLE_SORTED_ASCENDING &&
+		    policy->freq_table_sorted != CPUFREQ_TABLE_SORTED_DESCENDING) {
+			ret = cpufreq_table_validate_and_sort(policy);
+			if (ret)
+				goto out_offline_policy;
+		}
 
 		/* related_cpus should at least include policy->cpus. */
 		cpumask_copy(policy->related_cpus, policy->cpus);
@@ -2550,7 +2553,7 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	for_each_inactive_policy(policy) {
 		if (!strcmp(policy->last_governor, governor->name)) {
 			policy->governor = NULL;
-			strcpy(policy->last_governor, "\0");
+			policy->last_governor[0] = '\0';
 		}
 	}
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);

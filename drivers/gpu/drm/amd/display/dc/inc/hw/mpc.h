@@ -350,6 +350,15 @@ struct mpcc_state {
 	struct mpc_rmcm_regs rmcm_regs;
 };
 
+struct dcn_mpc_reg_state {
+	uint32_t mpcc_bot_sel;
+	uint32_t mpcc_control;
+	uint32_t mpcc_status;
+	uint32_t mpcc_top_sel;
+	uint32_t mpcc_opp_id;
+	uint32_t mpcc_ogam_control;
+};
+
 /**
  * struct mpc_funcs - funcs
  */
@@ -373,6 +382,24 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int mpcc_inst,
 			struct mpcc_state *s);
+	/**
+    * @mpc_read_reg_state:
+    *
+    * Read MPC register state for debugging underflow purposes.
+    *
+    * Parameters:
+    *
+    * - [in] mpc - MPC context
+    * - [out] reg_state - MPC register state structure
+    *
+    * Return:
+    *
+    * void
+    */
+	void (*mpc_read_reg_state)(
+			struct mpc *mpc,
+			int mpcc_inst,
+			struct dcn_mpc_reg_state *mpc_reg_state);
 
 	/**
 	* @insert_plane:

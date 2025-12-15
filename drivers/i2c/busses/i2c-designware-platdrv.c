@@ -197,15 +197,6 @@ static int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 	return 0;
 }
 
-static void i2c_dw_remove_lock_support(struct dw_i2c_dev *dev)
-{
-	if (dev->semaphore_idx < 0)
-		return;
-
-	if (i2c_dw_semaphore_cb_table[dev->semaphore_idx].remove)
-		i2c_dw_semaphore_cb_table[dev->semaphore_idx].remove(dev);
-}
-
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	u32 flags = (uintptr_t)device_get_match_data(&pdev->dev);
@@ -248,7 +239,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	ret = i2c_dw_probe_lock_support(dev);
 	if (ret) {
-		ret = dev_err_probe(device, ret, "failed to probe lock support\n");
+		dev_err_probe(device, ret, "failed to probe lock support\n");
 		goto exit_reset;
 	}
 
@@ -338,8 +329,6 @@ static void dw_i2c_plat_remove(struct platform_device *pdev)
 	dw_i2c_plat_pm_cleanup(dev);
 
 	i2c_dw_prepare_clk(dev, false);
-
-	i2c_dw_remove_lock_support(dev);
 
 	reset_control_assert(dev->rst);
 }

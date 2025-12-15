@@ -13,7 +13,7 @@
 #include <fcntl.h>
 
 #include <linux/tdx-guest.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define TDX_GUEST_DEVNAME "/dev/tdx_guest"
 #define HEX_DUMP_SIZE 8

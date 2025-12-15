@@ -161,20 +161,9 @@ static struct ch_tc_flower_entry *ch_flower_lookup(struct adapter *adap,
 
 static void cxgb4_process_flow_match(struct net_device *dev,
 				     struct flow_rule *rule,
+				     u16 addr_type,
 				     struct ch_filter_specification *fs)
 {
-	u16 addr_type = 0;
-
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
-		struct flow_match_control match;
-
-		flow_rule_match_control(rule, &match);
-		addr_type = match.key->addr_type;
-	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
-		addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
-		addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
@@ -326,9 +315,6 @@ static int cxgb4_validate_flow_match(struct netlink_ext_ack *extack,
 				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
-
-	if (flow_rule_match_has_control_flags(rule, extack))
-		return -EOPNOTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
 		struct flow_match_basic match;
@@ -858,6 +844,7 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct filter_ctx ctx;
+	u16 addr_type = 0;
 	u8 inet_family;
 	int fidx, ret;
 
@@ -867,7 +854,28 @@ int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 	if (cxgb4_validate_flow_match(extack, rule))
 		return -EOPNOTSUPP;
 
-	cxgb4_process_flow_match(dev, rule, fs);
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_match_control match;
+
+		flow_rule_match_control(rule, &match);
+		addr_type = match.key->addr_type;
+
+		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
+			fs->val.frag = match.key->flags & FLOW_DIS_IS_FRAGMENT;
+			fs->mask.frag = true;
+		}
+
+		if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT,
+						     match.mask->flags, extack))
+			return -EOPNOTSUPP;
+
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+		addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+	}
+
+	cxgb4_process_flow_match(dev, rule, addr_type, fs);
 	cxgb4_process_flow_actions(dev, &rule->action, fs);
 
 	fs->hash = is_filter_exact_match(adap, fs);

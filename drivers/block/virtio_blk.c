@@ -584,7 +584,8 @@ out:
 
 static int virtblk_parse_zone(struct virtio_blk *vblk,
 			       struct virtio_blk_zone_descriptor *entry,
-			       unsigned int idx, report_zones_cb cb, void *data)
+			       unsigned int idx,
+			       struct blk_report_zones_args *args)
 {
 	struct blk_zone zone = { };
 
@@ -650,12 +651,12 @@ static int virtblk_parse_zone(struct virtio_blk *vblk,
 	 * The callback below checks the validity of the reported
 	 * entry data, no need to further validate it here.
 	 */
-	return cb(&zone, idx, data);
+	return disk_report_zone(vblk->disk, &zone, idx, args);
 }
 
 static int virtblk_report_zones(struct gendisk *disk, sector_t sector,
-				 unsigned int nr_zones, report_zones_cb cb,
-				 void *data)
+				 unsigned int nr_zones,
+				 struct blk_report_zones_args *args)
 {
 	struct virtio_blk *vblk = disk->private_data;
 	struct virtio_blk_zone_report *report;
@@ -693,7 +694,7 @@ static int virtblk_report_zones(struct gendisk *disk, sector_t sector,
 
 		for (i = 0; i < nz && zone_idx < nr_zones; i++) {
 			ret = virtblk_parse_zone(vblk, &report->zones[i],
-						 zone_idx, cb, data);
+						 zone_idx, args);
 			if (ret)
 				goto fail_report;
 
@@ -1026,8 +1027,13 @@ static int init_vq(struct virtio_blk *vblk)
 out:
 	kfree(vqs);
 	kfree(vqs_info);
-	if (err)
+	if (err) {
 		kfree(vblk->vqs);
+		/*
+		 * Set to NULL to prevent freeing vqs again during freezing.
+		 */
+		vblk->vqs = NULL;
+	}
 	return err;
 }
 
@@ -1598,6 +1604,12 @@ static int virtblk_freeze_priv(struct virtio_device *vdev)
 
 	vdev->config->del_vqs(vdev);
 	kfree(vblk->vqs);
+	/*
+	 * Set to NULL to prevent freeing vqs again after a failed vqs
+	 * allocation during resume. Note that kfree() already handles NULL
+	 * pointers safely.
+	 */
+	vblk->vqs = NULL;
 
 	return 0;
 }

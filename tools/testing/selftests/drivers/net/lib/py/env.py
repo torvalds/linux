@@ -168,6 +168,8 @@ class NetDrvEpEnv(NetDrvEnvBase):
 
         # resolve remote interface name
         self.remote_ifname = self.resolve_remote_ifc()
+        self.remote_dev = ip("-d link show dev " + self.remote_ifname,
+                             host=self.remote, json=True)[0]
 
         self._required_cmd = {}
 

@@ -14,7 +14,6 @@
 
 static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	__be16 *phdr;
 	u16 hdr;
 
@@ -26,7 +25,7 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Set the version field, and set destination port information */
 	hdr = FIELD_PREP(QCA_HDR_XMIT_VERSION, QCA_HDR_VERSION);
 	hdr |= QCA_HDR_XMIT_FROM_CPU;
-	hdr |= FIELD_PREP(QCA_HDR_XMIT_DP_BIT, BIT(dp->index));
+	hdr |= FIELD_PREP(QCA_HDR_XMIT_DP_BIT, dsa_xmit_port_mask(skb, dev));
 
 	*phdr = htons(hdr);
 

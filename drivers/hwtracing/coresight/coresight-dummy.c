@@ -52,7 +52,7 @@ static int dummy_source_trace_id(struct coresight_device *csdev, __maybe_unused 
 }
 
 static int dummy_sink_enable(struct coresight_device *csdev, enum cs_mode mode,
-				void *data)
+			     struct coresight_path *path)
 {
 	dev_dbg(csdev->dev.parent, "Dummy sink enabled\n");
 

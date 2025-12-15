@@ -228,10 +228,6 @@ struct sctp_sock {
 
 	atomic_t pd_mode;
 
-	/* Fields after this point will be skipped on copies, like on accept
-	 * and peeloff operations
-	 */
-
 	/* Receive to here while partial delivery is in effect. */
 	struct sk_buff_head pd_lobby;
 
@@ -497,9 +493,6 @@ struct sctp_pf {
 	int  (*bind_verify) (struct sctp_sock *, union sctp_addr *);
 	int  (*send_verify) (struct sctp_sock *, union sctp_addr *);
 	int  (*supported_addrs)(const struct sctp_sock *, __be16 *);
-	struct sock *(*create_accept_sk) (struct sock *sk,
-					  struct sctp_association *asoc,
-					  bool kern);
 	int (*addr_to_user)(struct sctp_sock *sk, union sctp_addr *addr);
 	void (*to_sk_saddr)(union sctp_addr *, struct sock *sk);
 	void (*to_sk_daddr)(union sctp_addr *, struct sock *sk);
@@ -1076,7 +1069,7 @@ struct sctp_outq {
 	struct list_head out_chunk_list;
 
 	/* Stream scheduler being used */
-	struct sctp_sched_ops *sched;
+	const struct sctp_sched_ops *sched;
 
 	unsigned int out_qlen;	/* Total length of queued data chunks. */
 

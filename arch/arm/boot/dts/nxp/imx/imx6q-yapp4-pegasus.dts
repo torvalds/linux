@@ -17,6 +17,10 @@
 	};
 };
 
+&beeper {
+	status = "okay";
+};
+
 &gpio_oled {
 	status = "okay";
 };
@@ -34,6 +38,10 @@
 };
 
 &oled_1309 {
+	status = "okay";
+};
+
+&pwm3 {
 	status = "okay";
 };
 

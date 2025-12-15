@@ -28,10 +28,11 @@
 #include "reg_helper.h"
 
 static void dsc35_enable(struct display_stream_compressor *dsc, int opp_pipe);
+static void dsc35_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsigned int max_dscclk_khz);
 
 static const struct dsc_funcs dcn35_dsc_funcs = {
-	.dsc_get_enc_caps = dsc2_get_enc_caps,
 	.dsc_read_state = dsc2_read_state,
+	.dsc_read_reg_state = dsc2_read_reg_state,
 	.dsc_validate_stream = dsc2_validate_stream,
 	.dsc_set_config = dsc2_set_config,
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
@@ -39,6 +40,7 @@ static const struct dsc_funcs dcn35_dsc_funcs = {
 	.dsc_disable = dsc2_disable,
 	.dsc_disconnect = dsc2_disconnect,
 	.dsc_wait_disconnect_pending_clear = dsc2_wait_disconnect_pending_clear,
+	.dsc_get_single_enc_caps = dsc35_get_single_enc_caps,
 };
 
 /* Macro definitios for REG_SET macros*/
@@ -109,4 +111,32 @@ static void dsc35_enable(struct display_stream_compressor *dsc, int opp_pipe)
 void dsc35_set_fgcg(struct dcn20_dsc *dsc20, bool enable)
 {
 	REG_UPDATE(DSC_TOP_CONTROL, DSC_FGCG_REP_DIS, !enable);
+}
+
+void dsc35_get_single_enc_caps(struct dsc_enc_caps *dsc_enc_caps, unsigned int max_dscclk_khz)
+{
+	dsc_enc_caps->dsc_version = 0x21; /* v1.2 - DP spec defined it in reverse order and we kept it */
+
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_1 = 1;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_2 = 1;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_3 = 1;
+	dsc_enc_caps->slice_caps.bits.NUM_SLICES_4 = 1;
+
+	dsc_enc_caps->lb_bit_depth = 13;
+	dsc_enc_caps->is_block_pred_supported = true;
+
+	dsc_enc_caps->color_formats.bits.RGB = 1;
+	dsc_enc_caps->color_formats.bits.YCBCR_444 = 1;
+	dsc_enc_caps->color_formats.bits.YCBCR_SIMPLE_422 = 1;
+	dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 0;
+	dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_420 = 1;
+
+	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_8_BPC = 1;
+	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_10_BPC = 1;
+	dsc_enc_caps->color_depth.bits.COLOR_DEPTH_12_BPC = 1;
+
+	dsc_enc_caps->max_total_throughput_mps = max_dscclk_khz * 3 / 1000;
+
+	dsc_enc_caps->max_slice_width = 5184; /* (including 64 overlap pixels for eDP MSO mode) */
+	dsc_enc_caps->bpp_increment_div = 16; /* 1/16th of a bit */
 }

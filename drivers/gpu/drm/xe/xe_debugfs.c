@@ -23,12 +23,12 @@
 #include "xe_psmi.h"
 #include "xe_pxp_debugfs.h"
 #include "xe_sriov.h"
-#include "xe_sriov_pf.h"
+#include "xe_sriov_pf_debugfs.h"
 #include "xe_sriov_vf.h"
 #include "xe_step.h"
 #include "xe_tile_debugfs.h"
-#include "xe_wa.h"
 #include "xe_vsec.h"
+#include "xe_wa.h"
 
 #ifdef CONFIG_DRM_XE_DEBUG
 #include "xe_bo_evict.h"
@@ -142,6 +142,7 @@ static int dgfx_pkg_residencies_show(struct seq_file *m, void *data)
 	} residencies[] = {
 		{BMG_G2_RESIDENCY_OFFSET, "Package G2"},
 		{BMG_G6_RESIDENCY_OFFSET, "Package G6"},
+		{BMG_G7_RESIDENCY_OFFSET, "Package G7"},
 		{BMG_G8_RESIDENCY_OFFSET, "Package G8"},
 		{BMG_G10_RESIDENCY_OFFSET, "Package G10"},
 		{BMG_MODS_RESIDENCY_OFFSET, "Package ModS"}
@@ -349,17 +350,14 @@ static ssize_t disable_late_binding_set(struct file *f, const char __user *ubuf,
 {
 	struct xe_device *xe = file_inode(f)->i_private;
 	struct xe_late_bind *late_bind = &xe->late_bind;
-	u32 uval;
-	ssize_t ret;
+	bool val;
+	int ret;
 
-	ret = kstrtouint_from_user(ubuf, size, sizeof(uval), &uval);
+	ret = kstrtobool_from_user(ubuf, size, &val);
 	if (ret)
 		return ret;
 
-	if (uval > 1)
-		return -EINVAL;
-
-	late_bind->disable = !!uval;
+	late_bind->disable = val;
 	return size;
 }
 

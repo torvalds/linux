@@ -58,6 +58,8 @@ const struct dentry_operations ns_dentry_operations = {
 static void nsfs_evict(struct inode *inode)
 {
 	struct ns_common *ns = inode->i_private;
+
+	__ns_ref_active_put(ns);
 	clear_inode(inode);
 	ns->ops->put(ns);
 }
@@ -108,7 +110,6 @@ int ns_get_path(struct path *path, struct task_struct *task,
 int open_namespace(struct ns_common *ns)
 {
 	struct path path __free(path_put) = {};
-	struct file *f;
 	int err;
 
 	/* call first to consume reference */
@@ -116,16 +117,7 @@ int open_namespace(struct ns_common *ns)
 	if (err < 0)
 		return err;
 
-	CLASS(get_unused_fd, fd)(O_CLOEXEC);
-	if (fd < 0)
-		return fd;
-
-	f = dentry_open(&path, O_RDONLY, current_cred());
-	if (IS_ERR(f))
-		return PTR_ERR(f);
-
-	fd_install(fd, f);
-	return take_fd(fd);
+	return FD_ADD(O_CLOEXEC, dentry_open(&path, O_RDONLY, current_cred()));
 }
 
 int open_related_ns(struct ns_common *ns,
@@ -311,7 +303,6 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		struct mnt_ns_info kinfo = {};
 		struct mnt_ns_info __user *uinfo = (struct mnt_ns_info __user *)arg;
 		struct path path __free(path_put) = {};
-		struct file *f __free(fput) = NULL;
 		size_t usize = _IOC_SIZE(ioctl);
 
 		if (ns->ns_type != CLONE_NEWNS)
@@ -330,28 +321,18 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (ret)
 			return ret;
 
-		CLASS(get_unused_fd, fd)(O_CLOEXEC);
-		if (fd < 0)
-			return fd;
-
-		f = dentry_open(&path, O_RDONLY, current_cred());
-		if (IS_ERR(f))
-			return PTR_ERR(f);
-
-		if (uinfo) {
-			/*
-			 * If @uinfo is passed return all information about the
-			 * mount namespace as well.
-			 */
-			ret = copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
-			if (ret)
-				return ret;
-		}
-
-		/* Transfer reference of @f to caller's fdtable. */
-		fd_install(fd, no_free_ptr(f));
-		/* File descriptor is live so hand it off to the caller. */
-		return take_fd(fd);
+		FD_PREPARE(fdf, O_CLOEXEC, dentry_open(&path, O_RDONLY, current_cred()));
+		if (fdf.err)
+			return fdf.err;
+		/*
+		 * If @uinfo is passed return all information about the
+		 * mount namespace as well.
+		 */
+		ret = copy_ns_info_to_user(to_mnt_ns(ns), uinfo, usize, &kinfo);
+		if (ret)
+			return ret;
+		ret = fd_publish(fdf);
+		break;
 	}
 	default:
 		ret = -ENOTTY;
@@ -408,6 +389,7 @@ static const struct super_operations nsfs_ops = {
 	.statfs = simple_statfs,
 	.evict_inode = nsfs_evict,
 	.show_path = nsfs_show_path,
+	.drop_inode = inode_just_drop,
 };
 
 static int nsfs_init_inode(struct inode *inode, void *data)
@@ -418,6 +400,16 @@ static int nsfs_init_inode(struct inode *inode, void *data)
 	inode->i_mode |= S_IRUGO;
 	inode->i_fop = &ns_file_operations;
 	inode->i_ino = ns->inum;
+
+	/*
+	 * Bring the namespace subtree back to life if we have to. This
+	 * can happen when e.g., all processes using a network namespace
+	 * and all namespace files or namespace file bind-mounts have
+	 * died but there are still sockets pinning it. The SIOCGSKNS
+	 * ioctl on such a socket will resurrect the relevant namespace
+	 * subtree.
+	 */
+	__ns_ref_active_get(ns);
 	return 0;
 }
 
@@ -458,6 +450,45 @@ static int nsfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return FILEID_NSFS;
 }
 
+bool is_current_namespace(struct ns_common *ns)
+{
+	switch (ns->ns_type) {
+#ifdef CONFIG_CGROUPS
+	case CLONE_NEWCGROUP:
+		return current_in_namespace(to_cg_ns(ns));
+#endif
+#ifdef CONFIG_IPC_NS
+	case CLONE_NEWIPC:
+		return current_in_namespace(to_ipc_ns(ns));
+#endif
+	case CLONE_NEWNS:
+		return current_in_namespace(to_mnt_ns(ns));
+#ifdef CONFIG_NET_NS
+	case CLONE_NEWNET:
+		return current_in_namespace(to_net_ns(ns));
+#endif
+#ifdef CONFIG_PID_NS
+	case CLONE_NEWPID:
+		return current_in_namespace(to_pid_ns(ns));
+#endif
+#ifdef CONFIG_TIME_NS
+	case CLONE_NEWTIME:
+		return current_in_namespace(to_time_ns(ns));
+#endif
+#ifdef CONFIG_USER_NS
+	case CLONE_NEWUSER:
+		return current_in_namespace(to_user_ns(ns));
+#endif
+#ifdef CONFIG_UTS_NS
+	case CLONE_NEWUTS:
+		return current_in_namespace(to_uts_ns(ns));
+#endif
+	default:
+		VFS_WARN_ON_ONCE(true);
+		return false;
+	}
+}
+
 static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 					int fh_len, int fh_type)
 {
@@ -483,18 +514,35 @@ static struct dentry *nsfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 		return NULL;
 	}
 
+	if (!fid->ns_id)
+		return NULL;
+	/* Either both are set or both are unset. */
+	if (!fid->ns_inum != !fid->ns_type)
+		return NULL;
+
 	scoped_guard(rcu) {
 		ns = ns_tree_lookup_rcu(fid->ns_id, fid->ns_type);
 		if (!ns)
 			return NULL;
 
 		VFS_WARN_ON_ONCE(ns->ns_id != fid->ns_id);
-		VFS_WARN_ON_ONCE(ns->ns_type != fid->ns_type);
 
-		if (ns->inum != fid->ns_inum)
+		if (fid->ns_inum && (fid->ns_inum != ns->inum))
+			return NULL;
+		if (fid->ns_type && (fid->ns_type != ns->ns_type))
 			return NULL;
 
-		if (!__ns_ref_get(ns))
+		/*
+		 * This is racy because we're not actually taking an
+		 * active reference. IOW, it could happen that the
+		 * namespace becomes inactive after this check.
+		 * We don't care because nsfs_init_inode() will just
+		 * resurrect the relevant namespace tree for us. If it
+		 * has been active here we just allow it's resurrection.
+		 * We could try to take an active reference here and
+		 * then drop it again. But really, why bother.
+		 */
+		if (!ns_get_unless_inactive(ns))
 			return NULL;
 	}
 
@@ -590,6 +638,8 @@ static int nsfs_init_fs_context(struct fs_context *fc)
 	struct pseudo_fs_context *ctx = init_pseudo(fc, NSFS_MAGIC);
 	if (!ctx)
 		return -ENOMEM;
+	fc->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
+	ctx->s_d_flags |= DCACHE_DONTCACHE;
 	ctx->ops = &nsfs_ops;
 	ctx->eops = &nsfs_export_operations;
 	ctx->dops = &ns_dentry_operations;
@@ -611,4 +661,28 @@ void __init nsfs_init(void)
 	nsfs_mnt->mnt_sb->s_flags &= ~SB_NOUSER;
 	nsfs_root_path.mnt = nsfs_mnt;
 	nsfs_root_path.dentry = nsfs_mnt->mnt_root;
+}
+
+void nsproxy_ns_active_get(struct nsproxy *ns)
+{
+	ns_ref_active_get(ns->mnt_ns);
+	ns_ref_active_get(ns->uts_ns);
+	ns_ref_active_get(ns->ipc_ns);
+	ns_ref_active_get(ns->pid_ns_for_children);
+	ns_ref_active_get(ns->cgroup_ns);
+	ns_ref_active_get(ns->net_ns);
+	ns_ref_active_get(ns->time_ns);
+	ns_ref_active_get(ns->time_ns_for_children);
+}
+
+void nsproxy_ns_active_put(struct nsproxy *ns)
+{
+	ns_ref_active_put(ns->mnt_ns);
+	ns_ref_active_put(ns->uts_ns);
+	ns_ref_active_put(ns->ipc_ns);
+	ns_ref_active_put(ns->pid_ns_for_children);
+	ns_ref_active_put(ns->cgroup_ns);
+	ns_ref_active_put(ns->net_ns);
+	ns_ref_active_put(ns->time_ns);
+	ns_ref_active_put(ns->time_ns_for_children);
 }

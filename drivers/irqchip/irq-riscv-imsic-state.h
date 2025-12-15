@@ -40,7 +40,7 @@ struct imsic_local_priv {
 #endif
 
 	/* Local vector table */
-	struct imsic_vector			*vectors;
+	struct imsic_vector			vectors[];
 };
 
 struct imsic_priv {
@@ -94,8 +94,6 @@ static inline struct imsic_vector *imsic_vector_get_move(struct imsic_vector *ve
 
 void imsic_vector_force_move_cleanup(struct imsic_vector *vec);
 void imsic_vector_move(struct imsic_vector *old_vec, struct imsic_vector *new_vec);
-
-struct imsic_vector *imsic_vector_from_local_id(unsigned int cpu, unsigned int local_id);
 
 struct imsic_vector *imsic_vector_alloc(unsigned int irq, const struct cpumask *mask);
 void imsic_vector_free(struct imsic_vector *vector);

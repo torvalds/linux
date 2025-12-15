@@ -39,6 +39,10 @@ The following is a list of E-Switch attributes.
          rules.
        * ``switchdev`` allows for more advanced offloading capabilities of
          the E-Switch to hardware.
+       * ``switchdev_inactive`` switchdev mode but starts inactive, doesn't allow traffic
+         until explicitly activated. This mode is useful for orchestrators that
+         want to prepare the device in switchdev mode but only activate it when
+         all configurations are done.
    * - ``inline-mode``
      - enum
      - Some HWs need the VF driver to put part of the packet
@@ -74,3 +78,12 @@ Example Usage
 
     # enable encap-mode with legacy mode
     $ devlink dev eswitch set pci/0000:08:00.0 mode legacy inline-mode none encap-mode basic
+
+    # start switchdev mode in inactive state
+    $ devlink dev eswitch set pci/0000:08:00.0 mode switchdev_inactive
+
+    # setup switchdev configurations, representors, FDB entries, etc..
+    ...
+
+    # activate switchdev mode to allow traffic
+    $ devlink dev eswitch set pci/0000:08:00.0 mode switchdev

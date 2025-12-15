@@ -26,7 +26,6 @@ properties:
               - mediatek,mt8188-adsp-mbox
           - const: mediatek,mt8186-adsp-mbox
 
-
   "#mbox-cells":
     const: 0
 

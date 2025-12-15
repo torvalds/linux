@@ -250,7 +250,7 @@ static int ad1836_resume(struct snd_soc_component *component)
 static int ad1836_probe(struct snd_soc_component *component)
 {
 	struct ad1836_priv *ad1836 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int num_dacs, num_adcs;
 	int ret = 0;
 	int i;

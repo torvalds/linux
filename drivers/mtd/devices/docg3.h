@@ -274,11 +274,11 @@ struct docg3_cascade {
  * @cascade: the cascade this device belongs to
  * @device_id: number of the cascaded DoCG3 device (0, 1, 2 or 3)
  * @if_cfg: if true, reads are on 16bits, else reads are on 8bits
-
  * @reliable: if 0, docg3 in normal mode, if 1 docg3 in fast mode, if 2 in
  *            reliable mode
  *            Fast mode implies more errors than normal mode.
  *            Reliable mode implies that page 2*n and 2*n+1 are clones.
+ * @max_block: maximum block number for this device
  * @bbt: bad block table cache
  * @oob_write_ofs: offset of the MTD where this OOB should belong (ie. in next
  *                 page_write)

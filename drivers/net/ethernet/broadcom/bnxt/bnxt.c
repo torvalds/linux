@@ -877,7 +877,7 @@ static bool __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 next_tx_int:
 		cons = NEXT_TX(cons);
 
-		dev_consume_skb_any(skb);
+		napi_consume_skb(skb, budget);
 	}
 
 	WRITE_ONCE(txr->tx_cons, cons);
@@ -4479,7 +4479,14 @@ static void bnxt_init_one_rx_agg_ring_rxbd(struct bnxt *bp,
 	ring->fw_ring_id = INVALID_HW_RING_ID;
 	if ((bp->flags & BNXT_FLAG_AGG_RINGS)) {
 		type = ((u32)BNXT_RX_PAGE_SIZE << RX_BD_LEN_SHIFT) |
-			RX_BD_TYPE_RX_AGG_BD | RX_BD_FLAGS_SOP;
+			RX_BD_TYPE_RX_AGG_BD;
+
+		/* On P7, setting EOP will cause the chip to disable
+		 * Relaxed Ordering (RO) for TPA data.  Disable EOP for
+		 * potentially higher performance with RO.
+		 */
+		if (BNXT_CHIP_P5_AND_MINUS(bp) || !(bp->flags & BNXT_FLAG_TPA))
+			type |= RX_BD_FLAGS_AGG_EOP;
 
 		bnxt_init_rxbd_pages(ring, type);
 	}
@@ -5687,6 +5694,10 @@ int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap, int bmap_size,
 		for (i = 0; i < ARRAY_SIZE(bnxt_vf_req_snif); i++) {
 			u16 cmd = bnxt_vf_req_snif[i];
 			unsigned int bit, idx;
+
+			if ((bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN) &&
+			    cmd == HWRM_PORT_PHY_QCFG)
+				continue;
 
 			idx = cmd / 32;
 			bit = cmd % 32;
@@ -8506,6 +8517,11 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 
 	if (flags & FUNC_QCFG_RESP_FLAGS_ENABLE_RDMA_SRIOV)
 		bp->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
+	if (resp->roce_bidi_opt_mode &
+	    FUNC_QCFG_RESP_ROCE_BIDI_OPT_MODE_DEDICATED)
+		bp->cos0_cos1_shared = 1;
+	else
+		bp->cos0_cos1_shared = 0;
 
 	switch (resp->port_partition_type) {
 	case FUNC_QCFG_RESP_PORT_PARTITION_TYPE_NPAR1_0:
@@ -9653,6 +9669,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->flags |= BNXT_FLAG_ROCEV1_CAP;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED)
 		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
+	if (flags & FUNC_QCAPS_RESP_FLAGS_LINK_ADMIN_STATUS_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_LINK_ADMIN;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_PCIE_STATS_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_PCIE_STATS_SUPPORTED;
 	if (flags & FUNC_QCAPS_RESP_FLAGS_HOT_RESET_CAPABLE)
@@ -14020,11 +14038,19 @@ static void bnxt_dump_rx_sw_state(struct bnxt_napi *bnapi)
 
 static void bnxt_dump_cp_sw_state(struct bnxt_napi *bnapi)
 {
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	int i = bnapi->index;
+	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring, *cpr2;
+	int i = bnapi->index, j;
 
 	netdev_info(bnapi->bp->dev, "[%d]: cp{fw_ring: %d raw_cons: %x}\n",
 		    i, cpr->cp_ring_struct.fw_ring_id, cpr->cp_raw_cons);
+	for (j = 0; j < cpr->cp_ring_count; j++) {
+		cpr2 = &cpr->cp_ring_arr[j];
+		if (!cpr2->bnapi)
+			continue;
+		netdev_info(bnapi->bp->dev, "[%d.%d]: cp{fw_ring: %d raw_cons: %x}\n",
+			    i, j, cpr2->cp_ring_struct.fw_ring_id,
+			    cpr2->cp_raw_cons);
+	}
 }
 
 static void bnxt_dbg_dump_states(struct bnxt *bp)

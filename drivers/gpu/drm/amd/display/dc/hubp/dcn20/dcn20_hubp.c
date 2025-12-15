@@ -613,26 +613,28 @@ void hubp2_cursor_set_attributes(
 
 	hubp->curs_attr = *attr;
 
-	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
-			CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
-	REG_UPDATE(CURSOR_SURFACE_ADDRESS,
-			CURSOR_SURFACE_ADDRESS, attr->address.low_part);
+	if (!hubp->cursor_offload) {
+		REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
+				CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
+		REG_UPDATE(CURSOR_SURFACE_ADDRESS,
+				CURSOR_SURFACE_ADDRESS, attr->address.low_part);
 
-	REG_UPDATE_2(CURSOR_SIZE,
-			CURSOR_WIDTH, attr->width,
-			CURSOR_HEIGHT, attr->height);
+		REG_UPDATE_2(CURSOR_SIZE,
+				CURSOR_WIDTH, attr->width,
+				CURSOR_HEIGHT, attr->height);
 
-	REG_UPDATE_4(CURSOR_CONTROL,
-			CURSOR_MODE, attr->color_format,
-			CURSOR_2X_MAGNIFY, attr->attribute_flags.bits.ENABLE_MAGNIFICATION,
-			CURSOR_PITCH, hw_pitch,
-			CURSOR_LINES_PER_CHUNK, lpc);
+		REG_UPDATE_4(CURSOR_CONTROL,
+				CURSOR_MODE, attr->color_format,
+				CURSOR_2X_MAGNIFY, attr->attribute_flags.bits.ENABLE_MAGNIFICATION,
+				CURSOR_PITCH, hw_pitch,
+				CURSOR_LINES_PER_CHUNK, lpc);
 
-	REG_SET_2(CURSOR_SETTINGS, 0,
-			/* no shift of the cursor HDL schedule */
-			CURSOR0_DST_Y_OFFSET, 0,
-			 /* used to shift the cursor chunk request deadline */
-			CURSOR0_CHUNK_HDL_ADJUST, 3);
+		REG_SET_2(CURSOR_SETTINGS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				/* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+	}
 
 	hubp->att.SURFACE_ADDR_HIGH  = attr->address.high_part;
 	hubp->att.SURFACE_ADDR       = attr->address.low_part;
@@ -1059,23 +1061,28 @@ void hubp2_cursor_set_position(
 		cur_en = 0;  /* not visible beyond top edge*/
 
 	if (hubp->pos.cur_ctl.bits.cur_enable != cur_en) {
-		if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
+		bool cursor_not_programmed = hubp->att.SURFACE_ADDR == 0 && hubp->att.SURFACE_ADDR_HIGH == 0;
+
+		if (cur_en && cursor_not_programmed)
 			hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
 
-		REG_UPDATE(CURSOR_CONTROL,
-			CURSOR_ENABLE, cur_en);
+		if (!hubp->cursor_offload)
+			REG_UPDATE(CURSOR_CONTROL, CURSOR_ENABLE, cur_en);
 	}
 
-	REG_SET_2(CURSOR_POSITION, 0,
-			CURSOR_X_POSITION, pos->x,
-			CURSOR_Y_POSITION, pos->y);
+	if (!hubp->cursor_offload) {
+		REG_SET_2(CURSOR_POSITION, 0,
+				CURSOR_X_POSITION, pos->x,
+				CURSOR_Y_POSITION, pos->y);
 
-	REG_SET_2(CURSOR_HOT_SPOT, 0,
-			CURSOR_HOT_SPOT_X, pos->x_hotspot,
-			CURSOR_HOT_SPOT_Y, pos->y_hotspot);
+		REG_SET_2(CURSOR_HOT_SPOT, 0,
+				CURSOR_HOT_SPOT_X, pos->x_hotspot,
+				CURSOR_HOT_SPOT_Y, pos->y_hotspot);
 
-	REG_SET(CURSOR_DST_OFFSET, 0,
-			CURSOR_DST_X_OFFSET, dst_x_offset);
+		REG_SET(CURSOR_DST_OFFSET, 0,
+				CURSOR_DST_X_OFFSET, dst_x_offset);
+	}
+
 	/* TODO Handle surface pixel formats other than 4:4:4 */
 	/* Cursor Position Register Config */
 	hubp->pos.cur_ctl.bits.cur_enable = cur_en;

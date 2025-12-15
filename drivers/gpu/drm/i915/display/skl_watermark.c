@@ -10,7 +10,6 @@
 
 #include "soc/intel_dram.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
@@ -23,12 +22,16 @@
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_fb.h"
 #include "intel_fixed.h"
 #include "intel_flipq.h"
 #include "intel_pcode.h"
 #include "intel_plane.h"
+#include "intel_vblank.h"
 #include "intel_wm.h"
+#include "skl_prefill.h"
+#include "skl_scaler.h"
 #include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
@@ -632,15 +635,22 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_plane *plane = to_intel_plane(crtc_state->uapi.crtc->cursor);
+	const struct drm_mode_config *mode_config = &display->drm->mode_config;
+	const struct drm_format_info *info;
 	struct skl_wm_level wm = {};
 	int ret, min_ddb_alloc = 0;
 	struct skl_wm_params wp;
+	u64 modifier;
+	u32 format;
 	int level;
 
-	ret = skl_compute_wm_params(crtc_state, 256,
-				    drm_format_info(DRM_FORMAT_ARGB8888),
-				    DRM_FORMAT_MOD_LINEAR,
-				    DRM_MODE_ROTATE_0,
+	format = DRM_FORMAT_ARGB8888;
+	modifier = DRM_FORMAT_MOD_LINEAR;
+
+	info  = drm_get_format_info(display->drm, format, modifier);
+
+	ret = skl_compute_wm_params(crtc_state, mode_config->cursor_width,
+				    info, modifier, DRM_MODE_ROTATE_0,
 				    crtc_state->pixel_rate, &wp, 0, 0);
 	drm_WARN_ON(display->drm, ret);
 
@@ -1636,26 +1646,11 @@ skl_wm_method2(u32 pixel_rate, u32 pipe_htotal, u32 latency,
 	return ret;
 }
 
-static uint_fixed_16_16_t
-intel_get_linetime_us(const struct intel_crtc_state *crtc_state)
+static int skl_wm_linetime_us(const struct intel_crtc_state *crtc_state,
+			      int pixel_rate)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-	u32 pixel_rate;
-	u32 crtc_htotal;
-	uint_fixed_16_16_t linetime_us;
-
-	if (!crtc_state->hw.active)
-		return u32_to_fixed16(0);
-
-	pixel_rate = crtc_state->pixel_rate;
-
-	if (drm_WARN_ON(display->drm, pixel_rate == 0))
-		return u32_to_fixed16(0);
-
-	crtc_htotal = crtc_state->hw.pipe_mode.crtc_htotal;
-	linetime_us = div_fixed16(crtc_htotal * 1000, pixel_rate);
-
-	return linetime_us;
+	return DIV_ROUND_UP(crtc_state->hw.pipe_mode.crtc_htotal * 1000,
+			    pixel_rate);
 }
 
 static int
@@ -1743,7 +1738,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 	wp->y_tile_minimum = mul_u32_fixed16(wp->y_min_scanlines,
 					     wp->plane_blocks_per_line);
 
-	wp->linetime_us = fixed16_to_u32_round_up(intel_get_linetime_us(crtc_state));
+	wp->linetime_us = skl_wm_linetime_us(crtc_state, plane_pixel_rate);
 
 	return 0;
 }
@@ -1824,6 +1819,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 
 	if (wp->y_tiled) {
 		selected_result = max_fixed16(method2, wp->y_tile_minimum);
+	} else if (DISPLAY_VER(display) >= 35) {
+		selected_result = method2;
 	} else {
 		if ((wp->cpp * crtc_state->hw.pipe_mode.crtc_htotal /
 		     wp->dbuf_block_size < 1) &&
@@ -1878,17 +1875,20 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 			} else {
 				blocks++;
 			}
-
-			/*
-			 * Make sure result blocks for higher latency levels are
-			 * at least as high as level below the current level.
-			 * Assumption in DDB algorithm optimization for special
-			 * cases. Also covers Display WA #1125 for RC.
-			 */
-			if (result_prev->blocks > blocks)
-				blocks = result_prev->blocks;
 		}
 	}
+
+	/*
+	 * Make sure result blocks for higher latency levels are
+	 * at least as high as level below the current level.
+	 * Assumption in DDB algorithm optimization for special
+	 * cases. Also covers Display WA #1125 for RC.
+	 *
+	 * Let's always do this as the algorithm can give non
+	 * monotonic results on any platform.
+	 */
+	blocks = max_t(u32, blocks, result_prev->blocks);
+	lines = max_t(u32, lines, result_prev->lines);
 
 	if (DISPLAY_VER(display) >= 11) {
 		if (wp->y_tiled) {
@@ -2157,103 +2157,55 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static int
-cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
+unsigned int skl_wm0_prefill_lines_worst(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(crtc_state->uapi.state);
-	const struct intel_cdclk_state *cdclk_state;
+	struct intel_plane *plane = to_intel_plane(crtc_state->uapi.crtc->primary);
+	const struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
+	int ret, pixel_rate, width, level = 0;
+	const struct drm_format_info *info;
+	struct skl_wm_level wm = {};
+	struct skl_wm_params wp;
+	unsigned int latency;
+	u64 modifier;
+	u32 format;
 
-	cdclk_state = intel_atomic_get_cdclk_state(state);
-	if (IS_ERR(cdclk_state)) {
-		drm_WARN_ON(display->drm, PTR_ERR(cdclk_state));
-		return 1;
-	}
+	/* only expected to be used for VRR guardband calculation */
+	drm_WARN_ON(display->drm, !HAS_VRR(display));
 
-	return min(1, DIV_ROUND_UP(crtc_state->pixel_rate,
-				   2 * intel_cdclk_logical(cdclk_state)));
-}
+	/* FIXME rather ugly to pick this by hand but maybe no better way? */
+	format = DRM_FORMAT_XBGR16161616F;
+	if (HAS_4TILE(display))
+		modifier = I915_FORMAT_MOD_4_TILED;
+	else
+		modifier = I915_FORMAT_MOD_Y_TILED;
 
-static int
-dsc_prefill_latency(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	const struct intel_crtc_scaler_state *scaler_state =
-					&crtc_state->scaler_state;
-	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
-				    crtc_state->hw.adjusted_mode.clock);
-	int num_scaler_users = hweight32(scaler_state->scaler_users);
-	int chroma_downscaling_factor =
-		crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
-	u32 dsc_prefill_latency = 0;
+	info = drm_get_format_info(display->drm, format, modifier);
 
-	if (!crtc_state->dsc.compression_enable ||
-	    !num_scaler_users ||
-	    num_scaler_users > crtc->num_scalers)
-		return dsc_prefill_latency;
+	pixel_rate = DIV_ROUND_UP_ULL(mul_u32_u32(skl_scaler_max_total_scale(crtc_state),
+						  pipe_mode->crtc_clock),
+				      0x10000);
 
-	dsc_prefill_latency = DIV_ROUND_UP(15 * linetime * chroma_downscaling_factor, 10);
+	/* FIXME limit to max plane width? */
+	width = DIV_ROUND_UP_ULL(mul_u32_u32(skl_scaler_max_hscale(crtc_state),
+					     pipe_mode->crtc_hdisplay),
+				 0x10000);
 
-	for (int i = 0; i < num_scaler_users; i++) {
-		u64 hscale_k, vscale_k;
+	/* FIXME is 90/270 rotation worse than 0/180? */
+	ret = skl_compute_wm_params(crtc_state, width, info,
+				    modifier, DRM_MODE_ROTATE_0,
+				    pixel_rate, &wp, 0, 1);
+	drm_WARN_ON(display->drm, ret);
 
-		hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].hscale, 1000) >> 16);
-		vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[i].vscale, 1000) >> 16);
-		dsc_prefill_latency = DIV_ROUND_UP_ULL(dsc_prefill_latency * hscale_k * vscale_k,
-						       1000000);
-	}
+	latency = skl_wm_latency(display, level, &wp);
 
-	dsc_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
+	skl_compute_plane_wm(crtc_state, plane, level, latency, &wp, &wm, &wm);
 
-	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, dsc_prefill_latency);
-}
+	/* FIXME is this sane? */
+	if (wm.min_ddb_alloc == U16_MAX)
+		wm.lines = skl_wm_max_lines(display);
 
-static int
-scaler_prefill_latency(const struct intel_crtc_state *crtc_state)
-{
-	const struct intel_crtc_scaler_state *scaler_state =
-					&crtc_state->scaler_state;
-	int num_scaler_users = hweight32(scaler_state->scaler_users);
-	int scaler_prefill_latency = 0;
-	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
-				    crtc_state->hw.adjusted_mode.clock);
-
-	if (!num_scaler_users)
-		return scaler_prefill_latency;
-
-	scaler_prefill_latency = 4 * linetime;
-
-	if (num_scaler_users > 1) {
-		u64 hscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].hscale, 1000) >> 16);
-		u64 vscale_k = max(1000, mul_u32_u32(scaler_state->scalers[0].vscale, 1000) >> 16);
-		int chroma_downscaling_factor =
-			crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
-		int latency;
-
-		latency = DIV_ROUND_UP_ULL((4 * linetime * hscale_k * vscale_k *
-					    chroma_downscaling_factor), 1000000);
-		scaler_prefill_latency += latency;
-	}
-
-	scaler_prefill_latency *= cdclk_prefill_adjustment(crtc_state);
-
-	return intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, scaler_prefill_latency);
-}
-
-static bool
-skl_is_vblank_too_short(const struct intel_crtc_state *crtc_state,
-			int wm0_lines, int latency)
-{
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
-	return crtc_state->framestart_delay +
-		intel_usecs_to_scanlines(adjusted_mode, latency) +
-		scaler_prefill_latency(crtc_state) +
-		dsc_prefill_latency(crtc_state) +
-		wm0_lines >
-		adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vblank_start;
+	return wm.lines << 16;
 }
 
 static int skl_max_wm0_lines(const struct intel_crtc_state *crtc_state)
@@ -2272,15 +2224,21 @@ static int skl_max_wm0_lines(const struct intel_crtc_state *crtc_state)
 	return wm0_lines;
 }
 
+unsigned int skl_wm0_prefill_lines(const struct intel_crtc_state *crtc_state)
+{
+	return skl_max_wm0_lines(crtc_state) << 16;
+}
+
 /*
  * TODO: In case we use PKG_C_LATENCY to allow C-states when the delayed vblank
  * size is too small for the package C exit latency we need to notify PSR about
  * the scenario to apply Wa_16025596647.
  */
 static int skl_max_wm_level_for_vblank(struct intel_crtc_state *crtc_state,
-				       int wm0_lines)
+				       const struct skl_prefill_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	int level;
 
 	for (level = display->wm.num_levels - 1; level >= 0; level--) {
@@ -2295,9 +2253,12 @@ static int skl_max_wm_level_for_vblank(struct intel_crtc_state *crtc_state,
 		if (level == 0)
 			latency = 0;
 
-		if (!skl_is_vblank_too_short(crtc_state, wm0_lines, latency))
+		if (!skl_prefill_vblank_too_short(ctx, crtc_state, latency))
 			return level;
 	}
+
+	drm_dbg_kms(display->drm, "[CRTC:%d:%s] Not enough time in vblank for prefill\n",
+		    crtc->base.base.id, crtc->base.name);
 
 	return -EINVAL;
 }
@@ -2306,14 +2267,15 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	int wm0_lines, level;
+	struct skl_prefill_ctx ctx;
+	int level;
 
 	if (!crtc_state->hw.active)
 		return 0;
 
-	wm0_lines = skl_max_wm0_lines(crtc_state);
+	skl_prefill_init(&ctx, crtc_state);
 
-	level = skl_max_wm_level_for_vblank(crtc_state, wm0_lines);
+	level = skl_max_wm_level_for_vblank(crtc_state, &ctx);
 	if (level < 0)
 		return level;
 
@@ -2322,6 +2284,13 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 	 * based on whether we're limited by the vblank duration.
 	 */
 	crtc_state->wm_level_disabled = level < display->wm.num_levels - 1;
+
+	/*
+	 * TODO: assert that we are in fact using the maximum guardband
+	 * if we end up disabling any WM levels here. Otherwise we clearly
+	 * failed in using a realistic worst case prefill estimate when
+	 * determining the guardband size.
+	 */
 
 	for (level++; level < display->wm.num_levels; level++) {
 		enum plane_id plane_id;
@@ -2341,8 +2310,8 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(display) >= 12 &&
 	    display->sagv.block_time_us &&
-	    skl_is_vblank_too_short(crtc_state, wm0_lines,
-				    display->sagv.block_time_us)) {
+	    skl_prefill_vblank_too_short(&ctx, crtc_state,
+					 display->sagv.block_time_us)) {
 		enum plane_id plane_id;
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
@@ -3174,12 +3143,60 @@ void skl_watermark_ipc_init(struct intel_display *display)
 	skl_watermark_ipc_update(display);
 }
 
-static void
-adjust_wm_latency(struct intel_display *display,
-		  u16 wm[], int num_levels, int read_latency)
+static void multiply_wm_latency(struct intel_display *display, int mult)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	for (level = 0; level < num_levels; level++)
+		wm[level] *= mult;
+}
+
+static void increase_wm_latency(struct intel_display *display, int inc)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	wm[0] += inc;
+
+	for (level = 1; level < num_levels; level++) {
+		if (wm[level] == 0)
+			break;
+
+		wm[level] += inc;
+	}
+}
+
+static bool need_16gb_dimm_wa(struct intel_display *display)
 {
 	const struct dram_info *dram_info = intel_dram_info(display->drm);
-	int i, level;
+
+	return (display->platform.skylake || display->platform.kabylake ||
+		display->platform.coffeelake || display->platform.cometlake ||
+		DISPLAY_VER(display) == 11) && dram_info->has_16gb_dimms;
+}
+
+static int wm_read_latency(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) >= 14)
+		return 6;
+	else if (DISPLAY_VER(display) >= 12)
+		return 3;
+	else
+		return 2;
+}
+
+static void sanitize_wm_latency(struct intel_display *display)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	/*
+	 * Xe3p and beyond should ignore level 0's reported latency and
+	 * always apply WaWmMemoryReadLatency logic.
+	 */
+	if (DISPLAY_VER(display) >= 35)
+		wm[0] = 0;
 
 	/*
 	 * If a level n (n > 1) has a 0us latency, all levels m (m >= n)
@@ -3187,14 +3204,38 @@ adjust_wm_latency(struct intel_display *display,
 	 * of the punit to satisfy this requirement.
 	 */
 	for (level = 1; level < num_levels; level++) {
-		if (wm[level] == 0) {
-			for (i = level + 1; i < num_levels; i++)
-				wm[i] = 0;
-
-			num_levels = level;
+		if (wm[level] == 0)
 			break;
-		}
 	}
+
+	for (level = level + 1; level < num_levels; level++)
+		wm[level] = 0;
+}
+
+static void make_wm_latency_monotonic(struct intel_display *display)
+{
+	u16 *wm = display->wm.skl_latency;
+	int level, num_levels = display->wm.num_levels;
+
+	for (level = 1; level < num_levels; level++) {
+		if (wm[level] == 0)
+			break;
+
+		wm[level] = max(wm[level], wm[level-1]);
+	}
+}
+
+static void
+adjust_wm_latency(struct intel_display *display)
+{
+	u16 *wm = display->wm.skl_latency;
+
+	if (display->platform.dg2)
+		multiply_wm_latency(display, 2);
+
+	sanitize_wm_latency(display);
+
+	make_wm_latency_monotonic(display);
 
 	/*
 	 * WaWmMemoryReadLatency
@@ -3203,24 +3244,22 @@ adjust_wm_latency(struct intel_display *display,
 	 * to add proper adjustment to each valid level we retrieve
 	 * from the punit when level 0 response data is 0us.
 	 */
-	if (wm[0] == 0) {
-		for (level = 0; level < num_levels; level++)
-			wm[level] += read_latency;
-	}
+	if (wm[0] == 0)
+		increase_wm_latency(display, wm_read_latency(display));
 
 	/*
-	 * WA Level-0 adjustment for 16Gb DIMMs: SKL+
+	 * WA Level-0 adjustment for 16Gb+ DIMMs: SKL+
 	 * If we could not get dimm info enable this WA to prevent from
-	 * any underrun. If not able to get DIMM info assume 16Gb DIMM
+	 * any underrun. If not able to get DIMM info assume 16Gb+ DIMM
 	 * to avoid any underrun.
 	 */
-	if (!display->platform.dg2 && dram_info->has_16gb_dimms)
-		wm[0] += 1;
+	if (need_16gb_dimm_wa(display))
+		increase_wm_latency(display, 1);
 }
 
-static void mtl_read_wm_latency(struct intel_display *display, u16 wm[])
+static void mtl_read_wm_latency(struct intel_display *display)
 {
-	int num_levels = display->wm.num_levels;
+	u16 *wm = display->wm.skl_latency;
 	u32 val;
 
 	val = intel_de_read(display, MTL_LATENCY_LP0_LP1);
@@ -3234,15 +3273,11 @@ static void mtl_read_wm_latency(struct intel_display *display, u16 wm[])
 	val = intel_de_read(display, MTL_LATENCY_LP4_LP5);
 	wm[4] = REG_FIELD_GET(MTL_LATENCY_LEVEL_EVEN_MASK, val);
 	wm[5] = REG_FIELD_GET(MTL_LATENCY_LEVEL_ODD_MASK, val);
-
-	adjust_wm_latency(display, wm, num_levels, 6);
 }
 
-static void skl_read_wm_latency(struct intel_display *display, u16 wm[])
+static void skl_read_wm_latency(struct intel_display *display)
 {
-	int num_levels = display->wm.num_levels;
-	int read_latency = DISPLAY_VER(display) >= 12 ? 3 : 2;
-	int mult = display->platform.dg2 ? 2 : 1;
+	u16 *wm = display->wm.skl_latency;
 	u32 val;
 	int ret;
 
@@ -3254,10 +3289,10 @@ static void skl_read_wm_latency(struct intel_display *display, u16 wm[])
 		return;
 	}
 
-	wm[0] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
-	wm[1] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
-	wm[2] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
-	wm[3] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
+	wm[0] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val);
+	wm[1] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val);
+	wm[2] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val);
+	wm[3] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val);
 
 	/* read the second set of memory latencies[4:7] */
 	val = 1; /* data0 to be programmed to 1 for second set */
@@ -3267,12 +3302,10 @@ static void skl_read_wm_latency(struct intel_display *display, u16 wm[])
 		return;
 	}
 
-	wm[4] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val) * mult;
-	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val) * mult;
-	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val) * mult;
-	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val) * mult;
-
-	adjust_wm_latency(display, wm, num_levels, read_latency);
+	wm[4] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_0_4_MASK, val);
+	wm[5] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_1_5_MASK, val);
+	wm[6] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_2_6_MASK, val);
+	wm[7] = REG_FIELD_GET(GEN9_MEM_LATENCY_LEVEL_3_7_MASK, val);
 }
 
 static void skl_setup_wm_latency(struct intel_display *display)
@@ -3283,11 +3316,15 @@ static void skl_setup_wm_latency(struct intel_display *display)
 		display->wm.num_levels = 8;
 
 	if (DISPLAY_VER(display) >= 14)
-		mtl_read_wm_latency(display, display->wm.skl_latency);
+		mtl_read_wm_latency(display);
 	else
-		skl_read_wm_latency(display, display->wm.skl_latency);
+		skl_read_wm_latency(display);
 
-	intel_print_wm_latency(display, "Gen9 Plane", display->wm.skl_latency);
+	intel_print_wm_latency(display, "original", display->wm.skl_latency);
+
+	adjust_wm_latency(display);
+
+	intel_print_wm_latency(display, "adjusted", display->wm.skl_latency);
 }
 
 static struct intel_global_state *intel_dbuf_duplicate_state(struct intel_global_obj *obj)
@@ -3456,7 +3493,10 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 	if (!HAS_MBUS_JOINING(display))
 		return;
 
-	if (DISPLAY_VER(display) >= 20)
+	if (DISPLAY_VER(display) >= 35)
+		intel_de_rmw(display, MBUS_CTL, XE3P_MBUS_TRANSLATION_THROTTLE_MIN_MASK,
+			     XE3P_MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
+	else if (DISPLAY_VER(display) >= 20)
 		intel_de_rmw(display, MBUS_CTL, MBUS_TRANSLATION_THROTTLE_MIN_MASK,
 			     MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
 
@@ -3467,9 +3507,14 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct intel_display *display,
 		    ratio, str_yes_no(joined_mbus));
 
 	for_each_dbuf_slice(display, slice)
-		intel_de_rmw(display, DBUF_CTL_S(slice),
-			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
-			     DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
+		if (DISPLAY_VER(display) >= 35)
+			intel_de_rmw(display, DBUF_CTL_S(slice),
+				     XE3P_DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+				     XE3P_DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
+		else
+			intel_de_rmw(display, DBUF_CTL_S(slice),
+				     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
+				     DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
 }
 
 static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state)

@@ -245,11 +245,6 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev, struct scatterlist *sgl,
 	}
 
 	curr_hw_sgl = acc_get_sgl(pool, index, &curr_sgl_dma);
-	if (IS_ERR(curr_hw_sgl)) {
-		dev_err(dev, "Get SGL error!\n");
-		ret = -ENOMEM;
-		goto err_unmap;
-	}
 	curr_hw_sgl->entry_length_in_sgl = cpu_to_le16(pool->sge_nr);
 	curr_hw_sge = curr_hw_sgl->sge_entries;
 

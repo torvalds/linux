@@ -691,6 +691,13 @@ static void pwr_island_delay_set(struct ivpu_device *vdev)
 		status = high ? 46 : 3;
 		break;
 
+	case PCI_DEVICE_ID_NVL:
+		post = high ? 198 : 17;
+		post1 = 0;
+		post2 = high ? 198 : 17;
+		status = 0;
+		break;
+
 	default:
 		dump_stack();
 		ivpu_err(vdev, "Unknown device ID\n");
@@ -889,6 +896,9 @@ static int soc_cpu_drive_40xx(struct ivpu_device *vdev, bool enable)
 
 static int soc_cpu_enable(struct ivpu_device *vdev)
 {
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_60XX)
+		return 0;
+
 	return soc_cpu_drive_40xx(vdev, true);
 }
 

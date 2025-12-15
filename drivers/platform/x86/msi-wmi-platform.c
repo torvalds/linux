@@ -14,6 +14,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/device/driver.h>
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/hwmon.h>
 #include <linux/kernel.h>
@@ -28,7 +29,7 @@
 
 #define DRIVER_NAME	"msi-wmi-platform"
 
-#define MSI_PLATFORM_GUID	"ABBC0F6E-8EA1-11d1-00A0-C90629100000"
+#define MSI_PLATFORM_GUID	"ABBC0F6E-8EA1-11D1-00A0-C90629100000"
 
 #define MSI_WMI_PLATFORM_INTERFACE_VERSION	2
 
@@ -448,7 +449,45 @@ static struct wmi_driver msi_wmi_platform_driver = {
 	.probe = msi_wmi_platform_probe,
 	.no_singleton = true,
 };
-module_wmi_driver(msi_wmi_platform_driver);
+
+/*
+ * MSI reused the WMI GUID from the WMI-ACPI sample code provided by Microsoft,
+ * so other manufacturers might use it as well for their WMI-ACPI implementations.
+ */
+static const struct dmi_system_id msi_wmi_platform_whitelist[] __initconst = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+		},
+	},
+	{ }
+};
+
+static int __init msi_wmi_platform_module_init(void)
+{
+	if (!dmi_check_system(msi_wmi_platform_whitelist)) {
+		if (!force)
+			return -ENODEV;
+
+		pr_warn("Ignoring DMI whitelist\n");
+	}
+
+	return wmi_driver_register(&msi_wmi_platform_driver);
+}
+
+static void __exit msi_wmi_platform_module_exit(void)
+{
+	wmi_driver_unregister(&msi_wmi_platform_driver);
+}
+
+module_init(msi_wmi_platform_module_init);
+module_exit(msi_wmi_platform_module_exit);
+
 
 MODULE_AUTHOR("Armin Wolf <W_Armin@gmx.de>");
 MODULE_DESCRIPTION("MSI WMI platform features");

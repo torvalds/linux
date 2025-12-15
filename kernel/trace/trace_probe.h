@@ -578,10 +578,12 @@ struct trace_probe_log {
 	int		index;
 };
 
-void trace_probe_log_init(const char *subsystem, int argc, const char **argv);
+const char *trace_probe_log_init(const char *subsystem, int argc, const char **argv);
 void trace_probe_log_set_index(int index);
 void trace_probe_log_clear(void);
 void __trace_probe_log_err(int offset, int err);
+
+DEFINE_FREE(trace_probe_log_clear, const char *, if (_T) trace_probe_log_clear())
 
 #define trace_probe_log_err(offs, err)	\
 	__trace_probe_log_err(offs, TP_ERR_##err)

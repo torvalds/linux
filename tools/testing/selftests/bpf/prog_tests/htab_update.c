@@ -15,17 +15,17 @@ struct htab_update_ctx {
 static void test_reenter_update(void)
 {
 	struct htab_update *skel;
-	unsigned int key, value;
+	void *value = NULL;
+	unsigned int key, value_size;
 	int err;
 
 	skel = htab_update__open();
 	if (!ASSERT_OK_PTR(skel, "htab_update__open"))
 		return;
 
-	/* lookup_elem_raw() may be inlined and find_kernel_btf_id() will return -ESRCH */
-	bpf_program__set_autoload(skel->progs.lookup_elem_raw, true);
+	bpf_program__set_autoload(skel->progs.bpf_obj_free_fields, true);
 	err = htab_update__load(skel);
-	if (!ASSERT_TRUE(!err || err == -ESRCH, "htab_update__load") || err)
+	if (!ASSERT_TRUE(!err, "htab_update__load") || err)
 		goto out;
 
 	skel->bss->pid = getpid();
@@ -33,14 +33,33 @@ static void test_reenter_update(void)
 	if (!ASSERT_OK(err, "htab_update__attach"))
 		goto out;
 
-	/* Will trigger the reentrancy of bpf_map_update_elem() */
+	value_size = bpf_map__value_size(skel->maps.htab);
+
+	value = calloc(1, value_size);
+	if (!ASSERT_OK_PTR(value, "calloc value"))
+		goto out;
+	/*
+	 * First update: plain insert. This should NOT trigger the re-entrancy
+	 * path, because there is no old element to free yet.
+	 */
 	key = 0;
-	value = 0;
-	err = bpf_map_update_elem(bpf_map__fd(skel->maps.htab), &key, &value, 0);
-	if (!ASSERT_OK(err, "add element"))
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.htab), &key, value, BPF_ANY);
+	if (!ASSERT_OK(err, "first update (insert)"))
 		goto out;
 
-	ASSERT_EQ(skel->bss->update_err, -EBUSY, "no reentrancy");
+	/*
+	 * Second update: replace existing element with same key and trigger
+	 * the reentrancy of bpf_map_update_elem().
+	 * check_and_free_fields() calls bpf_obj_free_fields() on the old
+	 * value, which is where fentry program runs and performs a nested
+	 * bpf_map_update_elem(), triggering -EDEADLK.
+	 */
+	memset(value, 0, value_size);
+	err = bpf_map_update_elem(bpf_map__fd(skel->maps.htab), &key, value, BPF_ANY);
+	if (!ASSERT_OK(err, "second update (replace)"))
+		goto out;
+
+	ASSERT_EQ(skel->bss->update_err, -EDEADLK, "no reentrancy");
 out:
 	htab_update__destroy(skel);
 }

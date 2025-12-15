@@ -1293,6 +1293,50 @@ int drm_client_modeset_dpms(struct drm_client_dev *client, int mode)
 }
 EXPORT_SYMBOL(drm_client_modeset_dpms);
 
+/**
+ * drm_client_modeset_wait_for_vblank() - Wait for the next VBLANK to occur
+ * @client: DRM client
+ * @crtc_index: The ndex of the CRTC to wait on
+ *
+ * Block the caller until the given CRTC has seen a VBLANK. Do nothing
+ * if the CRTC is disabled. If there's another DRM master present, fail
+ * with -EBUSY.
+ *
+ * Returns:
+ * 0 on success, or negative error code otherwise.
+ */
+int drm_client_modeset_wait_for_vblank(struct drm_client_dev *client, unsigned int crtc_index)
+{
+	struct drm_device *dev = client->dev;
+	struct drm_crtc *crtc;
+	int ret;
+
+	/*
+	 * Rate-limit update frequency to vblank. If there's a DRM master
+	 * present, it could interfere while we're waiting for the vblank
+	 * event. Don't wait in this case.
+	 */
+	if (!drm_master_internal_acquire(dev))
+		return -EBUSY;
+
+	crtc = client->modesets[crtc_index].crtc;
+
+	/*
+	 * Only wait for a vblank event if the CRTC is enabled, otherwise
+	 * just don't do anything, not even report an error.
+	 */
+	ret = drm_crtc_vblank_get(crtc);
+	if (!ret) {
+		drm_crtc_wait_one_vblank(crtc);
+		drm_crtc_vblank_put(crtc);
+	}
+
+	drm_master_internal_release(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_client_modeset_wait_for_vblank);
+
 #ifdef CONFIG_DRM_KUNIT_TEST
 #include "tests/drm_client_modeset_test.c"
 #endif

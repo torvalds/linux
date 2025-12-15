@@ -30,6 +30,7 @@
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"

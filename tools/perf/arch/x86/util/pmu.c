@@ -273,7 +273,6 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 {
 	struct perf_pmu_caps *ldlat_cap;
 
-#ifdef HAVE_AUXTRACE_SUPPORT
 	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
 		pmu->auxtrace = true;
 		pmu->selectable = true;
@@ -283,7 +282,6 @@ void perf_pmu__arch_init(struct perf_pmu *pmu)
 		pmu->auxtrace = true;
 		pmu->selectable = true;
 	}
-#endif
 
 	if (x86__is_amd_cpu()) {
 		if (strcmp(pmu->name, "ibs_op"))

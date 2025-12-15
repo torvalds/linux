@@ -705,7 +705,7 @@ static void aw88261_start(struct aw88261 *aw88261, bool sync_start)
 	if (sync_start == AW88261_SYNC_START)
 		aw88261_start_pa(aw88261);
 	else
-		queue_delayed_work(system_wq,
+		queue_delayed_work(system_dfl_wq,
 			&aw88261->start_work,
 			AW88261_START_WORK_DELAY_MS);
 }
@@ -734,7 +734,7 @@ static struct snd_soc_dai_driver aw88261_dai[] = {
 static int aw88261_get_fade_in_time(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	struct aw_device *aw_dev = aw88261->aw_pa;
 
@@ -746,7 +746,7 @@ static int aw88261_get_fade_in_time(struct snd_kcontrol *kcontrol,
 static int aw88261_set_fade_in_time(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -769,7 +769,7 @@ static int aw88261_set_fade_in_time(struct snd_kcontrol *kcontrol,
 static int aw88261_get_fade_out_time(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	struct aw_device *aw_dev = aw88261->aw_pa;
 
@@ -781,7 +781,7 @@ static int aw88261_get_fade_out_time(struct snd_kcontrol *kcontrol,
 static int aw88261_set_fade_out_time(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -817,7 +817,7 @@ static int aw88261_dev_set_profile_index(struct aw_device *aw_dev, int index)
 static int aw88261_profile_info(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 	char *prof_name;
 	int count, ret;
@@ -852,7 +852,7 @@ static int aw88261_profile_info(struct snd_kcontrol *kcontrol,
 static int aw88261_profile_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = aw88261->aw_pa->prof_index;
@@ -863,7 +863,7 @@ static int aw88261_profile_get(struct snd_kcontrol *kcontrol,
 static int aw88261_profile_set(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 	int ret;
 
@@ -889,7 +889,7 @@ static int aw88261_profile_set(struct snd_kcontrol *kcontrol,
 static int aw88261_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 	struct aw_volume_desc *vol_desc = &aw88261->aw_pa->volume_desc;
 
@@ -901,7 +901,7 @@ static int aw88261_volume_get(struct snd_kcontrol *kcontrol,
 static int aw88261_volume_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 	struct aw_volume_desc *vol_desc = &aw88261->aw_pa->volume_desc;
 	struct soc_mixer_control *mc =
@@ -926,7 +926,7 @@ static int aw88261_volume_set(struct snd_kcontrol *kcontrol,
 static int aw88261_get_fade_step(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.integer.value[0] = aw88261->aw_pa->fade_step;
@@ -937,7 +937,7 @@ static int aw88261_get_fade_step(struct snd_kcontrol *kcontrol,
 static int aw88261_set_fade_step(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(codec);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
@@ -1131,7 +1131,7 @@ static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 
 static int aw88261_codec_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct aw88261 *aw88261 = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -1184,7 +1184,7 @@ static void aw88261_parse_channel_dt(struct aw88261 *aw88261)
 	aw_dev->channel = channel_value;
 }
 
-static int aw88261_init(struct aw88261 **aw88261, struct i2c_client *i2c, struct regmap *regmap)
+static int aw88261_init(struct aw88261 *aw88261, struct i2c_client *i2c, struct regmap *regmap)
 {
 	struct aw_device *aw_dev;
 	unsigned int chip_id;
@@ -1207,7 +1207,7 @@ static int aw88261_init(struct aw88261 **aw88261, struct i2c_client *i2c, struct
 	if (!aw_dev)
 		return -ENOMEM;
 
-	(*aw88261)->aw_pa = aw_dev;
+	aw88261->aw_pa = aw_dev;
 	aw_dev->i2c = i2c;
 	aw_dev->regmap = regmap;
 	aw_dev->dev = &i2c->dev;
@@ -1221,7 +1221,7 @@ static int aw88261_init(struct aw88261 **aw88261, struct i2c_client *i2c, struct
 	aw_dev->fade_step = AW88261_VOLUME_STEP_DB;
 	aw_dev->volume_desc.ctl_volume = AW88261_VOL_DEFAULT_VALUE;
 	aw_dev->volume_desc.mute_volume = AW88261_MUTE_VOL;
-	aw88261_parse_channel_dt(*aw88261);
+	aw88261_parse_channel_dt(aw88261);
 
 	return ret;
 }
@@ -1250,7 +1250,7 @@ static int aw88261_i2c_probe(struct i2c_client *i2c)
 	}
 
 	/* aw pa init */
-	ret = aw88261_init(&aw88261, i2c, aw88261->regmap);
+	ret = aw88261_init(aw88261, i2c, aw88261->regmap);
 	if (ret)
 		return ret;
 

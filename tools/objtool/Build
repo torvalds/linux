@@ -8,13 +8,17 @@ objtool-y += builtin-check.o
 objtool-y += elf.o
 objtool-y += objtool.o
 
-objtool-$(BUILD_ORC) += orc_gen.o
-objtool-$(BUILD_ORC) += orc_dump.o
+objtool-$(BUILD_DISAS) += disas.o
+objtool-$(BUILD_DISAS) += trace.o
+
+objtool-$(BUILD_ORC) += orc_gen.o orc_dump.o
+objtool-$(BUILD_KLP) += builtin-klp.o klp-diff.o klp-post-link.o
 
 objtool-y += libstring.o
 objtool-y += libctype.o
 objtool-y += str_error_r.o
 objtool-y += librbtree.o
+objtool-y += signal.o
 
 $(OUTPUT)libstring.o: ../lib/string.c FORCE
 	$(call rule_mkdir)

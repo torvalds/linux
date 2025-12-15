@@ -22,12 +22,44 @@
 
 static unsigned int queue_depth = 32;
 static unsigned int nr_hw_queues = 4;
+static void dasd_gd_free(struct gendisk *gdp);
 
 module_param(queue_depth, uint, 0444);
 MODULE_PARM_DESC(queue_depth, "Default queue depth for new DASD devices");
 
 module_param(nr_hw_queues, uint, 0444);
 MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD devices");
+
+/*
+ * Set device name.
+ *   dasda - dasdz : 26 devices
+ *   dasdaa - dasdzz : 676 devices, added up = 702
+ *   dasdaaa - dasdzzz : 17576 devices, added up = 18278
+ *   dasdaaaa - dasdzzzz : 456976 devices, added up = 475252
+ */
+static int dasd_name_format(char *prefix, int index, char *buf, int buflen)
+{
+	const int base = 'z' - 'a' + 1;
+	char *begin = buf + strlen(prefix);
+	char *end = buf + buflen;
+	char *p;
+	int unit;
+
+	p = end - 1;
+	*p = '\0';
+	unit = base;
+	do {
+		if (p == begin)
+			return -EINVAL;
+		*--p = 'a' + (index % unit);
+		index = (index / unit) - 1;
+	} while (index >= 0);
+
+	memmove(begin, p, end - p);
+	memcpy(buf, prefix, strlen(prefix));
+
+	return 0;
+}
 
 /*
  * Allocate and register gendisk structure for device.
@@ -45,11 +77,13 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	};
 	struct gendisk *gdp;
 	struct dasd_device *base;
-	int len, rc;
+	unsigned int devindex;
+	int rc;
 
 	/* Make sure the minor for this device exists. */
 	base = block->base;
-	if (base->devindex >= DASD_PER_MAJOR)
+	devindex = base->devindex;
+	if (devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
 
 	block->tag_set.ops = &dasd_mq_ops;
@@ -69,31 +103,17 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
-	gdp->first_minor = base->devindex << DASD_PARTN_BITS;
+	gdp->first_minor = devindex << DASD_PARTN_BITS;
 	gdp->minors = 1 << DASD_PARTN_BITS;
 	gdp->fops = &dasd_device_operations;
 
-	/*
-	 * Set device name.
-	 *   dasda - dasdz : 26 devices
-	 *   dasdaa - dasdzz : 676 devices, added up = 702
-	 *   dasdaaa - dasdzzz : 17576 devices, added up = 18278
-	 *   dasdaaaa - dasdzzzz : 456976 devices, added up = 475252
-	 */
-	len = sprintf(gdp->disk_name, "dasd");
-	if (base->devindex > 25) {
-		if (base->devindex > 701) {
-			if (base->devindex > 18277)
-			        len += sprintf(gdp->disk_name + len, "%c",
-					       'a'+(((base->devindex-18278)
-						     /17576)%26));
-			len += sprintf(gdp->disk_name + len, "%c",
-				       'a'+(((base->devindex-702)/676)%26));
-		}
-		len += sprintf(gdp->disk_name + len, "%c",
-			       'a'+(((base->devindex-26)/26)%26));
+	rc = dasd_name_format("dasd", devindex, gdp->disk_name, sizeof(gdp->disk_name));
+	if (rc) {
+		DBF_DEV_EVENT(DBF_ERR, block->base,
+			      "setting disk name failed, rc %d", rc);
+		dasd_gd_free(gdp);
+		return rc;
 	}
-	len += sprintf(gdp->disk_name + len, "%c", 'a'+(base->devindex%26));
 
 	if (base->features & DASD_FEATURE_READONLY ||
 	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags))
@@ -112,14 +132,22 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 }
 
 /*
+ * Free gendisk structure
+ */
+static void dasd_gd_free(struct gendisk *gd)
+{
+	del_gendisk(gd);
+	gd->private_data = NULL;
+	put_disk(gd);
+}
+
+/*
  * Unregister and free gendisk structure for device.
  */
 void dasd_gendisk_free(struct dasd_block *block)
 {
 	if (block->gdp) {
-		del_gendisk(block->gdp);
-		block->gdp->private_data = NULL;
-		put_disk(block->gdp);
+		dasd_gd_free(block->gdp);
 		block->gdp = NULL;
 		blk_mq_free_tag_set(&block->tag_set);
 	}

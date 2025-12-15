@@ -1,73 +1,74 @@
 // SPDX-License-Identifier: MIT
 /* Copyright © 2025 Intel Corporation */
 
+#include <drm/intel/display_parent_interface.h>
+
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_pm.h"
 
-static struct xe_device *display_to_xe(struct intel_display *display)
+static struct ref_tracker *xe_display_rpm_get(const struct drm_device *drm)
 {
-	return to_xe_device(display->drm);
+	return xe_pm_runtime_resume_and_get(to_xe_device(drm)) ? INTEL_WAKEREF_DEF : NULL;
 }
 
-struct ref_tracker *intel_display_rpm_get_raw(struct intel_display *display)
+static struct ref_tracker *xe_display_rpm_get_if_in_use(const struct drm_device *drm)
 {
-	return intel_display_rpm_get(display);
+	return xe_pm_runtime_get_if_in_use(to_xe_device(drm)) ? INTEL_WAKEREF_DEF : NULL;
 }
 
-void intel_display_rpm_put_raw(struct intel_display *display, struct ref_tracker *wakeref)
+static struct ref_tracker *xe_display_rpm_get_noresume(const struct drm_device *drm)
 {
-	intel_display_rpm_put(display, wakeref);
-}
-
-struct ref_tracker *intel_display_rpm_get(struct intel_display *display)
-{
-	return xe_pm_runtime_resume_and_get(display_to_xe(display)) ? INTEL_WAKEREF_DEF : NULL;
-}
-
-struct ref_tracker *intel_display_rpm_get_if_in_use(struct intel_display *display)
-{
-	return xe_pm_runtime_get_if_in_use(display_to_xe(display)) ? INTEL_WAKEREF_DEF : NULL;
-}
-
-struct ref_tracker *intel_display_rpm_get_noresume(struct intel_display *display)
-{
-	xe_pm_runtime_get_noresume(display_to_xe(display));
+	xe_pm_runtime_get_noresume(to_xe_device(drm));
 
 	return INTEL_WAKEREF_DEF;
 }
 
-void intel_display_rpm_put(struct intel_display *display, struct ref_tracker *wakeref)
+static void xe_display_rpm_put(const struct drm_device *drm, struct ref_tracker *wakeref)
 {
 	if (wakeref)
-		xe_pm_runtime_put(display_to_xe(display));
+		xe_pm_runtime_put(to_xe_device(drm));
 }
 
-void intel_display_rpm_put_unchecked(struct intel_display *display)
+static void xe_display_rpm_put_unchecked(const struct drm_device *drm)
 {
-	xe_pm_runtime_put(display_to_xe(display));
+	xe_pm_runtime_put(to_xe_device(drm));
 }
 
-bool intel_display_rpm_suspended(struct intel_display *display)
+static bool xe_display_rpm_suspended(const struct drm_device *drm)
 {
-	struct xe_device *xe = display_to_xe(display);
+	struct xe_device *xe = to_xe_device(drm);
 
 	return pm_runtime_suspended(xe->drm.dev);
 }
 
-void assert_display_rpm_held(struct intel_display *display)
+static void xe_display_rpm_assert_held(const struct drm_device *drm)
 {
 	/* FIXME */
 }
 
-void intel_display_rpm_assert_block(struct intel_display *display)
+static void xe_display_rpm_assert_block(const struct drm_device *drm)
 {
 	/* FIXME */
 }
 
-void intel_display_rpm_assert_unblock(struct intel_display *display)
+static void xe_display_rpm_assert_unblock(const struct drm_device *drm)
 {
 	/* FIXME */
 }
+
+const struct intel_display_rpm_interface xe_display_rpm_interface = {
+	.get = xe_display_rpm_get,
+	.get_raw = xe_display_rpm_get,
+	.get_if_in_use = xe_display_rpm_get_if_in_use,
+	.get_noresume = xe_display_rpm_get_noresume,
+	.put = xe_display_rpm_put,
+	.put_raw = xe_display_rpm_put,
+	.put_unchecked = xe_display_rpm_put_unchecked,
+	.suspended = xe_display_rpm_suspended,
+	.assert_held = xe_display_rpm_assert_held,
+	.assert_block = xe_display_rpm_assert_block,
+	.assert_unblock = xe_display_rpm_assert_unblock
+};

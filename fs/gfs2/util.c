@@ -58,7 +58,7 @@ int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	struct gfs2_inode *ip;
 
 	ip = GFS2_I(jd->jd_inode);
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_NOEXP |
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_RECOVER |
 				   GL_EXACT | GL_NOCACHE, &j_gh);
 	if (error) {
 		if (verbose)
@@ -99,7 +99,7 @@ out_unlock:
  */
 int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp)
 {
-	int flags = LM_FLAG_NOEXP | GL_EXACT;
+	int flags = LM_FLAG_RECOVER | GL_EXACT;
 	int error;
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
@@ -115,182 +115,32 @@ void gfs2_freeze_unlock(struct gfs2_sbd *sdp)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 }
 
-static void signal_our_withdraw(struct gfs2_sbd *sdp)
+static void do_withdraw(struct gfs2_sbd *sdp)
 {
-	struct gfs2_glock *live_gl = sdp->sd_live_gh.gh_gl;
-	struct inode *inode;
-	struct gfs2_inode *ip;
-	struct gfs2_glock *i_gl;
-	u64 no_formal_ino;
-	int ret = 0;
-	int tries;
-
-	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags) || !sdp->sd_jdesc)
+	down_write(&sdp->sd_log_flush_lock);
+	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
+		up_write(&sdp->sd_log_flush_lock);
 		return;
+	}
+	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
+	up_write(&sdp->sd_log_flush_lock);
 
 	gfs2_ail_drain(sdp); /* frees all transactions */
-	inode = sdp->sd_jdesc->jd_inode;
-	ip = GFS2_I(inode);
-	i_gl = ip->i_gl;
-	no_formal_ino = ip->i_no_formal_ino;
 
-	/* Prevent any glock dq until withdraw recovery is complete */
-	set_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
-	/*
-	 * Don't tell dlm we're bailing until we have no more buffers in the
-	 * wind. If journal had an IO error, the log code should just purge
-	 * the outstanding buffers rather than submitting new IO. Making the
-	 * file system read-only will flush the journal, etc.
-	 *
-	 * During a normal unmount, gfs2_make_fs_ro calls gfs2_log_shutdown
-	 * which clears SDF_JOURNAL_LIVE. In a withdraw, we must not write
-	 * any UNMOUNT log header, so we can't call gfs2_log_shutdown, and
-	 * therefore we need to clear SDF_JOURNAL_LIVE manually.
-	 */
-	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
-	if (!sb_rdonly(sdp->sd_vfs)) {
-		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
+	wake_up(&sdp->sd_logd_waitq);
+	wake_up(&sdp->sd_quota_wait);
 
-		wake_up(&sdp->sd_logd_waitq);
-		wake_up(&sdp->sd_quota_wait);
+	wait_event_timeout(sdp->sd_log_waitq,
+			   gfs2_log_is_empty(sdp),
+			   HZ * 5);
 
-		wait_event_timeout(sdp->sd_log_waitq,
-				   gfs2_log_is_empty(sdp),
-				   HZ * 5);
-
-		sdp->sd_vfs->s_flags |= SB_RDONLY;
-
-		if (locked)
-			mutex_unlock(&sdp->sd_freeze_mutex);
-
-		/*
-		 * Dequeue any pending non-system glock holders that can no
-		 * longer be granted because the file system is withdrawn.
-		 */
-		gfs2_gl_dq_holders(sdp);
-	}
-
-	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
-		if (!ret)
-			ret = -EIO;
-		clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
-		goto skip_recovery;
-	}
-	/*
-	 * Drop the glock for our journal so another node can recover it.
-	 */
-	if (gfs2_holder_initialized(&sdp->sd_journal_gh)) {
-		gfs2_glock_dq_wait(&sdp->sd_journal_gh);
-		gfs2_holder_uninit(&sdp->sd_journal_gh);
-	}
-	sdp->sd_jinode_gh.gh_flags |= GL_NOCACHE;
-	gfs2_glock_dq(&sdp->sd_jinode_gh);
-	gfs2_thaw_freeze_initiator(sdp->sd_vfs);
-	wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE, TASK_UNINTERRUPTIBLE);
+	sdp->sd_vfs->s_flags |= SB_RDONLY;
 
 	/*
-	 * holder_uninit to force glock_put, to force dlm to let go
+	 * Dequeue any pending non-system glock holders that can no
+	 * longer be granted because the file system is withdrawn.
 	 */
-	gfs2_holder_uninit(&sdp->sd_jinode_gh);
-
-	/*
-	 * Note: We need to be careful here:
-	 * Our iput of jd_inode will evict it. The evict will dequeue its
-	 * glock, but the glock dq will wait for the withdraw unless we have
-	 * exception code in glock_dq.
-	 */
-	iput(inode);
-	sdp->sd_jdesc->jd_inode = NULL;
-	/*
-	 * Wait until the journal inode's glock is freed. This allows try locks
-	 * on other nodes to be successful, otherwise we remain the owner of
-	 * the glock as far as dlm is concerned.
-	 */
-	if (i_gl->gl_ops->go_unlocked) {
-		set_bit(GLF_UNLOCKED, &i_gl->gl_flags);
-		wait_on_bit(&i_gl->gl_flags, GLF_UNLOCKED, TASK_UNINTERRUPTIBLE);
-	}
-
-	/*
-	 * Dequeue the "live" glock, but keep a reference so it's never freed.
-	 */
-	gfs2_glock_hold(live_gl);
-	gfs2_glock_dq_wait(&sdp->sd_live_gh);
-	/*
-	 * We enqueue the "live" glock in EX so that all other nodes
-	 * get a demote request and act on it. We don't really want the
-	 * lock in EX, so we send a "try" lock with 1CB to produce a callback.
-	 */
-	fs_warn(sdp, "Requesting recovery of jid %d.\n",
-		sdp->sd_lockstruct.ls_jid);
-	gfs2_holder_reinit(LM_ST_EXCLUSIVE,
-			   LM_FLAG_TRY_1CB | LM_FLAG_NOEXP | GL_NOPID,
-			   &sdp->sd_live_gh);
-	msleep(GL_GLOCK_MAX_HOLD);
-	/*
-	 * This will likely fail in a cluster, but succeed standalone:
-	 */
-	ret = gfs2_glock_nq(&sdp->sd_live_gh);
-
-	gfs2_glock_put(live_gl); /* drop extra reference we acquired */
-	clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
-
-	/*
-	 * If we actually got the "live" lock in EX mode, there are no other
-	 * nodes available to replay our journal.
-	 */
-	if (ret == 0) {
-		fs_warn(sdp, "No other mounters found.\n");
-		/*
-		 * We are about to release the lockspace.  By keeping live_gl
-		 * locked here, we ensure that the next mounter coming along
-		 * will be a "first" mounter which will perform recovery.
-		 */
-		goto skip_recovery;
-	}
-
-	/*
-	 * At this point our journal is evicted, so we need to get a new inode
-	 * for it. Once done, we need to call gfs2_find_jhead which
-	 * calls gfs2_map_journal_extents to map it for us again.
-	 *
-	 * Note that we don't really want it to look up a FREE block. The
-	 * GFS2_BLKST_FREE simply overrides a block check in gfs2_inode_lookup
-	 * which would otherwise fail because it requires grabbing an rgrp
-	 * glock, which would fail with -EIO because we're withdrawing.
-	 */
-	inode = gfs2_inode_lookup(sdp->sd_vfs, DT_UNKNOWN,
-				  sdp->sd_jdesc->jd_no_addr, no_formal_ino,
-				  GFS2_BLKST_FREE);
-	if (IS_ERR(inode)) {
-		fs_warn(sdp, "Reprocessing of jid %d failed with %ld.\n",
-			sdp->sd_lockstruct.ls_jid, PTR_ERR(inode));
-		goto skip_recovery;
-	}
-	sdp->sd_jdesc->jd_inode = inode;
-	d_mark_dontcache(inode);
-
-	/*
-	 * Now wait until recovery is complete.
-	 */
-	for (tries = 0; tries < 10; tries++) {
-		ret = check_journal_clean(sdp, sdp->sd_jdesc, false);
-		if (!ret)
-			break;
-		msleep(HZ);
-		fs_warn(sdp, "Waiting for journal recovery jid %d.\n",
-			sdp->sd_lockstruct.ls_jid);
-	}
-skip_recovery:
-	if (!ret)
-		fs_warn(sdp, "Journal recovery complete for jid %d.\n",
-			sdp->sd_lockstruct.ls_jid);
-	else
-		fs_warn(sdp, "Journal recovery skipped for jid %d until next "
-			"mount.\n", sdp->sd_lockstruct.ls_jid);
-	fs_warn(sdp, "Glock dequeues delayed: %lu\n", sdp->sd_glock_dqs_held);
-	sdp->sd_glock_dqs_held = 0;
-	wake_up_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY);
+	gfs2_withdraw_glocks(sdp);
 }
 
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
@@ -309,43 +159,104 @@ void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...)
 	va_end(args);
 }
 
-void gfs2_withdraw(struct gfs2_sbd *sdp)
+/**
+ * gfs2_offline_uevent - run gfs2_withdraw_helper
+ * @sdp: The GFS2 superblock
+ */
+static bool gfs2_offline_uevent(struct gfs2_sbd *sdp)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
+	long timeout;
+
+	/* Skip protocol "lock_nolock" which doesn't require shared storage. */
+	if (!ls->ls_ops->lm_lock)
+		return false;
+
+	/*
+	 * The gfs2_withdraw_helper replies by writing one of the following
+	 * status codes to "/sys$DEVPATH/lock_module/withdraw":
+	 *
+	 * 0 - The shared block device has been marked inactive.  Future write
+	 *     operations will fail.
+	 *
+	 * 1 - The shared block device may still be active and carry out
+	 *     write operations.
+	 *
+	 * If the "offline" uevent isn't reacted upon in time, the event
+	 * handler is assumed to have failed.
+	 */
+
+	sdp->sd_withdraw_helper_status = -1;
+	kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
+	timeout = gfs2_tune_get(sdp, gt_withdraw_helper_timeout) * HZ;
+	wait_for_completion_timeout(&sdp->sd_withdraw_helper, timeout);
+	if (sdp->sd_withdraw_helper_status == -1) {
+		fs_err(sdp, "%s timed out\n", "gfs2_withdraw_helper");
+	} else {
+		fs_err(sdp, "%s %s with status %d\n",
+		       "gfs2_withdraw_helper",
+		       sdp->sd_withdraw_helper_status == 0 ?
+		       "succeeded" : "failed",
+		       sdp->sd_withdraw_helper_status);
+	}
+	return sdp->sd_withdraw_helper_status == 0;
+}
+
+void gfs2_withdraw_func(struct work_struct *work)
+{
+	struct gfs2_sbd *sdp = container_of(work, struct gfs2_sbd, sd_withdraw_work);
+	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	const struct lm_lockops *lm = ls->ls_ops;
+	bool device_inactive;
 
-	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW) {
-		unsigned long old = READ_ONCE(sdp->sd_flags), new;
+	if (test_bit(SDF_KILL, &sdp->sd_flags))
+		return;
 
-		do {
-			if (old & BIT(SDF_WITHDRAWN)) {
-				wait_on_bit(&sdp->sd_flags,
-					    SDF_WITHDRAW_IN_PROG,
-					    TASK_UNINTERRUPTIBLE);
-				return;
-			}
-			new = old | BIT(SDF_WITHDRAWN) | BIT(SDF_WITHDRAW_IN_PROG);
-		} while (unlikely(!try_cmpxchg(&sdp->sd_flags, &old, new)));
+	BUG_ON(sdp->sd_args.ar_debug);
 
-		fs_err(sdp, "about to withdraw this file system\n");
-		BUG_ON(sdp->sd_args.ar_debug);
+	/*
+	 * Try to deactivate the shared block device so that no more I/O will
+	 * go through.  If successful, we can immediately trigger remote
+	 * recovery.  Otherwise, we must first empty out all our local caches.
+	 */
 
-		signal_our_withdraw(sdp);
+	device_inactive = gfs2_offline_uevent(sdp);
 
-		kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
+	if (sdp->sd_args.ar_errors == GFS2_ERRORS_DEACTIVATE && !device_inactive)
+		panic("GFS2: fsid=%s: panic requested\n", sdp->sd_fsname);
 
-		if (!strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
-			wait_for_completion(&sdp->sd_wdack);
-
-		if (lm->lm_unmount) {
-			fs_err(sdp, "telling LM to unmount\n");
-			lm->lm_unmount(sdp);
+	if (lm->lm_unmount) {
+		if (device_inactive) {
+			lm->lm_unmount(sdp, false);
+			do_withdraw(sdp);
+		} else {
+			do_withdraw(sdp);
+			lm->lm_unmount(sdp, false);
 		}
-		fs_err(sdp, "File system withdrawn\n");
+	} else {
+		do_withdraw(sdp);
+	}
+
+	fs_err(sdp, "file system withdrawn\n");
+}
+
+void gfs2_withdraw(struct gfs2_sbd *sdp)
+{
+	if (sdp->sd_args.ar_errors == GFS2_ERRORS_WITHDRAW ||
+	    sdp->sd_args.ar_errors == GFS2_ERRORS_DEACTIVATE) {
+		if (test_and_set_bit(SDF_WITHDRAWN, &sdp->sd_flags))
+			return;
+
 		dump_stack();
-		clear_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags);
-		smp_mb__after_atomic();
-		wake_up_bit(&sdp->sd_flags, SDF_WITHDRAW_IN_PROG);
+		/*
+		 * There is no need to withdraw when the superblock hasn't been
+		 * fully initialized, yet.
+		 */
+		if (!(sdp->sd_vfs->s_flags & SB_BORN))
+			return;
+		fs_err(sdp, "about to withdraw this file system\n");
+		schedule_work(&sdp->sd_withdraw_work);
+		return;
 	}
 
 	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
@@ -357,10 +268,9 @@ void gfs2_withdraw(struct gfs2_sbd *sdp)
  */
 
 void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			    const char *function, char *file, unsigned int line,
-			    bool delayed)
+			    const char *function, char *file, unsigned int line)
 {
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		return;
 
 	fs_err(sdp,
@@ -368,17 +278,7 @@ void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
 	       "function = %s, file = %s, line = %u\n",
 	       assertion, function, file, line);
 
-	/*
-	 * If errors=panic was specified on mount, it won't help to delay the
-	 * withdraw.
-	 */
-	if (sdp->sd_args.ar_errors == GFS2_ERRORS_PANIC)
-		delayed = false;
-
-	if (delayed)
-		gfs2_withdraw_delayed(sdp);
-	else
-		gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 	dump_stack();
 }
 
@@ -520,22 +420,18 @@ void gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function, char *file,
 }
 
 /*
- * gfs2_io_error_bh_i - Flag a buffer I/O error
- * @withdraw: withdraw the filesystem
+ * gfs2_io_error_bh_i - Flag a buffer I/O error and withdraw
  */
 
 void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-			const char *function, char *file, unsigned int line,
-			bool withdraw)
+			const char *function, char *file, unsigned int line)
 {
-	if (gfs2_withdrawing_or_withdrawn(sdp))
+	if (gfs2_withdrawn(sdp))
 		return;
 
 	fs_err(sdp, "fatal: I/O error - "
 	       "block = %llu, "
 	       "function = %s, file = %s, line = %u\n",
 	       (unsigned long long)bh->b_blocknr, function, file, line);
-	if (withdraw)
-		gfs2_withdraw(sdp);
+	gfs2_withdraw(sdp);
 }
-

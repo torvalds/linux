@@ -7,6 +7,7 @@
 use crate::{
     bindings, container_of, device,
     device_id::{RawDeviceId, RawDeviceIdIndex},
+    devres::Devres,
     driver,
     error::{from_result, to_result, Result},
     prelude::*,
@@ -15,6 +16,7 @@ use crate::{
 };
 use core::{
     marker::PhantomData,
+    mem::offset_of,
     ptr::{addr_of_mut, NonNull},
 };
 
@@ -68,9 +70,9 @@ impl<T: Driver + 'static> Adapter<T> {
         let info = T::ID_TABLE.info(id.index());
 
         from_result(|| {
-            let data = T::probe(adev, info)?;
+            let data = T::probe(adev, info);
 
-            adev.as_ref().set_drvdata(data);
+            adev.as_ref().set_drvdata(data)?;
             Ok(0)
         })
     }
@@ -85,7 +87,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        drop(unsafe { adev.as_ref().drvdata_obtain::<Pin<KBox<T>>>() });
+        drop(unsafe { adev.as_ref().drvdata_obtain::<T>() });
     }
 }
 
@@ -184,7 +186,7 @@ pub trait Driver {
     /// Auxiliary driver probe.
     ///
     /// Called when an auxiliary device is matches a corresponding driver.
-    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+    fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
 }
 
 /// The auxiliary device representation.
@@ -214,14 +216,25 @@ impl<Ctx: device::DeviceContext> Device<Ctx> {
         // `struct auxiliary_device`.
         unsafe { (*self.as_raw()).id }
     }
+}
 
-    /// Returns a reference to the parent [`device::Device`], if any.
-    pub fn parent(&self) -> Option<&device::Device> {
-        self.as_ref().parent()
+impl Device<device::Bound> {
+    /// Returns a bound reference to the parent [`device::Device`].
+    pub fn parent(&self) -> &device::Device<device::Bound> {
+        let parent = (**self).parent();
+
+        // SAFETY: A bound auxiliary device always has a bound parent device.
+        unsafe { parent.as_bound() }
     }
 }
 
 impl Device {
+    /// Returns a reference to the parent [`device::Device`].
+    pub fn parent(&self) -> &device::Device {
+        // SAFETY: A `struct auxiliary_device` always has a parent.
+        unsafe { self.as_ref().parent().unwrap_unchecked() }
+    }
+
     extern "C" fn release(dev: *mut bindings::device) {
         // SAFETY: By the type invariant `self.0.as_raw` is a pointer to the `struct device`
         // embedded in `struct auxiliary_device`.
@@ -231,6 +244,12 @@ impl Device {
         // `KBox::new(Opaque::<bindings::auxiliary_device>::zeroed(), GFP_KERNEL)`.
         let _ = unsafe { KBox::<Opaque<bindings::auxiliary_device>>::from_raw(adev.cast()) };
     }
+}
+
+// SAFETY: `auxiliary::Device` is a transparent wrapper of `struct auxiliary_device`.
+// The offset is guaranteed to point to a valid device field inside `auxiliary::Device`.
+unsafe impl<Ctx: device::DeviceContext> device::AsBusDevice<Ctx> for Device<Ctx> {
+    const OFFSET: usize = offset_of!(bindings::auxiliary_device, dev);
 }
 
 // SAFETY: `Device` is a transparent wrapper of a type that doesn't depend on `Device`'s generic
@@ -278,8 +297,8 @@ unsafe impl Sync for Device {}
 
 /// The registration of an auxiliary device.
 ///
-/// This type represents the registration of a [`struct auxiliary_device`]. When an instance of this
-/// type is dropped, its respective auxiliary device will be unregistered from the system.
+/// This type represents the registration of a [`struct auxiliary_device`]. When its parent device
+/// is unbound, the corresponding auxiliary device will be unregistered from the system.
 ///
 /// # Invariants
 ///
@@ -289,44 +308,55 @@ pub struct Registration(NonNull<bindings::auxiliary_device>);
 
 impl Registration {
     /// Create and register a new auxiliary device.
-    pub fn new(parent: &device::Device, name: &CStr, id: u32, modname: &CStr) -> Result<Self> {
-        let boxed = KBox::new(Opaque::<bindings::auxiliary_device>::zeroed(), GFP_KERNEL)?;
-        let adev = boxed.get();
+    pub fn new<'a>(
+        parent: &'a device::Device<device::Bound>,
+        name: &'a CStr,
+        id: u32,
+        modname: &'a CStr,
+    ) -> impl PinInit<Devres<Self>, Error> + 'a {
+        pin_init::pin_init_scope(move || {
+            let boxed = KBox::new(Opaque::<bindings::auxiliary_device>::zeroed(), GFP_KERNEL)?;
+            let adev = boxed.get();
 
-        // SAFETY: It's safe to set the fields of `struct auxiliary_device` on initialization.
-        unsafe {
-            (*adev).dev.parent = parent.as_raw();
-            (*adev).dev.release = Some(Device::release);
-            (*adev).name = name.as_char_ptr();
-            (*adev).id = id;
-        }
+            // SAFETY: It's safe to set the fields of `struct auxiliary_device` on initialization.
+            unsafe {
+                (*adev).dev.parent = parent.as_raw();
+                (*adev).dev.release = Some(Device::release);
+                (*adev).name = name.as_char_ptr();
+                (*adev).id = id;
+            }
 
-        // SAFETY: `adev` is guaranteed to be a valid pointer to a `struct auxiliary_device`,
-        // which has not been initialized yet.
-        unsafe { bindings::auxiliary_device_init(adev) };
-
-        // Now that `adev` is initialized, leak the `Box`; the corresponding memory will be freed
-        // by `Device::release` when the last reference to the `struct auxiliary_device` is dropped.
-        let _ = KBox::into_raw(boxed);
-
-        // SAFETY:
-        // - `adev` is guaranteed to be a valid pointer to a `struct auxiliary_device`, which has
-        //   been initialialized,
-        // - `modname.as_char_ptr()` is a NULL terminated string.
-        let ret = unsafe { bindings::__auxiliary_device_add(adev, modname.as_char_ptr()) };
-        if ret != 0 {
             // SAFETY: `adev` is guaranteed to be a valid pointer to a `struct auxiliary_device`,
-            // which has been initialialized.
-            unsafe { bindings::auxiliary_device_uninit(adev) };
+            // which has not been initialized yet.
+            unsafe { bindings::auxiliary_device_init(adev) };
 
-            return Err(Error::from_errno(ret));
-        }
+            // Now that `adev` is initialized, leak the `Box`; the corresponding memory will be
+            // freed by `Device::release` when the last reference to the `struct auxiliary_device`
+            // is dropped.
+            let _ = KBox::into_raw(boxed);
 
-        // SAFETY: `adev` is guaranteed to be non-null, since the `KBox` was allocated successfully.
-        //
-        // INVARIANT: The device will remain registered until `auxiliary_device_delete()` is called,
-        // which happens in `Self::drop()`.
-        Ok(Self(unsafe { NonNull::new_unchecked(adev) }))
+            // SAFETY:
+            // - `adev` is guaranteed to be a valid pointer to a `struct auxiliary_device`, which
+            //   has been initialized,
+            // - `modname.as_char_ptr()` is a NULL terminated string.
+            let ret = unsafe { bindings::__auxiliary_device_add(adev, modname.as_char_ptr()) };
+            if ret != 0 {
+                // SAFETY: `adev` is guaranteed to be a valid pointer to a
+                // `struct auxiliary_device`, which has been initialized.
+                unsafe { bindings::auxiliary_device_uninit(adev) };
+
+                return Err(Error::from_errno(ret));
+            }
+
+            // INVARIANT: The device will remain registered until `auxiliary_device_delete()` is
+            // called, which happens in `Self::drop()`.
+            Ok(Devres::new(
+                parent,
+                // SAFETY: `adev` is guaranteed to be non-null, since the `KBox` was allocated
+                // successfully.
+                Self(unsafe { NonNull::new_unchecked(adev) }),
+            ))
+        })
     }
 }
 

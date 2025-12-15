@@ -54,6 +54,12 @@
 
 #define AMDGPU_VF2PF_UPDATE_MAX_RETRY_LIMIT 2
 
+/* Signature used to validate the SR-IOV dynamic critical region init data header ("INDA") */
+#define AMDGPU_SRIOV_CRIT_DATA_SIGNATURE "INDA"
+#define AMDGPU_SRIOV_CRIT_DATA_SIG_LEN   4
+
+#define IS_SRIOV_CRIT_REGN_ENTRY_VALID(hdr, id) ((hdr)->valid_tables & (1 << (id)))
+
 enum amdgpu_sriov_vf_mode {
 	SRIOV_VF_MODE_BARE_METAL = 0,
 	SRIOV_VF_MODE_ONE_VF,
@@ -144,6 +150,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_RAS_CAPS = (1 << 9),
 	AMDGIM_FEATURE_RAS_TELEMETRY = (1 << 10),
 	AMDGIM_FEATURE_RAS_CPER = (1 << 11),
+	AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK = (1 << 12),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -262,6 +269,11 @@ struct amdgpu_virt_ras {
 
 DECLARE_ATTR_CAP_CLASS(amdgpu_virt, AMDGPU_VIRT_CAPS_LIST);
 
+struct amdgpu_virt_region {
+	uint32_t offset;
+	uint32_t size_kb;
+};
+
 /* GPU virtualization */
 struct amdgpu_virt {
 	uint32_t			caps;
@@ -289,6 +301,12 @@ struct amdgpu_virt {
 	bool ras_init_done;
 	uint32_t reg_access;
 
+	/* dynamic(v2) critical regions */
+	struct amdgpu_virt_region init_data_header;
+	struct amdgpu_virt_region crit_regn;
+	struct amdgpu_virt_region crit_regn_tbl[AMD_SRIOV_MSG_MAX_TABLE_ID];
+	bool is_dynamic_crit_regn_enabled;
+
 	/* vf2pf message */
 	struct delayed_work vf2pf_work;
 	uint32_t vf2pf_update_interval_ms;
@@ -306,6 +324,8 @@ struct amdgpu_virt {
 
 	/* Spinlock to protect access to the RLCG register interface */
 	spinlock_t rlcg_reg_lock;
+
+	struct mutex access_req_mutex;
 
 	union amd_sriov_ras_caps ras_en_caps;
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
@@ -378,6 +398,9 @@ struct amdgpu_video_codec_info;
 #define amdgpu_sriov_ras_cper_en(adev) \
 ((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_CPER)
 
+#define amdgpu_sriov_xgmi_ta_ext_peer_link_en(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK)
+
 static inline bool is_virtual_machine(void)
 {
 #if defined(CONFIG_X86)
@@ -423,6 +446,10 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
 void amdgpu_virt_exchange_data(struct amdgpu_device *adev);
 void amdgpu_virt_fini_data_exchange(struct amdgpu_device *adev);
 void amdgpu_virt_init(struct amdgpu_device *adev);
+
+int amdgpu_virt_init_critical_region(struct amdgpu_device *adev);
+int amdgpu_virt_get_dynamic_data_info(struct amdgpu_device *adev,
+	int data_id, uint8_t *binary, u32 *size);
 
 bool amdgpu_virt_can_access_debugfs(struct amdgpu_device *adev);
 int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);

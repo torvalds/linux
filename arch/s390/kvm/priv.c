@@ -754,7 +754,7 @@ int is_valid_psw(psw_t *psw)
 int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 {
 	psw_t *gpsw = &vcpu->arch.sie_block->gpsw;
-	psw_compat_t new_psw;
+	psw32_t new_psw;
 	u64 addr;
 	int rc;
 	u8 ar;

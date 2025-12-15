@@ -90,7 +90,19 @@ static inline void rotate_ccw(const char *in, char *out, u32 width, u32 height)
 	}
 }
 
-extern void fbcon_rotate_cw(struct fbcon_ops *ops);
-extern void fbcon_rotate_ud(struct fbcon_ops *ops);
-extern void fbcon_rotate_ccw(struct fbcon_ops *ops);
+int fbcon_rotate_font(struct fb_info *info, struct vc_data *vc);
+
+#if defined(CONFIG_FRAMEBUFFER_CONSOLE_ROTATION)
+void fbcon_set_bitops_cw(struct fbcon_par *par);
+void fbcon_set_bitops_ud(struct fbcon_par *par);
+void fbcon_set_bitops_ccw(struct fbcon_par *par);
+#else
+static inline void fbcon_set_bitops_cw(struct fbcon_par *par)
+{ }
+static inline void fbcon_set_bitops_ud(struct fbcon_par *par)
+{ }
+static inline void fbcon_set_bitops_ccw(struct fbcon_par *par)
+{ }
+#endif
+
 #endif

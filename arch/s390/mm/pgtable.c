@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
-#include <linux/swapops.h>
+#include <linux/leafops.h>
 #include <linux/sysctl.h>
 #include <linux/ksm.h>
 #include <linux/mman.h>
@@ -360,14 +360,10 @@ static inline void pmdp_idte_global(struct mm_struct *mm,
 			    mm->context.asce, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
-	} else if (cpu_has_idte()) {
+	} else {
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
-	} else {
-		__pmdp_csp(pmdp);
-		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
-			gmap_pmdp_csp(mm, addr);
 	}
 }
 
@@ -487,14 +483,8 @@ static inline void pudp_idte_global(struct mm_struct *mm,
 	if (machine_has_tlb_guest())
 		__pudp_idte(addr, pudp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
-	else if (cpu_has_idte())
-		__pudp_idte(addr, pudp, 0, 0, IDTE_GLOBAL);
 	else
-		/*
-		 * Invalid bit position is the same for pmd and pud, so we can
-		 * reuse _pmd_csp() here
-		 */
-		__pmdp_csp((pmd_t *) pudp);
+		__pudp_idte(addr, pudp, 0, 0, IDTE_GLOBAL);
 }
 
 static inline pud_t pudp_flush_direct(struct mm_struct *mm,
@@ -683,12 +673,12 @@ void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep)
 	pgste_set_unlock(ptep, pgste);
 }
 
-static void ptep_zap_swap_entry(struct mm_struct *mm, swp_entry_t entry)
+static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
 {
-	if (!non_swap_entry(entry))
+	if (softleaf_is_swap(entry))
 		dec_mm_counter(mm, MM_SWAPENTS);
-	else if (is_migration_entry(entry)) {
-		struct folio *folio = pfn_swap_entry_folio(entry);
+	else if (softleaf_is_migration(entry)) {
+		struct folio *folio = softleaf_to_folio(entry);
 
 		dec_mm_counter(mm, mm_counter(folio));
 	}
@@ -710,7 +700,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 	if (!reset && pte_swap(pte) &&
 	    ((pgstev & _PGSTE_GPS_USAGE_MASK) == _PGSTE_GPS_USAGE_UNUSED ||
 	     (pgstev & _PGSTE_GPS_ZERO))) {
-		ptep_zap_swap_entry(mm, pte_to_swp_entry(pte));
+		ptep_zap_softleaf_entry(mm, softleaf_from_pte(pte));
 		pte_clear(mm, addr, ptep);
 	}
 	if (reset)

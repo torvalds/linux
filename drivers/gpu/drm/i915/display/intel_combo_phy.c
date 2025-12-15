@@ -5,12 +5,12 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 
 #define for_each_combo_phy(__display, __phy) \
 	for ((__phy) = PHY_A; (__phy) < I915_MAX_PHYS; (__phy)++)	\

@@ -99,7 +99,7 @@ struct tb_cap_extended_long {
 } __packed;
 
 /**
- * struct tb_cap_any - Structure capable of hold every capability
+ * struct tb_cap_any - Structure capable of holding every capability
  * @basic: Basic capability
  * @extended_short: Vendor specific capability
  * @extended_long: Vendor specific extended capability
@@ -534,8 +534,8 @@ struct tb_regs_hop {
 
 /*
  * Used for Titan Ridge only. Bits are part of the same register: TMU_ADP_CS_6
- * (see above) as in USB4 spec, but these specific bits used for Titan Ridge
- * only and reserved in USB4 spec.
+ * (see above) as in USB4 spec, but these specific bits are used for Titan Ridge
+ * only and are reserved in USB4 spec.
  */
 #define TMU_ADP_CS_6_DISABLE_TMU_OBJ_MASK	GENMASK(3, 2)
 #define TMU_ADP_CS_6_DISABLE_TMU_OBJ_CL1	BIT(2)

@@ -4,6 +4,8 @@
 // verify that SO_EE_CODE_ZEROCOPY_COPIED is set on zerocopy
 // packets of all sizes, including the smallest payload, 1B.
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3

@@ -228,6 +228,11 @@
 	};
 };
 
+&audio_refclk1 {
+	assigned-clocks = <&k3_clks 157 0>;
+	assigned-clock-parents = <&k3_clks 157 15>;
+};
+
 &cpsw_mac_syscon {
 	bootph-all;
 };
@@ -388,7 +393,7 @@
 };
 
 &cpsw_port1 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy0>;
 	status = "okay";
 	bootph-all;

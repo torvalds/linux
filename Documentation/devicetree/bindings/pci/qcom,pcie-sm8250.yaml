@@ -8,7 +8,7 @@ title: Qualcomm SM8250 PCI Express Root Complex
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description:
   Qualcomm SM8250 SoC PCIe root complex controller is based on the Synopsys
@@ -82,6 +82,11 @@ properties:
   reset-names:
     items:
       - const: pci
+
+required:
+  - power-domains
+  - resets
+  - reset-names
 
 allOf:
   - $ref: qcom,pcie-common.yaml#

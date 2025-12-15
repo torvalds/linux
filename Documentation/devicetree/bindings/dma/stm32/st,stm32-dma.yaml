@@ -48,7 +48,6 @@ description: |
               by transfer completion. This must only be used on channels
               managing transfers for STM32 USART/UART.
 
-
 maintainers:
   - Amelie Delaunay <amelie.delaunay@foss.st.com>
 

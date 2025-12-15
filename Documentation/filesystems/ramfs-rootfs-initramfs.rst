@@ -290,11 +290,11 @@ Why cpio rather than tar?
 
 This decision was made back in December, 2001.  The discussion started here:
 
-  http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1538.html
+- https://lore.kernel.org/lkml/a03cke$640$1@cesium.transmeta.com/
 
 And spawned a second thread (specifically on tar vs cpio), starting here:
 
-  http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1587.html
+- https://lore.kernel.org/lkml/3C25A06D.7030408@zytor.com/
 
 The quick and dirty summary version (which is no substitute for reading
 the above threads) is:
@@ -310,7 +310,7 @@ the above threads) is:
    either way about the archive format, and there are alternative tools,
    such as:
 
-     http://freecode.com/projects/afio
+      https://linux.die.net/man/1/afio
 
 2) The cpio archive format chosen by the kernel is simpler and cleaner (and
    thus easier to create and parse) than any of the (literally dozens of)
@@ -331,12 +331,12 @@ the above threads) is:
 5) Al Viro made the decision (quote: "tar is ugly as hell and not going to be
    supported on the kernel side"):
 
-      http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1540.html
+    - https://lore.kernel.org/lkml/Pine.GSO.4.21.0112222109050.21702-100000@weyl.math.psu.edu/
 
    explained his reasoning:
 
-     - http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1550.html
-     - http://www.uwsg.iu.edu/hypermail/linux/kernel/0112.2/1638.html
+    - https://lore.kernel.org/lkml/Pine.GSO.4.21.0112222240530.21702-100000@weyl.math.psu.edu/
+    - https://lore.kernel.org/lkml/Pine.GSO.4.21.0112230849550.23300-100000@weyl.math.psu.edu/
 
    and, most importantly, designed and implemented the initramfs code.
 

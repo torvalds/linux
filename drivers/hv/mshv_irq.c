@@ -119,6 +119,10 @@ void mshv_copy_girq_info(struct mshv_guest_irq_ent *ent,
 	lirq->lapic_vector = ent->girq_irq_data & 0xFF;
 	lirq->lapic_apic_id = (ent->girq_addr_lo >> 12) & 0xFF;
 	lirq->lapic_control.interrupt_type = (ent->girq_irq_data & 0x700) >> 8;
+#if IS_ENABLED(CONFIG_X86)
 	lirq->lapic_control.level_triggered = (ent->girq_irq_data >> 15) & 0x1;
 	lirq->lapic_control.logical_dest_mode = (ent->girq_addr_lo >> 2) & 0x1;
+#elif IS_ENABLED(CONFIG_ARM64)
+	lirq->lapic_control.asserted = 1;
+#endif
 }

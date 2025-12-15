@@ -130,7 +130,6 @@ static const u8 target_reg[] = {
 
 struct max6620_data {
 	struct i2c_client *client;
-	struct mutex update_lock;
 	bool valid; /* false until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -161,39 +160,36 @@ static int max6620_update_device(struct device *dev)
 {
 	struct max6620_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
-	int i;
-	int ret = 0;
-
-	mutex_lock(&data->update_lock);
+	int i, ret;
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
 		for (i = 0; i < 4; i++) {
 			ret = i2c_smbus_read_byte_data(client, config_reg[i]);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->fancfg[i] = ret;
 
 			ret = i2c_smbus_read_byte_data(client, dyn_reg[i]);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->fandyn[i] = ret;
 
 			ret = i2c_smbus_read_byte_data(client, tach_reg[i]);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->tach[i] = (ret << 3) & 0x7f8;
 			ret = i2c_smbus_read_byte_data(client, tach_reg[i] + 1);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->tach[i] |= (ret >> 5) & 0x7;
 
 			ret = i2c_smbus_read_byte_data(client, target_reg[i]);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->target[i] = (ret << 3) & 0x7f8;
 			ret = i2c_smbus_read_byte_data(client, target_reg[i] + 1);
 			if (ret < 0)
-				goto error;
+				return ret;
 			data->target[i] |= (ret >> 5) & 0x7;
 		}
 
@@ -204,16 +200,13 @@ static int max6620_update_device(struct device *dev)
 		 */
 		ret = i2c_smbus_read_byte_data(client, MAX6620_REG_FAULT);
 		if (ret < 0)
-			goto error;
+			return ret;
 		data->fault |= (ret >> 4) & (ret & 0x0F);
 
 		data->last_updated = jiffies;
 		data->valid = true;
 	}
-
-error:
-	mutex_unlock(&data->update_lock);
-	return ret;
+	return 0;
 }
 
 static umode_t
@@ -261,7 +254,6 @@ max6620_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_alarm:
-			mutex_lock(&data->update_lock);
 			*val = !!(data->fault & BIT(channel));
 
 			/* Setting TACH count to re-enable fan fault detection */
@@ -270,21 +262,15 @@ max6620_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 				val2 = (data->target[channel] << 5) & 0xe0;
 				ret = i2c_smbus_write_byte_data(client,
 								target_reg[channel], val1);
-				if (ret < 0) {
-					mutex_unlock(&data->update_lock);
+				if (ret < 0)
 					return ret;
-				}
 				ret = i2c_smbus_write_byte_data(client,
 								target_reg[channel] + 1, val2);
-				if (ret < 0) {
-					mutex_unlock(&data->update_lock);
+				if (ret < 0)
 					return ret;
-				}
 
 				data->fault &= ~BIT(channel);
 			}
-			mutex_unlock(&data->update_lock);
-
 			break;
 		case hwmon_fan_div:
 			*val = max6620_fan_div_from_reg(data->fandyn[channel]);
@@ -334,7 +320,6 @@ max6620_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		return ret;
 	data = dev_get_drvdata(dev);
 	client = data->client;
-	mutex_lock(&data->update_lock);
 
 	switch (type) {
 	case hwmon_fan:
@@ -360,8 +345,7 @@ max6620_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 				div = 5;
 				break;
 			default:
-				ret = -EINVAL;
-				goto error;
+				return -EINVAL;
 			}
 			data->fandyn[channel] &= 0x1F;
 			data->fandyn[channel] |= div << 5;
@@ -396,8 +380,6 @@ max6620_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 	}
 
-error:
-	mutex_unlock(&data->update_lock);
 	return ret;
 }
 
@@ -478,7 +460,6 @@ static int max6620_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	mutex_init(&data->update_lock);
 
 	err = max6620_init_client(data);
 	if (err)

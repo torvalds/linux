@@ -15,6 +15,7 @@
 #include "defrag.h"
 #include "file-item.h"
 #include "super.h"
+#include "compression.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 
@@ -254,10 +255,9 @@ again:
 	range.extent_thresh = defrag->extent_thresh;
 	file_ra_state_init(ra, inode->vfs_inode.i_mapping);
 
-	sb_start_write(fs_info->sb);
-	ret = btrfs_defrag_file(inode, ra, &range, defrag->transid,
-				BTRFS_DEFRAG_BATCH);
-	sb_end_write(fs_info->sb);
+	scoped_guard(super_write, fs_info->sb)
+		ret = btrfs_defrag_file(inode, ra, &range,
+					defrag->transid, BTRFS_DEFRAG_BATCH);
 	iput(&inode->vfs_inode);
 
 	if (ret < 0)
@@ -471,7 +471,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		memcpy(&key, &root->defrag_progress, sizeof(key));
 	}
 
-	path->keep_locks = 1;
+	path->keep_locks = true;
 
 	ret = btrfs_search_forward(root, &key, path, BTRFS_OLDEST_GENERATION);
 	if (ret < 0)
@@ -514,7 +514,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	/*
 	 * Now that we reallocated the node we can find the next key. Note that
 	 * btrfs_find_next_key() can release our path and do another search
-	 * without COWing, this is because even with path->keep_locks = 1,
+	 * without COWing, this is because even with path->keep_locks == true,
 	 * btrfs_search_slot() / ctree.c:unlock_up() does not keeps a lock on a
 	 * node when path->slots[node_level - 1] does not point to the last
 	 * item or a slot beyond the last item (ctree.c:unlock_up()). Therefore
@@ -886,7 +886,7 @@ again:
 	}
 
 	lock_start = folio_pos(folio);
-	lock_end = folio_end(folio) - 1;
+	lock_end = folio_next_pos(folio) - 1;
 	/* Wait for any existing ordered extent in the range */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
@@ -1178,7 +1178,8 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 
 		if (!folio)
 			break;
-		if (start >= folio_end(folio) || start + len <= folio_pos(folio))
+		if (start >= folio_next_pos(folio) ||
+		    start + len <= folio_pos(folio))
 			continue;
 		btrfs_folio_clamp_clear_checked(fs_info, folio, start, len);
 		btrfs_folio_clamp_set_dirty(fs_info, folio, start, len);
@@ -1219,7 +1220,7 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 			folios[i] = NULL;
 			goto free_folios;
 		}
-		cur = folio_end(folios[i]);
+		cur = folio_next_pos(folios[i]);
 	}
 	for (int i = 0; i < nr_pages; i++) {
 		if (!folios[i])

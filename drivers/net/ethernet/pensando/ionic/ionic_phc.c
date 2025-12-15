@@ -65,11 +65,12 @@ static u64 ionic_hwstamp_rx_filt(int config_rx_filter)
 }
 
 static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
-					   struct hwtstamp_config *new_ts)
+					   struct kernel_hwtstamp_config *new_ts,
+					   struct netlink_ext_ack *extack)
 {
+	struct kernel_hwtstamp_config *config;
+	struct kernel_hwtstamp_config ts = {};
 	struct ionic *ionic = lif->ionic;
-	struct hwtstamp_config *config;
-	struct hwtstamp_config ts;
 	int tx_mode = 0;
 	u64 rx_filt = 0;
 	int err, err2;
@@ -99,12 +100,16 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 
 	tx_mode = ionic_hwstamp_tx_mode(config->tx_type);
 	if (tx_mode < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "TX time stamping mode isn't supported");
 		err = tx_mode;
 		goto err_queues;
 	}
 
 	mask = cpu_to_le64(BIT_ULL(tx_mode));
 	if ((ionic->ident.lif.eth.hwstamp_tx_modes & mask) != mask) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "TX time stamping mode isn't supported");
 		err = -ERANGE;
 		goto err_queues;
 	}
@@ -124,32 +129,47 @@ static int ionic_lif_hwstamp_set_ts_config(struct ionic_lif *lif,
 
 	if (tx_mode) {
 		err = ionic_lif_create_hwstamp_txq(lif);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Error creating TX timestamp queue");
 			goto err_queues;
+		}
 	}
 
 	if (rx_filt) {
 		err = ionic_lif_create_hwstamp_rxq(lif);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Error creating RX timestamp queue");
 			goto err_queues;
+		}
 	}
 
 	if (tx_mode != lif->phc->ts_config_tx_mode) {
 		err = ionic_lif_set_hwstamp_txmode(lif, tx_mode);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Error enabling TX timestamp mode");
 			goto err_txmode;
+		}
 	}
 
 	if (rx_filt != lif->phc->ts_config_rx_filt) {
 		err = ionic_lif_set_hwstamp_rxfilt(lif, rx_filt);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Error enabling RX timestamp mode");
 			goto err_rxfilt;
+		}
 	}
 
 	if (rx_all != (lif->phc->ts_config.rx_filter == HWTSTAMP_FILTER_ALL)) {
 		err = ionic_lif_config_hwstamp_rxq_all(lif, rx_all);
-		if (err)
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Error enabling RX timestamp mode");
 			goto err_rxall;
+		}
 	}
 
 	memcpy(&lif->phc->ts_config, config, sizeof(*config));
@@ -183,27 +203,23 @@ err_queues:
 	return err;
 }
 
-int ionic_lif_hwstamp_set(struct ionic_lif *lif, struct ifreq *ifr)
+int ionic_hwstamp_set(struct net_device *netdev,
+		      struct kernel_hwtstamp_config *config,
+		      struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
+	struct ionic_lif *lif = netdev_priv(netdev);
 	int err;
 
 	if (!lif->phc || !lif->phc->ptp)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
 	mutex_lock(&lif->queue_lock);
-	err = ionic_lif_hwstamp_set_ts_config(lif, &config);
+	err = ionic_lif_hwstamp_set_ts_config(lif, config, extack);
 	mutex_unlock(&lif->queue_lock);
 	if (err) {
 		netdev_info(lif->netdev, "hwstamp set failed: %d\n", err);
 		return err;
 	}
-
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
 
 	return 0;
 }
@@ -216,7 +232,7 @@ void ionic_lif_hwstamp_replay(struct ionic_lif *lif)
 		return;
 
 	mutex_lock(&lif->queue_lock);
-	err = ionic_lif_hwstamp_set_ts_config(lif, NULL);
+	err = ionic_lif_hwstamp_set_ts_config(lif, NULL, NULL);
 	mutex_unlock(&lif->queue_lock);
 	if (err)
 		netdev_info(lif->netdev, "hwstamp replay failed: %d\n", err);
@@ -246,19 +262,18 @@ void ionic_lif_hwstamp_recreate_queues(struct ionic_lif *lif)
 	mutex_unlock(&lif->phc->config_lock);
 }
 
-int ionic_lif_hwstamp_get(struct ionic_lif *lif, struct ifreq *ifr)
+int ionic_hwstamp_get(struct net_device *netdev,
+		      struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config config;
+	struct ionic_lif *lif = netdev_priv(netdev);
 
 	if (!lif->phc || !lif->phc->ptp)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&lif->phc->config_lock);
-	memcpy(&config, &lif->phc->ts_config, sizeof(config));
+	memcpy(config, &lif->phc->ts_config, sizeof(*config));
 	mutex_unlock(&lif->phc->config_lock);
 
-	if (copy_to_user(ifr->ifr_data, &config, sizeof(config)))
-		return -EFAULT;
 	return 0;
 }
 

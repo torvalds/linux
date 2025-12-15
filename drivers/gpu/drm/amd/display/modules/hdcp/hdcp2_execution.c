@@ -48,6 +48,7 @@ static inline enum mod_hdcp_status check_receiver_id_list_ready(struct mod_hdcp 
 static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 {
 	enum mod_hdcp_status status;
+	struct mod_hdcp_trace *trace = &hdcp->connection.trace;
 
 	if (is_dp_hdcp(hdcp))
 		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[0] == HDCP_2_2_RX_CAPS_VERSION_VAL) &&
@@ -55,9 +56,14 @@ static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
 	else
-		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi & HDCP_2_2_HDMI_SUPPORT_MASK) ?
-				MOD_HDCP_STATUS_SUCCESS :
-				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi
+				 & HDCP_2_2_HDMI_SUPPORT_MASK)
+				? MOD_HDCP_STATUS_SUCCESS
+				: MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
+
+	if (status == MOD_HDCP_STATUS_SUCCESS)
+		trace->hdcp2.attempt_count++;
+
 	return status;
 }
 
@@ -201,10 +207,17 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 
 static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
+	struct mod_hdcp_trace *trace = &hdcp->connection.trace;
+
 	/* Avoid device count == 0 to do authentication */
 	if (get_device_count(hdcp) == 0)
 		return MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE;
 
+	trace->hdcp2.downstream_device_count = get_device_count(hdcp);
+	trace->hdcp2.hdcp1_device_downstream =
+			HDCP_2_2_HDCP1_DEVICE_CONNECTED(hdcp->auth.msg.hdcp2.rx_id_list[2]);
+	trace->hdcp2.hdcp2_legacy_device_downstream =
+			HDCP_2_2_HDCP_2_0_REP_CONNECTED(hdcp->auth.msg.hdcp2.rx_id_list[2]);
 	/* Some MST display may choose to report the internal panel as an HDCP RX.   */
 	/* To update this condition with 1(because the immediate repeater's internal */
 	/* panel is possibly not included in DEVICE_COUNT) + get_device_count(hdcp). */
@@ -452,54 +465,11 @@ out:
 	return status;
 }
 
-static enum mod_hdcp_status locality_check_sw(struct mod_hdcp *hdcp,
-		struct mod_hdcp_event_context *event_ctx,
-		struct mod_hdcp_transition_input_hdcp2 *input)
-{
-	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
-
-	if (!mod_hdcp_execute_and_set(mod_hdcp_write_lc_init,
-			&input->lc_init_write, &status,
-			 hdcp, "lc_init_write"))
-		goto out;
-	if (is_dp_hdcp(hdcp))
-		msleep(16);
-	else
-		if (!mod_hdcp_execute_and_set(poll_l_prime_available,
-				&input->l_prime_available_poll, &status,
-				hdcp, "l_prime_available_poll"))
-			goto out;
-	if (!mod_hdcp_execute_and_set(mod_hdcp_read_l_prime,
-			&input->l_prime_read, &status,
-			hdcp, "l_prime_read"))
-		goto out;
-out:
-	return status;
-}
-
-static enum mod_hdcp_status locality_check_fw(struct mod_hdcp *hdcp,
-		struct mod_hdcp_event_context *event_ctx,
-		struct mod_hdcp_transition_input_hdcp2 *input)
-{
-	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
-
-	if (!mod_hdcp_execute_and_set(mod_hdcp_write_poll_read_lc_fw,
-			&input->l_prime_read, &status,
-			hdcp, "l_prime_read"))
-		goto out;
-
-out:
-	return status;
-}
-
 static enum mod_hdcp_status locality_check(struct mod_hdcp *hdcp,
 		struct mod_hdcp_event_context *event_ctx,
 		struct mod_hdcp_transition_input_hdcp2 *input)
 {
 	enum mod_hdcp_status status = MOD_HDCP_STATUS_SUCCESS;
-	const bool use_fw = hdcp->config.ddc.funcs.atomic_write_poll_read_i2c
-			&& hdcp->config.ddc.funcs.atomic_write_poll_read_aux
-			&& !hdcp->connection.link.adjust.hdcp2.force_sw_locality_check;
 
 	if (event_ctx->event != MOD_HDCP_EVENT_CALLBACK) {
 		event_ctx->unexpected_event = 1;
@@ -511,9 +481,28 @@ static enum mod_hdcp_status locality_check(struct mod_hdcp *hdcp,
 			hdcp, "lc_init_prepare"))
 		goto out;
 
-	status = (use_fw ? locality_check_fw : locality_check_sw)(hdcp, event_ctx, input);
-	if (status != MOD_HDCP_STATUS_SUCCESS)
-		goto out;
+	if (hdcp->connection.link.adjust.hdcp2.use_fw_locality_check) {
+		if (!mod_hdcp_execute_and_set(mod_hdcp_write_poll_read_lc_fw,
+				&input->l_prime_combo_read, &status,
+				hdcp, "l_prime_combo_read"))
+			goto out;
+	} else {
+		if (!mod_hdcp_execute_and_set(mod_hdcp_write_lc_init,
+				&input->lc_init_write, &status,
+				hdcp, "lc_init_write"))
+			goto out;
+		if (is_dp_hdcp(hdcp))
+			msleep(16);
+		else
+			if (!mod_hdcp_execute_and_set(poll_l_prime_available,
+					&input->l_prime_available_poll, &status,
+					hdcp, "l_prime_available_poll"))
+				goto out;
+		if (!mod_hdcp_execute_and_set(mod_hdcp_read_l_prime,
+				&input->l_prime_read, &status,
+				hdcp, "l_prime_read"))
+			goto out;
+	}
 
 	if (!mod_hdcp_execute_and_set(mod_hdcp_hdcp2_validate_l_prime,
 			&input->l_prime_validation, &status,

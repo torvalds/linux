@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 FIXTURE(bind_timewait)
 {

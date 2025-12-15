@@ -260,6 +260,7 @@ void gelic_card_down(struct gelic_card *card)
 	if (atomic_dec_if_positive(&card->users) == 0) {
 		pr_debug("%s: real do\n", __func__);
 		napi_disable(&card->napi);
+		timer_delete_sync(&card->rx_oom_timer);
 		/*
 		 * Disable irq. Wireless interrupts will
 		 * be disabled later if any
@@ -363,6 +364,7 @@ static int gelic_card_init_chain(struct gelic_card *card,
  * gelic_descr_prepare_rx - reinitializes a rx descriptor
  * @card: card structure
  * @descr: descriptor to re-init
+ * @napi_mode: is it running in napi poll
  *
  * return 0 on success, <0 on failure
  *
@@ -373,7 +375,8 @@ static int gelic_card_init_chain(struct gelic_card *card,
  * must be a multiple of GELIC_NET_RXBUF_ALIGN.
  */
 static int gelic_descr_prepare_rx(struct gelic_card *card,
-				  struct gelic_descr *descr)
+				  struct gelic_descr *descr,
+				  bool napi_mode)
 {
 	static const unsigned int rx_skb_size =
 		ALIGN(GELIC_NET_MAX_FRAME, GELIC_NET_RXBUF_ALIGN) +
@@ -391,7 +394,10 @@ static int gelic_descr_prepare_rx(struct gelic_card *card,
 	descr->hw_regs.payload.dev_addr = 0;
 	descr->hw_regs.payload.size = 0;
 
-	descr->skb = netdev_alloc_skb(*card->netdev, rx_skb_size);
+	if (napi_mode)
+		descr->skb = napi_alloc_skb(&card->napi, rx_skb_size);
+	else
+		descr->skb = netdev_alloc_skb(*card->netdev, rx_skb_size);
 	if (!descr->skb) {
 		descr->hw_regs.payload.dev_addr = 0; /* tell DMAC don't touch memory */
 		return -ENOMEM;
@@ -463,7 +469,7 @@ static int gelic_card_fill_rx_chain(struct gelic_card *card)
 
 	do {
 		if (!descr->skb) {
-			ret = gelic_descr_prepare_rx(card, descr);
+			ret = gelic_descr_prepare_rx(card, descr, false);
 			if (ret)
 				goto rewind;
 		}
@@ -963,14 +969,15 @@ static void gelic_net_pass_skb_up(struct gelic_descr *descr,
 	netdev->stats.rx_bytes += skb->len;
 
 	/* pass skb up to stack */
-	netif_receive_skb(skb);
+	napi_gro_receive(&card->napi, skb);
 }
 
 /**
  * gelic_card_decode_one_descr - processes an rx descriptor
  * @card: card structure
  *
- * returns 1 if a packet has been sent to the stack, otherwise 0
+ * returns 1 if a packet has been sent to the stack, -ENOMEM on skb alloc
+ * failure, otherwise 0
  *
  * processes an rx descriptor by iommu-unmapping the data buffer and passing
  * the packet up to the stack
@@ -981,16 +988,18 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 	struct gelic_descr_chain *chain = &card->rx_chain;
 	struct gelic_descr *descr = chain->head;
 	struct net_device *netdev = NULL;
-	int dmac_chain_ended;
+	int dmac_chain_ended = 0;
+	int prepare_rx_ret;
 
 	status = gelic_descr_get_status(descr);
 
 	if (status == GELIC_DESCR_DMA_CARDOWNED)
 		return 0;
 
-	if (status == GELIC_DESCR_DMA_NOT_IN_USE) {
+	if (status == GELIC_DESCR_DMA_NOT_IN_USE || !descr->skb) {
 		dev_dbg(ctodev(card), "dormant descr? %p\n", descr);
-		return 0;
+		dmac_chain_ended = 1;
+		goto refill;
 	}
 
 	/* netdevice select */
@@ -1048,9 +1057,10 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 refill:
 
 	/* is the current descriptor terminated with next_descr == NULL? */
-	dmac_chain_ended =
-		be32_to_cpu(descr->hw_regs.dmac_cmd_status) &
-		GELIC_DESCR_RX_DMA_CHAIN_END;
+	if (!dmac_chain_ended)
+		dmac_chain_ended =
+			be32_to_cpu(descr->hw_regs.dmac_cmd_status) &
+			GELIC_DESCR_RX_DMA_CHAIN_END;
 	/*
 	 * So that always DMAC can see the end
 	 * of the descriptor chain to avoid
@@ -1062,10 +1072,11 @@ refill:
 	gelic_descr_set_status(descr, GELIC_DESCR_DMA_NOT_IN_USE);
 
 	/*
-	 * this call can fail, but for now, just leave this
-	 * descriptor without skb
+	 * this call can fail, propagate the error
 	 */
-	gelic_descr_prepare_rx(card, descr);
+	prepare_rx_ret = gelic_descr_prepare_rx(card, descr, true);
+	if (prepare_rx_ret)
+		return prepare_rx_ret;
 
 	chain->tail = descr;
 	chain->head = descr->next;
@@ -1087,6 +1098,13 @@ refill:
 	return 1;
 }
 
+static void gelic_rx_oom_timer(struct timer_list *t)
+{
+	struct gelic_card *card = timer_container_of(card, t, rx_oom_timer);
+
+	napi_schedule(&card->napi);
+}
+
 /**
  * gelic_net_poll - NAPI poll function called by the stack to return packets
  * @napi: napi structure
@@ -1099,12 +1117,20 @@ static int gelic_net_poll(struct napi_struct *napi, int budget)
 {
 	struct gelic_card *card = container_of(napi, struct gelic_card, napi);
 	int packets_done = 0;
+	int work_result = 0;
 
 	while (packets_done < budget) {
-		if (!gelic_card_decode_one_descr(card))
+		work_result = gelic_card_decode_one_descr(card);
+		if (work_result != 1)
 			break;
 
 		packets_done++;
+	}
+
+	if (work_result == -ENOMEM) {
+		napi_complete_done(napi, packets_done);
+		mod_timer(&card->rx_oom_timer, jiffies + 1);
+		return packets_done;
 	}
 
 	if (packets_done < budget) {
@@ -1575,6 +1601,8 @@ static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 	atomic_set(&card->tx_timeout_task_counter, 0);
 	mutex_init(&card->updown_lock);
 	atomic_set(&card->users, 0);
+
+	timer_setup(&card->rx_oom_timer, gelic_rx_oom_timer, 0);
 
 	return card;
 }

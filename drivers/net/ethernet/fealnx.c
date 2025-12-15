@@ -196,7 +196,7 @@ enum intr_status_bits {
 	ERI = 0x00000080,	/* receive early int */
 	CNTOVF = 0x00000040,	/* counter overflow */
 	RBU = 0x00000020,	/* receive buffer unavailable */
-	TBU = 0x00000010,	/* transmit buffer unavilable */
+	TBU = 0x00000010,	/* transmit buffer unavailable */
 	TI = 0x00000008,	/* transmit interrupt */
 	RI = 0x00000004,	/* receive interrupt */
 	RxErr = 0x00000002,	/* receive error */
@@ -215,7 +215,7 @@ enum rx_mode_bits {
 	CR_W_RXMODEMASK	= 0x000000e0,
 	CR_W_PROM	= 0x00000080,	/* promiscuous mode */
 	CR_W_AB		= 0x00000040,	/* accept broadcast */
-	CR_W_AM		= 0x00000020,	/* accept mutlicast */
+	CR_W_AM		= 0x00000020,	/* accept multicast */
 	CR_W_ARP	= 0x00000008,	/* receive runt pkt */
 	CR_W_ALP	= 0x00000004,	/* receive long pkt */
 	CR_W_SEP	= 0x00000002,	/* receive error pkt */

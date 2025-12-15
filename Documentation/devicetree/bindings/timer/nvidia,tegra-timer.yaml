@@ -100,7 +100,6 @@ properties:
     items:
       - const: timer
 
-
 required:
   - compatible
   - reg

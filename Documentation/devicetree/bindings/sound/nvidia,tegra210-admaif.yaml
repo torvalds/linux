@@ -67,46 +67,72 @@ properties:
         $ref: audio-graph-port.yaml#
         unevaluatedProperties: false
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: nvidia,tegra210-admaif
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra210-admaif
+    then:
+      properties:
+        dmas:
+          description:
+            DMA channel specifiers, equally divided for Tx and Rx.
+          minItems: 1
+          maxItems: 20
+        dma-names:
+          items:
+            pattern: "^[rt]x(10|[1-9])$"
+          description:
+            Should be "rx1", "rx2" ... "rx10" for DMA Rx channel
+            Should be "tx1", "tx2" ... "tx10" for DMA Tx channel
+          minItems: 1
+          maxItems: 20
+        interconnects: false
+        interconnect-names: false
+        iommus: false
 
-then:
-  properties:
-    dmas:
-      description:
-        DMA channel specifiers, equally divided for Tx and Rx.
-      minItems: 1
-      maxItems: 20
-    dma-names:
-      items:
-        pattern: "^[rt]x(10|[1-9])$"
-      description:
-        Should be "rx1", "rx2" ... "rx10" for DMA Rx channel
-        Should be "tx1", "tx2" ... "tx10" for DMA Tx channel
-      minItems: 1
-      maxItems: 20
-    interconnects: false
-    interconnect-names: false
-    iommus: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra186-admaif
+    then:
+      properties:
+        dmas:
+          description:
+            DMA channel specifiers, equally divided for Tx and Rx.
+          minItems: 1
+          maxItems: 40
+        dma-names:
+          items:
+            pattern: "^[rt]x(1[0-9]|[1-9]|20)$"
+          description:
+            Should be "rx1", "rx2" ... "rx20" for DMA Rx channel
+            Should be "tx1", "tx2" ... "tx20" for DMA Tx channel
+          minItems: 1
+          maxItems: 40
 
-else:
-  properties:
-    dmas:
-      description:
-        DMA channel specifiers, equally divided for Tx and Rx.
-      minItems: 1
-      maxItems: 40
-    dma-names:
-      items:
-        pattern: "^[rt]x(1[0-9]|[1-9]|20)$"
-      description:
-        Should be "rx1", "rx2" ... "rx20" for DMA Rx channel
-        Should be "tx1", "tx2" ... "tx20" for DMA Tx channel
-      minItems: 1
-      maxItems: 40
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nvidia,tegra264-admaif
+    then:
+      properties:
+        dmas:
+          description:
+            DMA channel specifiers, equally divided for Tx and Rx.
+          minItems: 1
+          maxItems: 64
+        dma-names:
+          items:
+            pattern: "^[rt]x(3[0-2]|[1-2][0-9]|[1-9])$"
+          description:
+            Should be "rx1", "rx2" ... "rx32" for DMA Rx channel
+            Should be "tx1", "tx2" ... "tx32" for DMA Tx channel
+          minItems: 1
+          maxItems: 64
 
 required:
   - compatible

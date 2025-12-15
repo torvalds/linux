@@ -95,6 +95,7 @@ void dpp35_program_bias_and_scale_fcnv(
 static struct dpp_funcs dcn35_dpp_funcs = {
 	.dpp_program_gamcor_lut		= dpp3_program_gamcor_lut,
 	.dpp_read_state				= dpp30_read_state,
+	.dpp_read_reg_state			= dpp30_read_reg_state,
 	.dpp_reset					= dpp_reset,
 	.dpp_set_scaler				= dpp1_dscl_set_scaler_manual_scale,
 	.dpp_get_optimal_number_of_taps	= dpp3_get_optimal_number_of_taps,

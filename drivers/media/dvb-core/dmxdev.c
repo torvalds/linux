@@ -1414,8 +1414,8 @@ int dvb_dmxdev_init(struct dmxdev *dmxdev, struct dvb_adapter *dvb_adapter)
 	if (dmxdev->demux->open(dmxdev->demux) < 0)
 		return -EUSERS;
 
-	dmxdev->filter = vmalloc(array_size(sizeof(struct dmxdev_filter),
-					    dmxdev->filternum));
+	dmxdev->filter = vmalloc_array(dmxdev->filternum,
+				       sizeof(struct dmxdev_filter));
 	if (!dmxdev->filter)
 		return -ENOMEM;
 

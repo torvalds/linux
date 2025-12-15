@@ -60,6 +60,7 @@
 #include <linux/sched/deadline.h>
 #include <linux/psi.h>
 #include <linux/nstree.h>
+#include <linux/irq_work.h>
 #include <net/sock.h>
 
 #define CREATE_TRACE_POINTS
@@ -250,12 +251,9 @@ bool cgroup_enable_per_threadgroup_rwsem __read_mostly;
 
 /* cgroup namespace for init task */
 struct cgroup_namespace init_cgroup_ns = {
-	.ns.__ns_ref	= REFCOUNT_INIT(2),
+	.ns		= NS_COMMON_INIT(init_cgroup_ns),
 	.user_ns	= &init_user_ns,
-	.ns.ops		= &cgroupns_operations,
-	.ns.inum	= ns_init_inum(&init_cgroup_ns),
 	.root_cset	= &init_css_set,
-	.ns.ns_type	= ns_common_type(&init_cgroup_ns),
 };
 
 static struct file_system_type cgroup2_fs_type;
@@ -290,6 +288,7 @@ static void kill_css(struct cgroup_subsys_state *css);
 static int cgroup_addrm_files(struct cgroup_subsys_state *css,
 			      struct cgroup *cgrp, struct cftype cfts[],
 			      bool is_add);
+static void cgroup_rt_init(void);
 
 #ifdef CONFIG_DEBUG_CGROUP_REF
 #define CGROUP_REF_FN_ATTRS	noinline
@@ -944,7 +943,8 @@ static void css_set_move_task(struct task_struct *task,
 		/*
 		 * We are synchronized through cgroup_threadgroup_rwsem
 		 * against PF_EXITING setting such that we can't race
-		 * against cgroup_exit()/cgroup_free() dropping the css_set.
+		 * against cgroup_task_dead()/cgroup_task_free() dropping
+		 * the css_set.
 		 */
 		WARN_ON_ONCE(task->flags & PF_EXITING);
 
@@ -1522,9 +1522,9 @@ static struct cgroup *current_cgns_cgroup_dfl(void)
 	} else {
 		/*
 		 * NOTE: This function may be called from bpf_cgroup_from_id()
-		 * on a task which has already passed exit_task_namespaces() and
-		 * nsproxy == NULL. Fall back to cgrp_dfl_root which will make all
-		 * cgroups visible for lookups.
+		 * on a task which has already passed exit_nsproxy_namespaces()
+		 * and nsproxy == NULL. Fall back to cgrp_dfl_root which will
+		 * make all cgroups visible for lookups.
 		 */
 		return &cgrp_dfl_root.cgrp;
 	}
@@ -4704,6 +4704,7 @@ void cgroup_file_notify(struct cgroup_file *cfile)
 	}
 	spin_unlock_irqrestore(&cgroup_file_kn_lock, flags);
 }
+EXPORT_SYMBOL_GPL(cgroup_file_notify);
 
 /**
  * cgroup_file_show - show or hide a hidden cgroup file
@@ -5363,7 +5364,6 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	struct cgroup_file_ctx *ctx = of->priv;
 	struct cgroup *src_cgrp, *dst_cgrp;
 	struct task_struct *task;
-	const struct cred *saved_cred;
 	ssize_t ret;
 	enum cgroup_attach_lock_mode lock_mode;
 
@@ -5386,11 +5386,10 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	 * permissions using the credentials from file open to protect against
 	 * inherited fd attacks.
 	 */
-	saved_cred = override_creds(of->file->f_cred);
-	ret = cgroup_attach_permissions(src_cgrp, dst_cgrp,
-					of->file->f_path.dentry->d_sb,
-					threadgroup, ctx->ns);
-	revert_creds(saved_cred);
+	scoped_with_creds(of->file->f_cred)
+		ret = cgroup_attach_permissions(src_cgrp, dst_cgrp,
+						of->file->f_path.dentry->d_sb,
+						threadgroup, ctx->ns);
 	if (ret)
 		goto out_finish;
 
@@ -6359,6 +6358,7 @@ int __init cgroup_init(void)
 	BUG_ON(ss_rstat_init(NULL));
 
 	get_user_ns(init_cgroup_ns.user_ns);
+	cgroup_rt_init();
 
 	cgroup_lock();
 
@@ -6972,19 +6972,29 @@ void cgroup_post_fork(struct task_struct *child,
 }
 
 /**
- * cgroup_exit - detach cgroup from exiting task
+ * cgroup_task_exit - detach cgroup from exiting task
  * @tsk: pointer to task_struct of exiting process
  *
  * Description: Detach cgroup from @tsk.
  *
  */
-void cgroup_exit(struct task_struct *tsk)
+void cgroup_task_exit(struct task_struct *tsk)
 {
 	struct cgroup_subsys *ss;
-	struct css_set *cset;
 	int i;
 
-	spin_lock_irq(&css_set_lock);
+	/* see cgroup_post_fork() for details */
+	do_each_subsys_mask(ss, i, have_exit_callback) {
+		ss->exit(tsk);
+	} while_each_subsys_mask();
+}
+
+static void do_cgroup_task_dead(struct task_struct *tsk)
+{
+	struct css_set *cset;
+	unsigned long flags;
+
+	spin_lock_irqsave(&css_set_lock, flags);
 
 	WARN_ON_ONCE(list_empty(&tsk->cg_list));
 	cset = task_css_set(tsk);
@@ -7002,15 +7012,61 @@ void cgroup_exit(struct task_struct *tsk)
 		     test_bit(CGRP_FREEZE, &task_dfl_cgroup(tsk)->flags)))
 		cgroup_update_frozen(task_dfl_cgroup(tsk));
 
-	spin_unlock_irq(&css_set_lock);
-
-	/* see cgroup_post_fork() for details */
-	do_each_subsys_mask(ss, i, have_exit_callback) {
-		ss->exit(tsk);
-	} while_each_subsys_mask();
+	spin_unlock_irqrestore(&css_set_lock, flags);
 }
 
-void cgroup_release(struct task_struct *task)
+#ifdef CONFIG_PREEMPT_RT
+/*
+ * cgroup_task_dead() is called from finish_task_switch() which doesn't allow
+ * scheduling even in RT. As the task_dead path requires grabbing css_set_lock,
+ * this lead to sleeping in the invalid context warning bug. css_set_lock is too
+ * big to become a raw_spinlock. The task_dead path doesn't need to run
+ * synchronously but can't be delayed indefinitely either as the dead task pins
+ * the cgroup and task_struct can be pinned indefinitely. Bounce through lazy
+ * irq_work to allow batching while ensuring timely completion.
+ */
+static DEFINE_PER_CPU(struct llist_head, cgrp_dead_tasks);
+static DEFINE_PER_CPU(struct irq_work, cgrp_dead_tasks_iwork);
+
+static void cgrp_dead_tasks_iwork_fn(struct irq_work *iwork)
+{
+	struct llist_node *lnode;
+	struct task_struct *task, *next;
+
+	lnode = llist_del_all(this_cpu_ptr(&cgrp_dead_tasks));
+	llist_for_each_entry_safe(task, next, lnode, cg_dead_lnode) {
+		do_cgroup_task_dead(task);
+		put_task_struct(task);
+	}
+}
+
+static void __init cgroup_rt_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		init_llist_head(per_cpu_ptr(&cgrp_dead_tasks, cpu));
+		per_cpu(cgrp_dead_tasks_iwork, cpu) =
+			IRQ_WORK_INIT_LAZY(cgrp_dead_tasks_iwork_fn);
+	}
+}
+
+void cgroup_task_dead(struct task_struct *task)
+{
+	get_task_struct(task);
+	llist_add(&task->cg_dead_lnode, this_cpu_ptr(&cgrp_dead_tasks));
+	irq_work_queue(this_cpu_ptr(&cgrp_dead_tasks_iwork));
+}
+#else	/* CONFIG_PREEMPT_RT */
+static void __init cgroup_rt_init(void) {}
+
+void cgroup_task_dead(struct task_struct *task)
+{
+	do_cgroup_task_dead(task);
+}
+#endif	/* CONFIG_PREEMPT_RT */
+
+void cgroup_task_release(struct task_struct *task)
 {
 	struct cgroup_subsys *ss;
 	int ssid;
@@ -7018,6 +7074,11 @@ void cgroup_release(struct task_struct *task)
 	do_each_subsys_mask(ss, ssid, have_release_callback) {
 		ss->release(task);
 	} while_each_subsys_mask();
+}
+
+void cgroup_task_free(struct task_struct *task)
+{
+	struct css_set *cset = task_css_set(task);
 
 	if (!list_empty(&task->cg_list)) {
 		spin_lock_irq(&css_set_lock);
@@ -7025,11 +7086,7 @@ void cgroup_release(struct task_struct *task)
 		list_del_init(&task->cg_list);
 		spin_unlock_irq(&css_set_lock);
 	}
-}
 
-void cgroup_free(struct task_struct *task)
-{
-	struct css_set *cset = task_css_set(task);
 	put_css_set(cset);
 }
 

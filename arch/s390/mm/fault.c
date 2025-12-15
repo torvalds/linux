@@ -23,7 +23,6 @@
 #include <linux/ptrace.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/compat.h>
 #include <linux/smp.h>
 #include <linux/kdebug.h>
 #include <linux/init.h>
@@ -133,8 +132,17 @@ static void dump_fault_info(struct pt_regs *regs)
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long asce;
 
-	pr_alert("Failing address: %016lx TEID: %016lx\n",
+	pr_alert("Failing address: %016lx TEID: %016lx",
 		 get_fault_address(regs), teid.val);
+	if (test_facility(131))
+		pr_cont(" ESOP-2");
+	else if (machine_has_esop())
+		pr_cont(" ESOP-1");
+	else
+		pr_cont(" SOP");
+	if (test_facility(75))
+		pr_cont(" FSI");
+	pr_cont("\n");
 	pr_alert("Fault in ");
 	switch (teid.as) {
 	case PSW_BITS_AS_HOME:
@@ -365,23 +373,20 @@ void do_protection_exception(struct pt_regs *regs)
 	 * The exception to this rule are aborted transactions, for these
 	 * the PSW already points to the correct location.
 	 */
-	if (!(regs->int_code & 0x200))
+	if (!(regs->int_code & 0x200)) {
 		regs->psw.addr = __rewind_psw(regs->psw, regs->int_code >> 16);
+		set_pt_regs_flag(regs, PIF_PSW_ADDR_ADJUSTED);
+	}
 	/*
-	 * Check for low-address protection.  This needs to be treated
-	 * as a special case because the translation exception code
-	 * field is not guaranteed to contain valid data in this case.
+	 * If bit 61 if the TEID is not set, the remainder of the
+	 * TEID is unpredictable. Special handling is required.
 	 */
 	if (unlikely(!teid.b61)) {
 		if (user_mode(regs)) {
-			/* Low-address protection in user mode: cannot happen */
 			dump_fault_info(regs);
-			die(regs, "Low-address protection");
+			die(regs, "Unexpected TEID");
 		}
-		/*
-		 * Low-address protection in kernel mode means
-		 * NULL pointer write access in kernel mode.
-		 */
+		/* Assume low-address protection in kernel mode. */
 		return handle_fault_error_nolock(regs, 0);
 	}
 	if (unlikely(cpu_has_nx() && teid.b56)) {

@@ -46,4 +46,4 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags);
 bool io_poll_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			bool cancel_all);
 
-void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw);
+void io_poll_task_func(struct io_tw_req tw_req, io_tw_token_t tw);

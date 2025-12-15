@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 - 2024 Intel Corporation
+ * Copyright (C) 2018 - 2025 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  */
@@ -1410,7 +1410,10 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (baselen > len)
 		return;
 
-	elems = ieee802_11_parse_elems(pos, len - baselen, false, NULL);
+	elems = ieee802_11_parse_elems(pos, len - baselen,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_PROBE_REQ,
+				       NULL);
 	if (!elems)
 		return;
 
@@ -1455,11 +1458,11 @@ free:
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
-					u16 stype,
 					struct ieee80211_mgmt *mgmt,
 					size_t len,
 					struct ieee80211_rx_status *rx_status)
 {
+	u16 type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee802_11_elems *elems;
@@ -1469,7 +1472,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_band band = rx_status->band;
 
 	/* ignore ProbeResp to foreign address */
-	if (stype == IEEE80211_STYPE_PROBE_RESP &&
+	if (type == (IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP) &&
 	    !ether_addr_equal(mgmt->da, sdata->vif.addr))
 		return;
 
@@ -1478,8 +1481,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elems = ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
-				       len - baselen,
-				       false, NULL);
+				       len - baselen, type, NULL);
 	if (!elems)
 		return;
 
@@ -1514,7 +1516,9 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (ifmsh->sync_ops)
-		ifmsh->sync_ops->rx_bcn_presp(sdata, stype, mgmt, len,
+		ifmsh->sync_ops->rx_bcn_presp(sdata,
+					      type & IEEE80211_FCTL_STYPE,
+					      mgmt, len,
 					      elems->mesh_config, rx_status);
 free:
 	kfree(elems);
@@ -1622,7 +1626,10 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 	pos = mgmt->u.action.u.chan_switch.variable;
 	baselen = offsetof(struct ieee80211_mgmt,
 			   u.action.u.chan_switch.variable);
-	elems = ieee802_11_parse_elems(pos, len - baselen, true, NULL);
+	elems = ieee802_11_parse_elems(pos, len - baselen,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems)
 		return;
 
@@ -1699,8 +1706,7 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	switch (stype) {
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
-		ieee80211_mesh_rx_bcn_presp(sdata, stype, mgmt, skb->len,
-					    rx_status);
+		ieee80211_mesh_rx_bcn_presp(sdata, mgmt, skb->len, rx_status);
 		break;
 	case IEEE80211_STYPE_PROBE_REQ:
 		ieee80211_mesh_rx_probe_req(sdata, mgmt, skb->len);

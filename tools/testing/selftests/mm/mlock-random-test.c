@@ -13,7 +13,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <time.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "mlock2.h"
 
 #define CHUNK_UNIT (128 * 1024)

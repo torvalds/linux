@@ -163,11 +163,30 @@ static void bcmasp_set_msglevel(struct net_device *dev, u32 level)
 static void bcmasp_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bcmasp_intf *intf = netdev_priv(dev);
+	struct bcmasp_priv *priv = intf->parent;
+	struct device *kdev = &priv->pdev->dev;
+	u32 phy_wolopts = 0;
 
-	wol->supported = BCMASP_SUPPORTED_WAKE;
-	wol->wolopts = intf->wolopts;
+	if (dev->phydev) {
+		phy_ethtool_get_wol(dev->phydev, wol);
+		phy_wolopts = wol->wolopts;
+	}
+
+	/* MAC is not wake-up capable, return what the PHY does */
+	if (!device_can_wakeup(kdev))
+		return;
+
+	/* Overlay MAC capabilities with that of the PHY queried before */
+	wol->supported |= BCMASP_SUPPORTED_WAKE;
+	wol->wolopts |= intf->wolopts;
+
+	/* Return the PHY configured magic password */
+	if (phy_wolopts & WAKE_MAGICSECURE)
+		return;
+
 	memset(wol->sopass, 0, sizeof(wol->sopass));
 
+	/* Otherwise the MAC one */
 	if (wol->wolopts & WAKE_MAGICSECURE)
 		memcpy(wol->sopass, intf->sopass, sizeof(intf->sopass));
 }
@@ -177,9 +196,20 @@ static int bcmasp_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct bcmasp_intf *intf = netdev_priv(dev);
 	struct bcmasp_priv *priv = intf->parent;
 	struct device *kdev = &priv->pdev->dev;
+	int ret = 0;
+
+	/* Try Wake-on-LAN from the PHY first */
+	if (dev->phydev) {
+		ret = phy_ethtool_set_wol(dev->phydev, wol);
+		if (ret != -EOPNOTSUPP && wol->wolopts)
+			return ret;
+	}
 
 	if (!device_can_wakeup(kdev))
 		return -EOPNOTSUPP;
+
+	if (wol->wolopts & ~BCMASP_SUPPORTED_WAKE)
+		return -EINVAL;
 
 	/* Interface Specific */
 	intf->wolopts = wol->wolopts;

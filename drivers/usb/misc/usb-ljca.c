@@ -164,28 +164,39 @@ struct ljca_match_ids_walk_data {
 	struct acpi_device *adev;
 };
 
+/*
+ * ACPI hardware IDs for LJCA client devices.
+ *
+ * [1] Some BIOS implementations use these IDs for denoting LJCA client devices
+ *     even though the IDs have been allocated for USBIO. This isn't a problem
+ *     as the usb-ljca driver is probed based on the USB device's vendor and
+ *     product IDs and its client drivers are probed based on auxiliary device
+ *     names, not these ACPI _HIDs. List of such systems:
+ *
+ *     Dell Precision 5490
+ */
 static const struct acpi_device_id ljca_gpio_hids[] = {
-	{ "INTC1074" },
-	{ "INTC1096" },
-	{ "INTC100B" },
-	{ "INTC10D1" },
-	{ "INTC10B5" },
+	{ "INTC100B" }, /* RPL LJCA GPIO */
+	{ "INTC1074" }, /* CVF LJCA GPIO */
+	{ "INTC1096" }, /* ADL LJCA GPIO */
+	{ "INTC10B5" }, /* LNL LJCA GPIO */
+	{ "INTC10D1" }, /* MTL (CVF VSC) USBIO GPIO [1] */
 	{},
 };
 
 static const struct acpi_device_id ljca_i2c_hids[] = {
-	{ "INTC1075" },
-	{ "INTC1097" },
-	{ "INTC100C" },
-	{ "INTC10D2" },
+	{ "INTC100C" }, /* RPL LJCA I2C */
+	{ "INTC1075" }, /* CVF LJCA I2C */
+	{ "INTC1097" }, /* ADL LJCA I2C */
+	{ "INTC10D2" }, /* MTL (CVF VSC) USBIO I2C [1] */
 	{},
 };
 
 static const struct acpi_device_id ljca_spi_hids[] = {
-	{ "INTC1091" },
-	{ "INTC1098" },
-	{ "INTC100D" },
-	{ "INTC10D3" },
+	{ "INTC100D" }, /* RPL LJCA SPI */
+	{ "INTC1091" }, /* TGL/ADL LJCA SPI */
+	{ "INTC1098" }, /* ADL LJCA SPI */
+	{ "INTC10D3" }, /* MTL (CVF VSC) USBIO SPI [1] */
 	{},
 };
 
@@ -891,7 +902,7 @@ static struct usb_driver ljca_driver = {
 };
 module_usb_driver(ljca_driver);
 
-MODULE_AUTHOR("Wentong Wu <wentong.wu@intel.com>");
+MODULE_AUTHOR("Wentong Wu");
 MODULE_AUTHOR("Zhifeng Wang <zhifeng.wang@intel.com>");
 MODULE_AUTHOR("Lixu Zhang <lixu.zhang@intel.com>");
 MODULE_DESCRIPTION("Intel La Jolla Cove Adapter USB driver");

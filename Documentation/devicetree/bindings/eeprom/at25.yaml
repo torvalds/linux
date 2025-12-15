@@ -25,6 +25,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - anvo,anv32c81w
               - anvo,anv32e61w
               - atmel,at25256B
               - fujitsu,mb85rs1mt

@@ -28,6 +28,7 @@
 #define RKVDEC_SOFTRST_EN_P				BIT(20)
 #define RKVDEC_FORCE_SOFTRESET_VALID			BIT(21)
 #define RKVDEC_SOFTRESET_RDY				BIT(22)
+#define RKVDEC_WR_DDR_ALIGN_EN				BIT(23)
 
 #define RKVDEC_REG_SYSCTRL				0x008
 #define RKVDEC_IN_ENDIAN				BIT(0)
@@ -43,6 +44,7 @@
 #define RKVDEC_RLC_MODE					BIT(11)
 #define RKVDEC_STRM_START_BIT(x)			(((x) & 0x7f) << 12)
 #define RKVDEC_MODE(x)					(((x) & 0x03) << 20)
+#define RKVDEC_MODE_HEVC				0
 #define RKVDEC_MODE_H264				1
 #define RKVDEC_MODE_VP9					2
 #define RKVDEC_RPS_MODE					BIT(24)
@@ -216,6 +218,8 @@
 
 #define RKVDEC_REG_H264_ERR_E				0x134
 #define RKVDEC_H264_ERR_EN_HIGHBITS(x)			((x) & 0x3fffffff)
+
+#define RKVDEC_REG_QOS_CTRL				0x18C
 
 #define RKVDEC_REG_PREF_LUMA_CACHE_COMMAND		0x410
 #define RKVDEC_REG_PREF_CHR_CACHE_COMMAND		0x450

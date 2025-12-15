@@ -22,10 +22,6 @@
 #define TCP_PACING_CA_RATIO (120)
 #define TCP_REORDERING (12)
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define after(seq2, seq1) before(seq1, seq2)
-
 extern void cubictcp_init(struct sock *sk) __ksym;
 extern void cubictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event) __ksym;
 extern __u32 cubictcp_recalc_ssthresh(struct sock *sk) __ksym;
@@ -33,11 +29,6 @@ extern void cubictcp_state(struct sock *sk, __u8 new_state) __ksym;
 extern __u32 tcp_reno_undo_cwnd(struct sock *sk) __ksym;
 extern void cubictcp_acked(struct sock *sk, const struct ack_sample *sample) __ksym;
 extern void cubictcp_cong_avoid(struct sock *sk, __u32 ack, __u32 acked) __ksym;
-
-static bool before(__u32 seq1, __u32 seq2)
-{
-	return (__s32)(seq1-seq2) < 0;
-}
 
 static __u64 div64_u64(__u64 dividend, __u64 divisor)
 {

@@ -332,6 +332,9 @@ EXT4_ATTR_FEATURE(fast_commit);
 #if IS_ENABLED(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
 EXT4_ATTR_FEATURE(encrypted_casefold);
 #endif
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+EXT4_ATTR_FEATURE(blocksize_gt_pagesize);
+#endif
 
 static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(lazy_itable_init),
@@ -351,6 +354,9 @@ static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(fast_commit),
 #if IS_ENABLED(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
 	ATTR_LIST(encrypted_casefold),
+#endif
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	ATTR_LIST(blocksize_gt_pagesize),
 #endif
 	NULL,
 };

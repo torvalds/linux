@@ -25,11 +25,6 @@ struct qdisc_walker {
 		 const struct Qdisc * : (const void *)&q->privdata,	\
 		 struct Qdisc * : (void *)&q->privdata)
 
-static inline struct Qdisc *qdisc_from_priv(void *priv)
-{
-	return container_of(priv, struct Qdisc, privdata);
-}
-
 /* 
    Timer resolution MUST BE < 10% of min_schedulable_packet_size/bandwidth
    
@@ -48,7 +43,6 @@ static inline struct Qdisc *qdisc_from_priv(void *priv)
  */
 
 typedef u64	psched_time_t;
-typedef long	psched_tdiff_t;
 
 /* Avoid doing 64 bit divide */
 #define PSCHED_SHIFT			6
@@ -120,12 +114,13 @@ bool sch_direct_xmit(struct sk_buff *skb, struct Qdisc *q,
 
 void __qdisc_run(struct Qdisc *q);
 
-static inline void qdisc_run(struct Qdisc *q)
+static inline struct sk_buff *qdisc_run(struct Qdisc *q)
 {
 	if (qdisc_run_begin(q)) {
 		__qdisc_run(q);
-		qdisc_run_end(q);
+		return qdisc_run_end(q);
 	}
+	return NULL;
 }
 
 extern const struct nla_policy rtm_tca_policy[TCA_MAX + 1];

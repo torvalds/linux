@@ -170,6 +170,10 @@ static int hv_cpu_init(unsigned int cpu)
 		wrmsrq(HV_X64_MSR_VP_ASSIST_PAGE, msr.as_uint64);
 	}
 
+	/* Allow Hyper-V stimer vector to be injected from Hypervisor. */
+	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
+		apic_update_vector(cpu, HYPERV_STIMER0_VECTOR, true);
+
 	return hyperv_init_ghcb();
 }
 
@@ -277,6 +281,9 @@ static int hv_cpu_die(unsigned int cpu)
 		*ghcb_va = NULL;
 	}
 
+	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
+		apic_update_vector(cpu, HYPERV_STIMER0_VECTOR, false);
+
 	hv_common_cpu_die(cpu);
 
 	if (hv_vp_assist_page && hv_vp_assist_page[cpu]) {
@@ -351,7 +358,7 @@ static int __init hv_pci_init(void)
 	return 1;
 }
 
-static int hv_suspend(void)
+static int hv_suspend(void *data)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	int ret;
@@ -378,7 +385,7 @@ static int hv_suspend(void)
 	return ret;
 }
 
-static void hv_resume(void)
+static void hv_resume(void *data)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	int ret;
@@ -405,9 +412,13 @@ static void hv_resume(void)
 }
 
 /* Note: when the ops are called, only CPU0 is online and IRQs are disabled. */
-static struct syscore_ops hv_syscore_ops = {
+static const struct syscore_ops hv_syscore_ops = {
 	.suspend	= hv_suspend,
 	.resume		= hv_resume,
+};
+
+static struct syscore hv_syscore = {
+	.ops = &hv_syscore_ops,
 };
 
 static void (* __initdata old_setup_percpu_clockev)(void);
@@ -547,6 +558,8 @@ void __init hyperv_init(void)
 		memunmap(src);
 
 		hv_remap_tsc_clocksource();
+		hv_root_crash_init();
+		hv_sleep_notifiers_register();
 	} else {
 		hypercall_msr.guest_physical_address = vmalloc_to_pfn(hv_hypercall_pg);
 		wrmsrq(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
@@ -569,7 +582,7 @@ skip_hypercall_pg_init:
 
 	x86_init.pci.arch_init = hv_pci_init;
 
-	register_syscore_ops(&hv_syscore_ops);
+	register_syscore(&hv_syscore);
 
 	if (ms_hyperv.priv_high & HV_ACCESS_PARTITION_ID)
 		hv_get_partition_id();

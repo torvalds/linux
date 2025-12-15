@@ -31,6 +31,7 @@
 #include <linux/kexec.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/static_call.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/bug.h>
@@ -102,25 +103,37 @@ __always_inline int is_valid_bugaddr(unsigned long addr)
  * UBSan{0}:     67 0f b9 00             ud1    (%eax),%eax
  * UBSan{10}:    67 0f b9 40 10          ud1    0x10(%eax),%eax
  * static_call:  0f b9 cc                ud1    %esp,%ecx
+ * __WARN_trap:  67 48 0f b9 3a          ud1    (%edx),%reg
  *
- * Notably UBSAN uses EAX, static_call uses ECX.
+ * Notable, since __WARN_trap can use all registers, the distinction between
+ * UD1 users is through R/M.
  */
 __always_inline int decode_bug(unsigned long addr, s32 *imm, int *len)
 {
 	unsigned long start = addr;
+	u8 v, reg, rm, rex = 0;
+	int type = BUG_UD1;
 	bool lock = false;
-	u8 v;
 
 	if (addr < TASK_SIZE_MAX)
 		return BUG_NONE;
 
-	v = *(u8 *)(addr++);
-	if (v == INSN_ASOP)
+	for (;;) {
 		v = *(u8 *)(addr++);
+		if (v == INSN_ASOP)
+			continue;
 
-	if (v == INSN_LOCK) {
-		lock = true;
-		v = *(u8 *)(addr++);
+		if (v == INSN_LOCK) {
+			lock = true;
+			continue;
+		}
+
+		if ((v & 0xf0) == 0x40) {
+			rex = v;
+			continue;
+		}
+
+		break;
 	}
 
 	switch (v) {
@@ -156,18 +169,33 @@ __always_inline int decode_bug(unsigned long addr, s32 *imm, int *len)
 	if (X86_MODRM_MOD(v) != 3 && X86_MODRM_RM(v) == 4)
 		addr++;			/* SIB */
 
+	reg = X86_MODRM_REG(v) + 8*!!X86_REX_R(rex);
+	rm  = X86_MODRM_RM(v)  + 8*!!X86_REX_B(rex);
+
 	/* Decode immediate, if present */
 	switch (X86_MODRM_MOD(v)) {
 	case 0: if (X86_MODRM_RM(v) == 5)
-			addr += 4; /* RIP + disp32 */
+			addr += 4;	/* RIP + disp32 */
+
+		if (rm == 0)		/* (%eax) */
+			type = BUG_UD1_UBSAN;
+
+		if (rm == 2) {		/* (%edx) */
+			*imm = reg;
+			type = BUG_UD1_WARN;
+		}
 		break;
 
 	case 1: *imm = *(s8 *)addr;
 		addr += 1;
+		if (rm == 0)		/* (%eax) */
+			type = BUG_UD1_UBSAN;
 		break;
 
 	case 2: *imm = *(s32 *)addr;
 		addr += 4;
+		if (rm == 0)		/* (%eax) */
+			type = BUG_UD1_UBSAN;
 		break;
 
 	case 3: break;
@@ -176,12 +204,76 @@ __always_inline int decode_bug(unsigned long addr, s32 *imm, int *len)
 	/* record instruction length */
 	*len = addr - start;
 
-	if (X86_MODRM_REG(v) == 0)	/* EAX */
-		return BUG_UD1_UBSAN;
-
-	return BUG_UD1;
+	return type;
 }
 
+static inline unsigned long pt_regs_val(struct pt_regs *regs, int nr)
+{
+	int offset = pt_regs_offset(regs, nr);
+	if (WARN_ON_ONCE(offset < -0))
+		return 0;
+	return *((unsigned long *)((void *)regs + offset));
+}
+
+#ifdef HAVE_ARCH_BUG_FORMAT_ARGS
+DEFINE_STATIC_CALL(WARN_trap, __WARN_trap);
+EXPORT_STATIC_CALL_TRAMP(WARN_trap);
+
+/*
+ * Create a va_list from an exception context.
+ */
+void *__warn_args(struct arch_va_list *args, struct pt_regs *regs)
+{
+	/*
+	 * Register save area; populate with function call argument registers
+	 */
+	args->regs[0] = regs->di;
+	args->regs[1] = regs->si;
+	args->regs[2] = regs->dx;
+	args->regs[3] = regs->cx;
+	args->regs[4] = regs->r8;
+	args->regs[5] = regs->r9;
+
+	/*
+	 * From the ABI document:
+	 *
+	 * @gp_offset - the element holds the offset in bytes from
+	 * reg_save_area to the place where the next available general purpose
+	 * argument register is saved. In case all argument registers have
+	 * been exhausted, it is set to the value 48 (6*8).
+	 *
+	 * @fp_offset - the element holds the offset in bytes from
+	 * reg_save_area to the place where the next available floating point
+	 * argument is saved. In case all argument registers have been
+	 * exhausted, it is set to the value 176 (6*8 + 8*16)
+	 *
+	 * @overflow_arg_area - this pointer is used to fetch arguments passed
+	 * on the stack. It is initialized with the address of the first
+	 * argument passed on the stack, if any, and then always updated to
+	 * point to the start of the next argument on the stack.
+	 *
+	 * @reg_save_area - the element points to the start of the register
+	 * save area.
+	 *
+	 * Notably the vararg starts with the second argument and there are no
+	 * floating point arguments in the kernel.
+	 */
+	args->args.gp_offset = 1*8;
+	args->args.fp_offset = 6*8 + 8*16;
+	args->args.reg_save_area = &args->regs;
+	args->args.overflow_arg_area = (void *)regs->sp;
+
+	/*
+	 * If the exception came from __WARN_trap, there is a return
+	 * address on the stack, skip that. This is why any __WARN_trap()
+	 * caller must inhibit tail-call optimization.
+	 */
+	if ((void *)regs->ip == &__WARN_trap)
+		args->args.overflow_arg_area += 8;
+
+	return &args->args;
+}
+#endif /* HAVE_ARCH_BUG_FORMAT */
 
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
@@ -334,6 +426,11 @@ static noinstr bool handle_bug(struct pt_regs *regs)
 		raw_local_irq_enable();
 
 	switch (ud_type) {
+	case BUG_UD1_WARN:
+		if (report_bug_entry((void *)pt_regs_val(regs, ud_imm), regs) == BUG_TRAP_TYPE_WARN)
+			handled = true;
+		break;
+
 	case BUG_UD2:
 		if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN) {
 			handled = true;
@@ -635,13 +732,23 @@ DEFINE_IDTENTRY(exc_bounds)
 enum kernel_gp_hint {
 	GP_NO_HINT,
 	GP_NON_CANONICAL,
-	GP_CANONICAL
+	GP_CANONICAL,
+	GP_LASS_VIOLATION,
+	GP_NULL_POINTER,
+};
+
+static const char * const kernel_gp_hint_help[] = {
+	[GP_NON_CANONICAL]	= "probably for non-canonical address",
+	[GP_CANONICAL]		= "maybe for address",
+	[GP_LASS_VIOLATION]	= "probably LASS violation for address",
+	[GP_NULL_POINTER]	= "kernel NULL pointer dereference",
 };
 
 /*
  * When an uncaught #GP occurs, try to determine the memory address accessed by
  * the instruction and return that address to the caller. Also, try to figure
- * out whether any part of the access to that address was non-canonical.
+ * out whether any part of the access to that address was non-canonical or
+ * across privilege levels.
  */
 static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 						 unsigned long *addr)
@@ -663,14 +770,28 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 		return GP_NO_HINT;
 
 #ifdef CONFIG_X86_64
-	/*
-	 * Check that:
-	 *  - the operand is not in the kernel half
-	 *  - the last byte of the operand is not in the user canonical half
-	 */
-	if (*addr < ~__VIRTUAL_MASK &&
-	    *addr + insn.opnd_bytes - 1 > __VIRTUAL_MASK)
+	/* Operand is in the kernel half */
+	if (*addr >= ~__VIRTUAL_MASK)
+		return GP_CANONICAL;
+
+	/* The last byte of the operand is not in the user canonical half */
+	if (*addr + insn.opnd_bytes - 1 > __VIRTUAL_MASK)
 		return GP_NON_CANONICAL;
+
+	/*
+	 * A NULL pointer dereference usually causes a #PF. However, it
+	 * can result in a #GP when LASS is active. Provide the same
+	 * hint in the rare case that the condition is hit without LASS.
+	 */
+	if (*addr < PAGE_SIZE)
+		return GP_NULL_POINTER;
+
+	/*
+	 * Assume that LASS caused the exception, because the address is
+	 * canonical and in the user half.
+	 */
+	if (cpu_feature_enabled(X86_FEATURE_LASS))
+		return GP_LASS_VIOLATION;
 #endif
 
 	return GP_CANONICAL;
@@ -833,9 +954,7 @@ DEFINE_IDTENTRY_ERRORCODE(exc_general_protection)
 
 	if (hint != GP_NO_HINT)
 		snprintf(desc, sizeof(desc), GPFSTR ", %s 0x%lx",
-			 (hint == GP_NON_CANONICAL) ? "probably for non-canonical address"
-						    : "maybe for address",
-			 gp_addr);
+			 kernel_gp_hint_help[hint], gp_addr);
 
 	/*
 	 * KASAN is interested only in the non-canonical case, clear it

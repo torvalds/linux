@@ -33,6 +33,10 @@ properties:
       - description: SPEAr1340 AHCI SATA device
         const: snps,spear-ahci
 
+  iommus:
+    minItems: 1
+    maxItems: 3
+
 patternProperties:
   "^sata-port@[0-9a-e]$":
     $ref: /schemas/ata/snps,dwc-ahci-common.yaml#/$defs/dwc-ahci-port

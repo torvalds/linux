@@ -666,7 +666,6 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_NOFN(UART_1_0_PORT158, UART2_TX, SEL_UART_1_0_01),
 };
 
-
 #define EMEV_MUX_PIN(name, pin, mark) \
 	static const unsigned int name##_pins[] = { pin }; \
 	static const unsigned int name##_mux[] = { mark##_MARK }

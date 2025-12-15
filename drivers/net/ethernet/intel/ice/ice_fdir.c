@@ -1121,7 +1121,7 @@ ice_fdir_get_gen_prgm_pkt(struct ice_hw *hw, struct ice_fdir_fltr *input,
  * ice_fdir_has_frag - does flow type have 2 ptypes
  * @flow: flow ptype
  *
- * returns true is there is a fragment packet for this ptype
+ * Return: true if there is a fragment packet for this ptype
  */
 bool ice_fdir_has_frag(enum ice_fltr_ptype flow)
 {

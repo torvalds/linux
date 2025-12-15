@@ -202,6 +202,17 @@ config PM_WAKELOCKS_GC
 	depends on PM_WAKELOCKS
 	default y
 
+config PM_QOS_CPU_SYSTEM_WAKEUP
+	bool "User space interface for CPU system wakeup QoS"
+	depends on CPU_IDLE
+	help
+	  Enable this to allow user space via the cpu_wakeup_latency file to
+	  specify a CPU system wakeup latency limit.
+
+	  This may be particularly useful for platforms supporting multiple low
+	  power states for CPUs during system-wide suspend and s2idle in
+	  particular.
+
 config PM
 	bool "Device power management core functionality"
 	help

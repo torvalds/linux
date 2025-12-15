@@ -302,6 +302,10 @@ static void setup_panel_mode(
 	if (ctx->dc->caps.psp_setup_panel_mode)
 		return;
 
+	/* The code below is only applicable to encoders with a digital transmitter. */
+	if (enc110->base.transmitter == TRANSMITTER_UNKNOWN)
+		return;
+
 	ASSERT(REG(DP_DPHY_INTERNAL_CTRL));
 	value = REG_READ(DP_DPHY_INTERNAL_CTRL);
 
@@ -804,6 +808,33 @@ bool dce110_link_encoder_validate_dp_output(
 	return true;
 }
 
+static bool dce110_link_encoder_validate_rgb_output(
+	const struct dce110_link_encoder *enc110,
+	const struct dc_crtc_timing *crtc_timing)
+{
+	/* When the VBIOS doesn't specify any limits, use 400 MHz.
+	 * The value comes from amdgpu_atombios_get_clock_info.
+	 */
+	uint32_t max_pixel_clock_khz = 400000;
+
+	if (enc110->base.ctx->dc_bios->fw_info_valid &&
+	    enc110->base.ctx->dc_bios->fw_info.max_pixel_clock) {
+		max_pixel_clock_khz =
+			enc110->base.ctx->dc_bios->fw_info.max_pixel_clock;
+	}
+
+	if (crtc_timing->pix_clk_100hz > max_pixel_clock_khz * 10)
+		return false;
+
+	if (crtc_timing->display_color_depth != COLOR_DEPTH_888)
+		return false;
+
+	if (crtc_timing->pixel_encoding != PIXEL_ENCODING_RGB)
+		return false;
+
+	return true;
+}
+
 void dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
@@ -824,6 +855,7 @@ void dce110_link_encoder_construct(
 	enc110->base.connector = init_data->connector;
 
 	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc110->base.analog_engine = init_data->analog_engine;
 
 	enc110->base.features = *enc_features;
 
@@ -846,6 +878,11 @@ void dce110_link_encoder_construct(
 		SIGNAL_TYPE_DISPLAY_PORT_MST |
 		SIGNAL_TYPE_EDP |
 		SIGNAL_TYPE_HDMI_TYPE_A;
+
+	if ((enc110->base.connector.id == CONNECTOR_ID_DUAL_LINK_DVII ||
+	     enc110->base.connector.id == CONNECTOR_ID_SINGLE_LINK_DVII) &&
+		enc110->base.analog_engine != ENGINE_ID_UNKNOWN)
+		enc110->base.output_signals |= SIGNAL_TYPE_RGB;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
 	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
@@ -885,6 +922,13 @@ void dce110_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_DIGG;
 	break;
 	default:
+		if (init_data->analog_engine != ENGINE_ID_UNKNOWN) {
+			/* The connector is analog-only, ie. VGA */
+			enc110->base.preferred_engine = init_data->analog_engine;
+			enc110->base.output_signals = SIGNAL_TYPE_RGB;
+			enc110->base.transmitter = TRANSMITTER_UNKNOWN;
+			break;
+		}
 		ASSERT_CRITICAL(false);
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}
@@ -939,6 +983,10 @@ bool dce110_link_encoder_validate_output_with_stream(
 		is_valid = dce110_link_encoder_validate_dp_output(
 					enc110, &stream->timing);
 	break;
+	case SIGNAL_TYPE_RGB:
+		is_valid = dce110_link_encoder_validate_rgb_output(
+					enc110, &stream->timing);
+	break;
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_LVDS:
 		is_valid = stream->timing.pixel_encoding == PIXEL_ENCODING_RGB;
@@ -968,6 +1016,10 @@ void dce110_link_encoder_hw_init(
 	cntl.lanes_number = LANE_COUNT_FOUR;
 	cntl.coherent = false;
 	cntl.hpd_sel = enc110->base.hpd_source;
+
+	/* The code below is only applicable to encoders with a digital transmitter. */
+	if (enc110->base.transmitter == TRANSMITTER_UNKNOWN)
+		return;
 
 	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
 		cntl.signal = SIGNAL_TYPE_EDP;
@@ -1033,6 +1085,8 @@ void dce110_link_encoder_setup(
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		/* DP MST */
 		REG_UPDATE(DIG_BE_CNTL, DIG_MODE, 5);
+		break;
+	case SIGNAL_TYPE_RGB:
 		break;
 	default:
 		ASSERT_CRITICAL(false);
@@ -1281,6 +1335,24 @@ void dce110_link_encoder_disable_output(
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
+
+	switch (enc->analog_engine) {
+	case ENGINE_ID_DACA:
+		REG_UPDATE(DAC_ENABLE, DAC_ENABLE, 0);
+		break;
+	case ENGINE_ID_DACB:
+		/* DACB doesn't seem to be present on DCE6+,
+		 * although there are references to it in the register file.
+		 */
+		DC_LOG_ERROR("%s DACB is unsupported\n", __func__);
+		break;
+	default:
+		break;
+	}
+
+	/* The code below only applies to connectors that support digital signals. */
+	if (enc->transmitter == TRANSMITTER_UNKNOWN)
+		return;
 
 	if (!dce110_is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
@@ -1726,6 +1798,7 @@ void dce60_link_encoder_construct(
 	enc110->base.connector = init_data->connector;
 
 	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
+	enc110->base.analog_engine = init_data->analog_engine;
 
 	enc110->base.features = *enc_features;
 
@@ -1748,6 +1821,11 @@ void dce60_link_encoder_construct(
 		SIGNAL_TYPE_DISPLAY_PORT_MST |
 		SIGNAL_TYPE_EDP |
 		SIGNAL_TYPE_HDMI_TYPE_A;
+
+	if ((enc110->base.connector.id == CONNECTOR_ID_DUAL_LINK_DVII ||
+	     enc110->base.connector.id == CONNECTOR_ID_SINGLE_LINK_DVII) &&
+		enc110->base.analog_engine != ENGINE_ID_UNKNOWN)
+		enc110->base.output_signals |= SIGNAL_TYPE_RGB;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
 	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
@@ -1787,6 +1865,13 @@ void dce60_link_encoder_construct(
 		enc110->base.preferred_engine = ENGINE_ID_DIGG;
 	break;
 	default:
+		if (init_data->analog_engine != ENGINE_ID_UNKNOWN) {
+			/* The connector is analog-only, ie. VGA */
+			enc110->base.preferred_engine = init_data->analog_engine;
+			enc110->base.output_signals = SIGNAL_TYPE_RGB;
+			enc110->base.transmitter = TRANSMITTER_UNKNOWN;
+			break;
+		}
 		ASSERT_CRITICAL(false);
 		enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 	}

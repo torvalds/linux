@@ -504,6 +504,7 @@ config MMC_MESON_MX_SDIO
 	depends on ARCH_MESON || COMPILE_TEST
 	depends on COMMON_CLK
 	depends on OF_ADDRESS
+	select REGMAP_MMIO
 	help
 	  This selects support for the SD/MMC Host Controller on
 	  Amlogic Meson6, Meson8 and Meson8b SoCs.

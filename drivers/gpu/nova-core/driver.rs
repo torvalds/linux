@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use kernel::{
-    auxiliary, c_str,
+    auxiliary,
+    c_str,
     device::Core,
+    devres::Devres,
+    dma::Device,
+    dma::DmaMask,
     pci,
-    pci::{Class, ClassMask, Vendor},
+    pci::{
+        Class,
+        ClassMask,
+        Vendor, //
+    },
     prelude::*,
     sizes::SZ_16M,
-    sync::Arc,
+    sync::Arc, //
 };
 
 use crate::gpu::Gpu;
@@ -16,10 +24,20 @@ use crate::gpu::Gpu;
 pub(crate) struct NovaCore {
     #[pin]
     pub(crate) gpu: Gpu,
-    _reg: auxiliary::Registration,
+    #[pin]
+    _reg: Devres<auxiliary::Registration>,
 }
 
 const BAR0_SIZE: usize = SZ_16M;
+
+// For now we only support Ampere which can use up to 47-bit DMA addresses.
+//
+// TODO: Add an abstraction for this to support newer GPUs which may support
+// larger DMA addresses. Limiting these GPUs to smaller address widths won't
+// have any adverse affects, unless installed on systems which require larger
+// DMA addresses. These systems should be quite rare.
+const GPU_DMA_BITS: u32 = 47;
+
 pub(crate) type Bar0 = pci::Bar<BAR0_SIZE>;
 
 kernel::pci_device_table!(
@@ -51,36 +69,33 @@ impl pci::Driver for NovaCore {
     type IdInfo = ();
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
-    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
-        dev_dbg!(pdev.as_ref(), "Probe Nova Core GPU driver.\n");
+    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
+        pin_init::pin_init_scope(move || {
+            dev_dbg!(pdev.as_ref(), "Probe Nova Core GPU driver.\n");
 
-        pdev.enable_device_mem()?;
-        pdev.set_master();
+            pdev.enable_device_mem()?;
+            pdev.set_master();
 
-        let devres_bar = Arc::pin_init(
-            pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0")),
-            GFP_KERNEL,
-        )?;
+            // SAFETY: No concurrent DMA allocations or mappings can be made because
+            // the device is still being probed and therefore isn't being used by
+            // other threads of execution.
+            unsafe { pdev.dma_set_mask_and_coherent(DmaMask::new::<GPU_DMA_BITS>())? };
 
-        // Used to provided a `&Bar0` to `Gpu::new` without tying it to the lifetime of
-        // `devres_bar`.
-        let bar_clone = Arc::clone(&devres_bar);
-        let bar = bar_clone.access(pdev.as_ref())?;
+            let bar = Arc::pin_init(
+                pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0")),
+                GFP_KERNEL,
+            )?;
 
-        let this = KBox::pin_init(
-            try_pin_init!(Self {
-                gpu <- Gpu::new(pdev, devres_bar, bar),
-                _reg: auxiliary::Registration::new(
+            Ok(try_pin_init!(Self {
+                gpu <- Gpu::new(pdev, bar.clone(), bar.access(pdev.as_ref())?),
+                _reg <- auxiliary::Registration::new(
                     pdev.as_ref(),
                     c_str!("nova-drm"),
                     0, // TODO[XARR]: Once it lands, use XArray; for now we don't use the ID.
                     crate::MODULE_NAME
-                )?,
-            }),
-            GFP_KERNEL,
-        )?;
-
-        Ok(this)
+                ),
+            }))
+        })
     }
 
     fn unbind(pdev: &pci::Device<Core>, this: Pin<&Self>) {

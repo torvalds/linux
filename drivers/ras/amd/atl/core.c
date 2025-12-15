@@ -194,6 +194,8 @@ MODULE_DEVICE_TABLE(x86cpu, amd_atl_cpuids);
 
 static int __init amd_atl_init(void)
 {
+	int ret;
+
 	if (!x86_match_cpu(amd_atl_cpuids))
 		return -ENODEV;
 
@@ -202,8 +204,9 @@ static int __init amd_atl_init(void)
 
 	check_for_legacy_df_access();
 
-	if (get_df_system_info())
-		return -ENODEV;
+	ret = get_df_system_info();
+	if (ret)
+		return ret;
 
 	/* Increment this module's recount so that it can't be easily unloaded. */
 	__module_get(THIS_MODULE);

@@ -5,6 +5,8 @@
 
 #include <linux/debugfs.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "intel_gt.h"
 #include "intel_gt_debugfs.h"

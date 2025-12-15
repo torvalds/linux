@@ -53,8 +53,6 @@ static void tegra_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&helper->client);
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
 }
 
 static const struct fb_ops tegra_fb_ops = {
@@ -75,10 +73,10 @@ int tegra_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	struct tegra_drm *tegra = helper->dev->dev_private;
 	struct drm_device *drm = helper->dev;
 	struct drm_mode_fb_cmd2 cmd = { 0 };
+	struct fb_info *info = helper->info;
 	unsigned int bytes_per_pixel;
 	struct drm_framebuffer *fb;
 	unsigned long offset;
-	struct fb_info *info;
 	struct tegra_bo *bo;
 	size_t size;
 	int err;
@@ -98,13 +96,6 @@ int tegra_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	bo = tegra_bo_create(drm, size, 0);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
-
-	info = drm_fb_helper_alloc_info(helper);
-	if (IS_ERR(info)) {
-		dev_err(drm->dev, "failed to allocate framebuffer info\n");
-		drm_gem_object_put(&bo->gem);
-		return PTR_ERR(info);
-	}
 
 	fb = tegra_fb_alloc(drm,
 			    drm_get_format_info(drm, cmd.pixel_format, cmd.modifier[0]),

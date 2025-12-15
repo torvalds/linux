@@ -16,31 +16,44 @@
  * Read-Only Registers
  */
 
+/* Chip ID of BMA 400 devices found in the chip ID register. */
+#define BMA400_ID_REG_VAL           0x90
+
 /* Status and ID registers */
 #define BMA400_CHIP_ID_REG          0x00
 #define BMA400_ERR_REG              0x02
 #define BMA400_STATUS_REG           0x03
 
 /* Acceleration registers */
-#define BMA400_X_AXIS_LSB_REG       0x04
-#define BMA400_X_AXIS_MSB_REG       0x05
-#define BMA400_Y_AXIS_LSB_REG       0x06
-#define BMA400_Y_AXIS_MSB_REG       0x07
-#define BMA400_Z_AXIS_LSB_REG       0x08
-#define BMA400_Z_AXIS_MSB_REG       0x09
+#define BMA400_ACC_X_LSB_REG		0x04
+#define BMA400_ACC_X_MSB_REG		0x05
+#define BMA400_ACC_Y_LSB_REG		0x06
+#define BMA400_ACC_Y_MSB_REG		0x07
+#define BMA400_ACC_Z_LSB_REG		0x08
+#define BMA400_ACC_Z_MSB_REG		0x09
 
 /* Sensor time registers */
-#define BMA400_SENSOR_TIME0         0x0a
-#define BMA400_SENSOR_TIME1         0x0b
-#define BMA400_SENSOR_TIME2         0x0c
+#define BMA400_SENSOR_TIME0_REG         0x0a
+#define BMA400_SENSOR_TIME1_REG         0x0b
+#define BMA400_SENSOR_TIME2_REG         0x0c
 
 /* Event and interrupt registers */
 #define BMA400_EVENT_REG            0x0d
+
 #define BMA400_INT_STAT0_REG        0x0e
+#define BMA400_INT_STAT0_GEN1_MASK		BIT(2)
+#define BMA400_INT_STAT0_GEN2_MASK		BIT(3)
+#define BMA400_INT_STAT0_DRDY_MASK		BIT(7)
+
 #define BMA400_INT_STAT1_REG        0x0f
+#define BMA400_INT_STAT1_STEP_INT_MASK		GENMASK(9, 8)
+#define BMA400_INT_STAT1_S_TAP_MASK		BIT(10)
+#define BMA400_INT_STAT1_D_TAP_MASK		BIT(11)
+
 #define BMA400_INT_STAT2_REG        0x10
-#define BMA400_INT12_MAP_REG        0x23
-#define BMA400_INT_ENG_OVRUN_MSK    BIT(4)
+
+/* Bit present in all INT_STAT registers */
+#define BMA400_INT_STAT_ENG_OVRRUN_MASK		BIT(4)
 
 /* Temperature register */
 #define BMA400_TEMP_DATA_REG        0x11
@@ -55,70 +68,100 @@
 #define BMA400_STEP_CNT1_REG        0x16
 #define BMA400_STEP_CNT3_REG        0x17
 #define BMA400_STEP_STAT_REG        0x18
-#define BMA400_STEP_INT_MSK         BIT(0)
 #define BMA400_STEP_RAW_LEN         0x03
-#define BMA400_STEP_STAT_MASK       GENMASK(9, 8)
 
 /*
  * Read-write configuration registers
  */
-#define BMA400_ACC_CONFIG0_REG      0x19
-#define BMA400_ACC_CONFIG1_REG      0x1a
+#define BMA400_ACC_CONFIG0_REG		0x19
+#define BMA400_ACC_CONFIG0_LP_OSR_MASK		GENMASK(6, 5)
+
+#define BMA400_ACC_CONFIG1_REG		0x1a
+#define BMA400_ACC_CONFIG1_ODR_MASK		GENMASK(3, 0)
+#define BMA400_ACC_CONFIG1_ODR_MIN_RAW		0x05
+#define BMA400_ACC_CONFIG1_ODR_LP_RAW		0x06
+#define BMA400_ACC_CONFIG1_ODR_MAX_RAW		0x0b
+#define BMA400_ACC_CONFIG1_ODR_MAX_HZ		800
+#define BMA400_ACC_CONFIG1_ODR_MIN_WHOLE_HZ	25
+#define BMA400_ACC_CONFIG1_ODR_MIN_HZ		12
+#define BMA400_ACC_CONFIG1_NP_OSR_MASK		GENMASK(5, 4)
+#define BMA400_ACC_CONFIG1_ACC_RANGE_MASK	GENMASK(7, 6)
+
 #define BMA400_ACC_CONFIG2_REG      0x1b
-#define BMA400_CMD_REG              0x7e
 
 /* Interrupt registers */
 #define BMA400_INT_CONFIG0_REG	    0x1f
+#define BMA400_INT_CONFIG0_GEN1_MASK		BIT(2)
+#define BMA400_INT_CONFIG0_GEN2_MASK		BIT(3)
+#define BMA400_INT_CONFIG0_DRDY_MASK		BIT(7)
+
+enum bma400_generic_intr {
+	BMA400_GEN1_INTR = 0x1,
+	BMA400_GEN2_INTR = 0x2,
+};
+
 #define BMA400_INT_CONFIG1_REG	    0x20
+#define BMA400_INT_CONFIG1_STEP_INT_MASK	BIT(0)
+#define BMA400_INT_CONFIG1_S_TAP_MASK		BIT(2)
+#define BMA400_INT_CONFIG1_D_TAP_MASK		BIT(3)
+
 #define BMA400_INT1_MAP_REG	    0x21
+#define BMA400_INT12_MAP_REG        0x23
 #define BMA400_INT_IO_CTRL_REG	    0x24
-#define BMA400_INT_DRDY_MSK	    BIT(7)
-
-/* Chip ID of BMA 400 devices found in the chip ID register. */
-#define BMA400_ID_REG_VAL           0x90
-
-#define BMA400_LP_OSR_SHIFT         5
-#define BMA400_NP_OSR_SHIFT         4
-#define BMA400_SCALE_SHIFT          6
 
 #define BMA400_TWO_BITS_MASK        GENMASK(1, 0)
-#define BMA400_LP_OSR_MASK          GENMASK(6, 5)
-#define BMA400_NP_OSR_MASK          GENMASK(5, 4)
-#define BMA400_ACC_ODR_MASK         GENMASK(3, 0)
-#define BMA400_ACC_SCALE_MASK       GENMASK(7, 6)
-
-#define BMA400_ACC_ODR_MIN_RAW      0x05
-#define BMA400_ACC_ODR_LP_RAW       0x06
-#define BMA400_ACC_ODR_MAX_RAW      0x0b
-
-#define BMA400_ACC_ODR_MAX_HZ       800
-#define BMA400_ACC_ODR_MIN_WHOLE_HZ 25
-#define BMA400_ACC_ODR_MIN_HZ       12
 
 /* Generic interrupts register */
-#define BMA400_GEN1INT_CONFIG0      0x3f
-#define BMA400_GEN2INT_CONFIG0      0x4A
+#define BMA400_GENINT_CONFIG_REG_BASE		0x3f
+#define BMA400_NUM_GENINT_CONFIG_REGS		11
+#define BMA400_GENINT_CONFIG_REG(gen_intr, config_idx)		\
+	(BMA400_GENINT_CONFIG_REG_BASE +			\
+	(gen_intr - 1) * BMA400_NUM_GENINT_CONFIG_REGS +	\
+	(config_idx))
+#define BMA400_GENINT_CONFIG0_HYST_MASK		GENMASK(1, 0)
+#define BMA400_GENINT_CONFIG0_REF_UPD_MODE_MASK	GENMASK(3, 2)
+#define BMA400_GENINT_CONFIG0_DATA_SRC_MASK	BIT(4)
+#define BMA400_GENINT_CONFIG0_X_EN_MASK		BIT(5)
+#define BMA400_GENINT_CONFIG0_Y_EN_MASK		BIT(6)
+#define BMA400_GENINT_CONFIG0_Z_EN_MASK		BIT(7)
+
+enum bma400_accel_data_src {
+	ACCEL_FILT1 = 0x0,
+	ACCEL_FILT2 = 0x1,
+};
+
+enum bma400_ref_updt_mode {
+	BMA400_REF_MANUAL_UPDT_MODE = 0x0,
+	BMA400_REF_ONETIME_UPDT_MODE = 0x1,
+	BMA400_REF_EVERYTIME_UPDT_MODE = 0x2,
+	BMA400_REF_EVERYTIME_LP_UPDT_MODE = 0x3,
+};
+
 #define BMA400_GEN_CONFIG1_OFF      0x01
-#define BMA400_GEN_CONFIG2_OFF      0x02
-#define BMA400_GEN_CONFIG3_OFF      0x03
-#define BMA400_GEN_CONFIG31_OFF     0x04
-#define BMA400_INT_GEN1_MSK         BIT(2)
-#define BMA400_INT_GEN2_MSK         BIT(3)
-#define BMA400_GEN_HYST_MSK         GENMASK(1, 0)
+#define BMA400_GENINT_CONFIG1_AXES_COMB_MASK	BIT(0)
+#define BMA400_GENINT_CONFIG1_DETCT_CRIT_MASK	BIT(1)
+
+enum bma400_genintr_acceleval_axescomb {
+	BMA400_EVAL_X_OR_Y_OR_Z = 0x0,
+	BMA400_EVAL_X_AND_Y_AND_Z = 0x1,
+};
+
+enum bma400_detect_criterion {
+	BMA400_DETECT_INACTIVITY = 0x0,
+	BMA400_DETECT_ACTIVITY = 0x1,
+};
 
 /* TAP config registers */
-#define BMA400_TAP_CONFIG           0x57
-#define BMA400_TAP_CONFIG1          0x58
-#define BMA400_S_TAP_MSK            BIT(2)
-#define BMA400_D_TAP_MSK            BIT(3)
-#define BMA400_INT_S_TAP_MSK        BIT(10)
-#define BMA400_INT_D_TAP_MSK        BIT(11)
-#define BMA400_TAP_SEN_MSK          GENMASK(2, 0)
-#define BMA400_TAP_TICSTH_MSK       GENMASK(1, 0)
-#define BMA400_TAP_QUIET_MSK        GENMASK(3, 2)
-#define BMA400_TAP_QUIETDT_MSK      GENMASK(5, 4)
+#define BMA400_TAP_CONFIG_REG		0x57
+#define BMA400_TAP_CONFIG_SEN_MASK	GENMASK(2, 0)
+
+#define BMA400_TAP_CONFIG1_REG          0x58
+#define BMA400_TAP_CONFIG1_TICSTH_MASK		GENMASK(1, 0)
+#define BMA400_TAP_CONFIG1_QUIET_MASK		GENMASK(3, 2)
+#define BMA400_TAP_CONFIG1_QUIETDT_MASK		GENMASK(5, 4)
 #define BMA400_TAP_TIM_LIST_LEN     4
 
+#define BMA400_CMD_REG              0x7e
 /*
  * BMA400_SCALE_MIN macro value represents m/s^2 for 1 LSB before
  * converting to micro values for +-2g range.
@@ -138,8 +181,8 @@
  * To select +-8g = 9577 << 2 = raw value to write is 2.
  * To select +-16g = 9577 << 3 = raw value to write is 3.
  */
-#define BMA400_SCALE_MIN            9577
-#define BMA400_SCALE_MAX            76617
+#define BMA400_ACC_SCALE_MIN            9577
+#define BMA400_ACC_SCALE_MAX            76617
 
 extern const struct regmap_config bma400_regmap_config;
 

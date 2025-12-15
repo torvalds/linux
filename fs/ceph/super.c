@@ -30,6 +30,9 @@
 
 #include <uapi/linux/magic.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/ceph.h>
+
 static DEFINE_SPINLOCK(ceph_fsc_lock);
 static LIST_HEAD(ceph_fsc_list);
 
@@ -1149,7 +1152,7 @@ static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 		const char *path = fsc->mount_options->server_path ?
 				     fsc->mount_options->server_path + 1 : "";
 
-		err = __ceph_open_session(fsc->client, started);
+		err = __ceph_open_session(fsc->client);
 		if (err < 0)
 			goto out;
 

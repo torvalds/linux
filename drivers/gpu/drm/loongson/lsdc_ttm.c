@@ -8,6 +8,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 
 #include "lsdc_drv.h"
 #include "lsdc_ttm.h"
@@ -544,7 +545,8 @@ int lsdc_ttm_init(struct lsdc_device *ldev)
 
 	ret = ttm_device_init(&ldev->bdev, &lsdc_bo_driver, ddev->dev,
 			      ddev->anon_inode->i_mapping,
-			      ddev->vma_offset_manager, false, true);
+			      ddev->vma_offset_manager,
+			      TTM_ALLOCATION_POOL_USE_DMA32);
 	if (ret)
 		return ret;
 

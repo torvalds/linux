@@ -706,8 +706,7 @@ static void rt5677_set_dsp_mode(struct rt5677_priv *rt5677, bool on)
 
 static unsigned int rt5677_set_vad_source(struct rt5677_priv *rt5677)
 {
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(rt5677->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(rt5677->component);
 	/* Force dapm to sync before we enable the
 	 * DSP to prevent write corruption
 	 */
@@ -2733,11 +2732,12 @@ static int rt5677_vref_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_ON &&
+		if (snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_ON &&
 			!rt5677->is_vref_slow) {
 			mdelay(20);
 			regmap_update_bits(rt5677->regmap, RT5677_PWR_ANLG1,
@@ -4643,8 +4643,8 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
-	enum snd_soc_bias_level prev_bias =
-		snd_soc_component_get_bias_level(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	enum snd_soc_bias_level prev_bias = snd_soc_dapm_get_bias_level(dapm);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -4880,7 +4880,7 @@ static void rt5677_free_gpio(struct i2c_client *i2c)
 
 static int rt5677_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5677_priv *rt5677 = snd_soc_component_get_drvdata(component);
 	int i;
 
@@ -4896,7 +4896,7 @@ static int rt5677_probe(struct snd_soc_component *component)
 			ARRAY_SIZE(rt5677_dmic2_clk_1));
 	}
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	regmap_update_bits(rt5677->regmap, RT5677_DIG_MISC,
 			~RT5677_IRQ_DEBOUNCE_SEL_MASK, 0x0020);

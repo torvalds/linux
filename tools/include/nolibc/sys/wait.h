@@ -65,23 +65,29 @@ pid_t waitpid(pid_t pid, int *status, int options)
 
 	switch (info.si_code) {
 	case 0:
-		*status = 0;
+		if (status)
+			*status = 0;
 		break;
 	case CLD_EXITED:
-		*status = (info.si_status & 0xff) << 8;
+		if (status)
+			*status = (info.si_status & 0xff) << 8;
 		break;
 	case CLD_KILLED:
-		*status = info.si_status & 0x7f;
+		if (status)
+			*status = info.si_status & 0x7f;
 		break;
 	case CLD_DUMPED:
-		*status = (info.si_status & 0x7f) | 0x80;
+		if (status)
+			*status = (info.si_status & 0x7f) | 0x80;
 		break;
 	case CLD_STOPPED:
 	case CLD_TRAPPED:
-		*status = (info.si_status << 8) + 0x7f;
+		if (status)
+			*status = (info.si_status << 8) + 0x7f;
 		break;
 	case CLD_CONTINUED:
-		*status = 0xffff;
+		if (status)
+			*status = 0xffff;
 		break;
 	default:
 		return -1;

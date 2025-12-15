@@ -436,7 +436,7 @@ static int query_hwconfig(struct xe_device *xe,
 			  struct drm_xe_device_query *query)
 {
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
-	size_t size = xe_guc_hwconfig_size(&gt->uc.guc);
+	size_t size = gt ? xe_guc_hwconfig_size(&gt->uc.guc) : 0;
 	void __user *query_ptr = u64_to_user_ptr(query->data);
 	void *hwconfig;
 

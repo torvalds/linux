@@ -141,13 +141,13 @@ static void __init map_kernel(u64 kaslr_offset, u64 va_offset, int root_level)
 static void noinline __section(".idmap.text") set_ttbr0_for_lpa2(phys_addr_t ttbr)
 {
 	u64 sctlr = read_sysreg(sctlr_el1);
-	u64 tcr = read_sysreg(tcr_el1) | TCR_DS;
+	u64 tcr = read_sysreg(tcr_el1) | TCR_EL1_DS;
 	u64 mmfr0 = read_sysreg(id_aa64mmfr0_el1);
 	u64 parange = cpuid_feature_extract_unsigned_field(mmfr0,
 							   ID_AA64MMFR0_EL1_PARANGE_SHIFT);
 
-	tcr &= ~TCR_IPS_MASK;
-	tcr |= parange << TCR_IPS_SHIFT;
+	tcr &= ~TCR_EL1_IPS_MASK;
+	tcr |= parange << TCR_EL1_IPS_SHIFT;
 
 	asm("	msr	sctlr_el1, %0		;"
 	    "	isb				;"
@@ -263,7 +263,7 @@ asmlinkage void __init early_map_kernel(u64 boot_status, phys_addr_t fdt)
 	}
 
 	if (va_bits > VA_BITS_MIN)
-		sysreg_clear_set(tcr_el1, TCR_T1SZ_MASK, TCR_T1SZ(va_bits));
+		sysreg_clear_set(tcr_el1, TCR_EL1_T1SZ_MASK, TCR_T1SZ(va_bits));
 
 	/*
 	 * The virtual KASLR displacement modulo 2MiB is decided by the

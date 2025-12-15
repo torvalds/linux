@@ -50,8 +50,8 @@ struct regmap;
  * @regmap_irq_chip:	(Optional) Pointer on an regmap_irq_chip structure. If
  *			set, a regmap-irq device will be created and the IRQ
  *			domain will be set accordingly.
- * @regmap_irq_line	(Optional) The IRQ the device uses to signal interrupts.
- * @regmap_irq_flags	(Optional) The IRQF_ flags to use for the interrupt.
+ * @regmap_irq_line:	(Optional) The IRQ the device uses to signal interrupts.
+ * @regmap_irq_flags:	(Optional) The IRQF_ flags to use for the interrupt.
  *
  * The ->reg_mask_xlate translates a given base address and GPIO offset to
  * register and mask pair. The base address is one of the given register

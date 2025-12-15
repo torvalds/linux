@@ -8,6 +8,7 @@
 #include <linux/swap.h>
 
 #include <drm/drm_cache.h>
+#include <drm/drm_print.h>
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"

@@ -106,9 +106,9 @@
 #include <linux/pidfs.h>
 #include <linux/tick.h>
 #include <linux/unwind_deferred.h>
-
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
 #include <linux/uaccess.h>
+
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -208,15 +208,62 @@ struct vm_stack {
 	struct vm_struct *stack_vm_area;
 };
 
+static struct vm_struct *alloc_thread_stack_node_from_cache(struct task_struct *tsk, int node)
+{
+	struct vm_struct *vm_area;
+	unsigned int i;
+
+	/*
+	 * If the node has memory, we are guaranteed the stacks are backed by local pages.
+	 * Otherwise the pages are arbitrary.
+	 *
+	 * Note that depending on cpuset it is possible we will get migrated to a different
+	 * node immediately after allocating here, so this does *not* guarantee locality for
+	 * arbitrary callers.
+	 */
+	scoped_guard(preempt) {
+		if (node != NUMA_NO_NODE && numa_node_id() != node)
+			return NULL;
+
+		for (i = 0; i < NR_CACHED_STACKS; i++) {
+			vm_area = this_cpu_xchg(cached_stacks[i], NULL);
+			if (vm_area)
+				return vm_area;
+		}
+	}
+
+	return NULL;
+}
+
 static bool try_release_thread_stack_to_cache(struct vm_struct *vm_area)
 {
 	unsigned int i;
+	int nid;
 
-	for (i = 0; i < NR_CACHED_STACKS; i++) {
-		struct vm_struct *tmp = NULL;
+	/*
+	 * Don't cache stacks if any of the pages don't match the local domain, unless
+	 * there is no local memory to begin with.
+	 *
+	 * Note that lack of local memory does not automatically mean it makes no difference
+	 * performance-wise which other domain backs the stack. In this case we are merely
+	 * trying to avoid constantly going to vmalloc.
+	 */
+	scoped_guard(preempt) {
+		nid = numa_node_id();
+		if (node_state(nid, N_MEMORY)) {
+			for (i = 0; i < vm_area->nr_pages; i++) {
+				struct page *page = vm_area->pages[i];
+				if (page_to_nid(page) != nid)
+					return false;
+			}
+		}
 
-		if (this_cpu_try_cmpxchg(cached_stacks[i], &tmp, vm_area))
-			return true;
+		for (i = 0; i < NR_CACHED_STACKS; i++) {
+			struct vm_struct *tmp = NULL;
+
+			if (this_cpu_try_cmpxchg(cached_stacks[i], &tmp, vm_area))
+				return true;
+		}
 	}
 	return false;
 }
@@ -283,13 +330,9 @@ static int alloc_thread_stack_node(struct task_struct *tsk, int node)
 {
 	struct vm_struct *vm_area;
 	void *stack;
-	int i;
 
-	for (i = 0; i < NR_CACHED_STACKS; i++) {
-		vm_area = this_cpu_xchg(cached_stacks[i], NULL);
-		if (!vm_area)
-			continue;
-
+	vm_area = alloc_thread_stack_node_from_cache(tsk, node);
+	if (vm_area) {
 		if (memcg_charge_kernel_stack(vm_area)) {
 			vfree(vm_area->addr);
 			return -ENOMEM;
@@ -736,9 +779,8 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(tsk == current);
 
 	unwind_task_free(tsk);
-	sched_ext_free(tsk);
 	io_uring_free(tsk);
-	cgroup_free(tsk);
+	cgroup_task_free(tsk);
 	task_numa_free(tsk, true);
 	security_task_free(tsk);
 	exit_creds(tsk);
@@ -955,10 +997,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 #endif
 
 #ifdef CONFIG_SCHED_MM_CID
-	tsk->mm_cid = -1;
-	tsk->last_mm_cid = -1;
-	tsk->mm_cid_active = 0;
-	tsk->migrate_from_cpu = -1;
+	tsk->mm_cid.cid = MM_CID_UNSET;
+	tsk->mm_cid.active = 0;
 #endif
 	return tsk;
 
@@ -1061,10 +1101,10 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	if (current->mm) {
 		unsigned long flags = __mm_flags_get_word(current->mm);
 
-		__mm_flags_set_word(mm, mmf_init_legacy_flags(flags));
+		__mm_flags_overwrite_word(mm, mmf_init_legacy_flags(flags));
 		mm->def_flags = current->mm->def_flags & VM_INIT_DEF_MASK;
 	} else {
-		__mm_flags_set_word(mm, default_dump_filter);
+		__mm_flags_overwrite_word(mm, default_dump_filter);
 		mm->def_flags = 0;
 	}
 
@@ -2453,9 +2493,10 @@ bad_fork_cleanup_io:
 	if (p->io_context)
 		exit_io_context(p);
 bad_fork_cleanup_namespaces:
-	exit_task_namespaces(p);
+	exit_nsproxy_namespaces(p);
 bad_fork_cleanup_mm:
 	if (p->mm) {
+		sched_mm_cid_exit(p);
 		mm_clear_owner(p->mm, p);
 		mmput(p->mm);
 	}
@@ -2487,6 +2528,7 @@ bad_fork_cleanup_delayacct:
 	delayacct_tsk_free(p);
 bad_fork_cleanup_count:
 	dec_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
+	exit_cred_namespaces(p);
 	exit_creds(p);
 bad_fork_free:
 	WRITE_ONCE(p->__state, TASK_DEAD);

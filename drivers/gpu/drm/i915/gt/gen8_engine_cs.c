@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "gen8_engine_cs.h"
 #include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"

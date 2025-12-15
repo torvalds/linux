@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <sys/mount.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int main(void)
 {

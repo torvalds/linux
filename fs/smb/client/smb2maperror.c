@@ -9,11 +9,11 @@
  */
 #include <linux/errno.h>
 #include "cifsglob.h"
+#include "cifsproto.h"
 #include "cifs_debug.h"
-#include "smb2pdu.h"
 #include "smb2proto.h"
-#include "../common/smb2status.h"
 #include "smb2glob.h"
+#include "../common/smb2status.h"
 #include "trace.h"
 
 struct status_to_posix_error {
@@ -23,14 +23,13 @@ struct status_to_posix_error {
 };
 
 static const struct status_to_posix_error smb2_error_map_table[] = {
-	{STATUS_SUCCESS, 0, "STATUS_SUCCESS"},
-	{STATUS_WAIT_0,  0, "STATUS_WAIT_0"},
 	{STATUS_WAIT_1, -EIO, "STATUS_WAIT_1"},
 	{STATUS_WAIT_2, -EIO, "STATUS_WAIT_2"},
 	{STATUS_WAIT_3, -EIO, "STATUS_WAIT_3"},
 	{STATUS_WAIT_63, -EIO, "STATUS_WAIT_63"},
-	{STATUS_ABANDONED, -EIO, "STATUS_ABANDONED"},
-	{STATUS_ABANDONED_WAIT_0, -EIO, "STATUS_ABANDONED_WAIT_0"},
+	{STATUS_ABANDONED, -EIO, "STATUS_ABANDONED or STATUS_ABANDONED_WAIT_0"},
+	{STATUS_ABANDONED_WAIT_0, -EIO,
+	"STATUS_ABANDONED or STATUS_ABANDONED_WAIT_0"},
 	{STATUS_ABANDONED_WAIT_63, -EIO, "STATUS_ABANDONED_WAIT_63"},
 	{STATUS_USER_APC, -EIO, "STATUS_USER_APC"},
 	{STATUS_KERNEL_APC, -EIO, "STATUS_KERNEL_APC"},
@@ -736,6 +735,7 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_FS_DRIVER_REQUIRED, -EOPNOTSUPP, "STATUS_FS_DRIVER_REQUIRED"},
 	{STATUS_IMAGE_ALREADY_LOADED_AS_DLL, -EIO,
 	"STATUS_IMAGE_ALREADY_LOADED_AS_DLL"},
+	{STATUS_INVALID_LOCK_RANGE, -EIO, "STATUS_INVALID_LOCK_RANGE"},
 	{STATUS_NETWORK_OPEN_RESTRICTION, -EIO,
 	"STATUS_NETWORK_OPEN_RESTRICTION"},
 	{STATUS_NO_USER_SESSION_KEY, -EIO, "STATUS_NO_USER_SESSION_KEY"},
@@ -2298,8 +2298,9 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_FWP_LIFETIME_MISMATCH, -EIO, "STATUS_FWP_LIFETIME_MISMATCH"},
 	{STATUS_FWP_BUILTIN_OBJECT, -EIO, "STATUS_FWP_BUILTIN_OBJECT"},
 	{STATUS_FWP_TOO_MANY_BOOTTIME_FILTERS, -EIO,
-	"STATUS_FWP_TOO_MANY_BOOTTIME_FILTERS"},
-	{STATUS_FWP_TOO_MANY_CALLOUTS, -EIO, "STATUS_FWP_TOO_MANY_CALLOUTS"},
+	"STATUS_FWP_TOO_MANY_BOOTTIME_FILTERS or STATUS_FWP_TOO_MANY_CALLOUTS"},
+	{STATUS_FWP_TOO_MANY_CALLOUTS, -EIO,
+	"STATUS_FWP_TOO_MANY_BOOTTIME_FILTERS or STATUS_FWP_TOO_MANY_CALLOUTS"},
 	{STATUS_FWP_NOTIFICATION_DROPPED, -EIO,
 	"STATUS_FWP_NOTIFICATION_DROPPED"},
 	{STATUS_FWP_TRAFFIC_MISMATCH, -EIO, "STATUS_FWP_TRAFFIC_MISMATCH"},
@@ -2415,26 +2416,9 @@ static const struct status_to_posix_error smb2_error_map_table[] = {
 	{STATUS_IPSEC_INTEGRITY_CHECK_FAILED, -EIO,
 	"STATUS_IPSEC_INTEGRITY_CHECK_FAILED"},
 	{STATUS_IPSEC_CLEAR_TEXT_DROP, -EIO, "STATUS_IPSEC_CLEAR_TEXT_DROP"},
-	{0, 0, NULL}
+	{STATUS_SMB_NO_PREAUTH_INTEGRITY_HASH_OVERLAP, -EIO,
+	"STATUS_SMB_NO_PREAUTH_INTEGRITY_HASH_OVERLAP"},
 };
-
-/*****************************************************************************
- Print an error message from the status code
- *****************************************************************************/
-static void
-smb2_print_status(__le32 status)
-{
-	int idx = 0;
-
-	while (smb2_error_map_table[idx].status_string != NULL) {
-		if ((smb2_error_map_table[idx].smb2_status) == status) {
-			pr_notice("Status code returned 0x%08x %s\n", status,
-				  smb2_error_map_table[idx].status_string);
-		}
-		idx++;
-	}
-	return;
-}
 
 int
 map_smb2_to_linux_error(char *buf, bool log_err)
@@ -2452,16 +2436,16 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 		return 0;
 	}
 
-	/* mask facility */
-	if (log_err && (smb2err != STATUS_MORE_PROCESSING_REQUIRED) &&
-	    (smb2err != STATUS_END_OF_FILE))
-		smb2_print_status(smb2err);
-	else if (cifsFYI & CIFS_RC)
-		smb2_print_status(smb2err);
+	log_err = (log_err && (smb2err != STATUS_MORE_PROCESSING_REQUIRED) &&
+		   (smb2err != STATUS_END_OF_FILE)) ||
+		  (cifsFYI & CIFS_RC);
 
 	for (i = 0; i < sizeof(smb2_error_map_table) /
 			sizeof(struct status_to_posix_error); i++) {
 		if (smb2_error_map_table[i].smb2_status == smb2err) {
+			if (log_err)
+				pr_notice("Status code returned 0x%08x %s\n", smb2err,
+					  smb2_error_map_table[i].status_string);
 			rc = smb2_error_map_table[i].posix_error;
 			break;
 		}
@@ -2477,5 +2461,7 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 			   le16_to_cpu(shdr->Command),
 			   le64_to_cpu(shdr->MessageId),
 			   le32_to_cpu(smb2err), rc);
+	if (rc == -EIO)
+		smb_EIO1(smb_eio_trace_smb2_received_error, le32_to_cpu(smb2err));
 	return rc;
 }

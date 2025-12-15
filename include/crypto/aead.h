@@ -159,6 +159,21 @@ struct crypto_aead {
 	struct crypto_tfm base;
 };
 
+struct crypto_sync_aead {
+	struct crypto_aead base;
+};
+
+#define MAX_SYNC_AEAD_REQSIZE		384
+
+#define SYNC_AEAD_REQUEST_ON_STACK(name, _tfm)		\
+	char __##name##_desc[sizeof(struct aead_request) +	\
+			     MAX_SYNC_AEAD_REQSIZE		\
+			    ] CRYPTO_MINALIGN_ATTR;		\
+	struct aead_request *name =				\
+		(((struct aead_request *)__##name##_desc)->base.tfm = \
+			crypto_sync_aead_tfm((_tfm)),		\
+		 (void *)__##name##_desc)
+
 static inline struct crypto_aead *__crypto_aead_cast(struct crypto_tfm *tfm)
 {
 	return container_of(tfm, struct crypto_aead, base);
@@ -180,9 +195,16 @@ static inline struct crypto_aead *__crypto_aead_cast(struct crypto_tfm *tfm)
  */
 struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask);
 
+struct crypto_sync_aead *crypto_alloc_sync_aead(const char *alg_name, u32 type, u32 mask);
+
 static inline struct crypto_tfm *crypto_aead_tfm(struct crypto_aead *tfm)
 {
 	return &tfm->base;
+}
+
+static inline struct crypto_tfm *crypto_sync_aead_tfm(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_tfm(&tfm->base);
 }
 
 /**
@@ -194,6 +216,11 @@ static inline struct crypto_tfm *crypto_aead_tfm(struct crypto_aead *tfm)
 static inline void crypto_free_aead(struct crypto_aead *tfm)
 {
 	crypto_destroy_tfm(tfm, crypto_aead_tfm(tfm));
+}
+
+static inline void crypto_free_sync_aead(struct crypto_sync_aead *tfm)
+{
+	crypto_free_aead(&tfm->base);
 }
 
 /**
@@ -238,6 +265,11 @@ static inline unsigned int crypto_aead_ivsize(struct crypto_aead *tfm)
 	return crypto_aead_alg_ivsize(crypto_aead_alg(tfm));
 }
 
+static inline unsigned int crypto_sync_aead_ivsize(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_ivsize(&tfm->base);
+}
+
 /**
  * crypto_aead_authsize() - obtain maximum authentication data size
  * @tfm: cipher handle
@@ -255,6 +287,11 @@ static inline unsigned int crypto_aead_authsize(struct crypto_aead *tfm)
 	return tfm->authsize;
 }
 
+static inline unsigned int crypto_sync_aead_authsize(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_authsize(&tfm->base);
+}
+
 static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
 {
 	return alg->maxauthsize;
@@ -263,6 +300,11 @@ static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
 static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 {
 	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
+}
+
+static inline unsigned int crypto_sync_aead_maxauthsize(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_maxauthsize(&tfm->base);
 }
 
 /**
@@ -278,6 +320,11 @@ static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 static inline unsigned int crypto_aead_blocksize(struct crypto_aead *tfm)
 {
 	return crypto_tfm_alg_blocksize(crypto_aead_tfm(tfm));
+}
+
+static inline unsigned int crypto_sync_aead_blocksize(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_blocksize(&tfm->base);
 }
 
 static inline unsigned int crypto_aead_alignmask(struct crypto_aead *tfm)
@@ -300,6 +347,21 @@ static inline void crypto_aead_clear_flags(struct crypto_aead *tfm, u32 flags)
 	crypto_tfm_clear_flags(crypto_aead_tfm(tfm), flags);
 }
 
+static inline u32 crypto_sync_aead_get_flags(struct crypto_sync_aead *tfm)
+{
+	return crypto_aead_get_flags(&tfm->base);
+}
+
+static inline void crypto_sync_aead_set_flags(struct crypto_sync_aead *tfm, u32 flags)
+{
+	crypto_aead_set_flags(&tfm->base, flags);
+}
+
+static inline void crypto_sync_aead_clear_flags(struct crypto_sync_aead *tfm, u32 flags)
+{
+	crypto_aead_clear_flags(&tfm->base, flags);
+}
+
 /**
  * crypto_aead_setkey() - set key for cipher
  * @tfm: cipher handle
@@ -319,6 +381,12 @@ static inline void crypto_aead_clear_flags(struct crypto_aead *tfm, u32 flags)
 int crypto_aead_setkey(struct crypto_aead *tfm,
 		       const u8 *key, unsigned int keylen);
 
+static inline int crypto_sync_aead_setkey(struct crypto_sync_aead *tfm,
+					 const u8 *key, unsigned int keylen)
+{
+	return crypto_aead_setkey(&tfm->base, key, keylen);
+}
+
 /**
  * crypto_aead_setauthsize() - set authentication data size
  * @tfm: cipher handle
@@ -331,9 +399,22 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
  */
 int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize);
 
+static inline int crypto_sync_aead_setauthsize(struct crypto_sync_aead *tfm,
+					       unsigned int authsize)
+{
+	return crypto_aead_setauthsize(&tfm->base, authsize);
+}
+
 static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
 {
 	return __crypto_aead_cast(req->base.tfm);
+}
+
+static inline struct crypto_sync_aead *crypto_sync_aead_reqtfm(struct aead_request *req)
+{
+	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
+
+	return container_of(tfm, struct crypto_sync_aead, base);
 }
 
 /**
@@ -415,6 +496,12 @@ static inline void aead_request_set_tfm(struct aead_request *req,
 					struct crypto_aead *tfm)
 {
 	req->base.tfm = crypto_aead_tfm(tfm);
+}
+
+static inline void aead_request_set_sync_tfm(struct aead_request *req,
+					     struct crypto_sync_aead *tfm)
+{
+	aead_request_set_tfm(req, &tfm->base);
 }
 
 /**

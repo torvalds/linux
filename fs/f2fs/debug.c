@@ -251,6 +251,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	for (i = CURSEG_HOT_DATA; i < NO_CHECK_TYPE; i++) {
 		struct curseg_info *curseg = CURSEG_I(sbi, i);
 
+		si->blkoff[i] = curseg->next_blkoff;
 		si->curseg[i] = curseg->segno;
 		si->cursec[i] = GET_SEC_FROM_SEG(sbi, curseg->segno);
 		si->curzone[i] = GET_ZONE_FROM_SEC(sbi, si->cursec[i]);
@@ -508,55 +509,63 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
 			   si->main_area_zones);
-		seq_printf(s, "    TYPE         %8s %8s %8s %10s %10s %10s\n",
-			   "segno", "secno", "zoneno", "dirty_seg", "full_seg", "valid_blk");
-		seq_printf(s, "  - COLD   data: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "    TYPE         %8s %8s %8s %8s %10s %10s %10s\n",
+			   "blkoff", "segno", "secno", "zoneno", "dirty_seg", "full_seg", "valid_blk");
+		seq_printf(s, "  - COLD   data: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_COLD_DATA],
 			   si->curseg[CURSEG_COLD_DATA],
 			   si->cursec[CURSEG_COLD_DATA],
 			   si->curzone[CURSEG_COLD_DATA],
 			   si->dirty_seg[CURSEG_COLD_DATA],
 			   si->full_seg[CURSEG_COLD_DATA],
 			   si->valid_blks[CURSEG_COLD_DATA]);
-		seq_printf(s, "  - WARM   data: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "  - WARM   data: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_WARM_DATA],
 			   si->curseg[CURSEG_WARM_DATA],
 			   si->cursec[CURSEG_WARM_DATA],
 			   si->curzone[CURSEG_WARM_DATA],
 			   si->dirty_seg[CURSEG_WARM_DATA],
 			   si->full_seg[CURSEG_WARM_DATA],
 			   si->valid_blks[CURSEG_WARM_DATA]);
-		seq_printf(s, "  - HOT    data: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "  - HOT    data: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_HOT_DATA],
 			   si->curseg[CURSEG_HOT_DATA],
 			   si->cursec[CURSEG_HOT_DATA],
 			   si->curzone[CURSEG_HOT_DATA],
 			   si->dirty_seg[CURSEG_HOT_DATA],
 			   si->full_seg[CURSEG_HOT_DATA],
 			   si->valid_blks[CURSEG_HOT_DATA]);
-		seq_printf(s, "  - Dir   dnode: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "  - Dir   dnode: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_HOT_NODE],
 			   si->curseg[CURSEG_HOT_NODE],
 			   si->cursec[CURSEG_HOT_NODE],
 			   si->curzone[CURSEG_HOT_NODE],
 			   si->dirty_seg[CURSEG_HOT_NODE],
 			   si->full_seg[CURSEG_HOT_NODE],
 			   si->valid_blks[CURSEG_HOT_NODE]);
-		seq_printf(s, "  - File  dnode: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "  - File  dnode: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_WARM_NODE],
 			   si->curseg[CURSEG_WARM_NODE],
 			   si->cursec[CURSEG_WARM_NODE],
 			   si->curzone[CURSEG_WARM_NODE],
 			   si->dirty_seg[CURSEG_WARM_NODE],
 			   si->full_seg[CURSEG_WARM_NODE],
 			   si->valid_blks[CURSEG_WARM_NODE]);
-		seq_printf(s, "  - Indir nodes: %8d %8d %8d %10u %10u %10u\n",
+		seq_printf(s, "  - Indir nodes: %8d %8d %8d %8d %10u %10u %10u\n",
+			   si->blkoff[CURSEG_COLD_NODE],
 			   si->curseg[CURSEG_COLD_NODE],
 			   si->cursec[CURSEG_COLD_NODE],
 			   si->curzone[CURSEG_COLD_NODE],
 			   si->dirty_seg[CURSEG_COLD_NODE],
 			   si->full_seg[CURSEG_COLD_NODE],
 			   si->valid_blks[CURSEG_COLD_NODE]);
-		seq_printf(s, "  - Pinned file: %8d %8d %8d\n",
+		seq_printf(s, "  - Pinned file: %8d %8d %8d %8d\n",
+			   si->blkoff[CURSEG_COLD_DATA_PINNED],
 			   si->curseg[CURSEG_COLD_DATA_PINNED],
 			   si->cursec[CURSEG_COLD_DATA_PINNED],
 			   si->curzone[CURSEG_COLD_DATA_PINNED]);
-		seq_printf(s, "  - ATGC   data: %8d %8d %8d\n",
+		seq_printf(s, "  - ATGC   data: %8d %8d %8d %8d\n",
+			   si->blkoff[CURSEG_ALL_DATA_ATGC],
 			   si->curseg[CURSEG_ALL_DATA_ATGC],
 			   si->cursec[CURSEG_ALL_DATA_ATGC],
 			   si->curzone[CURSEG_ALL_DATA_ATGC]);

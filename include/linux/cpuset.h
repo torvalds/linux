@@ -74,6 +74,7 @@ extern void inc_dl_tasks_cs(struct task_struct *task);
 extern void dec_dl_tasks_cs(struct task_struct *task);
 extern void cpuset_lock(void);
 extern void cpuset_unlock(void);
+extern void cpuset_cpus_allowed_locked(struct task_struct *p, struct cpumask *mask);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
 extern bool cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern bool cpuset_cpu_is_isolated(int cpu);
@@ -195,10 +196,16 @@ static inline void dec_dl_tasks_cs(struct task_struct *task) { }
 static inline void cpuset_lock(void) { }
 static inline void cpuset_unlock(void) { }
 
+static inline void cpuset_cpus_allowed_locked(struct task_struct *p,
+					struct cpumask *mask)
+{
+	cpumask_copy(mask, task_cpu_possible_mask(p));
+}
+
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)
 {
-	cpumask_copy(mask, task_cpu_possible_mask(p));
+	cpuset_cpus_allowed_locked(p, mask);
 }
 
 static inline bool cpuset_cpus_allowed_fallback(struct task_struct *p)

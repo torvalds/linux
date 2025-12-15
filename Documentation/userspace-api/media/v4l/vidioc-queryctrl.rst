@@ -15,6 +15,8 @@ VIDIOC_QUERYCTRL - VIDIOC_QUERY_EXT_CTRL - VIDIOC_QUERYMENU - Enumerate controls
 Synopsis
 ========
 
+.. c:macro:: VIDIOC_QUERY_CTRL
+
 ``int ioctl(int fd, int VIDIOC_QUERYCTRL, struct v4l2_queryctrl *argp)``
 
 .. c:macro:: VIDIOC_QUERY_EXT_CTRL
@@ -98,6 +100,8 @@ See also the examples in :ref:`control`.
 
 .. _v4l2-queryctrl:
 
+.. c:struct:: v4l2_queryctrl
+
 .. cssclass:: longtable
 
 .. flat-table:: struct v4l2_queryctrl
@@ -177,6 +181,8 @@ See also the examples in :ref:`control`.
 .. _v4l2-query-ext-ctrl:
 
 .. cssclass:: longtable
+
+.. c:struct:: v4l2_query_ext_ctrl
 
 .. flat-table:: struct v4l2_query_ext_ctrl
     :header-rows:  0
@@ -275,6 +281,8 @@ See also the examples in :ref:`control`.
 .. tabularcolumns:: |p{1.2cm}|p{3.0cm}|p{13.1cm}|
 
 .. _v4l2-querymenu:
+
+.. c:struct:: v4l2_querymenu
 
 .. flat-table:: struct v4l2_querymenu
     :header-rows:  0

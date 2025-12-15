@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - ti,tps23881
+      - ti,tps23881b
 
   reg:
     maxItems: 1

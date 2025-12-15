@@ -258,6 +258,7 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
 
 	if (ret) {
 		dev_err(dev, "dma alloc of size %lu failed\n", size);
+		put_device(buf->dev);
 		kfree(buf);
 		return ERR_PTR(-ENOMEM);
 	}

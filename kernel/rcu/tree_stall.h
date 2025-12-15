@@ -763,8 +763,7 @@ static void print_cpu_stall(unsigned long gp_seq, unsigned long gps)
 	 * progress and it could be we're stuck in kernel space without context
 	 * switches for an entirely unreasonable amount of time.
 	 */
-	set_tsk_need_resched(current);
-	set_preempt_need_resched();
+	set_need_resched_current();
 }
 
 static bool csd_lock_suppress_rcu_stall;

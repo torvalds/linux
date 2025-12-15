@@ -18,6 +18,8 @@
 #include <linux/suspend.h>
 #include <linux/syscalls.h>
 #include <linux/pm_runtime.h>
+#include <linux/atomic.h>
+#include <linux/wait.h>
 
 #include "power.h"
 
@@ -91,6 +93,61 @@ void ksys_sync_helper(void)
 		elapsed_msecs / MSEC_PER_SEC, elapsed_msecs % MSEC_PER_SEC);
 }
 EXPORT_SYMBOL_GPL(ksys_sync_helper);
+
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_HIBERNATION)
+/* Wakeup events handling resolution while syncing file systems in jiffies */
+#define PM_FS_SYNC_WAKEUP_RESOLUTION	5
+
+static atomic_t pm_fs_sync_count = ATOMIC_INIT(0);
+static struct workqueue_struct *pm_fs_sync_wq;
+static DECLARE_WAIT_QUEUE_HEAD(pm_fs_sync_wait);
+
+static bool pm_fs_sync_completed(void)
+{
+	return atomic_read(&pm_fs_sync_count) == 0;
+}
+
+static void pm_fs_sync_work_fn(struct work_struct *work)
+{
+	ksys_sync_helper();
+
+	if (atomic_dec_and_test(&pm_fs_sync_count))
+		wake_up(&pm_fs_sync_wait);
+}
+static DECLARE_WORK(pm_fs_sync_work, pm_fs_sync_work_fn);
+
+/**
+ * pm_sleep_fs_sync() - Sync file systems in an interruptible way
+ *
+ * Return: 0 on successful file system sync, or -EBUSY if the file system sync
+ * was aborted.
+ */
+int pm_sleep_fs_sync(void)
+{
+	pm_wakeup_clear(0);
+
+	/*
+	 * Take back-to-back sleeps into account by queuing a subsequent fs sync
+	 * only if the previous fs sync is running or is not queued. Multiple fs
+	 * syncs increase the likelihood of saving the latest files immediately
+	 * before sleep.
+	 */
+	if (!work_pending(&pm_fs_sync_work)) {
+		atomic_inc(&pm_fs_sync_count);
+		queue_work(pm_fs_sync_wq, &pm_fs_sync_work);
+	}
+
+	while (!pm_fs_sync_completed()) {
+		if (pm_wakeup_pending())
+			return -EBUSY;
+
+		wait_event_timeout(pm_fs_sync_wait, pm_fs_sync_completed(),
+				   PM_FS_SYNC_WAKEUP_RESOLUTION);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_SUSPEND || CONFIG_HIBERNATION */
 
 /* Routines for PM-transition notifications */
 
@@ -231,10 +288,10 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 power_attr(mem_sleep);
 
 /*
- * sync_on_suspend: invoke ksys_sync_helper() before suspend.
+ * sync_on_suspend: Sync file systems before suspend.
  *
- * show() returns whether ksys_sync_helper() is invoked before suspend.
- * store() accepts 0 or 1.  0 disables ksys_sync_helper() and 1 enables it.
+ * show() returns whether file systems sync before suspend is enabled.
+ * store() accepts 0 or 1.  0 disables file systems sync and 1 enables it.
  */
 bool sync_on_suspend_enabled = !IS_ENABLED(CONFIG_SUSPEND_SKIP_SYNC);
 
@@ -1066,16 +1123,26 @@ static const struct attribute_group *attr_groups[] = {
 struct workqueue_struct *pm_wq;
 EXPORT_SYMBOL_GPL(pm_wq);
 
-static int __init pm_start_workqueue(void)
+static int __init pm_start_workqueues(void)
 {
-	pm_wq = alloc_workqueue("pm", WQ_FREEZABLE, 0);
+	pm_wq = alloc_workqueue("pm", WQ_FREEZABLE | WQ_UNBOUND, 0);
+	if (!pm_wq)
+		return -ENOMEM;
 
-	return pm_wq ? 0 : -ENOMEM;
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_HIBERNATION)
+	pm_fs_sync_wq = alloc_ordered_workqueue("pm_fs_sync", 0);
+	if (!pm_fs_sync_wq) {
+		destroy_workqueue(pm_wq);
+		return -ENOMEM;
+	}
+#endif
+
+	return 0;
 }
 
 static int __init pm_init(void)
 {
-	int error = pm_start_workqueue();
+	int error = pm_start_workqueues();
 	if (error)
 		return error;
 	hibernate_image_size_init();

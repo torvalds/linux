@@ -10,7 +10,7 @@
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define TEST_ZONE_ID 123
 #define NF_CT_DEFAULT_ZONE_ID 0

@@ -63,6 +63,8 @@ enum wb_reason {
 struct wb_completion {
 	atomic_t		cnt;
 	wait_queue_head_t	*waitq;
+	unsigned long progress_stamp;	/* The jiffies when slow progress is detected */
+	unsigned long wait_start;	/* The jiffies when waiting for the writeback work to finish */
 };
 
 #define __WB_COMPLETION_INIT(_waitq)	\
@@ -168,7 +170,9 @@ struct backing_dev_info {
 	u64 id;
 	struct rb_node rb_node; /* keyed by ->id */
 	struct list_head bdi_list;
-	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
+	/* max readahead in PAGE_SIZE units */
+	unsigned long __data_racy ra_pages;
+
 	unsigned long io_pages;	/* max allowed IO size */
 
 	struct kref refcnt;	/* Reference counter for the structure */

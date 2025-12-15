@@ -7,7 +7,7 @@
 
 #include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
 #include <dt-bindings/input/linux-event-codes.h>
-#include "sc7280.dtsi"
+#include "kodiak.dtsi"
 #include "pm7325.dtsi"
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
@@ -573,7 +573,7 @@
 	};
 };
 
-/* PINCTRL - additions to nodes defined in sc7280.dtsi */
+/* PINCTRL - additions to nodes defined in kodiak.dtsi */
 
 &dp_hot_plug_det {
 	bias-disable;

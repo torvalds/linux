@@ -33,6 +33,11 @@ void dwmac_enable_dma_transmission(void __iomem *ioaddr, u32 chan)
 	writel(1, ioaddr + DMA_CHAN_XMT_POLL_DEMAND(chan));
 }
 
+void dwmac_enable_dma_reception(void __iomem *ioaddr, u32 chan)
+{
+	writel(1, ioaddr + DMA_CHAN_RCV_POLL_DEMAND(chan));
+}
+
 void dwmac_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
 			  u32 chan, bool rx, bool tx)
 {

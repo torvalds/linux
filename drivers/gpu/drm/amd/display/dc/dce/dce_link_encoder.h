@@ -101,18 +101,21 @@
 	SRI(DP_SEC_CNTL, DP, id), \
 	SRI(DP_VID_STREAM_CNTL, DP, id), \
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
-	SRI(DP_SEC_CNTL1, DP, id)
+	SRI(DP_SEC_CNTL1, DP, id), \
+	SR(DAC_ENABLE)
 #endif
 
 #define LE_DCE80_REG_LIST(id)\
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	LE_COMMON_REG_LIST_BASE(id)
+	LE_COMMON_REG_LIST_BASE(id), \
+	SR(DAC_ENABLE)
 
 #define LE_DCE100_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
 	SRI(DP_DPHY_BS_SR_SWAP_CNTL, DP, id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id), \
-	SR(DCI_MEM_PWR_STATUS)
+	SR(DCI_MEM_PWR_STATUS), \
+	SR(DAC_ENABLE)
 
 #define LE_DCE110_REG_LIST(id)\
 	LE_COMMON_REG_LIST_BASE(id), \
@@ -181,6 +184,9 @@ struct dce110_link_enc_registers {
 	uint32_t DP_DPHY_BS_SR_SWAP_CNTL;
 	uint32_t DP_DPHY_HBR2_PATTERN_CONTROL;
 	uint32_t DP_SEC_CNTL1;
+
+	/* DAC registers */
+	uint32_t DAC_ENABLE;
 };
 
 struct dce110_link_encoder {
@@ -213,10 +219,6 @@ bool dce110_link_encoder_validate_dvi_output(
 	const struct dce110_link_encoder *enc110,
 	enum signal_type connector_signal,
 	enum signal_type signal,
-	const struct dc_crtc_timing *crtc_timing);
-
-bool dce110_link_encoder_validate_rgb_output(
-	const struct dce110_link_encoder *enc110,
 	const struct dc_crtc_timing *crtc_timing);
 
 bool dce110_link_encoder_validate_dp_output(

@@ -16,6 +16,7 @@
 #include <asm/set_memory.h>
 
 #include <drm/drm.h>
+#include <drm/drm_print.h>
 #include <drm/drm_vma_manager.h>
 
 #include "gem.h"

@@ -19,7 +19,7 @@
 #include <asm/sigcontext.h>
 #include <asm/hwcap.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 #include "rdvl.h"
 
 #define ARCH_MIN_VL SVE_VL_MIN

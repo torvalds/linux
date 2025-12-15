@@ -19,6 +19,8 @@
 #include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
 
+#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) smb_direct_disconnect_rdma_connection(__sc)
+
 #include "glob.h"
 #include "connection.h"
 #include "smb_common.h"
@@ -231,6 +233,9 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
 
+	if (sc->first_error == 0)
+		sc->first_error = -ECONNABORTED;
+
 	/*
 	 * make sure this and other work is not queued again
 	 * but here we don't block and avoid
@@ -240,9 +245,6 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_delayed_work(&sc->idle.timer_work);
 	disable_work(&sc->idle.immediate_work);
-
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -287,6 +289,9 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 static void
 smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 {
+	if (sc->first_error == 0)
+		sc->first_error = -ECONNABORTED;
+
 	/*
 	 * make sure other work (than disconnect_work) is
 	 * not queued again but here we don't block and avoid
@@ -295,9 +300,6 @@ smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&sc->idle.immediate_work);
 	disable_delayed_work(&sc->idle.timer_work);
-
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
@@ -639,7 +641,18 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			return;
 		}
 		sc->recv_io.reassembly.full_packet_received = true;
-		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
+		/*
+		 * Some drivers (at least mlx5_ib) might post a
+		 * recv completion before RDMA_CM_EVENT_ESTABLISHED,
+		 * we need to adjust our expectation in that case.
+		 */
+		if (!sc->first_error && sc->status == SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING)
+			sc->status = SMBDIRECT_SOCKET_NEGOTIATE_NEEDED;
+		if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_NEGOTIATE_NEEDED)) {
+			put_recvmsg(sc, recvmsg);
+			smb_direct_disconnect_rdma_connection(sc);
+			return;
+		}
 		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
 		enqueue_reassembly(sc, recvmsg, 0);
 		wake_up(&sc->status_wait);
@@ -1725,7 +1738,18 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED: {
-		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING);
+		/*
+		 * Some drivers (at least mlx5_ib) might post a
+		 * recv completion before RDMA_CM_EVENT_ESTABLISHED,
+		 * we need to adjust our expectation in that case.
+		 *
+		 * As we already started the negotiation, we just
+		 * ignore RDMA_CM_EVENT_ESTABLISHED here.
+		 */
+		if (!sc->first_error && sc->status > SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING)
+			break;
+		if (SMBDIRECT_CHECK_STATUS_DISCONNECT(sc, SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING))
+			break;
 		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_NEEDED;
 		wake_up(&sc->status_wait);
 		break;

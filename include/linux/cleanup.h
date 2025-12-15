@@ -208,19 +208,19 @@
  */
 
 #define DEFINE_FREE(_name, _type, _free) \
-	static inline void __free_##_name(void *p) { _type _T = *(_type *)p; _free; }
+	static __always_inline void __free_##_name(void *p) { _type _T = *(_type *)p; _free; }
 
 #define __free(_name)	__cleanup(__free_##_name)
 
-#define __get_and_null(p, nullvalue)   \
+#define __get_and_null(p, nullvalue)	    \
 	({                                  \
-		__auto_type __ptr = &(p);   \
-		__auto_type __val = *__ptr; \
+		auto __ptr = &(p);	    \
+		auto __val = *__ptr;	    \
 		*__ptr = nullvalue;         \
 		__val;                      \
 	})
 
-static inline __must_check
+static __always_inline __must_check
 const volatile void * __must_check_fn(const volatile void *val)
 { return val; }
 
@@ -261,6 +261,10 @@ const volatile void * __must_check_fn(const volatile void *val)
  * CLASS(name, var)(args...):
  *	declare the variable @var as an instance of the named class
  *
+ * CLASS_INIT(name, var, init_expr):
+ *	declare the variable @var as an instance of the named class with
+ *	custom initialization expression.
+ *
  * Ex.
  *
  * DEFINE_CLASS(fdget, struct fd, fdput(_T), fdget(fd), int fd)
@@ -274,30 +278,34 @@ const volatile void * __must_check_fn(const volatile void *val)
 
 #define DEFINE_CLASS(_name, _type, _exit, _init, _init_args...)		\
 typedef _type class_##_name##_t;					\
-static inline void class_##_name##_destructor(_type *p)			\
+static __always_inline void class_##_name##_destructor(_type *p)	\
 { _type _T = *p; _exit; }						\
-static inline _type class_##_name##_constructor(_init_args)		\
+static __always_inline _type class_##_name##_constructor(_init_args)	\
 { _type t = _init; return t; }
 
 #define EXTEND_CLASS(_name, ext, _init, _init_args...)			\
 typedef class_##_name##_t class_##_name##ext##_t;			\
-static inline void class_##_name##ext##_destructor(class_##_name##_t *p)\
+static __always_inline void class_##_name##ext##_destructor(class_##_name##_t *p) \
 { class_##_name##_destructor(p); }					\
-static inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
+static __always_inline class_##_name##_t class_##_name##ext##_constructor(_init_args) \
 { class_##_name##_t t = _init; return t; }
 
 #define CLASS(_name, var)						\
 	class_##_name##_t var __cleanup(class_##_name##_destructor) =	\
 		class_##_name##_constructor
 
-#define scoped_class(_name, var, args)                          \
-	for (CLASS(_name, var)(args);                           \
-	     __guard_ptr(_name)(&var) || !__is_cond_ptr(_name); \
-	     ({ goto _label; }))                                \
-		if (0) {                                        \
-_label:                                                         \
-			break;                                  \
+#define CLASS_INIT(_name, _var, _init_expr)                             \
+        class_##_name##_t _var __cleanup(class_##_name##_destructor) = (_init_expr)
+
+#define __scoped_class(_name, var, _label, args...)        \
+	for (CLASS(_name, var)(args); ; ({ goto _label; })) \
+		if (0) {                                   \
+_label:                                                    \
+			break;                             \
 		} else
+
+#define scoped_class(_name, var, args...) \
+	__scoped_class(_name, var, __UNIQUE_ID(label), args)
 
 /*
  * DEFINE_GUARD(name, type, lock, unlock):
@@ -340,6 +348,11 @@ _label:                                                         \
 #define __DEFINE_CLASS_IS_CONDITIONAL(_name, _is_cond)	\
 static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
 
+#define DEFINE_CLASS_IS_UNCONDITIONAL(_name)		\
+	__DEFINE_CLASS_IS_CONDITIONAL(_name, false);	\
+	static inline void * class_##_name##_lock_ptr(class_##_name##_t *_T) \
+	{ return (void *)1; }
+
 #define __GUARD_IS_ERR(_ptr)                                       \
 	({                                                         \
 		unsigned long _rc = (__force unsigned long)(_ptr); \
@@ -347,7 +360,7 @@ static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
 	})
 
 #define __DEFINE_GUARD_LOCK_PTR(_name, _exp)                                \
-	static inline void *class_##_name##_lock_ptr(class_##_name##_t *_T) \
+	static __always_inline void *class_##_name##_lock_ptr(class_##_name##_t *_T) \
 	{                                                                   \
 		void *_ptr = (void *)(__force unsigned long)*(_exp);        \
 		if (IS_ERR(_ptr)) {                                         \
@@ -355,7 +368,7 @@ static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
 		}                                                           \
 		return _ptr;                                                \
 	}                                                                   \
-	static inline int class_##_name##_lock_err(class_##_name##_t *_T)   \
+	static __always_inline int class_##_name##_lock_err(class_##_name##_t *_T) \
 	{                                                                   \
 		long _rc = (__force unsigned long)*(_exp);                  \
 		if (!_rc) {                                                 \
@@ -384,9 +397,9 @@ static __maybe_unused const bool class_##_name##_is_conditional = _is_cond
 	EXTEND_CLASS(_name, _ext, \
 		     ({ void *_t = _T; int _RET = (_lock); if (_T && !(_cond)) _t = ERR_PTR(_RET); _t; }), \
 		     class_##_name##_t _T) \
-	static inline void * class_##_name##_ext##_lock_ptr(class_##_name##_t *_T) \
+	static __always_inline void * class_##_name##_ext##_lock_ptr(class_##_name##_t *_T) \
 	{ return class_##_name##_lock_ptr(_T); } \
-	static inline int class_##_name##_ext##_lock_err(class_##_name##_t *_T) \
+	static __always_inline int class_##_name##_ext##_lock_err(class_##_name##_t *_T) \
 	{ return class_##_name##_lock_err(_T); }
 
 /*
@@ -466,7 +479,7 @@ typedef struct {							\
 	__VA_ARGS__;							\
 } class_##_name##_t;							\
 									\
-static inline void class_##_name##_destructor(class_##_name##_t *_T)	\
+static __always_inline void class_##_name##_destructor(class_##_name##_t *_T) \
 {									\
 	if (!__GUARD_IS_ERR(_T->lock)) { _unlock; }			\
 }									\
@@ -474,7 +487,7 @@ static inline void class_##_name##_destructor(class_##_name##_t *_T)	\
 __DEFINE_GUARD_LOCK_PTR(_name, &_T->lock)
 
 #define __DEFINE_LOCK_GUARD_1(_name, _type, _lock)			\
-static inline class_##_name##_t class_##_name##_constructor(_type *l)	\
+static __always_inline class_##_name##_t class_##_name##_constructor(_type *l) \
 {									\
 	class_##_name##_t _t = { .lock = l }, *_T = &_t;		\
 	_lock;								\
@@ -482,7 +495,7 @@ static inline class_##_name##_t class_##_name##_constructor(_type *l)	\
 }
 
 #define __DEFINE_LOCK_GUARD_0(_name, _lock)				\
-static inline class_##_name##_t class_##_name##_constructor(void)	\
+static __always_inline class_##_name##_t class_##_name##_constructor(void) \
 {									\
 	class_##_name##_t _t = { .lock = (void*)1 },			\
 			 *_T __maybe_unused = &_t;			\
@@ -508,9 +521,9 @@ __DEFINE_LOCK_GUARD_0(_name, _lock)
 		        if (_T->lock && !(_cond)) _T->lock = ERR_PTR(_RET);\
 			_t; }),						\
 		     typeof_member(class_##_name##_t, lock) l)		\
-	static inline void * class_##_name##_ext##_lock_ptr(class_##_name##_t *_T) \
+	static __always_inline void * class_##_name##_ext##_lock_ptr(class_##_name##_t *_T) \
 	{ return class_##_name##_lock_ptr(_T); } \
-	static inline int class_##_name##_ext##_lock_err(class_##_name##_t *_T) \
+	static __always_inline int class_##_name##_ext##_lock_err(class_##_name##_t *_T) \
 	{ return class_##_name##_lock_err(_T); }
 
 #define DEFINE_LOCK_GUARD_1_COND_3(_name, _ext, _lock) \

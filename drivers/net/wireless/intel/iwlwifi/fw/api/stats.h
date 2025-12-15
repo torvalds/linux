@@ -26,7 +26,7 @@ struct mvm_statistics_div {
 } __packed; /* STATISTICS_SLOW_DIV_API_S_VER_2 */
 
 /**
- * struct mvm_statistics_rx_non_phy
+ * struct mvm_statistics_rx_non_phy - non-PHY RX statistics
  * @bogus_cts: CTS received when not expecting CTS
  * @bogus_ack: ACK received when not expecting ACK
  * @non_channel_beacons: beacons with our bss id but not on our serving channel
@@ -456,7 +456,7 @@ struct iwl_system_statistics_cmd {
 } __packed; /* STATISTICS_FW_CMD_API_S_VER_1 */
 
 /**
- * enum iwl_fw_statistics_type
+ * enum iwl_fw_statistics_type - statistics type
  *
  * @FW_STATISTICS_OPERATIONAL: operational statistics
  * @FW_STATISTICS_PHY: phy statistics
@@ -478,7 +478,7 @@ enum iwl_fw_statistics_type {
 
 #define IWL_STATISTICS_TYPE_MSK 0x7f
 /**
- * struct iwl_statistics_ntfy_hdr
+ * struct iwl_statistics_ntfy_hdr - statistics notification header
  *
  * @type: struct type
  * @version: version of the struct
@@ -491,7 +491,7 @@ struct iwl_statistics_ntfy_hdr {
 }; /* STATISTICS_NTFY_HDR_API_S_VER_1 */
 
 /**
- * struct iwl_stats_ntfy_per_link
+ * struct iwl_stats_ntfy_per_link - per-link statistics
  *
  * @beacon_filter_average_energy: Average energy [-dBm] of the 2
  *	 antennas.
@@ -514,7 +514,7 @@ struct iwl_stats_ntfy_per_link {
 } __packed; /* STATISTICS_NTFY_PER_LINK_API_S_VER_1 */
 
 /**
- * struct iwl_stats_ntfy_part1_per_link
+ * struct iwl_stats_ntfy_part1_per_link - part1 per link statistics
  *
  * @rx_time: rx time
  * @tx_time: tx time
@@ -533,7 +533,7 @@ struct iwl_stats_ntfy_part1_per_link {
 } __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_PART1_PER_LINK_API_S_VER_1 */
 
 /**
- * struct iwl_stats_ntfy_per_mac
+ * struct iwl_stats_ntfy_per_mac - per MAC statistics
  *
  * @beacon_filter_average_energy: Average energy [-dBm] of the 2
  *	 antennas.
@@ -556,7 +556,8 @@ struct iwl_stats_ntfy_per_mac {
 } __packed; /* STATISTICS_NTFY_PER_MAC_API_S_VER_1 */
 
 #define IWL_STATS_MAX_BW_INDEX 5
-/** struct iwl_stats_ntfy_per_phy
+/**
+ * struct iwl_stats_ntfy_per_phy - per PHY statistics
  * @channel_load: channel load
  * @channel_load_by_us: device contribution to MCLM
  * @channel_load_not_by_us: other devices' contribution to MCLM
@@ -588,7 +589,7 @@ struct iwl_stats_ntfy_per_phy {
 #define IWL_STATS_UNKNOWN_CHANNEL_LOAD	0xffffffff
 
 /**
- * struct iwl_stats_ntfy_per_sta
+ * struct iwl_stats_ntfy_per_sta - per STA statistics
  *
  * @average_energy: in fact it is minus the energy..
  */
@@ -600,7 +601,7 @@ struct iwl_stats_ntfy_per_sta {
 #define IWL_STATS_MAX_FW_LINKS	(IWL_FW_MAX_LINK_ID + 1)
 
 /**
- * struct iwl_system_statistics_notif_oper
+ * struct iwl_system_statistics_notif_oper - statistics notification
  *
  * @time_stamp: time when the notification is sent from firmware
  * @per_link: per link statistics, &struct iwl_stats_ntfy_per_link
@@ -615,7 +616,7 @@ struct iwl_system_statistics_notif_oper {
 } __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_3 */
 
 /**
- * struct iwl_system_statistics_part1_notif_oper
+ * struct iwl_system_statistics_part1_notif_oper - part1 stats notification
  *
  * @time_stamp: time when the notification is sent from firmware
  * @per_link: per link statistics &struct iwl_stats_ntfy_part1_per_link
@@ -628,7 +629,7 @@ struct iwl_system_statistics_part1_notif_oper {
 } __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_PART1_API_S_VER_4 */
 
 /**
- * struct iwl_system_statistics_end_notif
+ * struct iwl_system_statistics_end_notif - statistics end notification
  *
  * @time_stamp: time when the notification is sent from firmware
  */
@@ -637,7 +638,7 @@ struct iwl_system_statistics_end_notif {
 } __packed; /* STATISTICS_FW_NTFY_END_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_operational_ntfy
+ * struct iwl_statistics_operational_ntfy - operational stats notification
  *
  * @hdr: general statistics header
  * @flags: bitmap of possible notification structures
@@ -662,7 +663,7 @@ struct iwl_statistics_operational_ntfy {
 } __packed; /* STATISTICS_OPERATIONAL_NTFY_API_S_VER_15 */
 
 /**
- * struct iwl_statistics_operational_ntfy_ver_14
+ * struct iwl_statistics_operational_ntfy_ver_14 - operational stats notification
  *
  * @hdr: general statistics header
  * @flags: bitmap of possible notification structures
@@ -707,7 +708,7 @@ struct iwl_statistics_operational_ntfy_ver_14 {
 } __packed; /* STATISTICS_OPERATIONAL_NTFY_API_S_VER_14 */
 
 /**
- * struct iwl_statistics_phy_ntfy
+ * struct iwl_statistics_phy_ntfy - PHY statistics notification
  *
  * @hdr: general statistics header
  * RX PHY related statistics
@@ -808,7 +809,7 @@ struct iwl_statistics_phy_ntfy {
 } __packed; /* STATISTICS_PHY_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_mac_ntfy
+ * struct iwl_statistics_mac_ntfy - MAC statistics notification
  *
  * @hdr: general statistics header
  * @bcast_filter_passed_per_mac: bcast filter passed per mac
@@ -827,7 +828,7 @@ struct iwl_statistics_mac_ntfy {
 } __packed; /* STATISTICS_MAC_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_rx_ntfy
+ * struct iwl_statistics_rx_ntfy - RX statistics notification
  *
  * @hdr: general statistics header
  * @rx_agg_mpdu_cnt: aggregation frame count (number of
@@ -867,7 +868,7 @@ struct iwl_statistics_rx_ntfy {
 } __packed; /* STATISTICS_RX_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_tx_ntfy
+ * struct iwl_statistics_tx_ntfy - TX statistics notification
  *
  * @hdr: general statistics header
  * @cts_timeout: timeout when waiting for CTS
@@ -976,7 +977,7 @@ struct iwl_statistics_tx_ntfy {
 } __packed; /* STATISTICS_TX_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_duration_ntfy
+ * struct iwl_statistics_duration_ntfy - burst/duration statistics
  *
  * @hdr: general statistics header
  * @cont_burst_chk_cnt: number of times continuation or
@@ -995,7 +996,7 @@ struct iwl_statistics_duration_ntfy {
 } __packed; /* STATISTICS_DURATION_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_he_ntfy
+ * struct iwl_statistics_he_ntfy - HE statistics
  *
  * @hdr: general statistics header
  * received HE frames

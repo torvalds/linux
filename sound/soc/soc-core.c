@@ -151,7 +151,7 @@ static void soc_init_component_debugfs(struct snd_soc_component *component)
 				component->card->debugfs_card_root);
 	}
 
-	snd_soc_dapm_debugfs_init(snd_soc_component_get_dapm(component),
+	snd_soc_dapm_debugfs_init(snd_soc_component_to_dapm(component),
 		component->debugfs_root);
 }
 
@@ -203,7 +203,7 @@ static void soc_init_card_debugfs(struct snd_soc_card *card)
 	debugfs_create_u32("dapm_pop_time", 0644, card->debugfs_card_root,
 			   &card->pop_time);
 
-	snd_soc_dapm_debugfs_init(&card->dapm, card->debugfs_card_root);
+	snd_soc_dapm_debugfs_init(snd_soc_card_to_dapm(card), card->debugfs_card_root);
 }
 
 static void soc_cleanup_card_debugfs(struct snd_soc_card *card)
@@ -545,6 +545,11 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	dev_set_drvdata(dev, rtd);
 	INIT_DELAYED_WORK(&rtd->delayed_work, close_delayed_work);
 
+	if ((dai_link->num_cpus + dai_link->num_codecs) == 0) {
+		dev_err(dev, "ASoC: it has no CPU or codec DAIs\n");
+		goto free_rtd;
+	}
+
 	/*
 	 * for rtd->dais
 	 */
@@ -687,7 +692,7 @@ int snd_soc_suspend(struct device *dev)
 
 	/* Recheck all endpoints too, their state is affected by suspend */
 	snd_soc_dapm_mark_endpoints_dirty(card);
-	snd_soc_dapm_sync(&card->dapm);
+	snd_soc_dapm_sync(snd_soc_card_to_dapm(card));
 
 	/* suspend all COMPONENTs */
 	for_each_card_rtds(card, rtd) {
@@ -696,8 +701,7 @@ int snd_soc_suspend(struct device *dev)
 			continue;
 
 		for_each_rtd_components(rtd, i, component) {
-			struct snd_soc_dapm_context *dapm =
-				snd_soc_component_get_dapm(component);
+			struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 			/*
 			 * ignore if component was already suspended
@@ -717,7 +721,7 @@ int snd_soc_suspend(struct device *dev)
 				 * means it's doing something,
 				 * otherwise fall through.
 				 */
-				if (!dapm->idle_bias) {
+				if (!snd_soc_dapm_get_idle_bias(dapm)) {
 					dev_dbg(component->dev,
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
@@ -784,7 +788,7 @@ static void soc_resume_deferred(struct work_struct *work)
 
 	/* Recheck all endpoints too, their state is affected by suspend */
 	snd_soc_dapm_mark_endpoints_dirty(card);
-	snd_soc_dapm_sync(&card->dapm);
+	snd_soc_dapm_sync(snd_soc_card_to_dapm(card));
 
 	/* userspace can access us now we are back as we were before */
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D0);
@@ -1590,7 +1594,7 @@ static void soc_remove_component(struct snd_soc_component *component,
 		snd_soc_component_remove(component);
 
 	list_del_init(&component->card_list);
-	snd_soc_dapm_free(snd_soc_component_get_dapm(component));
+	snd_soc_dapm_free(snd_soc_component_to_dapm(component));
 	soc_cleanup_component_debugfs(component);
 	component->card = NULL;
 	snd_soc_component_module_put_when_remove(component);
@@ -1599,8 +1603,7 @@ static void soc_remove_component(struct snd_soc_component *component,
 static int soc_probe_component(struct snd_soc_card *card,
 			       struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct snd_soc_dai *dai;
 	int probed = 0;
 	int ret;
@@ -1652,8 +1655,8 @@ static int soc_probe_component(struct snd_soc_card *card,
 	if (ret < 0)
 		goto err_probe;
 
-	WARN(!dapm->idle_bias &&
-	     dapm->bias_level != SND_SOC_BIAS_OFF,
+	WARN(!snd_soc_dapm_get_idle_bias(dapm) &&
+	     snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_OFF,
 	     "codec %s can not start from non-off bias with idle_bias_off==1\n",
 	     component->name);
 	probed = 1;
@@ -2130,7 +2133,7 @@ static void soc_cleanup_card_resources(struct snd_soc_card *card)
 	soc_remove_aux_devices(card);
 	soc_unbind_aux_dev(card);
 
-	snd_soc_dapm_free(&card->dapm);
+	snd_soc_dapm_free(snd_soc_card_to_dapm(card));
 	soc_cleanup_card_debugfs(card);
 
 	/* remove the card */
@@ -2156,12 +2159,13 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
 	snd_soc_card_mutex_lock_root(card);
 	snd_soc_fill_dummy_dai(card);
 
-	snd_soc_dapm_init(&card->dapm, card, NULL);
+	snd_soc_dapm_init(dapm, card, NULL);
 
 	/* check whether any platform is ignore machine FE and using topology */
 	soc_check_tplg_fes(card);
@@ -2191,12 +2195,12 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	soc_resume_init(card);
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, card->dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, card->dapm_widgets,
 					card->num_dapm_widgets);
 	if (ret < 0)
 		goto probe_end;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, card->of_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, card->of_dapm_widgets,
 					card->num_of_dapm_widgets);
 	if (ret < 0)
 		goto probe_end;
@@ -2246,12 +2250,12 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	if (ret < 0)
 		goto probe_end;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, card->dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, card->dapm_routes,
 				      card->num_dapm_routes);
 	if (ret < 0)
 		goto probe_end;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, card->of_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, card->of_dapm_routes,
 				      card->num_of_dapm_routes);
 	if (ret < 0)
 		goto probe_end;
@@ -2295,7 +2299,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	card->instantiated = 1;
 	snd_soc_dapm_mark_endpoints_dirty(card);
-	snd_soc_dapm_sync(&card->dapm);
+	snd_soc_dapm_sync(dapm);
 
 	/* deactivate pins to sleep state */
 	for_each_card_components(card, component)

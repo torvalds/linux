@@ -6,103 +6,102 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 <import file="adreno/adreno_common.xml"/>
 
 <enum name="vgt_event_type" varset="chip">
-	<value name="VS_DEALLOC" value="0"/>
-	<value name="PS_DEALLOC" value="1" variants="A2XX-A6XX"/>
-	<value name="VS_DONE_TS" value="2"/>
-	<value name="PS_DONE_TS" value="3"/>
+	<value name="VS_DEALLOC" value="0x00" variants="A2XX-A5XX"/>
+	<value name="PS_DEALLOC" value="0x01" variants="A2XX-A5XX"/>
+	<value name="VS_DONE_TS" value="0x02" variants="A2XX-A5XX"/>
+	<value name="PS_DONE_TS" value="0x03" variants="A2XX-A5XX"/>
 	<doc>
 		Flushes dirty data from UCHE, and also writes a GPU timestamp to
 		the address if one is provided.
 	</doc>
-	<value name="CACHE_FLUSH_TS" value="4"/>
-	<value name="CONTEXT_DONE" value="5"/>
-	<value name="CACHE_FLUSH" value="6" variants="A2XX-A4XX"/>
-	<value name="VIZQUERY_START" value="7" variants="A2XX"/>
-	<value name="HLSQ_FLUSH" value="7" variants="A3XX-A4XX"/>
-	<value name="VIZQUERY_END" value="8" variants="A2XX"/>
-	<value name="SC_WAIT_WC" value="9" variants="A2XX"/>
-	<value name="WRITE_PRIMITIVE_COUNTS" value="9" variants="A6XX-"/>
-	<value name="START_PRIMITIVE_CTRS" value="11" variants="A6XX-"/>
-	<value name="STOP_PRIMITIVE_CTRS" value="12" variants="A6XX-"/>
+	<value name="CACHE_FLUSH_TS" value="0x04"/>
+	<value name="CONTEXT_DONE" value="0x05"/>
+	<value name="CACHE_FLUSH" value="0x06" variants="A2XX-A4XX"/>
+	<value name="VIZQUERY_START" value="0x07" variants="A2XX"/>
+	<value name="HLSQ_FLUSH" value="0x07" variants="A3XX-A4XX"/>
+	<value name="VIZQUERY_END" value="0x08" variants="A2XX"/>
+	<value name="SC_WAIT_WC" value="0x09" variants="A2XX"/>
+	<value name="WRITE_PRIMITIVE_COUNTS" value="0x09" variants="A6XX-"/>
+	<value name="START_PRIMITIVE_CTRS" value="0x0b" variants="A6XX-"/>
+	<value name="STOP_PRIMITIVE_CTRS" value="0x0c" variants="A6XX-"/>
 	<!-- Not sure that these 4 events don't have the same meaning as on A5XX+ -->
-	<value name="RST_PIX_CNT" value="13" variants="A2XX-A4XX"/>
-	<value name="RST_VTX_CNT" value="14" variants="A2XX-A4XX"/>
-	<value name="TILE_FLUSH" value="15" variants="A2XX-A4XX"/>
-	<value name="STAT_EVENT" value="16" variants="A2XX-A4XX"/>
-	<value name="CACHE_FLUSH_AND_INV_TS_EVENT" value="20" variants="A2XX-A4XX"/>
+	<value name="RST_PIX_CNT" value="0x0d" variants="A2XX-A4XX"/>
+	<value name="RST_VTX_CNT" value="0x0e" variants="A2XX-A4XX"/>
+	<value name="TILE_FLUSH" value="0x0f" variants="A2XX-A4XX"/>
+	<value name="STAT_EVENT" value="0x10" variants="A2XX-A4XX"/>
+	<value name="CACHE_FLUSH_AND_INV_TS_EVENT" value="0x14" variants="A2XX-A4XX"/>
 	<doc>
 		If A6XX_RB_SAMPLE_COUNTER_CNTL.copy is true, writes OQ Z passed
 		sample counts to RB_SAMPLE_COUNTER_BASE.  This writes to main
 		memory, skipping UCHE.
 	</doc>
-	<value name="ZPASS_DONE" value="21"/>
-	<value name="CACHE_FLUSH_AND_INV_EVENT" value="22" variants="A2XX"/>
+	<value name="ZPASS_DONE" value="0x15"/>
+	<value name="CACHE_FLUSH_AND_INV_EVENT" value="0x16" variants="A2XX"/>
 
 	<doc>
 		Writes the GPU timestamp to the address that follows, once RB
 		access and flushes are complete.
 	</doc>
-	<value name="RB_DONE_TS" value="22" variants="A3XX-"/>
+	<value name="RB_DONE_TS" value="0x16" variants="A3XX-"/>
 
-	<value name="PERFCOUNTER_START" value="23" variants="A2XX-A4XX"/>
-	<value name="PERFCOUNTER_STOP" value="24" variants="A2XX-A4XX"/>
-	<value name="VS_FETCH_DONE" value="27"/>
-	<value name="FACENESS_FLUSH" value="28" variants="A2XX-A4XX"/>
+	<value name="PERFCOUNTER_START" value="0x17" variants="A2XX-A4XX"/>
+	<value name="PERFCOUNTER_STOP" value="0x18" variants="A2XX-A4XX"/>
+	<value name="VS_FETCH_DONE" value="0x1b" variants="A2XX-A5XX"/>
+	<value name="FACENESS_FLUSH" value="0x1c" variants="A2XX-A4XX"/>
 
 	<!-- a5xx events -->
-	<value name="WT_DONE_TS" value="8" variants="A5XX-"/>
-	<value name="START_FRAGMENT_CTRS" value="13" variants="A5XX-"/>
-	<value name="STOP_FRAGMENT_CTRS" value="14" variants="A5XX-"/>
-	<value name="START_COMPUTE_CTRS" value="15" variants="A5XX-"/>
-	<value name="STOP_COMPUTE_CTRS" value="16" variants="A5XX-"/>
-	<value name="FLUSH_SO_0" value="17" variants="A5XX-"/>
-	<value name="FLUSH_SO_1" value="18" variants="A5XX-"/>
-	<value name="FLUSH_SO_2" value="19" variants="A5XX-"/>
-	<value name="FLUSH_SO_3" value="20" variants="A5XX-"/>
+	<value name="WT_DONE_TS" value="0x08" variants="A5XX-A6XX"/>
+	<value name="START_FRAGMENT_CTRS" value="0x0d" variants="A5XX-"/>
+	<value name="STOP_FRAGMENT_CTRS" value="0x0e" variants="A5XX-"/>
+	<value name="START_COMPUTE_CTRS" value="0x0f" variants="A5XX-"/>
+	<value name="STOP_COMPUTE_CTRS" value="0x10" variants="A5XX-"/>
+	<value name="FLUSH_SO_0" value="0x11" variants="A5XX-"/>
+	<value name="FLUSH_SO_1" value="0x12" variants="A5XX-"/>
+	<value name="FLUSH_SO_2" value="0x13" variants="A5XX-"/>
+	<value name="FLUSH_SO_3" value="0x14" variants="A5XX-"/>
 
 	<doc>
 		Invalidates depth attachment data from the CCU.  We assume this
 		happens in the last stage.
 	</doc>
-	<value name="PC_CCU_INVALIDATE_DEPTH" value="24" variants="A5XX-"/>
+	<value name="PC_CCU_INVALIDATE_DEPTH" value="0x18" variants="A5XX-A6XX"/>
 
 	<doc>
 		Invalidates color attachment data from the CCU.  We assume this
 		happens in the last stage.
 	</doc>
-	<value name="PC_CCU_INVALIDATE_COLOR" value="25" variants="A5XX-"/>
+	<value name="PC_CCU_INVALIDATE_COLOR" value="0x19" variants="A5XX-A6XX"/>
 
 	<doc>
 		Flushes the small cache used by CP_EVENT_WRITE::BLIT (which,
 		along with its registers, would be better named RESOLVE).
 	</doc>
-	<value name="PC_CCU_RESOLVE_TS" value="26" variants="A6XX"/>
+	<value name="PC_CCU_RESOLVE_TS" value="0x1a" variants="A6XX"/>
 
 	<doc>
 		Flushes depth attachment data from the CCU.  We assume this
 		happens in the last stage.
 	</doc>
-	<value name="PC_CCU_FLUSH_DEPTH_TS" value="28" variants="A5XX-"/>
+	<value name="PC_CCU_FLUSH_DEPTH_TS" value="0x1c" variants="A5XX-A6XX"/>
 
 	<doc>
 		Flushes color attachment data from the CCU.  We assume this
 		happens in the last stage.
 	</doc>
-	<value name="PC_CCU_FLUSH_COLOR_TS" value="29" variants="A5XX-"/>
+	<value name="PC_CCU_FLUSH_COLOR_TS" value="0x1d" variants="A5XX-A6XX"/>
 
 	<doc>
-		2D blit to resolve GMEM to system memory (skipping CCU) at the
-		end of a render pass.  Compare to CP_BLIT's BLIT_OP_SCALE for
-		more general blitting.
+		Triggers a resolve (GMEM to sysmem) or unresolve (sysmem to
+		GMEM) or clear blit, depending on CCU programming.
 	</doc>
-	<value name="BLIT" value="30" variants="A5XX-"/>
+	<value name="CCU_RESOLVE" value="0x1e" variants="A5XX-"/>
 
 	<doc>
 	Flip between the primary and secondary LRZ buffers. This is used
 	for concurrent binning, so that BV can write to one buffer while
 	BR reads from the other.
 	</doc>
-	<value name="LRZ_FLIP_BUFFER" value="36" variants="A7XX"/>
+	<value name="LRZ_FLIP_BUFFER" value="0x24" variants="A7XX-"/>
 
 	<doc>
 		Clears based on GRAS_LRZ_CNTL configuration, could clear
@@ -115,44 +114,46 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 			CUR_DIR_UNSET = 0x3
 		Clear of direction means setting the direction to CUR_DIR_UNSET.
 	</doc>
-	<value name="LRZ_CLEAR" value="37" variants="A5XX-"/>
+	<value name="LRZ_CLEAR" value="0x25" variants="A5XX-"/>
 
-	<value name="LRZ_FLUSH" value="38" variants="A5XX-"/>
-	<value name="BLIT_OP_FILL_2D" value="39" variants="A5XX-"/>
-	<value name="BLIT_OP_COPY_2D" value="40" variants="A5XX-A6XX"/>
-	<value name="LRZ_CACHE_INVALIDATE" value="40" variants="A7XX"/>
-	<value name="LRZ_Q_CACHE_INVALIDATE" value="41" variants="A7XX"/>
-	<value name="BLIT_OP_SCALE_2D" value="42" variants="A5XX-"/>
-	<value name="CONTEXT_DONE_2D" value="43" variants="A5XX-"/>
-	<value name="VSC_BINNING_START" value="44" variants="A5XX-"/>
-	<value name="VSC_BINNING_END" value="45" variants="A5XX-"/>
+	<value name="LRZ_FLUSH_INVALIDATE" value="0x26" variants="A5XX-A6XX"/>
+	<value name="LRZ_CACHE_FLUSH" value="0x26" variants="A7XX-"/>
+	<value name="BLIT_OP_FILL_2D" value="0x27" variants="A5XX-A6XX"/>
+	<value name="BLIT_OP_COPY_2D" value="0x28" variants="A5XX-A6XX"/>
+	<value name="LRZ_CACHE_INVALIDATE" value="0x28" variants="A7XX-"/>
+	<value name="LRZ_Q_CACHE_INVALIDATE" value="0x29" variants="A7XX-"/>
+	<value name="BLIT_OP_SCALE_2D" value="0x2a" variants="A5XX-"/>
+	<value name="CONTEXT_DONE_2D" value="0x2b" variants="A5XX-"/>
+	<value name="VSC_BINNING_START" value="0x2c" variants="A5XX-"/>
+	<value name="VSC_BINNING_END" value="0x2d" variants="A5XX-"/>
 
 	<!-- a6xx events -->
 	<doc>
 		Invalidates UCHE.
 	</doc>
-	<value name="CACHE_INVALIDATE" value="49" variants="A6XX"/>
+	<value name="CACHE_INVALIDATE" value="0x31" variants="A6XX"/>
 
-	<value name="LABEL" value="63" variants="A6XX-"/>
+	<value name="DEBUG_LABEL" value="0x3f" variants="A6XX-"/>
 
 	<!-- note, some of these are the same as a6xx, just named differently -->
 
 	<doc> Doesn't seem to do anything </doc>
-	<value name="DUMMY_EVENT" value="1" variants="A7XX"/>
-	<value name="CCU_INVALIDATE_DEPTH" value="24" variants="A7XX"/>
-	<value name="CCU_INVALIDATE_COLOR" value="25" variants="A7XX"/>
-	<value name="CCU_RESOLVE_CLEAN" value="26" variants="A7XX"/>
-	<value name="CCU_FLUSH_DEPTH" value="28" variants="A7XX"/>
-	<value name="CCU_FLUSH_COLOR" value="29" variants="A7XX"/>
-	<value name="CCU_RESOLVE" value="30" variants="A7XX"/>
-	<value name="CCU_END_RESOLVE_GROUP" value="31" variants="A7XX"/>
-	<value name="CCU_CLEAN_DEPTH" value="32" variants="A7XX"/>
-	<value name="CCU_CLEAN_COLOR" value="33" variants="A7XX"/>
-	<value name="CACHE_RESET" value="48" variants="A7XX"/>
-	<value name="CACHE_CLEAN" value="49" variants="A7XX"/>
+	<value name="DUMMY_EVENT" value="0x01" variants="A7XX-"/>
+	<value name="CCU_INVALIDATE_DEPTH" value="0x18" variants="A7XX-"/>
+	<value name="CCU_INVALIDATE_COLOR" value="0x19" variants="A7XX-"/>
+	<value name="CCU_RESOLVE_CLEAN" value="0x1a" variants="A7XX-"/>
+	<value name="CCU_FLUSH_DEPTH" value="0x1c" variants="A7XX-"/>
+	<value name="CCU_FLUSH_COLOR" value="0x1d" variants="A7XX-"/>
+	<value name="CCU_END_RESOLVE_GROUP" value="0x1f" variants="A7XX-"/>
+	<value name="CCU_CLEAN_DEPTH" value="0x20" variants="A7XX-"/>
+	<value name="CCU_CLEAN_COLOR" value="0x21" variants="A7XX-"/>
+	<value name="CACHE_RESET" value="0x30" variants="A7XX-"/>
+	<value name="CACHE_CLEAN" value="0x31" variants="A7XX-"/>
 	<!-- TODO: deal with name conflicts with other gens -->
-	<value name="CACHE_FLUSH7" value="50" variants="A7XX"/>
-	<value name="CACHE_INVALIDATE7" value="51" variants="A7XX"/>
+	<value name="CACHE_FLUSH7" value="0x32" variants="A7XX-"/>
+	<value name="CACHE_INVALIDATE7" value="0x33" variants="A7XX-"/>
+	<value name="DEPTH_BUFFER_FLIP" value="0x3d" variants="A8XX-"/>
+	<value name="CCH_FAST_CLEAR_CLEAN" value="0x1b" variants="A8XX-"/>
 </enum>
 
 <enum name="pc_di_primtype">
@@ -310,11 +311,11 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="CP_EVENT_WRITE" value="0x46" variants="A2XX-A6XX"/>
 	<value name="CP_EVENT_WRITE7" value="0x46" variants="A7XX-"/>
 	<doc>generate a VS|PS_done event</doc>
-	<value name="CP_EVENT_WRITE_SHD" value="0x58"/>
+	<value name="CP_EVENT_WRITE_SHD" value="0x58" variants="A2XX"/>
 	<doc>generate a cache flush done event</doc>
-	<value name="CP_EVENT_WRITE_CFL" value="0x59"/>
+	<value name="CP_EVENT_WRITE_CFL" value="0x59" variants="A2XX"/>
 	<doc>generate a z_pass done event</doc>
-	<value name="CP_EVENT_WRITE_ZPD" value="0x5b"/>
+	<value name="CP_EVENT_WRITE_ZPD" value="0x5b" variants="A2XX"/>
 	<doc>
 		not sure the real name, but this seems to be what is used for
 		opencl, instead of CP_DRAW_INDX..
@@ -335,9 +336,9 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<doc>load constant into chip and to memory</doc>
 	<value name="CP_SET_CONSTANT" value="0x2d" variants="A2XX"/>
 	<doc>load sequencer instruction memory (pointer-based)</doc>
-	<value name="CP_IM_LOAD" value="0x27"/>
+	<value name="CP_IM_LOAD" value="0x27" variants="A2XX"/>
 	<doc>load sequencer instruction memory (code embedded in packet)</doc>
-	<value name="CP_IM_LOAD_IMMEDIATE" value="0x2b"/>
+	<value name="CP_IM_LOAD_IMMEDIATE" value="0x2b" variants="A2XX"/>
 	<doc>load constants from a location in memory</doc>
 	<value name="CP_LOAD_CONSTANT_CONTEXT" value="0x2e" variants="A2XX"/>
 	<doc>selective invalidation of state pointers</doc>
@@ -662,6 +663,12 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<value name="CP_CCHE_INVALIDATE" value="0x3a" variants="A7XX-"/>
 
 	<value name="CP_SCOPE_CNTL" value="0x6c" variants="A7XX-"/>
+
+	<value name="CP_SKIP_IB_MODE" value="0x27" variants="A7XX-"/>
+
+	<value name="CP_MEMORY_MAP_UPDATE" value="0x58" variants="A8XX-"/>
+
+	<value name="CP_BARRIER" value="0x59" variants="A8XX-"/>
 </enum>
 
 
@@ -1800,49 +1807,73 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 		<value value="6" name="RM6_BIN_RESOLVE"/>
 		<value value="7" name="RM6_BIN_RENDER_END"/>
 		<value value="8" name="RM6_COMPUTE"/>
-		<value value="0xc" name="RM6_BLIT2DSCALE"/>  <!-- no-op (at least on current sqe fw) -->
+		<value value="12" name="RM6_BLIT2DSCALE"/>  <!-- no-op (at least on current sqe fw) -->
 
 		<!--
 			These values come from a6xx_set_marker() in the
 			downstream kernel, and they can only be set by the kernel
 		-->
-		<value value="0xd" name="RM6_IB1LIST_START"/>
-		<value value="0xe" name="RM6_IB1LIST_END"/>
+		<value value="13" name="RM6_IB1LIST_START"/>
+		<value value="14" name="RM6_IB1LIST_END"/>
+		<value value="15" name="RM7_BIN_VISIBILITY_END"/>
+
+		<!-- new in a8xx: -->
+		<value value="32" name="RM8_DEPTH_PASS_START"/>
+		<value value="33" name="RM8_DEPTH_PASS_END"/>
+		<value value="34" name="RM8_SET_RENDER_TARGET"/>
+		<value value="35" name="RM8_PGMEM_ON"/>
+		<value value="36" name="RM8_PGMEM_OFF"/>
 	</enum>
-	<reg32 offset="0" name="0">
-		<!-- if b8 is set, the low bits are interpreted differently (and b4 ignored) -->
-		<bitfield name="MARKER_MODE" pos="8" type="set_marker_mode" addvariant="yes"/>
+	<stripe varset="chip" variants="A6XX-A7XX">
+		<reg32 offset="0" name="0">
+			<!-- if b8 is set, the low bits are interpreted differently (and b4 ignored) -->
+			<bitfield name="MARKER_MODE" pos="8" type="set_marker_mode" addvariant="yes"/>
 
-		<bitfield name="MODE" low="0" high="3" type="a6xx_marker" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
-		<!-- used by preemption to determine if GMEM needs to be saved or not -->
-		<bitfield name="USES_GMEM" pos="4" type="boolean" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
 
-		<bitfield name="IFPC_MODE" pos="0" type="a6xx_ifpc_mode" varset="set_marker_mode" variants="SET_IFPC_MODE"/>
+			<bitfield name="MODE" low="0" high="3" type="a6xx_marker" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
+			<!-- used by preemption to determine if GMEM needs to be saved or not -->
+			<bitfield name="USES_GMEM" pos="4" type="boolean" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
 
-		<!--
-			CP_SET_MARKER is used with these bits to create a
-			critical section around a workaround for ray tracing.
-			The workaround happens after BVH building, and appears
-			to invalidate the RTU's BVH node cache. It makes sure
-			that only one of BR/BV/LPAC is executing the
-			workaround at a time, and no draws using RT on BV/LPAC
-			are executing while the workaround is executed on BR (or
-			vice versa, that no draws on BV/BR using RT are executed
-			while the workaround executes on LPAC), by
-			hooking subsequent CP_EVENT_WRITE/CP_DRAW_*/CP_EXEC_CS.
-			The blob usage is:
 
-			CP_SET_MARKER(RT_WA_START)
-			... workaround here ...
-			CP_SET_MARKER(RT_WA_END)
-			...
-			CP_SET_MARKER(SHADER_USES_RT)
-			CP_DRAW_INDX(...) or CP_EXEC_CS(...)
-		-->
-		<bitfield name="SHADER_USES_RT" pos="9" type="boolean" variants="A7XX-"/>
-		<bitfield name="RT_WA_START" pos="10" type="boolean" variants="A7XX-"/>
-		<bitfield name="RT_WA_END" pos="11" type="boolean" variants="A7XX-"/>
-	</reg32>
+			<bitfield name="IFPC_MODE" pos="0" type="a6xx_ifpc_mode" varset="set_marker_mode" variants="SET_IFPC_MODE"/>
+
+
+			<!--
+				CP_SET_MARKER is used with these bits to create a
+				critical section around a workaround for ray tracing.
+				The workaround happens after BVH building, and appears
+				to invalidate the RTU's BVH node cache. It makes sure
+				that only one of BR/BV/LPAC is executing the
+				workaround at a time, and no draws using RT on BV/LPAC
+				are executing while the workaround is executed on BR (or
+				vice versa, that no draws on BV/BR using RT are executed
+				while the workaround executes on LPAC), by
+				hooking subsequent CP_EVENT_WRITE/CP_DRAW_*/CP_EXEC_CS.
+				The blob usage is:
+
+
+				CP_SET_MARKER(RT_WA_START)
+				... workaround here ...
+				CP_SET_MARKER(RT_WA_END)
+				...
+				CP_SET_MARKER(SHADER_USES_RT)
+				CP_DRAW_INDX(...) or CP_EXEC_CS(...)
+			-->
+			<bitfield name="SHADER_USES_RT" pos="9" type="boolean" variants="A7XX-"/>
+			<bitfield name="RT_WA_START" pos="10" type="boolean" variants="A7XX-"/>
+			<bitfield name="RT_WA_END" pos="11" type="boolean" variants="A7XX-"/>
+		</reg32>
+	</stripe>
+	<stripe varset="chip" variants="A8XX-">
+		<reg32 offset="0" name="0">
+			<!-- if b8 is set, the low bits are interpreted differently (and b4 ignored) -->
+			<bitfield name="MARKER_MODE" pos="8" type="set_marker_mode" addvariant="yes"/>
+			<bitfield name="MODE" low="0" high="6" type="a6xx_marker" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
+			<bitfield name="USES_GMEM" pos="7" type="boolean" varset="set_marker_mode" variants="SET_RENDER_MODE"/>
+			<bitfield name="IFPC_MODE" pos="0" type="a6xx_ifpc_mode" varset="set_marker_mode" variants="SET_IFPC_MODE"/>
+			<!-- idk if the RT w/a fields apply to a8xx as well -->
+		</reg32>
+	</stripe>
 </domain>
 
 <domain name="CP_SET_PSEUDO_REG" width="32" varset="chip" prefix="chip" variants="A6XX-">
@@ -2066,6 +2097,14 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 				payload *and* skipsaverestore is set. This is
 				expected to restore static register values not
 				saved when skipsaverestore is set.
+
+				On BV, a skipsaverestore preemption is triggered
+				and this preamble type is executed whenever a
+				CP_THREAD_CONTROL that synchronizes threads
+				happens. This can be explicitly via
+				SYNC_THREADS, or implicitly when the value of
+				CONCURRENT_BIN_DISABLE changes from the previous
+				thread control.
 			</doc>
 		</value>
 		<value name="POSTAMBLE_AMBLE_TYPE" value="2">
@@ -2306,6 +2345,100 @@ opcode: CP_LOAD_STATE4 (30) (4 dwords)
 	<reg32 offset="2" name="2">
 		<bitfield name="IB_SIZE" low="0" high="19"/>
 	</reg32>
+</domain>
+
+<domain name="CP_RESOURCE_LIST" width="32">
+	<doc>
+		A7xx introduces the "resource table" which is managed by
+		CP_RESOURCE_LIST. It is used to synchronize BR and BV access
+		to resources such as LRZ buffers.
+
+		The resource table consists of resources that are in-use by BR.
+		Each "resource" has a base address, which is
+		usually a pointer but is treated by the HW as an opaque handle,
+		a read/write bit, and a timestamp when it was last used.
+		Resources are removed from the table upon event completion when
+		a special CP_EVENT_WRITE::CLEAR_RENDER_RESOURCE bit is set, which
+		will remove all resources with a timestamp up to the current
+		timestamp.
+
+		CP_RESOURCE_LIST first specifies a list of BV resources. For
+		each BV resource, the HW will check if there is a corresponding
+		BR resource in the table, and if at least one of the BV and BR
+		resources is marked WRITE then it will stall until the BR
+		resource is removed.
+
+		It then specifies a list of BR resources. These will be added to
+		the resource table, unless there is an overflow in which case
+		the designated overflow register will have bit 0 set. Overflow
+		should cause the next binning pass to stall until BR is done,
+		effectively disabling concurrent binning.
+
+		CP_RESOURCE_LIST must be executed by BV. BR resources are added
+		by BV and removed by BR.
+
+		There is a separate table for "LRZ resources." These behave a
+		bit differently: specifying an LRZ resource via BV_RES_LRZ
+		stalls on any matching resource existing and then adds it to the
+		table, making it both a BV and BR resource in one. There is a
+		separate CLEAR_LRZ_RESOURCE bit for removing resources from the
+		LRZ table, and it only removes one resource given by a base
+		address passed to CP_EVENT_WRITE. Therefore timestamps are
+		unnecessary.
+	</doc>
+	<reg32 offset="0" name="BV_COUNT" type="uint"/>
+	<doc>
+		What follows is a list of CP_BV_RESOURCE and then CP_RESOURCE_LIST_BR.
+	</doc>
+</domain>
+
+<domain name="CP_BV_RESOURCE" width="32">
+	<doc>
+		BV resources don't go in the table. Instead CP waits until any
+		corresponding BR resources with the same base pointer are
+		finished before the packet completes.
+	</doc>
+	<enum name="cp_bv_resource_encoding">
+		<value value="0" name="BV_RES_DIRECT"/>
+		<doc>
+			INDIRECT resources are encoded as a 32b offset + 3b
+			bindless base selector. The offset is added to the given
+			BINDLESS_BASE pseudoregister and then the 64b value
+			fetched there is used as the pointer.
+		</doc>
+		<value value="1" name="BV_RES_INDIRECT_READ"/>
+		<value value="2" name="BV_RES_LRZ"/>
+		<value value="3" name="BV_RES_INDIRECT_WRITE"/>
+	</enum>
+	<reg64 offset="0" name="0">
+		<bitfield name="BASE_ADDR" low="1" high="61" shr="1" type="address"/>
+		<bitfield name="WRITE" pos="0" type="boolean"/>
+		<bitfield name="ENCODING" low="62" high="63" type="cp_bv_resource_encoding"/>
+	</reg64>
+</domain>
+
+<domain name="CP_RESOURCE_LIST_BR" width="32">
+	<reg32 offset="0" name="0">
+		<bitfield name="BR_COUNT" low="0" high="23" type="uint"/>
+		<bitfield name="OVERFLOW_ONCHIP_ADDR" low="24" high="26"/>
+		<bitfield name="OVERFLOW" pos="31" type="boolean"/>
+	</reg32>
+	<doc>
+		What follows is a list of CP_BR_RESOURCE.
+	</doc>
+</domain>
+
+<domain name="CP_BR_RESOURCE" width="32">
+	<enum name="cp_br_resource_encoding">
+		<value value="0" name="BR_RES_DIRECT"/>
+		<value value="2" name="BR_RES_INDIRECT_READ"/>
+		<value value="3" name="BR_RES_INDIRECT_WRITE"/> <!-- set WRITE bit -->
+	</enum>
+	<reg64 offset="0" name="0">
+		<bitfield name="BASE_ADDR" low="1" high="61" shr="1" type="address"/>
+		<bitfield name="WRITE" pos="0" type="boolean"/>
+		<bitfield name="ENCODING" low="62" high="63" type="cp_br_resource_encoding"/>
+	</reg64>
 </domain>
 
 </database>

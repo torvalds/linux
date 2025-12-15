@@ -35,33 +35,6 @@ do {									\
 
 static struct kmem_cache *cred_jar;
 
-/* init to 2 - one for init_task, one to ensure it is never freed */
-static struct group_info init_groups = { .usage = REFCOUNT_INIT(2) };
-
-/*
- * The initial credentials for the initial task
- */
-struct cred init_cred = {
-	.usage			= ATOMIC_INIT(4),
-	.uid			= GLOBAL_ROOT_UID,
-	.gid			= GLOBAL_ROOT_GID,
-	.suid			= GLOBAL_ROOT_UID,
-	.sgid			= GLOBAL_ROOT_GID,
-	.euid			= GLOBAL_ROOT_UID,
-	.egid			= GLOBAL_ROOT_GID,
-	.fsuid			= GLOBAL_ROOT_UID,
-	.fsgid			= GLOBAL_ROOT_GID,
-	.securebits		= SECUREBITS_DEFAULT,
-	.cap_inheritable	= CAP_EMPTY_SET,
-	.cap_permitted		= CAP_FULL_SET,
-	.cap_effective		= CAP_FULL_SET,
-	.cap_bset		= CAP_FULL_SET,
-	.user			= INIT_USER,
-	.user_ns		= &init_user_ns,
-	.group_info		= &init_groups,
-	.ucounts		= &init_ucounts,
-};
-
 /*
  * The RCU callback to actually dispose of a set of credentials
  */
@@ -306,6 +279,7 @@ int copy_creds(struct task_struct *p, u64 clone_flags)
 		kdebug("share_creds(%p{%ld})",
 		       p->cred, atomic_long_read(&p->cred->usage));
 		inc_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
+		get_cred_namespaces(p);
 		return 0;
 	}
 
@@ -343,6 +317,8 @@ int copy_creds(struct task_struct *p, u64 clone_flags)
 
 	p->cred = p->real_cred = get_cred(new);
 	inc_rlimit_ucounts(task_ucounts(p), UCOUNT_RLIMIT_NPROC, 1);
+	get_cred_namespaces(p);
+
 	return 0;
 
 error_put:
@@ -435,10 +411,13 @@ int commit_creds(struct cred *new)
 	 */
 	if (new->user != old->user || new->user_ns != old->user_ns)
 		inc_rlimit_ucounts(new->ucounts, UCOUNT_RLIMIT_NPROC, 1);
+
 	rcu_assign_pointer(task->real_cred, new);
 	rcu_assign_pointer(task->cred, new);
 	if (new->user != old->user || new->user_ns != old->user_ns)
 		dec_rlimit_ucounts(old->ucounts, UCOUNT_RLIMIT_NPROC, 1);
+	if (new->user_ns != old->user_ns)
+		switch_cred_namespaces(old, new);
 
 	/* send notifications */
 	if (!uid_eq(new->uid,   old->uid)  ||

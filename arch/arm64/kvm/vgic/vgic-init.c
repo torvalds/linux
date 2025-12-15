@@ -198,6 +198,7 @@ static int kvm_vgic_dist_init(struct kvm *kvm, unsigned int nr_spis)
 	struct kvm_vcpu *vcpu0 = kvm_get_vcpu(kvm, 0);
 	int i;
 
+	dist->active_spis = (atomic_t)ATOMIC_INIT(0);
 	dist->spis = kcalloc(nr_spis, sizeof(struct vgic_irq), GFP_KERNEL_ACCOUNT);
 	if (!dist->spis)
 		return  -ENOMEM;
@@ -363,12 +364,12 @@ int kvm_vgic_vcpu_init(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static void kvm_vgic_vcpu_enable(struct kvm_vcpu *vcpu)
+static void kvm_vgic_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vgic_global_state.type == VGIC_V2)
-		vgic_v2_enable(vcpu);
+		vgic_v2_reset(vcpu);
 	else
-		vgic_v3_enable(vcpu);
+		vgic_v3_reset(vcpu);
 }
 
 /*
@@ -415,7 +416,7 @@ int vgic_init(struct kvm *kvm)
 	}
 
 	kvm_for_each_vcpu(idx, vcpu, kvm)
-		kvm_vgic_vcpu_enable(vcpu);
+		kvm_vgic_vcpu_reset(vcpu);
 
 	ret = kvm_vgic_setup_default_irq_routing(kvm);
 	if (ret)

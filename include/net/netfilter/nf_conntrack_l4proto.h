@@ -30,7 +30,7 @@ struct nf_conntrack_l4proto {
 	/* called by gc worker if table is full */
 	bool (*can_early_drop)(const struct nf_conn *ct);
 
-	/* convert protoinfo to nfnetink attributes */
+	/* convert protoinfo to nfnetlink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,
 			 struct nf_conn *ct, bool destroy);
 

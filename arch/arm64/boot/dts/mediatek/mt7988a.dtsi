@@ -418,7 +418,7 @@
 			nvmem-cell-names = "lvts-calib-data-1";
 		};
 
-		usb@11190000 {
+		ssusb0: usb@11190000 {
 			compatible = "mediatek,mt7988-xhci", "mediatek,mtk-xhci";
 			reg = <0 0x11190000 0 0x2e00>,
 			      <0 0x11193e00 0 0x0100>;
@@ -714,6 +714,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			soc-uuid@140 {
+				reg = <0x140 0x10>;
+			};
+
 			lvts_calibration: calib@918 {
 				reg = <0x918 0x28>;
 			};
@@ -995,6 +999,7 @@
 				int_2p5g_phy: ethernet-phy@15 {
 					compatible = "ethernet-phy-ieee802.3-c45";
 					reg = <15>;
+					status = "disabled";
 				};
 			};
 		};

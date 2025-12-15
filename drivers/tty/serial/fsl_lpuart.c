@@ -3087,6 +3087,8 @@ static int lpuart_suspend_noirq(struct device *dev)
 static int lpuart_resume_noirq(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
+	struct tty_port *port = &sport->port.state->port;
+	bool wake_active;
 	u32 stat;
 
 	pinctrl_pm_select_default_state(dev);
@@ -3098,6 +3100,12 @@ static int lpuart_resume_noirq(struct device *dev)
 		if (lpuart_is_32(sport)) {
 			stat = lpuart32_read(&sport->port, UARTSTAT);
 			lpuart32_write(&sport->port, stat, UARTSTAT);
+
+			/* check whether lpuart wakeup was triggered */
+			wake_active = stat & (UARTSTAT_RDRF | UARTSTAT_RXEDGIF);
+
+			if (wake_active && irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq)))
+				pm_wakeup_event(tty_port_tty_get(port)->dev, 0);
 		}
 	}
 

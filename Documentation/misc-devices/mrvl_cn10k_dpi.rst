@@ -33,12 +33,12 @@ drivers/misc/mrvl_cn10k_dpi.c
 Driver IOCTLs
 =============
 
-:c:macro::`DPI_MPS_MRRS_CFG`
+:c:macro:`DPI_MPS_MRRS_CFG`
 ioctl that sets max payload size & max read request size parameters of
 a pem port to which DMA engines are wired.
 
 
-:c:macro::`DPI_ENGINE_CFG`
+:c:macro:`DPI_ENGINE_CFG`
 ioctl that sets DMA engine's fifo sizes & max outstanding load request
 thresholds.
 

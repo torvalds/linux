@@ -100,12 +100,21 @@ class Netlink:
                                   'bitfield32', 'sint', 'uint'])
 
 class NlError(Exception):
-  def __init__(self, nl_msg):
-    self.nl_msg = nl_msg
-    self.error = -nl_msg.error
+    def __init__(self, nl_msg):
+        self.nl_msg = nl_msg
+        self.error = -nl_msg.error
 
-  def __str__(self):
-    return f"Netlink error: {os.strerror(self.error)}\n{self.nl_msg}"
+    def __str__(self):
+        msg = "Netlink error: "
+
+        extack = self.nl_msg.extack.copy() if self.nl_msg.extack else {}
+        if 'msg' in extack:
+            msg += extack['msg'] + ': '
+            del extack['msg']
+        msg += os.strerror(self.error)
+        if extack:
+            msg += ' ' + str(extack)
+        return msg
 
 
 class ConfigError(Exception):
@@ -976,6 +985,15 @@ class YnlFamily(SpecFamily):
                 raw = bytes.fromhex(string)
             else:
                 raw = int(string, 16)
+        elif attr_spec.display_hint == 'mac':
+            # Parse MAC address in format "00:11:22:33:44:55" or "001122334455"
+            if ':' in string:
+                mac_bytes = [int(x, 16) for x in string.split(':')]
+            else:
+                if len(string) % 2 != 0:
+                    raise Exception(f"Invalid MAC address format: {string}")
+                mac_bytes = [int(string[i:i+2], 16) for i in range(0, len(string), 2)]
+            raw = bytes(mac_bytes)
         else:
             raise Exception(f"Display hint '{attr_spec.display_hint}' not implemented"
                             f" when parsing '{attr_spec['name']}'")
@@ -1039,15 +1057,15 @@ class YnlFamily(SpecFamily):
                     self.check_ntf()
 
     def operation_do_attributes(self, name):
-      """
-      For a given operation name, find and return a supported
-      set of attributes (as a dict).
-      """
-      op = self.find_operation(name)
-      if not op:
-        return None
+        """
+        For a given operation name, find and return a supported
+        set of attributes (as a dict).
+        """
+        op = self.find_operation(name)
+        if not op:
+            return None
 
-      return op['do']['request']['attributes'].copy()
+        return op['do']['request']['attributes'].copy()
 
     def _encode_message(self, op, vals, flags, req_seq):
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK

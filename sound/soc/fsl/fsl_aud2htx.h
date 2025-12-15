@@ -7,7 +7,8 @@
 #define _FSL_AUD2HTX_H
 
 #define FSL_AUD2HTX_FORMATS (SNDRV_PCM_FMTBIT_S24_LE | \
-			     SNDRV_PCM_FMTBIT_S32_LE)
+			     SNDRV_PCM_FMTBIT_S32_LE | \
+			     SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
 /* AUD2HTX Register Map */
 #define AUD2HTX_CTRL          0x0   /* AUD2HTX Control Register */

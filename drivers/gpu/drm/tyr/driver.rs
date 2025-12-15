@@ -103,7 +103,7 @@ impl platform::Driver for TyrDriver {
     fn probe(
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
-    ) -> Result<Pin<KBox<Self>>> {
+    ) -> impl PinInit<Self, Error> {
         let core_clk = Clk::get(pdev.as_ref(), Some(c_str!("core")))?;
         let stacks_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("stacks")))?;
         let coregroup_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("coregroup")))?;
@@ -143,7 +143,7 @@ impl platform::Driver for TyrDriver {
         let tdev: ARef<TyrDevice> = drm::Device::new(pdev.as_ref(), data)?;
         drm::driver::Registration::new_foreign_owned(&tdev, pdev.as_ref(), 0)?;
 
-        let driver = KBox::pin_init(try_pin_init!(TyrDriver { device: tdev }), GFP_KERNEL)?;
+        let driver = TyrDriver { device: tdev };
 
         // We need this to be dev_info!() because dev_dbg!() does not work at
         // all in Rust for now, and we need to see whether probe succeeded.

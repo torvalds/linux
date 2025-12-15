@@ -65,13 +65,14 @@ static int del_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 /* UC L2 table hash node */
 struct l2table_node {
 	struct l2addr_node node;
-	u32                index; /* index in HW l2 table */
+	int                index; /* index in HW l2 table */
 	int                ref_count;
 };
 
 struct mlx5_mpfs {
 	struct hlist_head    hash[MLX5_L2_ADDR_HASH_SIZE];
 	struct mutex         lock; /* Synchronize l2 table access */
+	bool                 enabled;
 	u32                  size;
 	unsigned long        *bitmap;
 };
@@ -114,6 +115,8 @@ int mlx5_mpfs_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 	}
 
+	mpfs->enabled = true;
+
 	dev->priv.mpfs = mpfs;
 	return 0;
 }
@@ -135,7 +138,7 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
 	struct l2table_node *l2addr;
 	int err = 0;
-	u32 index;
+	int index;
 
 	if (!mpfs)
 		return 0;
@@ -148,30 +151,34 @@ int mlx5_mpfs_add_mac(struct mlx5_core_dev *dev, u8 *mac)
 		goto out;
 	}
 
-	err = alloc_l2table_index(mpfs, &index);
-	if (err)
-		goto out;
-
 	l2addr = l2addr_hash_add(mpfs->hash, mac, struct l2table_node, GFP_KERNEL);
 	if (!l2addr) {
 		err = -ENOMEM;
-		goto hash_add_err;
+		goto out;
 	}
 
-	err = set_l2table_entry_cmd(dev, index, mac);
-	if (err)
-		goto set_table_entry_err;
+	index = -1;
+
+	if (mpfs->enabled) {
+		err = alloc_l2table_index(mpfs, &index);
+		if (err)
+			goto hash_del;
+		err = set_l2table_entry_cmd(dev, index, mac);
+		if (err)
+			goto free_l2table_index;
+		mlx5_core_dbg(dev, "MPFS entry %pM, set @index (%d)\n",
+			      l2addr->node.addr, index);
+	}
 
 	l2addr->index = index;
 	l2addr->ref_count = 1;
 
 	mlx5_core_dbg(dev, "MPFS mac added %pM, index (%d)\n", mac, index);
 	goto out;
-
-set_table_entry_err:
-	l2addr_hash_del(l2addr);
-hash_add_err:
+free_l2table_index:
 	free_l2table_index(mpfs, index);
+hash_del:
+	l2addr_hash_del(l2addr);
 out:
 	mutex_unlock(&mpfs->lock);
 	return err;
@@ -183,7 +190,7 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
 	struct l2table_node *l2addr;
 	int err = 0;
-	u32 index;
+	int index;
 
 	if (!mpfs)
 		return 0;
@@ -200,12 +207,87 @@ int mlx5_mpfs_del_mac(struct mlx5_core_dev *dev, u8 *mac)
 		goto unlock;
 
 	index = l2addr->index;
-	del_l2table_entry_cmd(dev, index);
+	if (index >= 0) {
+		del_l2table_entry_cmd(dev, index);
+		free_l2table_index(mpfs, index);
+		mlx5_core_dbg(dev, "MPFS entry %pM, deleted @index (%d)\n",
+			      mac, index);
+	}
 	l2addr_hash_del(l2addr);
-	free_l2table_index(mpfs, index);
 	mlx5_core_dbg(dev, "MPFS mac deleted %pM, index (%d)\n", mac, index);
 unlock:
 	mutex_unlock(&mpfs->lock);
 	return err;
 }
 EXPORT_SYMBOL(mlx5_mpfs_del_mac);
+
+int mlx5_mpfs_enable(struct mlx5_core_dev *dev)
+{
+	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
+	struct l2table_node *l2addr;
+	struct hlist_node *n;
+	int err = 0, i;
+
+	if (!mpfs)
+		return -ENODEV;
+
+	mutex_lock(&mpfs->lock);
+	if (mpfs->enabled)
+		goto out;
+	mpfs->enabled = true;
+	mlx5_core_dbg(dev, "MPFS enabling mpfs\n");
+
+	mlx5_mpfs_foreach(l2addr, n, mpfs, i) {
+		u32 index;
+
+		err = alloc_l2table_index(mpfs, &index);
+		if (err) {
+			mlx5_core_err(dev, "Failed to allocated MPFS index for %pM, err(%d)\n",
+				      l2addr->node.addr, err);
+			goto out;
+		}
+
+		err = set_l2table_entry_cmd(dev, index, l2addr->node.addr);
+		if (err) {
+			mlx5_core_err(dev, "Failed to set MPFS l2table entry for %pM index=%d, err(%d)\n",
+				      l2addr->node.addr, index, err);
+			free_l2table_index(mpfs, index);
+			goto out;
+		}
+
+		l2addr->index = index;
+		mlx5_core_dbg(dev, "MPFS entry %pM, set @index (%d)\n",
+			      l2addr->node.addr, l2addr->index);
+	}
+out:
+	mutex_unlock(&mpfs->lock);
+	return err;
+}
+
+void mlx5_mpfs_disable(struct mlx5_core_dev *dev)
+{
+	struct mlx5_mpfs *mpfs = dev->priv.mpfs;
+	struct l2table_node *l2addr;
+	struct hlist_node *n;
+	int i;
+
+	if (!mpfs)
+		return;
+
+	mutex_lock(&mpfs->lock);
+	if (!mpfs->enabled)
+		goto unlock;
+	mlx5_mpfs_foreach(l2addr, n, mpfs, i) {
+		if (l2addr->index < 0)
+			continue;
+		del_l2table_entry_cmd(dev, l2addr->index);
+		free_l2table_index(mpfs, l2addr->index);
+		mlx5_core_dbg(dev, "MPFS entry %pM, deleted @index (%d)\n",
+			      l2addr->node.addr, l2addr->index);
+		l2addr->index = -1;
+	}
+	mpfs->enabled = false;
+	mlx5_core_dbg(dev, "MPFS disabled\n");
+unlock:
+	mutex_unlock(&mpfs->lock);
+}

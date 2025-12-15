@@ -31,7 +31,7 @@
 #include "dcn30/dcn30_hubp.h"
 #include "dcn31/dcn31_hubp.h"
 #include "dcn32/dcn32_hubp.h"
-#include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2_0/dml21/inc/dml_top_dchub_registers.h"
 
 #define HUBP_3DLUT_FL_REG_LIST_DCN401(inst)\
 	SRI_ARR_US(_3DLUT_FL_CONFIG, HUBP, inst),\

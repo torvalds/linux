@@ -214,10 +214,6 @@ config LEDS_EL15203000
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-el15203000.
 
-config LEDS_EXPRESSWIRE
-	bool
-	depends on GPIOLIB
-
 config LEDS_TURRIS_OMNIA
 	tristate "LED support for CZ.NIC's Turris Omnia"
 	depends on LEDS_CLASS_MULTICOLOR
@@ -443,8 +439,8 @@ config LEDS_LP55XX_COMMON
 	depends on LEDS_CLASS_MULTICOLOR
 	depends on OF
 	depends on I2C
-	select FW_LOADER
-	select FW_LOADER_USER_HELPER
+	imply FW_LOADER
+	imply FW_LOADER_USER_HELPER
 	help
 	  This option supports common operations for LP5521/5523/55231/5562/5569/
 	  8501 devices.

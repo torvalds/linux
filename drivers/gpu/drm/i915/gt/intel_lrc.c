@@ -3,6 +3,8 @@
  * Copyright © 2014 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "gem/i915_gem_lmem.h"
 
 #include "gen8_engine_cs.h"

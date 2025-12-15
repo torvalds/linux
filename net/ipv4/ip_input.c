@@ -141,6 +141,8 @@
 #include <linux/mroute.h>
 #include <linux/netlink.h>
 #include <net/dst_metadata.h>
+#include <net/udp.h>
+#include <net/tcp.h>
 
 /*
  *	Process Router Attention IP option (RFC 2113)
@@ -317,8 +319,6 @@ static bool ip_can_use_hint(const struct sk_buff *skb, const struct iphdr *iph,
 	       ip_hdr(hint)->tos == iph->tos;
 }
 
-int tcp_v4_early_demux(struct sk_buff *skb);
-enum skb_drop_reason udp_v4_early_demux(struct sk_buff *skb);
 static int ip_rcv_finish_core(struct net *net,
 			      struct sk_buff *skb, struct net_device *dev,
 			      const struct sk_buff *hint)

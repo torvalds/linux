@@ -71,7 +71,7 @@ void __init arch_mm_preinit(void)
 	/* Map in the area just after the brk now that kmalloc is about
 	 * to be turned on.
 	 */
-	brk_end = (unsigned long) UML_ROUND_UP(sbrk(0));
+	brk_end = PAGE_ALIGN((unsigned long) sbrk(0));
 	map_memory(brk_end, __pa(brk_end), uml_reserved - brk_end, 1, 1, 0);
 	memblock_free((void *)brk_end, uml_reserved - brk_end);
 	uml_reserved = brk_end;
@@ -84,109 +84,6 @@ void __init mem_init(void)
 	kmalloc_ok = 1;
 }
 
-#if IS_ENABLED(CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA)
-/*
- * Create a page table and place a pointer to it in a middle page
- * directory entry.
- */
-static void __init one_page_table_init(pmd_t *pmd)
-{
-	if (pmd_none(*pmd)) {
-		pte_t *pte = (pte_t *) memblock_alloc_low(PAGE_SIZE,
-							  PAGE_SIZE);
-		if (!pte)
-			panic("%s: Failed to allocate %lu bytes align=%lx\n",
-			      __func__, PAGE_SIZE, PAGE_SIZE);
-
-		set_pmd(pmd, __pmd(_KERNPG_TABLE +
-					   (unsigned long) __pa(pte)));
-		BUG_ON(pte != pte_offset_kernel(pmd, 0));
-	}
-}
-
-static void __init one_md_table_init(pud_t *pud)
-{
-#if CONFIG_PGTABLE_LEVELS > 2
-	pmd_t *pmd_table = (pmd_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-	if (!pmd_table)
-		panic("%s: Failed to allocate %lu bytes align=%lx\n",
-		      __func__, PAGE_SIZE, PAGE_SIZE);
-
-	set_pud(pud, __pud(_KERNPG_TABLE + (unsigned long) __pa(pmd_table)));
-	BUG_ON(pmd_table != pmd_offset(pud, 0));
-#endif
-}
-
-static void __init one_ud_table_init(p4d_t *p4d)
-{
-#if CONFIG_PGTABLE_LEVELS > 3
-	pud_t *pud_table = (pud_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-	if (!pud_table)
-		panic("%s: Failed to allocate %lu bytes align=%lx\n",
-		      __func__, PAGE_SIZE, PAGE_SIZE);
-
-	set_p4d(p4d, __p4d(_KERNPG_TABLE + (unsigned long) __pa(pud_table)));
-	BUG_ON(pud_table != pud_offset(p4d, 0));
-#endif
-}
-
-static void __init fixrange_init(unsigned long start, unsigned long end,
-				 pgd_t *pgd_base)
-{
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	int i, j;
-	unsigned long vaddr;
-
-	vaddr = start;
-	i = pgd_index(vaddr);
-	j = pmd_index(vaddr);
-	pgd = pgd_base + i;
-
-	for ( ; (i < PTRS_PER_PGD) && (vaddr < end); pgd++, i++) {
-		p4d = p4d_offset(pgd, vaddr);
-		if (p4d_none(*p4d))
-			one_ud_table_init(p4d);
-		pud = pud_offset(p4d, vaddr);
-		if (pud_none(*pud))
-			one_md_table_init(pud);
-		pmd = pmd_offset(pud, vaddr);
-		for (; (j < PTRS_PER_PMD) && (vaddr < end); pmd++, j++) {
-			one_page_table_init(pmd);
-			vaddr += PMD_SIZE;
-		}
-		j = 0;
-	}
-}
-
-static void __init fixaddr_user_init( void)
-{
-	long size = FIXADDR_USER_END - FIXADDR_USER_START;
-	pte_t *pte;
-	phys_t p;
-	unsigned long v, vaddr = FIXADDR_USER_START;
-
-	if (!size)
-		return;
-
-	fixrange_init( FIXADDR_USER_START, FIXADDR_USER_END, swapper_pg_dir);
-	v = (unsigned long) memblock_alloc_low(size, PAGE_SIZE);
-	if (!v)
-		panic("%s: Failed to allocate %lu bytes align=%lx\n",
-		      __func__, size, PAGE_SIZE);
-
-	memcpy((void *) v , (void *) FIXADDR_USER_START, size);
-	p = __pa(v);
-	for ( ; size > 0; size -= PAGE_SIZE, vaddr += PAGE_SIZE,
-		      p += PAGE_SIZE) {
-		pte = virt_to_kpte(vaddr);
-		pte_set_val(*pte, p, PAGE_READONLY);
-	}
-}
-#endif
-
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
@@ -197,12 +94,8 @@ void __init paging_init(void)
 		panic("%s: Failed to allocate %lu bytes align=%lx\n",
 		      __func__, PAGE_SIZE, PAGE_SIZE);
 
-	max_zone_pfn[ZONE_NORMAL] = end_iomem >> PAGE_SHIFT;
+	max_zone_pfn[ZONE_NORMAL] = high_physmem >> PAGE_SHIFT;
 	free_area_init(max_zone_pfn);
-
-#if IS_ENABLED(CONFIG_ARCH_REUSE_HOST_VSYSCALL_AREA)
-	fixaddr_user_init();
-#endif
 }
 
 /*

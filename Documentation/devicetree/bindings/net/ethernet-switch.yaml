@@ -35,14 +35,14 @@ allOf:
     then:
       properties:
         $nodename:
-          pattern: "switch[0-3]@[0-3]+$"
+          pattern: 'switch[0-3]@[0-3]+$'
     else:
       properties:
         $nodename:
-          pattern: "^(ethernet-)?switch(@.*)?$"
+          pattern: '^(ethernet-)?switch(@.*)?$'
 
 patternProperties:
-  "^(ethernet-)?ports$":
+  '^(ethernet-)?ports$':
     type: object
     unevaluatedProperties: false
 
@@ -53,13 +53,13 @@ patternProperties:
         const: 0
 
     patternProperties:
-      "^(ethernet-)?port@[0-9a-f]+$":
+      '^(ethernet-)?port@[0-9a-f]+$':
         type: object
         description: Ethernet switch ports
 
     required:
-      - "#address-cells"
-      - "#size-cells"
+      - '#address-cells'
+      - '#size-cells'
 
 oneOf:
   - required:
@@ -75,9 +75,9 @@ $defs:
     $ref: '#'
 
     patternProperties:
-      "^(ethernet-)?ports$":
+      '^(ethernet-)?ports$':
         patternProperties:
-          "^(ethernet-)?port@[0-9a-f]+$":
+          '^(ethernet-)?port@[0-9a-f]+$':
             description: Ethernet switch ports
             $ref: ethernet-switch-port.yaml#
             unevaluatedProperties: false

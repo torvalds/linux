@@ -3732,6 +3732,7 @@ static void hw_info_put(struct amd64_pvt *pvt)
 	pci_dev_put(pvt->F1);
 	pci_dev_put(pvt->F2);
 	kfree(pvt->umc);
+	kfree(pvt->csels);
 }
 
 static struct low_ops umc_ops = {
@@ -3766,6 +3767,7 @@ static int per_family_init(struct amd64_pvt *pvt)
 	pvt->stepping	= boot_cpu_data.x86_stepping;
 	pvt->model	= boot_cpu_data.x86_model;
 	pvt->fam	= boot_cpu_data.x86;
+	char *tmp_name = NULL;
 	pvt->max_mcs	= 2;
 
 	/*
@@ -3779,7 +3781,7 @@ static int per_family_init(struct amd64_pvt *pvt)
 
 	switch (pvt->fam) {
 	case 0xf:
-		pvt->ctl_name				= (pvt->ext_model >= K8_REV_F) ?
+		tmp_name				= (pvt->ext_model >= K8_REV_F) ?
 							  "K8 revF or later" : "K8 revE or earlier";
 		pvt->f1_id				= PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP;
 		pvt->f2_id				= PCI_DEVICE_ID_AMD_K8_NB_MEMCTL;
@@ -3788,7 +3790,6 @@ static int per_family_init(struct amd64_pvt *pvt)
 		break;
 
 	case 0x10:
-		pvt->ctl_name				= "F10h";
 		pvt->f1_id				= PCI_DEVICE_ID_AMD_10H_NB_MAP;
 		pvt->f2_id				= PCI_DEVICE_ID_AMD_10H_NB_DRAM;
 		pvt->ops->dbam_to_cs			= f10_dbam_to_chip_select;
@@ -3797,12 +3798,10 @@ static int per_family_init(struct amd64_pvt *pvt)
 	case 0x15:
 		switch (pvt->model) {
 		case 0x30:
-			pvt->ctl_name			= "F15h_M30h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_M30H_NB_F1;
 			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_M30H_NB_F2;
 			break;
 		case 0x60:
-			pvt->ctl_name			= "F15h_M60h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_M60H_NB_F1;
 			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_M60H_NB_F2;
 			pvt->ops->dbam_to_cs		= f15_m60h_dbam_to_chip_select;
@@ -3811,7 +3810,6 @@ static int per_family_init(struct amd64_pvt *pvt)
 			/* Richland is only client */
 			return -ENODEV;
 		default:
-			pvt->ctl_name			= "F15h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_15H_NB_F1;
 			pvt->f2_id			= PCI_DEVICE_ID_AMD_15H_NB_F2;
 			pvt->ops->dbam_to_cs		= f15_dbam_to_chip_select;
@@ -3822,12 +3820,10 @@ static int per_family_init(struct amd64_pvt *pvt)
 	case 0x16:
 		switch (pvt->model) {
 		case 0x30:
-			pvt->ctl_name			= "F16h_M30h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_16H_M30H_NB_F1;
 			pvt->f2_id			= PCI_DEVICE_ID_AMD_16H_M30H_NB_F2;
 			break;
 		default:
-			pvt->ctl_name			= "F16h";
 			pvt->f1_id			= PCI_DEVICE_ID_AMD_16H_NB_F1;
 			pvt->f2_id			= PCI_DEVICE_ID_AMD_16H_NB_F2;
 			break;
@@ -3836,76 +3832,51 @@ static int per_family_init(struct amd64_pvt *pvt)
 
 	case 0x17:
 		switch (pvt->model) {
-		case 0x10 ... 0x2f:
-			pvt->ctl_name			= "F17h_M10h";
-			break;
 		case 0x30 ... 0x3f:
-			pvt->ctl_name			= "F17h_M30h";
 			pvt->max_mcs			= 8;
 			break;
-		case 0x60 ... 0x6f:
-			pvt->ctl_name			= "F17h_M60h";
-			break;
-		case 0x70 ... 0x7f:
-			pvt->ctl_name			= "F17h_M70h";
-			break;
 		default:
-			pvt->ctl_name			= "F17h";
 			break;
 		}
 		break;
 
 	case 0x18:
-		pvt->ctl_name				= "F18h";
 		break;
 
 	case 0x19:
 		switch (pvt->model) {
 		case 0x00 ... 0x0f:
-			pvt->ctl_name			= "F19h";
 			pvt->max_mcs			= 8;
 			break;
 		case 0x10 ... 0x1f:
-			pvt->ctl_name			= "F19h_M10h";
 			pvt->max_mcs			= 12;
 			pvt->flags.zn_regs_v2		= 1;
 			break;
-		case 0x20 ... 0x2f:
-			pvt->ctl_name			= "F19h_M20h";
-			break;
 		case 0x30 ... 0x3f:
 			if (pvt->F3->device == PCI_DEVICE_ID_AMD_MI200_DF_F3) {
-				pvt->ctl_name		= "MI200";
+				tmp_name			= "MI200";
 				pvt->max_mcs		= 4;
 				pvt->dram_type		= MEM_HBM2;
 				pvt->gpu_umc_base	= 0x50000;
 				pvt->ops		= &gpu_ops;
 			} else {
-				pvt->ctl_name		= "F19h_M30h";
 				pvt->max_mcs		= 8;
 			}
 			break;
-		case 0x50 ... 0x5f:
-			pvt->ctl_name			= "F19h_M50h";
-			break;
 		case 0x60 ... 0x6f:
-			pvt->ctl_name			= "F19h_M60h";
 			pvt->flags.zn_regs_v2		= 1;
 			break;
 		case 0x70 ... 0x7f:
-			pvt->ctl_name			= "F19h_M70h";
 			pvt->max_mcs			= 4;
 			pvt->flags.zn_regs_v2		= 1;
 			break;
 		case 0x90 ... 0x9f:
-			pvt->ctl_name			= "F19h_M90h";
 			pvt->max_mcs			= 4;
 			pvt->dram_type			= MEM_HBM3;
 			pvt->gpu_umc_base		= 0x90000;
 			pvt->ops			= &gpu_ops;
 			break;
 		case 0xa0 ... 0xaf:
-			pvt->ctl_name			= "F19h_MA0h";
 			pvt->max_mcs			= 12;
 			pvt->flags.zn_regs_v2		= 1;
 			break;
@@ -3915,32 +3886,20 @@ static int per_family_init(struct amd64_pvt *pvt)
 	case 0x1A:
 		switch (pvt->model) {
 		case 0x00 ... 0x1f:
-			pvt->ctl_name           = "F1Ah";
 			pvt->max_mcs            = 12;
 			pvt->flags.zn_regs_v2   = 1;
 			break;
 		case 0x40 ... 0x4f:
-			pvt->ctl_name           = "F1Ah_M40h";
 			pvt->flags.zn_regs_v2   = 1;
 			break;
 		case 0x50 ... 0x57:
-			pvt->ctl_name           = "F1Ah_M50h";
+		case 0xc0 ... 0xc7:
 			pvt->max_mcs            = 16;
 			pvt->flags.zn_regs_v2   = 1;
 			break;
 		case 0x90 ... 0x9f:
-			pvt->ctl_name           = "F1Ah_M90h";
-			pvt->max_mcs            = 8;
-			pvt->flags.zn_regs_v2   = 1;
-			break;
 		case 0xa0 ... 0xaf:
-			pvt->ctl_name           = "F1Ah_MA0h";
 			pvt->max_mcs            = 8;
-			pvt->flags.zn_regs_v2   = 1;
-			break;
-		case 0xc0 ... 0xc7:
-			pvt->ctl_name           = "F1Ah_MC0h";
-			pvt->max_mcs            = 16;
 			pvt->flags.zn_regs_v2   = 1;
 			break;
 		}
@@ -3950,6 +3909,16 @@ static int per_family_init(struct amd64_pvt *pvt)
 		amd64_err("Unsupported family!\n");
 		return -ENODEV;
 	}
+
+	if (tmp_name)
+		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), tmp_name);
+	else
+		scnprintf(pvt->ctl_name, sizeof(pvt->ctl_name), "F%02Xh_M%02Xh",
+			  pvt->fam, pvt->model);
+
+	pvt->csels = kcalloc(pvt->max_mcs, sizeof(*pvt->csels), GFP_KERNEL);
+	if (!pvt->csels)
+		return -ENOMEM;
 
 	return 0;
 }

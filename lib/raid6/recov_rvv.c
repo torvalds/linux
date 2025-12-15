@@ -4,13 +4,8 @@
  * Author: Chunyan Zhang <zhangchunyan@iscas.ac.cn>
  */
 
-#include <asm/vector.h>
 #include <linux/raid/pq.h>
-
-static int rvv_has_vector(void)
-{
-	return has_vector();
-}
+#include "rvv.h"
 
 static void __raid6_2data_recov_rvv(int bytes, u8 *p, u8 *q, u8 *dp,
 				    u8 *dq, const u8 *pbmul,

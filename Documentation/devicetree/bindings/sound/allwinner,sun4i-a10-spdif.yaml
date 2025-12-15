@@ -23,6 +23,7 @@ properties:
       - const: allwinner,sun8i-h3-spdif
       - const: allwinner,sun50i-h6-spdif
       - const: allwinner,sun50i-h616-spdif
+      - const: allwinner,sun55i-a523-spdif
       - items:
           - const: allwinner,sun8i-a83t-spdif
           - const: allwinner,sun8i-h3-spdif
@@ -37,14 +38,12 @@ properties:
     maxItems: 1
 
   clocks:
-    items:
-      - description: Bus Clock
-      - description: Module Clock
+    minItems: 2
+    maxItems: 3
 
   clock-names:
-    items:
-      - const: apb
-      - const: spdif
+    minItems: 2
+    maxItems: 3
 
   # Even though it only applies to subschemas under the conditionals,
   # not listing them here will trigger a warning because of the
@@ -65,6 +64,7 @@ allOf:
               - allwinner,sun8i-h3-spdif
               - allwinner,sun50i-h6-spdif
               - allwinner,sun50i-h616-spdif
+              - allwinner,sun55i-a523-spdif
 
     then:
       required:
@@ -97,6 +97,38 @@ allOf:
           items:
             - const: rx
             - const: tx
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - allwinner,sun55i-a523-spdif
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Bus Clock
+            - description: TX Clock
+            - description: RX Clock
+
+        clock-names:
+          items:
+            - const: apb
+            - const: tx
+            - const: rx
+    else:
+      properties:
+        clocks:
+          items:
+            - description: Bus Clock
+            - description: Module Clock
+
+        clock-names:
+          items:
+            - const: apb
+            - const: spdif
 
 required:
   - "#sound-dai-cells"

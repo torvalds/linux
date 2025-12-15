@@ -78,7 +78,6 @@ required:
   - '#interrupt-cells'
   - loongson,parent_int_map
 
-
 unevaluatedProperties: false
 
 if:

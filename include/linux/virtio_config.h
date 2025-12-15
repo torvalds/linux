@@ -24,7 +24,7 @@ typedef void vq_callback_t(struct virtqueue *);
  *        a virtqueue unused by the driver.
  * @callback: A callback to invoke on a used buffer notification.
  *            NULL for a virtqueue that does not need a callback.
- * @ctx: A flag to indicate to maintain an extra context per virtqueue.
+ * @ctx: whether to maintain an extra context per virtqueue.
  */
 struct virtqueue_info {
 	const char *name;
@@ -80,13 +80,13 @@ struct virtqueue_info {
  *	Returns the first 64 feature bits.
  * @get_extended_features:
  *      vdev: the virtio_device
- *      Returns the first VIRTIO_FEATURES_MAX feature bits (all we currently
+ *      Returns the first VIRTIO_FEATURES_BITS feature bits (all we currently
  *      need).
  * @finalize_features: confirm what device features we'll be using.
  *	vdev: the virtio_device
  *	This sends the driver feature bits to the device: it can change
  *	the dev->feature bits if it wants.
- *	Note that despite the name this	can be called any number of
+ *	Note that despite the name this can be called any number of
  *	times.
  *	Returns 0 on success or error status
  * @bus_name: return the bus name associated with the device (optional)
@@ -141,8 +141,8 @@ struct virtio_config_ops {
 
 /**
  * struct virtio_map_ops - operations for mapping buffer for a virtio device
- * Note: For transport that has its own mapping logic it must
- * implements all of the operations
+ * Note: For a transport that has its own mapping logic it must
+ * implement all of the operations
  * @map_page: map a buffer to the device
  *      map: metadata for performing mapping
  *      page: the page that will be mapped by the device
@@ -150,7 +150,7 @@ struct virtio_config_ops {
  *      size: the buffer size
  *      dir: mapping direction
  *      attrs: mapping attributes
- *      Returns: the mapped address
+ *      Returns the mapped address
  * @unmap_page: unmap a buffer from the device
  *      map: device specific mapping map
  *      map_handle: the mapped address
@@ -172,23 +172,23 @@ struct virtio_config_ops {
  *      size: the size of the buffer
  *      map_handle: the mapping address to sync
  *      gfp: allocation flag (GFP_XXX)
- *      Returns: virtual address of the allocated buffer
+ *      Returns virtual address of the allocated buffer
  * @free: free a coherent buffer mapping
  *      map: metadata for performing mapping
  *      size: the size of the buffer
  *      vaddr: virtual address of the buffer
- *      map_handle: the mapping address to sync
+ *      map_handle: the mapping address that needs to be freed
  *      attrs: unmapping attributes
  * @need_sync: if the buffer needs synchronization
  *      map: metadata for performing mapping
  *      map_handle: the mapped address
- *      Returns: whether the buffer needs synchronization
+ *      Returns whether the buffer needs synchronization
  * @mapping_error: if the mapping address is error
  *      map: metadata for performing mapping
  *      map_handle: the mapped address
  * @max_mapping_size: get the maximum buffer size that can be mapped
  *      map: metadata for performing mapping
- *      Returns: the maximum buffer size that can be mapped
+ *      Returns the maximum buffer size that can be mapped
  */
 struct virtio_map_ops {
 	dma_addr_t (*map_page)(union virtio_map map, struct page *page,
@@ -362,7 +362,7 @@ void virtio_device_ready(struct virtio_device *dev)
 	 * specific set_status() method.
 	 *
 	 * A well behaved device will only notify a virtqueue after
-	 * DRIVER_OK, this means the device should "see" the coherenct
+	 * DRIVER_OK, this means the device should "see" the coherent
 	 * memory write that set vq->broken as false which is done by
 	 * the driver when it sees DRIVER_OK, then the following
 	 * driver's vring_interrupt() will see vq->broken as false so
@@ -384,7 +384,7 @@ const char *virtio_bus_name(struct virtio_device *vdev)
  * @vq: the virtqueue
  * @cpu_mask: the cpu mask
  *
- * Pay attention the function are best-effort: the affinity hint may not be set
+ * Note that this function is best-effort: the affinity hint may not be set
  * due to config support, irq type and sharing.
  *
  */

@@ -70,15 +70,13 @@ enum ipack_space {
 	IPACK_SPACE_COUNT,
 };
 
-/**
- */
 struct ipack_region {
 	phys_addr_t start;
 	size_t      size;
 };
 
 /**
- *	struct ipack_device
+ *	struct ipack_device - subsystem representation of an IPack device
  *
  *	@slot: Slot where the device is plugged in the carrier board
  *	@bus: ipack_bus_device where the device is plugged to.
@@ -89,7 +87,7 @@ struct ipack_region {
  *
  * Warning: Direct access to mapped memory is possible but the endianness
  * is not the same with PCI carrier or VME carrier. The endianness is managed
- * by the carrier board throught bus->ops.
+ * by the carrier board through bus->ops.
  */
 struct ipack_device {
 	unsigned int slot;
@@ -124,6 +122,7 @@ struct ipack_driver_ops {
  * struct ipack_driver -- Specific data to each ipack device driver
  *
  * @driver: Device driver kernel representation
+ * @id_table: Device ID table for this driver
  * @ops:    Callbacks provided by the IPack device driver
  */
 struct ipack_driver {
@@ -161,7 +160,7 @@ struct ipack_bus_ops {
 };
 
 /**
- *	struct ipack_bus_device
+ *	struct ipack_bus_device - IPack bus representation
  *
  *	@dev: pointer to carrier device
  *	@slots: number of slots available
@@ -185,6 +184,8 @@ struct ipack_bus_device {
  *
  * The carrier board device should call this function to register itself as
  * available bus device in ipack.
+ *
+ * Return: %NULL on error or &struct ipack_bus_device on success
  */
 struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 					    const struct ipack_bus_ops *ops,
@@ -192,6 +193,8 @@ struct ipack_bus_device *ipack_bus_register(struct device *parent, int slots,
 
 /**
  *	ipack_bus_unregister -- unregister an ipack bus
+ *
+ *	Return: %0
  */
 int ipack_bus_unregister(struct ipack_bus_device *bus);
 
@@ -200,6 +203,8 @@ int ipack_bus_unregister(struct ipack_bus_device *bus);
  *
  * Called by a ipack driver to register itself as a driver
  * that can manage ipack devices.
+ *
+ * Return: zero on success or error code on failure.
  */
 int ipack_driver_register(struct ipack_driver *edrv, struct module *owner,
 			  const char *name);
@@ -215,7 +220,7 @@ void ipack_driver_unregister(struct ipack_driver *edrv);
  * function.  The rest of the fields will be allocated and populated
  * during initalization.
  *
- * Return zero on success or error code on failure.
+ * Return: zero on success or error code on failure.
  *
  * NOTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use ipack_put_device() to give up the
@@ -230,7 +235,7 @@ int ipack_device_init(struct ipack_device *dev);
  * Add a new IPack device. The call is done by the carrier driver
  * after calling ipack_device_init().
  *
- * Return zero on success or error code on failure.
+ * Return: zero on success or error code on failure.
  *
  * NOTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use ipack_put_device() to give up the
@@ -266,9 +271,11 @@ void ipack_put_device(struct ipack_device *dev);
 	 .device = (dev)
 
 /**
- * ipack_get_carrier - it increase the carrier ref. counter of
+ * ipack_get_carrier - try to increase the carrier ref. counter of
  *                     the carrier module
  * @dev: mezzanine device which wants to get the carrier
+ *
+ * Return: true on success.
  */
 static inline int ipack_get_carrier(struct ipack_device *dev)
 {

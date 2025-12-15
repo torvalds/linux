@@ -125,6 +125,7 @@ void	core_tpg_add_node_to_devs(struct se_node_acl *, struct se_portal_group *,
 				  struct se_lun *);
 void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
 struct se_lun *core_tpg_alloc_lun(struct se_portal_group *, u64);
+void	target_tpg_free_lun(struct rcu_head *head);
 int	core_tpg_add_lun(struct se_portal_group *, struct se_lun *,
 		bool, struct se_device *);
 void core_tpg_remove_lun(struct se_portal_group *, struct se_lun *);

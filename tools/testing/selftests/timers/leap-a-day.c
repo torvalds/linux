@@ -49,7 +49,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <include/vdso/time64.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define CLOCK_TAI 11
 

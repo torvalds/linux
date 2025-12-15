@@ -36,6 +36,8 @@ int perf_bpf_filter__unpin(void);
 
 #else /* !HAVE_BPF_SKEL */
 
+#include <errno.h>
+
 static inline int perf_bpf_filter__parse(struct list_head *expr_head __maybe_unused,
 					 const char *str __maybe_unused)
 {

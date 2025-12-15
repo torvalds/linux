@@ -367,7 +367,7 @@ nvmet_rdma_alloc_cmds(struct nvmet_rdma_device *ndev,
 	struct nvmet_rdma_cmd *cmds;
 	int ret = -EINVAL, i;
 
-	cmds = kcalloc(nr_cmds, sizeof(struct nvmet_rdma_cmd), GFP_KERNEL);
+	cmds = kvcalloc(nr_cmds, sizeof(struct nvmet_rdma_cmd), GFP_KERNEL);
 	if (!cmds)
 		goto out;
 
@@ -382,7 +382,7 @@ nvmet_rdma_alloc_cmds(struct nvmet_rdma_device *ndev,
 out_free:
 	while (--i >= 0)
 		nvmet_rdma_free_cmd(ndev, cmds + i, admin);
-	kfree(cmds);
+	kvfree(cmds);
 out:
 	return ERR_PTR(ret);
 }
@@ -394,7 +394,7 @@ static void nvmet_rdma_free_cmds(struct nvmet_rdma_device *ndev,
 
 	for (i = 0; i < nr_cmds; i++)
 		nvmet_rdma_free_cmd(ndev, cmds + i, admin);
-	kfree(cmds);
+	kvfree(cmds);
 }
 
 static int nvmet_rdma_alloc_rsp(struct nvmet_rdma_device *ndev,
@@ -455,7 +455,7 @@ nvmet_rdma_alloc_rsps(struct nvmet_rdma_queue *queue)
 			NUMA_NO_NODE, false, true))
 		goto out;
 
-	queue->rsps = kcalloc(nr_rsps, sizeof(struct nvmet_rdma_rsp),
+	queue->rsps = kvcalloc(nr_rsps, sizeof(struct nvmet_rdma_rsp),
 			GFP_KERNEL);
 	if (!queue->rsps)
 		goto out_free_sbitmap;
@@ -473,7 +473,7 @@ nvmet_rdma_alloc_rsps(struct nvmet_rdma_queue *queue)
 out_free:
 	while (--i >= 0)
 		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
-	kfree(queue->rsps);
+	kvfree(queue->rsps);
 out_free_sbitmap:
 	sbitmap_free(&queue->rsp_tags);
 out:
@@ -487,7 +487,7 @@ static void nvmet_rdma_free_rsps(struct nvmet_rdma_queue *queue)
 
 	for (i = 0; i < nr_rsps; i++)
 		nvmet_rdma_free_rsp(ndev, &queue->rsps[i]);
-	kfree(queue->rsps);
+	kvfree(queue->rsps);
 	sbitmap_free(&queue->rsp_tags);
 }
 

@@ -1514,6 +1514,21 @@ static void mpc3_read_mpcc_state(
 		  MPCC_OGAM_SELECT_CURRENT, &s->rgam_lut);
 }
 
+void mpc3_read_reg_state(
+		struct mpc *mpc,
+		int mpcc_inst, struct dcn_mpc_reg_state *mpc_reg_state)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	mpc_reg_state->mpcc_bot_sel = REG_READ(MPCC_BOT_SEL[mpcc_inst]);
+	mpc_reg_state->mpcc_control = REG_READ(MPCC_CONTROL[mpcc_inst]);
+	mpc_reg_state->mpcc_ogam_control = REG_READ(MPCC_OGAM_CONTROL[mpcc_inst]);
+	mpc_reg_state->mpcc_opp_id = REG_READ(MPCC_OPP_ID[mpcc_inst]);
+	mpc_reg_state->mpcc_status = REG_READ(MPCC_STATUS[mpcc_inst]);
+	mpc_reg_state->mpcc_top_sel = REG_READ(MPCC_TOP_SEL[mpcc_inst]);
+
+}
+
 static const struct mpc_funcs dcn30_mpc_funcs = {
 	.read_mpcc_state = mpc3_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
@@ -1544,6 +1559,7 @@ static const struct mpc_funcs dcn30_mpc_funcs = {
 	.release_rmu = mpcc3_release_rmu,
 	.power_on_mpc_mem_pwr = mpc3_power_on_ogam_lut,
 	.get_mpc_out_mux = mpc1_get_mpc_out_mux,
+	.mpc_read_reg_state = mpc3_read_reg_state,
 	.set_bg_color = mpc1_set_bg_color,
 	.set_mpc_mem_lp_mode = mpc3_set_mpc_mem_lp_mode,
 };

@@ -29,7 +29,6 @@
 #include <linux/pagemap.h>
 #include <linux/sync_file.h>
 #include <linux/dma-buf.h>
-#include <linux/hmm.h>
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
@@ -41,6 +40,7 @@
 #include "amdgpu_gmc.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_hmm.h"
 
 static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p,
 				 struct amdgpu_device *adev,
@@ -891,12 +891,17 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		bool userpage_invalidated = false;
 		struct amdgpu_bo *bo = e->bo;
 
-		r = amdgpu_ttm_tt_get_user_pages(bo, &e->range);
+		e->range = amdgpu_hmm_range_alloc(NULL);
+		if (unlikely(!e->range))
+			return -ENOMEM;
+
+		r = amdgpu_ttm_tt_get_user_pages(bo, e->range);
 		if (r)
 			goto out_free_user_pages;
 
 		for (i = 0; i < bo->tbo.ttm->num_pages; i++) {
-			if (bo->tbo.ttm->pages[i] != hmm_pfn_to_page(e->range->hmm_pfns[i])) {
+			if (bo->tbo.ttm->pages[i] !=
+				hmm_pfn_to_page(e->range->hmm_range.hmm_pfns[i])) {
 				userpage_invalidated = true;
 				break;
 			}
@@ -990,9 +995,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 out_free_user_pages:
 	amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
-		struct amdgpu_bo *bo = e->bo;
-
-		amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm, e->range);
+		amdgpu_hmm_range_free(e->range);
 		e->range = NULL;
 	}
 	mutex_unlock(&p->bo_list->bo_list_mutex);
@@ -1323,8 +1326,8 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	 */
 	r = 0;
 	amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
-		r |= !amdgpu_ttm_tt_get_user_pages_done(e->bo->tbo.ttm,
-							e->range);
+		r |= !amdgpu_hmm_range_valid(e->range);
+		amdgpu_hmm_range_free(e->range);
 		e->range = NULL;
 	}
 	if (r) {

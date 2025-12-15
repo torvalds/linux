@@ -386,7 +386,8 @@ static int nau8325_clksrc_choose(struct nau8325 *nau8325,
 				 const struct nau8325_srate_attr **srate_table,
 				 int *n1_sel, int *mult_sel, int *n2_sel)
 {
-	int i, j, mclk, mclk_max, ratio, ratio_sel, n2_max;
+	int i, j, mclk, ratio;
+	int mclk_max = 0, ratio_sel = 0, n2_max = 0;
 
 	if (!nau8325->mclk || !nau8325->fs)
 		goto proc_err;
@@ -408,7 +409,6 @@ static int nau8325_clksrc_choose(struct nau8325 *nau8325,
 	}
 
 	/* Get MCLK_SRC through 1/N, Multiplier, and then 1/N2. */
-	mclk_max = 0;
 	for (i = 0; i < ARRAY_SIZE(mclk_n1_div); i++) {
 		for (j = 0; j < ARRAY_SIZE(mclk_n3_mult); j++) {
 			mclk = nau8325->mclk << mclk_n3_mult[j].param;
@@ -422,7 +422,7 @@ static int nau8325_clksrc_choose(struct nau8325 *nau8325,
 				*n1_sel = i;
 				*mult_sel = j;
 				ratio_sel = ratio;
-					goto proc_done;
+				goto proc_done;
 			}
 		}
 	}
@@ -829,8 +829,7 @@ static int nau8325_read_device_properties(struct device *dev,
 	return 0;
 }
 
-static int nau8325_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int nau8325_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8325 *nau8325 = dev_get_platdata(dev);

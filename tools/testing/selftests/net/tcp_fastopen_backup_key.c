@@ -26,7 +26,7 @@
 #include <fcntl.h>
 #include <time.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef TCP_FASTOPEN_KEY
 #define TCP_FASTOPEN_KEY 33

@@ -4,6 +4,7 @@
  * Pasha Tatashin <pasha.tatashin@soleen.com>
  */
 #include "iommu-pages.h"
+#include <linux/dma-mapping.h>
 #include <linux/gfp.h>
 #include <linux/mm.h>
 
@@ -22,6 +23,11 @@ IOPTDESC_MATCH(memcg_data, memcg_data);
 #undef IOPTDESC_MATCH
 static_assert(sizeof(struct ioptdesc) <= sizeof(struct page));
 
+static inline size_t ioptdesc_mem_size(struct ioptdesc *desc)
+{
+	return 1UL << (folio_order(ioptdesc_folio(desc)) + PAGE_SHIFT);
+}
+
 /**
  * iommu_alloc_pages_node_sz - Allocate a zeroed page of a given size from
  *                             specific NUMA node
@@ -36,6 +42,7 @@ static_assert(sizeof(struct ioptdesc) <= sizeof(struct page));
  */
 void *iommu_alloc_pages_node_sz(int nid, gfp_t gfp, size_t size)
 {
+	struct ioptdesc *iopt;
 	unsigned long pgcnt;
 	struct folio *folio;
 	unsigned int order;
@@ -60,6 +67,9 @@ void *iommu_alloc_pages_node_sz(int nid, gfp_t gfp, size_t size)
 	if (unlikely(!folio))
 		return NULL;
 
+	iopt = folio_ioptdesc(folio);
+	iopt->incoherent = false;
+
 	/*
 	 * All page allocations that should be reported to as "iommu-pagetables"
 	 * to userspace must use one of the functions below. This includes
@@ -80,7 +90,10 @@ EXPORT_SYMBOL_GPL(iommu_alloc_pages_node_sz);
 static void __iommu_free_desc(struct ioptdesc *iopt)
 {
 	struct folio *folio = ioptdesc_folio(iopt);
-	const unsigned long pgcnt = 1UL << folio_order(folio);
+	const unsigned long pgcnt = folio_nr_pages(folio);
+
+	if (IOMMU_PAGES_USE_DMA_API)
+		WARN_ON_ONCE(iopt->incoherent);
 
 	mod_node_page_state(folio_pgdat(folio), NR_IOMMU_PAGES, -pgcnt);
 	lruvec_stat_mod_folio(folio, NR_SECONDARY_PAGETABLE, -pgcnt);
@@ -117,3 +130,124 @@ void iommu_put_pages_list(struct iommu_pages_list *list)
 		__iommu_free_desc(iopt);
 }
 EXPORT_SYMBOL_GPL(iommu_put_pages_list);
+
+/**
+ * iommu_pages_start_incoherent - Setup the page for cache incoherent operation
+ * @virt: The page to setup
+ * @dma_dev: The iommu device
+ *
+ * For incoherent memory this will use the DMA API to manage the cache flushing
+ * on some arches. This is a lot of complexity compared to just calling
+ * arch_sync_dma_for_device(), but it is what the existing ARM iommu drivers
+ * have been doing. The DMA API requires keeping track of the DMA map and
+ * freeing it when required. This keeps track of the dma map inside the ioptdesc
+ * so that error paths are simple for the caller.
+ */
+int iommu_pages_start_incoherent(void *virt, struct device *dma_dev)
+{
+	struct ioptdesc *iopt = virt_to_ioptdesc(virt);
+	dma_addr_t dma;
+
+	if (WARN_ON(iopt->incoherent))
+		return -EINVAL;
+
+	if (!IOMMU_PAGES_USE_DMA_API) {
+		iommu_pages_flush_incoherent(dma_dev, virt, 0,
+					     ioptdesc_mem_size(iopt));
+	} else {
+		dma = dma_map_single(dma_dev, virt, ioptdesc_mem_size(iopt),
+				     DMA_TO_DEVICE);
+		if (dma_mapping_error(dma_dev, dma))
+			return -EINVAL;
+
+		/*
+		 * The DMA API is not allowed to do anything other than DMA
+		 * direct. It would be nice to also check
+		 * dev_is_dma_coherent(dma_dev));
+		 */
+		if (WARN_ON(dma != virt_to_phys(virt))) {
+			dma_unmap_single(dma_dev, dma, ioptdesc_mem_size(iopt),
+					 DMA_TO_DEVICE);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	iopt->incoherent = 1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_pages_start_incoherent);
+
+/**
+ * iommu_pages_start_incoherent_list - Make a list of pages incoherent
+ * @list: The list of pages to setup
+ * @dma_dev: The iommu device
+ *
+ * Perform iommu_pages_start_incoherent() across all of list.
+ *
+ * If this fails the caller must call iommu_pages_stop_incoherent_list().
+ */
+int iommu_pages_start_incoherent_list(struct iommu_pages_list *list,
+				      struct device *dma_dev)
+{
+	struct ioptdesc *cur;
+	int ret;
+
+	list_for_each_entry(cur, &list->pages, iopt_freelist_elm) {
+		if (WARN_ON(cur->incoherent))
+			continue;
+
+		ret = iommu_pages_start_incoherent(
+			folio_address(ioptdesc_folio(cur)), dma_dev);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_pages_start_incoherent_list);
+
+/**
+ * iommu_pages_stop_incoherent_list - Undo incoherence across a list
+ * @list: The list of pages to release
+ * @dma_dev: The iommu device
+ *
+ * Revert iommu_pages_start_incoherent() across all of the list. Pages that did
+ * not call or succeed iommu_pages_start_incoherent() will be ignored.
+ */
+#if IOMMU_PAGES_USE_DMA_API
+void iommu_pages_stop_incoherent_list(struct iommu_pages_list *list,
+				      struct device *dma_dev)
+{
+	struct ioptdesc *cur;
+
+	list_for_each_entry(cur, &list->pages, iopt_freelist_elm) {
+		struct folio *folio = ioptdesc_folio(cur);
+
+		if (!cur->incoherent)
+			continue;
+		dma_unmap_single(dma_dev, virt_to_phys(folio_address(folio)),
+				 ioptdesc_mem_size(cur), DMA_TO_DEVICE);
+		cur->incoherent = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(iommu_pages_stop_incoherent_list);
+
+/**
+ * iommu_pages_free_incoherent - Free an incoherent page
+ * @virt: virtual address of the page to be freed.
+ * @dma_dev: The iommu device
+ *
+ * If the page is incoherent it made coherent again then freed.
+ */
+void iommu_pages_free_incoherent(void *virt, struct device *dma_dev)
+{
+	struct ioptdesc *iopt = virt_to_ioptdesc(virt);
+
+	if (iopt->incoherent) {
+		dma_unmap_single(dma_dev, virt_to_phys(virt),
+				 ioptdesc_mem_size(iopt), DMA_TO_DEVICE);
+		iopt->incoherent = 0;
+	}
+	__iommu_free_desc(iopt);
+}
+EXPORT_SYMBOL_GPL(iommu_pages_free_incoherent);
+#endif

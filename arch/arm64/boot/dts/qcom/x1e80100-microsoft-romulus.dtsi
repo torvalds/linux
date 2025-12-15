@@ -9,8 +9,8 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
-#include "x1e80100.dtsi"
-#include "x1e80100-pmics.dtsi"
+#include "hamoa.dtsi"
+#include "hamoa-pmics.dtsi"
 
 / {
 	aliases {
@@ -861,11 +861,11 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		memory-region = <&gpu_microcode_mem>;
-		firmware-name = "qcom/x1e80100/microsoft/qcdxkmsuc8380.mbn";
-	};
+&gpu_zap_shader {
+	memory-region = <&gpu_microcode_mem>;
+	firmware-name = "qcom/x1e80100/microsoft/qcdxkmsuc8380.mbn";
 };
 
 &i2c0 {

@@ -34,7 +34,7 @@ static void gmac_write_reg(struct anarion_gmac *gmac, uint8_t reg, uint32_t val)
 	writel(val, gmac->ctl_block + reg);
 }
 
-static int anarion_gmac_init(struct platform_device *pdev, void *priv)
+static int anarion_gmac_init(struct device *dev, void *priv)
 {
 	uint32_t sw_config;
 	struct anarion_gmac *gmac = priv;
@@ -52,7 +52,7 @@ static int anarion_gmac_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-static void anarion_gmac_exit(struct platform_device *pdev, void *priv)
+static void anarion_gmac_exit(struct device *dev, void *priv)
 {
 	struct anarion_gmac *gmac = priv;
 

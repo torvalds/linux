@@ -180,7 +180,7 @@ config FB_BACKLIGHT
 	depends on FB
 
 config FB_MODE_HELPERS
-	bool "Enable Video Mode Handling Helpers"
+	bool
 	depends on FB
 	help
 	  This enables functions for handling video modes using the

@@ -129,7 +129,7 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(out_sidetone_tlv,
 static int wm899x_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int ret;
 	u16 val;
@@ -1081,6 +1081,7 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8991_priv *wm8991 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 val;
 
 	switch (level) {
@@ -1095,7 +1096,7 @@ static int wm8991_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			regcache_sync(wm8991->regmap);
 			/* Enable all output discharge bits */
 			snd_soc_component_write(component, WM8991_ANTIPOP1, WM8991_DIS_LLINE |

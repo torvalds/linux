@@ -484,6 +484,12 @@ static const struct of_device_id isl12026_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, isl12026_dt_match);
 
+static const struct i2c_device_id isl12026_id[] = {
+	{ "isl12026" },
+	{ },
+};
+MODULE_DEVICE_TABLE(i2c, isl12026_id);
+
 static struct i2c_driver isl12026_driver = {
 	.driver		= {
 		.name	= "rtc-isl12026",
@@ -491,6 +497,7 @@ static struct i2c_driver isl12026_driver = {
 	},
 	.probe		= isl12026_probe,
 	.remove		= isl12026_remove,
+	.id_table	= isl12026_id,
 };
 
 module_i2c_driver(isl12026_driver);

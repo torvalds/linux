@@ -153,6 +153,9 @@ void *v4l2_m2m_get_curr_priv(struct v4l2_m2m_dev *m2m_dev);
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  * @type: type of the V4L2 buffer, as defined by enum &v4l2_buf_type
+ *
+ * This function returns the capture queue when @type is a capture type, and the
+ * output queue otherwise. It never returns a NULL pointer.
  */
 struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 				       enum v4l2_buf_type type);
@@ -192,8 +195,7 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx);
  * other instances to take control of the device.
  *
  * This function has to be called only after &v4l2_m2m_ops->device_run
- * callback has been called on the driver. To prevent recursion, it should
- * not be called directly from the &v4l2_m2m_ops->device_run callback though.
+ * callback has been called on the driver.
  */
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
@@ -843,19 +845,13 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
  *
  * @out_vb: the output buffer that is the source of the metadata.
  * @cap_vb: the capture buffer that will receive the metadata.
- * @copy_frame_flags: copy the KEY/B/PFRAME flags as well.
  *
  * This helper function copies the timestamp, timecode (if the TIMECODE
- * buffer flag was set), field and the TIMECODE, KEYFRAME, BFRAME, PFRAME
- * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
- *
- * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
- * flags are not copied. This is typically needed for encoders that
- * set this bits explicitly.
+ * buffer flag was set), field, and the TIMECODE and TSTAMP_SRC_MASK flags from
+ * @out_vb to @cap_vb.
  */
 void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
-				struct vb2_v4l2_buffer *cap_vb,
-				bool copy_frame_flags);
+				struct vb2_v4l2_buffer *cap_vb);
 
 /* v4l2 request helper */
 

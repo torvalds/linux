@@ -113,20 +113,8 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_mark_cancelable);
 
-static void io_uring_cmd_work(struct io_kiocb *req, io_tw_token_t tw)
-{
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	unsigned int flags = IO_URING_F_COMPLETE_DEFER;
-
-	if (io_should_terminate_tw(req->ctx))
-		flags |= IO_URING_F_TASK_DEAD;
-
-	/* task_work executor checks the deffered list completion */
-	ioucmd->task_work_cb(ioucmd, flags);
-}
-
 void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
-			io_uring_cmd_tw_t task_work_cb,
+			io_req_tw_func_t task_work_cb,
 			unsigned flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
@@ -134,8 +122,7 @@ void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
 	if (WARN_ON_ONCE(req->flags & REQ_F_APOLL_MULTISHOT))
 		return;
 
-	ioucmd->task_work_cb = task_work_cb;
-	req->io_task_work.func = io_uring_cmd_work;
+	req->io_task_work.func = task_work_cb;
 	__io_req_task_work_add(req, flags);
 }
 EXPORT_SYMBOL_GPL(__io_uring_cmd_do_in_task);
@@ -216,6 +203,18 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+/*
+ * IORING_SETUP_SQE128 contexts allocate twice the normal SQE size for each
+ * slot.
+ */
+static inline size_t uring_sqe_size(struct io_kiocb *req)
+{
+	if (req->ctx->flags & IORING_SETUP_SQE128 ||
+	    req->opcode == IORING_OP_URING_CMD128)
+		return 2 * sizeof(struct io_uring_sqe);
+	return sizeof(struct io_uring_sqe);
+}
+
 void io_uring_cmd_sqe_copy(struct io_kiocb *req)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -224,7 +223,7 @@ void io_uring_cmd_sqe_copy(struct io_kiocb *req)
 	/* Should not happen, as REQ_F_SQE_COPIED covers this */
 	if (WARN_ON_ONCE(ioucmd->sqe == ac->sqes))
 		return;
-	memcpy(ac->sqes, ioucmd->sqe, uring_sqe_size(req->ctx));
+	memcpy(ac->sqes, ioucmd->sqe, uring_sqe_size(req));
 	ioucmd->sqe = ac->sqes;
 }
 
@@ -242,7 +241,8 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret)
 		return ret;
 
-	if (ctx->flags & IORING_SETUP_SQE128)
+	if (ctx->flags & IORING_SETUP_SQE128 ||
+	    req->opcode == IORING_OP_URING_CMD128)
 		issue_flags |= IO_URING_F_SQE128;
 	if (ctx->flags & (IORING_SETUP_CQE32 | IORING_SETUP_CQE_MIXED))
 		issue_flags |= IO_URING_F_CQE32;

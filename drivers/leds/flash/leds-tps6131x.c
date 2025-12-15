@@ -544,7 +544,7 @@ static int tps6131x_parse_node(struct tps6131x *tps6131x)
 
 	tps6131x->valley_current_limit = device_property_read_bool(dev, "ti,valley-current-limit");
 
-	tps6131x->led_node = fwnode_get_next_available_child_node(dev->fwnode, NULL);
+	tps6131x->led_node = device_get_next_child_node(dev, NULL);
 	if (!tps6131x->led_node) {
 		dev_err(dev, "Missing LED node\n");
 		return -EINVAL;

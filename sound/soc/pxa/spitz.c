@@ -105,9 +105,10 @@ static void spitz_ext_control(struct snd_soc_dapm_context *dapm)
 static int spitz_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
 	/* check the jack status at stream startup */
-	spitz_ext_control(&rtd->card->dapm);
+	spitz_ext_control(dapm);
 
 	return 0;
 }
@@ -166,12 +167,13 @@ static int spitz_set_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	if (spitz_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	spitz_jack_func = ucontrol->value.enumerated.item[0];
-	spitz_ext_control(&card->dapm);
+	spitz_ext_control(dapm);
 	return 1;
 }
 
@@ -186,12 +188,13 @@ static int spitz_set_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 
 	if (spitz_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	spitz_spk_func = ucontrol->value.enumerated.item[0];
-	spitz_ext_control(&card->dapm);
+	spitz_ext_control(dapm);
 	return 1;
 }
 

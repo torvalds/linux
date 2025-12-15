@@ -44,7 +44,7 @@ bool freezing_slow_path(struct task_struct *p)
 	if (tsk_is_oom_victim(p))
 		return false;
 
-	if (pm_nosig_freezing || cgroup_freezing(p))
+	if (pm_nosig_freezing || cgroup1_freezing(p))
 		return true;
 
 	if (pm_freezing && !(p->flags & PF_KTHREAD))

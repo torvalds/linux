@@ -899,7 +899,7 @@ static int ad7768_read_label(struct iio_dev *indio_dev,
 {
 	struct ad7768_state *st = iio_priv(indio_dev);
 
-	return sprintf(label, "%s\n", st->labels[chan->channel]);
+	return sysfs_emit(label, "%s\n", st->labels[chan->channel]);
 }
 
 static int ad7768_get_current_scan_type(const struct iio_dev *indio_dev,

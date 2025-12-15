@@ -24,7 +24,7 @@
 //!     const ACPI_ID_TABLE: Option<acpi::IdTable<Self::IdInfo>> = None;
 //!
 //!     /// Driver probe.
-//!     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> Result<Pin<KBox<Self>>>;
+//!     fn probe(dev: &Device<device::Core>, id_info: &Self::IdInfo) -> impl PinInit<Self, Error>;
 //!
 //!     /// Driver unbind (optional).
 //!     fn unbind(dev: &Device<device::Core>, this: Pin<&Self>) {
@@ -35,7 +35,7 @@
 //!
 //! For specific examples see [`auxiliary::Driver`], [`pci::Driver`] and [`platform::Driver`].
 //!
-//! The `probe()` callback should return a `Result<Pin<KBox<Self>>>`, i.e. the driver's private
+//! The `probe()` callback should return a `impl PinInit<Self, Error>`, i.e. the driver's private
 //! data. The bus abstraction should store the pointer in the corresponding bus device. The generic
 //! [`Device`] infrastructure provides common helpers for this purpose on its
 //! [`Device<CoreInternal>`] implementation.

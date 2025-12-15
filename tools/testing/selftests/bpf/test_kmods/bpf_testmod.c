@@ -926,7 +926,7 @@ __bpf_kfunc int bpf_kfunc_call_kernel_connect(struct addr_args *args)
 		goto out;
 	}
 
-	err = kernel_connect(sock, (struct sockaddr *)&args->addr,
+	err = kernel_connect(sock, (struct sockaddr_unsized *)&args->addr,
 			     args->addrlen, 0);
 out:
 	mutex_unlock(&sock_lock);
@@ -949,7 +949,7 @@ __bpf_kfunc int bpf_kfunc_call_kernel_bind(struct addr_args *args)
 		goto out;
 	}
 
-	err = kernel_bind(sock, (struct sockaddr *)&args->addr, args->addrlen);
+	err = kernel_bind(sock, (struct sockaddr_unsized *)&args->addr, args->addrlen);
 out:
 	mutex_unlock(&sock_lock);
 

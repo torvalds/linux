@@ -503,7 +503,34 @@ struct ras_critical_region {
 	uint64_t size;
 };
 
+struct ras_eeprom_table_version {
+	uint32_t minor    : 16;
+	uint32_t major    : 16;
+};
+
+struct ras_eeprom_smu_funcs {
+	int (*get_ras_table_version)(struct amdgpu_device *adev,
+							uint32_t *table_version);
+	int (*get_badpage_count)(struct amdgpu_device *adev, uint32_t *count, uint32_t timeout);
+	int (*get_badpage_mca_addr)(struct amdgpu_device *adev, uint16_t index, uint64_t *mca_addr);
+	int (*set_timestamp)(struct amdgpu_device *adev, uint64_t timestamp);
+	int (*get_timestamp)(struct amdgpu_device *adev,
+							uint16_t index, uint64_t *timestamp);
+	int (*get_badpage_ipid)(struct amdgpu_device *adev, uint16_t index, uint64_t *ipid);
+	int (*erase_ras_table)(struct amdgpu_device *adev, uint32_t *result);
+};
+
+enum ras_smu_feature_flags {
+	RAS_SMU_FEATURE_BIT__RAS_EEPROM = BIT_ULL(0),
+};
+
+struct ras_smu_drv {
+	const struct ras_eeprom_smu_funcs *smu_eeprom_funcs;
+	void (*ras_smu_feature_flags)(struct amdgpu_device *adev, uint64_t *flags);
+};
+
 struct amdgpu_ras {
+	void *ras_mgr;
 	/* ras infrastructure */
 	/* for ras itself. */
 	uint32_t features;
@@ -590,6 +617,10 @@ struct amdgpu_ras {
 
 	/* Protect poison injection */
 	struct mutex poison_lock;
+
+	/* Disable/Enable uniras switch */
+	bool uniras_enabled;
+	const struct ras_smu_drv *ras_smu_drv;
 };
 
 struct ras_fs_data {
@@ -909,7 +940,7 @@ static inline void amdgpu_ras_intr_cleared(void)
 	atomic_set(&amdgpu_ras_in_intr, 0);
 }
 
-void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
+int amdgpu_ras_global_ras_isr(struct amdgpu_device *adev);
 
 void amdgpu_ras_set_error_query_ready(struct amdgpu_device *adev, bool ready);
 
@@ -1008,4 +1039,9 @@ void amdgpu_ras_event_log_print(struct amdgpu_device *adev, u64 event_id,
 				const char *fmt, ...);
 
 bool amdgpu_ras_is_rma(struct amdgpu_device *adev);
+
+void amdgpu_ras_pre_reset(struct amdgpu_device *adev,
+					  struct list_head *device_list);
+void amdgpu_ras_post_reset(struct amdgpu_device *adev,
+					  struct list_head *device_list);
 #endif

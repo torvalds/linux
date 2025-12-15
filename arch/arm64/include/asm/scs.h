@@ -2,7 +2,7 @@
 #ifndef _ASM_SCS_H
 #define _ASM_SCS_H
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #include <asm/asm-offsets.h>
 #include <asm/sysreg.h>
@@ -55,6 +55,6 @@ enum {
 
 int __pi_scs_patch(const u8 eh_frame[], int size, bool skip_dry_run);
 
-#endif /* __ASSEMBLY __ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_SCS_H */

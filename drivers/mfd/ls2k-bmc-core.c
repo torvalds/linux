@@ -265,7 +265,7 @@ static int ls2k_bmc_recover_pci_data(void *data)
 		if (!ls2k_bmc_bar0_addr_is_set(parent))
 			break;
 		mdelay(1);
-	};
+	}
 
 	if (i == 0)
 		return false;

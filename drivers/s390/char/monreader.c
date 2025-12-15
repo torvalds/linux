@@ -7,8 +7,7 @@
  * Author: Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "monreader"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "monreader: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>

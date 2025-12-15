@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <linux/dma-fence-array.h>
 #include <linux/file.h>
 #include <linux/dma-resv.h>

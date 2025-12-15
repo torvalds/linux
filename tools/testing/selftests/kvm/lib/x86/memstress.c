@@ -63,7 +63,7 @@ void memstress_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	uint64_t start, end;
 
-	prepare_eptp(vmx, vm, 0);
+	prepare_eptp(vmx, vm);
 
 	/*
 	 * Identity map the first 4G and the test region with 1G pages so that

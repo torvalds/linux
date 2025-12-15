@@ -12,11 +12,45 @@ static void btf_dump_printf(void *ctx, const char *fmt, va_list args)
 	vfprintf(ctx, fmt, args);
 }
 
+/* Write raw BTF to file, return number of bytes written or negative errno */
+static ssize_t btf_raw_write(struct btf *btf, char *file)
+{
+	ssize_t written = 0;
+	const void *data;
+	__u32 size = 0;
+	int fd, ret;
+
+	fd = mkstemp(file);
+	if (!ASSERT_GE(fd, 0, "create_file"))
+		return -errno;
+
+	data = btf__raw_data(btf, &size);
+	if (!ASSERT_OK_PTR(data, "btf__raw_data")) {
+		close(fd);
+		return -EINVAL;
+	}
+	while (written < size) {
+		ret = write(fd, data + written, size - written);
+		if (!ASSERT_GE(ret, 0, "write succeeded")) {
+			close(fd);
+			return -errno;
+		}
+		written += ret;
+	}
+	close(fd);
+	return written;
+}
+
 static void __test_btf_split(bool multi)
 {
+	char multisplit_btf_file[] = "/tmp/test_btf_multisplit.XXXXXX";
+	char split_btf_file[] = "/tmp/test_btf_split.XXXXXX";
+	char base_btf_file[] = "/tmp/test_btf_base.XXXXXX";
+	ssize_t multisplit_btf_sz = 0, split_btf_sz = 0, base_btf_sz = 0;
 	struct btf_dump *d = NULL;
-	const struct btf_type *t;
-	struct btf *btf1, *btf2, *btf3 = NULL;
+	const struct btf_type *t, *ot;
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL;
+	struct btf *btf4 = NULL, *btf5 = NULL, *btf6 = NULL;
 	int str_off, i, err;
 
 	btf1 = btf__new_empty();
@@ -123,6 +157,45 @@ static void __test_btf_split(bool multi)
 "	int uf2;\n"
 "};\n\n", "c_dump");
 
+	/* write base, split BTFs to files and ensure parsing succeeds */
+	base_btf_sz = btf_raw_write(btf1, base_btf_file);
+	if (base_btf_sz < 0)
+		goto cleanup;
+	split_btf_sz = btf_raw_write(btf2, split_btf_file);
+	if (split_btf_sz < 0)
+		goto cleanup;
+	btf4 = btf__parse(base_btf_file, NULL);
+	if (!ASSERT_OK_PTR(btf4, "parse_base"))
+		goto cleanup;
+	btf5 = btf__parse_split(split_btf_file, btf4);
+	if (!ASSERT_OK_PTR(btf5, "parse_split"))
+		goto cleanup;
+	if (multi) {
+		multisplit_btf_sz = btf_raw_write(btf3, multisplit_btf_file);
+		if (multisplit_btf_sz < 0)
+			goto cleanup;
+		btf6 = btf__parse_split(multisplit_btf_file, btf5);
+		if (!ASSERT_OK_PTR(btf6, "parse_multisplit"))
+			goto cleanup;
+	} else {
+		btf6 = btf5;
+	}
+
+	if (!ASSERT_EQ(btf__type_cnt(btf3), btf__type_cnt(btf6), "cmp_type_cnt"))
+		goto cleanup;
+
+	/* compare parsed to original BTF */
+	for (i = 1; i < btf__type_cnt(btf6); i++) {
+		t = btf__type_by_id(btf6, i);
+		if (!ASSERT_OK_PTR(t, "type_in_parsed_btf"))
+			goto cleanup;
+		ot = btf__type_by_id(btf3, i);
+		if (!ASSERT_OK_PTR(ot, "type_in_orig_btf"))
+			goto cleanup;
+		if (!ASSERT_EQ(memcmp(t, ot, sizeof(*ot)), 0, "cmp_parsed_orig_btf"))
+			goto cleanup;
+	}
+
 cleanup:
 	if (dump_buf_file)
 		fclose(dump_buf_file);
@@ -132,6 +205,16 @@ cleanup:
 	btf__free(btf2);
 	if (btf2 != btf3)
 		btf__free(btf3);
+	btf__free(btf4);
+	btf__free(btf5);
+	if (btf5 != btf6)
+		btf__free(btf6);
+	if (base_btf_sz > 0)
+		unlink(base_btf_file);
+	if (split_btf_sz > 0)
+		unlink(split_btf_file);
+	if (multisplit_btf_sz > 0)
+		unlink(multisplit_btf_file);
 }
 
 void test_btf_split(void)

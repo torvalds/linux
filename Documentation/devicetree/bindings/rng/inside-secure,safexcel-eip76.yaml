@@ -44,7 +44,6 @@ properties:
       - const: core
       - const: reg
 
-
 allOf:
   - if:
       properties:
@@ -57,7 +56,6 @@ allOf:
     then:
       required:
         - interrupts
-
 
 required:
   - compatible

@@ -181,6 +181,7 @@ static int cmd_alloc_index(struct mlx5_cmd *cmd, struct mlx5_cmd_work_ent *ent)
 static void cmd_free_index(struct mlx5_cmd *cmd, int idx)
 {
 	lockdep_assert_held(&cmd->alloc_lock);
+	cmd->ent_arr[idx] = NULL;
 	set_bit(idx, &cmd->vars.bitmask);
 }
 
@@ -1200,6 +1201,44 @@ out_err:
 	return err;
 }
 
+/* Check if all command slots are stalled (timed out and not recovered).
+ * returns true if all slots timed out on a recent command and have not been
+ * completed by FW yet. (stalled state)
+ * false otherwise (at least one slot is not stalled).
+ *
+ * In such odd situation "all_stalled", this serves as a protection mechanism
+ * to avoid blocking the kernel for long periods of time in case FW is not
+ * responding to commands.
+ */
+static bool mlx5_cmd_all_stalled(struct mlx5_core_dev *dev)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	bool all_stalled = true;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&cmd->alloc_lock, flags);
+
+	/* at least one command slot is free */
+	if (bitmap_weight(&cmd->vars.bitmask, cmd->vars.max_reg_cmds) > 0) {
+		all_stalled = false;
+		goto out;
+	}
+
+	for_each_clear_bit(i, &cmd->vars.bitmask, cmd->vars.max_reg_cmds) {
+		struct mlx5_cmd_work_ent *ent = dev->cmd.ent_arr[i];
+
+		if (!test_bit(MLX5_CMD_ENT_STATE_TIMEDOUT, &ent->state)) {
+			all_stalled = false;
+			break;
+		}
+	}
+out:
+	spin_unlock_irqrestore(&cmd->alloc_lock, flags);
+
+	return all_stalled;
+}
+
 /*  Notes:
  *    1. Callback functions may not sleep
  *    2. page queue commands do not support asynchrous completion
@@ -1229,6 +1268,15 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 
 	if (callback && page_queue)
 		return -EINVAL;
+
+	if (!page_queue && mlx5_cmd_all_stalled(dev)) {
+		mlx5_core_err_rl(dev,
+				 "All CMD slots are stalled, aborting command\n");
+		/* there's no reason to wait and block the whole kernel if FW
+		 * isn't currently responding to all slots, fail immediately
+		 */
+		return -EAGAIN;
+	}
 
 	ent = cmd_alloc_ent(cmd, in, out, uout, uout_size,
 			    callback, context, page_queue);
@@ -1699,6 +1747,13 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 	for (i = 0; i < (1 << cmd->vars.log_sz); i++) {
 		if (test_bit(i, &vector)) {
 			ent = cmd->ent_arr[i];
+
+			if (forced && ent->ret == -ETIMEDOUT)
+				set_bit(MLX5_CMD_ENT_STATE_TIMEDOUT,
+					&ent->state);
+			else if (!forced) /* real FW completion */
+				clear_bit(MLX5_CMD_ENT_STATE_TIMEDOUT,
+					  &ent->state);
 
 			/* if we already completed the command, ignore it */
 			if (!test_and_clear_bit(MLX5_CMD_ENT_STATE_PENDING_COMP,

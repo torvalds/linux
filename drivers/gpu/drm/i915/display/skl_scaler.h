@@ -36,6 +36,8 @@ void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state);
 
 void skl_scaler_get_config(struct intel_crtc_state *crtc_state);
 
+void skl_scaler_setup_casf(struct intel_crtc_state *crtc_state);
+
 enum drm_mode_status
 skl_scaler_mode_valid(struct intel_display *display,
 		      const struct drm_display_mode *mode,
@@ -45,4 +47,19 @@ skl_scaler_mode_valid(struct intel_display *display,
 void adl_scaler_ecc_mask(const struct intel_crtc_state *crtc_state);
 
 void adl_scaler_ecc_unmask(const struct intel_crtc_state *crtc_state);
+
+unsigned int skl_scaler_max_total_scale(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_max_scale(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_max_hscale(const struct intel_crtc_state *crtc_state);
+
+unsigned int skl_scaler_1st_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_2nd_prefill_adjustment_worst(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_1st_prefill_lines_worst(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_2nd_prefill_lines_worst(const struct intel_crtc_state *crtc_state);
+
+unsigned int skl_scaler_1st_prefill_adjustment(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_2nd_prefill_adjustment(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_1st_prefill_lines(const struct intel_crtc_state *crtc_state);
+unsigned int skl_scaler_2nd_prefill_lines(const struct intel_crtc_state *crtc_state);
+
 #endif

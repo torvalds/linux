@@ -18,7 +18,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/errqueue.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 struct options {
 	int so_timestamp;

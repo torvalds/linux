@@ -113,6 +113,14 @@ properties:
     description:
       Additional HDMI QP related data is accessed through VO GRF regs.
 
+  frl-enable-gpios:
+    description:
+      Optional GPIO line to be asserted when operating in HDMI 2.1 FRL mode and
+      deasserted for HDMI 1.4/2.0 TMDS. It can be used to control external
+      voltage bias for HDMI data lines. When not present the HDMI encoder will
+      operate in TMDS mode only.
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -132,8 +140,10 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/clock/rockchip,rk3588-cru.h>
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/pinctrl/rockchip.h>
     #include <dt-bindings/power/rk3588-power.h>
     #include <dt-bindings/reset/rockchip,rk3588-cru.h>
 
@@ -164,6 +174,7 @@ examples:
         rockchip,grf = <&sys_grf>;
         rockchip,vo-grf = <&vo1_grf>;
         #sound-dai-cells = <0>;
+        frl-enable-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_LOW>;
 
         ports {
           #address-cells = <1>;

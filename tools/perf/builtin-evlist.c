@@ -19,7 +19,8 @@
 #include "util/tool.h"
 #include "util/util.h"
 
-static int process_header_feature(struct perf_session *session __maybe_unused,
+static int process_header_feature(const struct perf_tool *tool __maybe_unused,
+				  struct perf_session *session __maybe_unused,
 				  union perf_event *event __maybe_unused)
 {
 	session_done = 1;

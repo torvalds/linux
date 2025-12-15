@@ -8,16 +8,19 @@
 #define _S390_PTRACE_H
 
 #include <linux/bits.h>
+#include <linux/typecheck.h>
 #include <uapi/asm/ptrace.h>
 #include <asm/thread_info.h>
 #include <asm/tpi.h>
 
 #define PIF_SYSCALL			0	/* inside a system call */
+#define PIF_PSW_ADDR_ADJUSTED		1	/* psw address has been adjusted */
 #define PIF_SYSCALL_RET_SET		2	/* return value was set via ptrace */
 #define PIF_GUEST_FAULT			3	/* indicates program check in sie64a */
 #define PIF_FTRACE_FULL_REGS		4	/* all register contents valid (ftrace) */
 
 #define _PIF_SYSCALL			BIT(PIF_SYSCALL)
+#define _PIF_ADDR_PSW_ADJUSTED		BIT(PIF_PSW_ADDR_ADJUSTED)
 #define _PIF_SYSCALL_RET_SET		BIT(PIF_SYSCALL_RET_SET)
 #define _PIF_GUEST_FAULT		BIT(PIF_GUEST_FAULT)
 #define _PIF_FTRACE_FULL_REGS		BIT(PIF_FTRACE_FULL_REGS)
@@ -99,7 +102,7 @@ enum {
 typedef struct {
 	unsigned int mask;
 	unsigned int addr;
-} psw_t32 __aligned(8);
+} psw32_t __aligned(8);
 
 #define PGM_INT_CODE_MASK	0x7f
 #define PGM_INT_CODE_PER	0x80

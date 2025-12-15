@@ -375,6 +375,14 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
+	u64 tx_cqe_err;
+	u64 tx_cqe_unknown_type;
+	u64 tx_linear_pkt_cnt;
+	u64 rx_coalesced_err;
+	u64 rx_cqe_unknown_type;
+};
+
+struct mana_ethtool_hc_stats {
 	u64 hc_rx_discards_no_wqe;
 	u64 hc_rx_err_vport_disabled;
 	u64 hc_rx_bytes;
@@ -402,10 +410,6 @@ struct mana_ethtool_stats {
 	u64 hc_tx_mcast_pkts;
 	u64 hc_tx_mcast_bytes;
 	u64 hc_tx_err_gdma;
-	u64 tx_cqe_err;
-	u64 tx_cqe_unknown_type;
-	u64 rx_coalesced_err;
-	u64 rx_cqe_unknown_type;
 };
 
 struct mana_ethtool_phy_stats {
@@ -473,10 +477,19 @@ struct mana_context {
 	u16 num_ports;
 	u8 bm_hostmode;
 
+	struct mana_ethtool_hc_stats hc_stats;
 	struct mana_eq *eqs;
 	struct dentry *mana_eqs_debugfs;
 
+	/* Workqueue for querying hardware stats */
+	struct delayed_work gf_stats_work;
+	bool hwc_timeout_occurred;
+
 	struct net_device *ports[MAX_PORTS_IN_MANA_DEV];
+
+	/* Link state change work */
+	struct work_struct link_change_work;
+	u32 link_event;
 };
 
 struct mana_port_context {
@@ -573,13 +586,14 @@ u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
 void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
 int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
-void mana_query_gf_stats(struct mana_port_context *apc);
+int mana_query_gf_stats(struct mana_context *ac);
 int mana_query_link_cfg(struct mana_port_context *apc);
 int mana_set_bw_clamp(struct mana_port_context *apc, u32 speed,
 		      int enable_clamping);
 void mana_query_phy_stats(struct mana_port_context *apc);
 int mana_pre_alloc_rxbufs(struct mana_port_context *apc, int mtu, int num_queues);
 void mana_pre_dealloc_rxbufs(struct mana_port_context *apc);
+void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 extern struct dentry *mana_debugfs_root;

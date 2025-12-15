@@ -282,20 +282,22 @@ static int keep_resources(struct snd_tscm *tscm, unsigned int rate,
 			  struct amdtp_stream *stream)
 {
 	struct fw_iso_resources *resources;
+	int speed;
 	int err;
 
-	if (stream == &tscm->tx_stream)
+	if (stream == &tscm->tx_stream) {
 		resources = &tscm->tx_resources;
-	else
+		speed = fw_parent_device(tscm->unit)->max_speed;
+	} else {
 		resources = &tscm->rx_resources;
+		speed = SCODE_400;
+	}
 
 	err = amdtp_tscm_set_parameters(stream, rate);
 	if (err < 0)
 		return err;
 
-	return fw_iso_resources_allocate(resources,
-				amdtp_stream_get_max_payload(stream),
-				fw_parent_device(tscm->unit)->max_speed);
+	return fw_iso_resources_allocate(resources, amdtp_stream_get_max_payload(stream), speed);
 }
 
 static int init_stream(struct snd_tscm *tscm, struct amdtp_stream *s)
@@ -455,7 +457,6 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 	}
 
 	if (!amdtp_stream_running(&tscm->rx_stream)) {
-		int spd = fw_parent_device(tscm->unit)->max_speed;
 		unsigned int tx_init_skip_cycles;
 
 		err = set_stream_formats(tscm, rate);
@@ -466,13 +467,13 @@ int snd_tscm_stream_start_duplex(struct snd_tscm *tscm, unsigned int rate)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_add_stream(&tscm->domain, &tscm->rx_stream,
-					      tscm->rx_resources.channel, spd);
+		err = amdtp_domain_add_stream(&tscm->domain, &tscm->rx_stream, tscm->rx_resources.channel,
+					      fw_parent_device(tscm->unit)->max_speed);
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_add_stream(&tscm->domain, &tscm->tx_stream,
-					      tscm->tx_resources.channel, spd);
+		err = amdtp_domain_add_stream(&tscm->domain, &tscm->tx_stream, tscm->tx_resources.channel,
+					      SCODE_400);
 		if (err < 0)
 			goto error;
 

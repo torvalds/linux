@@ -15,10 +15,15 @@
 #define DEFAULT_WIDTH 320
 #define DEFAULT_HEIGHT 240
 
-enum iris_fmt_type {
+enum iris_fmt_type_out {
 	IRIS_FMT_H264,
 	IRIS_FMT_HEVC,
 	IRIS_FMT_VP9,
+};
+
+enum iris_fmt_type_cap {
+	IRIS_FMT_NV12,
+	IRIS_FMT_QC08C,
 };
 
 struct iris_fmt {

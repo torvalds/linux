@@ -30,7 +30,7 @@
 #define _ASM_GENERIC_FCNTL_H
 #include <linux/fcntl.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
 			char *const envp[], int flags)

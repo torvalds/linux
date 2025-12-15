@@ -64,7 +64,6 @@ struct mlx5e_ptp {
 	/* control */
 	struct mlx5e_priv         *priv;
 	struct mlx5_core_dev      *mdev;
-	struct hwtstamp_config    *tstamp;
 	DECLARE_BITMAP(state, MLX5E_PTP_STATE_NUM_STATES);
 	struct mlx5_sq_bfreg      *bfreg;
 };
@@ -148,7 +147,7 @@ enum {
 
 void mlx5e_skb_cb_hwtstamp_handler(struct sk_buff *skb, int hwtstamp_type,
 				   ktime_t hwtstamp,
-				   struct mlx5e_ptp_cq_stats *cq_stats);
+				   struct mlx5e_ptpsq *ptpsq);
 
 void mlx5e_skb_cb_hwtstamp_init(struct sk_buff *skb);
 #endif /* __MLX5_EN_PTP_H__ */

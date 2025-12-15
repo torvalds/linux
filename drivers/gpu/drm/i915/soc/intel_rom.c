@@ -39,8 +39,9 @@ static u16 spi_read16(struct intel_rom *rom, loff_t offset)
 	return spi_read32(rom, offset) & 0xffff;
 }
 
-struct intel_rom *intel_rom_spi(struct drm_i915_private *i915)
+struct intel_rom *intel_rom_spi(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_rom *rom;
 	u32 static_region;
 
@@ -85,7 +86,7 @@ static void pci_free(struct intel_rom *rom)
 	pci_unmap_rom(rom->pdev, rom->oprom);
 }
 
-struct intel_rom *intel_rom_pci(struct drm_i915_private *i915)
+struct intel_rom *intel_rom_pci(struct drm_device *drm)
 {
 	struct intel_rom *rom;
 
@@ -93,7 +94,7 @@ struct intel_rom *intel_rom_pci(struct drm_i915_private *i915)
 	if (!rom)
 		return NULL;
 
-	rom->pdev = to_pci_dev(i915->drm.dev);
+	rom->pdev = to_pci_dev(drm->dev);
 
 	rom->oprom = pci_map_rom(rom->pdev, &rom->size);
 	if (!rom->oprom) {

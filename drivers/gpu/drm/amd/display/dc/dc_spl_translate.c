@@ -147,6 +147,8 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 		spl_in->prefer_easf = false;
 	else if (pipe_ctx->stream->ctx->dc->debug.force_easf == 2)
 		spl_in->disable_easf = true;
+	else if (pipe_ctx->stream->ctx->dc->debug.force_easf == 3)
+		spl_in->override_easf = true;
 	/* Translate adaptive sharpening preference */
 	unsigned int sharpness_setting = pipe_ctx->stream->ctx->dc->debug.force_sharpness;
 	unsigned int force_sharpness_level = pipe_ctx->stream->ctx->dc->debug.force_sharpness_level;

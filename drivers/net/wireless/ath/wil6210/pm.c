@@ -458,6 +458,5 @@ void wil_pm_runtime_put(struct wil6210_priv *wil)
 {
 	struct device *dev = wil_to_dev(wil);
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 }

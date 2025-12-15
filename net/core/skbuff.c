@@ -81,6 +81,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/psp/types.h>
 #include <net/dropreason.h>
+#include <net/xdp_sock.h>
 
 #include <linux/uaccess.h>
 #include <trace/events/skb.h>
@@ -222,9 +223,9 @@ static void skb_under_panic(struct sk_buff *skb, unsigned int sz, void *addr)
 	skb_panic(skb, sz, addr, __func__);
 }
 
-#define NAPI_SKB_CACHE_SIZE	64
-#define NAPI_SKB_CACHE_BULK	16
-#define NAPI_SKB_CACHE_HALF	(NAPI_SKB_CACHE_SIZE / 2)
+#define NAPI_SKB_CACHE_SIZE	128
+#define NAPI_SKB_CACHE_BULK	32
+#define NAPI_SKB_CACHE_FREE	32
 
 struct napi_alloc_cache {
 	local_lock_t bh_lock;
@@ -274,17 +275,23 @@ void *__netdev_alloc_frag_align(unsigned int fragsz, unsigned int align_mask)
 }
 EXPORT_SYMBOL(__netdev_alloc_frag_align);
 
-static struct sk_buff *napi_skb_cache_get(void)
+/* Cache kmem_cache_size(net_hotdata.skbuff_cache) to help the compiler
+ * remove dead code (and skbuff_cache_size) when CONFIG_KASAN is unset.
+ */
+static u32 skbuff_cache_size __read_mostly;
+
+static struct sk_buff *napi_skb_cache_get(bool alloc)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	struct sk_buff *skb;
 
 	local_lock_nested_bh(&napi_alloc_cache.bh_lock);
 	if (unlikely(!nc->skb_count)) {
-		nc->skb_count = kmem_cache_alloc_bulk(net_hotdata.skbuff_cache,
-						      GFP_ATOMIC | __GFP_NOWARN,
-						      NAPI_SKB_CACHE_BULK,
-						      nc->skb_cache);
+		if (alloc)
+			nc->skb_count = kmem_cache_alloc_bulk(net_hotdata.skbuff_cache,
+						GFP_ATOMIC | __GFP_NOWARN,
+						NAPI_SKB_CACHE_BULK,
+						nc->skb_cache);
 		if (unlikely(!nc->skb_count)) {
 			local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
 			return NULL;
@@ -292,8 +299,10 @@ static struct sk_buff *napi_skb_cache_get(void)
 	}
 
 	skb = nc->skb_cache[--nc->skb_count];
+	if (nc->skb_count)
+		prefetch(nc->skb_cache[nc->skb_count - 1]);
 	local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
-	kasan_mempool_unpoison_object(skb, kmem_cache_size(net_hotdata.skbuff_cache));
+	kasan_mempool_unpoison_object(skb, skbuff_cache_size);
 
 	return skb;
 }
@@ -345,11 +354,9 @@ u32 napi_skb_cache_get_bulk(void **skbs, u32 n)
 
 get:
 	for (u32 base = nc->skb_count - n, i = 0; i < n; i++) {
-		u32 cache_size = kmem_cache_size(net_hotdata.skbuff_cache);
-
 		skbs[i] = nc->skb_cache[base + i];
 
-		kasan_mempool_unpoison_object(skbs[i], cache_size);
+		kasan_mempool_unpoison_object(skbs[i], skbuff_cache_size);
 		memset(skbs[i], 0, offsetof(struct sk_buff, tail));
 	}
 
@@ -526,7 +533,7 @@ static struct sk_buff *__napi_build_skb(void *data, unsigned int frag_size)
 {
 	struct sk_buff *skb;
 
-	skb = napi_skb_cache_get();
+	skb = napi_skb_cache_get(true);
 	if (unlikely(!skb))
 		return NULL;
 
@@ -641,25 +648,38 @@ out:
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int flags, int node)
 {
+	struct sk_buff *skb = NULL;
 	struct kmem_cache *cache;
-	struct sk_buff *skb;
 	bool pfmemalloc;
 	u8 *data;
-
-	cache = (flags & SKB_ALLOC_FCLONE)
-		? net_hotdata.skbuff_fclone_cache : net_hotdata.skbuff_cache;
 
 	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
 		gfp_mask |= __GFP_MEMALLOC;
 
-	/* Get the HEAD */
-	if ((flags & (SKB_ALLOC_FCLONE | SKB_ALLOC_NAPI)) == SKB_ALLOC_NAPI &&
-	    likely(node == NUMA_NO_NODE || node == numa_mem_id()))
-		skb = napi_skb_cache_get();
-	else
+	if (flags & SKB_ALLOC_FCLONE) {
+		cache = net_hotdata.skbuff_fclone_cache;
+		goto fallback;
+	}
+	cache = net_hotdata.skbuff_cache;
+	if (unlikely(node != NUMA_NO_NODE && node != numa_mem_id()))
+		goto fallback;
+
+	if (flags & SKB_ALLOC_NAPI) {
+		skb = napi_skb_cache_get(true);
+		if (unlikely(!skb))
+			return NULL;
+	} else if (!in_hardirq() && !irqs_disabled()) {
+		local_bh_disable();
+		skb = napi_skb_cache_get(false);
+		local_bh_enable();
+	}
+
+	if (!skb) {
+fallback:
 		skb = kmem_cache_alloc_node(cache, gfp_mask & ~GFP_DMA, node);
-	if (unlikely(!skb))
-		return NULL;
+		if (unlikely(!skb))
+			return NULL;
+	}
 	prefetchw(skb);
 
 	/* We do our best to align skb_shared_info on a separate cache
@@ -1136,12 +1156,22 @@ void skb_release_head_state(struct sk_buff *skb)
 	skb_dst_drop(skb);
 	if (skb->destructor) {
 		DEBUG_NET_WARN_ON_ONCE(in_hardirq());
-		skb->destructor(skb);
-	}
-#if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	nf_conntrack_put(skb_nfct(skb));
+#ifdef CONFIG_INET
+		INDIRECT_CALL_4(skb->destructor,
+				tcp_wfree, __sock_wfree, sock_wfree,
+				xsk_destruct_skb,
+				skb);
+#else
+		INDIRECT_CALL_2(skb->destructor,
+				sock_wfree, xsk_destruct_skb,
+				skb);
+
 #endif
-	skb_ext_put(skb);
+		skb->destructor = NULL;
+		skb->sk = NULL;
+	}
+	nf_reset_ct(skb);
+	skb_ext_reset(skb);
 }
 
 /* Free everything but the sk_buff shell. */
@@ -1417,7 +1447,6 @@ void __consume_stateless_skb(struct sk_buff *skb)
 static void napi_skb_cache_put(struct sk_buff *skb)
 {
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
-	u32 i;
 
 	if (!kasan_mempool_poison_object(skb))
 		return;
@@ -1426,13 +1455,16 @@ static void napi_skb_cache_put(struct sk_buff *skb)
 	nc->skb_cache[nc->skb_count++] = skb;
 
 	if (unlikely(nc->skb_count == NAPI_SKB_CACHE_SIZE)) {
-		for (i = NAPI_SKB_CACHE_HALF; i < NAPI_SKB_CACHE_SIZE; i++)
-			kasan_mempool_unpoison_object(nc->skb_cache[i],
-						kmem_cache_size(net_hotdata.skbuff_cache));
+		u32 i, remaining = NAPI_SKB_CACHE_SIZE - NAPI_SKB_CACHE_FREE;
 
-		kmem_cache_free_bulk(net_hotdata.skbuff_cache, NAPI_SKB_CACHE_HALF,
-				     nc->skb_cache + NAPI_SKB_CACHE_HALF);
-		nc->skb_count = NAPI_SKB_CACHE_HALF;
+		for (i = remaining; i < NAPI_SKB_CACHE_SIZE; i++)
+			kasan_mempool_unpoison_object(nc->skb_cache[i],
+						skbuff_cache_size);
+
+		kmem_cache_free_bulk(net_hotdata.skbuff_cache,
+				     NAPI_SKB_CACHE_FREE,
+				     nc->skb_cache + remaining);
+		nc->skb_count = remaining;
 	}
 	local_unlock_nested_bh(&napi_alloc_cache.bh_lock);
 }
@@ -1458,12 +1490,17 @@ void napi_skb_free_stolen_head(struct sk_buff *skb)
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
 	/* Zero budget indicate non-NAPI context called us, like netpoll */
-	if (unlikely(!budget)) {
+	if (unlikely(!budget || !skb)) {
 		dev_consume_skb_any(skb);
 		return;
 	}
 
 	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
+
+	if (skb->alloc_cpu != smp_processor_id() && !skb_shared(skb)) {
+		skb_release_head_state(skb);
+		return skb_attempt_defer_free(skb);
+	}
 
 	if (!skb_unref(skb))
 		return;
@@ -2218,6 +2255,10 @@ EXPORT_SYMBOL(__pskb_copy_fclone);
  *
  *	All the pointers pointing into skb header may change and must be
  *	reloaded after call to this function.
+ *
+ *	Note: If you skb_push() the start of the buffer after reallocating the
+ *	header, call skb_postpush_data_move() first to move the metadata out of
+ *	the way before writing to &sk_buff->data.
  */
 
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
@@ -2288,8 +2329,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	skb->hdr_len  = 0;
 	skb->nohdr    = 0;
 	atomic_set(&skb_shinfo(skb)->dataref, 1);
-
-	skb_metadata_clear(skb);
 
 	/* It is not generally safe to change skb->truesize.
 	 * For the moment, we really care of rx path, or
@@ -5116,6 +5155,8 @@ void __init skb_init(void)
 					      offsetof(struct sk_buff, cb),
 					      sizeof_field(struct sk_buff, cb),
 					      NULL);
+	skbuff_cache_size = kmem_cache_size(net_hotdata.skbuff_cache);
+
 	net_hotdata.skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
 						sizeof(struct sk_buff_fclones),
 						0,

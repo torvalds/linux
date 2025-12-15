@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -45,6 +45,73 @@
 #define MT_RX_INFO_LEN			4
 #define MT_FCE_INFO_LEN			4
 #define MT_RX_RXWI_LEN			32
+
+#if IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED)
+
+#define Q_READ(_q, _field) ({						\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	u32 _val;							\
+	if ((_q)->flags & MT_QFLAG_WED)					\
+		_val = mtk_wed_device_reg_read((_q)->wed,		\
+					       ((_q)->wed_regs +	\
+						_offset));		\
+	else								\
+		_val = readl(&(_q)->regs->_field);			\
+	_val;								\
+})
+
+#define Q_WRITE(_q, _field, _val)	do {				\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	if ((_q)->flags & MT_QFLAG_WED)					\
+		mtk_wed_device_reg_write((_q)->wed,			\
+					 ((_q)->wed_regs + _offset),	\
+					 _val);				\
+	else								\
+		writel(_val, &(_q)->regs->_field);			\
+} while (0)
+
+#elif IS_ENABLED(CONFIG_MT76_NPU)
+
+#define Q_READ(_q, _field) ({						\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	u32 _val = 0;							\
+	if ((_q)->flags & MT_QFLAG_NPU) {				\
+		struct airoha_npu *npu;					\
+									\
+		rcu_read_lock();					\
+		npu = rcu_dereference(q->dev->mmio.npu);		\
+		if (npu)						\
+			regmap_read(npu->regmap,			\
+				    ((_q)->wed_regs + _offset), &_val);	\
+		rcu_read_unlock();					\
+	} else {							\
+		_val = readl(&(_q)->regs->_field);			\
+	}								\
+	_val;								\
+})
+
+#define Q_WRITE(_q, _field, _val)	do {				\
+	u32 _offset = offsetof(struct mt76_queue_regs, _field);		\
+	if ((_q)->flags & MT_QFLAG_NPU) {				\
+		struct airoha_npu *npu;					\
+									\
+		rcu_read_lock();					\
+		npu = rcu_dereference(q->dev->mmio.npu);		\
+		if (npu)						\
+			regmap_write(npu->regmap,			\
+				     ((_q)->wed_regs + _offset), _val);	\
+		rcu_read_unlock();					\
+	} else {							\
+		writel(_val, &(_q)->regs->_field);			\
+	}								\
+} while (0)
+
+#else
+
+#define Q_READ(_q, _field)		readl(&(_q)->regs->_field)
+#define Q_WRITE(_q, _field, _val)	writel(_val, &(_q)->regs->_field)
+
+#endif
 
 struct mt76_desc {
 	__le32 buf0;

@@ -7,8 +7,8 @@
 
 #define ANDES_VENDOR_ID		0x31e
 #define MICROCHIP_VENDOR_ID	0x029
+#define MIPS_VENDOR_ID		0x127
 #define SIFIVE_VENDOR_ID	0x489
 #define THEAD_VENDOR_ID		0x5b7
-#define MIPS_VENDOR_ID		0x722
 
 #endif

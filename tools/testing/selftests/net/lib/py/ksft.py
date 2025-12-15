@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 
-import builtins
 import functools
 import inspect
 import signal
 import sys
 import time
 import traceback
+from collections import namedtuple
 from .consts import KSFT_MAIN_NAME
 from .utils import global_defer_queue
 
@@ -136,7 +136,7 @@ def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
         time.sleep(sleep)
 
 
-def ktap_result(ok, cnt=1, case="", comment=""):
+def ktap_result(ok, cnt=1, case_name="", comment=""):
     global KSFT_RESULT_ALL
     KSFT_RESULT_ALL = KSFT_RESULT_ALL and ok
 
@@ -146,8 +146,8 @@ def ktap_result(ok, cnt=1, case="", comment=""):
     res += "ok "
     res += str(cnt) + " "
     res += KSFT_MAIN_NAME
-    if case:
-        res += "." + str(case.__name__)
+    if case_name:
+        res += "." + case_name
     if comment:
         res += " # " + comment
     print(res, flush=True)
@@ -163,12 +163,16 @@ def ksft_flush_defer():
         entry = global_defer_queue.pop()
         try:
             entry.exec_only()
-        except:
+        except Exception:
             ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
             tb = traceback.format_exc()
             for line in tb.strip().split('\n'):
                 ksft_pr("Defer Exception|", line)
             KSFT_RESULT = False
+
+
+KsftCaseFunction = namedtuple("KsftCaseFunction",
+                              ['name', 'original_func', 'variants'])
 
 
 def ksft_disruptive(func):
@@ -181,9 +185,45 @@ def ksft_disruptive(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if not KSFT_DISRUPTIVE:
-            raise KsftSkipEx(f"marked as disruptive")
+            raise KsftSkipEx("marked as disruptive")
         return func(*args, **kwargs)
     return wrapper
+
+
+class KsftNamedVariant:
+    """ Named string name + argument list tuple for @ksft_variants """
+
+    def __init__(self, name, *params):
+        self.params = params
+        self.name = name or "_".join([str(x) for x in self.params])
+
+
+def ksft_variants(params):
+    """
+    Decorator defining the sets of inputs for a test.
+    The parameters will be included in the name of the resulting sub-case.
+    Parameters can be either single object, tuple or a KsftNamedVariant.
+    The argument can be a list or a generator.
+
+    Example:
+
+    @ksft_variants([
+        (1, "a"),
+        (2, "b"),
+        KsftNamedVariant("three", 3, "c"),
+    ])
+    def my_case(cfg, a, b):
+        pass # ...
+
+    ksft_run(cases=[my_case], args=(cfg, ))
+
+    Will generate cases:
+        my_case.1_a
+        my_case.2_b
+        my_case.three
+    """
+
+    return lambda func: KsftCaseFunction(func.__name__, func, params)
 
 
 def ksft_setup(env):
@@ -199,7 +239,7 @@ def ksft_setup(env):
             return False
         try:
             return bool(int(value))
-        except:
+        except Exception:
             raise Exception(f"failed to parse {name}")
 
     if "DISRUPTIVE" in env:
@@ -220,9 +260,13 @@ def _ksft_intr(signum, frame):
         ksft_pr(f"Ignoring SIGTERM (cnt: {term_cnt}), already exiting...")
 
 
-def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
-    cases = cases or []
+def _ksft_generate_test_cases(cases, globs, case_pfx, args):
+    """Generate a flat list of (func, args, name) tuples"""
 
+    cases = cases or []
+    test_cases = []
+
+    # If using the globs method find all relevant functions
     if globs and case_pfx:
         for key, value in globs.items():
             if not callable(value):
@@ -232,6 +276,27 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
                     cases.append(value)
                     break
 
+    for func in cases:
+        if isinstance(func, KsftCaseFunction):
+            # Parametrized test - create case for each param
+            for param in func.variants:
+                if not isinstance(param, KsftNamedVariant):
+                    if not isinstance(param, tuple):
+                        param = (param, )
+                    param = KsftNamedVariant(None, *param)
+
+                test_cases.append((func.original_func,
+                                   (*args, *param.params),
+                                   func.name + "." + param.name))
+        else:
+            test_cases.append((func, args, func.__name__))
+
+    return test_cases
+
+
+def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
+    test_cases = _ksft_generate_test_cases(cases, globs, case_pfx, args)
+
     global term_cnt
     term_cnt = 0
     prev_sigterm = signal.signal(signal.SIGTERM, _ksft_intr)
@@ -239,19 +304,19 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
     print("TAP version 13", flush=True)
-    print("1.." + str(len(cases)), flush=True)
+    print("1.." + str(len(test_cases)), flush=True)
 
     global KSFT_RESULT
     cnt = 0
     stop = False
-    for case in cases:
+    for func, args, name in test_cases:
         KSFT_RESULT = True
         cnt += 1
         comment = ""
         cnt_key = ""
 
         try:
-            case(*args)
+            func(*args)
         except KsftSkipEx as e:
             comment = "SKIP " + str(e)
             cnt_key = 'skip'
@@ -268,12 +333,26 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
             KSFT_RESULT = False
             cnt_key = 'fail'
 
-        ksft_flush_defer()
+        try:
+            ksft_flush_defer()
+        except BaseException as e:
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
+                ksft_pr("Exception|", line)
+            if isinstance(e, KeyboardInterrupt):
+                ksft_pr()
+                ksft_pr("WARN: defer() interrupted, cleanup may be incomplete.")
+                ksft_pr("      Attempting to finish cleanup before exiting.")
+                ksft_pr("      Interrupt again to exit immediately.")
+                ksft_pr()
+                stop = True
+            # Flush was interrupted, try to finish the job best we can
+            ksft_flush_defer()
 
         if not cnt_key:
             cnt_key = 'pass' if KSFT_RESULT else 'fail'
 
-        ktap_result(KSFT_RESULT, cnt, case, comment=comment)
+        ktap_result(KSFT_RESULT, cnt, name, comment=comment)
         totals[cnt_key] += 1
 
         if stop:

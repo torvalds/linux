@@ -738,8 +738,6 @@ static int rv8803_probe(struct i2c_client *client)
 
 	devm_rtc_nvmem_register(rv8803->rtc, &nvmem_cfg);
 
-	rv8803->rtc->max_user_freq = 1;
-
 	return 0;
 }
 

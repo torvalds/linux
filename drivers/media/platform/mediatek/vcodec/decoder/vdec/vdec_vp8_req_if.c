@@ -358,7 +358,7 @@ static int vdec_vp8_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 		       y_fb_dma, c_fb_dma);
 
 	v4l2_m2m_buf_copy_metadata(&src_buf_info->m2m_buf.vb,
-				   &dst_buf_info->m2m_buf.vb, true);
+				   &dst_buf_info->m2m_buf.vb);
 
 	err = vdec_vp8_slice_get_decode_parameters(inst);
 	if (err)

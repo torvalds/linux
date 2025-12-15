@@ -45,7 +45,6 @@
 #define MAX127_SIGN_BIT		BIT(11)
 
 struct max127_data {
-	struct mutex lock;
 	struct i2c_client *client;
 	u8 ctrl_byte[MAX127_NUM_CHANNELS];
 };
@@ -121,21 +120,16 @@ static int max127_read_input(struct max127_data *data, int channel, long *val)
 	struct i2c_client *client = data->client;
 	u8 ctrl_byte = data->ctrl_byte[channel];
 
-	mutex_lock(&data->lock);
-
 	status = max127_select_channel(client, ctrl_byte);
 	if (status)
-		goto exit;
+		return status;
 
 	status = max127_read_channel(client, &raw);
 	if (status)
-		goto exit;
+		return status;
 
 	*val = max127_process_raw(ctrl_byte, raw);
-
-exit:
-	mutex_unlock(&data->lock);
-	return status;
+	return 0;
 }
 
 static int max127_read_min(struct max127_data *data, int channel, long *val)
@@ -170,8 +164,6 @@ static int max127_write_min(struct max127_data *data, int channel, long val)
 {
 	u8 ctrl;
 
-	mutex_lock(&data->lock);
-
 	ctrl = data->ctrl_byte[channel];
 	if (val <= -MAX127_FULL_RANGE) {
 		ctrl |= (MAX127_CTRL_RNG | MAX127_CTRL_BIP);
@@ -182,23 +174,15 @@ static int max127_write_min(struct max127_data *data, int channel, long val)
 		ctrl &= ~MAX127_CTRL_BIP;
 	}
 	data->ctrl_byte[channel] = ctrl;
-
-	mutex_unlock(&data->lock);
-
 	return 0;
 }
 
 static int max127_write_max(struct max127_data *data, int channel, long val)
 {
-	mutex_lock(&data->lock);
-
 	if (val >= MAX127_FULL_RANGE)
 		data->ctrl_byte[channel] |= MAX127_CTRL_RNG;
 	else
 		data->ctrl_byte[channel] &= ~MAX127_CTRL_RNG;
-
-	mutex_unlock(&data->lock);
-
 	return 0;
 }
 
@@ -315,7 +299,6 @@ static int max127_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	mutex_init(&data->lock);
 	for (i = 0; i < ARRAY_SIZE(data->ctrl_byte); i++)
 		data->ctrl_byte[i] = (MAX127_CTRL_START |
 				      MAX127_SET_CHANNEL(i));

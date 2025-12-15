@@ -8,6 +8,9 @@
 // is correctly fired only once, when EPOLLONESHOT is set. send another packet
 // with MSG_ZEROCOPY. confirm that EPOLLERR is not fired. Rearm the FD and
 // confirm that EPOLLERR is correctly set.
+
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3

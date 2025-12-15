@@ -44,21 +44,27 @@ static void check_media_ip(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, mask, 0);
 }
 
-static void check_platform_gt_count(struct kunit *test)
+static void check_platform_desc(struct kunit *test)
 {
 	const struct pci_device_id *pci = test->param_value;
 	const struct xe_device_desc *desc =
 		(const struct xe_device_desc *)pci->driver_data;
-	int max_gt = desc->max_gt_per_tile;
 
-	KUNIT_ASSERT_GT(test, max_gt, 0);
-	KUNIT_ASSERT_LE(test, max_gt, XE_MAX_GT_PER_TILE);
+	KUNIT_EXPECT_GT(test, desc->dma_mask_size, 0);
+
+	KUNIT_EXPECT_GT(test, (unsigned int)desc->max_gt_per_tile, 0);
+	KUNIT_EXPECT_LE(test, (unsigned int)desc->max_gt_per_tile, XE_MAX_GT_PER_TILE);
+
+	KUNIT_EXPECT_GT(test, desc->va_bits, 0);
+	KUNIT_EXPECT_LE(test, desc->va_bits, 64);
+
+	KUNIT_EXPECT_GT(test, desc->vm_max_level, 0);
 }
 
 static struct kunit_case xe_pci_tests[] = {
 	KUNIT_CASE_PARAM(check_graphics_ip, xe_pci_graphics_ip_gen_param),
 	KUNIT_CASE_PARAM(check_media_ip, xe_pci_media_ip_gen_param),
-	KUNIT_CASE_PARAM(check_platform_gt_count, xe_pci_id_gen_param),
+	KUNIT_CASE_PARAM(check_platform_desc, xe_pci_id_gen_param),
 	{}
 };
 

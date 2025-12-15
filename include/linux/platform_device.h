@@ -80,7 +80,7 @@ static inline void __iomem *
 devm_platform_get_and_ioremap_resource(struct platform_device *pdev,
 				unsigned int index, struct resource **res)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 
@@ -88,20 +88,22 @@ static inline void __iomem *
 devm_platform_ioremap_resource(struct platform_device *pdev,
 			       unsigned int index)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 static inline void __iomem *
 devm_platform_ioremap_resource_byname(struct platform_device *pdev,
 				      const char *name)
 {
-	return ERR_PTR(-EINVAL);
+	return IOMEM_ERR_PTR(-EINVAL);
 }
 
 #endif
 
 extern int platform_get_irq(struct platform_device *, unsigned int);
 extern int platform_get_irq_optional(struct platform_device *, unsigned int);
+extern int platform_get_irq_affinity(struct platform_device *, unsigned int,
+				     const struct cpumask **);
 extern int platform_irq_count(struct platform_device *);
 extern int devm_platform_get_irqs_affinity(struct platform_device *dev,
 					   struct irq_affinity *affd,
@@ -232,6 +234,7 @@ extern int platform_device_add_data(struct platform_device *pdev,
 extern int platform_device_add(struct platform_device *pdev);
 extern void platform_device_del(struct platform_device *pdev);
 extern void platform_device_put(struct platform_device *pdev);
+DEFINE_FREE(platform_device_put, struct platform_device *, if (_T) platform_device_put(_T))
 
 struct platform_driver {
 	int (*probe)(struct platform_device *);

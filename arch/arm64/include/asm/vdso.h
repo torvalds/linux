@@ -7,7 +7,7 @@
 
 #define __VDSO_PAGES    4
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <generated/vdso-offsets.h>
 
@@ -19,6 +19,6 @@
 extern char vdso_start[], vdso_end[];
 extern char vdso32_start[], vdso32_end[];
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_VDSO_H */

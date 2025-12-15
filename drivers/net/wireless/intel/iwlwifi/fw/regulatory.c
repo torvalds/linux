@@ -543,31 +543,13 @@ static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 
 	switch (cmd_ver) {
 	case 12:
-	case 11:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
 		break;
-	case 10:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v10);
-		break;
-	case 9:
 	case 8:
-	case 7:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v8);
 		break;
 	case 6:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v6);
-		break;
-	case 5:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v5);
-		break;
-	case 4:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
-		break;
-	case 3:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
-		break;
-	case 2:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
 		break;
 	default:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
@@ -609,11 +591,11 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 		if (!has_raw_dsm_capa)
 			value &= DSM_UNII4_ALLOW_BITMAP;
 
-		/* Since version 9, bits 4 and 5 are supported
+		/* Since version 12, bits 4 and 5 are supported
 		 * regardless of this capability, By pass this masking
 		 * if firmware has capability of accepting raw DSM table.
 		 */
-		if (!has_raw_dsm_capa && cmd_ver < 9 &&
+		if (!has_raw_dsm_capa && cmd_ver < 12 &&
 		    !fw_has_capa(&fwrt->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_5G9_FOR_CA))
 			value &= ~(DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK |
@@ -637,7 +619,7 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 		if (!has_raw_dsm_capa && cmd_ver < 12 &&
 		    !fw_has_capa(&fwrt->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA))
-			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
+			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V8;
 
 		cmd->chan_state_active_bitmap = cpu_to_le32(value);
 	}

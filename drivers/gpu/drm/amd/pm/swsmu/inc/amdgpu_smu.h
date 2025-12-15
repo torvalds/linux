@@ -212,6 +212,7 @@ enum smu_power_src_type {
 enum smu_ppt_limit_type {
 	SMU_DEFAULT_PPT_LIMIT = 0,
 	SMU_FAST_PPT_LIMIT,
+	SMU_LIMIT_TYPE_COUNT,
 };
 
 enum smu_ppt_limit_level {
@@ -231,7 +232,7 @@ enum smu_memory_pool_size {
 
 struct smu_user_dpm_profile {
 	uint32_t fan_mode;
-	uint32_t power_limit;
+	uint32_t power_limits[SMU_LIMIT_TYPE_COUNT];
 	uint32_t fan_speed_pwm;
 	uint32_t fan_speed_rpm;
 	uint32_t flags;
@@ -1521,6 +1522,21 @@ struct pptable_funcs {
 	 */
 	ssize_t (*get_xcp_metrics)(struct smu_context *smu, int xcp_id,
 				   void *table);
+	/**
+	 * @ras_send_msg: Send a message with a parameter from Ras
+	 * &msg: Type of message.
+	 * &param: Message parameter.
+	 * &read_arg: SMU response (optional).
+	 */
+	int (*ras_send_msg)(struct smu_context *smu,
+			    enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
+
+
+	/**
+	 * @get_ras_smu_drv: Get RAS smu driver interface
+	 * Return: ras_smu_drv *
+	 */
+	int (*get_ras_smu_drv)(struct smu_context *smu, const struct ras_smu_drv **ras_smu_drv);
 };
 
 typedef enum {
@@ -1785,7 +1801,10 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 		      int level);
 ssize_t smu_get_pm_policy_info(struct smu_context *smu,
 			       enum pp_pm_policy p_type, char *sysbuf);
+const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle);
 
+int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
+			    uint32_t param, uint32_t *readarg);
 #endif
 
 void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id);

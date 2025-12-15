@@ -20,9 +20,11 @@ properties:
           - bananapi,lhr050h41
           - bestar,bsd1218-a101kl68
           - feixin,k101-im2byl02
+          - raspberrypi,dsi-5inch
           - raspberrypi,dsi-7inch
           - startek,kd050hdfia020
           - tdo,tl050hdv35
+          - wanchanglong,w552946aaa
           - wanchanglong,w552946aba
       - const: ilitek,ili9881c
 
@@ -30,6 +32,7 @@ properties:
     maxItems: 1
 
   backlight: true
+  port: true
   power-supply: true
   reset-gpios: true
   rotation: true

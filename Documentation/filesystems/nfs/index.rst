@@ -13,5 +13,6 @@ NFS
    rpc-cache
    rpc-server-gss
    nfs41-server
+   nfsd-io-modes
    knfsd-stats
    reexport

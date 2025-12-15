@@ -36,16 +36,69 @@ if [ ${run_pe} -eq 1 ]; then
 	unset WAYLAND_DISPLAY
 fi
 
-ex_md5=$(mktemp /tmp/perf.ex.MD5.XXX)
-ex_sha1=$(mktemp /tmp/perf.ex.SHA1.XXX)
+build_id_dir=
+ex_source=$(mktemp /tmp/perf_buildid_test.ex.XXX.c)
+ex_md5=$(mktemp /tmp/perf_buildid_test.ex.MD5.XXX)
+ex_sha1=$(mktemp /tmp/perf_buildid_test.ex.SHA1.XXX)
 ex_pe=$(dirname $0)/../pe-file.exe
+data=$(mktemp /tmp/perf_buildid_test.data.XXX)
+log_out=$(mktemp /tmp/perf_buildid_test.log.out.XXX)
+log_err=$(mktemp /tmp/perf_buildid_test.log.err.XXX)
 
-echo 'int main(void) { return 0; }' | cc -Wl,--build-id=sha1 -o ${ex_sha1} -x c -
-echo 'int main(void) { return 0; }' | cc -Wl,--build-id=md5 -o ${ex_md5} -x c -
+cleanup() {
+	rm -f ${ex_source} ${ex_md5} ${ex_sha1} ${data} ${log_out} ${log_err}
+	if [ ${run_pe} -eq 1 ]; then
+		rm -r ${wineprefix}
+	fi
+        if [ -d ${build_id_dir} ]; then
+		rm -rf ${build_id_dir}
+        fi
+	trap - EXIT TERM INT
+}
 
+trap_cleanup() {
+	echo "Unexpected signal in ${FUNCNAME[1]}"
+	cleanup
+	exit 1
+}
+trap trap_cleanup EXIT TERM INT
+
+# Test program based on the noploop workload.
+cat <<EOF > ${ex_source}
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
+
+static volatile sig_atomic_t done;
+
+static void sighandler(int sig)
+{
+	(void)sig;
+	done = 1;
+}
+
+int main(int argc, const char **argv)
+{
+	int sec = 1;
+
+	if (argc > 1)
+		sec = atoi(argv[1]);
+
+	signal(SIGINT, sighandler);
+	signal(SIGALRM, sighandler);
+	alarm(sec);
+
+	while (!done)
+		continue;
+
+	return 0;
+}
+EOF
+cc -Wl,--build-id=sha1 ${ex_source} -o ${ex_sha1} -x c -
+cc -Wl,--build-id=md5 ${ex_source} -o ${ex_md5} -x c -
 echo "test binaries: ${ex_sha1} ${ex_md5} ${ex_pe}"
 
-check()
+get_build_id()
 {
 	case $1 in
 	*.exe)
@@ -64,6 +117,15 @@ check()
 		id=`readelf -n ${1} 2>/dev/null | grep 'Build ID' | awk '{print $3}'`
 		;;
 	esac
+	echo ${id}
+}
+
+check()
+{
+	file=$1
+	perf_data=$2
+
+	id=$(get_build_id $file)
 	echo "build id: ${id}"
 
 	id_file=${id#??}
@@ -76,37 +138,45 @@ check()
 		exit 1
 	fi
 
-	file=${build_id_dir}/.build-id/$id_dir/`readlink ${link}`/elf
-	echo "file: ${file}"
+	cached_file=${build_id_dir}/.build-id/$id_dir/`readlink ${link}`/elf
+	echo "file: ${cached_file}"
 
 	# Check for file permission of original file
 	# in case of pe-file.exe file
 	echo $1 | grep ".exe"
 	if [ $? -eq 0 ]; then
-		if [ -x $1 ] && [ ! -x $file ]; then
-			echo "failed: file ${file} executable does not exist"
+		if [ -x $1 ] && [ ! -x $cached_file ]; then
+			echo "failed: file ${cached_file} executable does not exist"
 			exit 1
 		fi
 
-		if [ ! -x $file ] && [ ! -e $file ]; then
-			echo "failed: file ${file} does not exist"
+		if [ ! -x $cached_file ] && [ ! -e $cached_file ]; then
+			echo "failed: file ${cached_file} does not exist"
 			exit 1
 		fi
-	elif [ ! -x $file ]; then
-		echo "failed: file ${file} does not exist"
+	elif [ ! -x $cached_file ]; then
+		echo "failed: file ${cached_file} does not exist"
 		exit 1
 	fi
 
-	diff ${file} ${1}
+	diff ${cached_file} ${1}
 	if [ $? -ne 0 ]; then
-		echo "failed: ${file} do not match"
+		echo "failed: ${cached_file} do not match"
 		exit 1
 	fi
 
-	${perf} buildid-cache -l | grep ${id}
+	${perf} buildid-cache -l | grep -q ${id}
 	if [ $? -ne 0 ]; then
 		echo "failed: ${id} is not reported by \"perf buildid-cache -l\""
 		exit 1
+	fi
+
+	if [ -n "${perf_data}" ]; then
+		${perf} buildid-list -i ${perf_data} | grep -q ${id}
+		if [ $? -ne 0 ]; then
+			echo "failed: ${id} is not reported by \"perf buildid-list -i ${perf_data}\""
+			exit 1
+		fi
 	fi
 
 	echo "OK for ${1}"
@@ -114,7 +184,7 @@ check()
 
 test_add()
 {
-	build_id_dir=$(mktemp -d /tmp/perf.debug.XXX)
+	build_id_dir=$(mktemp -d /tmp/perf_buildid_test.debug.XXX)
 	perf="perf --buildid-dir ${build_id_dir}"
 
 	${perf} buildid-cache -v -a ${1}
@@ -128,12 +198,88 @@ test_add()
 	rm -rf ${build_id_dir}
 }
 
+test_remove()
+{
+	build_id_dir=$(mktemp -d /tmp/perf_buildid_test.debug.XXX)
+	perf="perf --buildid-dir ${build_id_dir}"
+
+	${perf} buildid-cache -v -a ${1}
+	if [ $? -ne 0 ]; then
+		echo "failed: add ${1} to build id cache"
+		exit 1
+	fi
+
+	id=$(get_build_id ${1})
+	if ! ${perf} buildid-cache -l | grep -q ${id}; then
+		echo "failed: ${id} not in cache"
+		exit 1
+	fi
+
+	${perf} buildid-cache -v -r ${1}
+	if [ $? -ne 0 ]; then
+		echo "failed: remove ${id} from build id cache"
+		exit 1
+	fi
+
+	if ${perf} buildid-cache -l | grep -q ${id}; then
+		echo "failed: ${id} still in cache after remove"
+		exit 1
+	fi
+
+	echo "remove: OK"
+	rm -rf ${build_id_dir}
+}
+
+test_purge()
+{
+	build_id_dir=$(mktemp -d /tmp/perf_buildid_test.debug.XXX)
+	perf="perf --buildid-dir ${build_id_dir}"
+
+	id1=$(get_build_id ${ex_sha1})
+	${perf} buildid-cache -v -a ${ex_sha1}
+	if ! ${perf} buildid-cache -l | grep -q ${id1}; then
+		echo "failed: ${id1} not in cache"
+		exit 1
+	fi
+
+	id2=$(get_build_id ${ex_md5})
+	${perf} buildid-cache -v -a ${ex_md5}
+	if ! ${perf} buildid-cache -l | grep -q ${id2}; then
+		echo "failed: ${id2} not in cache"
+		exit 1
+	fi
+
+	# Purge by path
+	${perf} buildid-cache -v -p ${ex_sha1}
+	if [ $? -ne 0 ]; then
+		echo "failed: purge build id cache of ${ex_sha1}"
+		exit 1
+	fi
+
+	${perf} buildid-cache -v -p ${ex_md5}
+	if [ $? -ne 0 ]; then
+		echo "failed: purge build id cache of ${ex_md5}"
+		exit 1
+	fi
+
+	# Verify both are gone
+	if ${perf} buildid-cache -l | grep -q ${id1}; then
+		echo "failed: ${id1} still in cache after purge"
+		exit 1
+	fi
+
+	if ${perf} buildid-cache -l | grep -q ${id2}; then
+		echo "failed: ${id2} still in cache after purge"
+		exit 1
+	fi
+
+	echo "purge: OK"
+	rm -rf ${build_id_dir}
+}
+
 test_record()
 {
-	data=$(mktemp /tmp/perf.data.XXX)
-	build_id_dir=$(mktemp -d /tmp/perf.debug.XXX)
-	log_out=$(mktemp /tmp/perf.log.out.XXX)
-	log_err=$(mktemp /tmp/perf.log.err.XXX)
+	build_id_dir=$(mktemp -d /tmp/perf_buildid_test.debug.XXX)
 	perf="perf --buildid-dir ${build_id_dir}"
 
 	echo "running: perf record $*"
@@ -145,7 +291,7 @@ test_record()
 	fi
 
 	args="$*"
-	check ${args##* }
+	check ${args##* } ${data}
 
 	rm -f ${log_out} ${log_err}
 	rm -rf ${build_id_dir}
@@ -166,10 +312,15 @@ if [ ${run_pe} -eq 1 ]; then
 	test_record wine ${ex_pe}
 fi
 
-# cleanup
-rm ${ex_sha1} ${ex_md5}
-if [ ${run_pe} -eq 1 ]; then
-	rm -r ${wineprefix}
+# remove binaries manually via perf buildid-cache -r
+test_remove ${ex_sha1}
+test_remove ${ex_md5}
+if [ ${add_pe} -eq 1 ]; then
+	test_remove ${ex_pe}
 fi
 
+# purge binaries manually via perf buildid-cache -p
+test_purge
+
+cleanup
 exit 0

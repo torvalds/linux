@@ -128,9 +128,17 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	unsigned int i;
 	int ret = 1;
 
-	/* Careful in RCU mode */
-	if (!inode)
+	if (!inode) {
+		/*
+		 * Lookup of negative dentries will call ovl_dentry_init_flags()
+		 * with NULL upperdentry and NULL oe, resulting in the
+		 * DCACHE_OP*_REVALIDATE flags being cleared.  Hence the only
+		 * way to get a negative inode is due to a race with dentry
+		 * destruction.
+		 */
+		WARN_ON(!(flags & LOOKUP_RCU));
 		return -ECHILD;
+	}
 
 	oe = OVL_I_E(inode);
 	lowerstack = ovl_lowerstack(oe);
@@ -310,8 +318,7 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	bool retried = false;
 
 retry:
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
+	work = ovl_start_creating_upper(ofs, ofs->workbasedir, &QSTR(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -320,14 +327,12 @@ retry:
 		};
 
 		if (work->d_inode) {
-			err = -EEXIST;
-			inode_unlock(dir);
-			if (retried)
-				goto out_dput;
-
+			end_creating_keep(work);
 			if (persist)
 				return work;
-
+			err = -EEXIST;
+			if (retried)
+				goto out_dput;
 			retried = true;
 			err = ovl_workdir_cleanup(ofs, ofs->workbasedir, mnt, work, 0);
 			dput(work);
@@ -338,7 +343,7 @@ retry:
 		}
 
 		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
-		inode_unlock(dir);
+		end_creating_keep(work);
 		err = PTR_ERR(work);
 		if (IS_ERR(work))
 			goto out_err;
@@ -376,7 +381,6 @@ retry:
 		if (err)
 			goto out_dput;
 	} else {
-		inode_unlock(dir);
 		err = PTR_ERR(work);
 		goto out_err;
 	}
@@ -567,9 +571,10 @@ static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 {
 	struct dentry *workdir = ofs->workdir;
 	struct dentry *temp;
-	struct dentry *dest;
 	struct dentry *whiteout;
 	struct name_snapshot name;
+	struct renamedata rd = {};
+	char name2[OVL_TEMPNAME_SIZE];
 	int err;
 
 	temp = ovl_create_temp(ofs, workdir, OVL_CATTR(S_IFREG | 0));
@@ -577,23 +582,21 @@ static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 	if (IS_ERR(temp))
 		return err;
 
-	err = ovl_parent_lock(workdir, temp);
+	rd.mnt_idmap = ovl_upper_mnt_idmap(ofs);
+	rd.old_parent = workdir;
+	rd.new_parent = workdir;
+	rd.flags = RENAME_WHITEOUT;
+	ovl_tempname(name2);
+	err = start_renaming_dentry(&rd, 0, temp, &QSTR(name2));
 	if (err) {
 		dput(temp);
-		return err;
-	}
-	dest = ovl_lookup_temp(ofs, workdir);
-	err = PTR_ERR(dest);
-	if (IS_ERR(dest)) {
-		dput(temp);
-		ovl_parent_unlock(workdir);
 		return err;
 	}
 
 	/* Name is inline and stable - using snapshot as a copy helper */
 	take_dentry_name_snapshot(&name, temp);
-	err = ovl_do_rename(ofs, workdir, temp, workdir, dest, RENAME_WHITEOUT);
-	ovl_parent_unlock(workdir);
+	err = ovl_do_rename_rd(&rd);
+	end_renaming(&rd);
 	if (err) {
 		if (err == -EINVAL)
 			err = 0;
@@ -617,7 +620,6 @@ cleanup_temp:
 	ovl_cleanup(ofs, workdir, temp);
 	release_dentry_name_snapshot(&name);
 	dput(temp);
-	dput(dest);
 
 	return err;
 }
@@ -626,14 +628,15 @@ static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
 					   struct dentry *parent,
 					   const char *name, umode_t mode)
 {
-	size_t len = strlen(name);
 	struct dentry *child;
 
-	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	child = ovl_lookup_upper(ofs, name, parent, len);
-	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(ofs, parent, child, OVL_CATTR(mode));
-	inode_unlock(parent->d_inode);
+	child = ovl_start_creating_upper(ofs, parent, &QSTR(name));
+	if (!IS_ERR(child)) {
+		if (!child->d_inode)
+			child = ovl_create_real(ofs, parent, child,
+						OVL_CATTR(mode));
+		end_creating_keep(child);
+	}
 	dput(parent);
 
 	return child;
@@ -1369,53 +1372,35 @@ static void ovl_set_d_op(struct super_block *sb)
 	set_default_d_op(sb, &ovl_dentry_operations);
 }
 
-int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
+static int ovl_fill_super_creds(struct fs_context *fc, struct super_block *sb)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
+	struct cred *creator_cred = (struct cred *)ofs->creator_cred;
 	struct ovl_fs_context *ctx = fc->fs_private;
-	const struct cred *old_cred = NULL;
-	struct dentry *root_dentry;
-	struct ovl_entry *oe;
 	struct ovl_layer *layers;
-	struct cred *cred;
+	struct ovl_entry *oe = NULL;
 	int err;
-
-	err = -EIO;
-	if (WARN_ON(fc->user_ns != current_user_ns()))
-		goto out_err;
-
-	ovl_set_d_op(sb);
-
-	err = -ENOMEM;
-	if (!ofs->creator_cred)
-		ofs->creator_cred = cred = prepare_creds();
-	else
-		cred = (struct cred *)ofs->creator_cred;
-	if (!cred)
-		goto out_err;
-
-	old_cred = ovl_override_creds(sb);
 
 	err = ovl_fs_params_verify(ctx, &ofs->config);
 	if (err)
-		goto out_err;
+		return err;
 
 	err = -EINVAL;
 	if (ctx->nr == 0) {
 		if (!(fc->sb_flags & SB_SILENT))
 			pr_err("missing 'lowerdir'\n");
-		goto out_err;
+		return err;
 	}
 
 	err = -ENOMEM;
 	layers = kcalloc(ctx->nr + 1, sizeof(struct ovl_layer), GFP_KERNEL);
 	if (!layers)
-		goto out_err;
+		return err;
 
 	ofs->config.lowerdirs = kcalloc(ctx->nr + 1, sizeof(char *), GFP_KERNEL);
 	if (!ofs->config.lowerdirs) {
 		kfree(layers);
-		goto out_err;
+		return err;
 	}
 	ofs->layers = layers;
 	/*
@@ -1448,12 +1433,12 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		err = -EINVAL;
 		if (!ofs->config.workdir) {
 			pr_err("missing 'workdir'\n");
-			goto out_err;
+			return err;
 		}
 
 		err = ovl_get_upper(sb, ofs, &layers[0], &ctx->upper);
 		if (err)
-			goto out_err;
+			return err;
 
 		upper_sb = ovl_upper_mnt(ofs)->mnt_sb;
 		if (!ovl_should_sync(ofs)) {
@@ -1461,13 +1446,13 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 			if (errseq_check(&upper_sb->s_wb_err, ofs->errseq)) {
 				err = -EIO;
 				pr_err("Cannot mount volatile when upperdir has an unseen error. Sync upperdir fs to clear state.\n");
-				goto out_err;
+				return err;
 			}
 		}
 
 		err = ovl_get_workdir(sb, ofs, &ctx->upper, &ctx->work);
 		if (err)
-			goto out_err;
+			return err;
 
 		if (!ofs->workdir)
 			sb->s_flags |= SB_RDONLY;
@@ -1478,7 +1463,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	oe = ovl_get_lowerstack(sb, ctx, ofs, layers);
 	err = PTR_ERR(oe);
 	if (IS_ERR(oe))
-		goto out_err;
+		return err;
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
 	if (!ovl_upper_mnt(ofs))
@@ -1531,7 +1516,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 		sb->s_export_op = &ovl_export_fid_operations;
 
 	/* Never override disk quota limits or use reserved space */
-	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
+	cap_lower(creator_cred->cap_effective, CAP_SYS_RESOURCE);
 
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_xattr = ovl_xattr_handlers(ofs);
@@ -1549,27 +1534,44 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_iflags |= SB_I_EVM_HMAC_UNSUPPORTED;
 
 	err = -ENOMEM;
-	root_dentry = ovl_get_root(sb, ctx->upper.dentry, oe);
-	if (!root_dentry)
+	sb->s_root = ovl_get_root(sb, ctx->upper.dentry, oe);
+	if (!sb->s_root)
 		goto out_free_oe;
 
-	sb->s_root = root_dentry;
-
-	ovl_revert_creds(old_cred);
 	return 0;
 
 out_free_oe:
 	ovl_free_entry(oe);
+	return err;
+}
+
+int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+	int err;
+
+	err = -EIO;
+	if (WARN_ON(fc->user_ns != current_user_ns()))
+		goto out_err;
+
+	ovl_set_d_op(sb);
+
+	if (!ofs->creator_cred) {
+		err = -ENOMEM;
+		ofs->creator_cred = prepare_creds();
+		if (!ofs->creator_cred)
+			goto out_err;
+	}
+
+	with_ovl_creds(sb)
+		err = ovl_fill_super_creds(fc, sb);
+
 out_err:
-	/*
-	 * Revert creds before calling ovl_free_fs() which will call
-	 * put_cred() and put_cred() requires that the cred's that are
-	 * put are not the caller's creds, i.e., current->cred.
-	 */
-	if (old_cred)
-		ovl_revert_creds(old_cred);
-	ovl_free_fs(ofs);
-	sb->s_fs_info = NULL;
+	if (err) {
+		ovl_free_fs(ofs);
+		sb->s_fs_info = NULL;
+	}
+
 	return err;
 }
 

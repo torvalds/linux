@@ -37,6 +37,7 @@
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_module.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
@@ -45,6 +46,34 @@ static int ast_modeset = -1;
 
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, ast_modeset, int, 0400);
+
+void ast_device_init(struct ast_device *ast,
+		     enum ast_chip chip,
+		     enum ast_config_mode config_mode,
+		     void __iomem *regs,
+		     void __iomem *ioregs,
+		     const struct ast_device_quirks *quirks)
+{
+	ast->quirks = quirks;
+	ast->chip = chip;
+	ast->config_mode = config_mode;
+	ast->regs = regs;
+	ast->ioregs = ioregs;
+}
+
+void __ast_device_set_tx_chip(struct ast_device *ast, enum ast_tx_chip tx_chip)
+{
+	static const char * const info_str[] = {
+		"analog VGA",
+		"Sil164 TMDS transmitter",
+		"DP501 DisplayPort transmitter",
+		"ASPEED DisplayPort transmitter",
+	};
+
+	drm_info(&ast->base, "Using %s\n", info_str[tx_chip]);
+
+	ast->tx_chip = tx_chip;
+}
 
 /*
  * DRM driver
@@ -266,7 +295,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 	*chip_out = chip;
 	*config_mode_out = config_mode;
 
-	return 0;
+	return __AST_CHIP_GEN(chip);
 }
 
 static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -277,6 +306,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *ioregs;
 	enum ast_config_mode config_mode;
 	enum ast_chip chip;
+	unsigned int chip_gen;
 	struct drm_device *drm;
 	bool need_post = false;
 
@@ -349,10 +379,43 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	ret = ast_detect_chip(pdev, regs, ioregs, &chip, &config_mode);
-	if (ret)
+	if (ret < 0)
 		return ret;
+	chip_gen = ret;
 
-	drm = ast_device_create(pdev, &ast_driver, chip, config_mode, regs, ioregs, need_post);
+	switch (chip_gen) {
+	case 1:
+		drm = ast_2000_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 2:
+		drm = ast_2100_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 3:
+		drm = ast_2200_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 4:
+		drm = ast_2300_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 5:
+		drm = ast_2400_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 6:
+		drm = ast_2500_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	case 7:
+		drm = ast_2600_device_create(pdev, &ast_driver, chip, config_mode,
+					     regs, ioregs, need_post);
+		break;
+	default:
+		dev_err(&pdev->dev, "Gen%d not supported\n", chip_gen);
+		return -ENODEV;
+	}
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 	pci_set_drvdata(pdev, drm);

@@ -148,11 +148,16 @@ __STRUCT_FRACT(u32)
 
 /**
  * abs - return absolute value of an argument
- * @x: the value.  If it is unsigned type, it is converted to signed type first.
- *     char is treated as if it was signed (regardless of whether it really is)
- *     but the macro's return type is preserved as char.
+ * @x: the value.
  *
- * Return: an absolute value of x.
+ * If it is unsigned type, @x is converted to signed type first.
+ * char is treated as if it was signed (regardless of whether it really is)
+ * but the macro's return type is preserved as char.
+ *
+ * NOTE, for signed type if @x is the minimum, the returned result is undefined
+ * as there is not enough bits to represent it as a positive number.
+ *
+ * Return: an absolute value of @x.
  */
 #define abs(x)	__abs_choose_expr(x, long long,				\
 		__abs_choose_expr(x, long,				\

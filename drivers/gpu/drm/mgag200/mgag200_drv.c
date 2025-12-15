@@ -20,6 +20,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
 #include <drm/drm_pciids.h>
+#include <drm/drm_print.h>
 
 #include "mgag200_drv.h"
 

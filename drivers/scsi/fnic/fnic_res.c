@@ -134,7 +134,6 @@ int fnic_get_vnic_config(struct fnic *fnic)
 			    c->luns_per_tgt));
 
 	c->intr_timer = min_t(u16, VNIC_INTR_TIMER_MAX, c->intr_timer);
-	c->intr_timer_type = c->intr_timer_type;
 
 	/* for older firmware, GET_CONFIG will not return anything */
 	if (c->wq_copy_count == 0)

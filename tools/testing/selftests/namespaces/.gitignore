@@ -1,3 +1,12 @@
 nsid_test
 file_handle_test
 init_ino_test
+ns_active_ref_test
+listns_test
+listns_permissions_test
+listns_efault_test
+siocgskns_test
+cred_change_test
+stress_test
+listns_pagination_bug
+regression_pidfd_setns_test

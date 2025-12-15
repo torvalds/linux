@@ -67,8 +67,8 @@ properties:
   mode-gpios:
     description: Optional GPIOs for configuring alternate modes
     items:
-      - description: "mode selection GPIO #0"
-      - description: "mode selection GPIO #1"
+      - description: mode selection GPIO#0
+      - description: mode selection GPIO#1
 
 required:
   - compatible

@@ -17,6 +17,7 @@
 #include "intel_display_types.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
+#include "intel_lt_phy.h"
 #include "intel_lvds.h"
 #include "intel_lvds_regs.h"
 #include "intel_panel.h"
@@ -1232,6 +1233,28 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
+static int xe3plpd_crtc_compute_clock(struct intel_atomic_state *state,
+				      struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_encoder *encoder =
+		intel_get_crtc_new_encoder(state, crtc_state);
+	int ret;
+
+	ret = intel_lt_phy_pll_calc_state(crtc_state, encoder);
+	if (ret)
+		return ret;
+
+	/* TODO: Do the readback via intel_compute_shared_dplls() */
+	crtc_state->port_clock =
+			intel_lt_phy_calc_port_clock(encoder, crtc_state);
+
+	crtc_state->hw.adjusted_mode.crtc_clock = intel_crtc_dotclock(crtc_state);
+
+	return 0;
+}
+
 static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -1691,6 +1714,10 @@ static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
+static const struct intel_dpll_global_funcs xe3plpd_dpll_funcs = {
+	.crtc_compute_clock = xe3plpd_crtc_compute_clock,
+};
+
 static const struct intel_dpll_global_funcs mtl_dpll_funcs = {
 	.crtc_compute_clock = mtl_crtc_compute_clock,
 };
@@ -1789,7 +1816,9 @@ int intel_dpll_crtc_get_dpll(struct intel_atomic_state *state,
 void
 intel_dpll_init_clock_hook(struct intel_display *display)
 {
-	if (DISPLAY_VER(display) >= 14)
+	if (HAS_LT_PHY(display))
+		display->funcs.dpll = &xe3plpd_dpll_funcs;
+	else if (DISPLAY_VER(display) >= 14)
 		display->funcs.dpll = &mtl_dpll_funcs;
 	else if (display->platform.dg2)
 		display->funcs.dpll = &dg2_dpll_funcs;
@@ -1990,7 +2019,7 @@ static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	intel_de_posting_read(display, DPLL(display, pipe));
 	udelay(150);
 
-	if (intel_de_wait_for_set(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set_ms(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(display->drm, "DPLL %d failed to lock\n", pipe);
 }
 
@@ -2136,7 +2165,7 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	intel_de_write(display, DPLL(display, pipe), hw_state->dpll);
 
 	/* Check PLL is locked */
-	if (intel_de_wait_for_set(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set_ms(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(display->drm, "PLL %d failed to lock\n", pipe);
 }
 

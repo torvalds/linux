@@ -608,8 +608,8 @@ static int pppoe_release(struct socket *sock)
 	return 0;
 }
 
-static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
-		  int sockaddr_len, int flags)
+static int pppoe_connect(struct socket *sock, struct sockaddr_unsized *uservaddr,
+			 int sockaddr_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_pppox *sp = (struct sockaddr_pppox *)uservaddr;
