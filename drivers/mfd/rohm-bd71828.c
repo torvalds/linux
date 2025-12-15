@@ -157,55 +157,27 @@ static struct mfd_cell bd71828_mfd_cells[] = {
 };
 
 static const struct regmap_range bd71815_volatile_ranges[] = {
-	{
-		.range_min = BD71815_REG_SEC,
-		.range_max = BD71815_REG_YEAR,
-	}, {
-		.range_min = BD71815_REG_CONF,
-		.range_max = BD71815_REG_BAT_TEMP,
-	}, {
-		.range_min = BD71815_REG_VM_IBAT_U,
-		.range_max = BD71815_REG_CC_CTRL,
-	}, {
-		.range_min = BD71815_REG_CC_STAT,
-		.range_max = BD71815_REG_CC_CURCD_L,
-	}, {
-		.range_min = BD71815_REG_VM_BTMP_MON,
-		.range_max = BD71815_REG_VM_BTMP_MON,
-	}, {
-		.range_min = BD71815_REG_INT_STAT,
-		.range_max = BD71815_REG_INT_UPDATE,
-	}, {
-		.range_min = BD71815_REG_VM_VSYS_U,
-		.range_max = BD71815_REG_REX_CTRL_1,
-	}, {
-		.range_min = BD71815_REG_FULL_CCNTD_3,
-		.range_max = BD71815_REG_CCNTD_CHG_2,
-	},
+	regmap_reg_range(BD71815_REG_SEC, BD71815_REG_YEAR),
+	regmap_reg_range(BD71815_REG_CONF, BD71815_REG_BAT_TEMP),
+	regmap_reg_range(BD71815_REG_VM_IBAT_U, BD71815_REG_CC_CTRL),
+	regmap_reg_range(BD71815_REG_CC_STAT, BD71815_REG_CC_CURCD_L),
+	regmap_reg_range(BD71815_REG_VM_BTMP_MON, BD71815_REG_VM_BTMP_MON),
+	regmap_reg_range(BD71815_REG_INT_STAT, BD71815_REG_INT_UPDATE),
+	regmap_reg_range(BD71815_REG_VM_VSYS_U, BD71815_REG_REX_CTRL_1),
+	regmap_reg_range(BD71815_REG_FULL_CCNTD_3, BD71815_REG_CCNTD_CHG_2),
 };
 
 static const struct regmap_range bd71828_volatile_ranges[] = {
-	{
-		.range_min = BD71828_REG_PS_CTRL_1,
-		.range_max = BD71828_REG_PS_CTRL_1,
-	}, {
-		.range_min = BD71828_REG_PS_CTRL_3,
-		.range_max = BD71828_REG_PS_CTRL_3,
-	}, {
-		.range_min = BD71828_REG_RTC_SEC,
-		.range_max = BD71828_REG_RTC_YEAR,
-	}, {
-		/*
-		 * For now make all charger registers volatile because many
-		 * needs to be and because the charger block is not that
-		 * performance critical.
-		 */
-		.range_min = BD71828_REG_CHG_STATE,
-		.range_max = BD71828_REG_CHG_FULL,
-	}, {
-		.range_min = BD71828_REG_INT_MAIN,
-		.range_max = BD71828_REG_IO_STAT,
-	},
+	regmap_reg_range(BD71828_REG_PS_CTRL_1, BD71828_REG_PS_CTRL_1),
+	regmap_reg_range(BD71828_REG_PS_CTRL_3, BD71828_REG_PS_CTRL_3),
+	regmap_reg_range(BD71828_REG_RTC_SEC, BD71828_REG_RTC_YEAR),
+	/*
+	 * For now make all charger registers volatile because many
+	 * needs to be and because the charger block is not that
+	 * performance critical.
+	 */
+	regmap_reg_range(BD71828_REG_CHG_STATE, BD71828_REG_CHG_FULL),
+	regmap_reg_range(BD71828_REG_INT_MAIN, BD71828_REG_IO_STAT),
 };
 
 static const struct regmap_access_table bd71815_volatile_regs = {
