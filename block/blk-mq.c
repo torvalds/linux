@@ -811,9 +811,6 @@ void blk_mq_free_request(struct request *rq)
 
 	blk_mq_finish_request(rq);
 
-	if (unlikely(laptop_mode && !blk_rq_is_passthrough(rq)))
-		laptop_io_completion(q->disk->bdi);
-
 	rq_qos_done(q, rq);
 
 	WRITE_ONCE(rq->state, MQ_RQ_IDLE);

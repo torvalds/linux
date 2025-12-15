@@ -46,7 +46,6 @@ enum wb_reason {
 	WB_REASON_VMSCAN,
 	WB_REASON_SYNC,
 	WB_REASON_PERIODIC,
-	WB_REASON_LAPTOP_TIMER,
 	WB_REASON_FS_FREE_SPACE,
 	/*
 	 * There is no bdi forker thread any more and works are done
@@ -203,8 +202,6 @@ struct backing_dev_info {
 	struct device *dev;
 	char dev_name[64];
 	struct device *owner;
-
-	struct timer_list laptop_mode_wb_timer;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debug_dir;

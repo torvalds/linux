@@ -3305,8 +3305,7 @@ int ext4_alloc_da_blocks(struct inode *inode)
 	/*
 	 * We do something simple for now.  The filemap_flush() will
 	 * also start triggering a write of the data blocks, which is
-	 * not strictly speaking necessary (and for users of
-	 * laptop_mode, not even desirable).  However, to do otherwise
+	 * not strictly speaking necessary.  However, to do otherwise
 	 * would require replicating code paths in:
 	 *
 	 * ext4_writepages() ->

@@ -845,15 +845,6 @@ xfs_fs_sync_fs(
 	if (error)
 		return error;
 
-	if (laptop_mode) {
-		/*
-		 * The disk must be active because we're syncing.
-		 * We schedule log work now (now that the disk is
-		 * active) instead of later (when it might not be).
-		 */
-		flush_delayed_work(&mp->m_log->l_work);
-	}
-
 	/*
 	 * If we are called with page faults frozen out, it means we are about
 	 * to freeze the transaction subsystem. Take the opportunity to shut

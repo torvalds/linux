@@ -104,13 +104,13 @@ struct scan_control {
 	unsigned int force_deactivate:1;
 	unsigned int skipped_deactivate:1;
 
-	/* Writepage batching in laptop mode; RECLAIM_WRITE */
+	/* zone_reclaim_mode, boost reclaim */
 	unsigned int may_writepage:1;
 
-	/* Can mapped folios be reclaimed? */
+	/* zone_reclaim_mode */
 	unsigned int may_unmap:1;
 
-	/* Can folios be swapped as part of reclaim? */
+	/* zome_reclaim_mode, boost reclaim, cgroup restrictions */
 	unsigned int may_swap:1;
 
 	/* Not allow cache_trim_mode to be turned on as part of reclaim? */
@@ -6365,13 +6365,6 @@ retry:
 
 		if (sc->compaction_ready)
 			break;
-
-		/*
-		 * If we're getting trouble reclaiming, start doing
-		 * writepage even in laptop mode.
-		 */
-		if (sc->priority < DEF_PRIORITY - 2)
-			sc->may_writepage = 1;
 	} while (--sc->priority >= 0);
 
 	last_pgdat = NULL;
@@ -6580,7 +6573,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 		.order = order,
 		.nodemask = nodemask,
 		.priority = DEF_PRIORITY,
-		.may_writepage = !laptop_mode,
+		.may_writepage = 1,
 		.may_unmap = 1,
 		.may_swap = 1,
 	};
@@ -6624,7 +6617,7 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
 	struct scan_control sc = {
 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
 		.target_mem_cgroup = memcg,
-		.may_writepage = !laptop_mode,
+		.may_writepage = 1,
 		.may_unmap = 1,
 		.reclaim_idx = MAX_NR_ZONES - 1,
 		.may_swap = !noswap,
@@ -6670,7 +6663,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 		.reclaim_idx = MAX_NR_ZONES - 1,
 		.target_mem_cgroup = memcg,
 		.priority = DEF_PRIORITY,
-		.may_writepage = !laptop_mode,
+		.may_writepage = 1,
 		.may_unmap = 1,
 		.may_swap = !!(reclaim_options & MEMCG_RECLAIM_MAY_SWAP),
 		.proactive = !!(reclaim_options & MEMCG_RECLAIM_PROACTIVE),
@@ -7051,7 +7044,7 @@ restart:
 		 * from reclaim context. If no pages are reclaimed, the
 		 * reclaim will be aborted.
 		 */
-		sc.may_writepage = !laptop_mode && !nr_boost_reclaim;
+		sc.may_writepage = !nr_boost_reclaim;
 		sc.may_swap = !nr_boost_reclaim;
 
 		/*
@@ -7060,13 +7053,6 @@ restart:
 		 * regardless of classzone as this is about consistent aging.
 		 */
 		kswapd_age_node(pgdat, &sc);
-
-		/*
-		 * If we're getting trouble reclaiming, start doing writepage
-		 * even in laptop mode.
-		 */
-		if (sc.priority < DEF_PRIORITY - 2)
-			sc.may_writepage = 1;
 
 		/* Call soft limit reclaim before calling shrink_node. */
 		sc.nr_scanned = 0;
@@ -7799,7 +7785,7 @@ int user_proactive_reclaim(char *buf,
 				.reclaim_idx = gfp_zone(gfp_mask),
 				.proactive_swappiness = swappiness == -1 ? NULL : &swappiness,
 				.priority = DEF_PRIORITY,
-				.may_writepage = !laptop_mode,
+				.may_writepage = 1,
 				.nr_to_reclaim = max(batch_size, SWAP_CLUSTER_MAX),
 				.may_unmap = 1,
 				.may_swap = 1,

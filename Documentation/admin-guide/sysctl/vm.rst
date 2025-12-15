@@ -41,7 +41,6 @@ Currently, these files are in /proc/sys/vm:
 - extfrag_threshold
 - highmem_is_dirtyable
 - hugetlb_shm_group
-- laptop_mode
 - legacy_va_layout
 - lowmem_reserve_ratio
 - max_map_count
@@ -361,13 +360,6 @@ hugetlb_shm_group
 
 hugetlb_shm_group contains group id that is allowed to create SysV
 shared memory segment using hugetlb page.
-
-
-laptop_mode
-===========
-
-laptop_mode is a knob that controls "laptop mode". All the things that are
-controlled by this knob are discussed in Documentation/admin-guide/laptops/laptop-mode.rst.
 
 
 legacy_va_layout
