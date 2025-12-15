@@ -47,10 +47,9 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 }
 
 static struct drm_gem_object *
-intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
+intel_alloc_initial_plane_obj(struct intel_display *display,
 			      struct intel_initial_plane_config *plane_config)
 {
-	struct intel_display *display = to_intel_display(crtc);
 	struct intel_framebuffer *fb = plane_config->fb;
 
 	switch (fb->base.modifier) {
@@ -65,7 +64,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		return NULL;
 	}
 
-	return display->parent->initial_plane->alloc_obj(&crtc->base, plane_config);
+	return display->parent->initial_plane->alloc_obj(display->drm, plane_config);
 }
 
 static void
@@ -88,7 +87,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	if (!plane_config->fb)
 		return;
 
-	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
+	if (intel_alloc_initial_plane_obj(display, plane_config)) {
 		fb = &plane_config->fb->base;
 		vma = plane_config->vma;
 	} else {

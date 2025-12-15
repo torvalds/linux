@@ -228,11 +228,10 @@ err_obj:
 }
 
 static struct drm_gem_object *
-i915_alloc_initial_plane_obj(struct drm_crtc *_crtc,
+i915_alloc_initial_plane_obj(struct drm_device *drm,
 			     struct intel_initial_plane_config *plane_config)
 {
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct intel_display *display = to_intel_display(crtc);
+	struct intel_display *display = to_intel_display(drm);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct i915_vma *vma;

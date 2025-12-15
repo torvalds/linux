@@ -14,8 +14,6 @@
 
 #include "i915_vma.h"
 #include "intel_crtc.h"
-#include "intel_display.h"
-#include "intel_display_core.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -122,11 +120,10 @@ initial_plane_bo(struct xe_device *xe,
 }
 
 static struct drm_gem_object *
-xe_alloc_initial_plane_obj(struct drm_crtc *_crtc,
+xe_alloc_initial_plane_obj(struct drm_device *drm,
 			   struct intel_initial_plane_config *plane_config)
 {
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct xe_device *xe = to_xe_device(crtc->base.dev);
+	struct xe_device *xe = to_xe_device(drm);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct xe_bo *bo;
