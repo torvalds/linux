@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0
+# Test Kconfig file for conditional dependencies.
+
+# Enable module support for tristate testing
+config MODULES
+	bool "Enable loadable module support"
+	modules
+	default y
+
+config FOO
+	bool "FOO symbol"
+
+config BAR
+	bool "BAR symbol"
+
+config TEST_BASIC
+	bool "Test basic conditional dependency"
+	depends on FOO if BAR
+	default y
+
+config TEST_COMPLEX
+	bool "Test complex conditional dependency"
+	depends on (FOO && BAR) if (FOO || BAR)
+	default y
+
+config BAZ
+	tristate "BAZ symbol"
+
+config TEST_OPTIONAL
+	tristate "Test simple optional dependency"
+	depends on BAZ if BAZ
+	default y

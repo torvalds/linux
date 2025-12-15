@@ -118,7 +118,7 @@ applicable everywhere (see syntax).
   This is a shorthand notation for a type definition plus a value.
   Optionally dependencies for this default value can be added with "if".
 
-- dependencies: "depends on" <expr>
+- dependencies: "depends on" <expr> ["if" <expr>]
 
   This defines a dependency for this menu entry. If multiple
   dependencies are defined, they are connected with '&&'. Dependencies
@@ -133,6 +133,16 @@ applicable everywhere (see syntax).
 	depends on BAR
 	bool "foo"
 	default y
+
+  The dependency definition itself may be conditional by appending "if"
+  followed by an expression. For example::
+
+    config FOO
+	tristate
+	depends on BAR if BAZ
+
+  meaning that FOO is constrained by the value of BAR only if BAZ is
+  also set.
 
 - reverse dependencies: "select" <symbol> ["if" <expr>]
 
@@ -602,8 +612,14 @@ Some drivers are able to optionally use a feature from another module
 or build cleanly with that module disabled, but cause a link failure
 when trying to use that loadable module from a built-in driver.
 
-The most common way to express this optional dependency in Kconfig logic
-uses the slightly counterintuitive::
+The recommended way to express this optional dependency in Kconfig logic
+uses the conditional form::
+
+  config FOO
+	tristate "Support for foo hardware"
+	depends on BAR if BAR
+
+This slightly counterintuitive style is also widely used::
 
   config FOO
 	tristate "Support for foo hardware"

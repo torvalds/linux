@@ -1,0 +1,11 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# Main menu
+#
+CONFIG_MODULES=y
+# CONFIG_FOO is not set
+# CONFIG_BAR is not set
+CONFIG_TEST_BASIC=y
+CONFIG_TEST_COMPLEX=y
+# CONFIG_BAZ is not set
+CONFIG_TEST_OPTIONAL=y
