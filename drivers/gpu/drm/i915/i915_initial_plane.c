@@ -25,11 +25,9 @@ static void i915_initial_plane_vblank_wait(struct drm_crtc *crtc)
 	intel_crtc_wait_for_next_vblank(to_intel_crtc(crtc));
 }
 
-static bool
+static const struct intel_plane_state *
 intel_reuse_initial_plane_obj(struct intel_crtc *this,
-			      const struct intel_initial_plane_config plane_configs[],
-			      struct drm_framebuffer **fb,
-			      struct i915_vma **vma)
+			      const struct intel_initial_plane_config plane_configs[])
 {
 	struct intel_display *display = to_intel_display(this);
 	struct intel_crtc *crtc;
@@ -48,14 +46,11 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 		if (!plane_state->ggtt_vma)
 			continue;
 
-		if (plane_configs[this->pipe].base == plane_configs[crtc->pipe].base) {
-			*fb = plane_state->hw.fb;
-			*vma = plane_state->ggtt_vma;
-			return true;
-		}
+		if (plane_configs[this->pipe].base == plane_configs[crtc->pipe].base)
+			return plane_state;
 	}
 
-	return false;
+	return NULL;
 }
 
 static enum intel_memory_type
@@ -329,8 +324,15 @@ i915_find_initial_plane_obj(struct drm_crtc *_crtc,
 	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
 		fb = &plane_config->fb->base;
 		vma = plane_config->vma;
-	} else if (!intel_reuse_initial_plane_obj(crtc, plane_configs, &fb, &vma)) {
-		return -EINVAL;
+	} else {
+		const struct intel_plane_state *other_plane_state;
+
+		other_plane_state = intel_reuse_initial_plane_obj(crtc, plane_configs);
+		if (!other_plane_state)
+			return -EINVAL;
+
+		fb = other_plane_state->hw.fb;
+		vma = other_plane_state->ggtt_vma;
 	}
 
 	plane_state->uapi.rotation = plane_config->rotation;
