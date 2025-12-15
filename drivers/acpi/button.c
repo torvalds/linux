@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+#include <linux/platform_device.h>
 #include <acpi/button.h>
 
 #define ACPI_BUTTON_CLASS		"button"
@@ -145,8 +146,8 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 	{}
 };
 
-static int acpi_button_add(struct acpi_device *device);
-static void acpi_button_remove(struct acpi_device *device);
+static int acpi_button_probe(struct platform_device *pdev);
+static void acpi_button_remove(struct platform_device *pdev);
 
 #ifdef CONFIG_PM_SLEEP
 static int acpi_button_suspend(struct device *dev);
@@ -157,19 +158,19 @@ static int acpi_button_resume(struct device *dev);
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_button_pm, acpi_button_suspend, acpi_button_resume);
 
-static struct acpi_driver acpi_button_driver = {
-	.name = "button",
-	.class = ACPI_BUTTON_CLASS,
-	.ids = button_device_ids,
-	.ops = {
-		.add = acpi_button_add,
-		.remove = acpi_button_remove,
+static struct platform_driver acpi_button_driver = {
+	.probe = acpi_button_probe,
+	.remove = acpi_button_remove,
+	.driver = {
+		.name = "acpi-button",
+		.acpi_match_table = button_device_ids,
+		.pm = &acpi_button_pm,
 	},
-	.drv.pm = &acpi_button_pm,
 };
 
 struct acpi_button {
 	struct acpi_device *adev;
+	struct platform_device *pdev;
 	unsigned int type;
 	struct input_dev *input;
 	char phys[32];			/* for input device */
@@ -397,7 +398,7 @@ static int acpi_lid_update_state(struct acpi_button *button,
 		return state;
 
 	if (state && signal_wakeup)
-		acpi_pm_wakeup_event(&device->dev);
+		acpi_pm_wakeup_event(&button->pdev->dev);
 
 	return acpi_lid_notify_state(button, state);
 }
@@ -454,7 +455,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	acpi_pm_wakeup_event(&device->dev);
+	acpi_pm_wakeup_event(&button->pdev->dev);
 
 	if (button->suspended || event == ACPI_BUTTON_NOTIFY_WAKE)
 		return;
@@ -486,8 +487,7 @@ static u32 acpi_button_event(void *data)
 #ifdef CONFIG_PM_SLEEP
 static int acpi_button_suspend(struct device *dev)
 {
-	struct acpi_device *device = to_acpi_device(dev);
-	struct acpi_button *button = acpi_driver_data(device);
+	struct acpi_button *button = dev_get_drvdata(dev);
 
 	button->suspended = true;
 	return 0;
@@ -495,9 +495,9 @@ static int acpi_button_suspend(struct device *dev)
 
 static int acpi_button_resume(struct device *dev)
 {
+	struct acpi_button *button = dev_get_drvdata(dev);
+	struct acpi_device *device = ACPI_COMPANION(dev);
 	struct input_dev *input;
-	struct acpi_device *device = to_acpi_device(dev);
-	struct acpi_button *button = acpi_driver_data(device);
 
 	button->suspended = false;
 	if (button->type == ACPI_BUTTON_TYPE_LID) {
@@ -529,8 +529,9 @@ static int acpi_lid_input_open(struct input_dev *input)
 	return 0;
 }
 
-static int acpi_button_add(struct acpi_device *device)
+static int acpi_button_probe(struct platform_device *pdev)
 {
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	acpi_notify_handler handler;
 	struct acpi_button *button;
 	struct input_dev *input;
@@ -547,8 +548,9 @@ static int acpi_button_add(struct acpi_device *device)
 	if (!button)
 		return -ENOMEM;
 
-	device->driver_data = button;
+	platform_set_drvdata(pdev, button);
 
+	button->pdev = pdev;
 	button->adev = device;
 	button->input = input = input_allocate_device();
 	if (!input) {
@@ -599,7 +601,7 @@ static int acpi_button_add(struct acpi_device *device)
 	input->phys = button->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = button->type;
-	input->dev.parent = &device->dev;
+	input->dev.parent = &pdev->dev;
 
 	switch (button->type) {
 	case ACPI_BUTTON_TYPE_POWER:
@@ -653,7 +655,7 @@ static int acpi_button_add(struct acpi_device *device)
 		lid_device = device;
 	}
 
-	device_init_wakeup(&device->dev, true);
+	device_init_wakeup(&pdev->dev, true);
 	pr_info("%s [%s]\n", name, acpi_device_bid(device));
 	return 0;
 
@@ -666,9 +668,10 @@ err_free_button:
 	return error;
 }
 
-static void acpi_button_remove(struct acpi_device *device)
+static void acpi_button_remove(struct platform_device *pdev)
 {
-	struct acpi_button *button = acpi_driver_data(device);
+	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_button *button = platform_get_drvdata(pdev);
 
 	switch (device->device_type) {
 	case ACPI_BUS_TYPE_POWER_BUTTON:
@@ -727,7 +730,7 @@ module_param_call(lid_init_state,
 		  NULL, 0644);
 MODULE_PARM_DESC(lid_init_state, "Behavior for reporting LID initial state");
 
-static int acpi_button_register_driver(struct acpi_driver *driver)
+static int __init acpi_button_init(void)
 {
 	const struct dmi_system_id *dmi_id;
 
@@ -743,20 +746,20 @@ static int acpi_button_register_driver(struct acpi_driver *driver)
 	 * Modules such as nouveau.ko and i915.ko have a link time dependency
 	 * on acpi_lid_open(), and would therefore not be loadable on ACPI
 	 * capable kernels booted in non-ACPI mode if the return value of
-	 * acpi_bus_register_driver() is returned from here with ACPI disabled
+	 * platform_driver_register() is returned from here with ACPI disabled
 	 * when this driver is built as a module.
 	 */
 	if (acpi_disabled)
 		return 0;
 
-	return acpi_bus_register_driver(driver);
+	return platform_driver_register(&acpi_button_driver);
 }
 
-static void acpi_button_unregister_driver(struct acpi_driver *driver)
+static void __exit acpi_button_exit(void)
 {
 	if (!acpi_disabled)
-		acpi_bus_unregister_driver(driver);
+		platform_driver_unregister(&acpi_button_driver);
 }
 
-module_driver(acpi_button_driver, acpi_button_register_driver,
-	       acpi_button_unregister_driver);
+module_init(acpi_button_init);
+module_exit(acpi_button_exit);
