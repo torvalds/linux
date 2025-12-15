@@ -26,6 +26,16 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 static void plane_config_fini(struct intel_display *display,
 			      struct intel_initial_plane_config *plane_config)
 {
+	if (plane_config->fb) {
+		struct drm_framebuffer *fb = &plane_config->fb->base;
+
+		/* We may only have the stub and not a full framebuffer */
+		if (drm_framebuffer_read_refcount(fb))
+			drm_framebuffer_put(fb);
+		else
+			kfree(fb);
+	}
+
 	display->parent->initial_plane->config_fini(plane_config);
 }
 
