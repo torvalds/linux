@@ -193,7 +193,8 @@ void intel_dp_pcon_dsc_configure(struct intel_dp *intel_dp,
 
 void intel_dp_invalidate_source_oui(struct intel_dp *intel_dp);
 void intel_dp_wait_source_oui(struct intel_dp *intel_dp);
-int intel_dp_output_bpp(enum intel_output_format output_format, int bpp);
+int intel_dp_output_format_link_bpp_x16(enum intel_output_format output_format,
+					int pipe_bpp);
 
 bool intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 				    struct drm_connector_state *conn_state,
