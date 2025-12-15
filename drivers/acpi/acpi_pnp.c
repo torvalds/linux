@@ -343,24 +343,10 @@ static bool acpi_pnp_match(const char *idstr, const struct acpi_device_id **matc
 	return false;
 }
 
-/*
- * If one of the device IDs below is present in the list of device IDs of a
- * given ACPI device object, the PNP scan handler will not attach to that
- * object, because there is a proper non-PNP driver in the kernel for the
- * device represented by it.
- */
-static const struct acpi_device_id acpi_nonpnp_device_ids[] = {
-	{"INT3F0D"},
-	{"INTC1080"},
-	{"INTC1081"},
-	{"INTC1099"},
-	{""},
-};
-
 static int acpi_pnp_attach(struct acpi_device *adev,
 			   const struct acpi_device_id *id)
 {
-	return !!acpi_match_device_ids(adev, acpi_nonpnp_device_ids);
+	return true;
 }
 
 static struct acpi_scan_handler acpi_pnp_handler = {
