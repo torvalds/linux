@@ -502,6 +502,97 @@ efault:
 #ifdef CONFIG_RSEQ_SLICE_EXTENSION
 DEFINE_STATIC_KEY_TRUE(rseq_slice_extension_key);
 
+static inline void rseq_slice_set_need_resched(struct task_struct *curr)
+{
+	/*
+	 * The interrupt guard is required to prevent inconsistent state in
+	 * this case:
+	 *
+	 * set_tsk_need_resched()
+	 * --> Interrupt
+	 *       wakeup()
+	 *        set_tsk_need_resched()
+	 *	  set_preempt_need_resched()
+	 *     schedule_on_return()
+	 *        clear_tsk_need_resched()
+	 *	  clear_preempt_need_resched()
+	 * set_preempt_need_resched()		<- Inconsistent state
+	 *
+	 * This is safe vs. a remote set of TIF_NEED_RESCHED because that
+	 * only sets the already set bit and does not create inconsistent
+	 * state.
+	 */
+	scoped_guard(irq)
+		set_need_resched_current();
+}
+
+static void rseq_slice_validate_ctrl(u32 expected)
+{
+	u32 __user *sctrl = &current->rseq.usrptr->slice_ctrl.all;
+	u32 uval;
+
+	if (get_user(uval, sctrl) || uval != expected)
+		force_sig(SIGSEGV);
+}
+
+/*
+ * Invoked from syscall entry if a time slice extension was granted and the
+ * kernel did not clear it before user space left the critical section.
+ *
+ * While the recommended way to relinquish the CPU side effect free is
+ * rseq_slice_yield(2), any syscall within a granted slice terminates the
+ * grant and immediately reschedules if required. This supports onion layer
+ * applications, where the code requesting the grant cannot control the
+ * code within the critical section.
+ */
+void rseq_syscall_enter_work(long syscall)
+{
+	struct task_struct *curr = current;
+	struct rseq_slice_ctrl ctrl = { .granted = curr->rseq.slice.state.granted };
+
+	clear_task_syscall_work(curr, SYSCALL_RSEQ_SLICE);
+
+	if (static_branch_unlikely(&rseq_debug_enabled))
+		rseq_slice_validate_ctrl(ctrl.all);
+
+	/*
+	 * The kernel might have raced, revoked the grant and updated
+	 * userspace, but kept the SLICE work set.
+	 */
+	if (!ctrl.granted)
+		return;
+
+	/*
+	 * Required to make set_tsk_need_resched() correct on PREEMPT[RT]
+	 * kernels. Leaving the scope will reschedule on preemption models
+	 * FULL, LAZY and RT if necessary.
+	 */
+	scoped_guard(preempt) {
+		/*
+		 * Now that preemption is disabled, quickly check whether
+		 * the task was already rescheduled before arriving here.
+		 */
+		if (!curr->rseq.event.sched_switch) {
+			rseq_slice_set_need_resched(curr);
+
+			if (syscall == __NR_rseq_slice_yield) {
+				rseq_stat_inc(rseq_stats.s_yielded);
+				/* Update the yielded state for syscall return */
+				curr->rseq.slice.yielded = 1;
+			} else {
+				rseq_stat_inc(rseq_stats.s_aborted);
+			}
+		}
+	}
+	/* Reschedule on NONE/VOLUNTARY preemption models */
+	cond_resched();
+
+	/* Clear the grant in kernel state and user space */
+	curr->rseq.slice.state.granted = false;
+	if (put_user(0U, &curr->rseq.usrptr->slice_ctrl.all))
+		force_sig(SIGSEGV);
+}
+
 int rseq_slice_extension_prctl(unsigned long arg2, unsigned long arg3)
 {
 	switch (arg2) {
