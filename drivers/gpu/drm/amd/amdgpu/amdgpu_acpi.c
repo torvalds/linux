@@ -744,7 +744,8 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 
 		size = *(u16 *) info->buffer.pointer;
 		if (size < 3) {
-			DRM_INFO("ATCS buffer is too small: %zu\n", size);
+			drm_info(adev_to_drm(adev),
+				"ATCS buffer is too small: %zu\n", size);
 			kfree(info);
 			return -EINVAL;
 		}
@@ -803,7 +804,7 @@ int amdgpu_acpi_power_shift_control(struct amdgpu_device *adev,
 
 	info = amdgpu_atcs_call(atcs, ATCS_FUNCTION_POWER_SHIFT_CONTROL, &params);
 	if (!info) {
-		DRM_ERROR("ATCS PSC update failed\n");
+		drm_err(adev_to_drm(adev), "ATCS PSC call failed\n");
 		return -EIO;
 	}
 
@@ -1120,10 +1121,8 @@ int amdgpu_acpi_enumerate_xcc(void)
 
 		xcc_info = kzalloc(sizeof(struct amdgpu_acpi_xcc_info),
 				   GFP_KERNEL);
-		if (!xcc_info) {
-			DRM_ERROR("Failed to allocate memory for xcc info\n");
+		if (!xcc_info)
 			return -ENOMEM;
-		}
 
 		INIT_LIST_HEAD(&xcc_info->list);
 		xcc_info->handle = acpi_device_handle(acpi_dev);

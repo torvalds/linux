@@ -92,7 +92,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 		return;
 
 	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_UNLOAD))
-		DRM_WARN("smart shift update failed\n");
+		drm_warn(dev, "smart shift update failed\n");
 
 	amdgpu_acpi_fini(adev);
 	amdgpu_device_fini_hw(adev);
@@ -105,7 +105,7 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 	mutex_lock(&mgpu_info.mutex);
 
 	if (mgpu_info.num_gpu >= MAX_GPU_INSTANCE) {
-		DRM_ERROR("Cannot register more gpu instance\n");
+		drm_err(adev_to_drm(adev), "Cannot register more gpu instance\n");
 		mutex_unlock(&mgpu_info.mutex);
 		return;
 	}
@@ -162,7 +162,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 
 	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_LOAD))
-		DRM_WARN("smart shift update failed\n");
+		drm_warn(dev, "smart shift update failed\n");
 
 out:
 	if (r)
@@ -1502,7 +1502,9 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	r = amdgpu_userq_mgr_init(&fpriv->userq_mgr, file_priv, adev);
 	if (r)
-		DRM_WARN("Can't setup usermode queues, use legacy workload submission only\n");
+		drm_warn(adev_to_drm(adev),
+			 "Failed to init usermode queue manager (%d), use legacy workload submission only\n",
+			 r);
 
 	r = amdgpu_eviction_fence_init(&fpriv->evf_mgr);
 	if (r)

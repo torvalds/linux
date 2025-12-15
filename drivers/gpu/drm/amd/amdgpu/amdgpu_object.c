@@ -1081,10 +1081,10 @@ int amdgpu_bo_init(struct amdgpu_device *adev)
 				adev->gmc.aper_size);
 	}
 
-	DRM_INFO("Detected VRAM RAM=%lluM, BAR=%lluM\n",
+	drm_info(adev_to_drm(adev), "Detected VRAM RAM=%lluM, BAR=%lluM\n",
 		 adev->gmc.mc_vram_size >> 20,
 		 (unsigned long long)adev->gmc.aper_size >> 20);
-	DRM_INFO("RAM width %dbits %s\n",
+	drm_info(adev_to_drm(adev), "RAM width %dbits %s\n",
 		 adev->gmc.vram_width, amdgpu_vram_names[adev->gmc.vram_type]);
 	return amdgpu_ttm_init(adev);
 }

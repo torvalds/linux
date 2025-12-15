@@ -3002,7 +3002,7 @@ static void gfx_v6_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t xcc_id
 static void gfx_v6_0_select_me_pipe_q(struct amdgpu_device *adev,
 				  u32 me, u32 pipe, u32 q, u32 vm, u32 xcc_id)
 {
-	DRM_INFO("Not implemented\n");
+	drm_info(adev_to_drm(adev), "Not implemented\n");
 }
 
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {

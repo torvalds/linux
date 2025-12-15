@@ -95,7 +95,7 @@ static int parse_write_buffer_into_params(char *wr_buf, uint32_t wr_buf_size,
 		return -EFAULT;
 	}
 
-	/* check number of parameters. isspace could not differ space and \n */
+	/* check number of parameters. isspace could not differ space and\n */
 	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
 		/* skip space*/
 		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {

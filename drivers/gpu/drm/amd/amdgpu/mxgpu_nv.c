@@ -96,7 +96,9 @@ static int xgpu_nv_poll_ack(struct amdgpu_device *adev)
 		timeout -= 5;
 	} while (timeout > 1);
 
-	dev_err(adev->dev, "Doesn't get TRN_MSG_ACK from pf in %d msec \n", NV_MAILBOX_POLL_ACK_TIMEDOUT);
+	dev_err(adev->dev,
+		"Doesn't get TRN_MSG_ACK from pf in %d msec\n",
+		NV_MAILBOX_POLL_ACK_TIMEDOUT);
 
 	return -ETIME;
 }

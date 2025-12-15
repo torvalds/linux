@@ -1048,7 +1048,7 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	if (adev->gfx.ce_feature_version >= 46 &&
 	    adev->gfx.pfp_feature_version >= 46) {
 		adev->virt.chained_ib_support = true;
-		DRM_INFO("Chained IB support enabled!\n");
+		drm_info(adev_to_drm(adev), "Chained IB support enabled!\n");
 	} else
 		adev->virt.chained_ib_support = false;
 
@@ -3820,7 +3820,7 @@ static void gfx_v8_0_wait_for_rlc_serdes(struct amdgpu_device *adev)
 				gfx_v8_0_select_se_sh(adev, 0xffffffff,
 						      0xffffffff, 0xffffffff, 0);
 				mutex_unlock(&adev->grbm_idx_mutex);
-				DRM_INFO("Timeout wait for RLC serdes %u,%u\n",
+				drm_info(adev_to_drm(adev), "Timeout wait for RLC serdes %u,%u\n",
 					 i, j);
 				return;
 			}
@@ -6669,7 +6669,7 @@ static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data,
 
 	switch (enc) {
 		case 0:
-			DRM_INFO("SQ general purpose intr detected:"
+			drm_info(adev_to_drm(adev), "SQ general purpose intr detected:"
 					"se_id %d, immed_overflow %d, host_reg_overflow %d,"
 					"host_cmd_overflow %d, cmd_timestamp %d,"
 					"reg_timestamp %d, thread_trace_buff_full %d,"
@@ -6711,7 +6711,7 @@ static void gfx_v8_0_parse_sq_irq(struct amdgpu_device *adev, unsigned ih_data,
 			else
 				sprintf(type, "EDC/ECC error");
 
-			DRM_INFO(
+			drm_info(adev_to_drm(adev),
 				"SQ %s detected: "
 					"se_id %d, sh_id %d, cu_id %d, simd_id %d, wave_id %d, vm_id %d "
 					"trap %s, sq_ed_info.source %s.\n",

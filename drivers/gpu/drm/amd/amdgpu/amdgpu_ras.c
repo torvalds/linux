@@ -4422,10 +4422,10 @@ static int amdgpu_persistent_edc_harvesting(struct amdgpu_device *adev,
 		return 0;
 
 	if (amdgpu_ras_query_error_status(adev, &info) != 0)
-		DRM_WARN("RAS init harvest failure");
+		drm_warn(adev_to_drm(adev), "RAS init query failure");
 
 	if (amdgpu_ras_reset_error_status(adev, ras_block->block) != 0)
-		DRM_WARN("RAS init harvest reset failure");
+		drm_warn(adev_to_drm(adev), "RAS init harvest reset failure");
 
 	return 0;
 }

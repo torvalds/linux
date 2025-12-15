@@ -1301,7 +1301,8 @@ static void gfx_v9_0_check_fw_write_wait(struct amdgpu_device *adev)
 	     (adev->gfx.mec_feature_version < 46) ||
 	     (adev->gfx.pfp_fw_version < 0x000000b7) ||
 	     (adev->gfx.pfp_feature_version < 46)))
-		DRM_WARN_ONCE("CP firmware version too old, please update!");
+		drm_warn_once(adev_to_drm(adev),
+			      "CP firmware version too old, please update!");
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 0, 1):
@@ -2040,7 +2041,7 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		gb_addr_config = VEGA12_GB_ADDR_CONFIG_GOLDEN;
-		DRM_INFO("fix gfx.config for vega12\n");
+		drm_info(adev_to_drm(adev), "fix gfx.config for vega12\n");
 		break;
 	case IP_VERSION(9, 4, 0):
 		adev->gfx.ras = &gfx_v9_0_ras;
@@ -2728,7 +2729,7 @@ static void gfx_v9_0_wait_for_rlc_serdes(struct amdgpu_device *adev)
 				amdgpu_gfx_select_se_sh(adev, 0xffffffff,
 						      0xffffffff, 0xffffffff, 0);
 				mutex_unlock(&adev->grbm_idx_mutex);
-				DRM_INFO("Timeout wait for RLC serdes %u,%u\n",
+				drm_info(adev_to_drm(adev), "Timeout wait for RLC serdes %u,%u\n",
 					 i, j);
 				return;
 			}
@@ -3151,7 +3152,7 @@ static void gfx_v9_0_rlc_start(struct amdgpu_device *adev)
 	/* RLC_GPM_GENERAL_6 : RLC Ucode version */
 	rlc_ucode_ver = RREG32_SOC15(GC, 0, mmRLC_GPM_GENERAL_6);
 	if(rlc_ucode_ver == 0x108) {
-		DRM_INFO("Using rlc debug ucode. mmRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i \n",
+		drm_info(adev_to_drm(adev), "Using rlc debug ucode. mmRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i\n",
 				rlc_ucode_ver, adev->gfx.rlc_fw_version);
 		/* RLC_GPM_TIMER_INT_3 : Timer interval in RefCLK cycles,
 		 * default is 0x9C4 to create a 100us interval */
@@ -3334,12 +3335,12 @@ static int gfx_v9_0_cp_gfx_start(struct amdgpu_device *adev)
 	 */
 	if (adev->flags & AMD_IS_APU &&
 			adev->in_s3 && !pm_resume_via_firmware()) {
-		DRM_INFO("Will skip the CSB packet resubmit\n");
+		drm_info(adev_to_drm(adev), "Will skip the CSB packet resubmit\n");
 		return 0;
 	}
 	r = amdgpu_ring_alloc(ring, gfx_v9_0_get_csb_size(adev) + 4 + 3);
 	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "cp failed to lock ring (%d).\n", r);
 		return r;
 	}
 
@@ -5734,7 +5735,7 @@ static int gfx_v9_0_ring_preempt_ib(struct amdgpu_ring *ring)
 
 	if (i >= adev->usec_timeout) {
 		r = -EINVAL;
-		DRM_WARN("ring %d timeout to preempt ib\n", ring->idx);
+		drm_warn(adev_to_drm(adev), "ring %d timeout to preempt ib\n", ring->idx);
 	}
 
 	/*reset the CP_VMID_PREEMPT after trailing fence*/

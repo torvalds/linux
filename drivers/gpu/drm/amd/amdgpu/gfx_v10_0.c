@@ -4170,7 +4170,7 @@ static void gfx_v10_0_check_fw_write_wait(struct amdgpu_device *adev)
 	}
 
 	if (!adev->gfx.cp_fw_write_wait)
-		DRM_WARN_ONCE("CP firmware version too old, please update!");
+		drm_warn_once(adev_to_drm(adev), "CP firmware version too old, please update!");
 }
 
 static bool gfx_v10_0_navi10_gfxoff_should_enable(struct amdgpu_device *adev)
@@ -9385,7 +9385,7 @@ static int gfx_v10_0_bad_op_irq(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
-	DRM_ERROR("Illegal opcode in command stream \n");
+	DRM_ERROR("Illegal opcode in command stream\n");
 	gfx_v10_0_handle_priv_fault(adev, entry);
 	return 0;
 }

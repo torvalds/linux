@@ -1552,16 +1552,16 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 		PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE__SHIFT;
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
 		if (current_data_rate == 2) {
-			DRM_INFO("PCIE gen 3 link speeds already enabled\n");
+			drm_info(adev_to_drm(adev), "PCIE gen 3 link speeds already enabled\n");
 			return;
 		}
-		DRM_INFO("enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
+		drm_info(adev_to_drm(adev), "enabling PCIE gen 3 link speeds, disable with amdgpu.pcie_gen2=0\n");
 	} else if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) {
 		if (current_data_rate == 1) {
-			DRM_INFO("PCIE gen 2 link speeds already enabled\n");
+			drm_info(adev_to_drm(adev), "PCIE gen 2 link speeds already enabled\n");
 			return;
 		}
-		DRM_INFO("enabling PCIE gen 2 link speeds, disable with amdgpu.pcie_gen2=0\n");
+		drm_info(adev_to_drm(adev), "enabling PCIE gen 2 link speeds, disable with amdgpu.pcie_gen2=0\n");
 	}
 
 	if (!pci_is_pcie(root) || !pci_is_pcie(adev->pdev))

@@ -4796,7 +4796,7 @@ static int gfx_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	adev->gfx.is_poweron = true;
 
 	if(get_gb_addr_config(adev))
-		DRM_WARN("Invalid gb_addr_config !\n");
+		drm_warn(adev_to_drm(adev), "Invalid gb_addr_config !\n");
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
 	    adev->gfx.rs64_enable)
@@ -6669,7 +6669,7 @@ static int gfx_v11_0_bad_op_irq(struct amdgpu_device *adev,
 				struct amdgpu_irq_src *source,
 				struct amdgpu_iv_entry *entry)
 {
-	DRM_ERROR("Illegal opcode in command stream \n");
+	DRM_ERROR("Illegal opcode in command stream\n");
 	gfx_v11_0_handle_priv_fault(adev, entry);
 	return 0;
 }

@@ -105,7 +105,9 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 			continue;
 
 		if (idx >= AMDGPU_DM_MAX_CRTC) {
-			DRM_WARN("%s connected connectors exceed max crtc\n", __func__);
+			drm_warn(adev_to_drm(adev),
+				"%s connected connectors exceed max crtc\n",
+				__func__);
 			mutex_unlock(&ddev->mode_config.mutex);
 			return;
 		}

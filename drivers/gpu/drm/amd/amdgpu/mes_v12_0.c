@@ -699,7 +699,7 @@ static int mes_v12_0_misc_op(struct amdgpu_mes *mes,
 		break;
 
 	default:
-		DRM_ERROR("unsupported misc op (%d) \n", input->op);
+		DRM_ERROR("unsupported misc op (%d)\n", input->op);
 		return -EINVAL;
 	}
 

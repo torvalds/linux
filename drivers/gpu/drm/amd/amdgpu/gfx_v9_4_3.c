@@ -1482,7 +1482,7 @@ static void gfx_v9_4_3_xcc_wait_for_rlc_serdes(struct amdgpu_device *adev,
 							    0xffffffff,
 							    0xffffffff, xcc_id);
 				mutex_unlock(&adev->grbm_idx_mutex);
-				DRM_INFO("Timeout wait for RLC serdes %u,%u\n",
+				drm_info(adev_to_drm(adev), "Timeout wait for RLC serdes %u,%u\n",
 					 i, j);
 				return;
 			}
@@ -1583,7 +1583,7 @@ static void gfx_v9_4_3_rlc_start(struct amdgpu_device *adev)
 		rlc_ucode_ver = RREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_GENERAL_6);
 		if (rlc_ucode_ver == 0x108) {
 			dev_info(adev->dev,
-				 "Using rlc debug ucode. regRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i \n",
+				 "Using rlc debug ucode. regRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i\n",
 				 rlc_ucode_ver, adev->gfx.rlc_fw_version);
 			/* RLC_GPM_TIMER_INT_3 : Timer interval in RefCLK cycles,
 			 * default is 0x9C4 to create a 100us interval */

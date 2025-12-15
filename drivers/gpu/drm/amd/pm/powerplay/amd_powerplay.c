@@ -198,7 +198,7 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 						&adev->pm.smu_prv_buffer,
 						&gpu_addr,
 						&cpu_ptr)) {
-		DRM_ERROR("amdgpu: failed to create smu prv buffer\n");
+		drm_err(adev_to_drm(adev), "failed to create smu prv buffer\n");
 		return;
 	}
 
@@ -213,7 +213,7 @@ static void pp_reserve_vram_for_smu(struct amdgpu_device *adev)
 	if (r) {
 		amdgpu_bo_free_kernel(&adev->pm.smu_prv_buffer, NULL, NULL);
 		adev->pm.smu_prv_buffer = NULL;
-		DRM_ERROR("amdgpu: failed to notify SMU buffer address\n");
+		drm_err(adev_to_drm(adev), "failed to notify SMU buffer address\n");
 	}
 }
 
@@ -1053,7 +1053,8 @@ static int pp_get_current_clocks(void *handle,
 					&hw_clocks, PHM_PerformanceLevelDesignation_Activity);
 
 	if (ret) {
-		pr_debug("Error in phm_get_clock_info \n");
+		drm_err(adev_to_drm(hwmgr->adev),
+		       "Error in phm_get_clock_info\n");
 		return -EINVAL;
 	}
 

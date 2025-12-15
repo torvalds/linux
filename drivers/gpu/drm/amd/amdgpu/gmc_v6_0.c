@@ -555,7 +555,7 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 		gmc_v6_0_set_fault_enable_default(adev, true);
 
 	gmc_v6_0_flush_gpu_tlb(adev, 0, 0, 0);
-	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
+	drm_info(adev_to_drm(adev), "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned int)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
 	return 0;

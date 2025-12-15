@@ -6225,7 +6225,7 @@ static int amdgpu_device_sched_resume(struct list_head *device_list,
 			    !amdgpu_ras_eeprom_check_err_threshold(tmp_adev))
 				dev_info(
 					tmp_adev->dev,
-					"GPU reset(%d) failed with error %d \n",
+					"GPU reset(%d) failed with error %d\n",
 					atomic_read(
 						&tmp_adev->gpu_reset_counter),
 					tmp_adev->asic_reset_res);

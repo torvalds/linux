@@ -2200,7 +2200,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				AMDGPU_GEM_DOMAIN_GTT,
 				&adev->mman.sdma_access_bo, NULL,
 				&adev->mman.sdma_access_ptr))
-		DRM_WARN("Debug VRAM access will use slowpath MM access\n");
+		drm_warn(adev_to_drm(adev),
+				"Debug VRAM access will use slowpath MM access\n");
 
 	return 0;
 }

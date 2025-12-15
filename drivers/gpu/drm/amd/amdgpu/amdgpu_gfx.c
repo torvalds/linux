@@ -125,7 +125,7 @@ void amdgpu_gfx_parse_disable_cu(struct amdgpu_device *adev, unsigned int *mask,
 		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
 
 		if (ret < 3) {
-			DRM_ERROR("amdgpu: could not parse disable_cu\n");
+			drm_err(adev_to_drm(adev), "could not parse disable_cu\n");
 			return;
 		}
 

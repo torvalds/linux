@@ -1137,13 +1137,13 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		 */
 		mtype_local = MTYPE_RW;
 		if (amdgpu_mtype_local == 1) {
-			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
+			drm_info_once(adev_to_drm(adev), "Using MTYPE_NC for local memory\n");
 			mtype_local = MTYPE_NC;
 		} else if (amdgpu_mtype_local == 2) {
-			DRM_INFO_ONCE("Using MTYPE_CC for local memory\n");
+			drm_info_once(adev_to_drm(adev), "Using MTYPE_CC for local memory\n");
 			mtype_local = MTYPE_CC;
 		} else {
-			DRM_INFO_ONCE("Using MTYPE_RW for local memory\n");
+			drm_info_once(adev_to_drm(adev), "Using MTYPE_RW for local memory\n");
 		}
 		is_local = (!is_vram && (adev->flags & AMD_IS_APU) &&
 			    num_possible_nodes() <= 1) ||
@@ -2131,12 +2131,12 @@ static int gmc_v9_0_gart_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	DRM_INFO("PCIE GART of %uM enabled.\n",
+	drm_info(adev_to_drm(adev), "PCIE GART of %uM enabled.\n",
 		 (unsigned int)(adev->gmc.gart_size >> 20));
 	if (adev->gmc.pdb0_bo)
-		DRM_INFO("PDB0 located at 0x%016llX\n",
+		drm_info(adev_to_drm(adev), "PDB0 located at 0x%016llX\n",
 				(unsigned long long)amdgpu_bo_gpu_offset(adev->gmc.pdb0_bo));
-	DRM_INFO("PTB located at 0x%016llX\n",
+	drm_info(adev_to_drm(adev), "PTB located at 0x%016llX\n",
 			(unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
 
 	return 0;
