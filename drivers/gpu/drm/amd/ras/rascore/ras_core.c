@@ -389,7 +389,10 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 
 	ras_fw_init_feature_flags(ras_core);
 
-	ret = ras_eeprom_hw_init(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ret = ras_fw_eeprom_hw_init(ras_core);
+	else
+		ret = ras_eeprom_hw_init(ras_core);
 	if (ret)
 		goto init_err6;
 
@@ -413,7 +416,10 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 	return 0;
 
 init_err7:
-	ras_eeprom_hw_fini(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_hw_fini(ras_core);
+	else
+		ras_eeprom_hw_fini(ras_core);
 init_err6:
 	ras_gfx_hw_fini(ras_core);
 init_err5:
@@ -434,7 +440,10 @@ int ras_core_hw_fini(struct ras_core_context *ras_core)
 	ras_core->is_initialized = false;
 
 	ras_process_fini(ras_core);
-	ras_eeprom_hw_fini(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_hw_fini(ras_core);
+	else
+		ras_eeprom_hw_fini(ras_core);
 	ras_gfx_hw_fini(ras_core);
 	ras_nbio_hw_fini(ras_core);
 	ras_umc_hw_fini(ras_core);

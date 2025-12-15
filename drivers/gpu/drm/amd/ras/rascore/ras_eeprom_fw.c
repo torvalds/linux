@@ -369,3 +369,87 @@ int ras_fw_eeprom_update_record(struct ras_core_context *ras_core,
 
 	return ret;
 }
+
+static int __check_ras_fw_table_status(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	uint64_t local_time;
+	int res;
+
+	mutex_init(&control->ras_tbl_mutex);
+
+	res = ras_fw_get_table_version(ras_core, &(control->version));
+	if (res)
+		return res;
+
+	res = ras_fw_get_badpage_count(ras_core, &(control->ras_num_recs), 100);
+	if (res)
+		return res;
+
+	local_time = (uint64_t)ktime_get_real_seconds();
+	res = ras_fw_set_timestamp(ras_core, local_time);
+	if (res)
+		return res;
+
+	control->ras_max_record_count = 4000;
+
+
+	if (control->ras_num_recs > control->ras_max_record_count) {
+		RAS_DEV_ERR(ras_core->dev,
+			"RAS header invalid, records in header: %u max allowed :%u",
+			control->ras_num_recs, control->ras_max_record_count);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int ras_fw_eeprom_hw_init(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control;
+	struct ras_eeprom_config *eeprom_cfg;
+	struct ras_mp1 *mp1;
+	const struct ras_mp1_sys_func *sys_func;
+
+	if (!ras_core)
+		return -EINVAL;
+
+	mp1 = &ras_core->ras_mp1;
+	sys_func = mp1->sys_func;
+
+	if (!sys_func || !sys_func->mp1_send_eeprom_msg)
+		return -EINVAL;
+
+	ras_core->is_rma = false;
+
+	control = &ras_core->ras_fw_eeprom;
+
+	memset(control, 0, sizeof(*control));
+
+	eeprom_cfg = &ras_core->config->eeprom_cfg;
+	control->record_threshold_config =
+		eeprom_cfg->eeprom_record_threshold_config;
+
+	control->record_threshold_count = 4000;
+	if (eeprom_cfg->eeprom_record_threshold_count <
+		control->record_threshold_count)
+		control->record_threshold_count =
+			eeprom_cfg->eeprom_record_threshold_count;
+
+	control->update_channel_flag = false;
+
+	return __check_ras_fw_table_status(ras_core);
+}
+
+int ras_fw_eeprom_hw_fini(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control;
+
+	if (!ras_core)
+		return -EINVAL;
+
+	control = &ras_core->ras_fw_eeprom;
+	mutex_destroy(&control->ras_tbl_mutex);
+
+	return 0;
+}
