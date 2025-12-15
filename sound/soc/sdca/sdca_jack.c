@@ -17,11 +17,13 @@
 #include <linux/rwsem.h>
 #include <sound/asound.h>
 #include <sound/control.h>
+#include <sound/jack.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
 #include <sound/sdca_interrupts.h>
 #include <sound/sdca_jack.h>
 #include <sound/soc-component.h>
+#include <sound/soc-jack.h>
 #include <sound/soc.h>
 
 /**
@@ -114,7 +116,7 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 
 	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 
-	return 0;
+	return sdca_jack_report(interrupt);
 }
 EXPORT_SYMBOL_NS_GPL(sdca_jack_process, "SND_SOC_SDCA");
 
@@ -138,3 +140,105 @@ int sdca_jack_alloc_state(struct sdca_interrupt *interrupt)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_jack_alloc_state, "SND_SOC_SDCA");
+
+/**
+ * sdca_jack_set_jack - attach an ASoC jack to SDCA
+ * @info: SDCA interrupt information.
+ * @jack: ASoC jack to be attached.
+ *
+ * Return: Zero on success or a negative error code.
+ */
+int sdca_jack_set_jack(struct sdca_interrupt_info *info, struct snd_soc_jack *jack)
+{
+	int i, ret;
+
+	guard(mutex)(&info->irq_lock);
+
+	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
+		struct sdca_interrupt *interrupt = &info->irqs[i];
+		struct sdca_control *control = interrupt->control;
+		struct sdca_entity *entity = interrupt->entity;
+		struct jack_state *jack_state;
+
+		if (!interrupt->irq)
+			continue;
+
+		switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+		case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+			jack_state = interrupt->priv;
+			jack_state->jack = jack;
+
+			/* Report initial state in case IRQ was already handled */
+			ret = sdca_jack_report(interrupt);
+			if (ret)
+				return ret;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(sdca_jack_set_jack, "SND_SOC_SDCA");
+
+int sdca_jack_report(struct sdca_interrupt *interrupt)
+{
+	struct jack_state *jack_state = interrupt->priv;
+	struct sdca_control_range *range;
+	enum sdca_terminal_type type;
+	unsigned int report = 0;
+	unsigned int reg, val;
+	int ret;
+
+	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
+			   SDCA_CTL_GE_SELECTED_MODE, 0);
+
+	ret = regmap_read(interrupt->function_regmap, reg, &val);
+	if (ret) {
+		dev_err(interrupt->dev, "failed to read selected mode: %d\n", ret);
+		return ret;
+	}
+
+	range = sdca_selector_find_range(interrupt->dev, interrupt->entity,
+					 SDCA_CTL_GE_SELECTED_MODE,
+					 SDCA_SELECTED_MODE_NCOLS, 0);
+	if (!range)
+		return -EINVAL;
+
+	type = sdca_range_search(range, SDCA_SELECTED_MODE_INDEX,
+				 val, SDCA_SELECTED_MODE_TERM_TYPE);
+
+	switch (type) {
+	case SDCA_TERM_TYPE_LINEIN_STEREO:
+	case SDCA_TERM_TYPE_LINEIN_FRONT_LR:
+	case SDCA_TERM_TYPE_LINEIN_CENTER_LFE:
+	case SDCA_TERM_TYPE_LINEIN_SURROUND_LR:
+	case SDCA_TERM_TYPE_LINEIN_REAR_LR:
+		report = SND_JACK_LINEIN;
+		break;
+	case SDCA_TERM_TYPE_LINEOUT_STEREO:
+	case SDCA_TERM_TYPE_LINEOUT_FRONT_LR:
+	case SDCA_TERM_TYPE_LINEOUT_CENTER_LFE:
+	case SDCA_TERM_TYPE_LINEOUT_SURROUND_LR:
+	case SDCA_TERM_TYPE_LINEOUT_REAR_LR:
+		report = SND_JACK_LINEOUT;
+		break;
+	case SDCA_TERM_TYPE_MIC_JACK:
+		report = SND_JACK_MICROPHONE;
+		break;
+	case SDCA_TERM_TYPE_HEADPHONE_JACK:
+		report = SND_JACK_HEADPHONE;
+		break;
+	case SDCA_TERM_TYPE_HEADSET_JACK:
+		report = SND_JACK_HEADSET;
+		break;
+	default:
+		break;
+	}
+
+	snd_soc_jack_report(jack_state->jack, report, 0xFFFF);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(sdca_jack_report, "SND_SOC_SDCA");
