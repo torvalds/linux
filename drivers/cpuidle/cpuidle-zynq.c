@@ -11,7 +11,7 @@
  * #1 wait-for-interrupt
  * #2 wait-for-interrupt and RAM self refresh
  *
- * Maintainer: Michal Simek <michal.simek@xilinx.com>
+ * Maintainer: Michal Simek <michal.simek@amd.com>
  */
 
 #include <linux/init.h>
