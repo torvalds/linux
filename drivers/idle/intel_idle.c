@@ -70,7 +70,6 @@ static struct cpuidle_driver intel_idle_driver = {
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask __read_mostly;
-static unsigned int preferred_states_mask __read_mostly;
 static bool force_irq_on __read_mostly;
 static bool ibrs_off __read_mostly;
 
@@ -2050,25 +2049,6 @@ static void __init skx_idle_state_table_update(void)
 }
 
 /**
- * adl_idle_state_table_update - Adjust AlderLake idle states table.
- */
-static void __init adl_idle_state_table_update(void)
-{
-	/* Check if user prefers C1 over C1E. */
-	if (preferred_states_mask & BIT(1) && !(preferred_states_mask & BIT(2))) {
-		cpuidle_state_table[0].flags &= ~CPUIDLE_FLAG_UNUSABLE;
-		cpuidle_state_table[1].flags |= CPUIDLE_FLAG_UNUSABLE;
-
-		/* Disable C1E by clearing the "C1E promotion" bit. */
-		c1e_promotion = C1E_PROMOTION_DISABLE;
-		return;
-	}
-
-	/* Make sure C1E is enabled by default */
-	c1e_promotion = C1E_PROMOTION_ENABLE;
-}
-
-/**
  * spr_idle_state_table_update - Adjust Sapphire Rapids idle states table.
  */
 static void __init spr_idle_state_table_update(void)
@@ -2173,11 +2153,6 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	case INTEL_SAPPHIRERAPIDS_X:
 	case INTEL_EMERALDRAPIDS_X:
 		spr_idle_state_table_update();
-		break;
-	case INTEL_ALDERLAKE:
-	case INTEL_ALDERLAKE_L:
-	case INTEL_ATOM_GRACEMONT:
-		adl_idle_state_table_update();
 		break;
 	case INTEL_ATOM_SILVERMONT:
 	case INTEL_ATOM_AIRMONT:
@@ -2532,17 +2507,6 @@ module_param(max_cstate, int, 0444);
  */
 module_param_named(states_off, disabled_states_mask, uint, 0444);
 MODULE_PARM_DESC(states_off, "Mask of disabled idle states");
-/*
- * Some platforms come with mutually exclusive C-states, so that if one is
- * enabled, the other C-states must not be used. Example: C1 and C1E on
- * Sapphire Rapids platform. This parameter allows for selecting the
- * preferred C-states among the groups of mutually exclusive C-states - the
- * selected C-states will be registered, the other C-states from the mutually
- * exclusive group won't be registered. If the platform has no mutually
- * exclusive C-states, this parameter has no effect.
- */
-module_param_named(preferred_cstates, preferred_states_mask, uint, 0444);
-MODULE_PARM_DESC(preferred_cstates, "Mask of preferred idle states");
 /*
  * Debugging option that forces the driver to enter all C-states with
  * interrupts enabled. Does not apply to C-states with
