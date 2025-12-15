@@ -2630,8 +2630,6 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
 
 		throughput_max_bpp_x16 = dsc_throughput_quirk_max_bpp_x16(connector, crtc_state);
-		throughput_max_bpp_x16 = clamp(throughput_max_bpp_x16,
-					       limits->link.min_bpp_x16, max_link_bpp_x16);
 		if (throughput_max_bpp_x16 < max_link_bpp_x16) {
 			max_link_bpp_x16 = throughput_max_bpp_x16;
 
