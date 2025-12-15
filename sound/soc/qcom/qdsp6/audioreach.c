@@ -617,6 +617,7 @@ static int audioreach_display_port_set_media_format(struct q6apm_graph *graph,
 	int fs_sz = APM_FS_CFG_PSIZE;
 	int size = ic_sz + ep_sz + fs_sz;
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -675,6 +676,7 @@ static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
 	int pm_sz = APM_HW_EP_PMODE_CFG_PSIZE;
 	int size = ic_sz + ep_sz + fs_sz + pm_sz;
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -730,15 +732,15 @@ int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_modul
 			      uint32_t param_id, uint32_t param_val)
 {
 	struct apm_module_param_data *param_data;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 	uint32_t *param;
 	int payload_size = sizeof(uint32_t) + APM_MODULE_PARAM_DATA_SIZE;
-	void *p = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
-	if (IS_ERR(p))
+	void *p;
+
+	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
+	if (IS_ERR(pkt))
 		return -ENOMEM;
 
-	pkt = p;
-	p = p + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
+	p = (void *)pkt + GPR_HDR_SIZE + APM_CMD_HDR_SIZE;
 
 	param_data = p;
 	param_data->module_instance_id = module->instance_id;
@@ -788,6 +790,7 @@ static int audioreach_set_module_config(struct q6apm_graph *graph,
 {
 	int size = le32_to_cpu(module->data->size);
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -810,6 +813,7 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 				APM_MODULE_PARAM_DATA_SIZE;
 	int i;
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -922,12 +926,12 @@ int audioreach_compr_set_param(struct q6apm_graph *graph, struct audioreach_modu
 	void *p;
 	int iid = q6apm_graph_get_rx_shmem_module_iid(graph);
 	int payload_size = sizeof(struct apm_sh_module_media_fmt_cmd);
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_cmd_pkt(payload_size,
 					DATA_CMD_WR_SH_MEM_EP_MEDIA_FORMAT,
 					0, graph->port->id, iid);
 	if (IS_ERR(pkt))
 		return -ENOMEM;
-
 
 	p = (void *)pkt + GPR_HDR_SIZE;
 	header = p;
@@ -952,6 +956,7 @@ static int audioreach_i2s_set_media_format(struct q6apm_graph *graph,
 	int fs_sz = APM_FS_CFG_PSIZE;
 	int size = ic_sz + ep_sz + fs_sz;
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -1013,6 +1018,7 @@ static int audioreach_logging_set_media_format(struct q6apm_graph *graph,
 	struct data_logging_config *cfg;
 	int size = sizeof(*cfg) + APM_MODULE_PARAM_DATA_SIZE;
 	void *p;
+
 	struct gpr_pkt *pkt __free(kfree) = audioreach_alloc_apm_cmd_pkt(size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
@@ -1043,7 +1049,6 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 	struct apm_pcm_module_media_fmt_cmd *cfg;
 	struct apm_module_param_data *param_data;
 	int payload_size;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 
 	if (num_channels > 4) {
 		dev_err(graph->dev, "Error: Invalid channels (%d)!\n", num_channels);
@@ -1052,7 +1057,8 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 
 	payload_size = APM_PCM_MODULE_FMT_CMD_PSIZE(num_channels);
 
-	pkt = audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_apm_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
@@ -1090,7 +1096,6 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 	struct payload_media_fmt_pcm *cfg;
 	struct media_format *header;
 	int rc, payload_size;
-	struct gpr_pkt *pkt __free(kfree) = NULL;
 	void *p;
 
 	if (num_channels > 4) {
@@ -1100,8 +1105,9 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 
 	payload_size = APM_SHMEM_FMT_CFG_PSIZE(num_channels) + APM_MODULE_PARAM_DATA_SIZE;
 
-	pkt = audioreach_alloc_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0,
-				     graph->port->id, module->instance_id);
+	struct gpr_pkt *pkt __free(kfree) =
+		audioreach_alloc_cmd_pkt(payload_size, APM_CMD_SET_CFG, 0,
+					 graph->port->id, module->instance_id);
 	if (IS_ERR(pkt))
 		return PTR_ERR(pkt);
 
