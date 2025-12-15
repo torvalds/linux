@@ -571,8 +571,8 @@ static int gfx_v11_0_ring_test_ring(struct amdgpu_ring *ring)
 	WREG32(scratch, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 5);
 	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring %d (%d).\n",
-			  ring->idx, r);
+		drm_err(adev_to_drm(adev), "cp failed to lock ring %d (%d).\n",
+			ring->idx, r);
 		return r;
 	}
 
@@ -628,7 +628,7 @@ static int gfx_v11_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 	r = amdgpu_ib_get(adev, NULL, 20, AMDGPU_IB_POOL_DIRECT, &ib);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+		drm_err(adev_to_drm(adev), "failed to get ib (%ld).\n", r);
 		goto err1;
 	}
 
@@ -3630,7 +3630,7 @@ static int gfx_v11_0_cp_gfx_start(struct amdgpu_device *adev)
 	ring = &adev->gfx.gfx_ring[0];
 	r = amdgpu_ring_alloc(ring, gfx_v11_0_get_csb_size(adev));
 	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+		drm_err(&adev->ddev, "cp failed to lock ring (%d).\n", r);
 		return r;
 	}
 
@@ -3675,7 +3675,7 @@ static int gfx_v11_0_cp_gfx_start(struct amdgpu_device *adev)
 		ring = &adev->gfx.gfx_ring[1];
 		r = amdgpu_ring_alloc(ring, 2);
 		if (r) {
-			DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+			drm_err(adev_to_drm(adev), "cp failed to lock ring (%d).\n", r);
 			return r;
 		}
 

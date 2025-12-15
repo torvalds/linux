@@ -2010,7 +2010,7 @@ static int gfx_v6_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	r = amdgpu_ring_alloc(ring, 7 + 4);
 	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "cp failed to lock ring (%d).\n", r);
 		return r;
 	}
 	amdgpu_ring_write(ring, PACKET3(PACKET3_ME_INITIALIZE, 5));
@@ -2031,7 +2031,7 @@ static int gfx_v6_0_cp_gfx_start(struct amdgpu_device *adev)
 
 	r = amdgpu_ring_alloc(ring, gfx_v6_0_get_csb_size(adev) + 10);
 	if (r) {
-		DRM_ERROR("amdgpu: cp failed to lock ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "cp failed to lock ring (%d).\n", r);
 		return r;
 	}
 

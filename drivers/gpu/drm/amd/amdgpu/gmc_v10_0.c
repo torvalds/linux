@@ -850,7 +850,7 @@ static int gmc_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
 	if (r) {
-		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
+		drm_warn(adev_to_drm(adev), "No suitable DMA available.\n");
 		return r;
 	}
 

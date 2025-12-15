@@ -1031,7 +1031,7 @@ static int sdma_v5_0_ring_test_ring(struct amdgpu_ring *ring)
 
 	r = amdgpu_ring_alloc(ring, 20);
 	if (r) {
-		DRM_ERROR("amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, r);
+		drm_err(adev_to_drm(adev), "dma failed to lock ring %d (%d).\n", ring->idx, r);
 		amdgpu_device_wb_free(adev, index);
 		return r;
 	}
@@ -1096,7 +1096,7 @@ static int sdma_v5_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	r = amdgpu_ib_get(adev, NULL, 256,
 			  AMDGPU_IB_POOL_DIRECT, &ib);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+		drm_err(adev_to_drm(adev), "failed to get ib (%ld).\n", r);
 		goto err0;
 	}
 
@@ -1117,11 +1117,11 @@ static int sdma_v5_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out\n");
+		drm_err(adev_to_drm(adev), "IB test timed out\n");
 		r = -ETIMEDOUT;
 		goto err1;
 	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+		drm_err(adev_to_drm(adev), "fence wait failed (%ld).\n", r);
 		goto err1;
 	}
 

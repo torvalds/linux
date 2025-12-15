@@ -2098,7 +2098,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		drm_err(adev_to_drm(adev),
 		"failed to initialize freesync_module.\n");
 	} else
-		drm_dbg_driver(adev_to_drm(adev), "amdgpu: freesync_module init done %p.\n",
+		drm_dbg_driver(adev_to_drm(adev), "freesync_module init done %p.\n",
 				adev->dm.freesync_module);
 
 	amdgpu_dm_init_color_mod();
@@ -2120,7 +2120,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		if (!adev->dm.hdcp_workqueue)
 			drm_err(adev_to_drm(adev), "failed to initialize hdcp_workqueue.\n");
 		else
-			drm_dbg_driver(adev_to_drm(adev), "amdgpu: hdcp_workqueue init done %p.\n", adev->dm.hdcp_workqueue);
+			drm_dbg_driver(adev_to_drm(adev),
+				       "hdcp_workqueue init done %p.\n",
+				       adev->dm.hdcp_workqueue);
 
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}

@@ -191,7 +191,7 @@ void amdgpu_ring_commit(struct amdgpu_ring *ring)
 	uint32_t count;
 
 	if (ring->count_dw < 0)
-		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
+		drm_err(adev_to_drm(ring->adev), "writing more dwords to the ring than expected!\n");
 
 	/* We pad to match fetch size */
 	count = ring->funcs->align_mask + 1 -

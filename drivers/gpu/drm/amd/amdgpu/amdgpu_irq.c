@@ -351,7 +351,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.irq = irq;
 	adev_to_drm(adev)->max_vblank_count = 0x00ffffff;
 
-	dev_dbg(adev->dev, "amdgpu: irq initialized.\n");
+	dev_dbg(adev->dev, "irq initialized.\n");
 	return 0;
 
 free_vectors:

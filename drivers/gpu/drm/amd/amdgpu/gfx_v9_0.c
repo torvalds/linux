@@ -4582,7 +4582,7 @@ static int gfx_v9_0_do_edc_gds_workarounds(struct amdgpu_device *adev)
 
 	r = amdgpu_ring_alloc(ring, 7);
 	if (r) {
-		DRM_ERROR("amdgpu: GDS workarounds failed to lock ring %s (%d).\n",
+		drm_err(adev_to_drm(adev), "GDS workarounds failed to lock ring %s (%d).\n",
 			ring->name, r);
 		return r;
 	}
@@ -4671,7 +4671,7 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	r = amdgpu_ib_get(adev, NULL, total_size,
 					AMDGPU_IB_POOL_DIRECT, &ib);
 	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%d).\n", r);
+		drm_err(adev_to_drm(adev), "failed to get ib (%d).\n", r);
 		return r;
 	}
 
@@ -4772,14 +4772,14 @@ static int gfx_v9_0_do_edc_gpr_workarounds(struct amdgpu_device *adev)
 	/* shedule the ib on the ring */
 	r = amdgpu_ib_schedule(ring, 1, &ib, NULL, &f);
 	if (r) {
-		DRM_ERROR("amdgpu: ib submit failed (%d).\n", r);
+		drm_err(adev_to_drm(adev), "ib schedule failed (%d).\n", r);
 		goto fail;
 	}
 
 	/* wait for the GPU to finish processing the IB */
 	r = dma_fence_wait(f, false);
 	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
+		drm_err(adev_to_drm(adev), "fence wait failed (%d).\n", r);
 		goto fail;
 	}
 

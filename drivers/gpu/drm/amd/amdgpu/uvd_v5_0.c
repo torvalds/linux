@@ -164,7 +164,7 @@ static int uvd_v5_0_hw_init(struct amdgpu_ip_block *ip_block)
 
 	r = amdgpu_ring_alloc(ring, 10);
 	if (r) {
-		DRM_ERROR("amdgpu: ring failed to lock UVD ring (%d).\n", r);
+		drm_err(adev_to_drm(adev), "ring alloc failed (%d).\n", r);
 		goto done;
 	}
 

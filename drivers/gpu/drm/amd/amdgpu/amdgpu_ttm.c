@@ -2111,7 +2111,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		DRM_DEBUG_DRIVER("Skipped stolen memory reservation\n");
 	}
 
-	dev_info(adev->dev, "amdgpu: %uM of VRAM memory ready\n",
+	dev_info(adev->dev, " %uM of VRAM memory ready\n",
 		 (unsigned int)(adev->gmc.real_vram_size / (1024 * 1024)));
 
 	/* Compute GTT size, either based on TTM limit
@@ -2137,7 +2137,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		dev_err(adev->dev, "Failed initializing GTT heap.\n");
 		return r;
 	}
-	dev_info(adev->dev, "amdgpu: %uM of GTT memory ready.\n",
+	dev_info(adev->dev, " %uM of GTT memory ready.\n",
 		 (unsigned int)(gtt_size / (1024 * 1024)));
 
 	if (adev->flags & AMD_IS_APU) {
@@ -2260,7 +2260,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_MMIO_REMAP);
 	ttm_device_fini(&adev->mman.bdev);
 	adev->mman.initialized = false;
-	dev_info(adev->dev, "amdgpu: ttm finalized\n");
+	dev_info(adev->dev, " ttm finalized\n");
 }
 
 /**

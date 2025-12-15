@@ -460,8 +460,8 @@ static int gfx_v12_0_ring_test_ring(struct amdgpu_ring *ring)
 	WREG32(scratch, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 5);
 	if (r) {
-		dev_err(adev->dev,
-			"amdgpu: cp failed to lock ring %d (%d).\n",
+		drm_err(adev_to_drm(adev),
+			"cp failed to lock ring %d (%d).\n",
 			ring->idx, r);
 		return r;
 	}
@@ -518,7 +518,7 @@ static int gfx_v12_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 	r = amdgpu_ib_get(adev, NULL, 16, AMDGPU_IB_POOL_DIRECT, &ib);
 	if (r) {
-		dev_err(adev->dev, "amdgpu: failed to get ib (%ld).\n", r);
+		drm_err(adev_to_drm(adev), "failed to get ib (%ld).\n", r);
 		goto err1;
 	}
 

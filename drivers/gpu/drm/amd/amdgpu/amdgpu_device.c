@@ -4714,7 +4714,7 @@ static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
  */
 void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 {
-	dev_info(adev->dev, "amdgpu: finishing device.\n");
+	dev_info(adev->dev, "finishing device.\n");
 	flush_delayed_work(&adev->delayed_init_work);
 
 	if (adev->mman.initialized)

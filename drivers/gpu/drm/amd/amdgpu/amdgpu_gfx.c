@@ -130,11 +130,11 @@ void amdgpu_gfx_parse_disable_cu(struct amdgpu_device *adev, unsigned int *mask,
 		}
 
 		if (se < max_se && sh < max_sh && cu < 16) {
-			DRM_INFO("amdgpu: disabling CU %u.%u.%u\n", se, sh, cu);
+			drm_info(adev_to_drm(adev), "Disabling CU %u.%u.%u\n", se, sh, cu);
 			mask[se * max_sh + sh] |= 1u << cu;
 		} else {
-			DRM_ERROR("amdgpu: disable_cu %u.%u.%u is out of range\n",
-				  se, sh, cu);
+			drm_err(adev_to_drm(adev), "disable_cu %u.%u.%u is out of range\n",
+				se, sh, cu);
 		}
 
 		next = strchr(p, ',');
@@ -152,7 +152,7 @@ static bool amdgpu_gfx_is_graphics_multipipe_capable(struct amdgpu_device *adev)
 static bool amdgpu_gfx_is_compute_multipipe_capable(struct amdgpu_device *adev)
 {
 	if (amdgpu_compute_multipipe != -1) {
-		dev_info(adev->dev, "amdgpu: forcing compute pipe policy %d\n",
+		dev_info(adev->dev, " forcing compute pipe policy %d\n",
 			 amdgpu_compute_multipipe);
 		return amdgpu_compute_multipipe == 1;
 	}
