@@ -1023,7 +1023,6 @@ static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 		    wakeup->sleep_state == ACPI_STATE_S5)
 			wakeup->sleep_state = ACPI_STATE_S4;
 		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
-		device_set_wakeup_capable(&device->dev, true);
 		return true;
 	}
 
