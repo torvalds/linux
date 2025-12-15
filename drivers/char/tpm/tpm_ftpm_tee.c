@@ -169,7 +169,7 @@ static int ftpm_tee_match(struct tee_ioctl_version_data *ver, const void *data)
  * Return:
  *	On success, 0. On failure, -errno.
  */
-static int ftpm_tee_probe(struct device *dev)
+static int ftpm_tee_probe_generic(struct device *dev)
 {
 	int rc;
 	struct tpm_chip *chip;
@@ -251,11 +251,18 @@ out_tee_session:
 	return rc;
 }
 
+static int ftpm_tee_probe(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+
+	return ftpm_tee_probe_generic(dev);
+}
+
 static int ftpm_plat_tee_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	return ftpm_tee_probe(dev);
+	return ftpm_tee_probe_generic(dev);
 }
 
 /**
@@ -265,7 +272,7 @@ static int ftpm_plat_tee_probe(struct platform_device *pdev)
  * Return:
  *	0 always.
  */
-static int ftpm_tee_remove(struct device *dev)
+static void ftpm_tee_remove_generic(struct device *dev)
 {
 	struct ftpm_tee_private *pvt_data = dev_get_drvdata(dev);
 
@@ -285,15 +292,20 @@ static int ftpm_tee_remove(struct device *dev)
 	tee_client_close_context(pvt_data->ctx);
 
 	/* memory allocated with devm_kzalloc() is freed automatically */
+}
 
-	return 0;
+static void ftpm_tee_remove(struct tee_client_device *tcdev)
+{
+	struct device *dev = &tcdev->dev;
+
+	ftpm_tee_remove_generic(dev);
 }
 
 static void ftpm_plat_tee_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	ftpm_tee_remove(dev);
+	ftpm_tee_remove_generic(dev);
 }
 
 /**
@@ -335,11 +347,11 @@ static const struct tee_client_device_id optee_ftpm_id_table[] = {
 MODULE_DEVICE_TABLE(tee, optee_ftpm_id_table);
 
 static struct tee_client_driver ftpm_tee_driver = {
+	.probe		= ftpm_tee_probe,
+	.remove		= ftpm_tee_remove,
 	.id_table	= optee_ftpm_id_table,
 	.driver		= {
 		.name		= "optee-ftpm",
-		.probe		= ftpm_tee_probe,
-		.remove		= ftpm_tee_remove,
 	},
 };
 
