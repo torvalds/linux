@@ -493,7 +493,7 @@ s32 brcmf_notify_escan_complete(struct brcmf_cfg80211_info *cfg,
 void brcmf_set_mpc(struct brcmf_if *ndev, int mpc);
 bool brcmf_is_apmode_operating(struct wiphy *wiphy);
 void brcmf_abort_scanning(struct brcmf_cfg80211_info *cfg);
-void brcmf_cfg80211_free_netdev(struct net_device *ndev);
+void brcmf_cfg80211_free_vif(struct net_device *ndev);
 
 int brcmf_set_wsec(struct brcmf_if *ifp, const u8 *key, u16 key_len, u16 flags);
 int brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
