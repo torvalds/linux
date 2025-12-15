@@ -839,11 +839,9 @@ static int max98373_sdw_probe(struct sdw_slave *slave,
 	return max98373_init(slave, regmap);
 }
 
-static int max98373_sdw_remove(struct sdw_slave *slave)
+static void max98373_sdw_remove(struct sdw_slave *slave)
 {
 	pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 #if defined(CONFIG_OF)

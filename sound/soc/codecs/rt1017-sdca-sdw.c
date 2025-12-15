@@ -741,14 +741,12 @@ static int rt1017_sdca_sdw_probe(struct sdw_slave *slave,
 	return rt1017_sdca_init(&slave->dev, regmap, slave);
 }
 
-static int rt1017_sdca_sdw_remove(struct sdw_slave *slave)
+static void rt1017_sdca_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt1017_sdca_priv *rt1017 = dev_get_drvdata(&slave->dev);
 
 	if (rt1017->first_hw_init)
 		pm_runtime_disable(&slave->dev);
-
-	return 0;
 }
 
 static const struct sdw_device_id rt1017_sdca_id[] = {

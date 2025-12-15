@@ -1217,13 +1217,11 @@ static int wcd9380_probe(struct sdw_slave *pdev,
 	return 0;
 }
 
-static int wcd9380_remove(struct sdw_slave *pdev)
+static void wcd9380_remove(struct sdw_slave *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	component_del(dev, &wcd_sdw_component_ops);
-
-	return 0;
 }
 
 static const struct sdw_device_id wcd9380_slave_id[] = {

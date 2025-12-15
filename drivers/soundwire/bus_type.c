@@ -168,7 +168,6 @@ static int sdw_drv_remove(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct sdw_driver *drv = drv_to_sdw_driver(dev->driver);
-	int ret = 0;
 
 	mutex_lock(&slave->sdw_dev_lock);
 
@@ -177,11 +176,11 @@ static int sdw_drv_remove(struct device *dev)
 	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)
-		ret = drv->remove(slave);
+		drv->remove(slave);
 
 	ida_free(&slave->bus->slave_ida, slave->index);
 
-	return ret;
+	return 0;
 }
 
 static void sdw_drv_shutdown(struct device *dev)

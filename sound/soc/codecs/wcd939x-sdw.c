@@ -1414,7 +1414,7 @@ err_free_regmap:
 	return ret;
 }
 
-static int wcd9390_remove(struct sdw_slave *pdev)
+static void wcd9390_remove(struct sdw_slave *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct wcd939x_sdw_priv *wcd = dev_get_drvdata(dev);
@@ -1423,8 +1423,6 @@ static int wcd9390_remove(struct sdw_slave *pdev)
 
 	if (wcd->regmap)
 		regmap_exit(wcd->regmap);
-
-	return 0;
 }
 
 static const struct sdw_device_id wcd9390_slave_id[] = {

@@ -1310,7 +1310,7 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	return tas_init(tas_dev);
 }
 
-static s32 tas_sdw_remove(struct sdw_slave *peripheral)
+static void tas_sdw_remove(struct sdw_slave *peripheral)
 {
 	struct tas2783_prv *tas_dev = dev_get_drvdata(&peripheral->dev);
 
@@ -1319,8 +1319,6 @@ static s32 tas_sdw_remove(struct sdw_slave *peripheral)
 	mutex_destroy(&tas_dev->calib_lock);
 	mutex_destroy(&tas_dev->pde_lock);
 	dev_set_drvdata(&peripheral->dev, NULL);
-
-	return 0;
 }
 
 static const struct sdw_device_id tas_sdw_id[] = {
