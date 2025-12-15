@@ -501,11 +501,25 @@ static int umc_12_0_bank_to_soc_pa(struct ras_core_context *ras_core,
 	return 0;
 }
 
+static void umc_v12_0_mca_ipid_parse(struct ras_core_context *ras_core, uint64_t ipid,
+		uint32_t *did, uint32_t *ch, uint32_t *umc_inst, uint32_t *sid)
+{
+	if (did)
+		*did = ACA_IPID_2_DIE_ID(ipid);
+	if (ch)
+		*ch = ACA_IPID_2_UMC_CH(ipid);
+	if (umc_inst)
+		*umc_inst = ACA_IPID_2_UMC_INST(ipid);
+	if (sid)
+		*sid = ACA_IPID_2_SOCKET_ID(ipid);
+}
+
 const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.bank_to_eeprom_record = umc_v12_0_bank_to_eeprom_record,
 	.eeprom_record_to_nps_record = umc_v12_0_eeprom_record_to_nps_record,
 	.eeprom_record_to_nps_pages = umc_v12_0_eeprom_record_to_nps_pages,
 	.bank_to_soc_pa = umc_12_0_bank_to_soc_pa,
 	.soc_pa_to_bank = umc_12_0_soc_pa_to_bank,
+	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,
 };
 
