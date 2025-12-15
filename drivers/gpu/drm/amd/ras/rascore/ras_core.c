@@ -403,7 +403,10 @@ int ras_core_hw_init(struct ras_core_context *ras_core)
 		goto init_err6;
 	}
 
-	ret = ras_eeprom_check_storage_status(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ret = ras_fw_eeprom_check_storage_status(ras_core);
+	else
+		ret = ras_eeprom_check_storage_status(ras_core);
 	if (ret)
 		goto init_err6;
 

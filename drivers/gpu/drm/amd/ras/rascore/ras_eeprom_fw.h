@@ -79,5 +79,8 @@ int ras_fw_eeprom_update_record(struct ras_core_context *ras_core,
 				struct ras_bank_ecc *ras_ecc);
 int ras_fw_eeprom_hw_init(struct ras_core_context *ras_core);
 int ras_fw_eeprom_hw_fini(struct ras_core_context *ras_core);
+int ras_fw_eeprom_check_storage_status(struct ras_core_context *ras_core);
+enum ras_gpu_health_status
+	ras_fw_eeprom_check_gpu_status(struct ras_core_context *ras_core);
 
 #endif
