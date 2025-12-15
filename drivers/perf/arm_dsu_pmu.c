@@ -284,9 +284,8 @@ static int dsu_pmu_get_event_idx(struct dsu_hw_events *hw_events,
 	unsigned long *used_mask = hw_events->used_mask;
 
 	if (evtype == DSU_PMU_EVT_CYCLES && dsu_pmu->has_pmccntr) {
-		if (test_and_set_bit(DSU_PMU_IDX_CYCLE_COUNTER, used_mask))
-			return -EAGAIN;
-		return DSU_PMU_IDX_CYCLE_COUNTER;
+		if (!test_and_set_bit(DSU_PMU_IDX_CYCLE_COUNTER, used_mask))
+			return DSU_PMU_IDX_CYCLE_COUNTER;
 	}
 
 	idx = find_first_zero_bit(used_mask, dsu_pmu->num_counters);
