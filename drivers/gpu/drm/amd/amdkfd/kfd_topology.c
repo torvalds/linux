@@ -931,17 +931,12 @@ static void kfd_debug_print_topology(void)
 	dev = list_last_entry(&topology_device_list,
 			struct kfd_topology_device, list);
 	if (dev) {
-		if (dev->node_props.cpu_cores_count &&
-				dev->node_props.simd_count) {
-			pr_info("Topology: Add APU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
-		} else if (dev->node_props.cpu_cores_count)
+		if (dev->node_props.cpu_cores_count)
 			pr_info("Topology: Add CPU node\n");
-		else if (dev->node_props.simd_count)
-			pr_info("Topology: Add dGPU node [0x%0x:0x%0x]\n",
-				dev->node_props.device_id,
-				dev->node_props.vendor_id);
+		else
+			pr_info("Topology: Add GPU node [0x%0x:0x%0x]\n",
+				dev->node_props.vendor_id,
+				dev->node_props.device_id);
 	}
 	up_read(&topology_lock);
 }
