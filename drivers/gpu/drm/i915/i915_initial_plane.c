@@ -11,14 +11,14 @@
 #include "display/intel_display_types.h"
 #include "display/intel_fb.h"
 #include "display/intel_frontbuffer.h"
+#include "display/intel_initial_plane.h"
 #include "display/intel_plane.h"
-#include "display/intel_plane_initial.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 
 #include "i915_drv.h"
 
-void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
+void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
 {
 	intel_crtc_wait_for_next_vblank(crtc);
 }
@@ -436,7 +436,7 @@ void intel_initial_plane_config(struct intel_display *display)
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
 		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_plane_initial_vblank_wait(crtc);
+			intel_initial_plane_vblank_wait(crtc);
 
 		plane_config_fini(plane_config);
 	}

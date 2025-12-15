@@ -19,15 +19,15 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
+#include "intel_initial_plane.h"
 #include "intel_plane.h"
-#include "intel_plane_initial.h"
 #include "xe_bo.h"
 #include "xe_vram_types.h"
 #include "xe_wa.h"
 
 #include <generated/xe_device_wa_oob.h>
 
-void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
+void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
 {
 	/* Early xe has no irq */
 	struct xe_device *xe = to_xe_device(crtc->base.dev);
@@ -314,7 +314,7 @@ void intel_initial_plane_config(struct intel_display *display)
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
 		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_plane_initial_vblank_wait(crtc);
+			intel_initial_plane_vblank_wait(crtc);
 
 		plane_config_fini(plane_config);
 	}
