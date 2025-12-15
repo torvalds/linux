@@ -1287,7 +1287,6 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 					&(dcc->fstrim_list) : &(dcc->wait_list);
 	blk_opf_t flag = dpolicy->sync ? REQ_SYNC : 0;
 	block_t lstart, start, len, total_len;
-	int err = 0;
 
 	if (dc->state != D_PREP)
 		return 0;
@@ -1328,7 +1327,7 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 
 	dc->di.len = 0;
 
-	while (total_len && *issued < dpolicy->max_requests && !err) {
+	while (total_len && *issued < dpolicy->max_requests) {
 		struct bio *bio = NULL;
 		unsigned long flags;
 		bool last = true;
@@ -1343,17 +1342,6 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 			last = true;
 
 		dc->di.len += len;
-
-		err = 0;
-		if (time_to_inject(sbi, FAULT_DISCARD)) {
-			err = -EIO;
-			spin_lock_irqsave(&dc->lock, flags);
-			if (dc->state == D_PARTIAL)
-				dc->state = D_SUBMIT;
-			spin_unlock_irqrestore(&dc->lock, flags);
-
-			break;
-		}
 
 		__blkdev_issue_discard(bdev, SECTOR_FROM_BLOCK(start),
 				SECTOR_FROM_BLOCK(len), GFP_NOFS, &bio);
@@ -1393,11 +1381,11 @@ static int __submit_discard_cmd(struct f2fs_sb_info *sbi,
 		len = total_len;
 	}
 
-	if (!err && len) {
+	if (len) {
 		dcc->undiscard_blks -= len;
 		__update_discard_tree_range(sbi, bdev, lstart, start, len);
 	}
-	return err;
+	return 0;
 }
 
 static void __insert_discard_cmd(struct f2fs_sb_info *sbi,

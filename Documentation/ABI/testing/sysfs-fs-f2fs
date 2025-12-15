@@ -732,7 +732,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_TRUNCATE                   0x00000400
 		FAULT_READ_IO                    0x00000800
 		FAULT_CHECKPOINT                 0x00001000
-		FAULT_DISCARD                    0x00002000
+		FAULT_DISCARD                    0x00002000 (obsolete)
 		FAULT_WRITE_IO                   0x00004000
 		FAULT_SLAB_ALLOC                 0x00008000
 		FAULT_DQUOT_INIT                 0x00010000

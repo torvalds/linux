@@ -54,7 +54,7 @@ enum {
 	FAULT_TRUNCATE,
 	FAULT_READ_IO,
 	FAULT_CHECKPOINT,
-	FAULT_DISCARD,
+	FAULT_DISCARD,		/* it's obsolete due to __blkdev_issue_discard() will never fail */
 	FAULT_WRITE_IO,
 	FAULT_SLAB_ALLOC,
 	FAULT_DQUOT_INIT,
