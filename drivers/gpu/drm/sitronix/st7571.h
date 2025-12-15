@@ -82,4 +82,10 @@ struct st7571_device {
 	u8 *row;
 };
 
+extern const struct st7571_panel_data st7567_config;
+extern const struct st7571_panel_data st7571_config;
+
+struct st7571_device *st7571_probe(struct device *dev, struct regmap *regmap);
+void st7571_remove(struct st7571_device *st7571);
+
 #endif /* __ST7571_H__ */
