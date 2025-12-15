@@ -11,6 +11,7 @@ struct drm_crtc;
 struct drm_device;
 struct drm_scanout_buffer;
 struct intel_hdcp_gsc_context;
+struct intel_initial_plane_config;
 struct intel_panic;
 struct intel_stolen_node;
 struct ref_tracker;
@@ -28,7 +29,8 @@ struct intel_display_hdcp_interface {
 
 struct intel_display_initial_plane_interface {
 	void (*vblank_wait)(struct drm_crtc *crtc);
-	void (*config)(struct drm_device *drm);
+	void (*find_obj)(struct drm_crtc *crtc, struct intel_initial_plane_config *plane_configs);
+	void (*config_fini)(struct intel_initial_plane_config *plane_configs);
 };
 
 struct intel_display_irq_interface {

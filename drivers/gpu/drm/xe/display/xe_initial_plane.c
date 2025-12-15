@@ -204,9 +204,10 @@ err_bo:
 }
 
 static void
-intel_find_initial_plane_obj(struct intel_crtc *crtc,
-			     struct intel_initial_plane_config plane_configs[])
+xe_find_initial_plane_obj(struct drm_crtc *_crtc,
+			  struct intel_initial_plane_config plane_configs[])
 {
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
 	struct intel_initial_plane_config *plane_config =
 		&plane_configs[crtc->pipe];
 	struct intel_plane *plane =
@@ -274,7 +275,7 @@ nofb:
 	intel_plane_disable_noatomic(crtc, plane);
 }
 
-static void plane_config_fini(struct intel_initial_plane_config *plane_config)
+static void xe_plane_config_fini(struct intel_initial_plane_config *plane_config)
 {
 	if (plane_config->fb) {
 		struct drm_framebuffer *fb = &plane_config->fb->base;
@@ -287,44 +288,8 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 	}
 }
 
-static void xe_initial_plane_config(struct drm_device *drm)
-{
-	struct intel_display *display = to_intel_display(drm);
-	struct intel_initial_plane_config plane_configs[I915_MAX_PIPES] = {};
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(display->drm, crtc) {
-		const struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-		struct intel_initial_plane_config *plane_config =
-			&plane_configs[crtc->pipe];
-
-		if (!crtc_state->hw.active)
-			continue;
-
-		/*
-		 * Note that reserving the BIOS fb up front prevents us
-		 * from stuffing other stolen allocations like the ring
-		 * on top.  This prevents some ugliness at boot time, and
-		 * can even allow for smooth boot transitions if the BIOS
-		 * fb is large enough for the active pipe configuration.
-		 */
-		display->funcs.display->get_initial_plane_config(crtc, plane_config);
-
-		/*
-		 * If the fb is shared between multiple heads, we'll
-		 * just get the first one.
-		 */
-		intel_find_initial_plane_obj(crtc, plane_configs);
-
-		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			xe_initial_plane_vblank_wait(&crtc->base);
-
-		plane_config_fini(plane_config);
-	}
-}
-
 const struct intel_display_initial_plane_interface xe_display_initial_plane_interface = {
 	.vblank_wait = xe_initial_plane_vblank_wait,
-	.config = xe_initial_plane_config,
+	.find_obj = xe_find_initial_plane_obj,
+	.config_fini = xe_plane_config_fini,
 };
