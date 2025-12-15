@@ -80,7 +80,7 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 	/* Assume we are not in process context and so cannot sleep. */
 	if (flags & INTEL_WAKEREF_PUT_ASYNC || !mutex_trylock(&wf->mutex)) {
 		mod_delayed_work(wf->i915->unordered_wq, &wf->work,
-				 FIELD_GET(INTEL_WAKEREF_PUT_DELAY, flags));
+				 FIELD_GET(INTEL_WAKEREF_PUT_DELAY_MASK, flags));
 		return;
 	}
 
