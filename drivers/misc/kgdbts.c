@@ -89,6 +89,7 @@
 #include <linux/syscalls.h>
 #include <linux/nmi.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched/task.h>

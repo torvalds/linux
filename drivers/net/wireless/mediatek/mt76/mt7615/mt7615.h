@@ -5,6 +5,7 @@
 #define __MT7615_H
 
 #include <linux/completion.h>
+#include <linux/hex.h>
 #include <linux/interrupt.h>
 #include <linux/ktime.h>
 #include <linux/regmap.h>

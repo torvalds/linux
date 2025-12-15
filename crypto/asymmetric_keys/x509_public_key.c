@@ -10,6 +10,7 @@
 #include <keys/asymmetric-parser.h>
 #include <keys/asymmetric-subtype.h>
 #include <keys/system_keyring.h>
+#include <linux/hex.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

@@ -11,6 +11,7 @@
 #include <linux/cache.h>
 #include <linux/fs.h>
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>

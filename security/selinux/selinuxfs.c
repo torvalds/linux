@@ -18,6 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
+#include <linux/hex.h>
 #include <linux/mount.h>
 #include <linux/mutex.h>
 #include <linux/namei.h>

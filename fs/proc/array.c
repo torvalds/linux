@@ -55,6 +55,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/time.h>
 #include <linux/time_namespace.h>
 #include <linux/kernel.h>

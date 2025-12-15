@@ -10,6 +10,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/hex.h>
 #include <linux/phy.h>
 #include <linux/usb.h>
 #include <linux/crc32.h>

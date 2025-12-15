@@ -6,6 +6,7 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/if_ether.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>

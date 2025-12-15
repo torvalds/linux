@@ -11,6 +11,7 @@
 #include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/key.h>

@@ -7,6 +7,7 @@
 #include "api/commands.h"
 #include "debugfs.h"
 #include "dbg.h"
+#include <linux/hex.h>
 #include <linux/seq_file.h>
 
 #define FWRT_DEBUGFS_OPEN_WRAPPER(name, buflen, argtype)		\

@@ -7,6 +7,7 @@
  * Nicholas A. Bellinger <nab@kernel.org>
  */
 
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>

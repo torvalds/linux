@@ -3,6 +3,7 @@
  * Copyright (C) 2020-2024 Microsoft Corporation. All rights reserved.
  */
 
+#include <linux/hex.h>
 #include "digest.h"
 
 /**

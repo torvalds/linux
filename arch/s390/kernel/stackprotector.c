@@ -5,6 +5,7 @@
 #endif
 
 #include <linux/export.h>
+#include <linux/hex.h>
 #include <linux/uaccess.h>
 #include <linux/printk.h>
 #include <asm/abs_lowcore.h>

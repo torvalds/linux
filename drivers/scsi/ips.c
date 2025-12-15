@@ -167,6 +167,7 @@
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/hex.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>

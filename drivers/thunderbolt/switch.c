@@ -7,6 +7,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>

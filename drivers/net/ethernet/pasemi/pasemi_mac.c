@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
+#include <linux/hex.h>
 #include <linux/netdevice.h>
 #include <linux/of_mdio.h>
 #include <linux/etherdevice.h>

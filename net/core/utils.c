@@ -11,6 +11,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/hex.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>

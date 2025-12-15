@@ -9,6 +9,7 @@
 #include <linux/bpf_verifier.h>
 #include <linux/bsearch.h>
 #include <linux/btf.h>
+#include <linux/hex.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>

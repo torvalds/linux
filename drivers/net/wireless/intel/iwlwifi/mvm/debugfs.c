@@ -6,6 +6,7 @@
  */
 #include <linux/vmalloc.h>
 #include <linux/err.h>
+#include <linux/hex.h>
 #include <linux/ieee80211.h>
 #include <linux/netdevice.h>
 #include <linux/dmi.h>

@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include <linux/hex.h>
 #include <linux/vmalloc.h>
 
 #include "coex.h"
