@@ -13,45 +13,6 @@
 
 #define to_rssi(field, rcpi)	((FIELD_GET(field, rcpi) - 220) / 2)
 
-static const struct mt7996_dfs_radar_spec etsi_radar_specs = {
-	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
-	.radar_pattern = {
-		[5] =  { 1, 0,  6, 32, 28, 0,  990, 5010, 17, 1, 1 },
-		[6] =  { 1, 0,  9, 32, 28, 0,  615, 5010, 27, 1, 1 },
-		[7] =  { 1, 0, 15, 32, 28, 0,  240,  445, 27, 1, 1 },
-		[8] =  { 1, 0, 12, 32, 28, 0,  240,  510, 42, 1, 1 },
-		[9] =  { 1, 1,  0,  0,  0, 0, 2490, 3343, 14, 0, 0, 12, 32, 28, { }, 126 },
-		[10] = { 1, 1,  0,  0,  0, 0, 2490, 3343, 14, 0, 0, 15, 32, 24, { }, 126 },
-		[11] = { 1, 1,  0,  0,  0, 0,  823, 2510, 14, 0, 0, 18, 32, 28, { },  54 },
-		[12] = { 1, 1,  0,  0,  0, 0,  823, 2510, 14, 0, 0, 27, 32, 24, { },  54 },
-	},
-};
-
-static const struct mt7996_dfs_radar_spec fcc_radar_specs = {
-	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
-	.radar_pattern = {
-		[0] = { 1, 0,  8,  32, 28, 0, 508, 3076, 13, 1,  1 },
-		[1] = { 1, 0, 12,  32, 28, 0, 140,  240, 17, 1,  1 },
-		[2] = { 1, 0,  8,  32, 28, 0, 190,  510, 22, 1,  1 },
-		[3] = { 1, 0,  6,  32, 28, 0, 190,  510, 32, 1,  1 },
-		[4] = { 1, 0,  9, 255, 28, 0, 323,  343, 13, 1, 32 },
-	},
-};
-
-static const struct mt7996_dfs_radar_spec jp_radar_specs = {
-	.pulse_th = { 110, -10, -80, 40, 5200, 128, 5200 },
-	.radar_pattern = {
-		[0] =  { 1, 0,  8,  32, 28, 0,  508, 3076,  13, 1,  1 },
-		[1] =  { 1, 0, 12,  32, 28, 0,  140,  240,  17, 1,  1 },
-		[2] =  { 1, 0,  8,  32, 28, 0,  190,  510,  22, 1,  1 },
-		[3] =  { 1, 0,  6,  32, 28, 0,  190,  510,  32, 1,  1 },
-		[4] =  { 1, 0,  9, 255, 28, 0,  323,  343,  13, 1, 32 },
-		[13] = { 1, 0,  7,  32, 28, 0, 3836, 3856,  14, 1,  1 },
-		[14] = { 1, 0,  6,  32, 28, 0,  615, 5010, 110, 1,  1 },
-		[15] = { 1, 1,  0,   0,  0, 0,   15, 5010, 110, 0,  0, 12, 32, 28 },
-	},
-};
-
 static struct mt76_wcid *mt7996_rx_get_wcid(struct mt7996_dev *dev,
 					    u16 idx, u8 band_idx)
 {
@@ -3011,40 +2972,6 @@ static int mt7996_dfs_start_radar_detector(struct mt7996_phy *phy)
 	return err;
 }
 
-static int
-mt7996_dfs_init_radar_specs(struct mt7996_phy *phy)
-{
-	const struct mt7996_dfs_radar_spec *radar_specs;
-	struct mt7996_dev *dev = phy->dev;
-	int err, i;
-
-	switch (dev->mt76.region) {
-	case NL80211_DFS_FCC:
-		radar_specs = &fcc_radar_specs;
-		err = mt7996_mcu_set_fcc5_lpn(dev, 8);
-		if (err < 0)
-			return err;
-		break;
-	case NL80211_DFS_ETSI:
-		radar_specs = &etsi_radar_specs;
-		break;
-	case NL80211_DFS_JP:
-		radar_specs = &jp_radar_specs;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(radar_specs->radar_pattern); i++) {
-		err = mt7996_mcu_set_radar_th(dev, i,
-					      &radar_specs->radar_pattern[i]);
-		if (err < 0)
-			return err;
-	}
-
-	return mt7996_mcu_set_pulse_th(dev, &radar_specs->pulse_th);
-}
-
 int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy)
 {
 	struct mt7996_dev *dev = phy->dev;
@@ -3064,10 +2991,6 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy)
 		goto stop;
 
 	if (prev_state <= MT_DFS_STATE_DISABLED) {
-		err = mt7996_dfs_init_radar_specs(phy);
-		if (err < 0)
-			return err;
-
 		err = mt7996_dfs_start_radar_detector(phy);
 		if (err < 0)
 			return err;
