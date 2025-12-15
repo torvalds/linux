@@ -2246,19 +2246,12 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int min_bpp_x16, max_bpp_x16, bpp_step_x16;
-	int dsc_joiner_max_bpp;
-	int num_joined_pipes = intel_crtc_num_joined_pipes(pipe_config);
 	int link_bpp_x16;
 	int bpp_x16;
 	int ret;
 
-	dsc_joiner_max_bpp = get_max_compressed_bpp_with_joiner(display, adjusted_mode->crtc_clock,
-								adjusted_mode->hdisplay,
-								num_joined_pipes);
-	max_bpp_x16 = min(fxp_q4_from_int(dsc_joiner_max_bpp), limits->link.max_bpp_x16);
-
+	max_bpp_x16 = limits->link.max_bpp_x16;
 	bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
@@ -2614,6 +2607,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
 		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
 		int throughput_max_bpp_x16;
+		int joiner_max_bpp;
 
 		dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
 		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
@@ -2621,11 +2615,17 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
 
 		dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
+		joiner_max_bpp =
+			get_max_compressed_bpp_with_joiner(display,
+							   adjusted_mode->crtc_clock,
+							   adjusted_mode->hdisplay,
+							   intel_crtc_num_joined_pipes(crtc_state));
 		dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
 									crtc_state,
 									limits->pipe.max_bpp / 3);
 		dsc_max_bpp = dsc_sink_max_bpp ?
 			      min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
+		dsc_max_bpp = min(dsc_max_bpp, joiner_max_bpp);
 
 		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
 
