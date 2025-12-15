@@ -26,6 +26,7 @@ obj-$(CONFIG_SPI_APPLE)			+= spi-apple.o
 obj-$(CONFIG_SPI_AR934X)		+= spi-ar934x.o
 obj-$(CONFIG_SPI_ARMADA_3700)		+= spi-armada-3700.o
 obj-$(CONFIG_SPI_ASPEED_SMC)		+= spi-aspeed-smc.o
+obj-$(CONFIG_SPI_ATCSPI200)		+= spi-atcspi200.o
 obj-$(CONFIG_SPI_ATMEL)			+= spi-atmel.o
 obj-$(CONFIG_SPI_ATMEL_QUADSPI)		+= atmel-quadspi.o
 obj-$(CONFIG_SPI_AT91_USART)		+= spi-at91-usart.o
