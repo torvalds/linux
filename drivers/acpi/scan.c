@@ -42,6 +42,7 @@ static LIST_HEAD(acpi_scan_handlers_list);
 DEFINE_MUTEX(acpi_device_lock);
 LIST_HEAD(acpi_wakeup_device_list);
 static DEFINE_MUTEX(acpi_hp_context_lock);
+static LIST_HEAD(acpi_scan_system_dev_list);
 
 /*
  * The UART device described by the SPCR table is the only object which needs
@@ -2203,19 +2204,48 @@ static acpi_status acpi_bus_check_add_2(acpi_handle handle, u32 lvl_not_used,
 	return acpi_bus_check_add(handle, false, (struct acpi_device **)ret_p);
 }
 
+struct acpi_scan_system_dev {
+	struct list_head node;
+	struct acpi_device *adev;
+};
+
+static const char * const acpi_system_dev_ids[] = {
+	"PNP0C01", /* Memory controller */
+	"PNP0C02", /* Motherboard resource */
+	NULL
+};
+
 static void acpi_default_enumeration(struct acpi_device *device)
 {
 	/*
 	 * Do not enumerate devices with enumeration_by_parent flag set as
 	 * they will be enumerated by their respective parents.
 	 */
-	if (!device->flags.enumeration_by_parent) {
-		acpi_create_platform_device(device, NULL);
-		acpi_device_set_enumerated(device);
-	} else {
+	if (device->flags.enumeration_by_parent) {
 		blocking_notifier_call_chain(&acpi_reconfig_chain,
 					     ACPI_RECONFIG_DEVICE_ADD, device);
+		return;
 	}
+	if (match_string(acpi_system_dev_ids, -1, acpi_device_hid(device)) >= 0) {
+		struct acpi_scan_system_dev *sd;
+
+		/*
+		 * This is a generic system device, so there is no need to
+		 * create a platform device for it, but its resources need to be
+		 * reserved.  However, that needs to be done after all of the
+		 * other device objects have been processed and PCI has claimed
+		 * BARs in case there are resource conflicts.
+		 */
+		sd = kmalloc(sizeof(*sd), GFP_KERNEL);
+		if (sd) {
+			sd->adev = device;
+			list_add_tail(&sd->node, &acpi_scan_system_dev_list);
+		}
+	} else {
+		/* For a regular device object, create a platform device. */
+		acpi_create_platform_device(device, NULL);
+	}
+	acpi_device_set_enumerated(device);
 }
 
 static const struct acpi_device_id generic_device_ids[] = {
@@ -2570,6 +2600,88 @@ static void acpi_scan_postponed(void)
 
 	mutex_unlock(&acpi_dep_list_lock);
 }
+
+static void acpi_scan_claim_resources(struct acpi_device *adev)
+{
+	struct list_head resource_list = LIST_HEAD_INIT(resource_list);
+	struct resource_entry *rentry;
+	unsigned int count = 0;
+	const char *regionid;
+
+	if (acpi_dev_get_resources(adev, &resource_list, NULL, NULL) <= 0)
+		return;
+
+	regionid = kstrdup(dev_name(&adev->dev), GFP_KERNEL);
+	if (!regionid)
+		goto exit;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		struct resource *res = rentry->res;
+		struct resource *r;
+
+		/* Skip disabled and invalid resources. */
+		if ((res->flags & IORESOURCE_DISABLED) || res->end < res->start)
+			continue;
+
+		if (res->flags & IORESOURCE_IO) {
+			/*
+			 * Follow the PNP system driver and on x86 skip I/O
+			 * resources that start below 0x100 (the "standard PC
+			 * hardware" boundary).
+			 */
+			if (IS_ENABLED(CONFIG_X86) && res->start < 0x100) {
+				dev_info(&adev->dev, "Skipped %pR\n", res);
+				continue;
+			}
+			r = request_region(res->start, resource_size(res), regionid);
+		} else if (res->flags & IORESOURCE_MEM) {
+			r = request_mem_region(res->start, resource_size(res), regionid);
+		} else {
+			continue;
+		}
+
+		if (r) {
+			r->flags &= ~IORESOURCE_BUSY;
+			dev_info(&adev->dev, "Reserved %pR\n", r);
+			count++;
+		} else {
+			/*
+			 * Failures at this point are usually harmless. PCI
+			 * quirks, for example, reserve resources they know
+			 * about too, so there may well be double reservations.
+			 */
+			dev_info(&adev->dev, "Could not reserve %pR\n", res);
+		}
+	}
+
+	if (!count)
+		kfree(regionid);
+
+exit:
+	acpi_dev_free_resource_list(&resource_list);
+}
+
+
+static int __init acpi_reserve_motherboard_resources(void)
+{
+	struct acpi_scan_system_dev *sd, *tmp;
+
+	guard(mutex)(&acpi_scan_lock);
+
+	list_for_each_entry_safe(sd, tmp, &acpi_scan_system_dev_list, node) {
+		acpi_scan_claim_resources(sd->adev);
+		list_del(&sd->node);
+		kfree(sd);
+	}
+
+	return 0;
+}
+
+/*
+ * Reserve motherboard resources after PCI claims BARs, but before PCI assigns
+ * resources for uninitialized PCI devices.
+ */
+fs_initcall(acpi_reserve_motherboard_resources);
 
 /**
  * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
