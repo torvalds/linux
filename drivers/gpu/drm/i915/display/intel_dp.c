@@ -2623,8 +2623,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
 									crtc_state,
 									limits->pipe.max_bpp / 3);
-		dsc_max_bpp = dsc_sink_max_bpp ?
-			      min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
+		dsc_max_bpp = min(dsc_sink_max_bpp, dsc_src_max_bpp);
 		dsc_max_bpp = min(dsc_max_bpp, joiner_max_bpp);
 
 		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
