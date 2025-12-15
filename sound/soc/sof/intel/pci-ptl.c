@@ -38,6 +38,7 @@ static const struct sof_dev_desc ptl_desc = {
 	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
 	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,
+	.on_demand_dsp_boot	= true,
 	.default_fw_path = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/ptl",
 	},
@@ -67,6 +68,7 @@ static const struct sof_dev_desc wcl_desc = {
 	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_4),
 	.ipc_default		= SOF_IPC_TYPE_4,
 	.dspless_mode_supported	= true,
+	.on_demand_dsp_boot	= true,
 	.default_fw_path = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/wcl",
 	},
