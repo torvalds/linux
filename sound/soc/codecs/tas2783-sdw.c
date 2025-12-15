@@ -27,6 +27,7 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw_type.h>
+#include <linux/pci.h>
 #include <sound/sdw.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -1162,8 +1163,21 @@ static const struct dev_pm_ops tas2783_sdca_pm = {
 	RUNTIME_PM_OPS(tas2783_sdca_dev_suspend, tas2783_sdca_dev_resume, NULL)
 };
 
+static struct pci_dev *tas_get_pci_dev(struct sdw_slave *peripheral)
+{
+	struct device *dev = &peripheral->dev;
+
+	for (; dev; dev = dev->parent)
+		if (dev->bus == &pci_bus_type)
+			return to_pci_dev(dev);
+
+	return NULL;
+}
+
 static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 {
+	struct pci_dev *pci;
+	struct sdw_bus *bus;
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
 	s32 ret;
 	u8 unique_id = tas_dev->sdw_peripheral->id.unique_id;
@@ -1171,6 +1185,13 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 	if (tas_dev->hw_init)
 		return 0;
 
+	pci = tas_get_pci_dev(slave);
+	if (!pci) {
+		dev_err(dev, "pci device id can't be read");
+		return -EINVAL;
+	}
+
+	bus = slave->bus;
 	tas_dev->fw_dl_task_done = false;
 	tas_dev->fw_dl_success = false;
 
@@ -1181,8 +1202,10 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 	usleep_range(2000, 2200);
 
+	/* subsystem_id-link_id-unique_id */
 	scnprintf(tas_dev->rca_binaryname, sizeof(tas_dev->rca_binaryname),
-		  "tas2783-%01x.bin", unique_id);
+		  "%04X-%1X-%1X.bin", pci->subsystem_device, bus->link_id,
+		  unique_id);
 
 	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      tas_dev->rca_binaryname, tas_dev->dev,
