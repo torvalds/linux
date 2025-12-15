@@ -264,17 +264,13 @@ err_vma:
 }
 
 static int
-i915_initial_plane_setup(struct drm_crtc *_crtc,
+i915_initial_plane_setup(struct drm_plane_state *_plane_state,
 			 struct intel_initial_plane_config *plane_config,
 			 struct drm_framebuffer *fb,
 			 struct i915_vma *vma)
 {
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_plane *plane =
-		to_intel_plane(crtc->base.primary);
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(plane->base.state);
+	struct intel_plane_state *plane_state = to_intel_plane_state(_plane_state);
+	struct drm_i915_private *dev_priv = to_i915(_plane_state->plane->dev);
 
 	__i915_vma_pin(vma);
 	plane_state->ggtt_vma = i915_vma_get(vma);

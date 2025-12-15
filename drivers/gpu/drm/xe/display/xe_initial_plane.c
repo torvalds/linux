@@ -158,16 +158,12 @@ err_bo:
 }
 
 static int
-xe_initial_plane_setup(struct drm_crtc *_crtc,
+xe_initial_plane_setup(struct drm_plane_state *_plane_state,
 		       struct intel_initial_plane_config *plane_config,
 		       struct drm_framebuffer *fb,
 		       struct i915_vma *_unused)
 {
-	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct intel_plane *plane =
-		to_intel_plane(crtc->base.primary);
-	struct intel_plane_state *plane_state =
-		to_intel_plane_state(plane->base.state);
+	struct intel_plane_state *plane_state = to_intel_plane_state(_plane_state);
 	struct i915_vma *vma;
 
 	vma = intel_fb_pin_to_ggtt(fb, &plane_state->view.gtt,

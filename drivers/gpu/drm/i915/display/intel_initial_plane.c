@@ -106,7 +106,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	intel_fb_fill_view(to_intel_framebuffer(fb),
 			   plane_state->uapi.rotation, &plane_state->view);
 
-	ret = display->parent->initial_plane->setup(&crtc->base, plane_config, fb, vma);
+	ret = display->parent->initial_plane->setup(plane->base.state, plane_config, fb, vma);
 	if (ret)
 		goto nofb;
 

@@ -11,6 +11,7 @@ struct drm_crtc;
 struct drm_device;
 struct drm_framebuffer;
 struct drm_gem_object;
+struct drm_plane_state;
 struct drm_scanout_buffer;
 struct i915_vma;
 struct intel_hdcp_gsc_context;
@@ -33,7 +34,7 @@ struct intel_display_hdcp_interface {
 struct intel_display_initial_plane_interface {
 	void (*vblank_wait)(struct drm_crtc *crtc);
 	struct drm_gem_object *(*alloc_obj)(struct drm_crtc *crtc, struct intel_initial_plane_config *plane_config);
-	int (*setup)(struct drm_crtc *crtc, struct intel_initial_plane_config *plane_config,
+	int (*setup)(struct drm_plane_state *plane_state, struct intel_initial_plane_config *plane_config,
 		     struct drm_framebuffer *fb, struct i915_vma *vma);
 	void (*config_fini)(struct intel_initial_plane_config *plane_configs);
 };
