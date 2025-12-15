@@ -193,17 +193,18 @@ static int rocket_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int find_core_for_dev(struct device *dev);
+
 static void rocket_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	int core = find_core_for_dev(dev);
 
-	for (unsigned int core = 0; core < rdev->num_cores; core++) {
-		if (rdev->cores[core].dev == dev) {
-			rocket_core_fini(&rdev->cores[core]);
-			rdev->num_cores--;
-			break;
-		}
-	}
+	if (core < 0)
+		return;
+
+	rocket_core_fini(&rdev->cores[core]);
+	rdev->num_cores--;
 
 	if (rdev->num_cores == 0) {
 		/* Last core removed, deinitialize DRM device. */
