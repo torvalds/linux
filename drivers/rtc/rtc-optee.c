@@ -726,25 +726,13 @@ static struct tee_client_driver optee_rtc_driver = {
 	.id_table	= optee_rtc_id_table,
 	.driver		= {
 		.name		= "optee_rtc",
-		.bus		= &tee_bus_type,
 		.probe		= optee_rtc_probe,
 		.remove		= optee_rtc_remove,
 		.pm		= pm_sleep_ptr(&optee_rtc_pm_ops),
 	},
 };
 
-static int __init optee_rtc_mod_init(void)
-{
-	return driver_register(&optee_rtc_driver.driver);
-}
-
-static void __exit optee_rtc_mod_exit(void)
-{
-	driver_unregister(&optee_rtc_driver.driver);
-}
-
-module_init(optee_rtc_mod_init);
-module_exit(optee_rtc_mod_exit);
+module_tee_client_driver(optee_rtc_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Clément Léger <clement.leger@bootlin.com>");
