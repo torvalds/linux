@@ -101,6 +101,7 @@ struct dsu_hw_events {
  *			  excluding the cycle counter.
  * @irq			: Interrupt line for counter overflow.
  * @has_32b_pmevcntr	: Are the non-cycle counters only 32-bit?
+ * @has_pmccntr		: Do we even have a dedicated cycle counter?
  * @cpmceid_bitmap	: Bitmap for the availability of architected common
  *			  events (event_code < 0x40).
  */
@@ -115,6 +116,7 @@ struct dsu_pmu {
 	s8				num_counters;
 	int				irq;
 	bool				has_32b_pmevcntr;
+	bool				has_pmccntr;
 	DECLARE_BITMAP(cpmceid_bitmap, DSU_PMU_MAX_COMMON_EVENTS);
 };
 
@@ -281,7 +283,7 @@ static int dsu_pmu_get_event_idx(struct dsu_hw_events *hw_events,
 	struct dsu_pmu *dsu_pmu = to_dsu_pmu(event->pmu);
 	unsigned long *used_mask = hw_events->used_mask;
 
-	if (evtype == DSU_PMU_EVT_CYCLES) {
+	if (evtype == DSU_PMU_EVT_CYCLES && dsu_pmu->has_pmccntr) {
 		if (test_and_set_bit(DSU_PMU_IDX_CYCLE_COUNTER, used_mask))
 			return -EAGAIN;
 		return DSU_PMU_IDX_CYCLE_COUNTER;
@@ -668,6 +670,10 @@ static void dsu_pmu_probe_pmu(struct dsu_pmu *dsu_pmu)
 	__dsu_pmu_write_counter(0, U64_MAX);
 	if (__dsu_pmu_read_counter(0) != U64_MAX)
 		dsu_pmu->has_32b_pmevcntr = true;
+	/* On even newer DSUs, PMCCNTR is RAZ/WI */
+	__dsu_pmu_write_pmccntr(U64_MAX);
+	if (__dsu_pmu_read_pmccntr() == U64_MAX)
+		dsu_pmu->has_pmccntr = true;
 }
 
 static void dsu_pmu_set_active_cpu(int cpu, struct dsu_pmu *dsu_pmu)
