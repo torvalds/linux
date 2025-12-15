@@ -123,6 +123,17 @@ static const struct dmi_system_id adr_remap_quirk_table[] = {
 		.driver_data = (void *)intel_tgl_bios,
 	},
 	{
+		/*
+		 * quirk used for Avell B.ON (OEM rebrand of NUC15 'Bishop County'
+		 * LAPBC510 and LAPBC710)
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Avell High Performance"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "B.ON"),
+		},
+		.driver_data = (void *)intel_tgl_bios,
+	},
+	{
 		/* quirk used for NUC15 'Rooks County' LAPRC510 and LAPRC710 skews */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel(R) Client Systems"),
