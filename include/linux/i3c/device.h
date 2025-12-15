@@ -25,7 +25,7 @@
  * @I3C_ERROR_M2: M2 error
  *
  * These are the standard error codes as defined by the I3C specification.
- * When -EIO is returned by the i3c_device_do_priv_xfers() or
+ * When -EIO is returned by the i3c_device_do_i3c_xfers() or
  * i3c_device_send_hdr_cmds() one can check the error code in
  * &struct_i3c_xfer.err or &struct i3c_hdr_cmd.err to get a better idea of
  * what went wrong.
@@ -78,9 +78,6 @@ struct i3c_xfer {
 	} data;
 	enum i3c_error_code err;
 };
-
-/* keep back compatible */
-#define i3c_priv_xfer i3c_xfer
 
 /**
  * enum i3c_dcr - I3C DCR values
@@ -310,13 +307,6 @@ static __always_inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
 
 int i3c_device_do_xfers(struct i3c_device *dev, struct i3c_xfer *xfers,
 			int nxfers, enum i3c_xfer_mode mode);
-
-static inline int i3c_device_do_priv_xfers(struct i3c_device *dev,
-					   struct i3c_xfer *xfers,
-					   int nxfers)
-{
-	return i3c_device_do_xfers(dev, xfers, nxfers, I3C_SDR);
-}
 
 int i3c_device_do_setdasa(struct i3c_device *dev);
 
