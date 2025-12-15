@@ -5,17 +5,18 @@
 
 #include <drm/drm_print.h>
 
+#include "display/intel_crtc.h"
+#include "display/intel_display.h"
+#include "display/intel_display_core.h"
+#include "display/intel_display_types.h"
+#include "display/intel_fb.h"
+#include "display/intel_frontbuffer.h"
+#include "display/intel_plane.h"
+#include "display/intel_plane_initial.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
+
 #include "i915_drv.h"
-#include "intel_crtc.h"
-#include "intel_display.h"
-#include "intel_display_core.h"
-#include "intel_display_types.h"
-#include "intel_fb.h"
-#include "intel_frontbuffer.h"
-#include "intel_plane.h"
-#include "intel_plane_initial.h"
 
 void intel_plane_initial_vblank_wait(struct intel_crtc *crtc)
 {
