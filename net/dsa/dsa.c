@@ -1253,14 +1253,25 @@ static int dsa_port_parse_of(struct dsa_port *dp, struct device_node *dn)
 	if (ethernet) {
 		struct net_device *conduit;
 		const char *user_protocol;
+		int err;
 
+		rtnl_lock();
 		conduit = of_find_net_device_by_node(ethernet);
 		of_node_put(ethernet);
-		if (!conduit)
+		if (!conduit) {
+			rtnl_unlock();
 			return -EPROBE_DEFER;
+		}
+
+		netdev_hold(conduit, &dp->conduit_tracker, GFP_KERNEL);
+		put_device(&conduit->dev);
+		rtnl_unlock();
 
 		user_protocol = of_get_property(dn, "dsa-tag-protocol", NULL);
-		return dsa_port_parse_cpu(dp, conduit, user_protocol);
+		err = dsa_port_parse_cpu(dp, conduit, user_protocol);
+		if (err)
+			netdev_put(conduit, &dp->conduit_tracker);
+		return err;
 	}
 
 	if (link)
@@ -1393,37 +1404,30 @@ static struct device *dev_find_class(struct device *parent, char *class)
 	return device_find_child(parent, class, dev_is_class);
 }
 
-static struct net_device *dsa_dev_to_net_device(struct device *dev)
-{
-	struct device *d;
-
-	d = dev_find_class(dev, "net");
-	if (d != NULL) {
-		struct net_device *nd;
-
-		nd = to_net_dev(d);
-		dev_hold(nd);
-		put_device(d);
-
-		return nd;
-	}
-
-	return NULL;
-}
-
 static int dsa_port_parse(struct dsa_port *dp, const char *name,
 			  struct device *dev)
 {
 	if (!strcmp(name, "cpu")) {
 		struct net_device *conduit;
+		struct device *d;
+		int err;
 
-		conduit = dsa_dev_to_net_device(dev);
-		if (!conduit)
+		rtnl_lock();
+		d = dev_find_class(dev, "net");
+		if (!d) {
+			rtnl_unlock();
 			return -EPROBE_DEFER;
+		}
 
-		dev_put(conduit);
+		conduit = to_net_dev(d);
+		netdev_hold(conduit, &dp->conduit_tracker, GFP_KERNEL);
+		put_device(d);
+		rtnl_unlock();
 
-		return dsa_port_parse_cpu(dp, conduit, NULL);
+		err = dsa_port_parse_cpu(dp, conduit, NULL);
+		if (err)
+			netdev_put(conduit, &dp->conduit_tracker);
+		return err;
 	}
 
 	if (!strcmp(name, "dsa"))
@@ -1491,6 +1495,9 @@ static void dsa_switch_release_ports(struct dsa_switch *ds)
 	struct dsa_vlan *v, *n;
 
 	dsa_switch_for_each_port_safe(dp, next, ds) {
+		if (dsa_port_is_cpu(dp) && dp->conduit)
+			netdev_put(dp->conduit, &dp->conduit_tracker);
+
 		/* These are either entries that upper layers lost track of
 		 * (probably due to bugs), or installed through interfaces
 		 * where one does not necessarily have to remove them, like
@@ -1635,8 +1642,10 @@ void dsa_switch_shutdown(struct dsa_switch *ds)
 	/* Disconnect from further netdevice notifiers on the conduit,
 	 * since netdev_uses_dsa() will now return false.
 	 */
-	dsa_switch_for_each_cpu_port(dp, ds)
+	dsa_switch_for_each_cpu_port(dp, ds) {
 		dp->conduit->dsa_ptr = NULL;
+		netdev_put(dp->conduit, &dp->conduit_tracker);
+	}
 
 	rtnl_unlock();
 out:
