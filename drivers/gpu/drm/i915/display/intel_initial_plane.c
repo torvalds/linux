@@ -6,7 +6,10 @@
 
 #include "intel_display_core.h"
 #include "intel_display_types.h"
+#include "intel_fb.h"
+#include "intel_frontbuffer.h"
 #include "intel_initial_plane.h"
+#include "intel_plane.h"
 
 void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
 {
@@ -72,6 +75,7 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	struct intel_initial_plane_config *plane_config = &plane_configs[crtc->pipe];
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	struct intel_plane_state *plane_state = to_intel_plane_state(plane->base.state);
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 	int ret;
@@ -98,9 +102,31 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 		vma = other_plane_state->ggtt_vma;
 	}
 
+	plane_state->uapi.rotation = plane_config->rotation;
+	intel_fb_fill_view(to_intel_framebuffer(fb),
+			   plane_state->uapi.rotation, &plane_state->view);
+
 	ret = display->parent->initial_plane->setup(&crtc->base, plane_config, fb, vma);
 	if (ret)
 		goto nofb;
+
+	plane_state->uapi.src_x = 0;
+	plane_state->uapi.src_y = 0;
+	plane_state->uapi.src_w = fb->width << 16;
+	plane_state->uapi.src_h = fb->height << 16;
+
+	plane_state->uapi.crtc_x = 0;
+	plane_state->uapi.crtc_y = 0;
+	plane_state->uapi.crtc_w = fb->width;
+	plane_state->uapi.crtc_h = fb->height;
+
+	plane_state->uapi.fb = fb;
+	drm_framebuffer_get(fb);
+
+	plane_state->uapi.crtc = &crtc->base;
+	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
+
+	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 
 	return;
 

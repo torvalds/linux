@@ -20,9 +20,6 @@
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
-#include "intel_frontbuffer.h"
-#include "intel_initial_plane.h"
-#include "intel_plane.h"
 #include "xe_bo.h"
 #include "xe_vram_types.h"
 #include "xe_wa.h"
@@ -173,10 +170,6 @@ xe_initial_plane_setup(struct drm_crtc *_crtc,
 		to_intel_plane_state(plane->base.state);
 	struct i915_vma *vma;
 
-	plane_state->uapi.rotation = plane_config->rotation;
-	intel_fb_fill_view(to_intel_framebuffer(fb),
-			   plane_state->uapi.rotation, &plane_state->view);
-
 	vma = intel_fb_pin_to_ggtt(fb, &plane_state->view.gtt,
 				   0, 0, 0, false, &plane_state->flags);
 	if (IS_ERR(vma))
@@ -185,24 +178,6 @@ xe_initial_plane_setup(struct drm_crtc *_crtc,
 	plane_state->ggtt_vma = vma;
 
 	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
-
-	plane_state->uapi.src_x = 0;
-	plane_state->uapi.src_y = 0;
-	plane_state->uapi.src_w = fb->width << 16;
-	plane_state->uapi.src_h = fb->height << 16;
-
-	plane_state->uapi.crtc_x = 0;
-	plane_state->uapi.crtc_y = 0;
-	plane_state->uapi.crtc_w = fb->width;
-	plane_state->uapi.crtc_h = fb->height;
-
-	plane_state->uapi.fb = fb;
-	drm_framebuffer_get(fb);
-
-	plane_state->uapi.crtc = &crtc->base;
-	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
-
-	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 
 	plane_config->vma = vma;
 

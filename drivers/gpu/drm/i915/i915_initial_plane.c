@@ -11,9 +11,6 @@
 #include "display/intel_display_core.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fb.h"
-#include "display/intel_frontbuffer.h"
-#include "display/intel_initial_plane.h"
-#include "display/intel_plane.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 
@@ -279,10 +276,6 @@ i915_initial_plane_setup(struct drm_crtc *_crtc,
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
 
-	plane_state->uapi.rotation = plane_config->rotation;
-	intel_fb_fill_view(to_intel_framebuffer(fb),
-			   plane_state->uapi.rotation, &plane_state->view);
-
 	__i915_vma_pin(vma);
 	plane_state->ggtt_vma = i915_vma_get(vma);
 	if (intel_plane_uses_fence(plane_state) &&
@@ -291,26 +284,8 @@ i915_initial_plane_setup(struct drm_crtc *_crtc,
 
 	plane_state->surf = i915_ggtt_offset(plane_state->ggtt_vma);
 
-	plane_state->uapi.src_x = 0;
-	plane_state->uapi.src_y = 0;
-	plane_state->uapi.src_w = fb->width << 16;
-	plane_state->uapi.src_h = fb->height << 16;
-
-	plane_state->uapi.crtc_x = 0;
-	plane_state->uapi.crtc_y = 0;
-	plane_state->uapi.crtc_w = fb->width;
-	plane_state->uapi.crtc_h = fb->height;
-
 	if (fb->modifier != DRM_FORMAT_MOD_LINEAR)
 		dev_priv->preserve_bios_swizzle = true;
-
-	plane_state->uapi.fb = fb;
-	drm_framebuffer_get(fb);
-
-	plane_state->uapi.crtc = &crtc->base;
-	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
-
-	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 
 	return 0;
 }
