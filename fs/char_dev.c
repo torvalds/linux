@@ -10,6 +10,7 @@
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/cleanup.h>
 
 #include <linux/major.h>
 #include <linux/errno.h>
@@ -97,7 +98,8 @@ static struct char_device_struct *
 __register_chrdev_region(unsigned int major, unsigned int baseminor,
 			   int minorct, const char *name)
 {
-	struct char_device_struct *cd, *curr, *prev = NULL;
+	struct char_device_struct *cd __free(kfree) = NULL;
+	struct char_device_struct *curr, *prev = NULL;
 	int ret;
 	int i;
 
@@ -117,14 +119,14 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 	if (cd == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&chrdevs_lock);
+	guard(mutex)(&chrdevs_lock);
 
 	if (major == 0) {
 		ret = find_dynamic_major();
 		if (ret < 0) {
 			pr_err("CHRDEV \"%s\" dynamic allocation region is full\n",
 			       name);
-			goto out;
+			return ERR_PTR(ret);
 		}
 		major = ret;
 	}
@@ -144,7 +146,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		if (curr->baseminor >= baseminor + minorct)
 			break;
 
-		goto out;
+		return ERR_PTR(ret);
 	}
 
 	cd->major = major;
@@ -160,12 +162,7 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 		prev->next = cd;
 	}
 
-	mutex_unlock(&chrdevs_lock);
-	return cd;
-out:
-	mutex_unlock(&chrdevs_lock);
-	kfree(cd);
-	return ERR_PTR(ret);
+	return_ptr(cd);
 }
 
 static struct char_device_struct *
