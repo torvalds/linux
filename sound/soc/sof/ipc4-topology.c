@@ -1752,11 +1752,9 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		channel_count = params_channels(params);
 		sample_rate = params_rate(params);
 		bit_depth = params_width(params);
-		/*
-		 * Look for 32-bit blob first instead of 16-bit if copier
-		 * supports multiple formats
-		 */
-		if (bit_depth == 16 && !single_bitdepth) {
+
+		/* Prefer 32-bit blob if copier supports multiple formats */
+		if (bit_depth <= 16 && !single_bitdepth) {
 			dev_dbg(sdev->dev, "Looking for 32-bit blob first for DMIC\n");
 			format_change = true;
 			bit_depth = 32;
@@ -1799,10 +1797,18 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		if (format_change) {
 			/*
 			 * The 32-bit blob was not found in NHLT table, try to
-			 * look for one based on the params
+			 * look for 16-bit for DMIC or based on the params for
+			 * SSP
 			 */
-			bit_depth = params_width(params);
-			format_change = false;
+			if (linktype == SOF_DAI_INTEL_DMIC) {
+				bit_depth = 16;
+				if (params_width(params) == 16)
+					format_change = false;
+			} else {
+				bit_depth = params_width(params);
+				format_change = false;
+			}
+
 			get_new_blob = true;
 		} else if (linktype == SOF_DAI_INTEL_DMIC && !single_bitdepth) {
 			/*
