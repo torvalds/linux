@@ -7,6 +7,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -312,6 +313,10 @@ static int imx93_blk_ctrl_probe(struct platform_device *pdev)
 	ret = devm_add_action_or_reset(dev, imx93_release_genpd_provider, dev->of_node);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add genpd_provider release callback\n");
+
+	ret = devm_of_platform_populate(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to populate blk-ctrl sub-devices\n");
 
 	return 0;
 }
