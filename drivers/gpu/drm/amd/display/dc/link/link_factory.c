@@ -236,6 +236,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 static void construct_link_service_dp_panel_replay(struct link_service *link_srv)
 {
 	link_srv->dp_setup_replay = dp_setup_replay;
+	link_srv->dp_pr_get_panel_inst = dp_pr_get_panel_inst;
 	link_srv->dp_pr_enable = dp_pr_enable;
 	link_srv->dp_pr_update_state = dp_pr_update_state;
 	link_srv->dp_pr_set_general_cmd = dp_pr_set_general_cmd;

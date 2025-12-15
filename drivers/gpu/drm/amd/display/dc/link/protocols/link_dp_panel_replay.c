@@ -75,7 +75,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	if (!replay)
 		return false;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	replay_context.aux_inst = link->ddc->ddc_pin->hw_info.ddc_channel;
@@ -103,14 +103,18 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	link->replay_settings.replay_feature_enabled = dp_pr_copy_settings(link, &replay_context);
 
 	if (link->replay_settings.replay_feature_enabled) {
-		pr_config_1.bits.PANEL_REPLAY_ENABLE = 1;
-		pr_config_1.bits.PANEL_REPLAY_CRC_ENABLE = 1;
-		pr_config_1.bits.IRQ_HPD_ASSDP_MISSING = 1;
-		pr_config_1.bits.IRQ_HPD_VSCSDP_UNCORRECTABLE_ERROR = 1;
-		pr_config_1.bits.IRQ_HPD_RFB_ERROR = 1;
-		pr_config_1.bits.IRQ_HPD_ACTIVE_FRAME_CRC_ERROR = 1;
-		pr_config_1.bits.PANEL_REPLAY_SELECTIVE_UPDATE_ENABLE = 1;
-		pr_config_1.bits.PANEL_REPLAY_EARLY_TRANSPORT_ENABLE = 1;
+		if (dc_is_embedded_signal(link->connector_signal)) {
+			pr_config_1.bits.PANEL_REPLAY_ENABLE = 1;
+			pr_config_1.bits.PANEL_REPLAY_CRC_ENABLE = 1;
+			pr_config_1.bits.IRQ_HPD_ASSDP_MISSING = 1;
+			pr_config_1.bits.IRQ_HPD_VSCSDP_UNCORRECTABLE_ERROR = 1;
+			pr_config_1.bits.IRQ_HPD_RFB_ERROR = 1;
+			pr_config_1.bits.IRQ_HPD_ACTIVE_FRAME_CRC_ERROR = 1;
+			pr_config_1.bits.PANEL_REPLAY_SELECTIVE_UPDATE_ENABLE = 1;
+			pr_config_1.bits.PANEL_REPLAY_EARLY_TRANSPORT_ENABLE = 1;
+		} else {
+			pr_config_1.bits.PANEL_REPLAY_ENABLE = 1;
+		}
 
 		pr_config_2.bits.SINK_REFRESH_RATE_UNLOCK_GRANTED = 0;
 
@@ -147,6 +151,23 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	return true;
 }
 
+
+bool dp_pr_get_panel_inst(const struct dc *dc,
+		const struct dc_link *link,
+		unsigned int *inst_out)
+{
+	if (dc_is_embedded_signal(link->connector_signal)) {
+		/* TODO: just get edp link panel inst for now, fix it */
+		return dc_get_edp_link_panel_inst(dc, link, inst_out);
+	} else if (dc_is_dp_sst_signal(link->connector_signal)) {
+		/* TODO: just set to 1 for now, fix it */
+		*inst_out = 1;
+		return true;
+	}
+
+	return false;
+}
+
 bool dp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream)
 {
 	if (!link)
@@ -165,7 +186,7 @@ bool dp_pr_enable(struct dc_link *link, bool enable)
 	unsigned int panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	if (link->replay_settings.replay_allow_active != enable) {
@@ -192,16 +213,16 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 	union dmub_rb_cmd cmd;
 	struct pipe_ctx *pipe_ctx = NULL;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	for (unsigned int i = 0; i < MAX_PIPES; i++) {
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
 			dc->current_state->res_ctx.pipe_ctx[i].stream->link &&
 			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link &&
-			dc->current_state->res_ctx.pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+			dc_is_dp_sst_signal(dc->current_state->res_ctx.pipe_ctx[i].stream->link->connector_signal)) {
 			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
-			//TODO: refactor for multi edp support
+			/* todo: need update for MST */
 			break;
 		}
 	}
@@ -255,7 +276,7 @@ bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_da
 	unsigned int panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -276,7 +297,7 @@ bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_
 	unsigned int panel_inst = 0;
 	union dmub_rb_cmd cmd;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -298,7 +319,7 @@ bool dp_pr_get_state(const struct dc_link *link, uint64_t *state)
 	uint32_t retry_count = 0;
 	uint32_t replay_state = 0;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
 	do {

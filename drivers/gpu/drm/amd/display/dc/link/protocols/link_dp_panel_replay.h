@@ -27,8 +27,8 @@
 
 #include "link_service.h"
 
-bool dp_setup_replay(struct dc_link *link,
-		const struct dc_stream_state *stream);
+bool dp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream);
+bool dp_pr_get_panel_inst(const struct dc *dc, const struct dc_link *link, unsigned int *inst_out);
 bool dp_pr_enable(struct dc_link *link, bool enable);
 bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_context);
 bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data);
