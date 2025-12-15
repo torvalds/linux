@@ -2086,12 +2086,16 @@ static int dsc_compute_link_config(struct intel_dp *intel_dp,
 				if (ret)
 					continue;
 			} else {
+				unsigned long bw_overhead_flags =
+					pipe_config->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
+
 				if (!is_bw_sufficient_for_dsc_config(intel_dp,
 								     link_rate, lane_count,
 								     adjusted_mode->crtc_clock,
 								     adjusted_mode->hdisplay,
 								     pipe_config->dsc.slice_count,
-								     dsc_bpp_x16, 0))
+								     dsc_bpp_x16,
+								     bw_overhead_flags))
 					continue;
 			}
 
