@@ -2517,14 +2517,15 @@ static int recompress_slot(struct zram *zram, u32 index, struct page *page,
 	 * avoid direct reclaim.  Allocation error is not fatal since
 	 * we still have the old object in the mem_pool.
 	 *
-	 * XXX: technically, the node we really want here is the node that holds
-	 * the original compressed data. But that would require us to modify
-	 * zsmalloc API to return this information. For now, we will make do with
-	 * the node of the page allocated for recompression.
+	 * XXX: technically, the node we really want here is the node that
+	 * holds the original compressed data. But that would require us to
+	 * modify zsmalloc API to return this information. For now, we will
+	 * make do with the node of the page allocated for recompression.
 	 */
 	handle_new = zs_malloc(zram->mem_pool, comp_len_new,
 			       GFP_NOIO | __GFP_NOWARN |
-			       __GFP_HIGHMEM | __GFP_MOVABLE, page_to_nid(page));
+			       __GFP_HIGHMEM | __GFP_MOVABLE,
+			       page_to_nid(page));
 	if (IS_ERR_VALUE(handle_new)) {
 		zcomp_stream_put(zstrm);
 		return PTR_ERR((void *)handle_new);
