@@ -1330,13 +1330,34 @@ static void remove_stream_from_alloc_table(
 	}
 }
 
+static void print_mst_streams(struct dc_link *link)
+{
+	int i;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	DC_LOG_MST("%s stream_count: %d:\n",
+		   __func__,
+		   link->mst_stream_alloc_table.stream_count);
+
+	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
+		DC_LOG_MST("stream_enc[%d]: %p\n", i,
+			   (void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc);
+		DC_LOG_MST("stream[%d].hpo_dp_stream_enc: %p\n", i,
+			   (void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc);
+		DC_LOG_MST("stream[%d].vcp_id: %d\n", i,
+			   link->mst_stream_alloc_table.stream_allocations[i].vcp_id);
+		DC_LOG_MST("stream[%d].slot_count: %d\n", i,
+			   link->mst_stream_alloc_table.stream_allocations[i].slot_count);
+	}
+}
+
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->link;
 	struct dc_dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dc_fixpt_from_int(0);
-	int i;
 	bool mst_mode = (link->type == dc_connection_mst_branch);
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	const struct dc_link_settings empty_link_settings = {0};
@@ -1372,9 +1393,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 					pipe_ctx->stream_res.hpo_dp_stream_enc,
 					&proposed_table);
 		else
-			DC_LOG_WARNING("Failed to update"
-					"MST allocation table for"
-					"pipe idx:%d\n",
+			DC_LOG_WARNING("Failed to update MST allocation table for idx %d\n",
 					pipe_ctx->pipe_idx);
 	} else {
 		/* when link is no longer in mst mode (mst hub unplugged),
@@ -1384,25 +1403,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->stream_res.hpo_dp_stream_enc);
 	}
 
-	DC_LOG_MST("%s"
-			"stream_count: %d: ",
-			__func__,
-			link->mst_stream_alloc_table.stream_count);
-
-	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: %p      "
-		"stream[%d].hpo_dp_stream_enc: %p      "
-		"stream[%d].vcp_id: %d      "
-		"stream[%d].slot_count: %d\n",
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
-	}
+	print_mst_streams(link);
 
 	/* update mst stream allocation table hardware state */
 	if (link_hwss->ext.update_stream_allocation_table == NULL ||
@@ -1437,7 +1438,6 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
-	int i;
 	enum act_return_status ret;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
@@ -1459,30 +1459,10 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 					pipe_ctx->stream_res.hpo_dp_stream_enc,
 					&proposed_table);
 	else
-		DC_LOG_WARNING("Failed to update"
-				"MST allocation table for"
-				"pipe idx:%d\n",
+		DC_LOG_WARNING("Failed to update MST allocation table for idx %d\n",
 				pipe_ctx->pipe_idx);
 
-	DC_LOG_MST("%s  "
-			"stream_count: %d: \n ",
-			__func__,
-			link->mst_stream_alloc_table.stream_count);
-
-	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: %p      "
-		"stream[%d].hpo_dp_stream_enc: %p      "
-		"stream[%d].vcp_id: %d      "
-		"stream[%d].slot_count: %d\n",
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
-	}
+	print_mst_streams(link);
 
 	ASSERT(proposed_table.stream_count > 0);
 
@@ -1747,7 +1727,6 @@ enum dc_status link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_in
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	struct dc_dp_mst_stream_allocation_table proposed_table = {0};
-	uint8_t i;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -1781,31 +1760,11 @@ enum dc_status link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_in
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
 				&proposed_table);
 	} else {
-		DC_LOG_WARNING("Failed to update"
-				"MST allocation table for"
-				"pipe idx:%d\n",
+		DC_LOG_WARNING("Failed to update MST allocation table for idx %d\n",
 				pipe_ctx->pipe_idx);
 	}
 
-	DC_LOG_MST("%s  "
-			"stream_count: %d: \n ",
-			__func__,
-			link->mst_stream_alloc_table.stream_count);
-
-	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: %p      "
-		"stream[%d].hpo_dp_stream_enc: %p      "
-		"stream[%d].vcp_id: %d      "
-		"stream[%d].slot_count: %d\n",
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
-	}
+	print_mst_streams(link);
 
 	ASSERT(proposed_table.stream_count > 0);
 
@@ -1835,7 +1794,6 @@ enum dc_status link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_
 	struct fixed31_32 pbn;
 	struct fixed31_32 pbn_per_slot;
 	struct dc_dp_mst_stream_allocation_table proposed_table = {0};
-	uint8_t i;
 	enum act_return_status ret;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
@@ -1854,25 +1812,7 @@ enum dc_status link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw_
 				&proposed_table);
 	}
 
-	DC_LOG_MST("%s  "
-			"stream_count: %d: \n ",
-			__func__,
-			link->mst_stream_alloc_table.stream_count);
-
-	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: %p      "
-		"stream[%d].hpo_dp_stream_enc: %p      "
-		"stream[%d].vcp_id: %d      "
-		"stream[%d].slot_count: %d\n",
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
-		i,
-		(void *) link->mst_stream_alloc_table.stream_allocations[i].hpo_dp_stream_enc,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
-		i,
-		link->mst_stream_alloc_table.stream_allocations[i].slot_count);
-	}
+	print_mst_streams(link);
 
 	ASSERT(proposed_table.stream_count > 0);
 
