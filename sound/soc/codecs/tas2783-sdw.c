@@ -35,8 +35,8 @@
 #include "tas2783.h"
 
 #define TIMEOUT_FW_DL_MS (3000)
-#define FW_DL_OFFSET	36
-#define FW_FL_HDR	12
+#define FW_DL_OFFSET	84 /* binary file information */
+#define FW_FL_HDR	20 /* minimum number of bytes in one chunk */
 #define TAS2783_PROBE_TIMEOUT 5000
 #define TAS2783_CALI_GUID EFI_GUID(0x1f52d2a1, 0xbb3a, 0x457d, 0xbc, \
 				   0x09, 0x43, 0xa3, 0xf4, 0x31, 0x0a, 0x92)
@@ -49,11 +49,22 @@ static const u32 tas2783_cali_reg[] = {
 	TAS2783_CAL_TLIM,
 };
 
-struct bin_header_t {
-	u16 vendor_id;
-	u16 version;
+struct tas_fw_hdr {
+	u32 size;
+	u32 version_offset;
+	u32 plt_id;
+	u32 ppc3_ver;
+	u32 timestamp;
+	u8 ddc_name[64];
+};
+
+struct tas_fw_file {
+	u32 vendor_id;
 	u32 file_id;
+	u32 version;
 	u32 length;
+	u32 dest_addr;
+	u8 *fw_data;
 };
 
 struct calibration_data {
@@ -735,13 +746,28 @@ static s32 tas2783_update_calibdata(struct tas2783_prv *tas_dev)
 	return ret;
 }
 
-static s32 read_header(const u8 *data, struct bin_header_t *hdr)
+static s32 tas_fw_read_hdr(const u8 *data, struct tas_fw_hdr *hdr)
 {
-	hdr->vendor_id = get_unaligned_le16(&data[0]);
-	hdr->file_id = get_unaligned_le32(&data[2]);
-	hdr->version = get_unaligned_le16(&data[6]);
-	hdr->length = get_unaligned_le32(&data[8]);
-	return 12;
+	hdr->size = get_unaligned_le32(data);
+	hdr->version_offset = get_unaligned_le32(&data[4]);
+	hdr->plt_id = get_unaligned_le32(&data[8]);
+	hdr->ppc3_ver = get_unaligned_le32(&data[12]);
+	memcpy(hdr->ddc_name, &data[16], 64);
+	hdr->timestamp = get_unaligned_le32(&data[80]);
+
+	return 84;
+}
+
+static s32 tas_fw_get_next_file(const u8 *data, struct tas_fw_file *file)
+{
+	file->vendor_id = get_unaligned_le32(&data[0]);
+	file->file_id = get_unaligned_le32(&data[4]);
+	file->version = get_unaligned_le32(&data[8]);
+	file->length = get_unaligned_le32(&data[12]);
+	file->dest_addr = get_unaligned_le32(&data[16]);
+	file->fw_data = (u8 *)&data[20];
+
+	return file->length + sizeof(u32) * 5;
 }
 
 static void tas2783_fw_ready(const struct firmware *fmw, void *context)
@@ -749,13 +775,20 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 	struct tas2783_prv *tas_dev =
 		(struct tas2783_prv *)context;
 	const u8 *buf = NULL;
-	s32 offset = 0, img_sz, file_blk_size, ret;
-	struct bin_header_t hdr;
+	s32  img_sz, ret = 0, cur_file = 0;
+	s32 offset = 0;
+
+	struct tas_fw_hdr *hdr __free(kfree) = kzalloc(sizeof(*hdr), GFP_KERNEL);
+	struct tas_fw_file *file __free(kfree) = kzalloc(sizeof(*file), GFP_KERNEL);
+	if (!file || !hdr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	if (!fmw || !fmw->data) {
-		/* No firmware binary, devices will work in ROM mode. */
+		/* firmware binary not found*/
 		dev_err(tas_dev->dev,
-			"Failed to read %s, no side-effect on driver running\n",
+			"Failed to read fw binary %s\n",
 			tas_dev->rca_binaryname);
 		ret = -EINVAL;
 		goto out;
@@ -763,67 +796,47 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 
 	img_sz = fmw->size;
 	buf = fmw->data;
-	offset += FW_DL_OFFSET;
-	if (offset >= (img_sz - FW_FL_HDR)) {
-		dev_err(tas_dev->dev,
-			"firmware is too small");
+	offset += tas_fw_read_hdr(buf, hdr);
+	if (hdr->size != img_sz) {
 		ret = -EINVAL;
+		dev_err(tas_dev->dev, "firmware size mismatch with header");
+		goto out;
+	}
+
+	if (img_sz < FW_DL_OFFSET) {
+		ret = -EINVAL;
+		dev_err(tas_dev->dev, "unexpected size, size is too small");
 		goto out;
 	}
 
 	mutex_lock(&tas_dev->pde_lock);
 	while (offset < (img_sz - FW_FL_HDR)) {
-		memset(&hdr, 0, sizeof(hdr));
-		offset += read_header(&buf[offset], &hdr);
+		offset += tas_fw_get_next_file(&buf[offset], file);
 		dev_dbg(tas_dev->dev,
-			"vndr=%d, file=%d, version=%d, len=%d, off=%d\n",
-			hdr.vendor_id, hdr.file_id, hdr.version,
-			hdr.length, offset);
-		/* size also includes the header */
-		file_blk_size = hdr.length - FW_FL_HDR;
+			"v=%d, fid=%d, ver=%d, len=%d, daddr=0x%x, fw=%p",
+			file->vendor_id, file->file_id,
+			file->version, file->length,
+			file->dest_addr, file->fw_data);
 
-		/* make sure that enough data is there */
-		if (offset + file_blk_size > img_sz) {
-			ret = -EINVAL;
+		ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
+				       file->dest_addr,
+				       file->length,
+				       file->fw_data);
+		if (ret < 0) {
 			dev_err(tas_dev->dev,
-				"corrupt firmware file");
+				"FW download failed: %d", ret);
 			break;
 		}
-
-		switch (hdr.file_id) {
-		case 0:
-			ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
-					       PRAM_ADDR_START, file_blk_size,
-					       &buf[offset]);
-			if (ret < 0)
-				dev_err(tas_dev->dev,
-					"PRAM update failed: %d", ret);
-			break;
-
-		case 1:
-			ret = sdw_nwrite_no_pm(tas_dev->sdw_peripheral,
-					       YRAM_ADDR_START, file_blk_size,
-					       &buf[offset]);
-			if (ret < 0)
-				dev_err(tas_dev->dev,
-					"YRAM update failed: %d", ret);
-
-			break;
-
-		default:
-			ret = -EINVAL;
-			dev_err(tas_dev->dev, "Unsupported file");
-			break;
-		}
-
-		if (ret == 0)
-			offset += file_blk_size;
-		else
-			break;
+		cur_file++;
 	}
 	mutex_unlock(&tas_dev->pde_lock);
-	if (!ret)
+
+	if (cur_file == 0) {
+		dev_err(tas_dev->dev, "fw with no files");
+		ret = -EINVAL;
+	} else {
 		tas2783_update_calibdata(tas_dev);
+	}
 
 out:
 	if (!ret)
@@ -1211,6 +1224,14 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 
 	tas_dev->fw_dl_task_done = false;
 	tas_dev->fw_dl_success = false;
+
+	ret = regmap_write(tas_dev->regmap, TAS2783_SW_RESET, 0x1);
+	if (ret) {
+		dev_err(dev, "sw reset failed, err=%d", ret);
+		return ret;
+	}
+	usleep_range(2000, 2200);
+
 	scnprintf(tas_dev->rca_binaryname, sizeof(tas_dev->rca_binaryname),
 		  "tas2783-%01x.bin", unique_id);
 
