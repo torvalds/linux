@@ -389,6 +389,8 @@ static bool rseq_reset_ids(void)
  */
 SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
 {
+	u32 rseqfl = 0;
+
 	if (flags & RSEQ_FLAG_UNREGISTER) {
 		if (flags & ~RSEQ_FLAG_UNREGISTER)
 			return -EINVAL;
@@ -440,6 +442,9 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 
+	if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION))
+		rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE;
+
 	scoped_user_write_access(rseq, efault) {
 		/*
 		 * If the rseq_cs pointer is non-NULL on registration, clear it to
@@ -449,11 +454,13 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 		 * clearing the fields. Don't bother reading it, just reset it.
 		 */
 		unsafe_put_user(0UL, &rseq->rseq_cs, efault);
+		unsafe_put_user(rseqfl, &rseq->flags, efault);
 		/* Initialize IDs in user space */
 		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id_start, efault);
 		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id, efault);
 		unsafe_put_user(0U, &rseq->node_id, efault);
 		unsafe_put_user(0U, &rseq->mm_cid, efault);
+		unsafe_put_user(0U, &rseq->slice_ctrl.all, efault);
 	}
 
 	/*
