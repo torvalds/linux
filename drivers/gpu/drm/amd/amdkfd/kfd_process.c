@@ -830,7 +830,7 @@ int kfd_create_process_sysfs(struct kfd_process *process)
 	int ret;
 
 	if (process->kobj) {
-		pr_warn("kobject already exsists for the kfd_process\n");
+		pr_warn("kobject already exists for the kfd_process\n");
 		return -EINVAL;
 	}
 
