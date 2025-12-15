@@ -15,6 +15,11 @@ struct rseq_stats {
 	unsigned long	cs;
 	unsigned long	clear;
 	unsigned long	fixup;
+	unsigned long	s_granted;
+	unsigned long	s_expired;
+	unsigned long	s_revoked;
+	unsigned long	s_yielded;
+	unsigned long	s_aborted;
 };
 
 DECLARE_PER_CPU(struct rseq_stats, rseq_stats);
