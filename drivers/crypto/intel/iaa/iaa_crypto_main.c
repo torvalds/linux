@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/iommu.h>
 #include <uapi/linux/idxd.h>
@@ -96,7 +97,7 @@ static bool iaa_verify_compress = true;
 
 static ssize_t verify_compress_show(struct device_driver *driver, char *buf)
 {
-	return sprintf(buf, "%d\n", iaa_verify_compress);
+	return sysfs_emit(buf, "%d\n", iaa_verify_compress);
 }
 
 static ssize_t verify_compress_store(struct device_driver *driver,
@@ -188,11 +189,11 @@ static ssize_t sync_mode_show(struct device_driver *driver, char *buf)
 	int ret = 0;
 
 	if (!async_mode && !use_irq)
-		ret = sprintf(buf, "%s\n", "sync");
+		ret = sysfs_emit(buf, "%s\n", "sync");
 	else if (async_mode && !use_irq)
-		ret = sprintf(buf, "%s\n", "async");
+		ret = sysfs_emit(buf, "%s\n", "async");
 	else if (async_mode && use_irq)
-		ret = sprintf(buf, "%s\n", "async_irq");
+		ret = sysfs_emit(buf, "%s\n", "async_irq");
 
 	return ret;
 }
