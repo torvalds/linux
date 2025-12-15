@@ -998,6 +998,7 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *crtc = pstate->crtc;
 	struct drm_crtc_state *cstate;
 	struct vop2_video_port *vp;
+	struct vop2_win *win = to_vop2_win(plane);
 	struct vop2 *vop2;
 	const struct vop2_data *vop2_data;
 	struct drm_rect *dest = &pstate->dst;
@@ -1062,6 +1063,16 @@ static int vop2_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (fb->format->is_yuv && src_x % 2) {
 		drm_dbg_kms(vop2->drm, "Invalid Source: Yuv format not support odd xpos\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * This is workaround solution for IC design:
+	 * esmart can't support scale down when src_w % 16 == 1.
+	 */
+	if (!vop2_cluster_window(win) && src_w > dest_w && (src_w & 1)) {
+		drm_dbg_kms(vop2->drm,
+			    "Esmart windows cannot downscale odd-width source regions\n");
 		return -EINVAL;
 	}
 
@@ -1224,16 +1235,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	    WARN_ON(dsp_w < 4) || WARN_ON(dsp_h < 4) ||
 	    WARN_ON(src_w < 4) || WARN_ON(src_h < 4))
 		return;
-
-	/*
-	 * This is workaround solution for IC design:
-	 * esmart can't support scale down when src_w % 16 == 1.
-	 */
-	if (!vop2_cluster_window(win) && src_w > dsp_w && (src_w & 1)) {
-		drm_dbg_kms(vop2->drm, "vp%d %s act_w[%d] MODE 16 == 1\n",
-			    vp->id, win->data->name, src_w);
-		src_w -= 1;
-	}
 
 	if (afbc_en && src_w % 4) {
 		drm_dbg_kms(vop2->drm, "vp%d %s src_w[%d] not 4 pixel aligned\n",
