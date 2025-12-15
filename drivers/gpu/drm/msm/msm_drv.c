@@ -588,7 +588,9 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 
 	switch (args->info) {
 	case MSM_INFO_GET_OFFSET:
-		args->value = msm_gem_mmap_offset(obj);
+		ret = drm_gem_create_mmap_offset(obj);
+		if (ret == 0)
+		    args->value = drm_vma_node_offset_addr(&obj->vma_node);
 		break;
 	case MSM_INFO_GET_IOVA:
 		ret = msm_ioctl_gem_info_iova(dev, file, obj, &args->value);
@@ -836,7 +838,7 @@ static const struct drm_driver msm_driver = {
 	.open               = msm_open,
 	.postclose          = msm_postclose,
 	.dumb_create        = msm_gem_dumb_create,
-	.dumb_map_offset    = msm_gem_dumb_map_offset,
+	.dumb_map_offset    = drm_gem_dumb_map_offset,
 	.gem_prime_import   = msm_gem_prime_import,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
 #ifdef CONFIG_DEBUG_FS
@@ -859,7 +861,7 @@ static const struct drm_driver msm_kms_driver = {
 	.open               = msm_open,
 	.postclose          = msm_postclose,
 	.dumb_create        = msm_gem_dumb_create,
-	.dumb_map_offset    = msm_gem_dumb_map_offset,
+	.dumb_map_offset    = drm_gem_dumb_map_offset,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,
