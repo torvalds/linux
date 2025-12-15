@@ -2446,7 +2446,7 @@ static struct task_struct *
 do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 {
 	struct task_struct *prev = rq->curr;
-	bool keep_prev, kick_idle = false;
+	bool keep_prev;
 	struct task_struct *p;
 
 	/* see kick_cpus_irq_workfn() */
@@ -2488,12 +2488,8 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 			refill_task_slice_dfl(rcu_dereference_sched(scx_root), p);
 	} else {
 		p = first_local_task(rq);
-		if (!p) {
-			if (kick_idle)
-				scx_kick_cpu(rcu_dereference_sched(scx_root),
-					     cpu_of(rq), SCX_KICK_IDLE);
+		if (!p)
 			return NULL;
-		}
 
 		if (unlikely(!p->scx.slice)) {
 			struct scx_sched *sch = rcu_dereference_sched(scx_root);
