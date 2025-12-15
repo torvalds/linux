@@ -28,7 +28,7 @@ struct bd71828_regulator_data {
 	int reg_init_amnt;
 };
 
-static const struct reg_init buck1_inits[] = {
+static const struct reg_init bd71828_buck1_inits[] = {
 	/*
 	 * DVS Buck voltages can be changed by register values or via GPIO.
 	 * Use register accesses by default.
@@ -40,7 +40,7 @@ static const struct reg_init buck1_inits[] = {
 	},
 };
 
-static const struct reg_init buck2_inits[] = {
+static const struct reg_init bd71828_buck2_inits[] = {
 	{
 		.reg = BD71828_REG_PS_CTRL_1,
 		.mask = BD71828_MASK_DVS_BUCK2_CTRL,
@@ -48,7 +48,7 @@ static const struct reg_init buck2_inits[] = {
 	},
 };
 
-static const struct reg_init buck6_inits[] = {
+static const struct reg_init bd71828_buck6_inits[] = {
 	{
 		.reg = BD71828_REG_PS_CTRL_1,
 		.mask = BD71828_MASK_DVS_BUCK6_CTRL,
@@ -56,7 +56,7 @@ static const struct reg_init buck6_inits[] = {
 	},
 };
 
-static const struct reg_init buck7_inits[] = {
+static const struct reg_init bd71828_buck7_inits[] = {
 	{
 		.reg = BD71828_REG_PS_CTRL_1,
 		.mask = BD71828_MASK_DVS_BUCK7_CTRL,
@@ -102,9 +102,9 @@ static int buck_set_hw_dvs_levels(struct device_node *np,
 	return rohm_regulator_set_dvs_levels(&data->dvs, np, desc, cfg->regmap);
 }
 
-static int ldo6_parse_dt(struct device_node *np,
-			 const struct regulator_desc *desc,
-			 struct regulator_config *cfg)
+static int bd71828_ldo6_parse_dt(struct device_node *np,
+				 const struct regulator_desc *desc,
+				 struct regulator_config *cfg)
 {
 	int ret, i;
 	uint32_t uv = 0;
@@ -212,8 +212,8 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			 */
 			.lpsr_on_mask = BD71828_MASK_LPSR_EN,
 		},
-		.reg_inits = buck1_inits,
-		.reg_init_amnt = ARRAY_SIZE(buck1_inits),
+		.reg_inits = bd71828_buck1_inits,
+		.reg_init_amnt = ARRAY_SIZE(bd71828_buck1_inits),
 	},
 	{
 		.desc = {
@@ -253,8 +253,8 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.lpsr_reg = BD71828_REG_BUCK2_SUSP_VOLT,
 			.lpsr_mask = BD71828_MASK_BUCK1267_VOLT,
 		},
-		.reg_inits = buck2_inits,
-		.reg_init_amnt = ARRAY_SIZE(buck2_inits),
+		.reg_inits = bd71828_buck2_inits,
+		.reg_init_amnt = ARRAY_SIZE(bd71828_buck2_inits),
 	},
 	{
 		.desc = {
@@ -399,8 +399,8 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.lpsr_reg = BD71828_REG_BUCK6_SUSP_VOLT,
 			.lpsr_mask = BD71828_MASK_BUCK1267_VOLT,
 		},
-		.reg_inits = buck6_inits,
-		.reg_init_amnt = ARRAY_SIZE(buck6_inits),
+		.reg_inits = bd71828_buck6_inits,
+		.reg_init_amnt = ARRAY_SIZE(bd71828_buck6_inits),
 	},
 	{
 		.desc = {
@@ -440,8 +440,8 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			.lpsr_reg = BD71828_REG_BUCK7_SUSP_VOLT,
 			.lpsr_mask = BD71828_MASK_BUCK1267_VOLT,
 		},
-		.reg_inits = buck7_inits,
-		.reg_init_amnt = ARRAY_SIZE(buck7_inits),
+		.reg_inits = bd71828_buck7_inits,
+		.reg_init_amnt = ARRAY_SIZE(bd71828_buck7_inits),
 	},
 	{
 		.desc = {
@@ -633,7 +633,7 @@ static const struct bd71828_regulator_data bd71828_rdata[] = {
 			 * LDO6 only supports enable/disable for all states.
 			 * Voltage for LDO6 is fixed.
 			 */
-			.of_parse_cb = ldo6_parse_dt,
+			.of_parse_cb = bd71828_ldo6_parse_dt,
 		},
 	}, {
 		.desc = {
