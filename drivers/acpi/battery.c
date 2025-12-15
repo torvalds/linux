@@ -1054,8 +1054,8 @@ static void acpi_battery_refresh(struct acpi_battery *battery)
 /* Driver Interface */
 static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_device *device = data;
-	struct acpi_battery *battery = acpi_driver_data(device);
+	struct acpi_battery *battery = data;
+	struct acpi_device *device = battery->device;
 	struct power_supply *old;
 
 	if (!battery)
@@ -1249,7 +1249,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	device_init_wakeup(&device->dev, 1);
 
 	result = acpi_dev_install_notify_handler(device, ACPI_ALL_NOTIFY,
-						 acpi_battery_notify, device);
+						 acpi_battery_notify, battery);
 	if (result)
 		goto fail_pm;
 
