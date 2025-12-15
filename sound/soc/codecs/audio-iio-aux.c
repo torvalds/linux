@@ -131,7 +131,7 @@ static_assert(ARRAY_SIZE(routes) >= 2, "2 routes are needed");
 static int audio_iio_aux_add_dapms(struct snd_soc_component *component,
 				   struct audio_iio_aux_chan *chan)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	/* Allocated names are not needed afterwards (duplicated in ASoC internals) */

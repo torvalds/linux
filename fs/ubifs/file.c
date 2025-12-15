@@ -1323,7 +1323,7 @@ int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	inode_lock(inode);
 
 	/* Synchronize the inode unless this is a 'datasync()' call. */
-	if (!datasync || (inode->i_state & I_DIRTY_DATASYNC)) {
+	if (!datasync || (inode_state_read_once(inode) & I_DIRTY_DATASYNC)) {
 		err = inode->i_sb->s_op->write_inode(inode, NULL);
 		if (err)
 			goto out;

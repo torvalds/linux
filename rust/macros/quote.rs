@@ -48,6 +48,7 @@ macro_rules! quote_spanned {
     ($span:expr => $($tt:tt)*) => {{
         let mut tokens = ::proc_macro::TokenStream::new();
         {
+            #[allow(unused_variables)]
             let span = $span;
             quote_spanned!(@proc tokens span $($tt)*);
         }
@@ -143,6 +144,12 @@ macro_rules! quote_spanned {
     (@proc $v:ident $span:ident # $($tt:tt)*) => {
         $v.extend([::proc_macro::TokenTree::Punct(
             ::proc_macro::Punct::new('#', ::proc_macro::Spacing::Alone),
+        )]);
+        quote_spanned!(@proc $v $span $($tt)*);
+    };
+    (@proc $v:ident $span:ident & $($tt:tt)*) => {
+        $v.extend([::proc_macro::TokenTree::Punct(
+            ::proc_macro::Punct::new('&', ::proc_macro::Spacing::Alone),
         )]);
         quote_spanned!(@proc $v $span $($tt)*);
     };

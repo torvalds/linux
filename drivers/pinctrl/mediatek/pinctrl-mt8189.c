@@ -1642,9 +1642,7 @@ static const struct mtk_pin_reg_calc mt8189_reg_cals[PINCTRL_PIN_REG_MAX] = {
 };
 
 static const char * const mt8189_pinctrl_register_base_names[] = {
-	"gpio_base", "iocfg_bm0_base", "iocfg_bm1_base", "iocfg_bm2_base", "iocfg_lm_base",
-	"iocfg_lt0_base", "iocfg_lt1_base", "iocfg_rb0_base", "iocfg_rb1_base",
-	"iocfg_rt_base"
+	"base", "lm", "rb0", "rb1", "bm0", "bm1", "bm2", "lt0", "lt1", "rt",
 };
 
 static const struct mtk_eint_hw mt8189_eint_hw = {

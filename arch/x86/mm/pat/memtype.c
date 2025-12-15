@@ -42,6 +42,7 @@
 #include <linux/highmem.h>
 #include <linux/fs.h>
 #include <linux/rbtree.h>
+#include <linux/kvm_types.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/cacheflush.h>
@@ -697,7 +698,7 @@ bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn)
 	       cm == _PAGE_CACHE_MODE_UC_MINUS ||
 	       cm == _PAGE_CACHE_MODE_WC;
 }
-EXPORT_SYMBOL_GPL(pat_pfn_immune_to_uc_mtrr);
+EXPORT_SYMBOL_FOR_KVM(pat_pfn_immune_to_uc_mtrr);
 
 /**
  * memtype_reserve_io - Request a memory type mapping for a region of memory

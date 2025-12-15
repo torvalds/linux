@@ -585,7 +585,7 @@ static const struct lease_manager_operations lease_manager_ops = {
 /*
  * Initialize a lease, use the default lock manager operations
  */
-static int lease_init(struct file *filp, int type, struct file_lease *fl)
+static int lease_init(struct file *filp, unsigned int flags, int type, struct file_lease *fl)
 {
 	if (assign_type(&fl->c, type) != 0)
 		return -EINVAL;
@@ -594,13 +594,13 @@ static int lease_init(struct file *filp, int type, struct file_lease *fl)
 	fl->c.flc_pid = current->tgid;
 
 	fl->c.flc_file = filp;
-	fl->c.flc_flags = FL_LEASE;
+	fl->c.flc_flags = flags;
 	fl->fl_lmops = &lease_manager_ops;
 	return 0;
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static struct file_lease *lease_alloc(struct file *filp, int type)
+static struct file_lease *lease_alloc(struct file *filp, unsigned int flags, int type)
 {
 	struct file_lease *fl = locks_alloc_lease();
 	int error = -ENOMEM;
@@ -608,7 +608,7 @@ static struct file_lease *lease_alloc(struct file *filp, int type)
 	if (fl == NULL)
 		return ERR_PTR(error);
 
-	error = lease_init(filp, type, fl);
+	error = lease_init(filp, flags, type, fl);
 	if (error) {
 		locks_free_lease(fl);
 		return ERR_PTR(error);
@@ -1529,29 +1529,35 @@ any_leases_conflict(struct inode *inode, struct file_lease *breaker)
 /**
  *	__break_lease	-	revoke all outstanding leases on file
  *	@inode: the inode of the file to return
- *	@mode: O_RDONLY: break only write leases; O_WRONLY or O_RDWR:
- *	    break all leases
- *	@type: FL_LEASE: break leases and delegations; FL_DELEG: break
- *	    only delegations
+ *	@flags: LEASE_BREAK_* flags
  *
  *	break_lease (inlined for speed) has checked there already is at least
  *	some kind of lock (maybe a lease) on this file.  Leases are broken on
- *	a call to open() or truncate().  This function can sleep unless you
- *	specified %O_NONBLOCK to your open().
+ *	a call to open() or truncate().  This function can block waiting for the
+ *	lease break unless you specify LEASE_BREAK_NONBLOCK.
  */
-int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
+int __break_lease(struct inode *inode, unsigned int flags)
 {
-	int error = 0;
-	struct file_lock_context *ctx;
 	struct file_lease *new_fl, *fl, *tmp;
+	struct file_lock_context *ctx;
 	unsigned long break_time;
-	int want_write = (mode & O_ACCMODE) != O_RDONLY;
+	unsigned int type;
 	LIST_HEAD(dispose);
+	bool want_write = !(flags & LEASE_BREAK_OPEN_RDONLY);
+	int error = 0;
 
-	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
+	if (flags & LEASE_BREAK_LEASE)
+		type = FL_LEASE;
+	else if (flags & LEASE_BREAK_DELEG)
+		type = FL_DELEG;
+	else if (flags & LEASE_BREAK_LAYOUT)
+		type = FL_LAYOUT;
+	else
+		return -EINVAL;
+
+	new_fl = lease_alloc(NULL, type, want_write ? F_WRLCK : F_RDLCK);
 	if (IS_ERR(new_fl))
 		return PTR_ERR(new_fl);
-	new_fl->c.flc_flags = type;
 
 	/* typically we will check that ctx is non-NULL before calling */
 	ctx = locks_inode_context(inode);
@@ -1596,7 +1602,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	if (list_empty(&ctx->flc_lease))
 		goto out;
 
-	if (mode & O_NONBLOCK) {
+	if (flags & LEASE_BREAK_NONBLOCK) {
 		trace_break_lease_noblock(inode, new_fl);
 		error = -EWOULDBLOCK;
 		goto out;
@@ -1675,8 +1681,9 @@ void lease_get_mtime(struct inode *inode, struct timespec64 *time)
 EXPORT_SYMBOL(lease_get_mtime);
 
 /**
- *	fcntl_getlease - Enquire what lease is currently active
+ *	__fcntl_getlease - Enquire what lease is currently active
  *	@filp: the file
+ *	@flavor: type of lease flags to check
  *
  *	The value returned by this function will be one of
  *	(if no lease break is pending):
@@ -1697,7 +1704,7 @@ EXPORT_SYMBOL(lease_get_mtime);
  *	XXX: sfr & willy disagree over whether F_INPROGRESS
  *	should be returned to userspace.
  */
-int fcntl_getlease(struct file *filp)
+static int __fcntl_getlease(struct file *filp, unsigned int flavor)
 {
 	struct file_lease *fl;
 	struct inode *inode = file_inode(filp);
@@ -1713,7 +1720,8 @@ int fcntl_getlease(struct file *filp)
 		list_for_each_entry(fl, &ctx->flc_lease, c.flc_list) {
 			if (fl->c.flc_file != filp)
 				continue;
-			type = target_leasetype(fl);
+			if (fl->c.flc_flags & flavor)
+				type = target_leasetype(fl);
 			break;
 		}
 		spin_unlock(&ctx->flc_lock);
@@ -1722,6 +1730,19 @@ int fcntl_getlease(struct file *filp)
 		locks_dispose_list(&dispose);
 	}
 	return type;
+}
+
+int fcntl_getlease(struct file *filp)
+{
+	return __fcntl_getlease(filp, FL_LEASE);
+}
+
+int fcntl_getdeleg(struct file *filp, struct delegation *deleg)
+{
+	if (deleg->d_flags != 0 || deleg->__pad != 0)
+		return -EINVAL;
+	deleg->d_type = __fcntl_getlease(filp, FL_DELEG);
+	return 0;
 }
 
 /**
@@ -1929,11 +1950,19 @@ static int generic_delete_lease(struct file *filp, void *owner)
 int generic_setlease(struct file *filp, int arg, struct file_lease **flp,
 			void **priv)
 {
+	struct inode *inode = file_inode(filp);
+
+	if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
+		return -EINVAL;
+
 	switch (arg) {
 	case F_UNLCK:
 		return generic_delete_lease(filp, *priv);
-	case F_RDLCK:
 	case F_WRLCK:
+		if (S_ISDIR(inode->i_mode))
+			return -EINVAL;
+		fallthrough;
+	case F_RDLCK:
 		if (!(*flp)->fl_lmops->lm_break) {
 			WARN_ON_ONCE(1);
 			return -ENOLCK;
@@ -2018,8 +2047,6 @@ vfs_setlease(struct file *filp, int arg, struct file_lease **lease, void **priv)
 
 	if ((!vfsuid_eq_kuid(vfsuid, current_fsuid())) && !capable(CAP_LEASE))
 		return -EACCES;
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
 	error = security_file_lock(filp, arg);
 	if (error)
 		return error;
@@ -2027,13 +2054,13 @@ vfs_setlease(struct file *filp, int arg, struct file_lease **lease, void **priv)
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 
-static int do_fcntl_add_lease(unsigned int fd, struct file *filp, int arg)
+static int do_fcntl_add_lease(unsigned int fd, struct file *filp, unsigned int flavor, int arg)
 {
 	struct file_lease *fl;
 	struct fasync_struct *new;
 	int error;
 
-	fl = lease_alloc(filp, arg);
+	fl = lease_alloc(filp, flavor, arg);
 	if (IS_ERR(fl))
 		return PTR_ERR(fl);
 
@@ -2064,9 +2091,33 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, int arg)
  */
 int fcntl_setlease(unsigned int fd, struct file *filp, int arg)
 {
+	if (S_ISDIR(file_inode(filp)->i_mode))
+		return -EINVAL;
+
 	if (arg == F_UNLCK)
 		return vfs_setlease(filp, F_UNLCK, NULL, (void **)&filp);
-	return do_fcntl_add_lease(fd, filp, arg);
+	return do_fcntl_add_lease(fd, filp, FL_LEASE, arg);
+}
+
+/**
+ *	fcntl_setdeleg	-	sets a delegation on an open file
+ *	@fd: open file descriptor
+ *	@filp: file pointer
+ *	@deleg: delegation request from userland
+ *
+ *	Call this fcntl to establish a delegation on the file.
+ *	Note that you also need to call %F_SETSIG to
+ *	receive a signal when the lease is broken.
+ */
+int fcntl_setdeleg(unsigned int fd, struct file *filp, struct delegation *deleg)
+{
+	/* For now, no flags are supported */
+	if (deleg->d_flags != 0 || deleg->__pad != 0)
+		return -EINVAL;
+
+	if (deleg->d_type == F_UNLCK)
+		return vfs_setlease(filp, F_UNLCK, NULL, (void **)&filp);
+	return do_fcntl_add_lease(fd, filp, FL_DELEG, deleg->d_type);
 }
 
 /**

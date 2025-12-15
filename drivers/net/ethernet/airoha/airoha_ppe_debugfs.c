@@ -53,9 +53,10 @@ static int airoha_ppe_debugfs_foe_show(struct seq_file *m, void *private,
 		[AIROHA_FOE_STATE_FIN] = "FIN",
 	};
 	struct airoha_ppe *ppe = m->private;
+	u32 ppe_num_entries = airoha_ppe_get_total_num_entries(ppe);
 	int i;
 
-	for (i = 0; i < PPE_NUM_ENTRIES; i++) {
+	for (i = 0; i < ppe_num_entries; i++) {
 		const char *state_str, *type_str = "UNKNOWN";
 		void *src_addr = NULL, *dest_addr = NULL;
 		u16 *src_port = NULL, *dest_port = NULL;

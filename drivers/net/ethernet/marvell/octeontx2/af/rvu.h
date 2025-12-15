@@ -498,6 +498,14 @@ struct channel_fwdata {
 	u8 reserved[RVU_CHANL_INFO_RESERVED];
 };
 
+struct altaf_intr_notify {
+	unsigned long flr_pf_bmap[2];
+	unsigned long flr_vf_bmap[2];
+	unsigned long gint_paddr;
+	unsigned long gint_iova_addr;
+	unsigned long reserved[6];
+};
+
 struct rvu_fwdata {
 #define RVU_FWDATA_HEADER_MAGIC	0xCFDA	/* Custom Firmware Data*/
 #define RVU_FWDATA_VERSION	0x0001
@@ -517,7 +525,8 @@ struct rvu_fwdata {
 	u32 ptp_ext_clk_rate;
 	u32 ptp_ext_tstamp;
 	struct channel_fwdata channel_data;
-#define FWDATA_RESERVED_MEM 958
+	struct altaf_intr_notify altaf_intr_info;
+#define FWDATA_RESERVED_MEM 946
 	u64 reserved[FWDATA_RESERVED_MEM];
 #define CGX_MAX         9
 #define CGX_LMACS_MAX   4
@@ -648,6 +657,7 @@ struct rvu {
 
 	struct mutex		mbox_lock; /* Serialize mbox up and down msgs */
 	u16			rep_pcifunc;
+	bool			altaf_ready;
 	int			rep_cnt;
 	u16			*rep2pfvf_map;
 	u8			rep_mode;
@@ -1032,6 +1042,9 @@ void rvu_nix_flr_free_bpids(struct rvu *rvu, u16 pcifunc);
 int rvu_alloc_cint_qint_mem(struct rvu *rvu, struct rvu_pfvf *pfvf,
 			    int blkaddr, int nixlf);
 void rvu_block_bcast_xon(struct rvu *rvu, int blkaddr);
+int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
+			struct nix_aq_enq_rsp *rsp);
+
 /* NPC APIs */
 void rvu_npc_freemem(struct rvu *rvu);
 int rvu_npc_get_pkind(struct rvu *rvu, u16 pf);

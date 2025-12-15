@@ -82,12 +82,6 @@ static inline unsigned int reg_status(struct bcm7038_l1_chip *intc,
 	return (0 * intc->n_words + word) * sizeof(u32);
 }
 
-static inline unsigned int reg_mask_status(struct bcm7038_l1_chip *intc,
-					   unsigned int word)
-{
-	return (1 * intc->n_words + word) * sizeof(u32);
-}
-
 static inline unsigned int reg_mask_set(struct bcm7038_l1_chip *intc,
 					unsigned int word)
 {
@@ -219,9 +213,8 @@ static int bcm7038_l1_set_affinity(struct irq_data *d,
 }
 #endif
 
-static int __init bcm7038_l1_init_one(struct device_node *dn,
-				      unsigned int idx,
-				      struct bcm7038_l1_chip *intc)
+static int bcm7038_l1_init_one(struct device_node *dn, unsigned int idx,
+			       struct bcm7038_l1_chip *intc)
 {
 	struct resource res;
 	resource_size_t sz;
@@ -292,7 +285,7 @@ static int __init bcm7038_l1_init_one(struct device_node *dn,
 static LIST_HEAD(bcm7038_l1_intcs_list);
 static DEFINE_RAW_SPINLOCK(bcm7038_l1_intcs_lock);
 
-static int bcm7038_l1_suspend(void)
+static int bcm7038_l1_suspend(void *data)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;
@@ -318,7 +311,7 @@ static int bcm7038_l1_suspend(void)
 	return 0;
 }
 
-static void bcm7038_l1_resume(void)
+static void bcm7038_l1_resume(void *data)
 {
 	struct bcm7038_l1_chip *intc;
 	int boot_cpu, word;
@@ -339,9 +332,13 @@ static void bcm7038_l1_resume(void)
 	}
 }
 
-static struct syscore_ops bcm7038_l1_syscore_ops = {
+static const struct syscore_ops bcm7038_l1_syscore_ops = {
 	.suspend	= bcm7038_l1_suspend,
 	.resume		= bcm7038_l1_resume,
+};
+
+static struct syscore bcm7038_l1_syscore = {
+	.ops = &bcm7038_l1_syscore_ops,
 };
 
 static int bcm7038_l1_set_wake(struct irq_data *d, unsigned int on)
@@ -395,9 +392,9 @@ static const struct irq_domain_ops bcm7038_l1_domain_ops = {
 	.map			= bcm7038_l1_map,
 };
 
-static int __init bcm7038_l1_of_init(struct device_node *dn,
-			      struct device_node *parent)
+static int bcm7038_l1_probe(struct platform_device *pdev, struct device_node *parent)
 {
+	struct device_node *dn = pdev->dev.of_node;
 	struct bcm7038_l1_chip *intc;
 	int idx, ret;
 
@@ -431,7 +428,7 @@ static int __init bcm7038_l1_of_init(struct device_node *dn,
 	raw_spin_unlock(&bcm7038_l1_intcs_lock);
 
 	if (list_is_singular(&bcm7038_l1_intcs_list))
-		register_syscore_ops(&bcm7038_l1_syscore_ops);
+		register_syscore(&bcm7038_l1_syscore);
 #endif
 
 	pr_info("registered BCM7038 L1 intc (%pOF, IRQs: %d)\n",
@@ -455,7 +452,7 @@ out_free:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(bcm7038_l1)
-IRQCHIP_MATCH("brcm,bcm7038-l1-intc", bcm7038_l1_of_init)
+IRQCHIP_MATCH("brcm,bcm7038-l1-intc", bcm7038_l1_probe)
 IRQCHIP_PLATFORM_DRIVER_END(bcm7038_l1)
 MODULE_DESCRIPTION("Broadcom STB 7038-style L1/L2 interrupt controller");
 MODULE_LICENSE("GPL v2");

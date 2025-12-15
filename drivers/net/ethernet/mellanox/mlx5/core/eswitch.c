@@ -875,13 +875,10 @@ static int esw_vport_setup(struct mlx5_eswitch *esw, struct mlx5_vport *vport)
 				      vport_num, 1,
 				      vport->info.link_state);
 
-	/* Host PF has its own mac/guid. */
-	if (vport_num) {
-		mlx5_modify_nic_vport_mac_address(esw->dev, vport_num,
-						  vport->info.mac);
-		mlx5_modify_nic_vport_node_guid(esw->dev, vport_num,
-						vport->info.node_guid);
-	}
+	mlx5_query_nic_vport_mac_address(esw->dev, vport_num, true,
+					 vport->info.mac);
+	mlx5_query_nic_vport_node_guid(esw->dev, vport_num, true,
+				       &vport->info.node_guid);
 
 	flags = (vport->info.vlan || vport->info.qos) ?
 		SET_VLAN_STRIP | SET_VLAN_INSERT : 0;
@@ -946,12 +943,6 @@ int mlx5_esw_vport_enable(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 		if (ret)
 			goto err_vhca_mapping;
 	}
-
-	/* External controller host PF has factory programmed MAC.
-	 * Read it from the device.
-	 */
-	if (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF)
-		mlx5_query_nic_vport_mac_address(esw->dev, vport_num, true, vport->info.mac);
 
 	esw_vport_change_handle_locked(vport);
 
@@ -1483,7 +1474,7 @@ static void mlx5_esw_mode_change_notify(struct mlx5_eswitch *esw, u16 mode)
 
 	info.new_mode = mode;
 
-	blocking_notifier_call_chain(&esw->n_head, 0, &info);
+	blocking_notifier_call_chain(&esw->dev->priv.esw_n_head, 0, &info);
 }
 
 static int mlx5_esw_egress_acls_init(struct mlx5_core_dev *dev)
@@ -1978,7 +1969,8 @@ static int mlx5_devlink_esw_multiport_set(struct devlink *devlink, u32 id,
 }
 
 static int mlx5_devlink_esw_multiport_get(struct devlink *devlink, u32 id,
-					  struct devlink_param_gset_ctx *ctx)
+					  struct devlink_param_gset_ctx *ctx,
+					  struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 
@@ -2059,7 +2051,6 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_BASIC;
 	else
 		esw->offloads.encap = DEVLINK_ESWITCH_ENCAP_MODE_NONE;
-	BLOCKING_INIT_NOTIFIER_HEAD(&esw->n_head);
 
 	esw_info(dev,
 		 "Total vports %d, per vport: max uc(%d) max mc(%d)\n",
@@ -2235,6 +2226,9 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	ivi->vf = vport - 1;
 
 	mutex_lock(&esw->state_lock);
+
+	mlx5_query_nic_vport_mac_address(esw->dev, vport, true,
+					 evport->info.mac);
 	ether_addr_copy(ivi->mac, evport->info.mac);
 	ivi->linkstate = evport->info.link_state;
 	ivi->vlan = evport->info.vlan;
@@ -2385,14 +2379,16 @@ bool mlx5_esw_multipath_prereq(struct mlx5_core_dev *dev0,
 		dev1->priv.eswitch->mode == MLX5_ESWITCH_OFFLOADS);
 }
 
-int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_block *nb)
+int mlx5_esw_event_notifier_register(struct mlx5_core_dev *dev,
+				     struct notifier_block *nb)
 {
-	return blocking_notifier_chain_register(&esw->n_head, nb);
+	return blocking_notifier_chain_register(&dev->priv.esw_n_head, nb);
 }
 
-void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *nb)
+void mlx5_esw_event_notifier_unregister(struct mlx5_core_dev *dev,
+					struct notifier_block *nb)
 {
-	blocking_notifier_chain_unregister(&esw->n_head, nb);
+	blocking_notifier_chain_unregister(&dev->priv.esw_n_head, nb);
 }
 
 /**

@@ -76,14 +76,14 @@ struct jfs_inode_info {
 		struct {
 			unchar _unused[16];	/* 16: */
 			dxd_t _dxd;		/* 16: */
-			/* _inline may overflow into _inline_ea when needed */
+			/* _inline_sym may overflow into _inline_ea when needed */
 			/* _inline_ea may overlay the last part of
 			 * file._xtroot if maxentry = XTROOTINITSLOT
 			 */
 			union {
 				struct {
 					/* 128: inline symlink */
-					unchar _inline[128];
+					unchar _inline_sym[128];
 					/* 128: inline extended attr */
 					unchar _inline_ea[128];
 				};
@@ -101,7 +101,7 @@ struct jfs_inode_info {
 #define i_imap u.file._imap
 #define i_dirtable u.dir._table
 #define i_dtroot u.dir._dtroot
-#define i_inline u.link._inline
+#define i_inline u.link._inline_sym
 #define i_inline_ea u.link._inline_ea
 #define i_inline_all u.link._inline_all
 

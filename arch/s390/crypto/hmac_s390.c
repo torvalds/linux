@@ -5,8 +5,7 @@
  * s390 specific HMAC support.
  */
 
-#define KMSG_COMPONENT	"hmac_s390"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "hmac_s390: " fmt
 
 #include <asm/cpacf.h>
 #include <crypto/internal/hash.h>

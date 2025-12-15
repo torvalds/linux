@@ -17,8 +17,7 @@ https://www.usenix.org/system/files/conference/nsdi16/nsdi16-paper-eisenbud.pdf
  *
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/ip.h>
 #include <linux/slab.h>

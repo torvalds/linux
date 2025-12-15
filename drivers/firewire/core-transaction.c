@@ -44,28 +44,68 @@ static int try_cancel_split_timeout(struct fw_transaction *t)
 		return 1;
 }
 
-static int close_transaction(struct fw_transaction *transaction, struct fw_card *card, int rcode,
-			     u32 response_tstamp)
+// card->transactions.lock must be acquired in advance.
+static void remove_transaction_entry(struct fw_card *card, struct fw_transaction *entry)
 {
-	struct fw_transaction *t = NULL, *iter;
+	list_del_init(&entry->link);
+	card->transactions.tlabel_mask &= ~(1ULL << entry->tlabel);
+}
+
+// Must be called without holding card->transactions.lock.
+void fw_cancel_pending_transactions(struct fw_card *card)
+{
+	struct fw_transaction *t, *tmp;
+	LIST_HEAD(pending_list);
 
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		list_for_each_entry(iter, &card->transactions.list, link) {
-			if (iter == transaction) {
-				if (try_cancel_split_timeout(iter)) {
-					list_del_init(&iter->link);
-					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
-					t = iter;
-				}
-				break;
-			}
+		list_for_each_entry_safe(t, tmp, &card->transactions.list, link) {
+			if (try_cancel_split_timeout(t))
+				list_move(&t->link, &pending_list);
 		}
 	}
 
-	if (!t)
-		return -ENOENT;
+	list_for_each_entry_safe(t, tmp, &pending_list, link) {
+		list_del(&t->link);
+
+		if (!t->with_tstamp) {
+			t->callback.without_tstamp(card, RCODE_CANCELLED, NULL, 0,
+						   t->callback_data);
+		} else {
+			t->callback.with_tstamp(card, RCODE_CANCELLED, t->packet.timestamp, 0,
+						NULL, 0, t->callback_data);
+		}
+	}
+}
+
+// card->transactions.lock must be acquired in advance.
+#define find_and_pop_transaction_entry(card, condition)			\
+({									\
+	struct fw_transaction *iter, *t = NULL;				\
+	list_for_each_entry(iter, &card->transactions.list, link) {	\
+		if (condition) {					\
+			t = iter;					\
+			break;						\
+		}							\
+	}								\
+	if (t && try_cancel_split_timeout(t))				\
+		remove_transaction_entry(card, t);			\
+	t;								\
+})
+
+static int close_transaction(struct fw_transaction *transaction, struct fw_card *card, int rcode,
+			     u32 response_tstamp)
+{
+	struct fw_transaction *t;
+
+	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
+	// local destination never runs in any type of IRQ context.
+	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
+		t = find_and_pop_transaction_entry(card, iter == transaction);
+		if (!t)
+			return -ENOENT;
+	}
 
 	if (!t->with_tstamp) {
 		t->callback.without_tstamp(card, rcode, NULL, 0, t->callback_data);
@@ -122,8 +162,7 @@ static void split_transaction_timeout_callback(struct timer_list *timer)
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
 		if (list_empty(&t->link))
 			return;
-		list_del(&t->link);
-		card->transactions.tlabel_mask &= ~(1ULL << t->tlabel);
+		remove_transaction_entry(card, t);
 	}
 
 	if (!t->with_tstamp) {
@@ -1097,7 +1136,7 @@ EXPORT_SYMBOL(fw_core_handle_request);
 
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 {
-	struct fw_transaction *t = NULL, *iter;
+	struct fw_transaction *t = NULL;
 	u32 *data;
 	size_t data_length;
 	int tcode, tlabel, source, rcode;
@@ -1139,16 +1178,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	// NOTE: This can be without irqsave when we can guarantee that __fw_send_request() for
 	// local destination never runs in any type of IRQ context.
 	scoped_guard(spinlock_irqsave, &card->transactions.lock) {
-		list_for_each_entry(iter, &card->transactions.list, link) {
-			if (iter->node_id == source && iter->tlabel == tlabel) {
-				if (try_cancel_split_timeout(iter)) {
-					list_del_init(&iter->link);
-					card->transactions.tlabel_mask &= ~(1ULL << iter->tlabel);
-					t = iter;
-				}
-				break;
-			}
-		}
+		t = find_and_pop_transaction_entry(card,
+				iter->node_id == source && iter->tlabel == tlabel);
 	}
 
 	trace_async_response_inbound((uintptr_t)t, card->index, p->generation, p->speed, p->ack,
@@ -1437,7 +1468,8 @@ static int __init fw_core_init(void)
 {
 	int ret;
 
-	fw_workqueue = alloc_workqueue("firewire", WQ_MEM_RECLAIM, 0);
+	fw_workqueue = alloc_workqueue("firewire", WQ_MEM_RECLAIM | WQ_UNBOUND,
+				       0);
 	if (!fw_workqueue)
 		return -ENOMEM;
 

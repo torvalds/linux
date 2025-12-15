@@ -11,7 +11,24 @@
 #define __has_builtin(x) (0)
 #endif
 
+/* Indirect macros required for expanded argument pasting, eg. __LINE__. */
+#define ___PASTE(a, b) a##b
+#define __PASTE(a, b) ___PASTE(a, b)
+
 #ifndef __ASSEMBLY__
+
+/*
+ * C23 introduces "auto" as a standard way to define type-inferred
+ * variables, but "auto" has been a (useless) keyword even since K&R C,
+ * so it has always been "namespace reserved."
+ *
+ * Until at some future time we require C23 support, we need the gcc
+ * extension __auto_type, but there is no reason to put that elsewhere
+ * in the source code.
+ */
+#if __STDC_VERSION__ < 202311L
+# define auto __auto_type
+#endif
 
 /*
  * Skipped when running bindgen due to a libclang issue;
@@ -78,10 +95,6 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 # define ACCESS_PRIVATE(p, member) ((p)->member)
 # define __builtin_warning(x, y...) (1)
 #endif /* __CHECKER__ */
-
-/* Indirect macros required for expanded argument pasting, eg. __LINE__. */
-#define ___PASTE(a,b) a##b
-#define __PASTE(a,b) ___PASTE(a,b)
 
 #ifdef __KERNEL__
 
@@ -391,6 +404,21 @@ struct ftrace_likely_data {
 #else
 #define __counted_by_le(member)
 #define __counted_by_be(member)	__counted_by(member)
+#endif
+
+/*
+ * This designates the minimum number of elements a passed array parameter must
+ * have. For example:
+ *
+ *     void some_function(u8 param[at_least 7]);
+ *
+ * If a caller passes an array with fewer than 7 elements, the compiler will
+ * emit a warning.
+ */
+#ifndef __CHECKER__
+#define at_least static
+#else
+#define at_least
 #endif
 
 /* Do not trap wrapping arithmetic within an annotated function. */

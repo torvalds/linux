@@ -33,10 +33,10 @@ static atomic64_t keypair_counter = ATOMIC64_INIT(0);
 
 void __init wg_noise_init(void)
 {
-	struct blake2s_state blake;
+	struct blake2s_ctx blake;
 
-	blake2s(handshake_init_chaining_key, handshake_name, NULL,
-		NOISE_HASH_LEN, sizeof(handshake_name), 0);
+	blake2s(NULL, 0, handshake_name, sizeof(handshake_name),
+		handshake_init_chaining_key, NOISE_HASH_LEN);
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, handshake_init_chaining_key, NOISE_HASH_LEN);
 	blake2s_update(&blake, identifier_name, sizeof(identifier_name));
@@ -304,33 +304,33 @@ void wg_noise_set_static_identity_private_key(
 
 static void hmac(u8 *out, const u8 *in, const u8 *key, const size_t inlen, const size_t keylen)
 {
-	struct blake2s_state state;
+	struct blake2s_ctx blake;
 	u8 x_key[BLAKE2S_BLOCK_SIZE] __aligned(__alignof__(u32)) = { 0 };
 	u8 i_hash[BLAKE2S_HASH_SIZE] __aligned(__alignof__(u32));
 	int i;
 
 	if (keylen > BLAKE2S_BLOCK_SIZE) {
-		blake2s_init(&state, BLAKE2S_HASH_SIZE);
-		blake2s_update(&state, key, keylen);
-		blake2s_final(&state, x_key);
+		blake2s_init(&blake, BLAKE2S_HASH_SIZE);
+		blake2s_update(&blake, key, keylen);
+		blake2s_final(&blake, x_key);
 	} else
 		memcpy(x_key, key, keylen);
 
 	for (i = 0; i < BLAKE2S_BLOCK_SIZE; ++i)
 		x_key[i] ^= 0x36;
 
-	blake2s_init(&state, BLAKE2S_HASH_SIZE);
-	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
-	blake2s_update(&state, in, inlen);
-	blake2s_final(&state, i_hash);
+	blake2s_init(&blake, BLAKE2S_HASH_SIZE);
+	blake2s_update(&blake, x_key, BLAKE2S_BLOCK_SIZE);
+	blake2s_update(&blake, in, inlen);
+	blake2s_final(&blake, i_hash);
 
 	for (i = 0; i < BLAKE2S_BLOCK_SIZE; ++i)
 		x_key[i] ^= 0x5c ^ 0x36;
 
-	blake2s_init(&state, BLAKE2S_HASH_SIZE);
-	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
-	blake2s_update(&state, i_hash, BLAKE2S_HASH_SIZE);
-	blake2s_final(&state, i_hash);
+	blake2s_init(&blake, BLAKE2S_HASH_SIZE);
+	blake2s_update(&blake, x_key, BLAKE2S_BLOCK_SIZE);
+	blake2s_update(&blake, i_hash, BLAKE2S_HASH_SIZE);
+	blake2s_final(&blake, i_hash);
 
 	memcpy(out, i_hash, BLAKE2S_HASH_SIZE);
 	memzero_explicit(x_key, BLAKE2S_BLOCK_SIZE);
@@ -431,7 +431,7 @@ static bool __must_check mix_precomputed_dh(u8 chaining_key[NOISE_HASH_LEN],
 
 static void mix_hash(u8 hash[NOISE_HASH_LEN], const u8 *src, size_t src_len)
 {
-	struct blake2s_state blake;
+	struct blake2s_ctx blake;
 
 	blake2s_init(&blake, NOISE_HASH_LEN);
 	blake2s_update(&blake, hash, NOISE_HASH_LEN);

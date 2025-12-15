@@ -13,6 +13,7 @@
 
 enum ipe_hook_type {
 	IPE_HOOK_BPRM_CHECK = 0,
+	IPE_HOOK_BPRM_CREDS_FOR_EXEC,
 	IPE_HOOK_MMAP,
 	IPE_HOOK_MPROTECT,
 	IPE_HOOK_KERNEL_READ,
@@ -23,6 +24,8 @@ enum ipe_hook_type {
 #define IPE_HOOK_INVALID __IPE_HOOK_MAX
 
 int ipe_bprm_check_security(struct linux_binprm *bprm);
+
+int ipe_bprm_creds_for_exec(struct linux_binprm *bprm);
 
 int ipe_mmap_file(struct file *f, unsigned long reqprot, unsigned long prot,
 		  unsigned long flags);

@@ -9,7 +9,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/compat.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -845,10 +844,7 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 	void __user *argp;
 
 	CHSC_MSG(2, "chsc_ioctl called, cmd=%x\n", cmd);
-	if (is_compat_task())
-		argp = compat_ptr(arg);
-	else
-		argp = (void __user *)arg;
+	argp = (void __user *)arg;
 	switch (cmd) {
 	case CHSC_START:
 		return chsc_ioctl_start(argp);
@@ -923,7 +919,6 @@ static const struct file_operations chsc_fops = {
 	.open = chsc_open,
 	.release = chsc_release,
 	.unlocked_ioctl = chsc_ioctl,
-	.compat_ioctl = chsc_ioctl,
 };
 
 static struct miscdevice chsc_misc_device = {

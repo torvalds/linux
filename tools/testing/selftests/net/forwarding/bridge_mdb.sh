@@ -28,6 +28,7 @@ ALL_TESTS="
 	cfg_test
 	fwd_test
 	ctrl_test
+	disable_test
 "
 
 NUM_NETIFS=4
@@ -64,7 +65,10 @@ h2_destroy()
 
 switch_create()
 {
-	ip link add name br0 type bridge vlan_filtering 1 vlan_default_pvid 0 \
+	local vlan_filtering=$1; shift
+
+	ip link add name br0 type bridge \
+		vlan_filtering "$vlan_filtering" vlan_default_pvid 0 \
 		mcast_snooping 1 mcast_igmp_version 3 mcast_mld_version 2
 	bridge vlan add vid 10 dev br0 self
 	bridge vlan add vid 20 dev br0 self
@@ -118,7 +122,7 @@ setup_prepare()
 
 	h1_create
 	h2_create
-	switch_create
+	switch_create 1
 }
 
 cleanup()
@@ -1355,6 +1359,98 @@ ctrl_test()
 
 	ctrl_igmpv3_is_in_test
 	ctrl_mldv2_is_in_test
+}
+
+check_group()
+{
+	local group=$1; shift
+	local vid=$1; shift
+	local should_fail=$1; shift
+	local when=$1; shift
+	local -a vidkws
+
+	if ((vid)); then
+		vidkws=(vid "$vid")
+	fi
+
+	bridge mdb get dev br0 grp "$group" "${vidkws[@]}" 2>/dev/null |
+		grep -q "port $swp1"
+	check_err_fail "$should_fail" $? "$group seen $when snooping disable:"
+}
+
+__disable_test()
+{
+	local vid=$1; shift
+	local what=$1; shift
+	local -a vidkws
+
+	if ((vid)); then
+		vidkws=(vid "$vid")
+	fi
+
+	RET=0
+
+	bridge mdb add dev br0 port "$swp1" grp ff0e::1 permanent \
+		"${vidkws[@]}" filter_mode include source_list 2001:db8:1::1
+	bridge mdb add dev br0 port "$swp1" grp ff0e::2 permanent \
+		"${vidkws[@]}" filter_mode exclude
+
+	bridge mdb add dev br0 port "$swp1" grp ff0e::3 \
+		"${vidkws[@]}" filter_mode include source_list 2001:db8:1::2
+	bridge mdb add dev br0 port "$swp1" grp ff0e::4 \
+		"${vidkws[@]}" filter_mode exclude
+
+	bridge mdb add dev br0 port "$swp1" grp 239.1.1.1 permanent \
+		"${vidkws[@]}" filter_mode include source_list 192.0.2.1
+	bridge mdb add dev br0 port "$swp1" grp 239.1.1.2 permanent \
+		"${vidkws[@]}" filter_mode exclude
+
+	bridge mdb add dev br0 port "$swp1" grp 239.1.1.3 \
+		"${vidkws[@]}" filter_mode include source_list 192.0.2.2
+	bridge mdb add dev br0 port "$swp1" grp 239.1.1.4 \
+		"${vidkws[@]}" filter_mode exclude
+
+	check_group ff0e::1 "$vid" 0 "before"
+	check_group ff0e::2 "$vid" 0 "before"
+	check_group ff0e::3 "$vid" 0 "before"
+	check_group ff0e::4 "$vid" 0 "before"
+
+	check_group 239.1.1.1 "$vid" 0 "before"
+	check_group 239.1.1.2 "$vid" 0 "before"
+	check_group 239.1.1.3 "$vid" 0 "before"
+	check_group 239.1.1.4 "$vid" 0 "before"
+
+	ip link set dev br0 type bridge mcast_snooping 0
+
+	check_group ff0e::1 "$vid" 0 "after"
+	check_group ff0e::2 "$vid" 0 "after"
+	check_group ff0e::3 "$vid" 1 "after"
+	check_group ff0e::4 "$vid" 1 "after"
+
+	check_group 239.1.1.1 "$vid" 0 "after"
+	check_group 239.1.1.2 "$vid" 0 "after"
+	check_group 239.1.1.3 "$vid" 1 "after"
+	check_group 239.1.1.4 "$vid" 1 "after"
+
+	log_test "$what: Flush after disable"
+
+	ip link set dev br0 type bridge mcast_snooping 1
+	sleep 10
+}
+
+disable_test()
+{
+	__disable_test 10 802.1q
+
+	switch_destroy
+	switch_create 0
+	setup_wait
+
+	__disable_test 0 802.1d
+
+	switch_destroy
+	switch_create 1
+	setup_wait
 }
 
 if ! bridge mdb help 2>&1 | grep -q "flush"; then

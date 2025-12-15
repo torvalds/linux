@@ -412,7 +412,6 @@ static int rx8010_probe(struct i2c_client *client)
 	}
 
 	rx8010->rtc->ops = &rx8010_rtc_ops;
-	rx8010->rtc->max_user_freq = 1;
 	rx8010->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rx8010->rtc->range_max = RTC_TIMESTAMP_END_2099;
 

@@ -31,7 +31,7 @@
 
 		key-home {
 			label = "Home";
-			gpios = <&msmgpio 40 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 40 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 			linux,code = <KEY_HOMEPAGE>;
 			wakeup-event-action = <EV_ACT_ASSERTED>;
@@ -40,14 +40,14 @@
 
 		key-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 50 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 50 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		key-volume-down {
 			label = "Volume Down";
-			gpios = <&msmgpio 81 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 81 GPIO_ACTIVE_LOW>;
 			debounce-interval = <5>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
@@ -102,7 +102,7 @@
 	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		vdda-supply = <&pm8921_lvs6>;
 		vdd-supply = <&pm8921_l17>;
@@ -111,7 +111,7 @@
 	};
 };
 
-&msmgpio {
+&tlmm {
 	spi1_default: spi1-default-state {
 		mosi-pins {
 			pins = "gpio6";
@@ -160,7 +160,7 @@
 };
 
 &pm8921 {
-	interrupts-extended = <&msmgpio 104 IRQ_TYPE_LEVEL_LOW>;
+	interrupts-extended = <&tlmm 104 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &rpm {

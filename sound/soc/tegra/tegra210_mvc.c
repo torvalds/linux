@@ -109,7 +109,7 @@ static void tegra210_mvc_conv_vol(struct tegra210_mvc *mvc, u8 chan, s32 val)
 
 static u32 tegra210_mvc_get_ctrl_reg(struct snd_kcontrol *kcontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	u32 val;
 
@@ -194,7 +194,7 @@ static int tegra210_mvc_update_mute(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol,
 				    bool per_chan_ctrl)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	u32 mute_val = ucontrol->value.integer.value[0];
 	u32 per_ch_ctrl_val;
@@ -260,7 +260,7 @@ static int tegra210_mvc_get_vol(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	u8 chan = TEGRA210_MVC_GET_CHAN(mc->reg, TEGRA210_MVC_TARGET_VOL);
 	s32 val = mvc->volume[chan];
@@ -289,7 +289,7 @@ static int tegra210_mvc_update_vol(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	u8 chan = TEGRA210_MVC_GET_CHAN(mc->reg, TEGRA210_MVC_TARGET_VOL);
 	int old_volume = mvc->volume[chan];
@@ -394,7 +394,7 @@ static void tegra210_mvc_reset_vol_settings(struct tegra210_mvc *mvc,
 static int tegra210_mvc_get_curve_type(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 
 	ucontrol->value.enumerated.item[0] = mvc->curve_type;
@@ -405,7 +405,7 @@ static int tegra210_mvc_get_curve_type(struct snd_kcontrol *kcontrol,
 static int tegra210_mvc_put_curve_type(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra210_mvc *mvc = snd_soc_component_get_drvdata(cmpnt);
 	unsigned int value;
 

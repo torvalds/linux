@@ -7,6 +7,8 @@
 //    because each iovec element becomes a frag
 // 3) the PSH bit is set on an skb when it runs out of fragments
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3

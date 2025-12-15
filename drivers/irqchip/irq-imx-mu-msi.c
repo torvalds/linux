@@ -296,11 +296,9 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 		  },
 };
 
-static int __init imx_mu_of_init(struct device_node *dn,
-				 struct device_node *parent,
-				 const struct imx_mu_dcfg *cfg)
+static int imx_mu_probe(struct platform_device *pdev, struct device_node *parent,
+			const struct imx_mu_dcfg *cfg)
 {
-	struct platform_device *pdev = of_find_device_by_node(dn);
 	struct device_link *pd_link_a;
 	struct device_link *pd_link_b;
 	struct imx_mu_msi *msi_data;
@@ -416,30 +414,26 @@ static const struct dev_pm_ops imx_mu_pm_ops = {
 			   imx_mu_runtime_resume, NULL)
 };
 
-static int __init imx_mu_imx7ulp_of_init(struct device_node *dn,
-					 struct device_node *parent)
+static int imx_mu_imx7ulp_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx7ulp);
+	return imx_mu_probe(pdev, parent, &imx_mu_cfg_imx7ulp);
 }
 
-static int __init imx_mu_imx6sx_of_init(struct device_node *dn,
-					struct device_node *parent)
+static int imx_mu_imx6sx_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx6sx);
+	return imx_mu_probe(pdev, parent, &imx_mu_cfg_imx6sx);
 }
 
-static int __init imx_mu_imx8ulp_of_init(struct device_node *dn,
-					 struct device_node *parent)
+static int imx_mu_imx8ulp_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return imx_mu_of_init(dn, parent, &imx_mu_cfg_imx8ulp);
+	return imx_mu_probe(pdev, parent, &imx_mu_cfg_imx8ulp);
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(imx_mu_msi)
-IRQCHIP_MATCH("fsl,imx7ulp-mu-msi", imx_mu_imx7ulp_of_init)
-IRQCHIP_MATCH("fsl,imx6sx-mu-msi", imx_mu_imx6sx_of_init)
-IRQCHIP_MATCH("fsl,imx8ulp-mu-msi", imx_mu_imx8ulp_of_init)
+IRQCHIP_MATCH("fsl,imx7ulp-mu-msi", imx_mu_imx7ulp_probe)
+IRQCHIP_MATCH("fsl,imx6sx-mu-msi", imx_mu_imx6sx_probe)
+IRQCHIP_MATCH("fsl,imx8ulp-mu-msi", imx_mu_imx8ulp_probe)
 IRQCHIP_PLATFORM_DRIVER_END(imx_mu_msi, .pm = &imx_mu_pm_ops)
-
 
 MODULE_AUTHOR("Frank Li <Frank.Li@nxp.com>");
 MODULE_DESCRIPTION("Freescale MU MSI controller driver");

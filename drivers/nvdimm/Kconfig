@@ -97,6 +97,25 @@ config OF_PMEM
 
 	  Select Y if unsure.
 
+config RAMDAX
+	tristate "Support persistent memory interfaces on RAM carveouts"
+	depends on X86_PMEM_LEGACY || OF || COMPILE_TEST
+	default LIBNVDIMM
+	help
+	  Allows creation of DAX devices on RAM carveouts.
+
+	  Memory ranges that are manually specified by the
+	  'memmap=nn[KMG]!ss[KMG]' kernel command line or defined by dummy
+	  pmem-region device tree nodes would be managed by this driver as DIMM
+	  devices with support for dynamic layout of namespaces.
+	  The driver steals 128K in the end of the memmap range for the
+	  namespace management. This allows supporting up to 509 namespaces
+	  (see 'ndctl create-namespace --help').
+	  The driver should be force bound to e820_pmem or pmem-region platform
+	  devices using 'driver_override' device attribute.
+
+	  Select N if unsure.
+
 config NVDIMM_KEYS
 	def_bool y
 	depends on ENCRYPTED_KEYS

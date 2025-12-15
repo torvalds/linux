@@ -14,7 +14,7 @@ Required properties:
 
 
 Also, vendors that use btusb may have device additional properties, e.g:
-Documentation/devicetree/bindings/net/marvell-bt-8xxx.txt
+Documentation/devicetree/bindings/net/bluetooth/marvell,sd8897-bt.yaml
 
 Optional properties:
 

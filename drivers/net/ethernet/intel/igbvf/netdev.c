@@ -1235,7 +1235,7 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
 	spin_lock_bh(&hw->mbx_lock);
 
 	if (hw->mac.ops.set_vfta(hw, vid, true)) {
-		dev_warn(&adapter->pdev->dev, "Vlan id %d\n is not added", vid);
+		dev_warn(&adapter->pdev->dev, "Vlan id %d is not added\n", vid);
 		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}

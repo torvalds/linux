@@ -34,7 +34,7 @@
  *   - read and write marks propagation.
  * - The propagation phase is a textbook live variable data flow analysis:
  *
- *     state[cc, i].live_after = U [state[cc, s].live_before for s in insn_successors(i)]
+ *     state[cc, i].live_after = U [state[cc, s].live_before for s in bpf_insn_successors(i)]
  *     state[cc, i].live_before =
  *       (state[cc, i].live_after / state[cc, i].must_write) U state[i].may_read
  *
@@ -54,7 +54,7 @@
  *   The equation for "must_write_acc" propagation looks as follows:
  *
  *     state[cc, i].must_write_acc =
- *       ∩ [state[cc, s].must_write_acc for s in insn_successors(i)]
+ *       ∩ [state[cc, s].must_write_acc for s in bpf_insn_successors(i)]
  *       U state[cc, i].must_write
  *
  *   (An intersection of all "must_write_acc" for instruction successors
@@ -447,7 +447,12 @@ int bpf_jmp_offset(struct bpf_insn *insn)
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field initialization overrides for opcode_info_tbl");
 
-inline int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
+/*
+ * Returns an array of instructions succ, with succ->items[0], ...,
+ * succ->items[n-1] with successor instructions, where n=succ->cnt
+ */
+inline struct bpf_iarray *
+bpf_insn_successors(struct bpf_verifier_env *env, u32 idx)
 {
 	static const struct opcode_info {
 		bool can_jump;
@@ -474,19 +479,29 @@ inline int bpf_insn_successors(struct bpf_prog *prog, u32 idx, u32 succ[2])
 		_J(BPF_JSET,  {.can_jump = true,  .can_fallthrough = true}),
 	#undef _J
 	};
+	struct bpf_prog *prog = env->prog;
 	struct bpf_insn *insn = &prog->insnsi[idx];
 	const struct opcode_info *opcode_info;
-	int i = 0, insn_sz;
+	struct bpf_iarray *succ, *jt;
+	int insn_sz;
+
+	jt = env->insn_aux_data[idx].jt;
+	if (unlikely(jt))
+		return jt;
+
+	/* pre-allocated array of size up to 2; reset cnt, as it may have been used already */
+	succ = env->succ;
+	succ->cnt = 0;
 
 	opcode_info = &opcode_info_tbl[BPF_CLASS(insn->code) | BPF_OP(insn->code)];
 	insn_sz = bpf_is_ldimm64(insn) ? 2 : 1;
 	if (opcode_info->can_fallthrough)
-		succ[i++] = idx + insn_sz;
+		succ->items[succ->cnt++] = idx + insn_sz;
 
 	if (opcode_info->can_jump)
-		succ[i++] = idx + bpf_jmp_offset(insn) + 1;
+		succ->items[succ->cnt++] = idx + bpf_jmp_offset(insn) + 1;
 
-	return i;
+	return succ;
 }
 
 __diag_pop();
@@ -524,6 +539,8 @@ static int propagate_to_outer_instance(struct bpf_verifier_env *env,
 
 	this_subprog_start = callchain_subprog_start(callchain);
 	outer_instance = get_outer_instance(env, instance);
+	if (IS_ERR(outer_instance))
+		return PTR_ERR(outer_instance);
 	callsite = callchain->callsites[callchain->curframe - 1];
 
 	reset_stack_write_marks(env, outer_instance, callsite);
@@ -546,11 +563,12 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 	struct bpf_insn_aux_data *aux = env->insn_aux_data;
 	u64 new_before, new_after, must_write_acc;
 	struct per_frame_masks *insn, *succ_insn;
-	u32 succ_num, s, succ[2];
+	struct bpf_iarray *succ;
+	u32 s;
 	bool changed;
 
-	succ_num = bpf_insn_successors(env->prog, insn_idx, succ);
-	if (unlikely(succ_num == 0))
+	succ = bpf_insn_successors(env, insn_idx);
+	if (succ->cnt == 0)
 		return false;
 
 	changed = false;
@@ -562,8 +580,8 @@ static inline bool update_insn(struct bpf_verifier_env *env,
 	 * of successors plus all "must_write" slots of instruction itself.
 	 */
 	must_write_acc = U64_MAX;
-	for (s = 0; s < succ_num; ++s) {
-		succ_insn = get_frame_masks(instance, frame, succ[s]);
+	for (s = 0; s < succ->cnt; ++s) {
+		succ_insn = get_frame_masks(instance, frame, succ->items[s]);
 		new_after |= succ_insn->live_before;
 		must_write_acc &= succ_insn->must_write_acc;
 	}

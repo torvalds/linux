@@ -22,6 +22,7 @@
 #include <asm/unistd.h>
 #include <init.h>
 #include <os.h>
+#include <smp.h>
 #include <kern_util.h>
 #include <mem_user.h>
 #include <ptrace_user.h>
@@ -481,6 +482,9 @@ void __init os_early_checks(void)
 			fatal("SECCOMP userspace requested but not functional!\n");
 	}
 
+	if (uml_ncpus > 1)
+		fatal("SMP is not supported with PTRACE userspace.\n");
+
 	using_seccomp = 0;
 	check_ptrace();
 
@@ -488,54 +492,4 @@ void __init os_early_checks(void)
 	if (init_pid_registers(pid))
 		fatal("Failed to initialize default registers");
 	stop_ptraced_child(pid, 1);
-}
-
-int __init parse_iomem(char *str, int *add)
-{
-	struct iomem_region *new;
-	struct stat64 buf;
-	char *file, *driver;
-	int fd, size;
-
-	driver = str;
-	file = strchr(str,',');
-	if (file == NULL) {
-		os_warn("parse_iomem : failed to parse iomem\n");
-		goto out;
-	}
-	*file = '\0';
-	file++;
-	fd = open(file, O_RDWR, 0);
-	if (fd < 0) {
-		perror("parse_iomem - Couldn't open io file");
-		goto out;
-	}
-
-	if (fstat64(fd, &buf) < 0) {
-		perror("parse_iomem - cannot stat_fd file");
-		goto out_close;
-	}
-
-	new = malloc(sizeof(*new));
-	if (new == NULL) {
-		perror("Couldn't allocate iomem_region struct");
-		goto out_close;
-	}
-
-	size = (buf.st_size + UM_KERN_PAGE_SIZE) & ~(UM_KERN_PAGE_SIZE - 1);
-
-	*new = ((struct iomem_region) { .next		= iomem_regions,
-					.driver		= driver,
-					.fd		= fd,
-					.size		= size,
-					.phys		= 0,
-					.virt		= 0 });
-	iomem_regions = new;
-	iomem_size += new->size + UM_KERN_PAGE_SIZE;
-
-	return 0;
- out_close:
-	close(fd);
- out:
-	return 1;
 }

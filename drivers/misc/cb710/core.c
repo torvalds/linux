@@ -223,13 +223,11 @@ static int cb710_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	err = pcim_iomap_regions(pdev, 0x0001, KBUILD_MODNAME);
-	if (err)
-		return err;
-
 	spin_lock_init(&chip->irq_lock);
 	chip->pdev = pdev;
-	chip->iobase = pcim_iomap_table(pdev)[0];
+	chip->iobase = pcim_iomap_region(pdev, 0, KBUILD_MODNAME);
+	if (IS_ERR(chip->iobase))
+		return PTR_ERR(chip->iobase);
 
 	pci_set_drvdata(pdev, chip);
 

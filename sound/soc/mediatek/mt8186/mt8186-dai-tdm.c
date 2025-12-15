@@ -272,7 +272,7 @@ static const struct soc_enum mt8186_tdm_enum[] = {
 static int mt8186_tdm_hd_get(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int dai_id = get_tdm_id_by_name(kcontrol->id.name);
@@ -286,7 +286,7 @@ static int mt8186_tdm_hd_get(struct snd_kcontrol *kcontrol,
 static int mt8186_tdm_hd_set(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int dai_id = get_tdm_id_by_name(kcontrol->id.name);

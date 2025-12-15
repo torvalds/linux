@@ -12,7 +12,6 @@
 #include <linux/blktrace_api.h>
 #include "blk.h"
 #include "blk-cgroup-rwstat.h"
-#include "blk-stat.h"
 #include "blk-throttle.h"
 
 /* Max dispatch from a group in 1 round */
@@ -22,9 +21,7 @@
 #define THROTL_QUANTUM 32
 
 /* Throttling is performed over a slice and after that slice is renewed */
-#define DFL_THROTL_SLICE_HD (HZ / 10)
-#define DFL_THROTL_SLICE_SSD (HZ / 50)
-#define MAX_THROTL_SLICE (HZ)
+#define DFL_THROTL_SLICE (HZ / 10)
 
 /* A workqueue to queue throttle related work */
 static struct workqueue_struct *kthrotld_workqueue;
@@ -41,12 +38,8 @@ struct throtl_data
 	/* Total Number of queued bios on READ and WRITE lists */
 	unsigned int nr_queued[2];
 
-	unsigned int throtl_slice;
-
 	/* Work for dispatching throttled bios */
 	struct work_struct dispatch_work;
-
-	bool track_bio_latency;
 };
 
 static void throtl_pending_timer_fn(struct timer_list *t);
@@ -451,7 +444,7 @@ static void throtl_dequeue_tg(struct throtl_grp *tg)
 static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
 					  unsigned long expires)
 {
-	unsigned long max_expire = jiffies + 8 * sq_to_td(sq)->throtl_slice;
+	unsigned long max_expire = jiffies + 8 * DFL_THROTL_SLICE;
 
 	/*
 	 * Since we are adjusting the throttle limit dynamically, the sleep
@@ -519,7 +512,7 @@ static inline void throtl_start_new_slice_with_credit(struct throtl_grp *tg,
 	if (time_after(start, tg->slice_start[rw]))
 		tg->slice_start[rw] = start;
 
-	tg->slice_end[rw] = jiffies + tg->td->throtl_slice;
+	tg->slice_end[rw] = jiffies + DFL_THROTL_SLICE;
 	throtl_log(&tg->service_queue,
 		   "[%c] new slice with credit start=%lu end=%lu jiffies=%lu",
 		   rw == READ ? 'R' : 'W', tg->slice_start[rw],
@@ -534,7 +527,7 @@ static inline void throtl_start_new_slice(struct throtl_grp *tg, bool rw,
 		tg->io_disp[rw] = 0;
 	}
 	tg->slice_start[rw] = jiffies;
-	tg->slice_end[rw] = jiffies + tg->td->throtl_slice;
+	tg->slice_end[rw] = jiffies + DFL_THROTL_SLICE;
 
 	throtl_log(&tg->service_queue,
 		   "[%c] new slice start=%lu end=%lu jiffies=%lu",
@@ -545,7 +538,7 @@ static inline void throtl_start_new_slice(struct throtl_grp *tg, bool rw,
 static inline void throtl_set_slice_end(struct throtl_grp *tg, bool rw,
 					unsigned long jiffy_end)
 {
-	tg->slice_end[rw] = roundup(jiffy_end, tg->td->throtl_slice);
+	tg->slice_end[rw] = roundup(jiffy_end, DFL_THROTL_SLICE);
 }
 
 static inline void throtl_extend_slice(struct throtl_grp *tg, bool rw,
@@ -676,12 +669,12 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 * sooner, then we need to reduce slice_end. A high bogus slice_end
 	 * is bad because it does not allow new slice to start.
 	 */
-	throtl_set_slice_end(tg, rw, jiffies + tg->td->throtl_slice);
+	throtl_set_slice_end(tg, rw, jiffies + DFL_THROTL_SLICE);
 
 	time_elapsed = rounddown(jiffies - tg->slice_start[rw],
-				 tg->td->throtl_slice);
+				 DFL_THROTL_SLICE);
 	/* Don't trim slice until at least 2 slices are used */
-	if (time_elapsed < tg->td->throtl_slice * 2)
+	if (time_elapsed < DFL_THROTL_SLICE * 2)
 		return;
 
 	/*
@@ -692,7 +685,7 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 * lower rate than expected. Therefore, other than the above rounddown,
 	 * one extra slice is preserved for deviation.
 	 */
-	time_elapsed -= tg->td->throtl_slice;
+	time_elapsed -= DFL_THROTL_SLICE;
 	bytes_trim = throtl_trim_bps(tg, rw, time_elapsed);
 	io_trim = throtl_trim_iops(tg, rw, time_elapsed);
 	if (!bytes_trim && !io_trim)
@@ -702,7 +695,7 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 
 	throtl_log(&tg->service_queue,
 		   "[%c] trim slice nr=%lu bytes=%lld io=%d start=%lu end=%lu jiffies=%lu",
-		   rw == READ ? 'R' : 'W', time_elapsed / tg->td->throtl_slice,
+		   rw == READ ? 'R' : 'W', time_elapsed / DFL_THROTL_SLICE,
 		   bytes_trim, io_trim, tg->slice_start[rw], tg->slice_end[rw],
 		   jiffies);
 }
@@ -773,7 +766,7 @@ static unsigned long tg_within_iops_limit(struct throtl_grp *tg, struct bio *bio
 	jiffy_elapsed = jiffies - tg->slice_start[rw];
 
 	/* Round up to the next throttle slice, wait time must be nonzero */
-	jiffy_elapsed_rnd = roundup(jiffy_elapsed + 1, tg->td->throtl_slice);
+	jiffy_elapsed_rnd = roundup(jiffy_elapsed + 1, DFL_THROTL_SLICE);
 	io_allowed = calculate_io_allowed(iops_limit, jiffy_elapsed_rnd);
 	if (io_allowed > 0 && tg->io_disp[rw] + 1 <= io_allowed)
 		return 0;
@@ -799,9 +792,9 @@ static unsigned long tg_within_bps_limit(struct throtl_grp *tg, struct bio *bio,
 
 	/* Slice has just started. Consider one slice interval */
 	if (!jiffy_elapsed)
-		jiffy_elapsed_rnd = tg->td->throtl_slice;
+		jiffy_elapsed_rnd = DFL_THROTL_SLICE;
 
-	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, tg->td->throtl_slice);
+	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, DFL_THROTL_SLICE);
 	bytes_allowed = calculate_bytes_allowed(bps_limit, jiffy_elapsed_rnd);
 	/* Need to consider the case of bytes_allowed overflow. */
 	if ((bytes_allowed > 0 && tg->bytes_disp[rw] + bio_size <= bytes_allowed)
@@ -853,7 +846,7 @@ static void tg_update_slice(struct throtl_grp *tg, bool rw)
 	    sq_queued(&tg->service_queue, rw) == 0)
 		throtl_start_new_slice(tg, rw, true);
 	else
-		throtl_extend_slice(tg, rw, jiffies + tg->td->throtl_slice);
+		throtl_extend_slice(tg, rw, jiffies + DFL_THROTL_SLICE);
 }
 
 static unsigned long tg_dispatch_bps_time(struct throtl_grp *tg, struct bio *bio)
@@ -1338,18 +1331,8 @@ static int blk_throtl_init(struct gendisk *disk)
 	if (ret) {
 		q->td = NULL;
 		kfree(td);
-		goto out;
 	}
 
-	if (blk_queue_nonrot(q))
-		td->throtl_slice = DFL_THROTL_SLICE_SSD;
-	else
-		td->throtl_slice = DFL_THROTL_SLICE_HD;
-	td->track_bio_latency = !queue_is_mq(q);
-	if (!td->track_bio_latency)
-		blk_stat_enable_accounting(q);
-
-out:
 	blk_mq_unquiesce_queue(disk->queue);
 	blk_mq_unfreeze_queue(disk->queue, memflags);
 

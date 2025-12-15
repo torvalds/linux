@@ -908,7 +908,7 @@ static int hdmi_dai_probe(struct snd_soc_dai *dai)
 	};
 	int ret, i;
 
-	dapm = snd_soc_component_get_dapm(dai->component);
+	dapm = snd_soc_component_to_dapm(dai->component);
 
 	/* One of the directions might be omitted for unidirectional DAIs */
 	for (i = 0; i < ARRAY_SIZE(route); i++) {

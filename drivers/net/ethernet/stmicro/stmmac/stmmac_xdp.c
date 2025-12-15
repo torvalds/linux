@@ -129,7 +129,7 @@ int stmmac_xdp_set_prog(struct stmmac_priv *priv, struct bpf_prog *prog,
 		bpf_prog_put(old_prog);
 
 	/* Disable RX SPH for XDP operation */
-	priv->sph = priv->sph_cap && !stmmac_xdp_is_enabled(priv);
+	priv->sph_active = priv->sph_capable && !stmmac_xdp_is_enabled(priv);
 
 	if (if_running && need_update)
 		stmmac_xdp_open(dev);

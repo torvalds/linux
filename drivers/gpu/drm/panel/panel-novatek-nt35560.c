@@ -213,7 +213,7 @@ static const struct backlight_properties nt35560_bl_props = {
 
 static void nt35560_read_id(struct mipi_dsi_multi_context *dsi_ctx)
 {
-	struct device dev = dsi_ctx->dsi->dev;
+	struct device *dev = &dsi_ctx->dsi->dev;
 	u8 vendor, version, panel;
 	u16 val;
 
@@ -225,7 +225,7 @@ static void nt35560_read_id(struct mipi_dsi_multi_context *dsi_ctx)
 		return;
 
 	if (vendor == 0x00) {
-		dev_err(&dev, "device vendor ID is zero\n");
+		dev_err(dev, "device vendor ID is zero\n");
 		dsi_ctx->accum_err = -ENODEV;
 		return;
 	}
@@ -236,12 +236,12 @@ static void nt35560_read_id(struct mipi_dsi_multi_context *dsi_ctx)
 	case DISPLAY_SONY_ACX424AKP_ID2:
 	case DISPLAY_SONY_ACX424AKP_ID3:
 	case DISPLAY_SONY_ACX424AKP_ID4:
-		dev_info(&dev,
+		dev_info(dev,
 			 "MTP vendor: %02x, version: %02x, panel: %02x\n",
 			 vendor, version, panel);
 		break;
 	default:
-		dev_info(&dev,
+		dev_info(dev,
 			 "unknown vendor: %02x, version: %02x, panel: %02x\n",
 			 vendor, version, panel);
 		break;

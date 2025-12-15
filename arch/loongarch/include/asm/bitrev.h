@@ -11,7 +11,7 @@ static __always_inline __attribute_const__ u32 __arch_bitrev32(u32 x)
 {
 	u32 ret;
 
-	asm("bitrev.4b	%0, %1" : "=r"(ret) : "r"(__swab32(x)));
+	asm("bitrev.w	%0, %1" : "=r"(ret) : "r"(x));
 	return ret;
 }
 

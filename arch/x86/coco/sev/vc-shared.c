@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#ifndef __BOOT_COMPRESSED
+#define has_cpuflag(f)                  cpu_feature_enabled(f)
+#endif
+
 static enum es_result vc_check_opcode_bytes(struct es_em_ctxt *ctxt,
 					    unsigned long exit_code)
 {
@@ -545,6 +549,13 @@ static enum es_result vc_handle_cpuid(struct ghcb *ghcb,
 	else
 		/* xgetbv will cause #GP - use reset value for xcr0 */
 		ghcb_set_xcr0(ghcb, 1);
+
+	if (has_cpuflag(X86_FEATURE_SHSTK) && regs->ax == 0xd && regs->cx == 1) {
+		struct msr m;
+
+		raw_rdmsr(MSR_IA32_XSS, &m);
+		ghcb_set_xss(ghcb, m.q);
+	}
 
 	ret = sev_es_ghcb_hv_call(ghcb, ctxt, SVM_EXIT_CPUID, 0, 0);
 	if (ret != ES_OK)

@@ -532,6 +532,11 @@ static int cs42l43_gpio_add_pin_ranges(struct gpio_chip *chip)
 	return ret;
 }
 
+static void cs42l43_fwnode_put(void *data)
+{
+	fwnode_handle_put(data);
+}
+
 static int cs42l43_pin_probe(struct platform_device *pdev)
 {
 	struct cs42l43 *cs42l43 = dev_get_drvdata(pdev->dev.parent);
@@ -563,10 +568,20 @@ static int cs42l43_pin_probe(struct platform_device *pdev)
 	priv->gpio_chip.ngpio = CS42L43_NUM_GPIOS;
 
 	if (is_of_node(fwnode)) {
-		fwnode = fwnode_get_named_child_node(fwnode, "pinctrl");
+		struct fwnode_handle *child;
 
-		if (fwnode && !fwnode->dev)
-			fwnode->dev = priv->dev;
+		child = fwnode_get_named_child_node(fwnode, "pinctrl");
+		if (child) {
+			ret = devm_add_action_or_reset(&pdev->dev,
+				cs42l43_fwnode_put, child);
+			if (ret) {
+				fwnode_handle_put(child);
+				return ret;
+			}
+			if (!child->dev)
+				child->dev = priv->dev;
+			fwnode = child;
+		}
 	}
 
 	priv->gpio_chip.fwnode = fwnode;

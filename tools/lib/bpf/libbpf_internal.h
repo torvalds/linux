@@ -74,6 +74,8 @@
 #define ELF64_ST_VISIBILITY(o) ((o) & 0x03)
 #endif
 
+#define JUMPTABLES_SEC ".jumptables"
+
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
 	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 #define BTF_TYPE_ENC(name, info, size_or_type) (name), (info), (size_or_type)

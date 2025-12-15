@@ -6,16 +6,21 @@
  * Adjunct processor bus, queue related code.
  */
 
-#define KMSG_COMPONENT "ap"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ap: " fmt
 
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <asm/facility.h>
 
+#define CREATE_TRACE_POINTS
+#include <asm/trace/ap.h>
+
 #include "ap_bus.h"
 #include "ap_debug.h"
+
+EXPORT_TRACEPOINT_SYMBOL(s390_ap_nqap);
+EXPORT_TRACEPOINT_SYMBOL(s390_ap_dqap);
 
 static void __ap_flush_queue(struct ap_queue *aq);
 
@@ -98,9 +103,17 @@ static inline struct ap_queue_status
 __ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen,
 	  int special)
 {
+	struct ap_queue_status status;
+
 	if (special)
 		qid |= 0x400000UL;
-	return ap_nqap(qid, psmid, msg, msglen);
+
+	status = ap_nqap(qid, psmid, msg, msglen);
+
+	trace_s390_ap_nqap(AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			   status.value, psmid);
+
+	return status;
 }
 
 /* State machine definitions and helpers */
@@ -139,6 +152,9 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 				 &aq->reply->len, &reslen, &resgr0);
 		parts++;
 	} while (status.response_code == 0xFF && resgr0 != 0);
+
+	trace_s390_ap_dqap(AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid),
+			   status.value, aq->reply->psmid);
 
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
@@ -714,6 +730,58 @@ static ssize_t ap_functions_show(struct device *dev,
 
 static DEVICE_ATTR_RO(ap_functions);
 
+static ssize_t driver_override_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_device *ap_dev = &aq->ap_dev;
+	int rc;
+
+	device_lock(dev);
+	if (ap_dev->driver_override)
+		rc = sysfs_emit(buf, "%s\n", ap_dev->driver_override);
+	else
+		rc = sysfs_emit(buf, "\n");
+	device_unlock(dev);
+
+	return rc;
+}
+
+static ssize_t driver_override_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_device *ap_dev = &aq->ap_dev;
+	int rc = -EINVAL;
+	bool old_value;
+
+	if (mutex_lock_interruptible(&ap_attr_mutex))
+		return -ERESTARTSYS;
+
+	/* Do not allow driver override if apmask/aqmask is in use */
+	if (ap_apmask_aqmask_in_use)
+		goto out;
+
+	old_value = ap_dev->driver_override ? true : false;
+	rc = driver_set_override(dev, &ap_dev->driver_override, buf, count);
+	if (rc)
+		goto out;
+	if (old_value && !ap_dev->driver_override)
+		--ap_driver_override_ctr;
+	else if (!old_value && ap_dev->driver_override)
+		++ap_driver_override_ctr;
+
+	rc = count;
+
+out:
+	mutex_unlock(&ap_attr_mutex);
+	return rc;
+}
+
+static DEVICE_ATTR_RW(driver_override);
+
 #ifdef CONFIG_AP_DEBUG
 static ssize_t states_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -826,6 +894,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_config.attr,
 	&dev_attr_chkstop.attr,
 	&dev_attr_ap_functions.attr,
+	&dev_attr_driver_override.attr,
 #ifdef CONFIG_AP_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,

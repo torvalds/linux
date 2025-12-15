@@ -147,6 +147,12 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
+static struct usb_function *func_lb;
+static struct usb_function_instance *func_inst_lb;
+
+static struct usb_function *func_ss;
+static struct usb_function_instance *func_inst_ss;
+
 /*-------------------------------------------------------------------------*/
 
 static struct timer_list	autoresume_timer;
@@ -156,6 +162,7 @@ static void zero_autoresume(struct timer_list *unused)
 {
 	struct usb_composite_dev	*cdev = autoresume_cdev;
 	struct usb_gadget		*g = cdev->gadget;
+	int				status;
 
 	/* unconfigured devices can't issue wakeups */
 	if (!cdev->config)
@@ -165,10 +172,18 @@ static void zero_autoresume(struct timer_list *unused)
 	 * more significant than just a timer firing; likely
 	 * because of some direct user request.
 	 */
-	if (g->speed != USB_SPEED_UNKNOWN) {
-		int status = usb_gadget_wakeup(g);
-		INFO(cdev, "%s --> %d\n", __func__, status);
+	if (g->speed == USB_SPEED_UNKNOWN)
+		return;
+
+	if (g->speed >= USB_SPEED_SUPER) {
+		if (loopdefault)
+			status = usb_func_wakeup(func_lb);
+		else
+			status = usb_func_wakeup(func_ss);
+	} else {
+		status = usb_gadget_wakeup(g);
 	}
+	INFO(cdev, "%s --> %d\n", __func__, status);
 }
 
 static void zero_suspend(struct usb_composite_dev *cdev)
@@ -205,9 +220,6 @@ static struct usb_configuration loopback_driver = {
 	.bmAttributes   = USB_CONFIG_ATT_SELFPOWER,
 	/* .iConfiguration = DYNAMIC */
 };
-
-static struct usb_function *func_ss;
-static struct usb_function_instance *func_inst_ss;
 
 static int ss_config_setup(struct usb_configuration *c,
 		const struct usb_ctrlrequest *ctrl)
@@ -247,9 +259,6 @@ MODULE_PARM_DESC(isoc_mult, "0 - 2 (hs/ss only)");
 module_param_named(isoc_maxburst, gzero_options.isoc_maxburst, uint,
 		S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(isoc_maxburst, "0 - 15 (ss only)");
-
-static struct usb_function *func_lb;
-static struct usb_function_instance *func_inst_lb;
 
 module_param_named(qlen, gzero_options.qlen, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qlen, "depth of loopback queue");

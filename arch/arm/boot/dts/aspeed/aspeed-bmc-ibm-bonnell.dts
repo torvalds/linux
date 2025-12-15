@@ -277,15 +277,11 @@
 		#size-cells = <0>;
 
 		fan0: fan@0 {
-			compatible = "pmbus-fan";
 			reg = <0>;
-			tach-pulses = <2>;
 		};
 
 		fan1: fan@1 {
-			compatible = "pmbus-fan";
 			reg = <1>;
-			tach-pulses = <2>;
 		};
 	};
 

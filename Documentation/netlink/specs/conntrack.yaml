@@ -457,7 +457,7 @@ attribute-sets:
         name: labels
         type: binary
       -
-        name: labels mask
+        name: labels-mask
         type: binary
       -
         name: synproxy

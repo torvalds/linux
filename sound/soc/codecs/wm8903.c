@@ -369,7 +369,7 @@ static void wm8903_seq_notifier(struct snd_soc_component *component,
 static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_component_get_drvdata(component);
 	u16 reg;
 	int ret;
@@ -444,7 +444,7 @@ static int wm8903_set_deemph(struct snd_soc_component *component)
 static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = wm8903->deemph;
@@ -455,7 +455,7 @@ static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
 static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8903_priv *wm8903 = snd_soc_component_get_drvdata(component);
 	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret = 0;
@@ -1099,6 +1099,8 @@ static const struct snd_soc_dapm_route wm8903_intercon[] = {
 static int wm8903_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -1110,7 +1112,7 @@ static int wm8903_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			snd_soc_component_update_bits(component, WM8903_BIAS_CONTROL_0,
 					    WM8903_POBCTRL | WM8903_ISEL_MASK |
 					    WM8903_STARTUP_BIAS_ENA |

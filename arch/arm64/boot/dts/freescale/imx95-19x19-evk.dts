@@ -542,6 +542,8 @@
 	pinctrl-names = "default";
 	reset-gpio = <&i2c7_pcal6524 5 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcie0>;
+	vpcie3v3aux-supply = <&reg_pcie0>;
+	supports-clkreq;
 	status = "okay";
 };
 
@@ -557,6 +559,7 @@
 	pinctrl-names = "default";
 	reset-gpio = <&i2c7_pcal6524 16 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_slot_pwr>;
+	vpcie3v3aux-supply = <&reg_slot_pwr>;
 	status = "okay";
 };
 

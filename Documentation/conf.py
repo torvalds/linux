@@ -18,8 +18,6 @@ import sphinx
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath("sphinx"))
 
-from load_config import loadConfig               # pylint: disable=C0413,E0401
-
 # Minimal supported version
 needs_sphinx = "3.4.3"
 
@@ -93,8 +91,12 @@ def config_init(app, config):
     # LaTeX and PDF output require a list of documents with are dependent
     # of the app.srcdir. Add them here
 
-    # When SPHINXDIRS is used, we just need to get index.rst, if it exists
+    # Handle the case where SPHINXDIRS is used
     if not os.path.samefile(doctree, app.srcdir):
+        # Add a tag to mark that the build is actually a subproject
+        tags.add("subproject")
+
+        # get index.rst, if it exists
         doc = os.path.basename(app.srcdir)
         fname = "index"
         if os.path.exists(os.path.join(app.srcdir, fname + ".rst")):
@@ -582,13 +584,6 @@ pdf_documents = [
 # line arguments.
 kerneldoc_bin = "../scripts/kernel-doc.py"
 kerneldoc_srctree = ".."
-
-# ------------------------------------------------------------------------------
-# Since loadConfig overwrites settings from the global namespace, it has to be
-# the last statement in the conf.py file
-# ------------------------------------------------------------------------------
-loadConfig(globals())
-
 
 def setup(app):
     """Patterns need to be updated at init time on older Sphinx versions"""

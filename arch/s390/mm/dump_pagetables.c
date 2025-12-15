@@ -51,7 +51,7 @@ struct pg_state {
 	struct seq_file *__m = (m);		\
 						\
 	if (__m)				\
-		seq_printf(__m, fmt);		\
+		seq_puts(__m, fmt);		\
 })
 
 static void print_prot(struct seq_file *m, unsigned int pr, int level)

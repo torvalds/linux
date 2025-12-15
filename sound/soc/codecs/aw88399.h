@@ -603,11 +603,6 @@ enum AW88399_DEV_DSP_CFG {
 };
 
 enum {
-	AW88399_DSP_16_DATA = 0,
-	AW88399_DSP_32_DATA = 1,
-};
-
-enum {
 	AW88399_NOT_RCV_MODE = 0,
 	AW88399_RCV_MODE = 1,
 };

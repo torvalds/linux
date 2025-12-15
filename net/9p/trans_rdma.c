@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/inet.h>
 #include <linux/file.h>
-#include <linux/parser.h>
+#include <linux/fs_context.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
@@ -32,14 +32,10 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 
-#define P9_PORT			5640
-#define P9_RDMA_SQ_DEPTH	32
-#define P9_RDMA_RQ_DEPTH	32
 #define P9_RDMA_SEND_SGE	4
 #define P9_RDMA_RECV_SGE	4
 #define P9_RDMA_IRD		0
 #define P9_RDMA_ORD		0
-#define P9_RDMA_TIMEOUT		30000		/* 30 seconds */
 #define P9_RDMA_MAXSIZE		(1024*1024)	/* 1MB */
 
 /**
@@ -110,48 +106,11 @@ struct p9_rdma_context {
 	};
 };
 
-/**
- * struct p9_rdma_opts - Collection of mount options
- * @port: port of connection
- * @privport: Whether a privileged port may be used
- * @sq_depth: The requested depth of the SQ. This really doesn't need
- * to be any deeper than the number of threads used in the client
- * @rq_depth: The depth of the RQ. Should be greater than or equal to SQ depth
- * @timeout: Time to wait in msecs for CM events
- */
-struct p9_rdma_opts {
-	short port;
-	bool privport;
-	int sq_depth;
-	int rq_depth;
-	long timeout;
-};
-
-/*
- * Option Parsing (code inspired by NFS code)
- */
-enum {
-	/* Options that take integer arguments */
-	Opt_port, Opt_rq_depth, Opt_sq_depth, Opt_timeout,
-	/* Options that take no argument */
-	Opt_privport,
-	Opt_err,
-};
-
-static match_table_t tokens = {
-	{Opt_port, "port=%u"},
-	{Opt_sq_depth, "sq=%u"},
-	{Opt_rq_depth, "rq=%u"},
-	{Opt_timeout, "timeout=%u"},
-	{Opt_privport, "privport"},
-	{Opt_err, NULL},
-};
-
 static int p9_rdma_show_options(struct seq_file *m, struct p9_client *clnt)
 {
 	struct p9_trans_rdma *rdma = clnt->trans;
 
-	if (rdma->port != P9_PORT)
+	if (rdma->port != P9_RDMA_PORT)
 		seq_printf(m, ",port=%u", rdma->port);
 	if (rdma->sq_depth != P9_RDMA_SQ_DEPTH)
 		seq_printf(m, ",sq=%u", rdma->sq_depth);
@@ -161,77 +120,6 @@ static int p9_rdma_show_options(struct seq_file *m, struct p9_client *clnt)
 		seq_printf(m, ",timeout=%lu", rdma->timeout);
 	if (rdma->privport)
 		seq_puts(m, ",privport");
-	return 0;
-}
-
-/**
- * parse_opts - parse mount options into rdma options structure
- * @params: options string passed from mount
- * @opts: rdma transport-specific structure to parse options into
- *
- * Returns 0 upon success, -ERRNO upon failure
- */
-static int parse_opts(char *params, struct p9_rdma_opts *opts)
-{
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-	char *options, *tmp_options;
-
-	opts->port = P9_PORT;
-	opts->sq_depth = P9_RDMA_SQ_DEPTH;
-	opts->rq_depth = P9_RDMA_RQ_DEPTH;
-	opts->timeout = P9_RDMA_TIMEOUT;
-	opts->privport = false;
-
-	if (!params)
-		return 0;
-
-	tmp_options = kstrdup(params, GFP_KERNEL);
-	if (!tmp_options) {
-		p9_debug(P9_DEBUG_ERROR,
-			 "failed to allocate copy of option string\n");
-		return -ENOMEM;
-	}
-	options = tmp_options;
-
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-		int r;
-		if (!*p)
-			continue;
-		token = match_token(p, tokens, args);
-		if ((token != Opt_err) && (token != Opt_privport)) {
-			r = match_int(&args[0], &option);
-			if (r < 0) {
-				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
-				continue;
-			}
-		}
-		switch (token) {
-		case Opt_port:
-			opts->port = option;
-			break;
-		case Opt_sq_depth:
-			opts->sq_depth = option;
-			break;
-		case Opt_rq_depth:
-			opts->rq_depth = option;
-			break;
-		case Opt_timeout:
-			opts->timeout = option;
-			break;
-		case Opt_privport:
-			opts->privport = true;
-			break;
-		default:
-			continue;
-		}
-	}
-	/* RQ must be at least as large as the SQ */
-	opts->rq_depth = max(opts->rq_depth, opts->sq_depth);
-	kfree(tmp_options);
 	return 0;
 }
 
@@ -628,14 +516,15 @@ static int p9_rdma_bind_privport(struct p9_trans_rdma *rdma)
 /**
  * rdma_create_trans - Transport method for creating a transport instance
  * @client: client instance
- * @addr: IP address string
- * @args: Mount options string
+ * @fc: The filesystem context
  */
 static int
-rdma_create_trans(struct p9_client *client, const char *addr, char *args)
+rdma_create_trans(struct p9_client *client, struct fs_context *fc)
 {
+	const char *addr = fc->source;
+	struct v9fs_context *ctx = fc->fs_private;
+	struct p9_rdma_opts opts = ctx->rdma_opts;
 	int err;
-	struct p9_rdma_opts opts;
 	struct p9_trans_rdma *rdma;
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
@@ -643,10 +532,8 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	if (addr == NULL)
 		return -EINVAL;
 
-	/* Parse the transport specific mount options */
-	err = parse_opts(args, &opts);
-	if (err < 0)
-		return err;
+	/* options are already parsed, in the fs context */
+	opts = ctx->rdma_opts;
 
 	/* Create and initialize the RDMA transport structure */
 	rdma = alloc_rdma(&opts);
@@ -748,7 +635,8 @@ static struct p9_trans_module p9_rdma_trans = {
 	.name = "rdma",
 	.maxsize = P9_RDMA_MAXSIZE,
 	.pooled_rbuffers = true,
-	.def = 0,
+	.def = false,
+	.supports_vmalloc = false,
 	.owner = THIS_MODULE,
 	.create = rdma_create_trans,
 	.close = rdma_close,

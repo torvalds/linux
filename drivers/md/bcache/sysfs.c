@@ -134,7 +134,6 @@ read_attribute(partial_stripes_expensive);
 rw_attribute(synchronous);
 rw_attribute(journal_delay_ms);
 rw_attribute(io_disable);
-rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
 rw_attribute(errors);
@@ -1036,7 +1035,6 @@ SHOW(__bch_cache)
 	sysfs_hprint(bucket_size,	bucket_bytes(ca));
 	sysfs_hprint(block_size,	block_bytes(ca));
 	sysfs_print(nbuckets,		ca->sb.nbuckets);
-	sysfs_print(discard,		ca->discard);
 	sysfs_hprint(written, atomic_long_read(&ca->sectors_written) << 9);
 	sysfs_hprint(btree_written,
 		     atomic_long_read(&ca->btree_sectors_written) << 9);
@@ -1142,18 +1140,6 @@ STORE(__bch_cache)
 	if (bcache_is_reboot)
 		return -EBUSY;
 
-	if (attr == &sysfs_discard) {
-		bool v = strtoul_or_return(buf);
-
-		if (bdev_max_discard_sectors(ca->bdev))
-			ca->discard = v;
-
-		if (v != CACHE_DISCARD(&ca->sb)) {
-			SET_CACHE_DISCARD(&ca->sb, v);
-			bcache_write_super(ca->set);
-		}
-	}
-
 	if (attr == &sysfs_cache_replacement_policy) {
 		v = __sysfs_match_string(cache_replacement_policies, -1, buf);
 		if (v < 0)
@@ -1185,7 +1171,6 @@ static struct attribute *bch_cache_attrs[] = {
 	&sysfs_block_size,
 	&sysfs_nbuckets,
 	&sysfs_priority_stats,
-	&sysfs_discard,
 	&sysfs_written,
 	&sysfs_btree_written,
 	&sysfs_metadata_written,

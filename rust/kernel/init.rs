@@ -30,7 +30,7 @@
 //! ## General Examples
 //!
 //! ```rust
-//! # #![expect(clippy::disallowed_names, clippy::undocumented_unsafe_blocks)]
+//! # #![expect(clippy::undocumented_unsafe_blocks)]
 //! use kernel::types::Opaque;
 //! use pin_init::pin_init_from_closure;
 //!
@@ -67,7 +67,6 @@
 //! ```
 //!
 //! ```rust
-//! # #![expect(unreachable_pub, clippy::disallowed_names)]
 //! use kernel::{prelude::*, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {

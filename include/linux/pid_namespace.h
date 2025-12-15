@@ -61,8 +61,7 @@ static inline struct pid_namespace *to_pid_ns(struct ns_common *ns)
 
 static inline struct pid_namespace *get_pid_ns(struct pid_namespace *ns)
 {
-	if (ns != &init_pid_ns)
-		ns_ref_inc(ns);
+	ns_ref_inc(ns);
 	return ns;
 }
 

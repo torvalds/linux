@@ -29,6 +29,7 @@ static struct facility_def facility_defs[] = {
 		.bits = (int[]){
 			0,  /* N3 instructions */
 			1,  /* z/Arch mode installed */
+			3,  /* dat-enhancement 1 */
 			18, /* long displacement facility */
 			21, /* extended-immediate facility */
 			25, /* store clock fast */

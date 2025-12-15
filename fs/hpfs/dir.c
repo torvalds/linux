@@ -247,7 +247,7 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 		result = ERR_PTR(-ENOMEM);
 		goto bail1;
 	}
-	if (result->i_state & I_NEW) {
+	if (inode_state_read_once(result) & I_NEW) {
 		hpfs_init_inode(result);
 		if (de->directory)
 			hpfs_read_inode(result);

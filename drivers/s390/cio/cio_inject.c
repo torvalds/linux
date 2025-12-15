@@ -6,8 +6,7 @@
  *    Author(s): Vineeth Vijayan <vneethv@linux.ibm.com>
  */
 
-#define KMSG_COMPONENT "cio"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cio: " fmt
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>

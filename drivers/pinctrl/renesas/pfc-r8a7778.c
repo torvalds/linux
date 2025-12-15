@@ -1994,7 +1994,6 @@ static const char * const scif5_groups[] = {
 	"scif5_data_b",
 };
 
-
 static const char * const sdhi0_groups[] = {
 	"sdhi0_cd",
 	"sdhi0_ctrl",

@@ -408,7 +408,7 @@ void gfs2_recover_func(struct work_struct *work)
 	int error = 0;
 	int jlocked = 0;
 
-	if (gfs2_withdrawing_or_withdrawn(sdp)) {
+	if (gfs2_withdrawn(sdp)) {
 		fs_err(sdp, "jid=%u: Recovery not attempted due to withdraw.\n",
 		       jd->jd_jid);
 		goto fail;
@@ -424,7 +424,8 @@ void gfs2_recover_func(struct work_struct *work)
 
 		error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE,
-					  LM_FLAG_NOEXP | LM_FLAG_TRY | GL_NOCACHE,
+					  LM_FLAG_RECOVER | LM_FLAG_TRY |
+					  GL_NOCACHE,
 					  &j_gh);
 		switch (error) {
 		case 0:
@@ -440,7 +441,8 @@ void gfs2_recover_func(struct work_struct *work)
 		}
 
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | GL_NOCACHE, &ji_gh);
+					   LM_FLAG_RECOVER | GL_NOCACHE,
+					   &ji_gh);
 		if (error)
 			goto fail_gunlock_j;
 	} else {

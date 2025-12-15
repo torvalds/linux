@@ -741,9 +741,9 @@ if ($start) {
 	die "Can not find file $bad\n";
     }
     if ($val eq "good") {
-	run_command "cp $output_config $good" or die "failed to copy $config to $good\n";
+	run_command "cp $output_config $good" or die "failed to copy $output_config to $good\n";
     } elsif ($val eq "bad") {
-	run_command "cp $output_config $bad" or die "failed to copy $config to $bad\n";
+	run_command "cp $output_config $bad" or die "failed to copy $output_config to $bad\n";
     }
 }
 

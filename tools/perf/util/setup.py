@@ -23,10 +23,17 @@ assert srctree, "Environment variable srctree, for the Linux sources, not set"
 src_feature_tests  = f'{srctree}/tools/build/feature'
 
 def clang_has_option(option):
-    cmd = shlex.split(f"{cc} {cc_options} {option}")
-    cmd.append(path.join(src_feature_tests, "test-hello.c"))
+    error_substrings = (
+        b"unknown argument",
+        b"is not supported",
+        b"unknown warning option"
+    )
+    cmd = shlex.split(f"{cc} {cc_options} {option}") + [
+        "-o", "/dev/null",
+        path.join(src_feature_tests, "test-hello.c")
+    ]
     cc_output = Popen(cmd, stderr=PIPE).stderr.readlines()
-    return [o for o in cc_output if ((b"unknown argument" in o) or (b"is not supported" in o) or (b"unknown warning option" in o))] == [ ]
+    return not any(any(error in line for error in error_substrings) for line in cc_output)
 
 if cc_is_clang:
     from sysconfig import get_config_vars

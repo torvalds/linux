@@ -5,7 +5,7 @@
 #include <stdarg.h>
 
 #ifndef LIBPERF_API
-#define LIBPERF_API __attribute__((visibility("default")))
+#define LIBPERF_API extern __attribute__((visibility("default")))
 #endif
 
 enum libperf_print_level {

@@ -146,6 +146,31 @@ void mlx5e_tir_builder_build_direct(struct mlx5e_tir_builder *builder)
 	MLX5_SET(tirc, tirc, rx_hash_fn, MLX5_RX_HASH_FN_INVERTED_XOR8);
 }
 
+static void mlx5e_tir_context_self_lb_block(void *tirc, bool enable_uc_lb,
+					    bool enable_mc_lb)
+{
+	u8 lb_flags = 0;
+
+	if (enable_uc_lb)
+		lb_flags = MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST;
+	if (enable_mc_lb)
+		lb_flags |= MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST;
+
+	MLX5_SET(tirc, tirc, self_lb_block, lb_flags);
+}
+
+void mlx5e_tir_builder_build_self_lb_block(struct mlx5e_tir_builder *builder,
+					   bool enable_uc_lb,
+					   bool enable_mc_lb)
+{
+	void *tirc = mlx5e_tir_builder_get_tirc(builder);
+
+	if (builder->modify)
+		MLX5_SET(modify_tir_in, builder->in, bitmask.self_lb_en, 1);
+
+	mlx5e_tir_context_self_lb_block(tirc, enable_uc_lb, enable_mc_lb);
+}
+
 void mlx5e_tir_builder_build_tls(struct mlx5e_tir_builder *builder)
 {
 	void *tirc = mlx5e_tir_builder_get_tirc(builder);
@@ -153,9 +178,7 @@ void mlx5e_tir_builder_build_tls(struct mlx5e_tir_builder *builder)
 	WARN_ON(builder->modify);
 
 	MLX5_SET(tirc, tirc, tls_en, 1);
-	MLX5_SET(tirc, tirc, self_lb_block,
-		 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST |
-		 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_MULTICAST);
+	mlx5e_tir_context_self_lb_block(tirc, true, true);
 }
 
 int mlx5e_tir_init(struct mlx5e_tir *tir, struct mlx5e_tir_builder *builder,

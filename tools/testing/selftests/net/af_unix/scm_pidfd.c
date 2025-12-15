@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 
 #include "../../pidfd/pidfd.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define clean_errno() (errno == 0 ? "None" : strerror(errno))
 #define log_err(MSG, ...)                                                   \

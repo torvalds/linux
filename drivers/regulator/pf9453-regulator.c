@@ -65,8 +65,7 @@ enum {
 #define PF9453_LDOSNVS_VOLTAGE_NUM	0x59
 
 enum {
-	PF9453_REG_DEV_ID		= 0x00,
-	PF9453_REG_OTP_VER		= 0x01,
+	PF9453_REG_DEV_ID		= 0x01,
 	PF9453_REG_INT1			= 0x02,
 	PF9453_REG_INT1_MASK		= 0x03,
 	PF9453_REG_INT1_STATUS		= 0x04,
@@ -120,7 +119,6 @@ enum {
 #define LDO_ENMODE_ONREQ_STBY_DPSTBY	0x03
 
 /* PF9453_REG_BUCK1_CTRL bits */
-#define BUCK1_LPMODE			0x30
 #define BUCK1_AD			0x08
 #define BUCK1_FPWM			0x04
 #define BUCK1_ENMODE_MASK		GENMASK(1, 0)
@@ -131,19 +129,16 @@ enum {
 #define BUCK2_RAMP_12P5MV		0x1
 #define BUCK2_RAMP_6P25MV		0x2
 #define BUCK2_RAMP_3P125MV		0x3
-#define BUCK2_LPMODE			0x30
 #define BUCK2_AD			0x08
 #define BUCK2_FPWM			0x04
 #define BUCK2_ENMODE_MASK		GENMASK(1, 0)
 
 /* PF9453_REG_BUCK3_CTRL bits */
-#define BUCK3_LPMODE			0x30
 #define BUCK3_AD			0x08
 #define BUCK3_FPWM			0x04
 #define BUCK3_ENMODE_MASK		GENMASK(1, 0)
 
 /* PF9453_REG_BUCK4_CTRL bits */
-#define BUCK4_LPMODE			0x30
 #define BUCK4_AD			0x08
 #define BUCK4_FPWM			0x04
 #define BUCK4_ENMODE_MASK		GENMASK(1, 0)
@@ -191,13 +186,6 @@ enum {
 #define WDOG_B_CFG_NONE			0x00
 #define WDOG_B_CFG_WARM			0x40
 #define WDOG_B_CFG_COLD			0x80
-
-/* PF9453_REG_CONFIG2 bits */
-#define I2C_LT_MASK			GENMASK(1, 0)
-#define I2C_LT_FORCE_DISABLE		0x00
-#define I2C_LT_ON_STANDBY_RUN		0x01
-#define I2C_LT_ON_RUN			0x02
-#define I2C_LT_FORCE_ENABLE		0x03
 
 static const struct regmap_range pf9453_status_range = {
 	.range_min = PF9453_REG_INT1,
@@ -301,13 +289,15 @@ static int pf9453_pmic_write(struct pf9453 *pf9453, unsigned int reg, u8 mask, u
 }
 
 /**
- * pf9453_regulator_enable_regmap for regmap users
+ * pf9453_regulator_enable_regmap - enable regulator for regmap users
  *
  * @rdev: regulator to operate on
  *
  * Regulators that use regmap for their register I/O can set the
  * enable_reg and enable_mask fields in their descriptor and then use
  * this as their enable() operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_enable_regmap(struct regulator_dev *rdev)
 {
@@ -326,13 +316,15 @@ static int pf9453_regulator_enable_regmap(struct regulator_dev *rdev)
 }
 
 /**
- * pf9453_regulator_disable_regmap for regmap users
+ * pf9453_regulator_disable_regmap - disable regulator for regmap users
  *
  * @rdev: regulator to operate on
  *
  * Regulators that use regmap for their register I/O can set the
  * enable_reg and enable_mask fields in their descriptor and then use
  * this as their disable() operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
 {
@@ -351,7 +343,7 @@ static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
 }
 
 /**
- * pf9453_regulator_set_voltage_sel_regmap for regmap users
+ * pf9453_regulator_set_voltage_sel_regmap - set voltage for regmap users
  *
  * @rdev: regulator to operate on
  * @sel: Selector to set
@@ -359,6 +351,8 @@ static int pf9453_regulator_disable_regmap(struct regulator_dev *rdev)
  * Regulators that use regmap for their register I/O can set the
  * vsel_reg and vsel_mask fields in their descriptor and then use this
  * as their set_voltage_vsel operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned int sel)
 {
@@ -409,7 +403,7 @@ static int find_closest_bigger(unsigned int target, const unsigned int *table,
 }
 
 /**
- * pf9453_regulator_set_ramp_delay_regmap
+ * pf9453_regulator_set_ramp_delay_regmap - set ramp delay for regmap users
  *
  * @rdev: regulator to operate on
  * @ramp_delay: desired ramp delay value in microseconds
@@ -417,6 +411,8 @@ static int find_closest_bigger(unsigned int target, const unsigned int *table,
  * Regulators that use regmap for their register I/O can set the ramp_reg
  * and ramp_mask fields in their descriptor and then use this as their
  * set_ramp_delay operation, saving some code.
+ *
+ * Return: %0 on success, or negative errno.
  */
 static int pf9453_regulator_set_ramp_delay_regmap(struct regulator_dev *rdev, int ramp_delay)
 {
@@ -536,21 +532,15 @@ static int buck_set_dvs(const struct regulator_desc *desc,
 		}
 	}
 
-	if (ret == 0) {
-		struct pf9453_regulator_desc *regulator = container_of(desc,
-					struct pf9453_regulator_desc, desc);
-
-		/* Enable DVS control through PMIC_STBY_REQ for this BUCK */
-		ret = pf9453_pmic_write(pf9453, regulator->desc.enable_reg,
-					BUCK2_LPMODE, BUCK2_LPMODE);
-	}
 	return ret;
 }
 
 static int pf9453_set_dvs_levels(struct device_node *np, const struct regulator_desc *desc,
 				 struct regulator_config *cfg)
 {
-	struct pf9453_regulator_desc *data = container_of(desc, struct pf9453_regulator_desc, desc);
+	const struct pf9453_regulator_desc *data = container_of_const(desc,
+								      struct pf9453_regulator_desc,
+								      desc);
 	struct pf9453 *pf9453 = dev_get_drvdata(cfg->dev);
 	const struct pf9453_dvs_config *dvs = &data->dvs;
 	unsigned int reg, mask;

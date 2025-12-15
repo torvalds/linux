@@ -511,7 +511,7 @@ static void __del_reloc_root(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct rb_node *rb_node;
-	struct mapping_node *node = NULL;
+	struct mapping_node AUTO_KFREE(node);
 	struct reloc_control *rc = fs_info->reloc_ctl;
 	bool put_ref = false;
 
@@ -544,7 +544,6 @@ static void __del_reloc_root(struct btrfs_root *root)
 	spin_unlock(&fs_info->trans_lock);
 	if (put_ref)
 		btrfs_put_root(root);
-	kfree(node);
 }
 
 /*
@@ -586,10 +585,9 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *reloc_root;
 	struct extent_buffer *eb;
-	struct btrfs_root_item *root_item;
+	struct btrfs_root_item AUTO_KFREE(root_item);
 	struct btrfs_key root_key;
 	int ret = 0;
-	bool must_abort = false;
 
 	root_item = kmalloc(sizeof(*root_item), GFP_NOFS);
 	if (!root_item)
@@ -615,17 +613,16 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 
 			btrfs_disk_key_to_cpu(&cpu_key, &root->root_item.drop_progress);
 			btrfs_err(fs_info,
-	"cannot relocate partially dropped subvolume %llu, drop progress key (%llu %u %llu)",
-				  objectid, cpu_key.objectid, cpu_key.type, cpu_key.offset);
-			ret = -EUCLEAN;
-			goto fail;
+	"cannot relocate partially dropped subvolume %llu, drop progress key " BTRFS_KEY_FMT,
+				  objectid, BTRFS_KEY_FMT_VALUE(&cpu_key));
+			return ERR_PTR(-EUCLEAN);
 		}
 
 		/* called by btrfs_init_reloc_root */
 		ret = btrfs_copy_root(trans, root, root->commit_root, &eb,
 				      BTRFS_TREE_RELOC_OBJECTID);
 		if (ret)
-			goto fail;
+			return ERR_PTR(ret);
 
 		/*
 		 * Set the last_snapshot field to the generation of the commit
@@ -648,14 +645,13 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 		ret = btrfs_copy_root(trans, root, root->node, &eb,
 				      BTRFS_TREE_RELOC_OBJECTID);
 		if (ret)
-			goto fail;
+			return ERR_PTR(ret);
 	}
 
 	/*
 	 * We have changed references at this point, we must abort the
-	 * transaction if anything fails.
+	 * transaction if anything fails (i.e. 'goto abort').
 	 */
-	must_abort = true;
 
 	memcpy(root_item, &root->root_item, sizeof(*root_item));
 	btrfs_set_root_bytenr(root_item, eb->start);
@@ -675,9 +671,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_root(trans, fs_info->tree_root,
 				&root_key, root_item);
 	if (ret)
-		goto fail;
-
-	kfree(root_item);
+		goto abort;
 
 	reloc_root = btrfs_read_tree_root(fs_info->tree_root, &root_key);
 	if (IS_ERR(reloc_root)) {
@@ -687,11 +681,9 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	set_bit(BTRFS_ROOT_SHAREABLE, &reloc_root->state);
 	btrfs_set_root_last_trans(reloc_root, trans->transid);
 	return reloc_root;
-fail:
-	kfree(root_item);
+
 abort:
-	if (must_abort)
-		btrfs_abort_transaction(trans, ret);
+	btrfs_abort_transaction(trans, ret);
 	return ERR_PTR(ret);
 }
 
@@ -2947,7 +2939,7 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	const struct file_extent_cluster *cluster = &rc->cluster;
 	u64 offset = BTRFS_I(inode)->reloc_block_group_start;
 	u64 cur_file_offset = cluster->start - offset;
-	struct file_ra_state *ra;
+	struct file_ra_state AUTO_KFREE(ra);
 	int cluster_nr = 0;
 	int ret = 0;
 
@@ -2960,13 +2952,13 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 
 	ret = prealloc_file_extent_cluster(rc);
 	if (ret)
-		goto out;
+		return ret;
 
 	file_ra_state_init(ra, inode->i_mapping);
 
 	ret = setup_relocation_extent_mapping(rc);
 	if (ret)
-		goto out;
+		return ret;
 
 	while (cur_file_offset < cluster->end - offset) {
 		ret = relocate_one_folio(rc, ra, &cluster_nr, &cur_file_offset);
@@ -2975,8 +2967,6 @@ static int relocate_file_extent_cluster(struct reloc_control *rc)
 	}
 	if (ret == 0)
 		WARN_ON(cluster_nr != cluster->nr);
-out:
-	kfree(ra);
 	return ret;
 }
 
@@ -3175,8 +3165,8 @@ again:
 		key.offset = blocksize;
 	}
 
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -3368,8 +3358,8 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = 0;
 
-		path->search_commit_root = 1;
-		path->skip_locking = 1;
+		path->search_commit_root = true;
+		path->skip_locking = true;
 		ret = btrfs_search_slot(NULL, rc->extent_root, &key, path,
 					0, 0);
 		if (ret < 0)
@@ -3882,8 +3872,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	struct inode *inode;
 	struct btrfs_path *path;
 	int ret;
-	int rw = 0;
-	int err = 0;
+	bool bg_is_ro = false;
 
 	/*
 	 * This only gets set if we had a half-deleted snapshot on mount.  We
@@ -3925,24 +3914,20 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	}
 
 	ret = reloc_chunk_start(fs_info);
-	if (ret < 0) {
-		err = ret;
+	if (ret < 0)
 		goto out_put_bg;
-	}
 
 	rc->extent_root = extent_root;
 	rc->block_group = bg;
 
 	ret = btrfs_inc_block_group_ro(rc->block_group, true);
-	if (ret) {
-		err = ret;
+	if (ret)
 		goto out;
-	}
-	rw = 1;
+	bg_is_ro = true;
 
 	path = btrfs_alloc_path();
 	if (!path) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -3954,14 +3939,12 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	else
 		ret = PTR_ERR(inode);
 
-	if (ret && ret != -ENOENT) {
-		err = ret;
+	if (ret && ret != -ENOENT)
 		goto out;
-	}
 
 	rc->data_inode = create_reloc_inode(rc->block_group);
 	if (IS_ERR(rc->data_inode)) {
-		err = PTR_ERR(rc->data_inode);
+		ret = PTR_ERR(rc->data_inode);
 		rc->data_inode = NULL;
 		goto out;
 	}
@@ -3982,8 +3965,6 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 		mutex_lock(&fs_info->cleaner_mutex);
 		ret = relocate_block_group(rc);
 		mutex_unlock(&fs_info->cleaner_mutex);
-		if (ret < 0)
-			err = ret;
 
 		finishes_stage = rc->stage;
 		/*
@@ -3996,16 +3977,18 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 		 * out of the loop if we hit an error.
 		 */
 		if (rc->stage == MOVE_DATA_EXTENTS && rc->found_file_extent) {
-			ret = btrfs_wait_ordered_range(BTRFS_I(rc->data_inode), 0,
-						       (u64)-1);
-			if (ret)
-				err = ret;
+			int wb_ret;
+
+			wb_ret = btrfs_wait_ordered_range(BTRFS_I(rc->data_inode), 0,
+							  (u64)-1);
+			if (wb_ret && ret == 0)
+				ret = wb_ret;
 			invalidate_mapping_pages(rc->data_inode->i_mapping,
 						 0, -1);
 			rc->stage = UPDATE_DATA_PTRS;
 		}
 
-		if (err < 0)
+		if (ret < 0)
 			goto out;
 
 		if (rc->extents_found == 0)
@@ -4021,14 +4004,14 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 	WARN_ON(rc->block_group->reserved > 0);
 	WARN_ON(rc->block_group->used > 0);
 out:
-	if (err && rw)
+	if (ret && bg_is_ro)
 		btrfs_dec_block_group_ro(rc->block_group);
 	iput(rc->data_inode);
 	reloc_chunk_end(fs_info);
 out_put_bg:
 	btrfs_put_block_group(bg);
 	free_reloc_control(rc);
-	return err;
+	return ret;
 }
 
 static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)

@@ -1498,9 +1498,9 @@ static int byt_gpio_add_pin_ranges(struct gpio_chip *chip)
 
 	ret = gpiochip_add_pin_range(chip, dev_name(dev), 0, 0, vg->soc->npins);
 	if (ret)
-		dev_err(dev, "failed to add GPIO pin range\n");
+		return dev_err_probe(dev, ret, "failed to add GPIO pin range\n");
 
-	return ret;
+	return 0;
 }
 
 static int byt_gpio_probe(struct intel_pinctrl *vg)
@@ -1548,9 +1548,9 @@ static int byt_gpio_probe(struct intel_pinctrl *vg)
 
 	ret = devm_gpiochip_add_data(vg->dev, gc, vg);
 	if (ret)
-		dev_err(vg->dev, "failed adding byt-gpio chip\n");
+		return dev_err_probe(vg->dev, ret, "failed to register gpiochip\n");
 
-	return ret;
+	return 0;
 }
 
 static int byt_set_soc_data(struct intel_pinctrl *vg,
@@ -1601,10 +1601,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 
 	vg->dev = dev;
 	ret = byt_set_soc_data(vg, soc_data);
-	if (ret) {
-		dev_err(dev, "failed to set soc data\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to set soc data\n");
 
 	vg->pctldesc		= byt_pinctrl_desc;
 	vg->pctldesc.name	= dev_name(dev);
@@ -1612,10 +1610,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	vg->pctldesc.npins	= vg->soc->npins;
 
 	vg->pctldev = devm_pinctrl_register(dev, &vg->pctldesc, vg);
-	if (IS_ERR(vg->pctldev)) {
-		dev_err(dev, "failed to register pinctrl driver\n");
-		return PTR_ERR(vg->pctldev);
-	}
+	if (IS_ERR(vg->pctldev))
+		return dev_err_probe(dev, PTR_ERR(vg->pctldev), "failed to register pinctrl\n");
 
 	ret = byt_gpio_probe(vg);
 	if (ret)

@@ -12,3 +12,4 @@ futex_wait_uninitialized_heap
 futex_wait_wouldblock
 futex_waitv
 futex_numa
+robust_list

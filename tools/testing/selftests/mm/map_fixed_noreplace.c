@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static void dump_maps(void)
 {

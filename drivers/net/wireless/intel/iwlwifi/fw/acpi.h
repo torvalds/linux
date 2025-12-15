@@ -151,6 +151,7 @@ union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
  * @mcc: output buffer (3 bytes) that will get the MCC
  *
  * This function tries to read the current MCC from ACPI if available.
+ * Return: 0 on success, or a negative error code
  */
 int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 

@@ -23,11 +23,11 @@ config SAMPLE_TRACE_CUSTOM_EVENTS
 	  This builds the custom trace event example module.
 
 config SAMPLE_TRACE_PRINTK
-        tristate "Build trace_printk module - tests various trace_printk formats"
+	tristate "Build trace_printk module - tests various trace_printk formats"
 	depends on EVENT_TRACING && m
 	help
-	 This builds a module that calls trace_printk() and can be used to
-	 test various trace_printk() calls from a module.
+	  This builds a module that calls trace_printk() and can be used to
+	  test various trace_printk() calls from a module.
 
 config SAMPLE_FTRACE_DIRECT
 	tristate "Build register_ftrace_direct() example"
@@ -54,11 +54,11 @@ config SAMPLE_FTRACE_OPS
 	  measures the time taken to invoke one function a number of times.
 
 config SAMPLE_TRACE_ARRAY
-        tristate "Build sample module for kernel access to Ftrace instances"
+	tristate "Build sample module for kernel access to Ftrace instances"
 	depends on EVENT_TRACING && m
 	help
-	 This builds a module that demonstrates the use of various APIs to
-	 access Ftrace instances from within the kernel.
+	  This builds a module that demonstrates the use of various APIs to
+	  access Ftrace instances from within the kernel.
 
 config SAMPLE_KOBJECT
 	tristate "Build kobject examples"
@@ -290,11 +290,11 @@ config SAMPLE_CORESIGHT_SYSCFG
 	  configurations and easily load them into the system at runtime.
 
 config SAMPLE_KMEMLEAK
-        tristate "Simple test for the kernel memory leak detector"
-        depends on DEBUG_KMEMLEAK && m
-        help
-          Build a sample program which have explicitly leaks memory to test
-          kmemleak
+	tristate "Simple test for the kernel memory leak detector"
+	depends on DEBUG_KMEMLEAK && m
+	help
+	  Build a sample program which have explicitly leaks memory to test
+	  kmemleak.
 
 config SAMPLE_CGROUP
 	bool "Build cgroup sample code"

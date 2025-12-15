@@ -35,9 +35,9 @@ static inline void __tlb_flush_idte(unsigned long asce)
  */
 static inline void __tlb_flush_global(void)
 {
-	unsigned int dummy = 0;
+	unsigned long dummy = 0;
 
-	csp(&dummy, 0, 0);
+	cspg(&dummy, 0, 0);
 }
 
 /*
@@ -54,7 +54,7 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 	cpumask_copy(mm_cpumask(mm), &mm->context.cpu_attach_mask);
 	barrier();
 	gmap_asce = READ_ONCE(mm->context.gmap_asce);
-	if (cpu_has_idte() && gmap_asce != -1UL) {
+	if (gmap_asce != -1UL) {
 		if (gmap_asce)
 			__tlb_flush_idte(gmap_asce);
 		__tlb_flush_idte(mm->context.asce);
@@ -68,10 +68,7 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 
 static inline void __tlb_flush_kernel(void)
 {
-	if (cpu_has_idte())
-		__tlb_flush_idte(init_mm.context.asce);
-	else
-		__tlb_flush_global();
+	__tlb_flush_idte(init_mm.context.asce);
 }
 
 static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
@@ -86,7 +83,6 @@ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
 
 /*
  * TLB flushing:
- *  flush_tlb() - flushes the current mm struct TLBs
  *  flush_tlb_all() - flushes all processes TLBs
  *  flush_tlb_mm(mm) - flushes the specified mm context TLB's
  *  flush_tlb_page(vma, vmaddr) - flushes one page
@@ -102,7 +98,6 @@ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
  * only one user. At the end of the update the flush_tlb_mm and
  * flush_tlb_range functions need to do the flush.
  */
-#define flush_tlb()				do { } while (0)
 #define flush_tlb_all()				do { } while (0)
 #define flush_tlb_page(vma, addr)		do { } while (0)
 

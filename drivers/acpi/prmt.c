@@ -244,6 +244,12 @@ static struct prm_handler_info *find_prm_handler(const guid_t *guid)
 	return (struct prm_handler_info *) find_guid_info(guid, GET_HANDLER);
 }
 
+bool acpi_prm_handler_available(const guid_t *guid)
+{
+	return find_prm_handler(guid) && find_prm_module(guid);
+}
+EXPORT_SYMBOL_GPL(acpi_prm_handler_available);
+
 /* In-coming PRM commands */
 
 #define PRM_CMD_RUN_SERVICE		0

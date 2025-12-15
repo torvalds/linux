@@ -7,7 +7,7 @@
 #include <linux/list.h>
 #include <uapi/linux/btrfs_tree.h>
 #include "ctree.h"
-#include "accessors.h"
+#include "ordered-data.h"
 
 struct extent_map;
 struct btrfs_file_extent_item;
@@ -64,7 +64,7 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 int btrfs_csum_file_blocks(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_ordered_sum *sums);
-int btrfs_csum_one_bio(struct btrfs_bio *bbio);
+int btrfs_csum_one_bio(struct btrfs_bio *bbio, bool async);
 int btrfs_alloc_dummy_sum(struct btrfs_bio *bbio);
 int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit,

@@ -534,8 +534,7 @@ static SOC_ENUM_SINGLE_DECL(max98390_current_limit,
 static int max98390_ref_rdc_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
@@ -554,8 +553,7 @@ static int max98390_ref_rdc_put(struct snd_kcontrol *kcontrol,
 static int max98390_ref_rdc_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
@@ -567,8 +565,7 @@ static int max98390_ref_rdc_get(struct snd_kcontrol *kcontrol,
 static int max98390_ambient_temp_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
@@ -585,8 +582,7 @@ static int max98390_ambient_temp_put(struct snd_kcontrol *kcontrol,
 static int max98390_ambient_temp_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
@@ -598,8 +594,7 @@ static int max98390_ambient_temp_get(struct snd_kcontrol *kcontrol,
 static int max98390_adaptive_rdc_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 
 	dev_warn(component->dev, "Put adaptive rdc not supported\n");
 
@@ -610,8 +605,7 @@ static int max98390_adaptive_rdc_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	int rdc, rdc0;
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 =
 		snd_soc_component_get_drvdata(component);
 
@@ -632,9 +626,9 @@ static int max98390_dsm_calib_get(struct snd_kcontrol *kcontrol,
 static int max98390_dsm_calib_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98390_priv *max98390 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	unsigned int rdc, rdc_cal_result, rdc_integer, rdc_factor, temp, val;
 
 	snd_soc_dapm_mutex_lock(dapm);

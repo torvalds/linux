@@ -22,6 +22,7 @@ echo "		--fail-unresolved Treat UNRESOLVED as a failure"
 echo "		-d|--debug Debug mode (trace all shell commands)"
 echo "		-l|--logdir <dir> Save logs on the <dir>"
 echo "		            If <dir> is -, all logs output in console only"
+echo "		--rv       Run RV selftests instead of ftrace ones"
 exit $1
 }
 
@@ -133,6 +134,10 @@ parse_opts() { # opts
       LINK_PTR=
       shift 2
     ;;
+    --rv)
+      RV_TEST=1
+      shift 1
+    ;;
     *.tc)
       if [ -f "$1" ]; then
         OPT_TEST_CASES="$OPT_TEST_CASES `abspath $1`"
@@ -152,8 +157,12 @@ parse_opts() { # opts
     ;;
     esac
   done
-  if [ ! -z "$OPT_TEST_CASES" ]; then
+  if [ -n "$OPT_TEST_CASES" ]; then
     TEST_CASES=$OPT_TEST_CASES
+  fi
+  if [ -n "$OPT_TEST_DIR" -a -f "$OPT_TEST_DIR"/test.d/functions ]; then
+    TOP_DIR=$OPT_TEST_DIR
+    TEST_DIR=$TOP_DIR/test.d
   fi
 }
 
@@ -190,10 +199,6 @@ fi
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
-LOG_TOP_DIR=$TOP_DIR/logs
-LOG_DATE=`date +%Y%m%d-%H%M%S`
-LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
-LINK_PTR=$LOG_TOP_DIR/latest
 KEEP_LOG=0
 KTAP=0
 DEBUG=0
@@ -201,14 +206,23 @@ VERBOSE=0
 UNSUPPORTED_RESULT=0
 UNRESOLVED_RESULT=0
 STOP_FAILURE=0
+RV_TEST=0
 # Parse command-line options
 parse_opts $*
 
+LOG_TOP_DIR=$TOP_DIR/logs
+LOG_DATE=`date +%Y%m%d-%H%M%S`
+LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
+LINK_PTR=$LOG_TOP_DIR/latest
+
 [ $DEBUG -ne 0 ] && set -x
 
-# Verify parameters
-if [ -z "$TRACING_DIR" -o ! -d "$TRACING_DIR" ]; then
-  errexit "No ftrace directory found"
+if [ $RV_TEST -ne 0 ]; then
+	TRACING_DIR=$TRACING_DIR/rv
+	if [ ! -d "$TRACING_DIR" ]; then
+		err_ret=$err_skip
+		errexit "rv is not configured in this kernel"
+	fi
 fi
 
 # Preparing logs
@@ -419,7 +433,7 @@ trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 __run_test() { # testfile
   # setup PID and PPID, $$ is not updated.
   (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x;
-   checkreq $1; initialize_ftrace; . $1)
+   checkreq $1; initialize_system; . $1)
   [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
 }
 
@@ -496,7 +510,7 @@ for t in $TEST_CASES; do
     exit 1
   fi
 done
-(cd $TRACING_DIR; finish_ftrace) # for cleanup
+(cd $TRACING_DIR; finish_system) # for cleanup
 
 prlog ""
 prlog "# of passed: " `echo $PASSED_CASES | wc -w`

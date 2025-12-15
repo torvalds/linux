@@ -755,7 +755,7 @@ static void mlx5e_consume_skb(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		hwts.hwtstamp = mlx5e_cqe_ts_to_ns(sq->ptp_cyc2time, sq->clock, ts);
 		if (sq->ptpsq) {
 			mlx5e_skb_cb_hwtstamp_handler(skb, MLX5E_SKB_CB_CQE_HWTSTAMP,
-						      hwts.hwtstamp, sq->ptpsq->cq_stats);
+						      hwts.hwtstamp, sq->ptpsq);
 		} else {
 			skb_tstamp_tx(skb, &hwts);
 			sq->stats->timestamps++;

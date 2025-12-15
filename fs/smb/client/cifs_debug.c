@@ -37,7 +37,7 @@ cifs_dump_mem(char *label, void *data, int length)
 		       data, length, true);
 }
 
-void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
+void cifs_dump_detail(void *buf, size_t buf_len, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb_hdr *smb = buf;
@@ -45,7 +45,7 @@ void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d Wct: %d\n",
 		 smb->Command, smb->Status.CifsError, smb->Flags,
 		 smb->Flags2, smb->Mid, smb->Pid, smb->WordCount);
-	if (!server->ops->check_message(buf, server->total_read, server)) {
+	if (!server->ops->check_message(buf, buf_len, server->total_read, server)) {
 		cifs_dbg(VFS, "smb buf %p len %u\n", smb,
 			 server->ops->calc_smb_size(smb));
 	}
@@ -79,9 +79,9 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
 			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
-			cifs_dump_detail(mid_entry->resp_buf, server);
-			cifs_dump_mem("existing buf: ",
-				mid_entry->resp_buf, 62);
+			cifs_dump_detail(mid_entry->resp_buf,
+					 mid_entry->response_pdu_len, server);
+			cifs_dump_mem("existing buf: ", mid_entry->resp_buf, 62);
 		}
 	}
 	spin_unlock(&server->mid_queue_lock);
@@ -249,9 +249,9 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 	seq_puts(m, "# Format:\n");
 	seq_puts(m, "# <tree id> <ses id> <persistent fid> <flags> <count> <pid> <uid>");
 #ifdef CONFIG_CIFS_DEBUG2
-	seq_puts(m, " <filename> <lease> <mid>\n");
+	seq_puts(m, " <filename> <lease> <lease-key> <mid>\n");
 #else
-	seq_puts(m, " <filename> <lease>\n");
+	seq_puts(m, " <filename> <lease> <lease-key>\n");
 #endif /* CIFS_DEBUG2 */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
@@ -274,6 +274,7 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 
 					/* Append lease/oplock caching state as RHW letters */
 					inode = d_inode(cfile->dentry);
+					cinode = NULL;
 					n = 0;
 					if (inode) {
 						cinode = CIFS_I(inode);
@@ -290,6 +291,12 @@ static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
 						seq_printf(m, "%s", lease);
 					else
 						seq_puts(m, "NONE");
+
+					seq_puts(m, " ");
+					if (cinode && cinode->lease_granted)
+						seq_printf(m, "%pUl", cinode->lease_key);
+					else
+						seq_puts(m, "-");
 
 #ifdef CONFIG_CIFS_DEBUG2
 					seq_printf(m, " %llu", cfile->fid.mid);
@@ -317,7 +324,7 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "# Version:1\n");
 	seq_puts(m, "# Format:\n");
-	seq_puts(m, "# <tree id> <sess id> <persistent fid> <path>\n");
+	seq_puts(m, "# <tree id> <sess id> <persistent fid> <lease-key> <path>\n");
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(stmp, &cifs_tcp_ses_list) {
@@ -336,11 +343,15 @@ static int cifs_debug_dirs_proc_show(struct seq_file *m, void *v)
 						(unsigned long)atomic_long_read(&cfids->total_dirents_entries),
 						(unsigned long long)atomic64_read(&cfids->total_dirents_bytes));
 				list_for_each_entry(cfid, &cfids->entries, entry) {
-					seq_printf(m, "0x%x 0x%llx 0x%llx     %s",
+					seq_printf(m, "0x%x 0x%llx 0x%llx ",
 						tcon->tid,
 						ses->Suid,
-						cfid->fid.persistent_fid,
-						cfid->path);
+						cfid->fid.persistent_fid);
+					if (cfid->has_lease)
+						seq_printf(m, "%pUl ", cfid->fid.lease_key);
+					else
+						seq_puts(m, "- ");
+					seq_printf(m, "%s", cfid->path);
 					if (cfid->file_all_info_is_valid)
 						seq_printf(m, "\tvalid file info");
 					if (cfid->dirents.is_valid)
@@ -1307,11 +1318,11 @@ static const struct proc_ops cifs_mount_params_proc_ops = {
 };
 
 #else
-inline void cifs_proc_init(void)
+void cifs_proc_init(void)
 {
 }
 
-inline void cifs_proc_clean(void)
+void cifs_proc_clean(void)
 {
 }
 #endif /* PROC_FS */

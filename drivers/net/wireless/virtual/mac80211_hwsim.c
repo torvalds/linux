@@ -5799,6 +5799,7 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		ieee80211_hw_set(hw, NO_AUTO_VIF);
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_PUNCT);
 
 	for (i = 0; i < ARRAY_SIZE(data->link_data); i++) {
 		hrtimer_setup(&data->link_data[i].beacon_timer, mac80211_hwsim_beacon,

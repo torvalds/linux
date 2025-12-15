@@ -44,9 +44,6 @@ int perf_reg_validate(u64 mask)
 
 u64 perf_reg_abi(struct task_struct *task)
 {
-	if (test_tsk_thread_flag(task, TIF_31BIT))
-		return PERF_SAMPLE_REGS_ABI_32;
-
 	return PERF_SAMPLE_REGS_ABI_64;
 }
 

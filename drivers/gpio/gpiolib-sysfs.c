@@ -244,7 +244,7 @@ static int gpio_sysfs_request_irq(struct gpiod_data *data, unsigned char flags)
 	 * Remove this redundant call (along with the corresponding unlock)
 	 * when those drivers have been fixed.
 	 */
-	ret = gpiochip_lock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
+	ret = gpiochip_lock_as_irq(guard.gc, gpiod_hwgpio(desc));
 	if (ret < 0)
 		goto err_clr_bits;
 
@@ -258,7 +258,7 @@ static int gpio_sysfs_request_irq(struct gpiod_data *data, unsigned char flags)
 	return 0;
 
 err_unlock:
-	gpiochip_unlock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
+	gpiochip_unlock_as_irq(guard.gc, gpiod_hwgpio(desc));
 err_clr_bits:
 	clear_bit(GPIOD_FLAG_EDGE_RISING, &desc->flags);
 	clear_bit(GPIOD_FLAG_EDGE_FALLING, &desc->flags);
@@ -280,7 +280,7 @@ static void gpio_sysfs_free_irq(struct gpiod_data *data)
 
 	data->irq_flags = 0;
 	free_irq(data->irq, data);
-	gpiochip_unlock_as_irq(guard.gc, gpio_chip_hwgpio(desc));
+	gpiochip_unlock_as_irq(guard.gc, gpiod_hwgpio(desc));
 	clear_bit(GPIOD_FLAG_EDGE_RISING, &desc->flags);
 	clear_bit(GPIOD_FLAG_EDGE_FALLING, &desc->flags);
 }
@@ -478,10 +478,10 @@ static int export_gpio_desc(struct gpio_desc *desc)
 	if (!guard.gc)
 		return -ENODEV;
 
-	offset = gpio_chip_hwgpio(desc);
+	offset = gpiod_hwgpio(desc);
 	if (!gpiochip_line_is_valid(guard.gc, offset)) {
 		pr_debug_ratelimited("%s: GPIO %d masked\n", __func__,
-				     gpio_chip_hwgpio(desc));
+				     gpiod_hwgpio(desc));
 		return -EINVAL;
 	}
 
@@ -823,7 +823,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	}
 
 	desc_data->chip_attr_group.name = kasprintf(GFP_KERNEL, "gpio%u",
-						    gpio_chip_hwgpio(desc));
+						    gpiod_hwgpio(desc));
 	if (!desc_data->chip_attr_group.name) {
 		status = -ENOMEM;
 		goto err_put_dirent;
@@ -843,7 +843,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (status)
 		goto err_free_name;
 
-	path = kasprintf(GFP_KERNEL, "gpio%u/value", gpio_chip_hwgpio(desc));
+	path = kasprintf(GFP_KERNEL, "gpio%u/value", gpiod_hwgpio(desc));
 	if (!path) {
 		status = -ENOMEM;
 		goto err_remove_groups;
@@ -1091,7 +1091,7 @@ static int gpiofind_sysfs_register(struct gpio_chip *gc, const void *data)
 
 	ret = gpiochip_sysfs_register(gdev);
 	if (ret)
-		chip_err(gc, "failed to register the sysfs entry: %d\n", ret);
+		gpiochip_err(gc, "failed to register the sysfs entry: %d\n", ret);
 
 	return 0;
 }

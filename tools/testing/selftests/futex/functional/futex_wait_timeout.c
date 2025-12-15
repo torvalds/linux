@@ -19,7 +19,7 @@
 
 #include "futextest.h"
 #include "futex2test.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static long timeout_ns = 100000;	/* 100us default timeout */
 static futex_t futex_pi;

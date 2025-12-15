@@ -8,7 +8,7 @@ title: Qualcomm PCI express root complex
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description: |
   Qualcomm PCIe root complex controller is based on the Synopsys DesignWare

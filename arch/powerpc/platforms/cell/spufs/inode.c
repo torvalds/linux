@@ -127,7 +127,7 @@ spufs_new_file(struct super_block *sb, struct dentry *dentry,
 	inode->i_fop = fops;
 	inode->i_size = size;
 	inode->i_private = SPUFS_I(inode)->i_ctx = get_spu_context(ctx);
-	d_add(dentry, inode);
+	d_make_persistent(dentry, inode);
 out:
 	return ret;
 }
@@ -163,10 +163,9 @@ static int spufs_fill_dir(struct dentry *dir,
 			return -ENOMEM;
 		ret = spufs_new_file(dir->d_sb, dentry, files->ops,
 					files->mode & mode, files->size, ctx);
-		if (ret) {
-			dput(dentry);
+		dput(dentry);
+		if (ret)
 			return ret;
-		}
 		files++;
 	}
 	return 0;
@@ -241,11 +240,10 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 	inode_lock(inode);
 
-	dget(dentry);
 	inc_nlink(dir);
 	inc_nlink(inode);
 
-	d_instantiate(dentry, inode);
+	d_make_persistent(dentry, inode);
 
 	if (flags & SPU_CREATE_NOSCHED)
 		ret = spufs_fill_dir(dentry, spufs_dir_nosched_contents,
@@ -267,22 +265,11 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
 
 static int spufs_context_open(const struct path *path)
 {
-	int ret;
-	struct file *filp;
-
-	ret = get_unused_fd_flags(0);
-	if (ret < 0)
-		return ret;
-
-	filp = dentry_open(path, O_RDONLY, current_cred());
-	if (IS_ERR(filp)) {
-		put_unused_fd(ret);
-		return PTR_ERR(filp);
-	}
-
-	filp->f_op = &spufs_context_fops;
-	fd_install(ret, filp);
-	return ret;
+	FD_PREPARE(fdf, 0, dentry_open(path, O_RDONLY, current_cred()));
+	if (fdf.err)
+		return fdf.err;
+	fd_prepare_file(fdf)->f_op = &spufs_context_fops;
+	return fd_publish(fdf);
 }
 
 static struct spu_context *
@@ -479,10 +466,9 @@ spufs_mkgang(struct inode *dir, struct dentry *dentry, umode_t mode)
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 
-	d_instantiate(dentry, inode);
-	dget(dentry);
 	inc_nlink(dir);
-	inc_nlink(d_inode(dentry));
+	inc_nlink(inode);
+	d_make_persistent(dentry, inode);
 	return ret;
 
 out_iput:
@@ -508,26 +494,15 @@ static const struct file_operations spufs_gang_fops = {
 
 static int spufs_gang_open(const struct path *path)
 {
-	int ret;
-	struct file *filp;
-
-	ret = get_unused_fd_flags(0);
-	if (ret < 0)
-		return ret;
-
 	/*
 	 * get references for dget and mntget, will be released
 	 * in error path of *_open().
 	 */
-	filp = dentry_open(path, O_RDONLY, current_cred());
-	if (IS_ERR(filp)) {
-		put_unused_fd(ret);
-		return PTR_ERR(filp);
-	}
-
-	filp->f_op = &spufs_gang_fops;
-	fd_install(ret, filp);
-	return ret;
+	FD_PREPARE(fdf, 0, dentry_open(path, O_RDONLY, current_cred()));
+	if (fdf.err)
+		return fdf.err;
+	fd_prepare_file(fdf)->f_op = &spufs_gang_fops;
+	return fd_publish(fdf);
 }
 
 static int spufs_create_gang(struct inode *inode,
@@ -780,7 +755,7 @@ static struct file_system_type spufs_type = {
 	.name = "spufs",
 	.init_fs_context = spufs_init_fs_context,
 	.parameters	= spufs_fs_parameters,
-	.kill_sb = kill_litter_super,
+	.kill_sb = kill_anon_super,
 };
 MODULE_ALIAS_FS("spufs");
 

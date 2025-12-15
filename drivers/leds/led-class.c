@@ -38,7 +38,7 @@ static ssize_t brightness_show(struct device *dev,
 	brightness = led_cdev->brightness;
 	mutex_unlock(&led_cdev->led_access);
 
-	return sprintf(buf, "%u\n", brightness);
+	return sysfs_emit(buf, "%u\n", brightness);
 }
 
 static ssize_t brightness_store(struct device *dev,
@@ -80,7 +80,7 @@ static ssize_t max_brightness_show(struct device *dev,
 	max_brightness = led_cdev->max_brightness;
 	mutex_unlock(&led_cdev->led_access);
 
-	return sprintf(buf, "%u\n", max_brightness);
+	return sysfs_emit(buf, "%u\n", max_brightness);
 }
 static DEVICE_ATTR_RO(max_brightness);
 
@@ -122,7 +122,7 @@ static ssize_t brightness_hw_changed_show(struct device *dev,
 	if (led_cdev->brightness_hw_changed == -1)
 		return -ENODATA;
 
-	return sprintf(buf, "%u\n", led_cdev->brightness_hw_changed);
+	return sysfs_emit(buf, "%u\n", led_cdev->brightness_hw_changed);
 }
 
 static DEVICE_ATTR_RO(brightness_hw_changed);

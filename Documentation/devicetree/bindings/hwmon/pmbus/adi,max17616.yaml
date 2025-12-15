@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/adi,max17616.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices MAX17616/MAX17616A Current-Limiter with PMBus Interface
+
+maintainers:
+  - Kim Seer Paller <kimseer.paller@analog.com>
+
+description: |
+  The MAX17616/MAX17616A is a 3V to 80V, 7A current-limiter with overvoltage,
+  surge, undervoltage, reverse polarity, and loss of ground protection. It allows
+  monitoring of input/output voltage, output current and temperature through the
+  PMBus serial interface.
+  Datasheet:
+    https://www.analog.com/en/products/max17616.html
+
+properties:
+  compatible:
+    const: adi,max17616
+
+  reg:
+    maxItems: 1
+
+  vcc-supply: true
+
+  interrupts:
+    description: Fault condition signal provided on SMBALERT pin.
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - vcc-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hwmon@16 {
+            compatible = "adi,max17616";
+            reg = <0x16>;
+            vcc-supply = <&vcc>;
+        };
+    };
+...

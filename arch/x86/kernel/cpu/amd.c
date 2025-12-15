@@ -3,7 +3,7 @@
 #include <linux/bitops.h>
 #include <linux/elf.h>
 #include <linux/mm.h>
-
+#include <linux/kvm_types.h>
 #include <linux/io.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -1318,7 +1318,7 @@ unsigned long amd_get_dr_addr_mask(unsigned int dr)
 
 	return per_cpu(amd_dr_addr_mask[dr], smp_processor_id());
 }
-EXPORT_SYMBOL_GPL(amd_get_dr_addr_mask);
+EXPORT_SYMBOL_FOR_KVM(amd_get_dr_addr_mask);
 
 static void zenbleed_check_cpu(void *unused)
 {

@@ -19,7 +19,7 @@
 #include <asm/sigcontext.h>
 #include <asm/ptrace.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 /* <linux/elf.h> and <sys/auxv.h> don't like each other, so: */
 #ifndef NT_ARM_SVE
@@ -389,6 +389,58 @@ static void ptrace_sve_fpsimd(pid_t child, const struct vec_type *type)
 	else
 		ksft_test_result_fail("%s get_fpsimd() gave different state\n",
 				      type->name);
+
+out:
+	free(svebuf);
+}
+
+/* Write the FPSIMD registers via the SVE regset when SVE is not supported */
+static void ptrace_sve_fpsimd_no_sve(pid_t child)
+{
+	void *svebuf;
+	struct user_sve_header *sve;
+	struct user_fpsimd_state *fpsimd, new_fpsimd;
+	unsigned int i, j;
+	unsigned char *p;
+	int ret;
+
+	svebuf = malloc(SVE_PT_SIZE(0, SVE_PT_REGS_FPSIMD));
+	if (!svebuf) {
+		ksft_test_result_fail("Failed to allocate FPSIMD buffer\n");
+		return;
+	}
+
+	/* On a system without SVE the VL should be set to 0 */
+	memset(svebuf, 0, SVE_PT_SIZE(0, SVE_PT_REGS_FPSIMD));
+	sve = svebuf;
+	sve->flags = SVE_PT_REGS_FPSIMD;
+	sve->size = SVE_PT_SIZE(0, SVE_PT_REGS_FPSIMD);
+	sve->vl = 0;
+
+	/* Try to set a known FPSIMD state via PT_REGS_SVE */
+	fpsimd = (struct user_fpsimd_state *)((char *)sve +
+					      SVE_PT_FPSIMD_OFFSET);
+	for (i = 0; i < 32; ++i) {
+		p = (unsigned char *)&fpsimd->vregs[i];
+
+		for (j = 0; j < sizeof(fpsimd->vregs[i]); ++j)
+			p[j] = j;
+	}
+
+	ret = set_sve(child, &vec_types[0], sve);
+	ksft_test_result(ret == 0, "FPSIMD write via SVE\n");
+	if (ret) {
+		ksft_test_result_skip("Verify FPSIMD write via SVE\n");
+		goto out;
+	}
+
+	/* Verify via the FPSIMD regset */
+	if (get_fpsimd(child, &new_fpsimd)) {
+		ksft_test_result_skip("Verify FPSIMD write via SVE\n");
+		goto out;
+	}
+	ksft_test_result(memcmp(fpsimd, &new_fpsimd, sizeof(*fpsimd)) == 0,
+			 "Verify FPSIMD write via SVE\n");
 
 out:
 	free(svebuf);
@@ -824,6 +876,15 @@ static int do_parent(pid_t child)
 						      vec_types[i].name, vl);
 			}
 		}
+	}
+
+	/* We support SVE writes of FPSMID format on SME only systems */
+	if (!(getauxval(AT_HWCAP) & HWCAP_SVE) &&
+	    (getauxval(AT_HWCAP2) & HWCAP2_SME)) {
+		ptrace_sve_fpsimd_no_sve(child);
+	} else {
+		ksft_test_result_skip("FPSIMD write via SVE\n");
+		ksft_test_result_skip("Verify FPSIMD write via SVE\n");
 	}
 
 	ret = EXIT_SUCCESS;

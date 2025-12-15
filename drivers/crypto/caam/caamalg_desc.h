@@ -2,7 +2,7 @@
 /*
  * Shared descriptors for aead, skcipher algorithms
  *
- * Copyright 2016 NXP
+ * Copyright 2016, 2025 NXP
  */
 
 #ifndef _CAAMALG_DESC_H_
@@ -47,6 +47,9 @@
 					 21 * CAAM_CMD_SZ)
 #define DESC_SKCIPHER_DEC_LEN		(DESC_SKCIPHER_BASE + \
 					 16 * CAAM_CMD_SZ)
+
+/* Key modifier for CAAM Protected blobs */
+#define KEYMOD "SECURE_KEY"
 
 void cnstr_shdsc_aead_null_encap(u32 * const desc, struct alginfo *adata,
 				 unsigned int icvsize, int era);
@@ -112,5 +115,13 @@ void cnstr_shdsc_skcipher_decap(u32 * const desc, struct alginfo *cdata,
 void cnstr_shdsc_xts_skcipher_encap(u32 * const desc, struct alginfo *cdata);
 
 void cnstr_shdsc_xts_skcipher_decap(u32 * const desc, struct alginfo *cdata);
+
+void cnstr_desc_protected_blob_decap(u32 * const desc, struct alginfo *cdata,
+				     dma_addr_t next_desc);
+
+void cnstr_desc_skcipher_enc_dec(u32 * const desc, struct alginfo *cdata,
+				 dma_addr_t src, dma_addr_t dst, unsigned int data_sz,
+				 unsigned int in_options, unsigned int out_options,
+				 unsigned int ivsize, const bool encrypt);
 
 #endif /* _CAAMALG_DESC_H_ */

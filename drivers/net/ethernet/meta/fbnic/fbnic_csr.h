@@ -787,6 +787,8 @@ enum {
 
 /* MAC PCS registers */
 #define FBNIC_CSR_START_PCS		0x10000 /* CSR section delimiter */
+#define FBNIC_PCS_PAGE(n)	(0x10000 + 0x400 * (n))	/* 0x40000 + 1024*n */
+#define FBNIC_PCS(reg, n)	((reg) + FBNIC_PCS_PAGE(n))
 #define FBNIC_CSR_END_PCS		0x10668 /* CSR section delimiter */
 
 #define FBNIC_CSR_START_RSFEC		0x10800 /* CSR section delimiter */

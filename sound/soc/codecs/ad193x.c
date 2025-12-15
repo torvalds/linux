@@ -282,7 +282,7 @@ static int ad193x_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_component *component = codec_dai->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
 
 	if (clk_id == AD193X_SYSCLK_MCLK) {
@@ -476,7 +476,7 @@ static void ad193x_reg_default_init(struct ad193x_priv *ad193x)
 static int ad193x_component_probe(struct snd_soc_component *component)
 {
 	struct ad193x_priv *ad193x = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int num, ret;
 
 	/* default setting for ad193x */

@@ -8,8 +8,12 @@ use crate::{
     bindings,
     block::mq::Operations,
     error::Result,
-    sync::{atomic::Relaxed, Refcount},
-    types::{ARef, AlwaysRefCounted, Opaque},
+    sync::{
+        aref::{ARef, AlwaysRefCounted},
+        atomic::Relaxed,
+        Refcount,
+    },
+    types::Opaque,
 };
 use core::{marker::PhantomData, ptr::NonNull};
 

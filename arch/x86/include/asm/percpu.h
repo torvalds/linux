@@ -23,6 +23,7 @@
 #else /* !__ASSEMBLY__: */
 
 #include <linux/args.h>
+#include <linux/bits.h>
 #include <linux/build_bug.h>
 #include <linux/stringify.h>
 #include <asm/asm.h>
@@ -572,9 +573,9 @@ do {									\
 #define x86_this_cpu_constant_test_bit(_nr, _var)			\
 ({									\
 	unsigned long __percpu *addr__ =				\
-		(unsigned long __percpu *)&(_var) + ((_nr) / BITS_PER_LONG); \
+		(unsigned long __percpu *)&(_var) + BIT_WORD(_nr);	\
 									\
-	!!((1UL << ((_nr) % BITS_PER_LONG)) & raw_cpu_read(*addr__));	\
+	!!(BIT_MASK(_nr) & raw_cpu_read(*addr__));			\
 })
 
 #define x86_this_cpu_variable_test_bit(_nr, _var)			\

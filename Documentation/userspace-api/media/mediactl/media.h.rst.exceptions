@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+# All symbols are mapped inside MC C domain namespace
+namespace MC
+
 # Ignore header name
 ignore define __LINUX_MEDIA_H
 

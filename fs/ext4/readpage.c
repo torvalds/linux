@@ -213,9 +213,7 @@ int ext4_mpage_readpages(struct inode *inode,
 {
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
-
 	const unsigned blkbits = inode->i_blkbits;
-	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	const unsigned blocksize = 1 << blkbits;
 	sector_t next_block;
 	sector_t block_in_file;
@@ -251,9 +249,8 @@ int ext4_mpage_readpages(struct inode *inode,
 
 		blocks_per_folio = folio_size(folio) >> blkbits;
 		first_hole = blocks_per_folio;
-		block_in_file = next_block =
-			(sector_t)folio->index << (PAGE_SHIFT - blkbits);
-		last_block = block_in_file + nr_pages * blocks_per_page;
+		block_in_file = next_block = EXT4_PG_TO_LBLK(inode, folio->index);
+		last_block = EXT4_PG_TO_LBLK(inode, folio->index + nr_pages);
 		last_block_in_file = (ext4_readpage_limit(inode) +
 				      blocksize - 1) >> blkbits;
 		if (last_block > last_block_in_file)

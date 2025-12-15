@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include "mt76_connac.h"
@@ -297,15 +297,17 @@ u16 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy,
 				 struct ieee80211_bss_conf *conf,
 				 bool beacon, bool mcast)
 {
-	struct mt76_vif_link *mvif = mt76_vif_conf_link(mphy->dev, conf->vif, conf);
-	struct cfg80211_chan_def *chandef = mvif->ctx ?
-					    &mvif->ctx->def : &mphy->chandef;
-	u8 nss = 0, mode = 0, band = chandef->chan->band;
-	int rateidx = 0, mcast_rate;
-	int offset = 0;
+	u8 nss = 0, mode = 0, band = NL80211_BAND_2GHZ;
+	int rateidx = 0, offset = 0, mcast_rate;
+	struct cfg80211_chan_def *chandef;
+	struct mt76_vif_link *mvif;
 
 	if (!conf)
 		goto legacy;
+
+	mvif = mt76_vif_conf_link(mphy->dev, conf->vif, conf);
+	chandef = mvif->ctx ? &mvif->ctx->def : &mphy->chandef;
+	band = chandef->chan->band;
 
 	if (is_mt7921(mphy->dev)) {
 		rateidx = ffs(conf->basic_rates) - 1;
@@ -584,8 +586,9 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 		bool multicast = ieee80211_is_data(hdr->frame_control) &&
 				 is_multicast_ether_addr(hdr->addr1);
-		u16 rate = mt76_connac2_mac_tx_rate_val(mphy, &vif->bss_conf, beacon,
-							multicast);
+		u16 rate = mt76_connac2_mac_tx_rate_val(mphy,
+							vif ? &vif->bss_conf : NULL,
+							beacon, multicast);
 		u32 val = MT_TXD6_FIXED_BW;
 
 		/* hardware won't add HTC for mgmt/ctrl frame */

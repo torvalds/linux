@@ -247,19 +247,19 @@ static void save_ELCR(char *trigger)
 	trigger[1] = inb(PIC_ELCR2) & 0xDE;
 }
 
-static void i8259A_resume(void)
+static void i8259A_resume(void *data)
 {
 	init_8259A(i8259A_auto_eoi);
 	restore_ELCR(irq_trigger);
 }
 
-static int i8259A_suspend(void)
+static int i8259A_suspend(void *data)
 {
 	save_ELCR(irq_trigger);
 	return 0;
 }
 
-static void i8259A_shutdown(void)
+static void i8259A_shutdown(void *data)
 {
 	/* Put the i8259A into a quiescent state that
 	 * the kernel initialization code can get it
@@ -269,10 +269,14 @@ static void i8259A_shutdown(void)
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 }
 
-static struct syscore_ops i8259_syscore_ops = {
+static const struct syscore_ops i8259_syscore_ops = {
 	.suspend = i8259A_suspend,
 	.resume = i8259A_resume,
 	.shutdown = i8259A_shutdown,
+};
+
+static struct syscore i8259_syscore = {
+	.ops = &i8259_syscore_ops,
 };
 
 static void mask_8259A(void)
@@ -444,7 +448,7 @@ EXPORT_SYMBOL(legacy_pic);
 static int __init i8259A_init_ops(void)
 {
 	if (legacy_pic == &default_legacy_pic)
-		register_syscore_ops(&i8259_syscore_ops);
+		register_syscore(&i8259_syscore);
 
 	return 0;
 }

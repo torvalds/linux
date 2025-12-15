@@ -106,13 +106,6 @@ Description:
 		will be discarded from the cache. Should not be turned off with
 		writeback caching enabled.
 
-What:		/sys/block/<disk>/bcache/discard
-Date:		November 2010
-Contact:	Kent Overstreet <kent.overstreet@gmail.com>
-Description:
-		For a cache, a boolean allowing discard/TRIM to be turned off
-		or back on if the device supports it.
-
 What:		/sys/block/<disk>/bcache/bucket_size
 Date:		November 2010
 Contact:	Kent Overstreet <kent.overstreet@gmail.com>

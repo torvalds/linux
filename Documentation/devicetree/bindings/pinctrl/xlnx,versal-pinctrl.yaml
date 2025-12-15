@@ -74,6 +74,7 @@ patternProperties:
 
       '^conf':
         type: object
+        unevaluatedProperties: false
         description:
           Pinctrl node's client devices use subnodes for pin configurations,
           which in turn use the standard properties below.

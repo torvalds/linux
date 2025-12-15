@@ -70,7 +70,7 @@ properties:
       - const: ahb
 
 patternProperties:
-  "^.*@[0-9a-f]+$":
+  "@[0-9a-f]+$":
     description: Devices attached to the bus
     type: object
 

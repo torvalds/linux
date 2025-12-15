@@ -51,7 +51,7 @@
 
 #ifndef CONFIG_BROKEN_GAS_INST
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 // The space separator is omitted so that __emit_inst(x) can be parsed as
 // either an assembler directive or an assembler macro argument.
 #define __emit_inst(x)			.inst(x)
@@ -70,11 +70,11 @@
 					 (((x) >> 24) & 0x000000ff))
 #endif	/* CONFIG_CPU_BIG_ENDIAN */
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define __emit_inst(x)			.long __INSTR_BSWAP(x)
-#else  /* __ASSEMBLY__ */
+#else  /* __ASSEMBLER__ */
 #define __emit_inst(x)			".long " __stringify(__INSTR_BSWAP(x)) "\n\t"
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 #endif	/* CONFIG_BROKEN_GAS_INST */
 
@@ -1078,9 +1078,7 @@
 #define GCS_CAP(x)	((((unsigned long)x) & GCS_CAP_ADDR_MASK) | \
 					       GCS_CAP_VALID_TOKEN)
 
-#define ARM64_FEATURE_FIELD_BITS	4
-
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 	.macro	mrs_s, rt, sreg
 	 __emit_inst(0xd5200000|(\sreg)|(.L__gpr_num_\rt))

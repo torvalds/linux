@@ -5012,17 +5012,9 @@ static u32 mvneta_ethtool_get_rxfh_indir_size(struct net_device *dev)
 	return MVNETA_RSS_LU_TABLE_SIZE;
 }
 
-static int mvneta_ethtool_get_rxnfc(struct net_device *dev,
-				    struct ethtool_rxnfc *info,
-				    u32 *rules __always_unused)
+static u32 mvneta_ethtool_get_rx_ring_count(struct net_device *dev)
 {
-	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data =  rxq_number;
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
+	return rxq_number;
 }
 
 static int  mvneta_config_rss(struct mvneta_port *pp)
@@ -5356,7 +5348,7 @@ static const struct ethtool_ops mvneta_eth_tool_ops = {
 	.get_ethtool_stats = mvneta_ethtool_get_stats,
 	.get_sset_count	= mvneta_ethtool_get_sset_count,
 	.get_rxfh_indir_size = mvneta_ethtool_get_rxfh_indir_size,
-	.get_rxnfc	= mvneta_ethtool_get_rxnfc,
+	.get_rx_ring_count = mvneta_ethtool_get_rx_ring_count,
 	.get_rxfh	= mvneta_ethtool_get_rxfh,
 	.set_rxfh	= mvneta_ethtool_set_rxfh,
 	.get_link_ksettings = mvneta_ethtool_get_link_ksettings,

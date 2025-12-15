@@ -1250,7 +1250,7 @@ static int qfq_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		}
 	}
 
-	gso_segs = skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
+	gso_segs = qdisc_pkt_segs(skb);
 	err = qdisc_enqueue(skb, cl->qdisc, to_free);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
 		pr_debug("qfq_enqueue: enqueue failed %d\n", err);

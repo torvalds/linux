@@ -6,6 +6,7 @@
  *
  */
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
@@ -101,7 +102,7 @@ cifs_revalidate_cache(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_dbg(FYI, "%s: revalidating inode %llu\n",
 		 __func__, cifs_i->uniqueid);
 
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		cifs_dbg(FYI, "%s: inode %llu is new\n",
 			 __func__, cifs_i->uniqueid);
 		return;
@@ -146,7 +147,7 @@ cifs_nlink_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	 */
 	if (fattr->cf_flags & CIFS_FATTR_UNKNOWN_NLINK) {
 		/* only provide fake values on a new inode */
-		if (inode->i_state & I_NEW) {
+		if (inode_state_read_once(inode) & I_NEW) {
 			if (fattr->cf_cifsattrs & ATTR_DIRECTORY)
 				set_nlink(inode, 2);
 			else
@@ -167,12 +168,12 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr,
 	struct cifsInodeInfo *cifs_i = CIFS_I(inode);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (!(inode->i_state & I_NEW) &&
+	if (!(inode_state_read_once(inode) & I_NEW) &&
 	    unlikely(inode_wrong_type(inode, fattr->cf_mode))) {
 		CIFS_I(inode)->time = 0; /* force reval */
 		return -ESTALE;
 	}
-	if (inode->i_state & I_NEW)
+	if (inode_state_read_once(inode) & I_NEW)
 		CIFS_I(inode)->netfs.zero_point = fattr->cf_eof;
 
 	cifs_revalidate_cache(inode, fattr);
@@ -194,7 +195,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr,
 	inode->i_gid = fattr->cf_gid;
 
 	/* if dynperm is set, don't clobber existing mode */
-	if (inode->i_state & I_NEW ||
+	if (inode_state_read(inode) & I_NEW ||
 	    !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM))
 		inode->i_mode = fattr->cf_mode;
 
@@ -236,7 +237,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr,
 
 	if (fattr->cf_flags & CIFS_FATTR_JUNCTION)
 		inode->i_flags |= S_AUTOMOUNT;
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		cifs_set_netfs_context(inode);
 		cifs_set_ops(inode);
 	}
@@ -1328,7 +1329,7 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 			/* for easier reading */
 			FILE_ALL_INFO *fi;
 			FILE_DIRECTORY_INFO *fdi;
-			SEARCH_ID_FULL_DIR_INFO *si;
+			FILE_ID_FULL_DIR_INFO *si;
 
 			rc = cifs_backup_query_path_info(xid, tcon, sb,
 							 full_path,
@@ -1339,7 +1340,7 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 
 			move_cifs_info_to_smb2(&data->fi, fi);
 			fdi = (FILE_DIRECTORY_INFO *)fi;
-			si = (SEARCH_ID_FULL_DIR_INFO *)fi;
+			si = (FILE_ID_FULL_DIR_INFO *)fi;
 
 			cifs_dir_info_to_fattr(fattr, fdi, cifs_sb);
 			fattr->cf_uniqueid = le64_to_cpu(si->UniqueId);
@@ -1638,7 +1639,7 @@ retry_iget5_locked:
 		cifs_fattr_to_inode(inode, fattr, false);
 		if (sb->s_flags & SB_NOATIME)
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
-		if (inode->i_state & I_NEW) {
+		if (inode_state_read_once(inode) & I_NEW) {
 			inode->i_ino = hash;
 			cifs_fscache_get_inode_cookie(inode);
 			unlock_new_inode(inode);
@@ -1951,7 +1952,7 @@ static int __cifs_unlink(struct inode *dir, struct dentry *dentry, bool sillyren
 	cifs_dbg(FYI, "cifs_unlink, dir=0x%p, dentry=0x%p\n", dir, dentry);
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	/* Unhash dentry in advance to prevent any concurrent opens */
 	spin_lock(&dentry->d_lock);
@@ -2267,7 +2268,7 @@ struct dentry *cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return ERR_PTR(-EIO);
+		return ERR_PTR(smb_EIO(smb_eio_trace_forced_shutdown));
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
 		return ERR_CAST(tlink);
@@ -2353,7 +2354,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb))) {
-		rc = -EIO;
+		rc = smb_EIO(smb_eio_trace_forced_shutdown);
 		goto rmdir_exit;
 	}
 
@@ -2515,7 +2516,7 @@ cifs_rename2(struct mnt_idmap *idmap, struct inode *source_dir,
 
 	cifs_sb = CIFS_SB(source_dir->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	/*
 	 * Prevent any concurrent opens on the target by unhashing the dentry.
@@ -2900,7 +2901,7 @@ int cifs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	int rc;
 
 	if (unlikely(cifs_forced_shutdown(CIFS_SB(inode->i_sb))))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	/*
 	 * We need to be sure that all dirty pages are written and the server
@@ -2975,7 +2976,7 @@ int cifs_fiemap(struct inode *inode, struct fiemap_extent_info *fei, u64 start,
 	int rc;
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 
 	/*
 	 * We need to be sure that all dirty pages are written as they
@@ -3467,7 +3468,7 @@ cifs_setattr(struct mnt_idmap *idmap, struct dentry *direntry,
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return smb_EIO(smb_eio_trace_forced_shutdown);
 	/*
 	 * Avoid setting [cm]time with O_TRUNC to prevent the server from
 	 * disabling automatic timestamp updates as specified in

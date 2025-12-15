@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -33,13 +33,21 @@ static u32 mt76_mmio_rmw(struct mt76_dev *dev, u32 offset, u32 mask, u32 val)
 static void mt76_mmio_write_copy(struct mt76_dev *dev, u32 offset,
 				 const void *data, int len)
 {
-	__iowrite32_copy(dev->mmio.regs + offset, data, DIV_ROUND_UP(len, 4));
+	int i;
+
+	for (i = 0; i < ALIGN(len, 4); i += 4)
+		writel(get_unaligned_le32(data + i),
+		       dev->mmio.regs + offset + i);
 }
 
 static void mt76_mmio_read_copy(struct mt76_dev *dev, u32 offset,
 				void *data, int len)
 {
-	__ioread32_copy(data, dev->mmio.regs + offset, DIV_ROUND_UP(len, 4));
+	int i;
+
+	for (i = 0; i < ALIGN(len, 4); i += 4)
+		put_unaligned_le32(readl(dev->mmio.regs + offset + i),
+				   data + i);
 }
 
 static int mt76_mmio_wr_rp(struct mt76_dev *dev, u32 base,

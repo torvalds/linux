@@ -57,8 +57,17 @@ enum spi_offload_trigger_type {
 	SPI_OFFLOAD_TRIGGER_PERIODIC,
 };
 
+/**
+ * spi_offload_trigger_periodic - configuration parameters for periodic triggers
+ * @frequency_hz: The rate that the trigger should fire in Hz.
+ * @offset_ns: A delay in nanoseconds between when this trigger fires
+ *	       compared to another trigger. This requires specialized hardware
+ *	       that supports such synchronization with a delay between two or
+ *	       more triggers. Set to 0 when not needed.
+ */
 struct spi_offload_trigger_periodic {
 	u64 frequency_hz;
+	u64 offset_ns;
 };
 
 struct spi_offload_trigger_config {

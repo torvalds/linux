@@ -769,7 +769,8 @@ static int hdac_hdmi_pin_output_widget_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kc, int event)
 {
 	struct hdac_hdmi_port *port = w->priv;
-	struct hdac_device *hdev = dev_to_hdac_dev(w->dapm->dev);
+	struct device *dev = snd_soc_dapm_to_dev(w->dapm);
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	struct hdac_hdmi_pcm *pcm;
 
 	dev_dbg(&hdev->dev, "%s: widget: %s event: %x\n",
@@ -814,7 +815,8 @@ static int hdac_hdmi_cvt_output_widget_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kc, int event)
 {
 	struct hdac_hdmi_cvt *cvt = w->priv;
-	struct hdac_device *hdev = dev_to_hdac_dev(w->dapm->dev);
+	struct device *dev = snd_soc_dapm_to_dev(w->dapm);
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
 	struct hdac_hdmi_pcm *pcm;
 
@@ -869,7 +871,8 @@ static int hdac_hdmi_pin_mux_widget_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kc, int event)
 {
 	struct hdac_hdmi_port *port = w->priv;
-	struct hdac_device *hdev = dev_to_hdac_dev(w->dapm->dev);
+	struct device *dev = snd_soc_dapm_to_dev(w->dapm);
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	int mux_idx;
 
 	dev_dbg(&hdev->dev, "%s: widget: %s event: %x\n",
@@ -878,7 +881,7 @@ static int hdac_hdmi_pin_mux_widget_event(struct snd_soc_dapm_widget *w,
 	if (!kc)
 		kc  = w->kcontrols[0];
 
-	mux_idx = dapm_kcontrol_get_value(kc);
+	mux_idx = snd_soc_dapm_kcontrol_get_value(kc);
 
 	/* set the device if pin is mst_capable */
 	if (hdac_hdmi_port_select_set(hdev, port) < 0)
@@ -901,10 +904,11 @@ static int hdac_hdmi_set_pin_port_mux(struct snd_kcontrol *kcontrol,
 	int ret;
 	struct hdac_hdmi_port *p, *p_next;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_dapm_context *dapm = w->dapm;
+	struct device *dev = snd_soc_dapm_to_dev(dapm);
 	struct hdac_hdmi_port *port = w->priv;
-	struct hdac_device *hdev = dev_to_hdac_dev(dapm->dev);
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
 	struct hdac_hdmi_pcm *pcm;
 	const char *cvt_name =  e->texts[ucontrol->value.enumerated.item[0]];
@@ -1070,9 +1074,11 @@ static void hdac_hdmi_add_pinmux_cvt_route(struct hdac_device *hdev,
  */
 static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 {
+	struct device *dev = snd_soc_dapm_to_dev(dapm);
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 	struct snd_soc_dapm_widget *widgets;
 	struct snd_soc_dapm_route *route;
-	struct hdac_device *hdev = dev_to_hdac_dev(dapm->dev);
+	struct hdac_device *hdev = dev_to_hdac_dev(dev);
 	struct hdac_hdmi_priv *hdmi = hdev_to_hdmi_priv(hdev);
 	struct snd_soc_dai_driver *dai_drv = hdmi->dai_drv;
 	char widget_name[NAME_SIZE];
@@ -1083,7 +1089,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 	if (list_empty(&hdmi->cvt_list) || list_empty(&hdmi->pin_list))
 		return -EINVAL;
 
-	widgets = devm_kzalloc(dapm->dev, (sizeof(*widgets) *
+	widgets = devm_kzalloc(dev, (sizeof(*widgets) *
 				((2 * hdmi->num_ports) + hdmi->num_cvt)),
 				GFP_KERNEL);
 
@@ -1093,7 +1099,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 	/* DAPM widgets to represent each converter widget */
 	list_for_each_entry(cvt, &hdmi->cvt_list, head) {
 		sprintf(widget_name, "Converter %d", cvt->nid);
-		ret = hdac_hdmi_fill_widget_info(dapm->dev, &widgets[i],
+		ret = hdac_hdmi_fill_widget_info(dev, &widgets[i],
 			snd_soc_dapm_aif_in, cvt,
 			widget_name, dai_drv[i].playback.stream_name, NULL, 0,
 			hdac_hdmi_cvt_output_widget_event,
@@ -1107,7 +1113,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 		for (j = 0; j < pin->num_ports; j++) {
 			sprintf(widget_name, "hif%d-%d Output",
 				pin->nid, pin->ports[j].id);
-			ret = hdac_hdmi_fill_widget_info(dapm->dev, &widgets[i],
+			ret = hdac_hdmi_fill_widget_info(dev, &widgets[i],
 					snd_soc_dapm_output, &pin->ports[j],
 					widget_name, NULL, NULL, 0,
 					hdac_hdmi_pin_output_widget_event,
@@ -1140,7 +1146,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 		}
 	}
 
-	route = devm_kzalloc(dapm->dev, (sizeof(*route) * num_routes),
+	route = devm_kzalloc(dev, (sizeof(*route) * num_routes),
 							GFP_KERNEL);
 	if (!route)
 		return -ENOMEM;
@@ -1166,7 +1172,7 @@ static int create_fill_widget_route_map(struct snd_soc_dapm_context *dapm)
 		((2 * hdmi->num_ports) + hdmi->num_cvt));
 
 	snd_soc_dapm_add_routes(dapm, route, num_routes);
-	snd_soc_dapm_new_widgets(dapm->card);
+	snd_soc_dapm_new_widgets(card);
 
 	return 0;
 
@@ -1666,8 +1672,7 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 {
 	struct hdac_hdmi_priv *hdmi = snd_soc_component_get_drvdata(component);
 	struct hdac_device *hdev = hdmi->hdev;
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct hdac_ext_link *hlink;
 	int ret;
 
@@ -1698,7 +1703,7 @@ static int hdmi_codec_probe(struct snd_soc_component *component)
 
 	hdac_hdmi_present_sense_all_pins(hdev, hdmi, true);
 	/* Imp: Store the card pointer in hda_codec */
-	hdmi->card = dapm->card->snd_card;
+	hdmi->card = component->card->snd_card;
 
 	/*
 	 * Setup a device_link between card device and HDMI codec device.

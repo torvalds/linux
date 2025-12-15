@@ -416,7 +416,7 @@ Offset/size:	0x210/1
 Protocol:	2.00+
 ============	==================
 
-  If your boot loader has an assigned id (see table below), enter
+  If your boot loader has an assigned ID (see table below), enter
   0xTV here, where T is an identifier for the boot loader and V is
   a version number.  Otherwise, enter 0xFF here.
 
@@ -431,31 +431,31 @@ Protocol:	2.00+
    ext_loader_type <- 0x05
    ext_loader_ver  <- 0x23
 
-  Assigned boot loader ids (hexadecimal):
+  Assigned boot loader IDs:
 
 	== =======================================
-	0  LILO
-	   (0x00 reserved for pre-2.00 bootloader)
-	1  Loadlin
-	2  bootsect-loader
-	   (0x20, all other values reserved)
-	3  Syslinux
-	4  Etherboot/gPXE/iPXE
-	5  ELILO
-	7  GRUB
-	8  U-Boot
-	9  Xen
-	A  Gujin
-	B  Qemu
-	C  Arcturus Networks uCbootloader
-	D  kexec-tools
-	E  Extended (see ext_loader_type)
-	F  Special (0xFF = undefined)
-	10 Reserved
-	11 Minimal Linux Bootloader
-	   <http://sebastian-plotz.blogspot.de>
-	12 OVMF UEFI virtualization stack
-	13 barebox
+	0x0  LILO
+	     (0x00 reserved for pre-2.00 bootloader)
+	0x1  Loadlin
+	0x2  bootsect-loader
+	     (0x20, all other values reserved)
+	0x3  Syslinux
+	0x4  Etherboot/gPXE/iPXE
+	0x5  ELILO
+	0x7  GRUB
+	0x8  U-Boot
+	0x9  Xen
+	0xA  Gujin
+	0xB  Qemu
+	0xC  Arcturus Networks uCbootloader
+	0xD  kexec-tools
+	0xE  Extended (see ext_loader_type)
+	0xF  Special (0xFF = undefined)
+	0x10 Reserved
+	0x11 Minimal Linux Bootloader
+	     <http://sebastian-plotz.blogspot.de>
+	0x12 OVMF UEFI virtualization stack
+	0x13 barebox
 	== =======================================
 
   Please contact <hpa@zytor.com> if you need a bootloader ID value assigned.
@@ -1431,12 +1431,34 @@ The boot loader *must* fill out the following fields in bp::
 All other fields should be zero.
 
 .. note::
-     The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
-     entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
-     loading protocol (refer to [0] for an example of the bootloader side of
-     this), which removes the need for any knowledge on the part of the EFI
-     bootloader regarding the internal representation of boot_params or any
-     requirements/limitations regarding the placement of the command line
-     and ramdisk in memory, or the placement of the kernel image itself.
+   The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
+   entry point described below.
 
-[0] https://github.com/u-boot/u-boot/commit/ec80b4735a593961fe701cc3a5d717d4739b0fd0
+.. _pe-coff-entry-point:
+
+PE/COFF entry point
+===================
+
+When compiled with ``CONFIG_EFI_STUB=y``, the kernel can be executed as a
+regular PE/COFF binary. See Documentation/admin-guide/efi-stub.rst for
+implementation details.
+
+The stub loader can request the initrd via a UEFI protocol. For this to work,
+the firmware or bootloader needs to register a handle which carries
+implementations of the ``EFI_LOAD_FILE2`` protocol and the device path
+protocol exposing the ``LINUX_EFI_INITRD_MEDIA_GUID`` vendor media device path.
+In this case, a kernel booting via the EFI stub will invoke
+``LoadFile2::LoadFile()`` method on the registered protocol to instruct the
+firmware to load the initrd into a memory location chosen by the kernel/EFI
+stub.
+
+This approach removes the need for any knowledge on the part of the EFI
+bootloader regarding the internal representation of boot_params or any
+requirements/limitations regarding the placement of the command line and
+ramdisk in memory, or the placement of the kernel image itself.
+
+For sample implementations, refer to `the original u-boot implementation`_ or
+`the OVMF implementation`_.
+
+.. _the original u-boot implementation: https://github.com/u-boot/u-boot/commit/ec80b4735a593961fe701cc3a5d717d4739b0fd0
+.. _the OVMF implementation: https://github.com/tianocore/edk2/blob/1780373897f12c25075f8883e073144506441168/OvmfPkg/LinuxInitrdDynamicShellCommand/LinuxInitrdDynamicShellCommand.c

@@ -34,7 +34,6 @@ MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("InfiniBand CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#define CM_DESTROY_ID_WAIT_TIMEOUT 10000 /* msecs */
 #define CM_DIRECT_RETRY_CTX ((void *) 1UL)
 #define CM_MRA_SETTING 24 /* 4.096us * 2^24 = ~68.7 seconds */
 
@@ -1057,6 +1056,7 @@ static void cm_destroy_id(struct ib_cm_id *cm_id, int err)
 {
 	struct cm_id_private *cm_id_priv;
 	enum ib_cm_state old_state;
+	unsigned long timeout;
 	struct cm_work *work;
 	int ret;
 
@@ -1167,10 +1167,9 @@ retest:
 
 	xa_erase(&cm.local_id_table, cm_local_id(cm_id->local_id));
 	cm_deref_id(cm_id_priv);
+	timeout = msecs_to_jiffies((cm_id_priv->max_cm_retries * cm_id_priv->timeout_ms * 5) / 4);
 	do {
-		ret = wait_for_completion_timeout(&cm_id_priv->comp,
-						  msecs_to_jiffies(
-						  CM_DESTROY_ID_WAIT_TIMEOUT));
+		ret = wait_for_completion_timeout(&cm_id_priv->comp, timeout);
 		if (!ret) /* timeout happened */
 			cm_destroy_id_wait_timeout(cm_id, old_state);
 	} while (!ret);
@@ -4518,7 +4517,7 @@ static int __init ib_cm_init(void)
 	get_random_bytes(&cm.random_id_operand, sizeof cm.random_id_operand);
 	INIT_LIST_HEAD(&cm.timewait_list);
 
-	cm.wq = alloc_workqueue("ib_cm", 0, 1);
+	cm.wq = alloc_workqueue("ib_cm", WQ_PERCPU, 1);
 	if (!cm.wq) {
 		ret = -ENOMEM;
 		goto error2;

@@ -184,6 +184,7 @@ struct nack_to_isp {
 #define NOTIFY_ACK_SRR_REJECT_REASON_UNABLE_TO_PERFORM	0x9
 
 #define NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_NO_EXPL		0
+#define NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_INVALID_OX_ID_RX_ID	0x17
 #define NOTIFY_ACK_SRR_FLAGS_REJECT_EXPL_UNABLE_TO_SUPPLY_DATA	0x2a
 
 #define NOTIFY_ACK_SUCCESS      0x01
@@ -686,6 +687,8 @@ struct qla_tgt_func_tmpl {
 	int (*handle_tmr)(struct qla_tgt_mgmt_cmd *, u64, uint16_t,
 			uint32_t);
 	struct qla_tgt_cmd *(*get_cmd)(struct fc_port *);
+	int (*get_cmd_ref)(struct qla_tgt_cmd *cmd);
+	void (*put_cmd_ref)(struct qla_tgt_cmd *cmd);
 	void (*rel_cmd)(struct qla_tgt_cmd *);
 	void (*free_cmd)(struct qla_tgt_cmd *);
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
@@ -754,6 +757,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_STATE_NEED_DATA		1 /* target needs data to continue */
 #define QLA_TGT_STATE_DATA_IN		2 /* Data arrived + target processing */
 #define QLA_TGT_STATE_PROCESSED		3 /* target done processing */
+#define QLA_TGT_STATE_DONE		4 /* cmd being freed */
 
 /* ATIO task_codes field */
 #define ATIO_SIMPLE_QUEUE           0
@@ -822,18 +826,26 @@ struct qla_tgt {
 	int notify_ack_expected;
 	int abts_resp_expected;
 	int modify_lun_expected;
+
+	spinlock_t srr_lock;
+	struct list_head srr_list;
+	struct work_struct srr_work;
+
 	atomic_t tgt_global_resets_count;
+
 	struct list_head tgt_list_entry;
 };
 
 struct qla_tgt_sess_op {
 	struct scsi_qla_host *vha;
 	uint32_t chip_reset;
-	struct atio_from_isp atio;
 	struct work_struct work;
 	struct list_head cmd_list;
 	bool aborted;
 	struct rsp_que *rsp;
+
+	struct atio_from_isp atio;
+	/* DO NOT ADD ANYTHING ELSE HERE - atio must be last member */
 };
 
 enum trace_flags {
@@ -858,6 +870,7 @@ enum trace_flags {
 	TRC_DATA_IN = BIT_18,
 	TRC_ABORT = BIT_19,
 	TRC_DIF_ERR = BIT_20,
+	TRC_SRR_IMM = BIT_21,
 };
 
 struct qla_tgt_cmd {
@@ -876,25 +889,36 @@ struct qla_tgt_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 
-	spinlock_t cmd_lock;
-	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
+
+	/* Call qlt_free_sg() if set. */
+	unsigned int free_sg:1;
+
 	unsigned int write_data_transferred:1;
+
+	/* Set if the SCSI status was sent successfully. */
+	unsigned int rsp_sent:1;
+
 	unsigned int q_full:1;
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
 	unsigned int edif:1;
 
-	/*
-	 * This variable may be set from outside the LIO and I/O completion
-	 * callback functions. Do not declare this member variable as a
-	 * bitfield to avoid a read-modify-write operation when this variable
-	 * is set.
-	 */
-	unsigned int aborted;
+	/* Set if a SRR was rejected. */
+	unsigned int srr_failed:1;
 
+	/* Set if the exchange has been terminated. */
+	unsigned int sent_term_exchg:1;
+
+	/*
+	 * Set if sent_term_exchg is set, or if the cmd was aborted by a TMR,
+	 * or if some other error prevents normal processing of the command.
+	 */
+	unsigned int aborted:1;
+
+	struct qla_tgt_srr *srr;
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
 	int bufflen;		/* cmd buffer length */
@@ -925,12 +949,22 @@ struct qla_tgt_cmd {
 	uint8_t scsi_status, sense_key, asc, ascq;
 
 	struct crc_context *ctx;
-	const uint8_t	*cdb;
+	uint8_t		*cdb;
 	uint64_t	lba;
+	int		cdb_len;
 	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
 	uint32_t	a_ref_tag, e_ref_tag;
 #define DIF_BUNDL_DMA_VALID 1
 	uint16_t prot_flags;
+
+	unsigned long jiffies_at_term_exchg;
+
+	/*
+	 * jiffies64 when qlt_rdy_to_xfer() or qlt_xmit_response() first
+	 * called, or 0 when not in those states.  Used to limit the number of
+	 * SRR retries.
+	 */
+	uint64_t jiffies_at_hw_st_entry;
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
@@ -965,6 +999,7 @@ struct qla_tgt_mgmt_cmd {
 	unsigned int flags;
 #define QLA24XX_MGMT_SEND_NACK	BIT_0
 #define QLA24XX_MGMT_ABORT_IO_ATTR_VALID BIT_1
+#define QLA24XX_MGMT_LLD_OWNED	BIT_2
 	uint32_t reset_count;
 	struct work_struct work;
 	uint64_t unpacked_lun;
@@ -991,6 +1026,45 @@ struct qla_tgt_prm {
 	struct scatterlist *prot_sg;
 	uint16_t prot_seg_cnt;
 	uint16_t tot_dsds;
+};
+
+/*
+ * SRR (Sequence Retransmission Request) - resend or re-receive some or all
+ * data or status to recover from a transient I/O error.
+ */
+struct qla_tgt_srr {
+	/*
+	 * Copy of immediate notify SRR message received from hw; valid only if
+	 * imm_ntfy_recvd is true.
+	 */
+	struct imm_ntfy_from_isp imm_ntfy;
+
+	struct list_head srr_list_entry;
+
+	/* The command affected by this SRR, or NULL if not yet determined. */
+	struct qla_tgt_cmd *cmd;
+
+	/* Used to detect if the HBA has been reset since receiving the SRR. */
+	uint32_t reset_count;
+
+	/*
+	 * The hardware sends two messages for each SRR - an immediate notify
+	 * and a CTIO with CTIO_SRR_RECEIVED status.  These keep track of which
+	 * messages have been received.  The SRR can be processed once both of
+	 * these are true.
+	 */
+	bool imm_ntfy_recvd;
+	bool ctio_recvd;
+
+	/*
+	 * This is set to true if the affected command was aborted (cmd may be
+	 * set to NULL), in which case the immediate notify exchange also needs
+	 * to be aborted.
+	 */
+	bool aborted;
+
+	/* This is set to true to force the SRR to be rejected. */
+	bool reject;
 };
 
 /* Check for Switch reserved address */
@@ -1048,6 +1122,20 @@ static inline uint32_t sid_to_key(const be_id_t s_id)
 }
 
 /*
+ * Free the scatterlist allocated by qlt_set_data_offset().  Call this only if
+ * cmd->free_sg is set.
+ */
+static inline void qlt_free_sg(struct qla_tgt_cmd *cmd)
+{
+	/*
+	 * The scatterlist may be chained to the original scatterlist, but we
+	 * only need to free the first segment here since that is the only part
+	 * allocated by qlt_set_data_offset().
+	 */
+	kfree(cmd->sg);
+}
+
+/*
  * Exported symbols from qla_target.c LLD logic used by qla2xxx code..
  */
 extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, struct rsp_que *,
@@ -1055,9 +1143,14 @@ extern void qlt_response_pkt_all_vps(struct scsi_qla_host *, struct rsp_que *,
 extern int qlt_rdy_to_xfer(struct qla_tgt_cmd *);
 extern int qlt_xmit_response(struct qla_tgt_cmd *, int, uint8_t);
 extern int qlt_abort_cmd(struct qla_tgt_cmd *);
+void qlt_srr_abort(struct qla_tgt_cmd *cmd, bool reject);
+void qlt_send_term_exchange(struct qla_qpair *qpair,
+	struct qla_tgt_cmd *cmd, struct atio_from_isp *atio, int ha_locked);
 extern void qlt_xmit_tm_rsp(struct qla_tgt_mgmt_cmd *);
+void qlt_free_ul_mcmd(struct qla_hw_data *ha, struct qla_tgt_mgmt_cmd *mcmd);
 extern void qlt_free_mcmd(struct qla_tgt_mgmt_cmd *);
 extern void qlt_free_cmd(struct qla_tgt_cmd *cmd);
+extern void qlt_unmap_sg(struct scsi_qla_host *vha, struct qla_tgt_cmd *cmd);
 extern void qlt_async_event(uint16_t, struct scsi_qla_host *, uint16_t *);
 extern void qlt_enable_vha(struct scsi_qla_host *);
 extern void qlt_vport_create(struct scsi_qla_host *, struct qla_hw_data *);
@@ -1073,6 +1166,7 @@ extern void qlt_81xx_config_nvram_stage2(struct scsi_qla_host *,
 	struct init_cb_81xx *);
 extern void qlt_81xx_config_nvram_stage1(struct scsi_qla_host *,
 	struct nvram_81xx *);
+void qlt_config_nvram_with_fw_version(struct scsi_qla_host *vha);
 extern void qlt_modify_vp_config(struct scsi_qla_host *,
 	struct vp_config_entry_24xx *);
 extern void qlt_probe_one_stage1(struct scsi_qla_host *, struct qla_hw_data *);

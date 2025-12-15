@@ -23,15 +23,25 @@ properties:
       - enum:
           - ti,tcan1042
           - ti,tcan1043
+          - nxp,tja1048
+          - nxp,tja1051
+          - nxp,tja1057
           - nxp,tjr1443
 
   '#phy-cells':
-    const: 0
+    enum: [0, 1]
+
+  silent-gpios:
+    description:
+      gpio node to toggle silent signal on transceiver
+    maxItems: 1
 
   standby-gpios:
     description:
-      gpio node to toggle standby signal on transceiver
-    maxItems: 1
+      gpio node to toggle standby signal on transceiver. For two Items, item 1
+      is for stbn1, item 2 is for stbn2.
+    minItems: 1
+    maxItems: 2
 
   enable-gpios:
     description:
@@ -53,6 +63,59 @@ properties:
 required:
   - compatible
   - '#phy-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - nxp,tjr1443
+            - ti,tcan1042
+            - ti,tcan1043
+    then:
+      properties:
+        '#phy-cells':
+          const: 0
+        silent-gpios: false
+        standby-gpios:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nxp,tja1048
+    then:
+      properties:
+        '#phy-cells':
+          const: 1
+        enable-gpios: false
+        silent-gpios: false
+        standby-gpios:
+          minItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nxp,tja1051
+    then:
+      properties:
+        '#phy-cells':
+          const: 0
+        standby-gpios: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: nxp,tja1057
+    then:
+      properties:
+        '#phy-cells':
+          const: 0
+        enable-gpios: false
+        standby-gpios: false
 
 additionalProperties: false
 

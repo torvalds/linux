@@ -26,6 +26,7 @@
 #include <linux/syscalls.h>
 #include <linux/cgroup.h>
 #include <linux/perf_event.h>
+#include <linux/nstree.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
@@ -57,6 +58,25 @@ static inline struct nsproxy *create_nsproxy(void)
 	if (nsproxy)
 		refcount_set(&nsproxy->count, 1);
 	return nsproxy;
+}
+
+static inline void nsproxy_free(struct nsproxy *ns)
+{
+	put_mnt_ns(ns->mnt_ns);
+	put_uts_ns(ns->uts_ns);
+	put_ipc_ns(ns->ipc_ns);
+	put_pid_ns(ns->pid_ns_for_children);
+	put_time_ns(ns->time_ns);
+	put_time_ns(ns->time_ns_for_children);
+	put_cgroup_ns(ns->cgroup_ns);
+	put_net(ns->net_ns);
+	kmem_cache_free(nsproxy_cachep, ns);
+}
+
+void deactivate_nsproxy(struct nsproxy *ns)
+{
+	nsproxy_ns_active_put(ns);
+	nsproxy_free(ns);
 }
 
 /*
@@ -179,21 +199,9 @@ int copy_namespaces(u64 flags, struct task_struct *tsk)
 	if ((flags & CLONE_VM) == 0)
 		timens_on_fork(new_ns, tsk);
 
+	nsproxy_ns_active_get(new_ns);
 	tsk->nsproxy = new_ns;
 	return 0;
-}
-
-void free_nsproxy(struct nsproxy *ns)
-{
-	put_mnt_ns(ns->mnt_ns);
-	put_uts_ns(ns->uts_ns);
-	put_ipc_ns(ns->ipc_ns);
-	put_pid_ns(ns->pid_ns_for_children);
-	put_time_ns(ns->time_ns);
-	put_time_ns(ns->time_ns_for_children);
-	put_cgroup_ns(ns->cgroup_ns);
-	put_net(ns->net_ns);
-	kmem_cache_free(nsproxy_cachep, ns);
 }
 
 /*
@@ -232,6 +240,9 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 
 	might_sleep();
 
+	if (new)
+		nsproxy_ns_active_get(new);
+
 	task_lock(p);
 	ns = p->nsproxy;
 	p->nsproxy = new;
@@ -241,9 +252,25 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 		put_nsproxy(ns);
 }
 
-void exit_task_namespaces(struct task_struct *p)
+void exit_nsproxy_namespaces(struct task_struct *p)
 {
 	switch_task_namespaces(p, NULL);
+}
+
+void switch_cred_namespaces(const struct cred *old, const struct cred *new)
+{
+	ns_ref_active_get(new->user_ns);
+	ns_ref_active_put(old->user_ns);
+}
+
+void get_cred_namespaces(struct task_struct *tsk)
+{
+	ns_ref_active_get(tsk->real_cred->user_ns);
+}
+
+void exit_cred_namespaces(struct task_struct *tsk)
+{
+	ns_ref_active_put(tsk->real_cred->user_ns);
 }
 
 int exec_task_namespaces(void)
@@ -315,7 +342,7 @@ static void put_nsset(struct nsset *nsset)
 	if (nsset->fs && (flags & CLONE_NEWNS) && (flags & ~CLONE_NEWNS))
 		free_fs_struct(nsset->fs);
 	if (nsset->nsproxy)
-		free_nsproxy(nsset->nsproxy);
+		nsproxy_free(nsset->nsproxy);
 }
 
 static int prepare_nsset(unsigned flags, struct nsset *nsset)

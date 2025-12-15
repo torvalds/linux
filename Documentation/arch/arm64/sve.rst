@@ -402,6 +402,11 @@ The regset data starts with struct user_sve_header, containing:
   streaming mode and any SETREGSET of NT_ARM_SSVE will enter streaming mode
   if the target was not in streaming mode.
 
+* On systems that do not support SVE it is permitted to use SETREGSET to
+  write SVE_PT_REGS_FPSIMD formatted data via NT_ARM_SVE, in this case the
+  vector length should be specified as 0. This allows streaming mode to be
+  disabled on systems with SME but not SVE.
+
 * If any register data is provided along with SVE_PT_VL_ONEXEC then the
   registers data will be interpreted with the current vector length, not
   the vector length configured for use on exec.

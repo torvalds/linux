@@ -13,13 +13,37 @@
 	chassis-type = "handset";
 
 	aliases {
+		display0 = &framebuffer0;
 		mmc0 = &sdhc_1; /* SDC1 eMMC slot */
 		mmc1 = &sdhc_2; /* SDC2 SD card slot */
 		serial0 = &blsp1_uart3;
 	};
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		stdout-path = "display0";
+
+		framebuffer0: framebuffer@3200000 {
+			compatible = "simple-framebuffer";
+			reg = <0x03200000 0x800000>;
+			memory-region = <&cont_splash_region>;
+
+			width = <720>;
+			height = <1280>;
+			stride = <(720 * 3)>;
+			format = "r8g8b8";
+
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDSS_BYTE0_CLK>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MDSS_PCLK0_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>;
+			power-domains = <&mmcc MDSS_GDSC>;
+		};
 	};
 
 	gpio-hall-sensor {
@@ -93,6 +117,11 @@
 	};
 
 	reserved-memory {
+		cont_splash_region: cont-splash@3200000 {
+			reg = <0x03200000 0x800000>;
+			no-map;
+		};
+
 		smem_region: smem@fa00000 {
 			reg = <0x0fa00000 0x100000>;
 			no-map;

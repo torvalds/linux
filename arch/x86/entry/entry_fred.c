@@ -78,13 +78,13 @@ static noinstr void fred_intx(struct pt_regs *regs)
 static __always_inline void fred_other(struct pt_regs *regs)
 {
 	/* The compiler can fold these conditions into a single test */
-	if (likely(regs->fred_ss.vector == FRED_SYSCALL && regs->fred_ss.lm)) {
+	if (likely(regs->fred_ss.vector == FRED_SYSCALL && regs->fred_ss.l)) {
 		regs->orig_ax = regs->ax;
 		regs->ax = -ENOSYS;
 		do_syscall_64(regs, regs->orig_ax);
 		return;
 	} else if (ia32_enabled() &&
-		   likely(regs->fred_ss.vector == FRED_SYSENTER && !regs->fred_ss.lm)) {
+		   likely(regs->fred_ss.vector == FRED_SYSENTER && !regs->fred_ss.l)) {
 		regs->orig_ax = regs->ax;
 		regs->ax = -ENOSYS;
 		do_fast_syscall_32(regs);

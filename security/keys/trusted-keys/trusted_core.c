@@ -157,7 +157,7 @@ static int trusted_instantiate(struct key *key,
 	int key_cmd;
 	size_t key_len;
 
-	if (datalen <= 0 || datalen > 32767 || !prep->data)
+	if (datalen == 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
 	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);
@@ -240,7 +240,7 @@ static int trusted_update(struct key *key, struct key_preparsed_payload *prep)
 	p = key->payload.data[0];
 	if (!p->migratable)
 		return -EPERM;
-	if (datalen <= 0 || datalen > 32767 || !prep->data)
+	if (datalen == 0 || datalen > 32767 || !prep->data)
 		return -EINVAL;
 
 	orig_datablob = datablob = kmalloc(datalen + 1, GFP_KERNEL);

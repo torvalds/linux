@@ -1779,7 +1779,9 @@ EXPORT_SYMBOL(wx_set_rx_mode);
 static void wx_set_rx_buffer_len(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
+	struct wx_ring *rx_ring;
 	u32 mhadd, max_frame;
+	int i;
 
 	max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	/* adjust max frame to be at least the size of a standard frame */
@@ -1789,6 +1791,19 @@ static void wx_set_rx_buffer_len(struct wx *wx)
 	mhadd = rd32(wx, WX_PSR_MAX_SZ);
 	if (max_frame != mhadd)
 		wr32(wx, WX_PSR_MAX_SZ, max_frame);
+
+	/*
+	 * Setup the HW Rx Head and Tail Descriptor Pointers and
+	 * the Base and Length of the Rx Descriptor Ring
+	 */
+	for (i = 0; i < wx->num_rx_queues; i++) {
+		rx_ring = wx->rx_ring[i];
+		rx_ring->rx_buf_len = WX_RXBUFFER_2K;
+#if (PAGE_SIZE < 8192)
+		if (test_bit(WX_FLAG_RSC_ENABLED, wx->flags))
+			rx_ring->rx_buf_len = WX_RXBUFFER_3K;
+#endif
+	}
 }
 
 /**
@@ -1865,9 +1880,25 @@ static void wx_configure_srrctl(struct wx *wx,
 	srrctl |= WX_RXBUFFER_256 << WX_PX_RR_CFG_BHDRSIZE_SHIFT;
 
 	/* configure the packet buffer length */
-	srrctl |= WX_RX_BUFSZ >> WX_PX_RR_CFG_BSIZEPKT_SHIFT;
+	srrctl |= rx_ring->rx_buf_len >> WX_PX_RR_CFG_BSIZEPKT_SHIFT;
 
 	wr32(wx, WX_PX_RR_CFG(reg_idx), srrctl);
+}
+
+static void wx_configure_rscctl(struct wx *wx,
+				struct wx_ring *ring)
+{
+	u8 reg_idx = ring->reg_idx;
+	u32 rscctrl;
+
+	if (!test_bit(WX_FLAG_RSC_ENABLED, wx->flags))
+		return;
+
+	rscctrl = rd32(wx, WX_PX_RR_CFG(reg_idx));
+	rscctrl |= WX_PX_RR_CFG_RSC;
+	rscctrl |= WX_PX_RR_CFG_MAX_RSCBUF_16;
+
+	wr32(wx, WX_PX_RR_CFG(reg_idx), rscctrl);
 }
 
 static void wx_configure_tx_ring(struct wx *wx,
@@ -1905,6 +1936,15 @@ static void wx_configure_tx_ring(struct wx *wx,
 	memset(ring->tx_buffer_info, 0,
 	       sizeof(struct wx_tx_buffer) * ring->count);
 
+	if (ring->headwb_mem) {
+		wr32(wx, WX_PX_TR_HEAD_ADDRL(reg_idx),
+		     ring->headwb_dma & DMA_BIT_MASK(32));
+		wr32(wx, WX_PX_TR_HEAD_ADDRH(reg_idx),
+		     upper_32_bits(ring->headwb_dma));
+
+		txdctl |= WX_PX_TR_CFG_HEAD_WB;
+	}
+
 	/* enable queue */
 	wr32(wx, WX_PX_TR_CFG(reg_idx), txdctl);
 
@@ -1935,6 +1975,10 @@ static void wx_configure_rx_ring(struct wx *wx,
 		rxdctl |= (ring->count / 128) << WX_PX_RR_CFG_RR_SIZE_SHIFT;
 
 	rxdctl |= 0x1 << WX_PX_RR_CFG_RR_THER_SHIFT;
+
+	if (test_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags))
+		rxdctl |= WX_PX_RR_CFG_DESC_MERGE;
+
 	wr32(wx, WX_PX_RR_CFG(reg_idx), rxdctl);
 
 	/* reset head and tail pointers */
@@ -1943,6 +1987,7 @@ static void wx_configure_rx_ring(struct wx *wx,
 	ring->tail = wx->hw_addr + WX_PX_RR_WP(reg_idx);
 
 	wx_configure_srrctl(wx, ring);
+	wx_configure_rscctl(wx, ring);
 
 	/* initialize rx_buffer_info */
 	memset(ring->rx_buffer_info, 0,
@@ -2181,7 +2226,9 @@ void wx_configure_rx(struct wx *wx)
 		/* RSC Setup */
 		psrctl = rd32(wx, WX_PSR_CTL);
 		psrctl |= WX_PSR_CTL_RSC_ACK; /* Disable RSC for ACK packets */
-		psrctl |= WX_PSR_CTL_RSC_DIS;
+		psrctl &= ~WX_PSR_CTL_RSC_DIS;
+		if (!test_bit(WX_FLAG_RSC_ENABLED, wx->flags))
+			psrctl |= WX_PSR_CTL_RSC_DIS;
 		wr32(wx, WX_PSR_CTL, psrctl);
 	}
 
@@ -2190,6 +2237,12 @@ void wx_configure_rx(struct wx *wx)
 	/* set_rx_buffer_len must be called before ring initialization */
 	wx_set_rx_buffer_len(wx);
 
+	if (test_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags)) {
+		wr32(wx, WX_RDM_DCACHE_CTL, WX_RDM_DCACHE_CTL_EN);
+		wr32m(wx, WX_RDM_RSC_CTL,
+		      WX_RDM_RSC_CTL_FREE_CTL | WX_RDM_RSC_CTL_FREE_CNT_DIS,
+		      WX_RDM_RSC_CTL_FREE_CTL);
+	}
 	/* Setup the HW Rx Head and Tail Descriptor Pointers and
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
@@ -2805,6 +2858,18 @@ void wx_update_stats(struct wx *wx)
 	wx->alloc_rx_buff_failed = alloc_rx_buff_failed;
 	wx->hw_csum_rx_error = hw_csum_rx_error;
 	wx->hw_csum_rx_good = hw_csum_rx_good;
+
+	if (test_bit(WX_FLAG_RSC_ENABLED, wx->flags)) {
+		u64 rsc_count = 0;
+		u64 rsc_flush = 0;
+
+		for (i = 0; i < wx->num_rx_queues; i++) {
+			rsc_count += wx->rx_ring[i]->rx_stats.rsc_count;
+			rsc_flush += wx->rx_ring[i]->rx_stats.rsc_flush;
+		}
+		wx->rsc_count = rsc_count;
+		wx->rsc_flush = rsc_flush;
+	}
 
 	for (i = 0; i < wx->num_tx_queues; i++) {
 		struct wx_ring *tx_ring = wx->tx_ring[i];

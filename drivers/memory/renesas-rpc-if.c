@@ -67,6 +67,8 @@ struct rpcif_priv {
 	void __iomem *dirmap;
 	struct regmap *regmap;
 	struct reset_control *rstc;
+	struct clk *spi_clk;
+	struct clk *spix2_clk;
 	struct platform_device *vdev;
 	size_t size;
 	const struct rpcif_info *info;
@@ -1024,19 +1026,15 @@ static int rpcif_probe(struct platform_device *pdev)
 	 * flash write failure. So, enable these clocks during probe() and
 	 * disable it in remove().
 	 */
-	if (rpc->info->type == XSPI_RZ_G3E) {
-		struct clk *spi_clk;
+	rpc->spix2_clk = devm_clk_get_optional_enabled(dev, "spix2");
+	if (IS_ERR(rpc->spix2_clk))
+		return dev_err_probe(dev, PTR_ERR(rpc->spix2_clk),
+				     "cannot get enabled spix2 clk\n");
 
-		spi_clk = devm_clk_get_enabled(dev, "spix2");
-		if (IS_ERR(spi_clk))
-			return dev_err_probe(dev, PTR_ERR(spi_clk),
-					     "cannot get enabled spix2 clk\n");
-
-		spi_clk = devm_clk_get_enabled(dev, "spi");
-		if (IS_ERR(spi_clk))
-			return dev_err_probe(dev, PTR_ERR(spi_clk),
-					     "cannot get enabled spi clk\n");
-	}
+	rpc->spi_clk = devm_clk_get_optional_enabled(dev, "spi");
+	if (IS_ERR(rpc->spi_clk))
+		return dev_err_probe(dev, PTR_ERR(rpc->spi_clk),
+				     "cannot get enabled spi clk\n");
 
 	vdev = platform_device_alloc(name, pdev->id);
 	if (!vdev)
@@ -1061,6 +1059,37 @@ static void rpcif_remove(struct platform_device *pdev)
 	struct rpcif_priv *rpc = platform_get_drvdata(pdev);
 
 	platform_device_unregister(rpc->vdev);
+}
+
+static int rpcif_suspend(struct device *dev)
+{
+	struct rpcif_priv *rpc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(rpc->spi_clk);
+	clk_disable_unprepare(rpc->spix2_clk);
+
+	return 0;
+}
+
+static int rpcif_resume(struct device *dev)
+{
+	struct rpcif_priv *rpc = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(rpc->spix2_clk);
+	if (ret) {
+		dev_err(dev, "failed to enable spix2 clock: %pe\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	ret = clk_prepare_enable(rpc->spi_clk);
+	if (ret) {
+		clk_disable_unprepare(rpc->spix2_clk);
+		dev_err(dev, "failed to enable spi clock: %pe\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct rpcif_impl rpcif_impl = {
@@ -1125,12 +1154,15 @@ static const struct of_device_id rpcif_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rpcif_of_match);
 
+static DEFINE_SIMPLE_DEV_PM_OPS(rpcif_pm_ops, rpcif_suspend, rpcif_resume);
+
 static struct platform_driver rpcif_driver = {
 	.probe	= rpcif_probe,
 	.remove = rpcif_remove,
 	.driver = {
 		.name =	"rpc-if",
 		.of_match_table = rpcif_of_match,
+		.pm = pm_sleep_ptr(&rpcif_pm_ops),
 	},
 };
 module_platform_driver(rpcif_driver);

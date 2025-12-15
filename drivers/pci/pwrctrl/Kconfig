@@ -22,6 +22,21 @@ config PCI_PWRCTRL_SLOT
 	  PCI slots. The voltage regulators powering the rails of the PCI slots
 	  are expected to be defined in the devicetree node of the PCI bridge.
 
+config PCI_PWRCTRL_TC9563
+	tristate "PCI Power Control driver for TC9563 PCIe switch"
+	select PCI_PWRCTRL
+	default m if ARCH_QCOM
+	depends on I2C
+	help
+	  Say Y here to enable the PCI Power Control driver of TC9563 PCIe
+	  switch.
+
+	  This driver enables power and configures the TC9563 PCIe switch
+	  through i2c. TC9563 is a PCIe switch which has one upstream and three
+	  downstream ports. To one of the downstream ports integrated ethernet
+	  MAC is connected as endpoint device. Other two downstream ports are
+	  supposed to connect to external device.
+
 # deprecated
 config HAVE_PWRCTL
 	bool

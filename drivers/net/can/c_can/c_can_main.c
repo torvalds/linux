@@ -1362,7 +1362,6 @@ static const struct net_device_ops c_can_netdev_ops = {
 	.ndo_open = c_can_open,
 	.ndo_stop = c_can_close,
 	.ndo_start_xmit = c_can_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 int register_c_can_dev(struct net_device *dev)

@@ -25,9 +25,8 @@ static void curve25519_arch(u8 out[CURVE25519_KEY_SIZE],
 			    const u8 point[CURVE25519_KEY_SIZE])
 {
 	if (static_branch_likely(&have_neon) && crypto_simd_usable()) {
-		kernel_neon_begin();
-		curve25519_neon(out, scalar, point);
-		kernel_neon_end();
+		scoped_ksimd()
+			curve25519_neon(out, scalar, point);
 	} else {
 		curve25519_generic(out, scalar, point);
 	}

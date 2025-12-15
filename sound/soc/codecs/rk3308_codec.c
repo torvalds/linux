@@ -786,6 +786,7 @@ static int rk3308_codec_set_bias_level(struct snd_soc_component *component,
 				       enum snd_soc_bias_level level)
 {
 	struct rk3308_codec_priv *rk3308 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -793,7 +794,7 @@ static int rk3308_codec_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) != SND_SOC_BIAS_OFF)
+		if (snd_soc_dapm_get_bias_level(dapm) != SND_SOC_BIAS_OFF)
 			break;
 
 		/* Sequence from TRM Section 8.6.3 "Power Up" */

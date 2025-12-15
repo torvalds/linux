@@ -4,7 +4,7 @@
  */
 /dts-v1/;
 
-#include "x1e80100.dtsi"
+#include "hamoa.dtsi"
 #include "x1-dell-thena.dtsi"
 
 / {

@@ -3,7 +3,7 @@
  * caam descriptor construction helper functions
  *
  * Copyright 2008-2012 Freescale Semiconductor, Inc.
- * Copyright 2019 NXP
+ * Copyright 2019, 2025 NXP
  */
 
 #ifndef DESC_CONSTR_H
@@ -498,17 +498,23 @@ do { \
  * @keylen: length of the provided algorithm key, in bytes
  * @keylen_pad: padded length of the provided algorithm key, in bytes
  * @key_dma: dma (bus) address where algorithm key resides
+ * @protected_key_dma: dma (bus) address where protected key resides
  * @key_virt: virtual address where algorithm key resides
  * @key_inline: true - key can be inlined in the descriptor; false - key is
  *              referenced by the descriptor
+ * @plain_keylen: size of the key to be loaded by the CAAM
+ * @key_cmd_opt: optional parameters for KEY command
  */
 struct alginfo {
 	u32 algtype;
 	unsigned int keylen;
 	unsigned int keylen_pad;
 	dma_addr_t key_dma;
+	dma_addr_t protected_key_dma;
 	const void *key_virt;
 	bool key_inline;
+	u32 plain_keylen;
+	u32 key_cmd_opt;
 };
 
 /**

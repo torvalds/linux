@@ -12,7 +12,7 @@
 #include <sys/mount.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #include <linux/types.h>
 #include <linux/mount.h>

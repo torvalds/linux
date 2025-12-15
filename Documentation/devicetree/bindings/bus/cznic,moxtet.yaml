@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/cznic,moxtet.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Turris Moxtet SPI bus
+
+maintainers:
+  - Marek Behún <kabel@kernel.org>
+
+description: >
+  Turris Mox module status and configuration bus (over SPI)
+
+  The driver finds the devices connected to the bus by itself, but it may be
+  needed to reference some of them from other parts of the device tree. In that
+  case the devices can be defined as subnodes of the moxtet node.
+
+properties:
+  compatible:
+    const: cznic,moxtet
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  spi-cpol: true
+
+  spi-cpha: true
+
+  spi-max-frequency: true
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - spi-cpol
+  - spi-cpha
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+
+additionalProperties:
+  type: object
+
+  required:
+    - reg
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        moxtet@1 {
+            compatible = "cznic,moxtet";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <1>;
+            spi-max-frequency = <10000000>;
+            spi-cpol;
+            spi-cpha;
+            interrupt-controller;
+            #interrupt-cells = <1>;
+            interrupt-parent = <&gpiosb>;
+            interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
+
+            gpio@0 {
+                compatible = "cznic,moxtet-gpio";
+                gpio-controller;
+                #gpio-cells = <2>;
+                reg = <0>;
+            };
+        };
+    };

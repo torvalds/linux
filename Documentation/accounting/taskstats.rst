@@ -76,41 +76,43 @@ The messages are in the format::
 The taskstats payload is one of the following three kinds:
 
 1. Commands: Sent from user to kernel. Commands to get data on
-a pid/tgid consist of one attribute, of type TASKSTATS_CMD_ATTR_PID/TGID,
-containing a u32 pid or tgid in the attribute payload. The pid/tgid denotes
-the task/process for which userspace wants statistics.
+   a pid/tgid consist of one attribute, of type TASKSTATS_CMD_ATTR_PID/TGID,
+   containing a u32 pid or tgid in the attribute payload. The pid/tgid denotes
+   the task/process for which userspace wants statistics.
 
-Commands to register/deregister interest in exit data from a set of cpus
-consist of one attribute, of type
-TASKSTATS_CMD_ATTR_REGISTER/DEREGISTER_CPUMASK and contain a cpumask in the
-attribute payload. The cpumask is specified as an ascii string of
-comma-separated cpu ranges e.g. to listen to exit data from cpus 1,2,3,5,7,8
-the cpumask would be "1-3,5,7-8". If userspace forgets to deregister interest
-in cpus before closing the listening socket, the kernel cleans up its interest
-set over time. However, for the sake of efficiency, an explicit deregistration
-is advisable.
+   Commands to register/deregister interest in exit data from a set of cpus
+   consist of one attribute, of type
+   TASKSTATS_CMD_ATTR_REGISTER/DEREGISTER_CPUMASK and contain a cpumask in the
+   attribute payload. The cpumask is specified as an ascii string of
+   comma-separated cpu ranges e.g. to listen to exit data from cpus 1,2,3,5,7,8
+   the cpumask would be "1-3,5,7-8". If userspace forgets to deregister
+   interest in cpus before closing the listening socket, the kernel cleans up
+   its interest set over time. However, for the sake of efficiency, an explicit
+   deregistration is advisable.
 
 2. Response for a command: sent from the kernel in response to a userspace
-command. The payload is a series of three attributes of type:
+   command. The payload is a series of three attributes of type:
 
-a) TASKSTATS_TYPE_AGGR_PID/TGID : attribute containing no payload but indicates
-a pid/tgid will be followed by some stats.
+   a) TASKSTATS_TYPE_AGGR_PID/TGID: attribute containing no payload but
+      indicates a pid/tgid will be followed by some stats.
 
-b) TASKSTATS_TYPE_PID/TGID: attribute whose payload is the pid/tgid whose stats
-are being returned.
+   b) TASKSTATS_TYPE_PID/TGID: attribute whose payload is the pid/tgid whose
+      stats are being returned.
 
-c) TASKSTATS_TYPE_STATS: attribute with a struct taskstats as payload. The
-same structure is used for both per-pid and per-tgid stats.
+   c) TASKSTATS_TYPE_STATS: attribute with a struct taskstats as payload. The
+      same structure is used for both per-pid and per-tgid stats.
 
 3. New message sent by kernel whenever a task exits. The payload consists of a
    series of attributes of the following type:
 
-a) TASKSTATS_TYPE_AGGR_PID: indicates next two attributes will be pid+stats
-b) TASKSTATS_TYPE_PID: contains exiting task's pid
-c) TASKSTATS_TYPE_STATS: contains the exiting task's per-pid stats
-d) TASKSTATS_TYPE_AGGR_TGID: indicates next two attributes will be tgid+stats
-e) TASKSTATS_TYPE_TGID: contains tgid of process to which task belongs
-f) TASKSTATS_TYPE_STATS: contains the per-tgid stats for exiting task's process
+   a) TASKSTATS_TYPE_AGGR_PID: indicates next two attributes will be pid+stats
+   b) TASKSTATS_TYPE_PID: contains exiting task's pid
+   c) TASKSTATS_TYPE_STATS: contains the exiting task's per-pid stats
+   d) TASKSTATS_TYPE_AGGR_TGID: indicates next two attributes will be
+      tgid+stats
+   e) TASKSTATS_TYPE_TGID: contains tgid of process to which task belongs
+   f) TASKSTATS_TYPE_STATS: contains the per-tgid stats for exiting task's
+      process
 
 
 per-tgid stats

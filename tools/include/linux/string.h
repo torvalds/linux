@@ -44,6 +44,20 @@ static inline bool strstarts(const char *str, const char *prefix)
 	return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
+/*
+ * Checks if a string ends with another.
+ */
+static inline bool str_ends_with(const char *str, const char *substr)
+{
+	size_t len = strlen(str);
+	size_t sublen = strlen(substr);
+
+	if (sublen > len)
+		return false;
+
+	return !strcmp(str + len - sublen, substr);
+}
+
 extern char * __must_check skip_spaces(const char *);
 
 extern char *strim(char *);

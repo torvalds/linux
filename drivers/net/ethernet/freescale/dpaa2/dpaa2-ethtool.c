@@ -711,6 +711,13 @@ static int dpaa2_eth_update_cls_rule(struct net_device *net_dev,
 	return 0;
 }
 
+static u32 dpaa2_eth_get_rx_ring_count(struct net_device *net_dev)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+
+	return dpaa2_eth_queue_count(priv);
+}
+
 static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 			       struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
 {
@@ -719,9 +726,6 @@ static int dpaa2_eth_get_rxnfc(struct net_device *net_dev,
 	int i, j = 0;
 
 	switch (rxnfc->cmd) {
-	case ETHTOOL_GRXRINGS:
-		rxnfc->data = dpaa2_eth_queue_count(priv);
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		rxnfc->rule_cnt = 0;
 		rxnfc->rule_cnt = dpaa2_eth_num_cls_rules(priv);
@@ -949,6 +953,7 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.get_strings = dpaa2_eth_get_strings,
 	.get_rxnfc = dpaa2_eth_get_rxnfc,
 	.set_rxnfc = dpaa2_eth_set_rxnfc,
+	.get_rx_ring_count = dpaa2_eth_get_rx_ring_count,
 	.get_rxfh_fields = dpaa2_eth_get_rxfh_fields,
 	.set_rxfh_fields = dpaa2_eth_set_rxfh_fields,
 	.get_ts_info = dpaa2_eth_get_ts_info,

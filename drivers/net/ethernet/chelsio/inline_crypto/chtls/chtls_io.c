@@ -159,19 +159,13 @@ static u8 tcp_state_to_flowc_state(u8 state)
 int send_tx_flowc_wr(struct sock *sk, int compl,
 		     u32 snd_nxt, u32 rcv_nxt)
 {
-	struct flowc_packed {
-		struct fw_flowc_wr fc;
-		struct fw_flowc_mnemval mnemval[FW_FLOWC_MNEM_MAX];
-	} __packed sflowc;
+	DEFINE_RAW_FLEX(struct fw_flowc_wr, flowc, mnemval, FW_FLOWC_MNEM_MAX);
 	int nparams, paramidx, flowclen16, flowclen;
-	struct fw_flowc_wr *flowc;
 	struct chtls_sock *csk;
 	struct tcp_sock *tp;
 
 	csk = rcu_dereference_sk_user_data(sk);
 	tp = tcp_sk(sk);
-	memset(&sflowc, 0, sizeof(sflowc));
-	flowc = &sflowc.fc;
 
 #define FLOWC_PARAM(__m, __v) \
 	do { \

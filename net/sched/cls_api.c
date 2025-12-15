@@ -1866,15 +1866,15 @@ int tcf_classify(struct sk_buff *skb,
 			struct tc_skb_cb *cb = tc_skb_cb(skb);
 
 			ext = tc_skb_ext_alloc(skb);
-			if (WARN_ON_ONCE(!ext)) {
+			if (!ext) {
 				tcf_set_drop_reason(skb, SKB_DROP_REASON_NOMEM);
 				return TC_ACT_SHOT;
 			}
 			ext->chain = last_executed_chain;
 			ext->mru = cb->mru;
-			ext->post_ct = cb->post_ct;
-			ext->post_ct_snat = cb->post_ct_snat;
-			ext->post_ct_dnat = cb->post_ct_dnat;
+			ext->post_ct = qdisc_skb_cb(skb)->post_ct;
+			ext->post_ct_snat = qdisc_skb_cb(skb)->post_ct_snat;
+			ext->post_ct_dnat = qdisc_skb_cb(skb)->post_ct_dnat;
 			ext->zone = cb->zone;
 		}
 	}

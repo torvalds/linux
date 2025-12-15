@@ -18,6 +18,8 @@ struct io_uring_query_hdr {
 
 enum {
 	IO_URING_QUERY_OPCODES			= 0,
+	IO_URING_QUERY_ZCRX			= 1,
+	IO_URING_QUERY_SCQ			= 2,
 
 	__IO_URING_QUERY_MAX,
 };
@@ -39,6 +41,28 @@ struct io_uring_query_opcode {
 	/* The number of available query opcodes */
 	__u32	nr_query_opcodes;
 	__u32	__pad;
+};
+
+struct io_uring_query_zcrx {
+	/* Bitmask of supported ZCRX_REG_* flags, */
+	__u64 register_flags;
+	/* Bitmask of all supported IORING_ZCRX_AREA_* flags */
+	__u64 area_flags;
+	/* The number of supported ZCRX_CTRL_* opcodes */
+	__u32 nr_ctrl_opcodes;
+	__u32 __resv1;
+	/* The refill ring header size */
+	__u32 rq_hdr_size;
+	/* The alignment for the header */
+	__u32 rq_hdr_alignment;
+	__u64 __resv2;
+};
+
+struct io_uring_query_scq {
+	/* The SQ/CQ rings header size */
+	__u64 hdr_size;
+	/* The alignment for the header */
+	__u64 hdr_alignment;
 };
 
 #endif

@@ -120,7 +120,8 @@ static int __init fs_names_setup(char *str)
 static unsigned int __initdata root_delay;
 static int __init root_delay_setup(char *str)
 {
-	root_delay = simple_strtoul(str, NULL, 0);
+	if (kstrtouint(str, 0, &root_delay))
+		return 0;
 	return 1;
 }
 
@@ -507,7 +508,7 @@ static int rootfs_init_fs_context(struct fs_context *fc)
 struct file_system_type rootfs_fs_type = {
 	.name		= "rootfs",
 	.init_fs_context = rootfs_init_fs_context,
-	.kill_sb	= kill_litter_super,
+	.kill_sb	= kill_anon_super,
 };
 
 void __init init_rootfs(void)

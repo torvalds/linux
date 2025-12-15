@@ -55,36 +55,33 @@ impl pci::Driver for DmaSampleDriver {
     type IdInfo = ();
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
-    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
-        dev_info!(pdev.as_ref(), "Probe DMA test driver.\n");
+    fn probe(pdev: &pci::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
+        pin_init::pin_init_scope(move || {
+            dev_info!(pdev.as_ref(), "Probe DMA test driver.\n");
 
-        let mask = DmaMask::new::<64>();
+            let mask = DmaMask::new::<64>();
 
-        // SAFETY: There are no concurrent calls to DMA allocation and mapping primitives.
-        unsafe { pdev.dma_set_mask_and_coherent(mask)? };
+            // SAFETY: There are no concurrent calls to DMA allocation and mapping primitives.
+            unsafe { pdev.dma_set_mask_and_coherent(mask)? };
 
-        let ca: CoherentAllocation<MyStruct> =
-            CoherentAllocation::alloc_coherent(pdev.as_ref(), TEST_VALUES.len(), GFP_KERNEL)?;
+            let ca: CoherentAllocation<MyStruct> =
+                CoherentAllocation::alloc_coherent(pdev.as_ref(), TEST_VALUES.len(), GFP_KERNEL)?;
 
-        for (i, value) in TEST_VALUES.into_iter().enumerate() {
-            kernel::dma_write!(ca[i] = MyStruct::new(value.0, value.1))?;
-        }
+            for (i, value) in TEST_VALUES.into_iter().enumerate() {
+                kernel::dma_write!(ca[i] = MyStruct::new(value.0, value.1))?;
+            }
 
-        let size = 4 * page::PAGE_SIZE;
-        let pages = VVec::with_capacity(size, GFP_KERNEL)?;
+            let size = 4 * page::PAGE_SIZE;
+            let pages = VVec::with_capacity(size, GFP_KERNEL)?;
 
-        let sgt = SGTable::new(pdev.as_ref(), pages, DataDirection::ToDevice, GFP_KERNEL);
+            let sgt = SGTable::new(pdev.as_ref(), pages, DataDirection::ToDevice, GFP_KERNEL);
 
-        let drvdata = KBox::pin_init(
-            try_pin_init!(Self {
+            Ok(try_pin_init!(Self {
                 pdev: pdev.into(),
                 ca,
                 sgt <- sgt,
-            }),
-            GFP_KERNEL,
-        )?;
-
-        Ok(drvdata)
+            }))
+        })
     }
 }
 

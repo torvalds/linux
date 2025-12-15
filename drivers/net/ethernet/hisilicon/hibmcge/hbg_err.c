@@ -160,7 +160,6 @@ static pci_ers_result_t hbg_pci_err_slot_reset(struct pci_dev *pdev)
 
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
-	pci_save_state(pdev);
 
 	hbg_err_reset(priv);
 	return PCI_ERS_RESULT_RECOVERED;

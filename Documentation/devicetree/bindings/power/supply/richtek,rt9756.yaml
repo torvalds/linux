@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/richtek,rt9756.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Richtek RT9756 Smart Cap Divider Charger
+
+maintainers:
+  - ChiYuan Huang <cy_huang@richtek.com>
+
+description: |
+  The RT9756/RT9757 is a high efficiency and high charge current charger.
+
+  The efficiency is up to 98.2% when VBAT = 4V, IBAT = 2A in DIV2 mode and 99.1%
+  when VBAT=4V, IBAT=1A in bypass mode. The maximum charger current is up to 8A
+  in DIV2 mode and 5A in bypass mode. The device integrates smart cap divider
+  topology, direct charging mode, external over-voltage protection control, an
+  input reverse blocking NFET and 2-way regulation, a dual phase charge pump
+  core, 8-Channel high speed ADCs and USB BC 1.2 detection.
+
+  RT9770 is almost the same with RT9756/57, only BC 1.2 detection function is
+  removed to shrink the die size.
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - richtek,rt9756
+          - richtek,rt9770
+      - items:
+          - enum:
+              - richtek,rt9757
+          - const: richtek,rt9756
+
+  reg:
+    maxItems: 1
+
+  wakeup-source: true
+
+  interrupts:
+    maxItems: 1
+
+  shunt-resistor-micro-ohms:
+    description: Battery current sense resistor mounted.
+    default: 2000
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6f {
+        compatible = "richtek,rt9756";
+        reg = <0x6f>;
+        wakeup-source;
+        interrupts-extended = <&gpio_intc 32 IRQ_TYPE_EDGE_FALLING>;
+        shunt-resistor-micro-ohms = <5000>;
+      };
+    };

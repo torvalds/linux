@@ -132,7 +132,6 @@ examples:
                              "ahb_mp", "ahb_mali400";
     };
 
-
   - |
     clk@1c20068 {
         #clock-cells = <1>;

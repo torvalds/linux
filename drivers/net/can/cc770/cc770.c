@@ -834,7 +834,6 @@ static const struct net_device_ops cc770_netdev_ops = {
 	.ndo_open = cc770_open,
 	.ndo_stop = cc770_close,
 	.ndo_start_xmit = cc770_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops cc770_ethtool_ops = {

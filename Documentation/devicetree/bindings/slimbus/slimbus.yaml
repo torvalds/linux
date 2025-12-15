@@ -75,16 +75,22 @@ examples:
         #size-cells = <1>;
         ranges;
 
-        slim@28080000 {
+        controller@28080000 {
             compatible = "qcom,slim-ngd-v1.5.0";
             reg = <0x091c0000 0x2c000>;
             interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
-            #address-cells = <2>;
+            dmas = <&slimbam 3>, <&slimbam 4>;
+            dma-names = "rx", "tx";
+            #address-cells = <1>;
             #size-cells = <0>;
-
-            audio-codec@1,0 {
+            slim@1 {
+              reg = <1>;
+              #address-cells = <2>;
+              #size-cells = <0>;
+              codec@1,0 {
                 compatible = "slim217,1a0";
                 reg = <1 0>;
+              };
             };
+          };
         };
-    };

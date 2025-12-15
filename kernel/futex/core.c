@@ -581,7 +581,7 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 	if (flags & FLAGS_NUMA) {
 		u32 __user *naddr = (void *)uaddr + size / 2;
 
-		if (futex_get_value(&node, naddr))
+		if (get_user_inline(node, naddr))
 			return -EFAULT;
 
 		if ((node != FUTEX_NO_NODE) &&
@@ -601,7 +601,7 @@ int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 			node = numa_node_id();
 			node_updated = true;
 		}
-		if (node_updated && futex_put_value(node, naddr))
+		if (node_updated && put_user_inline(node, naddr))
 			return -EFAULT;
 	}
 

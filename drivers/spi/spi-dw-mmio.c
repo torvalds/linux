@@ -321,11 +321,6 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	struct dw_spi *dws;
 	int ret;
 
-	if (device_property_read_bool(&pdev->dev, "spi-slave")) {
-		dev_warn(&pdev->dev, "spi-slave is not yet supported\n");
-		return -ENODEV;
-	}
-
 	dwsmmio = devm_kzalloc(&pdev->dev, sizeof(struct dw_spi_mmio),
 			GFP_KERNEL);
 	if (!dwsmmio)
@@ -382,7 +377,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = dw_spi_add_host(&pdev->dev, dws);
+	ret = dw_spi_add_controller(&pdev->dev, dws);
 	if (ret)
 		goto out;
 
@@ -401,7 +396,7 @@ static void dw_spi_mmio_remove(struct platform_device *pdev)
 {
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
-	dw_spi_remove_host(&dwsmmio->dws);
+	dw_spi_remove_controller(&dwsmmio->dws);
 	pm_runtime_disable(&pdev->dev);
 	reset_control_assert(dwsmmio->rstc);
 }

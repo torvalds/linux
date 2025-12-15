@@ -91,7 +91,7 @@ static struct phylink_pcs *renesas_gmac_select_pcs(struct stmmac_priv *priv,
 	return priv->hw->phylink_pcs;
 }
 
-static int renesas_gbeth_init(struct platform_device *pdev, void *priv)
+static int renesas_gbeth_init(struct device *dev, void *priv)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct renesas_gbeth *gbeth = priv;
@@ -113,7 +113,7 @@ static int renesas_gbeth_init(struct platform_device *pdev, void *priv)
 	return ret;
 }
 
-static void renesas_gbeth_exit(struct platform_device *pdev, void *priv)
+static void renesas_gbeth_exit(struct device *dev, void *priv)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct renesas_gbeth *gbeth = priv;

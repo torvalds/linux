@@ -20,14 +20,14 @@ int lsm_file_permission_prog(void *ctx)
 	return 0;
 }
 
-SEC("lsm/file_alloc_security")
-int lsm_file_alloc_security_prog(void *ctx)
+SEC("lsm/kernfs_init_security")
+int lsm_kernfs_init_security_prog(void *ctx)
 {
 	return 0;
 }
 
-SEC("lsm/file_alloc_security")
-int lsm_file_alloc_security_entry(void *ctx)
+SEC("lsm/kernfs_init_security")
+int lsm_kernfs_init_security_entry(void *ctx)
 {
 	bpf_tail_call_static(ctx, &jmp_table, 0);
 	return 0;

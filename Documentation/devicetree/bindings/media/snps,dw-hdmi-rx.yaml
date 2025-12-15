@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Synopsys DesignWare HDMI RX Controller
 
 maintainers:
-  - Shreeya Patel <shreeya.patel@collabora.com>
+  - Dmitry Osipenko <dmitry.osipenko@collabora.com>
 
 description:
   Synopsys DesignWare HDMI Input Controller preset on RK3588 SoCs

@@ -27,8 +27,7 @@ struct bdw_rt5677_priv {
 static int bdw_rt5677_event_hp(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *k, int event)
 {
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct bdw_rt5677_priv *bdw_rt5677 = snd_soc_card_get_drvdata(card);
 
 	if (SND_SOC_DAPM_EVENT_ON(event))
@@ -228,7 +227,7 @@ static int bdw_rt5677_init(struct snd_soc_pcm_runtime *rtd)
 	struct bdw_rt5677_priv *bdw_rt5677 =
 			snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	ret = devm_acpi_dev_add_driver_gpios(component->dev, bdw_rt5677_gpios);
@@ -366,7 +365,7 @@ static int bdw_rt5677_suspend_pre(struct snd_soc_card *card)
 	struct snd_soc_dapm_context *dapm;
 
 	if (bdw_rt5677->component) {
-		dapm = snd_soc_component_get_dapm(bdw_rt5677->component);
+		dapm = snd_soc_component_to_dapm(bdw_rt5677->component);
 		snd_soc_dapm_disable_pin(dapm, "MICBIAS1");
 	}
 	return 0;
@@ -378,7 +377,7 @@ static int bdw_rt5677_resume_post(struct snd_soc_card *card)
 	struct snd_soc_dapm_context *dapm;
 
 	if (bdw_rt5677->component) {
-		dapm = snd_soc_component_get_dapm(bdw_rt5677->component);
+		dapm = snd_soc_component_to_dapm(bdw_rt5677->component);
 		snd_soc_dapm_force_enable_pin(dapm, "MICBIAS1");
 	}
 	return 0;

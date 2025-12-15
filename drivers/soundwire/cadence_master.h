@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /* Copyright(c) 2015-17 Intel Corporation. */
 #include <sound/soc.h>
+#include "bus.h"
 
 #ifndef __SDW_CADENCE_H
 #define __SDW_CADENCE_H
@@ -209,23 +210,29 @@ void sdw_cdns_config_update(struct sdw_cdns *cdns);
 int sdw_cdns_config_update_set_wait(struct sdw_cdns *cdns);
 
 /* SoundWire BPT/BRA helpers to format data */
+int sdw_cdns_bpt_find_bandwidth(int command, /* 0: write, 1: read */
+				int row, int col, int frame_rate,
+				unsigned int *tx_dma_bandwidth,
+				unsigned int *rx_dma_bandwidth);
+
 int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 				   int row, int col, unsigned int data_bytes,
 				   unsigned int requested_bytes_per_frame,
 				   unsigned int *data_per_frame, unsigned int *pdi0_buffer_size,
 				   unsigned int *pdi1_buffer_size, unsigned int *num_frames);
 
-int sdw_cdns_prepare_write_dma_buffer(u8 dev_num, u32 start_register, u8 *data, int data_size,
-				      int data_per_frame, u8 *dma_buffer, int dma_buffer_size,
-				      int *dma_buffer_total_bytes);
+int sdw_cdns_prepare_write_dma_buffer(u8 dev_num, struct sdw_bpt_section *sec, int num_sec,
+				      int data_per_frame, u8 *dma_buffer,
+				      int dma_buffer_size, int *dma_buffer_total_bytes);
 
-int sdw_cdns_prepare_read_dma_buffer(u8 dev_num, u32 start_register, int data_size,
+int sdw_cdns_prepare_read_dma_buffer(u8 dev_num, struct sdw_bpt_section *sec, int num_sec,
 				     int data_per_frame, u8 *dma_buffer, int dma_buffer_size,
-				     int *dma_buffer_total_bytes);
+				     int *dma_buffer_total_bytes, unsigned int fake_size);
 
 int sdw_cdns_check_write_response(struct device *dev, u8 *dma_buffer,
 				  int dma_buffer_size, int num_frames);
 
 int sdw_cdns_check_read_response(struct device *dev, u8 *dma_buffer, int dma_buffer_size,
-				 u8 *buffer, int buffer_size, int num_frames, int data_per_frame);
+				 struct sdw_bpt_section *sec, int num_sec, int num_frames,
+				 int data_per_frame);
 #endif /* __SDW_CADENCE_H */

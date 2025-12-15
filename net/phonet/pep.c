@@ -882,7 +882,8 @@ drop:
 	return newsk;
 }
 
-static int pep_sock_connect(struct sock *sk, struct sockaddr *addr, int len)
+static int pep_sock_connect(struct sock *sk, struct sockaddr_unsized *addr,
+			    int len)
 {
 	struct pep_sock *pn = pep_sk(sk);
 	int err;

@@ -186,11 +186,11 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 	struct saa7146_dev *dev = video_drvdata(file);
 	int ret;
 
-	if (vdev->vfl_type != VFL_TYPE_VBI || !dev->ext_vv_data->vbi_fops.write)
+	if (vdev->vfl_type != VFL_TYPE_VBI || !dev->ext_vv_data->vbi_write)
 		return -EINVAL;
 	if (mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
-	ret = dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
+	ret = dev->ext_vv_data->vbi_write(file, data, count, ppos);
 	mutex_unlock(vdev->lock);
 	return ret;
 }

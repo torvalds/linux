@@ -108,8 +108,7 @@ error:
 static int dmic_get_gain(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cros_ec_codec_priv *priv =
 		snd_soc_component_get_drvdata(component);
 	struct ec_param_ec_codec_dmic p;
@@ -140,8 +139,7 @@ static int dmic_get_gain(struct snd_kcontrol *kcontrol,
 static int dmic_put_gain(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cros_ec_codec_priv *priv =
 		snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *control =
@@ -633,7 +631,7 @@ leave:
 static int wov_enable_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *c = snd_kcontrol_chip(kcontrol);
 	struct cros_ec_codec_priv *priv = snd_soc_component_get_drvdata(c);
 
 	ucontrol->value.integer.value[0] = priv->wov_enabled;
@@ -643,7 +641,7 @@ static int wov_enable_get(struct snd_kcontrol *kcontrol,
 static int wov_enable_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *c = snd_kcontrol_chip(kcontrol);
 	struct cros_ec_codec_priv *priv = snd_soc_component_get_drvdata(c);
 	int enabled = ucontrol->value.integer.value[0];
 	struct ec_param_ec_codec_wov p;

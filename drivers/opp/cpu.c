@@ -56,10 +56,10 @@ int dev_pm_opp_init_cpufreq_table(struct device *dev,
 		return -ENOMEM;
 
 	for (i = 0, rate = 0; i < max_opps; i++, rate++) {
-		struct dev_pm_opp *opp __free(put_opp);
-
 		/* find next rate */
-		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
+		struct dev_pm_opp *opp __free(put_opp) =
+			dev_pm_opp_find_freq_ceil(dev, &rate);
+
 		if (IS_ERR(opp)) {
 			ret = PTR_ERR(opp);
 			goto out;
@@ -154,12 +154,13 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_cpumask_remove_table);
 int dev_pm_opp_set_sharing_cpus(struct device *cpu_dev,
 				const struct cpumask *cpumask)
 {
-	struct opp_table *opp_table __free(put_opp_table);
 	struct opp_device *opp_dev;
 	struct device *dev;
 	int cpu;
 
-	opp_table = _find_opp_table(cpu_dev);
+	struct opp_table *opp_table __free(put_opp_table) =
+		_find_opp_table(cpu_dev);
+
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -201,10 +202,11 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_sharing_cpus);
  */
 int dev_pm_opp_get_sharing_cpus(struct device *cpu_dev, struct cpumask *cpumask)
 {
-	struct opp_table *opp_table __free(put_opp_table);
 	struct opp_device *opp_dev;
 
-	opp_table = _find_opp_table(cpu_dev);
+	struct opp_table *opp_table __free(put_opp_table) =
+		_find_opp_table(cpu_dev);
+
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 

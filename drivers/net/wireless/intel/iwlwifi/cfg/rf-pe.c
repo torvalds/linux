@@ -12,5 +12,6 @@ const char iwl_killer_bn1850i_name[] =
 	"Killer(R) Wi-Fi 8 BN1850i 320MHz Wireless Network Adapter (BN201.NGW)";
 
 const char iwl_bn201_name[] = "Intel(R) Wi-Fi 8 BN201";
+const char iwl_bn203_name[] = "Intel(R) Wi-Fi 8 BN203";
 const char iwl_be221_name[] = "Intel(R) Wi-Fi 7 BE221";
 const char iwl_be223_name[] = "Intel(R) Wi-Fi 7 BE223";

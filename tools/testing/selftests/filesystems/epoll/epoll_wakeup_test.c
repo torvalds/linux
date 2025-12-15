@@ -11,7 +11,7 @@
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/eventfd.h>
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 struct epoll_mtcontext
 {

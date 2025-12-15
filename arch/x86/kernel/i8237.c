@@ -19,7 +19,7 @@
  * in asm/dma.h.
  */
 
-static void i8237A_resume(void)
+static void i8237A_resume(void *data)
 {
 	unsigned long flags;
 	int i;
@@ -41,8 +41,12 @@ static void i8237A_resume(void)
 	release_dma_lock(flags);
 }
 
-static struct syscore_ops i8237_syscore_ops = {
+static const struct syscore_ops i8237_syscore_ops = {
 	.resume		= i8237A_resume,
+};
+
+static struct syscore i8237_syscore = {
+	.ops = &i8237_syscore_ops,
 };
 
 static int __init i8237A_init_ops(void)
@@ -70,7 +74,7 @@ static int __init i8237A_init_ops(void)
 	if (x86_pnpbios_disabled() && dmi_get_bios_year() >= 2017)
 		return -ENODEV;
 
-	register_syscore_ops(&i8237_syscore_ops);
+	register_syscore(&i8237_syscore);
 	return 0;
 }
 device_initcall(i8237A_init_ops);

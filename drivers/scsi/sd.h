@@ -240,7 +240,7 @@ blk_status_t sd_zbc_setup_zone_mgmt_cmnd(struct scsi_cmnd *cmd,
 unsigned int sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
 			     struct scsi_sense_hdr *sshdr);
 int sd_zbc_report_zones(struct gendisk *disk, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data);
+		unsigned int nr_zones, struct blk_report_zones_args *args);
 
 #else /* CONFIG_BLK_DEV_ZONED */
 

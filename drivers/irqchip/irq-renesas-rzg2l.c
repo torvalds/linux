@@ -8,7 +8,6 @@
  */
 
 #include <linux/bitfield.h>
-#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -399,7 +398,7 @@ static int rzg2l_irqc_set_type(struct irq_data *d, unsigned int type)
 	return irq_chip_set_type_parent(d, IRQ_TYPE_LEVEL_HIGH);
 }
 
-static int rzg2l_irqc_irq_suspend(void)
+static int rzg2l_irqc_irq_suspend(void *data)
 {
 	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
@@ -411,7 +410,7 @@ static int rzg2l_irqc_irq_suspend(void)
 	return 0;
 }
 
-static void rzg2l_irqc_irq_resume(void)
+static void rzg2l_irqc_irq_resume(void *data)
 {
 	struct rzg2l_irqc_reg_cache *cache = &rzg2l_irqc_data->cache;
 	void __iomem *base = rzg2l_irqc_data->base;
@@ -426,9 +425,13 @@ static void rzg2l_irqc_irq_resume(void)
 	writel_relaxed(cache->iitsr, base + IITSR);
 }
 
-static struct syscore_ops rzg2l_irqc_syscore_ops = {
+static const struct syscore_ops rzg2l_irqc_syscore_ops = {
 	.suspend	= rzg2l_irqc_irq_suspend,
 	.resume		= rzg2l_irqc_irq_resume,
+};
+
+static struct syscore rzg2l_irqc_syscore = {
+	.ops = &rzg2l_irqc_syscore_ops,
 };
 
 static const struct irq_chip rzg2l_irqc_chip = {
@@ -528,17 +531,14 @@ static int rzg2l_irqc_parse_interrupts(struct rzg2l_irqc_priv *priv,
 	return 0;
 }
 
-static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *parent,
-				  const struct irq_chip *irq_chip)
+static int rzg2l_irqc_common_probe(struct platform_device *pdev, struct device_node *parent,
+				   const struct irq_chip *irq_chip)
 {
-	struct platform_device *pdev = of_find_device_by_node(node);
-	struct device *dev __free(put_device) = pdev ? &pdev->dev : NULL;
 	struct irq_domain *irq_domain, *parent_domain;
+	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct reset_control *resetn;
 	int ret;
-
-	if (!pdev)
-		return -ENODEV;
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain)
@@ -581,37 +581,24 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 		return -ENOMEM;
 	}
 
-	register_syscore_ops(&rzg2l_irqc_syscore_ops);
-
-	/*
-	 * Prevent the cleanup function from invoking put_device by assigning
-	 * NULL to dev.
-	 *
-	 * make coccicheck will complain about missing put_device calls, but
-	 * those are false positives, as dev will be automatically "put" via
-	 * __free_put_device on the failing path.
-	 * On the successful path we don't actually want to "put" dev.
-	 */
-	dev = NULL;
+	register_syscore(&rzg2l_irqc_syscore);
 
 	return 0;
 }
 
-static int __init rzg2l_irqc_init(struct device_node *node,
-				  struct device_node *parent)
+static int rzg2l_irqc_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return rzg2l_irqc_common_init(node, parent, &rzg2l_irqc_chip);
+	return rzg2l_irqc_common_probe(pdev, parent, &rzg2l_irqc_chip);
 }
 
-static int __init rzfive_irqc_init(struct device_node *node,
-				   struct device_node *parent)
+static int rzfive_irqc_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	return rzg2l_irqc_common_init(node, parent, &rzfive_irqc_chip);
+	return rzg2l_irqc_common_probe(pdev, parent, &rzfive_irqc_chip);
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(rzg2l_irqc)
-IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_init)
-IRQCHIP_MATCH("renesas,r9a07g043f-irqc", rzfive_irqc_init)
+IRQCHIP_MATCH("renesas,rzg2l-irqc", rzg2l_irqc_probe)
+IRQCHIP_MATCH("renesas,r9a07g043f-irqc", rzfive_irqc_probe)
 IRQCHIP_PLATFORM_DRIVER_END(rzg2l_irqc)
 MODULE_AUTHOR("Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>");
 MODULE_DESCRIPTION("Renesas RZ/G2L IRQC Driver");

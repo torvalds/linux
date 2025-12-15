@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2022 MediaTek Inc.
  */
@@ -953,16 +953,34 @@ bool mt7996_debugfs_rx_log(struct mt7996_dev *dev, const void *data, int len)
 #ifdef CONFIG_MAC80211_DEBUGFS
 /** per-station debugfs **/
 
-static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
+static int
+mt7996_queues_show(struct seq_file *s, void *data)
+{
+	struct ieee80211_sta *sta = s->private;
+
+	mt7996_sta_hw_queue_read(s, sta);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(mt7996_queues);
+
+void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta, struct dentry *dir)
+{
+	debugfs_create_file("hw-queues", 0400, dir, sta, &mt7996_queues_fops);
+}
+
+static ssize_t mt7996_link_sta_fixed_rate_set(struct file *file,
+					      const char __user *user_buf,
+					      size_t count, loff_t *ppos)
 {
 #define SHORT_PREAMBLE 0
 #define LONG_PREAMBLE 1
-	struct ieee80211_sta *sta = file->private_data;
-	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct ieee80211_link_sta *link_sta = file->private_data;
+	struct mt7996_sta *msta = (struct mt7996_sta *)link_sta->sta->drv_priv;
 	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
+	struct mt7996_sta_link *msta_link;
 	struct ra_rate phy = {};
 	char buf[100];
 	int ret;
@@ -981,12 +999,13 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 
 	/* mode - cck: 0, ofdm: 1, ht: 2, gf: 3, vht: 4, he_su: 8, he_er: 9 EHT: 15
 	 * bw - bw20: 0, bw40: 1, bw80: 2, bw160: 3, BW320: 4
-	 * nss - vht: 1~4, he: 1~4, eht: 1~4, others: ignore
 	 * mcs - cck: 0~4, ofdm: 0~7, ht: 0~32, vht: 0~9, he_su: 0~11, he_er: 0~2, eht: 0~13
+	 * nss - vht: 1~4, he: 1~4, eht: 1~4, others: ignore
 	 * gi - (ht/vht) lgi: 0, sgi: 1; (he) 0.8us: 0, 1.6us: 1, 3.2us: 2
 	 * preamble - short: 1, long: 0
-	 * ldpc - off: 0, on: 1
 	 * stbc - off: 0, on: 1
+	 * ldpc - off: 0, on: 1
+	 * spe - off: 0, on: 1
 	 * ltf - 1xltf: 0, 2xltf: 1, 4xltf: 2
 	 */
 	if (sscanf(buf, "%hhu %hhu %hhu %hhu %hu %hhu %hhu %hhu %hhu %hu",
@@ -994,9 +1013,16 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 		   &phy.preamble, &phy.stbc, &phy.ldpc, &phy.spe, &ltf) != 10) {
 		dev_warn(dev->mt76.dev,
 			 "format: Mode BW MCS NSS GI Preamble STBC LDPC SPE ltf\n");
-		goto out;
+		return -EINVAL;
 	}
 
+	mutex_lock(&dev->mt76.mutex);
+
+	msta_link = mt76_dereference(msta->link[link_sta->link_id], &dev->mt76);
+	if (!msta_link) {
+		ret = -EINVAL;
+		goto out;
+	}
 	phy.wlan_idx = cpu_to_le16(msta_link->wcid.idx);
 	phy.gi = cpu_to_le16(gi);
 	phy.ltf = cpu_to_le16(ltf);
@@ -1005,36 +1031,26 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 
 	ret = mt7996_mcu_set_fixed_rate_ctrl(dev, &phy, 0);
 	if (ret)
-		return -EFAULT;
+		goto out;
 
+	ret = count;
 out:
-	return count;
+	mutex_unlock(&dev->mt76.mutex);
+	return ret;
 }
 
 static const struct file_operations fops_fixed_rate = {
-	.write = mt7996_sta_fixed_rate_set,
+	.write = mt7996_link_sta_fixed_rate_set,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
-static int
-mt7996_queues_show(struct seq_file *s, void *data)
+void mt7996_link_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				 struct ieee80211_link_sta *link_sta,
+				 struct dentry *dir)
 {
-	struct ieee80211_sta *sta = s->private;
-
-	mt7996_sta_hw_queue_read(s, sta);
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(mt7996_queues);
-
-void mt7996_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			    struct ieee80211_sta *sta, struct dentry *dir)
-{
-	debugfs_create_file("fixed_rate", 0600, dir, sta, &fops_fixed_rate);
-	debugfs_create_file("hw-queues", 0400, dir, sta, &mt7996_queues_fops);
+	debugfs_create_file("fixed_rate", 0600, dir, link_sta, &fops_fixed_rate);
 }
 
 #endif

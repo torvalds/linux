@@ -704,7 +704,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 		num_tuples += ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	if ((fs->flow_type & FLOW_EXT)) {
 		ret = validate_vlan(fs);

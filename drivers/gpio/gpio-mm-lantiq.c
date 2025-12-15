@@ -10,7 +10,6 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio/legacy-of-mm-gpiochip.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -27,7 +26,8 @@
 #define LTQ_EBU_WP	0x80000000	/* write protect bit */
 
 struct ltq_mm {
-	struct of_mm_gpio_chip mmchip;
+	struct gpio_chip gc;
+	void __iomem *regs;
 	u16 shadow;	/* shadow the latches state */
 };
 
@@ -44,7 +44,7 @@ static void ltq_mm_apply(struct ltq_mm *chip)
 
 	spin_lock_irqsave(&ebu_lock, flags);
 	ltq_ebu_w32(LTQ_EBU_BUSCON, LTQ_EBU_BUSCON1);
-	__raw_writew(chip->shadow, chip->mmchip.regs);
+	__raw_writew(chip->shadow, chip->regs);
 	ltq_ebu_w32(LTQ_EBU_BUSCON | LTQ_EBU_WP, LTQ_EBU_BUSCON1);
 	spin_unlock_irqrestore(&ebu_lock, flags);
 }
@@ -52,8 +52,8 @@ static void ltq_mm_apply(struct ltq_mm *chip)
 /**
  * ltq_mm_set() - gpio_chip->set - set gpios.
  * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
+ * @offset: GPIO signal number.
+ * @value:  Value to be written to specified signal.
  *
  * Set the shadow value and call ltq_mm_apply. Always returns 0.
  */
@@ -73,8 +73,8 @@ static int ltq_mm_set(struct gpio_chip *gc, unsigned int offset, int value)
 /**
  * ltq_mm_dir_out() - gpio_chip->dir_out - set gpio direction.
  * @gc:     Pointer to gpio_chip device structure.
- * @gpio:   GPIO signal number.
- * @val:    Value to be written to specified signal.
+ * @offset: GPIO signal number.
+ * @value:  Value to be written to specified signal.
  *
  * Same as ltq_mm_set, always returns 0.
  */
@@ -85,21 +85,21 @@ static int ltq_mm_dir_out(struct gpio_chip *gc, unsigned offset, int value)
 
 /**
  * ltq_mm_save_regs() - Set initial values of GPIO pins
- * @mm_gc: pointer to memory mapped GPIO chip structure
+ * @chip: Pointer to our private data structure.
  */
-static void ltq_mm_save_regs(struct of_mm_gpio_chip *mm_gc)
+static void ltq_mm_save_regs(struct ltq_mm *chip)
 {
-	struct ltq_mm *chip =
-		container_of(mm_gc, struct ltq_mm, mmchip);
-
 	/* tell the ebu controller which memory address we will be using */
-	ltq_ebu_w32(CPHYSADDR(chip->mmchip.regs) | 0x1, LTQ_EBU_ADDRSEL1);
+	ltq_ebu_w32(CPHYSADDR((__force void *)chip->regs) | 0x1, LTQ_EBU_ADDRSEL1);
 
 	ltq_mm_apply(chip);
 }
 
 static int ltq_mm_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct gpio_chip *gc;
 	struct ltq_mm *chip;
 	u32 shadow;
 
@@ -107,25 +107,29 @@ static int ltq_mm_probe(struct platform_device *pdev)
 	if (!chip)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, chip);
+	gc = &chip->gc;
 
-	chip->mmchip.gc.ngpio = 16;
-	chip->mmchip.gc.direction_output = ltq_mm_dir_out;
-	chip->mmchip.gc.set = ltq_mm_set;
-	chip->mmchip.save_regs = ltq_mm_save_regs;
+	gc->base = -1;
+	gc->ngpio = 16;
+	gc->direction_output = ltq_mm_dir_out;
+	gc->set = ltq_mm_set;
+	gc->parent = dev;
+	gc->owner = THIS_MODULE;
+	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
+	if (!gc->label)
+		return -ENOMEM;
+
+	chip->regs = devm_of_iomap(dev, np, 0, NULL);
+	if (IS_ERR(chip->regs))
+		return PTR_ERR(chip->regs);
+
+	ltq_mm_save_regs(chip);
 
 	/* store the shadow value if one was passed by the devicetree */
 	if (!of_property_read_u32(pdev->dev.of_node, "lantiq,shadow", &shadow))
 		chip->shadow = shadow;
 
-	return of_mm_gpiochip_add_data(pdev->dev.of_node, &chip->mmchip, chip);
-}
-
-static void ltq_mm_remove(struct platform_device *pdev)
-{
-	struct ltq_mm *chip = platform_get_drvdata(pdev);
-
-	of_mm_gpiochip_remove(&chip->mmchip);
+	return devm_gpiochip_add_data(dev, gc, chip);
 }
 
 static const struct of_device_id ltq_mm_match[] = {
@@ -136,7 +140,6 @@ MODULE_DEVICE_TABLE(of, ltq_mm_match);
 
 static struct platform_driver ltq_mm_driver = {
 	.probe = ltq_mm_probe,
-	.remove = ltq_mm_remove,
 	.driver = {
 		.name = "gpio-mm-ltq",
 		.of_match_table = ltq_mm_match,

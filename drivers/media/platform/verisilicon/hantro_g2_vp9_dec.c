@@ -893,8 +893,6 @@ int hantro_g2_vp9_dec_run(struct hantro_ctx *ctx)
 	struct vb2_v4l2_buffer *dst;
 	int ret;
 
-	hantro_g2_check_idle(ctx->dev);
-
 	ret = start_prepare_run(ctx, &decode_params);
 	if (ret) {
 		hantro_end_prepare_run(ctx);

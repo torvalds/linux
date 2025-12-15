@@ -787,7 +787,7 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		 * information might have changed for example by the
 		 * fact that a switch on a dual-link connection might
 		 * have been enumerated using the other link now. Make
-		 * sure our book keeping matches that.
+		 * sure our bookkeeping matches that.
 		 */
 		if (sw->depth == depth && sw_phy_port == phy_port &&
 		    !!sw->authorized == authorized) {
@@ -969,7 +969,7 @@ icm_fr_xdomain_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 
 	/*
 	 * Look if there already exists an XDomain in the same place
-	 * than the new one and in that case remove it because it is
+	 * as the new one and in that case remove it because it is
 	 * most likely another host that got disconnected.
 	 */
 	xd = tb_xdomain_find_by_link_depth(tb, link, depth);
@@ -2000,7 +2000,7 @@ static int icm_driver_ready(struct tb *tb)
 	if (icm->safe_mode) {
 		tb_info(tb, "Thunderbolt host controller is in safe mode.\n");
 		tb_info(tb, "You need to update NVM firmware of the controller before it can be used.\n");
-		tb_info(tb, "For latest updates check https://thunderbolttechnology.net/updates.\n");
+		tb_info(tb, "Use fwupd tool to apply update. Check Documentation/admin-guide/thunderbolt.rst for details.\n");
 		return 0;
 	}
 
@@ -2171,7 +2171,7 @@ static int icm_runtime_resume_switch(struct tb_switch *sw)
 static int icm_runtime_resume(struct tb *tb)
 {
 	/*
-	 * We can reuse the same resume functionality than with system
+	 * We can reuse the same resume functionality as with system
 	 * suspend.
 	 */
 	icm_complete(tb);

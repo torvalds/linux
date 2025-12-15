@@ -30,6 +30,10 @@ properties:
           - const: thead,c900-aclint-sswi
       - items:
           - const: mips,p8700-aclint-sswi
+      - items:
+          - enum:
+              - anlogic,dr1v90-aclint-sswi
+          - const: nuclei,ux900-aclint-sswi
 
   reg:
     maxItems: 1

@@ -39,6 +39,16 @@
 
 #include "entry.h"
 
+#define __SYSCALL(nr, sym) long __s390x_##sym(struct pt_regs *);
+#include <asm/syscall_table.h>
+#undef __SYSCALL
+
+#define __SYSCALL(nr, sym) [nr] = (__s390x_##sym),
+const sys_call_ptr_t sys_call_table[__NR_syscalls] = {
+#include <asm/syscall_table.h>
+};
+#undef __SYSCALL
+
 #ifdef CONFIG_SYSVIPC
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls.
@@ -122,7 +132,7 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 		goto out;
 	regs->gprs[2] = -ENOSYS;
 	if (likely(nr < NR_syscalls))
-		regs->gprs[2] = current->thread.sys_call_table[nr](regs);
+		regs->gprs[2] = sys_call_table[nr](regs);
 out:
 	syscall_exit_to_user_mode(regs);
 }

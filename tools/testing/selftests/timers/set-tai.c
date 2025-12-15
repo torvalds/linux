@@ -23,7 +23,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int set_tai(int offset)
 {

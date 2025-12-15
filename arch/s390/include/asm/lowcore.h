@@ -100,7 +100,8 @@ struct lowcore {
 
 	/* Save areas. */
 	__u64	save_area[8];			/* 0x0200 */
-	__u8	pad_0x0240[0x0280-0x0240];	/* 0x0240 */
+	__u64	stack_canary;			/* 0x0240 */
+	__u8	pad_0x0248[0x0280-0x0248];	/* 0x0248 */
 	__u64	save_area_restart[1];		/* 0x0280 */
 
 	__u64	pcpu;				/* 0x0288 */

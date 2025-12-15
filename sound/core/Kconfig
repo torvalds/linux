@@ -155,7 +155,7 @@ config SND_MAX_CARDS
 
 config SND_SUPPORT_OLD_API
 	bool "Support old ALSA API"
-	default y
+	default n
 	help
 	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
 	  or older).

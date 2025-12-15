@@ -693,7 +693,6 @@ static s32 tas2783_update_calibdata(struct tas2783_prv *tas_dev)
 
 	tmp_val = (u32 *)tas_dev->cali_data.data;
 	attr = 0;
-	i = 0;
 
 	/*
 	 * In some cases, the calibration is performed in Windows,
@@ -1297,7 +1296,8 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 
 	init_waitqueue_head(&tas_dev->fw_wait);
 	dev_set_drvdata(dev, tas_dev);
-	regmap = devm_regmap_init_sdw_mbq_cfg(peripheral,
+	regmap = devm_regmap_init_sdw_mbq_cfg(&peripheral->dev,
+					      peripheral,
 					      &tas_regmap,
 					      &tas2783_mbq_cfg);
 	if (IS_ERR(regmap))

@@ -2,7 +2,7 @@
 /*
  * KUnit tests for element parsing
  *
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  */
 #include <kunit/test.h>
 #include "../ieee80211_i.h"
@@ -15,6 +15,8 @@ static void mle_defrag(struct kunit *test)
 		.link_id = 12,
 		.from_ap = true,
 		.mode = IEEE80211_CONN_MODE_EHT,
+		/* type is not really relevant here */
+		.type = IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON,
 	};
 	struct ieee802_11_elems *parsed;
 	struct sk_buff *skb;

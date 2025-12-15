@@ -41,6 +41,19 @@ config INTEL_VBTN
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_vbtn.
 
+config INTEL_EHL_PSE_IO
+	tristate "Intel Elkhart Lake PSE I/O driver"
+	depends on PCI
+	select AUXILIARY_BUS
+	help
+	  Select this option to enable Intel Elkhart Lake PSE GPIO and Timed
+	  I/O support. This driver enumerates the PCI parent device and
+	  creates auxiliary child devices for these capabilities. The actual
+	  functionalities are provided by their respective auxiliary drivers.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called intel_ehl_pse_io.
+
 config INTEL_INT0002_VGPIO
 	tristate "Intel ACPI INT0002 Virtual GPIO driver"
 	depends on GPIOLIB && ACPI && PM_SLEEP

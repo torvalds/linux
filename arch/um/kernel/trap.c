@@ -316,7 +316,7 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	if (!is_user && regs)
 		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
 
-	if (!is_user && init_mm.context.sync_tlb_range_to) {
+	if (!is_user && address >= start_vm && address < end_vm) {
 		/*
 		 * Kernel has pending updates from set_ptes that were not
 		 * flushed yet. Syncing them should fix the pagefault (if not

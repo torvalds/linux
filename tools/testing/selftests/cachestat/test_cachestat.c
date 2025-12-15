@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define NR_TESTS	9
 

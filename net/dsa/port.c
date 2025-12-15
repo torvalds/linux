@@ -1909,6 +1909,9 @@ void dsa_port_hsr_leave(struct dsa_port *dp, struct net_device *hsr)
 	struct dsa_switch *ds = dp->ds;
 	int err;
 
+	if (!dp->hsr_dev)
+		return;
+
 	dp->hsr_dev = NULL;
 
 	if (ds->ops->port_hsr_leave) {

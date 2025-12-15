@@ -7,7 +7,7 @@
 #include <sys/prctl.h>
 #include <string.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define CHANGE_NAME "changename"
 #define EMPTY_NAME ""

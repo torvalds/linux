@@ -90,7 +90,7 @@ bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 	    (disk->flags & GENHD_FL_HIDDEN))
 		return false;
 
-	pr_info("%s: detected capacity change from %lld to %lld\n",
+	pr_info_ratelimited("%s: detected capacity change from %lld to %lld\n",
 		disk->disk_name, capacity, size);
 
 	/*
@@ -795,11 +795,11 @@ static void disable_elv_switch(struct request_queue *q)
  * partitions associated with the gendisk, and unregisters the associated
  * request_queue.
  *
- * This is the counter to the respective __device_add_disk() call.
+ * This is the counter to the respective device_add_disk() call.
  *
  * The final removal of the struct gendisk happens when its refcount reaches 0
  * with put_disk(), which should be called after del_gendisk(), if
- * __device_add_disk() was used.
+ * device_add_disk() was used.
  *
  * Drivers exist which depend on the release of the gendisk to be synchronous,
  * it should not be deferred.
@@ -1265,7 +1265,7 @@ static const struct attribute_group *disk_attr_groups[] = {
  *
  * This function releases all allocated resources of the gendisk.
  *
- * Drivers which used __device_add_disk() have a gendisk with a request_queue
+ * Drivers which used device_add_disk() have a gendisk with a request_queue
  * assigned. Since the request_queue sits on top of the gendisk for these
  * drivers we also call blk_put_queue() for them, and we expect the
  * request_queue refcount to reach 0 at this point, and so the request_queue

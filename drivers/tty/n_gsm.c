@@ -4165,7 +4165,7 @@ static int gsm_modem_upd_via_msc(struct gsm_dlci *dlci, u8 brk)
 /**
  * gsm_modem_send_initial_msc - Send initial modem status message
  *
- * @dlci channel
+ * @dlci: channel
  *
  * Send an initial MSC message after DLCI open to set the initial
  * modem status lines. This is only done for basic mode.

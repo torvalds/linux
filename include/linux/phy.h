@@ -531,6 +531,30 @@ struct macsec_context;
 struct macsec_ops;
 
 /**
+ * struct phy_oatc14_sqi_capability - SQI capability information for OATC14
+ *                                    10Base-T1S PHY
+ * @updated: Indicates whether the SQI capability fields have been updated.
+ * @sqi_max: Maximum supported Signal Quality Indicator (SQI) level reported by
+ *           the PHY.
+ * @sqiplus_bits: Bits for SQI+ levels supported by the PHY.
+ *                0 - SQI+ is not supported
+ *                3 - SQI+ is supported, using 3 bits (8 levels)
+ *                4 - SQI+ is supported, using 4 bits (16 levels)
+ *                5 - SQI+ is supported, using 5 bits (32 levels)
+ *                6 - SQI+ is supported, using 6 bits (64 levels)
+ *                7 - SQI+ is supported, using 7 bits (128 levels)
+ *                8 - SQI+ is supported, using 8 bits (256 levels)
+ *
+ * This structure is used by the OATC14 10Base-T1S PHY driver to store the SQI
+ * and SQI+ capability information retrieved from the PHY.
+ */
+struct phy_oatc14_sqi_capability {
+	bool updated;
+	int sqi_max;
+	u8 sqiplus_bits;
+};
+
+/**
  * struct phy_device - An instance of a PHY
  *
  * @mdio: MDIO bus this PHY is on
@@ -626,6 +650,7 @@ struct macsec_ops;
  * @link_down_events: Number of times link was lost
  * @shared: Pointer to private data shared by phys in one package
  * @priv: Pointer to driver private data
+ * @oatc14_sqi_capability: SQI capability information for OATC14 10Base-T1S PHY
  *
  * interrupts currently only supports enabled or disabled,
  * but could be changed in the future to support enabling
@@ -666,6 +691,8 @@ struct phy_device {
 	/* The most recently read link state */
 	unsigned link:1;
 	unsigned autoneg_complete:1;
+	bool pause:1;
+	bool asym_pause:1;
 
 	/* Interrupts are enabled */
 	unsigned interrupts:1;
@@ -690,8 +717,6 @@ struct phy_device {
 	int speed;
 	int duplex;
 	int port;
-	int pause;
-	int asym_pause;
 	u8 master_slave_get;
 	u8 master_slave_set;
 	u8 master_slave_state;
@@ -772,6 +797,8 @@ struct phy_device {
 	/* MACsec management functions */
 	const struct macsec_ops *macsec_ops;
 #endif
+
+	struct phy_oatc14_sqi_capability oatc14_sqi_capability;
 };
 
 /* Generic phy_device::dev_flags */
@@ -902,6 +929,165 @@ struct phy_led {
 };
 
 #define to_phy_led(d) container_of(d, struct phy_led, led_cdev)
+
+/*
+ * PHY_MSE_CAP_* - Bitmask flags for Mean Square Error (MSE) capabilities
+ *
+ * These flags describe which MSE metrics and selectors are implemented
+ * by the PHY for the current link mode. They are used in
+ * struct phy_mse_capability.supported_caps.
+ *
+ * Standardization:
+ *   The OPEN Alliance (OA) defines the presence of MSE/SQI/pMSE but not their
+ *   numeric scaling, update intervals, or aggregation windows.  See:
+ *     OA 100BASE-T1 TC1 v1.0, sections 6.1.1-6.1.3
+ *     OA 1000BASE-T1 TC12 v2.2, sections 6.1.1-6.1.2
+ *
+ * Description of flags:
+ *
+ *   PHY_MSE_CAP_CHANNEL_A
+ *     Per-pair diagnostics for Channel A are supported.  Mapping to the
+ *     physical wire pair may depend on MDI/MDI-X polarity.
+ *
+ *   PHY_MSE_CAP_CHANNEL_B, _C, _D
+ *     Same as above for channels B-D.
+ *
+ *   PHY_MSE_CAP_WORST_CHANNEL
+ *     The PHY or driver can identify and report the single worst-performing
+ *     channel without querying each one individually.
+ *
+ *   PHY_MSE_CAP_LINK
+ *     The PHY provides only a link-wide aggregate measurement or cannot map
+ *     results to a specific pair (for example 100BASE-TX with unknown
+ *     MDI/MDI-X).
+ *
+ *   PHY_MSE_CAP_AVG
+ *     Average MSE (mean DCQ metric) is supported.  For 100/1000BASE-T1 the OA
+ *     recommends 2^16 symbols, scaled 0..511, but the exact scaling is
+ *     vendor-specific.
+ *
+ *   PHY_MSE_CAP_PEAK
+ *     Peak MSE (current peak within the measurement window) is supported.
+ *     Defined as pMSE for 100BASE-T1; vendor-specific for others.
+ *
+ *   PHY_MSE_CAP_WORST_PEAK
+ *     Latched worst-case peak MSE since the last read (read-to-clear if
+ *     implemented).  Optional in OA 100BASE-T1 TC1 6.1.3.
+ */
+#define PHY_MSE_CAP_CHANNEL_A BIT(0)
+#define PHY_MSE_CAP_CHANNEL_B BIT(1)
+#define PHY_MSE_CAP_CHANNEL_C BIT(2)
+#define PHY_MSE_CAP_CHANNEL_D BIT(3)
+#define PHY_MSE_CAP_WORST_CHANNEL BIT(4)
+#define PHY_MSE_CAP_LINK BIT(5)
+#define PHY_MSE_CAP_AVG BIT(6)
+#define PHY_MSE_CAP_PEAK BIT(7)
+#define PHY_MSE_CAP_WORST_PEAK BIT(8)
+
+/*
+ * enum phy_mse_channel - Identifiers for selecting MSE measurement channels
+ *
+ * PHY_MSE_CHANNEL_A - PHY_MSE_CHANNEL_D
+ *   Select per-pair measurement for the corresponding channel.
+ *
+ * PHY_MSE_CHANNEL_WORST
+ *   Select the single worst-performing channel reported by hardware.
+ *
+ * PHY_MSE_CHANNEL_LINK
+ *   Select link-wide aggregate data (used when per-pair results are
+ *   unavailable).
+ */
+enum phy_mse_channel {
+	PHY_MSE_CHANNEL_A,
+	PHY_MSE_CHANNEL_B,
+	PHY_MSE_CHANNEL_C,
+	PHY_MSE_CHANNEL_D,
+	PHY_MSE_CHANNEL_WORST,
+	PHY_MSE_CHANNEL_LINK,
+};
+
+/**
+ * struct phy_mse_capability - Capabilities of Mean Square Error (MSE)
+ *                             measurement interface
+ *
+ * Standardization notes:
+ *
+ * - Presence of MSE/SQI/pMSE is defined by OPEN Alliance specs, but numeric
+ *   scaling, refresh/update rate and aggregation windows are not fixed and
+ *   are vendor-/product-specific. (OA 100BASE-T1 TC1 v1.0 6.1.*;
+ *   OA 1000BASE-T1 TC12 v2.2 6.1.*)
+ *
+ * - Typical recommendations: 2^16 symbols and 0..511 scaling for MSE; pMSE only
+ *   defined for 100BASE-T1 (sliding window example), others are vendor
+ *   extensions. Drivers must report actual scale/limits here.
+ *
+ * Describes the MSE measurement capabilities for the current link mode. These
+ * properties are dynamic and may change when link settings are modified.
+ * Callers should re-query this capability after any link state change to
+ * ensure they have the most up-to-date information.
+ *
+ * Callers should only request measurements for channels and types that are
+ * indicated as supported by the @supported_caps bitmask. If @supported_caps
+ * is 0, the device provides no MSE diagnostics, and driver operations should
+ * typically return -EOPNOTSUPP.
+ *
+ * Snapshot values for average and peak MSE can be normalized to a 0..1 ratio
+ * by dividing the raw snapshot by the corresponding @max_average_mse or
+ * @max_peak_mse value.
+ *
+ * @max_average_mse: The maximum value for an average MSE snapshot. This
+ *   defines the scale for the measurement. If the PHY_MSE_CAP_AVG capability is
+ *   supported, this value MUST be greater than 0. (vendor-specific units).
+ * @max_peak_mse: The maximum value for a peak MSE snapshot. If either
+ *   PHY_MSE_CAP_PEAK or PHY_MSE_CAP_WORST_PEAK is supported, this value MUST
+ *   be greater than 0. (vendor-specific units).
+ * @refresh_rate_ps: The typical interval, in picoseconds, between hardware
+ *   updates of the MSE values. This is an estimate, and callers should not
+ *   assume synchronous sampling. (vendor-specific units).
+ * @num_symbols: The number of symbols aggregated per hardware sample to
+ *   calculate the MSE. (vendor-specific units).
+ * @supported_caps: A bitmask of PHY_MSE_CAP_* values indicating which
+ *   measurement types (e.g., average, peak) and channels
+ *   (e.g., per-pair or link-wide) are supported.
+ */
+struct phy_mse_capability {
+	u64 max_average_mse;
+	u64 max_peak_mse;
+	u64 refresh_rate_ps;
+	u64 num_symbols;
+	u32 supported_caps;
+};
+
+/**
+ * struct phy_mse_snapshot - A snapshot of Mean Square Error (MSE) diagnostics
+ *
+ * Holds a set of MSE diagnostic values that were all captured from a single
+ * measurement window.
+ *
+ * Values are raw, device-scaled and not normalized. Use struct
+ * phy_mse_capability to interpret the scale and sampling window.
+ *
+ * @average_mse: The average MSE value over the measurement window.
+ *   OPEN Alliance references MSE as a DCQ metric; recommends 2^16 symbols and
+ *   0..511 scaling. Exact scale and refresh are vendor-specific.
+ *   (100BASE-T1 TC1 v1.0 6.1.1; 1000BASE-T1 TC12 v2.2 6.1.1).
+ *
+ * @peak_mse: The peak MSE value observed within the measurement window.
+ *   For 100BASE-T1, "pMSE" is optional and may be implemented via a sliding
+ *   128-symbol window with periodic capture; not standardized for 1000BASE-T1.
+ *   (100BASE-T1 TC1 v1.0 6.1.3, Table "DCQ.peakMSE").
+ *
+ * @worst_peak_mse: A latched high-water mark of the peak MSE since last read
+ *   (read-to-clear if implemented). OPEN Alliance shows a latched "worst case
+ *   peak MSE" for 100BASE-T1 pMSE; availability/semantics outside that are
+ *   vendor-specific. (100BASE-T1 TC1 v1.0 6.1.3, DCQ.peakMSE high byte;
+ *   1000BASE-T1 TC12 v2.2 treats DCQ details as vendor-specific.)
+ */
+struct phy_mse_snapshot {
+	u64 average_mse;
+	u64 peak_mse;
+	u64 worst_peak_mse;
+};
 
 /**
  * struct phy_driver - Driver structure for a particular PHY type
@@ -1184,6 +1370,53 @@ struct phy_driver {
 	/** @get_sqi_max: Get the maximum signal quality indication */
 	int (*get_sqi_max)(struct phy_device *dev);
 
+	/**
+	 * @get_mse_capability: Get capabilities and scale of MSE measurement
+	 * @dev:    PHY device
+	 * @cap: Output (filled on success)
+	 *
+	 * Fill @cap with the PHY's MSE capability for the current
+	 * link mode: scale limits (max_average_mse, max_peak_mse), update
+	 * interval (refresh_rate_ps), sample length (num_symbols) and the
+	 * capability bitmask (supported_caps).
+	 *
+	 * Implementations may defer capability report until hardware has
+	 * converged; in that case they should return -EAGAIN and allow the
+	 * caller to retry later.
+	 *
+	 * Return: 0 on success. On failure, returns a negative errno code, such
+	 * as -EOPNOTSUPP if MSE measurement is not supported by the PHY or in
+	 * the current link mode, or -EAGAIN if the capability information is
+	 * not yet available.
+	 */
+	int (*get_mse_capability)(struct phy_device *dev,
+				  struct phy_mse_capability *cap);
+
+	/**
+	 * @get_mse_snapshot: Retrieve a snapshot of MSE diagnostic values
+	 * @dev:      PHY device
+	 * @channel:  Channel identifier (PHY_MSE_CHANNEL_*)
+	 * @snapshot: Output (filled on success)
+	 *
+	 * Fill @snapshot with a correlated set of MSE values from the most
+	 * recent measurement window.
+	 *
+	 * Callers must validate @channel against supported_caps returned by
+	 * get_mse_capability(). Drivers must not coerce @channel; if the
+	 * requested selector is not implemented by the device or current link
+	 * mode, the operation must fail.
+	 *
+	 * worst_peak_mse is latched and must be treated as read-to-clear.
+	 *
+	 * Return: 0 on success. On failure, returns a negative errno code, such
+	 * as -EOPNOTSUPP if MSE measurement is not supported by the PHY or in
+	 * the current link mode, or -EAGAIN if measurements are not yet
+	 * available.
+	 */
+	int (*get_mse_snapshot)(struct phy_device *dev,
+				enum phy_mse_channel channel,
+				struct phy_mse_snapshot *snapshot);
+
 	/* PLCA RS interface */
 	/** @get_plca_cfg: Return the current PLCA configuration */
 	int (*get_plca_cfg)(struct phy_device *dev,
@@ -1378,6 +1611,27 @@ static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode
 	linkmode_set_bit(link_mode, phydev->eee_disabled_modes);
 	linkmode_clear_bit(link_mode, phydev->advertising_eee);
 }
+
+/**
+ * phy_can_wakeup() - indicate whether PHY has driver model wakeup capabilities
+ * @phydev: The phy_device struct
+ *
+ * Returns: true/false depending on the PHY driver's device_set_wakeup_capable()
+ * setting.
+ */
+static inline bool phy_can_wakeup(struct phy_device *phydev)
+{
+	return device_can_wakeup(&phydev->mdio.dev);
+}
+
+/**
+ * phy_may_wakeup() - indicate whether PHY has wakeup enabled
+ * @phydev: The phy_device struct
+ *
+ * Returns: true/false depending on the PHY driver's device_set_wakeup_enabled()
+ * setting if using the driver model, otherwise the legacy determination.
+ */
+bool phy_may_wakeup(struct phy_device *phydev);
 
 void phy_resolve_aneg_pause(struct phy_device *phydev);
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
@@ -1688,7 +1942,7 @@ static inline bool phy_polling_mode(struct phy_device *phydev)
  */
 static inline bool phy_has_hwtstamp(struct phy_device *phydev)
 {
-	return phydev && phydev->mii_ts && phydev->mii_ts->hwtstamp;
+	return phydev && phydev->mii_ts && phydev->mii_ts->hwtstamp_set;
 }
 
 /**
@@ -1723,7 +1977,7 @@ static inline int phy_hwtstamp(struct phy_device *phydev,
 			       struct kernel_hwtstamp_config *cfg,
 			       struct netlink_ext_ack *extack)
 {
-	return phydev->mii_ts->hwtstamp(phydev->mii_ts, cfg, extack);
+	return phydev->mii_ts->hwtstamp_set(phydev->mii_ts, cfg, extack);
 }
 
 static inline bool phy_rxtstamp(struct phy_device *phydev, struct sk_buff *skb,
@@ -1813,6 +2067,9 @@ static inline bool phy_is_pseudo_fixed_link(struct phy_device *phydev)
 	return phydev->is_pseudo_fixed_link;
 }
 
+phy_interface_t phy_fix_phy_mode_for_mac_delays(phy_interface_t interface,
+						bool mac_txid, bool mac_rxid);
+
 int phy_save_page(struct phy_device *phydev);
 int phy_select_page(struct phy_device *phydev, int page);
 int phy_restore_page(struct phy_device *phydev, int oldpage, int ret);
@@ -1848,7 +2105,7 @@ int phy_sfp_probe(struct phy_device *phydev,
 	          const struct sfp_upstream_ops *ops);
 struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 			      phy_interface_t interface);
-struct phy_device *phy_find_first(struct mii_bus *bus);
+struct phy_device *phy_find_next(struct mii_bus *bus, struct phy_device *pos);
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface);
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
@@ -1874,6 +2131,15 @@ bool phy_check_valid(int speed, int duplex, unsigned long *features);
 
 int phy_restart_aneg(struct phy_device *phydev);
 int phy_reset_after_clk_enable(struct phy_device *phydev);
+
+static inline struct phy_device *phy_find_first(struct mii_bus *bus)
+{
+	return phy_find_next(bus, NULL);
+}
+
+#define mdiobus_for_each_phy(_bus, _phydev)		\
+	for (_phydev = phy_find_first(_bus); _phydev;	\
+	     _phydev = phy_find_next(_bus, _phydev))
 
 #if IS_ENABLED(CONFIG_PHYLIB)
 int phy_start_cable_test(struct phy_device *phydev,
@@ -2015,6 +2281,11 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
+int genphy_c45_oatc14_cable_test_start(struct phy_device *phydev);
+int genphy_c45_oatc14_cable_test_get_status(struct phy_device *phydev,
+					    bool *finished);
+int genphy_c45_oatc14_get_sqi_max(struct phy_device *phydev);
+int genphy_c45_oatc14_get_sqi(struct phy_device *phydev);
 
 /* The gen10g_* functions are the old Clause 45 stub */
 int gen10g_config_aneg(struct phy_device *phydev);

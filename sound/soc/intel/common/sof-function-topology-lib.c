@@ -126,11 +126,15 @@ int sof_sdw_get_tplg_files(struct snd_soc_card *card, const struct snd_soc_acpi_
 		if (!ret) {
 			release_firmware(fw);
 		} else {
-			dev_dbg(card->dev, "Failed to open topology file: %s\n", (*tplg_files)[i]);
+			dev_warn(card->dev,
+				 "Failed to open topology file: %s, you might need to\n",
+				 (*tplg_files)[i]);
+			dev_warn(card->dev,
+				 "download it from https://github.com/thesofproject/sof-bin/\n");
 			return 0;
 		}
 	}
 
 	return tplg_num;
 }
-
+EXPORT_SYMBOL_GPL(sof_sdw_get_tplg_files);

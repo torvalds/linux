@@ -110,7 +110,6 @@ enum sr_retry_flags {
 
 struct io_recvzc {
 	struct file			*file;
-	unsigned			msg_flags;
 	u16				flags;
 	u32				len;
 	struct io_zcrx_ifq		*ifq;
@@ -1253,8 +1252,7 @@ int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->len = READ_ONCE(sqe->len);
 	zc->flags = READ_ONCE(sqe->ioprio);
-	zc->msg_flags = READ_ONCE(sqe->msg_flags);
-	if (zc->msg_flags)
+	if (READ_ONCE(sqe->msg_flags))
 		return -EINVAL;
 	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST | IORING_RECV_MULTISHOT))
 		return -EINVAL;
@@ -1283,8 +1281,7 @@ int io_recvzc(struct io_kiocb *req, unsigned int issue_flags)
 		return -ENOTSOCK;
 
 	len = zc->len;
-	ret = io_zcrx_recv(req, zc->ifq, sock, zc->msg_flags | MSG_DONTWAIT,
-			   issue_flags, &zc->len);
+	ret = io_zcrx_recv(req, zc->ifq, sock, 0, issue_flags, &zc->len);
 	if (len && zc->len == 0) {
 		io_req_set_res(req, 0, 0);
 
@@ -1532,8 +1529,10 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
 		int ret;
 
-		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter, req,
-					&kmsg->vec, uvec_segs, issue_flags);
+		sr->notif->buf_index = req->buf_index;
+		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter,
+					sr->notif, &kmsg->vec, uvec_segs,
+					issue_flags);
 		if (unlikely(ret))
 			return ret;
 		req->flags &= ~REQ_F_IMPORT_BUFFER;

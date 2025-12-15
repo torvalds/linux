@@ -405,12 +405,14 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 		return 0;
 
 	case SIOCSHWTSTAMP:
-		if (phydev->mii_ts && phydev->mii_ts->hwtstamp) {
+		if (phydev->mii_ts && phydev->mii_ts->hwtstamp_set) {
 			if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 				return -EFAULT;
 
 			hwtstamp_config_to_kernel(&kernel_cfg, &cfg);
-			ret = phydev->mii_ts->hwtstamp(phydev->mii_ts, &kernel_cfg, &extack);
+			ret = phydev->mii_ts->hwtstamp_set(phydev->mii_ts,
+							   &kernel_cfg,
+							   &extack);
 			if (ret)
 				return ret;
 
@@ -476,6 +478,9 @@ int __phy_hwtstamp_get(struct phy_device *phydev,
 	if (!phydev)
 		return -ENODEV;
 
+	if (phydev->mii_ts && phydev->mii_ts->hwtstamp_get)
+		return phydev->mii_ts->hwtstamp_get(phydev->mii_ts, config);
+
 	return -EOPNOTSUPP;
 }
 
@@ -493,8 +498,9 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
 	if (!phydev)
 		return -ENODEV;
 
-	if (phydev->mii_ts && phydev->mii_ts->hwtstamp)
-		return phydev->mii_ts->hwtstamp(phydev->mii_ts, config, extack);
+	if (phydev->mii_ts && phydev->mii_ts->hwtstamp_set)
+		return phydev->mii_ts->hwtstamp_set(phydev->mii_ts, config,
+						    extack);
 
 	return -EOPNOTSUPP;
 }

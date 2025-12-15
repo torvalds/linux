@@ -621,7 +621,7 @@ bool mi_resize_attr(struct mft_inode *mi, struct ATTRIB *attr, int bytes)
  * If failed record is not changed.
  */
 int mi_pack_runs(struct mft_inode *mi, struct ATTRIB *attr,
-		 struct runs_tree *run, CLST len)
+		 const struct runs_tree *run, CLST len)
 {
 	int err = 0;
 	struct ntfs_sb_info *sbi = mi->sbi;

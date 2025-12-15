@@ -131,7 +131,7 @@ static inline struct svcxprt_rdma *svc_rdma_rqst_rdma(struct svc_rqst *rqstp)
  */
 enum {
 	RPCRDMA_LISTEN_BACKLOG	= 10,
-	RPCRDMA_MAX_REQUESTS	= 64,
+	RPCRDMA_MAX_REQUESTS	= 128,
 	RPCRDMA_MAX_BC_REQUESTS	= 2,
 };
 

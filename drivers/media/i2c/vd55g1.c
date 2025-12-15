@@ -29,9 +29,11 @@
 
 /* Register Map */
 #define VD55G1_REG_MODEL_ID				CCI_REG32_LE(0x0000)
-#define VD55G1_MODEL_ID					0x53354731
+#define VD55G1_MODEL_ID_VD55G1				0x53354731 /* Mono */
+#define VD55G1_MODEL_ID_VD65G4				0x53354733 /* RGB */
 #define VD55G1_REG_REVISION				CCI_REG16_LE(0x0004)
 #define VD55G1_REVISION_CCB				0x2020
+#define VD55G1_REVISION_BAYER				0x3030
 #define VD55G1_REG_FWPATCH_REVISION			CCI_REG16_LE(0x0012)
 #define VD55G1_REG_FWPATCH_START_ADDR			CCI_REG8(0x2000)
 #define VD55G1_REG_SYSTEM_FSM				CCI_REG8(0x001c)
@@ -39,7 +41,8 @@
 #define VD55G1_SYSTEM_FSM_SW_STBY			0x02
 #define VD55G1_SYSTEM_FSM_STREAMING			0x03
 #define VD55G1_REG_BOOT					CCI_REG8(0x0200)
-#define VD55G1_BOOT_PATCH_SETUP				2
+#define VD55G1_BOOT_BOOT				1
+#define VD55G1_BOOT_PATCH_AND_BOOT			2
 #define VD55G1_REG_STBY					CCI_REG8(0x0201)
 #define VD55G1_STBY_START_STREAM			1
 #define VD55G1_REG_STREAMING				CCI_REG8(0x0202)
@@ -132,7 +135,10 @@
 #define VD55G1_MIPI_RATE_MIN				(250 * MEGA)
 #define VD55G1_MIPI_RATE_MAX				(1200 * MEGA)
 
-static const u8 patch_array[] = {
+#define VD55G1_MODEL_ID_NAME(id) \
+	((id) == VD55G1_MODEL_ID_VD55G1 ? "vd55g1" : "vd65g4")
+
+static const u8 vd55g1_patch_array[] = {
 	0x44, 0x03, 0x09, 0x02, 0xe6, 0x01, 0x42, 0x00, 0xea, 0x01, 0x42, 0x00,
 	0xf0, 0x01, 0x42, 0x00, 0xe6, 0x01, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -466,22 +472,24 @@ struct vd55g1_mode {
 	u32 height;
 };
 
-struct vd55g1_fmt_desc {
-	u32 code;
-	u8 bpp;
-	u8 data_type;
+static const u32 vd55g1_mbus_formats_mono[] = {
+	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_Y10_1X10,
 };
 
-static const struct vd55g1_fmt_desc vd55g1_mbus_codes[] = {
+/* Format order is : no flip, hflip, vflip, both */
+static const u32 vd55g1_mbus_formats_bayer[][4] = {
 	{
-		.code = MEDIA_BUS_FMT_Y8_1X8,
-		.bpp = 8,
-		.data_type = MIPI_CSI2_DT_RAW8,
+		MEDIA_BUS_FMT_SRGGB8_1X8,
+		MEDIA_BUS_FMT_SGRBG8_1X8,
+		MEDIA_BUS_FMT_SGBRG8_1X8,
+		MEDIA_BUS_FMT_SBGGR8_1X8,
 	},
 	{
-		.code = MEDIA_BUS_FMT_Y10_1X10,
-		.bpp = 10,
-		.data_type = MIPI_CSI2_DT_RAW10,
+		MEDIA_BUS_FMT_SRGGB10_1X10,
+		MEDIA_BUS_FMT_SGRBG10_1X10,
+		MEDIA_BUS_FMT_SGBRG10_1X10,
+		MEDIA_BUS_FMT_SBGGR10_1X10,
 	},
 };
 
@@ -524,6 +532,7 @@ struct vd55g1_vblank_limits {
 
 struct vd55g1 {
 	struct device *dev;
+	unsigned int id;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(vd55g1_supply_name)];
@@ -572,27 +581,78 @@ static inline struct vd55g1 *ctrl_to_vd55g1(struct v4l2_ctrl *ctrl)
 	return to_vd55g1(sd);
 }
 
-static const struct vd55g1_fmt_desc *vd55g1_get_fmt_desc(struct vd55g1 *sensor,
-							 u32 code)
+static unsigned int vd55g1_get_fmt_bpp(u32 code)
 {
-	unsigned int i;
+	switch (code) {
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	default:
+		return 8;
 
-	for (i = 0; i < ARRAY_SIZE(vd55g1_mbus_codes); i++) {
-		if (vd55g1_mbus_codes[i].code == code)
-			return &vd55g1_mbus_codes[i];
+	case MEDIA_BUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		return 10;
+	}
+}
+
+static unsigned int vd55g1_get_fmt_data_type(u32 code)
+{
+	switch (code) {
+	case MEDIA_BUS_FMT_Y8_1X8:
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+	default:
+		return MIPI_CSI2_DT_RAW8;
+
+	case MEDIA_BUS_FMT_Y10_1X10:
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		return MIPI_CSI2_DT_RAW10;
+	}
+}
+
+static u32 vd55g1_get_fmt_code(struct vd55g1 *sensor, u32 code)
+{
+	unsigned int i, j;
+
+	if (sensor->id == VD55G1_MODEL_ID_VD55G1)
+		return code;
+
+	for (i = 0; i < ARRAY_SIZE(vd55g1_mbus_formats_bayer); i++) {
+		for (j = 0; j < ARRAY_SIZE(vd55g1_mbus_formats_bayer[i]); j++) {
+			if (vd55g1_mbus_formats_bayer[i][j] == code)
+				goto adapt_bayer_pattern;
+		}
+	}
+	dev_warn(sensor->dev, "Unsupported mbus format\n");
+
+	return code;
+
+adapt_bayer_pattern:
+	j = 0;
+	/* In first init_state() call, controls might not be initialized yet */
+	if (sensor->hflip_ctrl && sensor->vflip_ctrl) {
+		j = (sensor->hflip_ctrl->val ? 1 : 0) +
+			(sensor->vflip_ctrl->val ? 2 : 0);
 	}
 
-	/* Should never happen */
-	dev_warn(sensor->dev, "Unsupported code %d. default to 8 bpp\n", code);
-
-	return &vd55g1_mbus_codes[0];
+	return vd55g1_mbus_formats_bayer[i][j];
 }
 
 static s32 vd55g1_get_pixel_rate(struct vd55g1 *sensor,
 				 struct v4l2_mbus_framefmt *format)
 {
-	return sensor->mipi_rate /
-			vd55g1_get_fmt_desc(sensor, format->code)->bpp;
+	return sensor->mipi_rate / vd55g1_get_fmt_bpp(format->code);
 }
 
 static unsigned int vd55g1_get_hblank_min(struct vd55g1 *sensor,
@@ -605,7 +665,7 @@ static unsigned int vd55g1_get_hblank_min(struct vd55g1 *sensor,
 
 	/* MIPI required time */
 	mipi_req_line_time = (crop->width *
-			      vd55g1_get_fmt_desc(sensor, format->code)->bpp +
+			      vd55g1_get_fmt_bpp(format->code) +
 			      VD55G1_MIPI_MARGIN) /
 			      (sensor->mipi_rate / MEGA);
 	mipi_req_line_length = mipi_req_line_time * sensor->pixel_clock /
@@ -887,7 +947,7 @@ static void vd55g1_update_pad_fmt(struct vd55g1 *sensor,
 				  const struct vd55g1_mode *mode, u32 code,
 				  struct v4l2_mbus_framefmt *fmt)
 {
-	fmt->code = code;
+	fmt->code = vd55g1_get_fmt_code(sensor, code);
 	fmt->width = mode->width;
 	fmt->height = mode->height;
 	fmt->colorspace = V4L2_COLORSPACE_RAW;
@@ -951,10 +1011,9 @@ static int vd55g1_set_framefmt(struct vd55g1 *sensor,
 	int ret = 0;
 
 	vd55g1_write(sensor, VD55G1_REG_FORMAT_CTRL,
-		     vd55g1_get_fmt_desc(sensor, format->code)->bpp, &ret);
+		     vd55g1_get_fmt_bpp(format->code), &ret);
 	vd55g1_write(sensor, VD55G1_REG_OIF_IMG_CTRL,
-		     vd55g1_get_fmt_desc(sensor, format->code)->data_type,
-		     &ret);
+		     vd55g1_get_fmt_data_type(format->code), &ret);
 
 	switch (crop->width / format->width) {
 	case 1:
@@ -1114,26 +1173,45 @@ static int vd55g1_patch(struct vd55g1 *sensor)
 	u64 patch;
 	int ret = 0;
 
-	vd55g1_write_array(sensor, VD55G1_REG_FWPATCH_START_ADDR,
-			   sizeof(patch_array), patch_array, &ret);
-	vd55g1_write(sensor, VD55G1_REG_BOOT, VD55G1_BOOT_PATCH_SETUP, &ret);
-	vd55g1_poll_reg(sensor, VD55G1_REG_BOOT, 0, &ret);
-	if (ret) {
-		dev_err(sensor->dev, "Failed to apply patch\n");
-		return ret;
+	/* vd55g1 needs a patch while vd65g4 does not */
+	if (sensor->id == VD55G1_MODEL_ID_VD55G1) {
+		vd55g1_write_array(sensor, VD55G1_REG_FWPATCH_START_ADDR,
+				   sizeof(vd55g1_patch_array),
+				   vd55g1_patch_array, &ret);
+		vd55g1_write(sensor, VD55G1_REG_BOOT,
+			     VD55G1_BOOT_PATCH_AND_BOOT, &ret);
+		vd55g1_poll_reg(sensor, VD55G1_REG_BOOT, 0, &ret);
+		if (ret) {
+			dev_err(sensor->dev, "Failed to apply patch\n");
+			return ret;
+		}
+
+		vd55g1_read(sensor, VD55G1_REG_FWPATCH_REVISION, &patch, &ret);
+		if (patch != (VD55G1_FWPATCH_REVISION_MAJOR << 8) +
+		    VD55G1_FWPATCH_REVISION_MINOR) {
+			dev_err(sensor->dev, "Bad patch version expected %d.%d got %d.%d\n",
+				VD55G1_FWPATCH_REVISION_MAJOR,
+				VD55G1_FWPATCH_REVISION_MINOR,
+				(u8)(patch >> 8), (u8)(patch & 0xff));
+			return -ENODEV;
+		}
+		dev_dbg(sensor->dev, "patch %d.%d applied\n",
+			(u8)(patch >> 8), (u8)(patch & 0xff));
+
+	} else {
+		vd55g1_write(sensor, VD55G1_REG_BOOT, VD55G1_BOOT_BOOT, &ret);
+		vd55g1_poll_reg(sensor, VD55G1_REG_BOOT, 0, &ret);
+		if (ret) {
+			dev_err(sensor->dev, "Failed to boot\n");
+			return ret;
+		}
 	}
 
-	vd55g1_read(sensor, VD55G1_REG_FWPATCH_REVISION, &patch, &ret);
-	if (patch != (VD55G1_FWPATCH_REVISION_MAJOR << 8) +
-	    VD55G1_FWPATCH_REVISION_MINOR) {
-		dev_err(sensor->dev, "Bad patch version expected %d.%d got %d.%d\n",
-			VD55G1_FWPATCH_REVISION_MAJOR,
-			VD55G1_FWPATCH_REVISION_MINOR,
-			(u8)(patch >> 8), (u8)(patch & 0xff));
-		return -ENODEV;
+	ret = vd55g1_wait_state(sensor, VD55G1_SYSTEM_FSM_SW_STBY, NULL);
+	if (ret) {
+		dev_err(sensor->dev, "Sensor waiting after boot failed\n");
+		return ret;
 	}
-	dev_dbg(sensor->dev, "patch %d.%d applied\n",
-		(u8)(patch >> 8), (u8)(patch & 0xff));
 
 	return 0;
 }
@@ -1165,10 +1243,19 @@ static int vd55g1_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index >= ARRAY_SIZE(vd55g1_mbus_codes))
-		return -EINVAL;
+	struct vd55g1 *sensor = to_vd55g1(sd);
+	u32 base_code;
 
-	code->code = vd55g1_mbus_codes[code->index].code;
+	if (sensor->id == VD55G1_MODEL_ID_VD55G1) {
+		if (code->index >= ARRAY_SIZE(vd55g1_mbus_formats_mono))
+			return -EINVAL;
+		base_code = vd55g1_mbus_formats_mono[code->index];
+	} else {
+		if (code->index >= ARRAY_SIZE(vd55g1_mbus_formats_bayer))
+			return -EINVAL;
+		base_code = vd55g1_mbus_formats_bayer[code->index][0];
+	}
+	code->code = vd55g1_get_fmt_code(sensor, base_code);
 
 	return 0;
 }
@@ -1275,7 +1362,7 @@ static int vd55g1_init_state(struct v4l2_subdev *sd,
 		return ret;
 
 	vd55g1_update_pad_fmt(sensor, &vd55g1_supported_modes[VD55G1_MODE_DEF],
-			      vd55g1_mbus_codes[VD55G1_MBUS_CODE_DEF].code,
+			      vd55g1_get_fmt_code(sensor, VD55G1_MBUS_CODE_DEF),
 			      &fmt.format);
 
 	return vd55g1_set_pad_fmt(sd, sd_state, &fmt);
@@ -1285,7 +1372,14 @@ static int vd55g1_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct vd55g1 *sensor = to_vd55g1(sd);
+	u32 code;
+
 	if (fse->index >= ARRAY_SIZE(vd55g1_supported_modes))
+		return -EINVAL;
+
+	code = vd55g1_get_fmt_code(sensor, fse->code);
+	if (fse->code != code)
 		return -EINVAL;
 
 	fse->min_width = vd55g1_supported_modes[fse->index].width;
@@ -1463,8 +1557,12 @@ static int vd55g1_init_ctrls(struct vd55g1 *sensor)
 	/* Flip cluster */
 	sensor->hflip_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP,
 					       0, 1, 1, 0);
+	if (sensor->hflip_ctrl)
+		sensor->hflip_ctrl->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	sensor->vflip_ctrl = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP,
 					       0, 1, 1, 0);
+	if (sensor->vflip_ctrl)
+		sensor->vflip_ctrl->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	v4l2_ctrl_cluster(2, &sensor->hflip_ctrl);
 
 	/* Exposition cluster */
@@ -1548,26 +1646,34 @@ unlock_state:
 
 static int vd55g1_detect(struct vd55g1 *sensor)
 {
-	u64 device_rev;
-	u64 id;
+	unsigned int dt_id = (uintptr_t)device_get_match_data(sensor->dev);
+	u64 rev, id;
 	int ret;
 
 	ret = vd55g1_read(sensor, VD55G1_REG_MODEL_ID, &id, NULL);
 	if (ret)
 		return ret;
 
-	if (id != VD55G1_MODEL_ID) {
-		dev_warn(sensor->dev, "Unsupported sensor id %x\n", (u32)id);
+	if (id != VD55G1_MODEL_ID_VD55G1 && id != VD55G1_MODEL_ID_VD65G4) {
+		dev_warn(sensor->dev, "Unsupported sensor id 0x%x\n",
+			 (u32)id);
 		return -ENODEV;
 	}
+	if (id != dt_id) {
+		dev_err(sensor->dev, "Probed sensor %s and device tree definition (%s) mismatch",
+			VD55G1_MODEL_ID_NAME(id), VD55G1_MODEL_ID_NAME(dt_id));
+		return -ENODEV;
+	}
+	sensor->id = id;
 
-	ret = vd55g1_read(sensor, VD55G1_REG_REVISION, &device_rev, NULL);
+	ret = vd55g1_read(sensor, VD55G1_REG_REVISION, &rev, NULL);
 	if (ret)
 		return ret;
 
-	if (device_rev != VD55G1_REVISION_CCB) {
-		dev_err(sensor->dev, "Unsupported sensor revision (0x%x)\n",
-			(u16)device_rev);
+	if ((id == VD55G1_MODEL_ID_VD55G1 && rev != VD55G1_REVISION_CCB) &&
+	    (id == VD55G1_MODEL_ID_VD65G4 && rev != VD55G1_REVISION_BAYER)) {
+		dev_err(sensor->dev, "Unsupported sensor revision 0x%x for sensor %s\n",
+			(u16)rev, VD55G1_MODEL_ID_NAME(id));
 		return -ENODEV;
 	}
 
@@ -1613,13 +1719,6 @@ static int vd55g1_power_on(struct device *dev)
 	ret = vd55g1_patch(sensor);
 	if (ret) {
 		dev_err(dev, "Sensor patch failed %d\n", ret);
-		goto disable_clock;
-	}
-
-	ret = vd55g1_wait_state(sensor, VD55G1_SYSTEM_FSM_SW_STBY, NULL);
-	if (ret) {
-		dev_err(dev, "Sensor waiting after patch failed %d\n",
-			ret);
 		goto disable_clock;
 	}
 
@@ -1934,7 +2033,8 @@ static void vd55g1_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id vd55g1_dt_ids[] = {
-	{ .compatible = "st,vd55g1" },
+	{ .compatible = "st,vd55g1", .data = (void *)VD55G1_MODEL_ID_VD55G1 },
+	{ .compatible = "st,vd65g4", .data = (void *)VD55G1_MODEL_ID_VD65G4 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, vd55g1_dt_ids);

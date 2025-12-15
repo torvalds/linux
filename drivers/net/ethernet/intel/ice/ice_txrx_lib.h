@@ -135,13 +135,4 @@ ice_process_skb_fields(struct ice_rx_ring *rx_ring,
 void
 ice_receive_skb(struct ice_rx_ring *rx_ring, struct sk_buff *skb, u16 vlan_tci);
 
-static inline void
-ice_xdp_meta_set_desc(struct xdp_buff *xdp,
-		      union ice_32b_rx_flex_desc *eop_desc)
-{
-	struct ice_xdp_buff *xdp_ext = container_of(xdp, struct ice_xdp_buff,
-						    xdp_buff);
-
-	xdp_ext->eop_desc = eop_desc;
-}
 #endif /* !_ICE_TXRX_LIB_H_ */

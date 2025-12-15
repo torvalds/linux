@@ -58,10 +58,12 @@ _json_event_attributes = [
 _json_metric_attributes = [
     'metric_name', 'metric_group', 'metric_expr', 'metric_threshold',
     'desc', 'long_desc', 'unit', 'compat', 'metricgroup_no_group',
-    'default_metricgroup_name', 'aggr_mode', 'event_grouping'
+    'default_metricgroup_name', 'aggr_mode', 'event_grouping',
+    'default_show_events'
 ]
 # Attributes that are bools or enum int values, encoded as '0', '1',...
-_json_enum_attributes = ['aggr_mode', 'deprecated', 'event_grouping', 'perpkg']
+_json_enum_attributes = ['aggr_mode', 'deprecated', 'event_grouping', 'perpkg',
+                         'default_show_events']
 
 def removesuffix(s: str, suffix: str) -> str:
   """Remove the suffix from a string
@@ -325,6 +327,8 @@ class JsonEvent:
       eventcode |= int(jd['ExtSel']) << 8
     configcode = int(jd['ConfigCode'], 0) if 'ConfigCode' in jd else None
     eventidcode = int(jd['EventidCode'], 0) if 'EventidCode' in jd else None
+    legacy_hw_config = int(jd['LegacyConfigCode'], 0) if 'LegacyConfigCode' in jd else None
+    legacy_cache_config = int(jd['LegacyCacheCode'], 0) if 'LegacyCacheCode' in jd else None
     self.name = jd['EventName'].lower() if 'EventName' in jd else None
     self.topic = ''
     self.compat = jd.get('Compat')
@@ -354,6 +358,7 @@ class JsonEvent:
     self.metricgroup_no_group = jd.get('MetricgroupNoGroup')
     self.default_metricgroup_name = jd.get('DefaultMetricgroupName')
     self.event_grouping = convert_metric_constraint(jd.get('MetricConstraint'))
+    self.default_show_events = jd.get('DefaultShowEvents')
     self.metric_expr = None
     if 'MetricExpr' in jd:
       self.metric_expr = metric.ParsePerfJson(jd['MetricExpr']).Simplify()
@@ -370,6 +375,10 @@ class JsonEvent:
       event = f'config={llx(configcode)}'
     elif eventidcode is not None:
       event = f'eventid={llx(eventidcode)}'
+    elif legacy_hw_config is not None:
+      event = f'legacy-hardware-config={llx(legacy_hw_config)}'
+    elif legacy_cache_config is not None:
+      event = f'legacy-cache-config={llx(legacy_cache_config)}'
     else:
       event = f'event={llx(eventcode)}'
     event_fields = [
@@ -492,7 +501,8 @@ def add_events_table_entries(item: os.DirEntry, topic: str) -> None:
   for e in read_json_events(item.path, topic):
     if e.name:
       _pending_events.append(e)
-    if e.metric_name:
+    if e.metric_name and not any(e.metric_name == x.metric_name and
+                                 e.pmu == x.pmu for x in _pending_metrics):
       _pending_metrics.append(e)
 
 
@@ -544,7 +554,7 @@ def print_pending_events() -> None:
   _args.output_file.write(f"""
 }};
 
-const struct pmu_table_entry {_pending_events_tblname}[] = {{
+static const struct pmu_table_entry {_pending_events_tblname}[] = {{
 """)
   for (pmu, tbl_pmu) in sorted(pmus):
     pmu_name = f"{pmu}\\000"
@@ -599,7 +609,7 @@ def print_pending_metrics() -> None:
   _args.output_file.write(f"""
 }};
 
-const struct pmu_table_entry {_pending_metrics_tblname}[] = {{
+static const struct pmu_table_entry {_pending_metrics_tblname}[] = {{
 """)
   for (pmu, tbl_pmu) in sorted(pmus):
     pmu_name = f"{pmu}\\000"
@@ -631,7 +641,7 @@ def preprocess_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
   if not item.is_file() or not item.name.endswith('.json'):
     return
 
-  if item.name == 'metricgroups.json':
+  if item.name.endswith('metricgroups.json'):
     metricgroup_descriptions = json.load(open(item.path))
     for mgroup in metricgroup_descriptions:
       assert len(mgroup) > 1, parents
@@ -684,7 +694,7 @@ def process_one_file(parents: Sequence[str], item: os.DirEntry) -> None:
 
   # Ignore other directories. If the file name does not have a .json
   # extension, ignore it. It could be a readme.txt for instance.
-  if not item.is_file() or not item.name.endswith('.json') or item.name == 'metricgroups.json':
+  if not item.is_file() or not item.name.endswith('.json') or item.name.endswith('metricgroups.json'):
     return
 
   add_events_table_entries(item, get_topic(item.name))
@@ -724,7 +734,7 @@ struct pmu_events_map {
  * Global table mapping each known CPU for the architecture to its
  * table of PMU events.
  */
-const struct pmu_events_map pmu_events_map[] = {
+static const struct pmu_events_map pmu_events_map[] = {
 """)
   for arch in archs:
     if arch == 'test':
@@ -749,7 +759,10 @@ const struct pmu_events_map pmu_events_map[] = {
 \t\t.pmus = pmu_events__common,
 \t\t.num_pmus = ARRAY_SIZE(pmu_events__common),
 \t},
-\t.metric_table = {},
+\t.metric_table = {
+\t\t.pmus = pmu_metrics__common,
+\t\t.num_pmus = ARRAY_SIZE(pmu_metrics__common),
+\t},
 },
 """)
     else:
@@ -951,6 +964,8 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
                                     pmu_event_iter_fn fn,
                                     void *data)
 {
+        if (!table)
+                return 0;
         for (size_t i = 0; i < table->num_pmus; i++) {
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
@@ -972,6 +987,8 @@ int pmu_events_table__find_event(const struct pmu_events_table *table,
                                  pmu_event_iter_fn fn,
                                  void *data)
 {
+        if (!table)
+                return PMU_EVENTS__NOT_FOUND;
         for (size_t i = 0; i < table->num_pmus; i++) {
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
@@ -992,6 +1009,8 @@ size_t pmu_events_table__num_events(const struct pmu_events_table *table,
 {
         size_t count = 0;
 
+        if (!table)
+                return 0;
         for (size_t i = 0; i < table->num_pmus; i++) {
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
@@ -1070,6 +1089,8 @@ int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table,
                                      pmu_metric_iter_fn fn,
                                      void *data)
 {
+        if (!table)
+                return 0;
         for (size_t i = 0; i < table->num_pmus; i++) {
                 int ret = pmu_metrics_table__for_each_metric_pmu(table, &table->pmus[i],
                                                                  fn, data);
@@ -1086,6 +1107,8 @@ int pmu_metrics_table__find_metric(const struct pmu_metrics_table *table,
                                  pmu_metric_iter_fn fn,
                                  void *data)
 {
+        if (!table)
+                return 0;
         for (size_t i = 0; i < table->num_pmus; i++) {
                 const struct pmu_table_entry *table_pmu = &table->pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
@@ -1197,12 +1220,44 @@ const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
         return NULL;
 }
 
+const struct pmu_events_table *perf_pmu__default_core_events_table(void)
+{
+        int i = 0;
+
+        for (;;) {
+                const struct pmu_events_map *map = &pmu_events_map[i++];
+
+                if (!map->arch)
+                        break;
+
+                if (!strcmp(map->cpuid, "common"))
+                        return &map->event_table;
+        }
+        return NULL;
+}
+
 const struct pmu_metrics_table *pmu_metrics_table__find(void)
 {
         struct perf_cpu cpu = {-1};
         const struct pmu_events_map *map = map_for_cpu(cpu);
 
         return map ? &map->metric_table : NULL;
+}
+
+const struct pmu_metrics_table *pmu_metrics_table__default(void)
+{
+        int i = 0;
+
+        for (;;) {
+                const struct pmu_events_map *map = &pmu_events_map[i++];
+
+                if (!map->arch)
+                        break;
+
+                if (!strcmp(map->cpuid, "common"))
+                        return &map->metric_table;
+        }
+        return NULL;
 }
 
 const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)

@@ -158,10 +158,8 @@ struct xlog_ticket {
 };
 
 /*
- * - A log record header is 512 bytes.  There is plenty of room to grow the
- *	xlog_rec_header_t into the reserved space.
- * - ic_data follows, so a write to disk can start at the beginning of
- *	the iclog.
+ * In-core log structure.
+ *
  * - ic_forcewait is used to implement synchronous forcing of the iclog to disk.
  * - ic_next is the pointer to the next iclog in the ring.
  * - ic_log is a pointer back to the global log structure.
@@ -183,7 +181,7 @@ struct xlog_ticket {
  * We'll put all the read-only and l_icloglock fields in the first cacheline,
  * and move everything else out to subsequent cachelines.
  */
-typedef struct xlog_in_core {
+struct xlog_in_core {
 	wait_queue_head_t	ic_force_wait;
 	wait_queue_head_t	ic_write_wait;
 	struct xlog_in_core	*ic_next;
@@ -198,8 +196,7 @@ typedef struct xlog_in_core {
 
 	/* reference counts need their own cacheline */
 	atomic_t		ic_refcnt ____cacheline_aligned_in_smp;
-	xlog_in_core_2_t	*ic_data;
-#define ic_header	ic_data->hic_header
+	struct xlog_rec_header	*ic_header;
 #ifdef DEBUG
 	bool			ic_fail_crc : 1;
 #endif
@@ -207,7 +204,7 @@ typedef struct xlog_in_core {
 	struct work_struct	ic_end_io_work;
 	struct bio		ic_bio;
 	struct bio_vec		ic_bvec[];
-} xlog_in_core_t;
+};
 
 /*
  * The CIL context is used to aggregate per-transaction details as well be
@@ -409,7 +406,6 @@ struct xlog {
 	struct list_head	*l_buf_cancel_table;
 	struct list_head	r_dfops;	/* recovered log intent items */
 	int			l_iclog_hsize;  /* size of iclog header */
-	int			l_iclog_heads;  /* # of iclog header sectors */
 	uint			l_sectBBsize;   /* sector size in BBs (2^n) */
 	int			l_iclog_size;	/* size of log in bytes */
 	int			l_iclog_bufs;	/* number of iclog buffers */
@@ -422,7 +418,7 @@ struct xlog {
 						/* waiting for iclog flush */
 	int			l_covered_state;/* state of "covering disk
 						 * log entries" */
-	xlog_in_core_t		*l_iclog;       /* head log queue	*/
+	struct xlog_in_core	*l_iclog;       /* head log queue	*/
 	spinlock_t		l_icloglock;    /* grab to change iclog state */
 	int			l_curr_cycle;   /* Cycle number of log writes */
 	int			l_prev_cycle;   /* Cycle number before last
@@ -709,6 +705,23 @@ xlog_item_space(
 {
 	nbytes += niovecs * (sizeof(uint64_t) + sizeof(struct xlog_op_header));
 	return round_up(nbytes, sizeof(uint64_t));
+}
+
+/*
+ * Cycles over XLOG_CYCLE_DATA_SIZE overflow into the extended header that was
+ * added for v2 logs.  Addressing for the cycles array there is off by one,
+ * because the first batch of cycles is in the original header.
+ */
+static inline __be32 *xlog_cycle_data(struct xlog_rec_header *rhead, unsigned i)
+{
+	if (i >= XLOG_CYCLE_DATA_SIZE) {
+		unsigned	j = i / XLOG_CYCLE_DATA_SIZE;
+		unsigned	k = i % XLOG_CYCLE_DATA_SIZE;
+
+		return &rhead->h_ext[j - 1].xh_cycle_data[k];
+	}
+
+	return &rhead->h_cycle_data[i];
 }
 
 #endif	/* __XFS_LOG_PRIV_H__ */

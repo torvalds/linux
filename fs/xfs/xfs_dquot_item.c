@@ -132,7 +132,7 @@ xfs_qm_dquot_logitem_push(
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
 
-	if (!xfs_dqlock_nowait(dqp))
+	if (!mutex_trylock(&dqp->q_qlock))
 		return XFS_ITEM_LOCKED;
 
 	/*
@@ -177,7 +177,7 @@ xfs_qm_dquot_logitem_push(
 out_relock_ail:
 	spin_lock(&lip->li_ailp->ail_lock);
 out_unlock:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	return rval;
 }
 
@@ -195,7 +195,7 @@ xfs_qm_dquot_logitem_release(
 	 * transaction layer, within trans_commit. Hence, no LI_HOLD flag
 	 * for the logitem.
 	 */
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 }
 
 STATIC void

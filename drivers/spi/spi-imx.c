@@ -42,6 +42,7 @@ MODULE_PARM_DESC(polling_limit_us,
 		 "time in us to run a transfer in polling mode\n");
 
 #define MXC_RPM_TIMEOUT		2000 /* 2000ms */
+#define MXC_SPI_DEFAULT_SPEED	500000 /* 500KHz */
 
 #define MXC_CSPIRXDATA		0x00
 #define MXC_CSPITXDATA		0x04
@@ -424,8 +425,15 @@ static void spi_imx_buf_tx_swap(struct spi_imx_data *spi_imx)
 
 static void mx53_ecspi_rx_target(struct spi_imx_data *spi_imx)
 {
-	u32 val = ioread32be(spi_imx->base + MXC_CSPIRXDATA);
+	u32 val = readl(spi_imx->base + MXC_CSPIRXDATA);
+#ifdef __LITTLE_ENDIAN
+	unsigned int bytes_per_word = spi_imx_bytes_per_word(spi_imx->bits_per_word);
 
+	if (bytes_per_word == 1)
+		swab32s(&val);
+	else if (bytes_per_word == 2)
+		swahw32s(&val);
+#endif
 	if (spi_imx->rx_buf) {
 		int n_bytes = spi_imx->target_burst % sizeof(val);
 
@@ -446,6 +454,9 @@ static void mx53_ecspi_tx_target(struct spi_imx_data *spi_imx)
 {
 	u32 val = 0;
 	int n_bytes = spi_imx->count % sizeof(val);
+#ifdef __LITTLE_ENDIAN
+	unsigned int bytes_per_word;
+#endif
 
 	if (!n_bytes)
 		n_bytes = sizeof(val);
@@ -458,7 +469,14 @@ static void mx53_ecspi_tx_target(struct spi_imx_data *spi_imx)
 
 	spi_imx->count -= n_bytes;
 
-	iowrite32be(val, spi_imx->base + MXC_CSPITXDATA);
+#ifdef __LITTLE_ENDIAN
+	bytes_per_word = spi_imx_bytes_per_word(spi_imx->bits_per_word);
+	if (bytes_per_word == 1)
+		swab32s(&val);
+	else if (bytes_per_word == 2)
+		swahw32s(&val);
+#endif
+	writel(val, spi_imx->base + MXC_CSPITXDATA);
 }
 
 /* MX51 eCSPI */
@@ -591,7 +609,7 @@ static int mx51_ecspi_prepare_message(struct spi_imx_data *spi_imx,
 	 * is not functional for imx53 Soc, config SPI burst completed when
 	 * BURST_LENGTH + 1 bits are received
 	 */
-	if (spi_imx->target_mode && is_imx53_ecspi(spi_imx))
+	if (spi_imx->target_mode)
 		cfg &= ~MX51_ECSPI_CONFIG_SBBCTRL(channel);
 	else
 		cfg |= MX51_ECSPI_CONFIG_SBBCTRL(channel);
@@ -679,7 +697,7 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 
 	/* Clear BL field and set the right value */
 	ctrl &= ~MX51_ECSPI_CTRL_BL_MASK;
-	if (spi_imx->target_mode && is_imx53_ecspi(spi_imx))
+	if (spi_imx->target_mode)
 		ctrl |= (spi_imx->target_burst * 8 - 1)
 			<< MX51_ECSPI_CTRL_BL_OFFSET;
 	else {
@@ -690,8 +708,11 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 	/* set clock speed */
 	ctrl &= ~(0xf << MX51_ECSPI_CTRL_POSTDIV_OFFSET |
 		  0xf << MX51_ECSPI_CTRL_PREDIV_OFFSET);
-	ctrl |= mx51_ecspi_clkdiv(spi_imx, spi_imx->spi_bus_clk, &clk);
-	spi_imx->spi_bus_clk = clk;
+
+	if (!spi_imx->target_mode) {
+		ctrl |= mx51_ecspi_clkdiv(spi_imx, spi_imx->spi_bus_clk, &clk);
+		spi_imx->spi_bus_clk = clk;
+	}
 
 	mx51_configure_cpha(spi_imx, spi);
 
@@ -1313,15 +1334,18 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	if (!t)
 		return 0;
 
-	if (!t->speed_hz) {
-		if (!spi->max_speed_hz) {
-			dev_err(&spi->dev, "no speed_hz provided!\n");
-			return -EINVAL;
+	if (!spi_imx->target_mode) {
+		if (!t->speed_hz) {
+			if (!spi->max_speed_hz) {
+				dev_err(&spi->dev, "no speed_hz provided!\n");
+				return -EINVAL;
+			}
+			dev_dbg(&spi->dev, "using spi->max_speed_hz!\n");
+			spi_imx->spi_bus_clk = spi->max_speed_hz;
+		} else {
+			spi_imx->spi_bus_clk = t->speed_hz;
 		}
-		dev_dbg(&spi->dev, "using spi->max_speed_hz!\n");
-		spi_imx->spi_bus_clk = spi->max_speed_hz;
-	} else
-		spi_imx->spi_bus_clk = t->speed_hz;
+	}
 
 	spi_imx->bits_per_word = t->bits_per_word;
 	spi_imx->count = t->len;
@@ -1365,7 +1389,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 	spi_imx->rx_only = ((t->tx_buf == NULL)
 			|| (t->tx_buf == spi->controller->dummy_tx));
 
-	if (is_imx53_ecspi(spi_imx) && spi_imx->target_mode) {
+	if (spi_imx->target_mode) {
 		spi_imx->rx = mx53_ecspi_rx_target;
 		spi_imx->tx = mx53_ecspi_tx_target;
 		spi_imx->target_burst = t->len;
@@ -1641,8 +1665,7 @@ static int spi_imx_pio_transfer_target(struct spi_device *spi,
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
 	int ret = 0;
 
-	if (is_imx53_ecspi(spi_imx) &&
-	    transfer->len > MX53_MAX_TRANSFER_BYTES) {
+	if (transfer->len > MX53_MAX_TRANSFER_BYTES) {
 		dev_err(&spi->dev, "Transaction too big, max size is %d bytes\n",
 			MX53_MAX_TRANSFER_BYTES);
 		return -EMSGSIZE;
@@ -1838,6 +1861,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 	controller->prepare_message = spi_imx_prepare_message;
 	controller->unprepare_message = spi_imx_unprepare_message;
 	controller->target_abort = spi_imx_target_abort;
+	spi_imx->spi_bus_clk = MXC_SPI_DEFAULT_SPEED;
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_NO_CS |
 				SPI_MOSI_IDLE_LOW;
 

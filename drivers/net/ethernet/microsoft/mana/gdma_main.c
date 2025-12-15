@@ -15,6 +15,20 @@
 
 struct dentry *mana_debugfs_root;
 
+struct mana_dev_recovery {
+	struct list_head list;
+	struct pci_dev *pdev;
+	enum gdma_eqe_type type;
+};
+
+static struct mana_dev_recovery_work {
+	struct list_head dev_list;
+	struct delayed_work work;
+
+	/* Lock for dev_list above */
+	spinlock_t lock;
+} mana_dev_recovery_work;
+
 static u32 mana_gd_r32(struct gdma_context *g, u64 offset)
 {
 	return readl(g->bar0_va + offset);
@@ -387,6 +401,25 @@ EXPORT_SYMBOL_NS(mana_gd_ring_cq, "NET_MANA");
 
 #define MANA_SERVICE_PERIOD 10
 
+static void mana_serv_rescan(struct pci_dev *pdev)
+{
+	struct pci_bus *parent;
+
+	pci_lock_rescan_remove();
+
+	parent = pdev->bus;
+	if (!parent) {
+		dev_err(&pdev->dev, "MANA service: no parent bus\n");
+		goto out;
+	}
+
+	pci_stop_and_remove_bus_device(pdev);
+	pci_rescan_bus(parent);
+
+out:
+	pci_unlock_rescan_remove();
+}
+
 static void mana_serv_fpga(struct pci_dev *pdev)
 {
 	struct pci_bus *bus, *parent;
@@ -419,9 +452,12 @@ static void mana_serv_reset(struct pci_dev *pdev)
 {
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 	struct hw_channel_context *hwc;
+	int ret;
 
 	if (!gc) {
-		dev_err(&pdev->dev, "MANA service: no GC\n");
+		/* Perform PCI rescan on device if GC is not set up */
+		dev_err(&pdev->dev, "MANA service: GC not setup, rescanning\n");
+		mana_serv_rescan(pdev);
 		return;
 	}
 
@@ -440,9 +476,18 @@ static void mana_serv_reset(struct pci_dev *pdev)
 
 	msleep(MANA_SERVICE_PERIOD * 1000);
 
-	mana_gd_resume(pdev);
+	ret = mana_gd_resume(pdev);
+	if (ret == -ETIMEDOUT || ret == -EPROTO) {
+		/* Perform PCI rescan on device if we failed on HWC */
+		dev_err(&pdev->dev, "MANA service: resume failed, rescanning\n");
+		mana_serv_rescan(pdev);
+		goto out;
+	}
 
-	dev_info(&pdev->dev, "MANA reset cycle completed\n");
+	if (ret)
+		dev_info(&pdev->dev, "MANA reset cycle failed err %d\n", ret);
+	else
+		dev_info(&pdev->dev, "MANA reset cycle completed\n");
 
 out:
 	gc->in_service = false;
@@ -454,18 +499,9 @@ struct mana_serv_work {
 	enum gdma_eqe_type type;
 };
 
-static void mana_serv_func(struct work_struct *w)
+static void mana_do_service(enum gdma_eqe_type type, struct pci_dev *pdev)
 {
-	struct mana_serv_work *mns_wk;
-	struct pci_dev *pdev;
-
-	mns_wk = container_of(w, struct mana_serv_work, serv_work);
-	pdev = mns_wk->pdev;
-
-	if (!pdev)
-		goto out;
-
-	switch (mns_wk->type) {
+	switch (type) {
 	case GDMA_EQE_HWC_FPGA_RECONFIG:
 		mana_serv_fpga(pdev);
 		break;
@@ -475,12 +511,48 @@ static void mana_serv_func(struct work_struct *w)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "MANA service: unknown type %d\n",
-			mns_wk->type);
+		dev_err(&pdev->dev, "MANA service: unknown type %d\n", type);
 		break;
 	}
+}
 
-out:
+static void mana_recovery_delayed_func(struct work_struct *w)
+{
+	struct mana_dev_recovery_work *work;
+	struct mana_dev_recovery *dev;
+	unsigned long flags;
+
+	work = container_of(w, struct mana_dev_recovery_work, work.work);
+
+	spin_lock_irqsave(&work->lock, flags);
+
+	while (!list_empty(&work->dev_list)) {
+		dev = list_first_entry(&work->dev_list,
+				       struct mana_dev_recovery, list);
+		list_del(&dev->list);
+		spin_unlock_irqrestore(&work->lock, flags);
+
+		mana_do_service(dev->type, dev->pdev);
+		pci_dev_put(dev->pdev);
+		kfree(dev);
+
+		spin_lock_irqsave(&work->lock, flags);
+	}
+
+	spin_unlock_irqrestore(&work->lock, flags);
+}
+
+static void mana_serv_func(struct work_struct *w)
+{
+	struct mana_serv_work *mns_wk;
+	struct pci_dev *pdev;
+
+	mns_wk = container_of(w, struct mana_serv_work, serv_work);
+	pdev = mns_wk->pdev;
+
+	if (pdev)
+		mana_do_service(mns_wk->type, pdev);
+
 	pci_dev_put(pdev);
 	kfree(mns_wk);
 	module_put(THIS_MODULE);
@@ -528,6 +600,7 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 	case GDMA_EQE_HWC_INIT_DONE:
 	case GDMA_EQE_HWC_SOC_SERVICE:
 	case GDMA_EQE_RNIC_QP_FATAL:
+	case GDMA_EQE_HWC_SOC_RECONFIG_DATA:
 		if (!eq->eq.callback)
 			break;
 
@@ -539,6 +612,17 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 	case GDMA_EQE_HWC_FPGA_RECONFIG:
 	case GDMA_EQE_HWC_RESET_REQUEST:
 		dev_info(gc->dev, "Recv MANA service type:%d\n", type);
+
+		if (!test_and_set_bit(GC_PROBE_SUCCEEDED, &gc->flags)) {
+			/*
+			 * Device is in probe and we received a hardware reset
+			 * event, the probe function will detect that the flag
+			 * has changed and perform service procedure.
+			 */
+			dev_info(gc->dev,
+				 "Service is to be processed in probe\n");
+			break;
+		}
 
 		if (gc->in_service) {
 			dev_info(gc->dev, "Already in service\n");
@@ -1299,7 +1383,6 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 			      struct gdma_posted_wqe_info *wqe_info)
 {
 	u32 client_oob_size = wqe_req->inline_oob_size;
-	struct gdma_context *gc;
 	u32 sgl_data_size;
 	u32 max_wqe_size;
 	u32 wqe_size;
@@ -1329,11 +1412,8 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 	if (wqe_size > max_wqe_size)
 		return -EINVAL;
 
-	if (wq->monitor_avl_buf && wqe_size > mana_gd_wq_avail_space(wq)) {
-		gc = wq->gdma_dev->gdma_context;
-		dev_err(gc->dev, "unsuccessful flow control!\n");
+	if (wq->monitor_avl_buf && wqe_size > mana_gd_wq_avail_space(wq))
 		return -ENOSPC;
-	}
 
 	if (wqe_info)
 		wqe_info->wqe_size_in_bu = wqe_size / GDMA_WQE_BU_SIZE;
@@ -1941,8 +2021,19 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto cleanup_mana;
 
+	/*
+	 * If a hardware reset event has occurred over HWC during probe,
+	 * rollback and perform hardware reset procedure.
+	 */
+	if (test_and_set_bit(GC_PROBE_SUCCEEDED, &gc->flags)) {
+		err = -EPROTO;
+		goto cleanup_mana_rdma;
+	}
+
 	return 0;
 
+cleanup_mana_rdma:
+	mana_rdma_remove(&gc->mana_ib);
 cleanup_mana:
 	mana_remove(&gc->mana, false);
 cleanup_gd:
@@ -1966,6 +2057,35 @@ release_region:
 disable_dev:
 	pci_disable_device(pdev);
 	dev_err(&pdev->dev, "gdma probe failed: err = %d\n", err);
+
+	/*
+	 * Hardware could be in recovery mode and the HWC returns TIMEDOUT or
+	 * EPROTO from mana_gd_setup(), mana_probe() or mana_rdma_probe(), or
+	 * we received a hardware reset event over HWC interrupt. In this case,
+	 * perform the device recovery procedure after MANA_SERVICE_PERIOD
+	 * seconds.
+	 */
+	if (err == -ETIMEDOUT || err == -EPROTO) {
+		struct mana_dev_recovery *dev;
+		unsigned long flags;
+
+		dev_info(&pdev->dev, "Start MANA recovery mode\n");
+
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (!dev)
+			return err;
+
+		dev->pdev = pci_dev_get(pdev);
+		dev->type = GDMA_EQE_HWC_RESET_REQUEST;
+
+		spin_lock_irqsave(&mana_dev_recovery_work.lock, flags);
+		list_add_tail(&dev->list, &mana_dev_recovery_work.dev_list);
+		spin_unlock_irqrestore(&mana_dev_recovery_work.lock, flags);
+
+		schedule_delayed_work(&mana_dev_recovery_work.work,
+				      secs_to_jiffies(MANA_SERVICE_PERIOD));
+	}
+
 	return err;
 }
 
@@ -2070,6 +2190,10 @@ static int __init mana_driver_init(void)
 {
 	int err;
 
+	INIT_LIST_HEAD(&mana_dev_recovery_work.dev_list);
+	spin_lock_init(&mana_dev_recovery_work.lock);
+	INIT_DELAYED_WORK(&mana_dev_recovery_work.work, mana_recovery_delayed_func);
+
 	mana_debugfs_root = debugfs_create_dir("mana", NULL);
 
 	err = pci_register_driver(&mana_driver);
@@ -2083,6 +2207,21 @@ static int __init mana_driver_init(void)
 
 static void __exit mana_driver_exit(void)
 {
+	struct mana_dev_recovery *dev;
+	unsigned long flags;
+
+	disable_delayed_work_sync(&mana_dev_recovery_work.work);
+
+	spin_lock_irqsave(&mana_dev_recovery_work.lock, flags);
+	while (!list_empty(&mana_dev_recovery_work.dev_list)) {
+		dev = list_first_entry(&mana_dev_recovery_work.dev_list,
+				       struct mana_dev_recovery, list);
+		list_del(&dev->list);
+		pci_dev_put(dev->pdev);
+		kfree(dev);
+	}
+	spin_unlock_irqrestore(&mana_dev_recovery_work.lock, flags);
+
 	pci_unregister_driver(&mana_driver);
 
 	debugfs_remove(mana_debugfs_root);

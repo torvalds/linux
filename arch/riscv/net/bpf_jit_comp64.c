@@ -852,17 +852,19 @@ static int gen_jump_or_nops(void *target, void *ip, u32 *insns, bool is_call)
 	return emit_jump_and_link(is_call ? RV_REG_T0 : RV_REG_ZERO, rvoff, false, &ctx);
 }
 
-int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
-		       void *old_addr, void *new_addr)
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
+		       enum bpf_text_poke_type new_t, void *old_addr,
+		       void *new_addr)
 {
 	u32 old_insns[RV_FENTRY_NINSNS], new_insns[RV_FENTRY_NINSNS];
-	bool is_call = poke_type == BPF_MOD_CALL;
+	bool is_call;
 	int ret;
 
 	if (!is_kernel_text((unsigned long)ip) &&
 	    !is_bpf_text_address((unsigned long)ip))
 		return -ENOTSUPP;
 
+	is_call = old_t == BPF_MOD_CALL;
 	ret = gen_jump_or_nops(old_addr, ip, old_insns, is_call);
 	if (ret)
 		return ret;
@@ -870,6 +872,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 	if (memcmp(ip, old_insns, RV_FENTRY_NBYTES))
 		return -EFAULT;
 
+	is_call = new_t == BPF_MOD_CALL;
 	ret = gen_jump_or_nops(new_addr, ip, new_insns, is_call);
 	if (ret)
 		return ret;
@@ -1131,7 +1134,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 	store_args(nr_arg_slots, args_off, ctx);
 
 	/* skip to actual body of traced function */
-	if (flags & BPF_TRAMP_F_SKIP_FRAME)
+	if (flags & BPF_TRAMP_F_ORIG_STACK)
 		orig_call += RV_FENTRY_NINSNS * 4;
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {

@@ -191,14 +191,12 @@ enum nl802154_iftype {
  * @NL802154_CAP_ATTR_CHANNELS: a nested attribute for nl802154_channel_attr
  * @NL802154_CAP_ATTR_TX_POWERS: a nested attribute for
  *	nl802154_wpan_phy_tx_power
- * @NL802154_CAP_ATTR_MIN_CCA_ED_LEVEL: minimum value for cca_ed_level
- * @NL802154_CAP_ATTR_MAX_CCA_ED_LEVEL: maximum value for cca_ed_level
  * @NL802154_CAP_ATTR_CCA_MODES: nl802154_cca_modes flags
  * @NL802154_CAP_ATTR_CCA_OPTS: nl802154_cca_opts flags
  * @NL802154_CAP_ATTR_MIN_MINBE: minimum of minbe value
  * @NL802154_CAP_ATTR_MAX_MINBE: maximum of minbe value
  * @NL802154_CAP_ATTR_MIN_MAXBE: minimum of maxbe value
- * @NL802154_CAP_ATTR_MAX_MINBE: maximum of maxbe value
+ * @NL802154_CAP_ATTR_MAX_MAXBE: maximum of maxbe value
  * @NL802154_CAP_ATTR_MIN_CSMA_BACKOFFS: minimum of csma backoff value
  * @NL802154_CAP_ATTR_MAX_CSMA_BACKOFFS: maximum of csma backoffs value
  * @NL802154_CAP_ATTR_MIN_FRAME_RETRIES: minimum of frame retries value
@@ -364,6 +362,7 @@ enum nl802154_cca_opts {
 	NL802154_CCA_OPT_ENERGY_CARRIER_AND,
 	NL802154_CCA_OPT_ENERGY_CARRIER_OR,
 
+	/* private: */
 	/* keep last */
 	__NL802154_CCA_OPT_ATTR_AFTER_LAST,
 	NL802154_CCA_OPT_ATTR_MAX = __NL802154_CCA_OPT_ATTR_AFTER_LAST - 1

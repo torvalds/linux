@@ -275,7 +275,7 @@
 /* Verdin ETH_2_RGMII */
 &cpsw_port2 {
 	phy-handle = <&carrier_eth_phy>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 

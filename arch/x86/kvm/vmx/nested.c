@@ -23,8 +23,8 @@
 static bool __read_mostly enable_shadow_vmcs = 1;
 module_param_named(enable_shadow_vmcs, enable_shadow_vmcs, bool, S_IRUGO);
 
-static bool __read_mostly nested_early_check = 0;
-module_param(nested_early_check, bool, S_IRUGO);
+static bool __ro_after_init warn_on_missed_cc;
+module_param(warn_on_missed_cc, bool, 0444);
 
 #define CC KVM_NESTED_VMENTER_CONSISTENCY_CHECK
 
@@ -555,6 +555,9 @@ static int nested_vmx_check_tpr_shadow_controls(struct kvm_vcpu *vcpu,
 	if (CC(!page_address_valid(vcpu, vmcs12->virtual_apic_page_addr)))
 		return -EINVAL;
 
+	if (CC(!nested_cpu_has_vid(vmcs12) && vmcs12->tpr_threshold >> 4))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -761,7 +764,7 @@ static void nested_cache_shadow_vmcs12(struct kvm_vcpu *vcpu,
 				      vmcs12->vmcs_link_pointer, VMCS12_SIZE))
 		return;
 
-	kvm_read_guest_cached(vmx->vcpu.kvm, ghc, get_shadow_vmcs12(vcpu),
+	kvm_read_guest_cached(vcpu->kvm, ghc, get_shadow_vmcs12(vcpu),
 			      VMCS12_SIZE);
 }
 
@@ -780,7 +783,7 @@ static void nested_flush_cached_shadow_vmcs12(struct kvm_vcpu *vcpu,
 				      vmcs12->vmcs_link_pointer, VMCS12_SIZE))
 		return;
 
-	kvm_write_guest_cached(vmx->vcpu.kvm, ghc, get_shadow_vmcs12(vcpu),
+	kvm_write_guest_cached(vcpu->kvm, ghc, get_shadow_vmcs12(vcpu),
 			       VMCS12_SIZE);
 }
 
@@ -2296,15 +2299,6 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 		return;
 	vmx->nested.vmcs02_initialized = true;
 
-	/*
-	 * We don't care what the EPTP value is we just need to guarantee
-	 * it's valid so we don't get a false positive when doing early
-	 * consistency checks.
-	 */
-	if (enable_ept && nested_early_check)
-		vmcs_write64(EPT_POINTER,
-			     construct_eptp(&vmx->vcpu, 0, PT64_ROOT_4LEVEL));
-
 	if (vmx->ve_info)
 		vmcs_write64(VE_INFORMATION_ADDRESS, __pa(vmx->ve_info));
 
@@ -2749,7 +2743,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmcs_write64(GUEST_IA32_PAT, vmcs12->guest_ia32_pat);
 		vcpu->arch.pat = vmcs12->guest_ia32_pat;
 	} else if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
-		vmcs_write64(GUEST_IA32_PAT, vmx->vcpu.arch.pat);
+		vmcs_write64(GUEST_IA32_PAT, vcpu->arch.pat);
 	}
 
 	vcpu->arch.tsc_offset = kvm_calc_nested_tsc_offset(
@@ -2961,6 +2955,10 @@ static int nested_check_vm_execution_controls(struct kvm_vcpu *vcpu,
 		}
 	}
 
+	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_TSC_SCALING) &&
+	    CC(!vmcs12->tsc_multiplier))
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -3074,6 +3072,38 @@ static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
 	if (guest_cpu_cap_has_evmcs(vcpu))
 		return nested_evmcs_check_controls(vmcs12);
 #endif
+
+	return 0;
+}
+
+static int nested_vmx_check_controls_late(struct kvm_vcpu *vcpu,
+					  struct vmcs12 *vmcs12)
+{
+	void *vapic = to_vmx(vcpu)->nested.virtual_apic_map.hva;
+	u32 vtpr = vapic ? (*(u32 *)(vapic + APIC_TASKPRI)) >> 4 : 0;
+
+	/*
+	 * Don't bother with the consistency checks if KVM isn't configured to
+	 * WARN on missed consistency checks, as KVM needs to rely on hardware
+	 * to fully detect an illegal vTPR vs. TRP Threshold combination due to
+	 * the vTPR being writable by L1 at all times (it's an in-memory value,
+	 * not a VMCS field).  I.e. even if the check passes now, it might fail
+	 * at the actual VM-Enter.
+	 *
+	 * Keying off the module param also allows treating an invalid vAPIC
+	 * mapping as a consistency check failure without increasing the risk
+	 * of breaking a "real" VM.
+	 */
+	if (!warn_on_missed_cc)
+		return 0;
+
+	if ((exec_controls_get(to_vmx(vcpu)) & CPU_BASED_TPR_SHADOW) &&
+	    nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW) &&
+	    !nested_cpu_has_vid(vmcs12) &&
+	    !nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
+	    (CC(!vapic) ||
+	     CC((vmcs12->tpr_threshold & GENMASK(3, 0)) > (vtpr & GENMASK(3, 0)))))
+		return -EINVAL;
 
 	return 0;
 }
@@ -3329,84 +3359,6 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 
 	if (nested_check_guest_non_reg_state(vmcs12))
 		return -EINVAL;
-
-	return 0;
-}
-
-static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long cr3, cr4;
-	bool vm_fail;
-
-	if (!nested_early_check)
-		return 0;
-
-	if (vmx->msr_autoload.host.nr)
-		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, 0);
-	if (vmx->msr_autoload.guest.nr)
-		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, 0);
-
-	preempt_disable();
-
-	vmx_prepare_switch_to_guest(vcpu);
-
-	/*
-	 * Induce a consistency check VMExit by clearing bit 1 in GUEST_RFLAGS,
-	 * which is reserved to '1' by hardware.  GUEST_RFLAGS is guaranteed to
-	 * be written (by prepare_vmcs02()) before the "real" VMEnter, i.e.
-	 * there is no need to preserve other bits or save/restore the field.
-	 */
-	vmcs_writel(GUEST_RFLAGS, 0);
-
-	cr3 = __get_current_cr3_fast();
-	if (unlikely(cr3 != vmx->loaded_vmcs->host_state.cr3)) {
-		vmcs_writel(HOST_CR3, cr3);
-		vmx->loaded_vmcs->host_state.cr3 = cr3;
-	}
-
-	cr4 = cr4_read_shadow();
-	if (unlikely(cr4 != vmx->loaded_vmcs->host_state.cr4)) {
-		vmcs_writel(HOST_CR4, cr4);
-		vmx->loaded_vmcs->host_state.cr4 = cr4;
-	}
-
-	vm_fail = __vmx_vcpu_run(vmx, (unsigned long *)&vcpu->arch.regs,
-				 __vmx_vcpu_run_flags(vmx));
-
-	if (vmx->msr_autoload.host.nr)
-		vmcs_write32(VM_EXIT_MSR_LOAD_COUNT, vmx->msr_autoload.host.nr);
-	if (vmx->msr_autoload.guest.nr)
-		vmcs_write32(VM_ENTRY_MSR_LOAD_COUNT, vmx->msr_autoload.guest.nr);
-
-	if (vm_fail) {
-		u32 error = vmcs_read32(VM_INSTRUCTION_ERROR);
-
-		preempt_enable();
-
-		trace_kvm_nested_vmenter_failed(
-			"early hardware check VM-instruction error: ", error);
-		WARN_ON_ONCE(error != VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		return 1;
-	}
-
-	/*
-	 * VMExit clears RFLAGS.IF and DR7, even on a consistency check.
-	 */
-	if (hw_breakpoint_active())
-		set_debugreg(__this_cpu_read(cpu_dr7), 7);
-	local_irq_enable();
-	preempt_enable();
-
-	/*
-	 * A non-failing VMEntry means we somehow entered guest mode with
-	 * an illegal RIP, and that's just the tip of the iceberg.  There
-	 * is no telling what memory has been modified or what state has
-	 * been exposed to unknown code.  Hitting this all but guarantees
-	 * a (very critical) hardware issue.
-	 */
-	WARN_ON(!(vmcs_read32(VM_EXIT_REASON) &
-		VMX_EXIT_REASONS_FAILED_VMENTRY));
 
 	return 0;
 }
@@ -3667,22 +3619,18 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 				    &vmx->nested.pre_vmenter_ssp_tbl);
 
 	/*
-	 * Overwrite vmcs01.GUEST_CR3 with L1's CR3 if EPT is disabled *and*
-	 * nested early checks are disabled.  In the event of a "late" VM-Fail,
-	 * i.e. a VM-Fail detected by hardware but not KVM, KVM must unwind its
-	 * software model to the pre-VMEntry host state.  When EPT is disabled,
-	 * GUEST_CR3 holds KVM's shadow CR3, not L1's "real" CR3, which causes
-	 * nested_vmx_restore_host_state() to corrupt vcpu->arch.cr3.  Stuffing
-	 * vmcs01.GUEST_CR3 results in the unwind naturally setting arch.cr3 to
-	 * the correct value.  Smashing vmcs01.GUEST_CR3 is safe because nested
-	 * VM-Exits, and the unwind, reset KVM's MMU, i.e. vmcs01.GUEST_CR3 is
-	 * guaranteed to be overwritten with a shadow CR3 prior to re-entering
-	 * L1.  Don't stuff vmcs01.GUEST_CR3 when using nested early checks as
-	 * KVM modifies vcpu->arch.cr3 if and only if the early hardware checks
-	 * pass, and early VM-Fails do not reset KVM's MMU, i.e. the VM-Fail
-	 * path would need to manually save/restore vmcs01.GUEST_CR3.
+	 * Overwrite vmcs01.GUEST_CR3 with L1's CR3 if EPT is disabled.  In the
+	 * event of a "late" VM-Fail, i.e. a VM-Fail detected by hardware but
+	 * not KVM, KVM must unwind its software model to the pre-VM-Entry host
+	 * state.  When EPT is disabled, GUEST_CR3 holds KVM's shadow CR3, not
+	 * L1's "real" CR3, which causes nested_vmx_restore_host_state() to
+	 * corrupt vcpu->arch.cr3.  Stuffing vmcs01.GUEST_CR3 results in the
+	 * unwind naturally setting arch.cr3 to the correct value.  Smashing
+	 * vmcs01.GUEST_CR3 is safe because nested VM-Exits, and the unwind,
+	 * reset KVM's MMU, i.e. vmcs01.GUEST_CR3 is guaranteed to be
+	 * overwritten with a shadow CR3 prior to re-entering L1.
 	 */
-	if (!enable_ept && !nested_early_check)
+	if (!enable_ept)
 		vmcs_writel(GUEST_CR3, vcpu->arch.cr3);
 
 	vmx_switch_vmcs(vcpu, &vmx->nested.vmcs02);
@@ -3695,7 +3643,7 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 			return NVMX_VMENTRY_KVM_INTERNAL_ERROR;
 		}
 
-		if (nested_vmx_check_vmentry_hw(vcpu)) {
+		if (nested_vmx_check_controls_late(vcpu, vmcs12)) {
 			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 			return NVMX_VMENTRY_VMFAIL;
 		}
@@ -3880,7 +3828,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		goto vmentry_failed;
 
 	/* Hide L1D cache contents from the nested guest.  */
-	vmx->vcpu.arch.l1tf_flush_l1d = true;
+	kvm_request_l1tf_flush_l1d();
 
 	/*
 	 * Must happen outside of nested_vmx_enter_non_root_mode() as it will
@@ -5164,12 +5112,13 @@ void __nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 		/*
 		 * The only expected VM-instruction error is "VM entry with
 		 * invalid control field(s)." Anything else indicates a
-		 * problem with L0.  And we should never get here with a
-		 * VMFail of any type if early consistency checks are enabled.
+		 * problem with L0.
 		 */
 		WARN_ON_ONCE(vmcs_read32(VM_INSTRUCTION_ERROR) !=
 			     VMXERR_ENTRY_INVALID_CONTROL_FIELD);
-		WARN_ON_ONCE(nested_early_check);
+
+		/* VM-Fail at VM-Entry means KVM missed a consistency check. */
+		WARN_ON_ONCE(warn_on_missed_cc);
 	}
 
 	/*

@@ -2,122 +2,44 @@
 #ifndef _LINUX_NS_COMMON_H
 #define _LINUX_NS_COMMON_H
 
+#include <linux/ns/ns_common_types.h>
 #include <linux/refcount.h>
-#include <linux/rbtree.h>
+#include <linux/vfsdebug.h>
 #include <uapi/linux/sched.h>
+#include <uapi/linux/nsfs.h>
 
-struct proc_ns_operations;
-
-struct cgroup_namespace;
-struct ipc_namespace;
-struct mnt_namespace;
-struct net;
-struct pid_namespace;
-struct time_namespace;
-struct user_namespace;
-struct uts_namespace;
-
-extern struct cgroup_namespace init_cgroup_ns;
-extern struct ipc_namespace init_ipc_ns;
-extern struct mnt_namespace init_mnt_ns;
-extern struct net init_net;
-extern struct pid_namespace init_pid_ns;
-extern struct time_namespace init_time_ns;
-extern struct user_namespace init_user_ns;
-extern struct uts_namespace init_uts_ns;
-
-extern const struct proc_ns_operations netns_operations;
-extern const struct proc_ns_operations utsns_operations;
-extern const struct proc_ns_operations ipcns_operations;
-extern const struct proc_ns_operations pidns_operations;
-extern const struct proc_ns_operations pidns_for_children_operations;
-extern const struct proc_ns_operations userns_operations;
-extern const struct proc_ns_operations mntns_operations;
-extern const struct proc_ns_operations cgroupns_operations;
-extern const struct proc_ns_operations timens_operations;
-extern const struct proc_ns_operations timens_for_children_operations;
-
-struct ns_common {
-	u32 ns_type;
-	struct dentry *stashed;
-	const struct proc_ns_operations *ops;
-	unsigned int inum;
-	refcount_t __ns_ref; /* do not use directly */
-	union {
-		struct {
-			u64 ns_id;
-			struct rb_node ns_tree_node;
-			struct list_head ns_list_node;
-		};
-		struct rcu_head ns_rcu;
-	};
-};
-
+bool is_current_namespace(struct ns_common *ns);
 int __ns_common_init(struct ns_common *ns, u32 ns_type, const struct proc_ns_operations *ops, int inum);
 void __ns_common_free(struct ns_common *ns);
+struct ns_common *__must_check ns_owner(struct ns_common *ns);
 
-#define to_ns_common(__ns)                                    \
-	_Generic((__ns),                                      \
-		struct cgroup_namespace *:       &(__ns)->ns, \
-		const struct cgroup_namespace *: &(__ns)->ns, \
-		struct ipc_namespace *:          &(__ns)->ns, \
-		const struct ipc_namespace *:    &(__ns)->ns, \
-		struct mnt_namespace *:          &(__ns)->ns, \
-		const struct mnt_namespace *:    &(__ns)->ns, \
-		struct net *:                    &(__ns)->ns, \
-		const struct net *:              &(__ns)->ns, \
-		struct pid_namespace *:          &(__ns)->ns, \
-		const struct pid_namespace *:    &(__ns)->ns, \
-		struct time_namespace *:         &(__ns)->ns, \
-		const struct time_namespace *:   &(__ns)->ns, \
-		struct user_namespace *:         &(__ns)->ns, \
-		const struct user_namespace *:   &(__ns)->ns, \
-		struct uts_namespace *:          &(__ns)->ns, \
-		const struct uts_namespace *:    &(__ns)->ns)
+static __always_inline bool is_ns_init_inum(const struct ns_common *ns)
+{
+	VFS_WARN_ON_ONCE(ns->inum == 0);
+	return unlikely(in_range(ns->inum, MNT_NS_INIT_INO,
+				 IPC_NS_INIT_INO - MNT_NS_INIT_INO + 1));
+}
 
-#define ns_init_inum(__ns)                                     \
-	_Generic((__ns),                                       \
-		struct cgroup_namespace *: CGROUP_NS_INIT_INO, \
-		struct ipc_namespace *:    IPC_NS_INIT_INO,    \
-		struct mnt_namespace *:    MNT_NS_INIT_INO,    \
-		struct net *:              NET_NS_INIT_INO,    \
-		struct pid_namespace *:    PID_NS_INIT_INO,    \
-		struct time_namespace *:   TIME_NS_INIT_INO,   \
-		struct user_namespace *:   USER_NS_INIT_INO,   \
-		struct uts_namespace *:    UTS_NS_INIT_INO)
+static __always_inline bool is_ns_init_id(const struct ns_common *ns)
+{
+	VFS_WARN_ON_ONCE(ns->ns_id == 0);
+	return ns->ns_id <= NS_LAST_INIT_ID;
+}
 
-#define ns_init_ns(__ns)                                    \
-	_Generic((__ns),                                    \
-		struct cgroup_namespace *: &init_cgroup_ns, \
-		struct ipc_namespace *:    &init_ipc_ns,    \
-		struct mnt_namespace *:    &init_mnt_ns,     \
-		struct net *:              &init_net,       \
-		struct pid_namespace *:    &init_pid_ns,    \
-		struct time_namespace *:   &init_time_ns,   \
-		struct user_namespace *:   &init_user_ns,   \
-		struct uts_namespace *:    &init_uts_ns)
-
-#define to_ns_operations(__ns)                                                                         \
-	_Generic((__ns),                                                                               \
-		struct cgroup_namespace *: (IS_ENABLED(CONFIG_CGROUPS) ? &cgroupns_operations : NULL), \
-		struct ipc_namespace *:    (IS_ENABLED(CONFIG_IPC_NS)  ? &ipcns_operations    : NULL), \
-		struct mnt_namespace *:    &mntns_operations,                                          \
-		struct net *:              (IS_ENABLED(CONFIG_NET_NS)  ? &netns_operations    : NULL), \
-		struct pid_namespace *:    (IS_ENABLED(CONFIG_PID_NS)  ? &pidns_operations    : NULL), \
-		struct time_namespace *:   (IS_ENABLED(CONFIG_TIME_NS) ? &timens_operations   : NULL), \
-		struct user_namespace *:   (IS_ENABLED(CONFIG_USER_NS) ? &userns_operations   : NULL), \
-		struct uts_namespace *:    (IS_ENABLED(CONFIG_UTS_NS)  ? &utsns_operations    : NULL))
-
-#define ns_common_type(__ns)                                \
-	_Generic((__ns),                                    \
-		struct cgroup_namespace *: CLONE_NEWCGROUP, \
-		struct ipc_namespace *:    CLONE_NEWIPC,    \
-		struct mnt_namespace *:    CLONE_NEWNS,     \
-		struct net *:              CLONE_NEWNET,    \
-		struct pid_namespace *:    CLONE_NEWPID,    \
-		struct time_namespace *:   CLONE_NEWTIME,   \
-		struct user_namespace *:   CLONE_NEWUSER,   \
-		struct uts_namespace *:    CLONE_NEWUTS)
+#define NS_COMMON_INIT(nsname)										\
+{													\
+	.ns_type			= ns_common_type(&nsname),					\
+	.ns_id				= ns_init_id(&nsname),						\
+	.inum				= ns_init_inum(&nsname),					\
+	.ops				= to_ns_operations(&nsname),					\
+	.stashed			= NULL,								\
+	.__ns_ref			= REFCOUNT_INIT(1),						\
+	.__ns_ref_active		= ATOMIC_INIT(1),						\
+	.ns_unified_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_unified_node.ns_list_entry),	\
+	.ns_tree_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_tree_node.ns_list_entry),		\
+	.ns_owner_node.ns_list_entry	= LIST_HEAD_INIT(nsname.ns.ns_owner_node.ns_list_entry),	\
+	.ns_owner_root.ns_list_head	= LIST_HEAD_INIT(nsname.ns.ns_owner_root.ns_list_head),		\
+}
 
 #define ns_common_init(__ns)                     \
 	__ns_common_init(to_ns_common(__ns),     \
@@ -133,21 +55,96 @@ void __ns_common_free(struct ns_common *ns);
 
 #define ns_common_free(__ns) __ns_common_free(to_ns_common((__ns)))
 
+static __always_inline __must_check int __ns_ref_active_read(const struct ns_common *ns)
+{
+	return atomic_read(&ns->__ns_ref_active);
+}
+
+static __always_inline __must_check int __ns_ref_read(const struct ns_common *ns)
+{
+	return refcount_read(&ns->__ns_ref);
+}
+
 static __always_inline __must_check bool __ns_ref_put(struct ns_common *ns)
 {
-	return refcount_dec_and_test(&ns->__ns_ref);
+	if (is_ns_init_id(ns)) {
+		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
+		return false;
+	}
+	if (refcount_dec_and_test(&ns->__ns_ref)) {
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns));
+		return true;
+	}
+	return false;
 }
 
 static __always_inline __must_check bool __ns_ref_get(struct ns_common *ns)
 {
-	return refcount_inc_not_zero(&ns->__ns_ref);
+	if (is_ns_init_id(ns)) {
+		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
+		return true;
+	}
+	if (refcount_inc_not_zero(&ns->__ns_ref))
+		return true;
+	VFS_WARN_ON_ONCE(__ns_ref_active_read(ns));
+	return false;
 }
 
-#define ns_ref_read(__ns) refcount_read(&to_ns_common((__ns))->__ns_ref)
-#define ns_ref_inc(__ns) refcount_inc(&to_ns_common((__ns))->__ns_ref)
-#define ns_ref_get(__ns) __ns_ref_get(to_ns_common((__ns)))
-#define ns_ref_put(__ns) __ns_ref_put(to_ns_common((__ns)))
-#define ns_ref_put_and_lock(__ns, __lock) \
-	refcount_dec_and_lock(&to_ns_common((__ns))->__ns_ref, (__lock))
+static __always_inline void __ns_ref_inc(struct ns_common *ns)
+{
+	if (is_ns_init_id(ns)) {
+		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
+		return;
+	}
+	refcount_inc(&ns->__ns_ref);
+}
+
+static __always_inline __must_check bool __ns_ref_dec_and_lock(struct ns_common *ns,
+							       spinlock_t *ns_lock)
+{
+	if (is_ns_init_id(ns)) {
+		VFS_WARN_ON_ONCE(__ns_ref_read(ns) != 1);
+		VFS_WARN_ON_ONCE(__ns_ref_active_read(ns) != 1);
+		return false;
+	}
+	return refcount_dec_and_lock(&ns->__ns_ref, ns_lock);
+}
+
+#define ns_ref_read(__ns) __ns_ref_read(to_ns_common((__ns)))
+#define ns_ref_inc(__ns) \
+	do { if (__ns) __ns_ref_inc(to_ns_common((__ns))); } while (0)
+#define ns_ref_get(__ns) \
+	((__ns) ? __ns_ref_get(to_ns_common((__ns))) : false)
+#define ns_ref_put(__ns) \
+	((__ns) ? __ns_ref_put(to_ns_common((__ns))) : false)
+#define ns_ref_put_and_lock(__ns, __ns_lock) \
+	((__ns) ? __ns_ref_dec_and_lock(to_ns_common((__ns)), __ns_lock) : false)
+
+#define ns_ref_active_read(__ns) \
+	((__ns) ? __ns_ref_active_read(to_ns_common(__ns)) : 0)
+
+void __ns_ref_active_put(struct ns_common *ns);
+
+#define ns_ref_active_put(__ns) \
+	do { if (__ns) __ns_ref_active_put(to_ns_common(__ns)); } while (0)
+
+static __always_inline struct ns_common *__must_check ns_get_unless_inactive(struct ns_common *ns)
+{
+	if (!__ns_ref_active_read(ns)) {
+		VFS_WARN_ON_ONCE(is_ns_init_id(ns));
+		return NULL;
+	}
+	if (!__ns_ref_get(ns))
+		return NULL;
+	return ns;
+}
+
+void __ns_ref_active_get(struct ns_common *ns);
+
+#define ns_ref_active_get(__ns) \
+	do { if (__ns) __ns_ref_active_get(to_ns_common(__ns)); } while (0)
 
 #endif

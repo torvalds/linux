@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/fs_struct.h>
 
 #include <cluster/masklog.h>
 

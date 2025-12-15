@@ -302,10 +302,9 @@ follows:
 
 
 Depending on the RNG type, the RNG must be seeded. The seed is provided
-using the setsockopt interface to set the key. For example, the
-ansi_cprng requires a seed. The DRBGs do not require a seed, but may be
-seeded. The seed is also known as a *Personalization String* in NIST SP 800-90A
-standard.
+using the setsockopt interface to set the key. The SP800-90A DRBGs do
+not require a seed, but may be seeded. The seed is also known as a
+*Personalization String* in NIST SP 800-90A standard.
 
 Using the read()/recvmsg() system calls, random numbers can be obtained.
 The kernel generates at most 128 bytes in one call. If user space

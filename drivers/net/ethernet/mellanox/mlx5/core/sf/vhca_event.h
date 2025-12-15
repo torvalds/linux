@@ -18,6 +18,7 @@ static inline bool mlx5_vhca_event_supported(const struct mlx5_core_dev *dev)
 }
 
 void mlx5_vhca_state_cap_handle(struct mlx5_core_dev *dev, void *set_hca_cap);
+void mlx5_vhca_state_notifier_init(struct mlx5_core_dev *dev);
 int mlx5_vhca_event_init(struct mlx5_core_dev *dev);
 void mlx5_vhca_event_cleanup(struct mlx5_core_dev *dev);
 void mlx5_vhca_event_start(struct mlx5_core_dev *dev);
@@ -34,6 +35,10 @@ void mlx5_vhca_event_work_queues_flush(struct mlx5_core_dev *dev);
 #else
 
 static inline void mlx5_vhca_state_cap_handle(struct mlx5_core_dev *dev, void *set_hca_cap)
+{
+}
+
+static inline void mlx5_vhca_state_notifier_init(struct mlx5_core_dev *dev)
 {
 }
 

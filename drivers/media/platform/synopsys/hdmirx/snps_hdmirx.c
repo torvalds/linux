@@ -237,7 +237,7 @@ static bool tx_5v_power_present(struct snps_hdmirx_dev *hdmirx_dev)
 			break;
 	}
 
-	ret = (cnt >= detection_threshold) ? true : false;
+	ret = cnt >= detection_threshold;
 	v4l2_dbg(3, debug, &hdmirx_dev->v4l2_dev, "%s: %d\n", __func__, ret);
 
 	return ret;

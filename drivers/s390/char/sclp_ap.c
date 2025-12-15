@@ -4,8 +4,7 @@
  *
  * Copyright IBM Corp. 2020
  */
-#define KMSG_COMPONENT "sclp_cmd"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_cmd: " fmt
 
 #include <linux/export.h>
 #include <linux/slab.h>

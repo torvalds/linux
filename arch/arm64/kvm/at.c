@@ -346,6 +346,11 @@ static int setup_s1_walk(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 
 	wi->baddr &= GENMASK_ULL(wi->max_oa_bits - 1, x);
 
+	wi->ha  = kvm_has_feat(vcpu->kvm, ID_AA64MMFR1_EL1, HAFDBS, AF);
+	wi->ha &= (wi->regime == TR_EL2 ?
+		  FIELD_GET(TCR_EL2_HA, tcr) :
+		  FIELD_GET(TCR_HA, tcr));
+
 	return 0;
 
 addrsz:
@@ -362,10 +367,42 @@ transfault:
 	return -EFAULT;
 }
 
+static int kvm_read_s1_desc(struct kvm_vcpu *vcpu, u64 pa, u64 *desc,
+			    struct s1_walk_info *wi)
+{
+	u64 val;
+	int r;
+
+	r = kvm_read_guest(vcpu->kvm, pa, &val, sizeof(val));
+	if (r)
+		return r;
+
+	if (wi->be)
+		*desc = be64_to_cpu((__force __be64)val);
+	else
+		*desc = le64_to_cpu((__force __le64)val);
+
+	return 0;
+}
+
+static int kvm_swap_s1_desc(struct kvm_vcpu *vcpu, u64 pa, u64 old, u64 new,
+			    struct s1_walk_info *wi)
+{
+	if (wi->be) {
+		old = (__force u64)cpu_to_be64(old);
+		new = (__force u64)cpu_to_be64(new);
+	} else {
+		old = (__force u64)cpu_to_le64(old);
+		new = (__force u64)cpu_to_le64(new);
+	}
+
+	return __kvm_at_swap_desc(vcpu->kvm, pa, old, new);
+}
+
 static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 		   struct s1_walk_result *wr, u64 va)
 {
-	u64 va_top, va_bottom, baddr, desc;
+	u64 va_top, va_bottom, baddr, desc, new_desc, ipa;
 	int level, stride, ret;
 
 	level = wi->sl;
@@ -375,7 +412,7 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	va_top = get_ia_size(wi) - 1;
 
 	while (1) {
-		u64 index, ipa;
+		u64 index;
 
 		va_bottom = (3 - level) * stride + wi->pgshift;
 		index = (va & GENMASK_ULL(va_top, va_bottom)) >> (va_bottom - 3);
@@ -414,16 +451,13 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 				return ret;
 		}
 
-		ret = kvm_read_guest(vcpu->kvm, ipa, &desc, sizeof(desc));
+		ret = kvm_read_s1_desc(vcpu, ipa, &desc, wi);
 		if (ret) {
 			fail_s1_walk(wr, ESR_ELx_FSC_SEA_TTW(level), false);
 			return ret;
 		}
 
-		if (wi->be)
-			desc = be64_to_cpu((__force __be64)desc);
-		else
-			desc = le64_to_cpu((__force __le64)desc);
+		new_desc = desc;
 
 		/* Invalid descriptor */
 		if (!(desc & BIT(0)))
@@ -476,6 +510,17 @@ static int walk_s1(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,
 	baddr = desc_to_oa(wi, desc);
 	if (check_output_size(baddr & GENMASK(52, va_bottom), wi))
 		goto addrsz;
+
+	if (wi->ha)
+		new_desc |= PTE_AF;
+
+	if (new_desc != desc) {
+		ret = kvm_swap_s1_desc(vcpu, ipa, desc, new_desc, wi);
+		if (ret)
+			return ret;
+
+		desc = new_desc;
+	}
 
 	if (!(desc & PTE_AF)) {
 		fail_s1_walk(wr, ESR_ELx_FSC_ACCESS_L(level), false);
@@ -1221,7 +1266,7 @@ static void compute_s1_permissions(struct kvm_vcpu *vcpu,
 	wr->pr &= !pan;
 }
 
-static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+static int handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr, u64 *par)
 {
 	struct s1_walk_result wr = {};
 	struct s1_walk_info wi = {};
@@ -1246,6 +1291,11 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 
+	/*
+	 * Race to update a descriptor -- restart the walk.
+	 */
+	if (ret == -EAGAIN)
+		return ret;
 	if (ret)
 		goto compute_par;
 
@@ -1279,7 +1329,8 @@ static u64 handle_at_slow(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		fail_s1_walk(&wr, ESR_ELx_FSC_PERM_L(wr.level), false);
 
 compute_par:
-	return compute_par_s1(vcpu, &wi, &wr);
+	*par = compute_par_s1(vcpu, &wi, &wr);
+	return 0;
 }
 
 /*
@@ -1407,9 +1458,10 @@ static bool par_check_s1_access_fault(u64 par)
 		 !(par & SYS_PAR_EL1_S));
 }
 
-void __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+int __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	u64 par = __kvm_at_s1e01_fast(vcpu, op, vaddr);
+	int ret;
 
 	/*
 	 * If PAR_EL1 reports that AT failed on a S1 permission or access
@@ -1421,15 +1473,20 @@ void __kvm_at_s1e01(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	 */
 	if ((par & SYS_PAR_EL1_F) &&
 	    !par_check_s1_perm_fault(par) &&
-	    !par_check_s1_access_fault(par))
-		par = handle_at_slow(vcpu, op, vaddr);
+	    !par_check_s1_access_fault(par)) {
+		ret = handle_at_slow(vcpu, op, vaddr, &par);
+		if (ret)
+			return ret;
+	}
 
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+	return 0;
 }
 
-void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+int __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	u64 par;
+	int ret;
 
 	/*
 	 * We've trapped, so everything is live on the CPU. As we will be
@@ -1476,13 +1533,17 @@ void __kvm_at_s1e2(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	}
 
 	/* We failed the translation, let's replay it in slow motion */
-	if ((par & SYS_PAR_EL1_F) && !par_check_s1_perm_fault(par))
-		par = handle_at_slow(vcpu, op, vaddr);
+	if ((par & SYS_PAR_EL1_F) && !par_check_s1_perm_fault(par)) {
+		ret = handle_at_slow(vcpu, op, vaddr, &par);
+		if (ret)
+			return ret;
+	}
 
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+	return 0;
 }
 
-void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
+int __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 {
 	struct kvm_s2_trans out = {};
 	u64 ipa, par;
@@ -1509,13 +1570,13 @@ void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		return;
+		return 0;
 	}
 
 	__kvm_at_s1e01(vcpu, op, vaddr);
 	par = vcpu_read_sys_reg(vcpu, PAR_EL1);
 	if (par & SYS_PAR_EL1_F)
-		return;
+		return 0;
 
 	/*
 	 * If we only have a single stage of translation (EL2&0), exit
@@ -1523,14 +1584,14 @@ void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 	 */
 	if (compute_translation_regime(vcpu, op) == TR_EL20 ||
 	    !(vcpu_read_sys_reg(vcpu, HCR_EL2) & (HCR_VM | HCR_DC)))
-		return;
+		return 0;
 
 	/* Do the stage-2 translation */
 	ipa = (par & GENMASK_ULL(47, 12)) | (vaddr & GENMASK_ULL(11, 0));
 	out.esr = 0;
 	ret = kvm_walk_nested_s2(vcpu, ipa, &out);
 	if (ret < 0)
-		return;
+		return ret;
 
 	/* Check the access permission */
 	if (!out.esr &&
@@ -1539,6 +1600,7 @@ void __kvm_at_s12(struct kvm_vcpu *vcpu, u32 op, u64 vaddr)
 
 	par = compute_par_s12(vcpu, par, &out);
 	vcpu_write_sys_reg(vcpu, par, PAR_EL1);
+	return 0;
 }
 
 /*
@@ -1636,4 +1698,98 @@ int __kvm_find_s1_desc_level(struct kvm_vcpu *vcpu, u64 va, u64 ipa, int *level)
 		/* Any other error... */
 		return ret;
 	}
+}
+
+#ifdef CONFIG_ARM64_LSE_ATOMICS
+static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
+{
+	u64 tmp = old;
+	int ret = 0;
+
+	uaccess_enable_privileged();
+
+	asm volatile(__LSE_PREAMBLE
+		     "1: cas	%[old], %[new], %[addr]\n"
+		     "2:\n"
+		     _ASM_EXTABLE_UACCESS_ERR(1b, 2b, %w[ret])
+		     : [old] "+r" (old), [addr] "+Q" (*ptep), [ret] "+r" (ret)
+		     : [new] "r" (new)
+		     : "memory");
+
+	uaccess_disable_privileged();
+
+	if (ret)
+		return ret;
+	if (tmp != old)
+		return -EAGAIN;
+
+	return ret;
+}
+#else
+static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
+{
+	return -EINVAL;
+}
+#endif
+
+static int __llsc_swap_desc(u64 __user *ptep, u64 old, u64 new)
+{
+	int ret = 1;
+	u64 tmp;
+
+	uaccess_enable_privileged();
+
+	asm volatile("prfm	pstl1strm, %[addr]\n"
+		     "1: ldxr	%[tmp], %[addr]\n"
+		     "sub	%[tmp], %[tmp], %[old]\n"
+		     "cbnz	%[tmp], 3f\n"
+		     "2: stlxr	%w[ret], %[new], %[addr]\n"
+		     "3:\n"
+		     _ASM_EXTABLE_UACCESS_ERR(1b, 3b, %w[ret])
+		     _ASM_EXTABLE_UACCESS_ERR(2b, 3b, %w[ret])
+		     : [ret] "+r" (ret), [addr] "+Q" (*ptep), [tmp] "=&r" (tmp)
+		     : [old] "r" (old), [new] "r" (new)
+		     : "memory");
+
+	uaccess_disable_privileged();
+
+	/* STLXR didn't update the descriptor, or the compare failed */
+	if (ret == 1)
+		return -EAGAIN;
+
+	return ret;
+}
+
+int __kvm_at_swap_desc(struct kvm *kvm, gpa_t ipa, u64 old, u64 new)
+{
+	struct kvm_memory_slot *slot;
+	unsigned long hva;
+	u64 __user *ptep;
+	bool writable;
+	int offset;
+	gfn_t gfn;
+	int r;
+
+	lockdep_assert(srcu_read_lock_held(&kvm->srcu));
+
+	gfn = ipa >> PAGE_SHIFT;
+	offset = offset_in_page(ipa);
+	slot = gfn_to_memslot(kvm, gfn);
+	hva = gfn_to_hva_memslot_prot(slot, gfn, &writable);
+	if (kvm_is_error_hva(hva))
+		return -EINVAL;
+	if (!writable)
+		return -EPERM;
+
+	ptep = (u64 __user *)hva + offset;
+	if (cpus_have_final_cap(ARM64_HAS_LSE_ATOMICS))
+		r = __lse_swap_desc(ptep, old, new);
+	else
+		r = __llsc_swap_desc(ptep, old, new);
+
+	if (r < 0)
+		return r;
+
+	mark_page_dirty_in_slot(kvm, slot, gfn);
+	return 0;
 }

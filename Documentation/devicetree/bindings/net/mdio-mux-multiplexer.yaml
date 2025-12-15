@@ -14,7 +14,6 @@ description: |+
   of a mux producer device. The mux producer can be of any type like mmio mux
   producer, gpio mux producer or generic register based mux producer.
 
-
 allOf:
   - $ref: /schemas/net/mdio-mux.yaml#
 

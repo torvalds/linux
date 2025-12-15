@@ -1005,5 +1005,33 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY clsact"
         ]
+    },
+    {
+        "id": "4366",
+        "name": "CAKE with QFQ Parent - CAKE enqueue with packets dropping",
+        "category": [
+            "qdisc",
+            "cake",
+            "netem"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup":[
+            "$TC qdisc add dev $DUMMY handle 1: root qfq",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 qfq maxpkt 1024",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: cake memlimit 9",
+            "$TC filter add dev $DUMMY protocol ip parent 1: prio 1 u32 match ip protocol 1 0xff flowid 1:1",
+            "ping -I$DUMMY -f -c1 -s64 -W1 10.10.10.1 || true",
+            "$TC qdisc replace dev $DUMMY parent 1:1 handle 3: netem delay 0ms"
+        ],
+        "cmdUnderTest": "ping -I$DUMMY -f -c1 -s64 -W1 10.10.10.1 || true",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DUMMY",
+        "matchPattern": "qdisc qfq 1:",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root"
+        ]
     }
 ]

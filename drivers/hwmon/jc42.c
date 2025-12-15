@@ -19,7 +19,6 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
-#include <linux/mutex.h>
 #include <linux/regmap.h>
 
 /* Addresses to scan */
@@ -179,7 +178,6 @@ static struct jc42_chips jc42_chips[] = {
 
 /* Each client has this additional data */
 struct jc42_data {
-	struct mutex	update_lock;	/* protect register access */
 	struct regmap	*regmap;
 	bool		extended;	/* true if extended range supported */
 	bool		valid;
@@ -215,8 +213,6 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 	struct jc42_data *data = dev_get_drvdata(dev);
 	unsigned int regval;
 	int ret, temp, hyst;
-
-	mutex_lock(&data->update_lock);
 
 	switch (attr) {
 	case hwmon_temp_input:
@@ -295,8 +291,6 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
-	mutex_unlock(&data->update_lock);
-
 	return ret;
 }
 
@@ -307,8 +301,6 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 	unsigned int regval;
 	int diff, hyst;
 	int ret;
-
-	mutex_lock(&data->update_lock);
 
 	switch (attr) {
 	case hwmon_temp_min:
@@ -355,8 +347,6 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-
-	mutex_unlock(&data->update_lock);
 
 	return ret;
 }
@@ -498,7 +488,6 @@ static int jc42_probe(struct i2c_client *client)
 		return PTR_ERR(data->regmap);
 
 	i2c_set_clientdata(client, data);
-	mutex_init(&data->update_lock);
 
 	ret = regmap_read(data->regmap, JC42_REG_CAP, &cap);
 	if (ret)

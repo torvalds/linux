@@ -2696,18 +2696,18 @@ static void hcd_release(struct kref *kref)
 	kfree(hcd);
 }
 
-struct usb_hcd *usb_get_hcd (struct usb_hcd *hcd)
+struct usb_hcd *usb_get_hcd(struct usb_hcd *hcd)
 {
 	if (hcd)
-		kref_get (&hcd->kref);
+		kref_get(&hcd->kref);
 	return hcd;
 }
 EXPORT_SYMBOL_GPL(usb_get_hcd);
 
-void usb_put_hcd (struct usb_hcd *hcd)
+void usb_put_hcd(struct usb_hcd *hcd)
 {
 	if (hcd)
-		kref_put (&hcd->kref, hcd_release);
+		kref_put(&hcd->kref, hcd_release);
 }
 EXPORT_SYMBOL_GPL(usb_put_hcd);
 

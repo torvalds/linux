@@ -70,13 +70,14 @@ static int lr_map_idx_to_shadow_idx(struct shadow_if *shadow_if, int idx)
  * - on L2 put: perform the inverse transformation, so that the result of L2
  *   running becomes visible to L1 in the VNCR-accessible registers.
  *
- * - there is nothing to do on L2 entry, as everything will have happened
- *   on load. However, this is the point where we detect that an interrupt
- *   targeting L1 and prepare the grand switcheroo.
+ * - there is nothing to do on L2 entry apart from enabling the vgic, as
+ *   everything will have happened on load. However, this is the point where
+ *   we detect that an interrupt targeting L1 and prepare the grand
+ *   switcheroo.
  *
- * - on L2 exit: emulate the HW bit, and deactivate corresponding the L1
- *   interrupt. The L0 active state will be cleared by the HW if the L1
- *   interrupt was itself backed by a HW interrupt.
+ * - on L2 exit: resync the LRs and VMCR, emulate the HW bit, and deactivate
+ *   corresponding the L1 interrupt. The L0 active state will be cleared by
+ *   the HW if the L1 interrupt was itself backed by a HW interrupt.
  *
  * Maintenance Interrupt (MI) management:
  *
@@ -93,8 +94,10 @@ static int lr_map_idx_to_shadow_idx(struct shadow_if *shadow_if, int idx)
  *
  * - because most of the ICH_*_EL2 registers live in the VNCR page, the
  *   quality of emulation is poor: L1 can setup the vgic so that an MI would
- *   immediately fire, and not observe anything until the next exit. Trying
- *   to read ICH_MISR_EL2 would do the trick, for example.
+ *   immediately fire, and not observe anything until the next exit.
+ *   Similarly, a pending MI is not immediately disabled by clearing
+ *   ICH_HCR_EL2.En. Trying to read ICH_MISR_EL2 would do the trick, for
+ *   example.
  *
  * System register emulation:
  *
@@ -265,16 +268,37 @@ static void vgic_v3_create_shadow_lr(struct kvm_vcpu *vcpu,
 	s_cpu_if->used_lrs = hweight16(shadow_if->lr_map);
 }
 
+void vgic_v3_flush_nested(struct kvm_vcpu *vcpu)
+{
+	u64 val = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
+
+	write_sysreg_s(val | vgic_ich_hcr_trap_bits(), SYS_ICH_HCR_EL2);
+}
+
 void vgic_v3_sync_nested(struct kvm_vcpu *vcpu)
 {
 	struct shadow_if *shadow_if = get_shadow_if();
 	int i;
 
 	for_each_set_bit(i, &shadow_if->lr_map, kvm_vgic_global_state.nr_lr) {
-		u64 lr = __vcpu_sys_reg(vcpu, ICH_LRN(i));
-		struct vgic_irq *irq;
+		u64 val, host_lr, lr;
 
-		if (!(lr & ICH_LR_HW) || !(lr & ICH_LR_STATE))
+		host_lr = __gic_v3_get_lr(lr_map_idx_to_shadow_idx(shadow_if, i));
+
+		/* Propagate the new LR state */
+		lr = __vcpu_sys_reg(vcpu, ICH_LRN(i));
+		val = lr & ~ICH_LR_STATE;
+		val |= host_lr & ICH_LR_STATE;
+		__vcpu_assign_sys_reg(vcpu, ICH_LRN(i), val);
+
+		/*
+		 * Deactivation of a HW interrupt: the LR must have the HW
+		 * bit set, have been in a non-invalid state before the run,
+		 * and now be in an invalid state. If any of that doesn't
+		 * hold, we're done with this LR.
+		 */
+		if (!((lr & ICH_LR_HW) && (lr & ICH_LR_STATE) &&
+		      !(host_lr & ICH_LR_STATE)))
 			continue;
 
 		/*
@@ -282,35 +306,27 @@ void vgic_v3_sync_nested(struct kvm_vcpu *vcpu)
 		 * need to emulate the HW effect between the guest hypervisor
 		 * and the nested guest.
 		 */
-		irq = vgic_get_vcpu_irq(vcpu, FIELD_GET(ICH_LR_PHYS_ID_MASK, lr));
-		if (WARN_ON(!irq)) /* Shouldn't happen as we check on load */
-			continue;
-
-		lr = __gic_v3_get_lr(lr_map_idx_to_shadow_idx(shadow_if, i));
-		if (!(lr & ICH_LR_STATE))
-			irq->active = false;
-
-		vgic_put_irq(vcpu->kvm, irq);
+		vgic_v3_deactivate(vcpu, FIELD_GET(ICH_LR_PHYS_ID_MASK, lr));
 	}
+
+	/* We need these to be synchronised to generate the MI */
+	__vcpu_assign_sys_reg(vcpu, ICH_VMCR_EL2, read_sysreg_s(SYS_ICH_VMCR_EL2));
+	__vcpu_rmw_sys_reg(vcpu, ICH_HCR_EL2, &=, ~ICH_HCR_EL2_EOIcount);
+	__vcpu_rmw_sys_reg(vcpu, ICH_HCR_EL2, |=, read_sysreg_s(SYS_ICH_HCR_EL2) & ICH_HCR_EL2_EOIcount);
+
+	write_sysreg_s(0, SYS_ICH_HCR_EL2);
+	isb();
+
+	vgic_v3_nested_update_mi(vcpu);
 }
 
 static void vgic_v3_create_shadow_state(struct kvm_vcpu *vcpu,
 					struct vgic_v3_cpu_if *s_cpu_if)
 {
 	struct vgic_v3_cpu_if *host_if = &vcpu->arch.vgic_cpu.vgic_v3;
-	u64 val = 0;
 	int i;
 
-	/*
-	 * If we're on a system with a broken vgic that requires
-	 * trapping, propagate the trapping requirements.
-	 *
-	 * Ah, the smell of rotten fruits...
-	 */
-	if (static_branch_unlikely(&vgic_v3_cpuif_trap))
-		val = host_if->vgic_hcr & (ICH_HCR_EL2_TALL0 | ICH_HCR_EL2_TALL1 |
-					   ICH_HCR_EL2_TC | ICH_HCR_EL2_TDIR);
-	s_cpu_if->vgic_hcr = __vcpu_sys_reg(vcpu, ICH_HCR_EL2) | val;
+	s_cpu_if->vgic_hcr = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
 	s_cpu_if->vgic_vmcr = __vcpu_sys_reg(vcpu, ICH_VMCR_EL2);
 	s_cpu_if->vgic_sre = host_if->vgic_sre;
 
@@ -334,7 +350,8 @@ void vgic_v3_load_nested(struct kvm_vcpu *vcpu)
 	__vgic_v3_restore_vmcr_aprs(cpu_if);
 	__vgic_v3_activate_traps(cpu_if);
 
-	__vgic_v3_restore_state(cpu_if);
+	for (int i = 0; i < cpu_if->used_lrs; i++)
+		__gic_v3_set_lr(cpu_if->vgic_lr[i], i);
 
 	/*
 	 * Propagate the number of used LRs for the benefit of the HYP
@@ -347,36 +364,19 @@ void vgic_v3_put_nested(struct kvm_vcpu *vcpu)
 {
 	struct shadow_if *shadow_if = get_shadow_if();
 	struct vgic_v3_cpu_if *s_cpu_if = &shadow_if->cpuif;
-	u64 val;
 	int i;
 
-	__vgic_v3_save_vmcr_aprs(s_cpu_if);
-	__vgic_v3_deactivate_traps(s_cpu_if);
-	__vgic_v3_save_state(s_cpu_if);
-
-	/*
-	 * Translate the shadow state HW fields back to the virtual ones
-	 * before copying the shadow struct back to the nested one.
-	 */
-	val = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
-	val &= ~ICH_HCR_EL2_EOIcount_MASK;
-	val |= (s_cpu_if->vgic_hcr & ICH_HCR_EL2_EOIcount_MASK);
-	__vcpu_assign_sys_reg(vcpu, ICH_HCR_EL2, val);
-	__vcpu_assign_sys_reg(vcpu, ICH_VMCR_EL2, s_cpu_if->vgic_vmcr);
+	__vgic_v3_save_aprs(s_cpu_if);
 
 	for (i = 0; i < 4; i++) {
 		__vcpu_assign_sys_reg(vcpu, ICH_AP0RN(i), s_cpu_if->vgic_ap0r[i]);
 		__vcpu_assign_sys_reg(vcpu, ICH_AP1RN(i), s_cpu_if->vgic_ap1r[i]);
 	}
 
-	for_each_set_bit(i, &shadow_if->lr_map, kvm_vgic_global_state.nr_lr) {
-		val = __vcpu_sys_reg(vcpu, ICH_LRN(i));
+	for (i = 0; i < s_cpu_if->used_lrs; i++)
+		__gic_v3_set_lr(0, i);
 
-		val &= ~ICH_LR_STATE;
-		val |= s_cpu_if->vgic_lr[lr_map_idx_to_shadow_idx(shadow_if, i)] & ICH_LR_STATE;
-
-		__vcpu_assign_sys_reg(vcpu, ICH_LRN(i), val);
-	}
+	__vgic_v3_deactivate_traps(s_cpu_if);
 
 	vcpu->arch.vgic_cpu.vgic_v3.used_lrs = 0;
 }

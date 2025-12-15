@@ -1,4 +1,5 @@
 .. -*- coding: utf-8; mode: rst -*-
+.. c:namespace:: V4L
 
 .. _V4L2-PIX-FMT-CNF4:
 

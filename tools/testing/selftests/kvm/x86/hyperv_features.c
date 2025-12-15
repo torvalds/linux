@@ -94,7 +94,7 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 
 	if (!(hcall->control & HV_HYPERCALL_FAST_BIT)) {
 		input = pgs_gpa;
-		output = pgs_gpa + 4096;
+		output = pgs_gpa + PAGE_SIZE;
 	} else {
 		input = output = 0;
 	}

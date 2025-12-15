@@ -221,6 +221,7 @@ static int tbf_segment(struct sk_buff *skb, struct Qdisc *sch,
 		skb_mark_not_on_list(segs);
 		seg_len = segs->len;
 		qdisc_skb_cb(segs)->pkt_len = seg_len;
+		qdisc_skb_cb(segs)->pkt_segs = 1;
 		ret = qdisc_enqueue(segs, q->qdisc, to_free);
 		if (ret != NET_XMIT_SUCCESS) {
 			if (net_xmit_drop_count(ret))

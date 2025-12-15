@@ -649,6 +649,7 @@ static u32 memac_if_mode(phy_interface_t interface)
 		return IF_MODE_GMII | IF_MODE_RGMII;
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_QSGMII:
 		return IF_MODE_GMII;
 	case PHY_INTERFACE_MODE_10GBASER:
@@ -667,6 +668,7 @@ static struct phylink_pcs *memac_select_pcs(struct phylink_config *config,
 	switch (iface) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		return memac->sgmii_pcs;
 	case PHY_INTERFACE_MODE_QSGMII:
 		return memac->qsgmii_pcs;
@@ -685,6 +687,7 @@ static int memac_prepare(struct phylink_config *config, unsigned int mode,
 	switch (iface) {
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_QSGMII:
 	case PHY_INTERFACE_MODE_10GBASER:
 		return phy_set_mode_ext(memac->serdes, PHY_MODE_ETHERNET,
@@ -897,6 +900,89 @@ static int memac_set_exception(struct fman_mac *memac,
 	return 0;
 }
 
+static u64 memac_read64(void __iomem *reg)
+{
+	u32 low, high, tmp;
+
+	do {
+		high = ioread32be(reg + 4);
+		low = ioread32be(reg);
+		tmp = ioread32be(reg + 4);
+	} while (high != tmp);
+
+	return ((u64)high << 32) | low;
+}
+
+static void memac_get_pause_stats(struct fman_mac *memac,
+				  struct ethtool_pause_stats *s)
+{
+	s->tx_pause_frames = memac_read64(&memac->regs->txpf_l);
+	s->rx_pause_frames = memac_read64(&memac->regs->rxpf_l);
+}
+
+static const struct ethtool_rmon_hist_range memac_rmon_ranges[] = {
+	{   64,   64 },
+	{   65,  127 },
+	{  128,  255 },
+	{  256,  511 },
+	{  512, 1023 },
+	{ 1024, 1518 },
+	{ 1519, 9600 },
+	{},
+};
+
+static void memac_get_rmon_stats(struct fman_mac *memac,
+				 struct ethtool_rmon_stats *s,
+				 const struct ethtool_rmon_hist_range **ranges)
+{
+	s->undersize_pkts = memac_read64(&memac->regs->rund_l);
+	s->oversize_pkts = memac_read64(&memac->regs->rovr_l);
+	s->fragments = memac_read64(&memac->regs->rfrg_l);
+	s->jabbers = memac_read64(&memac->regs->rjbr_l);
+
+	s->hist[0] = memac_read64(&memac->regs->r64_l);
+	s->hist[1] = memac_read64(&memac->regs->r127_l);
+	s->hist[2] = memac_read64(&memac->regs->r255_l);
+	s->hist[3] = memac_read64(&memac->regs->r511_l);
+	s->hist[4] = memac_read64(&memac->regs->r1023_l);
+	s->hist[5] = memac_read64(&memac->regs->r1518_l);
+	s->hist[6] = memac_read64(&memac->regs->r1519x_l);
+
+	s->hist_tx[0] = memac_read64(&memac->regs->t64_l);
+	s->hist_tx[1] = memac_read64(&memac->regs->t127_l);
+	s->hist_tx[2] = memac_read64(&memac->regs->t255_l);
+	s->hist_tx[3] = memac_read64(&memac->regs->t511_l);
+	s->hist_tx[4] = memac_read64(&memac->regs->t1023_l);
+	s->hist_tx[5] = memac_read64(&memac->regs->t1518_l);
+	s->hist_tx[6] = memac_read64(&memac->regs->t1519x_l);
+
+	*ranges = memac_rmon_ranges;
+}
+
+static void memac_get_eth_ctrl_stats(struct fman_mac *memac,
+				     struct ethtool_eth_ctrl_stats *s)
+{
+	s->MACControlFramesTransmitted = memac_read64(&memac->regs->tcnp_l);
+	s->MACControlFramesReceived = memac_read64(&memac->regs->rcnp_l);
+}
+
+static void memac_get_eth_mac_stats(struct fman_mac *memac,
+				    struct ethtool_eth_mac_stats *s)
+{
+	s->FramesTransmittedOK = memac_read64(&memac->regs->tfrm_l);
+	s->FramesReceivedOK = memac_read64(&memac->regs->rfrm_l);
+	s->FrameCheckSequenceErrors = memac_read64(&memac->regs->rfcs_l);
+	s->AlignmentErrors = memac_read64(&memac->regs->raln_l);
+	s->OctetsTransmittedOK = memac_read64(&memac->regs->teoct_l);
+	s->FramesLostDueToIntMACXmitError = memac_read64(&memac->regs->terr_l);
+	s->OctetsReceivedOK = memac_read64(&memac->regs->reoct_l);
+	s->FramesLostDueToIntMACRcvError = memac_read64(&memac->regs->rdrntp_l);
+	s->MulticastFramesXmittedOK = memac_read64(&memac->regs->tmca_l);
+	s->BroadcastFramesXmittedOK = memac_read64(&memac->regs->tbca_l);
+	s->MulticastFramesReceivedOK = memac_read64(&memac->regs->rmca_l);
+	s->BroadcastFramesReceivedOK = memac_read64(&memac->regs->rbca_l);
+}
+
 static int memac_init(struct fman_mac *memac)
 {
 	struct memac_cfg *memac_drv_param;
@@ -1089,6 +1175,10 @@ int memac_initialization(struct mac_device *mac_dev,
 	mac_dev->set_tstamp		= memac_set_tstamp;
 	mac_dev->enable			= memac_enable;
 	mac_dev->disable		= memac_disable;
+	mac_dev->get_pause_stats	= memac_get_pause_stats;
+	mac_dev->get_rmon_stats		= memac_get_rmon_stats;
+	mac_dev->get_eth_ctrl_stats	= memac_get_eth_ctrl_stats;
+	mac_dev->get_eth_mac_stats	= memac_get_eth_mac_stats;
 
 	mac_dev->fman_mac = memac_config(mac_dev, params);
 	if (!mac_dev->fman_mac)
@@ -1226,6 +1316,7 @@ int memac_initialization(struct mac_device *mac_dev,
 	 * those configurations modes don't use in-band autonegotiation.
 	 */
 	if (!of_property_present(mac_node, "managed") &&
+	    mac_dev->phy_if != PHY_INTERFACE_MODE_2500BASEX &&
 	    mac_dev->phy_if != PHY_INTERFACE_MODE_MII &&
 	    !phy_interface_mode_is_rgmii(mac_dev->phy_if))
 		mac_dev->phylink_config.default_an_inband = true;

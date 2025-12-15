@@ -22,13 +22,6 @@
 
 DEFINE_CORESIGHT_DEVLIST(tpda_devs, "tpda");
 
-static bool coresight_device_is_tpdm(struct coresight_device *csdev)
-{
-	return (coresight_is_device_source(csdev)) &&
-	       (csdev->subtype.source_subtype ==
-			CORESIGHT_DEV_SUBTYPE_SOURCE_TPDM);
-}
-
 static void tpda_clear_element_size(struct coresight_device *csdev)
 {
 	struct tpda_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);

@@ -1431,8 +1431,8 @@ static void omap_iommu_detach_fini(struct omap_iommu_domain *odomain)
 	odomain->iommus = NULL;
 }
 
-static int
-omap_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
+static int omap_iommu_attach_dev(struct iommu_domain *domain,
+				 struct device *dev, struct iommu_domain *old)
 {
 	struct omap_iommu_arch_data *arch_data = dev_iommu_priv_get(dev);
 	struct omap_iommu_domain *omap_domain = to_omap_domain(domain);
@@ -1536,15 +1536,15 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 }
 
 static int omap_iommu_identity_attach(struct iommu_domain *identity_domain,
-				      struct device *dev)
+				      struct device *dev,
+				      struct iommu_domain *old)
 {
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct omap_iommu_domain *omap_domain;
 
-	if (domain == identity_domain || !domain)
+	if (old == identity_domain || !old)
 		return 0;
 
-	omap_domain = to_omap_domain(domain);
+	omap_domain = to_omap_domain(old);
 	spin_lock(&omap_domain->lock);
 	_omap_iommu_detach_dev(omap_domain, dev);
 	spin_unlock(&omap_domain->lock);
@@ -1668,23 +1668,20 @@ static struct iommu_device *omap_iommu_probe_device(struct device *dev)
 		}
 
 		pdev = of_find_device_by_node(np);
+		of_node_put(np);
 		if (!pdev) {
-			of_node_put(np);
 			kfree(arch_data);
 			return ERR_PTR(-ENODEV);
 		}
 
 		oiommu = platform_get_drvdata(pdev);
+		put_device(&pdev->dev);
 		if (!oiommu) {
-			of_node_put(np);
 			kfree(arch_data);
 			return ERR_PTR(-EINVAL);
 		}
 
 		tmp->iommu_dev = oiommu;
-		tmp->dev = &pdev->dev;
-
-		of_node_put(np);
 	}
 
 	dev_iommu_priv_set(dev, arch_data);

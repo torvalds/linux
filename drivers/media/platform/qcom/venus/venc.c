@@ -241,8 +241,6 @@ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct vb2_queue *q;
 
 	q = v4l2_m2m_get_vq(inst->m2m_ctx, f->type);
-	if (!q)
-		return -EINVAL;
 
 	if (vb2_is_busy(q))
 		return -EBUSY;
@@ -1560,12 +1558,9 @@ static int venc_probe(struct platform_device *pdev)
 	struct venus_core *core;
 	int ret;
 
-	if (!dev->parent)
-		return -EPROBE_DEFER;
-
 	core = dev_get_drvdata(dev->parent);
 	if (!core)
-		return -EPROBE_DEFER;
+		return -EINVAL;
 
 	platform_set_drvdata(pdev, core);
 
@@ -1664,6 +1659,5 @@ static struct platform_driver qcom_venus_enc_driver = {
 };
 module_platform_driver(qcom_venus_enc_driver);
 
-MODULE_ALIAS("platform:qcom-venus-encoder");
 MODULE_DESCRIPTION("Qualcomm Venus video encoder driver");
 MODULE_LICENSE("GPL v2");
