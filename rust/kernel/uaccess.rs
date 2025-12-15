@@ -9,6 +9,7 @@ use crate::{
     bindings,
     error::Result,
     ffi::{c_char, c_void},
+    fs::file,
     prelude::*,
     transmute::{AsBytes, FromBytes},
 };
@@ -287,6 +288,48 @@ impl UserSliceReader {
         self.read_raw(out)
     }
 
+    /// Reads raw data from the user slice into a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::read_slice`] but considers the given `offset` into `out` and
+    /// truncates the read to the boundaries of `self` and `out`.
+    ///
+    /// On success, returns the number of bytes read.
+    pub fn read_slice_partial(&mut self, out: &mut [u8], offset: usize) -> Result<usize> {
+        let end = offset.saturating_add(self.len()).min(out.len());
+
+        let Some(dst) = out.get_mut(offset..end) else {
+            return Ok(0);
+        };
+
+        self.read_slice(dst)?;
+        Ok(dst.len())
+    }
+
+    /// Reads raw data from the user slice into a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::read_slice_partial`] but updates the given [`file::Offset`] by
+    /// the number of bytes read.
+    ///
+    /// This is equivalent to C's `simple_write_to_buffer()`.
+    ///
+    /// On success, returns the number of bytes read.
+    pub fn read_slice_file(&mut self, out: &mut [u8], offset: &mut file::Offset) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        let Ok(offset_index) = (*offset).try_into() else {
+            return Ok(0);
+        };
+
+        let read = self.read_slice_partial(out, offset_index)?;
+
+        // OVERFLOW: `offset + read <= data.len() <= isize::MAX <= Offset::MAX`
+        *offset += read as i64;
+
+        Ok(read)
+    }
+
     /// Reads a value of the specified type.
     ///
     /// Fails with [`EFAULT`] if the read happens on a bad address, or if the read goes out of
@@ -436,6 +479,48 @@ impl UserSliceWriter {
         self.ptr = self.ptr.wrapping_byte_add(len);
         self.length -= len;
         Ok(())
+    }
+
+    /// Writes raw data to this user pointer from a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::write_slice`] but considers the given `offset` into `data` and
+    /// truncates the write to the boundaries of `self` and `data`.
+    ///
+    /// On success, returns the number of bytes written.
+    pub fn write_slice_partial(&mut self, data: &[u8], offset: usize) -> Result<usize> {
+        let end = offset.saturating_add(self.len()).min(data.len());
+
+        let Some(src) = data.get(offset..end) else {
+            return Ok(0);
+        };
+
+        self.write_slice(src)?;
+        Ok(src.len())
+    }
+
+    /// Writes raw data to this user pointer from a kernel buffer partially.
+    ///
+    /// This is the same as [`Self::write_slice_partial`] but updates the given [`file::Offset`] by
+    /// the number of bytes written.
+    ///
+    /// This is equivalent to C's `simple_read_from_buffer()`.
+    ///
+    /// On success, returns the number of bytes written.
+    pub fn write_slice_file(&mut self, data: &[u8], offset: &mut file::Offset) -> Result<usize> {
+        if offset.is_negative() {
+            return Err(EINVAL);
+        }
+
+        let Ok(offset_index) = (*offset).try_into() else {
+            return Ok(0);
+        };
+
+        let written = self.write_slice_partial(data, offset_index)?;
+
+        // OVERFLOW: `offset + written <= data.len() <= isize::MAX <= Offset::MAX`
+        *offset += written as i64;
+
+        Ok(written)
     }
 
     /// Writes the provided Rust value to this userspace pointer.

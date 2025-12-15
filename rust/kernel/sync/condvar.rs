@@ -8,7 +8,7 @@
 use super::{lock::Backend, lock::Guard, LockClassKey};
 use crate::{
     ffi::{c_int, c_long},
-    str::CStr,
+    str::{CStr, CStrExt as _},
     task::{
         MAX_SCHEDULE_TIMEOUT, TASK_FREEZABLE, TASK_INTERRUPTIBLE, TASK_NORMAL, TASK_UNINTERRUPTIBLE,
     },
@@ -36,7 +36,7 @@ pub use new_condvar;
 /// spuriously.
 ///
 /// Instances of [`CondVar`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init!) and [`new_condvar`] macros.
+/// instances is with the [`pin_init`](pin_init::pin_init!) and [`new_condvar`] macros.
 ///
 /// # Examples
 ///

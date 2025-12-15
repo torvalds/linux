@@ -761,7 +761,6 @@ static const struct net_device_ops rkcanfd_netdev_ops = {
 	.ndo_open = rkcanfd_open,
 	.ndo_stop = rkcanfd_stop,
 	.ndo_start_xmit = rkcanfd_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static int __maybe_unused rkcanfd_runtime_suspend(struct device *dev)

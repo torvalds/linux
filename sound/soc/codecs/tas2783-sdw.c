@@ -693,7 +693,6 @@ static s32 tas2783_update_calibdata(struct tas2783_prv *tas_dev)
 
 	tmp_val = (u32 *)tas_dev->cali_data.data;
 	attr = 0;
-	i = 0;
 
 	/*
 	 * In some cases, the calibration is performed in Windows,
@@ -762,10 +761,17 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 		goto out;
 	}
 
-	mutex_lock(&tas_dev->pde_lock);
 	img_sz = fmw->size;
 	buf = fmw->data;
 	offset += FW_DL_OFFSET;
+	if (offset >= (img_sz - FW_FL_HDR)) {
+		dev_err(tas_dev->dev,
+			"firmware is too small");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	mutex_lock(&tas_dev->pde_lock);
 	while (offset < (img_sz - FW_FL_HDR)) {
 		memset(&hdr, 0, sizeof(hdr));
 		offset += read_header(&buf[offset], &hdr);
@@ -775,6 +781,14 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			hdr.length, offset);
 		/* size also includes the header */
 		file_blk_size = hdr.length - FW_FL_HDR;
+
+		/* make sure that enough data is there */
+		if (offset + file_blk_size > img_sz) {
+			ret = -EINVAL;
+			dev_err(tas_dev->dev,
+				"corrupt firmware file");
+			break;
+		}
 
 		switch (hdr.file_id) {
 		case 0:
@@ -808,7 +822,8 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 			break;
 	}
 	mutex_unlock(&tas_dev->pde_lock);
-	tas2783_update_calibdata(tas_dev);
+	if (!ret)
+		tas2783_update_calibdata(tas_dev);
 
 out:
 	if (!ret)
@@ -1281,7 +1296,8 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 
 	init_waitqueue_head(&tas_dev->fw_wait);
 	dev_set_drvdata(dev, tas_dev);
-	regmap = devm_regmap_init_sdw_mbq_cfg(peripheral,
+	regmap = devm_regmap_init_sdw_mbq_cfg(&peripheral->dev,
+					      peripheral,
 					      &tas_regmap,
 					      &tas2783_mbq_cfg);
 	if (IS_ERR(regmap))

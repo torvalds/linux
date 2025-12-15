@@ -1,0 +1,29 @@
+What:		/sys/bus/pci/drivers/uio_pci_sva/<pci_dev>/pasid
+Date:		September 2025
+Contact:	Yaxing Guo <guoyaxing@bosc.ac.cn>
+Description:
+		Process Address Space ID (PASID) assigned by IOMMU driver to
+		the device for use with Shared Virtual Addressing (SVA).
+
+		This read-only attribute exposes the PASID (A 20-bit identifier
+		used in PCIe Address Translation Services and iommu table walks)
+		allocated by the IOMMU driver during sva device binding.
+
+		User-space UIO applications must read this attribute to obtain
+		the PASID and program it into the device's configuration registers.
+		This enables the device to perform DMA using user-space virtual
+		address, with address translation handled by IOMMU.
+
+		UIO User-space applications must:
+		- Opening device and Mapping the device's register space via /dev/uioX
+		(This triggers the IOMMU driver to allocate the PASID)
+		- Reading the PASID from sysfs
+		- Writing the PASID to a device-specific register (with example offset)
+		The code may be like:
+
+		map = mmap(..., "/dev/uio0", ...);
+
+		f = fopen("/sys/.../pasid", "r");
+		fscanf(f, "%d", &pasid);
+
+		map[REG_PASID_OFFSET] = pasid;

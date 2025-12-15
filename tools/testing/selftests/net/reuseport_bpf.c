@@ -24,7 +24,7 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 struct test_params {
 	int recv_family;

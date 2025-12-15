@@ -1926,6 +1926,8 @@ static const struct dsa_switch_ops hellcreek_ds_ops = {
 	.port_vlan_filtering   = hellcreek_vlan_filtering,
 	.setup		       = hellcreek_setup,
 	.teardown	       = hellcreek_teardown,
+	.port_hsr_join	       = dsa_port_simple_hsr_join,
+	.port_hsr_leave	       = dsa_port_simple_hsr_leave,
 };
 
 static int hellcreek_probe(struct platform_device *pdev)

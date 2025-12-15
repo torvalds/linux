@@ -417,6 +417,30 @@ noinline int bpf_testmod_fentry_test11(u64 a, void *b, short c, int d,
 	return a + (long)b + c + d + (long)e + f + g + h + i + j + k;
 }
 
+noinline void bpf_testmod_stacktrace_test(void)
+{
+	/* used for stacktrace test as attach function */
+	asm volatile ("");
+}
+
+noinline void bpf_testmod_stacktrace_test_3(void)
+{
+	bpf_testmod_stacktrace_test();
+	asm volatile ("");
+}
+
+noinline void bpf_testmod_stacktrace_test_2(void)
+{
+	bpf_testmod_stacktrace_test_3();
+	asm volatile ("");
+}
+
+noinline void bpf_testmod_stacktrace_test_1(void)
+{
+	bpf_testmod_stacktrace_test_2();
+	asm volatile ("");
+}
+
 int bpf_testmod_fentry_ok;
 
 noinline ssize_t
@@ -496,6 +520,8 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 	    bpf_testmod_fentry_test11(16, (void *)17, 18, 19, (void *)20,
 			21, 22, 23, 24, 25, 26) != 231)
 		goto out;
+
+	bpf_testmod_stacktrace_test_1();
 
 	bpf_testmod_fentry_ok = 1;
 out:
@@ -900,7 +926,7 @@ __bpf_kfunc int bpf_kfunc_call_kernel_connect(struct addr_args *args)
 		goto out;
 	}
 
-	err = kernel_connect(sock, (struct sockaddr *)&args->addr,
+	err = kernel_connect(sock, (struct sockaddr_unsized *)&args->addr,
 			     args->addrlen, 0);
 out:
 	mutex_unlock(&sock_lock);
@@ -923,7 +949,7 @@ __bpf_kfunc int bpf_kfunc_call_kernel_bind(struct addr_args *args)
 		goto out;
 	}
 
-	err = kernel_bind(sock, (struct sockaddr *)&args->addr, args->addrlen);
+	err = kernel_bind(sock, (struct sockaddr_unsized *)&args->addr, args->addrlen);
 out:
 	mutex_unlock(&sock_lock);
 

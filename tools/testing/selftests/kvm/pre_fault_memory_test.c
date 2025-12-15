@@ -17,13 +17,13 @@
 #define TEST_NPAGES		(TEST_SIZE / PAGE_SIZE)
 #define TEST_SLOT		10
 
-static void guest_code(uint64_t base_gpa)
+static void guest_code(uint64_t base_gva)
 {
 	volatile uint64_t val __used;
 	int i;
 
 	for (i = 0; i < TEST_NPAGES; i++) {
-		uint64_t *src = (uint64_t *)(base_gpa + i * PAGE_SIZE);
+		uint64_t *src = (uint64_t *)(base_gva + i * PAGE_SIZE);
 
 		val = *src;
 	}
@@ -161,6 +161,7 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
 
 static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 {
+	uint64_t gpa, gva, alignment, guest_page_size;
 	const struct vm_shape shape = {
 		.mode = VM_MODE_DEFAULT,
 		.type = vm_type,
@@ -170,35 +171,30 @@ static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 	struct kvm_vm *vm;
 	struct ucall uc;
 
-	uint64_t guest_test_phys_mem;
-	uint64_t guest_test_virt_mem;
-	uint64_t alignment, guest_page_size;
-
 	vm = vm_create_shape_with_one_vcpu(shape, &vcpu, guest_code);
 
 	alignment = guest_page_size = vm_guest_mode_params[VM_MODE_DEFAULT].page_size;
-	guest_test_phys_mem = (vm->max_gfn - TEST_NPAGES) * guest_page_size;
+	gpa = (vm->max_gfn - TEST_NPAGES) * guest_page_size;
 #ifdef __s390x__
 	alignment = max(0x100000UL, guest_page_size);
 #else
 	alignment = SZ_2M;
 #endif
-	guest_test_phys_mem = align_down(guest_test_phys_mem, alignment);
-	guest_test_virt_mem = guest_test_phys_mem & ((1ULL << (vm->va_bits - 1)) - 1);
+	gpa = align_down(gpa, alignment);
+	gva = gpa & ((1ULL << (vm->va_bits - 1)) - 1);
 
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-				    guest_test_phys_mem, TEST_SLOT, TEST_NPAGES,
-				    private ? KVM_MEM_GUEST_MEMFD : 0);
-	virt_map(vm, guest_test_virt_mem, guest_test_phys_mem, TEST_NPAGES);
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, gpa, TEST_SLOT,
+				    TEST_NPAGES, private ? KVM_MEM_GUEST_MEMFD : 0);
+	virt_map(vm, gva, gpa, TEST_NPAGES);
 
 	if (private)
-		vm_mem_set_private(vm, guest_test_phys_mem, TEST_SIZE);
+		vm_mem_set_private(vm, gpa, TEST_SIZE);
 
-	pre_fault_memory(vcpu, guest_test_phys_mem, 0, SZ_2M, 0, private);
-	pre_fault_memory(vcpu, guest_test_phys_mem, SZ_2M, PAGE_SIZE * 2, PAGE_SIZE, private);
-	pre_fault_memory(vcpu, guest_test_phys_mem, TEST_SIZE, PAGE_SIZE, PAGE_SIZE, private);
+	pre_fault_memory(vcpu, gpa, 0, SZ_2M, 0, private);
+	pre_fault_memory(vcpu, gpa, SZ_2M, PAGE_SIZE * 2, PAGE_SIZE, private);
+	pre_fault_memory(vcpu, gpa, TEST_SIZE, PAGE_SIZE, PAGE_SIZE, private);
 
-	vcpu_args_set(vcpu, 1, guest_test_virt_mem);
+	vcpu_args_set(vcpu, 1, gva);
 	vcpu_run(vcpu);
 
 	run = vcpu->run;

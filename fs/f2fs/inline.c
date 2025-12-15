@@ -287,7 +287,7 @@ int f2fs_write_inline_data(struct inode *inode, struct folio *folio)
 	set_inode_flag(inode, FI_DATA_EXIST);
 
 	folio_clear_f2fs_inline(ifolio);
-	f2fs_folio_put(ifolio, 1);
+	f2fs_folio_put(ifolio, true);
 	return 0;
 }
 
@@ -577,7 +577,7 @@ recover:
 	f2fs_i_depth_write(dir, 0);
 	f2fs_i_size_write(dir, MAX_INLINE_DATA(dir));
 	folio_mark_dirty(ifolio);
-	f2fs_folio_put(ifolio, 1);
+	f2fs_folio_put(ifolio, true);
 
 	kfree(backup_dentry);
 	return err;

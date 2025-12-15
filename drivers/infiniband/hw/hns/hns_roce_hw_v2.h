@@ -35,6 +35,7 @@
 
 #include <linux/bitops.h>
 #include "hnae3.h"
+#include "hns_roce_bond.h"
 
 #define HNS_ROCE_V2_MAX_RC_INL_INN_SZ		32
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
@@ -228,6 +229,9 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_CFG_GMV_BT				= 0x8510,
 	HNS_ROCE_QUERY_RAM_ECC				= 0x8513,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
+	HNS_ROCE_OPC_SET_BOND_INFO                      = 0x8601,
+	HNS_ROCE_OPC_CLEAR_BOND_INFO                    = 0x8602,
+	HNS_ROCE_OPC_CHANGE_ACTIVE_PORT                 = 0x8603,
 };
 
 #define HNS_ROCE_OPC_POST_MB_TIMEOUT 35000
@@ -1465,7 +1469,23 @@ struct hns_roce_sccc_clr_done {
 	__le32 rsv[5];
 };
 
+struct hns_roce_bond_info {
+	__le32 bond_id;
+	__le32 bond_mode;
+	__le32 active_slave_cnt;
+	__le32 active_slave_mask;
+	__le32 slave_mask;
+	__le32 hash_policy;
+};
+
+struct hns_roce_dev
+	*hns_roce_bond_init_client(struct hns_roce_bond_group *bond_grp,
+				   int func_idx);
+void hns_roce_bond_uninit_client(struct hns_roce_bond_group *bond_grp,
+				 int func_idx);
 int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
+int hns_roce_cmd_bond(struct hns_roce_bond_group *bond_grp,
+		      enum hns_roce_bond_cmd_type bond_type);
 
 static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
 				    void __iomem *dest)

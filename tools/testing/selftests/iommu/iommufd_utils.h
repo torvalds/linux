@@ -11,7 +11,7 @@
 #include <assert.h>
 #include <poll.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../../../../drivers/iommu/iommufd/iommufd_test.h"
 
 /* Hack to make assertions more readable */
@@ -215,6 +215,18 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id, __u32 ft_i
 	ASSERT_EQ(0, _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, 0, flags,   \
 					  hwpt_id, IOMMU_HWPT_DATA_NONE, NULL, \
 					  0))
+#define test_cmd_hwpt_alloc_iommupt(device_id, pt_id, flags, iommupt_type, \
+				    hwpt_id)                               \
+	({                                                                 \
+		struct iommu_hwpt_selftest user_cfg = {                    \
+			.pagetable_type = iommupt_type                     \
+		};                                                         \
+                                                                           \
+		ASSERT_EQ(0, _test_cmd_hwpt_alloc(                         \
+				     self->fd, device_id, pt_id, 0, flags, \
+				     hwpt_id, IOMMU_HWPT_DATA_SELFTEST,    \
+				     &user_cfg, sizeof(user_cfg)));        \
+	})
 #define test_err_hwpt_alloc(_errno, device_id, pt_id, flags, hwpt_id)   \
 	EXPECT_ERRNO(_errno, _test_cmd_hwpt_alloc(                      \
 				     self->fd, device_id, pt_id, 0, flags, \
@@ -548,6 +560,39 @@ static int _test_cmd_destroy_access_pages(int fd, unsigned int access_id,
 	EXPECT_ERRNO(_errno, _test_cmd_destroy_access_pages(              \
 				     self->fd, access_id, access_pages_id))
 
+static int _test_cmd_get_dmabuf(int fd, size_t len, int *out_fd)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_DMABUF_GET,
+		.dmabuf_get = { .length = len, .open_flags = O_CLOEXEC },
+	};
+
+	*out_fd = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (*out_fd < 0)
+		return -1;
+	return 0;
+}
+#define test_cmd_get_dmabuf(len, out_fd) \
+	ASSERT_EQ(0, _test_cmd_get_dmabuf(self->fd, len, out_fd))
+
+static int _test_cmd_revoke_dmabuf(int fd, int dmabuf_fd, bool revoked)
+{
+	struct iommu_test_cmd cmd = {
+		.size = sizeof(cmd),
+		.op = IOMMU_TEST_OP_DMABUF_REVOKE,
+		.dmabuf_revoke = { .dmabuf_fd = dmabuf_fd, .revoked = revoked },
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_TEST_CMD, &cmd);
+	if (ret < 0)
+		return -1;
+	return 0;
+}
+#define test_cmd_revoke_dmabuf(dmabuf_fd, revoke) \
+	ASSERT_EQ(0, _test_cmd_revoke_dmabuf(self->fd, dmabuf_fd, revoke))
+
 static int _test_ioctl_destroy(int fd, unsigned int id)
 {
 	struct iommu_destroy cmd = {
@@ -717,6 +762,17 @@ static int _test_ioctl_ioas_map_file(int fd, unsigned int ioas_id, int mfd,
 		  _test_ioctl_ioas_map_file(                                 \
 			  self->fd, ioas_id, mfd, start, length, iova_p,     \
 			  IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE))
+
+#define test_ioctl_ioas_map_fixed_file(mfd, start, length, iova)          \
+	({                                                                \
+		__u64 __iova = iova;                                      \
+		ASSERT_EQ(0, _test_ioctl_ioas_map_file(                   \
+				     self->fd, self->ioas_id, mfd, start, \
+				     length, &__iova,                     \
+				     IOMMU_IOAS_MAP_FIXED_IOVA |          \
+					     IOMMU_IOAS_MAP_WRITEABLE |   \
+					     IOMMU_IOAS_MAP_READABLE));   \
+	})
 
 static int _test_ioctl_set_temp_memory_limit(int fd, unsigned int limit)
 {
@@ -1044,8 +1100,8 @@ static int _test_cmd_trigger_vevents(int fd, __u32 dev_id, __u32 nvevents)
 	};
 
 	while (nvevents--) {
-		if (!ioctl(fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_TRIGGER_VEVENT),
-			    &trigger_vevent_cmd))
+		if (ioctl(fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_TRIGGER_VEVENT),
+			  &trigger_vevent_cmd))
 			return -1;
 	}
 	return 0;

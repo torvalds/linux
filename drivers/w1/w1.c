@@ -86,7 +86,7 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr, char
 {
 	struct w1_slave *sl = dev_to_w1_slave(dev);
 
-	return sprintf(buf, "%s\n", sl->name);
+	return sysfs_emit(buf, "%s\n", sl->name);
 }
 static DEVICE_ATTR_RO(name);
 
@@ -207,7 +207,7 @@ static ssize_t w1_master_attribute_show_name(struct device *dev, struct device_a
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%s\n", md->name);
+	count = sysfs_emit(buf, "%s\n", md->name);
 	mutex_unlock(&md->mutex);
 
 	return count;
@@ -243,7 +243,7 @@ static ssize_t w1_master_attribute_show_search(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%d\n", md->search_count);
+	count = sysfs_emit(buf, "%d\n", md->search_count);
 	mutex_unlock(&md->mutex);
 
 	return count;
@@ -276,7 +276,7 @@ static ssize_t w1_master_attribute_show_pullup(struct device *dev,
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%d\n", md->enable_pullup);
+	count = sysfs_emit(buf, "%d\n", md->enable_pullup);
 	mutex_unlock(&md->mutex);
 
 	return count;
@@ -288,20 +288,20 @@ static ssize_t w1_master_attribute_show_pointer(struct device *dev, struct devic
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "0x%p\n", md->bus_master);
+	count = sysfs_emit(buf, "0x%p\n", md->bus_master);
 	mutex_unlock(&md->mutex);
 	return count;
 }
 
 static ssize_t w1_master_attribute_show_timeout(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", w1_timeout);
+	return sysfs_emit(buf, "%d\n", w1_timeout);
 }
 
 static ssize_t w1_master_attribute_show_timeout_us(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", w1_timeout_us);
+	return sysfs_emit(buf, "%d\n", w1_timeout_us);
 }
 
 static ssize_t w1_master_attribute_store_max_slave_count(struct device *dev,
@@ -328,7 +328,7 @@ static ssize_t w1_master_attribute_show_max_slave_count(struct device *dev, stru
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%d\n", md->max_slave_count);
+	count = sysfs_emit(buf, "%d\n", md->max_slave_count);
 	mutex_unlock(&md->mutex);
 	return count;
 }
@@ -339,7 +339,7 @@ static ssize_t w1_master_attribute_show_attempts(struct device *dev, struct devi
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%lu\n", md->attempts);
+	count = sysfs_emit(buf, "%lu\n", md->attempts);
 	mutex_unlock(&md->mutex);
 	return count;
 }
@@ -350,7 +350,7 @@ static ssize_t w1_master_attribute_show_slave_count(struct device *dev, struct d
 	ssize_t count;
 
 	mutex_lock(&md->mutex);
-	count = sprintf(buf, "%d\n", md->slave_count);
+	count = sysfs_emit(buf, "%d\n", md->slave_count);
 	mutex_unlock(&md->mutex);
 	return count;
 }

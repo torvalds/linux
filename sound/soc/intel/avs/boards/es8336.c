@@ -38,7 +38,7 @@ static const struct acpi_gpio_mapping speaker_gpios[] = {
 static int avs_es8336_speaker_power_event(struct snd_soc_dapm_widget *w,
 					  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct avs_card_drvdata *data;
 	bool speaker_en;
 
@@ -101,6 +101,7 @@ static int avs_es8336_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(runtime, 0);
 	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct snd_soc_jack_pin *pins;
 	struct avs_card_drvdata *data;
 	struct gpio_desc *gpiod;
@@ -132,7 +133,7 @@ static int avs_es8336_codec_init(struct snd_soc_pcm_runtime *runtime)
 	snd_jack_set_key(data->jack.jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_soc_component_set_jack(component, &data->jack, NULL);
 
-	card->dapm.idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	return 0;
 }

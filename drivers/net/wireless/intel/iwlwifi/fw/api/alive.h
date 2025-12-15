@@ -88,7 +88,7 @@ struct iwl_imr_alive_info {
 	__le32 enabled;
 } __packed; /* IMR_ALIVE_INFO_API_S_VER_1 */
 
-struct iwl_alive_ntf_v6 {
+struct iwl_alive_ntf_v7 {
 	__le16 status;
 	__le16 flags;
 	struct iwl_lmac_alive lmac_data[2];

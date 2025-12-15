@@ -42,7 +42,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	tree->inode = iget_locked(sb, id);
 	if (!tree->inode)
 		goto free_tree;
-	BUG_ON(!(tree->inode->i_state & I_NEW));
+	BUG_ON(!(inode_state_read_once(tree->inode) & I_NEW));
 	{
 	struct hfs_mdb *mdb = HFS_SB(sb)->mdb;
 	HFS_I(tree->inode)->flags = 0;
@@ -259,7 +259,7 @@ static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)
 }
 
 /* Make sure @tree has enough space for the @rsvd_nodes */
-int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes)
+int hfs_bmap_reserve(struct hfs_btree *tree, u32 rsvd_nodes)
 {
 	struct inode *inode = tree->inode;
 	u32 count;

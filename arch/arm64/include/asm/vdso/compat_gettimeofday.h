@@ -5,7 +5,7 @@
 #ifndef __ASM_VDSO_COMPAT_GETTIMEOFDAY_H
 #define __ASM_VDSO_COMPAT_GETTIMEOFDAY_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/barrier.h>
 #include <asm/unistd_compat_32.h>
@@ -161,6 +161,6 @@ static inline bool vdso_clocksource_ok(const struct vdso_clock *vc)
 }
 #define vdso_clocksource_ok	vdso_clocksource_ok
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_VDSO_COMPAT_GETTIMEOFDAY_H */

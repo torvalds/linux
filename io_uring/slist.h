@@ -67,24 +67,6 @@ static inline void wq_list_cut(struct io_wq_work_list *list,
 	last->next = NULL;
 }
 
-static inline void __wq_list_splice(struct io_wq_work_list *list,
-				    struct io_wq_work_node *to)
-{
-	list->last->next = to->next;
-	to->next = list->first;
-	INIT_WQ_LIST(list);
-}
-
-static inline bool wq_list_splice(struct io_wq_work_list *list,
-				  struct io_wq_work_node *to)
-{
-	if (!wq_list_empty(list)) {
-		__wq_list_splice(list, to);
-		return true;
-	}
-	return false;
-}
-
 static inline void wq_stack_add_head(struct io_wq_work_node *node,
 				     struct io_wq_work_node *stack)
 {

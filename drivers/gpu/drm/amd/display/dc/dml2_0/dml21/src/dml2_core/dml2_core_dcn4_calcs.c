@@ -6972,7 +6972,7 @@ static void calculate_bytes_to_fetch_required_to_hide_latency(
 
 		stream_index = p->display_cfg->plane_descriptors[plane_index].stream_index;
 
-		dst_lines_to_hide = (unsigned int)math_ceil(p->latency_to_hide_us /
+		dst_lines_to_hide = (unsigned int)math_ceil(p->latency_to_hide_us[0] /
 			((double)p->display_cfg->stream_descriptors[stream_index].timing.h_total /
 				(double)p->display_cfg->stream_descriptors[stream_index].timing.pixel_clock_khz * 1000.0));
 
@@ -7069,9 +7069,9 @@ static void calculate_excess_vactive_bandwidth_required(
 		excess_vactive_fill_bw_l[plane_index] = 0.0;
 		excess_vactive_fill_bw_c[plane_index] = 0.0;
 
-		if (display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us > 0) {
-			excess_vactive_fill_bw_l[plane_index] = (double)bytes_required_l[plane_index] / (double)display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us;
-			excess_vactive_fill_bw_c[plane_index] = (double)bytes_required_c[plane_index] / (double)display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us;
+		if (display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us[dml2_pstate_type_uclk] > 0) {
+			excess_vactive_fill_bw_l[plane_index] = (double)bytes_required_l[plane_index] / (double)display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us[dml2_pstate_type_uclk];
+			excess_vactive_fill_bw_c[plane_index] = (double)bytes_required_c[plane_index] / (double)display_cfg->plane_descriptors[plane_index].overrides.max_vactive_det_fill_delay_us[dml2_pstate_type_uclk];
 		}
 	}
 }
@@ -9051,11 +9051,11 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_width_c = mode_lib->ms.SwathWidthC;
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_height_l = mode_lib->ms.SwathHeightY;
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_height_c = mode_lib->ms.SwathHeightC;
-	calculate_bytes_to_fetch_required_to_hide_latency_params->latency_to_hide_us = mode_lib->soc.power_management_parameters.dram_clk_change_blackout_us;
+	calculate_bytes_to_fetch_required_to_hide_latency_params->latency_to_hide_us[0] = mode_lib->soc.power_management_parameters.dram_clk_change_blackout_us;
 
 	/* outputs */
-	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_l = s->pstate_bytes_required_l;
-	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_c = s->pstate_bytes_required_c;
+	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_l = s->pstate_bytes_required_l[dml2_pstate_type_uclk];
+	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_c = s->pstate_bytes_required_c[dml2_pstate_type_uclk];
 
 	calculate_bytes_to_fetch_required_to_hide_latency(calculate_bytes_to_fetch_required_to_hide_latency_params);
 
@@ -9063,8 +9063,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	calculate_excess_vactive_bandwidth_required(
 			display_cfg,
 			mode_lib->ms.num_active_planes,
-			s->pstate_bytes_required_l,
-			s->pstate_bytes_required_c,
+			s->pstate_bytes_required_l[dml2_pstate_type_uclk],
+			s->pstate_bytes_required_c[dml2_pstate_type_uclk],
 			/* outputs */
 			mode_lib->ms.excess_vactive_fill_bw_l,
 			mode_lib->ms.excess_vactive_fill_bw_c);
@@ -9506,8 +9506,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 	calculate_vactive_det_fill_latency(
 			display_cfg,
 			mode_lib->ms.num_active_planes,
-			s->pstate_bytes_required_l,
-			s->pstate_bytes_required_c,
+			s->pstate_bytes_required_l[dml2_pstate_type_uclk],
+			s->pstate_bytes_required_c[dml2_pstate_type_uclk],
 			mode_lib->ms.dcc_dram_bw_nom_overhead_factor_p0,
 			mode_lib->ms.dcc_dram_bw_nom_overhead_factor_p1,
 			mode_lib->ms.vactive_sw_bw_l,
@@ -9515,7 +9515,7 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 			mode_lib->ms.surface_avg_vactive_required_bw,
 			mode_lib->ms.surface_peak_required_bw,
 			/* outputs */
-			mode_lib->ms.dram_change_vactive_det_fill_delay_us);
+			mode_lib->ms.pstate_vactive_det_fill_delay_us[dml2_pstate_type_uclk]);
 
 #ifdef __DML_VBA_DEBUG__
 	DML_LOG_VERBOSE("DML::%s: max_urgent_latency_us = %f\n", __func__, s->mSOCParameters.max_urgent_latency_us);
@@ -11009,11 +11009,11 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_width_c = mode_lib->mp.SwathWidthC;
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_height_l = mode_lib->mp.SwathHeightY;
 	calculate_bytes_to_fetch_required_to_hide_latency_params->swath_height_c = mode_lib->mp.SwathHeightC;
-	calculate_bytes_to_fetch_required_to_hide_latency_params->latency_to_hide_us = mode_lib->soc.power_management_parameters.dram_clk_change_blackout_us;
+	calculate_bytes_to_fetch_required_to_hide_latency_params->latency_to_hide_us[0] = mode_lib->soc.power_management_parameters.dram_clk_change_blackout_us;
 
 	/* outputs */
-	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_l = s->pstate_bytes_required_l;
-	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_c = s->pstate_bytes_required_c;
+	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_l = s->pstate_bytes_required_l[dml2_pstate_type_uclk];
+	calculate_bytes_to_fetch_required_to_hide_latency_params->bytes_required_c = s->pstate_bytes_required_c[dml2_pstate_type_uclk];
 
 	calculate_bytes_to_fetch_required_to_hide_latency(calculate_bytes_to_fetch_required_to_hide_latency_params);
 
@@ -11021,8 +11021,8 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 	calculate_excess_vactive_bandwidth_required(
 			display_cfg,
 			s->num_active_planes,
-			s->pstate_bytes_required_l,
-			s->pstate_bytes_required_c,
+			s->pstate_bytes_required_l[dml2_pstate_type_uclk],
+			s->pstate_bytes_required_c[dml2_pstate_type_uclk],
 			/* outputs */
 			mode_lib->mp.excess_vactive_fill_bw_l,
 			mode_lib->mp.excess_vactive_fill_bw_c);
@@ -12943,7 +12943,8 @@ void dml2_core_calcs_get_plane_support_info(const struct dml2_display_cfg *displ
 
 	out->active_latency_hiding_us = (int)mode_lib->ms.VActiveLatencyHidingUs[plane_idx];
 
-	out->dram_change_vactive_det_fill_delay_us = (unsigned int)math_ceil(mode_lib->ms.dram_change_vactive_det_fill_delay_us[plane_idx]);
+	out->vactive_det_fill_delay_us[dml2_pstate_type_uclk] =
+			(unsigned int)math_ceil(mode_lib->ms.pstate_vactive_det_fill_delay_us[dml2_pstate_type_uclk][plane_idx]);
 }
 
 void dml2_core_calcs_get_stream_support_info(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct core_stream_support_info *out, int plane_index)
@@ -13024,7 +13025,7 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.mode_support_info.InvalidCombinationOfMALLUseForPState = mode_lib->ms.support.InvalidCombinationOfMALLUseForPState;
 	out->informative.mode_support_info.ExceededMALLSize = mode_lib->ms.support.ExceededMALLSize;
 	out->informative.mode_support_info.EnoughWritebackUnits = mode_lib->ms.support.EnoughWritebackUnits;
-	out->informative.mode_support_info.temp_read_or_ppt_support = mode_lib->ms.support.temp_read_or_ppt_support;
+	out->informative.mode_support_info.temp_read_or_ppt_support = mode_lib->ms.support.global_temp_read_or_ppt_supported;
 	out->informative.mode_support_info.g6_temp_read_support = mode_lib->ms.support.g6_temp_read_support;
 
 	out->informative.mode_support_info.ExceededMultistreamSlots = mode_lib->ms.support.ExceededMultistreamSlots;

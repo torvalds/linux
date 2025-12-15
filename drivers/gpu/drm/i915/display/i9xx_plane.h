@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 enum pipe;
+struct drm_format_info;
 struct drm_framebuffer;
 struct intel_crtc;
 struct intel_display;
@@ -18,8 +19,8 @@ struct intel_plane_state;
 
 #ifdef I915
 unsigned int i965_plane_max_stride(struct intel_plane *plane,
-				   u32 pixel_format, u64 modifier,
-				   unsigned int rotation);
+				   const struct drm_format_info *info,
+				   u64 modifier, unsigned int rotation);
 unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
 				     const struct drm_framebuffer *fb,
 				     int colot_plane);

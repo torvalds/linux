@@ -710,8 +710,14 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 
 				bw = do_rnd_write(peerfd, winfo->buf + winfo->off, winfo->len);
 				if (bw < 0) {
-					if (cfg_rcv_trunc)
-						return 0;
+					/* expected reset, continue to read */
+					if (cfg_rcv_trunc &&
+					    (errno == ECONNRESET ||
+					     errno == EPIPE)) {
+						fds.events &= ~POLLOUT;
+						continue;
+					}
+
 					perror("write");
 					return 111;
 				}
@@ -737,8 +743,10 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd,
 		}
 
 		if (fds.revents & (POLLERR | POLLNVAL)) {
-			if (cfg_rcv_trunc)
-				return 0;
+			if (cfg_rcv_trunc) {
+				fds.events &= ~(POLLERR | POLLNVAL);
+				continue;
+			}
 			fprintf(stderr, "Unexpected revents: "
 				"POLLERR/POLLNVAL(%x)\n", fds.revents);
 			return 5;
@@ -1064,6 +1072,8 @@ static void check_getpeername_connect(int fd)
 	socklen_t salen = sizeof(ss);
 	char a[INET6_ADDRSTRLEN];
 	char b[INET6_ADDRSTRLEN];
+	const char *iface;
+	size_t len;
 
 	if (getpeername(fd, (struct sockaddr *)&ss, &salen) < 0) {
 		perror("getpeername");
@@ -1073,7 +1083,13 @@ static void check_getpeername_connect(int fd)
 	xgetnameinfo((struct sockaddr *)&ss, salen,
 		     a, sizeof(a), b, sizeof(b));
 
-	if (strcmp(cfg_host, a) || strcmp(cfg_port, b))
+	iface = strchr(cfg_host, '%');
+	if (iface)
+		len = iface - cfg_host;
+	else
+		len = strlen(cfg_host) + 1;
+
+	if (strncmp(cfg_host, a, len) || strcmp(cfg_port, b))
 		fprintf(stderr, "%s: %s vs %s, %s vs %s\n", __func__,
 			cfg_host, a, cfg_port, b);
 }
@@ -1433,7 +1449,7 @@ static void parse_opts(int argc, char **argv)
 			 */
 			if (cfg_truncate < 0) {
 				cfg_rcv_trunc = true;
-				signal(SIGPIPE, handle_signal);
+				signal(SIGPIPE, SIG_IGN);
 			}
 			break;
 		case 'j':

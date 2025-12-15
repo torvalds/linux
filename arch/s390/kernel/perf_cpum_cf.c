@@ -6,8 +6,7 @@
  *  Author(s): Hendrik Brueckner <brueckner@linux.ibm.com>
  *	       Thomas Richter <tmricht@linux.ibm.com>
  */
-#define KMSG_COMPONENT	"cpum_cf"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cpum_cf: " fmt
 
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
@@ -1206,7 +1205,7 @@ static int __init cpumf_pmu_init(void)
 	}
 
 	/* Setup s390dbf facility */
-	cf_dbg = debug_register(KMSG_COMPONENT, 2, 1, 128);
+	cf_dbg = debug_register("cpum_cf", 2, 1, 128);
 	if (!cf_dbg) {
 		pr_err("Registration of s390dbf(cpum_cf) failed\n");
 		rc = -ENOMEM;
@@ -1689,7 +1688,6 @@ static const struct file_operations cfset_fops = {
 	.open = cfset_open,
 	.release = cfset_release,
 	.unlocked_ioctl	= cfset_ioctl,
-	.compat_ioctl = cfset_ioctl,
 };
 
 static struct miscdevice cfset_dev = {

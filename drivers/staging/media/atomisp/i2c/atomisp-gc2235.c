@@ -491,7 +491,7 @@ static int gc2235_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static int startup(struct v4l2_subdev *sd)
+static int gc2235_startup(struct v4l2_subdev *sd)
 {
 	struct gc2235_device *dev = to_gc2235_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -556,7 +556,7 @@ static int gc2235_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	ret = startup(sd);
+	ret = gc2235_startup(sd);
 	if (ret) {
 		dev_err(&client->dev, "gc2235 startup err\n");
 		goto err;

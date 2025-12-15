@@ -25,7 +25,7 @@
 
 #define KEXEC_ARCH KEXEC_ARCH_AARCH64
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /**
  * crash_setup_regs() - save registers for the panic kernel
@@ -130,6 +130,6 @@ extern int load_other_segments(struct kimage *image,
 		char *cmdline);
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif

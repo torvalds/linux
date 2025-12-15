@@ -232,16 +232,11 @@ err_put:
 	return ret;
 }
 
-static int __init mip_of_msi_init(struct device_node *node, struct device_node *parent)
+static int mip_msi_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	struct platform_device *pdev;
+	struct device_node *node = pdev->dev.of_node;
 	struct mip_priv *mip;
 	int ret;
-
-	pdev = of_find_device_by_node(node);
-	of_node_put(node);
-	if (!pdev)
-		return -EPROBE_DEFER;
 
 	mip = kzalloc(sizeof(*mip), GFP_KERNEL);
 	if (!mip)
@@ -285,7 +280,7 @@ err_priv:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(mip_msi)
-IRQCHIP_MATCH("brcm,bcm2712-mip", mip_of_msi_init)
+IRQCHIP_MATCH("brcm,bcm2712-mip", mip_msi_probe)
 IRQCHIP_PLATFORM_DRIVER_END(mip_msi)
 MODULE_DESCRIPTION("Broadcom BCM2712 MSI-X interrupt controller");
 MODULE_AUTHOR("Phil Elwell <phil@raspberrypi.com>");

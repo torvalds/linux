@@ -1269,7 +1269,7 @@ attribute-sets:
       -
         name: hist
         type: nest
-        multi-attr: True
+        multi-attr: true
         nested-attributes: fec-hist
   -
     name: fec
@@ -1823,6 +1823,73 @@ attribute-sets:
         type: uint
         enum: pse-event
         doc: List of events reported by the PSE controller
+  -
+    name: mse-capabilities
+    doc: MSE capabilities attribute set
+    attr-cnt-name: --ethtool-a-mse-capabilities-cnt
+    attributes:
+      -
+        name: max-average-mse
+        type: uint
+      -
+        name: max-peak-mse
+        type: uint
+      -
+        name: refresh-rate-ps
+        type: uint
+      -
+        name: num-symbols
+        type: uint
+  -
+    name: mse-snapshot
+    doc: MSE snapshot attribute set
+    attr-cnt-name: --ethtool-a-mse-snapshot-cnt
+    attributes:
+      -
+        name: average-mse
+        type: uint
+      -
+        name: peak-mse
+        type: uint
+      -
+        name: worst-peak-mse
+        type: uint
+  -
+    name: mse
+    attr-cnt-name: --ethtool-a-mse-cnt
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: capabilities
+        type: nest
+        nested-attributes: mse-capabilities
+      -
+        name: channel-a
+        type: nest
+        nested-attributes: mse-snapshot
+      -
+        name: channel-b
+        type: nest
+        nested-attributes: mse-snapshot
+      -
+        name: channel-c
+        type: nest
+        nested-attributes: mse-snapshot
+      -
+        name: channel-d
+        type: nest
+        nested-attributes: mse-snapshot
+      -
+        name: worst-channel
+        type: nest
+        nested-attributes: mse-snapshot
+      -
+        name: link
+        type: nest
+        nested-attributes: mse-snapshot
 
 operations:
   enum-model: directional
@@ -2756,6 +2823,25 @@ operations:
         attributes:
           - header
           - context
+    -
+      name: mse-get
+      doc: Get PHY MSE measurement data and capabilities.
+      attribute-set: mse
+      do: &mse-get-op
+        request:
+          attributes:
+            - header
+        reply:
+          attributes:
+            - header
+            - capabilities
+            - channel-a
+            - channel-b
+            - channel-c
+            - channel-d
+            - worst-channel
+            - link
+      dump: *mse-get-op
 
 mcast-groups:
   list:

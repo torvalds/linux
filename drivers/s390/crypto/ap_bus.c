@@ -11,8 +11,7 @@
  * Adjunct processor bus.
  */
 
-#define KMSG_COMPONENT "ap"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "ap: " fmt
 
 #include <linux/kernel_stat.h>
 #include <linux/moduleparam.h>
@@ -86,8 +85,17 @@ DEFINE_SPINLOCK(ap_queues_lock);
 /* Default permissions (ioctl, card and domain masking) */
 struct ap_perms ap_perms;
 EXPORT_SYMBOL(ap_perms);
-DEFINE_MUTEX(ap_perms_mutex);
-EXPORT_SYMBOL(ap_perms_mutex);
+/* true if apmask and/or aqmask are NOT default */
+bool ap_apmask_aqmask_in_use;
+/* counter for how many driver_overrides are currently active */
+int ap_driver_override_ctr;
+/*
+ * Mutex for consistent read and write of the ap_perms struct,
+ * ap_apmask_aqmask_in_use, ap_driver_override_ctr
+ * and the ap bus sysfs attributes apmask and aqmask.
+ */
+DEFINE_MUTEX(ap_attr_mutex);
+EXPORT_SYMBOL(ap_attr_mutex);
 
 /* # of bindings complete since init */
 static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
@@ -853,20 +861,38 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 	int rc, card, queue, devres, drvres;
 
 	if (is_queue_dev(dev)) {
-		card = AP_QID_CARD(to_ap_queue(dev)->qid);
-		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
-		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm) &&
-			test_bit_inv(queue, ap_perms.aqm);
-		mutex_unlock(&ap_perms_mutex);
-		drvres = to_ap_drv(dev->driver)->flags
-			& AP_DRIVER_FLAG_DEFAULT;
-		if (!!devres != !!drvres) {
-			pr_debug("reprobing queue=%02x.%04x\n", card, queue);
-			rc = device_reprobe(dev);
-			if (rc)
-				AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
-					    __func__, card, queue);
+		struct ap_driver *ap_drv = to_ap_drv(dev->driver);
+		struct ap_queue *aq = to_ap_queue(dev);
+		struct ap_device *ap_dev = &aq->ap_dev;
+
+		card = AP_QID_CARD(aq->qid);
+		queue = AP_QID_QUEUE(aq->qid);
+
+		if (ap_dev->driver_override) {
+			if (strcmp(ap_dev->driver_override,
+				   ap_drv->driver.name)) {
+				pr_debug("reprobing queue=%02x.%04x\n", card, queue);
+				rc = device_reprobe(dev);
+				if (rc) {
+					AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
+						    __func__, card, queue);
+				}
+			}
+		} else {
+			mutex_lock(&ap_attr_mutex);
+			devres = test_bit_inv(card, ap_perms.apm) &&
+				test_bit_inv(queue, ap_perms.aqm);
+			mutex_unlock(&ap_attr_mutex);
+			drvres = to_ap_drv(dev->driver)->flags
+				& AP_DRIVER_FLAG_DEFAULT;
+			if (!!devres != !!drvres) {
+				pr_debug("reprobing queue=%02x.%04x\n", card, queue);
+				rc = device_reprobe(dev);
+				if (rc) {
+					AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
+						    __func__, card, queue);
+				}
+			}
 		}
 	}
 
@@ -884,22 +910,37 @@ static void ap_bus_revise_bindings(void)
  * @card: the APID of the adapter card to check
  * @queue: the APQI of the queue to check
  *
- * Note: the ap_perms_mutex must be locked by the caller of this function.
+ * Note: the ap_attr_mutex must be locked by the caller of this function.
  *
  * Return: an int specifying whether the AP adapter is reserved for the host (1)
  *	   or not (0).
  */
 int ap_owned_by_def_drv(int card, int queue)
 {
+	struct ap_queue *aq;
 	int rc = 0;
 
 	if (card < 0 || card >= AP_DEVICES || queue < 0 || queue >= AP_DOMAINS)
 		return -EINVAL;
 
+	aq = ap_get_qdev(AP_MKQID(card, queue));
+	if (aq) {
+		const struct device_driver *drv = aq->ap_dev.device.driver;
+		const struct ap_driver *ap_drv = to_ap_drv(drv);
+		bool override = !!aq->ap_dev.driver_override;
+
+		if (override && drv && ap_drv->flags & AP_DRIVER_FLAG_DEFAULT)
+			rc = 1;
+		put_device(&aq->ap_dev.device);
+		if (override)
+			goto out;
+	}
+
 	if (test_bit_inv(card, ap_perms.apm) &&
 	    test_bit_inv(queue, ap_perms.aqm))
 		rc = 1;
 
+out:
 	return rc;
 }
 EXPORT_SYMBOL(ap_owned_by_def_drv);
@@ -911,7 +952,7 @@ EXPORT_SYMBOL(ap_owned_by_def_drv);
  * @apm: a bitmap specifying a set of APIDs comprising the APQNs to check
  * @aqm: a bitmap specifying a set of APQIs comprising the APQNs to check
  *
- * Note: the ap_perms_mutex must be locked by the caller of this function.
+ * Note: the ap_attr_mutex must be locked by the caller of this function.
  *
  * Return: an int specifying whether each APQN is reserved for the host (1) or
  *	   not (0)
@@ -922,12 +963,10 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
 	int card, queue, rc = 0;
 
 	for (card = 0; !rc && card < AP_DEVICES; card++)
-		if (test_bit_inv(card, apm) &&
-		    test_bit_inv(card, ap_perms.apm))
+		if (test_bit_inv(card, apm))
 			for (queue = 0; !rc && queue < AP_DOMAINS; queue++)
-				if (test_bit_inv(queue, aqm) &&
-				    test_bit_inv(queue, ap_perms.aqm))
-					rc = 1;
+				if (test_bit_inv(queue, aqm))
+					rc = ap_owned_by_def_drv(card, queue);
 
 	return rc;
 }
@@ -951,13 +990,19 @@ static int ap_device_probe(struct device *dev)
 		 */
 		card = AP_QID_CARD(to_ap_queue(dev)->qid);
 		queue = AP_QID_QUEUE(to_ap_queue(dev)->qid);
-		mutex_lock(&ap_perms_mutex);
-		devres = test_bit_inv(card, ap_perms.apm) &&
-			test_bit_inv(queue, ap_perms.aqm);
-		mutex_unlock(&ap_perms_mutex);
-		drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
-		if (!!devres != !!drvres)
-			goto out;
+		if (ap_dev->driver_override) {
+			if (strcmp(ap_dev->driver_override,
+				   ap_drv->driver.name))
+				goto out;
+		} else {
+			mutex_lock(&ap_attr_mutex);
+			devres = test_bit_inv(card, ap_perms.apm) &&
+				test_bit_inv(queue, ap_perms.aqm);
+			mutex_unlock(&ap_attr_mutex);
+			drvres = ap_drv->flags & AP_DRIVER_FLAG_DEFAULT;
+			if (!!devres != !!drvres)
+				goto out;
+		}
 	}
 
 	/*
@@ -983,8 +1028,17 @@ static int ap_device_probe(struct device *dev)
 	}
 
 out:
-	if (rc)
+	if (rc) {
 		put_device(dev);
+	} else {
+		if (is_queue_dev(dev)) {
+			pr_debug("queue=%02x.%04x new driver=%s\n",
+				 card, queue, ap_drv->driver.name);
+		} else {
+			pr_debug("card=%02x new driver=%s\n",
+				 to_ap_card(dev)->id, ap_drv->driver.name);
+		}
+	}
 	return rc;
 }
 
@@ -1437,12 +1491,12 @@ static ssize_t apmask_show(const struct bus_type *bus, char *buf)
 {
 	int rc;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 	rc = sysfs_emit(buf, "0x%016lx%016lx%016lx%016lx\n",
 			ap_perms.apm[0], ap_perms.apm[1],
 			ap_perms.apm[2], ap_perms.apm[3]);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return rc;
 }
@@ -1452,6 +1506,7 @@ static int __verify_card_reservations(struct device_driver *drv, void *data)
 	int rc = 0;
 	struct ap_driver *ap_drv = to_ap_drv(drv);
 	unsigned long *newapm = (unsigned long *)data;
+	unsigned long aqm_any[BITS_TO_LONGS(AP_DOMAINS)];
 
 	/*
 	 * increase the driver's module refcounter to be sure it is not
@@ -1461,7 +1516,8 @@ static int __verify_card_reservations(struct device_driver *drv, void *data)
 		return 0;
 
 	if (ap_drv->in_use) {
-		rc = ap_drv->in_use(newapm, ap_perms.aqm);
+		bitmap_fill(aqm_any, AP_DOMAINS);
+		rc = ap_drv->in_use(newapm, aqm_any);
 		if (rc)
 			rc = -EBUSY;
 	}
@@ -1490,17 +1546,30 @@ static int apmask_commit(unsigned long *newapm)
 
 	memcpy(ap_perms.apm, newapm, APMASKSIZE);
 
+	/*
+	 * Update ap_apmask_aqmask_in_use. Note that the
+	 * ap_attr_mutex has to be obtained here.
+	 */
+	ap_apmask_aqmask_in_use =
+		bitmap_full(ap_perms.apm, AP_DEVICES) &&
+		bitmap_full(ap_perms.aqm, AP_DOMAINS) ?
+		false : true;
+
 	return 0;
 }
 
 static ssize_t apmask_store(const struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc, changes = 0;
 	DECLARE_BITMAP(newapm, AP_DEVICES);
+	int rc = -EINVAL, changes = 0;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
+
+	/* Do not allow apmask/aqmask if driver override is active */
+	if (ap_driver_override_ctr)
+		goto done;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.apm, AP_DEVICES, newapm);
 	if (rc)
@@ -1511,7 +1580,7 @@ static ssize_t apmask_store(const struct bus_type *bus, const char *buf,
 		rc = apmask_commit(newapm);
 
 done:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -1529,12 +1598,12 @@ static ssize_t aqmask_show(const struct bus_type *bus, char *buf)
 {
 	int rc;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 	rc = sysfs_emit(buf, "0x%016lx%016lx%016lx%016lx\n",
 			ap_perms.aqm[0], ap_perms.aqm[1],
 			ap_perms.aqm[2], ap_perms.aqm[3]);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return rc;
 }
@@ -1544,6 +1613,7 @@ static int __verify_queue_reservations(struct device_driver *drv, void *data)
 	int rc = 0;
 	struct ap_driver *ap_drv = to_ap_drv(drv);
 	unsigned long *newaqm = (unsigned long *)data;
+	unsigned long apm_any[BITS_TO_LONGS(AP_DEVICES)];
 
 	/*
 	 * increase the driver's module refcounter to be sure it is not
@@ -1553,7 +1623,8 @@ static int __verify_queue_reservations(struct device_driver *drv, void *data)
 		return 0;
 
 	if (ap_drv->in_use) {
-		rc = ap_drv->in_use(ap_perms.apm, newaqm);
+		bitmap_fill(apm_any, AP_DEVICES);
+		rc = ap_drv->in_use(apm_any, newaqm);
 		if (rc)
 			rc = -EBUSY;
 	}
@@ -1582,17 +1653,30 @@ static int aqmask_commit(unsigned long *newaqm)
 
 	memcpy(ap_perms.aqm, newaqm, AQMASKSIZE);
 
+	/*
+	 * Update ap_apmask_aqmask_in_use. Note that the
+	 * ap_attr_mutex has to be obtained here.
+	 */
+	ap_apmask_aqmask_in_use =
+		bitmap_full(ap_perms.apm, AP_DEVICES) &&
+		bitmap_full(ap_perms.aqm, AP_DOMAINS) ?
+		false : true;
+
 	return 0;
 }
 
 static ssize_t aqmask_store(const struct bus_type *bus, const char *buf,
 			    size_t count)
 {
-	int rc, changes = 0;
 	DECLARE_BITMAP(newaqm, AP_DOMAINS);
+	int rc = -EINVAL, changes = 0;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
+
+	/* Do not allow apmask/aqmask if driver override is active */
+	if (ap_driver_override_ctr)
+		goto done;
 
 	rc = ap_parse_bitmap_str(buf, ap_perms.aqm, AP_DOMAINS, newaqm);
 	if (rc)
@@ -1603,7 +1687,7 @@ static ssize_t aqmask_store(const struct bus_type *bus, const char *buf,
 		rc = aqmask_commit(newaqm);
 
 done:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -1650,6 +1734,15 @@ static ssize_t bindings_show(const struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(bindings);
 
+static ssize_t bindings_complete_count_show(const struct bus_type *bus,
+					    char *buf)
+{
+	return sysfs_emit(buf, "%llu\n",
+			  atomic64_read(&ap_bindings_complete_count));
+}
+
+static BUS_ATTR_RO(bindings_complete_count);
+
 static ssize_t features_show(const struct bus_type *bus, char *buf)
 {
 	int n = 0;
@@ -1690,6 +1783,7 @@ static struct attribute *ap_bus_attrs[] = {
 	&bus_attr_aqmask.attr,
 	&bus_attr_scans.attr,
 	&bus_attr_bindings.attr,
+	&bus_attr_bindings_complete_count.attr,
 	&bus_attr_features.attr,
 	NULL,
 };
@@ -2464,14 +2558,14 @@ static void __init ap_perms_init(void)
 	if (apm_str) {
 		memset(&ap_perms.apm, 0, sizeof(ap_perms.apm));
 		ap_parse_mask_str(apm_str, ap_perms.apm, AP_DEVICES,
-				  &ap_perms_mutex);
+				  &ap_attr_mutex);
 	}
 
 	/* aqm kernel parameter string */
 	if (aqm_str) {
 		memset(&ap_perms.aqm, 0, sizeof(ap_perms.aqm));
 		ap_parse_mask_str(aqm_str, ap_perms.aqm, AP_DOMAINS,
-				  &ap_perms_mutex);
+				  &ap_attr_mutex);
 	}
 }
 
@@ -2484,14 +2578,14 @@ static int __init ap_module_init(void)
 {
 	int rc;
 
-	rc = ap_debug_init();
-	if (rc)
-		return rc;
-
 	if (!ap_instructions_available()) {
 		pr_warn("The hardware system does not support AP instructions\n");
 		return -ENODEV;
 	}
+
+	rc = ap_debug_init();
+	if (rc)
+		return rc;
 
 	/* init ap_queue hashtable */
 	hash_init(ap_queues);

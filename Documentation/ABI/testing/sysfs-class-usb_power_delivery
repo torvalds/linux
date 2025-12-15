@@ -254,3 +254,31 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The PPS Power Limited bit indicates whether or not the source
 		supply will exceed the rated output power if requested.
+
+Standard Power Range (SPR) Adjustable Voltage Supplies
+
+What:		/sys/class/usb_power_delivery/.../<capability>/<position>:spr_adjustable_voltage_supply
+Date:		Oct 2025
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Adjustable Voltage Supply (AVS) Augmented PDO (APDO).
+
+What:		/sys/class/usb_power_delivery/.../<capability>/<position>:spr_adjustable_voltage_supply/maximum_current_9V_to_15V
+Date:		Oct 2025
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Maximum Current for 9V to 15V range in milliamperes.
+
+What:		/sys/class/usb_power_delivery/.../<capability>/<position>:spr_adjustable_voltage_supply/maximum_current_15V_to_20V
+Date:		Oct 2025
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		Maximum Current for greater than 15V till 20V range in
+		milliamperes.
+
+What:		/sys/class/usb_power_delivery/.../<capability>/<position>:spr_adjustable_voltage_supply/peak_current
+Date:		Oct 2025
+Contact:	Badhri Jagan Sridharan <badhri@google.com>
+Description:
+		This file shows the value of the Adjustable Voltage Supply Peak Current
+		Capability field.

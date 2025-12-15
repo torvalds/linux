@@ -744,7 +744,8 @@ static int dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 		return -ENODEV;
 	}
 
-	if ((ret = demux->start_feed(feed)) < 0) {
+	ret = demux->start_feed(feed);
+	if (ret < 0) {
 		mutex_unlock(&demux->mutex);
 		return ret;
 	}
@@ -797,7 +798,8 @@ static int dvbdmx_allocate_ts_feed(struct dmx_demux *dmx,
 	if (mutex_lock_interruptible(&demux->mutex))
 		return -ERESTARTSYS;
 
-	if (!(feed = dvb_dmx_feed_alloc(demux))) {
+	feed = dvb_dmx_feed_alloc(demux);
+	if (!feed) {
 		mutex_unlock(&demux->mutex);
 		return -EBUSY;
 	}
@@ -817,7 +819,8 @@ static int dvbdmx_allocate_ts_feed(struct dmx_demux *dmx,
 	(*ts_feed)->stop_filtering = dmx_ts_feed_stop_filtering;
 	(*ts_feed)->set = dmx_ts_feed_set;
 
-	if (!(feed->filter = dvb_dmx_filter_alloc(demux))) {
+	feed->filter = dvb_dmx_filter_alloc(demux);
+	if (!feed->filter) {
 		feed->state = DMX_STATE_FREE;
 		mutex_unlock(&demux->mutex);
 		return -EBUSY;
@@ -923,7 +926,8 @@ static void prepare_secfilters(struct dvb_demux_feed *dvbdmxfeed)
 	struct dmx_section_filter *sf;
 	u8 mask, mode, doneq;
 
-	if (!(f = dvbdmxfeed->filter))
+	f =  dvbdmxfeed->filter;
+	if (!f)
 		return;
 	do {
 		sf = &f->filter;
@@ -970,7 +974,8 @@ static int dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 
 	prepare_secfilters(dvbdmxfeed);
 
-	if ((ret = dvbdmx->start_feed(dvbdmxfeed)) < 0) {
+	ret = dvbdmx->start_feed(dvbdmxfeed);
+	if (ret < 0) {
 		mutex_unlock(&dvbdmx->mutex);
 		return ret;
 	}
@@ -1057,7 +1062,8 @@ static int dvbdmx_allocate_section_feed(struct dmx_demux *demux,
 	if (mutex_lock_interruptible(&dvbdmx->mutex))
 		return -ERESTARTSYS;
 
-	if (!(dvbdmxfeed = dvb_dmx_feed_alloc(dvbdmx))) {
+	dvbdmxfeed = dvb_dmx_feed_alloc(dvbdmx);
+	if (!dvbdmxfeed) {
 		mutex_unlock(&dvbdmx->mutex);
 		return -EBUSY;
 	}
@@ -1223,7 +1229,7 @@ static int dvbdmx_disconnect_frontend(struct dmx_demux *demux)
 	return 0;
 }
 
-static int dvbdmx_get_pes_pids(struct dmx_demux *demux, u16 * pids)
+static int dvbdmx_get_pes_pids(struct dmx_demux *demux, u16 *pids)
 {
 	struct dvb_demux *dvbdemux = (struct dvb_demux *)demux;
 
@@ -1238,14 +1244,14 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 
 	dvbdemux->cnt_storage = NULL;
 	dvbdemux->users = 0;
-	dvbdemux->filter = vmalloc(array_size(sizeof(struct dvb_demux_filter),
-					      dvbdemux->filternum));
+	dvbdemux->filter = vmalloc_array(dvbdemux->filternum,
+					 sizeof(struct dvb_demux_filter));
 
 	if (!dvbdemux->filter)
 		return -ENOMEM;
 
-	dvbdemux->feed = vmalloc(array_size(sizeof(struct dvb_demux_feed),
-					    dvbdemux->feednum));
+	dvbdemux->feed = vmalloc_array(dvbdemux->feednum,
+				       sizeof(struct dvb_demux_feed));
 	if (!dvbdemux->feed) {
 		vfree(dvbdemux->filter);
 		dvbdemux->filter = NULL;

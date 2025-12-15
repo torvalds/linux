@@ -8,7 +8,7 @@ title: Qualcomm SA8255p based firmware managed and ECAM compliant PCIe Root Comp
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description:
   Qualcomm SA8255p SoC PCIe root complex controller is based on the Synopsys

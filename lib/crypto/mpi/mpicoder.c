@@ -398,7 +398,7 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 
 	while (sg_miter_next(&miter)) {
 		buff = miter.addr;
-		len = min_t(unsigned, miter.length, nbytes);
+		len = min(miter.length, nbytes);
 		nbytes -= len;
 
 		for (x = 0; x < len; x++) {

@@ -154,7 +154,7 @@ int bump_rlimit_memlock(void)
 
 	memlock_bumped = true;
 
-	/* zero memlock_rlim_max disables auto-bumping RLIMIT_MEMLOCK */
+	/* zero memlock_rlim disables auto-bumping RLIMIT_MEMLOCK */
 	if (memlock_rlim == 0)
 		return 0;
 

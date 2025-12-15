@@ -312,7 +312,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	path->skip_release_on_error = 1;
+	path->skip_release_on_error = true;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      ins_len);
 	if (ret == -EEXIST) {
@@ -444,7 +444,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_truncate_control *control)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
@@ -730,6 +730,5 @@ out:
 	if (!ret && control->last_size > new_size)
 		control->last_size = new_size;
 
-	btrfs_free_path(path);
 	return ret;
 }

@@ -244,45 +244,40 @@ static void devcgroup_css_free(struct cgroup_subsys_state *css)
 #define DEVCG_DENY 2
 #define DEVCG_LIST 3
 
-#define MAJMINLEN 13
-#define ACCLEN 4
-
-static void set_access(char *acc, short access)
+static void seq_putaccess(struct seq_file *m, short access)
 {
-	int idx = 0;
-	memset(acc, 0, ACCLEN);
 	if (access & DEVCG_ACC_READ)
-		acc[idx++] = 'r';
+		seq_putc(m, 'r');
 	if (access & DEVCG_ACC_WRITE)
-		acc[idx++] = 'w';
+		seq_putc(m, 'w');
 	if (access & DEVCG_ACC_MKNOD)
-		acc[idx++] = 'm';
+		seq_putc(m, 'm');
 }
 
-static char type_to_char(short type)
+static void seq_puttype(struct seq_file *m, short type)
 {
 	if (type == DEVCG_DEV_ALL)
-		return 'a';
-	if (type == DEVCG_DEV_CHAR)
-		return 'c';
-	if (type == DEVCG_DEV_BLOCK)
-		return 'b';
-	return 'X';
+		seq_putc(m, 'a');
+	else if (type == DEVCG_DEV_CHAR)
+		seq_putc(m, 'c');
+	else if (type == DEVCG_DEV_BLOCK)
+		seq_putc(m, 'b');
+	else
+		seq_putc(m, 'X');
 }
 
-static void set_majmin(char *str, unsigned m)
+static void seq_putversion(struct seq_file *m, unsigned int version)
 {
-	if (m == ~0)
-		strcpy(str, "*");
+	if (version == ~0)
+		seq_putc(m, '*');
 	else
-		sprintf(str, "%u", m);
+		seq_printf(m, "%u", version);
 }
 
 static int devcgroup_seq_show(struct seq_file *m, void *v)
 {
 	struct dev_cgroup *devcgroup = css_to_devcgroup(seq_css(m));
 	struct dev_exception_item *ex;
-	char maj[MAJMINLEN], min[MAJMINLEN], acc[ACCLEN];
 
 	rcu_read_lock();
 	/*
@@ -292,18 +287,17 @@ static int devcgroup_seq_show(struct seq_file *m, void *v)
 	 * This way, the file remains as a "whitelist of devices"
 	 */
 	if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
-		set_access(acc, DEVCG_ACC_MASK);
-		set_majmin(maj, ~0);
-		set_majmin(min, ~0);
-		seq_printf(m, "%c %s:%s %s\n", type_to_char(DEVCG_DEV_ALL),
-			   maj, min, acc);
+		seq_puts(m, "a *:* rwm\n");
 	} else {
 		list_for_each_entry_rcu(ex, &devcgroup->exceptions, list) {
-			set_access(acc, ex->access);
-			set_majmin(maj, ex->major);
-			set_majmin(min, ex->minor);
-			seq_printf(m, "%c %s:%s %s\n", type_to_char(ex->type),
-				   maj, min, acc);
+			seq_puttype(m, ex->type);
+			seq_putc(m, ' ');
+			seq_putversion(m, ex->major);
+			seq_putc(m, ':');
+			seq_putversion(m, ex->minor);
+			seq_putc(m, ' ');
+			seq_putaccess(m, ex->access);
+			seq_putc(m, '\n');
 		}
 	}
 	rcu_read_unlock();

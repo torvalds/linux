@@ -76,7 +76,11 @@ void ieee80211_inform_bss(struct wiphy *wiphy,
 	if (!update_data)
 		return;
 
-	elems = ieee802_11_parse_elems(ies->data, ies->len, false, NULL);
+	elems = ieee802_11_parse_elems(ies->data, ies->len,
+				       update_data->beacon ?
+					IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON :
+					IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP,
+				       NULL);
 	if (!elems)
 		return;
 

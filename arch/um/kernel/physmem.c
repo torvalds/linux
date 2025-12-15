@@ -105,19 +105,6 @@ int phys_mapping(unsigned long phys, unsigned long long *offset_out)
 		fd = physmem_fd;
 		*offset_out = phys;
 	}
-	else if (phys < __pa(end_iomem)) {
-		struct iomem_region *region = iomem_regions;
-
-		while (region != NULL) {
-			if ((phys >= region->phys) &&
-			    (phys < region->phys + region->size)) {
-				fd = region->fd;
-				*offset_out = phys - region->phys;
-				break;
-			}
-			region = region->next;
-		}
-	}
 
 	return fd;
 }
@@ -140,61 +127,3 @@ __uml_setup("mem=", uml_mem_setup,
 "    be more, and the excess, if it's ever used, will just be swapped out.\n"
 "	Example: mem=64M\n\n"
 );
-
-__uml_setup("iomem=", parse_iomem,
-"iomem=<name>,<file>\n"
-"    Configure <file> as an IO memory region named <name>.\n\n"
-);
-
-/*
- * This list is constructed in parse_iomem and addresses filled in
- * setup_iomem, both of which run during early boot.  Afterwards, it's
- * unchanged.
- */
-struct iomem_region *iomem_regions;
-
-/* Initialized in parse_iomem and unchanged thereafter */
-int iomem_size;
-
-unsigned long find_iomem(char *driver, unsigned long *len_out)
-{
-	struct iomem_region *region = iomem_regions;
-
-	while (region != NULL) {
-		if (!strcmp(region->driver, driver)) {
-			*len_out = region->size;
-			return region->virt;
-		}
-
-		region = region->next;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(find_iomem);
-
-static int setup_iomem(void)
-{
-	struct iomem_region *region = iomem_regions;
-	unsigned long iomem_start = high_physmem + PAGE_SIZE;
-	int err;
-
-	while (region != NULL) {
-		err = os_map_memory((void *) iomem_start, region->fd, 0,
-				    region->size, 1, 1, 0);
-		if (err)
-			printk(KERN_ERR "Mapping iomem region for driver '%s' "
-			       "failed, errno = %d\n", region->driver, -err);
-		else {
-			region->virt = iomem_start;
-			region->phys = __pa(region->virt);
-		}
-
-		iomem_start += region->size + PAGE_SIZE;
-		region = region->next;
-	}
-
-	return 0;
-}
-
-__initcall(setup_iomem);

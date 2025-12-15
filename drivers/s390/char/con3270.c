@@ -21,7 +21,6 @@
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
-#include <linux/compat.h>
 
 #include <asm/machine.h>
 #include <asm/ccwdev.h>
@@ -1662,7 +1661,7 @@ static void tty3270_escape_sequence(struct tty3270 *tp, u8 ch)
 		else if (tp->esc_par[0] == 6) {	/* Cursor report. */
 			char buf[40];
 
-			sprintf(buf, "\033[%d;%dR", tp->cy + 1, tp->cx + 1);
+			scnprintf(buf, sizeof(buf), "\033[%d;%dR", tp->cy + 1, tp->cx + 1);
 			kbd_puts_queue(&tp->port, buf);
 		}
 		return;
@@ -1947,21 +1946,6 @@ static int tty3270_ioctl(struct tty_struct *tty, unsigned int cmd,
 	return kbd_ioctl(tp->kbd, cmd, arg);
 }
 
-#ifdef CONFIG_COMPAT
-static long tty3270_compat_ioctl(struct tty_struct *tty,
-				 unsigned int cmd, unsigned long arg)
-{
-	struct tty3270 *tp;
-
-	tp = tty->driver_data;
-	if (!tp)
-		return -ENODEV;
-	if (tty_io_error(tty))
-		return -EIO;
-	return kbd_ioctl(tp->kbd, cmd, (unsigned long)compat_ptr(arg));
-}
-#endif
-
 static const struct tty_operations tty3270_ops = {
 	.install = tty3270_install,
 	.cleanup = tty3270_cleanup,
@@ -1976,9 +1960,6 @@ static const struct tty_operations tty3270_ops = {
 	.hangup = tty3270_hangup,
 	.wait_until_sent = tty3270_wait_until_sent,
 	.ioctl = tty3270_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = tty3270_compat_ioctl,
-#endif
 	.set_termios = tty3270_set_termios
 };
 

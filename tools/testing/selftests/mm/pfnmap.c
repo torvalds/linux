@@ -22,7 +22,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "vm_util.h"
 
 static sigjmp_buf sigjmp_buf_env;

@@ -207,7 +207,7 @@ impl<T> TreeRangeAllocator<T> {
     }
 
     pub(crate) fn reservation_abort(&mut self, offset: usize) -> Result<FreedRange> {
-        let mut cursor = self.tree.cursor_lower_bound(&offset).ok_or_else(|| {
+        let mut cursor = self.tree.cursor_lower_bound_mut(&offset).ok_or_else(|| {
             pr_warn!(
                 "EINVAL from range_alloc.reservation_abort - offset: {}",
                 offset

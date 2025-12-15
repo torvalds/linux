@@ -609,12 +609,12 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 	if (!root)
 		return;
 
-	debugfs_create_file("regs", S_IRUSR, root, host, &atmci_regs_fops);
-	debugfs_create_file("req", S_IRUSR, root, slot, &atmci_req_fops);
-	debugfs_create_u32("state", S_IRUSR, root, &host->state);
-	debugfs_create_xul("pending_events", S_IRUSR, root,
+	debugfs_create_file("regs", 0400, root, host, &atmci_regs_fops);
+	debugfs_create_file("req", 0400, root, slot, &atmci_req_fops);
+	debugfs_create_u32("state", 0400, root, &host->state);
+	debugfs_create_xul("pending_events", 0400, root,
 			   &host->pending_events);
-	debugfs_create_xul("completed_events", S_IRUSR, root,
+	debugfs_create_xul("completed_events", 0400, root,
 			   &host->completed_events);
 }
 

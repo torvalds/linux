@@ -218,6 +218,9 @@ TRACE_EVENT(tcp_rcvbuf_grow,
 		__field(__u32, space)
 		__field(__u32, ooo_space)
 		__field(__u32, rcvbuf)
+		__field(__u32, rcv_ssthresh)
+		__field(__u32, window_clamp)
+		__field(__u32, rcv_wnd)
 		__field(__u8, scaling_ratio)
 		__field(__u16, sport)
 		__field(__u16, dport)
@@ -245,6 +248,9 @@ TRACE_EVENT(tcp_rcvbuf_grow,
 				     tp->rcv_nxt;
 
 		__entry->rcvbuf = sk->sk_rcvbuf;
+		__entry->rcv_ssthresh = tp->rcv_ssthresh;
+		__entry->window_clamp = tp->window_clamp;
+		__entry->rcv_wnd = tp->rcv_wnd;
 		__entry->scaling_ratio = tp->scaling_ratio;
 		__entry->sport = ntohs(inet->inet_sport);
 		__entry->dport = ntohs(inet->inet_dport);
@@ -264,11 +270,14 @@ TRACE_EVENT(tcp_rcvbuf_grow,
 	),
 
 	TP_printk("time=%u rtt_us=%u copied=%u inq=%u space=%u ooo=%u scaling_ratio=%u rcvbuf=%u "
+		  "rcv_ssthresh=%u window_clamp=%u rcv_wnd=%u "
 		  "family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 "
 		  "saddrv6=%pI6c daddrv6=%pI6c skaddr=%p sock_cookie=%llx",
 		  __entry->time, __entry->rtt_us, __entry->copied,
 		  __entry->inq, __entry->space, __entry->ooo_space,
 		  __entry->scaling_ratio, __entry->rcvbuf,
+		  __entry->rcv_ssthresh, __entry->window_clamp,
+		  __entry->rcv_wnd,
 		  show_family_name(__entry->family),
 		  __entry->sport, __entry->dport,
 		  __entry->saddr, __entry->daddr,

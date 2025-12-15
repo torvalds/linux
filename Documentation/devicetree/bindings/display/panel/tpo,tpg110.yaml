@@ -38,7 +38,6 @@ description: |+
   The serial protocol has line names that resemble I2C but the
   protocol is not I2C but 3WIRE SPI.
 
-
 allOf:
   - $ref: panel-common.yaml#
   - $ref: /schemas/spi/spi-peripheral-props.yaml#

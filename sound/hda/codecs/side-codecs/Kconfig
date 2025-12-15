@@ -88,6 +88,21 @@ config SND_HDA_SCODEC_CS35L56_SPI
 	  Say Y or M here to include CS35L56 amplifier support with
 	  SPI control.
 
+menu "CS35L56 driver options"
+	depends on SND_HDA_SCODEC_CS35L56
+
+config SND_HDA_SCODEC_CS35L56_CAL_DEBUGFS
+	bool "CS35L56 create debugfs for factory calibration"
+	default N
+	depends on DEBUG_FS
+	select SND_SOC_CS35L56_CAL_DEBUGFS_COMMON
+	help
+	  Create debugfs entries used during factory-line manufacture
+	  for factory calibration.
+
+	  If unsure select "N".
+endmenu
+
 config SND_HDA_SCODEC_TAS2781
 	tristate
 	select SND_HDA_GENERIC

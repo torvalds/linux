@@ -85,7 +85,7 @@ int filename__read_debuglink(const char *filename __maybe_unused,
 /*
  * Just try PT_NOTE header otherwise fails
  */
-int filename__read_build_id(const char *filename, struct build_id *bid, bool block)
+int filename__read_build_id(const char *filename, struct build_id *bid)
 {
 	int fd, ret = -1;
 	bool need_swap = false, elf32;
@@ -102,7 +102,12 @@ int filename__read_build_id(const char *filename, struct build_id *bid, bool blo
 	void *phdr, *buf = NULL;
 	ssize_t phdr_size, ehdr_size, buf_size = 0;
 
-	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
+	if (!filename)
+		return -EFAULT;
+	if (!is_regular_file(filename))
+		return -EWOULDBLOCK;
+
+	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 		return -1;
 
@@ -323,7 +328,7 @@ int dso__load_sym(struct dso *dso, struct map *map __maybe_unused,
 	if (ret >= 0)
 		RC_CHK_ACCESS(dso)->is_64_bit = ret;
 
-	if (filename__read_build_id(ss->name, &bid, /*block=*/true) > 0)
+	if (filename__read_build_id(ss->name, &bid) > 0)
 		dso__set_build_id(dso, &bid);
 	return 0;
 }

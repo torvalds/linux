@@ -210,7 +210,7 @@ release:
 	return res;
 }
 
-int hfs_brec_read(struct hfs_find_data *fd, void *rec, int rec_len)
+int hfs_brec_read(struct hfs_find_data *fd, void *rec, u32 rec_len)
 {
 	int res;
 

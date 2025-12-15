@@ -2397,7 +2397,7 @@ static bool acpi_scan_clear_dep_queue(struct acpi_device *adev)
 	 * initial enumeration of devices is complete, put it into the unbound
 	 * workqueue.
 	 */
-	queue_work(system_unbound_wq, &cdw->work);
+	queue_work(system_dfl_wq, &cdw->work);
 
 	return true;
 }
@@ -2711,7 +2711,6 @@ void __init acpi_scan_init(void)
 	acpi_watchdog_init();
 	acpi_pnp_init();
 	acpi_power_resources_init();
-	acpi_int340x_thermal_init();
 	acpi_init_lpit();
 
 	acpi_scan_add_handler(&generic_device_handler);

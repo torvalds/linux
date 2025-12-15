@@ -19,7 +19,6 @@
 static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 {
 	u32 value = readl(ioaddr + DMA_AXI_BUS_MODE);
-	int i;
 
 	pr_info("dwmac1000: Master AXI performs %s burst length\n",
 		!(value & DMA_AXI_UNDEF) ? "fixed" : "any");
@@ -39,33 +38,10 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 
 	/* Depending on the UNDEF bit the Master AXI will perform any burst
 	 * length according to the BLEN programmed (by default all BLEN are
-	 * set).
+	 * set). Note that the UNDEF bit is readonly, and is the inverse of
+	 * Bus Mode bit 16.
 	 */
-	for (i = 0; i < AXI_BLEN; i++) {
-		switch (axi->axi_blen[i]) {
-		case 256:
-			value |= DMA_AXI_BLEN256;
-			break;
-		case 128:
-			value |= DMA_AXI_BLEN128;
-			break;
-		case 64:
-			value |= DMA_AXI_BLEN64;
-			break;
-		case 32:
-			value |= DMA_AXI_BLEN32;
-			break;
-		case 16:
-			value |= DMA_AXI_BLEN16;
-			break;
-		case 8:
-			value |= DMA_AXI_BLEN8;
-			break;
-		case 4:
-			value |= DMA_AXI_BLEN4;
-			break;
-		}
-	}
+	value = (value & ~DMA_AXI_BLEN_MASK) | axi->axi_blen_regval;
 
 	writel(value, ioaddr + DMA_AXI_BUS_MODE);
 }
@@ -159,10 +135,10 @@ static void dwmac1000_dma_operation_mode_rx(struct stmmac_priv *priv,
 
 	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable RX store and forward mode\n");
-		csr6 |= DMA_CONTROL_RSF;
+		csr6 |= DMA_CONTROL_RSF | DMA_CONTROL_DFF;
 	} else {
 		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", mode);
-		csr6 &= ~DMA_CONTROL_RSF;
+		csr6 &= ~(DMA_CONTROL_RSF | DMA_CONTROL_DFF);
 		csr6 &= DMA_CONTROL_TC_RX_MASK;
 		if (mode <= 32)
 			csr6 |= DMA_CONTROL_RTC_32;
@@ -286,6 +262,7 @@ const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.dma_rx_mode = dwmac1000_dma_operation_mode_rx,
 	.dma_tx_mode = dwmac1000_dma_operation_mode_tx,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
+	.enable_dma_reception = dwmac_enable_dma_reception,
 	.enable_dma_irq = dwmac_enable_dma_irq,
 	.disable_dma_irq = dwmac_disable_dma_irq,
 	.start_tx = dwmac_dma_start_tx,

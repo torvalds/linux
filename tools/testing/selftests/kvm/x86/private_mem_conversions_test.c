@@ -380,7 +380,7 @@ static void test_mem_conversions(enum vm_mem_backing_src_type src_type, uint32_t
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	pthread_t threads[KVM_MAX_VCPUS];
 	struct kvm_vm *vm;
-	int memfd, i, r;
+	int memfd, i;
 
 	const struct vm_shape shape = {
 		.mode = VM_MODE_DEFAULT,
@@ -428,11 +428,8 @@ static void test_mem_conversions(enum vm_mem_backing_src_type src_type, uint32_t
 	 * should prevent the VM from being fully destroyed until the last
 	 * reference to the guest_memfd is also put.
 	 */
-	r = fallocate(memfd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE, 0, memfd_size);
-	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
-
-	r = fallocate(memfd, FALLOC_FL_KEEP_SIZE, 0, memfd_size);
-	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
+	kvm_fallocate(memfd, FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE, 0, memfd_size);
+	kvm_fallocate(memfd, FALLOC_FL_KEEP_SIZE, 0, memfd_size);
 
 	close(memfd);
 }

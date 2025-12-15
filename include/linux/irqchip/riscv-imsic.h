@@ -10,7 +10,6 @@
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/fwnode.h>
-#include <asm/csr.h>
 
 #define IMSIC_MMIO_PAGE_SHIFT		12
 #define IMSIC_MMIO_PAGE_SZ		BIT(IMSIC_MMIO_PAGE_SHIFT)
@@ -86,7 +85,7 @@ static inline const struct imsic_global_config *imsic_get_global_config(void)
 
 #endif
 
-#ifdef CONFIG_ACPI
+#if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_RISCV_IMSIC)
 int imsic_platform_acpi_probe(struct fwnode_handle *fwnode);
 struct fwnode_handle *imsic_acpi_get_fwnode(struct device *dev);
 #else

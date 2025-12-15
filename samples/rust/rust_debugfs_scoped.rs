@@ -6,9 +6,10 @@
 //! `Scope::dir` to create a variety of files without the need to separately
 //! track them all.
 
-use core::sync::atomic::AtomicUsize;
 use kernel::debugfs::{Dir, Scope};
 use kernel::prelude::*;
+use kernel::sizes::*;
+use kernel::sync::atomic::Atomic;
 use kernel::sync::Mutex;
 use kernel::{c_str, new_mutex, str::CString};
 
@@ -38,7 +39,7 @@ fn remove_file_write(
     mod_data
         .devices
         .lock()
-        .retain(|device| device.name.as_bytes() != to_remove.as_bytes());
+        .retain(|device| device.name.to_bytes() != to_remove.to_bytes());
     Ok(())
 }
 
@@ -62,22 +63,26 @@ fn create_file_write(
     let file_name = CString::try_from_fmt(fmt!("{name_str}"))?;
     for sub in items {
         nums.push(
-            AtomicUsize::new(sub.parse().map_err(|_| EINVAL)?),
+            Atomic::<usize>::new(sub.parse().map_err(|_| EINVAL)?),
             GFP_KERNEL,
         )?;
     }
+    let blob = KBox::pin_init(new_mutex!([0x42; SZ_4K]), GFP_KERNEL)?;
 
     let scope = KBox::pin_init(
-        mod_data
-            .device_dir
-            .scope(DeviceData { name, nums }, &file_name, |dev_data, dir| {
+        mod_data.device_dir.scope(
+            DeviceData { name, nums, blob },
+            &file_name,
+            |dev_data, dir| {
                 for (idx, val) in dev_data.nums.iter().enumerate() {
                     let Ok(name) = CString::try_from_fmt(fmt!("{idx}")) else {
                         return;
                     };
                     dir.read_write_file(&name, val);
                 }
-            }),
+                dir.read_write_binary_file(c_str!("blob"), &dev_data.blob);
+            },
+        ),
         GFP_KERNEL,
     )?;
     (*mod_data.devices.lock()).push(scope, GFP_KERNEL)?;
@@ -109,7 +114,8 @@ impl ModuleData {
 
 struct DeviceData {
     name: CString,
-    nums: KVec<AtomicUsize>,
+    nums: KVec<Atomic<usize>>,
+    blob: Pin<KBox<Mutex<[u8; SZ_4K]>>>,
 }
 
 fn init_control(base_dir: &Dir, dyn_dirs: Dir) -> impl PinInit<Scope<ModuleData>> + '_ {

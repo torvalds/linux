@@ -1016,7 +1016,7 @@ void qla4xxx_get_crash_record(struct scsi_qla_host * ha)
 	uint32_t crash_record_size = 0;
 
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
-	memset(&mbox_sts, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
 
 	/* Get size of crash record. */
 	mbox_cmd[0] = MBOX_CMD_GET_CRASH_RECORD;
@@ -1099,7 +1099,7 @@ void qla4xxx_get_conn_event_log(struct scsi_qla_host * ha)
 
 	/* Get Crash Record. */
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
-	memset(&mbox_sts, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
 
 	mbox_cmd[0] = MBOX_CMD_GET_CONN_EVENT_LOG;
 	mbox_cmd[2] = LSDW(event_log_dma);

@@ -31,11 +31,6 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 }
 #endif
 
-/* Note that on Linux, MAP_FAILED is -1 so we can use the generic __sysret()
- * which returns -1 upon error and still satisfy user land that checks for
- * MAP_FAILED.
- */
-
 static __attribute__((unused))
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 {

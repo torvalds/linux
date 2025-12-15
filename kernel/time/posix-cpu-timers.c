@@ -1557,7 +1557,7 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 * Report back to the user the time still remaining.
 		 */
 		restart = &current->restart_block;
-		restart->nanosleep.expires = expires;
+		restart->nanosleep.expires = ns_to_ktime(expires);
 		if (restart->nanosleep.type != TT_NONE)
 			error = nanosleep_copyout(restart, &it.it_value);
 	}
@@ -1599,7 +1599,7 @@ static long posix_cpu_nsleep_restart(struct restart_block *restart_block)
 	clockid_t which_clock = restart_block->nanosleep.clockid;
 	struct timespec64 t;
 
-	t = ns_to_timespec64(restart_block->nanosleep.expires);
+	t = ktime_to_timespec64(restart_block->nanosleep.expires);
 
 	return do_cpu_nanosleep(which_clock, TIMER_ABSTIME, &t);
 }

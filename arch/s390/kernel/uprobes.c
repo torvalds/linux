@@ -8,7 +8,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/uprobes.h>
-#include <linux/compat.h>
 #include <linux/kdebug.h>
 #include <linux/sched/task_stack.h>
 
@@ -29,7 +28,7 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	if (psw_bits(regs->psw).eaba == PSW_BITS_AMODE_24BIT)
 		return -EINVAL;
-	if (!is_compat_task() && psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)
+	if (psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)
 		return -EINVAL;
 	clear_thread_flag(TIF_PER_TRAP);
 	auprobe->saved_per = psw_bits(regs->psw).per;
@@ -160,11 +159,6 @@ bool arch_uretprobe_is_alive(struct return_instance *ret, enum rp_check ctx,
 }
 
 /* Instruction Emulation */
-
-static void adjust_psw_addr(psw_t *psw, unsigned long len)
-{
-	psw->addr = __rewind_psw(*psw, -len);
-}
 
 #define EMU_ILLEGAL_OP		1
 #define EMU_SPECIFICATION	2
@@ -353,7 +347,7 @@ static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)
 		}
 		break;
 	}
-	adjust_psw_addr(&regs->psw, ilen);
+	regs->psw.addr = __forward_psw(regs->psw, ilen);
 	switch (rc) {
 	case EMU_ILLEGAL_OP:
 		regs->int_code = ilen << 16 | 0x0001;
@@ -373,8 +367,7 @@ static void handle_insn_ril(struct arch_uprobe *auprobe, struct pt_regs *regs)
 bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	if ((psw_bits(regs->psw).eaba == PSW_BITS_AMODE_24BIT) ||
-	    ((psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT) &&
-	     !is_compat_task())) {
+	    (psw_bits(regs->psw).eaba == PSW_BITS_AMODE_31BIT)) {
 		regs->psw.addr = __rewind_psw(regs->psw, UPROBE_SWBP_INSN_SIZE);
 		do_report_trap(regs, SIGILL, ILL_ILLADR, NULL);
 		return true;

@@ -38,6 +38,39 @@ struct a2l_data {
 	asymbol **syms;
 };
 
+static bool perf_bfd_lock(void *bfd_mutex)
+{
+	mutex_lock(bfd_mutex);
+	return true;
+}
+
+static bool perf_bfd_unlock(void *bfd_mutex)
+{
+	mutex_unlock(bfd_mutex);
+	return true;
+}
+
+static void perf_bfd_init(void)
+{
+	static struct mutex bfd_mutex;
+
+	mutex_init_recursive(&bfd_mutex);
+
+	if (bfd_init() != BFD_INIT_MAGIC) {
+		pr_err("Error initializing libbfd\n");
+		return;
+	}
+	if (!bfd_thread_init(perf_bfd_lock, perf_bfd_unlock, &bfd_mutex))
+		pr_err("Error initializing libbfd threading\n");
+}
+
+static void ensure_bfd_init(void)
+{
+	static pthread_once_t bfd_init_once = PTHREAD_ONCE_INIT;
+
+	pthread_once(&bfd_init_once, perf_bfd_init);
+}
+
 static int bfd_error(const char *string)
 {
 	const char *errmsg;
@@ -132,6 +165,7 @@ static struct a2l_data *addr2line_init(const char *path)
 	bfd *abfd;
 	struct a2l_data *a2l = NULL;
 
+	ensure_bfd_init();
 	abfd = bfd_openr(path, NULL);
 	if (abfd == NULL)
 		return NULL;
@@ -288,6 +322,7 @@ int dso__load_bfd_symbols(struct dso *dso, const char *debugfile)
 	bfd *abfd;
 	u64 start, len;
 
+	ensure_bfd_init();
 	abfd = bfd_openr(debugfile, NULL);
 	if (!abfd)
 		return -1;
@@ -383,16 +418,22 @@ out_close:
 	return err;
 }
 
-int libbfd__read_build_id(const char *filename, struct build_id *bid, bool block)
+int libbfd__read_build_id(const char *filename, struct build_id *bid)
 {
 	size_t size = sizeof(bid->data);
 	int err = -1, fd;
 	bfd *abfd;
 
-	fd = open(filename, block ? O_RDONLY : (O_RDONLY | O_NONBLOCK));
+	if (!filename)
+		return -EFAULT;
+	if (!is_regular_file(filename))
+		return -EWOULDBLOCK;
+
+	fd = open(filename, O_RDONLY);
 	if (fd < 0)
 		return -1;
 
+	ensure_bfd_init();
 	abfd = bfd_fdopenr(filename, /*target=*/NULL, fd);
 	if (!abfd)
 		return -1;
@@ -421,6 +462,7 @@ int libbfd_filename__read_debuglink(const char *filename, char *debuglink,
 	asection *section;
 	bfd *abfd;
 
+	ensure_bfd_init();
 	abfd = bfd_openr(filename, NULL);
 	if (!abfd)
 		return -1;
@@ -480,6 +522,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 	memset(tpath, 0, sizeof(tpath));
 	perf_exe(tpath, sizeof(tpath));
 
+	ensure_bfd_init();
 	bfdf = bfd_openr(tpath, NULL);
 	if (bfdf == NULL)
 		abort();

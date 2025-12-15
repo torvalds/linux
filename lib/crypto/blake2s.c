@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/unroll.h>
 #include <linux/types.h>
 
 static const u8 blake2s_sigma[10][16] = {
@@ -29,16 +30,15 @@ static const u8 blake2s_sigma[10][16] = {
 	{ 10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0 },
 };
 
-static inline void blake2s_increment_counter(struct blake2s_state *state,
-					     const u32 inc)
+static inline void blake2s_increment_counter(struct blake2s_ctx *ctx, u32 inc)
 {
-	state->t[0] += inc;
-	state->t[1] += (state->t[0] < inc);
+	ctx->t[0] += inc;
+	ctx->t[1] += (ctx->t[0] < inc);
 }
 
 static void __maybe_unused
-blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
-			 size_t nblocks, const u32 inc)
+blake2s_compress_generic(struct blake2s_ctx *ctx,
+			 const u8 *data, size_t nblocks, u32 inc)
 {
 	u32 m[16];
 	u32 v[16];
@@ -48,18 +48,18 @@ blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
 		(nblocks > 1 && inc != BLAKE2S_BLOCK_SIZE));
 
 	while (nblocks > 0) {
-		blake2s_increment_counter(state, inc);
-		memcpy(m, block, BLAKE2S_BLOCK_SIZE);
+		blake2s_increment_counter(ctx, inc);
+		memcpy(m, data, BLAKE2S_BLOCK_SIZE);
 		le32_to_cpu_array(m, ARRAY_SIZE(m));
-		memcpy(v, state->h, 32);
+		memcpy(v, ctx->h, 32);
 		v[ 8] = BLAKE2S_IV0;
 		v[ 9] = BLAKE2S_IV1;
 		v[10] = BLAKE2S_IV2;
 		v[11] = BLAKE2S_IV3;
-		v[12] = BLAKE2S_IV4 ^ state->t[0];
-		v[13] = BLAKE2S_IV5 ^ state->t[1];
-		v[14] = BLAKE2S_IV6 ^ state->f[0];
-		v[15] = BLAKE2S_IV7 ^ state->f[1];
+		v[12] = BLAKE2S_IV4 ^ ctx->t[0];
+		v[13] = BLAKE2S_IV5 ^ ctx->t[1];
+		v[14] = BLAKE2S_IV6 ^ ctx->f[0];
+		v[15] = BLAKE2S_IV7 ^ ctx->f[1];
 
 #define G(r, i, a, b, c, d) do { \
 	a += b + m[blake2s_sigma[r][2 * i + 0]]; \
@@ -72,34 +72,27 @@ blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
 	b = ror32(b ^ c, 7); \
 } while (0)
 
-#define ROUND(r) do { \
-	G(r, 0, v[0], v[ 4], v[ 8], v[12]); \
-	G(r, 1, v[1], v[ 5], v[ 9], v[13]); \
-	G(r, 2, v[2], v[ 6], v[10], v[14]); \
-	G(r, 3, v[3], v[ 7], v[11], v[15]); \
-	G(r, 4, v[0], v[ 5], v[10], v[15]); \
-	G(r, 5, v[1], v[ 6], v[11], v[12]); \
-	G(r, 6, v[2], v[ 7], v[ 8], v[13]); \
-	G(r, 7, v[3], v[ 4], v[ 9], v[14]); \
-} while (0)
-		ROUND(0);
-		ROUND(1);
-		ROUND(2);
-		ROUND(3);
-		ROUND(4);
-		ROUND(5);
-		ROUND(6);
-		ROUND(7);
-		ROUND(8);
-		ROUND(9);
-
+		/*
+		 * Unroll the rounds loop to enable constant-folding of the
+		 * blake2s_sigma values.
+		 */
+		unrolled_full
+		for (int r = 0; r < 10; r++) {
+			G(r, 0, v[0], v[4], v[8], v[12]);
+			G(r, 1, v[1], v[5], v[9], v[13]);
+			G(r, 2, v[2], v[6], v[10], v[14]);
+			G(r, 3, v[3], v[7], v[11], v[15]);
+			G(r, 4, v[0], v[5], v[10], v[15]);
+			G(r, 5, v[1], v[6], v[11], v[12]);
+			G(r, 6, v[2], v[7], v[8], v[13]);
+			G(r, 7, v[3], v[4], v[9], v[14]);
+		}
 #undef G
-#undef ROUND
 
 		for (i = 0; i < 8; ++i)
-			state->h[i] ^= v[i] ^ v[i + 8];
+			ctx->h[i] ^= v[i] ^ v[i + 8];
 
-		block += BLAKE2S_BLOCK_SIZE;
+		data += BLAKE2S_BLOCK_SIZE;
 		--nblocks;
 	}
 }
@@ -110,45 +103,46 @@ blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
 #define blake2s_compress blake2s_compress_generic
 #endif
 
-static inline void blake2s_set_lastblock(struct blake2s_state *state)
+static inline void blake2s_set_lastblock(struct blake2s_ctx *ctx)
 {
-	state->f[0] = -1;
+	ctx->f[0] = -1;
 }
 
-void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen)
+void blake2s_update(struct blake2s_ctx *ctx, const u8 *in, size_t inlen)
 {
-	const size_t fill = BLAKE2S_BLOCK_SIZE - state->buflen;
+	const size_t fill = BLAKE2S_BLOCK_SIZE - ctx->buflen;
 
 	if (unlikely(!inlen))
 		return;
 	if (inlen > fill) {
-		memcpy(state->buf + state->buflen, in, fill);
-		blake2s_compress(state, state->buf, 1, BLAKE2S_BLOCK_SIZE);
-		state->buflen = 0;
+		memcpy(ctx->buf + ctx->buflen, in, fill);
+		blake2s_compress(ctx, ctx->buf, 1, BLAKE2S_BLOCK_SIZE);
+		ctx->buflen = 0;
 		in += fill;
 		inlen -= fill;
 	}
 	if (inlen > BLAKE2S_BLOCK_SIZE) {
 		const size_t nblocks = DIV_ROUND_UP(inlen, BLAKE2S_BLOCK_SIZE);
-		blake2s_compress(state, in, nblocks - 1, BLAKE2S_BLOCK_SIZE);
+
+		blake2s_compress(ctx, in, nblocks - 1, BLAKE2S_BLOCK_SIZE);
 		in += BLAKE2S_BLOCK_SIZE * (nblocks - 1);
 		inlen -= BLAKE2S_BLOCK_SIZE * (nblocks - 1);
 	}
-	memcpy(state->buf + state->buflen, in, inlen);
-	state->buflen += inlen;
+	memcpy(ctx->buf + ctx->buflen, in, inlen);
+	ctx->buflen += inlen;
 }
 EXPORT_SYMBOL(blake2s_update);
 
-void blake2s_final(struct blake2s_state *state, u8 *out)
+void blake2s_final(struct blake2s_ctx *ctx, u8 *out)
 {
 	WARN_ON(IS_ENABLED(DEBUG) && !out);
-	blake2s_set_lastblock(state);
-	memset(state->buf + state->buflen, 0,
-	       BLAKE2S_BLOCK_SIZE - state->buflen); /* Padding */
-	blake2s_compress(state, state->buf, 1, state->buflen);
-	cpu_to_le32_array(state->h, ARRAY_SIZE(state->h));
-	memcpy(out, state->h, state->outlen);
-	memzero_explicit(state, sizeof(*state));
+	blake2s_set_lastblock(ctx);
+	memset(ctx->buf + ctx->buflen, 0,
+	       BLAKE2S_BLOCK_SIZE - ctx->buflen); /* Padding */
+	blake2s_compress(ctx, ctx->buf, 1, ctx->buflen);
+	cpu_to_le32_array(ctx->h, ARRAY_SIZE(ctx->h));
+	memcpy(out, ctx->h, ctx->outlen);
+	memzero_explicit(ctx, sizeof(*ctx));
 }
 EXPORT_SYMBOL(blake2s_final);
 

@@ -207,6 +207,11 @@ struct netcp_module {
 	int	(*del_vid)(void *intf_priv, int vid);
 	int	(*ioctl)(void *intf_priv, struct ifreq *req, int cmd);
 	int	(*set_rx_mode)(void *intf_priv, bool promisc);
+	int	(*hwtstamp_get)(void *intf_priv,
+				struct kernel_hwtstamp_config *cfg);
+	int	(*hwtstamp_set)(void *intf_priv,
+				struct kernel_hwtstamp_config *cfg,
+				struct netlink_ext_ack *extack);
 
 	/* used internally */
 	struct list_head	module_list;

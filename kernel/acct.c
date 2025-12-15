@@ -520,26 +520,23 @@ static void fill_ac(struct bsd_acct_struct *acct)
 static void acct_write_process(struct bsd_acct_struct *acct)
 {
 	struct file *file = acct->file;
-	const struct cred *cred;
 	acct_t *ac = &acct->ac;
 
 	/* Perform file operations on behalf of whoever enabled accounting */
-	cred = override_creds(file->f_cred);
-
-	/*
-	 * First check to see if there is enough free_space to continue
-	 * the process accounting system. Then get freeze protection. If
-	 * the fs is frozen, just skip the write as we could deadlock
-	 * the system otherwise.
-	 */
-	if (check_free_space(acct) && file_start_write_trylock(file)) {
-		/* it's been opened O_APPEND, so position is irrelevant */
-		loff_t pos = 0;
-		__kernel_write(file, ac, sizeof(acct_t), &pos);
-		file_end_write(file);
+	scoped_with_creds(file->f_cred) {
+		/*
+		 * First check to see if there is enough free_space to continue
+		 * the process accounting system. Then get freeze protection. If
+		 * the fs is frozen, just skip the write as we could deadlock
+		 * the system otherwise.
+		 */
+		if (check_free_space(acct) && file_start_write_trylock(file)) {
+			/* it's been opened O_APPEND, so position is irrelevant */
+			loff_t pos = 0;
+			__kernel_write(file, ac, sizeof(acct_t), &pos);
+			file_end_write(file);
+		}
 	}
-
-	revert_creds(cred);
 }
 
 static void do_acct_process(struct bsd_acct_struct *acct)

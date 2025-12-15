@@ -25,7 +25,7 @@ void dso__free_a2l_libbfd(struct dso *dso);
 int symbol__disassemble_libbfd(const char *filename, struct symbol *sym,
 			     struct annotate_args *args);
 
-int libbfd__read_build_id(const char *filename, struct build_id *bid, bool block);
+int libbfd__read_build_id(const char *filename, struct build_id *bid);
 
 int libbfd_filename__read_debuglink(const char *filename, char *debuglink, size_t size);
 
@@ -59,8 +59,7 @@ static inline int symbol__disassemble_libbfd(const char *filename __always_unuse
 }
 
 static inline int libbfd__read_build_id(const char *filename __always_unused,
-					struct build_id *bid __always_unused,
-					bool block __always_unused)
+					struct build_id *bid __always_unused)
 {
 	return -1;
 }

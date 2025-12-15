@@ -493,7 +493,7 @@ static int tegra_admaif_trigger(struct snd_pcm_substream *substream, int cmd,
 static int tegra210_admaif_pget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 
@@ -506,7 +506,7 @@ static int tegra210_admaif_pget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_pput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	unsigned int value = ucontrol->value.enumerated.item[0];
@@ -522,7 +522,7 @@ static int tegra210_admaif_pput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_cget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 
@@ -535,7 +535,7 @@ static int tegra210_admaif_cget_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_cput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	unsigned int value = ucontrol->value.enumerated.item[0];
@@ -551,7 +551,7 @@ static int tegra210_admaif_cput_mono_to_stereo(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_pget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 
@@ -564,7 +564,7 @@ static int tegra210_admaif_pget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_pput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	unsigned int value = ucontrol->value.enumerated.item[0];
@@ -580,7 +580,7 @@ static int tegra210_admaif_pput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_cget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 
@@ -593,7 +593,7 @@ static int tegra210_admaif_cget_stereo_to_mono(struct snd_kcontrol *kcontrol,
 static int tegra210_admaif_cput_stereo_to_mono(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct tegra_admaif *admaif = snd_soc_component_get_drvdata(cmpnt);
 	struct soc_enum *ec = (struct soc_enum *)kcontrol->private_value;
 	unsigned int value = ucontrol->value.enumerated.item[0];

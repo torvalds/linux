@@ -12,8 +12,6 @@ use crate::bindings;
 use crate::pr_err;
 use core::ptr::NonNull;
 
-const BITS_PER_LONG: usize = bindings::BITS_PER_LONG as usize;
-
 /// Represents a C bitmap. Wraps underlying C bitmap API.
 ///
 /// # Invariants
@@ -149,14 +147,14 @@ macro_rules! bitmap_assert_return {
 ///
 /// # Invariants
 ///
-/// * `nbits` is `<= i32::MAX` and never changes.
-/// * if `nbits <= bindings::BITS_PER_LONG`, then `repr` is a `usize`.
+/// * `nbits` is `<= MAX_LEN`.
+/// * if `nbits <= MAX_INLINE_LEN`, then `repr` is a `usize`.
 /// * otherwise, `repr` holds a non-null pointer to an initialized
 ///   array of `unsigned long` that is large enough to hold `nbits` bits.
 pub struct BitmapVec {
     /// Representation of bitmap.
     repr: BitmapRepr,
-    /// Length of this bitmap. Must be `<= i32::MAX`.
+    /// Length of this bitmap. Must be `<= MAX_LEN`.
     nbits: usize,
 }
 
@@ -164,7 +162,7 @@ impl core::ops::Deref for BitmapVec {
     type Target = Bitmap;
 
     fn deref(&self) -> &Bitmap {
-        let ptr = if self.nbits <= BITS_PER_LONG {
+        let ptr = if self.nbits <= BitmapVec::MAX_INLINE_LEN {
             // SAFETY: Bitmap is represented inline.
             #[allow(unused_unsafe, reason = "Safe since Rust 1.92.0")]
             unsafe {
@@ -183,7 +181,7 @@ impl core::ops::Deref for BitmapVec {
 
 impl core::ops::DerefMut for BitmapVec {
     fn deref_mut(&mut self) -> &mut Bitmap {
-        let ptr = if self.nbits <= BITS_PER_LONG {
+        let ptr = if self.nbits <= BitmapVec::MAX_INLINE_LEN {
             // SAFETY: Bitmap is represented inline.
             #[allow(unused_unsafe, reason = "Safe since Rust 1.92.0")]
             unsafe {
@@ -213,7 +211,7 @@ unsafe impl Sync for BitmapVec {}
 
 impl Drop for BitmapVec {
     fn drop(&mut self) {
-        if self.nbits <= BITS_PER_LONG {
+        if self.nbits <= BitmapVec::MAX_INLINE_LEN {
             return;
         }
         // SAFETY: `self.ptr` was returned by the C `bitmap_zalloc`.
@@ -226,23 +224,39 @@ impl Drop for BitmapVec {
 }
 
 impl BitmapVec {
+    /// The maximum possible length of a `BitmapVec`.
+    pub const MAX_LEN: usize = i32::MAX as usize;
+
+    /// The maximum length that uses the inline representation.
+    pub const MAX_INLINE_LEN: usize = usize::BITS as usize;
+
+    /// Construct a longest possible inline [`BitmapVec`].
+    #[inline]
+    pub fn new_inline() -> Self {
+        // INVARIANT: `nbits <= MAX_INLINE_LEN`, so an inline bitmap is the right repr.
+        BitmapVec {
+            repr: BitmapRepr { bitmap: 0 },
+            nbits: BitmapVec::MAX_INLINE_LEN,
+        }
+    }
+
     /// Constructs a new [`BitmapVec`].
     ///
     /// Fails with [`AllocError`] when the [`BitmapVec`] could not be allocated. This
-    /// includes the case when `nbits` is greater than `i32::MAX`.
+    /// includes the case when `nbits` is greater than `MAX_LEN`.
     #[inline]
     pub fn new(nbits: usize, flags: Flags) -> Result<Self, AllocError> {
-        if nbits <= BITS_PER_LONG {
+        if nbits <= BitmapVec::MAX_INLINE_LEN {
             return Ok(BitmapVec {
                 repr: BitmapRepr { bitmap: 0 },
                 nbits,
             });
         }
-        if nbits > i32::MAX.try_into().unwrap() {
+        if nbits > Self::MAX_LEN {
             return Err(AllocError);
         }
         let nbits_u32 = u32::try_from(nbits).unwrap();
-        // SAFETY: `BITS_PER_LONG < nbits` and `nbits <= i32::MAX`.
+        // SAFETY: `MAX_INLINE_LEN < nbits` and `nbits <= MAX_LEN`.
         let ptr = unsafe { bindings::bitmap_zalloc(nbits_u32, flags.as_raw()) };
         let ptr = NonNull::new(ptr).ok_or(AllocError)?;
         // INVARIANT: `ptr` returned by C `bitmap_zalloc` and `nbits` checked.
@@ -495,9 +509,10 @@ mod tests {
     #[test]
     fn bitmap_borrow() {
         let fake_bitmap: [usize; 2] = [0, 0];
+        let fake_bitmap_len = 2 * usize::BITS as usize;
         // SAFETY: `fake_c_bitmap` is an array of expected length.
-        let b = unsafe { Bitmap::from_raw(fake_bitmap.as_ptr(), 2 * BITS_PER_LONG) };
-        assert_eq!(2 * BITS_PER_LONG, b.len());
+        let b = unsafe { Bitmap::from_raw(fake_bitmap.as_ptr(), fake_bitmap_len) };
+        assert_eq!(fake_bitmap_len, b.len());
         assert_eq!(None, b.next_bit(0));
     }
 

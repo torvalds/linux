@@ -129,22 +129,22 @@ perf-util-y += iostat.o
 perf-util-y += stream.o
 perf-util-y += kvm-stat.o
 perf-util-y += lock-contention.o
-perf-util-$(CONFIG_AUXTRACE) += auxtrace.o
+perf-util-y += auxtrace.o
 perf-util-y += intel-pt-decoder/
-perf-util-$(CONFIG_AUXTRACE) += intel-pt.o
-perf-util-$(CONFIG_AUXTRACE) += intel-bts.o
-perf-util-$(CONFIG_AUXTRACE) += arm-spe.o
-perf-util-$(CONFIG_AUXTRACE) += arm-spe-decoder/
-perf-util-$(CONFIG_AUXTRACE) += hisi-ptt.o
-perf-util-$(CONFIG_AUXTRACE) += hisi-ptt-decoder/
-perf-util-$(CONFIG_AUXTRACE) += s390-cpumsf.o
-perf-util-$(CONFIG_AUXTRACE) += powerpc-vpadtl.o
+perf-util-y += intel-pt.o
+perf-util-y += intel-bts.o
+perf-util-y += arm-spe.o
+perf-util-y += arm-spe-decoder/
+perf-util-y += hisi-ptt.o
+perf-util-y += hisi-ptt-decoder/
+perf-util-y += s390-cpumsf.o
+perf-util-y += powerpc-vpadtl.o
 
 ifdef CONFIG_LIBOPENCSD
-perf-util-$(CONFIG_AUXTRACE) += cs-etm.o
-perf-util-$(CONFIG_AUXTRACE) += cs-etm-decoder/
+perf-util-y += cs-etm.o
+perf-util-y += cs-etm-decoder/
 endif
-perf-util-$(CONFIG_AUXTRACE) += cs-etm-base.o
+perf-util-y += cs-etm-base.o
 
 perf-util-y += parse-branch-options.o
 perf-util-y += dump-insn.o

@@ -45,7 +45,6 @@ properties:
       - ti,tmp461
       - winbond,w83l771
 
-
   interrupts:
     items:
       - description: |

@@ -231,42 +231,6 @@ struct tpm_chip *tpm_default_chip(void)
 EXPORT_SYMBOL_GPL(tpm_default_chip);
 
 /**
- * tpm_find_get_ops() - find and reserve a TPM chip
- * @chip:	a &struct tpm_chip instance, %NULL for the default chip
- *
- * Finds a TPM chip and reserves its class device and operations. The chip must
- * be released with tpm_put_ops() after use.
- * This function is for internal use only. It supports existing TPM callers
- * by accepting NULL, but those callers should be converted to pass in a chip
- * directly.
- *
- * Return:
- * A reserved &struct tpm_chip instance.
- * %NULL if a chip is not found.
- * %NULL if the chip is not available.
- */
-struct tpm_chip *tpm_find_get_ops(struct tpm_chip *chip)
-{
-	int rc;
-
-	if (chip) {
-		if (!tpm_try_get_ops(chip))
-			return chip;
-		return NULL;
-	}
-
-	chip = tpm_default_chip();
-	if (!chip)
-		return NULL;
-	rc = tpm_try_get_ops(chip);
-	/* release additional reference we got from tpm_default_chip() */
-	put_device(&chip->dev);
-	if (rc)
-		return NULL;
-	return chip;
-}
-
-/**
  * tpm_dev_release() - free chip memory and the device number
  * @dev: the character device for the TPM chip
  *
@@ -282,7 +246,6 @@ static void tpm_dev_release(struct device *dev)
 
 	kfree(chip->work_space.context_buf);
 	kfree(chip->work_space.session_buf);
-	kfree(chip->allocated_banks);
 #ifdef CONFIG_TCG_TPM2_HMAC
 	kfree(chip->auth);
 #endif

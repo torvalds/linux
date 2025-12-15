@@ -139,7 +139,7 @@ static void test_lsm_tailcall(void)
 	if (CHECK_FAIL(!err))
 		goto close_prog;
 
-	prog_fd = bpf_program__fd(skel->progs.lsm_file_alloc_security_prog);
+	prog_fd = bpf_program__fd(skel->progs.lsm_kernfs_init_security_prog);
 	if (CHECK_FAIL(prog_fd < 0))
 		goto close_prog;
 

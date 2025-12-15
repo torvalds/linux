@@ -16,6 +16,8 @@ obj-$(CONFIG_BLK_DEV_INITRD) := initramfs_data.o
 
 $(obj)/initramfs_data.o: $(obj)/initramfs_inc_data
 
+hostprogs := gen_init_cpio
+
 ramfs-input := $(CONFIG_INITRAMFS_SOURCE)
 cpio-data :=
 
@@ -47,8 +49,6 @@ endif
 ifeq ($(cpio-data),)
 
 cpio-data := $(obj)/initramfs_data.cpio
-
-hostprogs := gen_init_cpio
 
 # .initramfs_data.cpio.d is used to identify all files included
 # in initramfs and to detect if any files are added/removed.

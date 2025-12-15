@@ -12,7 +12,7 @@ gen_param_check()
 	local arg="$1"; shift
 	local type="${arg%%:*}"
 	local name="$(gen_param_name "${arg}")"
-	local rw="write"
+	local rw="atomic_write"
 
 	case "${type#c}" in
 	i) return;;
@@ -20,14 +20,17 @@ gen_param_check()
 
 	if [ ${type#c} != ${type} ]; then
 		# We don't write to constant parameters.
-		rw="read"
+		rw="atomic_read"
+	elif [ "${type}" = "p" ] ; then
+		# The "old" argument in try_cmpxchg() gets accessed non-atomically
+		rw="read_write"
 	elif [ "${meta}" != "s" ]; then
 		# An atomic RMW: if this parameter is not a constant, and this atomic is
 		# not just a 's'tore, this parameter is both read from and written to.
-		rw="read_write"
+		rw="atomic_read_write"
 	fi
 
-	printf "\tinstrument_atomic_${rw}(${name}, sizeof(*${name}));\n"
+	printf "\tinstrument_${rw}(${name}, sizeof(*${name}));\n"
 }
 
 #gen_params_checks(meta, arg...)

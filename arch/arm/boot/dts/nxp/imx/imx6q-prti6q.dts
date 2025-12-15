@@ -57,6 +57,7 @@
 	panel {
 		compatible = "kyo,tcg121xglp";
 		backlight = <&backlight_lcd>;
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {
@@ -70,6 +71,13 @@
 		regulator-name = "1v8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_wifi: regulator-wifi {

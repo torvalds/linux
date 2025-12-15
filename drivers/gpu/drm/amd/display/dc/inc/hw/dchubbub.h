@@ -252,6 +252,8 @@ struct hubbub_funcs {
 	void (*program_compbuf_segments)(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase);
 	void (*wait_for_det_update)(struct hubbub *hubbub, int hubp_inst);
 	bool (*program_arbiter)(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs, bool safe_to_lower);
+	void (*dchvm_init)(struct hubbub *hubbub);
+
 	struct hubbub_perfmon_funcs {
 		void (*reset)(struct hubbub *hubbub);
 		void (*start_measuring_max_memory_latency_ns)(

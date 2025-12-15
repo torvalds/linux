@@ -53,9 +53,9 @@ struct exynos_pm_data {
 
 	void (*pm_prepare)(void);
 	void (*pm_resume_prepare)(void);
-	void (*pm_resume)(void);
-	int (*pm_suspend)(void);
 	int (*cpu_suspend)(unsigned long);
+
+	const struct syscore_ops *syscore_ops;
 };
 
 /* Used only on Exynos542x/5800 */
@@ -376,7 +376,7 @@ static void exynos5420_pm_prepare(void)
 }
 
 
-static int exynos_pm_suspend(void)
+static int exynos_pm_suspend(void *data)
 {
 	exynos_pm_central_suspend();
 
@@ -390,7 +390,7 @@ static int exynos_pm_suspend(void)
 	return 0;
 }
 
-static int exynos5420_pm_suspend(void)
+static int exynos5420_pm_suspend(void *data)
 {
 	u32 this_cluster;
 
@@ -408,7 +408,7 @@ static int exynos5420_pm_suspend(void)
 	return 0;
 }
 
-static void exynos_pm_resume(void)
+static void exynos_pm_resume(void *data)
 {
 	u32 cpuid = read_cpuid_part();
 
@@ -429,7 +429,7 @@ early_wakeup:
 	exynos_set_delayed_reset_assertion(true);
 }
 
-static void exynos3250_pm_resume(void)
+static void exynos3250_pm_resume(void *data)
 {
 	u32 cpuid = read_cpuid_part();
 
@@ -473,7 +473,7 @@ static void exynos5420_prepare_pm_resume(void)
 	}
 }
 
-static void exynos5420_pm_resume(void)
+static void exynos5420_pm_resume(void *data)
 {
 	unsigned long tmp;
 
@@ -596,41 +596,52 @@ static const struct platform_suspend_ops exynos_suspend_ops = {
 	.valid		= suspend_valid_only_mem,
 };
 
+static const struct syscore_ops exynos3250_syscore_ops = {
+	.suspend = exynos_pm_suspend,
+	.resume = exynos3250_pm_resume,
+};
+
 static const struct exynos_pm_data exynos3250_pm_data = {
 	.wkup_irq	= exynos3250_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.pm_suspend	= exynos_pm_suspend,
-	.pm_resume	= exynos3250_pm_resume,
 	.pm_prepare	= exynos3250_pm_prepare,
 	.cpu_suspend	= exynos3250_cpu_suspend,
+	.syscore_ops	= &exynos3250_syscore_ops,
+};
+
+static const struct syscore_ops exynos_syscore_ops = {
+	.suspend = exynos_pm_suspend,
+	.resume = exynos_pm_resume,
 };
 
 static const struct exynos_pm_data exynos4_pm_data = {
 	.wkup_irq	= exynos4_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.pm_suspend	= exynos_pm_suspend,
-	.pm_resume	= exynos_pm_resume,
 	.pm_prepare	= exynos_pm_prepare,
 	.cpu_suspend	= exynos_cpu_suspend,
+	.syscore_ops	= &exynos_syscore_ops,
 };
 
 static const struct exynos_pm_data exynos5250_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = ((0xFF << 8) | (0x1F << 1)),
-	.pm_suspend	= exynos_pm_suspend,
-	.pm_resume	= exynos_pm_resume,
 	.pm_prepare	= exynos_pm_prepare,
 	.cpu_suspend	= exynos_cpu_suspend,
+	.syscore_ops	= &exynos_syscore_ops,
+};
+
+static const struct syscore_ops exynos5420_syscore_ops = {
+	.resume = exynos5420_pm_resume,
+	.suspend = exynos5420_pm_suspend,
 };
 
 static const struct exynos_pm_data exynos5420_pm_data = {
 	.wkup_irq	= exynos5250_wkup_irq,
 	.wake_disable_mask = (0x7F << 7) | (0x1F << 1),
 	.pm_resume_prepare = exynos5420_prepare_pm_resume,
-	.pm_resume	= exynos5420_pm_resume,
-	.pm_suspend	= exynos5420_pm_suspend,
 	.pm_prepare	= exynos5420_pm_prepare,
 	.cpu_suspend	= exynos5420_cpu_suspend,
+	.syscore_ops	= &exynos5420_syscore_ops,
 };
 
 static const struct of_device_id exynos_pmu_of_device_ids[] __initconst = {
@@ -656,7 +667,7 @@ static const struct of_device_id exynos_pmu_of_device_ids[] __initconst = {
 	{ /*sentinel*/ },
 };
 
-static struct syscore_ops exynos_pm_syscore_ops;
+static struct syscore exynos_pm_syscore;
 
 void __init exynos_pm_init(void)
 {
@@ -684,10 +695,9 @@ void __init exynos_pm_init(void)
 	tmp |= pm_data->wake_disable_mask;
 	pmu_raw_writel(tmp, S5P_WAKEUP_MASK);
 
-	exynos_pm_syscore_ops.suspend	= pm_data->pm_suspend;
-	exynos_pm_syscore_ops.resume	= pm_data->pm_resume;
+	exynos_pm_syscore.ops = pm_data->syscore_ops;
 
-	register_syscore_ops(&exynos_pm_syscore_ops);
+	register_syscore(&exynos_pm_syscore);
 	suspend_set_ops(&exynos_suspend_ops);
 
 	/*

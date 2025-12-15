@@ -367,7 +367,7 @@ static int vdec_h264_slice_decode(void *h_vdec, struct mtk_vcodec_mem *bs,
 	inst->vsi_ctx.dec.vdec_fb_va = (u64)(uintptr_t)fb;
 
 	v4l2_m2m_buf_copy_metadata(&src_buf_info->m2m_buf.vb,
-				   &dst_buf_info->m2m_buf.vb, true);
+				   &dst_buf_info->m2m_buf.vb);
 	err = get_vdec_decode_parameters(inst);
 	if (err)
 		goto err_free_fb_out;

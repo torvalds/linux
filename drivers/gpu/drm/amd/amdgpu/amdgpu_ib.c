@@ -176,18 +176,21 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 
 	if (!ring->sched.ready) {
 		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
-		return -EINVAL;
+		r = -EINVAL;
+		goto free_fence;
 	}
 
 	if (vm && !job->vmid) {
 		dev_err(adev->dev, "VM IB without ID\n");
-		return -EINVAL;
+		r = -EINVAL;
+		goto free_fence;
 	}
 
 	if ((ib->flags & AMDGPU_IB_FLAGS_SECURE) &&
 	    (!ring->funcs->secure_submission_supported)) {
 		dev_err(adev->dev, "secure submissions not supported on ring <%s>\n", ring->name);
-		return -EINVAL;
+		r = -EINVAL;
+		goto free_fence;
 	}
 
 	alloc_size = ring->funcs->emit_frame_size + num_ibs *
@@ -196,7 +199,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	r = amdgpu_ring_alloc(ring, alloc_size);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
-		return r;
+		goto free_fence;
 	}
 
 	need_ctx_switch = ring->current_ctx != fence_ctx;
@@ -302,6 +305,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 		return r;
 	}
 	*f = &af->base;
+	/* get a ref for the job */
+	if (job)
+		dma_fence_get(*f);
 
 	if (ring->funcs->insert_end)
 		ring->funcs->insert_end(ring);
@@ -328,6 +334,11 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 	amdgpu_ring_commit(ring);
 
 	return 0;
+
+free_fence:
+	if (!job)
+		kfree(af);
+	return r;
 }
 
 /**

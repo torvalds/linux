@@ -321,7 +321,6 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 			  c->fanout, znode->child_cnt);
 		ubifs_err(c, "max levels %d, znode level %d",
 			  UBIFS_MAX_LEVELS, znode->level);
-		err = 1;
 		goto out_dump;
 	}
 
@@ -342,7 +341,6 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 		    zbr->lnum >= c->leb_cnt || zbr->offs < 0 ||
 		    zbr->offs + zbr->len > c->leb_size || zbr->offs & 7) {
 			ubifs_err(c, "bad branch %d", i);
-			err = 2;
 			goto out_dump;
 		}
 
@@ -355,7 +353,6 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 		default:
 			ubifs_err(c, "bad key type at slot %d: %d",
 				  i, key_type(c, &zbr->key));
-			err = 3;
 			goto out_dump;
 		}
 
@@ -368,7 +365,6 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 				ubifs_err(c, "bad target node (type %d) length (%d)",
 					  type, zbr->len);
 				ubifs_err(c, "have to be %d", c->ranges[type].len);
-				err = 4;
 				goto out_dump;
 			}
 		} else if (zbr->len < c->ranges[type].min_len ||
@@ -378,7 +374,6 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 			ubifs_err(c, "have to be in range of %d-%d",
 				  c->ranges[type].min_len,
 				  c->ranges[type].max_len);
-			err = 5;
 			goto out_dump;
 		}
 	}
@@ -396,13 +391,11 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 		cmp = keys_cmp(c, key1, key2);
 		if (cmp > 0) {
 			ubifs_err(c, "bad key order (keys %d and %d)", i, i + 1);
-			err = 6;
 			goto out_dump;
 		} else if (cmp == 0 && !is_hash_key(c, key1)) {
 			/* These can only be keys with colliding hash */
 			ubifs_err(c, "keys %d and %d are not hashed but equivalent",
 				  i, i + 1);
-			err = 7;
 			goto out_dump;
 		}
 	}
@@ -411,7 +404,7 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 	return 0;
 
 out_dump:
-	ubifs_err(c, "bad indexing node at LEB %d:%d, error %d", lnum, offs, err);
+	ubifs_err(c, "bad indexing node at LEB %d:%d", lnum, offs);
 	ubifs_dump_node(c, idx, c->max_idx_node_sz);
 	kfree(idx);
 	return -EINVAL;

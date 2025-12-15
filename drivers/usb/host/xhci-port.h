@@ -144,8 +144,13 @@
 #define PORT_TEST_MODE_SHIFT	28
 
 /* USB3 Protocol PORTLI  Port Link Information */
+#define PORT_LEC(p)		((p) & 0xffff)
 #define PORT_RX_LANES(p)	(((p) >> 16) & 0xf)
 #define PORT_TX_LANES(p)	(((p) >> 20) & 0xf)
+
+/* eUSB2v2 protocol PORTLI Port Link information, RsvdP for normal USB2 */
+#define PORTLI_RDR(p)		((p) & 0xf)
+#define PORTLI_TDR(p)		(((p) >> 4) & 0xf)
 
 /* USB2 Protocol PORTHLPMC */
 #define PORT_HIRDM(p)((p) & 3)

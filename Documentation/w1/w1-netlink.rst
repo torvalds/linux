@@ -196,7 +196,7 @@ Additional documentation, source code examples
 ==============================================
 
 1. Documentation/driver-api/connector.rst
-2. http://www.ioremap.net/archive/w1
+2. https://github.com/bioothod/w1
 
    This archive includes userspace application w1d.c which uses
    read/write/search commands for all master/slave devices found on the bus.

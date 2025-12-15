@@ -28,6 +28,7 @@ these MAP frames and send them to appropriate PDN's.
 ================
 
 a. MAP packet v1 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -54,6 +55,7 @@ Payload length includes the padding length but does not include MAP header
 length.
 
 b. Map packet v4 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -107,6 +109,7 @@ over which checksum is computed.
 Checksum value, indicates the checksum computed.
 
 c. MAP packet v5 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -134,8 +137,11 @@ Payload length includes the padding length but does not include MAP header
 length.
 
 d. Checksum offload header v5
+-----------------------------
 
 Checksum offload header fields are in big endian format.
+
+Packet format::
 
   Bit            0 - 6          7               8-15              16-31
   Function     Header Type    Next Header     Checksum Valid    Reserved
@@ -143,10 +149,12 @@ Checksum offload header fields are in big endian format.
 Header Type is to indicate the type of header, this usually is set to CHECKSUM
 
 Header types
-= ==========================================
+
+= ===============
 0 Reserved
 1 Reserved
 2 checksum header
+= ===============
 
 Checksum Valid is to indicate whether the header checksum is valid. Value of 1
 implies that checksum is calculated on this packet and is valid, value of 0
@@ -154,7 +162,10 @@ indicates that the calculated packet checksum is invalid.
 
 Reserved bits must be zero when sent and ignored when received.
 
-e. MAP packet v1/v5 (command specific)::
+e. MAP packet v1/v5 (command specific)
+--------------------------------------
+
+Packet format::
 
     Bit             0             1         2-7      8 - 15           16 - 31
     Function   Command         Reserved     Pad   Multiplexer ID    Payload length
@@ -177,15 +188,18 @@ Command types
 = ==========================================
 
 f. Aggregation
+--------------
 
 Aggregation is multiple MAP packets (can be data or command) delivered to
 rmnet in a single linear skb. rmnet will process the individual
 packets and either ACK the MAP command or deliver the IP packet to the
 network stack as needed
 
-MAP header|IP Packet|Optional padding|MAP header|IP Packet|Optional padding....
+Packet format::
 
-MAP header|IP Packet|Optional padding|MAP header|Command Packet|Optional pad...
+  MAP header|IP Packet|Optional padding|MAP header|IP Packet|Optional padding....
+
+  MAP header|IP Packet|Optional padding|MAP header|Command Packet|Optional pad...
 
 3. Userspace configuration
 ==========================

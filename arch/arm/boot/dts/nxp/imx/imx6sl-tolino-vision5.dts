@@ -26,6 +26,11 @@
 	compatible = "kobo,tolino-vision5", "fsl,imx6sl";
 };
 
+&epd_pmic_supply {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_epd_pmic_supply>;
+};
+
 &gpio_keys {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio_keys>;
@@ -56,6 +61,12 @@
 		fsl,pins = <
 			MX6SL_PAD_FEC_TXD0__GPIO4_IO24          0x17059 /* TP_INT */
 			MX6SL_PAD_FEC_RXD1__GPIO4_IO18          0x10059 /* TP_RST */
+		>;
+	};
+
+	pinctrl_epd_pmic_supply: epd-pmic-supplygrp {
+		fsl,pins = <
+			MX6SL_PAD_EPDC_PWRWAKEUP__GPIO2_IO14    0x40010059
 		>;
 	};
 
@@ -156,6 +167,14 @@
 			MX6SL_PAD_FEC_MDIO__GPIO4_IO20		0x1b8b1 /* ricoh619 chg */
 			MX6SL_PAD_FEC_RX_ER__GPIO4_IO19		0x1b8b1 /* ricoh619 irq */
 			MX6SL_PAD_KEY_COL2__GPIO3_IO28		0x1b8b1 /* ricoh619 bat_low_int */
+		>;
+	};
+
+	pinctrl_sy7636_gpio: sy7636-gpiogrp {
+		fsl,pins = <
+			MX6SL_PAD_EPDC_VCOM0__GPIO2_IO03        0x40010059 /* VCOM_CTRL */
+			MX6SL_PAD_EPDC_PWRCTRL1__GPIO2_IO08     0x40010059 /* EN */
+			MX6SL_PAD_EPDC_PWRSTAT__GPIO2_IO13      0x17059 /* PWR_GOOD */
 		>;
 	};
 
@@ -327,6 +346,11 @@
 &ricoh619 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ricoh_gpio>;
+};
+
+&sy7636 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sy7636_gpio>;
 };
 
 &uart1 {

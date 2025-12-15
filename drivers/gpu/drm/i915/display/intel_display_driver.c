@@ -29,6 +29,7 @@
 #include "intel_cdclk.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
+#include "intel_cursor.h"
 #include "intel_dbuf_bw.h"
 #include "intel_display_core.h"
 #include "intel_display_debugfs.h"
@@ -148,17 +149,7 @@ static void intel_mode_config_init(struct intel_display *display)
 		mode_config->max_height = 2048;
 	}
 
-	if (display->platform.i845g || display->platform.i865g) {
-		mode_config->cursor_width = display->platform.i845g ? 64 : 512;
-		mode_config->cursor_height = 1023;
-	} else if (display->platform.i830 || display->platform.i85x ||
-		   display->platform.i915g || display->platform.i915gm) {
-		mode_config->cursor_width = 64;
-		mode_config->cursor_height = 64;
-	} else {
-		mode_config->cursor_width = 256;
-		mode_config->cursor_height = 256;
-	}
+	intel_cursor_mode_config_init(display);
 }
 
 static void intel_mode_config_cleanup(struct intel_display *display)

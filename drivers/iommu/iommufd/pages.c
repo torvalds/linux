@@ -45,6 +45,8 @@
  * last_iova + 1 can overflow. An iopt_pages index will always be much less than
  * ULONG_MAX so last_index + 1 cannot overflow.
  */
+#include <linux/dma-buf.h>
+#include <linux/dma-resv.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
 #include <linux/iommu.h>
@@ -53,6 +55,7 @@
 #include <linux/overflow.h>
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
+#include <linux/vfio_pci_core.h>
 
 #include "double_span.h"
 #include "io_pagetable.h"
@@ -258,6 +261,11 @@ static struct iopt_area *iopt_pages_find_domain_area(struct iopt_pages *pages,
 	return container_of(node, struct iopt_area, pages_node);
 }
 
+enum batch_kind {
+	BATCH_CPU_MEMORY = 0,
+	BATCH_MMIO,
+};
+
 /*
  * A simple datastructure to hold a vector of PFNs, optimized for contiguous
  * PFNs. This is used as a temporary holding memory for shuttling pfns from one
@@ -271,7 +279,9 @@ struct pfn_batch {
 	unsigned int array_size;
 	unsigned int end;
 	unsigned int total_pfns;
+	enum batch_kind kind;
 };
+enum { MAX_NPFNS = type_max(typeof(((struct pfn_batch *)0)->npfns[0])) };
 
 static void batch_clear(struct pfn_batch *batch)
 {
@@ -348,10 +358,16 @@ static void batch_destroy(struct pfn_batch *batch, void *backup)
 }
 
 static bool batch_add_pfn_num(struct pfn_batch *batch, unsigned long pfn,
-			      u32 nr)
+			      u32 nr, enum batch_kind kind)
 {
-	const unsigned int MAX_NPFNS = type_max(typeof(*batch->npfns));
 	unsigned int end = batch->end;
+
+	if (batch->kind != kind) {
+		/* One kind per batch */
+		if (batch->end != 0)
+			return false;
+		batch->kind = kind;
+	}
 
 	if (end && pfn == batch->pfns[end - 1] + batch->npfns[end - 1] &&
 	    nr <= MAX_NPFNS - batch->npfns[end - 1]) {
@@ -379,7 +395,7 @@ static void batch_remove_pfn_num(struct pfn_batch *batch, unsigned long nr)
 /* true if the pfn was added, false otherwise */
 static bool batch_add_pfn(struct pfn_batch *batch, unsigned long pfn)
 {
-	return batch_add_pfn_num(batch, pfn, 1);
+	return batch_add_pfn_num(batch, pfn, 1, BATCH_CPU_MEMORY);
 }
 
 /*
@@ -492,12 +508,18 @@ static int batch_to_domain(struct pfn_batch *batch, struct iommu_domain *domain,
 {
 	bool disable_large_pages = area->iopt->disable_large_pages;
 	unsigned long last_iova = iopt_area_last_iova(area);
+	int iommu_prot = area->iommu_prot;
 	unsigned int page_offset = 0;
 	unsigned long start_iova;
 	unsigned long next_iova;
 	unsigned int cur = 0;
 	unsigned long iova;
 	int rc;
+
+	if (batch->kind == BATCH_MMIO) {
+		iommu_prot &= ~IOMMU_CACHE;
+		iommu_prot |= IOMMU_MMIO;
+	}
 
 	/* The first index might be a partial page */
 	if (start_index == iopt_area_index(area))
@@ -512,11 +534,11 @@ static int batch_to_domain(struct pfn_batch *batch, struct iommu_domain *domain,
 			rc = batch_iommu_map_small(
 				domain, iova,
 				PFN_PHYS(batch->pfns[cur]) + page_offset,
-				next_iova - iova, area->iommu_prot);
+				next_iova - iova, iommu_prot);
 		else
 			rc = iommu_map(domain, iova,
 				       PFN_PHYS(batch->pfns[cur]) + page_offset,
-				       next_iova - iova, area->iommu_prot,
+				       next_iova - iova, iommu_prot,
 				       GFP_KERNEL_ACCOUNT);
 		if (rc)
 			goto err_unmap;
@@ -652,7 +674,7 @@ static int batch_from_folios(struct pfn_batch *batch, struct folio ***folios_p,
 		nr = min(nr, npages);
 		npages -= nr;
 
-		if (!batch_add_pfn_num(batch, pfn, nr))
+		if (!batch_add_pfn_num(batch, pfn, nr, BATCH_CPU_MEMORY))
 			break;
 		if (nr > 1) {
 			rc = folio_add_pins(folio, nr - 1);
@@ -1054,6 +1076,41 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 	return iopt_pages_update_pinned(pages, npages, inc, user);
 }
 
+struct pfn_reader_dmabuf {
+	struct dma_buf_phys_vec phys;
+	unsigned long start_offset;
+};
+
+static int pfn_reader_dmabuf_init(struct pfn_reader_dmabuf *dmabuf,
+				  struct iopt_pages *pages)
+{
+	/* Callers must not get here if the dmabuf was already revoked */
+	if (WARN_ON(iopt_dmabuf_revoked(pages)))
+		return -EINVAL;
+
+	dmabuf->phys = pages->dmabuf.phys;
+	dmabuf->start_offset = pages->dmabuf.start;
+	return 0;
+}
+
+static int pfn_reader_fill_dmabuf(struct pfn_reader_dmabuf *dmabuf,
+				  struct pfn_batch *batch,
+				  unsigned long start_index,
+				  unsigned long last_index)
+{
+	unsigned long start = dmabuf->start_offset + start_index * PAGE_SIZE;
+
+	/*
+	 * start/last_index and start are all PAGE_SIZE aligned, the batch is
+	 * always filled using page size aligned PFNs just like the other types.
+	 * If the dmabuf has been sliced on a sub page offset then the common
+	 * batch to domain code will adjust it before mapping to the domain.
+	 */
+	batch_add_pfn_num(batch, PHYS_PFN(dmabuf->phys.paddr + start),
+			  last_index - start_index + 1, BATCH_MMIO);
+	return 0;
+}
+
 /*
  * PFNs are stored in three places, in order of preference:
  * - The iopt_pages xarray. This is only populated if there is a
@@ -1072,7 +1129,10 @@ struct pfn_reader {
 	unsigned long batch_end_index;
 	unsigned long last_index;
 
-	struct pfn_reader_user user;
+	union {
+		struct pfn_reader_user user;
+		struct pfn_reader_dmabuf dmabuf;
+	};
 };
 
 static int pfn_reader_update_pinned(struct pfn_reader *pfns)
@@ -1108,7 +1168,7 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 {
 	struct interval_tree_double_span_iter *span = &pfns->span;
 	unsigned long start_index = pfns->batch_end_index;
-	struct pfn_reader_user *user = &pfns->user;
+	struct pfn_reader_user *user;
 	unsigned long npages;
 	struct iopt_area *area;
 	int rc;
@@ -1140,8 +1200,13 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 		return 0;
 	}
 
-	if (start_index >= pfns->user.upages_end) {
-		rc = pfn_reader_user_pin(&pfns->user, pfns->pages, start_index,
+	if (iopt_is_dmabuf(pfns->pages))
+		return pfn_reader_fill_dmabuf(&pfns->dmabuf, &pfns->batch,
+					      start_index, span->last_hole);
+
+	user = &pfns->user;
+	if (start_index >= user->upages_end) {
+		rc = pfn_reader_user_pin(user, pfns->pages, start_index,
 					 span->last_hole);
 		if (rc)
 			return rc;
@@ -1209,7 +1274,10 @@ static int pfn_reader_init(struct pfn_reader *pfns, struct iopt_pages *pages,
 	pfns->batch_start_index = start_index;
 	pfns->batch_end_index = start_index;
 	pfns->last_index = last_index;
-	pfn_reader_user_init(&pfns->user, pages);
+	if (iopt_is_dmabuf(pages))
+		pfn_reader_dmabuf_init(&pfns->dmabuf, pages);
+	else
+		pfn_reader_user_init(&pfns->user, pages);
 	rc = batch_init(&pfns->batch, last_index - start_index + 1);
 	if (rc)
 		return rc;
@@ -1230,8 +1298,12 @@ static int pfn_reader_init(struct pfn_reader *pfns, struct iopt_pages *pages,
 static void pfn_reader_release_pins(struct pfn_reader *pfns)
 {
 	struct iopt_pages *pages = pfns->pages;
-	struct pfn_reader_user *user = &pfns->user;
+	struct pfn_reader_user *user;
 
+	if (iopt_is_dmabuf(pages))
+		return;
+
+	user = &pfns->user;
 	if (user->upages_end > pfns->batch_end_index) {
 		/* Any pages not transferred to the batch are just unpinned */
 
@@ -1261,7 +1333,8 @@ static void pfn_reader_destroy(struct pfn_reader *pfns)
 	struct iopt_pages *pages = pfns->pages;
 
 	pfn_reader_release_pins(pfns);
-	pfn_reader_user_destroy(&pfns->user, pfns->pages);
+	if (!iopt_is_dmabuf(pfns->pages))
+		pfn_reader_user_destroy(&pfns->user, pfns->pages);
 	batch_destroy(&pfns->batch, NULL);
 	WARN_ON(pages->last_npinned != pages->npinned);
 }
@@ -1340,24 +1413,232 @@ struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
 	return pages;
 }
 
-struct iopt_pages *iopt_alloc_file_pages(struct file *file, unsigned long start,
+struct iopt_pages *iopt_alloc_file_pages(struct file *file,
+					 unsigned long start_byte,
+					 unsigned long start,
 					 unsigned long length, bool writable)
 
 {
 	struct iopt_pages *pages;
-	unsigned long start_down = ALIGN_DOWN(start, PAGE_SIZE);
-	unsigned long end;
 
-	if (length && check_add_overflow(start, length - 1, &end))
-		return ERR_PTR(-EOVERFLOW);
-
-	pages = iopt_alloc_pages(start - start_down, length, writable);
+	pages = iopt_alloc_pages(start_byte, length, writable);
 	if (IS_ERR(pages))
 		return pages;
 	pages->file = get_file(file);
-	pages->start = start_down;
+	pages->start = start - start_byte;
 	pages->type = IOPT_ADDRESS_FILE;
 	return pages;
+}
+
+static void iopt_revoke_notify(struct dma_buf_attachment *attach)
+{
+	struct iopt_pages *pages = attach->importer_priv;
+	struct iopt_pages_dmabuf_track *track;
+
+	guard(mutex)(&pages->mutex);
+	if (iopt_dmabuf_revoked(pages))
+		return;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm) {
+		struct iopt_area *area = track->area;
+
+		iopt_area_unmap_domain_range(area, track->domain,
+					     iopt_area_index(area),
+					     iopt_area_last_index(area));
+	}
+	pages->dmabuf.phys.len = 0;
+}
+
+static struct dma_buf_attach_ops iopt_dmabuf_attach_revoke_ops = {
+	.allow_peer2peer = true,
+	.move_notify = iopt_revoke_notify,
+};
+
+/*
+ * iommufd and vfio have a circular dependency. Future work for a phys
+ * based private interconnect will remove this.
+ */
+static int
+sym_vfio_pci_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
+				 struct dma_buf_phys_vec *phys)
+{
+	typeof(&vfio_pci_dma_buf_iommufd_map) fn;
+	int rc;
+
+	rc = iommufd_test_dma_buf_iommufd_map(attachment, phys);
+	if (rc != -EOPNOTSUPP)
+		return rc;
+
+	if (!IS_ENABLED(CONFIG_VFIO_PCI_DMABUF))
+		return -EOPNOTSUPP;
+
+	fn = symbol_get(vfio_pci_dma_buf_iommufd_map);
+	if (!fn)
+		return -EOPNOTSUPP;
+	rc = fn(attachment, phys);
+	symbol_put(vfio_pci_dma_buf_iommufd_map);
+	return rc;
+}
+
+static int iopt_map_dmabuf(struct iommufd_ctx *ictx, struct iopt_pages *pages,
+			   struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+	int rc;
+
+	attach = dma_buf_dynamic_attach(dmabuf, iommufd_global_device(),
+					&iopt_dmabuf_attach_revoke_ops, pages);
+	if (IS_ERR(attach))
+		return PTR_ERR(attach);
+
+	dma_resv_lock(dmabuf->resv, NULL);
+	/*
+	 * Lock ordering requires the mutex to be taken inside the reservation,
+	 * make sure lockdep sees this.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		mutex_lock(&pages->mutex);
+		mutex_unlock(&pages->mutex);
+	}
+
+	rc = sym_vfio_pci_dma_buf_iommufd_map(attach, &pages->dmabuf.phys);
+	if (rc)
+		goto err_detach;
+
+	dma_resv_unlock(dmabuf->resv);
+
+	/* On success iopt_release_pages() will detach and put the dmabuf. */
+	pages->dmabuf.attach = attach;
+	return 0;
+
+err_detach:
+	dma_resv_unlock(dmabuf->resv);
+	dma_buf_detach(dmabuf, attach);
+	return rc;
+}
+
+struct iopt_pages *iopt_alloc_dmabuf_pages(struct iommufd_ctx *ictx,
+					   struct dma_buf *dmabuf,
+					   unsigned long start_byte,
+					   unsigned long start,
+					   unsigned long length, bool writable)
+{
+	static struct lock_class_key pages_dmabuf_mutex_key;
+	struct iopt_pages *pages;
+	int rc;
+
+	if (!IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (dmabuf->size <= (start + length - 1) ||
+	    length / PAGE_SIZE >= MAX_NPFNS)
+		return ERR_PTR(-EINVAL);
+
+	pages = iopt_alloc_pages(start_byte, length, writable);
+	if (IS_ERR(pages))
+		return pages;
+
+	/*
+	 * The mmap_lock can be held when obtaining the dmabuf reservation lock
+	 * which creates a locking cycle with the pages mutex which is held
+	 * while obtaining the mmap_lock. This locking path is not present for
+	 * IOPT_ADDRESS_DMABUF so split the lock class.
+	 */
+	lockdep_set_class(&pages->mutex, &pages_dmabuf_mutex_key);
+
+	/* dmabuf does not use pinned page accounting. */
+	pages->account_mode = IOPT_PAGES_ACCOUNT_NONE;
+	pages->type = IOPT_ADDRESS_DMABUF;
+	pages->dmabuf.start = start - start_byte;
+	INIT_LIST_HEAD(&pages->dmabuf.tracker);
+
+	rc = iopt_map_dmabuf(ictx, pages, dmabuf);
+	if (rc) {
+		iopt_put_pages(pages);
+		return ERR_PTR(rc);
+	}
+
+	return pages;
+}
+
+int iopt_dmabuf_track_domain(struct iopt_pages *pages, struct iopt_area *area,
+			     struct iommu_domain *domain)
+{
+	struct iopt_pages_dmabuf_track *track;
+
+	lockdep_assert_held(&pages->mutex);
+	if (WARN_ON(!iopt_is_dmabuf(pages)))
+		return -EINVAL;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm)
+		if (WARN_ON(track->domain == domain && track->area == area))
+			return -EINVAL;
+
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (!track)
+		return -ENOMEM;
+	track->domain = domain;
+	track->area = area;
+	list_add_tail(&track->elm, &pages->dmabuf.tracker);
+
+	return 0;
+}
+
+void iopt_dmabuf_untrack_domain(struct iopt_pages *pages,
+				struct iopt_area *area,
+				struct iommu_domain *domain)
+{
+	struct iopt_pages_dmabuf_track *track;
+
+	lockdep_assert_held(&pages->mutex);
+	WARN_ON(!iopt_is_dmabuf(pages));
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm) {
+		if (track->domain == domain && track->area == area) {
+			list_del(&track->elm);
+			kfree(track);
+			return;
+		}
+	}
+	WARN_ON(true);
+}
+
+int iopt_dmabuf_track_all_domains(struct iopt_area *area,
+				  struct iopt_pages *pages)
+{
+	struct iopt_pages_dmabuf_track *track;
+	struct iommu_domain *domain;
+	unsigned long index;
+	int rc;
+
+	list_for_each_entry(track, &pages->dmabuf.tracker, elm)
+		if (WARN_ON(track->area == area))
+			return -EINVAL;
+
+	xa_for_each(&area->iopt->domains, index, domain) {
+		rc = iopt_dmabuf_track_domain(pages, area, domain);
+		if (rc)
+			goto err_untrack;
+	}
+	return 0;
+err_untrack:
+	iopt_dmabuf_untrack_all_domains(area, pages);
+	return rc;
+}
+
+void iopt_dmabuf_untrack_all_domains(struct iopt_area *area,
+				     struct iopt_pages *pages)
+{
+	struct iopt_pages_dmabuf_track *track;
+	struct iopt_pages_dmabuf_track *tmp;
+
+	list_for_each_entry_safe(track, tmp, &pages->dmabuf.tracker,
+				 elm) {
+		if (track->area == area) {
+			list_del(&track->elm);
+			kfree(track);
+		}
+	}
 }
 
 void iopt_release_pages(struct kref *kref)
@@ -1372,8 +1653,15 @@ void iopt_release_pages(struct kref *kref)
 	mutex_destroy(&pages->mutex);
 	put_task_struct(pages->source_task);
 	free_uid(pages->source_user);
-	if (pages->type == IOPT_ADDRESS_FILE)
+	if (iopt_is_dmabuf(pages) && pages->dmabuf.attach) {
+		struct dma_buf *dmabuf = pages->dmabuf.attach->dmabuf;
+
+		dma_buf_detach(dmabuf, pages->dmabuf.attach);
+		dma_buf_put(dmabuf);
+		WARN_ON(!list_empty(&pages->dmabuf.tracker));
+	} else if (pages->type == IOPT_ADDRESS_FILE) {
 		fput(pages->file);
+	}
 	kfree(pages);
 }
 
@@ -1451,6 +1739,14 @@ static void __iopt_area_unfill_domain(struct iopt_area *area,
 
 	lockdep_assert_held(&pages->mutex);
 
+	if (iopt_is_dmabuf(pages)) {
+		if (WARN_ON(iopt_dmabuf_revoked(pages)))
+			return;
+		iopt_area_unmap_domain_range(area, domain, start_index,
+					     last_index);
+		return;
+	}
+
 	/*
 	 * For security we must not unpin something that is still DMA mapped,
 	 * so this must unmap any IOVA before we go ahead and unpin the pages.
@@ -1526,6 +1822,9 @@ void iopt_area_unmap_domain(struct iopt_area *area, struct iommu_domain *domain)
 void iopt_area_unfill_domain(struct iopt_area *area, struct iopt_pages *pages,
 			     struct iommu_domain *domain)
 {
+	if (iopt_dmabuf_revoked(pages))
+		return;
+
 	__iopt_area_unfill_domain(area, pages, domain,
 				  iopt_area_last_index(area));
 }
@@ -1545,6 +1844,9 @@ int iopt_area_fill_domain(struct iopt_area *area, struct iommu_domain *domain)
 	int rc;
 
 	lockdep_assert_held(&area->pages->mutex);
+
+	if (iopt_dmabuf_revoked(area->pages))
+		return 0;
 
 	rc = pfn_reader_first(&pfns, area->pages, iopt_area_index(area),
 			      iopt_area_last_index(area));
@@ -1605,33 +1907,44 @@ int iopt_area_fill_domains(struct iopt_area *area, struct iopt_pages *pages)
 		return 0;
 
 	mutex_lock(&pages->mutex);
-	rc = pfn_reader_first(&pfns, pages, iopt_area_index(area),
-			      iopt_area_last_index(area));
-	if (rc)
-		goto out_unlock;
+	if (iopt_is_dmabuf(pages)) {
+		rc = iopt_dmabuf_track_all_domains(area, pages);
+		if (rc)
+			goto out_unlock;
+	}
 
-	while (!pfn_reader_done(&pfns)) {
-		done_first_end_index = pfns.batch_end_index;
-		done_all_end_index = pfns.batch_start_index;
-		xa_for_each(&area->iopt->domains, index, domain) {
-			rc = batch_to_domain(&pfns.batch, domain, area,
-					     pfns.batch_start_index);
+	if (!iopt_dmabuf_revoked(pages)) {
+		rc = pfn_reader_first(&pfns, pages, iopt_area_index(area),
+				      iopt_area_last_index(area));
+		if (rc)
+			goto out_untrack;
+
+		while (!pfn_reader_done(&pfns)) {
+			done_first_end_index = pfns.batch_end_index;
+			done_all_end_index = pfns.batch_start_index;
+			xa_for_each(&area->iopt->domains, index, domain) {
+				rc = batch_to_domain(&pfns.batch, domain, area,
+						     pfns.batch_start_index);
+				if (rc)
+					goto out_unmap;
+			}
+			done_all_end_index = done_first_end_index;
+
+			rc = pfn_reader_next(&pfns);
 			if (rc)
 				goto out_unmap;
 		}
-		done_all_end_index = done_first_end_index;
-
-		rc = pfn_reader_next(&pfns);
+		rc = pfn_reader_update_pinned(&pfns);
 		if (rc)
 			goto out_unmap;
+
+		pfn_reader_destroy(&pfns);
 	}
-	rc = pfn_reader_update_pinned(&pfns);
-	if (rc)
-		goto out_unmap;
 
 	area->storage_domain = xa_load(&area->iopt->domains, 0);
 	interval_tree_insert(&area->pages_node, &pages->domains_itree);
-	goto out_destroy;
+	mutex_unlock(&pages->mutex);
+	return 0;
 
 out_unmap:
 	pfn_reader_release_pins(&pfns);
@@ -1658,8 +1971,10 @@ out_unmap:
 							end_index);
 		}
 	}
-out_destroy:
 	pfn_reader_destroy(&pfns);
+out_untrack:
+	if (iopt_is_dmabuf(pages))
+		iopt_dmabuf_untrack_all_domains(area, pages);
 out_unlock:
 	mutex_unlock(&pages->mutex);
 	return rc;
@@ -1685,16 +2000,22 @@ void iopt_area_unfill_domains(struct iopt_area *area, struct iopt_pages *pages)
 	if (!area->storage_domain)
 		goto out_unlock;
 
-	xa_for_each(&iopt->domains, index, domain)
-		if (domain != area->storage_domain)
+	xa_for_each(&iopt->domains, index, domain) {
+		if (domain == area->storage_domain)
+			continue;
+
+		if (!iopt_dmabuf_revoked(pages))
 			iopt_area_unmap_domain_range(
 				area, domain, iopt_area_index(area),
 				iopt_area_last_index(area));
+	}
 
 	if (IS_ENABLED(CONFIG_IOMMUFD_TEST))
 		WARN_ON(RB_EMPTY_NODE(&area->pages_node.rb));
 	interval_tree_remove(&area->pages_node, &pages->domains_itree);
 	iopt_area_unfill_domain(area, pages, area->storage_domain);
+	if (iopt_is_dmabuf(pages))
+		iopt_dmabuf_untrack_all_domains(area, pages);
 	area->storage_domain = NULL;
 out_unlock:
 	mutex_unlock(&pages->mutex);
@@ -2031,14 +2352,13 @@ int iopt_pages_rw_access(struct iopt_pages *pages, unsigned long start_byte,
 	if ((flags & IOMMUFD_ACCESS_RW_WRITE) && !pages->writable)
 		return -EPERM;
 
-	if (pages->type == IOPT_ADDRESS_FILE)
+	if (iopt_is_dmabuf(pages))
+		return -EINVAL;
+
+	if (pages->type != IOPT_ADDRESS_USER)
 		return iopt_pages_rw_slow(pages, start_index, last_index,
 					  start_byte % PAGE_SIZE, data, length,
 					  flags);
-
-	if (IS_ENABLED(CONFIG_IOMMUFD_TEST) &&
-	    WARN_ON(pages->type != IOPT_ADDRESS_USER))
-		return -EINVAL;
 
 	if (!(flags & IOMMUFD_ACCESS_RW_KTHREAD) && change_mm) {
 		if (start_index == last_index)

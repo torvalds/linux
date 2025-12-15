@@ -435,10 +435,8 @@ static int th1520_mbox_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_add_action_or_reset(dev, th1520_disable_clk, priv);
-	if (ret) {
-		clk_bulk_disable_unprepare(ARRAY_SIZE(priv->clocks), priv->clocks);
+	if (ret)
 		return ret;
-	}
 
 	/*
 	 * The address mappings in the device tree align precisely with those

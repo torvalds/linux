@@ -6,7 +6,7 @@
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
  * Copyright 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2019, 2021-2024 Intel Corporation
+ * Copyright (C) 2019, 2021-2025 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -1783,7 +1783,10 @@ ieee80211_process_tdls_channel_switch_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	elems = ieee802_11_parse_elems(tf->u.chan_switch_resp.variable,
-				       skb->len - baselen, false, NULL);
+				       skb->len - baselen,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems) {
 		ret = -ENOMEM;
 		goto out;
@@ -1902,7 +1905,10 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	elems = ieee802_11_parse_elems(tf->u.chan_switch_req.variable,
-				       skb->len - baselen, false, NULL);
+				       skb->len - baselen,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems)
 		return -ENOMEM;
 

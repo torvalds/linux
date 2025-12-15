@@ -31,7 +31,7 @@ static void ftrace_dump_buf(int skip_entries, long cpu_file)
 	old_userobj = tr->trace_flags;
 
 	/* don't look at user memory in panic mode */
-	tr->trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
+	tr->trace_flags &= ~TRACE_ITER(SYM_USEROBJ);
 
 	kdb_printf("Dumping ftrace buffer:\n");
 	if (skip_entries)

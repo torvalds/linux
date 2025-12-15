@@ -944,7 +944,6 @@ static const struct net_device_ops ifi_canfd_netdev_ops = {
 	.ndo_open	= ifi_canfd_open,
 	.ndo_stop	= ifi_canfd_close,
 	.ndo_start_xmit	= ifi_canfd_start_xmit,
-	.ndo_change_mtu	= can_change_mtu,
 };
 
 static const struct ethtool_ops ifi_canfd_ethtool_ops = {

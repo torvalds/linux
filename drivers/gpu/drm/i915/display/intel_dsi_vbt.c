@@ -171,6 +171,9 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	case MIPI_DSI_DCS_LONG_WRITE:
 		ret = mipi_dsi_dcs_write_buffer(dsi_device, data, len);
 		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	if (ret < 0)

@@ -19,10 +19,10 @@ config PCIE_CADENCE_EP
 	select PCIE_CADENCE
 
 config PCIE_CADENCE_PLAT
-	bool
+	tristate
 
 config PCIE_CADENCE_PLAT_HOST
-	bool "Cadence platform PCIe controller (host mode)"
+	tristate "Cadence platform PCIe controller (host mode)"
 	depends on OF
 	select PCIE_CADENCE_HOST
 	select PCIE_CADENCE_PLAT
@@ -32,7 +32,7 @@ config PCIE_CADENCE_PLAT_HOST
 	  vendors SoCs.
 
 config PCIE_CADENCE_PLAT_EP
-	bool "Cadence platform PCIe controller (endpoint mode)"
+	tristate "Cadence platform PCIe controller (endpoint mode)"
 	depends on OF
 	depends on PCI_ENDPOINT
 	select PCIE_CADENCE_EP
@@ -41,6 +41,21 @@ config PCIE_CADENCE_PLAT_EP
 	  Say Y here if you want to support the Cadence PCIe platform controller in
 	  endpoint mode. This PCIe controller may be embedded into many
 	  different vendors SoCs.
+
+config PCI_SKY1_HOST
+	tristate "CIX SKY1 PCIe controller (host mode)"
+	depends on OF && (ARCH_CIX || COMPILE_TEST)
+	select PCIE_CADENCE_HOST
+	select PCI_ECAM
+	help
+	  Say Y here if you want to support the CIX SKY1 PCIe platform
+	  controller in host mode. CIX SKY1 PCIe controller uses Cadence
+	  HPA (High Performance Architecture IP [Second generation of
+	  Cadence PCIe IP])
+
+	  This driver requires Cadence PCIe core infrastructure
+	  (PCIE_CADENCE_HOST) and hardware platform adaptation layer
+	  to function.
 
 config PCIE_SG2042_HOST
 	tristate "Sophgo SG2042 PCIe controller (host mode)"

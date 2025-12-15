@@ -38,6 +38,7 @@ EXPORT_SYMBOL_NS(asoc_sdw_cs35l56_volume_limit, "SND_SOC_SDW_UTILS");
 int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	char widget_name[16];
 	struct snd_soc_dapm_route route = { "Speaker", NULL, widget_name };
 	struct snd_soc_dai *codec_dai;
@@ -54,7 +55,7 @@ int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai
 		if (ret)
 			return ret;
 
-		ret = snd_soc_dapm_add_routes(&card->dapm, &route, 1);
+		ret = snd_soc_dapm_add_routes(dapm, &route, 1);
 		if (ret)
 			return ret;
 	}

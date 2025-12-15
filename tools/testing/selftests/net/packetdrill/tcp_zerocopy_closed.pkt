@@ -7,6 +7,8 @@
 // First send on a closed socket and wait for (absent) notification.
 // Then connect and send and verify that notification nr. is zero.
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4

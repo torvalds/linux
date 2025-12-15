@@ -18,6 +18,7 @@
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
 #include "xe_oa_types.h"
+#include "xe_pagefault_types.h"
 #include "xe_platform_types.h"
 #include "xe_pmu_types.h"
 #include "xe_pt_types.h"
@@ -418,6 +419,16 @@ struct xe_device {
 		u32 next_asid;
 		/** @usm.lock: protects UM state */
 		struct rw_semaphore lock;
+		/** @usm.pf_wq: page fault work queue, unbound, high priority */
+		struct workqueue_struct *pf_wq;
+		/*
+		 * We pick 4 here because, in the current implementation, it
+		 * yields the best bandwidth utilization of the kernel paging
+		 * engine.
+		 */
+#define XE_PAGEFAULT_QUEUE_COUNT	4
+		/** @usm.pf_queue: Page fault queues */
+		struct xe_pagefault_queue pf_queue[XE_PAGEFAULT_QUEUE_COUNT];
 	} usm;
 
 	/** @pinned: pinned BO state */
@@ -644,9 +655,6 @@ struct xe_device {
 	 * Cannot be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
-
-	/* To shut up runtime pm macros.. */
-	struct xe_runtime_pm {} runtime_pm;
 
 	struct intel_uncore {
 		spinlock_t lock;

@@ -235,7 +235,7 @@ static int ufshcd_ahit_to_us(u32 ahit)
 }
 
 /* Convert microseconds to Auto-Hibernate Idle Timer register value */
-static u32 ufshcd_us_to_ahit(unsigned int timer)
+u32 ufshcd_us_to_ahit(unsigned int timer)
 {
 	unsigned int scale;
 
@@ -245,6 +245,7 @@ static u32 ufshcd_us_to_ahit(unsigned int timer)
 	return FIELD_PREP(UFSHCI_AHIBERN8_TIMER_MASK, timer) |
 	       FIELD_PREP(UFSHCI_AHIBERN8_SCALE_MASK, scale);
 }
+EXPORT_SYMBOL_GPL(ufshcd_us_to_ahit);
 
 static int ufshcd_read_hci_reg(struct ufs_hba *hba, u32 *val, unsigned int reg)
 {
@@ -1949,7 +1950,7 @@ static umode_t ufs_sysfs_hid_is_visible(struct kobject *kobj,
 	return	hba->dev_info.hid_sup ? attr->mode : 0;
 }
 
-const struct attribute_group ufs_sysfs_hid_group = {
+static const struct attribute_group ufs_sysfs_hid_group = {
 	.name = "hid",
 	.attrs = ufs_sysfs_hid,
 	.is_visible = ufs_sysfs_hid_is_visible,

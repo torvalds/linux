@@ -40,12 +40,12 @@ static unsigned int lynx_pcs_inband_caps(struct phylink_pcs *pcs,
 {
 	switch (interface) {
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE;
 
 	case PHY_INTERFACE_MODE_10GBASER:
-	case PHY_INTERFACE_MODE_2500BASEX:
 		return LINK_INBAND_DISABLE;
 
 	case PHY_INTERFACE_MODE_USXGMII:
@@ -80,27 +80,6 @@ static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 	phylink_decode_usxgmii_word(state, lpa);
 }
 
-static void lynx_pcs_get_state_2500basex(struct mdio_device *pcs,
-					 struct phylink_link_state *state)
-{
-	int bmsr;
-
-	bmsr = mdiodev_read(pcs, MII_BMSR);
-	if (bmsr < 0) {
-		state->link = false;
-		return;
-	}
-
-	state->link = !!(bmsr & BMSR_LSTATUS);
-	state->an_complete = !!(bmsr & BMSR_ANEGCOMPLETE);
-	if (!state->link)
-		return;
-
-	state->speed = SPEED_2500;
-	state->pause |= MLO_PAUSE_TX | MLO_PAUSE_RX;
-	state->duplex = DUPLEX_FULL;
-}
-
 static void lynx_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 			       struct phylink_link_state *state)
 {
@@ -108,12 +87,10 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 
 	switch (state->interface) {
 	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_2500BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		phylink_mii_c22_pcs_get_state(lynx->mdio, neg_mode, state);
-		break;
-	case PHY_INTERFACE_MODE_2500BASEX:
-		lynx_pcs_get_state_2500basex(lynx->mdio, state);
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 	case PHY_INTERFACE_MODE_10G_QXGMII:
@@ -152,7 +129,8 @@ static int lynx_pcs_config_giga(struct mdio_device *pcs,
 		mdiodev_write(pcs, LINK_TIMER_HI, link_timer >> 16);
 	}
 
-	if (interface == PHY_INTERFACE_MODE_1000BASEX) {
+	if (interface == PHY_INTERFACE_MODE_1000BASEX ||
+	    interface == PHY_INTERFACE_MODE_2500BASEX) {
 		if_mode = 0;
 	} else {
 		/* SGMII and QSGMII */
@@ -202,15 +180,9 @@ static int lynx_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_2500BASEX:
 		return lynx_pcs_config_giga(lynx->mdio, ifmode, advertising,
 					    neg_mode);
-	case PHY_INTERFACE_MODE_2500BASEX:
-		if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
-			dev_err(&lynx->mdio->dev,
-				"AN not supported on 3.125GHz SerDes lane\n");
-			return -EOPNOTSUPP;
-		}
-		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 	case PHY_INTERFACE_MODE_10G_QXGMII:
 		return lynx_pcs_config_usxgmii(lynx->mdio, ifmode, advertising,
@@ -271,42 +243,6 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs,
 		       if_mode);
 }
 
-/* 2500Base-X is SerDes protocol 7 on Felix and 6 on ENETC. It is a SerDes lane
- * clocked at 3.125 GHz which encodes symbols with 8b/10b and does not have
- * auto-negotiation of any link parameters. Electrically it is compatible with
- * a single lane of XAUI.
- * The hardware reference manual wants to call this mode SGMII, but it isn't
- * really, since the fundamental features of SGMII:
- * - Downgrading the link speed by duplicating symbols
- * - Auto-negotiation
- * are not there.
- * The speed is configured at 1000 in the IF_MODE because the clock frequency
- * is actually given by a PLL configured in the Reset Configuration Word (RCW).
- * Since there is no difference between fixed speed SGMII w/o AN and 802.3z w/o
- * AN, we call this PHY interface type 2500Base-X. In case a PHY negotiates a
- * lower link speed on line side, the system-side interface remains fixed at
- * 2500 Mbps and we do rate adaptation through pause frames.
- */
-static void lynx_pcs_link_up_2500basex(struct mdio_device *pcs,
-				       unsigned int neg_mode,
-				       int speed, int duplex)
-{
-	u16 if_mode = 0;
-
-	if (neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED) {
-		dev_err(&pcs->dev, "AN not supported for 2500BaseX\n");
-		return;
-	}
-
-	if (duplex == DUPLEX_HALF)
-		if_mode |= IF_MODE_HALF_DUPLEX;
-	if_mode |= IF_MODE_SPEED(SGMII_SPEED_2500);
-
-	mdiodev_modify(pcs, IF_MODE,
-		       IF_MODE_HALF_DUPLEX | IF_MODE_SPEED_MSK,
-		       if_mode);
-}
-
 static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 			     phy_interface_t interface,
 			     int speed, int duplex)
@@ -317,9 +253,6 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
 		lynx_pcs_link_up_sgmii(lynx->mdio, neg_mode, speed, duplex);
-		break;
-	case PHY_INTERFACE_MODE_2500BASEX:
-		lynx_pcs_link_up_2500basex(lynx->mdio, neg_mode, speed, duplex);
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 	case PHY_INTERFACE_MODE_10G_QXGMII:

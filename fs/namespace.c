@@ -132,16 +132,6 @@ EXPORT_SYMBOL_GPL(fs_kobj);
  */
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(mount_lock);
 
-static inline struct mnt_namespace *node_to_mnt_ns(const struct rb_node *node)
-{
-	struct ns_common *ns;
-
-	if (!node)
-		return NULL;
-	ns = rb_entry(node, struct ns_common, ns_tree_node);
-	return container_of(ns, struct mnt_namespace, ns);
-}
-
 static void mnt_ns_release(struct mnt_namespace *ns)
 {
 	/* keep alive for {list,stat}mount() */
@@ -151,7 +141,8 @@ static void mnt_ns_release(struct mnt_namespace *ns)
 		kfree(ns);
 	}
 }
-DEFINE_FREE(mnt_ns_release, struct mnt_namespace *, if (_T) mnt_ns_release(_T))
+DEFINE_FREE(mnt_ns_release, struct mnt_namespace *,
+	    if (!IS_ERR(_T)) mnt_ns_release(_T))
 
 static void mnt_ns_release_rcu(struct rcu_head *rcu)
 {
@@ -1345,26 +1336,12 @@ static void delayed_mntput(struct work_struct *unused)
 }
 static DECLARE_DELAYED_WORK(delayed_mntput_work, delayed_mntput);
 
-static void mntput_no_expire(struct mount *mnt)
+static void noinline mntput_no_expire_slowpath(struct mount *mnt)
 {
 	LIST_HEAD(list);
 	int count;
 
-	rcu_read_lock();
-	if (likely(READ_ONCE(mnt->mnt_ns))) {
-		/*
-		 * Since we don't do lock_mount_hash() here,
-		 * ->mnt_ns can change under us.  However, if it's
-		 * non-NULL, then there's a reference that won't
-		 * be dropped until after an RCU delay done after
-		 * turning ->mnt_ns NULL.  So if we observe it
-		 * non-NULL under rcu_read_lock(), the reference
-		 * we are dropping is not the final one.
-		 */
-		mnt_add_count(mnt, -1);
-		rcu_read_unlock();
-		return;
-	}
+	VFS_BUG_ON(mnt->mnt_ns);
 	lock_mount_hash();
 	/*
 	 * make sure that if __legitimize_mnt() has not seen us grab
@@ -1413,6 +1390,26 @@ static void mntput_no_expire(struct mount *mnt)
 		return;
 	}
 	cleanup_mnt(mnt);
+}
+
+static void mntput_no_expire(struct mount *mnt)
+{
+	rcu_read_lock();
+	if (likely(READ_ONCE(mnt->mnt_ns))) {
+		/*
+		 * Since we don't do lock_mount_hash() here,
+		 * ->mnt_ns can change under us.  However, if it's
+		 * non-NULL, then there's a reference that won't
+		 * be dropped until after an RCU delay done after
+		 * turning ->mnt_ns NULL.  So if we observe it
+		 * non-NULL under rcu_read_lock(), the reference
+		 * we are dropping is not the final one.
+		 */
+		mnt_add_count(mnt, -1);
+		rcu_read_unlock();
+		return;
+	}
+	mntput_no_expire_slowpath(mnt);
 }
 
 void mntput(struct vfsmount *mnt)
@@ -3103,19 +3100,7 @@ static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned
 
 SYSCALL_DEFINE3(open_tree, int, dfd, const char __user *, filename, unsigned, flags)
 {
-	int fd;
-	struct file *file __free(fput) = NULL;
-
-	file = vfs_open_tree(dfd, filename, flags);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	fd = get_unused_fd_flags(flags & O_CLOEXEC);
-	if (fd < 0)
-		return fd;
-
-	fd_install(fd, no_free_ptr(file));
-	return fd;
+	return FD_ADD(flags, vfs_open_tree(dfd, filename, flags));
 }
 
 /*
@@ -4093,8 +4078,9 @@ static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *user_ns, bool a
 		dec_mnt_namespaces(ucounts);
 		return ERR_PTR(ret);
 	}
-	if (!anon)
-		ns_tree_gen_id(&new_ns->ns);
+	ns_tree_gen_id(new_ns);
+
+	new_ns->is_anon = anon;
 	refcount_set(&new_ns->passive, 1);
 	new_ns->mounts = RB_ROOT;
 	init_waitqueue_head(&new_ns->poll);
@@ -4283,10 +4269,10 @@ static unsigned int attr_flags_to_mnt_flags(u64 attr_flags)
 SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 		unsigned int, attr_flags)
 {
+	struct path new_path __free(path_put) = {};
 	struct mnt_namespace *ns;
 	struct fs_context *fc;
-	struct file *file;
-	struct path newmount;
+	struct vfsmount *new_mnt;
 	struct mount *mnt;
 	unsigned int mnt_flags = 0;
 	long ret;
@@ -4324,35 +4310,36 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 
 	fc = fd_file(f)->private_data;
 
-	ret = mutex_lock_interruptible(&fc->uapi_mutex);
-	if (ret < 0)
+	ACQUIRE(mutex_intr, uapi_mutex)(&fc->uapi_mutex);
+	ret = ACQUIRE_ERR(mutex_intr, &uapi_mutex);
+	if (ret)
 		return ret;
 
 	/* There must be a valid superblock or we can't mount it */
 	ret = -EINVAL;
 	if (!fc->root)
-		goto err_unlock;
+		return ret;
 
 	ret = -EPERM;
 	if (mount_too_revealing(fc->root->d_sb, &mnt_flags)) {
 		errorfcp(fc, "VFS", "Mount too revealing");
-		goto err_unlock;
+		return ret;
 	}
 
 	ret = -EBUSY;
 	if (fc->phase != FS_CONTEXT_AWAITING_MOUNT)
-		goto err_unlock;
+		return ret;
 
 	if (fc->sb_flags & SB_MANDLOCK)
 		warn_mandlock();
 
-	newmount.mnt = vfs_create_mount(fc);
-	if (IS_ERR(newmount.mnt)) {
-		ret = PTR_ERR(newmount.mnt);
-		goto err_unlock;
-	}
-	newmount.dentry = dget(fc->root);
-	newmount.mnt->mnt_flags = mnt_flags;
+	new_mnt = vfs_create_mount(fc);
+	if (IS_ERR(new_mnt))
+		return PTR_ERR(new_mnt);
+	new_mnt->mnt_flags = mnt_flags;
+
+	new_path.dentry = dget(fc->root);
+	new_path.mnt = new_mnt;
 
 	/* We've done the mount bit - now move the file context into more or
 	 * less the same state as if we'd done an fspick().  We don't want to
@@ -4362,38 +4349,27 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	vfs_clean_context(fc);
 
 	ns = alloc_mnt_ns(current->nsproxy->mnt_ns->user_ns, true);
-	if (IS_ERR(ns)) {
-		ret = PTR_ERR(ns);
-		goto err_path;
-	}
-	mnt = real_mount(newmount.mnt);
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
+	mnt = real_mount(new_path.mnt);
 	ns->root = mnt;
 	ns->nr_mounts = 1;
 	mnt_add_to_ns(ns, mnt);
-	mntget(newmount.mnt);
+	mntget(new_path.mnt);
 
-	/* Attach to an apparent O_PATH fd with a note that we need to unmount
-	 * it, not just simply put it.
-	 */
-	file = dentry_open(&newmount, O_PATH, fc->cred);
-	if (IS_ERR(file)) {
-		dissolve_on_fput(newmount.mnt);
-		ret = PTR_ERR(file);
-		goto err_path;
+	FD_PREPARE(fdf, (flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0,
+		   dentry_open(&new_path, O_PATH, fc->cred));
+	if (fdf.err) {
+		dissolve_on_fput(new_path.mnt);
+		return fdf.err;
 	}
-	file->f_mode |= FMODE_NEED_UNMOUNT;
 
-	ret = get_unused_fd_flags((flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0);
-	if (ret >= 0)
-		fd_install(ret, file);
-	else
-		fput(file);
-
-err_path:
-	path_put(&newmount);
-err_unlock:
-	mutex_unlock(&fc->uapi_mutex);
-	return ret;
+	/*
+	 * Attach to an apparent O_PATH fd with a note that we
+	 * need to unmount it, not just simply put it.
+	 */
+	fd_prepare_file(fdf)->f_mode |= FMODE_NEED_UNMOUNT;
+	return fd_publish(fdf);
 }
 
 static inline int vfs_move_mount(const struct path *from_path,
@@ -5035,19 +5011,17 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		unsigned, flags, struct mount_attr __user *, uattr,
 		size_t, usize)
 {
-	struct file __free(fput) *file = NULL;
-	int fd;
-
 	if (!uattr && usize)
 		return -EINVAL;
 
-	file = vfs_open_tree(dfd, filename, flags);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
+	FD_PREPARE(fdf, flags, vfs_open_tree(dfd, filename, flags));
+	if (fdf.err)
+		return fdf.err;
 
 	if (uattr) {
-		int ret;
 		struct mount_kattr kattr = {};
+		struct file *file = fd_prepare_file(fdf);
+		int ret;
 
 		if (flags & OPEN_TREE_CLONE)
 			kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
@@ -5063,12 +5037,7 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 			return ret;
 	}
 
-	fd = get_unused_fd_flags(flags & O_CLOEXEC);
-	if (fd < 0)
-		return fd;
-
-	fd_install(fd, no_free_ptr(file));
-	return fd;
+	return fd_publish(fdf);
 }
 
 int show_path(struct seq_file *m, struct dentry *root)
@@ -5149,6 +5118,12 @@ static u64 mnt_to_propagation_flags(struct mount *m)
 
 	return propagation;
 }
+
+u64 vfsmount_to_propagation_flags(struct vfsmount *mnt)
+{
+	return mnt_to_propagation_flags(real_mount(mnt));
+}
+EXPORT_SYMBOL_GPL(vfsmount_to_propagation_flags);
 
 static void statmount_sb_basic(struct kstatmount *s)
 {
@@ -5454,11 +5429,11 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 		ret = statmount_sb_source(s, seq);
 		break;
 	case STATMOUNT_MNT_UIDMAP:
-		sm->mnt_uidmap = start;
+		offp = &sm->mnt_uidmap;
 		ret = statmount_mnt_uidmap(s, seq);
 		break;
 	case STATMOUNT_MNT_GIDMAP:
-		sm->mnt_gidmap = start;
+		offp = &sm->mnt_gidmap;
 		ret = statmount_mnt_gidmap(s, seq);
 		break;
 	default:
@@ -5736,7 +5711,7 @@ static int copy_mnt_id_req(const struct mnt_id_req __user *req,
 	ret = copy_struct_from_user(kreq, sizeof(*kreq), req, usize);
 	if (ret)
 		return ret;
-	if (kreq->spare != 0)
+	if (kreq->mnt_ns_fd != 0 && kreq->mnt_ns_id)
 		return -EINVAL;
 	/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
 	if (kreq->mnt_id <= MNT_UNIQUE_ID_OFFSET)
@@ -5753,16 +5728,14 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 {
 	struct mnt_namespace *mnt_ns;
 
-	if (kreq->mnt_ns_id && kreq->spare)
-		return ERR_PTR(-EINVAL);
-
-	if (kreq->mnt_ns_id)
-		return lookup_mnt_ns(kreq->mnt_ns_id);
-
-	if (kreq->spare) {
+	if (kreq->mnt_ns_id) {
+		mnt_ns = lookup_mnt_ns(kreq->mnt_ns_id);
+		if (!mnt_ns)
+			return ERR_PTR(-ENOENT);
+	} else if (kreq->mnt_ns_fd) {
 		struct ns_common *ns;
 
-		CLASS(fd, f)(kreq->spare);
+		CLASS(fd, f)(kreq->mnt_ns_fd);
 		if (fd_empty(f))
 			return ERR_PTR(-EBADF);
 
@@ -5774,11 +5747,12 @@ static struct mnt_namespace *grab_requested_mnt_ns(const struct mnt_id_req *kreq
 			return ERR_PTR(-EINVAL);
 
 		mnt_ns = to_mnt_ns(ns);
+		refcount_inc(&mnt_ns->passive);
 	} else {
 		mnt_ns = current->nsproxy->mnt_ns;
+		refcount_inc(&mnt_ns->passive);
 	}
 
-	refcount_inc(&mnt_ns->passive);
 	return mnt_ns;
 }
 
@@ -5801,8 +5775,8 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 		return ret;
 
 	ns = grab_requested_mnt_ns(&kreq);
-	if (!ns)
-		return -ENOENT;
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
 
 	if (kreq.mnt_ns_id && (ns != current->nsproxy->mnt_ns) &&
 	    !ns_capable_noaudit(ns->user_ns, CAP_SYS_ADMIN))
@@ -5912,8 +5886,8 @@ static void __free_klistmount_free(const struct klistmount *kls)
 static inline int prepare_klistmount(struct klistmount *kls, struct mnt_id_req *kreq,
 				     size_t nr_mnt_ids)
 {
-
 	u64 last_mnt_id = kreq->param;
+	struct mnt_namespace *ns;
 
 	/* The first valid unique mount id is MNT_UNIQUE_ID_OFFSET + 1. */
 	if (last_mnt_id != 0 && last_mnt_id <= MNT_UNIQUE_ID_OFFSET)
@@ -5927,9 +5901,10 @@ static inline int prepare_klistmount(struct klistmount *kls, struct mnt_id_req *
 	if (!kls->kmnt_ids)
 		return -ENOMEM;
 
-	kls->ns = grab_requested_mnt_ns(kreq);
-	if (!kls->ns)
-		return -ENOENT;
+	ns = grab_requested_mnt_ns(kreq);
+	if (IS_ERR(ns))
+		return PTR_ERR(ns);
+	kls->ns = ns;
 
 	kls->mnt_parent_id = kreq->mnt_id;
 	return 0;
@@ -5985,11 +5960,8 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 }
 
 struct mnt_namespace init_mnt_ns = {
-	.ns.inum	= ns_init_inum(&init_mnt_ns),
-	.ns.ops		= &mntns_operations,
+	.ns		= NS_COMMON_INIT(init_mnt_ns),
 	.user_ns	= &init_user_ns,
-	.ns.__ns_ref	= REFCOUNT_INIT(1),
-	.ns.ns_type	= ns_common_type(&init_mnt_ns),
 	.passive	= REFCOUNT_INIT(1),
 	.mounts		= RB_ROOT,
 	.poll		= __WAIT_QUEUE_HEAD_INITIALIZER(init_mnt_ns.poll),

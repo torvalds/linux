@@ -54,3 +54,8 @@
 		interrupt-names = "dma";
 	};
 };
+
+&pcieb_ep {
+	interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "dma";
+};

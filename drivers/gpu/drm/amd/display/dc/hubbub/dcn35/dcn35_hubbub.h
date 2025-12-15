@@ -168,4 +168,5 @@ void dcn35_program_compbuf_size(struct hubbub *hubbub,
 	unsigned int compbuf_size_kb, bool safe_to_increase);
 void dcn35_init_crb(struct hubbub *hubbub);
 void hubbub35_init(struct hubbub *hubbub);
+void dcn35_dchvm_init(struct hubbub *hubbub);
 #endif

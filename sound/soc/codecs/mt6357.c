@@ -597,7 +597,7 @@ static int mt_mic_type_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *cmpnt = snd_soc_dapm_to_component(w->dapm);
 	struct mt6357_priv *priv = snd_soc_component_get_drvdata(cmpnt);
-	unsigned int mic_type = dapm_kcontrol_get_value(w->kcontrols[0]);
+	unsigned int mic_type = snd_soc_dapm_kcontrol_get_value(w->kcontrols[0]);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:

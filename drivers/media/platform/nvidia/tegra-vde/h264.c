@@ -776,7 +776,7 @@ static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
 	 * If userspace doesn't tell us frame's type, then we will try decode
 	 * as-is.
 	 */
-	v4l2_m2m_buf_copy_metadata(src, dst, true);
+	v4l2_m2m_buf_copy_metadata(src, dst);
 
 	if (h->decode_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BFRAME)
 		tb->b_frame = true;

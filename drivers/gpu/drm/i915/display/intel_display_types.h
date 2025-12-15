@@ -646,6 +646,7 @@ struct intel_plane_state {
 		enum drm_color_encoding color_encoding;
 		enum drm_color_range color_range;
 		enum drm_scaling_filter scaling_filter;
+		struct drm_property_blob *ctm, *degamma_lut, *gamma_lut, *lut_3d;
 	} hw;
 
 	struct i915_vma *ggtt_vma;
@@ -726,7 +727,6 @@ struct intel_initial_plane_config {
 	struct intel_memory_region *mem;
 	resource_size_t phys_base;
 	struct i915_vma *vma;
-	unsigned int tiling;
 	int size;
 	u32 base;
 	u8 rotation;
@@ -1392,6 +1392,9 @@ struct intel_crtc_state {
 		u8 silence_period_sym_clocks;
 		u8 lfps_half_cycle_num_of_syms;
 	} alpm_state;
+
+	/* to track changes in plane color blocks */
+	bool plane_color_changed;
 };
 
 enum intel_pipe_crc_source {
@@ -1564,8 +1567,8 @@ struct intel_plane {
 				      const struct drm_framebuffer *fb,
 				      int color_plane);
 	unsigned int (*max_stride)(struct intel_plane *plane,
-				   u32 pixel_format, u64 modifier,
-				   unsigned int rotation);
+				   const struct drm_format_info *info,
+				   u64 modifier, unsigned int rotation);
 	bool (*can_async_flip)(u64 modifier);
 	/* Write all non-self arming plane registers */
 	void (*update_noarm)(struct intel_dsb *dsb,
@@ -1984,6 +1987,11 @@ struct intel_dp_mst_encoder {
 	enum pipe pipe;
 	struct intel_digital_port *primary;
 	struct intel_connector *connector;
+};
+
+struct intel_colorop {
+	struct drm_colorop base;
+	enum intel_color_block id;
 };
 
 static inline struct intel_encoder *

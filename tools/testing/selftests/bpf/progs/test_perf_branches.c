@@ -8,6 +8,7 @@
 #include <bpf/bpf_tracing.h>
 
 int valid = 0;
+int run_cnt = 0;
 int required_size_out = 0;
 int written_stack_out = 0;
 int written_global_out = 0;
@@ -23,6 +24,8 @@ int perf_branches(void *ctx)
 {
 	__u64 entries[4 * 3] = {0};
 	int required_size, written_stack, written_global;
+
+	++run_cnt;
 
 	/* write to stack */
 	written_stack = bpf_read_branch_records(ctx, entries, sizeof(entries), 0);

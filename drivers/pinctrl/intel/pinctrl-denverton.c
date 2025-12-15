@@ -21,13 +21,6 @@
 #define DNV_GPI_IS	0x100
 #define DNV_GPI_IE	0x120
 
-#define DNV_GPP(n, s, e)				\
-	{						\
-		.reg_num = (n),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-	}
-
 #define DNV_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, DNV)
 
@@ -222,16 +215,16 @@ static const struct intel_function dnv_functions[] = {
 };
 
 static const struct intel_padgroup dnv_north_gpps[] = {
-	DNV_GPP(0, 0, 31),	/* North ALL_0 */
-	DNV_GPP(1, 32, 40),	/* North ALL_1 */
+	INTEL_GPP(0, 0, 31, 0),		/* North ALL_0 */
+	INTEL_GPP(1, 32, 40, 32),	/* North ALL_1 */
 };
 
 static const struct intel_padgroup dnv_south_gpps[] = {
-	DNV_GPP(0, 41, 58),	/* South DFX */
-	DNV_GPP(1, 59, 90),	/* South GPP0_0 */
-	DNV_GPP(2, 91, 111),	/* South GPP0_1 */
-	DNV_GPP(3, 112, 143),	/* South GPP1_0 */
-	DNV_GPP(4, 144, 153),	/* South GPP1_1 */
+	INTEL_GPP(0, 41, 58, 41),	/* South DFX */
+	INTEL_GPP(1, 59, 90, 59),	/* South GPP0_0 */
+	INTEL_GPP(2, 91, 111, 91),	/* South GPP0_1 */
+	INTEL_GPP(3, 112, 143, 112),	/* South GPP1_0 */
+	INTEL_GPP(4, 144, 153, 144),	/* South GPP1_1 */
 };
 
 static const struct intel_community dnv_communities[] = {

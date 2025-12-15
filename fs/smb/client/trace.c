@@ -4,5 +4,7 @@
  *
  *   Author(s): Steve French <stfrench@microsoft.com>
  */
+#include "cifsglob.h"
+#include "cifs_spnego.h"
 #define CREATE_TRACE_POINTS
 #include "trace.h"

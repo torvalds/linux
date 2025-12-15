@@ -116,6 +116,7 @@ enum recvr_type {
 	recvr_type_dj,
 	recvr_type_hidpp,
 	recvr_type_gaming_hidpp,
+	recvr_type_gaming_hidpp_ls_1_3,
 	recvr_type_mouse_only,
 	recvr_type_27mhz,
 	recvr_type_bluetooth,
@@ -148,6 +149,7 @@ struct dj_receiver_dev {
 	struct kfifo notif_fifo;
 	unsigned long last_query; /* in jiffies */
 	bool ready;
+	bool dj_mode;
 	enum recvr_type type;
 	unsigned int unnumbered_application;
 	spinlock_t lock;
@@ -209,6 +211,44 @@ static const char kbd_descriptor[] = {
 	0x75, 0x03,		/*   REPORT SIZE (3)            */
 	0x91, 0x01,		/*   OUTPUT (Constant)          */
 	0xC0
+};
+
+/* Gaming Keyboard descriptor (1) */
+static const char kbd_lightspeed_1_3_descriptor[] = {
+	0x05, 0x01,		/* Usage Page (Generic Desktop) */
+	0x09, 0x06,		/* Usage (Keyboard)             */
+	0xA1, 0x01,		/* Collection (Application)     */
+	0x85, 0x01,		/*   Report ID (1)              */
+	0x05, 0x07,		/*   Usage Page (Kbrd/Keypad)   */
+	0x19, 0xE0,		/*   Usage Minimum (0xE0)       */
+	0x29, 0xE7,		/*   Usage Maximum (0xE7)       */
+	0x15, 0x00,		/*   Logical Minimum (0)        */
+	0x25, 0x01,		/*   Logical Maximum (1)        */
+	0x75, 0x01,		/*   Report Size (1)            */
+	0x95, 0x08,		/*   Report Count (8)           */
+	0x81, 0x02,		/*   Input (Data,Var)           */
+	0x95, 0x70,		/*   Report Count (112)         */
+	0x19, 0x04,		/*   Usage Minimum (0x04)       */
+	0x29, 0x73,		/*   Usage Maximum (0x73)       */
+	0x81, 0x02,		/*   Input (Data,Var,Abs)       */
+	0x95, 0x05,		/*   Report Count (5)           */
+	0x19, 0x87,		/*   Usage Minimum (0x87)       */
+	0x29, 0x8B,		/*   Usage Maximum (0x8B)       */
+	0x81, 0x02,		/*   Input (Data,Var,Abs)       */
+	0x95, 0x03,		/*   Report Count (3)           */
+	0x19, 0x90,		/*   Usage Minimum (0x90)       */
+	0x29, 0x92,		/*   Usage Maximum (0x92)       */
+	0x81, 0x02,		/*   Input (Data,Var,Abs)       */
+	0x95, 0x05,		/*   Report Count (5)           */
+	0x85, 0x0E,		/*   Report ID (14)             */
+	0x05, 0x08,		/*   Usage Page (LEDs)          */
+	0x19, 0x01,		/*   Usage Minimum (Num Lock)   */
+	0x29, 0x05,		/*   Usage Maximum (Kana)       */
+	0x91, 0x02,		/*   Output (Data,Var,Abs)      */
+	0x95, 0x01,		/*   Report Count (1)           */
+	0x75, 0x03,		/*   Report Size (3)            */
+	0x91, 0x03,		/*   Output (Const,Var,Abs)     */
+	0xC0,			/* End Collection               */
 };
 
 /* Mouse descriptor (2)     */
@@ -415,6 +455,51 @@ static const char mse_high_res_descriptor[] = {
 	0xC0,			/*  END_COLLECTION                      */
 };
 
+/* Gaming Mouse descriptor with vendor data (2) */
+static const char mse_high_res_ls_1_3_descriptor[] = {
+	0x05, 0x01,		/* Usage Page (Generic Desktop)         */
+	0x09, 0x02,		/* Usage (Mouse)                        */
+	0xA1, 0x01,		/* Collection (Application)             */
+	0x85, 0x02,		/*   Report ID (2)                      */
+	0x09, 0x01,		/*   Usage (Pointer)                    */
+	0xA1, 0x00,		/*   Collection (Physical)              */
+	0x95, 0x10,		/*     Report Count (16)                */
+	0x75, 0x01,		/*     Report Size (1)                  */
+	0x15, 0x00,		/*     Logical Minimum (0)              */
+	0x25, 0x01,		/*     Logical Maximum (1)              */
+	0x05, 0x09,		/*     Usage Page (Button)              */
+	0x19, 0x01,		/*     Usage Minimum (0x01)             */
+	0x29, 0x10,		/*     Usage Maximum (0x10)             */
+	0x81, 0x02,		/*     Input (Data,Var,Abs)             */
+	0x95, 0x02,		/*     Report Count (2)                 */
+	0x75, 0x10,		/*     Report Size (16)                 */
+	0x16, 0x01, 0x80,	/*     Logical Minimum (-32767)         */
+	0x26, 0xFF, 0x7F,	/*     Logical Maximum (32767)          */
+	0x05, 0x01,		/*     Usage Page (Generic Desktop)     */
+	0x09, 0x30,		/*     Usage (X)                        */
+	0x09, 0x31,		/*     Usage (Y)                        */
+	0x81, 0x06,		/*     Input (Data,Var,Rel)             */
+	0x95, 0x01,		/*     Report Count (1)                 */
+	0x75, 0x08,		/*     Report Size (8)                  */
+	0x15, 0x81,		/*     Logical Minimum (-127)           */
+	0x25, 0x7F,		/*     Logical Maximum (127)            */
+	0x09, 0x38,		/*     Usage (Wheel)                    */
+	0x81, 0x06,		/*     Input (Data,Var,Rel)             */
+	0x95, 0x01,		/*     Report Count (1)                 */
+	0x05, 0x0C,		/*     Usage Page (Consumer)            */
+	0x0A, 0x38, 0x02,	/*     Usage (AC Pan)                   */
+	0x81, 0x06,		/*     Input (Data,Var,Rel)             */
+	0xC0,			/*   End Collection                     */
+	0x06, 0x00, 0xFF,	/*   Usage Page (Vendor Defined 0xFF00) */
+	0x09, 0xF1,		/*   Usage (0xF1)                       */
+	0x75, 0x08,		/*   Report Size (8)                    */
+	0x95, 0x05,		/*   Report Count (5)                   */
+	0x15, 0x00,		/*   Logical Minimum (0)                */
+	0x26, 0xFF, 0x00,	/*   Logical Maximum (255)              */
+	0x81, 0x00,		/*   Input (Data,Array,Abs)             */
+	0xC0,			/* End Collection                       */
+};
+
 /* Consumer Control descriptor (3) */
 static const char consumer_descriptor[] = {
 	0x05, 0x0C,		/* USAGE_PAGE (Consumer Devices)       */
@@ -520,9 +605,9 @@ static const char hidpp_descriptor[] = {
 /* Maximum size of all defined hid reports in bytes (including report id) */
 #define MAX_REPORT_SIZE 8
 
-/* Make sure all descriptors are present here */
+/* Make sure the largest of each descriptor type is present here */
 #define MAX_RDESC_SIZE				\
-	(sizeof(kbd_descriptor) +		\
+	(sizeof(kbd_lightspeed_1_3_descriptor) +\
 	 sizeof(mse_bluetooth_descriptor) +	\
 	 sizeof(mse5_bluetooth_descriptor) +	\
 	 sizeof(consumer_descriptor) +		\
@@ -557,6 +642,8 @@ static const u8 hid_reportid_size_map[NUMBER_OF_HID_REPORTS] = {
 static const struct hid_ll_driver logi_dj_ll_driver;
 
 static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev);
+static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
+					  unsigned int timeout);
 static void delayedwork_callback(struct work_struct *work);
 
 static LIST_HEAD(dj_hdev_list);
@@ -805,7 +892,6 @@ static void delayedwork_callback(struct work_struct *work)
 	struct dj_workitem workitem;
 	unsigned long flags;
 	int count;
-	int retval;
 
 	dbg_hid("%s\n", __func__);
 
@@ -842,11 +928,10 @@ static void delayedwork_callback(struct work_struct *work)
 		logi_dj_recv_destroy_djhid_device(djrcv_dev, &workitem);
 		break;
 	case WORKITEM_TYPE_UNKNOWN:
-		retval = logi_dj_recv_query_paired_devices(djrcv_dev);
-		if (retval) {
-			hid_err(djrcv_dev->hidpp, "%s: logi_dj_recv_query_paired_devices error: %d\n",
-				__func__, retval);
-		}
+		if (!djrcv_dev->dj_mode)
+			logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
+
+		logi_dj_recv_query_paired_devices(djrcv_dev);
 		break;
 	case WORKITEM_TYPE_EMPTY:
 		dbg_hid("%s: device list is empty\n", __func__);
@@ -1239,8 +1324,13 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 
 	djrcv_dev->last_query = jiffies;
 
-	if (djrcv_dev->type != recvr_type_dj)
-		return logi_dj_recv_query_hidpp_devices(djrcv_dev);
+	if (!djrcv_dev->dj_mode)
+		return 0;
+
+	if (djrcv_dev->type != recvr_type_dj) {
+		retval = logi_dj_recv_query_hidpp_devices(djrcv_dev);
+		goto out;
+	}
 
 	dj_report = kzalloc(sizeof(struct dj_report), GFP_KERNEL);
 	if (!dj_report)
@@ -1250,6 +1340,10 @@ static int logi_dj_recv_query_paired_devices(struct dj_receiver_dev *djrcv_dev)
 	dj_report->report_type = REPORT_TYPE_CMD_GET_PAIRED_DEVICES;
 	retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
 	kfree(dj_report);
+out:
+	if (retval < 0)
+		hid_err(djrcv_dev->hidpp, "%s error:%d\n", __func__, retval);
+
 	return retval;
 }
 
@@ -1275,6 +1369,8 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 								(u8)timeout;
 
 		retval = logi_dj_recv_send_report(djrcv_dev, dj_report);
+		if (retval)
+			goto out;
 
 		/*
 		 * Ugly sleep to work around a USB 3.0 bug when the receiver is
@@ -1283,11 +1379,6 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 		 * 50 msec should gives enough time to the receiver to be ready.
 		 */
 		msleep(50);
-
-		if (retval) {
-			kfree(dj_report);
-			return retval;
-		}
 	}
 
 	/*
@@ -1313,7 +1404,13 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 			HIDPP_REPORT_SHORT_LENGTH, HID_OUTPUT_REPORT,
 			HID_REQ_SET_REPORT);
 
+out:
 	kfree(dj_report);
+
+	if (retval < 0)
+		hid_err(hdev, "%s error:%d\n", __func__, retval);
+
+	djrcv_dev->dj_mode = retval >= 0;
 	return retval;
 }
 
@@ -1374,12 +1471,19 @@ static int logi_dj_ll_raw_request(struct hid_device *hid,
 		return -EINVAL;
 
 	if (djrcv_dev->type != recvr_type_dj && count >= 2) {
+		unsigned char led_report_id = 0;
+
 		if (!djrcv_dev->keyboard) {
 			hid_warn(hid, "Received REPORT_TYPE_LEDS request before the keyboard interface was enumerated\n");
 			return 0;
 		}
+
+		/* This Lightspeed receiver expects LED reports with report ID 1 */
+		if (djrcv_dev->type == recvr_type_gaming_hidpp_ls_1_3)
+			led_report_id = 1;
+
 		/* usbhid overrides the report ID and ignores the first byte */
-		return hid_hw_raw_request(djrcv_dev->keyboard, 0, buf, count,
+		return hid_hw_raw_request(djrcv_dev->keyboard, led_report_id, buf, count,
 					  report_type, reqtype);
 	}
 
@@ -1426,7 +1530,11 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 	if (djdev->reports_supported & STD_KEYBOARD) {
 		dbg_hid("%s: sending a kbd descriptor, reports_supported: %llx\n",
 			__func__, djdev->reports_supported);
-		rdcat(rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
+		if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp_ls_1_3)
+			rdcat(rdesc, &rsize, kbd_lightspeed_1_3_descriptor,
+			      sizeof(kbd_lightspeed_1_3_descriptor));
+		else
+			rdcat(rdesc, &rsize, kbd_descriptor, sizeof(kbd_descriptor));
 	}
 
 	if (djdev->reports_supported & STD_MOUSE) {
@@ -1436,6 +1544,9 @@ static int logi_dj_ll_parse(struct hid_device *hid)
 		    djdev->dj_receiver_dev->type == recvr_type_mouse_only)
 			rdcat(rdesc, &rsize, mse_high_res_descriptor,
 			      sizeof(mse_high_res_descriptor));
+		else if (djdev->dj_receiver_dev->type == recvr_type_gaming_hidpp_ls_1_3)
+			rdcat(rdesc, &rsize, mse_high_res_ls_1_3_descriptor,
+			      sizeof(mse_high_res_ls_1_3_descriptor));
 		else if (djdev->dj_receiver_dev->type == recvr_type_27mhz)
 			rdcat(rdesc, &rsize, mse_27mhz_descriptor,
 			      sizeof(mse_27mhz_descriptor));
@@ -1695,11 +1806,12 @@ static int logi_dj_raw_event(struct hid_device *hdev,
 		}
 		/*
 		 * Mouse-only receivers send unnumbered mouse data. The 27 MHz
-		 * receiver uses 6 byte packets, the nano receiver 8 bytes.
+		 * receiver uses 6 byte packets, the nano receiver 8 bytes,
+		 * the lightspeed receiver (Pro X Superlight) 13 bytes.
 		 */
 		if (djrcv_dev->unnumbered_application == HID_GD_MOUSE &&
-		    size <= 8) {
-			u8 mouse_report[9];
+		    size <= 13){
+			u8 mouse_report[14];
 
 			/* Prepend report id */
 			mouse_report[0] = REPORT_TYPE_MOUSE;
@@ -1776,6 +1888,7 @@ static int logi_dj_probe(struct hid_device *hdev,
 	case recvr_type_dj:		no_dj_interfaces = 3; break;
 	case recvr_type_hidpp:		no_dj_interfaces = 2; break;
 	case recvr_type_gaming_hidpp:	no_dj_interfaces = 3; break;
+	case recvr_type_gaming_hidpp_ls_1_3: no_dj_interfaces = 3; break;
 	case recvr_type_mouse_only:	no_dj_interfaces = 2; break;
 	case recvr_type_27mhz:		no_dj_interfaces = 2; break;
 	case recvr_type_bluetooth:	no_dj_interfaces = 2; break;
@@ -1834,12 +1947,11 @@ static int logi_dj_probe(struct hid_device *hdev,
 	}
 
 	if (has_hidpp) {
-		retval = logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
-		if (retval < 0) {
-			hid_err(hdev, "%s: logi_dj_recv_switch_to_dj_mode returned error:%d\n",
-				__func__, retval);
-			goto switch_to_dj_mode_fail;
-		}
+		/*
+		 * This can fail with a KVM. Ignore errors to let the probe
+		 * succeed, logi_dj_recv_queue_unknown_work will retry later.
+		 */
+		logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
 	}
 
 	/* This is enabling the polling urb on the IN endpoint */
@@ -1857,21 +1969,13 @@ static int logi_dj_probe(struct hid_device *hdev,
 		spin_lock_irqsave(&djrcv_dev->lock, flags);
 		djrcv_dev->ready = true;
 		spin_unlock_irqrestore(&djrcv_dev->lock, flags);
-		retval = logi_dj_recv_query_paired_devices(djrcv_dev);
-		if (retval < 0) {
-			hid_err(hdev, "%s: logi_dj_recv_query_paired_devices error:%d\n",
-				__func__, retval);
-			/*
-			 * This can happen with a KVM, let the probe succeed,
-			 * logi_dj_recv_queue_unknown_work will retry later.
-			 */
-		}
+		/* This too can fail with a KVM, ignore errors. */
+		logi_dj_recv_query_paired_devices(djrcv_dev);
 	}
 
 	return 0;
 
 llopen_failed:
-switch_to_dj_mode_fail:
 	hid_hw_stop(hdev);
 
 hid_hw_start_fail:
@@ -1882,18 +1986,12 @@ hid_hw_start_fail:
 #ifdef CONFIG_PM
 static int logi_dj_reset_resume(struct hid_device *hdev)
 {
-	int retval;
 	struct dj_receiver_dev *djrcv_dev = hid_get_drvdata(hdev);
 
 	if (!djrcv_dev || djrcv_dev->hidpp != hdev)
 		return 0;
 
-	retval = logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
-	if (retval < 0) {
-		hid_err(hdev, "%s: logi_dj_recv_switch_to_dj_mode returned error:%d\n",
-			__func__, retval);
-	}
-
+	logi_dj_recv_switch_to_dj_mode(djrcv_dev, 0);
 	return 0;
 }
 #endif
@@ -1987,6 +2085,14 @@ static const struct hid_device_id logi_dj_receivers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
 		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_2),
 	 .driver_data = recvr_type_gaming_hidpp},
+	{ /* Logitech lightspeed receiver (0xc547) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_3),
+	 .driver_data = recvr_type_gaming_hidpp_ls_1_3},
+	{ /* Logitech lightspeed receiver (0xc54d) */
+	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH,
+		USB_DEVICE_ID_LOGITECH_NANO_RECEIVER_LIGHTSPEED_1_4),
+	 .driver_data = recvr_type_gaming_hidpp_ls_1_3},
 
 	{ /* Logitech 27 MHz HID++ 1.0 receiver (0xc513) */
 	  HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),

@@ -127,6 +127,8 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PTL_H, MEI_ME_PCH15_CFG)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_PTL_P, MEI_ME_PCH15_CFG)},
 
+	{MEI_PCI_DEVICE(MEI_DEV_ID_WCL_P, MEI_ME_PCH15_CFG)},
+
 	/* required last entry */
 	{0, }
 };
@@ -221,6 +223,10 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->mem_addr = pcim_iomap_table(pdev)[0];
 	hw->read_fws = mei_me_read_fws;
 
+	err = mei_register(dev, &pdev->dev);
+	if (err)
+		goto end;
+
 	pci_enable_msi(pdev);
 
 	hw->irq = pdev->irq;
@@ -235,12 +241,8 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err) {
 		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
-		goto end;
+		goto deregister;
 	}
-
-	err = mei_register(dev, &pdev->dev);
-	if (err)
-		goto release_irq;
 
 	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
@@ -281,11 +283,10 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 deregister:
-	mei_deregister(dev);
-release_irq:
 	mei_cancel_work(dev);
 	mei_disable_interrupts(dev);
 	free_irq(pdev->irq, dev);
+	mei_deregister(dev);
 end:
 	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;

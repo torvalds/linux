@@ -14,18 +14,18 @@
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/mm_types.h>
+#include <linux/pgalloc.h>
+#include <linux/pgtable.h>
 #include <linux/preempt.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/pgtable.h>
 
 #include <asm/cacheflush.h>
 #include <asm/efi.h>
 #include <asm/mmu.h>
-#include <asm/pgalloc.h>
 
 static bool __init efi_virtmap_init(void)
 {
@@ -36,20 +36,12 @@ static bool __init efi_virtmap_init(void)
 	init_new_context(NULL, &efi_mm);
 
 	for_each_efi_memory_desc(md) {
-		phys_addr_t phys = md->phys_addr;
-		int ret;
-
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
 		if (md->virt_addr == U64_MAX)
 			return false;
 
-		ret = efi_create_mapping(&efi_mm, md);
-		if (ret) {
-			pr_warn("  EFI remap %pa: failed to create mapping (%d)\n",
-				&phys, ret);
-			return false;
-		}
+		efi_create_mapping(&efi_mm, md);
 	}
 
 	if (efi_memattr_apply_permissions(&efi_mm, efi_set_mapping_permissions))

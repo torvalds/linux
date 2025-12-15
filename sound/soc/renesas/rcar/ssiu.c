@@ -509,7 +509,7 @@ void rsnd_parse_connect_ssiu(struct rsnd_dai *rdai,
 int rsnd_ssiu_probe(struct rsnd_priv *priv)
 {
 	struct device *dev = rsnd_priv_to_dev(priv);
-	struct device_node *node;
+	struct device_node *node __free(device_node) = rsnd_ssiu_of_node(priv);
 	struct rsnd_ssiu *ssiu;
 	struct rsnd_mod_ops *ops;
 	const int *list = NULL;
@@ -522,7 +522,6 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 	 * see
 	 *	rsnd_ssiu_bufsif_to_id()
 	 */
-	node = rsnd_ssiu_of_node(priv);
 	if (node)
 		nr = rsnd_node_count(priv, node, SSIU_NAME);
 	else

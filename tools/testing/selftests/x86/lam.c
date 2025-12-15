@@ -18,7 +18,7 @@
 
 #include <sys/uio.h>
 #include <linux/io_uring.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef __x86_64__
 # error This test is 64-bit only

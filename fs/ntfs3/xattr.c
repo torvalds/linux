@@ -654,12 +654,22 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 	err = ntfs_set_ea(inode, name, name_len, value, size, flags, 0, NULL);
 	if (err == -ENODATA && !size)
 		err = 0; /* Removing non existed xattr. */
-	if (!err) {
-		set_cached_acl(inode, type, acl);
+	if (err)
+		goto out;
+
+	if (inode->i_mode != mode) {
+		umode_t old_mode = inode->i_mode;
 		inode->i_mode = mode;
-		inode_set_ctime_current(inode);
-		mark_inode_dirty(inode);
+		err = ntfs_save_wsl_perm(inode, NULL);
+		if (err) {
+			inode->i_mode = old_mode;
+			goto out;
+		}
+		inode->i_mode = mode;
 	}
+	set_cached_acl(inode, type, acl);
+	inode_set_ctime_current(inode);
+	mark_inode_dirty(inode);
 
 out:
 	kfree(value);

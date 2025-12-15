@@ -17,9 +17,7 @@
 #include <linux/refcount.h>
 #include <uapi/linux/btrfs_tree.h>
 #include "locking.h"
-#include "fs.h"
 #include "accessors.h"
-#include "extent-io-tree.h"
 
 struct extent_buffer;
 struct btrfs_block_rsv;
@@ -67,21 +65,21 @@ struct btrfs_path {
 	 * set by btrfs_split_item, tells search_slot to keep all locks
 	 * and to force calls to keep space in the nodes
 	 */
-	unsigned int search_for_split:1;
+	bool search_for_split:1;
 	/* Keep some upper locks as we walk down. */
-	unsigned int keep_locks:1;
-	unsigned int skip_locking:1;
-	unsigned int search_commit_root:1;
-	unsigned int need_commit_sem:1;
-	unsigned int skip_release_on_error:1;
+	bool keep_locks:1;
+	bool skip_locking:1;
+	bool search_commit_root:1;
+	bool need_commit_sem:1;
+	bool skip_release_on_error:1;
 	/*
 	 * Indicate that new item (btrfs_search_slot) is extending already
 	 * existing item and ins_len contains only the data size and not item
 	 * header (ie. sizeof(struct btrfs_item) is not included).
 	 */
-	unsigned int search_for_extension:1;
+	bool search_for_extension:1;
 	/* Stop search if any locks need to be taken (for read) */
-	unsigned int nowait:1;
+	bool nowait:1;
 };
 
 #define BTRFS_PATH_AUTO_FREE(path_name)					\

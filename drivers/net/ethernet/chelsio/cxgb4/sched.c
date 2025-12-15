@@ -44,7 +44,7 @@ static int t4_sched_class_fw_cmd(struct port_info *pi,
 {
 	struct adapter *adap = pi->adapter;
 	struct sched_table *s = pi->sched_tbl;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int err = 0;
 
 	e = &s->tab[p->u.params.class];
@@ -122,7 +122,7 @@ static void *t4_sched_entry_lookup(struct port_info *pi,
 				   const u32 val)
 {
 	struct sched_table *s = pi->sched_tbl;
-	struct sched_class *e, *end;
+	struct ch_sched_class *e, *end;
 	void *found = NULL;
 
 	/* Look for an entry with matching @val */
@@ -166,8 +166,8 @@ static void *t4_sched_entry_lookup(struct port_info *pi,
 	return found;
 }
 
-struct sched_class *cxgb4_sched_queue_lookup(struct net_device *dev,
-					     struct ch_sched_queue *p)
+struct ch_sched_class *cxgb4_sched_queue_lookup(struct net_device *dev,
+						struct ch_sched_queue *p)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct sched_queue_entry *qe = NULL;
@@ -187,7 +187,7 @@ static int t4_sched_queue_unbind(struct port_info *pi, struct ch_sched_queue *p)
 	struct sched_queue_entry *qe = NULL;
 	struct adapter *adap = pi->adapter;
 	struct sge_eth_txq *txq;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int err = 0;
 
 	if (p->queue < 0 || p->queue >= pi->nqsets)
@@ -218,7 +218,7 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 	struct sched_queue_entry *qe = NULL;
 	struct adapter *adap = pi->adapter;
 	struct sge_eth_txq *txq;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	unsigned int qid;
 	int err = 0;
 
@@ -260,7 +260,7 @@ static int t4_sched_flowc_unbind(struct port_info *pi, struct ch_sched_flowc *p)
 {
 	struct sched_flowc_entry *fe = NULL;
 	struct adapter *adap = pi->adapter;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int err = 0;
 
 	if (p->tid < 0 || p->tid >= adap->tids.neotids)
@@ -288,7 +288,7 @@ static int t4_sched_flowc_bind(struct port_info *pi, struct ch_sched_flowc *p)
 	struct sched_table *s = pi->sched_tbl;
 	struct sched_flowc_entry *fe = NULL;
 	struct adapter *adap = pi->adapter;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int err = 0;
 
 	if (p->tid < 0 || p->tid >= adap->tids.neotids)
@@ -322,7 +322,7 @@ out_err:
 }
 
 static void t4_sched_class_unbind_all(struct port_info *pi,
-				      struct sched_class *e,
+				      struct ch_sched_class *e,
 				      enum sched_bind_type type)
 {
 	if (!e)
@@ -476,12 +476,12 @@ int cxgb4_sched_class_unbind(struct net_device *dev, void *arg,
 }
 
 /* If @p is NULL, fetch any available unused class */
-static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
-						const struct ch_sched_params *p)
+static struct ch_sched_class *t4_sched_class_lookup(struct port_info *pi,
+						    const struct ch_sched_params *p)
 {
 	struct sched_table *s = pi->sched_tbl;
-	struct sched_class *found = NULL;
-	struct sched_class *e, *end;
+	struct ch_sched_class *found = NULL;
+	struct ch_sched_class *e, *end;
 
 	if (!p) {
 		/* Get any available unused class */
@@ -522,10 +522,10 @@ static struct sched_class *t4_sched_class_lookup(struct port_info *pi,
 	return found;
 }
 
-static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
-						struct ch_sched_params *p)
+static struct ch_sched_class *t4_sched_class_alloc(struct port_info *pi,
+						   struct ch_sched_params *p)
 {
-	struct sched_class *e = NULL;
+	struct ch_sched_class *e = NULL;
 	u8 class_id;
 	int err;
 
@@ -579,8 +579,8 @@ static struct sched_class *t4_sched_class_alloc(struct port_info *pi,
  * scheduling class with matching @p is found, then the matching class is
  * returned.
  */
-struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
-					    struct ch_sched_params *p)
+struct ch_sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
+					       struct ch_sched_params *p)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	u8 class_id;
@@ -607,7 +607,7 @@ void cxgb4_sched_class_free(struct net_device *dev, u8 classid)
 	struct port_info *pi = netdev2pinfo(dev);
 	struct sched_table *s = pi->sched_tbl;
 	struct ch_sched_params p;
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	u32 speed;
 	int ret;
 
@@ -640,7 +640,7 @@ void cxgb4_sched_class_free(struct net_device *dev, u8 classid)
 	}
 }
 
-static void t4_sched_class_free(struct net_device *dev, struct sched_class *e)
+static void t4_sched_class_free(struct net_device *dev, struct ch_sched_class *e)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 
@@ -660,7 +660,7 @@ struct sched_table *t4_init_sched(unsigned int sched_size)
 	s->sched_size = sched_size;
 
 	for (i = 0; i < s->sched_size; i++) {
-		memset(&s->tab[i], 0, sizeof(struct sched_class));
+		memset(&s->tab[i], 0, sizeof(struct ch_sched_class));
 		s->tab[i].idx = i;
 		s->tab[i].state = SCHED_STATE_UNUSED;
 		INIT_LIST_HEAD(&s->tab[i].entry_list);
@@ -682,7 +682,7 @@ void t4_cleanup_sched(struct adapter *adap)
 			continue;
 
 		for (i = 0; i < s->sched_size; i++) {
-			struct sched_class *e;
+			struct ch_sched_class *e;
 
 			e = &s->tab[i];
 			if (e->state == SCHED_STATE_ACTIVE)

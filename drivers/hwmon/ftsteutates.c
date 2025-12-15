@@ -12,7 +12,6 @@
 #include <linux/jiffies.h>
 #include <linux/math.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
 
@@ -62,10 +61,6 @@ enum WATCHDOG_RESOLUTION {
 
 struct fts_data {
 	struct i2c_client *client;
-	/* update sensor data lock */
-	struct mutex update_lock;
-	/* read/write register lock */
-	struct mutex access_lock;
 	unsigned long last_updated; /* in jiffies */
 	struct watchdog_device wdd;
 	enum WATCHDOG_RESOLUTION resolution;
@@ -98,21 +93,15 @@ static int fts_read_byte(struct i2c_client *client, unsigned short reg)
 {
 	int ret;
 	unsigned char page = reg >> 8;
-	struct fts_data *data = dev_get_drvdata(&client->dev);
-
-	mutex_lock(&data->access_lock);
 
 	dev_dbg(&client->dev, "page select - page: 0x%.02x\n", page);
 	ret = i2c_smbus_write_byte_data(client, FTS_PAGE_SELECT_REG, page);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	reg &= 0xFF;
 	ret = i2c_smbus_read_byte_data(client, reg);
 	dev_dbg(&client->dev, "read - reg: 0x%.02x: val: 0x%.02x\n", reg, ret);
-
-error:
-	mutex_unlock(&data->access_lock);
 	return ret;
 }
 
@@ -121,22 +110,16 @@ static int fts_write_byte(struct i2c_client *client, unsigned short reg,
 {
 	int ret;
 	unsigned char page = reg >> 8;
-	struct fts_data *data = dev_get_drvdata(&client->dev);
-
-	mutex_lock(&data->access_lock);
 
 	dev_dbg(&client->dev, "page select - page: 0x%.02x\n", page);
 	ret = i2c_smbus_write_byte_data(client, FTS_PAGE_SELECT_REG, page);
 	if (ret < 0)
-		goto error;
+		return ret;
 
 	reg &= 0xFF;
 	dev_dbg(&client->dev,
 		"write - reg: 0x%.02x: val: 0x%.02x\n", reg, value);
 	ret = i2c_smbus_write_byte_data(client, reg, value);
-
-error:
-	mutex_unlock(&data->access_lock);
 	return ret;
 }
 
@@ -145,44 +128,40 @@ error:
 /*****************************************************************************/
 static int fts_update_device(struct fts_data *data)
 {
-	int i;
-	int err = 0;
+	int i, err;
 
-	mutex_lock(&data->update_lock);
 	if (!time_after(jiffies, data->last_updated + 2 * HZ) && data->valid)
-		goto exit;
+		return 0;
 
 	err = fts_read_byte(data->client, FTS_DEVICE_STATUS_REG);
 	if (err < 0)
-		goto exit;
+		return err;
 
 	data->valid = !!(err & 0x02); /* Data not ready yet */
-	if (unlikely(!data->valid)) {
-		err = -EAGAIN;
-		goto exit;
-	}
+	if (unlikely(!data->valid))
+		return -EAGAIN;
 
 	err = fts_read_byte(data->client, FTS_FAN_PRESENT_REG);
 	if (err < 0)
-		goto exit;
+		return err;
 	data->fan_present = err;
 
 	err = fts_read_byte(data->client, FTS_FAN_EVENT_REG);
 	if (err < 0)
-		goto exit;
+		return err;
 	data->fan_alarm = err;
 
 	for (i = 0; i < FTS_NO_FAN_SENSORS; i++) {
 		if (data->fan_present & BIT(i)) {
 			err = fts_read_byte(data->client, FTS_REG_FAN_INPUT(i));
 			if (err < 0)
-				goto exit;
+				return err;
 			data->fan_input[i] = err;
 
 			err = fts_read_byte(data->client,
 					    FTS_REG_FAN_SOURCE(i));
 			if (err < 0)
-				goto exit;
+				return err;
 			data->fan_source[i] = err;
 		} else {
 			data->fan_input[i] = 0;
@@ -192,27 +171,24 @@ static int fts_update_device(struct fts_data *data)
 
 	err = fts_read_byte(data->client, FTS_SENSOR_EVENT_REG);
 	if (err < 0)
-		goto exit;
+		return err;
 	data->temp_alarm = err;
 
 	for (i = 0; i < FTS_NO_TEMP_SENSORS; i++) {
 		err = fts_read_byte(data->client, FTS_REG_TEMP_INPUT(i));
 		if (err < 0)
-			goto exit;
+			return err;
 		data->temp_input[i] = err;
 	}
 
 	for (i = 0; i < FTS_NO_VOLT_SENSORS; i++) {
 		err = fts_read_byte(data->client, FTS_REG_VOLT(i));
 		if (err < 0)
-			goto exit;
+			return err;
 		data->volt[i] = err;
 	}
 	data->last_updated = jiffies;
-	err = 0;
-exit:
-	mutex_unlock(&data->update_lock);
-	return err;
+	return 0;
 }
 
 /*****************************************************************************/
@@ -470,18 +446,14 @@ static int fts_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			if (val)
 				return -EINVAL;
 
-			mutex_lock(&data->update_lock);
 			ret = fts_read_byte(data->client, FTS_REG_TEMP_CONTROL(channel));
-			if (ret >= 0)
-				ret = fts_write_byte(data->client, FTS_REG_TEMP_CONTROL(channel),
-						     ret | 0x1);
-			if (ret >= 0)
-				data->valid = false;
-
-			mutex_unlock(&data->update_lock);
 			if (ret < 0)
 				return ret;
-
+			ret = fts_write_byte(data->client, FTS_REG_TEMP_CONTROL(channel),
+					     ret | 0x1);
+			if (ret < 0)
+				return ret;
+			data->valid = false;
 			return 0;
 		default:
 			break;
@@ -493,18 +465,14 @@ static int fts_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			if (val)
 				return -EINVAL;
 
-			mutex_lock(&data->update_lock);
 			ret = fts_read_byte(data->client, FTS_REG_FAN_CONTROL(channel));
-			if (ret >= 0)
-				ret = fts_write_byte(data->client, FTS_REG_FAN_CONTROL(channel),
-						     ret | 0x1);
-			if (ret >= 0)
-				data->valid = false;
-
-			mutex_unlock(&data->update_lock);
 			if (ret < 0)
 				return ret;
-
+			ret = fts_write_byte(data->client, FTS_REG_FAN_CONTROL(channel),
+					     ret | 0x1);
+			if (ret < 0)
+				return ret;
+			data->valid = false;
 			return 0;
 		default:
 			break;
@@ -648,8 +616,6 @@ static int fts_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	mutex_init(&data->update_lock);
-	mutex_init(&data->access_lock);
 	data->client = client;
 	dev_set_drvdata(&client->dev, data);
 

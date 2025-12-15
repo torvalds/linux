@@ -15,6 +15,8 @@
 #include "regs/xe_reg_defs.h"
 #include "xe_hw_engine_types.h"
 
+struct drm_syncobj;
+
 #define DEFAULT_XE_OA_BUFFER_SIZE SZ_16M
 
 enum xe_oa_report_header {
@@ -248,6 +250,12 @@ struct xe_oa_stream {
 	/** @xef: xe_file with which the stream was opened */
 	struct xe_file *xef;
 
+	/** @ufence_syncobj: User fence syncobj */
+	struct drm_syncobj *ufence_syncobj;
+
+	/** @ufence_timeline_value: User fence timeline value */
+	u64 ufence_timeline_value;
+
 	/** @last_fence: fence to use in stream destroy when needed */
 	struct dma_fence *last_fence;
 
@@ -256,5 +264,8 @@ struct xe_oa_stream {
 
 	/** @syncs: syncs to wait on and to signal */
 	struct xe_sync_entry *syncs;
+
+	/** @fw_ref: Forcewake reference */
+	unsigned int fw_ref;
 };
 #endif

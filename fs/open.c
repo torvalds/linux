@@ -191,12 +191,9 @@ int do_ftruncate(struct file *file, loff_t length, int small)
 	if (error)
 		return error;
 
-	sb_start_write(inode->i_sb);
-	error = do_truncate(file_mnt_idmap(file), dentry, length,
-			    ATTR_MTIME | ATTR_CTIME, file);
-	sb_end_write(inode->i_sb);
-
-	return error;
+	scoped_guard(super_write, inode->i_sb)
+		return do_truncate(file_mnt_idmap(file), dentry, length,
+				   ATTR_MTIME | ATTR_CTIME, file);
 }
 
 int do_sys_ftruncate(unsigned int fd, loff_t length, int small)
@@ -631,7 +628,7 @@ out:
 int chmod_common(const struct path *path, umode_t mode)
 {
 	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct delegated_inode delegated_inode = { };
 	struct iattr newattrs;
 	int error;
 
@@ -651,7 +648,7 @@ retry_deleg:
 			      &newattrs, &delegated_inode);
 out_unlock:
 	inode_unlock(inode);
-	if (delegated_inode) {
+	if (is_delegated(&delegated_inode)) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
@@ -756,7 +753,7 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 	struct mnt_idmap *idmap;
 	struct user_namespace *fs_userns;
 	struct inode *inode = path->dentry->d_inode;
-	struct inode *delegated_inode = NULL;
+	struct delegated_inode delegated_inode = { };
 	int error;
 	struct iattr newattrs;
 	kuid_t uid;
@@ -791,7 +788,7 @@ retry_deleg:
 		error = notify_change(idmap, path->dentry, &newattrs,
 				      &delegated_inode);
 	inode_unlock(inode);
-	if (delegated_inode) {
+	if (is_delegated(&delegated_inode)) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
@@ -940,7 +937,7 @@ static int do_dentry_open(struct file *f,
 	}
 
 	error = security_file_open(f);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	/*
@@ -950,11 +947,11 @@ static int do_dentry_open(struct file *f,
 	 * pseudo file, this call will not change the mode.
 	 */
 	error = fsnotify_open_perm_and_set_mode(f);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	error = break_lease(file_inode(f), f->f_flags);
-	if (error)
+	if (unlikely(error))
 		goto cleanup_all;
 
 	/* normally all 3 are set; ->open() can clear them if needed */
@@ -1171,9 +1168,7 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	if (IS_ERR(f))
 		return f;
 
-	error = vfs_create(mnt_idmap(path->mnt),
-			   d_inode(path->dentry->d_parent),
-			   path->dentry, mode, true);
+	error = vfs_create(mnt_idmap(path->mnt), path->dentry, mode, NULL);
 	if (!error)
 		error = vfs_open(path, f);
 
@@ -1421,8 +1416,8 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 			  struct open_how *how)
 {
 	struct open_flags op;
-	struct filename *tmp;
-	int err, fd;
+	struct filename *tmp __free(putname) = NULL;
+	int err;
 
 	err = build_open_flags(how, &op);
 	if (unlikely(err))
@@ -1432,18 +1427,7 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
-	fd = get_unused_fd_flags(how->flags);
-	if (likely(fd >= 0)) {
-		struct file *f = do_filp_open(dfd, tmp, &op);
-		if (IS_ERR(f)) {
-			put_unused_fd(fd);
-			fd = PTR_ERR(f);
-		} else {
-			fd_install(fd, f);
-		}
-	}
-	putname(tmp);
-	return fd;
+	return FD_ADD(how->flags, do_filp_open(dfd, tmp, &op));
 }
 
 int do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)

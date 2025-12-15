@@ -159,13 +159,17 @@ enum qeth_ipa_return_codes {
 	IPA_RC_SUCCESS			= 0x0000,
 	IPA_RC_NOTSUPP			= 0x0001,
 	IPA_RC_IP_TABLE_FULL		= 0x0002,
+	IPA_RC_INVALID_SUBCMD		= 0x0002,
 	IPA_RC_UNKNOWN_ERROR		= 0x0003,
+	IPA_RC_HARDWARE_AUTH_ERROR	= 0x0003,
 	IPA_RC_UNSUPPORTED_COMMAND	= 0x0004,
 	IPA_RC_TRACE_ALREADY_ACTIVE	= 0x0005,
+	IPA_RC_VNICC_OOSEQ		= 0x0005,
 	IPA_RC_INVALID_FORMAT		= 0x0006,
 	IPA_RC_DUP_IPV6_REMOTE		= 0x0008,
 	IPA_RC_SBP_IQD_NOT_CONFIGURED	= 0x000C,
 	IPA_RC_DUP_IPV6_HOME		= 0x0010,
+	IPA_RC_SBP_IQD_OS_MISMATCH	= 0x0010,
 	IPA_RC_UNREGISTERED_ADDR	= 0x0011,
 	IPA_RC_NO_ID_AVAILABLE		= 0x0012,
 	IPA_RC_ID_NOT_FOUND		= 0x0013,
@@ -173,6 +177,7 @@ enum qeth_ipa_return_codes {
 	IPA_RC_SBP_IQD_CURRENT_SECOND	= 0x0018,
 	IPA_RC_SBP_IQD_LIMIT_SECOND	= 0x001C,
 	IPA_RC_INVALID_IP_VERSION	= 0x0020,
+	IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN = 0x0020,
 	IPA_RC_SBP_IQD_CURRENT_PRIMARY	= 0x0024,
 	IPA_RC_LAN_FRAME_MISMATCH	= 0x0040,
 	IPA_RC_SBP_IQD_NO_QDIO_QUEUES	= 0x00EB,
@@ -220,16 +225,6 @@ enum qeth_ipa_return_codes {
 	IPA_RC_INVALID_IP_VERSION2	= 0xf001,
 	IPA_RC_FFFF			= 0xffff
 };
-/* for VNIC Characteristics */
-#define IPA_RC_VNICC_OOSEQ 0x0005
-
-/* for SET_DIAGNOSTIC_ASSIST */
-#define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
-#define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
-
-/* for SETBRIDGEPORT (double occupancies) */
-#define IPA_RC_SBP_IQD_OS_MISMATCH	 IPA_RC_DUP_IPV6_HOME
-#define IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN IPA_RC_INVALID_IP_VERSION
 
 /* IPA function flags; each flag marks availability of respective function */
 enum qeth_ipa_funcs {
@@ -862,8 +857,9 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
 
-extern const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
-extern const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
+const char *qeth_get_ipa_msg(enum qeth_ipa_cmds cmd,
+			     enum qeth_ipa_return_codes rc);
+const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);
 
 /* Helper functions */
 #define IS_IPA_REPLY(cmd) ((cmd)->hdr.initiator == IPA_CMD_INITIATOR_HOST)

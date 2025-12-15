@@ -511,6 +511,10 @@ static int translate_eth_ext_proto_oper(u32 eth_proto_oper, u16 *active_speed,
 		*active_width = IB_WIDTH_4X;
 		*active_speed = IB_SPEED_XDR;
 		break;
+	case MLX5E_PROT_MASK(MLX5E_1600TAUI_8_1600TBASE_CR8_KR8):
+		*active_width = IB_WIDTH_8X;
+		*active_speed = IB_SPEED_XDR;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -842,7 +846,7 @@ static int mlx5_query_node_guid(struct mlx5_ib_dev *dev,
 		break;
 
 	case MLX5_VPORT_ACCESS_METHOD_NIC:
-		err = mlx5_query_nic_vport_node_guid(dev->mdev, &tmp);
+		err = mlx5_query_nic_vport_node_guid(dev->mdev, 0, false, &tmp);
 		break;
 
 	default:

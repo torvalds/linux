@@ -30,6 +30,22 @@
 #ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_SINK_HW_REVISION_START 0x409
 #endif
+/* Panel Replay*/
+#ifndef DP_PANEL_REPLAY_CAPABILITY_SUPPORT // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PANEL_REPLAY_CAPABILITY_SUPPORT 0x0b0
+#endif /* DP_PANEL_REPLAY_CAPABILITY_SUPPORT */
+#ifndef DP_PANEL_REPLAY_CAPABILITY // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PANEL_REPLAY_CAPABILITY 0x0b1
+#endif /* DP_PANEL_REPLAY_CAPABILITY */
+#ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1  0x1b0
+#endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_1 */
+#ifndef DP_PANEL_REPLAY_ENABLE // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PANEL_REPLAY_ENABLE (1 << 0)
+#endif /* DP_PANEL_REPLAY_ENABLE */
+#ifndef DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 0x1b1
+#endif /* DP_PANEL_REPLAY_ENABLE_AND_CONFIGURATION_2 */
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,

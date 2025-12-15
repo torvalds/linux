@@ -23,14 +23,6 @@ menuconfig EDAC
 
 if EDAC
 
-config EDAC_LEGACY_SYSFS
-	bool "EDAC legacy sysfs"
-	default y
-	help
-	  Enable the compatibility sysfs nodes.
-	  Use 'Y' if your edac utilities aren't ported to work with the newer
-	  structures.
-
 config EDAC_DEBUG
 	bool "Debugging"
 	select DEBUG_FS
@@ -290,6 +282,18 @@ config EDAC_I10NM
 	  10nm server Integrated Memory Controllers. If your
 	  system has non-volatile DIMMs you should also manually
 	  select CONFIG_ACPI_NFIT.
+
+config EDAC_IMH
+	tristate "Intel Integrated Memory/IO Hub MC"
+	depends on X86_64 && X86_MCE_INTEL && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_IMH can't be y
+	select DMI
+	select ACPI_ADXL
+	help
+	  Support for error detection and correction the Intel
+	  Integrated Memory/IO Hub Memory Controller. This MC IP is
+	  first used on the Diamond Rapids servers but may appear on
+	  others in the future.
 
 config EDAC_PND2
 	tristate "Intel Pondicherry2"

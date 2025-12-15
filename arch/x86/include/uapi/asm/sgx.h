@@ -10,7 +10,7 @@
 
 /**
  * enum sgx_page_flags - page control flags
- * %SGX_PAGE_MEASURE:	Measure the page contents with a sequence of
+ * @SGX_PAGE_MEASURE:	Measure the page contents with a sequence of
  *			ENCLS[EEXTEND] operations.
  */
 enum sgx_page_flags {
@@ -143,6 +143,12 @@ struct sgx_enclave_run;
 /**
  * typedef sgx_enclave_user_handler_t - Exit handler function accepted by
  *					__vdso_sgx_enter_enclave()
+ * @rdi:	RDI at the time of EEXIT, undefined on AEX
+ * @rsi:	RSI at the time of EEXIT, undefined on AEX
+ * @rdx:	RDX at the time of EEXIT, undefined on AEX
+ * @rsp:	RSP (untrusted) at the time of EEXIT or AEX
+ * @r8:		R8 at the time of EEXIT, undefined on AEX
+ * @r9:		R9 at the time of EEXIT, undefined on AEX
  * @run:	The run instance given by the caller
  *
  * The register parameters contain the snapshot of their values at enclave
@@ -166,7 +172,7 @@ typedef int (*sgx_enclave_user_handler_t)(long rdi, long rsi, long rdx,
  * @exception_addr:		The address that triggered the exception
  * @user_handler:		User provided callback run on exception
  * @user_data:			Data passed to the user handler
- * @reserved			Reserved for future extensions
+ * @reserved:			Reserved for future extensions
  *
  * If @user_handler is provided, the handler will be invoked on all return paths
  * of the normal flow.  The user handler may transfer control, e.g. via a

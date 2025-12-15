@@ -4,6 +4,7 @@
  */
 
 #include <linux/memory_hotplug.h>
+#include <linux/bootmem_info.h>
 #include <linux/cpufeature.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
@@ -39,15 +40,21 @@ static void __ref *vmem_alloc_pages(unsigned int order)
 
 static void vmem_free_pages(unsigned long addr, int order, struct vmem_altmap *altmap)
 {
+	unsigned int nr_pages = 1 << order;
+	struct page *page;
+
 	if (altmap) {
 		vmem_altmap_free(altmap, 1 << order);
 		return;
 	}
-	/* We don't expect boot memory to be removed ever. */
-	if (!slab_is_available() ||
-	    WARN_ON_ONCE(PageReserved(virt_to_page((void *)addr))))
-		return;
-	free_pages(addr, order);
+	page = virt_to_page((void *)addr);
+	if (PageReserved(page)) {
+		/* allocated from memblock */
+		while (nr_pages--)
+			free_bootmem_page(page++);
+	} else {
+		free_pages(addr, order);
+	}
 }
 
 void *vmem_crst_alloc(unsigned long val)
@@ -79,10 +86,6 @@ pte_t __ref *vmem_pte_alloc(void)
 
 static void vmem_pte_free(unsigned long *table)
 {
-	/* We don't expect boot memory to be removed ever. */
-	if (!slab_is_available() ||
-	    WARN_ON_ONCE(PageReserved(virt_to_page(table))))
-		return;
 	page_table_free(&init_mm, table);
 }
 
@@ -327,10 +330,14 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 			if (pud_leaf(*pud)) {
 				if (IS_ALIGNED(addr, PUD_SIZE) &&
 				    IS_ALIGNED(next, PUD_SIZE)) {
+					if (!direct)
+						vmem_free_pages(pud_deref(*pud), get_order(PUD_SIZE), altmap);
 					pud_clear(pud);
 					pages++;
+					continue;
+				} else {
+					split_pud_page(pud, addr & PUD_MASK);
 				}
-				continue;
 			}
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
@@ -430,9 +437,15 @@ static int modify_pagetable(unsigned long start, unsigned long end, bool add,
 
 	if (WARN_ON_ONCE(!PAGE_ALIGNED(start | end)))
 		return -EINVAL;
-	/* Don't mess with any tables not fully in 1:1 mapping & vmemmap area */
+	/* Don't mess with any tables not fully in 1:1 mapping, vmemmap & kasan area */
+#ifdef CONFIG_KASAN
+	if (WARN_ON_ONCE(!(start >= KASAN_SHADOW_START && end <= KASAN_SHADOW_END) &&
+			 end > __abs_lowcore))
+		return -EINVAL;
+#else
 	if (WARN_ON_ONCE(end > __abs_lowcore))
 		return -EINVAL;
+#endif
 	for (addr = start; addr < end; addr = next) {
 		next = pgd_addr_end(addr, end);
 		pgd = pgd_offset_k(addr);

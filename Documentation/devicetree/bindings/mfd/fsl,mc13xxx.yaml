@@ -93,44 +93,56 @@ properties:
 
   leds:
     type: object
-    $ref: /schemas/leds/common.yaml#
+    additionalProperties: false
 
     properties:
-      reg:
-        description: |
-          One of
-          MC13783 LED IDs
-            0: Main display
-            1: AUX display
-            2: Keypad
-            3: Red 1
-            4: Green 1
-            5: Blue 1
-            6: Red 2
-            7: Green 2
-            8: Blue 2
-            9: Red 3
-            10: Green 3
-            11: Blue 3
+      '#address-cells':
+        const: 1
 
-          MC13892 LED IDs
-            0: Main display
-            1: AUX display
-            2: Keypad
-            3: Red
-            4: Green
-            5: Blue
-
-          MC34708 LED IDs
-            0: Charger Red
-            1: Charger Green
-        maxItems: 1
+      '#size-cells':
+        const: 0
 
       led-control:
         $ref: /schemas/types.yaml#/definitions/uint32-array
         description: |
           Setting for LED-Control register array length depends on model,
           mc13783: 6, mc13892: 4, mc34708: 1
+
+    patternProperties:
+      '^led@[0-9a-b]$':
+        $ref: /schemas/leds/common.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          reg:
+            description: |
+              One of
+              MC13783 LED IDs
+                0: Main display
+                1: AUX display
+                2: Keypad
+                3: Red 1
+                4: Green 1
+                5: Blue 1
+                6: Red 2
+                7: Green 2
+                8: Blue 2
+                9: Red 3
+                10: Green 3
+                11: Blue 3
+
+              MC13892 LED IDs
+                0: Main display
+                1: AUX display
+                2: Keypad
+                3: Red
+                4: Green
+                5: Blue
+
+              MC34708 LED IDs
+                0: Charger Red
+                1: Charger Green
+            maxItems: 1
 
   regulators:
     type: object
@@ -262,7 +274,7 @@ examples:
                 #size-cells = <0>;
                 led-control = <0x000 0x000 0x0e0 0x000>;
 
-                sysled@3 {
+                led@3 {
                     reg = <3>;
                     label = "system:red:live";
                     linux,default-trigger = "heartbeat";

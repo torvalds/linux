@@ -145,9 +145,9 @@ void intel_cx0_bus_reset(struct intel_encoder *encoder, int lane)
 	intel_de_write(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
 		       XELPDP_PORT_M2P_TRANSACTION_RESET);
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-				    XELPDP_PORT_M2P_TRANSACTION_RESET,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				       XELPDP_PORT_M2P_TRANSACTION_RESET,
+				       XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_err_once(display->drm,
 			     "Failed to bring PHY %c to idle.\n",
 			     phy_name(phy));
@@ -164,12 +164,10 @@ int intel_cx0_wait_for_ack(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	if (intel_de_wait_custom(display,
-				 XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane),
-				 XELPDP_PORT_P2M_RESPONSE_READY,
-				 XELPDP_PORT_P2M_RESPONSE_READY,
-				 XELPDP_MSGBUS_TIMEOUT_FAST_US,
-				 XELPDP_MSGBUS_TIMEOUT_SLOW, val)) {
+	if (intel_de_wait_ms(display, XELPDP_PORT_P2M_MSGBUS_STATUS(display, port, lane),
+			     XELPDP_PORT_P2M_RESPONSE_READY,
+			     XELPDP_PORT_P2M_RESPONSE_READY,
+			     XELPDP_MSGBUS_TIMEOUT_MS, val)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for message ACK. Status: 0x%x\n",
 			    phy_name(phy), *val);
@@ -214,9 +212,9 @@ static int __intel_cx0_read_once(struct intel_encoder *encoder,
 	int ack;
 	u32 val;
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				       XELPDP_PORT_M2P_TRANSACTION_PENDING,
+				       XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for previous transaction to complete. Reset the bus and retry.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -285,9 +283,9 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 	int ack;
 	u32 val;
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				       XELPDP_PORT_M2P_TRANSACTION_PENDING,
+				       XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for previous transaction to complete. Resetting the bus.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -301,9 +299,9 @@ static int __intel_cx0_write_once(struct intel_encoder *encoder,
 		       XELPDP_PORT_M2P_DATA(data) |
 		       XELPDP_PORT_M2P_ADDRESS(addr));
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-				    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-				    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+				       XELPDP_PORT_M2P_TRANSACTION_PENDING,
+				       XELPDP_MSGBUS_TIMEOUT_MS)) {
 		drm_dbg_kms(display->drm,
 			    "PHY %c Timeout waiting for write to complete. Resetting the bus.\n", phy_name(phy));
 		intel_cx0_bus_reset(encoder, lane);
@@ -2814,9 +2812,9 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 
 	/* Wait for pending transactions.*/
 	for_each_cx0_lane_in_mask(lane_mask, lane)
-		if (intel_de_wait_for_clear(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
-					    XELPDP_PORT_M2P_TRANSACTION_PENDING,
-					    XELPDP_MSGBUS_TIMEOUT_SLOW)) {
+		if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_M2P_MSGBUS_CTL(display, port, lane),
+					       XELPDP_PORT_M2P_TRANSACTION_PENDING,
+					       XELPDP_MSGBUS_TIMEOUT_MS)) {
 			drm_dbg_kms(display->drm,
 				    "PHY %c Timeout waiting for previous transaction to complete. Reset the bus.\n",
 				    phy_name(phy));
@@ -2828,12 +2826,12 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 		     intel_cx0_get_powerdown_update(lane_mask));
 
 	/* Update Timeout Value */
-	if (intel_de_wait_custom(display, buf_ctl2_reg,
-				 intel_cx0_get_powerdown_update(lane_mask), 0,
-				 XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_US, 2, NULL))
+	if (intel_de_wait_for_clear_ms(display, buf_ctl2_reg,
+				       intel_cx0_get_powerdown_update(lane_mask),
+				       XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 }
 
 void intel_cx0_setup_powerdown(struct intel_encoder *encoder)
@@ -2889,35 +2887,34 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 					   XELPDP_LANE_PHY_CURRENT_STATUS(1))
 					: XELPDP_LANE_PHY_CURRENT_STATUS(0);
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL1(display, port),
-				 XELPDP_PORT_BUF_SOC_PHY_READY,
-				 XELPDP_PORT_BUF_SOC_PHY_READY,
-				 XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_for_set_us(display, XELPDP_PORT_BUF_CTL1(display, port),
+				     XELPDP_PORT_BUF_SOC_PHY_READY,
+				     XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of SOC reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_BUF_SOC_READY_TIMEOUT_US);
+			 "PHY %c failed to bring out of SOC reset\n",
+			 phy_name(phy));
 
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port), lane_pipe_reset,
 		     lane_pipe_reset);
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_BUF_CTL2(display, port),
-				 lane_phy_current_status, lane_phy_current_status,
-				 XELPDP_PORT_RESET_START_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_for_set_us(display, XELPDP_PORT_BUF_CTL2(display, port),
+				     lane_phy_current_status,
+				     XELPDP_PORT_RESET_START_TIMEOUT_US))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dus.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_START_TIMEOUT_US);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, port),
 		     intel_cx0_get_pclk_refclk_request(owned_lane_mask),
 		     intel_cx0_get_pclk_refclk_request(lane_mask));
 
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, port),
-				 intel_cx0_get_pclk_refclk_ack(owned_lane_mask),
-				 intel_cx0_get_pclk_refclk_ack(lane_mask),
-				 XELPDP_REFCLK_ENABLE_TIMEOUT_US, 0, NULL))
+	if (intel_de_wait_us(display, XELPDP_PORT_CLOCK_CTL(display, port),
+			     intel_cx0_get_pclk_refclk_ack(owned_lane_mask),
+			     intel_cx0_get_pclk_refclk_ack(lane_mask),
+			     XELPDP_REFCLK_ENABLE_TIMEOUT_US, NULL))
 		drm_warn(display->drm,
-			 "PHY %c failed to request refclk after %dus.\n",
-			 phy_name(phy), XELPDP_REFCLK_ENABLE_TIMEOUT_US);
+			 "PHY %c failed to request refclk\n",
+			 phy_name(phy));
 
 	intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,
 					    XELPDP_P2_STATE_RESET);
@@ -2925,12 +2922,12 @@ static void intel_cx0_phy_lane_reset(struct intel_encoder *encoder,
 
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL2(display, port), lane_pipe_reset, 0);
 
-	if (intel_de_wait_for_clear(display, XELPDP_PORT_BUF_CTL2(display, port),
-				    lane_phy_current_status,
-				    XELPDP_PORT_RESET_END_TIMEOUT))
+	if (intel_de_wait_for_clear_ms(display, XELPDP_PORT_BUF_CTL2(display, port),
+				       lane_phy_current_status,
+				       XELPDP_PORT_RESET_END_TIMEOUT_MS))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of Lane reset after %dms.\n",
-			 phy_name(phy), XELPDP_PORT_RESET_END_TIMEOUT);
+			 "PHY %c failed to bring out of lane reset\n",
+			 phy_name(phy));
 }
 
 static void intel_cx0_program_phy_lane(struct intel_encoder *encoder, int lane_count,
@@ -3065,12 +3062,12 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 		     intel_cx0_get_pclk_pll_request(maxpclk_lane));
 
 	/* 10. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK> == "1". */
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
-				 intel_cx0_get_pclk_pll_ack(maxpclk_lane),
-				 XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(display->drm, "Port %c PLL not locked after %dus.\n",
-			 phy_name(phy), XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US);
+	if (intel_de_wait_us(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
+			     intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES),
+			     intel_cx0_get_pclk_pll_ack(maxpclk_lane),
+			     XELPDP_PCLK_PLL_ENABLE_TIMEOUT_US, NULL))
+		drm_warn(display->drm, "Port %c PLL not locked\n",
+			 phy_name(phy));
 
 	/*
 	 * 11. Follow the Display Voltage Frequency Switching Sequence After
@@ -3189,12 +3186,9 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	intel_de_write(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port), val);
 
 	/* 5. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "1". */
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-				 XELPDP_TBT_CLOCK_ACK,
-				 XELPDP_TBT_CLOCK_ACK,
-				 100, 0, NULL))
-		drm_warn(display->drm,
-			 "[ENCODER:%d:%s][%c] PHY PLL not locked after 100us.\n",
+	if (intel_de_wait_for_set_us(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
+				     XELPDP_TBT_CLOCK_ACK, 100))
+		drm_warn(display->drm, "[ENCODER:%d:%s][%c] PHY PLL not locked\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*
@@ -3304,13 +3298,12 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 	/*
 	 * 5. Poll on PORT_CLOCK_CTL PCLK PLL Ack LN<Lane for maxPCLK**> == "0".
 	 */
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-				 intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
-				 intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES), 0,
-				 XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US, 0, NULL))
-		drm_warn(display->drm,
-			 "Port %c PLL not unlocked after %dus.\n",
-			 phy_name(phy), XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US);
+	if (intel_de_wait_for_clear_us(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
+				       intel_cx0_get_pclk_pll_ack(INTEL_CX0_BOTH_LANES) |
+				       intel_cx0_get_pclk_refclk_ack(INTEL_CX0_BOTH_LANES),
+				       XELPDP_PCLK_PLL_DISABLE_TIMEOUT_US))
+		drm_warn(display->drm, "Port %c PLL not unlocked\n",
+			 phy_name(phy));
 
 	/*
 	 * 6. Follow the Display Voltage Frequency Switching Sequence After
@@ -3353,10 +3346,9 @@ void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 		     XELPDP_TBT_CLOCK_REQUEST, 0);
 
 	/* 3. Poll on PORT_CLOCK_CTL TBT CLOCK Ack == "0". */
-	if (intel_de_wait_custom(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-				 XELPDP_TBT_CLOCK_ACK, 0, 10, 0, NULL))
-		drm_warn(display->drm,
-			 "[ENCODER:%d:%s][%c] PHY PLL not unlocked after 10us.\n",
+	if (intel_de_wait_for_clear_us(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
+				       XELPDP_TBT_CLOCK_ACK, 10))
+		drm_warn(display->drm, "[ENCODER:%d:%s][%c] PHY PLL not unlocked\n",
 			 encoder->base.base.id, encoder->base.name, phy_name(phy));
 
 	/*

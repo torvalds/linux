@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
+#include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 
@@ -98,17 +99,16 @@
 #define MESON_MX_SDIO_RESPONSE_CRC16_BITS			(16 - 1)
 #define MESON_MX_SDIO_MAX_SLOTS					3
 
+struct meson_mx_mmc_host_clkc {
+	struct clk_divider		cfg_div;
+	struct clk_fixed_factor		fixed_div2;
+};
+
 struct meson_mx_mmc_host {
 	struct device			*controller_dev;
 
-	struct clk			*parent_clk;
-	struct clk			*core_clk;
-	struct clk_divider		cfg_div;
 	struct clk			*cfg_div_clk;
-	struct clk_fixed_factor		fixed_factor;
-	struct clk			*fixed_factor_clk;
-
-	void __iomem			*base;
+	struct regmap			*regmap;
 	int				irq;
 	spinlock_t			irq_lock;
 
@@ -122,22 +122,10 @@ struct meson_mx_mmc_host {
 	int				error;
 };
 
-static void meson_mx_mmc_mask_bits(struct mmc_host *mmc, char reg, u32 mask,
-				   u32 val)
-{
-	struct meson_mx_mmc_host *host = mmc_priv(mmc);
-	u32 regval;
-
-	regval = readl(host->base + reg);
-	regval &= ~mask;
-	regval |= (val & mask);
-
-	writel(regval, host->base + reg);
-}
-
 static void meson_mx_mmc_soft_reset(struct meson_mx_mmc_host *host)
 {
-	writel(MESON_MX_SDIO_IRQC_SOFT_RESET, host->base + MESON_MX_SDIO_IRQC);
+	regmap_write(host->regmap, MESON_MX_SDIO_IRQC,
+		     MESON_MX_SDIO_IRQC_SOFT_RESET);
 	udelay(2);
 }
 
@@ -158,7 +146,7 @@ static void meson_mx_mmc_start_cmd(struct mmc_host *mmc,
 	struct meson_mx_mmc_host *host = mmc_priv(mmc);
 	unsigned int pack_size;
 	unsigned long irqflags, timeout;
-	u32 mult, send = 0, ext = 0;
+	u32 send = 0, ext = 0;
 
 	host->cmd = cmd;
 
@@ -215,25 +203,22 @@ static void meson_mx_mmc_start_cmd(struct mmc_host *mmc,
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 
-	mult = readl(host->base + MESON_MX_SDIO_MULT);
-	mult &= ~MESON_MX_SDIO_MULT_PORT_SEL_MASK;
-	mult |= FIELD_PREP(MESON_MX_SDIO_MULT_PORT_SEL_MASK, host->slot_id);
-	mult |= BIT(31);
-	writel(mult, host->base + MESON_MX_SDIO_MULT);
+	regmap_update_bits(host->regmap, MESON_MX_SDIO_MULT,
+			   MESON_MX_SDIO_MULT_PORT_SEL_MASK | BIT(31),
+			   FIELD_PREP(MESON_MX_SDIO_MULT_PORT_SEL_MASK,
+				      host->slot_id) | BIT(31));
 
 	/* enable the CMD done interrupt */
-	meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_IRQC,
-			       MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN,
-			       MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
+	regmap_set_bits(host->regmap, MESON_MX_SDIO_IRQC,
+			MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
 
 	/* clear pending interrupts */
-	meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_IRQS,
-			       MESON_MX_SDIO_IRQS_CMD_INT,
-			       MESON_MX_SDIO_IRQS_CMD_INT);
+	regmap_set_bits(host->regmap, MESON_MX_SDIO_IRQS,
+			MESON_MX_SDIO_IRQS_CMD_INT);
 
-	writel(cmd->arg, host->base + MESON_MX_SDIO_ARGU);
-	writel(ext, host->base + MESON_MX_SDIO_EXT);
-	writel(send, host->base + MESON_MX_SDIO_SEND);
+	regmap_write(host->regmap, MESON_MX_SDIO_ARGU, cmd->arg);
+	regmap_write(host->regmap, MESON_MX_SDIO_EXT, ext);
+	regmap_write(host->regmap, MESON_MX_SDIO_SEND, send);
 
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
@@ -263,14 +248,13 @@ static void meson_mx_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
-		meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_CONF,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH, 0);
+		regmap_clear_bits(host->regmap, MESON_MX_SDIO_CONF,
+				  MESON_MX_SDIO_CONF_BUS_WIDTH);
 		break;
 
 	case MMC_BUS_WIDTH_4:
-		meson_mx_mmc_mask_bits(mmc, MESON_MX_SDIO_CONF,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH,
-				       MESON_MX_SDIO_CONF_BUS_WIDTH);
+		regmap_set_bits(host->regmap, MESON_MX_SDIO_CONF,
+				MESON_MX_SDIO_CONF_BUS_WIDTH);
 		break;
 
 	case MMC_BUS_WIDTH_8:
@@ -351,8 +335,8 @@ static void meson_mx_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 
 	if (mrq->data)
-		writel(sg_dma_address(mrq->data->sg),
-		       host->base + MESON_MX_SDIO_ADDR);
+		regmap_write(host->regmap, MESON_MX_SDIO_ADDR,
+			     sg_dma_address(mrq->data->sg));
 
 	if (mrq->sbc)
 		meson_mx_mmc_start_cmd(mmc, mrq->sbc);
@@ -364,24 +348,26 @@ static void meson_mx_mmc_read_response(struct mmc_host *mmc,
 				       struct mmc_command *cmd)
 {
 	struct meson_mx_mmc_host *host = mmc_priv(mmc);
-	u32 mult;
-	int i, resp[4];
+	unsigned int i, resp[4];
 
-	mult = readl(host->base + MESON_MX_SDIO_MULT);
-	mult |= MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX;
-	mult &= ~MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK;
-	mult |= FIELD_PREP(MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK, 0);
-	writel(mult, host->base + MESON_MX_SDIO_MULT);
+	regmap_update_bits(host->regmap, MESON_MX_SDIO_MULT,
+			   MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX |
+			   MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK,
+			   MESON_MX_SDIO_MULT_WR_RD_OUT_INDEX |
+			   FIELD_PREP(MESON_MX_SDIO_MULT_RESP_READ_INDEX_MASK,
+				      0));
 
 	if (cmd->flags & MMC_RSP_136) {
 		for (i = 0; i <= 3; i++)
-			resp[3 - i] = readl(host->base + MESON_MX_SDIO_ARGU);
+			regmap_read(host->regmap, MESON_MX_SDIO_ARGU,
+				    &resp[3 - i]);
+
 		cmd->resp[0] = (resp[0] << 8) | ((resp[1] >> 24) & 0xff);
 		cmd->resp[1] = (resp[1] << 8) | ((resp[2] >> 24) & 0xff);
 		cmd->resp[2] = (resp[2] << 8) | ((resp[3] >> 24) & 0xff);
 		cmd->resp[3] = (resp[3] << 8);
 	} else if (cmd->flags & MMC_RSP_PRESENT) {
-		cmd->resp[0] = readl(host->base + MESON_MX_SDIO_ARGU);
+		regmap_read(host->regmap, MESON_MX_SDIO_ARGU, &cmd->resp[0]);
 	}
 }
 
@@ -422,8 +408,8 @@ static irqreturn_t meson_mx_mmc_irq(int irq, void *data)
 
 	spin_lock(&host->irq_lock);
 
-	irqs = readl(host->base + MESON_MX_SDIO_IRQS);
-	send = readl(host->base + MESON_MX_SDIO_SEND);
+	regmap_read(host->regmap, MESON_MX_SDIO_IRQS, &irqs);
+	regmap_read(host->regmap, MESON_MX_SDIO_SEND, &send);
 
 	if (irqs & MESON_MX_SDIO_IRQS_CMD_INT)
 		ret = meson_mx_mmc_process_cmd_irq(host, irqs, send);
@@ -431,7 +417,7 @@ static irqreturn_t meson_mx_mmc_irq(int irq, void *data)
 		ret = IRQ_HANDLED;
 
 	/* finally ACK all pending interrupts */
-	writel(irqs, host->base + MESON_MX_SDIO_IRQS);
+	regmap_write(host->regmap, MESON_MX_SDIO_IRQS, irqs);
 
 	spin_unlock(&host->irq_lock);
 
@@ -450,8 +436,7 @@ static irqreturn_t meson_mx_mmc_irq_thread(int irq, void *irq_data)
 
 	if (cmd->data) {
 		dma_unmap_sg(mmc_dev(host->mmc), cmd->data->sg,
-				cmd->data->sg_len,
-				mmc_get_dma_dir(cmd->data));
+			     cmd->data->sg_len, mmc_get_dma_dir(cmd->data));
 
 		cmd->data->bytes_xfered = cmd->data->blksz * cmd->data->blocks;
 	}
@@ -470,14 +455,13 @@ static void meson_mx_mmc_timeout(struct timer_list *t)
 	struct meson_mx_mmc_host *host = timer_container_of(host, t,
 							    cmd_timeout);
 	unsigned long irqflags;
-	u32 irqc;
+	u32 irqs, argu;
 
 	spin_lock_irqsave(&host->irq_lock, irqflags);
 
 	/* disable the CMD interrupt */
-	irqc = readl(host->base + MESON_MX_SDIO_IRQC);
-	irqc &= ~MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN;
-	writel(irqc, host->base + MESON_MX_SDIO_IRQC);
+	regmap_clear_bits(host->regmap, MESON_MX_SDIO_IRQC,
+			  MESON_MX_SDIO_IRQC_ARC_CMD_INT_EN);
 
 	spin_unlock_irqrestore(&host->irq_lock, irqflags);
 
@@ -488,10 +472,12 @@ static void meson_mx_mmc_timeout(struct timer_list *t)
 	if (!host->cmd)
 		return;
 
+	regmap_read(host->regmap, MESON_MX_SDIO_IRQS, &irqs);
+	regmap_read(host->regmap, MESON_MX_SDIO_ARGU, &argu);
+
 	dev_dbg(mmc_dev(host->mmc),
 		"Timeout on CMD%u (IRQS = 0x%08x, ARGU = 0x%08x)\n",
-		host->cmd->opcode, readl(host->base + MESON_MX_SDIO_IRQS),
-		readl(host->base + MESON_MX_SDIO_ARGU));
+		host->cmd->opcode, irqs, argu);
 
 	host->cmd->error = -ETIMEDOUT;
 
@@ -507,22 +493,29 @@ static struct mmc_host_ops meson_mx_mmc_ops = {
 
 static struct platform_device *meson_mx_mmc_slot_pdev(struct device *parent)
 {
-	struct device_node *slot_node;
-	struct platform_device *pdev;
+	struct platform_device *pdev = NULL;
 
-	/*
-	 * TODO: the MMC core framework currently does not support
-	 * controllers with multiple slots properly. So we only register
-	 * the first slot for now
-	 */
-	slot_node = of_get_compatible_child(parent->of_node, "mmc-slot");
-	if (!slot_node) {
-		dev_warn(parent, "no 'mmc-slot' sub-node found\n");
-		return ERR_PTR(-ENOENT);
+	for_each_available_child_of_node_scoped(parent->of_node, slot_node) {
+		if (!of_device_is_compatible(slot_node, "mmc-slot"))
+			continue;
+
+		/*
+		 * TODO: the MMC core framework currently does not support
+		 * controllers with multiple slots properly. So we only
+		 * register the first slot for now.
+		 */
+		if (pdev) {
+			dev_warn(parent,
+				 "more than one 'mmc-slot' compatible child found - using the first one and ignoring all subsequent ones\n");
+			break;
+		}
+
+		pdev = of_platform_device_create(slot_node, NULL, parent);
+		if (!pdev)
+			dev_err(parent,
+				"Failed to create platform device for mmc-slot node '%pOF'\n",
+				slot_node);
 	}
-
-	pdev = of_platform_device_create(slot_node, NULL, parent);
-	of_node_put(slot_node);
 
 	return pdev;
 }
@@ -533,16 +526,14 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	struct device *slot_dev = mmc_dev(mmc);
 	int ret;
 
-	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id)) {
-		dev_err(slot_dev, "missing 'reg' property\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(slot_dev->of_node, "reg", &host->slot_id))
+		return dev_err_probe(slot_dev, -EINVAL,
+				     "missing 'reg' property\n");
 
-	if (host->slot_id >= MESON_MX_SDIO_MAX_SLOTS) {
-		dev_err(slot_dev, "invalid 'reg' property value %d\n",
-			host->slot_id);
-		return -EINVAL;
-	}
+	if (host->slot_id >= MESON_MX_SDIO_MAX_SLOTS)
+		return dev_err_probe(slot_dev, -EINVAL,
+				     "invalid 'reg' property value %d\n",
+				     host->slot_id);
 
 	/* Get regulators and the supported OCR mask */
 	ret = mmc_regulator_get_supply(mmc);
@@ -561,8 +552,7 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 
 	/* Get the min and max supported clock rates */
 	mmc->f_min = clk_round_rate(host->cfg_div_clk, 1);
-	mmc->f_max = clk_round_rate(host->cfg_div_clk,
-				    clk_get_rate(host->parent_clk));
+	mmc->f_max = clk_round_rate(host->cfg_div_clk, ULONG_MAX);
 
 	mmc->caps |= MMC_CAP_CMD23 | MMC_CAP_WAIT_WHILE_BUSY;
 	mmc->ops = &meson_mx_mmc_ops;
@@ -578,70 +568,89 @@ static int meson_mx_mmc_add_host(struct meson_mx_mmc_host *host)
 	return 0;
 }
 
-static int meson_mx_mmc_register_clks(struct meson_mx_mmc_host *host)
+static struct clk *meson_mx_mmc_register_clk(struct device *dev,
+					     void __iomem *base)
 {
-	struct clk_init_data init;
-	const char *clk_div_parent, *clk_fixed_factor_parent;
+	const char *fixed_div2_name, *cfg_div_name;
+	struct meson_mx_mmc_host_clkc *host_clkc;
+	struct clk *clk;
+	int ret;
 
-	clk_fixed_factor_parent = __clk_get_name(host->parent_clk);
-	init.name = devm_kasprintf(host->controller_dev, GFP_KERNEL,
-				   "%s#fixed_factor",
-				   dev_name(host->controller_dev));
-	if (!init.name)
-		return -ENOMEM;
+	/* use a dedicated memory allocation for the clock controller to
+	 * prevent use-after-free as meson_mx_mmc_host is free'd before
+	 * dev (controller dev, not mmc_host->dev) is free'd.
+	 */
+	host_clkc = devm_kzalloc(dev, sizeof(*host_clkc), GFP_KERNEL);
+	if (!host_clkc)
+		return ERR_PTR(-ENOMEM);
 
-	init.ops = &clk_fixed_factor_ops;
-	init.flags = 0;
-	init.parent_names = &clk_fixed_factor_parent;
-	init.num_parents = 1;
-	host->fixed_factor.div = 2;
-	host->fixed_factor.mult = 1;
-	host->fixed_factor.hw.init = &init;
+	fixed_div2_name = devm_kasprintf(dev, GFP_KERNEL, "%s#fixed_div2",
+					 dev_name(dev));
+	if (!fixed_div2_name)
+		return ERR_PTR(-ENOMEM);
 
-	host->fixed_factor_clk = devm_clk_register(host->controller_dev,
-						 &host->fixed_factor.hw);
-	if (WARN_ON(IS_ERR(host->fixed_factor_clk)))
-		return PTR_ERR(host->fixed_factor_clk);
+	host_clkc->fixed_div2.div = 2;
+	host_clkc->fixed_div2.mult = 1;
+	host_clkc->fixed_div2.hw.init = CLK_HW_INIT_FW_NAME(fixed_div2_name,
+							    "clkin",
+							    &clk_fixed_factor_ops,
+							    0);
+	ret = devm_clk_hw_register(dev, &host_clkc->fixed_div2.hw);
+	if (ret)
+		return dev_err_ptr_probe(dev, ret,
+					 "Failed to register %s clock\n",
+					 fixed_div2_name);
 
-	clk_div_parent = __clk_get_name(host->fixed_factor_clk);
-	init.name = devm_kasprintf(host->controller_dev, GFP_KERNEL,
-				   "%s#div", dev_name(host->controller_dev));
-	if (!init.name)
-		return -ENOMEM;
+	cfg_div_name = devm_kasprintf(dev, GFP_KERNEL, "%s#div", dev_name(dev));
+	if (!cfg_div_name)
+		return ERR_PTR(-ENOMEM);
 
-	init.ops = &clk_divider_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = &clk_div_parent;
-	init.num_parents = 1;
-	host->cfg_div.reg = host->base + MESON_MX_SDIO_CONF;
-	host->cfg_div.shift = MESON_MX_SDIO_CONF_CMD_CLK_DIV_SHIFT;
-	host->cfg_div.width = MESON_MX_SDIO_CONF_CMD_CLK_DIV_WIDTH;
-	host->cfg_div.hw.init = &init;
-	host->cfg_div.flags = CLK_DIVIDER_ALLOW_ZERO;
+	host_clkc->cfg_div.reg = base + MESON_MX_SDIO_CONF;
+	host_clkc->cfg_div.shift = MESON_MX_SDIO_CONF_CMD_CLK_DIV_SHIFT;
+	host_clkc->cfg_div.width = MESON_MX_SDIO_CONF_CMD_CLK_DIV_WIDTH;
+	host_clkc->cfg_div.hw.init = CLK_HW_INIT_HW(cfg_div_name,
+						    &host_clkc->fixed_div2.hw,
+						    &clk_divider_ops,
+						    CLK_DIVIDER_ALLOW_ZERO);
+	ret = devm_clk_hw_register(dev, &host_clkc->cfg_div.hw);
+	if (ret)
+		return dev_err_ptr_probe(dev, ret,
+					 "Failed to register %s clock\n",
+					 cfg_div_name);
 
-	host->cfg_div_clk = devm_clk_register(host->controller_dev,
-					      &host->cfg_div.hw);
-	if (WARN_ON(IS_ERR(host->cfg_div_clk)))
-		return PTR_ERR(host->cfg_div_clk);
+	clk = devm_clk_hw_get_clk(dev, &host_clkc->cfg_div.hw, "cfg_div_clk");
+	if (IS_ERR(clk))
+		return dev_err_ptr_probe(dev, PTR_ERR(clk),
+					 "Failed to get the cfg_div clock\n");
 
-	return 0;
+	return clk;
 }
 
 static int meson_mx_mmc_probe(struct platform_device *pdev)
 {
+	const struct regmap_config meson_mx_sdio_regmap_config = {
+		.reg_bits = 8,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = MESON_MX_SDIO_EXT,
+	};
 	struct platform_device *slot_pdev;
 	struct mmc_host *mmc;
 	struct meson_mx_mmc_host *host;
+	struct clk *core_clk;
+	void __iomem *base;
 	int ret, irq;
 	u32 conf;
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	slot_pdev = meson_mx_mmc_slot_pdev(&pdev->dev);
 	if (!slot_pdev)
 		return -ENODEV;
-	else if (IS_ERR(slot_pdev))
-		return PTR_ERR(slot_pdev);
 
-	mmc = mmc_alloc_host(sizeof(*host), &slot_pdev->dev);
+	mmc = devm_mmc_alloc_host(&slot_pdev->dev, sizeof(*host));
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto error_unregister_slot_pdev;
@@ -656,51 +665,48 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	host->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(host->base)) {
-		ret = PTR_ERR(host->base);
-		goto error_free_mmc;
+	host->regmap = devm_regmap_init_mmio(&pdev->dev, base,
+					     &meson_mx_sdio_regmap_config);
+	if (IS_ERR(host->regmap)) {
+		ret = dev_err_probe(host->controller_dev, PTR_ERR(host->regmap),
+				    "Failed to initialize regmap\n");
+		goto error_unregister_slot_pdev;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto error_free_mmc;
+		goto error_unregister_slot_pdev;
 	}
 
 	ret = devm_request_threaded_irq(host->controller_dev, irq,
 					meson_mx_mmc_irq,
 					meson_mx_mmc_irq_thread, IRQF_ONESHOT,
 					NULL, host);
-	if (ret)
-		goto error_free_mmc;
-
-	host->core_clk = devm_clk_get(host->controller_dev, "core");
-	if (IS_ERR(host->core_clk)) {
-		ret = PTR_ERR(host->core_clk);
-		goto error_free_mmc;
-	}
-
-	host->parent_clk = devm_clk_get(host->controller_dev, "clkin");
-	if (IS_ERR(host->parent_clk)) {
-		ret = PTR_ERR(host->parent_clk);
-		goto error_free_mmc;
-	}
-
-	ret = meson_mx_mmc_register_clks(host);
-	if (ret)
-		goto error_free_mmc;
-
-	ret = clk_prepare_enable(host->core_clk);
 	if (ret) {
-		dev_err(host->controller_dev, "Failed to enable core clock\n");
-		goto error_free_mmc;
+		dev_err_probe(host->controller_dev, ret,
+			      "Failed to request IRQ\n");
+		goto error_unregister_slot_pdev;
+	}
+
+	core_clk = devm_clk_get_enabled(host->controller_dev, "core");
+	if (IS_ERR(core_clk)) {
+		ret = dev_err_probe(host->controller_dev, PTR_ERR(core_clk),
+				    "Failed to get and enable 'core' clock\n");
+		goto error_unregister_slot_pdev;
+	}
+
+	host->cfg_div_clk = meson_mx_mmc_register_clk(&pdev->dev, base);
+	if (IS_ERR(host->cfg_div_clk)) {
+		ret = PTR_ERR(host->cfg_div_clk);
+		goto error_unregister_slot_pdev;
 	}
 
 	ret = clk_prepare_enable(host->cfg_div_clk);
 	if (ret) {
-		dev_err(host->controller_dev, "Failed to enable MMC clock\n");
-		goto error_disable_core_clk;
+		dev_err_probe(host->controller_dev, ret,
+			      "Failed to enable MMC (cfg div) clock\n");
+		goto error_unregister_slot_pdev;
 	}
 
 	conf = 0;
@@ -708,22 +714,18 @@ static int meson_mx_mmc_probe(struct platform_device *pdev)
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_M_ENDIAN_MASK, 0x3);
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_WRITE_NWR_MASK, 0x2);
 	conf |= FIELD_PREP(MESON_MX_SDIO_CONF_WRITE_CRC_OK_STATUS_MASK, 0x2);
-	writel(conf, host->base + MESON_MX_SDIO_CONF);
+	regmap_write(host->regmap, MESON_MX_SDIO_CONF, conf);
 
 	meson_mx_mmc_soft_reset(host);
 
 	ret = meson_mx_mmc_add_host(host);
 	if (ret)
-		goto error_disable_clks;
+		goto error_disable_div_clk;
 
 	return 0;
 
-error_disable_clks:
+error_disable_div_clk:
 	clk_disable_unprepare(host->cfg_div_clk);
-error_disable_core_clk:
-	clk_disable_unprepare(host->core_clk);
-error_free_mmc:
-	mmc_free_host(mmc);
 error_unregister_slot_pdev:
 	of_platform_device_destroy(&slot_pdev->dev, NULL);
 	return ret;
@@ -741,9 +743,6 @@ static void meson_mx_mmc_remove(struct platform_device *pdev)
 	of_platform_device_destroy(slot_dev, NULL);
 
 	clk_disable_unprepare(host->cfg_div_clk);
-	clk_disable_unprepare(host->core_clk);
-
-	mmc_free_host(host->mmc);
 }
 
 static const struct of_device_id meson_mx_mmc_of_match[] = {

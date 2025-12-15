@@ -16,7 +16,7 @@
 #define MBps_to_icc(x)	((x) * 1000)
 #define GBps_to_icc(x)	((x) * 1000 * 1000)
 #define bps_to_icc(x)	(1)
-#define kbps_to_icc(x)	((x) / 8 + ((x) % 8 ? 1 : 0))
+#define kbps_to_icc(x)	(((x) + 7) / 8)
 #define Mbps_to_icc(x)	((x) * 1000 / 8)
 #define Gbps_to_icc(x)	((x) * 1000 * 1000 / 8)
 

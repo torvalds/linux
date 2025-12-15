@@ -389,6 +389,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 		goto fail;
 	if (list_lru_init_memcg(&s->s_inode_lru, s->s_shrink))
 		goto fail;
+	s->s_min_writeback_pages = MIN_WRITEBACK_PAGES;
 	return s;
 
 fail:
@@ -1183,9 +1184,12 @@ static inline bool get_active_super(struct super_block *sb)
 
 static const char *filesystems_freeze_ptr = "filesystems_freeze";
 
-static void filesystems_freeze_callback(struct super_block *sb, void *unused)
+static void filesystems_freeze_callback(struct super_block *sb, void *freeze_all_ptr)
 {
 	if (!sb->s_op->freeze_fs && !sb->s_op->freeze_super)
+		return;
+
+	if (!freeze_all_ptr && !(sb->s_type->fs_flags & FS_POWER_FREEZE))
 		return;
 
 	if (!get_active_super(sb))
@@ -1201,9 +1205,13 @@ static void filesystems_freeze_callback(struct super_block *sb, void *unused)
 	deactivate_super(sb);
 }
 
-void filesystems_freeze(void)
+void filesystems_freeze(bool freeze_all)
 {
-	__iterate_supers(filesystems_freeze_callback, NULL,
+	void *freeze_all_ptr = NULL;
+
+	if (freeze_all)
+		freeze_all_ptr = &freeze_all;
+	__iterate_supers(filesystems_freeze_callback, freeze_all_ptr,
 			 SUPER_ITER_UNLOCKED | SUPER_ITER_REVERSE);
 }
 
@@ -1283,14 +1291,6 @@ void kill_anon_super(struct super_block *sb)
 	free_anon_bdev(dev);
 }
 EXPORT_SYMBOL(kill_anon_super);
-
-void kill_litter_super(struct super_block *sb)
-{
-	if (sb->s_root)
-		d_genocide(sb->s_root);
-	kill_anon_super(sb);
-}
-EXPORT_SYMBOL(kill_litter_super);
 
 int set_anon_super_fc(struct super_block *sb, struct fs_context *fc)
 {

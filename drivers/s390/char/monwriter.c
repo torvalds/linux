@@ -7,8 +7,7 @@
  * Author(s): Melissa Howland <Melissa.Howland@us.ibm.com>
  */
 
-#define KMSG_COMPONENT "monwriter"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "monwriter: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>

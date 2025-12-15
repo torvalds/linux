@@ -541,10 +541,10 @@ impl Node {
             guard = self.owner.inner.lock();
         }
 
-        let death_list = core::mem::take(&mut self.inner.access_mut(&mut guard).death_list);
-        drop(guard);
-        for death in death_list {
+        while let Some(death) = self.inner.access_mut(&mut guard).death_list.pop_front() {
+            drop(guard);
             death.into_arc().set_dead();
+            guard = self.owner.inner.lock();
         }
     }
 
@@ -687,7 +687,7 @@ impl Node {
             );
         }
         if inner.freeze_list.is_empty() {
-            _unused_capacity = mem::replace(&mut inner.freeze_list, KVVec::new());
+            _unused_capacity = mem::take(&mut inner.freeze_list);
         }
     }
 

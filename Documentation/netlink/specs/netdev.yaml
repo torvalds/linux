@@ -88,7 +88,7 @@ definitions:
   -
     name: napi-threaded
     type: enum
-    entries: [disabled, enabled]
+    entries: [disabled, enabled, busy-poll]
 
 attribute-sets:
   -
@@ -291,7 +291,8 @@ attribute-sets:
         name: threaded
         doc: Whether the NAPI is configured to operate in threaded polling
              mode. If this is set to enabled then the NAPI context operates
-             in threaded polling mode.
+             in threaded polling mode. If this is set to busy-poll, then the
+             threaded polling mode also busy polls.
         type: u32
         enum: napi-threaded
   -
@@ -732,6 +733,29 @@ operations:
             - rx-bytes
             - tx-packets
             - tx-bytes
+            - rx-alloc-fail
+            - rx-hw-drops
+            - rx-hw-drop-overruns
+            - rx-csum-complete
+            - rx-csum-unnecessary
+            - rx-csum-none
+            - rx-csum-bad
+            - rx-hw-gro-packets
+            - rx-hw-gro-bytes
+            - rx-hw-gro-wire-packets
+            - rx-hw-gro-wire-bytes
+            - rx-hw-drop-ratelimits
+            - tx-hw-drops
+            - tx-hw-drop-errors
+            - tx-csum-none
+            - tx-needs-csum
+            - tx-hw-gso-packets
+            - tx-hw-gso-bytes
+            - tx-hw-gso-wire-packets
+            - tx-hw-gso-wire-bytes
+            - tx-hw-drop-ratelimits
+            - tx-stop
+            - tx-wake
     -
       name: bind-rx
       doc: Bind dmabuf to netdev

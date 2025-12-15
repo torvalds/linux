@@ -379,7 +379,7 @@ int snd_parse_eld(struct device *dev, struct snd_parsed_hdmi_eld *e,
 	 * in console or for audio devices. Assume the highest speakers
 	 * configuration, to _not_ prohibit multi-channel audio playback.
 	 */
-	if (!e->spk_alloc)
+	if (!e->spk_alloc && e->sad_count)
 		e->spk_alloc = 0xffff;
 
 	return 0;

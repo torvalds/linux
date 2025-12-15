@@ -5,8 +5,7 @@
  * Copyright IBM Corp. 2017
  */
 
-#define KMSG_COMPONENT "sclp_sd"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_sd: " fmt
 
 #include <linux/completion.h>
 #include <linux/jiffies.h>
@@ -17,8 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
-
-#include <asm/pgalloc.h>
+#include <linux/pgalloc.h>
 
 #include "sclp.h"
 

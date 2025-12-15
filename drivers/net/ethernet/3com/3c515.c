@@ -1547,9 +1547,8 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.set_msglevel		= netdev_set_msglevel,
 };
 
-
 #ifdef MODULE
-void cleanup_module(void)
+static void __exit corkscrew_exit_module(void)
 {
 	while (!list_empty(&root_corkscrew_dev)) {
 		struct net_device *dev;
@@ -1563,4 +1562,5 @@ void cleanup_module(void)
 		free_netdev(dev);
 	}
 }
+module_exit(corkscrew_exit_module);
 #endif				/* MODULE */

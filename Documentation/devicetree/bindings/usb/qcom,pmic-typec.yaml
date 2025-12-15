@@ -28,7 +28,6 @@ properties:
               - qcom,pm4125-typec
           - const: qcom,pmi632-typec
 
-
   connector:
     type: object
     $ref: /schemas/connector/usb-connector.yaml#

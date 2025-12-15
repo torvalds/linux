@@ -162,9 +162,13 @@ SYM_FUNC_START(__switch_to_asm)
 	stg	%r3,__LC_CURRENT(%r13)		# store task struct of next
 	stg	%r15,__LC_KERNEL_STACK(%r13)	# store end of kernel stack
 	lg	%r15,__THREAD_ksp(%r1,%r3)	# load kernel stack of next
-	aghi	%r3,__TASK_pid
-	mvc	__LC_CURRENT_PID(4,%r13),0(%r3)	# store pid of next
+	lay	%r4,__TASK_pid(%r3)
+	mvc	__LC_CURRENT_PID(4,%r13),0(%r4) # store pid of next
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET(%r13)", ALT_FACILITY(40)
+#ifdef CONFIG_STACKPROTECTOR
+	lg	%r3,__TASK_stack_canary(%r3)
+	stg	%r3,__LC_STACK_CANARY(%r13)
+#endif
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	BR_EX	%r14
 SYM_FUNC_END(__switch_to_asm)
@@ -189,6 +193,7 @@ SYM_FUNC_START(__sie64a)
 	mvc	__SF_SIE_FLAGS(8,%r15),__TI_flags(%r14) # copy thread flags
 	lmg	%r0,%r13,0(%r4)			# load guest gprs 0-13
 	mvi	__TI_sie(%r14),1
+	stosm	__SF_SIE_IRQ(%r15),0x03		# enable interrupts
 	lctlg	%c1,%c1,__SF_SIE_GUEST_ASCE(%r15) # load primary asce
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
@@ -212,6 +217,7 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__LC_CURRENT(%r14)
 	mvi	__TI_sie(%r14),0
 SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
+	stnsm	__SF_SIE_IRQ(%r15),0xfc		# disable interrupts
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	xgr	%r0,%r0				# clear guest registers to
@@ -606,20 +612,3 @@ SYM_DATA_START_LOCAL(daton_psw)
 	.quad	PSW_KERNEL_BITS
 	.quad	.Ldaton
 SYM_DATA_END(daton_psw)
-
-	.section .rodata, "a"
-	.balign	8
-#define SYSCALL(esame,emu)	.quad __s390x_ ## esame
-SYM_DATA_START(sys_call_table)
-#include <asm/syscall_table.h>
-SYM_DATA_END(sys_call_table)
-#undef SYSCALL
-
-#ifdef CONFIG_COMPAT
-
-#define SYSCALL(esame,emu)	.quad __s390_ ## emu
-SYM_DATA_START(sys_call_table_emu)
-#include <asm/syscall_table.h>
-SYM_DATA_END(sys_call_table_emu)
-#undef SYSCALL
-#endif

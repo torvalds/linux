@@ -8,22 +8,24 @@
 
 static inline void iomap_iter_reset_iomap(struct iomap_iter *iter)
 {
+	if (iter->fbatch) {
+		folio_batch_release(iter->fbatch);
+		kfree(iter->fbatch);
+		iter->fbatch = NULL;
+	}
+
 	iter->status = 0;
 	memset(&iter->iomap, 0, sizeof(iter->iomap));
 	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
 }
 
-/*
- * Advance the current iterator position and output the length remaining for the
- * current mapping.
- */
-int iomap_iter_advance(struct iomap_iter *iter, u64 *count)
+/* Advance the current iterator position and decrement the remaining length */
+int iomap_iter_advance(struct iomap_iter *iter, u64 count)
 {
-	if (WARN_ON_ONCE(*count > iomap_length(iter)))
+	if (WARN_ON_ONCE(count > iomap_length(iter)))
 		return -EIO;
-	iter->pos += *count;
-	iter->len -= *count;
-	*count = iomap_length(iter);
+	iter->pos += count;
+	iter->len -= count;
 	return 0;
 }
 

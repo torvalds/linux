@@ -19,6 +19,7 @@ use kernel::{
     cred::Credential,
     error::Error,
     fs::file::{self, File},
+    id_pool::IdPool,
     list::{List, ListArc, ListArcField, ListLinks},
     mm,
     prelude::*,
@@ -72,6 +73,33 @@ impl Mapping {
 const PROC_DEFER_FLUSH: u8 = 1;
 const PROC_DEFER_RELEASE: u8 = 2;
 
+#[derive(Copy, Clone)]
+pub(crate) enum IsFrozen {
+    Yes,
+    No,
+    InProgress,
+}
+
+impl IsFrozen {
+    /// Whether incoming transactions should be rejected due to freeze.
+    pub(crate) fn is_frozen(self) -> bool {
+        match self {
+            IsFrozen::Yes => true,
+            IsFrozen::No => false,
+            IsFrozen::InProgress => true,
+        }
+    }
+
+    /// Whether freeze notifications consider this process frozen.
+    pub(crate) fn is_fully_frozen(self) -> bool {
+        match self {
+            IsFrozen::Yes => true,
+            IsFrozen::No => false,
+            IsFrozen::InProgress => false,
+        }
+    }
+}
+
 /// The fields of `Process` protected by the spinlock.
 pub(crate) struct ProcessInner {
     is_manager: bool,
@@ -98,7 +126,7 @@ pub(crate) struct ProcessInner {
     /// are woken up.
     outstanding_txns: u32,
     /// Process is frozen and unable to service binder transactions.
-    pub(crate) is_frozen: bool,
+    pub(crate) is_frozen: IsFrozen,
     /// Process received sync transactions since last frozen.
     pub(crate) sync_recv: bool,
     /// Process received async transactions since last frozen.
@@ -124,7 +152,7 @@ impl ProcessInner {
             started_thread_count: 0,
             defer_work: 0,
             outstanding_txns: 0,
-            is_frozen: false,
+            is_frozen: IsFrozen::No,
             sync_recv: false,
             async_recv: false,
             binderfs_file: None,
@@ -367,6 +395,8 @@ kernel::list::impl_list_item! {
 struct ProcessNodeRefs {
     /// Used to look up nodes using the 32-bit id that this process knows it by.
     by_handle: RBTree<u32, ListArc<NodeRefInfo, { NodeRefInfo::LIST_PROC }>>,
+    /// Used to quickly find unused ids in `by_handle`.
+    handle_is_present: IdPool,
     /// Used to look up nodes without knowing their local 32-bit id. The usize is the address of
     /// the underlying `Node` struct as returned by `Node::global_id`.
     by_node: RBTree<usize, u32>,
@@ -381,6 +411,7 @@ impl ProcessNodeRefs {
     fn new() -> Self {
         Self {
             by_handle: RBTree::new(),
+            handle_is_present: IdPool::new(),
             by_node: RBTree::new(),
             freeze_listeners: RBTree::new(),
         }
@@ -596,7 +627,7 @@ impl Process {
                     "  ref {}: desc {} {}node {debug_id} s {strong} w {weak}",
                     r.debug_id,
                     r.handle,
-                    if dead { "dead " } else { "" },
+                    if dead { "dead " } else { "" }
                 );
             }
         }
@@ -775,7 +806,7 @@ impl Process {
     pub(crate) fn insert_or_update_handle(
         self: ArcBorrow<'_, Process>,
         node_ref: NodeRef,
-        is_mananger: bool,
+        is_manager: bool,
     ) -> Result<u32> {
         {
             let mut refs = self.node_refs.lock();
@@ -794,7 +825,33 @@ impl Process {
         let reserve2 = RBTreeNodeReservation::new(GFP_KERNEL)?;
         let info = UniqueArc::new_uninit(GFP_KERNEL)?;
 
-        let mut refs = self.node_refs.lock();
+        let mut refs_lock = self.node_refs.lock();
+        let mut refs = &mut *refs_lock;
+
+        let (unused_id, by_handle_slot) = loop {
+            // ID 0 may only be used by the manager.
+            let start = if is_manager { 0 } else { 1 };
+
+            if let Some(res) = refs.handle_is_present.find_unused_id(start) {
+                match refs.by_handle.entry(res.as_u32()) {
+                    rbtree::Entry::Vacant(entry) => break (res, entry),
+                    rbtree::Entry::Occupied(_) => {
+                        pr_err!("Detected mismatch between handle_is_present and by_handle");
+                        res.acquire();
+                        kernel::warn_on!(true);
+                        return Err(EINVAL);
+                    }
+                }
+            }
+
+            let grow_request = refs.handle_is_present.grow_request().ok_or(ENOMEM)?;
+            drop(refs_lock);
+            let resizer = grow_request.realloc(GFP_KERNEL)?;
+            refs_lock = self.node_refs.lock();
+            refs = &mut *refs_lock;
+            refs.handle_is_present.grow(resizer);
+        };
+        let handle = unused_id.as_u32();
 
         // Do a lookup again as node may have been inserted before the lock was reacquired.
         if let Some(handle_ref) = refs.by_node.get(&node_ref.node.global_id()) {
@@ -804,20 +861,9 @@ impl Process {
             return Ok(handle);
         }
 
-        // Find id.
-        let mut target: u32 = if is_mananger { 0 } else { 1 };
-        for handle in refs.by_handle.keys() {
-            if *handle > target {
-                break;
-            }
-            if *handle == target {
-                target = target.checked_add(1).ok_or(ENOMEM)?;
-            }
-        }
-
         let gid = node_ref.node.global_id();
         let (info_proc, info_node) = {
-            let info_init = NodeRefInfo::new(node_ref, target, self.into());
+            let info_init = NodeRefInfo::new(node_ref, handle, self.into());
             match info.pin_init_with(info_init) {
                 Ok(info) => ListArc::pair_from_pin_unique(info),
                 // error is infallible
@@ -838,9 +884,10 @@ impl Process {
         // `info_node` into the right node's `refs` list.
         unsafe { info_proc.node_ref2().node.insert_node_info(info_node) };
 
-        refs.by_node.insert(reserve1.into_node(gid, target));
-        refs.by_handle.insert(reserve2.into_node(target, info_proc));
-        Ok(target)
+        refs.by_node.insert(reserve1.into_node(gid, handle));
+        by_handle_slot.insert(info_proc, reserve2);
+        unused_id.acquire();
+        Ok(handle)
     }
 
     pub(crate) fn get_transaction_node(&self, handle: u32) -> BinderResult<NodeRef> {
@@ -905,6 +952,16 @@ impl Process {
                 let id = info.node_ref().node.global_id();
                 refs.by_handle.remove(&handle);
                 refs.by_node.remove(&id);
+                refs.handle_is_present.release_id(handle as usize);
+
+                if let Some(shrink) = refs.handle_is_present.shrink_request() {
+                    drop(refs);
+                    // This intentionally ignores allocation failures.
+                    if let Ok(new_bitmap) = shrink.realloc(GFP_KERNEL) {
+                        refs = self.node_refs.lock();
+                        refs.handle_is_present.shrink(new_bitmap);
+                    }
+                }
             }
         } else {
             // All refs are cleared in process exit, so this warning is expected in that case.
@@ -1260,7 +1317,7 @@ impl Process {
         let is_manager = {
             let mut inner = self.inner.lock();
             inner.is_dead = true;
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             inner.sync_recv = false;
             inner.async_recv = false;
             inner.is_manager
@@ -1293,7 +1350,7 @@ impl Process {
         {
             while let Some(node) = {
                 let mut lock = self.inner.lock();
-                lock.nodes.cursor_front().map(|c| c.remove_current().1)
+                lock.nodes.cursor_front_mut().map(|c| c.remove_current().1)
             } {
                 node.to_key_value().1.release();
             }
@@ -1335,8 +1392,12 @@ impl Process {
             work.into_arc().cancel();
         }
 
-        let delivered_deaths = take(&mut self.inner.lock().delivered_deaths);
-        drop(delivered_deaths);
+        // Clear delivered_deaths list.
+        //
+        // Scope ensures that MutexGuard is dropped while executing the body.
+        while let Some(delivered_death) = { self.inner.lock().delivered_deaths.pop_front() } {
+            drop(delivered_death);
+        }
 
         // Free any resources kept alive by allocated buffers.
         let omapping = self.inner.lock().mapping.take();
@@ -1346,10 +1407,6 @@ impl Process {
                 .alloc
                 .take_for_each(|offset, size, debug_id, odata| {
                     let ptr = offset + address;
-                    pr_warn!(
-                        "{}: removing orphan mapping {offset}:{size}\n",
-                        self.pid_in_current_ns()
-                    );
                     let mut alloc =
                         Allocation::new(self.clone(), debug_id, offset, size, ptr, false);
                     if let Some(data) = odata {
@@ -1371,7 +1428,7 @@ impl Process {
                 return;
             }
             inner.outstanding_txns -= 1;
-            inner.is_frozen && inner.outstanding_txns == 0
+            inner.is_frozen.is_frozen() && inner.outstanding_txns == 0
         };
 
         if wake {
@@ -1385,7 +1442,7 @@ impl Process {
             let mut inner = self.inner.lock();
             inner.sync_recv = false;
             inner.async_recv = false;
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             drop(inner);
             msgs.send_messages();
             return Ok(());
@@ -1394,7 +1451,7 @@ impl Process {
         let mut inner = self.inner.lock();
         inner.sync_recv = false;
         inner.async_recv = false;
-        inner.is_frozen = true;
+        inner.is_frozen = IsFrozen::InProgress;
 
         if info.timeout_ms > 0 {
             let mut jiffies = kernel::time::msecs_to_jiffies(info.timeout_ms);
@@ -1408,7 +1465,7 @@ impl Process {
                     .wait_interruptible_timeout(&mut inner, jiffies)
                 {
                     CondVarTimeoutResult::Signal { .. } => {
-                        inner.is_frozen = false;
+                        inner.is_frozen = IsFrozen::No;
                         return Err(ERESTARTSYS);
                     }
                     CondVarTimeoutResult::Woken { jiffies: remaining } => {
@@ -1422,17 +1479,18 @@ impl Process {
         }
 
         if inner.txns_pending_locked() {
-            inner.is_frozen = false;
+            inner.is_frozen = IsFrozen::No;
             Err(EAGAIN)
         } else {
             drop(inner);
             match self.prepare_freeze_messages() {
                 Ok(batch) => {
+                    self.inner.lock().is_frozen = IsFrozen::Yes;
                     batch.send_messages();
                     Ok(())
                 }
                 Err(kernel::alloc::AllocError) => {
-                    self.inner.lock().is_frozen = false;
+                    self.inner.lock().is_frozen = IsFrozen::No;
                     Err(ENOMEM)
                 }
             }
@@ -1597,15 +1655,6 @@ impl Process {
             _IOC_READ_WRITE => Self::ioctl_write_read(this, file, cmd, user_slice),
             _ => Err(EINVAL),
         }
-    }
-
-    pub(crate) fn compat_ioctl(
-        this: ArcBorrow<'_, Process>,
-        file: &File,
-        cmd: u32,
-        arg: usize,
-    ) -> Result {
-        Self::ioctl(this, file, cmd, arg)
     }
 
     pub(crate) fn mmap(

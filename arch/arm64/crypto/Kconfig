@@ -25,17 +25,6 @@ config CRYPTO_NHPOLY1305_NEON
 	  Architecture: arm64 using:
 	  - NEON (Advanced SIMD) extensions
 
-config CRYPTO_SHA3_ARM64
-	tristate "Hash functions: SHA-3 (ARMv8.2 Crypto Extensions)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_HASH
-	select CRYPTO_SHA3
-	help
-	  SHA-3 secure hash algorithms (FIPS 202)
-
-	  Architecture: arm64 using:
-	  - ARMv8.2 Crypto Extensions
-
 config CRYPTO_SM3_NEON
 	tristate "Hash functions: SM3 (NEON)"
 	depends on KERNEL_MODE_NEON
@@ -57,16 +46,6 @@ config CRYPTO_SM3_ARM64_CE
 
 	  Architecture: arm64 using:
 	  - ARMv8.2 Crypto Extensions
-
-config CRYPTO_POLYVAL_ARM64_CE
-	tristate "Hash functions: POLYVAL (ARMv8 Crypto Extensions)"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_POLYVAL
-	help
-	  POLYVAL hash function for HCTR2
-
-	  Architecture: arm64 using:
-	  - ARMv8 Crypto Extensions
 
 config CRYPTO_AES_ARM64
 	tristate "Ciphers: AES, modes: ECB, CBC, CTR, CTS, XCTR, XTS"

@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+config CRYPTO_LIB_BLAKE2B_KUNIT_TEST
+	tristate "KUnit tests for BLAKE2b" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_BLAKE2B
+	help
+	  KUnit tests for the BLAKE2b cryptographic hash function.
+
 config CRYPTO_LIB_BLAKE2S_KUNIT_TEST
 	tristate "KUnit tests for BLAKE2s" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -38,6 +47,15 @@ config CRYPTO_LIB_POLY1305_KUNIT_TEST
 	help
 	  KUnit tests for the Poly1305 library functions.
 
+config CRYPTO_LIB_POLYVAL_KUNIT_TEST
+	tristate "KUnit tests for POLYVAL" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_POLYVAL
+	help
+	  KUnit tests for the POLYVAL library functions.
+
 config CRYPTO_LIB_SHA1_KUNIT_TEST
 	tristate "KUnit tests for SHA-1" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -71,6 +89,17 @@ config CRYPTO_LIB_SHA512_KUNIT_TEST
 	help
 	  KUnit tests for the SHA-384 and SHA-512 cryptographic hash functions
 	  and their corresponding HMACs.
+
+config CRYPTO_LIB_SHA3_KUNIT_TEST
+	tristate "KUnit tests for SHA-3" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS || CRYPTO_SELFTESTS
+	select CRYPTO_LIB_BENCHMARK_VISIBLE
+	select CRYPTO_LIB_SHA3
+	help
+	  KUnit tests for the SHA3 cryptographic hash and XOF functions,
+	  including SHA3-224, SHA3-256, SHA3-384, SHA3-512, SHAKE128 and
+	  SHAKE256.
 
 config CRYPTO_LIB_BENCHMARK_VISIBLE
 	bool

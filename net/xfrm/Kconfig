@@ -110,14 +110,17 @@ config XFRM_IPCOMP
 	select CRYPTO_DEFLATE
 
 config NET_KEY
-	tristate "PF_KEY sockets"
+	tristate "PF_KEY sockets (deprecated)"
 	select XFRM_ALGO
 	help
 	  PF_KEYv2 socket family, compatible to KAME ones.
-	  They are required if you are going to use IPsec tools ported
-	  from KAME.
 
-	  Say Y unless you know what you are doing.
+	  The PF_KEYv2 socket interface is deprecated and
+	  scheduled for removal. All maintained IKE daemons
+	  no longer need PF_KEY sockets. Please use the netlink
+	  interface (XFRM_USER) to configure IPsec.
+
+	  If unsure, say N.
 
 config NET_KEY_MIGRATE
 	bool "PF_KEY MIGRATE"

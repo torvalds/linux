@@ -503,24 +503,27 @@ static int copy_from_regs(struct pt_regs *regs, void *dst, void *src, int len)
 void show_code(struct pt_regs *regs)
 {
 	char *mode = user_mode(regs) ? "User" : "Krnl";
+	unsigned long addr, pswaddr;
 	unsigned char code[64];
 	char buffer[128], *ptr;
-	unsigned long addr;
 	int start, end, opsize, hops, i;
 
+	pswaddr = regs->psw.addr;
+	if (test_pt_regs_flag(regs, PIF_PSW_ADDR_ADJUSTED))
+		pswaddr = __forward_psw(regs->psw, regs->int_code >> 16);
 	/* Get a snapshot of the 64 bytes surrounding the fault address. */
-	for (start = 32; start && regs->psw.addr >= 34 - start; start -= 2) {
-		addr = regs->psw.addr - 34 + start;
+	for (start = 32; start && pswaddr >= 34 - start; start -= 2) {
+		addr = pswaddr - 34 + start;
 		if (copy_from_regs(regs, code + start - 2, (void *)addr, 2))
 			break;
 	}
 	for (end = 32; end < 64; end += 2) {
-		addr = regs->psw.addr + end - 32;
+		addr = pswaddr + end - 32;
 		if (copy_from_regs(regs, code + end, (void *)addr, 2))
 			break;
 	}
 	/* Code snapshot usable ? */
-	if ((regs->psw.addr & 1) || start >= end) {
+	if ((pswaddr & 1) || start >= end) {
 		printk("%s Code: Bad PSW.\n", mode);
 		return;
 	}
@@ -543,12 +546,12 @@ void show_code(struct pt_regs *regs)
 	while (start < end && hops < 8) {
 		opsize = insn_length(code[start]);
 		if  (start + opsize == 32)
-			*ptr++ = '#';
+			*ptr++ = '*';
 		else if (start == 32)
 			*ptr++ = '>';
 		else
 			*ptr++ = ' ';
-		addr = regs->psw.addr + start - 32;
+		addr = pswaddr + start - 32;
 		ptr += sprintf(ptr, "%px: ", (void *)addr);
 		if (start + opsize >= end)
 			break;

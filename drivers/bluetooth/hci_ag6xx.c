@@ -105,7 +105,7 @@ static int ag6xx_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	ag6xx->rx_skb = h4_recv_buf(hu->hdev, ag6xx->rx_skb, data, count,
+	ag6xx->rx_skb = h4_recv_buf(hu, ag6xx->rx_skb, data, count,
 				    ag6xx_recv_pkts,
 				    ARRAY_SIZE(ag6xx_recv_pkts));
 	if (IS_ERR(ag6xx->rx_skb)) {

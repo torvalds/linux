@@ -99,6 +99,8 @@ definitions:
         name: legacy
       -
         name: switchdev
+      -
+        name: switchdev-inactive
   -
     type: enum
     name: eswitch-inline-mode
@@ -857,6 +859,14 @@ attribute-sets:
         name: health-reporter-burst-period
         type: u64
         doc: Time (in msec) for recoveries before starting the grace period.
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: param-reset-default
+        type: flag
+        doc: Request restoring parameter to its default value.
+        value: 183
   -
     name: dl-dev-stats
     subset-of: devlink
@@ -1791,6 +1801,7 @@ operations:
             - param-type
             # param-value-data is missing here as the type is variable
             - param-value-cmode
+            - param-reset-default
 
     -
       name: region-get

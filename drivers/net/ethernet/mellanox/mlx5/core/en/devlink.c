@@ -40,11 +40,8 @@ void mlx5e_destroy_devlink(struct mlx5e_dev *mlx5e_dev)
 static void
 mlx5e_devlink_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_id *ppid)
 {
-	u64 parent_id;
-
-	parent_id = mlx5_query_nic_system_image_guid(dev);
-	ppid->id_len = sizeof(parent_id);
-	memcpy(ppid->id, &parent_id, sizeof(parent_id));
+	BUILD_BUG_ON(MLX5_SW_IMAGE_GUID_MAX_BYTES > MAX_PHYS_ITEM_ID_LEN);
+	mlx5_query_nic_sw_system_image_guid(dev, ppid->id, &ppid->id_len);
 }
 
 int mlx5e_devlink_port_register(struct mlx5e_dev *mlx5e_dev,

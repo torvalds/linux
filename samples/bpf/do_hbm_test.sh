@@ -112,7 +112,7 @@ function start_hbm () {
 processArgs () {
   for i in $args ; do
     case $i in
-    # Support for upcomming ingress rate limiting
+    # Support for upcoming ingress rate limiting
     #in)         # support for upcoming ingress rate limiting
     #  dir="-i"
     #  dir_name="in"

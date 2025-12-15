@@ -1299,6 +1299,8 @@ void i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__contexts(dev_priv);
+
+	spin_lock_init(&dev_priv->frontbuffer_lock);
 }
 
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)

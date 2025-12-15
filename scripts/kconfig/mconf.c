@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -930,6 +931,8 @@ int main(int ac, char **av)
 	int res;
 
 	signal(SIGINT, sig_handler);
+
+	setlocale(LC_ALL, "");
 
 	if (ac > 1 && strcmp(av[1], "-s") == 0) {
 		silent = 1;

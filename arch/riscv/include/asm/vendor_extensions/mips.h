@@ -30,8 +30,8 @@ extern struct riscv_isa_vendor_ext_data_list riscv_isa_vendor_ext_list_mips;
  * allowing any subsequent instructions to fetch.
  */
 
-#define MIPS_PAUSE	".4byte 0x00501013\n\t"
-#define MIPS_EHB	".4byte 0x00301013\n\t"
-#define MIPS_IHB	".4byte 0x00101013\n\t"
+#define MIPS_PAUSE	ASM_INSN_I("0x00501013\n\t")
+#define MIPS_EHB	ASM_INSN_I("0x00301013\n\t")
+#define MIPS_IHB	ASM_INSN_I("0x00101013\n\t")
 
 #endif // _ASM_RISCV_VENDOR_EXTENSIONS_MIPS_H

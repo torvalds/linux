@@ -17,6 +17,7 @@
 #include <net/page_pool/helpers.h>
 #include <net/page_pool/memory_provider.h>
 #include <net/sock.h>
+#include <net/tcp.h>
 #include <trace/events/page_pool.h>
 
 #include "devmem.h"
@@ -96,9 +97,9 @@ net_devmem_alloc_dmabuf(struct net_devmem_dmabuf_binding *binding)
 	index = offset / PAGE_SIZE;
 	niov = &owner->area.niovs[index];
 
-	niov->pp_magic = 0;
-	niov->pp = NULL;
-	atomic_long_set(&niov->pp_ref_count, 0);
+	niov->desc.pp_magic = 0;
+	niov->desc.pp = NULL;
+	atomic_long_set(&niov->desc.pp_ref_count, 0);
 
 	return niov;
 }
@@ -357,7 +358,8 @@ struct net_devmem_dmabuf_binding *net_devmem_get_binding(struct sock *sk,
 							 unsigned int dmabuf_id)
 {
 	struct net_devmem_dmabuf_binding *binding;
-	struct dst_entry *dst = __sk_dst_get(sk);
+	struct net_device *dst_dev;
+	struct dst_entry *dst;
 	int err = 0;
 
 	binding = net_devmem_lookup_dmabuf(dmabuf_id);
@@ -366,16 +368,35 @@ struct net_devmem_dmabuf_binding *net_devmem_get_binding(struct sock *sk,
 		goto out_err;
 	}
 
+	rcu_read_lock();
+	dst = __sk_dst_get(sk);
+	/* If dst is NULL (route expired), attempt to rebuild it. */
+	if (unlikely(!dst)) {
+		if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk)) {
+			err = -EHOSTUNREACH;
+			goto out_unlock;
+		}
+		dst = __sk_dst_get(sk);
+		if (unlikely(!dst)) {
+			err = -ENODEV;
+			goto out_unlock;
+		}
+	}
+
 	/* The dma-addrs in this binding are only reachable to the corresponding
 	 * net_device.
 	 */
-	if (!dst || !dst->dev || dst->dev->ifindex != binding->dev->ifindex) {
+	dst_dev = dst_dev_rcu(dst);
+	if (unlikely(!dst_dev) || unlikely(dst_dev != binding->dev)) {
 		err = -ENODEV;
-		goto out_err;
+		goto out_unlock;
 	}
 
+	rcu_read_unlock();
 	return binding;
 
+out_unlock:
+	rcu_read_unlock();
 out_err:
 	if (binding)
 		net_devmem_dmabuf_binding_put(binding);

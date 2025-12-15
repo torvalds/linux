@@ -12,8 +12,7 @@
  *  Multiple device nodes: Harald Freudenberger <freude@linux.ibm.com>
  */
 
-#define KMSG_COMPONENT "zcrypt"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zcrypt: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>
@@ -21,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
-#include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/uaccess.h>
@@ -163,7 +161,7 @@ static ssize_t ioctlmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -171,7 +169,7 @@ static ssize_t ioctlmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.ioctlm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -184,7 +182,7 @@ static ssize_t ioctlmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.ioctlm,
-			       AP_IOCTLS, &ap_perms_mutex);
+			       AP_IOCTLS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -200,7 +198,7 @@ static ssize_t apmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -208,7 +206,7 @@ static ssize_t apmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.apm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -221,7 +219,7 @@ static ssize_t apmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.apm,
-			       AP_DEVICES, &ap_perms_mutex);
+			       AP_DEVICES, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -237,7 +235,7 @@ static ssize_t aqmask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -245,7 +243,7 @@ static ssize_t aqmask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.aqm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -258,7 +256,7 @@ static ssize_t aqmask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.aqm,
-			       AP_DOMAINS, &ap_perms_mutex);
+			       AP_DOMAINS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -274,7 +272,7 @@ static ssize_t admask_show(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 	int i, n;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	n = sysfs_emit(buf, "0x");
@@ -282,7 +280,7 @@ static ssize_t admask_show(struct device *dev,
 		n += sysfs_emit_at(buf, n, "%016lx", zcdndev->perms.adm[i]);
 	n += sysfs_emit_at(buf, n, "\n");
 
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return n;
 }
@@ -295,7 +293,7 @@ static ssize_t admask_store(struct device *dev,
 	struct zcdn_device *zcdndev = to_zcdn_dev(dev);
 
 	rc = ap_parse_mask_str(buf, zcdndev->perms.adm,
-			       AP_DOMAINS, &ap_perms_mutex);
+			       AP_DOMAINS, &ap_attr_mutex);
 	if (rc)
 		return rc;
 
@@ -371,7 +369,7 @@ static int zcdn_create(const char *name)
 	int i, rc = 0;
 	struct zcdn_device *zcdndev;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	/* check if device node with this name already exists */
@@ -426,7 +424,7 @@ static int zcdn_create(const char *name)
 			__func__, MAJOR(devt), MINOR(devt));
 
 unlockout:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	return rc;
 }
 
@@ -435,7 +433,7 @@ static int zcdn_destroy(const char *name)
 	int rc = 0;
 	struct zcdn_device *zcdndev;
 
-	if (mutex_lock_interruptible(&ap_perms_mutex))
+	if (mutex_lock_interruptible(&ap_attr_mutex))
 		return -ERESTARTSYS;
 
 	/* try to find this zcdn device */
@@ -453,7 +451,7 @@ static int zcdn_destroy(const char *name)
 	device_unregister(&zcdndev->device);
 
 unlockout:
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	return rc;
 }
 
@@ -463,7 +461,7 @@ static void zcdn_destroy_all(void)
 	dev_t devt;
 	struct zcdn_device *zcdndev;
 
-	mutex_lock(&ap_perms_mutex);
+	mutex_lock(&ap_attr_mutex);
 	for (i = 0; i < ZCRYPT_MAX_MINOR_NODES; i++) {
 		devt = MKDEV(MAJOR(zcrypt_devt), MINOR(zcrypt_devt) + i);
 		zcdndev = find_zcdndev_by_devt(devt);
@@ -472,7 +470,7 @@ static void zcdn_destroy_all(void)
 			device_unregister(&zcdndev->device);
 		}
 	}
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 }
 
 /*
@@ -509,11 +507,11 @@ static int zcrypt_open(struct inode *inode, struct file *filp)
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
-		if (mutex_lock_interruptible(&ap_perms_mutex))
+		if (mutex_lock_interruptible(&ap_attr_mutex))
 			return -ERESTARTSYS;
 		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
 		/* find returns a reference, no get_device() needed */
-		mutex_unlock(&ap_perms_mutex);
+		mutex_unlock(&ap_attr_mutex);
 		if (zcdndev)
 			perms = &zcdndev->perms;
 	}
@@ -533,9 +531,9 @@ static int zcrypt_release(struct inode *inode, struct file *filp)
 	if (filp->f_inode->i_cdev == &zcrypt_cdev) {
 		struct zcdn_device *zcdndev;
 
-		mutex_lock(&ap_perms_mutex);
+		mutex_lock(&ap_attr_mutex);
 		zcdndev = find_zcdndev_by_devt(filp->f_inode->i_rdev);
-		mutex_unlock(&ap_perms_mutex);
+		mutex_unlock(&ap_attr_mutex);
 		if (zcdndev) {
 			/* 2 puts here: one for find, one for open */
 			put_device(&zcdndev->device);
@@ -740,7 +738,8 @@ out:
 		tr->last_qid = qid;
 	}
 	trace_s390_zcrypt_rep(mex, func_code, rc,
-			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			      ap_msg.psmid);
 	return rc;
 }
 
@@ -845,7 +844,8 @@ out:
 		tr->last_qid = qid;
 	}
 	trace_s390_zcrypt_rep(crt, func_code, rc,
-			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			      ap_msg.psmid);
 	return rc;
 }
 
@@ -980,7 +980,8 @@ out:
 		tr->last_qid = qid;
 	}
 	trace_s390_zcrypt_rep(xcrb, func_code, rc,
-			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			      ap_msg.psmid);
 	return rc;
 }
 
@@ -1182,7 +1183,8 @@ out:
 		tr->last_qid = qid;
 	}
 	trace_s390_zcrypt_rep(xcrb, func_code, rc,
-			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			      ap_msg.psmid);
 	return rc;
 }
 
@@ -1274,7 +1276,8 @@ static long zcrypt_rng(char *buffer)
 out:
 	ap_release_apmsg(&ap_msg);
 	trace_s390_zcrypt_rep(buffer, func_code, rc,
-			      AP_QID_CARD(qid), AP_QID_QUEUE(qid));
+			      AP_QID_CARD(qid), AP_QID_QUEUE(qid),
+			      ap_msg.psmid);
 	return rc;
 }
 
@@ -1729,197 +1732,6 @@ static long zcrypt_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-/*
- * ioctl32 conversion routines
- */
-struct compat_ica_rsa_modexpo {
-	compat_uptr_t	inputdata;
-	unsigned int	inputdatalength;
-	compat_uptr_t	outputdata;
-	unsigned int	outputdatalength;
-	compat_uptr_t	b_key;
-	compat_uptr_t	n_modulus;
-};
-
-static long trans_modexpo32(struct ap_perms *perms, struct file *filp,
-			    unsigned int cmd, unsigned long arg)
-{
-	struct compat_ica_rsa_modexpo __user *umex32 = compat_ptr(arg);
-	struct compat_ica_rsa_modexpo mex32;
-	struct ica_rsa_modexpo mex64;
-	struct zcrypt_track tr;
-	long rc;
-
-	memset(&tr, 0, sizeof(tr));
-	if (copy_from_user(&mex32, umex32, sizeof(mex32)))
-		return -EFAULT;
-	mex64.inputdata = compat_ptr(mex32.inputdata);
-	mex64.inputdatalength = mex32.inputdatalength;
-	mex64.outputdata = compat_ptr(mex32.outputdata);
-	mex64.outputdatalength = mex32.outputdatalength;
-	mex64.b_key = compat_ptr(mex32.b_key);
-	mex64.n_modulus = compat_ptr(mex32.n_modulus);
-	do {
-		rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-
-	/* on ENODEV failure: retry once again after a requested rescan */
-	if (rc == -ENODEV && zcrypt_process_rescan())
-		do {
-			rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
-		rc = -EIO;
-	if (rc)
-		return rc;
-	return put_user(mex64.outputdatalength,
-			&umex32->outputdatalength);
-}
-
-struct compat_ica_rsa_modexpo_crt {
-	compat_uptr_t	inputdata;
-	unsigned int	inputdatalength;
-	compat_uptr_t	outputdata;
-	unsigned int	outputdatalength;
-	compat_uptr_t	bp_key;
-	compat_uptr_t	bq_key;
-	compat_uptr_t	np_prime;
-	compat_uptr_t	nq_prime;
-	compat_uptr_t	u_mult_inv;
-};
-
-static long trans_modexpo_crt32(struct ap_perms *perms, struct file *filp,
-				unsigned int cmd, unsigned long arg)
-{
-	struct compat_ica_rsa_modexpo_crt __user *ucrt32 = compat_ptr(arg);
-	struct compat_ica_rsa_modexpo_crt crt32;
-	struct ica_rsa_modexpo_crt crt64;
-	struct zcrypt_track tr;
-	long rc;
-
-	memset(&tr, 0, sizeof(tr));
-	if (copy_from_user(&crt32, ucrt32, sizeof(crt32)))
-		return -EFAULT;
-	crt64.inputdata = compat_ptr(crt32.inputdata);
-	crt64.inputdatalength = crt32.inputdatalength;
-	crt64.outputdata = compat_ptr(crt32.outputdata);
-	crt64.outputdatalength = crt32.outputdatalength;
-	crt64.bp_key = compat_ptr(crt32.bp_key);
-	crt64.bq_key = compat_ptr(crt32.bq_key);
-	crt64.np_prime = compat_ptr(crt32.np_prime);
-	crt64.nq_prime = compat_ptr(crt32.nq_prime);
-	crt64.u_mult_inv = compat_ptr(crt32.u_mult_inv);
-	do {
-		rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-
-	/* on ENODEV failure: retry once again after a requested rescan */
-	if (rc == -ENODEV && zcrypt_process_rescan())
-		do {
-			rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
-		rc = -EIO;
-	if (rc)
-		return rc;
-	return put_user(crt64.outputdatalength,
-			&ucrt32->outputdatalength);
-}
-
-struct compat_ica_xcrb {
-	unsigned short	agent_ID;
-	unsigned int	user_defined;
-	unsigned short	request_ID;
-	unsigned int	request_control_blk_length;
-	unsigned char	padding1[16 - sizeof(compat_uptr_t)];
-	compat_uptr_t	request_control_blk_addr;
-	unsigned int	request_data_length;
-	char		padding2[16 - sizeof(compat_uptr_t)];
-	compat_uptr_t	request_data_address;
-	unsigned int	reply_control_blk_length;
-	char		padding3[16 - sizeof(compat_uptr_t)];
-	compat_uptr_t	reply_control_blk_addr;
-	unsigned int	reply_data_length;
-	char		padding4[16 - sizeof(compat_uptr_t)];
-	compat_uptr_t	reply_data_addr;
-	unsigned short	priority_window;
-	unsigned int	status;
-} __packed;
-
-static long trans_xcrb32(struct ap_perms *perms, struct file *filp,
-			 unsigned int cmd, unsigned long arg)
-{
-	struct compat_ica_xcrb __user *uxcrb32 = compat_ptr(arg);
-	u32 xflags = ZCRYPT_XFLAG_USERSPACE;
-	struct compat_ica_xcrb xcrb32;
-	struct zcrypt_track tr;
-	struct ica_xcRB xcrb64;
-	long rc;
-
-	memset(&tr, 0, sizeof(tr));
-	if (copy_from_user(&xcrb32, uxcrb32, sizeof(xcrb32)))
-		return -EFAULT;
-	xcrb64.agent_ID = xcrb32.agent_ID;
-	xcrb64.user_defined = xcrb32.user_defined;
-	xcrb64.request_ID = xcrb32.request_ID;
-	xcrb64.request_control_blk_length =
-		xcrb32.request_control_blk_length;
-	xcrb64.request_control_blk_addr =
-		compat_ptr(xcrb32.request_control_blk_addr);
-	xcrb64.request_data_length =
-		xcrb32.request_data_length;
-	xcrb64.request_data_address =
-		compat_ptr(xcrb32.request_data_address);
-	xcrb64.reply_control_blk_length =
-		xcrb32.reply_control_blk_length;
-	xcrb64.reply_control_blk_addr =
-		compat_ptr(xcrb32.reply_control_blk_addr);
-	xcrb64.reply_data_length = xcrb32.reply_data_length;
-	xcrb64.reply_data_addr =
-		compat_ptr(xcrb32.reply_data_addr);
-	xcrb64.priority_window = xcrb32.priority_window;
-	xcrb64.status = xcrb32.status;
-	do {
-		rc = _zcrypt_send_cprb(xflags, perms, &tr, &xcrb64);
-	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-
-	/* on ENODEV failure: retry once again after a requested rescan */
-	if (rc == -ENODEV && zcrypt_process_rescan())
-		do {
-			rc = _zcrypt_send_cprb(xflags, perms, &tr, &xcrb64);
-		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
-	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
-		rc = -EIO;
-	xcrb32.reply_control_blk_length = xcrb64.reply_control_blk_length;
-	xcrb32.reply_data_length = xcrb64.reply_data_length;
-	xcrb32.status = xcrb64.status;
-	if (copy_to_user(uxcrb32, &xcrb32, sizeof(xcrb32)))
-		return -EFAULT;
-	return rc;
-}
-
-static long zcrypt_compat_ioctl(struct file *filp, unsigned int cmd,
-				unsigned long arg)
-{
-	int rc;
-	struct ap_perms *perms =
-		(struct ap_perms *)filp->private_data;
-
-	rc = zcrypt_check_ioctl(perms, cmd);
-	if (rc)
-		return rc;
-
-	if (cmd == ICARSAMODEXPO)
-		return trans_modexpo32(perms, filp, cmd, arg);
-	if (cmd == ICARSACRT)
-		return trans_modexpo_crt32(perms, filp, cmd, arg);
-	if (cmd == ZSECSENDCPRB)
-		return trans_xcrb32(perms, filp, cmd, arg);
-	return zcrypt_unlocked_ioctl(filp, cmd, arg);
-}
-#endif
-
 /*
  * Misc device file operations.
  */
@@ -1928,9 +1740,6 @@ static const struct file_operations zcrypt_fops = {
 	.read		= zcrypt_read,
 	.write		= zcrypt_write,
 	.unlocked_ioctl	= zcrypt_unlocked_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= zcrypt_compat_ioctl,
-#endif
 	.open		= zcrypt_open,
 	.release	= zcrypt_release,
 };

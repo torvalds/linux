@@ -19,6 +19,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 
 #include <acpi/battery.h>
@@ -42,6 +43,7 @@ MODULE_PARM_DESC(fw_debug, "Enable printing of firmware debug messages");
 #define LG_ADDRESS_SPACE_ID			0x8F
 
 #define LG_ADDRESS_SPACE_DEBUG_FLAG_ADR		0x00
+#define LG_ADDRESS_SPACE_HD_AUDIO_POWER_ADDR	0x01
 #define LG_ADDRESS_SPACE_FAN_MODE_ADR		0x03
 
 #define LG_ADDRESS_SPACE_DTTM_FLAG_ADR		0x20
@@ -668,6 +670,15 @@ static acpi_status lg_laptop_address_space_write(struct device *dev, acpi_physic
 	byte = value & 0xFF;
 
 	switch (address) {
+	case LG_ADDRESS_SPACE_HD_AUDIO_POWER_ADDR:
+		/*
+		 * The HD audio power field is not affected by the DTTM flag,
+		 * so we have to manually check fw_debug.
+		 */
+		if (fw_debug)
+			dev_dbg(dev, "HD audio power %s\n", str_enabled_disabled(byte));
+
+		return AE_OK;
 	case LG_ADDRESS_SPACE_FAN_MODE_ADR:
 		/*
 		 * The fan mode field is not affected by the DTTM flag, so we

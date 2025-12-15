@@ -89,8 +89,8 @@ struct dml2_soc_qos_parameters {
 
 struct dml2_soc_power_management_parameters {
 	double dram_clk_change_blackout_us;
-	double dram_clk_change_read_only_us;
-	double dram_clk_change_write_only_us;
+	double dram_clk_change_read_only_us; // deprecated
+	double dram_clk_change_write_only_us; // deprecated
 	double fclk_change_blackout_us;
 	double g7_ppt_blackout_us;
 	double g7_temperature_read_blackout_us;
@@ -191,7 +191,7 @@ struct dml2_ip_capabilities {
 	unsigned int subvp_prefetch_end_to_mall_start_us;
 	unsigned int subvp_fw_processing_delay;
 	unsigned int max_vactive_det_fill_delay_us;
-	unsigned int ppt_max_allow_delay_ns;
+	unsigned int ppt_max_allow_delay_us;
 	unsigned int temp_read_max_allow_delay_us;
 	unsigned int dummy_pstate_max_allow_delay_us;
 	/* FAMS2 delays */

@@ -348,7 +348,7 @@ static int write_pbl(struct c4iw_rdev *rdev, __be64 *pbl,
 {
 	int err;
 
-	pr_debug("*pdb_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
+	pr_debug("*pbl_addr 0x%x, pbl_base 0x%x, pbl_size %d\n",
 		 pbl_addr, rdev->lldi.vr->pbl.start,
 		 pbl_size);
 

@@ -46,7 +46,7 @@
 
 /* Structure for an irq of the core - called an underlying irq */
 struct grgpio_uirq {
-	u8 refcnt; /* Reference counter to manage requesting/freeing of uirq */
+	atomic_t refcnt; /* Reference counter to manage requesting/freeing of uirq */
 	u8 uirq; /* Underlying irq of the gpio driver */
 };
 
@@ -242,30 +242,22 @@ static int grgpio_irq_map(struct irq_domain *d, unsigned int irq,
 		irq, offset);
 
 	gpio_generic_chip_lock_irqsave(&priv->chip, flags);
-
-	/* Request underlying irq if not already requested */
 	lirq->irq = irq;
 	uirq = &priv->uirqs[lirq->index];
-	if (uirq->refcnt == 0) {
-		/*
-		 * FIXME: This is not how locking works at all, you can't just
-		 * release the lock for a moment to do something that can't
-		 * sleep...
-		 */
-		gpio_generic_chip_unlock_irqrestore(&priv->chip, flags);
+	gpio_generic_chip_unlock_irqrestore(&priv->chip, flags);
+
+	/* Request underlying irq if not already requested */
+	if (atomic_fetch_add(1, &uirq->refcnt) == 0) {
 		ret = request_irq(uirq->uirq, grgpio_irq_handler, 0,
 				  dev_name(priv->dev), priv);
 		if (ret) {
 			dev_err(priv->dev,
 				"Could not request underlying irq %d\n",
 				uirq->uirq);
+			atomic_dec(&uirq->refcnt); /* rollback */
 			return ret;
 		}
-		gpio_generic_chip_lock_irqsave(&priv->chip, flags);
 	}
-	uirq->refcnt++;
-
-	gpio_generic_chip_unlock_irqrestore(&priv->chip, flags);
 
 	/* Setup irq  */
 	irq_set_chip_data(irq, priv);
@@ -306,8 +298,7 @@ static void grgpio_irq_unmap(struct irq_domain *d, unsigned int irq)
 
 	if (index >= 0) {
 		uirq = &priv->uirqs[lirq->index];
-		uirq->refcnt--;
-		if (uirq->refcnt == 0) {
+		if (atomic_dec_and_test(&uirq->refcnt)) {
 			gpio_generic_chip_unlock_irqrestore(&priv->chip, flags);
 			free_irq(uirq->uirq, priv);
 			return;
@@ -434,6 +425,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 				continue;
 			}
 			priv->uirqs[lirq->index].uirq = ret;
+			atomic_set(&priv->uirqs[lirq->index].refcnt, 0);
 		}
 	}
 

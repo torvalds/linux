@@ -483,7 +483,8 @@ nfs3_proc_unlink_done(struct rpc_task *task, struct inode *dir)
 static void
 nfs3_proc_rename_setup(struct rpc_message *msg,
 		struct dentry *old_dentry,
-		struct dentry *new_dentry)
+		struct dentry *new_dentry,
+		struct inode *same_parent)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_RENAME];
 }

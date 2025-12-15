@@ -59,6 +59,7 @@ static const struct codec_route_map *get_codec_route_map(const char *codec_name)
 int asoc_sdw_rt_mf_sdca_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	char codec_name[CODEC_NAME_SIZE];
 	int ret;
 
@@ -74,7 +75,7 @@ int asoc_sdw_rt_mf_sdca_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd
 	}
 
 	/* Add routes */
-	ret = snd_soc_dapm_add_routes(&card->dapm, route_map->route_map, route_map->route_size);
+	ret = snd_soc_dapm_add_routes(dapm, route_map->route_map, route_map->route_size);
 	if (ret)
 		dev_err(rtd->dev, "failed to add rt sdca spk map: %d\n", ret);
 

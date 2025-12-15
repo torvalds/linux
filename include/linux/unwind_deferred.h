@@ -6,16 +6,6 @@
 #include <linux/unwind_user.h>
 #include <linux/unwind_deferred_types.h>
 
-struct unwind_work;
-
-typedef void (*unwind_callback_t)(struct unwind_work *work, struct unwind_stacktrace *trace, u64 cookie);
-
-struct unwind_work {
-	struct list_head		list;
-	unwind_callback_t		func;
-	int				bit;
-};
-
 #ifdef CONFIG_UNWIND_USER
 
 enum {
@@ -44,22 +34,22 @@ void unwind_deferred_task_exit(struct task_struct *task);
 static __always_inline void unwind_reset_info(void)
 {
 	struct unwind_task_info *info = &current->unwind_info;
-	unsigned long bits;
+	unsigned long bits = atomic_long_read(&info->unwind_mask);
 
 	/* Was there any unwinding? */
-	if (unlikely(info->unwind_mask)) {
-		bits = info->unwind_mask;
-		do {
-			/* Is a task_work going to run again before going back */
-			if (bits & UNWIND_PENDING)
-				return;
-		} while (!try_cmpxchg(&info->unwind_mask, &bits, 0UL));
-		current->unwind_info.id.id = 0;
+	if (likely(!bits))
+		return;
 
-		if (unlikely(info->cache)) {
-			info->cache->nr_entries = 0;
-			info->cache->unwind_completed = 0;
-		}
+	do {
+		/* Is a task_work going to run again before going back */
+		if (bits & UNWIND_PENDING)
+			return;
+	} while (!atomic_long_try_cmpxchg(&info->unwind_mask, &bits, 0UL));
+	current->unwind_info.id.id = 0;
+
+	if (unlikely(info->cache)) {
+		info->cache->nr_entries = 0;
+		info->cache->unwind_completed = 0;
 	}
 }
 
@@ -68,9 +58,17 @@ static __always_inline void unwind_reset_info(void)
 static inline void unwind_task_init(struct task_struct *task) {}
 static inline void unwind_task_free(struct task_struct *task) {}
 
-static inline int unwind_user_faultable(struct unwind_stacktrace *trace) { return -ENOSYS; }
-static inline int unwind_deferred_init(struct unwind_work *work, unwind_callback_t func) { return -ENOSYS; }
-static inline int unwind_deferred_request(struct unwind_work *work, u64 *timestamp) { return -ENOSYS; }
+static inline int unwind_user_faultable(struct unwind_stacktrace *trace)
+{ return -ENOSYS; }
+
+static inline int
+unwind_deferred_init(struct unwind_work *work, unwind_callback_t func)
+{ return -ENOSYS; }
+
+static inline int
+unwind_deferred_request(struct unwind_work *work, u64 *timestamp)
+{ return -ENOSYS; }
+
 static inline void unwind_deferred_cancel(struct unwind_work *work) {}
 
 static inline void unwind_deferred_task_exit(struct task_struct *task) {}

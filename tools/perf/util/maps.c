@@ -931,8 +931,9 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 			return err;
 		} else {
 			struct map *next = NULL;
+			unsigned int nr_maps = maps__nr_maps(maps);
 
-			if (i + 1 < maps__nr_maps(maps))
+			if (i + 1 < nr_maps)
 				next = maps_by_address[i + 1];
 
 			if (!next  || map__start(next) >= map__end(new)) {
@@ -953,7 +954,24 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 				check_invariants(maps);
 				return err;
 			}
-			__maps__remove(maps, pos);
+			/*
+			 * pos fully covers the previous mapping so remove
+			 * it. The following is an inlined version of
+			 * maps__remove that reuses the already computed
+			 * indices.
+			 */
+			map__put(maps_by_address[i]);
+			memmove(&maps_by_address[i],
+				&maps_by_address[i + 1],
+				(nr_maps - i - 1) * sizeof(*maps_by_address));
+
+			if (maps_by_name) {
+				map__put(maps_by_name[ni]);
+				memmove(&maps_by_name[ni],
+					&maps_by_name[ni + 1],
+					(nr_maps - ni - 1) *  sizeof(*maps_by_name));
+			}
+			--RC_CHK_ACCESS(maps)->nr_maps;
 			check_invariants(maps);
 			/*
 			 * Maps are ordered but no need to increase `i` as the

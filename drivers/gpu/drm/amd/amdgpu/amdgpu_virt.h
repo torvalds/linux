@@ -150,6 +150,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_RAS_CAPS = (1 << 9),
 	AMDGIM_FEATURE_RAS_TELEMETRY = (1 << 10),
 	AMDGIM_FEATURE_RAS_CPER = (1 << 11),
+	AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK = (1 << 12),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -324,6 +325,8 @@ struct amdgpu_virt {
 	/* Spinlock to protect access to the RLCG register interface */
 	spinlock_t rlcg_reg_lock;
 
+	struct mutex access_req_mutex;
+
 	union amd_sriov_ras_caps ras_en_caps;
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
 	struct amdgpu_virt_ras ras;
@@ -394,6 +397,9 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_ras_cper_en(adev) \
 ((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_CPER)
+
+#define amdgpu_sriov_xgmi_ta_ext_peer_link_en(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_XGMI_TA_EXT_PEER_LINK)
 
 static inline bool is_virtual_machine(void)
 {

@@ -15,8 +15,9 @@ of constant size. The size of the array is defined in ``max_entries`` at
 creation time. All array elements are pre-allocated and zero initialized when
 created. ``BPF_MAP_TYPE_PERCPU_ARRAY`` uses a different memory region for each
 CPU whereas ``BPF_MAP_TYPE_ARRAY`` uses the same memory region. The value
-stored can be of any size, however, all array elements are aligned to 8
-bytes.
+stored can be of any size for ``BPF_MAP_TYPE_ARRAY`` and not more than
+``PCPU_MIN_UNIT_SIZE`` (32 kB) for ``BPF_MAP_TYPE_PERCPU_ARRAY``. All
+array elements are aligned to 8 bytes.
 
 Since kernel 5.5, memory mapping may be enabled for ``BPF_MAP_TYPE_ARRAY`` by
 setting the flag ``BPF_F_MMAPABLE``. The map definition is page-aligned and

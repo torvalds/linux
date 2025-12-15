@@ -36,6 +36,7 @@
 #include <linux/dmi.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/kvm_types.h>
 
 #include <xen/xen.h>
 
@@ -173,6 +174,7 @@ static struct resource lapic_resource = {
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
 };
 
+/* Measured in ticks per HZ. */
 unsigned int lapic_timer_period = 0;
 
 static void apic_pm_activate(void);
@@ -792,6 +794,7 @@ static int __init calibrate_APIC_clock(void)
 {
 	struct clock_event_device *levt = this_cpu_ptr(&lapic_events);
 	u64 tsc_perj = 0, tsc_start = 0;
+	long delta_tsc_khz, bus_khz;
 	unsigned long jif_start;
 	unsigned long deltaj;
 	long delta, deltatsc;
@@ -894,14 +897,15 @@ static int __init calibrate_APIC_clock(void)
 	apic_pr_verbose("..... calibration result: %u\n", lapic_timer_period);
 
 	if (boot_cpu_has(X86_FEATURE_TSC)) {
-		apic_pr_verbose("..... CPU clock speed is %ld.%04ld MHz.\n",
-				(deltatsc / LAPIC_CAL_LOOPS) / (1000000 / HZ),
-				(deltatsc / LAPIC_CAL_LOOPS) % (1000000 / HZ));
+		delta_tsc_khz = (deltatsc * HZ) / (1000 * LAPIC_CAL_LOOPS);
+
+		apic_pr_verbose("..... CPU clock speed is %ld.%03ld MHz.\n",
+				delta_tsc_khz / 1000, delta_tsc_khz % 1000);
 	}
 
-	apic_pr_verbose("..... host bus clock speed is %u.%04u MHz.\n",
-			lapic_timer_period / (1000000 / HZ),
-			lapic_timer_period % (1000000 / HZ));
+	bus_khz = (long)lapic_timer_period * HZ / 1000;
+	apic_pr_verbose("..... host bus clock speed is %ld.%03ld MHz.\n",
+			bus_khz / 1000, bus_khz % 1000);
 
 	/*
 	 * Do a sanity check on the APIC calibration result
@@ -2316,7 +2320,7 @@ u32 x86_msi_msg_get_destid(struct msi_msg *msg, bool extid)
 		dest |= msg->arch_addr_hi.destid_8_31 << 8;
 	return dest;
 }
-EXPORT_SYMBOL_GPL(x86_msi_msg_get_destid);
+EXPORT_SYMBOL_FOR_KVM(x86_msi_msg_get_destid);
 
 static void __init apic_bsp_up_setup(void)
 {
@@ -2381,7 +2385,7 @@ static struct {
 	unsigned int apic_cmci;
 } apic_pm_state;
 
-static int lapic_suspend(void)
+static int lapic_suspend(void *data)
 {
 	unsigned long flags;
 	int maxlvt;
@@ -2429,7 +2433,7 @@ static int lapic_suspend(void)
 	return 0;
 }
 
-static void lapic_resume(void)
+static void lapic_resume(void *data)
 {
 	unsigned int l, h;
 	unsigned long flags;
@@ -2504,9 +2508,13 @@ static void lapic_resume(void)
  * are needed on every CPU up until machine_halt/restart/poweroff.
  */
 
-static struct syscore_ops lapic_syscore_ops = {
+static const struct syscore_ops lapic_syscore_ops = {
 	.resume		= lapic_resume,
 	.suspend	= lapic_suspend,
+};
+
+static struct syscore lapic_syscore = {
+	.ops = &lapic_syscore_ops,
 };
 
 static void apic_pm_activate(void)
@@ -2518,7 +2526,7 @@ static int __init init_lapic_sysfs(void)
 {
 	/* XXX: remove suspend/resume procs if !apic_pm_state.active? */
 	if (boot_cpu_has(X86_FEATURE_APIC))
-		register_syscore_ops(&lapic_syscore_ops);
+		register_syscore(&lapic_syscore);
 
 	return 0;
 }

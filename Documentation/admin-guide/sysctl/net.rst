@@ -212,6 +212,14 @@ mem_pcpu_rsv
 
 Per-cpu reserved forward alloc cache size in page units. Default 1MB per CPU.
 
+bypass_prot_mem
+---------------
+
+Skip charging socket buffers to the global per-protocol memory
+accounting controlled by net.ipv4.tcp_mem, net.ipv4.udp_mem, etc.
+
+Default: 0 (off)
+
 rmem_default
 ------------
 
@@ -347,9 +355,9 @@ skb_defer_max
 -------------
 
 Max size (in skbs) of the per-cpu list of skbs being freed
-by the cpu which allocated them. Used by TCP stack so far.
+by the cpu which allocated them.
 
-Default: 64
+Default: 128
 
 optmem_max
 ----------
@@ -405,6 +413,23 @@ to SOCK_TXREHASH_DEFAULT (i. e. not overridden by setsockopt).
 
 If set to 1 (default), hash rethink is performed on listening socket.
 If set to 0, hash rethink is not performed.
+
+txq_reselection_ms
+------------------
+
+Controls how often (in ms) a busy connected flow can select another tx queue.
+
+A resection is desirable when/if user thread has migrated and XPS
+would select a different queue. Same can occur without XPS
+if the flow hash has changed.
+
+But switching txq can introduce reorders, especially if the
+old queue is under high pressure. Modern TCP stacks deal
+well with reorders if they happen not too often.
+
+To disable this feature, set the value to 0.
+
+Default : 1000
 
 gro_normal_batch
 ----------------

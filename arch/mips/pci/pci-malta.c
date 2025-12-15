@@ -230,8 +230,7 @@ void __init mips_pcibios_init(void)
 	}
 
 	/* PIIX4 ACPI starts at 0x1000 */
-	if (controller->io_resource->start < 0x00001000UL)
-		controller->io_resource->start = 0x00001000UL;
+	PCIBIOS_MIN_IO = 0x1000;
 
 	iomem_resource.end &= 0xfffffffffULL;			/* 64 GB */
 	ioport_resource.end = controller->io_resource->end;

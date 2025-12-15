@@ -522,11 +522,7 @@ static void vdo_complete_flush(struct vdo_flush *flush)
 	vdo_enqueue_completion(completion, BIO_Q_FLUSH_PRIORITY);
 }
 
-/**
- * initiate_drain() - Initiate a drain.
- *
- * Implements vdo_admin_initiator_fn.
- */
+/** Implements vdo_admin_initiator_fn. */
 static void initiate_drain(struct admin_state *state)
 {
 	check_for_drain_complete(container_of(state, struct flusher, state));

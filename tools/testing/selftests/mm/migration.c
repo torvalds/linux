@@ -4,7 +4,7 @@
  * paths in the kernel.
  */
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "thp_settings.h"
 
 #include <strings.h>

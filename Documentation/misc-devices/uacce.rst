@@ -1,7 +1,10 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-Introduction of Uacce
----------------------
+Uacce (Unified/User-space-access-intended Accelerator Framework)
+================================================================
+
+Introduction
+------------
 
 Uacce (Unified/User-space-access-intended Accelerator Framework) targets to
 provide Shared Virtual Addressing (SVA) between accelerators and processes.

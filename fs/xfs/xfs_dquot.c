@@ -31,7 +31,7 @@
  *
  * ip->i_lock
  *   qi->qi_tree_lock
- *     dquot->q_qlock (xfs_dqlock() and friends)
+ *     dquot->q_qlock
  *       dquot->q_flush (xfs_dqflock() and friends)
  *       qi->qi_lru_lock
  *
@@ -801,10 +801,11 @@ xfs_dq_get_next_id(
 static struct xfs_dquot *
 xfs_qm_dqget_cache_lookup(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct radix_tree_root	*tree,
-	xfs_dqid_t		id)
+	xfs_dqid_t		id,
+	xfs_dqtype_t		type)
 {
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 
 restart:
@@ -816,16 +817,12 @@ restart:
 		return NULL;
 	}
 
-	xfs_dqlock(dqp);
-	if (dqp->q_flags & XFS_DQFLAG_FREEING) {
-		xfs_dqunlock(dqp);
+	if (!lockref_get_not_dead(&dqp->q_lockref)) {
 		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_freeing(dqp);
 		delay(1);
 		goto restart;
 	}
-
-	dqp->q_nrefs++;
 	mutex_unlock(&qi->qi_tree_lock);
 
 	trace_xfs_dqget_hit(dqp);
@@ -836,8 +833,7 @@ restart:
 /*
  * Try to insert a new dquot into the in-core cache.  If an error occurs the
  * caller should throw away the dquot and start over.  Otherwise, the dquot
- * is returned locked (and held by the cache) as if there had been a cache
- * hit.
+ * is returned (and held by the cache) as if there had been a cache hit.
  *
  * The insert needs to be done under memalloc_nofs context because the radix
  * tree can do memory allocation during insert. The qi->qi_tree_lock is taken in
@@ -848,11 +844,12 @@ restart:
 static int
 xfs_qm_dqget_cache_insert(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct radix_tree_root	*tree,
 	xfs_dqid_t		id,
+	xfs_dqtype_t		type,
 	struct xfs_dquot	*dqp)
 {
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	unsigned int		nofs_flags;
 	int			error;
 
@@ -860,14 +857,11 @@ xfs_qm_dqget_cache_insert(
 	mutex_lock(&qi->qi_tree_lock);
 	error = radix_tree_insert(tree, id, dqp);
 	if (unlikely(error)) {
-		/* Duplicate found!  Caller must try again. */
 		trace_xfs_dqget_dup(dqp);
 		goto out_unlock;
 	}
 
-	/* Return a locked dquot to the caller, with a reference taken. */
-	xfs_dqlock(dqp);
-	dqp->q_nrefs = 1;
+	lockref_init(&dqp->q_lockref);
 	qi->qi_dquots++;
 
 out_unlock:
@@ -903,7 +897,7 @@ xfs_qm_dqget_checks(
 
 /*
  * Given the file system, id, and type (UDQUOT/GDQUOT/PDQUOT), return a
- * locked dquot, doing an allocation (if requested) as needed.
+ * dquot, doing an allocation (if requested) as needed.
  */
 int
 xfs_qm_dqget(
@@ -913,8 +907,6 @@ xfs_qm_dqget(
 	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
 {
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	int			error;
 
@@ -923,28 +915,30 @@ xfs_qm_dqget(
 		return error;
 
 restart:
-	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
-	if (dqp) {
-		*O_dqpp = dqp;
-		return 0;
-	}
+	dqp = xfs_qm_dqget_cache_lookup(mp, id, type);
+	if (dqp)
+		goto found;
 
 	error = xfs_qm_dqread(mp, id, type, can_alloc, &dqp);
 	if (error)
 		return error;
 
-	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
+	error = xfs_qm_dqget_cache_insert(mp, id, type, dqp);
 	if (error) {
-		/*
-		 * Duplicate found. Just throw away the new dquot and start
-		 * over.
-		 */
 		xfs_qm_dqdestroy(dqp);
-		XFS_STATS_INC(mp, xs_qm_dquot_dups);
-		goto restart;
+		if (error == -EEXIST) {
+			/*
+			 * Duplicate found. Just throw away the new dquot and
+			 * start over.
+			 */
+			XFS_STATS_INC(mp, xs_qm_dquot_dups);
+			goto restart;
+		}
+		return error;
 	}
 
 	trace_xfs_dqget_miss(dqp);
+found:
 	*O_dqpp = dqp;
 	return 0;
 }
@@ -999,14 +993,15 @@ xfs_qm_dqget_inode(
 	struct xfs_inode	*ip,
 	xfs_dqtype_t		type,
 	bool			can_alloc,
-	struct xfs_dquot	**O_dqpp)
+	struct xfs_dquot	**dqpp)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct radix_tree_root	*tree = xfs_dquot_tree(qi, type);
 	struct xfs_dquot	*dqp;
 	xfs_dqid_t		id;
 	int			error;
+
+	ASSERT(!*dqpp);
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	error = xfs_qm_dqget_checks(mp, type);
 	if (error)
@@ -1019,11 +1014,9 @@ xfs_qm_dqget_inode(
 	id = xfs_qm_id_for_quotatype(ip, type);
 
 restart:
-	dqp = xfs_qm_dqget_cache_lookup(mp, qi, tree, id);
-	if (dqp) {
-		*O_dqpp = dqp;
-		return 0;
-	}
+	dqp = xfs_qm_dqget_cache_lookup(mp, id, type);
+	if (dqp)
+		goto found;
 
 	/*
 	 * Dquot cache miss. We don't want to keep the inode lock across
@@ -1049,7 +1042,6 @@ restart:
 		if (dqp1) {
 			xfs_qm_dqdestroy(dqp);
 			dqp = dqp1;
-			xfs_dqlock(dqp);
 			goto dqret;
 		}
 	} else {
@@ -1058,21 +1050,26 @@ restart:
 		return -ESRCH;
 	}
 
-	error = xfs_qm_dqget_cache_insert(mp, qi, tree, id, dqp);
+	error = xfs_qm_dqget_cache_insert(mp, id, type, dqp);
 	if (error) {
-		/*
-		 * Duplicate found. Just throw away the new dquot and start
-		 * over.
-		 */
 		xfs_qm_dqdestroy(dqp);
-		XFS_STATS_INC(mp, xs_qm_dquot_dups);
-		goto restart;
+		if (error == -EEXIST) {
+			/*
+			 * Duplicate found. Just throw away the new dquot and
+			 * start over.
+			 */
+			XFS_STATS_INC(mp, xs_qm_dquot_dups);
+			goto restart;
+		}
+		return error;
 	}
 
 dqret:
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	trace_xfs_dqget_miss(dqp);
-	*O_dqpp = dqp;
+found:
+	trace_xfs_dqattach_get(dqp);
+	*dqpp = dqp;
 	return 0;
 }
 
@@ -1098,45 +1095,21 @@ xfs_qm_dqget_next(
 		else if (error != 0)
 			break;
 
+		mutex_lock(&dqp->q_qlock);
 		if (!XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
 			*dqpp = dqp;
 			return 0;
 		}
 
-		xfs_qm_dqput(dqp);
+		mutex_unlock(&dqp->q_qlock);
+		xfs_qm_dqrele(dqp);
 	}
 
 	return error;
 }
 
 /*
- * Release a reference to the dquot (decrement ref-count) and unlock it.
- *
- * If there is a group quota attached to this dquot, carefully release that
- * too without tripping over deadlocks'n'stuff.
- */
-void
-xfs_qm_dqput(
-	struct xfs_dquot	*dqp)
-{
-	ASSERT(dqp->q_nrefs > 0);
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	trace_xfs_dqput(dqp);
-
-	if (--dqp->q_nrefs == 0) {
-		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
-		trace_xfs_dqput_free(dqp);
-
-		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
-			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
-	}
-	xfs_dqunlock(dqp);
-}
-
-/*
- * Release a dquot. Flush it if dirty, then dqput() it.
- * dquot must not be locked.
+ * Release a reference to the dquot.
  */
 void
 xfs_qm_dqrele(
@@ -1147,14 +1120,16 @@ xfs_qm_dqrele(
 
 	trace_xfs_dqrele(dqp);
 
-	xfs_dqlock(dqp);
-	/*
-	 * We don't care to flush it if the dquot is dirty here.
-	 * That will create stutters that we want to avoid.
-	 * Instead we do a delayed write when we try to reclaim
-	 * a dirty dquot. Also xfs_sync will take part of the burden...
-	 */
-	xfs_qm_dqput(dqp);
+	if (lockref_put_or_lock(&dqp->q_lockref))
+		return;
+	if (!--dqp->q_lockref.count) {
+		struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
+
+		trace_xfs_dqrele_free(dqp);
+		if (list_lru_add_obj(&qi->qi_lru, &dqp->q_lru))
+			XFS_STATS_INC(dqp->q_mount, xs_qm_dquot_unused);
+	}
+	spin_unlock(&dqp->q_lockref.lock);
 }
 
 /*

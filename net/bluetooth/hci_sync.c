@@ -863,11 +863,17 @@ bool hci_cmd_sync_dequeue_once(struct hci_dev *hdev,
 {
 	struct hci_cmd_sync_work_entry *entry;
 
-	entry = hci_cmd_sync_lookup_entry(hdev, func, data, destroy);
-	if (!entry)
-		return false;
+	mutex_lock(&hdev->cmd_sync_work_lock);
 
-	hci_cmd_sync_cancel_entry(hdev, entry);
+	entry = _hci_cmd_sync_lookup_entry(hdev, func, data, destroy);
+	if (!entry) {
+		mutex_unlock(&hdev->cmd_sync_work_lock);
+		return false;
+	}
+
+	_hci_cmd_sync_cancel_entry(hdev, entry, -ECANCELED);
+
+	mutex_unlock(&hdev->cmd_sync_work_lock);
 
 	return true;
 }
@@ -1601,7 +1607,7 @@ int hci_disable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 
 	/* If periodic advertising already disabled there is nothing to do. */
 	adv = hci_find_adv_instance(hdev, instance);
-	if (!adv || !adv->periodic || !adv->enabled)
+	if (!adv || !adv->periodic_enabled)
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -1666,7 +1672,7 @@ static int hci_enable_per_advertising_sync(struct hci_dev *hdev, u8 instance)
 
 	/* If periodic advertising already enabled there is nothing to do. */
 	adv = hci_find_adv_instance(hdev, instance);
-	if (adv && adv->periodic && adv->enabled)
+	if (adv && adv->periodic_enabled)
 		return 0;
 
 	memset(&cp, 0, sizeof(cp));
@@ -2600,9 +2606,8 @@ static int hci_resume_advertising_sync(struct hci_dev *hdev)
 		/* If current advertising instance is set to instance 0x00
 		 * then we need to re-enable it.
 		 */
-		if (!hdev->cur_adv_instance)
-			err = hci_enable_ext_advertising_sync(hdev,
-							      hdev->cur_adv_instance);
+		if (hci_dev_test_and_clear_flag(hdev, HCI_LE_ADV_0))
+			err = hci_enable_ext_advertising_sync(hdev, 0x00);
 	} else {
 		/* Schedule for most recent instance to be restarted and begin
 		 * the software rotation loop
@@ -4006,8 +4011,19 @@ static int hci_le_read_buffer_size_sync(struct hci_dev *hdev)
 /* Read LE Local Supported Features */
 static int hci_le_read_local_features_sync(struct hci_dev *hdev)
 {
-	return __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_LOCAL_FEATURES,
-				     0, NULL, HCI_CMD_TIMEOUT);
+	int err;
+
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_LOCAL_FEATURES,
+				    0, NULL, HCI_CMD_TIMEOUT);
+	if (err)
+		return err;
+
+	if (ll_ext_feature_capable(hdev) && hdev->commands[47] & BIT(2))
+		return __hci_cmd_sync_status(hdev,
+					     HCI_OP_LE_READ_ALL_LOCAL_FEATURES,
+					     0, NULL, HCI_CMD_TIMEOUT);
+
+	return err;
 }
 
 /* Read LE Supported States */
@@ -4319,6 +4335,10 @@ static int hci_le_set_event_mask_sync(struct hci_dev *hdev)
 	if (ll_privacy_capable(hdev))
 		hdev->conn_flags |= HCI_CONN_FLAG_ADDRESS_RESOLUTION;
 
+	/* Mark PAST if supported */
+	if (past_capable(hdev))
+		hdev->conn_flags |= HCI_CONN_FLAG_PAST;
+
 	/* If the controller supports Extended Scanner Filter
 	 * Policies, enable the corresponding event.
 	 */
@@ -4387,6 +4407,9 @@ static int hci_le_set_event_mask_sync(struct hci_dev *hdev)
 	 */
 	if (ext_adv_capable(hdev))
 		events[2] |= 0x02;	/* LE Advertising Set Terminated */
+
+	if (past_receiver_capable(hdev))
+		events[2] |= 0x80;	/* LE PAST Received */
 
 	if (cis_capable(hdev)) {
 		events[3] |= 0x01;	/* LE CIS Established */
@@ -6994,14 +7017,14 @@ static void create_pa_complete(struct hci_dev *hdev, void *data, int err)
 
 	hci_dev_lock(hdev);
 
-	if (!hci_conn_valid(hdev, conn))
+	if (hci_conn_valid(hdev, conn))
 		clear_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
 
 	if (!err)
 		goto unlock;
 
 	/* Add connection to indicate PA sync error */
-	pa_sync = hci_conn_add_unset(hdev, PA_LINK, BDADDR_ANY,
+	pa_sync = hci_conn_add_unset(hdev, PA_LINK, BDADDR_ANY, 0,
 				     HCI_ROLE_SLAVE);
 
 	if (IS_ERR(pa_sync))
@@ -7016,10 +7039,41 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static int hci_le_past_params_sync(struct hci_dev *hdev, struct hci_conn *conn,
+				   struct hci_conn *acl, struct bt_iso_qos *qos)
+{
+	struct hci_cp_le_past_params cp;
+	int err;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(acl->handle);
+	/* An HCI_LE_Periodic_Advertising_Sync_Transfer_Received event is sent
+	 * to the Host. HCI_LE_Periodic_Advertising_Report events will be
+	 * enabled with duplicate filtering enabled.
+	 */
+	cp.mode = 0x03;
+	cp.skip = cpu_to_le16(qos->bcast.skip);
+	cp.sync_timeout = cpu_to_le16(qos->bcast.sync_timeout);
+	cp.cte_type = qos->bcast.sync_cte_type;
+
+	/* HCI_LE_PAST_PARAMS command returns a command complete event so it
+	 * cannot wait for HCI_EV_LE_PAST_RECEIVED.
+	 */
+	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_PAST_PARAMS,
+				    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+	if (err)
+		return err;
+
+	/* Wait for HCI_EV_LE_PAST_RECEIVED event */
+	return __hci_cmd_sync_status_sk(hdev, HCI_OP_NOP, 0, NULL,
+					HCI_EV_LE_PAST_RECEIVED,
+					conn->conn_timeout, NULL);
+}
+
 static int hci_le_pa_create_sync(struct hci_dev *hdev, void *data)
 {
 	struct hci_cp_le_pa_create_sync cp;
-	struct hci_conn *conn = data;
+	struct hci_conn *conn = data, *le;
 	struct bt_iso_qos *qos = &conn->iso_qos;
 	int err;
 
@@ -7050,6 +7104,24 @@ static int hci_le_pa_create_sync(struct hci_dev *hdev, void *data)
 	set_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
 
 	hci_update_passive_scan_sync(hdev);
+
+	/* Check if PAST is possible:
+	 *
+	 * 1. Check if an ACL connection with the destination address exists
+	 * 2. Check if that HCI_CONN_FLAG_PAST has been set which indicates that
+	 *    user really intended to use PAST.
+	 */
+	le = hci_conn_hash_lookup_le(hdev, &conn->dst, conn->dst_type);
+	if (le) {
+		struct hci_conn_params *params;
+
+		params = hci_conn_params_lookup(hdev, &le->dst, le->dst_type);
+		if (params && params->flags & HCI_CONN_FLAG_PAST) {
+			err = hci_le_past_params_sync(hdev, conn, le, qos);
+			if (!err)
+				goto done;
+		}
+	}
 
 	/* SID has not been set listen for HCI_EV_LE_EXT_ADV_REPORT to update
 	 * it.
@@ -7166,4 +7238,183 @@ int hci_connect_big_sync(struct hci_dev *hdev, struct hci_conn *conn)
 {
 	return hci_cmd_sync_queue_once(hdev, hci_le_big_create_sync, conn,
 				       create_big_complete);
+}
+
+struct past_data {
+	struct hci_conn *conn;
+	struct hci_conn *le;
+};
+
+static void past_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct past_data *past = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	kfree(past);
+}
+
+static int hci_le_past_set_info_sync(struct hci_dev *hdev, void *data)
+{
+	struct past_data *past = data;
+	struct hci_cp_le_past_set_info cp;
+
+	hci_dev_lock(hdev);
+
+	if (!hci_conn_valid(hdev, past->conn) ||
+	    !hci_conn_valid(hdev, past->le)) {
+		hci_dev_unlock(hdev);
+		return -ECANCELED;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(past->le->handle);
+	cp.adv_handle = past->conn->iso_qos.bcast.bis;
+
+	hci_dev_unlock(hdev);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_PAST_SET_INFO,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_le_past_sync(struct hci_dev *hdev, void *data)
+{
+	struct past_data *past = data;
+	struct hci_cp_le_past cp;
+
+	hci_dev_lock(hdev);
+
+	if (!hci_conn_valid(hdev, past->conn) ||
+	    !hci_conn_valid(hdev, past->le)) {
+		hci_dev_unlock(hdev);
+		return -ECANCELED;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(past->le->handle);
+	cp.sync_handle = cpu_to_le16(past->conn->sync_handle);
+
+	hci_dev_unlock(hdev);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_PAST,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+int hci_past_sync(struct hci_conn *conn, struct hci_conn *le)
+{
+	struct past_data *data;
+	int err;
+
+	if (conn->type != BIS_LINK && conn->type != PA_LINK)
+		return -EINVAL;
+
+	if (!past_sender_capable(conn->hdev))
+		return -EOPNOTSUPP;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	data->conn = conn;
+	data->le = le;
+
+	if (conn->role == HCI_ROLE_MASTER)
+		err = hci_cmd_sync_queue_once(conn->hdev,
+					      hci_le_past_set_info_sync, data,
+					      past_complete);
+	else
+		err = hci_cmd_sync_queue_once(conn->hdev, hci_le_past_sync,
+					      data, past_complete);
+
+	if (err)
+		kfree(data);
+
+	return err;
+}
+
+static void le_read_features_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct hci_conn *conn = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	if (err == -ECANCELED)
+		return;
+
+	hci_conn_drop(conn);
+}
+
+static int hci_le_read_all_remote_features_sync(struct hci_dev *hdev,
+						void *data)
+{
+	struct hci_conn *conn = data;
+	struct hci_cp_le_read_all_remote_features cp;
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(conn->handle);
+	cp.pages = 10; /* Attempt to read all pages */
+
+	/* Wait for HCI_EVT_LE_ALL_REMOTE_FEATURES_COMPLETE event otherwise
+	 * hci_conn_drop may run prematurely causing a disconnection.
+	 */
+	return __hci_cmd_sync_status_sk(hdev,
+					HCI_OP_LE_READ_ALL_REMOTE_FEATURES,
+					sizeof(cp), &cp,
+					HCI_EVT_LE_ALL_REMOTE_FEATURES_COMPLETE,
+					HCI_CMD_TIMEOUT, NULL);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_READ_ALL_REMOTE_FEATURES,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static int hci_le_read_remote_features_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_conn *conn = data;
+	struct hci_cp_le_read_remote_features cp;
+
+	if (!hci_conn_valid(hdev, conn))
+		return -ECANCELED;
+
+	/* Check if LL Extended Feature Set is supported and
+	 * HCI_OP_LE_READ_ALL_REMOTE_FEATURES is supported then use that to read
+	 * all features.
+	 */
+	if (ll_ext_feature_capable(hdev) && hdev->commands[47] & BIT(3))
+		return hci_le_read_all_remote_features_sync(hdev, data);
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle = cpu_to_le16(conn->handle);
+
+	/* Wait for HCI_EV_LE_REMOTE_FEAT_COMPLETE event otherwise
+	 * hci_conn_drop may run prematurely causing a disconnection.
+	 */
+	return __hci_cmd_sync_status_sk(hdev, HCI_OP_LE_READ_REMOTE_FEATURES,
+					sizeof(cp), &cp,
+					HCI_EV_LE_REMOTE_FEAT_COMPLETE,
+					HCI_CMD_TIMEOUT, NULL);
+}
+
+int hci_le_read_remote_features(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+	int err;
+
+	/* The remote features procedure is defined for central
+	 * role only. So only in case of an initiated connection
+	 * request the remote features.
+	 *
+	 * If the local controller supports peripheral-initiated features
+	 * exchange, then requesting the remote features in peripheral
+	 * role is possible. Otherwise just transition into the
+	 * connected state without requesting the remote features.
+	 */
+	if (conn->out || (hdev->le_features[0] & HCI_LE_PERIPHERAL_FEATURES))
+		err = hci_cmd_sync_queue_once(hdev,
+					      hci_le_read_remote_features_sync,
+					      hci_conn_hold(conn),
+					      le_read_features_complete);
+	else
+		err = -EOPNOTSUPP;
+
+	return err;
 }

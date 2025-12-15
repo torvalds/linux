@@ -337,6 +337,7 @@ struct typec_plug *typec_register_plug(struct typec_cable *cable,
 void typec_unregister_plug(struct typec_plug *plug);
 
 void typec_set_data_role(struct typec_port *port, enum typec_data_role role);
+enum typec_data_role typec_get_data_role(struct typec_port *port);
 void typec_set_pwr_role(struct typec_port *port, enum typec_role role);
 void typec_set_vconn_role(struct typec_port *port, enum typec_role role);
 void typec_set_pwr_opmode(struct typec_port *port, enum typec_pwr_opmode mode);

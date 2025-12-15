@@ -491,7 +491,13 @@ union replay_debug_flags {
 		 */
 		uint32_t debug_log_enabled : 1;
 
-		uint32_t reserved : 17;
+		/**
+		 * 0x8000 (bit 15)
+		 * @enable_sub_feature_visual_confirm: Enable Sub Feature Visual Confirm
+		 */
+		uint32_t enable_sub_feature_visual_confirm : 1;
+
+		uint32_t reserved : 16;
 	} bitfields;
 
 	uint32_t u32All;
@@ -599,6 +605,104 @@ union replay_hw_flags {
 	uint32_t u32All;
 };
 
+/**
+ * Flags that can be set by driver to change some Panel Replay behaviour.
+ */
+union pr_debug_flags {
+	struct {
+		/**
+		 * 0x1 (bit 0)
+		 * Enable visual confirm in FW.
+		 */
+		uint32_t visual_confirm : 1;
+
+		/**
+		 * 0x2 (bit 1)
+		 * @skip_crc: Set if need to skip CRC.
+		 */
+		uint32_t skip_crc : 1;
+
+		/**
+		 * 0x4 (bit 2)
+		 * @force_link_power_on: Force disable ALPM control
+		 */
+		uint32_t force_link_power_on : 1;
+
+		/**
+		 * 0x8 (bit 3)
+		 * @force_phy_power_on: Force phy power on
+		 */
+		uint32_t force_phy_power_on : 1;
+
+		/**
+		 * 0x10 (bit 4)
+		 * @skip_crtc_disabled: CRTC disable skipped
+		 */
+		uint32_t skip_crtc_disabled : 1;
+
+		/*
+		 * 0x20 (bit 5)
+		 * @visual_confirm_rate_control: Enable Visual Confirm rate control detection
+		 */
+		uint32_t visual_confirm_rate_control : 1;
+
+		uint32_t reserved : 26;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
+union pr_hw_flags {
+	struct {
+		/**
+		 * @allow_alpm_fw_standby_mode: To indicate whether the
+		 * ALPM FW standby mode is allowed
+		 */
+		uint32_t allow_alpm_fw_standby_mode : 1;
+
+		/*
+		 * @dsc_enable_status: DSC enable status in driver
+		 */
+		uint32_t dsc_enable_status : 1;
+
+		/**
+		 * @fec_enable_status: receive fec enable/disable status from driver
+		 */
+		uint32_t fec_enable_status : 1;
+
+		/*
+		 * @smu_optimizations_en: SMU power optimization.
+		 * Only when active display is Replay capable and display enters Replay.
+		 * Trigger interrupt to SMU to powerup/down.
+		 */
+		uint32_t smu_optimizations_en : 1;
+
+		/**
+		 * @phy_power_state: Indicates current phy power state
+		 */
+		uint32_t phy_power_state : 1;
+
+		/**
+		 * @link_power_state: Indicates current link power state
+		 */
+		uint32_t link_power_state : 1;
+		/**
+		 * Use TPS3 signal when restore main link.
+		 */
+		uint32_t force_wakeup_by_tps3 : 1;
+		/**
+		 * @is_alpm_initialized: Indicates whether ALPM is initialized
+		 */
+		uint32_t is_alpm_initialized : 1;
+		/**
+		 * @alpm_mode: Indicates ALPM mode selected
+		 */
+		uint32_t alpm_mode : 2;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
 union fw_assisted_mclk_switch_version {
 	struct {
 		uint8_t minor : 5;
@@ -623,6 +727,7 @@ struct dmub_feature_caps {
 	uint8_t replay_supported;
 	uint8_t replay_reserved[3];
 	uint8_t abm_aux_backlight_support;
+	uint8_t lsdma_support_in_dmu;
 };
 
 struct dmub_visual_confirm_color {
@@ -1732,9 +1837,15 @@ enum dmub_cmd_type {
 	DMUB_CMD__CURSOR_OFFLOAD = 92,
 
 	/**
-	 * Command type used for all SMART_POWER_HDR commands.
+	 * Command type used for all SMART_POWER_OLED commands.
 	 */
-	DMUB_CMD__SMART_POWER_HDR = 93,
+	DMUB_CMD__SMART_POWER_OLED = 93,
+
+	/**
+	 * Command type use for all Panel Replay commands.
+	 */
+	DMUB_CMD__PR = 94,
+
 
 	/**
 	 * Command type use for VBIOS shared commands.
@@ -2536,6 +2647,7 @@ struct dmub_cmd_fams2_global_config {
 
 union dmub_cmd_fams2_config {
 	struct dmub_cmd_fams2_global_config global;
+// coverity[cert_dcl37_c_violation:FALSE]  errno.h, stddef.h, stdint.h not included in atombios.h
 	struct dmub_fams2_stream_static_state stream; //v0
 	union {
 		struct dmub_fams2_cmd_stream_static_base_state base;
@@ -4148,6 +4260,33 @@ enum replay_state {
 };
 
 /**
+ * Definition of a panel replay state
+ */
+enum pr_state {
+	PR_STATE_0									= 0x00, // State 0 steady state
+	// Pending SDP and Unlock before back to State 0
+	PR_STATE_0_PENDING_SDP_AND_UNLOCK			= 0x01,
+	PR_STATE_1									= 0x10, // State 1
+	PR_STATE_2									= 0x20, // State 2 steady state
+	// Pending frame transmission before transition to State 2
+	PR_STATE_2_PENDING_FRAME_TRANSMISSION		= 0x30,
+	// Active and Powered Up
+	PR_STATE_2_POWERED							= 0x31,
+	// Active and Powered Down, but need to blank HUBP after DPG_EN latch
+	PR_STATE_2_PENDING_HUBP_BLANK				= 0x32,
+	// Active and Pending Power Up
+	PR_STATE_2_PENDING_POWER_UP					= 0x33,
+	// Active and Powered Up, Pending DPG latch
+	PR_STATE_2_PENDING_LOCK_FOR_DPG_POWER_ON	= 0x34,
+	// Active and Powered Up, Pending SDP and Unlock
+	PR_STATE_2_PENDING_SDP_AND_UNLOCK			= 0x35,
+	// Pending transmission of AS SDP for timing sync, but no rfb update
+	PR_STATE_2_PENDING_AS_SDP					= 0x36,
+	// Invalid
+	PR_STATE_INVALID							= 0xFF,
+};
+
+/**
  * Replay command sub-types.
  */
 enum dmub_cmd_replay_type {
@@ -4197,6 +4336,25 @@ enum dmub_cmd_replay_type {
 	DMUB_CMD__REPLAY_SET_GENERAL_CMD = 16,
 };
 
+/*
+ * Panel Replay sub-types
+ */
+enum dmub_cmd_panel_replay_type {
+	DMUB_CMD__PR_ENABLE = 0,
+	DMUB_CMD__PR_COPY_SETTINGS = 1,
+	DMUB_CMD__PR_UPDATE_STATE = 2,
+	DMUB_CMD__PR_GENERAL_CMD = 3,
+};
+
+enum dmub_cmd_panel_replay_state_update_subtype {
+	PR_STATE_UPDATE_COASTING_VTOTAL = 0x1,
+	PR_STATE_UPDATE_SYNC_MODE = 0x2,
+};
+
+enum dmub_cmd_panel_replay_general_subtype {
+	PR_GENERAL_CMD_DEBUG_OPTION = 0x1,
+};
+
 /**
  * Replay general command sub-types.
  */
@@ -4212,6 +4370,7 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
 	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
+	REPLAY_GENERAL_CMD_VIDEO_CONFERENCING,
 };
 
 struct dmub_alpm_auxless_data {
@@ -4349,17 +4508,13 @@ struct dmub_cmd_replay_set_version_data {
 	 */
 	uint8_t panel_inst;
 	/**
-	 * PSR version that FW should implement.
+	 * Replay version that FW should implement.
 	 */
 	enum replay_version version;
 	/**
-	 * PSR control version.
-	 */
-	uint8_t cmd_version;
-	/**
 	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t pad[2];
+	uint8_t pad[3];
 };
 
 /**
@@ -4405,11 +4560,11 @@ enum replay_enable {
 };
 
 /**
- * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+ * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_OLED_ENABLE command.
  */
-struct dmub_rb_cmd_smart_power_hdr_enable_data {
+struct dmub_rb_cmd_smart_power_oled_enable_data {
 	/**
-	 * SMART_POWER_HDR enable or disable.
+	 * SMART_POWER_OLED enable or disable.
 	 */
 	uint8_t enable;
 	/**
@@ -4777,53 +4932,53 @@ union dmub_replay_cmd_set {
 };
 
 /**
- * SMART POWER HDR command sub-types.
+ * SMART POWER OLED command sub-types.
  */
-enum dmub_cmd_smart_power_hdr_type {
+enum dmub_cmd_smart_power_oled_type {
 
 	/**
-	 * Enable/Disable SMART_POWER_HDR.
+	 * Enable/Disable SMART_POWER_OLED.
 	 */
-	DMUB_CMD__SMART_POWER_HDR_ENABLE = 1,
+	DMUB_CMD__SMART_POWER_OLED_ENABLE = 1,
 	/**
-	 * Get current MaxCLL value if SMART POWER HDR is enabled.
+	 * Get current MaxCLL value if SMART POWER OLED is enabled.
 	 */
-	DMUB_CMD__SMART_POWER_HDR_GETMAXCLL = 2,
+	DMUB_CMD__SMART_POWER_OLED_GETMAXCLL = 2,
 };
 
 /**
- * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ * Definition of a DMUB_CMD__SMART_POWER_OLED command.
  */
-struct dmub_rb_cmd_smart_power_hdr_enable {
+struct dmub_rb_cmd_smart_power_oled_enable {
 	/**
 	 * Command header.
 	 */
 	struct dmub_cmd_header header;
 
-	struct dmub_rb_cmd_smart_power_hdr_enable_data data;
+	struct dmub_rb_cmd_smart_power_oled_enable_data data;
 };
 
-struct dmub_cmd_smart_power_hdr_getmaxcll_input {
+struct dmub_cmd_smart_power_oled_getmaxcll_input {
 	uint8_t panel_inst;
 	uint8_t pad[3];
 };
 
-struct dmub_cmd_smart_power_hdr_getmaxcll_output {
+struct dmub_cmd_smart_power_oled_getmaxcll_output {
 	uint16_t current_max_cll;
 	uint8_t pad[2];
 };
 
 /**
- * Definition of a DMUB_CMD__SMART_POWER_HDR command.
+ * Definition of a DMUB_CMD__SMART_POWER_OLED command.
  */
-struct dmub_rb_cmd_smart_power_hdr_getmaxcll {
+struct dmub_rb_cmd_smart_power_oled_getmaxcll {
 	struct dmub_cmd_header header; /**< Command header */
 	/**
-	 * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 * Data passed from driver to FW in a DMUB_CMD__SMART_POWER_OLED_GETMAXCLL command.
 	 */
-	union dmub_cmd_smart_power_hdr_getmaxcll_data {
-		struct dmub_cmd_smart_power_hdr_getmaxcll_input input; /**< Input */
-		struct dmub_cmd_smart_power_hdr_getmaxcll_output output; /**< Output */
+	union dmub_cmd_smart_power_oled_getmaxcll_data {
+		struct dmub_cmd_smart_power_oled_getmaxcll_input input; /**< Input */
+		struct dmub_cmd_smart_power_oled_getmaxcll_output output; /**< Output */
 		uint32_t output_raw; /**< Raw data output */
 	} data;
 };
@@ -6357,6 +6512,223 @@ struct dmub_rb_cmd_cursor_offload_stream_cntl {
 };
 
 /**
+ * Data passed from driver to FW in a DMUB_CMD__PR_ENABLE command.
+ */
+struct dmub_cmd_pr_enable_data {
+	/**
+	 * Panel Replay enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Phy state to enter.
+	 * Values to use are defined in dmub_phy_fsm_state
+	 */
+	uint8_t phy_fsm_state;
+	/**
+	 * Phy rate for DP - RBR/HBR/HBR2/HBR3.
+	 * Set this using enum phy_link_rate.
+	 * This does not support HDMI/DP2 for now.
+	 */
+	uint8_t phy_rate;
+	/**
+	 * @hpo_stream_enc_inst: HPO stream encoder instance
+	 */
+	uint8_t hpo_stream_enc_inst;
+	/**
+	 * @hpo_link_enc_inst: HPO link encoder instance
+	 */
+	uint8_t hpo_link_enc_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__PR_ENABLE command.
+ * Panel Replay enable/disable is controlled using action in data.
+ */
+struct dmub_rb_cmd_pr_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_pr_enable_data data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__PR_COPY_SETTINGS command.
+ */
+struct dmub_cmd_pr_copy_settings_data {
+	/**
+	 * Flags that can be set by driver to change some replay behaviour.
+	 */
+	union pr_debug_flags debug;
+
+	/**
+	 * @flags: Flags used to determine feature functionality.
+	 */
+	union pr_hw_flags flags;
+
+	/**
+	 * DPP HW instance.
+	 */
+	uint8_t dpp_inst;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t otg_inst;
+	/**
+	 * DIG FE HW instance.
+	 */
+	uint8_t digfe_inst;
+	/**
+	 * DIG BE HW instance.
+	 */
+	uint8_t digbe_inst;
+	/**
+	 * AUX HW instance.
+	 */
+	uint8_t aux_inst;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Length of each horizontal line in ns.
+	 */
+	uint32_t line_time_in_ns;
+	/**
+	 * PHY instance.
+	 */
+	uint8_t dpphy_inst;
+	/**
+	 * Determines if SMU optimzations are enabled/disabled.
+	 */
+	uint8_t smu_optimizations_en;
+	/*
+	 * Use FSM state for Replay power up/down
+	 */
+	uint8_t use_phy_fsm;
+	/*
+	 * Use FSFT afftet pixel clk
+	 */
+	uint32_t pix_clk_100hz;
+	/*
+	 * Use Original pixel clock
+	 */
+	uint32_t sink_pix_clk_100hz;
+	/**
+	 * Use for AUX-less ALPM LFPS wake operation
+	 */
+	struct dmub_alpm_auxless_data auxless_alpm_data;
+	/**
+	 * @hpo_stream_enc_inst: HPO stream encoder instance
+	 */
+	uint8_t hpo_stream_enc_inst;
+	/**
+	 * @hpo_link_enc_inst: HPO link encoder instance
+	 */
+	uint8_t hpo_link_enc_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__PR_COPY_SETTINGS command.
+ */
+struct dmub_rb_cmd_pr_copy_settings {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PR_COPY_SETTINGS command.
+	 */
+	struct dmub_cmd_pr_copy_settings_data data;
+};
+
+struct dmub_cmd_pr_update_state_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+
+	uint8_t pad[3]; // align to 4-byte boundary
+	/*
+	 * Update flags to control the update behavior.
+	 */
+	uint32_t update_flag;
+	/**
+	 * state/data to set.
+	 */
+	uint32_t coasting_vtotal;
+	uint32_t sync_mode;
+};
+
+struct dmub_cmd_pr_general_cmd_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * subtype: PR general cmd sub type
+	 */
+	uint8_t subtype;
+
+	uint8_t pad[2];
+	/**
+	 * config data by different subtypes
+	 */
+	union {
+		uint32_t u32All;
+	} data;
+};
+
+/**
+ * Definition of a DMUB_CMD__PR_UPDATE_STATE command.
+ */
+struct dmub_rb_cmd_pr_update_state {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PR_UPDATE_STATE command.
+	 */
+	struct dmub_cmd_pr_update_state_data data;
+};
+
+/**
+ * Definition of a DMUB_CMD__PR_GENERAL_CMD command.
+ */
+struct dmub_rb_cmd_pr_general_cmd {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__PR_GENERAL_CMD command.
+	 */
+	struct dmub_cmd_pr_general_cmd_data data;
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -6698,13 +7070,25 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_cursor_offload_stream_cntl cursor_offload_stream_ctnl;
 	/**
-	 * Definition of a DMUB_CMD__SMART_POWER_HDR_ENABLE command.
+	 * Definition of a DMUB_CMD__SMART_POWER_OLED_ENABLE command.
 	 */
-	struct dmub_rb_cmd_smart_power_hdr_enable smart_power_hdr_enable;
+	struct dmub_rb_cmd_smart_power_oled_enable smart_power_oled_enable;
 	/**
-	 * Definition of a DMUB_CMD__DMUB_CMD__SMART_POWER_HDR_GETMAXCLL command.
+	 * Definition of a DMUB_CMD__DMUB_CMD__SMART_POWER_OLED_GETMAXCLL command.
 	 */
-	struct dmub_rb_cmd_smart_power_hdr_getmaxcll smart_power_hdr_getmaxcll;
+	struct dmub_rb_cmd_smart_power_oled_getmaxcll smart_power_oled_getmaxcll;
+	/*
+	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
+	 */
+	struct dmub_rb_cmd_pr_copy_settings pr_copy_settings;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_ENABLE command.
+	 */
+	struct dmub_rb_cmd_pr_enable pr_enable;
+
+	struct dmub_rb_cmd_pr_update_state pr_update_state;
+
+	struct dmub_rb_cmd_pr_general_cmd pr_general_cmd;
 };
 
 /**

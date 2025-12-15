@@ -13,6 +13,7 @@ INTERVAL_TREE_DEFINE(struct interval_tree_node, rb,
 
 EXPORT_SYMBOL_GPL(interval_tree_insert);
 EXPORT_SYMBOL_GPL(interval_tree_remove);
+EXPORT_SYMBOL_GPL(interval_tree_subtree_search);
 EXPORT_SYMBOL_GPL(interval_tree_iter_first);
 EXPORT_SYMBOL_GPL(interval_tree_iter_next);
 

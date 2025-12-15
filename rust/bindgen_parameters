@@ -35,6 +35,31 @@
 # recognized, block generation of the non-helper constants.
 --blocklist-item ARCH_SLAB_MINALIGN
 --blocklist-item ARCH_KMALLOC_MINALIGN
+--blocklist-item VM_MERGEABLE
+--blocklist-item VM_READ
+--blocklist-item VM_WRITE
+--blocklist-item VM_EXEC
+--blocklist-item VM_SHARED
+--blocklist-item VM_MAYREAD
+--blocklist-item VM_MAYWRITE
+--blocklist-item VM_MAYEXEC
+--blocklist-item VM_MAYEXEC
+--blocklist-item VM_PFNMAP
+--blocklist-item VM_IO
+--blocklist-item VM_DONTCOPY
+--blocklist-item VM_DONTEXPAND
+--blocklist-item VM_LOCKONFAULT
+--blocklist-item VM_ACCOUNT
+--blocklist-item VM_NORESERVE
+--blocklist-item VM_HUGETLB
+--blocklist-item VM_SYNC
+--blocklist-item VM_ARCH_1
+--blocklist-item VM_WIPEONFORK
+--blocklist-item VM_DONTDUMP
+--blocklist-item VM_SOFTDIRTY
+--blocklist-item VM_MIXEDMAP
+--blocklist-item VM_HUGEPAGE
+--blocklist-item VM_NOHUGEPAGE
 
 # Structs should implement `Zeroable` when all of their fields do.
 --with-derive-custom-struct .*=MaybeZeroable

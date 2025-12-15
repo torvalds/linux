@@ -72,7 +72,7 @@ static void collect_wb_stats(struct wb_stats *stats,
 	list_for_each_entry(inode, &wb->b_more_io, i_io_list)
 		stats->nr_more_io++;
 	list_for_each_entry(inode, &wb->b_dirty_time, i_io_list)
-		if (inode->i_state & I_DIRTY_TIME)
+		if (inode_state_read_once(inode) & I_DIRTY_TIME)
 			stats->nr_dirty_time++;
 	spin_unlock(&wb->list_lock);
 

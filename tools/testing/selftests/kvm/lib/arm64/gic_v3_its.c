@@ -15,6 +15,8 @@
 #include "gic_v3.h"
 #include "processor.h"
 
+#define GITS_COLLECTION_TARGET_SHIFT 16
+
 static u64 its_read_u64(unsigned long offset)
 {
 	return readq_relaxed(GITS_BASE_GVA + offset);
@@ -163,6 +165,11 @@ static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
 	its_mask_encode(&cmd->raw_cmd[2], col, 15, 0);
 }
 
+static u64 procnum_to_rdbase(u32 vcpu_id)
+{
+	return vcpu_id << GITS_COLLECTION_TARGET_SHIFT;
+}
+
 #define GITS_CMDQ_POLL_ITERATIONS	0
 
 static void its_send_cmd(void *cmdq_base, struct its_cmd_block *cmd)
@@ -217,7 +224,7 @@ void its_send_mapc_cmd(void *cmdq_base, u32 vcpu_id, u32 collection_id, bool val
 
 	its_encode_cmd(&cmd, GITS_CMD_MAPC);
 	its_encode_collection(&cmd, collection_id);
-	its_encode_target(&cmd, vcpu_id);
+	its_encode_target(&cmd, procnum_to_rdbase(vcpu_id));
 	its_encode_valid(&cmd, valid);
 
 	its_send_cmd(cmdq_base, &cmd);
@@ -243,6 +250,16 @@ void its_send_invall_cmd(void *cmdq_base, u32 collection_id)
 
 	its_encode_cmd(&cmd, GITS_CMD_INVALL);
 	its_encode_collection(&cmd, collection_id);
+
+	its_send_cmd(cmdq_base, &cmd);
+}
+
+void its_send_sync_cmd(void *cmdq_base, u32 vcpu_id)
+{
+	struct its_cmd_block cmd = {};
+
+	its_encode_cmd(&cmd, GITS_CMD_SYNC);
+	its_encode_target(&cmd, procnum_to_rdbase(vcpu_id));
 
 	its_send_cmd(cmdq_base, &cmd);
 }

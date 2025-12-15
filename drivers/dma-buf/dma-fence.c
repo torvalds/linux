@@ -1165,7 +1165,7 @@ const char __rcu *dma_fence_timeline_name(struct dma_fence *fence)
 			 "RCU protection is required for safe access to returned string");
 
 	if (!dma_fence_test_signaled_flag(fence))
-		return fence->ops->get_driver_name(fence);
+		return fence->ops->get_timeline_name(fence);
 	else
 		return "signaled-timeline";
 }

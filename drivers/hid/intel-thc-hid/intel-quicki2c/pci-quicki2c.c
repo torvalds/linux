@@ -344,7 +344,6 @@ exit:
 		if (try_recover(qcdev))
 			qcdev->state = QUICKI2C_DISABLED;
 
-	pm_runtime_mark_last_busy(qcdev->dev);
 	pm_runtime_put_autosuspend(qcdev->dev);
 
 	return IRQ_HANDLED;
@@ -735,7 +734,6 @@ static int quicki2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Enable runtime power management */
 	pm_runtime_use_autosuspend(qcdev->dev);
 	pm_runtime_set_autosuspend_delay(qcdev->dev, DEFAULT_AUTO_SUSPEND_DELAY_MS);
-	pm_runtime_mark_last_busy(qcdev->dev);
 	pm_runtime_put_noidle(qcdev->dev);
 	pm_runtime_put_autosuspend(qcdev->dev);
 

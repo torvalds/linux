@@ -211,10 +211,9 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	const struct file_operations *fops = &io_mock_fops;
 	const struct io_uring_sqe *sqe = cmd->sqe;
 	struct io_uring_mock_create mc, __user *uarg;
-	struct io_mock_file *mf = NULL;
-	struct file *file = NULL;
+	struct file *file;
+	struct io_mock_file *mf __free(kfree) = NULL;
 	size_t uarg_size;
-	int fd = -1, ret;
 
 	/*
 	 * It's a testing only driver that allows exercising edge cases
@@ -246,10 +245,6 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 	if (!mf)
 		return -ENOMEM;
 
-	ret = fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
-	if (fd < 0)
-		goto fail;
-
 	init_waitqueue_head(&mf->poll_wq);
 	mf->size = mc.file_size;
 	mf->rw_delay_ns = mc.rw_delay_ns;
@@ -258,33 +253,25 @@ static int io_create_mock_file(struct io_uring_cmd *cmd, unsigned int issue_flag
 		mf->pollable = true;
 	}
 
-	file = anon_inode_create_getfile("[io_uring_mock]", fops,
-					 mf, O_RDWR | O_CLOEXEC, NULL);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
-		goto fail;
-	}
+	FD_PREPARE(fdf, O_RDWR | O_CLOEXEC,
+		   anon_inode_create_getfile("[io_uring_mock]", fops, mf,
+					     O_RDWR | O_CLOEXEC, NULL));
+	if (fdf.err)
+		return fdf.err;
 
-	file->f_mode |= FMODE_READ | FMODE_CAN_READ |
-			FMODE_WRITE | FMODE_CAN_WRITE |
-			FMODE_LSEEK;
+	retain_and_null_ptr(mf);
+	file = fd_prepare_file(fdf);
+	file->f_mode |= FMODE_READ | FMODE_CAN_READ | FMODE_WRITE |
+			FMODE_CAN_WRITE | FMODE_LSEEK;
 	if (mc.flags & IORING_MOCK_CREATE_F_SUPPORT_NOWAIT)
 		file->f_mode |= FMODE_NOWAIT;
 
-	mc.out_fd = fd;
-	if (copy_to_user(uarg, &mc, uarg_size)) {
-		fput(file);
-		ret = -EFAULT;
-		goto fail;
-	}
+	mc.out_fd = fd_prepare_fd(fdf);
+	if (copy_to_user(uarg, &mc, uarg_size))
+		return -EFAULT;
 
-	fd_install(fd, file);
+	fd_publish(fdf);
 	return 0;
-fail:
-	if (fd >= 0)
-		put_unused_fd(fd);
-	kfree(mf);
-	return ret;
 }
 
 static int io_probe_mock(struct io_uring_cmd *cmd)

@@ -11,7 +11,7 @@
 #include <asm/ioctls.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static bool terminal_dup2(int duplicate, int original)
 {

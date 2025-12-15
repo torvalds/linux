@@ -306,6 +306,8 @@ struct drm_i915_private {
 		struct file *mmap_singleton;
 	} gem;
 
+	spinlock_t frontbuffer_lock; /* protects obj->frontbuffer (write-side) */
+
 	struct intel_pxp *pxp;
 
 	struct i915_pmu pmu;

@@ -45,6 +45,23 @@ static int mlx5i_open(struct net_device *netdev);
 static int mlx5i_close(struct net_device *netdev);
 static int mlx5i_change_mtu(struct net_device *netdev, int new_mtu);
 
+int mlx5i_hwtstamp_set(struct net_device *dev,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
+{
+	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
+
+	return mlx5e_hwtstamp_set(epriv, config, extack);
+}
+
+int mlx5i_hwtstamp_get(struct net_device *dev,
+		       struct kernel_hwtstamp_config *config)
+{
+	struct mlx5e_priv *epriv = mlx5i_epriv(dev);
+
+	return mlx5e_hwtstamp_get(epriv, config);
+}
+
 static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_open                = mlx5i_open,
 	.ndo_stop                = mlx5i_close,
@@ -52,7 +69,8 @@ static const struct net_device_ops mlx5i_netdev_ops = {
 	.ndo_init                = mlx5i_dev_init,
 	.ndo_uninit              = mlx5i_dev_cleanup,
 	.ndo_change_mtu          = mlx5i_change_mtu,
-	.ndo_eth_ioctl            = mlx5i_ioctl,
+	.ndo_hwtstamp_get        = mlx5i_hwtstamp_get,
+	.ndo_hwtstamp_set        = mlx5i_hwtstamp_set,
 };
 
 /* IPoIB mlx5 netdev profile */
@@ -316,7 +334,7 @@ void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, u32 qpn)
 
 int mlx5i_update_nic_rx(struct mlx5e_priv *priv)
 {
-	return mlx5e_refresh_tirs(priv, true, true);
+	return mlx5e_refresh_tirs(priv->mdev, true, true);
 }
 
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn)
@@ -409,6 +427,7 @@ static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
+	enum mlx5e_rx_res_features features;
 	int err;
 
 	priv->fs = mlx5e_fs_init(priv->profile, mdev,
@@ -427,7 +446,9 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	priv->rx_res = mlx5e_rx_res_create(priv->mdev, 0, priv->max_nch, priv->drop_rq.rqn,
+	features = MLX5E_RX_RES_FEATURE_SELF_LB_BLOCK;
+	priv->rx_res = mlx5e_rx_res_create(priv->mdev, features, priv->max_nch,
+					   priv->drop_rq.rqn,
 					   &priv->channels.params.packet_merge,
 					   priv->channels.params.num_channels);
 	if (IS_ERR(priv->rx_res)) {
@@ -555,20 +576,6 @@ int mlx5i_dev_init(struct net_device *dev)
 	mlx5i_pkey_add_qpn(dev, ipriv->qpn);
 
 	return 0;
-}
-
-int mlx5i_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-	struct mlx5e_priv *priv = mlx5i_epriv(dev);
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(priv, ifr);
-	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(priv, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
 }
 
 void mlx5i_dev_cleanup(struct net_device *dev)

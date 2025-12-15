@@ -888,7 +888,7 @@ static int alc5623_resume(struct snd_soc_component *component)
 static int alc5623_probe(struct snd_soc_component *component)
 {
 	struct alc5623_priv *alc5623 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	alc5623_reset(component);
 

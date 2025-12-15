@@ -43,12 +43,11 @@ drop:
 	if (skb_queue_len(&cell->napi_skbs) == 1)
 		napi_schedule(&cell->napi);
 
-	if (have_bh_lock)
-		local_unlock_nested_bh(&gcells->cells->bh_lock);
-
 	res = NET_RX_SUCCESS;
 
 unlock:
+	if (have_bh_lock)
+		local_unlock_nested_bh(&gcells->cells->bh_lock);
 	rcu_read_unlock();
 	return res;
 }
@@ -61,9 +60,10 @@ static int gro_cell_poll(struct napi_struct *napi, int budget)
 	struct sk_buff *skb;
 	int work_done = 0;
 
-	__local_lock_nested_bh(&cell->bh_lock);
 	while (work_done < budget) {
+		__local_lock_nested_bh(&cell->bh_lock);
 		skb = __skb_dequeue(&cell->napi_skbs);
+		__local_unlock_nested_bh(&cell->bh_lock);
 		if (!skb)
 			break;
 		napi_gro_receive(napi, skb);
@@ -72,7 +72,6 @@ static int gro_cell_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget)
 		napi_complete_done(napi, work_done);
-	__local_unlock_nested_bh(&cell->bh_lock);
 	return work_done;
 }
 

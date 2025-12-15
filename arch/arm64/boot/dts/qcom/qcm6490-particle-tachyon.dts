@@ -11,7 +11,7 @@
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
-#include "sc7280.dtsi"
+#include "kodiak.dtsi"
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
 

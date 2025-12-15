@@ -28,7 +28,7 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 	for (i = 0; i < len >> 2; i++) {
 		struct ir_raw_event ev = {
 			.duration = abs(samples[i]),
-			.pulse = (samples[i] > 0) ? false : true
+			.pulse = samples[i] <= 0
 		};
 
 		ir_raw_event_store(coredev->ir.dev, &ev);

@@ -782,9 +782,9 @@ intel_dp_mst_hdcp_stream_encryption(struct intel_connector *connector,
 		return -EINVAL;
 
 	/* Wait for encryption confirmation */
-	if (intel_de_wait(display, HDCP_STATUS(display, cpu_transcoder, port),
-			  stream_enc_status, enable ? stream_enc_status : 0,
-			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait_ms(display, HDCP_STATUS(display, cpu_transcoder, port),
+			     stream_enc_status, enable ? stream_enc_status : 0,
+			     HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS, NULL)) {
 		drm_err(display->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
 			transcoder_name(cpu_transcoder), str_enabled_disabled(enable));
 		return -ETIMEDOUT;
@@ -821,10 +821,10 @@ intel_dp_mst_hdcp2_stream_encryption(struct intel_connector *connector,
 		return ret;
 
 	/* Wait for encryption confirmation */
-	if (intel_de_wait(display, HDCP2_STREAM_STATUS(display, cpu_transcoder, pipe),
-			  STREAM_ENCRYPTION_STATUS,
-			  enable ? STREAM_ENCRYPTION_STATUS : 0,
-			  HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS)) {
+	if (intel_de_wait_ms(display, HDCP2_STREAM_STATUS(display, cpu_transcoder, pipe),
+			     STREAM_ENCRYPTION_STATUS,
+			     enable ? STREAM_ENCRYPTION_STATUS : 0,
+			     HDCP_ENCRYPT_STATUS_CHANGE_TIMEOUT_MS, NULL)) {
 		drm_err(display->drm, "Timed out waiting for transcoder: %s stream encryption %s\n",
 			transcoder_name(cpu_transcoder), str_enabled_disabled(enable));
 		return -ETIMEDOUT;

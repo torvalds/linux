@@ -233,9 +233,13 @@ int __ptep_set_access_flags(struct vm_area_struct *vma,
 		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
 	} while (pteval != old_pteval);
 
-	/* Invalidate a stale read-only entry */
+	/*
+	 * Invalidate the local stale read-only entry.  Remote stale entries
+	 * may still cause page faults and be invalidated via
+	 * flush_tlb_fix_spurious_fault().
+	 */
 	if (dirty)
-		flush_tlb_page(vma, address);
+		local_flush_tlb_page(vma, address);
 	return 1;
 }
 
@@ -967,10 +971,21 @@ struct folio *vma_alloc_zeroed_movable_folio(struct vm_area_struct *vma,
 	return vma_alloc_folio(flags, 0, vma, vaddr);
 }
 
-void tag_clear_highpage(struct page *page)
+bool tag_clear_highpages(struct page *page, int numpages)
 {
-	/* Newly allocated page, shouldn't have been tagged yet */
-	WARN_ON_ONCE(!try_page_mte_tagging(page));
-	mte_zero_clear_page_tags(page_address(page));
-	set_page_mte_tagged(page);
+	/*
+	 * Check if MTE is supported and fall back to clear_highpage().
+	 * get_huge_zero_folio() unconditionally passes __GFP_ZEROTAGS and
+	 * post_alloc_hook() will invoke tag_clear_highpages().
+	 */
+	if (!system_supports_mte())
+		return false;
+
+	/* Newly allocated pages, shouldn't have been tagged yet */
+	for (int i = 0; i < numpages; i++, page++) {
+		WARN_ON_ONCE(!try_page_mte_tagging(page));
+		mte_zero_clear_page_tags(page_address(page));
+		set_page_mte_tagged(page);
+	}
+	return true;
 }

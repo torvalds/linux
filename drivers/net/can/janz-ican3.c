@@ -1752,7 +1752,6 @@ static const struct net_device_ops ican3_netdev_ops = {
 	.ndo_open	= ican3_open,
 	.ndo_stop	= ican3_stop,
 	.ndo_start_xmit	= ican3_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops ican3_ethtool_ops = {

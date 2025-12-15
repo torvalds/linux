@@ -134,7 +134,8 @@ static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len,
 }
 
 int
-smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *server)
+smb2_check_message(char *buf, unsigned int pdu_len, unsigned int len,
+		   struct TCP_Server_Info *server)
 {
 	struct TCP_Server_Info *pserver;
 	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;

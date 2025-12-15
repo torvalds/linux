@@ -1198,7 +1198,8 @@ static int __init i10nm_init(void)
 				d->imc[i].num_dimms    = cfg->ddr_dimm_num;
 			}
 
-			rc = skx_register_mci(&d->imc[i], d->imc[i].mdev,
+			rc = skx_register_mci(&d->imc[i], &d->imc[i].mdev->dev,
+					      pci_name(d->imc[i].mdev),
 					      "Intel_10nm Socket", EDAC_MOD_STR,
 					      i10nm_get_dimm_config, cfg);
 			if (rc < 0)

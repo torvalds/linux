@@ -11,8 +11,22 @@
 #ifdef KVM_SUB_MODULES
 #define EXPORT_SYMBOL_FOR_KVM_INTERNAL(symbol) \
 	EXPORT_SYMBOL_FOR_MODULES(symbol, __stringify(KVM_SUB_MODULES))
+#define EXPORT_SYMBOL_FOR_KVM(symbol) \
+	EXPORT_SYMBOL_FOR_MODULES(symbol, "kvm," __stringify(KVM_SUB_MODULES))
 #else
 #define EXPORT_SYMBOL_FOR_KVM_INTERNAL(symbol)
+/*
+ * Allow architectures to provide a custom EXPORT_SYMBOL_FOR_KVM, but only
+ * if there are no submodules, e.g. to allow suppressing exports if KVM=m, but
+ * kvm.ko won't actually be built (due to lack of at least one submodule).
+ */
+#ifndef EXPORT_SYMBOL_FOR_KVM
+#if IS_MODULE(CONFIG_KVM)
+#define EXPORT_SYMBOL_FOR_KVM(symbol) EXPORT_SYMBOL_FOR_MODULES(symbol, "kvm")
+#else
+#define EXPORT_SYMBOL_FOR_KVM(symbol)
+#endif /* IS_MODULE(CONFIG_KVM) */
+#endif /* EXPORT_SYMBOL_FOR_KVM */
 #endif
 
 #ifndef __ASSEMBLER__

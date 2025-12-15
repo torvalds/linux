@@ -91,9 +91,13 @@ allOf:
         power-domains:
           items:
             - description: NSP power domain
+            - description: CX power domain
+            - description: MXC power domain
         power-domain-names:
           items:
             - const: nsp
+            - const: cx
+            - const: mxc
 
 unevaluatedProperties: false
 

@@ -406,6 +406,8 @@
 	mpl3115@60 {
 		compatible = "fsl,mpl3115";
 		reg = <0x60>;
+		vdd-supply = <&reg_audio_3v3>;
+		vddio-supply = <&reg_audio_3v3>;
 	};
 };
 

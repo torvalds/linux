@@ -1213,6 +1213,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
+	const u8 tmp3 = bpf2a64[TMP_REG_3];
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
 	const u8 priv_sp = bpf2a64[PRIVATE_SP];
@@ -1451,6 +1452,10 @@ emit_bswap_uxt:
 		emit(A64_ASR(is64, dst, dst, imm), ctx);
 		break;
 
+	/* JUMP reg */
+	case BPF_JMP | BPF_JA | BPF_X:
+		emit(A64_BR(dst), ctx);
+		break;
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
 	case BPF_JMP32 | BPF_JA:
@@ -1757,8 +1762,8 @@ emit_cond_jmp:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_W:
 	case BPF_ST | BPF_PROBE_MEM32 | BPF_DW:
 		if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
-			emit(A64_ADD(1, tmp2, dst, arena_vm_base), ctx);
-			dst = tmp2;
+			emit(A64_ADD(1, tmp3, dst, arena_vm_base), ctx);
+			dst = tmp3;
 		}
 		if (dst == fp) {
 			dst_adj = ctx->priv_sp_used ? priv_sp : A64_SP;
@@ -2230,6 +2235,13 @@ skip_init_ctx:
 		for (i = 0; i <= prog->len; i++)
 			ctx.offset[i] *= AARCH64_INSN_SIZE;
 		bpf_prog_fill_jited_linfo(prog, ctx.offset + 1);
+		/*
+		 * The bpf_prog_update_insn_ptrs function expects offsets to
+		 * point to the first byte of the jitted instruction (unlike
+		 * the bpf_prog_fill_jited_linfo above, which, for historical
+		 * reasons, expects to point to the next instruction)
+		 */
+		bpf_prog_update_insn_ptrs(prog, ctx.offset, ctx.ro_image);
 out_off:
 		if (!ro_header && priv_stack_ptr) {
 			free_percpu(priv_stack_ptr);
@@ -2922,8 +2934,9 @@ static int gen_branch_or_nop(enum aarch64_insn_branch_type type, void *ip,
  * The dummy_tramp is used to prevent another CPU from jumping to unknown
  * locations during the patching process, making the patching process easier.
  */
-int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
-		       void *old_addr, void *new_addr)
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
+		       enum bpf_text_poke_type new_t, void *old_addr,
+		       void *new_addr)
 {
 	int ret;
 	u32 old_insn;
@@ -2967,14 +2980,13 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		    !poking_bpf_entry))
 		return -EINVAL;
 
-	if (poke_type == BPF_MOD_CALL)
-		branch_type = AARCH64_INSN_BRANCH_LINK;
-	else
-		branch_type = AARCH64_INSN_BRANCH_NOLINK;
-
+	branch_type = old_t == BPF_MOD_CALL ? AARCH64_INSN_BRANCH_LINK :
+					      AARCH64_INSN_BRANCH_NOLINK;
 	if (gen_branch_or_nop(branch_type, ip, old_addr, plt, &old_insn) < 0)
 		return -EFAULT;
 
+	branch_type = new_t == BPF_MOD_CALL ? AARCH64_INSN_BRANCH_LINK :
+					      AARCH64_INSN_BRANCH_NOLINK;
 	if (gen_branch_or_nop(branch_type, ip, new_addr, plt, &new_insn) < 0)
 		return -EFAULT;
 
@@ -3053,7 +3065,7 @@ bool bpf_jit_supports_exceptions(void)
 	/* We unwind through both kernel frames starting from within bpf_throw
 	 * call and BPF frames. Therefore we require FP unwinder to be enabled
 	 * to walk kernel frames and reach BPF frames in the stack trace.
-	 * ARM64 kernel is aways compiled with CONFIG_FRAME_POINTER=y
+	 * ARM64 kernel is always compiled with CONFIG_FRAME_POINTER=y
 	 */
 	return true;
 }

@@ -258,7 +258,7 @@ static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8580_priv *wm8580 = snd_soc_component_get_drvdata(component);
 	unsigned int reg = mc->reg;
 	unsigned int reg2 = mc->rreg;
@@ -820,13 +820,15 @@ static int wm8580_mute(struct snd_soc_dai *codec_dai, int mute, int direction)
 static int wm8580_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/* Power up and get individual control of the DACs */
 			snd_soc_component_update_bits(component, WM8580_PWRDN1,
 					    WM8580_PWRDN1_PWDN |
@@ -907,7 +909,7 @@ static struct snd_soc_dai_driver wm8580_dai[] = {
 static int wm8580_probe(struct snd_soc_component *component)
 {
 	struct wm8580_priv *wm8580 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret = 0;
 
 	switch (wm8580->drvdata->num_dacs) {

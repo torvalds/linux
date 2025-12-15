@@ -109,14 +109,9 @@ struct aste {
 
 int ipte_lock_held(struct kvm *kvm)
 {
-	if (sclp.has_siif) {
-		int rc;
+	if (sclp.has_siif)
+		return kvm->arch.sca->ipte_control.kh != 0;
 
-		read_lock(&kvm->arch.sca_lock);
-		rc = kvm_s390_get_ipte_control(kvm)->kh != 0;
-		read_unlock(&kvm->arch.sca_lock);
-		return rc;
-	}
 	return kvm->arch.ipte_lock_count != 0;
 }
 
@@ -129,19 +124,16 @@ static void ipte_lock_simple(struct kvm *kvm)
 	if (kvm->arch.ipte_lock_count > 1)
 		goto out;
 retry:
-	read_lock(&kvm->arch.sca_lock);
-	ic = kvm_s390_get_ipte_control(kvm);
+	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
 		if (old.k) {
-			read_unlock(&kvm->arch.sca_lock);
 			cond_resched();
 			goto retry;
 		}
 		new = old;
 		new.k = 1;
 	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
-	read_unlock(&kvm->arch.sca_lock);
 out:
 	mutex_unlock(&kvm->arch.ipte_mutex);
 }
@@ -154,14 +146,12 @@ static void ipte_unlock_simple(struct kvm *kvm)
 	kvm->arch.ipte_lock_count--;
 	if (kvm->arch.ipte_lock_count)
 		goto out;
-	read_lock(&kvm->arch.sca_lock);
-	ic = kvm_s390_get_ipte_control(kvm);
+	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
 		new = old;
 		new.k = 0;
 	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
-	read_unlock(&kvm->arch.sca_lock);
 	wake_up(&kvm->arch.ipte_wq);
 out:
 	mutex_unlock(&kvm->arch.ipte_mutex);
@@ -172,12 +162,10 @@ static void ipte_lock_siif(struct kvm *kvm)
 	union ipte_control old, new, *ic;
 
 retry:
-	read_lock(&kvm->arch.sca_lock);
-	ic = kvm_s390_get_ipte_control(kvm);
+	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
 		if (old.kg) {
-			read_unlock(&kvm->arch.sca_lock);
 			cond_resched();
 			goto retry;
 		}
@@ -185,15 +173,13 @@ retry:
 		new.k = 1;
 		new.kh++;
 	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
-	read_unlock(&kvm->arch.sca_lock);
 }
 
 static void ipte_unlock_siif(struct kvm *kvm)
 {
 	union ipte_control old, new, *ic;
 
-	read_lock(&kvm->arch.sca_lock);
-	ic = kvm_s390_get_ipte_control(kvm);
+	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
 		new = old;
@@ -201,7 +187,6 @@ static void ipte_unlock_siif(struct kvm *kvm)
 		if (!new.kh)
 			new.k = 0;
 	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
-	read_unlock(&kvm->arch.sca_lock);
 	if (!new.kh)
 		wake_up(&kvm->arch.ipte_wq);
 }

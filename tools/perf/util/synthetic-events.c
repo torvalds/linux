@@ -389,7 +389,7 @@ static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
 		dso_id.ino_generation = event->ino_generation;
 		dso_id.mmap2_valid = true;
 		dso_id.mmap2_ino_generation_valid = true;
-	};
+	}
 
 	dso = dsos__findnew_id(&machine->dsos, event->filename, &dso_id);
 	if (dso && dso__has_build_id(dso)) {
@@ -401,7 +401,7 @@ static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
 	nsi = nsinfo__new(event->pid);
 	nsinfo__mountns_enter(nsi, &nc);
 
-	rc = filename__read_build_id(event->filename, &bid, /*block=*/false) > 0 ? 0 : -1;
+	rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
 
 	nsinfo__mountns_exit(&nc);
 	nsinfo__put(nsi);

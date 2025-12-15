@@ -26,6 +26,11 @@ static const u8 xor5rax[] = { 0x2e, 0x2e, 0x2e, 0x31, 0xc0 };
 
 static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
 
+/*
+ * ud1    (%edx),%rdi -- see __WARN_trap() / decode_bug()
+ */
+static const u8 warninsn[] = { 0x67, 0x48, 0x0f, 0xb9, 0x3a };
+
 static u8 __is_Jcc(u8 *insn) /* Jcc.d32 */
 {
 	u8 ret = 0;
@@ -45,8 +50,8 @@ asm (".global __static_call_return\n\t"
      ".type __static_call_return, @function\n\t"
      ASM_FUNC_ALIGN "\n\t"
      "__static_call_return:\n\t"
-     ANNOTATE_NOENDBR
-     ANNOTATE_RETPOLINE_SAFE
+     ANNOTATE_NOENDBR "\n\t"
+     ANNOTATE_RETPOLINE_SAFE "\n\t"
      "ret; int3\n\t"
      ".size __static_call_return, . - __static_call_return \n\t");
 
@@ -69,7 +74,10 @@ static void __ref __static_call_transform(void *insn, enum insn_type type,
 			emulate = code;
 			code = &xor5rax;
 		}
-
+		if (func == &__WARN_trap) {
+			emulate = code;
+			code = &warninsn;
+		}
 		break;
 
 	case NOP:
@@ -128,7 +136,8 @@ static void __static_call_validate(u8 *insn, bool tail, bool tramp)
 	} else {
 		if (opcode == CALL_INSN_OPCODE ||
 		    !memcmp(insn, x86_nops[5], 5) ||
-		    !memcmp(insn, xor5rax, 5))
+		    !memcmp(insn, xor5rax, 5) ||
+		    !memcmp(insn, warninsn, 5))
 			return;
 	}
 

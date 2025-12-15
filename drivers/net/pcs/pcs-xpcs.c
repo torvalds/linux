@@ -37,6 +37,16 @@ static const int xpcs_10gkr_features[] = {
 	__ETHTOOL_LINK_MODE_MASK_NBITS,
 };
 
+static const int xpcs_25gbaser_features[] = {
+	ETHTOOL_LINK_MODE_MII_BIT,
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
 static const int xpcs_xlgmii_features[] = {
 	ETHTOOL_LINK_MODE_Pause_BIT,
 	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
@@ -59,6 +69,40 @@ static const int xpcs_xlgmii_features[] = {
 	ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
 	ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
 	ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
+	ETHTOOL_LINK_MODE_100000baseDR2_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
+static const int xpcs_50gbaser_features[] = {
+	ETHTOOL_LINK_MODE_MII_BIT,
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_50000baseKR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseDR_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
+static const int xpcs_50gbaser2_features[] = {
+	ETHTOOL_LINK_MODE_MII_BIT,
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+	ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
+	ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+	__ETHTOOL_LINK_MODE_MASK_NBITS,
+};
+
+static const int xpcs_100gbasep_features[] = {
+	ETHTOOL_LINK_MODE_MII_BIT,
+	ETHTOOL_LINK_MODE_Pause_BIT,
+	ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 	ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
 	ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT,
 	ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT,
@@ -523,9 +567,57 @@ static int xpcs_get_max_xlgmii_speed(struct dw_xpcs *xpcs,
 	return speed;
 }
 
-static void xpcs_resolve_pma(struct dw_xpcs *xpcs,
-			     struct phylink_link_state *state)
+static int xpcs_c45_read_pcs_speed(struct dw_xpcs *xpcs,
+				   struct phylink_link_state *state)
 {
+	int pcs_ctrl1;
+
+	pcs_ctrl1 = xpcs_read(xpcs, MDIO_MMD_PCS, MDIO_CTRL1);
+	if (pcs_ctrl1 < 0)
+		return pcs_ctrl1;
+
+	switch (pcs_ctrl1 & MDIO_CTRL1_SPEEDSEL) {
+	case MDIO_PCS_CTRL1_SPEED25G:
+		state->speed = SPEED_25000;
+		break;
+	case MDIO_PCS_CTRL1_SPEED50G:
+		state->speed =  SPEED_50000;
+		break;
+	case MDIO_PCS_CTRL1_SPEED100G:
+		state->speed = SPEED_100000;
+		break;
+	default:
+		state->speed = SPEED_UNKNOWN;
+		break;
+	}
+
+	return 0;
+}
+
+static int xpcs_resolve_pma(struct dw_xpcs *xpcs,
+			    struct phylink_link_state *state)
+{
+	int pmd_rxdet, err = 0;
+
+	/* The Meta Platforms FBNIC PMD will go into a training state for
+	 * about 4 seconds when the link first comes up. During this time the
+	 * PCS link will bounce. To avoid reporting link up too soon we include
+	 * the PMD state provided by the driver.
+	 */
+	if (xpcs->info.pma == MP_FBNIC_XPCS_PMA_100G_ID) {
+		pmd_rxdet = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_PMA_RXDET);
+		if (pmd_rxdet < 0) {
+			state->link = false;
+			return pmd_rxdet;
+		}
+
+		/* Verify Rx lanes are trained before reporting link up */
+		if (!(pmd_rxdet & MDIO_PMD_RXDET_GLOBAL)) {
+			state->link = false;
+			return 0;
+		}
+	}
+
 	state->pause = MLO_PAUSE_TX | MLO_PAUSE_RX;
 	state->duplex = DUPLEX_FULL;
 
@@ -536,10 +628,18 @@ static void xpcs_resolve_pma(struct dw_xpcs *xpcs,
 	case PHY_INTERFACE_MODE_XLGMII:
 		state->speed = xpcs_get_max_xlgmii_speed(xpcs, state);
 		break;
+	case PHY_INTERFACE_MODE_100GBASEP:
+	case PHY_INTERFACE_MODE_LAUI:
+	case PHY_INTERFACE_MODE_50GBASER:
+	case PHY_INTERFACE_MODE_25GBASER:
+		err = xpcs_c45_read_pcs_speed(xpcs, state);
+		break;
 	default:
 		state->speed = SPEED_UNKNOWN;
 		break;
 	}
+
+	return err;
 }
 
 static int xpcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
@@ -945,10 +1045,10 @@ static int xpcs_get_state_c73(struct dw_xpcs *xpcs,
 
 		phylink_resolve_c73(state);
 	} else {
-		xpcs_resolve_pma(xpcs, state);
+		ret = xpcs_resolve_pma(xpcs, state);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int xpcs_get_state_c37_sgmii(struct dw_xpcs *xpcs,
@@ -1284,17 +1384,16 @@ static int xpcs_read_ids(struct dw_xpcs *xpcs)
 	if (ret < 0)
 		return ret;
 
-	id = ret;
+	id = ret << 16;
 
 	ret = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_DEVID2);
 	if (ret < 0)
 		return ret;
 
-	/* Note the inverted dword order and masked out Model/Revision numbers
-	 * with respect to what is done with the PCS ID...
+	/* For now we only record the OUI for the PMAPMD, we may want to
+	 * add the model number at some point in the future.
 	 */
-	ret = (ret >> 10) & 0x3F;
-	id |= ret << 16;
+	id |= ret & MDIO_DEVID2_OUI;
 
 	/* Set the PMA ID if it hasn't been pre-initialized */
 	if (xpcs->info.pma == DW_XPCS_PMA_ID_NATIVE)
@@ -1313,8 +1412,24 @@ static const struct dw_xpcs_compat synopsys_xpcs_compat[] = {
 		.supported = xpcs_10gkr_features,
 		.an_mode = DW_AN_C73,
 	}, {
+		.interface = PHY_INTERFACE_MODE_25GBASER,
+		.supported = xpcs_25gbaser_features,
+		.an_mode = DW_AN_C73,
+	}, {
 		.interface = PHY_INTERFACE_MODE_XLGMII,
 		.supported = xpcs_xlgmii_features,
+		.an_mode = DW_AN_C73,
+	}, {
+		.interface = PHY_INTERFACE_MODE_50GBASER,
+		.supported = xpcs_50gbaser_features,
+		.an_mode = DW_AN_C73,
+	}, {
+		.interface = PHY_INTERFACE_MODE_LAUI,
+		.supported = xpcs_50gbaser2_features,
+		.an_mode = DW_AN_C73,
+	}, {
+		.interface = PHY_INTERFACE_MODE_100GBASEP,
+		.supported = xpcs_100gbasep_features,
 		.an_mode = DW_AN_C73,
 	}, {
 		.interface = PHY_INTERFACE_MODE_10GBASER,
@@ -1495,7 +1610,8 @@ static struct dw_xpcs *xpcs_create(struct mdio_device *mdiodev)
 
 	xpcs_get_interfaces(xpcs, xpcs->pcs.supported_interfaces);
 
-	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID)
+	if (xpcs->info.pma == WX_TXGBE_XPCS_PMA_10G_ID ||
+	    xpcs->info.pma == MP_FBNIC_XPCS_PMA_100G_ID)
 		xpcs->pcs.poll = false;
 	else
 		xpcs->need_reset = true;

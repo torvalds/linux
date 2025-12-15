@@ -952,7 +952,6 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 		snprintf(ptp_info->pin_config[i].name,
 			 sizeof(ptp_info->pin_config[i].name), "bnxt_pps%d", i);
 		ptp_info->pin_config[i].index = i;
-		ptp_info->pin_config[i].chan = i;
 		if (*pin_usg == BNXT_PPS_PIN_PPS_IN)
 			ptp_info->pin_config[i].func = PTP_PF_EXTTS;
 		else if (*pin_usg == BNXT_PPS_PIN_PPS_OUT)
@@ -969,6 +968,8 @@ static int bnxt_ptp_pps_init(struct bnxt *bp)
 	ptp_info->n_per_out = 1;
 	ptp_info->pps = 1;
 	ptp_info->verify = bnxt_ptp_verify;
+	ptp_info->supported_extts_flags = PTP_RISING_EDGE | PTP_STRICT_FLAGS;
+	ptp_info->supported_perout_flags = PTP_PEROUT_DUTY_CYCLE;
 
 	return 0;
 }
@@ -1051,9 +1052,9 @@ static void bnxt_ptp_free(struct bnxt *bp)
 	if (ptp->ptp_clock) {
 		ptp_clock_unregister(ptp->ptp_clock);
 		ptp->ptp_clock = NULL;
-		kfree(ptp->ptp_info.pin_config);
-		ptp->ptp_info.pin_config = NULL;
 	}
+	kfree(ptp->ptp_info.pin_config);
+	ptp->ptp_info.pin_config = NULL;
 }
 
 int bnxt_ptp_init(struct bnxt *bp)

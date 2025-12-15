@@ -286,7 +286,7 @@ void ping_close(struct sock *sk, long timeout)
 }
 EXPORT_IPV6_MOD_GPL(ping_close);
 
-static int ping_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+static int ping_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			    int addr_len)
 {
 	/* This check is replicated from __ip4_datagram_connect() and
@@ -301,7 +301,7 @@ static int ping_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 
 /* Checks the bind address and possibly modifies sk->sk_bound_dev_if. */
 static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
-				struct sockaddr *uaddr, int addr_len)
+				struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct net *net = sock_net(sk);
 	if (sk->sk_family == AF_INET) {
@@ -387,7 +387,7 @@ static int ping_check_bind_addr(struct sock *sk, struct inet_sock *isk,
 	return 0;
 }
 
-static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
+static void ping_set_saddr(struct sock *sk, struct sockaddr_unsized *saddr)
 {
 	if (saddr->sa_family == AF_INET) {
 		struct inet_sock *isk = inet_sk(sk);
@@ -407,7 +407,7 @@ static void ping_set_saddr(struct sock *sk, struct sockaddr *saddr)
  * Moreover, we don't allow binding to multi- and broadcast addresses.
  */
 
-int ping_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int ping_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct inet_sock *isk = inet_sk(sk);
 	unsigned short snum;

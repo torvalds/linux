@@ -200,7 +200,7 @@ cifs_set_port(struct sockaddr *addr, const unsigned short int port)
 }
 
 /*****************************************************************************
-convert a NT status code to a dos class/code
+ *convert a NT status code to a dos class/code
  *****************************************************************************/
 /* NT status -> dos error map */
 static const struct {
@@ -885,11 +885,16 @@ map_smb_to_linux_error(char *buf, bool logErr)
 	/* generic corrective action e.g. reconnect SMB session on
 	 * ERRbaduid could be added */
 
+	if (rc == -EIO)
+		smb_EIO2(smb_eio_trace_smb1_received_error,
+			 le32_to_cpu(smb->Status.CifsError),
+			 le16_to_cpu(smb->Flags2));
 	return rc;
 }
 
 int
-map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
+map_and_check_smb_error(struct TCP_Server_Info *server,
+			struct mid_q_entry *mid, bool logErr)
 {
 	int rc;
 	struct smb_hdr *smb = (struct smb_hdr *)mid->resp_buf;
@@ -904,7 +909,7 @@ map_and_check_smb_error(struct mid_q_entry *mid, bool logErr)
 		if (class == ERRSRV && code == ERRbaduid) {
 			cifs_dbg(FYI, "Server returned 0x%x, reconnecting session...\n",
 				code);
-			cifs_signal_cifsd_for_reconnect(mid->server, false);
+			cifs_signal_cifsd_for_reconnect(server, false);
 		}
 	}
 

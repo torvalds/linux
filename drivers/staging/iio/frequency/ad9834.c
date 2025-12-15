@@ -21,9 +21,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include "dds.h"
 
-#include "ad9834.h"
+#include "dds.h"
 
 /* Registers */
 

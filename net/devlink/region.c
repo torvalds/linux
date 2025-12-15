@@ -50,7 +50,7 @@ devlink_port_region_get_by_name(struct devlink_port *port,
 	struct devlink_region *region;
 
 	list_for_each_entry(region, &port->region_list, list)
-		if (!strcmp(region->ops->name, region_name))
+		if (!strcmp(region->port_ops->name, region_name))
 			return region;
 
 	return NULL;

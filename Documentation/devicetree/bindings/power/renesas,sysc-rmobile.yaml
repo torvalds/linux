@@ -45,7 +45,7 @@ properties:
         const: 0
 
     additionalProperties:
-      $ref: "#/$defs/pd-node"
+      $ref: '#/$defs/pd-node'
 
 required:
   - compatible
@@ -83,7 +83,7 @@ $defs:
       - '#power-domain-cells'
 
     additionalProperties:
-      $ref: "#/$defs/pd-node"
+      $ref: '#/$defs/pd-node'
 
 examples:
   - |

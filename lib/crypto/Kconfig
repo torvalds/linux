@@ -28,6 +28,17 @@ config CRYPTO_LIB_ARC4
 config CRYPTO_LIB_GF128MUL
 	tristate
 
+config CRYPTO_LIB_BLAKE2B
+	tristate
+	help
+	  The BLAKE2b library functions.  Select this if your module uses any of
+	  the functions from <crypto/blake2b.h>.
+
+config CRYPTO_LIB_BLAKE2B_ARCH
+	bool
+	depends on CRYPTO_LIB_BLAKE2B && !UML
+	default y if ARM && KERNEL_MODE_NEON
+
 # BLAKE2s support is always built-in, so there's no CRYPTO_LIB_BLAKE2S option.
 
 config CRYPTO_LIB_BLAKE2S_ARCH
@@ -50,7 +61,8 @@ config CRYPTO_LIB_CHACHA_ARCH
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if MIPS && CPU_MIPS32_R2
 	default y if PPC64 && CPU_LITTLE_ENDIAN && VSX
-	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
+		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
 	default y if S390
 	default y if X86_64
 
@@ -64,7 +76,7 @@ config CRYPTO_LIB_CURVE25519
 config CRYPTO_LIB_CURVE25519_ARCH
 	bool
 	depends on CRYPTO_LIB_CURVE25519 && !UML && !KMSAN
-	default y if ARM && KERNEL_MODE_NEON
+	default y if ARM && KERNEL_MODE_NEON && !CPU_BIG_ENDIAN
 	default y if PPC64 && CPU_LITTLE_ENDIAN
 	default y if X86_64
 
@@ -97,7 +109,7 @@ config CRYPTO_LIB_POLY1305
 
 config CRYPTO_LIB_POLY1305_ARCH
 	bool
-	depends on CRYPTO_LIB_POLY1305 && !UML
+	depends on CRYPTO_LIB_POLY1305 && !UML && !KMSAN
 	default y if ARM
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if MIPS
@@ -123,6 +135,18 @@ config CRYPTO_LIB_POLY1305_RSIZE
 	default 11 if X86_64
 	default 9 if ARM || ARM64
 	default 1
+
+config CRYPTO_LIB_POLYVAL
+	tristate
+	help
+	  The POLYVAL library functions.  Select this if your module uses any of
+	  the functions from <crypto/polyval.h>.
+
+config CRYPTO_LIB_POLYVAL_ARCH
+	bool
+	depends on CRYPTO_LIB_POLYVAL && !UML
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if X86_64
 
 config CRYPTO_LIB_CHACHA20POLY1305
 	tristate
@@ -161,7 +185,8 @@ config CRYPTO_LIB_SHA256_ARCH
 	default y if ARM64
 	default y if MIPS && CPU_CAVIUM_OCTEON
 	default y if PPC && SPE
-	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
+		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
 	default y if S390
 	default y if SPARC64
 	default y if X86_64
@@ -179,10 +204,24 @@ config CRYPTO_LIB_SHA512_ARCH
 	default y if ARM && !CPU_V7M
 	default y if ARM64
 	default y if MIPS && CPU_CAVIUM_OCTEON
-	default y if RISCV && 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
+	default y if RISCV && 64BIT && TOOLCHAIN_HAS_VECTOR_CRYPTO && \
+		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
 	default y if S390
 	default y if SPARC64
 	default y if X86_64
+
+config CRYPTO_LIB_SHA3
+	tristate
+	select CRYPTO_LIB_UTILS
+	help
+	  The SHA3 library functions.  Select this if your module uses any of
+	  the functions from <crypto/sha3.h>.
+
+config CRYPTO_LIB_SHA3_ARCH
+	bool
+	depends on CRYPTO_LIB_SHA3 && !UML
+	default y if ARM64 && KERNEL_MODE_NEON
+	default y if S390
 
 config CRYPTO_LIB_SM3
 	tristate

@@ -382,8 +382,8 @@ drop:
 	return NET_RX_DROP;
 }
 
-static int pptp_bind(struct socket *sock, struct sockaddr *uservaddr,
-	int sockaddr_len)
+static int pptp_bind(struct socket *sock, struct sockaddr_unsized *uservaddr,
+		     int sockaddr_len)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_pppox *sp = (struct sockaddr_pppox *) uservaddr;
@@ -415,8 +415,8 @@ out:
 	return error;
 }
 
-static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
-	int sockaddr_len, int flags)
+static int pptp_connect(struct socket *sock, struct sockaddr_unsized *uservaddr,
+			int sockaddr_len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_pppox *sp = (struct sockaddr_pppox *) uservaddr;

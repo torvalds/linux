@@ -23,18 +23,13 @@
 #include "stmmac_platform.h"
 
 #define GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(21, 16)
-#define GPR_ENET_QOS_INTF_SEL_MII	(0x0 << 16)
-#define GPR_ENET_QOS_INTF_SEL_RMII	(0x4 << 16)
-#define GPR_ENET_QOS_INTF_SEL_RGMII	(0x1 << 16)
+#define GPR_ENET_QOS_INTF_SEL_MASK	GENMASK(20, 16)
 #define GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 19)
 #define GPR_ENET_QOS_CLK_TX_CLK_SEL	(0x1 << 20)
 #define GPR_ENET_QOS_RGMII_EN		(0x1 << 21)
 
 #define MX93_GPR_ENET_QOS_INTF_MODE_MASK	GENMASK(3, 0)
-#define MX93_GPR_ENET_QOS_INTF_MASK		GENMASK(3, 1)
-#define MX93_GPR_ENET_QOS_INTF_SEL_MII		(0x0 << 1)
-#define MX93_GPR_ENET_QOS_INTF_SEL_RMII		(0x4 << 1)
-#define MX93_GPR_ENET_QOS_INTF_SEL_RGMII	(0x1 << 1)
+#define MX93_GPR_ENET_QOS_INTF_SEL_MASK		GENMASK(3, 1)
 #define MX93_GPR_ENET_QOS_CLK_GEN_EN		(0x1 << 0)
 #define MX93_GPR_ENET_QOS_CLK_SEL_MASK		BIT_MASK(0)
 #define MX93_GPR_CLK_SEL_OFFSET			(4)
@@ -44,13 +39,15 @@
 #define RMII_RESET_SPEED		(0x3 << 14)
 #define CTRL_SPEED_MASK			GENMASK(15, 14)
 
+struct imx_priv_data;
+
 struct imx_dwmac_ops {
 	u32 addr_width;
 	u32 flags;
 	bool mac_rgmii_txclk_auto_adj;
 
 	int (*fix_soc_reset)(struct stmmac_priv *priv, void __iomem *ioaddr);
-	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat);
+	int (*set_intf_mode)(struct imx_priv_data *dwmac, u8 phy_intf_sel);
 	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
 
@@ -67,79 +64,46 @@ struct imx_priv_data {
 	struct plat_stmmacenet_data *plat_dat;
 };
 
-static int imx8mp_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+static int imx8mp_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
-	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	int val;
+	unsigned int val;
 
-	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_MII:
-		val = GPR_ENET_QOS_INTF_SEL_MII;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		val = GPR_ENET_QOS_INTF_SEL_RMII;
-		val |= (dwmac->rmii_refclk_ext ? 0 : GPR_ENET_QOS_CLK_TX_CLK_SEL);
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = GPR_ENET_QOS_INTF_SEL_RGMII |
-		      GPR_ENET_QOS_RGMII_EN;
-		break;
-	default:
-		pr_debug("imx dwmac doesn't support %s interface\n",
-			 phy_modes(plat_dat->phy_interface));
-		return -EINVAL;
-	}
+	val = FIELD_PREP(GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
+	      GPR_ENET_QOS_CLK_GEN_EN;
 
-	val |= GPR_ENET_QOS_CLK_GEN_EN;
+	if (phy_intf_sel == PHY_INTF_SEL_RMII && !dwmac->rmii_refclk_ext)
+		val |= GPR_ENET_QOS_CLK_TX_CLK_SEL;
+	else if (phy_intf_sel == PHY_INTF_SEL_RGMII)
+		val |= GPR_ENET_QOS_RGMII_EN;
+
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 				  GPR_ENET_QOS_INTF_MODE_MASK, val);
 };
 
 static int
-imx8dxl_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+imx8dxl_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
-	int ret = 0;
-
 	/* TBD: depends on imx8dxl scu interfaces to be upstreamed */
-	return ret;
+	return 0;
 }
 
-static int imx93_set_intf_mode(struct plat_stmmacenet_data *plat_dat)
+static int imx93_set_intf_mode(struct imx_priv_data *dwmac, u8 phy_intf_sel)
 {
-	struct imx_priv_data *dwmac = plat_dat->bsp_priv;
-	int val, ret;
+	unsigned int val;
+	int ret;
 
-	switch (plat_dat->phy_interface) {
-	case PHY_INTERFACE_MODE_MII:
-		val = MX93_GPR_ENET_QOS_INTF_SEL_MII;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		if (dwmac->rmii_refclk_ext) {
-			ret = regmap_clear_bits(dwmac->intf_regmap,
-						dwmac->intf_reg_off +
-						MX93_GPR_CLK_SEL_OFFSET,
-						MX93_GPR_ENET_QOS_CLK_SEL_MASK);
-			if (ret)
-				return ret;
-		}
-		val = MX93_GPR_ENET_QOS_INTF_SEL_RMII;
-		break;
-	case PHY_INTERFACE_MODE_RGMII:
-	case PHY_INTERFACE_MODE_RGMII_ID:
-	case PHY_INTERFACE_MODE_RGMII_RXID:
-	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = MX93_GPR_ENET_QOS_INTF_SEL_RGMII;
-		break;
-	default:
-		dev_dbg(dwmac->dev, "imx dwmac doesn't support %s interface\n",
-			phy_modes(plat_dat->phy_interface));
-		return -EINVAL;
+	if (phy_intf_sel == PHY_INTF_SEL_RMII && dwmac->rmii_refclk_ext) {
+		ret = regmap_clear_bits(dwmac->intf_regmap,
+					dwmac->intf_reg_off +
+					MX93_GPR_CLK_SEL_OFFSET,
+					MX93_GPR_ENET_QOS_CLK_SEL_MASK);
+		if (ret)
+			return ret;
 	}
 
-	val |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
+	val = FIELD_PREP(MX93_GPR_ENET_QOS_INTF_SEL_MASK, phy_intf_sel) |
+	      MX93_GPR_ENET_QOS_CLK_GEN_EN;
+
 	return regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 				  MX93_GPR_ENET_QOS_INTF_MODE_MASK, val);
 };
@@ -170,34 +134,24 @@ static int imx_dwmac_clks_config(void *priv, bool enabled)
 	return ret;
 }
 
-static int imx_dwmac_init(struct platform_device *pdev, void *priv)
+static int imx_set_phy_intf_sel(void *bsp_priv, u8 phy_intf_sel)
 {
-	struct plat_stmmacenet_data *plat_dat;
-	struct imx_priv_data *dwmac = priv;
-	int ret;
+	struct imx_priv_data *dwmac = bsp_priv;
 
-	plat_dat = dwmac->plat_dat;
+	if (!dwmac->ops->set_intf_mode)
+		return 0;
 
-	if (dwmac->ops->set_intf_mode) {
-		ret = dwmac->ops->set_intf_mode(plat_dat);
-		if (ret)
-			return ret;
-	}
+	if (phy_intf_sel != PHY_INTF_SEL_GMII_MII &&
+	    phy_intf_sel != PHY_INTF_SEL_RGMII &&
+	    phy_intf_sel != PHY_INTF_SEL_RMII)
+		return -EINVAL;
 
-	return 0;
-}
-
-static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
-{
-	/* nothing to do now */
+	return dwmac->ops->set_intf_mode(dwmac, phy_intf_sel);
 }
 
 static int imx_dwmac_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
 				     phy_interface_t interface, int speed)
 {
-	struct imx_priv_data *dwmac = bsp_priv;
-
-	interface = dwmac->plat_dat->phy_interface;
 	if (interface == PHY_INTERFACE_MODE_RMII ||
 	    interface == PHY_INTERFACE_MODE_MII)
 		return 0;
@@ -244,8 +198,8 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	if (regmap_read(dwmac->intf_regmap, dwmac->intf_reg_off, &iface))
 		return;
 
-	iface &= MX93_GPR_ENET_QOS_INTF_MASK;
-	if (iface != MX93_GPR_ENET_QOS_INTF_SEL_RGMII)
+	if (FIELD_GET(MX93_GPR_ENET_QOS_INTF_SEL_MASK, iface) !=
+	    PHY_INTF_SEL_RGMII)
 		return;
 
 	old_ctrl = readl(dwmac->base_addr + MAC_CTRL_REG);
@@ -258,6 +212,7 @@ static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	readl(dwmac->base_addr + MAC_CTRL_REG);
 
 	usleep_range(10, 20);
+	iface &= MX93_GPR_ENET_QOS_INTF_SEL_MASK;
 	iface |= MX93_GPR_ENET_QOS_CLK_GEN_EN;
 	regmap_update_bits(dwmac->intf_regmap, dwmac->intf_reg_off,
 			   MX93_GPR_ENET_QOS_INTF_MODE_MASK, iface);
@@ -370,8 +325,7 @@ static int imx_dwmac_probe(struct platform_device *pdev)
 		plat_dat->tx_queues_cfg[i].tbs_en = 1;
 
 	plat_dat->host_dma_width = dwmac->ops->addr_width;
-	plat_dat->init = imx_dwmac_init;
-	plat_dat->exit = imx_dwmac_exit;
+	plat_dat->set_phy_intf_sel = imx_set_phy_intf_sel;
 	plat_dat->clks_config = imx_dwmac_clks_config;
 	plat_dat->bsp_priv = dwmac;
 	dwmac->plat_dat = plat_dat;

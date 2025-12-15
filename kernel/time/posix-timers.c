@@ -475,12 +475,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	if (!kc->timer_create)
 		return -EOPNOTSUPP;
 
-	new_timer = alloc_posix_timer();
-	if (unlikely(!new_timer))
-		return -EAGAIN;
-
-	spin_lock_init(&new_timer->it_lock);
-
 	/* Special case for CRIU to restore timers with a given timer ID. */
 	if (unlikely(current->signal->timer_create_restore_ids)) {
 		if (copy_from_user(&req_id, created_timer_id, sizeof(req_id)))
@@ -489,6 +483,12 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 		if ((unsigned int)req_id > INT_MAX)
 			return -EINVAL;
 	}
+
+	new_timer = alloc_posix_timer();
+	if (unlikely(!new_timer))
+		return -EAGAIN;
+
+	spin_lock_init(&new_timer->it_lock);
 
 	/*
 	 * Add the timer to the hash table. The timer is not yet valid
@@ -1242,7 +1242,7 @@ SYSCALL_DEFINE2(clock_adjtime, const clockid_t, which_clock,
  *    sys_clock_settime(). The kernel internal timekeeping is always using
  *    nanoseconds precision independent of the clocksource device which is
  *    used to read the time from. The resolution of that device only
- *    affects the presicion of the time returned by sys_clock_gettime().
+ *    affects the precision of the time returned by sys_clock_gettime().
  *
  * Returns:
  *	0		Success. @tp contains the resolution

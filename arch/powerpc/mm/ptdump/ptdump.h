@@ -13,6 +13,7 @@ struct flag_info {
 
 struct ptdump_pg_level {
 	const struct flag_info *flag;
+	char name[4];
 	size_t num;
 	u64 mask;
 };

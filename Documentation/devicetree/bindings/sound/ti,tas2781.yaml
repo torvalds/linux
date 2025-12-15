@@ -24,21 +24,26 @@ description: |
   Instruments Smart Amp speaker protection algorithm. The
   integrated speaker voltage and current sense provides for real time
   monitoring of loudspeaker behavior.
-  The TAS5802/TAS5815/TAS5825/TAS5827/TAS5828 is a stereo, digital input
-  Class-D audio amplifier optimized for efficiently driving high peak
-  power into small loudspeakers. An integrated on-chip DSP supports
-  Texas Instruments Smart Amp speaker protection algorithm.
+  The TAS5802/TAS5815/TAS5822/TAS5825/TAS5827/TAS5828 is a stereo,
+  digital input Class-D audio amplifier optimized for efficiently driving
+  high peak power into small loudspeakers. An integrated on-chip DSP
+  supports Texas Instruments Smart Amp speaker protection algorithm.
 
   Specifications about the audio amplifier can be found at:
     https://www.ti.com/lit/gpn/tas2120
     https://www.ti.com/lit/gpn/tas2320
     https://www.ti.com/lit/gpn/tas2563
     https://www.ti.com/lit/gpn/tas2572
+    https://www.ti.com/lit/gpn/tas2574
     https://www.ti.com/lit/gpn/tas2781
+    https://www.ti.com/lit/gpn/tas5806m
+    https://www.ti.com/lit/gpn/tas5806md
     https://www.ti.com/lit/gpn/tas5815
+    https://www.ti.com/lit/gpn/tas5822m
     https://www.ti.com/lit/gpn/tas5825m
     https://www.ti.com/lit/gpn/tas5827
     https://www.ti.com/lit/gpn/tas5828m
+    https://www.ti.com/lit/gpn/tas5830
 
 properties:
   compatible:
@@ -57,11 +62,17 @@ properties:
       ti,tas2563: 6.1-W Boosted Class-D Audio Amplifier With Integrated
       DSP and IV Sense, 16/20/24/32bit stereo I2S or multichannel TDM.
 
+      ti,tas2568: 5.3-W Digital Input Smart Amp with I/V Sense and Integrated
+      10.75-V Class-H Boost
+
       ti,tas2570: 5.8-W Digital Input smart amp with I/V sense and integrated
       11-V Class-H Boost
 
       ti,tas2572: 6.6-W Digital Input smart amp with I/V sense and integrated
       13-V Class-H Boost
+
+      ti,tas2574: 8.5-W Digital Input smart amp with I/V sense and integrated
+      15-V Class-H Boost
 
       ti,tas2781: 24-V Class-D Amplifier with Real Time Integrated Speaker
       Protection and Audio Processing, 16/20/24/32bit stereo I2S or
@@ -71,7 +82,18 @@ properties:
       Audio Amplifier with 96-Khz Extended Processing and Low Idle Power
       Dissipation.
 
+      ti,tas5806m: 23-W, Inductor-Less, Digital Input, Stereo, Closed-Loop
+      Class-D Audio Amplifier with Enhanced Processing and Low Power
+      Dissipation.
+
+      ti,tas5806md: 23-W, Inductor-Less, Digital Input, Stereo, Closed-Loop
+      Class-D Audio Amplifier with Enhanced Processing and DirectPath(TM)
+      HP Driver
+
       ti,tas5815: 30-W, Digital Input, Stereo, Closed-loop Class-D Audio
+      Amplifier with 96 kHz Enhanced Processing
+
+      ti,tas5822: 35-W, Digital Input, Stereo, Closed-Loop Class-D Audio
       Amplifier with 96 kHz Enhanced Processing
 
       ti,tas5825: 38-W Stereo, Inductor-Less, Digital Input, Closed-Loop 4.5V
@@ -82,6 +104,9 @@ properties:
 
       ti,tas5828: 50-W Stereo, Digital Input, High Efficiency Closed-Loop
       Class-D Amplifier with Hybrid-Pro Algorithm
+
+      ti,tas5830: 65-W Stereo, Digital Input, High Efficiency Closed-Loop
+      Class-D Amplifier with Class-H Algorithm
     oneOf:
       - items:
           - enum:
@@ -90,13 +115,19 @@ properties:
               - ti,tas2120
               - ti,tas2320
               - ti,tas2563
+              - ti,tas2568
               - ti,tas2570
               - ti,tas2572
+              - ti,tas2574
               - ti,tas5802
+              - ti,tas5806m
+              - ti,tas5806md
               - ti,tas5815
+              - ti,tas5822
               - ti,tas5825
               - ti,tas5827
               - ti,tas5828
+              - ti,tas5830
           - const: ti,tas2781
       - enum:
           - ti,tas2781
@@ -132,6 +163,8 @@ allOf:
               - ti,tas2118
               - ti,tas2120
               - ti,tas2320
+              - ti,tas2568
+              - ti,tas2574
     then:
       properties:
         reg:
@@ -212,8 +245,25 @@ allOf:
         compatible:
           contains:
             enum:
+              - ti,tas5806m
+              - ti,tas5806md
+              - ti,tas5822
+    then:
+      properties:
+        reg:
+          maxItems: 4
+          items:
+            minimum: 0x2c
+            maximum: 0x2f
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - ti,tas5827
               - ti,tas5828
+              - ti,tas5830
     then:
       properties:
         reg:

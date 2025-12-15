@@ -14,46 +14,10 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 
-struct net_packet_attrs {
-	const unsigned char *src;
-	const unsigned char *dst;
-	u32 ip_src;
-	u32 ip_dst;
-	bool tcp;
-	u16 sport;
-	u16 dport;
-	int timeout;
-	int size;
-	int max_size;
-	u8 id;
-	u16 queue_mapping;
-	bool bad_csum;
-};
-
-struct net_test_priv {
-	struct net_packet_attrs *packet;
-	struct packet_type pt;
-	struct completion comp;
-	int double_vlan;
-	int vlan_id;
-	int ok;
-};
-
-struct netsfhdr {
-	__be32 version;
-	__be64 magic;
-	u8 id;
-} __packed;
-
 static u8 net_test_next_id;
 
-#define NET_TEST_PKT_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
-			   sizeof(struct netsfhdr))
-#define NET_TEST_PKT_MAGIC	0xdeadcafecafedeadULL
-#define NET_LB_TIMEOUT		msecs_to_jiffies(200)
-
-static struct sk_buff *net_test_get_skb(struct net_device *ndev,
-					struct net_packet_attrs *attr)
+struct sk_buff *net_test_get_skb(struct net_device *ndev, u8 id,
+				 struct net_packet_attrs *attr)
 {
 	struct sk_buff *skb = NULL;
 	struct udphdr *uhdr = NULL;
@@ -142,8 +106,8 @@ static struct sk_buff *net_test_get_skb(struct net_device *ndev,
 	shdr = skb_put(skb, sizeof(*shdr));
 	shdr->version = 0;
 	shdr->magic = cpu_to_be64(NET_TEST_PKT_MAGIC);
-	attr->id = net_test_next_id;
-	shdr->id = net_test_next_id++;
+	attr->id = id;
+	shdr->id = id;
 
 	if (attr->size) {
 		void *payload = skb_put(skb, attr->size);
@@ -190,6 +154,7 @@ static struct sk_buff *net_test_get_skb(struct net_device *ndev,
 
 	return skb;
 }
+EXPORT_SYMBOL_GPL(net_test_get_skb);
 
 static int net_test_loopback_validate(struct sk_buff *skb,
 				      struct net_device *ndev,
@@ -286,12 +251,13 @@ static int __net_test_loopback(struct net_device *ndev,
 	tpriv->packet = attr;
 	dev_add_pack(&tpriv->pt);
 
-	skb = net_test_get_skb(ndev, attr);
+	skb = net_test_get_skb(ndev, net_test_next_id, attr);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto cleanup;
 	}
 
+	net_test_next_id++;
 	ret = dev_direct_xmit(skb, attr->queue_mapping);
 	if (ret < 0) {
 		goto cleanup;

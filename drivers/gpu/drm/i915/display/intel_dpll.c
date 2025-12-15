@@ -2019,7 +2019,7 @@ static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	intel_de_posting_read(display, DPLL(display, pipe));
 	udelay(150);
 
-	if (intel_de_wait_for_set(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set_ms(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(display->drm, "DPLL %d failed to lock\n", pipe);
 }
 
@@ -2165,7 +2165,7 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	intel_de_write(display, DPLL(display, pipe), hw_state->dpll);
 
 	/* Check PLL is locked */
-	if (intel_de_wait_for_set(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
+	if (intel_de_wait_for_set_ms(display, DPLL(display, pipe), DPLL_LOCK_VLV, 1))
 		drm_err(display->drm, "PLL %d failed to lock\n", pipe);
 }
 

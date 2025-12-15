@@ -607,7 +607,6 @@ static const struct net_device_ops mscan_netdev_ops = {
 	.ndo_open	= mscan_open,
 	.ndo_stop	= mscan_close,
 	.ndo_start_xmit	= mscan_start_xmit,
-	.ndo_change_mtu	= can_change_mtu,
 };
 
 static const struct ethtool_ops mscan_ethtool_ops = {

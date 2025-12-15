@@ -2206,9 +2206,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
+	/* Passing NULL means an interface is picked for configuration */
 	if (local->virt_monitors > 0 &&
 	    local->virt_monitors == local->open_count)
-		ieee80211_add_virtual_monitor(local);
+		ieee80211_add_virtual_monitor(local, NULL);
 
 	if (!suspended)
 		return 0;
@@ -2347,7 +2348,7 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
 
 		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
 				       conf);
-		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL, false);
+		ieee80211_recalc_chanctx_min_def(local, chanctx);
 	}
 }
 
@@ -4016,23 +4017,23 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 	if (WARN_ON(ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED))
 		return 0;
 
-	list_for_each_entry(link, &ctx->reserved_links, reserved_chanctx_list)
-		if (link->reserved_radar_required)
+	for_each_sdata_link(local, link) {
+		if (rcu_access_pointer(link->conf->chanctx_conf) == &ctx->conf) {
+			/*
+			 * An in-place reservation context should not have any
+			 * assigned links until it replaces the other context.
+			 */
+			WARN_ON(ctx->replace_state ==
+				IEEE80211_CHANCTX_REPLACES_OTHER);
+
+			if (link->radar_required)
+				radar_detect |=
+					BIT(link->conf->chanreq.oper.width);
+		}
+
+		if (link->reserved_chanctx == ctx &&
+		    link->reserved_radar_required)
 			radar_detect |= BIT(link->reserved.oper.width);
-
-	/*
-	 * An in-place reservation context should not have any assigned vifs
-	 * until it replaces the other context.
-	 */
-	WARN_ON(ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER &&
-		!list_empty(&ctx->assigned_links));
-
-	list_for_each_entry(link, &ctx->assigned_links, assigned_chanctx_list) {
-		if (!link->radar_required)
-			continue;
-
-		radar_detect |=
-			BIT(link->conf->chanreq.oper.width);
 	}
 
 	return radar_detect;

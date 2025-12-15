@@ -30,7 +30,6 @@ radio-terratec         TerraTec ActiveRadio ISA Standalone
 radio-timb             Enable the Timberdale radio driver
 radio-trust            Trust FM radio card
 radio-typhoon          Typhoon Radio (a.k.a. EcoRadio)
-radio-wl1273           Texas Instruments WL1273 I2C FM Radio
 fm_drv                 ISA radio devices
 fm_drv                 ISA radio devices
 radio-zoltrix          Zoltrix Radio

@@ -6050,7 +6050,7 @@
         "EventName": "UNC_CHA_SNOOP_RESP.RSPIFWD",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a a transaction with the opcode type RspIFwd Snoop Response was received which indicates a remote caching agent forwarded the data and the requesting agent is able to acquire the data in E (Exclusive) or M (modified) states.  This is commonly returned with RFO (the Read for Ownership issued before a write) transactions.  The snoop could have either been to a cacheline in the M,E,F (Modified, Exclusive or Forward)  states.",
+        "PublicDescription": "Counts when a transaction with the opcode type RspIFwd Snoop Response was received which indicates a remote caching agent forwarded the data and the requesting agent is able to acquire the data in E (Exclusive) or M (modified) states.  This is commonly returned with RFO (the Read for Ownership issued before a write) transactions.  The snoop could have either been to a cacheline in the M,E,F (Modified, Exclusive or Forward)  states.",
         "UMask": "0x4",
         "Unit": "CHA"
     },
@@ -6072,7 +6072,7 @@
         "EventName": "UNC_CHA_SNOOP_RESP.RSPSFWD",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "Counts when a a transaction with the opcode type RspSFwd Snoop Response was received which indicates a remote caching agent forwarded the data but held on to its current copy.  This is common for data and code reads that hit in a remote socket in E (Exclusive) or F (Forward) state.",
+        "PublicDescription": "Counts when a transaction with the opcode type RspSFwd Snoop Response was received which indicates a remote caching agent forwarded the data but held on to its current copy.  This is common for data and code reads that hit in a remote socket in E (Exclusive) or F (Forward) state.",
         "UMask": "0x8",
         "Unit": "CHA"
     },

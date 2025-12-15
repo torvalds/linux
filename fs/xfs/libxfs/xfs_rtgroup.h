@@ -50,6 +50,12 @@ struct xfs_rtgroup {
 		uint8_t			*rtg_rsum_cache;
 		struct xfs_open_zone	*rtg_open_zone;
 	};
+
+	/*
+	 * Count of outstanding GC operations for zoned XFS.  Any RTG with a
+	 * non-zero rtg_gccount will not be picked as new GC victim.
+	 */
+	atomic_t		rtg_gccount;
 };
 
 /*
@@ -57,12 +63,6 @@ struct xfs_rtgroup {
  * and can be picked by the allocator for opening.
  */
 #define XFS_RTG_FREE			XA_MARK_0
-
-/*
- * For zoned RT devices this is set on groups that are fully written and that
- * have unused blocks.  Used by the garbage collection to pick targets.
- */
-#define XFS_RTG_RECLAIMABLE		XA_MARK_1
 
 static inline struct xfs_rtgroup *to_rtg(struct xfs_group *xg)
 {
@@ -364,5 +364,13 @@ static inline int xfs_initialize_rtgroups(struct xfs_mount *mp,
 # define xfs_log_rtsb(tp, sb_bp)	(NULL)
 # define xfs_rtgroup_get_geometry(rtg, rgeo)	(-EOPNOTSUPP)
 #endif /* CONFIG_XFS_RT */
+
+static inline xfs_rfsblock_t
+xfs_rtgs_to_rfsbs(
+	struct xfs_mount	*mp,
+	uint32_t		nr_groups)
+{
+	return xfs_groups_to_rfsbs(mp, nr_groups, XG_TYPE_RTG);
+}
 
 #endif /* __LIBXFS_RTGROUP_H */

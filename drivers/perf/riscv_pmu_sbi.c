@@ -1109,7 +1109,7 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 			/* compute hardware counter index */
 			hidx = info->csr - CSR_CYCLE;
 
-		/* check if the corresponding bit is set in sscountovf or overflow mask in shmem */
+		/* check if the corresponding bit is set in scountovf or overflow mask in shmem */
 		if (!(overflow & BIT(hidx)))
 			continue;
 

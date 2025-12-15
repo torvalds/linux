@@ -637,6 +637,10 @@ dpll_cmd_pin_get_one(struct sk_buff *msg, struct dpll_pin *pin,
 	ret = dpll_msg_add_pin_freq(msg, pin, ref, extack);
 	if (ret)
 		return ret;
+	if (prop->phase_gran &&
+	    nla_put_u32(msg, DPLL_A_PIN_PHASE_ADJUST_GRAN,
+			prop->phase_gran))
+		return -EMSGSIZE;
 	if (nla_put_s32(msg, DPLL_A_PIN_PHASE_ADJUST_MIN,
 			prop->phase_range.min))
 		return -EMSGSIZE;
@@ -1261,7 +1265,13 @@ dpll_pin_phase_adj_set(struct dpll_pin *pin, struct nlattr *phase_adj_attr,
 	if (phase_adj > pin->prop.phase_range.max ||
 	    phase_adj < pin->prop.phase_range.min) {
 		NL_SET_ERR_MSG_ATTR(extack, phase_adj_attr,
-				    "phase adjust value not supported");
+				    "phase adjust value of out range");
+		return -EINVAL;
+	}
+	if (pin->prop.phase_gran && phase_adj % (s32)pin->prop.phase_gran) {
+		NL_SET_ERR_MSG_ATTR_FMT(extack, phase_adj_attr,
+					"phase adjust value not multiple of %u",
+					pin->prop.phase_gran);
 		return -EINVAL;
 	}
 
@@ -1559,16 +1569,18 @@ int dpll_nl_pin_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EMSGSIZE;
 	}
 	pin = dpll_pin_find_from_nlattr(info);
-	if (!IS_ERR(pin)) {
-		if (!dpll_pin_available(pin)) {
-			nlmsg_free(msg);
-			return -ENODEV;
-		}
-		ret = dpll_msg_add_pin_handle(msg, pin);
-		if (ret) {
-			nlmsg_free(msg);
-			return ret;
-		}
+	if (IS_ERR(pin)) {
+		nlmsg_free(msg);
+		return PTR_ERR(pin);
+	}
+	if (!dpll_pin_available(pin)) {
+		nlmsg_free(msg);
+		return -ENODEV;
+	}
+	ret = dpll_msg_add_pin_handle(msg, pin);
+	if (ret) {
+		nlmsg_free(msg);
+		return ret;
 	}
 	genlmsg_end(msg, hdr);
 
@@ -1735,12 +1747,14 @@ int dpll_nl_device_id_get_doit(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	dpll = dpll_device_find_from_nlattr(info);
-	if (!IS_ERR(dpll)) {
-		ret = dpll_msg_add_dev_handle(msg, dpll);
-		if (ret) {
-			nlmsg_free(msg);
-			return ret;
-		}
+	if (IS_ERR(dpll)) {
+		nlmsg_free(msg);
+		return PTR_ERR(dpll);
+	}
+	ret = dpll_msg_add_dev_handle(msg, dpll);
+	if (ret) {
+		nlmsg_free(msg);
+		return ret;
 	}
 	genlmsg_end(msg, hdr);
 

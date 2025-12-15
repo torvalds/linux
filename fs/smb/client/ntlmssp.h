@@ -73,7 +73,7 @@ typedef struct _SECURITY_BUFFER {
 	__le16 Length;
 	__le16 MaximumLength;
 	__le32 BufferOffset;	/* offset to buffer */
-} __attribute__((packed)) SECURITY_BUFFER;
+} __packed SECURITY_BUFFER;
 
 typedef struct _NEGOTIATE_MESSAGE {
 	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
@@ -85,7 +85,7 @@ typedef struct _NEGOTIATE_MESSAGE {
 	   do not set the version is present flag */
 	char DomainString[];
 	/* followed by WorkstationString */
-} __attribute__((packed)) NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
+} __packed NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
 
 #define NTLMSSP_REVISION_W2K3 0x0F
 
@@ -121,7 +121,7 @@ typedef struct _CHALLENGE_MESSAGE {
 	SECURITY_BUFFER TargetInfoArray;
 	/* SECURITY_BUFFER for version info not present since we
 	   do not set the version is present flag */
-} __attribute__((packed)) CHALLENGE_MESSAGE, *PCHALLENGE_MESSAGE;
+} __packed CHALLENGE_MESSAGE, *PCHALLENGE_MESSAGE;
 
 typedef struct _AUTHENTICATE_MESSAGE {
 	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
@@ -136,7 +136,7 @@ typedef struct _AUTHENTICATE_MESSAGE {
 	struct	ntlmssp_version Version;
 	/* SECURITY_BUFFER */
 	char UserString[];
-} __attribute__((packed)) AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
+} __packed AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
 
 /*
  * Size of the session key (crypto key encrypted with the password
