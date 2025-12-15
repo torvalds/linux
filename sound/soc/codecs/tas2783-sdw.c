@@ -32,6 +32,8 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/tas2781-tlv.h>
+#include <sound/sdca_function.h>
+#include <sound/sdca_regmap.h>
 
 #include "tas2783.h"
 
@@ -78,6 +80,7 @@ struct tas2783_prv {
 	struct snd_soc_component *component;
 	struct calibration_data cali_data;
 	struct sdw_slave *sdw_peripheral;
+	struct sdca_function_data *sa_func_data;
 	enum sdw_slave_status status;
 	/* calibration */
 	struct mutex calib_lock;
@@ -1223,9 +1226,18 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 		dev_err(tas_dev->dev, "fw request, wait_event timeout\n");
 		ret = -EAGAIN;
 	} else {
-		ret = regmap_multi_reg_write(tas_dev->regmap, tas2783_init_seq,
-					     ARRAY_SIZE(tas2783_init_seq));
-		tas_dev->hw_init = true;
+		if (tas_dev->sa_func_data)
+			ret = sdca_regmap_write_init(dev, tas_dev->regmap,
+						     tas_dev->sa_func_data);
+		else
+			ret = regmap_multi_reg_write(tas_dev->regmap, tas2783_init_seq,
+						     ARRAY_SIZE(tas2783_init_seq));
+
+		if (ret)
+			dev_err(tas_dev->dev,
+				"init writes failed, err=%d", ret);
+		else
+			tas_dev->hw_init = true;
 	}
 
 	return ret;
@@ -1275,11 +1287,46 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 	struct regmap *regmap;
 	struct device *dev = &peripheral->dev;
 	struct tas2783_prv *tas_dev;
+	struct sdca_function_data *function_data = NULL;
+	int ret, i;
 
 	tas_dev = devm_kzalloc(dev, sizeof(*tas_dev), GFP_KERNEL);
 	if (!tas_dev)
 		return dev_err_probe(dev, -ENOMEM,
 				     "Failed devm_kzalloc");
+
+	i = -1;
+	/* check if we have any SDCA function data available */
+	if (peripheral->sdca_data.num_functions > 0) {
+		dev_dbg(dev, "SDCA functions found: %d", peripheral->sdca_data.num_functions);
+
+		/* Look for Smart Amp function type */
+		for (i = 0; i < peripheral->sdca_data.num_functions; i++) {
+			if (peripheral->sdca_data.function[i].type ==
+			    SDCA_FUNCTION_TYPE_SMART_AMP) {
+				dev_info(dev, "Found Smart Amp function at index %d", i);
+				break;
+			}
+		}
+	}
+
+	if (i >= 0 && i < peripheral->sdca_data.num_functions) {
+		/* Allocate memory for function data */
+		function_data = devm_kzalloc(dev, sizeof(*function_data),
+					     GFP_KERNEL);
+		if (!function_data)
+			return dev_err_probe(dev, -ENOMEM,
+					     "failed to parse sdca functions");
+
+		/* Parse the function */
+		ret = sdca_parse_function(dev, peripheral,
+					  &peripheral->sdca_data.function[i],
+					  function_data);
+		if (!ret)
+			tas_dev->sa_func_data = function_data;
+		else
+			dev_warn(dev, "smartamp function parse failed:err%d, using defaults", ret);
+	}
 
 	tas_dev->dev = dev;
 	tas_dev->sdw_peripheral = peripheral;
@@ -1335,6 +1382,7 @@ static struct sdw_driver tas_sdw_driver = {
 };
 module_sdw_driver(tas_sdw_driver);
 
+MODULE_IMPORT_NS("SND_SOC_SDCA");
 MODULE_AUTHOR("Texas Instruments Inc.");
 MODULE_DESCRIPTION("ASoC TAS2783 SoundWire Driver");
 MODULE_LICENSE("GPL");

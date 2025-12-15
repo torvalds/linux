@@ -2146,6 +2146,7 @@ config SND_SOC_TAS2781_I2C
 config SND_SOC_TAS2783_SDW
 	tristate "Texas Instruments TAS2783 speaker amplifier (sdw)"
 	depends on SOUNDWIRE
+	depends on SND_SOC_SDCA
 	depends on EFI
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
