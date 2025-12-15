@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "display/intel_crtc.h"
 #include "display/intel_display.h"
@@ -17,10 +18,11 @@
 #include "gem/i915_gem_region.h"
 
 #include "i915_drv.h"
+#include "i915_initial_plane.h"
 
-void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
+static void i915_initial_plane_vblank_wait(struct drm_crtc *crtc)
 {
-	intel_crtc_wait_for_next_vblank(crtc);
+	intel_crtc_wait_for_next_vblank(to_intel_crtc(crtc));
 }
 
 static bool
@@ -406,8 +408,9 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 		i915_vma_put(plane_config->vma);
 }
 
-void intel_initial_plane_config(struct intel_display *display)
+static void i915_initial_plane_config(struct drm_device *drm)
 {
+	struct intel_display *display = to_intel_display(drm);
 	struct intel_initial_plane_config plane_configs[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 
@@ -436,8 +439,13 @@ void intel_initial_plane_config(struct intel_display *display)
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
 		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_initial_plane_vblank_wait(crtc);
+			i915_initial_plane_vblank_wait(&crtc->base);
 
 		plane_config_fini(plane_config);
 	}
 }
+
+const struct intel_display_initial_plane_interface i915_display_initial_plane_interface = {
+	.vblank_wait = i915_initial_plane_vblank_wait,
+	.config = i915_initial_plane_config,
+};

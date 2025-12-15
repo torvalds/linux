@@ -7,6 +7,7 @@
 #include <linux/types.h>
 
 struct dma_fence;
+struct drm_crtc;
 struct drm_device;
 struct drm_scanout_buffer;
 struct intel_hdcp_gsc_context;
@@ -23,6 +24,11 @@ struct intel_display_hdcp_interface {
 	bool (*gsc_check_status)(struct drm_device *drm);
 	struct intel_hdcp_gsc_context *(*gsc_context_alloc)(struct drm_device *drm);
 	void (*gsc_context_free)(struct intel_hdcp_gsc_context *gsc_context);
+};
+
+struct intel_display_initial_plane_interface {
+	void (*vblank_wait)(struct drm_crtc *crtc);
+	void (*config)(struct drm_device *drm);
 };
 
 struct intel_display_irq_interface {
@@ -94,6 +100,9 @@ struct intel_display_stolen_interface {
 struct intel_display_parent_interface {
 	/** @hdcp: HDCP GSC interface */
 	const struct intel_display_hdcp_interface *hdcp;
+
+	/** @initial_plane: Initial plane interface */
+	const struct intel_display_initial_plane_interface *initial_plane;
 
 	/** @irq: IRQ interface */
 	const struct intel_display_irq_interface *irq;

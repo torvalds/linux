@@ -6,6 +6,8 @@
 /* for ioread64 */
 #include <linux/io-64-nonatomic-lo-hi.h>
 
+#include <drm/intel/display_parent_interface.h>
+
 #include "regs/xe_gtt_defs.h"
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
@@ -27,9 +29,10 @@
 
 #include <generated/xe_device_wa_oob.h>
 
-void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
+/* Early xe has no irq */
+static void xe_initial_plane_vblank_wait(struct drm_crtc *_crtc)
 {
-	/* Early xe has no irq */
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
 	struct xe_device *xe = to_xe_device(crtc->base.dev);
 	struct xe_reg pipe_frmtmstmp = XE_REG(i915_mmio_reg_offset(PIPE_FRMTMSTMP(crtc->pipe)));
 	u32 timestamp;
@@ -284,8 +287,9 @@ static void plane_config_fini(struct intel_initial_plane_config *plane_config)
 	}
 }
 
-void intel_initial_plane_config(struct intel_display *display)
+static void xe_initial_plane_config(struct drm_device *drm)
 {
+	struct intel_display *display = to_intel_display(drm);
 	struct intel_initial_plane_config plane_configs[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 
@@ -314,8 +318,13 @@ void intel_initial_plane_config(struct intel_display *display)
 		intel_find_initial_plane_obj(crtc, plane_configs);
 
 		if (display->funcs.display->fixup_initial_plane_config(crtc, plane_config))
-			intel_initial_plane_vblank_wait(crtc);
+			xe_initial_plane_vblank_wait(&crtc->base);
 
 		plane_config_fini(plane_config);
 	}
 }
+
+const struct intel_display_initial_plane_interface xe_display_initial_plane_interface = {
+	.vblank_wait = xe_initial_plane_vblank_wait,
+	.config = xe_initial_plane_config,
+};
