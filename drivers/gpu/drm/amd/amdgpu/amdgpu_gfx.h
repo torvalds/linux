@@ -569,8 +569,8 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 	return (u32)((1ULL << bit_width) - 1);
 }
 
-void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
-				 unsigned max_sh);
+void amdgpu_gfx_parse_disable_cu(struct amdgpu_device *adev, unsigned int *mask,
+				 unsigned int max_se, unsigned int max_sh);
 
 int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id);
 

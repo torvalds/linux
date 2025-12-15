@@ -100,6 +100,7 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
 /**
  * amdgpu_gfx_parse_disable_cu - Parse the disable_cu module parameter
  *
+ * @adev: amdgpu device pointer
  * @mask: array in which the per-shader array disable masks will be stored
  * @max_se: number of SEs
  * @max_sh: number of SHs
@@ -107,7 +108,8 @@ bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
  * The bitmask of CUs to be disabled in the shader array determined by se and
  * sh is stored in mask[se * max_sh + sh].
  */
-void amdgpu_gfx_parse_disable_cu(unsigned int *mask, unsigned int max_se, unsigned int max_sh)
+void amdgpu_gfx_parse_disable_cu(struct amdgpu_device *adev, unsigned int *mask,
+				 unsigned int max_se, unsigned int max_sh)
 {
 	unsigned int se, sh, cu;
 	const char *p;

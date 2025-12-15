@@ -7084,7 +7084,7 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev)
 	else
 		ao_cu_num = adev->gfx.config.max_cu_per_sh;
 
-	amdgpu_gfx_parse_disable_cu(disable_masks, 4, 2);
+	amdgpu_gfx_parse_disable_cu(adev, disable_masks, 4, 2);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
