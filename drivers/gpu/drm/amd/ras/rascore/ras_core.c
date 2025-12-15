@@ -563,6 +563,9 @@ bool ras_core_is_ready(struct ras_core_context *ras_core)
 
 bool ras_core_check_safety_watermark(struct ras_core_context *ras_core)
 {
+	if (ras_fw_eeprom_supported(ras_core))
+		return ras_fw_eeprom_check_safety_watermark(ras_core);
+
 	return ras_eeprom_check_safety_watermark(ras_core);
 }
 

@@ -190,3 +190,33 @@ int ras_fw_eeprom_reset_table(struct ras_core_context *ras_core)
 
 	return res;
 }
+
+bool ras_fw_eeprom_check_safety_watermark(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	bool ret = false;
+	int bad_page_count;
+
+	if (!control->record_threshold_config)
+		return false;
+
+	bad_page_count = ras_umc_get_badpage_count(ras_core);
+
+	if (bad_page_count > control->record_threshold_count)
+		RAS_DEV_WARN(ras_core->dev, "RAS records:%d exceed threshold:%d",
+			bad_page_count, control->record_threshold_count);
+
+	if ((control->record_threshold_config == WARN_NONSTOP_OVER_THRESHOLD) ||
+		(control->record_threshold_config == NONSTOP_OVER_THRESHOLD)) {
+		RAS_DEV_WARN(ras_core->dev,
+			"Please consult AMD Service Action Guide (SAG) for appropriate service procedures.\n");
+		ret = false;
+	} else {
+		ras_core->is_rma = true;
+		RAS_DEV_WARN(ras_core->dev,
+			"Please consider adjusting the customized threshold.\n");
+		ret = true;
+	}
+
+	return ret;
+}
