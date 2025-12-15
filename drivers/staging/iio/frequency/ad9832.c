@@ -26,7 +26,6 @@
 #include "dds.h"
 
 /* Registers */
-
 #define AD9832_FREQ0LL		0x0
 #define AD9832_FREQ0HL		0x1
 #define AD9832_FREQ0LM		0x2
@@ -43,14 +42,12 @@
 #define AD9832_PHASE2H		0xD
 #define AD9832_PHASE3L		0xE
 #define AD9832_PHASE3H		0xF
-
 #define AD9832_PHASE_SYM	0x10
 #define AD9832_FREQ_SYM		0x11
 #define AD9832_PINCTRL_EN	0x12
 #define AD9832_OUTPUT_EN	0x13
 
 /* Command Control Bits */
-
 #define AD9832_CMD_PHA8BITSW	0x1
 #define AD9832_CMD_PHA16BITSW	0x0
 #define AD9832_CMD_FRE8BITSW	0x3
@@ -90,7 +87,6 @@
  * @phase_data:		tuning word spi transmit buffer
  * @freq_data:		tuning word spi transmit buffer
  */
-
 struct ad9832_state {
 	struct spi_device		*spi;
 	struct clk			*mclk;
@@ -327,7 +323,6 @@ static int ad9832_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default messages */
-
 	st->xfer.tx_buf = &st->data;
 	st->xfer.len = 2;
 
