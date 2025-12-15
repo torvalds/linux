@@ -1275,6 +1275,133 @@ u64 btrfs_get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
 }
 
 /*
+ * Handle COW for one range.
+ *
+ * @ins:		The key representing the allocated range.
+ * @file_offset:	The file offset of the COW range
+ * @num_bytes:		The expected length of the COW range
+ *			The actually allocated length can be smaller than it.
+ * @min_alloc_size:	The minimal extent size.
+ * @alloc_hint:		The hint for the extent allocator.
+ * @ret_alloc_size:	The COW range handles by this function.
+ *
+ * Return 0 if everything is fine and update @ret_alloc_size updated.  The
+ * range is still locked, and caller should unlock the range after everything
+ * is done or for error handling.
+ *
+ * Return <0 for error and @is updated for where the extra cleanup should
+ * happen. The range [file_offset, file_offset + ret_alloc_size) will be
+ * cleaned up by this function.
+ */
+static int cow_one_range(struct btrfs_inode *inode, struct folio *locked_folio,
+			 struct btrfs_key *ins, struct extent_state **cached,
+			 u64 file_offset, u32 num_bytes, u32 min_alloc_size,
+			 u64 alloc_hint, u32 *ret_alloc_size)
+{
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_ordered_extent *ordered;
+	struct btrfs_file_extent file_extent;
+	struct extent_map *em;
+	u32 cur_len = 0;
+	u64 cur_end;
+	int ret;
+
+	ret = btrfs_reserve_extent(root, num_bytes, num_bytes, min_alloc_size,
+				   0, alloc_hint, ins, true, true);
+	if (ret < 0) {
+		*ret_alloc_size = cur_len;
+		return ret;
+	}
+
+	cur_len = ins->offset;
+	cur_end = file_offset + cur_len - 1;
+
+	file_extent.disk_bytenr = ins->objectid;
+	file_extent.disk_num_bytes = ins->offset;
+	file_extent.num_bytes = ins->offset;
+	file_extent.ram_bytes = ins->offset;
+	file_extent.offset = 0;
+	file_extent.compression = BTRFS_COMPRESS_NONE;
+
+	/*
+	 * Locked range will be released either during error clean up (inside
+	 * this function or by the caller for previously successful ranges) or
+	 * after the whole range is finished.
+	 */
+	btrfs_lock_extent(&inode->io_tree, file_offset, cur_end, cached);
+	em = btrfs_create_io_em(inode, file_offset, &file_extent, BTRFS_ORDERED_REGULAR);
+	if (IS_ERR(em)) {
+		ret = PTR_ERR(em);
+		goto free_reserved;
+	}
+	btrfs_free_extent_map(em);
+
+	ordered = btrfs_alloc_ordered_extent(inode, file_offset, &file_extent,
+					     1U << BTRFS_ORDERED_REGULAR);
+	if (IS_ERR(ordered)) {
+		btrfs_drop_extent_map_range(inode, file_offset, cur_end, false);
+		ret = PTR_ERR(ordered);
+		goto free_reserved;
+	}
+
+	if (btrfs_is_data_reloc_root(root)) {
+		ret = btrfs_reloc_clone_csums(ordered);
+
+		/*
+		 * Only drop cache here, and process as normal.
+		 *
+		 * We must not allow extent_clear_unlock_delalloc() at
+		 * free_reserved label to free meta of this ordered extent, as
+		 * its meta should be freed by btrfs_finish_ordered_io().
+		 *
+		 * So we must continue until @start is increased to
+		 * skip current ordered extent.
+		 */
+		if (ret)
+			btrfs_drop_extent_map_range(inode, file_offset,
+						    cur_end, false);
+	}
+	btrfs_put_ordered_extent(ordered);
+	btrfs_dec_block_group_reservations(fs_info, ins->objectid);
+	/*
+	 * Error handling for btrfs_reloc_clone_csums().
+	 *
+	 * Treat the range as finished, thus only clear EXTENT_LOCKED | EXTENT_DELALLOC.
+	 * The accounting will be done by ordered extents.
+	 */
+	if (unlikely(ret < 0)) {
+		btrfs_cleanup_ordered_extents(inode, file_offset, cur_len);
+		extent_clear_unlock_delalloc(inode, file_offset, cur_end, locked_folio, cached,
+					     EXTENT_LOCKED | EXTENT_DELALLOC,
+					     PAGE_UNLOCK | PAGE_START_WRITEBACK |
+					     PAGE_END_WRITEBACK);
+		mapping_set_error(inode->vfs_inode.i_mapping, -EIO);
+	}
+	*ret_alloc_size = cur_len;
+	return ret;
+
+free_reserved:
+	extent_clear_unlock_delalloc(inode, file_offset, cur_end, locked_folio, cached,
+				     EXTENT_LOCKED | EXTENT_DELALLOC |
+				     EXTENT_DELALLOC_NEW |
+				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
+				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
+				     PAGE_END_WRITEBACK);
+	btrfs_qgroup_free_data(inode, NULL, file_offset, cur_len, NULL);
+	btrfs_dec_block_group_reservations(fs_info, ins->objectid);
+	btrfs_free_reserved_extent(fs_info, ins->objectid, ins->offset, true);
+	mapping_set_error(inode->vfs_inode.i_mapping, -EIO);
+	*ret_alloc_size = cur_len;
+	/*
+	 * We should not return -EAGAIN where it's a special return code for
+	 * zoned to catch btrfs_reserved_extent().
+	 */
+	ASSERT(ret != -EAGAIN);
+	return ret;
+}
+
+/*
  * when extent_io.c finds a delayed allocation range in the file,
  * the call backs end up in this code.  The basic idea is to
  * allocate extents on disk for the range, and create ordered data structs
@@ -1310,11 +1437,10 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	u64 alloc_hint = 0;
 	u64 orig_start = start;
 	u64 num_bytes;
-	u64 cur_alloc_size = 0;
-	u64 min_alloc_size;
-	u64 blocksize = fs_info->sectorsize;
+	u32 min_alloc_size;
+	u32 blocksize = fs_info->sectorsize;
+	u32 cur_alloc_size = 0;
 	struct btrfs_key ins;
-	struct extent_map *em;
 	unsigned clear_bits;
 	unsigned long page_ops;
 	int ret = 0;
@@ -1383,16 +1509,14 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		min_alloc_size = fs_info->sectorsize;
 
 	while (num_bytes > 0) {
-		struct btrfs_ordered_extent *ordered;
-		struct btrfs_file_extent file_extent;
+		ret = cow_one_range(inode, locked_folio, &ins, &cached, start,
+				    num_bytes, min_alloc_size, alloc_hint, &cur_alloc_size);
 
-		ret = btrfs_reserve_extent(root, num_bytes, num_bytes,
-					   min_alloc_size, 0, alloc_hint,
-					   &ins, true, true);
 		if (ret == -EAGAIN) {
 			/*
-			 * btrfs_reserve_extent only returns -EAGAIN for zoned
-			 * file systems, which is an indication that there are
+			 * cow_one_range() only returns -EAGAIN for zoned
+			 * file systems (from btrfs_reserve_extent()), which
+			 * is an indication that there are
 			 * no active zones to allocate from at the moment.
 			 *
 			 * If this is the first loop iteration, wait for at
@@ -1421,79 +1545,14 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		}
 		if (ret < 0)
 			goto out_unlock;
-		cur_alloc_size = ins.offset;
 
-		file_extent.disk_bytenr = ins.objectid;
-		file_extent.disk_num_bytes = ins.offset;
-		file_extent.num_bytes = ins.offset;
-		file_extent.ram_bytes = ins.offset;
-		file_extent.offset = 0;
-		file_extent.compression = BTRFS_COMPRESS_NONE;
+		/* We should not allocate an extent larger than requested.*/
+		ASSERT(cur_alloc_size <= num_bytes);
 
-		/*
-		 * Locked range will be released either during error clean up or
-		 * after the whole range is finished.
-		 */
-		btrfs_lock_extent(&inode->io_tree, start, start + cur_alloc_size - 1,
-				  &cached);
-
-		em = btrfs_create_io_em(inode, start, &file_extent,
-					BTRFS_ORDERED_REGULAR);
-		if (IS_ERR(em)) {
-			btrfs_unlock_extent(&inode->io_tree, start,
-					    start + cur_alloc_size - 1, &cached);
-			ret = PTR_ERR(em);
-			goto out_reserve;
-		}
-		btrfs_free_extent_map(em);
-
-		ordered = btrfs_alloc_ordered_extent(inode, start, &file_extent,
-						     1U << BTRFS_ORDERED_REGULAR);
-		if (IS_ERR(ordered)) {
-			btrfs_unlock_extent(&inode->io_tree, start,
-					    start + cur_alloc_size - 1, &cached);
-			ret = PTR_ERR(ordered);
-			goto out_drop_extent_cache;
-		}
-
-		if (btrfs_is_data_reloc_root(root)) {
-			ret = btrfs_reloc_clone_csums(ordered);
-
-			/*
-			 * Only drop cache here, and process as normal.
-			 *
-			 * We must not allow extent_clear_unlock_delalloc()
-			 * at out_unlock label to free meta of this ordered
-			 * extent, as its meta should be freed by
-			 * btrfs_finish_ordered_io().
-			 *
-			 * So we must continue until @start is increased to
-			 * skip current ordered extent.
-			 */
-			if (ret)
-				btrfs_drop_extent_map_range(inode, start,
-							    start + cur_alloc_size - 1,
-							    false);
-		}
-		btrfs_put_ordered_extent(ordered);
-
-		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
-
-		if (num_bytes < cur_alloc_size)
-			num_bytes = 0;
-		else
-			num_bytes -= cur_alloc_size;
+		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
 		cur_alloc_size = 0;
-
-		/*
-		 * btrfs_reloc_clone_csums() error, since start is increased
-		 * extent_clear_unlock_delalloc() at out_unlock label won't
-		 * free metadata of current ordered extent, we're OK to exit.
-		 */
-		if (ret)
-			goto out_unlock;
 	}
 	extent_clear_unlock_delalloc(inode, orig_start, end, locked_folio, &cached,
 				     EXTENT_LOCKED | EXTENT_DELALLOC, page_ops);
@@ -1502,11 +1561,6 @@ done:
 		*done_offset = end;
 	return ret;
 
-out_drop_extent_cache:
-	btrfs_drop_extent_map_range(inode, start, start + cur_alloc_size - 1, false);
-out_reserve:
-	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
-	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, true);
 out_unlock:
 	/*
 	 * Now, we have three regions to clean up:
@@ -1543,24 +1597,9 @@ out_unlock:
 	page_ops = PAGE_UNLOCK | PAGE_START_WRITEBACK | PAGE_END_WRITEBACK;
 
 	/*
-	 * For the range (2). If we reserved an extent for our delalloc range
-	 * (or a subrange) and failed to create the respective ordered extent,
-	 * then it means that when we reserved the extent we decremented the
-	 * extent's size from the data space_info's bytes_may_use counter and
-	 * incremented the space_info's bytes_reserved counter by the same
-	 * amount. We must make sure extent_clear_unlock_delalloc() does not try
-	 * to decrement again the data space_info's bytes_may_use counter,
-	 * therefore we do not pass it the flag EXTENT_CLEAR_DATA_RESV.
-	 */
-	if (cur_alloc_size) {
-		extent_clear_unlock_delalloc(inode, start,
-					     start + cur_alloc_size - 1,
-					     locked_folio, &cached, clear_bits,
-					     page_ops);
-		btrfs_qgroup_free_data(inode, NULL, start, cur_alloc_size, NULL);
-	}
-
-	/*
+	 * For the range (2) the error handling is done by cow_one_range() itself.
+	 * Nothing needs to be done.
+	 *
 	 * For the range (3). We never touched the region. In addition to the
 	 * clear_bits above, we add EXTENT_CLEAR_DATA_RESV to release the data
 	 * space_info's bytes_may_use counter, reserved in
@@ -1575,7 +1614,7 @@ out_unlock:
 				       end - start - cur_alloc_size + 1, NULL);
 	}
 	btrfs_err(fs_info,
-"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%llu: %d",
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%u: %d",
 		  __func__, btrfs_root_id(inode->root),
 		  btrfs_ino(inode), orig_start, end + 1 - orig_start,
 		  start, cur_alloc_size, ret);
