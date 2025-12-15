@@ -5721,13 +5721,6 @@ S:	Supported
 W:	http://www.marvell.com
 F:	drivers/crypto/cavium/cpt/
 
-CAVIUM THUNDERX2 ARM64 SOC
-M:	Robert Richter <rric@kernel.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Odd Fixes
-F:	Documentation/devicetree/bindings/arm/bcm/brcm,vulcan-soc.yaml
-F:	arch/arm64/boot/dts/cavium/thunder2-99xx*
-
 CBS/ETF/TAPRIO QDISCS
 M:	Vinicius Costa Gomes <vinicius.gomes@intel.com>
 L:	netdev@vger.kernel.org
