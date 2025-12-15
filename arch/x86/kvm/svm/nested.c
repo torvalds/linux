@@ -403,6 +403,19 @@ static bool nested_vmcb_check_controls(struct kvm_vcpu *vcpu)
 	return __nested_vmcb_check_controls(vcpu, ctl);
 }
 
+/*
+ * If a feature is not advertised to L1, clear the corresponding vmcb12
+ * intercept.
+ */
+#define __nested_svm_sanitize_intercept(__vcpu, __control, fname, iname)	\
+do {										\
+	if (!guest_cpu_cap_has(__vcpu, X86_FEATURE_##fname))			\
+		vmcb12_clr_intercept(__control, INTERCEPT_##iname);		\
+} while (0)
+
+#define nested_svm_sanitize_intercept(__vcpu, __control, name)			\
+	__nested_svm_sanitize_intercept(__vcpu, __control, name, name)
+
 static
 void __nested_copy_vmcb_control_to_cache(struct kvm_vcpu *vcpu,
 					 struct vmcb_ctrl_area_cached *to,
@@ -412,6 +425,12 @@ void __nested_copy_vmcb_control_to_cache(struct kvm_vcpu *vcpu,
 
 	for (i = 0; i < MAX_INTERCEPT; i++)
 		to->intercepts[i] = from->intercepts[i];
+
+	__nested_svm_sanitize_intercept(vcpu, to, XSAVE, XSETBV);
+	nested_svm_sanitize_intercept(vcpu, to, INVPCID);
+	nested_svm_sanitize_intercept(vcpu, to, RDTSCP);
+	nested_svm_sanitize_intercept(vcpu, to, SKINIT);
+	nested_svm_sanitize_intercept(vcpu, to, RDPRU);
 
 	to->iopm_base_pa        = from->iopm_base_pa;
 	to->msrpm_base_pa       = from->msrpm_base_pa;
