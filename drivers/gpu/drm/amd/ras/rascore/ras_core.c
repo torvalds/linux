@@ -241,7 +241,10 @@ static int ras_core_eeprom_recovery(struct ras_core_context *ras_core)
 	int count;
 	int ret;
 
-	count = ras_eeprom_get_record_count(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		count = ras_fw_eeprom_get_record_count(ras_core);
+	else
+		count = ras_eeprom_get_record_count(ras_core);
 	if (!count)
 		return 0;
 

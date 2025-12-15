@@ -259,3 +259,73 @@ int ras_fw_eeprom_append(struct ras_core_context *ras_core,
 	mutex_unlock(&control->ras_tbl_mutex);
 	return 0;
 }
+
+int ras_fw_eeprom_read_idx(struct ras_core_context *ras_core,
+			 struct eeprom_umc_record *record_umc,
+			 struct ras_bank_ecc *ras_ecc,
+			 u32 rec_idx, const u32 num)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	int i, ret, end_idx;
+	u64 mca, ipid, ts;
+
+	if (!ras_core->ras_umc.ip_func ||
+	    !ras_core->ras_umc.ip_func->mca_ipid_parse)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&control->ras_tbl_mutex);
+
+	end_idx = rec_idx + num;
+	for (i = rec_idx; i < end_idx; i++) {
+		ret = ras_fw_get_badpage_mca_addr(ras_core, i, &mca);
+		if (ret)
+			goto out;
+
+		ret = ras_fw_get_badpage_ipid(ras_core, i, &ipid);
+		if (ret)
+			goto out;
+
+		ret = ras_fw_get_timestamp(ras_core, i, &ts);
+		if (ret)
+			goto out;
+
+		if (record_umc) {
+			record_umc[i - rec_idx].address = mca;
+			/* retired_page (pa) is unused now */
+			record_umc[i - rec_idx].retired_row_pfn = 0x1ULL;
+			record_umc[i - rec_idx].ts = ts;
+			record_umc[i - rec_idx].err_type = RAS_EEPROM_ERR_NON_RECOVERABLE;
+
+			ras_core->ras_umc.ip_func->mca_ipid_parse(ras_core, ipid,
+				(uint32_t *)&(record_umc[i - rec_idx].cu),
+				(uint32_t *)&(record_umc[i - rec_idx].mem_channel),
+				(uint32_t *)&(record_umc[i - rec_idx].mcumc_id), NULL);
+
+			/* update bad channel bitmap */
+			if ((record_umc[i - rec_idx].mem_channel < BITS_PER_TYPE(control->bad_channel_bitmap)) &&
+				!(control->bad_channel_bitmap & (1 << record_umc[i - rec_idx].mem_channel))) {
+				control->bad_channel_bitmap |= 1 << record_umc[i - rec_idx].mem_channel;
+				control->update_channel_flag = true;
+			}
+		}
+
+		if (ras_ecc) {
+			ras_ecc[i - rec_idx].addr = mca;
+			ras_ecc[i - rec_idx].ipid = ipid;
+			ras_ecc[i - rec_idx].ts = ts;
+		}
+
+	}
+
+out:
+	mutex_unlock(&control->ras_tbl_mutex);
+	return ret;
+}
+
+uint32_t ras_fw_eeprom_get_record_count(struct ras_core_context *ras_core)
+{
+	if (!ras_core)
+		return 0;
+
+	return ras_core->ras_fw_eeprom.ras_num_recs;
+}

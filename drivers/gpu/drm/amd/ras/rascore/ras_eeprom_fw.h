@@ -70,5 +70,10 @@ int ras_fw_eeprom_reset_table(struct ras_core_context *ras_core);
 bool ras_fw_eeprom_check_safety_watermark(struct ras_core_context *ras_core);
 int ras_fw_eeprom_append(struct ras_core_context *ras_core,
 			   struct eeprom_umc_record *record, const u32 num);
+int ras_fw_eeprom_read_idx(struct ras_core_context *ras_core,
+			 struct eeprom_umc_record *record_umc,
+			 struct ras_bank_ecc *ras_ecc,
+			 u32 rec_idx, const u32 num);
+uint32_t ras_fw_eeprom_get_record_count(struct ras_core_context *ras_core);
 
 #endif

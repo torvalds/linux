@@ -241,6 +241,7 @@ struct ras_bank_ecc {
 	uint64_t status;
 	uint64_t ipid;
 	uint64_t addr;
+	uint64_t ts;
 };
 
 struct ras_bank_ecc_node {
