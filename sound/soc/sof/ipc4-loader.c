@@ -175,7 +175,7 @@ static int sof_ipc4_load_library(struct snd_sof_dev *sdev, unsigned long lib_id,
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_fw_library *fw_lib;
 	ssize_t payload_offset;
-	int ret, i, err;
+	int ret, i;
 
 	if (!ipc4_data->load_library) {
 		dev_err(sdev->dev, "Library loading is not supported on this platform\n");
@@ -223,24 +223,7 @@ static int sof_ipc4_load_library(struct snd_sof_dev *sdev, unsigned long lib_id,
 	for (i = 0; i < fw_lib->num_modules; i++)
 		fw_lib->modules[i].man4_module_entry.id |= (lib_id << SOF_IPC4_MOD_LIB_ID_SHIFT);
 
-	/*
-	 * Make sure that the DSP is booted and stays up while attempting the
-	 * loading the library for the first time
-	 */
-	ret = pm_runtime_resume_and_get(sdev->dev);
-	if (ret < 0 && ret != -EACCES) {
-		dev_err_ratelimited(sdev->dev, "%s: pm_runtime resume failed: %d\n",
-				    __func__, ret);
-		goto release;
-	}
-
 	ret = ipc4_data->load_library(sdev, fw_lib, false);
-
-	err = pm_runtime_put_autosuspend(sdev->dev);
-	if (err < 0)
-		dev_err_ratelimited(sdev->dev, "%s: pm_runtime idle failed: %d\n",
-				    __func__, err);
-
 	if (ret)
 		goto release;
 
