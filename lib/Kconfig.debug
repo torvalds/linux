@@ -2499,9 +2499,6 @@ config TEST_BITMAP
 
 	  If unsure, say N.
 
-config TEST_UUID
-	tristate "Test functions located in the uuid module at runtime"
-
 config TEST_XARRAY
 	tristate "Test the XArray code at runtime"
 
@@ -3282,6 +3279,17 @@ config RATELIMIT_KUNIT_TEST
 	  This builds the "test_ratelimit" module that should be used
 	  for correctness verification and concurrent testings of rate
 	  limiting.
+
+	  If unsure, say N.
+
+config UUID_KUNIT_TEST
+	tristate "KUnit test for UUID" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the uuid library,
+	  which provides functions for generating and parsing UUID and GUID.
+	  The test suite checks parsing of UUID and GUID strings.
 
 	  If unsure, say N.
 

@@ -89,7 +89,6 @@ ifeq ($(CONFIG_CC_IS_CLANG)$(CONFIG_KASAN),yy)
 GCOV_PROFILE_test_bitmap.o := n
 endif
 
-obj-$(CONFIG_TEST_UUID) += test_uuid.o
 obj-$(CONFIG_TEST_XARRAY) += test_xarray.o
 obj-$(CONFIG_TEST_MAPLE_TREE) += test_maple_tree.o
 obj-$(CONFIG_TEST_PARMAN) += test_parman.o
