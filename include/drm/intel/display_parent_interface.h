@@ -29,7 +29,7 @@ struct intel_display_hdcp_interface {
 
 struct intel_display_initial_plane_interface {
 	void (*vblank_wait)(struct drm_crtc *crtc);
-	void (*find_obj)(struct drm_crtc *crtc, struct intel_initial_plane_config *plane_configs);
+	int (*find_obj)(struct drm_crtc *crtc, struct intel_initial_plane_config *plane_configs);
 	void (*config_fini)(struct intel_initial_plane_config *plane_configs);
 };
 

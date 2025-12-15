@@ -19,8 +19,33 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 			     struct intel_initial_plane_config plane_configs[])
 {
 	struct intel_display *display = to_intel_display(crtc);
+	struct intel_initial_plane_config *plane_config = &plane_configs[crtc->pipe];
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	int ret;
 
-	display->parent->initial_plane->find_obj(&crtc->base, plane_configs);
+	/*
+	 * TODO:
+	 *   Disable planes if get_initial_plane_config() failed.
+	 *   Make sure things work if the surface base is not page aligned.
+	 */
+	if (!plane_config->fb)
+		return;
+
+	ret = display->parent->initial_plane->find_obj(&crtc->base, plane_configs);
+	if (ret)
+		goto nofb;
+
+	return;
+
+nofb:
+	/*
+	 * We've failed to reconstruct the BIOS FB.  Current display state
+	 * indicates that the primary plane is visible, but has a NULL FB,
+	 * which will lead to problems later if we don't fix it up.  The
+	 * simplest solution is to just disable the primary plane now and
+	 * pretend the BIOS never had it enabled.
+	 */
+	intel_plane_disable_noatomic(crtc, plane);
 }
 
 static void plane_config_fini(struct intel_display *display,

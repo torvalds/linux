@@ -311,7 +311,7 @@ err_vma:
 	return false;
 }
 
-static void
+static int
 i915_find_initial_plane_obj(struct drm_crtc *_crtc,
 			    struct intel_initial_plane_config plane_configs[])
 {
@@ -326,39 +326,13 @@ i915_find_initial_plane_obj(struct drm_crtc *_crtc,
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
-	/*
-	 * TODO:
-	 *   Disable planes if get_initial_plane_config() failed.
-	 *   Make sure things work if the surface base is not page aligned.
-	 */
-	if (!plane_config->fb)
-		return;
-
 	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
 		fb = &plane_config->fb->base;
 		vma = plane_config->vma;
-		goto valid_fb;
+	} else if (!intel_reuse_initial_plane_obj(crtc, plane_configs, &fb, &vma)) {
+		return -EINVAL;
 	}
 
-	/*
-	 * Failed to alloc the obj, check to see if we should share
-	 * an fb with another CRTC instead
-	 */
-	if (intel_reuse_initial_plane_obj(crtc, plane_configs, &fb, &vma))
-		goto valid_fb;
-
-	/*
-	 * We've failed to reconstruct the BIOS FB.  Current display state
-	 * indicates that the primary plane is visible, but has a NULL FB,
-	 * which will lead to problems later if we don't fix it up.  The
-	 * simplest solution is to just disable the primary plane now and
-	 * pretend the BIOS never had it enabled.
-	 */
-	intel_plane_disable_noatomic(crtc, plane);
-
-	return;
-
-valid_fb:
 	plane_state->uapi.rotation = plane_config->rotation;
 	intel_fb_fill_view(to_intel_framebuffer(fb),
 			   plane_state->uapi.rotation, &plane_state->view);
@@ -391,6 +365,8 @@ valid_fb:
 	intel_plane_copy_uapi_to_hw_state(plane_state, plane_state, crtc);
 
 	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
+
+	return 0;
 }
 
 static void i915_plane_config_fini(struct intel_initial_plane_config *plane_config)

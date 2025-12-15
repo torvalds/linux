@@ -203,7 +203,7 @@ err_bo:
 	return false;
 }
 
-static void
+static int
 xe_find_initial_plane_obj(struct drm_crtc *_crtc,
 			  struct intel_initial_plane_config plane_configs[])
 {
@@ -217,18 +217,10 @@ xe_find_initial_plane_obj(struct drm_crtc *_crtc,
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
-	/*
-	 * TODO:
-	 *   Disable planes if get_initial_plane_config() failed.
-	 *   Make sure things work if the surface base is not page aligned.
-	 */
-	if (!plane_config->fb)
-		return;
-
 	if (intel_alloc_initial_plane_obj(crtc, plane_config))
 		fb = &plane_config->fb->base;
 	else if (!intel_reuse_initial_plane_obj(crtc, plane_configs, &fb))
-		goto nofb;
+		return -EINVAL;
 
 	plane_state->uapi.rotation = plane_config->rotation;
 	intel_fb_fill_view(to_intel_framebuffer(fb),
@@ -237,7 +229,7 @@ xe_find_initial_plane_obj(struct drm_crtc *_crtc,
 	vma = intel_fb_pin_to_ggtt(fb, &plane_state->view.gtt,
 				   0, 0, 0, false, &plane_state->flags);
 	if (IS_ERR(vma))
-		goto nofb;
+		return PTR_ERR(vma);
 
 	plane_state->ggtt_vma = vma;
 
@@ -262,17 +254,8 @@ xe_find_initial_plane_obj(struct drm_crtc *_crtc,
 	atomic_or(plane->frontbuffer_bit, &to_intel_frontbuffer(fb)->bits);
 
 	plane_config->vma = vma;
-	return;
 
-nofb:
-	/*
-	 * We've failed to reconstruct the BIOS FB.  Current display state
-	 * indicates that the primary plane is visible, but has a NULL FB,
-	 * which will lead to problems later if we don't fix it up.  The
-	 * simplest solution is to just disable the primary plane now and
-	 * pretend the BIOS never had it enabled.
-	 */
-	intel_plane_disable_noatomic(crtc, plane);
+	return 0;
 }
 
 static void xe_plane_config_fini(struct intel_initial_plane_config *plane_config)
