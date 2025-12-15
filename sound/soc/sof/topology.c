@@ -2106,8 +2106,8 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* source component */
 	source_swidget = snd_sof_find_swidget(scomp, (char *)route->source);
 	if (!source_swidget) {
-		dev_err(scomp->dev, "error: source %s not found\n",
-			route->source);
+		dev_err(scomp->dev, "source %s for sink %s is not found\n",
+			route->source, route->sink);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -2125,8 +2125,8 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* sink component */
 	sink_swidget = snd_sof_find_swidget(scomp, (char *)route->sink);
 	if (!sink_swidget) {
-		dev_err(scomp->dev, "error: sink %s not found\n",
-			route->sink);
+		dev_err(scomp->dev, "sink %s for source %s is not found\n",
+			route->sink, route->source);
 		ret = -EINVAL;
 		goto err;
 	}
