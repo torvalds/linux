@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 /* Copyright © 2025 Intel Corporation */
 
+#include <drm/drm_print.h>
 #include <drm/intel/display_parent_interface.h>
 
 #include "intel_display_core.h"
@@ -47,6 +48,19 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 			      struct intel_initial_plane_config *plane_config)
 {
 	struct intel_display *display = to_intel_display(crtc);
+	struct intel_framebuffer *fb = plane_config->fb;
+
+	switch (fb->base.modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_4_TILED:
+		break;
+	default:
+		drm_dbg_kms(display->drm, "Unsupported modifier for initial FB: 0x%llx\n",
+			    fb->base.modifier);
+		return NULL;
+	}
 
 	return display->parent->initial_plane->alloc_obj(&crtc->base, plane_config);
 }

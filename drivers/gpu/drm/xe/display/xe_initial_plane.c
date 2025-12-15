@@ -134,19 +134,6 @@ xe_alloc_initial_plane_obj(struct drm_crtc *_crtc,
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct xe_bo *bo;
 
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_4_TILED:
-		break;
-	default:
-		drm_dbg_kms(&xe->drm,
-			    "Unsupported modifier for initial FB: 0x%llx\n",
-			    fb->modifier);
-		return NULL;
-	}
-
 	mode_cmd.pixel_format = fb->format->format;
 	mode_cmd.width = fb->width;
 	mode_cmd.height = fb->height;

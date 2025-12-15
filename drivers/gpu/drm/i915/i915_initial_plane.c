@@ -240,19 +240,6 @@ i915_alloc_initial_plane_obj(struct drm_crtc *_crtc,
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct i915_vma *vma;
 
-	switch (fb->modifier) {
-	case DRM_FORMAT_MOD_LINEAR:
-	case I915_FORMAT_MOD_X_TILED:
-	case I915_FORMAT_MOD_Y_TILED:
-	case I915_FORMAT_MOD_4_TILED:
-		break;
-	default:
-		drm_dbg(display->drm,
-			"Unsupported modifier for initial FB: 0x%llx\n",
-			fb->modifier);
-		return NULL;
-	}
-
 	vma = initial_plane_vma(display, plane_config);
 	if (!vma)
 		return NULL;
