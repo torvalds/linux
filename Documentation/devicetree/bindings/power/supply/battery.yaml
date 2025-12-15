@@ -128,6 +128,21 @@ properties:
       - description: alert when battery temperature is lower than this value
       - description: alert when battery temperature is higher than this value
 
+  # The volt-drop* -properties describe voltage-drop for a battery, described
+  # as VDROP in:
+  # https://patentimages.storage.googleapis.com/6c/f5/17/c1d901c220f6a9/US20150032394A1.pdf
+  volt-drop-thresh-microvolt:
+    description: Threshold for starting the VDR correction
+    maximum: 48000000
+
+  volt-drop-soc-bp:
+    description: Table of capacity values matching the values in VDR tables.
+      The value should be given as basis points, 1/100 of a percent.
+
+  volt-drop-temperatures-millicelsius:
+    description: An array containing the temperature in milli celsius, for each
+      of the VDR lookup table.
+
 required:
   - compatible
 
@@ -145,6 +160,13 @@ patternProperties:
         - description: open circuit voltage (OCV) in microvolts
         - description: battery capacity percent
           maximum: 100
+
+  '^volt-drop-[0-9]-microvolt':
+    description: Table of the voltage drop rate (VDR) values. Each entry in the
+      table should match a capacity value in the volt-drop-soc table.
+      Furthermore, the values should be obtained for the temperature given in
+      volt-drop-temperatures-millicelsius table at index matching the
+      number in this table's name.
 
 additionalProperties: false
 
