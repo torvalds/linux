@@ -338,7 +338,6 @@ static struct tee_client_driver ftpm_tee_driver = {
 	.id_table	= optee_ftpm_id_table,
 	.driver		= {
 		.name		= "optee-ftpm",
-		.bus		= &tee_bus_type,
 		.probe		= ftpm_tee_probe,
 		.remove		= ftpm_tee_remove,
 	},
@@ -352,7 +351,7 @@ static int __init ftpm_mod_init(void)
 	if (rc)
 		return rc;
 
-	rc = driver_register(&ftpm_tee_driver.driver);
+	rc = tee_client_driver_register(&ftpm_tee_driver);
 	if (rc) {
 		platform_driver_unregister(&ftpm_tee_plat_driver);
 		return rc;
@@ -364,7 +363,7 @@ static int __init ftpm_mod_init(void)
 static void __exit ftpm_mod_exit(void)
 {
 	platform_driver_unregister(&ftpm_tee_plat_driver);
-	driver_unregister(&ftpm_tee_driver.driver);
+	tee_client_driver_unregister(&ftpm_tee_driver);
 }
 
 module_init(ftpm_mod_init);
