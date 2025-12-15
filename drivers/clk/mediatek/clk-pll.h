@@ -10,9 +10,7 @@
 #include <linux/clk-provider.h>
 #include <linux/types.h>
 
-struct clk_ops;
-struct clk_hw_onecell_data;
-struct device_node;
+struct device;
 
 struct mtk_pll_div_table {
 	u32 div;
@@ -78,9 +76,9 @@ struct mtk_clk_pll {
 	const struct mtk_pll_data *data;
 };
 
-int mtk_clk_register_plls(struct device_node *node,
-			  const struct mtk_pll_data *plls, int num_plls,
-			  struct clk_hw_onecell_data *clk_data);
+int mtk_clk_register_plls(struct device *dev, const struct mtk_pll_data *plls,
+			  int num_plls, struct clk_hw_onecell_data *clk_data);
+
 void mtk_clk_unregister_plls(const struct mtk_pll_data *plls, int num_plls,
 			     struct clk_hw_onecell_data *clk_data);
 

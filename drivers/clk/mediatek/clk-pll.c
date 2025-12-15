@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "clk-pll.h"
@@ -404,7 +405,7 @@ void mtk_clk_unregister_pll(struct clk_hw *hw)
 	kfree(pll);
 }
 
-int mtk_clk_register_plls(struct device_node *node,
+int mtk_clk_register_plls(struct device *dev,
 			  const struct mtk_pll_data *plls, int num_plls,
 			  struct clk_hw_onecell_data *clk_data)
 {
@@ -412,7 +413,7 @@ int mtk_clk_register_plls(struct device_node *node,
 	int i;
 	struct clk_hw *hw;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(dev->of_node, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return -EINVAL;
@@ -423,7 +424,7 @@ int mtk_clk_register_plls(struct device_node *node,
 
 		if (!IS_ERR_OR_NULL(clk_data->hws[pll->id])) {
 			pr_warn("%pOF: Trying to register duplicate clock ID: %d\n",
-				node, pll->id);
+				dev->of_node, pll->id);
 			continue;
 		}
 
