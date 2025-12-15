@@ -24,6 +24,8 @@
 
 #include "ras.h"
 
+#define RAS_SMU_MESSAGE_TIMEOUT_MS 1000 /* 1s */
+
 void ras_fw_init_feature_flags(struct ras_core_context *ras_core)
 {
 	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
@@ -328,4 +330,42 @@ uint32_t ras_fw_eeprom_get_record_count(struct ras_core_context *ras_core)
 		return 0;
 
 	return ras_core->ras_fw_eeprom.ras_num_recs;
+}
+
+int ras_fw_eeprom_update_record(struct ras_core_context *ras_core,
+				struct ras_bank_ecc *ras_ecc)
+{
+	struct ras_fw_eeprom_control *control = &ras_core->ras_fw_eeprom;
+	int ret, retry = 20;
+	u32 recs_num_new = control->ras_num_recs;
+
+	do {
+		/* 1000ms timeout is long enough, smu_get_badpage_count won't
+		 * return -EBUSY before timeout.
+		 */
+		ret = ras_fw_get_badpage_count(ras_core,
+			&recs_num_new, RAS_SMU_MESSAGE_TIMEOUT_MS);
+		if (!ret &&
+		    (recs_num_new == control->ras_num_recs)) {
+			/* record number update in PMFW needs some time,
+			 * smu_get_badpage_count may return immediately without
+			 * count update, sleep for a while and retry again.
+			 */
+			msleep(50);
+			retry--;
+		} else {
+			break;
+		}
+	} while (retry);
+
+	if (ret)
+		return ret;
+
+	if (recs_num_new > control->ras_num_recs)
+		ret = ras_fw_eeprom_read_idx(ras_core, 0,
+					ras_ecc, control->ras_num_recs, 1);
+	else
+		ret = -EINVAL;
+
+	return ret;
 }
