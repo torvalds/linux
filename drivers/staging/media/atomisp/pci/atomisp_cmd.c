@@ -2961,11 +2961,8 @@ int atomisp_set_parameters(struct video_device *vdev,
 		 * per-frame setting only works for the main output frame.
 		 */
 		param = kvzalloc(sizeof(*param), GFP_KERNEL);
-		if (!param) {
-			dev_err(asd->isp->dev, "%s: failed to alloc params buffer\n",
-				__func__);
+		if (!param)
 			return -ENOMEM;
-		}
 		css_param = &param->params;
 	}
 
