@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
-//
-// Copyright (C) 2019 ROHM Semiconductors
-//
-// ROHM BD71828/BD71815 PMIC driver
+/*
+ * Copyright (C) 2019 ROHM Semiconductors
+ *
+ * ROHM BD71828/BD71815 PMIC driver
+ */
 
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
