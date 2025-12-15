@@ -7,8 +7,6 @@
 #include <drm/intel/display_parent_interface.h>
 
 #include "display/intel_crtc.h"
-#include "display/intel_display.h"
-#include "display/intel_display_core.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fb.h"
 #include "gem/i915_gem_lmem.h"
@@ -23,11 +21,9 @@ static void i915_initial_plane_vblank_wait(struct drm_crtc *crtc)
 }
 
 static enum intel_memory_type
-initial_plane_memory_type(struct intel_display *display)
+initial_plane_memory_type(struct drm_i915_private *i915)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	if (display->platform.dgfx)
+	if (IS_DGFX(i915))
 		return INTEL_MEMORY_LOCAL;
 	else if (HAS_LMEMBAR_SMEM_STOLEN(i915))
 		return INTEL_MEMORY_STOLEN_LOCAL;
@@ -36,10 +32,9 @@ initial_plane_memory_type(struct intel_display *display)
 }
 
 static bool
-initial_plane_phys(struct intel_display *display,
+initial_plane_phys(struct drm_i915_private *i915,
 		   struct intel_initial_plane_config *plane_config)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
 	enum intel_memory_type mem_type;
@@ -47,10 +42,10 @@ initial_plane_phys(struct intel_display *display,
 	dma_addr_t dma_addr;
 	u32 base;
 
-	mem_type = initial_plane_memory_type(display);
+	mem_type = initial_plane_memory_type(i915);
 	mem = intel_memory_region_by_type(i915, mem_type);
 	if (!mem) {
-		drm_dbg_kms(display->drm,
+		drm_dbg_kms(&i915->drm,
 			    "Initial plane memory region (type %s) not initialized\n",
 			    intel_memory_type_str(mem_type));
 		return false;
@@ -61,27 +56,24 @@ initial_plane_phys(struct intel_display *display,
 	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
 
 	if (!is_present) {
-		drm_err(display->drm,
-			"Initial plane FB PTE not present\n");
+		drm_err(&i915->drm, "Initial plane FB PTE not present\n");
 		return false;
 	}
 
 	if (intel_memory_type_is_local(mem->type) != is_local) {
-		drm_err(display->drm,
-			"Initial plane FB PTE unsuitable for %s\n",
+		drm_err(&i915->drm, "Initial plane FB PTE unsuitable for %s\n",
 			mem->region.name);
 		return false;
 	}
 
 	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
-		drm_err(display->drm,
+		drm_err(&i915->drm,
 			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
 			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
 		return false;
 	}
 
-	drm_dbg(display->drm,
-		"Using dma_addr=%pa, based on initial plane programming\n",
+	drm_dbg(&i915->drm, "Using dma_addr=%pa, based on initial plane programming\n",
 		&dma_addr);
 
 	plane_config->phys_base = dma_addr - mem->region.start;
@@ -91,10 +83,9 @@ initial_plane_phys(struct intel_display *display,
 }
 
 static struct i915_vma *
-initial_plane_vma(struct intel_display *display,
+initial_plane_vma(struct drm_i915_private *i915,
 		  struct intel_initial_plane_config *plane_config)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_memory_region *mem;
 	struct drm_i915_gem_object *obj;
 	struct drm_mm_node orig_mm = {};
@@ -107,7 +98,7 @@ initial_plane_vma(struct intel_display *display,
 	if (plane_config->size == 0)
 		return NULL;
 
-	if (!initial_plane_phys(display, plane_config))
+	if (!initial_plane_phys(i915, plane_config))
 		return NULL;
 
 	phys_base = plane_config->phys_base;
@@ -126,7 +117,7 @@ initial_plane_vma(struct intel_display *display,
 	if (IS_ENABLED(CONFIG_FRAMEBUFFER_CONSOLE) &&
 	    mem == i915->mm.stolen_region &&
 	    size * 2 > i915->dsm.usable_size) {
-		drm_dbg_kms(display->drm, "Initial FB size exceeds half of stolen, discarding\n");
+		drm_dbg_kms(&i915->drm, "Initial FB size exceeds half of stolen, discarding\n");
 		return NULL;
 	}
 
@@ -134,7 +125,7 @@ initial_plane_vma(struct intel_display *display,
 					       I915_BO_ALLOC_USER |
 					       I915_BO_PREALLOC);
 	if (IS_ERR(obj)) {
-		drm_dbg_kms(display->drm, "Failed to preallocate initial FB in %s\n",
+		drm_dbg_kms(&i915->drm, "Failed to preallocate initial FB in %s\n",
 			    mem->region.name);
 		return NULL;
 	}
@@ -214,7 +205,7 @@ retry:
 	if (drm_mm_node_allocated(&orig_mm))
 		drm_mm_remove_node(&orig_mm);
 
-	drm_dbg_kms(display->drm,
+	drm_dbg_kms(&i915->drm,
 		    "Initial plane fb bound to 0x%x in the ggtt (original 0x%x)\n",
 		    i915_ggtt_offset(vma), plane_config->base);
 
@@ -231,12 +222,12 @@ static struct drm_gem_object *
 i915_alloc_initial_plane_obj(struct drm_device *drm,
 			     struct intel_initial_plane_config *plane_config)
 {
-	struct intel_display *display = to_intel_display(drm);
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_framebuffer *fb = &plane_config->fb->base;
 	struct i915_vma *vma;
 
-	vma = initial_plane_vma(display, plane_config);
+	vma = initial_plane_vma(i915, plane_config);
 	if (!vma)
 		return NULL;
 
@@ -250,7 +241,7 @@ i915_alloc_initial_plane_obj(struct drm_device *drm,
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
 				   intel_bo_to_drm_bo(vma->obj),
 				   fb->format, &mode_cmd)) {
-		drm_dbg_kms(display->drm, "intel fb init failed\n");
+		drm_dbg_kms(&i915->drm, "intel fb init failed\n");
 		goto err_vma;
 	}
 
