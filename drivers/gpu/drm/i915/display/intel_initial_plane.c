@@ -14,6 +14,43 @@ void intel_initial_plane_vblank_wait(struct intel_crtc *crtc)
 	display->parent->initial_plane->vblank_wait(&crtc->base);
 }
 
+static const struct intel_plane_state *
+intel_reuse_initial_plane_obj(struct intel_crtc *this,
+			      const struct intel_initial_plane_config plane_configs[])
+{
+	struct intel_display *display = to_intel_display(this);
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(display->drm, crtc) {
+		struct intel_plane *plane =
+			to_intel_plane(crtc->base.primary);
+		const struct intel_plane_state *plane_state =
+			to_intel_plane_state(plane->base.state);
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		if (!crtc_state->hw.active)
+			continue;
+
+		if (!plane_state->ggtt_vma)
+			continue;
+
+		if (plane_configs[this->pipe].base == plane_configs[crtc->pipe].base)
+			return plane_state;
+	}
+
+	return NULL;
+}
+
+static struct drm_gem_object *
+intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
+			      struct intel_initial_plane_config *plane_config)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	return display->parent->initial_plane->alloc_obj(&crtc->base, plane_config);
+}
+
 static void
 intel_find_initial_plane_obj(struct intel_crtc *crtc,
 			     struct intel_initial_plane_config plane_configs[])
@@ -21,6 +58,8 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	struct intel_initial_plane_config *plane_config = &plane_configs[crtc->pipe];
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	struct drm_framebuffer *fb;
+	struct i915_vma *vma;
 	int ret;
 
 	/*
@@ -31,7 +70,21 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 	if (!plane_config->fb)
 		return;
 
-	ret = display->parent->initial_plane->find_obj(&crtc->base, plane_configs);
+	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
+		fb = &plane_config->fb->base;
+		vma = plane_config->vma;
+	} else {
+		const struct intel_plane_state *other_plane_state;
+
+		other_plane_state = intel_reuse_initial_plane_obj(crtc, plane_configs);
+		if (!other_plane_state)
+			goto nofb;
+
+		fb = other_plane_state->hw.fb;
+		vma = other_plane_state->ggtt_vma;
+	}
+
+	ret = display->parent->initial_plane->setup(&crtc->base, plane_config, fb, vma);
 	if (ret)
 		goto nofb;
 

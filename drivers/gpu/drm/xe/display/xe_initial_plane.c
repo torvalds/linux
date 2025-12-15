@@ -45,34 +45,6 @@ static void xe_initial_plane_vblank_wait(struct drm_crtc *_crtc)
 		drm_warn(&xe->drm, "waiting for early vblank failed with %i\n", ret);
 }
 
-static const struct intel_plane_state *
-intel_reuse_initial_plane_obj(struct intel_crtc *this,
-			      const struct intel_initial_plane_config plane_configs[])
-{
-	struct xe_device *xe = to_xe_device(this->base.dev);
-	struct intel_crtc *crtc;
-
-	for_each_intel_crtc(&xe->drm, crtc) {
-		struct intel_plane *plane =
-			to_intel_plane(crtc->base.primary);
-		const struct intel_plane_state *plane_state =
-			to_intel_plane_state(plane->base.state);
-		const struct intel_crtc_state *crtc_state =
-			to_intel_crtc_state(crtc->base.state);
-
-		if (!crtc_state->hw.active)
-			continue;
-
-		if (!plane_state->ggtt_vma)
-			continue;
-
-		if (plane_configs[this->pipe].base == plane_configs[crtc->pipe].base)
-			return plane_state;
-	}
-
-	return NULL;
-}
-
 static struct xe_bo *
 initial_plane_bo(struct xe_device *xe,
 		 struct intel_initial_plane_config *plane_config)
@@ -152,10 +124,11 @@ initial_plane_bo(struct xe_device *xe,
 	return bo;
 }
 
-static bool
-intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
-			      struct intel_initial_plane_config *plane_config)
+static struct drm_gem_object *
+xe_alloc_initial_plane_obj(struct drm_crtc *_crtc,
+			   struct intel_initial_plane_config *plane_config)
 {
+	struct intel_crtc *crtc = to_intel_crtc(_crtc);
 	struct xe_device *xe = to_xe_device(crtc->base.dev);
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
 	struct drm_framebuffer *fb = &plane_config->fb->base;
@@ -171,7 +144,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 		drm_dbg_kms(&xe->drm,
 			    "Unsupported modifier for initial FB: 0x%llx\n",
 			    fb->modifier);
-		return false;
+		return NULL;
 	}
 
 	mode_cmd.pixel_format = fb->format->format;
@@ -183,7 +156,7 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 
 	bo = initial_plane_bo(xe, plane_config);
 	if (!bo)
-		return false;
+		return NULL;
 
 	if (intel_framebuffer_init(to_intel_framebuffer(fb),
 				   &bo->ttm.base, fb->format, &mode_cmd)) {
@@ -193,38 +166,25 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	/* Reference handed over to fb */
 	xe_bo_put(bo);
 
-	return true;
+	return &bo->ttm.base;
 
 err_bo:
 	xe_bo_unpin_map_no_vm(bo);
-	return false;
+	return NULL;
 }
 
 static int
-xe_find_initial_plane_obj(struct drm_crtc *_crtc,
-			  struct intel_initial_plane_config plane_configs[])
+xe_initial_plane_setup(struct drm_crtc *_crtc,
+		       struct intel_initial_plane_config *plane_config,
+		       struct drm_framebuffer *fb,
+		       struct i915_vma *_unused)
 {
 	struct intel_crtc *crtc = to_intel_crtc(_crtc);
-	struct intel_initial_plane_config *plane_config =
-		&plane_configs[crtc->pipe];
 	struct intel_plane *plane =
 		to_intel_plane(crtc->base.primary);
 	struct intel_plane_state *plane_state =
 		to_intel_plane_state(plane->base.state);
-	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
-
-	if (intel_alloc_initial_plane_obj(crtc, plane_config)) {
-		fb = &plane_config->fb->base;
-	} else {
-		const struct intel_plane_state *other_plane_state;
-
-		other_plane_state = intel_reuse_initial_plane_obj(crtc, plane_configs);
-		if (!other_plane_state)
-			return -EINVAL;
-
-		fb = other_plane_state->hw.fb;
-	}
 
 	plane_state->uapi.rotation = plane_config->rotation;
 	intel_fb_fill_view(to_intel_framebuffer(fb),
@@ -268,6 +228,7 @@ static void xe_plane_config_fini(struct intel_initial_plane_config *plane_config
 
 const struct intel_display_initial_plane_interface xe_display_initial_plane_interface = {
 	.vblank_wait = xe_initial_plane_vblank_wait,
-	.find_obj = xe_find_initial_plane_obj,
+	.alloc_obj = xe_alloc_initial_plane_obj,
+	.setup = xe_initial_plane_setup,
 	.config_fini = xe_plane_config_fini,
 };
