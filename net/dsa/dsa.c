@@ -367,16 +367,10 @@ static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
 
 struct net_device *dsa_tree_find_first_conduit(struct dsa_switch_tree *dst)
 {
-	struct device_node *ethernet;
-	struct net_device *conduit;
 	struct dsa_port *cpu_dp;
 
 	cpu_dp = dsa_tree_find_first_cpu(dst);
-	ethernet = of_parse_phandle(cpu_dp->dn, "ethernet", 0);
-	conduit = of_find_net_device_by_node(ethernet);
-	of_node_put(ethernet);
-
-	return conduit;
+	return cpu_dp->conduit;
 }
 
 /* Assign the default CPU port (the first one in the tree) to all ports of the
