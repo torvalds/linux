@@ -319,25 +319,22 @@ static int tas2780_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		goto err;
 	}
 
-	if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
-		|| ((fmt & SND_SOC_DAIFMT_FORMAT_MASK)
-		== SND_SOC_DAIFMT_DSP_A)){
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_DSP_A:
 		iface = TAS2780_TDM_CFG2_SCFG_I2S;
 		tdm_rx_start_slot = 1;
-	} else {
-		if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK)
-			== SND_SOC_DAIFMT_DSP_B)
-			|| ((fmt & SND_SOC_DAIFMT_FORMAT_MASK)
-			== SND_SOC_DAIFMT_LEFT_J)) {
-			iface = TAS2780_TDM_CFG2_SCFG_LEFT_J;
-			tdm_rx_start_slot = 0;
-		} else {
-			dev_err(tas2780->dev,
-				"%s:DAI Format is not found, fmt=0x%x\n",
-				__func__, fmt);
-			ret = -EINVAL;
-			goto err;
-		}
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+	case SND_SOC_DAIFMT_DSP_B:
+		iface = TAS2780_TDM_CFG2_SCFG_LEFT_J;
+		tdm_rx_start_slot = 0;
+		break;
+	default:
+		dev_err(tas2780->dev,
+			"%s:DAI Format is not found, fmt=0x%x\n", __func__, fmt);
+		ret = -EINVAL;
+		goto err;
 	}
 	ret = snd_soc_component_update_bits(component, TAS2780_TDM_CFG1,
 		TAS2780_TDM_CFG1_MASK,
