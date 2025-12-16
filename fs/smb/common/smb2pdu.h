@@ -1293,6 +1293,7 @@ struct create_durable_handle_reconnect_v2 {
 	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct durable_reconnect_context_v2 dcontext;
+	__u8 Pad[4];
 } __packed;
 
 /* See MS-SMB2 2.2.14.2.12 */
