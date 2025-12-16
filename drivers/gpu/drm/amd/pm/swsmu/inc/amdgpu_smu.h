@@ -551,6 +551,73 @@ struct cmn2asic_mapping {
 	int	map_to;
 };
 
+#define SMU_MSG_MAX_ARGS 4
+
+/* Message flags for smu_msg_args */
+#define SMU_MSG_FLAG_NO_WAIT BIT(0) /* Skip post-poll (for split send/wait) */
+
+struct smu_msg_ctl;
+/**
+ * struct smu_msg_config - IP-level register configuration
+ * @msg_reg: Message register offset
+ * @resp_reg: Response register offset
+ * @arg_regs: Argument register offsets (up to SMU_MSG_MAX_ARGS)
+ * @num_arg_regs: Number of argument registers available
+ */
+struct smu_msg_config {
+	u32 msg_reg;
+	u32 resp_reg;
+	u32 arg_regs[SMU_MSG_MAX_ARGS];
+	int num_arg_regs;
+};
+
+/**
+ * struct smu_msg_args - Per-call message arguments
+ * @msg: Common message type (enum smu_message_type)
+ * @args: Input arguments
+ * @num_args: Number of input arguments
+ * @out_args: Output arguments (filled after successful send)
+ * @num_out_args: Number of output arguments to read
+ * @flags: Message flags (SMU_MSG_FLAG_*)
+ * @timeout: Per-message timeout in us (0 = use default)
+ */
+struct smu_msg_args {
+	enum smu_message_type msg;
+	u32 args[SMU_MSG_MAX_ARGS];
+	int num_args;
+	u32 out_args[SMU_MSG_MAX_ARGS];
+	int num_out_args;
+	u32 flags;
+	u32 timeout;
+};
+
+/**
+ * struct smu_msg_ops - IP-level protocol operations
+ * @send_msg: send message protocol
+ * @wait_response: wait for response (for split send/wait cases)
+ * @decode_response: Convert response register value to errno
+ */
+struct smu_msg_ops {
+	int (*send_msg)(struct smu_msg_ctl *ctl, struct smu_msg_args *args);
+	int (*wait_response)(struct smu_msg_ctl *ctl, u32 timeout_us);
+	int (*decode_response)(u32 resp);
+};
+
+/**
+ * struct smu_msg_ctl - Per-device message control block
+ * This is a standalone control block that encapsulates everything
+ * needed for SMU messaging. The ops->send_msg implements the complete
+ * protocol including all filtering and error handling.
+ */
+struct smu_msg_ctl {
+	struct smu_context *smu;
+	struct mutex lock;
+	struct smu_msg_config config;
+	const struct smu_msg_ops *ops;
+	const struct cmn2asic_msg_mapping *message_map;
+	u32 default_timeout;
+};
+
 struct stb_context {
 	uint32_t stb_buf_size;
 	bool enabled;
@@ -691,6 +758,9 @@ struct smu_context {
 	bool				wbrf_supported;
 	struct notifier_block		wbrf_notifier;
 	struct delayed_work		wbrf_delayed_work;
+
+	/* SMU message control block */
+	struct smu_msg_ctl msg_ctl;
 };
 
 struct i2c_adapter;

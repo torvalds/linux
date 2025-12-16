@@ -25,6 +25,10 @@
 
 #include "amdgpu_smu.h"
 
+extern const struct smu_msg_ops smu_msg_v1_ops;
+
+int smu_msg_wait_response(struct smu_msg_ctl *ctl, u32 timeout_us);
+
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3) || defined(SWSMU_CODE_LAYER_L4)
 
 #define FDO_PWM_MODE_STATIC  1
