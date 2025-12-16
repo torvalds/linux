@@ -3059,7 +3059,7 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 				       intel_cx0_get_powerdown_update(lane_mask),
 				       XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of lane reset\n",
+			 "PHY %c failed to change powerdown state\n",
 			 phy_name(phy));
 }
 
