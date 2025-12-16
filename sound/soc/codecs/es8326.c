@@ -194,6 +194,8 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_pga_tlv, 0, 600, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(softramp_rate, 0, 100, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(drc_target_tlv, -3200, 200, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(drc_recovery_tlv, -125, 250, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dre_gain_tlv, -9550, 400, 0);
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dre_gate_tlv, -9600, 600, 0);
 
 static const char *const winsize[] = {
 	"0.25db/2  LRCK",
@@ -226,6 +228,8 @@ static const char *const hp_spkvol_switch[] = {
 
 static const struct soc_enum dacpol =
 	SOC_ENUM_SINGLE(ES8326_DAC_DSM, 4, 4, dacpol_txt);
+static const struct soc_enum dre_winsize =
+	SOC_ENUM_SINGLE(ES8326_ADC_DRE, 0, 16, winsize);
 static const struct soc_enum alc_winsize =
 	SOC_ENUM_SINGLE(ES8326_ADC_RAMPRATE, 4, 16, winsize);
 static const struct soc_enum drc_winsize =
@@ -247,6 +251,16 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 	SOC_SINGLE_TLV("ADC PGA Gain Volume", ES8326_PGAGAIN, 0, 10, 0, adc_analog_pga_tlv),
 	SOC_SINGLE("ADC PGA SE Switch", ES8326_PGAGAIN, 7, 1, 0),
 	SOC_SINGLE_TLV("ADC Ramp Rate", ES8326_ADC_RAMPRATE, 0, 0x0f, 0, softramp_rate),
+	SOC_SINGLE("ADC4 DRE Switch", ES8326_ADC_DRE, 4, 1, 0),
+	SOC_SINGLE("ADC3 DRE Switch", ES8326_ADC_DRE, 5, 1, 0),
+	SOC_SINGLE("ADC2 DRE Switch", ES8326_ADC_DRE, 6, 1, 0),
+	SOC_SINGLE("ADC1 DRE Switch", ES8326_ADC_DRE, 7, 1, 0),
+	SOC_ENUM("DRE Winsize", dre_winsize),
+	SOC_SINGLE("DRE Gain Switch", ES8326_ADC_DRE_GAIN, 5, 1, 0),
+	SOC_SINGLE_TLV("DRE Gain Volume", ES8326_ADC_DRE_GAIN,
+			0, 0x1F, 0, dre_gain_tlv),
+	SOC_SINGLE_TLV("DRE Gate Volume", ES8326_ADC_DRE_GATE,
+			4, 0x07, 0, dre_gate_tlv),
 	SOC_SINGLE("ALC Capture Switch", ES8326_ALC_RECOVERY, 3, 1, 0),
 	SOC_SINGLE_TLV("ALC Capture Recovery Level", ES8326_ALC_LEVEL,
 			0, 4, 0, drc_recovery_tlv),
