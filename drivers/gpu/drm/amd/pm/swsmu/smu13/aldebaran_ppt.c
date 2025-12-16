@@ -1828,26 +1828,28 @@ static int aldebaran_mode1_reset(struct smu_context *smu)
 
 static int aldebaran_mode2_reset(struct smu_context *smu)
 {
-	int ret = 0, index;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
 	int timeout = 10;
 
-	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
-						SMU_MSG_GfxDeviceDriverReset);
-	if (index < 0 )
-		return -EINVAL;
-	mutex_lock(&smu->message_lock);
+	mutex_lock(&ctl->lock);
+
 	if (smu->smc_fw_version >= 0x00441400) {
-		ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, SMU_RESET_MODE_2);
+		ret = smu_msg_send_async_locked(ctl, SMU_MSG_GfxDeviceDriverReset,
+						SMU_RESET_MODE_2);
+		if (ret)
+			goto out;
+
 		/* This is similar to FLR, wait till max FLR timeout */
 		msleep(100);
-		dev_dbg(smu->adev->dev, "restore config space...\n");
+		dev_dbg(adev->dev, "restore config space...\n");
 		/* Restore the config space saved during init */
 		amdgpu_device_load_pci_state(adev->pdev);
 
-		dev_dbg(smu->adev->dev, "wait for reset ack\n");
+		dev_dbg(adev->dev, "wait for reset ack\n");
 		while (ret == -ETIME && timeout)  {
-			ret = smu_cmn_wait_for_response(smu);
+			ret = smu_msg_wait_response(ctl, 0);
 			/* Wait a bit more time for getting ACK */
 			if (ret == -ETIME) {
 				--timeout;
@@ -1870,7 +1872,7 @@ static int aldebaran_mode2_reset(struct smu_context *smu)
 	if (ret == 1)
 		ret = 0;
 out:
-	mutex_unlock(&smu->message_lock);
+	mutex_unlock(&ctl->lock);
 
 	return ret;
 }

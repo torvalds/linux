@@ -3043,21 +3043,21 @@ static int sienna_cichlid_stb_get_data_direct(struct smu_context *smu,
 
 static int sienna_cichlid_mode2_reset(struct smu_context *smu)
 {
-	int ret = 0, index;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
 	int timeout = 100;
 
-	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
-						SMU_MSG_DriverMode2Reset);
+	mutex_lock(&ctl->lock);
 
-	mutex_lock(&smu->message_lock);
+	ret = smu_msg_send_async_locked(ctl, SMU_MSG_DriverMode2Reset,
+					SMU_RESET_MODE_2);
+	if (ret)
+		goto out;
 
-	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
-					       SMU_RESET_MODE_2);
-
-	ret = smu_cmn_wait_for_response(smu);
+	ret = smu_msg_wait_response(ctl, 0);
 	while (ret != 0 && timeout) {
-		ret = smu_cmn_wait_for_response(smu);
+		ret = smu_msg_wait_response(ctl, 0);
 		/* Wait a bit more time for getting ACK */
 		if (ret != 0) {
 			--timeout;
@@ -3075,11 +3075,11 @@ static int sienna_cichlid_mode2_reset(struct smu_context *smu)
 		goto out;
 	}
 
-	dev_info(smu->adev->dev, "restore config space...\n");
+	dev_info(adev->dev, "restore config space...\n");
 	/* Restore the config space saved during init */
 	amdgpu_device_load_pci_state(adev->pdev);
 out:
-	mutex_unlock(&smu->message_lock);
+	mutex_unlock(&ctl->lock);
 
 	return ret;
 }
