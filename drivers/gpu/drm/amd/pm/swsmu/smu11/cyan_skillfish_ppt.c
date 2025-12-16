@@ -592,8 +592,6 @@ static const struct pptable_funcs cyan_skillfish_ppt_funcs = {
 	.get_dpm_ultimate_freq = cyan_skillfish_get_dpm_ultimate_freq,
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.interrupt_work = smu_v11_0_interrupt_work,
 };
