@@ -362,7 +362,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "v4l2_device_register, fail: %d\n", ret);
-		goto err_vdi_release;
+		goto err_irq_release;
 	}
 
 	if (match_data->flags & WAVE5_IS_DEC) {
@@ -407,7 +407,15 @@ err_dec_unreg:
 		wave5_vpu_dec_unregister_device(dev);
 err_v4l2_unregister:
 	v4l2_device_unregister(&dev->v4l2_dev);
+err_irq_release:
+	if (dev->irq < 0)
+		kthread_destroy_worker(dev->worker);
 err_vdi_release:
+	if (dev->irq_thread) {
+		kthread_stop(dev->irq_thread);
+		up(&dev->irq_sem);
+		dev->irq_thread = NULL;
+	}
 	wave5_vdi_release(&pdev->dev);
 err_clk_dis:
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
