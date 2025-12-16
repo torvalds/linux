@@ -1188,24 +1188,6 @@ struct pptable_funcs {
 	int (*system_features_control)(struct smu_context *smu, bool en);
 
 	/**
-	 * @send_smc_msg_with_param: Send a message with a parameter to the SMU.
-	 * &msg: Type of message.
-	 * &param: Message parameter.
-	 * &read_arg: SMU response (optional).
-	 */
-	int (*send_smc_msg_with_param)(struct smu_context *smu,
-				       enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
-
-	/**
-	 * @send_smc_msg: Send a message to the SMU.
-	 * &msg: Type of message.
-	 * &read_arg: SMU response (optional).
-	 */
-	int (*send_smc_msg)(struct smu_context *smu,
-			    enum smu_message_type msg,
-			    uint32_t *read_arg);
-
-	/**
 	 * @init_display_count: Notify the SMU of the number of display
 	 *                      components in current display configuration.
 	 */
