@@ -511,7 +511,7 @@ static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
 	ret = mshv_region_remap_pages(region, HV_MAP_GPA_NO_ACCESS,
 				      page_offset, page_count);
 	if (ret)
-		goto out_fail;
+		goto out_unlock;
 
 	mshv_region_invalidate_pages(region, page_offset, page_count);
 
@@ -519,6 +519,8 @@ static bool mshv_region_interval_invalidate(struct mmu_interval_notifier *mni,
 
 	return true;
 
+out_unlock:
+	mutex_unlock(&region->mutex);
 out_fail:
 	WARN_ONCE(ret,
 		  "Failed to invalidate region %#llx-%#llx (range %#lx-%#lx, event: %u, pages %#llx-%#llx, mm: %#llx): %d\n",
