@@ -195,7 +195,6 @@
 		};
 	};
 
-
 	pcf85063: rtc@51 {
 		compatible = "nxp,pcf85063a";
 		reg = <0x51>;
