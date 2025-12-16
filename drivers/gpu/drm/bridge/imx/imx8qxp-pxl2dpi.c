@@ -63,6 +63,13 @@ static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }
 
+static void imx8qxp_pxl2dpi_bridge_destroy(struct drm_bridge *bridge)
+{
+	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
+
+	drm_bridge_put(p2d->companion);
+}
+
 static int
 imx8qxp_pxl2dpi_bridge_atomic_check(struct drm_bridge *bridge,
 				    struct drm_bridge_state *bridge_state,
@@ -205,6 +212,7 @@ static const struct drm_bridge_funcs imx8qxp_pxl2dpi_bridge_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset		= drm_atomic_helper_bridge_reset,
 	.attach			= imx8qxp_pxl2dpi_bridge_attach,
+	.destroy		= imx8qxp_pxl2dpi_bridge_destroy,
 	.atomic_check		= imx8qxp_pxl2dpi_bridge_atomic_check,
 	.mode_set		= imx8qxp_pxl2dpi_bridge_mode_set,
 	.atomic_disable		= imx8qxp_pxl2dpi_bridge_atomic_disable,
@@ -333,7 +341,7 @@ static int imx8qxp_pxl2dpi_parse_dt_companion(struct imx8qxp_pxl2dpi *p2d)
 		goto out;
 	}
 
-	p2d->companion = of_drm_find_bridge(companion);
+	p2d->companion = of_drm_find_and_get_bridge(companion);
 	if (!p2d->companion) {
 		ret = -EPROBE_DEFER;
 		DRM_DEV_DEBUG_DRIVER(p2d->dev,
