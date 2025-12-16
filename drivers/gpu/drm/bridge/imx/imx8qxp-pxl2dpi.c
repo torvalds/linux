@@ -255,33 +255,27 @@ out:
 	return ep;
 }
 
-static struct drm_bridge *
-imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
+static int imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
 {
-	struct drm_bridge *next_bridge;
-	int ret;
-
 	struct device_node *ep __free(device_node) =
 		imx8qxp_pxl2dpi_get_available_ep_from_port(p2d, 1);
-	if (IS_ERR(ep)) {
-		ret = PTR_ERR(ep);
-		return ERR_PTR(ret);
-	}
+	if (IS_ERR(ep))
+		return PTR_ERR(ep);
 
 	struct device_node *remote __free(device_node) = of_graph_get_remote_port_parent(ep);
 	if (!remote || !of_device_is_available(remote)) {
 		DRM_DEV_ERROR(p2d->dev, "no available remote\n");
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	} else if (!of_device_is_available(remote->parent)) {
 		DRM_DEV_ERROR(p2d->dev, "remote parent is not available\n");
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
-	next_bridge = of_drm_find_bridge(remote);
-	if (!next_bridge)
-		return ERR_PTR(-EPROBE_DEFER);
+	p2d->next_bridge = of_drm_find_bridge(remote);
+	if (!p2d->next_bridge)
+		return -EPROBE_DEFER;
 
-	return next_bridge;
+	return 0;
 }
 
 static int imx8qxp_pxl2dpi_set_pixel_link_sel(struct imx8qxp_pxl2dpi *p2d)
@@ -414,9 +408,9 @@ static int imx8qxp_pxl2dpi_bridge_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	p2d->next_bridge = imx8qxp_pxl2dpi_find_next_bridge(p2d);
-	if (IS_ERR(p2d->next_bridge))
-		return PTR_ERR(p2d->next_bridge);
+	ret = imx8qxp_pxl2dpi_find_next_bridge(p2d);
+	if (ret)
+		return ret;
 
 	ret = imx8qxp_pxl2dpi_set_pixel_link_sel(p2d);
 	if (ret)
