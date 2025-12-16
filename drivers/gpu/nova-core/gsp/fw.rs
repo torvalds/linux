@@ -797,13 +797,6 @@ impl bindings::rpc_message_header_v {
     }
 }
 
-// SAFETY: We can't derive the Zeroable trait for this binding because the
-// procedural macro doesn't support the syntax used by bindgen to create the
-// __IncompleteArrayField types. So instead we implement it here, which is safe
-// because these are explicitly padded structures only containing types for
-// which any bit pattern, including all zeros, is valid.
-unsafe impl Zeroable for bindings::rpc_message_header_v {}
-
 /// GSP Message Element.
 ///
 /// This is essentially a message header expected to be followed by the message data.
