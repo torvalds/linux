@@ -373,7 +373,6 @@ static int tascam_samplerate_get(struct snd_kcontrol *kcontrol,
 {
 	struct tascam_card *tascam =
 		(struct tascam_card *)snd_kcontrol_chip(kcontrol);
-	u8 *buf __free(kfree) = NULL;
 	int err;
 	u32 rate = 0;
 
@@ -384,7 +383,8 @@ static int tascam_samplerate_get(struct snd_kcontrol *kcontrol,
 		}
 	}
 
-	buf = kmalloc(3, GFP_KERNEL);
+	u8 *buf __free(kfree) =
+		kmalloc(3, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 

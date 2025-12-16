@@ -412,7 +412,6 @@ static int tascam_probe(struct usb_interface *intf,
 	struct snd_card *card;
 	struct tascam_card *tascam;
 	int err;
-	char *handshake_buf __free(kfree) = NULL;
 
 	if (dev->speed != USB_SPEED_HIGH)
 		dev_info(
@@ -439,7 +438,8 @@ static int tascam_probe(struct usb_interface *intf,
 		return -ENOENT;
 	}
 
-	handshake_buf = kmalloc(1, GFP_KERNEL);
+	char *handshake_buf __free(kfree) =
+		kmalloc(1, GFP_KERNEL);
 	if (!handshake_buf)
 		return -ENOMEM;
 
