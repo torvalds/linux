@@ -342,6 +342,18 @@ Typedefs with function prototypes can also be documented::
    */
    typedef void (*type_name)(struct v4l2_ctrl *arg1, void *arg2);
 
+Variables documentation
+-----------------------
+
+The general format of a kernel-doc variable comment is::
+
+  /**
+   * var var_name - Brief description.
+   *
+   * Description of the var_name variable.
+   */
+   extern int var_name;
+
 Object-like macro documentation
 -------------------------------
 
@@ -463,14 +475,18 @@ through the following syntax::
 
 For further details, please refer to the `Sphinx C Domain`_ documentation.
 
+.. note::
+   Variables aren't automatically cross referenced. For those, you need to
+   explicitly add a C domain cross-reference.
+
 Overview documentation comments
 -------------------------------
 
 To facilitate having source code and comments close together, you can include
 kernel-doc documentation blocks that are free-form comments instead of being
-kernel-doc for functions, structures, unions, enums, or typedefs. This could be
-used for something like a theory of operation for a driver or library code, for
-example.
+kernel-doc for functions, structures, unions, enums, typedefs or variables.
+This could be used for something like a theory of operation for a driver or
+library code, for example.
 
 This is done by using a ``DOC:`` section keyword with a section title.
 
@@ -538,7 +554,8 @@ identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
   If no *function* is specified, the documentation for all functions
   and types in the *source* will be included.
-  *type* can be a ``struct``, ``union``, ``enum``, or ``typedef`` identifier.
+  *type* can be a ``struct``, ``union``, ``enum``, ``typedef`` or ``var``
+  identifier.
 
   Examples::
 
