@@ -1101,7 +1101,6 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
-	Replay_Set_Version,
 	Replay_Set_General_Cmd,
 };
 
