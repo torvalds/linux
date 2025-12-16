@@ -45,6 +45,7 @@
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
 #include <linux/tick.h>
+#include <linux/time64.h>
 #include <trace/events/power.h>
 #include <linux/sched.h>
 #include <linux/sched/smt.h>
@@ -75,6 +76,11 @@ static bool ibrs_off __read_mostly;
 
 /* The maximum allowed length for the 'table' module parameter  */
 #define MAX_CMDLINE_TABLE_LEN 256
+/* Maximum allowed C-state latency */
+#define MAX_CMDLINE_LATENCY_US (5 * USEC_PER_MSEC)
+/* Maximum allowed C-state target residency */
+#define MAX_CMDLINE_RESIDENCY_US (100 * USEC_PER_MSEC)
+
 static char cmdline_table_str[MAX_CMDLINE_TABLE_LEN] __read_mostly;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
@@ -2435,6 +2441,41 @@ static char *get_cmdline_field(char *args, char **field, char sep)
 }
 
 /**
+ * validate_cmdline_cstate - Validate a C-state from cmdline.
+ * @state: The C-state to validate.
+ * @prev_state: The previous C-state in the table or NULL.
+ *
+ * Return: 0 if the C-state is valid or -EINVAL otherwise.
+ */
+static int validate_cmdline_cstate(struct cpuidle_state *state,
+				   struct cpuidle_state *prev_state)
+{
+	if (state->exit_latency == 0)
+		/* Exit latency 0 can only be used for the POLL state */
+		return -EINVAL;
+
+	if (state->exit_latency > MAX_CMDLINE_LATENCY_US)
+		return -EINVAL;
+
+	if (state->target_residency > MAX_CMDLINE_RESIDENCY_US)
+		return -EINVAL;
+
+	if (state->target_residency < state->exit_latency)
+		return -EINVAL;
+
+	if (!prev_state)
+		return 0;
+
+	if (state->exit_latency <= prev_state->exit_latency)
+		return -EINVAL;
+
+	if (state->target_residency <= prev_state->target_residency)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * cmdline_table_adjust - Adjust the C-states table with data from cmdline.
  * @drv: cpuidle driver (assumed to point to intel_idle_driver).
  *
@@ -2530,6 +2571,19 @@ static void __init cmdline_table_adjust(struct cpuidle_driver *drv)
 
 		pr_info("C-state from cmdline: name=%s, latency=%u, residency=%u\n",
 			state->name, state->exit_latency, state->target_residency);
+	}
+
+	/* Validate the adjusted C-states, start with index 1 to skip POLL */
+	for (i = 1; i < drv->state_count; i++) {
+		struct cpuidle_state *prev_state;
+
+		state = &cmdline_states[i];
+		prev_state = &cmdline_states[i - 1];
+
+		if (validate_cmdline_cstate(state, prev_state)) {
+			pr_err("C-state '%s' validation failed\n", state->name);
+			goto error;
+		}
 	}
 
 	/* Copy the adjusted C-states table back */
