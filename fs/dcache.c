@@ -3227,10 +3227,7 @@ EXPORT_SYMBOL(d_parent_ino);
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	dhash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &dhash_entries) == 0;
 }
 __setup("dhash_entries=", set_dhash_entries);
 
