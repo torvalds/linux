@@ -115,7 +115,7 @@
 	idle-states {
 		entry-method = "psci";
 
-		CORE_PD: core_pd {
+		CORE_PD: cpu-pd {
 			compatible = "arm,idle-state";
 			entry-latency-us = <1000>;
 			exit-latency-us = <700>;
@@ -124,7 +124,7 @@
 			arm,psci-suspend-param = <0x00010002>;
 		};
 
-		CLUSTER_PD: cluster_pd {
+		CLUSTER_PD: cluster-pd {
 			compatible = "arm,idle-state";
 			entry-latency-us = <1000>;
 			exit-latency-us = <1000>;
@@ -276,7 +276,8 @@
 			reg = <0 0x10003000 0 0x1000>;
 			clocks = <&ext_26m>;
 			clock-names = "apb_pclk";
-			out-ports {
+
+			in-ports {
 				port {
 					etb_in: endpoint {
 						remote-endpoint =
