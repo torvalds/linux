@@ -97,8 +97,11 @@ It is recommended that these links exist on all systems:
 /dev/bttv0	video0		symbolic	Backward compatibility
 /dev/radio	radio0		symbolic	Backward compatibility
 /dev/i2o*	/dev/i2o/*	symbolic	Backward compatibility
-/dev/scd?	sr?		hard		Alternate SCSI CD-ROM name
 =============== =============== =============== ===============================
+
+Suggested earlier ``/dev/scd?`` alternative names for ``/dev/sr?``
+CD-ROM and other optical drives (using SCSI commands) were removed
+in ``udev`` version 174 that was released in 2011.
 
 Locally defined links
 +++++++++++++++++++++
