@@ -2455,11 +2455,11 @@ static int __init intel_idle_init(void)
 	if (!intel_idle_cpuidle_devices)
 		return -ENOMEM;
 
+	intel_idle_cpuidle_driver_init(&intel_idle_driver);
+
 	retval = intel_idle_sysfs_init();
 	if (retval)
 		pr_warn("failed to initialized sysfs");
-
-	intel_idle_cpuidle_driver_init(&intel_idle_driver);
 
 	retval = cpuidle_register_driver(&intel_idle_driver);
 	if (retval) {
