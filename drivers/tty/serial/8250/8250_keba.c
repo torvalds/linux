@@ -51,6 +51,10 @@ enum kuart_mode {
 #define KUART_CAPABILITY_RS232	BIT(KUART_MODE_RS232)
 #define KUART_CAPABILITY_MASK	GENMASK(3, 0)
 
+/* registers for Indexed Control Register access in enhanced mode */
+#define KUART_EMODE_ICR_OFFSET	UART_SCR
+#define KUART_EMODE_ICR_VALUE	UART_LSR
+
 /* Additional Control Register DTR line configuration */
 #define UART_ACR_DTRLC_MASK		0x18
 #define UART_ACR_DTRLC_COMPAT		0x00
@@ -98,13 +102,13 @@ static void kuart_dtr_line_config(struct uart_8250_port *up, u8 dtrlc)
 	u8 acr;
 
 	/* set index register to 0 to access ACR register */
-	serial_out(up, UART_SCR, UART_ACR);
+	serial_out(up, KUART_EMODE_ICR_OFFSET, UART_ACR);
 
 	/* set value register to 0x10 writing DTR mode (1,0) */
-	acr = serial_in(up, UART_LSR);
+	acr = serial_in(up, KUART_EMODE_ICR_VALUE);
 	acr &= ~UART_ACR_DTRLC_MASK;
 	acr |= dtrlc;
-	serial_out(up, UART_LSR, acr);
+	serial_out(up, KUART_EMODE_ICR_VALUE, acr);
 }
 
 static int kuart_rs485_config(struct uart_port *port, struct ktermios *termios,
