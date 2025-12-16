@@ -1360,11 +1360,9 @@ static const struct pptable_funcs yellow_carp_ppt_funcs = {
 void yellow_carp_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &yellow_carp_ppt_funcs;
-	smu->message_map = yellow_carp_message_map;
 	smu->feature_map = yellow_carp_feature_mask_map;
 	smu->table_map = yellow_carp_table_map;
 	smu->is_apu = true;
 	smu->smc_driver_if_version = SMU13_YELLOW_CARP_DRIVER_IF_VERSION;
-	smu_v13_0_set_smu_mailbox_registers(smu);
 	smu_v13_0_init_msg_ctl(smu, yellow_carp_message_map);
 }

@@ -2809,13 +2809,11 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 void smu_v13_0_7_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &smu_v13_0_7_ppt_funcs;
-	smu->message_map = smu_v13_0_7_message_map;
 	smu->clock_map = smu_v13_0_7_clk_map;
 	smu->feature_map = smu_v13_0_7_feature_mask_map;
 	smu->table_map = smu_v13_0_7_table_map;
 	smu->pwr_src_map = smu_v13_0_7_pwr_src_map;
 	smu->workload_map = smu_v13_0_7_workload_map;
 	smu->smc_driver_if_version = SMU13_0_7_DRIVER_IF_VERSION;
-	smu_v13_0_set_smu_mailbox_registers(smu);
 	smu_v13_0_init_msg_ctl(smu, smu_v13_0_7_message_map);
 }

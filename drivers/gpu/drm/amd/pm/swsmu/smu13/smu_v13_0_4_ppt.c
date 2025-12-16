@@ -1124,15 +1124,6 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 	.set_gfx_power_up_by_imu = smu_v13_0_set_gfx_power_up_by_imu,
 };
 
-static void smu_v13_0_4_set_smu_mailbox_registers(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
-}
-
 static void smu_v13_0_4_init_msg_ctl(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1154,17 +1145,13 @@ void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 
 	smu->ppt_funcs = &smu_v13_0_4_ppt_funcs;
-	smu->message_map = smu_v13_0_4_message_map;
 	smu->feature_map = smu_v13_0_4_feature_mask_map;
 	smu->table_map = smu_v13_0_4_table_map;
 	smu->smc_driver_if_version = SMU13_0_4_DRIVER_IF_VERSION;
 	smu->is_apu = true;
 
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 4)) {
-		smu_v13_0_4_set_smu_mailbox_registers(smu);
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 4))
 		smu_v13_0_4_init_msg_ctl(smu);
-	} else {
-		smu_v13_0_set_smu_mailbox_registers(smu);
+	else
 		smu_v13_0_init_msg_ctl(smu, smu_v13_0_4_message_map);
-	}
 }

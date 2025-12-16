@@ -2034,11 +2034,9 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 void aldebaran_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &aldebaran_ppt_funcs;
-	smu->message_map = aldebaran_message_map;
 	smu->clock_map = aldebaran_clk_map;
 	smu->feature_map = aldebaran_feature_mask_map;
 	smu->table_map = aldebaran_table_map;
 	smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
-	smu_v13_0_set_smu_mailbox_registers(smu);
 	smu_v13_0_init_msg_ctl(smu, aldebaran_message_map);
 }

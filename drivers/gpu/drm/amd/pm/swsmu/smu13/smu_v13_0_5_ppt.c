@@ -1144,16 +1144,10 @@ static void smu_v13_0_5_init_msg_ctl(struct smu_context *smu)
 
 void smu_v13_0_5_set_ppt_funcs(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
-
 	smu->ppt_funcs = &smu_v13_0_5_ppt_funcs;
-	smu->message_map = smu_v13_0_5_message_map;
 	smu->feature_map = smu_v13_0_5_feature_mask_map;
 	smu->table_map = smu_v13_0_5_table_map;
 	smu->is_apu = true;
 	smu->smc_driver_if_version = SMU13_0_5_DRIVER_IF_VERSION;
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_34);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_2);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_33);
 	smu_v13_0_5_init_msg_ctl(smu);
 }
