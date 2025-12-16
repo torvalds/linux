@@ -59,6 +59,8 @@ def kernel_c_type(spec: _XdrTypeSpecifier) -> str:
     """Return name of C type"""
     builtin_native_c_type = {
         "bool": "bool",
+        "short": "s16",
+        "unsigned_short": "u16",
         "int": "s32",
         "unsigned_int": "u32",
         "long": "s32",

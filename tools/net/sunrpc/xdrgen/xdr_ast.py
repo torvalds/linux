@@ -34,6 +34,8 @@ def xdr_quadlen(val: str) -> int:
 symbolic_widths = {
     "void": ["XDR_void"],
     "bool": ["XDR_bool"],
+    "short": ["XDR_short"],
+    "unsigned_short": ["XDR_unsigned_short"],
     "int": ["XDR_int"],
     "unsigned_int": ["XDR_unsigned_int"],
     "long": ["XDR_long"],
@@ -48,6 +50,8 @@ symbolic_widths = {
 max_widths = {
     "void": 0,
     "bool": 1,
+    "short": 1,
+    "unsigned_short": 1,
     "int": 1,
     "unsigned_int": 1,
     "long": 1,
