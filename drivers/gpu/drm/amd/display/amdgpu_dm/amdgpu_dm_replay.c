@@ -154,9 +154,16 @@ bool amdgpu_dm_replay_enable(struct dc_stream_state *stream, bool wait)
 {
 	bool replay_active = true;
 	struct dc_link *link = NULL;
+	struct amdgpu_dm_connector *aconnector = NULL;
 
 	if (stream == NULL)
 		return false;
+
+	/* Check if replay is disabled by connector flag */
+	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+	if (!aconnector || aconnector->disallow_edp_enter_replay) {
+		return false;
+	}
 
 	link = stream->link;
 
