@@ -35,7 +35,6 @@
 struct imx8qxp_pxl2dpi {
 	struct regmap *regmap;
 	struct drm_bridge bridge;
-	struct drm_bridge *next_bridge;
 	struct drm_bridge *companion;
 	struct device *dev;
 	struct imx_sc_ipc *ipc_handle;
@@ -60,7 +59,7 @@ static int imx8qxp_pxl2dpi_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	return drm_bridge_attach(encoder,
-				 p2d->next_bridge, bridge,
+				 p2d->bridge.next_bridge, bridge,
 				 DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 }
 
@@ -271,8 +270,8 @@ static int imx8qxp_pxl2dpi_find_next_bridge(struct imx8qxp_pxl2dpi *p2d)
 		return -ENODEV;
 	}
 
-	p2d->next_bridge = of_drm_find_bridge(remote);
-	if (!p2d->next_bridge)
+	p2d->bridge.next_bridge = of_drm_find_and_get_bridge(remote);
+	if (!p2d->bridge.next_bridge)
 		return -EPROBE_DEFER;
 
 	return 0;
@@ -351,8 +350,8 @@ static int imx8qxp_pxl2dpi_parse_dt_companion(struct imx8qxp_pxl2dpi *p2d)
 	 * the next bridges are connected to.  If they are marked as expecting
 	 * even pixels and odd pixels than we need to use the companion PXL2DPI.
 	 */
-	port1 = of_graph_get_port_by_id(p2d->next_bridge->of_node, 1);
-	port2 = of_graph_get_port_by_id(companion_p2d->next_bridge->of_node, 1);
+	port1 = of_graph_get_port_by_id(p2d->bridge.next_bridge->of_node, 1);
+	port2 = of_graph_get_port_by_id(companion_p2d->bridge.next_bridge->of_node, 1);
 	dual_link = drm_of_lvds_get_dual_link_pixel_order(port1, port2);
 	of_node_put(port1);
 	of_node_put(port2);
