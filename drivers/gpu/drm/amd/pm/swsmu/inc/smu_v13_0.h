@@ -252,6 +252,8 @@ int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
 int smu_v13_0_set_default_dpm_tables(struct smu_context *smu);
 
 void smu_v13_0_set_smu_mailbox_registers(struct smu_context *smu);
+void smu_v13_0_init_msg_ctl(struct smu_context *smu,
+			    const struct cmn2asic_msg_mapping *message_map);
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
 
