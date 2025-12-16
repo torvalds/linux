@@ -73,6 +73,10 @@ static unsigned int disabled_states_mask __read_mostly;
 static bool force_irq_on __read_mostly;
 static bool ibrs_off __read_mostly;
 
+/* The maximum allowed length for the 'table' module parameter  */
+#define MAX_CMDLINE_TABLE_LEN 256
+static char cmdline_table_str[MAX_CMDLINE_TABLE_LEN] __read_mostly;
+
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 
 static unsigned long auto_demotion_disable_flags;
@@ -103,6 +107,9 @@ static struct device *sysfs_root __initdata;
 
 static const struct idle_cpu *icpu __initdata;
 static struct cpuidle_state *cpuidle_state_table __initdata;
+
+/* C-states data from the 'intel_idle.table' cmdline parameter */
+static struct cpuidle_state cmdline_states[CPUIDLE_STATE_MAX] __initdata;
 
 static unsigned int mwait_substates __initdata;
 
@@ -2393,6 +2400,149 @@ static void __init intel_idle_sysfs_uninit(void)
 	put_device(sysfs_root);
 }
 
+ /**
+  * get_cmdline_field - Get the current field from a cmdline string.
+  * @args: The cmdline string to get the current field from.
+  * @field: Pointer to the current field upon return.
+  * @sep: The fields separator character.
+  *
+  * Examples:
+  *   Input: args="C1:1:1,C1E:2:10", sep=':'
+  *   Output: field="C1", return "1:1,C1E:2:10"
+  *   Input: args="C1:1:1,C1E:2:10", sep=','
+  *   Output: field="C1:1:1", return "C1E:2:10"
+  *   Ipnut: args="::", sep=':'
+  *   Output: field="", return ":"
+  *
+  * Return: The continuation of the cmdline string after the field or NULL.
+  */
+static char *get_cmdline_field(char *args, char **field, char sep)
+{
+	unsigned int i;
+
+	for (i = 0; args[i] && !isspace(args[i]); i++) {
+		if (args[i] == sep)
+			break;
+	}
+
+	*field = args;
+
+	if (args[i] != sep)
+		return NULL;
+
+	args[i] = '\0';
+	return args + i + 1;
+}
+
+/**
+ * cmdline_table_adjust - Adjust the C-states table with data from cmdline.
+ * @drv: cpuidle driver (assumed to point to intel_idle_driver).
+ *
+ * Adjust the C-states table with data from the 'intel_idle.table' module
+ * parameter (if specified).
+ */
+static void __init cmdline_table_adjust(struct cpuidle_driver *drv)
+{
+	char *args = cmdline_table_str;
+	struct cpuidle_state *state;
+	int i;
+
+	if (args[0] == '\0')
+		/* The 'intel_idle.table' module parameter was not specified */
+		return;
+
+	/* Create a copy of the C-states table */
+	for (i = 0; i < drv->state_count; i++)
+		cmdline_states[i] = drv->states[i];
+
+	/*
+	 * Adjust the C-states table copy with data from the 'intel_idle.table'
+	 * module parameter.
+	 */
+	while (args) {
+		char *fields, *name, *val;
+
+		/*
+		 * Get the next C-state definition, which is expected to be
+		 * '<name>:<latency_us>:<target_residency_us>'. Treat "empty"
+		 * fields as unchanged. For example,
+		 * '<name>::<target_residency_us>' leaves the latency unchanged.
+		 */
+		args = get_cmdline_field(args, &fields, ',');
+
+		/* name */
+		fields = get_cmdline_field(fields, &name, ':');
+		if (!fields)
+			goto error;
+
+		if (!strcmp(name, "POLL")) {
+			pr_err("Cannot adjust POLL\n");
+			continue;
+		}
+
+		/* Find the C-state by its name */
+		state = NULL;
+		for (i = 0; i < drv->state_count; i++) {
+			if (!strcmp(name, drv->states[i].name)) {
+				state = &cmdline_states[i];
+				break;
+			}
+		}
+
+		if (!state) {
+			pr_err("C-state '%s' was not found\n", name);
+			continue;
+		}
+
+		/* Latency */
+		fields = get_cmdline_field(fields, &val, ':');
+		if (!fields)
+			goto error;
+
+		if (*val) {
+			if (kstrtouint(val, 0, &state->exit_latency))
+				goto error;
+		}
+
+		/* Target residency */
+		fields = get_cmdline_field(fields, &val, ':');
+
+		if (*val) {
+			if (kstrtouint(val, 0, &state->target_residency))
+				goto error;
+		}
+
+		/*
+		 * Allow for 3 more fields, but ignore them. Helps to make
+		 * possible future extensions of the cmdline format backward
+		 * compatible.
+		 */
+		for (i = 0; fields && i < 3; i++) {
+			fields = get_cmdline_field(fields, &val, ':');
+			if (!fields)
+				break;
+		}
+
+		if (fields) {
+			pr_err("Too many fields for C-state '%s'\n", state->name);
+			goto error;
+		}
+
+		pr_info("C-state from cmdline: name=%s, latency=%u, residency=%u\n",
+			state->name, state->exit_latency, state->target_residency);
+	}
+
+	/* Copy the adjusted C-states table back */
+	for (i = 1; i < drv->state_count; i++)
+		drv->states[i] = cmdline_states[i];
+
+	pr_info("Adjusted C-states with data from 'intel_idle.table'\n");
+	return;
+
+error:
+	pr_info("Failed to adjust C-states with data from 'intel_idle.table'\n");
+}
+
 static int __init intel_idle_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -2456,6 +2606,7 @@ static int __init intel_idle_init(void)
 		return -ENOMEM;
 
 	intel_idle_cpuidle_driver_init(&intel_idle_driver);
+	cmdline_table_adjust(&intel_idle_driver);
 
 	retval = intel_idle_sysfs_init();
 	if (retval)
@@ -2519,3 +2670,21 @@ module_param(force_irq_on, bool, 0444);
  */
 module_param(ibrs_off, bool, 0444);
 MODULE_PARM_DESC(ibrs_off, "Disable IBRS when idle");
+
+/*
+ * Define the C-states table from a user input string. Expected format is
+ * 'name:latency:residency', where:
+ * - name: The C-state name.
+ * - latency: The C-state exit latency in us.
+ * - residency: The C-state target residency in us.
+ *
+ * Multiple C-states can be defined by separating them with commas:
+ * 'name1:latency1:residency1,name2:latency2:residency2'
+ *
+ * Example: intel_idle.table=C1:1:1,C1E:5:10,C6:100:600
+ *
+ * To leave latency or residency unchanged, use an empty field, for example:
+ * 'C1:1:1,C1E::10' - leaves C1E latency unchanged.
+ */
+module_param_string(table, cmdline_table_str, MAX_CMDLINE_TABLE_LEN, 0444);
+MODULE_PARM_DESC(table, "Build the C-states table from a user input string");
