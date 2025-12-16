@@ -377,7 +377,6 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 				 snd_pcm_hw_param_t var, unsigned int best,
 				 int *dir)
 {
-	struct snd_pcm_hw_params *save __free(kfree) = NULL;
 	int v;
 	unsigned int saved_min;
 	int last = 0;
@@ -397,19 +396,22 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 		maxdir = 1;
 		max--;
 	}
-	save = kmalloc(sizeof(*save), GFP_KERNEL);
+
+	struct snd_pcm_hw_params *save __free(kfree) =
+		kmalloc(sizeof(*save), GFP_KERNEL);
 	if (save == NULL)
 		return -ENOMEM;
 	*save = *params;
 	saved_min = min;
 	min = snd_pcm_hw_param_min(pcm, params, var, min, &mindir);
 	if (min >= 0) {
-		struct snd_pcm_hw_params *params1 __free(kfree) = NULL;
 		if (max < 0)
 			goto _end;
 		if ((unsigned int)min == saved_min && mindir == valdir)
 			goto _end;
-		params1 = kmalloc(sizeof(*params1), GFP_KERNEL);
+
+		struct snd_pcm_hw_params *params1 __free(kfree) =
+			kmalloc(sizeof(*params1), GFP_KERNEL);
 		if (params1 == NULL)
 			return -ENOMEM;
 		*params1 = *save;
@@ -781,10 +783,10 @@ static int choose_rate(struct snd_pcm_substream *substream,
 		       struct snd_pcm_hw_params *params, unsigned int best_rate)
 {
 	const struct snd_interval *it;
-	struct snd_pcm_hw_params *save __free(kfree) = NULL;
 	unsigned int rate, prev;
 
-	save = kmalloc(sizeof(*save), GFP_KERNEL);
+	struct snd_pcm_hw_params *save __free(kfree) =
+		kmalloc(sizeof(*save), GFP_KERNEL);
 	if (save == NULL)
 		return -ENOMEM;
 	*save = *params;
@@ -1834,7 +1836,6 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 	struct snd_pcm_substream *substream;
 	int err;
 	int direct;
-	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	unsigned int formats = 0;
 	const struct snd_mask *format_mask;
 	int fmt;
@@ -1854,7 +1855,9 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 			AFMT_S32_LE | AFMT_S32_BE |
 			AFMT_S24_LE | AFMT_S24_BE |
 			AFMT_S24_PACKED;
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
+
+	struct snd_pcm_hw_params *params __free(kfree) =
+		kmalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 	_snd_pcm_hw_params_any(params);

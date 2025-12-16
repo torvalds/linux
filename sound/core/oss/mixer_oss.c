@@ -517,8 +517,6 @@ static void snd_mixer_oss_get_volume1_vol(struct snd_mixer_oss_file *fmixer,
 					  unsigned int numid,
 					  int *left, int *right)
 {
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = fmixer->card;
 
@@ -528,8 +526,11 @@ static void snd_mixer_oss_get_volume1_vol(struct snd_mixer_oss_file *fmixer,
 	kctl = snd_ctl_find_numid(card, numid);
 	if (!kctl)
 		return;
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return;
 	if (kctl->info(kctl, uinfo))
@@ -550,8 +551,6 @@ static void snd_mixer_oss_get_volume1_sw(struct snd_mixer_oss_file *fmixer,
 					 int *left, int *right,
 					 int route)
 {
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = fmixer->card;
 
@@ -561,8 +560,11 @@ static void snd_mixer_oss_get_volume1_sw(struct snd_mixer_oss_file *fmixer,
 	kctl = snd_ctl_find_numid(card, numid);
 	if (!kctl)
 		return;
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return;
 	if (kctl->info(kctl, uinfo))
@@ -609,8 +611,6 @@ static void snd_mixer_oss_put_volume1_vol(struct snd_mixer_oss_file *fmixer,
 					  unsigned int numid,
 					  int left, int right)
 {
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = fmixer->card;
 	int res;
@@ -621,8 +621,11 @@ static void snd_mixer_oss_put_volume1_vol(struct snd_mixer_oss_file *fmixer,
 	kctl = snd_ctl_find_numid(card, numid);
 	if (!kctl)
 		return;
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return;
 	if (kctl->info(kctl, uinfo))
@@ -646,8 +649,6 @@ static void snd_mixer_oss_put_volume1_sw(struct snd_mixer_oss_file *fmixer,
 					 int left, int right,
 					 int route)
 {
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	struct snd_kcontrol *kctl;
 	struct snd_card *card = fmixer->card;
 	int res;
@@ -658,8 +659,11 @@ static void snd_mixer_oss_put_volume1_sw(struct snd_mixer_oss_file *fmixer,
 	kctl = snd_ctl_find_numid(card, numid);
 	if (!kctl)
 		return;
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return;
 	if (kctl->info(kctl, uinfo))
@@ -783,12 +787,12 @@ static int snd_mixer_oss_get_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	struct snd_kcontrol *kctl;
 	struct snd_mixer_oss_slot *pslot;
 	struct slot *slot;
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	int err, idx;
 	
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return -ENOMEM;
 	guard(rwsem_read)(&card->controls_rwsem);
@@ -825,13 +829,13 @@ static int snd_mixer_oss_put_recsrc2(struct snd_mixer_oss_file *fmixer, unsigned
 	struct snd_kcontrol *kctl;
 	struct snd_mixer_oss_slot *pslot;
 	struct slot *slot = NULL;
-	struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
-	struct snd_ctl_elem_value *uctl __free(kfree) = NULL;
 	int err;
 	unsigned int idx;
 
-	uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
-	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
+	struct snd_ctl_elem_info *uinfo __free(kfree) =
+		kzalloc(sizeof(*uinfo), GFP_KERNEL);
+	struct snd_ctl_elem_value *uctl __free(kfree) =
+		kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		return -ENOMEM;
 	guard(rwsem_read)(&card->controls_rwsem);
@@ -872,18 +876,18 @@ struct snd_mixer_oss_assign_table {
 
 static int snd_mixer_oss_build_test(struct snd_mixer_oss *mixer, struct slot *slot, const char *name, int index, int item)
 {
-	struct snd_ctl_elem_info *info __free(kfree) = NULL;
 	struct snd_kcontrol *kcontrol;
 	struct snd_card *card = mixer->card;
 	int err;
 
+	struct snd_ctl_elem_info *info __free(kfree) =
+		kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
 	scoped_guard(rwsem_read, &card->controls_rwsem) {
 		kcontrol = snd_mixer_oss_test_id(mixer, name, index);
 		if (kcontrol == NULL)
 			return 0;
-		info = kmalloc(sizeof(*info), GFP_KERNEL);
-		if (!info)
-			return -ENOMEM;
 		err = kcontrol->info(kcontrol, info);
 		if (err < 0)
 			return err;
@@ -1006,9 +1010,9 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer,
 	if (!ptr->index)
 		kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0);
 	if (kctl) {
-		struct snd_ctl_elem_info *uinfo __free(kfree) = NULL;
+		struct snd_ctl_elem_info *uinfo __free(kfree) =
+			kzalloc(sizeof(*uinfo), GFP_KERNEL);
 
-		uinfo = kzalloc(sizeof(*uinfo), GFP_KERNEL);
 		if (!uinfo)
 			return -ENOMEM;
 			
