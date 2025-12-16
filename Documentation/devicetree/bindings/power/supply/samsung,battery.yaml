@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Samsung SDI Batteries
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   Samsung SDI (Samsung Digital Interface) batteries are all different versions
