@@ -325,6 +325,7 @@ pub struct NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS {
     pub totalVFs: u32_,
     pub firstVfOffset: u32_,
     pub vfFeatureMask: u32_,
+    pub __bindgen_padding_0: [u8; 4usize],
     pub FirstVFBar0Address: u64_,
     pub FirstVFBar1Address: u64_,
     pub FirstVFBar2Address: u64_,
@@ -340,6 +341,7 @@ pub struct NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS {
     pub bClientRmAllocatedCtxBuffer: u8_,
     pub bNonPowerOf2ChannelCountSupported: u8_,
     pub bVfResizableBAR1Supported: u8_,
+    pub __bindgen_padding_1: [u8; 7usize],
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
@@ -347,11 +349,13 @@ pub struct NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS {
     pub BoardID: u32_,
     pub chipSKU: [ffi::c_char; 9usize],
     pub chipSKUMod: [ffi::c_char; 5usize],
+    pub __bindgen_padding_0: [u8; 2usize],
     pub skuConfigVersion: u32_,
     pub project: [ffi::c_char; 5usize],
     pub projectSKU: [ffi::c_char; 5usize],
     pub CDP: [ffi::c_char; 6usize],
     pub projectSKUMod: [ffi::c_char; 2usize],
+    pub __bindgen_padding_1: [u8; 2usize],
     pub businessCycle: u32_,
 }
 pub type NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG = [u8_; 17usize];
@@ -371,6 +375,7 @@ pub struct NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO {
 #[derive(Debug, Default, Copy, Clone)]
 pub struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS {
     pub numFBRegions: u32_,
+    pub __bindgen_padding_0: [u8; 4usize],
     pub fbRegion: [NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO; 16usize],
 }
 #[repr(C)]
@@ -495,13 +500,16 @@ pub struct FW_WPR_LAYOUT_OFFSET {
 #[derive(Debug, Copy, Clone)]
 pub struct GspStaticConfigInfo_t {
     pub grCapsBits: [u8_; 23usize],
+    pub __bindgen_padding_0: u8,
     pub gidInfo: NV2080_CTRL_GPU_GET_GID_INFO_PARAMS,
     pub SKUInfo: NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS,
+    pub __bindgen_padding_1: [u8; 4usize],
     pub fbRegionInfoParams: NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS,
     pub sriovCaps: NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS,
     pub sriovMaxGfid: u32_,
     pub engineCaps: [u32_; 3usize],
     pub poisonFuseEnabled: u8_,
+    pub __bindgen_padding_2: [u8; 7usize],
     pub fb_length: u64_,
     pub fbio_mask: u64_,
     pub fb_bus_width: u32_,
@@ -527,16 +535,20 @@ pub struct GspStaticConfigInfo_t {
     pub bIsMigSupported: u8_,
     pub RTD3GC6TotalBoardPower: u16_,
     pub RTD3GC6PerstDelay: u16_,
+    pub __bindgen_padding_3: [u8; 2usize],
     pub bar1PdeBase: u64_,
     pub bar2PdeBase: u64_,
     pub bVbiosValid: u8_,
+    pub __bindgen_padding_4: [u8; 3usize],
     pub vbiosSubVendor: u32_,
     pub vbiosSubDevice: u32_,
     pub bPageRetirementSupported: u8_,
     pub bSplitVasBetweenServerClientRm: u8_,
     pub bClRootportNeedsNosnoopWAR: u8_,
+    pub __bindgen_padding_5: u8,
     pub displaylessMaxHeads: VIRTUAL_DISPLAY_GET_NUM_HEADS_PARAMS,
     pub displaylessMaxResolution: VIRTUAL_DISPLAY_GET_MAX_RESOLUTION_PARAMS,
+    pub __bindgen_padding_6: [u8; 4usize],
     pub displaylessMaxPixels: u64_,
     pub hInternalClient: u32_,
     pub hInternalDevice: u32_,
