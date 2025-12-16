@@ -264,8 +264,9 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
-				btrfs_handle_fs_error(fs_info, ret,
-					    "Failed to start trans to delete orphan item");
+				btrfs_err(fs_info,
+			  "failed to join transaction to delete orphan item: %d",
+					  ret);
 				return ret;
 			}
 			ret = btrfs_del_orphan_item(trans, tree_root, root_objectid);
