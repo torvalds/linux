@@ -977,17 +977,23 @@ class KernelDoc:
         # Variable name is at the end of the declaration
         #
 
+        default_val = None
+
         r= KernRe(OPTIONAL_VAR_ATTR + r"\w.*\s+(?:\*+)?([\w_]+)\s*[\d\]\[]*\s*(=.*)?")
-        if not r.match(proto):
+        if r.match(proto):
+            if not declaration_name:
+                declaration_name = r.group(1)
+
+            default_val = r.group(2)
+        else:
+            r= KernRe(OPTIONAL_VAR_ATTR + r"(?:\w.*)?\s+(?:\*+)?(?:[\w_]+)\s*[\d\]\[]*\s*(=.*)?")
+        if r.match(proto):
+            default_val = r.group(1)
+
+        if not declaration_name:
            self.emit_msg(ln,f"{proto}: can't parse variable")
            return
 
-        var_type = r.group(0)
-
-        if not declaration_name:
-            declaration_name = r.group(1)
-
-        default_val = r.group(2)
         if default_val:
             default_val = default_val.lstrip("=").strip()
 
