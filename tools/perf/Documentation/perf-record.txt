@@ -455,7 +455,7 @@ following filters are defined:
 	- no_tx: only when the target is not in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
-	- call_stack: save call stack
+	- stack: save call stack
 	- no_flags: don't save branch flags e.g prediction, misprediction etc
 	- no_cycles: don't save branch cycles
 	- hw_index: save branch hardware index
