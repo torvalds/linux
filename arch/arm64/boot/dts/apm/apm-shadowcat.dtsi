@@ -224,7 +224,7 @@
 		clock-frequency = <50000000>;
 	};
 
-	i2cslimpro {
+	i2c {
 		compatible = "apm,xgene-slimpro-i2c";
 		mboxes = <&mailbox 0>;
 	};
