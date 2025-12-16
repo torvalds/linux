@@ -26,7 +26,7 @@ DEFINE_INTEL_GT_DEBUGFS_ATTRIBUTE(huc_info);
 void intel_huc_debugfs_register(struct intel_huc *huc, struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "huc_info", &huc_info_fops, NULL },
+		{ .name = "huc_info", .fops = &huc_info_fops },
 	};
 
 	if (!intel_huc_is_supported(huc))

@@ -162,10 +162,10 @@ void intel_guc_log_debugfs_register(struct intel_guc_log *log,
 				    struct dentry *root)
 {
 	static const struct intel_gt_debugfs_file files[] = {
-		{ "guc_log_dump", &guc_log_dump_fops, NULL },
-		{ "guc_load_err_log_dump", &guc_load_err_log_dump_fops, NULL },
-		{ "guc_log_level", &guc_log_level_fops, NULL },
-		{ "guc_log_relay", &guc_log_relay_fops, NULL },
+		{ .name = "guc_log_dump", .fops = &guc_log_dump_fops },
+		{ .name = "guc_load_err_log_dump", .fops = &guc_load_err_log_dump_fops},
+		{ .name = "guc_log_level", .fops = &guc_log_level_fops },
+		{ .name = "guc_log_relay", .fops = &guc_log_relay_fops },
 	};
 
 	if (!intel_guc_is_supported(log_to_guc(log)))
