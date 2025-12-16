@@ -380,7 +380,7 @@ struct reloc_desc {
 		const struct bpf_core_relo *core_relo; /* used when type == RELO_CORE */
 		struct {
 			int map_idx;
-			int sym_off;
+			unsigned int sym_off;
 			/*
 			 * The following two fields can be unionized, as the
 			 * ext_idx field is used for extern symbols, and the
@@ -763,7 +763,7 @@ struct bpf_object {
 
 	struct {
 		struct bpf_program *prog;
-		int sym_off;
+		unsigned int sym_off;
 		int fd;
 	} *jumptable_maps;
 	size_t jumptable_map_cnt;
@@ -6192,7 +6192,7 @@ static void poison_kfunc_call(struct bpf_program *prog, int relo_idx,
 	insn->imm = POISON_CALL_KFUNC_BASE + ext_idx;
 }
 
-static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym_off)
+static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, unsigned int sym_off)
 {
 	size_t i;
 
@@ -6210,7 +6210,7 @@ static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym
 	return -ENOENT;
 }
 
-static int add_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym_off, int map_fd)
+static int add_jt_map(struct bpf_object *obj, struct bpf_program *prog, unsigned int sym_off, int map_fd)
 {
 	size_t cnt = obj->jumptable_map_cnt;
 	size_t size = sizeof(obj->jumptable_maps[0]);
@@ -6244,7 +6244,7 @@ static int find_subprog_idx(struct bpf_program *prog, int insn_idx)
 static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struct reloc_desc *relo)
 {
 	const __u32 jt_entry_size = 8;
-	int sym_off = relo->sym_off;
+	unsigned int sym_off = relo->sym_off;
 	int jt_size = relo->sym_size;
 	__u32 max_entries = jt_size / jt_entry_size;
 	__u32 value_size = sizeof(struct bpf_insn_array_value);
@@ -6260,7 +6260,7 @@ static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struc
 		return map_fd;
 
 	if (sym_off % jt_entry_size) {
-		pr_warn("map '.jumptables': jumptable start %d should be multiple of %u\n",
+		pr_warn("map '.jumptables': jumptable start %u should be multiple of %u\n",
 			sym_off, jt_entry_size);
 		return -EINVAL;
 	}
@@ -6316,7 +6316,7 @@ static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struc
 		 * should contain values that fit in u32.
 		 */
 		if (insn_off > UINT32_MAX) {
-			pr_warn("map '.jumptables': invalid jump table value 0x%llx at offset %d\n",
+			pr_warn("map '.jumptables': invalid jump table value 0x%llx at offset %u\n",
 				(long long)jt[i], sym_off + i * jt_entry_size);
 			err = -EINVAL;
 			goto err_close;
