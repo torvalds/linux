@@ -960,13 +960,17 @@ void *kimage_map_segment(struct kimage *image, int idx)
 	kimage_entry_t *ptr, entry;
 	struct page **src_pages;
 	unsigned int npages;
+	struct page *cma;
 	void *vaddr = NULL;
 	int i;
+
+	cma = image->segment_cma[idx];
+	if (cma)
+		return page_address(cma);
 
 	addr = image->segment[idx].mem;
 	size = image->segment[idx].memsz;
 	eaddr = addr + size;
-
 	/*
 	 * Collect the source pages and map them in a contiguous VA range.
 	 */
@@ -1007,7 +1011,8 @@ void *kimage_map_segment(struct kimage *image, int idx)
 
 void kimage_unmap_segment(void *segment_buffer)
 {
-	vunmap(segment_buffer);
+	if (is_vmalloc_addr(segment_buffer))
+		vunmap(segment_buffer);
 }
 
 struct kexec_load_limit {
