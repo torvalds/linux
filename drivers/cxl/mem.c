@@ -142,6 +142,12 @@ static int cxl_mem_probe(struct device *dev)
 			return rc;
 	}
 
+	if (cxlmd->attach) {
+		rc = cxlmd->attach->probe(cxlmd);
+		if (rc)
+			return rc;
+	}
+
 	rc = devm_cxl_memdev_edac_register(cxlmd);
 	if (rc)
 		dev_dbg(dev, "CXL memdev EDAC registration failed rc=%d\n", rc);
@@ -166,17 +172,23 @@ static int cxl_mem_probe(struct device *dev)
 /**
  * devm_cxl_add_memdev - Add a CXL memory device
  * @cxlds: CXL device state to associate with the memdev
+ * @attach: Caller depends on CXL topology attachment
  *
  * Upon return the device will have had a chance to attach to the
- * cxl_mem driver, but may fail if the CXL topology is not ready
- * (hardware CXL link down, or software platform CXL root not attached)
+ * cxl_mem driver, but may fail to attach if the CXL topology is not ready
+ * (hardware CXL link down, or software platform CXL root not attached).
+ *
+ * When @attach is NULL it indicates the caller wants the memdev to remain
+ * registered even if it does not immediately attach to the CXL hierarchy. When
+ * @attach is provided a cxl_mem_probe() failure leads to failure of this routine.
  *
  * The parent of the resulting device and the devm context for allocations is
  * @cxlds->dev.
  */
-struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
+struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds,
+				       const struct cxl_memdev_attach *attach)
 {
-	return __devm_cxl_add_memdev(cxlds);
+	return __devm_cxl_add_memdev(cxlds, attach);
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, "CXL");
 

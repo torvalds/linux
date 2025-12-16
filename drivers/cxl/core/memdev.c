@@ -641,14 +641,24 @@ static void detach_memdev(struct work_struct *work)
 	struct cxl_memdev *cxlmd;
 
 	cxlmd = container_of(work, typeof(*cxlmd), detach_work);
-	device_release_driver(&cxlmd->dev);
+
+	/*
+	 * When the creator of @cxlmd sets ->attach it indicates CXL operation
+	 * is required. In that case, @cxlmd detach escalates to parent device
+	 * detach.
+	 */
+	if (cxlmd->attach)
+		device_release_driver(cxlmd->dev.parent);
+	else
+		device_release_driver(&cxlmd->dev);
 	put_device(&cxlmd->dev);
 }
 
 static struct lock_class_key cxl_memdev_key;
 
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
-					   const struct file_operations *fops)
+					   const struct file_operations *fops,
+					   const struct cxl_memdev_attach *attach)
 {
 	struct cxl_memdev *cxlmd;
 	struct device *dev;
@@ -664,6 +674,8 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 		goto err;
 	cxlmd->id = rc;
 	cxlmd->depth = -1;
+	cxlmd->attach = attach;
+	cxlmd->endpoint = ERR_PTR(-ENXIO);
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
@@ -1081,6 +1093,18 @@ static struct cxl_memdev *cxl_memdev_autoremove(struct cxl_memdev *cxlmd)
 {
 	int rc;
 
+	/*
+	 * If @attach is provided fail if the driver is not attached upon
+	 * return. Note that failure here could be the result of a race to
+	 * teardown the CXL port topology. I.e. cxl_mem_probe() could have
+	 * succeeded and then cxl_mem unbound before the lock is acquired.
+	 */
+	guard(device)(&cxlmd->dev);
+	if (cxlmd->attach && !cxlmd->dev.driver) {
+		cxl_memdev_unregister(cxlmd);
+		return ERR_PTR(-ENXIO);
+	}
+
 	rc = devm_add_action_or_reset(cxlmd->cxlds->dev, cxl_memdev_unregister,
 				      cxlmd);
 	if (rc)
@@ -1093,13 +1117,14 @@ static struct cxl_memdev *cxl_memdev_autoremove(struct cxl_memdev *cxlmd)
  * Core helper for devm_cxl_add_memdev() that wants to both create a device and
  * assert to the caller that upon return cxl_mem::probe() has been invoked.
  */
-struct cxl_memdev *__devm_cxl_add_memdev(struct cxl_dev_state *cxlds)
+struct cxl_memdev *__devm_cxl_add_memdev(struct cxl_dev_state *cxlds,
+					 const struct cxl_memdev_attach *attach)
 {
 	struct device *dev;
 	int rc;
 
 	struct cxl_memdev *cxlmd __free(put_cxlmd) =
-		cxl_memdev_alloc(cxlds, &cxl_memdev_fops);
+		cxl_memdev_alloc(cxlds, &cxl_memdev_fops, attach);
 	if (IS_ERR(cxlmd))
 		return cxlmd;
 
