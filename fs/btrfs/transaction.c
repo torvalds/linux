@@ -2550,9 +2550,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		wake_up_process(fs_info->cleaner_kthread);
 
 	ret = btrfs_write_and_wait_transaction(trans);
-	if (ret) {
-		btrfs_handle_fs_error(fs_info, ret,
-				      "Error while writing out transaction");
+	if (unlikely(ret)) {
+		btrfs_err(fs_info, "error while writing out transaction: %d", ret);
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
 	}
