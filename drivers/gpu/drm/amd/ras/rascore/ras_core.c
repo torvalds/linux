@@ -258,7 +258,10 @@ static int ras_core_eeprom_recovery(struct ras_core_context *ras_core)
 		return ret;
 	}
 
-	ras_eeprom_sync_info(ras_core);
+	if (ras_fw_eeprom_supported(ras_core))
+		ras_fw_eeprom_sync_info(ras_core);
+	else
+		ras_eeprom_sync_info(ras_core);
 
 	return ret;
 }

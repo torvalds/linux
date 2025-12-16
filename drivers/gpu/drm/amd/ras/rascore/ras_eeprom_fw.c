@@ -504,3 +504,17 @@ enum ras_gpu_health_status
 
 	return RAS_GPU_HEALTH_USABLE;
 }
+
+void ras_fw_eeprom_sync_info(struct ras_core_context *ras_core)
+{
+	struct ras_fw_eeprom_control *control;
+
+	if (!ras_core)
+		return;
+
+	control = &ras_core->ras_fw_eeprom;
+	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
+		&control->ras_num_recs);
+	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_CHANNEL_BITMAP,
+		&control->bad_channel_bitmap);
+}
