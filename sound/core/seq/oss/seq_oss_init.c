@@ -63,10 +63,10 @@ int __init
 snd_seq_oss_create_client(void)
 {
 	int rc;
-	struct snd_seq_port_info *port __free(kfree) = NULL;
 	struct snd_seq_port_callback port_callback;
+	struct snd_seq_port_info *port __free(kfree) =
+		kzalloc(sizeof(*port), GFP_KERNEL);
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
