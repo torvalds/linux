@@ -178,6 +178,8 @@ pcal9554b      8       yes    00     01     02        03
 pcal6416      16       yes    00     02     04        06
 pcal9535      16       yes    00     02     04        06
 pcal9555a     16       yes    00     02     04        06
+tcal6408       8       yes    00     01     02        03
+tcal6416      16       yes    00     02     04        06
 ========== ===== ========= ===== ====== ====== =========
 
 These chips have several additional features:
@@ -196,6 +198,8 @@ pcal9554b            40       42      43       44       45         46       4F
 pcal6416             40       44      46       48       4A         4C       4F
 pcal9535             40       44      46       48       4A         4C       4F
 pcal9555a            40       44      46       48       4A         4C       4F
+tcal6408             40       42      43       44       45         46       4F
+tcal6416             40       44      46       48       4A         4C       4F
 ========== ============ ======== ======= ======== ======== ========== ========
 
 Currently the driver has support for the input latch, pull-up/pull-down
@@ -332,6 +336,8 @@ Layouts:
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 5 and 6, closely packed banks
         - pcal6534
@@ -390,6 +396,8 @@ enabled.
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 2, closely packed banks
         - pcal6534
@@ -462,6 +470,8 @@ Layout:
         - pcal9535
         - pcal9554b
         - pcal9555a
+        - tcal6408
+        - tcal6416
 
 `PCAL chips with extended interrupt and output configuration functions`_
 can set this for each line individually. They have the same per-port out_conf
@@ -505,6 +515,8 @@ bits drive strength
         - pcal9554b
         - pcal9555a
         - pcal6524
+        - tcal6408
+        - tcal6416
 
     2. base offset 0x30, bank 0 and 1, closely packed banks
         - pcal6534
