@@ -174,7 +174,8 @@ named ``Return`` (or ``Returns``).
 Structure, union, and enumeration documentation
 -----------------------------------------------
 
-The general format of a struct, union, and enum kernel-doc comment is::
+The general format of a ``struct``, ``union``, and ``enum`` kernel-doc
+comment is::
 
   /**
    * struct struct_name - Brief description.
@@ -187,8 +188,8 @@ The general format of a struct, union, and enum kernel-doc comment is::
    */
 
 You can replace the ``struct`` in the above example with ``union`` or
-``enum``  to describe unions or enums. ``member`` is used to mean struct
-and union member names as well as enumerations in an enum.
+``enum``  to describe unions or enums. ``member`` is used to mean ``struct``
+and ``union`` member names as well as enumerations in an ``enum``.
 
 The brief description following the structure name may span multiple
 lines, and ends with a member description, a blank comment line, or the
@@ -201,7 +202,7 @@ Members of structs, unions and enums should be documented the same way
 as function parameters; they immediately succeed the short description
 and may be multi-line.
 
-Inside a struct or union description, you can use the ``private:`` and
+Inside a ``struct`` or ``union`` description, you can use the ``private:`` and
 ``public:`` comment tags. Structure fields that are inside a ``private:``
 area are not listed in the generated output documentation.
 
@@ -273,11 +274,11 @@ It is possible to document nested structs and unions, like::
 
 .. note::
 
-   #) When documenting nested structs or unions, if the struct/union ``foo``
-      is named, the member ``bar`` inside it should be documented as
+   #) When documenting nested structs or unions, if the ``struct``/``union``
+      ``foo`` is named, the member ``bar`` inside it should be documented as
       ``@foo.bar:``
-   #) When the nested struct/union is anonymous, the member ``bar`` in it
-      should be documented as ``@bar:``
+   #) When the nested ``struct``/``union`` is anonymous, the member ``bar`` in
+      it should be documented as ``@bar:``
 
 In-line member documentation comments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -319,7 +320,7 @@ on a line of their own, like all other kernel-doc comments::
 Typedef documentation
 ---------------------
 
-The general format of a typedef kernel-doc comment is::
+The general format of a ``typedef`` kernel-doc comment is::
 
   /**
    * typedef type_name - Brief description.
@@ -432,8 +433,8 @@ Domain`_ references.
   Typedef reference.
 
 ``&struct_name->member`` or ``&struct_name.member``
-  Structure or union member reference. The cross-reference will be to the struct
-  or union definition, not the member directly.
+  ``struct`` or ``union`` member reference. The cross-reference will be to the
+  ``struct`` or ``union`` definition, not the member directly.
 
 ``&name``
   A generic type reference. Prefer using the full reference described above
@@ -537,7 +538,7 @@ identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
   If no *function* is specified, the documentation for all functions
   and types in the *source* will be included.
-  *type* can be a struct, union, enum, or typedef identifier.
+  *type* can be a ``struct``, ``union``, ``enum``, or ``typedef`` identifier.
 
   Examples::
 
