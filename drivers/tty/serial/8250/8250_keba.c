@@ -6,10 +6,18 @@
  */
 
 #include <linux/auxiliary_bus.h>
-#include <linux/device.h>
+#include <linux/bits.h>
+#include <linux/container_of.h>
+#include <linux/dev_printk.h>
+#include <linux/device/devres.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/misc/keba.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/serial_core.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 #include "8250.h"
 
