@@ -4,7 +4,7 @@
  */
 #include <linux/types.h>
 
-#include "../../../../lib/vdso/getrandom.c"
+#include "lib/vdso/getrandom.c"
 
 ssize_t __vdso_getrandom(void *buffer, size_t len, unsigned int flags, void *opaque_state, size_t opaque_len)
 {
