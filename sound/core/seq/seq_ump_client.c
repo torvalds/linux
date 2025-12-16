@@ -214,13 +214,13 @@ static bool skip_group(struct seq_ump_client *client, struct snd_ump_group *grou
 static int seq_ump_group_init(struct seq_ump_client *client, int group_index)
 {
 	struct snd_ump_group *group = &client->ump->groups[group_index];
-	struct snd_seq_port_info *port __free(kfree) = NULL;
 	struct snd_seq_port_callback pcallbacks;
 
 	if (skip_group(client, group))
 		return 0;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	struct snd_seq_port_info *port __free(kfree) =
+		kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
@@ -243,12 +243,12 @@ static int seq_ump_group_init(struct seq_ump_client *client, int group_index)
 /* update the sequencer ports; called from notify_fb_change callback */
 static void update_port_infos(struct seq_ump_client *client)
 {
-	struct snd_seq_port_info *old __free(kfree) = NULL;
-	struct snd_seq_port_info *new __free(kfree) = NULL;
 	int i, err;
 
-	old = kzalloc(sizeof(*old), GFP_KERNEL);
-	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	struct snd_seq_port_info *old __free(kfree) =
+		kzalloc(sizeof(*old), GFP_KERNEL);
+	struct snd_seq_port_info *new __free(kfree) =
+		kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!old || !new)
 		return;
 
@@ -278,12 +278,12 @@ static void update_port_infos(struct seq_ump_client *client)
 /* create a UMP Endpoint port */
 static int create_ump_endpoint_port(struct seq_ump_client *client)
 {
-	struct snd_seq_port_info *port __free(kfree) = NULL;
 	struct snd_seq_port_callback pcallbacks;
 	unsigned int rawmidi_info = client->ump->core.info_flags;
 	int err;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	struct snd_seq_port_info *port __free(kfree) =
+		kzalloc(sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
