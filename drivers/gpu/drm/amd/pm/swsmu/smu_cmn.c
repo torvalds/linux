@@ -65,14 +65,6 @@ static const char *smu_get_message_name(struct smu_context *smu,
 	return __smu_message_names[type];
 }
 
-static void smu_cmn_read_arg(struct smu_context *smu,
-			     uint32_t *arg)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	*arg = RREG32(smu->param_reg);
-}
-
 /* Redefine the SMU error codes here.
  *
  * Note that these definitions are redundant and should be removed
@@ -125,75 +117,6 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	}
 
 	return reg;
-}
-
-static void __smu_cmn_reg_print_error(struct smu_context *smu,
-				      u32 reg_c2pmsg_90,
-				      int msg_index,
-				      u32 param,
-				      enum smu_message_type msg)
-{
-	struct amdgpu_device *adev = smu->adev;
-	const char *message = smu_get_message_name(smu, msg);
-	u32 msg_idx, prm;
-
-	switch (reg_c2pmsg_90) {
-	case SMU_RESP_NONE: {
-		msg_idx = RREG32(smu->msg_reg);
-		prm     = RREG32(smu->param_reg);
-		dev_err_ratelimited(adev->dev,
-				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
-				    msg_idx, prm);
-		}
-		break;
-	case SMU_RESP_OK:
-		/* The SMU executed the command. It completed with a
-		 * successful result.
-		 */
-		break;
-	case SMU_RESP_CMD_FAIL:
-		/* The SMU executed the command. It completed with an
-		 * unsuccessful result.
-		 */
-		break;
-	case SMU_RESP_CMD_UNKNOWN:
-		dev_err_ratelimited(adev->dev,
-				    "SMU: unknown command: index:%d param:0x%08X message:%s",
-				    msg_index, param, message);
-		break;
-	case SMU_RESP_CMD_BAD_PREREQ:
-		dev_err_ratelimited(adev->dev,
-				    "SMU: valid command, bad prerequisites: index:%d param:0x%08X message:%s",
-				    msg_index, param, message);
-		break;
-	case SMU_RESP_BUSY_OTHER:
-		/* It is normal for SMU_MSG_GetBadPageCount to return busy
-		 * so don't print error at this case.
-		 */
-		if (msg != SMU_MSG_GetBadPageCount)
-			dev_err_ratelimited(adev->dev,
-						"SMU: I'm very busy for your command: index:%d param:0x%08X message:%s",
-						msg_index, param, message);
-		break;
-	case SMU_RESP_DEBUG_END:
-		dev_err_ratelimited(adev->dev,
-				    "SMU: I'm debugging!");
-		break;
-	case SMU_RESP_UNEXP:
-		if (amdgpu_device_bus_status_check(smu->adev)) {
-			/* print error immediately if device is off the bus */
-			dev_err(adev->dev,
-				"SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
-				reg_c2pmsg_90, msg_index, param, message);
-			break;
-		}
-		fallthrough;
-	default:
-		dev_err_ratelimited(adev->dev,
-				    "SMU: response:0x%08X for index:%d param:0x%08X message:%s?",
-				    reg_c2pmsg_90, msg_index, param, message);
-		break;
-	}
 }
 
 static int __smu_cmn_reg2errno(struct smu_context *smu, u32 reg_c2pmsg_90)
@@ -250,54 +173,6 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 	WREG32(smu->resp_reg, 0);
 	WREG32(smu->param_reg, param);
 	WREG32(smu->msg_reg, msg);
-}
-
-static inline uint32_t __smu_cmn_get_msg_flags(struct smu_context *smu,
-					       enum smu_message_type msg)
-{
-	return smu->message_map[msg].flags;
-}
-
-static int __smu_cmn_ras_filter_msg(struct smu_context *smu,
-				    enum smu_message_type msg, bool *poll)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t flags, resp;
-	bool fed_status, pri;
-
-	flags = __smu_cmn_get_msg_flags(smu, msg);
-	*poll = true;
-
-	pri = !!(flags & SMU_MSG_NO_PRECHECK);
-	/* When there is RAS fatal error, FW won't process non-RAS priority
-	 * messages. Don't allow any messages other than RAS priority messages.
-	 */
-	fed_status = amdgpu_ras_get_fed_status(adev);
-	if (fed_status) {
-		if (!(flags & SMU_MSG_RAS_PRI)) {
-			dev_dbg(adev->dev,
-				"RAS error detected, skip sending %s",
-				smu_get_message_name(smu, msg));
-			return -EACCES;
-		}
-	}
-
-	if (pri || fed_status) {
-		/* FW will ignore non-priority messages when a RAS fatal error
-		 * or reset condition is detected. Hence it is possible that a
-		 * previous message wouldn't have got response. Allow to
-		 * continue without polling for response status for priority
-		 * messages.
-		 */
-		resp = RREG32(smu->resp_reg);
-		dev_dbg(adev->dev,
-			"Sending priority message %s response status: %x",
-			smu_get_message_name(smu, msg), resp);
-		if (resp == 0)
-			*poll = false;
-	}
-
-	return 0;
 }
 
 static int __smu_cmn_send_debug_msg(struct smu_context *smu,
@@ -375,22 +250,7 @@ Out:
  */
 int smu_cmn_wait_for_response(struct smu_context *smu)
 {
-	u32 reg;
-	int res;
-
-	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-
-	if (res == -EREMOTEIO)
-		smu->smc_fw_state = SMU_FW_HANG;
-
-	if (unlikely(smu->adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
-	    res && (res != -ETIME)) {
-		amdgpu_device_halt(smu->adev);
-		WARN_ON(1);
-	}
-
-	return res;
+	return smu_msg_wait_response(&smu->msg_ctl, 0);
 }
 
 /**
@@ -430,70 +290,23 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    uint32_t param,
 				    uint32_t *read_arg)
 {
-	struct amdgpu_device *adev = smu->adev;
-	int res, index;
-	bool poll = true;
-	u32 reg;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {
+		.msg = msg,
+		.args[0] = param,
+		.num_args = 1,
+		.num_out_args = read_arg ? 1 : 0,
+		.flags = 0,
+		.timeout = 0,
+	};
+	int ret;
 
-	if (adev->no_hw_access)
-		return 0;
+	ret = ctl->ops->send_msg(ctl, &args);
 
-	index = smu_cmn_to_asic_specific_index(smu,
-					       CMN2ASIC_MAPPING_MSG,
-					       msg);
-	if (index < 0)
-		return index == -EACCES ? 0 : index;
+	if (read_arg)
+		*read_arg = args.out_args[0];
 
-	mutex_lock(&smu->message_lock);
-
-	if (smu->smc_fw_caps & SMU_FW_CAP_RAS_PRI) {
-		res = __smu_cmn_ras_filter_msg(smu, msg, &poll);
-		if (res)
-			goto Out;
-	}
-
-	if (smu->smc_fw_state == SMU_FW_HANG) {
-		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
-		res = -EREMOTEIO;
-		goto Out;
-	} else if (smu->smc_fw_state == SMU_FW_INIT) {
-		/* Ignore initial smu response register value */
-		poll = false;
-		smu->smc_fw_state = SMU_FW_RUNTIME;
-	}
-
-	if (poll) {
-		reg = __smu_cmn_poll_stat(smu);
-		res = __smu_cmn_reg2errno(smu, reg);
-		if (reg == SMU_RESP_NONE || res == -EREMOTEIO) {
-			__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-			goto Out;
-		}
-	}
-	__smu_cmn_send_msg(smu, (uint16_t) index, param);
-	reg = __smu_cmn_poll_stat(smu);
-	res = __smu_cmn_reg2errno(smu, reg);
-	if (res != 0) {
-		if (res == -EREMOTEIO)
-			smu->smc_fw_state = SMU_FW_HANG;
-		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-	}
-	if (read_arg) {
-		smu_cmn_read_arg(smu, read_arg);
-		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x, readval: 0x%08x\n",
-			smu_get_message_name(smu, msg), index, param, reg, *read_arg);
-	} else {
-		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x\n",
-			smu_get_message_name(smu, msg), index, param, reg);
-	}
-Out:
-	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) && res) {
-		amdgpu_device_halt(adev);
-		WARN_ON(1);
-	}
-
-	mutex_unlock(&smu->message_lock);
-	return res;
+	return ret;
 }
 
 int smu_cmn_send_smc_msg(struct smu_context *smu,
