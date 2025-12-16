@@ -252,10 +252,9 @@ static int kuart_probe(struct auxiliary_device *auxdev,
 	}
 
 	retval = serial8250_register_8250_port(&uart);
-	if (retval < 0) {
-		dev_err(&auxdev->dev, "UART registration failed!\n");
-		return retval;
-	}
+	if (retval < 0)
+		return dev_err_probe(&auxdev->dev, retval,
+				     "UART registration failed!\n");
 	kuart->line = retval;
 
 	return 0;
