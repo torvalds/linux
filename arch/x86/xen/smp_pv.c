@@ -65,10 +65,9 @@ static void cpu_bringup(void)
 	touch_softlockup_watchdog();
 
 	/* PVH runs in ring 0 and allows us to do native syscalls. Yay! */
-	if (!xen_feature(XENFEAT_supervisor_mode_kernel)) {
-		xen_enable_sysenter();
+	if (!xen_feature(XENFEAT_supervisor_mode_kernel))
 		xen_enable_syscall();
-	}
+
 	cpu = smp_processor_id();
 	identify_secondary_cpu(cpu);
 	set_cpu_sibling_map(cpu);

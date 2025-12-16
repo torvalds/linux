@@ -84,7 +84,7 @@
 #define X86_FEATURE_PEBS		( 3*32+12) /* "pebs" Precise-Event Based Sampling */
 #define X86_FEATURE_BTS			( 3*32+13) /* "bts" Branch Trace Store */
 #define X86_FEATURE_SYSCALL32		( 3*32+14) /* syscall in IA32 userspace */
-#define X86_FEATURE_SYSENTER32		( 3*32+15) /* sysenter in IA32 userspace */
+#define X86_FEATURE_SYSFAST32		( 3*32+15) /* sysenter/syscall in IA32 userspace */
 #define X86_FEATURE_REP_GOOD		( 3*32+16) /* "rep_good" REP microcode works well */
 #define X86_FEATURE_AMD_LBR_V2		( 3*32+17) /* "amd_lbr_v2" AMD Last Branch Record Extension Version 2 */
 #define X86_FEATURE_CLEAR_CPU_BUF	( 3*32+18) /* Clear CPU buffers using VERW */

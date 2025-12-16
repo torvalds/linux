@@ -52,13 +52,9 @@ __kernel_vsyscall:
 	#define SYSENTER_SEQUENCE	"movl %esp, %ebp; sysenter"
 	#define SYSCALL_SEQUENCE	"movl %ecx, %ebp; syscall"
 
-#ifdef BUILD_VDSO32_64
 	/* If SYSENTER (Intel) or SYSCALL32 (AMD) is available, use it. */
-	ALTERNATIVE_2 "", SYSENTER_SEQUENCE, X86_FEATURE_SYSENTER32, \
-	                  SYSCALL_SEQUENCE,  X86_FEATURE_SYSCALL32
-#else
-	ALTERNATIVE "", SYSENTER_SEQUENCE, X86_FEATURE_SEP
-#endif
+	ALTERNATIVE_2 "", SYSENTER_SEQUENCE, X86_FEATURE_SYSFAST32, \
+			  SYSCALL_SEQUENCE,  X86_FEATURE_SYSCALL32
 
 	/* Enter using int $0x80 */
 	int	$0x80
