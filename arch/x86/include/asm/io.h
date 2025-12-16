@@ -218,9 +218,8 @@ static inline void __iowrite32_copy(void __iomem *to, const void *from,
 				    size_t count)
 {
 	asm volatile("rep movsl"
-		     : "=&c"(count), "=&D"(to), "=&S"(from)
-		     : "0"(count), "1"(to), "2"(from)
-		     : "memory");
+		     : "+D"(to), "+S"(from), "+c"(count)
+		     : : "memory");
 }
 #define __iowrite32_copy __iowrite32_copy
 #endif
