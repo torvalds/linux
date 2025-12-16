@@ -1854,9 +1854,9 @@ static int check_follower_present(struct hda_codec *codec,
 /* call kctl->put with the given value(s) */
 static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
 {
-	struct snd_ctl_elem_value *ucontrol __free(kfree) = NULL;
+	struct snd_ctl_elem_value *ucontrol __free(kfree) =
+		kzalloc(sizeof(*ucontrol), GFP_KERNEL);
 
-	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
 	if (!ucontrol)
 		return -ENOMEM;
 	ucontrol->value.integer.value[0] = val;
