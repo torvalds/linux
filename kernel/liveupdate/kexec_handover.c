@@ -25,7 +25,6 @@
 
 #include <asm/early_ioremap.h>
 
-#include "kexec_handover_internal.h"
 /*
  * KHO is tightly coupled with mm init and needs access to some of mm
  * internal APIs.
