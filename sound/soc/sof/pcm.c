@@ -122,6 +122,16 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 	spcm_dbg(spcm, substream->stream, "Entry: hw_params\n");
 
+	if (!sdev->dspless_mode_selected) {
+		/*
+		 * Make sure that the DSP is booted up, which might not be the
+		 * case if the on-demand DSP boot is used
+		 */
+		ret = snd_sof_boot_dsp_firmware(sdev);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * Handle repeated calls to hw_params() without free_pcm() in
 	 * between. At least ALSA OSS emulation depends on this.

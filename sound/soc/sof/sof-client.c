@@ -486,6 +486,12 @@ enum sof_ipc_type sof_client_get_ipc_type(struct sof_client_dev *cdev)
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_get_ipc_type, "SND_SOC_SOF_CLIENT");
 
+int sof_client_boot_dsp(struct sof_client_dev *cdev)
+{
+	return snd_sof_boot_dsp_firmware(sof_client_dev_to_sof_dev(cdev));
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_boot_dsp, "SND_SOC_SOF_CLIENT");
+
 /* module refcount management of SOF core */
 int sof_client_core_module_get(struct sof_client_dev *cdev)
 {

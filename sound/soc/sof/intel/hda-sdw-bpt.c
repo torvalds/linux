@@ -98,6 +98,17 @@ static int hda_sdw_bpt_dma_prepare(struct device *dev, struct hdac_ext_stream **
 	struct hdac_ext_stream *bpt_stream;
 	unsigned int format = HDA_CL_STREAM_FORMAT;
 
+	if (!sdev->dspless_mode_selected) {
+		int ret;
+
+		/*
+		 * Make sure that the DSP is booted up, which might not be the
+		 * case if the on-demand DSP boot is used
+		 */
+		ret = snd_sof_boot_dsp_firmware(sdev);
+		if (ret)
+			return ret;
+	}
 	/*
 	 * the baseline format needs to be adjusted to
 	 * bandwidth requirements
