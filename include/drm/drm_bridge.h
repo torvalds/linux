@@ -1279,6 +1279,17 @@ struct drm_bridge {
 	 * @hpd_cb.
 	 */
 	void *hpd_data;
+
+	/**
+	 * @next_bridge: Pointer to the following bridge, automatically put
+	 * when this bridge is freed (i.e. at destroy time). This is for
+	 * drivers needing to store a pointer to the next bridge in the
+	 * chain, and ensures any code still holding a reference to this
+	 * bridge after its removal cannot use-after-free the next
+	 * bridge. Any other bridge pointers stored by the driver must be
+	 * put in the .destroy callback by driver code.
+	 */
+	struct drm_bridge *next_bridge;
 };
 
 static inline struct drm_bridge *
