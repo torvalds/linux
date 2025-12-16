@@ -380,7 +380,7 @@ struct reloc_desc {
 		const struct bpf_core_relo *core_relo; /* used when type == RELO_CORE */
 		struct {
 			int map_idx;
-			int sym_off;
+			unsigned int sym_off;
 			/*
 			 * The following two fields can be unionized, as the
 			 * ext_idx field is used for extern symbols, and the
@@ -757,13 +757,14 @@ struct bpf_object {
 	int arena_map_idx;
 	void *arena_data;
 	size_t arena_data_sz;
+	size_t arena_data_off;
 
 	void *jumptables_data;
 	size_t jumptables_data_sz;
 
 	struct {
 		struct bpf_program *prog;
-		int sym_off;
+		unsigned int sym_off;
 		int fd;
 	} *jumptable_maps;
 	size_t jumptable_map_cnt;
@@ -2991,10 +2992,11 @@ static int init_arena_map_data(struct bpf_object *obj, struct bpf_map *map,
 			       void *data, size_t data_sz)
 {
 	const long page_sz = sysconf(_SC_PAGE_SIZE);
+	const size_t data_alloc_sz = roundup(data_sz, page_sz);
 	size_t mmap_sz;
 
 	mmap_sz = bpf_map_mmap_sz(map);
-	if (roundup(data_sz, page_sz) > mmap_sz) {
+	if (data_alloc_sz > mmap_sz) {
 		pr_warn("elf: sec '%s': declared ARENA map size (%zu) is too small to hold global __arena variables of size %zu\n",
 			sec_name, mmap_sz, data_sz);
 		return -E2BIG;
@@ -3005,6 +3007,9 @@ static int init_arena_map_data(struct bpf_object *obj, struct bpf_map *map,
 		return -ENOMEM;
 	memcpy(obj->arena_data, data, data_sz);
 	obj->arena_data_sz = data_sz;
+
+	/* place globals at the end of the arena */
+	obj->arena_data_off = mmap_sz - data_alloc_sz;
 
 	/* make bpf_map__init_value() work for ARENA maps */
 	map->mmaped = obj->arena_data;
@@ -4663,7 +4668,7 @@ static int bpf_program__record_reloc(struct bpf_program *prog,
 		reloc_desc->type = RELO_DATA;
 		reloc_desc->insn_idx = insn_idx;
 		reloc_desc->map_idx = obj->arena_map_idx;
-		reloc_desc->sym_off = sym->st_value;
+		reloc_desc->sym_off = sym->st_value + obj->arena_data_off;
 
 		map = &obj->maps[obj->arena_map_idx];
 		pr_debug("prog '%s': found arena map %d (%s, sec %d, off %zu) for insn %u\n",
@@ -5624,7 +5629,8 @@ retry:
 					return err;
 				}
 				if (obj->arena_data) {
-					memcpy(map->mmaped, obj->arena_data, obj->arena_data_sz);
+					memcpy(map->mmaped + obj->arena_data_off, obj->arena_data,
+						obj->arena_data_sz);
 					zfree(&obj->arena_data);
 				}
 			}
@@ -6192,7 +6198,7 @@ static void poison_kfunc_call(struct bpf_program *prog, int relo_idx,
 	insn->imm = POISON_CALL_KFUNC_BASE + ext_idx;
 }
 
-static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym_off)
+static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, unsigned int sym_off)
 {
 	size_t i;
 
@@ -6210,7 +6216,7 @@ static int find_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym
 	return -ENOENT;
 }
 
-static int add_jt_map(struct bpf_object *obj, struct bpf_program *prog, int sym_off, int map_fd)
+static int add_jt_map(struct bpf_object *obj, struct bpf_program *prog, unsigned int sym_off, int map_fd)
 {
 	size_t cnt = obj->jumptable_map_cnt;
 	size_t size = sizeof(obj->jumptable_maps[0]);
@@ -6244,7 +6250,7 @@ static int find_subprog_idx(struct bpf_program *prog, int insn_idx)
 static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struct reloc_desc *relo)
 {
 	const __u32 jt_entry_size = 8;
-	int sym_off = relo->sym_off;
+	unsigned int sym_off = relo->sym_off;
 	int jt_size = relo->sym_size;
 	__u32 max_entries = jt_size / jt_entry_size;
 	__u32 value_size = sizeof(struct bpf_insn_array_value);
@@ -6260,7 +6266,7 @@ static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struc
 		return map_fd;
 
 	if (sym_off % jt_entry_size) {
-		pr_warn("map '.jumptables': jumptable start %d should be multiple of %u\n",
+		pr_warn("map '.jumptables': jumptable start %u should be multiple of %u\n",
 			sym_off, jt_entry_size);
 		return -EINVAL;
 	}
@@ -6316,7 +6322,7 @@ static int create_jt_map(struct bpf_object *obj, struct bpf_program *prog, struc
 		 * should contain values that fit in u32.
 		 */
 		if (insn_off > UINT32_MAX) {
-			pr_warn("map '.jumptables': invalid jump table value 0x%llx at offset %d\n",
+			pr_warn("map '.jumptables': invalid jump table value 0x%llx at offset %u\n",
 				(long long)jt[i], sym_off + i * jt_entry_size);
 			err = -EINVAL;
 			goto err_close;
@@ -14429,7 +14435,10 @@ int bpf_object__load_skeleton(struct bpf_object_skeleton *s)
 		if (!map_skel->mmaped)
 			continue;
 
-		*map_skel->mmaped = map->mmaped;
+		if (map->def.type == BPF_MAP_TYPE_ARENA)
+			*map_skel->mmaped = map->mmaped + map->obj->arena_data_off;
+		else
+			*map_skel->mmaped = map->mmaped;
 	}
 
 	return 0;
