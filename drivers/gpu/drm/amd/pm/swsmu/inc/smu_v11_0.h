@@ -282,7 +282,6 @@ int smu_v11_0_handle_passthrough_sbr(struct smu_context *smu, bool enable);
 
 int smu_v11_0_restore_user_od_settings(struct smu_context *smu);
 
-void smu_v11_0_set_smu_mailbox_registers(struct smu_context *smu);
 void smu_v11_0_init_msg_ctl(struct smu_context *smu,
 			    const struct cmn2asic_msg_mapping *message_map);
 

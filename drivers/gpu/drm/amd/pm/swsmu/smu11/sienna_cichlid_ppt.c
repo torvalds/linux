@@ -3182,12 +3182,10 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &sienna_cichlid_ppt_funcs;
-	smu->message_map = sienna_cichlid_message_map;
 	smu->clock_map = sienna_cichlid_clk_map;
 	smu->feature_map = sienna_cichlid_feature_mask_map;
 	smu->table_map = sienna_cichlid_table_map;
 	smu->pwr_src_map = sienna_cichlid_pwr_src_map;
 	smu->workload_map = sienna_cichlid_workload_map;
-	smu_v11_0_set_smu_mailbox_registers(smu);
 	smu_v11_0_init_msg_ctl(smu, sienna_cichlid_message_map);
 }

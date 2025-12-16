@@ -2557,11 +2557,9 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 void vangogh_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &vangogh_ppt_funcs;
-	smu->message_map = vangogh_message_map;
 	smu->feature_map = vangogh_feature_mask_map;
 	smu->table_map = vangogh_table_map;
 	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
-	smu_v11_0_set_smu_mailbox_registers(smu);
 	smu_v11_0_init_msg_ctl(smu, vangogh_message_map);
 }

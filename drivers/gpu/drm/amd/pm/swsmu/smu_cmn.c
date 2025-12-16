@@ -584,10 +584,10 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 	switch (type) {
 	case CMN2ASIC_MAPPING_MSG:
 		if (index >= SMU_MSG_MAX_COUNT ||
-		    !smu->message_map)
+		    !smu->msg_ctl.message_map)
 			return -EINVAL;
 
-		msg_mapping = smu->message_map[index];
+		msg_mapping = smu->msg_ctl.message_map[index];
 		if (!msg_mapping.valid_mapping)
 			return -EINVAL;
 
