@@ -1255,19 +1255,16 @@ static void cs35l41_fw_load_work(struct work_struct *work)
 {
 	struct cs35l41_hda *cs35l41 = container_of(work, struct cs35l41_hda, fw_load_work);
 
-	pm_runtime_get_sync(cs35l41->dev);
+	guard(pm_runtime_active_auto)(cs35l41->dev);
 
-	scoped_guard(mutex, &cs35l41->fw_mutex) {
-		/* Recheck if playback is ongoing, mutex will block playback during firmware loading */
-		if (cs35l41->playback_started)
-			dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback. Retrying...\n");
-		else
-			cs35l41_load_firmware(cs35l41, cs35l41->request_fw_load);
+	guard(mutex)(&cs35l41->fw_mutex);
+	/* Recheck if playback is ongoing, mutex will block playback during firmware loading */
+	if (cs35l41->playback_started)
+		dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback. Retrying...\n");
+	else
+		cs35l41_load_firmware(cs35l41, cs35l41->request_fw_load);
 
-		cs35l41->fw_request_ongoing = false;
-	}
-
-	pm_runtime_put_autosuspend(cs35l41->dev);
+	cs35l41->fw_request_ongoing = false;
 }
 
 static int cs35l41_fw_load_ctl_put(struct snd_kcontrol *kcontrol,
@@ -1455,7 +1452,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	if (comp->dev)
 		return -EBUSY;
 
-	pm_runtime_get_sync(dev);
+	guard(pm_runtime_active_auto)(dev);
 
 	mutex_lock(&cs35l41->fw_mutex);
 
@@ -1498,8 +1495,6 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	if (!device_link_add(&cs35l41->codec->core.dev, cs35l41->dev, DL_FLAG_STATELESS))
 		dev_warn(dev, "Unable to create device link\n");
 	unlock_system_sleep(sleep_flags);
-
-	pm_runtime_put_autosuspend(dev);
 
 	dev_info(cs35l41->dev,
 		 "CS35L41 Bound - SSID: %s, BST: %d, VSPK: %d, CH: %c, FW EN: %d, SPKID: %d\n",
