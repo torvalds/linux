@@ -245,6 +245,7 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 			 adc_vol_tlv),
 	SOC_DOUBLE_TLV("ADC PGA Volume", ES8326_ADC_SCALE, 4, 0, 5, 0, adc_pga_tlv),
 	SOC_SINGLE_TLV("ADC PGA Gain Volume", ES8326_PGAGAIN, 0, 10, 0, adc_analog_pga_tlv),
+	SOC_SINGLE("ADC PGA SE Switch", ES8326_PGAGAIN, 7, 1, 0),
 	SOC_SINGLE_TLV("ADC Ramp Rate", ES8326_ADC_RAMPRATE, 0, 0x0f, 0, softramp_rate),
 	SOC_SINGLE("ALC Capture Switch", ES8326_ALC_RECOVERY, 3, 1, 0),
 	SOC_SINGLE_TLV("ALC Capture Recovery Level", ES8326_ALC_LEVEL,
@@ -934,11 +935,8 @@ static void es8326_jack_detect_handler(struct work_struct *work)
 			dev_dbg(comp->dev, "Headset detected\n");
 			snd_soc_jack_report(es8326->jack,
 					SND_JACK_HEADSET, SND_JACK_HEADSET);
-
 			regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
 					0x08, 0x08);
-			regmap_update_bits(es8326->regmap, ES8326_PGAGAIN,
-					0x80, 0x80);
 			regmap_write(es8326->regmap, ES8326_ADC1_SRC, 0x00);
 			regmap_write(es8326->regmap, ES8326_ADC2_SRC, 0x00);
 			regmap_update_bits(es8326->regmap, ES8326_PGA_PDN,
