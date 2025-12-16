@@ -554,7 +554,8 @@ struct cmn2asic_mapping {
 #define SMU_MSG_MAX_ARGS 4
 
 /* Message flags for smu_msg_args */
-#define SMU_MSG_FLAG_NO_WAIT BIT(0) /* Skip post-poll (for split send/wait) */
+#define SMU_MSG_FLAG_ASYNC	BIT(0) /* Async send - skip post-poll */
+#define SMU_MSG_FLAG_LOCK_HELD	BIT(1) /* Caller holds ctl->lock */
 
 struct smu_msg_ctl;
 /**

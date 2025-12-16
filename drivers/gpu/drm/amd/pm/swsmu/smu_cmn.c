@@ -546,6 +546,7 @@ static int smu_msg_v1_send_msg(struct smu_msg_ctl *ctl,
 	u32 reg, msg_flags;
 	int ret, index;
 	bool skip_pre_poll = false;
+	bool lock_held = args->flags & SMU_MSG_FLAG_LOCK_HELD;
 
 	/* Early exit if no HW access */
 	if (adev->no_hw_access)
@@ -570,7 +571,8 @@ static int smu_msg_v1_send_msg(struct smu_msg_ctl *ctl,
 	if (amdgpu_sriov_vf(adev) && !(msg_flags & SMU_MSG_VF_FLAG))
 		return 0;
 
-	mutex_lock(&ctl->lock);
+	if (!lock_held)
+		mutex_lock(&ctl->lock);
 
 	/* RAS priority filter */
 	ret = __smu_msg_v1_ras_filter(ctl, args->msg, msg_flags,
@@ -602,8 +604,8 @@ static int smu_msg_v1_send_msg(struct smu_msg_ctl *ctl,
 	/* Send message */
 	__smu_msg_v1_send(ctl, (u16)index, args);
 
-	/* Post-poll (skip if NO_WAIT) */
-	if (args->flags & SMU_MSG_FLAG_NO_WAIT) {
+	/* Post-poll (skip if ASYNC) */
+	if (args->flags & SMU_MSG_FLAG_ASYNC) {
 		ret = 0;
 		goto out;
 	}
@@ -650,7 +652,8 @@ out:
 		WARN_ON(1);
 	}
 
-	mutex_unlock(&ctl->lock);
+	if (!lock_held)
+		mutex_unlock(&ctl->lock);
 	return ret;
 }
 
@@ -685,6 +688,32 @@ const struct smu_msg_ops smu_msg_v1_ops = {
 int smu_msg_wait_response(struct smu_msg_ctl *ctl, u32 timeout_us)
 {
 	return ctl->ops->wait_response(ctl, timeout_us);
+}
+
+/**
+ * smu_msg_send_async_locked - Send message asynchronously, caller holds lock
+ * @ctl: Message control block
+ * @msg: Message type
+ * @param: Message parameter
+ *
+ * Send an SMU message without waiting for response. Caller must hold ctl->lock
+ * and call smu_msg_wait_response() later to get the result.
+ *
+ * Return: 0 on success, negative errno on failure
+ */
+int smu_msg_send_async_locked(struct smu_msg_ctl *ctl,
+			      enum smu_message_type msg, u32 param)
+{
+	struct smu_msg_args args = {
+		.msg = msg,
+		.args[0] = param,
+		.num_args = 1,
+		.num_out_args = 0,
+		.flags = SMU_MSG_FLAG_ASYNC | SMU_MSG_FLAG_LOCK_HELD,
+		.timeout = 0,
+	};
+
+	return ctl->ops->send_msg(ctl, &args);
 }
 
 int smu_cmn_to_asic_specific_index(struct smu_context *smu,

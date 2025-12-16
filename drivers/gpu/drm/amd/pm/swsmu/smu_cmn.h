@@ -28,6 +28,8 @@
 extern const struct smu_msg_ops smu_msg_v1_ops;
 
 int smu_msg_wait_response(struct smu_msg_ctl *ctl, u32 timeout_us);
+int smu_msg_send_async_locked(struct smu_msg_ctl *ctl,
+			      enum smu_message_type msg, u32 param);
 
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3) || defined(SWSMU_CODE_LAYER_L4)
 
