@@ -949,12 +949,27 @@ class KernelDoc:
         # Store the full prototype before modifying it
         #
         full_proto = proto
+        declaration_name = None
+
+        #
+        # Handle macro definitions
+        #
+        macro_prefixes = [
+            KernRe(r"DEFINE_[\w_]+\s*\(([\w_]+)\)"),
+        ]
+
+        for r in macro_prefixes:
+            match = r.search(proto)
+            if match:
+                declaration_name = match.group(1)
+                break
 
         #
         # Drop comments and macros to have a pure C prototype
         #
-        for search, sub in sub_prefixes:
-            proto = search.sub(sub, proto)
+        if not declaration_name:
+            for r, sub in sub_prefixes:
+                proto = r.sub(sub, proto)
 
         proto = proto.rstrip()
 
@@ -968,14 +983,16 @@ class KernelDoc:
            return
 
         var_type = r.group(0)
-        declaration_name = r.group(1)
+
+        if not declaration_name:
+            declaration_name = r.group(1)
+
         default_val = r.group(2)
         if default_val:
             default_val = default_val.lstrip("=").strip()
 
         self.output_declaration("var", declaration_name,
                                 full_proto=full_proto,
-                                var_type=var_type,
                                 default_val=default_val,
                                 purpose=self.entry.declaration_purpose)
 

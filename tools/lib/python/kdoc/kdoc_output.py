@@ -486,7 +486,7 @@ class RestFormat(OutputFormat):
 
         self.lineprefix = "  "
 
-        self.data += f"\n\n.. c:macro:: {name}\n\n{self.lineprefix}{full_proto}\n\n"
+        self.data += f"\n\n.. c:macro:: {name}\n\n{self.lineprefix}``{full_proto}``\n\n"
 
         self.print_lineno(ln)
         self.output_highlight(args.get('purpose', ''))
@@ -801,13 +801,12 @@ class ManFormat(OutputFormat):
 
     def out_var(self, fname, name, args):
         out_name = self.arg_name(args, name)
-        prototype = args.other_stuff["var_type"]
         full_proto = args.other_stuff["full_proto"]
 
         self.data += f'.TH "{self.modulename}" 9 "{out_name}" "{self.man_date}" "API Manual" LINUX' + "\n"
 
         self.data += ".SH NAME\n"
-        self.data += f"{prototype} \\- {args['purpose']}\n"
+        self.data += f"{name} \\- {args['purpose']}\n"
 
         self.data += ".SH SYNOPSIS\n"
         self.data += f"{full_proto}\n"
