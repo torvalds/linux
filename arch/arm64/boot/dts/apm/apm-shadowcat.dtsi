@@ -417,6 +417,7 @@
 
 		reboot: reboot@17000014 {
 			compatible = "syscon-reboot";
+			reg = <0x0 0x17000014 0x0 0x4>;
 			regmap = <&scu>;
 			offset = <0x14>;
 			mask = <0x1>;
