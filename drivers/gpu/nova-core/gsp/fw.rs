@@ -853,11 +853,16 @@ impl GspMsgElement {
         self.inner.checkSum = checksum;
     }
 
-    /// Returns the total length of the message.
+    /// Returns the length of the message's payload.
+    pub(crate) fn payload_length(&self) -> usize {
+        // `rpc.length` includes the length of the RPC message header.
+        num::u32_as_usize(self.inner.rpc.length)
+            .saturating_sub(size_of::<bindings::rpc_message_header_v>())
+    }
+
+    /// Returns the total length of the message, message and RPC headers included.
     pub(crate) fn length(&self) -> usize {
-        // `rpc.length` includes the length of the GspRpcHeader but not the message header.
-        size_of::<Self>() - size_of::<bindings::rpc_message_header_v>()
-            + num::u32_as_usize(self.inner.rpc.length)
+        size_of::<Self>() + self.payload_length()
     }
 
     // Returns the sequence number of the message.
