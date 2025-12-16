@@ -82,98 +82,6 @@ static const char *smu_get_message_name(struct smu_context *smu,
 #define SMU_RESP_DEBUG_END      0xFB
 
 #define SMU_RESP_UNEXP (~0U)
-/**
- * __smu_cmn_poll_stat -- poll for a status from the SMU
- * @smu: a pointer to SMU context
- *
- * Returns the status of the SMU, which could be,
- *    0, the SMU is busy with your command;
- *    1, execution status: success, execution result: success;
- * 0xFF, execution status: success, execution result: failure;
- * 0xFE, unknown command;
- * 0xFD, valid command, but bad (command) prerequisites;
- * 0xFC, the command was rejected as the SMU is busy;
- * 0xFB, "SMC_Result_DebugDataDumpEnd".
- *
- * The values here are not defined by macros, because I'd rather we
- * include a single header file which defines them, which is
- * maintained by the SMU FW team, so that we're impervious to firmware
- * changes. At the moment those values are defined in various header
- * files, one for each ASIC, yet here we're a single ASIC-agnostic
- * interface. Such a change can be followed-up by a subsequent patch.
- */
-static u32 __smu_cmn_poll_stat(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	int timeout = adev->usec_timeout * 20;
-	u32 reg;
-
-	for ( ; timeout > 0; timeout--) {
-		reg = RREG32(smu->resp_reg);
-		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			break;
-
-		udelay(1);
-	}
-
-	return reg;
-}
-
-static int __smu_cmn_reg2errno(struct smu_context *smu, u32 reg_c2pmsg_90)
-{
-	int res;
-
-	switch (reg_c2pmsg_90) {
-	case SMU_RESP_NONE:
-		/* The SMU is busy--still executing your command.
-		 */
-		res = -ETIME;
-		break;
-	case SMU_RESP_OK:
-		res = 0;
-		break;
-	case SMU_RESP_CMD_FAIL:
-		/* Command completed successfully, but the command
-		 * status was failure.
-		 */
-		res = -EIO;
-		break;
-	case SMU_RESP_CMD_UNKNOWN:
-		/* Unknown command--ignored by the SMU.
-		 */
-		res = -EOPNOTSUPP;
-		break;
-	case SMU_RESP_CMD_BAD_PREREQ:
-		/* Valid command--bad prerequisites.
-		 */
-		res = -EINVAL;
-		break;
-	case SMU_RESP_BUSY_OTHER:
-		/* The SMU is busy with other commands. The client
-		 * should retry in 10 us.
-		 */
-		res = -EBUSY;
-		break;
-	default:
-		/* Unknown or debug response from the SMU.
-		 */
-		res = -EREMOTEIO;
-		break;
-	}
-
-	return res;
-}
-
-static void __smu_cmn_send_msg(struct smu_context *smu,
-			       u16 msg,
-			       u32 param)
-{
-	struct amdgpu_device *adev = smu->adev;
-
-	WREG32(smu->resp_reg, 0);
-	WREG32(smu->param_reg, param);
-	WREG32(smu->msg_reg, msg);
-}
 
 static int __smu_cmn_send_debug_msg(struct smu_context *smu,
 			       u32 msg,
@@ -187,56 +95,6 @@ static int __smu_cmn_send_debug_msg(struct smu_context *smu,
 
 	return 0;
 }
-/**
- * smu_cmn_send_msg_without_waiting -- send the message; don't wait for status
- * @smu: pointer to an SMU context
- * @msg_index: message index
- * @param: message parameter to send to the SMU
- *
- * Send a message to the SMU with the parameter passed. Do not wait
- * for status/result of the message, thus the "without_waiting".
- *
- * Return 0 on success, -errno on error if we weren't able to _send_
- * the message for some reason. See __smu_cmn_reg2errno() for details
- * of the -errno.
- */
-int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
-				     uint16_t msg_index,
-				     uint32_t param)
-{
-	struct amdgpu_device *adev = smu->adev;
-	u32 reg;
-	int res;
-
-	if (adev->no_hw_access)
-		return 0;
-
-	if (smu->smc_fw_state == SMU_FW_HANG) {
-		dev_err(adev->dev, "SMU is in hanged state, failed to send smu message!\n");
-		res = -EREMOTEIO;
-		goto Out;
-	}
-
-	if (smu->smc_fw_state == SMU_FW_INIT) {
-		smu->smc_fw_state = SMU_FW_RUNTIME;
-	} else {
-		reg = __smu_cmn_poll_stat(smu);
-		res = __smu_cmn_reg2errno(smu, reg);
-		if (reg == SMU_RESP_NONE || res == -EREMOTEIO)
-			goto Out;
-	}
-
-	__smu_cmn_send_msg(smu, msg_index, param);
-	res = 0;
-Out:
-	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) &&
-	    res && (res != -ETIME)) {
-		amdgpu_device_halt(adev);
-		WARN_ON(1);
-	}
-
-	return res;
-}
 
 /**
  * smu_cmn_wait_for_response -- wait for response from the SMU
@@ -246,7 +104,7 @@ Out:
  *
  * Return 0 on success, -errno on error, indicating the execution
  * status and result of the message being waited for. See
- * __smu_cmn_reg2errno() for details of the -errno.
+ * smu_msg_v1_decode_response() for details of the -errno.
  */
 int smu_cmn_wait_for_response(struct smu_context *smu)
 {
@@ -269,7 +127,7 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
  * message or receiving reply. If there is a PCI bus recovery or
  * the destination is a virtual GPU which does not allow this message
  * type, the message is simply dropped and success is also returned.
- * See __smu_cmn_reg2errno() for details of the -errno.
+ * See smu_msg_v1_decode_response() for details of the -errno.
  *
  * If we weren't able to send the message to the SMU, we also print
  * the error to the standard log.
