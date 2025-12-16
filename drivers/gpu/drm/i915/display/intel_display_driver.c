@@ -199,11 +199,7 @@ void intel_display_driver_early_probe(struct intel_display *display)
 /* part #1: call before irq install */
 int intel_display_driver_probe_noirq(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
-
-	if (i915_inject_probe_failure(i915))
-		return -ENODEV;
 
 	if (HAS_DISPLAY(display)) {
 		ret = drm_vblank_init(display->drm,
@@ -317,6 +313,7 @@ cleanup_bios:
 
 	return ret;
 }
+ALLOW_ERROR_INJECTION(intel_display_driver_probe_noirq, ERRNO);
 
 static void set_display_access(struct intel_display *display,
 			       bool any_task_allowed,

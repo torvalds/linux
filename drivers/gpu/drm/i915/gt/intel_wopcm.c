@@ -253,9 +253,6 @@ void intel_wopcm_init(struct intel_wopcm *wopcm)
 	GEM_BUG_ON(huc_fw_size >= wopcm_size);
 	GEM_BUG_ON(ctx_rsvd + WOPCM_RESERVED_SIZE >= wopcm_size);
 
-	if (i915_inject_probe_failure(i915))
-		return;
-
 	if (__wopcm_regs_locked(gt->uncore, &guc_wopcm_base, &guc_wopcm_size)) {
 		drm_dbg(&i915->drm, "GuC WOPCM is already locked [%uK, %uK)\n",
 			guc_wopcm_base / SZ_1K, guc_wopcm_size / SZ_1K);

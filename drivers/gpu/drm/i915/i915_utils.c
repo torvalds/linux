@@ -17,36 +17,8 @@ void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint)
 	drm_notice(&i915->drm, "CI tainted: %#x by %pS\n",
 		   taint, __builtin_return_address(0));
 
-	/* Failures that occur during fault injection testing are expected */
-	if (!i915_error_injected())
-		__add_taint_for_CI(taint);
+	__add_taint_for_CI(taint);
 }
-
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-static unsigned int i915_probe_fail_count;
-
-int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
-			      const char *func, int line)
-{
-	if (i915_probe_fail_count >= i915_modparams.inject_probe_failure)
-		return 0;
-
-	if (++i915_probe_fail_count < i915_modparams.inject_probe_failure)
-		return 0;
-
-	drm_info(&i915->drm, "Injecting failure %d at checkpoint %u [%s:%d]\n",
-		 err, i915_modparams.inject_probe_failure, func, line);
-
-	i915_modparams.inject_probe_failure = 0;
-	return err;
-}
-
-bool i915_error_injected(void)
-{
-	return i915_probe_fail_count && !i915_modparams.inject_probe_failure;
-}
-
-#endif
 
 bool i915_vtd_active(struct drm_i915_private *i915)
 {

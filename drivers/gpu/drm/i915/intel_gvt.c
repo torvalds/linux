@@ -238,9 +238,6 @@ EXPORT_SYMBOL_NS_GPL(intel_gvt_clear_ops, "I915_GVT");
  */
 int intel_gvt_init(struct drm_i915_private *dev_priv)
 {
-	if (i915_inject_probe_failure(dev_priv))
-		return -ENODEV;
-
 	mutex_lock(&intel_gvt_mutex);
 	list_add_tail(&dev_priv->vgpu.entry, &intel_gvt_devices);
 	if (intel_gvt_ops)

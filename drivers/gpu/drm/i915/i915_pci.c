@@ -999,11 +999,6 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	if (i915_inject_probe_failure(pdev_to_i915(pdev))) {
-		i915_pci_remove(pdev);
-		return -ENODEV;
-	}
-
 	err = i915_live_selftests(pdev);
 	if (err) {
 		i915_pci_remove(pdev);
@@ -1018,6 +1013,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(i915_pci_probe, ERRNO);
 
 static void i915_pci_shutdown(struct pci_dev *pdev)
 {
