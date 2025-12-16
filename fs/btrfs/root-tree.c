@@ -261,8 +261,6 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 		} else if (ret == -ENOENT) {
 			struct btrfs_trans_handle *trans;
 
-			btrfs_release_path(path);
-
 			trans = btrfs_join_transaction(tree_root);
 			if (IS_ERR(trans)) {
 				ret = PTR_ERR(trans);
