@@ -655,13 +655,11 @@ struct smu_context {
 	struct amdgpu_irq_src		irq_source;
 
 	const struct pptable_funcs	*ppt_funcs;
-	const struct cmn2asic_msg_mapping	*message_map;
 	const struct cmn2asic_mapping	*clock_map;
 	const struct cmn2asic_mapping	*feature_map;
 	const struct cmn2asic_mapping	*table_map;
 	const struct cmn2asic_mapping	*pwr_src_map;
 	const struct cmn2asic_mapping	*workload_map;
-	struct mutex			message_lock;
 	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;
@@ -744,10 +742,6 @@ struct smu_context {
 	struct stb_context stb_context;
 
 	struct firmware pptable_firmware;
-
-	u32 param_reg;
-	u32 msg_reg;
-	u32 resp_reg;
 
 	u32 debug_param_reg;
 	u32 debug_msg_reg;

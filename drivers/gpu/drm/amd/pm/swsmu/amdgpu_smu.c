@@ -826,8 +826,6 @@ static int smu_early_init(struct amdgpu_ip_block *ip_block)
 	smu->user_dpm_profile.fan_mode = -1;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_UNKNOWN;
 
-	mutex_init(&smu->message_lock);
-
 	adev->powerplay.pp_handle = smu;
 	adev->powerplay.pp_funcs = &swsmu_pm_funcs;
 
