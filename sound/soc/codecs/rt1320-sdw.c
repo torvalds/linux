@@ -1423,6 +1423,158 @@ _exit_:
 	return ret;
 }
 
+static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
+{
+	struct device *dev = &rt1320->sdw_slave->dev;
+	static const char func_tag[] = "FUNC";
+	static const char xu_tag[] = "XU";
+	const struct firmware *rae_fw = NULL;
+	unsigned int fw_offset;
+	unsigned char *fw_data;
+	unsigned char *param_data;
+	unsigned int addr, size;
+	unsigned int func, value;
+	const char *dmi_vendor, *dmi_product, *dmi_sku;
+	char vendor[128], product[128], sku[128];
+	char *ptr_vendor, *ptr_product, *ptr_sku;
+	char rae_filename[128];
+	char tag[5];
+	int ret = 0;
+	int retry = 200;
+
+	dmi_vendor = dmi_get_system_info(DMI_SYS_VENDOR);
+	dmi_product = dmi_get_system_info(DMI_PRODUCT_NAME);
+	dmi_sku = dmi_get_system_info(DMI_PRODUCT_SKU);
+
+	if (dmi_vendor && dmi_product && dmi_sku) {
+		strscpy(vendor, dmi_vendor);
+		strscpy(product, dmi_product);
+		strscpy(sku, dmi_sku);
+		ptr_vendor = &vendor[0];
+		ptr_product = &product[0];
+		ptr_sku = &sku[0];
+		ptr_vendor = strsep(&ptr_vendor, " ");
+		ptr_product = strsep(&ptr_product, " ");
+		ptr_sku = strsep(&ptr_sku, " ");
+
+		dev_dbg(dev, "%s: DMI vendor=%s, product=%s, sku=%s\n", __func__,
+			vendor, product, sku);
+
+		snprintf(rae_filename, sizeof(rae_filename),
+			 "realtek/rt1320/rt1320_RAE_%s_%s_%s.dat", vendor, product, sku);
+		dev_dbg(dev, "%s: try to load RAE file %s\n", __func__, rae_filename);
+	} else {
+		dev_warn(dev, "%s: Can't find proper RAE file name\n", __func__);
+		return -EINVAL;
+	}
+
+	regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
+				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x00);
+	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x00);
+
+	request_firmware(&rae_fw, rae_filename, dev);
+	if (rae_fw) {
+
+		/* RAE CRC clear */
+		regmap_write(rt1320->regmap, 0xe80b, 0x0f);
+
+		/* RAE stop & CRC disable */
+		regmap_update_bits(rt1320->regmap, 0xe803, 0xbc, 0x00);
+
+		while (retry--) {
+			regmap_read(rt1320->regmap, 0xe83f, &value);
+			if (value & 0x40)
+				break;
+			usleep_range(1000, 1100);
+		}
+		if (!retry && !(value & 0x40)) {
+			dev_err(dev, "%s: RAE is not ready to load\n", __func__);
+			return -ETIMEDOUT;
+		}
+
+		dev_dbg(dev, "%s, rae_fw size=0x%lx\n", __func__, rae_fw->size);
+		regcache_cache_bypass(rt1320->regmap, true);
+		for (fw_offset = 0; fw_offset < rae_fw->size;) {
+
+			dev_dbg(dev, "%s, fw_offset=0x%x\n", __func__, fw_offset);
+
+			fw_data = (unsigned char *)&rae_fw->data[fw_offset];
+
+			memcpy(tag, fw_data, 4);
+			tag[4] = '\0';
+			dev_dbg(dev, "%s, tag=%s\n", __func__, tag);
+			if (strcmp(tag, xu_tag) == 0) {
+				dev_dbg(dev, "%s: This is a XU tag", __func__);
+				memcpy(&addr, (fw_data + 4), 4);
+				memcpy(&size, (fw_data + 8), 4);
+				param_data = (unsigned char *)(fw_data + 12);
+
+				dev_dbg(dev, "%s: addr=0x%x, size=0x%x\n", __func__, addr, size);
+
+				/*
+				 * UI register ranges from 0x1000d000 to 0x1000d7ff
+				 * UI registers should be accessed by tuning tool.
+				 * So, there registers should be cached.
+				 */
+				if (addr <= 0x1000d7ff && addr >= 0x1000d000)
+					regcache_cache_bypass(rt1320->regmap, false);
+
+				rt1320_data_rw(rt1320, addr, param_data, size, RT1320_PARAM_WRITE);
+
+				regcache_cache_bypass(rt1320->regmap, true);
+
+				fw_offset += (size + 12);
+			} else if (strcmp(tag, func_tag) == 0) {
+				dev_err(dev, "%s: This is a FUNC tag", __func__);
+
+				memcpy(&func, (fw_data + 4), 4);
+				memcpy(&value, (fw_data + 8), 4);
+
+				dev_dbg(dev, "%s: func=0x%x, value=0x%x\n", __func__, func, value);
+				if (func == 1)  //DelayMs
+					msleep(value);
+
+				fw_offset += 12;
+			} else {
+				dev_err(dev, "%s: This is NOT a XU file (wrong tag)", __func__);
+				break;
+			}
+		}
+
+		regcache_cache_bypass(rt1320->regmap, false);
+		release_firmware(rae_fw);
+
+	} else {
+		dev_err(dev, "%s: Failed to load %s firmware\n", __func__, rae_filename);
+		ret = -EINVAL;
+		goto _exit_;
+	}
+
+	/* RAE CRC enable */
+	regmap_update_bits(rt1320->regmap, 0xe803, 0x0c, 0x0c);
+
+	/* RAE update */
+	regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x00);
+	regmap_update_bits(rt1320->regmap, 0xe80b, 0x80, 0x80);
+
+	/* RAE run */
+	regmap_update_bits(rt1320->regmap, 0xe803, 0x80, 0x80);
+
+	regmap_read(rt1320->regmap, 0xe80b, &value);
+	dev_dbg(dev, "%s: CAE run => 0xe80b reg = 0x%x\n", __func__, value);
+
+	rt1320->rae_update_done = true;
+
+_exit_:
+	regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
+				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03);
+	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x03);
+
+	return ret;
+}
+
 static void rt1320_dspfw_load_code(struct rt1320_sdw_priv *rt1320)
 {
 struct rt1320_imageinfo {
@@ -2320,6 +2472,40 @@ static int rt1320_dspfw_load_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int rt1320_rae_update_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = rt1320->rae_update_done;
+	return 0;
+}
+
+static int rt1320_rae_update_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	if (!rt1320->hw_init)
+		return 0;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF &&
+		ucontrol->value.integer.value[0] && rt1320->fw_load_done)
+		rt1320_rae_load(rt1320);
+
+	if (!ucontrol->value.integer.value[0])
+		rt1320->rae_update_done = false;
+
+	return 0;
+}
+
 static int rt1320_r0_temperature_get(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
 {
@@ -2377,6 +2563,8 @@ static const struct snd_kcontrol_new rt1320_snd_controls[] = {
 		rt1320_r0_load_mode_get, rt1320_r0_load_mode_put),
 	RT1320_T0_R0_LOAD("R0 Temperature", 0xff,
 		rt1320_r0_temperature_get, rt1320_r0_temperature_put),
+	SOC_SINGLE_EXT("RAE Update", SND_SOC_NOPM, 0, 1, 0,
+		rt1320_rae_update_get, rt1320_rae_update_put),
 };
 
 static const struct snd_kcontrol_new rt1320_spk_l_dac =
