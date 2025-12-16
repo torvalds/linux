@@ -345,7 +345,7 @@ static int ad7606_spi_update_scan_mode(struct iio_dev *indio_dev,
 		 * has no way of demuxing the data to filter out unwanted
 		 * channels.
 		 */
-		if (bitmap_weight(scan_mask, num_adc_ch) != num_adc_ch)
+		if (!bitmap_full(scan_mask, num_adc_ch))
 			return -EINVAL;
 	}
 
