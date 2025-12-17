@@ -12,7 +12,7 @@
 #include <linux/sys_soc.h>
 
 #define IMX_SIP_GET_SOC_INFO	0xc2000006
-#define SOC_ID(x)		(((x) & 0xFFFF) >> 8)
+#define SOC_ID(x)		(((x) & 0xFF) ? ((x) & 0xFFFF) >> 4 : ((x) & 0xFFFF) >> 8)
 #define SOC_REV_MAJOR(x)	((((x) >> 28) & 0xF) - 0x9)
 #define SOC_REV_MINOR(x)	(((x) >> 24) & 0xF)
 
@@ -68,7 +68,9 @@ static int imx9_soc_probe(struct platform_device *pdev)
 
 static __maybe_unused const struct of_device_id imx9_soc_match[] = {
 	{ .compatible = "fsl,imx93", },
+	{ .compatible = "fsl,imx94", },
 	{ .compatible = "fsl,imx95", },
+	{ .compatible = "fsl,imx952", },
 	{ }
 };
 
