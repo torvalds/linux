@@ -28,8 +28,8 @@
 #include <trace/events/netfs.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
+#include "smb1proto.h"
 #include "../common/smbfsctl.h"
-#include "cifspdu.h"
 #include "cifsfs.h"
 #include "cifsacl.h"
 #include "cifs_unicode.h"

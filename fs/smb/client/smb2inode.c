@@ -24,6 +24,7 @@
 #include "smb2proto.h"
 #include "cached_dir.h"
 #include "../common/smb2status.h"
+#include "../common/smbfsctl.h"
 
 static struct reparse_data_buffer *reparse_buf_ptr(struct kvec *iov)
 {

@@ -13,7 +13,6 @@
 #include <linux/mount.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"

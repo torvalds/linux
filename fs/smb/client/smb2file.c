@@ -22,6 +22,7 @@
 #include "fscache.h"
 #include "smb2proto.h"
 #include "../common/smb2status.h"
+#include "../common/smbfsctl.h"
 
 static struct smb2_symlink_err_rsp *symlink_data(const struct kvec *iov)
 {

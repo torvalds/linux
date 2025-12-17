@@ -13,7 +13,6 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <uapi/linux/ethtool.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"

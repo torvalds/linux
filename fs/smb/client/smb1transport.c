@@ -24,8 +24,9 @@
 #include <linux/task_io_accounting_ops.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
-#include "cifspdu.h"
+#include "smb1proto.h"
 #include "smb2proto.h"
+#include "cifs_debug.h"
 #include "smbdirect.h"
 #include "compress.h"
 #include "cifs_debug.h"

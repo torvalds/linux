@@ -11,6 +11,7 @@
 #include <linux/uidgid.h>
 #include "fs_context.h"
 #include "cifsglob.h"
+#include "../common/smbfsctl.h"
 
 #define REPARSE_SYM_PATH_MAX 4060
 

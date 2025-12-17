@@ -8,7 +8,6 @@
  *
  */
 
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"

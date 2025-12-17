@@ -12,7 +12,6 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
-#include "cifspdu.h"
 #include "cifs_unicode.h"
 #include "fs_context.h"
 #include "nterr.h"

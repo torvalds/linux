@@ -10,7 +10,6 @@
 #include <linux/ctype.h>
 #include <linux/mempool.h>
 #include <linux/vmalloc.h>
-#include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"

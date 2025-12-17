@@ -28,6 +28,7 @@
 #include "../common/smb2pdu.h"
 #include "../common/fscc.h"
 #include "smb2pdu.h"
+#include "smb1pdu.h"
 #include <linux/filelock.h>
 
 #define SMB_PATH_MAX 260

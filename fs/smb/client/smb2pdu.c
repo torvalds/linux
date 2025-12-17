@@ -32,6 +32,7 @@
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
 #include "ntlmssp.h"
+#include "../common/smbfsctl.h"
 #include "../common/smb2status.h"
 #include "smb2glob.h"
 #include "cifspdu.h"
