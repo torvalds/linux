@@ -2958,6 +2958,111 @@ u32 hci_conn_get_phy(struct hci_conn *conn)
 	return phys;
 }
 
+static u16 bt_phy_pkt_type(struct hci_conn *conn, u32 phys)
+{
+	u16 pkt_type = conn->pkt_type;
+
+	if (phys & BT_PHY_BR_1M_3SLOT)
+		pkt_type |= HCI_DM3 | HCI_DH3;
+	else
+		pkt_type &= ~(HCI_DM3 | HCI_DH3);
+
+	if (phys & BT_PHY_BR_1M_5SLOT)
+		pkt_type |= HCI_DM5 | HCI_DH5;
+	else
+		pkt_type &= ~(HCI_DM5 | HCI_DH5);
+
+	if (phys & BT_PHY_EDR_2M_1SLOT)
+		pkt_type &= ~HCI_2DH1;
+	else
+		pkt_type |= HCI_2DH1;
+
+	if (phys & BT_PHY_EDR_2M_3SLOT)
+		pkt_type &= ~HCI_2DH3;
+	else
+		pkt_type |= HCI_2DH3;
+
+	if (phys & BT_PHY_EDR_2M_5SLOT)
+		pkt_type &= ~HCI_2DH5;
+	else
+		pkt_type |= HCI_2DH5;
+
+	if (phys & BT_PHY_EDR_3M_1SLOT)
+		pkt_type &= ~HCI_3DH1;
+	else
+		pkt_type |= HCI_3DH1;
+
+	if (phys & BT_PHY_EDR_3M_3SLOT)
+		pkt_type &= ~HCI_3DH3;
+	else
+		pkt_type |= HCI_3DH3;
+
+	if (phys & BT_PHY_EDR_3M_5SLOT)
+		pkt_type &= ~HCI_3DH5;
+	else
+		pkt_type |= HCI_3DH5;
+
+	return pkt_type;
+}
+
+static int bt_phy_le_phy(u32 phys, u8 *tx_phys, u8 *rx_phys)
+{
+	if (!tx_phys || !rx_phys)
+		return -EINVAL;
+
+	*tx_phys = 0;
+	*rx_phys = 0;
+
+	if (phys & BT_PHY_LE_1M_TX)
+		*tx_phys |= HCI_LE_SET_PHY_1M;
+
+	if (phys & BT_PHY_LE_1M_RX)
+		*rx_phys |= HCI_LE_SET_PHY_1M;
+
+	if (phys & BT_PHY_LE_2M_TX)
+		*tx_phys |= HCI_LE_SET_PHY_2M;
+
+	if (phys & BT_PHY_LE_2M_RX)
+		*rx_phys |= HCI_LE_SET_PHY_2M;
+
+	if (phys & BT_PHY_LE_CODED_TX)
+		*tx_phys |= HCI_LE_SET_PHY_CODED;
+
+	if (phys & BT_PHY_LE_CODED_RX)
+		*rx_phys |= HCI_LE_SET_PHY_CODED;
+
+	return 0;
+}
+
+int hci_conn_set_phy(struct hci_conn *conn, u32 phys)
+{
+	u8 tx_phys, rx_phys;
+
+	switch (conn->type) {
+	case SCO_LINK:
+	case ESCO_LINK:
+		return -EINVAL;
+	case ACL_LINK:
+		/* Only allow setting BR/EDR PHYs if link type is ACL */
+		if (phys & ~BT_PHY_BREDR_MASK)
+			return -EINVAL;
+
+		return hci_acl_change_pkt_type(conn,
+					       bt_phy_pkt_type(conn, phys));
+	case LE_LINK:
+		/* Only allow setting LE PHYs if link type is LE */
+		if (phys & ~BT_PHY_LE_MASK)
+			return -EINVAL;
+
+		if (bt_phy_le_phy(phys, &tx_phys, &rx_phys))
+			return -EINVAL;
+
+		return hci_le_set_phy(conn, tx_phys, rx_phys);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int abort_conn_sync(struct hci_dev *hdev, void *data)
 {
 	struct hci_conn *conn = data;

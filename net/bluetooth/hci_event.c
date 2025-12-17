@@ -2869,6 +2869,31 @@ static void hci_cs_le_ext_create_conn(struct hci_dev *hdev, u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_le_set_phy(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_set_phy *cp;
+	struct hci_conn *conn;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_PHY);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		conn->le_tx_def_phys = cp->tx_phys;
+		conn->le_rx_def_phys = cp->rx_phys;
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_le_read_remote_features(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_read_remote_features *cp;
@@ -4359,6 +4384,7 @@ static const struct hci_cs {
 	HCI_CS(HCI_OP_LE_CREATE_CONN, hci_cs_le_create_conn),
 	HCI_CS(HCI_OP_LE_READ_REMOTE_FEATURES, hci_cs_le_read_remote_features),
 	HCI_CS(HCI_OP_LE_START_ENC, hci_cs_le_start_enc),
+	HCI_CS(HCI_OP_LE_SET_PHY, hci_cs_le_set_phy),
 	HCI_CS(HCI_OP_LE_EXT_CREATE_CONN, hci_cs_le_ext_create_conn),
 	HCI_CS(HCI_OP_LE_CREATE_CIS, hci_cs_le_create_cis),
 	HCI_CS(HCI_OP_LE_CREATE_BIG, hci_cs_le_create_big),

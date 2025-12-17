@@ -7448,3 +7448,75 @@ int hci_le_read_remote_features(struct hci_conn *conn)
 
 	return err;
 }
+
+static void pkt_type_changed(struct hci_dev *hdev, void *data, int err)
+{
+	struct hci_cp_change_conn_ptype *cp = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	kfree(cp);
+}
+
+static int hci_change_conn_ptype_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_cp_change_conn_ptype *cp = data;
+
+	return __hci_cmd_sync_status_sk(hdev, HCI_OP_CHANGE_CONN_PTYPE,
+					sizeof(*cp), cp,
+					HCI_EV_PKT_TYPE_CHANGE,
+					HCI_CMD_TIMEOUT, NULL);
+}
+
+int hci_acl_change_pkt_type(struct hci_conn *conn, u16 pkt_type)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_change_conn_ptype *cp;
+
+	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	cp->handle = cpu_to_le16(conn->handle);
+	cp->pkt_type = cpu_to_le16(pkt_type);
+
+	return hci_cmd_sync_queue_once(hdev, hci_change_conn_ptype_sync, cp,
+				       pkt_type_changed);
+}
+
+static void le_phy_update_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct hci_cp_le_set_phy *cp = data;
+
+	bt_dev_dbg(hdev, "err %d", err);
+
+	kfree(cp);
+}
+
+static int hci_le_set_phy_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_cp_le_set_phy *cp = data;
+
+	return __hci_cmd_sync_status_sk(hdev, HCI_OP_LE_SET_PHY,
+					sizeof(*cp), cp,
+					HCI_EV_LE_PHY_UPDATE_COMPLETE,
+					HCI_CMD_TIMEOUT, NULL);
+}
+
+int hci_le_set_phy(struct hci_conn *conn, u8 tx_phys, u8 rx_phys)
+{
+	struct hci_dev *hdev = conn->hdev;
+	struct hci_cp_le_set_phy *cp;
+
+	cp = kmalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+
+	memset(cp, 0, sizeof(*cp));
+	cp->handle = cpu_to_le16(conn->handle);
+	cp->tx_phys = tx_phys;
+	cp->rx_phys = rx_phys;
+
+	return hci_cmd_sync_queue_once(hdev, hci_le_set_phy_sync, cp,
+				       le_phy_update_complete);
+}
