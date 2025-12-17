@@ -23,7 +23,6 @@ properties:
           - qcom,pcie-ipq4019
           - qcom,pcie-ipq8064
           - qcom,pcie-ipq8064-v2
-          - qcom,pcie-ipq8074
           - qcom,pcie-ipq9574
           - qcom,pcie-msm8996
       - items:
@@ -144,7 +143,6 @@ allOf:
               - qcom,pcie-ipq4019
               - qcom,pcie-ipq8064
               - qcom,pcie-ipq8064v2
-              - qcom,pcie-ipq8074
     then:
       properties:
         reg:
@@ -320,37 +318,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-ipq8074
-    then:
-      properties:
-        clocks:
-          minItems: 5
-          maxItems: 5
-        clock-names:
-          items:
-            - const: iface # PCIe to SysNOC BIU clock
-            - const: axi_m # AXI Master clock
-            - const: axi_s # AXI Slave clock
-            - const: ahb # AHB clock
-            - const: aux # Auxiliary clock
-        resets:
-          minItems: 7
-          maxItems: 7
-        reset-names:
-          items:
-            - const: pipe # PIPE reset
-            - const: sleep # Sleep reset
-            - const: sticky # Core Sticky reset
-            - const: axi_m # AXI Master reset
-            - const: axi_s # AXI Slave reset
-            - const: ahb # AHB Reset
-            - const: axi_m_sticky # AXI Master Sticky reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,pcie-ipq9574
     then:
       properties:
@@ -405,7 +372,6 @@ allOf:
                 - qcom,pcie-ipq4019
                 - qcom,pcie-ipq8064
                 - qcom,pcie-ipq8064v2
-                - qcom,pcie-ipq8074
                 - qcom,pcie-ipq9574
     then:
       required:
@@ -428,7 +394,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-ipq8074
               - qcom,pcie-msm8996
               - qcom,pcie-msm8998
     then:
