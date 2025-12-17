@@ -29,7 +29,6 @@ properties:
           - qcom,pcie-ipq8074-gen3
           - qcom,pcie-ipq9574
           - qcom,pcie-msm8996
-          - qcom,pcie-qcs404
       - items:
           - enum:
               - qcom,pcie-ipq5332
@@ -149,7 +148,6 @@ allOf:
               - qcom,pcie-ipq8064
               - qcom,pcie-ipq8064v2
               - qcom,pcie-ipq8074
-              - qcom,pcie-qcs404
     then:
       properties:
         reg:
@@ -484,35 +482,6 @@ allOf:
             - const: global
 
   - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,pcie-qcs404
-    then:
-      properties:
-        clocks:
-          minItems: 4
-          maxItems: 4
-        clock-names:
-          items:
-            - const: iface # AHB clock
-            - const: aux # Auxiliary clock
-            - const: master_bus # AXI Master clock
-            - const: slave_bus # AXI Slave clock
-        resets:
-          minItems: 6
-          maxItems: 6
-        reset-names:
-          items:
-            - const: axi_m # AXI Master reset
-            - const: axi_s # AXI Slave reset
-            - const: axi_m_sticky # AXI Master Sticky reset
-            - const: pipe_sticky # PIPE sticky reset
-            - const: pwr # PWR reset
-            - const: ahb # AHB reset
-
-  - if:
       not:
         properties:
           compatible:
@@ -526,7 +495,6 @@ allOf:
                 - qcom,pcie-ipq8074
                 - qcom,pcie-ipq8074-gen3
                 - qcom,pcie-ipq9574
-                - qcom,pcie-qcs404
     then:
       required:
         - power-domains
@@ -588,7 +556,6 @@ allOf:
               - qcom,pcie-ipq4019
               - qcom,pcie-ipq8064
               - qcom,pcie-ipq8064-v2
-              - qcom,pcie-qcs404
     then:
       properties:
         interrupts:
