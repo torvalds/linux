@@ -42,8 +42,7 @@ properties:
       - const: pll_ref
 
   clock-output-names:
-    items:
-      - const: hdmitx_dig_cts
+    maxItems: 1
 
   "#phy-cells":
     const: 0
