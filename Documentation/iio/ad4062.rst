@@ -84,3 +84,16 @@ Low-power mode
 The device enters low-power mode on idle to save power. Enabling an event puts
 the device out of the low-power since the ADC autonomously samples to assert
 the event condition.
+
+IIO trigger support
+===================
+
+An IIO trigger ``ad4062-devX`` is registered by the driver to be used by the
+same device, to capture samples to a software buffer. It is required to attach
+the trigger to the device by setting the ``current_trigger`` before enabling
+and reading the buffer.
+
+The acquisition is sequential and bounded by the protocol timings, software
+latency and internal timings, the sample rate is not configurable. The burst
+averaging mode does impact the effective sample rate, since it increases the
+internal timing to output a single sample.
