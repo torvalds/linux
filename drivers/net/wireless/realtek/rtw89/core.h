@@ -1211,6 +1211,8 @@ struct rtw89_core_tx_request {
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_sta_link *rtwsta_link;
 	struct rtw89_tx_desc_info desc_info;
+
+	bool with_wait;
 };
 
 struct rtw89_txq {
