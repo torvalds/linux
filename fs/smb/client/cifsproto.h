@@ -152,9 +152,6 @@ int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
-int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
-		   struct TCP_Server_Info *server,
-		   const struct nls_table *nls_cp);
 struct timespec64 cifs_NTtimeToUnix(__le64 ntutc);
 u64 cifs_UnixTimeToNT(struct timespec64 t);
 struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset);

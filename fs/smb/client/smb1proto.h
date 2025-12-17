@@ -250,6 +250,13 @@ extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
 
 /*
+ * smb1session.c
+ */
+int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
+		   struct TCP_Server_Info *server,
+		   const struct nls_table *nls_cp);
+
+/*
  * smb1transport.c
  */
 struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *server,

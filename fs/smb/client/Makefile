@@ -39,6 +39,7 @@ cifs-$(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) += \
 	smb1maperror.o \
 	smb1misc.o \
 	smb1ops.o \
+	smb1session.o \
 	smb1transport.o
 
 cifs-$(CONFIG_CIFS_COMPRESSION) += compress.o compress/lz77.o
