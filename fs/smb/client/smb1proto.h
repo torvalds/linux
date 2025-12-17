@@ -299,8 +299,6 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
 	return mid == le16_to_cpu(smb->Mid);
 }
 
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-
 #define GETU16(var)  (*((__u16 *)var))	/* BB check for endian issues */
 #define GETU32(var)  (*((__u32 *)var))	/* BB check for endian issues */
 
@@ -331,5 +329,7 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
 
 	put_unaligned_le16(count, bc_ptr);
 }
+
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 #endif /* _SMB1PROTO_H */
