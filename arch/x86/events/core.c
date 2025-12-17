@@ -30,6 +30,7 @@
 #include <linux/device.h>
 #include <linux/nospec.h>
 #include <linux/static_call.h>
+#include <linux/kvm_types.h>
 
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
@@ -1771,14 +1772,14 @@ void perf_load_guest_lvtpc(u32 guest_lvtpc)
 		   APIC_DM_FIXED | PERF_GUEST_MEDIATED_PMI_VECTOR | masked);
 	this_cpu_write(guest_lvtpc_loaded, true);
 }
-EXPORT_SYMBOL_FOR_MODULES(perf_load_guest_lvtpc, "kvm");
+EXPORT_SYMBOL_FOR_KVM(perf_load_guest_lvtpc);
 
 void perf_put_guest_lvtpc(void)
 {
 	this_cpu_write(guest_lvtpc_loaded, false);
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 }
-EXPORT_SYMBOL_FOR_MODULES(perf_put_guest_lvtpc, "kvm");
+EXPORT_SYMBOL_FOR_KVM(perf_put_guest_lvtpc);
 #endif /* CONFIG_PERF_GUEST_MEDIATED_PMU */
 
 static int
