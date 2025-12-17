@@ -78,7 +78,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		cifs_dbg(VFS, "IsMult: %d IsEnd: %d\n",
 			 mid_entry->multiRsp, mid_entry->multiEnd);
 		if (mid_entry->resp_buf) {
-			cifs_dump_detail(mid_entry->resp_buf,
+			server->ops->dump_detail(mid_entry->resp_buf,
 					 mid_entry->response_pdu_len, server);
 			cifs_dump_mem("existing buf: ", mid_entry->resp_buf, 62);
 		}
