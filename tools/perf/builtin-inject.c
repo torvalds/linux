@@ -2022,7 +2022,7 @@ static int save_section_info(struct perf_inject *inject)
 	return perf_header__process_sections(header, fd, inject, save_section_info_cb);
 }
 
-static bool keep_feat(int feat)
+static bool keep_feat(struct perf_inject *inject, int feat)
 {
 	switch (feat) {
 	/* Keep original information that describes the machine or software */
@@ -2050,6 +2050,7 @@ static bool keep_feat(int feat)
 		return true;
 	/* Information that can be updated */
 	case HEADER_BUILD_ID:
+		return inject->build_id_style == BID_RWS__NONE;
 	case HEADER_CMDLINE:
 	case HEADER_EVENT_DESC:
 	case HEADER_BRANCH_STACK:
@@ -2108,7 +2109,7 @@ static int feat_copy_cb(struct feat_copier *fc, int feat, struct feat_writer *fw
 	int ret;
 
 	if (!inject->secs[feat].offset ||
-	    !keep_feat(feat))
+	    !keep_feat(inject, feat))
 		return 0;
 
 	ret = feat_copy(inject, feat, fw);
