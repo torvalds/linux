@@ -10833,23 +10833,24 @@ void sched_change_end(struct sched_change_ctx *ctx)
 		if (p->sched_class->switched_to)
 			p->sched_class->switched_to(rq, p);
 
-		/*
-		 * If this was a class promotion; let the old class know it
-		 * got preempted. Note that none of the switch*_from() methods
-		 * know the new class and none of the switch*_to() methods
-		 * know the old class.
-		 */
-		if (ctx->running && sched_class_above(p->sched_class, ctx->class)) {
-			rq->next_class->wakeup_preempt(rq, p, 0);
-			rq->next_class = p->sched_class;
+		if (ctx->running) {
+			/*
+			 * If this was a class promotion; let the old class
+			 * know it got preempted. Note that none of the
+			 * switch*_from() methods know the new class and none
+			 * of the switch*_to() methods know the old class.
+			 */
+			if (sched_class_above(p->sched_class, ctx->class)) {
+				rq->next_class->wakeup_preempt(rq, p, 0);
+				rq->next_class = p->sched_class;
+			}
+			/*
+			 * If this was a degradation in class; make sure to
+			 * reschedule.
+			 */
+			if (sched_class_above(ctx->class, p->sched_class))
+				resched_curr(rq);
 		}
-
-		/*
-		 * If this was a degradation in class someone should have set
-		 * need_resched by now.
-		 */
-		WARN_ON_ONCE(sched_class_above(ctx->class, p->sched_class) &&
-			     !test_tsk_need_resched(p));
 	} else {
 		p->sched_class->prio_changed(rq, p, ctx->prio);
 	}
