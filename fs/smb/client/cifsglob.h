@@ -104,8 +104,6 @@
  */
 #define SMB2_MAX_CREDITS_AVAILABLE 32000
 
-#include "cifspdu.h"
-
 #ifndef XATTR_DOS_ATTRIB
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
 #endif

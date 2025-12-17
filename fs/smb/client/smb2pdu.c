@@ -35,7 +35,6 @@
 #include "../common/smbfsctl.h"
 #include "../common/smb2status.h"
 #include "smb2glob.h"
-#include "cifspdu.h"
 #include "cifs_spnego.h"
 #include "../common/smbdirect/smbdirect.h"
 #include "smbdirect.h"

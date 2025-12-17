@@ -19,6 +19,7 @@
 #include "cifsfs.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
+#include "smb1proto.h"
 #include "smberr.h"
 #include "cifs_debug.h"
 #include "nterr.h"

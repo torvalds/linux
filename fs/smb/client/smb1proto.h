@@ -8,6 +8,8 @@
 #ifndef _SMB1PROTO_H
 #define _SMB1PROTO_H
 
+#include "cifspdu.h"
+
 struct cifs_unix_set_info_args {
 	__u64	ctime;
 	__u64	atime;
