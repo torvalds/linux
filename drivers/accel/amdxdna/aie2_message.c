@@ -205,6 +205,27 @@ static int aie2_destroy_context_req(struct amdxdna_dev_hdl *ndev, u32 id)
 
 	return ret;
 }
+
+static u32 aie2_get_context_priority(struct amdxdna_dev_hdl *ndev,
+				     struct amdxdna_hwctx *hwctx)
+{
+	if (!AIE2_FEATURE_ON(ndev, AIE2_PREEMPT))
+		return PRIORITY_HIGH;
+
+	switch (hwctx->qos.priority) {
+	case AMDXDNA_QOS_REALTIME_PRIORITY:
+		return PRIORITY_REALTIME;
+	case AMDXDNA_QOS_HIGH_PRIORITY:
+		return PRIORITY_HIGH;
+	case AMDXDNA_QOS_NORMAL_PRIORITY:
+		return PRIORITY_NORMAL;
+	case AMDXDNA_QOS_LOW_PRIORITY:
+		return PRIORITY_LOW;
+	default:
+		return PRIORITY_HIGH;
+	}
+}
+
 int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx)
 {
 	DECLARE_AIE2_MSG(create_ctx, MSG_OP_CREATE_CONTEXT);
@@ -221,7 +242,7 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 	req.num_unused_col = hwctx->num_unused_col;
 	req.num_cq_pairs_requested = 1;
 	req.pasid = hwctx->client->pasid;
-	req.context_priority = 2;
+	req.context_priority = aie2_get_context_priority(ndev, hwctx);
 
 	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
 	if (ret)

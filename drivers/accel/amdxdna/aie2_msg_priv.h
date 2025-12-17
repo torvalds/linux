@@ -108,6 +108,11 @@ struct cq_pair {
 	struct cq_info i2x_q;
 };
 
+#define PRIORITY_REALTIME	1
+#define PRIORITY_HIGH		2
+#define PRIORITY_NORMAL		3
+#define PRIORITY_LOW		4
+
 struct create_ctx_req {
 	__u32	aie_type;
 	__u8	start_col;
