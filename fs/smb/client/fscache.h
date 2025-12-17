@@ -40,6 +40,11 @@ struct cifs_fscache_inode_coherency_data {
  */
 int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon);
 void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon);
+void cifs_fscache_get_inode_cookie(struct inode *inode);
+void cifs_fscache_unuse_inode_cookie(struct inode *inode, bool update);
+void cifs_fscache_release_inode_cookie(struct inode *inode);
+int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon);
+void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon);
 
 void cifs_fscache_get_inode_cookie(struct inode *inode);
 void cifs_fscache_release_inode_cookie(struct inode *inode);
