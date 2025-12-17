@@ -2250,12 +2250,15 @@ enum dc_status dcn31_update_dc_state_for_encoder_switch(struct dc_link *link,
 	int i;
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
-	for (i = 0; i < state->stream_count; i++)
-		if (state->streams[i] && state->streams[i]->link && state->streams[i]->link == link)
-			link->dc->hwss.calculate_pix_rate_divider((struct dc *)link->dc, state, state->streams[i]);
+	if (link->dc->hwss.calculate_pix_rate_divider) {
+		for (i = 0; i < state->stream_count; i++)
+			if (state->streams[i] && state->streams[i]->link && state->streams[i]->link == link)
+				link->dc->hwss.calculate_pix_rate_divider((struct dc *)link->dc, state, state->streams[i]);
+	}
 
 	for (i = 0; i < pipe_count; i++) {
-		link->dc->res_pool->funcs->build_pipe_pix_clk_params(&pipes[i]);
+		if (link->dc->res_pool->funcs->build_pipe_pix_clk_params)
+			link->dc->res_pool->funcs->build_pipe_pix_clk_params(&pipes[i]);
 
 		// Setup audio
 		if (pipes[i].stream_res.audio != NULL)
