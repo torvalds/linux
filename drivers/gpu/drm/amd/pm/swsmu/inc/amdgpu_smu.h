@@ -557,6 +557,9 @@ struct cmn2asic_mapping {
 #define SMU_MSG_FLAG_ASYNC	BIT(0) /* Async send - skip post-poll */
 #define SMU_MSG_FLAG_LOCK_HELD	BIT(1) /* Caller holds ctl->lock */
 
+/* smu_msg_ctl flags */
+#define SMU_MSG_CTL_DEBUG_MAILBOX	BIT(0) /* Debug mailbox supported */
+
 struct smu_msg_ctl;
 /**
  * struct smu_msg_config - IP-level register configuration
@@ -564,12 +567,18 @@ struct smu_msg_ctl;
  * @resp_reg: Response register offset
  * @arg_regs: Argument register offsets (up to SMU_MSG_MAX_ARGS)
  * @num_arg_regs: Number of argument registers available
+ * @debug_msg_reg: Debug message register offset
+ * @debug_resp_reg: Debug response register offset
+ * @debug_param_reg: Debug parameter register offset
  */
 struct smu_msg_config {
 	u32 msg_reg;
 	u32 resp_reg;
 	u32 arg_regs[SMU_MSG_MAX_ARGS];
 	int num_arg_regs;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
+	u32 debug_param_reg;
 };
 
 /**
@@ -597,11 +606,13 @@ struct smu_msg_args {
  * @send_msg: send message protocol
  * @wait_response: wait for response (for split send/wait cases)
  * @decode_response: Convert response register value to errno
+ * @send_debug_msg: send debug message
  */
 struct smu_msg_ops {
 	int (*send_msg)(struct smu_msg_ctl *ctl, struct smu_msg_args *args);
 	int (*wait_response)(struct smu_msg_ctl *ctl, u32 timeout_us);
 	int (*decode_response)(u32 resp);
+	int (*send_debug_msg)(struct smu_msg_ctl *ctl, u32 msg, u32 param);
 };
 
 /**
@@ -617,6 +628,7 @@ struct smu_msg_ctl {
 	const struct smu_msg_ops *ops;
 	const struct cmn2asic_msg_mapping *message_map;
 	u32 default_timeout;
+	u32 flags;
 };
 
 struct stb_context {

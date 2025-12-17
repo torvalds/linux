@@ -83,6 +83,25 @@ static const char *smu_get_message_name(struct smu_context *smu,
 
 #define SMU_RESP_UNEXP (~0U)
 
+static int smu_msg_v1_send_debug_msg(struct smu_msg_ctl *ctl, u32 msg, u32 param)
+{
+	struct amdgpu_device *adev = ctl->smu->adev;
+	struct smu_msg_config *cfg = &ctl->config;
+
+	if (!(ctl->flags & SMU_MSG_CTL_DEBUG_MAILBOX))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&ctl->lock);
+
+	WREG32(cfg->debug_param_reg, param);
+	WREG32(cfg->debug_msg_reg, msg);
+	WREG32(cfg->debug_resp_reg, 0);
+
+	mutex_unlock(&ctl->lock);
+
+	return 0;
+}
+
 static int __smu_cmn_send_debug_msg(struct smu_context *smu,
 			       u32 msg,
 			       u32 param)
@@ -541,6 +560,7 @@ const struct smu_msg_ops smu_msg_v1_ops = {
 	.send_msg = smu_msg_v1_send_msg,
 	.wait_response = smu_msg_v1_wait_response,
 	.decode_response = smu_msg_v1_decode_response,
+	.send_debug_msg = smu_msg_v1_send_debug_msg,
 };
 
 int smu_msg_wait_response(struct smu_msg_ctl *ctl, u32 timeout_us)
