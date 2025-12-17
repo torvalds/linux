@@ -3392,6 +3392,67 @@ static void apply_delay_after_dpcd_poweroff(struct amdgpu_device *adev,
 	}
 }
 
+/**
+ * amdgpu_dm_dump_links_and_sinks - Debug dump of all DC links and their sinks
+ * @adev: amdgpu device pointer
+ *
+ * Iterates through all DC links and dumps information about local and remote
+ * (MST) sinks. Should be called after connector detection is complete to see
+ * the final state of all links.
+ */
+static void amdgpu_dm_dump_links_and_sinks(struct amdgpu_device *adev)
+{
+	struct dc *dc = adev->dm.dc;
+	struct drm_device *dev = adev_to_drm(adev);
+	int li;
+
+	if (!dc)
+		return;
+
+	for (li = 0; li < dc->link_count; li++) {
+		struct dc_link *l = dc->links[li];
+		const char *name = NULL;
+		int rs;
+
+		if (!l)
+			continue;
+		if (l->local_sink && l->local_sink->edid_caps.display_name[0])
+			name = l->local_sink->edid_caps.display_name;
+		else
+			name = "n/a";
+
+		drm_dbg_kms(dev,
+			"LINK_DUMP[%d]: local_sink=%p type=%d sink_signal=%d sink_count=%u edid_name=%s mst_capable=%d mst_alloc_streams=%d\n",
+			li,
+			l->local_sink,
+			l->type,
+			l->local_sink ? l->local_sink->sink_signal : SIGNAL_TYPE_NONE,
+			l->sink_count,
+			name,
+			l->dpcd_caps.is_mst_capable,
+			l->mst_stream_alloc_table.stream_count);
+
+		/* Dump remote (MST) sinks if any */
+		for (rs = 0; rs < l->sink_count; rs++) {
+			struct dc_sink *rsink = l->remote_sinks[rs];
+			const char *rname = NULL;
+
+			if (!rsink)
+				continue;
+			if (rsink->edid_caps.display_name[0])
+				rname = rsink->edid_caps.display_name;
+			else
+				rname = "n/a";
+			drm_dbg_kms(dev,
+				"  REMOTE_SINK[%d:%d]: sink=%p signal=%d edid_name=%s\n",
+				li, rs,
+				rsink,
+				rsink->sink_signal,
+				rname);
+		}
+	}
+}
+
 static int dm_resume(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -3583,6 +3644,12 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 			drm_dp_mst_topology_queue_probe(&aconnector->mst_mgr);
 	}
 	drm_connector_list_iter_end(&iter);
+
+	/* Debug dump: list all DC links and their associated sinks after detection
+	 * is complete for all connectors. This provides a comprehensive view of the
+	 * final state without repeating the dump for each connector.
+	 */
+	amdgpu_dm_dump_links_and_sinks(adev);
 
 	amdgpu_dm_irq_resume_late(adev);
 
@@ -3794,7 +3861,9 @@ void amdgpu_dm_update_connector_after_detect(
 	drm_dbg_kms(dev, "DCHPD: connector_id=%d: Old sink=%p New sink=%p\n",
 		    aconnector->connector_id, aconnector->dc_sink, sink);
 
-	guard(mutex)(&dev->mode_config.mutex);
+	/* When polling, DRM has already locked the mutex for us. */
+	if (!drm_kms_helper_is_poll_worker())
+		mutex_lock(&dev->mode_config.mutex);
 
 	/*
 	 * 1. Update status of the drm connector
@@ -3857,6 +3926,10 @@ void amdgpu_dm_update_connector_after_detect(
 	}
 
 	update_subconnector_property(aconnector);
+
+	/* When polling, the mutex will be unlocked for us by DRM. */
+	if (!drm_kms_helper_is_poll_worker())
+		mutex_unlock(&dev->mode_config.mutex);
 }
 
 static bool are_sinks_equal(const struct dc_sink *sink1, const struct dc_sink *sink2)
@@ -5283,6 +5356,7 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 static void setup_backlight_device(struct amdgpu_display_manager *dm,
 				   struct amdgpu_dm_connector *aconnector)
 {
+	struct amdgpu_dm_backlight_caps *caps;
 	struct dc_link *link = aconnector->dc_link;
 	int bl_idx = dm->num_of_edps;
 
@@ -5302,6 +5376,13 @@ static void setup_backlight_device(struct amdgpu_display_manager *dm,
 	dm->num_of_edps++;
 
 	update_connector_ext_caps(aconnector);
+	caps = &dm->backlight_caps[aconnector->bl_idx];
+
+	/* Only offer ABM property when non-OLED and user didn't turn off by module parameter */
+	if (!caps->ext_caps->bits.oled && amdgpu_dm_abm_level < 0)
+		drm_object_attach_property(&aconnector->base.base,
+					   dm->adev->mode_info.abm_level_property,
+					   ABM_SYSFS_CONTROL);
 }
 
 static void amdgpu_set_panel_orientation(struct drm_connector *connector);
@@ -5556,6 +5637,12 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		}
 		amdgpu_set_panel_orientation(&aconnector->base);
 	}
+
+	/* Debug dump: list all DC links and their associated sinks after detection
+	 * is complete for all connectors. This provides a comprehensive view of the
+	 * final state without repeating the dump for each connector.
+	 */
+	amdgpu_dm_dump_links_and_sinks(adev);
 
 	/* Software is initialized. Now we can register interrupt handlers. */
 	switch (adev->asic_type) {
@@ -5942,6 +6029,10 @@ fill_plane_color_attributes(const struct drm_plane_state *plane_state,
 	bool full_range;
 
 	*color_space = COLOR_SPACE_SRGB;
+
+	/* Ignore properties when DRM_CLIENT_CAP_PLANE_COLOR_PIPELINE is set */
+	if (plane_state->state && plane_state->state->plane_color_pipeline)
+		return 0;
 
 	/* DRM color properties only affect non-RGB formats. */
 	if (format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
@@ -7295,29 +7386,117 @@ finish:
 	return stream;
 }
 
+/**
+ * amdgpu_dm_connector_poll - Poll a connector to see if it's connected to a display
+ * @aconnector: DM connector to poll (owns @base drm_connector and @dc_link)
+ * @force: if true, force polling even when DAC load detection was used
+ *
+ * Used for connectors that don't support HPD (hotplug detection) to
+ * periodically check whether the connector is connected to a display.
+ *
+ * When connection was determined via DAC load detection, we avoid
+ * re-running it on normal polls to prevent visible glitches, unless
+ * @force is set.
+ *
+ * Return: The probed connector status (connected/disconnected/unknown).
+ */
+static enum drm_connector_status
+amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
+{
+	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct dc_link *link = aconnector->dc_link;
+	enum dc_connection_type conn_type = dc_connection_none;
+	enum drm_connector_status status = connector_status_disconnected;
+
+	/* When we determined the connection using DAC load detection,
+	 * do NOT poll the connector do detect disconnect because
+	 * that would run DAC load detection again which can cause
+	 * visible visual glitches.
+	 *
+	 * Only allow to poll such a connector again when forcing.
+	 */
+	if (!force && link->local_sink && link->type == dc_connection_dac_load)
+		return connector->status;
+
+	mutex_lock(&aconnector->hpd_lock);
+
+	if (dc_link_detect_connection_type(aconnector->dc_link, &conn_type) &&
+	    conn_type != dc_connection_none) {
+		mutex_lock(&adev->dm.dc_lock);
+
+		/* Only call full link detection when a sink isn't created yet,
+		 * ie. just when the display is plugged in, otherwise we risk flickering.
+		 */
+		if (link->local_sink ||
+			dc_link_detect(link, DETECT_REASON_HPD))
+			status = connector_status_connected;
+
+		mutex_unlock(&adev->dm.dc_lock);
+	}
+
+	if (connector->status != status) {
+		if (status == connector_status_disconnected) {
+			if (link->local_sink)
+				dc_sink_release(link->local_sink);
+
+			link->local_sink = NULL;
+			link->dpcd_sink_count = 0;
+			link->type = dc_connection_none;
+		}
+
+		amdgpu_dm_update_connector_after_detect(aconnector);
+	}
+
+	mutex_unlock(&aconnector->hpd_lock);
+	return status;
+}
+
+/**
+ * amdgpu_dm_connector_detect() - Detect whether a DRM connector is connected to a display
+ *
+ * A connector is considered connected when it has a sink that is not NULL.
+ * For connectors that support HPD (hotplug detection), the connection is
+ * handled in the HPD interrupt.
+ * For connectors that may not support HPD, such as analog connectors,
+ * DRM will call this function repeatedly to poll them.
+ *
+ * Notes:
+ * 1. This interface is NOT called in context of HPD irq.
+ * 2. This interface *is called* in context of user-mode ioctl. Which
+ *    makes it a bad place for *any* MST-related activity.
+ *
+ * @connector: The DRM connector we are checking. We convert it to
+ *             amdgpu_dm_connector so we can read the DC link and state.
+ * @force:     If true, do a full detect again. This is used even when
+ *             a lighter check would normally be used to avoid flicker.
+ *
+ * Return: The connector status (connected, disconnected, or unknown).
+ *
+ */
 static enum drm_connector_status
 amdgpu_dm_connector_detect(struct drm_connector *connector, bool force)
 {
-	bool connected;
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-
-	/*
-	 * Notes:
-	 * 1. This interface is NOT called in context of HPD irq.
-	 * 2. This interface *is called* in context of user-mode ioctl. Which
-	 * makes it a bad place for *any* MST-related activity.
-	 */
-
-	if (aconnector->base.force == DRM_FORCE_UNSPECIFIED &&
-	    !aconnector->fake_enable)
-		connected = (aconnector->dc_sink != NULL);
-	else
-		connected = (aconnector->base.force == DRM_FORCE_ON ||
-				aconnector->base.force == DRM_FORCE_ON_DIGITAL);
 
 	update_subconnector_property(aconnector);
 
-	return (connected ? connector_status_connected :
+	if (aconnector->base.force == DRM_FORCE_ON ||
+		aconnector->base.force == DRM_FORCE_ON_DIGITAL)
+		return connector_status_connected;
+	else if (aconnector->base.force == DRM_FORCE_OFF)
+		return connector_status_disconnected;
+
+	/* Poll analog connectors and only when either
+	 * disconnected or connected to an analog display.
+	 */
+	if (drm_kms_helper_is_poll_worker() &&
+		dc_connector_supports_analog(aconnector->dc_link->link_id.id) &&
+		(!aconnector->dc_sink || aconnector->dc_sink->edid_caps.analog))
+		return amdgpu_dm_connector_poll(aconnector, force);
+
+	return (aconnector->dc_sink ? connector_status_connected :
 			connector_status_disconnected);
 }
 
@@ -7368,6 +7547,20 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		switch (val) {
+		case ABM_SYSFS_CONTROL:
+			dm_new_state->abm_sysfs_forbidden = false;
+			break;
+		case ABM_LEVEL_OFF:
+			dm_new_state->abm_sysfs_forbidden = true;
+			dm_new_state->abm_level = ABM_LEVEL_IMMEDIATE_DISABLE;
+			break;
+		default:
+			dm_new_state->abm_sysfs_forbidden = true;
+			dm_new_state->abm_level = val;
+		}
+		ret = 0;
 	}
 
 	return ret;
@@ -7409,6 +7602,13 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 		ret = 0;
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
+		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		if (!dm_state->abm_sysfs_forbidden)
+			*val = ABM_SYSFS_CONTROL;
+		else
+			*val = (dm_state->abm_level != ABM_LEVEL_IMMEDIATE_DISABLE) ?
+				dm_state->abm_level : 0;
 		ret = 0;
 	}
 
@@ -7462,9 +7662,15 @@ static ssize_t panel_power_savings_store(struct device *device,
 		return -EINVAL;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-	to_dm_connector_state(connector->state)->abm_level = val ?:
-		ABM_LEVEL_IMMEDIATE_DISABLE;
+	if (to_dm_connector_state(connector->state)->abm_sysfs_forbidden)
+		ret = -EBUSY;
+	else
+		to_dm_connector_state(connector->state)->abm_level = val ?:
+			ABM_LEVEL_IMMEDIATE_DISABLE;
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+
+	if (ret)
+		return ret;
 
 	drm_kms_helper_hotplug_event(dev);
 
@@ -8312,7 +8518,7 @@ static int dm_update_mst_vcpi_slots_for_dsc(struct drm_atomic_state *state,
 	return 0;
 }
 
-static int to_drm_connector_type(enum signal_type st)
+static int to_drm_connector_type(enum signal_type st, uint32_t connector_id)
 {
 	switch (st) {
 	case SIGNAL_TYPE_HDMI_TYPE_A:
@@ -8328,6 +8534,10 @@ static int to_drm_connector_type(enum signal_type st)
 		return DRM_MODE_CONNECTOR_DisplayPort;
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
+		if (connector_id == CONNECTOR_ID_SINGLE_LINK_DVII ||
+			connector_id == CONNECTOR_ID_DUAL_LINK_DVII)
+			return DRM_MODE_CONNECTOR_DVII;
+
 		return DRM_MODE_CONNECTOR_DVID;
 	case SIGNAL_TYPE_VIRTUAL:
 		return DRM_MODE_CONNECTOR_VIRTUAL;
@@ -8379,7 +8589,7 @@ static void amdgpu_dm_get_native_mode(struct drm_connector *connector)
 
 static struct drm_display_mode *
 amdgpu_dm_create_common_mode(struct drm_encoder *encoder,
-			     char *name,
+			     const char *name,
 			     int hdisplay, int vdisplay)
 {
 	struct drm_device *dev = encoder->dev;
@@ -8401,6 +8611,24 @@ amdgpu_dm_create_common_mode(struct drm_encoder *encoder,
 
 }
 
+static const struct amdgpu_dm_mode_size {
+	char name[DRM_DISPLAY_MODE_LEN];
+	int w;
+	int h;
+} common_modes[] = {
+	{  "640x480",  640,  480},
+	{  "800x600",  800,  600},
+	{ "1024x768", 1024,  768},
+	{ "1280x720", 1280,  720},
+	{ "1280x800", 1280,  800},
+	{"1280x1024", 1280, 1024},
+	{ "1440x900", 1440,  900},
+	{"1680x1050", 1680, 1050},
+	{"1600x1200", 1600, 1200},
+	{"1920x1080", 1920, 1080},
+	{"1920x1200", 1920, 1200}
+};
+
 static void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
 						 struct drm_connector *connector)
 {
@@ -8411,23 +8639,6 @@ static void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
 				to_amdgpu_dm_connector(connector);
 	int i;
 	int n;
-	struct mode_size {
-		char name[DRM_DISPLAY_MODE_LEN];
-		int w;
-		int h;
-	} common_modes[] = {
-		{  "640x480",  640,  480},
-		{  "800x600",  800,  600},
-		{ "1024x768", 1024,  768},
-		{ "1280x720", 1280,  720},
-		{ "1280x800", 1280,  800},
-		{"1280x1024", 1280, 1024},
-		{ "1440x900", 1440,  900},
-		{"1680x1050", 1680, 1050},
-		{"1600x1200", 1600, 1200},
-		{"1920x1080", 1920, 1080},
-		{"1920x1200", 1920, 1200}
-	};
 
 	if ((connector->connector_type != DRM_MODE_CONNECTOR_eDP) &&
 	    (connector->connector_type != DRM_MODE_CONNECTOR_LVDS))
@@ -8628,6 +8839,16 @@ static void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connect
 	if (!(amdgpu_freesync_vid_mode && drm_edid))
 		return;
 
+	if (!amdgpu_dm_connector->dc_sink || !amdgpu_dm_connector->dc_link)
+		return;
+
+	if (!dc_supports_vrr(amdgpu_dm_connector->dc_sink->ctx->dce_version))
+		return;
+
+	if (dc_connector_supports_analog(amdgpu_dm_connector->dc_link->link_id.id) &&
+	    amdgpu_dm_connector->dc_sink->edid_caps.analog)
+		return;
+
 	if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
 		amdgpu_dm_connector->num_modes +=
 			add_fs_modes(amdgpu_dm_connector);
@@ -8637,11 +8858,11 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *amdgpu_dm_connector =
 			to_amdgpu_dm_connector(connector);
+	struct dc_link *dc_link = amdgpu_dm_connector->dc_link;
 	struct drm_encoder *encoder;
 	const struct drm_edid *drm_edid = amdgpu_dm_connector->drm_edid;
-	struct dc_link_settings *verified_link_cap =
-			&amdgpu_dm_connector->dc_link->verified_link_cap;
-	const struct dc *dc = amdgpu_dm_connector->dc_link->dc;
+	struct dc_link_settings *verified_link_cap = &dc_link->verified_link_cap;
+	const struct dc *dc = dc_link->dc;
 
 	encoder = amdgpu_dm_connector_to_encoder(connector);
 
@@ -8651,6 +8872,17 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 		if (dc->link_srv->dp_get_encoding_format(verified_link_cap) == DP_128b_132b_ENCODING)
 			amdgpu_dm_connector->num_modes +=
 				drm_add_modes_noedid(connector, 1920, 1080);
+
+		if (amdgpu_dm_connector->dc_sink &&
+		    amdgpu_dm_connector->dc_sink->edid_caps.analog &&
+		    dc_connector_supports_analog(dc_link->link_id.id)) {
+			/* Analog monitor connected by DAC load detection.
+			 * Add common modes. It will be up to the user to select one that works.
+			 */
+			for (int i = 0; i < ARRAY_SIZE(common_modes); i++)
+				amdgpu_dm_connector->num_modes += drm_add_modes_noedid(
+					connector, common_modes[i].w, common_modes[i].h);
+		}
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, drm_edid);
 		if (encoder)
@@ -8722,6 +8954,11 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 		break;
 	case DRM_MODE_CONNECTOR_DVID:
 		aconnector->base.polled = DRM_CONNECTOR_POLL_HPD;
+		break;
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_VGA:
+		aconnector->base.polled =
+			DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 		break;
 	default:
 		break;
@@ -8924,7 +9161,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 		goto out_free;
 	}
 
-	connector_type = to_drm_connector_type(link->connector_signal);
+	connector_type = to_drm_connector_type(link->connector_signal, link->link_id.id);
 
 	res = drm_connector_init_with_ddc(
 			dm->ddev,
@@ -10680,7 +10917,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		 * Here we create an empty update on each plane.
 		 * To fix this, DC should permit updating only stream properties.
 		 */
-		dummy_updates = kzalloc(sizeof(struct dc_surface_update) * MAX_SURFACES, GFP_ATOMIC);
+		dummy_updates = kzalloc(sizeof(struct dc_surface_update) * MAX_SURFACES, GFP_KERNEL);
 		if (!dummy_updates) {
 			drm_err(adev_to_drm(adev), "Failed to allocate memory for dummy_updates.\n");
 			continue;
@@ -12607,7 +12844,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				int j = state->num_private_objs-1;
 
 				dm_atomic_destroy_state(obj,
-						state->private_objs[i].state);
+						state->private_objs[i].state_to_destroy);
 
 				/* If i is not at the end of the array then the
 				 * last element needs to be moved to where i was
@@ -12618,7 +12855,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 						state->private_objs[j];
 
 				state->private_objs[j].ptr = NULL;
-				state->private_objs[j].state = NULL;
+				state->private_objs[j].state_to_destroy = NULL;
 				state->private_objs[j].old_state = NULL;
 				state->private_objs[j].new_state = NULL;
 

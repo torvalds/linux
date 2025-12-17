@@ -50,8 +50,8 @@ asm (".global __static_call_return\n\t"
      ".type __static_call_return, @function\n\t"
      ASM_FUNC_ALIGN "\n\t"
      "__static_call_return:\n\t"
-     ANNOTATE_NOENDBR
-     ANNOTATE_RETPOLINE_SAFE
+     ANNOTATE_NOENDBR "\n\t"
+     ANNOTATE_RETPOLINE_SAFE "\n\t"
      "ret; int3\n\t"
      ".size __static_call_return, . - __static_call_return \n\t");
 

@@ -213,7 +213,7 @@ static void gmc_v6_0_vram_gtt_location(struct amdgpu_device *adev,
 
 	amdgpu_gmc_set_agp_default(adev, mc);
 	amdgpu_gmc_vram_location(adev, mc, base);
-	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_BEST_FIT);
+	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_LOW);
 }
 
 static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
@@ -610,23 +610,21 @@ static void gmc_v6_0_gart_disable(struct amdgpu_device *adev)
 }
 
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
-				     u32 status, u32 addr, u32 mc_client)
+				     u32 status, u32 addr)
 {
 	u32 mc_id;
 	u32 vmid = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS, VMID);
 	u32 protections = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 					PROTECTIONS);
-	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
-		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
 
 	mc_id = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			      MEMORY_CLIENT_ID);
 
-	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
+	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from %d\n",
 	       protections, vmid, addr,
 	       REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			     MEMORY_CLIENT_RW) ?
-	       "write" : "read", block, mc_client, mc_id);
+	       "write" : "read", mc_id);
 }
 
 static const u32 mc_cg_registers[] = {
@@ -1072,12 +1070,22 @@ static int gmc_v6_0_process_interrupt(struct amdgpu_device *adev,
 {
 	u32 addr, status;
 
+	/* Delegate to the soft IRQ handler ring */
+	if (adev->irq.ih_soft.enabled && entry->ih != &adev->irq.ih_soft) {
+		amdgpu_irq_delegate(adev, entry, 4);
+		return 1;
+	}
+
 	addr = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_ADDR);
 	status = RREG32(mmVM_CONTEXT1_PROTECTION_FAULT_STATUS);
 	WREG32_P(mmVM_CONTEXT1_CNTL2, 1, ~1);
 
 	if (!addr && !status)
 		return 0;
+
+	amdgpu_vm_update_fault_cache(adev, entry->pasid,
+				     ((u64)addr) << AMDGPU_GPU_PAGE_SHIFT,
+				     status, AMDGPU_GFXHUB(0));
 
 	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_FIRST)
 		gmc_v6_0_set_fault_enable_default(adev, false);
@@ -1089,7 +1097,7 @@ static int gmc_v6_0_process_interrupt(struct amdgpu_device *adev,
 			addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 			status);
-		gmc_v6_0_vm_decode_fault(adev, status, addr, 0);
+		gmc_v6_0_vm_decode_fault(adev, status, addr);
 	}
 
 	return 0;

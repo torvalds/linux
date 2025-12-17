@@ -48,8 +48,6 @@
 #include <linux/property.h>
 #include <linux/delay.h>
 
-#include "gpiolib.h"
-
 struct gpio_latch_priv {
 	struct gpio_chip gc;
 	struct gpio_descs *clk_gpios;

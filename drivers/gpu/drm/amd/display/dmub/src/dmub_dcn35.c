@@ -418,6 +418,7 @@ void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.disable_sldo_opt = params->disable_sldo_opt;
 	boot_options.bits.enable_non_transparent_setconfig = params->enable_non_transparent_setconfig;
 	boot_options.bits.lower_hbr3_phy_ssc = params->lower_hbr3_phy_ssc;
+	boot_options.bits.disable_dpia_bw_allocation = params->disable_dpia_bw_allocation;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
@@ -520,6 +521,45 @@ void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub)
 
 	dmub->debug.gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }
+
+bool dmub_dcn35_get_preos_fw_info(struct dmub_srv *dmub)
+{
+	uint64_t region3_cw5_offset;
+	uint32_t top_addr, top_addr_enable, offset_low;
+	uint32_t offset_high, base_addr, fw_version;
+	bool is_vbios_fw = false;
+
+	memset(&dmub->preos_info, 0, sizeof(dmub->preos_info));
+
+	fw_version = REG_READ(DMCUB_SCRATCH1);
+	is_vbios_fw = ((fw_version >> 6) & 0x01) ? true : false;
+	if (!is_vbios_fw)
+		return false;
+
+	dmub->preos_info.boot_status = REG_READ(DMCUB_SCRATCH0);
+	dmub->preos_info.fw_version = REG_READ(DMCUB_SCRATCH1);
+	dmub->preos_info.boot_options = REG_READ(DMCUB_SCRATCH14);
+	REG_GET(DMCUB_REGION3_CW5_TOP_ADDRESS,
+		DMCUB_REGION3_CW5_ENABLE, &top_addr_enable);
+	if (top_addr_enable) {
+		dmub_dcn35_get_fb_base_offset(dmub,
+			&dmub->preos_info.fb_base, &dmub->preos_info.fb_offset);
+		offset_low = REG_READ(DMCUB_REGION3_CW5_OFFSET);
+		offset_high = REG_READ(DMCUB_REGION3_CW5_OFFSET_HIGH);
+		region3_cw5_offset = ((uint64_t)offset_high << 32) | offset_low;
+		dmub->preos_info.trace_buffer_phy_addr = region3_cw5_offset
+			- dmub->preos_info.fb_base + dmub->preos_info.fb_offset;
+
+		REG_GET(DMCUB_REGION3_CW5_TOP_ADDRESS,
+			DMCUB_REGION3_CW5_TOP_ADDRESS, &top_addr);
+		base_addr = REG_READ(DMCUB_REGION3_CW5_BASE_ADDRESS) & 0x1FFFFFFF;
+		dmub->preos_info.trace_buffer_size =
+			(top_addr > base_addr) ? (top_addr - base_addr + 1) : 0;
+	}
+
+	return true;
+}
+
 void dmub_dcn35_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {
 	/* DMCUB_REGION3_TMR_AXI_SPACE values:

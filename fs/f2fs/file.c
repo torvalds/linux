@@ -1654,8 +1654,11 @@ static int f2fs_do_zero_range(struct dnode_of_data *dn, pgoff_t start,
 		f2fs_set_data_blkaddr(dn, NEW_ADDR);
 	}
 
-	f2fs_update_read_extent_cache_range(dn, start, 0, index - start);
-	f2fs_update_age_extent_cache_range(dn, start, index - start);
+	if (index > start) {
+		f2fs_update_read_extent_cache_range(dn, start, 0,
+							index - start);
+		f2fs_update_age_extent_cache_range(dn, start, index - start);
+	}
 
 	return ret;
 }
@@ -2125,8 +2128,9 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 
 			f2fs_down_write(&fi->i_sem);
 			if (!f2fs_may_compress(inode) ||
-					(S_ISREG(inode->i_mode) &&
-					F2FS_HAS_BLOCKS(inode))) {
+				atomic_read(&fi->writeback) ||
+				(S_ISREG(inode->i_mode) &&
+				F2FS_HAS_BLOCKS(inode))) {
 				f2fs_up_write(&fi->i_sem);
 				return -EINVAL;
 			}
@@ -2584,14 +2588,14 @@ static int f2fs_keep_noreuse_range(struct inode *inode,
 static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
-	struct super_block *sb = inode->i_sb;
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct fstrim_range range;
 	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!f2fs_hw_support_discard(F2FS_SB(sb)))
+	if (!f2fs_hw_support_discard(sbi))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&range, (struct fstrim_range __user *)arg,
@@ -2602,9 +2606,9 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	if (ret)
 		return ret;
 
-	range.minlen = max((unsigned int)range.minlen,
-			   bdev_discard_granularity(sb->s_bdev));
-	ret = f2fs_trim_fs(F2FS_SB(sb), &range);
+	range.minlen = max_t(unsigned int, range.minlen,
+			f2fs_hw_discard_granularity(sbi));
+	ret = f2fs_trim_fs(sbi, &range);
 	mnt_drop_write_file(filp);
 	if (ret < 0)
 		return ret;
@@ -2612,7 +2616,7 @@ static int f2fs_ioc_fitrim(struct file *filp, unsigned long arg)
 	if (copy_to_user((struct fstrim_range __user *)arg, &range,
 				sizeof(range)))
 		return -EFAULT;
-	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
+	f2fs_update_time(sbi, REQ_TIME);
 	return 0;
 }
 
@@ -5283,6 +5287,8 @@ static int f2fs_file_fadvise(struct file *filp, loff_t offset, loff_t len,
 	struct backing_dev_info *bdi;
 	struct inode *inode = file_inode(filp);
 	int err;
+
+	trace_f2fs_fadvise(inode, offset, len, advice);
 
 	if (advice == POSIX_FADV_SEQUENTIAL) {
 		if (S_ISFIFO(inode->i_mode))

@@ -335,7 +335,6 @@ static int write_build_id(struct feat_fd *ff,
 		pr_debug("failed to write buildid table\n");
 		return err;
 	}
-	perf_session__cache_build_ids(session);
 
 	return 0;
 }
@@ -1555,7 +1554,7 @@ static int __write_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
 static int write_cpu_pmu_caps(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
-	struct perf_pmu *cpu_pmu = perf_pmus__find("cpu");
+	struct perf_pmu *cpu_pmu = perf_pmus__find_core_pmu();
 	int ret;
 
 	if (!cpu_pmu)
@@ -4535,7 +4534,8 @@ int perf_event__process_event_update(const struct perf_tool *tool __maybe_unused
 }
 
 #ifdef HAVE_LIBTRACEEVENT
-int perf_event__process_tracing_data(struct perf_session *session,
+int perf_event__process_tracing_data(const struct perf_tool *tool __maybe_unused,
+				     struct perf_session *session,
 				     union perf_event *event)
 {
 	ssize_t size_read, padding, size = event->tracing_data.size;
@@ -4583,7 +4583,8 @@ int perf_event__process_tracing_data(struct perf_session *session,
 }
 #endif
 
-int perf_event__process_build_id(struct perf_session *session,
+int perf_event__process_build_id(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
 				 union perf_event *event)
 {
 	__event_process_build_id(&event->build_id,

@@ -69,6 +69,16 @@ properties:
     minItems: 1
     maxItems: 8
 
+  clocks:
+    description: |
+      Chips may need clocks to be enabled for themselves or for transparent
+      bridges.
+
+  power-domains:
+    description: |
+      Chips may need power domains to be enabled for themselves or for
+      transparent bridges.
+
   bank-width:
     description: Width (in bytes) of the bank.  Equal to the device width times
       the number of interleaved chips.

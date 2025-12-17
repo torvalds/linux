@@ -55,6 +55,7 @@ struct typec_thunderbolt_data {
 
 /* TBT3 Device Enter Mode VDO bits */
 #define TBT_ENTER_MODE_CABLE_SPEED(s)	TBT_SET_CABLE_SPEED(s)
+#define TBT_ENTER_MODE_UNI_DIR_LSRX	BIT(23)
 #define TBT_ENTER_MODE_ACTIVE_CABLE	BIT(24)
 
 #endif /* __USB_TYPEC_TBT_H */

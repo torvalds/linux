@@ -442,6 +442,52 @@ enum amdxdna_drm_get_param {
 	DRM_AMDXDNA_QUERY_HW_CONTEXTS,
 	DRM_AMDXDNA_QUERY_FIRMWARE_VERSION = 8,
 	DRM_AMDXDNA_GET_POWER_MODE,
+	DRM_AMDXDNA_QUERY_TELEMETRY,
+	DRM_AMDXDNA_GET_FORCE_PREEMPT_STATE,
+	DRM_AMDXDNA_QUERY_RESOURCE_INFO,
+	DRM_AMDXDNA_GET_FRAME_BOUNDARY_PREEMPT_STATE,
+};
+
+/**
+ * struct amdxdna_drm_get_resource_info - Get resource information
+ */
+struct amdxdna_drm_get_resource_info {
+	/** @npu_clk_max: max H-Clocks */
+	__u64 npu_clk_max;
+	/** @npu_tops_max: max TOPs */
+	__u64 npu_tops_max;
+	/** @npu_task_max: max number of tasks */
+	__u64 npu_task_max;
+	/** @npu_tops_curr: current TOPs */
+	__u64 npu_tops_curr;
+	/** @npu_task_curr: current number of tasks */
+	__u64 npu_task_curr;
+};
+
+/**
+ * struct amdxdna_drm_attribute_state - State of an attribute
+ */
+struct amdxdna_drm_attribute_state {
+	/** @state: enabled or disabled */
+	__u8 state;
+	/** @pad: MBZ */
+	__u8 pad[7];
+};
+
+/**
+ * struct amdxdna_drm_query_telemetry_header - Telemetry data header
+ */
+struct amdxdna_drm_query_telemetry_header {
+	/** @major: Firmware telemetry interface major version number */
+	__u32 major;
+	/** @minor: Firmware telemetry interface minor version number */
+	__u32 minor;
+	/** @type: Telemetry query type */
+	__u32 type;
+	/** @map_num_elements: Total number of elements in the map table */
+	__u32 map_num_elements;
+	/** @map: Element map */
+	__u32 map[];
 };
 
 /**
@@ -523,7 +569,20 @@ struct amdxdna_drm_hwctx_entry {
 	__u32 pad;
 };
 
+/**
+ * struct amdxdna_async_error - XDNA async error structure
+ */
+struct amdxdna_async_error {
+	/** @err_code: Error code. */
+	__u64 err_code;
+	/** @ts_us: Timestamp. */
+	__u64 ts_us;
+	/** @ex_err_code: Extra error code */
+	__u64 ex_err_code;
+};
+
 #define DRM_AMDXDNA_HW_CONTEXT_ALL	0
+#define DRM_AMDXDNA_HW_LAST_ASYNC_ERR	2
 
 /**
  * struct amdxdna_drm_get_array - Get information array.
@@ -566,6 +625,8 @@ enum amdxdna_drm_set_param {
 	DRM_AMDXDNA_SET_POWER_MODE,
 	DRM_AMDXDNA_WRITE_AIE_MEM,
 	DRM_AMDXDNA_WRITE_AIE_REG,
+	DRM_AMDXDNA_SET_FORCE_PREEMPT,
+	DRM_AMDXDNA_SET_FRAME_BOUNDARY_PREEMPT,
 };
 
 /**

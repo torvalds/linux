@@ -92,6 +92,8 @@ struct evlist {
 	 * of struct metric_expr.
 	 */
 	struct rblist	metric_events;
+	/* samples with deferred_callchain would wait here. */
+	struct list_head deferred_samples;
 };
 
 struct evsel_str_handler {

@@ -62,7 +62,6 @@ properties:
     minimum: 0
     maximum: 15
 
-
   # FAST chip selects
   qcom,xmem-address-hold-enable:
     $ref: /schemas/types.yaml#/definitions/uint32

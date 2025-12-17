@@ -11,7 +11,6 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -115,7 +114,6 @@ struct ina3221_input {
  * @regmap: Register map of the device
  * @fields: Register fields of the device
  * @inputs: Array of channel input source specific structures
- * @lock: mutex lock to serialize sysfs attribute accesses
  * @reg_config: Register value of INA3221_CONFIG
  * @summation_shunt_resistor: equivalent shunt resistor value for summation
  * @summation_channel_control: Value written to SCC field in INA3221_MASK_ENABLE
@@ -126,7 +124,6 @@ struct ina3221_data {
 	struct regmap *regmap;
 	struct regmap_field *fields[F_MAX_FIELDS];
 	struct ina3221_input inputs[INA3221_NUM_CHANNELS];
-	struct mutex lock;
 	u32 reg_config;
 	int summation_shunt_resistor;
 	u32 summation_channel_control;
@@ -530,10 +527,7 @@ fail:
 static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
-	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
-
-	mutex_lock(&ina->lock);
 
 	switch (type) {
 	case hwmon_chip:
@@ -550,19 +544,13 @@ static int ina3221_read(struct device *dev, enum hwmon_sensor_types type,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-
-	mutex_unlock(&ina->lock);
-
 	return ret;
 }
 
 static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
 			 u32 attr, int channel, long val)
 {
-	struct ina3221_data *ina = dev_get_drvdata(dev);
 	int ret;
-
-	mutex_lock(&ina->lock);
 
 	switch (type) {
 	case hwmon_chip:
@@ -579,9 +567,6 @@ static int ina3221_write(struct device *dev, enum hwmon_sensor_types type,
 		ret = -EOPNOTSUPP;
 		break;
 	}
-
-	mutex_unlock(&ina->lock);
-
 	return ret;
 }
 
@@ -886,7 +871,6 @@ static int ina3221_probe(struct i2c_client *client)
 	}
 
 	ina->pm_dev = dev;
-	mutex_init(&ina->lock);
 	dev_set_drvdata(dev, ina);
 
 	/* Enable PM runtime -- status is suspended by default */
@@ -925,7 +909,6 @@ fail:
 	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
 		pm_runtime_put_noidle(ina->pm_dev);
-	mutex_destroy(&ina->lock);
 
 	return ret;
 }
@@ -941,8 +924,6 @@ static void ina3221_remove(struct i2c_client *client)
 	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
 		pm_runtime_put_noidle(ina->pm_dev);
-
-	mutex_destroy(&ina->lock);
 }
 
 static int ina3221_suspend(struct device *dev)

@@ -752,7 +752,7 @@ static bool io_is_mergeable(struct f2fs_sb_info *sbi, struct bio *bio,
 }
 
 static void add_bio_entry(struct f2fs_sb_info *sbi, struct bio *bio,
-				struct page *page, enum temp_type temp)
+				struct folio *folio, enum temp_type temp)
 {
 	struct f2fs_bio_info *io = sbi->write_io[DATA] + temp;
 	struct bio_entry *be;
@@ -761,8 +761,7 @@ static void add_bio_entry(struct f2fs_sb_info *sbi, struct bio *bio,
 	be->bio = bio;
 	bio_get(bio);
 
-	if (bio_add_page(bio, page, PAGE_SIZE, 0) != PAGE_SIZE)
-		f2fs_bug_on(sbi, 1);
+	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
 
 	f2fs_down_write(&io->bio_list_lock);
 	list_add_tail(&be->list, &io->bio_list);
@@ -776,7 +775,7 @@ static void del_bio_entry(struct bio_entry *be)
 }
 
 static int add_ipu_page(struct f2fs_io_info *fio, struct bio **bio,
-							struct page *page)
+							struct folio *folio)
 {
 	struct folio *fio_folio = fio->folio;
 	struct f2fs_sb_info *sbi = fio->sbi;
@@ -802,8 +801,7 @@ static int add_ipu_page(struct f2fs_io_info *fio, struct bio **bio,
 			if (f2fs_crypt_mergeable_bio(*bio,
 					fio_folio->mapping->host,
 					fio_folio->index, fio) &&
-			    bio_add_page(*bio, page, PAGE_SIZE, 0) ==
-					PAGE_SIZE) {
+			    bio_add_folio(*bio, folio, folio_size(folio), 0)) {
 				ret = 0;
 				break;
 			}
@@ -904,9 +902,9 @@ alloc_new:
 		f2fs_set_bio_crypt_ctx(bio, folio->mapping->host,
 				folio->index, fio, GFP_NOIO);
 
-		add_bio_entry(fio->sbi, bio, &data_folio->page, fio->temp);
+		add_bio_entry(fio->sbi, bio, data_folio, fio->temp);
 	} else {
-		if (add_ipu_page(fio, &bio, &data_folio->page))
+		if (add_ipu_page(fio, &bio, data_folio))
 			goto alloc_new;
 	}
 
@@ -1275,7 +1273,7 @@ struct folio *f2fs_find_data_folio(struct inode *inode, pgoff_t index,
 	struct address_space *mapping = inode->i_mapping;
 	struct folio *folio;
 
-	folio = __filemap_get_folio(mapping, index, FGP_ACCESSED, 0);
+	folio = f2fs_filemap_get_folio(mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio))
 		goto read;
 	if (folio_test_uptodate(folio))
@@ -1420,6 +1418,7 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 
 static void f2fs_map_lock(struct f2fs_sb_info *sbi, int flag)
 {
+	f2fs_down_read(&sbi->cp_enable_rwsem);
 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
 		f2fs_down_read(&sbi->node_change);
 	else
@@ -1432,6 +1431,7 @@ static void f2fs_map_unlock(struct f2fs_sb_info *sbi, int flag)
 		f2fs_up_read(&sbi->node_change);
 	else
 		f2fs_unlock_op(sbi);
+	f2fs_up_read(&sbi->cp_enable_rwsem);
 }
 
 int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
@@ -3138,8 +3138,8 @@ result:
 				} else if (ret == -EAGAIN) {
 					ret = 0;
 					if (wbc->sync_mode == WB_SYNC_ALL) {
-						f2fs_io_schedule_timeout(
-							DEFAULT_IO_TIMEOUT);
+						f2fs_schedule_timeout(
+							DEFAULT_SCHEDULE_TIMEOUT);
 						goto retry_write;
 					}
 					goto next;
@@ -3221,6 +3221,19 @@ static inline bool __should_serialize_io(struct inode *inode,
 	return false;
 }
 
+static inline void account_writeback(struct inode *inode, bool inc)
+{
+	if (!f2fs_sb_has_compression(F2FS_I_SB(inode)))
+		return;
+
+	f2fs_down_read(&F2FS_I(inode)->i_sem);
+	if (inc)
+		atomic_inc(&F2FS_I(inode)->writeback);
+	else
+		atomic_dec(&F2FS_I(inode)->writeback);
+	f2fs_up_read(&F2FS_I(inode)->i_sem);
+}
+
 static int __f2fs_write_data_pages(struct address_space *mapping,
 						struct writeback_control *wbc,
 						enum iostat_type io_type)
@@ -3266,9 +3279,13 @@ static int __f2fs_write_data_pages(struct address_space *mapping,
 		locked = true;
 	}
 
+	account_writeback(inode, true);
+
 	blk_start_plug(&plug);
 	ret = f2fs_write_cache_pages(mapping, wbc, io_type);
 	blk_finish_plug(&plug);
+
+	account_writeback(inode, false);
 
 	if (locked)
 		mutex_unlock(&sbi->writepages);
@@ -3566,8 +3583,9 @@ repeat:
 	 * Do not use FGP_STABLE to avoid deadlock.
 	 * Will wait that below with our IO control.
 	 */
-	folio = __filemap_get_folio(mapping, index,
-				FGP_LOCK | FGP_WRITE | FGP_CREAT, GFP_NOFS);
+	folio = f2fs_filemap_get_folio(mapping, index,
+				FGP_LOCK | FGP_WRITE | FGP_CREAT | FGP_NOFS,
+				mapping_gfp_mask(mapping));
 	if (IS_ERR(folio)) {
 		err = PTR_ERR(folio);
 		goto fail;
@@ -3637,8 +3655,7 @@ repeat:
 	return 0;
 
 put_folio:
-	folio_unlock(folio);
-	folio_put(folio);
+	f2fs_folio_put(folio, true);
 fail:
 	f2fs_write_failed(inode, pos + len);
 	return err;
@@ -3694,8 +3711,7 @@ static int f2fs_write_end(const struct kiocb *iocb,
 					pos + copied);
 	}
 unlock_out:
-	folio_unlock(folio);
-	folio_put(folio);
+	f2fs_folio_put(folio, true);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 	return copied;
 }

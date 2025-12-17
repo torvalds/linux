@@ -1340,27 +1340,48 @@ static int prepare_metric(const struct metric_expr *mexp,
 	struct metric_ref *metric_refs = mexp->metric_refs;
 
 	for (int i = 0; metric_events[i]; i++) {
-		char *n = strdup(evsel__metric_id(metric_events[i]));
+		struct evsel *cur = metric_events[i];
 		double val, ena, run;
-		int source_count = evsel__source_count(metric_events[i]);
-		int ret;
+		int ret, source_count = 0;
 		struct perf_counts_values *old_count, *new_count;
+		char *n = strdup(evsel__metric_id(cur));
 
 		if (!n)
 			return -ENOMEM;
 
-		if (source_count == 0)
-			source_count = 1;
+		/*
+		 * If there are multiple uncore PMUs and we're not reading the
+		 * leader's stats, determine the stats for the appropriate
+		 * uncore PMU.
+		 */
+		if (evsel && evsel->metric_leader &&
+		    evsel->pmu != evsel->metric_leader->pmu &&
+		    cur->pmu == evsel->metric_leader->pmu) {
+			struct evsel *pos;
 
-		ret = evsel__ensure_counts(metric_events[i]);
+			evlist__for_each_entry(evsel->evlist, pos) {
+				if (pos->pmu != evsel->pmu)
+					continue;
+				if (pos->metric_leader != cur)
+					continue;
+				cur = pos;
+				source_count = 1;
+				break;
+			}
+		}
+
+		if (source_count == 0)
+			source_count = evsel__source_count(cur);
+
+		ret = evsel__ensure_counts(cur);
 		if (ret)
 			return ret;
 
 		/* Set up pointers to the old and newly read counter values. */
-		old_count = perf_counts(metric_events[i]->prev_raw_counts, cpu_idx, thread_idx);
-		new_count = perf_counts(metric_events[i]->counts, cpu_idx, thread_idx);
-		/* Update the value in metric_events[i]->counts. */
-		evsel__read_counter(metric_events[i], cpu_idx, thread_idx);
+		old_count = perf_counts(cur->prev_raw_counts, cpu_idx, thread_idx);
+		new_count = perf_counts(cur->counts, cpu_idx, thread_idx);
+		/* Update the value in cur->counts. */
+		evsel__read_counter(cur, cpu_idx, thread_idx);
 
 		val = new_count->val - old_count->val;
 		ena = new_count->ena - old_count->ena;
@@ -1392,6 +1413,7 @@ static PyObject *pyrf_evlist__compute_metric(struct pyrf_evlist *pevlist,
 	struct metric_expr *mexp = NULL;
 	struct expr_parse_ctx *pctx;
 	double result = 0;
+	struct evsel *metric_evsel = NULL;
 
 	if (!PyArg_ParseTuple(args, "sii", &metric, &cpu, &thread))
 		return NULL;
@@ -1404,6 +1426,7 @@ static PyObject *pyrf_evlist__compute_metric(struct pyrf_evlist *pevlist,
 
 		list_for_each(pos, &me->head) {
 			struct metric_expr *e = container_of(pos, struct metric_expr, nd);
+			struct evsel *pos2;
 
 			if (strcmp(e->metric_name, metric))
 				continue;
@@ -1411,20 +1434,24 @@ static PyObject *pyrf_evlist__compute_metric(struct pyrf_evlist *pevlist,
 			if (e->metric_events[0] == NULL)
 				continue;
 
-			cpu_idx = perf_cpu_map__idx(e->metric_events[0]->core.cpus,
-						    (struct perf_cpu){.cpu = cpu});
-			if (cpu_idx < 0)
-				continue;
+			evlist__for_each_entry(&pevlist->evlist, pos2) {
+				if (pos2->metric_leader != e->metric_events[0])
+					continue;
+				cpu_idx = perf_cpu_map__idx(pos2->core.cpus,
+							    (struct perf_cpu){.cpu = cpu});
+				if (cpu_idx < 0)
+					continue;
 
-			thread_idx = perf_thread_map__idx(e->metric_events[0]->core.threads,
-							  thread);
-			if (thread_idx < 0)
-				continue;
-
-			mexp = e;
-			break;
+				thread_idx = perf_thread_map__idx(pos2->core.threads, thread);
+				if (thread_idx < 0)
+					continue;
+				metric_evsel = pos2;
+				mexp = e;
+				goto done;
+			}
 		}
 	}
+done:
 	if (!mexp) {
 		PyErr_Format(PyExc_TypeError, "Unknown metric '%s' for CPU '%d' and thread '%d'",
 			     metric, cpu, thread);
@@ -1435,7 +1462,7 @@ static PyObject *pyrf_evlist__compute_metric(struct pyrf_evlist *pevlist,
 	if (!pctx)
 		return PyErr_NoMemory();
 
-	ret = prepare_metric(mexp, mexp->metric_events[0], pctx, cpu_idx, thread_idx);
+	ret = prepare_metric(mexp, metric_evsel, pctx, cpu_idx, thread_idx);
 	if (ret) {
 		expr__ctx_free(pctx);
 		errno = -ret;
@@ -1996,6 +2023,17 @@ static PyObject *pyrf_evlist__from_evlist(struct evlist *evlist)
 			else if (leader == NULL)
 				evsel__set_leader(pos, pos);
 		}
+
+		leader = pos->metric_leader;
+
+		if (pos != leader) {
+			int idx = evlist__pos(evlist, leader);
+
+			if (idx >= 0)
+				pos->metric_leader = evlist__at(&pevlist->evlist, idx);
+			else if (leader == NULL)
+				pos->metric_leader = pos;
+		}
 	}
 	metricgroup__copy_metric_events(&pevlist->evlist, /*cgrp=*/NULL,
 					&pevlist->evlist.metric_events,
@@ -2051,7 +2089,7 @@ static PyObject *pyrf__parse_events(PyObject *self, PyObject *args)
 
 static PyObject *pyrf__parse_metrics(PyObject *self, PyObject *args)
 {
-	const char *input;
+	const char *input, *pmu = NULL;
 	struct evlist evlist = {};
 	PyObject *result;
 	PyObject *pcpus = NULL, *pthreads = NULL;
@@ -2059,14 +2097,14 @@ static PyObject *pyrf__parse_metrics(PyObject *self, PyObject *args)
 	struct perf_thread_map *threads;
 	int ret;
 
-	if (!PyArg_ParseTuple(args, "s|OO", &input, &pcpus, &pthreads))
+	if (!PyArg_ParseTuple(args, "s|sOO", &input, &pmu, &pcpus, &pthreads))
 		return NULL;
 
 	threads = pthreads ? ((struct pyrf_thread_map *)pthreads)->threads : NULL;
 	cpus = pcpus ? ((struct pyrf_cpu_map *)pcpus)->cpus : NULL;
 
 	evlist__init(&evlist, cpus, threads);
-	ret = metricgroup__parse_groups(&evlist, /*pmu=*/"all", input,
+	ret = metricgroup__parse_groups(&evlist, pmu ?: "all", input,
 					/*metric_no_group=*/ false,
 					/*metric_no_merge=*/ false,
 					/*metric_no_threshold=*/ true,

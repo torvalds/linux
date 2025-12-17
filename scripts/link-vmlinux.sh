@@ -209,6 +209,13 @@ kallsymso=
 strip_debug=
 generate_map=
 
+# Use "make UT=1" to trigger warnings on unused tracepoints
+case "${WARN_ON_UNUSED_TRACEPOINTS}" in
+*1*)
+	${objtree}/scripts/tracepoint-update vmlinux.o
+	;;
+esac
+
 if is_enabled CONFIG_KALLSYMS; then
 	true > .tmp_vmlinux0.syms
 	kallsyms .tmp_vmlinux0.syms .tmp_vmlinux0.kallsyms

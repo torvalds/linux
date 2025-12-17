@@ -387,7 +387,7 @@ int da9055_device_init(struct da9055 *da9055)
 	return 0;
 
 err:
-	mfd_remove_devices(da9055->dev);
+	regmap_del_irq_chip(da9055->chip_irq, da9055->irq_data);
 	return ret;
 }
 

@@ -113,15 +113,19 @@ enum ec_sensors {
 	ec_sensor_temp_t_sensor,
 	/* VRM temperature [℃] */
 	ec_sensor_temp_vrm,
+	/* VRM east (right) temperature [℃] */
+	ec_sensor_temp_vrme,
+	/* VRM west (left) temperature [℃] */
+	ec_sensor_temp_vrmw,
 	/* CPU Core voltage [mV] */
 	ec_sensor_in_cpu_core,
 	/* CPU_Opt fan [RPM] */
 	ec_sensor_fan_cpu_opt,
 	/* VRM heat sink fan [RPM] */
 	ec_sensor_fan_vrm_hs,
-	/* VRM east heat sink fan [RPM] */
+	/* VRM east (right) heat sink fan [RPM] */
 	ec_sensor_fan_vrme_hs,
-	/* VRM west heat sink fan [RPM] */
+	/* VRM west (left) heat sink fan [RPM] */
 	ec_sensor_fan_vrmw_hs,
 	/* Chipset fan [RPM] */
 	ec_sensor_fan_chipset,
@@ -157,6 +161,8 @@ enum ec_sensors {
 #define SENSOR_TEMP_MB BIT(ec_sensor_temp_mb)
 #define SENSOR_TEMP_T_SENSOR BIT(ec_sensor_temp_t_sensor)
 #define SENSOR_TEMP_VRM BIT(ec_sensor_temp_vrm)
+#define SENSOR_TEMP_VRME BIT(ec_sensor_temp_vrme)
+#define SENSOR_TEMP_VRMW BIT(ec_sensor_temp_vrmw)
 #define SENSOR_IN_CPU_CORE BIT(ec_sensor_in_cpu_core)
 #define SENSOR_FAN_CPU_OPT BIT(ec_sensor_fan_cpu_opt)
 #define SENSOR_FAN_VRM_HS BIT(ec_sensor_fan_vrm_hs)
@@ -182,6 +188,7 @@ enum board_family {
 	family_amd_500_series,
 	family_amd_600_series,
 	family_amd_800_series,
+	family_amd_trx_50,
 	family_amd_wrx_90,
 	family_intel_200_series,
 	family_intel_300_series,
@@ -292,6 +299,19 @@ static const struct ec_sensor_info sensors_family_amd_800[] = {
 		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x36),
 	[ec_sensor_fan_cpu_opt] =
 		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+};
+
+static const struct ec_sensor_info sensors_family_amd_trx_50[] = {
+	[ec_sensor_temp_cpu] = EC_SENSOR("CPU", hwmon_temp, 1, 0x00, 0x30),
+	[ec_sensor_temp_cpu_package] =
+		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_vrme] = EC_SENSOR("VRM_E", hwmon_temp, 1, 0x00, 0x33),
+	[ec_sensor_temp_vrmw] = EC_SENSOR("VRM_W", hwmon_temp, 1, 0x00, 0x34),
+	[ec_sensor_fan_cpu_opt] = EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
+	[ec_sensor_fan_vrmw_hs] = EC_SENSOR("VRM_E HS", hwmon_fan, 2, 0x00, 0xb4),
+	[ec_sensor_fan_vrme_hs] = EC_SENSOR("VRM_W HS", hwmon_fan, 2, 0x00, 0xbc),
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x01, 0x04),
 };
 
 static const struct ec_sensor_info sensors_family_amd_wrx_90[] = {
@@ -533,6 +553,15 @@ static const struct ec_board_info board_info_pro_art_x870E_creator_wifi = {
 	.family = family_amd_800_series,
 };
 
+static const struct ec_board_info board_info_pro_ws_trx50_sage_wifi = {
+	/* Board also has a nct6798 */
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_VRME |
+		SENSOR_TEMP_VRMW | SENSOR_FAN_CPU_OPT | SENSOR_FAN_VRME_HS |
+		SENSOR_FAN_VRMW_HS | SENSOR_TEMP_T_SENSOR,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+	.family = family_amd_trx_50,
+};
+
 static const struct ec_board_info board_info_pro_ws_wrx90e_sage_se = {
 	/* Board also has a nct6798 with 7 more fans and temperatures */
 	.sensors = SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_T_SENSOR |
@@ -579,6 +608,14 @@ static const struct ec_board_info board_info_strix_b850_i_gaming_wifi = {
 		SENSOR_TEMP_MB | SENSOR_TEMP_VRM,
 	.mutex_path = ACPI_GLOBAL_LOCK_PSEUDO_PATH,
 	.family = family_amd_800_series,
+};
+
+static const struct ec_board_info board_info_strix_x470_i_gaming = {
+	.sensors = SENSOR_SET_TEMP_CHIPSET_CPU_MB |
+		SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM |
+		SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
+	.family = family_amd_400_series,
 };
 
 static const struct ec_board_info board_info_strix_x570_e_gaming = {
@@ -628,6 +665,13 @@ static const struct ec_board_info board_info_strix_x670e_i_gaming_wifi = {
 	.family = family_amd_600_series,
 };
 
+static const struct ec_board_info board_info_strix_x870_f_gaming_wifi = {
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
+		SENSOR_TEMP_MB | SENSOR_TEMP_VRM | SENSOR_TEMP_T_SENSOR,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_SB_PCI0_SBRG_SIO1_MUT0,
+	.family = family_amd_800_series,
+};
+
 static const struct ec_board_info board_info_strix_x870_i_gaming_wifi = {
 	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
 		SENSOR_TEMP_MB | SENSOR_TEMP_VRM,
@@ -638,6 +682,14 @@ static const struct ec_board_info board_info_strix_x870_i_gaming_wifi = {
 static const struct ec_board_info board_info_strix_x870e_e_gaming_wifi = {
 	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
 		SENSOR_TEMP_MB | SENSOR_TEMP_VRM |
+		SENSOR_FAN_CPU_OPT,
+	.mutex_path = ASUS_HW_ACCESS_MUTEX_SB_PCI0_SBRG_SIO1_MUT0,
+	.family = family_amd_800_series,
+};
+
+static const struct ec_board_info board_info_strix_x870e_h_gaming_wifi7 = {
+	.sensors = SENSOR_TEMP_CPU | SENSOR_TEMP_CPU_PACKAGE |
+		SENSOR_TEMP_MB | SENSOR_TEMP_VRM | SENSOR_TEMP_T_SENSOR |
 		SENSOR_FAN_CPU_OPT,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_SB_PCI0_SBRG_SIO1_MUT0,
 	.family = family_amd_800_series,
@@ -739,6 +791,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_pro_art_x670E_creator_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ProArt X870E-CREATOR WIFI",
 					&board_info_pro_art_x870E_creator_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS TRX50-SAGE WIFI",
+					&board_info_pro_ws_trx50_sage_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS WRX90E-SAGE SE",
 					&board_info_pro_ws_wrx90e_sage_se),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("Pro WS X570-ACE",
@@ -771,6 +825,8 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_strix_b650e_i_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX B850-I GAMING WIFI",
 					&board_info_strix_b850_i_gaming_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X470-I GAMING",
+					&board_info_strix_x470_i_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X570-E GAMING",
 					&board_info_strix_x570_e_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X570-E GAMING WIFI II",
@@ -783,10 +839,14 @@ static const struct dmi_system_id dmi_table[] = {
 					&board_info_strix_x670e_e_gaming_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X670E-I GAMING WIFI",
 					&board_info_strix_x670e_i_gaming_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X870-F GAMING WIFI",
+					&board_info_strix_x870_f_gaming_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X870-I GAMING WIFI",
 					&board_info_strix_x870_i_gaming_wifi),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X870E-E GAMING WIFI",
 					&board_info_strix_x870e_e_gaming_wifi),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX X870E-H GAMING WIFI7",
+					&board_info_strix_x870e_h_gaming_wifi7),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z390-F GAMING",
 					&board_info_strix_z390_f_gaming),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG STRIX Z490-F GAMING",
@@ -1273,6 +1333,9 @@ static int asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_800_series:
 		ec_data->sensors_info = sensors_family_amd_800;
+		break;
+	case family_amd_trx_50:
+		ec_data->sensors_info = sensors_family_amd_trx_50;
 		break;
 	case family_amd_wrx_90:
 		ec_data->sensors_info = sensors_family_amd_wrx_90;

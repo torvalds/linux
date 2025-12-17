@@ -101,4 +101,12 @@ bool dcn35_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
 
 void dcn35_hardware_release(struct dc *dc);
 
+void dcn35_abort_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn35_begin_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn35_commit_cursor_offload_update(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn35_update_cursor_offload_pipe(struct dc *dc, const struct pipe_ctx *pipe);
+void dcn35_notify_cursor_offload_drr_update(struct dc *dc, struct dc_state *context,
+					    const struct dc_stream_state *stream);
+void dcn35_program_cursor_offload_now(struct dc *dc, const struct pipe_ctx *pipe);
+
 #endif /* __DC_HWSS_DCN35_H__ */

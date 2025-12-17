@@ -117,7 +117,6 @@ struct ina238_config {
 struct ina238_data {
 	const struct ina238_config *config;
 	struct i2c_client *client;
-	struct mutex config_lock;
 	struct regmap *regmap;
 	u32 rshunt;
 	int gain;
@@ -607,31 +606,18 @@ static int ina238_read(struct device *dev, enum hwmon_sensor_types type,
 static int ina238_write(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long val)
 {
-	struct ina238_data *data = dev_get_drvdata(dev);
-	int err;
-
-	mutex_lock(&data->config_lock);
-
 	switch (type) {
 	case hwmon_in:
-		err = ina238_write_in(dev, attr, channel, val);
-		break;
+		return ina238_write_in(dev, attr, channel, val);
 	case hwmon_curr:
-		err = ina238_write_curr(dev, attr, val);
-		break;
+		return ina238_write_curr(dev, attr, val);
 	case hwmon_power:
-		err = ina238_write_power_max(dev, val);
-		break;
+		return ina238_write_power_max(dev, val);
 	case hwmon_temp:
-		err = ina238_write_temp_max(dev, val);
-		break;
+		return ina238_write_temp_max(dev, val);
 	default:
-		err = -EOPNOTSUPP;
-		break;
+		return -EOPNOTSUPP;
 	}
-
-	mutex_unlock(&data->config_lock);
-	return err;
 }
 
 static umode_t ina238_is_visible(const void *drvdata,
@@ -756,8 +742,6 @@ static int ina238_probe(struct i2c_client *client)
 	data->client = client;
 	/* set the device type */
 	data->config = &ina238_config[chip];
-
-	mutex_init(&data->config_lock);
 
 	data->regmap = devm_regmap_init_i2c(client, &ina238_regmap_config);
 	if (IS_ERR(data->regmap)) {

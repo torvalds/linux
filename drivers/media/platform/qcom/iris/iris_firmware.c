@@ -19,8 +19,7 @@ static int iris_load_fw_to_memory(struct iris_core *core, const char *fw_name)
 	u32 pas_id = core->iris_platform_data->pas_id;
 	const struct firmware *firmware = NULL;
 	struct device *dev = core->dev;
-	struct reserved_mem *rmem;
-	struct device_node *node;
+	struct resource res;
 	phys_addr_t mem_phys;
 	size_t res_size;
 	ssize_t fw_size;
@@ -30,17 +29,12 @@ static int iris_load_fw_to_memory(struct iris_core *core, const char *fw_name)
 	if (strlen(fw_name) >= MAX_FIRMWARE_NAME_SIZE - 4)
 		return -EINVAL;
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node)
-		return -EINVAL;
+	ret = of_reserved_mem_region_to_resource(dev->of_node, 0, &res);
+	if (ret)
+		return ret;
 
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
-	if (!rmem)
-		return -EINVAL;
-
-	mem_phys = rmem->base;
-	res_size = rmem->size;
+	mem_phys = res.start;
+	res_size = resource_size(&res);
 
 	ret = request_firmware(&firmware, fw_name, dev);
 	if (ret)

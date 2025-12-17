@@ -13,6 +13,7 @@
 #include <drm/drm_exec.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gpuvm.h>
+#include <drm/drm_print.h>
 
 #include <linux/bug.h>
 #include <linux/container_of.h>

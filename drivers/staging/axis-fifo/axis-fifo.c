@@ -88,16 +88,8 @@
 #define XLLF_INT_TC_MASK          0x08000000 /* Transmit complete */
 #define XLLF_INT_RC_MASK          0x04000000 /* Receive complete */
 #define XLLF_INT_TSE_MASK         0x02000000 /* Transmit length mismatch */
-#define XLLF_INT_TRC_MASK         0x01000000 /* Transmit reset complete */
-#define XLLF_INT_RRC_MASK         0x00800000 /* Receive reset complete */
-#define XLLF_INT_TFPF_MASK        0x00400000 /* Tx FIFO Programmable Full */
-#define XLLF_INT_TFPE_MASK        0x00200000 /* Tx FIFO Programmable Empty */
-#define XLLF_INT_RFPF_MASK        0x00100000 /* Rx FIFO Programmable Full */
-#define XLLF_INT_RFPE_MASK        0x00080000 /* Rx FIFO Programmable Empty */
-#define XLLF_INT_ALL_MASK         0xfff80000 /* All the ints */
-#define XLLF_INT_ERROR_MASK       0xf2000000 /* Error status ints */
-#define XLLF_INT_RXERROR_MASK     0xe0000000 /* Receive Error status ints */
-#define XLLF_INT_TXERROR_MASK     0x12000000 /* Transmit Error status ints */
+
+#define XLLF_INT_CLEAR_ALL	GENMASK(31, 0)
 
 /* ----------------------------
  *           globals
@@ -125,7 +117,6 @@ MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; 
 
 struct axis_fifo {
 	int id;
-	int irq; /* interrupt */
 	void __iomem *base_addr; /* kernel space memory */
 
 	unsigned int rx_fifo_depth; /* max words in the receive fifo */
@@ -137,8 +128,6 @@ struct axis_fifo {
 	struct mutex read_lock; /* lock for reading */
 	wait_queue_head_t write_queue; /* wait queue for asynchronos write */
 	struct mutex write_lock; /* lock for writing */
-	unsigned int write_flags; /* write file flags */
-	unsigned int read_flags; /* read file flags */
 
 	struct device *dt_device; /* device created from the device tree */
 	struct miscdevice miscdev;
@@ -165,7 +154,7 @@ static void reset_ip_core(struct axis_fifo *fifo)
 		  XLLF_INT_RPORE_MASK | XLLF_INT_RPUE_MASK |
 		  XLLF_INT_TPOE_MASK | XLLF_INT_TSE_MASK,
 		  fifo->base_addr + XLLF_IER_OFFSET);
-	iowrite32(XLLF_INT_ALL_MASK, fifo->base_addr + XLLF_ISR_OFFSET);
+	iowrite32(XLLF_INT_CLEAR_ALL, fifo->base_addr + XLLF_ISR_OFFSET);
 }
 
 /**
@@ -195,7 +184,7 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	int ret;
 	u32 tmp_buf[READ_BUF_SIZE];
 
-	if (fifo->read_flags & O_NONBLOCK) {
+	if (f->f_flags & O_NONBLOCK) {
 		/*
 		 * Device opened in non-blocking mode. Try to lock it and then
 		 * check if any packet is available.
@@ -337,7 +326,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	if (words_to_write > (fifo->tx_fifo_depth - 4))
 		return -EINVAL;
 
-	if (fifo->write_flags & O_NONBLOCK) {
+	if (f->f_flags & O_NONBLOCK) {
 		/*
 		 * Device opened in non-blocking mode. Try to lock it and then
 		 * check if there is any room to write the given buffer.
@@ -396,106 +385,36 @@ end_unlock:
 
 static irqreturn_t axis_fifo_irq(int irq, void *dw)
 {
-	struct axis_fifo *fifo = (struct axis_fifo *)dw;
-	unsigned int pending_interrupts;
+	struct axis_fifo *fifo = dw;
+	u32 isr, ier, intr;
 
-	do {
-		pending_interrupts = ioread32(fifo->base_addr +
-					      XLLF_IER_OFFSET) &
-					      ioread32(fifo->base_addr
-					      + XLLF_ISR_OFFSET);
-		if (pending_interrupts & XLLF_INT_RC_MASK) {
-			/* packet received */
+	ier = ioread32(fifo->base_addr + XLLF_IER_OFFSET);
+	isr = ioread32(fifo->base_addr + XLLF_ISR_OFFSET);
+	intr = ier & isr;
 
-			/* wake the reader process if it is waiting */
-			wake_up(&fifo->read_queue);
+	if (intr & XLLF_INT_RC_MASK)
+		wake_up(&fifo->read_queue);
 
-			/* clear interrupt */
-			iowrite32(XLLF_INT_RC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TC_MASK) {
-			/* packet sent */
+	if (intr & XLLF_INT_TC_MASK)
+		wake_up(&fifo->write_queue);
 
-			/* wake the writer process if it is waiting */
-			wake_up(&fifo->write_queue);
+	if (intr & XLLF_INT_RPURE_MASK)
+		dev_err(fifo->dt_device, "receive under-read interrupt\n");
 
-			iowrite32(XLLF_INT_TC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TFPF_MASK) {
-			/* transmit fifo programmable full */
+	if (intr & XLLF_INT_RPORE_MASK)
+		dev_err(fifo->dt_device, "receive over-read interrupt\n");
 
-			iowrite32(XLLF_INT_TFPF_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TFPE_MASK) {
-			/* transmit fifo programmable empty */
+	if (intr & XLLF_INT_RPUE_MASK)
+		dev_err(fifo->dt_device, "receive underrun error interrupt\n");
 
-			iowrite32(XLLF_INT_TFPE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RFPF_MASK) {
-			/* receive fifo programmable full */
+	if (intr & XLLF_INT_TPOE_MASK)
+		dev_err(fifo->dt_device, "transmit overrun error interrupt\n");
 
-			iowrite32(XLLF_INT_RFPF_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RFPE_MASK) {
-			/* receive fifo programmable empty */
+	if (intr & XLLF_INT_TSE_MASK)
+		dev_err(fifo->dt_device,
+			"transmit length mismatch error interrupt\n");
 
-			iowrite32(XLLF_INT_RFPE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TRC_MASK) {
-			/* transmit reset complete interrupt */
-
-			iowrite32(XLLF_INT_TRC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RRC_MASK) {
-			/* receive reset complete interrupt */
-
-			iowrite32(XLLF_INT_RRC_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPURE_MASK) {
-			/* receive fifo under-read error interrupt */
-			dev_err(fifo->dt_device,
-				"receive under-read interrupt\n");
-
-			iowrite32(XLLF_INT_RPURE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPORE_MASK) {
-			/* receive over-read error interrupt */
-			dev_err(fifo->dt_device,
-				"receive over-read interrupt\n");
-
-			iowrite32(XLLF_INT_RPORE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_RPUE_MASK) {
-			/* receive underrun error interrupt */
-			dev_err(fifo->dt_device,
-				"receive underrun error interrupt\n");
-
-			iowrite32(XLLF_INT_RPUE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TPOE_MASK) {
-			/* transmit overrun error interrupt */
-			dev_err(fifo->dt_device,
-				"transmit overrun error interrupt\n");
-
-			iowrite32(XLLF_INT_TPOE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts & XLLF_INT_TSE_MASK) {
-			/* transmit length mismatch error interrupt */
-			dev_err(fifo->dt_device,
-				"transmit length mismatch error interrupt\n");
-
-			iowrite32(XLLF_INT_TSE_MASK & XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		} else if (pending_interrupts) {
-			/* unknown interrupt type */
-			dev_err(fifo->dt_device,
-				"unknown interrupt(s) 0x%x\n",
-				pending_interrupts);
-
-			iowrite32(XLLF_INT_ALL_MASK,
-				  fifo->base_addr + XLLF_ISR_OFFSET);
-		}
-	} while (pending_interrupts);
+	iowrite32(XLLF_INT_CLEAR_ALL, fifo->base_addr + XLLF_ISR_OFFSET);
 
 	return IRQ_HANDLED;
 }
@@ -504,27 +423,15 @@ static int axis_fifo_open(struct inode *inod, struct file *f)
 {
 	struct axis_fifo *fifo = container_of(f->private_data,
 					      struct axis_fifo, miscdev);
+	unsigned int flags = f->f_flags & O_ACCMODE;
+
 	f->private_data = fifo;
 
-	if (((f->f_flags & O_ACCMODE) == O_WRONLY) ||
-	    ((f->f_flags & O_ACCMODE) == O_RDWR)) {
-		if (fifo->has_tx_fifo) {
-			fifo->write_flags = f->f_flags;
-		} else {
-			dev_err(fifo->dt_device, "tried to open device for write but the transmit fifo is disabled\n");
-			return -EPERM;
-		}
-	}
+	if ((flags == O_WRONLY || flags == O_RDWR) && !fifo->has_tx_fifo)
+		return -EPERM;
 
-	if (((f->f_flags & O_ACCMODE) == O_RDONLY) ||
-	    ((f->f_flags & O_ACCMODE) == O_RDWR)) {
-		if (fifo->has_rx_fifo) {
-			fifo->read_flags = f->f_flags;
-		} else {
-			dev_err(fifo->dt_device, "tried to open device for read but the receive fifo is disabled\n");
-			return -EPERM;
-		}
-	}
+	if ((flags == O_RDONLY || flags == O_RDWR) && !fifo->has_rx_fifo)
+		return -EPERM;
 
 	return 0;
 }
@@ -575,30 +482,14 @@ static void axis_fifo_debugfs_init(struct axis_fifo *fifo)
 			    &axis_fifo_debugfs_regs_fops);
 }
 
-/* read named property from the device tree */
-static int get_dts_property(struct axis_fifo *fifo,
-			    char *name, unsigned int *var)
-{
-	int rc;
-
-	rc = of_property_read_u32(fifo->dt_device->of_node, name, var);
-	if (rc) {
-		dev_err(fifo->dt_device, "couldn't read IP dts property '%s'",
-			name);
-		return rc;
-	}
-	dev_dbg(fifo->dt_device, "dts property '%s' = %u\n",
-		name, *var);
-
-	return 0;
-}
-
 static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 {
 	int ret;
 	unsigned int value;
+	struct device_node *node = fifo->dt_device->of_node;
 
-	ret = get_dts_property(fifo, "xlnx,axi-str-rxd-tdata-width", &value);
+	ret = of_property_read_u32(node, "xlnx,axi-str-rxd-tdata-width",
+				   &value);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,axi-str-rxd-tdata-width property\n");
 		goto end;
@@ -608,7 +499,8 @@ static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,axi-str-txd-tdata-width", &value);
+	ret = of_property_read_u32(node, "xlnx,axi-str-txd-tdata-width",
+				   &value);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,axi-str-txd-tdata-width property\n");
 		goto end;
@@ -618,30 +510,32 @@ static int axis_fifo_parse_dt(struct axis_fifo *fifo)
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,rx-fifo-depth",
-			       &fifo->rx_fifo_depth);
+	ret = of_property_read_u32(node, "xlnx,rx-fifo-depth",
+				   &fifo->rx_fifo_depth);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,rx-fifo-depth property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,tx-fifo-depth",
-			       &fifo->tx_fifo_depth);
+	ret = of_property_read_u32(node, "xlnx,tx-fifo-depth",
+				   &fifo->tx_fifo_depth);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,tx-fifo-depth property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,use-rx-data", &fifo->has_rx_fifo);
+	ret = of_property_read_u32(node, "xlnx,use-rx-data",
+				   &fifo->has_rx_fifo);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,use-rx-data property\n");
 		ret = -EIO;
 		goto end;
 	}
 
-	ret = get_dts_property(fifo, "xlnx,use-tx-data", &fifo->has_tx_fifo);
+	ret = of_property_read_u32(node, "xlnx,use-tx-data",
+				   &fifo->has_tx_fifo);
 	if (ret) {
 		dev_err(fifo->dt_device, "missing xlnx,use-tx-data property\n");
 		ret = -EIO;
@@ -659,6 +553,7 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	struct axis_fifo *fifo = NULL;
 	char *device_name;
 	int rc = 0; /* error return value */
+	int irq;
 
 	/* ----------------------------
 	 *     init wrapper device
@@ -693,8 +588,6 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	if (IS_ERR(fifo->base_addr))
 		return PTR_ERR(fifo->base_addr);
 
-	dev_dbg(fifo->dt_device, "remapped memory to 0x%p\n", fifo->base_addr);
-
 	/* ----------------------------
 	 *          init IP
 	 * ----------------------------
@@ -712,17 +605,16 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	 */
 
 	/* get IRQ resource */
-	rc = platform_get_irq(pdev, 0);
-	if (rc < 0)
-		return rc;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	/* request IRQ */
-	fifo->irq = rc;
-	rc = devm_request_irq(fifo->dt_device, fifo->irq, &axis_fifo_irq, 0,
+	rc = devm_request_irq(fifo->dt_device, irq, &axis_fifo_irq, 0,
 			      DRIVER_NAME, fifo);
 	if (rc) {
 		dev_err(fifo->dt_device, "couldn't allocate interrupt %i\n",
-			fifo->irq);
+			irq);
 		return rc;
 	}
 
@@ -764,6 +656,8 @@ static void axis_fifo_remove(struct platform_device *pdev)
 
 static const struct of_device_id axis_fifo_of_match[] = {
 	{ .compatible = "xlnx,axi-fifo-mm-s-4.1", },
+	{ .compatible = "xlnx,axi-fifo-mm-s-4.2", },
+	{ .compatible = "xlnx,axi-fifo-mm-s-4.3", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, axis_fifo_of_match);
@@ -806,4 +700,4 @@ module_exit(axis_fifo_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jacob Feder <jacobsfeder@gmail.com>");
-MODULE_DESCRIPTION("Xilinx AXI-Stream FIFO v4.1 IP core driver");
+MODULE_DESCRIPTION("Xilinx AXI-Stream FIFO IP core driver");

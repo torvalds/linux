@@ -92,7 +92,7 @@ static int ntp8835_mute_info(struct snd_kcontrol *kcontrol,
 static int ntp8835_mute_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 
 	val = snd_soc_component_read(component, NTP8835_SOFT_MUTE);
@@ -104,7 +104,7 @@ static int ntp8835_mute_get(struct snd_kcontrol *kcontrol,
 static int ntp8835_mute_put(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 
 	val = ucontrol->value.integer.value[0] ? 0 : 7;

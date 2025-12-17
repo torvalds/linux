@@ -17,7 +17,7 @@
 #include <sched.h>
 #include <linux/limits.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define FUSECTL_MOUNTPOINT "/sys/fs/fuse/connections"
 #define FUSE_MOUNTPOINT "/tmp/fuse_mnt_XXXXXX"

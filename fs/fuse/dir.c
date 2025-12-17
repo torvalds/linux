@@ -27,6 +27,67 @@ module_param(allow_sys_admin_access, bool, 0644);
 MODULE_PARM_DESC(allow_sys_admin_access,
 		 "Allow users with CAP_SYS_ADMIN in initial userns to bypass allow_other access check");
 
+struct dentry_bucket {
+	struct rb_root tree;
+	spinlock_t lock;
+};
+
+#define HASH_BITS	5
+#define HASH_SIZE	(1 << HASH_BITS)
+static struct dentry_bucket dentry_hash[HASH_SIZE];
+struct delayed_work dentry_tree_work;
+
+/* Minimum invalidation work queue frequency */
+#define FUSE_DENTRY_INVAL_FREQ_MIN 5
+
+unsigned __read_mostly inval_wq;
+static int inval_wq_set(const char *val, const struct kernel_param *kp)
+{
+	unsigned int num;
+	unsigned int old = inval_wq;
+	int ret;
+
+	if (!val)
+		return -EINVAL;
+
+	ret = kstrtouint(val, 0, &num);
+	if (ret)
+		return ret;
+
+	if ((num < FUSE_DENTRY_INVAL_FREQ_MIN) && (num != 0))
+		return -EINVAL;
+
+	/* This should prevent overflow in secs_to_jiffies() */
+	if (num > USHRT_MAX)
+		return -EINVAL;
+
+	*((unsigned int *)kp->arg) = num;
+
+	if (num && !old)
+		schedule_delayed_work(&dentry_tree_work,
+				      secs_to_jiffies(num));
+	else if (!num && old)
+		cancel_delayed_work_sync(&dentry_tree_work);
+
+	return 0;
+}
+static const struct kernel_param_ops inval_wq_ops = {
+	.set = inval_wq_set,
+	.get = param_get_uint,
+};
+module_param_cb(inval_wq, &inval_wq_ops, &inval_wq, 0644);
+__MODULE_PARM_TYPE(inval_wq, "uint");
+MODULE_PARM_DESC(inval_wq,
+		 "Dentries invalidation work queue period in secs (>= "
+		 __stringify(FUSE_DENTRY_INVAL_FREQ_MIN) ").");
+
+static inline struct dentry_bucket *get_dentry_bucket(struct dentry *dentry)
+{
+	int i = hash_ptr(dentry, HASH_BITS);
+
+	return &dentry_hash[i];
+}
+
 static void fuse_advise_use_readdirplus(struct inode *dir)
 {
 	struct fuse_inode *fi = get_fuse_inode(dir);
@@ -34,33 +95,151 @@ static void fuse_advise_use_readdirplus(struct inode *dir)
 	set_bit(FUSE_I_ADVISE_RDPLUS, &fi->state);
 }
 
-#if BITS_PER_LONG >= 64
-static inline void __fuse_dentry_settime(struct dentry *entry, u64 time)
-{
-	entry->d_fsdata = (void *) time;
-}
-
-static inline u64 fuse_dentry_time(const struct dentry *entry)
-{
-	return (u64)entry->d_fsdata;
-}
-
-#else
-union fuse_dentry {
+struct fuse_dentry {
 	u64 time;
-	struct rcu_head rcu;
+	union {
+		struct rcu_head rcu;
+		struct rb_node node;
+	};
+	struct dentry *dentry;
 };
+
+static void __fuse_dentry_tree_del_node(struct fuse_dentry *fd,
+					struct dentry_bucket *bucket)
+{
+	if (!RB_EMPTY_NODE(&fd->node)) {
+		rb_erase(&fd->node, &bucket->tree);
+		RB_CLEAR_NODE(&fd->node);
+	}
+}
+
+static void fuse_dentry_tree_del_node(struct dentry *dentry)
+{
+	struct fuse_dentry *fd = dentry->d_fsdata;
+	struct dentry_bucket *bucket = get_dentry_bucket(dentry);
+
+	spin_lock(&bucket->lock);
+	__fuse_dentry_tree_del_node(fd, bucket);
+	spin_unlock(&bucket->lock);
+}
+
+static void fuse_dentry_tree_add_node(struct dentry *dentry)
+{
+	struct fuse_dentry *fd = dentry->d_fsdata;
+	struct dentry_bucket *bucket;
+	struct fuse_dentry *cur;
+	struct rb_node **p, *parent = NULL;
+
+	if (!inval_wq)
+		return;
+
+	bucket = get_dentry_bucket(dentry);
+
+	spin_lock(&bucket->lock);
+
+	__fuse_dentry_tree_del_node(fd, bucket);
+
+	p = &bucket->tree.rb_node;
+	while (*p) {
+		parent = *p;
+		cur = rb_entry(*p, struct fuse_dentry, node);
+		if (fd->time < cur->time)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&fd->node, parent, p);
+	rb_insert_color(&fd->node, &bucket->tree);
+	spin_unlock(&bucket->lock);
+}
+
+/*
+ * work queue which, when enabled, will periodically check for expired dentries
+ * in the dentries tree.
+ */
+static void fuse_dentry_tree_work(struct work_struct *work)
+{
+	LIST_HEAD(dispose);
+	struct fuse_dentry *fd;
+	struct rb_node *node;
+	int i;
+
+	for (i = 0; i < HASH_SIZE; i++) {
+		spin_lock(&dentry_hash[i].lock);
+		node = rb_first(&dentry_hash[i].tree);
+		while (node) {
+			fd = rb_entry(node, struct fuse_dentry, node);
+			if (time_after64(get_jiffies_64(), fd->time)) {
+				rb_erase(&fd->node, &dentry_hash[i].tree);
+				RB_CLEAR_NODE(&fd->node);
+				spin_unlock(&dentry_hash[i].lock);
+				d_dispose_if_unused(fd->dentry, &dispose);
+				cond_resched();
+				spin_lock(&dentry_hash[i].lock);
+			} else
+				break;
+			node = rb_first(&dentry_hash[i].tree);
+		}
+		spin_unlock(&dentry_hash[i].lock);
+		shrink_dentry_list(&dispose);
+	}
+
+	if (inval_wq)
+		schedule_delayed_work(&dentry_tree_work,
+				      secs_to_jiffies(inval_wq));
+}
+
+void fuse_epoch_work(struct work_struct *work)
+{
+	struct fuse_conn *fc = container_of(work, struct fuse_conn,
+					    epoch_work);
+	struct fuse_mount *fm;
+	struct inode *inode;
+
+	down_read(&fc->killsb);
+
+	inode = fuse_ilookup(fc, FUSE_ROOT_ID, &fm);
+	if (inode) {
+		iput(inode);
+		/* Remove all possible active references to cached inodes */
+		shrink_dcache_sb(fm->sb);
+	} else
+		pr_warn("Failed to get root inode");
+
+	up_read(&fc->killsb);
+}
+
+void fuse_dentry_tree_init(void)
+{
+	int i;
+
+	for (i = 0; i < HASH_SIZE; i++) {
+		spin_lock_init(&dentry_hash[i].lock);
+		dentry_hash[i].tree = RB_ROOT;
+	}
+	INIT_DELAYED_WORK(&dentry_tree_work, fuse_dentry_tree_work);
+}
+
+void fuse_dentry_tree_cleanup(void)
+{
+	int i;
+
+	inval_wq = 0;
+	cancel_delayed_work_sync(&dentry_tree_work);
+
+	for (i = 0; i < HASH_SIZE; i++)
+		WARN_ON_ONCE(!RB_EMPTY_ROOT(&dentry_hash[i].tree));
+}
 
 static inline void __fuse_dentry_settime(struct dentry *dentry, u64 time)
 {
-	((union fuse_dentry *) dentry->d_fsdata)->time = time;
+	((struct fuse_dentry *) dentry->d_fsdata)->time = time;
 }
 
 static inline u64 fuse_dentry_time(const struct dentry *entry)
 {
-	return ((union fuse_dentry *) entry->d_fsdata)->time;
+	return ((struct fuse_dentry *) entry->d_fsdata)->time;
 }
-#endif
 
 static void fuse_dentry_settime(struct dentry *dentry, u64 time)
 {
@@ -81,6 +260,7 @@ static void fuse_dentry_settime(struct dentry *dentry, u64 time)
 	}
 
 	__fuse_dentry_settime(dentry, time);
+	fuse_dentry_tree_add_node(dentry);
 }
 
 /*
@@ -283,21 +463,36 @@ invalid:
 	goto out;
 }
 
-#if BITS_PER_LONG < 64
 static int fuse_dentry_init(struct dentry *dentry)
 {
-	dentry->d_fsdata = kzalloc(sizeof(union fuse_dentry),
-				   GFP_KERNEL_ACCOUNT | __GFP_RECLAIMABLE);
+	struct fuse_dentry *fd;
 
-	return dentry->d_fsdata ? 0 : -ENOMEM;
+	fd = kzalloc(sizeof(struct fuse_dentry),
+			  GFP_KERNEL_ACCOUNT | __GFP_RECLAIMABLE);
+	if (!fd)
+		return -ENOMEM;
+
+	fd->dentry = dentry;
+	RB_CLEAR_NODE(&fd->node);
+	dentry->d_fsdata = fd;
+
+	return 0;
 }
+
+static void fuse_dentry_prune(struct dentry *dentry)
+{
+	struct fuse_dentry *fd = dentry->d_fsdata;
+
+	if (!RB_EMPTY_NODE(&fd->node))
+		fuse_dentry_tree_del_node(dentry);
+}
+
 static void fuse_dentry_release(struct dentry *dentry)
 {
-	union fuse_dentry *fd = dentry->d_fsdata;
+	struct fuse_dentry *fd = dentry->d_fsdata;
 
 	kfree_rcu(fd, rcu);
 }
-#endif
 
 static int fuse_dentry_delete(const struct dentry *dentry)
 {
@@ -331,10 +526,9 @@ static struct vfsmount *fuse_dentry_automount(struct path *path)
 const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
-#if BITS_PER_LONG < 64
 	.d_init		= fuse_dentry_init,
+	.d_prune	= fuse_dentry_prune,
 	.d_release	= fuse_dentry_release,
-#endif
 	.d_automount	= fuse_dentry_automount,
 };
 
@@ -471,7 +665,7 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 	u32 total_len = sizeof(*header);
 	int err, nr_ctx = 0;
 	const char *name = NULL;
-	size_t namelen;
+	size_t namesize;
 
 	err = security_dentry_init_security(entry, mode, &entry->d_name,
 					    &name, &lsmctx);
@@ -482,12 +676,12 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 
 	if (lsmctx.len) {
 		nr_ctx = 1;
-		namelen = strlen(name) + 1;
+		namesize = strlen(name) + 1;
 		err = -EIO;
-		if (WARN_ON(namelen > XATTR_NAME_MAX + 1 ||
+		if (WARN_ON(namesize > XATTR_NAME_MAX + 1 ||
 		    lsmctx.len > S32_MAX))
 			goto out_err;
-		total_len += FUSE_REC_ALIGN(sizeof(*fctx) + namelen +
+		total_len += FUSE_REC_ALIGN(sizeof(*fctx) + namesize +
 					    lsmctx.len);
 	}
 
@@ -504,8 +698,8 @@ static int get_security_context(struct dentry *entry, umode_t mode,
 		fctx->size = lsmctx.len;
 		ptr += sizeof(*fctx);
 
-		strcpy(ptr, name);
-		ptr += namelen;
+		strscpy(ptr, name, namesize);
+		ptr += namesize;
 
 		memcpy(ptr, lsmctx.context, lsmctx.len);
 	}

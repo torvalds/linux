@@ -940,7 +940,7 @@ static struct saa7146_ext_vv av7110_vv_data_st = {
 	.num_stds	= ARRAY_SIZE(standard),
 	.std_callback	= &std_callback,
 
-	.vbi_fops.write	= av7110_vbi_write,
+	.vbi_write	= av7110_vbi_write,
 };
 
 static struct saa7146_ext_vv av7110_vv_data_c = {
@@ -953,6 +953,6 @@ static struct saa7146_ext_vv av7110_vv_data_c = {
 	.num_stds	= ARRAY_SIZE(standard),
 	.std_callback	= &std_callback,
 
-	.vbi_fops.write	= av7110_vbi_write,
+	.vbi_write	= av7110_vbi_write,
 };
 

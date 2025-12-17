@@ -13,11 +13,15 @@
 #include <asm/unwind_hints.h>
 
 SYM_FUNC_START(__clear_user)
+#ifdef CONFIG_32BIT
+	b		__clear_user_generic
+#else
 	/*
 	 * Some CPUs support hardware unaligned access
 	 */
 	ALTERNATIVE	"b __clear_user_generic",	\
 			"b __clear_user_fast", CPU_FEATURE_UAL
+#endif
 SYM_FUNC_END(__clear_user)
 
 EXPORT_SYMBOL(__clear_user)
@@ -29,19 +33,20 @@ EXPORT_SYMBOL(__clear_user)
  * a1: size
  */
 SYM_FUNC_START(__clear_user_generic)
-	beqz	a1, 2f
+	beqz		a1, 2f
 
-1:	st.b	zero, a0, 0
-	addi.d	a0, a0, 1
-	addi.d	a1, a1, -1
-	bgtz	a1, 1b
+1:	st.b		zero, a0, 0
+	PTR_ADDI	a0, a0, 1
+	PTR_ADDI	a1, a1, -1
+	bgtz		a1, 1b
 
-2:	move	a0, a1
-	jr	ra
+2:	move		a0, a1
+	jr		ra
 
-	_asm_extable 1b, 2b
+	_asm_extable 	1b, 2b
 SYM_FUNC_END(__clear_user_generic)
 
+#ifdef CONFIG_64BIT
 /*
  * unsigned long __clear_user_fast(void *addr, unsigned long size)
  *
@@ -207,3 +212,4 @@ SYM_FUNC_START(__clear_user_fast)
 SYM_FUNC_END(__clear_user_fast)
 
 STACK_FRAME_NON_STANDARD __clear_user_fast
+#endif

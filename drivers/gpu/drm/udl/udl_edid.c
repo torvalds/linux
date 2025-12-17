@@ -4,6 +4,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include "udl_drv.h"
 #include "udl_edid.h"

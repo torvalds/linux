@@ -54,12 +54,10 @@ xfs_zoned_default_resblks(
 {
 	switch (ctr) {
 	case XC_FREE_RTEXTENTS:
-		return (uint64_t)XFS_RESERVED_ZONES *
-			mp->m_groups[XG_TYPE_RTG].blocks +
-			mp->m_sb.sb_rtreserved;
+		return xfs_rtgs_to_rfsbs(mp, XFS_RESERVED_ZONES) +
+				mp->m_sb.sb_rtreserved;
 	case XC_FREE_RTAVAILABLE:
-		return (uint64_t)XFS_GC_ZONES *
-			mp->m_groups[XG_TYPE_RTG].blocks;
+		return xfs_rtgs_to_rfsbs(mp, XFS_GC_ZONES);
 	default:
 		ASSERT(0);
 		return 0;
@@ -174,7 +172,7 @@ xfs_zoned_reserve_available(
 		 * processing a pending GC request give up as we're fully out
 		 * of space.
 		 */
-		if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE) &&
+		if (!xfs_zoned_have_reclaimable(mp->m_zone_info) &&
 		    !xfs_is_zonegc_running(mp))
 			break;
 

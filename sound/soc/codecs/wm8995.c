@@ -547,7 +547,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 static int wm8995_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
@@ -718,7 +718,7 @@ static int configure_aif_clock(struct snd_soc_component *component, int aif)
 
 static int configure_clock(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8995_priv *wm8995;
 	int change, new;
 
@@ -1955,6 +1955,7 @@ static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 static int wm8995_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8995_priv *wm8995;
 	int ret;
 
@@ -1964,7 +1965,7 @@ static int wm8995_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8995->supplies),
 						    wm8995->supplies);
 			if (ret)

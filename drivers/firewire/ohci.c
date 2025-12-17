@@ -1319,6 +1319,14 @@ static void at_context_flush(struct at_context *ctx)
 	enable_work(&ctx->work);
 }
 
+static int find_fw_device(struct device *dev, const void *data)
+{
+	struct fw_device *device = fw_device(dev);
+	const u32 *params = data;
+
+	return (device->generation == params[0]) && (device->node_id == params[1]);
+}
+
 static int handle_at_packet(struct context *context,
 			    struct descriptor *d,
 			    struct descriptor *last)
@@ -1390,6 +1398,27 @@ static int handle_at_packet(struct context *context,
 		fallthrough;
 
 	default:
+		if (unlikely(evt == 0x10)) {
+			u32 params[2] = {
+				packet->generation,
+				async_header_get_destination(packet->header),
+			};
+			struct device *dev;
+
+			fw_card_get(&ohci->card);
+			dev = device_find_child(ohci->card.device, (const void *)params, find_fw_device);
+			fw_card_put(&ohci->card);
+			if (dev) {
+				struct fw_device *device = fw_device(dev);
+				int quirks = READ_ONCE(device->quirks);
+
+				put_device(dev);
+				if (quirks & FW_DEVICE_QUIRK_ACK_PACKET_WITH_INVALID_PENDING_CODE) {
+					packet->ack = ACK_PENDING;
+					break;
+				}
+			}
+		}
 		packet->ack = RCODE_SEND_ERROR;
 		break;
 	}
@@ -2377,6 +2406,41 @@ static int ohci_enable(struct fw_card *card,
 	fw_schedule_bus_reset(&ohci->card, false, true);
 
 	return 0;
+}
+
+static void ohci_disable(struct fw_card *card)
+{
+	struct pci_dev *pdev = to_pci_dev(card->device);
+	struct fw_ohci *ohci = pci_get_drvdata(pdev);
+	int i, irq = pci_irq_vector(pdev, 0);
+
+	// If the removal is happening from the suspend state, LPS won't be enabled and host
+	// registers (eg., IntMaskClear) won't be accessible.
+	if (!(reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS))
+		return;
+
+	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
+	flush_writes(ohci);
+
+	if (irq >= 0)
+		synchronize_irq(irq);
+
+	flush_work(&ohci->ar_request_ctx.work);
+	flush_work(&ohci->ar_response_ctx.work);
+	flush_work(&ohci->at_request_ctx.work);
+	flush_work(&ohci->at_response_ctx.work);
+
+	for (i = 0; i < ohci->n_ir; ++i) {
+		if (!(ohci->ir_context_mask & BIT(i)))
+			flush_work(&ohci->ir_context_list[i].base.work);
+	}
+	for (i = 0; i < ohci->n_it; ++i) {
+		if (!(ohci->it_context_mask & BIT(i)))
+			flush_work(&ohci->it_context_list[i].base.work);
+	}
+
+	at_context_flush(&ohci->at_request_ctx);
+	at_context_flush(&ohci->at_response_ctx);
 }
 
 static int ohci_set_config_rom(struct fw_card *card,
@@ -3413,6 +3477,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
+	.disable		= ohci_disable,
 	.read_phy_reg		= ohci_read_phy_reg,
 	.update_phy_reg		= ohci_update_phy_reg,
 	.set_config_rom		= ohci_set_config_rom,
@@ -3652,20 +3717,7 @@ static void pci_remove(struct pci_dev *dev)
 	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int irq;
 
-	/*
-	 * If the removal is happening from the suspend state, LPS won't be
-	 * enabled and host registers (eg., IntMaskClear) won't be accessible.
-	 */
-	if (reg_read(ohci, OHCI1394_HCControlSet) & OHCI1394_HCControl_LPS) {
-		reg_write(ohci, OHCI1394_IntMaskClear, ~0);
-		flush_writes(ohci);
-	}
 	fw_core_remove_card(&ohci->card);
-
-	/*
-	 * FIXME: Fail all pending packets here, now that the upper
-	 * layers can't queue any more.
-	 */
 
 	software_reset(ohci);
 

@@ -132,7 +132,7 @@ static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 	return 0;
 }
 
-static int tegra_ictlr_suspend(void)
+static int tegra_ictlr_suspend(void *data)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -161,7 +161,7 @@ static int tegra_ictlr_suspend(void)
 	return 0;
 }
 
-static void tegra_ictlr_resume(void)
+static void tegra_ictlr_resume(void *data)
 {
 	unsigned long flags;
 	unsigned int i;
@@ -184,14 +184,18 @@ static void tegra_ictlr_resume(void)
 	local_irq_restore(flags);
 }
 
-static struct syscore_ops tegra_ictlr_syscore_ops = {
+static const struct syscore_ops tegra_ictlr_syscore_ops = {
 	.suspend	= tegra_ictlr_suspend,
 	.resume		= tegra_ictlr_resume,
 };
 
+static struct syscore tegra_ictlr_syscore = {
+	.ops = &tegra_ictlr_syscore_ops,
+};
+
 static void tegra_ictlr_syscore_init(void)
 {
-	register_syscore_ops(&tegra_ictlr_syscore_ops);
+	register_syscore(&tegra_ictlr_syscore);
 }
 #else
 #define tegra_set_wake	NULL

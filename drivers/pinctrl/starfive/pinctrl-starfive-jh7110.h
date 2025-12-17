@@ -38,7 +38,6 @@ struct jh7110_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	unsigned int ngpios;
-	unsigned int gc_base;
 
 	/* gpio dout/doen/din/gpioinput register */
 	unsigned int dout_reg_base;

@@ -26,6 +26,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/moduleparam.h>
 
+#include <drm/drm_print.h>
+
 #include "virtgpu_drv.h"
 
 static int virtio_gpu_virglrenderer_workaround = 1;

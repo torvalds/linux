@@ -325,6 +325,10 @@ OPTIONS
 	by default.  User can change the number by passing it after comma
 	like "--call-graph fp,32".
 
+	Also "defer" can be used with "fp" (like "--call-graph fp,defer") to
+	enable deferred user callchain which will collect user-space callchains
+	when the thread returns to the user space.
+
 -q::
 --quiet::
 	Don't print any warnings or messages, useful for scripting.

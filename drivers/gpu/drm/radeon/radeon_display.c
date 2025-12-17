@@ -644,8 +644,6 @@ radeon_crtc_set_config(struct drm_mode_set *set,
 		if (crtc->enabled)
 			active = true;
 
-	pm_runtime_mark_last_busy(dev->dev);
-
 	rdev = dev->dev_private;
 	/* if we have active crtcs and we don't have a power ref,
 	   take the current one */

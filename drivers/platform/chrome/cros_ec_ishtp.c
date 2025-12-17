@@ -667,6 +667,7 @@ static void cros_ec_ishtp_remove(struct ishtp_cl_device *cl_device)
 
 	cancel_work_sync(&client_data->work_ishtp_reset);
 	cancel_work_sync(&client_data->work_ec_evt);
+	cros_ec_unregister(client_data->ec_dev);
 	cros_ish_deinit(cros_ish_cl);
 	ishtp_put_device(cl_device);
 }

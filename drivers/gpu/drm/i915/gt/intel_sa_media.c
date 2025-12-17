@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
 #include "gt/intel_gt.h"

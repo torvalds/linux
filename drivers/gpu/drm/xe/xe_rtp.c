@@ -133,10 +133,7 @@ static bool rule_matches(const struct xe_device *xe,
 			match = hwe->class != r->engine_class;
 			break;
 		case XE_RTP_MATCH_FUNC:
-			if (drm_WARN_ON(&xe->drm, !gt))
-				return false;
-
-			match = r->match_func(gt, hwe);
+			match = r->match_func(xe, gt, hwe);
 			break;
 		default:
 			drm_warn(&xe->drm, "Invalid RTP match %u\n",
@@ -343,13 +340,15 @@ void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_rtp_process);
 
-bool xe_rtp_match_even_instance(const struct xe_gt *gt,
+bool xe_rtp_match_even_instance(const struct xe_device *xe,
+				const struct xe_gt *gt,
 				const struct xe_hw_engine *hwe)
 {
 	return hwe->instance % 2 == 0;
 }
 
-bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
+bool xe_rtp_match_first_render_or_compute(const struct xe_device *xe,
+					  const struct xe_gt *gt,
 					  const struct xe_hw_engine *hwe)
 {
 	u64 render_compute_mask = gt->info.engine_mask &
@@ -359,20 +358,30 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
 		hwe->engine_id == __ffs(render_compute_mask);
 }
 
-bool xe_rtp_match_not_sriov_vf(const struct xe_gt *gt,
+bool xe_rtp_match_not_sriov_vf(const struct xe_device *xe,
+			       const struct xe_gt *gt,
 			       const struct xe_hw_engine *hwe)
 {
-	return !IS_SRIOV_VF(gt_to_xe(gt));
+	return !IS_SRIOV_VF(xe);
 }
 
-bool xe_rtp_match_psmi_enabled(const struct xe_gt *gt,
+bool xe_rtp_match_psmi_enabled(const struct xe_device *xe,
+			       const struct xe_gt *gt,
 			       const struct xe_hw_engine *hwe)
 {
-	return xe_configfs_get_psmi_enabled(to_pci_dev(gt_to_xe(gt)->drm.dev));
+	return xe_configfs_get_psmi_enabled(to_pci_dev(xe->drm.dev));
 }
 
-bool xe_rtp_match_gt_has_discontiguous_dss_groups(const struct xe_gt *gt,
+bool xe_rtp_match_gt_has_discontiguous_dss_groups(const struct xe_device *xe,
+						  const struct xe_gt *gt,
 						  const struct xe_hw_engine *hwe)
 {
 	return xe_gt_has_discontiguous_dss_groups(gt);
+}
+
+bool xe_rtp_match_has_flat_ccs(const struct xe_device *xe,
+			       const struct xe_gt *gt,
+			       const struct xe_hw_engine *hwe)
+{
+	return xe->info.has_flat_ccs;
 }

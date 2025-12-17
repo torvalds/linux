@@ -50,3 +50,6 @@ pub use super::init::InPlaceInit;
 pub use super::current;
 
 pub use super::uaccess::UserPtr;
+
+#[cfg(not(CONFIG_RUSTC_HAS_SLICE_AS_FLATTENED))]
+pub use super::slice::AsFlattened;

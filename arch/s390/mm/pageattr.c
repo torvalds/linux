@@ -204,7 +204,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 	return rc;
 }
 
-static int split_pud_page(pud_t *pudp, unsigned long addr)
+int split_pud_page(pud_t *pudp, unsigned long addr)
 {
 	unsigned long pmd_addr, prot;
 	pmd_t *pm_dir, *pmdp;

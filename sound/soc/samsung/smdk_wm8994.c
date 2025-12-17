@@ -69,23 +69,23 @@ static const struct snd_soc_ops smdk_ops = {
 
 static int smdk_wm8994_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(rtd->card);
 
 	/* Other pins NC */
-	snd_soc_dapm_nc_pin(dapm, "HPOUT2P");
-	snd_soc_dapm_nc_pin(dapm, "HPOUT2N");
-	snd_soc_dapm_nc_pin(dapm, "SPKOUTLN");
-	snd_soc_dapm_nc_pin(dapm, "SPKOUTLP");
-	snd_soc_dapm_nc_pin(dapm, "SPKOUTRP");
-	snd_soc_dapm_nc_pin(dapm, "SPKOUTRN");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT1N");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT1P");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT2N");
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT2P");
-	snd_soc_dapm_nc_pin(dapm, "IN1LP");
-	snd_soc_dapm_nc_pin(dapm, "IN2LP:VXRN");
-	snd_soc_dapm_nc_pin(dapm, "IN1RP");
-	snd_soc_dapm_nc_pin(dapm, "IN2RP:VXRP");
+	snd_soc_dapm_disable_pin(dapm, "HPOUT2P");
+	snd_soc_dapm_disable_pin(dapm, "HPOUT2N");
+	snd_soc_dapm_disable_pin(dapm, "SPKOUTLN");
+	snd_soc_dapm_disable_pin(dapm, "SPKOUTLP");
+	snd_soc_dapm_disable_pin(dapm, "SPKOUTRP");
+	snd_soc_dapm_disable_pin(dapm, "SPKOUTRN");
+	snd_soc_dapm_disable_pin(dapm, "LINEOUT1N");
+	snd_soc_dapm_disable_pin(dapm, "LINEOUT1P");
+	snd_soc_dapm_disable_pin(dapm, "LINEOUT2N");
+	snd_soc_dapm_disable_pin(dapm, "LINEOUT2P");
+	snd_soc_dapm_disable_pin(dapm, "IN1LP");
+	snd_soc_dapm_disable_pin(dapm, "IN2LP:VXRN");
+	snd_soc_dapm_disable_pin(dapm, "IN1RP");
+	snd_soc_dapm_disable_pin(dapm, "IN2RP:VXRP");
 
 	return 0;
 }

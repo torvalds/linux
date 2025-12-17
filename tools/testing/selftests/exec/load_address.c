@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 struct Statistics {
 	unsigned long long load_address;

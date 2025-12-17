@@ -110,5 +110,6 @@ to do something different in the near future.
    ../process/maintainer-netdev
    ../driver-api/vfio-pci-device-specific-driver-acceptance
    ../nvme/feature-and-quirk-policy
+   ../filesystems/nfs/nfsd-maintainer-entry-profile
    ../filesystems/xfs/xfs-maintainer-entry-profile
    ../mm/damon/maintainer-profile

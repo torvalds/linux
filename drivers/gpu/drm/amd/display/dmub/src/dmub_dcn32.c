@@ -89,49 +89,57 @@ static inline void dmub_dcn32_translate_addr(const union dmub_addr *addr_in,
 void dmub_dcn32_reset(struct dmub_srv *dmub)
 {
 	union dmub_gpint_data_register cmd;
-	const uint32_t timeout = 100000;
-	uint32_t in_reset, is_enabled, scratch, i, pwait_mode;
+	const uint32_t timeout_us = 1 * 1000 * 1000; //1s
+	const uint32_t poll_delay_us = 1; //1us
+	uint32_t i = 0;
+	uint32_t enabled, in_reset, scratch, pwait_mode;
 
-	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &in_reset);
-	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enabled);
+	REG_GET(DMCUB_CNTL,
+			DMCUB_ENABLE, &enabled);
+	REG_GET(DMCUB_CNTL2,
+			DMCUB_SOFT_RESET, &in_reset);
 
-	if (in_reset == 0 && is_enabled != 0) {
+	if (enabled && in_reset == 0) {
 		cmd.bits.status = 1;
 		cmd.bits.command_code = DMUB_GPINT__STOP_FW;
 		cmd.bits.param = 0;
 
 		dmub->hw_funcs.set_gpint(dmub, cmd);
 
-		for (i = 0; i < timeout; ++i) {
-			if (dmub->hw_funcs.is_gpint_acked(dmub, cmd))
-				break;
-
-			udelay(1);
-		}
-
-		for (i = 0; i < timeout; ++i) {
+		for (; i < timeout_us; i++) {
 			scratch = REG_READ(DMCUB_SCRATCH7);
 			if (scratch == DMUB_GPINT__STOP_FW_RESPONSE)
 				break;
 
-			udelay(1);
+			udelay(poll_delay_us);
 		}
 
-		for (i = 0; i < timeout; ++i) {
+		for (; i < timeout_us; i++) {
 			REG_GET(DMCUB_CNTL, DMCUB_PWAIT_MODE_STATUS, &pwait_mode);
 			if (pwait_mode & (1 << 0))
 				break;
 
-			udelay(1);
+			udelay(poll_delay_us);
 		}
-		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
 
-	if (is_enabled) {
+	if (enabled) {
 		REG_UPDATE(DMCUB_CNTL2, DMCUB_SOFT_RESET, 1);
 		udelay(1);
 		REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 	}
+
+	if (i >= timeout_us) {
+		/* timeout should never occur */
+		BREAK_TO_DEBUGGER();
+	}
+
+	REG_UPDATE(DMCUB_REGION3_CW2_TOP_ADDRESS, DMCUB_REGION3_CW2_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW3_TOP_ADDRESS, DMCUB_REGION3_CW3_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW4_TOP_ADDRESS, DMCUB_REGION3_CW4_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW5_TOP_ADDRESS, DMCUB_REGION3_CW5_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, 0);
+	REG_UPDATE(DMCUB_REGION3_CW7_TOP_ADDRESS, DMCUB_REGION3_CW7_ENABLE, 0);
 
 	REG_WRITE(DMCUB_INBOX1_RPTR, 0);
 	REG_WRITE(DMCUB_INBOX1_WPTR, 0);
@@ -141,7 +149,7 @@ void dmub_dcn32_reset(struct dmub_srv *dmub)
 	REG_WRITE(DMCUB_OUTBOX0_WPTR, 0);
 	REG_WRITE(DMCUB_SCRATCH0, 0);
 
-	/* Clear the GPINT command manually so we don't send anything during boot. */
+	/* Clear the GPINT command manually so we don't reset again. */
 	cmd.all = 0;
 	dmub->hw_funcs.set_gpint(dmub, cmd);
 }
@@ -163,7 +171,9 @@ void dmub_dcn32_backdoor_load(struct dmub_srv *dmub,
 
 	dmub_dcn32_get_fb_base_offset(dmub, &fb_base, &fb_offset);
 
+	/* reset and disable DMCUB and MMHUBBUB DMUIF */
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
+	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 
 	dmub_dcn32_translate_addr(&cw0->offset, fb_base, fb_offset, &offset);
 
@@ -193,7 +203,9 @@ void dmub_dcn32_backdoor_load_zfb_mode(struct dmub_srv *dmub,
 {
 	union dmub_addr offset;
 
+	/* reset and disable DMCUB and MMHUBBUB DMUIF */
 	REG_UPDATE(DMCUB_SEC_CNTL, DMCUB_SEC_RESET, 1);
+	REG_UPDATE(DMCUB_CNTL, DMCUB_ENABLE, 0);
 
 	offset = cw0->offset;
 

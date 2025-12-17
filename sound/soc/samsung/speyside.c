@@ -27,7 +27,7 @@ static int speyside_set_bias_level(struct snd_soc_card *card,
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
 	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
-	if (dapm->dev != codec_dai->dev)
+	if (snd_soc_dapm_to_dev(dapm) != codec_dai->dev)
 		return 0;
 
 	switch (level) {
@@ -63,12 +63,12 @@ static int speyside_set_bias_level_post(struct snd_soc_card *card,
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
 	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
-	if (dapm->dev != codec_dai->dev)
+	if (snd_soc_dapm_to_dev(dapm) != codec_dai->dev)
 		return 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (card->dapm.bias_level == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(codec_dai, 0,
 						  WM8996_FLL_MCLK2,
 						  32768, MCLK_AUDIO_RATE);
@@ -125,7 +125,7 @@ static void speyside_set_polarity(struct snd_soc_component *component,
 	gpiod_direction_output(speyside_hpsel_gpio, speyside_jack_polarity);
 
 	/* Re-run DAPM to make sure we're using the correct mic bias */
-	snd_soc_dapm_sync(snd_soc_component_get_dapm(component));
+	snd_soc_dapm_sync(snd_soc_component_to_dapm(component));
 }
 
 static int speyside_wm0010_init(struct snd_soc_pcm_runtime *rtd)
@@ -177,13 +177,15 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 
 static int speyside_late_probe(struct snd_soc_card *card)
 {
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headphone");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Headset Mic");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main AMIC");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main DMIC");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "Main Speaker");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Output");
-	snd_soc_dapm_ignore_suspend(&card->dapm, "WM1250 Input");
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
+
+	snd_soc_dapm_ignore_suspend(dapm, "Headphone");
+	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "Main AMIC");
+	snd_soc_dapm_ignore_suspend(dapm, "Main DMIC");
+	snd_soc_dapm_ignore_suspend(dapm, "Main Speaker");
+	snd_soc_dapm_ignore_suspend(dapm, "WM1250 Output");
+	snd_soc_dapm_ignore_suspend(dapm, "WM1250 Input");
 
 	return 0;
 }

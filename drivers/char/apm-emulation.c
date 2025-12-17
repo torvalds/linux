@@ -143,17 +143,9 @@ static DEFINE_MUTEX(state_lock);
 
 
 /*
- * Compatibility cruft until the IPAQ people move over to the new
- * interface.
- */
-static void __apm_get_power_status(struct apm_power_info *info)
-{
-}
-
-/*
  * This allows machines to provide their own "apm get power status" function.
  */
-void (*apm_get_power_status)(struct apm_power_info *) = __apm_get_power_status;
+void (*apm_get_power_status)(struct apm_power_info *);
 EXPORT_SYMBOL(apm_get_power_status);
 
 

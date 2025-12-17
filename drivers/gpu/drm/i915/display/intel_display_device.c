@@ -1507,6 +1507,7 @@ static const struct {
 	{ 20,  0, &xe2_lpd_display },
 	{ 30,  0, &xe2_lpd_display },
 	{ 30,  2, &wcl_display },
+	{ 35,  0, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
@@ -1647,7 +1648,8 @@ static void display_platforms_or(struct intel_display_platforms *dst,
 	bitmap_or(dst->bitmap, dst->bitmap, src->bitmap, display_platforms_num_bits());
 }
 
-struct intel_display *intel_display_device_probe(struct pci_dev *pdev)
+struct intel_display *intel_display_device_probe(struct pci_dev *pdev,
+						 const struct intel_display_parent_interface *parent)
 {
 	struct intel_display *display;
 	const struct intel_display_device_info *info;
@@ -1662,6 +1664,8 @@ struct intel_display *intel_display_device_probe(struct pci_dev *pdev)
 
 	/* Add drm device backpointer as early as possible. */
 	display->drm = pci_get_drvdata(pdev);
+
+	display->parent = parent;
 
 	intel_display_params_copy(&display->params);
 

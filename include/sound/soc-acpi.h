@@ -114,8 +114,8 @@ struct snd_soc_acpi_endpoint {
  * @name_prefix: string used for codec controls
  */
 struct snd_soc_acpi_adr_device {
-	const u64 adr;
-	const u8 num_endpoints;
+	u64 adr;
+	u8 num_endpoints;
 	const struct snd_soc_acpi_endpoint *endpoints;
 	const char *name_prefix;
 };
@@ -131,8 +131,8 @@ struct snd_soc_acpi_adr_device {
  */
 
 struct snd_soc_acpi_link_adr {
-	const u32 mask;
-	const u32 num_adr;
+	u32 mask;
+	u32 num_adr;
 	const struct snd_soc_acpi_adr_device *adr_d;
 };
 

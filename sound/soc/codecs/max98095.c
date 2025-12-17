@@ -350,7 +350,7 @@ static SOC_ENUM_SINGLE_DECL(max98095_dai3_dac_filter_enum,
 static int max98095_mic1pre_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -364,7 +364,7 @@ static int max98095_mic1pre_set(struct snd_kcontrol *kcontrol,
 static int max98095_mic1pre_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = max98095->mic1pre;
@@ -374,7 +374,7 @@ static int max98095_mic1pre_get(struct snd_kcontrol *kcontrol,
 static int max98095_mic2pre_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	unsigned int sel = ucontrol->value.integer.value[0];
 
@@ -388,7 +388,7 @@ static int max98095_mic2pre_set(struct snd_kcontrol *kcontrol,
 static int max98095_mic2pre_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = max98095->mic2pre;
@@ -1359,6 +1359,7 @@ static int max98095_set_bias_level(struct snd_soc_component *component,
 				   enum snd_soc_bias_level level)
 {
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	switch (level) {
@@ -1376,7 +1377,7 @@ static int max98095_set_bias_level(struct snd_soc_component *component,
 		if (IS_ERR(max98095->mclk))
 			break;
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(max98095->mclk);
 		} else {
 			ret = clk_prepare_enable(max98095->mclk);
@@ -1386,7 +1387,7 @@ static int max98095_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98095->regmap);
 
 			if (ret != 0) {
@@ -1485,7 +1486,7 @@ static int max98095_get_eq_channel(const char *name)
 static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	struct max98095_pdata *pdata = max98095->pdata;
 	int channel = max98095_get_eq_channel(kcontrol->id.name);
@@ -1549,7 +1550,7 @@ static int max98095_put_eq_enum(struct snd_kcontrol *kcontrol,
 static int max98095_get_eq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	int channel = max98095_get_eq_channel(kcontrol->id.name);
 	struct max98095_cdata *cdata;
@@ -1636,7 +1637,7 @@ static int max98095_get_bq_channel(struct snd_soc_component *component,
 static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	struct max98095_pdata *pdata = max98095->pdata;
 	int channel = max98095_get_bq_channel(component, kcontrol->id.name);
@@ -1697,7 +1698,7 @@ static int max98095_put_bq_enum(struct snd_kcontrol *kcontrol,
 static int max98095_get_bq_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	int channel = max98095_get_bq_channel(component, kcontrol->id.name);
 	struct max98095_cdata *cdata;
@@ -1917,11 +1918,12 @@ EXPORT_SYMBOL_GPL(max98095_jack_detect);
 static int max98095_suspend(struct snd_soc_component *component)
 {
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	if (max98095->headphone_jack || max98095->mic_jack)
 		max98095_jack_detect_disable(component);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1930,8 +1932,9 @@ static int max98095_resume(struct snd_soc_component *component)
 {
 	struct max98095_priv *max98095 = snd_soc_component_get_drvdata(component);
 	struct i2c_client *client = to_i2c_client(component->dev);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	if (max98095->headphone_jack || max98095->mic_jack) {
 		max98095_jack_detect_enable(component);

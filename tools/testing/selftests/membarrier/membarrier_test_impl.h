@@ -7,7 +7,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static int registrations;
 

@@ -1065,6 +1065,7 @@
 	*(.no_trim_symbol)						\
 	/* ld.bfd warns about .gnu.version* even when not emitted */	\
 	*(.gnu.version*)						\
+	*(__tracepoint_check)						\
 
 #define DISCARDS							\
 	/DISCARD/ : {							\

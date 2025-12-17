@@ -138,14 +138,32 @@ static void io_init_poll_iocb(struct io_poll *poll, __poll_t events)
 	init_waitqueue_func_entry(&poll->wait, io_poll_wake);
 }
 
+static void io_poll_remove_waitq(struct io_poll *poll)
+{
+	/*
+	 * If the waitqueue is being freed early but someone is already holds
+	 * ownership over it, we have to tear down the request as best we can.
+	 * That means immediately removing the request from its waitqueue and
+	 * preventing all further accesses to the waitqueue via the request.
+	 */
+	list_del_init(&poll->wait.entry);
+
+	/*
+	 * Careful: this *must* be the last step, since as soon as req->head is
+	 * NULL'ed out, the request can be completed and freed, since
+	 * io_poll_remove_entry() will no longer need to take the waitqueue
+	 * lock.
+	 */
+	smp_store_release(&poll->head, NULL);
+}
+
 static inline void io_poll_remove_entry(struct io_poll *poll)
 {
 	struct wait_queue_head *head = smp_load_acquire(&poll->head);
 
 	if (head) {
 		spin_lock_irq(&head->lock);
-		list_del_init(&poll->wait.entry);
-		poll->head = NULL;
+		io_poll_remove_waitq(poll);
 		spin_unlock_irq(&head->lock);
 	}
 }
@@ -224,7 +242,7 @@ static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 {
 	int v;
 
-	if (unlikely(io_should_terminate_tw(req->ctx)))
+	if (unlikely(tw.cancel))
 		return -ECANCELED;
 
 	do {
@@ -310,8 +328,9 @@ static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 	return IOU_POLL_NO_ACTION;
 }
 
-void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw)
+void io_poll_task_func(struct io_tw_req tw_req, io_tw_token_t tw)
 {
+	struct io_kiocb *req = tw_req.req;
 	int ret;
 
 	ret = io_poll_check_events(req, tw);
@@ -332,7 +351,7 @@ void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw)
 			poll = io_kiocb_to_cmd(req, struct io_poll);
 			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 		} else if (ret == IOU_POLL_REISSUE) {
-			io_req_task_submit(req, tw);
+			io_req_task_submit(tw_req, tw);
 			return;
 		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 			req->cqe.res = ret;
@@ -340,14 +359,14 @@ void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw)
 		}
 
 		io_req_set_res(req, req->cqe.res, 0);
-		io_req_task_complete(req, tw);
+		io_req_task_complete(tw_req, tw);
 	} else {
 		io_tw_lock(req->ctx, tw);
 
 		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
-			io_req_task_complete(req, tw);
+			io_req_task_complete(tw_req, tw);
 		else if (ret == IOU_POLL_DONE || ret == IOU_POLL_REISSUE)
-			io_req_task_submit(req, tw);
+			io_req_task_submit(tw_req, tw);
 		else
 			io_req_defer_failed(req, ret);
 	}
@@ -367,23 +386,7 @@ static __cold int io_pollfree_wake(struct io_kiocb *req, struct io_poll *poll)
 	io_poll_mark_cancelled(req);
 	/* we have to kick tw in case it's not already */
 	io_poll_execute(req, 0);
-
-	/*
-	 * If the waitqueue is being freed early but someone is already
-	 * holds ownership over it, we have to tear down the request as
-	 * best we can. That means immediately removing the request from
-	 * its waitqueue and preventing all further accesses to the
-	 * waitqueue via the request.
-	 */
-	list_del_init(&poll->wait.entry);
-
-	/*
-	 * Careful: this *must* be the last step, since as soon
-	 * as req->head is NULL'ed out, the request can be
-	 * completed and freed, since aio_poll_complete_work()
-	 * will no longer need to take the waitqueue lock.
-	 */
-	smp_store_release(&poll->head, NULL);
+	io_poll_remove_waitq(poll);
 	return 1;
 }
 
@@ -412,8 +415,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 
 		/* optional, saves extra locking for removal in tw handler */
 		if (mask && poll->events & EPOLLONESHOT) {
-			list_del_init(&poll->wait.entry);
-			poll->head = NULL;
+			io_poll_remove_waitq(poll);
 			if (wqe_is_double(wait))
 				req->flags &= ~REQ_F_DOUBLE_POLL;
 			else
@@ -936,12 +938,17 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret2 = io_poll_add(preq, issue_flags & ~IO_URING_F_UNLOCKED);
 		/* successfully updated, don't complete poll request */
-		if (!ret2 || ret2 == -EIOCBQUEUED)
+		if (ret2 == IOU_ISSUE_SKIP_COMPLETE)
 			goto out;
+		/* request completed as part of the update, complete it */
+		else if (ret2 == IOU_COMPLETE)
+			goto complete;
 	}
 
-	req_set_fail(preq);
 	io_req_set_res(preq, -ECANCELED, 0);
+complete:
+	if (preq->cqe.res < 0)
+		req_set_fail(preq);
 	preq->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(preq);
 out:

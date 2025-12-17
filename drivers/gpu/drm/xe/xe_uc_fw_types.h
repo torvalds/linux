@@ -62,7 +62,7 @@ enum xe_uc_fw_type {
 };
 
 /**
- * struct xe_uc_fw_version - Version for XE micro controller firmware
+ * struct xe_uc_fw_version - Version for Xe micro controller firmware
  */
 struct xe_uc_fw_version {
 	/** @branch: branch version of the FW (not always available) */
@@ -84,7 +84,7 @@ enum xe_uc_fw_version_types {
 };
 
 /**
- * struct xe_uc_fw - XE micro controller firmware
+ * struct xe_uc_fw - Xe micro controller firmware
  */
 struct xe_uc_fw {
 	/** @type: type uC firmware */
@@ -112,7 +112,7 @@ struct xe_uc_fw {
 	/** @size: size of uC firmware including css header */
 	size_t size;
 
-	/** @bo: XE BO for uC firmware */
+	/** @bo: Xe BO for uC firmware */
 	struct xe_bo *bo;
 
 	/** @has_gsc_headers: whether the FW image starts with GSC headers */

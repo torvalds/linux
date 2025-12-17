@@ -585,4 +585,6 @@ void debuginfo_cache__delete(void);
 int annotation_br_cntr_entry(char **str, int br_cntr_nr, u64 *br_cntr,
 			     int num_aggr, struct evsel *evsel);
 int annotation_br_cntr_abbr_list(char **str, struct evsel *evsel, bool header);
+
+int evsel__get_arch(struct evsel *evsel, struct arch **parch);
 #endif	/* __PERF_ANNOTATE_H */

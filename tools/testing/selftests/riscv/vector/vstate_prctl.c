@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "v_helpers.h"
 
 #define NEXT_PROGRAM "./vstate_exec_nolibc"

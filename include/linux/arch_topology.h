@@ -80,6 +80,11 @@ extern struct cpu_topology cpu_topology[NR_CPUS];
 #define topology_sibling_cpumask(cpu)	(&cpu_topology[cpu].thread_sibling)
 #define topology_cluster_cpumask(cpu)	(&cpu_topology[cpu].cluster_sibling)
 #define topology_llc_cpumask(cpu)	(&cpu_topology[cpu].llc_sibling)
+
+#ifndef arch_cpu_is_threaded
+#define arch_cpu_is_threaded()	(0)
+#endif
+
 void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);

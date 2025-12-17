@@ -2181,6 +2181,7 @@
 			 <&cru SRST_A_EMMC>, <&cru SRST_B_EMMC>,
 			 <&cru SRST_T_EMMC>;
 		reset-names = "core", "bus", "axi", "block", "timer";
+		supports-cqe;
 		status = "disabled";
 	};
 

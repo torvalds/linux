@@ -35,8 +35,8 @@
 #include "link_enc_cfg.h"
 
 #if defined(CONFIG_DRM_AMD_DC_FP)
-#include "dml2/dml2_wrapper.h"
-#include "dml2/dml2_internal_types.h"
+#include "dml2_0/dml2_wrapper.h"
+#include "dml2_0/dml2_internal_types.h"
 #endif
 
 #define DC_LOGGER \

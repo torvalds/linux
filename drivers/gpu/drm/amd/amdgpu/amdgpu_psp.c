@@ -1539,6 +1539,7 @@ static void psp_xgmi_reflect_topology_info(struct psp_context *psp,
 	uint64_t src_node_id = psp->adev->gmc.xgmi.node_id;
 	uint64_t dst_node_id = node_info.node_id;
 	uint8_t dst_num_hops = node_info.num_hops;
+	uint8_t dst_is_sharing_enabled = node_info.is_sharing_enabled;
 	uint8_t dst_num_links = node_info.num_links;
 
 	hive = amdgpu_get_xgmi_hive(psp->adev);
@@ -1558,13 +1559,20 @@ static void psp_xgmi_reflect_topology_info(struct psp_context *psp,
 				continue;
 
 			mirror_top_info->nodes[j].num_hops = dst_num_hops;
-			/*
-			 * prevent 0 num_links value re-reflection since reflection
+			mirror_top_info->nodes[j].is_sharing_enabled = dst_is_sharing_enabled;
+			/* prevent 0 num_links value re-reflection since reflection
 			 * criteria is based on num_hops (direct or indirect).
-			 *
 			 */
-			if (dst_num_links)
+			if (dst_num_links) {
 				mirror_top_info->nodes[j].num_links = dst_num_links;
+				/* swap src and dst due to frame of reference */
+				for (int k = 0; k < dst_num_links; k++) {
+					mirror_top_info->nodes[j].port_num[k].src_xgmi_port_num =
+						node_info.port_num[k].dst_xgmi_port_num;
+					mirror_top_info->nodes[j].port_num[k].dst_xgmi_port_num =
+						node_info.port_num[k].src_xgmi_port_num;
+				}
+			}
 
 			break;
 		}
@@ -1639,9 +1647,10 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 6) ||
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
-				IP_VERSION(13, 0, 14);
-		bool ta_port_num_support = amdgpu_sriov_vf(psp->adev) ? 0 :
-				psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG;
+				IP_VERSION(13, 0, 14) ||
+			amdgpu_sriov_vf(psp->adev);
+		bool ta_port_num_support = psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG ||
+			amdgpu_sriov_xgmi_ta_ext_peer_link_en(psp->adev);
 
 		/* popluate the shared output buffer rather than the cmd input buffer
 		 * with node_ids as the input for GET_PEER_LINKS command execution.

@@ -239,6 +239,7 @@ struct mes_add_queue_input {
 struct mes_remove_queue_input {
 	uint32_t	doorbell_offset;
 	uint64_t	gang_context_addr;
+	bool		remove_queue_after_reset;
 };
 
 struct mes_map_legacy_queue_input {
@@ -428,6 +429,7 @@ int amdgpu_mes_wreg(struct amdgpu_device *adev,
 int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 				  uint32_t reg0, uint32_t reg1,
 				  uint32_t ref, uint32_t mask);
+int amdgpu_mes_hdp_flush(struct amdgpu_device *adev);
 int amdgpu_mes_set_shader_debugger(struct amdgpu_device *adev,
 				uint64_t process_context_addr,
 				uint32_t spi_gdbg_per_vmid_cntl,

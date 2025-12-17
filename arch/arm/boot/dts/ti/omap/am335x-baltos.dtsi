@@ -45,6 +45,23 @@
 		startup-delay-us = <70000>;
 		enable-active-high;
 	};
+
+	mpcie_regulator: mpcie-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "mpcie-regulator";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 4 0>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	mpcie_power_switch: mpcie-power-switch {
+		compatible = "regulator-output";
+		regulator-name = "mpcie-power-switch";
+		regulator-supplies = "vcc";
+		vout-supply = <&mpcie_regulator>;
+	};
 };
 
 &am33xx_pinmux {

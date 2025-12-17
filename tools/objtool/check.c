@@ -3282,18 +3282,19 @@ static int propagate_alt_cfi(struct objtool_file *file, struct instruction *insn
 	return 0;
 }
 
-static int handle_insn_ops(struct instruction *insn,
-			   struct instruction *next_insn,
-			   struct insn_state *state)
+static int noinline handle_insn_ops(struct instruction *insn,
+				    struct instruction *next_insn,
+				    struct insn_state *state)
 {
+	struct insn_state prev_state __maybe_unused = *state;
 	struct stack_op *op;
-	int ret;
+	int ret = 0;
 
 	for (op = insn->stack_ops; op; op = op->next) {
 
 		ret = update_cfi_state(insn, next_insn, &state->cfi, op);
 		if (ret)
-			return ret;
+			goto done;
 
 		if (!opts.uaccess || !insn->alt_group)
 			continue;
@@ -3303,7 +3304,8 @@ static int handle_insn_ops(struct instruction *insn,
 				state->uaccess_stack = 1;
 			} else if (state->uaccess_stack >> 31) {
 				WARN_INSN(insn, "PUSHF stack exhausted");
-				return 1;
+				ret = 1;
+				goto done;
 			}
 			state->uaccess_stack <<= 1;
 			state->uaccess_stack  |= state->uaccess;
@@ -3319,7 +3321,10 @@ static int handle_insn_ops(struct instruction *insn,
 		}
 	}
 
-	return 0;
+done:
+	TRACE_INSN_STATE(insn, &prev_state, state);
+
+	return ret;
 }
 
 static bool insn_cfi_match(struct instruction *insn, struct cfi_state *cfi2)
@@ -3694,8 +3699,6 @@ static int validate_insn(struct objtool_file *file, struct symbol *func,
 			 struct instruction *prev_insn, struct instruction *next_insn,
 			 bool *dead_end)
 {
-	/* prev_state and alt_name are not used if there is no disassembly support */
-	struct insn_state prev_state __maybe_unused;
 	char *alt_name __maybe_unused = NULL;
 	struct alternative *alt;
 	u8 visited;
@@ -3798,11 +3801,7 @@ static int validate_insn(struct objtool_file *file, struct symbol *func,
 	if (skip_alt_group(insn))
 		return 0;
 
-	prev_state = *statep;
-	ret = handle_insn_ops(insn, next_insn, statep);
-	TRACE_INSN_STATE(insn, &prev_state, statep);
-
-	if (ret)
+	if (handle_insn_ops(insn, next_insn, statep))
 		return 1;
 
 	switch (insn->type) {

@@ -19,7 +19,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../filesystems/wrappers.h"
 #include "../pidfd/pidfd.h"
 

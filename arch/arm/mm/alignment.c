@@ -19,10 +19,11 @@
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
+#include <linux/unaligned.h>
 
 #include <asm/cp15.h>
 #include <asm/system_info.h>
-#include <linux/unaligned.h>
+#include <asm/system_misc.h>
 #include <asm/opcodes.h>
 
 #include "fault.h"
@@ -808,6 +809,9 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	int isize = 4;
 	int thumb2_32b = 0;
 	int fault;
+
+	if (addr >= TASK_SIZE && user_mode(regs))
+		harden_branch_predictor();
 
 	if (interrupts_enabled(regs))
 		local_irq_enable();

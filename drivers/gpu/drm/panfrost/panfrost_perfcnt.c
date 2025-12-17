@@ -84,11 +84,11 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 	else if (perfcnt->user)
 		return -EBUSY;
 
-	ret = pm_runtime_get_sync(pfdev->dev);
+	ret = pm_runtime_get_sync(pfdev->base.dev);
 	if (ret < 0)
 		goto err_put_pm;
 
-	bo = drm_gem_shmem_create(pfdev->ddev, perfcnt->bosize);
+	bo = drm_gem_shmem_create(&pfdev->base, perfcnt->bosize);
 	if (IS_ERR(bo)) {
 		ret = PTR_ERR(bo);
 		goto err_put_pm;
@@ -130,9 +130,11 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 		goto err_vunmap;
 	}
 
-	perfcnt->user = user;
+	ret = panfrost_mmu_as_get(pfdev, perfcnt->mapping->mmu);
+	if (ret < 0)
+		goto err_vunmap;
 
-	as = panfrost_mmu_as_get(pfdev, perfcnt->mapping->mmu);
+	as = ret;
 	cfg = GPU_PERFCNT_CFG_AS(as) |
 	      GPU_PERFCNT_CFG_MODE(GPU_PERFCNT_CFG_MODE_MANUAL);
 
@@ -164,6 +166,8 @@ static int panfrost_perfcnt_enable_locked(struct panfrost_device *pfdev,
 	/* The BO ref is retained by the mapping. */
 	drm_gem_object_put(&bo->base);
 
+	perfcnt->user = user;
+
 	return 0;
 
 err_vunmap:
@@ -175,7 +179,7 @@ err_close_bo:
 err_put_bo:
 	drm_gem_object_put(&bo->base);
 err_put_pm:
-	pm_runtime_put(pfdev->dev);
+	pm_runtime_put(pfdev->base.dev);
 	return ret;
 }
 
@@ -203,7 +207,7 @@ static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
 	panfrost_mmu_as_put(pfdev, perfcnt->mapping->mmu);
 	panfrost_gem_mapping_put(perfcnt->mapping);
 	perfcnt->mapping = NULL;
-	pm_runtime_put_autosuspend(pfdev->dev);
+	pm_runtime_put_autosuspend(pfdev->base.dev);
 
 	return 0;
 }
@@ -211,7 +215,7 @@ static int panfrost_perfcnt_disable_locked(struct panfrost_device *pfdev,
 int panfrost_ioctl_perfcnt_enable(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
 	struct drm_panfrost_perfcnt_enable *req = data;
 	int ret;
@@ -238,7 +242,7 @@ int panfrost_ioctl_perfcnt_enable(struct drm_device *dev, void *data,
 int panfrost_ioctl_perfcnt_dump(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
-	struct panfrost_device *pfdev = dev->dev_private;
+	struct panfrost_device *pfdev = to_panfrost_device(dev);
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
 	struct drm_panfrost_perfcnt_dump *req = data;
 	void __user *user_ptr = (void __user *)(uintptr_t)req->buf_ptr;
@@ -273,12 +277,12 @@ void panfrost_perfcnt_close(struct drm_file *file_priv)
 	struct panfrost_device *pfdev = pfile->pfdev;
 	struct panfrost_perfcnt *perfcnt = pfdev->perfcnt;
 
-	pm_runtime_get_sync(pfdev->dev);
+	pm_runtime_get_sync(pfdev->base.dev);
 	mutex_lock(&perfcnt->lock);
 	if (perfcnt->user == pfile)
 		panfrost_perfcnt_disable_locked(pfdev, file_priv);
 	mutex_unlock(&perfcnt->lock);
-	pm_runtime_put_autosuspend(pfdev->dev);
+	pm_runtime_put_autosuspend(pfdev->base.dev);
 }
 
 int panfrost_perfcnt_init(struct panfrost_device *pfdev)
@@ -316,7 +320,7 @@ int panfrost_perfcnt_init(struct panfrost_device *pfdev)
 		       COUNTERS_PER_BLOCK * BYTES_PER_COUNTER;
 	}
 
-	perfcnt = devm_kzalloc(pfdev->dev, sizeof(*perfcnt), GFP_KERNEL);
+	perfcnt = devm_kzalloc(pfdev->base.dev, sizeof(*perfcnt), GFP_KERNEL);
 	if (!perfcnt)
 		return -ENOMEM;
 

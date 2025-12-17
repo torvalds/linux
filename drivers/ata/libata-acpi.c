@@ -246,6 +246,73 @@ void ata_acpi_bind_dev(struct ata_device *dev)
 }
 
 /**
+ * ata_acpi_dev_manage_restart - if the disk should be stopped (spun down) on
+ *                               system restart.
+ * @dev: target ATA device
+ *
+ * RETURNS:
+ * true if the disk should be stopped, otherwise false.
+ */
+bool ata_acpi_dev_manage_restart(struct ata_device *dev)
+{
+	struct device *tdev;
+
+	/*
+	 * If ATA_FLAG_ACPI_SATA is set, the acpi fwnode is attached to the
+	 * ata_device instead of the ata_port.
+	 */
+	if (dev->link->ap->flags & ATA_FLAG_ACPI_SATA)
+		tdev = &dev->tdev;
+	else
+		tdev = &dev->link->ap->tdev;
+
+	if (!is_acpi_device_node(tdev->fwnode))
+		return false;
+	return acpi_bus_power_manageable(ACPI_HANDLE(tdev));
+}
+
+/**
+ * ata_acpi_port_power_on - set the power state of the ata port to D0
+ * @ap: target ATA port
+ *
+ * This function is called at the beginning of ata_port_probe().
+ */
+void ata_acpi_port_power_on(struct ata_port *ap)
+{
+	acpi_handle handle;
+	int i;
+
+	/*
+	 * If ATA_FLAG_ACPI_SATA is set, the acpi fwnode is attached to the
+	 * ata_device instead of the ata_port.
+	 */
+	if (ap->flags & ATA_FLAG_ACPI_SATA) {
+		for (i = 0; i < ATA_MAX_DEVICES; i++) {
+			struct ata_device *dev = &ap->link.device[i];
+
+			if (!is_acpi_device_node(dev->tdev.fwnode))
+				continue;
+			handle = ACPI_HANDLE(&dev->tdev);
+			if (!acpi_bus_power_manageable(handle))
+				continue;
+			if (acpi_bus_set_power(handle, ACPI_STATE_D0))
+				ata_dev_err(dev,
+					    "acpi: failed to set power state to D0\n");
+		}
+		return;
+	}
+
+	if (!is_acpi_device_node(ap->tdev.fwnode))
+		return;
+	handle = ACPI_HANDLE(&ap->tdev);
+	if (!acpi_bus_power_manageable(handle))
+		return;
+
+	if (acpi_bus_set_power(handle, ACPI_STATE_D0))
+		ata_port_err(ap, "acpi: failed to set power state to D0\n");
+}
+
+/**
  * ata_acpi_dissociate - dissociate ATA host from ACPI objects
  * @host: target ATA host
  *

@@ -41,6 +41,9 @@
 #define VCE_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 /* Firmware Names */
+#ifdef CONFIG_DRM_AMDGPU_SI
+#define FIRMWARE_VCE_V1_0	"amdgpu/vce_1_0_0.bin"
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 #define FIRMWARE_BONAIRE	"amdgpu/bonaire_vce.bin"
 #define FIRMWARE_KABINI	"amdgpu/kabini_vce.bin"
@@ -61,6 +64,9 @@
 #define FIRMWARE_VEGA12		"amdgpu/vega12_vce.bin"
 #define FIRMWARE_VEGA20		"amdgpu/vega20_vce.bin"
 
+#ifdef CONFIG_DRM_AMDGPU_SI
+MODULE_FIRMWARE(FIRMWARE_VCE_V1_0);
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 MODULE_FIRMWARE(FIRMWARE_KABINI);
@@ -88,82 +94,93 @@ static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 				      bool direct, struct dma_fence **fence);
 
 /**
- * amdgpu_vce_sw_init - allocate memory, load vce firmware
+ * amdgpu_vce_firmware_name() - determine the firmware file name for VCE
  *
  * @adev: amdgpu_device pointer
- * @size: size for the new BO
  *
- * First step to get VCE online, allocate memory and load the firmware
+ * Each chip that has VCE IP may need a different firmware.
+ * This function returns the name of the VCE firmware file
+ * appropriate for the current chip.
  */
-int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
+static const char *amdgpu_vce_firmware_name(struct amdgpu_device *adev)
 {
-	const char *fw_name;
-	const struct common_firmware_header *hdr;
-	unsigned int ucode_version, version_major, version_minor, binary_id;
-	int i, r;
-
 	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_PITCAIRN:
+	case CHIP_TAHITI:
+	case CHIP_VERDE:
+		return FIRMWARE_VCE_V1_0;
+#endif
 #ifdef CONFIG_DRM_AMDGPU_CIK
 	case CHIP_BONAIRE:
-		fw_name = FIRMWARE_BONAIRE;
-		break;
+		return FIRMWARE_BONAIRE;
 	case CHIP_KAVERI:
-		fw_name = FIRMWARE_KAVERI;
-		break;
+		return FIRMWARE_KAVERI;
 	case CHIP_KABINI:
-		fw_name = FIRMWARE_KABINI;
-		break;
+		return FIRMWARE_KABINI;
 	case CHIP_HAWAII:
-		fw_name = FIRMWARE_HAWAII;
-		break;
+		return FIRMWARE_HAWAII;
 	case CHIP_MULLINS:
-		fw_name = FIRMWARE_MULLINS;
-		break;
+		return FIRMWARE_MULLINS;
 #endif
 	case CHIP_TONGA:
-		fw_name = FIRMWARE_TONGA;
-		break;
+		return  FIRMWARE_TONGA;
 	case CHIP_CARRIZO:
-		fw_name = FIRMWARE_CARRIZO;
-		break;
+		return  FIRMWARE_CARRIZO;
 	case CHIP_FIJI:
-		fw_name = FIRMWARE_FIJI;
-		break;
+		return  FIRMWARE_FIJI;
 	case CHIP_STONEY:
-		fw_name = FIRMWARE_STONEY;
-		break;
+		return  FIRMWARE_STONEY;
 	case CHIP_POLARIS10:
-		fw_name = FIRMWARE_POLARIS10;
-		break;
+		return  FIRMWARE_POLARIS10;
 	case CHIP_POLARIS11:
-		fw_name = FIRMWARE_POLARIS11;
-		break;
+		return  FIRMWARE_POLARIS11;
 	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
-		break;
+		return  FIRMWARE_POLARIS12;
 	case CHIP_VEGAM:
-		fw_name = FIRMWARE_VEGAM;
-		break;
+		return  FIRMWARE_VEGAM;
 	case CHIP_VEGA10:
-		fw_name = FIRMWARE_VEGA10;
-		break;
+		return  FIRMWARE_VEGA10;
 	case CHIP_VEGA12:
-		fw_name = FIRMWARE_VEGA12;
-		break;
+		return  FIRMWARE_VEGA12;
 	case CHIP_VEGA20:
-		fw_name = FIRMWARE_VEGA20;
-		break;
+		return  FIRMWARE_VEGA20;
 
 	default:
-		return -EINVAL;
+		return NULL;
 	}
+}
+
+/**
+ * amdgpu_vce_early_init() - try to load VCE firmware
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Tries to load the VCE firmware.
+ *
+ * When not found, returns ENOENT so that the driver can
+ * still load and initialize the rest of the IP blocks.
+ * The GPU can function just fine without VCE, they will just
+ * not support video encoding.
+ */
+int amdgpu_vce_early_init(struct amdgpu_device *adev)
+{
+	const char *fw_name = amdgpu_vce_firmware_name(adev);
+	const struct common_firmware_header *hdr;
+	unsigned int ucode_version, version_major, version_minor, binary_id;
+	int r;
+
+	if (!fw_name)
+		return -ENOENT;
 
 	r = amdgpu_ucode_request(adev, &adev->vce.fw, AMDGPU_UCODE_REQUIRED, "%s", fw_name);
 	if (r) {
-		dev_err(adev->dev, "amdgpu_vce: Can't validate firmware \"%s\"\n",
-			fw_name);
+		dev_err(adev->dev,
+			"amdgpu_vce: Firmware \"%s\" not found or failed to validate (%d)\n",
+			fw_name, r);
+
 		amdgpu_ucode_release(&adev->vce.fw);
-		return r;
+		return -ENOENT;
 	}
 
 	hdr = (const struct common_firmware_header *)adev->vce.fw->data;
@@ -172,10 +189,34 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	version_major = (ucode_version >> 20) & 0xfff;
 	version_minor = (ucode_version >> 8) & 0xfff;
 	binary_id = ucode_version & 0xff;
-	DRM_INFO("Found VCE firmware Version: %d.%d Binary ID: %d\n",
+	dev_info(adev->dev, "Found VCE firmware Version: %d.%d Binary ID: %d\n",
 		version_major, version_minor, binary_id);
 	adev->vce.fw_version = ((version_major << 24) | (version_minor << 16) |
 				(binary_id << 8));
+
+	return 0;
+}
+
+/**
+ * amdgpu_vce_sw_init() - allocate memory for VCE BO
+ *
+ * @adev: amdgpu_device pointer
+ * @size: size for the new BO
+ *
+ * First step to get VCE online: allocate memory for VCE BO.
+ * The VCE firmware binary is copied into the VCE BO later,
+ * in amdgpu_vce_resume. The VCE executes its code from the
+ * VCE BO and also uses the space in this BO for its stack and data.
+ *
+ * Ideally this BO should be placed in VRAM for optimal performance,
+ * although technically it also runs from system RAM (albeit slowly).
+ */
+int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
+{
+	int i, r;
+
+	if (!adev->vce.fw)
+		return -ENOENT;
 
 	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM |
@@ -285,39 +326,22 @@ int amdgpu_vce_suspend(struct amdgpu_device *adev)
  */
 int amdgpu_vce_resume(struct amdgpu_device *adev)
 {
-	void *cpu_addr;
 	const struct common_firmware_header *hdr;
 	unsigned int offset;
-	int r, idx;
+	int idx;
 
 	if (adev->vce.vcpu_bo == NULL)
 		return -EINVAL;
-
-	r = amdgpu_bo_reserve(adev->vce.vcpu_bo, false);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to reserve VCE bo\n", r);
-		return r;
-	}
-
-	r = amdgpu_bo_kmap(adev->vce.vcpu_bo, &cpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->vce.vcpu_bo);
-		dev_err(adev->dev, "(%d) VCE map failed\n", r);
-		return r;
-	}
 
 	hdr = (const struct common_firmware_header *)adev->vce.fw->data;
 	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
 
 	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
-		memcpy_toio(cpu_addr, adev->vce.fw->data + offset,
+		memset_io(adev->vce.cpu_addr, 0, amdgpu_bo_size(adev->vce.vcpu_bo));
+		memcpy_toio(adev->vce.cpu_addr, adev->vce.fw->data + offset,
 			    adev->vce.fw->size - offset);
 		drm_dev_exit(idx);
 	}
-
-	amdgpu_bo_kunmap(adev->vce.vcpu_bo);
-
-	amdgpu_bo_unreserve(adev->vce.vcpu_bo);
 
 	return 0;
 }
@@ -424,6 +448,24 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
 		adev->vce.filp[i] = NULL;
 		atomic_set(&adev->vce.handles[i], 0);
 	}
+}
+
+/**
+ * amdgpu_vce_required_gart_pages() - gets number of GART pages required by VCE
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns how many GART pages we need before GTT for the VCE IP block.
+ * For VCE1, see vce_v1_0_ensure_vcpu_bo_32bit_addr for details.
+ * For VCE2+, this is not needed so return zero.
+ */
+u32 amdgpu_vce_required_gart_pages(struct amdgpu_device *adev)
+{
+	/* VCE IP block not added yet, so can't use amdgpu_ip_version */
+	if (adev->family == AMDGPU_FAMILY_SI)
+		return 512;
+
+	return 0;
 }
 
 /**

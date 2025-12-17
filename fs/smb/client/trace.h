@@ -20,6 +20,136 @@
 /*
  * Specify enums for tracing information.
  */
+#define smb_eio_traces \
+	EM(smb_eio_trace_compress_copy,			"compress_copy") \
+	EM(smb_eio_trace_copychunk_inv_rsp,		"copychunk_inv_rsp") \
+	EM(smb_eio_trace_copychunk_overcopy_b,		"copychunk_overcopy_b") \
+	EM(smb_eio_trace_copychunk_overcopy_c,		"copychunk_overcopy_c") \
+	EM(smb_eio_trace_create_rsp_too_small,		"create_rsp_too_small") \
+	EM(smb_eio_trace_dfsref_no_rsp,			"dfsref_no_rsp") \
+	EM(smb_eio_trace_ea_overrun,			"ea_overrun") \
+	EM(smb_eio_trace_extract_will_pin,		"extract_will_pin") \
+	EM(smb_eio_trace_forced_shutdown,		"forced_shutdown") \
+	EM(smb_eio_trace_getacl_bcc_too_small,		"getacl_bcc_too_small") \
+	EM(smb_eio_trace_getcifsacl_param_count,	"getcifsacl_param_count") \
+	EM(smb_eio_trace_getdfsrefer_bcc_too_small,	"getdfsrefer_bcc_too_small") \
+	EM(smb_eio_trace_getextattr_bcc_too_small,	"getextattr_bcc_too_small") \
+	EM(smb_eio_trace_getextattr_inv_size,		"getextattr_inv_size") \
+	EM(smb_eio_trace_getsrvinonum_bcc_too_small,	"getsrvinonum_bcc_too_small") \
+	EM(smb_eio_trace_getsrvinonum_size,		"getsrvinonum_size") \
+	EM(smb_eio_trace_ioctl_data_len,		"ioctl_data_len") \
+	EM(smb_eio_trace_ioctl_no_rsp,			"ioctl_no_rsp") \
+	EM(smb_eio_trace_ioctl_out_off,			"ioctl_out_off") \
+	EM(smb_eio_trace_lock_bcc_too_small,		"lock_bcc_too_small") \
+	EM(smb_eio_trace_lock_data_too_small,		"lock_data_too_small") \
+	EM(smb_eio_trace_malformed_ksid_key,		"malformed_ksid_key") \
+	EM(smb_eio_trace_malformed_sid_key,		"malformed_sid_key") \
+	EM(smb_eio_trace_mkdir_no_rsp,			"mkdir_no_rsp") \
+	EM(smb_eio_trace_neg_bad_rsplen,		"neg_bad_rsplen") \
+	EM(smb_eio_trace_neg_decode_token,		"neg_decode_token") \
+	EM(smb_eio_trace_neg_info_caps,			"neg_info_caps") \
+	EM(smb_eio_trace_neg_info_dialect,		"neg_info_dialect") \
+	EM(smb_eio_trace_neg_info_fail,			"neg_info_fail") \
+	EM(smb_eio_trace_neg_info_sec_mode,		"neg_info_sec_mode") \
+	EM(smb_eio_trace_neg_inval_dialect,		"neg_inval_dialect") \
+	EM(smb_eio_trace_neg_no_crypt_key,		"neg_no_crypt_key") \
+	EM(smb_eio_trace_neg_sec_blob_too_small,	"neg_sec_blob_too_small") \
+	EM(smb_eio_trace_neg_unreq_dialect,		"neg_unreq_dialect") \
+	EM(smb_eio_trace_no_auth_key,			"no_auth_key") \
+	EM(smb_eio_trace_no_lease_key,			"no_lease_key") \
+	EM(smb_eio_trace_not_netfs_writeback,		"not_netfs_writeback") \
+	EM(smb_eio_trace_null_pointers,			"null_pointers") \
+	EM(smb_eio_trace_oldqfsinfo_bcc_too_small,	"oldqfsinfo_bcc_too_small") \
+	EM(smb_eio_trace_pend_del_fail,			"pend_del_fail") \
+	EM(smb_eio_trace_qalleas_bcc_too_small,		"qalleas_bcc_too_small") \
+	EM(smb_eio_trace_qalleas_ea_overlong,		"qalleas_ea_overlong") \
+	EM(smb_eio_trace_qalleas_overlong,		"qalleas_overlong") \
+	EM(smb_eio_trace_qfileinfo_bcc_too_small,	"qfileinfo_bcc_too_small") \
+	EM(smb_eio_trace_qfileinfo_invalid,		"qfileinfo_invalid") \
+	EM(smb_eio_trace_qfsattrinfo_bcc_too_small,	"qfsattrinfo_bcc_too_small") \
+	EM(smb_eio_trace_qfsdevinfo_bcc_too_small,	"qfsdevinfo_bcc_too_small") \
+	EM(smb_eio_trace_qfsinfo_bcc_too_small,		"qfsinfo_bcc_too_small") \
+	EM(smb_eio_trace_qfsposixinfo_bcc_too_small,	"qfsposixinfo_bcc_too_small") \
+	EM(smb_eio_trace_qfsunixinfo_bcc_too_small,	"qfsunixinfo_bcc_too_small") \
+	EM(smb_eio_trace_qpathinfo_bcc_too_small,	"qpathinfo_bcc_too_small") \
+	EM(smb_eio_trace_qpathinfo_invalid,		"qpathinfo_invalid") \
+	EM(smb_eio_trace_qreparse_data_area,		"qreparse_data_area") \
+	EM(smb_eio_trace_qreparse_rep_datalen,		"qreparse_rep_datalen") \
+	EM(smb_eio_trace_qreparse_ret_datalen,		"qreparse_ret_datalen") \
+	EM(smb_eio_trace_qreparse_setup_count,		"qreparse_setup_count") \
+	EM(smb_eio_trace_qreparse_sizes_wrong,		"qreparse_sizes_wrong") \
+	EM(smb_eio_trace_qsym_bcc_too_small,		"qsym_bcc_too_small") \
+	EM(smb_eio_trace_read_mid_state_unknown,	"read_mid_state_unknown") \
+	EM(smb_eio_trace_read_overlarge,		"read_overlarge") \
+	EM(smb_eio_trace_read_rsp_malformed,		"read_rsp_malformed") \
+	EM(smb_eio_trace_read_rsp_short,		"read_rsp_short") \
+	EM(smb_eio_trace_read_too_far,			"read_too_far") \
+	EM(smb_eio_trace_reparse_data_len,		"reparse_data_len") \
+	EM(smb_eio_trace_reparse_native_len,		"reparse_native_len") \
+	EM(smb_eio_trace_reparse_native_nul,		"reparse_native_nul") \
+	EM(smb_eio_trace_reparse_native_sym_len,	"reparse_native_sym_len") \
+	EM(smb_eio_trace_reparse_nfs_dev,		"reparse_nfs_dev") \
+	EM(smb_eio_trace_reparse_nfs_nul,		"reparse_nfs_nul") \
+	EM(smb_eio_trace_reparse_nfs_sockfifo,		"reparse_nfs_sockfifo") \
+	EM(smb_eio_trace_reparse_nfs_symbuf,		"reparse_nfs_symbuf") \
+	EM(smb_eio_trace_reparse_nfs_too_short,		"reparse_nfs_too_short") \
+	EM(smb_eio_trace_reparse_overlong,		"reparse_overlong") \
+	EM(smb_eio_trace_reparse_rdlen,			"reparse_rdlen") \
+	EM(smb_eio_trace_reparse_wsl_nul,		"reparse_wsl_nul") \
+	EM(smb_eio_trace_reparse_wsl_symbuf,		"reparse_wsl_symbuf") \
+	EM(smb_eio_trace_reparse_wsl_ver,		"reparse_wsl_ver") \
+	EM(smb_eio_trace_rx_b_read_short,		"rx_b_read_short") \
+	EM(smb_eio_trace_rx_bad_datalen,		"rx_bad_datalen") \
+	EM(smb_eio_trace_rx_both_buf,			"rx_both_buf") \
+	EM(smb_eio_trace_rx_calc_len_too_big,		"rx_calc_len_too_big") \
+	EM(smb_eio_trace_rx_check_rsp,			"rx_check_rsp") \
+	EM(smb_eio_trace_rx_copy_to_iter,		"rx_copy_to_iter") \
+	EM(smb_eio_trace_rx_insuff_res,			"rx_insuff_res") \
+	EM(smb_eio_trace_rx_inv_bcc,			"rx_inv_bcc") \
+	EM(smb_eio_trace_rx_mid_unready,		"rx_mid_unready") \
+	EM(smb_eio_trace_rx_neg_sess_resp,		"rx_neg_sess_resp") \
+	EM(smb_eio_trace_rx_overlong,			"rx_overlong") \
+	EM(smb_eio_trace_rx_overpage,			"rx_overpage") \
+	EM(smb_eio_trace_rx_pos_sess_resp,		"rx_pos_sess_resp") \
+	EM(smb_eio_trace_rx_rfc1002_magic,		"rx_rfc1002_magic") \
+	EM(smb_eio_trace_rx_sync_mid_invalid,		"rx_sync_mid_invalid") \
+	EM(smb_eio_trace_rx_sync_mid_malformed,		"rx_sync_mid_malformed") \
+	EM(smb_eio_trace_rx_too_short,			"rx_too_short") \
+	EM(smb_eio_trace_rx_trans2_extract,		"rx_trans2_extract") \
+	EM(smb_eio_trace_rx_unknown_resp,		"rx_unknown_resp") \
+	EM(smb_eio_trace_rx_unspec_error,		"rx_unspec_error") \
+	EM(smb_eio_trace_sess_buf_off,			"sess_buf_off") \
+	EM(smb_eio_trace_sess_exiting,			"sess_exiting") \
+	EM(smb_eio_trace_sess_krb_wcc,			"sess_krb_wcc") \
+	EM(smb_eio_trace_sess_nl2_wcc,			"sess_nl2_wcc") \
+	EM(smb_eio_trace_sess_rawnl_auth_wcc,		"sess_rawnl_auth_wcc") \
+	EM(smb_eio_trace_sess_rawnl_neg_wcc,		"sess_rawnl_neg_wcc") \
+	EM(smb_eio_trace_short_symlink_write,		"short_symlink_write") \
+	EM(smb_eio_trace_sid_too_many_auth,		"sid_too_many_auth") \
+	EM(smb_eio_trace_sig_data_too_small,		"sig_data_too_small") \
+	EM(smb_eio_trace_sig_iter,			"sig_iter") \
+	EM(smb_eio_trace_smb1_received_error,		"smb1_received_error") \
+	EM(smb_eio_trace_smb2_received_error,		"smb2_received_error") \
+	EM(smb_eio_trace_sym_slash,			"sym_slash") \
+	EM(smb_eio_trace_sym_target_len,		"sym_target_len") \
+	EM(smb_eio_trace_symlink_file_size,		"symlink_file_size") \
+	EM(smb_eio_trace_tdis_in_reconnect,		"tdis_in_reconnect") \
+	EM(smb_eio_trace_tx_chained_async,		"tx_chained_async") \
+	EM(smb_eio_trace_tx_compress_failed,		"tx_compress_failed") \
+	EM(smb_eio_trace_tx_copy_iter_to_buf,		"tx_copy_iter_to_buf") \
+	EM(smb_eio_trace_tx_copy_to_buf,		"tx_copy_to_buf") \
+	EM(smb_eio_trace_tx_max_compound,		"tx_max_compound") \
+	EM(smb_eio_trace_tx_miscopy_to_buf,		"tx_miscopy_to_buf") \
+	EM(smb_eio_trace_tx_need_transform,		"tx_need_transform") \
+	EM(smb_eio_trace_tx_too_long,			"sr_too_long") \
+	EM(smb_eio_trace_unixqfileinfo_bcc_too_small,	"unixqfileinfo_bcc_too_small") \
+	EM(smb_eio_trace_unixqpathinfo_bcc_too_small,	"unixqpathinfo_bcc_too_small") \
+	EM(smb_eio_trace_user_iter,			"user_iter") \
+	EM(smb_eio_trace_write_bad_buf_type,		"write_bad_buf_type") \
+	EM(smb_eio_trace_write_mid_state_unknown,	"write_mid_state_unknown") \
+	EM(smb_eio_trace_write_rsp_malformed,		"write_rsp_malformed") \
+	E_(smb_eio_trace_write_too_far,			"write_too_far")
+
 #define smb3_rw_credits_traces \
 	EM(cifs_trace_rw_credits_call_readv_adjust,	"rd-call-adj") \
 	EM(cifs_trace_rw_credits_call_writev_adjust,	"wr-call-adj") \
@@ -79,6 +209,7 @@
 #define EM(a, b) a,
 #define E_(a, b) a
 
+enum smb_eio_trace		{ smb_eio_traces } __mode(byte);
 enum smb3_rw_credits_trace	{ smb3_rw_credits_traces } __mode(byte);
 enum smb3_tcon_ref_trace	{ smb3_tcon_ref_traces } __mode(byte);
 
@@ -92,6 +223,7 @@ enum smb3_tcon_ref_trace	{ smb3_tcon_ref_traces } __mode(byte);
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+smb_eio_traces;
 smb3_rw_credits_traces;
 smb3_tcon_ref_traces;
 
@@ -1560,6 +1692,49 @@ DEFINE_SMB3_CREDIT_EVENT(waitff_credits);
 DEFINE_SMB3_CREDIT_EVENT(overflow_credits);
 DEFINE_SMB3_CREDIT_EVENT(set_credits);
 
+TRACE_EVENT(smb3_kerberos_auth,
+		TP_PROTO(struct TCP_Server_Info *server,
+			 struct cifs_ses *ses,
+			 int rc),
+		TP_ARGS(server, ses, rc),
+		TP_STRUCT__entry(
+			__field(pid_t, pid)
+			__field(uid_t, uid)
+			__field(uid_t, cruid)
+			__string(host, server->hostname)
+			__string(user, ses->user_name)
+			__array(__u8, addr, sizeof(struct sockaddr_storage))
+			__array(char, sec, sizeof("ntlmsspi"))
+			__array(char, upcall_target, sizeof("mount"))
+			__field(int, rc)
+		),
+		TP_fast_assign(
+			__entry->pid = current->pid;
+			__entry->uid = from_kuid_munged(&init_user_ns, ses->linux_uid);
+			__entry->cruid = from_kuid_munged(&init_user_ns, ses->cred_uid);
+			__assign_str(host);
+			__assign_str(user);
+			memcpy(__entry->addr, &server->dstaddr, sizeof(__entry->addr));
+
+			if (server->sec_kerberos)
+				memcpy(__entry->sec, "krb5", sizeof("krb5"));
+			else if (server->sec_mskerberos)
+				memcpy(__entry->sec, "mskrb5", sizeof("mskrb5"));
+			else if (server->sec_iakerb)
+				memcpy(__entry->sec, "iakerb", sizeof("iakerb"));
+			else
+				memcpy(__entry->sec, "krb5", sizeof("krb5"));
+
+			if (ses->upcall_target == UPTARGET_MOUNT)
+				memcpy(__entry->upcall_target, "mount", sizeof("mount"));
+			else
+				memcpy(__entry->upcall_target, "app", sizeof("app"));
+			__entry->rc = rc;
+		),
+		TP_printk("vers=%d host=%s ip=%pISpsfc sec=%s uid=%d cruid=%d user=%s pid=%d upcall_target=%s err=%d",
+			  CIFS_SPNEGO_UPCALL_VERSION, __get_str(host), __entry->addr,
+			  __entry->sec, __entry->uid, __entry->cruid, __get_str(user),
+			  __entry->pid, __entry->upcall_target, __entry->rc))
 
 TRACE_EVENT(smb3_tcon_ref,
 	    TP_PROTO(unsigned int tcon_debug_id, int ref,
@@ -1616,6 +1791,23 @@ TRACE_EVENT(smb3_rw_credits,
 		      __entry->server_credits, __entry->in_flight)
 	    );
 
+TRACE_EVENT(smb3_eio,
+	    TP_PROTO(enum smb_eio_trace trace, unsigned long info, unsigned long info2),
+	    TP_ARGS(trace, info, info2),
+	    TP_STRUCT__entry(
+		    __field(enum smb_eio_trace,	trace)
+		    __field(unsigned long,	info)
+		    __field(unsigned long,	info2)
+			     ),
+	    TP_fast_assign(
+		    __entry->trace	= trace;
+		    __entry->info	= info;
+		    __entry->info2	= info2;
+			   ),
+	    TP_printk("%s info=%lx,%lx",
+		      __print_symbolic(__entry->trace, smb_eio_traces),
+		      __entry->info, __entry->info2)
+	    );
 
 #undef EM
 #undef E_

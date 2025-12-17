@@ -1446,7 +1446,7 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	if (!(fl->c.flc_flags & FL_POSIX))
 		return -ENOLCK;
-	if (gfs2_withdrawing_or_withdrawn(sdp)) {
+	if (gfs2_withdrawn(sdp)) {
 		if (lock_is_unlock(fl))
 			locks_lock_file_wait(file, fl);
 		return -EIO;

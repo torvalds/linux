@@ -94,6 +94,9 @@ RECORD OPTIONS
 -g::
 --callchain::
         Do call-graph (stack chain/backtrace) recording
+-o::
+--output=::
+        Select the output file (default: perf.data)
 
 EXAMPLES
 --------

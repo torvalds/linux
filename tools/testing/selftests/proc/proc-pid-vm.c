@@ -51,7 +51,7 @@
 #define __maybe_unused __attribute__((__unused__))
 #endif
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static inline long sys_execveat(int dirfd, const char *pathname, char **argv, char **envp, int flags)
 {

@@ -103,9 +103,6 @@ xfs_zone_account_reclaimable(
 		 */
 		trace_xfs_zone_emptied(rtg);
 
-		if (!was_full)
-			xfs_group_clear_mark(xg, XFS_RTG_RECLAIMABLE);
-
 		spin_lock(&zi->zi_used_buckets_lock);
 		if (!was_full)
 			xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
@@ -127,7 +124,6 @@ xfs_zone_account_reclaimable(
 		xfs_zone_add_to_bucket(zi, rgno, to_bucket);
 		spin_unlock(&zi->zi_used_buckets_lock);
 
-		xfs_group_set_mark(xg, XFS_RTG_RECLAIMABLE);
 		if (zi->zi_gc_thread && xfs_zoned_need_gc(mp))
 			wake_up_process(zi->zi_gc_thread);
 	} else if (to_bucket != from_bucket) {
@@ -140,6 +136,28 @@ xfs_zone_account_reclaimable(
 		xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
 		spin_unlock(&zi->zi_used_buckets_lock);
 	}
+}
+
+/*
+ * Check if we have any zones that can be reclaimed by looking at the entry
+ * counters for the zone buckets.
+ */
+bool
+xfs_zoned_have_reclaimable(
+	struct xfs_zone_info	*zi)
+{
+	int i;
+
+	spin_lock(&zi->zi_used_buckets_lock);
+	for (i = 0; i < XFS_ZONE_USED_BUCKETS; i++) {
+		if (zi->zi_used_bucket_entries[i]) {
+			spin_unlock(&zi->zi_used_buckets_lock);
+			return true;
+		}
+	}
+	spin_unlock(&zi->zi_used_buckets_lock);
+
+	return false;
 }
 
 static void
@@ -1263,7 +1281,7 @@ xfs_mount_zones(
 			PAGE_SHIFT;
 
 	if (bdev_is_zoned(bt->bt_bdev)) {
-		error = blkdev_report_zones(bt->bt_bdev,
+		error = blkdev_report_zones_cached(bt->bt_bdev,
 				XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart),
 				mp->m_sb.sb_rgcount, xfs_get_zone_info_cb, &iz);
 		if (error < 0)

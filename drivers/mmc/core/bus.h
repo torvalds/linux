@@ -20,7 +20,7 @@ static ssize_t mmc_##name##_show (struct device *dev, struct device_attribute *a
 	struct mmc_card *card = mmc_dev_to_card(dev);				\
 	return sysfs_emit(buf, fmt, args);					\
 }										\
-static DEVICE_ATTR(name, S_IRUGO, mmc_##name##_show, NULL)
+static DEVICE_ATTR(name, 0444, mmc_##name##_show, NULL)
 
 struct mmc_card *mmc_alloc_card(struct mmc_host *host,
 				const struct device_type *type);

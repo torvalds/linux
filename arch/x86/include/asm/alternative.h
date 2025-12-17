@@ -197,8 +197,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	"773:\n"
 
 #define ALTINSTR_ENTRY(ft_flags)					      \
-	".pushsection .altinstructions,\"a\"\n"				      \
-	ANNOTATE_DATA_SPECIAL						      \
+	".pushsection .altinstructions, \"aM\", @progbits, "		      \
+		      __stringify(ALT_INSTR_SIZE) "\n"			      \
 	" .long 771b - .\n"				/* label           */ \
 	" .long 774f - .\n"				/* new instruction */ \
 	" .4byte " __stringify(ft_flags) "\n"		/* feature + flags */ \
@@ -208,7 +208,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define ALTINSTR_REPLACEMENT(newinstr)		/* replacement */	\
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
-	ANNOTATE_DATA_SPECIAL						\
+	ANNOTATE_DATA_SPECIAL "\n"					\
 	"# ALT: replacement\n"						\
 	"774:\n\t" newinstr "\n775:\n"					\
 	".popsection\n"
@@ -339,7 +339,6 @@ void nop_func(void);
  * instruction. See apply_alternatives().
  */
 .macro altinstr_entry orig alt ft_flags orig_len alt_len
-	ANNOTATE_DATA_SPECIAL
 	.long \orig - .
 	.long \alt - .
 	.4byte \ft_flags
@@ -363,7 +362,7 @@ void nop_func(void);
 741:									\
 	.skip -(((744f-743f)-(741b-740b)) > 0) * ((744f-743f)-(741b-740b)),0x90	;\
 742:									\
-	.pushsection .altinstructions,"a" ;				\
+	.pushsection .altinstructions, "aM", @progbits, ALT_INSTR_SIZE ;\
 	altinstr_entry 740b,743f,flag,742b-740b,744f-743f ;		\
 	.popsection ;							\
 	.pushsection .altinstr_replacement,"ax"	;			\

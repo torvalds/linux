@@ -28,6 +28,7 @@
 		reg = <0x08>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,mc13xxx-uses-rtc;
 		regulators {
 			sw1_reg: sw1a {
 				regulator-name = "SW1";

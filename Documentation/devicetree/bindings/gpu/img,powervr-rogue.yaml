@@ -15,6 +15,16 @@ properties:
     oneOf:
       - items:
           - enum:
+              - renesas,r8a7796-gpu
+              - renesas,r8a77961-gpu
+          - const: img,img-gx6250
+          - const: img,img-rogue
+      - items:
+          - const: renesas,r8a77965-gpu
+          - const: img,img-ge7800
+          - const: img,img-rogue
+      - items:
+          - enum:
               - ti,am62-gpu
           - const: img,img-axe-1-16m
           # This deprecated element must be kept around to allow old kernels to
@@ -86,14 +96,58 @@ allOf:
       properties:
         compatible:
           contains:
+            enum:
+              - ti,am62-gpu
+              - ti,j721s2-gpu
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - img,img-ge7800
+              - img,img-gx6250
+              - thead,th1520-gpu
+    then:
+      properties:
+        clocks:
+          minItems: 3
+        clock-names:
+          minItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: img,img-axe-1-16m
     then:
       properties:
         power-domains:
-          items:
-            - description: Power domain A
+          maxItems: 1
         power-domain-names:
           maxItems: 1
+      required:
+        - power-domains
+        - power-domain-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - img,img-bxs-4-64
+              - img,img-ge7800
+              - img,img-gx6250
+    then:
+      properties:
+        power-domains:
+          minItems: 2
+        power-domain-names:
+          minItems: 2
       required:
         - power-domains
         - power-domain-names
@@ -105,10 +159,6 @@ allOf:
             const: thead,th1520-gpu
     then:
       properties:
-        clocks:
-          minItems: 3
-        clock-names:
-          minItems: 3
         power-domains:
           items:
             - description: The single, unified power domain for the GPU on the
@@ -116,35 +166,6 @@ allOf:
         power-domain-names: false
       required:
         - power-domains
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: img,img-bxs-4-64
-    then:
-      properties:
-        power-domains:
-          items:
-            - description: Power domain A
-            - description: Power domain B
-        power-domain-names:
-          minItems: 2
-      required:
-        - power-domains
-        - power-domain-names
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - ti,am62-gpu
-              - ti,j721s2-gpu
-    then:
-      properties:
-        clocks:
-          maxItems: 1
 
 examples:
   - |

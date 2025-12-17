@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
+#include <linux/irqdomain.h>
 #include <linux/jump_label.h>
 #include <linux/pci.h>
 #include <linux/printk.h>
@@ -152,23 +153,6 @@ int zpci_bus_scan_bus(struct zpci_bus *zbus)
 	return ret;
 }
 
-/* zpci_bus_scan_busses - Scan all registered busses
- *
- * Scan all available zbusses
- *
- */
-void zpci_bus_scan_busses(void)
-{
-	struct zpci_bus *zbus = NULL;
-
-	mutex_lock(&zbus_list_lock);
-	list_for_each_entry(zbus, &zbus_list, bus_next) {
-		zpci_bus_scan_bus(zbus);
-		cond_resched();
-	}
-	mutex_unlock(&zbus_list_lock);
-}
-
 static bool zpci_bus_is_multifunction_root(struct zpci_dev *zdev)
 {
 	return !s390_pci_no_rid && zdev->rid_available &&
@@ -198,24 +182,51 @@ static int zpci_bus_create_pci_bus(struct zpci_bus *zbus, struct zpci_dev *fr, s
 	zbus->multifunction = zpci_bus_is_multifunction_root(fr);
 	zbus->max_bus_speed = fr->max_bus_speed;
 
+	if (zpci_create_parent_msi_domain(zbus))
+		goto out_free_domain;
+
 	/*
 	 * Note that the zbus->resources are taken over and zbus->resources
 	 * is empty after a successful call
 	 */
 	bus = pci_create_root_bus(NULL, ZPCI_BUS_NR, ops, zbus, &zbus->resources);
-	if (!bus) {
-		zpci_free_domain(zbus->domain_nr);
-		return -EFAULT;
-	}
+	if (!bus)
+		goto out_remove_msi_domain;
 
 	zbus->bus = bus;
+	dev_set_msi_domain(&zbus->bus->dev, zbus->msi_parent_domain);
 
 	return 0;
+
+out_remove_msi_domain:
+	zpci_remove_parent_msi_domain(zbus);
+out_free_domain:
+	zpci_free_domain(zbus->domain_nr);
+	return -ENOMEM;
 }
 
-static void zpci_bus_release(struct kref *kref)
+/**
+ * zpci_bus_release - Un-initialize resources associated with the zbus and
+ *		      free memory
+ * @kref:	refcount * that is part of struct zpci_bus
+ *
+ * MUST be called with `zbus_list_lock` held, but the lock is released during
+ * run of the function.
+ */
+static inline void zpci_bus_release(struct kref *kref)
+	__releases(&zbus_list_lock)
 {
 	struct zpci_bus *zbus = container_of(kref, struct zpci_bus, kref);
+
+	lockdep_assert_held(&zbus_list_lock);
+
+	list_del(&zbus->bus_next);
+	mutex_unlock(&zbus_list_lock);
+
+	/*
+	 * At this point no-one should see this object, or be able to get a new
+	 * reference to it.
+	 */
 
 	if (zbus->bus) {
 		pci_lock_rescan_remove();
@@ -228,15 +239,19 @@ static void zpci_bus_release(struct kref *kref)
 		pci_unlock_rescan_remove();
 	}
 
-	mutex_lock(&zbus_list_lock);
-	list_del(&zbus->bus_next);
-	mutex_unlock(&zbus_list_lock);
+	zpci_remove_parent_msi_domain(zbus);
 	kfree(zbus);
 }
 
-static void zpci_bus_put(struct zpci_bus *zbus)
+static inline void __zpci_bus_get(struct zpci_bus *zbus)
 {
-	kref_put(&zbus->kref, zpci_bus_release);
+	lockdep_assert_held(&zbus_list_lock);
+	kref_get(&zbus->kref);
+}
+
+static inline void zpci_bus_put(struct zpci_bus *zbus)
+{
+	kref_put_mutex(&zbus->kref, zpci_bus_release, &zbus_list_lock);
 }
 
 static struct zpci_bus *zpci_bus_get(int topo, bool topo_is_tid)
@@ -248,7 +263,7 @@ static struct zpci_bus *zpci_bus_get(int topo, bool topo_is_tid)
 		if (!zbus->multifunction)
 			continue;
 		if (topo_is_tid == zbus->topo_is_tid && topo == zbus->topo) {
-			kref_get(&zbus->kref);
+			__zpci_bus_get(zbus);
 			goto out_unlock;
 		}
 	}
@@ -256,6 +271,44 @@ static struct zpci_bus *zpci_bus_get(int topo, bool topo_is_tid)
 out_unlock:
 	mutex_unlock(&zbus_list_lock);
 	return zbus;
+}
+
+/**
+ * zpci_bus_get_next - get the next zbus object from given position in the list
+ * @pos:	current position/cursor in the global zbus list
+ *
+ * Acquires and releases references as the cursor iterates (might also free/
+ * release the cursor). Is tolerant of concurrent operations on the list.
+ *
+ * To begin the iteration, set *@pos to %NULL before calling the function.
+ *
+ * *@pos is set to %NULL in cases where either the list is empty, or *@pos is
+ * the last element in the list.
+ *
+ * Context: Process context. May sleep.
+ */
+void zpci_bus_get_next(struct zpci_bus **pos)
+{
+	struct zpci_bus *curp = *pos, *next = NULL;
+
+	mutex_lock(&zbus_list_lock);
+	if (curp)
+		next = list_next_entry(curp, bus_next);
+	else
+		next = list_first_entry(&zbus_list, typeof(*curp), bus_next);
+
+	if (list_entry_is_head(next, &zbus_list, bus_next))
+		next = NULL;
+
+	if (next)
+		__zpci_bus_get(next);
+
+	*pos = next;
+	mutex_unlock(&zbus_list_lock);
+
+	/* zpci_bus_put() might drop refcount to 0 and locks zbus_list_lock */
+	if (curp)
+		zpci_bus_put(curp);
 }
 
 static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
@@ -269,9 +322,6 @@ static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
 	zbus->topo = topo;
 	zbus->topo_is_tid = topo_is_tid;
 	INIT_LIST_HEAD(&zbus->bus_next);
-	mutex_lock(&zbus_list_lock);
-	list_add_tail(&zbus->bus_next, &zbus_list);
-	mutex_unlock(&zbus_list_lock);
 
 	kref_init(&zbus->kref);
 	INIT_LIST_HEAD(&zbus->resources);
@@ -280,6 +330,10 @@ static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
 	zbus->bus_resource.end = ZPCI_BUS_NR;
 	zbus->bus_resource.flags = IORESOURCE_BUS;
 	pci_add_resource(&zbus->resources, &zbus->bus_resource);
+
+	mutex_lock(&zbus_list_lock);
+	list_add_tail(&zbus->bus_next, &zbus_list);
+	mutex_unlock(&zbus_list_lock);
 
 	return zbus;
 }

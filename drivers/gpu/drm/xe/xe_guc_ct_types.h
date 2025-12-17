@@ -126,7 +126,7 @@ struct xe_fast_req_fence {
  * for the H2G and G2H requests sent and received through the buffers.
  */
 struct xe_guc_ct {
-	/** @bo: XE BO for CT */
+	/** @bo: Xe BO for CT */
 	struct xe_bo *bo;
 	/** @lock: protects everything in CT layer */
 	struct mutex lock;

@@ -38,22 +38,42 @@
 	cfi_restore \reg \offset \docfi
 	.endm
 
+	.macro SETUP_TWINS temp
+	pcaddi	t0, 0
+	PTR_LI	t1, ~TO_PHYS_MASK
+	and	t0, t0, t1
+	ori	t0, t0, (1 << 4 | 1)
+	csrwr	t0, LOONGARCH_CSR_DMWIN0
+	PTR_LI	t0, CSR_DMW1_INIT
+	csrwr	t0, LOONGARCH_CSR_DMWIN1
+	.endm
+
+	.macro SETUP_MODES temp
+	/* Enable PG */
+	li.w	\temp, 0xb0		# PLV=0, IE=0, PG=1
+	csrwr	\temp, LOONGARCH_CSR_CRMD
+	li.w	\temp, 0x04		# PLV=0, PIE=1, PWE=0
+	csrwr	\temp, LOONGARCH_CSR_PRMD
+	li.w	\temp, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
+	csrwr	\temp, LOONGARCH_CSR_EUEN
+	.endm
+
 	.macro SETUP_DMWINS temp
-	li.d	\temp, CSR_DMW0_INIT	# WUC, PLV0, 0x8000 xxxx xxxx xxxx
+	PTR_LI	\temp, CSR_DMW0_INIT	# SUC, PLV0, LA32: 0x8xxx xxxx, LA64: 0x8000 xxxx xxxx xxxx
 	csrwr	\temp, LOONGARCH_CSR_DMWIN0
-	li.d	\temp, CSR_DMW1_INIT	# CAC, PLV0, 0x9000 xxxx xxxx xxxx
+	PTR_LI	\temp, CSR_DMW1_INIT	# CAC, PLV0, LA32: 0xaxxx xxxx, LA64: 0x9000 xxxx xxxx xxxx
 	csrwr	\temp, LOONGARCH_CSR_DMWIN1
-	li.d	\temp, CSR_DMW2_INIT	# WUC, PLV0, 0xa000 xxxx xxxx xxxx
+	PTR_LI	\temp, CSR_DMW2_INIT	# WUC, PLV0, LA32: unavailable, LA64: 0xa000 xxxx xxxx xxxx
 	csrwr	\temp, LOONGARCH_CSR_DMWIN2
-	li.d	\temp, CSR_DMW3_INIT	# 0x0, unused
+	PTR_LI	\temp, CSR_DMW3_INIT	# 0x0, unused
 	csrwr	\temp, LOONGARCH_CSR_DMWIN3
 	.endm
 
 /* Jump to the runtime virtual address. */
 	.macro JUMP_VIRT_ADDR temp1 temp2
-	li.d	\temp1, CACHE_BASE
+	PTR_LI	\temp1, CACHE_BASE
 	pcaddi	\temp2, 0
-	bstrins.d  \temp1, \temp2, (DMW_PABITS - 1), 0
+	PTR_BSTRINS  \temp1, \temp2, (DMW_PABITS - 1), 0
 	jirl	zero, \temp1, 0xc
 	.endm
 
@@ -171,7 +191,7 @@
 	andi	t0, t0, 0x3	/* extract pplv bit */
 	beqz	t0, 9f
 
-	li.d	tp, ~_THREAD_MASK
+	LONG_LI	tp, ~_THREAD_MASK
 	and	tp, tp, sp
 	cfi_st  u0, PT_R21, \docfi
 	csrrd	u0, PERCPU_BASE_KS

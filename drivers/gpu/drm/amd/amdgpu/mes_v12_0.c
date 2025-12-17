@@ -361,6 +361,7 @@ static int mes_v12_0_remove_hw_queue(struct amdgpu_mes *mes,
 				     struct mes_remove_queue_input *input)
 {
 	union MESAPI__REMOVE_QUEUE mes_remove_queue_pkt;
+	uint32_t mes_rev = mes->sched_version & AMDGPU_MES_VERSION_MASK;
 
 	memset(&mes_remove_queue_pkt, 0, sizeof(mes_remove_queue_pkt));
 
@@ -370,6 +371,9 @@ static int mes_v12_0_remove_hw_queue(struct amdgpu_mes *mes,
 
 	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
+
+	if (mes_rev >= 0x5a)
+		mes_remove_queue_pkt.remove_queue_after_reset = input->remove_queue_after_reset;
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes,
 			AMDGPU_MES_SCHED_PIPE,

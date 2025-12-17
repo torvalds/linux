@@ -58,8 +58,8 @@
 #include "transform.h"
 #include "dpp.h"
 
-#include "dml2/dml21/inc/dml_top_dchub_registers.h"
-#include "dml2/dml21/inc/dml_top_types.h"
+#include "dml2_0/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2_0/dml21/inc/dml_top_types.h"
 
 struct resource_pool;
 struct dc_state;
@@ -274,7 +274,7 @@ struct resource_pool {
 	/* An array for accessing the link encoder objects that have been created.
 	 * Index in array corresponds to engine ID - viz. 0: ENGINE_ID_DIGA
 	 */
-	struct link_encoder *link_encoders[MAX_DIG_LINK_ENCODERS];
+	struct link_encoder *link_encoders[MAX_LINK_ENCODERS];
 	/* Number of DIG link encoder objects created - i.e. number of valid
 	 * entries in link_encoders array.
 	 */
@@ -514,7 +514,7 @@ struct pipe_ctx {
 struct link_enc_cfg_context {
 	enum link_enc_cfg_mode mode;
 	struct link_enc_assignment link_enc_assignments[MAX_PIPES];
-	enum engine_id link_enc_avail[MAX_DIG_LINK_ENCODERS];
+	enum engine_id link_enc_avail[MAX_LINK_ENCODERS];
 	struct link_enc_assignment transient_assignments[MAX_PIPES];
 };
 
@@ -526,8 +526,8 @@ struct resource_context {
 	uint8_t dp_clock_source_ref_count;
 	bool is_dsc_acquired[MAX_PIPES];
 	struct link_enc_cfg_context link_enc_cfg_ctx;
-	unsigned int dio_link_enc_to_link_idx[MAX_DIG_LINK_ENCODERS];
-	int dio_link_enc_ref_cnts[MAX_DIG_LINK_ENCODERS];
+	unsigned int dio_link_enc_to_link_idx[MAX_LINK_ENCODERS];
+	int dio_link_enc_ref_cnts[MAX_LINK_ENCODERS];
 	bool is_hpo_dp_stream_enc_acquired[MAX_HPO_DP2_ENCODERS];
 	unsigned int hpo_dp_link_enc_to_link_idx[MAX_HPO_DP2_LINK_ENCODERS];
 	int hpo_dp_link_enc_ref_cnts[MAX_HPO_DP2_LINK_ENCODERS];

@@ -104,10 +104,12 @@ char *top_level_dir(const char *file)
 	return str;
 }
 
-
 int main(int argc, const char **argv)
 {
 	static const char *UNUSED = "OBJTOOL_NOT_IMPLEMENTED";
+
+	if (init_signal_handler())
+		return -1;
 
 	/* libsubcmd init */
 	exec_cmd_init("objtool", UNUSED, UNUSED, UNUSED);

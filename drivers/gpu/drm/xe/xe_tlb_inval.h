@@ -33,7 +33,7 @@ void xe_tlb_inval_fence_init(struct xe_tlb_inval *tlb_inval,
  * xe_tlb_inval_fence_wait() - TLB invalidiation fence wait
  * @fence: TLB invalidation fence to wait on
  *
- * Wait on a TLB invalidiation fence until it signals, non interruptable
+ * Wait on a TLB invalidiation fence until it signals, non interruptible
  */
 static inline void
 xe_tlb_inval_fence_wait(struct xe_tlb_inval_fence *fence)

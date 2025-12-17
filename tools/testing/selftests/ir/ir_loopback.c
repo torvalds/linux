@@ -23,7 +23,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define TEST_SCANCODES	10
 #define SYSFS_PATH_MAX 256

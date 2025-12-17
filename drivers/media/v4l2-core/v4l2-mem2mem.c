@@ -123,13 +123,7 @@ static struct v4l2_m2m_queue_ctx *get_queue_ctx(struct v4l2_m2m_ctx *m2m_ctx,
 struct vb2_queue *v4l2_m2m_get_vq(struct v4l2_m2m_ctx *m2m_ctx,
 				       enum v4l2_buf_type type)
 {
-	struct v4l2_m2m_queue_ctx *q_ctx;
-
-	q_ctx = get_queue_ctx(m2m_ctx, type);
-	if (!q_ctx)
-		return NULL;
-
-	return &q_ctx->q;
+	return &get_queue_ctx(m2m_ctx, type)->q;
 }
 EXPORT_SYMBOL(v4l2_m2m_get_vq);
 
@@ -1285,8 +1279,6 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 	unsigned long flags;
 
 	q_ctx = get_queue_ctx(m2m_ctx, vbuf->vb2_buf.vb2_queue->type);
-	if (!q_ctx)
-		return;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
 	list_add_tail(&b->list, &q_ctx->rdy_queue);
@@ -1296,14 +1288,9 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
 
 void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,
-				struct vb2_v4l2_buffer *cap_vb,
-				bool copy_frame_flags)
+				struct vb2_v4l2_buffer *cap_vb)
 {
-	u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
-
-	if (copy_frame_flags)
-		mask |= V4L2_BUF_FLAG_KEYFRAME | V4L2_BUF_FLAG_PFRAME |
-			V4L2_BUF_FLAG_BFRAME;
+	const u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 
 	cap_vb->vb2_buf.timestamp = out_vb->vb2_buf.timestamp;
 
@@ -1388,8 +1375,6 @@ int v4l2_m2m_ioctl_remove_bufs(struct file *file, void *priv,
 	struct v4l2_fh *fh = file_to_v4l2_fh(file);
 	struct vb2_queue *q = v4l2_m2m_get_vq(fh->m2m_ctx, remove->type);
 
-	if (!q)
-		return -EINVAL;
 	if (q->type != remove->type)
 		return -EINVAL;
 

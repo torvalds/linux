@@ -767,6 +767,14 @@ Kernel parameters
 			nokmem -- Disable kernel memory accounting.
 			nobpf -- Disable BPF memory accounting.
 
+	check_pages=	[MM,EARLY] Enable sanity checking of pages after
+			allocations / before freeing. This adds checks to catch
+			double-frees, use-after-frees, and other sources of
+			page corruption by inspecting page internals (flags,
+			mapcount/refcount, memcg_data, etc.).
+			Format: { "0" | "1" }
+			Default: 0 (1 if CONFIG_DEBUG_VM is set)
+
 	checkreqprot=	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
@@ -1111,7 +1119,7 @@ Kernel parameters
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
 	crashkernel=size[KMG],cma
-			[KNL, X86] Reserve additional crash kernel memory from
+			[KNL, X86, ppc] Reserve additional crash kernel memory from
 			CMA. This reservation is usable by the first system's
 			userspace memory and kernel movable allocations (memory
 			balloon, zswap). Pages allocated from this memory range
@@ -1211,12 +1219,8 @@ Kernel parameters
 
 	debugfs=    	[KNL,EARLY] This parameter enables what is exposed to
 			userspace and debugfs internal clients.
-			Format: { on, no-mount, off }
+			Format: { on, off }
 			on: 	All functions are enabled.
-			no-mount:
-				Filesystem is not registered but kernel clients can
-			        access APIs and a crashkernel can be used to read
-				its content. There is nothing to mount.
 			off: 	Filesystem is not registered and clients
 			        get a -EPERM as result when trying to register files
 				or directories within debugfs.
@@ -2118,14 +2122,20 @@ Kernel parameters
 			the added memory block itself do not be affected.
 
 	hung_task_panic=
-			[KNL] Should the hung task detector generate panics.
-			Format: 0 | 1
+			[KNL] Number of hung tasks to trigger kernel panic.
+			Format: <int>
 
-			A value of 1 instructs the kernel to panic when a
-			hung task is detected. The default value is controlled
-			by the CONFIG_BOOTPARAM_HUNG_TASK_PANIC build-time
-			option. The value selected by this boot parameter can
-			be changed later by the kernel.hung_task_panic sysctl.
+			When set to a non-zero value, a kernel panic will be triggered if
+			the number of detected hung tasks reaches this value.
+
+			0: don't panic
+			1: panic immediately on first hung task
+			N: panic after N hung tasks are detected in a single scan
+
+			The default value is controlled by the
+			CONFIG_BOOTPARAM_HUNG_TASK_PANIC build-time option. The value
+			selected by this boot parameter can be changed later by the
+			kernel.hung_task_panic sysctl.
 
 	hvc_iucv=	[S390]	Number of z/VM IUCV hypervisor console (HVC)
 				terminal devices. Valid values: 0..8
@@ -7303,6 +7313,9 @@ Kernel parameters
 			Limits the number of kernel SLB entries, and flushes
 			them frequently to increase the rate of SLB faults
 			on kernel addresses.
+
+	no_slb_preload	[PPC,EARLY]
+			Disables slb preloading for userspace.
 
 	sunrpc.min_resvport=
 	sunrpc.max_resvport=

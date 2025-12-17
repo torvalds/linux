@@ -16,36 +16,6 @@ menuconfig X86_PLATFORM_DEVICES
 
 if X86_PLATFORM_DEVICES
 
-config ACPI_WMI
-	tristate "WMI"
-	depends on ACPI
-	help
-	  This driver adds support for the ACPI-WMI (Windows Management
-	  Instrumentation) mapper device (PNP0C14) found on some systems.
-
-	  ACPI-WMI is a proprietary extension to ACPI to expose parts of the
-	  ACPI firmware to userspace - this is done through various vendor
-	  defined methods and data blocks in a PNP0C14 device, which are then
-	  made available for userspace to call.
-
-	  The implementation of this in Linux currently only exposes this to
-	  other kernel space drivers.
-
-	  This driver is a required dependency to build the firmware specific
-	  drivers needed on many machines, including Acer and HP laptops.
-
-	  It is safe to enable this driver even if your DSDT doesn't define
-	  any ACPI-WMI devices.
-
-config ACPI_WMI_LEGACY_DEVICE_NAMES
-	bool "Use legacy WMI device naming scheme"
-	depends on ACPI_WMI
-	help
-	  Say Y here to force the WMI driver core to use the old WMI device naming
-	  scheme when creating WMI devices. Doing so might be necessary for some
-	  userspace applications but will cause the registration of WMI devices with
-	  the same GUID to fail in some corner cases.
-
 config WMI_BMOF
 	tristate "WMI embedded Binary MOF driver"
 	depends on ACPI_WMI
@@ -73,6 +43,8 @@ config HUAWEI_WMI
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called huawei-wmi.
+
+source "drivers/platform/x86/uniwill/Kconfig"
 
 config UV_SYSFS
 	tristate "Sysfs structure for UV systems"
@@ -262,6 +234,18 @@ config ASUS_WIRELESS
 	  If you choose to compile this driver as a module the module will be
 	  called asus-wireless.
 
+config ASUS_ARMOURY
+	tristate "ASUS Armoury driver"
+	depends on ASUS_WMI
+	select FW_ATTR_CLASS
+	help
+	  Say Y here if you have a WMI aware Asus machine and would like to use the
+	  firmware_attributes API to control various settings typically exposed in
+	  the ASUS Armoury Crate application available on Windows.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called asus-armoury.
+
 config ASUS_WMI
 	tristate "ASUS WMI Driver"
 	depends on ACPI_WMI
@@ -283,6 +267,17 @@ config ASUS_WMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called asus-wmi.
+
+config ASUS_WMI_DEPRECATED_ATTRS
+	bool "BIOS option support in WMI platform (DEPRECATED)"
+	depends on ASUS_WMI
+	default y
+	help
+	  Say Y to expose the configurable BIOS options through the asus-wmi
+	  driver.
+
+	  This can be used with or without the asus-armoury driver which
+	  has the same attributes, but more, and better features.
 
 config ASUS_NB_WMI
 	tristate "Asus Notebook WMI Driver"
@@ -315,6 +310,19 @@ config ASUS_TF103C_DOCK
 
 	  If you have an Asus TF103C tablet say Y or M here, for a generic x86
 	  distro config say M here.
+
+config AYANEO_EC
+	tristate "Ayaneo EC platform control"
+	depends on DMI
+	depends on ACPI_EC
+	depends on ACPI_BATTERY
+	depends on HWMON
+	help
+	  Enables support for the platform EC of Ayaneo devices. This
+	  includes fan control, fan speed, charge limit, magic
+	  module detection, and controller power control.
+
+	  If you have an Ayaneo device, say Y or M here.
 
 config MERAKI_MX100
 	tristate "Cisco Meraki MX100 Platform Driver"
@@ -1031,9 +1039,7 @@ config OXP_EC
 	help
 		Enables support for the platform EC of OneXPlayer and AOKZOE
 		handheld devices. This includes fan speed, fan controls, and
-		disabling the default TDP behavior of the device. Due to legacy
-		reasons, this driver also provides hwmon functionality to Ayaneo
-		devices and the OrangePi Neo.
+		disabling the default TDP behavior of the device.
 
 source "drivers/platform/x86/tuxedo/Kconfig"
 

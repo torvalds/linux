@@ -1286,6 +1286,11 @@ The vm_area_desc provides the minimum required information for a filesystem
 to initialise state upon memory mapping of a file-backed region, and output
 parameters for the file system to set this state.
 
+In nearly all cases, this is all that is required for a filesystem. However, if
+a filesystem needs to perform an operation such a pre-population of page tables,
+then that action can be specified in the vm_area_desc->action field, which can
+be configured using the mmap_action_*() helpers.
+
 ---
 
 **mandatory**
@@ -1322,3 +1327,10 @@ When vfs_mkdir() returns an error, and so both dputs() the original
 dentry and doesn't provide a replacement, it also unlocks the parent.
 Consequently the return value from vfs_mkdir() can be passed to
 end_creating() and the parent will be unlocked precisely when necessary.
+
+---
+
+**mandatory**
+
+kill_litter_super() is gone; convert to DCACHE_PERSISTENT use (as all
+in-tree filesystems have done).

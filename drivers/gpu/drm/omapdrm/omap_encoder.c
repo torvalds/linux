@@ -77,7 +77,6 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	struct omap_dss_device *output = omap_encoder->output;
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;
-	struct drm_bridge *bridge;
 	struct videomode vm = { 0 };
 	u32 bus_flags;
 
@@ -97,8 +96,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	 *
 	 * A better solution is to use DRM's bus-flags through the whole driver.
 	 */
-	for (bridge = output->bridge; bridge;
-	     bridge = drm_bridge_get_next_bridge(bridge)) {
+	drm_for_each_bridge_in_chain_from(output->bridge, bridge) {
 		if (!bridge->timings)
 			continue;
 

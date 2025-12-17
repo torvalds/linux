@@ -736,7 +736,7 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 {
 	struct amdgpu_crtc *acrtc = NULL;
 	struct drm_plane *cursor_plane;
-	bool is_dcn;
+	bool has_degamma;
 	int res = -ENOMEM;
 
 	cursor_plane = kzalloc(sizeof(*cursor_plane), GFP_KERNEL);
@@ -775,20 +775,18 @@ int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 
 	dm->adev->mode_info.crtcs[crtc_index] = acrtc;
 
-	/* Don't enable DRM CRTC degamma property for DCE since it doesn't
-	 * support programmable degamma anywhere.
+	/* Don't enable DRM CRTC degamma property for
+	 * 1. Degamma is replaced by color pipeline.
+	 * 2. DCE since it doesn't support programmable degamma anywhere.
+	 * 3. DCN401 since pre-blending degamma LUT doesn't apply to cursor.
 	 */
-	is_dcn = dm->adev->dm.dc->caps.color.dpp.dcn_arch;
-	/* Dont't enable DRM CRTC degamma property for DCN401 since the
-	 * pre-blending degamma LUT doesn't apply to cursor, and therefore
-	 * can't work similar to a post-blending degamma LUT as in other hw
-	 * versions.
-	 * TODO: revisit it once KMS plane color API is merged.
-	 */
-	drm_crtc_enable_color_mgmt(&acrtc->base,
-				   (is_dcn &&
-				    dm->adev->dm.dc->ctx->dce_version != DCN_VERSION_4_01) ?
-				     MAX_COLOR_LUT_ENTRIES : 0,
+	if (plane->color_pipeline_property)
+		has_degamma = false;
+	else
+		has_degamma = dm->adev->dm.dc->caps.color.dpp.dcn_arch &&
+			      dm->adev->dm.dc->ctx->dce_version != DCN_VERSION_4_01;
+
+	drm_crtc_enable_color_mgmt(&acrtc->base, has_degamma ? MAX_COLOR_LUT_ENTRIES : 0,
 				   true, MAX_COLOR_LUT_ENTRIES);
 
 	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);

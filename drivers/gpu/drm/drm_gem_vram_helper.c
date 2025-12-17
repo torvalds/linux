@@ -17,6 +17,7 @@
 #include <drm/drm_mode.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 
 #include <drm/ttm/ttm_range_manager.h>
 #include <drm/ttm/ttm_tt.h>
@@ -107,7 +108,7 @@ static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 
 static void drm_gem_vram_cleanup(struct drm_gem_vram_object *gbo)
 {
-	/* We got here via ttm_bo_put(), which means that the
+	/* We got here via ttm_bo_fini(), which means that the
 	 * TTM buffer object in 'bo' has already been cleaned
 	 * up; only release the GEM object.
 	 */
@@ -234,11 +235,11 @@ EXPORT_SYMBOL(drm_gem_vram_create);
  * drm_gem_vram_put() - Releases a reference to a VRAM-backed GEM object
  * @gbo:	the GEM VRAM object
  *
- * See ttm_bo_put() for more information.
+ * See ttm_bo_fini() for more information.
  */
 void drm_gem_vram_put(struct drm_gem_vram_object *gbo)
 {
-	ttm_bo_put(&gbo->bo);
+	ttm_bo_fini(&gbo->bo);
 }
 EXPORT_SYMBOL(drm_gem_vram_put);
 
@@ -859,7 +860,7 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	ret = ttm_device_init(&vmm->bdev, &bo_driver, dev->dev,
 				 dev->anon_inode->i_mapping,
 				 dev->vma_offset_manager,
-				 false, true);
+				 TTM_ALLOCATION_POOL_USE_DMA32);
 	if (ret)
 		return ret;
 
@@ -967,7 +968,7 @@ drm_vram_helper_mode_valid_internal(struct drm_device *dev,
 
 	max_fbpages = (vmm->vram_size / 2) >> PAGE_SHIFT;
 
-	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
+	fbsize = (u32)mode->hdisplay * mode->vdisplay * max_bpp;
 	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
 
 	if (fbpages > max_fbpages)

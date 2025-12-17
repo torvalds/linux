@@ -190,7 +190,7 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #define data_race(expr)							\
 ({									\
 	__kcsan_disable_current();					\
-	__auto_type __v = (expr);					\
+	auto __v = (expr);						\
 	__kcsan_enable_current();					\
 	__v;								\
 })
@@ -272,12 +272,6 @@ static inline void *offset_to_ptr(const int *off)
 }
 
 #endif /* __ASSEMBLY__ */
-
-#ifdef CONFIG_64BIT
-#define ARCH_SEL(a,b) a
-#else
-#define ARCH_SEL(a,b) b
-#endif
 
 /*
  * Force the compiler to emit 'sym' as a symbol, so that we can reference

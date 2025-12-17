@@ -137,6 +137,14 @@ struct dcn_hubbub_state {
 	uint32_t dram_state_cntl;
 };
 
+struct dcn_hubbub_reg_state {
+	uint32_t det0_ctrl;
+	uint32_t det1_ctrl;
+	uint32_t det2_ctrl;
+	uint32_t det3_ctrl;
+	uint32_t compbuf_ctrl;
+};
+
 struct hubbub_system_latencies {
 	uint32_t max_latency_ns;
 	uint32_t avg_latency_ns;
@@ -216,6 +224,8 @@ struct hubbub_funcs {
 
 	void (*init_watermarks)(struct hubbub *hubbub);
 
+	void (*hubbub_read_reg_state)(struct hubbub *hubbub, struct dcn_hubbub_reg_state *hubbub_reg_state);
+
 	/**
 	 * @program_det_size:
 	 *
@@ -242,17 +252,39 @@ struct hubbub_funcs {
 	void (*program_compbuf_segments)(struct hubbub *hubbub, unsigned compbuf_size_seg, bool safe_to_increase);
 	void (*wait_for_det_update)(struct hubbub *hubbub, int hubp_inst);
 	bool (*program_arbiter)(struct hubbub *hubbub, struct dml2_display_arb_regs *arb_regs, bool safe_to_lower);
-	void (*get_det_sizes)(struct hubbub *hubbub, uint32_t *curr_det_sizes, uint32_t *target_det_sizes);
-	uint32_t (*compbuf_config_error)(struct hubbub *hubbub);
-	struct hubbub_perfmon_funcs{
-		void (*start_system_latency_measurement)(struct hubbub *hubbub);
-		void (*get_system_latency_result)(struct hubbub *hubbub, uint32_t refclk_mhz, struct hubbub_system_latencies *latencies);
-		void (*start_in_order_bandwidth_measurement)(struct hubbub *hubbub);
-		void (*get_in_order_bandwidth_result)(struct hubbub *hubbub, uint32_t refclk_mhz, uint32_t *bandwidth_mbps);
-		void (*start_urgent_ramp_latency_measurement)(struct hubbub *hubbub, const struct hubbub_urgent_latency_params *params);
-		void (*get_urgent_ramp_latency_result)(struct hubbub *hubbub, uint32_t refclk_mhz, uint32_t *latency_ns);
+	void (*dchvm_init)(struct hubbub *hubbub);
+
+	struct hubbub_perfmon_funcs {
 		void (*reset)(struct hubbub *hubbub);
+		void (*start_measuring_max_memory_latency_ns)(
+				struct hubbub *hubbub);
+		uint32_t (*get_max_memory_latency_ns)(struct hubbub *hubbub,
+				uint32_t refclk_mhz, uint32_t *sample_count);
+		void (*start_measuring_average_memory_latency_ns)(
+				struct hubbub *hubbub);
+		uint32_t (*get_average_memory_latency_ns)(struct hubbub *hubbub,
+				uint32_t refclk_mhz, uint32_t *sample_count);
+		void (*start_measuring_urgent_ramp_latency_ns)(
+				struct hubbub *hubbub,
+				const struct hubbub_urgent_latency_params *params);
+		uint32_t (*get_urgent_ramp_latency_ns)(struct hubbub *hubbub,
+				uint32_t refclk_mhz);
+		void (*start_measuring_unbounded_bandwidth_mbps)(
+				struct hubbub *hubbub);
+		uint32_t (*get_unbounded_bandwidth_mbps)(struct hubbub *hubbub,
+				uint32_t refclk_mhz, uint32_t *duration_ns);
+		void (*start_measuring_average_bandwidth_mbps)(
+				struct hubbub *hubbub);
+		uint32_t (*get_average_bandwidth_mbps)(struct hubbub *hubbub,
+				uint32_t refclk_mhz, uint32_t min_duration_ns,
+				uint32_t *duration_ns);
 	} perfmon;
+
+	struct hubbub_qos_funcs {
+		void (*force_display_nominal_profile)(struct hubbub *hubbub);
+		void (*force_display_urgent_profile)(struct hubbub *hubbub);
+		void (*reset_display_qos_profile)(struct hubbub *hubbub);
+	} qos;
 };
 
 struct hubbub {

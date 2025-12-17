@@ -173,6 +173,9 @@ struct bug_entry *find_bug(unsigned long bugaddr)
 	return module_find_bug(bugaddr);
 }
 
+__diag_push();
+__diag_ignore(GCC, all, "-Wsuggest-attribute=format",
+	      "Not a valid __printf() conversion candidate.");
 static void __warn_printf(const char *fmt, struct pt_regs *regs)
 {
 	if (!fmt)
@@ -192,6 +195,7 @@ static void __warn_printf(const char *fmt, struct pt_regs *regs)
 
 	printk("%s", fmt);
 }
+__diag_pop();
 
 static enum bug_trap_type __report_bug(struct bug_entry *bug, unsigned long bugaddr, struct pt_regs *regs)
 {
@@ -262,7 +266,7 @@ enum bug_trap_type report_bug_entry(struct bug_entry *bug, struct pt_regs *regs)
 	bool rcu = false;
 
 	rcu = warn_rcu_enter();
-	ret = __report_bug(bug, 0, regs);
+	ret = __report_bug(bug, bug_addr(bug), regs);
 	warn_rcu_exit(rcu);
 
 	return ret;

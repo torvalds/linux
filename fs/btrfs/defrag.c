@@ -15,6 +15,7 @@
 #include "defrag.h"
 #include "file-item.h"
 #include "super.h"
+#include "compression.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 
@@ -470,7 +471,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		memcpy(&key, &root->defrag_progress, sizeof(key));
 	}
 
-	path->keep_locks = 1;
+	path->keep_locks = true;
 
 	ret = btrfs_search_forward(root, &key, path, BTRFS_OLDEST_GENERATION);
 	if (ret < 0)
@@ -513,7 +514,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	/*
 	 * Now that we reallocated the node we can find the next key. Note that
 	 * btrfs_find_next_key() can release our path and do another search
-	 * without COWing, this is because even with path->keep_locks = 1,
+	 * without COWing, this is because even with path->keep_locks == true,
 	 * btrfs_search_slot() / ctree.c:unlock_up() does not keeps a lock on a
 	 * node when path->slots[node_level - 1] does not point to the last
 	 * item or a slot beyond the last item (ctree.c:unlock_up()). Therefore

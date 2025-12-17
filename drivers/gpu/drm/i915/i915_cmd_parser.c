@@ -28,6 +28,7 @@
 #include <linux/highmem.h>
 
 #include <drm/drm_cache.h>
+#include <drm/drm_print.h>
 
 #include "gt/intel_engine.h"
 #include "gt/intel_engine_regs.h"

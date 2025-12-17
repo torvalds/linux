@@ -332,8 +332,6 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 		if (crtc->enabled)
 			active = true;
 
-	pm_runtime_mark_last_busy(dev->dev);
-
 	adev = drm_to_adev(dev);
 	/* if we have active crtcs and we don't have a power ref,
 	 * take the current one
@@ -1365,6 +1363,64 @@ static const struct drm_prop_enum_list amdgpu_dither_enum_list[] = {
 	{ AMDGPU_FMT_DITHER_ENABLE, "on" },
 };
 
+/**
+ * DOC: property for adaptive backlight modulation
+ *
+ * The 'adaptive backlight modulation' property is used for the compositor to
+ * directly control the adaptive backlight modulation power savings feature
+ * that is part of DCN hardware.
+ *
+ * The property will be attached specifically to eDP panels that support it.
+ *
+ * The property is by default set to 'sysfs' to allow the sysfs file 'panel_power_savings'
+ * to be able to control it.
+ * If set to 'off' the compositor will ensure it stays off.
+ * The other values 'min', 'bias min', 'bias max', and 'max' will control the
+ * intensity of the power savings.
+ *
+ * Modifying this value can have implications on color accuracy, so tread
+ * carefully.
+ */
+static int amdgpu_display_setup_abm_prop(struct amdgpu_device *adev)
+{
+	const struct drm_prop_enum_list props[] = {
+		{ ABM_SYSFS_CONTROL, "sysfs" },
+		{ ABM_LEVEL_OFF, "off" },
+		{ ABM_LEVEL_MIN, "min" },
+		{ ABM_LEVEL_BIAS_MIN, "bias min" },
+		{ ABM_LEVEL_BIAS_MAX, "bias max" },
+		{ ABM_LEVEL_MAX, "max" },
+	};
+	struct drm_property *prop;
+	int i;
+
+	if (!adev->dc_enabled)
+		return 0;
+
+	prop = drm_property_create(adev_to_drm(adev), DRM_MODE_PROP_ENUM,
+				"adaptive backlight modulation",
+				6);
+	if (!prop)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		int ret;
+
+		ret = drm_property_add_enum(prop, props[i].type,
+						props[i].name);
+
+		if (ret) {
+			drm_property_destroy(adev_to_drm(adev), prop);
+
+			return ret;
+		}
+	}
+
+	adev->mode_info.abm_level_property = prop;
+
+	return 0;
+}
+
 int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 {
 	int sz;
@@ -1411,7 +1467,7 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
-	return 0;
+	return amdgpu_display_setup_abm_prop(adev);
 }
 
 void amdgpu_display_update_priority(struct amdgpu_device *adev)

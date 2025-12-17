@@ -1041,7 +1041,7 @@ static int user_field_array_size(const char *type)
 
 static int user_field_size(const char *type)
 {
-	/* long is not allowed from a user, since it's ambigious in size */
+	/* long is not allowed from a user, since it's ambiguous in size */
 	if (strcmp(type, "s64") == 0)
 		return sizeof(s64);
 	if (strcmp(type, "u64") == 0)
@@ -1079,7 +1079,7 @@ static int user_field_size(const char *type)
 	if (str_has_prefix(type, "__rel_loc "))
 		return sizeof(u32);
 
-	/* Uknown basic type, error */
+	/* Unknown basic type, error */
 	return -EINVAL;
 }
 
@@ -2465,7 +2465,7 @@ static long user_events_ioctl_reg(struct user_event_file_info *info,
 	/*
 	 * Prevent users from using the same address and bit multiple times
 	 * within the same mm address space. This can cause unexpected behavior
-	 * for user processes that is far easier to debug if this is explictly
+	 * for user processes that is far easier to debug if this is explicitly
 	 * an error upon registering.
 	 */
 	if (current_user_event_enabler_exists((unsigned long)reg.enable_addr,

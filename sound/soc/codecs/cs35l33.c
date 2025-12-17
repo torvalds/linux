@@ -547,7 +547,7 @@ static int cs35l33_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_component *component = dai->component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs35l33_private *priv = snd_soc_component_get_drvdata(component);
 	unsigned int reg, bit_pos, i;
 	int slot, slot_num;
@@ -695,7 +695,7 @@ static int cs35l33_set_hg_data(struct snd_soc_component *component,
 			       struct cs35l33_pdata *pdata)
 {
 	struct cs35l33_hg *hg_config = &pdata->hg_config;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs35l33_private *priv = snd_soc_component_get_drvdata(component);
 
 	if (hg_config->enable_hg_algo) {

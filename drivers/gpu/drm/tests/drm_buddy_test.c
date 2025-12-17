@@ -21,6 +21,110 @@ static inline u64 get_size(int order, u64 chunk_size)
 	return (1 << order) * chunk_size;
 }
 
+static void drm_test_buddy_fragmentation_performance(struct kunit *test)
+{
+	struct drm_buddy_block *block, *tmp;
+	int num_blocks, i, ret, count = 0;
+	LIST_HEAD(allocated_blocks);
+	unsigned long elapsed_ms;
+	LIST_HEAD(reverse_list);
+	LIST_HEAD(test_blocks);
+	LIST_HEAD(clear_list);
+	LIST_HEAD(dirty_list);
+	LIST_HEAD(free_list);
+	struct drm_buddy mm;
+	u64 mm_size = SZ_4G;
+	ktime_t start, end;
+
+	/*
+	 * Allocation under severe fragmentation
+	 *
+	 * Create severe fragmentation by allocating the entire 4 GiB address space
+	 * as tiny 8 KiB blocks but forcing a 64 KiB alignment. The resulting pattern
+	 * leaves many scattered holes. Split the allocations into two groups and
+	 * return them with different flags to block coalescing, then repeatedly
+	 * allocate and free 64 KiB blocks while timing the loop. This stresses how
+	 * quickly the allocator can satisfy larger, aligned requests from a pool of
+	 * highly fragmented space.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, SZ_4K),
+			       "buddy_init failed\n");
+
+	num_blocks = mm_size / SZ_64K;
+
+	start = ktime_get();
+	/* Allocate with maximum fragmentation - 8K blocks with 64K alignment */
+	for (i = 0; i < num_blocks; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size, SZ_8K, SZ_64K,
+								    &allocated_blocks, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_8K);
+
+	list_for_each_entry_safe(block, tmp, &allocated_blocks, link) {
+		if (count % 4 == 0 || count % 4 == 3)
+			list_move_tail(&block->link, &clear_list);
+		else
+			list_move_tail(&block->link, &dirty_list);
+		count++;
+	}
+
+	/* Free with different flags to ensure no coalescing */
+	drm_buddy_free_list(&mm, &clear_list, DRM_BUDDY_CLEARED);
+	drm_buddy_free_list(&mm, &dirty_list, 0);
+
+	for (i = 0; i < num_blocks; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size, SZ_64K, SZ_64K,
+								    &test_blocks, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_64K);
+	drm_buddy_free_list(&mm, &test_blocks, 0);
+
+	end = ktime_get();
+	elapsed_ms = ktime_to_ms(ktime_sub(end, start));
+
+	kunit_info(test, "Fragmented allocation took %lu ms\n", elapsed_ms);
+
+	drm_buddy_fini(&mm);
+
+	/*
+	 * Reverse free order under fragmentation
+	 *
+	 * Construct a fragmented 4 GiB space by allocating every 8 KiB block with
+	 * 64 KiB alignment, creating a dense scatter of small regions. Half of the
+	 * blocks are selectively freed to form sparse gaps, while the remaining
+	 * allocations are preserved, reordered in reverse, and released back with
+	 * the cleared flag. This models a pathological reverse-ordered free pattern
+	 * and measures how quickly the allocator can merge and reclaim space when
+	 * deallocation occurs in the opposite order of allocation, exposing the
+	 * cost difference between a linear freelist scan and an ordered tree lookup.
+	 */
+	ret = drm_buddy_init(&mm, mm_size, SZ_4K);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	start = ktime_get();
+	/* Allocate maximum fragmentation */
+	for (i = 0; i < num_blocks; i++)
+		KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size, SZ_8K, SZ_64K,
+								    &allocated_blocks, 0),
+					"buddy_alloc hit an error size=%u\n", SZ_8K);
+
+	list_for_each_entry_safe(block, tmp, &allocated_blocks, link) {
+		if (count % 2 == 0)
+			list_move_tail(&block->link, &free_list);
+		count++;
+	}
+	drm_buddy_free_list(&mm, &free_list, DRM_BUDDY_CLEARED);
+
+	list_for_each_entry_safe_reverse(block, tmp, &allocated_blocks, link)
+		list_move(&block->link, &reverse_list);
+	drm_buddy_free_list(&mm, &reverse_list, DRM_BUDDY_CLEARED);
+
+	end = ktime_get();
+	elapsed_ms = ktime_to_ms(ktime_sub(end, start));
+
+	kunit_info(test, "Reverse-ordered free took %lu ms\n", elapsed_ms);
+
+	drm_buddy_fini(&mm);
+}
+
 static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 {
 	u32 mm_size, size, ps, bias_size, bias_start, bias_end, bias_rem;
@@ -772,6 +876,7 @@ static struct kunit_case drm_buddy_tests[] = {
 	KUNIT_CASE(drm_test_buddy_alloc_contiguous),
 	KUNIT_CASE(drm_test_buddy_alloc_clear),
 	KUNIT_CASE(drm_test_buddy_alloc_range_bias),
+	KUNIT_CASE(drm_test_buddy_fragmentation_performance),
 	{}
 };
 

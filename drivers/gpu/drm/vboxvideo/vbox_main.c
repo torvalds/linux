@@ -12,6 +12,7 @@
 #include <linux/vbox_err.h>
 
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_print.h>
 
 #include "vbox_drv.h"
 #include "vboxvideo_guest.h"

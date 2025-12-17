@@ -5,43 +5,55 @@
 #ifndef _ASM_ASMMACRO_H
 #define _ASM_ASMMACRO_H
 
+#include <linux/sizes.h>
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 
+#ifdef CONFIG_64BIT
+#define TASK_STRUCT_OFFSET 0
+#else
+#define TASK_STRUCT_OFFSET 2000
+#endif
+
 	.macro	cpu_save_nonscratch thread
-	stptr.d	s0, \thread, THREAD_REG23
-	stptr.d	s1, \thread, THREAD_REG24
-	stptr.d	s2, \thread, THREAD_REG25
-	stptr.d	s3, \thread, THREAD_REG26
-	stptr.d	s4, \thread, THREAD_REG27
-	stptr.d	s5, \thread, THREAD_REG28
-	stptr.d	s6, \thread, THREAD_REG29
-	stptr.d	s7, \thread, THREAD_REG30
-	stptr.d	s8, \thread, THREAD_REG31
-	stptr.d	sp, \thread, THREAD_REG03
-	stptr.d	fp, \thread, THREAD_REG22
+	LONG_SPTR	s0, \thread, (THREAD_REG23 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s1, \thread, (THREAD_REG24 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s2, \thread, (THREAD_REG25 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s3, \thread, (THREAD_REG26 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s4, \thread, (THREAD_REG27 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s5, \thread, (THREAD_REG28 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s6, \thread, (THREAD_REG29 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s7, \thread, (THREAD_REG30 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	s8, \thread, (THREAD_REG31 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	ra, \thread, (THREAD_REG01 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	sp, \thread, (THREAD_REG03 - TASK_STRUCT_OFFSET)
+	LONG_SPTR	fp, \thread, (THREAD_REG22 - TASK_STRUCT_OFFSET)
 	.endm
 
 	.macro	cpu_restore_nonscratch thread
-	ldptr.d	s0, \thread, THREAD_REG23
-	ldptr.d	s1, \thread, THREAD_REG24
-	ldptr.d	s2, \thread, THREAD_REG25
-	ldptr.d	s3, \thread, THREAD_REG26
-	ldptr.d	s4, \thread, THREAD_REG27
-	ldptr.d	s5, \thread, THREAD_REG28
-	ldptr.d	s6, \thread, THREAD_REG29
-	ldptr.d	s7, \thread, THREAD_REG30
-	ldptr.d	s8, \thread, THREAD_REG31
-	ldptr.d	ra, \thread, THREAD_REG01
-	ldptr.d	sp, \thread, THREAD_REG03
-	ldptr.d	fp, \thread, THREAD_REG22
+	LONG_LPTR	s0, \thread, (THREAD_REG23 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s1, \thread, (THREAD_REG24 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s2, \thread, (THREAD_REG25 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s3, \thread, (THREAD_REG26 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s4, \thread, (THREAD_REG27 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s5, \thread, (THREAD_REG28 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s6, \thread, (THREAD_REG29 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s7, \thread, (THREAD_REG30 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	s8, \thread, (THREAD_REG31 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	ra, \thread, (THREAD_REG01 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	sp, \thread, (THREAD_REG03 - TASK_STRUCT_OFFSET)
+	LONG_LPTR	fp, \thread, (THREAD_REG22 - TASK_STRUCT_OFFSET)
 	.endm
 
 	.macro fpu_save_csr thread tmp
 	movfcsr2gr	\tmp, fcsr0
+#ifdef CONFIG_32BIT
+	st.w		\tmp, \thread, THREAD_FCSR
+#else
 	stptr.w		\tmp, \thread, THREAD_FCSR
+#endif
 #ifdef CONFIG_CPU_HAS_LBT
 	/* TM bit is always 0 if LBT not supported */
 	andi		\tmp, \tmp, FPU_CSR_TM
@@ -56,7 +68,11 @@
 	.endm
 
 	.macro fpu_restore_csr thread tmp0 tmp1
+#ifdef CONFIG_32BIT
+	ld.w		\tmp0, \thread, THREAD_FCSR
+#else
 	ldptr.w		\tmp0, \thread, THREAD_FCSR
+#endif
 	movgr2fcsr	fcsr0, \tmp0
 #ifdef CONFIG_CPU_HAS_LBT
 	/* TM bit is always 0 if LBT not supported */
@@ -88,9 +104,52 @@
 #endif
 	.endm
 
+#ifdef CONFIG_32BIT
 	.macro fpu_save_cc thread tmp0 tmp1
 	movcf2gr	\tmp0, $fcc0
-	move	\tmp1, \tmp0
+	move		\tmp1, \tmp0
+	movcf2gr	\tmp0, $fcc1
+	bstrins.w	\tmp1, \tmp0, 15, 8
+	movcf2gr	\tmp0, $fcc2
+	bstrins.w	\tmp1, \tmp0, 23, 16
+	movcf2gr	\tmp0, $fcc3
+	bstrins.w	\tmp1, \tmp0, 31, 24
+	st.w		\tmp1, \thread, THREAD_FCC
+	movcf2gr	\tmp0, $fcc4
+	move		\tmp1, \tmp0
+	movcf2gr	\tmp0, $fcc5
+	bstrins.w	\tmp1, \tmp0, 15, 8
+	movcf2gr	\tmp0, $fcc6
+	bstrins.w	\tmp1, \tmp0, 23, 16
+	movcf2gr	\tmp0, $fcc7
+	bstrins.w	\tmp1, \tmp0, 31, 24
+	st.w		\tmp1, \thread, (THREAD_FCC + 4)
+	.endm
+
+	.macro fpu_restore_cc thread tmp0 tmp1
+	ld.w		\tmp0, \thread, THREAD_FCC
+	bstrpick.w	\tmp1, \tmp0, 7, 0
+	movgr2cf	$fcc0, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 15, 8
+	movgr2cf	$fcc1, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 23, 16
+	movgr2cf	$fcc2, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 31, 24
+	movgr2cf	$fcc3, \tmp1
+	ld.w		\tmp0, \thread, (THREAD_FCC + 4)
+	bstrpick.w	\tmp1, \tmp0, 7, 0
+	movgr2cf	$fcc4, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 15, 8
+	movgr2cf	$fcc5, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 23, 16
+	movgr2cf	$fcc6, \tmp1
+	bstrpick.w	\tmp1, \tmp0, 31, 24
+	movgr2cf	$fcc7, \tmp1
+	.endm
+#else
+	.macro fpu_save_cc thread tmp0 tmp1
+	movcf2gr	\tmp0, $fcc0
+	move		\tmp1, \tmp0
 	movcf2gr	\tmp0, $fcc1
 	bstrins.d	\tmp1, \tmp0, 15, 8
 	movcf2gr	\tmp0, $fcc2
@@ -109,7 +168,7 @@
 	.endm
 
 	.macro fpu_restore_cc thread tmp0 tmp1
-	ldptr.d	\tmp0, \thread, THREAD_FCC
+	ldptr.d		\tmp0, \thread, THREAD_FCC
 	bstrpick.d	\tmp1, \tmp0, 7, 0
 	movgr2cf	$fcc0, \tmp1
 	bstrpick.d	\tmp1, \tmp0, 15, 8
@@ -127,6 +186,7 @@
 	bstrpick.d	\tmp1, \tmp0, 63, 56
 	movgr2cf	$fcc7, \tmp1
 	.endm
+#endif
 
 	.macro	fpu_save_double thread tmp
 	li.w	\tmp, THREAD_FPR0
@@ -606,12 +666,14 @@
 	766:
 	lu12i.w	\reg, 0
 	ori	\reg, \reg, 0
+#ifdef CONFIG_64BIT
 	lu32i.d	\reg, 0
 	lu52i.d	\reg, \reg, 0
+#endif
 	.pushsection ".la_abs", "aw", %progbits
-	.p2align 3
-	.dword	766b
-	.dword	\sym
+	.p2align PTRLOG
+	PTR	766b
+	PTR	\sym
 	.popsection
 #endif
 .endm

@@ -19,6 +19,8 @@
 #include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
 
+#define __SMBDIRECT_SOCKET_DISCONNECT(__sc) smb_direct_disconnect_rdma_connection(__sc)
+
 #include "glob.h"
 #include "connection.h"
 #include "smb_common.h"
@@ -231,18 +233,19 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 	struct smbdirect_socket *sc =
 		container_of(work, struct smbdirect_socket, disconnect_work);
 
+	if (sc->first_error == 0)
+		sc->first_error = -ECONNABORTED;
+
 	/*
 	 * make sure this and other work is not queued again
 	 * but here we don't block and avoid
 	 * disable[_delayed]_work_sync()
 	 */
 	disable_work(&sc->disconnect_work);
+	disable_work(&sc->connect.work);
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_delayed_work(&sc->idle.timer_work);
 	disable_work(&sc->idle.immediate_work);
-
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_NEGOTIATE_NEEDED:
@@ -287,17 +290,18 @@ static void smb_direct_disconnect_rdma_work(struct work_struct *work)
 static void
 smb_direct_disconnect_rdma_connection(struct smbdirect_socket *sc)
 {
+	if (sc->first_error == 0)
+		sc->first_error = -ECONNABORTED;
+
 	/*
 	 * make sure other work (than disconnect_work) is
 	 * not queued again but here we don't block and avoid
 	 * disable[_delayed]_work_sync()
 	 */
+	disable_work(&sc->connect.work);
 	disable_work(&sc->recv_io.posted.refill_work);
 	disable_work(&sc->idle.immediate_work);
 	disable_delayed_work(&sc->idle.timer_work);
-
-	if (sc->first_error == 0)
-		sc->first_error = -ECONNABORTED;
 
 	switch (sc->status) {
 	case SMBDIRECT_SOCKET_RESOLVE_ADDR_FAILED:
@@ -465,6 +469,7 @@ static void free_transport(struct smb_direct_transport *t)
 	 */
 	smb_direct_disconnect_wake_up_all(sc);
 
+	disable_work_sync(&sc->connect.work);
 	disable_work_sync(&sc->recv_io.posted.refill_work);
 	disable_delayed_work_sync(&sc->idle.timer_work);
 	disable_work_sync(&sc->idle.immediate_work);
@@ -633,17 +638,8 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	switch (sc->recv_io.expected) {
 	case SMBDIRECT_EXPECT_NEGOTIATE_REQ:
-		if (wc->byte_len < sizeof(struct smbdirect_negotiate_req)) {
-			put_recvmsg(sc, recvmsg);
-			smb_direct_disconnect_rdma_connection(sc);
-			return;
-		}
-		sc->recv_io.reassembly.full_packet_received = true;
-		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_NEGOTIATE_NEEDED);
-		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
-		enqueue_reassembly(sc, recvmsg, 0);
-		wake_up(&sc->status_wait);
-		return;
+		/* see smb_direct_negotiate_recv_done */
+		break;
 	case SMBDIRECT_EXPECT_DATA_TRANSFER: {
 		struct smbdirect_data_transfer *data_transfer =
 			(struct smbdirect_data_transfer *)recvmsg->packet;
@@ -729,6 +725,126 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	smb_direct_disconnect_rdma_connection(sc);
 }
 
+static void smb_direct_negotiate_recv_work(struct work_struct *work);
+
+static void smb_direct_negotiate_recv_done(struct ib_cq *cq, struct ib_wc *wc)
+{
+	struct smbdirect_recv_io *recv_io =
+		container_of(wc->wr_cqe, struct smbdirect_recv_io, cqe);
+	struct smbdirect_socket *sc = recv_io->socket;
+	unsigned long flags;
+
+	/*
+	 * reset the common recv_done for later reuse.
+	 */
+	recv_io->cqe.done = recv_done;
+
+	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
+		put_recvmsg(sc, recv_io);
+		if (wc->status != IB_WC_WR_FLUSH_ERR) {
+			pr_err("Negotiate Recv error. status='%s (%d)' opcode=%d\n",
+			       ib_wc_status_msg(wc->status), wc->status,
+			       wc->opcode);
+			smb_direct_disconnect_rdma_connection(sc);
+		}
+		return;
+	}
+
+	ksmbd_debug(RDMA, "Negotiate Recv completed. status='%s (%d)', opcode=%d\n",
+		    ib_wc_status_msg(wc->status), wc->status,
+		    wc->opcode);
+
+	ib_dma_sync_single_for_cpu(sc->ib.dev,
+				   recv_io->sge.addr,
+				   recv_io->sge.length,
+				   DMA_FROM_DEVICE);
+
+	/*
+	 * This is an internal error!
+	 */
+	if (WARN_ON_ONCE(sc->recv_io.expected != SMBDIRECT_EXPECT_NEGOTIATE_REQ)) {
+		put_recvmsg(sc, recv_io);
+		smb_direct_disconnect_rdma_connection(sc);
+		return;
+	}
+
+	/*
+	 * Don't reset timer to the keepalive interval in
+	 * this will be done in smb_direct_negotiate_recv_work.
+	 */
+
+	/*
+	 * Only remember the recv_io if it has enough bytes,
+	 * this gives smb_direct_negotiate_recv_work enough
+	 * information in order to disconnect if it was not
+	 * valid.
+	 */
+	sc->recv_io.reassembly.full_packet_received = true;
+	if (wc->byte_len >= sizeof(struct smbdirect_negotiate_req))
+		enqueue_reassembly(sc, recv_io, 0);
+	else
+		put_recvmsg(sc, recv_io);
+
+	/*
+	 * Some drivers (at least mlx5_ib and irdma in roce mode)
+	 * might post a recv completion before RDMA_CM_EVENT_ESTABLISHED,
+	 * we need to adjust our expectation in that case.
+	 *
+	 * So we defer further processing of the negotiation
+	 * to smb_direct_negotiate_recv_work().
+	 *
+	 * If we are already in SMBDIRECT_SOCKET_NEGOTIATE_NEEDED
+	 * we queue the work directly otherwise
+	 * smb_direct_cm_handler() will do it, when
+	 * RDMA_CM_EVENT_ESTABLISHED arrived.
+	 */
+	spin_lock_irqsave(&sc->connect.lock, flags);
+	if (!sc->first_error) {
+		INIT_WORK(&sc->connect.work, smb_direct_negotiate_recv_work);
+		if (sc->status == SMBDIRECT_SOCKET_NEGOTIATE_NEEDED)
+			queue_work(sc->workqueue, &sc->connect.work);
+	}
+	spin_unlock_irqrestore(&sc->connect.lock, flags);
+}
+
+static void smb_direct_negotiate_recv_work(struct work_struct *work)
+{
+	struct smbdirect_socket *sc =
+		container_of(work, struct smbdirect_socket, connect.work);
+	const struct smbdirect_socket_parameters *sp = &sc->parameters;
+	struct smbdirect_recv_io *recv_io;
+
+	if (sc->first_error)
+		return;
+
+	ksmbd_debug(RDMA, "Negotiate Recv Work running\n");
+
+	/*
+	 * Reset timer to the keepalive interval in
+	 * order to trigger our next keepalive message.
+	 */
+	sc->idle.keepalive = SMBDIRECT_KEEPALIVE_NONE;
+	mod_delayed_work(sc->workqueue, &sc->idle.timer_work,
+			 msecs_to_jiffies(sp->keepalive_interval_msec));
+
+	/*
+	 * If smb_direct_negotiate_recv_done() detected an
+	 * invalid request we want to disconnect.
+	 */
+	recv_io = get_first_reassembly(sc);
+	if (!recv_io) {
+		smb_direct_disconnect_rdma_connection(sc);
+		return;
+	}
+
+	if (SMBDIRECT_CHECK_STATUS_WARN(sc, SMBDIRECT_SOCKET_NEGOTIATE_NEEDED)) {
+		smb_direct_disconnect_rdma_connection(sc);
+		return;
+	}
+	sc->status = SMBDIRECT_SOCKET_NEGOTIATE_RUNNING;
+	wake_up(&sc->status_wait);
+}
+
 static int smb_direct_post_recv(struct smbdirect_socket *sc,
 				struct smbdirect_recv_io *recvmsg)
 {
@@ -745,7 +861,6 @@ static int smb_direct_post_recv(struct smbdirect_socket *sc,
 		return ret;
 	recvmsg->sge.length = sp->max_recv_size;
 	recvmsg->sge.lkey = sc->ib.pd->local_dma_lkey;
-	recvmsg->cqe.done = recv_done;
 
 	wr.wr_cqe = &recvmsg->cqe;
 	wr.next = NULL;
@@ -1719,14 +1834,35 @@ static int smb_direct_cm_handler(struct rdma_cm_id *cm_id,
 				 struct rdma_cm_event *event)
 {
 	struct smbdirect_socket *sc = cm_id->context;
+	unsigned long flags;
 
 	ksmbd_debug(RDMA, "RDMA CM event. cm_id=%p event=%s (%d)\n",
 		    cm_id, rdma_event_msg(event->event), event->event);
 
 	switch (event->event) {
 	case RDMA_CM_EVENT_ESTABLISHED: {
-		WARN_ON_ONCE(sc->status != SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING);
+		/*
+		 * Some drivers (at least mlx5_ib and irdma in roce mode)
+		 * might post a recv completion before RDMA_CM_EVENT_ESTABLISHED,
+		 * we need to adjust our expectation in that case.
+		 *
+		 * If smb_direct_negotiate_recv_done was called first
+		 * it initialized sc->connect.work only for us to
+		 * start, so that we turned into
+		 * SMBDIRECT_SOCKET_NEGOTIATE_NEEDED, before
+		 * smb_direct_negotiate_recv_work() runs.
+		 *
+		 * If smb_direct_negotiate_recv_done didn't happen
+		 * yet. sc->connect.work is still be disabled and
+		 * queue_work() is a no-op.
+		 */
+		if (SMBDIRECT_CHECK_STATUS_DISCONNECT(sc, SMBDIRECT_SOCKET_RDMA_CONNECT_RUNNING))
+			break;
 		sc->status = SMBDIRECT_SOCKET_NEGOTIATE_NEEDED;
+		spin_lock_irqsave(&sc->connect.lock, flags);
+		if (!sc->first_error)
+			queue_work(sc->workqueue, &sc->connect.work);
+		spin_unlock_irqrestore(&sc->connect.lock, flags);
 		wake_up(&sc->status_wait);
 		break;
 	}
@@ -1897,6 +2033,7 @@ static int smb_direct_prepare_negotiation(struct smbdirect_socket *sc)
 	recvmsg = get_free_recvmsg(sc);
 	if (!recvmsg)
 		return -ENOMEM;
+	recvmsg->cqe.done = smb_direct_negotiate_recv_done;
 
 	ret = smb_direct_post_recv(sc, recvmsg);
 	if (ret) {
@@ -2315,6 +2452,7 @@ respond:
 
 static int smb_direct_connect(struct smbdirect_socket *sc)
 {
+	struct smbdirect_recv_io *recv_io;
 	int ret;
 
 	ret = smb_direct_init_params(sc);
@@ -2328,6 +2466,9 @@ static int smb_direct_connect(struct smbdirect_socket *sc)
 		pr_err("Can't init RDMA pool: %d\n", ret);
 		return ret;
 	}
+
+	list_for_each_entry(recv_io, &sc->recv_io.free.list, list)
+		recv_io->cqe.done = recv_done;
 
 	ret = smb_direct_create_qpair(sc);
 	if (ret) {

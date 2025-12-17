@@ -154,7 +154,6 @@ static int radeon_fbdev_fb_open(struct fb_info *info, int user)
 	return 0;
 
 err_pm_runtime_mark_last_busy:
-	pm_runtime_mark_last_busy(rdev_to_drm(rdev)->dev);
 	pm_runtime_put_autosuspend(rdev_to_drm(rdev)->dev);
 	return ret;
 }
@@ -164,7 +163,6 @@ static int radeon_fbdev_fb_release(struct fb_info *info, int user)
 	struct drm_fb_helper *fb_helper = info->par;
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
 
-	pm_runtime_mark_last_busy(rdev_to_drm(rdev)->dev);
 	pm_runtime_put_autosuspend(rdev_to_drm(rdev)->dev);
 
 	return 0;
@@ -184,8 +182,6 @@ static void radeon_fbdev_fb_destroy(struct fb_info *info)
 	radeon_fbdev_destroy_pinned_object(gobj);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops radeon_fbdev_fb_ops = {
@@ -206,7 +202,7 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	struct radeon_device *rdev = fb_helper->dev->dev_private;
 	const struct drm_format_info *format_info;
 	struct drm_mode_fb_cmd2 mode_cmd = { };
-	struct fb_info *info;
+	struct fb_info *info = fb_helper->info;
 	struct drm_gem_object *gobj;
 	struct radeon_bo *rbo;
 	struct drm_framebuffer *fb;
@@ -247,13 +243,6 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	fb_helper->funcs = &radeon_fbdev_fb_helper_funcs;
 	fb_helper->fb = fb;
 
-	/* okay we have an object now allocate the framebuffer */
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_drm_framebuffer_unregister_private;
-	}
-
 	info->fbops = &radeon_fbdev_fb_ops;
 
 	/* radeon resume is fragile and needs a vt switch to help it along */
@@ -279,10 +268,6 @@ int radeon_fbdev_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	return 0;
 
-err_drm_framebuffer_unregister_private:
-	fb_helper->fb = NULL;
-	drm_framebuffer_unregister_private(fb);
-	drm_framebuffer_cleanup(fb);
 err_kfree:
 	kfree(fb);
 err_radeon_fbdev_destroy_pinned_object:

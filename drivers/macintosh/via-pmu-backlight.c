@@ -11,6 +11,8 @@
 #include <asm/ptrace.h>
 #include <linux/adb.h>
 #include <linux/backlight.h>
+#include <linux/fb.h>
+#include <linux/of.h>
 #include <linux/pmu.h>
 #include <asm/backlight.h>
 

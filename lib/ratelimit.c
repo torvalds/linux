@@ -27,7 +27,7 @@
 int ___ratelimit(struct ratelimit_state *rs, const char *func)
 {
 	/* Paired with WRITE_ONCE() in .proc_handler().
-	 * Changing two values seperately could be inconsistent
+	 * Changing two values separately could be inconsistent
 	 * and some message could be lost.  (See: net_ratelimit_state).
 	 */
 	int interval = READ_ONCE(rs->interval);

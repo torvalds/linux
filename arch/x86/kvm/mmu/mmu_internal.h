@@ -39,16 +39,6 @@
 #define INVALID_PAE_ROOT	0
 #define IS_VALID_PAE_ROOT(x)	(!!(x))
 
-static inline hpa_t kvm_mmu_get_dummy_root(void)
-{
-	return my_zero_pfn(0) << PAGE_SHIFT;
-}
-
-static inline bool kvm_mmu_is_dummy_root(hpa_t shadow_page)
-{
-	return is_zero_pfn(shadow_page >> PAGE_SHIFT);
-}
-
 typedef u64 __rcu *tdp_ptep_t;
 
 struct kvm_mmu_page {

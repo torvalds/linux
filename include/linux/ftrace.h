@@ -1167,17 +1167,14 @@ static inline void ftrace_init(void) { }
  */
 struct ftrace_graph_ent {
 	unsigned long func; /* Current function */
-	int depth;
+	unsigned long depth;
 } __packed;
 
 /*
  * Structure that defines an entry function trace with retaddr.
- * It's already packed but the attribute "packed" is needed
- * to remove extra padding at the end.
  */
 struct fgraph_retaddr_ent {
-	unsigned long func; /* Current function */
-	int depth;
+	struct ftrace_graph_ent ent;
 	unsigned long retaddr;  /* Return address */
 } __packed;
 

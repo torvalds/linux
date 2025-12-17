@@ -581,7 +581,8 @@ out_cleanup_unlocked:
 	goto out_dput;
 }
 
-static const struct cred *ovl_override_creator_creds(struct dentry *dentry, struct inode *inode, umode_t mode)
+static const struct cred *ovl_override_creator_creds(const struct cred *original_creds,
+						     struct dentry *dentry, struct inode *inode, umode_t mode)
 {
 	int err;
 
@@ -596,7 +597,7 @@ static const struct cred *ovl_override_creator_creds(struct dentry *dentry, stru
 	override_cred->fsgid = inode->i_gid;
 
 	err = security_dentry_create_files_as(dentry, mode, &dentry->d_name,
-					      current->cred, override_cred);
+					      original_creds, override_cred);
 	if (err)
 		return ERR_PTR(err);
 
@@ -614,8 +615,11 @@ static void ovl_revert_creator_creds(const struct cred *old_cred)
 DEFINE_CLASS(ovl_override_creator_creds,
 	     const struct cred *,
 	     if (!IS_ERR_OR_NULL(_T)) ovl_revert_creator_creds(_T),
-	     ovl_override_creator_creds(dentry, inode, mode),
-	     struct dentry *dentry, struct inode *inode, umode_t mode)
+	     ovl_override_creator_creds(original_creds, dentry, inode, mode),
+	     const struct cred *original_creds,
+	     struct dentry *dentry,
+	     struct inode *inode,
+	     umode_t mode)
 
 static int ovl_create_handle_whiteouts(struct dentry *dentry,
 				       struct inode *inode,
@@ -633,7 +637,7 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 	int err;
 	struct dentry *parent = dentry->d_parent;
 
-	with_ovl_creds(dentry->d_sb) {
+	scoped_class(override_creds_ovl, original_creds, dentry->d_sb) {
 		/*
 		 * When linking a file with copy up origin into a new parent, mark the
 		 * new parent dir "impure".
@@ -661,7 +665,7 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 		if (attr->hardlink)
 			return ovl_create_handle_whiteouts(dentry, inode, attr);
 
-		scoped_class(ovl_override_creator_creds, cred, dentry, inode, attr->mode) {
+		scoped_class(ovl_override_creator_creds, cred, original_creds, dentry, inode, attr->mode) {
 			if (IS_ERR(cred))
 				return PTR_ERR(cred);
 			return ovl_create_handle_whiteouts(dentry, inode, attr);
@@ -1364,8 +1368,8 @@ static int ovl_create_tmpfile(struct file *file, struct dentry *dentry,
 	int flags = file->f_flags | OVL_OPEN_FLAGS;
 	int err;
 
-	with_ovl_creds(dentry->d_sb) {
-		scoped_class(ovl_override_creator_creds, cred, dentry, inode, mode) {
+	scoped_class(override_creds_ovl, original_creds, dentry->d_sb) {
+		scoped_class(ovl_override_creator_creds, cred, original_creds, dentry, inode, mode) {
 			if (IS_ERR(cred))
 				return PTR_ERR(cred);
 

@@ -88,7 +88,6 @@ allOf:
             - const: ice_core_clk
         reg:
           minItems: 2
-          maxItems: 2
         reg-names:
           minItems: 2
       required:
@@ -117,7 +116,6 @@ allOf:
             - const: tx_lane0_sync_clk
             - const: rx_lane0_sync_clk
         reg:
-          minItems: 1
           maxItems: 1
         reg-names:
           maxItems: 1
@@ -147,7 +145,6 @@ allOf:
             - const: ice_core_clk
         reg:
           minItems: 2
-          maxItems: 2
         reg-names:
           minItems: 2
       required:

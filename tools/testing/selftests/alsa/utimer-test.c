@@ -6,7 +6,7 @@
  *
  * Author: Ivan Orlov <ivan.orlov0322@gmail.com>
  */
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include <sound/asound.h>
 #include <unistd.h>
 #include <fcntl.h>

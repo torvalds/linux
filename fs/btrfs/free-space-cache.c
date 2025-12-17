@@ -968,8 +968,8 @@ int load_free_space_cache(struct btrfs_block_group *block_group)
 	path = btrfs_alloc_path();
 	if (!path)
 		return 0;
-	path->search_commit_root = 1;
-	path->skip_locking = 1;
+	path->search_commit_root = true;
+	path->skip_locking = true;
 
 	/*
 	 * We must pass a path with search_commit_root set to btrfs_iget in
@@ -3656,7 +3656,7 @@ static int do_trimming(struct btrfs_block_group *block_group,
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_free_space_ctl *ctl = block_group->free_space_ctl;
 	int ret;
-	int update = 0;
+	bool bg_ro;
 	const u64 end = start + bytes;
 	const u64 reserved_end = reserved_start + reserved_bytes;
 	enum btrfs_trim_state trim_state = BTRFS_TRIM_STATE_UNTRIMMED;
@@ -3664,12 +3664,14 @@ static int do_trimming(struct btrfs_block_group *block_group,
 
 	spin_lock(&space_info->lock);
 	spin_lock(&block_group->lock);
-	if (!block_group->ro) {
+	bg_ro = block_group->ro;
+	if (!bg_ro) {
 		block_group->reserved += reserved_bytes;
+		spin_unlock(&block_group->lock);
 		space_info->bytes_reserved += reserved_bytes;
-		update = 1;
+	} else {
+		spin_unlock(&block_group->lock);
 	}
-	spin_unlock(&block_group->lock);
 	spin_unlock(&space_info->lock);
 
 	ret = btrfs_discard_extent(fs_info, start, bytes, &trimmed);
@@ -3690,14 +3692,16 @@ static int do_trimming(struct btrfs_block_group *block_group,
 	list_del(&trim_entry->list);
 	mutex_unlock(&ctl->cache_writeout_mutex);
 
-	if (update) {
+	if (!bg_ro) {
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
-		if (block_group->ro)
-			space_info->bytes_readonly += reserved_bytes;
+		bg_ro = block_group->ro;
 		block_group->reserved -= reserved_bytes;
-		space_info->bytes_reserved -= reserved_bytes;
 		spin_unlock(&block_group->lock);
+
+		space_info->bytes_reserved -= reserved_bytes;
+		if (bg_ro)
+			space_info->bytes_readonly += reserved_bytes;
 		spin_unlock(&space_info->lock);
 	}
 

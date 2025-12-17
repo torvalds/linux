@@ -9,10 +9,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/leds.h>
-#include <linux/gpio.h>
 #include <linux/gpio/machine.h>
-#include <linux/gpio_keys.h>
+#include <linux/gpio/property.h>
 #include <linux/input.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -80,63 +78,133 @@ void __init board_setup(void)
 
 /******************************************************************************/
 
-static struct gpio_keys_button mtx1_gpio_button[] = {
-	{
-		.gpio = 207,
-		.code = BTN_0,
-		.desc = "System button",
+static const struct software_node mtx1_gpiochip_node = {
+	.name = "alchemy-gpio2",
+};
+
+static const struct software_node mtx1_gpio_keys_node = {
+	.name = "mtx1-gpio-keys",
+};
+
+static const struct property_entry mtx1_button_props[] = {
+	PROPERTY_ENTRY_U32("linux,code", BTN_0),
+	PROPERTY_ENTRY_GPIO("gpios", &mtx1_gpiochip_node, 7, GPIO_ACTIVE_HIGH),
+	PROPERTY_ENTRY_STRING("label", "System button"),
+	{ }
+};
+
+static const struct software_node mtx1_button_node = {
+	.parent = &mtx1_gpio_keys_node,
+	.properties = mtx1_button_props,
+};
+
+static const struct software_node *mtx1_gpio_keys_swnodes[] __initconst = {
+	&mtx1_gpio_keys_node,
+	&mtx1_button_node,
+	NULL
+};
+
+static void __init mtx1_keys_init(void)
+{
+	struct platform_device_info keys_info = {
+		.name	= "gpio-keys",
+		.id	= PLATFORM_DEVID_NONE,
+	};
+	struct platform_device *pd;
+	int err;
+
+	err = software_node_register_node_group(mtx1_gpio_keys_swnodes);
+	if (err) {
+		pr_err("failed to register gpio-keys software nodes: %d\n", err);
+		return;
 	}
+
+	keys_info.fwnode = software_node_fwnode(&mtx1_gpio_keys_node);
+
+	pd = platform_device_register_full(&keys_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create gpio-keys device: %d\n", err);
+}
+
+/* Global number 215 is offset 15 on Alchemy GPIO 2 */
+static const struct property_entry mtx1_wdt_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &mtx1_gpiochip_node, 15, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct gpio_keys_platform_data mtx1_buttons_data = {
-	.buttons = mtx1_gpio_button,
-	.nbuttons = ARRAY_SIZE(mtx1_gpio_button),
-};
-
-static struct platform_device mtx1_button = {
-	.name = "gpio-keys",
-	.id = -1,
-	.dev = {
-		.platform_data = &mtx1_buttons_data,
-	}
-};
-
-static struct gpiod_lookup_table mtx1_wdt_gpio_table = {
-	.dev_id = "mtx1-wdt.0",
-	.table = {
-		/* Global number 215 is offset 15 on Alchemy GPIO 2 */
-		GPIO_LOOKUP("alchemy-gpio2", 15, NULL, GPIO_ACTIVE_HIGH),
-		{ },
-	},
-};
-
-static struct platform_device mtx1_wdt = {
+static struct platform_device_info mtx1_wdt_info __initconst = {
 	.name = "mtx1-wdt",
 	.id = 0,
+	.properties = mtx1_wdt_props,
 };
 
-static const struct gpio_led default_leds[] = {
-	{
-		.name	= "mtx1:green",
-		.gpio = 211,
-	}, {
-		.name = "mtx1:red",
-		.gpio = 212,
-	},
+static void __init mtx1_wdt_init(void)
+{
+	struct platform_device *pd;
+	int err;
+
+	pd = platform_device_register_full(&mtx1_wdt_info);
+	err = PTR_ERR_OR_ZERO(pd);
+	if (err)
+		pr_err("failed to create gpio-keys device: %d\n", err);
+}
+
+static const struct software_node mtx1_gpio_leds_node = {
+	.name = "mtx1-leds",
 };
 
-static struct gpio_led_platform_data mtx1_led_data = {
-	.num_leds = ARRAY_SIZE(default_leds),
-	.leds = default_leds,
+static const struct property_entry mtx1_green_led_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &mtx1_gpiochip_node, 11, GPIO_ACTIVE_HIGH),
+	{ }
 };
 
-static struct platform_device mtx1_gpio_leds = {
-	.name = "leds-gpio",
-	.id = -1,
-	.dev = {
-		.platform_data = &mtx1_led_data,
+static const struct software_node mtx1_green_led_node = {
+	.name = "mtx1:green",
+	.parent = &mtx1_gpio_leds_node,
+	.properties = mtx1_green_led_props,
+};
+
+static const struct property_entry mtx1_red_led_props[] = {
+	PROPERTY_ENTRY_GPIO("gpios", &mtx1_gpiochip_node, 12, GPIO_ACTIVE_HIGH),
+	{ }
+};
+
+static const struct software_node mtx1_red_led_node = {
+	.name = "mtx1:red",
+	.parent = &mtx1_gpio_leds_node,
+	.properties = mtx1_red_led_props,
+};
+
+static const struct software_node *mtx1_gpio_leds_swnodes[] = {
+	&mtx1_gpio_leds_node,
+	&mtx1_green_led_node,
+	&mtx1_red_led_node,
+	NULL
+};
+
+static void __init mtx1_leds_init(void)
+{
+	struct platform_device_info led_info = {
+		.name	= "leds-gpio",
+		.id	= PLATFORM_DEVID_NONE,
+	};
+	struct platform_device *led_dev;
+	int err;
+
+	err = software_node_register_node_group(mtx1_gpio_leds_swnodes);
+	if (err) {
+		pr_err("failed to register LED software nodes: %d\n", err);
+		return;
 	}
-};
+
+	led_info.fwnode = software_node_fwnode(&mtx1_gpio_leds_node);
+
+	led_dev = platform_device_register_full(&led_info);
+	err = PTR_ERR_OR_ZERO(led_dev);
+	if (err)
+		pr_err("failed to create LED device: %d\n", err);
+}
 
 static struct mtd_partition mtx1_mtd_partitions[] = {
 	{
@@ -247,9 +315,6 @@ static struct platform_device mtx1_pci_host = {
 
 static struct platform_device *mtx1_devs[] __initdata = {
 	&mtx1_pci_host,
-	&mtx1_gpio_leds,
-	&mtx1_wdt,
-	&mtx1_button,
 	&mtx1_mtd,
 };
 
@@ -270,16 +335,18 @@ static int __init mtx1_register_devices(void)
 
 	au1xxx_override_eth_cfg(0, &mtx1_au1000_eth0_pdata);
 
-	rc = gpio_request(mtx1_gpio_button[0].gpio,
-					mtx1_gpio_button[0].desc);
-	if (rc < 0) {
-		printk(KERN_INFO "mtx1: failed to request %d\n",
-					mtx1_gpio_button[0].gpio);
-		goto out;
-	}
-	gpio_direction_input(mtx1_gpio_button[0].gpio);
-out:
-	gpiod_add_lookup_table(&mtx1_wdt_gpio_table);
-	return platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
+	rc = software_node_register(&mtx1_gpiochip_node);
+	if (rc)
+		return rc;
+
+	rc = platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
+	if (rc)
+		return rc;
+
+	mtx1_leds_init();
+	mtx1_wdt_init();
+	mtx1_keys_init();
+
+	return 0;
 }
 arch_initcall(mtx1_register_devices);

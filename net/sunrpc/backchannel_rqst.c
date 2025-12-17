@@ -25,6 +25,22 @@ unsigned int xprt_bc_max_slots(struct rpc_xprt *xprt)
 }
 
 /*
+ * Helper function to nullify backchannel server pointer in transport.
+ * We need to synchronize setting the pointer to NULL (done so after
+ * the backchannel server is shutdown) with the usage of that pointer
+ * by the backchannel request processing routines
+ * xprt_complete_bc_request() and rpcrdma_bc_receive_call().
+ */
+void xprt_svc_destroy_nullify_bc(struct rpc_xprt *xprt, struct svc_serv **serv)
+{
+	spin_lock(&xprt->bc_pa_lock);
+	svc_destroy(serv);
+	xprt->bc_serv = NULL;
+	spin_unlock(&xprt->bc_pa_lock);
+}
+EXPORT_SYMBOL_GPL(xprt_svc_destroy_nullify_bc);
+
+/*
  * Helper routines that track the number of preallocation elements
  * on the transport.
  */
@@ -354,7 +370,6 @@ found:
 void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
-	struct svc_serv *bc_serv = xprt->bc_serv;
 
 	spin_lock(&xprt->bc_pa_lock);
 	list_del(&req->rq_bc_pa_list);
@@ -365,7 +380,21 @@ void xprt_complete_bc_request(struct rpc_rqst *req, uint32_t copied)
 	set_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
 
 	dprintk("RPC:       add callback request to list\n");
-	xprt_get(xprt);
-	lwq_enqueue(&req->rq_bc_list, &bc_serv->sv_cb_list);
-	svc_pool_wake_idle_thread(&bc_serv->sv_pools[0]);
+	xprt_enqueue_bc_request(req);
 }
+
+void xprt_enqueue_bc_request(struct rpc_rqst *req)
+{
+	struct rpc_xprt *xprt = req->rq_xprt;
+	struct svc_serv *bc_serv;
+
+	xprt_get(xprt);
+	spin_lock(&xprt->bc_pa_lock);
+	bc_serv = xprt->bc_serv;
+	if (bc_serv) {
+		lwq_enqueue(&req->rq_bc_list, &bc_serv->sv_cb_list);
+		svc_pool_wake_idle_thread(&bc_serv->sv_pools[0]);
+	}
+	spin_unlock(&xprt->bc_pa_lock);
+}
+EXPORT_SYMBOL_GPL(xprt_enqueue_bc_request);

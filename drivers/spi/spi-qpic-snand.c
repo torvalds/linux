@@ -448,7 +448,7 @@ static int qcom_spi_ecc_finish_io_req_pipelined(struct nand_device *nand,
 		return snandc->qspi->ecc_stats.bitflips;
 }
 
-static struct nand_ecc_engine_ops qcom_spi_ecc_engine_ops_pipelined = {
+static const struct nand_ecc_engine_ops qcom_spi_ecc_engine_ops_pipelined = {
 	.init_ctx = qcom_spi_ecc_init_ctx_pipelined,
 	.cleanup_ctx = qcom_spi_ecc_cleanup_ctx_pipelined,
 	.prepare_io_req = qcom_spi_ecc_prepare_io_req_pipelined,

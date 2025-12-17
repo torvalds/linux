@@ -319,8 +319,8 @@ void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 	 * PLL lock should deassert within 200us.
 	 * Wait up to 1ms before timing out.
 	 */
-	if (intel_de_wait_for_clear(display, BXT_DSI_PLL_ENABLE,
-				    BXT_DSI_PLL_LOCKED, 1))
+	if (intel_de_wait_for_clear_ms(display, BXT_DSI_PLL_ENABLE,
+				       BXT_DSI_PLL_LOCKED, 1))
 		drm_err(display->drm,
 			"Timeout waiting for PLL lock deassertion\n");
 }
@@ -568,8 +568,8 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	intel_de_rmw(display, BXT_DSI_PLL_ENABLE, 0, BXT_DSI_PLL_DO_ENABLE);
 
 	/* Timeout and fail if PLL not locked */
-	if (intel_de_wait_for_set(display, BXT_DSI_PLL_ENABLE,
-				  BXT_DSI_PLL_LOCKED, 1)) {
+	if (intel_de_wait_for_set_ms(display, BXT_DSI_PLL_ENABLE,
+				     BXT_DSI_PLL_LOCKED, 1)) {
 		drm_err(display->drm,
 			"Timed out waiting for DSI PLL to lock\n");
 		return;

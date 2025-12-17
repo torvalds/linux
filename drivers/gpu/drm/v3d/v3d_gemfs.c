@@ -5,6 +5,8 @@
 #include <linux/mount.h>
 #include <linux/fs_context.h>
 
+#include <drm/drm_print.h>
+
 #include "v3d_drv.h"
 
 void v3d_gemfs_init(struct v3d_dev *v3d)

@@ -884,13 +884,13 @@ bool acpi_s2idle_wakeup(void)
 #ifdef CONFIG_PM_SLEEP
 static u32 saved_bm_rld;
 
-static int  acpi_save_bm_rld(void)
+static int  acpi_save_bm_rld(void *data)
 {
 	acpi_read_bit_register(ACPI_BITREG_BUS_MASTER_RLD, &saved_bm_rld);
 	return 0;
 }
 
-static void  acpi_restore_bm_rld(void)
+static void  acpi_restore_bm_rld(void *data)
 {
 	u32 resumed_bm_rld = 0;
 
@@ -901,14 +901,18 @@ static void  acpi_restore_bm_rld(void)
 	acpi_write_bit_register(ACPI_BITREG_BUS_MASTER_RLD, saved_bm_rld);
 }
 
-static struct syscore_ops acpi_sleep_syscore_ops = {
+static const struct syscore_ops acpi_sleep_syscore_ops = {
 	.suspend = acpi_save_bm_rld,
 	.resume = acpi_restore_bm_rld,
 };
 
+static struct syscore acpi_sleep_syscore = {
+	.ops = &acpi_sleep_syscore_ops,
+};
+
 static void acpi_sleep_syscore_init(void)
 {
-	register_syscore_ops(&acpi_sleep_syscore_ops);
+	register_syscore(&acpi_sleep_syscore);
 }
 #else
 static inline void acpi_sleep_syscore_init(void) {}

@@ -65,6 +65,9 @@ struct fw_card_driver {
 	int (*enable)(struct fw_card *card,
 		      const __be32 *config_rom, size_t length);
 
+	// After returning the call, any function is no longer triggered to handle hardware event.
+	void (*disable)(struct fw_card *card);
+
 	int (*read_phy_reg)(struct fw_card *card, int address);
 	int (*update_phy_reg)(struct fw_card *card, int address,
 			      int clear_bits, int set_bits);
@@ -283,6 +286,8 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 
 void fw_request_get(struct fw_request *request);
 void fw_request_put(struct fw_request *request);
+
+void fw_cancel_pending_transactions(struct fw_card *card);
 
 // Convert the value of IEEE 1394 CYCLE_TIME register to the format of timeStamp field in
 // descriptors of 1394 OHCI.

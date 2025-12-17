@@ -28,6 +28,7 @@ enum intel_fbc_id {
 };
 
 int intel_fbc_atomic_check(struct intel_atomic_state *state);
+int intel_fbc_min_cdclk(const struct intel_crtc_state *crtc_state);
 bool intel_fbc_pre_update(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc);
 void intel_fbc_post_update(struct intel_atomic_state *state,
@@ -52,5 +53,7 @@ void intel_fbc_prepare_dirty_rect(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 void intel_fbc_dirty_rect_update_noarm(struct intel_dsb *dsb,
 				       struct intel_plane *plane);
+bool
+intel_fbc_is_enable_pixel_normalizer(const struct intel_plane_state *plane_state);
 
 #endif /* __INTEL_FBC_H__ */

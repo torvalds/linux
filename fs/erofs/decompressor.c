@@ -105,44 +105,58 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_decompress_req *rq,
 	return kaddr ? 1 : 0;
 }
 
-static void *z_erofs_lz4_handle_overlap(struct z_erofs_decompress_req *rq,
+static void *z_erofs_lz4_handle_overlap(const struct z_erofs_decompress_req *rq,
 			void *inpage, void *out, unsigned int *inputmargin,
 			int *maptype, bool may_inplace)
 {
-	unsigned int oend, omargin, total, i;
+	unsigned int oend, omargin, cnt, i;
 	struct page **in;
-	void *src, *tmp;
+	void *src;
 
-	if (rq->inplace_io) {
-		oend = rq->pageofs_out + rq->outputsize;
-		omargin = PAGE_ALIGN(oend) - oend;
-		if (rq->partial_decoding || !may_inplace ||
-		    omargin < LZ4_DECOMPRESS_INPLACE_MARGIN(rq->inputsize))
-			goto docopy;
-
+	/*
+	 * If in-place I/O isn't used, for example, the bounce compressed cache
+	 * can hold data for incomplete read requests. Just map the compressed
+	 * buffer as well and decompress directly.
+	 */
+	if (!rq->inplace_io) {
+		if (rq->inpages <= 1) {
+			*maptype = 0;
+			return inpage;
+		}
+		kunmap_local(inpage);
+		src = erofs_vm_map_ram(rq->in, rq->inpages);
+		if (!src)
+			return ERR_PTR(-ENOMEM);
+		*maptype = 1;
+		return src;
+	}
+	/*
+	 * Then, deal with in-place I/Os. The reasons why in-place I/O is useful
+	 * are: (1) It minimizes memory footprint during the I/O submission,
+	 * which is useful for slow storage (including network devices and
+	 * low-end HDDs/eMMCs) but with a lot inflight I/Os; (2) If in-place
+	 * decompression can also be applied, it will reuse the unique buffer so
+	 * that no extra CPU D-cache is polluted with temporary compressed data
+	 * for extreme performance.
+	 */
+	oend = rq->pageofs_out + rq->outputsize;
+	omargin = PAGE_ALIGN(oend) - oend;
+	if (!rq->partial_decoding && may_inplace &&
+	    omargin >= LZ4_DECOMPRESS_INPLACE_MARGIN(rq->inputsize)) {
 		for (i = 0; i < rq->inpages; ++i)
 			if (rq->out[rq->outpages - rq->inpages + i] !=
 			    rq->in[i])
-				goto docopy;
-		kunmap_local(inpage);
-		*maptype = 3;
-		return out + ((rq->outpages - rq->inpages) << PAGE_SHIFT);
+				break;
+		if (i >= rq->inpages) {
+			kunmap_local(inpage);
+			*maptype = 3;
+			return out + ((rq->outpages - rq->inpages) << PAGE_SHIFT);
+		}
 	}
-
-	if (rq->inpages <= 1) {
-		*maptype = 0;
-		return inpage;
-	}
-	kunmap_local(inpage);
-	src = erofs_vm_map_ram(rq->in, rq->inpages);
-	if (!src)
-		return ERR_PTR(-ENOMEM);
-	*maptype = 1;
-	return src;
-
-docopy:
-	/* Or copy compressed data which can be overlapped to per-CPU buffer */
-	in = rq->in;
+	/*
+	 * If in-place decompression can't be applied, copy compressed data that
+	 * may potentially overlap during decompression to a per-CPU buffer.
+	 */
 	src = z_erofs_get_gbuf(rq->inpages);
 	if (!src) {
 		DBG_BUGON(1);
@@ -150,20 +164,13 @@ docopy:
 		return ERR_PTR(-EFAULT);
 	}
 
-	tmp = src;
-	total = rq->inputsize;
-	while (total) {
-		unsigned int page_copycnt =
-			min_t(unsigned int, total, PAGE_SIZE - *inputmargin);
-
+	for (i = 0, in = rq->in; i < rq->inputsize; i += cnt, ++in) {
+		cnt = min_t(u32, rq->inputsize - i, PAGE_SIZE - *inputmargin);
 		if (!inpage)
 			inpage = kmap_local_page(*in);
-		memcpy(tmp, inpage + *inputmargin, page_copycnt);
+		memcpy(src + i, inpage + *inputmargin, cnt);
 		kunmap_local(inpage);
 		inpage = NULL;
-		tmp += page_copycnt;
-		total -= page_copycnt;
-		++in;
 		*inputmargin = 0;
 	}
 	*maptype = 2;
@@ -171,21 +178,21 @@ docopy:
 }
 
 /*
- * Get the exact inputsize with zero_padding feature.
- *  - For LZ4, it should work if zero_padding feature is on (5.3+);
- *  - For MicroLZMA, it'd be enabled all the time.
+ * Get the exact on-disk size of the compressed data:
+ *  - For LZ4, it should apply if the zero_padding feature is on (5.3+);
+ *  - For others, zero_padding is enabled all the time.
  */
-int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
-			 unsigned int padbufsize)
+const char *z_erofs_fixup_insize(struct z_erofs_decompress_req *rq,
+				 const char *padbuf, unsigned int padbufsize)
 {
 	const char *padend;
 
 	padend = memchr_inv(padbuf, 0, padbufsize);
 	if (!padend)
-		return -EFSCORRUPTED;
+		return "compressed data start not found";
 	rq->inputsize -= padend - padbuf;
 	rq->pageofs_in += padend - padbuf;
-	return 0;
+	return NULL;
 }
 
 static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst)
@@ -193,6 +200,7 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	bool support_0padding = false, may_inplace = false;
 	unsigned int inputmargin;
 	u8 *out, *headpage, *src;
+	const char *reason;
 	int ret, maptype;
 
 	DBG_BUGON(*rq->in == NULL);
@@ -201,12 +209,12 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
 	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
-		ret = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
+		reason = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
 				min_t(unsigned int, rq->inputsize,
 				      rq->sb->s_blocksize - rq->pageofs_in));
-		if (ret) {
+		if (reason) {
 			kunmap_local(headpage);
-			return ret;
+			return IS_ERR(reason) ? PTR_ERR(reason) : -EFSCORRUPTED;
 		}
 		may_inplace = !((rq->pageofs_in + rq->inputsize) &
 				(rq->sb->s_blocksize - 1));
@@ -228,8 +236,6 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 					  rq->inputsize, rq->outputsize);
 
 	if (ret != rq->outputsize) {
-		erofs_err(rq->sb, "failed to decompress %d in[%u, %u] out[%u]",
-			  ret, rq->inputsize, inputmargin, rq->outputsize);
 		if (ret >= 0)
 			memset(out + ret, 0, rq->outputsize - ret);
 		ret = -EFSCORRUPTED;
@@ -250,8 +256,8 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	return ret;
 }
 
-static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
-				  struct page **pagepool)
+static const char *z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
+					  struct page **pagepool)
 {
 	unsigned int dst_maptype;
 	void *dst;
@@ -266,14 +272,14 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 		/* general decoding path which can be used for all cases */
 		ret = z_erofs_lz4_prepare_dstpages(rq, pagepool);
 		if (ret < 0)
-			return ret;
+			return ERR_PTR(ret);
 		if (ret > 0) {
 			dst = page_address(*rq->out);
 			dst_maptype = 1;
 		} else {
 			dst = erofs_vm_map_ram(rq->out, rq->outpages);
 			if (!dst)
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 			dst_maptype = 2;
 		}
 	}
@@ -282,11 +288,11 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 		kunmap_local(dst);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, rq->outpages);
-	return ret;
+	return ERR_PTR(ret);
 }
 
-static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
-				   struct page **pagepool)
+static const char *z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
+					   struct page **pagepool)
 {
 	const unsigned int nrpages_in = rq->inpages, nrpages_out = rq->outpages;
 	const unsigned int bs = rq->sb->s_blocksize;
@@ -294,7 +300,7 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 	u8 *kin;
 
 	if (rq->outputsize > rq->inputsize)
-		return -EOPNOTSUPP;
+		return ERR_PTR(-EOPNOTSUPP);
 	if (rq->alg == Z_EROFS_COMPRESSION_INTERLACED) {
 		cur = bs - (rq->pageofs_out & (bs - 1));
 		pi = (rq->pageofs_in + rq->inputsize - cur) & ~PAGE_MASK;
@@ -334,22 +340,19 @@ static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 		kunmap_local(kin);
 	}
 	DBG_BUGON(ni > nrpages_in);
-	return 0;
+	return NULL;
 }
 
-int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
-			       void **src, struct page **pgpl)
+const char *z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx,
+				void **dst, void **src, struct page **pgpl)
 {
 	struct z_erofs_decompress_req *rq = dctx->rq;
-	struct super_block *sb = rq->sb;
 	struct page **pgo, *tmppage;
 	unsigned int j;
 
 	if (!dctx->avail_out) {
-		if (++dctx->no >= rq->outpages || !rq->outputsize) {
-			erofs_err(sb, "insufficient space for decompressed data");
-			return -EFSCORRUPTED;
-		}
+		if (++dctx->no >= rq->outpages || !rq->outputsize)
+			return "insufficient space for decompressed data";
 
 		if (dctx->kout)
 			kunmap_local(dctx->kout);
@@ -360,7 +363,7 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 			*pgo = erofs_allocpage(pgpl, rq->gfp);
 			if (!*pgo) {
 				dctx->kout = NULL;
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 			}
 			set_page_private(*pgo, Z_EROFS_SHORTLIVED_PAGE);
 		}
@@ -374,10 +377,8 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 	}
 
 	if (dctx->inbuf_pos == dctx->inbuf_sz && rq->inputsize) {
-		if (++dctx->ni >= rq->inpages) {
-			erofs_err(sb, "invalid compressed data");
-			return -EFSCORRUPTED;
-		}
+		if (++dctx->ni >= rq->inpages)
+			return "invalid compressed data";
 		if (dctx->kout) /* unlike kmap(), take care of the orders */
 			kunmap_local(dctx->kout);
 		kunmap_local(dctx->kin);
@@ -412,12 +413,12 @@ int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
 			continue;
 		tmppage = erofs_allocpage(pgpl, rq->gfp);
 		if (!tmppage)
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		set_page_private(tmppage, Z_EROFS_SHORTLIVED_PAGE);
 		copy_highpage(tmppage, rq->in[j]);
 		rq->in[j] = tmppage;
 	}
-	return 0;
+	return NULL;
 }
 
 const struct z_erofs_decompressor *z_erofs_decomp[] = {

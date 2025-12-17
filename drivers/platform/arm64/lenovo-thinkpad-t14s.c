@@ -20,19 +20,23 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/pm.h>
 
 #define T14S_EC_CMD_ECRD	0x02
 #define T14S_EC_CMD_ECWR	0x03
 #define T14S_EC_CMD_EVT		0xf0
 
-#define T14S_EC_REG_LED		0x0c
-#define T14S_EC_REG_KBD_BL1	0x0d
-#define T14S_EC_REG_KBD_BL2	0xe1
-#define T14S_EC_KBD_BL1_MASK	GENMASK_U8(7, 6)
-#define T14S_EC_KBD_BL2_MASK	GENMASK_U8(3, 2)
-#define T14S_EC_REG_AUD		0x30
-#define T14S_EC_MIC_MUTE_LED	BIT(5)
-#define T14S_EC_SPK_MUTE_LED	BIT(6)
+#define T14S_EC_REG_LED				0x0c
+#define T14S_EC_REG_KBD_BL1			0x0d
+#define T14S_EC_REG_MODERN_STANDBY		0xe0
+#define T14S_EC_MODERN_STANDBY_ENTRY		BIT(1)
+#define T14S_EC_MODERN_STANDBY_EXIT		BIT(0)
+#define T14S_EC_REG_KBD_BL2			0xe1
+#define T14S_EC_KBD_BL1_MASK			GENMASK_U8(7, 6)
+#define T14S_EC_KBD_BL2_MASK			GENMASK_U8(3, 2)
+#define T14S_EC_REG_AUD				0x30
+#define T14S_EC_MIC_MUTE_LED			BIT(5)
+#define T14S_EC_SPK_MUTE_LED			BIT(6)
 
 #define T14S_EC_EVT_NONE			0x00
 #define T14S_EC_EVT_KEY_FN_4			0x13
@@ -200,6 +204,14 @@ static int t14s_ec_read_evt(struct t14s_ec *ec, u8 *val)
 out:
 	i2c_unlock_bus(client->adapter, I2C_LOCK_SEGMENT);
 	return ret;
+}
+
+static void t14s_ec_write_sequence(struct t14s_ec *ec, u8 reg, u8 val, u8 cnt)
+{
+	int i;
+
+	for (i = 0; i < cnt; i++)
+		regmap_write(ec->regmap, reg, val);
 }
 
 static int t14s_led_set_status(struct t14s_ec *ec,
@@ -554,6 +566,7 @@ static int t14s_ec_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	ec->dev = dev;
+	i2c_set_clientdata(client, ec);
 
 	ec->regmap = devm_regmap_init(dev, &t14s_ec_regmap_bus,
 				      ec, &t14s_ec_regmap_config);
@@ -593,6 +606,30 @@ static int t14s_ec_probe(struct i2c_client *client)
 	return 0;
 }
 
+static int t14s_ec_suspend(struct device *dev)
+{
+	struct t14s_ec *ec = dev_get_drvdata(dev);
+
+	led_classdev_suspend(&ec->kbd_backlight);
+
+	t14s_ec_write_sequence(ec, T14S_EC_REG_MODERN_STANDBY,
+			       T14S_EC_MODERN_STANDBY_ENTRY, 3);
+
+	return 0;
+}
+
+static int t14s_ec_resume(struct device *dev)
+{
+	struct t14s_ec *ec = dev_get_drvdata(dev);
+
+	t14s_ec_write_sequence(ec, T14S_EC_REG_MODERN_STANDBY,
+			       T14S_EC_MODERN_STANDBY_EXIT, 3);
+
+	led_classdev_resume(&ec->kbd_backlight);
+
+	return 0;
+}
+
 static const struct of_device_id t14s_ec_of_match[] = {
 	{ .compatible = "lenovo,thinkpad-t14s-ec" },
 	{}
@@ -605,10 +642,15 @@ static const struct i2c_device_id t14s_ec_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, t14s_ec_i2c_id_table);
 
+static const struct dev_pm_ops t14s_ec_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(t14s_ec_suspend, t14s_ec_resume)
+};
+
 static struct i2c_driver t14s_ec_i2c_driver = {
 	.driver = {
 		.name = "thinkpad-t14s-ec",
 		.of_match_table = t14s_ec_of_match,
+		.pm = &t14s_ec_pm_ops,
 	},
 	.probe = t14s_ec_probe,
 	.id_table = t14s_ec_i2c_id_table,

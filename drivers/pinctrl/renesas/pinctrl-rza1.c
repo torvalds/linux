@@ -526,7 +526,6 @@ static inline int rza1_pinmux_get_swio(unsigned int port,
 	const struct rza1_swio_pin *swio_pin;
 	unsigned int i;
 
-
 	for (i = 0; i < table->npins; ++i) {
 		swio_pin = &table->pins[i];
 		if (swio_pin->port == port && swio_pin->pin == pin &&
@@ -669,7 +668,7 @@ static inline int rza1_pin_get(struct rza1_port *port, unsigned int pin)
  * @mux_conf: pin multiplexing descriptor
  */
 static int rza1_pin_mux_single(struct rza1_pinctrl *rza1_pctl,
-			       struct rza1_mux_conf *mux_conf)
+			       const struct rza1_mux_conf *mux_conf)
 {
 	struct rza1_port *port = &rza1_pctl->ports[mux_conf->port];
 	unsigned int pin = mux_conf->pin;
@@ -1119,7 +1118,7 @@ static int rza1_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 			   unsigned int group)
 {
 	struct rza1_pinctrl *rza1_pctl = pinctrl_dev_get_drvdata(pctldev);
-	struct rza1_mux_conf *mux_confs;
+	const struct rza1_mux_conf *mux_confs;
 	const struct function_desc *func;
 	struct group_desc *grp;
 	int i;
@@ -1132,7 +1131,7 @@ static int rza1_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 	if (!func)
 		return -EINVAL;
 
-	mux_confs = (struct rza1_mux_conf *)func->data;
+	mux_confs = (const struct rza1_mux_conf *)func->data;
 	for (i = 0; i < grp->grp.npins; ++i) {
 		int ret;
 

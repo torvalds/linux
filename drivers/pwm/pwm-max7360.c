@@ -75,7 +75,7 @@ static int max7360_pwm_round_waveform_tohw(struct pwm_chip *chip,
 			duty_steps = MAX7360_PWM_MAX - 1;
 	}
 
-	wfhw->duty_steps = min(MAX7360_PWM_MAX, duty_steps);
+	wfhw->duty_steps = duty_steps;
 	wfhw->enabled = !!wf->period_length_ns;
 
 	if (wf->period_length_ns && wf->period_length_ns < MAX7360_PWM_PERIOD_NS)

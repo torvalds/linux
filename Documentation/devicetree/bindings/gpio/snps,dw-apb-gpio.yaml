@@ -111,8 +111,8 @@ additionalProperties: false
 required:
   - compatible
   - reg
-  - "#address-cells"
-  - "#size-cells"
+  - '#address-cells'
+  - '#size-cells'
 
 examples:
   - |

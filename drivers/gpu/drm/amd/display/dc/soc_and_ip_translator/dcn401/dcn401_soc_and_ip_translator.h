@@ -9,7 +9,7 @@
 #include "dc.h"
 #include "clk_mgr.h"
 #include "soc_and_ip_translator.h"
-#include "dml2/dml21/inc/dml_top_soc_parameter_types.h"
+#include "dml2_0/dml21/inc/dml_top_soc_parameter_types.h"
 
 void dcn401_construct_soc_and_ip_translator(struct soc_and_ip_translator *soc_and_ip_translator);
 

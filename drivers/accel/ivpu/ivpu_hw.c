@@ -8,6 +8,8 @@
 #include "ivpu_hw_btrs.h"
 #include "ivpu_hw_ip.h"
 
+#include <asm/msr-index.h>
+#include <asm/msr.h>
 #include <linux/dmi.h>
 #include <linux/fault-inject.h>
 #include <linux/pm_runtime.h>
@@ -19,6 +21,10 @@ static char *ivpu_fail_hw;
 module_param_named_unsafe(fail_hw, ivpu_fail_hw, charp, 0444);
 MODULE_PARM_DESC(fail_hw, "<interval>,<probability>,<space>,<times>");
 #endif
+
+#define FW_SHARED_MEM_ALIGNMENT	SZ_512K /* VPU MTRR limitation */
+
+#define ECC_MCA_SIGNAL_ENABLE_MASK	0xff
 
 static char *platform_to_str(u32 platform)
 {
@@ -147,19 +153,39 @@ static void priority_bands_init(struct ivpu_device *vdev)
 	vdev->hw->hws.process_quantum[VPU_JOB_SCHEDULING_PRIORITY_BAND_REALTIME] = 200000;
 }
 
+int ivpu_hw_range_init(struct ivpu_device *vdev, struct ivpu_addr_range *range, u64 start, u64 size)
+{
+	u64 end;
+
+	if (!range || check_add_overflow(start, size, &end)) {
+		ivpu_err(vdev, "Invalid range: start 0x%llx size %llu\n", start, size);
+		return -EINVAL;
+	}
+
+	range->start = start;
+	range->end = end;
+
+	return 0;
+}
+
 static void memory_ranges_init(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX) {
-		ivpu_hw_range_init(&vdev->hw->ranges.global, 0x80000000, SZ_512M);
-		ivpu_hw_range_init(&vdev->hw->ranges.user,   0x88000000, 511 * SZ_1M);
-		ivpu_hw_range_init(&vdev->hw->ranges.shave, 0x180000000, SZ_2G);
-		ivpu_hw_range_init(&vdev->hw->ranges.dma,   0x200000000, SZ_128G);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.runtime, 0x84800000, SZ_64M);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.global,  0x90000000, SZ_256M);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.user,    0xa0000000, 511 * SZ_1M);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.shave,  0x180000000, SZ_2G);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.dma,    0x200000000, SZ_128G);
 	} else {
-		ivpu_hw_range_init(&vdev->hw->ranges.global, 0x80000000, SZ_512M);
-		ivpu_hw_range_init(&vdev->hw->ranges.shave,  0x80000000, SZ_2G);
-		ivpu_hw_range_init(&vdev->hw->ranges.user,  0x100000000, SZ_256G);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.runtime, 0x80000000, SZ_64M);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.global,  0x90000000, SZ_256M);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.shave,   0x80000000, SZ_2G);
+		ivpu_hw_range_init(vdev, &vdev->hw->ranges.user,   0x100000000, SZ_256G);
 		vdev->hw->ranges.dma = vdev->hw->ranges.user;
 	}
+
+	drm_WARN_ON(&vdev->drm, !IS_ALIGNED(vdev->hw->ranges.global.start,
+					    FW_SHARED_MEM_ALIGNMENT));
 }
 
 static int wp_enable(struct ivpu_device *vdev)
@@ -372,4 +398,23 @@ irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr)
 
 	pm_runtime_mark_last_busy(vdev->drm.dev);
 	return IRQ_HANDLED;
+}
+
+bool ivpu_hw_uses_ecc_mca_signal(struct ivpu_device *vdev)
+{
+	unsigned long long msr_integrity_caps;
+	int ret;
+
+	if (ivpu_hw_ip_gen(vdev) < IVPU_HW_IP_50XX)
+		return false;
+
+	ret = rdmsrq_safe(MSR_INTEGRITY_CAPS, &msr_integrity_caps);
+	if (ret) {
+		ivpu_warn(vdev, "Error reading MSR_INTEGRITY_CAPS: %d", ret);
+		return false;
+	}
+
+	ivpu_dbg(vdev, MISC, "MSR_INTEGRITY_CAPS: 0x%llx\n", msr_integrity_caps);
+
+	return msr_integrity_caps & ECC_MCA_SIGNAL_ENABLE_MASK;
 }

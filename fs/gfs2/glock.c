@@ -137,33 +137,6 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 		kmem_cache_free(gfs2_glock_cachep, gl);
 }
 
-/**
- * glock_blocked_by_withdraw - determine if we can still use a glock
- * @gl: the glock
- *
- * We need to allow some glocks to be enqueued, dequeued, promoted, and demoted
- * when we're withdrawn. For example, to maintain metadata integrity, we should
- * disallow the use of inode and rgrp glocks when withdrawn. Other glocks like
- * the iopen or freeze glock may be safely used because none of their
- * metadata goes through the journal. So in general, we should disallow all
- * glocks that are journaled, and allow all the others. One exception is:
- * we need to allow our active journal to be promoted and demoted so others
- * may recover it and we can reacquire it when they're done.
- */
-static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-
-	if (!gfs2_withdrawing_or_withdrawn(sdp))
-		return false;
-	if (gl->gl_ops->go_flags & GLOF_NONDISK)
-		return false;
-	if (!sdp->sd_jdesc ||
-	    gl->gl_name.ln_number == sdp->sd_jdesc->jd_no_addr)
-		return false;
-	return true;
-}
-
 static void __gfs2_glock_free(struct gfs2_glock *gl)
 {
 	rhashtable_remove_fast(&gl_hash_table, &gl->gl_node, ht_parms);
@@ -270,7 +243,7 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 	if (mapping) {
 		truncate_inode_pages_final(mapping);
-		if (!gfs2_withdrawing_or_withdrawn(sdp))
+		if (!gfs2_withdrawn(sdp))
 			GLOCK_BUG_ON(gl, !mapping_empty(mapping));
 	}
 	trace_gfs2_glock_put(gl);
@@ -485,7 +458,13 @@ done:
 
 static void do_promote(struct gfs2_glock *gl)
 {
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	struct gfs2_holder *gh, *current_gh;
+
+	if (gfs2_withdrawn(sdp)) {
+		do_error(gl, LM_OUT_ERROR);
+		return;
+	}
 
 	current_gh = find_first_holder(gl);
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
@@ -592,7 +571,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 		state_change(gl, state);
 	}
 
-
 	/* Demote to UN request arrived during demote to SH or DF */
 	if (test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
@@ -663,16 +641,6 @@ out:
 		clear_bit(GLF_LOCK, &gl->gl_flags);
 }
 
-static bool is_system_glock(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
-
-	if (gl == m_ip->i_gl)
-		return true;
-	return false;
-}
-
 /**
  * do_xmote - Calls the DLM to change the state of a lock
  * @gl: The lock state
@@ -691,95 +659,47 @@ __acquires(&gl->gl_lockref.lock)
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 	int ret;
 
-	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl) &&
-	    gh && !(gh->gh_flags & LM_FLAG_NOEXP))
-		goto skip_inval;
+	/*
+	 * When a filesystem is withdrawing, the remaining cluster nodes will
+	 * take care of recovering the withdrawing node's journal.  We only
+	 * need to make sure that once we trigger remote recovery, we won't
+	 * write to the shared block device anymore.  This means that here,
+	 *
+	 * - no new writes to the filesystem must be triggered (->go_sync()).
+	 *
+	 * - any cached data should be discarded by calling ->go_inval(), dirty
+	 *   or not and journaled or unjournaled.
+	 *
+	 * - no more dlm locking operations should be issued (->lm_lock()).
+	 */
 
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
 	GLOCK_BUG_ON(gl, gl->gl_state == gl->gl_target);
+
 	if (!glops->go_inval || !glops->go_sync)
 		goto skip_inval;
 
 	spin_unlock(&gl->gl_lockref.lock);
-	ret = glops->go_sync(gl);
-	/* If we had a problem syncing (due to io errors or whatever,
-	 * we should not invalidate the metadata or tell dlm to
-	 * release the glock to other nodes.
-	 */
-	if (ret) {
-		if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
-			fs_err(sdp, "Error %d syncing glock\n", ret);
-			gfs2_dump_glock(NULL, gl, true);
+	if (!gfs2_withdrawn(sdp)) {
+		ret = glops->go_sync(gl);
+		if (ret) {
+			if (cmpxchg(&sdp->sd_log_error, 0, ret)) {
+				fs_err(sdp, "Error %d syncing glock\n", ret);
+				gfs2_dump_glock(NULL, gl, true);
+				gfs2_withdraw(sdp);
+			}
 		}
-		spin_lock(&gl->gl_lockref.lock);
-		goto skip_inval;
 	}
 
-	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED) {
-		/*
-		 * The call to go_sync should have cleared out the ail list.
-		 * If there are still items, we have a problem. We ought to
-		 * withdraw, but we can't because the withdraw code also uses
-		 * glocks. Warn about the error, dump the glock, then fall
-		 * through and wait for logd to do the withdraw for us.
-		 */
-		if ((atomic_read(&gl->gl_ail_count) != 0) &&
-		    (!cmpxchg(&sdp->sd_log_error, 0, -EIO))) {
-			gfs2_glock_assert_warn(gl,
-					       !atomic_read(&gl->gl_ail_count));
-			gfs2_dump_glock(NULL, gl, true);
-		}
+	if (target == LM_ST_UNLOCKED || target == LM_ST_DEFERRED)
 		glops->go_inval(gl, target == LM_ST_DEFERRED ? 0 : DIO_METADATA);
-	}
 	spin_lock(&gl->gl_lockref.lock);
 
 skip_inval:
-	/*
-	 * Check for an error encountered since we called go_sync and go_inval.
-	 * If so, we can't withdraw from the glock code because the withdraw
-	 * code itself uses glocks (see function signal_our_withdraw) to
-	 * change the mount to read-only. Most importantly, we must not call
-	 * dlm to unlock the glock until the journal is in a known good state
-	 * (after journal replay) otherwise other nodes may use the object
-	 * (rgrp or dinode) and then later, journal replay will corrupt the
-	 * file system. The best we can do here is wait for the logd daemon
-	 * to see sd_log_error and withdraw, and in the meantime, requeue the
-	 * work for later.
-	 *
-	 * We make a special exception for some system glocks, such as the
-	 * system statfs inode glock, which needs to be granted before the
-	 * gfs2_quotad daemon can exit, and that exit needs to finish before
-	 * we can unmount the withdrawn file system.
-	 *
-	 * However, if we're just unlocking the lock (say, for unmount, when
-	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
-	 * then it's okay to tell dlm to unlock it.
-	 */
-	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawing_or_withdrawn(sdp))
-		gfs2_withdraw_delayed(sdp);
-	if (glock_blocked_by_withdraw(gl) &&
-	    (target != LM_ST_UNLOCKED ||
-	     test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags))) {
-		if (!is_system_glock(gl)) {
-			request_demote(gl, LM_ST_UNLOCKED, 0, false);
-			/*
-			 * Ordinarily, we would call dlm and its callback would call
-			 * finish_xmote, which would call state_change() to the new state.
-			 * Since we withdrew, we won't call dlm, so call state_change
-			 * manually, but to the UNLOCKED state we desire.
-			 */
-			state_change(gl, LM_ST_UNLOCKED);
-			/*
-			 * We skip telling dlm to do the locking, so we won't get a
-			 * reply that would otherwise clear GLF_LOCK. So we clear it here.
-			 */
-			if (!test_bit(GLF_CANCELING, &gl->gl_flags))
-				clear_bit(GLF_LOCK, &gl->gl_flags);
-			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
-			gl->gl_lockref.count++;
-			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
-			return;
-		}
+	if (gfs2_withdrawn(sdp)) {
+		if (target != LM_ST_UNLOCKED)
+			target = LM_OUT_ERROR;
+		goto out;
 	}
 
 	if (ls->ls_ops->lm_lock) {
@@ -795,19 +715,23 @@ skip_inval:
 		}
 		clear_bit(GLF_PENDING_REPLY, &gl->gl_flags);
 
-		if (ret == -ENODEV && gl->gl_target == LM_ST_UNLOCKED &&
-		    target == LM_ST_UNLOCKED) {
+		if (ret == -ENODEV) {
 			/*
 			 * The lockspace has been released and the lock has
 			 * been unlocked implicitly.
 			 */
+			if (target != LM_ST_UNLOCKED) {
+				target = LM_OUT_ERROR;
+				goto out;
+			}
 		} else {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !gfs2_withdrawing_or_withdrawn(sdp));
+			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
 			return;
 		}
 	}
 
+out:
 	/* Complete the operation now. */
 	finish_xmote(gl, target);
 	gl->gl_lockref.count++;
@@ -966,14 +890,14 @@ static struct gfs2_inode *gfs2_grab_existing_inode(struct gfs2_glock *gl)
 	return ip;
 }
 
-static void gfs2_try_evict(struct gfs2_glock *gl)
+static void gfs2_try_to_evict(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip;
 
 	/*
 	 * If there is contention on the iopen glock and we have an inode, try
 	 * to grab and release the inode so that it can be evicted.  The
-	 * GIF_DEFER_DELETE flag indicates to gfs2_evict_inode() that the inode
+	 * GLF_DEFER_DELETE flag indicates to gfs2_evict_inode() that the inode
 	 * should not be deleted locally.  This will allow the remote node to
 	 * go ahead and delete the inode without us having to do it, which will
 	 * avoid rgrp glock thrashing.
@@ -1026,8 +950,14 @@ static void delete_work_func(struct work_struct *work)
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	bool verify_delete = test_and_clear_bit(GLF_VERIFY_DELETE, &gl->gl_flags);
 
+	/*
+	 * Check for the GLF_VERIFY_DELETE above: this ensures that we won't
+	 * immediately process GLF_VERIFY_DELETE work that the below call to
+	 * gfs2_try_to_evict() queues.
+	 */
+
 	if (test_and_clear_bit(GLF_TRY_TO_EVICT, &gl->gl_flags))
-		gfs2_try_evict(gl);
+		gfs2_try_to_evict(gl);
 
 	if (verify_delete) {
 		u64 no_addr = gl->gl_name.ln_number;
@@ -1211,10 +1141,13 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 
 	mapping = gfs2_glock2aspace(gl);
 	if (mapping) {
+		gfp_t gfp_mask;
+
                 mapping->a_ops = &gfs2_meta_aops;
 		mapping->host = sdp->sd_inode;
 		mapping->flags = 0;
-		mapping_set_gfp_mask(mapping, GFP_NOFS);
+		gfp_mask = mapping_gfp_mask(sdp->sd_inode->i_mapping);
+		mapping_set_gfp_mask(mapping, gfp_mask);
 		mapping->i_private_data = NULL;
 		mapping->writeback_index = 0;
 	}
@@ -1241,7 +1174,7 @@ found:
  * @state: the state we're requesting
  * @flags: the modifier flags
  * @gh: the holder structure
- *
+ * @ip: caller's return address for debugging
  */
 
 void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state, u16 flags,
@@ -1539,9 +1472,10 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	int error;
 
-	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_NOEXP))
+	if (gfs2_withdrawn(sdp))
 		return -EIO;
 
 	if (gh->gh_flags & GL_NOBLOCK) {
@@ -1566,7 +1500,7 @@ unlock:
 	gh->gh_error = 0;
 	spin_lock(&gl->gl_lockref.lock);
 	add_to_queue(gh);
-	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
+	if (unlikely((LM_FLAG_RECOVER & gh->gh_flags) &&
 		     test_and_clear_bit(GLF_HAVE_FROZEN_REPLY, &gl->gl_flags))) {
 		set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		gl->gl_lockref.count++;
@@ -1639,7 +1573,6 @@ static void __gfs2_glock_dq(struct gfs2_holder *gh)
 void gfs2_glock_dq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
 	spin_lock(&gl->gl_lockref.lock);
 	if (!gfs2_holder_queued(gh)) {
@@ -1664,24 +1597,6 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		clear_bit(GLF_LOCK, &gl->gl_flags);
 		if (!gfs2_holder_queued(gh))
 			goto out;
-	}
-
-	/*
-	 * If we're in the process of file system withdraw, we cannot just
-	 * dequeue any glocks until our journal is recovered, lest we introduce
-	 * file system corruption. We need two exceptions to this rule: We need
-	 * to allow unlocking of nondisk glocks and the glock for our own
-	 * journal that needs recovery.
-	 */
-	if (test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags) &&
-	    glock_blocked_by_withdraw(gl) &&
-	    gh->gh_gl != sdp->sd_jinode_gl) {
-		sdp->sd_glock_dqs_held++;
-		spin_unlock(&gl->gl_lockref.lock);
-		might_sleep();
-		wait_on_bit(&sdp->sd_flags, SDF_WITHDRAW_RECOVERY,
-			    TASK_UNINTERRUPTIBLE);
-		spin_lock(&gl->gl_lockref.lock);
 	}
 
 	__gfs2_glock_dq(gh);
@@ -1871,7 +1786,7 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
  *
  * Glocks are not frozen if (a) the result of the dlm operation is
  * an error, (b) the locking operation was an unlock operation or
- * (c) if there is a "noexp" flagged request anywhere in the queue
+ * (c) if there is a "recover" flagged request anywhere in the queue
  *
  * Returns: 1 if freezing should occur, 0 otherwise
  */
@@ -1888,7 +1803,7 @@ static int gfs2_should_freeze(const struct gfs2_glock *gl)
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
-		if (LM_FLAG_NOEXP & gh->gh_flags)
+		if (LM_FLAG_RECOVER & gh->gh_flags)
 			return 0;
 	}
 
@@ -2165,18 +2080,26 @@ static void dump_glock_func(struct gfs2_glock *gl)
 	dump_glock(NULL, gl, true);
 }
 
-static void withdraw_dq(struct gfs2_glock *gl)
+static void withdraw_glock(struct gfs2_glock *gl)
 {
 	spin_lock(&gl->gl_lockref.lock);
-	if (!__lockref_is_dead(&gl->gl_lockref) &&
-	    glock_blocked_by_withdraw(gl))
+	if (!__lockref_is_dead(&gl->gl_lockref)) {
+		/*
+		 * We don't want to write back any more dirty data.  Unlock the
+		 * remaining inode and resource group glocks; this will cause
+		 * their ->go_inval() hooks to toss out all the remaining
+		 * cached data, dirty or not.
+		 */
+		if (gl->gl_ops->go_inval && gl->gl_state != LM_ST_UNLOCKED)
+			request_demote(gl, LM_ST_UNLOCKED, 0, false);
 		do_error(gl, LM_OUT_ERROR); /* remove pending waiters */
+	}
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
-void gfs2_gl_dq_holders(struct gfs2_sbd *sdp)
+void gfs2_withdraw_glocks(struct gfs2_sbd *sdp)
 {
-	glock_hash_walk(withdraw_dq, sdp);
+	glock_hash_walk(withdraw_glock, sdp);
 }
 
 /**
@@ -2237,7 +2160,7 @@ static const char *hflags2str(char *buf, u16 flags, unsigned long iflags)
 		*p++ = 't';
 	if (flags & LM_FLAG_TRY_1CB)
 		*p++ = 'T';
-	if (flags & LM_FLAG_NOEXP)
+	if (flags & LM_FLAG_RECOVER)
 		*p++ = 'e';
 	if (flags & LM_FLAG_ANY)
 		*p++ = 'A';
@@ -2324,8 +2247,6 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'o';
 	if (test_bit(GLF_BLOCKING, gflags))
 		*p++ = 'b';
-	if (test_bit(GLF_UNLOCKED, gflags))
-		*p++ = 'x';
 	if (test_bit(GLF_INSTANTIATE_NEEDED, gflags))
 		*p++ = 'n';
 	if (test_bit(GLF_INSTANTIATE_IN_PROG, gflags))

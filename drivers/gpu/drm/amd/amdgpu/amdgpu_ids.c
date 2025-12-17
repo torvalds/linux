@@ -201,58 +201,34 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->vm_hub;
 	struct amdgpu_vmid_mgr *id_mgr = &adev->vm_manager.id_mgr[vmhub];
-	struct dma_fence **fences;
-	unsigned i;
 
+	/* If anybody is waiting for a VMID let everybody wait for fairness */
 	if (!dma_fence_is_signaled(ring->vmid_wait)) {
 		*fence = dma_fence_get(ring->vmid_wait);
 		return 0;
 	}
 
-	fences = kmalloc_array(id_mgr->num_ids, sizeof(void *), GFP_NOWAIT);
-	if (!fences)
-		return -ENOMEM;
-
 	/* Check if we have an idle VMID */
-	i = 0;
-	list_for_each_entry((*idle), &id_mgr->ids_lru, list) {
+	list_for_each_entry_reverse((*idle), &id_mgr->ids_lru, list) {
 		/* Don't use per engine and per process VMID at the same time */
 		struct amdgpu_ring *r = adev->vm_manager.concurrent_flush ?
 			NULL : ring;
 
-		fences[i] = amdgpu_sync_peek_fence(&(*idle)->active, r);
-		if (!fences[i])
-			break;
-		++i;
+		*fence = amdgpu_sync_peek_fence(&(*idle)->active, r);
+		if (!(*fence))
+			return 0;
 	}
 
-	/* If we can't find a idle VMID to use, wait till one becomes available */
-	if (&(*idle)->list == &id_mgr->ids_lru) {
-		u64 fence_context = adev->vm_manager.fence_context + ring->idx;
-		unsigned seqno = ++adev->vm_manager.seqno[ring->idx];
-		struct dma_fence_array *array;
-		unsigned j;
+	/*
+	 * If we can't find a idle VMID to use, wait on a fence from the least
+	 * recently used in the hope that it will be available soon.
+	 */
+	*idle = NULL;
+	dma_fence_put(ring->vmid_wait);
+	ring->vmid_wait = dma_fence_get(*fence);
 
-		*idle = NULL;
-		for (j = 0; j < i; ++j)
-			dma_fence_get(fences[j]);
-
-		array = dma_fence_array_create(i, fences, fence_context,
-					       seqno, true);
-		if (!array) {
-			for (j = 0; j < i; ++j)
-				dma_fence_put(fences[j]);
-			kfree(fences);
-			return -ENOMEM;
-		}
-
-		*fence = dma_fence_get(&array->base);
-		dma_fence_put(ring->vmid_wait);
-		ring->vmid_wait = &array->base;
-		return 0;
-	}
-	kfree(fences);
-
+	/* This is the reference we return */
+	dma_fence_get(*fence);
 	return 0;
 }
 
@@ -313,7 +289,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	* user of the VMID.
 	*/
 	r = amdgpu_sync_fence(&(*id)->active, &job->base.s_fence->finished,
-			      GFP_NOWAIT);
+			      GFP_ATOMIC);
 	if (r)
 		return r;
 
@@ -373,7 +349,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		 */
 		r = amdgpu_sync_fence(&(*id)->active,
 				      &job->base.s_fence->finished,
-				      GFP_NOWAIT);
+				      GFP_ATOMIC);
 		if (r)
 			return r;
 
@@ -426,7 +402,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			/* Remember this submission as user of the VMID */
 			r = amdgpu_sync_fence(&id->active,
 					      &job->base.s_fence->finished,
-					      GFP_NOWAIT);
+					      GFP_ATOMIC);
 			if (r)
 				goto error;
 

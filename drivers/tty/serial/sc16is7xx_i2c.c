@@ -52,7 +52,7 @@ MODULE_DEVICE_TABLE(i2c, sc16is7xx_i2c_id_table);
 
 static struct i2c_driver sc16is7xx_i2c_driver = {
 	.driver = {
-		.name		= SC16IS7XX_NAME,
+		.name		= KBUILD_MODNAME,
 		.of_match_table	= sc16is7xx_dt_ids,
 	},
 	.probe		= sc16is7xx_i2c_probe,
@@ -63,5 +63,5 @@ static struct i2c_driver sc16is7xx_i2c_driver = {
 module_i2c_driver(sc16is7xx_i2c_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("SC16IS7xx I2C interface driver");
+MODULE_DESCRIPTION(KBUILD_MODNAME " interface driver");
 MODULE_IMPORT_NS("SERIAL_NXP_SC16IS7XX");

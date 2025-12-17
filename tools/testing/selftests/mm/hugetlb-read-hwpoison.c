@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define PREFIX " ... "
 #define ERROR_PREFIX " !!! "

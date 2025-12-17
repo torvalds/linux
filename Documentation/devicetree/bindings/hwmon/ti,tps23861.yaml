@@ -15,7 +15,6 @@ description: |
   Datasheets:
   https://www.ti.com/lit/gpn/tps23861
 
-
 properties:
   compatible:
     enum:

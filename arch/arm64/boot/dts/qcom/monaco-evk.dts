@@ -9,8 +9,8 @@
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
-#include "qcs8300.dtsi"
-#include "qcs8300-pmics.dtsi"
+#include "monaco.dtsi"
+#include "monaco-pmics.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. Monaco EVK";
@@ -401,10 +401,12 @@
 };
 
 &qupv3_id_0 {
+	firmware-name = "qcom/qcs8300/qupv3fw.elf";
 	status = "okay";
 };
 
 &qupv3_id_1 {
+	firmware-name = "qcom/qcs8300/qupv3fw.elf";
 	status = "okay";
 };
 

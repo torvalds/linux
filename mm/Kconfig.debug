@@ -175,10 +175,10 @@ config DEBUG_PAGE_REF
 	  nil until the tracepoints are actually enabled.
 
 config DEBUG_RODATA_TEST
-    bool "Testcase for the marking rodata read-only"
-    depends on STRICT_KERNEL_RWX
+	bool "Testcase for the marking rodata read-only"
+	depends on STRICT_KERNEL_RWX
 	help
-      This option enables a testcase for the setting rodata read-only.
+	  This option enables a testcase for the setting rodata read-only.
 
 config ARCH_HAS_DEBUG_WX
 	bool

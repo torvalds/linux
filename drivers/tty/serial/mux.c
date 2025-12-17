@@ -343,7 +343,7 @@ static int mux_verify_port(struct uart_port *port, struct serial_struct *ser)
 }
 
 /**
- * mux_drv_poll - Mux poll function.
+ * mux_poll - Mux poll function.
  * @unused: Unused variable
  *
  * This function periodically polls the Serial MUX to check for new data.

@@ -21,13 +21,6 @@
 #define EBG_GPI_IS	0x200
 #define EBG_GPI_IE	0x210
 
-#define EBG_GPP(r, s, e)				\
-	{						\
-		.reg_num = (r),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-	}
-
 #define EBG_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, EBG)
 
@@ -311,31 +304,31 @@ static const struct pinctrl_pin_desc ebg_pins[] = {
 };
 
 static const struct intel_padgroup ebg_community0_gpps[] = {
-	EBG_GPP(0, 0, 20),	/* GPP_A */
-	EBG_GPP(1, 21, 44),	/* GPP_B */
-	EBG_GPP(2, 45, 65),	/* SPI */
+	INTEL_GPP(0, 0, 20, 0),		/* GPP_A */
+	INTEL_GPP(1, 21, 44, 21),	/* GPP_B */
+	INTEL_GPP(2, 45, 65, 45),	/* SPI */
 };
 
 static const struct intel_padgroup ebg_community1_gpps[] = {
-	EBG_GPP(0, 66, 87),	/* GPP_C */
-	EBG_GPP(1, 88, 111),	/* GPP_D */
+	INTEL_GPP(0, 66, 87, 66),	/* GPP_C */
+	INTEL_GPP(1, 88, 111, 88),	/* GPP_D */
 };
 
 static const struct intel_padgroup ebg_community3_gpps[] = {
-	EBG_GPP(0, 112, 135),	/* GPP_E */
-	EBG_GPP(1, 136, 145),	/* JTAG */
+	INTEL_GPP(0, 112, 135, 112),	/* GPP_E */
+	INTEL_GPP(1, 136, 145, 136),	/* JTAG */
 };
 
 static const struct intel_padgroup ebg_community4_gpps[] = {
-	EBG_GPP(0, 146, 165),	/* GPP_H */
-	EBG_GPP(1, 166, 183),	/* GPP_J */
+	INTEL_GPP(0, 146, 165, 146),	/* GPP_H */
+	INTEL_GPP(1, 166, 183, 166),	/* GPP_J */
 };
 
 static const struct intel_padgroup ebg_community5_gpps[] = {
-	EBG_GPP(0, 184, 207),	/* GPP_I */
-	EBG_GPP(1, 208, 225),	/* GPP_L */
-	EBG_GPP(2, 226, 243),	/* GPP_M */
-	EBG_GPP(3, 244, 261),	/* GPP_N */
+	INTEL_GPP(0, 184, 207, 184),	/* GPP_I */
+	INTEL_GPP(1, 208, 225, 208),	/* GPP_L */
+	INTEL_GPP(2, 226, 243, 226),	/* GPP_M */
+	INTEL_GPP(3, 244, 261, 244),	/* GPP_N */
 };
 
 static const struct intel_community ebg_communities[] = {

@@ -161,8 +161,6 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
  * directly in the normal copy_to/from_user(), the other ones go
  * through an extern _copy_to/from_user(), which expands the same code
  * here.
- *
- * Rust code always uses the extern definition.
  */
 static inline __must_check unsigned long
 _inline_copy_from_user(void *to, const void __user *from, unsigned long n)
@@ -192,8 +190,10 @@ fail:
 	memset(to + (n - res), 0, res);
 	return res;
 }
+#ifndef INLINE_COPY_FROM_USER
 extern __must_check unsigned long
 _copy_from_user(void *, const void __user *, unsigned long);
+#endif
 
 static inline __must_check unsigned long
 _inline_copy_to_user(void __user *to, const void *from, unsigned long n)
@@ -207,8 +207,10 @@ _inline_copy_to_user(void __user *to, const void *from, unsigned long n)
 	}
 	return n;
 }
+#ifndef INLINE_COPY_TO_USER
 extern __must_check unsigned long
 _copy_to_user(void __user *, const void *, unsigned long);
+#endif
 
 static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)

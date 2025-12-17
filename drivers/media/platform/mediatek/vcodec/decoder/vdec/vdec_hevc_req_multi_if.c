@@ -742,7 +742,8 @@ static int vdec_hevc_slice_setup_lat_buffer(struct vdec_hevc_slice_inst *inst,
 
 	src_buf_info = container_of(bs, struct mtk_video_dec_buf, bs_buffer);
 	lat_buf->src_buf_req = src_buf_info->m2m_buf.vb.vb2_buf.req_obj.req;
-	v4l2_m2m_buf_copy_metadata(&src_buf_info->m2m_buf.vb, &lat_buf->ts_info, true);
+	v4l2_m2m_buf_copy_metadata(&src_buf_info->m2m_buf.vb,
+				   &lat_buf->ts_info);
 
 	*res_chg = inst->resolution_changed;
 	if (inst->resolution_changed) {
@@ -847,7 +848,7 @@ static int vdec_hevc_slice_setup_core_buffer(struct vdec_hevc_slice_inst *inst,
 	}
 
 	vb2_v4l2 = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
-	v4l2_m2m_buf_copy_metadata(&lat_buf->ts_info, vb2_v4l2, true);
+	v4l2_m2m_buf_copy_metadata(&lat_buf->ts_info, vb2_v4l2);
 
 	return 0;
 }

@@ -7,14 +7,16 @@
  * set of CPUs in a system, one bit position per CPU number.  In general,
  * only nr_cpu_ids (<= NR_CPUS) bits are valid.
  */
-#include <linux/cleanup.h>
-#include <linux/kernel.h>
-#include <linux/bitmap.h>
-#include <linux/cpumask_types.h>
 #include <linux/atomic.h>
-#include <linux/bug.h>
+#include <linux/bitmap.h>
+#include <linux/cleanup.h>
+#include <linux/cpumask_types.h>
 #include <linux/gfp_types.h>
 #include <linux/numa.h>
+#include <linux/threads.h>
+#include <linux/types.h>
+
+#include <asm/bug.h>
 
 /**
  * cpumask_pr_args - printf args to output a cpumask

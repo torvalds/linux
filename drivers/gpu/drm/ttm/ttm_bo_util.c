@@ -258,7 +258,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	ret = dma_resv_trylock(&fbo->base.base._resv);
 	WARN_ON(!ret);
 
-	ret = dma_resv_reserve_fences(&fbo->base.base._resv, 1);
+	ret = dma_resv_reserve_fences(&fbo->base.base._resv, TTM_NUM_MOVE_FENCES);
 	if (ret) {
 		dma_resv_unlock(&fbo->base.base._resv);
 		kfree(fbo);
@@ -646,20 +646,44 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 {
 	struct ttm_device *bdev = bo->bdev;
 	struct ttm_resource_manager *from;
+	struct dma_fence *tmp;
+	int i;
 
 	from = ttm_manager_type(bdev, bo->resource->mem_type);
 
 	/**
 	 * BO doesn't have a TTM we need to bind/unbind. Just remember
-	 * this eviction and free up the allocation
+	 * this eviction and free up the allocation.
+	 * The fence will be saved in the first free slot or in the slot
+	 * already used to store a fence from the same context. Since
+	 * drivers can't use more than TTM_NUM_MOVE_FENCES contexts for
+	 * evictions we should always find a slot to use.
 	 */
-	spin_lock(&from->move_lock);
-	if (!from->move || dma_fence_is_later(fence, from->move)) {
-		dma_fence_put(from->move);
-		from->move = dma_fence_get(fence);
+	spin_lock(&from->eviction_lock);
+	for (i = 0; i < TTM_NUM_MOVE_FENCES; i++) {
+		tmp = from->eviction_fences[i];
+		if (!tmp)
+			break;
+		if (fence->context != tmp->context)
+			continue;
+		if (dma_fence_is_later(fence, tmp)) {
+			dma_fence_put(tmp);
+			break;
+		}
+		goto unlock;
 	}
-	spin_unlock(&from->move_lock);
+	if (i < TTM_NUM_MOVE_FENCES) {
+		from->eviction_fences[i] = dma_fence_get(fence);
+	} else {
+		WARN(1, "not enough fence slots for all fence contexts");
+		spin_unlock(&from->eviction_lock);
+		dma_fence_wait(fence, false);
+		goto end;
+	}
 
+unlock:
+	spin_unlock(&from->eviction_lock);
+end:
 	ttm_resource_free(bo, &bo->resource);
 }
 

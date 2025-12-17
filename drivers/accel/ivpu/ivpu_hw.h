@@ -21,6 +21,7 @@ struct ivpu_hw_info {
 		bool (*ip_irq_handler)(struct ivpu_device *vdev, int irq);
 	} irq;
 	struct {
+		struct ivpu_addr_range runtime;
 		struct ivpu_addr_range global;
 		struct ivpu_addr_range user;
 		struct ivpu_addr_range shave;
@@ -51,6 +52,8 @@ struct ivpu_hw_info {
 };
 
 int ivpu_hw_init(struct ivpu_device *vdev);
+int ivpu_hw_range_init(struct ivpu_device *vdev, struct ivpu_addr_range *range, u64 start,
+		       u64 size);
 int ivpu_hw_power_up(struct ivpu_device *vdev);
 int ivpu_hw_power_down(struct ivpu_device *vdev);
 int ivpu_hw_reset(struct ivpu_device *vdev);
@@ -60,6 +63,7 @@ void ivpu_irq_handlers_init(struct ivpu_device *vdev);
 void ivpu_hw_irq_enable(struct ivpu_device *vdev);
 void ivpu_hw_irq_disable(struct ivpu_device *vdev);
 irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr);
+bool ivpu_hw_uses_ecc_mca_signal(struct ivpu_device *vdev);
 
 static inline u32 ivpu_hw_btrs_irq_handler(struct ivpu_device *vdev, int irq)
 {
@@ -69,12 +73,6 @@ static inline u32 ivpu_hw_btrs_irq_handler(struct ivpu_device *vdev, int irq)
 static inline u32 ivpu_hw_ip_irq_handler(struct ivpu_device *vdev, int irq)
 {
 	return vdev->hw->irq.ip_irq_handler(vdev, irq);
-}
-
-static inline void ivpu_hw_range_init(struct ivpu_addr_range *range, u64 start, u64 size)
-{
-	range->start = start;
-	range->end = start + size;
 }
 
 static inline u64 ivpu_hw_range_size(const struct ivpu_addr_range *range)

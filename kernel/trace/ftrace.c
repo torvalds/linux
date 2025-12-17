@@ -534,7 +534,9 @@ static int function_stat_headers(struct seq_file *m)
 
 static int function_stat_show(struct seq_file *m, void *v)
 {
+	struct trace_array *tr = trace_get_global_array();
 	struct ftrace_profile *rec = v;
+	const char *refsymbol = NULL;
 	char str[KSYM_SYMBOL_LEN];
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	static struct trace_seq s;
@@ -554,7 +556,29 @@ static int function_stat_show(struct seq_file *m, void *v)
 		return 0;
 #endif
 
-	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	if (tr->trace_flags & TRACE_ITER(PROF_TEXT_OFFSET)) {
+		unsigned long offset;
+
+		if (core_kernel_text(rec->ip)) {
+			refsymbol = "_text";
+			offset = rec->ip - (unsigned long)_text;
+		} else {
+			struct module *mod;
+
+			guard(rcu)();
+			mod = __module_text_address(rec->ip);
+			if (mod) {
+				refsymbol = mod->name;
+				/* Calculate offset from module's text entry address. */
+				offset = rec->ip - (unsigned long)mod->mem[MOD_TEXT].base;
+			}
+		}
+		if (refsymbol)
+			snprintf(str, sizeof(str), "  %s+%#lx", refsymbol, offset);
+	}
+	if (!refsymbol)
+		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+
 	seq_printf(m, "  %-30.30s  %10lu", str, rec->counter);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -838,6 +862,8 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 	return 1;
 }
 
+bool fprofile_no_sleep_time;
+
 static void profile_graph_return(struct ftrace_graph_ret *trace,
 				 struct fgraph_ops *gops,
 				 struct ftrace_regs *fregs)
@@ -863,7 +889,7 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 
 	calltime = rettime - profile_data->calltime;
 
-	if (!fgraph_sleep_time) {
+	if (fprofile_no_sleep_time) {
 		if (current->ftrace_sleeptime)
 			calltime -= current->ftrace_sleeptime - profile_data->sleeptime;
 	}
@@ -6075,7 +6101,7 @@ int register_ftrace_direct(struct ftrace_ops *ops, unsigned long addr)
 	new_hash = NULL;
 
 	ops->func = call_direct_funcs;
-	ops->flags = MULTI_FLAGS;
+	ops->flags |= MULTI_FLAGS;
 	ops->trampoline = FTRACE_REGS_ADDR;
 	ops->direct_call = addr;
 

@@ -23,7 +23,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 /* if the headers haven't been updated, we need to define some things */
 #if !defined(EPOLL_IOC_TYPE)

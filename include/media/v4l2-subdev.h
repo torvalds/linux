@@ -1103,7 +1103,7 @@ struct v4l2_subdev {
 	typeof(ent) __me_sd_ent = (ent);				\
 									\
 	__me_sd_ent ?							\
-		container_of(__me_sd_ent, struct v4l2_subdev, entity) :	\
+		container_of_const(__me_sd_ent, struct v4l2_subdev, entity) : \
 		NULL;							\
 })
 

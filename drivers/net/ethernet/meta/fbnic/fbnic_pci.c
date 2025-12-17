@@ -581,7 +581,6 @@ static pci_ers_result_t fbnic_err_slot_reset(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_save_state(pdev);
 
 	if (pci_enable_device_mem(pdev)) {
 		dev_err(&pdev->dev,

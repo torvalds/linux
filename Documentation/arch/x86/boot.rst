@@ -416,7 +416,7 @@ Offset/size:	0x210/1
 Protocol:	2.00+
 ============	==================
 
-  If your boot loader has an assigned id (see table below), enter
+  If your boot loader has an assigned ID (see table below), enter
   0xTV here, where T is an identifier for the boot loader and V is
   a version number.  Otherwise, enter 0xFF here.
 
@@ -431,31 +431,31 @@ Protocol:	2.00+
    ext_loader_type <- 0x05
    ext_loader_ver  <- 0x23
 
-  Assigned boot loader ids (hexadecimal):
+  Assigned boot loader IDs:
 
 	== =======================================
-	0  LILO
-	   (0x00 reserved for pre-2.00 bootloader)
-	1  Loadlin
-	2  bootsect-loader
-	   (0x20, all other values reserved)
-	3  Syslinux
-	4  Etherboot/gPXE/iPXE
-	5  ELILO
-	7  GRUB
-	8  U-Boot
-	9  Xen
-	A  Gujin
-	B  Qemu
-	C  Arcturus Networks uCbootloader
-	D  kexec-tools
-	E  Extended (see ext_loader_type)
-	F  Special (0xFF = undefined)
-	10 Reserved
-	11 Minimal Linux Bootloader
-	   <http://sebastian-plotz.blogspot.de>
-	12 OVMF UEFI virtualization stack
-	13 barebox
+	0x0  LILO
+	     (0x00 reserved for pre-2.00 bootloader)
+	0x1  Loadlin
+	0x2  bootsect-loader
+	     (0x20, all other values reserved)
+	0x3  Syslinux
+	0x4  Etherboot/gPXE/iPXE
+	0x5  ELILO
+	0x7  GRUB
+	0x8  U-Boot
+	0x9  Xen
+	0xA  Gujin
+	0xB  Qemu
+	0xC  Arcturus Networks uCbootloader
+	0xD  kexec-tools
+	0xE  Extended (see ext_loader_type)
+	0xF  Special (0xFF = undefined)
+	0x10 Reserved
+	0x11 Minimal Linux Bootloader
+	     <http://sebastian-plotz.blogspot.de>
+	0x12 OVMF UEFI virtualization stack
+	0x13 barebox
 	== =======================================
 
   Please contact <hpa@zytor.com> if you need a bootloader ID value assigned.

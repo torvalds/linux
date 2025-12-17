@@ -249,27 +249,6 @@ int nfsd_nrthreads(struct net *net)
 	return rv;
 }
 
-static int nfsd_init_socks(struct net *net, const struct cred *cred)
-{
-	int error;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-
-	if (!list_empty(&nn->nfsd_serv->sv_permsocks))
-		return 0;
-
-	error = svc_xprt_create(nn->nfsd_serv, "udp", net, PF_INET, NFS_PORT,
-				SVC_SOCK_DEFAULTS, cred);
-	if (error < 0)
-		return error;
-
-	error = svc_xprt_create(nn->nfsd_serv, "tcp", net, PF_INET, NFS_PORT,
-				SVC_SOCK_DEFAULTS, cred);
-	if (error < 0)
-		return error;
-
-	return 0;
-}
-
 static int nfsd_users = 0;
 
 static int nfsd_startup_generic(void)
@@ -377,9 +356,12 @@ static int nfsd_startup_net(struct net *net, const struct cred *cred)
 	ret = nfsd_startup_generic();
 	if (ret)
 		return ret;
-	ret = nfsd_init_socks(net, cred);
-	if (ret)
+
+	if (list_empty(&nn->nfsd_serv->sv_permsocks)) {
+		pr_warn("NFSD: Failed to start, no listeners configured.\n");
+		ret = -EIO;
 		goto out_socks;
+	}
 
 	if (nfsd_needs_lockd(nn) && !nn->lockd_up) {
 		ret = lockd_up(net, cred);

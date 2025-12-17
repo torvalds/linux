@@ -429,6 +429,7 @@ struct irdma_wqe_uk_ops {
 				   struct irdma_bind_window *op_info);
 };
 
+bool irdma_uk_cq_empty(struct irdma_cq_uk *cq);
 int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 			  struct irdma_cq_poll_info *info);
 void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
@@ -456,7 +457,6 @@ struct irdma_srq_uk {
 	struct irdma_uk_attrs *uk_attrs;
 	__le64 *shadow_area;
 	struct irdma_ring srq_ring;
-	struct irdma_ring initial_ring;
 	u32 srq_id;
 	u32 srq_size;
 	u32 max_srq_frag_cnt;
@@ -465,6 +465,7 @@ struct irdma_srq_uk {
 	u8 wqe_size;
 	u8 wqe_size_multiplier;
 	u8 deferred_flag;
+	spinlock_t *lock;
 };
 
 struct irdma_srq_uk_init_info {
@@ -482,7 +483,8 @@ struct irdma_sq_uk_wr_trk_info {
 	u64 wrid;
 	u32 wr_len;
 	u16 quanta;
-	u8 reserved[2];
+	u8 signaled;
+	u8 reserved[1];
 };
 
 struct irdma_qp_quanta {

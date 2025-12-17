@@ -23,7 +23,7 @@ struct drm_printer;
 
 void xe_gt_topology_init(struct xe_gt *gt);
 
-void xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p);
+int xe_gt_topology_dump(struct xe_gt *gt, struct drm_printer *p);
 
 /**
  * xe_gt_topology_mask_last_dss() - Returns the index of the last DSS in a mask.
@@ -40,6 +40,8 @@ xe_gt_topology_mask_last_dss(const xe_dss_mask_t mask)
 
 unsigned int
 xe_dss_mask_group_ffs(const xe_dss_mask_t mask, int groupsize, int groupnum);
+unsigned int
+xe_l3_bank_mask_ffs(const xe_l3_bank_mask_t mask);
 
 bool
 xe_gt_topology_has_dss_in_quadrant(struct xe_gt *gt, int quad);

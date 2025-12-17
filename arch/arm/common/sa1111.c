@@ -1371,7 +1371,7 @@ static void sa1111_bus_remove(struct device *dev)
 		drv->remove(sadev);
 }
 
-struct bus_type sa1111_bus_type = {
+const struct bus_type sa1111_bus_type = {
 	.name		= "sa1111-rab",
 	.match		= sa1111_match,
 	.probe		= sa1111_bus_probe,

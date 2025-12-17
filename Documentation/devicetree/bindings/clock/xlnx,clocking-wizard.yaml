@@ -22,7 +22,6 @@ properties:
       - xlnx,clocking-wizard-v6.0
       - xlnx,versal-clk-wizard
 
-
   reg:
     maxItems: 1
 

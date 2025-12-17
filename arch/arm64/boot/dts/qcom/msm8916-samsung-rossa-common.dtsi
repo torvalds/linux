@@ -5,7 +5,7 @@
 /* SM5504 MUIC instead of SM5502 */
 /delete-node/ &muic;
 
-/* Touchscreen varies depending on model variant */
+/* IST3038 instead of Zinitix BT541 */
 /delete-node/ &touchscreen;
 
 &blsp_i2c1 {
@@ -21,6 +21,26 @@
 			label = "micro-USB";
 			type = "micro";
 		};
+	};
+};
+
+&blsp_i2c5 {
+	touchscreen: touchscreen@50 {
+		compatible = "imagis,ist3038";
+		reg = <0x50>;
+
+		interrupts-extended = <&tlmm 13 IRQ_TYPE_EDGE_FALLING>;
+
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <800>;
+
+		vdd-supply = <&reg_vdd_tsp_a>;
+		vddio-supply = <&pm8916_l6>;
+
+		pinctrl-0 = <&tsp_int_default>;
+		pinctrl-names = "default";
+
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
 	};
 };
 

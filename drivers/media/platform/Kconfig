@@ -65,6 +65,7 @@ config VIDEO_MUX
 source "drivers/media/platform/allegro-dvt/Kconfig"
 source "drivers/media/platform/amlogic/Kconfig"
 source "drivers/media/platform/amphion/Kconfig"
+source "drivers/media/platform/arm/Kconfig"
 source "drivers/media/platform/aspeed/Kconfig"
 source "drivers/media/platform/atmel/Kconfig"
 source "drivers/media/platform/broadcom/Kconfig"

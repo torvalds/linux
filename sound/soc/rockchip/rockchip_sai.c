@@ -1227,7 +1227,7 @@ static int rockchip_sai_wait_time_info(struct snd_kcontrol *kcontrol,
 static int rockchip_sai_rd_wait_time_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = sai->wait_time[SNDRV_PCM_STREAM_CAPTURE];
@@ -1238,7 +1238,7 @@ static int rockchip_sai_rd_wait_time_get(struct snd_kcontrol *kcontrol,
 static int rockchip_sai_rd_wait_time_put(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
 
 	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)
@@ -1252,7 +1252,7 @@ static int rockchip_sai_rd_wait_time_put(struct snd_kcontrol *kcontrol,
 static int rockchip_sai_wr_wait_time_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = sai->wait_time[SNDRV_PCM_STREAM_PLAYBACK];
@@ -1263,7 +1263,7 @@ static int rockchip_sai_wr_wait_time_get(struct snd_kcontrol *kcontrol,
 static int rockchip_sai_wr_wait_time_put(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(component);
 
 	if (ucontrol->value.integer.value[0] > WAIT_TIME_MS_MAX)

@@ -91,10 +91,8 @@
 	};
 };
 
-&gpu {
-	zap-shader {
-		firmware-name = "qcom/msm8996/scorpio/a530_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/msm8996/scorpio/a530_zap.mbn";
 };
 
 &mdp_smmu {

@@ -64,7 +64,7 @@ static int aw_dev_dsp_write_32bit(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw_dev_dsp_write(struct aw_device *aw_dev,
+int aw_dev_dsp_write(struct aw_device *aw_dev,
 		unsigned short dsp_addr, unsigned int dsp_data, unsigned char data_type)
 {
 	u32 reg_value;
@@ -72,13 +72,13 @@ static int aw_dev_dsp_write(struct aw_device *aw_dev,
 
 	mutex_lock(&aw_dev->dsp_lock);
 	switch (data_type) {
-	case AW88395_DSP_16_DATA:
+	case AW_DSP_16_DATA:
 		ret = aw_dev_dsp_write_16bit(aw_dev, dsp_addr, dsp_data);
 		if (ret)
 			dev_err(aw_dev->dev, "write dsp_addr[0x%x] 16-bit dsp_data[0x%x] failed",
 					(u32)dsp_addr, dsp_data);
 		break;
-	case AW88395_DSP_32_DATA:
+	case AW_DSP_32_DATA:
 		ret = aw_dev_dsp_write_32bit(aw_dev, dsp_addr, dsp_data);
 		if (ret)
 			dev_err(aw_dev->dev, "write dsp_addr[0x%x] 32-bit dsp_data[0x%x] failed",
@@ -97,6 +97,7 @@ static int aw_dev_dsp_write(struct aw_device *aw_dev,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(aw_dev_dsp_write);
 
 static int aw_dev_dsp_read_16bit(struct aw_device *aw_dev,
 		unsigned short dsp_addr, unsigned int *dsp_data)
@@ -149,7 +150,7 @@ static int aw_dev_dsp_read_32bit(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw_dev_dsp_read(struct aw_device *aw_dev,
+int aw_dev_dsp_read(struct aw_device *aw_dev,
 		unsigned short dsp_addr, unsigned int *dsp_data, unsigned char data_type)
 {
 	u32 reg_value;
@@ -157,13 +158,13 @@ static int aw_dev_dsp_read(struct aw_device *aw_dev,
 
 	mutex_lock(&aw_dev->dsp_lock);
 	switch (data_type) {
-	case AW88395_DSP_16_DATA:
+	case AW_DSP_16_DATA:
 		ret = aw_dev_dsp_read_16bit(aw_dev, dsp_addr, dsp_data);
 		if (ret)
 			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 16-bit dsp_data[0x%x] failed",
 					(u32)dsp_addr, *dsp_data);
 		break;
-	case AW88395_DSP_32_DATA:
+	case AW_DSP_32_DATA:
 		ret = aw_dev_dsp_read_32bit(aw_dev, dsp_addr, dsp_data);
 		if (ret)
 			dev_err(aw_dev->dev, "read dsp_addr[0x%x] 32r-bit dsp_data[0x%x] failed",
@@ -182,7 +183,7 @@ static int aw_dev_dsp_read(struct aw_device *aw_dev,
 
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(aw_dev_dsp_read);
 
 static int aw_dev_read_chipid(struct aw_device *aw_dev, u16 *chip_id)
 {
@@ -231,7 +232,7 @@ static int aw_dev_dsp_fw_check(struct aw_device *aw_dev)
 	dsp_fw_desc = &set_prof_desc->sec_desc[AW88395_DATA_TYPE_DSP_FW];
 
 	for (i = 0; i < AW88395_FW_CHECK_PART; i++) {
-		ret = aw_dev_dsp_read(aw_dev, addr, &dsp_val, AW88395_DSP_16_DATA);
+		ret = aw_dev_dsp_read(aw_dev, addr, &dsp_val, AW_DSP_16_DATA);
 		if (ret) {
 			dev_err(aw_dev->dev, "dsp read failed");
 			return ret;
@@ -351,11 +352,11 @@ static int aw_dev_modify_dsp_cfg(struct aw_device *aw_dev,
 		return -EINVAL;
 	}
 	switch (data_type) {
-	case AW88395_DSP_16_DATA:
+	case AW_DSP_16_DATA:
 		data1 = cpu_to_le16((u16)dsp_data);
 		memcpy(crc_dsp_cfg->data + addr_offset, (u8 *)&data1, 2);
 		break;
-	case AW88395_DSP_32_DATA:
+	case AW_DSP_32_DATA:
 		data2 = cpu_to_le32(dsp_data);
 		memcpy(crc_dsp_cfg->data + addr_offset, (u8 *)&data2, 4);
 		break;
@@ -377,14 +378,14 @@ static int aw_dev_dsp_set_cali_re(struct aw_device *aw_dev)
 
 	/* set cali re to device */
 	ret = aw_dev_dsp_write(aw_dev,
-			AW88395_DSP_REG_CFG_ADPZ_RE, cali_re, AW88395_DSP_32_DATA);
+			AW88395_DSP_REG_CFG_ADPZ_RE, cali_re, AW_DSP_32_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "set cali re error");
 		return ret;
 	}
 
 	ret = aw_dev_modify_dsp_cfg(aw_dev, AW88395_DSP_REG_CFG_ADPZ_RE,
-				cali_re, AW88395_DSP_32_DATA);
+				cali_re, AW_DSP_32_DATA);
 	if (ret)
 		dev_err(aw_dev->dev, "modify dsp cfg failed");
 
@@ -428,7 +429,7 @@ static int aw_dev_dsp_set_crc32(struct aw_device *aw_dev)
 	crc_value = crc32c(0xFFFFFFFF, crc_dsp_cfg->data, crc_data_len) ^ 0xFFFFFFFF;
 
 	return aw_dev_dsp_write(aw_dev, AW88395_DSP_REG_CRC_ADDR, crc_value,
-						AW88395_DSP_32_DATA);
+						AW_DSP_32_DATA);
 }
 
 static void aw_dev_dsp_check_crc_enable(struct aw_device *aw_dev, bool flag)
@@ -663,7 +664,7 @@ static int aw_dev_set_vcalb(struct aw_device *aw_dev)
 	int vcalb, vcalk;
 	int ret;
 
-	ret = aw_dev_dsp_read(aw_dev, AW88395_DSP_REG_VCALB, &vcalb_adj, AW88395_DSP_16_DATA);
+	ret = aw_dev_dsp_read(aw_dev, AW88395_DSP_REG_VCALB, &vcalb_adj, AW_DSP_16_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "read vcalb_adj failed");
 		return ret;
@@ -720,14 +721,14 @@ static int aw_dev_set_vcalb(struct aw_device *aw_dev)
 	dev_dbg(aw_dev->dev, "vcalb=%d, reg_val=0x%x, vcalb_adj =0x%x",
 				vcalb, reg_val, vcalb_adj);
 
-	ret = aw_dev_dsp_write(aw_dev, AW88395_DSP_REG_VCALB, reg_val, AW88395_DSP_16_DATA);
+	ret = aw_dev_dsp_write(aw_dev, AW88395_DSP_REG_VCALB, reg_val, AW_DSP_16_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "write vcalb failed");
 		return ret;
 	}
 
 	ret = aw_dev_modify_dsp_cfg(aw_dev, AW88395_DSP_REG_VCALB,
-					(u32)reg_val, AW88395_DSP_16_DATA);
+					(u32)reg_val, AW_DSP_16_DATA);
 	if (ret)
 		dev_err(aw_dev->dev, "modify dsp cfg failed");
 
@@ -741,7 +742,7 @@ static int aw_dev_get_cali_f0_delay(struct aw_device *aw_dev)
 	int ret;
 
 	ret = aw_dev_dsp_read(aw_dev,
-			AW88395_DSP_CALI_F0_DELAY, &cali_delay, AW88395_DSP_16_DATA);
+			AW88395_DSP_CALI_F0_DELAY, &cali_delay, AW_DSP_16_DATA);
 	if (ret)
 		dev_err(aw_dev->dev, "read cali delay failed, ret=%d", ret);
 	else
@@ -991,7 +992,7 @@ static int aw_dev_get_dsp_status(struct aw_device *aw_dev)
 
 static int aw_dev_get_vmax(struct aw_device *aw_dev, unsigned int *vmax)
 {
-	return aw_dev_dsp_read(aw_dev, AW88395_DSP_REG_VMAX, vmax, AW88395_DSP_16_DATA);
+	return aw_dev_dsp_read(aw_dev, AW88395_DSP_REG_VMAX, vmax, AW_DSP_16_DATA);
 }
 
 static int aw_dev_update_reg_container(struct aw_device *aw_dev,
@@ -1089,7 +1090,7 @@ static int aw_dev_get_ra(struct aw_cali_desc *cali_desc)
 	int ret;
 
 	ret = aw_dev_dsp_read(aw_dev, AW88395_DSP_REG_CFG_ADPZ_RA,
-				&dsp_ra, AW88395_DSP_32_DATA);
+				&dsp_ra, AW_DSP_32_DATA);
 	if (ret) {
 		dev_err(aw_dev->dev, "read ra error");
 		return ret;

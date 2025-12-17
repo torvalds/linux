@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
-PATCHLEVEL = 18
+PATCHLEVEL = 19
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc1
 NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
@@ -810,6 +810,25 @@ ifdef CONFIG_FUNCTION_TRACER
   CC_FLAGS_FTRACE := -pg
 endif
 
+ifdef CONFIG_TRACEPOINTS
+# To check for unused tracepoints (tracepoints that are defined but never
+# called), run with:
+#
+# make UT=1
+#
+# Each unused tracepoints can take up to 5KB of memory in the running kernel.
+# It is best to remove any that are not used.
+#
+# This command line option will be removed when all current unused
+# tracepoints are removed.
+
+ifeq ("$(origin UT)", "command line")
+  WARN_ON_UNUSED_TRACEPOINTS := $(UT)
+endif
+endif # CONFIG_TRACEPOINTS
+
+export WARN_ON_UNUSED_TRACEPOINTS
+
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
 ifdef need-config
@@ -939,6 +958,9 @@ KBUILD_CFLAGS += $(call cc-option,-fzero-init-padding-bits=all)
 # While VLAs have been removed, GCC produces unreachable stack probes
 # for the randomize_kstack_offset feature. Disable it for all compilers.
 KBUILD_CFLAGS	+= $(call cc-option, -fno-stack-clash-protection)
+
+# Get details on warnings generated due to GCC value tracking.
+KBUILD_CFLAGS	+= $(call cc-option, -fdiagnostics-show-context=2)
 
 # Clear used registers at func exit (to reduce data lifetime and ROP gadgets).
 ifdef CONFIG_ZERO_CALL_USED_REGS
@@ -1784,6 +1806,8 @@ help:
 	@echo  '		c: extra checks in the configuration stage (Kconfig)'
 	@echo  '		e: warnings are being treated as errors'
 	@echo  '		Multiple levels can be combined with W=12 or W=123'
+	@echo  '  make UT=1   [targets] Warn if a tracepoint is defined but not used.'
+	@echo  '          [ This will be removed when all current unused tracepoints are eliminated. ]'
 	@$(if $(dtstree), \
 		echo '  make CHECK_DTBS=1 [targets] Check all generated dtb files against schema'; \
 		echo '         This can be applied both to "dtbs" and to individual "foo.dtb" targets' ; \

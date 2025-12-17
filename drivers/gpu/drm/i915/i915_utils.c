@@ -6,6 +6,7 @@
 #include <linux/device.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"

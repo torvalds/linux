@@ -30,6 +30,7 @@
 #include <linux/virtio_dma_buf.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_print.h>
 
 #include "virtgpu_drv.h"
 

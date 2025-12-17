@@ -721,7 +721,7 @@ static int kvm_cpu_down_prepare(unsigned int cpu)
 
 #endif
 
-static int kvm_suspend(void)
+static int kvm_suspend(void *data)
 {
 	u64 val = 0;
 
@@ -735,7 +735,7 @@ static int kvm_suspend(void)
 	return 0;
 }
 
-static void kvm_resume(void)
+static void kvm_resume(void *data)
 {
 	kvm_cpu_online(raw_smp_processor_id());
 
@@ -745,9 +745,13 @@ static void kvm_resume(void)
 #endif
 }
 
-static struct syscore_ops kvm_syscore_ops = {
+static const struct syscore_ops kvm_syscore_ops = {
 	.suspend	= kvm_suspend,
 	.resume		= kvm_resume,
+};
+
+static struct syscore kvm_syscore = {
+	.ops = &kvm_syscore_ops,
 };
 
 static void kvm_pv_guest_cpu_reboot(void *unused)
@@ -859,7 +863,7 @@ static void __init kvm_guest_init(void)
 	machine_ops.crash_shutdown = kvm_crash_shutdown;
 #endif
 
-	register_syscore_ops(&kvm_syscore_ops);
+	register_syscore(&kvm_syscore);
 
 	/*
 	 * Hard lockup detection is enabled by default. Disable it, as guests

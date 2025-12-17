@@ -5,8 +5,8 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_display_core.h"
+#include "intel_display_utils.h"
 #include "intel_pch.h"
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff80
@@ -328,7 +328,7 @@ void intel_pch_detect(struct intel_display *display)
 			    "Display disabled, reverting to NOP PCH\n");
 		display->pch_type = PCH_NOP;
 	} else if (!pch) {
-		if (i915_run_as_guest() && HAS_DISPLAY(display)) {
+		if (intel_display_run_as_guest(display) && HAS_DISPLAY(display)) {
 			intel_virt_detect_pch(display, &id, &pch_type);
 			display->pch_type = pch_type;
 		} else {

@@ -70,6 +70,7 @@ void pinctrl_provide_dummies(void)
 {
 	pinctrl_dummy_state = true;
 }
+EXPORT_SYMBOL_GPL(pinctrl_provide_dummies);
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
@@ -2416,7 +2417,7 @@ EXPORT_SYMBOL_GPL(devm_pinctrl_unregister);
 
 static int __init pinctrl_init(void)
 {
-	pr_info("initialized pinctrl subsystem\n");
+	pr_debug("initialized pinctrl subsystem\n");
 	pinctrl_init_debugfs();
 	return 0;
 }

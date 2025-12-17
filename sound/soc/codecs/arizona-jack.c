@@ -212,17 +212,16 @@ static void arizona_extcon_pulse_micbias(struct arizona_priv *info)
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
 	struct snd_soc_dapm_context *dapm = arizona->dapm;
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	int ret;
 
-	ret = snd_soc_component_force_enable_pin(component, widget);
+	ret = snd_soc_dapm_force_enable_pin(dapm, widget);
 	if (ret)
 		dev_warn(arizona->dev, "Failed to enable %s: %d\n", widget, ret);
 
 	snd_soc_dapm_sync(dapm);
 
 	if (!arizona->pdata.micd_force_micbias) {
-		ret = snd_soc_component_disable_pin(component, widget);
+		ret = snd_soc_dapm_disable_pin(dapm, widget);
 		if (ret)
 			dev_warn(arizona->dev, "Failed to disable %s: %d\n", widget, ret);
 
@@ -287,7 +286,6 @@ static void arizona_stop_mic(struct arizona_priv *info)
 	struct arizona *arizona = info->arizona;
 	const char *widget = arizona_extcon_get_micbias(info);
 	struct snd_soc_dapm_context *dapm = arizona->dapm;
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	bool change = false;
 	int ret;
 
@@ -297,7 +295,7 @@ static void arizona_stop_mic(struct arizona_priv *info)
 	if (ret < 0)
 		dev_err(arizona->dev, "Failed to disable micd: %d\n", ret);
 
-	ret = snd_soc_component_disable_pin(component, widget);
+	ret = snd_soc_dapm_disable_pin(dapm, widget);
 	if (ret)
 		dev_warn(arizona->dev, "Failed to disable %s: %d\n", widget, ret);
 

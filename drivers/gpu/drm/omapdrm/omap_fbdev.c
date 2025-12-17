@@ -15,6 +15,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
 #include "omap_drv.h"
@@ -103,8 +104,6 @@ static void omap_fbdev_fb_destroy(struct fb_info *info)
 	drm_framebuffer_remove(fb);
 
 	drm_client_release(&helper->client);
-	drm_fb_helper_unprepare(helper);
-	kfree(helper);
 }
 
 /*
@@ -155,9 +154,9 @@ int omap_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_fbdev *fbdev = priv->fbdev;
+	struct fb_info *fbi = helper->info;
 	struct drm_framebuffer *fb = NULL;
 	union omap_gem_size gsize;
-	struct fb_info *fbi = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd = {0};
 	struct drm_gem_object *bo;
 	dma_addr_t dma_addr;
@@ -223,13 +222,6 @@ int omap_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
 	if (ret) {
 		dev_err(dev->dev, "could not pin framebuffer\n");
 		ret = -ENOMEM;
-		goto fail;
-	}
-
-	fbi = drm_fb_helper_alloc_info(helper);
-	if (IS_ERR(fbi)) {
-		dev_err(dev->dev, "failed to allocate fb info\n");
-		ret = PTR_ERR(fbi);
 		goto fail;
 	}
 

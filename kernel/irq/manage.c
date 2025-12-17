@@ -2470,6 +2470,9 @@ int setup_percpu_irq(unsigned int irq, struct irqaction *act)
 	if (retval < 0)
 		return retval;
 
+	if (!act->affinity)
+		act->affinity = cpu_online_mask;
+
 	retval = __setup_irq(irq, desc, act);
 
 	if (retval)

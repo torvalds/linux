@@ -594,6 +594,8 @@ void dpp3_program_CM_dealpha(
 void dpp30_read_state(struct dpp *dpp_base,
 		struct dcn_dpp_state *s);
 
+void dpp30_read_reg_state(struct dpp *dpp_base, struct dcn_dpp_reg_state *dpp_reg_state);
+
 bool dpp3_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,

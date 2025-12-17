@@ -452,6 +452,7 @@ class Pen(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.distance = -10
         self.tipswitch = False
         self.tippressure = 15
         self.azimuth = 0
@@ -473,6 +474,7 @@ class Pen(object):
             for i in [
                 "x",
                 "y",
+                "distance",
                 "tippressure",
                 "azimuth",
                 "width",
@@ -554,6 +556,7 @@ class PenDigitizer(base.UHIDTestDevice):
             pen.tipswitch = False
             pen.tippressure = 0
             pen.azimuth = 0
+            pen.distance = 0
             pen.inrange = False
             pen.width = 0
             pen.height = 0
@@ -867,6 +870,29 @@ class BaseTest:
             touching and erasing if the tablet doesn't enforce the Windows
             state machine."""
             self._test_states(state_list, scribble, allow_intermediate_states=True)
+
+        @pytest.mark.skip_if_uhdev(
+            lambda uhdev: "Z" not in uhdev.fields,
+            "Device not compatible, missing Z usage",
+        )
+        @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
+        @pytest.mark.parametrize(
+            "state_list",
+            [pytest.param(v, id=k) for k, v in PenState.legal_transitions().items()],
+        )
+        def test_z_reported_as_distance(self, state_list, scribble):
+            """Verify stylus Z values are reported as ABS_DISTANCE."""
+            self._test_states(state_list, scribble, allow_intermediate_states=False)
+
+            uhdev = self.uhdev
+            evdev = uhdev.get_evdev()
+            p = Pen(0, 0)
+            uhdev.move_to(p, PenState.PEN_IS_OUT_OF_RANGE, None)
+            p = Pen(100, 200)
+            uhdev.move_to(p, PenState.PEN_IS_IN_RANGE, None)
+            p.distance = -1
+            events = self.post(uhdev, p, None)
+            assert evdev.value[libevdev.EV_ABS.ABS_DISTANCE] == -1
 
 
 class GXTP_pen(PenDigitizer):
@@ -1292,6 +1318,35 @@ class Huion_Kamvas_Pro_19_256c_006b(PenDigitizer):
         return rs
 
 
+class Wacom_2d1f_014b(PenDigitizer):
+    """
+    Pen that reports distance values with HID_GD_Z usage.
+    """
+    def __init__(
+        self,
+        name,
+        rdesc_str=None,
+        rdesc=None,
+        application="Pen",
+        physical="Stylus",
+        input_info=(BusType.USB, 0x2D1F, 0x014B),
+        evdev_name_suffix=None,
+    ):
+        super().__init__(
+            name, rdesc_str, rdesc, application, physical, input_info, evdev_name_suffix
+        )
+
+    def match_evdev_rule(self, application, evdev):
+        # there are 2 nodes created by the device, only one matters
+        return evdev.name.endswith("Stylus")
+
+    def event(self, pen, test_button):
+        # this device reports the distance through Z
+        pen.z = pen.distance
+
+        return super().event(pen, test_button)
+
+
 ################################################################################
 #
 # Windows 7 compatible devices
@@ -1503,4 +1558,20 @@ class TestHuion_Kamvas_Pro_19_256c_006b(BaseTest.TestTablet):
             "uhid test HUION Huion Tablet_GT1902",
             rdesc="05 0d 09 02 a1 01 85 0a 09 20 a1 01 09 42 09 44 09 43 09 3c 09 45 15 00 25 01 75 01 95 06 81 02 09 32 75 01 95 01 81 02 81 03 05 01 09 30 09 31 55 0d 65 33 26 ff 7f 35 00 46 00 08 75 10 95 02 81 02 05 0d 09 30 26 ff 3f 75 10 95 01 81 02 09 3d 09 3e 15 a6 25 5a 75 08 95 02 81 02 c0 c0 05 0d 09 04 a1 01 85 04 09 22 a1 02 05 0d 95 01 75 06 09 51 15 00 25 3f 81 02 09 42 25 01 75 01 95 01 81 02 75 01 95 01 81 03 05 01 75 10 55 0e 65 11 09 30 26 ff 7f 35 00 46 15 0c 81 42 09 31 26 ff 7f 46 cb 06 81 42 05 0d 09 30 26 ff 1f 75 10 95 01 81 02 c0 05 0d 09 22 a1 02 05 0d 95 01 75 06 09 51 15 00 25 3f 81 02 09 42 25 01 75 01 95 01 81 02 75 01 95 01 81 03 05 01 75 10 55 0e 65 11 09 30 26 ff 7f 35 00 46 15 0c 81 42 09 31 26 ff 7f 46 cb 06 81 42 05 0d 09 30 26 ff 1f 75 10 95 01 81 02 c0 05 0d 09 56 55 00 65 00 27 ff ff ff 7f 95 01 75 20 81 02 09 54 25 7f 95 01 75 08 81 02 75 08 95 08 81 03 85 05 09 55 25 0a 75 08 95 01 b1 02 06 00 ff 09 c5 85 06 15 00 26 ff 00 75 08 96 00 01 b1 02 c0",
             input_info=(BusType.USB, 0x256C, 0x006B),
+        )
+
+
+################################################################################
+#
+# Devices Reporting Distance
+#
+################################################################################
+
+
+class TestWacom_2d1f_014b(BaseTest.TestTablet):
+    def create_device(self):
+        return Wacom_2d1f_014b(
+            "uhid test Wacom 2d1f_014b",
+            rdesc="05 0d 09 02 a1 01 85 02 09 20 a1 00 09 42 09 44 09 45 09 3c 09 5a 09 32 15 00 25 01 75 01 95 06 81 02 95 02 81 03 05 01 09 30 26 88 3e 46 88 3e 65 11 55 0d 75 10 95 01 81 02 09 31 26 60 53 46 60 53 81 02 05 0d 09 30 26 ff 0f 45 00 65 00 55 00 81 02 06 00 ff 09 04 75 08 26 ff 00 46 ff 00 65 11 55 0e 81 02 05 0d 09 3d 75 10 16 d8 dc 26 28 23 36 d8 dc 46 28 23 65 14 81 02 09 3e 81 02 05 01 09 32 16 01 ff 25 00 36 01 ff 45 00 65 11 81 02 05 0d 09 56 15 00 27 ff ff 00 00 35 00 47 ff ff 00 00 66 01 10 55 0c 81 02 45 00 65 00 55 00 c0 09 00 75 08 26 ff 00 b1 12 85 03 09 00 95 12 b1 12 85 05 09 00 95 04 b1 02 85 06 09 00 95 24 b1 02 85 16 09 00 15 00 26 ff 00 95 06 b1 02 85 17 09 00 95 0c b1 02 85 19 09 00 95 01 b1 02 85 0a 09 00 75 08 95 01 15 10 26 ff 00 b1 02 85 1e 09 00 95 10 b1 02 c0 06 00 ff 09 00 a1 01 85 09 05 0d 09 20 a1 00 09 00 15 00 26 ff 00 75 08 95 10 81 02 c0 09 00 95 03 b1 12 c0 06 00 ff 09 02 a1 01 85 07 09 00 96 09 01 b1 02 85 08 09 00 95 03 81 02 09 00 b1 02 85 0e 09 00 96 0a 01 b1 02 c0 05 0d 09 02 a1 01 85 1a 09 20 a1 00 09 42 09 44 09 45 09 3c 09 5a 09 32 15 00 25 01 75 01 95 06 81 02 09 38 25 03 75 02 95 01 81 02 05 01 09 30 26 88 3e 46 88 3e 65 11 55 0d 75 10 95 01 81 02 09 31 26 60 53 46 60 53 81 02 05 0d 09 30 26 ff 0f 46 b0 0f 66 11 e1 55 02 81 02 06 00 ff 09 04 75 08 26 ff 00 46 ff 00 65 11 55 0e 81 02 05 0d 09 3d 75 10 16 d8 dc 26 28 23 36 d8 dc 46 28 23 65 14 81 02 09 3e 81 02 05 01 09 32 16 01 ff 25 00 36 01 ff 45 00 65 11 81 02 05 0d 09 56 15 00 27 ff ff 00 00 35 00 47 ff ff 00 00 66 01 10 55 0c 81 02 45 00 65 00 55 00 c0 c0 06 00 ff 09 00 a1 01 85 1b 05 0d 09 20 a1 00 09 00 26 ff 00 75 08 95 10 81 02 c0 c0",
+            input_info=(BusType.USB, 0x2D1F, 0x014B),
         )

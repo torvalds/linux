@@ -423,6 +423,7 @@ struct tegra_pmc_soc {
  * @wake_sw_status_map: Bitmap to hold raw status of wakes without mask
  * @wake_cntrl_level_map: Bitmap to hold wake levels to be programmed in
  *     cntrl register associated with each wake during system suspend.
+ * @syscore: syscore suspend/resume callbacks
  */
 struct tegra_pmc {
 	struct device *dev;
@@ -466,7 +467,7 @@ struct tegra_pmc {
 	unsigned long *wake_type_dual_edge_map;
 	unsigned long *wake_sw_status_map;
 	unsigned long *wake_cntrl_level_map;
-	struct syscore_ops syscore;
+	struct syscore syscore;
 };
 
 static struct tegra_pmc *pmc = &(struct tegra_pmc) {
@@ -2897,9 +2898,16 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		if (IS_ERR(pmc->wake))
 			return PTR_ERR(pmc->wake);
 
-		pmc->aotag = devm_platform_ioremap_resource_byname(pdev, "aotag");
-		if (IS_ERR(pmc->aotag))
-			return PTR_ERR(pmc->aotag);
+		/* "aotag" is an optional aperture */
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						   "aotag");
+		if (res) {
+			pmc->aotag = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(pmc->aotag))
+				return PTR_ERR(pmc->aotag);
+		} else {
+			pmc->aotag = NULL;
+		}
 
 		/* "scratch" is an optional aperture */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -3147,7 +3155,7 @@ static void tegra186_pmc_process_wake_events(struct tegra_pmc *pmc, unsigned int
 	}
 }
 
-static void tegra186_pmc_wake_syscore_resume(void)
+static void tegra186_pmc_wake_syscore_resume(void *data)
 {
 	u32 status, mask;
 	unsigned int i;
@@ -3160,7 +3168,7 @@ static void tegra186_pmc_wake_syscore_resume(void)
 	}
 }
 
-static int tegra186_pmc_wake_syscore_suspend(void)
+static int tegra186_pmc_wake_syscore_suspend(void *data)
 {
 	wke_read_sw_wake_status(pmc);
 
@@ -3178,6 +3186,11 @@ static int tegra186_pmc_wake_syscore_suspend(void)
 
 	return 0;
 }
+
+static const struct syscore_ops tegra186_pmc_wake_syscore_ops = {
+	.suspend = tegra186_pmc_wake_syscore_suspend,
+	.resume = tegra186_pmc_wake_syscore_resume,
+};
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_ARM)
 static int tegra_pmc_suspend(struct device *dev)
@@ -3829,10 +3842,8 @@ static const struct tegra_pmc_regs tegra186_pmc_regs = {
 
 static void tegra186_pmc_init(struct tegra_pmc *pmc)
 {
-	pmc->syscore.suspend = tegra186_pmc_wake_syscore_suspend;
-	pmc->syscore.resume = tegra186_pmc_wake_syscore_resume;
-
-	register_syscore_ops(&pmc->syscore);
+	pmc->syscore.ops = &tegra186_pmc_wake_syscore_ops;
+	register_syscore(&pmc->syscore);
 }
 
 static void tegra186_pmc_setup_irq_polarity(struct tegra_pmc *pmc,
@@ -4214,6 +4225,13 @@ static const struct tegra_wake_event tegra234_wake_events[] = {
 	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA234_AON_GPIO(EE, 4)),
 	TEGRA_WAKE_GPIO("mgbe", 56, 0, TEGRA234_MAIN_GPIO(Y, 3)),
 	TEGRA_WAKE_IRQ("rtc", 73, 10),
+	TEGRA_WAKE_IRQ("usb3-port-0", 76, 167),
+	TEGRA_WAKE_IRQ("usb3-port-1", 77, 167),
+	TEGRA_WAKE_IRQ("usb3-port-2-3", 78, 167),
+	TEGRA_WAKE_IRQ("usb2-port-0", 79, 167),
+	TEGRA_WAKE_IRQ("usb2-port-1", 80, 167),
+	TEGRA_WAKE_IRQ("usb2-port-2", 81, 167),
+	TEGRA_WAKE_IRQ("usb2-port-3", 82, 167),
 	TEGRA_WAKE_IRQ("sw-wake", SW_WAKE_ID, 179),
 };
 

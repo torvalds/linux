@@ -3,13 +3,13 @@
  * Copyright 2023, Intel Corporation.
  */
 
+#include <drm/drm_print.h>
 #include <drm/intel/i915_hdcp_interface.h>
 
 #include "gem/i915_gem_region.h"
 #include "gt/intel_gt.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 #include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_hdcp_gsc.h"
 
 struct intel_hdcp_gsc_context {

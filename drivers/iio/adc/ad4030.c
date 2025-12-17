@@ -852,8 +852,8 @@ static int ad4030_read_label(struct iio_dev *indio_dev,
 			     char *label)
 {
 	if (chan->differential)
-		return sprintf(label, "differential%lu\n", chan->address);
-	return sprintf(label, "common-mode%lu\n", chan->address);
+		return sysfs_emit(label, "differential%lu\n", chan->address);
+	return sysfs_emit(label, "common-mode%lu\n", chan->address);
 }
 
 static int ad4030_get_current_scan_type(const struct iio_dev *indio_dev,

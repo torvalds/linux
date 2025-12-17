@@ -131,7 +131,7 @@ static void print_extent_item(const struct extent_buffer *eb, int slot, int type
 		struct btrfs_tree_block_info *info;
 		info = (struct btrfs_tree_block_info *)(ei + 1);
 		btrfs_tree_block_key(eb, info, &key);
-		pr_info("\t\ttree block key (%llu %u %llu) level %d\n",
+		pr_info("\t\ttree block key " BTRFS_KEY_FMT " level %d\n",
 		       btrfs_disk_key_objectid(&key), key.type,
 		       btrfs_disk_key_offset(&key),
 		       btrfs_tree_block_level(eb, info));
@@ -277,9 +277,8 @@ static void print_dir_item(const struct extent_buffer *eb, int i)
 		struct btrfs_key location;
 
 		btrfs_dir_item_key_to_cpu(eb, di, &location);
-		pr_info("\t\tlocation key (%llu %u %llu) type %d\n",
-			location.objectid, location.type, location.offset,
-			btrfs_dir_ftype(eb, di));
+		pr_info("\t\tlocation key " BTRFS_KEY_FMT " type %d\n",
+			BTRFS_KEY_FMT_VALUE(&location), btrfs_dir_ftype(eb, di));
 		pr_info("\t\ttransid %llu data_len %u name_len %u\n",
 			btrfs_dir_transid(eb, di), data_len, name_len);
 		di = (struct btrfs_dir_item *)((char *)di + len);
@@ -421,7 +420,7 @@ static void key_type_string(const struct btrfs_key *key, char *buf, int buf_size
 	if (key->type == 0 && key->objectid == BTRFS_FREE_SPACE_OBJECTID)
 		scnprintf(buf, buf_size, "UNTYPED");
 	else if (key_to_str[key->type])
-		scnprintf(buf, buf_size, key_to_str[key->type]);
+		scnprintf(buf, buf_size, "%s", key_to_str[key->type]);
 	else
 		scnprintf(buf, buf_size, "UNKNOWN.%d", key->type);
 }
@@ -598,10 +597,9 @@ void btrfs_print_tree(const struct extent_buffer *c, bool follow)
 	print_eb_refs_lock(c);
 	for (i = 0; i < nr; i++) {
 		btrfs_node_key_to_cpu(c, &key, i);
-		pr_info("\tkey %d (%llu %u %llu) block %llu gen %llu\n",
-		       i, key.objectid, key.type, key.offset,
-		       btrfs_node_blockptr(c, i),
-		       btrfs_node_ptr_generation(c, i));
+		pr_info("\tkey %d " BTRFS_KEY_FMT " block %llu gen %llu\n",
+			i, BTRFS_KEY_FMT_VALUE(&key), btrfs_node_blockptr(c, i),
+			btrfs_node_ptr_generation(c, i));
 	}
 	if (!follow)
 		return;
