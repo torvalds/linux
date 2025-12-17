@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/devm-helpers.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/i3c/device.h>
 #include <linux/i3c/master.h>
 #include <linux/iio/buffer.h>
@@ -88,8 +89,11 @@
 #define AD4060_PROD_ID		0x7A
 #define AD4062_PROD_ID		0x7C
 
+#define AD4062_GP_DISABLED	0x0
 #define AD4062_GP_INTR		0x1
 #define AD4062_GP_DRDY		0x2
+#define AD4062_GP_STATIC_LOW	0x5
+#define AD4062_GP_STATIC_HIGH	0x6
 
 #define AD4062_LIMIT_BITS	12
 
@@ -687,12 +691,14 @@ static int ad4062_request_irq(struct iio_dev *indio_dev)
 		return ret;
 
 	if (ret < 0) {
+		st->gpo_irq[0] = false;
 		ret = regmap_update_bits(st->regmap, AD4062_REG_ADC_IBI_EN,
 					 AD4062_REG_ADC_IBI_EN_MAX | AD4062_REG_ADC_IBI_EN_MIN,
 					 AD4062_REG_ADC_IBI_EN_MAX | AD4062_REG_ADC_IBI_EN_MIN);
 		if (ret)
 			return ret;
 	} else {
+		st->gpo_irq[0] = true;
 		ret = devm_request_threaded_irq(dev, ret, NULL,
 						ad4062_irq_handler_thresh,
 						IRQF_ONESHOT, indio_dev->name,
@@ -1347,6 +1353,121 @@ static int ad4062_regulators_get(struct ad4062_state *st, bool *ref_sel)
 	return 0;
 }
 
+static int ad4062_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
+static int ad4062_gpio_set(struct gpio_chip *gc, unsigned int offset, int value)
+{
+	struct ad4062_state *st = gpiochip_get_data(gc);
+	unsigned int reg_val = value ? AD4062_GP_STATIC_HIGH : AD4062_GP_STATIC_LOW;
+
+	if (offset)
+		return regmap_update_bits(st->regmap, AD4062_REG_GP_CONF,
+					  AD4062_REG_GP_CONF_MODE_MSK_1,
+					  FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_1, reg_val));
+	else
+		return regmap_update_bits(st->regmap, AD4062_REG_GP_CONF,
+					  AD4062_REG_GP_CONF_MODE_MSK_0,
+					  FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_0, reg_val));
+}
+
+static int ad4062_gpio_get(struct gpio_chip *gc, unsigned int offset)
+{
+	struct ad4062_state *st = gpiochip_get_data(gc);
+	unsigned int reg_val;
+	int ret;
+
+	ret = regmap_read(st->regmap, AD4062_REG_GP_CONF, &reg_val);
+	if (ret)
+		return ret;
+
+	if (offset)
+		reg_val = FIELD_GET(AD4062_REG_GP_CONF_MODE_MSK_1, reg_val);
+	else
+		reg_val = FIELD_GET(AD4062_REG_GP_CONF_MODE_MSK_0, reg_val);
+
+	return reg_val == AD4062_GP_STATIC_HIGH;
+}
+
+static void ad4062_gpio_disable(void *data)
+{
+	struct ad4062_state *st = data;
+	u8 val = FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_0, AD4062_GP_DISABLED) |
+		 FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_1, AD4062_GP_DISABLED);
+
+	regmap_update_bits(st->regmap, AD4062_REG_GP_CONF,
+			   AD4062_REG_GP_CONF_MODE_MSK_1 | AD4062_REG_GP_CONF_MODE_MSK_0,
+			   val);
+}
+
+static int ad4062_gpio_init_valid_mask(struct gpio_chip *gc,
+				       unsigned long *valid_mask,
+				       unsigned int ngpios)
+{
+	struct ad4062_state *st = gpiochip_get_data(gc);
+
+	bitmap_zero(valid_mask, ngpios);
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(st->gpo_irq); i++)
+		__assign_bit(i, valid_mask, !st->gpo_irq[i]);
+
+	return 0;
+}
+
+static int ad4062_gpio_init(struct ad4062_state *st)
+{
+	struct device *dev = &st->i3cdev->dev;
+	struct gpio_chip *gc;
+	u8 val, mask;
+	int ret;
+
+	if (!device_property_read_bool(dev, "gpio-controller"))
+		return 0;
+
+	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
+	if (!gc)
+		return -ENOMEM;
+
+	val = 0;
+	mask = 0;
+	if (!st->gpo_irq[0]) {
+		mask |= AD4062_REG_GP_CONF_MODE_MSK_0;
+		val |= FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_0, AD4062_GP_STATIC_LOW);
+	}
+	if (!st->gpo_irq[1]) {
+		mask |= AD4062_REG_GP_CONF_MODE_MSK_1;
+		val |= FIELD_PREP(AD4062_REG_GP_CONF_MODE_MSK_1, AD4062_GP_STATIC_LOW);
+	}
+
+	ret = regmap_update_bits(st->regmap, AD4062_REG_GP_CONF,
+				 mask, val);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, ad4062_gpio_disable, st);
+	if (ret)
+		return ret;
+
+	gc->parent = dev;
+	gc->label = st->chip->name;
+	gc->owner = THIS_MODULE;
+	gc->base = -1;
+	gc->ngpio = 2;
+	gc->init_valid_mask = ad4062_gpio_init_valid_mask;
+	gc->get_direction = ad4062_gpio_get_direction;
+	gc->set = ad4062_gpio_set;
+	gc->get = ad4062_gpio_get;
+	gc->can_sleep = true;
+
+	ret = devm_gpiochip_add_data(dev, gc, st);
+	if (ret)
+		return dev_err_probe(dev, ret, "Unable to register GPIO chip\n");
+
+	return 0;
+}
+
 static const struct i3c_device_id ad4062_id_table[] = {
 	I3C_DEVICE(AD4062_I3C_VENDOR, AD4060_PROD_ID, &ad4060_chip_info),
 	I3C_DEVICE(AD4062_I3C_VENDOR, AD4062_PROD_ID, &ad4062_chip_info),
@@ -1434,6 +1555,10 @@ static int ad4062_probe(struct i3c_device *i3cdev)
 	ret = ad4062_request_ibi(i3cdev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request i3c ibi\n");
+
+	ret = ad4062_gpio_init(st);
+	if (ret)
+		return ret;
 
 	ret = devm_work_autocancel(dev, &st->trig_conv, ad4062_trigger_work);
 	if (ret)
