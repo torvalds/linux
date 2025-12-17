@@ -2077,7 +2077,7 @@ static const struct regmap_config tegra210_ahub_regmap_config = {
 	.val_bits		= 32,
 	.reg_stride		= 4,
 	.max_register		= TEGRA210_MAX_REGISTER_ADDR,
-	.cache_type		= REGCACHE_FLAT_S,
+	.cache_type		= REGCACHE_FLAT,
 };
 
 static const struct regmap_config tegra186_ahub_regmap_config = {
@@ -2085,7 +2085,7 @@ static const struct regmap_config tegra186_ahub_regmap_config = {
 	.val_bits		= 32,
 	.reg_stride		= 4,
 	.max_register		= TEGRA186_MAX_REGISTER_ADDR,
-	.cache_type		= REGCACHE_FLAT_S,
+	.cache_type		= REGCACHE_FLAT,
 };
 
 static const struct regmap_config tegra264_ahub_regmap_config = {
@@ -2094,7 +2094,7 @@ static const struct regmap_config tegra264_ahub_regmap_config = {
 	.reg_stride		= 4,
 	.writeable_reg		= tegra264_ahub_wr_reg,
 	.max_register		= TEGRA264_MAX_REGISTER_ADDR,
-	.cache_type		= REGCACHE_FLAT_S,
+	.cache_type		= REGCACHE_FLAT,
 };
 
 static const struct tegra_ahub_soc_data soc_data_tegra210 = {
