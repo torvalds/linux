@@ -1154,9 +1154,9 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
 			   &(fs_info)->fs_state)))
 
-static inline bool btrfs_is_shutdown(struct btrfs_fs_info *fs_info)
+static inline bool btrfs_is_shutdown(const struct btrfs_fs_info *fs_info)
 {
-	return test_bit(BTRFS_FS_STATE_EMERGENCY_SHUTDOWN, &fs_info->fs_state);
+	return unlikely(test_bit(BTRFS_FS_STATE_EMERGENCY_SHUTDOWN, &fs_info->fs_state));
 }
 
 static inline void btrfs_force_shutdown(struct btrfs_fs_info *fs_info)

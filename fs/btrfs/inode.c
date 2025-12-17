@@ -901,7 +901,7 @@ static void compress_file_range(struct btrfs_work *work)
 	int compress_type = fs_info->compress_type;
 	int compress_level = fs_info->compress_level;
 
-	if (unlikely(btrfs_is_shutdown(fs_info)))
+	if (btrfs_is_shutdown(fs_info))
 		goto cleanup_and_bail_uncompressed;
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
@@ -1445,7 +1445,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	unsigned long page_ops;
 	int ret = 0;
 
-	if (unlikely(btrfs_is_shutdown(fs_info))) {
+	if (btrfs_is_shutdown(fs_info)) {
 		ret = -EIO;
 		goto out_unlock;
 	}
@@ -2111,7 +2111,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	 */
 	ASSERT(!btrfs_is_zoned(fs_info) || btrfs_is_data_reloc_root(root));
 
-	if (unlikely(btrfs_is_shutdown(fs_info))) {
+	if (btrfs_is_shutdown(fs_info)) {
 		ret = -EIO;
 		goto error;
 	}

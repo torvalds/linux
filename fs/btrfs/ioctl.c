@@ -5000,7 +5000,7 @@ out_acct:
 
 int btrfs_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
-	if (unlikely(btrfs_is_shutdown(inode_to_fs_info(file_inode(cmd->file)))))
+	if (btrfs_is_shutdown(inode_to_fs_info(file_inode(cmd->file))))
 		return -EIO;
 
 	switch (cmd->cmd_op) {
