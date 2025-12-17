@@ -26,11 +26,12 @@
 #include <linux/uaccess.h>
 #include <linux/netfs.h>
 #include <trace/events/netfs.h>
+#include "cifsglob.h"
+#include "cifsproto.h"
+#include "../common/smbfsctl.h"
 #include "cifspdu.h"
 #include "cifsfs.h"
-#include "cifsglob.h"
 #include "cifsacl.h"
-#include "cifsproto.h"
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
 #include "fscache.h"
