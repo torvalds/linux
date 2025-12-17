@@ -56,6 +56,7 @@ struct anon_transport_class cls = {				\
 struct transport_container {
 	struct attribute_container ac;
 	const struct attribute_group *statistics;
+	const struct attribute_group *encryption;
 };
 
 #define attribute_container_to_transport_container(x) \

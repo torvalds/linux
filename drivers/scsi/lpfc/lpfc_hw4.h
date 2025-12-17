@@ -437,6 +437,12 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_cmf_bw_MASK		0x0FFFFFFF
 #define lpfc_wcqe_c_cmf_bw_WORD		total_data_placed
 	uint32_t parameter;
+#define lpfc_wcqe_c_enc_SHIFT		31
+#define lpfc_wcqe_c_enc_MASK		0x00000001
+#define lpfc_wcqe_c_enc_WORD		parameter
+#define lpfc_wcqe_c_enc_lvl_SHIFT	30
+#define lpfc_wcqe_c_enc_lvl_MASK	0x00000001
+#define lpfc_wcqe_c_enc_lvl_WORD	parameter
 #define lpfc_wcqe_c_bg_edir_SHIFT	5
 #define lpfc_wcqe_c_bg_edir_MASK	0x00000001
 #define lpfc_wcqe_c_bg_edir_WORD	parameter
@@ -2942,7 +2948,10 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_topology_SHIFT		24
 #define lpfc_mbx_rd_conf_topology_MASK		0x000000FF
 #define lpfc_mbx_rd_conf_topology_WORD		word2
-	uint32_t rsvd_3;
+	uint32_t word3;
+#define lpfc_mbx_rd_conf_fedif_SHIFT		6
+#define lpfc_mbx_rd_conf_fedif_MASK		0x00000001
+#define lpfc_mbx_rd_conf_fedif_WORD		word3
 	uint32_t word4;
 #define lpfc_mbx_rd_conf_e_d_tov_SHIFT		0
 #define lpfc_mbx_rd_conf_e_d_tov_MASK		0x0000FFFF

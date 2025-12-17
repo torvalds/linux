@@ -2014,6 +2014,58 @@ lpfc_cmpl_els_rrq(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	lpfc_nlp_put(ndlp);
 	return;
 }
+
+/**
+ * lpfc_check_encryption - Reports an ndlp's encryption information
+ * @phba: pointer to lpfc hba data structure.
+ * @ndlp: pointer to a node-list data structure.
+ * @cmdiocb: pointer to lpfc command iocbq data structure.
+ * @rspiocb: pointer to lpfc response iocbq data structure.
+ *
+ * This routine is called in the completion callback function for issuing
+ * or receiving a Port Login (PLOGI) command. In a PLOGI completion, if FEDIF
+ * is supported, encryption information will be provided in completion status
+ * data. If @phba supports FEDIF, a log message containing encryption
+ * information will be logged. Encryption status is also saved for encryption
+ * reporting with upper layer through the rport encryption attribute.
+ **/
+static void
+lpfc_check_encryption(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
+		      struct lpfc_iocbq *cmdiocb, struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+	u32 did = ndlp->nlp_DID;
+	struct lpfc_enc_info *nlp_enc_info = &ndlp->nlp_enc_info;
+	char enc_status[FC_RPORT_ENCRYPTION_STATUS_MAX_LEN] = {0};
+	char enc_level[8] = "N/A";
+	u8 encryption;
+
+	if (phba->sli4_hba.encryption_support &&
+	    ((did & Fabric_DID_MASK) != Fabric_DID_MASK)) {
+		encryption = bf_get(lpfc_wcqe_c_enc,
+				    &rspiocb->wcqe_cmpl);
+		nlp_enc_info->status = encryption;
+
+		strscpy(enc_status, encryption ? "Encrypted" : "Unencrypted",
+			sizeof(enc_status));
+
+		if (encryption) {
+			nlp_enc_info->level = bf_get(lpfc_wcqe_c_enc_lvl,
+						     &rspiocb->wcqe_cmpl);
+			strscpy(enc_level, nlp_enc_info->level ? "CNSA2.0" :
+								 "CNSA1.0",
+				sizeof(enc_level));
+		}
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ENCRYPTION,
+				 "0924 DID:x%06x %s Session "
+				 "Established, Encryption Level:%s "
+				 "rpi:x%x\n",
+				 ndlp->nlp_DID, enc_status, enc_level,
+				 ndlp->nlp_rpi);
+	}
+}
+
 /**
  * lpfc_cmpl_els_plogi - Completion callback function for plogi
  * @phba: pointer to lpfc hba data structure.
@@ -2152,6 +2204,8 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (!lpfc_is_els_acc_rsp(prsp))
 			goto out;
 		ndlp = lpfc_plogi_confirm_nport(phba, prsp->virt, ndlp);
+
+		lpfc_check_encryption(phba, ndlp, cmdiocb, rspiocb);
 
 		sp = (struct serv_parm *)((u8 *)prsp->virt +
 					  sizeof(u32));
@@ -5406,6 +5460,9 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
 		goto out;
 	}
+
+	if (!ulp_status && test_bit(NLP_RCV_PLOGI, &ndlp->nlp_flag))
+		lpfc_check_encryption(phba, ndlp, cmdiocb, rspiocb);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_RSP,
 		"ELS rsp cmpl:    status:x%x/x%x did:x%x",
