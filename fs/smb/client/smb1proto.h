@@ -220,6 +220,13 @@ void cifs_dump_detail(void *buf, size_t buf_len,
 		      struct TCP_Server_Info *server);
 
 /*
+ * smb1misc.c
+ */
+unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
+			     const struct cifs_tcon *treeCon, int word_count);
+bool is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv);
+
+/*
  * smb1ops.c
  */
 extern struct smb_version_operations smb1_operations;

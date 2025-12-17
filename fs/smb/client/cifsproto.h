@@ -131,7 +131,6 @@ void cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
 void cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 					   bool mark_smb_session);
 int cifs_reconnect(struct TCP_Server_Info *server, bool mark_smb_session);
-bool is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv);
 bool backup_cred(struct cifs_sb_info *cifs_sb);
 bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 			    bool from_readdir);
@@ -157,9 +156,6 @@ void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 int map_smb_to_linux_error(char *buf, bool logErr);
 int map_and_check_smb_error(struct TCP_Server_Info *server,
 			    struct mid_q_entry *mid, bool logErr);
-unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
-			     const struct cifs_tcon *treeCon, int word_count
-			     /* length of fixed section (word count) in two byte units  */);
 int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		   struct TCP_Server_Info *server,
 		   const struct nls_table *nls_cp);
