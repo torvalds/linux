@@ -18,10 +18,7 @@ properties:
   compatible:
     oneOf:
       - enum:
-          - qcom,pcie-apq8064
           - qcom,pcie-apq8084
-          - qcom,pcie-ipq8064
-          - qcom,pcie-ipq8064-v2
           - qcom,pcie-msm8996
       - items:
           - const: qcom,pcie-msm8998
@@ -78,12 +75,6 @@ properties:
   vdda-supply:
     description: A phandle to the core analog power supply
 
-  vdda_phy-supply:
-    description: A phandle to the core analog power supply for PHY
-
-  vdda_refclk-supply:
-    description: A phandle to the core analog power supply for IC which generates reference clock
-
   vddpe-3v3-supply:
     description: A phandle to the PCIe endpoint power supply
 
@@ -132,26 +123,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-apq8064
-              - qcom,pcie-ipq8064
-              - qcom,pcie-ipq8064v2
-    then:
-      properties:
-        reg:
-          minItems: 4
-          maxItems: 4
-        reg-names:
-          items:
-            - const: dbi # DesignWare PCIe registers
-            - const: elbi # External local bus interface registers
-            - const: parf # Qualcomm specific registers
-            - const: config # PCIe configuration space
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,pcie-apq8084
               - qcom,pcie-msm8996
     then:
@@ -167,44 +138,6 @@ allOf:
             - const: elbi # External local bus interface registers
             - const: config # PCIe configuration space
             - const: mhi # MHI registers
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,pcie-apq8064
-              - qcom,pcie-ipq8064
-              - qcom,pcie-ipq8064v2
-    then:
-      properties:
-        clocks:
-          minItems: 3
-          maxItems: 5
-        clock-names:
-          minItems: 3
-          items:
-            - const: core # Clocks the pcie hw block
-            - const: iface # Configuration AHB clock
-            - const: phy # Clocks the pcie PHY block
-            - const: aux # Clocks the pcie AUX block, not on apq8064
-            - const: ref # Clocks the pcie ref block, not on apq8064
-        resets:
-          minItems: 5
-          maxItems: 6
-        reset-names:
-          minItems: 5
-          items:
-            - const: axi # AXI reset
-            - const: ahb # AHB reset
-            - const: por # POR reset
-            - const: pci # PCI reset
-            - const: phy # PHY reset
-            - const: ext # EXT reset, not on apq8064
-      required:
-        - vdda-supply
-        - vdda_phy-supply
-        - vdda_refclk-supply
 
   - if:
       properties:
@@ -256,19 +189,6 @@ allOf:
           compatible:
             contains:
               enum:
-                - qcom,pcie-apq8064
-                - qcom,pcie-ipq8064
-                - qcom,pcie-ipq8064v2
-    then:
-      required:
-        - power-domains
-
-  - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              enum:
                 - qcom,pcie-msm8996
     then:
       required:
@@ -312,10 +232,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-apq8064
               - qcom,pcie-apq8084
-              - qcom,pcie-ipq8064
-              - qcom,pcie-ipq8064-v2
     then:
       properties:
         interrupts:
@@ -327,50 +244,6 @@ allOf:
 unevaluatedProperties: false
 
 examples:
-  - |
-    #include <dt-bindings/interrupt-controller/arm-gic.h>
-    pcie@1b500000 {
-      compatible = "qcom,pcie-ipq8064";
-      reg = <0x1b500000 0x1000>,
-            <0x1b502000 0x80>,
-            <0x1b600000 0x100>,
-            <0x0ff00000 0x100000>;
-      reg-names = "dbi", "elbi", "parf", "config";
-      device_type = "pci";
-      linux,pci-domain = <0>;
-      bus-range = <0x00 0xff>;
-      num-lanes = <1>;
-      #address-cells = <3>;
-      #size-cells = <2>;
-      ranges = <0x81000000 0 0 0x0fe00000 0 0x00100000>,
-               <0x82000000 0 0 0x08000000 0 0x07e00000>;
-      interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
-      interrupt-names = "msi";
-      #interrupt-cells = <1>;
-      interrupt-map-mask = <0 0 0 0x7>;
-      interrupt-map = <0 0 0 1 &intc 0 36 IRQ_TYPE_LEVEL_HIGH>,
-                      <0 0 0 2 &intc 0 37 IRQ_TYPE_LEVEL_HIGH>,
-                      <0 0 0 3 &intc 0 38 IRQ_TYPE_LEVEL_HIGH>,
-                      <0 0 0 4 &intc 0 39 IRQ_TYPE_LEVEL_HIGH>;
-      clocks = <&gcc 41>,
-               <&gcc 43>,
-               <&gcc 44>,
-               <&gcc 42>,
-               <&gcc 248>;
-      clock-names = "core", "iface", "phy", "aux", "ref";
-      resets = <&gcc 27>,
-               <&gcc 26>,
-               <&gcc 25>,
-               <&gcc 24>,
-               <&gcc 23>,
-               <&gcc 22>;
-      reset-names = "axi", "ahb", "por", "pci", "phy", "ext";
-      pinctrl-0 = <&pcie_pins_default>;
-      pinctrl-names = "default";
-      vdda-supply = <&pm8921_s3>;
-      vdda_phy-supply = <&pm8921_lvs6>;
-      vdda_refclk-supply = <&ext_3p3v>;
-    };
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/gpio/gpio.h>
