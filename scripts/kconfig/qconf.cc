@@ -26,8 +26,6 @@
 #include "lkc.h"
 #include "qconf.h"
 
-#include "images.h"
-
 
 static QApplication *configApp;
 static ConfigSettings *configSettings;
@@ -1283,13 +1281,14 @@ ConfigMainWindow::ConfigMainWindow(void)
 		move(x.toInt(), y.toInt());
 
 	// set up icons
-	ConfigItem::symbolYesIcon = QIcon(QPixmap(xpm_symbol_yes));
-	ConfigItem::symbolModIcon = QIcon(QPixmap(xpm_symbol_mod));
-	ConfigItem::symbolNoIcon = QIcon(QPixmap(xpm_symbol_no));
-	ConfigItem::choiceYesIcon = QIcon(QPixmap(xpm_choice_yes));
-	ConfigItem::choiceNoIcon = QIcon(QPixmap(xpm_choice_no));
-	ConfigItem::menuIcon = QIcon(QPixmap(xpm_menu));
-	ConfigItem::menubackIcon = QIcon(QPixmap(xpm_menuback));
+	QString iconsDir = QString(getenv(SRCTREE) ? getenv(SRCTREE) : QDir::currentPath()) + "/scripts/kconfig/icons/";
+	ConfigItem::symbolYesIcon = QIcon(QPixmap(iconsDir + "symbol_yes.xpm"));
+	ConfigItem::symbolModIcon = QIcon(QPixmap(iconsDir + "symbol_mod.xpm"));
+	ConfigItem::symbolNoIcon = QIcon(QPixmap(iconsDir + "symbol_no.xpm"));
+	ConfigItem::choiceYesIcon = QIcon(QPixmap(iconsDir + "choice_yes.xpm"));
+	ConfigItem::choiceNoIcon = QIcon(QPixmap(iconsDir + "choice_no.xpm"));
+	ConfigItem::menuIcon = QIcon(QPixmap(iconsDir + "menu.xpm"));
+	ConfigItem::menubackIcon = QIcon(QPixmap(iconsDir + "menuback.xpm"));
 
 	QWidget *widget = new QWidget(this);
 	setCentralWidget(widget);
@@ -1312,7 +1311,7 @@ ConfigMainWindow::ConfigMainWindow(void)
 
 	configList->setFocus();
 
-	backAction = new QAction(QPixmap(xpm_back), "Back", this);
+	backAction = new QAction(QPixmap(iconsDir + "back.xpm"), "Back", this);
 	backAction->setShortcut(QKeySequence::Back);
 	connect(backAction, &QAction::triggered,
 		this, &ConfigMainWindow::goBack);
@@ -1322,12 +1321,12 @@ ConfigMainWindow::ConfigMainWindow(void)
 	connect(quitAction, &QAction::triggered,
 		this, &ConfigMainWindow::close);
 
-	QAction *loadAction = new QAction(QPixmap(xpm_load), "&Open", this);
+	QAction *loadAction = new QAction(QPixmap(iconsDir + "load.xpm"), "&Open", this);
 	loadAction->setShortcut(QKeySequence::Open);
 	connect(loadAction, &QAction::triggered,
 		this, &ConfigMainWindow::loadConfig);
 
-	saveAction = new QAction(QPixmap(xpm_save), "&Save", this);
+	saveAction = new QAction(QPixmap(iconsDir + "save.xpm"), "&Save", this);
 	saveAction->setShortcut(QKeySequence::Save);
 	connect(saveAction, &QAction::triggered,
 		this, &ConfigMainWindow::saveConfig);
@@ -1344,15 +1343,15 @@ ConfigMainWindow::ConfigMainWindow(void)
 	searchAction->setShortcut(QKeySequence::Find);
 	connect(searchAction, &QAction::triggered,
 		this, &ConfigMainWindow::searchConfig);
-	singleViewAction = new QAction(QPixmap(xpm_single_view), "Single View", this);
+	singleViewAction = new QAction(QPixmap(iconsDir + "single_view.xpm"), "Single View", this);
 	singleViewAction->setCheckable(true);
 	connect(singleViewAction, &QAction::triggered,
 		this, &ConfigMainWindow::showSingleView);
-	splitViewAction = new QAction(QPixmap(xpm_split_view), "Split View", this);
+	splitViewAction = new QAction(QPixmap(iconsDir + "split_view.xpm"), "Split View", this);
 	splitViewAction->setCheckable(true);
 	connect(splitViewAction, &QAction::triggered,
 		this, &ConfigMainWindow::showSplitView);
-	fullViewAction = new QAction(QPixmap(xpm_tree_view), "Full View", this);
+	fullViewAction = new QAction(QPixmap(iconsDir + "tree_view.xpm"), "Full View", this);
 	fullViewAction->setCheckable(true);
 	connect(fullViewAction, &QAction::triggered,
 		this, &ConfigMainWindow::showFullView);
