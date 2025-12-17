@@ -22,6 +22,7 @@
 #include <linux/intel_pmt_features.h>
 #include <linux/intel_vsec.h>
 #include <linux/io.h>
+#include <linux/minmax.h>
 #include <linux/printk.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -60,10 +61,14 @@ struct pmt_event {
  *			Valid if the system supports the event group,
  *			NULL otherwise.
  * @force_off:		True when "rdt" command line or architecture code disables
- *			this event group.
+ *			this event group due to insufficient RMIDs.
  * @force_on:		True when "rdt" command line overrides disable of this
  *			event group.
  * @guid:		Unique number per XML description file.
+ * @num_rmid:		Number of RMIDs supported by this group. May be
+ *			adjusted downwards if enumeration from
+ *			intel_pmt_get_regions_by_feature() indicates fewer
+ *			RMIDs can be tracked simultaneously.
  * @mmio_size:		Number of bytes of MMIO registers for this group.
  * @num_events:		Number of events in this group.
  * @evts:		Array of event descriptors.
@@ -76,6 +81,7 @@ struct event_group {
 
 	/* Remaining fields initialized from XML file. */
 	u32				guid;
+	u32				num_rmid;
 	size_t				mmio_size;
 	unsigned int			num_events;
 	struct pmt_event		evts[] __counted_by(num_events);
@@ -90,6 +96,7 @@ struct event_group {
 static struct event_group energy_0x26696143 = {
 	.pfname		= "energy",
 	.guid		= 0x26696143,
+	.num_rmid	= 576,
 	.mmio_size	= XML_MMIO_SIZE(576, 2, 3),
 	.num_events	= 2,
 	.evts		= {
@@ -104,6 +111,7 @@ static struct event_group energy_0x26696143 = {
 static struct event_group perf_0x26557651 = {
 	.pfname		= "perf",
 	.guid		= 0x26557651,
+	.num_rmid	= 576,
 	.mmio_size	= XML_MMIO_SIZE(576, 7, 3),
 	.num_events	= 7,
 	.evts		= {
@@ -198,6 +206,23 @@ static bool group_has_usable_regions(struct event_group *e, struct pmt_feature_g
 	return usable_regions;
 }
 
+static bool all_regions_have_sufficient_rmid(struct event_group *e, struct pmt_feature_group *p)
+{
+	struct telemetry_region *tr;
+
+	for (int i = 0; i < p->count; i++) {
+		if (!p->regions[i].addr)
+			continue;
+		tr = &p->regions[i];
+		if (tr->num_rmids < e->num_rmid) {
+			e->force_off = true;
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static bool enable_events(struct event_group *e, struct pmt_feature_group *p)
 {
 	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_PERF_PKG].r_resctrl;
@@ -209,6 +234,27 @@ static bool enable_events(struct event_group *e, struct pmt_feature_group *p)
 	if (!group_has_usable_regions(e, p))
 		return false;
 
+	/*
+	 * Only enable event group with insufficient RMIDs if the user requested
+	 * it from the kernel command line.
+	 */
+	if (!all_regions_have_sufficient_rmid(e, p) && !e->force_on) {
+		pr_info("%s %s:0x%x monitoring not enabled due to insufficient RMIDs\n",
+			r->name, e->pfname, e->guid);
+		return false;
+	}
+
+	for (int i = 0; i < p->count; i++) {
+		if (!p->regions[i].addr)
+			continue;
+		/*
+		 * e->num_rmid only adjusted lower if user (via rdt= kernel
+		 * parameter) forces an event group with insufficient RMID
+		 * to be enabled.
+		 */
+		e->num_rmid = min(e->num_rmid, p->regions[i].num_rmids);
+	}
+
 	for (int j = 0; j < e->num_events; j++) {
 		if (!resctrl_enable_mon_event(e->evts[j].id, true,
 					      e->evts[j].bin_bits, &e->evts[j]))
@@ -218,6 +264,11 @@ static bool enable_events(struct event_group *e, struct pmt_feature_group *p)
 		pr_info("No events enabled in %s %s:0x%x\n", r->name, e->pfname, e->guid);
 		return false;
 	}
+
+	if (r->mon.num_rmid)
+		r->mon.num_rmid = min(r->mon.num_rmid, e->num_rmid);
+	else
+		r->mon.num_rmid = e->num_rmid;
 
 	return true;
 }
