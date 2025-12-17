@@ -26,9 +26,9 @@ struct smb3_fs_context;
  *****************************************************************
  */
 
-struct smb_hdr *cifs_buf_get(void);
+void *cifs_buf_get(void);
 void cifs_buf_release(void *buf_to_free);
-struct smb_hdr *cifs_small_buf_get(void);
+void *cifs_small_buf_get(void);
 void cifs_small_buf_release(void *buf_to_free);
 void free_rsp_buf(int resp_buftype, void *rsp);
 int smb_send_kvec(struct TCP_Server_Info *server, struct msghdr *smb_msg,

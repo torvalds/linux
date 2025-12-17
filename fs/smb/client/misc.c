@@ -178,10 +178,10 @@ tconInfoFree(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
 	kfree(tcon);
 }
 
-struct smb_hdr *
+void *
 cifs_buf_get(void)
 {
-	struct smb_hdr *ret_buf = NULL;
+	void *ret_buf = NULL;
 	/*
 	 * SMB2 header is bigger than CIFS one - no problems to clean some
 	 * more bytes for CIFS.
@@ -220,10 +220,10 @@ cifs_buf_release(void *buf_to_free)
 	return;
 }
 
-struct smb_hdr *
+void *
 cifs_small_buf_get(void)
 {
-	struct smb_hdr *ret_buf = NULL;
+	void *ret_buf = NULL;
 
 /* We could use negotiated size instead of max_msgsize -
    but it may be more efficient to always alloc same size
@@ -231,7 +231,6 @@ cifs_small_buf_get(void)
    defaults to this and can not be bigger */
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
-	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
 	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
 	atomic_inc(&total_small_buf_alloc_count);
