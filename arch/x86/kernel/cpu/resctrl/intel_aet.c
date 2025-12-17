@@ -16,9 +16,11 @@
 #include <linux/init.h>
 #include <linux/intel_pmt_features.h>
 #include <linux/intel_vsec.h>
+#include <linux/printk.h>
 #include <linux/resctrl.h>
 #include <linux/resctrl_types.h>
 #include <linux/stddef.h>
+#include <linux/topology.h>
 #include <linux/types.h>
 
 #include "internal.h"
@@ -110,10 +112,67 @@ static struct event_group *known_event_groups[] = {
 	     _peg < &known_event_groups[ARRAY_SIZE(known_event_groups)];	\
 	     _peg++)
 
-/* Stub for now */
+static bool skip_telem_region(struct telemetry_region *tr, struct event_group *e)
+{
+	if (tr->guid != e->guid)
+		return true;
+	if (tr->plat_info.package_id >= topology_max_packages()) {
+		pr_warn("Bad package %u in guid 0x%x\n", tr->plat_info.package_id,
+			tr->guid);
+		return true;
+	}
+	if (tr->size != e->mmio_size) {
+		pr_warn("MMIO space wrong size (%zu bytes) for guid 0x%x. Expected %zu bytes.\n",
+			tr->size, e->guid, e->mmio_size);
+		return true;
+	}
+
+	return false;
+}
+
+static bool group_has_usable_regions(struct event_group *e, struct pmt_feature_group *p)
+{
+	bool usable_regions = false;
+
+	for (int i = 0; i < p->count; i++) {
+		if (skip_telem_region(&p->regions[i], e)) {
+			/*
+			 * Clear the address field of regions that did not pass the checks in
+			 * skip_telem_region() so they will not be used by intel_aet_read_event().
+			 * This is safe to do because intel_pmt_get_regions_by_feature() allocates
+			 * a new pmt_feature_group structure to return to each caller and only makes
+			 * use of the pmt_feature_group::kref field when intel_pmt_put_feature_group()
+			 * returns the structure.
+			 */
+			p->regions[i].addr = NULL;
+
+			continue;
+		}
+		usable_regions = true;
+	}
+
+	return usable_regions;
+}
+
 static bool enable_events(struct event_group *e, struct pmt_feature_group *p)
 {
-	return false;
+	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_PERF_PKG].r_resctrl;
+	int skipped_events = 0;
+
+	if (!group_has_usable_regions(e, p))
+		return false;
+
+	for (int j = 0; j < e->num_events; j++) {
+		if (!resctrl_enable_mon_event(e->evts[j].id, true,
+					      e->evts[j].bin_bits, &e->evts[j]))
+			skipped_events++;
+	}
+	if (e->num_events == skipped_events) {
+		pr_info("No events enabled in %s %s:0x%x\n", r->name, e->pfname, e->guid);
+		return false;
+	}
+
+	return true;
 }
 
 static enum pmt_feature_id lookup_pfid(const char *pfname)
