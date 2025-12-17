@@ -238,10 +238,8 @@ int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
  */
 int xe_sync_entry_wait(struct xe_sync_entry *sync)
 {
-	if (sync->flags & DRM_XE_SYNC_FLAG_SIGNAL)
-		return 0;
-
-	return dma_fence_wait(sync->fence, true);
+	return xe_sync_needs_wait(sync) ?
+		dma_fence_wait(sync->fence, true) : 0;
 }
 
 /**
@@ -252,8 +250,8 @@ int xe_sync_entry_wait(struct xe_sync_entry *sync)
  */
 bool xe_sync_needs_wait(struct xe_sync_entry *sync)
 {
-	return !(sync->flags & DRM_XE_SYNC_FLAG_SIGNAL) &&
-		!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &sync->fence->flags);
+	return sync->fence &&
+	       !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &sync->fence->flags);
 }
 
 void xe_sync_entry_signal(struct xe_sync_entry *sync, struct dma_fence *fence)
