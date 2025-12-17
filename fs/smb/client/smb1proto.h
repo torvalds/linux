@@ -8,7 +8,8 @@
 #ifndef _SMB1PROTO_H
 #define _SMB1PROTO_H
 
-#include "cifspdu.h"
+#include <linux/unaligned.h>
+#include "../common/smb2pdu.h"
 
 struct cifs_unix_set_info_args {
 	__u64	ctime;
@@ -242,4 +243,36 @@ int checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
 
 
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
+
+#define GETU16(var)  (*((__u16 *)var))	/* BB check for endian issues */
+#define GETU32(var)  (*((__u32 *)var))	/* BB check for endian issues */
+
+/* given a pointer to an smb_hdr, retrieve a void pointer to the ByteCount */
+static inline void *
+BCC(struct smb_hdr *smb)
+{
+	return (void *)smb + sizeof(*smb) + 2 * smb->WordCount;
+}
+
+/* given a pointer to an smb_hdr retrieve the pointer to the byte area */
+#define pByteArea(smb_var) (BCC(smb_var) + 2)
+
+/* get the unconverted ByteCount for a SMB packet and return it */
+static inline __u16
+get_bcc(struct smb_hdr *hdr)
+{
+	__le16 *bc_ptr = (__le16 *)BCC(hdr);
+
+	return get_unaligned_le16(bc_ptr);
+}
+
+/* set the ByteCount for a SMB packet in little-endian */
+static inline void
+put_bcc(__u16 count, struct smb_hdr *hdr)
+{
+	__le16 *bc_ptr = (__le16 *)BCC(hdr);
+
+	put_unaligned_le16(count, bc_ptr);
+}
+
 #endif /* _SMB1PROTO_H */
