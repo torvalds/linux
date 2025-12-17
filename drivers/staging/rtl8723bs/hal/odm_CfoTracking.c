@@ -132,8 +132,9 @@ void ODM_CfoTracking(void *pDM_VOID)
 		) {
 			pCfoTrack->largeCFOHit = 1;
 			return;
-		} else
-			pCfoTrack->largeCFOHit = 0;
+		}
+
+		pCfoTrack->largeCFOHit = 0;
 		pCfoTrack->CFO_ave_pre = CFO_ave;
 
 		/* 4 1.4 Dynamic Xtal threshold */
