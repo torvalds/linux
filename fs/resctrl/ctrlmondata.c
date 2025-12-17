@@ -17,6 +17,7 @@
 
 #include <linux/cpu.h>
 #include <linux/kernfs.h>
+#include <linux/math.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/tick.h>
@@ -601,6 +602,77 @@ out_ctx_free:
 		resctrl_arch_mon_ctx_free(r, evt->evtid, rr->arch_mon_ctx);
 }
 
+/*
+ * Decimal place precision to use for each number of fixed-point
+ * binary bits computed from ceil(binary_bits * log10(2)) except
+ * binary_bits == 0 which will print "value.0"
+ */
+static const unsigned int decplaces[MAX_BINARY_BITS + 1] = {
+	[0]  =  1,
+	[1]  =  1,
+	[2]  =  1,
+	[3]  =  1,
+	[4]  =  2,
+	[5]  =  2,
+	[6]  =  2,
+	[7]  =  3,
+	[8]  =  3,
+	[9]  =  3,
+	[10] =  4,
+	[11] =  4,
+	[12] =  4,
+	[13] =  4,
+	[14] =  5,
+	[15] =  5,
+	[16] =  5,
+	[17] =  6,
+	[18] =  6,
+	[19] =  6,
+	[20] =  7,
+	[21] =  7,
+	[22] =  7,
+	[23] =  7,
+	[24] =  8,
+	[25] =  8,
+	[26] =  8,
+	[27] =  9
+};
+
+static void print_event_value(struct seq_file *m, unsigned int binary_bits, u64 val)
+{
+	unsigned long long frac = 0;
+
+	if (binary_bits) {
+		/* Mask off the integer part of the fixed-point value. */
+		frac = val & GENMASK_ULL(binary_bits - 1, 0);
+
+		/*
+		 * Multiply by 10^{desired decimal places}. The integer part of
+		 * the fixed point value is now almost what is needed.
+		 */
+		frac *= int_pow(10ull, decplaces[binary_bits]);
+
+		/*
+		 * Round to nearest by adding a value that would be a "1" in the
+		 * binary_bits + 1 place.  Integer part of fixed point value is
+		 * now the needed value.
+		 */
+		frac += 1ull << (binary_bits - 1);
+
+		/*
+		 * Extract the integer part of the value. This is the decimal
+		 * representation of the original fixed-point fractional value.
+		 */
+		frac >>= binary_bits;
+	}
+
+	/*
+	 * "frac" is now in the range [0 .. 10^decplaces).  I.e. string
+	 * representation will fit into chosen number of decimal places.
+	 */
+	seq_printf(m, "%llu.%0*llu\n", val >> binary_bits, decplaces[binary_bits], frac);
+}
+
 int rdtgroup_mondata_show(struct seq_file *m, void *arg)
 {
 	struct kernfs_open_file *of = m->private;
@@ -678,6 +750,8 @@ checkresult:
 		seq_puts(m, "Unavailable\n");
 	else if (rr.err == -ENOENT)
 		seq_puts(m, "Unassigned\n");
+	else if (evt->is_floating_point)
+		print_event_value(m, evt->binary_bits, rr.val);
 	else
 		seq_printf(m, "%llu\n", rr.val);
 
