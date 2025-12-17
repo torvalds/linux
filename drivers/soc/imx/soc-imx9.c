@@ -31,10 +31,8 @@ static int imx9_soc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	err = of_property_read_string(of_root, "model", &attr->machine);
-	if (err) {
-		pr_err("%s: missing model property: %d\n", __func__, err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "%s: missing model property\n", __func__);
 
 	attr->family = devm_kasprintf(dev, GFP_KERNEL, "Freescale i.MX");
 
@@ -46,10 +44,8 @@ static int imx9_soc_probe(struct platform_device *pdev)
 	 * res.a3: uid[63:0];
 	 */
 	arm_smccc_smc(IMX_SIP_GET_SOC_INFO, 0, 0, 0, 0, 0, 0, 0, &res);
-	if (res.a0 != SMCCC_RET_SUCCESS) {
-		pr_err("%s: SMC failed: 0x%lx\n", __func__, res.a0);
-		return -EINVAL;
-	}
+	if (res.a0 != SMCCC_RET_SUCCESS)
+		return dev_err_probe(dev, -EINVAL, "%s: SMC failed: 0x%lx\n", __func__, res.a0);
 
 	soc_id = SOC_ID(res.a1);
 	rev_major = SOC_REV_MAJOR(res.a1);
@@ -63,11 +59,9 @@ static int imx9_soc_probe(struct platform_device *pdev)
 	attr->serial_number = devm_kasprintf(dev, GFP_KERNEL, "%016llx%016llx", uid127_64, uid63_0);
 
 	sdev = soc_device_register(attr);
-	if (IS_ERR(sdev)) {
-		err = PTR_ERR(sdev);
-		pr_err("%s failed to register SoC as a device: %d\n", __func__, err);
-		return err;
-	}
+	if (IS_ERR(sdev))
+		return dev_err_probe(dev, PTR_ERR(sdev),
+				     "%s failed to register SoC as a device\n", __func__);
 
 	return 0;
 }
