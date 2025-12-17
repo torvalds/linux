@@ -3023,6 +3023,7 @@ void btrfs_show_zoned_stats(struct btrfs_fs_info *fs_info, struct seq_file *seq)
 		u64 used;
 		u64 reserved;
 		u64 zone_unusable;
+		const char *typestr = btrfs_space_info_type_str(bg->space_info);
 
 		spin_lock(&bg->lock);
 		start = bg->start;
@@ -3033,8 +3034,8 @@ void btrfs_show_zoned_stats(struct btrfs_fs_info *fs_info, struct seq_file *seq)
 		spin_unlock(&bg->lock);
 
 		seq_printf(seq,
-			   "\t  start: %llu, wp: %llu used: %llu, reserved: %llu, unusable: %llu\n",
-			   start, alloc_offset, used, reserved, zone_unusable);
+			   "\t  start: %llu, wp: %llu used: %llu, reserved: %llu, unusable: %llu (%s)\n",
+			   start, alloc_offset, used, reserved, zone_unusable, typestr);
 	}
 	spin_unlock(&fs_info->zone_active_bgs_lock);
 }
