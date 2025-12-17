@@ -350,7 +350,7 @@ struct drm_panthor_gpu_info {
 	__u32 as_present;
 
 	/**
-	 * @select_coherency: Coherency selected for this device.
+	 * @selected_coherency: Coherency selected for this device.
 	 *
 	 * One of drm_panthor_gpu_coherency.
 	 */
