@@ -753,13 +753,10 @@ __acquires(&gl->gl_lockref.lock)
 
 	if (test_bit(GLF_LOCK, &gl->gl_flags))
 		return;
-	set_bit(GLF_LOCK, &gl->gl_flags);
 
 	/*
-	 * The GLF_DEMOTE_IN_PROGRESS flag is only set intermittently during
-	 * locking operations.  We have just started a locking operation by
-	 * setting the GLF_LOCK flag, so the GLF_DEMOTE_IN_PROGRESS flag must
-	 * be cleared.
+	 * The GLF_DEMOTE_IN_PROGRESS flag must only be set when the GLF_LOCK
+	 * flag is set as well.
 	 */
 	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
@@ -770,12 +767,13 @@ __acquires(&gl->gl_lockref.lock)
 		}
 
 		if (find_first_holder(gl))
-			goto out_unlock;
+			return;
 		if (nonblock)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 		GLOCK_BUG_ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);
 		gl->gl_target = gl->gl_demote_state;
+		set_bit(GLF_LOCK, &gl->gl_flags);
 		do_xmote(gl, NULL, gl->gl_target);
 		return;
 	}
@@ -783,26 +781,22 @@ __acquires(&gl->gl_lockref.lock)
 promote:
 	do_promote(gl);
 	if (find_first_holder(gl))
-		goto out_unlock;
+		return;
 	gh = find_first_waiter(gl);
 	if (!gh)
-		goto out_unlock;
+		return;
 	if (nonblock)
 		goto out_sched;
 	gl->gl_target = gh->gh_state;
 	if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 		do_error(gl, 0); /* Fail queued try locks */
+	set_bit(GLF_LOCK, &gl->gl_flags);
 	do_xmote(gl, gh, gl->gl_target);
 	return;
 
 out_sched:
-	clear_bit(GLF_LOCK, &gl->gl_flags);
 	gl->gl_lockref.count++;
 	gfs2_glock_queue_work(gl, 0);
-	return;
-
-out_unlock:
-	clear_bit(GLF_LOCK, &gl->gl_flags);
 }
 
 /**
