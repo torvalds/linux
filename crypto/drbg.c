@@ -234,7 +234,6 @@ static int drbg_fips_continuous_test(struct drbg_state *drbg,
 				     const unsigned char *entropy)
 {
 	unsigned short entropylen = drbg_sec_strength(drbg->core->flags);
-	int ret = 0;
 
 	if (!IS_ENABLED(CONFIG_CRYPTO_FIPS))
 		return 0;
@@ -253,8 +252,7 @@ static int drbg_fips_continuous_test(struct drbg_state *drbg,
 		/* priming: another round is needed */
 		return -EAGAIN;
 	}
-	ret = memcmp(drbg->prev, entropy, entropylen);
-	if (!ret)
+	if (!memcmp(drbg->prev, entropy, entropylen))
 		panic("DRBG continuous self test failed\n");
 	memcpy(drbg->prev, entropy, entropylen);
 
