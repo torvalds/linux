@@ -32,6 +32,8 @@ int small_smb_init_no_tc(const int smb_command, const int wct,
 			 struct cifs_ses *ses, void **request_buf);
 int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses,
 		     struct TCP_Server_Info *server);
+int CIFSTCon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
+	     struct cifs_tcon *tcon, const struct nls_table *nls_codepage);
 int CIFSSMBTDis(const unsigned int xid, struct cifs_tcon *tcon);
 int CIFSSMBEcho(struct TCP_Server_Info *server);
 int CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses);
@@ -248,6 +250,10 @@ unsigned int smbCalcSize(void *buf);
  */
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
+
+void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
+			  struct cifs_sb_info *cifs_sb,
+			  struct smb3_fs_context *ctx);
 
 /*
  * smb1session.c

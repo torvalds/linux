@@ -291,31 +291,11 @@ int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 int cifs_enable_signing(struct TCP_Server_Info *server,
 			bool mnt_sign_required);
 
-int CIFSTCon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
-	     struct cifs_tcon *tcon, const struct nls_table *nls_codepage);
-
-
-
-
-
-
-
 int parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			unsigned int *num_of_nodes,
 			struct dfs_info3_param **target_nodes,
 			const struct nls_table *nls_codepage, int remap,
 			const char *searchName, bool is_unicode);
-void reset_cifs_unix_caps(unsigned int xid, struct cifs_tcon *tcon,
-			  struct cifs_sb_info *cifs_sb,
-			  struct smb3_fs_context *ctx);
-
-
-
-
-
-
-
-
 
 struct cifs_ses *sesInfoAlloc(void);
 void sesInfoFree(struct cifs_ses *buf_to_free);
