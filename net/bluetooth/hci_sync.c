@@ -4428,6 +4428,17 @@ static int hci_le_set_event_mask_sync(struct hci_dev *hdev)
 		events[4] |= 0x02;	/* LE BIG Info Advertising Report */
 	}
 
+	if (le_cs_capable(hdev)) {
+		/* Channel Sounding events */
+		events[5] |= 0x08;	/* LE CS Read Remote Supported Cap Complete event */
+		events[5] |= 0x10;	/* LE CS Read Remote FAE Table Complete event */
+		events[5] |= 0x20;	/* LE CS Security Enable Complete event */
+		events[5] |= 0x40;	/* LE CS Config Complete event */
+		events[5] |= 0x80;	/* LE CS Procedure Enable Complete event */
+		events[6] |= 0x01;	/* LE CS Subevent Result event */
+		events[6] |= 0x02;	/* LE CS Subevent Result Continue event */
+		events[6] |= 0x04;	/* LE CS Test End Complete event */
+	}
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_EVENT_MASK,
 				     sizeof(events), events, HCI_CMD_TIMEOUT);
 }
@@ -4560,21 +4571,41 @@ static int hci_set_le_support_sync(struct hci_dev *hdev)
 }
 
 /* LE Set Host Feature */
-static int hci_le_set_host_feature_sync(struct hci_dev *hdev)
+static int hci_le_set_host_feature_sync(struct hci_dev *hdev, u8 bit, u8 value)
 {
 	struct hci_cp_le_set_host_feature cp;
-
-	if (!iso_capable(hdev))
-		return 0;
 
 	memset(&cp, 0, sizeof(cp));
 
 	/* Connected Isochronous Channels (Host Support) */
-	cp.bit_number = 32;
-	cp.bit_value = iso_enabled(hdev) ? 0x01 : 0x00;
+	cp.bit_number = bit;
+	cp.bit_value = value;
 
 	return __hci_cmd_sync_status(hdev, HCI_OP_LE_SET_HOST_FEATURE,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+/* Set Host Features, each feature needs to be sent separately since
+ * HCI_OP_LE_SET_HOST_FEATURE doesn't support setting all of them at once.
+ */
+static int hci_le_set_host_features_sync(struct hci_dev *hdev)
+{
+	int err;
+
+	if (iso_capable(hdev)) {
+		/* Connected Isochronous Channels (Host Support) */
+		err = hci_le_set_host_feature_sync(hdev, 32,
+						   (iso_enabled(hdev) ? 0x01 :
+						    0x00));
+		if (err)
+			return err;
+	}
+
+	if (le_cs_capable(hdev))
+		/* Channel Sounding (Host Support) */
+		err = hci_le_set_host_feature_sync(hdev, 47, 0x01);
+
+	return err;
 }
 
 /* LE Controller init stage 3 command sequence */
@@ -4604,7 +4635,7 @@ static const struct hci_init_stage le_init3[] = {
 	/* HCI_OP_WRITE_LE_HOST_SUPPORTED */
 	HCI_INIT(hci_set_le_support_sync),
 	/* HCI_OP_LE_SET_HOST_FEATURE */
-	HCI_INIT(hci_le_set_host_feature_sync),
+	HCI_INIT(hci_le_set_host_features_sync),
 	{}
 };
 
