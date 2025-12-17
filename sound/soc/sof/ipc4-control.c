@@ -284,6 +284,105 @@ static void sof_ipc4_refresh_generic_control(struct snd_sof_control *scontrol)
 	kfree(data);
 }
 
+static int
+sof_ipc4_set_bytes_control_data(struct snd_sof_control *scontrol, bool lock)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_ipc4_control_msg_payload *msg_data;
+	struct sof_abi_hdr *data = cdata->data;
+	struct sof_ipc4_msg *msg = &cdata->msg;
+	size_t data_size;
+	int ret;
+
+	data_size = struct_size(msg_data, data, data->size);
+	msg_data = kzalloc(data_size, GFP_KERNEL);
+	if (!msg_data)
+		return -ENOMEM;
+
+	msg_data->id = cdata->index;
+	msg_data->num_elems = data->size;
+	memcpy(msg_data->data, data->data, data->size);
+
+	msg->extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(data->type);
+
+	msg->data_ptr = msg_data;
+	msg->data_size = data_size;
+
+	ret = sof_ipc4_set_get_kcontrol_data(scontrol, true, lock);
+	msg->data_ptr = NULL;
+	msg->data_size = 0;
+	if (ret < 0)
+		dev_err(scomp->dev, "%s: Failed to set control update for %s\n",
+			__func__, scontrol->name);
+
+	kfree(msg_data);
+
+	return ret;
+}
+
+static int
+sof_ipc4_refresh_bytes_control(struct snd_sof_control *scontrol, bool lock)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_ipc4_control_msg_payload *msg_data;
+	struct sof_abi_hdr *data = cdata->data;
+	struct sof_ipc4_msg *msg = &cdata->msg;
+	size_t data_size;
+	int ret = 0;
+
+	if (!scontrol->comp_data_dirty)
+		return 0;
+
+	if (!pm_runtime_active(scomp->dev))
+		return 0;
+
+	data_size = scontrol->max_size - sizeof(*data);
+	if (data_size < sizeof(*msg_data))
+		data_size = sizeof(*msg_data);
+
+	msg_data = kzalloc(data_size, GFP_KERNEL);
+	if (!msg_data)
+		return -ENOMEM;
+
+	msg->extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(data->type);
+
+	msg_data->id = cdata->index;
+	msg_data->num_elems = 0; /* ignored for bytes */
+
+	msg->data_ptr = msg_data;
+	msg->data_size = data_size;
+
+	scontrol->comp_data_dirty = false;
+	ret = sof_ipc4_set_get_kcontrol_data(scontrol, false, lock);
+	if (!ret) {
+		if (msg->data_size > scontrol->max_size - sizeof(*data)) {
+			dev_err(scomp->dev,
+				"%s: no space for data in %s (%zu, %zu)\n",
+				__func__, scontrol->name, msg->data_size,
+				scontrol->max_size - sizeof(*data));
+			goto out;
+		}
+
+		data->size = msg->data_size;
+		scontrol->size = sizeof(*cdata) + sizeof(*data) + data->size;
+		memcpy(data->data, msg->data_ptr, data->size);
+	} else {
+		dev_err(scomp->dev, "Failed to read control data for %s\n",
+			scontrol->name);
+		scontrol->comp_data_dirty = true;
+	}
+
+out:
+	msg->data_ptr = NULL;
+	msg->data_size = 0;
+
+	kfree(msg_data);
+
+	return ret;
+}
+
 static bool sof_ipc4_switch_put(struct snd_sof_control *scontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -423,6 +522,13 @@ static int sof_ipc4_set_get_bytes_data(struct snd_sof_dev *sdev,
 		}
 	}
 
+	if (data->type == SOF_IPC4_BYTES_CONTROL_PARAM_ID) {
+		if (set)
+			return sof_ipc4_set_bytes_control_data(scontrol, lock);
+		else
+			return sof_ipc4_refresh_bytes_control(scontrol, lock);
+	}
+
 	msg->extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(data->type);
 
 	msg->data_ptr = data->data;
@@ -506,6 +612,8 @@ static int sof_ipc4_bytes_get(struct snd_sof_control *scontrol,
 				    data->size, scontrol->max_size - sizeof(*data));
 		return -EINVAL;
 	}
+
+	sof_ipc4_refresh_bytes_control(scontrol, true);
 
 	size = data->size + sizeof(*data);
 
@@ -661,6 +769,8 @@ static int sof_ipc4_bytes_ext_get(struct snd_sof_control *scontrol,
 				  const unsigned int __user *binary_data,
 				  unsigned int size)
 {
+	sof_ipc4_refresh_bytes_control(scontrol, true);
+
 	return _sof_ipc4_bytes_ext_get(scontrol, binary_data, size, false);
 }
 
@@ -714,6 +824,9 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 	case SOF_IPC4_ENUM_CONTROL_PARAM_ID:
 		type = SND_SOC_TPLG_TYPE_ENUM;
 		break;
+	case SOF_IPC4_BYTES_CONTROL_PARAM_ID:
+		type = SND_SOC_TPLG_TYPE_BYTES;
+		break;
 	default:
 		dev_err(sdev->dev,
 			"%s: Invalid control type for module %u.%u: %u\n",
@@ -764,23 +877,38 @@ static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
 		 * The message includes the updated value/data, update the
 		 * control's local cache using the received notification
 		 */
-		for (i = 0; i < msg_data->num_elems; i++) {
-			u32 channel = msg_data->chanv[i].channel;
+		if (type == SND_SOC_TPLG_TYPE_BYTES) {
+			struct sof_abi_hdr *data = cdata->data;
 
-			if (channel >= scontrol->num_channels) {
+			if (msg_data->num_elems > scontrol->max_size - sizeof(*data)) {
 				dev_warn(sdev->dev,
-					 "Invalid channel index for %s: %u\n",
-					 scontrol->name, i);
-
-				/*
-				 * Mark the scontrol as dirty to force a refresh
-				 * on next read
-				 */
-				scontrol->comp_data_dirty = true;
-				break;
+					 "%s: no space for data in %s (%u, %zu)\n",
+					 __func__, scontrol->name, msg_data->num_elems,
+					 scontrol->max_size - sizeof(*data));
+			} else {
+				memcpy(data->data, msg_data->data, msg_data->num_elems);
+				data->size = msg_data->num_elems;
+				scontrol->size = sizeof(*cdata) + sizeof(*data) + data->size;
 			}
+		} else {
+			for (i = 0; i < msg_data->num_elems; i++) {
+				u32 channel = msg_data->chanv[i].channel;
 
-			cdata->chanv[channel].value = msg_data->chanv[i].value;
+				if (channel >= scontrol->num_channels) {
+					dev_warn(sdev->dev,
+						 "Invalid channel index for %s: %u\n",
+						 scontrol->name, i);
+
+					/*
+					 * Mark the scontrol as dirty to force a refresh
+					 * on next read
+					 */
+					scontrol->comp_data_dirty = true;
+					break;
+				}
+
+				cdata->chanv[channel].value = msg_data->chanv[i].value;
+			}
 		}
 	} else {
 		/*
