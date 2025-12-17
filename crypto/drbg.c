@@ -226,38 +226,37 @@ static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
  * @entropy buffer of seed data to be checked
  *
  * return:
- *	0 on success
- *	-EAGAIN on when the CTRNG is not yet primed
- *	< 0 on error
+ *	%true on success
+ *	%false when the CTRNG is not yet primed
  */
-static int drbg_fips_continuous_test(struct drbg_state *drbg,
-				     const unsigned char *entropy)
+static bool drbg_fips_continuous_test(struct drbg_state *drbg,
+				      const unsigned char *entropy)
 {
 	unsigned short entropylen = drbg_sec_strength(drbg->core->flags);
 
 	if (!IS_ENABLED(CONFIG_CRYPTO_FIPS))
-		return 0;
+		return true;
 
 	/* skip test if we test the overall system */
 	if (list_empty(&drbg->test_data.list))
-		return 0;
+		return true;
 	/* only perform test in FIPS mode */
 	if (!fips_enabled)
-		return 0;
+		return true;
 
 	if (!drbg->fips_primed) {
 		/* Priming of FIPS test */
 		memcpy(drbg->prev, entropy, entropylen);
 		drbg->fips_primed = true;
 		/* priming: another round is needed */
-		return -EAGAIN;
+		return false;
 	}
 	if (!memcmp(drbg->prev, entropy, entropylen))
 		panic("DRBG continuous self test failed\n");
 	memcpy(drbg->prev, entropy, entropylen);
 
 	/* the test shall pass when the two values are not equal */
-	return 0;
+	return true;
 }
 
 /******************************************************************
@@ -847,14 +846,9 @@ static inline int drbg_get_random_bytes(struct drbg_state *drbg,
 					unsigned char *entropy,
 					unsigned int entropylen)
 {
-	int ret;
-
-	do {
+	do
 		get_random_bytes(entropy, entropylen);
-		ret = drbg_fips_continuous_test(drbg, entropy);
-		if (ret && ret != -EAGAIN)
-			return ret;
-	} while (ret);
+	while (!drbg_fips_continuous_test(drbg, entropy));
 
 	return 0;
 }
