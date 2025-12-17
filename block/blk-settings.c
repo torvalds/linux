@@ -193,8 +193,13 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 		break;
 	}
 
-	if (!bi->interval_exp)
+	if (!bi->interval_exp) {
 		bi->interval_exp = ilog2(lim->logical_block_size);
+	} else if (bi->interval_exp < SECTOR_SHIFT ||
+		   bi->interval_exp > ilog2(lim->logical_block_size)) {
+		pr_warn("invalid interval_exp %u\n", bi->interval_exp);
+		return -EINVAL;
+	}
 
 	/*
 	 * The PI generation / validation helpers do not expect intervals to
