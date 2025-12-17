@@ -74,6 +74,8 @@ config AD4062
 	tristate "Analog Devices AD4062 Driver"
 	depends on I3C
 	select REGMAP_I3C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices AD4062 I3C analog
 	  to digital converters (ADC).

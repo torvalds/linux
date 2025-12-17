@@ -9,10 +9,15 @@
 #include <linux/bitops.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/devm-helpers.h>
 #include <linux/err.h>
 #include <linux/i3c/device.h>
 #include <linux/i3c/master.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/math.h>
@@ -59,6 +64,9 @@
 #define     AD4062_REG_DEVICE_STATUS_DEVICE_RESET	BIT(6)
 #define AD4062_REG_IBI_STATUS				0x48
 #define AD4062_REG_CONV_READ_LSB			0x50
+#define AD4062_REG_CONV_READ_16BITS			0x51
+#define AD4062_REG_CONV_READ_32BITS			0x53
+#define AD4062_REG_CONV_TRIGGER_16BITS			0x57
 #define AD4062_REG_CONV_TRIGGER_32BITS			0x59
 #define AD4062_REG_CONV_AUTO				0x61
 #define AD4062_MAX_REG					AD4062_REG_CONV_AUTO
@@ -94,6 +102,36 @@ enum {
 	AD4062_SCAN_TYPE_BURST_AVG,
 };
 
+static const struct iio_scan_type ad4062_scan_type_12_s[] = {
+	[AD4062_SCAN_TYPE_SAMPLE] = {
+		.sign = 's',
+		.realbits = 12,
+		.storagebits = 16,
+		.endianness = IIO_BE,
+	},
+	[AD4062_SCAN_TYPE_BURST_AVG] = {
+		.sign = 's',
+		.realbits = 14,
+		.storagebits = 16,
+		.endianness = IIO_BE,
+	},
+};
+
+static const struct iio_scan_type ad4062_scan_type_16_s[] = {
+	[AD4062_SCAN_TYPE_SAMPLE] = {
+		.sign = 's',
+		.realbits = 16,
+		.storagebits = 16,
+		.endianness = IIO_BE,
+	},
+	[AD4062_SCAN_TYPE_BURST_AVG] = {
+		.sign = 's',
+		.realbits = 20,
+		.storagebits = 32,
+		.endianness = IIO_BE,
+	},
+};
+
 static const unsigned int ad4062_conversion_freqs[] = {
 	2000000, 1000000, 300000, 100000,	/*  0 -  3 */
 	33300, 10000, 3000, 500,		/*  4 -  7 */
@@ -105,6 +143,7 @@ struct ad4062_state {
 	const struct ad4062_chip_info *chip;
 	const struct ad4062_bus_ops *ops;
 	enum ad4062_operation_mode mode;
+	struct work_struct trig_conv;
 	struct completion completion;
 	struct iio_trigger *trigger;
 	struct iio_dev *indio_dev;
@@ -112,8 +151,10 @@ struct ad4062_state {
 	struct regmap *regmap;
 	int vref_uV;
 	unsigned int samp_freqs[ARRAY_SIZE(ad4062_conversion_freqs)];
+	bool gpo_irq[2];
 	u16 sampling_frequency;
 	u8 oversamp_ratio;
+	u8 conv_sizeof;
 	u8 conv_addr;
 	union {
 		__be32 be32;
@@ -147,7 +188,7 @@ static const struct regmap_access_table ad4062_regmap_wr_table = {
 	.n_yes_ranges = ARRAY_SIZE(ad4062_regmap_wr_ranges),
 };
 
-#define AD4062_CHAN {									\
+#define AD4062_CHAN(bits) {								\
 	.type = IIO_VOLTAGE,								\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_RAW) |				\
 				    BIT(IIO_CHAN_INFO_SCALE) |				\
@@ -158,18 +199,21 @@ static const struct regmap_access_table ad4062_regmap_wr_table = {
 	.info_mask_shared_by_all_available = BIT(IIO_CHAN_INFO_SAMP_FREQ),		\
 	.indexed = 1,									\
 	.channel = 0,									\
+	.has_ext_scan_type = 1,								\
+	.ext_scan_type = ad4062_scan_type_##bits##_s,					\
+	.num_ext_scan_type = ARRAY_SIZE(ad4062_scan_type_##bits##_s),			\
 }
 
 static const struct ad4062_chip_info ad4060_chip_info = {
 	.name = "ad4060",
-	.channels = { AD4062_CHAN },
+	.channels = { AD4062_CHAN(12) },
 	.prod_id = AD4060_PROD_ID,
 	.avg_max = 256,
 };
 
 static const struct ad4062_chip_info ad4062_chip_info = {
 	.name = "ad4062",
-	.channels = { AD4062_CHAN },
+	.channels = { AD4062_CHAN(16) },
 	.prod_id = AD4062_PROD_ID,
 	.avg_max = 4096,
 };
@@ -334,7 +378,12 @@ static int ad4062_setup(struct iio_dev *indio_dev, struct iio_chan_spec const *c
 			const bool *ref_sel)
 {
 	struct ad4062_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
 	int ret;
+
+	scan_type = iio_get_current_scan_type(indio_dev, chan);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
 
 	ret = regmap_update_bits(st->regmap, AD4062_REG_GP_CONF,
 				 AD4062_REG_GP_CONF_MODE_MSK_1,
@@ -372,7 +421,10 @@ static irqreturn_t ad4062_irq_handler_drdy(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct ad4062_state *st = iio_priv(indio_dev);
 
-	complete(&st->completion);
+	if (iio_buffer_enabled(indio_dev) && iio_trigger_using_own(indio_dev))
+		iio_trigger_poll(st->trigger);
+	else
+		complete(&st->completion);
 
 	return IRQ_HANDLED;
 }
@@ -382,7 +434,55 @@ static void ad4062_ibi_handler(struct i3c_device *i3cdev,
 {
 	struct ad4062_state *st = i3cdev_get_drvdata(i3cdev);
 
-	complete(&st->completion);
+	if (iio_buffer_enabled(st->indio_dev))
+		iio_trigger_poll_nested(st->trigger);
+	else
+		complete(&st->completion);
+}
+
+static void ad4062_trigger_work(struct work_struct *work)
+{
+	struct ad4062_state *st =
+		container_of(work, struct ad4062_state, trig_conv);
+	int ret;
+
+	/*
+	 * Read current conversion, if at reg CONV_READ, stop bit triggers
+	 * next sample and does not need writing the address.
+	 */
+	struct i3c_priv_xfer xfer_sample = {
+		.data.in = &st->buf.be32,
+		.len = st->conv_sizeof,
+		.rnw = true,
+	};
+	struct i3c_priv_xfer xfer_trigger = {
+		.data.out = &st->conv_addr,
+		.len = sizeof(st->conv_addr),
+		.rnw = false,
+	};
+
+	ret = i3c_device_do_priv_xfers(st->i3cdev, &xfer_sample, 1);
+	if (ret)
+		return;
+
+	iio_push_to_buffers_with_ts(st->indio_dev, &st->buf.be32, st->conv_sizeof,
+				    iio_get_time_ns(st->indio_dev));
+	if (st->gpo_irq[1])
+		return;
+
+	i3c_device_do_priv_xfers(st->i3cdev, &xfer_trigger, 1);
+}
+
+static irqreturn_t ad4062_poll_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad4062_state *st = iio_priv(indio_dev);
+
+	iio_trigger_notify_done(indio_dev->trig);
+	schedule_work(&st->trig_conv);
+
+	return IRQ_HANDLED;
 }
 
 static void ad4062_disable_ibi(void *data)
@@ -433,15 +533,46 @@ static int ad4062_request_irq(struct iio_dev *indio_dev)
 	if (ret == -EPROBE_DEFER)
 		return ret;
 
-	if (ret < 0)
+	if (ret < 0) {
+		st->gpo_irq[1] = false;
 		return regmap_update_bits(st->regmap, AD4062_REG_ADC_IBI_EN,
 					  AD4062_REG_ADC_IBI_EN_CONV_TRIGGER,
 					  AD4062_REG_ADC_IBI_EN_CONV_TRIGGER);
+	}
+	st->gpo_irq[1] = true;
 
 	return devm_request_threaded_irq(dev, ret,
 					 ad4062_irq_handler_drdy,
 					 NULL, IRQF_ONESHOT, indio_dev->name,
 					 indio_dev);
+}
+
+static const struct iio_trigger_ops ad4062_trigger_ops = {
+	.validate_device = &iio_trigger_validate_own_device,
+};
+
+static int ad4062_request_trigger(struct iio_dev *indio_dev)
+{
+	struct ad4062_state *st = iio_priv(indio_dev);
+	struct device *dev = &st->i3cdev->dev;
+	int ret;
+
+	st->trigger = devm_iio_trigger_alloc(dev, "%s-dev%d",
+					     indio_dev->name,
+					     iio_device_id(indio_dev));
+	if (!st->trigger)
+		return -ENOMEM;
+
+	st->trigger->ops = &ad4062_trigger_ops;
+	iio_trigger_set_drvdata(st->trigger, indio_dev);
+
+	ret = devm_iio_trigger_register(dev, st->trigger);
+	if (ret)
+		return ret;
+
+	indio_dev->trig = iio_trigger_get(st->trigger);
+
+	return 0;
 }
 
 static const int ad4062_oversampling_avail[] = {
@@ -476,6 +607,25 @@ static int ad4062_read_avail(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
+}
+
+static int ad4062_get_chan_scale(struct iio_dev *indio_dev, int *val, int *val2)
+{
+	struct ad4062_state *st = iio_priv(indio_dev);
+	const struct iio_scan_type *scan_type;
+
+	/*
+	 * In burst averaging mode the averaging filter accumulates resulting
+	 * in a sample with increased precision.
+	 */
+	scan_type = iio_get_current_scan_type(indio_dev, st->chip->channels);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
+
+	*val = (st->vref_uV * 2) / (MICRO / MILLI); /* signed */
+	*val2 = scan_type->realbits - 1;
+
+	return IIO_VAL_FRACTIONAL_LOG2;
 }
 
 static int ad4062_get_chan_calibscale(struct ad4062_state *st, int *val, int *val2)
@@ -593,6 +743,9 @@ static int ad4062_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (info) {
+	case IIO_CHAN_INFO_SCALE:
+		return ad4062_get_chan_scale(indio_dev, val, val2);
+
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return ad4062_get_sampling_frequency(st, val);
 	}
@@ -641,6 +794,87 @@ static int ad4062_write_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
+/*
+ * The AD4062 in burst averaging mode increases realbits from 16-bits to
+ * 20-bits, increasing the storagebits from 16-bits to 32-bits.
+ */
+static inline size_t ad4062_sizeof_storagebits(struct ad4062_state *st)
+{
+	const struct iio_scan_type *scan_type =
+		iio_get_current_scan_type(st->indio_dev, st->chip->channels);
+
+	return BITS_TO_BYTES(scan_type->storagebits);
+}
+
+/* Read registers only with realbits (no sign extension bytes) */
+static inline size_t ad4062_get_conv_addr(struct ad4062_state *st, size_t _sizeof)
+{
+	if (st->gpo_irq[1])
+		return _sizeof == sizeof(u32) ? AD4062_REG_CONV_READ_32BITS :
+						AD4062_REG_CONV_READ_16BITS;
+	return _sizeof == sizeof(u32) ? AD4062_REG_CONV_TRIGGER_32BITS :
+					AD4062_REG_CONV_TRIGGER_16BITS;
+}
+
+static int pm_ad4062_triggered_buffer_postenable(struct ad4062_state *st)
+{
+	int ret;
+
+	PM_RUNTIME_ACQUIRE(&st->i3cdev->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
+		return ret;
+
+	ret = ad4062_set_operation_mode(st, st->mode);
+	if (ret)
+		return ret;
+
+	st->conv_sizeof = ad4062_sizeof_storagebits(st);
+	st->conv_addr = ad4062_get_conv_addr(st, st->conv_sizeof);
+	/* CONV_READ requires read to trigger first sample. */
+	struct i3c_priv_xfer xfer_sample[2] = {
+		{
+			.data.out = &st->conv_addr,
+			.len = sizeof(st->conv_addr),
+			.rnw = false,
+		},
+		{
+			.data.in = &st->buf.be32,
+			.len = sizeof(st->buf.be32),
+			.rnw = true,
+		}
+	};
+
+	return i3c_device_do_priv_xfers(st->i3cdev, xfer_sample,
+					st->gpo_irq[1] ? 2 : 1);
+}
+
+static int ad4062_triggered_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad4062_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = pm_ad4062_triggered_buffer_postenable(st);
+	if (ret)
+		return ret;
+
+	pm_runtime_get_noresume(&st->i3cdev->dev);
+	return 0;
+}
+
+static int ad4062_triggered_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad4062_state *st = iio_priv(indio_dev);
+
+	pm_runtime_put_autosuspend(&st->i3cdev->dev);
+	return 0;
+}
+
+static const struct iio_buffer_setup_ops ad4062_triggered_buffer_setup_ops = {
+	.postenable = &ad4062_triggered_buffer_postenable,
+	.predisable = &ad4062_triggered_buffer_predisable,
+};
+
 static int ad4062_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 				     unsigned int writeval, unsigned int *readval)
 {
@@ -652,10 +886,21 @@ static int ad4062_debugfs_reg_access(struct iio_dev *indio_dev, unsigned int reg
 		return regmap_write(st->regmap, reg, writeval);
 }
 
+static int ad4062_get_current_scan_type(const struct iio_dev *indio_dev,
+					const struct iio_chan_spec *chan)
+{
+	struct ad4062_state *st = iio_priv(indio_dev);
+
+	return st->mode == AD4062_BURST_AVERAGING_MODE ?
+			   AD4062_SCAN_TYPE_BURST_AVG :
+			   AD4062_SCAN_TYPE_SAMPLE;
+}
+
 static const struct iio_info ad4062_info = {
 	.read_raw = ad4062_read_raw,
 	.write_raw = ad4062_write_raw,
 	.read_avail = ad4062_read_avail,
+	.get_current_scan_type = ad4062_get_current_scan_type,
 	.debugfs_reg_access = ad4062_debugfs_reg_access,
 };
 
@@ -762,6 +1007,17 @@ static int ad4062_probe(struct i3c_device *i3cdev)
 	if (ret)
 		return ret;
 
+	ret = ad4062_request_trigger(indio_dev);
+	if (ret)
+		return ret;
+
+	ret = devm_iio_triggered_buffer_setup(&i3cdev->dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      ad4062_poll_handler,
+					      &ad4062_triggered_buffer_setup_ops);
+	if (ret)
+		return ret;
+
 	pm_runtime_set_active(dev);
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
@@ -773,6 +1029,10 @@ static int ad4062_probe(struct i3c_device *i3cdev)
 	ret = ad4062_request_ibi(i3cdev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to request i3c ibi\n");
+
+	ret = devm_work_autocancel(dev, &st->trig_conv, ad4062_trigger_work);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }
