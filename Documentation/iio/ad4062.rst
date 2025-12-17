@@ -26,6 +26,7 @@ at the end of the read command.
 The two programmable GPIOS are optional and have a role assigned if present in
 the devicetree ``interrupt-names`` property:
 
+- GP0: Is assigned the role of Threshold Either signal.
 - GP1: Is assigned the role of Data Ready signal.
 
 Device attributes
@@ -74,8 +75,10 @@ Interrupts
 The interrupts are mapped through the ``interrupt-names`` and ``interrupts``
 properties.
 
-The ``interrupt-names`` ``gp1`` entry sets the role of Data Ready signal.
-If it is not present, the driver fallback to enabling the same role as an
+The ``interrupt-names`` ``gp0`` entry sets the role of Threshold signal, and
+entry ``gp1`` the role of Data Ready signal.
+
+If each is not present, the driver fallback to enabling the same role as an
 I3C IBI.
 
 Low-power mode
@@ -97,3 +100,37 @@ The acquisition is sequential and bounded by the protocol timings, software
 latency and internal timings, the sample rate is not configurable. The burst
 averaging mode does impact the effective sample rate, since it increases the
 internal timing to output a single sample.
+
+Threshold events
+================
+
+The ADC supports a monitoring mode to raise threshold events. The driver
+supports a single interrupt for both rising and falling readings.
+
+The feature is enabled/disabled by setting ``thresh_either_en``. During monitor
+mode, the device continuously operates in autonomous mode. Any register access
+puts the device back in configuration mode, due to this, any access disables
+monitor mode.
+
+The following event attributes are available:
+
+.. list-table:: Event attributes
+   :header-rows: 1
+
+   * - Attribute
+     - Description
+   * - ``sampling_frequency``
+     - Frequency used in the monitoring mode, sets the device internal sample
+       rate when the mode is activated.
+   * - ``sampling_frequency_available``
+     - List of available sample rates.
+   * - ``thresh_either_en``
+     - Enable monitoring mode.
+   * - ``thresh_falling_hysteresis``
+     - Set the hysteresis value for the minimum threshold.
+   * - ``thresh_falling_value``
+     - Set the minimum threshold value.
+   * - ``thresh_rising_hysteresis``
+     - Set the hysteresis value for the maximum threshold.
+   * - ``thresh_rising_value``
+     - Set the maximum threshold value.
