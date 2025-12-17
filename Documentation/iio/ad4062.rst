@@ -1,0 +1,86 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+=============
+AD4062 driver
+=============
+
+ADC driver for Analog Devices Inc. AD4060/AD4062 devices. The module name is
+``ad4062``.
+
+Supported devices
+=================
+
+The following chips are supported by this driver:
+
+* `AD4060 <https://www.analog.com/AD4060>`_
+* `AD4062 <https://www.analog.com/AD4062>`_
+
+Wiring modes
+============
+
+The ADC is interfaced through an I3C bus, and contains two programmable GPIOs.
+
+The ADC convert-start happens on the SDA rising edge of the I3C stop (P) bit
+at the end of the read command.
+
+The two programmable GPIOS are optional and have a role assigned if present in
+the devicetree ``interrupt-names`` property:
+
+- GP1: Is assigned the role of Data Ready signal.
+
+Device attributes
+=================
+
+The ADC contains only one channel with following attributes:
+
+.. list-table:: Channel attributes
+   :header-rows: 1
+
+   * - Attribute
+     - Description
+   * - ``in_voltage_calibscale``
+     - Sets the gain scaling factor that the hardware applies to the sample,
+       to compensate for system gain error.
+   * - ``in_voltage_oversampling_ratio``
+     - Sets device's burst averaging mode to over sample using the
+       internal sample rate. Value 1 disable the burst averaging mode.
+   * - ``in_voltage_oversampling_ratio_available``
+     - List of available oversampling values.
+   * - ``in_voltage_raw``
+     - Returns the raw ADC voltage value.
+   * - ``in_voltage_scale``
+     - Returns the channel scale in reference to the reference voltage
+       ``ref-supply`` or ``vdd-supply`` if the former not present.
+
+Also contain the following device attributes:
+
+.. list-table:: Device attributes
+   :header-rows: 1
+
+   * - Attribute
+     - Description
+   * - ``sampling_frequency``
+     - Sets the duration of a single scan, used in the burst averaging mode.
+       The duration is described by ``(n_avg - 1) / fosc + tconv``, where
+       ``n_avg`` is the oversampling ratio, ``fosc`` is the internal sample
+       rate and ``tconv`` is the ADC conversion time.
+   * - ``sampling_frequency_available``
+     - Lists the available sampling frequencies, computed on the current
+       oversampling ratio. If the ratio is 1, the frequency is ``1/tconv``.
+
+Interrupts
+==========
+
+The interrupts are mapped through the ``interrupt-names`` and ``interrupts``
+properties.
+
+The ``interrupt-names`` ``gp1`` entry sets the role of Data Ready signal.
+If it is not present, the driver fallback to enabling the same role as an
+I3C IBI.
+
+Low-power mode
+==============
+
+The device enters low-power mode on idle to save power. Enabling an event puts
+the device out of the low-power since the ADC autonomously samples to assert
+the event condition.
