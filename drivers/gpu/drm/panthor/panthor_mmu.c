@@ -533,12 +533,12 @@ static int as_send_cmd_and_wait(struct panthor_device *ptdev, u32 as_nr, u32 cmd
 	return status;
 }
 
-static u64 pack_region_range(struct panthor_device *ptdev, u64 region_start, u64 size)
+static u64 pack_region_range(struct panthor_device *ptdev, u64 *region_start, u64 *size)
 {
 	u8 region_width;
-	u64 region_end = region_start + size;
+	u64 region_end = *region_start + *size;
 
-	if (drm_WARN_ON_ONCE(&ptdev->base, !size))
+	if (drm_WARN_ON_ONCE(&ptdev->base, !*size))
 		return 0;
 
 	/*
@@ -549,16 +549,17 @@ static u64 pack_region_range(struct panthor_device *ptdev, u64 region_start, u64
 	 * change, the desired region starts with this bit (and subsequent bits)
 	 * zeroed and ends with the bit (and subsequent bits) set to one.
 	 */
-	region_width = max(fls64(region_start ^ (region_end - 1)),
+	region_width = max(fls64(*region_start ^ (region_end - 1)),
 			   const_ilog2(AS_LOCK_REGION_MIN_SIZE)) - 1;
 
 	/*
 	 * Mask off the low bits of region_start (which would be ignored by
 	 * the hardware anyway)
 	 */
-	region_start &= GENMASK_ULL(63, region_width);
+	*region_start &= GENMASK_ULL(63, region_width);
+	*size = 1ull << (region_width + 1);
 
-	return region_width | region_start;
+	return region_width | *region_start;
 }
 
 static int panthor_mmu_as_enable(struct panthor_device *ptdev, u32 as_nr,
@@ -1641,12 +1642,19 @@ static int panthor_vm_lock_region(struct panthor_vm *vm, u64 start, u64 size)
 	struct panthor_device *ptdev = vm->ptdev;
 	int ret = 0;
 
+	/* sm_step_remap() can call panthor_vm_lock_region() to account for
+	 * the wider unmap needed when doing a partial huge page unamp. We
+	 * need to ignore the lock if it's already part of the locked region.
+	 */
+	if (start >= vm->locked_region.start &&
+	    start + size <= vm->locked_region.start + vm->locked_region.size)
+		return 0;
+
 	mutex_lock(&ptdev->mmu->as.slots_lock);
-	drm_WARN_ON(&ptdev->base, vm->locked_region.start || vm->locked_region.size);
 	if (vm->as.id >= 0 && size) {
 		/* Lock the region that needs to be updated */
 		gpu_write64(ptdev, AS_LOCKADDR(vm->as.id),
-			    pack_region_range(ptdev, start, size));
+			    pack_region_range(ptdev, &start, &size));
 
 		/* If the lock succeeded, update the locked_region info. */
 		ret = as_send_cmd_and_wait(ptdev, vm->as.id, AS_COMMAND_LOCK);
@@ -2106,6 +2114,48 @@ static int panthor_gpuva_sm_step_map(struct drm_gpuva_op *op, void *priv)
 	return 0;
 }
 
+static bool
+iova_mapped_as_huge_page(struct drm_gpuva_op_map *op, u64 addr)
+{
+	const struct page *pg;
+	pgoff_t bo_offset;
+
+	bo_offset = addr - op->va.addr + op->gem.offset;
+	pg = to_panthor_bo(op->gem.obj)->base.pages[bo_offset >> PAGE_SHIFT];
+
+	return folio_size(page_folio(pg)) >= SZ_2M;
+}
+
+static void
+unmap_hugepage_align(const struct drm_gpuva_op_remap *op,
+		     u64 *unmap_start, u64 *unmap_range)
+{
+	u64 aligned_unmap_start, aligned_unmap_end, unmap_end;
+
+	unmap_end = *unmap_start + *unmap_range;
+	aligned_unmap_start = ALIGN_DOWN(*unmap_start, SZ_2M);
+	aligned_unmap_end = ALIGN(unmap_end, SZ_2M);
+
+	/* If we're dealing with a huge page, make sure the unmap region is
+	 * aligned on the start of the page.
+	 */
+	if (op->prev && aligned_unmap_start < *unmap_start &&
+	    op->prev->va.addr <= aligned_unmap_start &&
+	    iova_mapped_as_huge_page(op->prev, *unmap_start)) {
+		*unmap_range += *unmap_start - aligned_unmap_start;
+		*unmap_start = aligned_unmap_start;
+	}
+
+	/* If we're dealing with a huge page, make sure the unmap region is
+	 * aligned on the end of the page.
+	 */
+	if (op->next && aligned_unmap_end > unmap_end &&
+	    op->next->va.addr + op->next->va.range >= aligned_unmap_end &&
+	    iova_mapped_as_huge_page(op->next, unmap_end - 1)) {
+		*unmap_range += aligned_unmap_end - unmap_end;
+	}
+}
+
 static int panthor_gpuva_sm_step_remap(struct drm_gpuva_op *op,
 				       void *priv)
 {
@@ -2114,16 +2164,50 @@ static int panthor_gpuva_sm_step_remap(struct drm_gpuva_op *op,
 	struct panthor_vm_op_ctx *op_ctx = vm->op_ctx;
 	struct panthor_vma *prev_vma = NULL, *next_vma = NULL;
 	u64 unmap_start, unmap_range;
+	int ret;
 
 	drm_gpuva_op_remap_to_unmap_range(&op->remap, &unmap_start, &unmap_range);
+
+	/*
+	 * ARM IOMMU page table management code disallows partial unmaps of huge pages,
+	 * so when a partial unmap is requested, we must first unmap the entire huge
+	 * page and then remap the difference between the huge page minus the requested
+	 * unmap region. Calculating the right start address and range for the expanded
+	 * unmap operation is the responsibility of the following function.
+	 */
+	unmap_hugepage_align(&op->remap, &unmap_start, &unmap_range);
+
+	/* If the range changed, we might have to lock a wider region to guarantee
+	 * atomicity. panthor_vm_lock_region() bails out early if the new region
+	 * is already part of the locked region, so no need to do this check here.
+	 */
+	panthor_vm_lock_region(vm, unmap_start, unmap_range);
 	panthor_vm_unmap_pages(vm, unmap_start, unmap_range);
 
 	if (op->remap.prev) {
+		struct panthor_gem_object *bo = to_panthor_bo(op->remap.prev->gem.obj);
+		u64 offset = op->remap.prev->gem.offset + unmap_start - op->remap.prev->va.addr;
+		u64 size = op->remap.prev->va.addr + op->remap.prev->va.range - unmap_start;
+
+		ret = panthor_vm_map_pages(vm, unmap_start, flags_to_prot(unmap_vma->flags),
+					   bo->base.sgt, offset, size);
+		if (ret)
+			return ret;
+
 		prev_vma = panthor_vm_op_ctx_get_vma(op_ctx);
 		panthor_vma_init(prev_vma, unmap_vma->flags);
 	}
 
 	if (op->remap.next) {
+		struct panthor_gem_object *bo = to_panthor_bo(op->remap.next->gem.obj);
+		u64 addr = op->remap.next->va.addr;
+		u64 size = unmap_start + unmap_range - op->remap.next->va.addr;
+
+		ret = panthor_vm_map_pages(vm, addr, flags_to_prot(unmap_vma->flags),
+					   bo->base.sgt, op->remap.next->gem.offset, size);
+		if (ret)
+			return ret;
+
 		next_vma = panthor_vm_op_ctx_get_vma(op_ctx);
 		panthor_vma_init(next_vma, unmap_vma->flags);
 	}
