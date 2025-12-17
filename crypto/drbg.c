@@ -842,15 +842,13 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 	return ret;
 }
 
-static inline int drbg_get_random_bytes(struct drbg_state *drbg,
-					unsigned char *entropy,
-					unsigned int entropylen)
+static inline void drbg_get_random_bytes(struct drbg_state *drbg,
+					 unsigned char *entropy,
+					 unsigned int entropylen)
 {
 	do
 		get_random_bytes(entropy, entropylen);
 	while (!drbg_fips_continuous_test(drbg, entropy));
-
-	return 0;
 }
 
 static int drbg_seed_from_random(struct drbg_state *drbg)
@@ -867,13 +865,10 @@ static int drbg_seed_from_random(struct drbg_state *drbg)
 	drbg_string_fill(&data, entropy, entropylen);
 	list_add_tail(&data.list, &seedlist);
 
-	ret = drbg_get_random_bytes(drbg, entropy, entropylen);
-	if (ret)
-		goto out;
+	drbg_get_random_bytes(drbg, entropy, entropylen);
 
 	ret = __drbg_seed(drbg, &seedlist, true, DRBG_SEED_STATE_FULL);
 
-out:
 	memzero_explicit(entropy, entropylen);
 	return ret;
 }
@@ -948,9 +943,7 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 		if (!rng_is_initialized())
 			new_seed_state = DRBG_SEED_STATE_PARTIAL;
 
-		ret = drbg_get_random_bytes(drbg, entropy, entropylen);
-		if (ret)
-			goto out;
+		drbg_get_random_bytes(drbg, entropy, entropylen);
 
 		if (!drbg->jent) {
 			drbg_string_fill(&data1, entropy, entropylen);
