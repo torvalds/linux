@@ -359,8 +359,7 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_generic_chip_config config;
 	struct device *dev = &pdev->dev;
-	unsigned long gen_gc_flags;
-	unsigned int dev_flags;
+	unsigned long gen_gc_flags, dev_flags;
 	struct gpio_irq_chip *girq;
 	struct realtek_gpio_ctrl *ctrl;
 	struct resource *res;
@@ -372,7 +371,7 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 	if (!ctrl)
 		return -ENOMEM;
 
-	dev_flags = (unsigned int) device_get_match_data(dev);
+	dev_flags = (uintptr_t)device_get_match_data(dev);
 
 	ngpios = REALTEK_GPIO_MAX;
 	device_property_read_u32(dev, "ngpios", &ngpios);
