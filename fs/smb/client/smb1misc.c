@@ -175,3 +175,15 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
 	return true;
 }
+
+/*
+ * calculate the size of the SMB message based on the fixed header
+ * portion, the number of word parameters and the data portion of the message
+ */
+unsigned int
+smbCalcSize(void *buf)
+{
+	struct smb_hdr *ptr = buf;
+	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
+		2 /* size of the bcc field */ + get_bcc(ptr));
+}

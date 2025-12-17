@@ -220,11 +220,19 @@ void cifs_dump_detail(void *buf, size_t buf_len,
 		      struct TCP_Server_Info *server);
 
 /*
+ * smb1maperror.c
+ */
+int map_smb_to_linux_error(char *buf, bool logErr);
+int map_and_check_smb_error(struct TCP_Server_Info *server,
+			    struct mid_q_entry *mid, bool logErr);
+
+/*
  * smb1misc.c
  */
 unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
 			     const struct cifs_tcon *treeCon, int word_count);
 bool is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv);
+unsigned int smbCalcSize(void *buf);
 
 /*
  * smb1ops.c

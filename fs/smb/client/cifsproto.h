@@ -148,14 +148,10 @@ int cifs_get_readable_path(struct cifs_tcon *tcon, const char *name,
 			   struct cifsFileInfo **ret_file);
 int cifs_get_hardlink_path(struct cifs_tcon *tcon, struct inode *inode,
 			   struct file *file);
-unsigned int smbCalcSize(void *buf);
 int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
-int map_smb_to_linux_error(char *buf, bool logErr);
-int map_and_check_smb_error(struct TCP_Server_Info *server,
-			    struct mid_q_entry *mid, bool logErr);
 int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 		   struct TCP_Server_Info *server,
 		   const struct nls_table *nls_cp);
