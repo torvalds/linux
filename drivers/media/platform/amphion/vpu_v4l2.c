@@ -102,7 +102,6 @@ static int vpu_notify_eos(struct vpu_inst *inst)
 int vpu_notify_source_change(struct vpu_inst *inst)
 {
 	static const struct v4l2_event ev = {
-		.id = 0,
 		.type = V4L2_EVENT_SOURCE_CHANGE,
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION
 	};
