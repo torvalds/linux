@@ -242,6 +242,18 @@ int checkSMB(char *buf, unsigned int pdu_len, unsigned int total_read,
 	     struct TCP_Server_Info *server);
 
 
+static inline __u16
+get_mid(const struct smb_hdr *smb)
+{
+	return le16_to_cpu(smb->Mid);
+}
+
+static inline bool
+compare_mid(__u16 mid, const struct smb_hdr *smb)
+{
+	return mid == le16_to_cpu(smb->Mid);
+}
+
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
 #define GETU16(var)  (*((__u16 *)var))	/* BB check for endian issues */
