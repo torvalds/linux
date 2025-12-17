@@ -3222,18 +3222,11 @@ int f2fs_enable_quota_files(struct f2fs_sb_info *sbi, bool rdonly)
 }
 
 static int f2fs_quota_enable(struct super_block *sb, int type, int format_id,
-			     unsigned int flags)
+			     unsigned int flags, unsigned long qf_inum)
 {
 	struct inode *qf_inode;
-	unsigned long qf_inum;
 	unsigned long qf_flag = F2FS_QUOTA_DEFAULT_FL;
 	int err;
-
-	BUG_ON(!f2fs_sb_has_quota_ino(F2FS_SB(sb)));
-
-	qf_inum = f2fs_qf_ino(sb, type);
-	if (!qf_inum)
-		return -EPERM;
 
 	qf_inode = f2fs_iget(sb, qf_inum);
 	if (IS_ERR(qf_inode)) {
@@ -3267,7 +3260,7 @@ static int f2fs_enable_quotas(struct super_block *sb)
 		test_opt(sbi, PRJQUOTA),
 	};
 
-	if (is_set_ckpt_flags(F2FS_SB(sb), CP_QUOTA_NEED_FSCK_FLAG)) {
+	if (is_set_ckpt_flags(sbi, CP_QUOTA_NEED_FSCK_FLAG)) {
 		f2fs_err(sbi, "quota file may be corrupted, skip loading it");
 		return 0;
 	}
@@ -3279,14 +3272,13 @@ static int f2fs_enable_quotas(struct super_block *sb)
 		if (qf_inum) {
 			err = f2fs_quota_enable(sb, type, QFMT_VFS_V1,
 				DQUOT_USAGE_ENABLED |
-				(quota_mopt[type] ? DQUOT_LIMITS_ENABLED : 0));
+				(quota_mopt[type] ? DQUOT_LIMITS_ENABLED : 0), qf_inum);
 			if (err) {
 				f2fs_err(sbi, "Failed to enable quota tracking (type=%d, err=%d). Please run fsck to fix.",
 					 type, err);
 				for (type--; type >= 0; type--)
 					dquot_quota_off(sb, type);
-				set_sbi_flag(F2FS_SB(sb),
-						SBI_QUOTA_NEED_REPAIR);
+				set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
 				return err;
 			}
 		}
