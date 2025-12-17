@@ -52,7 +52,7 @@ static int get_device_die_id(struct pci_dev *dev)
 
 static inline int __type_cmp(const void *key, const struct rb_node *b)
 {
-	struct intel_uncore_discovery_type *type_b = __node_2_type(b);
+	const struct intel_uncore_discovery_type *type_b = __node_2_type(b);
 	const u16 *type_id = key;
 
 	if (type_b->type > *type_id)
@@ -115,7 +115,7 @@ get_uncore_discovery_type(struct uncore_unit_discovery *unit)
 
 static inline int pmu_idx_cmp(const void *key, const struct rb_node *b)
 {
-	struct intel_uncore_discovery_unit *unit;
+	const struct intel_uncore_discovery_unit *unit;
 	const unsigned int *id = key;
 
 	unit = rb_entry(b, struct intel_uncore_discovery_unit, node);
@@ -173,7 +173,7 @@ int intel_uncore_find_discovery_unit_id(struct rb_root *units, int die,
 
 static inline bool unit_less(struct rb_node *a, const struct rb_node *b)
 {
-	struct intel_uncore_discovery_unit *a_node, *b_node;
+	const struct intel_uncore_discovery_unit *a_node, *b_node;
 
 	a_node = rb_entry(a, struct intel_uncore_discovery_unit, node);
 	b_node = rb_entry(b, struct intel_uncore_discovery_unit, node);
