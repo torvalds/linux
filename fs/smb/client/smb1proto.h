@@ -220,6 +220,15 @@ void cifs_dump_detail(void *buf, size_t buf_len,
 		      struct TCP_Server_Info *server);
 
 /*
+ * smb1encrypt.c
+ */
+int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
+		   __u32 *pexpected_response_sequence_number);
+int cifs_verify_signature(struct smb_rqst *rqst,
+			  struct TCP_Server_Info *server,
+			  __u32 expected_sequence_number);
+
+/*
  * smb1maperror.c
  */
 int map_smb_to_linux_error(char *buf, bool logErr);

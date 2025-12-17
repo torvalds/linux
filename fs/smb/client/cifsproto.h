@@ -326,11 +326,6 @@ struct cifs_tcon *tcon_info_alloc(bool dir_leases_enabled,
 				  enum smb3_tcon_ref_trace trace);
 void tconInfoFree(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace);
 
-int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
-		   __u32 *pexpected_response_sequence_number);
-int cifs_verify_signature(struct smb_rqst *rqst,
-			  struct TCP_Server_Info *server,
-			  __u32 expected_sequence_number);
 int setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp);
 void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 int calc_seckey(struct cifs_ses *ses);
