@@ -51,7 +51,6 @@ MODULE_DEVICE_TABLE(pci, pci_ids);
 
 static const struct amdxdna_device_id amdxdna_ids[] = {
 	{ 0x1502, 0x0,  &dev_npu1_info },
-	{ 0x17f0, 0x0,  &dev_npu2_info },
 	{ 0x17f0, 0x10, &dev_npu4_info },
 	{ 0x17f0, 0x11, &dev_npu5_info },
 	{ 0x17f0, 0x20, &dev_npu6_info },
