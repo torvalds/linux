@@ -187,7 +187,7 @@ static int irq_domain_set_name(struct irq_domain *domain, const struct irq_domai
 	const struct fwnode_handle *fwnode = info->fwnode;
 
 	if (is_fwnode_irqchip(fwnode)) {
-		struct irqchip_fwid *fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
+		const struct irqchip_fwid *fwid = container_of(fwnode, struct irqchip_fwid, fwnode);
 
 		/*
 		 * The name_suffix is only intended to be used to avoid a name
