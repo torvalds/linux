@@ -7143,22 +7143,24 @@ void dc_log_preos_dmcub_info(const struct dc *dc)
 bool dc_get_qos_info(struct dc *dc, struct dc_qos_info *info)
 {
 	const struct dc_clocks *clk = &dc->current_state->bw_ctx.bw.dcn.clk;
+	struct memory_qos qos;
 
 	memset(info, 0, sizeof(*info));
 
-	// Check if all measurement functions are available
-	if (!dc->hwss.measure_peak_bw_mbps ||
-	    !dc->hwss.measure_avg_bw_mbps ||
-	    !dc->hwss.measure_max_latency_ns ||
-	    !dc->hwss.measure_avg_latency_ns) {
+	// Check if measurement function is available
+	if (!dc->hwss.measure_memory_qos) {
 		return false;
 	}
 
-	// Call measurement functions to get actual values
-	info->actual_peak_bw_in_mbps = dc->hwss.measure_peak_bw_mbps(dc);
-	info->actual_avg_bw_in_mbps = dc->hwss.measure_avg_bw_mbps(dc);
-	info->actual_max_latency_in_ns = dc->hwss.measure_max_latency_ns(dc);
-	info->actual_avg_latency_in_ns = dc->hwss.measure_avg_latency_ns(dc);
+	// Call unified measurement function
+	dc->hwss.measure_memory_qos(dc, &qos);
+
+	// Populate info from measured qos
+	info->actual_peak_bw_in_mbps = qos.peak_bw_mbps;
+	info->actual_avg_bw_in_mbps = qos.avg_bw_mbps;
+	info->actual_min_latency_in_ns = qos.min_latency_ns;
+	info->actual_max_latency_in_ns = qos.max_latency_ns;
+	info->actual_avg_latency_in_ns = qos.avg_latency_ns;
 	info->dcn_bandwidth_ub_in_mbps = (uint32_t)(clk->fclk_khz / 1000 * 64);
 
 	return true;

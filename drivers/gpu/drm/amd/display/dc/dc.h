@@ -962,6 +962,7 @@ struct dc_qos_info {
 	uint32_t actual_avg_bw_in_mbps;
 	uint32_t calculated_avg_bw_in_mbps;
 	uint32_t actual_max_latency_in_ns;
+	uint32_t actual_min_latency_in_ns;
 	uint32_t qos_max_latency_ub_in_ns;
 	uint32_t actual_avg_latency_in_ns;
 	uint32_t qos_avg_latency_ub_in_ns;

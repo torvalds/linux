@@ -52,7 +52,7 @@ struct drr_params;
 struct dc_underflow_debug_data;
 struct dsc_optc_config;
 struct vm_system_aperture_param;
-
+struct memory_qos;
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
 	bool lock;
@@ -1289,40 +1289,14 @@ struct hw_sequencer_funcs {
 			struct dc_underflow_debug_data *out_data);
 
 	/**
-	 * measure_peak_bw_mbps - Measure actual peak bandwidth in Mbps
+	 * measure_memory_qos - Measure memory QoS metrics
 	 * @dc: DC structure
+	 * @qos: Pointer to memory_qos struct to populate with measured values
 	 *
-	 * Returns the measured peak bandwidth value in Mbps from hardware
-	 * performance counters or registers.
+	 * Populates the provided memory_qos struct with peak bandwidth, average bandwidth,
+	 * max latency, min latency, and average latency from hardware performance counters.
 	 */
-	uint32_t (*measure_peak_bw_mbps)(struct dc *dc);
-
-	/**
-	 * measure_avg_bw_mbps - Measure actual average bandwidth in Mbps
-	 * @dc: DC structure
-	 *
-	 * Returns the measured average bandwidth value in Mbps from hardware
-	 * performance counters or registers.
-	 */
-	uint32_t (*measure_avg_bw_mbps)(struct dc *dc);
-
-	/**
-	 * measure_max_latency_ns - Measure actual maximum latency in nanoseconds
-	 * @dc: DC structure
-	 *
-	 * Returns the measured maximum latency value in nanoseconds from hardware
-	 * performance counters or registers.
-	 */
-	uint32_t (*measure_max_latency_ns)(struct dc *dc);
-
-	/**
-	 * measure_avg_latency_ns - Measure actual average latency in nanoseconds
-	 * @dc: DC structure
-	 *
-	 * Returns the measured average latency value in nanoseconds from hardware
-	 * performance counters or registers.
-	 */
-	uint32_t (*measure_avg_latency_ns)(struct dc *dc);
+	void (*measure_memory_qos)(struct dc *dc, struct memory_qos *qos);
 
 };
 
