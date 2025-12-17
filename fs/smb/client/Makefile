@@ -34,6 +34,7 @@ cifs-$(CONFIG_CIFS_ROOT) += cifsroot.o
 
 cifs-$(CONFIG_CIFS_ALLOW_INSECURE_LEGACY) += \
 	cifssmb.o \
+	smb1debug.o \
 	smb1ops.o \
 	smb1transport.o
 

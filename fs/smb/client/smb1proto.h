@@ -8,8 +8,10 @@
 #ifndef _SMB1PROTO_H
 #define _SMB1PROTO_H
 
+#include <linux/uidgid_types.h>
 #include <linux/unaligned.h>
 #include "../common/smb2pdu.h"
+#include "cifsglob.h"
 
 struct cifs_unix_set_info_args {
 	__u64	ctime;
@@ -210,6 +212,12 @@ int CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 		 const void *ea_value, const __u16 ea_value_len,
 		 const struct nls_table *nls_codepage,
 		 struct cifs_sb_info *cifs_sb);
+
+/*
+ * smb1debug.c
+ */
+void cifs_dump_detail(void *buf, size_t buf_len,
+		      struct TCP_Server_Info *server);
 
 /*
  * smb1ops.c
