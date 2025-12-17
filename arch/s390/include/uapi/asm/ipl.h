@@ -15,6 +15,7 @@ struct ipl_pl_hdr {
 #define IPL_PL_FLAG_IPLPS	0x80
 #define IPL_PL_FLAG_SIPL	0x40
 #define IPL_PL_FLAG_IPLSR	0x20
+#define IPL_PL_FLAG_SBP		0x10
 
 /* IPL Parameter Block header */
 struct ipl_pb_hdr {
