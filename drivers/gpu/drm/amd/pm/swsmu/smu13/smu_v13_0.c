@@ -2366,6 +2366,7 @@ void smu_v13_0_init_msg_ctl(struct smu_context *smu,
 	ctl->ops = &smu_msg_v1_ops;
 	ctl->default_timeout = adev->usec_timeout * 20;
 	ctl->message_map = message_map;
+	ctl->flags = 0;
 }
 
 int smu_v13_0_mode1_reset(struct smu_context *smu)

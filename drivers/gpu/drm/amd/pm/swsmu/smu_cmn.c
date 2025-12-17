@@ -102,17 +102,14 @@ static int smu_msg_v1_send_debug_msg(struct smu_msg_ctl *ctl, u32 msg, u32 param
 	return 0;
 }
 
-static int __smu_cmn_send_debug_msg(struct smu_context *smu,
-			       u32 msg,
-			       u32 param)
+static int __smu_cmn_send_debug_msg(struct smu_msg_ctl *ctl,
+				    u32 msg,
+				    u32 param)
 {
-	struct amdgpu_device *adev = smu->adev;
+	if (!ctl->ops || !ctl->ops->send_debug_msg)
+		return -EOPNOTSUPP;
 
-	WREG32(smu->debug_param_reg, param);
-	WREG32(smu->debug_msg_reg, msg);
-	WREG32(smu->debug_resp_reg, 0);
-
-	return 0;
+	return ctl->ops->send_debug_msg(ctl, msg, param);
 }
 
 /**
@@ -199,13 +196,13 @@ int smu_cmn_send_smc_msg(struct smu_context *smu,
 int smu_cmn_send_debug_smc_msg(struct smu_context *smu,
 			 uint32_t msg)
 {
-	return __smu_cmn_send_debug_msg(smu, msg, 0);
+	return __smu_cmn_send_debug_msg(&smu->msg_ctl, msg, 0);
 }
 
 int smu_cmn_send_debug_smc_msg_with_param(struct smu_context *smu,
 			 uint32_t msg, uint32_t param)
 {
-	return __smu_cmn_send_debug_msg(smu, msg, param);
+	return __smu_cmn_send_debug_msg(&smu->msg_ctl, msg, param);
 }
 
 static int smu_msg_v1_decode_response(u32 resp)

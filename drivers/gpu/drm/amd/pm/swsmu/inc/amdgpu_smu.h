@@ -755,10 +755,6 @@ struct smu_context {
 
 	struct firmware pptable_firmware;
 
-	u32 debug_param_reg;
-	u32 debug_msg_reg;
-	u32 debug_resp_reg;
-
 	struct delayed_work		swctf_delayed_work;
 
 	/* data structures for wbrf feature support */
