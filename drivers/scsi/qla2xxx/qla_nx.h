@@ -892,6 +892,7 @@ struct ct6_dsd {
 #define	FA_VPD_SIZE_82XX	0x400
 
 #define FA_FLASH_LAYOUT_ADDR_82	0xFC400
+#define FA_FLASH_MCU_OFF	0x13000
 
 /******************************************************************************
 *
