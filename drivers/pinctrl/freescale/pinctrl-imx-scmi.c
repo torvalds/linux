@@ -38,11 +38,12 @@ struct scmi_pinctrl_imx {
 };
 
 /* SCMI pin control types, aligned with SCMI firmware */
-#define IMX_SCMI_NUM_CFG	4
+#define IMX_SCMI_NUM_CFG	5
 #define IMX_SCMI_PIN_MUX	192
 #define IMX_SCMI_PIN_CONFIG	193
 #define IMX_SCMI_PIN_DAISY_ID	194
 #define IMX_SCMI_PIN_DAISY_CFG	195
+#define IMX_SCMI_PIN_EXT	196
 
 #define IMX_SCMI_NO_PAD_CTL		BIT(31)
 #define IMX_SCMI_PAD_SION		BIT(30)
@@ -118,7 +119,14 @@ static int pinctrl_scmi_imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 		pin_id = mux_reg / 4;
 
-		cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_MUX, mux_val);
+		cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_MUX, (mux_val & 0xFF));
+
+		if (mux_val & 0xFF00) {
+			int ext_val = (mux_val & 0xFF00) >> 8;
+
+			cfg[j++] = pinconf_to_config_packed(IMX_SCMI_PIN_EXT, ext_val);
+		} else
+			ncfg--;
 
 		if (!conf_reg || (conf_val & IMX_SCMI_NO_PAD_CTL))
 			ncfg--;
