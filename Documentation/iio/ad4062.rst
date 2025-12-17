@@ -29,6 +29,9 @@ the devicetree ``interrupt-names`` property:
 - GP0: Is assigned the role of Threshold Either signal.
 - GP1: Is assigned the role of Data Ready signal.
 
+If the property ``gpio-controller`` is present in the devicetree, then the GPO
+not present in the ``interrupt-names`` is exposed as a GPO.
+
 Device attributes
 =================
 
@@ -134,3 +137,12 @@ The following event attributes are available:
      - Set the hysteresis value for the maximum threshold.
    * - ``thresh_rising_value``
      - Set the maximum threshold value.
+
+GPO controller support
+======================
+
+The device supports using GP0 and GP1 as GPOs. If the devicetree contains the
+node ``gpio-controller```, the device is marked as a GPIO controller and the
+GPs not listed in ``interrupt-names`` are exposed as a GPO. The GPIO index
+matches the pin name, so if GP0 is not exposed but GP1 is, index 0 is masked
+out and only index 1 can be set.
