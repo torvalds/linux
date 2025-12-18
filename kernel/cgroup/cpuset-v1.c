@@ -560,7 +560,7 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
 		dattr->relax_domain_level = c->relax_domain_level;
 }
 
-void update_domain_attr_tree(struct sched_domain_attr *dattr,
+static void update_domain_attr_tree(struct sched_domain_attr *dattr,
 				    struct cpuset *root_cs)
 {
 	struct cpuset *cp;

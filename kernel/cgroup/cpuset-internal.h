@@ -175,14 +175,14 @@ struct cpuset {
 	/* Handle for cpuset.cpus.partition */
 	struct cgroup_file partition_file;
 
-	/* Used to merge intersecting subsets for generate_sched_domains */
-	struct uf_node node;
-
 #ifdef CONFIG_CPUSETS_V1
 	struct fmeter fmeter;		/* memory_pressure filter */
 
 	/* for custom sched domain */
 	int relax_domain_level;
+
+	/* Used to merge intersecting subsets for generate_sched_domains */
+	struct uf_node node;
 #endif
 };
 
@@ -314,8 +314,6 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
 void cpuset1_init(struct cpuset *cs);
 void cpuset1_online_css(struct cgroup_subsys_state *css);
-void update_domain_attr_tree(struct sched_domain_attr *dattr,
-				    struct cpuset *root_cs);
 int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes);
 
@@ -330,8 +328,6 @@ static inline int cpuset1_validate_change(struct cpuset *cur,
 				struct cpuset *trial) { return 0; }
 static inline void cpuset1_init(struct cpuset *cs) {}
 static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
-static inline void update_domain_attr_tree(struct sched_domain_attr *dattr,
-				    struct cpuset *root_cs) {}
 static inline int cpuset1_generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes) { return 0; };
 
