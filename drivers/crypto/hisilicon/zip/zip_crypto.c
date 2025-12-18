@@ -66,6 +66,7 @@ struct hisi_zip_qp_ctx {
 	struct hisi_acc_sgl_pool *sgl_pool;
 	struct hisi_zip *zip_dev;
 	struct hisi_zip_ctx *ctx;
+	u8 req_type;
 };
 
 struct hisi_zip_sqe_ops {
@@ -245,7 +246,7 @@ static int hisi_zip_do_work(struct hisi_zip_qp_ctx *qp_ctx,
 		goto err_unmap_input;
 	}
 
-	hisi_zip_fill_sqe(qp_ctx->ctx, &zip_sqe, qp->req_type, req);
+	hisi_zip_fill_sqe(qp_ctx->ctx, &zip_sqe, qp_ctx->req_type, req);
 
 	/* send command to start a task */
 	atomic64_inc(&dfx->send_cnt);
@@ -360,7 +361,6 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *qp_ctx,
 	struct device *dev = &qp->qm->pdev->dev;
 	int ret;
 
-	qp->req_type = req_type;
 	qp->alg_type = alg_type;
 	qp->qp_ctx = qp_ctx;
 
@@ -397,10 +397,15 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 {
 	struct hisi_qp *qps[HZIP_CTX_Q_NUM] = { NULL };
 	struct hisi_zip_qp_ctx *qp_ctx;
+	u8 alg_type[HZIP_CTX_Q_NUM];
 	struct hisi_zip *hisi_zip;
 	int ret, i, j;
 
-	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, node);
+	/* alg_type = 0 for compress, 1 for decompress in hw sqe */
+	for (i = 0; i < HZIP_CTX_Q_NUM; i++)
+		alg_type[i] = i;
+
+	ret = zip_create_qps(qps, HZIP_CTX_Q_NUM, node, alg_type);
 	if (ret) {
 		pr_err("failed to create zip qps (%d)!\n", ret);
 		return -ENODEV;
@@ -409,7 +414,6 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 	hisi_zip = container_of(qps[0]->qm, struct hisi_zip, qm);
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
-		/* alg_type = 0 for compress, 1 for decompress in hw sqe */
 		qp_ctx = &hisi_zip_ctx->qp_ctx[i];
 		qp_ctx->ctx = hisi_zip_ctx;
 		ret = hisi_zip_start_qp(qps[i], qp_ctx, i, req_type);
@@ -422,6 +426,7 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 		}
 
 		qp_ctx->zip_dev = hisi_zip;
+		qp_ctx->req_type = req_type;
 	}
 
 	hisi_zip_ctx->ops = &hisi_zip_ops;
