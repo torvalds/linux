@@ -452,7 +452,7 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
-	unsigned int algs, alg;
+	unsigned long algs, alg;
 	erofs_off_t offset;
 	int size, ret = 0;
 
@@ -461,22 +461,19 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 		return z_erofs_load_lz4_config(sb, dsb, NULL, 0);
 	}
 
-	sbi->available_compr_algs = le16_to_cpu(dsb->u1.available_compr_algs);
-	if (sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS) {
-		erofs_err(sb, "unidentified algorithms %x, please upgrade kernel",
-			  sbi->available_compr_algs & ~Z_EROFS_ALL_COMPR_ALGS);
+	algs = le16_to_cpu(dsb->u1.available_compr_algs);
+	sbi->available_compr_algs = algs;
+	if (algs & ~Z_EROFS_ALL_COMPR_ALGS) {
+		erofs_err(sb, "unidentified algorithms %lx, please upgrade kernel",
+			  algs & ~Z_EROFS_ALL_COMPR_ALGS);
 		return -EOPNOTSUPP;
 	}
 
 	(void)erofs_init_metabuf(&buf, sb, false);
 	offset = EROFS_SUPER_OFFSET + sbi->sb_size;
-	alg = 0;
-	for (algs = sbi->available_compr_algs; algs; algs >>= 1, ++alg) {
+	for_each_set_bit(alg, &algs, Z_EROFS_COMPRESSION_MAX) {
 		const struct z_erofs_decompressor *dec = z_erofs_decomp[alg];
 		void *data;
-
-		if (!(algs & 1))
-			continue;
 
 		data = erofs_read_metadata(sb, &buf, &offset, &size);
 		if (IS_ERR(data)) {
@@ -484,10 +481,10 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 			break;
 		}
 
-		if (alg < Z_EROFS_COMPRESSION_MAX && dec && dec->config) {
+		if (dec && dec->config) {
 			ret = dec->config(sb, dsb, data, size);
 		} else {
-			erofs_err(sb, "algorithm %d isn't enabled on this kernel",
+			erofs_err(sb, "algorithm %ld isn't enabled on this kernel",
 				  alg);
 			ret = -EOPNOTSUPP;
 		}
