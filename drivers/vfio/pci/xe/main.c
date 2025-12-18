@@ -504,6 +504,7 @@ static const struct vfio_device_ops xe_vfio_pci_ops = {
 	.open_device = xe_vfio_pci_open_device,
 	.close_device = xe_vfio_pci_close_device,
 	.ioctl = vfio_pci_core_ioctl,
+	.get_region_info_caps = vfio_pci_ioctl_get_region_info,
 	.device_feature = vfio_pci_core_ioctl_feature,
 	.read = vfio_pci_core_read,
 	.write = vfio_pci_core_write,
