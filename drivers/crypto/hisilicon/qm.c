@@ -3553,6 +3553,14 @@ void hisi_qm_dev_err_uninit(struct hisi_qm *qm)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_err_uninit);
 
+static void qm_release_qp_nolock(struct hisi_qp *qp)
+{
+	struct hisi_qm *qm = qp->qm;
+
+	qm->qp_in_used--;
+	idr_remove(&qm->qp_idr, qp->qp_id);
+}
+
 /**
  * hisi_qm_free_qps() - free multiple queue pairs.
  * @qps: The queue pairs need to be freed.
@@ -3565,8 +3573,15 @@ void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num)
 	if (!qps || qp_num <= 0)
 		return;
 
-	for (i = qp_num - 1; i >= 0; i--)
-		hisi_qm_release_qp(qps[i]);
+	down_write(&qps[0]->qm->qps_lock);
+
+	for (i = qp_num - 1; i >= 0; i--) {
+		qm_stop_qp_nolock(qps[i]);
+		qm_release_qp_nolock(qps[i]);
+	}
+
+	up_write(&qps[0]->qm->qps_lock);
+	qm_pm_put_sync(qps[0]->qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_free_qps);
 
@@ -3578,6 +3593,43 @@ static void free_list(struct list_head *head)
 		list_del(&res->list);
 		kfree(res);
 	}
+}
+
+static int qm_get_and_start_qp(struct hisi_qm *qm, int qp_num, struct hisi_qp **qps, u8 *alg_type)
+{
+	int i, ret;
+
+	ret = qm_pm_get_sync(qm);
+	if (ret)
+		return ret;
+
+	down_write(&qm->qps_lock);
+	for (i = 0; i < qp_num; i++) {
+		qps[i] = qm_create_qp_nolock(qm, alg_type[i]);
+		if (IS_ERR(qps[i])) {
+			ret = -ENODEV;
+			goto stop_and_free;
+		}
+
+		ret = qm_start_qp_nolock(qps[i], 0);
+		if (ret) {
+			qm_release_qp_nolock(qps[i]);
+			goto stop_and_free;
+		}
+	}
+	up_write(&qm->qps_lock);
+
+	return 0;
+
+stop_and_free:
+	for (i--; i >= 0; i--) {
+		qm_stop_qp_nolock(qps[i]);
+		qm_release_qp_nolock(qps[i]);
+	}
+	up_write(&qm->qps_lock);
+	qm_pm_put_sync(qm);
+
+	return ret;
 }
 
 static int hisi_qm_sort_devices(int node, struct list_head *head,
@@ -3633,7 +3685,6 @@ int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
 	struct hisi_qm_resource *tmp;
 	int ret = -ENODEV;
 	LIST_HEAD(head);
-	int i;
 
 	if (!qps || !qm_list || qp_num <= 0)
 		return -EINVAL;
@@ -3645,18 +3696,9 @@ int hisi_qm_alloc_qps_node(struct hisi_qm_list *qm_list, int qp_num,
 	}
 
 	list_for_each_entry(tmp, &head, list) {
-		for (i = 0; i < qp_num; i++) {
-			qps[i] = hisi_qm_create_qp(tmp->qm, alg_type[i]);
-			if (IS_ERR(qps[i])) {
-				hisi_qm_free_qps(qps, i);
-				break;
-			}
-		}
-
-		if (i == qp_num) {
-			ret = 0;
+		ret = qm_get_and_start_qp(tmp->qm, qp_num, qps, alg_type);
+		if (!ret)
 			break;
-		}
 	}
 
 	mutex_unlock(&qm_list->lock);

@@ -156,27 +156,6 @@ static void hpre_dfx_add_req_time(struct hpre_asym_request *hpre_req)
 		ktime_get_ts64(&hpre_req->req_time);
 }
 
-static struct hisi_qp *hpre_get_qp_and_start(u8 type)
-{
-	struct hisi_qp *qp;
-	int ret;
-
-	qp = hpre_create_qp(type);
-	if (!qp) {
-		pr_err("Can not create hpre qp!\n");
-		return ERR_PTR(-ENODEV);
-	}
-
-	ret = hisi_qm_start_qp(qp, 0);
-	if (ret < 0) {
-		hisi_qm_free_qps(&qp, 1);
-		pci_err(qp->qm->pdev, "Can not start qp!\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	return qp;
-}
-
 static int hpre_get_data_dma_addr(struct hpre_asym_request *hpre_req,
 				  struct scatterlist *data, unsigned int len,
 				  int is_src, dma_addr_t *tmp)
@@ -316,9 +295,8 @@ static int hpre_alg_res_post_hf(struct hpre_ctx *ctx, struct hpre_sqe *sqe,
 
 static void hpre_ctx_clear(struct hpre_ctx *ctx, bool is_clear_all)
 {
-	if (is_clear_all) {
+	if (is_clear_all)
 		hisi_qm_free_qps(&ctx->qp, 1);
-	}
 
 	ctx->crt_g2_mode = false;
 	ctx->key_sz = 0;
@@ -403,11 +381,10 @@ static int hpre_ctx_init(struct hpre_ctx *ctx, u8 type)
 	struct hisi_qp *qp;
 	struct hpre *hpre;
 
-	qp = hpre_get_qp_and_start(type);
-	if (IS_ERR(qp))
-		return PTR_ERR(qp);
+	qp = hpre_create_qp(type);
+	if (!qp)
+		return -ENODEV;
 
-	qp->qp_ctx = ctx;
 	qp->req_cb = hpre_alg_cb;
 	ctx->qp = qp;
 	ctx->dev = &qp->qm->pdev->dev;
@@ -596,9 +573,6 @@ static void hpre_dh_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 {
 	struct device *dev = ctx->dev;
 	unsigned int sz = ctx->key_sz;
-
-	if (is_clear_all)
-		hisi_qm_stop_qp(ctx->qp);
 
 	if (ctx->dh.g) {
 		dma_free_coherent(dev, sz, ctx->dh.g, ctx->dh.dma_g);
@@ -940,9 +914,6 @@ static void hpre_rsa_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 	unsigned int half_key_sz = ctx->key_sz >> 1;
 	struct device *dev = ctx->dev;
 
-	if (is_clear_all)
-		hisi_qm_stop_qp(ctx->qp);
-
 	if (ctx->rsa.pubkey) {
 		dma_free_coherent(dev, ctx->key_sz << 1,
 				  ctx->rsa.pubkey, ctx->rsa.dma_pubkey);
@@ -1111,9 +1082,6 @@ static void hpre_ecc_clear_ctx(struct hpre_ctx *ctx, bool is_clear_all)
 	struct device *dev = ctx->dev;
 	unsigned int sz = ctx->key_sz;
 	unsigned int shift = sz << 1;
-
-	if (is_clear_all)
-		hisi_qm_stop_qp(ctx->qp);
 
 	if (ctx->ecdh.p) {
 		/* ecdh: p->a->k->b */

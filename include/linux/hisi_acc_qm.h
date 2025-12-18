@@ -466,7 +466,6 @@ struct hisi_qp {
 
 	struct hisi_qp_status qp_status;
 	struct hisi_qp_ops *hw_ops;
-	void *qp_ctx;
 	void (*req_cb)(struct hisi_qp *qp, void *data);
 	void (*event_cb)(struct hisi_qp *qp);
 

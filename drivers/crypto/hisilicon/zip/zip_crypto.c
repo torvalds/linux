@@ -352,32 +352,6 @@ static int hisi_zip_adecompress(struct acomp_req *acomp_req)
 	return ret;
 }
 
-static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *qp_ctx,
-			     int alg_type, int req_type)
-{
-	struct device *dev = &qp->qm->pdev->dev;
-	int ret;
-
-	qp->alg_type = alg_type;
-	qp->qp_ctx = qp_ctx;
-
-	ret = hisi_qm_start_qp(qp, 0);
-	if (ret < 0) {
-		dev_err(dev, "failed to start qp (%d)!\n", ret);
-		return ret;
-	}
-
-	qp_ctx->qp = qp;
-
-	return 0;
-}
-
-static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *qp_ctx)
-{
-	hisi_qm_stop_qp(qp_ctx->qp);
-	hisi_qm_free_qps(&qp_ctx->qp, 1);
-}
-
 static const struct hisi_zip_sqe_ops hisi_zip_ops = {
 	.sqe_type		= 0x3,
 	.fill_addr		= hisi_zip_fill_addr,
@@ -396,7 +370,7 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 	struct hisi_zip_qp_ctx *qp_ctx;
 	u8 alg_type[HZIP_CTX_Q_NUM];
 	struct hisi_zip *hisi_zip;
-	int ret, i, j;
+	int ret, i;
 
 	/* alg_type = 0 for compress, 1 for decompress in hw sqe */
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++)
@@ -413,17 +387,9 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
 		qp_ctx = &hisi_zip_ctx->qp_ctx[i];
 		qp_ctx->ctx = hisi_zip_ctx;
-		ret = hisi_zip_start_qp(qps[i], qp_ctx, i, req_type);
-		if (ret) {
-			for (j = i - 1; j >= 0; j--)
-				hisi_qm_stop_qp(hisi_zip_ctx->qp_ctx[j].qp);
-
-			hisi_qm_free_qps(qps, HZIP_CTX_Q_NUM);
-			return ret;
-		}
-
 		qp_ctx->zip_dev = hisi_zip;
 		qp_ctx->req_type = req_type;
+		qp_ctx->qp = qps[i];
 	}
 
 	hisi_zip_ctx->ops = &hisi_zip_ops;
@@ -433,10 +399,13 @@ static int hisi_zip_ctx_init(struct hisi_zip_ctx *hisi_zip_ctx, u8 req_type, int
 
 static void hisi_zip_ctx_exit(struct hisi_zip_ctx *hisi_zip_ctx)
 {
+	struct hisi_qp *qps[HZIP_CTX_Q_NUM] = { NULL };
 	int i;
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++)
-		hisi_zip_release_qp(&hisi_zip_ctx->qp_ctx[i]);
+		qps[i] = hisi_zip_ctx->qp_ctx[i].qp;
+
+	hisi_qm_free_qps(qps, HZIP_CTX_Q_NUM);
 }
 
 static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
