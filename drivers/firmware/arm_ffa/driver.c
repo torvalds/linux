@@ -985,10 +985,27 @@ static void __do_sched_recv_cb(u16 part_id, u16 vcpu, bool is_per_vcpu)
 	}
 }
 
+/*
+ * Map logical ID index to the u16 index within the packed ID list.
+ *
+ * For native responses (FF-A width == kernel word size), IDs are
+ * tightly packed: idx -> idx.
+ *
+ * For 32-bit responses on a 64-bit kernel, each 64-bit register
+ * contributes 4 x u16 values but only the lower 2 are defined; the
+ * upper 2 are garbage. This mapping skips those upper halves:
+ *   0,1,2,3,4,5,... -> 0,1,4,5,8,9,...
+ */
+static int list_idx_to_u16_idx(int idx, bool is_native_resp)
+{
+	return is_native_resp ? idx : idx + 2 * (idx >> 1);
+}
+
 static void ffa_notification_info_get(void)
 {
-	int idx, list, max_ids, lists_cnt, ids_processed, ids_count[MAX_IDS_64];
-	bool is_64b_resp;
+	int ids_processed, ids_count[MAX_IDS_64];
+	int idx, list, max_ids, lists_cnt;
+	bool is_64b_resp, is_native_resp;
 	ffa_value_t ret;
 	u64 id_list;
 
@@ -1005,6 +1022,7 @@ static void ffa_notification_info_get(void)
 		}
 
 		is_64b_resp = (ret.a0 == FFA_FN64_SUCCESS);
+		is_native_resp = (ret.a0 == FFA_FN_NATIVE(SUCCESS));
 
 		ids_processed = 0;
 		lists_cnt = FIELD_GET(NOTIFICATION_INFO_GET_ID_COUNT, ret.a2);
@@ -1021,12 +1039,16 @@ static void ffa_notification_info_get(void)
 
 		/* Process IDs */
 		for (list = 0; list < lists_cnt; list++) {
+			int u16_idx;
 			u16 vcpu_id, part_id, *packed_id_list = (u16 *)&ret.a3;
 
 			if (ids_processed >= max_ids - 1)
 				break;
 
-			part_id = packed_id_list[ids_processed++];
+			u16_idx = list_idx_to_u16_idx(ids_processed,
+						      is_native_resp);
+			part_id = packed_id_list[u16_idx];
+			ids_processed++;
 
 			if (ids_count[list] == 1) { /* Global Notification */
 				__do_sched_recv_cb(part_id, 0, false);
@@ -1038,7 +1060,10 @@ static void ffa_notification_info_get(void)
 				if (ids_processed >= max_ids - 1)
 					break;
 
-				vcpu_id = packed_id_list[ids_processed++];
+				u16_idx = list_idx_to_u16_idx(ids_processed,
+							      is_native_resp);
+				vcpu_id = packed_id_list[u16_idx];
+				ids_processed++;
 
 				__do_sched_recv_cb(part_id, vcpu_id, true);
 			}
