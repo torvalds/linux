@@ -11,6 +11,8 @@
 #include <linux/preempt.h>
 #include <linux/pagemap.h>
 
+#include <kunit/visibility.h>
+
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
@@ -54,6 +56,8 @@ void arch_enter_lazy_mmu_mode(void)
 {
 	preempt_disable();
 }
+/* For lazy_mmu_mode KUnit tests */
+EXPORT_SYMBOL_IF_KUNIT(arch_enter_lazy_mmu_mode);
 
 void arch_flush_lazy_mmu_mode(void)
 {
@@ -62,12 +66,14 @@ void arch_flush_lazy_mmu_mode(void)
 	if (tb->tlb_nr)
 		flush_tlb_pending();
 }
+EXPORT_SYMBOL_IF_KUNIT(arch_flush_lazy_mmu_mode);
 
 void arch_leave_lazy_mmu_mode(void)
 {
 	arch_flush_lazy_mmu_mode();
 	preempt_enable();
 }
+EXPORT_SYMBOL_IF_KUNIT(arch_leave_lazy_mmu_mode);
 
 static void tlb_batch_add_one(struct mm_struct *mm, unsigned long vaddr,
 			      bool exec, unsigned int hugepage_shift)

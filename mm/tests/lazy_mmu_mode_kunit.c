@@ -2,7 +2,6 @@
 #include <kunit/test.h>
 #include <linux/pgtable.h>
 
-/* For some symbols referenced by arch_{enter,leave}_lazy_mmu_mode on powerpc */
 MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static void expect_not_active(struct kunit *test)
