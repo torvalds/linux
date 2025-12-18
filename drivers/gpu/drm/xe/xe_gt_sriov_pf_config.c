@@ -195,6 +195,25 @@ static int pf_push_vf_cfg_dbs(struct xe_gt *gt, unsigned int vfid, u32 begin, u3
 	return pf_push_vf_cfg_klvs(gt, vfid, 2, klvs, ARRAY_SIZE(klvs));
 }
 
+static int pf_push_vf_grp_cfg_u32(struct xe_gt *gt, unsigned int vfid,
+				  u16 key, const u32 *values, u32 count)
+{
+	CLASS(xe_guc_buf, buf)(&gt->uc.guc.buf, GUC_KLV_LEN_MIN + GUC_MAX_SCHED_GROUPS);
+	u32 *klv;
+
+	xe_gt_assert(gt, count && count <= GUC_MAX_SCHED_GROUPS);
+
+	if (!xe_guc_buf_is_valid(buf))
+		return -ENOBUFS;
+
+	klv = xe_guc_buf_cpu_ptr(buf);
+
+	klv[0] = FIELD_PREP(GUC_KLV_0_KEY, key) | FIELD_PREP(GUC_KLV_0_LEN, count);
+	memcpy(&klv[1], values, count * sizeof(u32));
+
+	return pf_push_vf_buf_klvs(gt, vfid, 1, buf, GUC_KLV_LEN_MIN + count);
+}
+
 static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 *exec_quantum)
 {
 	/* GuC will silently clamp values exceeding max */
@@ -268,6 +287,32 @@ static u32 encode_config_ggtt(u32 *cfg, const struct xe_gt_sriov_config *config,
 	return encode_ggtt(cfg, node->base.start, node->base.size, details);
 }
 
+static u32 encode_config_sched(struct xe_gt *gt, u32 *cfg, u32 n,
+			       const struct xe_gt_sriov_config *config)
+{
+	int i;
+
+	if (xe_sriov_gt_pf_policy_has_multi_group_modes(gt)) {
+		BUILD_BUG_ON(ARRAY_SIZE(config->exec_quantum) >
+			     GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_MAX_LEN);
+
+		cfg[n++] = PREP_GUC_KLV_CONST(GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_KEY,
+					      ARRAY_SIZE(config->exec_quantum));
+		for (i = 0; i < ARRAY_SIZE(config->exec_quantum); i++)
+			cfg[n++] = config->exec_quantum[i];
+
+		/* TODO: add group preempt timeout setting */
+	} else {
+		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_EXEC_QUANTUM);
+		cfg[n++] = config->exec_quantum[0];
+
+		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_PREEMPT_TIMEOUT);
+		cfg[n++] = config->preempt_timeout[0];
+	}
+
+	return n;
+}
+
 /* Return: number of configuration dwords written */
 static u32 encode_config(struct xe_gt *gt, u32 *cfg, const struct xe_gt_sriov_config *config,
 			 bool details)
@@ -298,11 +343,7 @@ static u32 encode_config(struct xe_gt *gt, u32 *cfg, const struct xe_gt_sriov_co
 		cfg[n++] = upper_32_bits(xe_bo_size(config->lmem_obj));
 	}
 
-	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_EXEC_QUANTUM);
-	cfg[n++] = config->exec_quantum[0];
-
-	cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_PREEMPT_TIMEOUT);
-	cfg[n++] = config->preempt_timeout[0];
+	n = encode_config_sched(gt, cfg, n, config);
 
 #define encode_threshold_config(TAG, NAME, VER...) ({					\
 	if (IF_ARGS(GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, VER), true, VER)) {		\
@@ -974,6 +1015,33 @@ static int pf_config_set_u32_done(struct xe_gt *gt, unsigned int vfid, u32 value
 	xe_gt_sriov_info(gt, "%s provisioned with %u%s %s\n",
 			 name, actual, unit(actual), what);
 	return 0;
+}
+
+static char *to_group_name(const char *what, u8 group, char *buf, size_t size)
+{
+	snprintf(buf, size, "group%u%s%s", group, what ? " " : "", what ?: "");
+	return buf;
+}
+
+static int
+pf_groups_cfg_set_u32_done(struct xe_gt *gt, unsigned int vfid, u32 *values, u32 count,
+			   void (*get_actual)(struct xe_gt *, unsigned int, u32 *, u32),
+			   const char *what, const char *(*unit)(u32), int err)
+{
+	u32 actual[GUC_MAX_SCHED_GROUPS];
+	char group_name[32];
+	u8 g;
+
+	xe_gt_assert(gt, count <= ARRAY_SIZE(actual));
+
+	get_actual(gt, vfid, actual, count);
+
+	for (g = 0; g < count; g++)
+		pf_config_set_u32_done(gt, vfid, values[g], actual[g],
+				       to_group_name(what, g, group_name, sizeof(group_name)),
+				       unit, err);
+
+	return err;
 }
 
 /**
@@ -1983,6 +2051,88 @@ int xe_gt_sriov_pf_config_bulk_set_exec_quantum_locked(struct xe_gt *gt, u32 exe
 					   exec_quantum_unit, n, err);
 }
 
+static int pf_provision_groups_exec_quantums(struct xe_gt *gt, unsigned int vfid,
+					     const u32 *exec_quantums, u32 count)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+	int i;
+
+	err = pf_push_vf_grp_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_KEY,
+				     exec_quantums, count);
+	if (unlikely(err))
+		return err;
+
+	/*
+	 * GuC silently clamps values exceeding the max and zeroes out the
+	 * quantum for groups not in the klv payload
+	 */
+	for (i = 0; i < ARRAY_SIZE(config->exec_quantum); i++) {
+		if (i < count)
+			config->exec_quantum[i] = min_t(u32, exec_quantums[i],
+							GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE);
+		else
+			config->exec_quantum[i] = 0;
+	}
+
+	return 0;
+}
+
+static void pf_get_groups_exec_quantums(struct xe_gt *gt, unsigned int vfid,
+					u32 *exec_quantums, u32 max_count)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	u32 count = min_t(u32, max_count, ARRAY_SIZE(config->exec_quantum));
+
+	memcpy(exec_quantums, config->exec_quantum, sizeof(u32) * count);
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_groups_exec_quantums() - Configure PF/VF EQs for sched groups.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
+ * @exec_quantums: array of requested EQs in milliseconds (0 is infinity)
+ * @count: number of entries in the array
+ *
+ * This function can only be called on PF.
+ * It will log the provisioned value or an error in case of the failure.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_groups_exec_quantums(struct xe_gt *gt, unsigned int vfid,
+						   u32 *exec_quantums, u32 count)
+{
+	int err;
+
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_provision_groups_exec_quantums(gt, vfid, exec_quantums, count);
+
+	return pf_groups_cfg_set_u32_done(gt, vfid, exec_quantums, count,
+					  pf_get_groups_exec_quantums,
+					  "execution quantum",
+					  exec_quantum_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_groups_exec_quantums() - Get PF/VF sched groups EQs
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
+ * @exec_quantums: array in which to store the execution quantums values
+ * @count: maximum number of entries to store
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_get_groups_exec_quantums(struct xe_gt *gt, unsigned int vfid,
+						    u32 *exec_quantums, u32 count)
+{
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
+
+	xe_gt_assert(gt, count <= GUC_MAX_SCHED_GROUPS);
+
+	pf_get_groups_exec_quantums(gt, vfid, exec_quantums, count);
+}
+
 static const char *preempt_timeout_unit(u32 preempt_timeout)
 {
 	return preempt_timeout ? "us" : "(infinity)";
@@ -2556,6 +2706,11 @@ static int pf_restore_vf_config_klv(struct xe_gt *gt, unsigned int vfid,
 		if (len != GUC_KLV_VF_CFG_EXEC_QUANTUM_LEN)
 			return -EBADMSG;
 		return pf_provision_exec_quantum(gt, vfid, value[0]);
+
+	case GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_KEY:
+		if (len > GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_MAX_LEN)
+			return -EBADMSG;
+		return pf_provision_groups_exec_quantums(gt, vfid, value, len);
 
 	case GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY:
 		if (len != GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN)
