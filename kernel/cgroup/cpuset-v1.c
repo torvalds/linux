@@ -502,6 +502,7 @@ out_unlock:
 void cpuset1_init(struct cpuset *cs)
 {
 	fmeter_init(&cs->fmeter);
+	cs->relax_domain_level = -1;
 }
 
 void cpuset1_online_css(struct cgroup_subsys_state *css)
@@ -550,6 +551,33 @@ void cpuset1_online_css(struct cgroup_subsys_state *css)
 	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
 	cpumask_copy(cs->effective_cpus, parent->cpus_allowed);
 	cpuset_callback_unlock_irq();
+}
+
+static void
+update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
+{
+	if (dattr->relax_domain_level < c->relax_domain_level)
+		dattr->relax_domain_level = c->relax_domain_level;
+}
+
+void update_domain_attr_tree(struct sched_domain_attr *dattr,
+				    struct cpuset *root_cs)
+{
+	struct cpuset *cp;
+	struct cgroup_subsys_state *pos_css;
+
+	rcu_read_lock();
+	cpuset_for_each_descendant_pre(cp, pos_css, root_cs) {
+		/* skip the whole subtree if @cp doesn't have any CPU */
+		if (cpumask_empty(cp->cpus_allowed)) {
+			pos_css = css_rightmost_descendant(pos_css);
+			continue;
+		}
+
+		if (is_sched_load_balance(cp))
+			update_domain_attr(dattr, cp);
+	}
+	rcu_read_unlock();
 }
 
 /*

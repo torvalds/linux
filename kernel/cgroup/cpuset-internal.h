@@ -150,9 +150,6 @@ struct cpuset {
 	 */
 	int attach_in_progress;
 
-	/* for custom sched domain */
-	int relax_domain_level;
-
 	/* partition root state */
 	int partition_root_state;
 
@@ -182,6 +179,9 @@ struct cpuset {
 
 #ifdef CONFIG_CPUSETS_V1
 	struct fmeter fmeter;		/* memory_pressure filter */
+
+	/* for custom sched domain */
+	int relax_domain_level;
 #endif
 };
 
@@ -296,6 +296,8 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
 void cpuset1_init(struct cpuset *cs);
 void cpuset1_online_css(struct cgroup_subsys_state *css);
+void update_domain_attr_tree(struct sched_domain_attr *dattr,
+				    struct cpuset *root_cs);
 #else
 static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk) {}
@@ -307,6 +309,9 @@ static inline int cpuset1_validate_change(struct cpuset *cur,
 				struct cpuset *trial) { return 0; }
 static inline void cpuset1_init(struct cpuset *cs) {}
 static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
+static inline void update_domain_attr_tree(struct sched_domain_attr *dattr,
+				    struct cpuset *root_cs) {}
+
 #endif /* CONFIG_CPUSETS_V1 */
 
 #endif /* __CPUSET_INTERNAL_H */

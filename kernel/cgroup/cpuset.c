@@ -215,8 +215,6 @@ static struct cpuset top_cpuset = {
 	.flags = BIT(CS_CPU_EXCLUSIVE) |
 		 BIT(CS_MEM_EXCLUSIVE) | BIT(CS_SCHED_LOAD_BALANCE),
 	.partition_root_state = PRS_ROOT,
-	.relax_domain_level = -1,
-	.remote_partition = false,
 };
 
 /*
@@ -753,34 +751,6 @@ out:
 static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
 {
 	return cpumask_intersects(a->effective_cpus, b->effective_cpus);
-}
-
-static void
-update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
-{
-	if (dattr->relax_domain_level < c->relax_domain_level)
-		dattr->relax_domain_level = c->relax_domain_level;
-	return;
-}
-
-static void update_domain_attr_tree(struct sched_domain_attr *dattr,
-				    struct cpuset *root_cs)
-{
-	struct cpuset *cp;
-	struct cgroup_subsys_state *pos_css;
-
-	rcu_read_lock();
-	cpuset_for_each_descendant_pre(cp, pos_css, root_cs) {
-		/* skip the whole subtree if @cp doesn't have any CPU */
-		if (cpumask_empty(cp->cpus_allowed)) {
-			pos_css = css_rightmost_descendant(pos_css);
-			continue;
-		}
-
-		if (is_sched_load_balance(cp))
-			update_domain_attr(dattr, cp);
-	}
-	rcu_read_unlock();
 }
 
 /* Must be called with cpuset_mutex held.  */
@@ -3603,7 +3573,6 @@ cpuset_css_alloc(struct cgroup_subsys_state *parent_css)
 
 	__set_bit(CS_SCHED_LOAD_BALANCE, &cs->flags);
 	cpuset1_init(cs);
-	cs->relax_domain_level = -1;
 
 	/* Set CS_MEMORY_MIGRATE for default hierarchy */
 	if (cpuset_v2())
