@@ -3564,6 +3564,27 @@ void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
 }
 
 /**
+ * xe_guc_has_registered_mlrc_queues - check whether there are any MLRC queues
+ * registered with the GuC
+ * @guc: GuC.
+ *
+ * Return: true if any MLRC queue is registered with the GuC, false otherwise.
+ */
+bool xe_guc_has_registered_mlrc_queues(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	guard(mutex)(&guc->submission_state.lock);
+
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		if (q->width > 1)
+			return true;
+
+	return false;
+}
+
+/**
  * xe_guc_contexts_hwsp_rebase - Re-compute GGTT references within all
  * exec queues registered to given GuC.
  * @guc: the &xe_guc struct instance

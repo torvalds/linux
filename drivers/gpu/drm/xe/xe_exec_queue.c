@@ -17,6 +17,7 @@
 #include "xe_dep_scheduler.h"
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_hw_engine_group.h"
@@ -1108,6 +1109,14 @@ static u32 calc_validate_logical_mask(struct xe_device *xe,
 	return return_mask;
 }
 
+static bool has_sched_groups(struct xe_gt *gt)
+{
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && xe_gt_sriov_pf_sched_groups_enabled(gt))
+		return true;
+
+	return false;
+}
+
 int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file)
 {
@@ -1198,6 +1207,13 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			up_read(&vm->lock);
 			xe_vm_put(vm);
 			return -ENOENT;
+		}
+
+		/* SRIOV sched groups are not compatible with multi-lrc */
+		if (XE_IOCTL_DBG(xe, args->width > 1 && has_sched_groups(hwe->gt))) {
+			up_read(&vm->lock);
+			xe_vm_put(vm);
+			return -EINVAL;
 		}
 
 		q = xe_exec_queue_create(xe, vm, logical_mask,

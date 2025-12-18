@@ -16,6 +16,7 @@
 #include "xe_guc_buf.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_guc_submit.h"
 #include "xe_pm.h"
 
 /*
@@ -590,6 +591,19 @@ static int pf_provision_sched_groups(struct xe_gt *gt, enum xe_sriov_sched_group
 	if (xe_sriov_pf_num_vfs(gt_to_xe(gt)))
 		return -EBUSY;
 
+	/*
+	 * The GuC silently ignores the setting if any MLRC contexts are
+	 * registered. We expect the admin to make sure that all apps that use
+	 * MLRC are terminated before scheduler groups are enabled, so this
+	 * check is just to make sure that the exec_queue destruction has been
+	 * completed.
+	 */
+	if (mode != XE_SRIOV_SCHED_GROUPS_DISABLED &&
+	    xe_guc_has_registered_mlrc_queues(&gt->uc.guc)) {
+		xe_gt_sriov_notice(gt, "can't enable sched groups with active MLRC queues\n");
+		return -EPERM;
+	}
+
 	err = __pf_provision_sched_groups(gt, mode);
 	if (err)
 		return err;
@@ -636,6 +650,20 @@ int xe_gt_sriov_pf_policy_set_sched_groups_mode(struct xe_gt *gt,
 
 	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
 	return pf_provision_sched_groups(gt, mode);
+}
+
+/**
+ * xe_gt_sriov_pf_policy_sched_groups_enabled() - check whether the GT has
+ * multiple scheduler groups enabled
+ * @gt: the &xe_gt to check
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if the GT has multiple groups enabled, false otherwise.
+ */
+bool xe_gt_sriov_pf_policy_sched_groups_enabled(struct xe_gt *gt)
+{
+	return gt->sriov.pf.policy.guc.sched_groups.current_mode != XE_SRIOV_SCHED_GROUPS_DISABLED;
 }
 
 static void pf_sanitize_guc_policies(struct xe_gt *gt)

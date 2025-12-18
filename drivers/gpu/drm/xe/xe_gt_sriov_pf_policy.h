@@ -25,6 +25,7 @@ bool xe_sriov_gt_pf_policy_has_sched_group_mode(struct xe_gt *gt,
 						enum xe_sriov_sched_group_modes mode);
 int xe_gt_sriov_pf_policy_set_sched_groups_mode(struct xe_gt *gt,
 						enum xe_sriov_sched_group_modes mode);
+bool xe_gt_sriov_pf_policy_sched_groups_enabled(struct xe_gt *gt);
 
 void xe_gt_sriov_pf_policy_init(struct xe_gt *gt);
 void xe_gt_sriov_pf_policy_sanitize(struct xe_gt *gt);

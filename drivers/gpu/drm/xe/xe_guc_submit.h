@@ -52,6 +52,8 @@ xe_guc_exec_queue_snapshot_free(struct xe_guc_submit_exec_queue_snapshot *snapsh
 void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p);
 void xe_guc_register_vf_exec_queue(struct xe_exec_queue *q, int ctx_type);
 
+bool xe_guc_has_registered_mlrc_queues(struct xe_guc *guc);
+
 int xe_guc_contexts_hwsp_rebase(struct xe_guc *guc, void *scratch);
 
 #endif

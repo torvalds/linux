@@ -6,6 +6,8 @@
 #ifndef _XE_GT_SRIOV_PF_H_
 #define _XE_GT_SRIOV_PF_H_
 
+#include <linux/types.h>
+
 struct xe_gt;
 
 #ifdef CONFIG_PCI_IOV
@@ -16,6 +18,7 @@ void xe_gt_sriov_pf_init_hw(struct xe_gt *gt);
 void xe_gt_sriov_pf_sanitize_hw(struct xe_gt *gt, unsigned int vfid);
 void xe_gt_sriov_pf_stop_prepare(struct xe_gt *gt);
 void xe_gt_sriov_pf_restart(struct xe_gt *gt);
+bool xe_gt_sriov_pf_sched_groups_enabled(struct xe_gt *gt);
 #else
 static inline int xe_gt_sriov_pf_init_early(struct xe_gt *gt)
 {
@@ -37,6 +40,11 @@ static inline void xe_gt_sriov_pf_stop_prepare(struct xe_gt *gt)
 
 static inline void xe_gt_sriov_pf_restart(struct xe_gt *gt)
 {
+}
+
+static inline bool xe_gt_sriov_pf_sched_groups_enabled(struct xe_gt *gt)
+{
+	return false;
 }
 #endif
 
