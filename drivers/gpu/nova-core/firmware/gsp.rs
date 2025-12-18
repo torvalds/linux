@@ -159,18 +159,9 @@ impl GspFirmware {
         ver: &'a str,
     ) -> impl PinInit<Self, Error> + 'a {
         pin_init::pin_init_scope(move || {
-            let fw = super::request_firmware(dev, chipset, "gsp", ver)?;
+            let firmware = super::request_firmware(dev, chipset, "gsp", ver)?;
 
-            let fw_section = elf::elf64_section(fw.data(), ".fwimage").ok_or(EINVAL)?;
-
-            let sigs_section = match chipset.arch() {
-                Architecture::Ampere => ".fwsignature_ga10x",
-                Architecture::Ada => ".fwsignature_ad10x",
-                _ => return Err(ENOTSUPP),
-            };
-            let signatures = elf::elf64_section(fw.data(), sigs_section)
-                .ok_or(EINVAL)
-                .and_then(|data| DmaObject::from_data(dev, data))?;
+            let fw_section = elf::elf64_section(firmware.data(), ".fwimage").ok_or(EINVAL)?;
 
             let size = fw_section.len();
 
@@ -182,9 +173,6 @@ impl GspFirmware {
                     Ok(v)
                 })
                 .map_err(|_| ENOMEM)?;
-
-            let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
-            let bootloader = RiscvFirmware::new(dev, &bl)?;
 
             Ok(try_pin_init!(Self {
                 fw <- SGTable::new(dev, fw_vvec, DataDirection::ToDevice, GFP_KERNEL),
@@ -227,8 +215,22 @@ impl GspFirmware {
                     DmaObject::from_data(dev, &level0_data)?
                 },
                 size,
-                signatures,
-                bootloader,
+                signatures: {
+                    let sigs_section = match chipset.arch() {
+                        Architecture::Ampere => ".fwsignature_ga10x",
+                        Architecture::Ada => ".fwsignature_ad10x",
+                        _ => return Err(ENOTSUPP),
+                    };
+
+                    elf::elf64_section(firmware.data(), sigs_section)
+                        .ok_or(EINVAL)
+                        .and_then(|data| DmaObject::from_data(dev, data))?
+                },
+                bootloader: {
+                    let bl = super::request_firmware(dev, chipset, "bootloader", ver)?;
+
+                    RiscvFirmware::new(dev, &bl)?
+                },
             }))
         })
     }
