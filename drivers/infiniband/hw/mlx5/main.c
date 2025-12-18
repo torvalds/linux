@@ -2838,6 +2838,14 @@ static int handle_port_change(struct mlx5_ib_dev *ibdev, struct mlx5_eqe *eqe,
 	case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
 	case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
 	case MLX5_PORT_CHANGE_SUBTYPE_INITIALIZED:
+		if (ibdev->ib_active) {
+			struct ib_event speed_event = {};
+
+			speed_event.device = &ibdev->ib_dev;
+			speed_event.event = IB_EVENT_DEVICE_SPEED_CHANGE;
+			ib_dispatch_event(&speed_event);
+		}
+
 		/* In RoCE, port up/down events are handled in
 		 * mlx5_netdev_event().
 		 */
