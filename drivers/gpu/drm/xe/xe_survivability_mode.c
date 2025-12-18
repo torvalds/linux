@@ -128,11 +128,6 @@ xe_survivability_attribute *dev_attr_to_survivability_attr(struct device_attribu
 	return container_of(attr, struct xe_survivability_attribute, attr);
 }
 
-static u32 aux_history_offset(u32 reg_value)
-{
-	return REG_FIELD_GET(AUXINFO_HISTORY_OFFSET, reg_value);
-}
-
 static void set_survivability_info(struct xe_mmio *mmio, u32  *info, int id)
 {
 	info[id] = xe_mmio_read32(mmio, PCODE_SCRATCH(id));
@@ -144,7 +139,6 @@ static void populate_survivability_info(struct xe_device *xe)
 	u32 *info = survivability->info;
 	struct xe_mmio *mmio;
 	u32 id = 0, reg_value;
-	int index;
 
 	mmio = xe_root_tile_mmio(xe);
 	set_survivability_info(mmio, info, CAPABILITY_INFO);
@@ -162,13 +156,12 @@ static void populate_survivability_info(struct xe_device *xe)
 			set_survivability_info(mmio, info, POSTCODE_TRACE_OVERFLOW);
 	}
 
+	/* Traverse the linked list of aux info registers */
 	if (reg_value & AUXINFO_SUPPORT) {
-		id = REG_FIELD_GET(AUXINFO_REG_OFFSET, reg_value);
-
-		for (index = 0; id >= AUX_INFO0 && id < MAX_SCRATCH_REG; index++) {
+		for (id = REG_FIELD_GET(AUXINFO_REG_OFFSET, reg_value);
+		     id >= AUX_INFO0 && id < MAX_SCRATCH_REG;
+		     id =  REG_FIELD_GET(AUXINFO_HISTORY_OFFSET, info[id]))
 			set_survivability_info(mmio, info, id);
-			id = aux_history_offset(info[id]);
-		}
 	}
 }
 
