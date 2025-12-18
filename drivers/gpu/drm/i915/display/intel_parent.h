@@ -32,6 +32,10 @@ struct intel_panic *intel_parent_panic_alloc(struct intel_display *display);
 int intel_parent_panic_setup(struct intel_display *display, struct intel_panic *panic, struct drm_scanout_buffer *sb);
 void intel_parent_panic_finish(struct intel_display *display, struct intel_panic *panic);
 
+/* pc8 */
+void intel_parent_pc8_block(struct intel_display *display);
+void intel_parent_pc8_unblock(struct intel_display *display);
+
 /* rps */
 bool intel_parent_rps_available(struct intel_display *display);
 void intel_parent_rps_boost_if_not_started(struct intel_display *display, struct dma_fence *fence);

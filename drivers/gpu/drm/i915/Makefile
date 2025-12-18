@@ -76,6 +76,7 @@ i915-$(CONFIG_PERF_EVENTS) += \
 
 # core display adaptation
 i915-y += \
+	i915_display_pc8.o \
 	i915_hdcp_gsc.o \
 	i915_panic.o
 

@@ -36,6 +36,11 @@ struct intel_display_panic_interface {
 	void (*finish)(struct intel_panic *panic);
 };
 
+struct intel_display_pc8_interface {
+	void (*block)(struct drm_device *drm);
+	void (*unblock)(struct drm_device *drm);
+};
+
 struct intel_display_rpm_interface {
 	struct ref_tracker *(*get)(const struct drm_device *drm);
 	struct ref_tracker *(*get_raw)(const struct drm_device *drm);
@@ -95,6 +100,9 @@ struct intel_display_parent_interface {
 
 	/** @panic: Panic interface */
 	const struct intel_display_panic_interface *panic;
+
+	/** @pc8: PC8 interface. Optional. */
+	const struct intel_display_pc8_interface *pc8;
 
 	/** @rpm: Runtime PM functions */
 	const struct intel_display_rpm_interface *rpm;

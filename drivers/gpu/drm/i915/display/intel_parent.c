@@ -75,6 +75,23 @@ void intel_parent_panic_finish(struct intel_display *display, struct intel_panic
 	display->parent->panic->finish(panic);
 }
 
+/* pc8 */
+void intel_parent_pc8_block(struct intel_display *display)
+{
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->pc8))
+		return;
+
+	display->parent->pc8->block(display->drm);
+}
+
+void intel_parent_pc8_unblock(struct intel_display *display)
+{
+	if (drm_WARN_ON_ONCE(display->drm, !display->parent->pc8))
+		return;
+
+	display->parent->pc8->unblock(display->drm);
+}
+
 /* rps */
 bool intel_parent_rps_available(struct intel_display *display)
 {
