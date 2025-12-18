@@ -3,6 +3,8 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <drm/drm_managed.h>
+
 #include "abi/guc_actions_sriov_abi.h"
 
 #include "xe_bo.h"
@@ -10,6 +12,7 @@
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_printk.h"
+#include "xe_guc.h"
 #include "xe_guc_buf.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_klv_helpers.h"
@@ -351,6 +354,139 @@ u32 xe_gt_sriov_pf_policy_get_sample_period(struct xe_gt *gt)
 	return value;
 }
 
+static void pf_sched_group_media_slices(struct xe_gt *gt, struct guc_sched_group **groups,
+					u32 *num_groups)
+{
+	u8 slice_to_group[MAX_MEDIA_SLICES];
+	u32 vecs_mask = VECS_INSTANCES(gt);
+	u32 gsc_mask = GSCCS_INSTANCES(gt);
+	u32 vcs_mask = VCS_INSTANCES(gt);
+	struct guc_sched_group *values;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+	int group = 0;
+	int slice;
+
+	xe_gt_assert(gt, xe_gt_is_media_type(gt));
+
+	/*
+	 * Post-BMG the matching of video engines to slices changes, so for now
+	 * we don't allow this mode on those platforms.
+	 */
+	if (gt_to_xe(gt)->info.platform > XE_BATTLEMAGE)
+		return;
+
+	/*
+	 * On BMG and older platforms a media slice has 2 VCS and a VECS. We
+	 * bundle the GSC with the first slice.
+	 */
+	for (slice = 0; slice < MAX_MEDIA_SLICES; slice++) {
+		if ((vcs_mask & 0x3) || (vecs_mask & 0x1) || (gsc_mask & 0x1))
+			slice_to_group[slice] = group++;
+
+		vcs_mask >>= 2;
+		vecs_mask >>= 1;
+		gsc_mask >>= 1;
+	}
+
+	xe_gt_assert(gt, !vcs_mask);
+	xe_gt_assert(gt, !vecs_mask);
+	xe_gt_assert(gt, !gsc_mask);
+
+	/* We need at least 2 slices to split them up */
+	if (group < 2)
+		return;
+
+	/* The GuC expects an array with a guc_sched_group entry for each group */
+	values = drmm_kcalloc(&gt_to_xe(gt)->drm, group, sizeof(struct guc_sched_group),
+			      GFP_KERNEL);
+	if (!values)
+		return;
+
+	for_each_hw_engine(hwe, gt, id) {
+		u8 guc_class = xe_engine_class_to_guc_class(hwe->class);
+
+		switch (hwe->class) {
+		case XE_ENGINE_CLASS_VIDEO_DECODE:
+			slice = hwe->instance / 2;
+			break;
+		case XE_ENGINE_CLASS_VIDEO_ENHANCE:
+			slice = hwe->instance;
+			break;
+		case XE_ENGINE_CLASS_OTHER:
+			slice = 0;
+			break;
+		default:
+			xe_gt_assert_msg(gt, false,
+					 "unknown media gt class %u (%s) during EGS setup\n",
+					 hwe->class, hwe->name);
+			slice = 0;
+		}
+
+		values[slice_to_group[slice]].engines[guc_class] |= BIT(hwe->logical_instance);
+	}
+
+	*groups = values;
+	*num_groups = group;
+}
+
+/**
+ * xe_sriov_gt_pf_policy_has_sched_groups_support() - Checks whether scheduler
+ * groups are supported.
+ * @gt: the &xe_gt
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if scheduler groups are supported, false otherwise.
+ */
+bool xe_sriov_gt_pf_policy_has_sched_groups_support(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+
+	/*
+	 * The GuC supports scheduler groups from v70.53.0, but a fix for it has
+	 * been merged in v70.55.1, so we require the latter. The feature is
+	 * also only enabled on BMG and newer FW.
+	 */
+	return GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, 70, 55, 1) &&
+	       gt_to_xe(gt)->info.platform >= XE_BATTLEMAGE;
+}
+
+static void pf_init_sched_groups(struct xe_gt *gt)
+{
+	enum xe_sriov_sched_group_modes m;
+
+	if (!xe_sriov_gt_pf_policy_has_sched_groups_support(gt))
+		return;
+
+	for (m = XE_SRIOV_SCHED_GROUPS_DISABLED + 1; m < XE_SRIOV_SCHED_GROUPS_MODES_COUNT; m++) {
+		u32 *num_groups = &gt->sriov.pf.policy.guc.sched_groups.modes[m].num_groups;
+		struct guc_sched_group **groups =
+			&gt->sriov.pf.policy.guc.sched_groups.modes[m].groups;
+
+		switch (m) {
+		case XE_SRIOV_SCHED_GROUPS_MEDIA_SLICES:
+			/* this mode only has groups on the media GT */
+			if (xe_gt_is_media_type(gt))
+				pf_sched_group_media_slices(gt, groups, num_groups);
+			break;
+		case XE_SRIOV_SCHED_GROUPS_DISABLED:
+		case XE_SRIOV_SCHED_GROUPS_MODES_COUNT:
+			/*
+			 * By defining m of type enum xe_sriov_sched_group_modes
+			 * we can get the compiler to automatically flag
+			 * missing cases if new enum entries are added. However,
+			 * to keep the compiler happy we also need to add the
+			 * cases that are excluded from the loop.
+			 */
+			xe_gt_assert(gt, false);
+			break;
+		}
+
+		xe_gt_assert(gt, *num_groups < GUC_MAX_SCHED_GROUPS);
+	}
+}
+
 static void pf_sanitize_guc_policies(struct xe_gt *gt)
 {
 	pf_sanitize_sched_if_idle(gt);
@@ -399,6 +535,18 @@ int xe_gt_sriov_pf_policy_reprovision(struct xe_gt *gt, bool reset)
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err ? -ENXIO : 0;
+}
+
+/**
+ * xe_gt_sriov_pf_policy_init() - Initializes the SW state of the PF policies.
+ * @gt: the &xe_gt
+ *
+ * This function can only be called on PF. This function does not touch the HW,
+ * but must be called after the engines have been initialized.
+ */
+void xe_gt_sriov_pf_policy_init(struct xe_gt *gt)
+{
+	pf_init_sched_groups(gt);
 }
 
 static void print_guc_policies(struct drm_printer *p, struct xe_gt_sriov_guc_policies *policy)

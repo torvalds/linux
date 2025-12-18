@@ -14,6 +14,7 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_migration.h"
+#include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_submit.h"
@@ -122,6 +123,8 @@ int xe_gt_sriov_pf_init(struct xe_gt *gt)
 	err = xe_gt_sriov_pf_config_init(gt);
 	if (err)
 		return err;
+
+	xe_gt_sriov_pf_policy_init(gt);
 
 	err = xe_gt_sriov_pf_migration_init(gt);
 	if (err)

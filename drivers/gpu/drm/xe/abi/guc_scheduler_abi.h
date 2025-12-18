@@ -6,6 +6,8 @@
 #ifndef _ABI_GUC_SCHEDULER_ABI_H
 #define _ABI_GUC_SCHEDULER_ABI_H
 
+#include <linux/types.h>
+
 /**
  * Generic defines required for registration with and submissions to the GuC
  * scheduler. Includes engine class/instance defines and context attributes
@@ -44,5 +46,12 @@
 /* context enable/disable */
 #define GUC_CONTEXT_DISABLE		0
 #define GUC_CONTEXT_ENABLE		1
+
+/* scheduler groups */
+#define GUC_MAX_SCHED_GROUPS		8
+
+struct guc_sched_group {
+	u32 engines[GUC_MAX_ENGINE_CLASSES];
+} __packed;
 
 #endif

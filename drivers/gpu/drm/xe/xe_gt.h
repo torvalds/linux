@@ -29,6 +29,9 @@
 #define CCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, CCS)
 #define GSCCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, GSCCS)
 
+/* Our devices have up to 4 media slices */
+#define MAX_MEDIA_SLICES 4
+
 #define GT_VER(gt) ({ \
 	typeof(gt) gt_ = (gt); \
 	struct xe_device *xe = gt_to_xe(gt_); \
