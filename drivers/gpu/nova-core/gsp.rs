@@ -122,41 +122,36 @@ impl Gsp {
     pub(crate) fn new(pdev: &pci::Device<device::Bound>) -> impl PinInit<Self, Error> + '_ {
         pin_init::pin_init_scope(move || {
             let dev = pdev.as_ref();
-            let libos = CoherentAllocation::<LibosMemoryRegionInitArgument>::alloc_coherent(
-                dev,
-                GSP_PAGE_SIZE / size_of::<LibosMemoryRegionInitArgument>(),
-                GFP_KERNEL | __GFP_ZERO,
-            )?;
-
-            // Initialise the logging structures. The OpenRM equivalents are in:
-            // _kgspInitLibosLoggingStructures (allocates memory for buffers)
-            // kgspSetupLibosInitArgs_IMPL (creates pLibosInitArgs[] array)
-            let loginit = LogBuffer::new(dev)?;
-            dma_write!(libos[0] = LibosMemoryRegionInitArgument::new("LOGINIT", &loginit.0))?;
-
-            let logintr = LogBuffer::new(dev)?;
-            dma_write!(libos[1] = LibosMemoryRegionInitArgument::new("LOGINTR", &logintr.0))?;
-
-            let logrm = LogBuffer::new(dev)?;
-            dma_write!(libos[2] = LibosMemoryRegionInitArgument::new("LOGRM", &logrm.0))?;
-
-            let cmdq = Cmdq::new(dev)?;
-
-            let rmargs = CoherentAllocation::<GspArgumentsCached>::alloc_coherent(
-                dev,
-                1,
-                GFP_KERNEL | __GFP_ZERO,
-            )?;
-            dma_write!(rmargs[0] = fw::GspArgumentsCached::new(&cmdq))?;
-            dma_write!(libos[3] = LibosMemoryRegionInitArgument::new("RMARGS", &rmargs))?;
 
             Ok(try_pin_init!(Self {
-                libos,
-                loginit,
-                logintr,
-                logrm,
-                rmargs,
-                cmdq,
+                libos: CoherentAllocation::<LibosMemoryRegionInitArgument>::alloc_coherent(
+                    dev,
+                    GSP_PAGE_SIZE / size_of::<LibosMemoryRegionInitArgument>(),
+                    GFP_KERNEL | __GFP_ZERO,
+                )?,
+                loginit: LogBuffer::new(dev)?,
+                logintr: LogBuffer::new(dev)?,
+                logrm: LogBuffer::new(dev)?,
+                cmdq: Cmdq::new(dev)?,
+                rmargs: CoherentAllocation::<GspArgumentsCached>::alloc_coherent(
+                    dev,
+                    1,
+                    GFP_KERNEL | __GFP_ZERO,
+                )?,
+                _: {
+                    // Initialise the logging structures. The OpenRM equivalents are in:
+                    // _kgspInitLibosLoggingStructures (allocates memory for buffers)
+                    // kgspSetupLibosInitArgs_IMPL (creates pLibosInitArgs[] array)
+                    dma_write!(
+                        libos[0] = LibosMemoryRegionInitArgument::new("LOGINIT", &loginit.0)
+                    )?;
+                    dma_write!(
+                        libos[1] = LibosMemoryRegionInitArgument::new("LOGINTR", &logintr.0)
+                    )?;
+                    dma_write!(libos[2] = LibosMemoryRegionInitArgument::new("LOGRM", &logrm.0))?;
+                    dma_write!(rmargs[0] = fw::GspArgumentsCached::new(cmdq))?;
+                    dma_write!(libos[3] = LibosMemoryRegionInitArgument::new("RMARGS", rmargs))?;
+                },
             }))
         })
     }
