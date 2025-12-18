@@ -2531,10 +2531,7 @@ static void __wait_on_freeing_inode(struct inode *inode, bool is_inode_hash_lock
 static __initdata unsigned long ihash_entries;
 static int __init set_ihash_entries(char *str)
 {
-	if (!str)
-		return 0;
-	ihash_entries = simple_strtoul(str, &str, 0);
-	return 1;
+	return kstrtoul(str, 0, &ihash_entries) == 0;
 }
 __setup("ihash_entries=", set_ihash_entries);
 
