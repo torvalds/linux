@@ -469,9 +469,6 @@ static int pcim_add_mapping_to_legacy_table(struct pci_dev *pdev,
 	if (!legacy_iomap_table)
 		return -ENOMEM;
 
-	/* The legacy mechanism doesn't allow for duplicate mappings. */
-	WARN_ON(legacy_iomap_table[bar]);
-
 	legacy_iomap_table[bar] = mapping;
 
 	return 0;
