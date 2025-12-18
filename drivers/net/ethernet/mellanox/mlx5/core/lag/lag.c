@@ -996,6 +996,126 @@ static bool mlx5_lag_should_disable_lag(struct mlx5_lag *ldev, bool do_bond)
 	       ldev->mode != MLX5_LAG_MODE_MPESW;
 }
 
+#ifdef CONFIG_MLX5_ESWITCH
+static int
+mlx5_lag_sum_devices_speed(struct mlx5_lag *ldev, u32 *sum_speed,
+			   int (*get_speed)(struct mlx5_core_dev *, u32 *))
+{
+	struct mlx5_core_dev *pf_mdev;
+	int pf_idx;
+	u32 speed;
+	int ret;
+
+	*sum_speed = 0;
+	mlx5_ldev_for_each(pf_idx, 0, ldev) {
+		pf_mdev = ldev->pf[pf_idx].dev;
+		if (!pf_mdev)
+			continue;
+
+		ret = get_speed(pf_mdev, &speed);
+		if (ret) {
+			mlx5_core_dbg(pf_mdev,
+				      "Failed to get device speed using %ps. Device %s speed is not available (err=%d)\n",
+				      get_speed, dev_name(pf_mdev->device),
+				      ret);
+			return ret;
+		}
+
+		*sum_speed += speed;
+	}
+
+	return 0;
+}
+
+static int mlx5_lag_sum_devices_max_speed(struct mlx5_lag *ldev, u32 *max_speed)
+{
+	return mlx5_lag_sum_devices_speed(ldev, max_speed,
+					  mlx5_port_max_linkspeed);
+}
+
+static void mlx5_lag_modify_device_vports_speed(struct mlx5_core_dev *mdev,
+						u32 speed)
+{
+	u16 op_mod = MLX5_VPORT_STATE_OP_MOD_ESW_VPORT;
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	struct mlx5_vport *vport;
+	unsigned long i;
+	int ret;
+
+	if (!esw)
+		return;
+
+	if (!MLX5_CAP_ESW(mdev, esw_vport_state_max_tx_speed))
+		return;
+
+	mlx5_esw_for_each_vport(esw, i, vport) {
+		if (!vport)
+			continue;
+
+		if (vport->vport == MLX5_VPORT_UPLINK)
+			continue;
+
+		ret = mlx5_modify_vport_max_tx_speed(mdev, op_mod,
+						     vport->vport, true, speed);
+		if (ret)
+			mlx5_core_dbg(mdev,
+				      "Failed to set vport %d speed %d, err=%d\n",
+				      vport->vport, speed, ret);
+	}
+}
+
+void mlx5_lag_set_vports_agg_speed(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *mdev;
+	u32 speed;
+	int pf_idx;
+
+	speed = ldev->tracker.bond_speed_mbps;
+
+	if (speed == SPEED_UNKNOWN)
+		return;
+
+	/* If speed is not set, use the sum of max speeds of all PFs */
+	if (!speed && mlx5_lag_sum_devices_max_speed(ldev, &speed))
+		return;
+
+	speed = speed / MLX5_MAX_TX_SPEED_UNIT;
+
+	mlx5_ldev_for_each(pf_idx, 0, ldev) {
+		mdev = ldev->pf[pf_idx].dev;
+		if (!mdev)
+			continue;
+
+		mlx5_lag_modify_device_vports_speed(mdev, speed);
+	}
+}
+
+void mlx5_lag_reset_vports_speed(struct mlx5_lag *ldev)
+{
+	struct mlx5_core_dev *mdev;
+	u32 speed;
+	int pf_idx;
+	int ret;
+
+	mlx5_ldev_for_each(pf_idx, 0, ldev) {
+		mdev = ldev->pf[pf_idx].dev;
+		if (!mdev)
+			continue;
+
+		ret = mlx5_port_oper_linkspeed(mdev, &speed);
+		if (ret) {
+			mlx5_core_dbg(mdev,
+				      "Failed to reset vports speed for device %s. Oper speed is not available (err=%d)\n",
+				      dev_name(mdev->device), ret);
+			continue;
+		}
+
+		speed = speed / MLX5_MAX_TX_SPEED_UNIT;
+		mlx5_lag_modify_device_vports_speed(mdev, speed);
+	}
+}
+#endif
+
 static void mlx5_do_bond(struct mlx5_lag *ldev)
 {
 	int idx = mlx5_lag_get_dev_index_by_seq(ldev, MLX5_LAG_P1);
@@ -1083,9 +1203,12 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 						     ndev);
 			dev_put(ndev);
 		}
+		mlx5_lag_set_vports_agg_speed(ldev);
 	} else if (mlx5_lag_should_modify_lag(ldev, do_bond)) {
 		mlx5_modify_lag(ldev, &tracker);
+		mlx5_lag_set_vports_agg_speed(ldev);
 	} else if (mlx5_lag_should_disable_lag(ldev, do_bond)) {
+		mlx5_lag_reset_vports_speed(ldev);
 		mlx5_disable_lag(ldev);
 	}
 }
@@ -1286,6 +1409,38 @@ static int mlx5_handle_changeinfodata_event(struct mlx5_lag *ldev,
 	return 1;
 }
 
+static void mlx5_lag_update_tracker_speed(struct lag_tracker *tracker,
+					  struct net_device *ndev)
+{
+	struct ethtool_link_ksettings lksettings;
+	struct net_device *bond_dev;
+	int err;
+
+	if (netif_is_lag_master(ndev))
+		bond_dev = ndev;
+	else
+		bond_dev = netdev_master_upper_dev_get(ndev);
+
+	if (!bond_dev) {
+		tracker->bond_speed_mbps = SPEED_UNKNOWN;
+		return;
+	}
+
+	err = __ethtool_get_link_ksettings(bond_dev, &lksettings);
+	if (err) {
+		netdev_dbg(bond_dev,
+			   "Failed to get speed for bond dev %s, err=%d\n",
+			   bond_dev->name, err);
+		tracker->bond_speed_mbps = SPEED_UNKNOWN;
+		return;
+	}
+
+	if (lksettings.base.speed == SPEED_UNKNOWN)
+		tracker->bond_speed_mbps = 0;
+	else
+		tracker->bond_speed_mbps = lksettings.base.speed;
+}
+
 /* this handler is always registered to netdev events */
 static int mlx5_lag_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
@@ -1316,6 +1471,9 @@ static int mlx5_lag_netdev_event(struct notifier_block *this,
 		changed = mlx5_handle_changeinfodata_event(ldev, &tracker, ndev);
 		break;
 	}
+
+	if (changed)
+		mlx5_lag_update_tracker_speed(&tracker, ndev);
 
 	ldev->tracker = tracker;
 

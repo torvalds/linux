@@ -381,6 +381,7 @@ const struct mlx5_link_info *mlx5_port_ptys2info(struct mlx5_core_dev *mdev,
 u32 mlx5_port_info2linkmodes(struct mlx5_core_dev *mdev,
 			     struct mlx5_link_info *info,
 			     bool force_legacy);
+int mlx5_port_oper_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 int mlx5_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 
 #define MLX5_PPS_CAP(mdev) (MLX5_CAP_GEN((mdev), pps) &&		\
