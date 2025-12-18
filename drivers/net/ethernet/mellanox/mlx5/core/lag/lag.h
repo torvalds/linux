@@ -39,6 +39,7 @@ struct lag_func {
 	struct mlx5_core_dev *dev;
 	struct net_device    *netdev;
 	bool has_drop;
+	struct mlx5_nb port_change_nb;
 };
 
 /* Used for collection of netdev event info. */
@@ -67,6 +68,7 @@ struct mlx5_lag {
 	struct lag_tracker        tracker;
 	struct workqueue_struct   *wq;
 	struct delayed_work       bond_work;
+	struct work_struct        speed_update_work;
 	struct notifier_block     nb;
 	possible_net_t net;
 	struct lag_mp             lag_mp;

@@ -233,14 +233,25 @@ static void mlx5_ldev_free(struct kref *ref)
 {
 	struct mlx5_lag *ldev = container_of(ref, struct mlx5_lag, ref);
 	struct net *net;
+	int i;
 
 	if (ldev->nb.notifier_call) {
 		net = read_pnet(&ldev->net);
 		unregister_netdevice_notifier_net(net, &ldev->nb);
 	}
 
+	mlx5_ldev_for_each(i, 0, ldev) {
+		if (ldev->pf[i].dev &&
+		    ldev->pf[i].port_change_nb.nb.notifier_call) {
+			struct mlx5_nb *nb = &ldev->pf[i].port_change_nb;
+
+			mlx5_eq_notifier_unregister(ldev->pf[i].dev, nb);
+		}
+	}
+
 	mlx5_lag_mp_cleanup(ldev);
 	cancel_delayed_work_sync(&ldev->bond_work);
+	cancel_work_sync(&ldev->speed_update_work);
 	destroy_workqueue(ldev->wq);
 	mutex_destroy(&ldev->lock);
 	kfree(ldev);
@@ -274,6 +285,7 @@ static struct mlx5_lag *mlx5_lag_dev_alloc(struct mlx5_core_dev *dev)
 	kref_init(&ldev->ref);
 	mutex_init(&ldev->lock);
 	INIT_DELAYED_WORK(&ldev->bond_work, mlx5_do_bond_work);
+	INIT_WORK(&ldev->speed_update_work, mlx5_mpesw_speed_update_work);
 
 	ldev->nb.notifier_call = mlx5_lag_netdev_event;
 	write_pnet(&ldev->net, mlx5_core_net(dev));
@@ -1033,6 +1045,13 @@ static int mlx5_lag_sum_devices_max_speed(struct mlx5_lag *ldev, u32 *max_speed)
 					  mlx5_port_max_linkspeed);
 }
 
+static int mlx5_lag_sum_devices_oper_speed(struct mlx5_lag *ldev,
+					   u32 *oper_speed)
+{
+	return mlx5_lag_sum_devices_speed(ldev, oper_speed,
+					  mlx5_port_oper_linkspeed);
+}
+
 static void mlx5_lag_modify_device_vports_speed(struct mlx5_core_dev *mdev,
 						u32 speed)
 {
@@ -1070,10 +1089,14 @@ void mlx5_lag_set_vports_agg_speed(struct mlx5_lag *ldev)
 	u32 speed;
 	int pf_idx;
 
-	speed = ldev->tracker.bond_speed_mbps;
-
-	if (speed == SPEED_UNKNOWN)
-		return;
+	if (ldev->mode == MLX5_LAG_MODE_MPESW) {
+		if (mlx5_lag_sum_devices_oper_speed(ldev, &speed))
+			return;
+	} else {
+		speed = ldev->tracker.bond_speed_mbps;
+		if (speed == SPEED_UNKNOWN)
+			return;
+	}
 
 	/* If speed is not set, use the sum of max speeds of all PFs */
 	if (!speed && mlx5_lag_sum_devices_max_speed(ldev, &speed))
@@ -1520,6 +1543,10 @@ static void mlx5_ldev_add_mdev(struct mlx5_lag *ldev,
 
 	ldev->pf[fn].dev = dev;
 	dev->priv.lag = ldev;
+
+	MLX5_NB_INIT(&ldev->pf[fn].port_change_nb,
+		     mlx5_lag_mpesw_port_change_event, PORT_CHANGE);
+	mlx5_eq_notifier_register(dev, &ldev->pf[fn].port_change_nb);
 }
 
 static void mlx5_ldev_remove_mdev(struct mlx5_lag *ldev,
@@ -1530,6 +1557,9 @@ static void mlx5_ldev_remove_mdev(struct mlx5_lag *ldev,
 	fn = mlx5_get_dev_index(dev);
 	if (ldev->pf[fn].dev != dev)
 		return;
+
+	if (ldev->pf[fn].port_change_nb.nb.notifier_call)
+		mlx5_eq_notifier_unregister(dev, &ldev->pf[fn].port_change_nb);
 
 	ldev->pf[fn].dev = NULL;
 	dev->priv.lag = NULL;
