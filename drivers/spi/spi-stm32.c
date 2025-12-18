@@ -2406,11 +2406,13 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	spi->dma_tx = dma_request_chan(spi->dev, "tx");
 	if (IS_ERR(spi->dma_tx)) {
 		ret = PTR_ERR(spi->dma_tx);
-		spi->dma_tx = NULL;
-		if (ret == -EPROBE_DEFER)
+		if (ret == -ENODEV) {
+			dev_info(&pdev->dev, "tx dma disabled\n");
+			spi->dma_tx = NULL;
+		} else {
+			dev_err_probe(&pdev->dev, ret, "failed to request tx dma channel\n");
 			goto err_clk_disable;
-
-		dev_warn(&pdev->dev, "failed to request tx dma channel\n");
+		}
 	} else {
 		ctrl->dma_tx = spi->dma_tx;
 	}
@@ -2418,11 +2420,13 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	spi->dma_rx = dma_request_chan(spi->dev, "rx");
 	if (IS_ERR(spi->dma_rx)) {
 		ret = PTR_ERR(spi->dma_rx);
-		spi->dma_rx = NULL;
-		if (ret == -EPROBE_DEFER)
+		if (ret == -ENODEV) {
+			dev_info(&pdev->dev, "rx dma disabled\n");
+			spi->dma_rx = NULL;
+		} else {
+			dev_err_probe(&pdev->dev, ret, "failed to request rx dma channel\n");
 			goto err_dma_release;
-
-		dev_warn(&pdev->dev, "failed to request rx dma channel\n");
+		}
 	} else {
 		ctrl->dma_rx = spi->dma_rx;
 	}
