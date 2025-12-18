@@ -295,13 +295,18 @@ static u32 encode_config_sched(struct xe_gt *gt, u32 *cfg, u32 n,
 	if (xe_sriov_gt_pf_policy_has_multi_group_modes(gt)) {
 		BUILD_BUG_ON(ARRAY_SIZE(config->exec_quantum) >
 			     GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_MAX_LEN);
+		BUILD_BUG_ON(ARRAY_SIZE(config->preempt_timeout) >
+			     GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_MAX_LEN);
 
 		cfg[n++] = PREP_GUC_KLV_CONST(GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_KEY,
 					      ARRAY_SIZE(config->exec_quantum));
 		for (i = 0; i < ARRAY_SIZE(config->exec_quantum); i++)
 			cfg[n++] = config->exec_quantum[i];
 
-		/* TODO: add group preempt timeout setting */
+		cfg[n++] = PREP_GUC_KLV_CONST(GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_KEY,
+					      ARRAY_SIZE(config->preempt_timeout));
+		for (i = 0; i < ARRAY_SIZE(config->preempt_timeout); i++)
+			cfg[n++] = config->preempt_timeout[i];
 	} else {
 		cfg[n++] = PREP_GUC_KLV_TAG(VF_CFG_EXEC_QUANTUM);
 		cfg[n++] = config->exec_quantum[0];
@@ -2265,6 +2270,89 @@ int xe_gt_sriov_pf_config_bulk_set_preempt_timeout_locked(struct xe_gt *gt, u32 
 					   preempt_timeout_unit, n, err);
 }
 
+static int pf_provision_groups_preempt_timeouts(struct xe_gt *gt, unsigned int vfid,
+						const u32 *preempt_timeouts, u32 count)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	int err;
+	int i;
+
+	err = pf_push_vf_grp_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_KEY,
+				     preempt_timeouts, count);
+	if (unlikely(err))
+		return err;
+
+	/*
+	 * GuC silently clamps values exceeding the max and zeroes out the
+	 * quantum for groups not in the klv payload
+	 */
+	for (i = 0; i < ARRAY_SIZE(config->preempt_timeout); i++) {
+		if (i < count)
+			config->preempt_timeout[i] =
+				min_t(u32, preempt_timeouts[i],
+				      GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE);
+		else
+			config->preempt_timeout[i] = 0;
+	}
+
+	return 0;
+}
+
+static void pf_get_groups_preempt_timeouts(struct xe_gt *gt, unsigned int vfid,
+					   u32 *preempt_timeouts, u32 max_count)
+{
+	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
+	u32 count = min_t(u32, max_count, ARRAY_SIZE(config->preempt_timeout));
+
+	memcpy(preempt_timeouts, config->preempt_timeout, sizeof(u32) * count);
+}
+
+/**
+ * xe_gt_sriov_pf_config_set_groups_preempt_timeouts() - Configure PF/VF PTs for sched groups.
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
+ * @preempt_timeouts: array of requested PTs in microseconds (0 is infinity)
+ * @count: number of entries in the array
+ *
+ * This function can only be called on PF.
+ * It will log the provisioned value or an error in case of the failure.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_config_set_groups_preempt_timeouts(struct xe_gt *gt, unsigned int vfid,
+						      u32 *preempt_timeouts, u32 count)
+{
+	int err;
+
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_provision_groups_preempt_timeouts(gt, vfid, preempt_timeouts, count);
+
+	return pf_groups_cfg_set_u32_done(gt, vfid, preempt_timeouts, count,
+					  pf_get_groups_preempt_timeouts,
+					  "preempt_timeout",
+					  preempt_timeout_unit, err);
+}
+
+/**
+ * xe_gt_sriov_pf_config_get_groups_preempt_timeouts() - Get PF/VF sched groups PTs
+ * @gt: the &xe_gt
+ * @vfid: the PF or VF identifier
+ * @preempt_timeouts: array in which to store the preemption timeouts values
+ * @count: maximum number of entries to store
+ *
+ * This function can only be called on PF.
+ */
+void xe_gt_sriov_pf_config_get_groups_preempt_timeouts(struct xe_gt *gt, unsigned int vfid,
+						       u32 *preempt_timeouts, u32 count)
+{
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
+
+	xe_gt_assert(gt, count <= GUC_MAX_SCHED_GROUPS);
+
+	pf_get_groups_preempt_timeouts(gt, vfid, preempt_timeouts, count);
+}
+
 static const char *sched_priority_unit(u32 priority)
 {
 	return priority == GUC_SCHED_PRIORITY_LOW ? "(low)" :
@@ -2711,6 +2799,11 @@ static int pf_restore_vf_config_klv(struct xe_gt *gt, unsigned int vfid,
 		if (len > GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_MAX_LEN)
 			return -EBADMSG;
 		return pf_provision_groups_exec_quantums(gt, vfid, value, len);
+
+	case GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_KEY:
+		if (len > GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_MAX_LEN)
+			return -EBADMSG;
+		return pf_provision_groups_preempt_timeouts(gt, vfid, value, len);
 
 	case GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY:
 		if (len != GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN)
