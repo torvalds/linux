@@ -160,6 +160,131 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *      /sys/kernel/debug/dri/BDF/
  *      ├── sriov
  *      :   ├── pf
+ *          :   ├── tile0
+ *              :   ├── gt0
+ *                  :   ├── sched_groups_mode
+ */
+
+static const char *sched_group_mode_to_string(enum xe_sriov_sched_group_modes mode)
+{
+	switch (mode) {
+	case XE_SRIOV_SCHED_GROUPS_DISABLED:
+		return "disabled";
+	case XE_SRIOV_SCHED_GROUPS_MEDIA_SLICES:
+		return "media_slices";
+	case XE_SRIOV_SCHED_GROUPS_MODES_COUNT:
+		/* dummy mode to make the compiler happy */
+		break;
+	}
+
+	return "unknown";
+}
+
+static int sched_groups_info(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct xe_gt *gt = extract_gt(m->private);
+	enum xe_sriov_sched_group_modes current_mode =
+		gt->sriov.pf.policy.guc.sched_groups.current_mode;
+	enum xe_sriov_sched_group_modes mode;
+
+	for (mode = XE_SRIOV_SCHED_GROUPS_DISABLED;
+	     mode < XE_SRIOV_SCHED_GROUPS_MODES_COUNT;
+	     mode++) {
+		if (!xe_sriov_gt_pf_policy_has_sched_group_mode(gt, mode))
+			continue;
+
+		drm_printf(&p, "%s%s%s%s",
+			   mode == XE_SRIOV_SCHED_GROUPS_DISABLED ? "" : " ",
+			   mode == current_mode ? "[" : "",
+			   sched_group_mode_to_string(mode),
+			   mode == current_mode ? "]" : "");
+	}
+
+	drm_puts(&p, "\n");
+
+	return 0;
+}
+
+static int sched_groups_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sched_groups_info, inode->i_private);
+}
+
+static ssize_t sched_groups_write(struct file *file, const char __user *ubuf,
+				  size_t size, loff_t *pos)
+{
+	struct xe_gt *gt = extract_gt(file_inode(file)->i_private);
+	enum xe_sriov_sched_group_modes mode;
+	char name[32];
+	int ret;
+
+	if (*pos)
+		return -ESPIPE;
+
+	if (!size)
+		return -ENODATA;
+
+	if (size > sizeof(name) - 1)
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(name, sizeof(name) - 1, pos, ubuf, size);
+	if (ret < 0)
+		return ret;
+	name[ret] = '\0';
+
+	for (mode = XE_SRIOV_SCHED_GROUPS_DISABLED;
+	     mode < XE_SRIOV_SCHED_GROUPS_MODES_COUNT;
+	     mode++)
+		if (sysfs_streq(name, sched_group_mode_to_string(mode)))
+			break;
+
+	if (mode == XE_SRIOV_SCHED_GROUPS_MODES_COUNT)
+		return -EINVAL;
+
+	guard(xe_pm_runtime)(gt_to_xe(gt));
+	ret = xe_gt_sriov_pf_policy_set_sched_groups_mode(gt, mode);
+
+	return ret < 0 ? ret : size;
+}
+
+static const struct file_operations sched_groups_fops = {
+	.owner = THIS_MODULE,
+	.open = sched_groups_open,
+	.read = seq_read,
+	.write = sched_groups_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void pf_add_sched_groups(struct xe_gt *gt, struct dentry *parent, unsigned int vfid)
+{
+	xe_gt_assert(gt, gt == extract_gt(parent));
+	xe_gt_assert(gt, vfid == extract_vfid(parent));
+
+	/*
+	 * TODO: we currently call this function before we initialize scheduler
+	 * groups, so at this point in time we don't know if there are any
+	 * valid groups on the GT and we can't selectively register the debugfs
+	 * only if there are any. Therefore, we always register the debugfs
+	 * files if we're on a platform that has support for groups.
+	 * We should rework the flow so that debugfs is registered after the
+	 * policy init, so that we check if there are valid groups before
+	 * adding the debugfs files.
+	 */
+	if (!xe_sriov_gt_pf_policy_has_sched_groups_support(gt))
+		return;
+
+	if (vfid != PFID)
+		return;
+
+	debugfs_create_file("sched_groups_mode", 0644, parent, parent, &sched_groups_fops);
+}
+
+/*
+ *      /sys/kernel/debug/dri/BDF/
+ *      ├── sriov
+ *      :   ├── pf
  *          │   ├── tile0
  *          │   :   ├── gt0
  *          │       :   ├── doorbells_spare
@@ -531,6 +656,7 @@ static void pf_populate_gt(struct xe_gt *gt, struct dentry *dent, unsigned int v
 	} else {
 		pf_add_config_attrs(gt, dent, PFID);
 		pf_add_policy_attrs(gt, dent);
+		pf_add_sched_groups(gt, dent, PFID);
 
 		drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), dent, minor);
 	}
