@@ -217,6 +217,57 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 }
 EXPORT_SYMBOL(ib_rate_to_mbps);
 
+struct ib_speed_attr {
+	const char *str;
+	int speed;
+};
+
+#define IB_SPEED_ATTR(speed_type, _str, _speed) \
+	[speed_type] = {.str = _str, .speed = _speed}
+
+static const struct ib_speed_attr ib_speed_attrs[] = {
+	IB_SPEED_ATTR(IB_SPEED_SDR, " SDR", 25),
+	IB_SPEED_ATTR(IB_SPEED_DDR, " DDR", 50),
+	IB_SPEED_ATTR(IB_SPEED_QDR, " QDR", 100),
+	IB_SPEED_ATTR(IB_SPEED_FDR10, " FDR10", 100),
+	IB_SPEED_ATTR(IB_SPEED_FDR, " FDR", 140),
+	IB_SPEED_ATTR(IB_SPEED_EDR, " EDR", 250),
+	IB_SPEED_ATTR(IB_SPEED_HDR, " HDR", 500),
+	IB_SPEED_ATTR(IB_SPEED_NDR, " NDR", 1000),
+	IB_SPEED_ATTR(IB_SPEED_XDR, " XDR", 2000),
+};
+
+int ib_port_attr_to_speed_info(struct ib_port_attr *attr,
+			       struct ib_port_speed_info *speed_info)
+{
+	int speed_idx = attr->active_speed;
+
+	switch (attr->active_speed) {
+	case IB_SPEED_DDR:
+	case IB_SPEED_QDR:
+	case IB_SPEED_FDR10:
+	case IB_SPEED_FDR:
+	case IB_SPEED_EDR:
+	case IB_SPEED_HDR:
+	case IB_SPEED_NDR:
+	case IB_SPEED_XDR:
+	case IB_SPEED_SDR:
+		break;
+	default:
+		speed_idx = IB_SPEED_SDR; /* Default to SDR for invalid rates */
+		break;
+	}
+
+	speed_info->str = ib_speed_attrs[speed_idx].str;
+	speed_info->rate = ib_speed_attrs[speed_idx].speed;
+	speed_info->rate *= ib_width_enum_to_int(attr->active_width);
+	if (speed_info->rate < 0)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_port_attr_to_speed_info);
+
 __attribute_const__ enum rdma_transport_type
 rdma_node_get_transport(unsigned int node_type)
 {
