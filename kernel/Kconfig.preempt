@@ -16,11 +16,13 @@ config ARCH_HAS_PREEMPT_LAZY
 
 choice
 	prompt "Preemption Model"
+	default PREEMPT_LAZY if ARCH_HAS_PREEMPT_LAZY
 	default PREEMPT_NONE
 
 config PREEMPT_NONE
 	bool "No Forced Preemption (Server)"
 	depends on !PREEMPT_RT
+	depends on ARCH_NO_PREEMPT
 	select PREEMPT_NONE_BUILD if !PREEMPT_DYNAMIC
 	help
 	  This is the traditional Linux preemption model, geared towards
@@ -35,6 +37,7 @@ config PREEMPT_NONE
 
 config PREEMPT_VOLUNTARY
 	bool "Voluntary Kernel Preemption (Desktop)"
+	depends on !ARCH_HAS_PREEMPT_LAZY
 	depends on !ARCH_NO_PREEMPT
 	depends on !PREEMPT_RT
 	select PREEMPT_VOLUNTARY_BUILD if !PREEMPT_DYNAMIC

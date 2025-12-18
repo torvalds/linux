@@ -243,7 +243,7 @@ static ssize_t sched_dynamic_write(struct file *filp, const char __user *ubuf,
 
 static int sched_dynamic_show(struct seq_file *m, void *v)
 {
-	int i = IS_ENABLED(CONFIG_PREEMPT_RT) * 2;
+	int i = (IS_ENABLED(CONFIG_PREEMPT_RT) || IS_ENABLED(CONFIG_ARCH_HAS_PREEMPT_LAZY)) * 2;
 	int j;
 
 	/* Count entries in NULL terminated preempt_modes */
