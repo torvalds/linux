@@ -1292,7 +1292,18 @@ static int psp_ptl_invoke(struct psp_context *psp, u32 req_code,
 {
 	struct psp_gfx_cmd_resp *cmd;
 	struct amdgpu_ptl *ptl = &psp->ptl;
+	struct amdgpu_device *adev = psp->adev;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ret = amdgpu_virt_ptl_request(adev, req_code, ptl_state, fmt1, fmt2);
+		if (!ret) {
+			ptl->enabled = *ptl_state;
+			ptl->fmt1 = *fmt1;
+			ptl->fmt2 = *fmt2;
+		}
+		return ret;
+	}
 
 	cmd = acquire_psp_cmd_buf(psp);
 
@@ -1356,14 +1367,17 @@ int amdgpu_ptl_perf_monitor_ctrl(struct amdgpu_device *adev, u32 req_code,
 	if (!adev || !ptl_state || !fmt1 || !fmt2)
 		return -EINVAL;
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
 	psp = &adev->psp;
 	ptl = &psp->ptl;
 
 	if (ptl->permanently_disabled && *ptl_state == 1)
 		return 0;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_fmt1 = *fmt1;
+		ptl_fmt2 = *fmt2;
+		return psp_ptl_invoke(psp, req_code, ptl_state, &ptl_fmt1, &ptl_fmt2);
+	}
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4) ||
 			psp->sos.fw_version < 0x0036081a)
