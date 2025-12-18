@@ -3617,6 +3617,20 @@ void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_free_qps);
 
+static void qm_insert_sorted(struct list_head *head, struct hisi_qm_resource *res)
+{
+	struct hisi_qm_resource *tmp;
+	struct list_head *n = head;
+
+	list_for_each_entry(tmp, head, list) {
+		if (res->distance < tmp->distance) {
+			n = &tmp->list;
+			break;
+		}
+	}
+	list_add_tail(&res->list, n);
+}
+
 static void free_list(struct list_head *head)
 {
 	struct hisi_qm_resource *res, *tmp;
@@ -3672,11 +3686,12 @@ stop_and_free:
 static int hisi_qm_sort_devices(int node, struct list_head *head,
 				struct hisi_qm_list *qm_list)
 {
-	struct hisi_qm_resource *res, *tmp;
+	struct hisi_qm_resource *res;
 	struct hisi_qm *qm;
-	struct list_head *n;
 	struct device *dev;
 	int dev_node;
+	LIST_HEAD(non_full_list);
+	LIST_HEAD(full_list);
 
 	list_for_each_entry(qm, &qm_list->list, list) {
 		dev = &qm->pdev->dev;
@@ -3691,15 +3706,15 @@ static int hisi_qm_sort_devices(int node, struct list_head *head,
 
 		res->qm = qm;
 		res->distance = node_distance(dev_node, node);
-		n = head;
-		list_for_each_entry(tmp, head, list) {
-			if (res->distance < tmp->distance) {
-				n = &tmp->list;
-				break;
-			}
-		}
-		list_add_tail(&res->list, n);
+
+		if (qm->qp_in_used == qm->qp_num)
+			qm_insert_sorted(&full_list, res);
+		else
+			qm_insert_sorted(&non_full_list, res);
 	}
+
+	list_splice_tail(&non_full_list, head);
+	list_splice_tail(&full_list, head);
 
 	return 0;
 }
