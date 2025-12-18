@@ -271,6 +271,11 @@ void cpuset_unlock(void)
 	mutex_unlock(&cpuset_mutex);
 }
 
+void lockdep_assert_cpuset_lock_held(void)
+{
+	lockdep_assert_held(&cpuset_mutex);
+}
+
 /**
  * cpuset_full_lock - Acquire full protection for cpuset modification
  *
