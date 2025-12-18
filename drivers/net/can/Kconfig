@@ -17,7 +17,7 @@ menuconfig CAN_DEV
 	  virtual ones. If you own such devices or plan to use the virtual CAN
 	  interfaces to develop applications, say Y here.
 
-if CAN_DEV
+if CAN_DEV && CAN
 
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
