@@ -1867,7 +1867,7 @@ static bool is_valid_madvise(unsigned long start, size_t len_in, int behavior)
  * madvise_should_skip() - Return if the request is invalid or nothing.
  * @start:	Start address of madvise-requested address range.
  * @len_in:	Length of madvise-requested address range.
- * @behavior:	Requested madvise behavor.
+ * @behavior:	Requested madvise behavior.
  * @err:	Pointer to store an error code from the check.
  *
  * If the specified behaviour is invalid or nothing would occur, we skip the

@@ -5935,7 +5935,7 @@ int numa_migrate_check(struct folio *folio, struct vm_fault *vmf,
 	else
 		*last_cpupid = folio_last_cpupid(folio);
 
-	/* Record the current PID acceesing VMA */
+	/* Record the current PID accessing VMA */
 	vma_set_access_pid_bit(vma);
 
 	count_vm_numa_event(NUMA_HINT_FAULTS);
@@ -6254,7 +6254,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		 * Use the maywrite version to indicate that vmf->pte may be
 		 * modified, but since we will use pte_same() to detect the
 		 * change of the !pte_none() entry, there is no need to recheck
-		 * the pmdval. Here we chooes to pass a dummy variable instead
+		 * the pmdval. Here we choose to pass a dummy variable instead
 		 * of NULL, which helps new user think about why this place is
 		 * special.
 		 */

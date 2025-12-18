@@ -2018,7 +2018,7 @@ swp_entry_t get_swap_page_of_type(int type)
 	if (get_swap_device_info(si)) {
 		if (si->flags & SWP_WRITEOK) {
 			/*
-			 * Grab the local lock to be complaint
+			 * Grab the local lock to be compliant
 			 * with swap table allocation.
 			 */
 			local_lock(&percpu_swap_cluster.lock);

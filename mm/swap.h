@@ -236,7 +236,7 @@ static inline bool folio_matches_swap_entry(const struct folio *folio,
 
 /*
  * All swap cache helpers below require the caller to ensure the swap entries
- * used are valid and stablize the device by any of the following ways:
+ * used are valid and stabilize the device by any of the following ways:
  * - Hold a reference by get_swap_device(): this ensures a single entry is
  *   valid and increases the swap device's refcount.
  * - Locking a folio in the swap cache: this ensures the folio's swap entries

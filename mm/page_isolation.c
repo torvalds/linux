@@ -301,7 +301,7 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * pageblock. When not all pageblocks within a page are isolated at the same
  * time, free page accounting can go wrong. For example, in the case of
  * MAX_PAGE_ORDER = pageblock_order + 1, a MAX_PAGE_ORDER page has two
- * pagelbocks.
+ * pageblocks.
  * [      MAX_PAGE_ORDER         ]
  * [  pageblock0  |  pageblock1  ]
  * When either pageblock is isolated, if it is a free page, the page is not

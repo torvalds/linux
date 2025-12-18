@@ -1274,7 +1274,7 @@ retry:
 	 * Use the maywrite version to indicate that dst_pte will be modified,
 	 * since dst_pte needs to be none, the subsequent pte_same() check
 	 * cannot prevent the dst_pte page from being freed concurrently, so we
-	 * also need to abtain dst_pmdval and recheck pmd_same() later.
+	 * also need to obtain dst_pmdval and recheck pmd_same() later.
 	 */
 	dst_pte = pte_offset_map_rw_nolock(mm, dst_pmd, dst_addr, &dst_pmdval,
 					   &dst_ptl);
@@ -1330,7 +1330,7 @@ retry:
 		goto out;
 	}
 
-	/* If PTE changed after we locked the folio them start over */
+	/* If PTE changed after we locked the folio then start over */
 	if (src_folio && unlikely(!pte_same(src_folio_pte, orig_src_pte))) {
 		ret = -EAGAIN;
 		goto out;

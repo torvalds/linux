@@ -4976,7 +4976,7 @@ void mem_cgroup_migrate(struct folio *old, struct folio *new)
 	memcg = folio_memcg(old);
 	/*
 	 * Note that it is normal to see !memcg for a hugetlb folio.
-	 * For e.g, itt could have been allocated when memory_hugetlb_accounting
+	 * For e.g, it could have been allocated when memory_hugetlb_accounting
 	 * was not selected.
 	 */
 	VM_WARN_ON_ONCE_FOLIO(!folio_test_hugetlb(old) && !memcg, old);

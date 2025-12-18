@@ -187,7 +187,7 @@ void mm_compute_batch(int overcommit_policy)
 	/*
 	 * For policy OVERCOMMIT_NEVER, set batch size to 0.4% of
 	 * (total memory/#cpus), and lift it to 25% for other policies
-	 * to easy the possible lock contention for percpu_counter
+	 * to ease the possible lock contention for percpu_counter
 	 * vm_committed_as, while the max limit is INT_MAX
 	 */
 	if (overcommit_policy == OVERCOMMIT_NEVER)
@@ -1745,7 +1745,7 @@ static void __init free_area_init_node(int nid)
 	lru_gen_init_pgdat(pgdat);
 }
 
-/* Any regular or high memory on that node ? */
+/* Any regular or high memory on that node? */
 static void __init check_for_memory(pg_data_t *pgdat)
 {
 	enum zone_type zone_type;
@@ -2045,7 +2045,7 @@ static unsigned long __init deferred_init_pages(struct zone *zone,
  * Initialize and free pages.
  *
  * At this point reserved pages and struct pages that correspond to holes in
- * memblock.memory are already intialized so every free range has a valid
+ * memblock.memory are already initialized so every free range has a valid
  * memory map around it.
  * This ensures that access of pages that are ahead of the range being
  * initialized (computing buddy page in __free_one_page()) always reads a valid

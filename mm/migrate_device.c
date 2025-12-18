@@ -1419,10 +1419,10 @@ EXPORT_SYMBOL(migrate_device_range);
 
 /**
  * migrate_device_pfns() - migrate device private pfns to normal memory.
- * @src_pfns: pre-popluated array of source device private pfns to migrate.
+ * @src_pfns: pre-populated array of source device private pfns to migrate.
  * @npages: number of pages to migrate.
  *
- * Similar to migrate_device_range() but supports non-contiguous pre-popluated
+ * Similar to migrate_device_range() but supports non-contiguous pre-populated
  * array of device pages to migrate.
  */
 int migrate_device_pfns(unsigned long *src_pfns, unsigned long npages)

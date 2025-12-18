@@ -105,7 +105,7 @@
 
 /*
  * On systems with 4K page size, this gives 255 size classes! There is a
- * trader-off here:
+ * trade-off here:
  *  - Large number of size classes is potentially wasteful as free page are
  *    spread across these classes
  *  - Small number of size classes causes large internal fragmentation

@@ -678,7 +678,7 @@ static bool can_realign_addr(struct pagetable_move_control *pmc,
 	/*
 	 * We don't want to have to go hunting for VMAs from the end of the old
 	 * VMA to the next page table boundary, also we want to make sure the
-	 * operation is wortwhile.
+	 * operation is worthwhile.
 	 *
 	 * So ensure that we only perform this realignment if the end of the
 	 * range being copied reaches or crosses the page table boundary.
@@ -926,7 +926,7 @@ static bool vrm_overlaps(struct vma_remap_struct *vrm)
 /*
  * Will a new address definitely be assigned? This either if the user specifies
  * it via MREMAP_FIXED, or if MREMAP_DONTUNMAP is used, indicating we will
- * always detemrine a target address.
+ * always determine a target address.
  */
 static bool vrm_implies_new_addr(struct vma_remap_struct *vrm)
 {
@@ -1806,7 +1806,7 @@ static unsigned long check_mremap_params(struct vma_remap_struct *vrm)
 	/*
 	 * move_vma() need us to stay 4 maps below the threshold, otherwise
 	 * it will bail out at the very beginning.
-	 * That is a problem if we have already unmaped the regions here
+	 * That is a problem if we have already unmapped the regions here
 	 * (new_addr, and old_addr), because userspace will not know the
 	 * state of the vma's after it gets -ENOMEM.
 	 * So, to avoid such scenario we can pre-compute if the whole
