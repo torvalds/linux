@@ -581,6 +581,164 @@ void update_domain_attr_tree(struct sched_domain_attr *dattr,
 }
 
 /*
+ * cpuset1_generate_sched_domains()
+ *
+ * Finding the best partition (set of domains):
+ *	The double nested loops below over i, j scan over the load
+ *	balanced cpusets (using the array of cpuset pointers in csa[])
+ *	looking for pairs of cpusets that have overlapping cpus_allowed
+ *	and merging them using a union-find algorithm.
+ *
+ *	The union of the cpus_allowed masks from the set of all cpusets
+ *	having the same root then form the one element of the partition
+ *	(one sched domain) to be passed to partition_sched_domains().
+ */
+int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes)
+{
+	struct cpuset *cp;	/* top-down scan of cpusets */
+	struct cpuset **csa;	/* array of all cpuset ptrs */
+	int csn;		/* how many cpuset ptrs in csa so far */
+	int i, j;		/* indices for partition finding loops */
+	cpumask_var_t *doms;	/* resulting partition; i.e. sched domains */
+	struct sched_domain_attr *dattr;  /* attributes for custom domains */
+	int ndoms = 0;		/* number of sched domains in result */
+	int nslot;		/* next empty doms[] struct cpumask slot */
+	struct cgroup_subsys_state *pos_css;
+	bool root_load_balance = is_sched_load_balance(&top_cpuset);
+	int nslot_update;
+
+	lockdep_assert_cpuset_lock_held();
+
+	doms = NULL;
+	dattr = NULL;
+	csa = NULL;
+
+	/* Special case for the 99% of systems with one, full, sched domain */
+	if (root_load_balance) {
+		ndoms = 1;
+		doms = alloc_sched_domains(ndoms);
+		if (!doms)
+			goto done;
+
+		dattr = kmalloc(sizeof(struct sched_domain_attr), GFP_KERNEL);
+		if (dattr) {
+			*dattr = SD_ATTR_INIT;
+			update_domain_attr_tree(dattr, &top_cpuset);
+		}
+		cpumask_and(doms[0], top_cpuset.effective_cpus,
+			    housekeeping_cpumask(HK_TYPE_DOMAIN));
+
+		goto done;
+	}
+
+	csa = kmalloc_array(nr_cpusets(), sizeof(cp), GFP_KERNEL);
+	if (!csa)
+		goto done;
+	csn = 0;
+
+	rcu_read_lock();
+	if (root_load_balance)
+		csa[csn++] = &top_cpuset;
+	cpuset_for_each_descendant_pre(cp, pos_css, &top_cpuset) {
+		if (cp == &top_cpuset)
+			continue;
+
+		/*
+		 * Continue traversing beyond @cp iff @cp has some CPUs and
+		 * isn't load balancing.  The former is obvious.  The
+		 * latter: All child cpusets contain a subset of the
+		 * parent's cpus, so just skip them, and then we call
+		 * update_domain_attr_tree() to calc relax_domain_level of
+		 * the corresponding sched domain.
+		 */
+		if (!cpumask_empty(cp->cpus_allowed) &&
+		    !(is_sched_load_balance(cp) &&
+		      cpumask_intersects(cp->cpus_allowed,
+					 housekeeping_cpumask(HK_TYPE_DOMAIN))))
+			continue;
+
+		if (is_sched_load_balance(cp) &&
+		    !cpumask_empty(cp->effective_cpus))
+			csa[csn++] = cp;
+
+		/* skip @cp's subtree */
+		pos_css = css_rightmost_descendant(pos_css);
+		continue;
+	}
+	rcu_read_unlock();
+
+	for (i = 0; i < csn; i++)
+		uf_node_init(&csa[i]->node);
+
+	/* Merge overlapping cpusets */
+	for (i = 0; i < csn; i++) {
+		for (j = i + 1; j < csn; j++) {
+			if (cpusets_overlap(csa[i], csa[j]))
+				uf_union(&csa[i]->node, &csa[j]->node);
+		}
+	}
+
+	/* Count the total number of domains */
+	for (i = 0; i < csn; i++) {
+		if (uf_find(&csa[i]->node) == &csa[i]->node)
+			ndoms++;
+	}
+
+	/*
+	 * Now we know how many domains to create.
+	 * Convert <csn, csa> to <ndoms, doms> and populate cpu masks.
+	 */
+	doms = alloc_sched_domains(ndoms);
+	if (!doms)
+		goto done;
+
+	/*
+	 * The rest of the code, including the scheduler, can deal with
+	 * dattr==NULL case. No need to abort if alloc fails.
+	 */
+	dattr = kmalloc_array(ndoms, sizeof(struct sched_domain_attr),
+			      GFP_KERNEL);
+
+	for (nslot = 0, i = 0; i < csn; i++) {
+		nslot_update = 0;
+		for (j = i; j < csn; j++) {
+			if (uf_find(&csa[j]->node) == &csa[i]->node) {
+				struct cpumask *dp = doms[nslot];
+
+				if (i == j) {
+					nslot_update = 1;
+					cpumask_clear(dp);
+					if (dattr)
+						*(dattr + nslot) = SD_ATTR_INIT;
+				}
+				cpumask_or(dp, dp, csa[j]->effective_cpus);
+				cpumask_and(dp, dp, housekeeping_cpumask(HK_TYPE_DOMAIN));
+				if (dattr)
+					update_domain_attr_tree(dattr + nslot, csa[j]);
+			}
+		}
+		if (nslot_update)
+			nslot++;
+	}
+	BUG_ON(nslot != ndoms);
+
+done:
+	kfree(csa);
+
+	/*
+	 * Fallback to the default domain if kmalloc() failed.
+	 * See comments in partition_sched_domains().
+	 */
+	if (doms == NULL)
+		ndoms = 1;
+
+	*domains    = doms;
+	*attributes = dattr;
+	return ndoms;
+}
+
+/*
  * for the common functions, 'private' gives the type of file
  */
 

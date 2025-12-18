@@ -211,7 +211,7 @@ static inline void notify_partition_change(struct cpuset *cs, int old_prs)
  * If cpu_online_mask is used while a hotunplug operation is happening in
  * parallel, we may leave an offline CPU in cpu_allowed or some other masks.
  */
-static struct cpuset top_cpuset = {
+struct cpuset top_cpuset = {
 	.flags = BIT(CS_CPU_EXCLUSIVE) |
 		 BIT(CS_MEM_EXCLUSIVE) | BIT(CS_SCHED_LOAD_BALANCE),
 	.partition_root_state = PRS_ROOT,
@@ -744,21 +744,6 @@ out:
 }
 
 #ifdef CONFIG_SMP
-/*
- * Helper routine for generate_sched_domains().
- * Do cpusets a, b have overlapping effective cpus_allowed masks?
- */
-static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
-{
-	return cpumask_intersects(a->effective_cpus, b->effective_cpus);
-}
-
-/* Must be called with cpuset_mutex held.  */
-static inline int nr_cpusets(void)
-{
-	/* jump label reference count + the top-level cpuset */
-	return static_key_count(&cpusets_enabled_key.key) + 1;
-}
 
 /*
  * generate_sched_domains()
@@ -798,17 +783,6 @@ static inline int nr_cpusets(void)
  *	   convenient format, that can be easily compared to the prior
  *	   value to determine what partition elements (sched domains)
  *	   were changed (added or removed.)
- *
- * Finding the best partition (set of domains):
- *	The double nested loops below over i, j scan over the load
- *	balanced cpusets (using the array of cpuset pointers in csa[])
- *	looking for pairs of cpusets that have overlapping cpus_allowed
- *	and merging them using a union-find algorithm.
- *
- *	The union of the cpus_allowed masks from the set of all cpusets
- *	having the same root then form the one element of the partition
- *	(one sched domain) to be passed to partition_sched_domains().
- *
  */
 static int generate_sched_domains(cpumask_var_t **domains,
 			struct sched_domain_attr **attributes)
@@ -825,6 +799,9 @@ static int generate_sched_domains(cpumask_var_t **domains,
 	bool root_load_balance = is_sched_load_balance(&top_cpuset);
 	bool cgrpv2 = cpuset_v2();
 	int nslot_update;
+
+	if (!cgrpv2)
+		return cpuset1_generate_sched_domains(domains, attributes);
 
 	doms = NULL;
 	dattr = NULL;

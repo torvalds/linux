@@ -9,6 +9,7 @@
 #include <linux/cpuset.h>
 #include <linux/spinlock.h>
 #include <linux/union_find.h>
+#include <linux/sched/isolation.h>
 
 /* See "Frequency meter" comments, below. */
 
@@ -185,6 +186,8 @@ struct cpuset {
 #endif
 };
 
+extern struct cpuset top_cpuset;
+
 static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
 {
 	return css ? container_of(css, struct cpuset, css) : NULL;
@@ -240,6 +243,21 @@ static inline int is_spread_page(const struct cpuset *cs)
 static inline int is_spread_slab(const struct cpuset *cs)
 {
 	return test_bit(CS_SPREAD_SLAB, &cs->flags);
+}
+
+/*
+ * Helper routine for generate_sched_domains().
+ * Do cpusets a, b have overlapping effective cpus_allowed masks?
+ */
+static inline int cpusets_overlap(struct cpuset *a, struct cpuset *b)
+{
+	return cpumask_intersects(a->effective_cpus, b->effective_cpus);
+}
+
+static inline int nr_cpusets(void)
+{
+	/* jump label reference count + the top-level cpuset */
+	return static_key_count(&cpusets_enabled_key.key) + 1;
 }
 
 /**
@@ -298,6 +316,9 @@ void cpuset1_init(struct cpuset *cs);
 void cpuset1_online_css(struct cgroup_subsys_state *css);
 void update_domain_attr_tree(struct sched_domain_attr *dattr,
 				    struct cpuset *root_cs);
+int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes);
+
 #else
 static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk) {}
@@ -311,6 +332,8 @@ static inline void cpuset1_init(struct cpuset *cs) {}
 static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
 static inline void update_domain_attr_tree(struct sched_domain_attr *dattr,
 				    struct cpuset *root_cs) {}
+static inline int cpuset1_generate_sched_domains(cpumask_var_t **domains,
+			struct sched_domain_attr **attributes) { return 0; };
 
 #endif /* CONFIG_CPUSETS_V1 */
 
