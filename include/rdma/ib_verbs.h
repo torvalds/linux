@@ -764,6 +764,7 @@ enum ib_event_type {
 	IB_EVENT_CLIENT_REREGISTER,
 	IB_EVENT_GID_CHANGE,
 	IB_EVENT_WQ_FATAL,
+	IB_EVENT_DEVICE_SPEED_CHANGE,
 };
 
 const char *__attribute_const__ ib_event_msg(enum ib_event_type event);

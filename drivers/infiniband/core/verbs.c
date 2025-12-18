@@ -78,6 +78,7 @@ static const char * const ib_events[] = {
 	[IB_EVENT_QP_LAST_WQE_REACHED]	= "last WQE reached",
 	[IB_EVENT_CLIENT_REREGISTER]	= "client reregister",
 	[IB_EVENT_GID_CHANGE]		= "GID changed",
+	[IB_EVENT_DEVICE_SPEED_CHANGE]  = "device speed change"
 };
 
 const char *__attribute_const__ ib_event_msg(enum ib_event_type event)
