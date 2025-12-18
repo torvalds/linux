@@ -140,7 +140,7 @@ guid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct intel_pmt_entry *entry = dev_get_drvdata(dev);
 
-	return sprintf(buf, "0x%x\n", entry->guid);
+	return sysfs_emit(buf, "0x%x\n", entry->guid);
 }
 static DEVICE_ATTR_RO(guid);
 
@@ -149,7 +149,7 @@ static ssize_t size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct intel_pmt_entry *entry = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%zu\n", entry->size);
+	return sysfs_emit(buf, "%zu\n", entry->size);
 }
 static DEVICE_ATTR_RO(size);
 
@@ -158,7 +158,7 @@ offset_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct intel_pmt_entry *entry = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%lu\n", offset_in_page(entry->base_addr));
+	return sysfs_emit(buf, "%lu\n", offset_in_page(entry->base_addr));
 }
 static DEVICE_ATTR_RO(offset);
 
