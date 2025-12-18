@@ -10736,9 +10736,7 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 	if (is_mcq_supported(hba)) {
 		ufshcd_mcq_enable(hba);
 		err = ufshcd_alloc_mcq(hba);
-		if (!err) {
-			ufshcd_config_mcq(hba);
-		} else {
+		if (err) {
 			/* Continue with SDB mode */
 			ufshcd_mcq_disable(hba);
 			use_mcq_mode = false;
@@ -11010,6 +11008,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	err = ufshcd_link_startup(hba);
 	if (err)
 		goto out_disable;
+
+	if (hba->mcq_enabled)
+		ufshcd_config_mcq(hba);
 
 	if (hba->quirks & UFSHCD_QUIRK_SKIP_PH_CONFIGURATION)
 		goto initialized;
