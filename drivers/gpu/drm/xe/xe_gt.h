@@ -20,7 +20,14 @@
 		for_each_if(((hwe__) = (gt__)->hw_engines + (id__)) && \
 			  xe_hw_engine_is_valid((hwe__)))
 
-#define CCS_MASK(gt) (((gt)->info.engine_mask & XE_HW_ENGINE_CCS_MASK) >> XE_HW_ENGINE_CCS0)
+#define XE_ENGINE_INSTANCES_FROM_MASK(gt, NAME) \
+	(((gt)->info.engine_mask & XE_HW_ENGINE_##NAME##_MASK) >> XE_HW_ENGINE_##NAME##0)
+
+#define RCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, RCS)
+#define VCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, VCS)
+#define VECS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, VECS)
+#define CCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, CCS)
+#define GSCCS_INSTANCES(gt) XE_ENGINE_INSTANCES_FROM_MASK(gt, GSCCS)
 
 #define GT_VER(gt) ({ \
 	typeof(gt) gt_ = (gt); \
