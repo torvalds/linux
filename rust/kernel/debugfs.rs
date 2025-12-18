@@ -8,28 +8,52 @@
 // When DebugFS is disabled, many parameters are dead. Linting for this isn't helpful.
 #![cfg_attr(not(CONFIG_DEBUG_FS), allow(unused_variables))]
 
-use crate::fmt;
-use crate::prelude::*;
-use crate::str::CStr;
 #[cfg(CONFIG_DEBUG_FS)]
 use crate::sync::Arc;
-use crate::uaccess::UserSliceReader;
-use core::marker::PhantomData;
-use core::marker::PhantomPinned;
+use crate::{
+    fmt,
+    prelude::*,
+    str::CStr,
+    uaccess::UserSliceReader, //
+};
+
 #[cfg(CONFIG_DEBUG_FS)]
 use core::mem::ManuallyDrop;
-use core::ops::Deref;
+use core::{
+    marker::{
+        PhantomData,
+        PhantomPinned, //
+    },
+    ops::Deref,
+};
 
 mod traits;
-pub use traits::{BinaryReader, BinaryReaderMut, BinaryWriter, Reader, Writer};
+pub use traits::{
+    BinaryReader,
+    BinaryReaderMut,
+    BinaryWriter,
+    Reader,
+    Writer, //
+};
 
 mod callback_adapters;
-use callback_adapters::{FormatAdapter, NoWriter, WritableAdapter};
+use callback_adapters::{
+    FormatAdapter,
+    NoWriter,
+    WritableAdapter, //
+};
+
 mod file_ops;
 use file_ops::{
-    BinaryReadFile, BinaryReadWriteFile, BinaryWriteFile, FileOps, ReadFile, ReadWriteFile,
-    WriteFile,
+    BinaryReadFile,
+    BinaryReadWriteFile,
+    BinaryWriteFile,
+    FileOps,
+    ReadFile,
+    ReadWriteFile,
+    WriteFile, //
 };
+
 #[cfg(CONFIG_DEBUG_FS)]
 mod entry;
 #[cfg(CONFIG_DEBUG_FS)]

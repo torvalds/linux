@@ -6,12 +6,21 @@
 //! `Scope::dir` to create a variety of files without the need to separately
 //! track them all.
 
-use kernel::debugfs::{Dir, Scope};
-use kernel::prelude::*;
-use kernel::sizes::*;
-use kernel::sync::atomic::Atomic;
-use kernel::sync::Mutex;
-use kernel::{c_str, new_mutex, str::CString};
+use kernel::{
+    c_str,
+    debugfs::{
+        Dir,
+        Scope, //
+    },
+    new_mutex,
+    prelude::*,
+    sizes::*,
+    str::CString,
+    sync::{
+        atomic::Atomic,
+        Mutex, //
+    },
+};
 
 module! {
     type: RustScopedDebugFs,

@@ -32,15 +32,29 @@
 //! ```
 
 use core::str::FromStr;
-use kernel::c_str;
-use kernel::debugfs::{Dir, File};
-use kernel::new_mutex;
-use kernel::prelude::*;
-use kernel::sizes::*;
-use kernel::sync::aref::ARef;
-use kernel::sync::atomic::{Atomic, Relaxed};
-use kernel::sync::Mutex;
-use kernel::{acpi, device::Core, of, platform, str::CString};
+use kernel::{
+    acpi,
+    c_str,
+    debugfs::{
+        Dir,
+        File, //
+    },
+    device::Core,
+    new_mutex,
+    of,
+    platform,
+    prelude::*,
+    sizes::*,
+    str::CString,
+    sync::{
+        aref::ARef,
+        atomic::{
+            Atomic,
+            Relaxed, //
+        },
+        Mutex,
+    }, //
+};
 
 kernel::module_platform_driver! {
     type: RustDebugFs,

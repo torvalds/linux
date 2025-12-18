@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2025 Google LLC.
 
-use super::{BinaryReader, BinaryWriter, Reader, Writer};
-use crate::debugfs::callback_adapters::Adapter;
-use crate::fmt;
-use crate::fs::file;
-use crate::prelude::*;
-use crate::seq_file::SeqFile;
-use crate::seq_print;
-use crate::uaccess::UserSlice;
+use super::{
+    BinaryReader,
+    BinaryWriter,
+    Reader,
+    Writer, //
+};
+
+use crate::{
+    debugfs::callback_adapters::Adapter,
+    fmt,
+    fs::file,
+    prelude::*,
+    seq_file::SeqFile,
+    seq_print,
+    uaccess::UserSlice, //
+};
+
 use core::marker::PhantomData;
 
 #[cfg(CONFIG_DEBUG_FS)]

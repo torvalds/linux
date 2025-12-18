@@ -3,17 +3,38 @@
 
 //! Traits for rendering or updating values exported to DebugFS.
 
-use crate::alloc::Allocator;
-use crate::fmt;
-use crate::fs::file;
-use crate::prelude::*;
-use crate::sync::atomic::{Atomic, AtomicBasicOps, AtomicType, Relaxed};
-use crate::sync::Arc;
-use crate::sync::Mutex;
-use crate::transmute::{AsBytes, FromBytes};
-use crate::uaccess::{UserSliceReader, UserSliceWriter};
-use core::ops::{Deref, DerefMut};
-use core::str::FromStr;
+use crate::{
+    alloc::Allocator,
+    fmt,
+    fs::file,
+    prelude::*,
+    sync::{
+        atomic::{
+            Atomic,
+            AtomicBasicOps,
+            AtomicType,
+            Relaxed, //
+        },
+        Arc,
+        Mutex, //
+    },
+    transmute::{
+        AsBytes,
+        FromBytes, //
+    },
+    uaccess::{
+        UserSliceReader,
+        UserSliceWriter, //
+    },
+};
+
+use core::{
+    ops::{
+        Deref,
+        DerefMut, //
+    },
+    str::FromStr,
+};
 
 /// A trait for types that can be written into a string.
 ///
