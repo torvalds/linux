@@ -2400,7 +2400,10 @@ static int gfx_v9_4_3_perf_monitor_ptl_init(struct amdgpu_device *adev, bool ena
 	if (!adev->psp.funcs)
 		return -EOPNOTSUPP;
 
-	if (!ptl->hw_supported) {
+	if (ptl->hw_supported_state == AMDGPU_PTL_HW_NOT_SUPPORTED)
+		return -EOPNOTSUPP;
+
+	if (ptl->hw_supported_state == AMDGPU_PTL_HW_UNINIT) {
 		fmt1 = GFX_FTYPE_VECTOR;
 		fmt2 = GFX_FTYPE_F8;
 	} else {
@@ -2411,10 +2414,17 @@ static int gfx_v9_4_3_perf_monitor_ptl_init(struct amdgpu_device *adev, bool ena
 	/* initialize PTL with default formats: GFX_FTYPE_VECTOR & GFX_FTYPE_F8 */
 	r = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_SET, &ptl_state,
 							&fmt1, &fmt2);
-	if (r)
-		return r;
+	if (r) {
+		if (ptl->hw_supported_state == AMDGPU_PTL_HW_UNINIT)
+			ptl->hw_supported_state = AMDGPU_PTL_HW_NOT_SUPPORTED;
 
-	ptl->hw_supported = true;
+		if (r != -EOPNOTSUPP)
+			dev_err(adev->dev, "PTL initialization failed (%d)\n", r);
+
+		return r;
+	}
+
+	ptl->hw_supported_state = AMDGPU_PTL_HW_SUPPORTED;
 
 	atomic_set(&ptl->disable_ref, 0);
 	if (!enable && !amdgpu_in_reset(adev) && !adev->in_suspend) {
@@ -2459,7 +2469,8 @@ static int gfx_v9_4_3_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int i, num_xcc;
 
-	if (adev->psp.ptl.hw_supported && !amdgpu_in_reset(adev))
+	if (adev->psp.ptl.hw_supported_state == AMDGPU_PTL_HW_SUPPORTED &&
+			!amdgpu_in_reset(adev))
 		gfx_v9_4_3_perf_monitor_ptl_init(adev, false);
 
 	amdgpu_irq_put(adev, &adev->gfx.bad_op_irq, 0);
