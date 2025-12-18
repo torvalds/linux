@@ -1513,7 +1513,7 @@ static int ath12k_dp_setup(struct ath12k_base *ab)
 					HAL_WBM_IDLE_LINK, srng, n_link_desc);
 	if (ret) {
 		ath12k_warn(ab, "failed to setup link desc: %d\n", ret);
-		return ret;
+		goto rhash_destroy;
 	}
 
 	ret = ath12k_dp_cc_init(ab);
