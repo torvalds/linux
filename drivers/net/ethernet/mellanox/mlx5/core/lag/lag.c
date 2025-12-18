@@ -1464,6 +1464,33 @@ static void mlx5_lag_update_tracker_speed(struct lag_tracker *tracker,
 		tracker->bond_speed_mbps = lksettings.base.speed;
 }
 
+/* Returns speed in Mbps. */
+int mlx5_lag_query_bond_speed(struct mlx5_core_dev *mdev, u32 *speed)
+{
+	struct mlx5_lag *ldev;
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&lag_lock, flags);
+	ldev = mlx5_lag_dev(mdev);
+	if (!ldev) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+
+	*speed = ldev->tracker.bond_speed_mbps;
+
+	if (*speed == SPEED_UNKNOWN) {
+		mlx5_core_dbg(mdev, "Bond speed is unknown\n");
+		ret = -EINVAL;
+	}
+
+unlock:
+	spin_unlock_irqrestore(&lag_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mlx5_lag_query_bond_speed);
+
 /* this handler is always registered to netdev events */
 static int mlx5_lag_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
