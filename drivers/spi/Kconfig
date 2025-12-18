@@ -136,6 +136,15 @@ config SPI_AR934X
 	  This enables support for the SPI controller present on the
 	  Qualcomm Atheros AR934X/QCA95XX SoCs.
 
+config SPI_ATCSPI200
+	tristate "Andes ATCSPI200 SPI controller"
+	depends on ARCH_ANDES
+	help
+	  SPI driver for Andes ATCSPI200 SPI controller.
+	  ATCSPI200 controller supports DMA and PIO modes. When DMA
+	  is not available, the driver automatically falls back to
+	  PIO mode.
+
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
 	depends on ATH79 || COMPILE_TEST
