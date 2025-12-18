@@ -163,6 +163,10 @@ static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
  *          :   ├── tile0
  *              :   ├── gt0
  *                  :   ├── sched_groups_mode
+ *                      ├── sched_groups
+ *                      :   ├── group0
+ *                          :
+ *                          └── groupN
  */
 
 static const char *sched_group_mode_to_string(enum xe_sriov_sched_group_modes mode)
@@ -257,8 +261,49 @@ static const struct file_operations sched_groups_fops = {
 	.release = single_release,
 };
 
+static ssize_t sched_group_engines_read(struct file *file, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct xe_gt *gt = extract_gt(dent->d_parent->d_parent);
+	struct xe_gt_sriov_scheduler_groups *info = &gt->sriov.pf.policy.guc.sched_groups;
+	struct guc_sched_group *groups = info->modes[info->current_mode].groups;
+	u32 num_groups = info->modes[info->current_mode].num_groups;
+	unsigned int group = (uintptr_t)extract_priv(dent);
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+	char engines[128];
+
+	engines[0] = '\0';
+
+	if (group < num_groups) {
+		for_each_hw_engine(hwe, gt, id) {
+			u8 guc_class = xe_engine_class_to_guc_class(hwe->class);
+			u32 mask = groups[group].engines[guc_class];
+
+			if (mask & BIT(hwe->logical_instance)) {
+				strlcat(engines, hwe->name, sizeof(engines));
+				strlcat(engines, " ", sizeof(engines));
+			}
+		}
+		strlcat(engines, "\n", sizeof(engines));
+	}
+
+	return simple_read_from_buffer(buf, count, ppos, engines, strlen(engines));
+}
+
+static const struct file_operations sched_group_engines_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = sched_group_engines_read,
+	.llseek = default_llseek,
+};
+
 static void pf_add_sched_groups(struct xe_gt *gt, struct dentry *parent, unsigned int vfid)
 {
+	struct dentry *groups;
+	u8 group;
+
 	xe_gt_assert(gt, gt == extract_gt(parent));
 	xe_gt_assert(gt, vfid == extract_vfid(parent));
 
@@ -271,6 +316,8 @@ static void pf_add_sched_groups(struct xe_gt *gt, struct dentry *parent, unsigne
 	 * We should rework the flow so that debugfs is registered after the
 	 * policy init, so that we check if there are valid groups before
 	 * adding the debugfs files.
+	 * Similarly, instead of using GUC_MAX_SCHED_GROUPS we could use
+	 * gt->sriov.pf.policy.guc.sched_groups.max_number_of_groups.
 	 */
 	if (!xe_sriov_gt_pf_policy_has_sched_groups_support(gt))
 		return;
@@ -279,6 +326,18 @@ static void pf_add_sched_groups(struct xe_gt *gt, struct dentry *parent, unsigne
 		return;
 
 	debugfs_create_file("sched_groups_mode", 0644, parent, parent, &sched_groups_fops);
+
+	groups = debugfs_create_dir("sched_groups", parent);
+	if (IS_ERR(groups))
+		return;
+
+	for (group = 0; group < GUC_MAX_SCHED_GROUPS; group++) {
+		char name[10];
+
+		snprintf(name, sizeof(name), "group%u", group);
+		debugfs_create_file(name, 0644, groups, (void *)(uintptr_t)group,
+				    &sched_group_engines_fops);
+	}
 }
 
 /*
