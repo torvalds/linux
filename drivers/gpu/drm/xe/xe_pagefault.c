@@ -223,22 +223,22 @@ static bool xe_pagefault_queue_pop(struct xe_pagefault_queue *pf_queue,
 
 static void xe_pagefault_print(struct xe_pagefault *pf)
 {
-	xe_gt_dbg(pf->gt, "\n\tASID: %d\n"
-		  "\tFaulted Address: 0x%08x%08x\n"
-		  "\tFaultType: %d\n"
-		  "\tAccessType: %d\n"
-		  "\tFaultLevel: %d\n"
-		  "\tEngineClass: %d %s\n"
-		  "\tEngineInstance: %d\n",
-		  pf->consumer.asid,
-		  upper_32_bits(pf->consumer.page_addr),
-		  lower_32_bits(pf->consumer.page_addr),
-		  pf->consumer.fault_type,
-		  pf->consumer.access_type,
-		  pf->consumer.fault_level,
-		  pf->consumer.engine_class,
-		  xe_hw_engine_class_to_str(pf->consumer.engine_class),
-		  pf->consumer.engine_instance);
+	xe_gt_info(pf->gt, "\n\tASID: %d\n"
+		   "\tFaulted Address: 0x%08x%08x\n"
+		   "\tFaultType: %d\n"
+		   "\tAccessType: %d\n"
+		   "\tFaultLevel: %d\n"
+		   "\tEngineClass: %d %s\n"
+		   "\tEngineInstance: %d\n",
+		   pf->consumer.asid,
+		   upper_32_bits(pf->consumer.page_addr),
+		   lower_32_bits(pf->consumer.page_addr),
+		   pf->consumer.fault_type,
+		   pf->consumer.access_type,
+		   pf->consumer.fault_level,
+		   pf->consumer.engine_class,
+		   xe_hw_engine_class_to_str(pf->consumer.engine_class),
+		   pf->consumer.engine_instance);
 }
 
 static void xe_pagefault_queue_work(struct work_struct *w)
@@ -260,8 +260,8 @@ static void xe_pagefault_queue_work(struct work_struct *w)
 		err = xe_pagefault_service(&pf);
 		if (err) {
 			xe_pagefault_print(&pf);
-			xe_gt_dbg(pf.gt, "Fault response: Unsuccessful %pe\n",
-				  ERR_PTR(err));
+			xe_gt_info(pf.gt, "Fault response: Unsuccessful %pe\n",
+				   ERR_PTR(err));
 		}
 
 		pf.producer.ops->ack_fault(&pf, err);

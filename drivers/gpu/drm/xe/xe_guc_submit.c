@@ -3159,13 +3159,13 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 	 * See bspec 54047 and 72187 for details.
 	 */
 	if (type != XE_GUC_CAT_ERR_TYPE_INVALID)
-		xe_gt_dbg(gt,
-			  "Engine memory CAT error [%u]: class=%s, logical_mask: 0x%x, guc_id=%d",
-			  type, xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+		xe_gt_info(gt,
+			   "Engine memory CAT error [%u]: class=%s, logical_mask: 0x%x, guc_id=%d",
+			   type, xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
 	else
-		xe_gt_dbg(gt,
-			  "Engine memory CAT error: class=%s, logical_mask: 0x%x, guc_id=%d",
-			  xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
+		xe_gt_info(gt,
+			   "Engine memory CAT error: class=%s, logical_mask: 0x%x, guc_id=%d",
+			   xe_hw_engine_class_to_str(q->class), q->logical_mask, guc_id);
 
 	trace_xe_exec_queue_memory_cat_error(q);
 
