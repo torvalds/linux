@@ -1581,6 +1581,129 @@ static int mlx5_ib_rep_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 	return 0;
 }
 
+static int mlx5_ib_query_port_speed_from_port(struct mlx5_ib_dev *dev,
+					      u32 port_num, u64 *speed)
+{
+	struct ib_port_speed_info speed_info;
+	struct ib_port_attr attr = {};
+	int err;
+
+	err = mlx5_ib_query_port(&dev->ib_dev, port_num, &attr);
+	if (err)
+		return err;
+
+	if (attr.state == IB_PORT_DOWN) {
+		*speed = 0;
+		return 0;
+	}
+
+	err = ib_port_attr_to_speed_info(&attr, &speed_info);
+	if (err)
+		return err;
+
+	*speed = speed_info.rate;
+	return 0;
+}
+
+static int mlx5_ib_query_port_speed_from_vport(struct mlx5_core_dev *mdev,
+					       u8 op_mod, u16 vport,
+					       u8 other_vport, u64 *speed,
+					       struct mlx5_ib_dev *dev,
+					       u32 port_num)
+{
+	u32 max_tx_speed;
+	int err;
+
+	err = mlx5_query_vport_max_tx_speed(mdev, op_mod, vport, other_vport,
+					    &max_tx_speed);
+	if (err)
+		return err;
+
+	if (max_tx_speed == 0)
+		/* Value 0 indicates field not supported, fallback */
+		return mlx5_ib_query_port_speed_from_port(dev, port_num,
+							  speed);
+
+	*speed = max_tx_speed;
+	return 0;
+}
+
+static int mlx5_ib_query_port_speed_from_bond(struct mlx5_ib_dev *dev,
+					      u32 port_num, u64 *speed)
+{
+	struct mlx5_core_dev *mdev = dev->mdev;
+	u32 bond_speed;
+	int err;
+
+	err = mlx5_lag_query_bond_speed(mdev, &bond_speed);
+	if (err)
+		return err;
+
+	*speed = bond_speed / MLX5_MAX_TX_SPEED_UNIT;
+
+	return 0;
+}
+
+static int mlx5_ib_query_port_speed_non_rep(struct mlx5_ib_dev *dev,
+					    u32 port_num, u64 *speed)
+{
+	u16 op_mod = MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT;
+
+	if (mlx5_lag_is_roce(dev->mdev))
+		return mlx5_ib_query_port_speed_from_bond(dev, port_num,
+							  speed);
+
+	return mlx5_ib_query_port_speed_from_vport(dev->mdev, op_mod, 0, false,
+						   speed, dev, port_num);
+}
+
+static int mlx5_ib_query_port_speed_rep(struct mlx5_ib_dev *dev, u32 port_num,
+					u64 *speed)
+{
+	struct mlx5_eswitch_rep *rep;
+	struct mlx5_core_dev *mdev;
+	u16 op_mod;
+
+	if (!dev->port[port_num - 1].rep) {
+		mlx5_ib_warn(dev, "Representor doesn't exist for port %u\n",
+			     port_num);
+		return -EINVAL;
+	}
+
+	rep = dev->port[port_num - 1].rep;
+	mdev = mlx5_eswitch_get_core_dev(rep->esw);
+	if (!mdev)
+		return -ENODEV;
+
+	if (rep->vport == MLX5_VPORT_UPLINK) {
+		if (mlx5_lag_is_sriov(mdev))
+			return mlx5_ib_query_port_speed_from_bond(dev,
+								  port_num,
+								  speed);
+
+		return mlx5_ib_query_port_speed_from_port(dev, port_num,
+							  speed);
+	}
+
+	op_mod = MLX5_VPORT_STATE_OP_MOD_ESW_VPORT;
+	return mlx5_ib_query_port_speed_from_vport(dev->mdev, op_mod,
+						   rep->vport, true, speed, dev,
+						   port_num);
+}
+
+int mlx5_ib_query_port_speed(struct ib_device *ibdev, u32 port_num, u64 *speed)
+{
+	struct mlx5_ib_dev *dev = to_mdev(ibdev);
+
+	if (mlx5_ib_port_link_layer(ibdev, port_num) ==
+	    IB_LINK_LAYER_INFINIBAND || mlx5_core_mp_enabled(dev->mdev))
+		return mlx5_ib_query_port_speed_from_port(dev, port_num, speed);
+	else if (!dev->is_rep)
+		return mlx5_ib_query_port_speed_non_rep(dev, port_num, speed);
+	else
+		return mlx5_ib_query_port_speed_rep(dev, port_num, speed);
+}
+
 static int mlx5_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 			     union ib_gid *gid)
 {
@@ -4305,6 +4428,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.query_device = mlx5_ib_query_device,
 	.query_gid = mlx5_ib_query_gid,
 	.query_pkey = mlx5_ib_query_pkey,
+	.query_port_speed = mlx5_ib_query_port_speed,
 	.query_qp = mlx5_ib_query_qp,
 	.query_srq = mlx5_ib_query_srq,
 	.query_ucontext = mlx5_ib_query_ucontext,
