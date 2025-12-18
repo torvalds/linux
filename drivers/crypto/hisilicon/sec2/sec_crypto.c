@@ -54,7 +54,6 @@
 #define SEC_AUTH_CIPHER_V3	0x40
 #define SEC_FLAG_OFFSET		7
 #define SEC_FLAG_MASK		0x0780
-#define SEC_TYPE_MASK		0x0F
 #define SEC_DONE_MASK		0x0001
 #define SEC_ICV_MASK		0x000E
 
@@ -148,7 +147,7 @@ static void sec_free_req_id(struct sec_req *req)
 	spin_unlock_bh(&qp_ctx->id_lock);
 }
 
-static u8 pre_parse_finished_bd(struct bd_status *status, void *resp)
+static void pre_parse_finished_bd(struct bd_status *status, void *resp)
 {
 	struct sec_sqe *bd = resp;
 
@@ -158,11 +157,9 @@ static u8 pre_parse_finished_bd(struct bd_status *status, void *resp)
 					SEC_FLAG_MASK) >> SEC_FLAG_OFFSET;
 	status->tag = le16_to_cpu(bd->type2.tag);
 	status->err_type = bd->type2.error_type;
-
-	return bd->type_cipher_auth & SEC_TYPE_MASK;
 }
 
-static u8 pre_parse_finished_bd3(struct bd_status *status, void *resp)
+static void pre_parse_finished_bd3(struct bd_status *status, void *resp)
 {
 	struct sec_sqe3 *bd3 = resp;
 
@@ -172,8 +169,6 @@ static u8 pre_parse_finished_bd3(struct bd_status *status, void *resp)
 					SEC_FLAG_MASK) >> SEC_FLAG_OFFSET;
 	status->tag = le64_to_cpu(bd3->tag);
 	status->err_type = bd3->error_type;
-
-	return le32_to_cpu(bd3->bd_param) & SEC_TYPE_MASK;
 }
 
 static int sec_cb_status_check(struct sec_req *req,
@@ -244,7 +239,7 @@ static void sec_alg_send_backlog_soft(struct sec_ctx *ctx, struct sec_qp_ctx *qp
 	struct sec_req *req, *tmp;
 	int ret;
 
-	list_for_each_entry_safe(req, tmp, &qp_ctx->backlog.list, list) {
+	list_for_each_entry_safe(req, tmp, &qp_ctx->qp->backlog.list, list) {
 		list_del(&req->list);
 		ctx->req_op->buf_unmap(ctx, req);
 		if (req->req_id >= 0)
@@ -265,11 +260,12 @@ static void sec_alg_send_backlog_soft(struct sec_ctx *ctx, struct sec_qp_ctx *qp
 
 static void sec_alg_send_backlog(struct sec_ctx *ctx, struct sec_qp_ctx *qp_ctx)
 {
+	struct hisi_qp *qp = qp_ctx->qp;
 	struct sec_req *req, *tmp;
 	int ret;
 
-	spin_lock_bh(&qp_ctx->backlog.lock);
-	list_for_each_entry_safe(req, tmp, &qp_ctx->backlog.list, list) {
+	spin_lock_bh(&qp->backlog.lock);
+	list_for_each_entry_safe(req, tmp, &qp->backlog.list, list) {
 		ret = qp_send_message(req);
 		switch (ret) {
 		case -EINPROGRESS:
@@ -287,42 +283,21 @@ static void sec_alg_send_backlog(struct sec_ctx *ctx, struct sec_qp_ctx *qp_ctx)
 	}
 
 unlock:
-	spin_unlock_bh(&qp_ctx->backlog.lock);
+	spin_unlock_bh(&qp->backlog.lock);
 }
 
 static void sec_req_cb(struct hisi_qp *qp, void *resp)
 {
-	struct sec_qp_ctx *qp_ctx = qp->qp_ctx;
-	struct sec_dfx *dfx = &qp_ctx->ctx->sec->debug.dfx;
-	u8 type_supported = qp_ctx->ctx->type_supported;
+	const struct sec_sqe *sqe = qp->msg[qp->qp_status.cq_head];
+	struct sec_req *req = container_of(sqe, struct sec_req, sec_sqe);
+	struct sec_ctx *ctx = req->ctx;
+	struct sec_dfx *dfx = &ctx->sec->debug.dfx;
 	struct bd_status status;
-	struct sec_ctx *ctx;
-	struct sec_req *req;
 	int err;
-	u8 type;
 
-	if (type_supported == SEC_BD_TYPE2) {
-		type = pre_parse_finished_bd(&status, resp);
-		req = qp_ctx->req_list[status.tag];
-	} else {
-		type = pre_parse_finished_bd3(&status, resp);
-		req = (void *)(uintptr_t)status.tag;
-	}
-
-	if (unlikely(type != type_supported)) {
-		atomic64_inc(&dfx->err_bd_cnt);
-		pr_err("err bd type [%u]\n", type);
-		return;
-	}
-
-	if (unlikely(!req)) {
-		atomic64_inc(&dfx->invalid_req_cnt);
-		atomic_inc(&qp->qp_status.used);
-		return;
-	}
+	pre_parse_finished_bd(&status, resp);
 
 	req->err_type = status.err_type;
-	ctx = req->ctx;
 	err = sec_cb_status_check(req, &status);
 	if (err)
 		atomic64_inc(&dfx->done_flag_cnt);
@@ -330,7 +305,31 @@ static void sec_req_cb(struct hisi_qp *qp, void *resp)
 	atomic64_inc(&dfx->recv_cnt);
 
 	ctx->req_op->buf_unmap(ctx, req);
+	ctx->req_op->callback(ctx, req, err);
+}
 
+static void sec_req_cb3(struct hisi_qp *qp, void *resp)
+{
+	struct bd_status status;
+	struct sec_ctx *ctx;
+	struct sec_dfx *dfx;
+	struct sec_req *req;
+	int err;
+
+	pre_parse_finished_bd3(&status, resp);
+
+	req = (void *)(uintptr_t)status.tag;
+	req->err_type = status.err_type;
+	ctx = req->ctx;
+	dfx = &ctx->sec->debug.dfx;
+
+	err = sec_cb_status_check(req, &status);
+	if (err)
+		atomic64_inc(&dfx->done_flag_cnt);
+
+	atomic64_inc(&dfx->recv_cnt);
+
+	ctx->req_op->buf_unmap(ctx, req);
 	ctx->req_op->callback(ctx, req, err);
 }
 
@@ -348,8 +347,10 @@ static int sec_alg_send_message_retry(struct sec_req *req)
 
 static int sec_alg_try_enqueue(struct sec_req *req)
 {
+	struct hisi_qp *qp = req->qp_ctx->qp;
+
 	/* Check if any request is already backlogged */
-	if (!list_empty(&req->backlog->list))
+	if (!list_empty(&qp->backlog.list))
 		return -EBUSY;
 
 	/* Try to enqueue to HW ring */
@@ -359,17 +360,18 @@ static int sec_alg_try_enqueue(struct sec_req *req)
 
 static int sec_alg_send_message_maybacklog(struct sec_req *req)
 {
+	struct hisi_qp *qp = req->qp_ctx->qp;
 	int ret;
 
 	ret = sec_alg_try_enqueue(req);
 	if (ret != -EBUSY)
 		return ret;
 
-	spin_lock_bh(&req->backlog->lock);
+	spin_lock_bh(&qp->backlog.lock);
 	ret = sec_alg_try_enqueue(req);
 	if (ret == -EBUSY)
-		list_add_tail(&req->list, &req->backlog->list);
-	spin_unlock_bh(&req->backlog->lock);
+		list_add_tail(&req->list, &qp->backlog.list);
+	spin_unlock_bh(&qp->backlog.lock);
 
 	return ret;
 }
@@ -629,13 +631,14 @@ static int sec_create_qp_ctx(struct sec_ctx *ctx, int qp_ctx_id)
 	qp_ctx->qp = qp;
 	qp_ctx->ctx = ctx;
 
-	qp->req_cb = sec_req_cb;
+	if (ctx->type_supported == SEC_BD_TYPE3)
+		qp->req_cb = sec_req_cb3;
+	else
+		qp->req_cb = sec_req_cb;
 
 	spin_lock_init(&qp_ctx->req_lock);
 	idr_init(&qp_ctx->req_idr);
-	spin_lock_init(&qp_ctx->backlog.lock);
 	spin_lock_init(&qp_ctx->id_lock);
-	INIT_LIST_HEAD(&qp_ctx->backlog.list);
 	qp_ctx->send_head = 0;
 
 	ret = sec_alloc_qp_ctx_resource(ctx, qp_ctx);
@@ -1952,7 +1955,6 @@ static int sec_request_init(struct sec_ctx *ctx, struct sec_req *req)
 	} while (req->req_id < 0 && ++i < ctx->sec->ctx_q_num);
 
 	req->qp_ctx = qp_ctx;
-	req->backlog = &qp_ctx->backlog;
 
 	return 0;
 }

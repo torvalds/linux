@@ -447,6 +447,11 @@ struct hisi_qp_ops {
 	int (*fill_sqe)(void *sqe, void *q_parm, void *d_parm);
 };
 
+struct instance_backlog {
+	struct list_head list;
+	spinlock_t lock;
+};
+
 struct hisi_qp {
 	u32 qp_id;
 	u16 sq_depth;
@@ -471,6 +476,9 @@ struct hisi_qp {
 	bool is_in_kernel;
 	u16 pasid;
 	struct uacce_queue *uacce_q;
+
+	struct instance_backlog backlog;
+	const void **msg;
 };
 
 static inline int vfs_num_set(const char *val, const struct kernel_param *kp)

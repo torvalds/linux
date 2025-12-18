@@ -2219,6 +2219,7 @@ static void qp_stop_fail_cb(struct hisi_qp *qp)
 	for (i = 0; i < qp_used; i++) {
 		pos = (i + cur_head) % sq_depth;
 		qp->req_cb(qp, qp->sqe + (u32)(qm->sqe_size * pos));
+		qm_cq_head_update(qp);
 		atomic_dec(&qp->qp_status.used);
 	}
 }
@@ -2383,6 +2384,7 @@ int hisi_qp_send(struct hisi_qp *qp, const void *msg)
 		return -EBUSY;
 
 	memcpy(sqe, msg, qp->qm->sqe_size);
+	qp->msg[sq_tail] = msg;
 
 	qm_db(qp->qm, qp->qp_id, QM_DOORBELL_CMD_SQ, sq_tail_next, 0);
 	atomic_inc(&qp->qp_status.used);
@@ -2919,12 +2921,13 @@ EXPORT_SYMBOL_GPL(hisi_qm_wait_task_finish);
 static void hisi_qp_memory_uninit(struct hisi_qm *qm, int num)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_dma *qdma;
+	struct hisi_qp *qp;
 	int i;
 
 	for (i = num - 1; i >= 0; i--) {
-		qdma = &qm->qp_array[i].qdma;
-		dma_free_coherent(dev, qdma->size, qdma->va, qdma->dma);
+		qp = &qm->qp_array[i];
+		dma_free_coherent(dev, qp->qdma.size, qp->qdma.va, qp->qdma.dma);
+		kfree(qp->msg);
 		kfree(qm->poll_data[i].qp_finish_id);
 	}
 
@@ -2946,10 +2949,14 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id,
 		return -ENOMEM;
 
 	qp = &qm->qp_array[id];
+	qp->msg = kmalloc_array(sq_depth, sizeof(void *), GFP_KERNEL);
+	if (!qp->msg)
+		goto err_free_qp_finish_id;
+
 	qp->qdma.va = dma_alloc_coherent(dev, dma_size, &qp->qdma.dma,
 					 GFP_KERNEL);
 	if (!qp->qdma.va)
-		goto err_free_qp_finish_id;
+		goto err_free_qp_msg;
 
 	qp->sqe = qp->qdma.va;
 	qp->sqe_dma = qp->qdma.dma;
@@ -2961,8 +2968,13 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id,
 	qp->qm = qm;
 	qp->qp_id = id;
 
+	spin_lock_init(&qp->backlog.lock);
+	INIT_LIST_HEAD(&qp->backlog.list);
+
 	return 0;
 
+err_free_qp_msg:
+	kfree(qp->msg);
 err_free_qp_finish_id:
 	kfree(qm->poll_data[id].qp_finish_id);
 	return ret;
