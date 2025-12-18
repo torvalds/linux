@@ -174,17 +174,21 @@ static irqreturn_t mchp_ipc_cluster_aggr_isr(int irq, void *data)
 	struct mchp_ipc_msg ipc_msg;
 	struct mchp_ipc_status status_msg;
 	int ret;
-	unsigned long hartid;
 	u32 i, chan_index, chan_id;
+	bool found = false;
 
 	/* Find out the hart that originated the irq */
 	for_each_online_cpu(i) {
-		hartid = cpuid_to_hartid_map(i);
-		if (irq == ipc->cluster_cfg[i].irq)
+		if (irq == ipc->cluster_cfg[i].irq) {
+			found = true;
 			break;
+		}
 	}
 
-	status_msg.cluster = hartid;
+	if (unlikely(!found))
+		return IRQ_NONE;
+
+	status_msg.cluster = cpuid_to_hartid_map(i);
 	memcpy(ipc->cluster_cfg[i].buf_base, &status_msg, sizeof(struct mchp_ipc_status));
 
 	ret = mchp_ipc_sbi_send(SBI_EXT_IPC_STATUS, ipc->cluster_cfg[i].buf_base_addr);
@@ -321,13 +325,6 @@ static int mchp_ipc_startup(struct mbox_chan *chan)
 		goto fail_free_buf_msg_rx;
 	}
 
-	if (ret) {
-		dev_err(ipc->dev, "failed to register interrupt(s)\n");
-		goto fail_free_buf_msg_rx;
-	}
-
-	return ret;
-
 fail_free_buf_msg_rx:
 	kfree(chan_info->msg_buf_rx);
 fail_free_buf_msg_tx:
@@ -419,7 +416,7 @@ static int mchp_ipc_probe(struct platform_device *pdev)
 
 	ret = sbi_probe_extension(SBI_EXT_MICROCHIP_TECHNOLOGY);
 	if (ret <= 0)
-		return dev_err_probe(dev, ret, "Microchip SBI extension not detected\n");
+		return dev_err_probe(dev, -ENODEV, "Microchip SBI extension not detected\n");
 
 	ipc = devm_kzalloc(dev, sizeof(*ipc), GFP_KERNEL);
 	if (!ipc)
