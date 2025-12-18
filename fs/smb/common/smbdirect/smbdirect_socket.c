@@ -114,6 +114,17 @@ static int smbdirect_socket_set_initial_parameters(struct smbdirect_socket *sc,
 	if (sc->status != SMBDIRECT_SOCKET_CREATED)
 		return -EINVAL;
 
+	if (sp->flags & ~SMBDIRECT_FLAG_PORT_RANGE_MASK)
+		return -EINVAL;
+
+	if (sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IB &&
+	    sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IW)
+		return -EINVAL;
+	else if (sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IB)
+		rdma_restrict_node_type(sc->rdma.cm_id, RDMA_NODE_IB_CA);
+	else if (sp->flags & SMBDIRECT_FLAG_PORT_RANGE_ONLY_IW)
+		rdma_restrict_node_type(sc->rdma.cm_id, RDMA_NODE_RNIC);
+
 	/*
 	 * Make a copy of the callers parameters
 	 * from here we only work on the copy
