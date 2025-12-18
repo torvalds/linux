@@ -97,6 +97,23 @@ static int pf_push_policy_u32(struct xe_gt *gt, u16 key, u32 value)
 	return pf_push_policy_klvs(gt, 1, klv, ARRAY_SIZE(klv));
 }
 
+static int pf_push_policy_payload(struct xe_gt *gt, u16 key, void *payload, u32 num_dwords)
+{
+	CLASS(xe_guc_buf, buf)(&gt->uc.guc.buf, GUC_KLV_LEN_MIN + num_dwords);
+	u32 *klv;
+
+	if (!xe_guc_buf_is_valid(buf))
+		return -ENOBUFS;
+
+	klv = xe_guc_buf_cpu_ptr(buf);
+
+	klv[0] = PREP_GUC_KLV(key, num_dwords);
+	if (num_dwords)
+		memcpy(&klv[1], payload, num_dwords * sizeof(u32));
+
+	return pf_push_policy_buf_klvs(gt, 1, buf, GUC_KLV_LEN_MIN + num_dwords);
+}
+
 static int pf_update_policy_bool(struct xe_gt *gt, u16 key, bool *policy, bool value)
 {
 	int err;
@@ -397,6 +414,17 @@ static void pf_sched_group_media_slices(struct xe_gt *gt, struct guc_sched_group
 	if (group < 2)
 		return;
 
+	/*
+	 * If we have more groups than the GuC can support then we don't want to
+	 * expose this specific mode, because the GuC will return an error if we
+	 * try to enable it.
+	 */
+	if (group > gt->sriov.pf.policy.guc.sched_groups.max_groups) {
+		xe_gt_sriov_notice(gt, "media_slice mode has too many groups: %u vs %u\n",
+				   group, gt->sriov.pf.policy.guc.sched_groups.max_groups);
+		return;
+	}
+
 	/* The GuC expects an array with a guc_sched_group entry for each group */
 	values = drmm_kcalloc(&gt_to_xe(gt)->drm, group, sizeof(struct guc_sched_group),
 			      GFP_KERNEL);
@@ -459,6 +487,15 @@ static void pf_init_sched_groups(struct xe_gt *gt)
 	if (!xe_sriov_gt_pf_policy_has_sched_groups_support(gt))
 		return;
 
+	/*
+	 * The GuC interface supports up to 8 groups. However, the GuC only
+	 * fully allocates resources for a subset of groups, based on the number
+	 * of engines and expected usage. The plan is for this to become
+	 * queryable via H2G, but for now GuC FW for all devices supports a
+	 * maximum of 2 groups so we can just hardcode that.
+	 */
+	gt->sriov.pf.policy.guc.sched_groups.max_groups = 2;
+
 	for (m = XE_SRIOV_SCHED_GROUPS_DISABLED + 1; m < XE_SRIOV_SCHED_GROUPS_MODES_COUNT; m++) {
 		u32 *num_groups = &gt->sriov.pf.policy.guc.sched_groups.modes[m].num_groups;
 		struct guc_sched_group **groups =
@@ -484,7 +521,121 @@ static void pf_init_sched_groups(struct xe_gt *gt)
 		}
 
 		xe_gt_assert(gt, *num_groups < GUC_MAX_SCHED_GROUPS);
+
+		if (*num_groups)
+			gt->sriov.pf.policy.guc.sched_groups.supported_modes |= BIT(m);
 	}
+}
+
+/**
+ * xe_sriov_gt_pf_policy_has_multi_group_modes() - check whether the GT supports
+ * any scheduler modes that have multiple groups
+ * @gt: the &xe_gt to check
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if the GT supports modes with multiple groups, false otherwise.
+ */
+bool xe_sriov_gt_pf_policy_has_multi_group_modes(struct xe_gt *gt)
+{
+	return gt->sriov.pf.policy.guc.sched_groups.supported_modes;
+}
+
+/**
+ * xe_sriov_gt_pf_policy_has_sched_group_mode() - check whether the GT supports
+ * a specific scheduler group mode
+ * @gt: the &xe_gt to check
+ * @mode: the mode to check
+ *
+ * This function can only be called on PF.
+ *
+ * Return: true if the GT supports the specified mode, false otherwise.
+ */
+bool xe_sriov_gt_pf_policy_has_sched_group_mode(struct xe_gt *gt,
+						enum xe_sriov_sched_group_modes mode)
+{
+	if (mode == XE_SRIOV_SCHED_GROUPS_DISABLED)
+		return true;
+
+	return gt->sriov.pf.policy.guc.sched_groups.supported_modes & BIT(mode);
+}
+
+static int __pf_provision_sched_groups(struct xe_gt *gt, enum xe_sriov_sched_group_modes mode)
+{
+	struct guc_sched_group *groups = gt->sriov.pf.policy.guc.sched_groups.modes[mode].groups;
+	u32 num_groups = gt->sriov.pf.policy.guc.sched_groups.modes[mode].num_groups;
+
+	return pf_push_policy_payload(gt, GUC_KLV_VGT_POLICY_ENGINE_GROUP_CONFIG_KEY,
+				      groups, num_groups * GUC_MAX_ENGINE_CLASSES);
+}
+
+static int pf_provision_sched_groups(struct xe_gt *gt, enum xe_sriov_sched_group_modes mode)
+{
+	int err;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	if (!xe_sriov_gt_pf_policy_has_sched_group_mode(gt, mode))
+		return -EINVAL;
+
+	/* already in the desired mode */
+	if (gt->sriov.pf.policy.guc.sched_groups.current_mode == mode)
+		return 0;
+
+	/*
+	 * We don't allow changing this with VFs active since it is hard for
+	 * VFs to check.
+	 */
+	if (xe_sriov_pf_num_vfs(gt_to_xe(gt)))
+		return -EBUSY;
+
+	err = __pf_provision_sched_groups(gt, mode);
+	if (err)
+		return err;
+
+	gt->sriov.pf.policy.guc.sched_groups.current_mode = mode;
+
+	return 0;
+}
+
+static int pf_reprovision_sched_groups(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	/* We only have something to provision if we have possible groups */
+	if (!xe_sriov_gt_pf_policy_has_multi_group_modes(gt))
+		return 0;
+
+	return __pf_provision_sched_groups(gt, gt->sriov.pf.policy.guc.sched_groups.current_mode);
+}
+
+static void pf_sanitize_sched_groups(struct xe_gt *gt)
+{
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	gt->sriov.pf.policy.guc.sched_groups.current_mode = XE_SRIOV_SCHED_GROUPS_DISABLED;
+}
+
+/**
+ * xe_gt_sriov_pf_policy_set_sched_groups_mode() - Control the 'sched_groups' policy.
+ * @gt: the &xe_gt where to apply the policy
+ * @mode: the sched_group mode to be activated
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_policy_set_sched_groups_mode(struct xe_gt *gt,
+						enum xe_sriov_sched_group_modes mode)
+{
+	if (!xe_sriov_gt_pf_policy_has_multi_group_modes(gt))
+		return -ENODEV;
+
+	guard(mutex)(xe_gt_sriov_pf_master_mutex(gt));
+	return pf_provision_sched_groups(gt, mode);
 }
 
 static void pf_sanitize_guc_policies(struct xe_gt *gt)
@@ -492,6 +643,7 @@ static void pf_sanitize_guc_policies(struct xe_gt *gt)
 	pf_sanitize_sched_if_idle(gt);
 	pf_sanitize_reset_engine(gt);
 	pf_sanitize_sample_period(gt);
+	pf_sanitize_sched_groups(gt);
 }
 
 /**
@@ -530,6 +682,7 @@ int xe_gt_sriov_pf_policy_reprovision(struct xe_gt *gt, bool reset)
 	err |= pf_reprovision_sched_if_idle(gt);
 	err |= pf_reprovision_reset_engine(gt);
 	err |= pf_reprovision_sample_period(gt);
+	err |= pf_reprovision_sched_groups(gt);
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	xe_pm_runtime_put(gt_to_xe(gt));

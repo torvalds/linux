@@ -24,6 +24,9 @@ enum xe_sriov_sched_group_modes {
 
 /**
  * struct xe_gt_sriov_scheduler_groups - Scheduler groups policy info
+ * @max_groups: max number of groups supported by the GuC for the platform
+ * @supported_modes: mask of supported modes
+ * @current_mode: active scheduler groups mode
  * @modes: array of masks and their number for each mode
  * @modes.groups: array of engine instance groups in given mode, with each group
  *                consisting of GUC_MAX_ENGINE_CLASSES engine instances masks. A
@@ -33,6 +36,9 @@ enum xe_sriov_sched_group_modes {
  *                    are in the same group.
  */
 struct xe_gt_sriov_scheduler_groups {
+	u8 max_groups;
+	u32 supported_modes;
+	enum xe_sriov_sched_group_modes current_mode;
 	struct {
 		struct guc_sched_group *groups;
 		u32 num_groups;
