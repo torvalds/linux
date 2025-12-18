@@ -841,17 +841,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		mhi_chan->lpm_notify = ch_cfg->lpm_notify;
 		mhi_chan->offload_ch = ch_cfg->offload_channel;
 		mhi_chan->db_cfg.reset_req = ch_cfg->doorbell_mode_switch;
-		mhi_chan->pre_alloc = ch_cfg->auto_queue;
 		mhi_chan->wake_capable = ch_cfg->wake_capable;
-
-		/*
-		 * If MHI host allocates buffers, then the channel direction
-		 * should be DMA_FROM_DEVICE
-		 */
-		if (mhi_chan->pre_alloc && mhi_chan->dir != DMA_FROM_DEVICE) {
-			dev_err(dev, "Invalid channel configuration\n");
-			goto error_chan_cfg;
-		}
 
 		/*
 		 * Bi-directional and direction less channel must be an
