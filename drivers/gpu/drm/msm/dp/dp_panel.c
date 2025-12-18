@@ -13,6 +13,8 @@
 #include <drm/drm_print.h>
 
 #include <linux/io.h>
+#include <linux/types.h>
+#include <asm/byteorder.h>
 
 #define DP_INTF_CONFIG_DATABUS_WIDEN     BIT(4)
 
@@ -107,29 +109,98 @@ static int msm_dp_panel_read_dpcd(struct msm_dp_panel *msm_dp_panel)
 	drm_dbg_dp(panel->drm_dev, "max_lanes=%d max_link_rate=%d\n",
 		   link->max_dp_lanes, link->max_dp_link_rate);
 
-	link_info->rate = drm_dp_max_link_rate(dpcd);
+	max_lttpr_lanes = drm_dp_lttpr_max_lane_count(link->lttpr_common_caps);
+	max_lttpr_rate = drm_dp_lttpr_max_link_rate(link->lttpr_common_caps);
+
+	/* eDP sink */
+	if (msm_dp_panel->dpcd[DP_EDP_CONFIGURATION_CAP]) {
+		u8 edp_rev;
+
+		rc = drm_dp_dpcd_read_byte(panel->aux, DP_EDP_DPCD_REV, &edp_rev);
+		if (rc)
+			return rc;
+
+		drm_dbg_dp(panel->drm_dev, "edp_rev=0x%x\n", edp_rev);
+
+		/* For eDP v1.4+, parse the SUPPORTED_LINK_RATES table */
+		if (edp_rev >= DP_EDP_14) {
+			__le16 rates[DP_MAX_SUPPORTED_RATES];
+			u8 bw_set;
+			int i;
+
+			rc = drm_dp_dpcd_read_data(panel->aux, DP_SUPPORTED_LINK_RATES,
+						   rates, sizeof(rates));
+			if (rc)
+				return rc;
+
+			rc = drm_dp_dpcd_read_byte(panel->aux, DP_LINK_BW_SET, &bw_set);
+			if (rc)
+				return rc;
+
+			/* Find index of max supported link rate that does not exceed dtsi limits */
+			for (i = 0; i < ARRAY_SIZE(rates); i++) {
+				/*
+				 * The value from the DPCD multiplied by 200 gives
+				 * the link rate in kHz. Divide by 10 to convert to
+				 * symbol rate, accounting for 8b/10b encoding.
+				 */
+				u32 rate = (le16_to_cpu(rates[i]) * 200) / 10;
+
+				if (!rate)
+					break;
+
+				drm_dbg_dp(panel->drm_dev,
+					   "SUPPORTED_LINK_RATES[%d]: %d\n", i, rate);
+
+				/*
+				 * Limit link rate from link-frequencies of endpoint
+				 * property of dtsi
+				 */
+				if (rate > link->max_dp_link_rate)
+					break;
+
+				/* Limit link rate from LTTPR capabilities, if any */
+				if (max_lttpr_rate && rate > max_lttpr_rate)
+					break;
+
+				link_info->rate = rate;
+				link_info->supported_rates[i] = rate;
+				link_info->rate_set = i;
+			}
+
+			/* Only use LINK_RATE_SET if LINK_BW_SET hasn't already been written to */
+			if (!bw_set && link_info->rate)
+				link_info->use_rate_set = true;
+		}
+	}
+
+	/* Fall back on MAX_LINK_RATE/LINK_BW_SET (DP, eDP <= v1.3) */
+	if (!link_info->rate) {
+		link_info->rate = drm_dp_max_link_rate(dpcd);
+
+		/* Limit link rate from link-frequencies of endpoint property of dtsi */
+		if (link_info->rate > link->max_dp_link_rate)
+			link_info->rate = link->max_dp_link_rate;
+
+		/* Limit link rate from LTTPR capabilities, if any */
+		if (max_lttpr_rate && max_lttpr_rate < link_info->rate)
+			link_info->rate = max_lttpr_rate;
+	}
+
 	link_info->num_lanes = drm_dp_max_lane_count(dpcd);
 
 	/* Limit data lanes from data-lanes of endpoint property of dtsi */
 	if (link_info->num_lanes > link->max_dp_lanes)
 		link_info->num_lanes = link->max_dp_lanes;
 
-	/* Limit link rate from link-frequencies of endpoint property of dtsi */
-	if (link_info->rate > link->max_dp_link_rate)
-		link_info->rate = link->max_dp_link_rate;
-
 	/* Limit data lanes from LTTPR capabilities, if any */
-	max_lttpr_lanes = drm_dp_lttpr_max_lane_count(panel->link->lttpr_common_caps);
 	if (max_lttpr_lanes && max_lttpr_lanes < link_info->num_lanes)
 		link_info->num_lanes = max_lttpr_lanes;
 
-	/* Limit link rate from LTTPR capabilities, if any */
-	max_lttpr_rate = drm_dp_lttpr_max_link_rate(panel->link->lttpr_common_caps);
-	if (max_lttpr_rate && max_lttpr_rate < link_info->rate)
-		link_info->rate = max_lttpr_rate;
-
 	drm_dbg_dp(panel->drm_dev, "version: %d.%d\n", major, minor);
 	drm_dbg_dp(panel->drm_dev, "link_rate=%d\n", link_info->rate);
+	drm_dbg_dp(panel->drm_dev, "link_rate_set=%d\n", link_info->rate_set);
+	drm_dbg_dp(panel->drm_dev, "use_rate_set=%d\n", link_info->use_rate_set);
 	drm_dbg_dp(panel->drm_dev, "lane_count=%d\n", link_info->num_lanes);
 
 	if (drm_dp_enhanced_frame_cap(dpcd))
