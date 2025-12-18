@@ -18028,7 +18028,6 @@ F:	drivers/net/ethernet/neterion/
 
 NETFILTER
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
-M:	Jozsef Kadlecsik <kadlec@netfilter.org>
 M:	Florian Westphal <fw@strlen.de>
 R:	Phil Sutter <phil@nwl.cc>
 L:	netfilter-devel@vger.kernel.org

@@ -647,12 +647,9 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	err = gve_alloc_counter_array(priv);
 	if (err)
 		goto abort_with_rss_config_cache;
-	err = gve_init_clock(priv);
-	if (err)
-		goto abort_with_counter;
 	err = gve_alloc_notify_blocks(priv);
 	if (err)
-		goto abort_with_clock;
+		goto abort_with_counter;
 	err = gve_alloc_stats_report(priv);
 	if (err)
 		goto abort_with_ntfy_blocks;
@@ -683,10 +680,16 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 		}
 	}
 
+	err = gve_init_clock(priv);
+	if (err) {
+		dev_err(&priv->pdev->dev, "Failed to init clock");
+		goto abort_with_ptype_lut;
+	}
+
 	err = gve_init_rss_config(priv, priv->rx_cfg.num_queues);
 	if (err) {
 		dev_err(&priv->pdev->dev, "Failed to init RSS config");
-		goto abort_with_ptype_lut;
+		goto abort_with_clock;
 	}
 
 	err = gve_adminq_report_stats(priv, priv->stats_report_len,
@@ -698,6 +701,8 @@ static int gve_setup_device_resources(struct gve_priv *priv)
 	gve_set_device_resources_ok(priv);
 	return 0;
 
+abort_with_clock:
+	gve_teardown_clock(priv);
 abort_with_ptype_lut:
 	kvfree(priv->ptype_lut_dqo);
 	priv->ptype_lut_dqo = NULL;
@@ -705,8 +710,6 @@ abort_with_stats_report:
 	gve_free_stats_report(priv);
 abort_with_ntfy_blocks:
 	gve_free_notify_blocks(priv);
-abort_with_clock:
-	gve_teardown_clock(priv);
 abort_with_counter:
 	gve_free_counter_array(priv);
 abort_with_rss_config_cache:
