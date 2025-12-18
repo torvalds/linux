@@ -1517,6 +1517,18 @@ static ssize_t ptl_enable_show(struct device *dev, struct device_attribute *attr
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_state = ptl->enabled;
+		fmt1 = ptl->fmt1;
+		fmt2 = ptl->fmt2;
+		ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_QUERY,
+				&ptl_state, &fmt1, &fmt2);
+		if (ret)
+			return ret;
+	}
 
 	if (ptl->permanently_disabled)
 		return sysfs_emit(buf, "permanently disabled\n");
@@ -1575,11 +1587,23 @@ static ssize_t ptl_format_show(struct device *dev, struct device_attribute *attr
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct psp_context *psp = &adev->psp;
+	struct amdgpu_ptl *ptl = &adev->psp.ptl;
+	uint32_t ptl_state, fmt1, fmt2;
+	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		ptl_state = ptl->enabled;
+		fmt1 = ptl->fmt1;
+		fmt2 = ptl->fmt2;
+		ret = amdgpu_ptl_perf_monitor_ctrl(adev, PSP_PTL_PERF_MON_QUERY,
+				&ptl_state, &fmt1, &fmt2);
+		if (ret)
+			return ret;
+	}
 
 	return sysfs_emit(buf, "%s,%s\n",
-			amdgpu_ptl_fmt_str[psp->ptl.fmt1],
-			amdgpu_ptl_fmt_str[psp->ptl.fmt2]);
+			amdgpu_ptl_fmt_str[ptl->fmt1],
+			amdgpu_ptl_fmt_str[ptl->fmt2]);
 }
 
 static umode_t amdgpu_ptl_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
