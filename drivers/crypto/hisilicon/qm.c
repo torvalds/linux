@@ -2369,26 +2369,33 @@ EXPORT_SYMBOL_GPL(hisi_qm_stop_qp);
 int hisi_qp_send(struct hisi_qp *qp, const void *msg)
 {
 	struct hisi_qp_status *qp_status = &qp->qp_status;
-	u16 sq_tail = qp_status->sq_tail;
-	u16 sq_tail_next = (sq_tail + 1) % qp->sq_depth;
-	void *sqe = qm_get_avail_sqe(qp);
+	u16 sq_tail, sq_tail_next;
+	void *sqe;
 
+	spin_lock_bh(&qp->qp_lock);
 	if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP ||
 		     atomic_read(&qp->qm->status.flags) == QM_STOP ||
 		     qp->is_resetting)) {
+		spin_unlock_bh(&qp->qp_lock);
 		dev_info_ratelimited(&qp->qm->pdev->dev, "QP is stopped or resetting\n");
 		return -EAGAIN;
 	}
 
-	if (!sqe)
+	sqe = qm_get_avail_sqe(qp);
+	if (!sqe) {
+		spin_unlock_bh(&qp->qp_lock);
 		return -EBUSY;
+	}
 
+	sq_tail = qp_status->sq_tail;
+	sq_tail_next = (sq_tail + 1) % qp->sq_depth;
 	memcpy(sqe, msg, qp->qm->sqe_size);
 	qp->msg[sq_tail] = msg;
 
 	qm_db(qp->qm, qp->qp_id, QM_DOORBELL_CMD_SQ, sq_tail_next, 0);
 	atomic_inc(&qp->qp_status.used);
 	qp_status->sq_tail = sq_tail_next;
+	spin_unlock_bh(&qp->qp_lock);
 
 	return 0;
 }
@@ -2968,6 +2975,7 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id,
 	qp->qm = qm;
 	qp->qp_id = id;
 
+	spin_lock_init(&qp->qp_lock);
 	spin_lock_init(&qp->backlog.lock);
 	INIT_LIST_HEAD(&qp->backlog.list);
 

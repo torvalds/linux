@@ -109,7 +109,6 @@ struct hpre_ctx {
 	struct hisi_qp *qp;
 	struct device *dev;
 	struct hpre *hpre;
-	spinlock_t req_lock;
 	unsigned int key_sz;
 	bool crt_g2_mode;
 	union {
@@ -410,7 +409,6 @@ static int hpre_ctx_init(struct hpre_ctx *ctx, u8 type)
 
 	qp->qp_ctx = ctx;
 	qp->req_cb = hpre_alg_cb;
-	spin_lock_init(&ctx->req_lock);
 	ctx->qp = qp;
 	ctx->dev = &qp->qm->pdev->dev;
 	hpre = container_of(ctx->qp->qm, struct hpre, qm);
@@ -478,9 +476,7 @@ static int hpre_send(struct hpre_ctx *ctx, struct hpre_sqe *msg)
 
 	do {
 		atomic64_inc(&dfx[HPRE_SEND_CNT].value);
-		spin_lock_bh(&ctx->req_lock);
 		ret = hisi_qp_send(ctx->qp, msg);
-		spin_unlock_bh(&ctx->req_lock);
 		if (ret != -EBUSY)
 			break;
 		atomic64_inc(&dfx[HPRE_SEND_BUSY_CNT].value);
