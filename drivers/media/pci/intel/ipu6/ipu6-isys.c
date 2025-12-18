@@ -1070,10 +1070,6 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	if (!isys->csi2)
 		return -ENOMEM;
 
-	ret = ipu6_mmu_hw_init(adev->mmu);
-	if (ret)
-		return ret;
-
 	/* initial sensor type */
 	isys->sensor_type = isys->pdata->ipdata->sensor_type_start;
 
@@ -1125,8 +1121,6 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	if (ret)
 		goto free_fw_msg_bufs;
 
-	ipu6_mmu_hw_cleanup(adev->mmu);
-
 	return 0;
 
 free_fw_msg_bufs:
@@ -1147,8 +1141,6 @@ release_firmware:
 
 	mutex_destroy(&isys->mutex);
 	mutex_destroy(&isys->stream_mutex);
-
-	ipu6_mmu_hw_cleanup(adev->mmu);
 
 	return ret;
 }
