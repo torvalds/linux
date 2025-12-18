@@ -363,7 +363,7 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 	 * to the memory enable bit in the command register.
 	 */
 	done = vfio_pci_core_do_io_rw(vdev, false, iomem, buf, off, count,
-				      0, 0, iswrite, VFIO_PCI_IO_WIDTH_8);
+				      0, 0, iswrite, VFIO_PCI_IO_WIDTH_4);
 
 	vga_put(vdev->pdev, rsrc);
 
