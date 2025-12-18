@@ -62,7 +62,7 @@ struct cpuset_remove_tasks_struct {
 #define FM_SCALE 1000		/* faux fixed point scale */
 
 /* Initialize a frequency meter */
-void fmeter_init(struct fmeter *fmp)
+static void fmeter_init(struct fmeter *fmp)
 {
 	fmp->cnt = 0;
 	fmp->val = 0;
@@ -497,6 +497,11 @@ static int cpuset_write_u64(struct cgroup_subsys_state *css, struct cftype *cft,
 out_unlock:
 	cpuset_full_unlock();
 	return retval;
+}
+
+void cpuset1_init(struct cpuset *cs)
+{
+	fmeter_init(&cs->fmeter);
 }
 
 void cpuset1_online_css(struct cgroup_subsys_state *css)

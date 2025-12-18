@@ -144,8 +144,6 @@ struct cpuset {
 	 */
 	nodemask_t old_mems_allowed;
 
-	struct fmeter fmeter;		/* memory_pressure filter */
-
 	/*
 	 * Tasks are being attached to this cpuset.  Used to prevent
 	 * zeroing cpus/mems_allowed between ->can_attach() and ->attach().
@@ -181,6 +179,10 @@ struct cpuset {
 
 	/* Used to merge intersecting subsets for generate_sched_domains */
 	struct uf_node node;
+
+#ifdef CONFIG_CPUSETS_V1
+	struct fmeter fmeter;		/* memory_pressure filter */
+#endif
 };
 
 static inline struct cpuset *css_cs(struct cgroup_subsys_state *css)
@@ -285,7 +287,6 @@ void cpuset_full_unlock(void);
  */
 #ifdef CONFIG_CPUSETS_V1
 extern struct cftype cpuset1_files[];
-void fmeter_init(struct fmeter *fmp);
 void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk);
 void cpuset1_update_tasks_flags(struct cpuset *cs);
@@ -293,9 +294,9 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    struct cpumask *new_cpus, nodemask_t *new_mems,
 			    bool cpus_updated, bool mems_updated);
 int cpuset1_validate_change(struct cpuset *cur, struct cpuset *trial);
+void cpuset1_init(struct cpuset *cs);
 void cpuset1_online_css(struct cgroup_subsys_state *css);
 #else
-static inline void fmeter_init(struct fmeter *fmp) {}
 static inline void cpuset1_update_task_spread_flags(struct cpuset *cs,
 					struct task_struct *tsk) {}
 static inline void cpuset1_update_tasks_flags(struct cpuset *cs) {}
@@ -304,6 +305,7 @@ static inline void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 			    bool cpus_updated, bool mems_updated) {}
 static inline int cpuset1_validate_change(struct cpuset *cur,
 				struct cpuset *trial) { return 0; }
+static inline void cpuset1_init(struct cpuset *cs) {}
 static inline void cpuset1_online_css(struct cgroup_subsys_state *css) {}
 #endif /* CONFIG_CPUSETS_V1 */
 
