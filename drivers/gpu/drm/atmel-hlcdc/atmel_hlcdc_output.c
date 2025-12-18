@@ -73,22 +73,19 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 	struct drm_bridge *bridge;
 	int ret;
 
+	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
+					  &panel, &bridge);
+	if (ret)
+		return ret;
+
+	output = drmm_simple_encoder_alloc(dev, struct atmel_hlcdc_rgb_output,
+					   encoder, DRM_MODE_ENCODER_NONE);
+	if (IS_ERR(output))
+		return PTR_ERR(output);
+
 	ep = of_graph_get_endpoint_by_regs(dev->dev->of_node, 0, endpoint);
 	if (!ep)
 		return -ENODEV;
-
-	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
-					  &panel, &bridge);
-	if (ret) {
-		of_node_put(ep);
-		return ret;
-	}
-
-	output = devm_kzalloc(dev->dev, sizeof(*output), GFP_KERNEL);
-	if (!output) {
-		of_node_put(ep);
-		return -ENOMEM;
-	}
 
 	output->bus_fmt = atmel_hlcdc_of_bus_fmt(ep);
 	of_node_put(ep);
@@ -97,10 +94,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 		return -EINVAL;
 	}
 
-	ret = drm_simple_encoder_init(dev, &output->encoder,
-				      DRM_MODE_ENCODER_NONE);
-	if (ret)
-		return ret;
 
 	output->encoder.possible_crtcs = 0x1;
 
@@ -119,8 +112,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 		if (panel)
 			drm_panel_bridge_remove(bridge);
 	}
-
-	drm_encoder_cleanup(&output->encoder);
 
 	return ret;
 }
