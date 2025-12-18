@@ -71,6 +71,8 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 	struct device_node *ep;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
+	struct atmel_hlcdc_dc *dc = dev->dev_private;
+	struct drm_crtc *crtc = dc->crtc;
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(dev->dev->of_node, 0, endpoint,
@@ -95,7 +97,6 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 	}
 
 
-	output->encoder.possible_crtcs = 0x1;
 
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
@@ -103,6 +104,7 @@ static int atmel_hlcdc_attach_endpoint(struct drm_device *dev, int endpoint)
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
+	output->encoder.possible_crtcs = drm_crtc_mask(crtc);
 
 	if (bridge) {
 		ret = drm_bridge_attach(&output->encoder, bridge, NULL, 0);
