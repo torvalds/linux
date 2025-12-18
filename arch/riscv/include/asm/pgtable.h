@@ -664,7 +664,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	set_pte(ptep, __pte(0));
 #endif
 
-	page_table_check_pte_clear(mm, pte);
+	page_table_check_pte_clear(mm, address, pte);
 
 	return pte;
 }
