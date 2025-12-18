@@ -475,6 +475,7 @@ struct hisi_qp {
 	u16 pasid;
 	struct uacce_queue *uacce_q;
 
+	u32 ref_count;
 	spinlock_t qp_lock;
 	struct instance_backlog backlog;
 	const void **msg;

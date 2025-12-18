@@ -2002,7 +2002,38 @@ static void hisi_qm_unset_hw_reset(struct hisi_qp *qp)
 	*addr = 0;
 }
 
-static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
+static struct hisi_qp *find_shareable_qp(struct hisi_qm *qm, u8 alg_type, bool is_in_kernel)
+{
+	struct device *dev = &qm->pdev->dev;
+	struct hisi_qp *share_qp = NULL;
+	struct hisi_qp *qp;
+	u32 ref_count = ~0;
+	int i;
+
+	if (!is_in_kernel)
+		goto queues_busy;
+
+	for (i = 0; i < qm->qp_num; i++) {
+		qp = &qm->qp_array[i];
+		if (qp->is_in_kernel && qp->alg_type == alg_type && qp->ref_count < ref_count) {
+			ref_count = qp->ref_count;
+			share_qp = qp;
+		}
+	}
+
+	if (share_qp) {
+		share_qp->ref_count++;
+		return share_qp;
+	}
+
+queues_busy:
+	dev_info_ratelimited(dev, "All %u queues of QM are busy and no shareable queue\n",
+			     qm->qp_num);
+	atomic64_inc(&qm->debug.dfx.create_qp_err_cnt);
+	return ERR_PTR(-EBUSY);
+}
+
+static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type, bool is_in_kernel)
 {
 	struct device *dev = &qm->pdev->dev;
 	struct hisi_qp *qp;
@@ -2013,12 +2044,9 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 		return ERR_PTR(-EPERM);
 	}
 
-	if (qm->qp_in_used == qm->qp_num) {
-		dev_info_ratelimited(dev, "All %u queues of QM are busy!\n",
-				     qm->qp_num);
-		atomic64_inc(&qm->debug.dfx.create_qp_err_cnt);
-		return ERR_PTR(-EBUSY);
-	}
+	/* Try to find a shareable queue when all queues are busy */
+	if (qm->qp_in_used == qm->qp_num)
+		return find_shareable_qp(qm, alg_type, is_in_kernel);
 
 	qp_id = idr_alloc_cyclic(&qm->qp_idr, NULL, 0, qm->qp_num, GFP_ATOMIC);
 	if (qp_id < 0) {
@@ -2034,10 +2062,10 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 
 	qp->event_cb = NULL;
 	qp->req_cb = NULL;
-	qp->qp_id = qp_id;
 	qp->alg_type = alg_type;
-	qp->is_in_kernel = true;
+	qp->is_in_kernel = is_in_kernel;
 	qm->qp_in_used++;
+	qp->ref_count = 1;
 
 	return qp;
 }
@@ -2059,7 +2087,7 @@ static struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 		return ERR_PTR(ret);
 
 	down_write(&qm->qps_lock);
-	qp = qm_create_qp_nolock(qm, alg_type);
+	qp = qm_create_qp_nolock(qm, alg_type, false);
 	up_write(&qm->qps_lock);
 
 	if (IS_ERR(qp))
@@ -2458,7 +2486,6 @@ static int hisi_qm_uacce_get_queue(struct uacce_device *uacce,
 	qp->uacce_q = q;
 	qp->event_cb = qm_qp_event_notifier;
 	qp->pasid = arg;
-	qp->is_in_kernel = false;
 
 	return 0;
 }
@@ -3557,6 +3584,9 @@ static void qm_release_qp_nolock(struct hisi_qp *qp)
 {
 	struct hisi_qm *qm = qp->qm;
 
+	if (--qp->ref_count)
+		return;
+
 	qm->qp_in_used--;
 	idr_remove(&qm->qp_idr, qp->qp_id);
 }
@@ -3576,7 +3606,9 @@ void hisi_qm_free_qps(struct hisi_qp **qps, int qp_num)
 	down_write(&qps[0]->qm->qps_lock);
 
 	for (i = qp_num - 1; i >= 0; i--) {
-		qm_stop_qp_nolock(qps[i]);
+		if (qps[i]->ref_count == 1)
+			qm_stop_qp_nolock(qps[i]);
+
 		qm_release_qp_nolock(qps[i]);
 	}
 
@@ -3605,11 +3637,14 @@ static int qm_get_and_start_qp(struct hisi_qm *qm, int qp_num, struct hisi_qp **
 
 	down_write(&qm->qps_lock);
 	for (i = 0; i < qp_num; i++) {
-		qps[i] = qm_create_qp_nolock(qm, alg_type[i]);
+		qps[i] = qm_create_qp_nolock(qm, alg_type[i], true);
 		if (IS_ERR(qps[i])) {
 			ret = -ENODEV;
 			goto stop_and_free;
 		}
+
+		if (qps[i]->ref_count != 1)
+			continue;
 
 		ret = qm_start_qp_nolock(qps[i], 0);
 		if (ret) {
@@ -3623,7 +3658,9 @@ static int qm_get_and_start_qp(struct hisi_qm *qm, int qp_num, struct hisi_qp **
 
 stop_and_free:
 	for (i--; i >= 0; i--) {
-		qm_stop_qp_nolock(qps[i]);
+		if (qps[i]->ref_count == 1)
+			qm_stop_qp_nolock(qps[i]);
+
 		qm_release_qp_nolock(qps[i]);
 	}
 	up_write(&qm->qps_lock);
