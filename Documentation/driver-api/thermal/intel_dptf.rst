@@ -375,6 +375,9 @@ based on the processor generation.
 ``workload_hint_enable`` (RW)
 	Enable firmware to send workload type hints to user space.
 
+``workload_slow_hint_enable`` (RW)
+	Enable firmware to send slow workload type hints to user space.
+
 ``notification_delay_ms`` (RW)
 	Minimum delay in milliseconds before firmware will notify OS. This is
 	for the rate control of notifications. This delay is between changing
