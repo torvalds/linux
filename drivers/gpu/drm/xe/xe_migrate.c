@@ -35,6 +35,7 @@
 #include "xe_sa.h"
 #include "xe_sched_job.h"
 #include "xe_sriov_vf_ccs.h"
+#include "xe_svm.h"
 #include "xe_sync.h"
 #include "xe_trace_bo.h"
 #include "xe_validation.h"
@@ -2048,7 +2049,8 @@ static void build_pt_update_batch_sram(struct xe_migrate *m,
 			u64 pte;
 
 			xe_tile_assert(m->tile, sram_addr[i].proto ==
-				       DRM_INTERCONNECT_SYSTEM);
+				       DRM_INTERCONNECT_SYSTEM ||
+				       sram_addr[i].proto == XE_INTERCONNECT_P2P);
 			xe_tile_assert(m->tile, addr);
 			xe_tile_assert(m->tile, PAGE_ALIGNED(addr));
 

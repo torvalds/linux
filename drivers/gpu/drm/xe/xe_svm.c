@@ -1023,6 +1023,10 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 				      unsigned long timeslice_ms)
 {
 	struct xe_pagemap *xpagemap = container_of(dpagemap, typeof(*xpagemap), dpagemap);
+	struct drm_pagemap_migrate_details mdetails = {
+		.timeslice_ms = timeslice_ms,
+		.source_peer_migrates = 1,
+	};
 	struct xe_vram_region *vr = xe_pagemap_to_vr(xpagemap);
 	struct dma_fence *pre_migrate_fence = NULL;
 	struct xe_device *xe = vr->xe;
@@ -1074,10 +1078,9 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 
 		/* Ensure the device has a pm ref while there are device pages active. */
 		xe_pm_runtime_get_noresume(xe);
+		/* Consumes the devmem allocation ref. */
 		err = drm_pagemap_migrate_to_devmem(&bo->devmem_allocation, mm,
-						    start, end, timeslice_ms);
-		if (err)
-			xe_svm_devmem_release(&bo->devmem_allocation);
+						    start, end, &mdetails);
 		xe_bo_unlock(bo);
 		xe_bo_put(bo);
 	}
@@ -1593,6 +1596,7 @@ int xe_svm_alloc_vram(struct xe_svm_range *range, const struct drm_gpusvm_ctx *c
 	struct xe_vm *vm = range_to_vm(&range->base);
 	enum drm_gpusvm_scan_result migration_state;
 	struct xe_device *xe = vm->xe;
+	int err, retries = 1;
 
 	xe_assert(range_to_vm(&range->base)->xe, range->base.pages.flags.migrate_devmem);
 	range_debug(range, "ALLOCATE VRAM");
@@ -1611,10 +1615,18 @@ int xe_svm_alloc_vram(struct xe_svm_range *range, const struct drm_gpusvm_ctx *c
 		drm_dbg(&xe->drm, "Request migration to device memory on \"%s\".\n",
 			dpagemap->drm->unique);
 
-	return drm_pagemap_populate_mm(dpagemap, xe_svm_range_start(range),
-				       xe_svm_range_end(range),
-				       range->base.gpusvm->mm,
-				       ctx->timeslice_ms);
+	do {
+		err = drm_pagemap_populate_mm(dpagemap, xe_svm_range_start(range),
+					      xe_svm_range_end(range),
+					      range->base.gpusvm->mm,
+					      ctx->timeslice_ms);
+
+		if (err == -EBUSY && retries)
+			drm_gpusvm_range_evict(range->base.gpusvm, &range->base);
+
+	} while (err == -EBUSY && retries--);
+
+	return err;
 }
 
 static struct drm_pagemap_addr

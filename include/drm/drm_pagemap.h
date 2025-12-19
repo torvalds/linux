@@ -317,10 +317,27 @@ struct drm_pagemap_devmem {
 	struct dma_fence *pre_migrate_fence;
 };
 
+/**
+ * struct drm_pagemap_migrate_details - Details to govern migration.
+ * @timeslice_ms: The time requested for the migrated pagemap pages to
+ * be present in @mm before being allowed to be migrated back.
+ * @can_migrate_same_pagemap: Whether the copy function as indicated by
+ * the @source_peer_migrates flag, can migrate device pages within a
+ * single drm_pagemap.
+ * @source_peer_migrates: Whether on p2p migration, The source drm_pagemap
+ * should use the copy_to_ram() callback rather than the destination
+ * drm_pagemap should use the copy_to_devmem() callback.
+ */
+struct drm_pagemap_migrate_details {
+	unsigned long timeslice_ms;
+	u32 can_migrate_same_pagemap : 1;
+	u32 source_peer_migrates : 1;
+};
+
 int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 				  struct mm_struct *mm,
 				  unsigned long start, unsigned long end,
-				  unsigned long timeslice_ms);
+				  const struct drm_pagemap_migrate_details *mdetails);
 
 int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation);
 
