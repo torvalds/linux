@@ -1260,6 +1260,9 @@ static char *__hwmon_sanitize_name(struct device *dev, const char *old_name)
  */
 char *hwmon_sanitize_name(const char *name)
 {
+	if (!name)
+		return ERR_PTR(-EINVAL);
+
 	return __hwmon_sanitize_name(NULL, name);
 }
 EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
@@ -1276,7 +1279,7 @@ EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
  */
 char *devm_hwmon_sanitize_name(struct device *dev, const char *name)
 {
-	if (!dev)
+	if (!dev || !name)
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_sanitize_name(dev, name);
