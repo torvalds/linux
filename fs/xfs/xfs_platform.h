@@ -8,19 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/uuid.h>
-
-/*
- * Kernel specific type declarations for XFS
- */
-
-typedef __s64			xfs_off_t;	/* <file offset> type */
-typedef unsigned long long	xfs_ino_t;	/* <inode> type */
-typedef __s64			xfs_daddr_t;	/* <disk address> type */
-typedef __u32			xfs_dev_t;
-typedef __u32			xfs_nlink_t;
-
-#include "xfs_types.h"
-
 #include <linux/semaphore.h>
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
@@ -63,7 +50,6 @@ typedef __u32			xfs_nlink_t;
 #include <linux/xattr.h>
 #include <linux/mnt_idmapping.h>
 #include <linux/debugfs.h>
-
 #include <asm/page.h>
 #include <asm/div64.h>
 #include <asm/param.h>
@@ -71,6 +57,16 @@ typedef __u32			xfs_nlink_t;
 #include <asm/byteorder.h>
 #include <linux/unaligned.h>
 
+/*
+ * Kernel specific type declarations for XFS
+ */
+typedef __s64			xfs_off_t;	/* <file offset> type */
+typedef unsigned long long	xfs_ino_t;	/* <inode> type */
+typedef __s64			xfs_daddr_t;	/* <disk address> type */
+typedef __u32			xfs_dev_t;
+typedef __u32			xfs_nlink_t;
+
+#include "xfs_types.h"
 #include "xfs_fs.h"
 #include "xfs_stats.h"
 #include "xfs_sysctl.h"
