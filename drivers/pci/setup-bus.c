@@ -136,6 +136,9 @@ static resource_size_t get_res_add_align(struct list_head *head,
 static void restore_dev_resource(struct pci_dev_resource *dev_res)
 {
 	struct resource *res = dev_res->res;
+	struct pci_dev *dev = dev_res->dev;
+	int idx = pci_resource_num(dev, res);
+	const char *res_name = pci_resource_name(dev, idx);
 
 	if (WARN_ON_ONCE(res->parent))
 		return;
@@ -143,6 +146,8 @@ static void restore_dev_resource(struct pci_dev_resource *dev_res)
 	res->start = dev_res->start;
 	res->end = dev_res->end;
 	res->flags = dev_res->flags;
+
+	pci_dbg(dev, "%s %pR: resource restored\n", res_name, res);
 }
 
 /*
@@ -384,14 +389,17 @@ bool pci_resource_is_optional(const struct pci_dev *dev, int resno)
 	return false;
 }
 
-static inline void reset_resource(struct pci_dev *dev, struct resource *res)
+static void reset_resource(struct pci_dev *dev, struct resource *res)
 {
 	int idx = pci_resource_num(dev, res);
+	const char *res_name = pci_resource_name(dev, idx);
 
 	if (pci_resource_is_bridge_win(idx)) {
 		res->flags |= IORESOURCE_UNSET;
 		return;
 	}
+
+	pci_dbg(dev, "%s %pR: resetting resource\n", res_name, res);
 
 	res->start = 0;
 	res->end = 0;
