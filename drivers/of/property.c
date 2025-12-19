@@ -21,6 +21,7 @@
 
 #define pr_fmt(fmt)	"OF: " fmt
 
+#include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -1380,15 +1381,6 @@ DEFINE_SIMPLE_PROP(extcon, "extcon", NULL)
 DEFINE_SIMPLE_PROP(nvmem_cells, "nvmem-cells", "#nvmem-cell-cells")
 DEFINE_SIMPLE_PROP(phys, "phys", "#phy-cells")
 DEFINE_SIMPLE_PROP(wakeup_parent, "wakeup-parent", NULL)
-DEFINE_SIMPLE_PROP(pinctrl0, "pinctrl-0", NULL)
-DEFINE_SIMPLE_PROP(pinctrl1, "pinctrl-1", NULL)
-DEFINE_SIMPLE_PROP(pinctrl2, "pinctrl-2", NULL)
-DEFINE_SIMPLE_PROP(pinctrl3, "pinctrl-3", NULL)
-DEFINE_SIMPLE_PROP(pinctrl4, "pinctrl-4", NULL)
-DEFINE_SIMPLE_PROP(pinctrl5, "pinctrl-5", NULL)
-DEFINE_SIMPLE_PROP(pinctrl6, "pinctrl-6", NULL)
-DEFINE_SIMPLE_PROP(pinctrl7, "pinctrl-7", NULL)
-DEFINE_SIMPLE_PROP(pinctrl8, "pinctrl-8", NULL)
 DEFINE_SIMPLE_PROP(pwms, "pwms", "#pwm-cells")
 DEFINE_SIMPLE_PROP(resets, "resets", "#reset-cells")
 DEFINE_SIMPLE_PROP(leds, "leds", NULL)
@@ -1401,6 +1393,18 @@ DEFINE_SIMPLE_PROP(pses, "pses", "#pse-cells")
 DEFINE_SIMPLE_PROP(power_supplies, "power-supplies", NULL)
 DEFINE_SUFFIX_PROP(regulators, "-supply", NULL)
 DEFINE_SUFFIX_PROP(gpio, "-gpio", "#gpio-cells")
+
+static struct device_node *parse_pinctrl_n(struct device_node *np,
+					   const char *prop_name, int index)
+{
+	if (!strstarts(prop_name, "pinctrl-"))
+		return NULL;
+
+	if (!isdigit(prop_name[strlen("pinctrl-")]))
+		return NULL;
+
+	return of_parse_phandle(np, prop_name, index);
+}
 
 static struct device_node *parse_gpios(struct device_node *np,
 				       const char *prop_name, int index)
@@ -1525,15 +1529,7 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_nvmem_cells, },
 	{ .parse_prop = parse_phys, },
 	{ .parse_prop = parse_wakeup_parent, },
-	{ .parse_prop = parse_pinctrl0, },
-	{ .parse_prop = parse_pinctrl1, },
-	{ .parse_prop = parse_pinctrl2, },
-	{ .parse_prop = parse_pinctrl3, },
-	{ .parse_prop = parse_pinctrl4, },
-	{ .parse_prop = parse_pinctrl5, },
-	{ .parse_prop = parse_pinctrl6, },
-	{ .parse_prop = parse_pinctrl7, },
-	{ .parse_prop = parse_pinctrl8, },
+	{ .parse_prop = parse_pinctrl_n, },
 	{
 		.parse_prop = parse_remote_endpoint,
 		.get_con_dev = of_graph_get_port_parent,
