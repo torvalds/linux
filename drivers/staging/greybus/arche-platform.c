@@ -534,8 +534,9 @@ static int arche_platform_probe(struct platform_device *pdev)
 		mutex_lock(&arche_pdata->platform_state_mutex);
 		ret = arche_platform_coldboot_seq(arche_pdata);
 		if (ret) {
+			mutex_unlock(&arche_pdata->platform_state_mutex);
 			dev_err(dev, "Failed to cold boot svc %d\n", ret);
-			goto err_coldboot;
+			goto err_unregister_pm_notifier;
 		}
 		arche_platform_wd_irq_en(arche_pdata);
 		mutex_unlock(&arche_pdata->platform_state_mutex);
@@ -544,8 +545,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 	dev_info(dev, "Device registered successfully\n");
 	return 0;
 
-err_coldboot:
-	mutex_unlock(&arche_pdata->platform_state_mutex);
+err_unregister_pm_notifier:
+	unregister_pm_notifier(&arche_pdata->pm_notifier);
 err_device_remove:
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	return ret;
