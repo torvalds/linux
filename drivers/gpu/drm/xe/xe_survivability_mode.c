@@ -221,15 +221,15 @@ static ssize_t survivability_info_show(struct device *dev,
 		.index = _index,						\
 	}
 
-SURVIVABILITY_ATTR_RO(capability_info, CAPABILITY_INFO);
-SURVIVABILITY_ATTR_RO(postcode_trace, POSTCODE_TRACE);
-SURVIVABILITY_ATTR_RO(postcode_trace_overflow, POSTCODE_TRACE_OVERFLOW);
-SURVIVABILITY_ATTR_RO(aux_info0, AUX_INFO0);
-SURVIVABILITY_ATTR_RO(aux_info1, AUX_INFO1);
-SURVIVABILITY_ATTR_RO(aux_info2, AUX_INFO2);
-SURVIVABILITY_ATTR_RO(aux_info3, AUX_INFO3);
-SURVIVABILITY_ATTR_RO(aux_info4, AUX_INFO4);
-SURVIVABILITY_ATTR_RO(fdo_mode, FDO_INFO);
+static SURVIVABILITY_ATTR_RO(capability_info, CAPABILITY_INFO);
+static SURVIVABILITY_ATTR_RO(postcode_trace, POSTCODE_TRACE);
+static SURVIVABILITY_ATTR_RO(postcode_trace_overflow, POSTCODE_TRACE_OVERFLOW);
+static SURVIVABILITY_ATTR_RO(aux_info0, AUX_INFO0);
+static SURVIVABILITY_ATTR_RO(aux_info1, AUX_INFO1);
+static SURVIVABILITY_ATTR_RO(aux_info2, AUX_INFO2);
+static SURVIVABILITY_ATTR_RO(aux_info3, AUX_INFO3);
+static SURVIVABILITY_ATTR_RO(aux_info4, AUX_INFO4);
+static SURVIVABILITY_ATTR_RO(fdo_mode, FDO_INFO);
 
 static void xe_survivability_mode_fini(void *arg)
 {
