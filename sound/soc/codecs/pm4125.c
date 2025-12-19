@@ -1505,10 +1505,6 @@ static int pm4125_bind(struct device *dev)
 	struct device_link *devlink;
 	int ret;
 
-	/* Initialize device pointers to NULL for safe cleanup */
-	pm4125->rxdev = NULL;
-	pm4125->txdev = NULL;
-
 	/* Give the soundwire subdevices some more time to settle */
 	usleep_range(15000, 15010);
 
@@ -1624,11 +1620,8 @@ static void pm4125_unbind(struct device *dev)
 	device_link_remove(dev, pm4125->rxdev);
 	device_link_remove(pm4125->rxdev, pm4125->txdev);
 
-	/* Release device references acquired in bind */
-	if (pm4125->txdev)
-		put_device(pm4125->txdev);
-	if (pm4125->rxdev)
-		put_device(pm4125->rxdev);
+	put_device(pm4125->txdev);
+	put_device(pm4125->rxdev);
 
 	component_unbind_all(dev, pm4125);
 }
