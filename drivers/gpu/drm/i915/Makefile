@@ -383,6 +383,9 @@ i915-y += \
 i915-$(CONFIG_DRM_I915_DP_TUNNEL) += \
 	display/intel_dp_tunnel.o
 
+i915-$(CONFIG_DRM_I915_GVT) += \
+	display/intel_gvt_api.o
+
 i915-y += \
 	i915_perf.o
 
