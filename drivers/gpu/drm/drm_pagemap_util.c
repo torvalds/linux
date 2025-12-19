@@ -3,6 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
+#include <linux/slab.h>
+
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_pagemap.h>
@@ -448,3 +450,119 @@ struct drm_pagemap_shrinker *drm_pagemap_shrinker_create_devm(struct drm_device 
 	return shrinker;
 }
 EXPORT_SYMBOL(drm_pagemap_shrinker_create_devm);
+
+/**
+ * struct drm_pagemap_owner - Device interconnect group
+ * @kref: Reference count.
+ *
+ * A struct drm_pagemap_owner identifies a device interconnect group.
+ */
+struct drm_pagemap_owner {
+	struct kref kref;
+};
+
+static void drm_pagemap_owner_release(struct kref *kref)
+{
+	kfree(container_of(kref, struct drm_pagemap_owner, kref));
+}
+
+/**
+ * drm_pagemap_release_owner() - Stop participating in an interconnect group
+ * @peer: Pointer to the struct drm_pagemap_peer used when joining the group
+ *
+ * Stop participating in an interconnect group. This function is typically
+ * called when a pagemap is removed to indicate that it doesn't need to
+ * be taken into account.
+ */
+void drm_pagemap_release_owner(struct drm_pagemap_peer *peer)
+{
+	struct drm_pagemap_owner_list *owner_list = peer->list;
+
+	if (!owner_list)
+		return;
+
+	mutex_lock(&owner_list->lock);
+	list_del(&peer->link);
+	kref_put(&peer->owner->kref, drm_pagemap_owner_release);
+	peer->owner = NULL;
+	mutex_unlock(&owner_list->lock);
+}
+EXPORT_SYMBOL(drm_pagemap_release_owner);
+
+/**
+ * typedef interconnect_fn - Callback function to identify fast interconnects
+ * @peer1: First endpoint.
+ * @peer2: Second endpont.
+ *
+ * The function returns %true iff @peer1 and @peer2 have a fast interconnect.
+ * Note that this is symmetrical. The function has no notion of client and provider,
+ * which may not be sufficient in some cases. However, since the callback is intended
+ * to guide in providing common pagemap owners, the notion of a common owner to
+ * indicate fast interconnects would then have to change as well.
+ *
+ * Return: %true iff @peer1 and @peer2 have a fast interconnect. Otherwise @false.
+ */
+typedef bool (*interconnect_fn)(struct drm_pagemap_peer *peer1, struct drm_pagemap_peer *peer2);
+
+/**
+ * drm_pagemap_acquire_owner() - Join an interconnect group
+ * @peer: A struct drm_pagemap_peer keeping track of the device interconnect
+ * @owner_list: Pointer to the owner_list, keeping track of all interconnects
+ * @has_interconnect: Callback function to determine whether two peers have a
+ * fast local interconnect.
+ *
+ * Repeatedly calls @has_interconnect for @peer and other peers on @owner_list to
+ * determine a set of peers for which @peer has a fast interconnect. That set will
+ * have common &struct drm_pagemap_owner, and upon successful return, @peer::owner
+ * will point to that struct, holding a reference, and @peer will be registered in
+ * @owner_list. If @peer doesn't have any fast interconnects to other @peers, a
+ * new unique &struct drm_pagemap_owner will be allocated for it, and that
+ * may be shared with other peers that, at a later point, are determined to have
+ * a fast interconnect with @peer.
+ *
+ * When @peer no longer participates in an interconnect group,
+ * drm_pagemap_release_owner() should be called to drop the reference on the
+ * struct drm_pagemap_owner.
+ *
+ * Return: %0 on success, negative error code on failure.
+ */
+int drm_pagemap_acquire_owner(struct drm_pagemap_peer *peer,
+			      struct drm_pagemap_owner_list *owner_list,
+			      interconnect_fn has_interconnect)
+{
+	struct drm_pagemap_peer *cur_peer;
+	struct drm_pagemap_owner *owner = NULL;
+	bool interconnect = false;
+
+	mutex_lock(&owner_list->lock);
+	might_alloc(GFP_KERNEL);
+	list_for_each_entry(cur_peer, &owner_list->peers, link) {
+		if (cur_peer->owner != owner) {
+			if (owner && interconnect)
+				break;
+			owner = cur_peer->owner;
+			interconnect = true;
+		}
+		if (interconnect && !has_interconnect(peer, cur_peer))
+			interconnect = false;
+	}
+
+	if (!interconnect) {
+		owner = kmalloc(sizeof(*owner), GFP_KERNEL);
+		if (!owner) {
+			mutex_unlock(&owner_list->lock);
+			return -ENOMEM;
+		}
+		kref_init(&owner->kref);
+		list_add_tail(&peer->link, &owner_list->peers);
+	} else {
+		kref_get(&owner->kref);
+		list_add_tail(&peer->link, &cur_peer->link);
+	}
+	peer->owner = owner;
+	peer->list = owner_list;
+	mutex_unlock(&owner_list->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_pagemap_acquire_owner);
