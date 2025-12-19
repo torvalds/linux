@@ -57,6 +57,22 @@
 #include <asm/byteorder.h>
 #include <linux/unaligned.h>
 
+#ifdef CONFIG_XFS_DEBUG
+#define DEBUG 1
+#endif
+
+#ifdef CONFIG_XFS_DEBUG_EXPENSIVE
+#define DEBUG_EXPENSIVE 1
+#endif
+
+#ifdef CONFIG_XFS_ASSERT_FATAL
+#define XFS_ASSERT_FATAL 1
+#endif
+
+#ifdef CONFIG_XFS_WARN
+#define XFS_WARN 1
+#endif
+
 /*
  * Kernel specific type declarations for XFS
  */
