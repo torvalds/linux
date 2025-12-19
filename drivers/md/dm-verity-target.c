@@ -435,11 +435,9 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 			set_bit(blkno, v->validated_blocks);
 		return 0;
 	}
-#if defined(CONFIG_DM_VERITY_FEC)
 	if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_DATA, want_digest,
 			      blkno, data) == 0)
 		return 0;
-#endif
 	if (bio->bi_status)
 		return -EIO; /* Error correction failed; Just return error */
 
