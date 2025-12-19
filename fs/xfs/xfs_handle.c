@@ -4,7 +4,7 @@
  * Copyright (c) 2022-2024 Oracle.
  * All rights reserved.
  */
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"

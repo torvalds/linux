@@ -4,7 +4,7 @@
  * Author: Allison Henderson <allison.henderson@oracle.com>
  */
 
-#include "xfs.h"
+#include "xfs_platform.h"
 #include "xfs_fs.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
