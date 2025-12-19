@@ -195,26 +195,25 @@ const char *z_erofs_fixup_insize(struct z_erofs_decompress_req *rq,
 	return NULL;
 }
 
-static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst)
+static const char *__z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
+					    u8 *dst)
 {
-	bool support_0padding = false, may_inplace = false;
+	bool zeropadded = erofs_sb_has_zero_padding(EROFS_SB(rq->sb));
+	bool may_inplace = false;
 	unsigned int inputmargin;
 	u8 *out, *headpage, *src;
 	const char *reason;
 	int ret, maptype;
 
-	DBG_BUGON(*rq->in == NULL);
 	headpage = kmap_local_page(*rq->in);
-
 	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
-	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
-		support_0padding = true;
+	if (zeropadded) {
 		reason = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
 				min_t(unsigned int, rq->inputsize,
 				      rq->sb->s_blocksize - rq->pageofs_in));
 		if (reason) {
 			kunmap_local(headpage);
-			return IS_ERR(reason) ? PTR_ERR(reason) : -EFSCORRUPTED;
+			return reason;
 		}
 		may_inplace = !((rq->pageofs_in + rq->inputsize) &
 				(rq->sb->s_blocksize - 1));
@@ -224,26 +223,24 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 	src = z_erofs_lz4_handle_overlap(rq, headpage, dst, &inputmargin,
 					 &maptype, may_inplace);
 	if (IS_ERR(src))
-		return PTR_ERR(src);
+		return ERR_CAST(src);
 
 	out = dst + rq->pageofs_out;
 	/* legacy format could compress extra data in a pcluster. */
-	if (rq->partial_decoding || !support_0padding)
+	if (rq->partial_decoding || !zeropadded)
 		ret = LZ4_decompress_safe_partial(src + inputmargin, out,
 				rq->inputsize, rq->outputsize, rq->outputsize);
 	else
 		ret = LZ4_decompress_safe(src + inputmargin, out,
 					  rq->inputsize, rq->outputsize);
+	if (ret == rq->outputsize)
+		reason = NULL;
+	else if (ret < 0)
+		reason = "corrupted compressed data";
+	else
+		reason = "unexpected end of stream";
 
-	if (ret != rq->outputsize) {
-		if (ret >= 0)
-			memset(out + ret, 0, rq->outputsize - ret);
-		ret = -EFSCORRUPTED;
-	} else {
-		ret = 0;
-	}
-
-	if (maptype == 0) {
+	if (!maptype) {
 		kunmap_local(headpage);
 	} else if (maptype == 1) {
 		vm_unmap_ram(src, rq->inpages);
@@ -251,15 +248,16 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_decompress_req *rq, u8 *dst
 		z_erofs_put_gbuf(src);
 	} else if (maptype != 3) {
 		DBG_BUGON(1);
-		return -EFAULT;
+		return ERR_PTR(-EFAULT);
 	}
-	return ret;
+	return reason;
 }
 
 static const char *z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 					  struct page **pagepool)
 {
 	unsigned int dst_maptype;
+	const char *reason;
 	void *dst;
 	int ret;
 
@@ -283,12 +281,12 @@ static const char *z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 			dst_maptype = 2;
 		}
 	}
-	ret = z_erofs_lz4_decompress_mem(rq, dst);
+	reason = __z_erofs_lz4_decompress(rq, dst);
 	if (!dst_maptype)
 		kunmap_local(dst);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, rq->outpages);
-	return ERR_PTR(ret);
+	return reason;
 }
 
 static const char *z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
