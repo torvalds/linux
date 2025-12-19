@@ -894,9 +894,9 @@ static long ch_ioctl(struct file *file,
 
 /* ------------------------------------------------------------------------ */
 
-static int ch_probe(struct device *dev)
+static int ch_probe(struct scsi_device *sd)
 {
-	struct scsi_device *sd = to_scsi_device(dev);
+	struct device *dev = &sd->sdev_gendev;
 	struct device *class_dev;
 	int ret;
 	scsi_changer *ch;
@@ -967,8 +967,9 @@ free_ch:
 	return ret;
 }
 
-static int ch_remove(struct device *dev)
+static void ch_remove(struct scsi_device *sd)
 {
+	struct device *dev = &sd->sdev_gendev;
 	scsi_changer *ch = dev_get_drvdata(dev);
 
 	spin_lock(&ch_index_lock);
@@ -979,15 +980,14 @@ static int ch_remove(struct device *dev)
 	device_destroy(&ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
 	scsi_device_put(ch->device);
 	kref_put(&ch->ref, ch_destroy);
-	return 0;
 }
 
 static struct scsi_driver ch_template = {
-	.gendrv     	= {
+	.probe = ch_probe,
+	.remove = ch_remove,
+	.gendrv = {
 		.name	= "ch",
 		.owner	= THIS_MODULE,
-		.probe  = ch_probe,
-		.remove = ch_remove,
 	},
 };
 
