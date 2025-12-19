@@ -46,6 +46,7 @@
 #include "display/intel_display_core.h"
 #include "display/intel_sprite_regs.h"
 #include "display/skl_universal_plane_regs.h"
+#include "display_helpers.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
