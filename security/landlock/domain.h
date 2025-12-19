@@ -97,7 +97,7 @@ struct landlock_hierarchy {
 	 */
 	atomic64_t num_denials;
 	/**
-	 * @id: Landlock domain ID, sets once at domain creation time.
+	 * @id: Landlock domain ID, set once at domain creation time.
 	 */
 	u64 id;
 	/**
