@@ -242,6 +242,7 @@ void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_power_up_and_verify_state(struct pci_dev *pci_dev);
 void pci_pm_init(struct pci_dev *dev);
 void pci_ea_init(struct pci_dev *dev);
+bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub);
 void pci_msi_init(struct pci_dev *dev);
 void pci_msix_init(struct pci_dev *dev);
 bool pci_bridge_d3_possible(struct pci_dev *dev);
@@ -377,10 +378,17 @@ extern unsigned long pci_hotplug_mmio_size;
 extern unsigned long pci_hotplug_mmio_pref_size;
 extern unsigned long pci_hotplug_bus_size;
 
+static inline bool pci_is_cardbus_bridge(struct pci_dev *dev)
+{
+	return dev->hdr_type == PCI_HEADER_TYPE_CARDBUS;
+}
 #ifdef CONFIG_CARDBUS
 unsigned long pci_cardbus_resource_alignment(struct resource *res);
 int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
 				struct list_head *realloc_head);
+int pci_cardbus_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
+				   u32 buses, int max,
+				   unsigned int available_buses, int pass);
 int pci_setup_cardbus(char *str);
 
 #else
@@ -392,6 +400,14 @@ static inline int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
 					      struct list_head *realloc_head)
 {
 	return -EOPNOTSUPP;
+}
+static inline int pci_cardbus_scan_bridge_extend(struct pci_bus *bus,
+						 struct pci_dev *dev,
+						 u32 buses, int max,
+						 unsigned int available_buses,
+						 int pass)
+{
+	return max;
 }
 static inline int pci_setup_cardbus(char *str) { return -ENOENT; }
 #endif /* CONFIG_CARDBUS */

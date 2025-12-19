@@ -3,13 +3,18 @@
  * Cardbus bridge setup routines.
  */
 
+#include <linux/bitfield.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/sizes.h>
+#include <linux/sprintf.h>
 #include <linux/types.h>
 
 #include "pci.h"
+
+#define CARDBUS_LATENCY_TIMER		176	/* secondary latency timer */
+#define CARDBUS_RESERVE_BUSNR		3
 
 #define DEFAULT_CARDBUS_IO_SIZE		SZ_256
 #define DEFAULT_CARDBUS_MEM_SIZE	SZ_64M
@@ -185,4 +190,117 @@ int pci_setup_cardbus(char *str)
 	}
 
 	return -ENOENT;
+}
+
+int pci_cardbus_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
+				   u32 buses, int max,
+				   unsigned int available_buses, int pass)
+{
+	struct pci_bus *child;
+	bool fixed_buses;
+	u8 fixed_sec, fixed_sub;
+	int next_busnr;
+	u32 i, j = 0;
+
+	/*
+	 * We need to assign a number to this bus which we always do in the
+	 * second pass.
+	 */
+	if (!pass) {
+		/*
+		 * Temporarily disable forwarding of the configuration
+		 * cycles on all bridges in this bus segment to avoid
+		 * possible conflicts in the second pass between two bridges
+		 * programmed with overlapping bus ranges.
+		 */
+		pci_write_config_dword(dev, PCI_PRIMARY_BUS,
+				       buses & PCI_SEC_LATENCY_TIMER_MASK);
+		return max;
+	}
+
+	/* Clear errors */
+	pci_write_config_word(dev, PCI_STATUS, 0xffff);
+
+	/* Read bus numbers from EA Capability (if present) */
+	fixed_buses = pci_ea_fixed_busnrs(dev, &fixed_sec, &fixed_sub);
+	if (fixed_buses)
+		next_busnr = fixed_sec;
+	else
+		next_busnr = max + 1;
+
+	/*
+	 * Prevent assigning a bus number that already exists. This can
+	 * happen when a bridge is hot-plugged, so in this case we only
+	 * re-scan this bus.
+	 */
+	child = pci_find_bus(pci_domain_nr(bus), next_busnr);
+	if (!child) {
+		child = pci_add_new_bus(bus, dev, next_busnr);
+		if (!child)
+			return max;
+		pci_bus_insert_busn_res(child, next_busnr, bus->busn_res.end);
+	}
+	max++;
+	if (available_buses)
+		available_buses--;
+
+	buses = (buses & PCI_SEC_LATENCY_TIMER_MASK) |
+		FIELD_PREP(PCI_PRIMARY_BUS_MASK, child->primary) |
+		FIELD_PREP(PCI_SECONDARY_BUS_MASK, child->busn_res.start) |
+		FIELD_PREP(PCI_SUBORDINATE_BUS_MASK, child->busn_res.end);
+
+	/*
+	 * yenta.c forces a secondary latency timer of 176.
+	 * Copy that behaviour here.
+	 */
+	buses &= ~PCI_SEC_LATENCY_TIMER_MASK;
+	buses |= FIELD_PREP(PCI_SEC_LATENCY_TIMER_MASK, CARDBUS_LATENCY_TIMER);
+
+	/* We need to blast all three values with a single write */
+	pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
+
+	/*
+	 * For CardBus bridges, we leave 4 bus numbers as cards with a
+	 * PCI-to-PCI bridge can be inserted later.
+	 */
+	for (i = 0; i < CARDBUS_RESERVE_BUSNR; i++) {
+		struct pci_bus *parent = bus;
+
+		if (pci_find_bus(pci_domain_nr(bus), max + i + 1))
+			break;
+
+		while (parent->parent) {
+			if (!pcibios_assign_all_busses() &&
+			    (parent->busn_res.end > max) &&
+			    (parent->busn_res.end <= max + i)) {
+				j = 1;
+			}
+			parent = parent->parent;
+		}
+		if (j) {
+			/*
+			 * Often, there are two CardBus bridges -- try to
+			 * leave one valid bus number for each one.
+			 */
+			i /= 2;
+			break;
+		}
+	}
+	max += i;
+
+	/*
+	 * Set subordinate bus number to its real value. If fixed
+	 * subordinate bus number exists from EA capability then use it.
+	 */
+	if (fixed_buses)
+		max = fixed_sub;
+	pci_bus_update_busn_res_end(child, max);
+	pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
+
+	scnprintf(child->name, sizeof(child->name), "PCI CardBus %04x:%02x",
+		  pci_domain_nr(bus), child->number);
+
+	pbus_validate_busn(child);
+
+	return max;
 }

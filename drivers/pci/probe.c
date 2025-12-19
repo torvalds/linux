@@ -25,9 +25,6 @@
 #include <linux/bitfield.h>
 #include "pci.h"
 
-#define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
-#define CARDBUS_RESERVE_BUSNR	3
-
 static struct resource busn_resource = {
 	.name	= "PCI busn",
 	.start	= 0,
@@ -1343,7 +1340,7 @@ void pbus_validate_busn(struct pci_bus *bus)
  * and subordinate bus numbers, return true with the bus numbers in @sec
  * and @sub.  Otherwise return false.
  */
-static bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub)
+bool pci_ea_fixed_busnrs(struct pci_dev *dev, u8 *sec, u8 *sub)
 {
 	int ea, offset;
 	u32 dw;
@@ -1397,8 +1394,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 				  int pass)
 {
 	struct pci_bus *child;
-	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
-	u32 buses, i, j = 0;
+	u32 buses;
 	u16 bctl;
 	u8 primary, secondary, subordinate;
 	int broken = 0;
@@ -1442,8 +1438,15 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
 
-	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
-	    !is_cardbus && !broken) {
+	if (pci_is_cardbus_bridge(dev)) {
+		max = pci_cardbus_scan_bridge_extend(bus, dev, buses, max,
+						     available_buses,
+						     pass);
+		goto out;
+	}
+
+	if ((secondary || subordinate) &&
+	    !pcibios_assign_all_busses() && !broken) {
 		unsigned int cmax, buses;
 
 		/*
@@ -1485,7 +1488,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		 * do in the second pass.
 		 */
 		if (!pass) {
-			if (pcibios_assign_all_busses() || broken || is_cardbus)
+			if (pcibios_assign_all_busses() || broken)
 
 				/*
 				 * Temporarily disable forwarding of the
@@ -1532,55 +1535,11 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 			FIELD_PREP(PCI_SECONDARY_BUS_MASK, child->busn_res.start) |
 			FIELD_PREP(PCI_SUBORDINATE_BUS_MASK, child->busn_res.end);
 
-		/*
-		 * yenta.c forces a secondary latency timer of 176.
-		 * Copy that behaviour here.
-		 */
-		if (is_cardbus) {
-			buses &= ~PCI_SEC_LATENCY_TIMER_MASK;
-			buses |= FIELD_PREP(PCI_SEC_LATENCY_TIMER_MASK,
-					    CARDBUS_LATENCY_TIMER);
-		}
-
 		/* We need to blast all three values with a single write */
 		pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
 
-		if (!is_cardbus) {
-			child->bridge_ctl = bctl;
-			max = pci_scan_child_bus_extend(child, available_buses);
-		} else {
-
-			/*
-			 * For CardBus bridges, we leave 4 bus numbers as
-			 * cards with a PCI-to-PCI bridge can be inserted
-			 * later.
-			 */
-			for (i = 0; i < CARDBUS_RESERVE_BUSNR; i++) {
-				struct pci_bus *parent = bus;
-				if (pci_find_bus(pci_domain_nr(bus),
-							max+i+1))
-					break;
-				while (parent->parent) {
-					if ((!pcibios_assign_all_busses()) &&
-					    (parent->busn_res.end > max) &&
-					    (parent->busn_res.end <= max+i)) {
-						j = 1;
-					}
-					parent = parent->parent;
-				}
-				if (j) {
-
-					/*
-					 * Often, there are two CardBus
-					 * bridges -- try to leave one
-					 * valid bus number for each one.
-					 */
-					i /= 2;
-					break;
-				}
-			}
-			max += i;
-		}
+		child->bridge_ctl = bctl;
+		max = pci_scan_child_bus_extend(child, available_buses);
 
 		/*
 		 * Set subordinate bus number to its real value.
@@ -1592,9 +1551,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		pci_bus_update_busn_res_end(child, max);
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
-
-	scnprintf(child->name, sizeof(child->name),
-		  (is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
+	scnprintf(child->name, sizeof(child->name), "PCI Bus %04x:%02x",
 		  pci_domain_nr(bus), child->number);
 
 	pbus_validate_busn(child);
