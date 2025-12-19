@@ -826,8 +826,8 @@ EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_set_length, "IIO_DMA_BUFFER");
  * should refer to the device that will perform the DMA to ensure that
  * allocations are done from a memory region that can be accessed by the device.
  */
-int iio_dma_buffer_init(struct iio_dma_buffer_queue *queue,
-	struct device *dev, const struct iio_dma_buffer_ops *ops)
+void iio_dma_buffer_init(struct iio_dma_buffer_queue *queue, struct device *dev,
+			 const struct iio_dma_buffer_ops *ops)
 {
 	iio_buffer_init(&queue->buffer);
 	queue->buffer.length = PAGE_SIZE;
@@ -839,8 +839,6 @@ int iio_dma_buffer_init(struct iio_dma_buffer_queue *queue,
 
 	mutex_init(&queue->lock);
 	spin_lock_init(&queue->list_lock);
-
-	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_init, "IIO_DMA_BUFFER");
 
