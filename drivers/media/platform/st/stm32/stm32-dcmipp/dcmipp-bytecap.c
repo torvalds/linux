@@ -57,6 +57,7 @@ struct dcmipp_bytecap_pix_map {
 static const struct dcmipp_bytecap_pix_map dcmipp_bytecap_pix_map_list[] = {
 	PIXMAP_MBUS_PFMT(RGB565_2X8_LE, RGB565),
 	PIXMAP_MBUS_PFMT(RGB565_1X16, RGB565),
+	PIXMAP_MBUS_PFMT(RGB888_1X24, RGB24),
 	PIXMAP_MBUS_PFMT(YUYV8_2X8, YUYV),
 	PIXMAP_MBUS_PFMT(YUYV8_1X16, YUYV),
 	PIXMAP_MBUS_PFMT(YVYU8_2X8, YVYU),

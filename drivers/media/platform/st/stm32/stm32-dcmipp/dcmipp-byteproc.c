@@ -49,6 +49,8 @@ struct dcmipp_byteproc_pix_map {
 static const struct dcmipp_byteproc_pix_map dcmipp_byteproc_pix_map_list[] = {
 	PIXMAP_MBUS_BPP(RGB565_2X8_LE, 2),
 	PIXMAP_MBUS_BPP(RGB565_1X16, 2),
+	PIXMAP_MBUS_BPP(RGB888_3X8, 3),
+	PIXMAP_MBUS_BPP(RGB888_1X24, 3),
 	PIXMAP_MBUS_BPP(YUYV8_2X8, 2),
 	PIXMAP_MBUS_BPP(YUYV8_1X16, 2),
 	PIXMAP_MBUS_BPP(YVYU8_2X8, 2),
