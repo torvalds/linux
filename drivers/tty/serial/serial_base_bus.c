@@ -74,6 +74,7 @@ static int serial_base_device_init(struct uart_port *port,
 	dev->parent = parent_dev;
 	dev->bus = &serial_base_bus_type;
 	dev->release = release;
+	dev->of_node_reused = true;
 
 	device_set_node(dev, fwnode_handle_get(dev_fwnode(parent_dev)));
 
