@@ -6,12 +6,11 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
-#include <drm/drm_print.h>
-
 #include "regs/xe_bars.h"
 #include "xe_device_types.h"
 #include "xe_module.h"
 #include "xe_pci_rebar.h"
+#include "xe_printk.h"
 
 static void resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 {
@@ -21,12 +20,12 @@ static void resize_bar(struct xe_device *xe, int resno, resource_size_t size)
 
 	ret = pci_resize_resource(pdev, resno, bar_size, 0);
 	if (ret) {
-		drm_info(&xe->drm, "Failed to resize BAR%d to %dM (%pe). Consider enabling 'Resizable BAR' support in your BIOS\n",
-			 resno, 1 << bar_size, ERR_PTR(ret));
+		xe_info(xe, "Failed to resize BAR%d to %dMiB (%pe). Consider enabling 'Resizable BAR' support in your BIOS\n",
+			resno, 1 << bar_size, ERR_PTR(ret));
 		return;
 	}
 
-	drm_info(&xe->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
+	xe_info(xe, "BAR%d resized to %dMiB\n", resno, 1 << bar_size);
 }
 
 /*
@@ -59,11 +58,10 @@ void xe_pci_rebar_resize(struct xe_device *xe)
 						     (resource_size_t)SZ_1M);
 
 		if (!pci_rebar_size_supported(pdev, LMEM_BAR, rebar_size)) {
-			drm_info(&xe->drm,
-				 "Requested size: %lluMiB is not supported by rebar sizes: 0x%llx. Leaving default: %lluMiB\n",
-				 (u64)pci_rebar_size_to_bytes(rebar_size) >> 20,
-				 pci_rebar_get_possible_sizes(pdev, LMEM_BAR),
-				 (u64)current_size >> 20);
+			xe_info(xe, "Requested size %lluMiB is not supported by rebar sizes: 0x%llx. Leaving default: %lluMiB\n",
+				(u64)pci_rebar_size_to_bytes(rebar_size) >> ilog2(SZ_1M),
+				pci_rebar_get_possible_sizes(pdev, LMEM_BAR),
+				(u64)current_size >> ilog2(SZ_1M));
 			return;
 		}
 
@@ -81,8 +79,8 @@ void xe_pci_rebar_resize(struct xe_device *xe)
 			return;
 	}
 
-	drm_info(&xe->drm, "Attempting to resize bar from %lluMiB -> %lluMiB\n",
-		 (u64)current_size >> 20, (u64)rebar_size >> 20);
+	xe_info(xe, "Attempting to resize bar from %lluMiB -> %lluMiB\n",
+		(u64)current_size >> ilog2(SZ_1M), (u64)rebar_size >> ilog2(SZ_1M));
 
 	while (root->parent)
 		root = root->parent;
@@ -94,7 +92,7 @@ void xe_pci_rebar_resize(struct xe_device *xe)
 	}
 
 	if (!root_res) {
-		drm_info(&xe->drm, "Can't resize VRAM BAR - platform support is missing. Consider enabling 'Resizable BAR' support in your BIOS\n");
+		xe_info(xe, "Can't resize VRAM BAR - platform support is missing. Consider enabling 'Resizable BAR' support in your BIOS\n");
 		return;
 	}
 
