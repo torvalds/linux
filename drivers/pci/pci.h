@@ -452,6 +452,11 @@ void pci_walk_bus_locked(struct pci_bus *top,
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
 bool pci_resource_is_optional(const struct pci_dev *dev, int resno);
+static inline bool pci_resource_is_bridge_win(int resno)
+{
+	return resno >= PCI_BRIDGE_RESOURCES &&
+	       resno <= PCI_BRIDGE_RESOURCE_END;
+}
 
 /**
  * pci_resource_num - Reverse lookup resource number from device resources

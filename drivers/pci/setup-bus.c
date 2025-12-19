@@ -303,8 +303,7 @@ static bool pdev_resource_assignable(struct pci_dev *dev, struct resource *res)
 	if (!res->flags)
 		return false;
 
-	if (idx >= PCI_BRIDGE_RESOURCES && idx <= PCI_BRIDGE_RESOURCE_END &&
-	    res->flags & IORESOURCE_DISABLED)
+	if (pci_resource_is_bridge_win(idx) && res->flags & IORESOURCE_DISABLED)
 		return false;
 
 	return true;
@@ -389,7 +388,7 @@ static inline void reset_resource(struct pci_dev *dev, struct resource *res)
 {
 	int idx = pci_resource_num(dev, res);
 
-	if (idx >= PCI_BRIDGE_RESOURCES && idx <= PCI_BRIDGE_RESOURCE_END) {
+	if (pci_resource_is_bridge_win(idx)) {
 		res->flags |= IORESOURCE_UNSET;
 		return;
 	}
@@ -985,7 +984,7 @@ int pci_claim_bridge_resource(struct pci_dev *bridge, int i)
 {
 	int ret = -EINVAL;
 
-	if (i < PCI_BRIDGE_RESOURCES || i > PCI_BRIDGE_RESOURCE_END)
+	if (!pci_resource_is_bridge_win(i))
 		return 0;
 
 	if (pci_claim_resource(bridge, i) == 0)
