@@ -4,6 +4,7 @@ include ../../../scripts/Makefile.arch
 include ../../../scripts/Makefile.include
 
 CXX ?= $(CROSS_COMPILE)g++
+OBJCOPY ?= $(CROSS_COMPILE)objcopy
 
 CURDIR := $(abspath .)
 TOOLSDIR := $(abspath ../../..)
@@ -653,9 +654,10 @@ $(TRUNNER_TEST_OBJS): $(TRUNNER_OUTPUT)/%.test.o:			\
 		      | $(TRUNNER_OUTPUT)/%.test.d
 	$$(call msg,TEST-OBJ,$(TRUNNER_BINARY),$$@)
 	$(Q)cd $$(@D) && $$(CC) -I. $$(CFLAGS) -MMD -MT $$@ -c $(CURDIR)/$$< $$(LDLIBS) -o $$(@F)
-	$$(if $$(TEST_NEEDS_BTFIDS),					\
-		$$(call msg,BTFIDS,$(TRUNNER_BINARY),$$@)		\
-		$(RESOLVE_BTFIDS) --btf $(TRUNNER_OUTPUT)/btf_data.bpf.o $$@)
+	$$(if $$(TEST_NEEDS_BTFIDS),						\
+		$$(call msg,BTFIDS,$(TRUNNER_BINARY),$$@)			\
+		$(RESOLVE_BTFIDS) --btf $(TRUNNER_OUTPUT)/btf_data.bpf.o $$@;	\
+		$(OBJCOPY) --update-section .BTF_ids=$$@.BTF_ids $$@)
 
 $(TRUNNER_TEST_OBJS:.o=.d): $(TRUNNER_OUTPUT)/%.test.d:			\
 			    $(TRUNNER_TESTS_DIR)/%.c			\
@@ -894,6 +896,7 @@ EXTRA_CLEAN := $(SCRATCH_DIR) $(HOST_SCRATCH_DIR)			\
 	prog_tests/tests.h map_tests/tests.h verifier/tests.h		\
 	feature bpftool $(TEST_KMOD_TARGETS)				\
 	$(addprefix $(OUTPUT)/,*.o *.d *.skel.h *.lskel.h *.subskel.h	\
+			       *.BTF *.BTF_ids *.BTF.base		\
 			       no_alu32 cpuv4 bpf_gcc			\
 			       liburandom_read.so)			\
 	$(OUTPUT)/FEATURE-DUMP.selftests				\

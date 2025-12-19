@@ -18,13 +18,15 @@ pahole-flags-$(call test-ge, $(pahole-ver), 126)  = -j$(JOBS) --btf_features=enc
 
 pahole-flags-$(call test-ge, $(pahole-ver), 130) += --btf_features=attributes
 
-ifneq ($(KBUILD_EXTMOD),)
-module-pahole-flags-$(call test-ge, $(pahole-ver), 128) += --btf_features=distilled_base
-endif
-
 endif
 
 pahole-flags-$(CONFIG_PAHOLE_HAS_LANG_EXCLUDE)		+= --lang_exclude=rust
 
 export PAHOLE_FLAGS := $(pahole-flags-y)
-export MODULE_PAHOLE_FLAGS := $(module-pahole-flags-y)
+
+resolve-btfids-flags-y :=
+resolve-btfids-flags-$(CONFIG_WERROR) += --fatal_warnings
+resolve-btfids-flags-$(if $(KBUILD_EXTMOD),y) += --distill_base
+resolve-btfids-flags-$(if $(KBUILD_VERBOSE),y) += --verbose
+
+export RESOLVE_BTFIDS_FLAGS := $(resolve-btfids-flags-y)
