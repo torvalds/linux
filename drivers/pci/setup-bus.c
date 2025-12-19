@@ -1262,11 +1262,11 @@ static resource_size_t calculate_head_align(resource_size_t *aligns,
  * pbus_size_mem() - Size the memory window of a given bus
  *
  * @bus:		The bus
- * @type:		The type of bridge resource
+ * @b_res:		The bridge window resource
  * @add_size:		Additional memory window
  * @realloc_head:	Track the additional memory window on this list
  *
- * Calculate the size of the bus resource for @type and minimal alignment
+ * Calculate the size of the bridge window @b_res and minimal alignment
  * which guarantees that all child resources fit in this size.
  *
  * Set the bus resource start/end to indicate the required size if there an
@@ -1275,15 +1275,14 @@ static resource_size_t calculate_head_align(resource_size_t *aligns,
  * Add optional resource requests to the @realloc_head list if it is
  * supplied.
  */
-static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
-			 resource_size_t add_size,
-			 struct list_head *realloc_head)
+static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
+			  resource_size_t add_size,
+			  struct list_head *realloc_head)
 {
 	struct pci_dev *dev;
 	resource_size_t min_align, win_align, align, size, size0, size1 = 0;
 	resource_size_t aligns[28] = {}; /* Alignments from 1MB to 128TB */
 	int order, max_order;
-	struct resource *b_res = pbus_select_window_for_type(bus, type);
 	resource_size_t children_add_size = 0;
 	resource_size_t children_add_align = 0;
 	resource_size_t add_align = 0;
@@ -1494,7 +1493,7 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 	struct pci_dev *dev;
 	resource_size_t additional_io_size = 0, additional_mmio_size = 0,
 			additional_mmio_pref_size = 0;
-	struct resource *pref;
+	struct resource *b_res;
 	struct pci_host_bridge *host;
 	int hdr_type;
 
@@ -1520,12 +1519,8 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 		host = to_pci_host_bridge(bus->bridge);
 		if (!host->size_windows)
 			return;
-		pci_bus_for_each_resource(bus, pref)
-			if (pref && (pref->flags & IORESOURCE_PREFETCH))
-				break;
 		hdr_type = -1;	/* Intentionally invalid - not a PCI device. */
 	} else {
-		pref = &bus->self->resource[PCI_BRIDGE_PREF_MEM_WINDOW];
 		hdr_type = bus->self->hdr_type;
 	}
 
@@ -1545,15 +1540,19 @@ void __pci_bus_size_bridges(struct pci_bus *bus, struct list_head *realloc_head)
 	default:
 		pbus_size_io(bus, additional_io_size, realloc_head);
 
-		if (pref && (pref->flags & IORESOURCE_PREFETCH)) {
-			pbus_size_mem(bus,
-				      IORESOURCE_MEM | IORESOURCE_PREFETCH |
-				      (pref->flags & IORESOURCE_MEM_64),
-				      additional_mmio_pref_size, realloc_head);
+		b_res = pbus_select_window_for_type(bus, IORESOURCE_MEM |
+							 IORESOURCE_PREFETCH |
+							 IORESOURCE_MEM_64);
+		if (b_res && (b_res->flags & IORESOURCE_PREFETCH)) {
+			pbus_size_mem(bus, b_res, additional_mmio_pref_size,
+				      realloc_head);
 		}
 
-		pbus_size_mem(bus, IORESOURCE_MEM, additional_mmio_size,
-			      realloc_head);
+		b_res = pbus_select_window_for_type(bus, IORESOURCE_MEM);
+		if (b_res) {
+			pbus_size_mem(bus, b_res, additional_mmio_size,
+				      realloc_head);
+		}
 		break;
 	}
 }
