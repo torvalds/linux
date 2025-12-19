@@ -251,10 +251,14 @@ static umode_t survivability_info_attrs_visible(struct kobject *kobj, struct att
 	struct xe_survivability *survivability = &xe->survivability;
 	u32 *info = survivability->info;
 
-	/* FDO mode is visible only when supported */
-	if (idx >= MAX_SCRATCH_REG && survivability->version >= 2)
+	/*
+	 * Last index in survivability_info_attrs is fdo mode and is applicable only in
+	 * version 2 of survivability mode
+	 */
+	if (idx == MAX_SCRATCH_REG && survivability->version >= 2)
 		return 0400;
-	else if (info[idx])
+
+	if (idx < MAX_SCRATCH_REG && info[idx])
 		return 0400;
 
 	return 0;
