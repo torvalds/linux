@@ -1359,13 +1359,12 @@ static void rt1320_vab_preset(struct rt1320_sdw_priv *rt1320)
 	}
 }
 
-static int rt1320_t0_load(struct rt1320_sdw_priv *rt1320, unsigned int l_t0, unsigned int r_t0)
+static void rt1320_t0_load(struct rt1320_sdw_priv *rt1320, unsigned int l_t0, unsigned int r_t0)
 {
 	struct device *dev = &rt1320->sdw_slave->dev;
 	unsigned int factor = (1 << 22), fw_ready;
 	int l_t0_data[38], r_t0_data[38];
 	unsigned int fw_status_addr;
-	int ret;
 
 	switch (rt1320->dev_id) {
 	case RT1320_DEV_ID:
@@ -1376,7 +1375,7 @@ static int rt1320_t0_load(struct rt1320_sdw_priv *rt1320, unsigned int l_t0, uns
 		break;
 	default:
 		dev_err(dev, "%s: Unknown device ID %d\n", __func__, rt1320->dev_id);
-		return -EINVAL;
+		return;
 	}
 
 	regmap_write(rt1320->regmap,
@@ -1401,8 +1400,7 @@ static int rt1320_t0_load(struct rt1320_sdw_priv *rt1320, unsigned int l_t0, uns
 
 	rt1320_fw_param_protocol(rt1320, RT1320_SET_PARAM, 3, &l_t0_data[0], sizeof(l_t0_data));
 	rt1320_fw_param_protocol(rt1320, RT1320_SET_PARAM, 4, &r_t0_data[0], sizeof(r_t0_data));
-	ret = rt1320_check_fw_ready(rt1320);
-	if (ret < 0)
+	if (rt1320_check_fw_ready(rt1320) < 0)
 		dev_err(dev, "%s: Failed to set FW param 3,4!\n", __func__);
 
 	rt1320->temp_l_calib = l_t0;
@@ -1419,8 +1417,6 @@ _exit_:
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
 				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03);
 	rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, 0x03);
-
-	return ret;
 }
 
 static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
