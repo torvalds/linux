@@ -1593,6 +1593,9 @@ EXPORT_SYMBOL(igrab);
  * @hashval:	hash value (usually inode number) to search for
  * @test:	callback used for comparisons between inodes
  * @data:	opaque data pointer to pass to @test
+ * @isnew:	return argument telling whether I_NEW was set when
+ *		the inode was found in hash (the caller needs to
+ *		wait for I_NEW to clear)
  *
  * Search for the inode specified by @hashval and @data in the inode cache.
  * If the inode is in the cache, the inode is returned with an incremented
