@@ -376,13 +376,12 @@ extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mmio_size;
 extern unsigned long pci_hotplug_mmio_pref_size;
 extern unsigned long pci_hotplug_bus_size;
-extern unsigned long pci_cardbus_io_size;
-extern unsigned long pci_cardbus_mem_size;
 
 #ifdef CONFIG_CARDBUS
 unsigned long pci_cardbus_resource_alignment(struct resource *res);
 int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
 				struct list_head *realloc_head);
+int pci_setup_cardbus(char *str);
 
 #else
 static inline unsigned long pci_cardbus_resource_alignment(struct resource *res)
@@ -394,6 +393,7 @@ static inline int pci_bus_size_cardbus_bridge(struct pci_bus *bus,
 {
 	return -EOPNOTSUPP;
 }
+static inline int pci_setup_cardbus(char *str) { return -ENOENT; }
 #endif /* CONFIG_CARDBUS */
 
 /**

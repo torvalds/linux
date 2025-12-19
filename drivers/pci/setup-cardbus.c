@@ -3,11 +3,19 @@
  * Cardbus bridge setup routines.
  */
 
+#include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/sizes.h>
 #include <linux/types.h>
 
 #include "pci.h"
+
+#define DEFAULT_CARDBUS_IO_SIZE		SZ_256
+#define DEFAULT_CARDBUS_MEM_SIZE	SZ_64M
+/* pci=cbmemsize=nnM,cbiosize=nn can override this */
+static unsigned long pci_cardbus_io_size = DEFAULT_CARDBUS_IO_SIZE;
+static unsigned long pci_cardbus_mem_size = DEFAULT_CARDBUS_MEM_SIZE;
 
 unsigned long pci_cardbus_resource_alignment(struct resource *res)
 {
@@ -165,3 +173,16 @@ void pci_setup_cardbus_bridge(struct pci_bus *bus)
 	}
 }
 EXPORT_SYMBOL(pci_setup_cardbus_bridge);
+
+int pci_setup_cardbus(char *str)
+{
+	if (!strncmp(str, "cbiosize=", 9)) {
+		pci_cardbus_io_size = memparse(str + 9, &str);
+		return 0;
+	} else if (!strncmp(str, "cbmemsize=", 10)) {
+		pci_cardbus_mem_size = memparse(str + 10, &str);
+		return 0;
+	}
+
+	return -ENOENT;
+}
