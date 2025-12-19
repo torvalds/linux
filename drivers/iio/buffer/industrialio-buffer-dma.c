@@ -169,8 +169,9 @@ static struct iio_dma_buffer_queue *iio_buffer_to_queue(struct iio_buffer *buf)
 	return container_of(buf, struct iio_dma_buffer_queue, buffer);
 }
 
-static struct iio_dma_buffer_block *iio_dma_buffer_alloc_block(
-	struct iio_dma_buffer_queue *queue, size_t size, bool fileio)
+static struct iio_dma_buffer_block *
+iio_dma_buffer_alloc_block(struct iio_dma_buffer_queue *queue, size_t size,
+			   bool fileio)
 {
 	struct iio_dma_buffer_block *block __free(kfree) =
 			kzalloc(sizeof(*block), GFP_KERNEL);
@@ -254,7 +255,7 @@ EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_block_done, "IIO_DMA_BUFFER");
  * hand the blocks back to the queue.
  */
 void iio_dma_buffer_block_list_abort(struct iio_dma_buffer_queue *queue,
-	struct list_head *list)
+				     struct list_head *list)
 {
 	struct iio_dma_buffer_block *block, *_block;
 	bool cookie;
@@ -434,7 +435,7 @@ static void iio_dma_buffer_fileio_free(struct iio_dma_buffer_queue *queue)
 }
 
 static void iio_dma_buffer_submit_block(struct iio_dma_buffer_queue *queue,
-	struct iio_dma_buffer_block *block)
+					struct iio_dma_buffer_block *block)
 {
 	int ret;
 
@@ -478,8 +479,7 @@ static void iio_dma_buffer_submit_block(struct iio_dma_buffer_queue *queue,
  *
  * This will allocate the DMA buffers and start the DMA transfers.
  */
-int iio_dma_buffer_enable(struct iio_buffer *buffer,
-	struct iio_dev *indio_dev)
+int iio_dma_buffer_enable(struct iio_buffer *buffer, struct iio_dev *indio_dev)
 {
 	struct iio_dma_buffer_queue *queue = iio_buffer_to_queue(buffer);
 	struct iio_dma_buffer_block *block, *_block;
@@ -503,8 +503,7 @@ EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_enable, "IIO_DMA_BUFFER");
  * Needs to be called when the device that the buffer is attached to stops
  * sampling. Typically should be the iio_buffer_access_ops disable callback.
  */
-int iio_dma_buffer_disable(struct iio_buffer *buffer,
-	struct iio_dev *indio_dev)
+int iio_dma_buffer_disable(struct iio_buffer *buffer, struct iio_dev *indio_dev)
 {
 	struct iio_dma_buffer_queue *queue = iio_buffer_to_queue(buffer);
 
@@ -519,7 +518,7 @@ int iio_dma_buffer_disable(struct iio_buffer *buffer,
 EXPORT_SYMBOL_NS_GPL(iio_dma_buffer_disable, "IIO_DMA_BUFFER");
 
 static void iio_dma_buffer_enqueue(struct iio_dma_buffer_queue *queue,
-	struct iio_dma_buffer_block *block)
+				   struct iio_dma_buffer_block *block)
 {
 	if (block->state == IIO_BLOCK_STATE_DEAD) {
 		iio_buffer_block_put(block);
@@ -531,8 +530,8 @@ static void iio_dma_buffer_enqueue(struct iio_dma_buffer_queue *queue,
 	}
 }
 
-static struct iio_dma_buffer_block *iio_dma_buffer_dequeue(
-	struct iio_dma_buffer_queue *queue)
+static struct iio_dma_buffer_block *
+iio_dma_buffer_dequeue(struct iio_dma_buffer_queue *queue)
 {
 	struct iio_dma_buffer_block *block;
 	unsigned int idx;
@@ -661,8 +660,7 @@ size_t iio_dma_buffer_usage(struct iio_buffer *buf)
 	for (i = 0; i < ARRAY_SIZE(queue->fileio.blocks); i++) {
 		block = queue->fileio.blocks[i];
 
-		if (block != queue->fileio.active_block
-		    && block->state == IIO_BLOCK_STATE_DONE)
+		if (block != queue->fileio.active_block && block->state == IIO_BLOCK_STATE_DONE)
 			data_available += block->size;
 	}
 
