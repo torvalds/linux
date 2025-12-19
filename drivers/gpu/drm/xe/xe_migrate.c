@@ -2113,6 +2113,7 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 					 unsigned long sram_offset,
 					 struct drm_pagemap_addr *sram_addr,
 					 u64 vram_addr,
+					 struct dma_fence *deps,
 					 const enum xe_migrate_copy_dir dir)
 {
 	struct xe_gt *gt = m->tile->primary_gt;
@@ -2201,6 +2202,14 @@ static struct dma_fence *xe_migrate_vram(struct xe_migrate *m,
 
 	xe_sched_job_add_migrate_flush(job, MI_INVALIDATE_TLB);
 
+	if (deps && !dma_fence_is_signaled(deps)) {
+		dma_fence_get(deps);
+		err = drm_sched_job_add_dependency(&job->drm, deps);
+		if (err)
+			dma_fence_wait(deps, false);
+		err = 0;
+	}
+
 	mutex_lock(&m->job_mutex);
 	xe_sched_job_arm(job);
 	fence = dma_fence_get(&job->drm.s_fence->finished);
@@ -2226,6 +2235,8 @@ err:
  * @npages: Number of pages to migrate.
  * @src_addr: Array of DMA information (source of migrate)
  * @dst_addr: Device physical address of VRAM (destination of migrate)
+ * @deps: struct dma_fence representing the dependencies that need
+ * to be signaled before migration.
  *
  * Copy from an array dma addresses to a VRAM device physical address
  *
@@ -2235,10 +2246,11 @@ err:
 struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
 				     unsigned long npages,
 				     struct drm_pagemap_addr *src_addr,
-				     u64 dst_addr)
+				     u64 dst_addr,
+				     struct dma_fence *deps)
 {
 	return xe_migrate_vram(m, npages * PAGE_SIZE, 0, src_addr, dst_addr,
-			       XE_MIGRATE_COPY_TO_VRAM);
+			       deps, XE_MIGRATE_COPY_TO_VRAM);
 }
 
 /**
@@ -2247,6 +2259,8 @@ struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
  * @npages: Number of pages to migrate.
  * @src_addr: Device physical address of VRAM (source of migrate)
  * @dst_addr: Array of DMA information (destination of migrate)
+ * @deps: struct dma_fence representing the dependencies that need
+ * to be signaled before migration.
  *
  * Copy from a VRAM device physical address to an array dma addresses
  *
@@ -2256,10 +2270,11 @@ struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
 struct dma_fence *xe_migrate_from_vram(struct xe_migrate *m,
 				       unsigned long npages,
 				       u64 src_addr,
-				       struct drm_pagemap_addr *dst_addr)
+				       struct drm_pagemap_addr *dst_addr,
+				       struct dma_fence *deps)
 {
 	return xe_migrate_vram(m, npages * PAGE_SIZE, 0, dst_addr, src_addr,
-			       XE_MIGRATE_COPY_TO_SRAM);
+			       deps, XE_MIGRATE_COPY_TO_SRAM);
 }
 
 static void xe_migrate_dma_unmap(struct xe_device *xe,
@@ -2435,7 +2450,7 @@ int xe_migrate_access_memory(struct xe_migrate *m, struct xe_bo *bo,
 		__fence = xe_migrate_vram(m, current_bytes,
 					  (unsigned long)buf & ~PAGE_MASK,
 					  &pagemap_addr[current_page],
-					  vram_addr, write ?
+					  vram_addr, NULL, write ?
 					  XE_MIGRATE_COPY_TO_VRAM :
 					  XE_MIGRATE_COPY_TO_SRAM);
 		if (IS_ERR(__fence)) {
