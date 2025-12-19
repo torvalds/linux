@@ -17,11 +17,7 @@
 #define DM_VERITY_FEC_MIN_RSN		231	/* ~10% space overhead */
 
 /* buffers for deinterleaving and decoding */
-#define DM_VERITY_FEC_BUF_PREALLOC	1	/* buffers to preallocate */
 #define DM_VERITY_FEC_BUF_RS_BITS	4	/* 1 << RS blocks per buffer */
-/* we need buffers for at most 1 << block size RS blocks */
-#define DM_VERITY_FEC_BUF_MAX \
-	(1 << (PAGE_SHIFT - DM_VERITY_FEC_BUF_RS_BITS))
 
 #define DM_VERITY_OPT_FEC_DEV		"use_fec_from_device"
 #define DM_VERITY_OPT_FEC_BLOCKS	"fec_blocks"
@@ -52,10 +48,17 @@ struct dm_verity_fec {
 struct dm_verity_fec_io {
 	struct rs_control *rs;	/* Reed-Solomon state */
 	int erasures[DM_VERITY_FEC_MAX_RSN];	/* erasures for decode_rs8 */
-	u8 *bufs[DM_VERITY_FEC_BUF_MAX];	/* bufs for deinterleaving */
-	unsigned int nbufs;		/* number of buffers allocated */
 	u8 *output;		/* buffer for corrected output */
 	unsigned int level;		/* recursion level */
+	unsigned int nbufs;		/* number of buffers allocated */
+	/*
+	 * Buffers for deinterleaving RS blocks.  Each buffer has space for
+	 * the data bytes of (1 << DM_VERITY_FEC_BUF_RS_BITS) RS blocks.  The
+	 * array length is fec_max_nbufs(v), and we try to allocate that many
+	 * buffers.  However, in low-memory situations we may be unable to
+	 * allocate all buffers.  'nbufs' holds the number actually allocated.
+	 */
+	u8 *bufs[];
 };
 
 #ifdef CONFIG_DM_VERITY_FEC
