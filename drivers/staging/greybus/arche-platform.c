@@ -523,10 +523,9 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 	arche_pdata->pm_notifier.notifier_call = arche_platform_pm_notifier;
 	ret = register_pm_notifier(&arche_pdata->pm_notifier);
-
 	if (ret) {
 		dev_err(dev, "failed to register pm notifier %d\n", ret);
-		goto err_device_remove;
+		goto err_depopulate;
 	}
 
 	/* Explicitly power off if requested */
@@ -547,6 +546,8 @@ static int arche_platform_probe(struct platform_device *pdev)
 
 err_unregister_pm_notifier:
 	unregister_pm_notifier(&arche_pdata->pm_notifier);
+err_depopulate:
+	of_platform_depopulate(dev);
 err_device_remove:
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	return ret;
