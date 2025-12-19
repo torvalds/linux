@@ -86,7 +86,6 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 				    const unsigned int mode)
 {
 	const struct landlock_cred_security *parent_subject;
-	const struct landlock_ruleset *child_dom;
 	int err;
 
 	/* Quick return for non-landlocked tasks. */
@@ -96,7 +95,8 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 
 	scoped_guard(rcu)
 	{
-		child_dom = landlock_get_task_domain(child);
+		const struct landlock_ruleset *const child_dom =
+			landlock_get_task_domain(child);
 		err = domain_ptrace(parent_subject->domain, child_dom);
 	}
 
