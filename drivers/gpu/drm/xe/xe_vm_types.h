@@ -191,6 +191,7 @@ struct xe_vm {
 			 */
 			struct work_struct work;
 		} garbage_collector;
+		struct xe_pagemap *pagemaps[XE_MAX_TILES_PER_DEVICE];
 	} svm;
 
 	struct xe_device *xe;

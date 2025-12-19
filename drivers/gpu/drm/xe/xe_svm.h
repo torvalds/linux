@@ -27,8 +27,13 @@ static inline void *xe_svm_devm_owner(struct xe_device *xe)
 
 #define XE_INTERCONNECT_VRAM DRM_INTERCONNECT_DRIVER
 
+struct drm_device;
+struct drm_file;
+
 struct xe_bo;
 struct xe_gt;
+struct xe_device;
+struct xe_vram_region;
 struct xe_tile;
 struct xe_vm;
 struct xe_vma;
@@ -53,6 +58,22 @@ struct xe_svm_range {
 	 * range. Protected by GPU SVM notifier lock.
 	 */
 	u8 tile_invalidated;
+};
+
+/**
+ * struct xe_pagemap - Manages xe device_private memory for SVM.
+ * @pagemap: The struct dev_pagemap providing the struct pages.
+ * @dpagemap: The drm_pagemap managing allocation and migration.
+ * @destroy_work: Handles asnynchronous destruction and caching.
+ * @hpa_base: The host physical address base for the managemd memory.
+ * @vr: Backpointer to the xe_vram region.
+ */
+struct xe_pagemap {
+	struct dev_pagemap pagemap;
+	struct drm_pagemap dpagemap;
+	struct work_struct destroy_work;
+	resource_size_t hpa_base;
+	struct xe_vram_region *vr;
 };
 
 /**
@@ -171,6 +192,10 @@ static inline unsigned long xe_svm_range_size(struct xe_svm_range *range)
 
 void xe_svm_flush(struct xe_vm *vm);
 
+int xe_pagemap_shrinker_create(struct xe_device *xe);
+
+int xe_pagemap_cache_create(struct xe_tile *tile);
+
 #else
 #include <linux/interval_tree.h>
 #include "xe_vm.h"
@@ -179,7 +204,7 @@ struct drm_pagemap_addr;
 struct drm_gpusvm_ctx;
 struct drm_gpusvm_range;
 struct xe_bo;
-struct xe_gt;
+struct xe_device;
 struct xe_vm;
 struct xe_vma;
 struct xe_tile;
@@ -346,6 +371,17 @@ struct drm_pagemap *xe_vma_resolve_pagemap(struct xe_vma *vma, struct xe_tile *t
 static inline void xe_svm_flush(struct xe_vm *vm)
 {
 }
+
+static inline int xe_pagemap_shrinker_create(struct xe_device *xe)
+{
+	return 0;
+}
+
+static inline int xe_pagemap_cache_create(struct xe_tile *tile)
+{
+	return 0;
+}
+
 #define xe_svm_range_has_dma_mapping(...) false
 #endif /* CONFIG_DRM_XE_GPUSVM */
 
