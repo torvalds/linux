@@ -3775,13 +3775,15 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 static inline void
 enqueue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	__update_sa(&cfs_rq->avg, load, se->avg.load_avg, se->avg.load_sum);
+	__update_sa(&cfs_rq->avg, load, se->avg.load_avg,
+		    se_weight(se) * se->avg.load_sum);
 }
 
 static inline void
 dequeue_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	__update_sa(&cfs_rq->avg, load, -se->avg.load_avg, -se->avg.load_sum);
+	__update_sa(&cfs_rq->avg, load, -se->avg.load_avg,
+		    se_weight(se) * -se->avg.load_sum);
 }
 
 static void place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags);
