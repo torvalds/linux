@@ -42,4 +42,8 @@
 #define INTEL_DISPLAY_DEVICE_CURSOR_OFFSET(display, pipe) \
 	intel_display_device_cursor_offset((display), (pipe))
 
+#define gvt_for_each_pipe(display, __p) \
+	for ((__p) = PIPE_A; (__p) < I915_MAX_PIPES; (__p)++) \
+		for_each_if(intel_display_device_pipe_valid((display), (__p)))
+
 #endif /* __DISPLAY_HELPERS_H__ */
