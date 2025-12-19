@@ -202,14 +202,14 @@ static int sgl_map_user_pages(struct st_buffer *, const unsigned int,
 			      unsigned long, size_t, int);
 static int sgl_unmap_user_pages(struct st_buffer *, const unsigned int, int);
 
-static int st_probe(struct device *);
-static int st_remove(struct device *);
+static int st_probe(struct scsi_device *);
+static void st_remove(struct scsi_device *);
 
 static struct scsi_driver st_template = {
+	.probe = st_probe,
+	.remove = st_remove,
 	.gendrv = {
 		.name		= "st",
-		.probe		= st_probe,
-		.remove		= st_remove,
 		.groups		= st_drv_groups,
 	},
 };
@@ -4342,9 +4342,9 @@ static void remove_cdevs(struct scsi_tape *tape)
 	}
 }
 
-static int st_probe(struct device *dev)
+static int st_probe(struct scsi_device *SDp)
 {
-	struct scsi_device *SDp = to_scsi_device(dev);
+	struct device *dev = &SDp->sdev_gendev;
 	struct scsi_tape *tpnt = NULL;
 	struct st_modedef *STm;
 	struct st_partstat *STps;
@@ -4499,12 +4499,13 @@ out:
 };
 
 
-static int st_remove(struct device *dev)
+static void st_remove(struct scsi_device *SDp)
 {
+	struct device *dev = &SDp->sdev_gendev;
 	struct scsi_tape *tpnt = dev_get_drvdata(dev);
 	int index = tpnt->index;
 
-	scsi_autopm_get_device(to_scsi_device(dev));
+	scsi_autopm_get_device(SDp);
 	remove_cdevs(tpnt);
 
 	mutex_lock(&st_ref_mutex);
@@ -4513,7 +4514,6 @@ static int st_remove(struct device *dev)
 	spin_lock(&st_index_lock);
 	idr_remove(&st_index_idr, index);
 	spin_unlock(&st_index_lock);
-	return 0;
 }
 
 /**
