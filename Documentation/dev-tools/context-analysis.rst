@@ -112,10 +112,8 @@ Keywords
                  __releases_shared
                  __acquire
                  __release
-                 __cond_lock
                  __acquire_shared
                  __release_shared
-                 __cond_lock_shared
                  __acquire_ret
                  __acquire_shared_ret
                  context_unsafe

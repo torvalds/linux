@@ -105,7 +105,6 @@ EXPORT_SYMBOL(lockref_put_return);
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count <= 1 and lock taken
  */
-#undef lockref_put_or_lock
 bool lockref_put_or_lock(struct lockref *lockref)
 {
 	CMPXCHG_LOOP(

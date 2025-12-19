@@ -342,24 +342,6 @@ static inline void _context_unsafe_alias(void **p) { }
 #define __release(x)		__release_ctx_lock(x)
 
 /**
- * __cond_lock() - function that conditionally acquires a context lock
- *                 exclusively
- * @x: context lock instance pinter
- * @c: boolean expression
- *
- * Return: result of @c
- *
- * No-op function that conditionally acquires context lock instance @x
- * exclusively, if the boolean expression @c is true. The result of @c is the
- * return value; for example:
- *
- * .. code-block:: c
- *
- *	#define spin_trylock(l) __cond_lock(&lock, _spin_trylock(&lock))
- */
-#define __cond_lock(x, c)	__try_acquire_ctx_lock(x, c)
-
-/**
  * __must_hold_shared() - function attribute, caller must hold shared context lock
  *
  * Function attribute declaring that the caller must hold the given context
@@ -416,19 +398,6 @@ static inline void _context_unsafe_alias(void **p) { }
  * access.
  */
 #define __release_shared(x)	__release_shared_ctx_lock(x)
-
-/**
- * __cond_lock_shared() - function that conditionally acquires a context lock shared
- * @x: context lock instance pinter
- * @c: boolean expression
- *
- * Return: result of @c
- *
- * No-op function that conditionally acquires context lock instance @x with
- * shared access, if the boolean expression @c is true. The result of @c is the
- * return value.
- */
-#define __cond_lock_shared(x, c) __try_acquire_shared_ctx_lock(x, c)
 
 /**
  * __acquire_ret() - helper to acquire context lock of return value
