@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+CONTEXT_ANALYSIS_core.o := y
+CONTEXT_ANALYSIS_fair.o := y
+
 # The compilers are complaining about unused variables inside an if(0) scope
 # block. This is daft, shut them up.
 ccflags-y += $(call cc-disable-warning, unused-but-set-variable)
