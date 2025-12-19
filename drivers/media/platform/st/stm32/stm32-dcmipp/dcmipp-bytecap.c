@@ -147,7 +147,6 @@ struct dcmipp_bytecap_device {
 
 	void __iomem *regs;
 
-	u32 cmier;
 	u32 cmsr2;
 
 	struct {
@@ -443,8 +442,7 @@ static int dcmipp_bytecap_start_streaming(struct vb2_queue *vq,
 	dcmipp_start_capture(vcap, vcap->next);
 
 	/* Enable interruptions */
-	vcap->cmier |= DCMIPP_CMIER_P0ALL;
-	reg_set(vcap, DCMIPP_CMIER, vcap->cmier);
+	reg_set(vcap, DCMIPP_CMIER, DCMIPP_CMIER_P0ALL);
 
 	vcap->state = DCMIPP_RUNNING;
 
@@ -500,7 +498,7 @@ static void dcmipp_bytecap_stop_streaming(struct vb2_queue *vq)
 	media_pipeline_stop(vcap->vdev.entity.pads);
 
 	/* Disable interruptions */
-	reg_clear(vcap, DCMIPP_CMIER, vcap->cmier);
+	reg_clear(vcap, DCMIPP_CMIER, DCMIPP_CMIER_P0ALL);
 
 	/* Stop capture */
 	reg_clear(vcap, DCMIPP_P0FCTCR, DCMIPP_P0FCTCR_CPTREQ);
@@ -749,23 +747,20 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 	struct dcmipp_bytecap_device *vcap =
 			container_of(arg, struct dcmipp_bytecap_device, ved);
 	size_t bytesused = 0;
-	u32 cmsr2;
 
 	spin_lock_irq(&vcap->irqlock);
-
-	cmsr2 = vcap->cmsr2 & vcap->cmier;
 
 	/*
 	 * If we have an overrun, a frame-end will probably not be generated,
 	 * in that case the active buffer will be recycled as next buffer by
 	 * the VSYNC handler
 	 */
-	if (cmsr2 & DCMIPP_CMSR2_P0OVRF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0OVRF) {
 		vcap->count.errors++;
 		vcap->count.overrun++;
 	}
 
-	if (cmsr2 & DCMIPP_CMSR2_P0FRAMEF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0FRAMEF) {
 		vcap->count.frame++;
 
 		/* Read captured buffer size */
@@ -773,7 +768,7 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 		dcmipp_bytecap_process_frame(vcap, bytesused);
 	}
 
-	if (cmsr2 & DCMIPP_CMSR2_P0VSYNCF) {
+	if (vcap->cmsr2 & DCMIPP_CMSR2_P0VSYNCF) {
 		vcap->count.vsync++;
 		if (vcap->state == DCMIPP_WAIT_FOR_BUFFER) {
 			vcap->count.underrun++;
@@ -804,7 +799,7 @@ static irqreturn_t dcmipp_bytecap_irq_callback(int irq, void *arg)
 			container_of(arg, struct dcmipp_bytecap_device, ved);
 
 	/* Store interrupt status register */
-	vcap->cmsr2 = reg_read(vcap, DCMIPP_CMSR2) & vcap->cmier;
+	vcap->cmsr2 = reg_read(vcap, DCMIPP_CMSR2) & DCMIPP_CMIER_P0ALL;
 	vcap->count.it++;
 
 	/* Clear interrupt */
