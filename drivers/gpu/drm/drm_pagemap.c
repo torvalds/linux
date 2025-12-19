@@ -9,6 +9,7 @@
 #include <linux/pagemap.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_pagemap.h>
+#include <drm/drm_pagemap_util.h>
 #include <drm/drm_print.h>
 
 /**
@@ -583,7 +584,7 @@ static void drm_pagemap_release(struct kref *ref)
 	 * pagemap provider drm_device and its module.
 	 */
 	dpagemap->dev_hold = NULL;
-	kfree(dpagemap);
+	drm_pagemap_shrinker_add(dpagemap);
 	llist_add(&dev_hold->link, &drm_pagemap_unhold_list);
 	schedule_work(&drm_pagemap_work);
 	/*
@@ -634,6 +635,58 @@ drm_pagemap_dev_hold(struct drm_pagemap *dpagemap)
 }
 
 /**
+ * drm_pagemap_reinit() - Reinitialize a drm_pagemap
+ * @dpagemap: The drm_pagemap to reinitialize
+ *
+ * Reinitialize a drm_pagemap, for which drm_pagemap_release
+ * has already been called. This interface is intended for the
+ * situation where the driver caches a destroyed drm_pagemap.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int drm_pagemap_reinit(struct drm_pagemap *dpagemap)
+{
+	dpagemap->dev_hold = drm_pagemap_dev_hold(dpagemap);
+	if (IS_ERR(dpagemap->dev_hold))
+		return PTR_ERR(dpagemap->dev_hold);
+
+	kref_init(&dpagemap->ref);
+	return 0;
+}
+EXPORT_SYMBOL(drm_pagemap_reinit);
+
+/**
+ * drm_pagemap_init() - Initialize a pre-allocated drm_pagemap
+ * @dpagemap: The drm_pagemap to initialize.
+ * @pagemap: The associated dev_pagemap providing the device
+ * private pages.
+ * @drm: The drm device. The drm_pagemap holds a reference on the
+ * drm_device and the module owning the drm_device until
+ * drm_pagemap_release(). This facilitates drm_pagemap exporting.
+ * @ops: The drm_pagemap ops.
+ *
+ * Initialize and take an initial reference on a drm_pagemap.
+ * After successful return, use drm_pagemap_put() to destroy.
+ *
+ ** Return: 0 on success, negative error code on error.
+ */
+int drm_pagemap_init(struct drm_pagemap *dpagemap,
+		     struct dev_pagemap *pagemap,
+		     struct drm_device *drm,
+		     const struct drm_pagemap_ops *ops)
+{
+	kref_init(&dpagemap->ref);
+	dpagemap->ops = ops;
+	dpagemap->pagemap = pagemap;
+	dpagemap->drm = drm;
+	dpagemap->cache = NULL;
+	INIT_LIST_HEAD(&dpagemap->shrink_link);
+
+	return drm_pagemap_reinit(dpagemap);
+}
+EXPORT_SYMBOL(drm_pagemap_init);
+
+/**
  * drm_pagemap_create() - Create a struct drm_pagemap.
  * @drm: Pointer to a struct drm_device providing the device-private memory.
  * @pagemap: Pointer to a pre-setup struct dev_pagemap providing the struct pages.
@@ -650,22 +703,14 @@ drm_pagemap_create(struct drm_device *drm,
 		   const struct drm_pagemap_ops *ops)
 {
 	struct drm_pagemap *dpagemap = kzalloc(sizeof(*dpagemap), GFP_KERNEL);
-	struct drm_pagemap_dev_hold *dev_hold;
+	int err;
 
 	if (!dpagemap)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&dpagemap->ref);
-	dpagemap->drm = drm;
-	dpagemap->ops = ops;
-	dpagemap->pagemap = pagemap;
-
-	dev_hold = drm_pagemap_dev_hold(dpagemap);
-	if (IS_ERR(dev_hold)) {
-		kfree(dpagemap);
-		return ERR_CAST(dev_hold);
-	}
-	dpagemap->dev_hold = dev_hold;
+	err = drm_pagemap_init(dpagemap, pagemap, drm, ops);
+	if (err)
+		return ERR_PTR(err);
 
 	return dpagemap;
 }
@@ -680,8 +725,10 @@ EXPORT_SYMBOL(drm_pagemap_create);
  */
 void drm_pagemap_put(struct drm_pagemap *dpagemap)
 {
-	if (likely(dpagemap))
+	if (likely(dpagemap)) {
+		drm_pagemap_shrinker_might_lock(dpagemap);
 		kref_put(&dpagemap->ref, drm_pagemap_release);
+	}
 }
 EXPORT_SYMBOL(drm_pagemap_put);
 
@@ -1018,6 +1065,14 @@ int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 	return err;
 }
 EXPORT_SYMBOL(drm_pagemap_populate_mm);
+
+void drm_pagemap_destroy(struct drm_pagemap *dpagemap, bool is_atomic_or_reclaim)
+{
+	if (dpagemap->ops->destroy)
+		dpagemap->ops->destroy(dpagemap, is_atomic_or_reclaim);
+	else
+		kfree(dpagemap);
+}
 
 static void drm_pagemap_exit(void)
 {
