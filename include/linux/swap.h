@@ -458,7 +458,6 @@ void put_swap_folio(struct folio *folio, swp_entry_t entry);
 extern swp_entry_t get_swap_page_of_type(int);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
 extern int swap_duplicate_nr(swp_entry_t entry, int nr);
-extern int swapcache_prepare(swp_entry_t entry, int nr);
 extern void swap_free_nr(swp_entry_t entry, int nr_pages);
 extern void free_swap_and_cache_nr(swp_entry_t entry, int nr);
 int swap_type_of(dev_t device, sector_t offset);
@@ -513,11 +512,6 @@ static inline int add_swap_count_continuation(swp_entry_t swp, gfp_t gfp_mask)
 }
 
 static inline int swap_duplicate_nr(swp_entry_t swp, int nr_pages)
-{
-	return 0;
-}
-
-static inline int swapcache_prepare(swp_entry_t swp, int nr)
 {
 	return 0;
 }
