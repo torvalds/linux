@@ -118,7 +118,7 @@ static inline void emit(const u32 insn, struct jit_ctx *ctx)
 static inline void emit_u32_data(const u32 data, struct jit_ctx *ctx)
 {
 	if (ctx->image != NULL && ctx->write)
-		ctx->image[ctx->idx] = data;
+		ctx->image[ctx->idx] = (__force __le32)data;
 
 	ctx->idx++;
 }
@@ -3139,7 +3139,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 			bpf_jit_binary_pack_finalize(jit_data->ro_header, jit_data->header);
 			kfree(jit_data);
 		}
-		prog->bpf_func -= cfi_get_offset();
+		prog->bpf_func = (void *)prog->bpf_func - cfi_get_offset();
 		hdr = bpf_jit_binary_pack_hdr(prog);
 		bpf_jit_binary_pack_free(hdr, NULL);
 		priv_stack_ptr = prog->aux->priv_stack_ptr;
