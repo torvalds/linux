@@ -10,6 +10,7 @@ Required properties:
 	issi,is31fl3235
 	issi,is31fl3218
 	issi,is31fl3216
+	issi,is31fl3293
 	si-en,sn3218
 	si-en,sn3216
 - reg: I2C slave address
