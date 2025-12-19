@@ -55,6 +55,22 @@ static int aie2_send_mgmt_msg_wait(struct amdxdna_dev_hdl *ndev,
 	return ret;
 }
 
+void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
+			    dma_addr_t *dma_addr)
+{
+	struct amdxdna_dev *xdna = ndev->xdna;
+	int order;
+
+	*size = max(*size, SZ_8K);
+	order = get_order(*size);
+	if (order > MAX_PAGE_ORDER)
+		return NULL;
+	*size = PAGE_SIZE << order;
+
+	return dma_alloc_noncoherent(xdna->ddev.dev, *size, dma_addr,
+				     DMA_FROM_DEVICE, GFP_KERNEL);
+}
+
 int aie2_suspend_fw(struct amdxdna_dev_hdl *ndev)
 {
 	DECLARE_AIE2_MSG(suspend, MSG_OP_SUSPEND);
@@ -346,14 +362,13 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 {
 	DECLARE_AIE2_MSG(aie_column_info, MSG_OP_QUERY_COL_STATUS);
 	struct amdxdna_dev *xdna = ndev->xdna;
+	u32 buf_sz = size, aie_bitmap = 0;
 	struct amdxdna_client *client;
 	dma_addr_t dma_addr;
-	u32 aie_bitmap = 0;
 	u8 *buff_addr;
 	int ret;
 
-	buff_addr = dma_alloc_noncoherent(xdna->ddev.dev, size, &dma_addr,
-					  DMA_FROM_DEVICE, GFP_KERNEL);
+	buff_addr = aie2_alloc_msg_buffer(ndev, &buf_sz, &dma_addr);
 	if (!buff_addr)
 		return -ENOMEM;
 
@@ -363,7 +378,7 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 
 	*cols_filled = 0;
 	req.dump_buff_addr = dma_addr;
-	req.dump_buff_size = size;
+	req.dump_buff_size = buf_sz;
 	req.num_cols = hweight32(aie_bitmap);
 	req.aie_bitmap = aie_bitmap;
 
@@ -391,7 +406,7 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 	*cols_filled = aie_bitmap;
 
 fail:
-	dma_free_noncoherent(xdna->ddev.dev, size, buff_addr, dma_addr, DMA_FROM_DEVICE);
+	aie2_free_msg_buffer(ndev, buf_sz, buff_addr, dma_addr);
 	return ret;
 }
 
@@ -402,19 +417,19 @@ int aie2_query_telemetry(struct amdxdna_dev_hdl *ndev,
 	DECLARE_AIE2_MSG(get_telemetry, MSG_OP_GET_TELEMETRY);
 	struct amdxdna_dev *xdna = ndev->xdna;
 	dma_addr_t dma_addr;
+	u32 buf_sz = size;
 	u8 *addr;
 	int ret;
 
 	if (header->type >= MAX_TELEMETRY_TYPE)
 		return -EINVAL;
 
-	addr = dma_alloc_noncoherent(xdna->ddev.dev, size, &dma_addr,
-				     DMA_FROM_DEVICE, GFP_KERNEL);
+	addr = aie2_alloc_msg_buffer(ndev, &buf_sz, &dma_addr);
 	if (!addr)
 		return -ENOMEM;
 
 	req.buf_addr = dma_addr;
-	req.buf_size = size;
+	req.buf_size = buf_sz;
 	req.type = header->type;
 
 	drm_clflush_virt_range(addr, size); /* device can access */
@@ -440,7 +455,7 @@ int aie2_query_telemetry(struct amdxdna_dev_hdl *ndev,
 	header->minor = resp.minor;
 
 free_buf:
-	dma_free_noncoherent(xdna->ddev.dev, size, addr, dma_addr, DMA_FROM_DEVICE);
+	aie2_free_msg_buffer(ndev, buf_sz, addr, dma_addr);
 	return ret;
 }
 
