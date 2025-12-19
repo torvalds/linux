@@ -1071,16 +1071,13 @@ static resource_size_t calculate_memsize(resource_size_t size,
 					 resource_size_t min_size,
 					 resource_size_t add_size,
 					 resource_size_t children_add_size,
-					 resource_size_t old_size,
 					 resource_size_t align)
 {
 	if (size < min_size)
 		size = min_size;
-	if (old_size == 1)
-		old_size = 0;
 
 	size = max(size, add_size) + children_add_size;
-	return ALIGN(max(size, old_size), align);
+	return ALIGN(size, align);
 }
 
 resource_size_t __weak pcibios_window_alignment(struct pci_bus *bus,
@@ -1298,7 +1295,6 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 	resource_size_t children_add_size = 0;
 	resource_size_t children_add_align = 0;
 	resource_size_t add_align = 0;
-	resource_size_t old_size;
 
 	if (!b_res)
 		return;
@@ -1364,11 +1360,10 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 		}
 	}
 
-	old_size = resource_size(b_res);
 	win_align = window_alignment(bus, b_res->flags);
 	min_align = calculate_head_align(aligns, max_order);
 	min_align = max(min_align, win_align);
-	size0 = calculate_memsize(size, min_size, 0, 0, old_size, win_align);
+	size0 = calculate_memsize(size, min_size, 0, 0, win_align);
 
 	if (size0) {
 		resource_set_range(b_res, min_align, size0);
@@ -1378,7 +1373,7 @@ static void pbus_size_mem(struct pci_bus *bus, unsigned long type,
 	if (realloc_head && (add_size > 0 || children_add_size > 0)) {
 		add_align = max(min_align, add_align);
 		size1 = calculate_memsize(size, min_size, add_size, children_add_size,
-					  old_size, win_align);
+					  win_align);
 	}
 
 	if (!size0 && !size1) {
