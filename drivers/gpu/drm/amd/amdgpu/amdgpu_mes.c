@@ -31,7 +31,6 @@
 
 #define AMDGPU_MES_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 #define AMDGPU_ONE_DOORBELL_SIZE 8
-#define AMDGPU_MES_RESERVED_QUEUES	2
 
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev)
 {
@@ -89,12 +88,30 @@ static void amdgpu_mes_doorbell_free(struct amdgpu_device *adev)
 	bitmap_free(adev->mes.doorbell_bitmap);
 }
 
+static inline u32 amdgpu_mes_get_hqd_mask(u32 num_pipe,
+					  u32 num_hqd_per_pipe,
+					  u32 num_reserved_hqd)
+{
+	if (num_pipe == 0)
+		return 0;
+
+	u32 total_hqd_mask = (u32)((1ULL << num_hqd_per_pipe) - 1);
+	u32 reserved_hqd_mask = (u32)((1ULL << DIV_ROUND_UP(num_reserved_hqd, num_pipe)) - 1);
+
+	return (total_hqd_mask & ~reserved_hqd_mask);
+}
+
 int amdgpu_mes_init(struct amdgpu_device *adev)
 {
 	int i, r, num_pipes;
 	u32 total_vmid_mask, reserved_vmid_mask;
-	u32 queue_mask, reserved_queue_mask;
 	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
+	u32 gfx_hqd_mask = amdgpu_mes_get_hqd_mask(adev->gfx.me.num_pipe_per_me,
+				adev->gfx.me.num_queue_per_pipe,
+				adev->gfx.disable_kq ? 0 : adev->gfx.num_gfx_rings);
+	u32 compute_hqd_mask = amdgpu_mes_get_hqd_mask(adev->gfx.mec.num_pipe_per_mec,
+				adev->gfx.mec.num_queue_per_pipe,
+				adev->gfx.disable_kq ? 0 : adev->gfx.num_compute_rings);
 
 	adev->mes.adev = adev;
 
@@ -115,9 +132,6 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	adev->mes.vmid_mask_mmhub = 0xFF00;
 	adev->mes.vmid_mask_gfxhub = total_vmid_mask & ~reserved_vmid_mask;
 
-	queue_mask = (u32)(1UL << adev->gfx.mec.num_queue_per_pipe) - 1;
-	reserved_queue_mask = (u32)(1UL << AMDGPU_MES_RESERVED_QUEUES) - 1;
-
 	num_pipes = adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me;
 	if (num_pipes > AMDGPU_MES_MAX_GFX_PIPES)
 		dev_warn(adev->dev, "more gfx pipes than supported by MES! (%d vs %d)\n",
@@ -126,22 +140,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MES_MAX_GFX_PIPES; i++) {
 		if (i >= num_pipes)
 			break;
-		if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
-		    IP_VERSION(12, 0, 0))
-			/*
-			 * GFX V12 has only one GFX pipe, but 8 queues in it.
-			 * GFX pipe 0 queue 0 is being used by Kernel queue.
-			 * Set GFX pipe 0 queue 1-7 for MES scheduling
-			 * mask = 1111 1110b
-			 */
-			adev->mes.gfx_hqd_mask[i] = adev->gfx.disable_kq ? 0xFF : 0xFE;
-		else
-			/*
-			 * GFX pipe 0 queue 0 is being used by Kernel queue.
-			 * Set GFX pipe 0 queue 1 for MES scheduling
-			 * mask = 10b
-			 */
-			adev->mes.gfx_hqd_mask[i] = adev->gfx.disable_kq ? 0x3 : 0x2;
+
+		adev->mes.gfx_hqd_mask[i] = gfx_hqd_mask;
 	}
 
 	num_pipes = adev->gfx.mec.num_pipe_per_mec * adev->gfx.mec.num_mec;
@@ -150,10 +150,16 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 			 num_pipes, AMDGPU_MES_MAX_COMPUTE_PIPES);
 
 	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
-		if (i >= num_pipes)
+		/*
+		 * Currently, only MEC1 is used for both kernel and user compute queue.
+		 * To enable other MEC, we need to redistribute queues per pipe and
+		 * adjust queue resource shared with kfd that needs a separate patch.
+		 * Skip other MEC for now to avoid potential issues.
+		 */
+		if (i >= adev->gfx.mec.num_pipe_per_mec)
 			break;
-		adev->mes.compute_hqd_mask[i] =
-			adev->gfx.disable_kq ? 0xF : (queue_mask & ~reserved_queue_mask);
+
+		adev->mes.compute_hqd_mask[i] = compute_hqd_mask;
 	}
 
 	num_pipes = adev->sdma.num_instances;
@@ -166,6 +172,17 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 			break;
 		adev->mes.sdma_hqd_mask[i] = 0xfc;
 	}
+
+	dev_info(adev->dev,
+			 "MES: vmid_mask_mmhub 0x%08x, vmid_mask_gfxhub 0x%08x\n",
+			 adev->mes.vmid_mask_mmhub,
+			 adev->mes.vmid_mask_gfxhub);
+
+	dev_info(adev->dev,
+			 "MES: gfx_hqd_mask 0x%08x, compute_hqd_mask 0x%08x, sdma_hqd_mask 0x%08x\n",
+			 adev->mes.gfx_hqd_mask[0],
+			 adev->mes.compute_hqd_mask[0],
+			 adev->mes.sdma_hqd_mask[0]);
 
 	for (i = 0; i < AMDGPU_MAX_MES_PIPES * num_xcc; i++) {
 		r = amdgpu_device_wb_get(adev, &adev->mes.sch_ctx_offs[i]);
