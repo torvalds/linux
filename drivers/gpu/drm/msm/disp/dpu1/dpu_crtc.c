@@ -1620,17 +1620,6 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	return 0;
 }
 
-/**
- * dpu_crtc_get_num_lm - Get mixer number in this CRTC pipeline
- * @state: Pointer to drm crtc state object
- */
-unsigned int dpu_crtc_get_num_lm(const struct drm_crtc_state *state)
-{
-	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
-
-	return cstate->num_mixers;
-}
-
 #ifdef CONFIG_DEBUG_FS
 static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 {
