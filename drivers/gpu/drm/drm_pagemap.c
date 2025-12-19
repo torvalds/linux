@@ -9,6 +9,7 @@
 #include <linux/pagemap.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_pagemap.h>
+#include <drm/drm_print.h>
 
 /**
  * DOC: Overview
@@ -549,16 +550,92 @@ next_put:
 	return -ENOMEM;
 }
 
+static void drm_pagemap_dev_unhold_work(struct work_struct *work);
+static LLIST_HEAD(drm_pagemap_unhold_list);
+static DECLARE_WORK(drm_pagemap_work, drm_pagemap_dev_unhold_work);
+
+/**
+ * struct drm_pagemap_dev_hold - Struct to aid in drm_device release.
+ * @link: Link into drm_pagemap_unhold_list for deferred reference releases.
+ * @drm: drm device to put.
+ *
+ * When a struct drm_pagemap is released, we also need to release the
+ * reference it holds on the drm device. However, typically that needs
+ * to be done separately from a system-wide workqueue.
+ * Each time a struct drm_pagemap is initialized
+ * (or re-initialized if cached) therefore allocate a separate
+ * drm_pagemap_dev_hold item, from which we put the drm device and
+ * associated module.
+ */
+struct drm_pagemap_dev_hold {
+	struct llist_node link;
+	struct drm_device *drm;
+};
+
 static void drm_pagemap_release(struct kref *ref)
 {
 	struct drm_pagemap *dpagemap = container_of(ref, typeof(*dpagemap), ref);
+	struct drm_pagemap_dev_hold *dev_hold = dpagemap->dev_hold;
 
+	/*
+	 * We know the pagemap provider is alive at this point, since
+	 * the struct drm_pagemap_dev_hold holds a reference to the
+	 * pagemap provider drm_device and its module.
+	 */
+	dpagemap->dev_hold = NULL;
 	kfree(dpagemap);
+	llist_add(&dev_hold->link, &drm_pagemap_unhold_list);
+	schedule_work(&drm_pagemap_work);
+	/*
+	 * Here, either the provider device is still alive, since if called from
+	 * page_free(), the caller is holding a reference on the dev_pagemap,
+	 * or if called from drm_pagemap_put(), the direct caller is still alive.
+	 * This ensures we can't race with THIS module unload.
+	 */
+}
+
+static void drm_pagemap_dev_unhold_work(struct work_struct *work)
+{
+	struct llist_node *node = llist_del_all(&drm_pagemap_unhold_list);
+	struct drm_pagemap_dev_hold *dev_hold, *next;
+
+	/*
+	 * Deferred release of drm_pagemap provider device and module.
+	 * THIS module is kept alive during the release by the
+	 * flush_work() in the drm_pagemap_exit() function.
+	 */
+	llist_for_each_entry_safe(dev_hold, next, node, link) {
+		struct drm_device *drm = dev_hold->drm;
+		struct module *module = drm->driver->fops->owner;
+
+		drm_dbg(drm, "Releasing reference on provider device and module.\n");
+		drm_dev_put(drm);
+		module_put(module);
+		kfree(dev_hold);
+	}
+}
+
+static struct drm_pagemap_dev_hold *
+drm_pagemap_dev_hold(struct drm_pagemap *dpagemap)
+{
+	struct drm_pagemap_dev_hold *dev_hold;
+	struct drm_device *drm = dpagemap->drm;
+
+	dev_hold = kzalloc(sizeof(*dev_hold), GFP_KERNEL);
+	if (!dev_hold)
+		return ERR_PTR(-ENOMEM);
+
+	init_llist_node(&dev_hold->link);
+	dev_hold->drm = drm;
+	(void)try_module_get(drm->driver->fops->owner);
+	drm_dev_get(drm);
+
+	return dev_hold;
 }
 
 /**
  * drm_pagemap_create() - Create a struct drm_pagemap.
- * @dev: Pointer to a struct device providing the device-private memory.
+ * @drm: Pointer to a struct drm_device providing the device-private memory.
  * @pagemap: Pointer to a pre-setup struct dev_pagemap providing the struct pages.
  * @ops: Pointer to the struct drm_pagemap_ops.
  *
@@ -568,19 +645,27 @@ static void drm_pagemap_release(struct kref *ref)
  * Error pointer on error.
  */
 struct drm_pagemap *
-drm_pagemap_create(struct device *dev,
+drm_pagemap_create(struct drm_device *drm,
 		   struct dev_pagemap *pagemap,
 		   const struct drm_pagemap_ops *ops)
 {
 	struct drm_pagemap *dpagemap = kzalloc(sizeof(*dpagemap), GFP_KERNEL);
+	struct drm_pagemap_dev_hold *dev_hold;
 
 	if (!dpagemap)
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&dpagemap->ref);
-	dpagemap->dev = dev;
+	dpagemap->drm = drm;
 	dpagemap->ops = ops;
 	dpagemap->pagemap = pagemap;
+
+	dev_hold = drm_pagemap_dev_hold(dpagemap);
+	if (IS_ERR(dev_hold)) {
+		kfree(dpagemap);
+		return ERR_CAST(dev_hold);
+	}
+	dpagemap->dev_hold = dev_hold;
 
 	return dpagemap;
 }
@@ -933,3 +1018,11 @@ int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 	return err;
 }
 EXPORT_SYMBOL(drm_pagemap_populate_mm);
+
+static void drm_pagemap_exit(void)
+{
+	flush_work(&drm_pagemap_work);
+	if (WARN_ON(!llist_empty(&drm_pagemap_unhold_list)))
+		disable_work_sync(&drm_pagemap_work);
+}
+module_exit(drm_pagemap_exit);

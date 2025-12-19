@@ -1457,7 +1457,7 @@ xe_drm_pagemap_device_map(struct drm_pagemap *dpagemap,
 			  unsigned int order,
 			  enum dma_data_direction dir)
 {
-	struct device *pgmap_dev = dpagemap->dev;
+	struct device *pgmap_dev = dpagemap->drm->dev;
 	enum drm_interconnect_protocol prot;
 	dma_addr_t addr;
 
@@ -1476,6 +1476,14 @@ static const struct drm_pagemap_ops xe_drm_pagemap_ops = {
 	.device_map = xe_drm_pagemap_device_map,
 	.populate_mm = xe_drm_pagemap_populate_mm,
 };
+
+static void xe_devm_release(void *data)
+{
+	struct xe_vram_region *vr = data;
+
+	drm_pagemap_put(vr->dpagemap);
+	vr->dpagemap = NULL;
+}
 
 /**
  * xe_devm_add: Remap and provide memmap backing for device memory
@@ -1502,7 +1510,7 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 		return ret;
 	}
 
-	vr->dpagemap = drm_pagemap_create(dev, &vr->pagemap,
+	vr->dpagemap = drm_pagemap_create(&xe->drm, &vr->pagemap,
 					  &xe_drm_pagemap_ops);
 	if (IS_ERR(vr->dpagemap)) {
 		drm_err(&xe->drm, "Failed to create drm_pagemap tile %d memory: %pe\n",
@@ -1510,6 +1518,9 @@ int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
 		ret = PTR_ERR(vr->dpagemap);
 		goto out_no_dpagemap;
 	}
+	ret = devm_add_action_or_reset(dev, xe_devm_release, vr);
+	if (ret)
+		goto out_no_dpagemap;
 
 	vr->pagemap.type = MEMORY_DEVICE_PRIVATE;
 	vr->pagemap.range.start = res->start;

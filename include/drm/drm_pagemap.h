@@ -10,6 +10,7 @@
 
 struct dma_fence;
 struct drm_pagemap;
+struct drm_pagemap_dev_hold;
 struct drm_pagemap_zdd;
 struct device;
 
@@ -131,14 +132,17 @@ struct drm_pagemap_ops {
  * used for device p2p handshaking.
  * @ops: The struct drm_pagemap_ops.
  * @ref: Reference count.
- * @dev: The struct drevice owning the device-private memory.
+ * @drm: The struct drm device owning the device-private memory.
  * @pagemap: Pointer to the underlying dev_pagemap.
+ * @dev_hold: Pointer to a struct drm_pagemap_dev_hold for
+ * device referencing.
  */
 struct drm_pagemap {
 	const struct drm_pagemap_ops *ops;
 	struct kref ref;
-	struct device *dev;
+	struct drm_device *drm;
 	struct dev_pagemap *pagemap;
+	struct drm_pagemap_dev_hold *dev_hold;
 };
 
 struct drm_pagemap_devmem;
@@ -213,7 +217,7 @@ struct drm_pagemap_devmem_ops {
 			   struct dma_fence *pre_migrate_fence);
 };
 
-struct drm_pagemap *drm_pagemap_create(struct device *dev,
+struct drm_pagemap *drm_pagemap_create(struct drm_device *drm,
 				       struct dev_pagemap *pagemap,
 				       const struct drm_pagemap_ops *ops);
 
