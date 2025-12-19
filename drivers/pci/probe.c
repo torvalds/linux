@@ -524,8 +524,8 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 
 	pci_read_config_dword(bridge, PCI_PRIMARY_BUS, &buses);
 	res.flags = IORESOURCE_BUS;
-	res.start = (buses >> 8) & 0xff;
-	res.end = (buses >> 16) & 0xff;
+	res.start = FIELD_GET(PCI_SECONDARY_BUS_MASK, buses);
+	res.end = FIELD_GET(PCI_SUBORDINATE_BUS_MASK, buses);
 	pci_info(bridge, "PCI bridge to %pR%s\n", &res,
 		 bridge->transparent ? " (subtractive decode)" : "");
 
@@ -1393,9 +1393,9 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 	pm_runtime_get_sync(&dev->dev);
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
-	primary = buses & 0xFF;
-	secondary = (buses >> 8) & 0xFF;
-	subordinate = (buses >> 16) & 0xFF;
+	primary = FIELD_GET(PCI_PRIMARY_BUS_MASK, buses);
+	secondary = FIELD_GET(PCI_SECONDARY_BUS_MASK, buses);
+	subordinate = FIELD_GET(PCI_SUBORDINATE_BUS_MASK, buses);
 
 	pci_dbg(dev, "scanning [bus %02x-%02x] behind bridge, pass %d\n",
 		secondary, subordinate, pass);
@@ -1476,7 +1476,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 				 * ranges.
 				 */
 				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
-						       buses & ~0xffffff);
+						       buses & PCI_SEC_LATENCY_TIMER_MASK);
 			goto out;
 		}
 
@@ -1507,18 +1507,19 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		if (available_buses)
 			available_buses--;
 
-		buses = (buses & 0xff000000)
-		      | ((unsigned int)(child->primary)     <<  0)
-		      | ((unsigned int)(child->busn_res.start)   <<  8)
-		      | ((unsigned int)(child->busn_res.end) << 16);
+		buses = (buses & PCI_SEC_LATENCY_TIMER_MASK) |
+			FIELD_PREP(PCI_PRIMARY_BUS_MASK, child->primary) |
+			FIELD_PREP(PCI_SECONDARY_BUS_MASK, child->busn_res.start) |
+			FIELD_PREP(PCI_SUBORDINATE_BUS_MASK, child->busn_res.end);
 
 		/*
 		 * yenta.c forces a secondary latency timer of 176.
 		 * Copy that behaviour here.
 		 */
 		if (is_cardbus) {
-			buses &= ~0xff000000;
-			buses |= CARDBUS_LATENCY_TIMER << 24;
+			buses &= ~PCI_SEC_LATENCY_TIMER_MASK;
+			buses |= FIELD_PREP(PCI_SEC_LATENCY_TIMER_MASK,
+					    CARDBUS_LATENCY_TIMER);
 		}
 
 		/* We need to blast all three values with a single write */

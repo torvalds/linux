@@ -132,6 +132,11 @@
 #define PCI_SECONDARY_BUS	0x19	/* Secondary bus number */
 #define PCI_SUBORDINATE_BUS	0x1a	/* Highest bus number behind the bridge */
 #define PCI_SEC_LATENCY_TIMER	0x1b	/* Latency timer for secondary interface */
+/* Masks for dword-sized processing of Bus Number and Sec Latency Timer fields */
+#define  PCI_PRIMARY_BUS_MASK		0x000000ff
+#define  PCI_SECONDARY_BUS_MASK		0x0000ff00
+#define  PCI_SUBORDINATE_BUS_MASK	0x00ff0000
+#define  PCI_SEC_LATENCY_TIMER_MASK	0xff000000
 #define PCI_IO_BASE		0x1c	/* I/O range behind the bridge */
 #define PCI_IO_LIMIT		0x1d
 #define  PCI_IO_RANGE_TYPE_MASK	0x0fUL	/* I/O bridging type */
