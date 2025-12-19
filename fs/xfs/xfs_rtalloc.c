@@ -1265,7 +1265,7 @@ xfs_growfs_check_rtgeom(
 		uint32_t	rem;
 
 		if (rextsize != 1)
-			return -EINVAL;
+			goto out_inval;
 		div_u64_rem(nmp->m_sb.sb_rblocks, gblocks, &rem);
 		if (rem) {
 			xfs_warn(mp,
