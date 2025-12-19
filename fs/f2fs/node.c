@@ -643,6 +643,17 @@ sanity_check:
 		return -EFSCORRUPTED;
 	}
 
+	if (unlikely(f2fs_quota_file(sbi, ni->nid) &&
+		!__is_valid_data_blkaddr(ni->blk_addr))) {
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_err_ratelimited(sbi,
+			"f2fs_get_node_info of %pS: inconsistent nat entry from qf_ino, "
+			"ino:%u, nid:%u, blkaddr:%u, ver:%u, flag:%u",
+			__builtin_return_address(0),
+			ni->ino, ni->nid, ni->blk_addr, ni->version, ni->flag);
+		f2fs_handle_error(sbi, ERROR_INCONSISTENT_NAT);
+	}
+
 	/* cache nat entry */
 	if (need_cache)
 		cache_nat_entry(sbi, nid, &ne);

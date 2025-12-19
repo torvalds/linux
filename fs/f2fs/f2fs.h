@@ -4917,16 +4917,16 @@ static inline bool is_journalled_quota(struct f2fs_sb_info *sbi)
 	return false;
 }
 
-static inline bool f2fs_quota_file(struct inode *inode)
+static inline bool f2fs_quota_file(struct f2fs_sb_info *sbi, nid_t ino)
 {
 #ifdef CONFIG_QUOTA
 	int i;
 
-	if (!f2fs_sb_has_quota_ino(F2FS_I_SB(inode)))
+	if (!f2fs_sb_has_quota_ino(sbi))
 		return false;
 
 	for (i = 0; i < MAXQUOTAS; i++) {
-		if (f2fs_qf_ino(F2FS_I_SB(inode)->sb, i) == inode->i_ino)
+		if (f2fs_qf_ino(sbi->sb, i) == ino)
 			return true;
 	}
 #endif
