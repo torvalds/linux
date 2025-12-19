@@ -65,7 +65,7 @@ struct msm_vm_unmap_op {
 };
 
 /**
- * struct msm_vma_op - A MAP or UNMAP operation
+ * struct msm_vm_op - A MAP or UNMAP operation
  */
 struct msm_vm_op {
 	/** @op: The operation type */
@@ -798,6 +798,9 @@ static const struct drm_sched_backend_ops msm_vm_bind_ops = {
  * synchronous operations are supported.  In a user managed VM, userspace
  * handles virtual address allocation, and both async and sync operations
  * are supported.
+ *
+ * Returns: pointer to the created &struct drm_gpuvm on success
+ * or an ERR_PTR(-errno) on failure.
  */
 struct drm_gpuvm *
 msm_gem_vm_create(struct drm_device *drm, struct msm_mmu *mmu, const char *name,
