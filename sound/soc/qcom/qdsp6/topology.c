@@ -947,7 +947,7 @@ static int audioreach_widget_ready(struct snd_soc_component *component,
 static int audioreach_widget_unload(struct snd_soc_component *scomp,
 				    struct snd_soc_dobj *dobj)
 {
-	struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
+	const struct snd_soc_dapm_widget *w = container_of(dobj, struct snd_soc_dapm_widget, dobj);
 	struct q6apm *apm = dev_get_drvdata(scomp->dev);
 	struct audioreach_container *cont;
 	struct audioreach_module *mod;
@@ -1144,10 +1144,10 @@ static int audioreach_get_audio_mixer(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
-	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
+	const struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
-	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
-	struct snd_ar_control *scontrol = mc->dobj.private;
+	const struct snd_ar_control *dapm_scontrol = dw->dobj.private;
+	const struct snd_ar_control *scontrol = mc->dobj.private;
 	struct q6apm *data = dev_get_drvdata(c->dev);
 	bool connected;
 
@@ -1167,8 +1167,8 @@ static int audioreach_put_audio_mixer(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct snd_soc_dapm_widget *dw = snd_soc_dapm_kcontrol_to_widget(kcontrol);
 	struct snd_soc_component *c = snd_soc_dapm_to_component(dapm);
-	struct snd_ar_control *dapm_scontrol = dw->dobj.private;
-	struct snd_ar_control *scontrol = mc->dobj.private;
+	const struct snd_ar_control *dapm_scontrol = dw->dobj.private;
+	const struct snd_ar_control *scontrol = mc->dobj.private;
 	struct q6apm *data = dev_get_drvdata(c->dev);
 
 	if (ucontrol->value.integer.value[0]) {
@@ -1206,14 +1206,14 @@ static int audioreach_put_vol_ctrl_audio_mixer(struct snd_kcontrol *kcontrol,
 static int audioreach_control_load_mix(struct snd_soc_component *scomp,
 				       struct snd_ar_control *scontrol,
 				       struct snd_kcontrol_new *kc,
-				       struct snd_soc_tplg_ctl_hdr *hdr)
+				       const struct snd_soc_tplg_ctl_hdr *hdr)
 {
-	struct snd_soc_tplg_vendor_value_elem *c_elem;
-	struct snd_soc_tplg_vendor_array *c_array;
-	struct snd_soc_tplg_mixer_control *mc;
+	const struct snd_soc_tplg_vendor_value_elem *c_elem;
+	const struct snd_soc_tplg_vendor_array *c_array;
+	const struct snd_soc_tplg_mixer_control *mc;
 	int tkn_count = 0;
 
-	mc = container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
+	mc = container_of_const(hdr, struct snd_soc_tplg_mixer_control, hdr);
 	c_array = (struct snd_soc_tplg_vendor_array *)mc->priv.data;
 
 	c_elem = c_array->value;
