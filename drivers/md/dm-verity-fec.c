@@ -23,14 +23,6 @@ static inline unsigned int fec_max_nbufs(struct dm_verity *v)
 }
 
 /*
- * If error correction has been configured, returns true.
- */
-bool verity_fec_is_enabled(struct dm_verity *v)
-{
-	return v->fec && v->fec->dev;
-}
-
-/*
  * Return an interleaved offset for a byte in RS block.
  */
 static inline u64 fec_interleave(struct dm_verity *v, u64 offset)

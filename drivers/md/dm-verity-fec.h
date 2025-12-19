@@ -66,7 +66,11 @@ struct dm_verity_fec_io {
 /* each feature parameter requires a value */
 #define DM_VERITY_OPTS_FEC	8
 
-extern bool verity_fec_is_enabled(struct dm_verity *v);
+/* Returns true if forward error correction is enabled. */
+static inline bool verity_fec_is_enabled(struct dm_verity *v)
+{
+	return v->fec && v->fec->dev;
+}
 
 extern int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 			     enum verity_block_type type, const u8 *want_digest,
