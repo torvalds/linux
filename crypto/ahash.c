@@ -1020,17 +1020,13 @@ int crypto_register_ahashes(struct ahash_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_ahash(&algs[i]);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_ahashes(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_ahash(&algs[i]);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_ahashes);
 
