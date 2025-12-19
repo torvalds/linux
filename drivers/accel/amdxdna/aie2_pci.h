@@ -237,7 +237,8 @@ enum aie2_fw_feature {
 };
 
 struct aie2_fw_feature_tbl {
-	enum aie2_fw_feature feature;
+	u64 features;
+	u32 major;
 	u32 max_minor;
 	u32 min_minor;
 };
@@ -246,8 +247,6 @@ struct aie2_fw_feature_tbl {
 
 struct amdxdna_dev_priv {
 	const char			*fw_path;
-	u64				protocol_major;
-	u64				protocol_minor;
 	const struct rt_config		*rt_config;
 	const struct dpm_clk_freq	*dpm_clk_tbl;
 	const struct aie2_fw_feature_tbl *fw_feature_tbl;

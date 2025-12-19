@@ -6,6 +6,7 @@
 #include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/bits.h>
 #include <linux/sizes.h>
 
 #include "aie2_pci.h"
@@ -65,14 +66,13 @@ const struct dpm_clk_freq npu1_dpm_clk_table[] = {
 };
 
 static const struct aie2_fw_feature_tbl npu1_fw_feature_table[] = {
-	{ .feature = AIE2_NPU_COMMAND, .min_minor = 8 },
+	{ .major = 5, .min_minor = 7 },
+	{ .features = BIT_U64(AIE2_NPU_COMMAND), .min_minor = 8 },
 	{ 0 }
 };
 
 static const struct amdxdna_dev_priv npu1_dev_priv = {
 	.fw_path        = "amdnpu/1502_00/npu.sbin",
-	.protocol_major = 0x5,
-	.protocol_minor = 0x7,
 	.rt_config	= npu1_default_rt_cfg,
 	.dpm_clk_tbl	= npu1_dpm_clk_table,
 	.fw_feature_tbl = npu1_fw_feature_table,
