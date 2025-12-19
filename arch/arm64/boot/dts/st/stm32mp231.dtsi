@@ -701,6 +701,7 @@
 				clocks = <&rcc CK_BUS_DCMIPP>, <&rcc CK_KER_CSI>;
 				clock-names = "kclk", "mclk";
 				access-controllers = <&rifsc 87>;
+				power-domains = <&cluster_pd>;
 				status = "disabled";
 			};
 
