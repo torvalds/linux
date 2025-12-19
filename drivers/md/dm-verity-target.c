@@ -619,8 +619,7 @@ static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_status = status;
 
-	if (!static_branch_unlikely(&use_bh_wq_enabled) || !io->in_bh)
-		verity_fec_finish_io(io);
+	verity_fec_finish_io(io);
 
 	if (unlikely(status != BLK_STS_OK) &&
 	    unlikely(!(bio->bi_opf & REQ_RAHEAD)) &&
