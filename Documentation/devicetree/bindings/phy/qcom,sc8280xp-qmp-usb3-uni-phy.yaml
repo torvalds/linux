@@ -35,7 +35,6 @@ properties:
       - qcom,sm8350-qmp-usb3-uni-phy
       - qcom,x1e80100-qmp-usb3-uni-phy
 
-
   reg:
     maxItems: 1
 

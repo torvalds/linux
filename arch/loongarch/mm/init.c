@@ -224,7 +224,7 @@ EXPORT_SYMBOL(invalid_pmd_table);
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
 EXPORT_SYMBOL(invalid_pte_table);
 
-#ifdef CONFIG_EXECMEM
+#if defined(CONFIG_EXECMEM) && defined(MODULES_VADDR)
 static struct execmem_info execmem_info __ro_after_init;
 
 struct execmem_info __init *execmem_arch_setup(void)
@@ -242,4 +242,4 @@ struct execmem_info __init *execmem_arch_setup(void)
 
 	return &execmem_info;
 }
-#endif /* CONFIG_EXECMEM */
+#endif /* CONFIG_EXECMEM && MODULES_VADDR */

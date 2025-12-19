@@ -39,28 +39,28 @@ include/uapi/linux/tps6594_pfsm.h
 Driver IOCTLs
 =============
 
-:c:macro::`PMIC_GOTO_STANDBY`
+:c:macro:`PMIC_GOTO_STANDBY`
 All device resources are powered down. The processor is off, and
 no voltage domains are energized.
 
-:c:macro::`PMIC_GOTO_LP_STANDBY`
+:c:macro:`PMIC_GOTO_LP_STANDBY`
 The digital and analog functions of the PMIC, which are not
 required to be always-on, are turned off (low-power).
 
-:c:macro::`PMIC_UPDATE_PGM`
+:c:macro:`PMIC_UPDATE_PGM`
 Triggers a firmware update.
 
-:c:macro::`PMIC_SET_ACTIVE_STATE`
+:c:macro:`PMIC_SET_ACTIVE_STATE`
 One of the operational modes.
 The PMICs are fully functional and supply power to all PDN loads.
 All voltage domains are energized in both MCU and Main processor
 sections.
 
-:c:macro::`PMIC_SET_MCU_ONLY_STATE`
+:c:macro:`PMIC_SET_MCU_ONLY_STATE`
 One of the operational modes.
 Only the power resources assigned to the MCU Safety Island are on.
 
-:c:macro::`PMIC_SET_RETENTION_STATE`
+:c:macro:`PMIC_SET_RETENTION_STATE`
 One of the operational modes.
 Depending on the triggers set, some DDR/GPIO voltage domains can
 remain energized, while all other domains are off to minimize

@@ -253,3 +253,13 @@ void its_send_invall_cmd(void *cmdq_base, u32 collection_id)
 
 	its_send_cmd(cmdq_base, &cmd);
 }
+
+void its_send_sync_cmd(void *cmdq_base, u32 vcpu_id)
+{
+	struct its_cmd_block cmd = {};
+
+	its_encode_cmd(&cmd, GITS_CMD_SYNC);
+	its_encode_target(&cmd, procnum_to_rdbase(vcpu_id));
+
+	its_send_cmd(cmdq_base, &cmd);
+}

@@ -355,6 +355,8 @@ struct ath12k_link_vif {
 	struct wmi_vdev_install_key_arg group_key;
 	bool pairwise_key_done;
 	u16 num_stations;
+	bool is_csa_in_progress;
+	struct wiphy_work bcn_tx_work;
 };
 
 struct ath12k_vif {
@@ -644,7 +646,6 @@ struct ath12k_fw_stats {
 	struct list_head vdevs;
 	struct list_head bcn;
 	u32 num_vdev_recvd;
-	u32 num_bcn_recvd;
 };
 
 struct ath12k_dbg_htt_stats {
@@ -963,6 +964,7 @@ struct ath12k_device_dp_stats {
 	u32 tx_wbm_rel_source[HAL_WBM_REL_SRC_MODULE_MAX];
 	u32 tx_enqueued[DP_TCL_NUM_RING_MAX];
 	u32 tx_completed[DP_TCL_NUM_RING_MAX];
+	u32 reo_excep_msdu_buf_type;
 };
 
 struct ath12k_reg_freq {

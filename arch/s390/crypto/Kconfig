@@ -2,26 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (s390)"
 
-config CRYPTO_SHA3_256_S390
-	tristate "Hash functions: SHA3-224 and SHA3-256"
-	select CRYPTO_HASH
-	help
-	  SHA3-224 and SHA3-256 secure hash algorithms (FIPS 202)
-
-	  Architecture: s390
-
-	  It is available as of z14.
-
-config CRYPTO_SHA3_512_S390
-	tristate "Hash functions: SHA3-384 and SHA3-512"
-	select CRYPTO_HASH
-	help
-	  SHA3-384 and SHA3-512 secure hash algorithms (FIPS 202)
-
-	  Architecture: s390
-
-	  It is available as of z14.
-
 config CRYPTO_GHASH_S390
 	tristate "Hash functions: GHASH"
 	select CRYPTO_HASH

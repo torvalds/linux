@@ -2015,6 +2015,11 @@ static void test_stream_transport_change_client(const struct test_opts *opts)
 			exit(EXIT_FAILURE);
 		}
 
+		/* Although setting SO_LINGER does not affect the original test
+		 * for null-ptr-deref, it may trigger a lockdep warning.
+		 */
+		enable_so_linger(s, 1);
+
 		ret = connect(s, (struct sockaddr *)&sa, sizeof(sa));
 		/* The connect can fail due to signals coming from the thread,
 		 * or because the receiver connection queue is full.
@@ -2352,7 +2357,7 @@ static struct test_case test_cases[] = {
 		.run_server = test_stream_nolinger_server,
 	},
 	{
-		.name = "SOCK_STREAM transport change null-ptr-deref",
+		.name = "SOCK_STREAM transport change null-ptr-deref, lockdep warn",
 		.run_client = test_stream_transport_change_client,
 		.run_server = test_stream_transport_change_server,
 	},

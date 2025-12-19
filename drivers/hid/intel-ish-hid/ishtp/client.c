@@ -1261,6 +1261,12 @@ void ishtp_set_connection_state(struct ishtp_cl *cl, int state)
 }
 EXPORT_SYMBOL(ishtp_set_connection_state);
 
+int ishtp_get_connection_state(struct ishtp_cl *cl)
+{
+	return cl->state;
+}
+EXPORT_SYMBOL(ishtp_get_connection_state);
+
 void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id)
 {
 	cl->fw_client_id = fw_client_id;

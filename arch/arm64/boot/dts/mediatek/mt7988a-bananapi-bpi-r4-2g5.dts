@@ -19,4 +19,5 @@
 &int_2p5g_phy {
 	pinctrl-0 = <&i2p5gbe_led0_pins>;
 	pinctrl-names = "i2p5gbe-led";
+	status = "okay";
 };

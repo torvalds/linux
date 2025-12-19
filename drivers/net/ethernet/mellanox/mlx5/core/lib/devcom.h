@@ -10,8 +10,10 @@ enum mlx5_devom_match_flags {
 	MLX5_DEVCOM_MATCH_FLAGS_NS = BIT(0),
 };
 
+#define MLX5_DEVCOM_MATCH_KEY_MAX 32
 union mlx5_devcom_match_key {
 	u64 val;
+	u8 buf[MLX5_DEVCOM_MATCH_KEY_MAX];
 };
 
 struct mlx5_devcom_match_attr {

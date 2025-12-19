@@ -429,7 +429,14 @@ static void sn65dsi83_handle_errors(struct sn65dsi83 *ctx)
 	 */
 
 	ret = regmap_read(ctx->regmap, REG_IRQ_STAT, &irq_stat);
-	if (ret || irq_stat) {
+
+	/*
+	 * Some hardware (Toradex Verdin AM62) is known to report the
+	 * PLL_UNLOCK error interrupt while working without visible
+	 * problems. In lack of a reliable way to discriminate such cases
+	 * from user-visible PLL_UNLOCK cases, ignore that bit entirely.
+	 */
+	if (ret || irq_stat & ~REG_IRQ_STAT_CHA_PLL_UNLOCK) {
 		/*
 		 * IRQ acknowledged is not always possible (the bridge can be in
 		 * a state where it doesn't answer anymore). To prevent an
@@ -654,7 +661,7 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	if (ctx->irq) {
 		/* Enable irq to detect errors */
 		regmap_write(ctx->regmap, REG_IRQ_GLOBAL, REG_IRQ_GLOBAL_IRQ_EN);
-		regmap_write(ctx->regmap, REG_IRQ_EN, 0xff);
+		regmap_write(ctx->regmap, REG_IRQ_EN, 0xff & ~REG_IRQ_EN_CHA_PLL_UNLOCK_EN);
 	} else {
 		/* Use the polling task */
 		sn65dsi83_monitor_start(ctx);

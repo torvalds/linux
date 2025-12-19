@@ -12,7 +12,7 @@
 #include <asm/sigcontext.h>
 #include <asm/sysreg.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitmap.h>
 #include <linux/build_bug.h>

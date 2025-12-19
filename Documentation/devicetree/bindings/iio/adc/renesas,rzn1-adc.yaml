@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/renesas,rzn1-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/N1 Analog to Digital Converter (ADC)
+
+maintainers:
+  - Herve Codina <herve.codina@bootlin.com>
+
+description:
+  The Renesas RZ/N1 ADC controller available in the Renesas RZ/N1 SoCs family
+  can use up to two internal ADC cores (ADC1 and ADC2) those internal cores are
+  handled through ADC controller virtual channels.
+
+properties:
+  compatible:
+    items:
+      - const: renesas,r9a06g032-adc   # RZ/N1D
+      - const: renesas,rzn1-adc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: APB internal bus clock
+      - description: ADC clock
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: adc
+
+  power-domains:
+    maxItems: 1
+
+  adc1-avdd-supply:
+    description:
+      ADC1 analog power supply.
+
+  adc1-vref-supply:
+    description:
+      ADC1 reference voltage supply.
+
+  adc2-avdd-supply:
+    description:
+      ADC2 analog power supply.
+
+  adc2-vref-supply:
+    description:
+      ADC2 reference voltage supply.
+
+  '#io-channel-cells':
+    const: 1
+    description: |
+      Channels numbers available:
+        if ADC1 is used (i.e. adc1-{avdd,vref}-supply present):
+          - 0: ADC1 IN0
+          - 1: ADC1 IN1
+          - 2: ADC1 IN2
+          - 3: ADC1 IN3
+          - 4: ADC1 IN4
+          - 5: ADC1 IN6
+          - 6: ADC1 IN7
+          - 7: ADC1 IN8
+        if ADC2 is used (i.e. adc2-{avdd,vref}-supply present):
+          - 8: ADC2 IN0
+          - 9: ADC2 IN1
+          - 10: ADC2 IN2
+          - 11: ADC2 IN3
+          - 12: ADC2 IN4
+          - 13: ADC2 IN6
+          - 14: ADC2 IN7
+          - 15: ADC2 IN8
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - power-domains
+  - '#io-channel-cells'
+
+# At least one of avvd/vref supplies
+anyOf:
+  - required:
+      - adc1-vref-supply
+      - adc1-avdd-supply
+  - required:
+      - adc2-vref-supply
+      - adc2-avdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r9a06g032-sysctrl.h>
+
+    adc: adc@40065000 {
+      compatible = "renesas,r9a06g032-adc", "renesas,rzn1-adc";
+      reg = <0x40065000 0x200>;
+      clocks = <&sysctrl R9A06G032_HCLK_ADC>, <&sysctrl R9A06G032_CLK_ADC>;
+      clock-names = "pclk", "adc";
+      power-domains = <&sysctrl>;
+      adc1-avdd-supply = <&adc1_avdd>;
+      adc1-vref-supply = <&adc1_vref>;
+      #io-channel-cells = <1>;
+    };
+...

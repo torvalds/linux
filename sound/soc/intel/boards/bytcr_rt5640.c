@@ -257,7 +257,7 @@ static int byt_rt5640_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
 
 static struct snd_soc_dai *byt_rt5640_get_codec_dai(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 	struct snd_soc_dai *codec_dai;
 
 	codec_dai = snd_soc_card_get_codec_dai(card, BYT_CODEC_DAI1);
@@ -273,7 +273,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int  event)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 	struct snd_soc_dai *codec_dai;
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
 	int ret;
@@ -1317,6 +1317,7 @@ put_adev:
 static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct byt_rt5640_private *priv = snd_soc_card_get_drvdata(card);
 	struct rt5640_set_jack_data *jack_data = &priv->jack_data;
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(runtime, 0)->component;
@@ -1324,7 +1325,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	int num_routes = 0;
 	int ret;
 
-	card->dapm.idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 	jack_data->use_platform_clock = true;
 
 	/* Start with RC clk for jack-detect (we disable MCLK below) */
@@ -1367,12 +1368,12 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		break;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	ret = snd_soc_dapm_add_routes(dapm, custom_map, num_routes);
 	if (ret)
 		return ret;
 
 	if (byt_rt5640_quirk & BYT_RT5640_HSMIC2_ON_IN1) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_hsmic2_in1_map,
 					ARRAY_SIZE(byt_rt5640_hsmic2_in1_map));
 		if (ret)
@@ -1380,19 +1381,19 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (byt_rt5640_quirk & BYT_RT5640_SSP2_AIF2) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_ssp2_aif2_map,
 					ARRAY_SIZE(byt_rt5640_ssp2_aif2_map));
 	} else if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF1) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_ssp0_aif1_map,
 					ARRAY_SIZE(byt_rt5640_ssp0_aif1_map));
 	} else if (byt_rt5640_quirk & BYT_RT5640_SSP0_AIF2) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_ssp0_aif2_map,
 					ARRAY_SIZE(byt_rt5640_ssp0_aif2_map));
 	} else {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_ssp2_aif1_map,
 					ARRAY_SIZE(byt_rt5640_ssp2_aif1_map));
 	}
@@ -1400,11 +1401,11 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 
 	if (byt_rt5640_quirk & BYT_RT5640_MONO_SPEAKER) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_mono_spk_map,
 					ARRAY_SIZE(byt_rt5640_mono_spk_map));
 	} else if (!(byt_rt5640_quirk & BYT_RT5640_NO_SPEAKERS)) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_stereo_spk_map,
 					ARRAY_SIZE(byt_rt5640_stereo_spk_map));
 	}
@@ -1412,7 +1413,7 @@ static int byt_rt5640_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 
 	if (byt_rt5640_quirk & BYT_RT5640_LINEOUT) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					byt_rt5640_lineout_map,
 					ARRAY_SIZE(byt_rt5640_lineout_map));
 		if (ret)

@@ -27,7 +27,6 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/syscalls.h>
-#include <linux/compat.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
 #include <asm/vdso-symbols.h>
@@ -290,12 +289,6 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	unsigned long restorer;
 	size_t frame_size;
 
-	/*
-	 * gprs_high are only present for a 31-bit task running on
-	 * a 64-bit kernel (see compat_signal.c) but the space for
-	 * gprs_high need to be allocated if vector registers are
-	 * included in the signal frame on a 31-bit system.
-	 */
 	frame_size = sizeof(*frame) - sizeof(frame->sregs_ext);
 	if (cpu_has_vx())
 		frame_size += sizeof(frame->sregs_ext);
@@ -333,7 +326,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = (unsigned long) ka->sa.sa_restorer;
 	else
-		restorer = VDSO64_SYMBOL(current, sigreturn);
+		restorer = VDSO_SYMBOL(current, sigreturn);
 
 	/* Set up registers for signal handler */
 	regs->gprs[14] = restorer;
@@ -367,12 +360,6 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	size_t frame_size;
 
 	frame_size = sizeof(struct rt_sigframe) - sizeof(_sigregs_ext);
-	/*
-	 * gprs_high are only present for a 31-bit task running on
-	 * a 64-bit kernel (see compat_signal.c) but the space for
-	 * gprs_high need to be allocated if vector registers are
-	 * included in the signal frame on a 31-bit system.
-	 */
 	uc_flags = 0;
 	if (cpu_has_vx()) {
 		frame_size += sizeof(_sigregs_ext);
@@ -391,7 +378,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = (unsigned long) ksig->ka.sa.sa_restorer;
 	else
-		restorer = VDSO64_SYMBOL(current, rt_sigreturn);
+		restorer = VDSO_SYMBOL(current, rt_sigreturn);
 
 	/* Create siginfo on the signal stack */
 	if (copy_siginfo_to_user(&frame->info, &ksig->info))
@@ -490,10 +477,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 		clear_pt_regs_flag(regs, PIF_SYSCALL);
 
 		rseq_signal_deliver(&ksig, regs);
-		if (is_compat_task())
-			handle_signal32(&ksig, oldset, regs);
-		else
-			handle_signal(&ksig, oldset, regs);
+		handle_signal(&ksig, oldset, regs);
 		return;
 	}
 
@@ -506,10 +490,7 @@ void arch_do_signal_or_restart(struct pt_regs *regs)
 			/* Restart with sys_restart_syscall */
 			regs->gprs[2] = regs->orig_gpr2;
 			current->restart_block.arch_data = regs->psw.addr;
-			if (is_compat_task())
-				regs->psw.addr = VDSO32_SYMBOL(current, restart_syscall);
-			else
-				regs->psw.addr = VDSO64_SYMBOL(current, restart_syscall);
+			regs->psw.addr = VDSO_SYMBOL(current, restart_syscall);
 			if (test_thread_flag(TIF_SINGLE_STEP))
 				clear_thread_flag(TIF_PER_TRAP);
 			break;

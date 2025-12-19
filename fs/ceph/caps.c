@@ -18,6 +18,7 @@
 #include "crypto.h"
 #include <linux/ceph/decode.h>
 #include <linux/ceph/messenger.h>
+#include <trace/events/ceph.h>
 
 /*
  * Capability management
@@ -4451,6 +4452,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	doutc(cl, " caps mds%d op %s ino %llx.%llx inode %p seq %u iseq %u mseq %u\n",
 	      session->s_mds, ceph_cap_op_name(op), vino.ino, vino.snap, inode,
 	      seq, issue_seq, mseq);
+
+	trace_ceph_handle_caps(mdsc, session, op, &vino, ceph_inode(inode),
+			       seq, issue_seq, mseq);
 
 	mutex_lock(&session->s_mutex);
 

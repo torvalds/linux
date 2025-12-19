@@ -15,11 +15,10 @@
 
 static struct avs_dev *avs_get_kcontrol_adev(struct snd_kcontrol *kcontrol)
 {
-	struct snd_soc_dapm_widget *w;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
+	struct device *dev = snd_soc_dapm_to_dev(dapm);
 
-	w = snd_soc_dapm_kcontrol_widget(kcontrol);
-
-	return to_avs_dev(w->dapm->component->dev);
+	return to_avs_dev(dev);
 }
 
 static struct avs_path_module *avs_get_volume_module(struct avs_dev *adev, u32 id)

@@ -1376,8 +1376,6 @@ static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec
 
 #elif defined(__s390x__)
 
-/* Do not support __s390__ for now, since user_pt_regs is broken with -m31. */
-
 static int parse_usdt_arg(const char *arg_str, int arg_num, struct usdt_arg_spec *arg, int *arg_sz)
 {
 	unsigned int reg;

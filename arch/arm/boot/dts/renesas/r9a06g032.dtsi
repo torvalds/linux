@@ -13,6 +13,7 @@
 	compatible = "renesas,r9a06g032";
 	#address-cells = <1>;
 	#size-cells = <1>;
+	interrupt-parent = <&gic>;
 
 	cpus {
 		#address-cells = <1>;
@@ -63,7 +64,6 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		interrupt-parent = <&gic>;
 		ranges;
 
 		rtc0: rtc@40006000 {
@@ -287,6 +287,16 @@
 			clock-names = "ref", "pclk";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		adc: adc@40065000 {
+			compatible = "renesas,r9a06g032-adc", "renesas,rzn1-adc";
+			reg = <0x40065000 0x200>;
+			clocks = <&sysctrl R9A06G032_HCLK_ADC>, <&sysctrl R9A06G032_CLK_ADC>;
+			clock-names = "pclk", "adc";
+			power-domains = <&sysctrl>;
+			#io-channel-cells = <1>;
 			status = "disabled";
 		};
 
@@ -522,7 +532,6 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupt-parent = <&gic>;
 		arm,cpu-registers-not-fw-configured;
 		always-on;
 		interrupts =

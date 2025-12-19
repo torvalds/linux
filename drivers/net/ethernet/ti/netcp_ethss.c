@@ -2591,20 +2591,26 @@ static int gbe_rxtstamp(struct gbe_intf *gbe_intf, struct netcp_packet *p_info)
 	return 0;
 }
 
-static int gbe_hwtstamp_get(struct gbe_intf *gbe_intf, struct ifreq *ifr)
+static int gbe_hwtstamp_get(void *intf_priv, struct kernel_hwtstamp_config *cfg)
 {
-	struct gbe_priv *gbe_dev = gbe_intf->gbe_dev;
-	struct cpts *cpts = gbe_dev->cpts;
-	struct hwtstamp_config cfg;
+	struct gbe_intf *gbe_intf = intf_priv;
+	struct gbe_priv *gbe_dev;
+	struct phy_device *phy;
 
-	if (!cpts)
+	gbe_dev = gbe_intf->gbe_dev;
+
+	if (!gbe_dev->cpts)
 		return -EOPNOTSUPP;
 
-	cfg.flags = 0;
-	cfg.tx_type = gbe_dev->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
-	cfg.rx_filter = gbe_dev->rx_ts_enabled;
+	phy = gbe_intf->slave->phy;
+	if (phy_has_hwtstamp(phy))
+		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	cfg->flags = 0;
+	cfg->tx_type = gbe_dev->tx_ts_enabled ? HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg->rx_filter = gbe_dev->rx_ts_enabled;
+
+	return 0;
 }
 
 static void gbe_hwtstamp(struct gbe_intf *gbe_intf)
@@ -2637,19 +2643,23 @@ static void gbe_hwtstamp(struct gbe_intf *gbe_intf)
 	writel(ctl,    GBE_REG_ADDR(slave, port_regs, ts_ctl_ltype2));
 }
 
-static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
+static int gbe_hwtstamp_set(void *intf_priv, struct kernel_hwtstamp_config *cfg,
+			    struct netlink_ext_ack *extack)
 {
-	struct gbe_priv *gbe_dev = gbe_intf->gbe_dev;
-	struct cpts *cpts = gbe_dev->cpts;
-	struct hwtstamp_config cfg;
+	struct gbe_intf *gbe_intf = intf_priv;
+	struct gbe_priv *gbe_dev;
+	struct phy_device *phy;
 
-	if (!cpts)
+	gbe_dev = gbe_intf->gbe_dev;
+
+	if (!gbe_dev->cpts)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
+	phy = gbe_intf->slave->phy;
+	if (phy_has_hwtstamp(phy))
+		return phy->mii_ts->hwtstamp_set(phy->mii_ts, cfg, extack);
 
-	switch (cfg.tx_type) {
+	switch (cfg->tx_type) {
 	case HWTSTAMP_TX_OFF:
 		gbe_dev->tx_ts_enabled = 0;
 		break;
@@ -2660,7 +2670,7 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	switch (cfg.rx_filter) {
+	switch (cfg->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_NONE;
 		break;
@@ -2668,7 +2678,7 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
@@ -2680,7 +2690,7 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		gbe_dev->rx_ts_enabled = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	default:
 		return -ERANGE;
@@ -2688,7 +2698,7 @@ static int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *ifr)
 
 	gbe_hwtstamp(gbe_intf);
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 
 static void gbe_register_cpts(struct gbe_priv *gbe_dev)
@@ -2745,12 +2755,15 @@ static inline void gbe_unregister_cpts(struct gbe_priv *gbe_dev)
 {
 }
 
-static inline int gbe_hwtstamp_get(struct gbe_intf *gbe_intf, struct ifreq *req)
+static inline int gbe_hwtstamp_get(void *intf_priv,
+				   struct kernel_hwtstamp_config *cfg)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int gbe_hwtstamp_set(struct gbe_intf *gbe_intf, struct ifreq *req)
+static inline int gbe_hwtstamp_set(void *intf_priv,
+				   struct kernel_hwtstamp_config *cfg,
+				   struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }
@@ -2815,15 +2828,6 @@ static int gbe_ioctl(void *intf_priv, struct ifreq *req, int cmd)
 {
 	struct gbe_intf *gbe_intf = intf_priv;
 	struct phy_device *phy = gbe_intf->slave->phy;
-
-	if (!phy_has_hwtstamp(phy)) {
-		switch (cmd) {
-		case SIOCGHWTSTAMP:
-			return gbe_hwtstamp_get(gbe_intf, req);
-		case SIOCSHWTSTAMP:
-			return gbe_hwtstamp_set(gbe_intf, req);
-		}
-	}
 
 	if (phy)
 		return phy_mii_ioctl(phy, req, cmd);
@@ -3824,6 +3828,8 @@ static struct netcp_module gbe_module = {
 	.add_vid	= gbe_add_vid,
 	.del_vid	= gbe_del_vid,
 	.ioctl		= gbe_ioctl,
+	.hwtstamp_get	= gbe_hwtstamp_get,
+	.hwtstamp_set	= gbe_hwtstamp_set,
 };
 
 static struct netcp_module xgbe_module = {
@@ -3841,6 +3847,8 @@ static struct netcp_module xgbe_module = {
 	.add_vid	= gbe_add_vid,
 	.del_vid	= gbe_del_vid,
 	.ioctl		= gbe_ioctl,
+	.hwtstamp_get	= gbe_hwtstamp_get,
+	.hwtstamp_set	= gbe_hwtstamp_set,
 };
 
 static int __init keystone_gbe_init(void)

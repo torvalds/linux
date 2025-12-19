@@ -573,7 +573,7 @@ void ishtp_hbm_dispatch(struct ishtp_device *dev,
 
 		/* Start firmware loading process if it has loader capability */
 		if (version_res->host_version_supported & ISHTP_SUPPORT_CAP_LOADER)
-			schedule_work(&dev->work_fw_loader);
+			queue_work(dev->unbound_wq, &dev->work_fw_loader);
 
 		dev->version.major_version = HBM_MAJOR_VERSION;
 		dev->version.minor_version = HBM_MINOR_VERSION;
@@ -864,7 +864,7 @@ void	recv_hbm(struct ishtp_device *dev, struct ishtp_msg_hdr *ishtp_hdr)
 	dev->rd_msg_fifo_tail = (dev->rd_msg_fifo_tail + IPC_PAYLOAD_SIZE) %
 		(RD_INT_FIFO_SIZE * IPC_PAYLOAD_SIZE);
 	spin_unlock_irqrestore(&dev->rd_msg_spinlock, flags);
-	schedule_work(&dev->bh_hbm_work);
+	queue_work(dev->unbound_wq, &dev->bh_hbm_work);
 eoi:
 	return;
 }

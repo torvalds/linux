@@ -600,7 +600,7 @@ static int ov2722_s_power(struct v4l2_subdev *sd, int on)
 }
 
 /* TODO: remove it. */
-static int startup(struct v4l2_subdev *sd)
+static int ov2722_startup(struct v4l2_subdev *sd)
 {
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -662,7 +662,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 	dev->pixels_per_line = dev->res->pixels_per_line;
 	dev->lines_per_frame = dev->res->lines_per_frame;
 
-	ret = startup(sd);
+	ret = ov2722_startup(sd);
 	if (ret) {
 		int i = 0;
 
@@ -677,7 +677,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 				dev_err(&client->dev, "power up failed, continue\n");
 				continue;
 			}
-			ret = startup(sd);
+			ret = ov2722_startup(sd);
 			if (ret) {
 				dev_err(&client->dev, " startup FAILED!\n");
 			} else {

@@ -735,7 +735,7 @@ static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	rq->pdev         = c->pdev;
 	rq->netdev       = c->netdev;
 	rq->priv         = c->priv;
-	rq->tstamp       = c->tstamp;
+	rq->hwtstamp_config = &c->priv->hwtstamp_config;
 	rq->clock        = mdev->clock;
 	rq->icosq        = &c->icosq;
 	rq->ix           = c->ix;
@@ -2612,7 +2612,7 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_icosq_cq;
 
-	if (netdev_ops->ndo_xdp_xmit) {
+	if (netdev_ops->ndo_xdp_xmit && c->xdp) {
 		c->xdpsq = mlx5e_open_xdpredirect_sq(c, params, cparam, &ccp);
 		if (IS_ERR(c->xdpsq)) {
 			err = PTR_ERR(c->xdpsq);
@@ -2816,7 +2816,6 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	c->priv     = priv;
 	c->mdev     = mdev;
-	c->tstamp   = &priv->tstamp;
 	c->ix       = ix;
 	c->vec_ix   = vec_ix;
 	c->sd_ix    = mlx5_sd_ch_ix_get_dev_ix(mdev, ix);
@@ -3366,16 +3365,17 @@ static int mlx5e_switch_priv_params(struct mlx5e_priv *priv,
 		}
 	}
 
+	mlx5e_set_xdp_feature(priv);
 	return 0;
 }
 
 static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
+				      struct mlx5e_channels *old_chs,
 				      struct mlx5e_channels *new_chs,
 				      mlx5e_fp_preactivate preactivate,
 				      void *context)
 {
 	struct net_device *netdev = priv->netdev;
-	struct mlx5e_channels old_chs;
 	int carrier_ok;
 	int err = 0;
 
@@ -3384,7 +3384,6 @@ static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 
 	mlx5e_deactivate_priv_channels(priv);
 
-	old_chs = priv->channels;
 	priv->channels = *new_chs;
 
 	/* New channels are ready to roll, call the preactivate hook if needed
@@ -3393,12 +3392,14 @@ static int mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	if (preactivate) {
 		err = preactivate(priv, context);
 		if (err) {
-			priv->channels = old_chs;
+			priv->channels = *old_chs;
 			goto out;
 		}
 	}
 
-	mlx5e_close_channels(&old_chs);
+	mlx5e_set_xdp_feature(priv);
+	if (!MLX5_CAP_GEN(priv->mdev, tis_tir_td_order))
+		mlx5e_close_channels(old_chs);
 	priv->profile->update_rx(priv);
 
 	mlx5e_selq_apply(&priv->selq);
@@ -3417,16 +3418,20 @@ int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
 			     mlx5e_fp_preactivate preactivate,
 			     void *context, bool reset)
 {
-	struct mlx5e_channels *new_chs;
+	struct mlx5e_channels *old_chs, *new_chs;
 	int err;
 
 	reset &= test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (!reset)
 		return mlx5e_switch_priv_params(priv, params, preactivate, context);
 
+	old_chs = kzalloc(sizeof(*old_chs), GFP_KERNEL);
 	new_chs = kzalloc(sizeof(*new_chs), GFP_KERNEL);
-	if (!new_chs)
-		return -ENOMEM;
+	if (!old_chs || !new_chs) {
+		err = -ENOMEM;
+		goto err_free_chs;
+	}
+
 	new_chs->params = *params;
 
 	mlx5e_selq_prepare_params(&priv->selq, &new_chs->params);
@@ -3435,11 +3440,18 @@ int mlx5e_safe_switch_params(struct mlx5e_priv *priv,
 	if (err)
 		goto err_cancel_selq;
 
-	err = mlx5e_switch_priv_channels(priv, new_chs, preactivate, context);
+	*old_chs = priv->channels;
+
+	err = mlx5e_switch_priv_channels(priv, old_chs, new_chs,
+					 preactivate, context);
 	if (err)
 		goto err_close;
 
+	if (MLX5_CAP_GEN(priv->mdev, tis_tir_td_order))
+		mlx5e_close_channels(old_chs);
+
 	kfree(new_chs);
+	kfree(old_chs);
 	return 0;
 
 err_close:
@@ -3447,7 +3459,9 @@ err_close:
 
 err_cancel_selq:
 	mlx5e_selq_cancel(&priv->selq);
+err_free_chs:
 	kfree(new_chs);
+	kfree(old_chs);
 	return err;
 }
 
@@ -3458,8 +3472,8 @@ int mlx5e_safe_reopen_channels(struct mlx5e_priv *priv)
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
 {
-	priv->tstamp.tx_type   = HWTSTAMP_TX_OFF;
-	priv->tstamp.rx_filter = HWTSTAMP_FILTER_NONE;
+	priv->hwtstamp_config.tx_type   = HWTSTAMP_TX_OFF;
+	priv->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 }
 
 static void mlx5e_modify_admin_state(struct mlx5_core_dev *mdev,
@@ -4012,6 +4026,11 @@ void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 		s->rx_bytes     += rq_stats->bytes;
 		s->multicast    += rq_stats->mcast_packets;
 	}
+
+#ifdef CONFIG_MLX5_EN_PSP
+	if (priv->psp)
+		s->tx_dropped	+= atomic_read(&priv->psp->tx_drop);
+#endif
 }
 
 void
@@ -4392,23 +4411,22 @@ static int mlx5e_handle_feature(struct net_device *netdev,
 	return 0;
 }
 
-void mlx5e_set_xdp_feature(struct net_device *netdev)
+void mlx5e_set_xdp_feature(struct mlx5e_priv *priv)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_params *params = &priv->channels.params;
-	xdp_features_t val;
+	struct net_device *netdev = priv->netdev;
+	xdp_features_t val = 0;
 
-	if (!netdev->netdev_ops->ndo_bpf ||
-	    params->packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
-		xdp_set_features_flag_locked(netdev, 0);
-		return;
-	}
+	if (netdev->netdev_ops->ndo_bpf &&
+	    params->packet_merge.type == MLX5E_PACKET_MERGE_NONE)
+		val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		      NETDEV_XDP_ACT_XSK_ZEROCOPY |
+		      NETDEV_XDP_ACT_RX_SG;
 
-	val = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-	      NETDEV_XDP_ACT_XSK_ZEROCOPY |
-	      NETDEV_XDP_ACT_RX_SG |
-	      NETDEV_XDP_ACT_NDO_XMIT |
-	      NETDEV_XDP_ACT_NDO_XMIT_SG;
+	if (netdev->netdev_ops->ndo_xdp_xmit && params->xdp_prog)
+		val |= NETDEV_XDP_ACT_NDO_XMIT |
+			NETDEV_XDP_ACT_NDO_XMIT_SG;
+
 	xdp_set_features_flag_locked(netdev, val);
 }
 
@@ -4443,9 +4461,6 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 		netdev->features = oper_features;
 		return -EINVAL;
 	}
-
-	/* update XDP supported features */
-	mlx5e_set_xdp_feature(netdev);
 
 	return 0;
 }
@@ -4754,22 +4769,23 @@ static int mlx5e_hwstamp_config_ptp_rx(struct mlx5e_priv *priv, bool ptp_rx)
 					&new_params.ptp_rx, true);
 }
 
-int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
+int mlx5e_hwtstamp_set(struct mlx5e_priv *priv,
+		       struct kernel_hwtstamp_config *config,
+		       struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config config;
 	bool rx_cqe_compress_def;
 	bool ptp_rx;
 	int err;
 
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz) ||
-	    (mlx5_clock_get_ptp_index(priv->mdev) == -1))
+	    (mlx5_clock_get_ptp_index(priv->mdev) == -1)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Timestamps are not supported on this device");
 		return -EOPNOTSUPP;
-
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	}
 
 	/* TX HW timestamp */
-	switch (config.tx_type) {
+	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
 	case HWTSTAMP_TX_ON:
 		break;
@@ -4781,7 +4797,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	rx_cqe_compress_def = priv->channels.params.rx_cqe_compress_def;
 
 	/* RX HW timestamp */
-	switch (config.rx_filter) {
+	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		ptp_rx = false;
 		break;
@@ -4800,7 +4816,7 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_NTP_ALL:
-		config.rx_filter = HWTSTAMP_FILTER_ALL;
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		/* ptp_rx is set if both HW TS is set and CQE
 		 * compression is set
 		 */
@@ -4813,47 +4829,50 @@ int mlx5e_hwstamp_set(struct mlx5e_priv *priv, struct ifreq *ifr)
 
 	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		err = mlx5e_hwstamp_config_no_ptp_rx(priv,
-						     config.rx_filter != HWTSTAMP_FILTER_NONE);
+						     config->rx_filter != HWTSTAMP_FILTER_NONE);
 	else
 		err = mlx5e_hwstamp_config_ptp_rx(priv, ptp_rx);
 	if (err)
 		goto err_unlock;
 
-	memcpy(&priv->tstamp, &config, sizeof(config));
+	priv->hwtstamp_config = *config;
 	mutex_unlock(&priv->state_lock);
 
 	/* might need to fix some features */
 	netdev_update_features(priv->netdev);
 
-	return copy_to_user(ifr->ifr_data, &config,
-			    sizeof(config)) ? -EFAULT : 0;
+	return 0;
 err_unlock:
 	mutex_unlock(&priv->state_lock);
 	return err;
 }
 
-int mlx5e_hwstamp_get(struct mlx5e_priv *priv, struct ifreq *ifr)
+static int mlx5e_hwtstamp_set_ndo(struct net_device *netdev,
+				  struct kernel_hwtstamp_config *config,
+				  struct netlink_ext_ack *extack)
 {
-	struct hwtstamp_config *cfg = &priv->tstamp;
+	struct mlx5e_priv *priv = netdev_priv(netdev);
 
+	return mlx5e_hwtstamp_set(priv, config, extack);
+}
+
+int mlx5e_hwtstamp_get(struct mlx5e_priv *priv,
+		       struct kernel_hwtstamp_config *config)
+{
 	if (!MLX5_CAP_GEN(priv->mdev, device_frequency_khz))
 		return -EOPNOTSUPP;
 
-	return copy_to_user(ifr->ifr_data, cfg, sizeof(*cfg)) ? -EFAULT : 0;
+	*config = priv->hwtstamp_config;
+
+	return 0;
 }
 
-static int mlx5e_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int mlx5e_hwtstamp_get_ndo(struct net_device *dev,
+				  struct kernel_hwtstamp_config *config)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return mlx5e_hwstamp_set(priv, ifr);
-	case SIOCGHWTSTAMP:
-		return mlx5e_hwstamp_get(priv, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
+	return mlx5e_hwtstamp_get(priv, config);
 }
 
 #ifdef CONFIG_MLX5_ESWITCH
@@ -5294,13 +5313,14 @@ const struct net_device_ops mlx5e_netdev_ops = {
 	.ndo_set_features        = mlx5e_set_features,
 	.ndo_fix_features        = mlx5e_fix_features,
 	.ndo_change_mtu          = mlx5e_change_nic_mtu,
-	.ndo_eth_ioctl            = mlx5e_ioctl,
 	.ndo_set_tx_maxrate      = mlx5e_set_tx_maxrate,
 	.ndo_features_check      = mlx5e_features_check,
 	.ndo_tx_timeout          = mlx5e_tx_timeout,
 	.ndo_bpf		 = mlx5e_xdp,
 	.ndo_xdp_xmit            = mlx5e_xdp_xmit,
 	.ndo_xsk_wakeup          = mlx5e_xsk_wakeup,
+	.ndo_hwtstamp_get        = mlx5e_hwtstamp_get_ndo,
+	.ndo_hwtstamp_set        = mlx5e_hwtstamp_set_ndo,
 #ifdef CONFIG_MLX5_EN_ARFS
 	.ndo_rx_flow_steer	 = mlx5e_rx_flow_steer,
 #endif
@@ -5837,7 +5857,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->netmem_tx = true;
 
 	netif_set_tso_max_size(netdev, GSO_MAX_SIZE);
-	mlx5e_set_xdp_feature(netdev);
+	mlx5e_set_xdp_feature(priv);
 	mlx5e_set_netdev_dev_addr(netdev);
 	mlx5e_macsec_build_netdev(priv);
 	mlx5e_ipsec_build_netdev(priv);
@@ -5935,7 +5955,7 @@ static int mlx5e_nic_init(struct mlx5_core_dev *mdev,
 
 	mlx5e_psp_register(priv);
 	/* update XDP supported features */
-	mlx5e_set_xdp_feature(netdev);
+	mlx5e_set_xdp_feature(priv);
 
 	if (take_rtnl)
 		rtnl_unlock();
@@ -6145,7 +6165,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 
 static int mlx5e_update_nic_rx(struct mlx5e_priv *priv)
 {
-	return mlx5e_refresh_tirs(priv, false, false);
+	return mlx5e_refresh_tirs(priv->mdev, false, false);
 }
 
 static const struct mlx5e_profile mlx5e_nic_profile = {

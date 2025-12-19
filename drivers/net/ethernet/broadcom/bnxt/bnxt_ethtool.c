@@ -688,16 +688,22 @@ skip_ring_stats:
 				buf[j] = *(rx_port_stats_ext + n);
 			}
 			for (i = 0; i < 8; i++, j++) {
-				long n = bnxt_tx_bytes_pri_arr[i].base_off +
-					 bp->pri2cos_idx[i];
+				u8 cos_idx = bp->pri2cos_idx[i];
+				long n;
 
+				n = bnxt_tx_bytes_pri_arr[i].base_off + cos_idx;
 				buf[j] = *(tx_port_stats_ext + n);
+				if (bp->cos0_cos1_shared && !cos_idx)
+					buf[j] += *(tx_port_stats_ext + n + 1);
 			}
 			for (i = 0; i < 8; i++, j++) {
-				long n = bnxt_tx_pkts_pri_arr[i].base_off +
-					 bp->pri2cos_idx[i];
+				u8 cos_idx = bp->pri2cos_idx[i];
+				long n;
 
+				n = bnxt_tx_pkts_pri_arr[i].base_off + cos_idx;
 				buf[j] = *(tx_port_stats_ext + n);
+				if (bp->cos0_cos1_shared && !cos_idx)
+					buf[j] += *(tx_port_stats_ext + n + 1);
 			}
 		}
 	}
@@ -1764,6 +1770,13 @@ static int bnxt_set_rxfh_fields(struct net_device *dev,
 	return rc;
 }
 
+static u32 bnxt_get_rx_ring_count(struct net_device *dev)
+{
+	struct bnxt *bp = netdev_priv(dev);
+
+	return bp->rx_nr_rings;
+}
+
 static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
@@ -1771,10 +1784,6 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int rc = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = bp->rx_nr_rings;
-		break;
-
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->ntp_fltr_count;
 		cmd->data = bp->max_fltr | RX_CLS_LOC_SPECIAL;
@@ -4617,6 +4626,11 @@ static int bnxt_get_module_status(struct bnxt *bp, struct netlink_ext_ack *extac
 	    PORT_PHY_QCFG_RESP_MODULE_STATUS_WARNINGMSG)
 		return 0;
 
+	if (bp->link_info.phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASET ||
+	    bp->link_info.phy_type == PORT_PHY_QCFG_RESP_PHY_TYPE_BASETE){
+		NL_SET_ERR_MSG_MOD(extack, "Operation not supported as PHY type is Base-T");
+		return -EOPNOTSUPP;
+	}
 	switch (bp->link_info.module_status) {
 	case PORT_PHY_QCFG_RESP_MODULE_STATUS_PWRDOWN:
 		NL_SET_ERR_MSG_MOD(extack, "Transceiver module is powering down");
@@ -5605,6 +5619,7 @@ const struct ethtool_ops bnxt_ethtool_ops = {
 	.set_channels		= bnxt_set_channels,
 	.get_rxnfc		= bnxt_get_rxnfc,
 	.set_rxnfc		= bnxt_set_rxnfc,
+	.get_rx_ring_count	= bnxt_get_rx_ring_count,
 	.get_rxfh_indir_size    = bnxt_get_rxfh_indir_size,
 	.get_rxfh_key_size      = bnxt_get_rxfh_key_size,
 	.get_rxfh               = bnxt_get_rxfh,

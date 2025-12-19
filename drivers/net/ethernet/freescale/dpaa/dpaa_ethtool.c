@@ -467,6 +467,47 @@ revert_values:
 	return res;
 }
 
+static void dpaa_get_pause_stats(struct net_device *net_dev,
+				 struct ethtool_pause_stats *s)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct mac_device *mac_dev = priv->mac_dev;
+
+	if (mac_dev->get_pause_stats)
+		mac_dev->get_pause_stats(mac_dev->fman_mac, s);
+}
+
+static void dpaa_get_rmon_stats(struct net_device *net_dev,
+				struct ethtool_rmon_stats *s,
+				const struct ethtool_rmon_hist_range **ranges)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct mac_device *mac_dev = priv->mac_dev;
+
+	if (mac_dev->get_rmon_stats)
+		mac_dev->get_rmon_stats(mac_dev->fman_mac, s, ranges);
+}
+
+static void dpaa_get_eth_ctrl_stats(struct net_device *net_dev,
+				    struct ethtool_eth_ctrl_stats *s)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct mac_device *mac_dev = priv->mac_dev;
+
+	if (mac_dev->get_eth_ctrl_stats)
+		mac_dev->get_eth_ctrl_stats(mac_dev->fman_mac, s);
+}
+
+static void dpaa_get_eth_mac_stats(struct net_device *net_dev,
+				   struct ethtool_eth_mac_stats *s)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct mac_device *mac_dev = priv->mac_dev;
+
+	if (mac_dev->get_eth_mac_stats)
+		mac_dev->get_eth_mac_stats(mac_dev->fman_mac, s);
+}
+
 const struct ethtool_ops dpaa_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_RX_MAX_FRAMES,
@@ -487,4 +528,8 @@ const struct ethtool_ops dpaa_ethtool_ops = {
 	.get_ts_info = dpaa_get_ts_info,
 	.get_coalesce = dpaa_get_coalesce,
 	.set_coalesce = dpaa_set_coalesce,
+	.get_pause_stats = dpaa_get_pause_stats,
+	.get_rmon_stats = dpaa_get_rmon_stats,
+	.get_eth_ctrl_stats = dpaa_get_eth_ctrl_stats,
+	.get_eth_mac_stats = dpaa_get_eth_mac_stats,
 };

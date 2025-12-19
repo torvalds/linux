@@ -86,17 +86,18 @@ attribute-sets:
       -
         name: address
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: local
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: label
         type: string
       -
         name: broadcast
-        type: binary
+        type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: anycast

@@ -42,6 +42,7 @@ void bug_get_file_line(struct bug_entry *bug, const char **file,
 struct bug_entry *find_bug(unsigned long bugaddr);
 
 enum bug_trap_type report_bug(unsigned long bug_addr, struct pt_regs *regs);
+enum bug_trap_type report_bug_entry(struct bug_entry *bug, struct pt_regs *regs);
 
 /* These are defined by the architecture */
 int is_valid_bugaddr(unsigned long addr);
@@ -62,6 +63,13 @@ static inline enum bug_trap_type report_bug(unsigned long bug_addr,
 }
 
 struct bug_entry;
+
+static inline enum bug_trap_type
+report_bug_entry(struct bug_entry *bug, struct pt_regs *regs)
+{
+	return BUG_TRAP_TYPE_BUG;
+}
+
 static inline void bug_get_file_line(struct bug_entry *bug, const char **file,
 				     unsigned int *line)
 {

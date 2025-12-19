@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 FIXTURE(scm_rights)
 {

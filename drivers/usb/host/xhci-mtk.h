@@ -21,7 +21,7 @@
 /* support at most 64 ep, use 32 size hash table */
 #define SCH_EP_HASH_BITS	5
 
-/**
+/*
  * To simplify scheduler algorithm, set a upper limit for ESIT,
  * if a synchromous ep's ESIT is larger than @XHCI_MTK_MAX_ESIT,
  * round down to the limit value, that means allocating more
@@ -34,6 +34,7 @@
 #define XHCI_MTK_FRAMES_CNT	(XHCI_MTK_MAX_ESIT / UFRAMES_PER_FRAME)
 
 /**
+ * struct mu3h_sch_tt - TT scheduling data
  * @fs_bus_bw_out: save bandwidth used by FS/LS OUT eps in each uframes
  * @fs_bus_bw_in: save bandwidth used by FS/LS IN eps in each uframes
  * @ls_bus_bw: save bandwidth used by LS eps in each uframes
@@ -51,7 +52,7 @@ struct mu3h_sch_tt {
 };
 
 /**
- * struct mu3h_sch_bw_info: schedule information for bandwidth domain
+ * struct mu3h_sch_bw_info - schedule information for bandwidth domain
  *
  * @bus_bw: array to keep track of bandwidth already used at each uframes
  *
@@ -63,7 +64,7 @@ struct mu3h_sch_bw_info {
 };
 
 /**
- * struct mu3h_sch_ep_info: schedule information for endpoint
+ * struct mu3h_sch_ep_info - schedule information for endpoint
  *
  * @esit: unit is 125us, equal to 2 << Interval field in ep-context
  * @num_esit: number of @esit in a period
@@ -77,6 +78,7 @@ struct mu3h_sch_bw_info {
  * @ep_type: endpoint type
  * @maxpkt: max packet size of endpoint
  * @ep: address of usb_host_endpoint struct
+ * @speed: usb device speed
  * @allocated: the bandwidth is aready allocated from bus_bw
  * @offset: which uframe of the interval that transfer should be
  *		scheduled first time within the interval
@@ -125,7 +127,7 @@ struct mu3h_sch_ep_info {
 #define MU3C_U2_PORT_MAX 5
 
 /**
- * struct mu3c_ippc_regs: MTK ssusb ip port control registers
+ * struct mu3c_ippc_regs - MTK ssusb ip port control registers
  * @ip_pw_ctr0~3: ip power and clock control registers
  * @ip_pw_sts1~2: ip power and clock status registers
  * @ip_xhci_cap: ip xHCI capability register

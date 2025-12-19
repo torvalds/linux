@@ -9,7 +9,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the National Semiconductor website
+    Datasheet: Publicly available at the TI website
+
+	       https://www.ti.com/lit/ds/symlink/lm84.pdf
 
   * National Semiconductor LM90
 
@@ -17,9 +19,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the National Semiconductor website
+    Datasheet: Publicly available at the TI website
 
-	       http://www.national.com/pf/LM/LM90.html
+	       https://www.ti.com/lit/ds/symlink/lm90.pdf
 
   * National Semiconductor LM89
 
@@ -27,9 +29,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c and 0x4d
 
-    Datasheet: Publicly available at the National Semiconductor website
+    Datasheet: Publicly available at the TI website
 
-	       http://www.national.com/mpf/LM/LM89.html
+	       https://www.ti.com/lit/ds/symlink/lm89.pdf
 
   * National Semiconductor LM99
 
@@ -37,9 +39,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c and 0x4d
 
-    Datasheet: Publicly available at the National Semiconductor website
+    Datasheet: Publicly available at the TI website
 
-	       http://www.national.com/pf/LM/LM99.html
+	       https://www.ti.com/lit/ds/symlink/lm99.pdf
 
   * National Semiconductor LM86
 
@@ -47,9 +49,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the National Semiconductor website
+    Datasheet: Publicly available at the TI website
 
-	       http://www.national.com/mpf/LM/LM86.html
+	       https://www.ti.com/lit/ds/symlink/lm86.pdf
 
   * Analog Devices ADM1020
 
@@ -57,7 +59,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c - 0x4e
 
-    Datasheet: Publicly available at the Analog Devices website
+    Datasheet: Publicly available at the DigiKey website
+
+	       https://media.digikey.com/pdf/Data%20Sheets/Analog%20Devices%20PDFs/ADM1020.pdf
 
   * Analog Devices ADM1021
 
@@ -65,7 +69,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the Analog Devices website
+    Datasheet: Publicly available at the DigiKey website
+
+	       https://media.digikey.com/pdf/Data%20Sheets/Analog%20Devices%20PDFs/ADM1021.pdf
 
   * Analog Devices ADM1021A/ADM1023
 
@@ -75,15 +81,18 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
+	       https://media.digikey.com/pdf/Data%20Sheets/Analog%20Devices%20PDFs/ADM1021A.pdf
+	       https://media.digikey.com/pdf/Data%20Sheets/Analog%20Devices%20PDFs/ADM1023.pdf
+
   * Analog Devices ADM1032
 
     Prefix: 'adm1032'
 
     Addresses scanned: I2C 0x4c and 0x4d
 
-    Datasheet: Publicly available at the ON Semiconductor website
+    Datasheet: Publicly available at the DigiKey website
 
-	       https://www.onsemi.com/PowerSolutions/product.do?id=ADM1032
+	       https://www.digikey.com/htmldatasheets/production/53140/0/0/1/ADM1032.pdf
 
   * Analog Devices ADT7461
 
@@ -111,9 +120,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4b and 0x4c
 
-    Datasheet: Publicly available at the ON Semiconductor website
+    Datasheet: Publicly available at the DigiKey website
 
-	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7481
+	       https://www.digikey.com/htmldatasheets/production/234607/0/0/1/ADT7481.pdf
 
   * Analog Devices ADT7482
 
@@ -191,7 +200,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX1617.pdf
 
   * Maxim MAX1617A
 
@@ -199,7 +210,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX1617A.pdf
 
   * Maxim MAX6642
 
@@ -207,9 +220,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x48-0x4f
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://datasheets.maxim-ic.com/en/ds/MAX6642.pdf
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6642.pdf
 
   * Maxim MAX6646
 
@@ -217,9 +230,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4d
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6646-MAX6649.pdf
 
   * Maxim MAX6647
 
@@ -227,9 +240,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6646-MAX6649.pdf
 
   * Maxim MAX6648
 
@@ -237,9 +250,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6648-MAX6692.pdf
 
   * Maxim MAX6649
 
@@ -247,9 +260,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3497
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX1617.pdf
 
   * Maxim MAX6654
 
@@ -259,9 +272,9 @@ Supported chips:
 
 			   0x4c, 0x4d and 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       https://www.maximintegrated.com/en/products/sensors/MAX6654.html
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6654.pdf
 
   * Maxim MAX6657
 
@@ -269,9 +282,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6657-MAX6659.pdf
 
   * Maxim MAX6658
 
@@ -279,9 +292,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6657-MAX6659.pdf
 
   * Maxim MAX6659
 
@@ -289,9 +302,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c, 0x4d, 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/2578
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6657-MAX6659.pdf
 
   * Maxim MAX6680
 
@@ -301,9 +314,9 @@ Supported chips:
 
 			   0x4c, 0x4d and 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+	      https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6680-MAX6681.pdf
 
   * Maxim MAX6681
 
@@ -313,9 +326,9 @@ Supported chips:
 
 			   0x4c, 0x4d and 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3370
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6680-MAX6681.pdf
 
   * Maxim MAX6692
 
@@ -323,9 +336,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6648-MAX6692.pdf
 
   * Maxim MAX6695
 
@@ -333,9 +346,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6695-MAX6696.pdf
 
   * Maxim MAX6696
 
@@ -345,9 +358,9 @@ Supported chips:
 
 			   0x4c, 0x4d and 0x4e
 
-    Datasheet: Publicly available at the Maxim website
+    Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.maxim-ic.com/datasheet/index.mvp/id/4199
+	       https://www.analog.com/media/en/technical-documentation/data-sheets/MAX6695-MAX6696.pdf
 
   * Winbond/Nuvoton W83L771W/G
 
@@ -355,7 +368,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x4c
 
-    Datasheet: No longer available
+    Datasheet: Publicly available at the DigiKey website
+
+	       https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/1128/W83L771W%2CW83L771G.pdf
 
   * Winbond/Nuvoton W83L771AWG/ASG
 
@@ -381,7 +396,7 @@ Supported chips:
 
     Datasheet: Publicly available at Nuvoton website
 
-               https://www.nuvoton.com/resource-files/Nuvoton_NCT7717U_Datasheet_V111.pdf
+	       https://www.nuvoton.com/resource-files/Nuvoton_NCT7717U_Datasheet_V111.pdf
 
   * Nuvoton NCT7718
 
@@ -391,7 +406,7 @@ Supported chips:
 
     Datasheet: Publicly available at Nuvoton website
 
-               https://www.nuvoton.com/resource-files/Nuvoton_NCT7718W_Datasheet_V11.pdf
+	       https://www.nuvoton.com/resource-files/Nuvoton_NCT7718W_Datasheet_V11.pdf
 
   * Philips/NXP SA56004X
 
@@ -401,7 +416,7 @@ Supported chips:
 
     Datasheet: Publicly available at NXP website
 
-	       http://ics.nxp.com/products/interface/datasheet/sa56004x.pdf
+	       https://www.nxp.com/docs/en/data-sheet/SA56004X.pdf
 
   * GMT G781
 
@@ -437,7 +452,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheets: Publicly available at the Philips website
+    Datasheets: Publicly available at the DigiKey website
+
+	       https://www.digikey.com/htmldatasheets/production/97606/0/0/1/ne1617.pdf
 
   * Philips NE1618
 
@@ -445,7 +462,9 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheets: Publicly available at the Philips website
+    Datasheets: Publicly available at the DigiKey website
+
+	       https://media.digikey.com/pdf/Data%20Sheets/NXP%20PDFs/NE1618.pdf
 
   * Genesys Logic GL523SM
 
@@ -453,7 +472,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet:
+    Datasheet: No longer available at Genesys Logic website
 
   * TI THMC10
 
@@ -461,7 +480,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the TI website
+    Datasheet: No longer available at the TI website
 
   * Onsemi MC1066
 
@@ -469,7 +488,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
 
-    Datasheet: Publicly available at the Onsemi website
+    Datasheet: No longer available at the Onsemi website
 
 Author: Jean Delvare <jdelvare@suse.de>
 

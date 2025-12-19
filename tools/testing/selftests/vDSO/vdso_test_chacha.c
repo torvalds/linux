@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #if defined(__aarch64__)
 static bool cpu_has_capabilities(void)

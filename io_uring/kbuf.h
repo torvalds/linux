@@ -14,8 +14,8 @@ enum {
 
 struct io_buffer_list {
 	/*
-	 * If ->buf_nr_pages is set, then buf_pages/buf_ring are used. If not,
-	 * then these are classic provided buffers and ->buf_list is used.
+	 * If the IOBL_BUF_RING flag is set, then buf_ring is used. If not, then
+	 * these are classic provided buffers and ->buf_list is used.
 	 */
 	union {
 		struct list_head buf_list;
@@ -27,7 +27,6 @@ struct io_buffer_list {
 	__u16 bgid;
 
 	/* below is for ring provided buffers */
-	__u16 buf_nr_pages;
 	__u16 nr_entries;
 	__u16 head;
 	__u16 mask;

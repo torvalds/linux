@@ -5,7 +5,7 @@
  * modify it under the terms of version 2 of the GNU General Public
  * License as published by the Free Software Foundation.
  *
- * Example program for Host Bandwidth Managment
+ * Example program for Host Bandwidth Management
  *
  * This program loads a cgroup skb BPF program to enforce cgroup output
  * (egress) or input (ingress) bandwidth limits.
@@ -24,7 +24,7 @@
  *		beyond the rate limit specified while there is available
  *		bandwidth. Current implementation assumes there is only
  *		NIC (eth0), but can be extended to support multiple NICs.
- *		Currrently only supported for egress.
+ *		Currently only supported for egress.
  *    -h	Print this info
  *    prog	BPF program file name. Name defaults to hbm_out_kern.o
  */

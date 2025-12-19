@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+# All symbols belong to CEC namespace
+namespace CEC
+
 # Ignore header name
 ignore define _CEC_UAPI_H
 

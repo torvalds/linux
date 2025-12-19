@@ -24,15 +24,16 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 	const __le16 *fc;
 	int ret;
 
-	if (data_len < GMAC_MIC_LEN)
+	if (data_len < IEEE80211_GMAC_MIC_LEN)
 		return -EINVAL;
 
-	aead_req = kzalloc(reqsize + GMAC_MIC_LEN + GMAC_AAD_LEN, GFP_ATOMIC);
+	aead_req = kzalloc(reqsize + IEEE80211_GMAC_MIC_LEN + GMAC_AAD_LEN,
+			   GFP_ATOMIC);
 	if (!aead_req)
 		return -ENOMEM;
 
 	zero = (u8 *)aead_req + reqsize;
-	__aad = zero + GMAC_MIC_LEN;
+	__aad = zero + IEEE80211_GMAC_MIC_LEN;
 	memcpy(__aad, aad, GMAC_AAD_LEN);
 
 	fc = (const __le16 *)aad;
@@ -41,15 +42,16 @@ int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
 		sg_init_table(sg, 5);
 		sg_set_buf(&sg[0], __aad, GMAC_AAD_LEN);
 		sg_set_buf(&sg[1], zero, 8);
-		sg_set_buf(&sg[2], data + 8, data_len - 8 - GMAC_MIC_LEN);
-		sg_set_buf(&sg[3], zero, GMAC_MIC_LEN);
-		sg_set_buf(&sg[4], mic, GMAC_MIC_LEN);
+		sg_set_buf(&sg[2], data + 8,
+			   data_len - 8 - IEEE80211_GMAC_MIC_LEN);
+		sg_set_buf(&sg[3], zero, IEEE80211_GMAC_MIC_LEN);
+		sg_set_buf(&sg[4], mic, IEEE80211_GMAC_MIC_LEN);
 	} else {
 		sg_init_table(sg, 4);
 		sg_set_buf(&sg[0], __aad, GMAC_AAD_LEN);
-		sg_set_buf(&sg[1], data, data_len - GMAC_MIC_LEN);
-		sg_set_buf(&sg[2], zero, GMAC_MIC_LEN);
-		sg_set_buf(&sg[3], mic, GMAC_MIC_LEN);
+		sg_set_buf(&sg[1], data, data_len - IEEE80211_GMAC_MIC_LEN);
+		sg_set_buf(&sg[2], zero, IEEE80211_GMAC_MIC_LEN);
+		sg_set_buf(&sg[3], mic, IEEE80211_GMAC_MIC_LEN);
 	}
 
 	memcpy(iv, nonce, GMAC_NONCE_LEN);
@@ -78,7 +80,7 @@ struct crypto_aead *ieee80211_aes_gmac_key_setup(const u8 key[],
 
 	err = crypto_aead_setkey(tfm, key, key_len);
 	if (!err)
-		err = crypto_aead_setauthsize(tfm, GMAC_MIC_LEN);
+		err = crypto_aead_setauthsize(tfm, IEEE80211_GMAC_MIC_LEN);
 	if (!err)
 		return tfm;
 

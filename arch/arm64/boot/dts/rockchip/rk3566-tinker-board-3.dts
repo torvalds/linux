@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2025 Michael Opdenacker <michael.opdenacker@rootcommit.com>
+ */
+
+/dts-v1/;
+
+#include "rk3566-tinker-board-3.dtsi"
+
+/ {
+	model = "Asus Tinker Board 3";
+	compatible = "asus,rk3566-tinker-board-3", "rockchip,rk3566";
+};

@@ -10,7 +10,7 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware core release supported */
-#define IWL_BZ_UCODE_CORE_MAX	99
+#define IWL_BZ_UCODE_CORE_MAX	101
 
 /* Lowest firmware API version supported */
 #define IWL_BZ_UCODE_API_MIN	100
@@ -38,7 +38,6 @@ static const struct iwl_family_base_params iwl_bz_base = {
 	.smem_len = IWL_BZ_SMEM_LEN,
 	.apmg_not_supported = true,
 	.mac_addr_from_csr = 0x30,
-	.min_umac_error_event_table = 0xD0000,
 	.d3_debug_data_base_addr = 0x401000,
 	.d3_debug_data_length = 60 * 1024,
 	.mon_smem_regs = {
@@ -90,6 +89,7 @@ const struct iwl_mac_cfg iwl_bz_mac_cfg = {
 	.low_latency_xtal = true,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_bz_mac_cfg);
 
 const struct iwl_mac_cfg iwl_gl_mac_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,

@@ -464,7 +464,7 @@ static void rtw89_pci_tx_status(struct rtw89_dev *rtwdev,
 	struct rtw89_tx_skb_data *skb_data = RTW89_TX_SKB_CB(skb);
 	struct ieee80211_tx_info *info;
 
-	if (rtw89_core_tx_wait_complete(rtwdev, skb_data, tx_status == RTW89_TX_DONE))
+	if (rtw89_core_tx_wait_complete(rtwdev, skb_data, tx_status))
 		return;
 
 	info = IEEE80211_SKB_CB(skb);
@@ -2062,6 +2062,20 @@ static void rtw89_pci_ops_write32(struct rtw89_dev *rtwdev, u32 addr, u32 data)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	writel(data, rtwpci->mmap + addr);
+}
+
+static u32 rtw89_pci_ops_read32_pci_cfg(struct rtw89_dev *rtwdev, u32 addr)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	u32 value;
+	int ret;
+
+	ret = pci_read_config_dword(pdev, addr, &value);
+	if (ret)
+		return RTW89_R32_EA;
+
+	return value;
 }
 
 static void rtw89_pci_ctrl_dma_trx(struct rtw89_dev *rtwdev, bool enable)
@@ -4682,6 +4696,8 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.write8		= rtw89_pci_ops_write8,
 	.write16	= rtw89_pci_ops_write16,
 	.write32	= rtw89_pci_ops_write32,
+
+	.read32_pci_cfg	= rtw89_pci_ops_read32_pci_cfg,
 
 	.mac_pre_init	= rtw89_pci_ops_mac_pre_init,
 	.mac_pre_deinit	= rtw89_pci_ops_mac_pre_deinit,

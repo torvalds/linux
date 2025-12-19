@@ -15,8 +15,8 @@
 #include <string.h>
 #include <fcntl.h>
 
-#include "../kselftest.h"
-#include "../kselftest_harness.h"
+#include "kselftest.h"
+#include "kselftest_harness.h"
 
 /* Default test file size: 4MB */
 #define MB (1UL << 20)

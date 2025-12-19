@@ -84,8 +84,8 @@ static bool iblock_configure_unmap(struct se_device *dev)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
 
-	return target_configure_unmap_from_queue(&dev->dev_attrib,
-						 ib_dev->ibd_bd);
+	return target_configure_unmap_from_bdev(&dev->dev_attrib,
+						ib_dev->ibd_bd);
 }
 
 static int iblock_configure_device(struct se_device *dev)
@@ -151,6 +151,8 @@ static int iblock_configure_device(struct se_device *dev)
 
 	if (bdev_nonrot(bd))
 		dev->dev_attrib.is_nonrot = 1;
+
+	target_configure_write_atomic_from_bdev(&dev->dev_attrib, bd);
 
 	bi = bdev_get_integrity(bd);
 	if (!bi)
@@ -773,6 +775,9 @@ iblock_execute_rw(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			else if (!bdev_write_cache(ib_dev->ibd_bd))
 				opf |= REQ_FUA;
 		}
+
+		if (cmd->se_cmd_flags & SCF_ATOMIC)
+			opf |= REQ_ATOMIC;
 	} else {
 		opf = REQ_OP_READ;
 		miter_dir = SG_MITER_FROM_SG;

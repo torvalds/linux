@@ -95,7 +95,7 @@ properties:
       - 6 # BT.656
       - 7 # DPI
     description:
-      Data bus type.
+      Data bus type. See include/dt-bindings/media/video-interfaces.h.
 
   bus-width:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -229,7 +229,7 @@ properties:
       Imaging. The length of the array must be the same length as the
       data-lanes property. If the line-orders property is omitted, the value
       shall be interpreted as 0 (ABC). This property is valid for CSI-2 C-PHY
-      busses only.
+      busses only. See include/dt-bindings/media/video-interfaces.h.
 
   strobe:
     $ref: /schemas/types.yaml#/definitions/uint32

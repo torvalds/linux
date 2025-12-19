@@ -266,7 +266,7 @@ struct iwl_fw_ini_error_dump_data {
 } __packed;
 
 /**
- * struct iwl_fw_ini_dump_entry
+ * struct iwl_fw_ini_dump_entry - dump entry descriptor
  * @list: list of dump entries
  * @size: size of the data
  * @data: entry data
@@ -305,7 +305,7 @@ struct iwl_fw_ini_fifo_hdr {
  * @dram_base_addr: base address of dram monitor range
  * @page_num: page number of memory range
  * @fifo_hdr: fifo header of memory range
- * @fw_pkt: FW packet header of memory range
+ * @fw_pkt_hdr: FW packet header of memory range
  * @data: the actual memory
  */
 struct iwl_fw_ini_error_dump_range {

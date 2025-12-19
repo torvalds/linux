@@ -1528,7 +1528,6 @@ bfad_pci_slot_reset(struct pci_dev *pdev)
 		goto out_disable_device;
 	}
 
-	pci_save_state(pdev);
 	pci_set_master(pdev);
 
 	rc = dma_set_mask_and_coherent(&bfad->pcidev->dev, DMA_BIT_MASK(64));

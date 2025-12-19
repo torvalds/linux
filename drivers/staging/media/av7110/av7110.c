@@ -321,7 +321,7 @@ static inline void print_time(char *s)
 	struct timespec64 ts;
 
 	ktime_get_real_ts64(&ts);
-	pr_info("%s(): %lld.%09ld\n", s, (s64)ts.tv_sec, ts.tv_nsec);
+	pr_info("%s(): %ptSp\n", s, &ts);
 #endif
 }
 

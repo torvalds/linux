@@ -4669,6 +4669,27 @@ Field	1	V3
 Field	0	En
 EndSysreg
 
+Sysreg	ICH_VMCR_EL2	3	4	12	11	7
+Prefix	FEAT_GCIE
+Res0	63:32
+Field	31:27	VPMR
+Res0	26:1
+Field	0	EN
+EndPrefix
+Res0	63:32
+Field	31:24	VPMR
+Field	23:21	VBPR0
+Field	20:18	VBPR1
+Res0	17:10
+Field	9	VEOIM
+Res0	8:5
+Field	4	VCBPR
+Field	3	VFIQEn
+Field	2	VAckCtl
+Field	1	VENG1
+Field	0	VENG0
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg

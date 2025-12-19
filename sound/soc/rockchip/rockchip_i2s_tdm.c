@@ -1337,8 +1337,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	ret = i2s_tdm_prepare_enable_mclk(i2s_tdm);
 	if (ret) {
-		ret = dev_err_probe(i2s_tdm->dev, ret,
-				    "Failed to enable one or more mclks\n");
+		dev_err_probe(i2s_tdm->dev, ret, "Failed to enable one or more mclks\n");
 		goto err_disable_hclk;
 	}
 

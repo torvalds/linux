@@ -15,7 +15,7 @@
 	compatible = "myir,myd-am335x", "myir,myc-am335x", "ti,am33xx";
 
 	chosen {
-		stdout-path = &uart0;
+		stdout-path = "serial0:115200n8";
 	};
 
 	clk12m: clk12m {

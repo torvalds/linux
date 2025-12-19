@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 			regs.rcx = 1;
 		if (regs.rcx == 3)
 			regs.rcx = 8192;
-		memset((void *)run + run->io.data_offset, 0xaa, 4096);
+		memset((void *)run + run->io.data_offset, 0xaa, PAGE_SIZE);
 		vcpu_regs_set(vcpu, &regs);
 	}
 

@@ -84,7 +84,7 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *
 							  enum hctx_type type,
 							  unsigned int cpu)
 {
-	return xa_load(&q->hctx_table, q->tag_set->map[type].mq_map[cpu]);
+	return queue_hctx((q), (q->tag_set->map[type].mq_map[cpu]));
 }
 
 static inline enum hctx_type blk_mq_get_hctx_type(blk_opf_t opf)

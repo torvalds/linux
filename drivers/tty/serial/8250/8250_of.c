@@ -95,7 +95,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	u32 spd;
 	int ret;
 
-	memset(port, 0, sizeof *port);
+	memset(port, 0, sizeof(*port));
 
 	pm_runtime_enable(&ofdev->dev);
 	pm_runtime_get_sync(&ofdev->dev);

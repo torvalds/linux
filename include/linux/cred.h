@@ -20,6 +20,8 @@
 struct cred;
 struct inode;
 
+extern struct task_struct init_task;
+
 /*
  * COW Supplementary groups list
  */
@@ -156,6 +158,11 @@ extern struct cred *prepare_exec_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);
 extern struct cred *prepare_kernel_cred(struct task_struct *);
+static inline const struct cred *kernel_cred(void)
+{
+	/* shut up sparse */
+	return rcu_dereference_raw(init_task.cred);
+}
 extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
 extern int set_create_files_as(struct cred *, struct inode *);
@@ -179,6 +186,16 @@ static inline const struct cred *revert_creds(const struct cred *revert_cred)
 {
 	return rcu_replace_pointer(current->cred, revert_cred, 1);
 }
+
+DEFINE_CLASS(override_creds,
+	     const struct cred *,
+	     revert_creds(_T),
+	     override_creds(override_cred), const struct cred *override_cred)
+
+#define scoped_with_creds(cred) \
+	scoped_class(override_creds, __UNIQUE_ID(label), cred)
+
+#define scoped_with_kernel_creds() scoped_with_creds(kernel_cred())
 
 /**
  * get_cred_many - Get references on a set of credentials
@@ -262,6 +279,11 @@ static inline void put_cred(const struct cred *cred)
 {
 	put_cred_many(cred, 1);
 }
+
+DEFINE_CLASS(prepare_creds,
+	      struct cred *,
+	      if (_T) put_cred(_T),
+	      prepare_creds(), void)
 
 DEFINE_FREE(put_cred, struct cred *, if (!IS_ERR_OR_NULL(_T)) put_cred(_T))
 

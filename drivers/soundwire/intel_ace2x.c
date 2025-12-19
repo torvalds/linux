@@ -44,6 +44,8 @@ static int sdw_slave_bpt_stream_add(struct sdw_slave *slave, struct sdw_stream_r
 	return ret;
 }
 
+#define READ_PDI1_MIN_SIZE	12
+
 static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *slave,
 				       struct sdw_bpt_msg *msg)
 {
@@ -53,19 +55,31 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	struct sdw_stream_runtime *stream;
 	struct sdw_stream_config sconfig;
 	struct sdw_port_config *pconfig;
+	unsigned int pdi0_buf_size_pre_frame;
+	unsigned int pdi1_buf_size_pre_frame;
+	unsigned int pdi0_buffer_size_;
+	unsigned int pdi1_buffer_size_;
 	unsigned int pdi0_buffer_size;
 	unsigned int tx_dma_bandwidth;
 	unsigned int pdi1_buffer_size;
 	unsigned int rx_dma_bandwidth;
+	unsigned int fake_num_frames;
 	unsigned int data_per_frame;
 	unsigned int tx_total_bytes;
 	struct sdw_cdns_pdi *pdi0;
 	struct sdw_cdns_pdi *pdi1;
+	unsigned int rx_alignment;
+	unsigned int tx_alignment;
+	unsigned int num_frames_;
 	unsigned int num_frames;
+	unsigned int fake_size;
+	unsigned int tx_pad;
+	unsigned int rx_pad;
 	int command;
 	int ret1;
 	int ret;
 	int dir;
+	int len;
 	int i;
 
 	stream = sdw_alloc_stream("BPT", SDW_STREAM_BPT);
@@ -138,23 +152,77 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 
 	command = (msg->flags & SDW_MSG_FLAG_WRITE) ? 0 : 1;
 
-	ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row, cdns->bus.params.col,
-					     msg->len, SDW_BPT_MSG_MAX_BYTES, &data_per_frame,
-					     &pdi0_buffer_size, &pdi1_buffer_size, &num_frames);
+	ret = sdw_cdns_bpt_find_bandwidth(command, cdns->bus.params.row,
+					  cdns->bus.params.col,
+					  prop->default_frame_rate,
+					  &tx_dma_bandwidth, &rx_dma_bandwidth);
 	if (ret < 0)
 		goto deprepare_stream;
+
+	len = 0;
+	pdi0_buffer_size = 0;
+	pdi1_buffer_size = 0;
+	num_frames = 0;
+	/* Add up pdi buffer size and frame numbers of each BPT sections */
+	for (i = 0; i < msg->sections; i++) {
+		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
+						     cdns->bus.params.col,
+						     msg->sec[i].len, SDW_BPT_MSG_MAX_BYTES,
+						     &data_per_frame, &pdi0_buffer_size_,
+						     &pdi1_buffer_size_, &num_frames_);
+		if (ret < 0)
+			goto deprepare_stream;
+
+		len += msg->sec[i].len;
+		pdi0_buffer_size += pdi0_buffer_size_;
+		pdi1_buffer_size += pdi1_buffer_size_;
+		num_frames += num_frames_;
+	}
 
 	sdw->bpt_ctx.pdi0_buffer_size = pdi0_buffer_size;
 	sdw->bpt_ctx.pdi1_buffer_size = pdi1_buffer_size;
 	sdw->bpt_ctx.num_frames = num_frames;
 	sdw->bpt_ctx.data_per_frame = data_per_frame;
-	tx_dma_bandwidth = div_u64((u64)pdi0_buffer_size * 8 * (u64)prop->default_frame_rate,
-				   num_frames);
-	rx_dma_bandwidth = div_u64((u64)pdi1_buffer_size * 8 * (u64)prop->default_frame_rate,
-				   num_frames);
+
+	rx_alignment = hda_sdw_bpt_get_buf_size_alignment(rx_dma_bandwidth);
+	tx_alignment = hda_sdw_bpt_get_buf_size_alignment(tx_dma_bandwidth);
+
+	if (command) { /* read */
+		/* Get buffer size of a full frame */
+		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
+						     cdns->bus.params.col,
+						     data_per_frame, SDW_BPT_MSG_MAX_BYTES,
+						     &data_per_frame, &pdi0_buf_size_pre_frame,
+						     &pdi1_buf_size_pre_frame, &fake_num_frames);
+		if (ret < 0)
+			goto deprepare_stream;
+
+		/* find fake pdi1 buffer size */
+		rx_pad = rx_alignment - (pdi1_buffer_size % rx_alignment);
+		while (rx_pad <= READ_PDI1_MIN_SIZE)
+			rx_pad += rx_alignment;
+
+		pdi1_buffer_size += rx_pad;
+		/* It is fine if we request more than enough byte to read */
+		fake_num_frames = DIV_ROUND_UP(rx_pad, pdi1_buf_size_pre_frame);
+		fake_size = fake_num_frames * data_per_frame;
+
+		/* find fake pdi0 buffer size */
+		pdi0_buffer_size += (fake_num_frames * pdi0_buf_size_pre_frame);
+		tx_pad = tx_alignment - (pdi0_buffer_size % tx_alignment);
+		pdi0_buffer_size += tx_pad;
+	} else { /* write */
+		/*
+		 * For the write command, the rx data block is 4, and the rx buffer size of a frame
+		 * is 8. So the rx buffer size (pdi0_buffer_size) is always a multiple of rx
+		 * alignment.
+		 */
+		tx_pad = tx_alignment - (pdi0_buffer_size % tx_alignment);
+		pdi0_buffer_size += tx_pad;
+	}
 
 	dev_dbg(cdns->dev, "Message len %d transferred in %d frames (%d per frame)\n",
-		msg->len, num_frames, data_per_frame);
+		len, num_frames, data_per_frame);
 	dev_dbg(cdns->dev, "sizes pdi0 %d pdi1 %d tx_bandwidth %d rx_bandwidth %d\n",
 		pdi0_buffer_size, pdi1_buffer_size, tx_dma_bandwidth, rx_dma_bandwidth);
 
@@ -169,15 +237,16 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	}
 
 	if (!command) {
-		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->addr, msg->buf,
-							msg->len, data_per_frame,
+		ret = sdw_cdns_prepare_write_dma_buffer(msg->dev_num, msg->sec, msg->sections,
+							data_per_frame,
 							sdw->bpt_ctx.dmab_tx_bdl.area,
 							pdi0_buffer_size, &tx_total_bytes);
 	} else {
-		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->addr,	msg->len,
+		ret = sdw_cdns_prepare_read_dma_buffer(msg->dev_num, msg->sec, msg->sections,
 						       data_per_frame,
 						       sdw->bpt_ctx.dmab_tx_bdl.area,
-						       pdi0_buffer_size, &tx_total_bytes);
+						       pdi0_buffer_size, &tx_total_bytes,
+						       fake_size);
 	}
 
 	if (!ret)
@@ -252,11 +321,16 @@ static int intel_ace2x_bpt_send_async(struct sdw_intel *sdw, struct sdw_slave *s
 				      struct sdw_bpt_msg *msg)
 {
 	struct sdw_cdns *cdns = &sdw->cdns;
+	int len = 0;
 	int ret;
+	int i;
 
-	if (msg->len < INTEL_BPT_MSG_BYTE_MIN) {
+	for (i = 0; i < msg->sections; i++)
+		len += msg->sec[i].len;
+
+	if (len < INTEL_BPT_MSG_BYTE_MIN) {
 		dev_err(cdns->dev, "BPT message length %d is less than the minimum bytes %d\n",
-			msg->len, INTEL_BPT_MSG_BYTE_MIN);
+			len, INTEL_BPT_MSG_BYTE_MIN);
 		return -EINVAL;
 	}
 
@@ -316,7 +390,7 @@ static int intel_ace2x_bpt_wait(struct sdw_intel *sdw, struct sdw_slave *slave,
 	} else {
 		ret = sdw_cdns_check_read_response(cdns->dev, sdw->bpt_ctx.dmab_rx_bdl.area,
 						   sdw->bpt_ctx.pdi1_buffer_size,
-						   msg->buf, msg->len, sdw->bpt_ctx.num_frames,
+						   msg->sec, msg->sections, sdw->bpt_ctx.num_frames,
 						   sdw->bpt_ctx.data_per_frame);
 		if (ret < 0)
 			dev_err(cdns->dev, "%s: BPT Read failed %d\n", __func__, ret);

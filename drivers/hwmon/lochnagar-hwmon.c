@@ -10,7 +10,6 @@
 
 #include <linux/delay.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/math64.h>
 #include <linux/mfd/lochnagar.h>
 #include <linux/mfd/lochnagar2_regs.h>
@@ -42,9 +41,6 @@ struct lochnagar_hwmon {
 	struct regmap *regmap;
 
 	long power_nsamples[ARRAY_SIZE(lochnagar_chan_names)];
-
-	/* Lock to ensure only a single sensor is read at a time */
-	struct mutex sensor_lock;
 };
 
 enum lochnagar_measure_mode {
@@ -178,26 +174,20 @@ static int read_sensor(struct device *dev, int chan,
 	u32 data;
 	int ret;
 
-	mutex_lock(&priv->sensor_lock);
-
 	ret = do_measurement(regmap, chan, mode, nsamples);
 	if (ret < 0) {
 		dev_err(dev, "Failed to perform measurement: %d\n", ret);
-		goto error;
+		return ret;
 	}
 
 	ret = request_data(regmap, chan, &data);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read measurement: %d\n", ret);
-		goto error;
+		return ret;
 	}
 
 	*val = float_to_long(data, precision);
-
-error:
-	mutex_unlock(&priv->sensor_lock);
-
-	return ret;
+	return 0;
 }
 
 static int read_power(struct device *dev, int chan, long *val)
@@ -377,8 +367,6 @@ static int lochnagar_hwmon_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-
-	mutex_init(&priv->sensor_lock);
 
 	priv->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!priv->regmap) {

@@ -115,7 +115,9 @@ void __init efi_init(void)
 
 	efi_systab_report_header(&efi_systab->hdr, efi_systab->fw_vendor);
 
-	set_bit(EFI_64BIT, &efi.flags);
+	if (IS_ENABLED(CONFIG_64BIT))
+		set_bit(EFI_64BIT, &efi.flags);
+
 	efi_nr_tables	 = efi_systab->nr_tables;
 	efi_config_table = (unsigned long)efi_systab->tables;
 

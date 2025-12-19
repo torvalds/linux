@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from lib.py import ksft_run, ksft_exit, ksft_eq, ksft_ge, ksft_ne, ksft_pr
+from lib.py import KsftNamedVariant, ksft_variants
 from lib.py import KsftFailEx, NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import bkg, cmd, rand_port, wait_port_listen
@@ -672,7 +673,18 @@ def test_xdp_native_adjst_head_shrnk_data(cfg):
     _validate_res(res, offset_lst, pkt_sz_lst)
 
 
-def _test_xdp_native_ifc_stats(cfg, act):
+@ksft_variants([
+    KsftNamedVariant("pass", XDPAction.PASS),
+    KsftNamedVariant("drop", XDPAction.DROP),
+    KsftNamedVariant("tx", XDPAction.TX),
+])
+def test_xdp_native_qstats(cfg, act):
+    """
+    Send 1000 messages. Expect XDP action specified in @act.
+    Make sure the packets were counted to interface level qstats
+    (Rx, and Tx if act is TX).
+    """
+
     cfg.require_cmd("socat")
 
     bpf_info = BPFProgInfo("xdp_prog", "xdp_native.bpf.o", "xdp", 1500)
@@ -687,9 +699,12 @@ def _test_xdp_native_ifc_stats(cfg, act):
         "/dev/null"
     # Listener runs on "remote" in case of XDP_TX
     rx_host = cfg.remote if act == XDPAction.TX else None
-    # We want to spew 2000 packets quickly, bash seems to do a good enough job
-    tx_udp =  f"exec 5<>/dev/udp/{cfg.addr}/{port}; " \
-        "for i in `seq 2000`; do echo a >&5; done; exec 5>&-"
+    # We want to spew 1000 packets quickly, bash seems to do a good enough job
+    # Each reopening of the socket gives us a differenot local port (for RSS)
+    tx_udp = "for _ in `seq 20`; do " \
+        f"exec 5<>/dev/udp/{cfg.addr}/{port}; " \
+        "for i in `seq 50`; do echo a >&5; done; " \
+        "exec 5>&-; done"
 
     cfg.wait_hw_stats_settle()
     # Qstats have more clearly defined semantics than rtnetlink.
@@ -704,11 +719,11 @@ def _test_xdp_native_ifc_stats(cfg, act):
     cfg.wait_hw_stats_settle()
     after = cfg.netnl.qstats_get({"ifindex": cfg.ifindex}, dump=True)[0]
 
-    ksft_ge(after['rx-packets'] - before['rx-packets'], 2000)
+    expected_pkts = 1000
+    ksft_ge(after['rx-packets'] - before['rx-packets'], expected_pkts)
     if act == XDPAction.TX:
-        ksft_ge(after['tx-packets'] - before['tx-packets'], 2000)
+        ksft_ge(after['tx-packets'] - before['tx-packets'], expected_pkts)
 
-    expected_pkts = 2000
     stats = _get_stats(prog_info["maps"]["map_xdp_stats"])
     ksft_eq(stats[XDPStats.RX.value], expected_pkts, "XDP RX stats mismatch")
     if act == XDPAction.TX:
@@ -728,30 +743,6 @@ def _test_xdp_native_ifc_stats(cfg, act):
         ksft_ge(after['rx-packets'], before['rx-packets'])
         if act == XDPAction.TX:
             ksft_ge(after['tx-packets'], before['tx-packets'])
-
-
-def test_xdp_native_qstats_pass(cfg):
-    """
-    Send 2000 messages, expect XDP_PASS, make sure the packets were counted
-    to interface level qstats (Rx).
-    """
-    _test_xdp_native_ifc_stats(cfg, XDPAction.PASS)
-
-
-def test_xdp_native_qstats_drop(cfg):
-    """
-    Send 2000 messages, expect XDP_DROP, make sure the packets were counted
-    to interface level qstats (Rx).
-    """
-    _test_xdp_native_ifc_stats(cfg, XDPAction.DROP)
-
-
-def test_xdp_native_qstats_tx(cfg):
-    """
-    Send 2000 messages, expect XDP_TX, make sure the packets were counted
-    to interface level qstats (Rx and Tx)
-    """
-    _test_xdp_native_ifc_stats(cfg, XDPAction.TX)
 
 
 def main():
@@ -778,9 +769,7 @@ def main():
                 test_xdp_native_adjst_tail_shrnk_data,
                 test_xdp_native_adjst_head_grow_data,
                 test_xdp_native_adjst_head_shrnk_data,
-                test_xdp_native_qstats_pass,
-                test_xdp_native_qstats_drop,
-                test_xdp_native_qstats_tx,
+                test_xdp_native_qstats,
             ],
             args=(cfg,))
     ksft_exit()

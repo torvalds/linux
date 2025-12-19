@@ -558,7 +558,7 @@ static int tb_lc_dp_sink_available(struct tb_switch *sw, int sink)
 		return ret;
 
 	/*
-	 * Sink is available for CM/SW to use if the allocation valie is
+	 * Sink is available for CM/SW to use if the allocation value is
 	 * either 0 or 1.
 	 */
 	if (!sink) {

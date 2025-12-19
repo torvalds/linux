@@ -10,6 +10,24 @@ struct fbnic_dev;
 
 #define FBNIC_MAX_JUMBO_FRAME_SIZE	9742
 
+/* States loosely based on section 136.8.11.7.5 of IEEE 802.3-2022 Ethernet
+ * Standard.  These are needed to track the state of the PHY as it has a delay
+ * of several seconds from the time link comes up until it has completed
+ * training that we need to wait to report the link.
+ *
+ * Currently we treat training as a single block as this is managed by the
+ * firmware.
+ *
+ * We have FBNIC_PMD_SEND_DATA set to 0 as the expected default at driver load
+ * and we initialize the structure containing it to zero at allocation.
+ */
+enum {
+	FBNIC_PMD_SEND_DATA	= 0x0,
+	FBNIC_PMD_INITIALIZE	= 0x1,
+	FBNIC_PMD_TRAINING	= 0x2,
+	FBNIC_PMD_LINK_READY	= 0x3,
+};
+
 enum {
 	FBNIC_LINK_EVENT_NONE	= 0,
 	FBNIC_LINK_EVENT_UP	= 1,
@@ -38,6 +56,7 @@ enum {
 	FBNIC_AUI_50GAUI1	= 2,	/* 53.125GBd	53.125   * 1 */
 	FBNIC_AUI_100GAUI2	= 3,	/* 106.25GBd	53.125   * 2 */
 	FBNIC_AUI_UNKNOWN	= 4,
+	__FBNIC_AUI_MAX__
 };
 
 #define FBNIC_AUI_MODE_R2	(FBNIC_AUI_LAUI2)
@@ -55,15 +74,15 @@ enum fbnic_sensor_id {
  * void (*init_regs)(struct fbnic_dev *fbd);
  *	Initialize MAC registers to enable Tx/Rx paths and FIFOs.
  *
- * void (*pcs_enable)(struct fbnic_dev *fbd);
- *	Configure and enable PCS to enable link if not already enabled
- * void (*pcs_disable)(struct fbnic_dev *fbd);
- *	Shutdown the link if we are the only consumer of it.
- * bool (*pcs_get_link)(struct fbnic_dev *fbd);
- *	Check PCS link status
- * int (*pcs_get_link_event)(struct fbnic_dev *fbd)
+ * int (*get_link_event)(struct fbnic_dev *fbd)
  *	Get the current link event status, reports true if link has
  *	changed to either FBNIC_LINK_EVENT_DOWN or FBNIC_LINK_EVENT_UP
+ * bool (*get_link)(struct fbnic_dev *fbd, u8 aui, u8 fec);
+ *	Check link status
+ *
+ * void (*prepare)(struct fbnic_dev *fbd, u8 aui, u8 fec);
+ *	Prepare PHY for init by fetching settings, disabling interrupts,
+ *	and sending an updated PHY config to FW if needed.
  *
  * void (*link_down)(struct fbnic_dev *fbd);
  *	Configure MAC for link down event
@@ -74,10 +93,10 @@ enum fbnic_sensor_id {
 struct fbnic_mac {
 	void (*init_regs)(struct fbnic_dev *fbd);
 
-	int (*pcs_enable)(struct fbnic_dev *fbd);
-	void (*pcs_disable)(struct fbnic_dev *fbd);
-	bool (*pcs_get_link)(struct fbnic_dev *fbd);
-	int (*pcs_get_link_event)(struct fbnic_dev *fbd);
+	int (*get_link_event)(struct fbnic_dev *fbd);
+	bool (*get_link)(struct fbnic_dev *fbd, u8 aui, u8 fec);
+
+	void (*prepare)(struct fbnic_dev *fbd, u8 aui, u8 fec);
 
 	void (*get_fec_stats)(struct fbnic_dev *fbd, bool reset,
 			      struct fbnic_fec_stats *fec_stats);

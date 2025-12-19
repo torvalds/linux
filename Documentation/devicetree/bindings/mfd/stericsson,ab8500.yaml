@@ -444,7 +444,6 @@ properties:
 
     additionalProperties: false
 
-
   regulator-external:
     description: Node describing the AB8500 external regulators. This
       concerns the autonomous regulators VSMPS1, VSMPS2 and VSMPS3

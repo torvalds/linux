@@ -18,6 +18,7 @@ properties:
       - rockchip,px30-dsi-dphy
       - rockchip,rk3128-dsi-dphy
       - rockchip,rk3368-dsi-dphy
+      - rockchip,rk3506-dsi-dphy
       - rockchip,rk3568-dsi-dphy
       - rockchip,rv1126-dsi-dphy
 

@@ -6,6 +6,7 @@
 #include <linux/xarray.h>
 #include <linux/hashtable.h>
 #include <linux/refcount.h>
+#include <linux/mlx5/driver.h>
 
 #include "mapping.h"
 
@@ -24,7 +25,8 @@ struct mapping_ctx {
 	struct delayed_work dwork;
 	struct list_head pending_list;
 	spinlock_t pending_list_lock; /* Guards pending list */
-	u64 id;
+	u8 id[MLX5_SW_IMAGE_GUID_MAX_BYTES];
+	u8 id_len;
 	u8 type;
 	struct list_head list;
 	refcount_t refcount;
@@ -220,13 +222,15 @@ mapping_create(size_t data_size, u32 max_id, bool delayed_removal)
 }
 
 struct mapping_ctx *
-mapping_create_for_id(u64 id, u8 type, size_t data_size, u32 max_id, bool delayed_removal)
+mapping_create_for_id(u8 *id, u8 id_len, u8 type, size_t data_size, u32 max_id,
+		      bool delayed_removal)
 {
 	struct mapping_ctx *ctx;
 
 	mutex_lock(&shared_ctx_lock);
 	list_for_each_entry(ctx, &shared_ctx_list, list) {
-		if (ctx->id == id && ctx->type == type) {
+		if (ctx->type == type && ctx->id_len == id_len &&
+		    !memcmp(id, ctx->id, id_len)) {
 			if (refcount_inc_not_zero(&ctx->refcount))
 				goto unlock;
 			break;
@@ -237,7 +241,8 @@ mapping_create_for_id(u64 id, u8 type, size_t data_size, u32 max_id, bool delaye
 	if (IS_ERR(ctx))
 		goto unlock;
 
-	ctx->id = id;
+	memcpy(ctx->id, id, id_len);
+	ctx->id_len = id_len;
 	ctx->type = type;
 	list_add(&ctx->list, &shared_ctx_list);
 

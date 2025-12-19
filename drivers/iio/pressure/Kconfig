@@ -339,4 +339,16 @@ config ZPA2326_SPI
 	tristate
 	select REGMAP_SPI
 
+config ADP810
+	tristate "Aosong adp810 differential pressure and temperature sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say yes here to build adp810 differential pressure and temperature
+	  sensor driver. ADP810 can measure pressure range up to 500Pa.
+	  It supports an I2C interface for data communication.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called adp810
+
 endmenu

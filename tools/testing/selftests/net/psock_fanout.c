@@ -54,7 +54,7 @@
 #include <unistd.h>
 
 #include "psock_lib.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define RING_NUM_FRAMES			20
 

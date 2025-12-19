@@ -55,7 +55,8 @@ int cpu_latency_qos_request_active(handle):
 
 From user space:
 
-The infrastructure exposes one device node, /dev/cpu_dma_latency, for the CPU
+The infrastructure exposes two separate device nodes, /dev/cpu_dma_latency for
+the CPU latency QoS and /dev/cpu_wakeup_latency for the CPU system wakeup
 latency QoS.
 
 Only processes can register a PM QoS request.  To provide for automatic
@@ -63,15 +64,15 @@ cleanup of a process, the interface requires the process to register its
 parameter requests as follows.
 
 To register the default PM QoS target for the CPU latency QoS, the process must
-open /dev/cpu_dma_latency.
+open /dev/cpu_dma_latency.  To register a CPU system wakeup QoS limit, the
+process must open /dev/cpu_wakeup_latency.
 
 As long as the device node is held open that process has a registered
 request on the parameter.
 
 To change the requested target value, the process needs to write an s32 value to
 the open device node.  Alternatively, it can write a hex string for the value
-using the 10 char long format e.g. "0x12345678".  This translates to a
-cpu_latency_qos_update_request() call.
+using the 10 char long format e.g. "0x12345678".
 
 To remove the user mode request for a target value simply close the device
 node.

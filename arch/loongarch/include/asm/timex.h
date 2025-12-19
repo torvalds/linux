@@ -18,7 +18,38 @@ typedef unsigned long cycles_t;
 
 static inline cycles_t get_cycles(void)
 {
-	return drdtime();
+#ifdef CONFIG_32BIT
+	return rdtime_l();
+#else
+	return rdtime_d();
+#endif
+}
+
+#ifdef CONFIG_32BIT
+
+#define get_cycles_hi get_cycles_hi
+
+static inline cycles_t get_cycles_hi(void)
+{
+	return rdtime_h();
+}
+
+#endif
+
+static inline u64 get_cycles64(void)
+{
+#ifdef CONFIG_32BIT
+	u32 hi, lo;
+
+	do {
+		hi = rdtime_h();
+		lo = rdtime_l();
+	} while (hi != rdtime_h());
+
+	return ((u64)hi << 32) | lo;
+#else
+	return rdtime_d();
+#endif
 }
 
 #endif /* __KERNEL__ */

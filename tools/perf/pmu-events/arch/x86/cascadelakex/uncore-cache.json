@@ -22,7 +22,7 @@
         "Unit": "CHA"
     },
     {
-        "BriefDescription": "LLC misses - Uncacheable reads (from cpu) . Derived from unc_cha_tor_inserts.ia_miss",
+        "BriefDescription": "LLC misses - Uncacheable reads (from cpu). Derived from unc_cha_tor_inserts.ia_miss",
         "Counter": "0,1,2,3",
         "EventCode": "0x35",
         "EventName": "LLC_MISSES.UNCACHEABLE",

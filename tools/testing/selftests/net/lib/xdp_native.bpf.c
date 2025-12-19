@@ -332,7 +332,7 @@ static __u16 csum_fold_helper(__u32 csum)
 }
 
 static int xdp_adjst_tail_shrnk_data(struct xdp_md *ctx, __u16 offset,
-				     __u32 hdr_len)
+				     unsigned long hdr_len)
 {
 	char tmp_buff[MAX_ADJST_OFFSET];
 	__u32 buff_pos, udp_csum = 0;
@@ -422,8 +422,9 @@ static int xdp_adjst_tail(struct xdp_md *ctx, __u16 port)
 {
 	struct udphdr *udph = NULL;
 	__s32 *adjust_offset, *val;
-	__u32 key, hdr_len;
+	unsigned long hdr_len;
 	void *offset_ptr;
+	__u32 key;
 	__u8 tag;
 	int ret;
 

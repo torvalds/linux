@@ -947,8 +947,11 @@ static struct xfrm_state *xfrm_state_construct(struct net *net,
 
 	if (attrs[XFRMA_SA_PCPU]) {
 		x->pcpu_num = nla_get_u32(attrs[XFRMA_SA_PCPU]);
-		if (x->pcpu_num >= num_possible_cpus())
+		if (x->pcpu_num >= num_possible_cpus()) {
+			err = -ERANGE;
+			NL_SET_ERR_MSG(extack, "pCPU number too big");
 			goto error;
+		}
 	}
 
 	err = __xfrm_init_state(x, extack);
@@ -3035,6 +3038,9 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	xfrm_state_free(x);
+	xfrm_dev_policy_delete(xp);
+	xfrm_dev_policy_free(xp);
+	security_xfrm_policy_free(xp->security);
 	kfree(xp);
 
 	return 0;

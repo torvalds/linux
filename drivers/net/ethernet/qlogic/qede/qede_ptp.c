@@ -199,18 +199,15 @@ static u64 qede_ptp_read_cc(struct cyclecounter *cc)
 	return phc_cycles;
 }
 
-static int qede_ptp_cfg_filters(struct qede_dev *edev)
+static void qede_ptp_cfg_filters(struct qede_dev *edev)
 {
 	enum qed_ptp_hwtstamp_tx_type tx_type = QED_PTP_HWTSTAMP_TX_ON;
 	enum qed_ptp_filter_type rx_filter = QED_PTP_FILTER_NONE;
 	struct qede_ptp *ptp = edev->ptp;
 
-	if (!ptp)
-		return -EIO;
-
 	if (!ptp->hw_ts_ioctl_called) {
 		DP_INFO(edev, "TS IOCTL not called\n");
-		return 0;
+		return;
 	}
 
 	switch (ptp->tx_type) {
@@ -223,11 +220,6 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 		clear_bit(QEDE_FLAGS_TX_TIMESTAMPING_EN, &edev->flags);
 		tx_type = QED_PTP_HWTSTAMP_TX_OFF;
 		break;
-
-	case HWTSTAMP_TX_ONESTEP_SYNC:
-	case HWTSTAMP_TX_ONESTEP_P2P:
-		DP_ERR(edev, "One-step timestamping is not supported\n");
-		return -ERANGE;
 	}
 
 	spin_lock_bh(&ptp->lock);
@@ -286,39 +278,65 @@ static int qede_ptp_cfg_filters(struct qede_dev *edev)
 	ptp->ops->cfg_filters(edev->cdev, rx_filter, tx_type);
 
 	spin_unlock_bh(&ptp->lock);
+}
+
+int qede_hwtstamp_set(struct net_device *netdev,
+		      struct kernel_hwtstamp_config *config,
+		      struct netlink_ext_ack *extack)
+{
+	struct qede_dev *edev = netdev_priv(netdev);
+	struct qede_ptp *ptp;
+
+	if (!netif_running(netdev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Device is down");
+		return -EAGAIN;
+	}
+
+	ptp = edev->ptp;
+	if (!ptp) {
+		NL_SET_ERR_MSG_MOD(extack, "HW timestamping is not supported");
+		return -EIO;
+	}
+
+	DP_VERBOSE(edev, QED_MSG_DEBUG,
+		   "HWTSTAMP SET: Requested tx_type = %d, requested rx_filters = %d\n",
+		   config->tx_type, config->rx_filter);
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_ON:
+	case HWTSTAMP_TX_OFF:
+		break;
+	default:
+		NL_SET_ERR_MSG_MOD(extack,
+				   "One-step timestamping is not supported");
+		return -ERANGE;
+	}
+
+	ptp->hw_ts_ioctl_called = 1;
+	ptp->tx_type = config->tx_type;
+	ptp->rx_filter = config->rx_filter;
+
+	qede_ptp_cfg_filters(edev);
+
+	config->rx_filter = ptp->rx_filter;
 
 	return 0;
 }
 
-int qede_ptp_hw_ts(struct qede_dev *edev, struct ifreq *ifr)
+int qede_hwtstamp_get(struct net_device *netdev,
+		      struct kernel_hwtstamp_config *config)
 {
-	struct hwtstamp_config config;
+	struct qede_dev *edev = netdev_priv(netdev);
 	struct qede_ptp *ptp;
-	int rc;
 
 	ptp = edev->ptp;
 	if (!ptp)
 		return -EIO;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
+	config->tx_type = ptp->tx_type;
+	config->rx_filter = ptp->rx_filter;
 
-	DP_VERBOSE(edev, QED_MSG_DEBUG,
-		   "HWTSTAMP IOCTL: Requested tx_type = %d, requested rx_filters = %d\n",
-		   config.tx_type, config.rx_filter);
-
-	ptp->hw_ts_ioctl_called = 1;
-	ptp->tx_type = config.tx_type;
-	ptp->rx_filter = config.rx_filter;
-
-	rc = qede_ptp_cfg_filters(edev);
-	if (rc)
-		return rc;
-
-	config.rx_filter = ptp->rx_filter;
-
-	return copy_to_user(ifr->ifr_data, &config,
-			    sizeof(config)) ? -EFAULT : 0;
+	return 0;
 }
 
 int qede_ptp_get_ts_info(struct qede_dev *edev, struct kernel_ethtool_ts_info *info)

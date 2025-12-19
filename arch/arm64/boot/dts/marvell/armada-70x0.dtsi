@@ -56,7 +56,7 @@
 			marvell,function = "dev";
 		};
 
-		nand_rb: nand-rb {
+		nand_rb: nand-rb-pins {
 			marvell,pins = "mpp13";
 			marvell,function = "nf";
 		};

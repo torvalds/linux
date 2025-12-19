@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
 #include "arch-tests.h"
 #include "../util/topdown.h"
 #include "debug.h"

@@ -11,64 +11,11 @@
 #ifndef _CRYPTO_SCATTERWALK_H
 #define _CRYPTO_SCATTERWALK_H
 
-#include <linux/errno.h>
+#include <crypto/algapi.h>
+
 #include <linux/highmem.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
-#include <linux/types.h>
-
-struct scatter_walk {
-	/* Must be the first member, see struct skcipher_walk. */
-	union {
-		void *const addr;
-
-		/* Private API field, do not touch. */
-		union crypto_no_such_thing *__addr;
-	};
-	struct scatterlist *sg;
-	unsigned int offset;
-};
-
-struct skcipher_walk {
-	union {
-		/* Virtual address of the source. */
-		struct {
-			struct {
-				const void *const addr;
-			} virt;
-		} src;
-
-		/* Private field for the API, do not use. */
-		struct scatter_walk in;
-	};
-
-	union {
-		/* Virtual address of the destination. */
-		struct {
-			struct {
-				void *const addr;
-			} virt;
-		} dst;
-
-		/* Private field for the API, do not use. */
-		struct scatter_walk out;
-	};
-
-	unsigned int nbytes;
-	unsigned int total;
-
-	u8 *page;
-	u8 *buffer;
-	u8 *oiv;
-	void *iv;
-
-	unsigned int ivsize;
-
-	int flags;
-	unsigned int blocksize;
-	unsigned int stride;
-	unsigned int alignmask;
-};
 
 static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 					    struct scatterlist *sg, int num)
@@ -227,6 +174,34 @@ static inline void scatterwalk_done_src(struct scatter_walk *walk,
 	scatterwalk_advance(walk, nbytes);
 }
 
+/*
+ * Flush the dcache of any pages that overlap the region
+ * [offset, offset + nbytes) relative to base_page.
+ *
+ * This should be called only when ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE, to ensure
+ * that all relevant code (including the call to sg_page() in the caller, if
+ * applicable) gets fully optimized out when !ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE.
+ */
+static inline void __scatterwalk_flush_dcache_pages(struct page *base_page,
+						    unsigned int offset,
+						    unsigned int nbytes)
+{
+	unsigned int num_pages;
+
+	base_page += offset / PAGE_SIZE;
+	offset %= PAGE_SIZE;
+
+	/*
+	 * This is an overflow-safe version of
+	 * num_pages = DIV_ROUND_UP(offset + nbytes, PAGE_SIZE).
+	 */
+	num_pages = nbytes / PAGE_SIZE;
+	num_pages += DIV_ROUND_UP(offset + (nbytes % PAGE_SIZE), PAGE_SIZE);
+
+	for (unsigned int i = 0; i < num_pages; i++)
+		flush_dcache_page(base_page + i);
+}
+
 /**
  * scatterwalk_done_dst() - Finish one step of a walk of destination scatterlist
  * @walk: the scatter_walk
@@ -240,27 +215,9 @@ static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 					unsigned int nbytes)
 {
 	scatterwalk_unmap(walk);
-	/*
-	 * Explicitly check ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE instead of just
-	 * relying on flush_dcache_page() being a no-op when not implemented,
-	 * since otherwise the BUG_ON in sg_page() does not get optimized out.
-	 * This also avoids having to consider whether the loop would get
-	 * reliably optimized out or not.
-	 */
-	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE) {
-		struct page *base_page;
-		unsigned int offset;
-		int start, end, i;
-
-		base_page = sg_page(walk->sg);
-		offset = walk->offset;
-		start = offset >> PAGE_SHIFT;
-		end = start + (nbytes >> PAGE_SHIFT);
-		end += (offset_in_page(offset) + offset_in_page(nbytes) +
-			PAGE_SIZE - 1) >> PAGE_SHIFT;
-		for (i = start; i < end; i++)
-			flush_dcache_page(base_page + i);
-	}
+	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE)
+		__scatterwalk_flush_dcache_pages(sg_page(walk->sg),
+						 walk->offset, nbytes);
 	scatterwalk_advance(walk, nbytes);
 }
 
@@ -295,13 +252,5 @@ static inline void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,
 				     unsigned int len);
-
-int skcipher_walk_first(struct skcipher_walk *walk, bool atomic);
-int skcipher_walk_done(struct skcipher_walk *walk, int res);
-
-static inline void skcipher_walk_abort(struct skcipher_walk *walk)
-{
-	skcipher_walk_done(walk, -ECANCELED);
-}
 
 #endif  /* _CRYPTO_SCATTERWALK_H */

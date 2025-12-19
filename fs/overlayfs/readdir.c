@@ -348,11 +348,7 @@ static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 
 static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
-	int err = 0;
 	struct dentry *dentry, *dir = path->dentry;
-	const struct cred *old_cred;
-
-	old_cred = ovl_override_creds(rdd->dentry->d_sb);
 
 	while (rdd->first_maybe_whiteout) {
 		struct ovl_cache_entry *p =
@@ -365,13 +361,11 @@ static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data 
 			p->is_whiteout = ovl_is_whiteout(dentry);
 			dput(dentry);
 		} else if (PTR_ERR(dentry) == -EINTR) {
-			err = -EINTR;
-			break;
+			return -EINTR;
 		}
 	}
-	ovl_revert_creds(old_cred);
 
-	return err;
+	return 0;
 }
 
 static inline int ovl_dir_read(const struct path *realpath,
@@ -838,36 +832,12 @@ static int ovl_iterate_real(struct file *file, struct dir_context *ctx)
 	return err;
 }
 
-
-static int ovl_iterate(struct file *file, struct dir_context *ctx)
+static int ovl_iterate_merged(struct file *file, struct dir_context *ctx)
 {
 	struct ovl_dir_file *od = file->private_data;
 	struct dentry *dentry = file->f_path.dentry;
-	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
 	struct ovl_cache_entry *p;
-	const struct cred *old_cred;
-	int err;
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	if (!ctx->pos)
-		ovl_dir_reset(file);
-
-	if (od->is_real) {
-		/*
-		 * If parent is merge, then need to adjust d_ino for '..', if
-		 * dir is impure then need to adjust d_ino for copied up
-		 * entries.
-		 */
-		if (ovl_xino_bits(ofs) ||
-		    (ovl_same_fs(ofs) &&
-		     (ovl_is_impure_dir(file) ||
-		      OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent))))) {
-			err = ovl_iterate_real(file, ctx);
-		} else {
-			err = iterate_dir(od->realfile, ctx);
-		}
-		goto out;
-	}
+	int err = 0;
 
 	if (!od->cache) {
 		struct ovl_dir_cache *cache;
@@ -875,7 +845,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		cache = ovl_cache_get(dentry);
 		err = PTR_ERR(cache);
 		if (IS_ERR(cache))
-			goto out;
+			return err;
 
 		od->cache = cache;
 		ovl_seek_cursor(od, ctx->pos);
@@ -887,7 +857,7 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 			if (!p->ino || p->check_xwhiteout) {
 				err = ovl_cache_update(&file->f_path, p, !p->ino);
 				if (err)
-					goto out;
+					return err;
 			}
 		}
 		/* ovl_cache_update() sets is_whiteout on stale entry */
@@ -898,10 +868,48 @@ static int ovl_iterate(struct file *file, struct dir_context *ctx)
 		od->cursor = p->l_node.next;
 		ctx->pos++;
 	}
-	err = 0;
-out:
-	ovl_revert_creds(old_cred);
 	return err;
+}
+
+static bool ovl_need_adjust_d_ino(struct file *file)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct ovl_fs *ofs = OVL_FS(dentry->d_sb);
+
+	/* If parent is merge, then need to adjust d_ino for '..' */
+	if (ovl_xino_bits(ofs))
+		return true;
+
+	/* Can't do consistent inode numbering */
+	if (!ovl_same_fs(ofs))
+		return false;
+
+	/* If dir is impure then need to adjust d_ino for copied up entries */
+	if (ovl_is_impure_dir(file) ||
+	    OVL_TYPE_MERGE(ovl_path_type(dentry->d_parent)))
+		return true;
+
+	/* Pure: no need to adjust d_ino */
+	return false;
+}
+
+
+static int ovl_iterate(struct file *file, struct dir_context *ctx)
+{
+	struct ovl_dir_file *od = file->private_data;
+
+	if (!ctx->pos)
+		ovl_dir_reset(file);
+
+	with_ovl_creds(file_dentry(file)->d_sb) {
+		if (!od->is_real)
+			return ovl_iterate_merged(file, ctx);
+
+		if (ovl_need_adjust_d_ino(file))
+			return ovl_iterate_real(file, ctx);
+
+		return iterate_dir(od->realfile, ctx);
+	}
 }
 
 static loff_t ovl_dir_llseek(struct file *file, loff_t offset, int origin)
@@ -947,14 +955,8 @@ out_unlock:
 static struct file *ovl_dir_open_realfile(const struct file *file,
 					  const struct path *realpath)
 {
-	struct file *res;
-	const struct cred *old_cred;
-
-	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	res = ovl_path_open(realpath, O_RDONLY | (file->f_flags & O_LARGEFILE));
-	ovl_revert_creds(old_cred);
-
-	return res;
+	with_ovl_creds(file_inode(file)->i_sb)
+		return ovl_path_open(realpath, O_RDONLY | (file->f_flags & O_LARGEFILE));
 }
 
 /*
@@ -1075,11 +1077,9 @@ int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 	int err;
 	struct ovl_cache_entry *p, *n;
 	struct rb_root root = RB_ROOT;
-	const struct cred *old_cred;
 
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = ovl_dir_read_merged(dentry, list, &root);
-	ovl_revert_creds(old_cred);
+	with_ovl_creds(dentry->d_sb)
+		err = ovl_dir_read_merged(dentry, list, &root);
 	if (err)
 		return err;
 
@@ -1242,11 +1242,11 @@ int ovl_workdir_cleanup(struct ovl_fs *ofs, struct dentry *parent,
 	if (!d_is_dir(dentry) || level > 1)
 		return ovl_cleanup(ofs, parent, dentry);
 
-	err = ovl_parent_lock(parent, dentry);
-	if (err)
-		return err;
+	dentry = start_removing_dentry(parent, dentry);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 	err = ovl_do_rmdir(ofs, parent->d_inode, dentry);
-	ovl_parent_unlock(parent);
+	end_removing(dentry);
 	if (err) {
 		struct path path = { .mnt = mnt, .dentry = dentry };
 

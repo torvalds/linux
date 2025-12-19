@@ -14,7 +14,7 @@
 #include <linux/ptrace.h>
 #include <asm/debug-monitors.h>
 
-#ifndef	__ASSEMBLY__
+#ifndef	__ASSEMBLER__
 
 static inline void arch_kgdb_breakpoint(void)
 {
@@ -36,7 +36,7 @@ static inline int kgdb_single_step_handler(struct pt_regs *regs,
 }
 #endif
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * gdb remote procotol (well most versions of it) expects the following

@@ -7,6 +7,8 @@
 #include <linux/netdevice.h>
 #include <linux/prefetch.h>
 #include <linux/bpf_trace.h>
+#include <linux/net/intel/libie/rx.h>
+#include <net/libeth/xdp.h>
 #include <net/dsfield.h>
 #include <net/mpls.h>
 #include <net/xdp.h>
@@ -111,7 +113,7 @@ ice_prgm_fdir_fltr(struct ice_vsi *vsi, struct ice_fltr_desc *fdir_desc,
 static void
 ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 {
-	if (dma_unmap_len(tx_buf, len))
+	if (tx_buf->type != ICE_TX_BUF_XDP_TX && dma_unmap_len(tx_buf, len))
 		dma_unmap_page(ring->dev,
 			       dma_unmap_addr(tx_buf, dma),
 			       dma_unmap_len(tx_buf, len),
@@ -125,7 +127,7 @@ ice_unmap_and_free_tx_buf(struct ice_tx_ring *ring, struct ice_tx_buf *tx_buf)
 		dev_kfree_skb_any(tx_buf->skb);
 		break;
 	case ICE_TX_BUF_XDP_TX:
-		page_frag_free(tx_buf->raw_buf);
+		libeth_xdp_return_va(tx_buf->raw_buf, false);
 		break;
 	case ICE_TX_BUF_XDP_XMIT:
 		xdp_return_frame(tx_buf->xdpf);
@@ -506,61 +508,67 @@ err:
 	return -ENOMEM;
 }
 
+void ice_rxq_pp_destroy(struct ice_rx_ring *rq)
+{
+	struct libeth_fq fq = {
+		.fqes	= rq->rx_fqes,
+		.pp	= rq->pp,
+	};
+
+	libeth_rx_fq_destroy(&fq);
+	rq->rx_fqes = NULL;
+	rq->pp = NULL;
+
+	if (!rq->hdr_pp)
+		return;
+
+	fq.fqes = rq->hdr_fqes;
+	fq.pp = rq->hdr_pp;
+
+	libeth_rx_fq_destroy(&fq);
+	rq->hdr_fqes = NULL;
+	rq->hdr_pp = NULL;
+}
+
 /**
  * ice_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  */
 void ice_clean_rx_ring(struct ice_rx_ring *rx_ring)
 {
-	struct xdp_buff *xdp = &rx_ring->xdp;
-	struct device *dev = rx_ring->dev;
 	u32 size;
-	u16 i;
-
-	/* ring already cleared, nothing to do */
-	if (!rx_ring->rx_buf)
-		return;
 
 	if (rx_ring->xsk_pool) {
 		ice_xsk_clean_rx_ring(rx_ring);
 		goto rx_skip_free;
 	}
 
-	if (xdp->data) {
-		xdp_return_buff(xdp);
-		xdp->data = NULL;
-	}
+	/* ring already cleared, nothing to do */
+	if (!rx_ring->rx_fqes)
+		return;
+
+	libeth_xdp_return_stash(&rx_ring->xdp);
 
 	/* Free all the Rx ring sk_buffs */
-	for (i = 0; i < rx_ring->count; i++) {
-		struct ice_rx_buf *rx_buf = &rx_ring->rx_buf[i];
+	for (u32 i = rx_ring->next_to_clean; i != rx_ring->next_to_use; ) {
+		libeth_rx_recycle_slow(rx_ring->rx_fqes[i].netmem);
 
-		if (!rx_buf->page)
-			continue;
+		if (rx_ring->hdr_pp)
+			libeth_rx_recycle_slow(rx_ring->hdr_fqes[i].netmem);
 
-		/* Invalidate cache lines that may have been written to by
-		 * device so that we avoid corrupting memory.
-		 */
-		dma_sync_single_range_for_cpu(dev, rx_buf->dma,
-					      rx_buf->page_offset,
-					      rx_ring->rx_buf_len,
-					      DMA_FROM_DEVICE);
-
-		/* free resources associated with mapping */
-		dma_unmap_page_attrs(dev, rx_buf->dma, ice_rx_pg_size(rx_ring),
-				     DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
-		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
-
-		rx_buf->page = NULL;
-		rx_buf->page_offset = 0;
+		if (unlikely(++i == rx_ring->count))
+			i = 0;
 	}
 
-rx_skip_free:
-	if (rx_ring->xsk_pool)
-		memset(rx_ring->xdp_buf, 0, array_size(rx_ring->count, sizeof(*rx_ring->xdp_buf)));
-	else
-		memset(rx_ring->rx_buf, 0, array_size(rx_ring->count, sizeof(*rx_ring->rx_buf)));
+	if (rx_ring->vsi->type == ICE_VSI_PF &&
+	    xdp_rxq_info_is_reg(&rx_ring->xdp_rxq)) {
+		xdp_rxq_info_detach_mem_model(&rx_ring->xdp_rxq);
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
+	}
 
+	ice_rxq_pp_destroy(rx_ring);
+
+rx_skip_free:
 	/* Zero out the descriptor ring */
 	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
 		     PAGE_SIZE);
@@ -568,7 +576,6 @@ rx_skip_free:
 
 	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
-	rx_ring->first_desc = 0;
 	rx_ring->next_to_use = 0;
 }
 
@@ -580,26 +587,20 @@ rx_skip_free:
  */
 void ice_free_rx_ring(struct ice_rx_ring *rx_ring)
 {
+	struct device *dev = ice_pf_to_dev(rx_ring->vsi->back);
 	u32 size;
 
 	ice_clean_rx_ring(rx_ring);
-	if (rx_ring->vsi->type == ICE_VSI_PF)
-		if (xdp_rxq_info_is_reg(&rx_ring->xdp_rxq))
-			xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	WRITE_ONCE(rx_ring->xdp_prog, NULL);
 	if (rx_ring->xsk_pool) {
 		kfree(rx_ring->xdp_buf);
 		rx_ring->xdp_buf = NULL;
-	} else {
-		kfree(rx_ring->rx_buf);
-		rx_ring->rx_buf = NULL;
 	}
 
 	if (rx_ring->desc) {
 		size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
 			     PAGE_SIZE);
-		dmam_free_coherent(rx_ring->dev, size,
-				   rx_ring->desc, rx_ring->dma);
+		dmam_free_coherent(dev, size, rx_ring->desc, rx_ring->dma);
 		rx_ring->desc = NULL;
 	}
 }
@@ -612,18 +613,8 @@ void ice_free_rx_ring(struct ice_rx_ring *rx_ring)
  */
 int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 {
-	struct device *dev = rx_ring->dev;
+	struct device *dev = ice_pf_to_dev(rx_ring->vsi->back);
 	u32 size;
-
-	if (!dev)
-		return -ENOMEM;
-
-	/* warn if we are about to overwrite the pointer */
-	WARN_ON(rx_ring->rx_buf);
-	rx_ring->rx_buf =
-		kcalloc(rx_ring->count, sizeof(*rx_ring->rx_buf), GFP_KERNEL);
-	if (!rx_ring->rx_buf)
-		return -ENOMEM;
 
 	/* round up to nearest page */
 	size = ALIGN(rx_ring->count * sizeof(union ice_32byte_rx_desc),
@@ -633,22 +624,16 @@ int ice_setup_rx_ring(struct ice_rx_ring *rx_ring)
 	if (!rx_ring->desc) {
 		dev_err(dev, "Unable to allocate memory for the Rx descriptor ring, size=%d\n",
 			size);
-		goto err;
+		return -ENOMEM;
 	}
 
 	rx_ring->next_to_use = 0;
 	rx_ring->next_to_clean = 0;
-	rx_ring->first_desc = 0;
 
 	if (ice_is_xdp_ena_vsi(rx_ring->vsi))
 		WRITE_ONCE(rx_ring->xdp_prog, rx_ring->vsi->xdp_prog);
 
 	return 0;
-
-err:
-	kfree(rx_ring->rx_buf);
-	rx_ring->rx_buf = NULL;
-	return -ENOMEM;
 }
 
 /**
@@ -662,7 +647,7 @@ err:
  * Returns any of ICE_XDP_{PASS, CONSUMED, TX, REDIR}
  */
 static u32
-ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
+ice_run_xdp(struct ice_rx_ring *rx_ring, struct libeth_xdp_buff *xdp,
 	    struct bpf_prog *xdp_prog, struct ice_tx_ring *xdp_ring,
 	    union ice_32b_rx_flex_desc *eop_desc)
 {
@@ -672,23 +657,23 @@ ice_run_xdp(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
 	if (!xdp_prog)
 		goto exit;
 
-	ice_xdp_meta_set_desc(xdp, eop_desc);
+	xdp->desc = eop_desc;
 
-	act = bpf_prog_run_xdp(xdp_prog, xdp);
+	act = bpf_prog_run_xdp(xdp_prog, &xdp->base);
 	switch (act) {
 	case XDP_PASS:
 		break;
 	case XDP_TX:
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_lock(&xdp_ring->tx_lock);
-		ret = __ice_xmit_xdp_ring(xdp, xdp_ring, false);
+		ret = __ice_xmit_xdp_ring(&xdp->base, xdp_ring, false);
 		if (static_branch_unlikely(&ice_xdp_locking_key))
 			spin_unlock(&xdp_ring->tx_lock);
 		if (ret == ICE_XDP_CONSUMED)
 			goto out_failure;
 		break;
 	case XDP_REDIRECT:
-		if (xdp_do_redirect(rx_ring->netdev, xdp, xdp_prog))
+		if (xdp_do_redirect(rx_ring->netdev, &xdp->base, xdp_prog))
 			goto out_failure;
 		ret = ICE_XDP_REDIR;
 		break;
@@ -700,8 +685,10 @@ out_failure:
 		trace_xdp_exception(rx_ring->netdev, xdp_prog, act);
 		fallthrough;
 	case XDP_DROP:
+		libeth_xdp_return_buff(xdp);
 		ret = ICE_XDP_CONSUMED;
 	}
+
 exit:
 	return ret;
 }
@@ -790,53 +777,6 @@ ice_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 }
 
 /**
- * ice_alloc_mapped_page - recycle or make a new page
- * @rx_ring: ring to use
- * @bi: rx_buf struct to modify
- *
- * Returns true if the page was successfully allocated or
- * reused.
- */
-static bool
-ice_alloc_mapped_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *bi)
-{
-	struct page *page = bi->page;
-	dma_addr_t dma;
-
-	/* since we are recycling buffers we should seldom need to alloc */
-	if (likely(page))
-		return true;
-
-	/* alloc new page for storage */
-	page = dev_alloc_pages(ice_rx_pg_order(rx_ring));
-	if (unlikely(!page)) {
-		rx_ring->ring_stats->rx_stats.alloc_page_failed++;
-		return false;
-	}
-
-	/* map page for use */
-	dma = dma_map_page_attrs(rx_ring->dev, page, 0, ice_rx_pg_size(rx_ring),
-				 DMA_FROM_DEVICE, ICE_RX_DMA_ATTR);
-
-	/* if mapping failed free memory back to system since
-	 * there isn't much point in holding memory we can't use
-	 */
-	if (dma_mapping_error(rx_ring->dev, dma)) {
-		__free_pages(page, ice_rx_pg_order(rx_ring));
-		rx_ring->ring_stats->rx_stats.alloc_page_failed++;
-		return false;
-	}
-
-	bi->dma = dma;
-	bi->page = page;
-	bi->page_offset = rx_ring->rx_offset;
-	page_ref_add(page, USHRT_MAX - 1);
-	bi->pagecnt_bias = USHRT_MAX;
-
-	return true;
-}
-
-/**
  * ice_init_ctrl_rx_descs - Initialize Rx descriptors for control vsi.
  * @rx_ring: ring to init descriptors on
  * @count: number of descriptors to initialize
@@ -882,9 +822,20 @@ void ice_init_ctrl_rx_descs(struct ice_rx_ring *rx_ring, u32 count)
  */
 bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 {
+	const struct libeth_fq_fp hdr_fq = {
+		.pp		= rx_ring->hdr_pp,
+		.fqes		= rx_ring->hdr_fqes,
+		.truesize	= rx_ring->hdr_truesize,
+		.count		= rx_ring->count,
+	};
+	const struct libeth_fq_fp fq = {
+		.pp		= rx_ring->pp,
+		.fqes		= rx_ring->rx_fqes,
+		.truesize	= rx_ring->truesize,
+		.count		= rx_ring->count,
+	};
 	union ice_32b_rx_flex_desc *rx_desc;
 	u16 ntu = rx_ring->next_to_use;
-	struct ice_rx_buf *bi;
 
 	/* do nothing if no valid netdev defined */
 	if (!rx_ring->netdev || !cleaned_count)
@@ -892,30 +843,39 @@ bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 
 	/* get the Rx descriptor and buffer based on next_to_use */
 	rx_desc = ICE_RX_DESC(rx_ring, ntu);
-	bi = &rx_ring->rx_buf[ntu];
 
 	do {
-		/* if we fail here, we have work remaining */
-		if (!ice_alloc_mapped_page(rx_ring, bi))
-			break;
+		dma_addr_t addr;
 
-		/* sync the buffer for use by the device */
-		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
-						 bi->page_offset,
-						 rx_ring->rx_buf_len,
-						 DMA_FROM_DEVICE);
+		addr = libeth_rx_alloc(&fq, ntu);
+		if (addr == DMA_MAPPING_ERROR) {
+			rx_ring->ring_stats->rx_stats.alloc_page_failed++;
+			break;
+		}
 
 		/* Refresh the desc even if buffer_addrs didn't change
 		 * because each write-back erases this info.
 		 */
-		rx_desc->read.pkt_addr = cpu_to_le64(bi->dma + bi->page_offset);
+		rx_desc->read.pkt_addr = cpu_to_le64(addr);
 
+		if (!hdr_fq.pp)
+			goto next;
+
+		addr = libeth_rx_alloc(&hdr_fq, ntu);
+		if (addr == DMA_MAPPING_ERROR) {
+			rx_ring->ring_stats->rx_stats.alloc_page_failed++;
+
+			libeth_rx_recycle_slow(fq.fqes[ntu].netmem);
+			break;
+		}
+
+		rx_desc->read.hdr_addr = cpu_to_le64(addr);
+
+next:
 		rx_desc++;
-		bi++;
 		ntu++;
 		if (unlikely(ntu == rx_ring->count)) {
 			rx_desc = ICE_RX_DESC(rx_ring, 0);
-			bi = rx_ring->rx_buf;
 			ntu = 0;
 		}
 
@@ -929,402 +889,6 @@ bool ice_alloc_rx_bufs(struct ice_rx_ring *rx_ring, unsigned int cleaned_count)
 		ice_release_rx_desc(rx_ring, ntu);
 
 	return !!cleaned_count;
-}
-
-/**
- * ice_rx_buf_adjust_pg_offset - Prepare Rx buffer for reuse
- * @rx_buf: Rx buffer to adjust
- * @size: Size of adjustment
- *
- * Update the offset within page so that Rx buf will be ready to be reused.
- * For systems with PAGE_SIZE < 8192 this function will flip the page offset
- * so the second half of page assigned to Rx buffer will be used, otherwise
- * the offset is moved by "size" bytes
- */
-static void
-ice_rx_buf_adjust_pg_offset(struct ice_rx_buf *rx_buf, unsigned int size)
-{
-#if (PAGE_SIZE < 8192)
-	/* flip page offset to other buffer */
-	rx_buf->page_offset ^= size;
-#else
-	/* move offset up to the next cache line */
-	rx_buf->page_offset += size;
-#endif
-}
-
-/**
- * ice_can_reuse_rx_page - Determine if page can be reused for another Rx
- * @rx_buf: buffer containing the page
- *
- * If page is reusable, we have a green light for calling ice_reuse_rx_page,
- * which will assign the current buffer to the buffer that next_to_alloc is
- * pointing to; otherwise, the DMA mapping needs to be destroyed and
- * page freed
- */
-static bool
-ice_can_reuse_rx_page(struct ice_rx_buf *rx_buf)
-{
-	unsigned int pagecnt_bias = rx_buf->pagecnt_bias;
-	struct page *page = rx_buf->page;
-
-	/* avoid re-using remote and pfmemalloc pages */
-	if (!dev_page_is_reusable(page))
-		return false;
-
-	/* if we are only owner of page we can reuse it */
-	if (unlikely(rx_buf->pgcnt - pagecnt_bias > 1))
-		return false;
-#if (PAGE_SIZE >= 8192)
-#define ICE_LAST_OFFSET \
-	(SKB_WITH_OVERHEAD(PAGE_SIZE) - ICE_RXBUF_3072)
-	if (rx_buf->page_offset > ICE_LAST_OFFSET)
-		return false;
-#endif /* PAGE_SIZE >= 8192) */
-
-	/* If we have drained the page fragment pool we need to update
-	 * the pagecnt_bias and page count so that we fully restock the
-	 * number of references the driver holds.
-	 */
-	if (unlikely(pagecnt_bias == 1)) {
-		page_ref_add(page, USHRT_MAX - 1);
-		rx_buf->pagecnt_bias = USHRT_MAX;
-	}
-
-	return true;
-}
-
-/**
- * ice_add_xdp_frag - Add contents of Rx buffer to xdp buf as a frag
- * @rx_ring: Rx descriptor ring to transact packets on
- * @xdp: xdp buff to place the data into
- * @rx_buf: buffer containing page to add
- * @size: packet length from rx_desc
- *
- * This function will add the data contained in rx_buf->page to the xdp buf.
- * It will just attach the page as a frag.
- */
-static int
-ice_add_xdp_frag(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
-		 struct ice_rx_buf *rx_buf, const unsigned int size)
-{
-	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
-
-	if (!size)
-		return 0;
-
-	if (!xdp_buff_has_frags(xdp)) {
-		sinfo->nr_frags = 0;
-		sinfo->xdp_frags_size = 0;
-		xdp_buff_set_frags_flag(xdp);
-	}
-
-	if (unlikely(sinfo->nr_frags == MAX_SKB_FRAGS))
-		return -ENOMEM;
-
-	__skb_fill_page_desc_noacc(sinfo, sinfo->nr_frags++, rx_buf->page,
-				   rx_buf->page_offset, size);
-	sinfo->xdp_frags_size += size;
-
-	if (page_is_pfmemalloc(rx_buf->page))
-		xdp_buff_set_frag_pfmemalloc(xdp);
-
-	return 0;
-}
-
-/**
- * ice_reuse_rx_page - page flip buffer and store it back on the ring
- * @rx_ring: Rx descriptor ring to store buffers on
- * @old_buf: donor buffer to have page reused
- *
- * Synchronizes page for reuse by the adapter
- */
-static void
-ice_reuse_rx_page(struct ice_rx_ring *rx_ring, struct ice_rx_buf *old_buf)
-{
-	u16 nta = rx_ring->next_to_alloc;
-	struct ice_rx_buf *new_buf;
-
-	new_buf = &rx_ring->rx_buf[nta];
-
-	/* update, and store next to alloc */
-	nta++;
-	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
-
-	/* Transfer page from old buffer to new buffer.
-	 * Move each member individually to avoid possible store
-	 * forwarding stalls and unnecessary copy of skb.
-	 */
-	new_buf->dma = old_buf->dma;
-	new_buf->page = old_buf->page;
-	new_buf->page_offset = old_buf->page_offset;
-	new_buf->pagecnt_bias = old_buf->pagecnt_bias;
-}
-
-/**
- * ice_get_rx_buf - Fetch Rx buffer and synchronize data for use
- * @rx_ring: Rx descriptor ring to transact packets on
- * @size: size of buffer to add to skb
- * @ntc: index of next to clean element
- *
- * This function will pull an Rx buffer from the ring and synchronize it
- * for use by the CPU.
- */
-static struct ice_rx_buf *
-ice_get_rx_buf(struct ice_rx_ring *rx_ring, const unsigned int size,
-	       const unsigned int ntc)
-{
-	struct ice_rx_buf *rx_buf;
-
-	rx_buf = &rx_ring->rx_buf[ntc];
-	prefetchw(rx_buf->page);
-
-	if (!size)
-		return rx_buf;
-	/* we are reusing so sync this buffer for CPU use */
-	dma_sync_single_range_for_cpu(rx_ring->dev, rx_buf->dma,
-				      rx_buf->page_offset, size,
-				      DMA_FROM_DEVICE);
-
-	/* We have pulled a buffer for use, so decrement pagecnt_bias */
-	rx_buf->pagecnt_bias--;
-
-	return rx_buf;
-}
-
-/**
- * ice_get_pgcnts - grab page_count() for gathered fragments
- * @rx_ring: Rx descriptor ring to store the page counts on
- * @ntc: the next to clean element (not included in this frame!)
- *
- * This function is intended to be called right before running XDP
- * program so that the page recycling mechanism will be able to take
- * a correct decision regarding underlying pages; this is done in such
- * way as XDP program can change the refcount of page
- */
-static void ice_get_pgcnts(struct ice_rx_ring *rx_ring, unsigned int ntc)
-{
-	u32 idx = rx_ring->first_desc;
-	struct ice_rx_buf *rx_buf;
-	u32 cnt = rx_ring->count;
-
-	while (idx != ntc) {
-		rx_buf = &rx_ring->rx_buf[idx];
-		rx_buf->pgcnt = page_count(rx_buf->page);
-
-		if (++idx == cnt)
-			idx = 0;
-	}
-}
-
-/**
- * ice_build_skb - Build skb around an existing buffer
- * @rx_ring: Rx descriptor ring to transact packets on
- * @xdp: xdp_buff pointing to the data
- *
- * This function builds an skb around an existing XDP buffer, taking care
- * to set up the skb correctly and avoid any memcpy overhead. Driver has
- * already combined frags (if any) to skb_shared_info.
- */
-static struct sk_buff *
-ice_build_skb(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
-{
-	u8 metasize = xdp->data - xdp->data_meta;
-	struct skb_shared_info *sinfo = NULL;
-	unsigned int nr_frags;
-	struct sk_buff *skb;
-
-	if (unlikely(xdp_buff_has_frags(xdp))) {
-		sinfo = xdp_get_shared_info_from_buff(xdp);
-		nr_frags = sinfo->nr_frags;
-	}
-
-	/* Prefetch first cache line of first page. If xdp->data_meta
-	 * is unused, this points exactly as xdp->data, otherwise we
-	 * likely have a consumer accessing first few bytes of meta
-	 * data, and then actual data.
-	 */
-	net_prefetch(xdp->data_meta);
-	/* build an skb around the page buffer */
-	skb = napi_build_skb(xdp->data_hard_start, xdp->frame_sz);
-	if (unlikely(!skb))
-		return NULL;
-
-	/* must to record Rx queue, otherwise OS features such as
-	 * symmetric queue won't work
-	 */
-	skb_record_rx_queue(skb, rx_ring->q_index);
-
-	/* update pointers within the skb to store the data */
-	skb_reserve(skb, xdp->data - xdp->data_hard_start);
-	__skb_put(skb, xdp->data_end - xdp->data);
-	if (metasize)
-		skb_metadata_set(skb, metasize);
-
-	if (unlikely(xdp_buff_has_frags(xdp)))
-		xdp_update_skb_frags_info(skb, nr_frags, sinfo->xdp_frags_size,
-					  nr_frags * xdp->frame_sz,
-					  xdp_buff_get_skb_flags(xdp));
-
-	return skb;
-}
-
-/**
- * ice_construct_skb - Allocate skb and populate it
- * @rx_ring: Rx descriptor ring to transact packets on
- * @xdp: xdp_buff pointing to the data
- *
- * This function allocates an skb. It then populates it with the page
- * data from the current receive descriptor, taking care to set up the
- * skb correctly.
- */
-static struct sk_buff *
-ice_construct_skb(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp)
-{
-	unsigned int size = xdp->data_end - xdp->data;
-	struct skb_shared_info *sinfo = NULL;
-	struct ice_rx_buf *rx_buf;
-	unsigned int nr_frags = 0;
-	unsigned int headlen;
-	struct sk_buff *skb;
-
-	/* prefetch first cache line of first page */
-	net_prefetch(xdp->data);
-
-	if (unlikely(xdp_buff_has_frags(xdp))) {
-		sinfo = xdp_get_shared_info_from_buff(xdp);
-		nr_frags = sinfo->nr_frags;
-	}
-
-	/* allocate a skb to store the frags */
-	skb = napi_alloc_skb(&rx_ring->q_vector->napi, ICE_RX_HDR_SIZE);
-	if (unlikely(!skb))
-		return NULL;
-
-	rx_buf = &rx_ring->rx_buf[rx_ring->first_desc];
-	skb_record_rx_queue(skb, rx_ring->q_index);
-	/* Determine available headroom for copy */
-	headlen = size;
-	if (headlen > ICE_RX_HDR_SIZE)
-		headlen = eth_get_headlen(skb->dev, xdp->data, ICE_RX_HDR_SIZE);
-
-	/* align pull length to size of long to optimize memcpy performance */
-	memcpy(__skb_put(skb, headlen), xdp->data, ALIGN(headlen,
-							 sizeof(long)));
-
-	/* if we exhaust the linear part then add what is left as a frag */
-	size -= headlen;
-	if (size) {
-		/* besides adding here a partial frag, we are going to add
-		 * frags from xdp_buff, make sure there is enough space for
-		 * them
-		 */
-		if (unlikely(nr_frags >= MAX_SKB_FRAGS - 1)) {
-			dev_kfree_skb(skb);
-			return NULL;
-		}
-		skb_add_rx_frag(skb, 0, rx_buf->page,
-				rx_buf->page_offset + headlen, size,
-				xdp->frame_sz);
-	} else {
-		/* buffer is unused, restore biased page count in Rx buffer;
-		 * data was copied onto skb's linear part so there's no
-		 * need for adjusting page offset and we can reuse this buffer
-		 * as-is
-		 */
-		rx_buf->pagecnt_bias++;
-	}
-
-	if (unlikely(xdp_buff_has_frags(xdp))) {
-		struct skb_shared_info *skinfo = skb_shinfo(skb);
-
-		memcpy(&skinfo->frags[skinfo->nr_frags], &sinfo->frags[0],
-		       sizeof(skb_frag_t) * nr_frags);
-
-		xdp_update_skb_frags_info(skb, skinfo->nr_frags + nr_frags,
-					  sinfo->xdp_frags_size,
-					  nr_frags * xdp->frame_sz,
-					  xdp_buff_get_skb_flags(xdp));
-	}
-
-	return skb;
-}
-
-/**
- * ice_put_rx_buf - Clean up used buffer and either recycle or free
- * @rx_ring: Rx descriptor ring to transact packets on
- * @rx_buf: Rx buffer to pull data from
- *
- * This function will clean up the contents of the rx_buf. It will either
- * recycle the buffer or unmap it and free the associated resources.
- */
-static void
-ice_put_rx_buf(struct ice_rx_ring *rx_ring, struct ice_rx_buf *rx_buf)
-{
-	if (!rx_buf)
-		return;
-
-	if (ice_can_reuse_rx_page(rx_buf)) {
-		/* hand second half of page back to the ring */
-		ice_reuse_rx_page(rx_ring, rx_buf);
-	} else {
-		/* we are not reusing the buffer so unmap it */
-		dma_unmap_page_attrs(rx_ring->dev, rx_buf->dma,
-				     ice_rx_pg_size(rx_ring), DMA_FROM_DEVICE,
-				     ICE_RX_DMA_ATTR);
-		__page_frag_cache_drain(rx_buf->page, rx_buf->pagecnt_bias);
-	}
-
-	/* clear contents of buffer_info */
-	rx_buf->page = NULL;
-}
-
-/**
- * ice_put_rx_mbuf - ice_put_rx_buf() caller, for all buffers in frame
- * @rx_ring: Rx ring with all the auxiliary data
- * @xdp: XDP buffer carrying linear + frags part
- * @ntc: the next to clean element (not included in this frame!)
- * @verdict: return code from XDP program execution
- *
- * Called after XDP program is completed, or on error with verdict set to
- * ICE_XDP_CONSUMED.
- *
- * Walk through buffers from first_desc to the end of the frame, releasing
- * buffers and satisfying internal page recycle mechanism. The action depends
- * on verdict from XDP program.
- */
-static void ice_put_rx_mbuf(struct ice_rx_ring *rx_ring, struct xdp_buff *xdp,
-			    u32 ntc, u32 verdict)
-{
-	u32 idx = rx_ring->first_desc;
-	u32 cnt = rx_ring->count;
-	struct ice_rx_buf *buf;
-	u32 xdp_frags = 0;
-	int i = 0;
-
-	if (unlikely(xdp_buff_has_frags(xdp)))
-		xdp_frags = xdp_get_shared_info_from_buff(xdp)->nr_frags;
-
-	while (idx != ntc) {
-		buf = &rx_ring->rx_buf[idx];
-		if (++idx == cnt)
-			idx = 0;
-
-		/* An XDP program could release fragments from the end of the
-		 * buffer. For these, we need to keep the pagecnt_bias as-is.
-		 * To do this, only adjust pagecnt_bias for fragments up to
-		 * the total remaining after the XDP program has run.
-		 */
-		if (verdict != ICE_XDP_CONSUMED)
-			ice_rx_buf_adjust_pg_offset(buf, xdp->frame_sz);
-		else if (i++ <= xdp_frags)
-			buf->pagecnt_bias++;
-
-		ice_put_rx_buf(rx_ring, buf);
-	}
-
-	xdp->data = NULL;
-	rx_ring->first_desc = ntc;
 }
 
 /**
@@ -1361,9 +925,8 @@ void ice_clean_ctrl_rx_irq(struct ice_rx_ring *rx_ring)
 		total_rx_pkts++;
 	}
 
-	rx_ring->first_desc = ntc;
 	rx_ring->next_to_clean = ntc;
-	ice_init_ctrl_rx_descs(rx_ring, ICE_RX_DESC_UNUSED(rx_ring));
+	ice_init_ctrl_rx_descs(rx_ring, ICE_DESC_UNUSED(rx_ring));
 }
 
 /**
@@ -1381,15 +944,16 @@ void ice_clean_ctrl_rx_irq(struct ice_rx_ring *rx_ring)
 static int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 {
 	unsigned int total_rx_bytes = 0, total_rx_pkts = 0;
-	unsigned int offset = rx_ring->rx_offset;
-	struct xdp_buff *xdp = &rx_ring->xdp;
 	struct ice_tx_ring *xdp_ring = NULL;
 	struct bpf_prog *xdp_prog = NULL;
 	u32 ntc = rx_ring->next_to_clean;
+	LIBETH_XDP_ONSTACK_BUFF(xdp);
 	u32 cached_ntu, xdp_verdict;
 	u32 cnt = rx_ring->count;
 	u32 xdp_xmit = 0;
 	bool failure;
+
+	libeth_xdp_init_buff(xdp, &rx_ring->xdp, &rx_ring->xdp_rxq);
 
 	xdp_prog = READ_ONCE(rx_ring->xdp_prog);
 	if (xdp_prog) {
@@ -1400,19 +964,21 @@ static int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 	/* start the loop to process Rx packets bounded by 'budget' */
 	while (likely(total_rx_pkts < (unsigned int)budget)) {
 		union ice_32b_rx_flex_desc *rx_desc;
-		struct ice_rx_buf *rx_buf;
+		struct libeth_fqe *rx_buf;
 		struct sk_buff *skb;
 		unsigned int size;
 		u16 stat_err_bits;
 		u16 vlan_tci;
+		bool rxe;
 
 		/* get the Rx desc from Rx ring based on 'next_to_clean' */
 		rx_desc = ICE_RX_DESC(rx_ring, ntc);
 
-		/* status_error_len will always be zero for unused descriptors
-		 * because it's cleared in cleanup, and overlaps with hdr_addr
-		 * which is always zero because packet split isn't used, if the
-		 * hardware wrote DD then it will be non-zero
+		/*
+		 * The DD bit will always be zero for unused descriptors
+		 * because it's cleared in cleanup or when setting the DMA
+		 * address of the header buffer, which never uses the DD bit.
+		 * If the hardware wrote the descriptor, it will be non-zero.
 		 */
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S);
 		if (!ice_test_staterr(rx_desc->wb.status_error0, stat_err_bits))
@@ -1426,70 +992,64 @@ static int ice_clean_rx_irq(struct ice_rx_ring *rx_ring, int budget)
 
 		ice_trace(clean_rx_irq, rx_ring, rx_desc);
 
+		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_HBO_S) |
+				BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S);
+		rxe = ice_test_staterr(rx_desc->wb.status_error0,
+				       stat_err_bits);
+
+		if (!rx_ring->hdr_pp)
+			goto payload;
+
+		size = le16_get_bits(rx_desc->wb.hdr_len_sph_flex_flags1,
+				     ICE_RX_FLEX_DESC_HDR_LEN_M);
+		if (unlikely(rxe))
+			size = 0;
+
+		rx_buf = &rx_ring->hdr_fqes[ntc];
+		libeth_xdp_process_buff(xdp, rx_buf, size);
+		rx_buf->netmem = 0;
+
+payload:
 		size = le16_to_cpu(rx_desc->wb.pkt_len) &
 			ICE_RX_FLX_DESC_PKT_LEN_M;
+		if (unlikely(rxe))
+			size = 0;
 
 		/* retrieve a buffer from the ring */
-		rx_buf = ice_get_rx_buf(rx_ring, size, ntc);
+		rx_buf = &rx_ring->rx_fqes[ntc];
+		libeth_xdp_process_buff(xdp, rx_buf, size);
 
-		/* Increment ntc before calls to ice_put_rx_mbuf() */
 		if (++ntc == cnt)
 			ntc = 0;
 
-		if (!xdp->data) {
-			void *hard_start;
-
-			hard_start = page_address(rx_buf->page) + rx_buf->page_offset -
-				     offset;
-			xdp_prepare_buff(xdp, hard_start, offset, size, !!offset);
-			xdp_buff_clear_frags_flag(xdp);
-		} else if (ice_add_xdp_frag(rx_ring, xdp, rx_buf, size)) {
-			ice_put_rx_mbuf(rx_ring, xdp, ntc, ICE_XDP_CONSUMED);
-			break;
-		}
-
 		/* skip if it is NOP desc */
-		if (ice_is_non_eop(rx_ring, rx_desc))
+		if (ice_is_non_eop(rx_ring, rx_desc) || unlikely(!xdp->data))
 			continue;
 
-		ice_get_pgcnts(rx_ring, ntc);
 		xdp_verdict = ice_run_xdp(rx_ring, xdp, xdp_prog, xdp_ring, rx_desc);
 		if (xdp_verdict == ICE_XDP_PASS)
 			goto construct_skb;
-		total_rx_bytes += xdp_get_buff_len(xdp);
+
+		if (xdp_verdict & (ICE_XDP_TX | ICE_XDP_REDIR))
+			xdp_xmit |= xdp_verdict;
+		total_rx_bytes += xdp_get_buff_len(&xdp->base);
 		total_rx_pkts++;
 
-		ice_put_rx_mbuf(rx_ring, xdp, ntc, xdp_verdict);
-		xdp_xmit |= xdp_verdict & (ICE_XDP_TX | ICE_XDP_REDIR);
-
+		xdp->data = NULL;
 		continue;
+
 construct_skb:
-		if (likely(ice_ring_uses_build_skb(rx_ring)))
-			skb = ice_build_skb(rx_ring, xdp);
-		else
-			skb = ice_construct_skb(rx_ring, xdp);
+		skb = xdp_build_skb_from_buff(&xdp->base);
+		xdp->data = NULL;
+
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
+			libeth_xdp_return_buff_slow(xdp);
 			rx_ring->ring_stats->rx_stats.alloc_buf_failed++;
-			xdp_verdict = ICE_XDP_CONSUMED;
-		}
-		ice_put_rx_mbuf(rx_ring, xdp, ntc, xdp_verdict);
-
-		if (!skb)
-			break;
-
-		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_RXE_S);
-		if (unlikely(ice_test_staterr(rx_desc->wb.status_error0,
-					      stat_err_bits))) {
-			dev_kfree_skb_any(skb);
 			continue;
 		}
 
 		vlan_tci = ice_get_vlan_tci(rx_desc);
-
-		/* pad the skb if needed, to make a valid ethernet frame */
-		if (eth_skb_pad(skb))
-			continue;
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
@@ -1507,10 +1067,12 @@ construct_skb:
 
 	rx_ring->next_to_clean = ntc;
 	/* return up to cleaned_count buffers to hardware */
-	failure = ice_alloc_rx_bufs(rx_ring, ICE_RX_DESC_UNUSED(rx_ring));
+	failure = ice_alloc_rx_bufs(rx_ring, ICE_DESC_UNUSED(rx_ring));
 
 	if (xdp_xmit)
 		ice_finalize_xdp_rx(xdp_ring, xdp_xmit, cached_ntu);
+
+	libeth_xdp_save_buff(&rx_ring->xdp, xdp);
 
 	if (rx_ring->ring_stats)
 		ice_update_rx_ring_stats(rx_ring, total_rx_pkts,

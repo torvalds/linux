@@ -4669,6 +4669,8 @@ static int binder_wait_for_work(struct binder_thread *thread,
  *
  * If we fail to allocate an fd, skip the install and release
  * any fds that have already been allocated.
+ *
+ * Return: 0 on success, a negative errno code on failure.
  */
 static int binder_apply_fd_fixups(struct binder_proc *proc,
 				  struct binder_transaction *t)

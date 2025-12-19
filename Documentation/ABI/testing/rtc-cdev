@@ -14,7 +14,7 @@ Description:
 		  for RTCs that support alarms
 
 		* RTC_ALM_READ, RTC_ALM_SET: Read or set the alarm time for
-		  RTCs that support alarms. Can be set upto 24 hours in the
+		  RTCs that support alarms. Can be set up to 24 hours in the
 		  future. Requires a separate RTC_AIE_ON call to enable the
 		  alarm interrupt. (Prefer to use RTC_WKALM_*)
 

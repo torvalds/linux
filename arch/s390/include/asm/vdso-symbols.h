@@ -2,16 +2,8 @@
 #ifndef __S390_VDSO_SYMBOLS_H__
 #define __S390_VDSO_SYMBOLS_H__
 
-#include <generated/vdso64-offsets.h>
-#ifdef CONFIG_COMPAT
-#include <generated/vdso32-offsets.h>
-#endif
+#include <generated/vdso-offsets.h>
 
-#define VDSO64_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso64_offset_##name))
-#ifdef CONFIG_COMPAT
-#define VDSO32_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso32_offset_##name))
-#else
-#define VDSO32_SYMBOL(tsk, name) (-1UL)
-#endif
+#define VDSO_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso_offset_##name))
 
 #endif /* __S390_VDSO_SYMBOLS_H__ */

@@ -81,7 +81,7 @@
 &nand {
 	status = "okay";
 
-	flash@0 {
+	nand@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

@@ -411,6 +411,119 @@ exit:
 	return ret;
 }
 
+static int rtl8723au_active_to_emu(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	int count, ret = 0;
+
+	/* Start of rtl8723AU_card_enable_flow */
+	/* Act to Cardemu sequence*/
+	/* Turn off RF */
+	rtl8xxxu_write8(priv, REG_RF_CTRL, 0);
+
+	/* 0x004E[7] = 0, switch DPDT_SEL_P output from register 0x0065[2] */
+	val8 = rtl8xxxu_read8(priv, REG_LEDCFG2);
+	val8 &= ~LEDCFG2_DPDT_SELECT;
+	rtl8xxxu_write8(priv, REG_LEDCFG2, val8);
+
+	/* 0x0005[1] = 1 turn off MAC by HW state machine*/
+	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+	val8 |= BIT(1);
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+
+	for (count = RTL8XXXU_MAX_REG_POLL; count; count--) {
+		val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+		if ((val8 & BIT(1)) == 0)
+			break;
+		udelay(10);
+	}
+
+	if (!count) {
+		dev_warn(&priv->udev->dev, "%s: Disabling MAC timed out\n",
+			 __func__);
+		ret = -EBUSY;
+		goto exit;
+	}
+
+	/* 0x0000[5] = 1 analog Ips to digital, 1:isolation */
+	val8 = rtl8xxxu_read8(priv, REG_SYS_ISO_CTRL);
+	val8 |= SYS_ISO_ANALOG_IPS;
+	rtl8xxxu_write8(priv, REG_SYS_ISO_CTRL, val8);
+
+	/* 0x0020[0] = 0 disable LDOA12 MACRO block*/
+	val8 = rtl8xxxu_read8(priv, REG_LDOA15_CTRL);
+	val8 &= ~LDOA15_ENABLE;
+	rtl8xxxu_write8(priv, REG_LDOA15_CTRL, val8);
+
+exit:
+	return ret;
+}
+
+static int rtl8723au_emu_to_disabled(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+
+	/* 0x0007[7:0] = 0x20 SOP option to disable BG/MB */
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 3, 0x20);
+
+	/* 0x04[12:11] = 01 enable WL suspend */
+	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+	val8 &= ~BIT(4);
+	val8 |= BIT(3);
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+
+	val8 = rtl8xxxu_read8(priv, REG_APS_FSMCO + 1);
+	val8 |= BIT(7);
+	rtl8xxxu_write8(priv, REG_APS_FSMCO + 1, val8);
+
+	/* 0x48[16] = 1 to enable GPIO9 as EXT wakeup */
+	val8 = rtl8xxxu_read8(priv, REG_GPIO_INTM + 2);
+	val8 |= BIT(0);
+	rtl8xxxu_write8(priv, REG_GPIO_INTM + 2, val8);
+
+	return 0;
+}
+
+static void rtl8723au_power_off(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+	u16 val16;
+
+	rtl8xxxu_flush_fifo(priv);
+
+	rtl8xxxu_active_to_lps(priv);
+
+	/* Turn off RF */
+	rtl8xxxu_write8(priv, REG_RF_CTRL, 0x00);
+
+	/* Reset Firmware if running in RAM */
+	if (rtl8xxxu_read8(priv, REG_MCU_FW_DL) & MCU_FW_RAM_SEL)
+		rtl8xxxu_firmware_self_reset(priv);
+
+	/* Reset MCU */
+	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
+	val16 &= ~SYS_FUNC_CPU_ENABLE;
+	rtl8xxxu_write16(priv, REG_SYS_FUNC, val16);
+
+	/* Reset MCU ready status */
+	rtl8xxxu_write8(priv, REG_MCU_FW_DL, 0x00);
+
+	rtl8723au_active_to_emu(priv);
+	rtl8723au_emu_to_disabled(priv);
+
+	/* Reset MCU IO Wrapper */
+	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
+	val8 &= ~BIT(0);
+	rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
+
+	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL + 1);
+	val8 |= BIT(0);
+	rtl8xxxu_write8(priv, REG_RSV_CTRL + 1, val8);
+
+	/* RSV_CTRL 0x1C[7:0] = 0x0e  lock ISO/CLK/Power control register */
+	rtl8xxxu_write8(priv, REG_RSV_CTRL, 0x0e);
+}
+
 #define XTAL1	GENMASK(23, 18)
 #define XTAL0	GENMASK(17, 12)
 
@@ -492,7 +605,7 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.parse_efuse = rtl8723au_parse_efuse,
 	.load_firmware = rtl8723au_load_firmware,
 	.power_on = rtl8723au_power_on,
-	.power_off = rtl8xxxu_power_off,
+	.power_off = rtl8723au_power_off,
 	.read_efuse = rtl8xxxu_read_efuse,
 	.reset_8051 = rtl8xxxu_reset_8051,
 	.llt_init = rtl8xxxu_init_llt_table,

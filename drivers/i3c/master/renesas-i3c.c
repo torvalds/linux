@@ -794,8 +794,8 @@ static int renesas_i3c_send_ccc_cmd(struct i3c_master_controller *m,
 	return ret;
 }
 
-static int renesas_i3c_priv_xfers(struct i3c_dev_desc *dev, struct i3c_priv_xfer *i3c_xfers,
-					 int i3c_nxfers)
+static int renesas_i3c_i3c_xfers(struct i3c_dev_desc *dev, struct i3c_xfer *i3c_xfers,
+				 int i3c_nxfers, enum i3c_xfer_mode mode)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct renesas_i3c *i3c = to_renesas_i3c(m);
@@ -1282,7 +1282,7 @@ static const struct i3c_master_controller_ops renesas_i3c_ops = {
 	.do_daa = renesas_i3c_daa,
 	.supports_ccc_cmd = renesas_i3c_supports_ccc_cmd,
 	.send_ccc_cmd = renesas_i3c_send_ccc_cmd,
-	.priv_xfers = renesas_i3c_priv_xfers,
+	.i3c_xfers = renesas_i3c_i3c_xfers,
 	.attach_i2c_dev = renesas_i3c_attach_i2c_dev,
 	.detach_i2c_dev = renesas_i3c_detach_i2c_dev,
 	.i2c_xfers = renesas_i3c_i2c_xfers,

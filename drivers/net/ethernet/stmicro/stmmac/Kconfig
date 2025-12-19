@@ -10,6 +10,7 @@ config STMMAC_ETH
 	select PHYLINK
 	select CRC32
 	select RESET_CONTROLLER
+	select NET_DEVLINK
 	help
 	  This is the driver for the Ethernet IPs built around a
 	  Synopsys IP Core.
@@ -66,6 +67,15 @@ config DWMAC_ANARION
 	  Support for Adaptrum Anarion GMAC Ethernet controller.
 
 	  This selects the Anarion SoC glue layer support for the stmmac driver.
+
+config DWMAC_EIC7700
+	tristate "Support for Eswin eic7700 ethernet driver"
+	depends on OF && HAS_DMA && ARCH_ESWIN || COMPILE_TEST
+	help
+	  This driver supports the Eswin EIC7700 Ethernet controller,
+	  which integrates Synopsys DesignWare QoS features. It enables
+	  high-speed networking with DMA acceleration and is optimized
+	  for embedded systems.
 
 config DWMAC_INGENIC
 	tristate "Ingenic MAC support"
@@ -339,6 +349,11 @@ config DWMAC_VISCONTI
 
 endif
 
+config STMMAC_LIBPCI
+	tristate
+	help
+	  This option enables the PCI bus helpers for the stmmac driver.
+
 config DWMAC_INTEL
 	tristate "Intel GMAC support"
 	default X86
@@ -352,16 +367,18 @@ config DWMAC_INTEL
 config DWMAC_LOONGSON
 	tristate "Loongson PCI DWMAC support"
 	default MACH_LOONGSON64
-	depends on (MACH_LOONGSON64 || COMPILE_TEST) && STMMAC_ETH && PCI
+	depends on (MACH_LOONGSON64 || COMPILE_TEST) && PCI
 	depends on COMMON_CLK
+	select STMMAC_LIBPCI
 	help
 	  This selects the LOONGSON PCI bus support for the stmmac driver,
 	  Support for ethernet controller on Loongson-2K1000 SoC and LS7A1000 bridge.
 
 config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
-	depends on STMMAC_ETH && PCI
+	depends on PCI
 	depends on COMMON_CLK
+	select STMMAC_LIBPCI
 	help
 	  This selects the platform specific bus support for the stmmac driver.
 	  This driver was tested on XLINX XC2V3000 FF1152AMT0221

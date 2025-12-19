@@ -214,7 +214,7 @@ static int configure_aif_clock(struct snd_soc_component *component, int aif)
 
 static int configure_clock(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	int change, new;
 
@@ -301,7 +301,7 @@ static int wm8994_put_drc_sw(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int mask, ret;
 
 	/* Can't enable both ADC and DAC paths simultaneously */
@@ -358,7 +358,7 @@ static int wm8994_get_drc(const char *name)
 static int wm8994_put_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	struct wm8994_pdata *pdata = &control->pdata;
@@ -381,7 +381,7 @@ static int wm8994_put_drc_enum(struct snd_kcontrol *kcontrol,
 static int wm8994_get_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	int drc = wm8994_get_drc(kcontrol->id.name);
 
@@ -465,7 +465,7 @@ static int wm8994_get_retune_mobile_block(const char *name)
 static int wm8994_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	struct wm8994_pdata *pdata = &control->pdata;
@@ -488,7 +488,7 @@ static int wm8994_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 static int wm8994_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	int block = wm8994_get_retune_mobile_block(kcontrol->id.name);
 
@@ -1515,7 +1515,7 @@ SOC_DAPM_SINGLE("AIF1.1 Switch", WM8994_DAC2_RIGHT_MIXER_ROUTING,
 static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
@@ -2615,6 +2615,7 @@ static int wm8994_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994 *control = wm8994->wm8994;
 
 	wm_hubs_set_bias_level(component, level);
@@ -2637,12 +2638,12 @@ static int wm8994_set_bias_level(struct snd_soc_component *component,
 			break;
 		}
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_STANDBY)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY)
 			active_reference(component);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			switch (control->type) {
 			case WM8958:
 				if (control->revision == 0) {
@@ -2666,7 +2667,7 @@ static int wm8994_set_bias_level(struct snd_soc_component *component,
 					    WM8994_LINEOUT2_DISCH);
 		}
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_PREPARE)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_PREPARE)
 			active_dereference(component);
 
 		/* MICBIAS into bypass mode on newer devices */
@@ -2686,7 +2687,7 @@ static int wm8994_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_STANDBY)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY)
 			wm8994->cur_fw = NULL;
 		break;
 	}
@@ -2697,7 +2698,7 @@ static int wm8994_set_bias_level(struct snd_soc_component *component,
 int wm8994_vmid_mode(struct snd_soc_component *component, enum wm8994_vmid_mode mode)
 {
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (mode) {
 	case WM8994_VMID_NORMAL:
@@ -3299,6 +3300,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 static int wm8994_component_suspend(struct snd_soc_component *component)
 {
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll); i++) {
@@ -3310,7 +3312,7 @@ static int wm8994_component_suspend(struct snd_soc_component *component)
 				 i + 1, ret);
 	}
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -3503,7 +3505,7 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
 		      int micbias)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994_micdet *micdet;
 	struct wm8994 *control = wm8994->wm8994;
@@ -3653,7 +3655,7 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 /* Should be called with accdet_lock held */
 static void wm1811_micd_stop(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (!wm8994->jackdet)
@@ -3773,7 +3775,7 @@ static void wm1811_mic_work(struct work_struct *work)
 						  mic_work.work);
 	struct wm8994 *control = wm8994->wm8994;
 	struct snd_soc_component *component = wm8994->hubs.component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	pm_runtime_get_sync(component->dev);
 
@@ -3812,7 +3814,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 	struct wm8994_priv *wm8994 = data;
 	struct wm8994 *control = wm8994->wm8994;
 	struct snd_soc_component *component = wm8994->hubs.component;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int reg, delay;
 	bool present;
 
@@ -3928,7 +3930,7 @@ int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 		      wm1811_micdet_cb det_cb, void *det_cb_data,
 		      wm1811_mic_id_cb id_cb, void *id_cb_data)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	u16 micd_lvl_sel;
@@ -3980,7 +3982,7 @@ int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *
 		snd_soc_component_update_bits(component, WM8958_MIC_DETECT_2,
 				    WM8958_MICD_LVL_SEL_MASK, micd_lvl_sel);
 
-		WARN_ON(snd_soc_component_get_bias_level(component) > SND_SOC_BIAS_STANDBY);
+		WARN_ON(snd_soc_dapm_get_bias_level(dapm) > SND_SOC_BIAS_STANDBY);
 
 		/*
 		 * If we can use jack detection start off with that,
@@ -4148,7 +4150,7 @@ static irqreturn_t wm8994_temp_shut(int irq, void *data)
 
 static int wm8994_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct wm8994 *control = dev_get_drvdata(component->dev->parent);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	unsigned int reg;
@@ -4183,7 +4185,7 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 	wm8994->micdet_irq = control->pdata.micdet_irq;
 
 	/* By default use idle_bias false, will override for WM8994 */
-	dapm->idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	/* Set revision-specific configuration */
 	switch (control->type) {
@@ -4191,7 +4193,7 @@ static int wm8994_component_probe(struct snd_soc_component *component)
 		/* Single ended line outputs should have VMID on. */
 		if (!control->pdata.lineout1_diff ||
 		    !control->pdata.lineout2_diff)
-			dapm->idle_bias = true;
+			snd_soc_dapm_set_idle_bias(dapm, true);
 
 		switch (control->revision) {
 		case 2:

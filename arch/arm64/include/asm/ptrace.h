@@ -94,7 +94,7 @@
  */
 #define NO_SYSCALL (-1)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/bug.h>
 #include <linux/types.h>
 
@@ -361,5 +361,5 @@ static inline void procedure_link_pointer_set(struct pt_regs *regs,
 
 extern unsigned long profile_pc(struct pt_regs *regs);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif

@@ -1,7 +1,24 @@
+config NET_DSA_LANTIQ_COMMON
+	tristate
+	select REGMAP
+
 config NET_DSA_LANTIQ_GSWIP
 	tristate "Lantiq / Intel GSWIP"
 	depends on HAS_IOMEM
 	select NET_DSA_TAG_GSWIP
+	select NET_DSA_LANTIQ_COMMON
 	help
 	  This enables support for the Lantiq / Intel GSWIP 2.1 found in
 	  the xrx200 / VR9 SoC.
+
+config NET_DSA_MXL_GSW1XX
+	tristate "MaxLinear GSW1xx Ethernet switch support"
+	select NET_DSA_TAG_MXL_GSW1XX
+	select NET_DSA_LANTIQ_COMMON
+	help
+	  This enables support for the MaxLinear GSW1xx family of 1GE switches
+	    GSW120 4 port, 2 PHYs, RGMII & SGMII/2500Base-X
+	    GSW125 4 port, 2 PHYs, RGMII & SGMII/2500Base-X, industrial temperature
+	    GSW140 6 port, 4 PHYs, RGMII & SGMII/2500Base-X
+	    GSW141 6 port, 4 PHYs, RGMII & SGMII
+	    GSW145 6 port, 4 PHYs, RGMII & SGMII/2500Base-X, industrial temperature

@@ -260,7 +260,6 @@ struct tegra_pcie_dw {
 	u32 msi_ctrl_int;
 	u32 num_lanes;
 	u32 cid;
-	u32 cfg_link_cap_l1sub;
 	u32 ras_des_cap;
 	u32 pcie_cap_base;
 	u32 aspm_cmrt;
@@ -475,8 +474,7 @@ static irqreturn_t tegra_pcie_ep_irq_thread(int irq, void *arg)
 		return IRQ_HANDLED;
 
 	/* If EP doesn't advertise L1SS, just return */
-	val = dw_pcie_readl_dbi(pci, pcie->cfg_link_cap_l1sub);
-	if (!(val & (PCI_L1SS_CAP_ASPM_L1_1 | PCI_L1SS_CAP_ASPM_L1_2)))
+	if (!pci->l1ss_support)
 		return IRQ_HANDLED;
 
 	/* Check if BME is set to '1' */
@@ -608,24 +606,6 @@ static struct pci_ops tegra_pci_ops = {
 };
 
 #if defined(CONFIG_PCIEASPM)
-static void disable_aspm_l11(struct tegra_pcie_dw *pcie)
-{
-	u32 val;
-
-	val = dw_pcie_readl_dbi(&pcie->pci, pcie->cfg_link_cap_l1sub);
-	val &= ~PCI_L1SS_CAP_ASPM_L1_1;
-	dw_pcie_writel_dbi(&pcie->pci, pcie->cfg_link_cap_l1sub, val);
-}
-
-static void disable_aspm_l12(struct tegra_pcie_dw *pcie)
-{
-	u32 val;
-
-	val = dw_pcie_readl_dbi(&pcie->pci, pcie->cfg_link_cap_l1sub);
-	val &= ~PCI_L1SS_CAP_ASPM_L1_2;
-	dw_pcie_writel_dbi(&pcie->pci, pcie->cfg_link_cap_l1sub, val);
-}
-
 static inline u32 event_counter_prog(struct tegra_pcie_dw *pcie, u32 event)
 {
 	u32 val;
@@ -682,10 +662,9 @@ static int aspm_state_cnt(struct seq_file *s, void *data)
 static void init_host_aspm(struct tegra_pcie_dw *pcie)
 {
 	struct dw_pcie *pci = &pcie->pci;
-	u32 val;
+	u32 l1ss, val;
 
-	val = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_L1SS);
-	pcie->cfg_link_cap_l1sub = val + PCI_L1SS_CAP;
+	l1ss = dw_pcie_find_ext_capability(pci, PCI_EXT_CAP_ID_L1SS);
 
 	pcie->ras_des_cap = dw_pcie_find_ext_capability(&pcie->pci,
 							PCI_EXT_CAP_ID_VNDR);
@@ -697,11 +676,14 @@ static void init_host_aspm(struct tegra_pcie_dw *pcie)
 			   PCIE_RAS_DES_EVENT_COUNTER_CONTROL, val);
 
 	/* Program T_cmrt and T_pwr_on values */
-	val = dw_pcie_readl_dbi(pci, pcie->cfg_link_cap_l1sub);
+	val = dw_pcie_readl_dbi(pci, l1ss + PCI_L1SS_CAP);
 	val &= ~(PCI_L1SS_CAP_CM_RESTORE_TIME | PCI_L1SS_CAP_P_PWR_ON_VALUE);
 	val |= (pcie->aspm_cmrt << 8);
 	val |= (pcie->aspm_pwr_on_t << 19);
-	dw_pcie_writel_dbi(pci, pcie->cfg_link_cap_l1sub, val);
+	dw_pcie_writel_dbi(pci, l1ss + PCI_L1SS_CAP, val);
+
+	if (pcie->supports_clkreq)
+		pci->l1ss_support = true;
 
 	/* Program L0s and L1 entrance latencies */
 	val = dw_pcie_readl_dbi(pci, PCIE_PORT_AFR);
@@ -726,8 +708,6 @@ static void init_debugfs(struct tegra_pcie_dw *pcie)
 				    aspm_state_cnt);
 }
 #else
-static inline void disable_aspm_l12(struct tegra_pcie_dw *pcie) { return; }
-static inline void disable_aspm_l11(struct tegra_pcie_dw *pcie) { return; }
 static inline void init_host_aspm(struct tegra_pcie_dw *pcie) { return; }
 static inline void init_debugfs(struct tegra_pcie_dw *pcie) { return; }
 #endif
@@ -930,12 +910,6 @@ static int tegra_pcie_dw_host_init(struct dw_pcie_rp *pp)
 	config_gen3_gen4_eq_presets(pcie);
 
 	init_host_aspm(pcie);
-
-	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
-	if (!pcie->supports_clkreq) {
-		disable_aspm_l11(pcie);
-		disable_aspm_l12(pcie);
-	}
 
 	if (!pcie->of_data->has_l1ss_exit_fix) {
 		val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);
@@ -1870,12 +1844,6 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 	config_gen3_gen4_eq_presets(pcie);
 
 	init_host_aspm(pcie);
-
-	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
-	if (!pcie->supports_clkreq) {
-		disable_aspm_l11(pcie);
-		disable_aspm_l12(pcie);
-	}
 
 	if (!pcie->of_data->has_l1ss_exit_fix) {
 		val = dw_pcie_readl_dbi(pci, GEN3_RELATED_OFF);

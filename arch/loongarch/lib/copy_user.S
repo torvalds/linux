@@ -13,11 +13,15 @@
 #include <asm/unwind_hints.h>
 
 SYM_FUNC_START(__copy_user)
+#ifdef CONFIG_32BIT
+	b		__copy_user_generic
+#else
 	/*
 	 * Some CPUs support hardware unaligned access
 	 */
 	ALTERNATIVE	"b __copy_user_generic",	\
 			"b __copy_user_fast", CPU_FEATURE_UAL
+#endif
 SYM_FUNC_END(__copy_user)
 
 EXPORT_SYMBOL(__copy_user)
@@ -30,22 +34,23 @@ EXPORT_SYMBOL(__copy_user)
  * a2: n
  */
 SYM_FUNC_START(__copy_user_generic)
-	beqz	a2, 3f
+	beqz		a2, 3f
 
-1:	ld.b	t0, a1, 0
-2:	st.b	t0, a0, 0
-	addi.d	a0, a0, 1
-	addi.d	a1, a1, 1
-	addi.d	a2, a2, -1
-	bgtz	a2, 1b
+1:	ld.b		t0, a1, 0
+2:	st.b		t0, a0, 0
+	PTR_ADDI	a0, a0, 1
+	PTR_ADDI	a1, a1, 1
+	PTR_ADDI	a2, a2, -1
+	bgtz		a2, 1b
 
-3:	move	a0, a2
-	jr	ra
+3:	move		a0, a2
+	jr		ra
 
-	_asm_extable 1b, 3b
-	_asm_extable 2b, 3b
+	_asm_extable	1b, 3b
+	_asm_extable	2b, 3b
 SYM_FUNC_END(__copy_user_generic)
 
+#ifdef CONFIG_64BIT
 /*
  * unsigned long __copy_user_fast(void *to, const void *from, unsigned long n)
  *
@@ -281,3 +286,4 @@ SYM_FUNC_START(__copy_user_fast)
 SYM_FUNC_END(__copy_user_fast)
 
 STACK_FRAME_NON_STANDARD __copy_user_fast
+#endif

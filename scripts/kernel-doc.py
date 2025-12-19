@@ -111,7 +111,7 @@ import sys
 
 # Import Python modules
 
-LIB_DIR = "lib/kdoc"
+LIB_DIR = "../tools/lib/python"
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
@@ -292,8 +292,8 @@ def main():
         logger.warning("Python 3.7 or later is required for correct results")
 
     # Import kernel-doc libraries only after checking Python version
-    from kdoc_files import KernelFiles                  # pylint: disable=C0415
-    from kdoc_output import RestFormat, ManFormat       # pylint: disable=C0415
+    from kdoc.kdoc_files import KernelFiles             # pylint: disable=C0415
+    from kdoc.kdoc_output import RestFormat, ManFormat  # pylint: disable=C0415
 
     if args.man:
         out_style = ManFormat(modulename=args.modulename)

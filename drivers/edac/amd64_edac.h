@@ -96,10 +96,11 @@
 /* Hardware limit on ChipSelect rows per MC and processors per system */
 #define NUM_CHIPSELECTS			8
 #define DRAM_RANGES			8
-#define NUM_CONTROLLERS			16
 
 #define ON true
 #define OFF false
+
+#define MAX_CTL_NAMELEN	19
 
 /*
  * PCI-defined configuration space registers
@@ -346,7 +347,7 @@ struct amd64_pvt {
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
 
 	/* one for each DCT/UMC */
-	struct chip_select csels[NUM_CONTROLLERS];
+	struct chip_select *csels;
 
 	/* DRAM base and limit pairs F1x[78,70,68,60,58,50,48,40] */
 	struct dram_range ranges[DRAM_RANGES];
@@ -362,7 +363,7 @@ struct amd64_pvt {
 	/* x4, x8, or x16 syndromes in use */
 	u8 ecc_sym_sz;
 
-	const char *ctl_name;
+	char ctl_name[MAX_CTL_NAMELEN];
 	u16 f1_id, f2_id;
 	/* Maximum number of memory controllers per die/node. */
 	u8 max_mcs;

@@ -45,7 +45,8 @@ static void hfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 int hfs_write_begin(const struct kiocb *iocb, struct address_space *mapping,
-		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
+		    loff_t pos, unsigned int len, struct folio **foliop,
+		    void **fsdata)
 {
 	int ret;
 
@@ -412,7 +413,7 @@ struct inode *hfs_iget(struct super_block *sb, struct hfs_cat_key *key, hfs_cat_
 		return NULL;
 	}
 	inode = iget5_locked(sb, cnid, hfs_test_inode, hfs_read_inode, &data);
-	if (inode && (inode->i_state & I_NEW))
+	if (inode && (inode_state_read_once(inode) & I_NEW))
 		unlock_new_inode(inode);
 	return inode;
 }

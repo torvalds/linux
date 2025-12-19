@@ -142,11 +142,11 @@ struct btrfs_space_info {
 				   flushing. The value is >> clamp, so turns
 				   out to be a 2^clamp divisor. */
 
-	unsigned int full:1;	/* indicates that we cannot allocate any more
+	bool full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
-	unsigned int chunk_alloc:1;	/* set if we are allocating a chunk */
+	bool chunk_alloc;	/* set if we are allocating a chunk */
 
-	unsigned int flush:1;		/* set if we are trying to make space */
+	bool flush;		/* set if we are trying to make space */
 
 	unsigned int force_alloc;	/* set if we need to force a chunk
 					   alloc for this space */
@@ -224,14 +224,6 @@ struct btrfs_space_info {
 	s64 reclaimable_bytes;
 };
 
-struct reserve_ticket {
-	u64 bytes;
-	int error;
-	bool steal;
-	struct list_head list;
-	wait_queue_head_t wait;
-};
-
 static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_info)
 {
 	return ((space_info->flags & BTRFS_BLOCK_GROUP_METADATA) &&
@@ -266,6 +258,17 @@ DECLARE_SPACE_INFO_UPDATE(bytes_may_use, "space_info");
 DECLARE_SPACE_INFO_UPDATE(bytes_pinned, "pinned");
 DECLARE_SPACE_INFO_UPDATE(bytes_zone_unusable, "zone_unusable");
 
+static inline u64 btrfs_space_info_used(const struct btrfs_space_info *s_info,
+					bool may_use_included)
+{
+	lockdep_assert_held(&s_info->lock);
+
+	return s_info->bytes_used + s_info->bytes_reserved +
+		s_info->bytes_pinned + s_info->bytes_readonly +
+		s_info->bytes_zone_unusable +
+		(may_use_included ? s_info->bytes_may_use : 0);
+}
+
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 				struct btrfs_block_group *block_group);
@@ -273,21 +276,15 @@ void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
 					u64 chunk_size);
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 					       u64 flags);
-u64 __pure btrfs_space_info_used(const struct btrfs_space_info *s_info,
-			  bool may_use_included);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
-void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
-			   struct btrfs_space_info *info, u64 bytes,
+void btrfs_dump_space_info(struct btrfs_space_info *info, u64 bytes,
 			   bool dump_block_groups);
-int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
-				 struct btrfs_space_info *space_info,
+int btrfs_reserve_metadata_bytes(struct btrfs_space_info *space_info,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
-void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info);
-int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
-			 const struct btrfs_space_info *space_info, u64 bytes,
-			 enum btrfs_reserve_flush_enum flush);
+void btrfs_try_granting_tickets(struct btrfs_space_info *space_info);
+bool btrfs_can_overcommit(const struct btrfs_space_info *space_info, u64 bytes,
+			  enum btrfs_reserve_flush_enum flush);
 
 static inline void btrfs_space_info_free_bytes_may_use(
 				struct btrfs_space_info *space_info,
@@ -295,7 +292,7 @@ static inline void btrfs_space_info_free_bytes_may_use(
 {
 	spin_lock(&space_info->lock);
 	btrfs_space_info_update_bytes_may_use(space_info, -num_bytes);
-	btrfs_try_granting_tickets(space_info->fs_info, space_info);
+	btrfs_try_granting_tickets(space_info);
 	spin_unlock(&space_info->lock);
 }
 int btrfs_reserve_data_bytes(struct btrfs_space_info *space_info, u64 bytes,

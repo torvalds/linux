@@ -74,7 +74,7 @@ enum cc_attr {
 	CC_ATTR_GUEST_UNROLL_STRING_IO,
 
 	/**
-	 * @CC_ATTR_SEV_SNP: Guest SNP is active.
+	 * @CC_ATTR_GUEST_SEV_SNP: Guest SNP is active.
 	 *
 	 * The platform/OS is running as a guest/virtual machine and actively
 	 * using AMD SEV-SNP features.

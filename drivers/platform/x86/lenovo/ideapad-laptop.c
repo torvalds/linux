@@ -31,6 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/rfkill.h>
 #include <linux/seq_file.h>
+#include <linux/string_choices.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/wmi.h>
@@ -62,13 +63,27 @@ enum {
 	CFG_OSD_CAM_BIT      = 31,
 };
 
+/*
+ * There are two charge modes supported by the GBMD/SBMC interface:
+ * - "Rapid Charge": increase power to speed up charging
+ * - "Conservation Mode": stop charging at 60-80% (depends on model)
+ *
+ * The interface doesn't prohibit enabling both modes at the same time.
+ * However, doing so is essentially meaningless, and the manufacturer utilities
+ * on Windows always make them mutually exclusive.
+ */
+
 enum {
+	GBMD_RAPID_CHARGE_STATE_BIT = 2,
 	GBMD_CONSERVATION_STATE_BIT = 5,
+	GBMD_RAPID_CHARGE_SUPPORTED_BIT = 17,
 };
 
 enum {
 	SBMC_CONSERVATION_ON  = 3,
 	SBMC_CONSERVATION_OFF = 5,
+	SBMC_RAPID_CHARGE_ON  = 7,
+	SBMC_RAPID_CHARGE_OFF = 8,
 };
 
 enum {
@@ -158,6 +173,7 @@ struct ideapad_rfk_priv {
 struct ideapad_private {
 	struct acpi_device *adev;
 	struct mutex vpc_mutex; /* protects the VPC calls */
+	struct mutex gbmd_sbmc_mutex; /* protects GBMD/SBMC calls */
 	struct rfkill *rfk[IDEAPAD_RFKILL_DEV_NUM];
 	struct ideapad_rfk_priv rfk_priv[IDEAPAD_RFKILL_DEV_NUM];
 	struct platform_device *platform_device;
@@ -166,9 +182,11 @@ struct ideapad_private {
 	struct ideapad_dytc_priv *dytc;
 	struct dentry *debug;
 	struct acpi_battery_hook battery_hook;
+	const struct power_supply_ext *battery_ext;
 	unsigned long cfg;
 	unsigned long r_touchpad_val;
 	struct {
+		bool rapid_charge         : 1;
 		bool conservation_mode    : 1;
 		bool dytc                 : 1;
 		bool fan_mode             : 1;
@@ -455,37 +473,40 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 	struct ideapad_private *priv = s->private;
 	unsigned long value;
 
-	guard(mutex)(&priv->vpc_mutex);
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
+			seq_printf(s, "Backlight max:  %lu\n", value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
+			seq_printf(s, "Backlight now:  %lu\n", value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &value))
+			seq_printf(s, "BL power value: %s (%lu)\n", str_on_off(value), value);
 
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
-		seq_printf(s, "Backlight max:  %lu\n", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL, &value))
-		seq_printf(s, "Backlight now:  %lu\n", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &value))
-		seq_printf(s, "BL power value: %s (%lu)\n", value ? "on" : "off", value);
+		seq_puts(s, "=====================\n");
+
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_RF, &value))
+			seq_printf(s, "Radio status: %s (%lu)\n", str_on_off(value), value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_WIFI, &value))
+			seq_printf(s, "Wifi status:  %s (%lu)\n", str_on_off(value), value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_BT, &value))
+			seq_printf(s, "BT status:    %s (%lu)\n", str_on_off(value), value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_3G, &value))
+			seq_printf(s, "3G status:    %s (%lu)\n", str_on_off(value), value);
+
+		seq_puts(s, "=====================\n");
+
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value))
+			seq_printf(s, "Touchpad status: %s (%lu)\n", str_on_off(value), value);
+		if (!read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &value))
+			seq_printf(s, "Camera status:   %s (%lu)\n", str_on_off(value), value);
+	}
 
 	seq_puts(s, "=====================\n");
 
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_RF, &value))
-		seq_printf(s, "Radio status: %s (%lu)\n", value ? "on" : "off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_WIFI, &value))
-		seq_printf(s, "Wifi status:  %s (%lu)\n", value ? "on" : "off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BT, &value))
-		seq_printf(s, "BT status:    %s (%lu)\n", value ? "on" : "off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_3G, &value))
-		seq_printf(s, "3G status:    %s (%lu)\n", value ? "on" : "off", value);
+	scoped_guard(mutex, &priv->gbmd_sbmc_mutex) {
+		if (!eval_gbmd(priv->adev->handle, &value))
+			seq_printf(s, "GBMD: %#010lx\n", value);
+	}
 
-	seq_puts(s, "=====================\n");
-
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value))
-		seq_printf(s, "Touchpad status: %s (%lu)\n", value ? "on" : "off", value);
-	if (!read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &value))
-		seq_printf(s, "Camera status:   %s (%lu)\n", value ? "on" : "off", value);
-
-	seq_puts(s, "=====================\n");
-
-	if (!eval_gbmd(priv->adev->handle, &value))
-		seq_printf(s, "GBMD: %#010lx\n", value);
 	if (!eval_hals(priv->adev->handle, &value))
 		seq_printf(s, "HALS: %#010lx\n", value);
 
@@ -622,10 +643,16 @@ static ssize_t conservation_mode_show(struct device *dev,
 
 	show_conservation_mode_deprecation_warning(dev);
 
-	err = eval_gbmd(priv->adev->handle, &result);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->gbmd_sbmc_mutex) {
+		err = eval_gbmd(priv->adev->handle, &result);
+		if (err)
+			return err;
+	}
 
+	/*
+	 * For backward compatibility, ignore Rapid Charge while reporting the
+	 * state of Conservation Mode.
+	 */
 	return sysfs_emit(buf, "%d\n", !!test_bit(GBMD_CONSERVATION_STATE_BIT, &result));
 }
 
@@ -642,6 +669,18 @@ static ssize_t conservation_mode_store(struct device *dev,
 	err = kstrtobool(buf, &state);
 	if (err)
 		return err;
+
+	guard(mutex)(&priv->gbmd_sbmc_mutex);
+
+	/*
+	 * Prevent mutually exclusive modes from being set at the same time,
+	 * but do not disable Rapid Charge while disabling Conservation Mode.
+	 */
+	if (priv->features.rapid_charge && state) {
+		err = exec_sbmc(priv->adev->handle, SBMC_RAPID_CHARGE_OFF);
+		if (err)
+			return err;
+	}
 
 	err = exec_sbmc(priv->adev->handle, state ? SBMC_CONSERVATION_ON : SBMC_CONSERVATION_OFF);
 	if (err)
@@ -2007,15 +2046,39 @@ static int ideapad_psy_ext_set_prop(struct power_supply *psy,
 				    const union power_supply_propval *val)
 {
 	struct ideapad_private *priv = ext_data;
+	unsigned long op1, op2;
+	int err;
 
 	switch (val->intval) {
+	case POWER_SUPPLY_CHARGE_TYPE_FAST:
+		if (WARN_ON(!priv->features.rapid_charge))
+			return -EINVAL;
+
+		op1 = SBMC_CONSERVATION_OFF;
+		op2 = SBMC_RAPID_CHARGE_ON;
+		break;
 	case POWER_SUPPLY_CHARGE_TYPE_LONGLIFE:
-		return exec_sbmc(priv->adev->handle, SBMC_CONSERVATION_ON);
+		op1 = SBMC_RAPID_CHARGE_OFF;
+		op2 = SBMC_CONSERVATION_ON;
+		break;
 	case POWER_SUPPLY_CHARGE_TYPE_STANDARD:
-		return exec_sbmc(priv->adev->handle, SBMC_CONSERVATION_OFF);
+		op1 = SBMC_RAPID_CHARGE_OFF;
+		op2 = SBMC_CONSERVATION_OFF;
+		break;
 	default:
 		return -EINVAL;
 	}
+
+	guard(mutex)(&priv->gbmd_sbmc_mutex);
+
+	/* If !rapid_charge, op1 must be SBMC_RAPID_CHARGE_OFF. Skip it. */
+	if (priv->features.rapid_charge) {
+		err = exec_sbmc(priv->adev->handle, op1);
+		if (err)
+			return err;
+	}
+
+	return exec_sbmc(priv->adev->handle, op2);
 }
 
 static int ideapad_psy_ext_get_prop(struct power_supply *psy,
@@ -2025,14 +2088,29 @@ static int ideapad_psy_ext_get_prop(struct power_supply *psy,
 				    union power_supply_propval *val)
 {
 	struct ideapad_private *priv = ext_data;
+	bool is_rapid_charge, is_conservation;
 	unsigned long result;
 	int err;
 
-	err = eval_gbmd(priv->adev->handle, &result);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->gbmd_sbmc_mutex) {
+		err = eval_gbmd(priv->adev->handle, &result);
+		if (err)
+			return err;
+	}
 
-	if (test_bit(GBMD_CONSERVATION_STATE_BIT, &result))
+	is_rapid_charge = (priv->features.rapid_charge &&
+			   test_bit(GBMD_RAPID_CHARGE_STATE_BIT, &result));
+	is_conservation = test_bit(GBMD_CONSERVATION_STATE_BIT, &result);
+
+	if (unlikely(is_rapid_charge && is_conservation)) {
+		dev_err(&priv->platform_device->dev,
+			"unexpected charge_types: both [Fast] and [Long_Life] are enabled\n");
+		return -EINVAL;
+	}
+
+	if (is_rapid_charge)
+		val->intval = POWER_SUPPLY_CHARGE_TYPE_FAST;
+	else if (is_conservation)
 		val->intval = POWER_SUPPLY_CHARGE_TYPE_LONGLIFE;
 	else
 		val->intval = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
@@ -2052,29 +2130,42 @@ static const enum power_supply_property ideapad_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPES,
 };
 
-static const struct power_supply_ext ideapad_battery_ext = {
-	.name			= "ideapad_laptop",
-	.properties		= ideapad_power_supply_props,
-	.num_properties		= ARRAY_SIZE(ideapad_power_supply_props),
-	.charge_types		= (BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
-				   BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE)),
-	.get_property		= ideapad_psy_ext_get_prop,
-	.set_property		= ideapad_psy_ext_set_prop,
-	.property_is_writeable	= ideapad_psy_prop_is_writeable,
-};
+#define DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(_name, _charge_types)			\
+	static const struct power_supply_ext _name = {					\
+		.name			= "ideapad_laptop",				\
+		.properties		= ideapad_power_supply_props,			\
+		.num_properties		= ARRAY_SIZE(ideapad_power_supply_props),	\
+		.charge_types		= _charge_types,				\
+		.get_property		= ideapad_psy_ext_get_prop,			\
+		.set_property		= ideapad_psy_ext_set_prop,			\
+		.property_is_writeable	= ideapad_psy_prop_is_writeable,		\
+	}
+
+DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(ideapad_battery_ext_v1,
+	(BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+	 BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
+);
+
+DEFINE_IDEAPAD_POWER_SUPPLY_EXTENSION(ideapad_battery_ext_v2,
+	(BIT(POWER_SUPPLY_CHARGE_TYPE_STANDARD) |
+	 BIT(POWER_SUPPLY_CHARGE_TYPE_FAST) |
+	 BIT(POWER_SUPPLY_CHARGE_TYPE_LONGLIFE))
+);
 
 static int ideapad_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	struct ideapad_private *priv = container_of(hook, struct ideapad_private, battery_hook);
 
-	return power_supply_register_extension(battery, &ideapad_battery_ext,
+	return power_supply_register_extension(battery, priv->battery_ext,
 					       &priv->platform_device->dev, priv);
 }
 
 static int ideapad_battery_remove(struct power_supply *battery,
 				  struct acpi_battery_hook *hook)
 {
-	power_supply_unregister_extension(battery, &ideapad_battery_ext);
+	struct ideapad_private *priv = container_of(hook, struct ideapad_private, battery_hook);
+
+	power_supply_unregister_extension(battery, priv->battery_ext);
 
 	return 0;
 }
@@ -2099,14 +2190,25 @@ static int ideapad_check_features(struct ideapad_private *priv)
 		priv->features.fan_mode = true;
 
 	if (acpi_has_method(handle, "GBMD") && acpi_has_method(handle, "SBMC")) {
-		priv->features.conservation_mode = true;
-		priv->battery_hook.add_battery = ideapad_battery_add;
-		priv->battery_hook.remove_battery = ideapad_battery_remove;
-		priv->battery_hook.name = "Ideapad Battery Extension";
+		/* Not acquiring gbmd_sbmc_mutex as race condition is impossible on init */
+		if (!eval_gbmd(handle, &val)) {
+			priv->features.conservation_mode = true;
+			priv->features.rapid_charge = test_bit(GBMD_RAPID_CHARGE_SUPPORTED_BIT,
+							       &val);
 
-		err = devm_battery_hook_register(&priv->platform_device->dev, &priv->battery_hook);
-		if (err)
-			return err;
+			priv->battery_ext = priv->features.rapid_charge
+					    ? &ideapad_battery_ext_v2
+					    : &ideapad_battery_ext_v1;
+
+			priv->battery_hook.add_battery = ideapad_battery_add;
+			priv->battery_hook.remove_battery = ideapad_battery_remove;
+			priv->battery_hook.name = "Ideapad Battery Extension";
+
+			err = devm_battery_hook_register(&priv->platform_device->dev,
+							 &priv->battery_hook);
+			if (err)
+				return err;
+		}
 	}
 
 	if (acpi_has_method(handle, "DYTC"))
@@ -2289,6 +2391,10 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->platform_device = pdev;
 
 	err = devm_mutex_init(&pdev->dev, &priv->vpc_mutex);
+	if (err)
+		return err;
+
+	err = devm_mutex_init(&pdev->dev, &priv->gbmd_sbmc_mutex);
 	if (err)
 		return err;
 

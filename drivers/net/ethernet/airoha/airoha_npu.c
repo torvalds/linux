@@ -16,6 +16,8 @@
 
 #define NPU_EN7581_FIRMWARE_DATA		"airoha/en7581_npu_data.bin"
 #define NPU_EN7581_FIRMWARE_RV32		"airoha/en7581_npu_rv32.bin"
+#define NPU_AN7583_FIRMWARE_DATA		"airoha/an7583_npu_data.bin"
+#define NPU_AN7583_FIRMWARE_RV32		"airoha/an7583_npu_rv32.bin"
 #define NPU_EN7581_FIRMWARE_RV32_MAX_SIZE	0x200000
 #define NPU_EN7581_FIRMWARE_DATA_MAX_SIZE	0x10000
 #define NPU_DUMP_SIZE				512
@@ -103,6 +105,16 @@ enum {
 	QDMA_WAN_PON_XDSL,
 };
 
+struct airoha_npu_fw {
+	const char *name;
+	int max_size;
+};
+
+struct airoha_npu_soc_data {
+	struct airoha_npu_fw fw_rv32;
+	struct airoha_npu_fw fw_data;
+};
+
 #define MBOX_MSG_FUNC_ID	GENMASK(14, 11)
 #define MBOX_MSG_STATIC_BUF	BIT(5)
 #define MBOX_MSG_STATUS		GENMASK(4, 2)
@@ -182,49 +194,53 @@ static int airoha_npu_send_msg(struct airoha_npu *npu, int func_id,
 	return ret;
 }
 
-static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
-				   struct resource *res)
+static int airoha_npu_load_firmware(struct device *dev, void __iomem *addr,
+				    const struct airoha_npu_fw *fw_info)
 {
 	const struct firmware *fw;
-	void __iomem *addr;
 	int ret;
 
-	ret = request_firmware(&fw, NPU_EN7581_FIRMWARE_RV32, dev);
+	ret = request_firmware(&fw, fw_info->name, dev);
 	if (ret)
 		return ret == -ENOENT ? -EPROBE_DEFER : ret;
 
-	if (fw->size > NPU_EN7581_FIRMWARE_RV32_MAX_SIZE) {
+	if (fw->size > fw_info->max_size) {
 		dev_err(dev, "%s: fw size too overlimit (%zu)\n",
-			NPU_EN7581_FIRMWARE_RV32, fw->size);
+			fw_info->name, fw->size);
 		ret = -E2BIG;
-		goto out;
-	}
-
-	addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(addr)) {
-		ret = PTR_ERR(addr);
 		goto out;
 	}
 
 	memcpy_toio(addr, fw->data, fw->size);
-	release_firmware(fw);
-
-	ret = request_firmware(&fw, NPU_EN7581_FIRMWARE_DATA, dev);
-	if (ret)
-		return ret == -ENOENT ? -EPROBE_DEFER : ret;
-
-	if (fw->size > NPU_EN7581_FIRMWARE_DATA_MAX_SIZE) {
-		dev_err(dev, "%s: fw size too overlimit (%zu)\n",
-			NPU_EN7581_FIRMWARE_DATA, fw->size);
-		ret = -E2BIG;
-		goto out;
-	}
-
-	memcpy_toio(base + REG_NPU_LOCAL_SRAM, fw->data, fw->size);
 out:
 	release_firmware(fw);
 
 	return ret;
+}
+
+static int airoha_npu_run_firmware(struct device *dev, void __iomem *base,
+				   struct resource *res)
+{
+	const struct airoha_npu_soc_data *soc;
+	void __iomem *addr;
+	int ret;
+
+	soc = of_device_get_match_data(dev);
+	if (!soc)
+		return -EINVAL;
+
+	addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
+
+	/* Load rv32 npu firmware */
+	ret = airoha_npu_load_firmware(dev, addr, &soc->fw_rv32);
+	if (ret)
+		return ret;
+
+	/* Load data npu firmware */
+	return airoha_npu_load_firmware(dev, base + REG_NPU_LOCAL_SRAM,
+					&soc->fw_data);
 }
 
 static irqreturn_t airoha_npu_mbox_handler(int irq, void *npu_instance)
@@ -597,8 +613,31 @@ void airoha_npu_put(struct airoha_npu *npu)
 }
 EXPORT_SYMBOL_GPL(airoha_npu_put);
 
+static const struct airoha_npu_soc_data en7581_npu_soc_data = {
+	.fw_rv32 = {
+		.name = NPU_EN7581_FIRMWARE_RV32,
+		.max_size = NPU_EN7581_FIRMWARE_RV32_MAX_SIZE,
+	},
+	.fw_data = {
+		.name = NPU_EN7581_FIRMWARE_DATA,
+		.max_size = NPU_EN7581_FIRMWARE_DATA_MAX_SIZE,
+	},
+};
+
+static const struct airoha_npu_soc_data an7583_npu_soc_data = {
+	.fw_rv32 = {
+		.name = NPU_AN7583_FIRMWARE_RV32,
+		.max_size = NPU_EN7581_FIRMWARE_RV32_MAX_SIZE,
+	},
+	.fw_data = {
+		.name = NPU_AN7583_FIRMWARE_DATA,
+		.max_size = NPU_EN7581_FIRMWARE_DATA_MAX_SIZE,
+	},
+};
+
 static const struct of_device_id of_airoha_npu_match[] = {
-	{ .compatible = "airoha,en7581-npu" },
+	{ .compatible = "airoha,en7581-npu", .data = &en7581_npu_soc_data },
+	{ .compatible = "airoha,an7583-npu", .data = &an7583_npu_soc_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_airoha_npu_match);
@@ -737,6 +776,8 @@ module_platform_driver(airoha_npu_driver);
 
 MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_DATA);
 MODULE_FIRMWARE(NPU_EN7581_FIRMWARE_RV32);
+MODULE_FIRMWARE(NPU_AN7583_FIRMWARE_DATA);
+MODULE_FIRMWARE(NPU_AN7583_FIRMWARE_RV32);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_DESCRIPTION("Airoha Network Processor Unit driver");

@@ -45,7 +45,7 @@ static int dummy_ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 	return 0;
 }
 
-static int ping_v6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+static int ping_v6_pre_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 			       int addr_len)
 {
 	/* This check is replicated from __ip6_datagram_connect() and

@@ -20,7 +20,11 @@ description: >
 
 properties:
   compatible:
-    const: maxim,max31790
+    enum:
+      - maxim,max31785
+      - maxim,max31785a
+      - maxim,max31785b
+      - maxim,max31790
 
   reg:
     maxItems: 1
@@ -31,11 +35,17 @@ properties:
   resets:
     maxItems: 1
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
   "#pwm-cells":
     const: 1
 
 patternProperties:
-  "^fan-[0-9]+$":
+  "^fan@[0-9]+$":
     $ref: fan-common.yaml#
     unevaluatedProperties: false
 
@@ -56,13 +66,17 @@ examples:
         reg = <0x20>;
         clocks = <&sys_clk>;
         resets = <&reset 0>;
+        #address-cells = <1>;
         #pwm-cells = <1>;
+        #size-cells = <0>;
 
-        fan-0 {
+        fan@0 {
+          reg = <0x0>;
           pwms = <&pwm_provider 1>;
         };
 
-        fan-1 {
+        fan@1 {
+          reg = <0x1>;
           pwms = <&pwm_provider 2>;
         };
       };

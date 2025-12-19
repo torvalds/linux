@@ -849,7 +849,6 @@ static const struct net_device_ops can327_netdev_ops = {
 	.ndo_open = can327_netdev_open,
 	.ndo_stop = can327_netdev_close,
 	.ndo_start_xmit = can327_netdev_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops can327_ethtool_ops = {

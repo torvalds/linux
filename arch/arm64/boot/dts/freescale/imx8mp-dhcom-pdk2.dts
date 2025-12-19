@@ -88,6 +88,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <0>;
 			gpios = <&gpio5 22 GPIO_ACTIVE_HIGH>; /* GPIO E */
 			pinctrl-0 = <&pinctrl_dhcom_e>;
 			pinctrl-names = "default";
@@ -97,6 +98,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
 			gpios = <&gpio5 23 GPIO_ACTIVE_HIGH>; /* GPIO F */
 			pinctrl-0 = <&pinctrl_dhcom_f>;
 			pinctrl-names = "default";
@@ -106,6 +108,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <2>;
 			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>; /* GPIO H */
 			pinctrl-0 = <&pinctrl_dhcom_h>;
 			pinctrl-names = "default";
@@ -115,6 +118,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <3>;
 			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>; /* GPIO I */
 			pinctrl-0 = <&pinctrl_dhcom_i>;
 			pinctrl-names = "default";

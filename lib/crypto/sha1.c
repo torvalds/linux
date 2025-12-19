@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/unaligned.h>
 #include <linux/wordpart.h>
+#include "fips.h"
 
 static const struct sha1_block_state sha1_iv = {
 	.h = { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
@@ -330,10 +331,26 @@ void hmac_sha1_usingrawkey(const u8 *raw_key, size_t raw_key_len,
 }
 EXPORT_SYMBOL_GPL(hmac_sha1_usingrawkey);
 
-#ifdef sha1_mod_init_arch
+#if defined(sha1_mod_init_arch) || defined(CONFIG_CRYPTO_FIPS)
 static int __init sha1_mod_init(void)
 {
+#ifdef sha1_mod_init_arch
 	sha1_mod_init_arch();
+#endif
+	if (fips_enabled) {
+		/*
+		 * FIPS cryptographic algorithm self-test.  As per the FIPS
+		 * Implementation Guidance, testing HMAC-SHA1 satisfies the test
+		 * requirement for SHA-1 too.
+		 */
+		u8 mac[SHA1_DIGEST_SIZE];
+
+		hmac_sha1_usingrawkey(fips_test_key, sizeof(fips_test_key),
+				      fips_test_data, sizeof(fips_test_data),
+				      mac);
+		if (memcmp(fips_test_hmac_sha1_value, mac, sizeof(mac)) != 0)
+			panic("sha1: FIPS self-test failed\n");
+	}
 	return 0;
 }
 subsys_initcall(sha1_mod_init);

@@ -163,7 +163,7 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 	seq_printf(m, " %d sessions, refcnt %d/%d\n", session_count,
 		   tunnel->sock ? refcount_read(&tunnel->sock->sk_refcnt) : 0,
 		   refcount_read(&tunnel->ref_count));
-	seq_printf(m, " %08x rx %ld/%ld/%ld rx %ld/%ld/%ld\n",
+	seq_printf(m, " %08x tx %ld/%ld/%ld rx %ld/%ld/%ld\n",
 		   0,
 		   atomic_long_read(&tunnel->stats.tx_packets),
 		   atomic_long_read(&tunnel->stats.tx_bytes),

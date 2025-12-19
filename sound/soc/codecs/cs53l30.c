@@ -649,8 +649,9 @@ static int cs53l30_pcm_hw_params(struct snd_pcm_substream *substream,
 static int cs53l30_set_bias_level(struct snd_soc_component *component,
 				  enum snd_soc_bias_level level)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct cs53l30_private *priv = snd_soc_component_get_drvdata(component);
+	enum snd_soc_bias_level bias_level = snd_soc_dapm_get_bias_level(dapm);
 	unsigned int reg;
 	int i, inter_max_check, ret;
 
@@ -658,12 +659,12 @@ static int cs53l30_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_ON:
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		if (dapm->bias_level == SND_SOC_BIAS_STANDBY)
+		if (bias_level == SND_SOC_BIAS_STANDBY)
 			regmap_update_bits(priv->regmap, CS53L30_PWRCTL,
 					   CS53L30_PDN_LP_MASK, 0);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (dapm->bias_level == SND_SOC_BIAS_OFF) {
+		if (bias_level == SND_SOC_BIAS_OFF) {
 			ret = clk_prepare_enable(priv->mclk);
 			if (ret) {
 				dev_err(component->dev,
@@ -857,7 +858,7 @@ static struct snd_soc_dai_driver cs53l30_dai = {
 static int cs53l30_component_probe(struct snd_soc_component *component)
 {
 	struct cs53l30_private *priv = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	if (priv->use_sdout2)
 		snd_soc_dapm_add_routes(dapm, cs53l30_dapm_routes_sdout2,

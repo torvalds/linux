@@ -86,10 +86,14 @@ properties:
         - rockchip,rk3328-gmac
         - rockchip,rk3366-gmac
         - rockchip,rk3368-gmac
+        - rockchip,rk3399-gmac
+        - rockchip,rk3506-gmac
+        - rockchip,rk3528-gmac
+        - rockchip,rk3568-gmac
         - rockchip,rk3576-gmac
         - rockchip,rk3588-gmac
-        - rockchip,rk3399-gmac
         - rockchip,rv1108-gmac
+        - rockchip,rv1126-gmac
         - snps,dwmac
         - snps,dwmac-3.40a
         - snps,dwmac-3.50a

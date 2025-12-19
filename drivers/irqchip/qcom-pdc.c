@@ -350,9 +350,10 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 
 #define QCOM_PDC_SIZE 0x30000
 
-static int qcom_pdc_init(struct device_node *node, struct device_node *parent)
+static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *parent)
 {
 	struct irq_domain *parent_domain, *pdc_domain;
+	struct device_node *node = pdev->dev.of_node;
 	resource_size_t res_size;
 	struct resource res;
 	int ret;
@@ -428,7 +429,7 @@ fail:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_pdc)
-IRQCHIP_MATCH("qcom,pdc", qcom_pdc_init)
+IRQCHIP_MATCH("qcom,pdc", qcom_pdc_probe)
 IRQCHIP_PLATFORM_DRIVER_END(qcom_pdc)
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Power Domain Controller");
 MODULE_LICENSE("GPL v2");

@@ -250,8 +250,6 @@ static const struct file_operations signalfd_fops = {
 
 static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 {
-	struct signalfd_ctx *ctx;
-
 	/* Check the SFD_* constants for consistency.  */
 	BUILD_BUG_ON(SFD_CLOEXEC != O_CLOEXEC);
 	BUILD_BUG_ON(SFD_NONBLOCK != O_NONBLOCK);
@@ -263,7 +261,8 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 	signotset(mask);
 
 	if (ufd == -1) {
-		struct file *file;
+		int fd;
+		struct signalfd_ctx *ctx __free(kfree) = NULL;
 
 		ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 		if (!ctx)
@@ -271,22 +270,16 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 
 		ctx->sigmask = *mask;
 
-		ufd = get_unused_fd_flags(flags & O_CLOEXEC);
-		if (ufd < 0) {
-			kfree(ctx);
-			return ufd;
-		}
-
-		file = anon_inode_getfile_fmode("[signalfd]", &signalfd_fops,
-					ctx, O_RDWR | (flags & O_NONBLOCK),
-					FMODE_NOWAIT);
-		if (IS_ERR(file)) {
-			put_unused_fd(ufd);
-			kfree(ctx);
-			return PTR_ERR(file);
-		}
-		fd_install(ufd, file);
+		fd = FD_ADD(flags & O_CLOEXEC,
+			    anon_inode_getfile_fmode(
+				    "[signalfd]", &signalfd_fops, ctx,
+				    O_RDWR | (flags & O_NONBLOCK), FMODE_NOWAIT));
+		if (fd >= 0)
+			retain_and_null_ptr(ctx);
+		return fd;
 	} else {
+		struct signalfd_ctx *ctx;
+
 		CLASS(fd, f)(ufd);
 		if (fd_empty(f))
 			return -EBADF;

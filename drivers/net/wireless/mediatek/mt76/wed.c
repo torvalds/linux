@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2023 Lorenzo Bianconi <lorenzo@kernel.org>
  */
@@ -8,7 +8,7 @@
 
 void mt76_wed_release_rx_buf(struct mtk_wed_device *wed)
 {
-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+	struct mt76_dev *dev = mt76_wed_to_dev(wed);
 	int i;
 
 	for (i = 0; i < dev->rx_token_size; i++) {
@@ -31,8 +31,8 @@ EXPORT_SYMBOL_GPL(mt76_wed_release_rx_buf);
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 {
-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
 	struct mtk_wed_bm_desc *desc = wed->rx_buf_ring.desc;
+	struct mt76_dev *dev = mt76_wed_to_dev(wed);
 	struct mt76_queue *q = &dev->q_rx[MT_RXQ_MAIN];
 	struct mt76_txwi_cache *t = NULL;
 	int i;
@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_init_rx_buf);
 
 int mt76_wed_offload_enable(struct mtk_wed_device *wed)
 {
-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+	struct mt76_dev *dev = mt76_wed_to_dev(wed);
 
 	spin_lock_bh(&dev->token_lock);
 	dev->token_size = wed->wlan.token_start;
@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_dma_setup);
 
 void mt76_wed_offload_disable(struct mtk_wed_device *wed)
 {
-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+	struct mt76_dev *dev = mt76_wed_to_dev(wed);
 
 	spin_lock_bh(&dev->token_lock);
 	dev->token_size = dev->drv->token_size;
@@ -174,7 +174,7 @@ EXPORT_SYMBOL_GPL(mt76_wed_offload_disable);
 
 void mt76_wed_reset_complete(struct mtk_wed_device *wed)
 {
-	struct mt76_dev *dev = container_of(wed, struct mt76_dev, mmio.wed);
+	struct mt76_dev *dev = mt76_wed_to_dev(wed);
 
 	complete(&dev->mmio.wed_reset_complete);
 }

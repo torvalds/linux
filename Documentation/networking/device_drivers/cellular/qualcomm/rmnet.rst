@@ -28,6 +28,7 @@ these MAP frames and send them to appropriate PDN's.
 ================
 
 a. MAP packet v1 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -54,6 +55,7 @@ Payload length includes the padding length but does not include MAP header
 length.
 
 b. Map packet v4 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -107,6 +109,7 @@ over which checksum is computed.
 Checksum value, indicates the checksum computed.
 
 c. MAP packet v5 (data / control)
+---------------------------------
 
 MAP header fields are in big endian format.
 
@@ -134,6 +137,7 @@ Payload length includes the padding length but does not include MAP header
 length.
 
 d. Checksum offload header v5
+-----------------------------
 
 Checksum offload header fields are in big endian format.
 
@@ -158,7 +162,10 @@ indicates that the calculated packet checksum is invalid.
 
 Reserved bits must be zero when sent and ignored when received.
 
-e. MAP packet v1/v5 (command specific)::
+e. MAP packet v1/v5 (command specific)
+--------------------------------------
+
+Packet format::
 
     Bit             0             1         2-7      8 - 15           16 - 31
     Function   Command         Reserved     Pad   Multiplexer ID    Payload length
@@ -181,6 +188,7 @@ Command types
 = ==========================================
 
 f. Aggregation
+--------------
 
 Aggregation is multiple MAP packets (can be data or command) delivered to
 rmnet in a single linear skb. rmnet will process the individual

@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 FIXTURE(diag_uid)
 {

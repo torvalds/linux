@@ -28,14 +28,6 @@
 #define SPT_LP_GPI_IS		0x100
 #define SPT_LP_GPI_IE		0x120
 
-#define SPT_H_GPP(r, s, e, g)				\
-	{						\
-		.reg_num = (r),				\
-		.base = (s),				\
-		.size = ((e) - (s) + 1),		\
-		.gpio_base = (g),			\
-	}
-
 #define SPT_H_COMMUNITY(b, s, e, g)			\
 	INTEL_COMMUNITY_GPPS(b, s, e, g, SPT_H)
 
@@ -538,21 +530,21 @@ static const struct intel_function spth_functions[] = {
 };
 
 static const struct intel_padgroup spth_community0_gpps[] = {
-	SPT_H_GPP(0, 0, 23, 0),		/* GPP_A */
-	SPT_H_GPP(1, 24, 47, 24),	/* GPP_B */
+	INTEL_GPP(0, 0, 23, 0),		/* GPP_A */
+	INTEL_GPP(1, 24, 47, 24),	/* GPP_B */
 };
 
 static const struct intel_padgroup spth_community1_gpps[] = {
-	SPT_H_GPP(0, 48, 71, 48),	/* GPP_C */
-	SPT_H_GPP(1, 72, 95, 72),	/* GPP_D */
-	SPT_H_GPP(2, 96, 108, 96),	/* GPP_E */
-	SPT_H_GPP(3, 109, 132, 120),	/* GPP_F */
-	SPT_H_GPP(4, 133, 156, 144),	/* GPP_G */
-	SPT_H_GPP(5, 157, 180, 168),	/* GPP_H */
+	INTEL_GPP(0, 48, 71, 48),	/* GPP_C */
+	INTEL_GPP(1, 72, 95, 72),	/* GPP_D */
+	INTEL_GPP(2, 96, 108, 96),	/* GPP_E */
+	INTEL_GPP(3, 109, 132, 120),	/* GPP_F */
+	INTEL_GPP(4, 133, 156, 144),	/* GPP_G */
+	INTEL_GPP(5, 157, 180, 168),	/* GPP_H */
 };
 
 static const struct intel_padgroup spth_community3_gpps[] = {
-	SPT_H_GPP(0, 181, 191, 192),	/* GPP_I */
+	INTEL_GPP(0, 181, 191, 192),	/* GPP_I */
 };
 
 static const struct intel_community spth_communities[] = {

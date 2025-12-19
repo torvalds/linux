@@ -33,17 +33,17 @@ struct rfc1002_session_packet {
 			__u8 calling_len;
 			__u8 calling_name[32];
 			__u8 scope2; /* null */
-		} __attribute__((packed)) session_req;
+		} __packed session_req;
 		struct {
 			__be32 retarget_ip_addr;
 			__be16 port;
-		} __attribute__((packed)) retarget_resp;
+		} __packed retarget_resp;
 		__u8 neg_ses_resp_error_code;
 		/* POSITIVE_SESSION_RESPONSE packet does not include trailer.
 		SESSION_KEEP_ALIVE packet also does not include a trailer.
 		Trailer for the SESSION_MESSAGE packet is SMB/CIFS header */
-	} __attribute__((packed)) trailer;
-} __attribute__((packed));
+	} __packed trailer;
+} __packed;
 
 /* Negative Session Response error codes */
 #define RFC1002_NOT_LISTENING_CALLED  0x80 /* not listening on called name */

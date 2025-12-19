@@ -19,6 +19,8 @@ static struct {
 	int ringbuf_sz; /* per-ringbuf, in bytes */
 	bool ringbuf_use_output; /* use slower output API */
 	int perfbuf_sz; /* per-CPU size, in pages */
+	bool overwrite;
+	bool bench_producer;
 } args = {
 	.back2back = false,
 	.batch_cnt = 500,
@@ -27,6 +29,8 @@ static struct {
 	.ringbuf_sz = 512 * 1024,
 	.ringbuf_use_output = false,
 	.perfbuf_sz = 128,
+	.overwrite = false,
+	.bench_producer = false,
 };
 
 enum {
@@ -35,6 +39,8 @@ enum {
 	ARG_RB_BATCH_CNT = 2002,
 	ARG_RB_SAMPLED = 2003,
 	ARG_RB_SAMPLE_RATE = 2004,
+	ARG_RB_OVERWRITE = 2005,
+	ARG_RB_BENCH_PRODUCER = 2006,
 };
 
 static const struct argp_option opts[] = {
@@ -43,6 +49,8 @@ static const struct argp_option opts[] = {
 	{ "rb-batch-cnt", ARG_RB_BATCH_CNT, "CNT", 0, "Set BPF-side record batch count"},
 	{ "rb-sampled", ARG_RB_SAMPLED, NULL, 0, "Notification sampling"},
 	{ "rb-sample-rate", ARG_RB_SAMPLE_RATE, "RATE", 0, "Notification sample rate"},
+	{ "rb-overwrite", ARG_RB_OVERWRITE, NULL, 0, "Overwrite mode"},
+	{ "rb-bench-producer", ARG_RB_BENCH_PRODUCER, NULL, 0, "Benchmark producer"},
 	{},
 };
 
@@ -72,6 +80,12 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			argp_usage(state);
 		}
 		break;
+	case ARG_RB_OVERWRITE:
+		args.overwrite = true;
+		break;
+	case ARG_RB_BENCH_PRODUCER:
+		args.bench_producer = true;
+		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
@@ -95,8 +109,33 @@ static inline void bufs_trigger_batch(void)
 
 static void bufs_validate(void)
 {
-	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "rb-libbpf benchmark needs one consumer!\n");
+	if (args.bench_producer && strcmp(env.bench_name, "rb-libbpf")) {
+		fprintf(stderr, "--rb-bench-producer only works with rb-libbpf!\n");
+		exit(1);
+	}
+
+	if (args.overwrite && !args.bench_producer) {
+		fprintf(stderr, "overwrite mode only works with --rb-bench-producer for now!\n");
+		exit(1);
+	}
+
+	if (args.bench_producer && env.consumer_cnt != 0) {
+		fprintf(stderr, "no consumer is needed for --rb-bench-producer!\n");
+		exit(1);
+	}
+
+	if (args.bench_producer && args.back2back) {
+		fprintf(stderr, "back-to-back mode makes no sense for --rb-bench-producer!\n");
+		exit(1);
+	}
+
+	if (args.bench_producer && args.sampled) {
+		fprintf(stderr, "sampling mode makes no sense for --rb-bench-producer!\n");
+		exit(1);
+	}
+
+	if (!args.bench_producer && env.consumer_cnt != 1) {
+		fprintf(stderr, "benchmarks without --rb-bench-producer require exactly one consumer!\n");
 		exit(1);
 	}
 
@@ -128,12 +167,17 @@ static void ringbuf_libbpf_measure(struct bench_res *res)
 {
 	struct ringbuf_libbpf_ctx *ctx = &ringbuf_libbpf_ctx;
 
-	res->hits = atomic_swap(&buf_hits.value, 0);
+	if (args.bench_producer)
+		res->hits = atomic_swap(&ctx->skel->bss->hits, 0);
+	else
+		res->hits = atomic_swap(&buf_hits.value, 0);
 	res->drops = atomic_swap(&ctx->skel->bss->dropped, 0);
 }
 
 static struct ringbuf_bench *ringbuf_setup_skeleton(void)
 {
+	__u32 flags;
+	struct bpf_map *ringbuf;
 	struct ringbuf_bench *skel;
 
 	setup_libbpf();
@@ -146,12 +190,19 @@ static struct ringbuf_bench *ringbuf_setup_skeleton(void)
 
 	skel->rodata->batch_cnt = args.batch_cnt;
 	skel->rodata->use_output = args.ringbuf_use_output ? 1 : 0;
+	skel->rodata->bench_producer = args.bench_producer;
 
 	if (args.sampled)
 		/* record data + header take 16 bytes */
 		skel->rodata->wakeup_data_size = args.sample_rate * 16;
 
-	bpf_map__set_max_entries(skel->maps.ringbuf, args.ringbuf_sz);
+	ringbuf = skel->maps.ringbuf;
+	if (args.overwrite) {
+		flags = bpf_map__map_flags(ringbuf) | BPF_F_RB_OVERWRITE;
+		bpf_map__set_map_flags(ringbuf, flags);
+	}
+
+	bpf_map__set_max_entries(ringbuf, args.ringbuf_sz);
 
 	if (ringbuf_bench__load(skel)) {
 		fprintf(stderr, "failed to load skeleton\n");
@@ -171,10 +222,12 @@ static void ringbuf_libbpf_setup(void)
 {
 	struct ringbuf_libbpf_ctx *ctx = &ringbuf_libbpf_ctx;
 	struct bpf_link *link;
+	int map_fd;
 
 	ctx->skel = ringbuf_setup_skeleton();
-	ctx->ringbuf = ring_buffer__new(bpf_map__fd(ctx->skel->maps.ringbuf),
-					buf_process_sample, NULL, NULL);
+
+	map_fd = bpf_map__fd(ctx->skel->maps.ringbuf);
+	ctx->ringbuf = ring_buffer__new(map_fd, buf_process_sample, NULL, NULL);
 	if (!ctx->ringbuf) {
 		fprintf(stderr, "failed to create ringbuf\n");
 		exit(1);

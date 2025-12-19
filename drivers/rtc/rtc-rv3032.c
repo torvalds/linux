@@ -968,8 +968,6 @@ static int rv3032_probe(struct i2c_client *client)
 	eeprom_cfg.priv = rv3032;
 	devm_rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
 
-	rv3032->rtc->max_user_freq = 1;
-
 #ifdef CONFIG_COMMON_CLK
 	rv3032_clkout_register_clk(rv3032, client);
 #endif

@@ -751,6 +751,15 @@ static struct miscdevice vfio_misc_dev = {
 	.mode = 0666,
 };
 
+/*
+ * Used only by DMABUF, returns a valid struct device to use as a dummy struct
+ * device for attachment.
+ */
+struct device *iommufd_global_device(void)
+{
+	return iommu_misc_dev.this_device;
+}
+
 static int __init iommufd_init(void)
 {
 	int ret;
@@ -794,5 +803,6 @@ MODULE_ALIAS("devname:vfio/vfio");
 #endif
 MODULE_IMPORT_NS("IOMMUFD_INTERNAL");
 MODULE_IMPORT_NS("IOMMUFD");
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_DESCRIPTION("I/O Address Space Management for passthrough devices");
 MODULE_LICENSE("GPL");

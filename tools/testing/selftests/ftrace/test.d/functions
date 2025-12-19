@@ -104,7 +104,7 @@ clear_dynamic_events() { # reset all current dynamic events
     done
 }
 
-initialize_ftrace() { # Reset ftrace to initial-state
+initialize_system() { # Reset ftrace to initial-state
 # As the initial state, ftrace will be set to nop tracer,
 # no events, no triggers, no filters, no function filters,
 # no probes, and tracing on.
@@ -134,8 +134,8 @@ initialize_ftrace() { # Reset ftrace to initial-state
     enable_tracing
 }
 
-finish_ftrace() {
-    initialize_ftrace
+finish_system() {
+    initialize_system
 # And recover it to default.
     [ -f options/pause-on-trace ] && echo 0 > options/pause-on-trace
 }

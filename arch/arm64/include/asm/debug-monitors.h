@@ -48,7 +48,7 @@
 #define AARCH32_BREAK_THUMB2_LO	0xf7f0
 #define AARCH32_BREAK_THUMB2_HI	0xa000
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct task_struct;
 
 #define DBG_ARCH_ID_RESERVED	0	/* In case of ptrace ABI updates. */
@@ -88,5 +88,5 @@ static inline bool try_step_suspended_breakpoints(struct pt_regs *regs)
 
 bool try_handle_aarch32_break(struct pt_regs *regs);
 
-#endif	/* __ASSEMBLY */
+#endif	/* __ASSEMBLER__ */
 #endif	/* __ASM_DEBUG_MONITORS_H */

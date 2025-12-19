@@ -59,8 +59,7 @@ properties:
   power-domains:
     maxItems: 1
 
-  dma-coherent:
-    description: present if dma operations are coherent
+  dma-coherent: true
 
 required:
   - "#dma-cells"

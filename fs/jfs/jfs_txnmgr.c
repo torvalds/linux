@@ -1287,7 +1287,7 @@ int txCommit(tid_t tid,		/* transaction identifier */
 		 * to verify this, only a trivial s/I_LOCK/I_SYNC/ was done.
 		 * Joern
 		 */
-		if (tblk->u.ip->i_state & I_SYNC)
+		if (inode_state_read_once(tblk->u.ip) & I_SYNC)
 			tblk->xflag &= ~COMMIT_LAZY;
 	}
 

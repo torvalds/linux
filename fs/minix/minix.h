@@ -42,6 +42,9 @@ struct minix_sb_info {
 	unsigned short s_version;
 };
 
+void __minix_error_inode(struct inode *inode, const char *function,
+			 unsigned int line, const char *fmt, ...);
+
 struct inode *minix_iget(struct super_block *, unsigned long);
 struct minix_inode *minix_V1_raw_inode(struct super_block *, ino_t, struct buffer_head **);
 struct minix2_inode *minix_V2_raw_inode(struct super_block *, ino_t, struct buffer_head **);
@@ -167,5 +170,11 @@ static inline int minix_test_bit(int nr, const void *vaddr)
 #define minix_find_first_zero_bit	find_first_zero_bit_le
 
 #endif
+
+#define minix_error_inode(inode, fmt, ...)			\
+	__minix_error_inode((inode), __func__, __LINE__,	\
+			    (fmt), ##__VA_ARGS__)
+
+#define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 
 #endif /* FS_MINIX_H */

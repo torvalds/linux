@@ -70,7 +70,7 @@ retry:
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		cii = ITOC(inode);
 		/* we still need to set i_ino for things like stat(2) */
 		inode->i_ino = hash;
@@ -148,7 +148,7 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 
 	/* we should never see newly created inodes because we intentionally
 	 * fail in the initialization callback */
-	BUG_ON(inode->i_state & I_NEW);
+	BUG_ON(inode_state_read_once(inode) & I_NEW);
 
 	return inode;
 }

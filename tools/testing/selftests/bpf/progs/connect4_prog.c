@@ -34,6 +34,9 @@
 #define SOL_TCP 6
 #endif
 
+const char reno[] = "reno";
+const char cubic[] = "cubic";
+
 __attribute__ ((noinline)) __weak
 int do_bind(struct bpf_sock_addr *ctx)
 {
@@ -50,35 +53,27 @@ int do_bind(struct bpf_sock_addr *ctx)
 }
 
 static __inline int verify_cc(struct bpf_sock_addr *ctx,
-			      char expected[TCP_CA_NAME_MAX])
+			      const char expected[])
 {
 	char buf[TCP_CA_NAME_MAX];
-	int i;
 
 	if (bpf_getsockopt(ctx, SOL_TCP, TCP_CONGESTION, &buf, sizeof(buf)))
 		return 1;
 
-	for (i = 0; i < TCP_CA_NAME_MAX; i++) {
-		if (buf[i] != expected[i])
-			return 1;
-		if (buf[i] == 0)
-			break;
-	}
+	if (bpf_strncmp(buf, TCP_CA_NAME_MAX, expected))
+		return 1;
 
 	return 0;
 }
 
 static __inline int set_cc(struct bpf_sock_addr *ctx)
 {
-	char reno[TCP_CA_NAME_MAX] = "reno";
-	char cubic[TCP_CA_NAME_MAX] = "cubic";
-
-	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &reno, sizeof(reno)))
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, (void *)reno, sizeof(reno)))
 		return 1;
 	if (verify_cc(ctx, reno))
 		return 1;
 
-	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, &cubic, sizeof(cubic)))
+	if (bpf_setsockopt(ctx, SOL_TCP, TCP_CONGESTION, (void *)cubic, sizeof(cubic)))
 		return 1;
 	if (verify_cc(ctx, cubic))
 		return 1;

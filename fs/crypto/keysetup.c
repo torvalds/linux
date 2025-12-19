@@ -834,7 +834,7 @@ int fscrypt_drop_inode(struct inode *inode)
 	 * userspace is still using the files, inodes can be dirtied between
 	 * then and now.  We mustn't lose any writes, so skip dirty inodes here.
 	 */
-	if (inode->i_state & I_DIRTY_ALL)
+	if (inode_state_read(inode) & I_DIRTY_ALL)
 		return 0;
 
 	/*

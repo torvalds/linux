@@ -36,6 +36,18 @@ struct comedi_buf_map *
 comedi_buf_map_from_subdev_get(struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_available(struct comedi_subdevice *s);
 unsigned int comedi_buf_write_n_allocated(struct comedi_subdevice *s);
+unsigned int _comedi_buf_write_alloc(struct comedi_subdevice *s,
+				     unsigned int nbytes);
+unsigned int _comedi_buf_write_free(struct comedi_subdevice *s,
+				    unsigned int nbytes);
+unsigned int _comedi_buf_read_n_available(struct comedi_subdevice *s);
+unsigned int _comedi_buf_read_alloc(struct comedi_subdevice *s,
+				    unsigned int nbytes);
+unsigned int _comedi_buf_read_free(struct comedi_subdevice *s,
+				   unsigned int nbytes);
+void _comedi_inc_scan_progress(struct comedi_subdevice *s,
+			       unsigned int num_bytes);
+void _comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
 void comedi_device_cancel_all(struct comedi_device *dev);
 bool comedi_can_auto_free_spriv(struct comedi_subdevice *s);
 

@@ -103,9 +103,6 @@ xfs_zone_account_reclaimable(
 		 */
 		trace_xfs_zone_emptied(rtg);
 
-		if (!was_full)
-			xfs_group_clear_mark(xg, XFS_RTG_RECLAIMABLE);
-
 		spin_lock(&zi->zi_used_buckets_lock);
 		if (!was_full)
 			xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
@@ -127,7 +124,6 @@ xfs_zone_account_reclaimable(
 		xfs_zone_add_to_bucket(zi, rgno, to_bucket);
 		spin_unlock(&zi->zi_used_buckets_lock);
 
-		xfs_group_set_mark(xg, XFS_RTG_RECLAIMABLE);
 		if (zi->zi_gc_thread && xfs_zoned_need_gc(mp))
 			wake_up_process(zi->zi_gc_thread);
 	} else if (to_bucket != from_bucket) {
@@ -140,6 +136,28 @@ xfs_zone_account_reclaimable(
 		xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
 		spin_unlock(&zi->zi_used_buckets_lock);
 	}
+}
+
+/*
+ * Check if we have any zones that can be reclaimed by looking at the entry
+ * counters for the zone buckets.
+ */
+bool
+xfs_zoned_have_reclaimable(
+	struct xfs_zone_info	*zi)
+{
+	int i;
+
+	spin_lock(&zi->zi_used_buckets_lock);
+	for (i = 0; i < XFS_ZONE_USED_BUCKETS; i++) {
+		if (zi->zi_used_bucket_entries[i]) {
+			spin_unlock(&zi->zi_used_buckets_lock);
+			return true;
+		}
+	}
+	spin_unlock(&zi->zi_used_buckets_lock);
+
+	return false;
 }
 
 static void
@@ -1204,6 +1222,7 @@ xfs_mount_zones(
 		.mp		= mp,
 	};
 	struct xfs_buftarg	*bt = mp->m_rtdev_targp;
+	xfs_extlen_t		zone_blocks = mp->m_groups[XG_TYPE_RTG].blocks;
 	int			error;
 
 	if (!bt) {
@@ -1234,12 +1253,35 @@ xfs_mount_zones(
 		return -ENOMEM;
 
 	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
-		 mp->m_sb.sb_rgcount, mp->m_groups[XG_TYPE_RTG].blocks,
-		 mp->m_max_open_zones);
+		 mp->m_sb.sb_rgcount, zone_blocks, mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
 
+	/*
+	 * The writeback code switches between inodes regularly to provide
+	 * fairness.  The default lower bound is 4MiB, but for zoned file
+	 * systems we want to increase that both to reduce seeks, but also more
+	 * importantly so that workloads that writes files in a multiple of the
+	 * zone size do not get fragmented and require garbage collection when
+	 * they shouldn't.  Increase is to the zone size capped by the max
+	 * extent len.
+	 *
+	 * Note that because s_min_writeback_pages is a superblock field, this
+	 * value also get applied to non-zoned files on the data device if
+	 * there are any.  On typical zoned setup all data is on the RT device
+	 * because using the more efficient sequential write required zones
+	 * is the reason for using the zone allocator, and either the RT device
+	 * and the (meta)data device are on the same block device, or the
+	 * (meta)data device is on a fast SSD while the data on the RT device
+	 * is on a SMR HDD.  In any combination of the above cases enforcing
+	 * the higher min_writeback_pages for non-RT inodes is either a noop
+	 * or beneficial.
+	 */
+	mp->m_super->s_min_writeback_pages =
+		XFS_FSB_TO_B(mp, min(zone_blocks, XFS_MAX_BMBT_EXTLEN)) >>
+			PAGE_SHIFT;
+
 	if (bdev_is_zoned(bt->bt_bdev)) {
-		error = blkdev_report_zones(bt->bt_bdev,
+		error = blkdev_report_zones_cached(bt->bt_bdev,
 				XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart),
 				mp->m_sb.sb_rgcount, xfs_get_zone_info_cb, &iz);
 		if (error < 0)

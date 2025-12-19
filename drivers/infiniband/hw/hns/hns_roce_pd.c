@@ -30,7 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/pci.h>
 #include "hns_roce_device.h"
 
 void hns_roce_init_pd_table(struct hns_roce_dev *hr_dev)

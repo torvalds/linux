@@ -17,9 +17,12 @@ static struct asymmetric_key_id *ca_keyid;
 
 #ifndef MODULE
 static struct {
-	struct asymmetric_key_id id;
-	unsigned char data[10];
+	/* Must be last as it ends in a flexible-array member. */
+	TRAILING_OVERLAP(struct asymmetric_key_id, id, data,
+		unsigned char data[10];
+	);
 } cakey;
+static_assert(offsetof(typeof(cakey), id.data) == offsetof(typeof(cakey), data));
 
 static int __init ca_keys_setup(char *str)
 {

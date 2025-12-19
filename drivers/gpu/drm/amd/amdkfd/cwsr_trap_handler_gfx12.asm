@@ -78,9 +78,16 @@ var SQ_WAVE_EXCP_FLAG_PRIV_RESTORE_PART_2_SHIFT	= SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL
 var SQ_WAVE_EXCP_FLAG_PRIV_RESTORE_PART_2_SIZE	= SQ_WAVE_EXCP_FLAG_PRIV_HOST_TRAP_SHIFT - SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_SHIFT
 var SQ_WAVE_EXCP_FLAG_PRIV_RESTORE_PART_3_SHIFT	= SQ_WAVE_EXCP_FLAG_PRIV_WAVE_START_SHIFT
 var SQ_WAVE_EXCP_FLAG_PRIV_RESTORE_PART_3_SIZE	= 32 - SQ_WAVE_EXCP_FLAG_PRIV_RESTORE_PART_3_SHIFT
+
+var SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT		= 0
+var SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE		= 2
+
 var BARRIER_STATE_SIGNAL_OFFSET			= 16
 var BARRIER_STATE_VALID_OFFSET			= 0
 
+var TTMP11_SCHED_MODE_SHIFT			= 26
+var TTMP11_SCHED_MODE_SIZE			= 2
+var TTMP11_SCHED_MODE_MASK			= 0xC000000
 var TTMP11_DEBUG_TRAP_ENABLED_SHIFT		= 23
 var TTMP11_DEBUG_TRAP_ENABLED_MASK		= 0x800000
 
@@ -160,7 +167,18 @@ L_JUMP_TO_RESTORE:
 	s_branch	L_RESTORE
 
 L_SKIP_RESTORE:
+	// Assume most relaxed scheduling mode is set. Save and revert to normal mode.
+	s_getreg_b32	ttmp2, hwreg(HW_REG_WAVE_SCHED_MODE)
+	s_wait_alu	0
+	s_setreg_imm32_b32	hwreg(HW_REG_WAVE_SCHED_MODE, \
+		SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT, SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE), 0
+
 	s_getreg_b32	s_save_state_priv, hwreg(HW_REG_WAVE_STATE_PRIV)	//save STATUS since we will change SCC
+
+	// Save SCHED_MODE[1:0] into ttmp11[27:26].
+	s_andn2_b32	ttmp11, ttmp11, TTMP11_SCHED_MODE_MASK
+	s_lshl_b32	ttmp2, ttmp2, TTMP11_SCHED_MODE_SHIFT
+	s_or_b32	ttmp11, ttmp11, ttmp2
 
 	// Clear SPI_PRIO: do not save with elevated priority.
 	// Clear ECC_ERR: prevents SQC store and triggers FATAL_HALT if setreg'd.
@@ -238,6 +256,13 @@ L_FETCH_2ND_TRAP:
 	s_cbranch_scc0	L_NO_SIGN_EXTEND_TMA
 	s_or_b32	ttmp15, ttmp15, 0xFFFF0000
 L_NO_SIGN_EXTEND_TMA:
+#if ASIC_FAMILY == CHIP_GFX12
+	// Move SCHED_MODE[1:0] from ttmp11 to unused bits in ttmp1[27:26] (return PC_HI).
+	// The second-level trap will restore from ttmp1 for backwards compatibility.
+	s_and_b32	ttmp2, ttmp11, TTMP11_SCHED_MODE_MASK
+	s_andn2_b32	ttmp1, ttmp1, TTMP11_SCHED_MODE_MASK
+	s_or_b32	ttmp1, ttmp1, ttmp2
+#endif
 
 	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 scope:SCOPE_SYS		// debug trap enabled flag
 	s_wait_idle
@@ -287,6 +312,10 @@ L_EXIT_TRAP:
 	// STATE_PRIV.BARRIER_COMPLETE may have changed since we read it.
 	// Only restore fields which the trap handler changes.
 	s_lshr_b32	s_save_state_priv, s_save_state_priv, SQ_WAVE_STATE_PRIV_SCC_SHIFT
+
+	// Assume relaxed scheduling mode after this point.
+	restore_sched_mode(ttmp2)
+
 	s_setreg_b32	hwreg(HW_REG_WAVE_STATE_PRIV, SQ_WAVE_STATE_PRIV_SCC_SHIFT, \
 		SQ_WAVE_STATE_PRIV_POISON_ERR_SHIFT - SQ_WAVE_STATE_PRIV_SCC_SHIFT + 1), s_save_state_priv
 
@@ -1043,6 +1072,9 @@ L_SKIP_BARRIER_RESTORE:
 	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
 	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
 
+	// Assume relaxed scheduling mode after this point.
+	restore_sched_mode(s_restore_tmp)
+
 	s_setreg_b32	hwreg(HW_REG_WAVE_STATE_PRIV), s_restore_state_priv	// SCC is included, which is changed by previous salu
 
 	// Make barrier and LDS state visible to all waves in the group.
@@ -1133,4 +1165,9 @@ function valu_sgpr_hazard
 		ds_nop
 	end
 #endif
+end
+
+function restore_sched_mode(s_tmp)
+	s_bfe_u32	s_tmp, ttmp11, (TTMP11_SCHED_MODE_SHIFT | (TTMP11_SCHED_MODE_SIZE << 0x10))
+	s_setreg_b32	hwreg(HW_REG_WAVE_SCHED_MODE), s_tmp
 end

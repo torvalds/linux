@@ -30,8 +30,6 @@ extern void cifs_buf_release(void *);
 extern struct smb_hdr *cifs_small_buf_get(void);
 extern void cifs_small_buf_release(void *);
 extern void free_rsp_buf(int, void *);
-extern int smb_send(struct TCP_Server_Info *, struct smb_hdr *,
-			unsigned int /* length */);
 extern int smb_send_kvec(struct TCP_Server_Info *server,
 			 struct msghdr *msg,
 			 size_t *sent);
@@ -82,11 +80,10 @@ extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     struct cifs_sb_info *cifs_sb,
 				     struct cifs_tcon *tcon,
 				     int add_treename);
-extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
 char *cifs_build_devname(char *nodename, const char *prepath);
-extern void delete_mid(struct mid_q_entry *mid);
-void __release_mid(struct kref *refcount);
-extern void cifs_wake_up_task(struct mid_q_entry *mid);
+void delete_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid);
+void __release_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid);
+void cifs_wake_up_task(struct TCP_Server_Info *server, struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
 extern char *smb3_fs_context_fullpath(const struct smb3_fs_context *ctx,
@@ -97,10 +94,10 @@ extern int cifs_ipaddr_cmp(struct sockaddr *srcaddr, struct sockaddr *rhs);
 extern bool cifs_match_ipaddr(struct sockaddr *srcaddr, struct sockaddr *rhs);
 extern int cifs_discard_remaining_data(struct TCP_Server_Info *server);
 extern int cifs_call_async(struct TCP_Server_Info *server,
-			struct smb_rqst *rqst,
-			mid_receive_t *receive, mid_callback_t *callback,
-			mid_handle_t *handle, void *cbdata, const int flags,
-			const struct cifs_credits *exist_credits);
+			   struct smb_rqst *rqst,
+			   mid_receive_t receive, mid_callback_t callback,
+			   mid_handle_t handle, void *cbdata, const int flags,
+			   const struct cifs_credits *exist_credits);
 extern struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses);
 extern int cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			  struct TCP_Server_Info *server,
@@ -111,18 +108,16 @@ extern int compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			      const int flags, const int num_rqst,
 			      struct smb_rqst *rqst, int *resp_buf_type,
 			      struct kvec *resp_iov);
-extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
-			struct smb_hdr * /* input */ ,
-			struct smb_hdr * /* out */ ,
-			int * /* bytes returned */ , const int);
-extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
-			    char *in_buf, int flags);
+int SendReceive(const unsigned int xid, struct cifs_ses *ses,
+		struct smb_hdr *in_buf, unsigned int in_len,
+		struct smb_hdr *out_buf, int *pbytes_returned, const int flags);
+int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
+		     char *in_buf, unsigned int in_len, int flags);
 int cifs_sync_mid_result(struct mid_q_entry *mid, struct TCP_Server_Info *server);
-extern struct mid_q_entry *cifs_setup_request(struct cifs_ses *,
-				struct TCP_Server_Info *,
-				struct smb_rqst *);
-extern struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *,
-						struct smb_rqst *);
+struct mid_q_entry *cifs_setup_request(struct cifs_ses *ses, struct TCP_Server_Info *ignored,
+				       struct smb_rqst *rqst);
+struct mid_q_entry *cifs_setup_async_request(struct TCP_Server_Info *server,
+					     struct smb_rqst *rqst);
 int __smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		    struct smb_rqst *rqst);
 extern int cifs_check_receive(struct mid_q_entry *mid,
@@ -134,11 +129,12 @@ extern int cifs_wait_mtu_credits(struct TCP_Server_Info *server,
 				 struct cifs_credits *credits);
 
 static inline int
-send_cancel(struct TCP_Server_Info *server, struct smb_rqst *rqst,
-	    struct mid_q_entry *mid)
+send_cancel(struct cifs_ses *ses, struct TCP_Server_Info *server,
+	    struct smb_rqst *rqst, struct mid_q_entry *mid,
+	    unsigned int xid)
 {
 	return server->ops->send_cancel ?
-				server->ops->send_cancel(server, rqst, mid) : 0;
+		server->ops->send_cancel(ses, server, rqst, mid, xid) : 0;
 }
 
 int wait_for_response(struct TCP_Server_Info *server, struct mid_q_entry *midQ);
@@ -146,11 +142,6 @@ extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
 			struct kvec *, int /* nvec to send */,
 			int * /* type of buf returned */, const int flags,
 			struct kvec * /* resp vec */);
-extern int SendReceiveBlockingLock(const unsigned int xid,
-			struct cifs_tcon *ptcon,
-			struct smb_hdr *in_buf,
-			struct smb_hdr *out_buf,
-			int *bytes_returned);
 
 void smb2_query_server_interfaces(struct work_struct *work);
 void
@@ -161,13 +152,12 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session);
 extern int cifs_reconnect(struct TCP_Server_Info *server,
 			  bool mark_smb_session);
-extern int checkSMB(char *buf, unsigned int len, struct TCP_Server_Info *srvr);
+int checkSMB(char *buf, unsigned int pdu_len, unsigned int len,
+	     struct TCP_Server_Info *srvr);
 extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 eof,
 				   bool from_readdir);
-extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
-			    unsigned int bytes_written);
 void cifs_write_subrequest_terminated(struct cifs_io_subrequest *wdata, ssize_t result);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, int);
 extern int cifs_get_writable_file(struct cifsInodeInfo *cifs_inode,
@@ -187,15 +177,14 @@ extern int decode_negTokenInit(unsigned char *security_blob, int length,
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 extern void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int map_smb_to_linux_error(char *buf, bool logErr);
-extern int map_and_check_smb_error(struct mid_q_entry *mid, bool logErr);
-extern void header_assemble(struct smb_hdr *, char /* command */ ,
-			    const struct cifs_tcon *, int /* length of
-			    fixed section (word count) in two byte units */);
+extern int map_and_check_smb_error(struct TCP_Server_Info *server,
+				   struct mid_q_entry *mid, bool logErr);
+unsigned int header_assemble(struct smb_hdr *buffer, char smb_command,
+			     const struct cifs_tcon *treeCon, int word_count
+			     /* length of fixed section word count in two byte units  */);
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifs_ses *ses,
 				void **request_buf);
-extern enum securityEnum select_sectype(struct TCP_Server_Info *server,
-				enum securityEnum requested);
 extern int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 			  struct TCP_Server_Info *server,
 			  const struct nls_table *nls_cp);
@@ -270,7 +259,7 @@ extern unsigned int setup_special_mode_ACE(struct smb_ace *pace,
 					   __u64 nmode);
 extern unsigned int setup_special_user_owner_ACE(struct smb_ace *pace);
 
-extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
+void dequeue_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid, bool malformed);
 extern int cifs_read_from_socket(struct TCP_Server_Info *server, char *buf,
 			         unsigned int to_read);
 extern ssize_t cifs_discard_from_socket(struct TCP_Server_Info *server,
@@ -565,12 +554,9 @@ extern void tconInfoFree(struct cifs_tcon *tcon, enum smb3_tcon_ref_trace trace)
 
 extern int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 		   __u32 *pexpected_response_sequence_number);
-extern int cifs_sign_smbv(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
-			  __u32 *);
-extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
-extern int cifs_verify_signature(struct smb_rqst *rqst,
-				 struct TCP_Server_Info *server,
-				__u32 expected_sequence_number);
+int cifs_verify_signature(struct smb_rqst *rqst,
+			  struct TCP_Server_Info *server,
+			  __u32 expected_sequence_number);
 extern int setup_ntlmv2_rsp(struct cifs_ses *, const struct nls_table *);
 extern void cifs_crypto_secmech_release(struct TCP_Server_Info *server);
 extern int calc_seckey(struct cifs_ses *);
@@ -603,7 +589,7 @@ extern int cifs_do_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 			   const struct nls_table *nls_codepage, int remap);
 extern int CIFSGetExtAttr(const unsigned int xid, struct cifs_tcon *tcon,
 			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
-#endif /* CIFS_ALLOW_INSECURE_LEGACY */
+#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 extern void cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb);
 extern bool couldbe_mf_symlink(const struct cifs_fattr *fattr);
 extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
@@ -635,11 +621,6 @@ int cifs_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			   struct cifs_sb_info *cifs_sb,
 			   const unsigned char *path, char *pbuf,
 			   unsigned int *pbytes_written);
-struct cifs_calc_sig_ctx {
-	struct md5_ctx *md5;
-	struct hmac_sha256_ctx *hmac;
-	struct shash_desc *shash;
-};
 int __cifs_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 			  char *signature, struct cifs_calc_sig_ctx *ctx);
 enum securityEnum cifs_select_sectype(struct TCP_Server_Info *,
@@ -649,8 +630,9 @@ int cifs_alloc_hash(const char *name, struct shash_desc **sdesc);
 void cifs_free_hash(struct shash_desc **sdesc);
 
 int cifs_try_adding_channels(struct cifs_ses *ses);
+int smb3_update_ses_channels(struct cifs_ses *ses, struct TCP_Server_Info *server,
+					bool from_reconnect, bool disable_mchan);
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface);
-void cifs_ses_mark_for_reconnect(struct cifs_ses *ses);
 
 int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
@@ -674,7 +656,7 @@ bool
 cifs_chan_is_iface_active(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server);
 void
-cifs_disable_secondary_channels(struct cifs_ses *ses);
+cifs_decrease_secondary_channels(struct cifs_ses *ses, bool disable_mchan);
 void
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server);
 int
@@ -777,9 +759,15 @@ static inline bool dfs_src_pathname_equal(const char *s1, const char *s2)
 	return true;
 }
 
-static inline void release_mid(struct mid_q_entry *mid)
+static inline void smb_get_mid(struct mid_q_entry *mid)
 {
-	kref_put(&mid->refcount, __release_mid);
+	refcount_inc(&mid->refcount);
+}
+
+static inline void release_mid(struct TCP_Server_Info *server, struct mid_q_entry *mid)
+{
+	if (refcount_dec_and_test(&mid->refcount))
+		__release_mid(server, mid);
 }
 
 static inline void cifs_free_open_info(struct cifs_open_info_data *data)
@@ -787,6 +775,112 @@ static inline void cifs_free_open_info(struct cifs_open_info_data *data)
 	kfree(data->symlink_target);
 	free_rsp_buf(data->reparse.io.buftype, data->reparse.io.iov.iov_base);
 	memset(data, 0, sizeof(*data));
+}
+
+static inline int smb_EIO(enum smb_eio_trace trace)
+{
+	trace_smb3_eio(trace, 0, 0);
+	return -EIO;
+}
+
+static inline int smb_EIO1(enum smb_eio_trace trace, unsigned long info)
+{
+	trace_smb3_eio(trace, info, 0);
+	return -EIO;
+}
+
+static inline int smb_EIO2(enum smb_eio_trace trace, unsigned long info, unsigned long info2)
+{
+	trace_smb3_eio(trace, info, info2);
+	return -EIO;
+}
+
+static inline int cifs_get_num_sgs(const struct smb_rqst *rqst,
+				   int num_rqst,
+				   const u8 *sig)
+{
+	unsigned int len, skip;
+	unsigned int nents = 0;
+	unsigned long addr;
+	size_t data_size;
+	int i, j;
+
+	/*
+	 * The first rqst has a transform header where the first 20 bytes are
+	 * not part of the encrypted blob.
+	 */
+	skip = 20;
+
+	/* Assumes the first rqst has a transform header as the first iov.
+	 * I.e.
+	 * rqst[0].rq_iov[0]  is transform header
+	 * rqst[0].rq_iov[1+] data to be encrypted/decrypted
+	 * rqst[1+].rq_iov[0+] data to be encrypted/decrypted
+	 */
+	for (i = 0; i < num_rqst; i++) {
+		data_size = iov_iter_count(&rqst[i].rq_iter);
+
+		/* We really don't want a mixture of pinned and unpinned pages
+		 * in the sglist.  It's hard to keep track of which is what.
+		 * Instead, we convert to a BVEC-type iterator higher up.
+		 */
+		if (data_size &&
+		    WARN_ON_ONCE(user_backed_iter(&rqst[i].rq_iter)))
+			return smb_EIO(smb_eio_trace_user_iter);
+
+		/* We also don't want to have any extra refs or pins to clean
+		 * up in the sglist.
+		 */
+		if (data_size &&
+		    WARN_ON_ONCE(iov_iter_extract_will_pin(&rqst[i].rq_iter)))
+			return smb_EIO(smb_eio_trace_extract_will_pin);
+
+		for (j = 0; j < rqst[i].rq_nvec; j++) {
+			struct kvec *iov = &rqst[i].rq_iov[j];
+
+			addr = (unsigned long)iov->iov_base + skip;
+			if (is_vmalloc_or_module_addr((void *)addr)) {
+				len = iov->iov_len - skip;
+				nents += DIV_ROUND_UP(offset_in_page(addr) + len,
+						      PAGE_SIZE);
+			} else {
+				nents++;
+			}
+			skip = 0;
+		}
+		if (data_size)
+			nents += iov_iter_npages(&rqst[i].rq_iter, INT_MAX);
+	}
+	nents += DIV_ROUND_UP(offset_in_page(sig) + SMB2_SIGNATURE_SIZE, PAGE_SIZE);
+	return nents;
+}
+
+/* We can not use the normal sg_set_buf() as we will sometimes pass a
+ * stack object as buf.
+ */
+static inline void cifs_sg_set_buf(struct sg_table *sgtable,
+				   const void *buf,
+				   unsigned int buflen)
+{
+	unsigned long addr = (unsigned long)buf;
+	unsigned int off = offset_in_page(addr);
+
+	addr &= PAGE_MASK;
+	if (is_vmalloc_or_module_addr((void *)addr)) {
+		do {
+			unsigned int len = min_t(unsigned int, buflen, PAGE_SIZE - off);
+
+			sg_set_page(&sgtable->sgl[sgtable->nents++],
+				    vmalloc_to_page((void *)addr), len, off);
+
+			off = 0;
+			addr += PAGE_SIZE;
+			buflen -= len;
+		} while (buflen);
+	} else {
+		sg_set_page(&sgtable->sgl[sgtable->nents++],
+			    virt_to_page((void *)addr), buflen, off);
+	}
 }
 
 #endif			/* _CIFSPROTO_H */

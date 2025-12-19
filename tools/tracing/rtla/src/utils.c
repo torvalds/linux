@@ -57,6 +57,21 @@ void debug_msg(const char *fmt, ...)
 }
 
 /*
+ * fatal - print an error message and EOL to stderr and exit with ERROR
+ */
+void fatal(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	fprintf(stderr, "\n");
+
+	exit(ERROR);
+}
+
+/*
  * get_llong_from_str - get a long long int from a string
  */
 long long get_llong_from_str(char *start)
@@ -958,4 +973,30 @@ int auto_house_keeping(cpu_set_t *monitored_cpus)
 	debug_msg("rtla automatically moved to an auto house-keeping cpu set\n");
 
 	return 1;
+}
+
+/**
+ * parse_optional_arg - Parse optional argument value
+ *
+ * Parse optional argument value, which can be in the form of:
+ * -sarg, -s/--long=arg, -s/--long arg
+ *
+ * Returns arg value if found, NULL otherwise.
+ */
+char *parse_optional_arg(int argc, char **argv)
+{
+	if (optarg) {
+		if (optarg[0] == '=') {
+			/* skip the = */
+			return &optarg[1];
+		} else {
+			return optarg;
+		}
+	/* parse argument of form -s [arg] and --long [arg]*/
+	} else if (optind < argc && argv[optind][0] != '-') {
+		/* consume optind */
+		return argv[optind++];
+	} else {
+		return NULL;
+	}
 }

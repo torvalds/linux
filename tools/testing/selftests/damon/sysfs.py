@@ -132,7 +132,7 @@ def assert_scheme_committed(scheme, dump):
     assert_watermarks_committed(scheme.watermarks, dump['wmarks'])
     # TODO: test filters directory
     for idx, f in enumerate(scheme.core_filters.filters):
-        assert_filter_committed(f, dump['filters'][idx])
+        assert_filter_committed(f, dump['core_filters'][idx])
     for idx, f in enumerate(scheme.ops_filters.filters):
         assert_filter_committed(f, dump['ops_filters'][idx])
 
@@ -164,6 +164,16 @@ def assert_monitoring_attrs_committed(attrs, dump):
     assert_true(dump['max_nr_regions'] == attrs.max_nr_regions,
                 'max_nr_regions', dump)
 
+def assert_monitoring_target_committed(target, dump):
+    # target.pid is the pid "number", while dump['pid'] is 'struct pid'
+    # pointer, and hence cannot be compared.
+    assert_true(dump['obsolete'] == target.obsolete, 'target obsolete', dump)
+
+def assert_monitoring_targets_committed(targets, dump):
+    assert_true(len(targets) == len(dump), 'len_targets', dump)
+    for idx, target in enumerate(targets):
+        assert_monitoring_target_committed(target, dump[idx])
+
 def assert_ctx_committed(ctx, dump):
     ops_val = {
             'vaddr': 0,
@@ -172,9 +182,18 @@ def assert_ctx_committed(ctx, dump):
             }
     assert_true(dump['ops']['id'] == ops_val[ctx.ops], 'ops_id', dump)
     assert_monitoring_attrs_committed(ctx.monitoring_attrs, dump['attrs'])
+    assert_monitoring_targets_committed(ctx.targets, dump['adaptive_targets'])
     assert_schemes_committed(ctx.schemes, dump['schemes'])
 
-def assert_ctxs_committed(ctxs, dump):
+def assert_ctxs_committed(kdamonds):
+    status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
+    if err is not None:
+        print(err)
+        kdamonds.stop()
+        exit(1)
+
+    ctxs = kdamonds.kdamonds[0].contexts
+    dump = status['contexts']
     assert_true(len(ctxs) == len(dump), 'ctxs length', dump)
     for idx, ctx in enumerate(ctxs):
         assert_ctx_committed(ctx, dump[idx])
@@ -191,13 +210,7 @@ def main():
         print('kdamond start failed: %s' % err)
         exit(1)
 
-    status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
-    if err is not None:
-        print(err)
-        kdamonds.stop()
-        exit(1)
-
-    assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
+    assert_ctxs_committed(kdamonds)
 
     context = _damon_sysfs.DamonCtx(
             monitoring_attrs=_damon_sysfs.DamonAttrs(
@@ -245,12 +258,7 @@ def main():
     kdamonds.kdamonds[0].contexts = [context]
     kdamonds.kdamonds[0].commit()
 
-    status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
-    if err is not None:
-        print(err)
-        exit(1)
-
-    assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
+    assert_ctxs_committed(kdamonds)
 
     # test online commitment of minimum context.
     context = _damon_sysfs.DamonCtx()
@@ -259,13 +267,36 @@ def main():
     kdamonds.kdamonds[0].contexts = [context]
     kdamonds.kdamonds[0].commit()
 
-    status, err = dump_damon_status_dict(kdamonds.kdamonds[0].pid)
+    assert_ctxs_committed(kdamonds)
+
+    kdamonds.stop()
+
+    # test obsolete_target.
+    proc1 = subprocess.Popen(['sh'], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    proc2 = subprocess.Popen(['sh'], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    proc3 = subprocess.Popen(['sh'], stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+    kdamonds = _damon_sysfs.Kdamonds(
+            [_damon_sysfs.Kdamond(
+                contexts=[_damon_sysfs.DamonCtx(
+                    ops='vaddr',
+                    targets=[
+                        _damon_sysfs.DamonTarget(pid=proc1.pid),
+                        _damon_sysfs.DamonTarget(pid=proc2.pid),
+                        _damon_sysfs.DamonTarget(pid=proc3.pid),
+                        ],
+                    schemes=[_damon_sysfs.Damos()],
+                    )])])
+    err = kdamonds.start()
     if err is not None:
-        print(err)
+        print('kdamond start failed: %s' % err)
         exit(1)
-
-    assert_ctxs_committed(kdamonds.kdamonds[0].contexts, status['contexts'])
-
+    kdamonds.kdamonds[0].contexts[0].targets[1].obsolete = True
+    kdamonds.kdamonds[0].commit()
+    del kdamonds.kdamonds[0].contexts[0].targets[1]
+    assert_ctxs_committed(kdamonds)
     kdamonds.stop()
 
 if __name__ == '__main__':

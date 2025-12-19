@@ -13,8 +13,7 @@
  *              protocol ip_vs_proto_data and is handled by netns
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/kernel.h>
 #include <linux/ip.h>

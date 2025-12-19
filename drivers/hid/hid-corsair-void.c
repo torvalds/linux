@@ -553,9 +553,8 @@ static void corsair_void_add_battery(struct corsair_void_drvdata *drvdata)
 
 	if (IS_ERR(new_supply)) {
 		hid_err(drvdata->hid_dev,
-			"failed to register battery '%s' (reason: %ld)\n",
-			drvdata->battery_desc.name,
-			PTR_ERR(new_supply));
+			"failed to register battery '%s' (reason: %pe)\n",
+			drvdata->battery_desc.name, new_supply);
 		return;
 	}
 

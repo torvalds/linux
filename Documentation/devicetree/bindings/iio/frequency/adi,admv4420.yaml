@@ -37,7 +37,6 @@ required:
   - compatible
   - reg
 
-
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 

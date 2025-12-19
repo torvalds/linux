@@ -4,7 +4,7 @@
 #define _FUNETH_H
 
 #include <uapi/linux/if_ether.h>
-#include <uapi/linux/net_tstamp.h>
+#include <linux/net_tstamp.h>
 #include <linux/mutex.h>
 #include <linux/seqlock.h>
 #include <linux/xarray.h>
@@ -121,7 +121,7 @@ struct funeth_priv {
 	u8 rx_coal_usec;
 	u8 rx_coal_count;
 
-	struct hwtstamp_config hwtstamp_cfg;
+	struct kernel_hwtstamp_config hwtstamp_cfg;
 
 	/* cumulative queue stats from earlier queue instances */
 	u64 tx_packets;

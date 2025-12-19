@@ -19,6 +19,7 @@
 /* The longest command found so far is 5 bytes long */
 #define QNAP_MCU_MAX_CMD_SIZE		5
 #define QNAP_MCU_MAX_DATA_SIZE		36
+#define QNAP_MCU_ERROR_SIZE		2
 #define QNAP_MCU_CHECKSUM_SIZE		1
 
 #define QNAP_MCU_RX_BUFFER_SIZE		\
@@ -78,6 +79,13 @@ static u8 qnap_mcu_csum(const u8 *buf, size_t size)
 	return csum;
 }
 
+static bool qnap_mcu_verify_checksum(const u8 *buf, size_t size)
+{
+	u8 crc = qnap_mcu_csum(buf, size - QNAP_MCU_CHECKSUM_SIZE);
+
+	return crc == buf[size - QNAP_MCU_CHECKSUM_SIZE];
+}
+
 static int qnap_mcu_write(struct qnap_mcu *mcu, const u8 *data, u8 data_size)
 {
 	unsigned char tx[QNAP_MCU_TX_BUFFER_SIZE];
@@ -94,6 +102,48 @@ static int qnap_mcu_write(struct qnap_mcu *mcu, const u8 *data, u8 data_size)
 	serdev_device_write_flush(mcu->serdev);
 
 	return serdev_device_write(mcu->serdev, tx, length, HZ);
+}
+
+static bool qnap_mcu_is_error_msg(size_t size)
+{
+	return (size == QNAP_MCU_ERROR_SIZE + QNAP_MCU_CHECKSUM_SIZE);
+}
+
+static bool qnap_mcu_reply_is_generic_error(unsigned char *buf, size_t size)
+{
+	if (!qnap_mcu_is_error_msg(size))
+		return false;
+
+	if (buf[0] == '@' && buf[1] == '9')
+		return true;
+
+	return false;
+}
+
+static bool qnap_mcu_reply_is_checksum_error(unsigned char *buf, size_t size)
+{
+	if (!qnap_mcu_is_error_msg(size))
+		return false;
+
+	if (buf[0] == '@' && buf[1] == '8')
+		return true;
+
+	return false;
+}
+
+static bool qnap_mcu_reply_is_any_error(struct qnap_mcu *mcu, unsigned char *buf, size_t size)
+{
+	if (qnap_mcu_reply_is_generic_error(buf, size)) {
+		dev_err(&mcu->serdev->dev, "Controller sent generic error response\n");
+		return true;
+	}
+
+	if (qnap_mcu_reply_is_checksum_error(buf, size)) {
+		dev_err(&mcu->serdev->dev, "Controller received invalid checksum for the command\n");
+		return true;
+	}
+
+	return false;
 }
 
 static size_t qnap_mcu_receive_buf(struct serdev_device *serdev, const u8 *buf, size_t size)
@@ -130,6 +180,24 @@ static size_t qnap_mcu_receive_buf(struct serdev_device *serdev, const u8 *buf, 
 	}
 
 	/*
+	 * We received everything the uart had to offer for now.
+	 * This could mean that either the uart will send more in a 2nd
+	 * receive run, or that the MCU cut the reply short because it
+	 * sent an error code instead of the expected reply.
+	 *
+	 * So check if the received data has the correct size for an error
+	 * reply and if it matches, is an actual error code.
+	 */
+	if (qnap_mcu_is_error_msg(reply->received) &&
+	    qnap_mcu_verify_checksum(reply->data, reply->received) &&
+	    qnap_mcu_reply_is_any_error(mcu, reply->data, reply->received)) {
+		/* The reply was an error code, we're done */
+		reply->length = 0;
+
+		complete(&reply->done);
+	}
+
+	/*
 	 * The only way to get out of the above loop and end up here
 	 * is through consuming all of the supplied data, so here we
 	 * report that we processed it all.
@@ -150,7 +218,6 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 	size_t length = reply_data_size + QNAP_MCU_CHECKSUM_SIZE;
 	struct qnap_mcu_reply *reply = &mcu->reply;
 	int ret = 0;
-	u8 crc;
 
 	if (length > sizeof(rx)) {
 		dev_err(&mcu->serdev->dev, "expected data too big for receive buffer");
@@ -175,11 +242,13 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 		return -ETIMEDOUT;
 	}
 
-	crc = qnap_mcu_csum(rx, reply_data_size);
-	if (crc != rx[reply_data_size]) {
-		dev_err(&mcu->serdev->dev, "Invalid Checksum received\n");
-		return -EIO;
+	if (!qnap_mcu_verify_checksum(rx, reply->received)) {
+		dev_err(&mcu->serdev->dev, "Invalid Checksum received from controller\n");
+		return -EPROTO;
 	}
+
+	if (qnap_mcu_reply_is_any_error(mcu, rx, reply->received))
+		return -EPROTO;
 
 	memcpy(reply_data, rx, reply_data_size);
 
@@ -264,6 +333,7 @@ static const struct qnap_mcu_variant qnap_ts433_mcu = {
 };
 
 static struct mfd_cell qnap_mcu_cells[] = {
+	{ .name = "qnap-mcu-eeprom", },
 	{ .name = "qnap-mcu-input", },
 	{ .name = "qnap-mcu-leds", },
 	{ .name = "qnap-mcu-hwmon", }

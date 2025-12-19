@@ -411,6 +411,23 @@ static bool data_check_size(struct prb_data_ring *data_ring, unsigned int size)
 	return to_blk_size(size) <= DATA_SIZE(data_ring) / 2;
 }
 
+/*
+ * Compare the current and requested logical position and decide
+ * whether more space is needed.
+ *
+ * Return false when @lpos_current is already at or beyond @lpos_target.
+ *
+ * Also return false when the difference between the positions is bigger
+ * than the size of the data buffer. It might happen only when the caller
+ * raced with another CPU(s) which already made and used the space.
+ */
+static bool need_more_space(struct prb_data_ring *data_ring,
+			    unsigned long lpos_current,
+			    unsigned long lpos_target)
+{
+	return lpos_target - lpos_current - 1 < DATA_SIZE(data_ring);
+}
+
 /* Query the state of a descriptor. */
 static enum desc_state get_desc_state(unsigned long id,
 				      unsigned long state_val)
@@ -577,7 +594,7 @@ static bool data_make_reusable(struct printk_ringbuffer *rb,
 	unsigned long id;
 
 	/* Loop until @lpos_begin has advanced to or beyond @lpos_end. */
-	while ((lpos_end - lpos_begin) - 1 < DATA_SIZE(data_ring)) {
+	while (need_more_space(data_ring, lpos_begin, lpos_end)) {
 		blk = to_block(data_ring, lpos_begin);
 
 		/*
@@ -668,7 +685,7 @@ static bool data_push_tail(struct printk_ringbuffer *rb, unsigned long lpos)
 	 * sees the new tail lpos, any descriptor states that transitioned to
 	 * the reusable state must already be visible.
 	 */
-	while ((lpos - tail_lpos) - 1 < DATA_SIZE(data_ring)) {
+	while (need_more_space(data_ring, tail_lpos, lpos)) {
 		/*
 		 * Make all descriptors reusable that are associated with
 		 * data blocks before @lpos.
@@ -999,6 +1016,17 @@ static bool desc_reserve(struct printk_ringbuffer *rb, unsigned long *id_out)
 	return true;
 }
 
+static bool is_blk_wrapped(struct prb_data_ring *data_ring,
+			   unsigned long begin_lpos, unsigned long next_lpos)
+{
+	/*
+	 * Subtract one from next_lpos since it's not actually part of this data
+	 * block. This allows perfectly fitting records to not wrap.
+	 */
+	return DATA_WRAPS(data_ring, begin_lpos) !=
+	       DATA_WRAPS(data_ring, next_lpos - 1);
+}
+
 /* Determine the end of a data block. */
 static unsigned long get_next_lpos(struct prb_data_ring *data_ring,
 				   unsigned long lpos, unsigned int size)
@@ -1010,7 +1038,7 @@ static unsigned long get_next_lpos(struct prb_data_ring *data_ring,
 	next_lpos = lpos + size;
 
 	/* First check if the data block does not wrap. */
-	if (DATA_WRAPS(data_ring, begin_lpos) == DATA_WRAPS(data_ring, next_lpos))
+	if (!is_blk_wrapped(data_ring, begin_lpos, next_lpos))
 		return next_lpos;
 
 	/* Wrapping data blocks store their data at the beginning. */
@@ -1087,7 +1115,7 @@ static char *data_alloc(struct printk_ringbuffer *rb, unsigned int size,
 	blk = to_block(data_ring, begin_lpos);
 	blk->id = id; /* LMM(data_alloc:B) */
 
-	if (DATA_WRAPS(data_ring, begin_lpos) != DATA_WRAPS(data_ring, next_lpos)) {
+	if (is_blk_wrapped(data_ring, begin_lpos, next_lpos)) {
 		/* Wrapping data blocks store their data at the beginning. */
 		blk = to_block(data_ring, 0);
 
@@ -1131,14 +1159,21 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 		return NULL;
 
 	/* Keep track if @blk_lpos was a wrapping data block. */
-	wrapped = (DATA_WRAPS(data_ring, blk_lpos->begin) != DATA_WRAPS(data_ring, blk_lpos->next));
+	wrapped = is_blk_wrapped(data_ring, blk_lpos->begin, blk_lpos->next);
 
 	size = to_blk_size(size);
 
 	next_lpos = get_next_lpos(data_ring, blk_lpos->begin, size);
 
-	/* If the data block does not increase, there is nothing to do. */
-	if (head_lpos - next_lpos < DATA_SIZE(data_ring)) {
+	/*
+	 * Use the current data block when the size does not increase, i.e.
+	 * when @head_lpos is already able to accommodate the new @next_lpos.
+	 *
+	 * Note that need_more_space() could never return false here because
+	 * the difference between the positions was bigger than the data
+	 * buffer size. The data block is reopened and can't get reused.
+	 */
+	if (!need_more_space(data_ring, head_lpos, next_lpos)) {
 		if (wrapped)
 			blk = to_block(data_ring, 0);
 		else
@@ -1167,7 +1202,7 @@ static char *data_realloc(struct printk_ringbuffer *rb, unsigned int size,
 
 	blk = to_block(data_ring, blk_lpos->begin);
 
-	if (DATA_WRAPS(data_ring, blk_lpos->begin) != DATA_WRAPS(data_ring, next_lpos)) {
+	if (is_blk_wrapped(data_ring, blk_lpos->begin, next_lpos)) {
 		struct prb_data_block *old_blk = blk;
 
 		/* Wrapping data blocks store their data at the beginning. */
@@ -1203,7 +1238,7 @@ static unsigned int space_used(struct prb_data_ring *data_ring,
 	if (BLK_DATALESS(blk_lpos))
 		return 0;
 
-	if (DATA_WRAPS(data_ring, blk_lpos->begin) == DATA_WRAPS(data_ring, blk_lpos->next)) {
+	if (!is_blk_wrapped(data_ring, blk_lpos->begin, blk_lpos->next)) {
 		/* Data block does not wrap. */
 		return (DATA_INDEX(data_ring, blk_lpos->next) -
 			DATA_INDEX(data_ring, blk_lpos->begin));
@@ -1249,15 +1284,15 @@ static const char *get_data(struct prb_data_ring *data_ring,
 		return NULL;
 	}
 
-	/* Regular data block: @begin less than @next and in same wrap. */
-	if (DATA_WRAPS(data_ring, blk_lpos->begin) == DATA_WRAPS(data_ring, blk_lpos->next) &&
-	    blk_lpos->begin < blk_lpos->next) {
+	/* Regular data block: @begin and @next in the same wrap. */
+	if (!is_blk_wrapped(data_ring, blk_lpos->begin, blk_lpos->next)) {
 		db = to_block(data_ring, blk_lpos->begin);
 		*data_size = blk_lpos->next - blk_lpos->begin;
 
 	/* Wrapping data block: @begin is one wrap behind @next. */
-	} else if (DATA_WRAPS(data_ring, blk_lpos->begin + DATA_SIZE(data_ring)) ==
-		   DATA_WRAPS(data_ring, blk_lpos->next)) {
+	} else if (!is_blk_wrapped(data_ring,
+				   blk_lpos->begin + DATA_SIZE(data_ring),
+				   blk_lpos->next)) {
 		db = to_block(data_ring, 0);
 		*data_size = DATA_INDEX(data_ring, blk_lpos->next);
 
@@ -1266,6 +1301,10 @@ static const char *get_data(struct prb_data_ring *data_ring,
 		WARN_ON_ONCE(1);
 		return NULL;
 	}
+
+	/* Sanity check. Data-less blocks were handled earlier. */
+	if (WARN_ON_ONCE(!data_check_size(data_ring, *data_size) || !*data_size))
+		return NULL;
 
 	/* A valid data block will always be aligned to the ID size. */
 	if (WARN_ON_ONCE(blk_lpos->begin != ALIGN(blk_lpos->begin, sizeof(db->id))) ||

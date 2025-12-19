@@ -39,7 +39,7 @@ struct partial_cluster;
 	{ EXT4_GET_BLOCKS_CREATE,		"CREATE" },		\
 	{ EXT4_GET_BLOCKS_UNWRIT_EXT,		"UNWRIT" },		\
 	{ EXT4_GET_BLOCKS_DELALLOC_RESERVE,	"DELALLOC" },		\
-	{ EXT4_GET_BLOCKS_PRE_IO,		"PRE_IO" },		\
+	{ EXT4_GET_BLOCKS_SPLIT_NOMERGE,	"SPLIT_NOMERGE" },	\
 	{ EXT4_GET_BLOCKS_CONVERT,		"CONVERT" },		\
 	{ EXT4_GET_BLOCKS_METADATA_NOFAIL,	"METADATA_NOFAIL" },	\
 	{ EXT4_GET_BLOCKS_NO_NORMALIZE,		"NO_NORMALIZE" },	\
@@ -2210,7 +2210,8 @@ DECLARE_EVENT_CLASS(ext4__es_extent,
 		__field(	ext4_lblk_t,	lblk		)
 		__field(	ext4_lblk_t,	len		)
 		__field(	ext4_fsblk_t,	pblk		)
-		__field(	char, status	)
+		__field(	char,		status		)
+		__field(	u64,		seq		)
 	),
 
 	TP_fast_assign(
@@ -2220,13 +2221,15 @@ DECLARE_EVENT_CLASS(ext4__es_extent,
 		__entry->len	= es->es_len;
 		__entry->pblk	= ext4_es_show_pblock(es);
 		__entry->status	= ext4_es_status(es);
+		__entry->seq	= EXT4_I(inode)->i_es_seq;
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s",
+	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s seq %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->len,
-		  __entry->pblk, show_extent_status(__entry->status))
+		  __entry->pblk, show_extent_status(__entry->status),
+		  __entry->seq)
 );
 
 DEFINE_EVENT(ext4__es_extent, ext4_es_insert_extent,
@@ -2251,6 +2254,7 @@ TRACE_EVENT(ext4_es_remove_extent,
 		__field(	ino_t,	ino			)
 		__field(	loff_t,	lblk			)
 		__field(	loff_t,	len			)
+		__field(	u64,	seq			)
 	),
 
 	TP_fast_assign(
@@ -2258,12 +2262,13 @@ TRACE_EVENT(ext4_es_remove_extent,
 		__entry->ino	= inode->i_ino;
 		__entry->lblk	= lblk;
 		__entry->len	= len;
+		__entry->seq	= EXT4_I(inode)->i_es_seq;
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%lld/%lld)",
+	TP_printk("dev %d,%d ino %lu es [%lld/%lld) seq %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->lblk, __entry->len)
+		  __entry->lblk, __entry->len, __entry->seq)
 );
 
 TRACE_EVENT(ext4_es_find_extent_range_enter,
@@ -2523,6 +2528,7 @@ TRACE_EVENT(ext4_es_insert_delayed_extent,
 		__field(	char,		status		)
 		__field(	bool,		lclu_allocated	)
 		__field(	bool,		end_allocated	)
+		__field(	u64,		seq		)
 	),
 
 	TP_fast_assign(
@@ -2534,15 +2540,16 @@ TRACE_EVENT(ext4_es_insert_delayed_extent,
 		__entry->status		= ext4_es_status(es);
 		__entry->lclu_allocated	= lclu_allocated;
 		__entry->end_allocated	= end_allocated;
+		__entry->seq		= EXT4_I(inode)->i_es_seq;
 	),
 
-	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s "
-		  "allocated %d %d",
+	TP_printk("dev %d,%d ino %lu es [%u/%u) mapped %llu status %s allocated %d %d seq %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  __entry->lblk, __entry->len,
 		  __entry->pblk, show_extent_status(__entry->status),
-		  __entry->lclu_allocated, __entry->end_allocated)
+		  __entry->lclu_allocated, __entry->end_allocated,
+		  __entry->seq)
 );
 
 /* fsmap traces */
@@ -3007,6 +3014,80 @@ TRACE_EVENT(ext4_update_sb,
 	TP_printk("dev %d,%d fsblk %llu flags %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->fsblk, __entry->flags)
+);
+
+TRACE_EVENT(ext4_move_extent_enter,
+	TP_PROTO(struct inode *orig_inode, struct ext4_map_blocks *orig_map,
+		 struct inode *donor_inode, ext4_lblk_t donor_lblk),
+
+	TP_ARGS(orig_inode, orig_map, donor_inode, donor_lblk),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, orig_ino)
+		__field(ext4_lblk_t, orig_lblk)
+		__field(unsigned int, orig_flags)
+		__field(ino_t, donor_ino)
+		__field(ext4_lblk_t, donor_lblk)
+		__field(unsigned int, len)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= orig_inode->i_sb->s_dev;
+		__entry->orig_ino	= orig_inode->i_ino;
+		__entry->orig_lblk	= orig_map->m_lblk;
+		__entry->orig_flags	= orig_map->m_flags;
+		__entry->donor_ino	= donor_inode->i_ino;
+		__entry->donor_lblk	= donor_lblk;
+		__entry->len		= orig_map->m_len;
+	),
+
+	TP_printk("dev %d,%d origin ino %lu lblk %u flags %s donor ino %lu lblk %u len %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->orig_ino,  __entry->orig_lblk,
+		  show_mflags(__entry->orig_flags),
+		  (unsigned long) __entry->donor_ino,  __entry->donor_lblk,
+		  __entry->len)
+);
+
+TRACE_EVENT(ext4_move_extent_exit,
+	TP_PROTO(struct inode *orig_inode, ext4_lblk_t orig_lblk,
+		 struct inode *donor_inode, ext4_lblk_t donor_lblk,
+		 unsigned int m_len, u64 move_len, int move_type, int ret),
+
+	TP_ARGS(orig_inode, orig_lblk, donor_inode, donor_lblk, m_len,
+		move_len, move_type, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(ino_t, orig_ino)
+		__field(ext4_lblk_t, orig_lblk)
+		__field(ino_t, donor_ino)
+		__field(ext4_lblk_t, donor_lblk)
+		__field(unsigned int, m_len)
+		__field(u64, move_len)
+		__field(int, move_type)
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= orig_inode->i_sb->s_dev;
+		__entry->orig_ino	= orig_inode->i_ino;
+		__entry->orig_lblk	= orig_lblk;
+		__entry->donor_ino	= donor_inode->i_ino;
+		__entry->donor_lblk	= donor_lblk;
+		__entry->m_len		= m_len;
+		__entry->move_len	= move_len;
+		__entry->move_type	= move_type;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev %d,%d origin ino %lu lblk %u donor ino %lu lblk %u m_len %u, move_len %llu type %d ret %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  (unsigned long) __entry->orig_ino,  __entry->orig_lblk,
+		  (unsigned long) __entry->donor_ino,  __entry->donor_lblk,
+		  __entry->m_len, __entry->move_len, __entry->move_type,
+		  __entry->ret)
 );
 
 #endif /* _TRACE_EXT4_H */

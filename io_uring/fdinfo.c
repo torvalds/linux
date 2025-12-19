@@ -5,6 +5,7 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/nospec.h>
 #include <linux/io_uring.h>
 
 #include <uapi/linux/io_uring.h>
@@ -14,6 +15,7 @@
 #include "fdinfo.h"
 #include "cancel.h"
 #include "rsrc.h"
+#include "opdef.h"
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
@@ -93,21 +95,46 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		unsigned int entry = i + sq_head;
 		struct io_uring_sqe *sqe;
 		unsigned int sq_idx;
+		bool sqe128 = false;
+		u8 opcode;
 
 		if (ctx->flags & IORING_SETUP_NO_SQARRAY)
-			break;
-		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
+			sq_idx = entry & sq_mask;
+		else
+			sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;
+
 		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
+		opcode = READ_ONCE(sqe->opcode);
+		if (opcode >= IORING_OP_LAST)
+			continue;
+		opcode = array_index_nospec(opcode, IORING_OP_LAST);
+		if (sq_shift) {
+			sqe128 = true;
+		} else if (io_issue_defs[opcode].is_128) {
+			if (!(ctx->flags & IORING_SETUP_SQE_MIXED)) {
+				seq_printf(m,
+					"%5u: invalid sqe, 128B entry on non-mixed sq\n",
+					sq_idx);
+				break;
+			}
+			if ((++sq_head & sq_mask) == 0) {
+				seq_printf(m,
+					"%5u: corrupted sqe, wrapping 128B entry\n",
+					sq_idx);
+				break;
+			}
+			sqe128 = true;
+		}
 		seq_printf(m, "%5u: opcode:%s, fd:%d, flags:%x, off:%llu, "
 			      "addr:0x%llx, rw_flags:0x%x, buf_index:%d "
 			      "user_data:%llu",
-			   sq_idx, io_uring_get_opcode(sqe->opcode), sqe->fd,
+			   sq_idx, io_uring_get_opcode(opcode), sqe->fd,
 			   sqe->flags, (unsigned long long) sqe->off,
 			   (unsigned long long) sqe->addr, sqe->rw_flags,
 			   sqe->buf_index, sqe->user_data);
-		if (sq_shift) {
+		if (sqe128) {
 			u64 *sqeb = (void *) (sqe + 1);
 			int size = sizeof(struct io_uring_sqe) / sizeof(u64);
 			int j;
@@ -128,7 +155,7 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		cqe = &r->cqes[(cq_head & cq_mask)];
 		if (cqe->flags & IORING_CQE_F_32 || ctx->flags & IORING_SETUP_CQE32)
 			cqe32 = true;
-		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x",
+		seq_printf(m, "%5u: user_data:%llu, res:%d, flags:%x",
 			   cq_head & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
 		if (cqe32)

@@ -1408,10 +1408,8 @@ xfs_file_ioctl(
 
 		trace_xfs_ioc_free_eofblocks(mp, &icw, _RET_IP_);
 
-		sb_start_write(mp->m_super);
-		error = xfs_blockgc_free_space(mp, &icw);
-		sb_end_write(mp->m_super);
-		return error;
+		guard(super_write)(mp->m_super);
+		return xfs_blockgc_free_space(mp, &icw);
 	}
 
 	case XFS_IOC_EXCHANGE_RANGE:

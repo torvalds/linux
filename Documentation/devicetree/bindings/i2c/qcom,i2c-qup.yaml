@@ -9,7 +9,7 @@ title: Qualcomm Universal Peripheral (QUP) I2C controller
 maintainers:
   - Andy Gross <agross@kernel.org>
   - Bjorn Andersson <bjorn.andersson@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#

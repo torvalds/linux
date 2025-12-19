@@ -48,6 +48,8 @@ static int show_irq_affinity(int type, struct seq_file *m)
 	struct irq_desc *desc = irq_to_desc((long)m->private);
 	const struct cpumask *mask;
 
+	guard(raw_spinlock_irq)(&desc->lock);
+
 	switch (type) {
 	case AFFINITY:
 	case AFFINITY_LIST:

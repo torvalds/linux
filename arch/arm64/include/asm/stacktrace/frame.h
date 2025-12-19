@@ -25,7 +25,7 @@
 #define FRAME_META_TYPE_FINAL		1
 #define FRAME_META_TYPE_PT_REGS		2
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 /* 
  * A standard AAPCS64 frame record.
  */
@@ -43,6 +43,6 @@ struct frame_record_meta {
 	struct frame_record record;
 	u64 type;
 };
-#endif /* __ASSEMBLY */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_STACKTRACE_FRAME_H */

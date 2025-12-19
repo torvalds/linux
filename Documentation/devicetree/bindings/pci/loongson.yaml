@@ -32,7 +32,6 @@ properties:
     minItems: 1
     maxItems: 3
 
-
 required:
   - compatible
   - reg

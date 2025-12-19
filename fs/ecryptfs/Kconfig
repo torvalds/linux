@@ -4,7 +4,7 @@ config ECRYPT_FS
 	depends on KEYS && CRYPTO && (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
 	select CRYPTO_ECB
 	select CRYPTO_CBC
-	select CRYPTO_MD5
+	select CRYPTO_LIB_MD5
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
 	  <file:Documentation/filesystems/ecryptfs.rst> to learn more about

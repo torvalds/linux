@@ -1,0 +1,154 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * PCE microcode code update for driver for MaxLinear GSW1xx switch chips
+ *
+ * Copyright (C) 2023 - 2024 MaxLinear Inc.
+ * Copyright (C) 2022 Snap One, LLC.  All rights reserved.
+ * Copyright (C) 2017 - 2019 Hauke Mehrtens <hauke@hauke-m.de>
+ * Copyright (C) 2012 John Crispin <john@phrozen.org>
+ * Copyright (C) 2010 Lantiq Deutschland
+ */
+
+#include "lantiq_gswip.h"
+
+#define INSTR 0
+#define IPV6 1
+#define LENACCU 2
+
+/* GSWIP_2.X */
+enum {
+	OUT_MAC0 = 0,
+	OUT_MAC1,
+	OUT_MAC2,
+	OUT_MAC3,
+	OUT_MAC4,
+	OUT_MAC5,
+	OUT_ETHTYP,
+	OUT_VTAG0,
+	OUT_VTAG1,
+	OUT_ITAG0,
+	OUT_ITAG1,	/* 10 */
+	OUT_ITAG2,
+	OUT_ITAG3,
+	OUT_IP0,
+	OUT_IP1,
+	OUT_IP2,
+	OUT_IP3,
+	OUT_SIP0,
+	OUT_SIP1,
+	OUT_SIP2,
+	OUT_SIP3,	/* 20 */
+	OUT_SIP4,
+	OUT_SIP5,
+	OUT_SIP6,
+	OUT_SIP7,
+	OUT_DIP0,
+	OUT_DIP1,
+	OUT_DIP2,
+	OUT_DIP3,
+	OUT_DIP4,
+	OUT_DIP5,	/* 30 */
+	OUT_DIP6,
+	OUT_DIP7,
+	OUT_SESID,
+	OUT_PROT,
+	OUT_APP0,
+	OUT_APP1,
+	OUT_IGMP0,
+	OUT_IGMP1,
+	OUT_STAG0 = 61,
+	OUT_STAG1 = 62,
+	OUT_NONE = 63,
+};
+
+/* parser's microcode flag type */
+enum {
+	FLAG_ITAG = 0,
+	FLAG_VLAN,
+	FLAG_SNAP,
+	FLAG_PPPOE,
+	FLAG_IPV6,
+	FLAG_IPV6FL,
+	FLAG_IPV4,
+	FLAG_IGMP,
+	FLAG_TU,
+	FLAG_HOP,
+	FLAG_NN1,	/* 10 */
+	FLAG_NN2,
+	FLAG_END,
+	FLAG_NO,	/* 13 */
+	FLAG_SVLAN,	/* 14 */
+};
+
+#define PCE_MC_M(val, msk, ns, out, len, type, flags, ipv4_len) \
+	{ (val), (msk), ((ns) << 10 | (out) << 4 | (len) >> 1),\
+	 ((len) & 1) << 15 | (type) << 13 | (flags) << 9 | (ipv4_len) << 8 }
+
+/* V22_2X (IPv6 issue fixed) */
+static const struct gswip_pce_microcode gsw1xx_pce_microcode[] = {
+	/*       value   mask    ns  fields      L  type     flags       ipv4_len */
+	PCE_MC_M(0x88c3, 0xFFFF, 1,  OUT_ITAG0,  4, INSTR,   FLAG_ITAG,  0),
+	PCE_MC_M(0x8100, 0xFFFF, 4,  OUT_STAG0,  2, INSTR,   FLAG_SVLAN, 0),
+	PCE_MC_M(0x88A8, 0xFFFF, 4,  OUT_STAG0,  2, INSTR,   FLAG_SVLAN, 0),
+	PCE_MC_M(0x9100, 0xFFFF, 4,  OUT_STAG0,  2, INSTR,   FLAG_SVLAN, 0),
+	PCE_MC_M(0x8100, 0xFFFF, 5,  OUT_VTAG0,  2, INSTR,   FLAG_VLAN,  0),
+	PCE_MC_M(0x88A8, 0xFFFF, 6,  OUT_VTAG0,  2, INSTR,   FLAG_VLAN,  0),
+	PCE_MC_M(0x9100, 0xFFFF, 4,  OUT_VTAG0,  2, INSTR,   FLAG_VLAN,  0),
+	PCE_MC_M(0x8864, 0xFFFF, 20, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0800, 0xFFFF, 24, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x86DD, 0xFFFF, 25, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x8863, 0xFFFF, 19, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0xF800, 13, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0600, 0x0600, 44, OUT_ETHTYP, 1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 15, OUT_NONE,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0xAAAA, 0xFFFF, 17, OUT_NONE,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0300, 0xFF00, 45, OUT_NONE,   0, INSTR,   FLAG_SNAP,  0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_DIP7,   3, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 21, OUT_DIP7,   3, INSTR,   FLAG_PPPOE, 0),
+	PCE_MC_M(0x0021, 0xFFFF, 24, OUT_NONE,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0057, 0xFFFF, 25, OUT_NONE,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x4000, 0xF000, 27, OUT_IP0,    4, INSTR,   FLAG_IPV4,  1),
+	PCE_MC_M(0x6000, 0xF000, 30, OUT_IP0,    3, INSTR,   FLAG_IPV6,  0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 28, OUT_IP3,    2, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 29, OUT_SIP0,   4, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_NONE,   0, LENACCU, FLAG_NO,    0),
+	PCE_MC_M(0x1100, 0xFF00, 43, OUT_PROT,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0600, 0xFF00, 43, OUT_PROT,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0xFF00, 36, OUT_IP3,   17, INSTR,   FLAG_HOP,   0),
+	PCE_MC_M(0x2B00, 0xFF00, 36, OUT_IP3,   17, INSTR,   FLAG_NN1,   0),
+	PCE_MC_M(0x3C00, 0xFF00, 36, OUT_IP3,   17, INSTR,   FLAG_NN2,   0),
+	PCE_MC_M(0x0000, 0x0000, 43, OUT_PROT,   1, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x00F0, 38, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_NONE,   0, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0xFF00, 36, OUT_NONE,   0, IPV6,    FLAG_HOP,   0),
+	PCE_MC_M(0x2B00, 0xFF00, 36, OUT_NONE,   0, IPV6,    FLAG_NN1,   0),
+	PCE_MC_M(0x3C00, 0xFF00, 36, OUT_NONE,   0, IPV6,    FLAG_NN2,   0),
+	PCE_MC_M(0x0000, 0x00FC, 44, OUT_PROT,   0, IPV6,    FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_NONE,   0, IPV6,    FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 44, OUT_SIP0,  16, INSTR,   FLAG_NO,    0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_APP0,   4, INSTR,   FLAG_IGMP,  0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+	PCE_MC_M(0x0000, 0x0000, 45, OUT_NONE,   0, INSTR,   FLAG_END,   0),
+};

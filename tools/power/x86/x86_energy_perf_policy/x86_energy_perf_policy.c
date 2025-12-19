@@ -95,6 +95,8 @@ unsigned int bdx_highest_ratio;
 #define PATH_TO_CPU "/sys/devices/system/cpu/"
 #define SYSFS_PATH_MAX 255
 
+static int use_android_msr_path;
+
 /*
  * maintain compatibility with original implementation, but don't document it:
  */
@@ -370,7 +372,7 @@ void validate_cpu_selected_set(void)
 	for (cpu = 0; cpu <= max_cpu_num; ++cpu) {
 		if (CPU_ISSET_S(cpu, cpu_setsize, cpu_selected_set))
 			if (!CPU_ISSET_S(cpu, cpu_setsize, cpu_present_set))
-				errx(1, "Requested cpu% is not present", cpu);
+				errx(1, "Requested cpu%d is not present", cpu);
 	}
 }
 
@@ -518,7 +520,7 @@ void for_packages(unsigned long long pkg_set, int (func)(int))
 
 void print_version(void)
 {
-	printf("x86_energy_perf_policy 2025.9.19 Len Brown <lenb@kernel.org>\n");
+	printf("x86_energy_perf_policy 2025.11.22 Len Brown <lenb@kernel.org>\n");
 }
 
 void cmdline(int argc, char **argv)
@@ -660,6 +662,11 @@ void err_on_hypervisor(void)
 	}
 
 	flags = strstr(buffer, "flags");
+	if (!flags) {
+		fclose(cpuinfo);
+		free(buffer);
+		err(1, "Failed to find 'flags' in /proc/cpuinfo");
+	}
 	rewind(cpuinfo);
 	fseek(cpuinfo, flags - buffer, SEEK_SET);
 	if (!fgets(buffer, 4096, cpuinfo)) {
@@ -684,10 +691,12 @@ int get_msr(int cpu, int offset, unsigned long long *msr)
 	char pathname[32];
 	int fd;
 
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r %s, or run as root",
+		   pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
+
 
 	retval = pread(fd, msr, sizeof(*msr), offset);
 	if (retval != sizeof(*msr)) {
@@ -708,10 +717,11 @@ int put_msr(int cpu, int offset, unsigned long long new_msr)
 	int retval;
 	int fd;
 
-	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r %s, or run as root",
+		   pathname, use_android_msr_path ? "/dev/msr*" : "/dev/cpu/*/msr");
 
 	retval = pwrite(fd, &new_msr, sizeof(new_msr), offset);
 	if (retval != sizeof(new_msr))
@@ -1421,16 +1431,32 @@ void set_base_cpu(void)
 		err(-ENODEV, "No valid cpus found");
 }
 
+static void probe_android_msr_path(void)
+{
+	struct stat sb;
+	char test_path[32];
+
+	sprintf(test_path, "/dev/msr%d", base_cpu);
+	if (stat(test_path, &sb) == 0)
+		use_android_msr_path = 1;
+}
 
 void probe_dev_msr(void)
 {
 	struct stat sb;
 	char pathname[32];
 
-	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
-	if (stat(pathname, &sb))
-		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+	probe_android_msr_path();
+
+	sprintf(pathname, use_android_msr_path ? "/dev/msr%d" : "/dev/cpu/%d/msr", base_cpu);
+	if (stat(pathname, &sb)) {
+		if (system("/sbin/modprobe msr > /dev/null 2>&1")) {
+			if (use_android_msr_path)
+				err(-5, "no /dev/msr0, Try \"# modprobe msr\" ");
+			else
+				err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+		}
+	}
 }
 
 static void get_cpuid_or_exit(unsigned int leaf,
@@ -1547,6 +1573,7 @@ void parse_cpuid(void)
 int main(int argc, char **argv)
 {
 	set_base_cpu();
+
 	probe_dev_msr();
 	init_data_structures();
 

@@ -5,8 +5,7 @@
  * Copyright IBM Corp. 2013
  */
 
-#define KMSG_COMPONENT "sclp_early"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_early: " fmt
 
 #include <linux/export.h>
 #include <linux/errno.h>

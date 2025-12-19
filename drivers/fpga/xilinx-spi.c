@@ -57,6 +57,12 @@ static int xilinx_spi_probe(struct spi_device *spi)
 	return xilinx_core_probe(core);
 }
 
+static const struct spi_device_id xilinx_spi_ids[] = {
+	{ "fpga-slave-serial" },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, xilinx_spi_ids);
+
 #ifdef CONFIG_OF
 static const struct of_device_id xlnx_spi_of_match[] = {
 	{
@@ -73,6 +79,7 @@ static struct spi_driver xilinx_slave_spi_driver = {
 		.of_match_table = of_match_ptr(xlnx_spi_of_match),
 	},
 	.probe = xilinx_spi_probe,
+	.id_table = xilinx_spi_ids,
 };
 
 module_spi_driver(xilinx_slave_spi_driver)

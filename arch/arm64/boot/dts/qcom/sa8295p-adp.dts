@@ -149,13 +149,6 @@
 		enable-active-high;
 		regulator-always-on;
 	};
-
-	reserved-memory {
-		gpu_mem: gpu-mem@8bf00000 {
-			reg = <0 0x8bf00000 0 0x2000>;
-			no-map;
-		};
-	};
 };
 
 &apps_rsc {
@@ -345,11 +338,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		memory-region = <&gpu_mem>;
-		firmware-name = "qcom/sa8295p/a690_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/sa8295p/a690_zap.mbn";
 };
 
 &gpu_smmu {

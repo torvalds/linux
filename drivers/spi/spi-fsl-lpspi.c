@@ -486,7 +486,13 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 		fsl_lpspi->tx = fsl_lpspi_buf_tx_u32;
 	}
 
-	fsl_lpspi->watermark = min_t(typeof(fsl_lpspi->watermark),
+	/*
+	 * t->len is 'unsigned' and txfifosize and watermrk is 'u8', force
+	 * type cast is inevitable. When len > 255, len will be truncated in min_t(),
+	 * it caused wrong watermark set. 'unsigned int' is as the designated type
+	 * for min_t() to avoid truncation.
+	 */
+	fsl_lpspi->watermark = min_t(unsigned int,
 				     fsl_lpspi->txfifosize,
 				     t->len);
 

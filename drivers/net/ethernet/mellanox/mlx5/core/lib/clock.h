@@ -54,7 +54,6 @@ struct mlx5_timer {
 
 struct mlx5_clock {
 	seqlock_t                  lock;
-	struct hwtstamp_config     hwtstamp_config;
 	struct ptp_clock          *ptp;
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;

@@ -115,11 +115,11 @@ properties:
             above for new bindings.
           oneOf:
             - description: See native 'dbi' clock for details
-              enum: [ pcie, pcie_apb_sys, aclk_dbi, reg ]
+              enum: [ pcie, pcie_apb_sys, aclk_dbi, reg, port ]
             - description: See native 'mstr/slv' clock for details
               enum: [ pcie_bus, pcie_inbound_axi, pcie_aclk, aclk_mst, aclk_slv ]
             - description: See native 'pipe' clock for details
-              enum: [ pcie_phy, pcie_phy_ref, link ]
+              enum: [ pcie_phy, pcie_phy_ref, link, general ]
             - description: See native 'aux' clock for details
               enum: [ pcie_aux ]
             - description: See native 'ref' clock for details.
@@ -176,7 +176,7 @@ properties:
             - description: See native 'phy' reset for details
               enum: [ pciephy, link ]
             - description: See native 'pwr' reset for details
-              enum: [ turnoff ]
+              enum: [ turnoff, port ]
 
   phys:
     description:

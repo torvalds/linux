@@ -31,6 +31,7 @@
 #include <linux/ssb/ssb.h>
 #include <linux/slab.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
@@ -2233,7 +2234,6 @@ static int b44_register_phy_one(struct b44 *bp)
 	struct mii_bus *mii_bus;
 	struct ssb_device *sdev = bp->sdev;
 	struct phy_device *phydev;
-	char bus_id[MII_BUS_ID_SIZE + 3];
 	struct ssb_sprom *sprom = &sdev->bus->sprom;
 	int err;
 
@@ -2260,27 +2260,26 @@ static int b44_register_phy_one(struct b44 *bp)
 		goto err_out_mdiobus;
 	}
 
-	if (!mdiobus_is_registered_device(bp->mii_bus, bp->phy_addr) &&
-	    (sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM))) {
-
+	phydev = mdiobus_get_phy(bp->mii_bus, bp->phy_addr);
+	if (!phydev &&
+	    sprom->boardflags_lo & (B44_BOARDFLAG_ROBO | B44_BOARDFLAG_ADM)) {
 		dev_info(sdev->dev,
 			 "could not find PHY at %i, use fixed one\n",
 			 bp->phy_addr);
 
-		bp->phy_addr = 0;
-		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, "fixed-0",
-			 bp->phy_addr);
-	} else {
-		snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, mii_bus->id,
-			 bp->phy_addr);
+		phydev = fixed_phy_register_100fd();
+		if (!IS_ERR(phydev))
+			bp->phy_addr = phydev->mdio.addr;
 	}
 
-	phydev = phy_connect(bp->dev, bus_id, &b44_adjust_link,
-			     PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phydev)) {
+	if (IS_ERR_OR_NULL(phydev))
+		err = -ENODEV;
+	else
+		err = phy_connect_direct(bp->dev, phydev, &b44_adjust_link,
+					 PHY_INTERFACE_MODE_MII);
+	if (err) {
 		dev_err(sdev->dev, "could not attach PHY at %i\n",
 			bp->phy_addr);
-		err = PTR_ERR(phydev);
 		goto err_out_mdiobus_unregister;
 	}
 
@@ -2293,7 +2292,6 @@ static int b44_register_phy_one(struct b44 *bp)
 	linkmode_copy(phydev->advertising, phydev->supported);
 
 	bp->old_link = 0;
-	bp->phy_addr = phydev->mdio.addr;
 
 	phy_attached_info(phydev);
 
@@ -2311,10 +2309,15 @@ err_out:
 
 static void b44_unregister_phy_one(struct b44 *bp)
 {
-	struct net_device *dev = bp->dev;
 	struct mii_bus *mii_bus = bp->mii_bus;
+	struct net_device *dev = bp->dev;
+	struct phy_device *phydev;
 
-	phy_disconnect(dev->phydev);
+	phydev = dev->phydev;
+
+	phy_disconnect(phydev);
+	if (phy_is_pseudo_fixed_link(phydev))
+		fixed_phy_unregister(phydev);
 	mdiobus_unregister(mii_bus);
 	mdiobus_free(mii_bus);
 }

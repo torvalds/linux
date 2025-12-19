@@ -139,7 +139,6 @@ struct mapped_device {
 	struct srcu_struct io_barrier;
 
 #ifdef CONFIG_BLK_DEV_ZONED
-	unsigned int nr_zones;
 	void *zone_revalidate_map;
 	struct task_struct *revalidate_map_task;
 #endif

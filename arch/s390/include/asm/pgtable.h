@@ -648,18 +648,6 @@ static inline int mm_uses_skeys(struct mm_struct *mm)
 	return 0;
 }
 
-static inline void csp(unsigned int *ptr, unsigned int old, unsigned int new)
-{
-	union register_pair r1 = { .even = old, .odd = new, };
-	unsigned long address = (unsigned long)ptr | 1;
-
-	asm volatile(
-		"	csp	%[r1],%[address]"
-		: [r1] "+&d" (r1.pair), "+m" (*ptr)
-		: [address] "d" (address)
-		: "cc");
-}
-
 /**
  * cspg() - Compare and Swap and Purge (CSPG)
  * @ptr: Pointer to the value to be exchanged
@@ -1400,7 +1388,6 @@ int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
 int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
 int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			unsigned long *oldpte, unsigned long *oldpgste);
-void gmap_pmdp_csp(struct mm_struct *mm, unsigned long vmaddr);
 void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr);
 void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr);
 void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
@@ -1690,10 +1677,10 @@ static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
 
-static inline void __pmdp_csp(pmd_t *pmdp)
+static inline void __pmdp_cspg(pmd_t *pmdp)
 {
-	csp((unsigned int *)pmdp + 1, pmd_val(*pmdp),
-	    pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
+	cspg((unsigned long *)pmdp, pmd_val(*pmdp),
+	     pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 }
 
 #define IDTE_GLOBAL	0

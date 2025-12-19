@@ -643,6 +643,12 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Shows the number of unusable blocks in a section which was defined by
 		the zone capacity reported by underlying zoned device.
 
+What:		/sys/fs/f2fs/<disk>/max_open_zones
+Date:		November 2025
+Contact:	"Yongpeng Yang" <yangyongpeng@xiaomi.com>
+Description:	Shows the max number of zones that F2FS can write concurrently when a zoned
+		device is mounted.
+
 What:		/sys/fs/f2fs/<disk>/current_atomic_write
 Date:		July 2022
 Contact:	"Daeho Jeong" <daehojeong@google.com>

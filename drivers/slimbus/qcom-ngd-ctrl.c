@@ -463,7 +463,7 @@ static int qcom_slim_qmi_init(struct qcom_slim_ngd_ctrl *ctrl,
 	}
 
 	rc = kernel_connect(handle->sock,
-				(struct sockaddr *)&ctrl->qmi.svc_info,
+				(struct sockaddr_unsized *)&ctrl->qmi.svc_info,
 				sizeof(ctrl->qmi.svc_info), 0);
 	if (rc < 0) {
 		dev_err(ctrl->dev, "Remote Service connect failed: %d\n", rc);
@@ -1241,6 +1241,7 @@ static void qcom_slim_ngd_notify_slaves(struct qcom_slim_ngd_ctrl *ctrl)
 
 		if (slim_get_logical_addr(sbdev))
 			dev_err(ctrl->dev, "Failed to get logical address\n");
+		put_device(&sbdev->dev);
 	}
 }
 

@@ -7,7 +7,7 @@
 
 #include <asm/processor-flags.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static inline unsigned long get_eflags(void)
 {

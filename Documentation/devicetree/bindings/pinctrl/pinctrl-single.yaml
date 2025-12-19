@@ -24,6 +24,7 @@ properties:
       - items:
           - enum:
               - ti,am437-padconf
+              - ti,am62l-padconf
               - ti,am654-padconf
               - ti,dra7-padconf
               - ti,omap2420-padconf

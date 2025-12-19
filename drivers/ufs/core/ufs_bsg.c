@@ -105,7 +105,7 @@ static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *j
 
 	if (dir != DMA_NONE) {
 		payload = &job->request_payload;
-		if (!payload || !payload->payload_len || !payload->sg_cnt)
+		if (!payload->payload_len || !payload->sg_cnt)
 			return -EINVAL;
 
 		sg_cnt = dma_map_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);

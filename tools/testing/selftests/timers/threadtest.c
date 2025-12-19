@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /* serializes shared list access */
 pthread_mutex_t list_lock = PTHREAD_MUTEX_INITIALIZER;

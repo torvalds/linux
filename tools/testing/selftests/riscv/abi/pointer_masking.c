@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #ifndef PR_PMLEN_SHIFT
 #define PR_PMLEN_SHIFT			24

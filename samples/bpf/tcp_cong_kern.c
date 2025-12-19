@@ -5,7 +5,7 @@
  * License as published by the Free Software Foundation.
  *
  * BPF program to set congestion control to dctcp when both hosts are
- * in the same datacenter (as deteremined by IPv6 prefix).
+ * in the same datacenter (as determined by IPv6 prefix).
  *
  * Use "bpftool cgroup attach $cg sock_ops $prog" to load this BPF program.
  */

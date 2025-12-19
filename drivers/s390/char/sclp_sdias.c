@@ -6,8 +6,7 @@
  * Author(s): Michael Holzheu
  */
 
-#define KMSG_COMPONENT "sclp_sdias"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_sdias: " fmt
 
 #include <linux/completion.h>
 #include <linux/sched.h>

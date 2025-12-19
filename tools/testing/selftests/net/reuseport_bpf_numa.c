@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <numa.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static const int PORT = 8888;
 

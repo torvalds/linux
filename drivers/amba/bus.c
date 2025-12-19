@@ -291,15 +291,14 @@ static int amba_probe(struct device *dev)
 		if (ret < 0)
 			break;
 
-		ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON);
+		ret = dev_pm_domain_attach(dev, PD_FLAG_ATTACH_POWER_ON |
+						PD_FLAG_DETACH_POWER_OFF);
 		if (ret)
 			break;
 
 		ret = amba_get_enable_pclk(pcdev);
-		if (ret) {
-			dev_pm_domain_detach(dev, true);
+		if (ret)
 			break;
-		}
 
 		pm_runtime_get_noresume(dev);
 		pm_runtime_set_active(dev);
@@ -314,7 +313,6 @@ static int amba_probe(struct device *dev)
 		pm_runtime_put_noidle(dev);
 
 		amba_put_disable_pclk(pcdev);
-		dev_pm_domain_detach(dev, true);
 	} while (0);
 
 	return ret;
@@ -336,7 +334,6 @@ static void amba_remove(struct device *dev)
 	pm_runtime_put_noidle(dev);
 
 	amba_put_disable_pclk(pcdev);
-	dev_pm_domain_detach(dev, true);
 }
 
 static void amba_shutdown(struct device *dev)

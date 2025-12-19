@@ -6,7 +6,10 @@
 enum nvkm_acr_lsf_id;
 
 int nvkm_gsp_fwsec_frts(struct nvkm_gsp *);
+
+int nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *);
 int nvkm_gsp_fwsec_sb(struct nvkm_gsp *);
+void nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *);
 
 struct nvkm_gsp_fwif {
 	int version;

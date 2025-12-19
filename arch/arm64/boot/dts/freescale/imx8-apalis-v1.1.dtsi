@@ -18,7 +18,7 @@
 		brightness-levels = <0 45 63 88 119 158 203 255>;
 		default-brightness-level = <4>;
 		enable-gpios = <&lsio_gpio1 4 GPIO_ACTIVE_HIGH>; /* Apalis BKL1_ON */
-		/* TODO: hook-up to Apalis BKL1_PWM */
+		pwms = <&pwm_lvds1 0 6666667 PWM_POLARITY_INVERTED>;
 		status = "disabled";
 	};
 
@@ -30,12 +30,6 @@
 		gpio-fan,speed-map = <	 0 0
 				      3000 1>;
 	};
-
-	/* TODO: LVDS Panel */
-
-	/* TODO: Shared PCIe/SATA Reference Clock */
-
-	/* TODO: PCIe Wi-Fi Reference Clock */
 
 	/*
 	 * Power management bus used to control LDO1OUT of the
@@ -83,8 +77,8 @@
 		gpio = <&lsio_gpio1 28 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
-		regulator-name = "wifi_pwrdn_fake_regulator";
-		regulator-settling-time-us = <100>;
+		regulator-name = "Wi-Fi_POWER_DOWN"; /* Wi-Fi module PDn */
+		startup-delay-us = <100>;
 	};
 
 	reg_pcie_switch: regulator-pcie-switch {
@@ -232,6 +226,34 @@
 		spdif-out;
 	};
 
+	thermal-zones {
+		pmic-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <2000>;
+			thermal-sensors = <&tsens IMX_SC_R_PMIC_0>;
+
+			cooling-maps {
+				cooling_maps_map0: map0 {
+					trip = <&pmic_alert0>;
+				};
+			};
+
+			trips {
+				pmic_alert0: trip0 {
+					hysteresis = <2000>;
+					temperature = <110000>;
+					type = "passive";
+				};
+
+				pmic_crit0: trip1 {
+					hysteresis = <2000>;
+					temperature = <125000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	touchscreen: touchscreen {
 		compatible = "toradex,vf50-touchscreen";
 		interrupt-parent = <&lsio_gpio3>;
@@ -262,14 +284,14 @@
 &adc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc0>;
+	vref-supply = <&reg_vref_1v8>;
 };
 
 &adc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;
+	vref-supply = <&reg_vref_1v8>;
 };
-
-/* TODO: Asynchronous Sample Rate Converter (ASRC) */
 
 &cpu_alert0 {
 	temperature = <95000>;
@@ -799,7 +821,10 @@
 		 <&hsio_refa_clk>, <&hsio_per_clk>;
 };
 
-/* TODO: Apalis BKL1_PWM */
+&pwm_lvds1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm_bkl>;
+};
 
 /* Apalis DAP1 */
 &sai1 {
@@ -840,8 +865,6 @@
 	pinctrl-0 = <&pinctrl_spdif0>;
 	status = "okay";
 };
-
-/* TODO: Thermal Zones */
 
 /* TODO: Apalis USBH2, Apalis USBH3 and on-module Wi-Fi via on-module HSIC Hub */
 

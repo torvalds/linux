@@ -71,6 +71,7 @@
  * @regs:	unsigned long * (to guest registers)
  * @flags:	VMX_RUN_VMRESUME:	use VMRESUME instead of VMLAUNCH
  *		VMX_RUN_SAVE_SPEC_CTRL: save guest SPEC_CTRL into vmx->spec_ctrl
+ *		VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO: vCPU can access host MMIO
  *
  * Returns:
  *	0 on VM-Exit, 1 on VM-Fail
@@ -92,7 +93,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Save @vmx for SPEC_CTRL handling */
 	push %_ASM_ARG1
 
-	/* Save @flags for SPEC_CTRL handling */
+	/* Save @flags (used for VMLAUNCH vs. VMRESUME and mitigations). */
 	push %_ASM_ARG3
 
 	/*
@@ -100,9 +101,6 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * @regs is needed after VM-Exit to save the guest's register values.
 	 */
 	push %_ASM_ARG2
-
-	/* Copy @flags to EBX, _ASM_ARG3 is volatile. */
-	mov %_ASM_ARG3L, %ebx
 
 	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
@@ -118,13 +116,23 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 * and vmentry.
 	 */
 	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
-	movl VMX_spec_ctrl(%_ASM_DI), %edi
-	movl PER_CPU_VAR(x86_spec_ctrl_current), %esi
-	cmp %edi, %esi
+#ifdef CONFIG_X86_64
+	mov VMX_spec_ctrl(%rdi), %rdx
+	cmp PER_CPU_VAR(x86_spec_ctrl_current), %rdx
 	je .Lspec_ctrl_done
+	movl %edx, %eax
+	shr $32, %rdx
+#else
+	mov VMX_spec_ctrl(%edi), %eax
+	mov PER_CPU_VAR(x86_spec_ctrl_current), %ecx
+	xor %eax, %ecx
+	mov VMX_spec_ctrl + 4(%edi), %edx
+	mov PER_CPU_VAR(x86_spec_ctrl_current + 4), %edi
+	xor %edx, %edi
+	or %edi, %ecx
+	je .Lspec_ctrl_done
+#endif
 	mov $MSR_IA32_SPEC_CTRL, %ecx
-	xor %edx, %edx
-	mov %edi, %eax
 	wrmsr
 
 .Lspec_ctrl_done:
@@ -136,9 +144,6 @@ SYM_FUNC_START(__vmx_vcpu_run)
 
 	/* Load @regs to RAX. */
 	mov (%_ASM_SP), %_ASM_AX
-
-	/* Check if vmlaunch or vmresume is needed */
-	bt   $VMX_RUN_VMRESUME_SHIFT, %ebx
 
 	/* Load guest registers.  Don't clobber flags. */
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
@@ -160,11 +165,23 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Load guest RAX.  This kills the @regs pointer! */
 	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
-	/* Clobbers EFLAGS.ZF */
-	CLEAR_CPU_BUFFERS
+	/*
+	 * Note, ALTERNATIVE_2 works in reverse order.  If CLEAR_CPU_BUF_VM is
+	 * enabled, do VERW unconditionally.  If CPU_BUF_VM_MMIO is enabled,
+	 * check @flags to see if the vCPU has access to host MMIO, and if so,
+	 * do VERW.  Else, do nothing (no mitigations needed/enabled).
+	 */
+	ALTERNATIVE_2 "",									  \
+		      __stringify(testl $VMX_RUN_CLEAR_CPU_BUFFERS_FOR_MMIO, WORD_SIZE(%_ASM_SP); \
+				  jz .Lskip_mmio_verw;						  \
+				  VERW;								  \
+				  .Lskip_mmio_verw:),					  	  \
+		      X86_FEATURE_CLEAR_CPU_BUF_VM_MMIO,					  \
+		      __stringify(VERW), X86_FEATURE_CLEAR_CPU_BUF_VM
 
-	/* Check EFLAGS.CF from the VMX_RUN_VMRESUME bit test above. */
-	jnc .Lvmlaunch
+	/* Check @flags to see if VMLAUNCH or VMRESUME is needed. */
+	testl $VMX_RUN_VMRESUME, WORD_SIZE(%_ASM_SP)
+	jz .Lvmlaunch
 
 	/*
 	 * After a successful VMRESUME/VMLAUNCH, control flow "magically"

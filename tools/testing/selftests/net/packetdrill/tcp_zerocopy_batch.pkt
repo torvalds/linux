@@ -3,6 +3,8 @@
 //
 // send multiple packets, then read one range of all notifications.
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3

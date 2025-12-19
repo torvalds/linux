@@ -17,13 +17,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long n = (unsigned long) v - 1;
 	unsigned int isa = cpu_data[n].isa_level;
+	unsigned int prid = cpu_data[n].processor_id;
 	unsigned int version = cpu_data[n].processor_id & 0xff;
 	unsigned int fp_version = cpu_data[n].fpu_vers;
+	u64 freq = cpu_clock_freq, bogomips = lpj_fine * cpu_clock_freq;
 
 #ifdef CONFIG_SMP
 	if (!cpu_online(n))
 		return 0;
 #endif
+	do_div(freq, 10000);
+	do_div(bogomips, const_clock_freq * (5000/HZ));
 
 	/*
 	 * For the first processor also print the system type
@@ -37,13 +41,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "global_id\t\t: %d\n", cpu_data[n].global_id);
 	seq_printf(m, "CPU Family\t\t: %s\n", __cpu_family[n]);
 	seq_printf(m, "Model Name\t\t: %s\n", __cpu_full_name[n]);
+	seq_printf(m, "PRID\t\t\t: %s (%08x)\n", id_to_core_name(prid), prid);
 	seq_printf(m, "CPU Revision\t\t: 0x%02x\n", version);
 	seq_printf(m, "FPU Revision\t\t: 0x%02x\n", fp_version);
-	seq_printf(m, "CPU MHz\t\t\t: %llu.%02llu\n",
-		      cpu_clock_freq / 1000000, (cpu_clock_freq / 10000) % 100);
-	seq_printf(m, "BogoMIPS\t\t: %llu.%02llu\n",
-		      (lpj_fine * cpu_clock_freq / const_clock_freq) / (500000/HZ),
-		      ((lpj_fine * cpu_clock_freq / const_clock_freq) / (5000/HZ)) % 100);
+	seq_printf(m, "CPU MHz\t\t\t: %u.%02u\n", (u32)freq / 100, (u32)freq % 100);
+	seq_printf(m, "BogoMIPS\t\t: %u.%02u\n", (u32)bogomips / 100, (u32)bogomips % 100);
 	seq_printf(m, "TLB Entries\t\t: %d\n", cpu_data[n].tlbsize);
 	seq_printf(m, "Address Sizes\t\t: %d bits physical, %d bits virtual\n",
 		      cpu_pabits + 1, cpu_vabits + 1);

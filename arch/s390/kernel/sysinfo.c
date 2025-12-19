@@ -526,7 +526,7 @@ static __init int stsi_init_debugfs(void)
 	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && cpu_has_topology()) {
 		char link_to[10];
 
-		sprintf(link_to, "15_1_%d", topology_mnest_limit());
+		snprintf(link_to, sizeof(link_to), "15_1_%d", topology_mnest_limit());
 		debugfs_create_symlink("topology", stsi_root, link_to);
 	}
 	return 0;

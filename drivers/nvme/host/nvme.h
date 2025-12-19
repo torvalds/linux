@@ -558,6 +558,12 @@ static inline bool nvme_ns_has_pi(struct nvme_ns_head *head)
 	return head->pi_type && head->ms == head->pi_size;
 }
 
+static inline unsigned long nvme_get_virt_boundary(struct nvme_ctrl *ctrl,
+						   bool is_admin)
+{
+	return NVME_CTRL_PAGE_SIZE - 1;
+}
+
 struct nvme_ctrl_ops {
 	const char *name;
 	struct module *module;
@@ -578,6 +584,7 @@ struct nvme_ctrl_ops {
 	int (*get_address)(struct nvme_ctrl *ctrl, char *buf, int size);
 	void (*print_device_info)(struct nvme_ctrl *ctrl);
 	bool (*supports_pci_p2pdma)(struct nvme_ctrl *ctrl);
+	unsigned long (*get_virt_boundary)(struct nvme_ctrl *ctrl, bool is_admin);
 };
 
 /*
@@ -1108,7 +1115,7 @@ struct nvme_zone_info {
 };
 
 int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
-		unsigned int nr_zones, report_zones_cb cb, void *data);
+		unsigned int nr_zones, struct blk_report_zones_args *args);
 int nvme_query_zone_info(struct nvme_ns *ns, unsigned lbaf,
 		struct nvme_zone_info *zi);
 void nvme_update_zone_info(struct nvme_ns *ns, struct queue_limits *lim,

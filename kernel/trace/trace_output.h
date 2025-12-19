@@ -16,6 +16,17 @@ extern int
 seq_print_ip_sym(struct trace_seq *s, unsigned long ip,
 		unsigned long sym_flags);
 
+static inline int seq_print_ip_sym_offset(struct trace_seq *s, unsigned long ip,
+					   unsigned long sym_flags)
+{
+	return seq_print_ip_sym(s, ip, sym_flags | TRACE_ITER(SYM_OFFSET));
+}
+static inline int seq_print_ip_sym_no_offset(struct trace_seq *s, unsigned long ip,
+					   unsigned long sym_flags)
+{
+	return seq_print_ip_sym(s, ip, sym_flags & ~TRACE_ITER(SYM_OFFSET));
+}
+
 extern void trace_seq_print_sym(struct trace_seq *s, unsigned long address, bool offset);
 extern int trace_print_context(struct trace_iterator *iter);
 extern int trace_print_lat_context(struct trace_iterator *iter);

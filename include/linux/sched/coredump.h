@@ -8,7 +8,7 @@
 #define SUID_DUMP_USER		1	/* Dump as user of process */
 #define SUID_DUMP_ROOT		2	/* Dump as root */
 
-static inline unsigned long __mm_flags_get_dumpable(struct mm_struct *mm)
+static inline unsigned long __mm_flags_get_dumpable(const struct mm_struct *mm)
 {
 	/*
 	 * By convention, dumpable bits are contained in first 32 bits of the

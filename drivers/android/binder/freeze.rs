@@ -331,7 +331,7 @@ impl Process {
             KVVec::with_capacity(8, GFP_KERNEL).unwrap_or_else(|_err| KVVec::new());
 
         let mut inner = self.lock_with_nodes();
-        let mut curr = inner.nodes.cursor_front();
+        let mut curr = inner.nodes.cursor_front_mut();
         while let Some(cursor) = curr {
             let (key, node) = cursor.current();
             let key = *key;
@@ -345,7 +345,7 @@ impl Process {
                 // Find the node we were looking at and try again. If the set of nodes was changed,
                 // then just proceed to the next node. This is ok because we don't guarantee the
                 // inclusion of nodes that are added or removed in parallel with this operation.
-                curr = inner.nodes.cursor_lower_bound(&key);
+                curr = inner.nodes.cursor_lower_bound_mut(&key);
                 continue;
             }
 

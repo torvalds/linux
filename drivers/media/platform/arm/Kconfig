@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "ARM media platform drivers"
+
+source "drivers/media/platform/arm/mali-c55/Kconfig"

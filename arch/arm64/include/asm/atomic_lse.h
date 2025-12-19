@@ -103,17 +103,17 @@ static __always_inline void __lse_atomic_and(int i, atomic_t *v)
 	return __lse_atomic_andnot(~i, v);
 }
 
-#define ATOMIC_FETCH_OP_AND(name, mb, cl...)				\
+#define ATOMIC_FETCH_OP_AND(name)					\
 static __always_inline int						\
 __lse_atomic_fetch_and##name(int i, atomic_t *v)			\
 {									\
 	return __lse_atomic_fetch_andnot##name(~i, v);			\
 }
 
-ATOMIC_FETCH_OP_AND(_relaxed,   )
-ATOMIC_FETCH_OP_AND(_acquire,  a, "memory")
-ATOMIC_FETCH_OP_AND(_release,  l, "memory")
-ATOMIC_FETCH_OP_AND(        , al, "memory")
+ATOMIC_FETCH_OP_AND(_relaxed)
+ATOMIC_FETCH_OP_AND(_acquire)
+ATOMIC_FETCH_OP_AND(_release)
+ATOMIC_FETCH_OP_AND(        )
 
 #undef ATOMIC_FETCH_OP_AND
 
@@ -210,17 +210,17 @@ static __always_inline void __lse_atomic64_and(s64 i, atomic64_t *v)
 	return __lse_atomic64_andnot(~i, v);
 }
 
-#define ATOMIC64_FETCH_OP_AND(name, mb, cl...)				\
+#define ATOMIC64_FETCH_OP_AND(name)					\
 static __always_inline long						\
 __lse_atomic64_fetch_and##name(s64 i, atomic64_t *v)			\
 {									\
 	return __lse_atomic64_fetch_andnot##name(~i, v);		\
 }
 
-ATOMIC64_FETCH_OP_AND(_relaxed,   )
-ATOMIC64_FETCH_OP_AND(_acquire,  a, "memory")
-ATOMIC64_FETCH_OP_AND(_release,  l, "memory")
-ATOMIC64_FETCH_OP_AND(        , al, "memory")
+ATOMIC64_FETCH_OP_AND(_relaxed)
+ATOMIC64_FETCH_OP_AND(_acquire)
+ATOMIC64_FETCH_OP_AND(_release)
+ATOMIC64_FETCH_OP_AND(        )
 
 #undef ATOMIC64_FETCH_OP_AND
 

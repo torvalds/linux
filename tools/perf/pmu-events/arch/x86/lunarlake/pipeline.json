@@ -21,8 +21,9 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of active floating point and integer dividers per cycle.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
         "EventCode": "0xcd",
         "EventName": "ARITH.DIV_OCCUPANCY",
         "SampleAfterValue": "1000003",
@@ -30,8 +31,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of floating point and integer divider uops executed per cycle.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5,6,7",
+        "Deprecated": "1",
         "EventCode": "0xcd",
         "EventName": "ARITH.DIV_UOPS",
         "SampleAfterValue": "1000003",
@@ -1024,6 +1026,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of uops executed on secondary integer ports 0,1,2,3.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb3",
+        "EventName": "INT_UOPS_EXECUTED.2ND",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of uops executed on all Integer ports.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xb3",
@@ -1205,7 +1216,7 @@
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.ALL",
         "SampleAfterValue": "1000003",
-        "UMask": "0x10",
+        "UMask": "0x1f",
         "Unit": "cpu_atom"
     },
     {
@@ -1611,6 +1622,15 @@
         "EventName": "SERIALIZATION.COLOR_STALLS",
         "SampleAfterValue": "1000003",
         "UMask": "0x8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots where no uop could issue due to an IQ scoreboard that stalls allocation until a specified older uop retires or (in the case of jump scoreboard) executes. Commonly executed instructions with IQ scoreboards include LFENCE and MFENCE.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x75",
+        "EventName": "SERIALIZATION.IQ_JEU_SCB",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
         "Unit": "cpu_atom"
     },
     {

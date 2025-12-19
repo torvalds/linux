@@ -570,14 +570,26 @@ static void soc_pcm_apply_msb(struct snd_pcm_substream *substream)
 	soc_pcm_set_msb(substream, cpu_bits);
 }
 
-static void soc_pcm_hw_init(struct snd_pcm_hardware *hw)
+static void soc_pcm_hw_init(struct snd_pcm_hardware *hw, bool force)
 {
-	hw->rates		= UINT_MAX;
-	hw->rate_min		= 0;
-	hw->rate_max		= UINT_MAX;
-	hw->channels_min	= 0;
-	hw->channels_max	= UINT_MAX;
-	hw->formats		= ULLONG_MAX;
+	if (force) {
+		hw->rates = UINT_MAX;
+		hw->rate_min = 0;
+		hw->rate_max = UINT_MAX;
+		hw->channels_min = 0;
+		hw->channels_max = UINT_MAX;
+		hw->formats = ULLONG_MAX;
+	} else {
+		/* Preserve initialized parameters */
+		if (!hw->rates)
+			hw->rates = UINT_MAX;
+		if (!hw->rate_max)
+			hw->rate_max = UINT_MAX;
+		if (!hw->channels_max)
+			hw->channels_max = UINT_MAX;
+		if (!hw->formats)
+			hw->formats = ULLONG_MAX;
+	}
 }
 
 static void soc_pcm_hw_update_rate(struct snd_pcm_hardware *hw,
@@ -626,7 +638,7 @@ int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
 	unsigned int cpu_chan_min = 0, cpu_chan_max = UINT_MAX;
 	int i;
 
-	soc_pcm_hw_init(hw);
+	soc_pcm_hw_init(hw, true);
 
 	/* first calculate min/max only for CPUs in the DAI link */
 	for_each_rtd_cpu_dais(rtd, i, cpu_dai) {
@@ -1451,7 +1463,7 @@ EXPORT_SYMBOL_GPL(widget_in_list);
 
 bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir)
 {
-	struct snd_soc_card *card = widget->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(widget->dapm);
 	struct snd_soc_pcm_runtime *rtd;
 	int stream;
 
@@ -1738,13 +1750,9 @@ static void dpcm_runtime_setup_fe(struct snd_pcm_substream *substream)
 	struct snd_pcm_hardware *hw = &runtime->hw;
 	struct snd_soc_dai *dai;
 	int stream = substream->stream;
-	u64 formats = hw->formats;
 	int i;
 
-	soc_pcm_hw_init(hw);
-
-	if (formats)
-		hw->formats &= formats;
+	soc_pcm_hw_init(hw, false);
 
 	for_each_rtd_cpu_dais(fe, i, dai) {
 		const struct snd_soc_pcm_stream *cpu_stream;

@@ -91,14 +91,9 @@ static int jumbo_frm(struct stmmac_tx_queue *tx_q, struct sk_buff *skb,
 	return entry;
 }
 
-static unsigned int is_jumbo_frm(int len, int enh_desc)
+static bool is_jumbo_frm(unsigned int len, bool enh_desc)
 {
-	unsigned int ret = 0;
-
-	if (len >= BUF_SIZE_4KiB)
-		ret = 1;
-
-	return ret;
+	return len >= BUF_SIZE_4KiB;
 }
 
 static void refill_desc3(struct stmmac_rx_queue *rx_q, struct dma_desc *p)

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 static const char ctrl_cmd_stop[] = "stop";
 static const char ctrl_cmd_start[] = "start";

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2020 Pengutronix, Ahmad Fatoum <kernel@pengutronix.de>
+ * Copyright 2024-2025 NXP
  */
 
 #ifndef __CAAM_BLOB_GEN
@@ -12,11 +13,34 @@
 #define CAAM_BLOB_KEYMOD_LENGTH		16
 #define CAAM_BLOB_OVERHEAD		(32 + 16)
 #define CAAM_BLOB_MAX_LEN		4096
+#define CAAM_ENC_ALGO_CCM		0x1
+#define CAAM_ENC_ALGO_ECB		0x2
+#define CAAM_NONCE_SIZE			6
+#define CAAM_ICV_SIZE			6
+#define CAAM_CCM_OVERHEAD		(CAAM_NONCE_SIZE + CAAM_ICV_SIZE)
 
 struct caam_blob_priv;
 
 /**
+ * struct caam_pkey_info - information for CAAM protected key
+ * @is_pkey:		flag to identify, if the key is protected.
+ * @key_enc_algo:	identifies the algorithm, ccm or ecb
+ * @plain_key_sz:	size of plain key.
+ * @key_buf:		contains key data
+ */
+struct caam_pkey_info {
+	u8  is_pkey;
+	u8  key_enc_algo;
+	u16 plain_key_sz;
+	u8 key_buf[];
+} __packed;
+
+/* sizeof struct caam_pkey_info */
+#define CAAM_PKEY_HEADER		4
+
+/**
  * struct caam_blob_info - information for CAAM blobbing
+ * @pkey_info:	 pointer to keep protected key information
  * @input:       pointer to input buffer (must be DMAable)
  * @input_len:   length of @input buffer in bytes.
  * @output:      pointer to output buffer (must be DMAable)
@@ -26,6 +50,8 @@ struct caam_blob_priv;
  *	         May not exceed %CAAM_BLOB_KEYMOD_LENGTH
  */
 struct caam_blob_info {
+	struct caam_pkey_info pkey_info;
+
 	void *input;
 	size_t input_len;
 
