@@ -32,7 +32,7 @@ static void ptep_zap_softleaf_entry(struct mm_struct *mm, softleaf_t entry)
 		dec_mm_counter(mm, MM_SWAPENTS);
 	else if (softleaf_is_migration(entry))
 		dec_mm_counter(mm, mm_counter(softleaf_to_folio(entry)));
-	free_swap_and_cache(entry);
+	swap_put_entries_direct(entry, 1);
 }
 
 /**
