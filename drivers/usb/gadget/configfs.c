@@ -409,7 +409,7 @@ static void gadget_info_attr_release(struct config_item *item)
 	kfree(gi);
 }
 
-static struct configfs_item_operations gadget_root_item_ops = {
+static const struct configfs_item_operations gadget_root_item_ops = {
 	.release                = gadget_info_attr_release,
 };
 
@@ -514,7 +514,7 @@ static void config_usb_cfg_unlink(
 	WARN(1, "Unable to locate function to unbind\n");
 }
 
-static struct configfs_item_operations gadget_config_item_ops = {
+static const struct configfs_item_operations gadget_config_item_ops = {
 	.release                = gadget_config_attr_release,
 	.allow_link             = config_usb_cfg_link,
 	.drop_link              = config_usb_cfg_unlink,
@@ -663,7 +663,7 @@ static void function_drop(
 	config_item_put(item);
 }
 
-static struct configfs_group_operations functions_ops = {
+static const struct configfs_group_operations functions_ops = {
 	.make_group     = &function_make,
 	.drop_item      = &function_drop,
 };
@@ -766,7 +766,7 @@ static void config_desc_drop(
 	config_item_put(item);
 }
 
-static struct configfs_group_operations config_desc_ops = {
+static const struct configfs_group_operations config_desc_ops = {
 	.make_group     = &config_desc_make,
 	.drop_item      = &config_desc_drop,
 };
@@ -799,7 +799,7 @@ static void gadget_language_attr_release(struct config_item *item)
 	kfree(gs);
 }
 
-static struct configfs_item_operations gadget_language_langid_item_ops = {
+static const struct configfs_item_operations gadget_language_langid_item_ops = {
 	.release                = gadget_language_attr_release,
 };
 
@@ -852,7 +852,7 @@ static void gadget_string_release(struct config_item *item)
 	kfree(string);
 }
 
-static struct configfs_item_operations gadget_string_item_ops = {
+static const struct configfs_item_operations gadget_string_item_ops = {
 	.release	= gadget_string_release,
 };
 
@@ -901,7 +901,7 @@ static void gadget_language_string_drop(struct config_group *group,
 		string->usb_string.id = i++;
 }
 
-static struct configfs_group_operations gadget_language_langid_group_ops = {
+static const struct configfs_group_operations gadget_language_langid_group_ops = {
 	.make_item		= gadget_language_string_make,
 	.drop_item		= gadget_language_string_drop,
 };
@@ -960,7 +960,7 @@ static void gadget_language_drop(struct config_group *group,
 	config_item_put(item);
 }
 
-static struct configfs_group_operations gadget_language_group_ops = {
+static const struct configfs_group_operations gadget_language_group_ops = {
 	.make_group     = &gadget_language_make,
 	.drop_item      = &gadget_language_drop,
 };
@@ -1266,7 +1266,7 @@ static void os_desc_unlink(struct config_item *os_desc_ci,
 	mutex_unlock(&gi->lock);
 }
 
-static struct configfs_item_operations os_desc_ops = {
+static const struct configfs_item_operations os_desc_ops = {
 	.allow_link		= os_desc_link,
 	.drop_link		= os_desc_unlink,
 };
@@ -1391,7 +1391,7 @@ static void usb_os_desc_ext_prop_release(struct config_item *item)
 	kfree(ext_prop); /* frees a whole chunk */
 }
 
-static struct configfs_item_operations ext_prop_ops = {
+static const struct configfs_item_operations ext_prop_ops = {
 	.release		= usb_os_desc_ext_prop_release,
 };
 
@@ -1456,7 +1456,7 @@ static void ext_prop_drop(struct config_group *group, struct config_item *item)
 	config_item_put(item);
 }
 
-static struct configfs_group_operations interf_grp_ops = {
+static const struct configfs_group_operations interf_grp_ops = {
 	.make_item	= &ext_prop_make,
 	.drop_item	= &ext_prop_drop,
 };
@@ -2061,7 +2061,7 @@ static void gadgets_drop(struct config_group *group, struct config_item *item)
 	config_item_put(item);
 }
 
-static struct configfs_group_operations gadgets_ops = {
+static const struct configfs_group_operations gadgets_ops = {
 	.make_group     = &gadgets_make,
 	.drop_item      = &gadgets_drop,
 };

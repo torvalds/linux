@@ -882,7 +882,7 @@ static void ss_attr_release(struct config_item *item)
 	usb_put_function_instance(&ss_opts->func_inst);
 }
 
-static struct configfs_item_operations ss_item_ops = {
+static const struct configfs_item_operations ss_item_ops = {
 	.release		= ss_attr_release,
 };
 

@@ -4004,7 +4004,7 @@ static void ffs_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations ffs_item_ops = {
+static const struct configfs_item_operations ffs_item_ops = {
 	.release	= ffs_attr_release,
 };
 

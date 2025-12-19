@@ -2316,7 +2316,7 @@ static void f_midi2_block_opts_release(struct config_item *item)
 	kfree(opts);
 }
 
-static struct configfs_item_operations f_midi2_block_item_ops = {
+static const struct configfs_item_operations f_midi2_block_item_ops = {
 	.release	= f_midi2_block_opts_release,
 };
 
@@ -2479,11 +2479,11 @@ static void f_midi2_ep_opts_release(struct config_item *item)
 	kfree(opts);
 }
 
-static struct configfs_item_operations f_midi2_ep_item_ops = {
+static const struct configfs_item_operations f_midi2_ep_item_ops = {
 	.release	= f_midi2_ep_opts_release,
 };
 
-static struct configfs_group_operations f_midi2_ep_group_ops = {
+static const struct configfs_group_operations f_midi2_ep_group_ops = {
 	.make_group	= f_midi2_opts_block_make,
 	.drop_item	= f_midi2_opts_block_drop,
 };
@@ -2618,11 +2618,11 @@ static void f_midi2_opts_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations f_midi2_item_ops = {
+static const struct configfs_item_operations f_midi2_item_ops = {
 	.release	= f_midi2_opts_release,
 };
 
-static struct configfs_group_operations f_midi2_group_ops = {
+static const struct configfs_group_operations f_midi2_group_ops = {
 	.make_group	= f_midi2_opts_ep_make,
 	.drop_item	= f_midi2_opts_ep_drop,
 };

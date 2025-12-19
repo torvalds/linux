@@ -21,7 +21,7 @@
 		usb_put_function_instance(&opts->func_inst);		\
 	}								\
 									\
-	static struct configfs_item_operations _f_##_item_ops = {	\
+	static const struct configfs_item_operations _f_##_item_ops = {	\
 		.release	= _f_##_attr_release,			\
 	}
 

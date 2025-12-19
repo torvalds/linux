@@ -1091,7 +1091,7 @@ static void midi_attr_release(struct config_item *item)
 	usb_put_function_instance(&opts->func_inst);
 }
 
-static struct configfs_item_operations midi_item_ops = {
+static const struct configfs_item_operations midi_item_ops = {
 	.release	= midi_attr_release,
 };
 
