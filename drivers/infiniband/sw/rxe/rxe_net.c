@@ -64,7 +64,39 @@ static inline void rxe_reclassify_recv_socket(struct socket *sock)
 		break;
 	default:
 		WARN_ON_ONCE(1);
+		return;
 	}
+	/*
+	 * sock_lock_init_class_and_name() calls
+	 * sk_owner_set(sk, THIS_MODULE); in order
+	 * to make sure the referenced global
+	 * variables rxe_recv_slock_key and
+	 * rxe_recv_sk_key are not removed
+	 * before the socket is closed.
+	 *
+	 * However this prevents rxe_net_exit()
+	 * from being called and 'rmmod rdma_rxe'
+	 * is refused because of the references.
+	 *
+	 * For the global sockets in recv_sockets,
+	 * we are sure that rxe_net_exit() will call
+	 * rxe_release_udp_tunnel -> udp_tunnel_sock_release.
+	 *
+	 * So we don't need the additional reference to
+	 * our own (THIS_MODULE).
+	 */
+	sk_owner_put(sk);
+	/*
+	 * We also call sk_owner_clear() otherwise
+	 * sk_owner_put(sk) in sk_prot_free will
+	 * fail, which is called via
+	 * sk_free -> __sk_free -> sk_destruct
+	 * and sk_destruct calls __sk_destruct
+	 * directly or via call_rcu()
+	 * so sk_prot_free() might be called
+	 * after rxe_net_exit().
+	 */
+	sk_owner_clear(sk);
 #endif /* CONFIG_DEBUG_LOCK_ALLOC */
 }
 
