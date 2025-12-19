@@ -125,15 +125,6 @@ static resource_size_t get_res_add_size(struct list_head *head,
 	return dev_res ? dev_res->add_size : 0;
 }
 
-static resource_size_t get_res_add_align(struct list_head *head,
-					 struct resource *res)
-{
-	struct pci_dev_resource *dev_res;
-
-	dev_res = res_to_dev_res(head, res);
-	return dev_res ? dev_res->min_align : 0;
-}
-
 static void restore_dev_resource(struct pci_dev_resource *dev_res)
 {
 	struct resource *res = dev_res->res;
@@ -385,6 +376,8 @@ bool pci_resource_is_optional(const struct pci_dev *dev, int resno)
 	if (pci_resource_is_iov(resno))
 		return true;
 	if (resno == PCI_ROM_RESOURCE && !(res->flags & IORESOURCE_ROM_ENABLE))
+		return true;
+	if (pci_resource_is_bridge_win(resno) && !resource_size(res))
 		return true;
 
 	return false;
@@ -1258,6 +1251,54 @@ static resource_size_t calculate_head_align(resource_size_t *aligns,
 	return head_align;
 }
 
+/*
+ * pbus_size_mem_optional - Account optional resources in bridge window
+ *
+ * Account an optional resource or the optional part of the resource in bridge
+ * window size.
+ *
+ * Return: %true if the resource is entirely optional.
+ */
+static bool pbus_size_mem_optional(struct pci_dev *dev, int resno,
+				   resource_size_t align,
+				   struct list_head *realloc_head,
+				   resource_size_t *add_align,
+				   resource_size_t *children_add_size)
+{
+	struct resource *res = pci_resource_n(dev, resno);
+	bool optional = pci_resource_is_optional(dev, resno);
+	resource_size_t r_size = resource_size(res);
+	struct pci_dev_resource *dev_res;
+
+	if (!realloc_head)
+		return false;
+
+	if (!optional) {
+		/*
+		 * Only bridges have optional sizes in realloc_head at this
+		 * point. As res_to_dev_res() walks the entire realloc_head
+		 * list, skip calling it when known unnecessary.
+		 */
+		if (!pci_resource_is_bridge_win(resno))
+			return false;
+
+		dev_res = res_to_dev_res(realloc_head, res);
+		if (dev_res) {
+			*children_add_size += dev_res->add_size;
+			*add_align = max(*add_align, dev_res->min_align);
+		}
+
+		return false;
+	}
+
+	/* Put SRIOV requested res to the optional list */
+	add_to_list(realloc_head, dev, res, 0, align);
+	*children_add_size += r_size;
+	*add_align = max(align, *add_align);
+
+	return true;
+}
+
 /**
  * pbus_size_mem() - Size the memory window of a given bus
  *
@@ -1284,7 +1325,6 @@ static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
 	resource_size_t aligns[28] = {}; /* Alignments from 1MB to 128TB */
 	int order, max_order;
 	resource_size_t children_add_size = 0;
-	resource_size_t children_add_align = 0;
 	resource_size_t add_align = 0;
 
 	if (!b_res)
@@ -1311,7 +1351,6 @@ static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
 			if (b_res != pbus_select_window(bus, r))
 				continue;
 
-			r_size = resource_size(r);
 			align = pci_resource_alignment(dev, r);
 			/*
 			 * aligns[0] is for 1MB (since bridge memory
@@ -1327,25 +1366,17 @@ static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
 				continue;
 			}
 
-			/* Put SRIOV requested res to the optional list */
-			if (realloc_head && pci_resource_is_optional(dev, i)) {
-				add_align = max(align, add_align);
-				add_to_list(realloc_head, dev, r, 0, 0 /* Don't care */);
-				children_add_size += r_size;
+			if (pbus_size_mem_optional(dev, i, align,
+						   realloc_head, &add_align,
+						   &children_add_size))
 				continue;
-			}
 
+			r_size = resource_size(r);
 			size += max(r_size, align);
 
 			aligns[order] += align;
 			if (order > max_order)
 				max_order = order;
-
-			if (realloc_head) {
-				children_add_size += get_res_add_size(realloc_head, r);
-				children_add_align = get_res_add_align(realloc_head, r);
-				add_align = max(add_align, children_add_align);
-			}
 		}
 	}
 
