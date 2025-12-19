@@ -19,6 +19,7 @@
 #include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
@@ -1311,31 +1312,29 @@ static void pbus_size_mem(struct pci_bus *bus, struct resource *b_res,
 				continue;
 
 			r_size = resource_size(r);
-
-			/* Put SRIOV requested res to the optional list */
-			if (realloc_head && pci_resource_is_optional(dev, i)) {
-				add_align = max(pci_resource_alignment(dev, r), add_align);
-				add_to_list(realloc_head, dev, r, 0, 0 /* Don't care */);
-				children_add_size += r_size;
-				continue;
-			}
-
+			align = pci_resource_alignment(dev, r);
 			/*
 			 * aligns[0] is for 1MB (since bridge memory
 			 * windows are always at least 1MB aligned), so
 			 * keep "order" from being negative for smaller
 			 * resources.
 			 */
-			align = pci_resource_alignment(dev, r);
-			order = __ffs(align) - __ffs(SZ_1M);
-			if (order < 0)
-				order = 0;
+			order = max_t(int, __ffs(align) - __ffs(SZ_1M), 0);
 			if (order >= ARRAY_SIZE(aligns)) {
 				pci_warn(dev, "%s %pR: disabling; bad alignment %#llx\n",
 					 r_name, r, (unsigned long long) align);
 				r->flags = 0;
 				continue;
 			}
+
+			/* Put SRIOV requested res to the optional list */
+			if (realloc_head && pci_resource_is_optional(dev, i)) {
+				add_align = max(align, add_align);
+				add_to_list(realloc_head, dev, r, 0, 0 /* Don't care */);
+				children_add_size += r_size;
+				continue;
+			}
+
 			size += max(r_size, align);
 
 			aligns[order] += align;
