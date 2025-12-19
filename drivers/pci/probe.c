@@ -1312,6 +1312,26 @@ static void pci_enable_rrs_sv(struct pci_dev *pdev)
 
 static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 					      unsigned int available_buses);
+
+void pbus_validate_busn(struct pci_bus *bus)
+{
+	struct pci_bus *upstream = bus->parent;
+	struct pci_dev *bridge = bus->self;
+
+	/* Check that all devices are accessible */
+	while (upstream->parent) {
+		if ((bus->busn_res.end > upstream->busn_res.end) ||
+		    (bus->number > upstream->busn_res.end) ||
+		    (bus->number < upstream->number) ||
+		    (bus->busn_res.end < upstream->number)) {
+			pci_info(bridge, "devices behind bridge are unusable because %pR cannot be assigned for them\n",
+				 &bus->busn_res);
+			break;
+		}
+		upstream = upstream->parent;
+	}
+}
+
 /**
  * pci_ea_fixed_busnrs() - Read fixed Secondary and Subordinate bus
  * numbers from EA capability.
@@ -1577,18 +1597,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		  (is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
 		  pci_domain_nr(bus), child->number);
 
-	/* Check that all devices are accessible */
-	while (bus->parent) {
-		if ((child->busn_res.end > bus->busn_res.end) ||
-		    (child->number > bus->busn_res.end) ||
-		    (child->number < bus->number) ||
-		    (child->busn_res.end < bus->number)) {
-			dev_info(&dev->dev, "devices behind bridge are unusable because %pR cannot be assigned for them\n",
-				 &child->busn_res);
-			break;
-		}
-		bus = bus->parent;
-	}
+	pbus_validate_busn(child);
 
 out:
 	/* Clear errors in the Secondary Status Register */

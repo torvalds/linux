@@ -501,6 +501,7 @@ static inline int pci_resource_num(const struct pci_dev *dev,
 	return resno;
 }
 
+void pbus_validate_busn(struct pci_bus *bus);
 struct resource *pbus_select_window(struct pci_bus *bus,
 				    const struct resource *res);
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
