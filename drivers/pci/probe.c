@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci_hotplug.h>
 #include <linux/slab.h>
+#include <linux/sprintf.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/aer.h>
@@ -1571,9 +1572,9 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 		pci_write_config_byte(dev, PCI_SUBORDINATE_BUS, max);
 	}
 
-	sprintf(child->name,
-		(is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
-		pci_domain_nr(bus), child->number);
+	scnprintf(child->name, sizeof(child->name),
+		  (is_cardbus ? "PCI CardBus %04x:%02x" : "PCI Bus %04x:%02x"),
+		  pci_domain_nr(bus), child->number);
 
 	/* Check that all devices are accessible */
 	while (bus->parent) {
