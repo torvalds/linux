@@ -6,6 +6,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/cleanup.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -49,11 +50,9 @@ static void iio_dmaengine_buffer_block_done(void *data,
 		const struct dmaengine_result *result)
 {
 	struct iio_dma_buffer_block *block = data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&block->queue->list_lock, flags);
-	list_del(&block->head);
-	spin_unlock_irqrestore(&block->queue->list_lock, flags);
+	scoped_guard(spinlock_irqsave, &block->queue->list_lock)
+		list_del(&block->head);
 	block->bytes_used -= result->residue;
 	iio_dma_buffer_block_done(block);
 }
@@ -131,9 +130,8 @@ static int iio_dmaengine_buffer_submit_block(struct iio_dma_buffer_queue *queue,
 	if (dma_submit_error(cookie))
 		return dma_submit_error(cookie);
 
-	spin_lock_irq(&dmaengine_buffer->queue.list_lock);
-	list_add_tail(&block->head, &dmaengine_buffer->active);
-	spin_unlock_irq(&dmaengine_buffer->queue.list_lock);
+	scoped_guard(spinlock_irq, &dmaengine_buffer->queue.list_lock)
+		list_add_tail(&block->head, &dmaengine_buffer->active);
 
 	dma_async_issue_pending(dmaengine_buffer->chan);
 
