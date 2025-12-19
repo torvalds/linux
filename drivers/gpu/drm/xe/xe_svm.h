@@ -6,24 +6,11 @@
 #ifndef _XE_SVM_H_
 #define _XE_SVM_H_
 
-struct xe_device;
-
-/**
- * xe_svm_devm_owner() - Return the owner of device private memory
- * @xe: The xe device.
- *
- * Return: The owner of this device's device private memory to use in
- * hmm_range_fault()-
- */
-static inline void *xe_svm_devm_owner(struct xe_device *xe)
-{
-	return xe;
-}
-
 #if IS_ENABLED(CONFIG_DRM_XE_GPUSVM)
 
 #include <drm/drm_pagemap.h>
 #include <drm/drm_gpusvm.h>
+#include <drm/drm_pagemap_util.h>
 
 #define XE_INTERCONNECT_VRAM DRM_INTERCONNECT_DRIVER
 
@@ -65,6 +52,7 @@ struct xe_svm_range {
  * @pagemap: The struct dev_pagemap providing the struct pages.
  * @dpagemap: The drm_pagemap managing allocation and migration.
  * @destroy_work: Handles asnynchronous destruction and caching.
+ * @peer: Used for pagemap owner computation.
  * @hpa_base: The host physical address base for the managemd memory.
  * @vr: Backpointer to the xe_vram region.
  */
@@ -72,6 +60,7 @@ struct xe_pagemap {
 	struct dev_pagemap pagemap;
 	struct drm_pagemap dpagemap;
 	struct work_struct destroy_work;
+	struct drm_pagemap_peer peer;
 	resource_size_t hpa_base;
 	struct xe_vram_region *vr;
 };
@@ -130,6 +119,8 @@ void xe_svm_unmap_address_range(struct xe_vm *vm, u64 start, u64 end);
 u8 xe_svm_ranges_zap_ptes_in_range(struct xe_vm *vm, u64 start, u64 end);
 
 struct drm_pagemap *xe_vma_resolve_pagemap(struct xe_vma *vma, struct xe_tile *tile);
+
+void *xe_svm_private_page_owner(struct xe_vm *vm, bool force_smem);
 
 /**
  * xe_svm_range_has_dma_mapping() - SVM range has DMA mapping
@@ -364,6 +355,11 @@ u8 xe_svm_ranges_zap_ptes_in_range(struct xe_vm *vm, u64 start, u64 end)
 
 static inline
 struct drm_pagemap *xe_vma_resolve_pagemap(struct xe_vma *vma, struct xe_tile *tile)
+{
+	return NULL;
+}
+
+static inline void *xe_svm_private_page_owner(struct xe_vm *vm, bool force_smem)
 {
 	return NULL;
 }

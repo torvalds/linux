@@ -22,7 +22,16 @@
 #include "xe_vm_types.h"
 #include "xe_vram_types.h"
 
+/* Identifies subclasses of struct drm_pagemap_peer */
+#define XE_PEER_PAGEMAP ((void *)0ul)
+#define XE_PEER_VM ((void *)1ul)
+
 static int xe_svm_get_pagemaps(struct xe_vm *vm);
+
+void *xe_svm_private_page_owner(struct xe_vm *vm, bool force_smem)
+{
+	return force_smem ? NULL : vm->svm.peer.owner;
+}
 
 static bool xe_svm_range_in_vram(struct xe_svm_range *range)
 {
@@ -777,6 +786,25 @@ static void xe_svm_put_pagemaps(struct xe_vm *vm)
 	}
 }
 
+static struct device *xe_peer_to_dev(struct drm_pagemap_peer *peer)
+{
+	if (peer->private == XE_PEER_PAGEMAP)
+		return container_of(peer, struct xe_pagemap, peer)->dpagemap.drm->dev;
+
+	return container_of(peer, struct xe_vm, svm.peer)->xe->drm.dev;
+}
+
+static bool xe_has_interconnect(struct drm_pagemap_peer *peer1,
+				struct drm_pagemap_peer *peer2)
+{
+	struct device *dev1 = xe_peer_to_dev(peer1);
+	struct device *dev2 = xe_peer_to_dev(peer2);
+
+	return dev1 == dev2;
+}
+
+static DRM_PAGEMAP_OWNER_LIST_DEFINE(xe_owner_list);
+
 /**
  * xe_svm_init() - SVM initialize
  * @vm: The VM.
@@ -795,9 +823,17 @@ int xe_svm_init(struct xe_vm *vm)
 		INIT_WORK(&vm->svm.garbage_collector.work,
 			  xe_svm_garbage_collector_work_func);
 
-		err = xe_svm_get_pagemaps(vm);
+		vm->svm.peer.private = XE_PEER_VM;
+		err = drm_pagemap_acquire_owner(&vm->svm.peer, &xe_owner_list,
+						xe_has_interconnect);
 		if (err)
 			return err;
+
+		err = xe_svm_get_pagemaps(vm);
+		if (err) {
+			drm_pagemap_release_owner(&vm->svm.peer);
+			return err;
+		}
 
 		err = drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM", &vm->xe->drm,
 				      current->mm, 0, vm->size,
@@ -808,6 +844,7 @@ int xe_svm_init(struct xe_vm *vm)
 
 		if (err) {
 			xe_svm_put_pagemaps(vm);
+			drm_pagemap_release_owner(&vm->svm.peer);
 			return err;
 		}
 	} else {
@@ -830,6 +867,7 @@ void xe_svm_close(struct xe_vm *vm)
 	xe_assert(vm->xe, xe_vm_is_closed(vm));
 	flush_work(&vm->svm.garbage_collector.work);
 	xe_svm_put_pagemaps(vm);
+	drm_pagemap_release_owner(&vm->svm.peer);
 }
 
 /**
@@ -977,7 +1015,7 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 		xe_pm_runtime_get_noresume(xe);
 		err = drm_pagemap_migrate_to_devmem(&bo->devmem_allocation, mm,
 						    start, end, timeslice_ms,
-						    xe_svm_devm_owner(xe));
+						    xpagemap->pagemap.owner);
 		if (err)
 			xe_svm_devmem_release(&bo->devmem_allocation);
 		xe_bo_unlock(bo);
@@ -1092,7 +1130,6 @@ static int __xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 		.devmem_only = need_vram && devmem_possible,
 		.timeslice_ms = need_vram && devmem_possible ?
 			vm->xe->atomic_svm_timeslice_ms : 0,
-		.device_private_page_owner = xe_svm_devm_owner(vm->xe),
 	};
 	struct xe_validation_ctx vctx;
 	struct drm_exec exec;
@@ -1116,8 +1153,8 @@ retry:
 		return err;
 
 	dpagemap = xe_vma_resolve_pagemap(vma, tile);
-	if (!dpagemap && !ctx.devmem_only)
-		ctx.device_private_page_owner = NULL;
+	ctx.device_private_page_owner =
+		xe_svm_private_page_owner(vm, !dpagemap && !ctx.devmem_only);
 	range = xe_svm_range_find_or_insert(vm, fault_addr, vma, &ctx);
 
 	if (IS_ERR(range))
@@ -1541,6 +1578,8 @@ static void xe_pagemap_destroy_work(struct work_struct *work)
 					pagemap->range.end - pagemap->range.start + 1);
 		drm_dev_exit(idx);
 	}
+
+	drm_pagemap_release_owner(&xpagemap->peer);
 	kfree(xpagemap);
 }
 
@@ -1591,6 +1630,7 @@ static struct xe_pagemap *xe_pagemap_create(struct xe_device *xe, struct xe_vram
 	dpagemap = &xpagemap->dpagemap;
 	INIT_WORK(&xpagemap->destroy_work, xe_pagemap_destroy_work);
 	xpagemap->vr = vr;
+	xpagemap->peer.private = XE_PEER_PAGEMAP;
 
 	err = drm_pagemap_init(dpagemap, pagemap, &xe->drm, &xe_drm_pagemap_ops);
 	if (err)
@@ -1603,21 +1643,29 @@ static struct xe_pagemap *xe_pagemap_create(struct xe_device *xe, struct xe_vram
 		goto out_err;
 	}
 
+	err = drm_pagemap_acquire_owner(&xpagemap->peer, &xe_owner_list,
+					xe_has_interconnect);
+	if (err)
+		goto out_no_owner;
+
 	pagemap->type = MEMORY_DEVICE_PRIVATE;
 	pagemap->range.start = res->start;
 	pagemap->range.end = res->end;
 	pagemap->nr_range = 1;
-	pagemap->owner = xe_svm_devm_owner(xe);
+	pagemap->owner = xpagemap->peer.owner;
 	pagemap->ops = drm_pagemap_pagemap_ops_get();
 	addr = devm_memremap_pages(dev, pagemap);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
-		devm_release_mem_region(dev, res->start, res->end - res->start + 1);
-		goto out_err;
+		goto out_no_pages;
 	}
 	xpagemap->hpa_base = res->start;
 	return xpagemap;
 
+out_no_pages:
+	drm_pagemap_release_owner(&xpagemap->peer);
+out_no_owner:
+	devm_release_mem_region(dev, res->start, res->end - res->start + 1);
 out_err:
 	drm_pagemap_put(dpagemap);
 	return ERR_PTR(err);

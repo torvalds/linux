@@ -8,6 +8,7 @@
 
 #include <drm/drm_gpusvm.h>
 #include <drm/drm_gpuvm.h>
+#include <drm/drm_pagemap_util.h>
 
 #include <linux/dma-resv.h>
 #include <linux/kref.h>
@@ -192,6 +193,8 @@ struct xe_vm {
 			struct work_struct work;
 		} garbage_collector;
 		struct xe_pagemap *pagemaps[XE_MAX_TILES_PER_DEVICE];
+		/** @svm.peer: Used for pagemap connectivity computations. */
+		struct drm_pagemap_peer peer;
 	} svm;
 
 	struct xe_device *xe;
