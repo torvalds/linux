@@ -319,6 +319,8 @@ properties:
           - mps,mp5023
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5920
           - mps,mp5920
+            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5926
+          - mps,mp5926
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
           - mps,mp5990
             # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5998
