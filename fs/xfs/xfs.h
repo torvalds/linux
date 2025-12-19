@@ -23,6 +23,6 @@
 #endif
 
 
-#include "xfs_linux.h"
+#include "xfs_platform.h"
 
 #endif	/* __XFS_H__ */

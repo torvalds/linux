@@ -3,8 +3,8 @@
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#ifndef __XFS_LINUX__
-#define __XFS_LINUX__
+#ifndef _XFS_PLATFORM_H
+#define _XFS_PLATFORM_H
 
 #include <linux/types.h>
 #include <linux/uuid.h>
@@ -281,4 +281,4 @@ kmem_to_page(void *addr)
 	return virt_to_page(addr);
 }
 
-#endif /* __XFS_LINUX__ */
+#endif /* _XFS_PLATFORM_H */
