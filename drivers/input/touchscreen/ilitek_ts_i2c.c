@@ -122,7 +122,7 @@ static int ilitek_i2c_write_and_read(struct ilitek_ts_data *ts,
 				return error;
 		}
 		if (delay > 0)
-			mdelay(delay);
+			fsleep(delay * 1000);
 
 		if (read_len > 0) {
 			error = i2c_transfer(client->adapter, msgs + 1, 1);
