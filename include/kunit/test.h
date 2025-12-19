@@ -906,7 +906,8 @@ do {									       \
 	};								       \
 									       \
 	_KUNIT_SAVE_LOC(test);						       \
-	if (likely((__left) && (__right) && (strcmp(__left, __right) op 0)))   \
+	if (likely(!IS_ERR_OR_NULL(__left) && !IS_ERR_OR_NULL(__right) &&      \
+	    (strcmp(__left, __right) op 0)))				       \
 		break;							       \
 									       \
 									       \
