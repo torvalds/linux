@@ -452,7 +452,6 @@ static inline long get_nr_swap_pages(void)
 }
 
 extern void si_swapinfo(struct sysinfo *);
-void put_swap_folio(struct folio *folio, swp_entry_t entry);
 extern int add_swap_count_continuation(swp_entry_t, gfp_t);
 int swap_type_of(dev_t device, sector_t offset);
 int find_first_swap(dev_t *device);
@@ -530,10 +529,6 @@ static inline int swap_dup_entry_direct(swp_entry_t ent)
 }
 
 static inline void swap_put_entries_direct(swp_entry_t ent, int nr)
-{
-}
-
-static inline void put_swap_folio(struct folio *folio, swp_entry_t swp)
 {
 }
 
