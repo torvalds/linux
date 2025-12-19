@@ -1032,7 +1032,7 @@ static struct audioreach_module *audioreach_find_module(struct snd_soc_component
 static int audioreach_route_load(struct snd_soc_component *scomp, int index,
 				 struct snd_soc_dapm_route *route)
 {
-	struct audioreach_module *src_module, *sink_module;
+	const struct audioreach_module *src_module, *sink_module;
 	struct snd_ar_control *control;
 	struct snd_soc_dapm_widget *w;
 	int i;
@@ -1098,8 +1098,8 @@ static int audioreach_link_load(struct snd_soc_component *component, int index,
 }
 
 static void audioreach_connect_sub_graphs(struct q6apm *apm,
-					  struct snd_ar_control *m1,
-					  struct snd_ar_control *m2,
+					  const struct snd_ar_control *m1,
+					  const struct snd_ar_control *m2,
 					  bool connect)
 {
 	struct audioreach_graph_info *info;
@@ -1123,10 +1123,10 @@ static void audioreach_connect_sub_graphs(struct q6apm *apm,
 }
 
 static bool audioreach_is_vmixer_connected(struct q6apm *apm,
-					   struct snd_ar_control *m1,
-					   struct snd_ar_control *m2)
+					   const struct snd_ar_control *m1,
+					   const struct snd_ar_control *m2)
 {
-	struct audioreach_graph_info *info;
+	const struct audioreach_graph_info *info;
 
 	mutex_lock(&apm->lock);
 	info = idr_find(&apm->graph_info_idr, m2->graph_id);
