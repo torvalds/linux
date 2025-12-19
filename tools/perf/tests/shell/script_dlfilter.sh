@@ -68,7 +68,7 @@ test_dlfilter() {
 	fi
 
 	# Build the dlfilter
-	if ! cc -c -I tools/perf/include -fpic -x c "${dlfilter_c}" -o "${dlfilter_so}.o"
+	if ! cc -c -I ${shelldir}/../../include -fpic -x c "${dlfilter_c}" -o "${dlfilter_so}.o"
 	then
 		echo "Basic --dlfilter test [Skip - failed to build dlfilter object]"
 		err=2
