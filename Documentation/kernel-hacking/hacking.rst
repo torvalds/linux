@@ -49,7 +49,7 @@ User Context
 
 User context is when you are coming in from a system call or other trap:
 like userspace, you can be preempted by more important tasks and by
-interrupts. You can sleep, by calling :c:func:`schedule()`.
+interrupts. You can sleep by calling :c:func:`schedule()`.
 
 .. note::
 
