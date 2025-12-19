@@ -187,6 +187,8 @@ int xe_pagemap_shrinker_create(struct xe_device *xe);
 
 int xe_pagemap_cache_create(struct xe_tile *tile);
 
+struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_instance);
+
 #else
 #include <linux/interval_tree.h>
 #include "xe_vm.h"
@@ -376,6 +378,11 @@ static inline int xe_pagemap_shrinker_create(struct xe_device *xe)
 static inline int xe_pagemap_cache_create(struct xe_tile *tile)
 {
 	return 0;
+}
+
+static inline struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_instance)
+{
+	return ERR_PTR(-ENOENT);
 }
 
 #define xe_svm_range_has_dma_mapping(...) false
