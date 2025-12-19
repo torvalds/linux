@@ -21,8 +21,9 @@ struct mm_id {
 	int syscall_fd_map[STUB_MAX_FDS];
 };
 
-void enter_turnstile(struct mm_id *mm_id) __acquires(turnstile);
-void exit_turnstile(struct mm_id *mm_id) __releases(turnstile);
+struct mutex *__get_turnstile(struct mm_id *mm_id);
+void enter_turnstile(struct mm_id *mm_id) __acquires(__get_turnstile(mm_id));
+void exit_turnstile(struct mm_id *mm_id) __releases(__get_turnstile(mm_id));
 
 void notify_mm_kill(int pid);
 
