@@ -1075,8 +1075,7 @@ static int xe_drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 		/* Ensure the device has a pm ref while there are device pages active. */
 		xe_pm_runtime_get_noresume(xe);
 		err = drm_pagemap_migrate_to_devmem(&bo->devmem_allocation, mm,
-						    start, end, timeslice_ms,
-						    xpagemap->pagemap.owner);
+						    start, end, timeslice_ms);
 		if (err)
 			xe_svm_devmem_release(&bo->devmem_allocation);
 		xe_bo_unlock(bo);

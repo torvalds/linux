@@ -320,8 +320,7 @@ struct drm_pagemap_devmem {
 int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 				  struct mm_struct *mm,
 				  unsigned long start, unsigned long end,
-				  unsigned long timeslice_ms,
-				  void *pgmap_owner);
+				  unsigned long timeslice_ms);
 
 int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation);
 

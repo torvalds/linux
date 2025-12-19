@@ -66,7 +66,6 @@
  * @refcount: Reference count for the zdd
  * @devmem_allocation: device memory allocation
  * @dpagemap: Refcounted pointer to the underlying struct drm_pagemap.
- * @device_private_page_owner: Device private pages owner
  *
  * This structure serves as a generic wrapper installed in
  * page->zone_device_data. It provides infrastructure for looking up a device
@@ -79,13 +78,11 @@ struct drm_pagemap_zdd {
 	struct kref refcount;
 	struct drm_pagemap_devmem *devmem_allocation;
 	struct drm_pagemap *dpagemap;
-	void *device_private_page_owner;
 };
 
 /**
  * drm_pagemap_zdd_alloc() - Allocate a zdd structure.
  * @dpagemap: Pointer to the underlying struct drm_pagemap.
- * @device_private_page_owner: Device private pages owner
  *
  * This function allocates and initializes a new zdd structure. It sets up the
  * reference count and initializes the destroy work.
@@ -93,7 +90,7 @@ struct drm_pagemap_zdd {
  * Return: Pointer to the allocated zdd on success, ERR_PTR() on failure.
  */
 static struct drm_pagemap_zdd *
-drm_pagemap_zdd_alloc(struct drm_pagemap *dpagemap, void *device_private_page_owner)
+drm_pagemap_zdd_alloc(struct drm_pagemap *dpagemap)
 {
 	struct drm_pagemap_zdd *zdd;
 
@@ -103,7 +100,6 @@ drm_pagemap_zdd_alloc(struct drm_pagemap *dpagemap, void *device_private_page_ow
 
 	kref_init(&zdd->refcount);
 	zdd->devmem_allocation = NULL;
-	zdd->device_private_page_owner = device_private_page_owner;
 	zdd->dpagemap = drm_pagemap_get(dpagemap);
 
 	return zdd;
@@ -308,7 +304,6 @@ npages_in_range(unsigned long start, unsigned long end)
  * @end: End of the virtual address range to migrate.
  * @timeslice_ms: The time requested for the migrated pagemap pages to
  * be present in @mm before being allowed to be migrated back.
- * @pgmap_owner: Not used currently, since only system memory is considered.
  *
  * This function migrates the specified virtual address range to device memory.
  * It performs the necessary setup and invokes the driver-specific operations for
@@ -326,14 +321,15 @@ npages_in_range(unsigned long start, unsigned long end)
 int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 				  struct mm_struct *mm,
 				  unsigned long start, unsigned long end,
-				  unsigned long timeslice_ms,
-				  void *pgmap_owner)
+				  unsigned long timeslice_ms)
 {
 	const struct drm_pagemap_devmem_ops *ops = devmem_allocation->ops;
+	struct drm_pagemap *dpagemap = devmem_allocation->dpagemap;
+	struct dev_pagemap *pagemap = dpagemap->pagemap;
 	struct migrate_vma migrate = {
 		.start		= start,
 		.end		= end,
-		.pgmap_owner	= pgmap_owner,
+		.pgmap_owner	= pagemap->owner,
 		.flags		= MIGRATE_VMA_SELECT_SYSTEM,
 	};
 	unsigned long i, npages = npages_in_range(start, end);
@@ -375,7 +371,7 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 	pagemap_addr = buf + (2 * sizeof(*migrate.src) * npages);
 	pages = buf + (2 * sizeof(*migrate.src) + sizeof(*pagemap_addr)) * npages;
 
-	zdd = drm_pagemap_zdd_alloc(devmem_allocation->dpagemap, pgmap_owner);
+	zdd = drm_pagemap_zdd_alloc(dpagemap);
 	if (!zdd) {
 		err = -ENOMEM;
 		goto err_free;
@@ -791,8 +787,7 @@ EXPORT_SYMBOL_GPL(drm_pagemap_evict_to_ram);
 /**
  * __drm_pagemap_migrate_to_ram() - Migrate GPU SVM range to RAM (internal)
  * @vas: Pointer to the VM area structure
- * @device_private_page_owner: Device private pages owner
- * @page: Pointer to the page for fault handling (can be NULL)
+ * @page: Pointer to the page for fault handling.
  * @fault_addr: Fault address
  * @size: Size of migration
  *
@@ -803,14 +798,13 @@ EXPORT_SYMBOL_GPL(drm_pagemap_evict_to_ram);
  * Return: 0 on success, negative error code on failure.
  */
 static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
-					void *device_private_page_owner,
 					struct page *page,
 					unsigned long fault_addr,
 					unsigned long size)
 {
 	struct migrate_vma migrate = {
 		.vma		= vas,
-		.pgmap_owner	= device_private_page_owner,
+		.pgmap_owner	= page_pgmap(page)->owner,
 		.flags		= MIGRATE_VMA_SELECT_DEVICE_PRIVATE |
 		MIGRATE_VMA_SELECT_DEVICE_COHERENT,
 		.fault_page	= page,
@@ -825,12 +819,9 @@ static int __drm_pagemap_migrate_to_ram(struct vm_area_struct *vas,
 	void *buf;
 	int i, err = 0;
 
-	if (page) {
-		zdd = page->zone_device_data;
-		if (time_before64(get_jiffies_64(),
-				  zdd->devmem_allocation->timeslice_expiration))
-			return 0;
-	}
+	zdd = page->zone_device_data;
+	if (time_before64(get_jiffies_64(), zdd->devmem_allocation->timeslice_expiration))
+		return 0;
 
 	start = ALIGN_DOWN(fault_addr, size);
 	end = ALIGN(fault_addr + 1, size);
@@ -931,7 +922,6 @@ static vm_fault_t drm_pagemap_migrate_to_ram(struct vm_fault *vmf)
 	int err;
 
 	err = __drm_pagemap_migrate_to_ram(vmf->vma,
-					   zdd->device_private_page_owner,
 					   vmf->page, vmf->address,
 					   zdd->devmem_allocation->size);
 
