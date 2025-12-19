@@ -131,12 +131,22 @@ static void dcmipp_byteproc_adjust_crop(struct v4l2_rect *r,
 static void dcmipp_byteproc_adjust_compose(struct v4l2_rect *r,
 					   const struct v4l2_mbus_framefmt *fmt)
 {
+	const struct dcmipp_byteproc_pix_map *vpix;
+
 	r->top = 0;
 	r->left = 0;
 
 	/* Compose is not possible for JPEG or Bayer formats */
 	if (fmt->code >= MEDIA_BUS_FMT_SBGGR8_1X8 &&
 	    fmt->code <= MEDIA_BUS_FMT_JPEG_1X8) {
+		r->width = fmt->width;
+		r->height = fmt->height;
+		return;
+	}
+
+	/* Prevent compose on formats which are not 1 or 2 bytes per pixel */
+	vpix = dcmipp_byteproc_pix_map_by_code(fmt->code);
+	if (vpix->bpp != 1 && vpix->bpp != 2) {
 		r->width = fmt->width;
 		r->height = fmt->height;
 		return;
@@ -149,7 +159,7 @@ static void dcmipp_byteproc_adjust_compose(struct v4l2_rect *r,
 		r->height = fmt->height;
 
 	/* Adjust width /2 or /4 for 8bits formats and /2 for 16bits formats */
-	if (fmt->code == MEDIA_BUS_FMT_Y8_1X8 && r->width <= (fmt->width / 4))
+	if (vpix->bpp == 1 && r->width <= (fmt->width / 4))
 		r->width = fmt->width / 4;
 	else if (r->width <= (fmt->width / 2))
 		r->width = fmt->width / 2;
