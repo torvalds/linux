@@ -120,8 +120,8 @@ static void lkdtm_PANIC_IN_HARDIRQ(void)
 			       CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 	hrtimer_start(&timer, us_to_ktime(100), HRTIMER_MODE_REL_HARD);
 
-	while (wait_for_panic)
-		;
+	while (READ_ONCE(wait_for_panic))
+		cpu_relax();
 
 	hrtimer_cancel(&timer);
 }
@@ -150,8 +150,8 @@ static void lkdtm_BUG_IN_HARDIRQ(void)
 			       CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 	hrtimer_start(&timer, us_to_ktime(100), HRTIMER_MODE_REL_HARD);
 
-	while (wait_for_bug)
-		;
+	while (READ_ONCE(wait_for_bug))
+		cpu_relax();
 
 	hrtimer_cancel(&timer);
 }
