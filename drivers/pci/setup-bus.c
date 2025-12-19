@@ -596,11 +596,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	LIST_HEAD(local_fail_head);
 	LIST_HEAD(dummy_head);
 	struct pci_dev_resource *save_res;
-	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2;
+	struct pci_dev_resource *dev_res, *tmp_res, *dev_res2, *addsize_res;
 	struct resource *res;
 	struct pci_dev *dev;
 	unsigned long fail_type;
-	resource_size_t add_align, align;
+	resource_size_t align;
 
 	if (!realloc_head)
 		realloc_head = &dummy_head;
@@ -621,8 +621,11 @@ static void __assign_resources_sorted(struct list_head *head,
 	list_for_each_entry_safe(dev_res, tmp_res, head, list) {
 		res = dev_res->res;
 
-		res->end += get_res_add_size(realloc_head, res);
+		addsize_res = res_to_dev_res(realloc_head, res);
+		if (!addsize_res)
+			continue;
 
+		res->end += addsize_res->add_size;
 		/*
 		 * There are two kinds of additional resources in the list:
 		 * 1. bridge resource  -- IORESOURCE_STARTALIGN
@@ -632,8 +635,8 @@ static void __assign_resources_sorted(struct list_head *head,
 		if (!(res->flags & IORESOURCE_STARTALIGN))
 			continue;
 
-		add_align = get_res_add_align(realloc_head, res);
-
+		if (addsize_res->min_align <= res->start)
+			continue;
 		/*
 		 * The "head" list is sorted by alignment so resources with
 		 * bigger alignment will be assigned first.  After we
@@ -641,17 +644,15 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * need to reorder the list by alignment to make it
 		 * consistent.
 		 */
-		if (add_align > res->start) {
-			resource_set_range(res, add_align, resource_size(res));
+		resource_set_range(res, addsize_res->min_align,
+				   resource_size(res));
 
-			list_for_each_entry(dev_res2, head, list) {
-				align = pci_resource_alignment(dev_res2->dev,
-							       dev_res2->res);
-				if (add_align > align) {
-					list_move_tail(&dev_res->list,
-						       &dev_res2->list);
-					break;
-				}
+		list_for_each_entry(dev_res2, head, list) {
+			align = pci_resource_alignment(dev_res2->dev,
+						       dev_res2->res);
+			if (addsize_res->min_align > align) {
+				list_move_tail(&dev_res->list, &dev_res2->list);
+				break;
 			}
 		}
 
