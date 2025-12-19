@@ -104,6 +104,10 @@ struct dm_verity_io {
 	bool in_bh;
 	bool had_mismatch;
 
+#ifdef CONFIG_DM_VERITY_FEC
+	struct dm_verity_fec_io *fec_io;
+#endif
+
 	struct work_struct work;
 	struct work_struct bh_work;
 

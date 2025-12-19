@@ -40,6 +40,7 @@ struct dm_verity_fec {
 	sector_t hash_blocks;	/* blocks covered after v->hash_start */
 	unsigned char roots;	/* number of parity bytes, M-N of RS(M, N) */
 	unsigned char rsn;	/* N of RS(M, N) */
+	mempool_t fio_pool;	/* mempool for dm_verity_fec_io */
 	mempool_t rs_pool;	/* mempool for fio->rs */
 	mempool_t prealloc_pool;	/* mempool for preallocated buffers */
 	mempool_t output_pool;	/* mempool for output */
@@ -71,8 +72,17 @@ extern int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 extern unsigned int verity_fec_status_table(struct dm_verity *v, unsigned int sz,
 					char *result, unsigned int maxlen);
 
-extern void verity_fec_finish_io(struct dm_verity_io *io);
-extern void verity_fec_init_io(struct dm_verity_io *io);
+extern void __verity_fec_finish_io(struct dm_verity_io *io);
+static inline void verity_fec_finish_io(struct dm_verity_io *io)
+{
+	if (unlikely(io->fec_io))
+		__verity_fec_finish_io(io);
+}
+
+static inline void verity_fec_init_io(struct dm_verity_io *io)
+{
+	io->fec_io = NULL;
+}
 
 extern bool verity_is_fec_opt_arg(const char *arg_name);
 extern int verity_fec_parse_opt_args(struct dm_arg_set *as,

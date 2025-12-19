@@ -19,16 +19,6 @@ bool verity_fec_is_enabled(struct dm_verity *v)
 }
 
 /*
- * Return a pointer to dm_verity_fec_io after dm_verity_io and its variable
- * length fields.
- */
-static inline struct dm_verity_fec_io *fec_io(struct dm_verity_io *io)
-{
-	return (struct dm_verity_fec_io *)
-		((char *)io + io->v->ti->per_io_data_size - sizeof(struct dm_verity_fec_io));
-}
-
-/*
  * Return an interleaved offset for a byte in RS block.
  */
 static inline u64 fec_interleave(struct dm_verity *v, u64 offset)
@@ -211,7 +201,7 @@ static int fec_read_bufs(struct dm_verity *v, struct dm_verity_io *io,
 	int i, j, target_index = -1;
 	struct dm_buffer *buf;
 	struct dm_bufio_client *bufio;
-	struct dm_verity_fec_io *fio = fec_io(io);
+	struct dm_verity_fec_io *fio = io->fec_io;
 	u64 block, ileaved;
 	u8 *bbuf, *rs_block;
 	u8 want_digest[HASH_MAX_DIGESTSIZE];
@@ -307,39 +297,40 @@ done:
 }
 
 /*
- * Allocate RS control structure and FEC buffers from preallocated mempools,
- * and attempt to allocate as many extra buffers as available.
+ * Allocate and initialize a struct dm_verity_fec_io to use for FEC for a bio.
+ * This runs the first time a block needs to be corrected for a bio.  In the
+ * common case where no block needs to be corrected, this code never runs.
+ *
+ * This always succeeds, as all required allocations are done from mempools.
+ * Additional buffers are also allocated opportunistically to improve error
+ * correction performance, but these aren't required to succeed.
  */
-static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
+static struct dm_verity_fec_io *fec_alloc_and_init_io(struct dm_verity *v)
 {
+	struct dm_verity_fec *f = v->fec;
+	struct dm_verity_fec_io *fio;
 	unsigned int n;
 
-	if (!fio->rs)
-		fio->rs = mempool_alloc(&v->fec->rs_pool, GFP_NOIO);
+	fio = mempool_alloc(&f->fio_pool, GFP_NOIO);
+	fio->rs = mempool_alloc(&f->rs_pool, GFP_NOIO);
 
-	fec_for_each_prealloc_buffer(n) {
-		if (fio->bufs[n])
-			continue;
+	memset(fio->bufs, 0, sizeof(fio->bufs));
 
-		fio->bufs[n] = mempool_alloc(&v->fec->prealloc_pool, GFP_NOIO);
-	}
+	fec_for_each_prealloc_buffer(n)
+		fio->bufs[n] = mempool_alloc(&f->prealloc_pool, GFP_NOIO);
 
 	/* try to allocate the maximum number of buffers */
 	fec_for_each_extra_buffer(fio, n) {
-		if (fio->bufs[n])
-			continue;
-
-		fio->bufs[n] = kmem_cache_alloc(v->fec->cache, GFP_NOWAIT);
+		fio->bufs[n] = kmem_cache_alloc(f->cache, GFP_NOWAIT);
 		/* we can manage with even one buffer if necessary */
 		if (unlikely(!fio->bufs[n]))
 			break;
 	}
 	fio->nbufs = n;
 
-	if (!fio->output)
-		fio->output = mempool_alloc(&v->fec->output_pool, GFP_NOIO);
-
-	return 0;
+	fio->output = mempool_alloc(&f->output_pool, GFP_NOIO);
+	fio->level = 0;
+	return fio;
 }
 
 /*
@@ -367,10 +358,6 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 {
 	int r, neras = 0;
 	unsigned int pos;
-
-	r = fec_alloc_bufs(v, fio);
-	if (unlikely(r < 0))
-		return r;
 
 	for (pos = 0; pos < 1 << v->data_dev_block_bits; ) {
 		fec_init_bufs(v, fio);
@@ -408,11 +395,15 @@ int verity_fec_decode(struct dm_verity *v, struct dm_verity_io *io,
 		      sector_t block, u8 *dest)
 {
 	int r;
-	struct dm_verity_fec_io *fio = fec_io(io);
+	struct dm_verity_fec_io *fio;
 	u64 offset, res, rsb;
 
 	if (!verity_fec_is_enabled(v))
 		return -EOPNOTSUPP;
+
+	fio = io->fec_io;
+	if (!fio)
+		fio = io->fec_io = fec_alloc_and_init_io(v);
 
 	if (fio->level)
 		return -EIO;
@@ -463,14 +454,11 @@ done:
 /*
  * Clean up per-bio data.
  */
-void verity_fec_finish_io(struct dm_verity_io *io)
+void __verity_fec_finish_io(struct dm_verity_io *io)
 {
 	unsigned int n;
 	struct dm_verity_fec *f = io->v->fec;
-	struct dm_verity_fec_io *fio = fec_io(io);
-
-	if (!verity_fec_is_enabled(io->v))
-		return;
+	struct dm_verity_fec_io *fio = io->fec_io;
 
 	mempool_free(fio->rs, &f->rs_pool);
 
@@ -482,23 +470,9 @@ void verity_fec_finish_io(struct dm_verity_io *io)
 			kmem_cache_free(f->cache, fio->bufs[n]);
 
 	mempool_free(fio->output, &f->output_pool);
-}
 
-/*
- * Initialize per-bio data.
- */
-void verity_fec_init_io(struct dm_verity_io *io)
-{
-	struct dm_verity_fec_io *fio = fec_io(io);
-
-	if (!verity_fec_is_enabled(io->v))
-		return;
-
-	fio->rs = NULL;
-	memset(fio->bufs, 0, sizeof(fio->bufs));
-	fio->nbufs = 0;
-	fio->output = NULL;
-	fio->level = 0;
+	mempool_free(fio, &f->fio_pool);
+	io->fec_io = NULL;
 }
 
 /*
@@ -529,6 +503,7 @@ void verity_fec_dtr(struct dm_verity *v)
 	if (!verity_fec_is_enabled(v))
 		goto out;
 
+	mempool_exit(&f->fio_pool);
 	mempool_exit(&f->rs_pool);
 	mempool_exit(&f->prealloc_pool);
 	mempool_exit(&f->output_pool);
@@ -758,6 +733,14 @@ int verity_fec_ctr(struct dm_verity *v)
 		return -E2BIG;
 	}
 
+	/* Preallocate some dm_verity_fec_io structures */
+	ret = mempool_init_kmalloc_pool(&f->fio_pool, num_online_cpus(),
+					sizeof(struct dm_verity_fec_io));
+	if (ret) {
+		ti->error = "Cannot allocate FEC IO pool";
+		return ret;
+	}
+
 	/* Preallocate an rs_control structure for each worker thread */
 	ret = mempool_init(&f->rs_pool, num_online_cpus(), fec_rs_alloc,
 			   fec_rs_free, (void *) v);
@@ -790,9 +773,6 @@ int verity_fec_ctr(struct dm_verity *v)
 		ti->error = "Cannot allocate FEC output pool";
 		return ret;
 	}
-
-	/* Reserve space for our per-bio data */
-	ti->per_io_data_size += sizeof(struct dm_verity_fec_io);
 
 	return 0;
 }
