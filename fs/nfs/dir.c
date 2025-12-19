@@ -1516,14 +1516,6 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 	if (!nfs_dentry_verify_change(dir, dentry))
 		return 0;
 
-	/*
-	 * If we have a directory delegation then we don't need to revalidate
-	 * the directory. The delegation will either get recalled or we will
-	 * receive a notification when it changes.
-	 */
-	if (nfs_have_directory_delegation(dir))
-		return 0;
-
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
 	if (nfs_mapping_need_revalidate_inode(dir)) {
 		if (rcu_walk)
@@ -2217,13 +2209,6 @@ no_open:
 EXPORT_SYMBOL_GPL(nfs_atomic_open);
 
 static int
-nfs_lookup_revalidate_delegated_parent(struct inode *dir, struct dentry *dentry,
-				       struct inode *inode)
-{
-	return nfs_lookup_revalidate_done(dir, dentry, inode, 1);
-}
-
-static int
 nfs4_lookup_revalidate(struct inode *dir, const struct qstr *name,
 		       struct dentry *dentry, unsigned int flags)
 {
@@ -2247,11 +2232,9 @@ nfs4_lookup_revalidate(struct inode *dir, const struct qstr *name,
 	if (inode == NULL)
 		goto full_reval;
 
-	if (nfs_verifier_is_delegated(dentry))
+	if (nfs_verifier_is_delegated(dentry) ||
+	    nfs_have_directory_delegation(inode))
 		return nfs_lookup_revalidate_delegated(dir, dentry, inode);
-
-	if (nfs_have_directory_delegation(dir))
-		return nfs_lookup_revalidate_delegated_parent(dir, dentry, inode);
 
 	/* NFS only supports OPEN on regular files */
 	if (!S_ISREG(inode->i_mode))
