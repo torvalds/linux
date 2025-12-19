@@ -1537,13 +1537,7 @@ static int pm4125_bind(struct device *dev)
 
 	pm4125->sdw_priv[AIF1_CAP] = dev_get_drvdata(pm4125->txdev);
 	pm4125->sdw_priv[AIF1_CAP]->pm4125 = pm4125;
-
 	pm4125->tx_sdw_dev = dev_to_sdw_dev(pm4125->txdev);
-	if (!pm4125->tx_sdw_dev) {
-		dev_err(dev, "could not get txslave with matching of dev\n");
-		ret = -EINVAL;
-		goto error_put_tx;
-	}
 
 	/*
 	 * As TX is the main CSR reg interface, which should not be suspended first.
