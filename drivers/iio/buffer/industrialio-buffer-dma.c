@@ -6,6 +6,7 @@
 
 #include <linux/atomic.h>
 #include <linux/cleanup.h>
+#include <linux/lockdep.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -764,7 +765,7 @@ int iio_dma_buffer_enqueue_dmabuf(struct iio_buffer *buffer,
 	bool cookie;
 	int ret;
 
-	WARN_ON(!mutex_is_locked(&queue->lock));
+	lockdep_assert_held(&queue->lock);
 
 	cookie = dma_fence_begin_signalling();
 
