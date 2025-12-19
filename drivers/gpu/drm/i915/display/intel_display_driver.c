@@ -18,8 +18,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_drv.h"
-#include "i915_utils.h" /* for i915_inject_probe_failure() */
 #include "i9xx_wm.h"
 #include "intel_acpi.h"
 #include "intel_atomic.h"
