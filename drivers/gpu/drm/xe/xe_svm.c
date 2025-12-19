@@ -1593,10 +1593,12 @@ struct drm_pagemap *xe_vma_resolve_pagemap(struct xe_vma *vma, struct xe_tile *t
 int xe_svm_alloc_vram(struct xe_svm_range *range, const struct drm_gpusvm_ctx *ctx,
 		      struct drm_pagemap *dpagemap)
 {
+	static DECLARE_RWSEM(driver_migrate_lock);
 	struct xe_vm *vm = range_to_vm(&range->base);
 	enum drm_gpusvm_scan_result migration_state;
 	struct xe_device *xe = vm->xe;
 	int err, retries = 1;
+	bool write_locked = false;
 
 	xe_assert(range_to_vm(&range->base)->xe, range->base.pages.flags.migrate_devmem);
 	range_debug(range, "ALLOCATE VRAM");
@@ -1615,16 +1617,32 @@ int xe_svm_alloc_vram(struct xe_svm_range *range, const struct drm_gpusvm_ctx *c
 		drm_dbg(&xe->drm, "Request migration to device memory on \"%s\".\n",
 			dpagemap->drm->unique);
 
+	err = down_read_interruptible(&driver_migrate_lock);
+	if (err)
+		return err;
 	do {
 		err = drm_pagemap_populate_mm(dpagemap, xe_svm_range_start(range),
 					      xe_svm_range_end(range),
 					      range->base.gpusvm->mm,
 					      ctx->timeslice_ms);
 
-		if (err == -EBUSY && retries)
-			drm_gpusvm_range_evict(range->base.gpusvm, &range->base);
+		if (err == -EBUSY && retries) {
+			if (!write_locked) {
+				int lock_err;
 
+				up_read(&driver_migrate_lock);
+				lock_err = down_write_killable(&driver_migrate_lock);
+				if (lock_err)
+					return lock_err;
+				write_locked = true;
+			}
+			drm_gpusvm_range_evict(range->base.gpusvm, &range->base);
+		}
 	} while (err == -EBUSY && retries--);
+	if (write_locked)
+		up_write(&driver_migrate_lock);
+	else
+		up_read(&driver_migrate_lock);
 
 	return err;
 }
