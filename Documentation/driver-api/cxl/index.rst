@@ -30,6 +30,7 @@ that have impacts on each other.  The docs here break up configurations steps.
    platform/acpi
    platform/cdat
    platform/example-configs
+   platform/device-hotplug
 
 .. toctree::
    :maxdepth: 2

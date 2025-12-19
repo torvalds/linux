@@ -49,6 +49,9 @@ up without requiring CXL driver support.  These platform vendors should
 test their configurations with the existing CXL driver and provide driver
 support for their auto-configurations if features like RAS are required.
 
+Platforms requiring boot-time programming and/or locking of CXL fabric
+components may prevent features, such as device hot-plug, from working.
+
 UEFI Settings
 =============
 If your platform supports it, the :code:`uefisettings` command can be used to
