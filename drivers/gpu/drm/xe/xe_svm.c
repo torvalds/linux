@@ -290,10 +290,14 @@ static int __xe_svm_garbage_collector(struct xe_vm *vm,
 
 static void xe_vma_set_default_attributes(struct xe_vma *vma)
 {
-	vma->attr.preferred_loc.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE;
-	vma->attr.preferred_loc.migration_policy = DRM_XE_MIGRATE_ALL_PAGES;
-	vma->attr.pat_index = vma->attr.default_pat_index;
-	vma->attr.atomic_access = DRM_XE_ATOMIC_UNDEFINED;
+	struct xe_vma_mem_attr default_attr = {
+		.preferred_loc.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE,
+		.preferred_loc.migration_policy = DRM_XE_MIGRATE_ALL_PAGES,
+		.pat_index = vma->attr.default_pat_index,
+		.atomic_access = DRM_XE_ATOMIC_UNDEFINED,
+	};
+
+	xe_vma_mem_attr_copy(&vma->attr, &default_attr);
 }
 
 static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 start, u64 end)
