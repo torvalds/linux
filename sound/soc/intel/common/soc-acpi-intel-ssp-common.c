@@ -65,6 +65,9 @@ static const struct codec_map amps[] = {
 	CODEC_MAP_ENTRY("RT1019P", "rt1019", RT1019P_ACPI_HID, CODEC_RT1019P),
 	CODEC_MAP_ENTRY("RT1308", "rt1308", RT1308_ACPI_HID, CODEC_RT1308),
 
+	/* Texas Instruments */
+	CODEC_MAP_ENTRY("TAS2563", "tas2563", TAS2563_ACPI_HID, CODEC_TAS2563),
+
 	/*
 	 * Monolithic components
 	 *
