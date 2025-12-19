@@ -88,72 +88,6 @@ struct is31fl32xx_chipdef {
 	int (*sw_shutdown_func)(struct is31fl32xx_priv *priv, bool enable);
 };
 
-static const struct is31fl32xx_chipdef is31fl3236_cdef = {
-	.channels				= 36,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x26,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3236a_cdef = {
-	.channels				= 36,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= 0x4b,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x26,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3235_cdef = {
-	.channels				= 28,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x25,
-	.global_control_reg			= 0x4a,
-	.reset_reg				= 0x4f,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x05,
-	.led_control_register_base		= 0x2a,
-	.enable_bits_per_led_control_register	= 1,
-};
-
-static const struct is31fl32xx_chipdef is31fl3218_cdef = {
-	.channels				= 18,
-	.shutdown_reg				= 0x00,
-	.pwm_update_reg				= 0x16,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
-	.reset_reg				= 0x17,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x01,
-	.led_control_register_base		= 0x13,
-	.enable_bits_per_led_control_register	= 6,
-};
-
-static int is31fl3216_reset(struct is31fl32xx_priv *priv);
-static int is31fl3216_software_shutdown(struct is31fl32xx_priv *priv,
-					bool enable);
-static const struct is31fl32xx_chipdef is31fl3216_cdef = {
-	.channels				= 16,
-	.shutdown_reg				= IS31FL32XX_REG_NONE,
-	.pwm_update_reg				= 0xB0,
-	.global_control_reg			= IS31FL32XX_REG_NONE,
-	.reset_reg				= IS31FL32XX_REG_NONE,
-	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
-	.pwm_register_base			= 0x10,
-	.pwm_registers_reversed			= true,
-	.led_control_register_base		= 0x01,
-	.enable_bits_per_led_control_register	= 8,
-	.reset_func				= is31fl3216_reset,
-	.sw_shutdown_func			= is31fl3216_software_shutdown,
-};
-
 static int is31fl32xx_write(struct is31fl32xx_priv *priv, u8 reg, u8 val)
 {
 	int ret;
@@ -435,6 +369,68 @@ static int is31fl32xx_parse_dt(struct device *dev,
 
 	return 0;
 }
+static const struct is31fl32xx_chipdef is31fl3236_cdef = {
+	.channels				= 36,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x26,
+	.enable_bits_per_led_control_register	= 1,
+};
+
+static const struct is31fl32xx_chipdef is31fl3236a_cdef = {
+	.channels				= 36,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= 0x4b,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x26,
+	.enable_bits_per_led_control_register	= 1,
+};
+
+static const struct is31fl32xx_chipdef is31fl3235_cdef = {
+	.channels				= 28,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x25,
+	.global_control_reg			= 0x4a,
+	.reset_reg				= 0x4f,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x05,
+	.led_control_register_base		= 0x2a,
+	.enable_bits_per_led_control_register	= 1,
+};
+
+static const struct is31fl32xx_chipdef is31fl3218_cdef = {
+	.channels				= 18,
+	.shutdown_reg				= 0x00,
+	.pwm_update_reg				= 0x16,
+	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.reset_reg				= 0x17,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x01,
+	.led_control_register_base		= 0x13,
+	.enable_bits_per_led_control_register	= 6,
+};
+
+static const struct is31fl32xx_chipdef is31fl3216_cdef = {
+	.channels				= 16,
+	.shutdown_reg				= IS31FL32XX_REG_NONE,
+	.pwm_update_reg				= 0xB0,
+	.global_control_reg			= IS31FL32XX_REG_NONE,
+	.reset_reg				= IS31FL32XX_REG_NONE,
+	.output_frequency_setting_reg		= IS31FL32XX_REG_NONE,
+	.pwm_register_base			= 0x10,
+	.pwm_registers_reversed			= true,
+	.led_control_register_base		= 0x01,
+	.enable_bits_per_led_control_register	= 8,
+	.reset_func				= is31fl3216_reset,
+	.sw_shutdown_func			= is31fl3216_software_shutdown,
+};
 
 static const struct of_device_id of_is31fl32xx_match[] = {
 	{ .compatible = "issi,is31fl3236",  .data = &is31fl3236_cdef, },
