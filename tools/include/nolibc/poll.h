@@ -24,7 +24,7 @@ static __attribute__((unused))
 int sys_poll(struct pollfd *fds, int nfds, int timeout)
 {
 #if defined(__NR_ppoll)
-	struct timespec t;
+	struct __kernel_old_timespec t;
 
 	if (timeout >= 0) {
 		t.tv_sec  = timeout / 1000;

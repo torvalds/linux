@@ -75,7 +75,7 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 #elif defined(__NR_select)
 	return my_syscall5(__NR_select, nfds, rfds, wfds, efds, timeout);
 #elif defined(__NR_pselect6)
-	struct timespec t;
+	struct __kernel_old_timespec t;
 
 	if (timeout) {
 		t.tv_sec  = timeout->tv_sec;
