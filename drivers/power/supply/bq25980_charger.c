@@ -1240,6 +1240,12 @@ static int bq25980_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	ret = bq25980_power_supply_init(bq, dev);
+	if (ret) {
+		dev_err(dev, "Failed to register power supply\n");
+		return ret;
+	}
+
 	if (client->irq) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						bq25980_irq_handler_thread,
@@ -1248,12 +1254,6 @@ static int bq25980_probe(struct i2c_client *client)
 						dev_name(&client->dev), bq);
 		if (ret)
 			return ret;
-	}
-
-	ret = bq25980_power_supply_init(bq, dev);
-	if (ret) {
-		dev_err(dev, "Failed to register power supply\n");
-		return ret;
 	}
 
 	ret = bq25980_hw_init(bq);
