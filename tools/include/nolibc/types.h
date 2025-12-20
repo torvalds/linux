@@ -13,9 +13,23 @@
 #include "std.h"
 #include <linux/mman.h>
 #include <linux/stat.h>
-#include <linux/time.h>
+#include <linux/time_types.h>
 #include <linux/wait.h>
 
+struct timespec {
+	__kernel_time_t	tv_sec;
+	long		tv_nsec;
+};
+#define _STRUCT_TIMESPEC
+
+struct timeval {
+	__kernel_time_t		tv_sec;
+	__kernel_suseconds_t	tv_usec;
+};
+
+#define timeval __nolibc_kernel_timeval
+#include <linux/time.h>
+#undef timeval
 
 /* Only the generic macros and types may be defined here. The arch-specific
  * ones such as the O_RDONLY and related macros used by fcntl() and open()

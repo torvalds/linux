@@ -5,6 +5,9 @@
 
 #ifndef _NOLIBC_ARCH_S390_H
 #define _NOLIBC_ARCH_S390_H
+
+#include "types.h"
+
 #include <linux/signal.h>
 #include <linux/unistd.h>
 
