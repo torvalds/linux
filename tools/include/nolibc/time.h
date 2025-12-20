@@ -18,6 +18,12 @@
 #include <linux/signal.h>
 #include <linux/time.h>
 
+#define __nolibc_assert_time64_type(t) \
+	__nolibc_static_assert(sizeof(t) == 8)
+
+#define __nolibc_assert_native_time64() \
+	__nolibc_assert_time64_type(__kernel_old_time_t)
+
 /*
  * int clock_getres(clockid_t clockid, struct timespec *res);
  * int clock_gettime(clockid_t clockid, struct timespec *tp);
@@ -30,8 +36,10 @@ static __attribute__((unused))
 int sys_clock_getres(clockid_t clockid, struct timespec *res)
 {
 #if defined(__NR_clock_getres_time64)
+	__nolibc_assert_time64_type(res->tv_sec);
 	return my_syscall2(__NR_clock_getres_time64, clockid, res);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall2(__NR_clock_getres, clockid, res);
 #endif
 }
@@ -46,8 +54,10 @@ static __attribute__((unused))
 int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_gettime64)
+	__nolibc_assert_time64_type(tp->tv_sec);
 	return my_syscall2(__NR_clock_gettime64, clockid, tp);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall2(__NR_clock_gettime, clockid, tp);
 #endif
 }
@@ -62,8 +72,10 @@ static __attribute__((unused))
 int sys_clock_settime(clockid_t clockid, struct timespec *tp)
 {
 #if defined(__NR_clock_settime64)
+	__nolibc_assert_time64_type(tp->tv_sec);
 	return my_syscall2(__NR_clock_settime64, clockid, tp);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall2(__NR_clock_settime, clockid, tp);
 #endif
 }
@@ -79,8 +91,10 @@ int sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqt
 			struct timespec *rmtp)
 {
 #if defined(__NR_clock_nanosleep_time64)
+	__nolibc_assert_time64_type(rqtp->tv_sec);
 	return my_syscall4(__NR_clock_nanosleep_time64, clockid, flags, rqtp, rmtp);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall4(__NR_clock_nanosleep, clockid, flags, rqtp, rmtp);
 #endif
 }
@@ -154,8 +168,10 @@ static __attribute__((unused))
 int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 {
 #if defined(__NR_timer_gettime64)
+	__nolibc_assert_time64_type(curr_value->it_value.tv_sec);
 	return my_syscall2(__NR_timer_gettime64, timerid, curr_value);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall2(__NR_timer_gettime, timerid, curr_value);
 #endif
 }
@@ -171,8 +187,10 @@ int sys_timer_settime(timer_t timerid, int flags,
 		      const struct itimerspec *new_value, struct itimerspec *old_value)
 {
 #if defined(__NR_timer_settime64)
+	__nolibc_assert_time64_type(new_value->it_value.tv_sec);
 	return my_syscall4(__NR_timer_settime64, timerid, flags, new_value, old_value);
 #else
+	__nolibc_assert_native_time64();
 	return my_syscall4(__NR_timer_settime, timerid, flags, new_value, old_value);
 #endif
 }
