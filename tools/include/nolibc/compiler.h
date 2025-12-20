@@ -63,4 +63,12 @@
 #  define __nolibc_clang_version 0
 #endif /* __clang__ */
 
+#if __STDC_VERSION__ >= 201112L || \
+	__nolibc_gnuc_version >= __nolibc_version(4, 6, 0) || \
+	__nolibc_clang_version >= __nolibc_version(3, 0, 0)
+#  define __nolibc_static_assert(_t) _Static_assert(_t, "")
+#else
+#  define __nolibc_static_assert(_t)
+#endif
+
 #endif /* _NOLIBC_COMPILER_H */
