@@ -584,22 +584,6 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 		return dev_err_probe(chg->dev, ret,
 				     "failed to add battery sense work\n");
 
-	for (i = 0; i < PF1550_CHARGER_IRQ_NR; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (irq < 0)
-			return irq;
-
-		chg->virqs[i] = irq;
-
-		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
-						pf1550_charger_irq_handler,
-						IRQF_NO_SUSPEND,
-						"pf1550-charger", chg);
-		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
-					     "failed irq request\n");
-	}
-
 	psy_cfg.drv_data = chg;
 
 	chg->charger = devm_power_supply_register(&pdev->dev,
@@ -615,6 +599,22 @@ static int pf1550_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(chg->battery))
 		return dev_err_probe(&pdev->dev, PTR_ERR(chg->battery),
 				     "failed: power supply register\n");
+
+	for (i = 0; i < PF1550_CHARGER_IRQ_NR; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0)
+			return irq;
+
+		chg->virqs[i] = irq;
+
+		ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
+						pf1550_charger_irq_handler,
+						IRQF_NO_SUSPEND,
+						"pf1550-charger", chg);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "failed irq request\n");
+	}
 
 	pf1550_dt_parse_dev_info(chg);
 
