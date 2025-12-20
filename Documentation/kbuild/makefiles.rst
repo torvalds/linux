@@ -1264,7 +1264,7 @@ Add prerequisites to archheaders
 --------------------------------
 
 The archheaders: rule is used to generate header files that
-may be installed into user space by ``make header_install``.
+may be installed into user space by ``make headers_install``.
 
 It is run before ``make archprepare`` when run on the
 architecture itself.
