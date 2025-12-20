@@ -1478,7 +1478,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 		/* RAE stop & CRC disable */
 		regmap_update_bits(rt1320->regmap, 0xe803, 0xbc, 0x00);
 
-		while (retry--) {
+		while (--retry) {
 			regmap_read(rt1320->regmap, 0xe83f, &value);
 			if (value & 0x40)
 				break;
