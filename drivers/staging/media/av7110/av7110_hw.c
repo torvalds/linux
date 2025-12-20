@@ -312,7 +312,7 @@ int av7110_wait_msgstate(struct av7110 *av7110, u16 flags)
 			pr_err("%s(): timeout waiting for MSGSTATE %04x\n", __func__, stat & flags);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	return 0;
 }
@@ -343,7 +343,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 			av7110->arm_errors++;
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	if (FW_VERSION(av7110->arm_app) <= 0x261f)
@@ -359,7 +359,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 			pr_err("%s(): timeout waiting for HANDSHAKE_REG\n", __func__);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 #endif
 
@@ -405,7 +405,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 				av7110->arm_errors++;
 				return -ETIMEDOUT;
 			}
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 	}
 
@@ -433,7 +433,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16 *buf, int length)
 			       __func__, (buf[0] >> 8) & 0xff);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	stat = rdebi(av7110, DEBINOSWAP, MSGSTATE, 0, 2);
@@ -559,7 +559,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 			return -ETIMEDOUT;
 		}
 #ifdef _NOHANDSHAKE
-		msleep(1);
+		usleep_range(1000, 2000);
 #endif
 	}
 
@@ -574,7 +574,7 @@ int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 			mutex_unlock(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 #endif
 
@@ -719,7 +719,7 @@ static int FlushText(struct av7110 *av7110)
 			mutex_unlock(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 	mutex_unlock(&av7110->dcomlock);
 	return 0;
@@ -745,7 +745,7 @@ static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, char *buf)
 			mutex_unlock(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 #ifndef _NOHANDSHAKE
 	start = jiffies;
@@ -758,7 +758,7 @@ static int WriteText(struct av7110 *av7110, u8 win, u16 x, u16 y, char *buf)
 			mutex_unlock(&av7110->dcomlock);
 			return -ETIMEDOUT;
 		}
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 #endif
 	for (i = 0; i < length / 2; i++)
