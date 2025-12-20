@@ -6,7 +6,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NTC thermistor temperature sensors
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   Thermistors with negative temperature coefficient (NTC) are resistors that
