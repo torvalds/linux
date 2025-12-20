@@ -203,6 +203,7 @@ static void st_rc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, false);
 	clk_disable_unprepare(rc_dev->sys_clock);
 	rc_unregister_device(rc_dev->rdev);
+	rc_free_device(rc_dev->rdev);
 }
 
 static int st_rc_open(struct rc_dev *rdev)
@@ -334,7 +335,6 @@ static int st_rc_probe(struct platform_device *pdev)
 	return ret;
 rcerr:
 	rc_unregister_device(rdev);
-	rdev = NULL;
 clkerr:
 	clk_disable_unprepare(rc_dev->sys_clock);
 err:

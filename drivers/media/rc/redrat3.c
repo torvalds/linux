@@ -1131,11 +1131,13 @@ static void redrat3_dev_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct redrat3_dev *rr3 = usb_get_intfdata(intf);
+	struct rc_dev *rc = rr3->rc;
 
 	usb_set_intfdata(intf, NULL);
-	rc_unregister_device(rr3->rc);
+	rc_unregister_device(rc);
 	led_classdev_unregister(&rr3->led);
 	redrat3_delete(rr3, udev);
+	rc_free_device(rc);
 }
 
 static int redrat3_dev_suspend(struct usb_interface *intf, pm_message_t message)

@@ -181,5 +181,6 @@ void smi_ir_exit(struct smi_dev *dev)
 
 	rc_unregister_device(rc_dev);
 	smi_ir_stop(ir);
+	rc_free_device(rc_dev);
 	ir->rc_dev = NULL;
 }

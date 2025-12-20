@@ -277,14 +277,15 @@ static void xbox_remote_disconnect(struct usb_interface *interface)
 	struct xbox_remote *xbox_remote;
 
 	xbox_remote = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
 	if (!xbox_remote) {
 		dev_warn(&interface->dev, "%s - null device?\n", __func__);
 		return;
 	}
 
-	usb_kill_urb(xbox_remote->irq_urb);
 	rc_unregister_device(xbox_remote->rdev);
+	usb_set_intfdata(interface, NULL);
+	usb_kill_urb(xbox_remote->irq_urb);
+	rc_free_device(xbox_remote->rdev);
 	usb_free_urb(xbox_remote->irq_urb);
 	kfree(xbox_remote);
 }

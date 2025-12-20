@@ -500,6 +500,7 @@ static void iguanair_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	usb_kill_urb(ir->urb_in);
 	usb_kill_urb(ir->urb_out);
+	rc_free_device(ir->rc);
 	usb_free_urb(ir->urb_in);
 	usb_free_urb(ir->urb_out);
 	usb_free_coherent(ir->udev, MAX_IN_PACKET, ir->buf_in, ir->dma_in);

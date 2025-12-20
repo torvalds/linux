@@ -92,6 +92,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 void sms_ir_exit(struct smscore_device_t *coredev)
 {
 	rc_unregister_device(coredev->ir.dev);
+	rc_free_device(coredev->ir.dev);
 
 	pr_debug("\n");
 }

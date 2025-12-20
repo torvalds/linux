@@ -572,8 +572,9 @@ void bttv_input_fini(struct bttv *btv)
 	if (btv->remote == NULL)
 		return;
 
-	bttv_ir_stop(btv);
 	rc_unregister_device(btv->remote->dev);
+	bttv_ir_stop(btv);
+	rc_free_device(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;
 }

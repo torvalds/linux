@@ -568,6 +568,7 @@ static void fintek_remove(struct pnp_dev *pdev)
 	struct fintek_dev *fintek = pnp_get_drvdata(pdev);
 	unsigned long flags;
 
+	rc_unregister_device(fintek->rdev);
 	spin_lock_irqsave(&fintek->fintek_lock, flags);
 	/* disable CIR */
 	fintek_disable_cir(fintek);
@@ -580,7 +581,7 @@ static void fintek_remove(struct pnp_dev *pdev)
 	free_irq(fintek->cir_irq, fintek);
 	release_region(fintek->cir_addr, fintek->cir_port_len);
 
-	rc_unregister_device(fintek->rdev);
+	rc_free_device(fintek->rdev);
 
 	kfree(fintek);
 }
