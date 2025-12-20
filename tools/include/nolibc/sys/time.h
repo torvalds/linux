@@ -30,7 +30,7 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 	ret = sys_clock_gettime(CLOCK_REALTIME, &tp);
 	if (!ret && tv) {
 		tv->tv_sec = tp.tv_sec;
-		tv->tv_usec = tp.tv_nsec / 1000;
+		tv->tv_usec = (uint32_t)tp.tv_nsec / 1000;
 	}
 
 	return ret;
