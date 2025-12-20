@@ -56,8 +56,7 @@ static struct req {
 
 static int __init mount_param(char *str)
 {
-	mount_dev = simple_strtoul(str, NULL, 0);
-	return 1;
+	return kstrtoint(str, 0, &mount_dev) == 0;
 }
 __setup("devtmpfs.mount=", mount_param);
 
