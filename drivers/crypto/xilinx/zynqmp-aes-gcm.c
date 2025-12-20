@@ -346,7 +346,7 @@ static void zynqmp_aes_aead_exit(struct crypto_aead *aead)
 	memzero_explicit(tfm_ctx, sizeof(struct zynqmp_aead_tfm_ctx));
 }
 
-static struct zynqmp_aead_drv_ctx aes_drv_ctx = {
+static struct zynqmp_aead_drv_ctx zynqmp_aes_drv_ctx = {
 	.aead.base = {
 		.setkey		= zynqmp_aes_aead_setkey,
 		.setauthsize	= zynqmp_aes_aead_setauthsize,
@@ -375,74 +375,112 @@ static struct zynqmp_aead_drv_ctx aes_drv_ctx = {
 	},
 };
 
+static struct xlnx_feature aes_feature_map[] = {
+	{
+		.family = PM_ZYNQMP_FAMILY_CODE,
+		.feature_id = PM_SECURE_AES,
+		.data = &zynqmp_aes_drv_ctx,
+	},
+	{ /* sentinel */ }
+};
+
 static int zynqmp_aes_aead_probe(struct platform_device *pdev)
 {
+	struct zynqmp_aead_drv_ctx *aes_drv_ctx;
 	struct device *dev = &pdev->dev;
 	int err;
 
+	/* Verify the hardware is present */
+	aes_drv_ctx = xlnx_get_crypto_dev_data(aes_feature_map);
+	if (IS_ERR(aes_drv_ctx)) {
+		dev_err(dev, "AES is not supported on the platform\n");
+		return PTR_ERR(aes_drv_ctx);
+	}
+
 	/* ZynqMP AES driver supports only one instance */
-	if (!aes_drv_ctx.dev)
-		aes_drv_ctx.dev = dev;
+	if (!aes_drv_ctx->dev)
+		aes_drv_ctx->dev = dev;
 	else
 		return -ENODEV;
 
+	platform_set_drvdata(pdev, aes_drv_ctx);
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(ZYNQMP_DMA_BIT_MASK));
 	if (err < 0) {
 		dev_err(dev, "No usable DMA configuration\n");
 		return err;
 	}
 
-	aes_drv_ctx.engine = crypto_engine_alloc_init(dev, 1);
-	if (!aes_drv_ctx.engine) {
+	aes_drv_ctx->engine = crypto_engine_alloc_init(dev, 1);
+	if (!aes_drv_ctx->engine) {
 		dev_err(dev, "Cannot alloc AES engine\n");
 		err = -ENOMEM;
 		goto err_engine;
 	}
 
-	err = crypto_engine_start(aes_drv_ctx.engine);
+	err = crypto_engine_start(aes_drv_ctx->engine);
 	if (err) {
 		dev_err(dev, "Cannot start AES engine\n");
 		goto err_engine;
 	}
 
-	err = crypto_engine_register_aead(&aes_drv_ctx.aead);
+	err = crypto_engine_register_aead(&aes_drv_ctx->aead);
 	if (err < 0) {
 		dev_err(dev, "Failed to register AEAD alg.\n");
-		goto err_aead;
+		goto err_engine;
 	}
 	return 0;
 
-err_aead:
-	crypto_engine_unregister_aead(&aes_drv_ctx.aead);
-
 err_engine:
-	if (aes_drv_ctx.engine)
-		crypto_engine_exit(aes_drv_ctx.engine);
+	if (aes_drv_ctx->engine)
+		crypto_engine_exit(aes_drv_ctx->engine);
 
 	return err;
 }
 
 static void zynqmp_aes_aead_remove(struct platform_device *pdev)
 {
-	crypto_engine_exit(aes_drv_ctx.engine);
-	crypto_engine_unregister_aead(&aes_drv_ctx.aead);
-}
+	struct zynqmp_aead_drv_ctx *aes_drv_ctx;
 
-static const struct of_device_id zynqmp_aes_dt_ids[] = {
-	{ .compatible = "xlnx,zynqmp-aes" },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, zynqmp_aes_dt_ids);
+	aes_drv_ctx = platform_get_drvdata(pdev);
+	crypto_engine_exit(aes_drv_ctx->engine);
+	crypto_engine_unregister_aead(&aes_drv_ctx->aead);
+}
 
 static struct platform_driver zynqmp_aes_driver = {
 	.probe	= zynqmp_aes_aead_probe,
 	.remove = zynqmp_aes_aead_remove,
 	.driver = {
 		.name		= "zynqmp-aes",
-		.of_match_table = zynqmp_aes_dt_ids,
 	},
 };
 
-module_platform_driver(zynqmp_aes_driver);
-MODULE_DESCRIPTION("Xilinx ZynqMP AES Driver");
+static struct platform_device *platform_dev;
+
+static int __init aes_driver_init(void)
+{
+	int ret;
+
+	ret = platform_driver_register(&zynqmp_aes_driver);
+	if (ret)
+		return ret;
+
+	platform_dev = platform_device_register_simple(zynqmp_aes_driver.driver.name,
+						       0, NULL, 0);
+	if (IS_ERR(platform_dev)) {
+		ret = PTR_ERR(platform_dev);
+		platform_driver_unregister(&zynqmp_aes_driver);
+	}
+
+	return ret;
+}
+
+static void __exit aes_driver_exit(void)
+{
+	platform_device_unregister(platform_dev);
+	platform_driver_unregister(&zynqmp_aes_driver);
+}
+
+module_init(aes_driver_init);
+module_exit(aes_driver_exit);
+MODULE_DESCRIPTION("zynqmp aes-gcm hardware acceleration support.");
 MODULE_LICENSE("GPL");
