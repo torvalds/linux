@@ -64,6 +64,27 @@ static int hfs_get_last_session(struct super_block *sb,
 	return 0;
 }
 
+bool is_hfs_cnid_counts_valid(struct super_block *sb)
+{
+	struct hfs_sb_info *sbi = HFS_SB(sb);
+	bool corrupted = false;
+
+	if (unlikely(atomic64_read(&sbi->next_id) > U32_MAX)) {
+		pr_warn("next CNID exceeds limit\n");
+		corrupted = true;
+	}
+	if (unlikely(atomic64_read(&sbi->file_count) > U32_MAX)) {
+		pr_warn("file count exceeds limit\n");
+		corrupted = true;
+	}
+	if (unlikely(atomic64_read(&sbi->folder_count) > U32_MAX)) {
+		pr_warn("folder count exceeds limit\n");
+		corrupted = true;
+	}
+
+	return !corrupted;
+}
+
 /*
  * hfs_mdb_get()
  *
@@ -159,6 +180,11 @@ int hfs_mdb_get(struct super_block *sb)
 	atomic64_set(&HFS_SB(sb)->file_count, be32_to_cpu(mdb->drFilCnt));
 	atomic64_set(&HFS_SB(sb)->folder_count, be32_to_cpu(mdb->drDirCnt));
 
+	if (!is_hfs_cnid_counts_valid(sb)) {
+		pr_warn("filesystem possibly corrupted, running fsck.hfs is recommended. Mounting read-only.\n");
+		sb->s_flags |= SB_RDONLY;
+	}
+
 	/* TRY to get the alternate (backup) MDB. */
 	sect = part_start + part_size - 2;
 	bh = sb_bread512(sb, sect, mdb2);
@@ -212,7 +238,7 @@ int hfs_mdb_get(struct super_block *sb)
 
 	attrib = mdb->drAtrb;
 	if (!(attrib & cpu_to_be16(HFS_SB_ATTRIB_UNMNT))) {
-		pr_warn("filesystem was not cleanly unmounted, running fsck.hfs is recommended.  mounting read-only.\n");
+		pr_warn("filesystem was not cleanly unmounted, running fsck.hfs is recommended.	Mounting read-only.\n");
 		sb->s_flags |= SB_RDONLY;
 	}
 	if ((attrib & cpu_to_be16(HFS_SB_ATTRIB_SLOCK))) {
@@ -270,15 +296,12 @@ void hfs_mdb_commit(struct super_block *sb)
 		/* These parameters may have been modified, so write them back */
 		mdb->drLsMod = hfs_mtime();
 		mdb->drFreeBks = cpu_to_be16(HFS_SB(sb)->free_ablocks);
-		BUG_ON(atomic64_read(&HFS_SB(sb)->next_id) > U32_MAX);
 		mdb->drNxtCNID =
 			cpu_to_be32((u32)atomic64_read(&HFS_SB(sb)->next_id));
 		mdb->drNmFls = cpu_to_be16(HFS_SB(sb)->root_files);
 		mdb->drNmRtDirs = cpu_to_be16(HFS_SB(sb)->root_dirs);
-		BUG_ON(atomic64_read(&HFS_SB(sb)->file_count) > U32_MAX);
 		mdb->drFilCnt =
 			cpu_to_be32((u32)atomic64_read(&HFS_SB(sb)->file_count));
-		BUG_ON(atomic64_read(&HFS_SB(sb)->folder_count) > U32_MAX);
 		mdb->drDirCnt =
 			cpu_to_be32((u32)atomic64_read(&HFS_SB(sb)->folder_count));
 
