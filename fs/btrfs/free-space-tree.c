@@ -1710,3 +1710,106 @@ int btrfs_load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 	else
 		return load_free_space_extents(caching_ctl, path, extent_count);
 }
+
+static int delete_orphan_free_space_entries(struct btrfs_root *fst_root,
+					    struct btrfs_path *path,
+					    u64 first_bg_bytenr)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	trans = btrfs_start_transaction(fst_root, 1);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	while (true) {
+		struct btrfs_key key = { 0 };
+		int i;
+
+		ret = btrfs_search_slot(trans, fst_root, &key, path, -1, 1);
+		if (ret < 0)
+			break;
+		ASSERT(ret > 0);
+		ret = 0;
+		for (i = 0; i < btrfs_header_nritems(path->nodes[0]); i++) {
+			btrfs_item_key_to_cpu(path->nodes[0], &key, i);
+			if (key.objectid >= first_bg_bytenr) {
+				/*
+				 * Only break the for() loop and continue to
+				 * delete items.
+				 */
+				break;
+			}
+		}
+		/* No items to delete, finished. */
+		if (i == 0)
+			break;
+
+		ret = btrfs_del_items(trans, fst_root, path, 0, i);
+		if (ret < 0)
+			break;
+		btrfs_release_path(path);
+	}
+	btrfs_release_path(path);
+	btrfs_end_transaction(trans);
+	if (ret == 0)
+		btrfs_info(fst_root->fs_info, "deleted orphan free space tree entries");
+	return ret;
+}
+
+/* Remove any free space entry before the first block group. */
+int btrfs_delete_orphan_free_space_entries(struct btrfs_fs_info *fs_info)
+{
+	BTRFS_PATH_AUTO_RELEASE(path);
+	struct btrfs_key key = {
+		.objectid = BTRFS_FREE_SPACE_TREE_OBJECTID,
+		.type = BTRFS_ROOT_ITEM_KEY,
+		.offset = 0,
+	};
+	struct btrfs_root *root;
+	struct btrfs_block_group *bg;
+	u64 first_bg_bytenr;
+	int ret;
+
+	/*
+	 * Extent tree v2 has multiple global roots based on the block group.
+	 * This means we cannot easily grab the global free space tree and locate
+	 * orphan items.  Furthermore this is still experimental, all users
+	 * should use the latest btrfs-progs anyway.
+	 */
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+		return 0;
+	if (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+		return 0;
+	root = btrfs_global_root(fs_info, &key);
+	if (!root)
+		return 0;
+
+	key.objectid = 0;
+	key.type = 0;
+	key.offset = 0;
+
+	bg = btrfs_lookup_first_block_group(fs_info, 0);
+	if (unlikely(!bg)) {
+		btrfs_err(fs_info, "no block group found");
+		return -EUCLEAN;
+	}
+	first_bg_bytenr = bg->start;
+	btrfs_put_block_group(bg);
+
+	ret = btrfs_search_slot(NULL, root, &key, &path, 0, 0);
+	if (ret < 0)
+		return ret;
+	/* There should not be an all-zero key in fst. */
+	ASSERT(ret > 0);
+
+	/* Empty free space tree. */
+	if (path.slots[0] >= btrfs_header_nritems(path.nodes[0]))
+		return 0;
+
+	btrfs_item_key_to_cpu(path.nodes[0], &key, path.slots[0]);
+	if (key.objectid >= first_bg_bytenr)
+		return 0;
+	btrfs_release_path(&path);
+	return delete_orphan_free_space_entries(root, &path, first_bg_bytenr);
+}

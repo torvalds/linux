@@ -3014,6 +3014,15 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	}
 
 	/*
+	 * Before btrfs-progs v6.16.1 mkfs.btrfs can leave free space entries
+	 * for deleted temporary chunks. Delete them if they exist.
+	 */
+	ret = btrfs_delete_orphan_free_space_entries(fs_info);
+	if (ret < 0) {
+		btrfs_err(fs_info, "failed to delete orphan free space tree entries: %d", ret);
+		goto out;
+	}
+	/*
 	 * btrfs_find_orphan_roots() is responsible for finding all the dead
 	 * roots (with 0 refs), flag them with BTRFS_ROOT_DEAD_TREE and load
 	 * them into the fs_info->fs_roots_radix tree. This must be done before
