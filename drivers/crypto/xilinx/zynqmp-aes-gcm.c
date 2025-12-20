@@ -150,7 +150,7 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		}
 	} else {
 		if (hwreq->op == ZYNQMP_AES_ENCRYPT)
-			data_size = data_size + ZYNQMP_AES_AUTH_SIZE;
+			data_size = data_size + crypto_aead_authsize(aead);
 		else
 			data_size = data_size - ZYNQMP_AES_AUTH_SIZE;
 
@@ -178,8 +178,8 @@ static int zynqmp_fallback_check(struct zynqmp_aead_tfm_ctx *tfm_ctx,
 	int need_fallback = 0;
 	struct zynqmp_aead_req_ctx *rq_ctx = aead_request_ctx(req);
 
-	if (tfm_ctx->authsize != ZYNQMP_AES_AUTH_SIZE)
-		need_fallback = 1;
+	if (tfm_ctx->authsize != ZYNQMP_AES_AUTH_SIZE && rq_ctx->op == ZYNQMP_AES_DECRYPT)
+		return 1;
 
 	if (tfm_ctx->keysrc == ZYNQMP_AES_KUP_KEY &&
 	    tfm_ctx->keylen != ZYNQMP_AES_KEY_SIZE) {
