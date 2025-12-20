@@ -43,9 +43,7 @@ void __nolibc_timespec_kernel_to_user(const struct __kernel_timespec *kts, struc
 static __attribute__((unused))
 int sys_clock_getres(clockid_t clockid, struct timespec *res)
 {
-#if defined(__NR_clock_getres)
-	return my_syscall2(__NR_clock_getres, clockid, res);
-#else
+#if defined(__NR_clock_getres_time64)
 	struct __kernel_timespec kres;
 	int ret;
 
@@ -53,6 +51,8 @@ int sys_clock_getres(clockid_t clockid, struct timespec *res)
 	if (res)
 		__nolibc_timespec_kernel_to_user(&kres, res);
 	return ret;
+#else
+	return my_syscall2(__NR_clock_getres, clockid, res);
 #endif
 }
 
@@ -65,9 +65,7 @@ int clock_getres(clockid_t clockid, struct timespec *res)
 static __attribute__((unused))
 int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 {
-#if defined(__NR_clock_gettime)
-	return my_syscall2(__NR_clock_gettime, clockid, tp);
-#else
+#if defined(__NR_clock_gettime64)
 	struct __kernel_timespec ktp;
 	int ret;
 
@@ -75,6 +73,8 @@ int sys_clock_gettime(clockid_t clockid, struct timespec *tp)
 	if (tp)
 		__nolibc_timespec_kernel_to_user(&ktp, tp);
 	return ret;
+#else
+	return my_syscall2(__NR_clock_gettime, clockid, tp);
 #endif
 }
 
@@ -87,13 +87,13 @@ int clock_gettime(clockid_t clockid, struct timespec *tp)
 static __attribute__((unused))
 int sys_clock_settime(clockid_t clockid, struct timespec *tp)
 {
-#if defined(__NR_clock_settime)
-	return my_syscall2(__NR_clock_settime, clockid, tp);
-#else
+#if defined(__NR_clock_settime64)
 	struct __kernel_timespec ktp;
 
 	__nolibc_timespec_user_to_kernel(tp, &ktp);
 	return my_syscall2(__NR_clock_settime64, clockid, &ktp);
+#else
+	return my_syscall2(__NR_clock_settime, clockid, tp);
 #endif
 }
 
@@ -107,9 +107,7 @@ static __attribute__((unused))
 int sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqtp,
 			struct timespec *rmtp)
 {
-#if defined(__NR_clock_nanosleep)
-	return my_syscall4(__NR_clock_nanosleep, clockid, flags, rqtp, rmtp);
-#else
+#if defined(__NR_clock_nanosleep_time64)
 	struct __kernel_timespec krqtp, krmtp;
 	int ret;
 
@@ -118,6 +116,8 @@ int sys_clock_nanosleep(clockid_t clockid, int flags, const struct timespec *rqt
 	if (rmtp)
 		__nolibc_timespec_kernel_to_user(&krmtp, rmtp);
 	return ret;
+#else
+	return my_syscall4(__NR_clock_nanosleep, clockid, flags, rqtp, rmtp);
 #endif
 }
 
@@ -189,9 +189,7 @@ int timer_delete(timer_t timerid)
 static __attribute__((unused))
 int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 {
-#if defined(__NR_timer_gettime)
-	return my_syscall2(__NR_timer_gettime, timerid, curr_value);
-#else
+#if defined(__NR_timer_gettime64)
 	struct __kernel_itimerspec kcurr_value;
 	int ret;
 
@@ -199,6 +197,8 @@ int sys_timer_gettime(timer_t timerid, struct itimerspec *curr_value)
 	__nolibc_timespec_kernel_to_user(&kcurr_value.it_interval, &curr_value->it_interval);
 	__nolibc_timespec_kernel_to_user(&kcurr_value.it_value, &curr_value->it_value);
 	return ret;
+#else
+	return my_syscall2(__NR_timer_gettime, timerid, curr_value);
 #endif
 }
 
@@ -212,9 +212,7 @@ static __attribute__((unused))
 int sys_timer_settime(timer_t timerid, int flags,
 		      const struct itimerspec *new_value, struct itimerspec *old_value)
 {
-#if defined(__NR_timer_settime)
-	return my_syscall4(__NR_timer_settime, timerid, flags, new_value, old_value);
-#else
+#if defined(__NR_timer_settime64)
 	struct __kernel_itimerspec knew_value, kold_value;
 	int ret;
 
@@ -226,6 +224,8 @@ int sys_timer_settime(timer_t timerid, int flags,
 		__nolibc_timespec_kernel_to_user(&kold_value.it_value, &old_value->it_value);
 	}
 	return ret;
+#else
+	return my_syscall4(__NR_timer_settime, timerid, flags, new_value, old_value);
 #endif
 }
 
