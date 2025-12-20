@@ -85,7 +85,6 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	int ret;
 	size_t dma_size;
 	char *kbuf;
-	int err;
 
 	if (tfm_ctx->keysrc == ZYNQMP_AES_KUP_KEY)
 		dma_size = req->cryptlen + ZYNQMP_AES_KEY_SIZE
@@ -132,23 +131,23 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 
 	if (ret) {
 		dev_err(dev, "ERROR: AES PM API failed\n");
-		err = ret;
 	} else if (status) {
 		switch (status) {
 		case ZYNQMP_AES_GCM_TAG_MISMATCH_ERR:
-			dev_err(dev, "ERROR: Gcm Tag mismatch\n");
+			ret = -EBADMSG;
 			break;
 		case ZYNQMP_AES_WRONG_KEY_SRC_ERR:
+			ret = -EINVAL;
 			dev_err(dev, "ERROR: Wrong KeySrc, enable secure mode\n");
 			break;
 		case ZYNQMP_AES_PUF_NOT_PROGRAMMED:
+			ret = -EINVAL;
 			dev_err(dev, "ERROR: PUF is not registered\n");
 			break;
 		default:
-			dev_err(dev, "ERROR: Unknown error\n");
+			ret = -EINVAL;
 			break;
 		}
-		err = -status;
 	} else {
 		if (hwreq->op == ZYNQMP_AES_ENCRYPT)
 			data_size = data_size + ZYNQMP_AES_AUTH_SIZE;
@@ -157,7 +156,7 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 
 		sg_copy_from_buffer(req->dst, sg_nents(req->dst),
 				    kbuf, data_size);
-		err = 0;
+		ret = 0;
 	}
 
 	if (kbuf) {
@@ -169,7 +168,8 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		dma_free_coherent(dev, sizeof(struct zynqmp_aead_hw_req),
 				  hwreq, dma_addr_hw_req);
 	}
-	return err;
+
+	return ret;
 }
 
 static int zynqmp_fallback_check(struct zynqmp_aead_tfm_ctx *tfm_ctx,
