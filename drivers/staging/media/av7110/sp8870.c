@@ -496,7 +496,7 @@ static int sp8870_set_frontend(struct dvb_frontend *fe)
 				dprintk("delay = %i usec\n", check_count * 10);
 				break;
 			}
-			udelay(10);
+			usleep_range(10, 20);
 		}
 		if (valid)
 			break;
