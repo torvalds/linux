@@ -69,8 +69,8 @@ struct zynqmp_aead_hw_req {
 
 struct xilinx_aead_tfm_ctx {
 	struct device *dev;
-	u8 key[AES_KEYSIZE_256];
-	u8 *iv;
+	dma_addr_t key_dma_addr;
+	u8 *key;
 	u32 keylen;
 	u32 authsize;
 	u8 keysrc;
@@ -88,39 +88,38 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct xilinx_aead_tfm_ctx *tfm_ctx = crypto_aead_ctx(aead);
 	struct xilinx_aead_req_ctx *rq_ctx = aead_request_ctx(req);
+	dma_addr_t dma_addr_data, dma_addr_hw_req;
 	struct device *dev = tfm_ctx->dev;
 	struct zynqmp_aead_hw_req *hwreq;
-	dma_addr_t dma_addr_data, dma_addr_hw_req;
 	unsigned int data_size;
 	unsigned int status;
 	int ret;
 	size_t dma_size;
+	void *dmabuf;
 	char *kbuf;
 
-	if (tfm_ctx->keysrc == ZYNQMP_AES_KUP_KEY)
-		dma_size = req->cryptlen + AES_KEYSIZE_256
-			   + GCM_AES_IV_SIZE;
-	else
-		dma_size = req->cryptlen + GCM_AES_IV_SIZE;
-
-	kbuf = dma_alloc_coherent(dev, dma_size, &dma_addr_data, GFP_KERNEL);
+	dma_size = req->cryptlen + XILINX_AES_AUTH_SIZE;
+	kbuf = kmalloc(dma_size, GFP_KERNEL);
 	if (!kbuf)
 		return -ENOMEM;
 
-	hwreq = dma_alloc_coherent(dev, sizeof(struct zynqmp_aead_hw_req),
-				   &dma_addr_hw_req, GFP_KERNEL);
-	if (!hwreq) {
-		dma_free_coherent(dev, dma_size, kbuf, dma_addr_data);
+	dmabuf = kmalloc(sizeof(*hwreq) + GCM_AES_IV_SIZE, GFP_KERNEL);
+	if (!dmabuf) {
+		kfree(kbuf);
 		return -ENOMEM;
 	}
-
+	hwreq = dmabuf;
 	data_size = req->cryptlen;
 	scatterwalk_map_and_copy(kbuf, req->src, 0, req->cryptlen, 0);
-	memcpy(kbuf + data_size, req->iv, GCM_AES_IV_SIZE);
+	memcpy(dmabuf + sizeof(struct zynqmp_aead_hw_req), req->iv, GCM_AES_IV_SIZE);
+	dma_addr_data = dma_map_single(dev, kbuf, dma_size, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(dev, dma_addr_data))) {
+		ret = -ENOMEM;
+		goto freemem;
+	}
 
 	hwreq->src = dma_addr_data;
 	hwreq->dst = dma_addr_data;
-	hwreq->iv = hwreq->src + data_size;
 	hwreq->keysrc = tfm_ctx->keysrc;
 	hwreq->op = rq_ctx->op;
 
@@ -129,17 +128,26 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 	else
 		hwreq->size = data_size - XILINX_AES_AUTH_SIZE;
 
-	if (hwreq->keysrc == ZYNQMP_AES_KUP_KEY) {
-		memcpy(kbuf + data_size + GCM_AES_IV_SIZE,
-		       tfm_ctx->key, AES_KEYSIZE_256);
-
-		hwreq->key = hwreq->src + data_size + GCM_AES_IV_SIZE;
-	} else {
+	if (hwreq->keysrc == ZYNQMP_AES_KUP_KEY)
+		hwreq->key = tfm_ctx->key_dma_addr;
+	else
 		hwreq->key = 0;
+
+	dma_addr_hw_req = dma_map_single(dev, dmabuf, sizeof(struct zynqmp_aead_hw_req) +
+					 GCM_AES_IV_SIZE,
+					 DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev, dma_addr_hw_req))) {
+		ret = -ENOMEM;
+		dma_unmap_single(dev, dma_addr_data, dma_size, DMA_BIDIRECTIONAL);
+		goto freemem;
 	}
-
+	hwreq->iv = dma_addr_hw_req + sizeof(struct zynqmp_aead_hw_req);
+	dma_sync_single_for_device(dev, dma_addr_hw_req, sizeof(struct zynqmp_aead_hw_req) +
+				   GCM_AES_IV_SIZE, DMA_TO_DEVICE);
 	ret = zynqmp_pm_aes_engine(dma_addr_hw_req, &status);
-
+	dma_unmap_single(dev, dma_addr_hw_req, sizeof(struct zynqmp_aead_hw_req) + GCM_AES_IV_SIZE,
+			 DMA_TO_DEVICE);
+	dma_unmap_single(dev, dma_addr_data, dma_size, DMA_BIDIRECTIONAL);
 	if (ret) {
 		dev_err(dev, "ERROR: AES PM API failed\n");
 	} else if (status) {
@@ -170,15 +178,11 @@ static int zynqmp_aes_aead_cipher(struct aead_request *req)
 		ret = 0;
 	}
 
-	if (kbuf) {
-		memzero_explicit(kbuf, dma_size);
-		dma_free_coherent(dev, dma_size, kbuf, dma_addr_data);
-	}
-	if (hwreq) {
-		memzero_explicit(hwreq, sizeof(struct zynqmp_aead_hw_req));
-		dma_free_coherent(dev, sizeof(struct zynqmp_aead_hw_req),
-				  hwreq, dma_addr_hw_req);
-	}
+freemem:
+	memzero_explicit(kbuf, dma_size);
+	kfree(kbuf);
+	memzero_explicit(dmabuf, sizeof(struct zynqmp_aead_hw_req) + GCM_AES_IV_SIZE);
+	kfree(dmabuf);
 
 	return ret;
 }
@@ -231,6 +235,9 @@ static int zynqmp_aes_aead_setkey(struct crypto_aead *aead, const u8 *key,
 
 	if (keylen == AES_KEYSIZE_256) {
 		memcpy(tfm_ctx->key, key, keylen);
+		dma_sync_single_for_device(tfm_ctx->dev, tfm_ctx->key_dma_addr,
+					   AES_KEYSIZE_256,
+					   DMA_TO_DEVICE);
 	}
 
 	tfm_ctx->fbk_cipher->base.crt_flags &= ~CRYPTO_TFM_REQ_MASK;
@@ -355,7 +362,7 @@ static int xilinx_paes_aead_init(struct crypto_aead *aead)
 	drv_alg = container_of(alg, struct xilinx_aead_alg, aead.base);
 	tfm_ctx->dev = drv_alg->aead_dev->dev;
 	tfm_ctx->keylen = 0;
-
+	tfm_ctx->key = NULL;
 	tfm_ctx->fbk_cipher = NULL;
 	crypto_aead_set_reqsize(aead, sizeof(struct xilinx_aead_req_ctx));
 
@@ -383,7 +390,20 @@ static int xilinx_aes_aead_init(struct crypto_aead *aead)
 		       __func__, drv_ctx->aead.base.base.cra_name);
 		return PTR_ERR(tfm_ctx->fbk_cipher);
 	}
-
+	tfm_ctx->key = kmalloc(AES_KEYSIZE_256, GFP_KERNEL);
+	if (!tfm_ctx->key) {
+		crypto_free_aead(tfm_ctx->fbk_cipher);
+		return -ENOMEM;
+	}
+	tfm_ctx->key_dma_addr = dma_map_single(tfm_ctx->dev, tfm_ctx->key,
+					       AES_KEYSIZE_256,
+					       DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(tfm_ctx->dev, tfm_ctx->key_dma_addr))) {
+		kfree(tfm_ctx->key);
+		crypto_free_aead(tfm_ctx->fbk_cipher);
+		tfm_ctx->fbk_cipher = NULL;
+		return -ENOMEM;
+	}
 	crypto_aead_set_reqsize(aead,
 				max(sizeof(struct xilinx_aead_req_ctx),
 				    sizeof(struct aead_request) +
@@ -405,6 +425,8 @@ static void xilinx_aes_aead_exit(struct crypto_aead *aead)
 	struct xilinx_aead_tfm_ctx *tfm_ctx =
 			(struct xilinx_aead_tfm_ctx *)crypto_tfm_ctx(tfm);
 
+	dma_unmap_single(tfm_ctx->dev, tfm_ctx->key_dma_addr, AES_KEYSIZE_256, DMA_TO_DEVICE);
+	kfree(tfm_ctx->key);
 	if (tfm_ctx->fbk_cipher) {
 		crypto_free_aead(tfm_ctx->fbk_cipher);
 		tfm_ctx->fbk_cipher = NULL;
