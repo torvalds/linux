@@ -179,7 +179,7 @@ int uvd_v1_0_init(struct radeon_device *rdev)
 
 	r = radeon_ring_lock(rdev, ring, 10);
 	if (r) {
-		DRM_ERROR("radeon: ring failed to lock UVD ring (%d).\n", r);
+		drm_err(&rdev->ddev, "radeon: ring failed to lock UVD ring (%d).\n", r);
 		goto done;
 	}
 
@@ -232,7 +232,7 @@ done:
 			break;
 		}
 
-		DRM_INFO("UVD initialized successfully.\n");
+		drm_info(&rdev->ddev, "UVD initialized successfully.\n");
 	}
 
 	return r;
@@ -338,7 +338,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 		if (status & 2)
 			break;
 
-		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
+		drm_err(&rdev->ddev, "UVD not responding, trying to reset the VCPU!!!\n");
 		WREG32_P(UVD_SOFT_RESET, VCPU_SOFT_RESET, ~VCPU_SOFT_RESET);
 		mdelay(10);
 		WREG32_P(UVD_SOFT_RESET, 0, ~VCPU_SOFT_RESET);
@@ -347,7 +347,7 @@ int uvd_v1_0_start(struct radeon_device *rdev)
 	}
 
 	if (r) {
-		DRM_ERROR("UVD not responding, giving up!!!\n");
+		drm_err(&rdev->ddev, "UVD not responding, giving up!!!\n");
 		return r;
 	}
 
@@ -427,7 +427,7 @@ int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	WREG32(UVD_CONTEXT_ID, 0xCAFEDEAD);
 	r = radeon_ring_lock(rdev, ring, 3);
 	if (r) {
-		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n",
+		drm_err(&rdev->ddev, "radeon: cp failed to lock ring %d (%d).\n",
 			  ring->idx, r);
 		return r;
 	}
@@ -442,10 +442,10 @@ int uvd_v1_0_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	}
 
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+		drm_info(&rdev->ddev, "ring test on %d succeeded in %d usecs\n",
 			 ring->idx, i);
 	} else {
-		DRM_ERROR("radeon: ring %d test failed (0x%08X)\n",
+		drm_err(&rdev->ddev, "radeon: ring %d test failed (0x%08X)\n",
 			  ring->idx, tmp);
 		r = -EINVAL;
 	}
@@ -507,34 +507,34 @@ int uvd_v1_0_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	else
 		r = radeon_set_uvd_clocks(rdev, 53300, 40000);
 	if (r) {
-		DRM_ERROR("radeon: failed to raise UVD clocks (%d).\n", r);
+		drm_err(&rdev->ddev, "radeon: failed to raise UVD clocks (%d).\n", r);
 		return r;
 	}
 
 	r = radeon_uvd_get_create_msg(rdev, ring->idx, 1, NULL);
 	if (r) {
-		DRM_ERROR("radeon: failed to get create msg (%d).\n", r);
+		drm_err(&rdev->ddev, "radeon: failed to get create msg (%d).\n", r);
 		goto error;
 	}
 
 	r = radeon_uvd_get_destroy_msg(rdev, ring->idx, 1, &fence);
 	if (r) {
-		DRM_ERROR("radeon: failed to get destroy ib (%d).\n", r);
+		drm_err(&rdev->ddev, "radeon: failed to get destroy ib (%d).\n", r);
 		goto error;
 	}
 
 	r = radeon_fence_wait_timeout(fence, false, usecs_to_jiffies(
 		RADEON_USEC_IB_TEST_TIMEOUT));
 	if (r < 0) {
-		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		drm_err(&rdev->ddev, "radeon: fence wait failed (%d).\n", r);
 		goto error;
 	} else if (r == 0) {
-		DRM_ERROR("radeon: fence wait timed out.\n");
+		drm_err(&rdev->ddev, "radeon: fence wait timed out.\n");
 		r = -ETIMEDOUT;
 		goto error;
 	}
 	r = 0;
-	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+	drm_info(&rdev->ddev, "ib test on ring %d succeeded\n",  ring->idx);
 error:
 	radeon_fence_unref(&fence);
 	radeon_set_uvd_clocks(rdev, 0, 0);
