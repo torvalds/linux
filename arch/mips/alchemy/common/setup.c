@@ -94,8 +94,7 @@ phys_addr_t fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
 	return phys_addr;
 }
 
-static inline unsigned long io_remap_pfn_range_pfn(unsigned long pfn,
-		unsigned long size)
+unsigned long io_remap_pfn_range_pfn(unsigned long pfn, unsigned long size)
 {
 	phys_addr_t phys_addr = fixup_bigphys_addr(pfn << PAGE_SHIFT, size);
 
