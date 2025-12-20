@@ -17,14 +17,15 @@
 #include <linux/wait.h>
 
 struct timespec {
-	__kernel_time_t	tv_sec;
-	long		tv_nsec;
+	time_t	tv_sec;
+	int64_t	tv_nsec;
 };
 #define _STRUCT_TIMESPEC
 
+/* Never use with system calls */
 struct timeval {
-	__kernel_time_t		tv_sec;
-	__kernel_suseconds_t	tv_usec;
+	time_t	tv_sec;
+	int64_t	tv_usec;
 };
 
 #define timeval __nolibc_kernel_timeval
