@@ -116,7 +116,7 @@ int dm_exception_store_type_register(struct dm_exception_store_type *type)
 	if (!__find_exception_store_type(type->name))
 		list_add(&type->list, &_exception_store_types);
 	else
-		r = -EEXIST;
+		r = -EBUSY;
 	spin_unlock(&_lock);
 
 	return r;
