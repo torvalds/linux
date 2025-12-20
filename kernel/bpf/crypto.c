@@ -60,7 +60,7 @@ struct bpf_crypto_ctx {
 int bpf_crypto_register_type(const struct bpf_crypto_type *type)
 {
 	struct bpf_crypto_type_list *node;
-	int err = -EEXIST;
+	int err = -EBUSY;
 
 	down_write(&bpf_crypto_types_sem);
 	list_for_each_entry(node, &bpf_crypto_types, list) {
