@@ -1081,6 +1081,12 @@ properties:
           - const: qcom,x1e80100
 
       - items:
+          - const: microsoft,denali-lcd
+          - const: microsoft,denali
+          - const: qcom,x1p64100
+          - const: qcom,x1e80100
+
+      - items:
           - enum:
               - asus,vivobook-s15
               - asus,zenbook-a14-ux3407ra
@@ -1100,6 +1106,11 @@ properties:
           - enum:
               - qcom,hamoa-iot-evk
           - const: qcom,hamoa-iot-som
+          - const: qcom,x1e80100
+
+      - items:
+          - const: microsoft,denali-oled
+          - const: microsoft,denali
           - const: qcom,x1e80100
 
       - items:
