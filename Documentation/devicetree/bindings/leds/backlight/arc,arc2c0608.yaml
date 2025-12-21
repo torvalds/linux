@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/backlight/arc,arc2c0608.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ArcticSand arc2c0608 LED driver
+
+description: |
+  The ArcticSand arc2c0608 LED driver provides ultra
+  efficient notebook backlighting. Optional properties not
+  specified will default to values in IC EPROM.
+
+  Datasheet:
+  https://www.murata.com/-/media/webrenewal/products/power/power-semiconductor/overview/lineup/led-boost/arc2/arc2c0608.ashx.
+
+maintainers:
+  - Brian Dodge <bdodge@arcticsand.com>
+
+allOf:
+  - $ref: /schemas/leds/common.yaml
+
+properties:
+  compatible:
+    const: arc,arc2c0608
+
+  reg:
+    maxItems: 1
+
+  default-brightness:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 4095
+
+  led-sources:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: List of enabled channels
+    items:
+      enum: [0, 1, 2, 3, 4, 5]
+    minItems: 1
+    uniqueItems: true
+
+  arc,led-config-0:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Fading speed (period between intensity
+      steps)
+
+  arc,led-config-1:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: If set, sets ILED_CONFIG register. Used for
+      fine tuning the maximum LED current.
+
+  arc,dim-freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: PWM mode frequency setting (bits [3:0] used)
+
+  arc,comp-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Setting for register CONFIG_COMP which
+      controls internal resitances, feed forward freqs,
+      and initial VOUT at startup. Consult the datasheet.
+
+  arc,filter-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: RC and PWM Filter settings.
+      Bit Assignment
+      7654 3    2    1    0
+      xxxx RCF1 RCF0 PWM1 PWM0
+      RCF statuses        PWM Filter Statues
+      00 = OFF (default)  00 = OFF (default)
+      01 = LOW            01 = 2 STEPS
+      10 - MEDIUM         10 = 4 STEPS
+      11 = HIGH           11 = 8 STEPS
+
+  arc,trim-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Sets percentage increase of Maximum LED
+      Current.
+      0x00 = 0% increase.
+      0x20 = 20.2%.
+      0x3F = 41.5%
+
+  label: true
+
+  linux,default-trigger: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led-controller@30 {
+            compatible = "arc,arc2c0608";
+            reg = <0x30>;
+            default-brightness = <500>;
+            label = "lcd-backlight";
+            linux,default-trigger = "backlight";
+            led-sources = <0 1 2 5>;
+        };
+    };
+...

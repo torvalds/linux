@@ -79,5 +79,8 @@ void intel_program_dpkgc_latency(struct intel_atomic_state *state);
 
 bool intel_dbuf_pmdemand_needs_update(struct intel_atomic_state *state);
 
+unsigned int skl_wm0_prefill_lines_worst(const struct intel_crtc_state *crtc_state);
+unsigned int skl_wm0_prefill_lines(const struct intel_crtc_state *crtc_state);
+
 #endif /* __SKL_WATERMARK_H__ */
 

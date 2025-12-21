@@ -1747,7 +1747,7 @@ int ubifs_write_node_hmac(struct ubifs_info *c, void *buf, int len, int lnum,
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int len,
 		     int lnum, int offs, int quiet, int must_chk_crc);
 void ubifs_init_node(struct ubifs_info *c, void *buf, int len, int pad);
-void ubifs_crc_node(struct ubifs_info *c, void *buf, int len);
+void ubifs_crc_node(void *buf, int len);
 void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
 int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
 			    int hmac_offs, int pad);

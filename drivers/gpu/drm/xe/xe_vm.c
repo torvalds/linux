@@ -27,7 +27,6 @@
 #include "xe_device.h"
 #include "xe_drm_client.h"
 #include "xe_exec_queue.h"
-#include "xe_gt_pagefault.h"
 #include "xe_migrate.h"
 #include "xe_pat.h"
 #include "xe_pm.h"
@@ -35,6 +34,7 @@
 #include "xe_pt.h"
 #include "xe_pxp.h"
 #include "xe_res_cursor.h"
+#include "xe_sriov_vf.h"
 #include "xe_svm.h"
 #include "xe_sync.h"
 #include "xe_tile.h"
@@ -111,12 +111,22 @@ static int alloc_preempt_fences(struct xe_vm *vm, struct list_head *list,
 static int wait_for_existing_preempt_fences(struct xe_vm *vm)
 {
 	struct xe_exec_queue *q;
+	bool vf_migration = IS_SRIOV_VF(vm->xe) &&
+		xe_sriov_vf_migration_supported(vm->xe);
+	signed long wait_time = vf_migration ? HZ / 5 : MAX_SCHEDULE_TIMEOUT;
 
 	xe_vm_assert_held(vm);
 
 	list_for_each_entry(q, &vm->preempt.exec_queues, lr.link) {
 		if (q->lr.pfence) {
-			long timeout = dma_fence_wait(q->lr.pfence, false);
+			long timeout;
+
+			timeout = dma_fence_wait_timeout(q->lr.pfence, false,
+							 wait_time);
+			if (!timeout) {
+				xe_assert(vm->xe, vf_migration);
+				return -EAGAIN;
+			}
 
 			/* Only -ETIME on fence indicates VM needs to be killed */
 			if (timeout < 0 || q->lr.pfence->error == -ETIME)
@@ -466,6 +476,8 @@ static void preempt_rebind_work_func(struct work_struct *w)
 retry:
 	if (!try_wait_for_completion(&vm->xe->pm_block) && vm_suspend_rebind_worker(vm)) {
 		up_write(&vm->lock);
+		/* We don't actually block but don't make progress. */
+		xe_pm_might_block_on_suspend();
 		return;
 	}
 
@@ -539,6 +551,19 @@ out_unlock:
 out_unlock_outer:
 	if (err == -EAGAIN) {
 		trace_xe_vm_rebind_worker_retry(vm);
+
+		/*
+		 * We can't block in workers on a VF which supports migration
+		 * given this can block the VF post-migration workers from
+		 * getting scheduled.
+		 */
+		if (IS_SRIOV_VF(vm->xe) &&
+		    xe_sriov_vf_migration_supported(vm->xe)) {
+			up_write(&vm->lock);
+			xe_vm_queue_rebind_worker(vm);
+			return;
+		}
+
 		goto retry;
 	}
 
@@ -729,6 +754,7 @@ struct dma_fence *xe_vma_rebind(struct xe_vm *vm, struct xe_vma *vma, u8 tile_ma
 	xe_assert(vm->xe, xe_vm_in_fault_mode(vm));
 
 	xe_vma_ops_init(&vops, vm, NULL, NULL, 0);
+	vops.flags |= XE_VMA_OPS_FLAG_SKIP_TLB_WAIT;
 	for_each_tile(tile, vm->xe, id) {
 		vops.pt_update_ops[id].wait_vm_bookkeep = true;
 		vops.pt_update_ops[tile->id].q =
@@ -798,7 +824,7 @@ xe_vm_ops_add_range_rebind(struct xe_vma_ops *vops,
  *
  * (re)bind SVM range setting up GPU page tables for the range.
  *
- * Return: dma fence for rebind to signal completion on succees, ERR_PTR on
+ * Return: dma fence for rebind to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
@@ -819,6 +845,7 @@ struct dma_fence *xe_vm_range_rebind(struct xe_vm *vm,
 	xe_assert(vm->xe, xe_vma_is_cpu_addr_mirror(vma));
 
 	xe_vma_ops_init(&vops, vm, NULL, NULL, 0);
+	vops.flags |= XE_VMA_OPS_FLAG_SKIP_TLB_WAIT;
 	for_each_tile(tile, vm->xe, id) {
 		vops.pt_update_ops[id].wait_vm_bookkeep = true;
 		vops.pt_update_ops[tile->id].q =
@@ -881,7 +908,7 @@ xe_vm_ops_add_range_unbind(struct xe_vma_ops *vops,
  *
  * Unbind SVM range removing the GPU page tables for the range.
  *
- * Return: dma fence for unbind to signal completion on succees, ERR_PTR on
+ * Return: dma fence for unbind to signal completion on success, ERR_PTR on
  * failure
  */
 struct dma_fence *xe_vm_range_unbind(struct xe_vm *vm,
@@ -1265,7 +1292,7 @@ static u16 pde_pat_index(struct xe_bo *bo)
 	 * selection of options. The user PAT index is only for encoding leaf
 	 * nodes, where we have use of more bits to do the encoding. The
 	 * non-leaf nodes are instead under driver control so the chosen index
-	 * here should be distict from the user PAT index. Also the
+	 * here should be distinct from the user PAT index. Also the
 	 * corresponding coherency of the PAT index should be tied to the
 	 * allocation type of the page table (or at least we should pick
 	 * something which is always safe).
@@ -1432,7 +1459,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 	struct xe_validation_ctx ctx;
 	struct drm_exec exec;
 	struct xe_vm *vm;
-	int err, number_tiles = 0;
+	int err;
 	struct xe_tile *tile;
 	u8 id;
 
@@ -1593,12 +1620,8 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags, struct xe_file *xef)
 				goto err_close;
 			}
 			vm->q[id] = q;
-			number_tiles++;
 		}
 	}
-
-	if (number_tiles > 1)
-		vm->composite_fence_ctx = dma_fence_context_alloc(1);
 
 	if (xef && xe->info.has_asid) {
 		u32 asid;
@@ -1705,8 +1728,13 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 
 	down_write(&vm->lock);
 	for_each_tile(tile, xe, id) {
-		if (vm->q[id])
+		if (vm->q[id]) {
+			int i;
+
 			xe_exec_queue_last_fence_put(vm->q[id], vm);
+			for_each_tlb_inval(i)
+				xe_exec_queue_tlb_inval_last_fence_put(vm->q[id], vm, i);
+		}
 	}
 	up_write(&vm->lock);
 
@@ -1875,6 +1903,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	struct xe_device *xe = to_xe_device(dev);
 	struct xe_file *xef = to_xe_file(file);
 	struct drm_xe_vm_create *args = data;
+	struct xe_gt *wa_gt = xe_root_mmio_gt(xe);
 	struct xe_vm *vm;
 	u32 id;
 	int err;
@@ -1883,7 +1912,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, args->extensions))
 		return -EINVAL;
 
-	if (XE_GT_WA(xe_root_mmio_gt(xe), 14016763929))
+	if (wa_gt && XE_GT_WA(wa_gt, 22014953428))
 		args->flags |= DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE;
 
 	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE &&
@@ -3075,20 +3104,31 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 	struct dma_fence *fence = NULL;
 	struct dma_fence **fences = NULL;
 	struct dma_fence_array *cf = NULL;
-	int number_tiles = 0, current_fence = 0, err;
+	int number_tiles = 0, current_fence = 0, n_fence = 0, err;
 	u8 id;
 
 	number_tiles = vm_ops_setup_tile_args(vm, vops);
 	if (number_tiles == 0)
 		return ERR_PTR(-ENODATA);
 
-	if (number_tiles > 1) {
-		fences = kmalloc_array(number_tiles, sizeof(*fences),
-				       GFP_KERNEL);
-		if (!fences) {
-			fence = ERR_PTR(-ENOMEM);
-			goto err_trace;
-		}
+	if (vops->flags & XE_VMA_OPS_FLAG_SKIP_TLB_WAIT) {
+		for_each_tile(tile, vm->xe, id)
+			++n_fence;
+	} else {
+		for_each_tile(tile, vm->xe, id)
+			n_fence += (1 + XE_MAX_GT_PER_TILE);
+	}
+
+	fences = kmalloc_array(n_fence, sizeof(*fences), GFP_KERNEL);
+	if (!fences) {
+		fence = ERR_PTR(-ENOMEM);
+		goto err_trace;
+	}
+
+	cf = dma_fence_array_alloc(n_fence);
+	if (!cf) {
+		fence = ERR_PTR(-ENOMEM);
+		goto err_out;
 	}
 
 	for_each_tile(tile, vm->xe, id) {
@@ -3105,29 +3145,33 @@ static struct dma_fence *ops_execute(struct xe_vm *vm,
 	trace_xe_vm_ops_execute(vops);
 
 	for_each_tile(tile, vm->xe, id) {
+		struct xe_exec_queue *q = vops->pt_update_ops[tile->id].q;
+		int i;
+
+		fence = NULL;
 		if (!vops->pt_update_ops[id].num_ops)
-			continue;
+			goto collect_fences;
 
 		fence = xe_pt_update_ops_run(tile, vops);
 		if (IS_ERR(fence))
 			goto err_out;
 
-		if (fences)
-			fences[current_fence++] = fence;
+collect_fences:
+		fences[current_fence++] = fence ?: dma_fence_get_stub();
+		if (vops->flags & XE_VMA_OPS_FLAG_SKIP_TLB_WAIT)
+			continue;
+
+		xe_migrate_job_lock(tile->migrate, q);
+		for_each_tlb_inval(i)
+			fences[current_fence++] =
+				xe_exec_queue_tlb_inval_last_fence_get(q, vm, i);
+		xe_migrate_job_unlock(tile->migrate, q);
 	}
 
-	if (fences) {
-		cf = dma_fence_array_create(number_tiles, fences,
-					    vm->composite_fence_ctx,
-					    vm->composite_fence_seqno++,
-					    false);
-		if (!cf) {
-			--vm->composite_fence_seqno;
-			fence = ERR_PTR(-ENOMEM);
-			goto err_out;
-		}
-		fence = &cf->base;
-	}
+	xe_assert(vm->xe, current_fence == n_fence);
+	dma_fence_array_init(cf, n_fence, fences, dma_fence_context_alloc(1),
+			     1, false);
+	fence = &cf->base;
 
 	for_each_tile(tile, vm->xe, id) {
 		if (!vops->pt_update_ops[id].num_ops)
@@ -3188,7 +3232,6 @@ static void op_add_ufence(struct xe_vm *vm, struct xe_vma_op *op,
 static void vm_bind_ioctl_ops_fini(struct xe_vm *vm, struct xe_vma_ops *vops,
 				   struct dma_fence *fence)
 {
-	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, vops->q);
 	struct xe_user_fence *ufence;
 	struct xe_vma_op *op;
 	int i;
@@ -3209,7 +3252,6 @@ static void vm_bind_ioctl_ops_fini(struct xe_vm *vm, struct xe_vma_ops *vops,
 	if (fence) {
 		for (i = 0; i < vops->num_syncs; i++)
 			xe_sync_entry_signal(vops->syncs + i, fence);
-		xe_exec_queue_last_fence_set(wait_exec_queue, vm, fence);
 	}
 }
 
@@ -3405,19 +3447,19 @@ static int vm_bind_ioctl_signal_fences(struct xe_vm *vm,
 				       struct xe_sync_entry *syncs,
 				       int num_syncs)
 {
-	struct dma_fence *fence;
+	struct dma_fence *fence = NULL;
 	int i, err = 0;
 
-	fence = xe_sync_in_fence_get(syncs, num_syncs,
-				     to_wait_exec_queue(vm, q), vm);
-	if (IS_ERR(fence))
-		return PTR_ERR(fence);
+	if (num_syncs) {
+		fence = xe_sync_in_fence_get(syncs, num_syncs,
+					     to_wait_exec_queue(vm, q), vm);
+		if (IS_ERR(fence))
+			return PTR_ERR(fence);
 
-	for (i = 0; i < num_syncs; i++)
-		xe_sync_entry_signal(&syncs[i], fence);
+		for (i = 0; i < num_syncs; i++)
+			xe_sync_entry_signal(&syncs[i], fence);
+	}
 
-	xe_exec_queue_last_fence_set(to_wait_exec_queue(vm, q), vm,
-				     fence);
 	dma_fence_put(fence);
 
 	return err;
@@ -4151,7 +4193,7 @@ void xe_vm_snapshot_free(struct xe_vm_snapshot *snap)
 
 /**
  * xe_vma_need_vram_for_atomic - Check if VMA needs VRAM migration for atomic operations
- * @xe: Pointer to the XE device structure
+ * @xe: Pointer to the Xe device structure
  * @vma: Pointer to the virtual memory area (VMA) structure
  * @is_atomic: In pagefault path and atomic operation
  *
@@ -4298,7 +4340,7 @@ static int xe_vm_alloc_vma(struct xe_vm *vm,
 			xe_vma_destroy(gpuva_to_vma(op->base.remap.unmap->va), NULL);
 		} else if (__op->op == DRM_GPUVA_OP_MAP) {
 			vma = op->map.vma;
-			/* In case of madvise call, MAP will always be follwed by REMAP.
+			/* In case of madvise call, MAP will always be followed by REMAP.
 			 * Therefore temp_attr will always have sane values, making it safe to
 			 * copy them to new vma.
 			 */

@@ -202,13 +202,13 @@ spurious_8259A_irq:
 	}
 }
 
-static void i8259A_resume(void)
+static void i8259A_resume(void *data)
 {
 	if (i8259A_auto_eoi >= 0)
 		init_8259A(i8259A_auto_eoi);
 }
 
-static void i8259A_shutdown(void)
+static void i8259A_shutdown(void *data)
 {
 	/* Put the i8259A into a quiescent state that
 	 * the kernel initialization code can get it
@@ -220,9 +220,13 @@ static void i8259A_shutdown(void)
 	}
 }
 
-static struct syscore_ops i8259_syscore_ops = {
+static const struct syscore_ops i8259_syscore_ops = {
 	.resume = i8259A_resume,
 	.shutdown = i8259A_shutdown,
+};
+
+static struct syscore i8259_syscore = {
+	.ops = &i8259_syscore_ops,
 };
 
 static void init_8259A(int auto_eoi)
@@ -320,7 +324,7 @@ struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 
 	if (request_irq(irq, no_action, IRQF_NO_THREAD, "cascade", NULL))
 		pr_err("Failed to register cascade interrupt\n");
-	register_syscore_ops(&i8259_syscore_ops);
+	register_syscore(&i8259_syscore);
 	return domain;
 }
 

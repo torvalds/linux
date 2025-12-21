@@ -5,12 +5,15 @@
 
 #include <linux/prime_numbers.h>
 
+#include <drm/drm_print.h>
+
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_reset.h"
 #include "gt/selftest_engine_heartbeat.h"
 
+#include "i915_jiffies.h"
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
 #include "selftests/igt_flush_test.h"

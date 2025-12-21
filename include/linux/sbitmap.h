@@ -75,7 +75,7 @@ struct sbitmap {
 	 */
 	struct sbitmap_word *map;
 
-	/*
+	/**
 	 * @alloc_hint: Cache of last successfully allocated or freed bit.
 	 *
 	 * This is per-cpu, which allows multiple users to stick to different
@@ -128,7 +128,7 @@ struct sbitmap_queue {
 	 */
 	struct sbq_wait_state *ws;
 
-	/*
+	/**
 	 * @ws_active: count of currently active ws waitqueues
 	 */
 	atomic_t ws_active;
@@ -547,6 +547,8 @@ static inline void sbq_index_atomic_inc(atomic_t *index)
  * sbitmap_queue.
  * @sbq: Bitmap queue to wait on.
  * @wait_index: A counter per "user" of @sbq.
+ *
+ * Return: Next wait queue to be used
  */
 static inline struct sbq_wait_state *sbq_wait_ptr(struct sbitmap_queue *sbq,
 						  atomic_t *wait_index)

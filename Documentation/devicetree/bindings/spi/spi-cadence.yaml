@@ -21,6 +21,7 @@ properties:
           - enum:
               - xlnx,zynqmp-spi-r1p6
               - xlnx,versal-net-spi-r1p6
+              - cix,sky1-spi-r1p6
           - const: cdns,spi-r1p6
 
   reg:

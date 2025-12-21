@@ -13,7 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -92,7 +91,6 @@ struct tmp464_channel {
 
 struct tmp464_data {
 	struct regmap *regmap;
-	struct mutex update_lock;
 	int channels;
 	s16 config_orig;
 	u16 open_reg;
@@ -172,19 +170,16 @@ static int tmp464_temp_read(struct device *dev, u32 attr, int channel, long *val
 		 * complete. That means we have to cache the value internally
 		 * for one measurement cycle and report the cached value.
 		 */
-		mutex_lock(&data->update_lock);
 		if (!data->valid || time_after(jiffies, data->last_updated +
 					       msecs_to_jiffies(data->update_interval))) {
 			err = regmap_read(regmap, TMP464_REMOTE_OPEN_REG, &regval);
 			if (err < 0)
-				goto unlock;
+				break;
 			data->open_reg = regval;
 			data->last_updated = jiffies;
 			data->valid = true;
 		}
 		*val = !!(data->open_reg & BIT(channel + 7));
-unlock:
-		mutex_unlock(&data->update_lock);
 		break;
 	case hwmon_temp_max_hyst:
 		regs[0] = TMP464_THERM_LIMIT[channel];
@@ -345,8 +340,6 @@ static int tmp464_write(struct device *dev, enum hwmon_sensor_types type,
 	struct tmp464_data *data = dev_get_drvdata(dev);
 	int err;
 
-	mutex_lock(&data->update_lock);
-
 	switch (type) {
 	case hwmon_chip:
 		err = tmp464_chip_write(data, attr, channel, val);
@@ -358,8 +351,6 @@ static int tmp464_write(struct device *dev, enum hwmon_sensor_types type,
 		err = -EOPNOTSUPP;
 		break;
 	}
-
-	mutex_unlock(&data->update_lock);
 
 	return err;
 }
@@ -657,8 +648,6 @@ static int tmp464_probe(struct i2c_client *client)
 	data = devm_kzalloc(dev, sizeof(struct tmp464_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	mutex_init(&data->update_lock);
 
 	data->channels = (int)(unsigned long)i2c_get_match_data(client);
 

@@ -36,6 +36,8 @@ struct gpio_shared_ref {
 	enum gpiod_flags flags;
 	char *con_id;
 	int dev_id;
+	/* Protects the auxiliary device struct and the lookup table. */
+	struct mutex lock;
 	struct auxiliary_device adev;
 	struct gpiod_lookup_table *lookup;
 };
@@ -49,15 +51,17 @@ struct gpio_shared_entry {
 	unsigned int offset;
 	/* Index in the property value array. */
 	size_t index;
+	/* Synchronizes the modification of shared_desc. */
+	struct mutex lock;
 	struct gpio_shared_desc *shared_desc;
 	struct kref ref;
 	struct list_head refs;
 };
 
 static LIST_HEAD(gpio_shared_list);
-static DEFINE_MUTEX(gpio_shared_lock);
 static DEFINE_IDA(gpio_shared_ida);
 
+#if IS_ENABLED(CONFIG_OF)
 static struct gpio_shared_entry *
 gpio_shared_find_entry(struct fwnode_handle *controller_node,
 		       unsigned int offset)
@@ -72,7 +76,30 @@ gpio_shared_find_entry(struct fwnode_handle *controller_node,
 	return NULL;
 }
 
-#if IS_ENABLED(CONFIG_OF)
+/* Handle all special nodes that we should ignore. */
+static bool gpio_shared_of_node_ignore(struct device_node *node)
+{
+	/* Ignore disabled devices. */
+	if (!of_device_is_available(node))
+		return true;
+
+	/*
+	 * __symbols__ is a special, internal node and should not be considered
+	 * when scanning for shared GPIOs.
+	 */
+	if (of_node_name_eq(node, "__symbols__"))
+		return true;
+
+	/*
+	 * GPIO hogs have a "gpios" property which is not a phandle and can't
+	 * possibly refer to a shared GPIO.
+	 */
+	if (of_property_present(node, "gpio-hog"))
+		return true;
+
+	return false;
+}
+
 static int gpio_shared_of_traverse(struct device_node *curr)
 {
 	struct gpio_shared_entry *entry;
@@ -83,6 +110,9 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 	unsigned int offset;
 	const char *suffix;
 	int ret, count, i;
+
+	if (gpio_shared_of_node_ignore(curr))
+		return 0;
 
 	for_each_property_of_node(curr, prop) {
 		/*
@@ -147,6 +177,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 				entry->offset = offset;
 				entry->index = count;
 				INIT_LIST_HEAD(&entry->refs);
+				mutex_init(&entry->lock);
 
 				list_add_tail(&entry->list, &gpio_shared_list);
 			}
@@ -158,6 +189,7 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 			ref->fwnode = fwnode_handle_get(of_fwnode_handle(curr));
 			ref->flags = args.args[1];
+			mutex_init(&ref->lock);
 
 			if (strends(prop->name, "gpios"))
 				suffix = "-gpios";
@@ -205,7 +237,10 @@ static int gpio_shared_of_traverse(struct device_node *curr)
 
 static int gpio_shared_of_scan(void)
 {
-	return gpio_shared_of_traverse(of_root);
+	if (of_root)
+		return gpio_shared_of_traverse(of_root);
+
+	return 0;
 }
 #else
 static int gpio_shared_of_scan(void)
@@ -220,18 +255,20 @@ static void gpio_shared_adev_release(struct device *dev)
 }
 
 static int gpio_shared_make_adev(struct gpio_device *gdev,
+				 struct gpio_shared_entry *entry,
 				 struct gpio_shared_ref *ref)
 {
 	struct auxiliary_device *adev = &ref->adev;
 	int ret;
 
-	lockdep_assert_held(&gpio_shared_lock);
+	guard(mutex)(&ref->lock);
 
 	memset(adev, 0, sizeof(*adev));
 
 	adev->id = ref->dev_id;
 	adev->name = "proxy";
 	adev->dev.parent = gdev->dev.parent;
+	adev->dev.platform_data = entry;
 	adev->dev.release = gpio_shared_adev_release;
 
 	ret = auxiliary_device_init(adev);
@@ -250,6 +287,84 @@ static int gpio_shared_make_adev(struct gpio_device *gdev,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_RESET_GPIO)
+/*
+ * Special case: reset-gpio is an auxiliary device that's created dynamically
+ * and put in between the GPIO controller and consumers of shared GPIOs
+ * referred to by the "reset-gpios" property.
+ *
+ * If the supposed consumer of a shared GPIO didn't match any of the mappings
+ * we created when scanning the firmware nodes, it's still possible that it's
+ * the reset-gpio device which didn't exist at the time of the scan.
+ *
+ * This function verifies it an return true if it's the case.
+ */
+static bool gpio_shared_dev_is_reset_gpio(struct device *consumer,
+					  struct gpio_shared_entry *entry,
+					  struct gpio_shared_ref *ref)
+{
+	struct fwnode_handle *reset_fwnode = dev_fwnode(consumer);
+	struct fwnode_reference_args ref_args, aux_args;
+	struct device *parent = consumer->parent;
+	bool match;
+	int ret;
+
+	/* The reset-gpio device must have a parent AND a firmware node. */
+	if (!parent || !reset_fwnode)
+		return false;
+
+	/*
+	 * FIXME: use device_is_compatible() once the reset-gpio drivers gains
+	 * a compatible string which it currently does not have.
+	 */
+	if (!strstarts(dev_name(consumer), "reset.gpio."))
+		return false;
+
+	/*
+	 * Parent of the reset-gpio auxiliary device is the GPIO chip whose
+	 * fwnode we stored in the entry structure.
+	 */
+	if (!device_match_fwnode(parent, entry->fwnode))
+		return false;
+
+	/*
+	 * The device associated with the shared reference's firmware node is
+	 * the consumer of the reset control exposed by the reset-gpio device.
+	 * It must have a "reset-gpios" property that's referencing the entry's
+	 * firmware node.
+	 *
+	 * The reference args must agree between the real consumer and the
+	 * auxiliary reset-gpio device.
+	 */
+	ret = fwnode_property_get_reference_args(ref->fwnode, "reset-gpios",
+						 NULL, 2, 0, &ref_args);
+	if (ret)
+		return false;
+
+	ret = fwnode_property_get_reference_args(reset_fwnode, "reset-gpios",
+						 NULL, 2, 0, &aux_args);
+	if (ret) {
+		fwnode_handle_put(ref_args.fwnode);
+		return false;
+	}
+
+	match = ((ref_args.fwnode == entry->fwnode) &&
+		 (aux_args.fwnode == entry->fwnode) &&
+		 (ref_args.args[0] == aux_args.args[0]));
+
+	fwnode_handle_put(ref_args.fwnode);
+	fwnode_handle_put(aux_args.fwnode);
+	return match;
+}
+#else
+static bool gpio_shared_dev_is_reset_gpio(struct device *consumer,
+					  struct gpio_shared_entry *entry,
+					  struct gpio_shared_ref *ref)
+{
+	return false;
+}
+#endif /* CONFIG_RESET_GPIO */
+
 int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 {
 	const char *dev_id = dev_name(consumer);
@@ -261,12 +376,13 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 	if (!lookup)
 		return -ENOMEM;
 
-	guard(mutex)(&gpio_shared_lock);
-
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		list_for_each_entry(ref, &entry->refs, list) {
-			if (!device_match_fwnode(consumer, ref->fwnode))
+			if (!device_match_fwnode(consumer, ref->fwnode) &&
+			    !gpio_shared_dev_is_reset_gpio(consumer, entry, ref))
 				continue;
+
+			guard(mutex)(&ref->lock);
 
 			/* We've already done that on a previous request. */
 			if (ref->lookup)
@@ -286,7 +402,8 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 			lookup->table[0] = GPIO_LOOKUP(no_free_ptr(key), 0,
 						       ref->con_id, lflags);
 
-			gpiod_add_lookup_table(no_free_ptr(lookup));
+			ref->lookup = no_free_ptr(lookup);
+			gpiod_add_lookup_table(ref->lookup);
 
 			return 0;
 		}
@@ -299,10 +416,8 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 
 static void gpio_shared_remove_adev(struct auxiliary_device *adev)
 {
-	lockdep_assert_held(&gpio_shared_lock);
-
-	auxiliary_device_uninit(adev);
 	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
 }
 
 int gpio_device_setup_shared(struct gpio_device *gdev)
@@ -311,8 +426,6 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 	struct gpio_shared_ref *ref;
 	unsigned long *flags;
 	int ret;
-
-	guard(mutex)(&gpio_shared_lock);
 
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		list_for_each_entry(ref, &entry->refs, list) {
@@ -356,7 +469,7 @@ int gpio_device_setup_shared(struct gpio_device *gdev)
 			pr_debug("Setting up a shared GPIO entry for %s\n",
 				 fwnode_get_name(ref->fwnode));
 
-			ret = gpio_shared_make_adev(gdev, ref);
+			ret = gpio_shared_make_adev(gdev, entry, ref);
 			if (ret)
 				return ret;
 		}
@@ -370,19 +483,32 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 	struct gpio_shared_entry *entry;
 	struct gpio_shared_ref *ref;
 
-	guard(mutex)(&gpio_shared_lock);
-
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		if (!device_match_fwnode(&gdev->dev, entry->fwnode))
 			continue;
 
+		/*
+		 * For some reason if we call synchronize_srcu() in GPIO core,
+		 * descent here and take this mutex and then recursively call
+		 * synchronize_srcu() again from gpiochip_remove() (which is
+		 * totally fine) called after gpio_shared_remove_adev(),
+		 * lockdep prints a false positive deadlock splat. Disable
+		 * lockdep here.
+		 */
+		lockdep_off();
 		list_for_each_entry(ref, &entry->refs, list) {
-			gpiod_remove_lookup_table(ref->lookup);
-			kfree(ref->lookup->table[0].key);
-			kfree(ref->lookup);
-			ref->lookup = NULL;
+			guard(mutex)(&ref->lock);
+
+			if (ref->lookup) {
+				gpiod_remove_lookup_table(ref->lookup);
+				kfree(ref->lookup->table[0].key);
+				kfree(ref->lookup);
+				ref->lookup = NULL;
+			}
+
 			gpio_shared_remove_adev(&ref->adev);
 		}
+		lockdep_on();
 	}
 }
 
@@ -390,10 +516,11 @@ static void gpio_shared_release(struct kref *kref)
 {
 	struct gpio_shared_entry *entry =
 		container_of(kref, struct gpio_shared_entry, ref);
-	struct gpio_shared_desc *shared_desc = entry->shared_desc;
+	struct gpio_shared_desc *shared_desc;
 
-	guard(mutex)(&gpio_shared_lock);
+	guard(mutex)(&entry->lock);
 
+	shared_desc = entry->shared_desc;
 	gpio_device_put(shared_desc->desc->gdev);
 	if (shared_desc->can_sleep)
 		mutex_destroy(&shared_desc->mutex);
@@ -405,8 +532,6 @@ static void gpiod_shared_put(void *data)
 {
 	struct gpio_shared_entry *entry = data;
 
-	lockdep_assert_not_held(&gpio_shared_lock);
-
 	kref_put(&entry->ref, gpio_shared_release);
 }
 
@@ -415,6 +540,8 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 {
 	struct gpio_shared_desc *shared_desc;
 	struct gpio_device *gdev;
+
+	lockdep_assert_held(&entry->lock);
 
 	shared_desc = kzalloc(sizeof(*shared_desc), GFP_KERNEL);
 	if (!shared_desc)
@@ -436,63 +563,47 @@ gpiod_shared_desc_create(struct gpio_shared_entry *entry)
 	return shared_desc;
 }
 
-static struct gpio_shared_entry *gpiod_shared_find(struct auxiliary_device *adev)
+struct gpio_shared_desc *devm_gpiod_shared_get(struct device *dev)
 {
 	struct gpio_shared_desc *shared_desc;
 	struct gpio_shared_entry *entry;
-	struct gpio_shared_ref *ref;
+	int ret;
 
-	guard(mutex)(&gpio_shared_lock);
+	entry = dev_get_platdata(dev);
+	if (WARN_ON(!entry))
+		/* Programmer bug */
+		return ERR_PTR(-ENOENT);
 
-	list_for_each_entry(entry, &gpio_shared_list, list) {
-		list_for_each_entry(ref, &entry->refs, list) {
-			if (adev != &ref->adev)
-				continue;
-
-			if (entry->shared_desc) {
-				kref_get(&entry->ref);
-				return entry;
-			}
-
+	scoped_guard(mutex, &entry->lock) {
+		if (entry->shared_desc) {
+			kref_get(&entry->ref);
+			shared_desc = entry->shared_desc;
+		} else {
 			shared_desc = gpiod_shared_desc_create(entry);
 			if (IS_ERR(shared_desc))
 				return ERR_CAST(shared_desc);
 
 			kref_init(&entry->ref);
 			entry->shared_desc = shared_desc;
-
-			pr_debug("Device %s acquired a reference to the shared GPIO %u owned by %s\n",
-				 dev_name(&adev->dev), gpio_chip_hwgpio(shared_desc->desc),
-				 gpio_device_get_label(shared_desc->desc->gdev));
-
-
-			return entry;
 		}
+
+		pr_debug("Device %s acquired a reference to the shared GPIO %u owned by %s\n",
+			 dev_name(dev), gpiod_hwgpio(shared_desc->desc),
+			 gpio_device_get_label(shared_desc->desc->gdev));
 	}
-
-	return ERR_PTR(-ENOENT);
-}
-
-struct gpio_shared_desc *devm_gpiod_shared_get(struct device *dev)
-{
-	struct gpio_shared_entry *entry;
-	int ret;
-
-	entry = gpiod_shared_find(to_auxiliary_dev(dev));
-	if (IS_ERR(entry))
-		return ERR_CAST(entry);
 
 	ret = devm_add_action_or_reset(dev, gpiod_shared_put, entry);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return entry->shared_desc;
+	return shared_desc;
 }
 EXPORT_SYMBOL_GPL(devm_gpiod_shared_get);
 
 static void gpio_shared_drop_ref(struct gpio_shared_ref *ref)
 {
 	list_del(&ref->list);
+	mutex_destroy(&ref->lock);
 	kfree(ref->con_id);
 	ida_free(&gpio_shared_ida, ref->dev_id);
 	fwnode_handle_put(ref->fwnode);
@@ -502,6 +613,7 @@ static void gpio_shared_drop_ref(struct gpio_shared_ref *ref)
 static void gpio_shared_drop_entry(struct gpio_shared_entry *entry)
 {
 	list_del(&entry->list);
+	mutex_destroy(&entry->lock);
 	fwnode_handle_put(entry->fwnode);
 	kfree(entry);
 }

@@ -92,14 +92,14 @@ struct smb_ntsd {
 	__le32 gsidoffset;
 	__le32 sacloffset;
 	__le32 dacloffset;
-} __attribute__((packed));
+} __packed;
 
 struct smb_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[NUM_AUTHS];
 	__le32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
-} __attribute__((packed));
+} __packed;
 
 /* size of a struct smb_sid, sans sub_auth array */
 #define CIFS_SID_BASE_SIZE (1 + 1 + NUM_AUTHS)
@@ -109,7 +109,7 @@ struct smb_acl {
 	__le16 size;
 	__le16 num_aces;
 	__le16 reserved;
-} __attribute__((packed));
+} __packed;
 
 struct smb_ace {
 	__u8 type; /* see above and MS-DTYP 2.4.4.1 */
@@ -117,6 +117,6 @@ struct smb_ace {
 	__le16 size;
 	__le32 access_req;
 	struct smb_sid sid; /* ie UUID of user or group who gets these perms */
-} __attribute__((packed));
+} __packed;
 
 #endif /* _COMMON_SMBACL_H */

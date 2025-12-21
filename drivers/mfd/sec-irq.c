@@ -20,6 +20,12 @@
 #include "sec-core.h"
 
 static const struct regmap_irq s2mpg10_irqs[] = {
+	REGMAP_IRQ_REG(S2MPG10_COMMON_IRQ_PMIC, 0, S2MPG10_COMMON_INT_SRC_PMIC),
+	/* No documentation or other reference for remaining bits */
+	REGMAP_IRQ_REG(S2MPG10_COMMON_IRQ_UNUSED, 0, GENMASK(7, 1)),
+};
+
+static const struct regmap_irq s2mpg10_pmic_irqs[] = {
 	REGMAP_IRQ_REG(S2MPG10_IRQ_PWRONF, 0, S2MPG10_IRQ_PWRONF_MASK),
 	REGMAP_IRQ_REG(S2MPG10_IRQ_PWRONR, 0, S2MPG10_IRQ_PWRONR_MASK),
 	REGMAP_IRQ_REG(S2MPG10_IRQ_JIGONBF, 0, S2MPG10_IRQ_JIGONBF_MASK),
@@ -183,11 +189,20 @@ static const struct regmap_irq s5m8767_irqs[] = {
 /* All S2MPG10 interrupt sources are read-only and don't require clearing */
 static const struct regmap_irq_chip s2mpg10_irq_chip = {
 	.name = "s2mpg10",
+	.status_base = S2MPG10_COMMON_INT,
+	.mask_base = S2MPG10_COMMON_INT_MASK,
+	.num_regs = 1,
 	.irqs = s2mpg10_irqs,
 	.num_irqs = ARRAY_SIZE(s2mpg10_irqs),
-	.num_regs = 6,
+};
+
+static const struct regmap_irq_chip s2mpg10_irq_chip_pmic = {
+	.name = "s2mpg10-pmic",
 	.status_base = S2MPG10_PMIC_INT1,
 	.mask_base = S2MPG10_PMIC_INT1M,
+	.num_regs = 6,
+	.irqs = s2mpg10_pmic_irqs,
+	.num_irqs = ARRAY_SIZE(s2mpg10_pmic_irqs),
 };
 
 static const struct regmap_irq_chip s2mps11_irq_chip = {
@@ -253,6 +268,59 @@ static const struct regmap_irq_chip s5m8767_irq_chip = {
 	.ack_base = S5M8767_REG_INT1,
 };
 
+static int s2mpg1x_add_chained_irq_chip(struct device *dev, struct regmap *regmap, int pirq,
+					struct regmap_irq_chip_data *parent,
+					const struct regmap_irq_chip *chip,
+					struct regmap_irq_chip_data **data)
+{
+	int irq, ret;
+
+	irq = regmap_irq_get_virq(parent, pirq);
+	if (irq < 0)
+		return dev_err_probe(dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n", pirq,
+				     chip->name);
+
+	ret = devm_regmap_add_irq_chip(dev, regmap, irq, IRQF_ONESHOT | IRQF_SHARED, 0, chip, data);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to add %s IRQ chip\n", chip->name);
+
+	return 0;
+}
+
+static int sec_irq_init_s2mpg1x(struct sec_pmic_dev *sec_pmic)
+{
+	const struct regmap_irq_chip *irq_chip, *chained_irq_chip;
+	struct regmap_irq_chip_data *irq_data;
+	struct regmap *regmap_common;
+	int chained_pirq;
+	int ret;
+
+	switch (sec_pmic->device_type) {
+	case S2MPG10:
+		irq_chip = &s2mpg10_irq_chip;
+		chained_irq_chip = &s2mpg10_irq_chip_pmic;
+		chained_pirq = S2MPG10_COMMON_IRQ_PMIC;
+		break;
+	default:
+		return dev_err_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
+				     sec_pmic->device_type);
+	}
+
+	regmap_common = dev_get_regmap(sec_pmic->dev, "common");
+	if (!regmap_common)
+		return dev_err_probe(sec_pmic->dev, -EINVAL, "No 'common' regmap %d\n",
+				     sec_pmic->device_type);
+
+	ret = devm_regmap_add_irq_chip(sec_pmic->dev, regmap_common, sec_pmic->irq, IRQF_ONESHOT, 0,
+				       irq_chip, &irq_data);
+	if (ret)
+		return dev_err_probe(sec_pmic->dev, ret, "Failed to add %s IRQ chip\n",
+				     irq_chip->name);
+
+	return s2mpg1x_add_chained_irq_chip(sec_pmic->dev, sec_pmic->regmap_pmic, chained_pirq,
+					    irq_data, chained_irq_chip, &sec_pmic->irq_data);
+}
+
 int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 {
 	const struct regmap_irq_chip *sec_irq_chip;
@@ -268,8 +336,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		sec_irq_chip = &s2mps14_irq_chip;
 		break;
 	case S2MPG10:
-		sec_irq_chip = &s2mpg10_irq_chip;
-		break;
+		return sec_irq_init_s2mpg1x(sec_pmic);
 	case S2MPS11X:
 		sec_irq_chip = &s2mps11_irq_chip;
 		break;

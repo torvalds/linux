@@ -249,6 +249,14 @@ err:
 	return ret;
 }
 
+/*
+ * The former STARTING/DYING states, ran with IRQs disabled and must not fail.
+ */
+static bool cpuhp_is_atomic_state(enum cpuhp_state state)
+{
+	return CPUHP_AP_IDLE_DEAD <= state && state < CPUHP_AP_ONLINE;
+}
+
 #ifdef CONFIG_SMP
 static bool cpuhp_is_ap_state(enum cpuhp_state state)
 {
@@ -269,14 +277,6 @@ static inline void complete_ap_thread(struct cpuhp_cpu_state *st, bool bringup)
 {
 	struct completion *done = bringup ? &st->done_up : &st->done_down;
 	complete(done);
-}
-
-/*
- * The former STARTING/DYING states, ran with IRQs disabled and must not fail.
- */
-static bool cpuhp_is_atomic_state(enum cpuhp_state state)
-{
-	return CPUHP_AP_IDLE_DEAD <= state && state < CPUHP_AP_ONLINE;
 }
 
 /* Synchronization state management */
@@ -2364,7 +2364,14 @@ static int cpuhp_issue_call(int cpu, enum cpuhp_state state, bool bringup,
 	else
 		ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
 #else
-	ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
+	if (cpuhp_is_atomic_state(state)) {
+		guard(irqsave)();
+		ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
+		/* STARTING/DYING must not fail! */
+		WARN_ON_ONCE(ret);
+	} else {
+		ret = cpuhp_invoke_callback(cpu, state, bringup, node, NULL);
+	}
 #endif
 	BUG_ON(ret && !bringup);
 	return ret;
@@ -3085,10 +3092,13 @@ EXPORT_SYMBOL(cpu_all_bits);
 #ifdef CONFIG_INIT_ALL_POSSIBLE
 struct cpumask __cpu_possible_mask __ro_after_init
 	= {CPU_BITS_ALL};
+unsigned int __num_possible_cpus __ro_after_init = NR_CPUS;
 #else
 struct cpumask __cpu_possible_mask __ro_after_init;
+unsigned int __num_possible_cpus __ro_after_init;
 #endif
 EXPORT_SYMBOL(__cpu_possible_mask);
+EXPORT_SYMBOL(__num_possible_cpus);
 
 struct cpumask __cpu_online_mask __read_mostly;
 EXPORT_SYMBOL(__cpu_online_mask);
@@ -3116,6 +3126,7 @@ void init_cpu_present(const struct cpumask *src)
 void init_cpu_possible(const struct cpumask *src)
 {
 	cpumask_copy(&__cpu_possible_mask, src);
+	__num_possible_cpus = cpumask_weight(&__cpu_possible_mask);
 }
 
 void set_cpu_online(unsigned int cpu, bool online)
@@ -3136,6 +3147,21 @@ void set_cpu_online(unsigned int cpu, bool online)
 	} else {
 		if (cpumask_test_and_clear_cpu(cpu, &__cpu_online_mask))
 			atomic_dec(&__num_online_cpus);
+	}
+}
+
+/*
+ * This should be marked __init, but there is a boatload of call sites
+ * which need to be fixed up to do so. Sigh...
+ */
+void set_cpu_possible(unsigned int cpu, bool possible)
+{
+	if (possible) {
+		if (!cpumask_test_and_set_cpu(cpu, &__cpu_possible_mask))
+			__num_possible_cpus++;
+	} else {
+		if (cpumask_test_and_clear_cpu(cpu, &__cpu_possible_mask))
+			__num_possible_cpus--;
 	}
 }
 

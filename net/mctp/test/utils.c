@@ -13,7 +13,10 @@
 static netdev_tx_t mctp_test_dev_tx(struct sk_buff *skb,
 				    struct net_device *ndev)
 {
-	kfree_skb(skb);
+	struct mctp_test_dev *dev = netdev_priv(ndev);
+
+	skb_queue_tail(&dev->pkts, skb);
+
 	return NETDEV_TX_OK;
 }
 
@@ -26,7 +29,7 @@ static void mctp_test_dev_setup(struct net_device *ndev)
 	ndev->type = ARPHRD_MCTP;
 	ndev->mtu = MCTP_DEV_TEST_MTU;
 	ndev->hard_header_len = 0;
-	ndev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
+	ndev->tx_queue_len = 0;
 	ndev->flags = IFF_NOARP;
 	ndev->netdev_ops = &mctp_test_netdev_ops;
 	ndev->needs_free_netdev = true;
@@ -51,6 +54,7 @@ static struct mctp_test_dev *__mctp_test_create_dev(unsigned short lladdr_len,
 	dev->ndev = ndev;
 	ndev->addr_len = lladdr_len;
 	dev_addr_set(ndev, lladdr);
+	skb_queue_head_init(&dev->pkts);
 
 	rc = register_netdev(ndev);
 	if (rc) {
@@ -62,6 +66,11 @@ static struct mctp_test_dev *__mctp_test_create_dev(unsigned short lladdr_len,
 	dev->mdev = __mctp_dev_get(ndev);
 	dev->mdev->net = mctp_default_net(dev_net(ndev));
 	rcu_read_unlock();
+
+	/* bring the device up; we want to be able to TX immediately */
+	rtnl_lock();
+	dev_open(ndev, NULL);
+	rtnl_unlock();
 
 	return dev;
 }
@@ -79,26 +88,15 @@ struct mctp_test_dev *mctp_test_create_dev_lladdr(unsigned short lladdr_len,
 
 void mctp_test_destroy_dev(struct mctp_test_dev *dev)
 {
+	skb_queue_purge(&dev->pkts);
 	mctp_dev_put(dev->mdev);
 	unregister_netdev(dev->ndev);
 }
 
-static const unsigned int test_pktqueue_magic = 0x5f713aef;
-
-void mctp_test_pktqueue_init(struct mctp_test_pktqueue *tpq)
-{
-	tpq->magic = test_pktqueue_magic;
-	skb_queue_head_init(&tpq->pkts);
-}
-
 static int mctp_test_dst_output(struct mctp_dst *dst, struct sk_buff *skb)
 {
-	struct kunit *test = current->kunit_test;
-	struct mctp_test_pktqueue *tpq = test->priv;
-
-	KUNIT_ASSERT_EQ(test, tpq->magic, test_pktqueue_magic);
-
-	skb_queue_tail(&tpq->pkts, skb);
+	skb->dev = dst->dev->dev;
+	dev_queue_xmit(skb);
 
 	return 0;
 }
@@ -169,11 +167,9 @@ struct mctp_test_route *mctp_test_create_route_gw(struct net *net,
 	return rt;
 }
 
-/* Convenience function for our test dst; release with mctp_test_dst_release()
- */
+/* Convenience function for our test dst; release with mctp_dst_release() */
 void mctp_test_dst_setup(struct kunit *test, struct mctp_dst *dst,
-			 struct mctp_test_dev *dev,
-			 struct mctp_test_pktqueue *tpq, unsigned int mtu)
+			 struct mctp_test_dev *dev, unsigned int mtu)
 {
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, dev);
 
@@ -183,15 +179,6 @@ void mctp_test_dst_setup(struct kunit *test, struct mctp_dst *dst,
 	__mctp_dev_get(dst->dev->dev);
 	dst->mtu = mtu;
 	dst->output = mctp_test_dst_output;
-	mctp_test_pktqueue_init(tpq);
-	test->priv = tpq;
-}
-
-void mctp_test_dst_release(struct mctp_dst *dst,
-			   struct mctp_test_pktqueue *tpq)
-{
-	mctp_dst_release(dst);
-	skb_queue_purge(&tpq->pkts);
 }
 
 void mctp_test_route_destroy(struct kunit *test, struct mctp_test_route *rt)
@@ -279,7 +266,7 @@ void mctp_test_bind_run(struct kunit *test,
 		addr.smctp_addr.s_addr = setup->peer_addr;
 		/* connect() type must match bind() type */
 		addr.smctp_type = setup->bind_type;
-		rc = kernel_connect(*sock, (struct sockaddr *)&addr,
+		rc = kernel_connect(*sock, (struct sockaddr_unsized *)&addr,
 				    sizeof(addr), 0);
 		KUNIT_EXPECT_EQ(test, rc, 0);
 	}
@@ -292,5 +279,6 @@ void mctp_test_bind_run(struct kunit *test,
 	addr.smctp_type = setup->bind_type;
 
 	*ret_bind_errno =
-		kernel_bind(*sock, (struct sockaddr *)&addr, sizeof(addr));
+		kernel_bind(*sock, (struct sockaddr_unsized *)&addr,
+			    sizeof(addr));
 }

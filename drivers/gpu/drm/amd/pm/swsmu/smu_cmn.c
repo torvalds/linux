@@ -164,9 +164,13 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 				    msg_index, param, message);
 		break;
 	case SMU_RESP_BUSY_OTHER:
-		dev_err_ratelimited(adev->dev,
-				    "SMU: I'm very busy for your command: index:%d param:0x%08X message:%s",
-				    msg_index, param, message);
+		/* It is normal for SMU_MSG_GetBadPageCount to return busy
+		 * so don't print error at this case.
+		 */
+		if (msg != SMU_MSG_GetBadPageCount)
+			dev_err_ratelimited(adev->dev,
+						"SMU: I'm very busy for your command: index:%d param:0x%08X message:%s",
+						msg_index, param, message);
 		break;
 	case SMU_RESP_DEBUG_END:
 		dev_err_ratelimited(adev->dev,
@@ -980,7 +984,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		 * Flush hdp cache: to guard the content seen by
 		 * GPU is consitent with CPU.
 		 */
-		amdgpu_asic_flush_hdp(adev, NULL);
+		amdgpu_hdp_flush(adev, NULL);
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, drv2smu ?
@@ -992,7 +996,7 @@ int smu_cmn_update_table(struct smu_context *smu,
 		return ret;
 
 	if (!drv2smu) {
-		amdgpu_asic_invalidate_hdp(adev, NULL);
+		amdgpu_hdp_invalidate(adev, NULL);
 		memcpy(table_data, table->cpu_addr, table_size);
 	}
 

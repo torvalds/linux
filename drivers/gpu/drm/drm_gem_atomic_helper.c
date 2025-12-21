@@ -338,8 +338,6 @@ void drm_gem_reset_shadow_plane(struct drm_plane *plane)
 	}
 
 	shadow_plane_state = kzalloc(sizeof(*shadow_plane_state), GFP_KERNEL);
-	if (!shadow_plane_state)
-		return;
 	__drm_gem_reset_shadow_plane(plane, shadow_plane_state);
 }
 EXPORT_SYMBOL(drm_gem_reset_shadow_plane);

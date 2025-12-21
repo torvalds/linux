@@ -227,7 +227,7 @@ static void bxcan_enable_filters(struct bxcan_priv *priv, enum bxcan_cfg cfg)
 	 * mask mode with 32 bits width.
 	 */
 
-	/* Enter filter initialization mode and assing filters to CAN
+	/* Enter filter initialization mode and assign filters to CAN
 	 * controllers.
 	 */
 	regmap_update_bits(priv->gcan, BXCAN_FMR_REG,
@@ -881,7 +881,6 @@ static const struct net_device_ops bxcan_netdev_ops = {
 	.ndo_open = bxcan_open,
 	.ndo_stop = bxcan_stop,
 	.ndo_start_xmit = bxcan_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops bxcan_ethtool_ops = {

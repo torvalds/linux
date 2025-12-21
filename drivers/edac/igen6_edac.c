@@ -1300,6 +1300,7 @@ static int igen6_register_mci(int mc, void __iomem *window, struct pci_dev *pdev
 	imc->mci = mci;
 	return 0;
 fail3:
+	put_device(&imc->dev);
 	mci->pvt_info = NULL;
 	kfree(mci->ctl_name);
 fail2:
@@ -1326,6 +1327,7 @@ static void igen6_unregister_mcis(void)
 		kfree(mci->ctl_name);
 		mci->pvt_info = NULL;
 		edac_mc_free(mci);
+		put_device(&imc->dev);
 		iounmap(imc->window);
 	}
 }

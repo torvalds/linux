@@ -29,7 +29,7 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 	udp_addr.sin_family = AF_INET;
 	udp_addr.sin_addr = cfg->local_ip;
 	udp_addr.sin_port = cfg->local_udp_port;
-	err = kernel_bind(sock, (struct sockaddr *)&udp_addr,
+	err = kernel_bind(sock, (struct sockaddr_unsized *)&udp_addr,
 			  sizeof(udp_addr));
 	if (err < 0)
 		goto error;
@@ -38,7 +38,7 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 		udp_addr.sin_family = AF_INET;
 		udp_addr.sin_addr = cfg->peer_ip;
 		udp_addr.sin_port = cfg->peer_udp_port;
-		err = kernel_connect(sock, (struct sockaddr *)&udp_addr,
+		err = kernel_connect(sock, (struct sockaddr_unsized *)&udp_addr,
 				     sizeof(udp_addr), 0);
 		if (err < 0)
 			goto error;

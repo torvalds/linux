@@ -30,15 +30,11 @@ static bool mlx5_esw_bridge_dev_same_hw(struct net_device *dev, struct mlx5_eswi
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev, *esw_mdev;
-	u64 system_guid, esw_system_guid;
 
 	mdev = priv->mdev;
 	esw_mdev = esw->dev;
 
-	system_guid = mlx5_query_nic_system_image_guid(mdev);
-	esw_system_guid = mlx5_query_nic_system_image_guid(esw_mdev);
-
-	return system_guid == esw_system_guid;
+	return mlx5_same_hw_devs(mdev, esw_mdev);
 }
 
 static struct net_device *

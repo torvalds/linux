@@ -1994,6 +1994,11 @@ void timekeeping_resume(void)
 	timerfd_resume();
 }
 
+static void timekeeping_syscore_resume(void *data)
+{
+	timekeeping_resume();
+}
+
 int timekeeping_suspend(void)
 {
 	struct timekeeper *tks = &tk_core.shadow_timekeeper;
@@ -2061,15 +2066,24 @@ int timekeeping_suspend(void)
 	return 0;
 }
 
+static int timekeeping_syscore_suspend(void *data)
+{
+	return timekeeping_suspend();
+}
+
 /* sysfs resume/suspend bits for timekeeping */
-static struct syscore_ops timekeeping_syscore_ops = {
-	.resume		= timekeeping_resume,
-	.suspend	= timekeeping_suspend,
+static const struct syscore_ops timekeeping_syscore_ops = {
+	.resume		= timekeeping_syscore_resume,
+	.suspend	= timekeeping_syscore_suspend,
+};
+
+static struct syscore timekeeping_syscore = {
+	.ops = &timekeeping_syscore_ops,
 };
 
 static int __init timekeeping_init_ops(void)
 {
-	register_syscore_ops(&timekeeping_syscore_ops);
+	register_syscore(&timekeeping_syscore);
 	return 0;
 }
 device_initcall(timekeeping_init_ops);
@@ -3073,8 +3087,10 @@ static int __init tk_aux_sysfs_init(void)
 		char id[2] = { [0] = '0' + i, };
 		struct kobject *clk = kobject_create_and_add(id, auxo);
 
-		if (!clk)
+		if (!clk) {
+			ret = -ENOMEM;
 			goto err_clean;
+		}
 
 		ret = sysfs_create_group(clk, &aux_clock_enable_attr_group);
 		if (ret)

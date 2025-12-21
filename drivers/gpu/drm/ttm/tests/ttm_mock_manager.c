@@ -4,6 +4,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/module.h>
 
 #include <drm/ttm/ttm_resource.h>
 #include <drm/ttm/ttm_device.h>

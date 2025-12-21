@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Minimal client-side zerocopy test
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 4

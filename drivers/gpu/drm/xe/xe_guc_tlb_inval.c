@@ -207,7 +207,7 @@ static const struct xe_tlb_inval_ops guc_tlb_inval_ops = {
  * @guc: GuC object
  * @tlb_inval: TLB invalidation client
  *
- * Inititialize GuC TLB invalidation by setting back pointer in TLB invalidation
+ * Initialize GuC TLB invalidation by setting back pointer in TLB invalidation
  * client to the GuC and setting GuC backend ops.
  */
 void xe_guc_tlb_inval_init_early(struct xe_guc *guc,

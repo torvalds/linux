@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "common.h"
 
 TEST(ctx_null_lsm_set_self_attr)

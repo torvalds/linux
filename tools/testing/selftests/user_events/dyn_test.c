@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "user_events_selftests.h"
 
 const char *dyn_file = "/sys/kernel/tracing/dynamic_events";

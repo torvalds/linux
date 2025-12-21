@@ -34,7 +34,7 @@ int intel_region_ttm_device_init(struct drm_i915_private *dev_priv)
 
 	return ttm_device_init(&dev_priv->bdev, i915_ttm_driver(),
 			       drm->dev, drm->anon_inode->i_mapping,
-			       drm->vma_offset_manager, false, false);
+			       drm->vma_offset_manager, 0);
 }
 
 /**

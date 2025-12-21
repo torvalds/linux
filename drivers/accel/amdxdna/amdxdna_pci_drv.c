@@ -13,13 +13,11 @@
 #include <drm/gpu_scheduler.h>
 #include <linux/iommu.h>
 #include <linux/pci.h>
-#include <linux/pm_runtime.h>
 
 #include "amdxdna_ctx.h"
 #include "amdxdna_gem.h"
 #include "amdxdna_pci_drv.h"
-
-#define AMDXDNA_AUTOSUSPEND_DELAY	5000 /* milliseconds */
+#include "amdxdna_pm.h"
 
 MODULE_FIRMWARE("amdnpu/1502_00/npu.sbin");
 MODULE_FIRMWARE("amdnpu/17f0_10/npu.sbin");
@@ -29,9 +27,14 @@ MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
 /*
  * 0.0: Initial version
  * 0.1: Support getting all hardware contexts by DRM_IOCTL_AMDXDNA_GET_ARRAY
+ * 0.2: Support getting last error hardware error
+ * 0.3: Support firmware debug buffer
+ * 0.4: Support getting resource information
+ * 0.5: Support getting telemetry data
+ * 0.6: Support preemption
  */
 #define AMDXDNA_DRIVER_MAJOR		0
-#define AMDXDNA_DRIVER_MINOR		1
+#define AMDXDNA_DRIVER_MINOR		6
 
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the
@@ -61,17 +64,9 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 	struct amdxdna_client *client;
 	int ret;
 
-	ret = pm_runtime_resume_and_get(ddev->dev);
-	if (ret) {
-		XDNA_ERR(xdna, "Failed to get rpm, ret %d", ret);
-		return ret;
-	}
-
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (!client) {
-		ret = -ENOMEM;
-		goto put_rpm;
-	}
+	if (!client)
+		return -ENOMEM;
 
 	client->pid = pid_nr(rcu_access_pointer(filp->pid));
 	client->xdna = xdna;
@@ -106,9 +101,6 @@ unbind_sva:
 	iommu_sva_unbind_device(client->sva);
 failed:
 	kfree(client);
-put_rpm:
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
 
 	return ret;
 }
@@ -130,8 +122,6 @@ static void amdxdna_drm_close(struct drm_device *ddev, struct drm_file *filp)
 
 	XDNA_DBG(xdna, "pid %d closed", client->pid);
 	kfree(client);
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
 }
 
 static int amdxdna_flush(struct file *f, fl_owner_t id)
@@ -310,19 +300,12 @@ static int amdxdna_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto failed_dev_fini;
 	}
 
-	pm_runtime_set_autosuspend_delay(dev, AMDXDNA_AUTOSUSPEND_DELAY);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_allow(dev);
-
 	ret = drm_dev_register(&xdna->ddev, 0);
 	if (ret) {
 		XDNA_ERR(xdna, "DRM register failed, ret %d", ret);
-		pm_runtime_forbid(dev);
 		goto failed_sysfs_fini;
 	}
 
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_put_autosuspend(dev);
 	return 0;
 
 failed_sysfs_fini:
@@ -339,13 +322,9 @@ destroy_notifier_wq:
 static void amdxdna_remove(struct pci_dev *pdev)
 {
 	struct amdxdna_dev *xdna = pci_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
 	struct amdxdna_client *client;
 
 	destroy_workqueue(xdna->notifier_wq);
-
-	pm_runtime_get_noresume(dev);
-	pm_runtime_forbid(dev);
 
 	drm_dev_unplug(&xdna->ddev);
 	amdxdna_sysfs_fini(xdna);
@@ -365,29 +344,9 @@ static void amdxdna_remove(struct pci_dev *pdev)
 	mutex_unlock(&xdna->dev_lock);
 }
 
-static int amdxdna_pmops_suspend(struct device *dev)
-{
-	struct amdxdna_dev *xdna = pci_get_drvdata(to_pci_dev(dev));
-
-	if (!xdna->dev_info->ops->suspend)
-		return -EOPNOTSUPP;
-
-	return xdna->dev_info->ops->suspend(xdna);
-}
-
-static int amdxdna_pmops_resume(struct device *dev)
-{
-	struct amdxdna_dev *xdna = pci_get_drvdata(to_pci_dev(dev));
-
-	if (!xdna->dev_info->ops->resume)
-		return -EOPNOTSUPP;
-
-	return xdna->dev_info->ops->resume(xdna);
-}
-
 static const struct dev_pm_ops amdxdna_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(amdxdna_pmops_suspend, amdxdna_pmops_resume)
-	RUNTIME_PM_OPS(amdxdna_pmops_suspend, amdxdna_pmops_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(amdxdna_pm_suspend, amdxdna_pm_resume)
+	RUNTIME_PM_OPS(amdxdna_pm_suspend, amdxdna_pm_resume, NULL)
 };
 
 static struct pci_driver amdxdna_pci_driver = {

@@ -36,6 +36,19 @@ struct alt_group {
 	struct cfi_state **cfi;
 
 	bool ignore;
+	unsigned int feature;
+};
+
+enum alternative_type {
+	ALT_TYPE_INSTRUCTIONS,
+	ALT_TYPE_JUMP_TABLE,
+	ALT_TYPE_EX_TABLE,
+};
+
+struct alternative {
+	struct alternative *next;
+	struct instruction *insn;
+	enum alternative_type type;
 };
 
 #define INSN_CHUNK_BITS		8
@@ -64,8 +77,11 @@ struct instruction {
 	    noendbr		: 1,
 	    unret		: 1,
 	    visited		: 4,
-	    no_reloc		: 1;
-		/* 10 bit hole */
+	    no_reloc		: 1,
+	    hole		: 1,
+	    fake		: 1,
+	    trace		: 1;
+		/* 9 bit hole */
 
 	struct alt_group *alt_group;
 	struct instruction *jump_dest;
@@ -115,6 +131,15 @@ static inline bool is_jump(struct instruction *insn)
 	return is_static_jump(insn) || is_dynamic_jump(insn);
 }
 
+static inline struct symbol *insn_call_dest(struct instruction *insn)
+{
+	if (insn->type == INSN_JUMP_DYNAMIC ||
+	    insn->type == INSN_CALL_DYNAMIC)
+		return NULL;
+
+	return insn->_call_dest;
+}
+
 struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset);
 
@@ -124,5 +149,15 @@ struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruc
 	for (insn = find_insn(file, _sec, 0);				\
 	     insn && insn->sec == _sec;					\
 	     insn = next_insn_same_sec(file, insn))
+
+#define sym_for_each_insn(file, sym, insn)				\
+	for (insn = find_insn(file, sym->sec, sym->offset);		\
+	     insn && insn->offset < sym->offset + sym->len;		\
+	     insn = next_insn_same_sec(file, insn))
+
+const char *objtool_disas_insn(struct instruction *insn);
+
+extern size_t sym_name_max_len;
+extern struct disas_context *objtool_disas_ctx;
 
 #endif /* _CHECK_H */

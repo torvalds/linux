@@ -40,6 +40,39 @@ static enum power_supply_property max77705_charger_props[] = {
 	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
 };
 
+static irqreturn_t max77705_aicl_irq(int irq, void *irq_drv_data)
+{
+	struct max77705_charger_data *chg = irq_drv_data;
+	unsigned int regval, irq_status;
+	int err;
+
+	err = regmap_read(chg->regmap, MAX77705_CHG_REG_INT_OK, &irq_status);
+	if (err < 0)
+		return IRQ_HANDLED;
+
+	// irq is fiered at the end of current decrease sequence too
+	// early check AICL_I bit to guard against that excess irq call
+	while (!(irq_status & BIT(MAX77705_AICL_I))) {
+		err = regmap_field_read(chg->rfield[MAX77705_CHG_CHGIN_LIM], &regval);
+		if (err < 0)
+			return IRQ_HANDLED;
+
+		regval--;
+
+		err = regmap_field_write(chg->rfield[MAX77705_CHG_CHGIN_LIM], regval);
+		if (err < 0)
+			return IRQ_HANDLED;
+
+		msleep(AICL_WORK_DELAY_MS);
+
+		err = regmap_read(chg->regmap, MAX77705_CHG_REG_INT_OK, &irq_status);
+		if (err < 0)
+			return IRQ_HANDLED;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t max77705_chgin_irq(int irq, void *irq_drv_data)
 {
 	struct max77705_charger_data *chg = irq_drv_data;
@@ -60,7 +93,7 @@ static const struct regmap_irq max77705_charger_irqs[] = {
 	REGMAP_IRQ_REG_LINE(MAX77705_AICL_I, BITS_PER_BYTE),
 };
 
-static struct regmap_irq_chip max77705_charger_irq_chip = {
+static const struct regmap_irq_chip max77705_charger_irq_chip = {
 	.name			= "max77705-charger",
 	.status_base		= MAX77705_CHG_REG_INT,
 	.mask_base		= MAX77705_CHG_REG_INT_MASK,
@@ -567,6 +600,7 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 {
 	struct power_supply_config pscfg = {};
 	struct max77705_charger_data *chg;
+	struct regmap_irq_chip *chip_desc;
 	struct device *dev;
 	struct regmap_irq_chip_data *irq_data;
 	int ret;
@@ -579,6 +613,13 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 
 	chg->dev = dev;
 	i2c_set_clientdata(i2c, chg);
+
+	chip_desc = devm_kmemdup(dev, &max77705_charger_irq_chip,
+				 sizeof(max77705_charger_irq_chip),
+				 GFP_KERNEL);
+	if (!chip_desc)
+		return -ENOMEM;
+	chip_desc->irq_drv_data = chg;
 
 	chg->regmap = devm_regmap_init_i2c(i2c, &max77705_chg_regmap_config);
 	if (IS_ERR(chg->regmap))
@@ -599,11 +640,9 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 	if (IS_ERR(chg->psy_chg))
 		return PTR_ERR(chg->psy_chg);
 
-	max77705_charger_irq_chip.irq_drv_data = chg;
 	ret = devm_regmap_add_irq_chip(chg->dev, chg->regmap, i2c->irq,
 					IRQF_ONESHOT, 0,
-					&max77705_charger_irq_chip,
-					&irq_data);
+					chip_desc, &irq_data);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add irq chip\n");
 
@@ -629,6 +668,15 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 					"chgin-irq", chg);
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to Request chgin IRQ\n");
+		goto destroy_wq;
+	}
+
+	ret = devm_request_threaded_irq(dev, regmap_irq_get_virq(irq_data, MAX77705_AICL_I),
+					NULL, max77705_aicl_irq,
+					IRQF_TRIGGER_NONE,
+					"aicl-irq", chg);
+	if (ret) {
+		dev_err_probe(dev, ret, "Failed to Request aicl IRQ\n");
 		goto destroy_wq;
 	}
 

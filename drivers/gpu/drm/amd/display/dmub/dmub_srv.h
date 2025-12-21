@@ -132,6 +132,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_IB_MEM,
 	DMUB_WINDOW_SHARED_STATE,
 	DMUB_WINDOW_LSDMA_BUFFER,
+	DMUB_WINDOW_CURSOR_OFFLOAD,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -317,6 +318,7 @@ struct dmub_srv_hw_params {
 	bool enable_non_transparent_setconfig;
 	bool lower_hbr3_phy_ssc;
 	bool override_hbr3_pll_vco;
+	bool disable_dpia_bw_allocation;
 };
 
 /**
@@ -359,6 +361,19 @@ struct dmub_diagnostic_data {
 	uint8_t is_cw0_enabled : 1;
 	uint8_t is_cw6_enabled : 1;
 	uint8_t is_pwait : 1;
+};
+
+/**
+ * struct dmub_preos_info - preos fw info before loading post os fw.
+ */
+struct dmub_preos_info {
+	uint64_t fb_base;
+	uint64_t fb_offset;
+	uint64_t trace_buffer_phy_addr;
+	uint32_t trace_buffer_size;
+	uint32_t fw_version;
+	uint32_t boot_status;
+	uint32_t boot_options;
 };
 
 struct dmub_srv_inbox {
@@ -486,6 +501,7 @@ struct dmub_srv_hw_funcs {
 	uint32_t (*get_current_time)(struct dmub_srv *dmub);
 
 	void (*get_diagnostic_data)(struct dmub_srv *dmub);
+	bool (*get_preos_fw_info)(struct dmub_srv *dmub);
 
 	bool (*should_detect)(struct dmub_srv *dmub);
 	void (*init_reg_offsets)(struct dmub_srv *dmub, struct dc_context *ctx);
@@ -535,7 +551,8 @@ struct dmub_srv_create_params {
  * @fw_version: the current firmware version, if any
  * @is_virtual: false if hardware support only
  * @shared_state: dmub shared state between firmware and driver
- * @fw_state: dmub firmware state pointer
+ * @cursor_offload_v1: Cursor offload state
+ * @fw_state: dmub firmware state pointer (debug purpose only)
  */
 struct dmub_srv {
 	enum dmub_asic asic;
@@ -544,7 +561,9 @@ struct dmub_srv {
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
 	struct dmub_fb ib_mem_gart;
+	struct dmub_fb cursor_offload_fb;
 	volatile struct dmub_shared_state_feature_block *shared_state;
+	volatile struct dmub_cursor_offload_v1 *cursor_offload_v1;
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */
@@ -583,6 +602,7 @@ struct dmub_srv {
 	enum dmub_srv_power_state_type power_state;
 	struct dmub_diagnostic_data debug;
 	struct dmub_fb lsdma_rb_fb;
+	struct dmub_preos_info preos_info;
 };
 
 /**
@@ -1067,5 +1087,15 @@ enum dmub_status dmub_srv_wait_for_inbox_free(struct dmub_srv *dmub,
  *   DMUB_STATUS_INVALID - unspecified error
  */
 enum dmub_status dmub_srv_update_inbox_status(struct dmub_srv *dmub);
+
+/**
+ * dmub_srv_get_preos_info() - retrieves preos fw info
+ * @dmub: the dmub service
+ *
+ * Return:
+ *   true - preos fw info retrieved successfully
+ *   false - preos fw info not retrieved successfully
+ */
+bool dmub_srv_get_preos_info(struct dmub_srv *dmub);
 
 #endif /* _DMUB_SRV_H_ */

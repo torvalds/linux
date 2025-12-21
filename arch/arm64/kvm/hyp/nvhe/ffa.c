@@ -115,7 +115,7 @@ static void ffa_set_retval(struct kvm_cpu_context *ctxt,
 	 *
 	 * FFA-1.3 introduces 64-bit variants of the CPU cycle management
 	 * interfaces. Moreover, FF-A 1.3 clarifies that SMC32 direct requests
-	 * complete with SMC32 direct reponses which *should* allow us use the
+	 * complete with SMC32 direct responses which *should* allow us use the
 	 * function ID sent by the caller to determine whether to return x8-x17.
 	 *
 	 * Note that we also cannot rely on function IDs in the response.

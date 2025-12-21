@@ -71,6 +71,7 @@ enum {
 	MLX5_FLOW_TABLE_UNMANAGED = BIT(3),
 	MLX5_FLOW_TABLE_OTHER_VPORT = BIT(4),
 	MLX5_FLOW_TABLE_UPLINK_VPORT = BIT(5),
+	MLX5_FLOW_TABLE_OTHER_ESWITCH = BIT(6),
 };
 
 #define LEFTOVERS_RULE_NUM	 2
@@ -116,6 +117,7 @@ enum mlx5_flow_namespace_type {
 };
 
 enum {
+	FDB_DROP_ROOT,
 	FDB_BYPASS_PATH,
 	FDB_CRYPTO_INGRESS,
 	FDB_TC_OFFLOAD,
@@ -125,6 +127,24 @@ enum {
 	FDB_SLOW_PATH,
 	FDB_CRYPTO_EGRESS,
 	FDB_PER_VPORT,
+};
+
+enum fs_flow_table_type {
+	FS_FT_NIC_RX          = 0x0,
+	FS_FT_NIC_TX          = 0x1,
+	FS_FT_ESW_EGRESS_ACL  = 0x2,
+	FS_FT_ESW_INGRESS_ACL = 0x3,
+	FS_FT_FDB             = 0X4,
+	FS_FT_SNIFFER_RX	= 0X5,
+	FS_FT_SNIFFER_TX	= 0X6,
+	FS_FT_RDMA_RX		= 0X7,
+	FS_FT_RDMA_TX		= 0X8,
+	FS_FT_PORT_SEL		= 0X9,
+	FS_FT_FDB_RX		= 0xa,
+	FS_FT_FDB_TX		= 0xb,
+	FS_FT_RDMA_TRANSPORT_RX	= 0xd,
+	FS_FT_RDMA_TRANSPORT_TX	= 0xe,
+	FS_FT_MAX_TYPE = FS_FT_RDMA_TRANSPORT_TX,
 };
 
 struct mlx5_pkt_reformat;
@@ -208,6 +228,7 @@ struct mlx5_flow_table_attr {
 	u32 flags;
 	u16 uid;
 	u16 vport;
+	u16 esw_owner_vhca_id;
 	struct mlx5_flow_table *next_ft;
 
 	struct {
@@ -353,4 +374,8 @@ u32 mlx5_flow_table_id(struct mlx5_flow_table *ft);
 
 struct mlx5_flow_root_namespace *
 mlx5_get_root_namespace(struct mlx5_core_dev *dev, enum mlx5_flow_namespace_type ns_type);
+
+int mlx5_fs_set_root_dev(struct mlx5_core_dev *dev,
+			 struct mlx5_core_dev *new_dev,
+			 enum fs_flow_table_type table_type);
 #endif

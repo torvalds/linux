@@ -427,7 +427,7 @@ static void afs_fetch_status_success(struct afs_operation *op)
 	struct afs_vnode *vnode = vp->vnode;
 	int ret;
 
-	if (vnode->netfs.inode.i_state & I_NEW) {
+	if (inode_state_read_once(&vnode->netfs.inode) & I_NEW) {
 		ret = afs_inode_init_from_status(op, vp, vnode);
 		afs_op_set_error(op, ret);
 		if (ret == 0)
@@ -579,7 +579,7 @@ struct inode *afs_iget(struct afs_operation *op, struct afs_vnode_param *vp)
 	       inode, vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
 
 	/* deal with an existing inode */
-	if (!(inode->i_state & I_NEW)) {
+	if (!(inode_state_read_once(inode) & I_NEW)) {
 		_leave(" = %p", inode);
 		return inode;
 	}
@@ -639,7 +639,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 
 	_debug("GOT ROOT INODE %p { vl=%llx }", inode, as->volume->vid);
 
-	BUG_ON(!(inode->i_state & I_NEW));
+	BUG_ON(!(inode_state_read_once(inode) & I_NEW));
 
 	vnode = AFS_FS_I(inode);
 	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break);
@@ -748,7 +748,7 @@ void afs_evict_inode(struct inode *inode)
 
 	if ((S_ISDIR(inode->i_mode) ||
 	     S_ISLNK(inode->i_mode)) &&
-	    (inode->i_state & I_DIRTY) &&
+	    (inode_state_read_once(inode) & I_DIRTY) &&
 	    !sbi->dyn_root) {
 		struct writeback_control wbc = {
 			.sync_mode = WB_SYNC_ALL,

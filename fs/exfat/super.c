@@ -629,6 +629,17 @@ static int __exfat_fill_super(struct super_block *sb,
 		goto free_bh;
 	}
 
+	if (!exfat_test_bitmap(sb, sbi->root_dir)) {
+		exfat_warn(sb, "failed to test first cluster bit of root dir(%u)",
+			   sbi->root_dir);
+		/*
+		 * The first cluster bit of the root directory should never
+		 * be unset except when storage is corrupted. This bit is
+		 * set to allow operations after mount.
+		 */
+		exfat_set_bitmap(sb, sbi->root_dir, false);
+	}
+
 	ret = exfat_count_used_clusters(sb, &sbi->used_clusters);
 	if (ret) {
 		exfat_err(sb, "failed to scan clusters");
@@ -813,10 +824,21 @@ static int exfat_init_fs_context(struct fs_context *fc)
 	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
 			DEFAULT_RATELIMIT_BURST);
 
-	sbi->options.fs_uid = current_uid();
-	sbi->options.fs_gid = current_gid();
-	sbi->options.fs_fmask = current->fs->umask;
-	sbi->options.fs_dmask = current->fs->umask;
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE && fc->root) {
+		struct super_block *sb = fc->root->d_sb;
+		struct exfat_mount_options *cur_opts = &EXFAT_SB(sb)->options;
+
+		sbi->options.fs_uid = cur_opts->fs_uid;
+		sbi->options.fs_gid = cur_opts->fs_gid;
+		sbi->options.fs_fmask = cur_opts->fs_fmask;
+		sbi->options.fs_dmask = cur_opts->fs_dmask;
+	} else {
+		sbi->options.fs_uid = current_uid();
+		sbi->options.fs_gid = current_gid();
+		sbi->options.fs_fmask = current->fs->umask;
+		sbi->options.fs_dmask = current->fs->umask;
+	}
+
 	sbi->options.allow_utime = -1;
 	sbi->options.errors = EXFAT_ERRORS_RO;
 	exfat_set_iocharset(&sbi->options, exfat_default_iocharset);

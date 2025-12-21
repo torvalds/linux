@@ -371,6 +371,10 @@ static inline void memzero_explicit(void *s, size_t count)
  * kbasename - return the last part of a pathname.
  *
  * @path: path to extract the filename from.
+ *
+ * Returns:
+ * Pointer to the filename portion inside @path. If no '/' exists,
+ * returns @path unchanged.
  */
 static inline const char *kbasename(const char *path)
 {
@@ -556,6 +560,9 @@ static __always_inline size_t str_has_prefix(const char *str, const char *prefix
  * strstarts - does @str start with @prefix?
  * @str: string to examine
  * @prefix: prefix to look for.
+ *
+ * Returns:
+ * True if @str begins with @prefix. False in all other cases.
  */
 static inline bool strstarts(const char *str, const char *prefix)
 {
@@ -564,13 +571,14 @@ static inline bool strstarts(const char *str, const char *prefix)
 
 /**
  * strends - Check if a string ends with another string.
- * @str - NULL-terminated string to check against @suffix
- * @suffix - NULL-terminated string defining the suffix to look for in @str
+ * @str: NULL-terminated string to check against @suffix
+ * @suffix: NULL-terminated string defining the suffix to look for in @str
  *
  * Returns:
  * True if @str ends with @suffix. False in all other cases.
  */
-static inline bool strends(const char *str, const char *suffix)
+static inline bool __attribute__((nonnull(1, 2)))
+strends(const char *str, const char *suffix)
 {
 	unsigned int str_len = strlen(str), suffix_len = strlen(suffix);
 

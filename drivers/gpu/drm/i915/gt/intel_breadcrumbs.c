@@ -8,6 +8,8 @@
 #include <trace/events/dma_fence.h>
 #include <uapi/linux/sched/types.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_breadcrumbs.h"

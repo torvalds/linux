@@ -573,11 +573,10 @@ static void mvebu_gpio_irq_handler(struct irq_desc *desc)
 	for (i = 0; i < mvchip->chip.ngpio; i++) {
 		int irq;
 
-		irq = irq_find_mapping(mvchip->domain, i);
-
 		if (!(cause & BIT(i)))
 			continue;
 
+		irq = irq_find_mapping(mvchip->domain, i);
 		type = irq_get_trigger_type(irq);
 		if ((type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 			/* Swap polarity (race with GPIO line) */

@@ -265,6 +265,34 @@ static void devinfo_api_range(struct kunit *test)
 	}
 }
 
+static void devinfo_pci_ids_config(struct kunit *test)
+{
+	for (int i = 0; iwl_hw_card_ids[i].vendor; i++) {
+		const struct pci_device_id *s = &iwl_hw_card_ids[i];
+		const struct iwl_dev_info *di;
+
+		if (s->device == PCI_ANY_ID || s->subdevice == PCI_ANY_ID)
+			continue;
+
+#if IS_ENABLED(CONFIG_IWLMVM) || IS_ENABLED(CONFIG_IWLMLD)
+		/*
+		 * The check below only works for old (pre-CNVI) devices. Most
+		 * new have subdevice==ANY, so are already skipped, but for some
+		 * Bz platform(s) we list all the RF PCI IDs. Skip those too.
+		 */
+		if (s->driver_data == (kernel_ulong_t)&iwl_bz_mac_cfg)
+			continue;
+#endif
+
+		di = iwl_pci_find_dev_info(s->device, s->subdevice,
+					   0, 0, 0, 0, true);
+
+		KUNIT_EXPECT_PTR_NE_MSG(test, di, NULL,
+					"PCI ID %04x:%04x not found\n",
+					s->device, s->subdevice);
+	}
+}
+
 static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_table_order),
 	KUNIT_CASE(devinfo_discrete_match),
@@ -276,6 +304,7 @@ static struct kunit_case devinfo_test_cases[] = {
 	KUNIT_CASE(devinfo_pci_ids),
 	KUNIT_CASE(devinfo_no_mac_cfg_dups),
 	KUNIT_CASE(devinfo_api_range),
+	KUNIT_CASE(devinfo_pci_ids_config),
 	{}
 };
 

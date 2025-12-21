@@ -37,8 +37,8 @@
 #define BTRFS_SB_LOG_FIRST_OFFSET	(512ULL * SZ_1G)
 #define BTRFS_SB_LOG_SECOND_OFFSET	(4096ULL * SZ_1G)
 
-#define BTRFS_SB_LOG_FIRST_SHIFT	const_ilog2(BTRFS_SB_LOG_FIRST_OFFSET)
-#define BTRFS_SB_LOG_SECOND_SHIFT	const_ilog2(BTRFS_SB_LOG_SECOND_OFFSET)
+#define BTRFS_SB_LOG_FIRST_SHIFT	ilog2(BTRFS_SB_LOG_FIRST_OFFSET)
+#define BTRFS_SB_LOG_SECOND_SHIFT	ilog2(BTRFS_SB_LOG_SECOND_OFFSET)
 
 /* Number of superblock log zones */
 #define BTRFS_NR_SB_LOG_ZONES 2
@@ -93,7 +93,8 @@ static int sb_write_pointer(struct block_device *bdev, struct blk_zone *zones,
 	sector_t sector;
 
 	for (int i = 0; i < BTRFS_NR_SB_LOG_ZONES; i++) {
-		ASSERT(zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL);
+		ASSERT(zones[i].type != BLK_ZONE_TYPE_CONVENTIONAL,
+		       "zones[%d].type=%d", i, zones[i].type);
 		empty[i] = (zones[i].cond == BLK_ZONE_COND_EMPTY);
 		full[i] = sb_zone_is_full(&zones[i]);
 	}
@@ -166,14 +167,14 @@ static inline u32 sb_zone_number(int shift, int mirror)
 {
 	u64 zone = U64_MAX;
 
-	ASSERT(mirror < BTRFS_SUPER_MIRROR_MAX);
+	ASSERT(mirror < BTRFS_SUPER_MIRROR_MAX, "mirror=%d", mirror);
 	switch (mirror) {
 	case 0: zone = 0; break;
 	case 1: zone = 1ULL << (BTRFS_SB_LOG_FIRST_SHIFT - shift); break;
 	case 2: zone = 1ULL << (BTRFS_SB_LOG_SECOND_SHIFT - shift); break;
 	}
 
-	ASSERT(zone <= U32_MAX);
+	ASSERT(zone <= U32_MAX, "zone=%llu", zone);
 
 	return (u32)zone;
 }
@@ -240,7 +241,8 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 		unsigned int i;
 		u32 zno;
 
-		ASSERT(IS_ALIGNED(pos, zinfo->zone_size));
+		ASSERT(IS_ALIGNED(pos, zinfo->zone_size),
+		       "pos=%llu zinfo->zone_size=%llu", pos, zinfo->zone_size);
 		zno = pos >> zinfo->zone_size_shift;
 		/*
 		 * We cannot report zones beyond the zone end. So, it is OK to
@@ -264,8 +266,8 @@ static int btrfs_get_dev_zones(struct btrfs_device *device, u64 pos,
 		}
 	}
 
-	ret = blkdev_report_zones(device->bdev, pos >> SECTOR_SHIFT, *nr_zones,
-				  copy_zone_info_cb, zones);
+	ret = blkdev_report_zones_cached(device->bdev, pos >> SECTOR_SHIFT,
+					 *nr_zones, copy_zone_info_cb, zones);
 	if (ret < 0) {
 		btrfs_err(device->fs_info,
 				 "zoned: failed to read zone %llu on %s (devid %llu)",
@@ -494,6 +496,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 			case BLK_ZONE_COND_IMP_OPEN:
 			case BLK_ZONE_COND_EXP_OPEN:
 			case BLK_ZONE_COND_CLOSED:
+			case BLK_ZONE_COND_ACTIVE:
 				__set_bit(nreported, zone_info->active_zones);
 				nactive++;
 				break;
@@ -896,9 +899,9 @@ int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
 	if (sb_zone + 1 >= nr_zones)
 		return -ENOENT;
 
-	ret = blkdev_report_zones(bdev, zone_start_sector(sb_zone, bdev),
-				  BTRFS_NR_SB_LOG_ZONES, copy_zone_info_cb,
-				  zones);
+	ret = blkdev_report_zones_cached(bdev, zone_start_sector(sb_zone, bdev),
+					 BTRFS_NR_SB_LOG_ZONES,
+					 copy_zone_info_cb, zones);
 	if (ret < 0)
 		return ret;
 	if (unlikely(ret != BTRFS_NR_SB_LOG_ZONES))
@@ -1055,8 +1058,10 @@ u64 btrfs_find_allocatable_zones(struct btrfs_device *device, u64 hole_start,
 	bool have_sb;
 	int i;
 
-	ASSERT(IS_ALIGNED(hole_start, zinfo->zone_size));
-	ASSERT(IS_ALIGNED(num_bytes, zinfo->zone_size));
+	ASSERT(IS_ALIGNED(hole_start, zinfo->zone_size),
+	       "hole_start=%llu zinfo->zone_size=%llu", hole_start, zinfo->zone_size);
+	ASSERT(IS_ALIGNED(num_bytes, zinfo->zone_size),
+	       "num_bytes=%llu zinfo->zone_size=%llu", num_bytes, zinfo->zone_size);
 
 	while (pos < hole_end) {
 		begin = pos >> shift;
@@ -1172,8 +1177,10 @@ int btrfs_ensure_empty_zones(struct btrfs_device *device, u64 start, u64 size)
 	u64 pos;
 	int ret;
 
-	ASSERT(IS_ALIGNED(start, zinfo->zone_size));
-	ASSERT(IS_ALIGNED(size, zinfo->zone_size));
+	ASSERT(IS_ALIGNED(start, zinfo->zone_size),
+	       "start=%llu, zinfo->zone_size=%llu", start, zinfo->zone_size);
+	ASSERT(IS_ALIGNED(size, zinfo->zone_size),
+	       "size=%llu, zinfo->zone_size=%llu", size, zinfo->zone_size);
 
 	if (begin + nbits > zinfo->nr_zones)
 		return -ERANGE;
@@ -1628,7 +1635,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	struct btrfs_chunk_map *map;
 	u64 logical = cache->start;
 	u64 length = cache->length;
-	struct zone_info *zone_info = NULL;
+	struct zone_info AUTO_KFREE(zone_info);
 	int ret;
 	int i;
 	unsigned long *active = NULL;
@@ -1782,7 +1789,6 @@ out:
 		cache->physical_map = NULL;
 	}
 	bitmap_free(active);
-	kfree(zone_info);
 
 	return ret;
 }
@@ -1809,14 +1815,14 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 {
 	u64 start = (bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT);
 	struct btrfs_inode *inode = bbio->inode;
-	struct btrfs_fs_info *fs_info = bbio->fs_info;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_block_group *cache;
 	bool ret = false;
 
 	if (!btrfs_is_zoned(fs_info))
 		return false;
 
-	if (!inode || !is_data_inode(inode))
+	if (!is_data_inode(inode))
 		return false;
 
 	if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE)
@@ -1867,7 +1873,7 @@ static void btrfs_rewrite_logical_zoned(struct btrfs_ordered_extent *ordered,
 	em = btrfs_search_extent_mapping(em_tree, ordered->file_offset,
 					 ordered->num_bytes);
 	/* The em should be a new COW extent, thus it should not have an offset. */
-	ASSERT(em->offset == 0);
+	ASSERT(em->offset == 0, "em->offset=%llu", em->offset);
 	em->disk_bytenr = logical;
 	btrfs_free_extent_map(em);
 	write_unlock(&em_tree->lock);
@@ -2578,7 +2584,8 @@ again:
 			struct btrfs_space_info *reloc_sinfo = data_sinfo->sub_group[0];
 			int factor;
 
-			ASSERT(reloc_sinfo->subgroup_id == BTRFS_SUB_GROUP_DATA_RELOC);
+			ASSERT(reloc_sinfo->subgroup_id == BTRFS_SUB_GROUP_DATA_RELOC,
+			       "reloc_sinfo->subgroup_id=%d", reloc_sinfo->subgroup_id);
 			factor = btrfs_bg_type_to_factor(bg->flags);
 
 			down_write(&space_info->groups_sem);
@@ -2592,9 +2599,9 @@ again:
 			space_info->disk_total -= bg->length * factor;
 			space_info->disk_total -= bg->zone_unusable;
 			/* There is no allocation ever happened. */
-			ASSERT(bg->used == 0);
+			ASSERT(bg->used == 0, "bg->used=%llu", bg->used);
 			/* No super block in a block group on the zoned setup. */
-			ASSERT(bg->bytes_super == 0);
+			ASSERT(bg->bytes_super == 0, "bg->bytes_super=%llu", bg->bytes_super);
 			spin_unlock(&space_info->lock);
 
 			bg->space_info = reloc_sinfo;
@@ -2620,7 +2627,8 @@ again:
 
 	/* Allocate new BG in the data relocation space_info. */
 	space_info = data_sinfo->sub_group[0];
-	ASSERT(space_info->subgroup_id == BTRFS_SUB_GROUP_DATA_RELOC);
+	ASSERT(space_info->subgroup_id == BTRFS_SUB_GROUP_DATA_RELOC,
+	       "space_info->subgroup_id=%d", space_info->subgroup_id);
 	ret = btrfs_chunk_alloc(trans, space_info, alloc_flags, CHUNK_ALLOC_FORCE);
 	btrfs_end_transaction(trans);
 	if (ret == 1) {
@@ -2750,10 +2758,9 @@ int btrfs_zone_finish_one_bg(struct btrfs_fs_info *fs_info)
 	return ret < 0 ? ret : 1;
 }
 
-int btrfs_zoned_activate_one_bg(struct btrfs_fs_info *fs_info,
-				struct btrfs_space_info *space_info,
-				bool do_finish)
+int btrfs_zoned_activate_one_bg(struct btrfs_space_info *space_info, bool do_finish)
 {
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
 	struct btrfs_block_group *bg;
 	int index;
 
@@ -2962,7 +2969,8 @@ int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num
 		 * This holds because we currently reset fully used then freed
 		 * block group.
 		 */
-		ASSERT(reclaimed == bg->zone_capacity);
+		ASSERT(reclaimed == bg->zone_capacity,
+		       "reclaimed=%llu bg->zone_capacity=%llu", reclaimed, bg->zone_capacity);
 		bg->free_space_ctl->free_space += reclaimed;
 		space_info->bytes_zone_unusable -= reclaimed;
 		spin_unlock(&bg->lock);

@@ -10,7 +10,7 @@
 #include <sys/mman.h>
 #include <string.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define AREA_SIZE 1024
 

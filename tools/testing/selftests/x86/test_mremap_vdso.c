@@ -20,7 +20,7 @@
 #include <sys/auxv.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define PAGE_SIZE	4096
 

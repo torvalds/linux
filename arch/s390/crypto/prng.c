@@ -6,8 +6,7 @@
  * Driver for the s390 pseudo random number generator
  */
 
-#define KMSG_COMPONENT "prng"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "prng: " fmt
 
 #include <linux/fs.h>
 #include <linux/fips.h>

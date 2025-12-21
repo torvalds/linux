@@ -877,7 +877,7 @@ bool dp_set_test_pattern(
 			return false;
 
 		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable) {
-			if (should_use_dmub_lock(pipe_ctx->stream->link)) {
+			if (should_use_dmub_inbox1_lock(pipe_ctx->stream->link->dc, pipe_ctx->stream->link)) {
 				union dmub_hw_lock_flags hw_locks = { 0 };
 				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 
@@ -925,7 +925,7 @@ bool dp_set_test_pattern(
 				CRTC_STATE_VACTIVE);
 
 		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable) {
-			if (should_use_dmub_lock(pipe_ctx->stream->link)) {
+			if (should_use_dmub_inbox1_lock(pipe_ctx->stream->link->dc, pipe_ctx->stream->link)) {
 				union dmub_hw_lock_flags hw_locks = { 0 };
 				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
 

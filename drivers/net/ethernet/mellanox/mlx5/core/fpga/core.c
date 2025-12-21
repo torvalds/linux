@@ -211,7 +211,7 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	if (!max_num_qps) {
 		mlx5_fpga_err(fdev, "FPGA reports 0 QPs in SHELL_CAPS\n");
-		err = -ENOTSUPP;
+		err = -EOPNOTSUPP;
 		goto out;
 	}
 

@@ -3,8 +3,14 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/bits.h>
+#include <linux/iopoll.h>
+#include <linux/reset.h>
+
 #include "iris_instance.h"
 #include "iris_vpu_common.h"
+
+#include "iris_vpu_register_defines.h"
 
 static u64 iris_vpu2_calc_freq(struct iris_inst *inst, size_t data_size)
 {

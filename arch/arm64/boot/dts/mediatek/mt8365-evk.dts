@@ -284,6 +284,11 @@
 	};
 };
 
+&gpu {
+	mali-supply = <&mt6357_vcore_reg>;
+	status = "okay";
+};
+
 &i2c0 {
 	clock-frequency = <100000>;
 	pinctrl-0 = <&i2c0_pins>;
@@ -351,6 +356,10 @@
 		AVDD28-supply = <&touch0_fixed_3v3>;
 		VDDIO-supply = <&mt6357_vrf12_reg>;
 	};
+};
+
+&mfg {
+	domain-supply = <&mt6357_vsram_others_reg>;
 };
 
 &mmc0 {

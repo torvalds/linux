@@ -999,6 +999,7 @@ struct dm_connector_state {
 	bool underscan_enable;
 	bool freesync_capable;
 	bool update_hdcp;
+	bool abm_sysfs_forbidden;
 	uint8_t abm_level;
 	int vcpi_slots;
 	uint64_t pbn;
@@ -1061,6 +1062,9 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 
 void amdgpu_dm_update_connector_after_detect(
 		struct amdgpu_dm_connector *aconnector);
+
+void populate_hdmi_info_from_connector(struct drm_hdmi_info *info,
+				      struct dc_edid_caps *edid_caps);
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 

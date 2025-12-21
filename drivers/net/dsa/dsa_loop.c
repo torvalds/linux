@@ -441,11 +441,6 @@ out:
 
 static int __init dsa_loop_init(void)
 {
-	struct fixed_phy_status status = {
-		.link = 1,
-		.speed = SPEED_100,
-		.duplex = DUPLEX_FULL,
-	};
 	unsigned int i;
 	int ret;
 
@@ -454,7 +449,7 @@ static int __init dsa_loop_init(void)
 		return ret;
 
 	for (i = 0; i < NUM_FIXED_PHYS; i++)
-		phydevs[i] = fixed_phy_register(&status, NULL);
+		phydevs[i] = fixed_phy_register_100fd();
 
 	ret = mdio_driver_register(&dsa_loop_drv);
 	if (ret) {

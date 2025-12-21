@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 // Test that we correctly skip zero-length IOVs.
+
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
+
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
    +0 setsockopt(3, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
    +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0

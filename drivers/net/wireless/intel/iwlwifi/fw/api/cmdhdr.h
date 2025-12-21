@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014 Intel Corporation
+ * Copyright (C) 2005-2014, 2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -98,7 +98,7 @@ struct iwl_cmd_header {
 } __packed;
 
 /**
- * struct iwl_cmd_header_wide
+ * struct iwl_cmd_header_wide - wide command header
  *
  * This header format appears in the beginning of each command sent from the
  * driver, and each response/notification received from uCode.

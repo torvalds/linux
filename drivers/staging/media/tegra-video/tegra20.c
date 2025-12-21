@@ -255,7 +255,7 @@ static int tegra20_channel_host1x_syncpt_init(struct tegra_vi_channel *chan)
 
 	out_sp = host1x_syncpt_request(&vi->client, HOST1X_SYNCPT_CLIENT_MANAGED);
 	if (!out_sp)
-		return dev_err_probe(vi->dev, -ENOMEM, "failed to request syncpoint\n");
+		return -ENOMEM;
 
 	chan->mw_ack_sp[0] = out_sp;
 

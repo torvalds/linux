@@ -565,30 +565,10 @@ static void common_default_data(struct plat_stmmacenet_data *plat)
 {
 	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat->clk_csr = STMMAC_CSR_20_35M;
-	plat->has_gmac = 1;
+	plat->core_type = DWMAC_CORE_GMAC;
 	plat->force_sf_dma_mode = 1;
 
 	plat->mdio_bus_data->needs_reset = true;
-
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
-
-	/* Set default number of RX and TX queues to use */
-	plat->tx_queues_to_use = 1;
-	plat->rx_queues_to_use = 1;
-
-	/* Disable Priority config by default */
-	plat->tx_queues_cfg[0].use_prio = false;
-	plat->rx_queues_cfg[0].use_prio = false;
-
-	/* Disable RX queues routing by default */
-	plat->rx_queues_cfg[0].pkt_route = 0x0;
 }
 
 static struct phylink_pcs *intel_mgbe_select_pcs(struct stmmac_priv *priv,
@@ -612,8 +592,7 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->pdev = pdev;
 	plat->phy_addr = -1;
 	plat->clk_csr = STMMAC_CSR_250_300M;
-	plat->has_gmac = 0;
-	plat->has_gmac4 = 1;
+	plat->core_type = DWMAC_CORE_GMAC4;
 	plat->force_sf_dma_mode = 0;
 	plat->flags |= (STMMAC_FLAG_TSO_EN | STMMAC_FLAG_SPH_DISABLE);
 
@@ -630,22 +609,12 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 
 	plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
 
-	for (i = 0; i < plat->rx_queues_to_use; i++) {
+	for (i = 0; i < plat->rx_queues_to_use; i++)
 		plat->rx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
-		plat->rx_queues_cfg[i].chan = i;
-
-		/* Disable Priority config by default */
-		plat->rx_queues_cfg[i].use_prio = false;
-
-		/* Disable RX queues routing by default */
-		plat->rx_queues_cfg[i].pkt_route = 0x0;
-	}
 
 	for (i = 0; i < plat->tx_queues_to_use; i++) {
 		plat->tx_queues_cfg[i].mode_to_use = MTL_QUEUE_DCB;
 
-		/* Disable Priority config by default */
-		plat->tx_queues_cfg[i].use_prio = false;
 		/* Default TX Q0 to use TSO and rest TXQ for TBS */
 		if (i > 0)
 			plat->tx_queues_cfg[i].tbs_en = 1;
@@ -681,9 +650,8 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	plat->axi->axi_xit_frm = 0;
 	plat->axi->axi_wr_osr_lmt = 1;
 	plat->axi->axi_rd_osr_lmt = 1;
-	plat->axi->axi_blen[0] = 4;
-	plat->axi->axi_blen[1] = 8;
-	plat->axi->axi_blen[2] = 16;
+	plat->axi->axi_blen_regval = DMA_AXI_BLEN4 | DMA_AXI_BLEN8 |
+				     DMA_AXI_BLEN16;
 
 	plat->ptp_max_adj = plat->clk_ptp_rate;
 
@@ -706,15 +674,6 @@ static int intel_mgbe_common_data(struct pci_dev *pdev,
 	}
 
 	plat->ptp_clk_freq_config = intel_mgbe_ptp_clk_freq_config;
-
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
-	/* Set the maxmtu to a default of JUMBO_LEN */
-	plat->maxmtu = JUMBO_LEN;
 
 	plat->flags |= STMMAC_FLAG_VLAN_FAIL_Q_EN;
 
@@ -1287,7 +1246,7 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	if (!intel_priv)
 		return -ENOMEM;
 
-	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	plat = stmmac_plat_dat_alloc(&pdev->dev);
 	if (!plat)
 		return -ENOMEM;
 

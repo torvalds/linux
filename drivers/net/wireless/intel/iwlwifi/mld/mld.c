@@ -259,6 +259,7 @@ static const struct iwl_hcmd_names iwl_mld_data_path_names[] = {
 	HCMD_NAME(MONITOR_NOTIF),
 	HCMD_NAME(TLC_MNG_UPDATE_NOTIF),
 	HCMD_NAME(BEACON_FILTER_IN_NOTIF),
+	HCMD_NAME(PHY_AIR_SNIFFER_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 };
 

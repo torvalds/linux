@@ -14,6 +14,10 @@ struct drm_file;
 struct xe_device;
 struct xe_file;
 
+#define for_each_tlb_inval(__i)	\
+	for (__i = XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT; \
+	     __i <= XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT; ++__i)
+
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
 					   u32 logical_mask, u16 width,
 					   struct xe_hw_engine *hw_engine, u32 flags,
@@ -64,8 +68,6 @@ static inline bool xe_exec_queue_uses_pxp(struct xe_exec_queue *q)
 
 bool xe_exec_queue_is_lr(struct xe_exec_queue *q);
 
-bool xe_exec_queue_ring_full(struct xe_exec_queue *q);
-
 bool xe_exec_queue_is_idle(struct xe_exec_queue *q);
 
 void xe_exec_queue_kill(struct xe_exec_queue *q);
@@ -86,13 +88,27 @@ struct dma_fence *xe_exec_queue_last_fence_get_for_resume(struct xe_exec_queue *
 							  struct xe_vm *vm);
 void xe_exec_queue_last_fence_set(struct xe_exec_queue *e, struct xe_vm *vm,
 				  struct dma_fence *fence);
-int xe_exec_queue_last_fence_test_dep(struct xe_exec_queue *q,
-				      struct xe_vm *vm);
+
+void xe_exec_queue_tlb_inval_last_fence_put(struct xe_exec_queue *q,
+					    struct xe_vm *vm,
+					    unsigned int type);
+
+void xe_exec_queue_tlb_inval_last_fence_put_unlocked(struct xe_exec_queue *q,
+						     unsigned int type);
+
+struct dma_fence *xe_exec_queue_tlb_inval_last_fence_get(struct xe_exec_queue *q,
+							 struct xe_vm *vm,
+							 unsigned int type);
+
+void xe_exec_queue_tlb_inval_last_fence_set(struct xe_exec_queue *q,
+					    struct xe_vm *vm,
+					    struct dma_fence *fence,
+					    unsigned int type);
+
 void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q);
 
 int xe_exec_queue_contexts_hwsp_rebase(struct xe_exec_queue *q, void *scratch);
 
-void xe_exec_queue_jobs_ring_restore(struct xe_exec_queue *q);
-
 struct xe_lrc *xe_exec_queue_lrc(struct xe_exec_queue *q);
+
 #endif

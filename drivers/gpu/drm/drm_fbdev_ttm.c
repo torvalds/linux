@@ -50,11 +50,9 @@ static void drm_fbdev_ttm_fb_destroy(struct fb_info *info)
 	fb_deferred_io_cleanup(info);
 	drm_fb_helper_fini(fb_helper);
 	vfree(shadow);
-	drm_client_framebuffer_delete(fb_helper->buffer);
+	drm_client_buffer_delete(fb_helper->buffer);
 
 	drm_client_release(&fb_helper->client);
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }
 
 static const struct fb_ops drm_fbdev_ttm_fb_ops = {
@@ -176,8 +174,8 @@ int drm_fbdev_ttm_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
+	struct fb_info *info = fb_helper->info;
 	struct drm_client_buffer *buffer;
-	struct fb_info *info;
 	size_t screen_size;
 	void *screen_buffer;
 	u32 format;
@@ -189,7 +187,7 @@ int drm_fbdev_ttm_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 
 	format = drm_driver_legacy_fb_format(dev, sizes->surface_bpp,
 					     sizes->surface_depth);
-	buffer = drm_client_framebuffer_create(client, sizes->surface_width,
+	buffer = drm_client_buffer_create_dumb(client, sizes->surface_width,
 					       sizes->surface_height, format);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);
@@ -202,13 +200,7 @@ int drm_fbdev_ttm_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	screen_buffer = vzalloc(screen_size);
 	if (!screen_buffer) {
 		ret = -ENOMEM;
-		goto err_drm_client_framebuffer_delete;
-	}
-
-	info = drm_fb_helper_alloc_info(fb_helper);
-	if (IS_ERR(info)) {
-		ret = PTR_ERR(info);
-		goto err_vfree;
+		goto err_drm_client_buffer_delete;
 	}
 
 	drm_fb_helper_fill_info(info, fb_helper, sizes);
@@ -227,18 +219,16 @@ int drm_fbdev_ttm_driver_fbdev_probe(struct drm_fb_helper *fb_helper,
 	info->fbdefio = &fb_helper->fbdefio;
 	ret = fb_deferred_io_init(info);
 	if (ret)
-		goto err_drm_fb_helper_release_info;
+		goto err_vfree;
 
 	return 0;
 
-err_drm_fb_helper_release_info:
-	drm_fb_helper_release_info(fb_helper);
 err_vfree:
 	vfree(screen_buffer);
-err_drm_client_framebuffer_delete:
+err_drm_client_buffer_delete:
 	fb_helper->fb = NULL;
 	fb_helper->buffer = NULL;
-	drm_client_framebuffer_delete(buffer);
+	drm_client_buffer_delete(buffer);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fbdev_ttm_driver_fbdev_probe);

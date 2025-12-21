@@ -23,8 +23,8 @@ struct z_erofs_decompress_req {
 struct z_erofs_decompressor {
 	int (*config)(struct super_block *sb, struct erofs_super_block *dsb,
 		      void *data, int size);
-	int (*decompress)(struct z_erofs_decompress_req *rq,
-			  struct page **pagepool);
+	const char *(*decompress)(struct z_erofs_decompress_req *rq,
+				  struct page **pagepool);
 	int (*init)(void);
 	void (*exit)(void);
 	char *name;
@@ -70,10 +70,10 @@ struct z_erofs_stream_dctx {
 	bool bounced;			/* is the bounce buffer used now? */
 };
 
-int z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx, void **dst,
-			       void **src, struct page **pgpl);
-int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
-			 unsigned int padbufsize);
+const char *z_erofs_stream_switch_bufs(struct z_erofs_stream_dctx *dctx,
+				void **dst, void **src, struct page **pgpl);
+const char *z_erofs_fixup_insize(struct z_erofs_decompress_req *rq,
+				 const char *padbuf, unsigned int padbufsize);
 int __init z_erofs_init_decompressor(void);
 void z_erofs_exit_decompressor(void);
 int z_erofs_crypto_decompress(struct z_erofs_decompress_req *rq,

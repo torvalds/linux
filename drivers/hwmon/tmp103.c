@@ -14,11 +14,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
-#include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/jiffies.h>
 #include <linux/regmap.h>
 
 #define TMP103_TEMP_REG		0x00

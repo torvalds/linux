@@ -6,12 +6,13 @@
 #include <linux/iopoll.h>
 #include <linux/string_helpers.h>
 
+#include <drm/drm_print.h>
+
 #include "soc/intel_dram.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_backlight_regs.h"
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
@@ -23,6 +24,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dmc.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pch_refclk.h"
@@ -1290,9 +1292,8 @@ static void hsw_disable_lcpll(struct intel_display *display,
 		val |= LCPLL_CD_SOURCE_FCLK;
 		intel_de_write(display, LCPLL_CTL, val);
 
-		ret = intel_de_wait_custom(display, LCPLL_CTL,
-					   LCPLL_CD_SOURCE_FCLK_DONE, LCPLL_CD_SOURCE_FCLK_DONE,
-					   1, 0, NULL);
+		ret = intel_de_wait_for_set_us(display, LCPLL_CTL,
+					       LCPLL_CD_SOURCE_FCLK_DONE, 1);
 		if (ret)
 			drm_err(display->drm, "Switching to FCLK failed\n");
 
@@ -1303,7 +1304,7 @@ static void hsw_disable_lcpll(struct intel_display *display,
 	intel_de_write(display, LCPLL_CTL, val);
 	intel_de_posting_read(display, LCPLL_CTL);
 
-	if (intel_de_wait_for_clear(display, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
+	if (intel_de_wait_for_clear_ms(display, LCPLL_CTL, LCPLL_PLL_LOCK, 1))
 		drm_err(display->drm, "LCPLL still locked\n");
 
 	val = hsw_read_dcomp(display);
@@ -1360,15 +1361,14 @@ static void hsw_restore_lcpll(struct intel_display *display)
 	val &= ~LCPLL_PLL_DISABLE;
 	intel_de_write(display, LCPLL_CTL, val);
 
-	if (intel_de_wait_for_set(display, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
+	if (intel_de_wait_for_set_ms(display, LCPLL_CTL, LCPLL_PLL_LOCK, 5))
 		drm_err(display->drm, "LCPLL not locked yet\n");
 
 	if (val & LCPLL_CD_SOURCE_FCLK) {
 		intel_de_rmw(display, LCPLL_CTL, LCPLL_CD_SOURCE_FCLK, 0);
 
-		ret = intel_de_wait_custom(display, LCPLL_CTL,
-					   LCPLL_CD_SOURCE_FCLK_DONE, 0,
-					   1, 0, NULL);
+		ret = intel_de_wait_for_clear_us(display, LCPLL_CTL,
+						 LCPLL_CD_SOURCE_FCLK_DONE, 1);
 		if (ret)
 			drm_err(display->drm,
 				"Switching back to LCPLL failed\n");
@@ -1435,6 +1435,9 @@ static void intel_pch_reset_handshake(struct intel_display *display,
 {
 	i915_reg_t reg;
 	u32 reset_bits;
+
+	if (DISPLAY_VER(display) >= 35)
+		return;
 
 	if (display->platform.ivybridge) {
 		reg = GEN7_MSG_CTL;

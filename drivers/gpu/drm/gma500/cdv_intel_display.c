@@ -11,6 +11,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
 
 #include "cdv_device.h"
 #include "framebuffer.h"

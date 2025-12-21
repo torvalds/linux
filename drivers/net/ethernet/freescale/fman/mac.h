@@ -16,6 +16,11 @@
 #include "fman.h"
 #include "fman_mac.h"
 
+struct ethtool_eth_ctrl_stats;
+struct ethtool_eth_mac_stats;
+struct ethtool_pause_stats;
+struct ethtool_rmon_stats;
+struct ethtool_rmon_hist_range;
 struct fman_mac;
 struct mac_priv_s;
 
@@ -46,6 +51,15 @@ struct mac_device {
 				 enet_addr_t *eth_addr);
 	int (*remove_hash_mac_addr)(struct fman_mac *mac_dev,
 				    enet_addr_t *eth_addr);
+	void (*get_pause_stats)(struct fman_mac *memac,
+				struct ethtool_pause_stats *s);
+	void (*get_rmon_stats)(struct fman_mac *memac,
+			       struct ethtool_rmon_stats *s,
+			       const struct ethtool_rmon_hist_range **ranges);
+	void (*get_eth_ctrl_stats)(struct fman_mac *memac,
+				   struct ethtool_eth_ctrl_stats *s);
+	void (*get_eth_mac_stats)(struct fman_mac *memac,
+				  struct ethtool_eth_mac_stats *s);
 
 	void (*update_speed)(struct mac_device *mac_dev, int speed);
 

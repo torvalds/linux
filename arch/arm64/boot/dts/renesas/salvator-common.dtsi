@@ -1004,6 +1004,11 @@
 	shared-pin;
 };
 
+/* Firmware should reserve it but sadly doesn't */
+&swdt {
+	status = "reserved";
+};
+
 &usb_extal_clk {
 	clock-frequency = <50000000>;
 };

@@ -13,3 +13,5 @@ obj-$(CONFIG_CHROME_PLATFORMS)	+= chrome/
 obj-$(CONFIG_CZNIC_PLATFORMS)	+= cznic/
 obj-$(CONFIG_SURFACE_PLATFORMS)	+= surface/
 obj-$(CONFIG_ARM64_PLATFORM_DEVICES)	+= arm64/
+obj-$(CONFIG_BCM2835_VCHIQ)	+= raspberrypi/
+obj-$(CONFIG_ACPI_WMI)		+= wmi/

@@ -171,13 +171,6 @@ struct registry_priv {
 	u8 hiq_filter;
 };
 
-
-/* For registry parameters */
-#define RGTRY_OFT(field) ((u32)FIELD_OFFSET(struct registry_priv, field))
-#define RGTRY_SZ(field)   sizeof(((struct registry_priv *)0)->field)
-#define BSSID_OFT(field) ((u32)FIELD_OFFSET(struct wlan_bssid_ex, field))
-#define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *) 0)->field)
-
 #include <drv_types_sdio.h>
 
 #define GET_PRIMARY_ADAPTER(padapter) (((struct adapter *)padapter)->dvobj->if1)

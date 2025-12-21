@@ -11,6 +11,7 @@ struct dentry;
 
 #ifdef CONFIG_PCI_IOV
 void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root);
+void xe_gt_sriov_pf_debugfs_populate(struct xe_gt *gt, struct dentry *parent, unsigned int vfid);
 #else
 static inline void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root) { }
 #endif

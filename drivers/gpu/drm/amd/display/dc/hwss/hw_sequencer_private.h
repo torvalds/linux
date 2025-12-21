@@ -27,6 +27,7 @@
 #define __DC_HW_SEQUENCER_PRIVATE_H__
 
 #include "dc_types.h"
+#include "hw_sequencer.h"
 
 enum pipe_gating_control {
 	PIPE_GATING_CONTROL_DISABLE = 0,
@@ -80,7 +81,13 @@ struct hwseq_private_funcs {
 	void (*plane_atomic_disconnect)(struct dc *dc,
 			struct dc_state *state,
 			struct pipe_ctx *pipe_ctx);
+	void (*plane_atomic_disconnect_sequence)(struct dc *dc,
+			struct dc_state *state,
+			struct pipe_ctx *pipe_ctx,
+			struct block_sequence_state *seq_state);
 	void (*update_mpcc)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*update_mpcc_sequence)(struct dc *dc, struct pipe_ctx *pipe_ctx,
+			struct block_sequence_state *seq_state);
 	bool (*set_input_transfer_func)(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
@@ -97,6 +104,10 @@ struct hwseq_private_funcs {
 	void (*blank_pixel_data)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			bool blank);
+	void (*blank_pixel_data_sequence)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			bool blank,
+			struct block_sequence_state *seq_state);
 	enum dc_status (*enable_stream_timing)(
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context,
@@ -105,6 +116,8 @@ struct hwseq_private_funcs {
 			bool enable);
 	void (*setup_vupdate_interrupt)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx);
+	void (*setup_vupdate_interrupt_sequence)(struct dc *dc, struct pipe_ctx *pipe_ctx,
+		struct block_sequence_state *seq_state);
 	bool (*did_underflow_occur)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	void (*init_blank)(struct dc *dc, struct timing_generator *tg);
 	void (*disable_vga)(struct dce_hwseq *hws);
@@ -112,6 +125,10 @@ struct hwseq_private_funcs {
 	void (*plane_atomic_power_down)(struct dc *dc,
 			struct dpp *dpp,
 			struct hubp *hubp);
+	void (*plane_atomic_power_down_sequence)(struct dc *dc,
+			struct dpp *dpp,
+			struct hubp *hubp,
+			struct block_sequence_state *seq_state);
 	void (*plane_atomic_disable)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	void (*enable_power_gating_plane)(struct dce_hwseq *hws,
 		bool enable);
@@ -140,15 +157,31 @@ struct hwseq_private_funcs {
 			unsigned int dsc_inst);
 	void (*update_odm)(struct dc *dc, struct dc_state *context,
 			struct pipe_ctx *pipe_ctx);
+	void (*update_odm_sequence)(struct dc *dc, struct dc_state *context,
+			struct pipe_ctx *pipe_ctx, struct block_sequence_state *seq_state);
 	void (*program_all_writeback_pipes_in_tree)(struct dc *dc,
 			const struct dc_stream_state *stream,
 			struct dc_state *context);
+	void (*program_all_writeback_pipes_in_tree_sequence)(
+			struct dc *dc,
+			const struct dc_stream_state *stream,
+			struct dc_state *context,
+			struct block_sequence_state *seq_state);
 	bool (*s0i3_golden_init_wa)(struct dc *dc);
 	void (*set_hdr_multiplier)(struct pipe_ctx *pipe_ctx);
+	void (*set_hdr_multiplier_sequence)(struct pipe_ctx *pipe_ctx,
+			struct block_sequence_state *seq_state);
 	void (*verify_allow_pstate_change_high)(struct dc *dc);
+	void (*verify_allow_pstate_change_high_sequence)(struct dc *dc,
+		struct block_sequence_state *seq_state);
 	void (*program_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);
+	void (*program_pipe_sequence)(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_state *context,
+		struct block_sequence_state *seq_state);
 	bool (*wait_for_blank_complete)(struct output_pixel_processor *opp);
 	void (*dccg_init)(struct dce_hwseq *hws);
 	bool (*set_blend_lut)(struct pipe_ctx *pipe_ctx,
@@ -163,6 +196,8 @@ struct hwseq_private_funcs {
 	void (*enable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context);
 	void (*program_mall_pipe_config)(struct dc *dc, struct dc_state *context);
+	void (*program_mall_pipe_config_sequence)(struct dc *dc, struct dc_state *context,
+			struct block_sequence_state *seq_state);
 	void (*update_force_pstate)(struct dc *dc, struct dc_state *context);
 	void (*update_mall_sel)(struct dc *dc, struct dc_state *context);
 	unsigned int (*calculate_dccg_k1_k2_values)(struct pipe_ctx *pipe_ctx,
@@ -186,6 +221,7 @@ struct hwseq_private_funcs {
 	void (*perform_3dlut_wa_unlock)(struct pipe_ctx *pipe_ctx);
 	void (*wait_for_pipe_update_if_needed)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool is_surface_update_only);
 	void (*set_wait_for_update_needed_for_pipe)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*dc_ip_request_cntl)(struct dc *dc, bool enable);
 };
 
 struct dce_hwseq {

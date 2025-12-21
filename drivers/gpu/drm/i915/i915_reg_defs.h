@@ -174,6 +174,16 @@
  */
 #define REG_FIELD_GET8(__mask, __val)   ((u8)FIELD_GET(__mask, __val))
 
+/**
+ * REG_FIELD_MAX() - produce the maximum value representable by a field
+ * @__mask: shifted mask defining the field's length and position
+ *
+ * Local wrapper for FIELD_MAX() to return the maximum bit value that can
+ * be held in the field specified by @_mask, cast to u32 for consistency
+ * with other macros.
+ */
+#define REG_FIELD_MAX(__mask)	((u32)FIELD_MAX(__mask))
+
 typedef struct {
 	u32 reg;
 } i915_reg_t;

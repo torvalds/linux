@@ -2066,27 +2066,19 @@
 				reg = <0x52>;
 
 				fan@0 {
-					compatible = "pmbus-fan";
 					reg = <0>;
-					tach-pulses = <2>;
 				};
 
 				fan@1 {
-					compatible = "pmbus-fan";
 					reg = <1>;
-					tach-pulses = <2>;
 				};
 
 				fan@2 {
-					compatible = "pmbus-fan";
 					reg = <2>;
-					tach-pulses = <2>;
 				};
 
 				fan@3 {
-					compatible = "pmbus-fan";
 					reg = <3>;
-					tach-pulses = <2>;
 				};
 			};
 

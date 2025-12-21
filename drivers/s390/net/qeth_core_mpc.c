@@ -139,39 +139,64 @@ struct ipa_rc_msg {
 	const char *msg;
 };
 
-static const struct ipa_rc_msg qeth_ipa_rc_msg[] = {
+static const struct ipa_rc_msg qeth_ipa_rc_def_msg[] = {
 	{IPA_RC_SUCCESS,		"success"},
 	{IPA_RC_NOTSUPP,		"Command not supported"},
-	{IPA_RC_IP_TABLE_FULL,		"Add Addr IP Table Full - ipv6"},
-	{IPA_RC_UNKNOWN_ERROR,		"IPA command failed - reason unknown"},
 	{IPA_RC_UNSUPPORTED_COMMAND,	"Command not supported"},
-	{IPA_RC_VNICC_OOSEQ,		"Command issued out of sequence"},
-	{IPA_RC_INVALID_FORMAT,		"invalid format or length"},
 	{IPA_RC_DUP_IPV6_REMOTE, "ipv6 address already registered remote"},
-	{IPA_RC_SBP_IQD_NOT_CONFIGURED,	"Not configured for bridgeport"},
 	{IPA_RC_DUP_IPV6_HOME,		"ipv6 address already registered"},
 	{IPA_RC_UNREGISTERED_ADDR,	"Address not registered"},
-	{IPA_RC_NO_ID_AVAILABLE,	"No identifiers available"},
 	{IPA_RC_ID_NOT_FOUND,		"Identifier not found"},
+	{IPA_RC_LAN_FRAME_MISMATCH,	"LAN and frame mismatch"},
+	{IPA_RC_L2_UNSUPPORTED_CMD,	"Unsupported layer 2 command"},
+	{IPA_RC_L2_ADDR_TABLE_FULL,	"Layer2 address table full"},
+	{IPA_RC_L2_MAC_NOT_AUTH_BY_ADP,	"L2 mac not authorized by adapter"},
+	{IPA_RC_DATA_MISMATCH,		"Data field mismatch (v4/v6 mixed)"},
+	{IPA_RC_INVALID_MTU_SIZE,	"Invalid MTU size"},
+	{IPA_RC_INVALID_LANTYPE,	"Invalid LAN type"},
+	{IPA_RC_INVALID_LANNUM,		"Invalid LAN num"},
+	{IPA_RC_LAN_PORT_STATE_ERROR,	"LAN port state error"},
+	{IPA_RC_SETIP_NO_STARTLAN,	"Setip no startlan received"},
+	{IPA_RC_SETIP_ALREADY_RECEIVED,	"Setip already received"},
+	{IPA_RC_SETIP_INVALID_VERSION,	"SETIP invalid IP version"},
+	{IPA_RC_UNSUPPORTED_SUBCMD,	"Unsupported assist subcommand"},
+	{IPA_RC_ARP_ASSIST_NO_ENABLE,	"Only partial success, no enable"},
+	{IPA_RC_INVALID_IP_VERSION2,	"Invalid IP version"},
+	/* default for qeth_get_ipa_msg(): */
+	{IPA_RC_FFFF,			"Unknown Error"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_adp_parms_msg[] = {
+	{IPA_RC_IP_TABLE_FULL,	"Add Addr IP Table Full - ipv6"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_diag_ass_msg[] = {
+	{IPA_RC_INVALID_FORMAT,	"invalid format or length"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_addr_msg[] = {
+	{IPA_RC_UNKNOWN_ERROR,	 "IPA command failed - reason unknown"},
+	{IPA_RC_NO_ID_AVAILABLE, "No identifiers available"},
+	{IPA_RC_INVALID_IP_VERSION,	"IP version incorrect"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_vnicc_msg[] = {
+	{IPA_RC_VNICC_OOSEQ,	"Command issued out of sequence"},
+	{IPA_RC_VNICC_VNICBP,	"VNIC is BridgePort"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_sbp_iqd_msg[] = {
+	{IPA_RC_SBP_IQD_NOT_CONFIGURED,	"Not configured for bridgeport"},
+	{IPA_RC_SBP_IQD_OS_MISMATCH,	"OS mismatch"},
 	{IPA_RC_SBP_IQD_ANO_DEV_PRIMARY, "Primary bridgeport exists already"},
 	{IPA_RC_SBP_IQD_CURRENT_SECOND,	"Bridgeport is currently secondary"},
 	{IPA_RC_SBP_IQD_LIMIT_SECOND, "Limit of secondary bridgeports reached"},
-	{IPA_RC_INVALID_IP_VERSION,	"IP version incorrect"},
+	{IPA_RC_SBP_IQD_NOT_AUTHD_BY_ZMAN, "Not authorized by zManager"},
 	{IPA_RC_SBP_IQD_CURRENT_PRIMARY, "Bridgeport is currently primary"},
-	{IPA_RC_LAN_FRAME_MISMATCH,	"LAN and frame mismatch"},
-	{IPA_RC_SBP_IQD_NO_QDIO_QUEUES,	"QDIO queues not established"},
-	{IPA_RC_L2_UNSUPPORTED_CMD,	"Unsupported layer 2 command"},
-	{IPA_RC_L2_DUP_MAC,		"Duplicate MAC address"},
-	{IPA_RC_L2_ADDR_TABLE_FULL,	"Layer2 address table full"},
-	{IPA_RC_L2_DUP_LAYER3_MAC,	"Duplicate with layer 3 MAC"},
-	{IPA_RC_L2_GMAC_NOT_FOUND,	"GMAC not found"},
-	{IPA_RC_L2_MAC_NOT_AUTH_BY_HYP,	"L2 mac not authorized by hypervisor"},
-	{IPA_RC_L2_MAC_NOT_AUTH_BY_ADP,	"L2 mac not authorized by adapter"},
-	{IPA_RC_L2_MAC_NOT_FOUND,	"L2 mac address not found"},
-	{IPA_RC_L2_INVALID_VLAN_ID,	"L2 invalid vlan id"},
-	{IPA_RC_L2_DUP_VLAN_ID,		"L2 duplicate vlan id"},
-	{IPA_RC_L2_VLAN_ID_NOT_FOUND,	"L2 vlan id not found"},
-	{IPA_RC_VNICC_VNICBP,		"VNIC is BridgePort"},
+	{IPA_RC_SBP_IQD_NO_QDIO_QUEUES,	"QDIO queues not established"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_sbp_osa_msg[] = {
 	{IPA_RC_SBP_OSA_NOT_CONFIGURED,	"Not configured for bridgeport"},
 	{IPA_RC_SBP_OSA_OS_MISMATCH,	"OS mismatch"},
 	{IPA_RC_SBP_OSA_ANO_DEV_PRIMARY, "Primary bridgeport exists already"},
@@ -179,42 +204,172 @@ static const struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_SBP_OSA_LIMIT_SECOND, "Limit of secondary bridgeports reached"},
 	{IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN, "Not authorized by zManager"},
 	{IPA_RC_SBP_OSA_CURRENT_PRIMARY, "Bridgeport is currently primary"},
-	{IPA_RC_SBP_OSA_NO_QDIO_QUEUES,	"QDIO queues not established"},
-	{IPA_RC_DATA_MISMATCH,		"Data field mismatch (v4/v6 mixed)"},
-	{IPA_RC_INVALID_MTU_SIZE,	"Invalid MTU size"},
-	{IPA_RC_INVALID_LANTYPE,	"Invalid LAN type"},
-	{IPA_RC_INVALID_LANNUM,		"Invalid LAN num"},
+	{IPA_RC_SBP_OSA_NO_QDIO_QUEUES,	"QDIO queues not established"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_mac_msg[] = {
+	{IPA_RC_L2_DUP_MAC,	   "Duplicate MAC address"},
+	{IPA_RC_L2_DUP_LAYER3_MAC, "Duplicate with layer 3 MAC"},
+	{IPA_RC_L2_GMAC_NOT_FOUND, "GMAC not found"},
+	{IPA_RC_L2_MAC_NOT_AUTH_BY_HYP,	"L2 mac not authorized by hypervisor"},
+	{IPA_RC_L2_MAC_NOT_FOUND,  "L2 mac address not found"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_ip_msg[] = {
 	{IPA_RC_DUPLICATE_IP_ADDRESS,	"Address already registered"},
 	{IPA_RC_IP_ADDR_TABLE_FULL,	"IP address table full"},
-	{IPA_RC_LAN_PORT_STATE_ERROR,	"LAN port state error"},
-	{IPA_RC_SETIP_NO_STARTLAN,	"Setip no startlan received"},
-	{IPA_RC_SETIP_ALREADY_RECEIVED,	"Setip already received"},
 	{IPA_RC_IP_ADDR_ALREADY_USED,	"IP address already in use on LAN"},
-	{IPA_RC_MC_ADDR_NOT_FOUND,	"Multicast address not found"},
-	{IPA_RC_SETIP_INVALID_VERSION,	"SETIP invalid IP version"},
-	{IPA_RC_UNSUPPORTED_SUBCMD,	"Unsupported assist subcommand"},
-	{IPA_RC_ARP_ASSIST_NO_ENABLE,	"Only partial success, no enable"},
+	{IPA_RC_MC_ADDR_NOT_FOUND,	"Multicast address not found"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_lan_msg[] = {
+	{IPA_RC_LAN_OFFLINE,		"STRTLAN_LAN_DISABLED - LAN offline"},
+	{IPA_RC_VEPA_TO_VEB_TRANSITION,	"Adj. switch disabled port mode RR"},
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_vlan_msg[] = {
+	{IPA_RC_L2_INVALID_VLAN_ID,	"L2 invalid vlan id"},
+	{IPA_RC_L2_DUP_VLAN_ID,		"L2 duplicate vlan id"},
+	{IPA_RC_L2_VLAN_ID_NOT_FOUND,	"L2 vlan id not found"}
+};
+
+static const struct ipa_rc_msg qeth_ipa_rc_rtg_msg[] = {
 	{IPA_RC_PRIMARY_ALREADY_DEFINED, "Primary already defined"},
 	{IPA_RC_SECOND_ALREADY_DEFINED,	"Secondary already defined"},
 	{IPA_RC_INVALID_SETRTG_INDICATOR, "Invalid SETRTG indicator"},
-	{IPA_RC_MC_ADDR_ALREADY_DEFINED, "Multicast address already defined"},
-	{IPA_RC_LAN_OFFLINE,		"STRTLAN_LAN_DISABLED - LAN offline"},
-	{IPA_RC_VEPA_TO_VEB_TRANSITION,	"Adj. switch disabled port mode RR"},
-	{IPA_RC_INVALID_IP_VERSION2,	"Invalid IP version"},
-	/* default for qeth_get_ipa_msg(): */
-	{IPA_RC_FFFF,			"Unknown Error"}
+	{IPA_RC_MC_ADDR_ALREADY_DEFINED, "Multicast address already defined"}
 };
 
-const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
+struct ipa_cmd_rc_map {
+	enum qeth_ipa_cmds cmd;
+	const struct ipa_rc_msg *msg_arr;
+	const size_t arr_len;
+};
+
+static const struct ipa_cmd_rc_map qeth_ipa_cmd_rc_map[] = {
+	{
+		.cmd = IPA_CMD_SETADAPTERPARMS,
+		.msg_arr = qeth_ipa_rc_adp_parms_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_adp_parms_msg)
+	},
+	{
+		.cmd = IPA_CMD_SET_DIAG_ASS,
+		.msg_arr = qeth_ipa_rc_diag_ass_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_diag_ass_msg)
+	},
+	{
+		.cmd = IPA_CMD_CREATE_ADDR,
+		.msg_arr = qeth_ipa_rc_addr_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_addr_msg)
+	},
+	{
+		.cmd = IPA_CMD_DESTROY_ADDR,
+		.msg_arr = qeth_ipa_rc_addr_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_addr_msg)
+	},
+	{
+		.cmd = IPA_CMD_VNICC,
+		.msg_arr = qeth_ipa_rc_vnicc_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_vnicc_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETBRIDGEPORT_IQD,
+		.msg_arr = qeth_ipa_rc_sbp_iqd_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_sbp_iqd_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETBRIDGEPORT_OSA,
+		.msg_arr = qeth_ipa_rc_sbp_osa_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_sbp_osa_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETVMAC,
+		.msg_arr = qeth_ipa_rc_mac_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_mac_msg)
+	},
+	{
+		.cmd = IPA_CMD_DELVMAC,
+		.msg_arr = qeth_ipa_rc_mac_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_mac_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETGMAC,
+		.msg_arr = qeth_ipa_rc_mac_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_mac_msg)
+	},
+	{
+		.cmd = IPA_CMD_DELGMAC,
+		.msg_arr = qeth_ipa_rc_mac_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_mac_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETIP,
+		.msg_arr = qeth_ipa_rc_ip_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_ip_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETIPM,
+		.msg_arr = qeth_ipa_rc_ip_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_ip_msg)
+	},
+	{
+		.cmd = IPA_CMD_DELIPM,
+		.msg_arr = qeth_ipa_rc_ip_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_ip_msg)
+	},
+	{
+		.cmd = IPA_CMD_STARTLAN,
+		.msg_arr = qeth_ipa_rc_lan_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_lan_msg)
+	},
+	{
+		.cmd = IPA_CMD_STOPLAN,
+		.msg_arr = qeth_ipa_rc_lan_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_lan_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETVLAN,
+		.msg_arr = qeth_ipa_rc_vlan_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_vlan_msg)
+	},
+	{
+		.cmd = IPA_CMD_DELVLAN,
+		.msg_arr = qeth_ipa_rc_vlan_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_vlan_msg)
+	},
+	{
+		.cmd = IPA_CMD_SETRTG,
+		.msg_arr = qeth_ipa_rc_rtg_msg,
+		.arr_len = ARRAY_SIZE(qeth_ipa_rc_rtg_msg)
+	}
+};
+
+const char *qeth_get_ipa_msg(enum qeth_ipa_cmds cmd,
+			     enum qeth_ipa_return_codes rc)
 {
 	int x;
+	const struct ipa_rc_msg *msg_arr = NULL;
+	size_t arr_len = 0;
 
-	for (x = 0; x < ARRAY_SIZE(qeth_ipa_rc_msg) - 1; x++)
-		if (qeth_ipa_rc_msg[x].rc == rc)
-			return qeth_ipa_rc_msg[x].msg;
-	return qeth_ipa_rc_msg[x].msg;
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_cmd_rc_map); x++) {
+		if (qeth_ipa_cmd_rc_map[x].cmd == cmd) {
+			msg_arr = qeth_ipa_cmd_rc_map[x].msg_arr;
+			arr_len = qeth_ipa_cmd_rc_map[x].arr_len;
+			break;
+		}
+	}
+
+	for (x = 0; x < arr_len; x++) {
+		if (msg_arr[x].rc == rc)
+			return msg_arr[x].msg;
+	}
+
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_rc_def_msg) - 1; x++) {
+		if (qeth_ipa_rc_def_msg[x].rc == rc)
+			return qeth_ipa_rc_def_msg[x].msg;
+	}
+	return qeth_ipa_rc_def_msg[x].msg;
 }
-
 
 struct ipa_cmd_names {
 	enum qeth_ipa_cmds cmd;

@@ -13,6 +13,7 @@
 
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
+#include "amdxdna_error.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
@@ -46,6 +47,7 @@ enum aie_module_type {
 	AIE_MEM_MOD = 0,
 	AIE_CORE_MOD,
 	AIE_PL_MOD,
+	AIE_UNKNOWN_MOD,
 };
 
 enum aie_error_category {
@@ -143,6 +145,31 @@ static const struct aie_event_category aie_ml_shim_tile_event_cat[] = {
 	EVENT_CATEGORY(74U, AIE_ERROR_LOCK),
 };
 
+static const enum amdxdna_error_num aie_cat_err_num_map[] = {
+	[AIE_ERROR_SATURATION] = AMDXDNA_ERROR_NUM_AIE_SATURATION,
+	[AIE_ERROR_FP] = AMDXDNA_ERROR_NUM_AIE_FP,
+	[AIE_ERROR_STREAM] = AMDXDNA_ERROR_NUM_AIE_STREAM,
+	[AIE_ERROR_ACCESS] = AMDXDNA_ERROR_NUM_AIE_ACCESS,
+	[AIE_ERROR_BUS] = AMDXDNA_ERROR_NUM_AIE_BUS,
+	[AIE_ERROR_INSTRUCTION] = AMDXDNA_ERROR_NUM_AIE_INSTRUCTION,
+	[AIE_ERROR_ECC] = AMDXDNA_ERROR_NUM_AIE_ECC,
+	[AIE_ERROR_LOCK] = AMDXDNA_ERROR_NUM_AIE_LOCK,
+	[AIE_ERROR_DMA] = AMDXDNA_ERROR_NUM_AIE_DMA,
+	[AIE_ERROR_MEM_PARITY] = AMDXDNA_ERROR_NUM_AIE_MEM_PARITY,
+	[AIE_ERROR_UNKNOWN] = AMDXDNA_ERROR_NUM_UNKNOWN,
+};
+
+static_assert(ARRAY_SIZE(aie_cat_err_num_map) == AIE_ERROR_UNKNOWN + 1);
+
+static const enum amdxdna_error_module aie_err_mod_map[] = {
+	[AIE_MEM_MOD] = AMDXDNA_ERROR_MODULE_AIE_MEMORY,
+	[AIE_CORE_MOD] = AMDXDNA_ERROR_MODULE_AIE_CORE,
+	[AIE_PL_MOD] = AMDXDNA_ERROR_MODULE_AIE_PL,
+	[AIE_UNKNOWN_MOD] = AMDXDNA_ERROR_MODULE_UNKNOWN,
+};
+
+static_assert(ARRAY_SIZE(aie_err_mod_map) == AIE_UNKNOWN_MOD + 1);
+
 static enum aie_error_category
 aie_get_error_category(u8 row, u8 event_id, enum aie_module_type mod_type)
 {
@@ -176,10 +203,38 @@ aie_get_error_category(u8 row, u8 event_id, enum aie_module_type mod_type)
 		if (event_id != lut[i].event_id)
 			continue;
 
+		if (lut[i].category > AIE_ERROR_UNKNOWN)
+			return AIE_ERROR_UNKNOWN;
+
 		return lut[i].category;
 	}
 
 	return AIE_ERROR_UNKNOWN;
+}
+
+static void aie2_update_last_async_error(struct amdxdna_dev_hdl *ndev, void *err_info, u32 num_err)
+{
+	struct aie_error *errs = err_info;
+	enum amdxdna_error_module err_mod;
+	enum aie_error_category aie_err;
+	enum amdxdna_error_num err_num;
+	struct aie_error *last_err;
+
+	last_err = &errs[num_err - 1];
+	if (last_err->mod_type >= AIE_UNKNOWN_MOD) {
+		err_num = aie_cat_err_num_map[AIE_ERROR_UNKNOWN];
+		err_mod = aie_err_mod_map[AIE_UNKNOWN_MOD];
+	} else {
+		aie_err = aie_get_error_category(last_err->row,
+						 last_err->event_id,
+						 last_err->mod_type);
+		err_num = aie_cat_err_num_map[aie_err];
+		err_mod = aie_err_mod_map[last_err->mod_type];
+	}
+
+	ndev->last_async_err.err_code = AMDXDNA_ERROR_ENCODE(err_num, err_mod);
+	ndev->last_async_err.ts_us = ktime_to_us(ktime_get_real());
+	ndev->last_async_err.ex_err_code = AMDXDNA_EXTRA_ERR_ENCODE(last_err->row, last_err->col);
 }
 
 static u32 aie2_error_backtrack(struct amdxdna_dev_hdl *ndev, void *err_info, u32 num_err)
@@ -264,27 +319,12 @@ static void aie2_error_worker(struct work_struct *err_work)
 	}
 
 	mutex_lock(&xdna->dev_lock);
+	aie2_update_last_async_error(e->ndev, info->payload, info->err_cnt);
+
 	/* Re-sent this event to firmware */
 	if (aie2_error_event_send(e))
 		XDNA_WARN(xdna, "Unable to register async event");
 	mutex_unlock(&xdna->dev_lock);
-}
-
-int aie2_error_async_events_send(struct amdxdna_dev_hdl *ndev)
-{
-	struct amdxdna_dev *xdna = ndev->xdna;
-	struct async_event *e;
-	int i, ret;
-
-	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
-	for (i = 0; i < ndev->async_events->event_cnt; i++) {
-		e = &ndev->async_events->event[i];
-		ret = aie2_error_event_send(e);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 void aie2_error_async_events_free(struct amdxdna_dev_hdl *ndev)
@@ -341,6 +381,10 @@ int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev)
 		e->size = ASYNC_BUF_SIZE;
 		e->resp.status = MAX_AIE2_STATUS_CODE;
 		INIT_WORK(&e->work, aie2_error_worker);
+
+		ret = aie2_error_event_send(e);
+		if (ret)
+			goto free_wq;
 	}
 
 	ndev->async_events = events;
@@ -349,10 +393,27 @@ int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev)
 		 events->event_cnt, events->size);
 	return 0;
 
+free_wq:
+	destroy_workqueue(events->wq);
 free_buf:
 	dma_free_noncoherent(xdna->ddev.dev, events->size, events->buf,
 			     events->addr, DMA_FROM_DEVICE);
 free_events:
 	kfree(events);
 	return ret;
+}
+
+int aie2_get_array_async_error(struct amdxdna_dev_hdl *ndev, struct amdxdna_drm_get_array *args)
+{
+	struct amdxdna_dev *xdna = ndev->xdna;
+
+	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
+
+	args->num_element = 1;
+	args->element_size = sizeof(ndev->last_async_err);
+	if (copy_to_user(u64_to_user_ptr(args->buffer),
+			 &ndev->last_async_err, args->element_size))
+		return -EFAULT;
+
+	return 0;
 }

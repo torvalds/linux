@@ -44,7 +44,7 @@ struct xe_guc_log_snapshot {
 struct xe_guc_log {
 	/** @level: GuC log level */
 	u32 level;
-	/** @bo: XE BO for GuC log */
+	/** @bo: Xe BO for GuC log */
 	struct xe_bo *bo;
 	/** @stats: logging related stats */
 	struct {

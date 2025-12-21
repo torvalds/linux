@@ -1233,6 +1233,7 @@ static int felix_port_enable(struct dsa_switch *ds, int port,
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
 
 	if (!dsa_port_is_user(dp))
 		return 0;
@@ -1246,7 +1247,25 @@ static int felix_port_enable(struct dsa_switch *ds, int port,
 		}
 	}
 
-	return 0;
+	if (!dp->hsr_dev || felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q)
+		return 0;
+
+	return dsa_port_simple_hsr_join(ds, port, dp->hsr_dev, NULL);
+}
+
+static void felix_port_disable(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (!dsa_port_is_user(dp))
+		return;
+
+	if (!dp->hsr_dev || felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q)
+		return;
+
+	dsa_port_simple_hsr_leave(ds, port, dp->hsr_dev);
 }
 
 static void felix_port_qos_map_init(struct ocelot *ocelot, int port)
@@ -2232,6 +2251,52 @@ static void felix_get_mm_stats(struct dsa_switch *ds, int port,
 	ocelot_port_get_mm_stats(ocelot, port, stats);
 }
 
+/* Depending on port type, we may be able to support the offload later (with
+ * the "ocelot"/"seville" tagging protocols), or never.
+ * If we return 0, the dp->hsr_dev reference is kept for later; if we return
+ * -EOPNOTSUPP, it is cleared (which helps to not bother
+ * dsa_port_simple_hsr_leave() with an offload that didn't pass validation).
+ */
+static int felix_port_hsr_join(struct dsa_switch *ds, int port,
+			       struct net_device *hsr,
+			       struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q) {
+		int err;
+
+		err = dsa_port_simple_hsr_validate(ds, port, hsr, extack);
+		if (err)
+			return err;
+
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Offloading not supported with \"ocelot-8021q\"");
+		return 0;
+	}
+
+	if (!(dsa_to_port(ds, port)->user->flags & IFF_UP))
+		return 0;
+
+	return dsa_port_simple_hsr_join(ds, port, hsr, extack);
+}
+
+static int felix_port_hsr_leave(struct dsa_switch *ds, int port,
+				struct net_device *hsr)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+
+	if (felix->tag_proto == DSA_TAG_PROTO_OCELOT_8021Q)
+		return 0;
+
+	if (!(dsa_to_port(ds, port)->user->flags & IFF_UP))
+		return 0;
+
+	return dsa_port_simple_hsr_leave(ds, port, hsr);
+}
+
 static const struct phylink_mac_ops felix_phylink_mac_ops = {
 	.mac_select_pcs		= felix_phylink_mac_select_pcs,
 	.mac_config		= felix_phylink_mac_config,
@@ -2262,6 +2327,7 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.get_ts_info			= felix_get_ts_info,
 	.phylink_get_caps		= felix_phylink_get_caps,
 	.port_enable			= felix_port_enable,
+	.port_disable			= felix_port_disable,
 	.port_fast_age			= felix_port_fast_age,
 	.port_fdb_dump			= felix_fdb_dump,
 	.port_fdb_add			= felix_fdb_add,
@@ -2318,6 +2384,8 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.port_del_dscp_prio		= felix_port_del_dscp_prio,
 	.port_set_host_flood		= felix_port_set_host_flood,
 	.port_change_conduit		= felix_port_change_conduit,
+	.port_hsr_join			= felix_port_hsr_join,
+	.port_hsr_leave			= felix_port_hsr_leave,
 };
 
 int felix_register_switch(struct device *dev, resource_size_t switch_base,

@@ -19,9 +19,9 @@
 #include "xe_tile.h"
 #include "xe_tile_sysfs.h"
 #include "xe_ttm_vram_mgr.h"
-#include "xe_wa.h"
 #include "xe_vram.h"
 #include "xe_vram_types.h"
+#include "xe_wa.h"
 
 /**
  * DOC: Multi-tile Design
@@ -124,6 +124,14 @@ int xe_tile_alloc_vram(struct xe_tile *tile)
 		return -ENOMEM;
 	tile->mem.vram = vram;
 
+	/*
+	 * If the kernel_vram is not already allocated,
+	 * it means that tile has common VRAM region for
+	 * kernel and user space.
+	 */
+	if (!tile->mem.kernel_vram)
+		tile->mem.kernel_vram = tile->mem.vram;
+
 	return 0;
 }
 
@@ -148,10 +156,6 @@ int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
 	err = xe_tile_alloc(tile);
 	if (err)
 		return err;
-
-	tile->primary_gt = xe_gt_alloc(tile);
-	if (IS_ERR(tile->primary_gt))
-		return PTR_ERR(tile->primary_gt);
 
 	xe_pcode_init(tile);
 

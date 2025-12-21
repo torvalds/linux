@@ -37,7 +37,7 @@
 &cpsw0_port1 {
 	status = "okay";
 	phy-handle = <&cpsw9g_phy12>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	mac-address = [00 00 00 00 00 00];
 	phys = <&cpsw0_phy_gmii_sel 1>;
 };
@@ -45,7 +45,7 @@
 &cpsw0_port2 {
 	status = "okay";
 	phy-handle = <&cpsw9g_phy15>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	mac-address = [00 00 00 00 00 00];
 	phys = <&cpsw0_phy_gmii_sel 2>;
 };
@@ -53,7 +53,7 @@
 &cpsw0_port3 {
 	status = "okay";
 	phy-handle = <&cpsw9g_phy0>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	mac-address = [00 00 00 00 00 00];
 	phys = <&cpsw0_phy_gmii_sel 3>;
 };
@@ -61,7 +61,7 @@
 &cpsw0_port4 {
 	status = "okay";
 	phy-handle = <&cpsw9g_phy3>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	mac-address = [00 00 00 00 00 00];
 	phys = <&cpsw0_phy_gmii_sel 4>;
 };

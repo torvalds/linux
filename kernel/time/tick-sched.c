@@ -201,6 +201,27 @@ static inline void tick_sched_flag_clear(struct tick_sched *ts,
 	ts->flags &= ~flag;
 }
 
+/*
+ * Allow only one non-timekeeper CPU at a time update jiffies from
+ * the timer tick.
+ *
+ * Returns true if update was run.
+ */
+static bool tick_limited_update_jiffies64(struct tick_sched *ts, ktime_t now)
+{
+	static atomic_t in_progress;
+	int inp;
+
+	inp = atomic_read(&in_progress);
+	if (inp || !atomic_try_cmpxchg(&in_progress, &inp, 1))
+		return false;
+
+	if (ts->last_tick_jiffies == jiffies)
+		tick_do_update_jiffies64(now);
+	atomic_set(&in_progress, 0);
+	return true;
+}
+
 #define MAX_STALLED_JIFFIES 5
 
 static void tick_sched_do_timer(struct tick_sched *ts, ktime_t now)
@@ -239,10 +260,11 @@ static void tick_sched_do_timer(struct tick_sched *ts, ktime_t now)
 		ts->stalled_jiffies = 0;
 		ts->last_tick_jiffies = READ_ONCE(jiffies);
 	} else {
-		if (++ts->stalled_jiffies == MAX_STALLED_JIFFIES) {
-			tick_do_update_jiffies64(now);
-			ts->stalled_jiffies = 0;
-			ts->last_tick_jiffies = READ_ONCE(jiffies);
+		if (++ts->stalled_jiffies >= MAX_STALLED_JIFFIES) {
+			if (tick_limited_update_jiffies64(ts, now)) {
+				ts->stalled_jiffies = 0;
+				ts->last_tick_jiffies = READ_ONCE(jiffies);
+			}
 		}
 	}
 

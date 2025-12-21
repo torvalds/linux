@@ -41,8 +41,8 @@
 #include "mem_input.h"
 #include "cursor_reg_cache.h"
 
-#include "dml2/dml21/inc/dml_top_dchub_registers.h"
-#include "dml2/dml21/inc/dml_top_types.h"
+#include "dml2_0/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2_0/dml21/inc/dml_top_types.h"
 
 #define OPP_ID_INVALID 0xf
 #define MAX_TTU 0xffffff
@@ -126,11 +126,13 @@ struct hubp {
 	int mpcc_id;
 	struct dc_cursor_attributes curs_attr;
 	struct dc_cursor_position curs_pos;
+	bool cursor_offload;
 	bool power_gated;
 
 	struct cursor_position_cache_hubp  pos;
 	struct cursor_attribute_cache_hubp att;
 	struct cursor_rect cur_rect;
+	bool use_mall_for_cursor;
 };
 
 struct surface_flip_registers {
@@ -236,6 +238,7 @@ struct hubp_funcs {
 	void (*hubp_clk_cntl)(struct hubp *hubp, bool enable);
 	void (*hubp_vtg_sel)(struct hubp *hubp, uint32_t otg_inst);
 	void (*hubp_read_state)(struct hubp *hubp);
+	void (*hubp_read_reg_state)(struct hubp *hubp, struct dcn_hubp_reg_state *reg_state);
 	void (*hubp_clear_underflow)(struct hubp *hubp);
 	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
 	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);

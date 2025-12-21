@@ -310,4 +310,11 @@ static inline bool dal_graphics_object_id_equal(
 	}
 	return false;
 }
+
+static inline bool dc_connector_supports_analog(const enum connector_id conn)
+{
+	return conn == CONNECTOR_ID_VGA ||
+		conn == CONNECTOR_ID_SINGLE_LINK_DVII ||
+		conn == CONNECTOR_ID_DUAL_LINK_DVII;
+}
 #endif

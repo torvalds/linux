@@ -1088,6 +1088,28 @@ void wake_up_all_idle_cpus(void)
 EXPORT_SYMBOL_GPL(wake_up_all_idle_cpus);
 
 /**
+ * cpus_peek_for_pending_ipi - Check for pending IPI for CPUs
+ * @mask: The CPU mask for the CPUs to check.
+ *
+ * This function walks through the @mask to check if there are any pending IPIs
+ * scheduled, for any of the CPUs in the @mask. It does not guarantee
+ * correctness as it only provides a racy snapshot.
+ *
+ * Returns true if there is a pending IPI scheduled and false otherwise.
+ */
+bool cpus_peek_for_pending_ipi(const struct cpumask *mask)
+{
+	unsigned int cpu;
+
+	for_each_cpu(cpu, mask) {
+		if (!llist_empty(per_cpu_ptr(&call_single_queue, cpu)))
+			return true;
+	}
+
+	return false;
+}
+
+/**
  * struct smp_call_on_cpu_struct - Call a function on a specific CPU
  * @work: &work_struct
  * @done: &completion to signal

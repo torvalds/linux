@@ -1752,11 +1752,9 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		channel_count = params_channels(params);
 		sample_rate = params_rate(params);
 		bit_depth = params_width(params);
-		/*
-		 * Look for 32-bit blob first instead of 16-bit if copier
-		 * supports multiple formats
-		 */
-		if (bit_depth == 16 && !single_bitdepth) {
+
+		/* Prefer 32-bit blob if copier supports multiple formats */
+		if (bit_depth <= 16 && !single_bitdepth) {
 			dev_dbg(sdev->dev, "Looking for 32-bit blob first for DMIC\n");
 			format_change = true;
 			bit_depth = 32;
@@ -1799,10 +1797,18 @@ snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_sof_dai *dai
 		if (format_change) {
 			/*
 			 * The 32-bit blob was not found in NHLT table, try to
-			 * look for one based on the params
+			 * look for 16-bit for DMIC or based on the params for
+			 * SSP
 			 */
-			bit_depth = params_width(params);
-			format_change = false;
+			if (linktype == SOF_DAI_INTEL_DMIC) {
+				bit_depth = 16;
+				if (params_width(params) == 16)
+					format_change = false;
+			} else {
+				bit_depth = params_width(params);
+				format_change = false;
+			}
+
 			get_new_blob = true;
 		} else if (linktype == SOF_DAI_INTEL_DMIC && !single_bitdepth) {
 			/*
@@ -1837,7 +1843,7 @@ out:
 	*len = cfg->size >> 2;
 	*dst = (u32 *)cfg->caps;
 
-	if (format_change) {
+	if (format_change || params_format(params) == SNDRV_PCM_FORMAT_FLOAT_LE) {
 		/*
 		 * Update the params to reflect that different blob was loaded
 		 * instead of the requested bit depth (16 -> 32 or 32 -> 16).
@@ -2280,8 +2286,19 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				ch_map >>= 4;
 			}
 
-			step = ch_count / blob->alh_cfg.device_count;
-			mask =  GENMASK(step - 1, 0);
+			if (swidget->id == snd_soc_dapm_dai_in && ch_count == out_ref_channels) {
+				/*
+				 * For playback DAI widgets where the channel number is equal to
+				 * the output reference channels, set the step = 0 to ensure all
+				 * the ch_mask is applied to all alh mappings.
+				 */
+				mask = ch_mask;
+				step = 0;
+			} else {
+				step = ch_count / blob->alh_cfg.device_count;
+				mask =  GENMASK(step - 1, 0);
+			}
+
 			/*
 			 * Set each gtw_cfg.node_id to blob->alh_cfg.mapping[]
 			 * for all widgets with the same stream name
@@ -2316,8 +2333,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				}
 
 				/*
-				 * Set the same channel mask for playback as the audio data is
-				 * duplicated for all speakers. For capture, split the channels
+				 * Set the same channel mask if the widget channel count is the same
+				 * as the FE channels for playback as the audio data is duplicated
+				 * for all speakers in this case. Otherwise, split the channels
 				 * among the aggregated DAIs. For example, with 4 channels on 2
 				 * aggregated DAIs, the channel_mask should be 0x3 and 0xc for the
 				 * two DAI's.
@@ -2326,10 +2344,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				 * the tables in soc_acpi files depending on the _ADR and devID
 				 * registers for each codec.
 				 */
-				if (w->id == snd_soc_dapm_dai_in)
-					blob->alh_cfg.mapping[i].channel_mask = ch_mask;
-				else
-					blob->alh_cfg.mapping[i].channel_mask = mask << (step * i);
+				blob->alh_cfg.mapping[i].channel_mask = mask << (step * i);
 
 				i++;
 			}

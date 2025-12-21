@@ -322,6 +322,7 @@ MODULE_DEVICE_TABLE(auxiliary, gpio_shared_proxy_id_table);
 static struct auxiliary_driver gpio_shared_proxy_driver = {
 	.driver = {
 		.name = "gpio-shared-proxy",
+		.suppress_bind_attrs = true,
 	},
 	.probe = gpio_shared_proxy_probe,
 	.id_table = gpio_shared_proxy_id_table,

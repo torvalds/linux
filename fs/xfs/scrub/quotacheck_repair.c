@@ -52,13 +52,11 @@ xqcheck_commit_dquot(
 	bool			dirty = false;
 	int			error = 0;
 
-	/* Unlock the dquot just long enough to allocate a transaction. */
-	xfs_dqunlock(dq);
 	error = xchk_trans_alloc(xqc->sc, 0);
-	xfs_dqlock(dq);
 	if (error)
 		return error;
 
+	mutex_lock(&dq->q_qlock);
 	xfs_trans_dqjoin(xqc->sc->tp, dq);
 
 	if (xchk_iscan_aborted(&xqc->iscan)) {
@@ -115,23 +113,12 @@ xqcheck_commit_dquot(
 	if (dq->q_id)
 		xfs_qm_adjust_dqtimers(dq);
 	xfs_trans_log_dquot(xqc->sc->tp, dq);
-
-	/*
-	 * Transaction commit unlocks the dquot, so we must re-lock it so that
-	 * the caller can put the reference (which apparently requires a locked
-	 * dquot).
-	 */
-	error = xrep_trans_commit(xqc->sc);
-	xfs_dqlock(dq);
-	return error;
+	return xrep_trans_commit(xqc->sc);
 
 out_unlock:
 	mutex_unlock(&xqc->lock);
 out_cancel:
 	xchk_trans_cancel(xqc->sc);
-
-	/* Re-lock the dquot so the caller can put the reference. */
-	xfs_dqlock(dq);
 	return error;
 }
 
@@ -156,7 +143,7 @@ xqcheck_commit_dqtype(
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
 		error = xqcheck_commit_dquot(xqc, dqtype, dq);
-		xfs_qm_dqput(dq);
+		xfs_qm_dqrele(dq);
 		if (error)
 			break;
 	}
@@ -187,7 +174,7 @@ xqcheck_commit_dqtype(
 			return error;
 
 		error = xqcheck_commit_dquot(xqc, dqtype, dq);
-		xfs_qm_dqput(dq);
+		xfs_qm_dqrele(dq);
 		if (error)
 			return error;
 

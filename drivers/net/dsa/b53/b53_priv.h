@@ -58,6 +58,17 @@ struct b53_io_ops {
 				bool link_up);
 };
 
+struct b53_arl_entry;
+
+struct b53_arl_ops {
+	void (*arl_read_entry)(struct b53_device *dev,
+			       struct b53_arl_entry *ent, u8 idx);
+	void (*arl_write_entry)(struct b53_device *dev,
+				const struct b53_arl_entry *ent, u8 idx);
+	void (*arl_search_read)(struct b53_device *dev, u8 idx,
+				struct b53_arl_entry *ent);
+};
+
 #define B53_INVALID_LANE	0xff
 
 enum {
@@ -127,6 +138,7 @@ struct b53_device {
 	struct mutex stats_mutex;
 	struct mutex arl_mutex;
 	const struct b53_io_ops *ops;
+	const struct b53_arl_ops *arl_ops;
 
 	/* chip specific data */
 	u32 chip_id;
@@ -329,16 +341,30 @@ static inline void b53_arl_to_entry(struct b53_arl_entry *ent,
 }
 
 static inline void b53_arl_to_entry_25(struct b53_arl_entry *ent,
-				       u64 mac_vid)
+				       u64 mac_vid, u8 vid_entry)
 {
 	memset(ent, 0, sizeof(*ent));
-	ent->port = (mac_vid >> ARLTBL_DATA_PORT_ID_S_25) &
-		     ARLTBL_DATA_PORT_ID_MASK_25;
 	ent->is_valid = !!(mac_vid & ARLTBL_VALID_25);
 	ent->is_age = !!(mac_vid & ARLTBL_AGE_25);
 	ent->is_static = !!(mac_vid & ARLTBL_STATIC_25);
 	u64_to_ether_addr(mac_vid, ent->mac);
-	ent->vid = mac_vid >> ARLTBL_VID_S_65;
+	ent->port = (mac_vid & ARLTBL_DATA_PORT_ID_MASK_25) >>
+		     ARLTBL_DATA_PORT_ID_S_25;
+	if (is_unicast_ether_addr(ent->mac) && ent->port == B53_CPU_PORT)
+		ent->port = B53_CPU_PORT_25;
+	ent->vid = vid_entry;
+}
+
+static inline void b53_arl_to_entry_89(struct b53_arl_entry *ent,
+				       u64 mac_vid, u16 fwd_entry)
+{
+	memset(ent, 0, sizeof(*ent));
+	ent->port = fwd_entry & ARLTBL_DATA_PORT_ID_MASK_89;
+	ent->is_valid = !!(fwd_entry & ARLTBL_VALID_89);
+	ent->is_age = !!(fwd_entry & ARLTBL_AGE_89);
+	ent->is_static = !!(fwd_entry & ARLTBL_STATIC_89);
+	u64_to_ether_addr(mac_vid, ent->mac);
+	ent->vid = mac_vid >> ARLTBL_VID_S;
 }
 
 static inline void b53_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
@@ -355,20 +381,87 @@ static inline void b53_arl_from_entry(u64 *mac_vid, u32 *fwd_entry,
 		*fwd_entry |= ARLTBL_AGE;
 }
 
-static inline void b53_arl_from_entry_25(u64 *mac_vid,
+static inline void b53_arl_from_entry_25(u64 *mac_vid, u8 *vid_entry,
 					 const struct b53_arl_entry *ent)
 {
 	*mac_vid = ether_addr_to_u64(ent->mac);
-	*mac_vid |= (u64)(ent->port & ARLTBL_DATA_PORT_ID_MASK_25) <<
-			  ARLTBL_DATA_PORT_ID_S_25;
-	*mac_vid |= (u64)(ent->vid & ARLTBL_VID_MASK_25) <<
-			  ARLTBL_VID_S_65;
+	if (is_unicast_ether_addr(ent->mac) && ent->port == B53_CPU_PORT_25)
+		*mac_vid |= (u64)B53_CPU_PORT << ARLTBL_DATA_PORT_ID_S_25;
+	else
+		*mac_vid |= ((u64)ent->port << ARLTBL_DATA_PORT_ID_S_25) &
+			    ARLTBL_DATA_PORT_ID_MASK_25;
 	if (ent->is_valid)
 		*mac_vid |= ARLTBL_VALID_25;
 	if (ent->is_static)
 		*mac_vid |= ARLTBL_STATIC_25;
 	if (ent->is_age)
 		*mac_vid |= ARLTBL_AGE_25;
+	*vid_entry = ent->vid;
+}
+
+static inline void b53_arl_from_entry_89(u64 *mac_vid, u32 *fwd_entry,
+					 const struct b53_arl_entry *ent)
+{
+	*mac_vid = ether_addr_to_u64(ent->mac);
+	*mac_vid |= (u64)(ent->vid & ARLTBL_VID_MASK) << ARLTBL_VID_S;
+	*fwd_entry = ent->port & ARLTBL_DATA_PORT_ID_MASK_89;
+	if (ent->is_valid)
+		*fwd_entry |= ARLTBL_VALID_89;
+	if (ent->is_static)
+		*fwd_entry |= ARLTBL_STATIC_89;
+	if (ent->is_age)
+		*fwd_entry |= ARLTBL_AGE_89;
+}
+
+static inline void b53_arl_search_to_entry_25(struct b53_arl_entry *ent,
+					      u64 mac_vid, u8 ext)
+{
+	memset(ent, 0, sizeof(*ent));
+	ent->is_valid = !!(mac_vid & ARLTBL_VALID_25);
+	ent->is_age = !!(mac_vid & ARLTBL_AGE_25);
+	ent->is_static = !!(mac_vid & ARLTBL_STATIC_25);
+	u64_to_ether_addr(mac_vid, ent->mac);
+	ent->vid = (mac_vid & ARL_SRCH_RSLT_VID_MASK_25) >>
+		   ARL_SRCH_RSLT_VID_S_25;
+	ent->port = (mac_vid & ARL_SRCH_RSLT_PORT_ID_MASK_25) >>
+		    ARL_SRCH_RSLT_PORT_ID_S_25;
+	if (is_multicast_ether_addr(ent->mac) && (ext & ARL_SRCH_RSLT_EXT_MC_MII))
+		ent->port |= BIT(B53_CPU_PORT_25);
+	else if (!is_multicast_ether_addr(ent->mac) && ent->port == B53_CPU_PORT)
+		ent->port = B53_CPU_PORT_25;
+}
+
+static inline void b53_arl_search_to_entry_63xx(struct b53_arl_entry *ent,
+						u64 mac_vid, u16 fwd_entry)
+{
+	memset(ent, 0, sizeof(*ent));
+	u64_to_ether_addr(mac_vid, ent->mac);
+	ent->vid = mac_vid >> ARLTBL_VID_S;
+
+	ent->port = fwd_entry & ARL_SRST_PORT_ID_MASK_63XX;
+	ent->port >>= 1;
+
+	ent->is_age = !!(fwd_entry & ARL_SRST_AGE_63XX);
+	ent->is_static = !!(fwd_entry & ARL_SRST_STATIC_63XX);
+	ent->is_valid = 1;
+}
+
+static inline void b53_arl_read_entry(struct b53_device *dev,
+				      struct b53_arl_entry *ent, u8 idx)
+{
+	dev->arl_ops->arl_read_entry(dev, ent, idx);
+}
+
+static inline void b53_arl_write_entry(struct b53_device *dev,
+				       const struct b53_arl_entry *ent, u8 idx)
+{
+	dev->arl_ops->arl_write_entry(dev, ent, idx);
+}
+
+static inline void b53_arl_search_read(struct b53_device *dev, u8 idx,
+				       struct b53_arl_entry *ent)
+{
+	dev->arl_ops->arl_search_read(dev, idx, ent);
 }
 
 #ifdef CONFIG_BCM47XX

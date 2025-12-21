@@ -193,8 +193,6 @@ static inline bool heap_free(size_t n)
 
 void copy_to_fs(addr_t dst, void *src, size_t len);
 void *copy_from_fs(void *dst, addr_t src, size_t len);
-void copy_to_gs(addr_t dst, void *src, size_t len);
-void *copy_from_gs(void *dst, addr_t src, size_t len);
 
 /* a20.c */
 int enable_a20(void);

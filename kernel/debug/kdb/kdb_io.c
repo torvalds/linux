@@ -589,24 +589,41 @@ static void kdb_msg_write(const char *msg, int msg_len)
 	 */
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(c) {
-		if (!(console_srcu_read_flags(c) & CON_ENABLED))
+		short flags = console_srcu_read_flags(c);
+
+		if (!console_is_usable(c, flags, true))
 			continue;
 		if (c == dbg_io_ops->cons)
 			continue;
-		if (!c->write)
-			continue;
-		/*
-		 * Set oops_in_progress to encourage the console drivers to
-		 * disregard their internal spin locks: in the current calling
-		 * context the risk of deadlock is a bigger problem than risks
-		 * due to re-entering the console driver. We operate directly on
-		 * oops_in_progress rather than using bust_spinlocks() because
-		 * the calls bust_spinlocks() makes on exit are not appropriate
-		 * for this calling context.
-		 */
-		++oops_in_progress;
-		c->write(c, msg, msg_len);
-		--oops_in_progress;
+
+		if (flags & CON_NBCON) {
+			struct nbcon_write_context wctxt = { };
+
+			/*
+			 * Do not continue if the console is NBCON and the context
+			 * can't be acquired.
+			 */
+			if (!nbcon_kdb_try_acquire(c, &wctxt))
+				continue;
+
+			nbcon_write_context_set_buf(&wctxt, (char *)msg, msg_len);
+
+			c->write_atomic(c, &wctxt);
+			nbcon_kdb_release(&wctxt);
+		} else {
+			/*
+			 * Set oops_in_progress to encourage the console drivers to
+			 * disregard their internal spin locks: in the current calling
+			 * context the risk of deadlock is a bigger problem than risks
+			 * due to re-entering the console driver. We operate directly on
+			 * oops_in_progress rather than using bust_spinlocks() because
+			 * the calls bust_spinlocks() makes on exit are not appropriate
+			 * for this calling context.
+			 */
+			++oops_in_progress;
+			c->write(c, msg, msg_len);
+			--oops_in_progress;
+		}
 		touch_nmi_watchdog();
 	}
 	console_srcu_read_unlock(cookie);

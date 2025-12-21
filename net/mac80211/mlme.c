@@ -276,11 +276,8 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 			return IEEE80211_CONN_MODE_VHT;
 		}
 	} else if (!vht_oper || !elems->vht_cap_elem) {
-		if (sband->band == NL80211_BAND_5GHZ) {
-			sdata_info(sdata,
-				   "VHT information is missing, disabling VHT\n");
+		if (sband->band == NL80211_BAND_5GHZ)
 			return IEEE80211_CONN_MODE_HT;
-		}
 		no_vht = true;
 	} else if (sband->band == NL80211_BAND_2GHZ) {
 		no_vht = true;
@@ -1002,6 +999,9 @@ ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 		.from_ap = true,
 		.start = ies->data,
 		.len = ies->len,
+		.type = ies->from_beacon ?
+			IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_BEACON :
+			IEEE80211_FTYPE_MGMT | IEEE80211_STYPE_PROBE_RESP,
 	};
 	struct ieee802_11_elems *elems;
 	struct ieee80211_supported_band *sband;
@@ -2507,6 +2507,16 @@ static void ieee80211_csa_switch_work(struct wiphy *wiphy,
 	}
 
 	link->u.mgd.csa.waiting_bcn = true;
+
+	/*
+	 * The next beacon really should always be different, so this should
+	 * have no effect whatsoever. However, some APs (we observed this in
+	 * an Asus AXE11000), the beacon after the CSA might be identical to
+	 * the last beacon on the old channel - in this case we'd ignore it.
+	 * Resetting the CRC will lead us to handle it better (albeit with a
+	 * disconnect, but clearly the AP is broken.)
+	 */
+	link->u.mgd.beacon_crc_valid = false;
 
 	/* apply new TPE restrictions immediately on the new channel */
 	if (link->u.mgd.csa.ap_chandef.chan->band == NL80211_BAND_6GHZ &&
@@ -5170,7 +5180,9 @@ static void ieee80211_epcs_teardown(struct ieee80211_sub_if_data *sdata)
 			continue;
 		}
 
-		elems = ieee802_11_parse_elems(ies->data, ies->len, false,
+		elems = ieee802_11_parse_elems(ies->data, ies->len,
+					       IEEE80211_FTYPE_MGMT |
+					       IEEE80211_STYPE_BEACON,
 					       NULL);
 		if (!elems) {
 			rcu_read_unlock();
@@ -5216,6 +5228,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		.len = elem_len,
 		.link_id = link_id == assoc_data->assoc_link_id ? -1 : link_id,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
@@ -6021,24 +6034,6 @@ ieee80211_determine_our_sta_mode_assoc(struct ieee80211_sub_if_data *sdata,
 			       conn->bw_limit, tmp.bw_limit);
 }
 
-static enum ieee80211_ap_reg_power
-ieee80211_ap_power_type(u8 control)
-{
-	switch (u8_get_bits(control, IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
-	case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
-		return IEEE80211_REG_LPI_AP;
-	case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
-	case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP_OLD:
-		return IEEE80211_REG_SP_AP;
-	case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-		return IEEE80211_REG_VLP_AP;
-	default:
-		return IEEE80211_REG_UNSET_AP;
-	}
-}
-
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
 				  int link_id,
@@ -6081,7 +6076,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		he_6ghz_oper = ieee80211_he_6ghz_oper(elems->he_operation);
 		if (he_6ghz_oper)
 			link->conf->power_type =
-				ieee80211_ap_power_type(he_6ghz_oper->control);
+				cfg80211_6ghz_power_type(he_6ghz_oper->control,
+							 cbss->channel->flags);
 		else
 			link_info(link,
 				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
@@ -6112,9 +6108,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	ret = ieee80211_link_use_channel(link, &chanreq,
 					 IEEE80211_CHANCTX_SHARED);
 
-	/* don't downgrade for 5 and 10 MHz channels, though. */
+	/* don't downgrade for 5/10/S1G MHz channels, though. */
 	if (chanreq.oper.width == NL80211_CHAN_WIDTH_5 ||
-	    chanreq.oper.width == NL80211_CHAN_WIDTH_10)
+	    chanreq.oper.width == NL80211_CHAN_WIDTH_10 ||
+	    cfg80211_chandef_is_s1g(&chanreq.oper))
 		return ret;
 
 	while (ret && chanreq.oper.width != NL80211_CHAN_WIDTH_20_NOHT) {
@@ -6349,6 +6346,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		.bss = NULL,
 		.link_id = -1,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 	struct ieee802_11_elems *elems;
 	int ac;
@@ -6610,8 +6608,8 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_link_data *link,
 	 * Response frame shall be set to the broadcast address [..]"
 	 * So, on 6GHz band we should also accept broadcast responses.
 	 */
-	channel = ieee80211_get_channel(sdata->local->hw.wiphy,
-					rx_status->freq);
+	channel = ieee80211_get_channel_khz(sdata->local->hw.wiphy,
+					    ieee80211_rx_status_to_khz(rx_status));
 	if (!channel)
 		return;
 
@@ -7257,7 +7255,9 @@ ieee80211_mgd_check_cross_link_csa(struct ieee80211_sub_if_data *sdata,
 						    (prof->sta_info_len - 1),
 						    len -
 						    (prof->sta_info_len - 1),
-						    false, NULL);
+						    IEEE80211_FTYPE_MGMT |
+						    IEEE80211_STYPE_BEACON,
+						    NULL);
 
 		/* memory allocation failed - let's hope that's transient */
 		if (!prof_elems)
@@ -7361,6 +7361,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		.mode = link->u.mgd.conn.mode,
 		.link_id = -1,
 		.from_ap = true,
+		.type = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_TYPE,
 	};
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -7963,7 +7964,10 @@ void ieee80211_process_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 	ies_len  = len - offsetof(struct ieee80211_mgmt,
 				  u.action.u.ttlm_req.variable);
 	elems = ieee802_11_parse_elems(mgmt->u.action.u.ttlm_req.variable,
-				       ies_len, true, NULL);
+				       ies_len,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems) {
 		ttlm_res = NEG_TTLM_RES_REJECT;
 		goto out;
@@ -8169,9 +8173,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				break;
 
 			/* CSA IE cannot be overridden, no need for BSSID */
-			elems = ieee802_11_parse_elems(
-					mgmt->u.action.u.chan_switch.variable,
-					ies_len, true, NULL);
+			elems = ieee802_11_parse_elems(mgmt->u.action.u.chan_switch.variable,
+						       ies_len,
+						       IEEE80211_FTYPE_MGMT |
+						       IEEE80211_STYPE_ACTION,
+						       NULL);
 
 			if (elems && !elems->parse_error) {
 				enum ieee80211_csa_source src =
@@ -8198,9 +8204,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			 * extended CSA IE can't be overridden, no need for
 			 * BSSID
 			 */
-			elems = ieee802_11_parse_elems(
-					mgmt->u.action.u.ext_chan_switch.variable,
-					ies_len, true, NULL);
+			elems = ieee802_11_parse_elems(mgmt->u.action.u.ext_chan_switch.variable,
+						       ies_len,
+						       IEEE80211_FTYPE_MGMT |
+						       IEEE80211_STYPE_ACTION,
+						       NULL);
 
 			if (elems && !elems->parse_error) {
 				enum ieee80211_csa_source src;
@@ -10978,7 +10986,10 @@ static void ieee80211_ml_epcs(struct ieee80211_sub_if_data *sdata,
 		pos = scratch + sizeof(control);
 		len -= sizeof(control);
 
-		link_elems = ieee802_11_parse_elems(pos, len, false, NULL);
+		link_elems = ieee802_11_parse_elems(pos, len,
+						    IEEE80211_FTYPE_MGMT |
+						    IEEE80211_STYPE_ACTION,
+						    NULL);
 		if (!link_elems)
 			continue;
 
@@ -11029,7 +11040,10 @@ void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
 				 u.action.u.epcs.variable) -
 		IEEE80211_EPCS_ENA_RESP_BODY_LEN;
 
-	elems = ieee802_11_parse_elems(pos, ies_len, true, NULL);
+	elems = ieee802_11_parse_elems(pos, ies_len,
+				       IEEE80211_FTYPE_MGMT |
+				       IEEE80211_STYPE_ACTION,
+				       NULL);
 	if (!elems)
 		return;
 

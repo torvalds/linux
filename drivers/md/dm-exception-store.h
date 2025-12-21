@@ -29,7 +29,7 @@ typedef sector_t chunk_t;
  * chunk within the device.
  */
 struct dm_exception {
-	struct hlist_bl_node hash_list;
+	struct hlist_node hash_list;
 
 	chunk_t old_chunk;
 	chunk_t new_chunk;

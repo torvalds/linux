@@ -25,6 +25,7 @@ extern "C" {
 #define DRM_IVPU_CMDQ_CREATE              0x0b
 #define DRM_IVPU_CMDQ_DESTROY             0x0c
 #define DRM_IVPU_CMDQ_SUBMIT              0x0d
+#define DRM_IVPU_BO_CREATE_FROM_USERPTR	  0x0e
 
 #define DRM_IOCTL_IVPU_GET_PARAM                                               \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_GET_PARAM, struct drm_ivpu_param)
@@ -69,6 +70,10 @@ extern "C" {
 #define DRM_IOCTL_IVPU_CMDQ_SUBMIT                                             \
 	DRM_IOW(DRM_COMMAND_BASE + DRM_IVPU_CMDQ_SUBMIT, struct drm_ivpu_cmdq_submit)
 
+#define DRM_IOCTL_IVPU_BO_CREATE_FROM_USERPTR                        \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_IVPU_BO_CREATE_FROM_USERPTR, \
+		 struct drm_ivpu_bo_create_from_userptr)
+
 /**
  * DOC: contexts
  *
@@ -90,6 +95,7 @@ extern "C" {
 #define DRM_IVPU_PARAM_TILE_CONFIG	    11
 #define DRM_IVPU_PARAM_SKU		    12
 #define DRM_IVPU_PARAM_CAPABILITIES	    13
+#define DRM_IVPU_PARAM_PREEMPT_BUFFER_SIZE  14
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
@@ -126,6 +132,13 @@ extern "C" {
  * command queue destroy and submit job on specific command queue.
  */
 #define DRM_IVPU_CAP_MANAGE_CMDQ       3
+/**
+ * DRM_IVPU_CAP_BO_CREATE_FROM_USERPTR
+ *
+ * Driver supports creating buffer objects from user space memory pointers.
+ * This allows creating GEM buffers from existing user memory regions.
+ */
+#define DRM_IVPU_CAP_BO_CREATE_FROM_USERPTR	4
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters
@@ -176,6 +189,9 @@ struct drm_ivpu_param {
 	 *
 	 * %DRM_IVPU_PARAM_CAPABILITIES:
 	 * Supported capabilities (read-only)
+	 *
+	 * %DRM_IVPU_PARAM_PREEMPT_BUFFER_SIZE:
+	 * Size of the preemption buffer (read-only)
 	 */
 	__u32 param;
 
@@ -190,6 +206,7 @@ struct drm_ivpu_param {
 #define DRM_IVPU_BO_HIGH_MEM   DRM_IVPU_BO_SHAVE_MEM
 #define DRM_IVPU_BO_MAPPABLE   0x00000002
 #define DRM_IVPU_BO_DMA_MEM    0x00000004
+#define DRM_IVPU_BO_READ_ONLY  0x00000008
 
 #define DRM_IVPU_BO_CACHED     0x00000000
 #define DRM_IVPU_BO_UNCACHED   0x00010000
@@ -200,6 +217,7 @@ struct drm_ivpu_param {
 	(DRM_IVPU_BO_HIGH_MEM | \
 	 DRM_IVPU_BO_MAPPABLE | \
 	 DRM_IVPU_BO_DMA_MEM | \
+	 DRM_IVPU_BO_READ_ONLY | \
 	 DRM_IVPU_BO_CACHE_MASK)
 
 /**
@@ -241,6 +259,44 @@ struct drm_ivpu_bo_create {
 	 *
 	 * Allocated BO will use write combining buffer for writes but reads will be
 	 * uncached.
+	 */
+	__u32 flags;
+
+	/** @handle: Returned GEM object handle */
+	__u32 handle;
+
+	/** @vpu_addr: Returned VPU virtual address */
+	__u64 vpu_addr;
+};
+
+/**
+ * struct drm_ivpu_bo_create_from_userptr - Create dma-buf from user pointer
+ *
+ * Create a GEM buffer object from a user pointer to a memory region.
+ */
+struct drm_ivpu_bo_create_from_userptr {
+	/** @user_ptr: User pointer to memory region (must be page aligned) */
+	__u64 user_ptr;
+
+	/** @size: Size of the memory region in bytes (must be page aligned) */
+	__u64 size;
+
+	/**
+	 * @flags:
+	 *
+	 * Supported flags:
+	 *
+	 * %DRM_IVPU_BO_HIGH_MEM:
+	 *
+	 * Allocate VPU address from >4GB range.
+	 *
+	 * %DRM_IVPU_BO_DMA_MEM:
+	 *
+	 * Allocate from DMA memory range accessible by hardware DMA.
+	 *
+	 * %DRM_IVPU_BO_READ_ONLY:
+	 *
+	 * Allocate as a read-only buffer object.
 	 */
 	__u32 flags;
 
@@ -371,6 +427,13 @@ struct drm_ivpu_cmdq_submit {
 	 * to be executed. The offset has to be 8-byte aligned.
 	 */
 	__u32 commands_offset;
+	/**
+	 * @preempt_buffer_index:
+	 *
+	 * Index of the preemption buffer in the buffers_ptr array.
+	 */
+	__u32 preempt_buffer_index;
+	__u32 reserved;
 };
 
 /* drm_ivpu_bo_wait job status codes */

@@ -127,7 +127,6 @@ struct imgu_device {
 	/* Private fields */
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
-	struct v4l2_file_operations v4l2_file_ops;
 
 	/* MMU driver for css */
 	struct imgu_mmu_info *mmu;

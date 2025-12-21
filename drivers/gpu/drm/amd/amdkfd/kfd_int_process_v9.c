@@ -28,6 +28,7 @@
 #include "kfd_device_queue_manager.h"
 #include "kfd_smi_events.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_ras_mgr.h"
 
 /*
  * GFX9 SQ Interrupts
@@ -228,7 +229,11 @@ static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
 
 	kfd_signal_poison_consumed_event(dev, pasid);
 
-	event_id = amdgpu_ras_acquire_event_id(dev->adev, type);
+	if (amdgpu_uniras_enabled(dev->adev))
+		event_id = amdgpu_ras_mgr_gen_ras_event_seqno(dev->adev,
+					RAS_SEQNO_TYPE_POISON_CONSUMPTION);
+	else
+		event_id = amdgpu_ras_acquire_event_id(dev->adev, type);
 
 	RAS_EVENT_LOG(dev->adev, event_id,
 		      "poison is consumed by client %d, kick off gpu reset flow\n", client_id);

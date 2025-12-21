@@ -33,7 +33,7 @@
 #include <mqueue.h>
 #include <error.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static char *usage =
 "Usage:\n"

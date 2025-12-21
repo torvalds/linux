@@ -454,3 +454,19 @@ Description:
 		disables it.  Reads from the file return the current value.
 		The default is "1" if the build-time "SUSPEND_SKIP_SYNC" config
 		flag is unset, or "0" otherwise.
+
+What:           /sys/power/hibernate_compression_threads
+Date:           October 2025
+Contact:        <luoxueqin@kylinos.cn>
+Description:
+                Controls the number of threads used for compression
+                and decompression of hibernation images.
+
+                The value can be adjusted at runtime to balance
+                performance and CPU utilization.
+
+                The change takes effect on the next hibernation or
+                resume operation.
+
+                Minimum value: 1
+                Default value: 3

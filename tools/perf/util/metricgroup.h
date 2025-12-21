@@ -16,7 +16,7 @@ struct cgroup;
 
 /**
  * A node in a rblist keyed by the evsel. The global rblist of metric events
- * generally exists in perf_stat_config. The evsel is looked up in the rblist
+ * generally exists in evlist. The evsel is looked up in the rblist
  * yielding a list of metric_expr.
  */
 struct metric_event {

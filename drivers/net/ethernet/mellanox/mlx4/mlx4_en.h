@@ -388,7 +388,7 @@ struct mlx4_en_port_profile {
 	u8 num_up;
 	int rss_rings;
 	int inline_thold;
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 };
 
 struct mlx4_en_profile {
@@ -612,7 +612,7 @@ struct mlx4_en_priv {
 	bool wol;
 	struct device *ddev;
 	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 	u32 counter_index;
 
 #ifdef CONFIG_MLX4_EN_DCB
@@ -780,7 +780,7 @@ void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 int mlx4_en_moderation_update(struct mlx4_en_priv *priv);
 int mlx4_en_reset_config(struct net_device *dev,
-			 struct hwtstamp_config ts_config,
+			 struct kernel_hwtstamp_config *ts_config,
 			 netdev_features_t new_features);
 void mlx4_en_update_pfc_stats_bitmap(struct mlx4_dev *dev,
 				     struct mlx4_en_stats_bitmap *stats_bitmap,

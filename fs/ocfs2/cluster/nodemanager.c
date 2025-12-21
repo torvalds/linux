@@ -4,6 +4,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/configfs.h>
@@ -590,7 +591,7 @@ static struct config_item *o2nm_node_group_make_item(struct config_group *group,
 	if (node == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	strcpy(node->nd_name, name); /* use item.ci_namebuf instead? */
+	strscpy(node->nd_name, name); /* use item.ci_namebuf instead? */
 	config_item_init_type_name(&node->nd_item, name, &o2nm_node_type);
 	spin_lock_init(&node->nd_lock);
 

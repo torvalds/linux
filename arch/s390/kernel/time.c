@@ -12,8 +12,7 @@
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
 
-#define KMSG_COMPONENT "time"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "time: " fmt
 
 #include <linux/kernel_stat.h>
 #include <linux/errno.h>

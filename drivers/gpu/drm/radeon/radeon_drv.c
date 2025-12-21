@@ -241,12 +241,12 @@ module_param_named(uvd, radeon_uvd, int, 0444);
 MODULE_PARM_DESC(vce, "vce enable/disable vce support (1 = enable, 0 = disable)");
 module_param_named(vce, radeon_vce, int, 0444);
 
-int radeon_si_support = 1;
-MODULE_PARM_DESC(si_support, "SI support (1 = enabled (default), 0 = disabled)");
+int radeon_si_support = -1;
+MODULE_PARM_DESC(si_support, "SI support (1 = enabled, 0 = disabled, -1 = default)");
 module_param_named(si_support, radeon_si_support, int, 0444);
 
-int radeon_cik_support = 1;
-MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled (default), 0 = disabled)");
+int radeon_cik_support = -1;
+MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled, -1 = default)");
 module_param_named(cik_support, radeon_cik_support, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
@@ -256,12 +256,60 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static const struct drm_driver kms_driver;
 
+static bool radeon_support_enabled(struct device *dev,
+				   const enum radeon_family family)
+{
+	const char *gen;
+	int module_param = -1;
+	bool amdgpu_support_built = IS_ENABLED(CONFIG_DRM_AMDGPU);
+	bool support_by_default = true;
+
+	switch (family) {
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+	case CHIP_HAINAN:
+		gen = "SI";
+		module_param = radeon_si_support;
+		amdgpu_support_built &= IS_ENABLED(CONFIG_DRM_AMDGPU_SI);
+		support_by_default = false;
+		break;
+
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+		support_by_default = false;
+		fallthrough;
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		gen = "CIK";
+		module_param = radeon_cik_support;
+		amdgpu_support_built &= IS_ENABLED(CONFIG_DRM_AMDGPU_CIK);
+		break;
+
+	default:
+		/* All other chips are supported by radeon only */
+		return true;
+	}
+
+	if ((module_param == -1 && (support_by_default || !amdgpu_support_built)) ||
+	    module_param == 1)
+		return true;
+
+	if (!module_param)
+		dev_info(dev, "%s support disabled by module param\n", gen);
+
+	return false;
+}
+
 static int radeon_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *ent)
 {
 	unsigned long flags = 0;
 	struct drm_device *ddev;
 	struct radeon_device *rdev;
+	struct device *dev = &pdev->dev;
 	const struct drm_format_info *format;
 	int ret;
 
@@ -270,30 +318,8 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 
 	flags = ent->driver_data;
 
-	if (!radeon_si_support) {
-		switch (flags & RADEON_FAMILY_MASK) {
-		case CHIP_TAHITI:
-		case CHIP_PITCAIRN:
-		case CHIP_VERDE:
-		case CHIP_OLAND:
-		case CHIP_HAINAN:
-			dev_info(&pdev->dev,
-				 "SI support disabled by module param\n");
-			return -ENODEV;
-		}
-	}
-	if (!radeon_cik_support) {
-		switch (flags & RADEON_FAMILY_MASK) {
-		case CHIP_KAVERI:
-		case CHIP_BONAIRE:
-		case CHIP_HAWAII:
-		case CHIP_KABINI:
-		case CHIP_MULLINS:
-			dev_info(&pdev->dev,
-				 "CIK support disabled by module param\n");
-			return -ENODEV;
-		}
-	}
+	if (!radeon_support_enabled(dev, flags & RADEON_FAMILY_MASK))
+		return -ENODEV;
 
 	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
@@ -303,11 +329,11 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	rdev = devm_drm_dev_alloc(&pdev->dev, &kms_driver, typeof(*rdev), ddev);
+	rdev = devm_drm_dev_alloc(dev, &kms_driver, typeof(*rdev), ddev);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	rdev->dev = &pdev->dev;
+	rdev->dev = dev;
 	rdev->pdev = pdev;
 	ddev = rdev_to_drm(rdev);
 	ddev->dev_private = rdev;
@@ -461,7 +487,6 @@ static int radeon_pmops_runtime_idle(struct device *dev)
 		}
 	}
 
-	pm_runtime_mark_last_busy(dev);
 	pm_runtime_autosuspend(dev);
 	/* we don't want the main rpm_idle to call suspend - we want to autosuspend */
 	return 1;
@@ -483,7 +508,6 @@ long radeon_drm_ioctl(struct file *filp,
 
 	ret = drm_ioctl(filp, cmd, arg);
 
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }

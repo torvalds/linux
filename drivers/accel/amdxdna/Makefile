@@ -14,6 +14,7 @@ amdxdna-y := \
 	amdxdna_mailbox.o \
 	amdxdna_mailbox_helper.o \
 	amdxdna_pci_drv.o \
+	amdxdna_pm.o \
 	amdxdna_sysfs.o \
 	amdxdna_ubuf.o \
 	npu1_regs.o \

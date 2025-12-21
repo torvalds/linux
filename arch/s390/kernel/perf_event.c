@@ -5,8 +5,7 @@
  *  Copyright IBM Corp. 2012, 2013
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
-#define KMSG_COMPONENT	"perf"
-#define pr_fmt(fmt)	KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "perf: " fmt
 
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
@@ -15,7 +14,6 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <linux/compat.h>
 #include <linux/sysfs.h>
 #include <asm/stacktrace.h>
 #include <asm/irq.h>

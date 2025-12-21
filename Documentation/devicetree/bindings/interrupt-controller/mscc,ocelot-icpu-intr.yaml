@@ -26,7 +26,6 @@ properties:
           - mscc,ocelot-icpu-intr
           - mscc,serval-icpu-intr
 
-
   '#interrupt-cells':
     const: 1
 

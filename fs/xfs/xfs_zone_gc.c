@@ -117,7 +117,6 @@ struct xfs_gc_bio {
 	struct xfs_rtgroup		*victim_rtg;
 
 	/* Bio used for reads and writes, including the bvec used by it */
-	struct bio_vec			bv;
 	struct bio			bio;	/* must be last */
 };
 
@@ -175,14 +174,13 @@ xfs_zoned_need_gc(
 	s64			available, free, threshold;
 	s32			remainder;
 
-	if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE))
+	if (!xfs_zoned_have_reclaimable(mp->m_zone_info))
 		return false;
 
 	available = xfs_estimate_freecounter(mp, XC_FREE_RTAVAILABLE);
 
 	if (available <
-	    mp->m_groups[XG_TYPE_RTG].blocks *
-	    (mp->m_max_open_zones - XFS_OPEN_GC_ZONES))
+	    xfs_rtgs_to_rfsbs(mp, mp->m_max_open_zones - XFS_OPEN_GC_ZONES))
 		return true;
 
 	free = xfs_estimate_freecounter(mp, XC_FREE_RTEXTENTS);
@@ -1184,16 +1182,16 @@ xfs_zone_gc_mount(
 		goto out_put_gc_zone;
 	}
 
-	mp->m_zone_info->zi_gc_thread = kthread_create(xfs_zoned_gcd, data,
+	zi->zi_gc_thread = kthread_create(xfs_zoned_gcd, data,
 			"xfs-zone-gc/%s", mp->m_super->s_id);
-	if (IS_ERR(mp->m_zone_info->zi_gc_thread)) {
+	if (IS_ERR(zi->zi_gc_thread)) {
 		xfs_warn(mp, "unable to create zone gc thread");
-		error = PTR_ERR(mp->m_zone_info->zi_gc_thread);
+		error = PTR_ERR(zi->zi_gc_thread);
 		goto out_free_gc_data;
 	}
 
 	/* xfs_zone_gc_start will unpark for rw mounts */
-	kthread_park(mp->m_zone_info->zi_gc_thread);
+	kthread_park(zi->zi_gc_thread);
 	return 0;
 
 out_free_gc_data:

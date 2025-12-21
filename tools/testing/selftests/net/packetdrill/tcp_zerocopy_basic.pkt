@@ -4,6 +4,8 @@
 // send a packet with MSG_ZEROCOPY and receive the notification ID
 // repeat and verify IDs are consecutive
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh`
 
     0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3

@@ -1011,7 +1011,6 @@ static const struct net_device_ops esd_usb_netdev_ops = {
 	.ndo_open = esd_usb_open,
 	.ndo_stop = esd_usb_close,
 	.ndo_start_xmit = esd_usb_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops esd_usb_ethtool_ops = {

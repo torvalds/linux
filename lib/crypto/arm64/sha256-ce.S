@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * sha2-ce-core.S - core SHA-224/SHA-256 transform using v8 Crypto Extensions
+ * Core SHA-224/SHA-256 transform using v8 Crypto Extensions
  *
  * Copyright (C) 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
  */

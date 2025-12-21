@@ -27,7 +27,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #if !defined(MAP_HUGETLB)
 #define MAP_HUGETLB	0x40000

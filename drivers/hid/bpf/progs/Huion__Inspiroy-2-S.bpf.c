@@ -163,6 +163,9 @@ char EXPECTED_FIRMWARE_ID[] = "HUION_T21j_";
 
 
 __u8 last_button_state;
+__u8 last_tip_state;
+__u8 last_sec_barrel_state;
+__u8 force_tip_down_count;
 
 static const __u8 fixed_rdesc_pad[] = {
 	UsagePage_GenericDesktop
@@ -522,9 +525,31 @@ int BPF_PROG(inspiroy_2_fix_events, struct hid_bpf_ctx *hctx)
 			pad_report->wheel = wheel;
 
 			return sizeof(struct pad_report);
-		}
+		} else if (data[1] & 0x80) { /* Pen reports with InRange 1 */
+			__u8 tip_state = data[1] & 0x1;
+			__u8 sec_barrel_state = data[1] & 0x4;
 
-		/* Pen reports need nothing done */
+			if (force_tip_down_count > 0) {
+				data[1] |= 0x1;
+				--force_tip_down_count;
+				if (tip_state)
+					force_tip_down_count = 0;
+			}
+
+			/* Tip was down and we just pressed or released the
+			 * secondary barrel switch (the physical eraser
+			 * button). The device will send up to 4
+			 * reports with Tip Switch 0 and sometimes
+			 * this report has Tip Switch 0.
+			 */
+			if (last_tip_state &&
+			    last_sec_barrel_state != sec_barrel_state) {
+				force_tip_down_count = 4;
+				data[1] |= 0x1;
+			}
+			last_tip_state = tip_state;
+			last_sec_barrel_state = sec_barrel_state;
+		}
 	}
 
 	return 0;

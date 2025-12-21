@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2025 PHYTEC Messtechnik GmbH
+ * Author: Primoz Fiser <primoz.fiser@norik.com>
+ */
+
+#include <dt-bindings/pwm/pwm.h>
+#include "imx93-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	fan0: pwm-fan {
+		compatible = "pwm-fan";
+		#cooling-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_fan>;
+		cooling-levels = <1 90 150 200 255>;
+		pwms = <&tpm6 1 40000 PWM_POLARITY_INVERTED>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			trips {
+				cpu_low: cpu-low {
+					hysteresis = <3000>;
+					temperature = <50000>;
+					type = "active";
+				};
+
+				cpu_med: cpu-med {
+					hysteresis = <3000>;
+					temperature = <58000>;
+					type = "active";
+				};
+
+				cpu_high: cpu-high {
+					hysteresis = <3000>;
+					temperature = <65000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					cooling-device = <&fan0 1 1>;
+					trip = <&cpu_low>;
+				};
+
+				map2 {
+					cooling-device = <&fan0 2 2>;
+					trip = <&cpu_med>;
+				};
+
+				map3 {
+					cooling-device = <&fan0 4 4>;
+					trip = <&cpu_high>;
+				};
+			};
+		};
+	};
+};
+
+&tpm6 {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_fan: fangrp {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO23__TPM6_CH1	0x31e
+		>;
+	};
+};

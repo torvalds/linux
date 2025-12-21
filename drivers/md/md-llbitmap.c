@@ -378,7 +378,7 @@ static void llbitmap_infect_dirty_bits(struct llbitmap *llbitmap,
 		case BitClean:
 			pctl->state[pos] = BitDirty;
 			break;
-		};
+		}
 	}
 }
 

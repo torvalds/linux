@@ -671,7 +671,9 @@ following:
    * - 0x8000
      - Data in inode (INCOMPAT_INLINE_DATA).
    * - 0x10000
-     - Encrypted inodes are present on the filesystem. (INCOMPAT_ENCRYPT).
+     - Encrypted inodes can be present. (INCOMPAT_ENCRYPT).
+   * - 0x20000
+     - Directories can be marked case-insensitive. (INCOMPAT_CASEFOLD).
 
 .. _super_rocompat:
 

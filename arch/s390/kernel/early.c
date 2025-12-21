@@ -4,8 +4,7 @@
  *    Author(s): Hongjie Yang <hongjie@us.ibm.com>,
  */
 
-#define KMSG_COMPONENT "setup"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "setup: " fmt
 
 #include <linux/sched/debug.h>
 #include <linux/cpufeature.h>
@@ -120,21 +119,21 @@ static noinline __init void setup_arch_string(void)
 	EBCASC(mach->type, sizeof(mach->type));
 	EBCASC(mach->model, sizeof(mach->model));
 	EBCASC(mach->model_capacity, sizeof(mach->model_capacity));
-	sprintf(mstr, "%-16.16s %-4.4s %-16.16s %-16.16s",
-		mach->manufacturer, mach->type,
-		mach->model, mach->model_capacity);
+	scnprintf(mstr, sizeof(mstr), "%-16.16s %-4.4s %-16.16s %-16.16s",
+		  mach->manufacturer, mach->type,
+		  mach->model, mach->model_capacity);
 	strim_all(mstr);
 	if (stsi(vm, 3, 2, 2) == 0 && vm->count) {
 		EBCASC(vm->vm[0].cpi, sizeof(vm->vm[0].cpi));
-		sprintf(hvstr, "%-16.16s", vm->vm[0].cpi);
+		scnprintf(hvstr, sizeof(hvstr), "%-16.16s", vm->vm[0].cpi);
 		strim_all(hvstr);
 	} else {
-		sprintf(hvstr, "%s",
-			machine_is_lpar() ? "LPAR" :
-			machine_is_vm() ? "z/VM" :
-			machine_is_kvm() ? "KVM" : "unknown");
+		scnprintf(hvstr, sizeof(hvstr), "%s",
+			  machine_is_lpar() ? "LPAR" :
+			  machine_is_vm() ? "z/VM" :
+			  machine_is_kvm() ? "KVM" : "unknown");
 	}
-	sprintf(arch_hw_string, "HW: %s (%s)", mstr, hvstr);
+	scnprintf(arch_hw_string, sizeof(arch_hw_string), "HW: %s (%s)", mstr, hvstr);
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
 

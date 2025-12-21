@@ -8,17 +8,22 @@
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
+#include "xe_configfs.h"
 #include "xe_device.h"
 #include "xe_gt_sriov_pf.h"
 #include "xe_module.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_migration.h"
 #include "xe_sriov_pf_service.h"
+#include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
 {
+	if (IS_ENABLED(CONFIG_CONFIGFS_FS))
+		return xe_configfs_get_max_vfs(to_pci_dev(xe->drm.dev));
 	return xe_modparam.max_vfs;
 }
 
@@ -98,7 +103,42 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 	if (err)
 		return err;
 
+	err = xe_sriov_pf_migration_init(xe);
+	if (err)
+		return err;
+
+	xe_guard_init(&xe->sriov.pf.guard_vfs_enabling, "vfs_enabling");
+
 	xe_sriov_pf_service_init(xe);
+
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_init_late() - Late initialization of the SR-IOV PF.
+ * @xe: the &xe_device to initialize
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_init_late(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err;
+
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_init(gt);
+		if (err)
+			return err;
+	}
+
+	err = xe_sriov_pf_sysfs_init(xe);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -130,6 +170,101 @@ int xe_sriov_pf_wait_ready(struct xe_device *xe)
 }
 
 /**
+ * xe_sriov_pf_arm_guard() - Arm the guard for exclusive/lockdown mode.
+ * @xe: the PF &xe_device
+ * @guard: the &xe_guard to arm
+ * @lockdown: arm for lockdown(true) or exclusive(false) mode
+ * @who: the address of the new owner, or NULL if it's a caller
+ *
+ * This function can only be called on PF.
+ *
+ * It is a simple wrapper for xe_guard_arm() with additional debug
+ * messages.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_arm_guard(struct xe_device *xe, struct xe_guard *guard,
+			  bool lockdown, void *who)
+{
+	void *new_owner = who ?: __builtin_return_address(0);
+	int err;
+
+	err = xe_guard_arm(guard, lockdown, new_owner);
+	if (err) {
+		xe_sriov_dbg(xe, "%s/%s mode denied (%pe) last owner %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     ERR_PTR(err), guard->owner);
+		return err;
+	}
+
+	xe_sriov_dbg_verbose(xe, "%s/%s by %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     new_owner);
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_disarm_guard() - Disarm the guard.
+ * @xe: the PF &xe_device
+ * @guard: the &xe_guard to disarm
+ * @lockdown: disarm from lockdown(true) or exclusive(false) mode
+ * @who: the address of the indirect owner, or NULL if it's a caller
+ *
+ * This function can only be called on PF.
+ *
+ * It is a simple wrapper for xe_guard_disarm() with additional debug
+ * messages and xe_assert() to easily catch any illegal calls.
+ */
+void xe_sriov_pf_disarm_guard(struct xe_device *xe, struct xe_guard *guard,
+			      bool lockdown, void *who)
+{
+	bool disarmed;
+
+	xe_sriov_dbg_verbose(xe, "%s/%s by %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     who ?: __builtin_return_address(0));
+
+	disarmed = xe_guard_disarm(guard, lockdown);
+	xe_assert_msg(xe, disarmed, "%s/%s not armed? last owner %ps",
+		      guard->name, xe_guard_mode_str(lockdown), guard->owner);
+}
+
+/**
+ * xe_sriov_pf_lockdown() - Lockdown the PF to prevent VFs enabling.
+ * @xe: the PF &xe_device
+ *
+ * This function can only be called on PF.
+ *
+ * Once the PF is locked down, it will not enable VFs.
+ * If VFs are already enabled, the -EBUSY will be returned.
+ * To allow the PF enable VFs again call xe_sriov_pf_end_lockdown().
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_lockdown(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	return xe_sriov_pf_arm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, true,
+				     __builtin_return_address(0));
+}
+
+/**
+ * xe_sriov_pf_end_lockdown() - Allow the PF to enable VFs again.
+ * @xe: the PF &xe_device
+ *
+ * This function can only be called on PF.
+ * See xe_sriov_pf_lockdown() for details.
+ */
+void xe_sriov_pf_end_lockdown(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	xe_sriov_pf_disarm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, true,
+				 __builtin_return_address(0));
+}
+
+/**
  * xe_sriov_pf_print_vfs_summary - Print SR-IOV PF information.
  * @xe: the &xe_device to print info from
  * @p: the &drm_printer
@@ -145,46 +280,4 @@ void xe_sriov_pf_print_vfs_summary(struct xe_device *xe, struct drm_printer *p)
 	drm_printf(p, "total: %u\n", xe->sriov.pf.device_total_vfs);
 	drm_printf(p, "supported: %u\n", xe->sriov.pf.driver_max_vfs);
 	drm_printf(p, "enabled: %u\n", pci_num_vf(pdev));
-}
-
-static int simple_show(struct seq_file *m, void *data)
-{
-	struct drm_printer p = drm_seq_file_printer(m);
-	struct drm_info_node *node = m->private;
-	struct dentry *parent = node->dent->d_parent;
-	struct xe_device *xe = parent->d_inode->i_private;
-	void (*print)(struct xe_device *, struct drm_printer *) = node->info_ent->data;
-
-	print(xe, &p);
-	return 0;
-}
-
-static const struct drm_info_list debugfs_list[] = {
-	{ .name = "vfs", .show = simple_show, .data = xe_sriov_pf_print_vfs_summary },
-	{ .name = "versions", .show = simple_show, .data = xe_sriov_pf_service_print_versions },
-};
-
-/**
- * xe_sriov_pf_debugfs_register - Register PF debugfs attributes.
- * @xe: the &xe_device
- * @root: the root &dentry
- *
- * Prepare debugfs attributes exposed by the PF.
- */
-void xe_sriov_pf_debugfs_register(struct xe_device *xe, struct dentry *root)
-{
-	struct drm_minor *minor = xe->drm.primary;
-	struct dentry *parent;
-
-	/*
-	 *      /sys/kernel/debug/dri/0/
-	 *      ├── pf
-	 *      │   ├── ...
-	 */
-	parent = debugfs_create_dir("pf", root);
-	if (IS_ERR(parent))
-		return;
-	parent->d_inode->i_private = xe;
-
-	drm_debugfs_create_files(debugfs_list, ARRAY_SIZE(debugfs_list), parent, minor);
 }

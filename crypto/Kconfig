@@ -25,7 +25,7 @@ menu "Crypto core or helper"
 
 config CRYPTO_FIPS
 	bool "FIPS 200 compliance"
-	depends on (CRYPTO_ANSI_CPRNG || CRYPTO_DRBG) && CRYPTO_SELFTESTS
+	depends on CRYPTO_DRBG && CRYPTO_SELFTESTS
 	depends on (MODULE_SIG || !MODULES)
 	help
 	  This option enables the fips boot option which is
@@ -696,7 +696,7 @@ config CRYPTO_ECB
 config CRYPTO_HCTR2
 	tristate "HCTR2"
 	select CRYPTO_XCTR
-	select CRYPTO_POLYVAL
+	select CRYPTO_LIB_POLYVAL
 	select CRYPTO_MANAGER
 	help
 	  HCTR2 length-preserving encryption mode
@@ -881,6 +881,7 @@ menu "Hashes, digests, and MACs"
 config CRYPTO_BLAKE2B
 	tristate "BLAKE2b"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_BLAKE2B
 	help
 	  BLAKE2b cryptographic hash function (RFC 7693)
 
@@ -947,16 +948,6 @@ config CRYPTO_MICHAEL_MIC
 	  This algorithm is required for TKIP, but it should not be used for
 	  other purposes because of the weakness of the algorithm.
 
-config CRYPTO_POLYVAL
-	tristate
-	select CRYPTO_HASH
-	select CRYPTO_LIB_GF128MUL
-	help
-	  POLYVAL hash function for HCTR2
-
-	  This is used in HCTR2.  It is not a general-purpose
-	  cryptographic hash function.
-
 config CRYPTO_RMD160
 	tristate "RIPEMD-160"
 	select CRYPTO_HASH
@@ -1005,6 +996,7 @@ config CRYPTO_SHA512
 config CRYPTO_SHA3
 	tristate "SHA-3"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA3
 	help
 	  SHA-3 secure hash algorithms (FIPS 202, ISO/IEC 10118-3)
 
@@ -1169,17 +1161,6 @@ endmenu
 
 menu "Random number generation"
 
-config CRYPTO_ANSI_CPRNG
-	tristate "ANSI PRNG (Pseudo Random Number Generator)"
-	select CRYPTO_AES
-	select CRYPTO_RNG
-	help
-	  Pseudo RNG (random number generator) (ANSI X9.31 Appendix A.2.4)
-
-	  This uses the AES cipher algorithm.
-
-	  Note that this option must be enabled if CRYPTO_FIPS is selected
-
 menuconfig CRYPTO_DRBG_MENU
 	tristate "NIST SP800-90A DRBG (Deterministic Random Bit Generator)"
 	help
@@ -1205,8 +1186,7 @@ config CRYPTO_DRBG_HASH
 
 config CRYPTO_DRBG_CTR
 	bool "CTR_DRBG"
-	select CRYPTO_AES
-	select CRYPTO_CTR
+	select CRYPTO_DF80090A
 	help
 	  CTR_DRBG variant as defined in NIST SP800-90A.
 
@@ -1341,6 +1321,11 @@ config CRYPTO_KDF800108_CTR
 	tristate
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
+
+config CRYPTO_DF80090A
+	tristate
+	select CRYPTO_AES
+	select CRYPTO_CTR
 
 endmenu
 menu "Userspace interface"

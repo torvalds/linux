@@ -375,6 +375,7 @@
 		 <&clk IMX8MQ_CLK_PCIE1_PHY>,
 		 <&clk IMX8MQ_CLK_PCIE1_AUX>;
 	vph-supply = <&vgen5_reg>;
+	supports-clkreq;
 	status = "okay";
 };
 
@@ -397,7 +398,9 @@
 		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
 		 <&clk IMX8MQ_CLK_PCIE2_AUX>;
 	vpcie-supply = <&reg_pcie1>;
+	vpcie3v3aux-supply = <&reg_pcie1>;
 	vph-supply = <&vgen5_reg>;
+	supports-clkreq;
 	status = "okay";
 };
 

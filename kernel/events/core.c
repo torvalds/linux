@@ -56,6 +56,7 @@
 #include <linux/buildid.h>
 #include <linux/task_work.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/unwind_deferred.h>
 
 #include "internal.h"
 
@@ -2316,8 +2317,6 @@ out:
 	perf_event__header_size(leader);
 }
 
-static void sync_child_event(struct perf_event *child_event);
-
 static void perf_child_detach(struct perf_event *event)
 {
 	struct perf_event *parent_event = event->parent;
@@ -2336,7 +2335,6 @@ static void perf_child_detach(struct perf_event *event)
 	lockdep_assert_held(&parent_event->child_mutex);
 	 */
 
-	sync_child_event(event);
 	list_del_init(&event->child_list);
 }
 
@@ -4587,6 +4585,7 @@ out:
 static void perf_remove_from_owner(struct perf_event *event);
 static void perf_event_exit_event(struct perf_event *event,
 				  struct perf_event_context *ctx,
+				  struct task_struct *task,
 				  bool revoke);
 
 /*
@@ -4614,7 +4613,7 @@ static void perf_event_remove_on_exec(struct perf_event_context *ctx)
 
 		modified = true;
 
-		perf_event_exit_event(event, ctx, false);
+		perf_event_exit_event(event, ctx, ctx->task, false);
 	}
 
 	raw_spin_lock_irqsave(&ctx->lock, flags);
@@ -8200,6 +8199,8 @@ static u64 perf_get_page_size(unsigned long addr)
 
 static struct perf_callchain_entry __empty_callchain = { .nr = 0, };
 
+static struct unwind_work perf_unwind_work;
+
 struct perf_callchain_entry *
 perf_callchain(struct perf_event *event, struct pt_regs *regs)
 {
@@ -8208,8 +8209,11 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 		!(current->flags & (PF_KTHREAD | PF_USER_WORKER));
 	/* Disallow cross-task user callchains. */
 	bool crosstask = event->ctx->task && event->ctx->task != current;
+	bool defer_user = IS_ENABLED(CONFIG_UNWIND_USER) && user &&
+			  event->attr.defer_callchain;
 	const u32 max_stack = event->attr.sample_max_stack;
 	struct perf_callchain_entry *callchain;
+	u64 defer_cookie;
 
 	if (!current->mm)
 		user = false;
@@ -8217,8 +8221,13 @@ perf_callchain(struct perf_event *event, struct pt_regs *regs)
 	if (!kernel && !user)
 		return &__empty_callchain;
 
-	callchain = get_perf_callchain(regs, kernel, user,
-				       max_stack, crosstask, true);
+	if (!(user && defer_user && !crosstask &&
+	      unwind_deferred_request(&perf_unwind_work, &defer_cookie) >= 0))
+		defer_cookie = 0;
+
+	callchain = get_perf_callchain(regs, kernel, user, max_stack,
+				       crosstask, true, defer_cookie);
+
 	return callchain ?: &__empty_callchain;
 }
 
@@ -10001,6 +10010,66 @@ void perf_event_bpf_event(struct bpf_prog *prog,
 
 	memcpy(bpf_event.event_id.tag, prog->tag, BPF_TAG_SIZE);
 	perf_iterate_sb(perf_event_bpf_output, &bpf_event, NULL);
+}
+
+struct perf_callchain_deferred_event {
+	struct unwind_stacktrace *trace;
+	struct {
+		struct perf_event_header	header;
+		u64				cookie;
+		u64				nr;
+		u64				ips[];
+	} event;
+};
+
+static void perf_callchain_deferred_output(struct perf_event *event, void *data)
+{
+	struct perf_callchain_deferred_event *deferred_event = data;
+	struct perf_output_handle handle;
+	struct perf_sample_data sample;
+	int ret, size = deferred_event->event.header.size;
+
+	if (!event->attr.defer_output)
+		return;
+
+	/* XXX do we really need sample_id_all for this ??? */
+	perf_event_header__init_id(&deferred_event->event.header, &sample, event);
+
+	ret = perf_output_begin(&handle, &sample, event,
+				deferred_event->event.header.size);
+	if (ret)
+		goto out;
+
+	perf_output_put(&handle, deferred_event->event);
+	for (int i = 0; i < deferred_event->trace->nr; i++) {
+		u64 entry = deferred_event->trace->entries[i];
+		perf_output_put(&handle, entry);
+	}
+	perf_event__output_id_sample(event, &handle, &sample);
+
+	perf_output_end(&handle);
+out:
+	deferred_event->event.header.size = size;
+}
+
+static void perf_unwind_deferred_callback(struct unwind_work *work,
+					 struct unwind_stacktrace *trace, u64 cookie)
+{
+	struct perf_callchain_deferred_event deferred_event = {
+		.trace = trace,
+		.event = {
+			.header = {
+				.type = PERF_RECORD_CALLCHAIN_DEFERRED,
+				.misc = PERF_RECORD_MISC_USER,
+				.size = sizeof(deferred_event.event) +
+					(trace->nr * sizeof(u64)),
+			},
+			.cookie = cookie,
+			.nr = trace->nr,
+		},
+	};
+
+	perf_iterate_sb(perf_callchain_deferred_output, &deferred_event, NULL);
 }
 
 struct perf_text_poke_event {
@@ -12447,7 +12516,7 @@ static void __pmu_detach_event(struct pmu *pmu, struct perf_event *event,
 	/*
 	 * De-schedule the event and mark it REVOKED.
 	 */
-	perf_event_exit_event(event, ctx, true);
+	perf_event_exit_event(event, ctx, ctx->task, true);
 
 	/*
 	 * All _free_event() bits that rely on event->pmu:
@@ -14004,14 +14073,13 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 }
 EXPORT_SYMBOL_GPL(perf_pmu_migrate_context);
 
-static void sync_child_event(struct perf_event *child_event)
+static void sync_child_event(struct perf_event *child_event,
+			     struct task_struct *task)
 {
 	struct perf_event *parent_event = child_event->parent;
 	u64 child_val;
 
 	if (child_event->attr.inherit_stat) {
-		struct task_struct *task = child_event->ctx->task;
-
 		if (task && task != TASK_TOMBSTONE)
 			perf_event_read_event(child_event, task);
 	}
@@ -14030,7 +14098,9 @@ static void sync_child_event(struct perf_event *child_event)
 
 static void
 perf_event_exit_event(struct perf_event *event,
-		      struct perf_event_context *ctx, bool revoke)
+		      struct perf_event_context *ctx,
+		      struct task_struct *task,
+		      bool revoke)
 {
 	struct perf_event *parent_event = event->parent;
 	unsigned long detach_flags = DETACH_EXIT;
@@ -14053,6 +14123,9 @@ perf_event_exit_event(struct perf_event *event,
 		mutex_lock(&parent_event->child_mutex);
 		/* PERF_ATTACH_ITRACE might be set concurrently */
 		attach_state = READ_ONCE(event->attach_state);
+
+		if (attach_state & PERF_ATTACH_CHILD)
+			sync_child_event(event, task);
 	}
 
 	if (revoke)
@@ -14144,7 +14217,7 @@ static void perf_event_exit_task_context(struct task_struct *task, bool exit)
 		perf_event_task(task, ctx, 0);
 
 	list_for_each_entry_safe(child_event, next, &ctx->event_list, event_entry)
-		perf_event_exit_event(child_event, ctx, false);
+		perf_event_exit_event(child_event, ctx, exit ? task : NULL, false);
 
 	mutex_unlock(&ctx->mutex);
 
@@ -14808,6 +14881,9 @@ void __init perf_event_init(void)
 	int ret;
 
 	idr_init(&pmu_idr);
+
+	unwind_deferred_init(&perf_unwind_work,
+			     perf_unwind_deferred_callback);
 
 	perf_event_init_all_cpus();
 	init_srcu_struct(&pmus_srcu);

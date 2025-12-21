@@ -67,7 +67,7 @@ static void bdev_write_inode(struct block_device *bdev)
 	int ret;
 
 	spin_lock(&inode->i_lock);
-	while (inode->i_state & I_DIRTY) {
+	while (inode_state_read(inode) & I_DIRTY) {
 		spin_unlock(&inode->i_lock);
 		ret = write_inode_now(inode, true);
 		if (ret)
@@ -217,9 +217,26 @@ int set_blocksize(struct file *file, int size)
 
 EXPORT_SYMBOL(set_blocksize);
 
+static int sb_validate_large_blocksize(struct super_block *sb, int size)
+{
+	const char *err_str = NULL;
+
+	if (!(sb->s_type->fs_flags & FS_LBS))
+		err_str = "not supported by filesystem";
+	else if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
+		err_str = "is only supported with CONFIG_TRANSPARENT_HUGEPAGE";
+
+	if (!err_str)
+		return 0;
+
+	pr_warn_ratelimited("%s: block size(%d) > page size(%lu) %s\n",
+				sb->s_type->name, size, PAGE_SIZE, err_str);
+	return -EINVAL;
+}
+
 int sb_set_blocksize(struct super_block *sb, int size)
 {
-	if (!(sb->s_type->fs_flags & FS_LBS) && size > PAGE_SIZE)
+	if (size > PAGE_SIZE && sb_validate_large_blocksize(sb, size))
 		return 0;
 	if (set_blocksize(sb->s_bdev_file, size))
 		return 0;
@@ -1265,7 +1282,7 @@ void sync_bdevs(bool wait)
 		struct block_device *bdev;
 
 		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW) ||
+		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE | I_NEW) ||
 		    mapping->nrpages == 0) {
 			spin_unlock(&inode->i_lock);
 			continue;

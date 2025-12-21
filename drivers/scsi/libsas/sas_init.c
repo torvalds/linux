@@ -141,6 +141,7 @@ Undo_event_q:
 Undo_ports:
 	sas_unregister_ports(sas_ha);
 Undo_phys:
+	sas_unregister_phys(sas_ha);
 
 	return error;
 }

@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define DEBUG_LEVEL_1_BIT	(0x0001)
 #define DEBUG_LEVEL_2_BIT	(0x0002)

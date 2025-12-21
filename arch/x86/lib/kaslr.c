@@ -22,7 +22,7 @@
 #include <asm/setup.h>
 
 #define debug_putstr(v) early_printk("%s", v)
-#define has_cpuflag(f) boot_cpu_has(f)
+#define has_cpuflag(f) cpu_feature_enabled(f)
 #define get_boot_seed() kaslr_offset()
 #endif
 

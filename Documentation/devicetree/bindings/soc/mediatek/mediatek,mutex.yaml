@@ -91,7 +91,6 @@ allOf:
       required:
         - clocks
 
-
 required:
   - compatible
   - reg

@@ -52,7 +52,22 @@ enum xe_force_wake_domains {
 };
 
 /**
- * struct xe_force_wake_domain - XE force wake domains
+ * struct xe_force_wake_domain - Xe force wake power domain
+ *
+ * Represents an individual device-internal power domain.  The driver must
+ * ensure the power domain is awake before accessing registers or other
+ * hardware functionality that is part of the power domain.  Since different
+ * driver threads may access hardware units simultaneously, a reference count
+ * is used to ensure that the domain remains awake as long as any software
+ * is using the part of the hardware covered by the power domain.
+ *
+ * Hardware provides a register interface to allow the driver to request
+ * wake/sleep of power domains, although in most cases the actual action of
+ * powering the hardware up/down is handled by firmware (and may be subject to
+ * requirements and constraints outside of the driver's visibility) so the
+ * driver needs to wait for an acknowledgment that a wake request has been
+ * acted upon before accessing the parts of the hardware that reside within the
+ * power domain.
  */
 struct xe_force_wake_domain {
 	/** @id: domain force wake id */
@@ -70,7 +85,14 @@ struct xe_force_wake_domain {
 };
 
 /**
- * struct xe_force_wake - XE force wake
+ * struct xe_force_wake - Xe force wake collection
+ *
+ * Represents a collection of related power domains (struct
+ * xe_force_wake_domain) associated with a subunit of the device.
+ *
+ * Currently only used for GT power domains (where the term "forcewake" is used
+ * in the hardware documentation), although the interface could be extended to
+ * power wells in other parts of the hardware in the future.
  */
 struct xe_force_wake {
 	/** @gt: back pointers to GT */

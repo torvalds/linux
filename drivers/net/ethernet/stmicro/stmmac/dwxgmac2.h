@@ -79,6 +79,7 @@
 #define XGMAC_PSRQ(x)			GENMASK((x) * 8 + 7, (x) * 8)
 #define XGMAC_PSRQ_SHIFT(x)		((x) * 8)
 #define XGMAC_INT_STATUS		0x000000b0
+#define XGMAC_INT_TSIS			BIT(12)
 #define XGMAC_LPIIS			BIT(5)
 #define XGMAC_PMTIS			BIT(4)
 #define XGMAC_INT_EN			0x000000b4
@@ -173,6 +174,8 @@
 #define XGMAC_MDIO_ADDR			0x00000200
 #define XGMAC_MDIO_DATA			0x00000204
 #define XGMAC_MDIO_C22P			0x00000220
+#define XGMAC_GPIO_STATUS		0x0000027c
+#define XGMAC_GPIO_GPO0			BIT(16)
 #define XGMAC_ADDRx_HIGH(x)		(0x00000300 + (x) * 0x8)
 #define XGMAC_ADDR_MAX			32
 #define XGMAC_AE			BIT(31)
@@ -220,6 +223,8 @@
 #define XGMAC_OB			BIT(0)
 #define XGMAC_RSS_DATA			0x00000c8c
 #define XGMAC_TIMESTAMP_STATUS		0x00000d20
+#define XGMAC_TIMESTAMP_ATSNS_MASK	GENMASK(29, 25)
+#define XGMAC_TIMESTAMP_ATSNS_SHIFT	25
 #define XGMAC_TXTSC			BIT(15)
 #define XGMAC_TXTIMESTAMP_NSEC		0x00000d30
 #define XGMAC_TXTSSTSLO			GENMASK(30, 0)
@@ -333,16 +338,9 @@
 #define XGMAC_RD_OSR_LMT_SHIFT		16
 #define XGMAC_EN_LPI			BIT(15)
 #define XGMAC_LPI_XIT_PKT		BIT(14)
-#define XGMAC_AAL			BIT(12)
+#define XGMAC_AAL			DMA_AXI_AAL
 #define XGMAC_EAME			BIT(11)
-#define XGMAC_BLEN			GENMASK(7, 1)
-#define XGMAC_BLEN256			BIT(7)
-#define XGMAC_BLEN128			BIT(6)
-#define XGMAC_BLEN64			BIT(5)
-#define XGMAC_BLEN32			BIT(4)
-#define XGMAC_BLEN16			BIT(3)
-#define XGMAC_BLEN8			BIT(2)
-#define XGMAC_BLEN4			BIT(1)
+/* XGMAC_BLEN* are now defined as DMA_AXI_BLEN* in common.h */
 #define XGMAC_UNDEF			BIT(0)
 #define XGMAC_TX_EDMA_CTRL		0x00003040
 #define XGMAC_TDPS			GENMASK(29, 0)

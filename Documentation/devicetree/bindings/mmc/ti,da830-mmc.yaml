@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/ti,da830-mmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI Highspeed MMC host controller for DaVinci
+
+description:
+  The Highspeed MMC Host Controller on TI DaVinci family
+  provides an interface for MMC, SD and SDIO types of memory cards.
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+maintainers:
+  - Kishon Vijay Abraham I <kishon@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - ti,da830-mmc
+      - ti,dm355-mmc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 2
+
+  dmas:
+    maxItems: 2
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    mmc@1c40000 {
+        compatible = "ti,da830-mmc";
+        reg = <0x40000 0x1000>;
+        interrupts = <16 IRQ_TYPE_LEVEL_HIGH>,
+                     <17 IRQ_TYPE_LEVEL_HIGH>;
+        bus-width = <4>;
+        max-frequency = <50000000>;
+        dmas = <&edma 16>, <&edma 17>;
+        dma-names = "rx", "tx";
+    };
+...

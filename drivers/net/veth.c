@@ -975,6 +975,9 @@ static int veth_poll(struct napi_struct *napi, int budget)
 
 	if (stats.xdp_redirect > 0)
 		xdp_do_flush();
+	if (stats.xdp_tx > 0)
+		veth_xdp_flush(rq, &bq);
+	xdp_clear_return_frame_no_direct();
 
 	if (done < budget && napi_complete_done(napi, done)) {
 		/* Write rx_notify_masked before reading ptr_ring */
@@ -986,10 +989,6 @@ static int veth_poll(struct napi_struct *napi, int budget)
 			}
 		}
 	}
-
-	if (stats.xdp_tx > 0)
-		veth_xdp_flush(rq, &bq);
-	xdp_clear_return_frame_no_direct();
 
 	/* Release backpressure per NAPI poll */
 	smp_rmb(); /* Paired with netif_tx_stop_queue set_bit */
@@ -1325,7 +1324,7 @@ static int veth_set_channels(struct net_device *dev,
 		if (peer)
 			netif_carrier_off(peer);
 
-		/* try to allocate new resurces, as needed*/
+		/* try to allocate new resources, as needed*/
 		err = veth_enable_range_safe(dev, old_rx_count, new_rx_count);
 		if (err)
 			goto out;

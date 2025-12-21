@@ -60,7 +60,7 @@ u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 	return retval;
 }
 
-int hfs_brec_insert(struct hfs_find_data *fd, void *entry, int entry_len)
+int hfs_brec_insert(struct hfs_find_data *fd, void *entry, u32 entry_len)
 {
 	struct hfs_btree *tree;
 	struct hfs_bnode *node, *new_node;

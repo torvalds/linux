@@ -51,6 +51,21 @@ struct xe_guc_exec_queue {
 	wait_queue_head_t suspend_wait;
 	/** @suspend_pending: a suspend of the exec_queue is pending */
 	bool suspend_pending;
+	/**
+	 * @needs_cleanup: Needs a cleanup message during VF post migration
+	 * recovery.
+	 */
+	bool needs_cleanup;
+	/**
+	 * @needs_suspend: Needs a suspend message during VF post migration
+	 * recovery.
+	 */
+	bool needs_suspend;
+	/**
+	 * @needs_resume: Needs a resume message during VF post migration
+	 * recovery.
+	 */
+	bool needs_resume;
 };
 
 #endif

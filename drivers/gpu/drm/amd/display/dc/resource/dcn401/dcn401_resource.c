@@ -73,7 +73,7 @@
 
 #include "dc_state_priv.h"
 
-#include "dml2/dml2_wrapper.h"
+#include "dml2_0/dml2_wrapper.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -721,7 +721,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.alloc_extra_way_for_cursor = true,
 	.min_prefetch_in_strobe_ns = 60000, // 60us
 	.disable_unbounded_requesting = false,
-	.enable_legacy_fast_update = false,
 	.dcc_meta_propagation_delay_us = 10,
 	.fams_version = {
 		.minor = 1,
@@ -735,6 +734,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.force_cositing = CHROMA_COSITING_NONE + 1,
+};
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = false,
 };
 
 static struct dce_aux *dcn401_aux_engine_create(
@@ -1668,7 +1671,7 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 				dc_state_set_stream_cursor_subvp_limit(stream, context, true);
 				status = DC_FAIL_HW_CURSOR_SUPPORT;
 			}
-		};
+		}
 	}
 
 	if (validate_mode == DC_VALIDATE_MODE_AND_PROGRAMMING && status == DC_FAIL_HW_CURSOR_SUPPORT) {
@@ -1995,6 +1998,7 @@ static bool dcn401_resource_construct(
 			dc->caps.vbios_lttpr_aware = true;
 		}
 	}
+	dc->check_config = config_defaults;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

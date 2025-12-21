@@ -55,18 +55,23 @@ struct sdw_slave;
 #define REGMAP_DOWNSHIFT(s)	(s)
 
 /*
- * The supported cache types, the default is no cache.  Any new caches
- * should usually use the maple tree cache unless they specifically
- * require that there are never any allocations at runtime and can't
- * provide defaults in which case they should use the flat cache.  The
- * rbtree cache *may* have some performance advantage for very low end
- * systems that make heavy use of cache syncs but is mainly legacy.
+ * The supported cache types, the default is no cache.  Any new caches should
+ * usually use the maple tree cache unless they specifically require that there
+ * are never any allocations at runtime in which case they should use the sparse
+ * flat cache.  The rbtree cache *may* have some performance advantage for very
+ * low end systems that make heavy use of cache syncs but is mainly legacy.
+ * These caches are sparse and entries will be initialized from hardware if no
+ * default has been provided.
+ * The non-sparse flat cache is provided for compatibility with existing users
+ * and will zero-initialize cache entries for which no defaults are provided.
+ * New users should use the sparse flat cache.
  */
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
 	REGCACHE_FLAT,
 	REGCACHE_MAPLE,
+	REGCACHE_FLAT_S,
 };
 
 /**

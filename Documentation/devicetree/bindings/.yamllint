@@ -30,7 +30,7 @@ rules:
   document-start:
     present: true
   empty-lines:
-    max: 3
+    max: 1
     max-end: 1
   empty-values:
     forbid-in-block-mappings: true

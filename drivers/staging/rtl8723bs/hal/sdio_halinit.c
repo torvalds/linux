@@ -1014,14 +1014,10 @@ static void Hal_EfuseParseMACAddr_8723BS(
 	struct adapter *padapter, u8 *hwinfo, bool AutoLoadFail
 )
 {
-	u16 i;
-	u8 sMacAddr[6] = {0x00, 0xE0, 0x4C, 0xb7, 0x23, 0x00};
 	struct eeprom_priv *pEEPROM = GET_EEPROM_EFUSE_PRIV(padapter);
 
 	if (AutoLoadFail) {
-/* 		sMacAddr[5] = (u8)GetRandomNumber(1, 254); */
-		for (i = 0; i < 6; i++)
-			pEEPROM->mac_addr[i] = sMacAddr[i];
+		eth_random_addr(pEEPROM->mac_addr);
 	} else {
 		/* Read Permanent MAC address */
 		memcpy(pEEPROM->mac_addr, &hwinfo[EEPROM_MAC_ADDR_8723BS], ETH_ALEN);
@@ -1235,13 +1231,4 @@ u8 GetHalDefVar8723BSDIO(
 	}
 
 	return bResult;
-}
-
-/*  */
-/* 	Description: */
-/* 		Change default setting of specified variable. */
-/*  */
-u8 SetHalDefVar8723BSDIO(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
-{
-	return SetHalDefVar8723B(Adapter, eVariable, pValue);
 }

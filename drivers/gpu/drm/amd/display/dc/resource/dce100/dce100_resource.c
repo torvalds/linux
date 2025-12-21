@@ -78,6 +78,7 @@
 #endif
 
 #ifndef mmBIOS_SCRATCH_2
+	#define mmBIOS_SCRATCH_0 0x05C9
 	#define mmBIOS_SCRATCH_2 0x05CB
 	#define mmBIOS_SCRATCH_3 0x05CC
 	#define mmBIOS_SCRATCH_6 0x05CF
@@ -225,6 +226,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 	link_regs(4),
 	link_regs(5),
 	link_regs(6),
+	{ .DAC_ENABLE = mmDAC_ENABLE },
 };
 
 #define stream_enc_regs(id)\
@@ -368,6 +370,7 @@ static const struct dce_abm_mask abm_mask = {
 #define DCFE_MEM_PWR_CTRL_REG_BASE 0x1b03
 
 static const struct bios_registers bios_regs = {
+	.BIOS_SCRATCH_0 = mmBIOS_SCRATCH_0,
 	.BIOS_SCRATCH_3 = mmBIOS_SCRATCH_3,
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
 };
@@ -375,6 +378,7 @@ static const struct bios_registers bios_regs = {
 static const struct resource_caps res_cap = {
 	.num_timing_generator = 6,
 	.num_audio = 6,
+	.num_analog_stream_encoder = 1,
 	.num_stream_encoder = 6,
 	.num_pll = 3,
 	.num_ddc = 6,
@@ -402,8 +406,10 @@ static const struct dc_plane_cap plane_cap = {
 	}
 };
 
-static const struct dc_debug_options debug_defaults = {
-		.enable_legacy_fast_update = true,
+static const struct dc_debug_options debug_defaults = { 0 };
+
+static const struct dc_check_config config_defaults = {
+	.enable_legacy_fast_update = true,
 };
 
 #define CTX  ctx
@@ -483,6 +489,11 @@ static struct stream_encoder *dce100_stream_encoder_create(
 
 	if (!enc110)
 		return NULL;
+
+	if (eng_id == ENGINE_ID_DACA || eng_id == ENGINE_ID_DACB) {
+		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id);
+		return &enc110->base;
+	}
 
 	dce110_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
 					&stream_enc_regs[eng_id], &se_shift, &se_mask);
@@ -624,7 +635,20 @@ static struct link_encoder *dce100_link_encoder_create(
 		kzalloc(sizeof(struct dce110_link_encoder), GFP_KERNEL);
 	int link_regs_id;
 
-	if (!enc110 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
+	if (!enc110)
+		return NULL;
+
+	if (enc_init_data->connector.id == CONNECTOR_ID_VGA) {
+		dce110_link_encoder_construct(enc110,
+			enc_init_data,
+			&link_enc_feature,
+			&link_enc_regs[ENGINE_ID_DACA],
+			NULL,
+			NULL);
+		return &enc110->base;
+	}
+
+	if (enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	link_regs_id =
@@ -952,6 +976,10 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 	int i;
 	int j = -1;
 	struct dc_link *link = stream->link;
+	enum engine_id preferred_engine = link->link_enc->preferred_engine;
+
+	if (dc_is_rgb_signal(stream->signal))
+		preferred_engine = link->link_enc->analog_engine;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (!res_ctx->is_stream_enc_acquired[i] &&
@@ -960,8 +988,7 @@ struct stream_encoder *dce100_find_first_free_match_stream_enc_for_link(
 			 * in daisy chain use case
 			 */
 			j = i;
-			if (pool->stream_enc[i]->id ==
-					link->link_enc->preferred_engine)
+			if (pool->stream_enc[i]->id == preferred_engine)
 				return pool->stream_enc[i];
 		}
 	}
@@ -1093,6 +1120,7 @@ static bool dce100_resource_construct(
 	dc->caps.disable_dp_clk_share = true;
 	dc->caps.extended_aux_timeout_support = false;
 	dc->debug = debug_defaults;
+	dc->check_config = config_defaults;
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.timing_generators[i] =

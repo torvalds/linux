@@ -2,8 +2,9 @@
 
 #include <linux/aperture.h>
 #include <linux/clk.h>
-#include <linux/of_clk.h>
 #include <linux/minmax.h>
+#include <linux/of_address.h>
+#include <linux/of_clk.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_data/simplefb.h>
 #include <linux/platform_device.h>
@@ -24,6 +25,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "drm_sysfb_helper.h"

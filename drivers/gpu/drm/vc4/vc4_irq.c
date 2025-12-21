@@ -48,6 +48,7 @@
 #include <linux/platform_device.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_print.h>
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"

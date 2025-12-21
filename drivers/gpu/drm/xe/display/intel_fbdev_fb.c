@@ -3,45 +3,34 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/drm_fb_helper.h>
+#include <linux/fb.h>
 
-#include "intel_display_core.h"
-#include "intel_display_types.h"
-#include "intel_fb.h"
 #include "intel_fbdev_fb.h"
 #include "xe_bo.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_wa.h"
 
-#include <generated/xe_wa_oob.h>
+#include <generated/xe_device_wa_oob.h>
 
-struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
-					       struct drm_fb_helper_surface_size *sizes)
+/*
+ * FIXME: There shouldn't be any reason to have XE_PAGE_SIZE stride
+ * alignment. The same 64 as i915 uses should be fine, and we shouldn't need to
+ * have driver specific values. However, dropping the stride alignment to 64
+ * leads to underflowing the bo pin count in the atomic cleanup work.
+ */
+u32 intel_fbdev_fb_pitch_align(u32 stride)
 {
-	struct drm_framebuffer *fb;
-	struct drm_device *dev = helper->dev;
-	struct xe_device *xe = to_xe_device(dev);
-	struct drm_mode_fb_cmd2 mode_cmd = {};
+	return ALIGN(stride, XE_PAGE_SIZE);
+}
+
+struct drm_gem_object *intel_fbdev_fb_bo_create(struct drm_device *drm, int size)
+{
+	struct xe_device *xe = to_xe_device(drm);
 	struct xe_bo *obj;
-	int size;
 
-	/* we don't do packed 24bpp */
-	if (sizes->surface_bpp == 24)
-		sizes->surface_bpp = 32;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width *
-				    DIV_ROUND_UP(sizes->surface_bpp, 8), XE_PAGE_SIZE);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-							  sizes->surface_depth);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = PAGE_ALIGN(size);
 	obj = ERR_PTR(-ENODEV);
 
-	if (!IS_DGFX(xe) && !XE_GT_WA(xe_root_mmio_gt(xe), 22019338487_display)) {
+	if (!IS_DGFX(xe) && !XE_DEVICE_WA(xe, 22019338487_display)) {
 		obj = xe_bo_create_pin_map_novm(xe, xe_device_get_root_tile(xe),
 						size,
 						ttm_bo_type_kernel, XE_BO_FLAG_SCANOUT |
@@ -62,33 +51,22 @@ struct intel_framebuffer *intel_fbdev_fb_alloc(struct drm_fb_helper *helper,
 
 	if (IS_ERR(obj)) {
 		drm_err(&xe->drm, "failed to allocate framebuffer (%pe)\n", obj);
-		fb = ERR_PTR(-ENOMEM);
-		goto err;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	fb = intel_framebuffer_create(&obj->ttm.base,
-				      drm_get_format_info(dev,
-							  mode_cmd.pixel_format,
-							  mode_cmd.modifier[0]),
-				      &mode_cmd);
-	if (IS_ERR(fb)) {
-		xe_bo_unpin_map_no_vm(obj);
-		goto err;
-	}
-
-	drm_gem_object_put(&obj->ttm.base);
-
-	return to_intel_framebuffer(fb);
-
-err:
-	return ERR_CAST(fb);
+	return &obj->ttm.base;
 }
 
-int intel_fbdev_fb_fill_info(struct intel_display *display, struct fb_info *info,
+void intel_fbdev_fb_bo_destroy(struct drm_gem_object *obj)
+{
+	xe_bo_unpin_map_no_vm(gem_to_xe_bo(obj));
+}
+
+int intel_fbdev_fb_fill_info(struct drm_device *drm, struct fb_info *info,
 			     struct drm_gem_object *_obj, struct i915_vma *vma)
 {
 	struct xe_bo *obj = gem_to_xe_bo(_obj);
-	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
+	struct pci_dev *pdev = to_pci_dev(drm->dev);
 
 	if (!(obj->flags & XE_BO_FLAG_SYSTEM)) {
 		if (obj->flags & XE_BO_FLAG_STOLEN)

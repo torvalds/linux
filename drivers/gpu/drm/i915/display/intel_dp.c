@@ -51,7 +51,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "g4x_dp.h"
-#include "i915_utils.h"
 #include "intel_alpm.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -64,6 +63,8 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_jiffies.h"
+#include "intel_display_utils.h"
 #include "intel_display_regs.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
@@ -93,13 +94,9 @@
 #include "intel_psr.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
+#include "intel_vblank.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
-
-/* DP DSC throughput values used for slice count calculations KPixels/s */
-#define DP_DSC_PEAK_PIXEL_RATE			2720000
-#define DP_DSC_MAX_ENC_THROUGHPUT_0		340000
-#define DP_DSC_MAX_ENC_THROUGHPUT_1		400000
 
 /* Max DSC line buffer depth supported by HW. */
 #define INTEL_DP_DSC_MAX_LINE_BUF_DEPTH		13
@@ -1018,13 +1015,43 @@ u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
 	struct intel_display *display = to_intel_display(connector);
 	u8 min_slice_count, i;
 	int max_slice_width;
+	int tp_rgb_yuv444;
+	int tp_yuv422_420;
 
-	if (mode_clock <= DP_DSC_PEAK_PIXEL_RATE)
-		min_slice_count = DIV_ROUND_UP(mode_clock,
-					       DP_DSC_MAX_ENC_THROUGHPUT_0);
-	else
-		min_slice_count = DIV_ROUND_UP(mode_clock,
-					       DP_DSC_MAX_ENC_THROUGHPUT_1);
+	/*
+	 * TODO: Use the throughput value specific to the actual RGB/YUV
+	 * format of the output.
+	 * The RGB/YUV444 throughput value should be always either equal
+	 * or smaller than the YUV422/420 value, but let's not depend on
+	 * this assumption.
+	 */
+	if (mode_clock > max(connector->dp.dsc_branch_caps.overall_throughput.rgb_yuv444,
+			     connector->dp.dsc_branch_caps.overall_throughput.yuv422_420))
+		return 0;
+
+	if (mode_hdisplay > connector->dp.dsc_branch_caps.max_line_width)
+		return 0;
+
+	/*
+	 * TODO: Pass the total pixel rate of all the streams transferred to
+	 * an MST tiled display, calculate the total slice count for all tiles
+	 * from this and the per-tile slice count from the total slice count.
+	 */
+	tp_rgb_yuv444 = drm_dp_dsc_sink_max_slice_throughput(connector->dp.dsc_dpcd,
+							     mode_clock, true);
+	tp_yuv422_420 = drm_dp_dsc_sink_max_slice_throughput(connector->dp.dsc_dpcd,
+							     mode_clock, false);
+
+	/*
+	 * TODO: Use the throughput value specific to the actual RGB/YUV
+	 * format of the output.
+	 * For now use the smaller of these, which is ok, potentially
+	 * resulting in a higher than required minimum slice count.
+	 * The RGB/YUV444 throughput value should be always either equal
+	 * or smaller than the YUV422/420 value, but let's not depend on
+	 * this assumption.
+	 */
+	min_slice_count = DIV_ROUND_UP(mode_clock, min(tp_rgb_yuv444, tp_yuv422_420));
 
 	/*
 	 * Due to some DSC engine BW limitations, we need to enable second
@@ -2340,24 +2367,26 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static void intel_dp_fec_compute_config(struct intel_dp *intel_dp,
-					struct intel_crtc_state *crtc_state)
+/*
+ * Return whether FEC must be enabled for 8b10b SST or MST links. On 128b132b
+ * links FEC is always enabled implicitly by the HW, so this function returns
+ * false for that case.
+ */
+bool intel_dp_needs_8b10b_fec(const struct intel_crtc_state *crtc_state,
+			      bool dsc_enabled_on_crtc)
 {
-	if (crtc_state->fec_enable)
-		return;
+	if (intel_dp_is_uhbr(crtc_state))
+		return false;
 
 	/*
 	 * Though eDP v1.5 supports FEC with DSC, unlike DP, it is optional.
 	 * Since, FEC is a bandwidth overhead, continue to not enable it for
 	 * eDP. Until, there is a good reason to do so.
 	 */
-	if (intel_dp_is_edp(intel_dp))
-		return;
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
+		return false;
 
-	if (intel_dp_is_uhbr(crtc_state))
-		return;
-
-	crtc_state->fec_enable = true;
+	return dsc_enabled_on_crtc || intel_dsc_enabled_on_link(crtc_state);
 }
 
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
@@ -2375,7 +2404,11 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	bool is_mst = intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST);
 	int ret;
 
-	intel_dp_fec_compute_config(intel_dp, pipe_config);
+	/*
+	 * FIXME: set the FEC enabled state once pipe_config->port_clock is
+	 * already known, so the UHBR/non-UHBR mode can be determined.
+	 */
+	pipe_config->fec_enable = intel_dp_needs_8b10b_fec(pipe_config, true);
 
 	if (!intel_dp_dsc_supports_format(connector, pipe_config->output_format))
 		return -EINVAL;
@@ -2450,7 +2483,8 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		return ret;
 	}
 
-	pipe_config->dsc.compression_enable = true;
+	intel_dsc_enable_on_crtc(pipe_config);
+
 	drm_dbg_kms(display->drm, "DP DSC computed with Input Bpp = %d "
 		    "Compressed Bpp = " FXP_Q4_FMT " Slice Count = %d\n",
 		    pipe_config->pipe_bpp,
@@ -2458,6 +2492,40 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		    pipe_config->dsc.slice_count);
 
 	return 0;
+}
+
+static int
+dsc_throughput_quirk_max_bpp_x16(const struct intel_connector *connector,
+				 const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+
+	if (!connector->dp.dsc_throughput_quirk)
+		return INT_MAX;
+
+	/*
+	 * Synaptics Panamera branch devices have a problem decompressing a
+	 * stream with a compressed link-bpp higher than 12, if the pixel
+	 * clock is higher than ~50 % of the maximum overall throughput
+	 * reported by the branch device. Work around this by limiting the
+	 * maximum link bpp for such pixel clocks.
+	 *
+	 * TODO: Use the throughput value specific to the actual RGB/YUV
+	 * format of the output, after determining the pixel clock limit for
+	 * YUV modes. For now use the smaller of the throughput values, which
+	 * may result in limiting the link-bpp value already at a lower than
+	 * required mode clock in case of native YUV422/420 output formats.
+	 * The RGB/YUV444 throughput value should be always either equal or
+	 * smaller than the YUV422/420 value, but let's not depend on this
+	 * assumption.
+	 */
+	if (adjusted_mode->crtc_clock <
+	    min(connector->dp.dsc_branch_caps.overall_throughput.rgb_yuv444,
+		connector->dp.dsc_branch_caps.overall_throughput.yuv422_420) / 2)
+		return INT_MAX;
+
+	return fxp_q4_from_int(12);
 }
 
 /*
@@ -2491,6 +2559,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 	} else {
 		int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
 		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
+		int throughput_max_bpp_x16;
 
 		dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
 		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
@@ -2505,6 +2574,19 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 			      min(dsc_sink_max_bpp, dsc_src_max_bpp) : dsc_src_max_bpp;
 
 		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
+
+		throughput_max_bpp_x16 = dsc_throughput_quirk_max_bpp_x16(connector, crtc_state);
+		throughput_max_bpp_x16 = clamp(throughput_max_bpp_x16,
+					       limits->link.min_bpp_x16, max_link_bpp_x16);
+		if (throughput_max_bpp_x16 < max_link_bpp_x16) {
+			max_link_bpp_x16 = throughput_max_bpp_x16;
+
+			drm_dbg_kms(display->drm,
+				    "[CRTC:%d:%s][CONNECTOR:%d:%s] Decreasing link max bpp to " FXP_Q4_FMT " due to DSC throughput quirk\n",
+				    crtc->base.base.id, crtc->base.name,
+				    connector->base.base.id, connector->base.name,
+				    FXP_Q4_ARGS(max_link_bpp_x16));
+		}
 	}
 
 	limits->link.max_bpp_x16 = max_link_bpp_x16;
@@ -4169,7 +4251,36 @@ static void intel_dp_read_dsc_dpcd(struct drm_dp_aux *aux,
 		    dsc_dpcd);
 }
 
-void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_connector *connector)
+static void init_dsc_overall_throughput_limits(struct intel_connector *connector, bool is_branch)
+{
+	u8 branch_caps[DP_DSC_BRANCH_CAP_SIZE];
+	int line_width;
+
+	connector->dp.dsc_branch_caps.overall_throughput.rgb_yuv444 = INT_MAX;
+	connector->dp.dsc_branch_caps.overall_throughput.yuv422_420 = INT_MAX;
+	connector->dp.dsc_branch_caps.max_line_width = INT_MAX;
+
+	if (!is_branch)
+		return;
+
+	if (drm_dp_dpcd_read_data(connector->dp.dsc_decompression_aux,
+				  DP_DSC_BRANCH_OVERALL_THROUGHPUT_0, branch_caps,
+				  sizeof(branch_caps)) != 0)
+		return;
+
+	connector->dp.dsc_branch_caps.overall_throughput.rgb_yuv444 =
+		drm_dp_dsc_branch_max_overall_throughput(branch_caps, true) ? : INT_MAX;
+
+	connector->dp.dsc_branch_caps.overall_throughput.yuv422_420 =
+		drm_dp_dsc_branch_max_overall_throughput(branch_caps, false) ? : INT_MAX;
+
+	line_width = drm_dp_dsc_branch_max_line_width(branch_caps);
+	connector->dp.dsc_branch_caps.max_line_width = line_width > 0 ? line_width : INT_MAX;
+}
+
+void intel_dp_get_dsc_sink_cap(u8 dpcd_rev,
+			       const struct drm_dp_desc *desc, bool is_branch,
+			       struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
 
@@ -4181,6 +4292,9 @@ void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_connector *connector)
 
 	/* Clear fec_capable to avoid using stale values */
 	connector->dp.fec_capability = 0;
+
+	memset(&connector->dp.dsc_branch_caps, 0, sizeof(connector->dp.dsc_branch_caps));
+	connector->dp.dsc_throughput_quirk = false;
 
 	if (dpcd_rev < DP_DPCD_REV_14)
 		return;
@@ -4196,6 +4310,19 @@ void intel_dp_get_dsc_sink_cap(u8 dpcd_rev, struct intel_connector *connector)
 
 	drm_dbg_kms(display->drm, "FEC CAPABILITY: %x\n",
 		    connector->dp.fec_capability);
+
+	if (!(connector->dp.dsc_dpcd[0] & DP_DSC_DECOMPRESSION_IS_SUPPORTED))
+		return;
+
+	init_dsc_overall_throughput_limits(connector, is_branch);
+
+	/*
+	 * TODO: Move the HW rev check as well to the DRM core quirk table if
+	 * that's required after clarifying the list of affected devices.
+	 */
+	if (drm_dp_has_quirk(desc, DP_DPCD_QUIRK_DSC_THROUGHPUT_BPP_LIMIT) &&
+	    desc->ident.hw_rev == 0x10)
+		connector->dp.dsc_throughput_quirk = true;
 }
 
 static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_connector *connector)
@@ -4204,6 +4331,9 @@ static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_connector *
 		return;
 
 	intel_dp_read_dsc_dpcd(connector->dp.dsc_decompression_aux, connector->dp.dsc_dpcd);
+
+	if (connector->dp.dsc_dpcd[0] & DP_DSC_DECOMPRESSION_IS_SUPPORTED)
+		init_dsc_overall_throughput_limits(connector, false);
 }
 
 static void
@@ -4220,6 +4350,7 @@ intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *conn
 					   connector);
 	else
 		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
+					  &intel_dp->desc, drm_dp_is_branch(intel_dp->dpcd),
 					  connector);
 }
 
@@ -5553,7 +5684,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 
 	if (intel_alpm_get_error(intel_dp)) {
 		intel_alpm_disable(intel_dp);
-		intel_dp->alpm_parameters.sink_alpm_error = true;
+		intel_dp->alpm.sink_alpm_error = true;
 	}
 
 	if (intel_dp_test_short_pulse(intel_dp))
@@ -5921,6 +6052,8 @@ intel_dp_detect(struct drm_connector *_connector,
 		memset(connector->dp.dsc_dpcd, 0, sizeof(connector->dp.dsc_dpcd));
 		intel_dp->psr.sink_panel_replay_support = false;
 		intel_dp->psr.sink_panel_replay_su_support = false;
+		intel_dp->psr.sink_panel_replay_dsc_support =
+			INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED;
 
 		intel_dp_mst_disconnect(intel_dp);
 
@@ -6856,4 +6989,82 @@ void intel_dp_mst_resume(struct intel_display *display)
 			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, false);
 		}
 	}
+}
+
+static
+int intel_dp_sdp_compute_config_late(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	int guardband = intel_crtc_vblank_length(crtc_state);
+	int min_sdp_guardband = intel_dp_sdp_min_guardband(crtc_state, false);
+
+	if (guardband < min_sdp_guardband) {
+		drm_dbg_kms(display->drm, "guardband %d < min sdp guardband %d\n",
+			    guardband, min_sdp_guardband);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int intel_dp_compute_config_late(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	int ret;
+
+	intel_psr_compute_config_late(intel_dp, crtc_state);
+
+	ret = intel_dp_sdp_compute_config_late(crtc_state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static
+int intel_dp_get_lines_for_sdp(const struct intel_crtc_state *crtc_state, u32 type)
+{
+	switch (type) {
+	case DP_SDP_VSC_EXT_VESA:
+	case DP_SDP_VSC_EXT_CEA:
+		return 10;
+	case HDMI_PACKET_TYPE_GAMUT_METADATA:
+		return 8;
+	case DP_SDP_PPS:
+		return 7;
+	case DP_SDP_ADAPTIVE_SYNC:
+		return crtc_state->vrr.vsync_start + 1;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+int intel_dp_sdp_min_guardband(const struct intel_crtc_state *crtc_state,
+			       bool assume_all_enabled)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	int sdp_guardband = 0;
+
+	if (assume_all_enabled ||
+	    crtc_state->infoframes.enable &
+	    intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GAMUT_METADATA))
+		sdp_guardband = max(sdp_guardband,
+				    intel_dp_get_lines_for_sdp(crtc_state,
+							       HDMI_PACKET_TYPE_GAMUT_METADATA));
+
+	if (assume_all_enabled ||
+	    crtc_state->dsc.compression_enable)
+		sdp_guardband = max(sdp_guardband,
+				    intel_dp_get_lines_for_sdp(crtc_state, DP_SDP_PPS));
+
+	if ((assume_all_enabled && HAS_AS_SDP(display)) ||
+	    crtc_state->infoframes.enable & intel_hdmi_infoframe_enable(DP_SDP_ADAPTIVE_SYNC))
+		sdp_guardband = max(sdp_guardband,
+				    intel_dp_get_lines_for_sdp(crtc_state, DP_SDP_ADAPTIVE_SYNC));
+
+	return sdp_guardband;
 }

@@ -58,7 +58,6 @@ patternProperties:
             - description: |
                 "pad_setting" indicates the pad configuration value to be applied.
 
-
     required:
       - fsl,pins
 

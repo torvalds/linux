@@ -24,6 +24,7 @@ enum ntc_thermistor_type {
 	TYPE_NCPXXWF104,
 	TYPE_NCPXXWL333,
 	TYPE_NCPXXXH103,
+	TYPE_NCPXXWM474,
 };
 
 struct ntc_compensation {
@@ -46,6 +47,7 @@ enum {
 	NTC_NCP18WB473,
 	NTC_NCP21WB473,
 	NTC_SSG1404001221,
+	NTC_NCP18WM474,
 	NTC_LAST,
 };
 
@@ -60,6 +62,7 @@ static const struct platform_device_id ntc_thermistor_id[] = {
 	[NTC_NCP18WB473]      = { "ncp18wb473",      TYPE_NCPXXWB473 },
 	[NTC_NCP21WB473]      = { "ncp21wb473",      TYPE_NCPXXWB473 },
 	[NTC_SSG1404001221]   = { "ssg1404_001221",  TYPE_NCPXXWB473 },
+	[NTC_NCP18WM474]      = { "ncp18wm474",      TYPE_NCPXXWM474 },
 	[NTC_LAST]            = { },
 };
 MODULE_DEVICE_TABLE(platform, ntc_thermistor_id);
@@ -217,6 +220,43 @@ static const struct ntc_compensation ncpXXxh103[] = {
 	{ .temp_c	= 125, .ohm	= 531 },
 };
 
+static const struct ntc_compensation ncpXXwm474[] = {
+	{ .temp_c	= -40, .ohm	= 10900000 },
+	{ .temp_c	= -35, .ohm	= 9600000 },
+	{ .temp_c	= -30, .ohm	= 8300000 },
+	{ .temp_c	= -25, .ohm	= 7000000 },
+	{ .temp_c	= -20, .ohm	= 5980000 },
+	{ .temp_c	= -15, .ohm	= 4960000 },
+	{ .temp_c	= -10, .ohm	= 3940000 },
+	{ .temp_c	= -5, .ohm	= 2920000 },
+	{ .temp_c	= 0, .ohm	= 1900000 },
+	{ .temp_c	= 5, .ohm	= 1614000 },
+	{ .temp_c	= 10, .ohm	= 1328000 },
+	{ .temp_c	= 15, .ohm	= 1042000 },
+	{ .temp_c	= 20, .ohm	= 756000 },
+	{ .temp_c	= 25, .ohm	= 470000 },
+	{ .temp_c	= 30, .ohm	= 404000 },
+	{ .temp_c	= 35, .ohm	= 338000 },
+	{ .temp_c	= 40, .ohm	= 272000 },
+	{ .temp_c	= 45, .ohm	= 206000 },
+	{ .temp_c	= 50, .ohm	= 140000 },
+	{ .temp_c	= 55, .ohm	= 122000 },
+	{ .temp_c	= 60, .ohm	= 104000 },
+	{ .temp_c	= 65, .ohm	= 86000 },
+	{ .temp_c	= 70, .ohm	= 68000 },
+	{ .temp_c	= 75, .ohm	= 50000 },
+	{ .temp_c	= 80, .ohm	= 44200 },
+	{ .temp_c	= 85, .ohm	= 38400 },
+	{ .temp_c	= 90, .ohm	= 32600 },
+	{ .temp_c	= 95, .ohm	= 26800 },
+	{ .temp_c	= 100, .ohm	= 21000 },
+	{ .temp_c	= 105, .ohm	= 18600 },
+	{ .temp_c	= 110, .ohm	= 16200 },
+	{ .temp_c	= 115, .ohm	= 13800 },
+	{ .temp_c	= 120, .ohm	= 11400 },
+	{ .temp_c	= 125, .ohm	= 9000 },
+};
+
 /*
  * The following compensation tables are from the specifications in EPCOS NTC
  * Thermistors Datasheets
@@ -319,6 +359,7 @@ static const struct ntc_type ntc_type[] = {
 	NTC_TYPE(TYPE_NCPXXWF104,  ncpXXwf104),
 	NTC_TYPE(TYPE_NCPXXWL333,  ncpXXwl333),
 	NTC_TYPE(TYPE_NCPXXXH103,  ncpXXxh103),
+	NTC_TYPE(TYPE_NCPXXWM474,  ncpXXwm474),
 };
 
 /*
@@ -675,6 +716,8 @@ static const struct of_device_id ntc_match[] = {
 		.data = &ntc_thermistor_id[NTC_NCP21WB473] },
 	{ .compatible = "samsung,1404-001221",
 		.data = &ntc_thermistor_id[NTC_SSG1404001221] },
+	{ .compatible = "murata,ncp18wm474",
+		.data = &ntc_thermistor_id[NTC_NCP18WM474] },
 
 	/* Usage of vendor name "ntc" is deprecated */
 	{ .compatible = "ntc,ncp03wb473",

@@ -282,33 +282,6 @@ struct sk_buff *tcp_gro_lookup(struct list_head *head, struct tcphdr *th)
 	return NULL;
 }
 
-struct tcphdr *tcp_gro_pull_header(struct sk_buff *skb)
-{
-	unsigned int thlen, hlen, off;
-	struct tcphdr *th;
-
-	off = skb_gro_offset(skb);
-	hlen = off + sizeof(*th);
-	th = skb_gro_header(skb, hlen, off);
-	if (unlikely(!th))
-		return NULL;
-
-	thlen = th->doff * 4;
-	if (thlen < sizeof(*th))
-		return NULL;
-
-	hlen = off + thlen;
-	if (!skb_gro_may_pull(skb, hlen)) {
-		th = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!th))
-			return NULL;
-	}
-
-	skb_gro_pull(skb, thlen);
-
-	return th;
-}
-
 struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb,
 				struct tcphdr *th)
 {

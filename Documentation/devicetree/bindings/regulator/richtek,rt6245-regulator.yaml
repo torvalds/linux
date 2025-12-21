@@ -55,7 +55,6 @@ properties:
       delay time 0us, 10us, 20us, 40us. If this property is missing then keep
       in chip default.
 
-
   richtek,switch-freq-select:
     $ref: /schemas/types.yaml#/definitions/uint8
     enum: [0, 1, 2]

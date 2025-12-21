@@ -2,5 +2,5 @@
 {% if annotate %}
 	/* member {{ name }} (variable-length opaque) */
 {% endif %}
-	if (!xdrgen_decode_opaque(xdr, (opaque *)ptr, {{ maxsize }}))
+	if (!xdrgen_decode_opaque(xdr, &ptr->{{ name }}, {{ maxsize }}))
 		return false;

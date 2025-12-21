@@ -24,7 +24,7 @@
 #include <sys/wait.h>
 #include <asm/hwcap.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 struct child_data {
 	char *name, *output;

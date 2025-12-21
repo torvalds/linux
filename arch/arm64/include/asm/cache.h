@@ -35,7 +35,7 @@
 #define ARCH_DMA_MINALIGN	(128)
 #define ARCH_KMALLOC_MINALIGN	(8)
 
-#if !defined(__ASSEMBLY__) && !defined(BUILD_VDSO)
+#if !defined(__ASSEMBLER__) && !defined(BUILD_VDSO)
 
 #include <linux/bitops.h>
 #include <linux/kasan-enabled.h>
@@ -135,6 +135,6 @@ static inline u32 __attribute_const__ read_cpuid_effective_cachetype(void)
 	return ctr;
 }
 
-#endif /* !defined(__ASSEMBLY__) && !defined(BUILD_VDSO) */
+#endif /* !defined(__ASSEMBLER__) && !defined(BUILD_VDSO) */
 
 #endif

@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -542,47 +542,30 @@ const struct vpu_core_resources *vpu_get_resource(struct vpu_inst *inst)
 
 static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
 {
-	struct device_node *node;
 	struct resource res;
 	int ret;
 
-	if (of_count_phandle_with_args(np, "memory-region", NULL) < 2) {
-		dev_err(core->dev, "need 2 memory-region for boot and rpc\n");
-		return -ENODEV;
+	ret = of_reserved_mem_region_to_resource(np, 0, &res);
+	if (ret) {
+		dev_err(core->dev, "Cannot get boot-region\n");
+		return ret;
 	}
 
-	node = of_parse_phandle(np, "memory-region", 0);
-	if (!node) {
-		dev_err(core->dev, "boot-region of_parse_phandle error\n");
-		return -ENODEV;
-	}
-	if (of_address_to_resource(node, 0, &res)) {
-		dev_err(core->dev, "boot-region of_address_to_resource error\n");
-		of_node_put(node);
-		return -EINVAL;
-	}
 	core->fw.phys = res.start;
 	core->fw.length = resource_size(&res);
 
-	of_node_put(node);
+	ret = of_reserved_mem_region_to_resource(np, 1, &res);
+	if (ret) {
+		dev_err(core->dev, "Cannot get rpc-region\n");
+		return ret;
+	}
 
-	node = of_parse_phandle(np, "memory-region", 1);
-	if (!node) {
-		dev_err(core->dev, "rpc-region of_parse_phandle error\n");
-		return -ENODEV;
-	}
-	if (of_address_to_resource(node, 0, &res)) {
-		dev_err(core->dev, "rpc-region of_address_to_resource error\n");
-		of_node_put(node);
-		return -EINVAL;
-	}
 	core->rpc.phys = res.start;
 	core->rpc.length = resource_size(&res);
 
 	if (core->rpc.length < core->res->rpc_size + core->res->fwlog_size) {
 		dev_err(core->dev, "the rpc-region <%pad, 0x%x> is not enough\n",
 			&core->rpc.phys, core->rpc.length);
-		of_node_put(node);
 		return -EINVAL;
 	}
 
@@ -594,7 +577,6 @@ static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
 	if (ret != VPU_CORE_MEMORY_UNCACHED) {
 		dev_err(core->dev, "rpc region<%pad, 0x%x> isn't uncached\n",
 			&core->rpc.phys, core->rpc.length);
-		of_node_put(node);
 		return -EINVAL;
 	}
 
@@ -605,8 +587,6 @@ static int vpu_core_parse_dt(struct vpu_core *core, struct device_node *np)
 	core->act.virt = core->log.virt + core->log.length;
 	core->act.length = core->rpc.length - core->res->rpc_size - core->log.length;
 	core->rpc.length = core->res->rpc_size;
-
-	of_node_put(node);
 
 	return 0;
 }

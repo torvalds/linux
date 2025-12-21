@@ -21,7 +21,7 @@
 #include <linux/android/binder.h>
 #include <linux/android/binderfs.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define DEFAULT_THREADS 4
 

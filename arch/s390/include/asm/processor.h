@@ -119,18 +119,12 @@ extern void execve_tail(void);
 unsigned long vdso_text_size(void);
 unsigned long vdso_size(void);
 
-/*
- * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
- */
-
-#define TASK_SIZE		(test_thread_flag(TIF_31BIT) ? \
-					_REGION3_SIZE : TASK_SIZE_MAX)
-#define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
-					(_REGION3_SIZE >> 1) : (_REGION2_SIZE >> 1))
+#define TASK_SIZE		(TASK_SIZE_MAX)
+#define TASK_UNMAPPED_BASE	(_REGION2_SIZE >> 1)
 #define TASK_SIZE_MAX		(-PAGE_SIZE)
 
 #define VDSO_BASE		(STACK_TOP + PAGE_SIZE)
-#define VDSO_LIMIT		(test_thread_flag(TIF_31BIT) ? _REGION3_SIZE : _REGION2_SIZE)
+#define VDSO_LIMIT		(_REGION2_SIZE)
 #define STACK_TOP		(VDSO_LIMIT - vdso_size() - PAGE_SIZE)
 #define STACK_TOP_MAX		(_REGION2_SIZE - vdso_size() - PAGE_SIZE)
 
@@ -181,7 +175,6 @@ struct thread_struct {
 	unsigned long system_timer;		/* task cputime in kernel space */
 	unsigned long hardirq_timer;		/* task cputime in hardirq context */
 	unsigned long softirq_timer;		/* task cputime in softirq context */
-	const sys_call_ptr_t *sys_call_table;	/* system call table address */
 	union teid gmap_teid;			/* address and flags of last gmap fault */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
 	int ufpu_flags;				/* user fpu flags */
@@ -379,14 +372,19 @@ static inline void local_mcck_enable(void)
 /*
  * Rewind PSW instruction address by specified number of bytes.
  */
-static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
+static inline unsigned long __rewind_psw(psw_t psw, long ilen)
 {
 	unsigned long mask;
 
 	mask = (psw.mask & PSW_MASK_EA) ? -1UL :
 	       (psw.mask & PSW_MASK_BA) ? (1UL << 31) - 1 :
 					  (1UL << 24) - 1;
-	return (psw.addr - ilc) & mask;
+	return (psw.addr - ilen) & mask;
+}
+
+static inline unsigned long __forward_psw(psw_t psw, long ilen)
+{
+	return __rewind_psw(psw, -ilen);
 }
 
 /*

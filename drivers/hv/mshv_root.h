@@ -15,6 +15,7 @@
 #include <linux/hashtable.h>
 #include <linux/dev_printk.h>
 #include <linux/build_bug.h>
+#include <linux/mmu_notifier.h>
 #include <uapi/linux/mshv.h>
 
 /*
@@ -70,18 +71,23 @@ do { \
 #define vp_info(v, fmt, ...)	vp_devprintk(info, v, fmt, ##__VA_ARGS__)
 #define vp_dbg(v, fmt, ...)	vp_devprintk(dbg, v, fmt, ##__VA_ARGS__)
 
+enum mshv_region_type {
+	MSHV_REGION_TYPE_MEM_PINNED,
+	MSHV_REGION_TYPE_MEM_MOVABLE,
+	MSHV_REGION_TYPE_MMIO
+};
+
 struct mshv_mem_region {
 	struct hlist_node hnode;
+	struct kref refcount;
 	u64 nr_pages;
 	u64 start_gfn;
 	u64 start_uaddr;
 	u32 hv_map_flags;
-	struct {
-		u64 large_pages:  1; /* 2MiB */
-		u64 range_pinned: 1;
-		u64 reserved:	 62;
-	} flags;
 	struct mshv_partition *partition;
+	enum mshv_region_type type;
+	struct mmu_interval_notifier mni;
+	struct mutex mutex;	/* protects region pages remapping */
 	struct page *pages[];
 };
 
@@ -98,6 +104,8 @@ struct mshv_partition {
 	u64 pt_id;
 	refcount_t pt_ref_count;
 	struct mutex pt_mutex;
+
+	spinlock_t pt_mem_regions_lock;
 	struct hlist_head pt_mem_regions; // not ordered
 
 	u32 pt_vp_count;
@@ -169,7 +177,7 @@ struct mshv_girq_routing_table {
 };
 
 struct hv_synic_pages {
-	struct hv_message_page *synic_message_page;
+	struct hv_message_page *hyp_synic_message_page;
 	struct hv_synic_event_flags_page *synic_event_flags_page;
 	struct hv_synic_event_ring_page *synic_event_ring_page;
 };
@@ -178,6 +186,7 @@ struct mshv_root {
 	struct hv_synic_pages __percpu *synic_pages;
 	spinlock_t pt_ht_lock;
 	DECLARE_HASHTABLE(pt_htable, MSHV_PARTITIONS_HASH_BITS);
+	struct hv_partition_property_vmm_capabilities vmm_caps;
 };
 
 /*
@@ -278,11 +287,12 @@ int hv_call_set_vp_state(u32 vp_index, u64 partition_id,
 			 /* Choose between pages and bytes */
 			 struct hv_vp_state_data state_data, u64 page_count,
 			 struct page **pages, u32 num_bytes, u8 *bytes);
-int hv_call_map_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
-			      union hv_input_vtl input_vtl,
-			      struct page **state_page);
-int hv_call_unmap_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
-				union hv_input_vtl input_vtl);
+int hv_map_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
+			 union hv_input_vtl input_vtl,
+			 struct page **state_page);
+int hv_unmap_vp_state_page(u64 partition_id, u32 vp_index, u32 type,
+			   struct page *state_page,
+			   union hv_input_vtl input_vtl);
 int hv_call_create_port(u64 port_partition_id, union hv_port_id port_id,
 			u64 connection_partition_id, struct hv_port_info *port_info,
 			u8 port_vtl, u8 min_connection_vtl, int node);
@@ -295,17 +305,32 @@ int hv_call_connect_port(u64 port_partition_id, union hv_port_id port_id,
 int hv_call_disconnect_port(u64 connection_partition_id,
 			    union hv_connection_id connection_id);
 int hv_call_notify_port_ring_empty(u32 sint_index);
-int hv_call_map_stat_page(enum hv_stats_object_type type,
-			  const union hv_stats_object_identity *identity,
-			  void **addr);
-int hv_call_unmap_stat_page(enum hv_stats_object_type type,
-			    const union hv_stats_object_identity *identity);
+int hv_map_stats_page(enum hv_stats_object_type type,
+		      const union hv_stats_object_identity *identity,
+		      void **addr);
+int hv_unmap_stats_page(enum hv_stats_object_type type, void *page_addr,
+			const union hv_stats_object_identity *identity);
 int hv_call_modify_spa_host_access(u64 partition_id, struct page **pages,
 				   u64 page_struct_count, u32 host_access,
 				   u32 flags, u8 acquire);
+int hv_call_get_partition_property_ex(u64 partition_id, u64 property_code, u64 arg,
+				      void *property_value, size_t property_value_sz);
 
 extern struct mshv_root mshv_root;
 extern enum hv_scheduler_type hv_scheduler_type;
 extern u8 * __percpu *hv_synic_eventring_tail;
+
+struct mshv_mem_region *mshv_region_create(u64 guest_pfn, u64 nr_pages,
+					   u64 uaddr, u32 flags);
+int mshv_region_share(struct mshv_mem_region *region);
+int mshv_region_unshare(struct mshv_mem_region *region);
+int mshv_region_map(struct mshv_mem_region *region);
+void mshv_region_invalidate(struct mshv_mem_region *region);
+int mshv_region_pin(struct mshv_mem_region *region);
+void mshv_region_put(struct mshv_mem_region *region);
+int mshv_region_get(struct mshv_mem_region *region);
+bool mshv_region_handle_gfn_fault(struct mshv_mem_region *region, u64 gfn);
+void mshv_region_movable_fini(struct mshv_mem_region *region);
+bool mshv_region_movable_init(struct mshv_mem_region *region);
 
 #endif /* _MSHV_ROOT_H_ */

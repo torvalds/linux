@@ -87,11 +87,11 @@ attribute-sets:
       -
         name: dst
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: src
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: iif
         type: u32
@@ -101,14 +101,14 @@ attribute-sets:
       -
         name: gateway
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: priority
         type: u32
       -
         name: prefsrc
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: metrics
         type: nest

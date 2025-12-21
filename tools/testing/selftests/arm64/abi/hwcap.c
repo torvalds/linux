@@ -19,7 +19,7 @@
 
 #include <linux/auxvec.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define TESTS_PER_HWCAP 3
 

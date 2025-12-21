@@ -84,6 +84,22 @@ void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 	}
 }
 
+void dpp30_read_reg_state(struct dpp *dpp_base, struct dcn_dpp_reg_state *dpp_reg_state)
+{
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
+
+	dpp_reg_state->recout_start = REG_READ(RECOUT_START);
+	dpp_reg_state->recout_size = REG_READ(RECOUT_SIZE);
+	dpp_reg_state->scl_horz_filter_scale_ratio = REG_READ(SCL_HORZ_FILTER_SCALE_RATIO);
+	dpp_reg_state->scl_vert_filter_scale_ratio = REG_READ(SCL_VERT_FILTER_SCALE_RATIO);
+	dpp_reg_state->scl_mode = REG_READ(SCL_MODE);
+	dpp_reg_state->cm_control = REG_READ(CM_CONTROL);
+	dpp_reg_state->dpp_control = REG_READ(DPP_CONTROL);
+	dpp_reg_state->dscl_control = REG_READ(DSCL_CONTROL);
+	dpp_reg_state->obuf_control = REG_READ(OBUF_CONTROL);
+	dpp_reg_state->mpc_size = REG_READ(MPC_SIZE);
+}
+
 /*program post scaler scs block in dpp CM*/
 void dpp3_program_post_csc(
 		struct dpp *dpp_base,
@@ -396,17 +412,21 @@ void dpp3_set_cursor_attributes(
 		}
 	}
 
-	REG_UPDATE_3(CURSOR0_CONTROL,
-			CUR0_MODE, color_format,
-			CUR0_EXPANSION_MODE, 0,
-			CUR0_ROM_EN, cur_rom_en);
+	if (!dpp_base->cursor_offload)
+		REG_UPDATE_3(CURSOR0_CONTROL,
+				CUR0_MODE, color_format,
+				CUR0_EXPANSION_MODE, 0,
+				CUR0_ROM_EN, cur_rom_en);
 
 	if (color_format == CURSOR_MODE_MONO) {
 		/* todo: clarify what to program these to */
-		REG_UPDATE(CURSOR0_COLOR0,
-				CUR0_COLOR0, 0x00000000);
-		REG_UPDATE(CURSOR0_COLOR1,
-				CUR0_COLOR1, 0xFFFFFFFF);
+
+		if (!dpp_base->cursor_offload) {
+			REG_UPDATE(CURSOR0_COLOR0,
+					CUR0_COLOR0, 0x00000000);
+			REG_UPDATE(CURSOR0_COLOR1,
+					CUR0_COLOR1, 0xFFFFFFFF);
+		}
 	}
 
 	dpp_base->att.cur0_ctl.bits.expansion_mode = 0;

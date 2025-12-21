@@ -20,7 +20,6 @@ struct mctp_frag_test {
 static void mctp_test_fragment(struct kunit *test)
 {
 	const struct mctp_frag_test *params;
-	struct mctp_test_pktqueue tpq;
 	int rc, i, n, mtu, msgsize;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
@@ -43,13 +42,12 @@ static void mctp_test_fragment(struct kunit *test)
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
-	mctp_test_dst_setup(test, &dst, dev, &tpq, mtu);
+	mctp_test_dst_setup(test, &dst, dev, mtu);
 
 	rc = mctp_do_fragment_route(&dst, skb, mtu, MCTP_TAG_OWNER);
 	KUNIT_EXPECT_FALSE(test, rc);
 
-	n = tpq.pkts.qlen;
-
+	n = dev->pkts.qlen;
 	KUNIT_EXPECT_EQ(test, n, params->n_frags);
 
 	for (i = 0;; i++) {
@@ -61,8 +59,7 @@ static void mctp_test_fragment(struct kunit *test)
 		first = i == 0;
 		last = i == (n - 1);
 
-		skb2 = skb_dequeue(&tpq.pkts);
-
+		skb2 = skb_dequeue(&dev->pkts);
 		if (!skb2)
 			break;
 
@@ -99,7 +96,7 @@ static void mctp_test_fragment(struct kunit *test)
 		kfree_skb(skb2);
 	}
 
-	mctp_test_dst_release(&dst, &tpq);
+	mctp_dst_release(&dst);
 	mctp_test_destroy_dev(dev);
 }
 
@@ -130,13 +127,11 @@ struct mctp_rx_input_test {
 static void mctp_test_rx_input(struct kunit *test)
 {
 	const struct mctp_rx_input_test *params;
-	struct mctp_test_pktqueue tpq;
 	struct mctp_test_route *rt;
 	struct mctp_test_dev *dev;
 	struct sk_buff *skb;
 
 	params = test->param_value;
-	test->priv = &tpq;
 
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
@@ -147,13 +142,10 @@ static void mctp_test_rx_input(struct kunit *test)
 	skb = mctp_test_create_skb(&params->hdr, 1);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	mctp_test_pktqueue_init(&tpq);
-
 	mctp_pkttype_receive(skb, dev->ndev, &mctp_packet_type, NULL);
 
-	KUNIT_EXPECT_EQ(test, !!tpq.pkts.qlen, params->input);
+	KUNIT_EXPECT_EQ(test, !!dev->pkts.qlen, params->input);
 
-	skb_queue_purge(&tpq.pkts);
 	mctp_test_route_destroy(test, rt);
 	mctp_test_destroy_dev(dev);
 }
@@ -182,7 +174,6 @@ KUNIT_ARRAY_PARAM(mctp_rx_input, mctp_rx_input_tests,
 static void __mctp_route_test_init(struct kunit *test,
 				   struct mctp_test_dev **devp,
 				   struct mctp_dst *dst,
-				   struct mctp_test_pktqueue *tpq,
 				   struct socket **sockp,
 				   unsigned int netid)
 {
@@ -196,7 +187,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	if (netid != MCTP_NET_ANY)
 		WRITE_ONCE(dev->mdev->net, netid);
 
-	mctp_test_dst_setup(test, dst, dev, tpq, 68);
+	mctp_test_dst_setup(test, dst, dev, 68);
 
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
@@ -205,7 +196,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	addr.smctp_network = netid;
 	addr.smctp_addr.s_addr = 8;
 	addr.smctp_type = 0;
-	rc = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
+	rc = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	*devp = dev;
@@ -215,11 +206,10 @@ static void __mctp_route_test_init(struct kunit *test,
 static void __mctp_route_test_fini(struct kunit *test,
 				   struct mctp_test_dev *dev,
 				   struct mctp_dst *dst,
-				   struct mctp_test_pktqueue *tpq,
 				   struct socket *sock)
 {
 	sock_release(sock);
-	mctp_test_dst_release(dst, tpq);
+	mctp_dst_release(dst);
 	mctp_test_destroy_dev(dev);
 }
 
@@ -232,7 +222,6 @@ struct mctp_route_input_sk_test {
 static void mctp_test_route_input_sk(struct kunit *test)
 {
 	const struct mctp_route_input_sk_test *params;
-	struct mctp_test_pktqueue tpq;
 	struct sk_buff *skb, *skb2;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
@@ -241,13 +230,12 @@ static void mctp_test_route_input_sk(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	skb = mctp_test_create_skb_data(&params->hdr, &params->type);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
 	mctp_test_skb_set_dev(skb, dev);
-	mctp_test_pktqueue_init(&tpq);
 
 	rc = mctp_dst_input(&dst, skb);
 
@@ -266,7 +254,7 @@ static void mctp_test_route_input_sk(struct kunit *test)
 		KUNIT_EXPECT_NULL(test, skb2);
 	}
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 #define FL_S	(MCTP_HDR_FLAG_SOM)
@@ -303,7 +291,6 @@ struct mctp_route_input_sk_reasm_test {
 static void mctp_test_route_input_sk_reasm(struct kunit *test)
 {
 	const struct mctp_route_input_sk_reasm_test *params;
-	struct mctp_test_pktqueue tpq;
 	struct sk_buff *skb, *skb2;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
@@ -313,7 +300,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	for (i = 0; i < params->n_hdrs; i++) {
 		c = i;
@@ -336,7 +323,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 		KUNIT_EXPECT_NULL(test, skb2);
 	}
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 #define RX_FRAG(f, s) RX_HDR(1, 10, 8, FL_TO | (f) | ((s) << MCTP_HDR_SEQ_SHIFT))
@@ -438,7 +425,6 @@ struct mctp_route_input_sk_keys_test {
 static void mctp_test_route_input_sk_keys(struct kunit *test)
 {
 	const struct mctp_route_input_sk_keys_test *params;
-	struct mctp_test_pktqueue tpq;
 	struct sk_buff *skb, *skb2;
 	struct mctp_test_dev *dev;
 	struct mctp_sk_key *key;
@@ -457,7 +443,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	net = READ_ONCE(dev->mdev->net);
 
-	mctp_test_dst_setup(test, &dst, dev, &tpq, 68);
+	mctp_test_dst_setup(test, &dst, dev, 68);
 
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
@@ -497,7 +483,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 		skb_free_datagram(sock->sk, skb2);
 
 	mctp_key_unref(key);
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 static const struct mctp_route_input_sk_keys_test mctp_route_input_sk_keys_tests[] = {
@@ -572,7 +558,6 @@ KUNIT_ARRAY_PARAM(mctp_route_input_sk_keys, mctp_route_input_sk_keys_tests,
 struct test_net {
 	unsigned int netid;
 	struct mctp_test_dev *dev;
-	struct mctp_test_pktqueue tpq;
 	struct mctp_dst dst;
 	struct socket *sock;
 	struct sk_buff *skb;
@@ -591,20 +576,18 @@ mctp_test_route_input_multiple_nets_bind_init(struct kunit *test,
 
 	t->msg.data = t->netid;
 
-	__mctp_route_test_init(test, &t->dev, &t->dst, &t->tpq, &t->sock,
-			       t->netid);
+	__mctp_route_test_init(test, &t->dev, &t->dst, &t->sock, t->netid);
 
 	t->skb = mctp_test_create_skb_data(&hdr, &t->msg);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, t->skb);
 	mctp_test_skb_set_dev(t->skb, t->dev);
-	mctp_test_pktqueue_init(&t->tpq);
 }
 
 static void
 mctp_test_route_input_multiple_nets_bind_fini(struct kunit *test,
 					      struct test_net *t)
 {
-	__mctp_route_test_fini(test, t->dev, &t->dst, &t->tpq, t->sock);
+	__mctp_route_test_fini(test, t->dev, &t->dst, t->sock);
 }
 
 /* Test that skbs from different nets (otherwise identical) get routed to their
@@ -661,8 +644,7 @@ mctp_test_route_input_multiple_nets_key_init(struct kunit *test,
 
 	t->msg.data = t->netid;
 
-	__mctp_route_test_init(test, &t->dev, &t->dst, &t->tpq, &t->sock,
-			       t->netid);
+	__mctp_route_test_init(test, &t->dev, &t->dst, &t->sock, t->netid);
 
 	msk = container_of(t->sock->sk, struct mctp_sock, sk);
 
@@ -685,7 +667,7 @@ mctp_test_route_input_multiple_nets_key_fini(struct kunit *test,
 					     struct test_net *t)
 {
 	mctp_key_unref(t->key);
-	__mctp_route_test_fini(test, t->dev, &t->dst, &t->tpq, t->sock);
+	__mctp_route_test_fini(test, t->dev, &t->dst, t->sock);
 }
 
 /* test that skbs from different nets (otherwise identical) get routed to their
@@ -738,14 +720,13 @@ static void mctp_test_route_input_multiple_nets_key(struct kunit *test)
 static void mctp_test_route_input_sk_fail_single(struct kunit *test)
 {
 	const struct mctp_hdr hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO);
-	struct mctp_test_pktqueue tpq;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
 	struct socket *sock;
 	struct sk_buff *skb;
 	int rc;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	/* No rcvbuf space, so delivery should fail. __sock_set_rcvbuf will
 	 * clamp the minimum to SOCK_MIN_RCVBUF, so we open-code this.
@@ -768,7 +749,7 @@ static void mctp_test_route_input_sk_fail_single(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, refcount_read(&skb->users), 1);
 	kfree_skb(skb);
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 /* Input route to socket, using a fragmented message, where sock delivery fails.
@@ -776,7 +757,6 @@ static void mctp_test_route_input_sk_fail_single(struct kunit *test)
 static void mctp_test_route_input_sk_fail_frag(struct kunit *test)
 {
 	const struct mctp_hdr hdrs[2] = { RX_FRAG(FL_S, 0), RX_FRAG(FL_E, 1) };
-	struct mctp_test_pktqueue tpq;
 	struct mctp_test_dev *dev;
 	struct sk_buff *skbs[2];
 	struct mctp_dst dst;
@@ -784,7 +764,7 @@ static void mctp_test_route_input_sk_fail_frag(struct kunit *test)
 	unsigned int i;
 	int rc;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	lock_sock(sock->sk);
 	WRITE_ONCE(sock->sk->sk_rcvbuf, 0);
@@ -815,7 +795,7 @@ static void mctp_test_route_input_sk_fail_frag(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, refcount_read(&skbs[1]->users), 1);
 	kfree_skb(skbs[1]);
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 /* Input route to socket, using a fragmented message created from clones.
@@ -833,7 +813,6 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 	const size_t data_len = 3; /* arbitrary */
 	u8 compare[3 * ARRAY_SIZE(hdrs)];
 	u8 flat[3 * ARRAY_SIZE(hdrs)];
-	struct mctp_test_pktqueue tpq;
 	struct mctp_test_dev *dev;
 	struct sk_buff *skb[5];
 	struct sk_buff *rx_skb;
@@ -845,7 +824,7 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 
 	total = data_len + sizeof(struct mctp_hdr);
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	/* Create a single skb initially with concatenated packets */
 	skb[0] = mctp_test_create_skb(&hdrs[0], 5 * total);
@@ -922,7 +901,7 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 		kfree_skb(skb[i]);
 	}
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 #if IS_ENABLED(CONFIG_MCTP_FLOWS)
@@ -930,7 +909,6 @@ static void mctp_test_route_input_cloned_frag(struct kunit *test)
 static void mctp_test_flow_init(struct kunit *test,
 				struct mctp_test_dev **devp,
 				struct mctp_dst *dst,
-				struct mctp_test_pktqueue *tpq,
 				struct socket **sock,
 				struct sk_buff **skbp,
 				unsigned int len)
@@ -944,7 +922,7 @@ static void mctp_test_flow_init(struct kunit *test,
 	 * mctp_local_output, which will call dst->output on whatever
 	 * route we provide
 	 */
-	__mctp_route_test_init(test, &dev, dst, tpq, sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, dst, sock, MCTP_NET_ANY);
 
 	/* Assign a single EID. ->addrs is freed on mctp netdev release */
 	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
@@ -965,16 +943,14 @@ static void mctp_test_flow_init(struct kunit *test,
 static void mctp_test_flow_fini(struct kunit *test,
 				struct mctp_test_dev *dev,
 				struct mctp_dst *dst,
-				struct mctp_test_pktqueue *tpq,
 				struct socket *sock)
 {
-	__mctp_route_test_fini(test, dev, dst, tpq, sock);
+	__mctp_route_test_fini(test, dev, dst, sock);
 }
 
 /* test that an outgoing skb has the correct MCTP extension data set */
 static void mctp_test_packet_flow(struct kunit *test)
 {
-	struct mctp_test_pktqueue tpq;
 	struct sk_buff *skb, *skb2;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
@@ -983,15 +959,15 @@ static void mctp_test_packet_flow(struct kunit *test)
 	u8 dst_eid = 8;
 	int n, rc;
 
-	mctp_test_flow_init(test, &dev, &dst, &tpq, &sock, &skb, 30);
+	mctp_test_flow_init(test, &dev, &dst, &sock, &skb, 30);
 
 	rc = mctp_local_output(sock->sk, &dst, skb, dst_eid, MCTP_TAG_OWNER);
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
-	n = tpq.pkts.qlen;
+	n = dev->pkts.qlen;
 	KUNIT_ASSERT_EQ(test, n, 1);
 
-	skb2 = skb_dequeue(&tpq.pkts);
+	skb2 = skb_dequeue(&dev->pkts);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb2);
 
 	flow = skb_ext_find(skb2, SKB_EXT_MCTP);
@@ -1000,7 +976,7 @@ static void mctp_test_packet_flow(struct kunit *test)
 	KUNIT_ASSERT_PTR_EQ(test, flow->key->sk, sock->sk);
 
 	kfree_skb(skb2);
-	mctp_test_flow_fini(test, dev, &dst, &tpq, sock);
+	mctp_test_flow_fini(test, dev, &dst, sock);
 }
 
 /* test that outgoing skbs, after fragmentation, all have the correct MCTP
@@ -1008,7 +984,6 @@ static void mctp_test_packet_flow(struct kunit *test)
  */
 static void mctp_test_fragment_flow(struct kunit *test)
 {
-	struct mctp_test_pktqueue tpq;
 	struct mctp_flow *flows[2];
 	struct sk_buff *tx_skbs[2];
 	struct mctp_test_dev *dev;
@@ -1018,17 +993,17 @@ static void mctp_test_fragment_flow(struct kunit *test)
 	u8 dst_eid = 8;
 	int n, rc;
 
-	mctp_test_flow_init(test, &dev, &dst, &tpq, &sock, &skb, 100);
+	mctp_test_flow_init(test, &dev, &dst, &sock, &skb, 100);
 
 	rc = mctp_local_output(sock->sk, &dst, skb, dst_eid, MCTP_TAG_OWNER);
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
-	n = tpq.pkts.qlen;
+	n = dev->pkts.qlen;
 	KUNIT_ASSERT_EQ(test, n, 2);
 
 	/* both resulting packets should have the same flow data */
-	tx_skbs[0] = skb_dequeue(&tpq.pkts);
-	tx_skbs[1] = skb_dequeue(&tpq.pkts);
+	tx_skbs[0] = skb_dequeue(&dev->pkts);
+	tx_skbs[1] = skb_dequeue(&dev->pkts);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tx_skbs[0]);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tx_skbs[1]);
@@ -1044,7 +1019,7 @@ static void mctp_test_fragment_flow(struct kunit *test)
 
 	kfree_skb(tx_skbs[0]);
 	kfree_skb(tx_skbs[1]);
-	mctp_test_flow_fini(test, dev, &dst, &tpq, sock);
+	mctp_test_flow_fini(test, dev, &dst, sock);
 }
 
 #else
@@ -1063,7 +1038,6 @@ static void mctp_test_fragment_flow(struct kunit *test)
 static void mctp_test_route_output_key_create(struct kunit *test)
 {
 	const u8 dst_eid = 26, src_eid = 15;
-	struct mctp_test_pktqueue tpq;
 	const unsigned int netid = 50;
 	struct mctp_test_dev *dev;
 	struct mctp_sk_key *key;
@@ -1080,7 +1054,7 @@ static void mctp_test_route_output_key_create(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 	WRITE_ONCE(dev->mdev->net, netid);
 
-	mctp_test_dst_setup(test, &dst, dev, &tpq, 68);
+	mctp_test_dst_setup(test, &dst, dev, 68);
 
 	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
 	KUNIT_ASSERT_EQ(test, rc, 0);
@@ -1127,14 +1101,13 @@ static void mctp_test_route_output_key_create(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, key->tag & MCTP_TAG_OWNER);
 
 	sock_release(sock);
-	mctp_test_dst_release(&dst, &tpq);
+	mctp_dst_release(&dst);
 	mctp_test_destroy_dev(dev);
 }
 
 static void mctp_test_route_extaddr_input(struct kunit *test)
 {
 	static const unsigned char haddr[] = { 0xaa, 0x55 };
-	struct mctp_test_pktqueue tpq;
 	struct mctp_skb_cb *cb, *cb2;
 	const unsigned int len = 40;
 	struct mctp_test_dev *dev;
@@ -1149,7 +1122,7 @@ static void mctp_test_route_extaddr_input(struct kunit *test)
 	hdr.dest = 8;
 	hdr.flags_seq_tag = FL_S | FL_E | FL_TO;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock, MCTP_NET_ANY);
+	__mctp_route_test_init(test, &dev, &dst, &sock, MCTP_NET_ANY);
 
 	skb = mctp_test_create_skb(&hdr, len);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
@@ -1178,7 +1151,7 @@ static void mctp_test_route_extaddr_input(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, cb2->haddr, haddr, sizeof(haddr));
 
 	kfree_skb(skb2);
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock);
+	__mctp_route_test_fini(test, dev, &dst, sock);
 }
 
 static void mctp_test_route_gw_lookup(struct kunit *test)
@@ -1530,14 +1503,13 @@ static void mctp_test_bind_lookup(struct kunit *test)
 	struct socket *socks[ARRAY_SIZE(lookup_binds)];
 	struct sk_buff *skb_pkt = NULL, *skb_sock = NULL;
 	struct socket *sock_ty0, *sock_expect = NULL;
-	struct mctp_test_pktqueue tpq;
 	struct mctp_test_dev *dev;
 	struct mctp_dst dst;
 	int rc;
 
 	rx = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &dst, &tpq, &sock_ty0, rx->net);
+	__mctp_route_test_init(test, &dev, &dst, &sock_ty0, rx->net);
 	/* Create all binds */
 	for (size_t i = 0; i < ARRAY_SIZE(lookup_binds); i++) {
 		mctp_test_bind_run(test, &lookup_binds[i],
@@ -1557,7 +1529,6 @@ static void mctp_test_bind_lookup(struct kunit *test)
 	skb_pkt = mctp_test_create_skb_data(&rx->hdr, &rx->ty);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb_pkt);
 	mctp_test_skb_set_dev(skb_pkt, dev);
-	mctp_test_pktqueue_init(&tpq);
 
 	rc = mctp_dst_input(&dst, skb_pkt);
 	if (rx->expect) {
@@ -1591,7 +1562,7 @@ cleanup:
 	for (size_t i = 0; i < ARRAY_SIZE(lookup_binds); i++)
 		sock_release(socks[i]);
 
-	__mctp_route_test_fini(test, dev, &dst, &tpq, sock_ty0);
+	__mctp_route_test_fini(test, dev, &dst, sock_ty0);
 }
 
 static struct kunit_case mctp_test_cases[] = {

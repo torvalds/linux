@@ -329,7 +329,7 @@ static int xhci_portsc_show(struct seq_file *s, void *unused)
 	u32			portsc;
 	char			str[XHCI_MSG_MAX];
 
-	portsc = readl(port->addr);
+	portsc = xhci_portsc_readl(port);
 	seq_printf(s, "%s\n", xhci_decode_portsc(str, portsc));
 
 	return 0;
@@ -355,11 +355,11 @@ static ssize_t xhci_port_write(struct file *file,  const char __user *ubuf,
 
 	if (!strncmp(buf, "compliance", 10)) {
 		/* If CTC is clear, compliance is enabled by default */
-		if (!HCC2_CTC(xhci->hcc_params2))
+		if (!(xhci->hcc_params2 & HCC2_CTC))
 			return count;
 		spin_lock_irqsave(&xhci->lock, flags);
 		/* compliance mode can only be enabled on ports in RxDetect */
-		portsc = readl(port->addr);
+		portsc = xhci_portsc_readl(port);
 		if ((portsc & PORT_PLS_MASK) != XDEV_RXDETECT) {
 			spin_unlock_irqrestore(&xhci->lock, flags);
 			return -EPERM;
@@ -367,7 +367,7 @@ static ssize_t xhci_port_write(struct file *file,  const char __user *ubuf,
 		portsc = xhci_port_state_to_neutral(portsc);
 		portsc &= ~PORT_PLS_MASK;
 		portsc |= PORT_LINK_STROBE | XDEV_COMP_MODE;
-		writel(portsc, port->addr);
+		xhci_portsc_writel(port, portsc);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else {
 		return -EINVAL;
@@ -378,6 +378,39 @@ static ssize_t xhci_port_write(struct file *file,  const char __user *ubuf,
 static const struct file_operations port_fops = {
 	.open			= xhci_port_open,
 	.write                  = xhci_port_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
+static int xhci_portli_show(struct seq_file *s, void *unused)
+{
+	struct xhci_port	*port = s->private;
+	struct xhci_hcd		*xhci = hcd_to_xhci(port->rhub->hcd);
+	u32			portli;
+
+	portli = readl(&port->port_reg->portli);
+
+	/* PORTLI fields are valid if port is a USB3 or eUSB2V2 port */
+	if (port->rhub == &xhci->usb3_rhub)
+		seq_printf(s, "0x%08x LEC=%u RLC=%u TLC=%u\n", portli,
+			   PORT_LEC(portli), PORT_RX_LANES(portli), PORT_TX_LANES(portli));
+	else if (xhci->hcc_params2 & HCC2_E2V2C)
+		seq_printf(s, "0x%08x RDR=%u TDR=%u\n", portli,
+			   PORTLI_RDR(portli), PORTLI_TDR(portli));
+	else
+		seq_printf(s, "0x%08x RsvdP\n", portli);
+
+	return 0;
+}
+
+static int xhci_portli_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, xhci_portli_show, inode->i_private);
+}
+
+static const struct file_operations portli_fops = {
+	.open			= xhci_portli_open,
 	.read			= seq_read,
 	.llseek			= seq_lseek,
 	.release		= single_release,
@@ -613,28 +646,24 @@ void xhci_debugfs_remove_slot(struct xhci_hcd *xhci, int slot_id)
 static void xhci_debugfs_create_ports(struct xhci_hcd *xhci,
 				      struct dentry *parent)
 {
-	unsigned int		num_ports;
 	char			port_name[8];
 	struct xhci_port	*port;
 	struct dentry		*dir;
 
-	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-
 	parent = debugfs_create_dir("ports", parent);
 
-	while (num_ports--) {
-		scnprintf(port_name, sizeof(port_name), "port%02d",
-			  num_ports + 1);
+	for (int i = 0; i < xhci->max_ports; i++) {
+		scnprintf(port_name, sizeof(port_name), "port%02d", i + 1);
 		dir = debugfs_create_dir(port_name, parent);
-		port = &xhci->hw_ports[num_ports];
+		port = &xhci->hw_ports[i];
 		debugfs_create_file("portsc", 0644, dir, port, &port_fops);
+		debugfs_create_file("portli", 0444, dir, port, &portli_fops);
 	}
 }
 
 static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 				struct seq_file *s)
 {
-	unsigned int			num_ports;
 	unsigned int			i;
 	int				ret;
 	struct xhci_container_ctx	*ctx;
@@ -644,8 +673,6 @@ static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		return ret;
-
-	num_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	ctx = xhci_alloc_port_bw_ctx(xhci, 0);
 	if (!ctx) {
@@ -661,7 +688,7 @@ static int xhci_port_bw_show(struct xhci_hcd *xhci, u8 dev_speed,
 	/* print all roothub ports available bandwidth
 	 * refer to xhci rev1_2 protocol 6.2.6 , byte 0 is reserved
 	 */
-	for (i = 1; i < num_ports+1; i++)
+	for (i = 1; i <= xhci->max_ports; i++)
 		seq_printf(s, "port[%d] available bw: %d%%.\n", i,
 				ctx->bytes[i]);
 err_out:

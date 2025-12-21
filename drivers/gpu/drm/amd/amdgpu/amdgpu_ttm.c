@@ -188,7 +188,6 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	struct amdgpu_job *job;
 	void *cpu_addr;
 	uint64_t flags;
-	unsigned int i;
 	int r;
 
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
@@ -255,16 +254,9 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 		dma_addr = &bo->ttm->dma_address[mm_cur->start >> PAGE_SHIFT];
 		amdgpu_gart_map(adev, 0, num_pages, dma_addr, flags, cpu_addr);
 	} else {
-		dma_addr_t dma_address;
+		u64 pa = mm_cur->start + adev->vm_manager.vram_base_offset;
 
-		dma_address = mm_cur->start;
-		dma_address += adev->vm_manager.vram_base_offset;
-
-		for (i = 0; i < num_pages; ++i) {
-			amdgpu_gart_map(adev, i << PAGE_SHIFT, 1, &dma_address,
-					flags, cpu_addr);
-			dma_address += PAGE_SIZE;
-		}
+		amdgpu_gart_map_vram_range(adev, pa, 0, num_pages, flags, cpu_addr);
 	}
 
 	dma_fence_put(amdgpu_job_submit(job));
@@ -286,12 +278,13 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
  * move and different for a BO to BO copy.
  *
  */
-int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
-			       const struct amdgpu_copy_mem *src,
-			       const struct amdgpu_copy_mem *dst,
-			       uint64_t size, bool tmz,
-			       struct dma_resv *resv,
-			       struct dma_fence **f)
+__attribute__((nonnull))
+static int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
+				      const struct amdgpu_copy_mem *src,
+				      const struct amdgpu_copy_mem *dst,
+				      uint64_t size, bool tmz,
+				      struct dma_resv *resv,
+				      struct dma_fence **f)
 {
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_res_cursor src_mm, dst_mm;
@@ -365,9 +358,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	}
 error:
 	mutex_unlock(&adev->mman.gtt_window_lock);
-	if (f)
-		*f = dma_fence_get(fence);
-	dma_fence_put(fence);
+	*f = fence;
 	return r;
 }
 
@@ -706,10 +697,11 @@ struct amdgpu_ttm_tt {
  * memory and start HMM tracking CPU page table update
  *
  * Calling function must call amdgpu_ttm_tt_userptr_range_done() once and only
- * once afterwards to stop HMM tracking
+ * once afterwards to stop HMM tracking. Its the caller responsibility to ensure
+ * that range is a valid memory and it is freed too.
  */
 int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
-				 struct hmm_range **range)
+				 struct amdgpu_hmm_range *range)
 {
 	struct ttm_tt *ttm = bo->tbo.ttm;
 	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
@@ -718,9 +710,6 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
 	struct mm_struct *mm;
 	bool readonly;
 	int r = 0;
-
-	/* Make sure get_user_pages_done() can cleanup gracefully */
-	*range = NULL;
 
 	mm = bo->notifier.mm;
 	if (unlikely(!mm)) {
@@ -756,38 +745,6 @@ out_unlock:
 	return r;
 }
 
-/* amdgpu_ttm_tt_discard_user_pages - Discard range and pfn array allocations
- */
-void amdgpu_ttm_tt_discard_user_pages(struct ttm_tt *ttm,
-				      struct hmm_range *range)
-{
-	struct amdgpu_ttm_tt *gtt = (void *)ttm;
-
-	if (gtt && gtt->userptr && range)
-		amdgpu_hmm_range_get_pages_done(range);
-}
-
-/*
- * amdgpu_ttm_tt_get_user_pages_done - stop HMM track the CPU page table change
- * Check if the pages backing this ttm range have been invalidated
- *
- * Returns: true if pages are still valid
- */
-bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
-				       struct hmm_range *range)
-{
-	struct amdgpu_ttm_tt *gtt = ttm_to_amdgpu_ttm_tt(ttm);
-
-	if (!gtt || !gtt->userptr || !range)
-		return false;
-
-	DRM_DEBUG_DRIVER("user_pages_done 0x%llx pages 0x%x\n",
-		gtt->userptr, ttm->num_pages);
-
-	WARN_ONCE(!range->hmm_pfns, "No user pages to check\n");
-
-	return !amdgpu_hmm_range_get_pages_done(range);
-}
 #endif
 
 /*
@@ -797,12 +754,12 @@ bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm,
  * that backs user memory and will ultimately be mapped into the device
  * address space.
  */
-void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct hmm_range *range)
+void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct amdgpu_hmm_range *range)
 {
 	unsigned long i;
 
 	for (i = 0; i < ttm->num_pages; ++i)
-		ttm->pages[i] = range ? hmm_pfn_to_page(range->hmm_pfns[i]) : NULL;
+		ttm->pages[i] = range ? hmm_pfn_to_page(range->hmm_range.hmm_pfns[i]) : NULL;
 }
 
 /*
@@ -1529,6 +1486,7 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	if (r)
 		goto out;
 
+	mutex_lock(&adev->mman.gtt_window_lock);
 	amdgpu_res_first(abo->tbo.resource, offset, len, &src_mm);
 	src_addr = amdgpu_ttm_domain_start(adev, bo->resource->mem_type) +
 		src_mm.start;
@@ -1543,6 +1501,7 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 
 	fence = amdgpu_job_submit(job);
+	mutex_unlock(&adev->mman.gtt_window_lock);
 
 	if (!dma_fence_wait_timeout(fence, false, adev->sdma_timeout))
 		r = -ETIMEDOUT;
@@ -1804,18 +1763,14 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 		ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
 	}
 
-	if (!adev->gmc.is_app_apu) {
-		ret = amdgpu_bo_create_kernel_at(
-			adev, adev->gmc.real_vram_size - reserve_size,
-			reserve_size, &adev->mman.fw_reserved_memory, NULL);
-		if (ret) {
-			dev_err(adev->dev, "alloc tmr failed(%d)!\n", ret);
-			amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory,
-					      NULL, NULL);
-			return ret;
-		}
-	} else {
-		DRM_DEBUG_DRIVER("backdoor fw loading path for PSP TMR, no reservation needed\n");
+	ret = amdgpu_bo_create_kernel_at(
+		adev, adev->gmc.real_vram_size - reserve_size, reserve_size,
+		&adev->mman.fw_reserved_memory, NULL);
+	if (ret) {
+		dev_err(adev->dev, "alloc tmr failed(%d)!\n", ret);
+		amdgpu_bo_free_kernel(&adev->mman.fw_reserved_memory, NULL,
+				      NULL);
+		return ret;
 	}
 
 	return 0;
@@ -1837,7 +1792,7 @@ static int amdgpu_ttm_pools_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gmc.num_mem_partitions; i++) {
 		ttm_pool_init(&adev->mman.ttm_pools[i], adev->dev,
 			      adev->gmc.mem_partitions[i].numa.node,
-			      false, false);
+			      TTM_ALLOCATION_POOL_BENEFICIAL_ORDER(get_order(SZ_2M)));
 	}
 	return 0;
 }
@@ -1930,8 +1885,11 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	r = ttm_device_init(&adev->mman.bdev, &amdgpu_bo_driver, adev->dev,
 			       adev_to_drm(adev)->anon_inode->i_mapping,
 			       adev_to_drm(adev)->vma_offset_manager,
-			       adev->need_swiotlb,
-			       dma_addressing_limited(adev->dev));
+			       (adev->need_swiotlb ?
+				TTM_ALLOCATION_POOL_USE_DMA_ALLOC : 0) |
+			       (dma_addressing_limited(adev->dev) ?
+				TTM_ALLOCATION_POOL_USE_DMA32 : 0) |
+			       TTM_ALLOCATION_POOL_BENEFICIAL_ORDER(get_order(SZ_2M)));
 	if (r) {
 		dev_err(adev->dev,
 			"failed initializing buffer object driver(%d).\n", r);
@@ -1980,19 +1938,19 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 
 	/*
-	 *The reserved vram for driver must be pinned to the specified
-	 *place on the VRAM, so reserve it early.
+	 * The reserved VRAM for the driver must be pinned to a specific
+	 * location in VRAM, so reserve it early.
 	 */
 	r = amdgpu_ttm_drv_reserve_vram_init(adev);
 	if (r)
 		return r;
 
 	/*
-	 * only NAVI10 and onwards ASIC support for IP discovery.
-	 * If IP discovery enabled, a block of memory should be
-	 * reserved for IP discovey.
+	 * only NAVI10 and later ASICs support IP discovery.
+	 * If IP discovery is enabled, a block of memory should be
+	 * reserved for it.
 	 */
-	if (adev->mman.discovery_bin) {
+	if (adev->discovery.reserve_tmr) {
 		r = amdgpu_ttm_reserve_tmr(adev);
 		if (r)
 			return r;
@@ -2229,8 +2187,10 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	} else {
 		drm_sched_entity_destroy(&adev->mman.high_pr);
 		drm_sched_entity_destroy(&adev->mman.low_pr);
-		dma_fence_put(man->move);
-		man->move = NULL;
+		/* Drop all the old fences since re-creating the scheduler entities
+		 * will allocate new contexts.
+		 */
+		ttm_resource_manager_cleanup(man);
 	}
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */

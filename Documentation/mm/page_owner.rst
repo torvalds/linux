@@ -27,7 +27,10 @@ enabled. Other usages are more than welcome.
 It can also be used to show all the stacks and their current number of
 allocated base pages, which gives us a quick overview of where the memory
 is going without the need to screen through all the pages and match the
-allocation and free operation.
+allocation and free operation. It's also possible to show only a numeric
+identifier of all the stacks (without stack traces) and their number of
+allocated base pages (faster to read and parse, eg, for monitoring) that
+can be matched with stacks later (show_handles and show_stacks_handles).
 
 page owner is disabled by default. So, if you'd like to use it, you need
 to add "page_owner=on" to your boot cmdline. If the kernel is built
@@ -114,6 +117,33 @@ Usage
 	 do_syscall_64+0x8d/0x150
 	 entry_SYSCALL_64_after_hwframe+0x62/0x6a
 	nr_base_pages: 20824
+	...
+
+	cat /sys/kernel/debug/page_owner_stacks/show_handles > handles_7000.txt
+	cat handles_7000.txt
+	handle: 42
+	nr_base_pages: 20824
+	...
+
+	cat /sys/kernel/debug/page_owner_stacks/show_stacks_handles > stacks_handles.txt
+	cat stacks_handles.txt
+	 post_alloc_hook+0x177/0x1a0
+	 get_page_from_freelist+0xd01/0xd80
+	 __alloc_pages+0x39e/0x7e0
+	 alloc_pages_mpol+0x22e/0x490
+	 folio_alloc+0xd5/0x110
+	 filemap_alloc_folio+0x78/0x230
+	 page_cache_ra_order+0x287/0x6f0
+	 filemap_get_pages+0x517/0x1160
+	 filemap_read+0x304/0x9f0
+	 xfs_file_buffered_read+0xe6/0x1d0 [xfs]
+	 xfs_file_read_iter+0x1f0/0x380 [xfs]
+	 __kernel_read+0x3b9/0x730
+	 kernel_read_file+0x309/0x4d0
+	 __do_sys_finit_module+0x381/0x730
+	 do_syscall_64+0x8d/0x150
+	 entry_SYSCALL_64_after_hwframe+0x62/0x6a
+	handle: 42
 	...
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt

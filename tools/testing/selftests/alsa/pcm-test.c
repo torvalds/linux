@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <pthread.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "alsa-local.h"
 
 typedef struct timespec timestamp_t;

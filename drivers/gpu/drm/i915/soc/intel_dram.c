@@ -6,6 +6,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "../display/intel_display_core.h" /* FIXME */
 
@@ -335,7 +336,7 @@ static bool
 skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 {
 	/* Convert total Gb to Gb per DRAM device */
-	return dimm->size / (intel_dimm_num_devices(dimm) ?: 1) == 16;
+	return dimm->size / (intel_dimm_num_devices(dimm) ?: 1) >= 16;
 }
 
 static void
@@ -354,7 +355,7 @@ skl_dram_get_dimm_info(struct drm_i915_private *i915,
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb DIMMs: %s\n",
+		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb+ DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
 		    str_yes_no(skl_is_16gb_dimm(dimm)));
 }
@@ -384,7 +385,7 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 	ch->is_16gb_dimm = skl_is_16gb_dimm(&ch->dimm_l) ||
 		skl_is_16gb_dimm(&ch->dimm_s);
 
-	drm_dbg_kms(&i915->drm, "CH%u ranks: %u, 16Gb DIMMs: %s\n",
+	drm_dbg_kms(&i915->drm, "CH%u ranks: %u, 16Gb+ DIMMs: %s\n",
 		    channel, ch->ranks, str_yes_no(ch->is_16gb_dimm));
 
 	return 0;
@@ -406,7 +407,7 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 	u32 val;
 	int ret;
 
-	/* Assume 16Gb DIMMs are present until proven otherwise */
+	/* Assume 16Gb+ DIMMs are present until proven otherwise */
 	dram_info->has_16gb_dimms = true;
 
 	val = intel_uncore_read(&i915->uncore,
@@ -438,7 +439,7 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 	drm_dbg_kms(&i915->drm, "Memory configuration is symmetric? %s\n",
 		    str_yes_no(dram_info->symmetric_memory));
 
-	drm_dbg_kms(&i915->drm, "16Gb DIMMs: %s\n",
+	drm_dbg_kms(&i915->drm, "16Gb+ DIMMs: %s\n",
 		    str_yes_no(dram_info->has_16gb_dimms));
 
 	return 0;
@@ -685,6 +686,7 @@ static int gen12_get_dram_info(struct drm_i915_private *i915, struct dram_info *
 
 static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
 {
+	struct intel_display *display = i915->display;
 	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
 
 	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
@@ -722,6 +724,9 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info 
 	dram_info->num_channels = REG_FIELD_GET(MTL_N_OF_POPULATED_CH_MASK, val);
 	dram_info->num_qgv_points = REG_FIELD_GET(MTL_N_OF_ENABLED_QGV_POINTS_MASK, val);
 	/* PSF GV points not supported in D14+ */
+
+	if (DISPLAY_VER(display) >= 35)
+		dram_info->ecc_impacting_de_bw = REG_FIELD_GET(XE3P_ECC_IMPACTING_DE, val);
 
 	return 0;
 }

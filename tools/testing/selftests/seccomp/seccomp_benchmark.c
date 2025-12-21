@@ -20,7 +20,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 unsigned long long timing(clockid_t clk_id, unsigned long long samples)
 {

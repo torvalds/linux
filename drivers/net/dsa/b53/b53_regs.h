@@ -119,6 +119,10 @@
 #define B53_SWITCH_CTRL			0x22
 #define  B53_MII_DUMB_FWDG_EN		BIT(6)
 
+/* Protected Port Selection (16 bit) */
+#define B53_PROTECTED_PORT_SEL		0x24
+#define B53_PROTECTED_PORT_SEL_25	0x26
+
 /* (16 bit) */
 #define B53_UC_FLOOD_MASK		0x32
 #define B53_MC_FLOOD_MASK		0x34
@@ -325,11 +329,9 @@
 #define B53_ARLTBL_MAC_VID_ENTRY(n)	((0x10 * (n)) + 0x10)
 #define   ARLTBL_MAC_MASK		0xffffffffffffULL
 #define   ARLTBL_VID_S			48
-#define   ARLTBL_VID_MASK_25		0xff
 #define   ARLTBL_VID_MASK		0xfff
 #define   ARLTBL_DATA_PORT_ID_S_25	48
-#define   ARLTBL_DATA_PORT_ID_MASK_25	0xf
-#define   ARLTBL_VID_S_65		53
+#define   ARLTBL_DATA_PORT_ID_MASK_25	GENMASK_ULL(53, 48)
 #define   ARLTBL_AGE_25			BIT_ULL(61)
 #define   ARLTBL_STATIC_25		BIT_ULL(62)
 #define   ARLTBL_VALID_25		BIT_ULL(63)
@@ -342,12 +344,23 @@
 #define   ARLTBL_STATIC			BIT(15)
 #define   ARLTBL_VALID			BIT(16)
 
+/* BCM5389 ARL Table Data Entry N Register format (16 bit) */
+#define   ARLTBL_DATA_PORT_ID_MASK_89	GENMASK(8, 0)
+#define   ARLTBL_TC_MASK_89		GENMASK(12, 10)
+#define   ARLTBL_AGE_89			BIT(13)
+#define   ARLTBL_STATIC_89		BIT(14)
+#define   ARLTBL_VALID_89		BIT(15)
+
+/* BCM5325/BCM565 ARL Table VID Entry N Registers (8 bit) */
+#define B53_ARLTBL_VID_ENTRY_25(n)	((0x2 * (n)) + 0x30)
+
 /* Maximum number of bin entries in the ARL for all switches */
 #define B53_ARLTBL_MAX_BIN_ENTRIES	4
 
 /* ARL Search Control Register (8 bit) */
 #define B53_ARL_SRCH_CTL		0x50
 #define B53_ARL_SRCH_CTL_25		0x20
+#define B53_ARL_SRCH_CTL_89		0x30
 #define   ARL_SRCH_VLID			BIT(0)
 #define   ARL_SRCH_STDN			BIT(7)
 
@@ -355,21 +368,41 @@
 #define B53_ARL_SRCH_ADDR		0x51
 #define B53_ARL_SRCH_ADDR_25		0x22
 #define B53_ARL_SRCH_ADDR_65		0x24
+#define B53_ARL_SRCH_ADDR_89		0x31
+#define B53_ARL_SRCH_ADDR_63XX		0x32
 #define  ARL_ADDR_MASK			GENMASK(14, 0)
 
 /* ARL Search MAC/VID Result (64 bit) */
 #define B53_ARL_SRCH_RSTL_0_MACVID	0x60
+#define B53_ARL_SRCH_RSLT_MACVID_89	0x33
+#define B53_ARL_SRCH_RSLT_MACVID_63XX	0x34
 
-/* Single register search result on 5325 */
+/* Single register search result on 5325/5365 */
 #define B53_ARL_SRCH_RSTL_0_MACVID_25	0x24
-/* Single register search result on 5365 */
-#define B53_ARL_SRCH_RSTL_0_MACVID_65	0x30
+#define   ARL_SRCH_RSLT_PORT_ID_S_25	48
+#define   ARL_SRCH_RSLT_PORT_ID_MASK_25	GENMASK_ULL(52, 48)
+#define   ARL_SRCH_RSLT_VID_S_25	53
+#define   ARL_SRCH_RSLT_VID_MASK_25	GENMASK_ULL(60, 53)
+
+/* BCM5325/5365 Search result extend register (8 bit) */
+#define B53_ARL_SRCH_RSLT_EXT_25	0x2c
+#define   ARL_SRCH_RSLT_EXT_MC_MII	BIT(2)
 
 /* ARL Search Data Result (32 bit) */
 #define B53_ARL_SRCH_RSTL_0		0x68
 
+/* BCM5389 ARL Search Data Result (16 bit) */
+#define B53_ARL_SRCH_RSLT_89		0x3b
+
 #define B53_ARL_SRCH_RSTL_MACVID(x)	(B53_ARL_SRCH_RSTL_0_MACVID + ((x) * 0x10))
 #define B53_ARL_SRCH_RSTL(x)		(B53_ARL_SRCH_RSTL_0 + ((x) * 0x10))
+
+/* 63XX ARL Search Data Result (16 bit) */
+#define B53_ARL_SRCH_RSLT_63XX		0x3c
+#define   ARL_SRST_PORT_ID_MASK_63XX	GENMASK(9, 1)
+#define   ARL_SRST_TC_MASK_63XX		GENMASK(13, 11)
+#define   ARL_SRST_AGE_63XX		BIT(14)
+#define   ARL_SRST_STATIC_63XX		BIT(15)
 
 /*************************************************************************
  * IEEE 802.1X Registers

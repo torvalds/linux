@@ -51,12 +51,16 @@ struct xe_i2c {
 int xe_i2c_probe(struct xe_device *xe);
 bool xe_i2c_present(struct xe_device *xe);
 void xe_i2c_irq_handler(struct xe_device *xe, u32 master_ctl);
+void xe_i2c_irq_postinstall(struct xe_device *xe);
+void xe_i2c_irq_reset(struct xe_device *xe);
 void xe_i2c_pm_suspend(struct xe_device *xe);
 void xe_i2c_pm_resume(struct xe_device *xe, bool d3cold);
 #else
 static inline int xe_i2c_probe(struct xe_device *xe) { return 0; }
 static inline bool xe_i2c_present(struct xe_device *xe) { return false; }
 static inline void xe_i2c_irq_handler(struct xe_device *xe, u32 master_ctl) { }
+static inline void xe_i2c_irq_postinstall(struct xe_device *xe) { }
+static inline void xe_i2c_irq_reset(struct xe_device *xe) { }
 static inline void xe_i2c_pm_suspend(struct xe_device *xe) { }
 static inline void xe_i2c_pm_resume(struct xe_device *xe, bool d3cold) { }
 #endif

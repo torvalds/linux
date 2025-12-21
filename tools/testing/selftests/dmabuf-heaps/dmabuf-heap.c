@@ -15,7 +15,7 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <drm/drm.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define DEVPATH "/dev/dma_heap"
 

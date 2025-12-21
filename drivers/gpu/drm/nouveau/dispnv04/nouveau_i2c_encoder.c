@@ -94,26 +94,6 @@ fail_unregister:
 	return err;
 }
 
-/**
- * nouveau_i2c_encoder_destroy - Unregister the I2C device backing an encoder
- * @drm_encoder:	Encoder to be unregistered.
- *
- * This should be called from the @destroy method of an I2C slave
- * encoder driver once I2C access is no longer needed.
- */
-void nouveau_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
-{
-	struct nouveau_i2c_encoder *encoder = to_encoder_i2c(drm_encoder);
-	struct i2c_client *client = nouveau_i2c_encoder_get_client(drm_encoder);
-	struct module *module = client->dev.driver->owner;
-
-	i2c_unregister_device(client);
-	encoder->i2c_client = NULL;
-
-	module_put(module);
-}
-EXPORT_SYMBOL(nouveau_i2c_encoder_destroy);
-
 /*
  * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:
  */

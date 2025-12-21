@@ -60,7 +60,8 @@ vmlinux_link()
 	# skip output file argument
 	shift
 
-	if is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT; then
+	if is_enabled CONFIG_LTO_CLANG || is_enabled CONFIG_X86_KERNEL_IBT ||
+	   is_enabled CONFIG_KLP_BUILD; then
 		# Use vmlinux.o instead of performing the slow LTO link again.
 		objs=vmlinux.o
 		libs=
@@ -207,6 +208,13 @@ btf_vmlinux_bin_o=
 kallsymso=
 strip_debug=
 generate_map=
+
+# Use "make UT=1" to trigger warnings on unused tracepoints
+case "${WARN_ON_UNUSED_TRACEPOINTS}" in
+*1*)
+	${objtree}/scripts/tracepoint-update vmlinux.o
+	;;
+esac
 
 if is_enabled CONFIG_KALLSYMS; then
 	true > .tmp_vmlinux0.syms

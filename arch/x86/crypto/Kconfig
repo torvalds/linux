@@ -353,16 +353,6 @@ config CRYPTO_NHPOLY1305_AVX2
 	  Architecture: x86_64 using:
 	  - AVX2 (Advanced Vector Extensions 2)
 
-config CRYPTO_POLYVAL_CLMUL_NI
-	tristate "Hash functions: POLYVAL (CLMUL-NI)"
-	depends on 64BIT
-	select CRYPTO_POLYVAL
-	help
-	  POLYVAL hash function for HCTR2
-
-	  Architecture: x86_64 using:
-	  - CLMUL-NI (carry-less multiplication new instructions)
-
 config CRYPTO_SM3_AVX_X86_64
 	tristate "Hash functions: SM3 (AVX)"
 	depends on 64BIT

@@ -39,7 +39,6 @@ enum io_uring_cmd_flags {
 	/* set when uring wants to cancel a previously issued command */
 	IO_URING_F_CANCEL		= (1 << 11),
 	IO_URING_F_COMPAT		= (1 << 12),
-	IO_URING_F_TASK_DEAD		= (1 << 13),
 };
 
 struct io_wq_work_node {
@@ -328,8 +327,8 @@ struct io_ring_ctx {
 
 		/*
 		 * Modifications are protected by ->uring_lock and ->mmap_lock.
-		 * The flags, buf_pages and buf_nr_pages fields should be stable
-		 * once published.
+		 * The buffer list's io mapped region should be stable once
+		 * published.
 		 */
 		struct xarray		io_bl_xa;
 
@@ -474,6 +473,7 @@ struct io_ring_ctx {
  * ONLY core io_uring.c should instantiate this struct.
  */
 struct io_tw_state {
+	bool cancel;
 };
 /* Alias to use in code that doesn't instantiate struct io_tw_state */
 typedef struct io_tw_state io_tw_token_t;
@@ -614,7 +614,11 @@ enum {
 	REQ_F_SQE_COPIED	= IO_REQ_FLAG(REQ_F_SQE_COPIED_BIT),
 };
 
-typedef void (*io_req_tw_func_t)(struct io_kiocb *req, io_tw_token_t tw);
+struct io_tw_req {
+	struct io_kiocb *req;
+};
+
+typedef void (*io_req_tw_func_t)(struct io_tw_req tw_req, io_tw_token_t tw);
 
 struct io_task_work {
 	struct llist_node		node;

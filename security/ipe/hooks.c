@@ -36,6 +36,33 @@ int ipe_bprm_check_security(struct linux_binprm *bprm)
 }
 
 /**
+ * ipe_bprm_creds_for_exec() - ipe security hook function for bprm creds check.
+ * @bprm: Supplies a pointer to a linux_binprm structure to source the file
+ *	  being evaluated.
+ *
+ * This LSM hook is called when userspace signals the kernel to check a file
+ * for execution through the execveat syscall with the AT_EXECVE_CHECK flag.
+ * The hook triggers IPE policy evaluation on the script file and returns
+ * the policy decision to userspace. The userspace program receives the
+ * return code and can decide whether to proceed with script execution.
+ *
+ * Return:
+ * * %0		- Success
+ * * %-EACCES	- Did not pass IPE policy
+ */
+int ipe_bprm_creds_for_exec(struct linux_binprm *bprm)
+{
+	struct ipe_eval_ctx ctx = IPE_EVAL_CTX_INIT;
+
+	if (!bprm->is_check)
+		return 0;
+
+	ipe_build_eval_ctx(&ctx, bprm->file, IPE_OP_EXEC,
+			   IPE_HOOK_BPRM_CREDS_FOR_EXEC);
+	return ipe_evaluate_event(&ctx);
+}
+
+/**
  * ipe_mmap_file() - ipe security hook function for mmap check.
  * @f: File being mmap'd. Can be NULL in the case of anonymous memory.
  * @reqprot: The requested protection on the mmap, passed from usermode.
@@ -118,6 +145,7 @@ int ipe_kernel_read_file(struct file *file, enum kernel_read_file_id id,
 		op = IPE_OP_FIRMWARE;
 		break;
 	case READING_MODULE:
+	case READING_MODULE_COMPRESSED:
 		op = IPE_OP_KERNEL_MODULE;
 		break;
 	case READING_KEXEC_INITRAMFS:
@@ -311,4 +339,4 @@ int ipe_inode_setintegrity(const struct inode *inode,
 
 	return -EINVAL;
 }
-#endif /* CONFIG_CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG */
+#endif /* CONFIG_IPE_PROP_FS_VERITY_BUILTIN_SIG */

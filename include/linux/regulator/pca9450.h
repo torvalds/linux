@@ -223,12 +223,44 @@ enum {
 #define IRQ_THERM_105			0x02
 #define IRQ_THERM_125			0x01
 
+/* PCA9450_REG_PWRCTRL bits */
+#define T_ON_DEB_MASK			0xC0
+#define T_ON_DEB_120US			(0 << 6)
+#define T_ON_DEB_20MS			(1 << 6)
+#define T_ON_DEB_100MS			(2 << 6)
+#define T_ON_DEB_750MS			(3 << 6)
+#define T_OFF_DEB_MASK			0x20
+#define T_OFF_DEB_120US			(0 << 5)
+#define T_OFF_DEB_2MS			(1 << 5)
+#define T_ON_STEP_MASK			0x18
+#define T_ON_STEP_1MS			(0 << 3)
+#define T_ON_STEP_2MS			(1 << 3)
+#define T_ON_STEP_4MS			(2 << 3)
+#define T_ON_STEP_8MS			(3 << 3)
+#define T_OFF_STEP_MASK			0x06
+#define T_OFF_STEP_2MS			(0 << 1)
+#define T_OFF_STEP_4MS			(1 << 1)
+#define T_OFF_STEP_8MS			(2 << 1)
+#define T_OFF_STEP_16MS			(3 << 1)
+#define T_RESTART_MASK			0x01
+#define T_RESTART_250MS			0
+#define T_RESTART_500MS			1
+
 /* PCA9450_REG_RESET_CTRL bits */
 #define WDOG_B_CFG_MASK			0xC0
 #define WDOG_B_CFG_NONE			0x00
 #define WDOG_B_CFG_WARM			0x40
 #define WDOG_B_CFG_COLD_LDO12		0x80
 #define WDOG_B_CFG_COLD			0xC0
+#define T_PMIC_RST_DEB_MASK		0x07
+#define T_PMIC_RST_DEB_10MS		0x00
+#define T_PMIC_RST_DEB_50MS		0x01
+#define T_PMIC_RST_DEB_100MS		0x02
+#define T_PMIC_RST_DEB_500MS		0x03
+#define T_PMIC_RST_DEB_1S		0x04
+#define T_PMIC_RST_DEB_2S		0x05
+#define T_PMIC_RST_DEB_4S		0x06
+#define T_PMIC_RST_DEB_8S		0x07
 
 /* PCA9450_REG_CONFIG2 bits */
 #define I2C_LT_MASK			0x03

@@ -52,14 +52,14 @@ do {							\
 	unreachable();					\
 } while (0)
 
-#define __WARN_FLAGS(flags)				\
+#define __WARN_FLAGS(cond_str, flags)			\
 do {							\
 	__asm__ __volatile__ (				\
 		"1:\t.short %O0\n"			\
 		 _EMIT_BUG_ENTRY			\
 		 :					\
 		 : "n" (TRAPA_BUG_OPCODE),		\
-		   "i" (__FILE__),			\
+		   "i" (WARN_CONDITION_STR(cond_str) __FILE__),	\
 		   "i" (__LINE__),			\
 		   "i" (BUGFLAG_WARNING|(flags)),	\
 		   "i" (sizeof(struct bug_entry)));	\

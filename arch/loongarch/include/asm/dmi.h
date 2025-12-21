@@ -12,7 +12,7 @@
 #define dmi_early_unmap(x, l)	dmi_unmap(x)
 #define dmi_alloc(l)		memblock_alloc(l, PAGE_SIZE)
 
-static inline void *dmi_remap(u64 phys_addr, unsigned long size)
+static inline void *dmi_remap(phys_addr_t phys_addr, unsigned long size)
 {
 	return ((void *)TO_CACHE(phys_addr));
 }

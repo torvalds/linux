@@ -21,6 +21,7 @@
 #include <linux/sched/clock.h>
 #include <linux/kthread.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_syncobj.h>
 
 #include "v3d_drv.h"

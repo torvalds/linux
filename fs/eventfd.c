@@ -378,9 +378,7 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_fileget);
 
 static int do_eventfd(unsigned int count, int flags)
 {
-	struct eventfd_ctx *ctx;
-	struct file *file;
-	int fd;
+	struct eventfd_ctx *ctx __free(kfree) = NULL;
 
 	/* Check the EFD_* constants for consistency.  */
 	BUILD_BUG_ON(EFD_CLOEXEC != O_CLOEXEC);
@@ -398,26 +396,19 @@ static int do_eventfd(unsigned int count, int flags)
 	init_waitqueue_head(&ctx->wqh);
 	ctx->count = count;
 	ctx->flags = flags;
-	ctx->id = ida_alloc(&eventfd_ida, GFP_KERNEL);
 
 	flags &= EFD_SHARED_FCNTL_FLAGS;
 	flags |= O_RDWR;
-	fd = get_unused_fd_flags(flags);
-	if (fd < 0)
-		goto err;
 
-	file = anon_inode_getfile_fmode("[eventfd]", &eventfd_fops,
-					ctx, flags, FMODE_NOWAIT);
-	if (IS_ERR(file)) {
-		put_unused_fd(fd);
-		fd = PTR_ERR(file);
-		goto err;
-	}
-	fd_install(fd, file);
-	return fd;
-err:
-	eventfd_free_ctx(ctx);
-	return fd;
+	FD_PREPARE(fdf, flags,
+		   anon_inode_getfile_fmode("[eventfd]", &eventfd_fops, ctx,
+					    flags, FMODE_NOWAIT));
+	if (fdf.err)
+		return fdf.err;
+
+	ctx->id = ida_alloc(&eventfd_ida, GFP_KERNEL);
+	retain_and_null_ptr(ctx);
+	return fd_publish(fdf);
 }
 
 SYSCALL_DEFINE2(eventfd2, unsigned int, count, int, flags)

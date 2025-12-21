@@ -219,6 +219,7 @@
 #include "i915_perf.h"
 #include "i915_perf_oa_regs.h"
 #include "i915_reg.h"
+#include "i915_mmio_range.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -4320,29 +4321,17 @@ static bool gen8_is_valid_flex_addr(struct i915_perf *perf, u32 addr)
 	return false;
 }
 
-static bool reg_in_range_table(u32 addr, const struct i915_range *table)
-{
-	while (table->start || table->end) {
-		if (addr >= table->start && addr <= table->end)
-			return true;
-
-		table++;
-	}
-
-	return false;
-}
-
 #define REG_EQUAL(addr, mmio) \
 	((addr) == i915_mmio_reg_offset(mmio))
 
-static const struct i915_range gen7_oa_b_counters[] = {
+static const struct i915_mmio_range gen7_oa_b_counters[] = {
 	{ .start = 0x2710, .end = 0x272c },	/* OASTARTTRIG[1-8] */
 	{ .start = 0x2740, .end = 0x275c },	/* OAREPORTTRIG[1-8] */
 	{ .start = 0x2770, .end = 0x27ac },	/* OACEC[0-7][0-1] */
 	{}
 };
 
-static const struct i915_range gen12_oa_b_counters[] = {
+static const struct i915_mmio_range gen12_oa_b_counters[] = {
 	{ .start = 0x2b2c, .end = 0x2b2c },	/* GEN12_OAG_OA_PESS */
 	{ .start = 0xd900, .end = 0xd91c },	/* GEN12_OAG_OASTARTTRIG[1-8] */
 	{ .start = 0xd920, .end = 0xd93c },	/* GEN12_OAG_OAREPORTTRIG1[1-8] */
@@ -4353,7 +4342,7 @@ static const struct i915_range gen12_oa_b_counters[] = {
 	{}
 };
 
-static const struct i915_range mtl_oam_b_counters[] = {
+static const struct i915_mmio_range mtl_oam_b_counters[] = {
 	{ .start = 0x393000, .end = 0x39301c },	/* GEN12_OAM_STARTTRIG1[1-8] */
 	{ .start = 0x393020, .end = 0x39303c },	/* GEN12_OAM_REPORTTRIG1[1-8] */
 	{ .start = 0x393040, .end = 0x39307c },	/* GEN12_OAM_CEC[0-7][0-1] */
@@ -4361,43 +4350,43 @@ static const struct i915_range mtl_oam_b_counters[] = {
 	{}
 };
 
-static const struct i915_range xehp_oa_b_counters[] = {
+static const struct i915_mmio_range xehp_oa_b_counters[] = {
 	{ .start = 0xdc48, .end = 0xdc48 },	/* OAA_ENABLE_REG */
 	{ .start = 0xdd00, .end = 0xdd48 },	/* OAG_LCE0_0 - OAA_LENABLE_REG */
 	{}
 };
 
-static const struct i915_range gen7_oa_mux_regs[] = {
+static const struct i915_mmio_range gen7_oa_mux_regs[] = {
 	{ .start = 0x91b8, .end = 0x91cc },	/* OA_PERFCNT[1-2], OA_PERFMATRIX */
 	{ .start = 0x9800, .end = 0x9888 },	/* MICRO_BP0_0 - NOA_WRITE */
 	{ .start = 0xe180, .end = 0xe180 },	/* HALF_SLICE_CHICKEN2 */
 	{}
 };
 
-static const struct i915_range hsw_oa_mux_regs[] = {
+static const struct i915_mmio_range hsw_oa_mux_regs[] = {
 	{ .start = 0x09e80, .end = 0x09ea4 }, /* HSW_MBVID2_NOA[0-9] */
 	{ .start = 0x09ec0, .end = 0x09ec0 }, /* HSW_MBVID2_MISR0 */
 	{ .start = 0x25100, .end = 0x2ff90 },
 	{}
 };
 
-static const struct i915_range chv_oa_mux_regs[] = {
+static const struct i915_mmio_range chv_oa_mux_regs[] = {
 	{ .start = 0x182300, .end = 0x1823a4 },
 	{}
 };
 
-static const struct i915_range gen8_oa_mux_regs[] = {
+static const struct i915_mmio_range gen8_oa_mux_regs[] = {
 	{ .start = 0x0d00, .end = 0x0d2c },	/* RPM_CONFIG[0-1], NOA_CONFIG[0-8] */
 	{ .start = 0x20cc, .end = 0x20cc },	/* WAIT_FOR_RC6_EXIT */
 	{}
 };
 
-static const struct i915_range gen11_oa_mux_regs[] = {
+static const struct i915_mmio_range gen11_oa_mux_regs[] = {
 	{ .start = 0x91c8, .end = 0x91dc },	/* OA_PERFCNT[3-4] */
 	{}
 };
 
-static const struct i915_range gen12_oa_mux_regs[] = {
+static const struct i915_mmio_range gen12_oa_mux_regs[] = {
 	{ .start = 0x0d00, .end = 0x0d04 },     /* RPM_CONFIG[0-1] */
 	{ .start = 0x0d0c, .end = 0x0d2c },     /* NOA_CONFIG[0-8] */
 	{ .start = 0x9840, .end = 0x9840 },	/* GDT_CHICKEN_BITS */
@@ -4410,7 +4399,7 @@ static const struct i915_range gen12_oa_mux_regs[] = {
  * Ref: 14010536224:
  * 0x20cc is repurposed on MTL, so use a separate array for MTL.
  */
-static const struct i915_range mtl_oa_mux_regs[] = {
+static const struct i915_mmio_range mtl_oa_mux_regs[] = {
 	{ .start = 0x0d00, .end = 0x0d04 },	/* RPM_CONFIG[0-1] */
 	{ .start = 0x0d0c, .end = 0x0d2c },	/* NOA_CONFIG[0-8] */
 	{ .start = 0x9840, .end = 0x9840 },	/* GDT_CHICKEN_BITS */
@@ -4421,61 +4410,61 @@ static const struct i915_range mtl_oa_mux_regs[] = {
 
 static bool gen7_is_valid_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen7_oa_b_counters);
+	return i915_mmio_range_table_contains(addr, gen7_oa_b_counters);
 }
 
 static bool gen8_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
-		reg_in_range_table(addr, gen8_oa_mux_regs);
+	return i915_mmio_range_table_contains(addr, gen7_oa_mux_regs) ||
+		i915_mmio_range_table_contains(addr, gen8_oa_mux_regs);
 }
 
 static bool gen11_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
-		reg_in_range_table(addr, gen8_oa_mux_regs) ||
-		reg_in_range_table(addr, gen11_oa_mux_regs);
+	return i915_mmio_range_table_contains(addr, gen7_oa_mux_regs) ||
+		i915_mmio_range_table_contains(addr, gen8_oa_mux_regs) ||
+		i915_mmio_range_table_contains(addr, gen11_oa_mux_regs);
 }
 
 static bool hsw_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
-		reg_in_range_table(addr, hsw_oa_mux_regs);
+	return i915_mmio_range_table_contains(addr, gen7_oa_mux_regs) ||
+		i915_mmio_range_table_contains(addr, hsw_oa_mux_regs);
 }
 
 static bool chv_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
-		reg_in_range_table(addr, chv_oa_mux_regs);
+	return i915_mmio_range_table_contains(addr, gen7_oa_mux_regs) ||
+		i915_mmio_range_table_contains(addr, chv_oa_mux_regs);
 }
 
 static bool gen12_is_valid_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, gen12_oa_b_counters);
+	return i915_mmio_range_table_contains(addr, gen12_oa_b_counters);
 }
 
 static bool mtl_is_valid_oam_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
 	if (HAS_OAM(perf->i915) &&
 	    GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 70))
-		return reg_in_range_table(addr, mtl_oam_b_counters);
+		return i915_mmio_range_table_contains(addr, mtl_oam_b_counters);
 
 	return false;
 }
 
 static bool xehp_is_valid_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
-	return reg_in_range_table(addr, xehp_oa_b_counters) ||
-		reg_in_range_table(addr, gen12_oa_b_counters) ||
+	return i915_mmio_range_table_contains(addr, xehp_oa_b_counters) ||
+		i915_mmio_range_table_contains(addr, gen12_oa_b_counters) ||
 		mtl_is_valid_oam_b_counter_addr(perf, addr);
 }
 
 static bool gen12_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
 	if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 70))
-		return reg_in_range_table(addr, mtl_oa_mux_regs);
+		return i915_mmio_range_table_contains(addr, mtl_oa_mux_regs);
 	else
-		return reg_in_range_table(addr, gen12_oa_mux_regs);
+		return i915_mmio_range_table_contains(addr, gen12_oa_mux_regs);
 }
 
 static u32 mask_reg_value(u32 reg, u32 val)

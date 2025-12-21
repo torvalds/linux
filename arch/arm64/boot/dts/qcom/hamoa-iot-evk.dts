@@ -743,20 +743,32 @@
 };
 
 &lpass_tlmm {
-	spkr_01_sd_n_active: spkr-01-sd-n-active-state {
+	spkr_0_sd_n_active: spkr-0-sd-n-active-state {
 		pins = "gpio12";
 		function = "gpio";
 		drive-strength = <16>;
 		bias-disable;
-		output-low;
 	};
 
-	spkr_23_sd_n_active: spkr-23-sd-n-active-state {
+	spkr_1_sd_n_active: spkr-1-sd-n-active-state {
 		pins = "gpio13";
 		function = "gpio";
 		drive-strength = <16>;
 		bias-disable;
-		output-low;
+	};
+
+	spkr_2_sd_n_active: spkr-2-sd-n-active-state {
+		pins = "gpio17";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+	};
+
+	spkr_3_sd_n_active: spkr-3-sd-n-active-state {
+		pins = "gpio18";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
 	};
 };
 
@@ -908,12 +920,14 @@
 &swr0 {
 	status = "okay";
 
-	pinctrl-0 = <&wsa_swr_active>, <&spkr_01_sd_n_active>;
+	pinctrl-0 = <&wsa_swr_active>;
 	pinctrl-names = "default";
 
 	/* WSA8845, Left Woofer */
 	left_woofer: speaker@0,0 {
 		compatible = "sdw20217020400";
+		pinctrl-0 = <&spkr_0_sd_n_active>;
+		pinctrl-names = "default";
 		reg = <0 0>;
 		reset-gpios = <&lpass_tlmm 12 GPIO_ACTIVE_LOW>;
 		#sound-dai-cells = <0>;
@@ -926,8 +940,10 @@
 	/* WSA8845, Left Tweeter */
 	left_tweeter: speaker@0,1 {
 		compatible = "sdw20217020400";
+		pinctrl-0 = <&spkr_1_sd_n_active>;
+		pinctrl-names = "default";
 		reg = <0 1>;
-		reset-gpios = <&lpass_tlmm 12 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&lpass_tlmm 13 GPIO_ACTIVE_LOW>;
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TweeterLeft";
 		vdd-1p8-supply = <&vreg_l15b_1p8>;
@@ -961,14 +977,16 @@
 &swr3 {
 	status = "okay";
 
-	pinctrl-0 = <&wsa2_swr_active>, <&spkr_23_sd_n_active>;
+	pinctrl-0 = <&wsa2_swr_active>;
 	pinctrl-names = "default";
 
 	/* WSA8845, Right Woofer */
 	right_woofer: speaker@0,0 {
 		compatible = "sdw20217020400";
+		pinctrl-0 = <&spkr_2_sd_n_active>;
+		pinctrl-names = "default";
 		reg = <0 0>;
-		reset-gpios = <&lpass_tlmm 13 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&lpass_tlmm 17 GPIO_ACTIVE_LOW>;
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "WooferRight";
 		vdd-1p8-supply = <&vreg_l15b_1p8>;
@@ -979,8 +997,10 @@
 	/* WSA8845, Right Tweeter */
 	right_tweeter: speaker@0,1 {
 		compatible = "sdw20217020400";
+		pinctrl-0 = <&spkr_3_sd_n_active>;
+		pinctrl-names = "default";
 		reg = <0 1>;
-		reset-gpios = <&lpass_tlmm 13 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&lpass_tlmm 18 GPIO_ACTIVE_LOW>;
 		#sound-dai-cells = <0>;
 		sound-name-prefix = "TweeterRight";
 		vdd-1p8-supply = <&vreg_l15b_1p8>;

@@ -23,6 +23,8 @@
 #define GDM3_BASE			0x1100
 #define GDM4_BASE			0x2500
 
+#define CDM_BASE(_n)			\
+	((_n) == 2 ? CDM2_BASE : CDM1_BASE)
 #define GDM_BASE(_n)			\
 	((_n) == 4 ? GDM4_BASE :	\
 	 (_n) == 3 ? GDM3_BASE :	\
@@ -109,30 +111,24 @@
 #define PATN_DP_MASK			GENMASK(31, 16)
 #define PATN_SP_MASK			GENMASK(15, 0)
 
-#define REG_CDM1_VLAN_CTRL		CDM1_BASE
-#define CDM1_VLAN_MASK			GENMASK(31, 16)
+#define REG_CDM_VLAN_CTRL(_n)		CDM_BASE(_n)
+#define CDM_VLAN_MASK			GENMASK(31, 16)
 
-#define REG_CDM1_FWD_CFG		(CDM1_BASE + 0x08)
-#define CDM1_VIP_QSEL_MASK		GENMASK(24, 20)
+#define REG_CDM_FWD_CFG(_n)		(CDM_BASE(_n) + 0x08)
+#define CDM_OAM_QSEL_MASK		GENMASK(31, 27)
+#define CDM_VIP_QSEL_MASK		GENMASK(24, 20)
 
-#define REG_CDM1_CRSN_QSEL(_n)		(CDM1_BASE + 0x10 + ((_n) << 2))
-#define CDM1_CRSN_QSEL_REASON_MASK(_n)	\
-	GENMASK(4 + (((_n) % 4) << 3),	(((_n) % 4) << 3))
-
-#define REG_CDM2_FWD_CFG		(CDM2_BASE + 0x08)
-#define CDM2_OAM_QSEL_MASK		GENMASK(31, 27)
-#define CDM2_VIP_QSEL_MASK		GENMASK(24, 20)
-
-#define REG_CDM2_CRSN_QSEL(_n)		(CDM2_BASE + 0x10 + ((_n) << 2))
-#define CDM2_CRSN_QSEL_REASON_MASK(_n)	\
+#define REG_CDM_CRSN_QSEL(_n, _m)	(CDM_BASE(_n) + 0x10 + ((_m) << 2))
+#define CDM_CRSN_QSEL_REASON_MASK(_n)	\
 	GENMASK(4 + (((_n) % 4) << 3),	(((_n) % 4) << 3))
 
 #define REG_GDM_FWD_CFG(_n)		GDM_BASE(_n)
-#define GDM_DROP_CRC_ERR		BIT(23)
-#define GDM_IP4_CKSUM			BIT(22)
-#define GDM_TCP_CKSUM			BIT(21)
-#define GDM_UDP_CKSUM			BIT(20)
-#define GDM_STRIP_CRC			BIT(16)
+#define GDM_PAD_EN_MASK			BIT(28)
+#define GDM_DROP_CRC_ERR_MASK		BIT(23)
+#define GDM_IP4_CKSUM_MASK		BIT(22)
+#define GDM_TCP_CKSUM_MASK		BIT(21)
+#define GDM_UDP_CKSUM_MASK		BIT(20)
+#define GDM_STRIP_CRC_MASK		BIT(16)
 #define GDM_UCFQ_MASK			GENMASK(15, 12)
 #define GDM_BCFQ_MASK			GENMASK(11, 8)
 #define GDM_MCFQ_MASK			GENMASK(7, 4)
@@ -156,6 +152,10 @@
 #define LBK_CHAN_MODE_MASK		BIT(1)
 #define LPBK_EN_MASK			BIT(0)
 
+#define REG_GDM_CHN_RLS(_n)		(GDM_BASE(_n) + 0x20)
+#define MBI_RX_AGE_SEL_MASK		GENMASK(26, 25)
+#define MBI_TX_AGE_SEL_MASK		GENMASK(18, 17)
+
 #define REG_GDM_TXCHN_EN(_n)		(GDM_BASE(_n) + 0x24)
 #define REG_GDM_RXCHN_EN(_n)		(GDM_BASE(_n) + 0x28)
 
@@ -168,10 +168,10 @@
 #define FE_GDM_MIB_RX_CLEAR_MASK	BIT(1)
 #define FE_GDM_MIB_TX_CLEAR_MASK	BIT(0)
 
-#define REG_FE_GDM1_MIB_CFG		(GDM1_BASE + 0xf4)
+#define REG_FE_GDM_MIB_CFG(_n)		(GDM_BASE(_n) + 0xf4)
 #define FE_STRICT_RFC2819_MODE_MASK	BIT(31)
-#define FE_GDM1_TX_MIB_SPLIT_EN_MASK	BIT(17)
-#define FE_GDM1_RX_MIB_SPLIT_EN_MASK	BIT(16)
+#define FE_GDM_TX_MIB_SPLIT_EN_MASK	BIT(17)
+#define FE_GDM_RX_MIB_SPLIT_EN_MASK	BIT(16)
 #define FE_TX_MIB_ID_MASK		GENMASK(15, 8)
 #define FE_RX_MIB_ID_MASK		GENMASK(7, 0)
 
@@ -213,6 +213,33 @@
 #define REG_FE_GDM_RX_ETH_L255_CNT_L(_n)	(GDM_BASE(_n) + 0x194)
 #define REG_FE_GDM_RX_ETH_L511_CNT_L(_n)	(GDM_BASE(_n) + 0x198)
 #define REG_FE_GDM_RX_ETH_L1023_CNT_L(_n)	(GDM_BASE(_n) + 0x19c)
+
+#define REG_GDM_SRC_PORT_SET(_n)		(GDM_BASE(_n) + 0x23c)
+#define GDM_SPORT_OFF2_MASK			GENMASK(19, 16)
+#define GDM_SPORT_OFF1_MASK			GENMASK(15, 12)
+#define GDM_SPORT_OFF0_MASK			GENMASK(11, 8)
+
+#define REG_FE_GDM_TX_OK_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x280)
+#define REG_FE_GDM_TX_OK_BYTE_CNT_H(_n)		(GDM_BASE(_n) + 0x284)
+#define REG_FE_GDM_TX_ETH_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x288)
+#define REG_FE_GDM_TX_ETH_BYTE_CNT_H(_n)	(GDM_BASE(_n) + 0x28c)
+
+#define REG_FE_GDM_RX_OK_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x290)
+#define REG_FE_GDM_RX_OK_BYTE_CNT_H(_n)		(GDM_BASE(_n) + 0x294)
+#define REG_FE_GDM_RX_ETH_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x298)
+#define REG_FE_GDM_RX_ETH_BYTE_CNT_H(_n)	(GDM_BASE(_n) + 0x29c)
+#define REG_FE_GDM_TX_ETH_E64_CNT_H(_n)		(GDM_BASE(_n) + 0x2b8)
+#define REG_FE_GDM_TX_ETH_L64_CNT_H(_n)		(GDM_BASE(_n) + 0x2bc)
+#define REG_FE_GDM_TX_ETH_L127_CNT_H(_n)	(GDM_BASE(_n) + 0x2c0)
+#define REG_FE_GDM_TX_ETH_L255_CNT_H(_n)	(GDM_BASE(_n) + 0x2c4)
+#define REG_FE_GDM_TX_ETH_L511_CNT_H(_n)	(GDM_BASE(_n) + 0x2c8)
+#define REG_FE_GDM_TX_ETH_L1023_CNT_H(_n)	(GDM_BASE(_n) + 0x2cc)
+#define REG_FE_GDM_RX_ETH_E64_CNT_H(_n)		(GDM_BASE(_n) + 0x2e8)
+#define REG_FE_GDM_RX_ETH_L64_CNT_H(_n)		(GDM_BASE(_n) + 0x2ec)
+#define REG_FE_GDM_RX_ETH_L127_CNT_H(_n)	(GDM_BASE(_n) + 0x2f0)
+#define REG_FE_GDM_RX_ETH_L255_CNT_H(_n)	(GDM_BASE(_n) + 0x2f4)
+#define REG_FE_GDM_RX_ETH_L511_CNT_H(_n)	(GDM_BASE(_n) + 0x2f8)
+#define REG_FE_GDM_RX_ETH_L1023_CNT_H(_n)	(GDM_BASE(_n) + 0x2fc)
 
 #define REG_PPE_GLO_CFG(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x200)
 #define PPE_GLO_CFG_BUSY_MASK			BIT(31)
@@ -326,44 +353,6 @@
 
 #define REG_UPDMEM_DATA(_n)			(((_n) ? PPE2_BASE : PPE1_BASE) + 0x374)
 
-#define REG_FE_GDM_TX_OK_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x280)
-#define REG_FE_GDM_TX_OK_BYTE_CNT_H(_n)		(GDM_BASE(_n) + 0x284)
-#define REG_FE_GDM_TX_ETH_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x288)
-#define REG_FE_GDM_TX_ETH_BYTE_CNT_H(_n)	(GDM_BASE(_n) + 0x28c)
-
-#define REG_FE_GDM_RX_OK_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x290)
-#define REG_FE_GDM_RX_OK_BYTE_CNT_H(_n)		(GDM_BASE(_n) + 0x294)
-#define REG_FE_GDM_RX_ETH_PKT_CNT_H(_n)		(GDM_BASE(_n) + 0x298)
-#define REG_FE_GDM_RX_ETH_BYTE_CNT_H(_n)	(GDM_BASE(_n) + 0x29c)
-#define REG_FE_GDM_TX_ETH_E64_CNT_H(_n)		(GDM_BASE(_n) + 0x2b8)
-#define REG_FE_GDM_TX_ETH_L64_CNT_H(_n)		(GDM_BASE(_n) + 0x2bc)
-#define REG_FE_GDM_TX_ETH_L127_CNT_H(_n)	(GDM_BASE(_n) + 0x2c0)
-#define REG_FE_GDM_TX_ETH_L255_CNT_H(_n)	(GDM_BASE(_n) + 0x2c4)
-#define REG_FE_GDM_TX_ETH_L511_CNT_H(_n)	(GDM_BASE(_n) + 0x2c8)
-#define REG_FE_GDM_TX_ETH_L1023_CNT_H(_n)	(GDM_BASE(_n) + 0x2cc)
-#define REG_FE_GDM_RX_ETH_E64_CNT_H(_n)		(GDM_BASE(_n) + 0x2e8)
-#define REG_FE_GDM_RX_ETH_L64_CNT_H(_n)		(GDM_BASE(_n) + 0x2ec)
-#define REG_FE_GDM_RX_ETH_L127_CNT_H(_n)	(GDM_BASE(_n) + 0x2f0)
-#define REG_FE_GDM_RX_ETH_L255_CNT_H(_n)	(GDM_BASE(_n) + 0x2f4)
-#define REG_FE_GDM_RX_ETH_L511_CNT_H(_n)	(GDM_BASE(_n) + 0x2f8)
-#define REG_FE_GDM_RX_ETH_L1023_CNT_H(_n)	(GDM_BASE(_n) + 0x2fc)
-
-#define REG_GDM2_CHN_RLS		(GDM2_BASE + 0x20)
-#define MBI_RX_AGE_SEL_MASK		GENMASK(26, 25)
-#define MBI_TX_AGE_SEL_MASK		GENMASK(18, 17)
-
-#define REG_GDM3_FWD_CFG		GDM3_BASE
-#define GDM3_PAD_EN_MASK		BIT(28)
-
-#define REG_GDM4_FWD_CFG		GDM4_BASE
-#define GDM4_PAD_EN_MASK		BIT(28)
-#define GDM4_SPORT_OFFSET0_MASK		GENMASK(11, 8)
-
-#define REG_GDM4_SRC_PORT_SET		(GDM4_BASE + 0x23c)
-#define GDM4_SPORT_OFF2_MASK		GENMASK(19, 16)
-#define GDM4_SPORT_OFF1_MASK		GENMASK(15, 12)
-#define GDM4_SPORT_OFF0_MASK		GENMASK(11, 8)
-
 #define REG_IP_FRAG_FP			0x2010
 #define IP_ASSEMBLE_PORT_MASK		GENMASK(24, 21)
 #define IP_ASSEMBLE_NBQ_MASK		GENMASK(20, 16)
@@ -383,10 +372,8 @@
 #define REG_MC_VLAN_DATA		0x2108
 
 #define REG_SP_DFT_CPORT(_n)		(0x20e0 + ((_n) << 2))
-#define SP_CPORT_PCIE1_MASK		GENMASK(31, 28)
-#define SP_CPORT_PCIE0_MASK		GENMASK(27, 24)
-#define SP_CPORT_USB_MASK		GENMASK(7, 4)
-#define SP_CPORT_ETH_MASK		GENMASK(7, 4)
+#define SP_CPORT_DFT_MASK		GENMASK(2, 0)
+#define SP_CPORT_MASK(_n)		GENMASK(3 + ((_n) << 2), ((_n) << 2))
 
 #define REG_SRC_PORT_FC_MAP6		0x2298
 #define FC_ID_OF_SRC_PORT27_MASK	GENMASK(28, 24)

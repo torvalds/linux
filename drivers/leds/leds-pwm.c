@@ -9,12 +9,13 @@
  * based on leds-gpio.c by Raphael Assenat <raph@8d.com>
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/leds.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
+#include <linux/kernel.h>
+#include <linux/leds.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
 
@@ -26,6 +27,7 @@ struct led_pwm {
 };
 
 struct led_pwm_data {
+	struct gpio_desc	*enable_gpio;
 	struct led_classdev	cdev;
 	struct pwm_device	*pwm;
 	struct pwm_state	pwmstate;
@@ -50,6 +52,8 @@ static int led_pwm_set(struct led_classdev *led_cdev,
 
 	if (led_dat->active_low)
 		duty = led_dat->pwmstate.period - duty;
+
+	gpiod_set_value_cansleep(led_dat->enable_gpio, !!brightness);
 
 	led_dat->pwmstate.duty_cycle = duty;
 	/*
@@ -131,6 +135,21 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		}
 		break;
 	}
+
+	/*
+	 * Claim the GPIO as GPIOD_ASIS and set the value
+	 * later on to honor the different default states
+	 */
+	led_data->enable_gpio = devm_fwnode_gpiod_get(dev, fwnode, "enable", GPIOD_ASIS, NULL);
+	if (IS_ERR(led_data->enable_gpio)) {
+		if (PTR_ERR(led_data->enable_gpio) == -ENOENT)
+			/* Enable GPIO is optional */
+			led_data->enable_gpio = NULL;
+		else
+			return PTR_ERR(led_data->enable_gpio);
+	}
+
+	gpiod_direction_output(led_data->enable_gpio, !!led_data->cdev.brightness);
 
 	ret = devm_led_classdev_register_ext(dev, &led_data->cdev, &init_data);
 	if (ret) {

@@ -166,12 +166,20 @@ static int hsr_fill_info(struct sk_buff *skb, const struct net_device *dev)
 			goto nla_put_failure;
 	}
 
+	port = hsr_port_get_hsr(hsr, HSR_PT_INTERLINK);
+	if (port) {
+		if (nla_put_u32(skb, IFLA_HSR_INTERLINK, port->dev->ifindex))
+			goto nla_put_failure;
+	}
+
 	if (nla_put(skb, IFLA_HSR_SUPERVISION_ADDR, ETH_ALEN,
 		    hsr->sup_multicast_addr) ||
 	    nla_put_u16(skb, IFLA_HSR_SEQ_NR, hsr->sequence_nr))
 		goto nla_put_failure;
 	if (hsr->prot_version == PRP_V1)
 		proto = HSR_PROTOCOL_PRP;
+	else if (nla_put_u8(skb, IFLA_HSR_VERSION, hsr->prot_version))
+		goto nla_put_failure;
 	if (nla_put_u8(skb, IFLA_HSR_PROTOCOL, proto))
 		goto nla_put_failure;
 

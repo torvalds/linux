@@ -9,6 +9,7 @@
 #include <asm/loongarch.h>
 #include <asm/setup.h>
 #include <asm/time.h>
+#include <asm/timex.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -659,8 +660,7 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 		*v = GENMASK(31, 0);
 		return 0;
 	case LOONGARCH_CPUCFG1:
-		/* CPUCFG1_MSGINT is not supported by KVM */
-		*v = GENMASK(25, 0);
+		*v = GENMASK(26, 0);
 		return 0;
 	case LOONGARCH_CPUCFG2:
 		/* CPUCFG2 features unconditionally supported by KVM */
@@ -728,6 +728,10 @@ static int kvm_check_cpucfg(int id, u64 val)
 		return -EINVAL;
 
 	switch (id) {
+	case LOONGARCH_CPUCFG1:
+		if ((val & CPUCFG1_MSGINT) && !cpu_has_msgint)
+			return -EINVAL;
+		return 0;
 	case LOONGARCH_CPUCFG2:
 		if (!(val & CPUCFG2_LLFTP))
 			/* Guests must have a constant timer */
@@ -811,7 +815,7 @@ static int kvm_get_one_reg(struct kvm_vcpu *vcpu,
 	case KVM_REG_LOONGARCH_KVM:
 		switch (reg->id) {
 		case KVM_REG_LOONGARCH_COUNTER:
-			*v = drdtime() + vcpu->kvm->arch.time_offset;
+			*v = get_cycles() + vcpu->kvm->arch.time_offset;
 			break;
 		case KVM_REG_LOONGARCH_DEBUG_INST:
 			*v = INSN_HVCL | KVM_HCALL_SWDBG;
@@ -906,7 +910,7 @@ static int kvm_set_one_reg(struct kvm_vcpu *vcpu,
 			 * only set for the first time for smp system
 			 */
 			if (vcpu->vcpu_id == 0)
-				vcpu->kvm->arch.time_offset = (signed long)(v - drdtime());
+				vcpu->kvm->arch.time_offset = (signed long)(v - get_cycles());
 			break;
 		case KVM_REG_LOONGARCH_VCPU_RESET:
 			vcpu->arch.st.guest_addr = 0;
@@ -1473,8 +1477,8 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	return 0;
 }
 
-long kvm_arch_vcpu_async_ioctl(struct file *filp,
-			       unsigned int ioctl, unsigned long arg)
+long kvm_arch_vcpu_unlocked_ioctl(struct file *filp, unsigned int ioctl,
+				  unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct kvm_vcpu *vcpu = filp->private_data;
@@ -1657,6 +1661,12 @@ static int _kvm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN2);
 	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_DMWIN3);
 	kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_LLBCTL);
+	if (cpu_has_msgint) {
+		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR0);
+		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR1);
+		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR2);
+		kvm_restore_hw_gcsr(csr, LOONGARCH_CSR_ISR3);
+	}
 
 	/* Restore Root.GINTC from unused Guest.GINTC register */
 	write_csr_gintc(csr->csrs[LOONGARCH_CSR_GINTC]);
@@ -1746,6 +1756,12 @@ static int _kvm_vcpu_put(struct kvm_vcpu *vcpu, int cpu)
 	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN1);
 	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN2);
 	kvm_save_hw_gcsr(csr, LOONGARCH_CSR_DMWIN3);
+	if (cpu_has_msgint) {
+		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR0);
+		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR1);
+		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR2);
+		kvm_save_hw_gcsr(csr, LOONGARCH_CSR_ISR3);
+	}
 
 	vcpu->arch.aux_inuse |= KVM_LARCH_SWCSR_LATEST;
 

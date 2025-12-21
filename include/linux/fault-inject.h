@@ -8,6 +8,10 @@
 struct dentry;
 struct kmem_cache;
 
+enum fault_flags {
+	FAULT_NOWARN =	1 << 0,
+};
+
 #ifdef CONFIG_FAULT_INJECTION
 
 #include <linux/atomic.h>
@@ -34,10 +38,6 @@ struct fault_attr {
 	unsigned long count;
 	struct ratelimit_state ratelimit_state;
 	struct dentry *dname;
-};
-
-enum fault_flags {
-	FAULT_NOWARN =	1 << 0,
 };
 
 #define FAULT_ATTR_INITIALIZER {					\

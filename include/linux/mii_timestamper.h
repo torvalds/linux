@@ -27,7 +27,9 @@ struct phy_device;
  *		as soon as a timestamp becomes available. One of the PTP_CLASS_
  *		values is passed in 'type'.
  *
- * @hwtstamp:	Handles SIOCSHWTSTAMP ioctl for hardware time stamping.
+ * @hwtstamp_set: Handles SIOCSHWTSTAMP ioctl for hardware time stamping.
+ *
+ * @hwtstamp_get: Handles SIOCGHWTSTAMP ioctl for hardware time stamping.
  *
  * @link_state: Allows the device to respond to changes in the link
  *		state.  The caller invokes this function while holding
@@ -51,9 +53,12 @@ struct mii_timestamper {
 	void (*txtstamp)(struct mii_timestamper *mii_ts,
 			 struct sk_buff *skb, int type);
 
-	int  (*hwtstamp)(struct mii_timestamper *mii_ts,
-			 struct kernel_hwtstamp_config *kernel_config,
-			 struct netlink_ext_ack *extack);
+	int  (*hwtstamp_set)(struct mii_timestamper *mii_ts,
+			     struct kernel_hwtstamp_config *kernel_config,
+			     struct netlink_ext_ack *extack);
+
+	int  (*hwtstamp_get)(struct mii_timestamper *mii_ts,
+			     struct kernel_hwtstamp_config *kernel_config);
 
 	void (*link_state)(struct mii_timestamper *mii_ts,
 			   struct phy_device *phydev);

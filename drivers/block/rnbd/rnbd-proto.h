@@ -24,7 +24,7 @@
 #define RTRS_PORT 1234
 
 /**
- * enum rnbd_msg_types - RNBD message types
+ * enum rnbd_msg_type - RNBD message types
  * @RNBD_MSG_SESS_INFO:	initial session info from client to server
  * @RNBD_MSG_SESS_INFO_RSP:	initial session info from server to client
  * @RNBD_MSG_OPEN:		open (map) device request
@@ -47,10 +47,11 @@ enum rnbd_msg_type {
  */
 struct rnbd_msg_hdr {
 	__le16		type;
+	/* private: */
 	__le16		__padding;
 };
 
-/**
+/*
  * We allow to map RO many times and RW only once. We allow to map yet another
  * time RW, if MIGRATION is provided (second RW export can be required for
  * example for VM migration)
@@ -78,6 +79,7 @@ static const __maybe_unused struct {
 struct rnbd_msg_sess_info {
 	struct rnbd_msg_hdr hdr;
 	u8		ver;
+	/* private: */
 	u8		reserved[31];
 };
 
@@ -89,6 +91,7 @@ struct rnbd_msg_sess_info {
 struct rnbd_msg_sess_info_rsp {
 	struct rnbd_msg_hdr hdr;
 	u8		ver;
+	/* private: */
 	u8		reserved[31];
 };
 
@@ -97,13 +100,16 @@ struct rnbd_msg_sess_info_rsp {
  * @hdr:		message header
  * @access_mode:	the mode to open remote device, valid values see:
  *			enum rnbd_access_mode
- * @device_name:	device path on remote side
+ * @dev_name:		device path on remote side
  */
 struct rnbd_msg_open {
 	struct rnbd_msg_hdr hdr;
 	u8		access_mode;
+	/* private: */
 	u8		resv1;
+	/* public: */
 	s8		dev_name[NAME_MAX];
+	/* private: */
 	u8		reserved[3];
 };
 
@@ -155,6 +161,7 @@ struct rnbd_msg_open_rsp {
 	__le16			secure_discard;
 	u8			obsolete_rotational;
 	u8			cache_policy;
+	/* private: */
 	u8			reserved[10];
 };
 
@@ -187,7 +194,7 @@ struct rnbd_msg_io {
  * @RNBD_OP_DISCARD:        discard sectors
  * @RNBD_OP_SECURE_ERASE:   securely erase sectors
  * @RNBD_OP_WRITE_ZEROES:   write zeroes sectors
-
+ *
  * @RNBD_F_SYNC:	     request is sync (sync write or read)
  * @RNBD_F_FUA:             forced unit access
  */

@@ -184,17 +184,13 @@ xrep_quota_item(
 	/*
 	 * We might need to fix holes in the bmap record for the storage
 	 * backing this dquot, so we need to lock the dquot and the quota file.
-	 * dqiterate gave us a locked dquot, so drop the dquot lock to get the
-	 * ILOCK_EXCL.
 	 */
-	xfs_dqunlock(dq);
 	xchk_ilock(sc, XFS_ILOCK_EXCL);
-	xfs_dqlock(dq);
-
+	mutex_lock(&dq->q_qlock);
 	error = xrep_quota_item_bmap(sc, dq, &dirty);
 	xchk_iunlock(sc, XFS_ILOCK_EXCL);
 	if (error)
-		return error;
+		goto out_unlock_dquot;
 
 	/* Check the limits. */
 	if (dq->q_blk.softlimit > dq->q_blk.hardlimit) {
@@ -246,7 +242,7 @@ xrep_quota_item(
 	xrep_quota_item_timer(sc, &dq->q_rtb, &dirty);
 
 	if (!dirty)
-		return 0;
+		goto out_unlock_dquot;
 
 	trace_xrep_dquot_item(sc->mp, dq->q_type, dq->q_id);
 
@@ -257,8 +253,10 @@ xrep_quota_item(
 		xfs_qm_adjust_dqtimers(dq);
 	}
 	xfs_trans_log_dquot(sc->tp, dq);
-	error = xfs_trans_roll(&sc->tp);
-	xfs_dqlock(dq);
+	return xfs_trans_roll(&sc->tp);
+
+out_unlock_dquot:
+	mutex_unlock(&dq->q_qlock);
 	return error;
 }
 
@@ -513,7 +511,7 @@ xrep_quota_problems(
 	xchk_dqiter_init(&cursor, sc, dqtype);
 	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
 		error = xrep_quota_item(&rqi, dq);
-		xfs_qm_dqput(dq);
+		xfs_qm_dqrele(dq);
 		if (error)
 			break;
 	}

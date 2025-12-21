@@ -50,10 +50,22 @@ void spurious_interrupt(void);
 #define NR_LEGACY_VECTORS	16
 #define IRQ_MATRIX_BITS		NR_VECTORS
 
+#define AVEC_IRQ_SHIFT		4
+#define AVEC_IRQ_BIT		8
+#define AVEC_IRQ_MASK		GENMASK(AVEC_IRQ_BIT - 1, 0)
+#define AVEC_CPU_SHIFT		12
+#define AVEC_CPU_BIT		16
+#define AVEC_CPU_MASK		GENMASK(AVEC_CPU_BIT - 1, 0)
+
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 void arch_trigger_cpumask_backtrace(const struct cpumask *mask, int exclude_cpu);
 
+#ifdef CONFIG_32BIT
+#define MAX_IO_PICS 1
+#else
 #define MAX_IO_PICS 8
+#endif
+
 #define NR_IRQS	(64 + NR_VECTORS * (NR_CPUS + MAX_IO_PICS))
 
 struct acpi_vector_group {

@@ -467,7 +467,7 @@ static int br_fill_ifinfo(struct sk_buff *skb,
 	else
 		br = netdev_priv(dev);
 
-	br_debug(br, "br_fill_info event %d port %s master %s\n",
+	br_debug(br, "br_fill_ifinfo event %d port %s master %s\n",
 		     event, dev->name, br->dev->name);
 
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*hdr), flags);

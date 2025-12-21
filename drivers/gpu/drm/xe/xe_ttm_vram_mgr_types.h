@@ -10,7 +10,7 @@
 #include <drm/ttm/ttm_device.h>
 
 /**
- * struct xe_ttm_vram_mgr - XE TTM VRAM manager
+ * struct xe_ttm_vram_mgr - Xe TTM VRAM manager
  *
  * Manages placement of TTM resource in VRAM.
  */
@@ -32,7 +32,7 @@ struct xe_ttm_vram_mgr {
 };
 
 /**
- * struct xe_ttm_vram_mgr_resource - XE TTM VRAM resource
+ * struct xe_ttm_vram_mgr_resource - Xe TTM VRAM resource
  */
 struct xe_ttm_vram_mgr_resource {
 	/** @base: Base TTM resource */

@@ -5,6 +5,7 @@
 
 #include "xe_guc.h"
 
+#include <linux/iopoll.h>
 #include <drm/drm_managed.h>
 
 #include <generated/xe_wa_oob.h>
@@ -23,6 +24,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_throttle.h"
+#include "xe_gt_sriov_pf_migration.h"
 #include "xe_guc_ads.h"
 #include "xe_guc_buf.h"
 #include "xe_guc_capture.h"
@@ -39,6 +41,7 @@
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf_migration.h"
 #include "xe_uc.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
@@ -89,6 +92,9 @@ static u32 guc_ctl_feature_flags(struct xe_guc *guc)
 
 	if (xe_configfs_get_psmi_enabled(to_pci_dev(xe->drm.dev)))
 		flags |= GUC_CTL_ENABLE_PSMI_LOGGING;
+
+	if (xe_guc_using_main_gamctrl_queues(guc))
+		flags |= GUC_CTL_MAIN_GAMCTRL_QUEUES;
 
 	return flags;
 }
@@ -817,6 +823,14 @@ static int vf_guc_init_post_hwconfig(struct xe_guc *guc)
 	return 0;
 }
 
+static u32 guc_additional_cache_size(struct xe_device *xe)
+{
+	if (IS_SRIOV_PF(xe) && xe_sriov_pf_migration_supported(xe))
+		return XE_GT_SRIOV_PF_MIGRATION_GUC_DATA_MAX_SIZE;
+	else
+		return 0; /* Fallback to default size */
+}
+
 /**
  * xe_guc_init_post_hwconfig - initialize GuC post hwconfig load
  * @guc: The GuC object
@@ -856,7 +870,8 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 	if (ret)
 		return ret;
 
-	ret = xe_guc_buf_cache_init(&guc->buf);
+	ret = xe_guc_buf_cache_init_with_size(&guc->buf,
+					      guc_additional_cache_size(guc_to_xe(guc)));
 	if (ret)
 		return ret;
 
@@ -971,20 +986,93 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 }
 
 /*
- * Check a previously read GuC status register (GUC_STATUS) looking for
- * known terminal states (either completion or failure) of either the
- * microkernel status field or the boot ROM status field. Returns +1 for
- * successful completion, -1 for failure and 0 for any intermediate state.
+ * Wait for the GuC to start up.
+ *
+ * Measurements indicate this should take no more than 20ms (assuming the GT
+ * clock is at maximum frequency). However, thermal throttling and other issues
+ * can prevent the clock hitting max and thus making the load take significantly
+ * longer. Allow up to 3s as a safety margin in normal builds. For
+ * CONFIG_DRM_XE_DEBUG allow up to 10s to account for slower execution, issues
+ * in PCODE, driver, fan, etc.
+ *
+ * Keep checking the GUC_STATUS every 10ms with a debug message every 100
+ * attempts as a "I'm slow, but alive" message. Regardless, if it takes more
+ * than 200ms, emit a warning.
  */
-static int guc_load_done(u32 status)
-{
-	u32 uk_val = REG_FIELD_GET(GS_UKERNEL_MASK, status);
-	u32 br_val = REG_FIELD_GET(GS_BOOTROM_MASK, status);
 
-	switch (uk_val) {
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+#define GUC_LOAD_TIMEOUT_SEC	20
+#else
+#define GUC_LOAD_TIMEOUT_SEC	3
+#endif
+#define GUC_LOAD_TIME_WARN_MSEC	200
+
+static void print_load_status_err(struct xe_gt *gt, u32 status)
+{
+	struct xe_mmio *mmio = &gt->mmio;
+	u32 ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
+	u32 bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
+
+	xe_gt_err(gt, "load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
+		  REG_FIELD_GET(GS_MIA_IN_RESET, status),
+		  bootrom, ukernel,
+		  REG_FIELD_GET(GS_MIA_MASK, status),
+		  REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
+
+	switch (bootrom) {
+	case XE_BOOTROM_STATUS_NO_KEY_FOUND:
+		xe_gt_err(gt, "invalid key requested, header = 0x%08X\n",
+			  xe_mmio_read32(mmio, GUC_HEADER_INFO));
+		break;
+	case XE_BOOTROM_STATUS_RSA_FAILED:
+		xe_gt_err(gt, "firmware signature verification failed\n");
+		break;
+	case XE_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
+		xe_gt_err(gt, "firmware production part check failure\n");
+		break;
+	}
+
+	switch (ukernel) {
+	case XE_GUC_LOAD_STATUS_HWCONFIG_START:
+		xe_gt_err(gt, "still extracting hwconfig table.\n");
+		break;
+	case XE_GUC_LOAD_STATUS_EXCEPTION:
+		xe_gt_err(gt, "firmware exception. EIP: %#x\n",
+			  xe_mmio_read32(mmio, SOFT_SCRATCH(13)));
+		break;
+	case XE_GUC_LOAD_STATUS_INIT_DATA_INVALID:
+		xe_gt_err(gt, "illegal init/ADS data\n");
+		break;
+	case XE_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
+		xe_gt_err(gt, "illegal register in save/restore workaround list\n");
+		break;
+	case XE_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
+		xe_gt_err(gt, "illegal workaround KLV data\n");
+		break;
+	case XE_GUC_LOAD_STATUS_INVALID_FTR_FLAG:
+		xe_gt_err(gt, "illegal feature flag specified\n");
+		break;
+	}
+}
+
+/*
+ * Check GUC_STATUS looking for known terminal states (either completion or
+ * failure) of either the microkernel status field or the boot ROM status field.
+ *
+ * Returns 1 for successful completion, -1 for failure and 0 for any
+ * intermediate state.
+ */
+static int guc_load_done(struct xe_gt *gt, u32 *status, u32 *tries)
+{
+	u32 ukernel, bootrom;
+
+	*status = xe_mmio_read32(&gt->mmio, GUC_STATUS);
+	ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, *status);
+	bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, *status);
+
+	switch (ukernel) {
 	case XE_GUC_LOAD_STATUS_READY:
 		return 1;
-
 	case XE_GUC_LOAD_STATUS_ERROR_DEVID_BUILD_MISMATCH:
 	case XE_GUC_LOAD_STATUS_GUC_PREPROD_BUILD_MISMATCH:
 	case XE_GUC_LOAD_STATUS_ERROR_DEVID_INVALID_GUCTYPE:
@@ -1000,7 +1088,7 @@ static int guc_load_done(u32 status)
 		return -1;
 	}
 
-	switch (br_val) {
+	switch (bootrom) {
 	case XE_BOOTROM_STATUS_NO_KEY_FOUND:
 	case XE_BOOTROM_STATUS_RSA_FAILED:
 	case XE_BOOTROM_STATUS_PAVPC_FAILED:
@@ -1014,165 +1102,58 @@ static int guc_load_done(u32 status)
 		return -1;
 	}
 
+	if (++*tries >= 100) {
+		struct xe_guc_pc *guc_pc = &gt->uc.guc.pc;
+
+		*tries = 0;
+		xe_gt_dbg(gt, "GuC load still in progress, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
+			  xe_guc_pc_get_act_freq(guc_pc),
+			  xe_guc_pc_get_cur_freq_fw(guc_pc),
+			  *status, ukernel, bootrom);
+	}
+
 	return 0;
 }
-
-static s32 guc_pc_get_cur_freq(struct xe_guc_pc *guc_pc)
-{
-	u32 freq;
-	int ret = xe_guc_pc_get_cur_freq(guc_pc, &freq);
-
-	return ret ? ret : freq;
-}
-
-/*
- * Wait for the GuC to start up.
- *
- * Measurements indicate this should take no more than 20ms (assuming the GT
- * clock is at maximum frequency). However, thermal throttling and other issues
- * can prevent the clock hitting max and thus making the load take significantly
- * longer. Allow up to 200ms as a safety margin for real world worst case situations.
- *
- * However, bugs anywhere from KMD to GuC to PCODE to fan failure in a CI farm can
- * lead to even longer times. E.g. if the GT is clamped to minimum frequency then
- * the load times can be in the seconds range. So the timeout is increased for debug
- * builds to ensure that problems can be correctly analysed. For release builds, the
- * timeout is kept short so that users don't wait forever to find out that there is a
- * problem. In either case, if the load took longer than is reasonable even with some
- * 'sensible' throttling, then flag a warning because something is not right.
- *
- * Note that there is a limit on how long an individual usleep_range() can wait for,
- * hence longer waits require wrapping a shorter wait in a loop.
- *
- * Note that the only reason an end user should hit the shorter timeout is in case of
- * extreme thermal throttling. And a system that is that hot during boot is probably
- * dead anyway!
- */
-#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-#define GUC_LOAD_RETRY_LIMIT	20
-#else
-#define GUC_LOAD_RETRY_LIMIT	3
-#endif
-#define GUC_LOAD_TIME_WARN_MS      200
 
 static int guc_wait_ucode(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
-	struct xe_mmio *mmio = &gt->mmio;
 	struct xe_guc_pc *guc_pc = &gt->uc.guc.pc;
-	ktime_t before, after, delta;
-	int load_done;
-	u32 status = 0;
-	int count = 0;
+	u32 before_freq, act_freq, cur_freq;
+	u32 status = 0, tries = 0;
+	ktime_t before;
 	u64 delta_ms;
-	u32 before_freq;
+	int ret;
 
 	before_freq = xe_guc_pc_get_act_freq(guc_pc);
 	before = ktime_get();
-	/*
-	 * Note, can't use any kind of timing information from the call to xe_mmio_wait.
-	 * It could return a thousand intermediate stages at random times. Instead, must
-	 * manually track the total time taken and locally implement the timeout.
-	 */
-	do {
-		u32 last_status = status & (GS_UKERNEL_MASK | GS_BOOTROM_MASK);
-		int ret;
 
-		/*
-		 * Wait for any change (intermediate or terminal) in the status register.
-		 * Note, the return value is a don't care. The only failure code is timeout
-		 * but the timeouts need to be accumulated over all the intermediate partial
-		 * timeouts rather than allowing a huge timeout each time. So basically, need
-		 * to treat a timeout no different to a value change.
-		 */
-		ret = xe_mmio_wait32_not(mmio, GUC_STATUS, GS_UKERNEL_MASK | GS_BOOTROM_MASK,
-					 last_status, 1000 * 1000, &status, false);
-		if (ret < 0)
-			count++;
-		after = ktime_get();
-		delta = ktime_sub(after, before);
-		delta_ms = ktime_to_ms(delta);
+	ret = poll_timeout_us(ret = guc_load_done(gt, &status, &tries), ret,
+			      10 * USEC_PER_MSEC,
+			      GUC_LOAD_TIMEOUT_SEC * USEC_PER_SEC, false);
 
-		load_done = guc_load_done(status);
-		if (load_done != 0)
-			break;
+	delta_ms = ktime_to_ms(ktime_sub(ktime_get(), before));
+	act_freq = xe_guc_pc_get_act_freq(guc_pc);
+	cur_freq = xe_guc_pc_get_cur_freq_fw(guc_pc);
 
-		if (delta_ms >= (GUC_LOAD_RETRY_LIMIT * 1000))
-			break;
-
-		xe_gt_dbg(gt, "load still in progress, timeouts = %d, freq = %dMHz (req %dMHz), status = 0x%08X [0x%02X/%02X]\n",
-			  count, xe_guc_pc_get_act_freq(guc_pc),
-			  guc_pc_get_cur_freq(guc_pc), status,
-			  REG_FIELD_GET(GS_BOOTROM_MASK, status),
-			  REG_FIELD_GET(GS_UKERNEL_MASK, status));
-	} while (1);
-
-	if (load_done != 1) {
-		u32 ukernel = REG_FIELD_GET(GS_UKERNEL_MASK, status);
-		u32 bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
-
-		xe_gt_err(gt, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz (req %dMHz), done = %d\n",
+	if (ret) {
+		xe_gt_err(gt, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz (req %dMHz)\n",
 			  status, delta_ms, xe_guc_pc_get_act_freq(guc_pc),
-			  guc_pc_get_cur_freq(guc_pc), load_done);
-		xe_gt_err(gt, "load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
-			  REG_FIELD_GET(GS_MIA_IN_RESET, status),
-			  bootrom, ukernel,
-			  REG_FIELD_GET(GS_MIA_MASK, status),
-			  REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
-
-		switch (bootrom) {
-		case XE_BOOTROM_STATUS_NO_KEY_FOUND:
-			xe_gt_err(gt, "invalid key requested, header = 0x%08X\n",
-				  xe_mmio_read32(mmio, GUC_HEADER_INFO));
-			break;
-
-		case XE_BOOTROM_STATUS_RSA_FAILED:
-			xe_gt_err(gt, "firmware signature verification failed\n");
-			break;
-
-		case XE_BOOTROM_STATUS_PROD_KEY_CHECK_FAILURE:
-			xe_gt_err(gt, "firmware production part check failure\n");
-			break;
-		}
-
-		switch (ukernel) {
-		case XE_GUC_LOAD_STATUS_HWCONFIG_START:
-			xe_gt_err(gt, "still extracting hwconfig table.\n");
-			break;
-
-		case XE_GUC_LOAD_STATUS_EXCEPTION:
-			xe_gt_err(gt, "firmware exception. EIP: %#x\n",
-				  xe_mmio_read32(mmio, SOFT_SCRATCH(13)));
-			break;
-
-		case XE_GUC_LOAD_STATUS_INIT_DATA_INVALID:
-			xe_gt_err(gt, "illegal init/ADS data\n");
-			break;
-
-		case XE_GUC_LOAD_STATUS_INIT_MMIO_SAVE_RESTORE_INVALID:
-			xe_gt_err(gt, "illegal register in save/restore workaround list\n");
-			break;
-
-		case XE_GUC_LOAD_STATUS_KLV_WORKAROUND_INIT_ERROR:
-			xe_gt_err(gt, "illegal workaround KLV data\n");
-			break;
-
-		case XE_GUC_LOAD_STATUS_INVALID_FTR_FLAG:
-			xe_gt_err(gt, "illegal feature flag specified\n");
-			break;
-		}
+			  xe_guc_pc_get_cur_freq_fw(guc_pc));
+		print_load_status_err(gt, status);
 
 		return -EPROTO;
-	} else if (delta_ms > GUC_LOAD_TIME_WARN_MS) {
-		xe_gt_warn(gt, "excessive init time: %lldms! [status = 0x%08X, timeouts = %d]\n",
-			   delta_ms, status, count);
-		xe_gt_warn(gt, "excessive init time: [freq = %dMHz (req = %dMHz), before = %dMHz, perf_limit_reasons = 0x%08X]\n",
-			   xe_guc_pc_get_act_freq(guc_pc), guc_pc_get_cur_freq(guc_pc),
-			   before_freq, xe_gt_throttle_get_limit_reasons(gt));
+	}
+
+	if (delta_ms > GUC_LOAD_TIME_WARN_MSEC) {
+		xe_gt_warn(gt, "GuC load: excessive init time: %lldms! [status = 0x%08X]\n",
+			   delta_ms, status);
+		xe_gt_warn(gt, "GuC load: excessive init time: [freq = %dMHz (req = %dMHz), before = %dMHz, perf_limit_reasons = 0x%08X]\n",
+			   act_freq, cur_freq, before_freq,
+			   xe_gt_throttle_get_limit_reasons(gt));
 	} else {
-		xe_gt_dbg(gt, "init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X, timeouts = %d\n",
-			  delta_ms, xe_guc_pc_get_act_freq(guc_pc), guc_pc_get_cur_freq(guc_pc),
-			  before_freq, status, count);
+		xe_gt_dbg(gt, "GuC load: init took %lldms, freq = %dMHz (req = %dMHz), before = %dMHz, status = 0x%08X\n",
+			  delta_ms, act_freq, cur_freq, before_freq, status);
 	}
 
 	return 0;
@@ -1288,7 +1269,12 @@ int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 
 int xe_guc_upload(struct xe_guc *guc)
 {
+	struct xe_gt *gt = guc_to_gt(guc);
+
 	xe_guc_ads_populate(&guc->ads);
+
+	if (xe_guc_using_main_gamctrl_queues(guc))
+		xe_mmio_write32(&gt->mmio, MAIN_GAMCTRL_MODE, MAIN_GAMCTRL_QUEUE_SELECT);
 
 	return __xe_guc_upload(guc);
 }
@@ -1472,7 +1458,7 @@ timeout:
 		BUILD_BUG_ON((GUC_HXG_TYPE_RESPONSE_SUCCESS ^ GUC_HXG_TYPE_RESPONSE_FAILURE) != 1);
 
 		ret = xe_mmio_wait32(mmio, reply_reg, resp_mask, resp_mask,
-				     1000000, &header, false);
+				     2000000, &header, false);
 
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))
@@ -1688,6 +1674,44 @@ void xe_guc_declare_wedged(struct xe_guc *guc)
 	xe_guc_reset_prepare(guc);
 	xe_guc_ct_stop(&guc->ct);
 	xe_guc_submit_wedge(guc);
+}
+
+/**
+ * xe_guc_using_main_gamctrl_queues() - Detect which reporting queues to use.
+ * @guc: The GuC object
+ *
+ * For Xe3p and beyond, we want to program the hardware to use the
+ * "Main GAMCTRL queue" rather than the legacy queue before we upload
+ * the GuC firmware.  This will allow the GuC to use a new set of
+ * registers for pagefault handling and avoid some unnecessary
+ * complications with MCR register range handling.
+ *
+ * Return: true if can use new main gamctrl queues.
+ */
+bool xe_guc_using_main_gamctrl_queues(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	/*
+	 * For Xe3p media gt (35), the GuC and the CS subunits may be still Xe3
+	 * that lacks the Main GAMCTRL support. Reserved bits from the GMD_ID
+	 * inform the IP version of the subunits.
+	 */
+	if (xe_gt_is_media_type(gt) && MEDIA_VER(gt_to_xe(gt)) == 35) {
+		u32 val = xe_mmio_read32(&gt->mmio, GMD_ID);
+		u32 subip = REG_FIELD_GET(GMD_ID_SUBIP_FLAG_MASK, val);
+
+		if (!subip)
+			return true;
+
+		xe_gt_WARN(gt, subip != 1,
+			   "GMD_ID has unknown value in the SUBIP_FLAG field - 0x%x\n",
+			   subip);
+
+		return false;
+	}
+
+	return GT_VER(gt) >= 35;
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)

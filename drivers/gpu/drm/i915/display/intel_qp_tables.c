@@ -5,7 +5,7 @@
 
 #include <drm/display/drm_dsc.h>
 
-#include "i915_utils.h"
+#include "intel_display_utils.h"
 #include "intel_qp_tables.h"
 
 /* from BPP 6 to 24 in steps of 0.5 */

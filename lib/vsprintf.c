@@ -582,17 +582,18 @@ char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
+#define special_hex_spec(size)					\
+(struct printf_spec) {						\
+	.field_width = 2 + 2 * (size),		/* 0x + hex */	\
+	.flags = SPECIAL | SMALL | ZEROPAD,			\
+	.base = 16,						\
+	.precision = -1,					\
+}
+
 static noinline_for_stack
 char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
-	struct printf_spec spec;
-
-	spec.field_width = 2 + 2 * size;	/* 0x + hex */
-	spec.flags = SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
-	spec.precision = -1;
-
-	return number(buf, end, num, spec);
+	return number(buf, end, num, special_hex_spec(size));
 }
 
 static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
@@ -1164,18 +1165,11 @@ char *range_string(char *buf, char *end, const struct range *range,
 	char sym[sizeof("[range 0x0123456789abcdef-0x0123456789abcdef]")];
 	char *p = sym, *pend = sym + sizeof(sym);
 
-	struct printf_spec range_spec = {
-		.field_width = 2 + 2 * sizeof(range->start), /* 0x + 2 * 8 */
-		.flags = SPECIAL | SMALL | ZEROPAD,
-		.base = 16,
-		.precision = -1,
-	};
-
 	if (check_pointer(&buf, end, range, spec))
 		return buf;
 
 	p = string_nocheck(p, pend, "[range ", default_str_spec);
-	p = hex_range(p, pend, range->start, range->end, range_spec);
+	p = hex_range(p, pend, range->start, range->end, special_hex_spec(sizeof(range->start)));
 	*p++ = ']';
 	*p = '\0';
 
@@ -1928,9 +1922,6 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	bool found = true;
 	int count = 2;
 
-	if (check_pointer(&buf, end, tm, spec))
-		return buf;
-
 	switch (fmt[count]) {
 	case 'd':
 		have_t = false;
@@ -1993,12 +1984,39 @@ char *time64_str(char *buf, char *end, const time64_t time,
 }
 
 static noinline_for_stack
+char *timespec64_str(char *buf, char *end, const struct timespec64 *ts,
+		     struct printf_spec spec, const char *fmt)
+{
+	static const struct printf_spec default_dec09_spec = {
+		.base = 10,
+		.field_width = 9,
+		.precision = -1,
+		.flags = ZEROPAD,
+	};
+
+	if (fmt[2] == 'p')
+		buf = number(buf, end, ts->tv_sec, default_dec_spec);
+	else
+		buf = time64_str(buf, end, ts->tv_sec, spec, fmt);
+	if (buf < end)
+		*buf = '.';
+	buf++;
+
+	return number(buf, end, ts->tv_nsec, default_dec09_spec);
+}
+
+static noinline_for_stack
 char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 		    const char *fmt)
 {
+	if (check_pointer(&buf, end, ptr, spec))
+		return buf;
+
 	switch (fmt[1]) {
 	case 'R':
 		return rtc_str(buf, end, (const struct rtc_time *)ptr, spec, fmt);
+	case 'S':
+		return timespec64_str(buf, end, (const struct timespec64 *)ptr, spec, fmt);
 	case 'T':
 		return time64_str(buf, end, *(const time64_t *)ptr, spec, fmt);
 	default:
@@ -2462,9 +2480,11 @@ early_param("no_hash_pointers", no_hash_pointers_enable);
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
  * - 'g' For block_device name (gendisk + partition number)
- * - 't[RT][dt][r][s]' For time and date as represented by:
+ * - 't[RST][dt][r][s]' For time and date as represented by:
  *      R    struct rtc_time
+ *      S    struct timespec64
  *      T    time64_t
+ * - 'tSp' For time represented by struct timespec64 printed as <seconds>.<nanoseconds>
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
  *       (legacy clock framework) of the clock
  * - 'G' For flags to be printed as a collection of symbolic strings that would
@@ -2883,10 +2903,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt_str, va_list args)
 
 		case FORMAT_STATE_NUM: {
 			unsigned long long num;
-			if (fmt.size <= sizeof(int))
-				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
-			else
+
+			if (fmt.size > sizeof(int))
 				num = va_arg(args, long long);
+			else
+				num = convert_num_spec(va_arg(args, int), fmt.size, spec);
 			str = number(str, end, num, spec);
 			continue;
 		}
@@ -3054,8 +3075,8 @@ EXPORT_SYMBOL(scnprintf);
  * @fmt: The format string to use
  * @args: Arguments for the format string
  *
- * The function returns the number of characters written
- * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
+ * The return value is the number of characters written into @buf not including
+ * the trailing '\0'. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
  * If you're not already dealing with a va_list consider using sprintf().
@@ -3074,8 +3095,8 @@ EXPORT_SYMBOL(vsprintf);
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
- * The function returns the number of characters written
- * into @buf. Use snprintf() or scnprintf() in order to avoid
+ * The return value is the number of characters written into @buf not including
+ * the trailing '\0'. Use snprintf() or scnprintf() in order to avoid
  * buffer overflows.
  *
  * See the vsnprintf() documentation for format string extensions over C99.
@@ -3394,11 +3415,10 @@ int bstr_printf(char *buf, size_t size, const char *fmt_str, const u32 *bin_buf)
 			goto out;
 
 		case FORMAT_STATE_NUM:
-			if (fmt.size > sizeof(int)) {
+			if (fmt.size > sizeof(int))
 				num = get_arg(long long);
-			} else {
+			else
 				num = convert_num_spec(get_arg(int), fmt.size, spec);
-			}
 			str = number(str, end, num, spec);
 			continue;
 		}

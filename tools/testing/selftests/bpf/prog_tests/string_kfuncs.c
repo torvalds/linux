@@ -20,7 +20,9 @@ static const char * const test_cases[] = {
 	"strcspn_str",
 	"strcspn_reject",
 	"strstr",
+	"strcasestr",
 	"strnstr",
+	"strncasestr",
 };
 
 void run_too_long_tests(void)

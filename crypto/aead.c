@@ -120,6 +120,7 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	struct aead_alg *alg = crypto_aead_alg(aead);
 
 	crypto_aead_set_flags(aead, CRYPTO_TFM_NEED_KEY);
+	crypto_aead_set_reqsize(aead, crypto_tfm_alg_reqsize(tfm));
 
 	aead->authsize = alg->maxauthsize;
 
@@ -203,6 +204,25 @@ struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask)
 	return crypto_alloc_tfm(alg_name, &crypto_aead_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_aead);
+
+struct crypto_sync_aead *crypto_alloc_sync_aead(const char *alg_name, u32 type, u32 mask)
+{
+	struct crypto_aead *tfm;
+
+	/* Only sync algorithms are allowed. */
+	mask |= CRYPTO_ALG_ASYNC;
+	type &= ~(CRYPTO_ALG_ASYNC);
+
+	tfm = crypto_alloc_tfm(alg_name, &crypto_aead_type, type, mask);
+
+	if (!IS_ERR(tfm) && WARN_ON(crypto_aead_reqsize(tfm) > MAX_SYNC_AEAD_REQSIZE)) {
+		crypto_free_aead(tfm);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return (struct crypto_sync_aead *)tfm;
+}
+EXPORT_SYMBOL_GPL(crypto_alloc_sync_aead);
 
 int crypto_has_aead(const char *alg_name, u32 type, u32 mask)
 {

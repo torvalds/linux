@@ -259,8 +259,8 @@ static void crng_reseed(struct work_struct *work)
 	u8 key[CHACHA_KEY_SIZE];
 
 	/* Immediately schedule the next reseeding, so that it fires sooner rather than later. */
-	if (likely(system_unbound_wq))
-		queue_delayed_work(system_unbound_wq, &next_reseed, crng_reseed_interval());
+	if (likely(system_dfl_wq))
+		queue_delayed_work(system_dfl_wq, &next_reseed, crng_reseed_interval());
 
 	extract_entropy(key, sizeof(key));
 
@@ -427,7 +427,7 @@ static void _get_random_bytes(void *buf, size_t len)
 
 /*
  * This returns random bytes in arbitrary quantities. The quality of the
- * random bytes is good as /dev/urandom. In order to ensure that the
+ * random bytes is as good as /dev/urandom. In order to ensure that the
  * randomness provided by this function is okay, the function
  * wait_for_random_bytes() should be called and return 0 at least once
  * at any point prior.
@@ -491,7 +491,7 @@ out_zero_chacha:
 
 /*
  * Batched entropy returns random integers. The quality of the random
- * number is good as /dev/urandom. In order to ensure that the randomness
+ * number is as good as /dev/urandom. In order to ensure that the randomness
  * provided by this function is okay, the function wait_for_random_bytes()
  * should be called and return 0 at least once at any point prior.
  */
@@ -636,7 +636,7 @@ enum {
 };
 
 static struct {
-	struct blake2s_state hash;
+	struct blake2s_ctx hash;
 	spinlock_t lock;
 	unsigned int init_bits;
 } input_pool = {
@@ -701,7 +701,7 @@ static void extract_entropy(void *buf, size_t len)
 
 	/* next_key = HASHPRF(seed, RDSEED || 0) */
 	block.counter = 0;
-	blake2s(next_key, (u8 *)&block, seed, sizeof(next_key), sizeof(block), sizeof(seed));
+	blake2s(seed, sizeof(seed), (const u8 *)&block, sizeof(block), next_key, sizeof(next_key));
 	blake2s_init_key(&input_pool.hash, BLAKE2S_HASH_SIZE, next_key, sizeof(next_key));
 
 	spin_unlock_irqrestore(&input_pool.lock, flags);
@@ -711,7 +711,7 @@ static void extract_entropy(void *buf, size_t len)
 		i = min_t(size_t, len, BLAKE2S_HASH_SIZE);
 		/* output = HASHPRF(seed, RDSEED || ++counter) */
 		++block.counter;
-		blake2s(buf, (u8 *)&block, seed, i, sizeof(block), sizeof(seed));
+		blake2s(seed, sizeof(seed), (const u8 *)&block, sizeof(block), buf, i);
 		len -= i;
 		buf += i;
 	}
@@ -741,8 +741,8 @@ static void __cold _credit_init_bits(size_t bits)
 
 	if (orig < POOL_READY_BITS && new >= POOL_READY_BITS) {
 		crng_reseed(NULL); /* Sets crng_init to CRNG_READY under base_crng.lock. */
-		if (static_key_initialized && system_unbound_wq)
-			queue_work(system_unbound_wq, &set_ready);
+		if (system_dfl_wq)
+			queue_work(system_dfl_wq, &set_ready);
 		atomic_notifier_call_chain(&random_ready_notifier, 0, NULL);
 #ifdef CONFIG_VDSO_GETRANDOM
 		WRITE_ONCE(vdso_k_rng_data->is_ready, true);
@@ -794,7 +794,7 @@ static void __cold _credit_init_bits(size_t bits)
  *
  * add_bootloader_randomness() is called by bootloader drivers, such as EFI
  * and device tree, and credits its input depending on whether or not the
- * command line option 'random.trust_bootloader'.
+ * command line option 'random.trust_bootloader' is set.
  *
  * add_vmfork_randomness() adds a unique (but not necessarily secret) ID
  * representing the current instance of a VM to the pool, without crediting,
@@ -915,9 +915,8 @@ void __init random_init(void)
 	add_latent_entropy();
 
 	/*
-	 * If we were initialized by the cpu or bootloader before jump labels
-	 * or workqueues are initialized, then we should enable the static
-	 * branch here, where it's guaranteed that these have been initialized.
+	 * If we were initialized by the cpu or bootloader before workqueues
+	 * are initialized, then we should enable the static branch here.
 	 */
 	if (!static_branch_likely(&crng_is_ready) && crng_init >= CRNG_READY)
 		crng_set_ready(NULL);
@@ -1296,6 +1295,7 @@ static void __cold try_to_generate_entropy(void)
 	struct entropy_timer_state *stack = PTR_ALIGN((void *)stack_bytes, SMP_CACHE_BYTES);
 	unsigned int i, num_different = 0;
 	unsigned long last = random_get_entropy();
+	cpumask_var_t timer_cpus;
 	int cpu = -1;
 
 	for (i = 0; i < NUM_TRIAL_SAMPLES - 1; ++i) {
@@ -1310,13 +1310,15 @@ static void __cold try_to_generate_entropy(void)
 
 	atomic_set(&stack->samples, 0);
 	timer_setup_on_stack(&stack->timer, entropy_timer, 0);
+	if (!alloc_cpumask_var(&timer_cpus, GFP_KERNEL))
+		goto out;
+
 	while (!crng_ready() && !signal_pending(current)) {
 		/*
 		 * Check !timer_pending() and then ensure that any previous callback has finished
 		 * executing by checking timer_delete_sync_try(), before queueing the next one.
 		 */
 		if (!timer_pending(&stack->timer) && timer_delete_sync_try(&stack->timer) >= 0) {
-			struct cpumask timer_cpus;
 			unsigned int num_cpus;
 
 			/*
@@ -1326,19 +1328,19 @@ static void __cold try_to_generate_entropy(void)
 			preempt_disable();
 
 			/* Only schedule callbacks on timer CPUs that are online. */
-			cpumask_and(&timer_cpus, housekeeping_cpumask(HK_TYPE_TIMER), cpu_online_mask);
-			num_cpus = cpumask_weight(&timer_cpus);
+			cpumask_and(timer_cpus, housekeeping_cpumask(HK_TYPE_TIMER), cpu_online_mask);
+			num_cpus = cpumask_weight(timer_cpus);
 			/* In very bizarre case of misconfiguration, fallback to all online. */
 			if (unlikely(num_cpus == 0)) {
-				timer_cpus = *cpu_online_mask;
-				num_cpus = cpumask_weight(&timer_cpus);
+				*timer_cpus = *cpu_online_mask;
+				num_cpus = cpumask_weight(timer_cpus);
 			}
 
 			/* Basic CPU round-robin, which avoids the current CPU. */
 			do {
-				cpu = cpumask_next(cpu, &timer_cpus);
+				cpu = cpumask_next(cpu, timer_cpus);
 				if (cpu >= nr_cpu_ids)
-					cpu = cpumask_first(&timer_cpus);
+					cpu = cpumask_first(timer_cpus);
 			} while (cpu == smp_processor_id() && num_cpus > 1);
 
 			/* Expiring the timer at `jiffies` means it's the next tick. */
@@ -1354,6 +1356,8 @@ static void __cold try_to_generate_entropy(void)
 	}
 	mix_pool_bytes(&stack->entropy, sizeof(stack->entropy));
 
+	free_cpumask_var(timer_cpus);
+out:
 	timer_delete_sync(&stack->timer);
 	timer_destroy_on_stack(&stack->timer);
 }

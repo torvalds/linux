@@ -266,6 +266,10 @@ static void rtw89_phy_config_bb_gain_be(struct rtw89_dev *rtwdev,
 	case 3:
 		rtw89_phy_cfg_bb_gain_op1db_be(rtwdev, arg, reg->data);
 		break;
+	case 15:
+		rtw89_phy_write32_idx(rtwdev, reg->addr & 0xFFFFF, MASKHWORD,
+				      reg->data, RTW89_PHY_0);
+		break;
 	case 4:
 		/* This cfg_type is only used by rfe_type >= 50 with eFEM */
 		if (efuse->rfe_type < 50)

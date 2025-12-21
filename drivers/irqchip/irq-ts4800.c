@@ -165,4 +165,3 @@ module_platform_driver(ts4800_ic_driver);
 MODULE_AUTHOR("Damien Riegel <damien.riegel@savoirfairelinux.com>");
 MODULE_DESCRIPTION("Multiplexed-IRQs driver for TS-4800's FPGA");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:ts4800_irqc");

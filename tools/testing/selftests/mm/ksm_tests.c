@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <err.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include <include/vdso/time64.h>
 #include "vm_util.h"
 #include "thp_settings.h"

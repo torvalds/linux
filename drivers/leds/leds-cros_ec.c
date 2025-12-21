@@ -142,9 +142,6 @@ static int cros_ec_led_count_subleds(struct device *dev,
 		}
 	}
 
-	if (!num_subleds)
-		return -EINVAL;
-
 	*max_brightness = common_range;
 	return num_subleds;
 }
@@ -189,6 +186,8 @@ static int cros_ec_led_probe_one(struct device *dev, struct cros_ec_device *cros
 						&priv->led_mc_cdev.led_cdev.max_brightness);
 	if (num_subleds < 0)
 		return num_subleds;
+	if (num_subleds == 0)
+		return 0; /* LED without any colors, skip */
 
 	priv->cros_ec = cros_ec;
 	priv->led_id = id;

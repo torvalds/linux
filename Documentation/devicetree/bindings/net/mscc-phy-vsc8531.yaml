@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/mscc-phy-vsc8531.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microsemi VSC8531 Gigabit Ethernet PHY
+
+maintainers:
+  - Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
+
+description:
+  The VSC8531 is a Gigabit Ethernet PHY with configurable MAC interface
+  drive strength and LED modes.
+
+allOf:
+  - $ref: ethernet-phy.yaml#
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ethernet-phy-id0007.0570 # VSC8531
+          - ethernet-phy-id0007.0772 # VSC8541
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ethernet-phy-id0007.0570 # VSC8531
+          - ethernet-phy-id0007.0772 # VSC8541
+      - const: ethernet-phy-ieee802.3-c22
+
+  vsc8531,vddmac:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The VDDMAC voltage in millivolts. This property is used in combination
+      with the edge-slowdown property to control the drive strength of the
+      MAC interface output signals.
+    enum: [3300, 2500, 1800, 1500]
+    default: 3300
+
+  vsc8531,edge-slowdown:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: >
+      Percentage by which the edge rate should be slowed down relative to
+      the fastest possible edge time. This setting helps reduce electromagnetic
+      interference (EMI) by adjusting the drive strength of the MAC interface
+      output signals. Valid values depend on the vddmac voltage setting
+      according to the edge rate change table in the datasheet.
+
+      - When vsc8531,vddmac = 3300 mV: allowed values are 0, 2, 4, 7, 10, 17, 29, and 53.
+        (Recommended: 7)
+      - When vsc8531,vddmac = 2500 mV: allowed values are 0, 3, 6, 10, 14, 23, 37, and 63.
+        (Recommended: 10)
+      - When vsc8531,vddmac = 1800 mV: allowed values are 0, 5, 9, 16, 23, 35, 52, and 76.
+        (Recommended: 0)
+      - When vsc8531,vddmac = 1500 mV: allowed values are 0, 6, 14, 21, 29, 42, 58, and 77.
+        (Recommended: 0)
+    enum: [0, 2, 3, 4, 5, 6, 7, 9, 10, 14, 16, 17, 21, 23, 29, 35, 37, 42, 52, 53, 58, 63, 76, 77]
+    default: 0
+
+  vsc8531,led-0-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: LED[0] behavior mode. See include/dt-bindings/net/mscc-phy-vsc8531.h
+      for available modes.
+    minimum: 0
+    maximum: 15
+    default: 1
+
+  vsc8531,led-1-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: LED[1] behavior mode. See include/dt-bindings/net/mscc-phy-vsc8531.h
+      for available modes.
+    minimum: 0
+    maximum: 15
+    default: 2
+
+  vsc8531,led-2-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: LED[2] behavior mode. See include/dt-bindings/net/mscc-phy-vsc8531.h
+      for available modes.
+    minimum: 0
+    maximum: 15
+    default: 0
+
+  vsc8531,led-3-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: LED[3] behavior mode. See include/dt-bindings/net/mscc-phy-vsc8531.h
+      for available modes.
+    minimum: 0
+    maximum: 15
+    default: 8
+
+  load-save-gpios:
+    description: GPIO phandle used for the load/save operation of the PTP hardware
+      clock (PHC).
+    maxItems: 1
+
+dependencies:
+  vsc8531,edge-slowdown:
+    - vsc8531,vddmac
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/net/mscc-phy-vsc8531.h>
+
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ethernet-phy@0 {
+            compatible = "ethernet-phy-id0007.0772", "ethernet-phy-ieee802.3-c22";
+            reg = <0>;
+            vsc8531,vddmac = <3300>;
+            vsc8531,edge-slowdown = <7>;
+            vsc8531,led-0-mode = <VSC8531_LINK_1000_ACTIVITY>;
+            vsc8531,led-1-mode = <VSC8531_LINK_100_ACTIVITY>;
+            load-save-gpios = <&gpio 10 GPIO_ACTIVE_HIGH>;
+        };
+    };

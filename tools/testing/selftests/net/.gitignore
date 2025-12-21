@@ -4,10 +4,8 @@ bind_timewait
 bind_wildcard
 busy_poller
 cmsg_sender
-diag_uid
 epoll_busy_poll
 fin_ack_lat
-gro
 hwtstamp_config
 io_uring_zerocopy_tx
 ioam6_parser
@@ -18,7 +16,6 @@ ipv6_flowlabel
 ipv6_flowlabel_mgr
 ipv6_fragmentation
 log.txt
-msg_oob
 msg_zerocopy
 netlink-dumps
 nettest
@@ -35,9 +32,6 @@ reuseport_bpf_numa
 reuseport_dualstack
 rxtimestamp
 sctp_hello
-scm_inq
-scm_pidfd
-scm_rights
 sk_bind_sendto_listen
 sk_connect_zero_addr
 sk_so_peek_off
@@ -45,7 +39,6 @@ skf_net_off
 socket
 so_incoming_cpu
 so_netns_cookie
-so_peek_off
 so_txtime
 so_rcv_listener
 stress_reuseport_listen
@@ -57,7 +50,6 @@ tcp_port_share
 tfo
 timestamping
 tls
-toeplitz
 tools
 tun
 txring_overwrite
@@ -65,4 +57,3 @@ txtimestamp
 udpgso
 udpgso_bench_rx
 udpgso_bench_tx
-unix_connect

@@ -12,7 +12,6 @@
 #include <objtool/check.h>
 #include <objtool/orc.h>
 #include <objtool/warn.h>
-#include <objtool/endianness.h>
 
 struct orc_list_entry {
 	struct list_head list;
@@ -57,7 +56,7 @@ int orc_create(struct objtool_file *file)
 
 	/* Build a deduplicated list of ORC entries: */
 	INIT_LIST_HEAD(&orc_list);
-	for_each_sec(file, sec) {
+	for_each_sec(file->elf, sec) {
 		struct orc_entry orc, prev_orc = {0};
 		struct instruction *insn;
 		bool empty = true;
@@ -127,7 +126,11 @@ int orc_create(struct objtool_file *file)
 		return -1;
 	}
 	orc_sec = elf_create_section(file->elf, ".orc_unwind",
-				     sizeof(struct orc_entry), nr);
+				     nr * sizeof(struct orc_entry),
+				     sizeof(struct orc_entry),
+				     SHT_PROGBITS,
+				     1,
+				     SHF_ALLOC);
 	if (!orc_sec)
 		return -1;
 

@@ -14,7 +14,7 @@ static inline u64 get_tcr_el1_t1sz(void);
 
 static inline u64 get_tcr_el1_t1sz(void)
 {
-	return (read_sysreg(tcr_el1) & TCR_T1SZ_MASK) >> TCR_T1SZ_OFFSET;
+	return (read_sysreg(tcr_el1) & TCR_EL1_T1SZ_MASK) >> TCR_EL1_T1SZ_SHIFT;
 }
 
 void arch_crash_save_vmcoreinfo(void)

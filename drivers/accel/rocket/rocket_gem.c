@@ -2,6 +2,7 @@
 /* Copyright 2024-2025 Tomeu Vizoso <tomeu@tomeuvizoso.net> */
 
 #include <drm/drm_device.h>
+#include <drm/drm_print.h>
 #include <drm/drm_utils.h>
 #include <drm/rocket_accel.h>
 #include <linux/dma-mapping.h>

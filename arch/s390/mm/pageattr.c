@@ -78,10 +78,8 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		}
 		table = (unsigned long *)((unsigned long)old & mask);
 		crdte(*old, new, table, dtt, addr, get_lowcore()->kernel_asce.val);
-	} else if (cpu_has_idte()) {
-		cspg(old, *old, new);
 	} else {
-		csp((unsigned int *)old + 1, *old, new);
+		cspg(old, *old, new);
 	}
 }
 
@@ -206,7 +204,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 	return rc;
 }
 
-static int split_pud_page(pud_t *pudp, unsigned long addr)
+int split_pud_page(pud_t *pudp, unsigned long addr)
 {
 	unsigned long pmd_addr, prot;
 	pmd_t *pm_dir, *pmdp;

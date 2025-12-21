@@ -82,16 +82,16 @@ int afs_open_socket(struct afs_net *net)
 	if (ret < 0)
 		pr_err("Couldn't create RxGK CM key: %d\n", ret);
 
-	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
+	ret = kernel_bind(socket, (struct sockaddr_unsized *) &srx, sizeof(srx));
 	if (ret == -EADDRINUSE) {
 		srx.transport.sin6.sin6_port = 0;
-		ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
+		ret = kernel_bind(socket, (struct sockaddr_unsized *) &srx, sizeof(srx));
 	}
 	if (ret < 0)
 		goto error_2;
 
 	srx.srx_service = YFS_CM_SERVICE;
-	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
+	ret = kernel_bind(socket, (struct sockaddr_unsized *) &srx, sizeof(srx));
 	if (ret < 0)
 		goto error_2;
 

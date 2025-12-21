@@ -48,6 +48,7 @@
 #include <drm/ttm/ttm_bo.h>
 
 #include "ttm_module.h"
+#include "ttm_pool_internal.h"
 
 #ifdef CONFIG_FAULT_INJECTION
 #include <linux/fault-inject.h>
@@ -135,6 +136,7 @@ static DECLARE_RWSEM(pool_shrink_rwsem);
 static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 					unsigned int order)
 {
+	const unsigned int beneficial_order = ttm_pool_beneficial_order(pool);
 	unsigned long attr = DMA_ATTR_FORCE_CONTIGUOUS;
 	struct ttm_pool_dma *dma;
 	struct page *p;
@@ -148,7 +150,14 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 		gfp_flags |= __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN |
 			__GFP_THISNODE;
 
-	if (!pool->use_dma_alloc) {
+	/*
+	 * Do not add latency to the allocation path for allocations orders
+	 * device tolds us do not bring them additional performance gains.
+	 */
+	if (beneficial_order && order > beneficial_order)
+		gfp_flags &= ~__GFP_DIRECT_RECLAIM;
+
+	if (!ttm_pool_uses_dma_alloc(pool)) {
 		p = alloc_pages_node(pool->nid, gfp_flags, order);
 		if (p)
 			p->private = order;
@@ -200,7 +209,7 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 		set_pages_wb(p, 1 << order);
 #endif
 
-	if (!pool || !pool->use_dma_alloc) {
+	if (!pool || !ttm_pool_uses_dma_alloc(pool)) {
 		__free_pages(p, order);
 		return;
 	}
@@ -243,7 +252,7 @@ static int ttm_pool_map(struct ttm_pool *pool, unsigned int order,
 {
 	dma_addr_t addr;
 
-	if (pool->use_dma_alloc) {
+	if (ttm_pool_uses_dma_alloc(pool)) {
 		struct ttm_pool_dma *dma = (void *)p->private;
 
 		addr = dma->addr;
@@ -265,7 +274,7 @@ static void ttm_pool_unmap(struct ttm_pool *pool, dma_addr_t dma_addr,
 			   unsigned int num_pages)
 {
 	/* Unmapped while freeing the page */
-	if (pool->use_dma_alloc)
+	if (ttm_pool_uses_dma_alloc(pool))
 		return;
 
 	dma_unmap_page(pool->dev, dma_addr, (long)num_pages << PAGE_SHIFT,
@@ -339,7 +348,7 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 						  enum ttm_caching caching,
 						  unsigned int order)
 {
-	if (pool->use_dma_alloc)
+	if (ttm_pool_uses_dma_alloc(pool))
 		return &pool->caching[caching].orders[order];
 
 #ifdef CONFIG_X86
@@ -348,7 +357,7 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 		if (pool->nid != NUMA_NO_NODE)
 			return &pool->caching[caching].orders[order];
 
-		if (pool->use_dma32)
+		if (ttm_pool_uses_dma32(pool))
 			return &global_dma32_write_combined[order];
 
 		return &global_write_combined[order];
@@ -356,7 +365,7 @@ static struct ttm_pool_type *ttm_pool_select_type(struct ttm_pool *pool,
 		if (pool->nid != NUMA_NO_NODE)
 			return &pool->caching[caching].orders[order];
 
-		if (pool->use_dma32)
+		if (ttm_pool_uses_dma32(pool))
 			return &global_dma32_uncached[order];
 
 		return &global_uncached[order];
@@ -396,7 +405,7 @@ static unsigned int ttm_pool_shrink(void)
 /* Return the allocation order based for a page */
 static unsigned int ttm_pool_page_order(struct ttm_pool *pool, struct page *p)
 {
-	if (pool->use_dma_alloc) {
+	if (ttm_pool_uses_dma_alloc(pool)) {
 		struct ttm_pool_dma *dma = (void *)p->private;
 
 		return dma->vaddr & ~PAGE_MASK;
@@ -719,7 +728,7 @@ static int __ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	if (ctx->gfp_retry_mayfail)
 		gfp_flags |= __GFP_RETRY_MAYFAIL;
 
-	if (pool->use_dma32)
+	if (ttm_pool_uses_dma32(pool))
 		gfp_flags |= GFP_DMA32;
 	else
 		gfp_flags |= GFP_HIGHUSER;
@@ -977,7 +986,7 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 		return -EINVAL;
 
 	if ((!ttm_backup_bytes_avail() && !flags->purge) ||
-	    pool->use_dma_alloc || ttm_tt_is_backed_up(tt))
+	    ttm_pool_uses_dma_alloc(pool) || ttm_tt_is_backed_up(tt))
 		return -EBUSY;
 
 #ifdef CONFIG_X86
@@ -1014,7 +1023,7 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 	if (flags->purge)
 		return shrunken;
 
-	if (pool->use_dma32)
+	if (ttm_pool_uses_dma32(pool))
 		gfp = GFP_DMA32;
 	else
 		gfp = GFP_HIGHUSER;
@@ -1058,22 +1067,20 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
  * @pool: the pool to initialize
  * @dev: device for DMA allocations and mappings
  * @nid: NUMA node to use for allocations
- * @use_dma_alloc: true if coherent DMA alloc should be used
- * @use_dma32: true if GFP_DMA32 should be used
+ * @alloc_flags: TTM_ALLOCATION_POOL_* flags
  *
  * Initialize the pool and its pool types.
  */
 void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
-		   int nid, bool use_dma_alloc, bool use_dma32)
+		   int nid, unsigned int alloc_flags)
 {
 	unsigned int i, j;
 
-	WARN_ON(!dev && use_dma_alloc);
+	WARN_ON(!dev && ttm_pool_uses_dma_alloc(pool));
 
 	pool->dev = dev;
 	pool->nid = nid;
-	pool->use_dma_alloc = use_dma_alloc;
-	pool->use_dma32 = use_dma32;
+	pool->alloc_flags = alloc_flags;
 
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
 		for (j = 0; j < NR_PAGE_ORDERS; ++j) {
@@ -1239,7 +1246,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 {
 	unsigned int i;
 
-	if (!pool->use_dma_alloc && pool->nid == NUMA_NO_NODE) {
+	if (!ttm_pool_uses_dma_alloc(pool) && pool->nid == NUMA_NO_NODE) {
 		seq_puts(m, "unused\n");
 		return 0;
 	}
@@ -1250,7 +1257,7 @@ int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m)
 	for (i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
 		if (!ttm_pool_select_type(pool, i, 0))
 			continue;
-		if (pool->use_dma_alloc)
+		if (ttm_pool_uses_dma_alloc(pool))
 			seq_puts(m, "DMA ");
 		else
 			seq_printf(m, "N%d ", pool->nid);

@@ -277,7 +277,7 @@ out_sk_release:
 	goto out;
 }
 
-static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+static int __inet6_bind(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len,
 			u32 flags)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)uaddr;
@@ -438,7 +438,7 @@ out_unlock:
 	goto out;
 }
 
-int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int inet6_bind_sk(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	u32 flags = BIND_WITH_LOCK;
 	const struct proto *prot;
@@ -465,7 +465,7 @@ int inet6_bind_sk(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 }
 
 /* bind for INET6 API */
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+int inet6_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	return inet6_bind_sk(sock->sk, uaddr, addr_len);
 }
@@ -960,6 +960,7 @@ static int __net_init inet6_net_init(struct net *net)
 	net->ipv6.sysctl.icmpv6_echo_ignore_multicast = 0;
 	net->ipv6.sysctl.icmpv6_echo_ignore_anycast = 0;
 	net->ipv6.sysctl.icmpv6_error_anycast_as_unicast = 0;
+	net->ipv6.sysctl.icmpv6_errors_extension_mask = 0;
 
 	/* By default, rate limit error messages.
 	 * Except for pmtu discovery, it would break it.

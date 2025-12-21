@@ -113,14 +113,14 @@ void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size)
 	return &cmd->data[num_masks];
 }
 
-int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
+u32 amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 {
 	struct amdxdna_cmd *cmd = abo->mem.kva;
 	u32 num_masks, i;
 	u32 *cu_mask;
 
 	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
-		return -1;
+		return INVALID_CU_IDX;
 
 	num_masks = 1 + FIELD_GET(AMDXDNA_CMD_EXTRA_CU_MASK, cmd->header);
 	cu_mask = cmd->data;
@@ -129,7 +129,7 @@ int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
 			return ffs(cu_mask[i]) - 1;
 	}
 
-	return -1;
+	return INVALID_CU_IDX;
 }
 
 /*
@@ -161,19 +161,14 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	if (args->ext || args->ext_flags)
 		return -EINVAL;
 
-	if (!drm_dev_enter(dev, &idx))
-		return -ENODEV;
-
 	hwctx = kzalloc(sizeof(*hwctx), GFP_KERNEL);
-	if (!hwctx) {
-		ret = -ENOMEM;
-		goto exit;
-	}
+	if (!hwctx)
+		return -ENOMEM;
 
 	if (copy_from_user(&hwctx->qos, u64_to_user_ptr(args->qos_p), sizeof(hwctx->qos))) {
 		XDNA_ERR(xdna, "Access QoS info failed");
-		ret = -EFAULT;
-		goto free_hwctx;
+		kfree(hwctx);
+		return -EFAULT;
 	}
 
 	hwctx->client = client;
@@ -181,30 +176,36 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	hwctx->num_tiles = args->num_tiles;
 	hwctx->mem_size = args->mem_size;
 	hwctx->max_opc = args->max_opc;
+
+	guard(mutex)(&xdna->dev_lock);
+
+	if (!drm_dev_enter(dev, &idx)) {
+		ret = -ENODEV;
+		goto free_hwctx;
+	}
+
+	ret = xdna->dev_info->ops->hwctx_init(hwctx);
+	if (ret) {
+		XDNA_ERR(xdna, "Init hwctx failed, ret %d", ret);
+		goto dev_exit;
+	}
+
+	hwctx->name = kasprintf(GFP_KERNEL, "hwctx.%d.%d", client->pid, hwctx->fw_ctx_id);
+	if (!hwctx->name) {
+		ret = -ENOMEM;
+		goto fini_hwctx;
+	}
+
 	ret = xa_alloc_cyclic(&client->hwctx_xa, &hwctx->id, hwctx,
 			      XA_LIMIT(AMDXDNA_INVALID_CTX_HANDLE + 1, MAX_HWCTX_ID),
 			      &client->next_hwctxid, GFP_KERNEL);
 	if (ret < 0) {
 		XDNA_ERR(xdna, "Allocate hwctx ID failed, ret %d", ret);
-		goto free_hwctx;
-	}
-
-	hwctx->name = kasprintf(GFP_KERNEL, "hwctx.%d.%d", client->pid, hwctx->id);
-	if (!hwctx->name) {
-		ret = -ENOMEM;
-		goto rm_id;
-	}
-
-	mutex_lock(&xdna->dev_lock);
-	ret = xdna->dev_info->ops->hwctx_init(hwctx);
-	if (ret) {
-		mutex_unlock(&xdna->dev_lock);
-		XDNA_ERR(xdna, "Init hwctx failed, ret %d", ret);
 		goto free_name;
 	}
+
 	args->handle = hwctx->id;
 	args->syncobj_handle = hwctx->syncobj_hdl;
-	mutex_unlock(&xdna->dev_lock);
 
 	atomic64_set(&hwctx->job_submit_cnt, 0);
 	atomic64_set(&hwctx->job_free_cnt, 0);
@@ -214,12 +215,12 @@ int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 
 free_name:
 	kfree(hwctx->name);
-rm_id:
-	xa_erase(&client->hwctx_xa, hwctx->id);
+fini_hwctx:
+	xdna->dev_info->ops->hwctx_fini(hwctx);
+dev_exit:
+	drm_dev_exit(idx);
 free_hwctx:
 	kfree(hwctx);
-exit:
-	drm_dev_exit(idx);
 	return ret;
 }
 
@@ -327,6 +328,38 @@ unlock_srcu:
 	return ret;
 }
 
+int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_hwctx *hwctx;
+	struct amdxdna_gem_obj *abo;
+	struct drm_gem_object *gobj;
+	int ret, idx;
+
+	if (!xdna->dev_info->ops->hwctx_sync_debug_bo)
+		return -EOPNOTSUPP;
+
+	gobj = drm_gem_object_lookup(client->filp, debug_bo_hdl);
+	if (!gobj)
+		return -EINVAL;
+
+	abo = to_xdna_obj(gobj);
+	guard(mutex)(&xdna->dev_lock);
+	idx = srcu_read_lock(&client->hwctx_srcu);
+	hwctx = xa_load(&client->hwctx_xa, abo->assigned_hwctx);
+	if (!hwctx) {
+		ret = -EINVAL;
+		goto unlock_srcu;
+	}
+
+	ret = xdna->dev_info->ops->hwctx_sync_debug_bo(hwctx, debug_bo_hdl);
+
+unlock_srcu:
+	srcu_read_unlock(&client->hwctx_srcu, idx);
+	drm_gem_object_put(gobj);
+	return ret;
+}
+
 static void
 amdxdna_arg_bos_put(struct amdxdna_sched_job *job)
 {
@@ -389,9 +422,11 @@ void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job)
 	trace_amdxdna_debug_point(job->hwctx->name, job->seq, "job release");
 	amdxdna_arg_bos_put(job);
 	amdxdna_gem_put_obj(job->cmd_bo);
+	dma_fence_put(job->fence);
 }
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
+		       struct amdxdna_drv_cmd *drv_cmd,
 		       u32 cmd_bo_hdl, u32 *arg_bo_hdls, u32 arg_bo_cnt,
 		       u32 hwctx_hdl, u64 *seq)
 {
@@ -405,6 +440,8 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	if (!job)
 		return -ENOMEM;
 
+	job->drv_cmd = drv_cmd;
+
 	if (cmd_bo_hdl != AMDXDNA_INVALID_BO_HANDLE) {
 		job->cmd_bo = amdxdna_gem_get_obj(client, cmd_bo_hdl, AMDXDNA_BO_CMD);
 		if (!job->cmd_bo) {
@@ -412,8 +449,6 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 			ret = -EINVAL;
 			goto free_job;
 		}
-	} else {
-		job->cmd_bo = NULL;
 	}
 
 	ret = amdxdna_arg_bos_lookup(client, job, arg_bo_hdls, arg_bo_cnt);
@@ -431,11 +466,6 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 		goto unlock_srcu;
 	}
 
-	if (hwctx->status != HWCTX_STAT_READY) {
-		XDNA_ERR(xdna, "HW Context is not ready");
-		ret = -EINVAL;
-		goto unlock_srcu;
-	}
 
 	job->hwctx = hwctx;
 	job->mm = current->mm;
@@ -512,7 +542,7 @@ static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
 		}
 	}
 
-	ret = amdxdna_cmd_submit(client, cmd_bo_hdl, arg_bo_hdls,
+	ret = amdxdna_cmd_submit(client, NULL, cmd_bo_hdl, arg_bo_hdls,
 				 args->arg_count, args->hwctx, &args->seq);
 	if (ret)
 		XDNA_DBG(xdna, "Submit cmds failed, ret %d", ret);

@@ -9,7 +9,7 @@
 /**
  * DOC: Migrate Layer
  *
- * The XE migrate layer is used generate jobs which can copy memory (eviction),
+ * The Xe migrate layer is used generate jobs which can copy memory (eviction),
  * clear memory, or program tables (binds). This layer exists in every GT, has
  * a migrate engine, and uses a special VM for all generated jobs.
  *

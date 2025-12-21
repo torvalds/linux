@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/cix,sky1-pcie-host.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CIX Sky1 PCIe Root Complex
+
+maintainers:
+  - Hans Zhang <hans.zhang@cixtech.com>
+
+description:
+  PCIe root complex controller based on the Cadence PCIe core.
+
+allOf:
+  - $ref: /schemas/pci/pci-host-bridge.yaml#
+
+properties:
+  compatible:
+    const: cix,sky1-pcie-host
+
+  reg:
+    items:
+      - description: PCIe controller registers.
+      - description: ECAM registers.
+      - description: Remote CIX System Unit strap registers.
+      - description: Remote CIX System Unit status registers.
+      - description: Region for sending messages registers.
+
+  reg-names:
+    items:
+      - const: reg
+      - const: cfg
+      - const: rcsu_strap
+      - const: rcsu_status
+      - const: msg
+
+  ranges:
+    maxItems: 3
+
+required:
+  - compatible
+  - ranges
+  - bus-range
+  - device_type
+  - interrupt-map
+  - interrupt-map-mask
+  - msi-map
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        pcie@a010000 {
+            compatible = "cix,sky1-pcie-host";
+            reg = <0x00 0x0a010000 0x00 0x10000>,
+                  <0x00 0x2c000000 0x00 0x4000000>,
+                  <0x00 0x0a000300 0x00 0x100>,
+                  <0x00 0x0a000400 0x00 0x100>,
+                  <0x00 0x60000000 0x00 0x00100000>;
+            reg-names = "reg", "cfg", "rcsu_strap", "rcsu_status", "msg";
+            ranges = <0x01000000 0x00 0x60100000 0x00 0x60100000 0x00 0x00100000>,
+                     <0x02000000 0x00 0x60200000 0x00 0x60200000 0x00 0x1fe00000>,
+                     <0x43000000 0x18 0x00000000 0x18 0x00000000 0x04 0x00000000>;
+            #address-cells = <3>;
+            #size-cells = <2>;
+            bus-range = <0xc0 0xff>;
+            device_type = "pci";
+            #interrupt-cells = <1>;
+            interrupt-map-mask = <0 0 0 0x7>;
+            interrupt-map = <0 0 0 1 &gic 0 0 GIC_SPI 407 IRQ_TYPE_LEVEL_HIGH 0>,
+                            <0 0 0 2 &gic 0 0 GIC_SPI 408 IRQ_TYPE_LEVEL_HIGH 0>,
+                            <0 0 0 3 &gic 0 0 GIC_SPI 409 IRQ_TYPE_LEVEL_HIGH 0>,
+                            <0 0 0 4 &gic 0 0 GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH 0>;
+            msi-map = <0xc000 &gic_its 0xc000 0x4000>;
+        };
+    };

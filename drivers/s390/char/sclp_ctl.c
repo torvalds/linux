@@ -7,7 +7,6 @@
  * Author: Michael Holzheu <holzheu@linux.vnet.ibm.com>
  */
 
-#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/gfp.h>
@@ -43,10 +42,7 @@ static int sclp_ctl_cmdw_supported(unsigned int cmdw)
 
 static void __user *u64_to_uptr(u64 value)
 {
-	if (is_compat_task())
-		return compat_ptr(value);
-	else
-		return (void __user *)(unsigned long)value;
+	return (void __user *)(unsigned long)value;
 }
 
 /*
@@ -95,10 +91,7 @@ static long sclp_ctl_ioctl(struct file *filp, unsigned int cmd,
 {
 	void __user *argp;
 
-	if (is_compat_task())
-		argp = compat_ptr(arg);
-	else
-		argp = (void __user *) arg;
+	argp = (void __user *)arg;
 	switch (cmd) {
 	case SCLP_CTL_SCCB:
 		return sclp_ctl_ioctl_sccb(argp);
@@ -114,7 +107,6 @@ static const struct file_operations sclp_ctl_fops = {
 	.owner = THIS_MODULE,
 	.open = nonseekable_open,
 	.unlocked_ioctl = sclp_ctl_ioctl,
-	.compat_ioctl = sclp_ctl_ioctl,
 };
 
 /*

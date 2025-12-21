@@ -4218,6 +4218,15 @@ int iwl_pci_gen1_2_probe(struct pci_dev *pdev,
 		 pdev->device, pdev->subsystem_device,
 		 info.hw_rev, info.hw_rf_id);
 
+#if !IS_ENABLED(CONFIG_IWLMLD)
+	if (iwl_drv_is_wifi7_supported(iwl_trans)) {
+		IWL_ERR(iwl_trans,
+			"IWLMLD needs to be compiled to support this device\n");
+		ret = -EOPNOTSUPP;
+		goto out_free_trans;
+	}
+#endif
+
 	dev_info = iwl_pci_find_dev_info(pdev->device, pdev->subsystem_device,
 					 CSR_HW_RFID_TYPE(info.hw_rf_id),
 					 CSR_HW_RFID_IS_CDB(info.hw_rf_id),

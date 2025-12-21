@@ -179,6 +179,7 @@ static int crb_try_pluton_doorbell(struct crb_priv *priv, bool wait_for_complete
  *
  * @dev:  crb device
  * @priv: crb private data
+ * @loc:  locality
  *
  * Write CRB_CTRL_REQ_GO_IDLE to TPM_CRB_CTRL_REQ
  * The device should respond within TIMEOUT_C by clearing the bit.
@@ -233,6 +234,7 @@ static int crb_go_idle(struct tpm_chip *chip)
  *
  * @dev:  crb device
  * @priv: crb private data
+ * @loc:  locality
  *
  * Write CRB_CTRL_REQ_CMD_READY to TPM_CRB_CTRL_REQ
  * and poll till the device acknowledge it by clearing the bit.
@@ -412,7 +414,7 @@ static int crb_do_acpi_start(struct tpm_chip *chip)
 #ifdef CONFIG_ARM64
 /*
  * This is a TPM Command Response Buffer start method that invokes a
- * Secure Monitor Call to requrest the firmware to execute or cancel
+ * Secure Monitor Call to request the firmware to execute or cancel
  * a TPM 2.0 command.
  */
 static int tpm_crb_smc_start(struct device *dev, unsigned long func_id)

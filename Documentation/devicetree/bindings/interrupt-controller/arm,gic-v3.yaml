@@ -305,7 +305,6 @@ examples:
       };
     };
 
-
     device@0 {
       reg = <0 4>;
       interrupts = <1 1 4 &part0>;

@@ -759,6 +759,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	int max_param_num = 11;
 	enum dp_test_pattern test_pattern = DP_TEST_PATTERN_UNSUPPORTED;
 	bool disable_hpd = false;
+	bool supports_hpd = link->irq_source_hpd != DC_IRQ_SOURCE_INVALID;
 	bool valid_test_pattern = false;
 	uint8_t param_nums = 0;
 	/* init with default 80bit custom pattern */
@@ -850,7 +851,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	 * because it might have been disabled after a test pattern was set.
 	 * AUX depends on HPD * sequence dependent, do not move!
 	 */
-	if (!disable_hpd)
+	if (supports_hpd && !disable_hpd)
 		dc_link_enable_hpd(link);
 
 	prefer_link_settings.lane_count = link->verified_link_cap.lane_count;
@@ -888,7 +889,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 	 * Need disable interrupt to avoid SW driver disable DP output. This is
 	 * done after the test pattern is set.
 	 */
-	if (valid_test_pattern && disable_hpd)
+	if (valid_test_pattern && supports_hpd && disable_hpd)
 		dc_link_disable_hpd(link);
 
 	kfree(wr_buf);

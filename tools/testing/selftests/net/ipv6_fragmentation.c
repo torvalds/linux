@@ -34,7 +34,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MTU 1500
 #define LARGER_THAN_MTU 8192

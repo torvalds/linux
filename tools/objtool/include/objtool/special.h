@@ -25,7 +25,7 @@ struct special_alt {
 	struct section *new_sec;
 	unsigned long new_off;
 
-	unsigned int orig_len, new_len; /* group only */
+	unsigned int orig_len, new_len, feature; /* group only */
 };
 
 int special_get_alts(struct elf *elf, struct list_head *alts);
@@ -38,4 +38,6 @@ bool arch_support_alt_relocation(struct special_alt *special_alt,
 struct reloc *arch_find_switch_table(struct objtool_file *file,
 				     struct instruction *insn,
 				     unsigned long *table_size);
+const char *arch_cpu_feature_name(int feature_number);
+
 #endif /* _SPECIAL_H */

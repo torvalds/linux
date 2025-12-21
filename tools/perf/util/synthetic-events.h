@@ -107,23 +107,8 @@ int machine__synthesize_threads(struct machine *machine, struct target *target,
 				struct perf_thread_map *threads, bool needs_mmap, bool data_mmap,
 				unsigned int nr_threads_synthesize);
 
-#ifdef HAVE_AUXTRACE_SUPPORT
 int perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr, const struct perf_tool *tool,
 					 struct perf_session *session, perf_event__handler_t process);
-
-#else // HAVE_AUXTRACE_SUPPORT
-
-#include <errno.h>
-
-static inline int
-perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr __maybe_unused,
-				     const struct perf_tool *tool __maybe_unused,
-				     struct perf_session *session __maybe_unused,
-				     perf_event__handler_t process __maybe_unused)
-{
-	return -EINVAL;
-}
-#endif // HAVE_AUXTRACE_SUPPORT
 
 #ifdef HAVE_LIBBPF_SUPPORT
 int perf_event__synthesize_bpf_events(struct perf_session *session, perf_event__handler_t process,

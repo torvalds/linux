@@ -138,6 +138,7 @@ enum trace_iter_flags {
 	TRACE_FILE_LAT_FMT	= 1,
 	TRACE_FILE_ANNOTATE	= 2,
 	TRACE_FILE_TIME_IN_NS	= 4,
+	TRACE_FILE_PAUSE	= 8,
 };
 
 

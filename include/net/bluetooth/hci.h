@@ -647,10 +647,13 @@ enum {
 #define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_PERIODIC_ADV		0x20
 #define HCI_LE_CHAN_SEL_ALG2		0x40
+#define HCI_LE_PAST_SENDER		0x01
+#define HCI_LE_PAST_RECEIVER		0x02
 #define HCI_LE_CIS_CENTRAL		0x10
 #define HCI_LE_CIS_PERIPHERAL		0x20
 #define HCI_LE_ISO_BROADCASTER		0x40
 #define HCI_LE_ISO_SYNC_RECEIVER	0x80
+#define HCI_LE_LL_EXT_FEATURE		0x80
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -2068,6 +2071,44 @@ struct hci_cp_le_set_privacy_mode {
 	__u8  mode;
 } __packed;
 
+#define HCI_OP_LE_PAST			0x205a
+struct hci_cp_le_past {
+	__le16 handle;
+	__le16 service_data;
+	__le16 sync_handle;
+} __packed;
+
+struct hci_rp_le_past {
+	__u8   status;
+	__le16 handle;
+} __packed;
+
+#define HCI_OP_LE_PAST_SET_INFO		0x205b
+struct hci_cp_le_past_set_info {
+	__le16 handle;
+	__le16 service_data;
+	__u8   adv_handle;
+} __packed;
+
+struct hci_rp_le_past_set_info {
+	__u8   status;
+	__le16 handle;
+} __packed;
+
+#define HCI_OP_LE_PAST_PARAMS		0x205c
+struct hci_cp_le_past_params {
+	__le16  handle;
+	__u8    mode;
+	__le16  skip;
+	__le16  sync_timeout;
+	__u8    cte_type;
+} __packed;
+
+struct hci_rp_le_past_params {
+	__u8   status;
+	__le16 handle;
+} __packed;
+
 #define HCI_OP_LE_READ_BUFFER_SIZE_V2	0x2060
 struct hci_rp_le_read_buffer_size_v2 {
 	__u8    status;
@@ -2213,6 +2254,19 @@ struct hci_rp_le_setup_iso_path {
 struct hci_cp_le_set_host_feature {
 	__u8     bit_number;
 	__u8     bit_value;
+} __packed;
+
+#define HCI_OP_LE_READ_ALL_LOCAL_FEATURES	0x2087
+struct hci_rp_le_read_all_local_features {
+	__u8    status;
+	__u8    page;
+	__u8    features[248];
+} __packed;
+
+#define HCI_OP_LE_READ_ALL_REMOTE_FEATURES	0x2088
+struct hci_cp_le_read_all_remote_features {
+	__le16	 handle;
+	__u8	 pages;
 } __packed;
 
 /* ---- HCI Events ---- */
@@ -2800,6 +2854,20 @@ struct hci_evt_le_ext_adv_set_term {
 	__u8	num_evts;
 } __packed;
 
+#define HCI_EV_LE_PAST_RECEIVED		0x18
+struct hci_ev_le_past_received {
+	__u8   status;
+	__le16 handle;
+	__le16 service_data;
+	__le16 sync_handle;
+	__u8   sid;
+	__u8   bdaddr_type;
+	bdaddr_t  bdaddr;
+	__u8   phy;
+	__le16 interval;
+	__u8   clock_accuracy;
+} __packed;
+
 #define HCI_EVT_LE_CIS_ESTABLISHED	0x19
 struct hci_evt_le_cis_established {
 	__u8  status;
@@ -2881,6 +2949,15 @@ struct hci_evt_le_big_info_adv_report {
 	__u8    phy;
 	__u8    framing;
 	__u8    encryption;
+} __packed;
+
+#define HCI_EVT_LE_ALL_REMOTE_FEATURES_COMPLETE 0x2b
+struct hci_evt_le_read_all_remote_features_complete {
+	__u8    status;
+	__le16  handle;
+	__u8    max_pages;
+	__u8    valid_pages;
+	__u8    features[248];
 } __packed;
 
 #define HCI_EV_VENDOR			0xff

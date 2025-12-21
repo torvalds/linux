@@ -92,15 +92,17 @@ struct neigh_parms {
 static inline void neigh_var_set(struct neigh_parms *p, int index, int val)
 {
 	set_bit(index, p->data_state);
-	p->data[index] = val;
+	WRITE_ONCE(p->data[index], val);
 }
 
-#define NEIGH_VAR(p, attr) ((p)->data[NEIGH_VAR_ ## attr])
+#define __NEIGH_VAR(p, attr) ((p)->data[NEIGH_VAR_ ## attr])
+#define NEIGH_VAR(p, attr) READ_ONCE(__NEIGH_VAR(p, attr))
+#define NEIGH_VAR_PTR(p, attr) (&(__NEIGH_VAR(p, attr)))
 
 /* In ndo_neigh_setup, NEIGH_VAR_INIT should be used.
  * In other cases, NEIGH_VAR_SET should be used.
  */
-#define NEIGH_VAR_INIT(p, attr, val) (NEIGH_VAR(p, attr) = val)
+#define NEIGH_VAR_INIT(p, attr, val) (__NEIGH_VAR(p, attr) = val)
 #define NEIGH_VAR_SET(p, attr, val) neigh_var_set(p, NEIGH_VAR_ ## attr, val)
 
 static inline void neigh_parms_data_state_setall(struct neigh_parms *p)
@@ -236,7 +238,7 @@ struct neigh_table {
 	atomic_t		gc_entries;
 	struct list_head	gc_list;
 	struct list_head	managed_list;
-	rwlock_t		lock;
+	spinlock_t		lock;
 	unsigned long		last_rand;
 	struct neigh_statistics	__percpu *stats;
 	struct neigh_hash_table __rcu *nht;
@@ -377,6 +379,13 @@ struct net *neigh_parms_net(const struct neigh_parms *parms)
 }
 
 unsigned long neigh_rand_reach_time(unsigned long base);
+
+static inline void neigh_set_reach_time(struct neigh_parms *p)
+{
+	unsigned long base = NEIGH_VAR(p, BASE_REACHABLE_TIME);
+
+	WRITE_ONCE(p->reachable_time, neigh_rand_reach_time(base));
+}
 
 void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 		    struct sk_buff *skb);

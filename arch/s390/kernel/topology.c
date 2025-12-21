@@ -3,8 +3,7 @@
  *    Copyright IBM Corp. 2007, 2011
  */
 
-#define KMSG_COMPONENT "cpu"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cpu: " fmt
 
 #include <linux/cpufeature.h>
 #include <linux/workqueue.h>

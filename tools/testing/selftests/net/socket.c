@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 struct socket_testcase {
 	int	domain;

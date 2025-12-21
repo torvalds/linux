@@ -665,6 +665,7 @@ static void pcmciamtd_detach(struct pcmcia_device *link)
 	}
 
 	pcmciamtd_release(link);
+	kfree(dev);
 }
 
 

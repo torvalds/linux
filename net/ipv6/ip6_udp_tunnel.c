@@ -40,7 +40,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
 	       sizeof(udp6_addr.sin6_addr));
 	udp6_addr.sin6_port = cfg->local_udp_port;
-	err = kernel_bind(sock, (struct sockaddr *)&udp6_addr,
+	err = kernel_bind(sock, (struct sockaddr_unsized *)&udp6_addr,
 			  sizeof(udp6_addr));
 	if (err < 0)
 		goto error;
@@ -52,7 +52,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 		       sizeof(udp6_addr.sin6_addr));
 		udp6_addr.sin6_port = cfg->peer_udp_port;
 		err = kernel_connect(sock,
-				     (struct sockaddr *)&udp6_addr,
+				     (struct sockaddr_unsized *)&udp6_addr,
 				     sizeof(udp6_addr), 0);
 	}
 	if (err < 0)

@@ -820,7 +820,10 @@ int hibernate(void)
 	if (error)
 		goto Restore;
 
-	ksys_sync_helper();
+	error = pm_sleep_fs_sync();
+	if (error)
+		goto Notify;
+
 	filesystems_freeze(filesystem_freeze_enabled);
 
 	error = freeze_processes();
@@ -891,6 +894,7 @@ int hibernate(void)
 	freezer_test_done = false;
  Exit:
 	filesystems_thaw();
+ Notify:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
  Restore:
 	pm_restore_console();

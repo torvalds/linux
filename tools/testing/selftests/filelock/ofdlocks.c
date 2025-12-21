@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static int lock_set(int fd, struct flock *fl)
 {
