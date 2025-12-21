@@ -17456,7 +17456,7 @@ S:	Maintained
 F:	Documentation/core-api/min_heap.rst
 F:	include/linux/min_heap.h
 F:	lib/min_heap.c
-F:	lib/test_min_heap.c
+F:	lib/tests/min_heap_kunit.c
 
 MIPI CCS, SMIA AND SMIA++ IMAGE SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>

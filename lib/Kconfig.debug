@@ -2278,16 +2278,6 @@ config TEST_LIST_SORT
 
 	  If unsure, say N.
 
-config TEST_MIN_HEAP
-	tristate "Min heap test"
-	depends on DEBUG_KERNEL || m
-	help
-	  Enable this to turn on min heap function tests. This test is
-	  executed only once during system boot (so affects only boot time),
-	  or at module load time.
-
-	  If unsure, say N.
-
 config TEST_SORT
 	tristate "Array-based sort test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2877,6 +2867,17 @@ config MEMCPY_KUNIT_TEST
 	  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
 	  If unsure, say N.
+
+config MIN_HEAP_KUNIT_TEST
+	tristate "Min heap test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the KUnit test suite for the min heap library
+	  which provides functions for creating and managing min heaps.
+	  The test suite checks the functionality of the min heap library.
+
+	  If unsure, say N
 
 config IS_SIGNED_TYPE_KUNIT_TEST
 	tristate "Test is_signed_type() macro" if !KUNIT_ALL_TESTS
