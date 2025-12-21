@@ -891,22 +891,19 @@ static ssize_t num_base_addresses_show(struct ip_hw_instance *ip_hw_instance, ch
 
 static ssize_t base_addr_show(struct ip_hw_instance *ip_hw_instance, char *buf)
 {
-	ssize_t res, at;
+	ssize_t at;
 	int ii;
 
-	for (res = at = ii = 0; ii < ip_hw_instance->num_base_addresses; ii++) {
+	for (at = ii = 0; ii < ip_hw_instance->num_base_addresses; ii++) {
 		/* Here we satisfy the condition that, at + size <= PAGE_SIZE.
 		 */
 		if (at + 12 > PAGE_SIZE)
 			break;
-		res = sysfs_emit_at(buf, at, "0x%08X\n",
+		at += sysfs_emit_at(buf, at, "0x%08X\n",
 				    ip_hw_instance->base_addr[ii]);
-		if (res <= 0)
-			break;
-		at += res;
 	}
 
-	return res < 0 ? res : at;
+	return at;
 }
 
 static struct ip_hw_instance_attr ip_hw_attr[] = {
