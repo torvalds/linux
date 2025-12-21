@@ -891,6 +891,7 @@
 
 #define ABS_VOLUME		0x20
 #define ABS_PROFILE		0x21
+#define ABS_SND_PROFILE		0x22
 
 #define ABS_MISC		0x28
 
@@ -999,5 +1000,13 @@
 #define SND_TONE		0x02
 #define SND_MAX			0x07
 #define SND_CNT			(SND_MAX+1)
+
+/*
+ * ABS_SND_PROFILE values
+ */
+
+#define SND_PROFILE_SILENT	0x00
+#define SND_PROFILE_VIBRATE	0x01
+#define SND_PROFILE_RING	0x02
 
 #endif
