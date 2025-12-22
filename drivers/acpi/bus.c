@@ -237,13 +237,60 @@ static int acpi_eval_osc(acpi_handle handle, guid_t *guid, int rev,
 	return 0;
 }
 
+static bool acpi_osc_error_check(acpi_handle handle, guid_t *guid, int rev,
+				 struct acpi_buffer *cap, u32 *retbuf)
+{
+	/* Only take defined error bits into account. */
+	u32 errors = retbuf[OSC_QUERY_DWORD] & OSC_ERROR_MASK;
+	u32 *capbuf = cap->pointer;
+	bool fail;
+
+	/*
+	 * If OSC_QUERY_ENABLE is set, ignore the "capabilities masked"
+	 * bit because it merely means that some features have not been
+	 * acknowledged which is not unexpected.
+	 */
+	if (capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE)
+		errors &= ~OSC_CAPABILITIES_MASK_ERROR;
+
+	if (!errors)
+		return false;
+
+	acpi_dump_osc_data(handle, guid, rev, cap);
+	/*
+	 * As a rule, fail only if OSC_QUERY_ENABLE is set because otherwise the
+	 * acknowledged features need to be controlled.
+	 */
+	fail = !!(capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE);
+
+	if (errors & OSC_REQUEST_ERROR)
+		acpi_handle_debug(handle, "_OSC: request failed\n");
+
+	if (errors & OSC_INVALID_UUID_ERROR) {
+		acpi_handle_debug(handle, "_OSC: invalid UUID\n");
+		/*
+		 * Always fail if this bit is set because it means that the
+		 * request could not be processed.
+		 */
+		fail = true;
+	}
+
+	if (errors & OSC_INVALID_REVISION_ERROR)
+		acpi_handle_debug(handle, "_OSC: invalid revision\n");
+
+	if (errors & OSC_CAPABILITIES_MASK_ERROR)
+		acpi_handle_debug(handle, "_OSC: capability bits masked\n");
+
+	return fail;
+}
+
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 {
-	u32 errors, *capbuf = context->cap.pointer;
 	union acpi_object in_params[4], *out_obj;
 	struct acpi_buffer output;
 	acpi_status status = AE_OK;
 	guid_t guid;
+	u32 *retbuf;
 	int ret;
 
 	if (!context || !context->cap.pointer ||
@@ -257,51 +304,15 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 		return AE_ERROR;
 
 	out_obj = output.pointer;
-	/* Only take defined error bits into account. */
-	errors = *((u32 *)out_obj->buffer.pointer) & OSC_ERROR_MASK;
-	/*
-	 * If OSC_QUERY_ENABLE is set, ignore the "capabilities masked"
-	 * bit because it merely means that some features have not been
-	 * acknowledged which is not unexpected.
-	 */
-	if (capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE)
-		errors &= ~OSC_CAPABILITIES_MASK_ERROR;
+	retbuf = (u32 *)out_obj->buffer.pointer;
 
-	if (errors) {
-		/*
-		 * As a rule, fail only if OSC_QUERY_ENABLE is set because
-		 * otherwise the acknowledged features need to be controlled.
-		 */
-		bool fail = !!(capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE);
-
-		acpi_dump_osc_data(handle, &guid, context->rev, &context->cap);
-		if (errors & OSC_INVALID_UUID_ERROR) {
-			acpi_handle_debug(handle, "_OSC: invalid UUID");
-			/*
-			 * Always fail if this bit is set because it means that
-			 * the request could not be processed.
-			 */
-			fail = true;
-			goto out_kfree;
-		}
-		if (errors & OSC_REQUEST_ERROR)
-			acpi_handle_debug(handle, "_OSC: request failed");
-
-		if (errors & OSC_INVALID_REVISION_ERROR)
-			acpi_handle_debug(handle, "_OSC: invalid revision");
-
-		if (errors & OSC_CAPABILITIES_MASK_ERROR)
-			acpi_handle_debug(handle, "_OSC: capability bits masked");
-
-		if (fail) {
-			status = AE_ERROR;
-			goto out_kfree;
-		}
+	if (acpi_osc_error_check(handle, &guid, context->rev, &context->cap, retbuf)) {
+		status = AE_ERROR;
+		goto out_kfree;
 	}
 
 	context->ret.length = out_obj->buffer.length;
-	context->ret.pointer = kmemdup(out_obj->buffer.pointer,
-				       context->ret.length, GFP_KERNEL);
+	context->ret.pointer = kmemdup(retbuf, context->ret.length, GFP_KERNEL);
 	if (!context->ret.pointer) {
 		status =  AE_NO_MEMORY;
 		goto out_kfree;
