@@ -1433,7 +1433,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
 	char vendor[128], product[128], sku[128];
 	char *ptr_vendor, *ptr_product, *ptr_sku;
-	char rae_filename[128];
+	char rae_filename[512];
 	char tag[5];
 	int ret = 0;
 	int retry = 200;
@@ -1600,7 +1600,7 @@ struct rt1320_dspfwheader {
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
 	char vendor[128], product[128], sku[128];
 	char *ptr_vendor, *ptr_product, *ptr_sku;
-	char filename[128];
+	char filename[512];
 
 	switch (rt1320->dev_id) {
 	case RT1320_DEV_ID:
