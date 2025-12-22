@@ -308,19 +308,19 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 
 	if (acpi_osc_error_check(handle, &guid, context->rev, &context->cap, retbuf)) {
 		status = AE_ERROR;
-		goto out_kfree;
+		goto out;
 	}
 
 	context->ret.length = out_obj->buffer.length;
 	context->ret.pointer = kmemdup(retbuf, context->ret.length, GFP_KERNEL);
 	if (!context->ret.pointer) {
 		status =  AE_NO_MEMORY;
-		goto out_kfree;
+		goto out;
 	}
 	status =  AE_OK;
 
-out_kfree:
-	kfree(output.pointer);
+out:
+	ACPI_FREE(out_obj);
 	return status;
 }
 EXPORT_SYMBOL(acpi_run_osc);
