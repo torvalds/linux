@@ -10,9 +10,9 @@
 #include <linux/v4l2-mediabus.h>
 
 /* Input flags need to be set from the caller */
-#define GB_CAMERA_IN_FLAG_TEST		(1 << 0)
+#define GB_CAMERA_IN_FLAG_TEST		BIT(0)
 /* Output flags returned */
-#define GB_CAMERA_OUT_FLAG_ADJUSTED	(1 << 0)
+#define GB_CAMERA_OUT_FLAG_ADJUSTED	BIT(0)
 
 /**
  * struct gb_camera_stream - Represents greybus camera stream.
