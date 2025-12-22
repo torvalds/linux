@@ -207,8 +207,7 @@ static int rsci_scif_set_rtrg(struct uart_port *port, int rx_trig)
 	else if (rx_trig < 1)
 		rx_trig = 0;
 
-	fcr &= ~FCR_RTRG4_0;
-	fcr |= field_prep(FCR_RTRG4_0, rx_trig);
+	FIELD_MODIFY(FCR_RTRG4_0, &fcr, rx_trig);
 	rsci_serial_out(port, FCR, fcr);
 
 	return rx_trig;
