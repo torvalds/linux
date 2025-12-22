@@ -27,15 +27,9 @@ struct btrfs_failed_bio {
 	atomic_t repair_count;
 };
 
-/* Is this a data path I/O that needs storage layer checksum and repair? */
-static inline bool is_data_bbio(const struct btrfs_bio *bbio)
-{
-	return bbio->inode && is_data_inode(bbio->inode);
-}
-
 static bool bbio_has_ordered_extent(const struct btrfs_bio *bbio)
 {
-	return is_data_bbio(bbio) && btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE;
+	return is_data_inode(bbio->inode) && btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE;
 }
 
 /*
@@ -356,7 +350,7 @@ static void simple_end_io_work(struct work_struct *work)
 
 	if (bio_op(bio) == REQ_OP_READ) {
 		/* Metadata reads are checked and repaired by the submitter. */
-		if (is_data_bbio(bbio))
+		if (is_data_inode(bbio->inode))
 			return btrfs_check_read_bio(bbio, bbio->bio.bi_private);
 		return btrfs_bio_end_io(bbio, bbio->bio.bi_status);
 	}
@@ -390,7 +384,7 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio))
+	if (bio_op(bio) == REQ_OP_READ && is_data_inode(bbio->inode))
 		btrfs_check_read_bio(bbio, NULL);
 	else
 		btrfs_bio_end_io(bbio, bbio->bio.bi_status);
@@ -753,7 +747,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 * our bio to the physical disk location, so we need to save the
 	 * original bytenr so we know what we're checksumming.
 	 */
-	if (bio_op(bio) == REQ_OP_WRITE && is_data_bbio(bbio))
+	if (bio_op(bio) == REQ_OP_WRITE && is_data_inode(bbio->inode))
 		bbio->orig_logical = logical;
 
 	bbio->can_use_append = btrfs_use_zone_append(bbio);
@@ -779,7 +773,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 * Save the iter for the end_io handler and preload the checksums for
 	 * data reads.
 	 */
-	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
+	if (bio_op(bio) == REQ_OP_READ && is_data_inode(bbio->inode)) {
 		bbio->saved_iter = bio->bi_iter;
 		ret = btrfs_lookup_bio_sums(bbio);
 		status = errno_to_blk_status(ret);
@@ -788,7 +782,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	}
 
 	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		if (is_data_bbio(bbio) && bioc && bioc->use_rst) {
+		if (is_data_inode(bbio->inode) && bioc && bioc->use_rst) {
 			/*
 			 * No locking for the list update, as we only add to
 			 * the list in the I/O submission path, and list
