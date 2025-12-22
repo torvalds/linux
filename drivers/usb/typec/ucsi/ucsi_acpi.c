@@ -86,21 +86,6 @@ static int ucsi_acpi_read_message_in(struct ucsi *ucsi, void *val, size_t val_le
 	return 0;
 }
 
-static int ucsi_acpi_write_message_out(struct ucsi *ucsi, void *data, size_t data_len)
-{
-	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-
-	if (!data || !data_len)
-		return -EINVAL;
-
-	if (ucsi->version <= UCSI_VERSION_1_2)
-		memcpy(ua->base + UCSI_MESSAGE_OUT, data, data_len);
-	else
-		memcpy(ua->base + UCSIv2_MESSAGE_OUT, data, data_len);
-
-	return 0;
-}
-
 static int ucsi_acpi_async_control(struct ucsi *ucsi, u64 command)
 {
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
@@ -116,7 +101,6 @@ static const struct ucsi_operations ucsi_acpi_ops = {
 	.read_cci = ucsi_acpi_read_cci,
 	.poll_cci = ucsi_acpi_poll_cci,
 	.read_message_in = ucsi_acpi_read_message_in,
-	.write_message_out = ucsi_acpi_write_message_out,
 	.sync_control = ucsi_sync_control_common,
 	.async_control = ucsi_acpi_async_control
 };

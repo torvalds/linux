@@ -67,20 +67,6 @@ int ucsi_sync_control_common(struct ucsi *ucsi, u64 command, u32 *cci)
 
 	reinit_completion(&ucsi->complete);
 
-	if (ucsi->message_out_size > 0) {
-		if (!ucsi->ops->write_message_out) {
-			ucsi->message_out_size = 0;
-			ret = -EOPNOTSUPP;
-			goto out_clear_bit;
-		}
-
-		ret = ucsi->ops->write_message_out(ucsi, ucsi->message_out,
-						   ucsi->message_out_size);
-		ucsi->message_out_size = 0;
-		if (ret)
-			goto out_clear_bit;
-	}
-
 	ret = ucsi->ops->async_control(ucsi, command);
 	if (ret)
 		goto out_clear_bit;
