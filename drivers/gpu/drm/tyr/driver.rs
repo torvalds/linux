@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 or MIT
 
-use kernel::c_str;
 use kernel::clk::Clk;
 use kernel::clk::OptionalClk;
 use kernel::device::Bound;
@@ -91,8 +90,8 @@ kernel::of_device_table!(
     MODULE_OF_TABLE,
     <TyrDriver as platform::Driver>::IdInfo,
     [
-        (of::DeviceId::new(c_str!("rockchip,rk3588-mali")), ()),
-        (of::DeviceId::new(c_str!("arm,mali-valhall-csf")), ())
+        (of::DeviceId::new(c"rockchip,rk3588-mali"), ()),
+        (of::DeviceId::new(c"arm,mali-valhall-csf"), ())
     ]
 );
 
@@ -104,16 +103,16 @@ impl platform::Driver for TyrDriver {
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
     ) -> impl PinInit<Self, Error> {
-        let core_clk = Clk::get(pdev.as_ref(), Some(c_str!("core")))?;
-        let stacks_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("stacks")))?;
-        let coregroup_clk = OptionalClk::get(pdev.as_ref(), Some(c_str!("coregroup")))?;
+        let core_clk = Clk::get(pdev.as_ref(), Some(c"core"))?;
+        let stacks_clk = OptionalClk::get(pdev.as_ref(), Some(c"stacks"))?;
+        let coregroup_clk = OptionalClk::get(pdev.as_ref(), Some(c"coregroup"))?;
 
         core_clk.prepare_enable()?;
         stacks_clk.prepare_enable()?;
         coregroup_clk.prepare_enable()?;
 
-        let mali_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c_str!("mali"))?;
-        let sram_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c_str!("sram"))?;
+        let mali_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c"mali")?;
+        let sram_regulator = Regulator::<regulator::Enabled>::get(pdev.as_ref(), c"sram")?;
 
         let request = pdev.io_request_by_index(0).ok_or(ENODEV)?;
         let iomem = Arc::pin_init(request.iomap_sized::<SZ_2M>(), GFP_KERNEL)?;
@@ -174,8 +173,8 @@ const INFO: drm::DriverInfo = drm::DriverInfo {
     major: 1,
     minor: 5,
     patchlevel: 0,
-    name: c_str!("panthor"),
-    desc: c_str!("ARM Mali Tyr DRM driver"),
+    name: c"panthor",
+    desc: c"ARM Mali Tyr DRM driver",
 };
 
 #[vtable]
