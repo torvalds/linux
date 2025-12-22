@@ -30,12 +30,12 @@ pvr_power_get(struct pvr_device *pvr_dev)
 	return pm_runtime_resume_and_get(drm_dev->dev);
 }
 
-static __always_inline int
+static __always_inline void
 pvr_power_put(struct pvr_device *pvr_dev)
 {
 	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
 
-	return pm_runtime_put(drm_dev->dev);
+	pm_runtime_put(drm_dev->dev);
 }
 
 int pvr_power_domains_init(struct pvr_device *pvr_dev);
