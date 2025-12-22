@@ -702,7 +702,7 @@ retry:
 	rd.old_parent		= NULL;
 	rd.new_parent		= new_path.dentry;
 	rd.flags		= flags;
-	rd.delegated_inode	= NULL,
+	rd.delegated_inode	= NULL;
 	err = start_renaming_dentry(&rd, lookup_flags, old_child, &new_last);
 	if (err)
 		goto out_drop_write;

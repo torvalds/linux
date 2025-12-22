@@ -10,7 +10,7 @@ description: The IXP4xx SoCs has a full-speed USB Device
   Controller with 16 endpoints and a built-in transceiver.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 properties:
   compatible:

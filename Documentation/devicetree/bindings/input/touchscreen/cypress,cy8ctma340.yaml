@@ -12,7 +12,7 @@ description: The Cypress CY8CTMA340 series (also known as "CYTTSP" after
 
 maintainers:
   - Javier Martinez Canillas <javier@dowhile0.org>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 allOf:
   - $ref: touchscreen.yaml#

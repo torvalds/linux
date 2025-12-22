@@ -2019,12 +2019,13 @@ out:
 	else
 		btrfs_delalloc_release_space(inode, data_reserved, page_start,
 					     reserved_space, true);
-	extent_changeset_free(data_reserved);
 out_noreserve:
 	if (only_release_metadata)
 		btrfs_check_nocow_unlock(inode);
 
 	sb_end_pagefault(inode->vfs_inode.i_sb);
+
+	extent_changeset_free(data_reserved);
 
 	if (ret < 0)
 		return vmf_error(ret);

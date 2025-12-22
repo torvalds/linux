@@ -21,7 +21,7 @@ EXPORT_SYMBOL_FOR_MODULES(xe_sriov_vfio_get_pf, "xe-vfio-pci");
 bool xe_sriov_vfio_migration_supported(struct xe_device *xe)
 {
 	if (!IS_SRIOV_PF(xe))
-		return -EPERM;
+		return false;
 
 	return xe_sriov_pf_migration_supported(xe);
 }
