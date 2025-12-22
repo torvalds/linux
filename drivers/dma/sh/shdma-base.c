@@ -143,7 +143,7 @@ static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
 				}
 
 				schan->pm_state = SHDMA_PM_ESTABLISHED;
-				ret = pm_runtime_put(schan->dev);
+				pm_runtime_put(schan->dev);
 
 				spin_unlock_irq(&schan->chan_lock);
 				return ret;
