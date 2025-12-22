@@ -445,73 +445,70 @@ bool osc_sb_cppc2_support_acked;
 static void acpi_bus_osc_negotiate_platform_control(void)
 {
 	static const u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
-	u32 capbuf[2];
+	u32 capbuf[2], feature_mask;
 	struct acpi_buffer cap = {
 		.pointer = capbuf,
 		.length = sizeof(capbuf),
 	};
 	acpi_handle handle;
 
-	capbuf[OSC_SUPPORT_DWORD] = OSC_SB_PR3_SUPPORT; /* _PR3 is in use */
+	feature_mask = OSC_SB_PR3_SUPPORT | OSC_SB_HOTPLUG_OST_SUPPORT |
+			OSC_SB_PCLPI_SUPPORT | OSC_SB_OVER_16_PSTATES_SUPPORT |
+			OSC_SB_GED_SUPPORT | OSC_SB_IRQ_RESOURCE_SOURCE_SUPPORT;
+
+	if (IS_ENABLED(CONFIG_ARM64) || IS_ENABLED(CONFIG_X86))
+		feature_mask |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
+
+	if (IS_ENABLED(CONFIG_ACPI_CPPC_LIB)) {
+		feature_mask |= OSC_SB_CPC_SUPPORT | OSC_SB_CPCV2_SUPPORT |
+				OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
+		if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
+			feature_mask |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
+	}
+
 	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR_AGGREGATOR))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PAD_SUPPORT;
+		feature_mask |= OSC_SB_PAD_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_PROCESSOR))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PPC_OST_SUPPORT;
+		feature_mask |= OSC_SB_PPC_OST_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_THERMAL))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
+		feature_mask |= OSC_SB_FAST_THERMAL_SAMPLING_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_BATTERY))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_BATTERY_CHARGE_LIMITING_SUPPORT;
+		feature_mask |= OSC_SB_BATTERY_CHARGE_LIMITING_SUPPORT;
 
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_HOTPLUG_OST_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PCLPI_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_OVER_16_PSTATES_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GED_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_IRQ_RESOURCE_SOURCE_SUPPORT;
 	if (IS_ENABLED(CONFIG_ACPI_PRMT))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_PRM_SUPPORT;
+		feature_mask |= OSC_SB_PRM_SUPPORT;
+
 	if (IS_ENABLED(CONFIG_ACPI_FFH))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_FFH_OPR_SUPPORT;
-
-#ifdef CONFIG_ARM64
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-#endif
-#ifdef CONFIG_X86
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_GENERIC_INITIATOR_SUPPORT;
-#endif
-
-#ifdef CONFIG_ACPI_CPPC_LIB
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_SUPPORT;
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPCV2_SUPPORT;
-#endif
-
-	capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
-
-	if (IS_ENABLED(CONFIG_SCHED_MC_PRIO))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_CPC_DIVERSE_HIGH_SUPPORT;
+		feature_mask |= OSC_SB_FFH_OPR_SUPPORT;
 
 	if (IS_ENABLED(CONFIG_USB4))
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_NATIVE_USB4_SUPPORT;
+		feature_mask |= OSC_SB_NATIVE_USB4_SUPPORT;
 
 	if (!ghes_disable)
-		capbuf[OSC_SUPPORT_DWORD] |= OSC_SB_APEI_SUPPORT;
+		feature_mask |= OSC_SB_APEI_SUPPORT;
+
 	if (ACPI_FAILURE(acpi_get_handle(NULL, "\\_SB", &handle)))
 		return;
+
+	capbuf[OSC_SUPPORT_DWORD] = feature_mask;
+
+	acpi_handle_info(handle, "platform _OSC: OS support mask [%08x]\n", feature_mask);
 
 	if (acpi_osc_handshake(handle, sb_uuid_str, 1, &cap))
 		return;
 
-#ifdef CONFIG_ACPI_CPPC_LIB
-	osc_sb_cppc2_support_acked = capbuf[OSC_SUPPORT_DWORD] & OSC_SB_CPCV2_SUPPORT;
-#endif
+	feature_mask = capbuf[OSC_SUPPORT_DWORD];
 
-	osc_sb_apei_support_acked =
-			capbuf[OSC_SUPPORT_DWORD] & OSC_SB_APEI_SUPPORT;
-	osc_pc_lpi_support_confirmed =
-			capbuf[OSC_SUPPORT_DWORD] & OSC_SB_PCLPI_SUPPORT;
-	osc_sb_native_usb4_support_confirmed =
-			capbuf[OSC_SUPPORT_DWORD] & OSC_SB_NATIVE_USB4_SUPPORT;
-	osc_cpc_flexible_adr_space_confirmed =
-			capbuf[OSC_SUPPORT_DWORD] & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
+	acpi_handle_info(handle, "platform _OSC: OS control mask [%08x]\n", feature_mask);
+
+	osc_sb_cppc2_support_acked = feature_mask & OSC_SB_CPCV2_SUPPORT;
+	osc_sb_apei_support_acked = feature_mask & OSC_SB_APEI_SUPPORT;
+	osc_pc_lpi_support_confirmed = feature_mask & OSC_SB_PCLPI_SUPPORT;
+	osc_sb_native_usb4_support_confirmed = feature_mask & OSC_SB_NATIVE_USB4_SUPPORT;
+	osc_cpc_flexible_adr_space_confirmed = feature_mask & OSC_SB_CPC_FLEXIBLE_ADR_SPACE;
 }
 
 /*
