@@ -1320,9 +1320,11 @@ static int ov5647_configure_regulators(struct device *dev,
 static int ov5647_init_controls(struct ov5647 *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->sd);
+	struct v4l2_fwnode_device_properties props;
 	int hblank, exposure_max, exposure_def;
+	struct device *dev = &client->dev;
 
-	v4l2_ctrl_handler_init(&sensor->ctrls, 9);
+	v4l2_ctrl_handler_init(&sensor->ctrls, 11);
 
 	v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
@@ -1370,6 +1372,11 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(ov5647_test_pattern_menu) - 1,
 				     0, 0, ov5647_test_pattern_menu);
+
+	v4l2_fwnode_device_parse(dev, &props);
+
+	v4l2_ctrl_new_fwnode_properties(&sensor->ctrls, &ov5647_ctrl_ops,
+					&props);
 
 	if (sensor->ctrls.error)
 		goto handler_free;
