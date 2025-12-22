@@ -1894,12 +1894,27 @@ int intel_dp_dsc_max_src_input_bpc(struct intel_display *display)
 	return intel_dp_dsc_min_src_input_bpc();
 }
 
+static int align_max_sink_dsc_input_bpp(const struct intel_connector *connector,
+					int max_pipe_bpp)
+{
+	u8 dsc_bpc[3];
+	int num_bpc;
+	int i;
+
+	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
+						       dsc_bpc);
+	for (i = 0; i < num_bpc; i++) {
+		if (dsc_bpc[i] * 3 <= max_pipe_bpp)
+			return dsc_bpc[i] * 3;
+	}
+
+	return 0;
+}
+
 int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
 				 u8 max_req_bpc)
 {
 	struct intel_display *display = to_intel_display(connector);
-	int i, num_bpc;
-	u8 dsc_bpc[3] = {};
 	int dsc_max_bpc;
 
 	dsc_max_bpc = intel_dp_dsc_max_src_input_bpc(display);
@@ -1909,14 +1924,7 @@ int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
 
 	dsc_max_bpc = min(dsc_max_bpc, max_req_bpc);
 
-	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
-						       dsc_bpc);
-	for (i = 0; i < num_bpc; i++) {
-		if (dsc_max_bpc >= dsc_bpc[i])
-			return dsc_bpc[i] * 3;
-	}
-
-	return 0;
+	return align_max_sink_dsc_input_bpp(connector, dsc_max_bpc * 3);
 }
 
 static int intel_dp_source_dsc_version_minor(struct intel_display *display)
