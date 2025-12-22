@@ -190,15 +190,12 @@ int phy_pm_runtime_get_sync(struct phy *phy)
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_get_sync);
 
-int phy_pm_runtime_put(struct phy *phy)
+void phy_pm_runtime_put(struct phy *phy)
 {
 	if (!phy)
-		return 0;
+		return;
 
-	if (!pm_runtime_enabled(&phy->dev))
-		return -ENOTSUPP;
-
-	return pm_runtime_put(&phy->dev);
+	pm_runtime_put(&phy->dev);
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_put);
 
