@@ -18,6 +18,12 @@ properties:
           - renesas,r9a09g077-rsci # RZ/T2H
 
       - items:
+          - enum:
+              - renesas,r9a09g056-rsci # RZ/V2N
+              - renesas,r9a09g057-rsci # RZ/V2H(P)
+          - const: renesas,r9a09g047-rsci
+
+      - items:
           - const: renesas,r9a09g087-rsci # RZ/N2H
           - const: renesas,r9a09g077-rsci # RZ/T2H
 
