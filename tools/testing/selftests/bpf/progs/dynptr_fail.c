@@ -1465,7 +1465,7 @@ int xdp_invalid_data_slice2(struct xdp_md *xdp)
 }
 
 /* Only supported prog type can create skb-type dynptrs */
-SEC("?raw_tp")
+SEC("?xdp")
 __failure __msg("calling kernel function bpf_dynptr_from_skb is not allowed")
 int skb_invalid_ctx(void *ctx)
 {
