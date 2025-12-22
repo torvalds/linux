@@ -1024,7 +1024,7 @@ void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
 void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 {
 	u32 mask, rate_bitmap;
-	u8 shortGIrate = false;
+	u8 short_gi_rate = false;
 	struct sta_info *psta;
 	struct hal_com_data	*pHalData = GET_HAL_DATA(padapter);
 	struct dm_priv *pdmpriv = &pHalData->dmpriv;
@@ -1038,7 +1038,7 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 	if (!psta)
 		return;
 
-	shortGIrate = query_ra_short_GI(psta);
+	short_gi_rate = query_ra_short_GI(psta);
 
 	mask = psta->ra_mask;
 
@@ -1051,7 +1051,7 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 	mask &= ~rate_bitmap;
 
 	if (pHalData->fw_ractrl) {
-		rtl8723b_set_FwMacIdConfig_cmd(padapter, mac_id, psta->raid, psta->bw_mode, shortGIrate, mask);
+		rtl8723b_set_FwMacIdConfig_cmd(padapter, mac_id, psta->raid, psta->bw_mode, short_gi_rate, mask);
 	}
 
 	/* set correct initial date rate for each mac_id */
