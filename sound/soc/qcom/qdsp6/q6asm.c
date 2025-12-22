@@ -597,12 +597,12 @@ int q6asm_get_hw_pointer(struct audio_client *ac, unsigned int dir)
 EXPORT_SYMBOL_GPL(q6asm_get_hw_pointer);
 
 static int32_t q6asm_stream_callback(struct apr_device *adev,
-				     struct apr_resp_pkt *data,
+				     const struct apr_resp_pkt *data,
 				     int session_id)
 {
 	struct q6asm *q6asm = dev_get_drvdata(&adev->dev);
-	struct aprv2_ibasic_rsp_result_t *result;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct aprv2_ibasic_rsp_result_t *result;
+	const struct apr_hdr *hdr = &data->hdr;
 	struct audio_port_data *port;
 	struct audio_client *ac;
 	uint32_t client_event = 0;
@@ -742,13 +742,13 @@ done:
 }
 
 static int q6asm_srvc_callback(struct apr_device *adev,
-			       struct apr_resp_pkt *data)
+			       const struct apr_resp_pkt *data)
 {
 	struct q6asm *q6asm = dev_get_drvdata(&adev->dev);
 	struct aprv2_ibasic_rsp_result_t *result;
 	struct audio_port_data *port;
 	struct audio_client *ac = NULL;
-	struct apr_hdr *hdr = &data->hdr;
+	const struct apr_hdr *hdr = &data->hdr;
 	struct q6asm *a;
 	uint32_t sid = 0;
 	uint32_t dir = 0;
