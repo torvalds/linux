@@ -2322,30 +2322,6 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	return 0;
 }
 
-static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
-					  struct intel_crtc_state *pipe_config,
-					  struct drm_connector_state *conn_state,
-					  const struct link_config_limits *limits)
-{
-	int pipe_bpp, forced_bpp;
-	int ret;
-
-	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp, limits);
-	if (forced_bpp)
-		pipe_bpp = forced_bpp;
-	else
-		pipe_bpp = limits->pipe.max_bpp;
-
-	ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
-					 limits, pipe_bpp);
-	if (ret)
-		return -EINVAL;
-
-	pipe_config->pipe_bpp = pipe_bpp;
-
-	return 0;
-}
-
 /*
  * Return whether FEC must be enabled for 8b10b SST or MST links. On 128b132b
  * links FEC is always enabled implicitly by the HW, so this function returns
@@ -2397,12 +2373,8 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * figured out for DP MST DSC.
 	 */
 	if (!is_mst) {
-		if (intel_dp_is_edp(intel_dp))
-			ret = intel_edp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
-							     conn_state, limits);
-		else
-			ret = intel_dp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
-							    conn_state, limits);
+		ret = intel_dp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
+						    conn_state, limits);
 		if (ret) {
 			drm_dbg_kms(display->drm,
 				    "No Valid pipe bpp for given mode ret = %d\n", ret);
