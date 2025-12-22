@@ -252,7 +252,7 @@ static struct regval_list ov5647_2592x1944_10bpp[] = {
 };
 
 static struct regval_list ov5647_1080p30_10bpp[] = {
-	{0x3036, 0x62},
+	{0x3036, 0x69},
 	{0x3821, 0x02},
 	{0x3820, 0x00},
 	{0x3612, 0x5b},
@@ -288,7 +288,7 @@ static struct regval_list ov5647_1080p30_10bpp[] = {
 };
 
 static struct regval_list ov5647_2x2binned_10bpp[] = {
-	{0x3036, 0x62},
+	{0x3036, 0x69},
 	{0x3821, 0x03},
 	{0x3820, 0x41},
 	{0x3612, 0x59},
@@ -396,7 +396,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.width		= 1928,
 			.height		= 1080,
 		},
-		.pixel_rate	= 81666700,
+		.pixel_rate	= 87500000,
 		.hts		= 2416,
 		.vts		= 0x450,
 		.reg_list	= ov5647_1080p30_10bpp,
@@ -417,7 +417,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.width		= 2592,
 			.height		= 1944,
 		},
-		.pixel_rate	= 81666700,
+		.pixel_rate	= 87500000,
 		.hts		= 1896,
 		.vts		= 0x59b,
 		.reg_list	= ov5647_2x2binned_10bpp,
