@@ -2,7 +2,6 @@
 
 use kernel::{
     auxiliary,
-    c_str,
     device::Core,
     devres::Devres,
     dma::Device,
@@ -82,7 +81,7 @@ impl pci::Driver for NovaCore {
             unsafe { pdev.dma_set_mask_and_coherent(DmaMask::new::<GPU_DMA_BITS>())? };
 
             let bar = Arc::pin_init(
-                pdev.iomap_region_sized::<BAR0_SIZE>(0, c_str!("nova-core/bar0")),
+                pdev.iomap_region_sized::<BAR0_SIZE>(0, c"nova-core/bar0"),
                 GFP_KERNEL,
             )?;
 
@@ -90,7 +89,7 @@ impl pci::Driver for NovaCore {
                 gpu <- Gpu::new(pdev, bar.clone(), bar.access(pdev.as_ref())?),
                 _reg <- auxiliary::Registration::new(
                     pdev.as_ref(),
-                    c_str!("nova-drm"),
+                    c"nova-drm",
                     0, // TODO[XARR]: Once it lands, use XArray; for now we don't use the ID.
                     crate::MODULE_NAME
                 ),
