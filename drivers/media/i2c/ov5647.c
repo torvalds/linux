@@ -97,6 +97,13 @@ static const char * const ov5647_supply_names[] = {
 
 #define OV5647_NUM_SUPPLIES ARRAY_SIZE(ov5647_supply_names)
 
+#define FREQ_INDEX_FULL		0
+#define FREQ_INDEX_VGA		1
+static const s64 ov5647_link_freqs[] = {
+	[FREQ_INDEX_FULL]	= 218750000,
+	[FREQ_INDEX_VGA]	= 145833300,
+};
+
 struct regval_list {
 	u16 addr;
 	u8 data;
@@ -106,6 +113,7 @@ struct ov5647_mode {
 	struct v4l2_mbus_framefmt	format;
 	struct v4l2_rect		crop;
 	u64				pixel_rate;
+	unsigned int			link_freq_index;
 	int				hts;
 	int				vts;
 	const struct regval_list	*reg_list;
@@ -128,6 +136,7 @@ struct ov5647 {
 	struct v4l2_ctrl		*exposure;
 	struct v4l2_ctrl		*hflip;
 	struct v4l2_ctrl		*vflip;
+	struct v4l2_ctrl		*link_freq;
 };
 
 static inline struct ov5647 *to_sensor(struct v4l2_subdev *sd)
@@ -376,6 +385,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.height		= 1944
 		},
 		.pixel_rate	= 87500000,
+		.link_freq_index = FREQ_INDEX_FULL,
 		.hts		= 2844,
 		.vts		= 0x7b0,
 		.reg_list	= ov5647_2592x1944_10bpp,
@@ -397,6 +407,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.height		= 1080,
 		},
 		.pixel_rate	= 87500000,
+		.link_freq_index = FREQ_INDEX_FULL,
 		.hts		= 2416,
 		.vts		= 0x450,
 		.reg_list	= ov5647_1080p30_10bpp,
@@ -418,6 +429,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.height		= 1944,
 		},
 		.pixel_rate	= 87500000,
+		.link_freq_index = FREQ_INDEX_FULL,
 		.hts		= 1896,
 		.vts		= 0x59b,
 		.reg_list	= ov5647_2x2binned_10bpp,
@@ -439,6 +451,7 @@ static const struct ov5647_mode ov5647_modes[] = {
 			.height		= 1920,
 		},
 		.pixel_rate	= 58333000,
+		.link_freq_index = FREQ_INDEX_VGA,
 		.hts		= 1852,
 		.vts		= 0x1f8,
 		.reg_list	= ov5647_640x480_10bpp,
@@ -927,6 +940,8 @@ static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
 					 sensor->exposure->minimum,
 					 exposure_max, sensor->exposure->step,
 					 exposure_def);
+
+		__v4l2_ctrl_s_ctrl(sensor->link_freq, mode->link_freq_index);
 	}
 	*fmt = mode->format;
 	/* The code we pass back must reflect the current h/vflips. */
@@ -1231,7 +1246,7 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 	int hblank, exposure_max, exposure_def;
 	struct device *dev = &client->dev;
 
-	v4l2_ctrl_handler_init(&sensor->ctrls, 13);
+	v4l2_ctrl_handler_init(&sensor->ctrls, 14);
 
 	v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
@@ -1286,6 +1301,14 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 
 	sensor->vflip = v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	sensor->link_freq =
+		v4l2_ctrl_new_int_menu(&sensor->ctrls, NULL, V4L2_CID_LINK_FREQ,
+				       ARRAY_SIZE(ov5647_link_freqs) - 1,
+				       sensor->mode->link_freq_index,
+				       ov5647_link_freqs);
+	if (sensor->link_freq)
+		sensor->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	v4l2_fwnode_device_parse(dev, &props);
 
