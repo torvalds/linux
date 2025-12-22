@@ -309,7 +309,7 @@ void audioreach_set_default_channel_mapping(u8 *ch_map, int num_channels)
 EXPORT_SYMBOL_GPL(audioreach_set_default_channel_mapping);
 
 static void apm_populate_container_config(struct apm_container_obj *cfg,
-					  struct audioreach_container *cont)
+					  const struct audioreach_container *cont)
 {
 
 	/* Container Config */
@@ -339,7 +339,7 @@ static void apm_populate_container_config(struct apm_container_obj *cfg,
 }
 
 static void apm_populate_sub_graph_config(struct apm_sub_graph_data *cfg,
-					  struct audioreach_sub_graph *sg)
+					  const struct audioreach_sub_graph *sg)
 {
 	cfg->sub_graph_cfg.sub_graph_id = sg->sub_graph_id;
 	cfg->sub_graph_cfg.num_sub_graph_prop = APM_SUB_GRAPH_CFG_NPROP;
@@ -361,7 +361,7 @@ static void apm_populate_sub_graph_config(struct apm_sub_graph_data *cfg,
 }
 
 static void apm_populate_module_prop_obj(struct apm_mod_prop_obj *obj,
-					 struct audioreach_module *module)
+					 const struct audioreach_module *module)
 {
 
 	obj->instance_id = module->instance_id;
@@ -373,7 +373,7 @@ static void apm_populate_module_prop_obj(struct apm_mod_prop_obj *obj,
 }
 
 static void apm_populate_module_list_obj(struct apm_mod_list_obj *obj,
-					 struct audioreach_container *container,
+					 const struct audioreach_container *container,
 					 int sub_graph_id)
 {
 	struct audioreach_module *module;
@@ -390,9 +390,10 @@ static void apm_populate_module_list_obj(struct apm_mod_list_obj *obj,
 	}
 }
 
-static void audioreach_populate_graph(struct q6apm *apm, struct audioreach_graph_info *info,
+static void audioreach_populate_graph(struct q6apm *apm,
+				      const struct audioreach_graph_info *info,
 				      struct apm_graph_open_params *open,
-				      struct list_head *sg_list,
+				      const struct list_head *sg_list,
 				      int num_sub_graphs)
 {
 	struct apm_mod_conn_list_params *mc_data = open->mod_conn_list_data;
@@ -464,7 +465,8 @@ static void audioreach_populate_graph(struct q6apm *apm, struct audioreach_graph
 	}
 }
 
-void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info *info)
+void *audioreach_alloc_graph_pkt(struct q6apm *apm,
+				 const struct audioreach_graph_info *info)
 {
 	int payload_size, sg_sz, cont_sz, ml_sz, mp_sz, mc_sz;
 	struct apm_module_param_data  *param_data;
@@ -477,7 +479,7 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info
 	struct audioreach_module *module;
 	struct audioreach_sub_graph *sgs;
 	struct apm_mod_list_obj *mlobj;
-	struct list_head *sg_list;
+	const struct list_head *sg_list;
 	int num_connections = 0;
 	int num_containers = 0;
 	int num_sub_graphs = 0;
@@ -630,8 +632,8 @@ int audioreach_graph_send_cmd_sync(struct q6apm_graph *graph, struct gpr_pkt *pk
 EXPORT_SYMBOL_GPL(audioreach_graph_send_cmd_sync);
 
 static int audioreach_display_port_set_media_format(struct q6apm_graph *graph,
-						    struct audioreach_module *module,
-						    struct audioreach_module_config *cfg)
+						    const struct audioreach_module *module,
+						    const struct audioreach_module_config *cfg)
 {
 	struct apm_display_port_module_intf_cfg *intf_cfg;
 	struct apm_module_frame_size_factor_cfg *fs_cfg;
@@ -687,8 +689,8 @@ static int audioreach_display_port_set_media_format(struct q6apm_graph *graph,
 
 /* LPASS Codec DMA port Module Media Format Setup */
 static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
-						 struct audioreach_module *module,
-						 struct audioreach_module_config *cfg)
+						 const struct audioreach_module *module,
+						 const struct audioreach_module_config *cfg)
 {
 	struct apm_codec_dma_module_intf_cfg *intf_cfg;
 	struct apm_module_frame_size_factor_cfg *fs_cfg;
@@ -753,7 +755,8 @@ static int audioreach_codec_dma_set_media_format(struct q6apm_graph *graph,
 	return q6apm_send_cmd_sync(graph->apm, pkt, 0);
 }
 
-int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_module *module,
+int audioreach_send_u32_param(struct q6apm_graph *graph,
+			      const struct audioreach_module *module,
 			      uint32_t param_id, uint32_t param_val)
 {
 	struct apm_module_param_data *param_data;
@@ -782,36 +785,37 @@ int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_modul
 EXPORT_SYMBOL_GPL(audioreach_send_u32_param);
 
 static int audioreach_sal_limiter_enable(struct q6apm_graph *graph,
-					 struct audioreach_module *module, bool enable)
+					 const struct audioreach_module *module,
+					 bool enable)
 {
 	return audioreach_send_u32_param(graph, module, PARAM_ID_SAL_LIMITER_ENABLE, enable);
 }
 
 static int audioreach_sal_set_media_format(struct q6apm_graph *graph,
-					   struct audioreach_module *module,
-					   struct audioreach_module_config *cfg)
+					   const struct audioreach_module *module,
+					   const struct audioreach_module_config *cfg)
 {
 	return audioreach_send_u32_param(graph, module, PARAM_ID_SAL_OUTPUT_CFG,  cfg->bit_width);
 }
 
 static int audioreach_module_enable(struct q6apm_graph *graph,
-				    struct audioreach_module *module,
+				    const struct audioreach_module *module,
 				    bool enable)
 {
 	return audioreach_send_u32_param(graph, module, PARAM_ID_MODULE_ENABLE, enable);
 }
 
 static int audioreach_gapless_set_media_format(struct q6apm_graph *graph,
-					       struct audioreach_module *module,
-					       struct audioreach_module_config *cfg)
+					       const struct audioreach_module *module,
+					       const struct audioreach_module_config *cfg)
 {
 	return audioreach_send_u32_param(graph, module, PARAM_ID_EARLY_EOS_DELAY,
 					 EARLY_EOS_DELAY_MS);
 }
 
 static int audioreach_set_module_config(struct q6apm_graph *graph,
-					struct audioreach_module *module,
-					struct audioreach_module_config *cfg)
+					const struct audioreach_module *module,
+					const struct audioreach_module_config *cfg)
 {
 	int size = le32_to_cpu(module->data->size);
 	void *p;
@@ -828,8 +832,8 @@ static int audioreach_set_module_config(struct q6apm_graph *graph,
 }
 
 static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
-					   struct audioreach_module *module,
-					   struct audioreach_module_config *cfg)
+					   const struct audioreach_module *module,
+					   const struct audioreach_module_config *cfg)
 {
 	struct apm_module_param_data *param_data;
 	struct param_id_mfc_media_format *media_format;
@@ -863,7 +867,8 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 }
 
 static int audioreach_set_compr_media_format(struct media_format *media_fmt_hdr,
-					     void *p, struct audioreach_module_config *mcfg)
+					     void *p,
+					     const struct audioreach_module_config *mcfg)
 {
 	struct payload_media_fmt_aac_t *aac_cfg;
 	struct payload_media_fmt_pcm *mp3_cfg;
@@ -944,7 +949,8 @@ static int audioreach_set_compr_media_format(struct media_format *media_fmt_hdr,
 	return 0;
 }
 
-int audioreach_compr_set_param(struct q6apm_graph *graph, struct audioreach_module_config *mcfg)
+int audioreach_compr_set_param(struct q6apm_graph *graph,
+			       const struct audioreach_module_config *mcfg)
 {
 	struct media_format *header;
 	int rc;
@@ -969,8 +975,8 @@ int audioreach_compr_set_param(struct q6apm_graph *graph, struct audioreach_modu
 EXPORT_SYMBOL_GPL(audioreach_compr_set_param);
 
 static int audioreach_i2s_set_media_format(struct q6apm_graph *graph,
-					   struct audioreach_module *module,
-					   struct audioreach_module_config *cfg)
+					   const struct audioreach_module *module,
+					   const struct audioreach_module_config *cfg)
 {
 	struct apm_module_frame_size_factor_cfg *fs_cfg;
 	struct apm_module_param_data *param_data;
@@ -1037,7 +1043,7 @@ static int audioreach_i2s_set_media_format(struct q6apm_graph *graph,
 }
 
 static int audioreach_logging_set_media_format(struct q6apm_graph *graph,
-					       struct audioreach_module *module)
+					       const struct audioreach_module *module)
 {
 	struct apm_module_param_data *param_data;
 	struct data_logging_config *cfg;
@@ -1066,8 +1072,8 @@ static int audioreach_logging_set_media_format(struct q6apm_graph *graph,
 }
 
 static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
-					   struct audioreach_module *module,
-					   struct audioreach_module_config *mcfg)
+					   const struct audioreach_module *module,
+					   const struct audioreach_module_config *mcfg)
 {
 	struct payload_pcm_output_format_cfg *media_cfg;
 	uint32_t num_channels = mcfg->num_channels;
@@ -1113,8 +1119,8 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 }
 
 static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
-					     struct audioreach_module *module,
-					     struct audioreach_module_config *mcfg)
+					     const struct audioreach_module *module,
+					     const struct audioreach_module_config *mcfg)
 {
 	uint32_t num_channels = mcfg->num_channels;
 	struct apm_module_param_data *param_data;
@@ -1170,7 +1176,8 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 	return audioreach_graph_send_cmd_sync(graph, pkt, 0);
 }
 
-int audioreach_gain_set_vol_ctrl(struct q6apm *apm, struct audioreach_module *module, int vol)
+int audioreach_gain_set_vol_ctrl(struct q6apm *apm,
+				 const struct audioreach_module *module, int vol)
 {
 	struct param_id_vol_ctrl_master_gain *cfg;
 	struct apm_module_param_data *param_data;
@@ -1195,7 +1202,8 @@ int audioreach_gain_set_vol_ctrl(struct q6apm *apm, struct audioreach_module *mo
 }
 EXPORT_SYMBOL_GPL(audioreach_gain_set_vol_ctrl);
 
-static int audioreach_gain_set(struct q6apm_graph *graph, struct audioreach_module *module)
+static int audioreach_gain_set(struct q6apm_graph *graph,
+			       const struct audioreach_module *module)
 {
 	struct apm_module_param_data *param_data;
 	struct apm_gain_module_cfg *cfg;
@@ -1218,7 +1226,7 @@ static int audioreach_gain_set(struct q6apm_graph *graph, struct audioreach_modu
 }
 
 static int audioreach_speaker_protection(struct q6apm_graph *graph,
-					 struct audioreach_module *module,
+					 const struct audioreach_module *module,
 					 uint32_t operation_mode)
 {
 	return audioreach_send_u32_param(graph, module, PARAM_ID_SP_OP_MODE,
@@ -1226,8 +1234,8 @@ static int audioreach_speaker_protection(struct q6apm_graph *graph,
 }
 
 static int audioreach_speaker_protection_vi(struct q6apm_graph *graph,
-					    struct audioreach_module *module,
-					    struct audioreach_module_config *mcfg)
+					    const struct audioreach_module *module,
+					    const struct audioreach_module_config *mcfg)
 {
 	u32 num_channels = mcfg->num_channels;
 	struct apm_module_sp_vi_op_mode_cfg *op_cfg;
@@ -1304,8 +1312,9 @@ static int audioreach_speaker_protection_vi(struct q6apm_graph *graph,
 	return rc;
 }
 
-int audioreach_set_media_format(struct q6apm_graph *graph, struct audioreach_module *module,
-				struct audioreach_module_config *cfg)
+int audioreach_set_media_format(struct q6apm_graph *graph,
+				const struct audioreach_module *module,
+				const struct audioreach_module_config *cfg)
 {
 	int rc;
 
