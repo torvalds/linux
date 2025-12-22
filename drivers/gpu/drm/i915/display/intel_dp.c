@@ -2617,11 +2617,8 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 
 static int
 dsc_throughput_quirk_max_bpp_x16(const struct intel_connector *connector,
-				 const struct intel_crtc_state *crtc_state)
+				 int mode_clock)
 {
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
-
 	if (!connector->dp.dsc_throughput_quirk)
 		return INT_MAX;
 
@@ -2641,7 +2638,7 @@ dsc_throughput_quirk_max_bpp_x16(const struct intel_connector *connector,
 	 * smaller than the YUV422/420 value, but let's not depend on this
 	 * assumption.
 	 */
-	if (adjusted_mode->crtc_clock <
+	if (mode_clock <
 	    min(connector->dp.dsc_branch_caps.overall_throughput.rgb_yuv444,
 		connector->dp.dsc_branch_caps.overall_throughput.yuv422_420) / 2)
 		return INT_MAX;
@@ -2705,7 +2702,8 @@ intel_dp_compute_config_link_bpp_limits(struct intel_connector *connector,
 
 		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
 
-		throughput_max_bpp_x16 = dsc_throughput_quirk_max_bpp_x16(connector, crtc_state);
+		throughput_max_bpp_x16 =
+			dsc_throughput_quirk_max_bpp_x16(connector, adjusted_mode->crtc_clock);
 		if (throughput_max_bpp_x16 < max_link_bpp_x16) {
 			max_link_bpp_x16 = throughput_max_bpp_x16;
 
