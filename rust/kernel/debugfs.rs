@@ -126,9 +126,8 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
-    /// let debugfs = Dir::new(c_str!("parent"));
+    /// let debugfs = Dir::new(c"parent");
     /// ```
     pub fn new(name: &CStr) -> Self {
         Dir::create(name, None)
@@ -139,10 +138,9 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
-    /// let parent = Dir::new(c_str!("parent"));
-    /// let child = parent.subdir(c_str!("child"));
+    /// let parent = Dir::new(c"parent");
+    /// let child = parent.subdir(c"child");
     /// ```
     pub fn subdir(&self, name: &CStr) -> Self {
         Dir::create(name, Some(self))
@@ -156,11 +154,10 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
     /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("my_debugfs_dir"));
-    /// let file = KBox::pin_init(dir.read_only_file(c_str!("foo"), 200), GFP_KERNEL)?;
+    /// # let dir = Dir::new(c"my_debugfs_dir");
+    /// let file = KBox::pin_init(dir.read_only_file(c"foo", 200), GFP_KERNEL)?;
     /// // "my_debugfs_dir/foo" now contains the number 200.
     /// // The file is removed when `file` is dropped.
     /// # Ok::<(), Error>(())
@@ -185,11 +182,10 @@ impl Dir {
     /// # Examples
     ///
     /// ```
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
     /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("my_debugfs_dir"));
-    /// let file = KBox::pin_init(dir.read_binary_file(c_str!("foo"), [0x1, 0x2]), GFP_KERNEL)?;
+    /// # let dir = Dir::new(c"my_debugfs_dir");
+    /// let file = KBox::pin_init(dir.read_binary_file(c"foo", [0x1, 0x2]), GFP_KERNEL)?;
     /// # Ok::<(), Error>(())
     /// ```
     pub fn read_binary_file<'a, T, E: 'a>(
@@ -212,12 +208,11 @@ impl Dir {
     ///
     /// ```
     /// # use core::sync::atomic::{AtomicU32, Ordering};
-    /// # use kernel::c_str;
     /// # use kernel::debugfs::Dir;
     /// # use kernel::prelude::*;
-    /// # let dir = Dir::new(c_str!("foo"));
+    /// # let dir = Dir::new(c"foo");
     /// let file = KBox::pin_init(
-    ///     dir.read_callback_file(c_str!("bar"),
+    ///     dir.read_callback_file(c"bar",
     ///     AtomicU32::new(3),
     ///     &|val, f| {
     ///       let out = val.load(Ordering::Relaxed);
