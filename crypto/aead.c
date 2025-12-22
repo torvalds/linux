@@ -151,9 +151,8 @@ static int __maybe_unused crypto_aead_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_AEAD, sizeof(raead), &raead);
 }
 
-static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_aead_show(struct seq_file *m,
+					    struct crypto_alg *alg)
 {
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
 

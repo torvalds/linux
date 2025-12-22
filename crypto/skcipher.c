@@ -570,9 +570,8 @@ static void crypto_skcipher_free_instance(struct crypto_instance *inst)
 	skcipher->free(skcipher);
 }
 
-static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_skcipher_show(struct seq_file *m,
+						struct crypto_alg *alg)
 {
 	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
 

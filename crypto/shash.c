@@ -346,9 +346,8 @@ static int __maybe_unused crypto_shash_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_HASH, sizeof(rhash), &rhash);
 }
 
-static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_shash_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_shash_show(struct seq_file *m,
+					     struct crypto_alg *alg)
 {
 	struct shash_alg *salg = __crypto_shash_alg(alg);
 

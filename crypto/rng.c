@@ -77,9 +77,8 @@ static int __maybe_unused crypto_rng_report(
 	return nla_put(skb, CRYPTOCFGA_REPORT_RNG, sizeof(rrng), &rrng);
 }
 
-static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
-	__maybe_unused;
-static void crypto_rng_show(struct seq_file *m, struct crypto_alg *alg)
+static void __maybe_unused crypto_rng_show(struct seq_file *m,
+					   struct crypto_alg *alg)
 {
 	seq_printf(m, "type         : rng\n");
 	seq_printf(m, "seedsize     : %u\n", seedsize(alg));
