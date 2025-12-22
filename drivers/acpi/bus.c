@@ -180,18 +180,16 @@ void acpi_bus_detach_private_data(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_bus_detach_private_data);
 
-static void acpi_print_osc_error(acpi_handle handle,
-				 struct acpi_osc_context *context, char *error)
+static void acpi_dump_osc_data(acpi_handle handle, const guid_t *guid, int rev,
+			       struct acpi_buffer *cap)
 {
+	u32 *capbuf = cap->pointer;
 	int i;
 
-	acpi_handle_debug(handle, "(%s): %s\n", context->uuid_str, error);
-
-	pr_debug("_OSC request data:");
-	for (i = 0; i < context->cap.length; i += sizeof(u32))
-		pr_debug(" %x", *((u32 *)(context->cap.pointer + i)));
-
-	pr_debug("\n");
+	acpi_handle_debug(handle, "_OSC: UUID: %pUL, rev: %d\n", guid, rev);
+	for (i = 0; i < cap->length / sizeof(u32); i++)
+		acpi_handle_debug(handle, "_OSC: capabilities DWORD %i: [%08x]\n",
+				  i, capbuf[i]);
 }
 
 #define OSC_ERROR_MASK 	(OSC_REQUEST_ERROR | OSC_INVALID_UUID_ERROR | \
@@ -239,8 +237,8 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER
 		|| out_obj->buffer.length != context->cap.length) {
-		acpi_print_osc_error(handle, context,
-			"_OSC evaluation returned wrong type");
+		acpi_dump_osc_data(handle, &guid, context->rev, &context->cap);
+		acpi_handle_debug(handle, "_OSC: evaluation returned wrong type");
 		status = AE_TYPE;
 		goto out_kfree;
 	}
@@ -261,9 +259,9 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 		 */
 		bool fail = !!(capbuf[OSC_QUERY_DWORD] & OSC_QUERY_ENABLE);
 
+		acpi_dump_osc_data(handle, &guid, context->rev, &context->cap);
 		if (errors & OSC_INVALID_UUID_ERROR) {
-			acpi_print_osc_error(handle, context,
-				"_OSC invalid UUID");
+			acpi_handle_debug(handle, "_OSC: invalid UUID");
 			/*
 			 * Always fail if this bit is set because it means that
 			 * the request could not be processed.
@@ -272,14 +270,13 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 			goto out_kfree;
 		}
 		if (errors & OSC_REQUEST_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC request failed");
+			acpi_handle_debug(handle, "_OSC: request failed");
+
 		if (errors & OSC_INVALID_REVISION_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC invalid revision");
+			acpi_handle_debug(handle, "_OSC: invalid revision");
+
 		if (errors & OSC_CAPABILITIES_MASK_ERROR)
-			acpi_print_osc_error(handle, context,
-				"_OSC capability bits masked");
+			acpi_handle_debug(handle, "_OSC: capability bits masked");
 
 		if (fail) {
 			status = AE_ERROR;
