@@ -2227,6 +2227,14 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 
 	max_bpp_x16 = align_max_compressed_bpp_x16(connector, pipe_config->output_format,
 						   pipe_bpp, max_bpp_x16);
+	if (intel_dp_is_edp(intel_dp)) {
+		pipe_config->port_clock = limits->max_rate;
+		pipe_config->lane_count = limits->max_lane_count;
+
+		pipe_config->dsc.compressed_bpp_x16 = max_bpp_x16;
+
+		return 0;
+	}
 
 	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
 		if (!intel_dp_dsc_valid_compressed_bpp(intel_dp, bpp_x16))
@@ -2319,9 +2327,8 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 					  struct drm_connector_state *conn_state,
 					  const struct link_config_limits *limits)
 {
-	struct intel_connector *connector =
-		to_intel_connector(conn_state->connector);
 	int pipe_bpp, forced_bpp;
+	int ret;
 
 	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp, limits);
 	if (forced_bpp)
@@ -2329,12 +2336,10 @@ static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	else
 		pipe_bpp = limits->pipe.max_bpp;
 
-	pipe_config->port_clock = limits->max_rate;
-	pipe_config->lane_count = limits->max_lane_count;
-
-	pipe_config->dsc.compressed_bpp_x16 =
-		align_max_compressed_bpp_x16(connector, pipe_config->output_format,
-					     pipe_bpp, limits->link.max_bpp_x16);
+	ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
+					 limits, pipe_bpp);
+	if (ret)
+		return -EINVAL;
 
 	pipe_config->pipe_bpp = pipe_bpp;
 
