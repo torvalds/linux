@@ -37,7 +37,6 @@ static int ucsi_cmd(void *data, u64 val)
 	case UCSI_SET_USB:
 	case UCSI_SET_POWER_LEVEL:
 	case UCSI_READ_POWER_LEVEL:
-	case UCSI_SET_PDOS:
 		ucsi->message_in_size = 0;
 		ret = ucsi_send_command(ucsi, val);
 		break;
