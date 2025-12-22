@@ -28,6 +28,7 @@ Currently the driver supports the following handhelds:
  - GPD Win Max 2 2025 (HX370)
  - GPD Win 4 (6800U)
  - GPD Win 4 (7840U)
+ - GPD Micro PC 2
 
 Module parameters
 -----------------
@@ -50,6 +51,8 @@ gpd_fan_board
        - GPD Win Mini (HX370)
        - GPD Pocket 4
        - GPD Duo
+   - mpc2
+       - GPD Micro PC 2
 
 Sysfs entries
 -------------
