@@ -3956,13 +3956,8 @@ static void bypass_lb_node(struct scx_sched *sch, int node)
 					     nr_donor_target, nr_target);
 	}
 
-	for_each_cpu(cpu, resched_mask) {
-		struct rq *rq = cpu_rq(cpu);
-
-		raw_spin_rq_lock_irq(rq);
-		resched_curr(rq);
-		raw_spin_rq_unlock_irq(rq);
-	}
+	for_each_cpu(cpu, resched_mask)
+		resched_cpu(cpu);
 
 	for_each_cpu_and(cpu, cpu_online_mask, node_mask) {
 		u32 nr = READ_ONCE(cpu_rq(cpu)->scx.bypass_dsq.nr);
