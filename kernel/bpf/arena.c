@@ -4,7 +4,9 @@
 #include <linux/btf.h>
 #include <linux/cacheflush.h>
 #include <linux/err.h>
+#include <linux/irq_work.h>
 #include "linux/filter.h"
+#include <linux/llist.h>
 #include <linux/btf_ids.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -44,7 +46,7 @@
 #define GUARD_SZ round_up(1ull << sizeof_field(struct bpf_insn, off) * 8, PAGE_SIZE << 1)
 #define KERN_VM_SZ (SZ_4G + GUARD_SZ)
 
-static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt);
+static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt, bool sleepable);
 
 struct bpf_arena {
 	struct bpf_map map;
@@ -52,8 +54,23 @@ struct bpf_arena {
 	u64 user_vm_end;
 	struct vm_struct *kern_vm;
 	struct range_tree rt;
+	/* protects rt */
+	rqspinlock_t spinlock;
 	struct list_head vma_list;
+	/* protects vma_list */
 	struct mutex lock;
+	struct irq_work     free_irq;
+	struct work_struct  free_work;
+	struct llist_head   free_spans;
+};
+
+static void arena_free_worker(struct work_struct *work);
+static void arena_free_irq(struct irq_work *iw);
+
+struct arena_free_span {
+	struct llist_node node;
+	unsigned long uaddr;
+	u32 page_cnt;
 };
 
 u64 bpf_arena_get_kern_vm_start(struct bpf_arena *arena)
@@ -127,7 +144,7 @@ static void flush_vmap_cache(unsigned long start, unsigned long size)
 	flush_cache_vmap(start, start + size);
 }
 
-static int apply_range_clear_cb(pte_t *pte, unsigned long addr, void *data)
+static int apply_range_clear_cb(pte_t *pte, unsigned long addr, void *free_pages)
 {
 	pte_t old_pte;
 	struct page *page;
@@ -137,17 +154,15 @@ static int apply_range_clear_cb(pte_t *pte, unsigned long addr, void *data)
 	if (pte_none(old_pte) || !pte_present(old_pte))
 		return 0; /* nothing to do */
 
-	/* get page and free it */
 	page = pte_page(old_pte);
 	if (WARN_ON_ONCE(!page))
 		return -EINVAL;
 
 	pte_clear(&init_mm, addr, pte);
 
-	/* ensure no stale TLB entries */
-	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-
-	__free_page(page);
+	/* Add page to the list so it is freed later */
+	if (free_pages)
+		__llist_add(&page->pcp_llist, free_pages);
 
 	return 0;
 }
@@ -202,6 +217,9 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 		arena->user_vm_end = arena->user_vm_start + vm_range;
 
 	INIT_LIST_HEAD(&arena->vma_list);
+	init_llist_head(&arena->free_spans);
+	init_irq_work(&arena->free_irq, arena_free_irq);
+	INIT_WORK(&arena->free_work, arena_free_worker);
 	bpf_map_init_from_attr(&arena->map, attr);
 	range_tree_init(&arena->rt);
 	err = range_tree_set(&arena->rt, 0, attr->max_entries);
@@ -210,6 +228,7 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 		goto err;
 	}
 	mutex_init(&arena->lock);
+	raw_res_spin_lock_init(&arena->spinlock);
 	err = populate_pgtable_except_pte(arena);
 	if (err) {
 		range_tree_destroy(&arena->rt);
@@ -255,6 +274,10 @@ static void arena_map_free(struct bpf_map *map)
 	 */
 	if (WARN_ON_ONCE(!list_empty(&arena->vma_list)))
 		return;
+
+	/* Ensure no pending deferred frees */
+	irq_work_sync(&arena->free_irq);
+	flush_work(&arena->free_work);
 
 	/*
 	 * free_vm_area() calls remove_vm_area() that calls free_unmap_vmap_area().
@@ -339,12 +362,16 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
 	struct page *page;
 	long kbase, kaddr;
+	unsigned long flags;
 	int ret;
 
 	kbase = bpf_arena_get_kern_vm_start(arena);
 	kaddr = kbase + (u32)(vmf->address);
 
-	guard(mutex)(&arena->lock);
+	if (raw_res_spin_lock_irqsave(&arena->spinlock, flags))
+		/* Make a reasonable effort to address impossible case */
+		return VM_FAULT_RETRY;
+
 	page = vmalloc_to_page((void *)kaddr);
 	if (page)
 		/* already have a page vmap-ed */
@@ -352,31 +379,35 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 
 	if (arena->map.map_flags & BPF_F_SEGV_ON_FAULT)
 		/* User space requested to segfault when page is not allocated by bpf prog */
-		return VM_FAULT_SIGSEGV;
+		goto out_unlock_sigsegv;
 
 	ret = range_tree_clear(&arena->rt, vmf->pgoff, 1);
 	if (ret)
-		return VM_FAULT_SIGSEGV;
+		goto out_unlock_sigsegv;
 
 	struct apply_range_data data = { .pages = &page, .i = 0 };
 	/* Account into memcg of the process that created bpf_arena */
 	ret = bpf_map_alloc_pages(map, NUMA_NO_NODE, 1, &page);
 	if (ret) {
 		range_tree_set(&arena->rt, vmf->pgoff, 1);
-		return VM_FAULT_SIGSEGV;
+		goto out_unlock_sigsegv;
 	}
 
 	ret = apply_to_page_range(&init_mm, kaddr, PAGE_SIZE, apply_range_set_cb, &data);
 	if (ret) {
 		range_tree_set(&arena->rt, vmf->pgoff, 1);
-		__free_page(page);
-		return VM_FAULT_SIGSEGV;
+		free_pages_nolock(page, 0);
+		goto out_unlock_sigsegv;
 	}
 	flush_vmap_cache(kaddr, PAGE_SIZE);
 out:
 	page_ref_add(page, 1);
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
 	vmf->page = page;
 	return 0;
+out_unlock_sigsegv:
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
+	return VM_FAULT_SIGSEGV;
 }
 
 static const struct vm_operations_struct arena_vm_ops = {
@@ -497,7 +528,8 @@ static u64 clear_lo32(u64 val)
  * Allocate pages and vmap them into kernel vmalloc area.
  * Later the pages will be mmaped into user space vma.
  */
-static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt, int node_id)
+static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt, int node_id,
+			      bool sleepable)
 {
 	/* user_vm_end/start are fixed before bpf prog runs */
 	long page_cnt_max = (arena->user_vm_end - arena->user_vm_start) >> PAGE_SHIFT;
@@ -506,6 +538,7 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 	struct page **pages = NULL;
 	long remaining, mapped = 0;
 	long alloc_pages;
+	unsigned long flags;
 	long pgoff = 0;
 	u32 uaddr32;
 	int ret, i;
@@ -529,7 +562,8 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 		return 0;
 	data.pages = pages;
 
-	mutex_lock(&arena->lock);
+	if (raw_res_spin_lock_irqsave(&arena->spinlock, flags))
+		goto out_free_pages;
 
 	if (uaddr) {
 		ret = is_range_tree_set(&arena->rt, pgoff, page_cnt);
@@ -573,7 +607,7 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 			/* data.i pages were mapped, account them and free the remaining */
 			mapped += data.i;
 			for (i = data.i; i < this_batch; i++)
-				__free_page(pages[i]);
+				free_pages_nolock(pages[i], 0);
 			goto out;
 		}
 
@@ -581,19 +615,19 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 		remaining -= this_batch;
 	}
 	flush_vmap_cache(kern_vm_start + uaddr32, mapped << PAGE_SHIFT);
-	mutex_unlock(&arena->lock);
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
 	kfree_nolock(pages);
 	return clear_lo32(arena->user_vm_start) + uaddr32;
 out:
 	range_tree_set(&arena->rt, pgoff + mapped, page_cnt - mapped);
-	mutex_unlock(&arena->lock);
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
 	if (mapped) {
 		flush_vmap_cache(kern_vm_start + uaddr32, mapped << PAGE_SHIFT);
-		arena_free_pages(arena, uaddr32, mapped);
+		arena_free_pages(arena, uaddr32, mapped, sleepable);
 	}
 	goto out_free_pages;
 out_unlock_free_pages:
-	mutex_unlock(&arena->lock);
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
 out_free_pages:
 	kfree_nolock(pages);
 	return 0;
@@ -608,42 +642,64 @@ static void zap_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
 {
 	struct vma_list *vml;
 
+	guard(mutex)(&arena->lock);
+	/* iterate link list under lock */
 	list_for_each_entry(vml, &arena->vma_list, head)
 		zap_page_range_single(vml->vma, uaddr,
 				      PAGE_SIZE * page_cnt, NULL);
 }
 
-static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
+static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt, bool sleepable)
 {
 	u64 full_uaddr, uaddr_end;
-	long kaddr, pgoff, i;
+	long kaddr, pgoff;
 	struct page *page;
+	struct llist_head free_pages;
+	struct llist_node *pos, *t;
+	struct arena_free_span *s;
+	unsigned long flags;
+	int ret = 0;
 
 	/* only aligned lower 32-bit are relevant */
 	uaddr = (u32)uaddr;
 	uaddr &= PAGE_MASK;
+	kaddr = bpf_arena_get_kern_vm_start(arena) + uaddr;
 	full_uaddr = clear_lo32(arena->user_vm_start) + uaddr;
 	uaddr_end = min(arena->user_vm_end, full_uaddr + (page_cnt << PAGE_SHIFT));
 	if (full_uaddr >= uaddr_end)
 		return;
 
 	page_cnt = (uaddr_end - full_uaddr) >> PAGE_SHIFT;
-
-	guard(mutex)(&arena->lock);
-
 	pgoff = compute_pgoff(arena, uaddr);
-	/* clear range */
+
+	if (!sleepable)
+		goto defer;
+
+	ret = raw_res_spin_lock_irqsave(&arena->spinlock, flags);
+
+	/* Can't proceed without holding the spinlock so defer the free */
+	if (ret)
+		goto defer;
+
 	range_tree_set(&arena->rt, pgoff, page_cnt);
+
+	init_llist_head(&free_pages);
+	/* clear ptes and collect struct pages */
+	apply_to_existing_page_range(&init_mm, kaddr, page_cnt << PAGE_SHIFT,
+				     apply_range_clear_cb, &free_pages);
+
+	/* drop the lock to do the tlb flush and zap pages */
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
+
+	/* ensure no stale TLB entries */
+	flush_tlb_kernel_range(kaddr, kaddr + (page_cnt * PAGE_SIZE));
 
 	if (page_cnt > 1)
 		/* bulk zap if multiple pages being freed */
 		zap_pages(arena, full_uaddr, page_cnt);
 
-	kaddr = bpf_arena_get_kern_vm_start(arena) + uaddr;
-	for (i = 0; i < page_cnt; i++, kaddr += PAGE_SIZE, full_uaddr += PAGE_SIZE) {
-		page = vmalloc_to_page((void *)kaddr);
-		if (!page)
-			continue;
+	llist_for_each_safe(pos, t, __llist_del_all(&free_pages)) {
+		page = llist_entry(pos, struct page, pcp_llist);
 		if (page_cnt == 1 && page_mapped(page)) /* mapped by some user process */
 			/* Optimization for the common case of page_cnt==1:
 			 * If page wasn't mapped into some user vma there
@@ -651,9 +707,25 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
 			 * page_cnt is big it's faster to do the batched zap.
 			 */
 			zap_pages(arena, full_uaddr, 1);
-		apply_to_existing_page_range(&init_mm, kaddr, PAGE_SIZE, apply_range_clear_cb,
-					     NULL);
+		__free_page(page);
 	}
+
+	return;
+
+defer:
+	s = kmalloc_nolock(sizeof(struct arena_free_span), 0, -1);
+	if (!s)
+		/*
+		 * If allocation fails in non-sleepable context, pages are intentionally left
+		 * inaccessible (leaked) until the arena is destroyed. Cleanup or retries are not
+		 * possible here, so we intentionally omit them for safety.
+		 */
+		return;
+
+	s->page_cnt = page_cnt;
+	s->uaddr = uaddr;
+	llist_add(&s->node, &arena->free_spans);
+	irq_work_queue(&arena->free_irq);
 }
 
 /*
@@ -663,6 +735,7 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
 static int arena_reserve_pages(struct bpf_arena *arena, long uaddr, u32 page_cnt)
 {
 	long page_cnt_max = (arena->user_vm_end - arena->user_vm_start) >> PAGE_SHIFT;
+	unsigned long flags;
 	long pgoff;
 	int ret;
 
@@ -673,15 +746,87 @@ static int arena_reserve_pages(struct bpf_arena *arena, long uaddr, u32 page_cnt
 	if (pgoff + page_cnt > page_cnt_max)
 		return -EINVAL;
 
-	guard(mutex)(&arena->lock);
+	if (raw_res_spin_lock_irqsave(&arena->spinlock, flags))
+		return -EBUSY;
 
 	/* Cannot guard already allocated pages. */
 	ret = is_range_tree_set(&arena->rt, pgoff, page_cnt);
-	if (ret)
-		return -EBUSY;
+	if (ret) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	/* "Allocate" the region to prevent it from being allocated. */
-	return range_tree_clear(&arena->rt, pgoff, page_cnt);
+	ret = range_tree_clear(&arena->rt, pgoff, page_cnt);
+out:
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
+	return ret;
+}
+
+static void arena_free_worker(struct work_struct *work)
+{
+	struct bpf_arena *arena = container_of(work, struct bpf_arena, free_work);
+	struct llist_node *list, *pos, *t;
+	struct arena_free_span *s;
+	u64 arena_vm_start, user_vm_start;
+	struct llist_head free_pages;
+	struct page *page;
+	unsigned long full_uaddr;
+	long kaddr, page_cnt, pgoff;
+	unsigned long flags;
+
+	if (raw_res_spin_lock_irqsave(&arena->spinlock, flags)) {
+		schedule_work(work);
+		return;
+	}
+
+	init_llist_head(&free_pages);
+	arena_vm_start = bpf_arena_get_kern_vm_start(arena);
+	user_vm_start = bpf_arena_get_user_vm_start(arena);
+
+	list = llist_del_all(&arena->free_spans);
+	llist_for_each(pos, list) {
+		s = llist_entry(pos, struct arena_free_span, node);
+		page_cnt = s->page_cnt;
+		kaddr = arena_vm_start + s->uaddr;
+		pgoff = compute_pgoff(arena, s->uaddr);
+
+		/* clear ptes and collect pages in free_pages llist */
+		apply_to_existing_page_range(&init_mm, kaddr, page_cnt << PAGE_SHIFT,
+					     apply_range_clear_cb, &free_pages);
+
+		range_tree_set(&arena->rt, pgoff, page_cnt);
+	}
+	raw_res_spin_unlock_irqrestore(&arena->spinlock, flags);
+
+	/* Iterate the list again without holding spinlock to do the tlb flush and zap_pages */
+	llist_for_each_safe(pos, t, list) {
+		s = llist_entry(pos, struct arena_free_span, node);
+		page_cnt = s->page_cnt;
+		full_uaddr = clear_lo32(user_vm_start) + s->uaddr;
+		kaddr = arena_vm_start + s->uaddr;
+
+		/* ensure no stale TLB entries */
+		flush_tlb_kernel_range(kaddr, kaddr + (page_cnt * PAGE_SIZE));
+
+		/* remove pages from user vmas */
+		zap_pages(arena, full_uaddr, page_cnt);
+
+		kfree_nolock(s);
+	}
+
+	/* free all pages collected by apply_to_existing_page_range() in the first loop */
+	llist_for_each_safe(pos, t, __llist_del_all(&free_pages)) {
+		page = llist_entry(pos, struct page, pcp_llist);
+		__free_page(page);
+	}
+}
+
+static void arena_free_irq(struct irq_work *iw)
+{
+	struct bpf_arena *arena = container_of(iw, struct bpf_arena, free_irq);
+
+	schedule_work(&arena->free_work);
 }
 
 __bpf_kfunc_start_defs();
@@ -695,9 +840,20 @@ __bpf_kfunc void *bpf_arena_alloc_pages(void *p__map, void *addr__ign, u32 page_
 	if (map->map_type != BPF_MAP_TYPE_ARENA || flags || !page_cnt)
 		return NULL;
 
-	return (void *)arena_alloc_pages(arena, (long)addr__ign, page_cnt, node_id);
+	return (void *)arena_alloc_pages(arena, (long)addr__ign, page_cnt, node_id, true);
 }
 
+void *bpf_arena_alloc_pages_non_sleepable(void *p__map, void *addr__ign, u32 page_cnt,
+					  int node_id, u64 flags)
+{
+	struct bpf_map *map = p__map;
+	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
+
+	if (map->map_type != BPF_MAP_TYPE_ARENA || flags || !page_cnt)
+		return NULL;
+
+	return (void *)arena_alloc_pages(arena, (long)addr__ign, page_cnt, node_id, false);
+}
 __bpf_kfunc void bpf_arena_free_pages(void *p__map, void *ptr__ign, u32 page_cnt)
 {
 	struct bpf_map *map = p__map;
@@ -705,7 +861,17 @@ __bpf_kfunc void bpf_arena_free_pages(void *p__map, void *ptr__ign, u32 page_cnt
 
 	if (map->map_type != BPF_MAP_TYPE_ARENA || !page_cnt || !ptr__ign)
 		return;
-	arena_free_pages(arena, (long)ptr__ign, page_cnt);
+	arena_free_pages(arena, (long)ptr__ign, page_cnt, true);
+}
+
+void bpf_arena_free_pages_non_sleepable(void *p__map, void *ptr__ign, u32 page_cnt)
+{
+	struct bpf_map *map = p__map;
+	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
+
+	if (map->map_type != BPF_MAP_TYPE_ARENA || !page_cnt || !ptr__ign)
+		return;
+	arena_free_pages(arena, (long)ptr__ign, page_cnt, false);
 }
 
 __bpf_kfunc int bpf_arena_reserve_pages(void *p__map, void *ptr__ign, u32 page_cnt)
@@ -724,9 +890,9 @@ __bpf_kfunc int bpf_arena_reserve_pages(void *p__map, void *ptr__ign, u32 page_c
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(arena_kfuncs)
-BTF_ID_FLAGS(func, bpf_arena_alloc_pages, KF_TRUSTED_ARGS | KF_SLEEPABLE | KF_ARENA_RET | KF_ARENA_ARG2)
-BTF_ID_FLAGS(func, bpf_arena_free_pages, KF_TRUSTED_ARGS | KF_SLEEPABLE | KF_ARENA_ARG2)
-BTF_ID_FLAGS(func, bpf_arena_reserve_pages, KF_TRUSTED_ARGS | KF_SLEEPABLE | KF_ARENA_ARG2)
+BTF_ID_FLAGS(func, bpf_arena_alloc_pages, KF_TRUSTED_ARGS | KF_ARENA_RET | KF_ARENA_ARG2)
+BTF_ID_FLAGS(func, bpf_arena_free_pages, KF_TRUSTED_ARGS | KF_ARENA_ARG2)
+BTF_ID_FLAGS(func, bpf_arena_reserve_pages, KF_TRUSTED_ARGS | KF_ARENA_ARG2)
 BTF_KFUNCS_END(arena_kfuncs)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {
