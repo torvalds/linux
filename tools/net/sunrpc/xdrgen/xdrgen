@@ -133,7 +133,5 @@ There is NO WARRANTY, to the extent permitted by law.""",
 try:
     if __name__ == "__main__":
         sys.exit(main())
-except SystemExit:
-    sys.exit(0)
 except (KeyboardInterrupt, BrokenPipeError):
     sys.exit(1)
