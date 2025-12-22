@@ -2299,17 +2299,11 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	int ret;
 
 	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp, limits);
+	if (forced_bpp)
+		pipe_bpp = forced_bpp;
+	else
+		pipe_bpp = limits->pipe.max_bpp;
 
-	if (forced_bpp) {
-		ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
-						 limits, forced_bpp);
-		if (ret == 0) {
-			pipe_config->pipe_bpp = forced_bpp;
-			return 0;
-		}
-	}
-
-	pipe_bpp = limits->pipe.max_bpp;
 	ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
 					 limits, pipe_bpp);
 	if (ret)
