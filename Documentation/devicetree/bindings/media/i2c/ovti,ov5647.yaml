@@ -14,6 +14,9 @@ description: |-
   The OV5647 is a raw image sensor with MIPI CSI-2 and CCP2 image data
   interfaces and CCI (I2C compatible) control bus.
 
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
 properties:
   compatible:
     const: ovti,ov5647
@@ -57,7 +60,7 @@ required:
   - clocks
   - port
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
