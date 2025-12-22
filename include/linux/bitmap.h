@@ -57,6 +57,7 @@ struct device;
  *  bitmap_weight(src, nbits)                   Hamming Weight: number set bits
  *  bitmap_weight_and(src1, src2, nbits)        Hamming Weight of and'ed bitmap
  *  bitmap_weight_andnot(src1, src2, nbits)     Hamming Weight of andnot'ed bitmap
+ *  bitmap_weight_from(src, start, end)         Hamming Weight starting from @start
  *  bitmap_set(dst, pos, nbits)                 Set specified bit area
  *  bitmap_clear(dst, pos, nbits)               Clear specified bit area
  *  bitmap_find_next_zero_area(buf, len, pos, n, mask)  Find bit free area
@@ -477,6 +478,38 @@ unsigned long bitmap_weight_andnot(const unsigned long *src1,
 	if (small_const_nbits(nbits))
 		return hweight_long(*src1 & ~(*src2) & BITMAP_LAST_WORD_MASK(nbits));
 	return __bitmap_weight_andnot(src1, src2, nbits);
+}
+
+/**
+ * bitmap_weight_from - Hamming weight for a memory region
+ * @bitmap: The base address
+ * @start: The bitnumber to starts weighting
+ * @end: the bitmap size in bits
+ *
+ * Returns the number of set bits in the region. If @start >= @end,
+ * return >= end.
+ */
+static __always_inline
+unsigned long bitmap_weight_from(const unsigned long *bitmap,
+				   unsigned int start, unsigned int end)
+{
+	unsigned long w;
+
+	if (unlikely(start >= end))
+		return end;
+
+	if (small_const_nbits(end))
+		return hweight_long(*bitmap & GENMASK(end - 1, start));
+
+	bitmap += start / BITS_PER_LONG;
+	/* Opencode round_down() to not include math.h */
+	end -= start & ~(BITS_PER_LONG - 1);
+	start %= BITS_PER_LONG;
+	w = bitmap_weight(bitmap, end);
+	if (start)
+		w -= hweight_long(*bitmap & BITMAP_LAST_WORD_MASK(start));
+
+	return w;
 }
 
 static __always_inline

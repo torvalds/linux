@@ -854,6 +854,31 @@ static void __init test_for_each_set_bit_from(void)
 	}
 }
 
+static void __init test_bitmap_weight(void)
+{
+	unsigned int bit, w1, w2, w;
+	DECLARE_BITMAP(b, 30);
+
+	bitmap_parselist("all:1/2", b, 30);
+
+	/* Test inline implementation */
+	w = bitmap_weight(b, 30);
+	w1 = bitmap_weight(b, 15);
+	w2 = bitmap_weight_from(b, 15, 30);
+
+	expect_eq_uint(15, w);
+	expect_eq_uint(8, w1);
+	expect_eq_uint(7, w2);
+
+	/* Test outline implementation */
+	w = bitmap_weight(exp1, EXP1_IN_BITS);
+	for (bit = 0; bit < EXP1_IN_BITS; bit++) {
+		w1 = bitmap_weight(exp1, bit);
+		w2 = bitmap_weight_from(exp1, bit, EXP1_IN_BITS);
+		expect_eq_uint(w1 + w2, w);
+	}
+}
+
 static void __init test_for_each_clear_bit(void)
 {
 	DECLARE_BITMAP(orig, 500);
@@ -1444,6 +1469,7 @@ static void __init selftest(void)
 	test_bitmap_const_eval();
 	test_bitmap_read_write();
 	test_bitmap_read_perf();
+	test_bitmap_weight();
 	test_bitmap_write_perf();
 
 	test_find_nth_bit();
