@@ -182,7 +182,7 @@ struct bt_iso_io_qos {
 	__u32 interval;
 	__u16 latency;
 	__u16 sdu;
-	__u8  phy;
+	__u8  phys;
 	__u8  rtn;
 };
 
@@ -221,9 +221,9 @@ struct bt_iso_qos {
 	};
 };
 
-#define BT_ISO_PHY_1M		0x01
-#define BT_ISO_PHY_2M		0x02
-#define BT_ISO_PHY_CODED	0x04
+#define BT_ISO_PHY_1M		BIT(0)
+#define BT_ISO_PHY_2M		BIT(1)
+#define BT_ISO_PHY_CODED	BIT(2)
 #define BT_ISO_PHY_ANY		(BT_ISO_PHY_1M | BT_ISO_PHY_2M | \
 				 BT_ISO_PHY_CODED)
 

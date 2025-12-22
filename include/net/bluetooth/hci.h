@@ -1891,7 +1891,7 @@ struct hci_cp_le_set_phy {
 	__u8    all_phys;
 	__u8    tx_phys;
 	__u8    rx_phys;
-	__le16   phy_opts;
+	__le16  phy_opts;
 } __packed;
 
 #define HCI_OP_LE_SET_EXT_SCAN_PARAMS   0x2041
@@ -2147,8 +2147,8 @@ struct hci_cis_params {
 	__u8    cis_id;
 	__le16  c_sdu;
 	__le16  p_sdu;
-	__u8    c_phy;
-	__u8    p_phy;
+	__u8    c_phys;
+	__u8    p_phys;
 	__u8    c_rtn;
 	__u8    p_rtn;
 } __packed;
