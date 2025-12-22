@@ -2157,7 +2157,7 @@ static int dsc_compute_link_config(struct intel_dp *intel_dp,
 
 static
 u16 intel_dp_dsc_max_sink_compressed_bppx16(const struct intel_connector *connector,
-					    const struct intel_crtc_state *pipe_config,
+					    enum intel_output_format output_format,
 					    int bpc)
 {
 	u16 max_bppx16 = drm_edp_dsc_sink_output_bpp(connector->dp.dsc_dpcd);
@@ -2168,43 +2168,43 @@ u16 intel_dp_dsc_max_sink_compressed_bppx16(const struct intel_connector *connec
 	 * If support not given in DPCD 67h, 68h use the Maximum Allowed bit rate
 	 * values as given in spec Table 2-157 DP v2.0
 	 */
-	switch (pipe_config->output_format) {
+	switch (output_format) {
 	case INTEL_OUTPUT_FORMAT_RGB:
 	case INTEL_OUTPUT_FORMAT_YCBCR444:
 		return (3 * bpc) << 4;
 	case INTEL_OUTPUT_FORMAT_YCBCR420:
 		return (3 * (bpc / 2)) << 4;
 	default:
-		MISSING_CASE(pipe_config->output_format);
+		MISSING_CASE(output_format);
 		break;
 	}
 
 	return 0;
 }
 
-int intel_dp_dsc_sink_min_compressed_bpp(const struct intel_crtc_state *pipe_config)
+static int intel_dp_dsc_sink_min_compressed_bpp(enum intel_output_format output_format)
 {
 	/* From Mandatory bit rate range Support Table 2-157 (DP v2.0) */
-	switch (pipe_config->output_format) {
+	switch (output_format) {
 	case INTEL_OUTPUT_FORMAT_RGB:
 	case INTEL_OUTPUT_FORMAT_YCBCR444:
 		return 8;
 	case INTEL_OUTPUT_FORMAT_YCBCR420:
 		return 6;
 	default:
-		MISSING_CASE(pipe_config->output_format);
+		MISSING_CASE(output_format);
 		break;
 	}
 
 	return 0;
 }
 
-int intel_dp_dsc_sink_max_compressed_bpp(const struct intel_connector *connector,
-					 const struct intel_crtc_state *pipe_config,
-					 int bpc)
+static int intel_dp_dsc_sink_max_compressed_bpp(const struct intel_connector *connector,
+						enum intel_output_format output_format,
+						int bpc)
 {
 	return intel_dp_dsc_max_sink_compressed_bppx16(connector,
-						       pipe_config, bpc) >> 4;
+						       output_format, bpc) >> 4;
 }
 
 int intel_dp_dsc_min_src_compressed_bpp(void)
@@ -2684,7 +2684,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_connector *connector,
 		int joiner_max_bpp;
 
 		dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
-		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state);
+		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state->output_format);
 		dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
 		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
 
@@ -2698,7 +2698,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_connector *connector,
 							   adjusted_mode->hdisplay,
 							   intel_crtc_num_joined_pipes(crtc_state));
 		dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-									crtc_state,
+									crtc_state->output_format,
 									limits->pipe.max_bpp / 3);
 		dsc_max_bpp = min(dsc_sink_max_bpp, dsc_src_max_bpp);
 		dsc_max_bpp = min(dsc_max_bpp, joiner_max_bpp);
