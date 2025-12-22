@@ -1462,8 +1462,6 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		DRM_DP_BW_OVERHEAD_MST | DRM_DP_BW_OVERHEAD_SSC_REF_CLK;
 	int ret;
 	bool dsc = false;
-	u16 dsc_max_compressed_bpp = 0;
-	u8 dsc_slice_count = 0;
 	int target_clock = mode->clock;
 	int num_joined_pipes;
 
@@ -1522,31 +1520,22 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		return 0;
 	}
 
-	if (intel_dp_has_dsc(connector)) {
+	if (intel_dp_has_dsc(connector) && drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
 		/*
 		 * TBD pass the connector BPC,
 		 * for now U8_MAX so that max BPC on that platform would be picked
 		 */
 		int pipe_bpp = intel_dp_dsc_compute_max_bpp(connector, U8_MAX);
 
-		if (drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
-			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(display,
-								    max_link_clock,
-								    max_lanes,
-								    target_clock,
-								    mode->hdisplay,
-								    num_joined_pipes,
-								    INTEL_OUTPUT_FORMAT_RGB,
-								    pipe_bpp, 64);
-			dsc_slice_count =
-				intel_dp_dsc_get_slice_count(connector,
-							     target_clock,
-							     mode->hdisplay,
-							     num_joined_pipes);
-		}
+		if (!drm_dp_is_uhbr_rate(max_link_clock))
+			bw_overhead_flags |= DRM_DP_BW_OVERHEAD_FEC;
 
-		dsc = dsc_max_compressed_bpp && dsc_slice_count;
+		dsc = intel_dp_mode_valid_with_dsc(connector,
+						   max_link_clock, max_lanes,
+						   target_clock, mode->hdisplay,
+						   num_joined_pipes,
+						   INTEL_OUTPUT_FORMAT_RGB, pipe_bpp,
+						   bw_overhead_flags);
 	}
 
 	if (intel_dp_joiner_needs_dsc(display, num_joined_pipes) && !dsc) {

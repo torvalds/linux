@@ -1580,24 +1580,20 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 			dsc_slice_count =
 				drm_dp_dsc_sink_max_slice_count(connector->dp.dsc_dpcd,
 								true);
+			dsc = dsc_max_compressed_bpp && dsc_slice_count;
 		} else if (drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
-			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(display,
-								    max_link_clock,
-								    max_lanes,
-								    target_clock,
-								    mode->hdisplay,
-								    num_joined_pipes,
-								    output_format,
-								    pipe_bpp, 64);
-			dsc_slice_count =
-				intel_dp_dsc_get_slice_count(connector,
-							     target_clock,
-							     mode->hdisplay,
-							     num_joined_pipes);
-		}
+			unsigned long bw_overhead_flags = 0;
 
-		dsc = dsc_max_compressed_bpp && dsc_slice_count;
+			if (!drm_dp_is_uhbr_rate(max_link_clock))
+				bw_overhead_flags |= DRM_DP_BW_OVERHEAD_FEC;
+
+			dsc = intel_dp_mode_valid_with_dsc(connector,
+							   max_link_clock, max_lanes,
+							   target_clock, mode->hdisplay,
+							   num_joined_pipes,
+							   output_format, pipe_bpp,
+							   bw_overhead_flags);
+		}
 	}
 
 	if (intel_dp_joiner_needs_dsc(display, num_joined_pipes) && !dsc)
@@ -2703,6 +2699,35 @@ static int compute_max_compressed_bpp_x16(struct intel_connector *connector,
 							pipe_max_bpp, max_link_bpp_x16);
 
 	return max_link_bpp_x16;
+}
+
+bool intel_dp_mode_valid_with_dsc(struct intel_connector *connector,
+				  int link_clock, int lane_count,
+				  int mode_clock, int mode_hdisplay,
+				  int num_joined_pipes,
+				  enum intel_output_format output_format,
+				  int pipe_bpp, unsigned long bw_overhead_flags)
+{
+	struct intel_display *display = to_intel_display(connector);
+	int dsc_max_compressed_bpp;
+	int dsc_slice_count;
+
+	dsc_max_compressed_bpp =
+		intel_dp_dsc_get_max_compressed_bpp(display,
+						    link_clock,
+						    lane_count,
+						    mode_clock,
+						    mode_hdisplay,
+						    num_joined_pipes,
+						    output_format,
+						    pipe_bpp, 64);
+	dsc_slice_count =
+		intel_dp_dsc_get_slice_count(connector,
+					     mode_clock,
+					     mode_hdisplay,
+					     num_joined_pipes);
+
+	return dsc_max_compressed_bpp && dsc_slice_count;
 }
 
 /*
