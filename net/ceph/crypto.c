@@ -16,65 +16,61 @@
 #include <linux/ceph/decode.h>
 #include "crypto.h"
 
-/*
- * Set ->key and ->tfm.  The rest of the key should be filled in before
- * this function is called.
- */
-static int set_secret(struct ceph_crypto_key *key, void *buf)
+static int set_aes_tfm(struct ceph_crypto_key *key)
 {
 	unsigned int noio_flag;
 	int ret;
 
-	key->key = NULL;
-	key->tfm = NULL;
-
-	switch (key->type) {
-	case CEPH_CRYPTO_NONE:
-		return 0; /* nothing to do */
-	case CEPH_CRYPTO_AES:
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	key->key = kmemdup(buf, key->len, GFP_NOIO);
-	if (!key->key) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	/* crypto_alloc_sync_skcipher() allocates with GFP_KERNEL */
 	noio_flag = memalloc_noio_save();
 	key->tfm = crypto_alloc_sync_skcipher("cbc(aes)", 0, 0);
 	memalloc_noio_restore(noio_flag);
 	if (IS_ERR(key->tfm)) {
 		ret = PTR_ERR(key->tfm);
 		key->tfm = NULL;
-		goto fail;
+		return ret;
 	}
 
 	ret = crypto_sync_skcipher_setkey(key->tfm, key->key, key->len);
 	if (ret)
-		goto fail;
+		return ret;
 
 	return 0;
-
-fail:
-	ceph_crypto_key_destroy(key);
-	return ret;
 }
 
+int ceph_crypto_key_prepare(struct ceph_crypto_key *key)
+{
+	switch (key->type) {
+	case CEPH_CRYPTO_NONE:
+		return 0; /* nothing to do */
+	case CEPH_CRYPTO_AES:
+		return set_aes_tfm(key);
+	default:
+		return -ENOTSUPP;
+	}
+}
+
+/*
+ * @dst should be zeroed before this function is called.
+ */
 int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
 			  const struct ceph_crypto_key *src)
 {
-	memcpy(dst, src, sizeof(struct ceph_crypto_key));
-	return set_secret(dst, src->key);
+	dst->type = src->type;
+	dst->created = src->created;
+	dst->len = src->len;
+
+	dst->key = kmemdup(src->key, src->len, GFP_NOIO);
+	if (!dst->key)
+		return -ENOMEM;
+
+	return 0;
 }
 
+/*
+ * @key should be zeroed before this function is called.
+ */
 int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end)
 {
-	int ret;
-
 	ceph_decode_need(p, end, 2*sizeof(u16) + sizeof(key->created), bad);
 	key->type = ceph_decode_16(p);
 	ceph_decode_copy(p, &key->created, sizeof(key->created));
@@ -85,10 +81,13 @@ int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end)
 		return -EINVAL;
 	}
 
-	ret = set_secret(key, *p);
+	key->key = kmemdup(*p, key->len, GFP_NOIO);
+	if (!key->key)
+		return -ENOMEM;
+
 	memzero_explicit(*p, key->len);
 	*p += key->len;
-	return ret;
+	return 0;
 
 bad:
 	dout("failed to decode crypto key\n");
@@ -322,7 +321,7 @@ static int ceph_key_preparse(struct key_preparsed_payload *prep)
 		goto err;
 
 	ret = -ENOMEM;
-	ckey = kmalloc(sizeof(*ckey), GFP_KERNEL);
+	ckey = kzalloc(sizeof(*ckey), GFP_KERNEL);
 	if (!ckey)
 		goto err;
 

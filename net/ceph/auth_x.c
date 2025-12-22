@@ -221,6 +221,10 @@ static int process_one_ticket(struct ceph_auth_client *ac,
 	if (ret)
 		goto out;
 
+	ret = ceph_crypto_key_prepare(&new_session_key);
+	if (ret)
+		goto out;
+
 	ceph_decode_need(&dp, dend, sizeof(struct ceph_timespec), bad);
 	ceph_decode_timespec64(&validity, dp);
 	dp += sizeof(struct ceph_timespec);
@@ -377,6 +381,10 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 
 	ceph_crypto_key_destroy(&au->session_key);
 	ret = ceph_crypto_key_clone(&au->session_key, &th->session_key);
+	if (ret)
+		goto out_au;
+
+	ret = ceph_crypto_key_prepare(&au->session_key);
 	if (ret)
 		goto out_au;
 
@@ -1106,21 +1114,26 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	int ret;
 
 	dout("ceph_x_init %p\n", ac);
-	ret = -ENOMEM;
 	xi = kzalloc(sizeof(*xi), GFP_NOFS);
 	if (!xi)
-		goto out;
+		return -ENOMEM;
 
 	ret = -EINVAL;
 	if (!ac->key) {
 		pr_err("no secret set (for auth_x protocol)\n");
-		goto out_nomem;
+		goto err_xi;
 	}
 
 	ret = ceph_crypto_key_clone(&xi->secret, ac->key);
 	if (ret < 0) {
 		pr_err("cannot clone key: %d\n", ret);
-		goto out_nomem;
+		goto err_xi;
+	}
+
+	ret = ceph_crypto_key_prepare(&xi->secret);
+	if (ret) {
+		pr_err("cannot prepare key: %d\n", ret);
+		goto err_secret;
 	}
 
 	xi->starting = true;
@@ -1131,8 +1144,9 @@ int ceph_x_init(struct ceph_auth_client *ac)
 	ac->ops = &ceph_x_ops;
 	return 0;
 
-out_nomem:
+err_secret:
+	ceph_crypto_key_destroy(&xi->secret);
+err_xi:
 	kfree(xi);
-out:
 	return ret;
 }

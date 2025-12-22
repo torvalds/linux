@@ -19,6 +19,7 @@ struct ceph_crypto_key {
 	struct crypto_sync_skcipher *tfm;
 };
 
+int ceph_crypto_key_prepare(struct ceph_crypto_key *key);
 int ceph_crypto_key_clone(struct ceph_crypto_key *dst,
 			  const struct ceph_crypto_key *src);
 int ceph_crypto_key_decode(struct ceph_crypto_key *key, void **p, void *end);
