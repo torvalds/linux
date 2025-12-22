@@ -85,6 +85,7 @@ config S390
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_CC_CAN_LINK
 	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
@@ -293,6 +294,14 @@ config PGTABLE_LEVELS
 	default 5
 
 source "kernel/livepatch/Kconfig"
+
+config ARCH_CC_CAN_LINK
+	bool
+	default $(cc_can_link_user,-m64)
+
+config ARCH_USERFLAGS
+	string
+	default "-m64"
 
 config ARCH_SUPPORTS_KEXEC
 	def_bool y
