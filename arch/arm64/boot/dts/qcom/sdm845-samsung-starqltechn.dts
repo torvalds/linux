@@ -254,7 +254,7 @@
 };
 
 &gpu_zap_shader {
-	firmware-name = "qcom/sdm845/starqltechn/a630_zap.mbn";
+	firmware-name = "qcom/sdm845/Samsung/starqltechn/a630_zap.mbn";
 };
 
 &mdss {
@@ -699,7 +699,8 @@
 };
 
 &adsp_pas {
-	firmware-name = "qcom/sdm845/starqltechn/adsp.mbn";
+	firmware-name = "qcom/sdm845/Samsung/starqltechn/adsp.mbn";
+
 	status = "okay";
 };
 
@@ -904,20 +905,22 @@
 };
 
 &mss_pil {
-	firmware-name = "qcom/sdm845/starqltechn/mba.mbn",
-			"qcom/sdm845/starqltechn/modem.mbn";
+	firmware-name = "qcom/sdm845/Samsung/starqltechn/mba.mbn",
+			"qcom/sdm845/Samsung/starqltechn/modem.mbn";
+
 	status = "okay";
 };
 
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/sdm845/starqltechn/ipa_fws.mbn";
+	firmware-name = "qcom/sdm845/Samsung/starqltechn/ipa_fws.mbn";
+
 	status = "okay";
 };
 
 &slpi_pas {
-	firmware-name = "qcom/sdm845/starqltechn/slpi.mbn";
+	firmware-name = "qcom/sdm845/Samsung/starqltechn/slpi.mbn";
 	cx-supply = <&slpi_regulator>;
 
 	status = "okay";
