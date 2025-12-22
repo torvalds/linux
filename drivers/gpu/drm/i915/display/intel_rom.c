@@ -3,7 +3,10 @@
  * Copyright © 2024 Intel Corporation
  */
 
-#include "i915_drv.h"
+#include <linux/pci.h>
+
+#include <drm/drm_device.h>
+
 #include "i915_reg.h"
 
 #include "intel_rom.h"
@@ -41,7 +44,6 @@ static u16 spi_read16(struct intel_rom *rom, loff_t offset)
 
 struct intel_rom *intel_rom_spi(struct drm_device *drm)
 {
-	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_rom *rom;
 	u32 static_region;
 
@@ -49,7 +51,7 @@ struct intel_rom *intel_rom_spi(struct drm_device *drm)
 	if (!rom)
 		return NULL;
 
-	rom->uncore = &i915->uncore;
+	rom->uncore = to_intel_uncore(drm);
 
 	static_region = intel_uncore_read(rom->uncore, SPI_STATIC_REGIONS);
 	static_region &= OPTIONROM_SPI_REGIONID_MASK;

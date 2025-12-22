@@ -8,7 +8,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_drv.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -305,17 +304,17 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
  */
 #ifdef I915
 static void intel_vblank_section_enter(struct intel_display *display)
-	__acquires(i915->uncore.lock)
+	__acquires(uncore->lock)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	spin_lock(&i915->uncore.lock);
+	struct intel_uncore *uncore = to_intel_uncore(display->drm);
+	spin_lock(&uncore->lock);
 }
 
 static void intel_vblank_section_exit(struct intel_display *display)
-	__releases(i915->uncore.lock)
+	__releases(uncore->lock)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	spin_unlock(&i915->uncore.lock);
+	struct intel_uncore *uncore = to_intel_uncore(display->drm);
+	spin_unlock(&uncore->lock);
 }
 #else
 static void intel_vblank_section_enter(struct intel_display *display)
