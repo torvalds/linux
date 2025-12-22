@@ -1508,7 +1508,9 @@ static int samsung_mipi_dcphy_exit(struct phy *phy)
 {
 	struct samsung_mipi_dcphy *samsung = phy_get_drvdata(phy);
 
-	return pm_runtime_put(samsung->dev);
+	pm_runtime_put(samsung->dev);
+
+	return 0;
 }
 
 static const struct phy_ops samsung_mipi_dcphy_ops = {
