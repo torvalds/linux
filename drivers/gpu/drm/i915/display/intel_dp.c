@@ -2646,6 +2646,23 @@ dsc_throughput_quirk_max_bpp_x16(const struct intel_connector *connector,
 	return fxp_q4_from_int(12);
 }
 
+static int compute_min_compressed_bpp_x16(struct intel_connector *connector,
+					  enum intel_output_format output_format)
+{
+	int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
+	int min_bpp_x16;
+
+	dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
+	dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(output_format);
+	dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
+
+	min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
+
+	min_bpp_x16 = align_min_compressed_bpp_x16(connector, min_bpp_x16);
+
+	return min_bpp_x16;
+}
+
 /*
  * Calculate the output link min, max bpp values in limits based on the pipe bpp
  * range, crtc_state and dsc mode. Return true on success.
@@ -2675,18 +2692,11 @@ intel_dp_compute_config_link_bpp_limits(struct intel_connector *connector,
 
 		limits->link.min_bpp_x16 = fxp_q4_from_int(limits->pipe.min_bpp);
 	} else {
-		int dsc_src_min_bpp, dsc_sink_min_bpp, dsc_min_bpp;
 		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
 		int throughput_max_bpp_x16;
 		int joiner_max_bpp;
-
-		dsc_src_min_bpp = intel_dp_dsc_min_src_compressed_bpp();
-		dsc_sink_min_bpp = intel_dp_dsc_sink_min_compressed_bpp(crtc_state->output_format);
-		dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
-		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
-
 		limits->link.min_bpp_x16 =
-			align_min_compressed_bpp_x16(connector, limits->link.min_bpp_x16);
+			compute_min_compressed_bpp_x16(connector, crtc_state->output_format);
 
 		dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
 		joiner_max_bpp =
