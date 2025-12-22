@@ -2663,6 +2663,48 @@ static int compute_min_compressed_bpp_x16(struct intel_connector *connector,
 	return min_bpp_x16;
 }
 
+static int compute_max_compressed_bpp_x16(struct intel_connector *connector,
+					  int mode_clock, int mode_hdisplay,
+					  int num_joined_pipes,
+					  enum intel_output_format output_format,
+					  int pipe_max_bpp, int max_link_bpp_x16)
+{
+	struct intel_display *display = to_intel_display(connector);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
+	int throughput_max_bpp_x16;
+	int joiner_max_bpp;
+
+	dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
+	joiner_max_bpp = get_max_compressed_bpp_with_joiner(display,
+							    mode_clock,
+							    mode_hdisplay,
+							    num_joined_pipes);
+	dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
+								output_format,
+								pipe_max_bpp / 3);
+	dsc_max_bpp = min(dsc_sink_max_bpp, dsc_src_max_bpp);
+	dsc_max_bpp = min(dsc_max_bpp, joiner_max_bpp);
+
+	max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
+
+	throughput_max_bpp_x16 = dsc_throughput_quirk_max_bpp_x16(connector,
+								  mode_clock);
+	if (throughput_max_bpp_x16 < max_link_bpp_x16) {
+		max_link_bpp_x16 = throughput_max_bpp_x16;
+
+		drm_dbg_kms(display->drm,
+			    "[CONNECTOR:%d:%s] Decreasing link max bpp to " FXP_Q4_FMT " due to DSC throughput quirk\n",
+			    connector->base.base.id, connector->base.name,
+			    FXP_Q4_ARGS(max_link_bpp_x16));
+	}
+
+	max_link_bpp_x16 = align_max_compressed_bpp_x16(connector, output_format,
+							pipe_max_bpp, max_link_bpp_x16);
+
+	return max_link_bpp_x16;
+}
+
 /*
  * Calculate the output link min, max bpp values in limits based on the pipe bpp
  * range, crtc_state and dsc mode. Return true on success.
@@ -2692,43 +2734,17 @@ intel_dp_compute_config_link_bpp_limits(struct intel_connector *connector,
 
 		limits->link.min_bpp_x16 = fxp_q4_from_int(limits->pipe.min_bpp);
 	} else {
-		int dsc_src_max_bpp, dsc_sink_max_bpp, dsc_max_bpp;
-		int throughput_max_bpp_x16;
-		int joiner_max_bpp;
 		limits->link.min_bpp_x16 =
 			compute_min_compressed_bpp_x16(connector, crtc_state->output_format);
 
-		dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
-		joiner_max_bpp =
-			get_max_compressed_bpp_with_joiner(display,
-							   adjusted_mode->crtc_clock,
-							   adjusted_mode->hdisplay,
-							   intel_crtc_num_joined_pipes(crtc_state));
-		dsc_sink_max_bpp = intel_dp_dsc_sink_max_compressed_bpp(connector,
-									crtc_state->output_format,
-									limits->pipe.max_bpp / 3);
-		dsc_max_bpp = min(dsc_sink_max_bpp, dsc_src_max_bpp);
-		dsc_max_bpp = min(dsc_max_bpp, joiner_max_bpp);
-
-		max_link_bpp_x16 = min(max_link_bpp_x16, fxp_q4_from_int(dsc_max_bpp));
-
-		throughput_max_bpp_x16 =
-			dsc_throughput_quirk_max_bpp_x16(connector, adjusted_mode->crtc_clock);
-		if (throughput_max_bpp_x16 < max_link_bpp_x16) {
-			max_link_bpp_x16 = throughput_max_bpp_x16;
-
-			drm_dbg_kms(display->drm,
-				    "[CRTC:%d:%s][CONNECTOR:%d:%s] Decreasing link max bpp to " FXP_Q4_FMT " due to DSC throughput quirk\n",
-				    crtc->base.base.id, crtc->base.name,
-				    connector->base.base.id, connector->base.name,
-				    FXP_Q4_ARGS(max_link_bpp_x16));
-		}
-
 		max_link_bpp_x16 =
-			align_max_compressed_bpp_x16(connector,
-						     crtc_state->output_format,
-						     limits->pipe.max_bpp,
-						     max_link_bpp_x16);
+			compute_max_compressed_bpp_x16(connector,
+						       adjusted_mode->crtc_clock,
+						       adjusted_mode->hdisplay,
+						       intel_crtc_num_joined_pipes(crtc_state),
+						       crtc_state->output_format,
+						       limits->pipe.max_bpp,
+						       max_link_bpp_x16);
 	}
 
 	limits->link.max_bpp_x16 = max_link_bpp_x16;
