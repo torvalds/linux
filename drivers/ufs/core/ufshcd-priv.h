@@ -348,9 +348,9 @@ static inline int ufshcd_rpm_resume(struct ufs_hba *hba)
 	return pm_runtime_resume(&hba->ufs_device_wlun->sdev_gendev);
 }
 
-static inline int ufshcd_rpm_put(struct ufs_hba *hba)
+static inline void ufshcd_rpm_put(struct ufs_hba *hba)
 {
-	return pm_runtime_put(&hba->ufs_device_wlun->sdev_gendev);
+	pm_runtime_put(&hba->ufs_device_wlun->sdev_gendev);
 }
 
 /**
