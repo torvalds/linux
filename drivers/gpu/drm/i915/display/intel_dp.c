@@ -2047,8 +2047,7 @@ static int dsc_compute_link_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state,
 				   const struct link_config_limits *limits,
-				   int dsc_bpp_x16,
-				   int timeslots)
+				   int dsc_bpp_x16)
 {
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int link_rate, lane_count;
@@ -2241,8 +2240,7 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 				      struct intel_crtc_state *pipe_config,
 				      struct drm_connector_state *conn_state,
 				      const struct link_config_limits *limits,
-				      int pipe_bpp,
-				      int timeslots)
+				      int pipe_bpp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct intel_connector *connector = to_intel_connector(conn_state->connector);
@@ -2270,8 +2268,7 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 					      pipe_config,
 					      conn_state,
 					      limits,
-					      bpp_x16,
-					      timeslots);
+					      bpp_x16);
 		if (ret == 0) {
 			pipe_config->dsc.compressed_bpp_x16 = bpp_x16;
 			if (intel_dp->force_dsc_fractional_bpp_en &&
@@ -2328,8 +2325,7 @@ int intel_dp_force_dsc_pipe_bpp(struct intel_dp *intel_dp,
 static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 					 struct intel_crtc_state *pipe_config,
 					 struct drm_connector_state *conn_state,
-					 const struct link_config_limits *limits,
-					 int timeslots)
+					 const struct link_config_limits *limits)
 {
 	const struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
@@ -2341,7 +2337,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 
 	if (forced_bpp) {
 		ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
-						 limits, forced_bpp, timeslots);
+						 limits, forced_bpp);
 		if (ret == 0) {
 			pipe_config->pipe_bpp = forced_bpp;
 			return 0;
@@ -2359,7 +2355,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 			continue;
 
 		ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
-						 limits, pipe_bpp, timeslots);
+						 limits, pipe_bpp);
 		if (ret == 0) {
 			pipe_config->pipe_bpp = pipe_bpp;
 			return 0;
@@ -2470,7 +2466,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 							     conn_state, limits);
 		else
 			ret = intel_dp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
-							    conn_state, limits, timeslots);
+							    conn_state, limits);
 		if (ret) {
 			drm_dbg_kms(display->drm,
 				    "No Valid pipe bpp for given mode ret = %d\n", ret);
