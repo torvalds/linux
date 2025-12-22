@@ -110,30 +110,6 @@ static int ucsi_vbus_volt_show(struct seq_file *m, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(ucsi_vbus_volt);
 
-static ssize_t ucsi_message_out_write(struct file *file,
-				      const char __user *data, size_t count, loff_t *ppos)
-{
-	struct ucsi *ucsi = file->private_data;
-	int ret;
-
-	char *buf __free(kfree) = memdup_user_nul(data, count);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	ucsi->message_out_size = min(count / 2, UCSI_MAX_MESSAGE_OUT_LENGTH);
-	ret = hex2bin(ucsi->message_out, buf, ucsi->message_out_size);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static const struct file_operations ucsi_message_out_fops = {
-	.open = simple_open,
-	.write = ucsi_message_out_write,
-	.llseek = generic_file_llseek,
-};
-
 void ucsi_debugfs_register(struct ucsi *ucsi)
 {
 	ucsi->debugfs = kzalloc(sizeof(*ucsi->debugfs), GFP_KERNEL);
@@ -146,8 +122,6 @@ void ucsi_debugfs_register(struct ucsi *ucsi)
 	debugfs_create_file("peak_current", 0400, ucsi->debugfs->dentry, ucsi, &ucsi_peak_curr_fops);
 	debugfs_create_file("avg_current", 0400, ucsi->debugfs->dentry, ucsi, &ucsi_avg_curr_fops);
 	debugfs_create_file("vbus_voltage", 0400, ucsi->debugfs->dentry, ucsi, &ucsi_vbus_volt_fops);
-	debugfs_create_file("message_out", 0200, ucsi->debugfs->dentry, ucsi,
-			    &ucsi_message_out_fops);
 }
 
 void ucsi_debugfs_unregister(struct ucsi *ucsi)
