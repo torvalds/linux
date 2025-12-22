@@ -174,9 +174,7 @@ static int rzv2h_wdt_stop(struct watchdog_device *wdev)
 	if (priv->of_data->wdtdcr)
 		rzt2h_wdt_wdtdcr_count_stop(priv);
 
-	ret = pm_runtime_put(wdev->parent);
-	if (ret < 0)
-		return ret;
+	pm_runtime_put(wdev->parent);
 
 	return 0;
 }
