@@ -896,49 +896,6 @@ static int align_max_vesa_compressed_bpp_x16(int max_link_bpp_x16)
 	return 0;
 }
 
-static u32 intel_dp_dsc_nearest_valid_bpp(struct intel_display *display, u32 bpp, u32 pipe_bpp)
-{
-	u32 bits_per_pixel = bpp;
-
-	/* Error out if the max bpp is less than smallest allowed valid bpp */
-	if (bits_per_pixel < valid_dsc_bpp[0]) {
-		drm_dbg_kms(display->drm, "Unsupported BPP %u, min %u\n",
-			    bits_per_pixel, valid_dsc_bpp[0]);
-		return 0;
-	}
-
-	/* From XE_LPD onwards we support from bpc upto uncompressed bpp-1 BPPs */
-	if (DISPLAY_VER(display) >= 13) {
-		bits_per_pixel = min(bits_per_pixel, pipe_bpp - 1);
-
-		/*
-		 * According to BSpec, 27 is the max DSC output bpp,
-		 * 8 is the min DSC output bpp.
-		 * While we can still clamp higher bpp values to 27, saving bandwidth,
-		 * if it is required to oompress up to bpp < 8, means we can't do
-		 * that and probably means we can't fit the required mode, even with
-		 * DSC enabled.
-		 */
-		if (bits_per_pixel < 8) {
-			drm_dbg_kms(display->drm,
-				    "Unsupported BPP %u, min 8\n",
-				    bits_per_pixel);
-			return 0;
-		}
-		bits_per_pixel = min_t(u32, bits_per_pixel, 27);
-	} else {
-		int link_bpp_x16 = fxp_q4_from_int(bits_per_pixel);
-
-		/* Find the nearest match in the array of known BPPs from VESA */
-		link_bpp_x16 = align_max_vesa_compressed_bpp_x16(link_bpp_x16);
-
-		drm_WARN_ON(display->drm, fxp_q4_to_frac(link_bpp_x16));
-		bits_per_pixel = fxp_q4_to_int(link_bpp_x16);
-	}
-
-	return bits_per_pixel;
-}
-
 static int bigjoiner_interface_bits(struct intel_display *display)
 {
 	return DISPLAY_VER(display) >= 14 ? 36 : 24;
@@ -1000,64 +957,6 @@ u32 get_max_compressed_bpp_with_joiner(struct intel_display *display,
 		max_bpp = min(max_bpp, ultrajoiner_ram_max_bpp(mode_hdisplay));
 
 	return max_bpp;
-}
-
-/* TODO: return a bpp_x16 value */
-u16 intel_dp_dsc_get_max_compressed_bpp(struct intel_display *display,
-					u32 link_clock, u32 lane_count,
-					u32 mode_clock, u32 mode_hdisplay,
-					int num_joined_pipes,
-					enum intel_output_format output_format,
-					u32 pipe_bpp,
-					u32 timeslots)
-{
-	u32 bits_per_pixel, joiner_max_bpp;
-
-	/*
-	 * Available Link Bandwidth(Kbits/sec) = (NumberOfLanes)*
-	 * (LinkSymbolClock)* 8 * (TimeSlots / 64)
-	 * for SST -> TimeSlots is 64(i.e all TimeSlots that are available)
-	 * for MST -> TimeSlots has to be calculated, based on mode requirements
-	 *
-	 * Due to FEC overhead, the available bw is reduced to 97.2261%.
-	 * To support the given mode:
-	 * Bandwidth required should be <= Available link Bandwidth * FEC Overhead
-	 * =>ModeClock * bits_per_pixel <= Available Link Bandwidth * FEC Overhead
-	 * =>bits_per_pixel <= Available link Bandwidth * FEC Overhead / ModeClock
-	 * =>bits_per_pixel <= (NumberOfLanes * LinkSymbolClock) * 8 (TimeSlots / 64) /
-	 *		       (ModeClock / FEC Overhead)
-	 * =>bits_per_pixel <= (NumberOfLanes * LinkSymbolClock * TimeSlots) /
-	 *		       (ModeClock / FEC Overhead * 8)
-	 */
-	bits_per_pixel = ((link_clock * lane_count) * timeslots) /
-			 (intel_dp_mode_to_fec_clock(mode_clock) * 8);
-
-	/* Bandwidth required for 420 is half, that of 444 format */
-	if (output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		bits_per_pixel *= 2;
-
-	/*
-	 * According to DSC 1.2a Section 4.1.1 Table 4.1 the maximum
-	 * supported PPS value can be 63.9375 and with the further
-	 * mention that for 420, 422 formats, bpp should be programmed double
-	 * the target bpp restricting our target bpp to be 31.9375 at max.
-	 */
-	if (output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		bits_per_pixel = min_t(u32, bits_per_pixel, 31);
-
-	drm_dbg_kms(display->drm, "Max link bpp is %u for %u timeslots "
-				"total bw %u pixel clock %u\n",
-				bits_per_pixel, timeslots,
-				(link_clock * lane_count * 8),
-				intel_dp_mode_to_fec_clock(mode_clock));
-
-	joiner_max_bpp = get_max_compressed_bpp_with_joiner(display, mode_clock,
-							    mode_hdisplay, num_joined_pipes);
-	bits_per_pixel = min(bits_per_pixel, joiner_max_bpp);
-
-	bits_per_pixel = intel_dp_dsc_nearest_valid_bpp(display, bits_per_pixel, pipe_bpp);
-
-	return bits_per_pixel;
 }
 
 u8 intel_dp_dsc_get_slice_count(const struct intel_connector *connector,
@@ -2708,26 +2607,26 @@ bool intel_dp_mode_valid_with_dsc(struct intel_connector *connector,
 				  enum intel_output_format output_format,
 				  int pipe_bpp, unsigned long bw_overhead_flags)
 {
-	struct intel_display *display = to_intel_display(connector);
-	int dsc_max_compressed_bpp;
-	int dsc_slice_count;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	int min_bpp_x16 = compute_min_compressed_bpp_x16(connector, output_format);
+	int max_bpp_x16 = compute_max_compressed_bpp_x16(connector,
+							 mode_clock, mode_hdisplay,
+							 num_joined_pipes,
+							 output_format,
+							 pipe_bpp, INT_MAX);
+	int dsc_slice_count = intel_dp_dsc_get_slice_count(connector,
+							   mode_clock,
+							   mode_hdisplay,
+							   num_joined_pipes);
 
-	dsc_max_compressed_bpp =
-		intel_dp_dsc_get_max_compressed_bpp(display,
-						    link_clock,
-						    lane_count,
-						    mode_clock,
-						    mode_hdisplay,
-						    num_joined_pipes,
-						    output_format,
-						    pipe_bpp, 64);
-	dsc_slice_count =
-		intel_dp_dsc_get_slice_count(connector,
-					     mode_clock,
-					     mode_hdisplay,
-					     num_joined_pipes);
+	if (min_bpp_x16 <= 0 || min_bpp_x16 > max_bpp_x16)
+		return false;
 
-	return dsc_max_compressed_bpp && dsc_slice_count;
+	return is_bw_sufficient_for_dsc_config(intel_dp,
+					       link_clock, lane_count,
+					       mode_clock, mode_hdisplay,
+					       dsc_slice_count, min_bpp_x16,
+					       bw_overhead_flags);
 }
 
 /*
