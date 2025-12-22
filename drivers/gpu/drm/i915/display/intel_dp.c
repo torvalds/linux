@@ -868,6 +868,20 @@ small_joiner_ram_size_bits(struct intel_display *display)
 		return 6144 * 8;
 }
 
+static int align_min_vesa_compressed_bpp_x16(int min_link_bpp_x16)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp); i++) {
+		int vesa_bpp_x16 = fxp_q4_from_int(valid_dsc_bpp[i]);
+
+		if (vesa_bpp_x16 >= min_link_bpp_x16)
+			return vesa_bpp_x16;
+	}
+
+	return 0;
+}
+
 static int align_max_vesa_compressed_bpp_x16(int max_link_bpp_x16)
 {
 	int i;
@@ -2262,6 +2276,40 @@ bool intel_dp_dsc_valid_compressed_bpp(struct intel_dp *intel_dp, int bpp_x16)
 	return align_max_vesa_compressed_bpp_x16(bpp_x16) == bpp_x16;
 }
 
+static int align_min_compressed_bpp_x16(const struct intel_connector *connector, int min_bpp_x16)
+{
+	struct intel_display *display = to_intel_display(connector);
+
+	if (DISPLAY_VER(display) >= 13) {
+		int bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
+
+		drm_WARN_ON(display->drm, !is_power_of_2(bpp_step_x16));
+
+		return round_up(min_bpp_x16, bpp_step_x16);
+	} else {
+		return align_min_vesa_compressed_bpp_x16(min_bpp_x16);
+	}
+}
+
+static int align_max_compressed_bpp_x16(const struct intel_connector *connector,
+					enum intel_output_format output_format,
+					int pipe_bpp, int max_bpp_x16)
+{
+	struct intel_display *display = to_intel_display(connector);
+	int link_bpp_x16 = intel_dp_output_format_link_bpp_x16(output_format, pipe_bpp);
+	int bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
+
+	max_bpp_x16 = min(max_bpp_x16, link_bpp_x16 - bpp_step_x16);
+
+	if (DISPLAY_VER(display) >= 13) {
+		drm_WARN_ON(display->drm, !is_power_of_2(bpp_step_x16));
+
+		return round_down(max_bpp_x16, bpp_step_x16);
+	} else {
+		return align_max_vesa_compressed_bpp_x16(max_bpp_x16);
+	}
+}
+
 /*
  * Find the max compressed BPP we can find a link configuration for. The BPPs to
  * try depend on the source (platform) and sink.
@@ -2640,6 +2688,9 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		dsc_min_bpp = max(dsc_src_min_bpp, dsc_sink_min_bpp);
 		limits->link.min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
 
+		limits->link.min_bpp_x16 =
+			align_min_compressed_bpp_x16(connector, limits->link.min_bpp_x16);
+
 		dsc_src_max_bpp = dsc_src_max_compressed_bpp(intel_dp);
 		joiner_max_bpp =
 			get_max_compressed_bpp_with_joiner(display,
@@ -2664,6 +2715,12 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 				    connector->base.base.id, connector->base.name,
 				    FXP_Q4_ARGS(max_link_bpp_x16));
 		}
+
+		max_link_bpp_x16 =
+			align_max_compressed_bpp_x16(connector,
+						     crtc_state->output_format,
+						     limits->pipe.max_bpp,
+						     max_link_bpp_x16);
 	}
 
 	limits->link.max_bpp_x16 = max_link_bpp_x16;
