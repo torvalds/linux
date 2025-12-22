@@ -528,19 +528,15 @@ static void acpi_bus_decode_usb_osc(const char *msg, u32 bits)
 	       (bits & OSC_USB_XDOMAIN) ? '+' : '-');
 }
 
-static u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
 static void acpi_bus_osc_negotiate_usb_control(void)
 {
-	u32 capbuf[3], *capbuf_ret;
-	struct acpi_osc_context context = {
-		.uuid_str = sb_usb_uuid_str,
-		.rev = 1,
-		.cap.length = sizeof(capbuf),
-		.cap.pointer = capbuf,
+	static const u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
+	u32 capbuf[3], control;
+	struct acpi_buffer cap = {
+		.pointer = capbuf,
+		.length = sizeof(capbuf),
 	};
 	acpi_handle handle;
-	acpi_status status;
-	u32 control;
 
 	if (!osc_sb_native_usb4_support_confirmed)
 		return;
@@ -551,54 +547,16 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	control = OSC_USB_USB3_TUNNELING | OSC_USB_DP_TUNNELING |
 		  OSC_USB_PCIE_TUNNELING | OSC_USB_XDOMAIN;
 
-	/*
-	 * Run _OSC first with query bit set, trying to get control over
-	 * all tunneling. The platform can then clear out bits in the
-	 * control dword that it does not want to grant to the OS.
-	 */
-	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 	capbuf[OSC_SUPPORT_DWORD] = 0;
 	capbuf[OSC_CONTROL_DWORD] = control;
 
-	status = acpi_run_osc(handle, &context);
-	if (ACPI_FAILURE(status))
+	if (acpi_osc_handshake(handle, sb_usb_uuid_str, 1, &cap))
 		return;
 
-	if (context.ret.length != sizeof(capbuf)) {
-		pr_info("USB4 _OSC: returned invalid length buffer\n");
-		goto out_free;
-	}
-
-	/*
-	 * Run _OSC again now with query bit clear and the control dword
-	 * matching what the platform granted (which may not have all
-	 * the control bits set).
-	 */
-	capbuf_ret = context.ret.pointer;
-
-	capbuf[OSC_QUERY_DWORD] = 0;
-	capbuf[OSC_CONTROL_DWORD] = capbuf_ret[OSC_CONTROL_DWORD];
-
-	kfree(context.ret.pointer);
-
-	status = acpi_run_osc(handle, &context);
-	if (ACPI_FAILURE(status))
-		return;
-
-	if (context.ret.length != sizeof(capbuf)) {
-		pr_info("USB4 _OSC: returned invalid length buffer\n");
-		goto out_free;
-	}
-
-	osc_sb_native_usb4_control =
-		control & acpi_osc_ctx_get_pci_control(&context);
+	osc_sb_native_usb4_control = capbuf[OSC_CONTROL_DWORD];
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
-	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",
-				osc_sb_native_usb4_control);
-
-out_free:
-	kfree(context.ret.pointer);
+	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls", osc_sb_native_usb4_control);
 }
 
 /* --------------------------------------------------------------------------
