@@ -1190,12 +1190,6 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov5647_write(sd, OV5647_REG_ISPCTRL3D,
 				   ov5647_test_pattern_val[ctrl->val]);
 		break;
-
-	/* Read-only, but we adjust it based on mode. */
-	case V4L2_CID_PIXEL_RATE:
-		/* Read-only, but we adjust it based on mode. */
-		break;
-
 	case V4L2_CID_HFLIP:
 		/* There's an in-built hflip in the sensor, so account for that here. */
 		ret = ov5647_s_flip(sd, OV5647_REG_TIMING_TC_H, !ctrl->val);
@@ -1262,7 +1256,7 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 			  V4L2_CID_ANALOGUE_GAIN, 16, 1023, 1, 32);
 
 	/* By default, PIXEL_RATE is read only, but it does change per mode */
-	sensor->pixel_rate = v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
+	sensor->pixel_rate = v4l2_ctrl_new_std(&sensor->ctrls, NULL,
 					       V4L2_CID_PIXEL_RATE,
 					       sensor->mode->pixel_rate,
 					       sensor->mode->pixel_rate, 1,
@@ -1301,7 +1295,6 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 	if (sensor->ctrls.error)
 		goto handler_free;
 
-	sensor->pixel_rate->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	sensor->sd.ctrl_handler = &sensor->ctrls;
 
 	return 0;
