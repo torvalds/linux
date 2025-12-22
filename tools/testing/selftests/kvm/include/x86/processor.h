@@ -436,8 +436,10 @@ struct kvm_x86_state {
 
 static inline uint64_t get_desc64_base(const struct desc64 *desc)
 {
-	return ((uint64_t)desc->base3 << 32) |
-		(desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24));
+	return (uint64_t)desc->base3 << 32 |
+	       (uint64_t)desc->base2 << 24 |
+	       (uint64_t)desc->base1 << 16 |
+	       (uint64_t)desc->base0;
 }
 
 static inline uint64_t rdtsc(void)
