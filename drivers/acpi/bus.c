@@ -196,52 +196,67 @@ static void acpi_dump_osc_data(acpi_handle handle, const guid_t *guid, int rev,
 			 OSC_INVALID_REVISION_ERROR | \
 			 OSC_CAPABILITIES_MASK_ERROR)
 
+static int acpi_eval_osc(acpi_handle handle, guid_t *guid, int rev,
+			 struct acpi_buffer *cap,
+			 union acpi_object in_params[at_least 4],
+			 struct acpi_buffer *output)
+{
+	struct acpi_object_list input;
+	union acpi_object *out_obj;
+	acpi_status status;
+
+	in_params[0].type = ACPI_TYPE_BUFFER;
+	in_params[0].buffer.length = sizeof(*guid);
+	in_params[0].buffer.pointer = (u8 *)guid;
+	in_params[1].type = ACPI_TYPE_INTEGER;
+	in_params[1].integer.value = rev;
+	in_params[2].type = ACPI_TYPE_INTEGER;
+	in_params[2].integer.value = cap->length / sizeof(u32);
+	in_params[3].type = ACPI_TYPE_BUFFER;
+	in_params[3].buffer.length = cap->length;
+	in_params[3].buffer.pointer = cap->pointer;
+	input.pointer = in_params;
+	input.count = 4;
+
+	output->length = ACPI_ALLOCATE_BUFFER;
+	output->pointer = NULL;
+
+	status = acpi_evaluate_object(handle, "_OSC", &input, output);
+	if (ACPI_FAILURE(status) || !output->length)
+		return -ENODATA;
+
+	out_obj = output->pointer;
+	if (out_obj->type != ACPI_TYPE_BUFFER ||
+	    out_obj->buffer.length != cap->length) {
+		acpi_handle_debug(handle, "Invalid _OSC return buffer\n");
+		acpi_dump_osc_data(handle, guid, rev, cap);
+		ACPI_FREE(out_obj);
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 {
 	u32 errors, *capbuf = context->cap.pointer;
-	acpi_status status;
-	struct acpi_object_list input;
-	union acpi_object in_params[4];
-	union acpi_object *out_obj;
+	union acpi_object in_params[4], *out_obj;
+	struct acpi_buffer output;
+	acpi_status status = AE_OK;
 	guid_t guid;
-	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
+	int ret;
 
-	if (!context)
+	if (!context || !context->cap.pointer ||
+	    context->cap.length < 2 * sizeof(32) ||
+	    guid_parse(context->uuid_str, &guid))
+		return AE_BAD_PARAMETER;
+
+	ret = acpi_eval_osc(handle, &guid, context->rev, &context->cap,
+			    in_params, &output);
+	if (ret)
 		return AE_ERROR;
-	if (guid_parse(context->uuid_str, &guid))
-		return AE_ERROR;
-	context->ret.length = ACPI_ALLOCATE_BUFFER;
-	context->ret.pointer = NULL;
-
-	/* Setting up input parameters */
-	input.count = 4;
-	input.pointer = in_params;
-	in_params[0].type 		= ACPI_TYPE_BUFFER;
-	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= (u8 *)&guid;
-	in_params[1].type 		= ACPI_TYPE_INTEGER;
-	in_params[1].integer.value 	= context->rev;
-	in_params[2].type 		= ACPI_TYPE_INTEGER;
-	in_params[2].integer.value	= context->cap.length/sizeof(u32);
-	in_params[3].type		= ACPI_TYPE_BUFFER;
-	in_params[3].buffer.length 	= context->cap.length;
-	in_params[3].buffer.pointer 	= context->cap.pointer;
-
-	status = acpi_evaluate_object(handle, "_OSC", &input, &output);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	if (!output.length)
-		return AE_NULL_OBJECT;
 
 	out_obj = output.pointer;
-	if (out_obj->type != ACPI_TYPE_BUFFER
-		|| out_obj->buffer.length != context->cap.length) {
-		acpi_dump_osc_data(handle, &guid, context->rev, &context->cap);
-		acpi_handle_debug(handle, "_OSC: evaluation returned wrong type");
-		status = AE_TYPE;
-		goto out_kfree;
-	}
 	/* Only take defined error bits into account. */
 	errors = *((u32 *)out_obj->buffer.pointer) & OSC_ERROR_MASK;
 	/*
