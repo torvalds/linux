@@ -1922,8 +1922,6 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 
 	for (i = 0; i < bps_count; i++) {
 		address = ((uint64_t)bps[i].bp) << AMDGPU_GPU_PAGE_SHIFT;
-		if (amdgpu_ras_check_critical_address(adev, address))
-			continue;
 
 		bps[i].size = AMDGPU_GPU_PAGE_SIZE;
 
@@ -1934,6 +1932,10 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 		else if (status == -ENOENT)
 			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 		else
+			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED;
+
+		if ((bps[i].flags != AMDGPU_RAS_RETIRE_PAGE_RESERVED) &&
+		    amdgpu_ras_check_critical_address(adev, address))
 			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED;
 
 		s += scnprintf(&buf[s], element_size + 1,
