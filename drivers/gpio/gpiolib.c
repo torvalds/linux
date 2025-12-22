@@ -4717,7 +4717,8 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 			 * lookup table for the proxy device as previously
 			 * we only knew the consumer's fwnode.
 			 */
-			ret = gpio_shared_add_proxy_lookup(consumer, lookupflags);
+			ret = gpio_shared_add_proxy_lookup(consumer, con_id,
+							   lookupflags);
 			if (ret)
 				return ERR_PTR(ret);
 

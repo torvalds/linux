@@ -365,7 +365,8 @@ static bool gpio_shared_dev_is_reset_gpio(struct device *consumer,
 }
 #endif /* CONFIG_RESET_GPIO */
 
-int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
+int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
+				 unsigned long lflags)
 {
 	const char *dev_id = dev_name(consumer);
 	struct gpio_shared_entry *entry;
@@ -383,6 +384,10 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags)
 				continue;
 
 			guard(mutex)(&ref->lock);
+
+			if ((!con_id && ref->con_id) || (con_id && !ref->con_id) ||
+			    (con_id && ref->con_id && strcmp(con_id, ref->con_id) != 0))
+				continue;
 
 			/* We've already done that on a previous request. */
 			if (ref->lookup)
