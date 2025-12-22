@@ -139,7 +139,6 @@ impl<'a> IrqRequest<'a> {
 /// [`Completion::wait_for_completion()`]: kernel::sync::Completion::wait_for_completion
 ///
 /// ```
-/// use kernel::c_str;
 /// use kernel::device::{Bound, Device};
 /// use kernel::irq::{self, Flags, IrqRequest, IrqReturn, Registration};
 /// use kernel::prelude::*;
@@ -167,7 +166,7 @@ impl<'a> IrqRequest<'a> {
 ///     handler: impl PinInit<Data, Error>,
 ///     request: IrqRequest<'_>,
 /// ) -> Result<Arc<Registration<Data>>> {
-///     let registration = Registration::new(request, Flags::SHARED, c_str!("my_device"), handler);
+///     let registration = Registration::new(request, Flags::SHARED, c"my_device", handler);
 ///
 ///     let registration = Arc::pin_init(registration, GFP_KERNEL)?;
 ///
@@ -340,7 +339,6 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 /// [`Mutex`](kernel::sync::Mutex) to provide interior mutability.
 ///
 /// ```
-/// use kernel::c_str;
 /// use kernel::device::{Bound, Device};
 /// use kernel::irq::{
 ///   self, Flags, IrqRequest, IrqReturn, ThreadedHandler, ThreadedIrqReturn,
@@ -381,7 +379,7 @@ impl<T: ?Sized + ThreadedHandler, A: Allocator> ThreadedHandler for Box<T, A> {
 ///     request: IrqRequest<'_>,
 /// ) -> Result<Arc<ThreadedRegistration<Data>>> {
 ///     let registration =
-///         ThreadedRegistration::new(request, Flags::SHARED, c_str!("my_device"), handler);
+///         ThreadedRegistration::new(request, Flags::SHARED, c"my_device", handler);
 ///
 ///     let registration = Arc::pin_init(registration, GFP_KERNEL)?;
 ///
