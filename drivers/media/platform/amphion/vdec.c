@@ -9,7 +9,6 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -17,7 +16,6 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
-#include <media/videobuf2-vmalloc.h>
 #include "vpu.h"
 #include "vpu_defs.h"
 #include "vpu_core.h"
@@ -1662,9 +1660,9 @@ static void vdec_cleanup(struct vpu_inst *inst)
 		vdec->slots = NULL;
 		vdec->slot_count = 0;
 	}
-	vfree(vdec);
+	kfree(vdec);
 	inst->priv = NULL;
-	vfree(inst);
+	kfree(inst);
 }
 
 static void vdec_init_params(struct vdec_t *vdec)
@@ -1929,13 +1927,13 @@ static int vdec_open(struct file *file)
 	struct vdec_t *vdec;
 	int ret;
 
-	inst = vzalloc(sizeof(*inst));
+	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
 	if (!inst)
 		return -ENOMEM;
 
-	vdec = vzalloc(sizeof(*vdec));
+	vdec = kzalloc(sizeof(*vdec), GFP_KERNEL);
 	if (!vdec) {
-		vfree(inst);
+		kfree(inst);
 		return -ENOMEM;
 	}
 
@@ -1943,8 +1941,8 @@ static int vdec_open(struct file *file)
 				    sizeof(*vdec->slots),
 				    GFP_KERNEL | __GFP_ZERO);
 	if (!vdec->slots) {
-		vfree(vdec);
-		vfree(inst);
+		kfree(vdec);
+		kfree(inst);
 		return -ENOMEM;
 	}
 	vdec->slot_count = VDEC_SLOT_CNT_DFT;
