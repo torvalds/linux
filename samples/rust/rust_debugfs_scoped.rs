@@ -7,7 +7,6 @@
 //! track them all.
 
 use kernel::{
-    c_str,
     debugfs::{
         Dir,
         Scope, //
@@ -89,7 +88,7 @@ fn create_file_write(
                     };
                     dir.read_write_file(&name, val);
                 }
-                dir.read_write_binary_file(c_str!("blob"), &dev_data.blob);
+                dir.read_write_binary_file(c"blob", &dev_data.blob);
             },
         ),
         GFP_KERNEL,
@@ -128,20 +127,16 @@ struct DeviceData {
 }
 
 fn init_control(base_dir: &Dir, dyn_dirs: Dir) -> impl PinInit<Scope<ModuleData>> + '_ {
-    base_dir.scope(
-        ModuleData::init(dyn_dirs),
-        c_str!("control"),
-        |data, dir| {
-            dir.write_only_callback_file(c_str!("create"), data, &create_file_write);
-            dir.write_only_callback_file(c_str!("remove"), data, &remove_file_write);
-        },
-    )
+    base_dir.scope(ModuleData::init(dyn_dirs), c"control", |data, dir| {
+        dir.write_only_callback_file(c"create", data, &create_file_write);
+        dir.write_only_callback_file(c"remove", data, &remove_file_write);
+    })
 }
 
 impl kernel::Module for RustScopedDebugFs {
     fn init(_module: &'static kernel::ThisModule) -> Result<Self> {
-        let base_dir = Dir::new(c_str!("rust_scoped_debugfs"));
-        let dyn_dirs = base_dir.subdir(c_str!("dynamic"));
+        let base_dir = Dir::new(c"rust_scoped_debugfs");
+        let dyn_dirs = base_dir.subdir(c"dynamic");
         Ok(Self {
             _data: KBox::pin_init(init_control(&base_dir, dyn_dirs), GFP_KERNEL)?,
         })
