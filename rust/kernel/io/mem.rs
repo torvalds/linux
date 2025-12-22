@@ -5,7 +5,6 @@
 use core::ops::Deref;
 
 use crate::{
-    c_str,
     device::{
         Bound,
         Device, //
@@ -52,7 +51,12 @@ impl<'a> IoRequest<'a> {
     /// illustration purposes.
     ///
     /// ```no_run
-    /// use kernel::{bindings, c_str, platform, of, device::Core};
+    /// use kernel::{
+    ///     bindings,
+    ///     device::Core,
+    ///     of,
+    ///     platform,
+    /// };
     /// struct SampleDriver;
     ///
     /// impl platform::Driver for SampleDriver {
@@ -110,7 +114,12 @@ impl<'a> IoRequest<'a> {
     /// illustration purposes.
     ///
     /// ```no_run
-    /// use kernel::{bindings, c_str, platform, of, device::Core};
+    /// use kernel::{
+    ///     bindings,
+    ///     device::Core,
+    ///     of,
+    ///     platform,
+    /// };
     /// struct SampleDriver;
     ///
     /// impl platform::Driver for SampleDriver {
@@ -172,7 +181,7 @@ impl<const SIZE: usize> ExclusiveIoMem<SIZE> {
     fn ioremap(resource: &Resource) -> Result<Self> {
         let start = resource.start();
         let size = resource.size();
-        let name = resource.name().unwrap_or(c_str!(""));
+        let name = resource.name().unwrap_or_default();
 
         let region = resource
             .request_region(
