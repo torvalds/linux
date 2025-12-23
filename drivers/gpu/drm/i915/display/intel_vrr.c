@@ -1095,10 +1095,21 @@ int intel_vrr_safe_window_start(const struct intel_crtc_state *crtc_state)
 		return crtc_state->hw.adjusted_mode.crtc_vdisplay;
 }
 
+static int
+intel_vrr_dcb_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
+{
+	return (intel_vrr_dcb_vmin_vblank_start_next(crtc_state) < 0) ?
+		intel_vrr_dcb_vmin_vblank_start_final(crtc_state) :
+		intel_vrr_dcb_vmin_vblank_start_next(crtc_state);
+}
+
 int intel_vrr_vmin_safe_window_end(const struct intel_crtc_state *crtc_state)
 {
-	return intel_vrr_vmin_vblank_start(crtc_state) -
-	       crtc_state->set_context_latency;
+	int vmin_vblank_start = crtc_state->vrr.dc_balance.enable ?
+			intel_vrr_dcb_vmin_vblank_start(crtc_state) :
+			intel_vrr_vmin_vblank_start(crtc_state);
+
+	return vmin_vblank_start - crtc_state->set_context_latency;
 }
 
 int intel_vrr_dcb_vmin_vblank_start_next(const struct intel_crtc_state *crtc_state)
