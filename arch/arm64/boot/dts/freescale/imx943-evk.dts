@@ -738,6 +738,22 @@
 			IMX94_PAD_SD2_RESET_B__GPIO4_IO27	0x31e
 		>;
 	};
+
+	pinctrl_xspi1: xspi1grp {
+		fsl,pins = <
+			IMX94_PAD_XSPI1_SCLK__XSPI1_A_SCLK	0x3fe
+			IMX94_PAD_XSPI1_SS0_B__XSPI1_A_SS0_B	0x3fe
+			IMX94_PAD_XSPI1_DATA0__XSPI1_A_DATA0	0x3fe
+			IMX94_PAD_XSPI1_DATA1__XSPI1_A_DATA1	0x3fe
+			IMX94_PAD_XSPI1_DATA2__XSPI1_A_DATA2	0x3fe
+			IMX94_PAD_XSPI1_DATA3__XSPI1_A_DATA3	0x3fe
+			IMX94_PAD_XSPI1_DATA4__XSPI1_A_DATA4	0x3fe
+			IMX94_PAD_XSPI1_DATA5__XSPI1_A_DATA5	0x3fe
+			IMX94_PAD_XSPI1_DATA6__XSPI1_A_DATA6	0x3fe
+			IMX94_PAD_XSPI1_DATA7__XSPI1_A_DATA7	0x3fe
+			IMX94_PAD_XSPI1_DQS__XSPI1_A_DQS	0x3fe
+		>;
+	};
 };
 
 &usdhc1 {
@@ -768,4 +784,22 @@
 &wdog3 {
 	fsl,ext-reset-output;
 	status = "okay";
+};
+
+&xspi1 {
+	pinctrl-0 = <&pinctrl_xspi1>;
+	pinctrl-1 = <&pinctrl_xspi1>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+
+	mt35xu512aba: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reset-gpios = <&pcal6416_i2c6_u50 15 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+		spi-max-frequency = <200000000>;
+		spi-rx-bus-width = <8>;
+		spi-tx-bus-width = <8>;
+	};
 };
