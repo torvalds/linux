@@ -20,6 +20,12 @@ static void xe_soc_remapper_set_telem_region(struct xe_device *xe, u32 index)
 				   REG_FIELD_PREP(SG_REMAP_TELEM_MASK, index));
 }
 
+static void xe_soc_remapper_set_sysctrl_region(struct xe_device *xe, u32 index)
+{
+	xe_soc_remapper_set_region(xe, SG_REMAP_INDEX1, SG_REMAP_SYSCTRL_MASK,
+				   REG_FIELD_PREP(SG_REMAP_SYSCTRL_MASK, index));
+}
+
 /**
  * xe_soc_remapper_init() - Initialize SoC remapper
  * @xe: Pointer to xe device.
@@ -30,10 +36,17 @@ static void xe_soc_remapper_set_telem_region(struct xe_device *xe, u32 index)
  */
 int xe_soc_remapper_init(struct xe_device *xe)
 {
-	if (xe->info.has_soc_remapper_telem) {
+	bool has_soc_remapper = xe->info.has_soc_remapper_telem ||
+				xe->info.has_soc_remapper_sysctrl;
+
+	if (has_soc_remapper)
 		spin_lock_init(&xe->soc_remapper.lock);
+
+	if (xe->info.has_soc_remapper_telem)
 		xe->soc_remapper.set_telem_region = xe_soc_remapper_set_telem_region;
-	}
+
+	if (xe->info.has_soc_remapper_sysctrl)
+		xe->soc_remapper.set_sysctrl_region = xe_soc_remapper_set_sysctrl_region;
 
 	return 0;
 }
