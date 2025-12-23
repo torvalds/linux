@@ -10,6 +10,8 @@
 #define TPDA_Pn_CR(n)		(0x004 + (n * 4))
 #define TPDA_FPID_CR		(0x084)
 
+/* Cross trigger global (all ports) flush request bit */
+#define TPDA_CR_FLREQ		BIT(0)
 /* Cross trigger FREQ packets timestamp bit */
 #define TPDA_CR_FREQTS		BIT(2)
 /* Cross trigger FREQ packet request bit */
