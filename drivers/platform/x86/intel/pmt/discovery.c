@@ -503,8 +503,10 @@ static int pmt_features_discovery(struct pmt_features_priv *priv,
 
 	ret = kobject_init_and_add(&feature->kobj, ktype, &priv->dev->kobj,
 				   "%s", pmt_feature_names[feature->id]);
-	if (ret)
+	if (ret) {
+		kobject_put(&feature->kobj);
 		return ret;
+	}
 
 	kobject_uevent(&feature->kobj, KOBJ_ADD);
 	pmt_features_add_feat(feature);
