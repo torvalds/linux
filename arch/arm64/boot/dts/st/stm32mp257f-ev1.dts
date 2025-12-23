@@ -223,7 +223,7 @@
 		phy1_eth1: ethernet-phy@4 {
 			compatible = "ethernet-phy-id001c.c916";
 			reg = <4>;
-			reset-gpios =  <&gpioj 9 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpioj 9 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <80000>;
 		};
