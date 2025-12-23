@@ -278,7 +278,7 @@
 			clock-names = "sfp";
 		};
 
-		sec_mon: sec_mon@1e90000 {
+		sec_mon: sec-mon@1e90000 {
 			compatible = "fsl,sec-v5.4-mon", "fsl,sec-v5.0-mon",
 				     "fsl,sec-v4.0-mon";
 			reg = <0x0 0x1e90000 0x0 0x10000>;

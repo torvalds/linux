@@ -40,7 +40,7 @@
 			linux,cma-default;
 		};
 
-		vpu_boot: vpu_boot@a0000000 {
+		vpu_boot: vpu-boot@a0000000 {
 			reg = <0 0xa0000000 0 0x100000>;
 			no-map;
 		};
