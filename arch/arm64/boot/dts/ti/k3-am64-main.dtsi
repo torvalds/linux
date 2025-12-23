@@ -84,7 +84,7 @@
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x00 0x01800000 0x00 0x10000>,	/* GICD */
-		      <0x00 0x01840000 0x00 0xC0000>,	/* GICR */
+		      <0x00 0x01840000 0x00 0xc0000>,	/* GICR */
 		      <0x01 0x00000000 0x00 0x2000>,	/* GICC */
 		      <0x01 0x00010000 0x00 0x1000>,	/* GICH */
 		      <0x01 0x00020000 0x00 0x2000>;	/* GICV */
@@ -685,14 +685,14 @@
 		power-domains = <&k3_pds 13 TI_SCI_PD_EXCLUSIVE>;
 		status = "disabled";
 
-		dmas = <&main_pktdma 0xC500 15>,
-		       <&main_pktdma 0xC501 15>,
-		       <&main_pktdma 0xC502 15>,
-		       <&main_pktdma 0xC503 15>,
-		       <&main_pktdma 0xC504 15>,
-		       <&main_pktdma 0xC505 15>,
-		       <&main_pktdma 0xC506 15>,
-		       <&main_pktdma 0xC507 15>,
+		dmas = <&main_pktdma 0xc500 15>,
+		       <&main_pktdma 0xc501 15>,
+		       <&main_pktdma 0xc502 15>,
+		       <&main_pktdma 0xc503 15>,
+		       <&main_pktdma 0xc504 15>,
+		       <&main_pktdma 0xc505 15>,
+		       <&main_pktdma 0xc506 15>,
+		       <&main_pktdma 0xc507 15>,
 		       <&main_pktdma 0x4500 15>;
 		dma-names = "tx0", "tx1", "tx2", "tx3", "tx4", "tx5", "tx6",
 			    "tx7", "rx";

@@ -436,7 +436,7 @@
 	mcu_mcan1_pins_default: mcu-mcan1-default-pins {
 		pinctrl-single,pins = <
 			J722S_MCU_IOPAD(0x040, PIN_INPUT, 0) /* (B1) MCU_MCAN1_RX */
-			J722S_MCU_IOPAD(0x03C, PIN_OUTPUT, 0) /*(C1) MCU_MCAN1_TX */
+			J722S_MCU_IOPAD(0x03c, PIN_OUTPUT, 0) /*(C1) MCU_MCAN1_TX */
 		>;
 	};
 
