@@ -1612,12 +1612,23 @@ static int __rtw89_ops_set_vif_links(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static void rtw89_vif_cfg_fw_links(struct rtw89_dev *rtwdev,
-				   struct rtw89_vif *rtwvif,
-				   unsigned long links, bool en)
+static void rtw89_vif_update_fw_links(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif *rtwvif,
+				      u16 current_links, bool en)
 {
+	struct rtw89_vif_ml_trans *trans = &rtwvif->ml_trans;
 	struct rtw89_vif_link *rtwvif_link;
 	unsigned int link_id;
+	unsigned long links;
+
+	/* Do follow-up when all updating links exist. */
+	if (current_links != trans->mediate_links)
+		return;
+
+	if (en)
+		links = trans->links_to_add;
+	else
+		links = trans->links_to_del;
 
 	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		rtwvif_link = rtwvif->links[link_id];
@@ -1626,20 +1637,6 @@ static void rtw89_vif_cfg_fw_links(struct rtw89_dev *rtwdev,
 
 		rtw89_fw_h2c_mlo_link_cfg(rtwdev, rtwvif_link, en);
 	}
-}
-
-static void rtw89_vif_update_fw_links(struct rtw89_dev *rtwdev,
-				      struct rtw89_vif *rtwvif,
-				      u16 current_links)
-{
-	struct rtw89_vif_ml_trans *trans = &rtwvif->ml_trans;
-
-	/* Do follow-up when all updating links exist. */
-	if (current_links != trans->mediate_links)
-		return;
-
-	rtw89_vif_cfg_fw_links(rtwdev, rtwvif, trans->links_to_del, false);
-	rtw89_vif_cfg_fw_links(rtwdev, rtwvif, trans->links_to_add, true);
 }
 
 static
@@ -1683,7 +1680,7 @@ int rtw89_ops_change_vif_links(struct ieee80211_hw *hw,
 	if (rtwdev->scanning)
 		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 
-	rtw89_vif_update_fw_links(rtwdev, rtwvif, old_links);
+	rtw89_vif_update_fw_links(rtwdev, rtwvif, old_links, true);
 
 	if (!old_links)
 		__rtw89_ops_clr_vif_links(rtwdev, rtwvif,
@@ -1715,6 +1712,9 @@ int rtw89_ops_change_vif_links(struct ieee80211_hw *hw,
 			__rtw89_ops_clr_vif_links(rtwdev, rtwvif,
 						  BIT(RTW89_VIF_IDLE_LINK_ID));
 	}
+
+	if (!ret)
+		rtw89_vif_update_fw_links(rtwdev, rtwvif, new_links, false);
 
 	rtw89_enter_ips_by_hwflags(rtwdev);
 	return ret;
