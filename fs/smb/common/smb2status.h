@@ -27,6 +27,12 @@ struct ntstatus {
 	__le32 Code;
 };
 
+/*
+ * The comment at the end of each definition indicates `posix_error`
+ * field of `struct status_to_posix_error`, it is used to generate the
+ * `smb2_error_map_table` array.
+ */
+
 #define STATUS_SUCCESS				cpu_to_le32(0x00000000) // 0
 #define STATUS_WAIT_0				cpu_to_le32(0x00000000) // 0
 #define STATUS_WAIT_1				cpu_to_le32(0x00000001) // -EIO
