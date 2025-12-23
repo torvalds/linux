@@ -1489,7 +1489,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 			return -ETIMEDOUT;
 		}
 
-		dev_dbg(dev, "%s, rae_fw size=0x%lx\n", __func__, rae_fw->size);
+		dev_dbg(dev, "%s, rae_fw size=0x%zx\n", __func__, rae_fw->size);
 		regcache_cache_bypass(rt1320->regmap, true);
 		for (fw_offset = 0; fw_offset < rae_fw->size;) {
 
