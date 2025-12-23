@@ -120,6 +120,7 @@ struct rtw89_h2creg_sch_tx_en {
 struct rtw89_mac_c2h_info {
 	u8 id;
 	u8 content_len;
+	u32 timeout;
 	union {
 		u32 c2hreg[RTW89_C2HREG_MAX];
 		struct rtw89_c2hreg_hdr hdr;
