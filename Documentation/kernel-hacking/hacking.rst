@@ -598,7 +598,7 @@ when adding any new APIs or functionality.
 
 Defined in ``include/linux/export.h``
 
-This is the variant of `EXPORT_SYMBOL()` that allows specifying a symbol
+This is the variant of EXPORT_SYMBOL() that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
 Documentation/core-api/symbol-namespaces.rst
 
@@ -607,7 +607,7 @@ Documentation/core-api/symbol-namespaces.rst
 
 Defined in ``include/linux/export.h``
 
-This is the variant of `EXPORT_SYMBOL_GPL()` that allows specifying a symbol
+This is the variant of EXPORT_SYMBOL_GPL() that allows specifying a symbol
 namespace. Symbol Namespaces are documented in
 Documentation/core-api/symbol-namespaces.rst
 
