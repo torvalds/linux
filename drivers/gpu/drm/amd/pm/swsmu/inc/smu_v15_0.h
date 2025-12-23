@@ -81,6 +81,7 @@ struct smu_15_0_dpm_tables {
 	struct smu_dpm_table        phy_table;
 	struct smu_dpm_table        fclk_table;
 	struct smu_pcie_table       pcie_table;
+	struct smu_dpm_table        gl2_table;
 };
 
 struct smu_15_0_dpm_context {

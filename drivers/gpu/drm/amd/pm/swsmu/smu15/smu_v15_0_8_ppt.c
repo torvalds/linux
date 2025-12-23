@@ -263,6 +263,212 @@ static int smu_v15_0_8_init_allowed_features(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v15_0_8_get_dpm_ultimate_freq(struct smu_context *smu,
+					     enum smu_clk_type clk_type,
+					     uint32_t *min, uint32_t *max)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	struct smu_dpm_table *dpm_table;
+	uint32_t min_clk = 0, max_clk = 0;
+
+	if (!pptable->init)
+		return -EINVAL;
+
+	/* Try cached DPM tables first */
+	if (dpm_context) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			dpm_table = &dpm_context->dpm_tables.uclk_table;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			dpm_table = &dpm_context->dpm_tables.gfx_table;
+			break;
+		case SMU_SOCCLK:
+			dpm_table = &dpm_context->dpm_tables.soc_table;
+			break;
+		case SMU_FCLK:
+			dpm_table = &dpm_context->dpm_tables.fclk_table;
+			break;
+		case SMU_GL2CLK:
+			dpm_table = &dpm_context->dpm_tables.gl2_table;
+			break;
+		case SMU_VCLK:
+			dpm_table = &dpm_context->dpm_tables.vclk_table;
+			break;
+		case SMU_DCLK:
+			dpm_table = &dpm_context->dpm_tables.dclk_table;
+			break;
+		default:
+			dpm_table = NULL;
+			break;
+		}
+
+		if (dpm_table && dpm_table->count > 0) {
+			min_clk = SMU_DPM_TABLE_MIN(dpm_table);
+			max_clk = SMU_DPM_TABLE_MAX(dpm_table);
+
+			if (min_clk && max_clk) {
+				if (min)
+					*min = min_clk;
+				if (max)
+					*max = max_clk;
+				return 0;
+			}
+		}
+	}
+
+	/* Fall back to pptable */
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		min_clk = pptable->MinGfxclkFrequency;
+		max_clk = pptable->MaxGfxclkFrequency;
+		break;
+	case SMU_FCLK:
+		min_clk = pptable->MinFclkFrequency;
+		max_clk = pptable->MaxFclkFrequency;
+		break;
+	case SMU_GL2CLK:
+		min_clk = pptable->MinGl2clkFrequency;
+		max_clk = pptable->MaxGl2clkFrequency;
+		break;
+	case SMU_MCLK:
+	case SMU_UCLK:
+		min_clk = pptable->UclkFrequencyTable[0];
+		max_clk = pptable->UclkFrequencyTable[ARRAY_SIZE(pptable->UclkFrequencyTable) - 1];
+		break;
+	case SMU_SOCCLK:
+		min_clk = pptable->SocclkFrequency;
+		max_clk = pptable->SocclkFrequency;
+		break;
+	case SMU_VCLK:
+		min_clk = pptable->VclkFrequency;
+		max_clk = pptable->VclkFrequency;
+		break;
+	case SMU_DCLK:
+		min_clk = pptable->DclkFrequency;
+		max_clk = pptable->DclkFrequency;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (min)
+		*min = min_clk;
+	if (max)
+		*max = max_clk;
+
+	return 0;
+}
+
+static int smu_v15_0_8_set_dpm_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_dpm_table *dpm_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	int i, ret;
+	uint32_t gfxclkmin, gfxclkmax;
+
+	/* gfxclk dpm table setup - fine-grained */
+	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
+	dpm_table->flags = SMU_DPM_TABLE_FINE_GRAINED;
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
+		ret = smu_v15_0_8_get_dpm_ultimate_freq(smu, SMU_GFXCLK,
+							&gfxclkmin, &gfxclkmax);
+		if (ret)
+			return ret;
+
+		dpm_table->count = 2;
+		dpm_table->dpm_levels[0].value = gfxclkmin;
+		dpm_table->dpm_levels[0].enabled = true;
+		dpm_table->dpm_levels[1].value = gfxclkmax;
+		dpm_table->dpm_levels[1].enabled = true;
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = pptable->MinGfxclkFrequency;
+		dpm_table->dpm_levels[0].enabled = true;
+	}
+
+	/* fclk dpm table setup - fine-grained */
+	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
+	dpm_table->flags = SMU_DPM_TABLE_FINE_GRAINED;
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
+		dpm_table->count = 2;
+		dpm_table->dpm_levels[0].value = pptable->MinFclkFrequency;
+		dpm_table->dpm_levels[0].enabled = true;
+		dpm_table->dpm_levels[1].value = pptable->MaxFclkFrequency;
+		dpm_table->dpm_levels[1].enabled = true;
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = pptable->MinFclkFrequency;
+		dpm_table->dpm_levels[0].enabled = true;
+	}
+
+	/* gl2clk dpm table setup - fine-grained */
+	dpm_table = &dpm_context->dpm_tables.gl2_table;
+	dpm_table->flags = SMU_DPM_TABLE_FINE_GRAINED;
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GL2CLK_BIT)) {
+		dpm_table->count = 2;
+		dpm_table->dpm_levels[0].value = pptable->MinGl2clkFrequency;
+		dpm_table->dpm_levels[0].enabled = true;
+		dpm_table->dpm_levels[1].value = pptable->MaxGl2clkFrequency;
+		dpm_table->dpm_levels[1].enabled = true;
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = pptable->MinGl2clkFrequency;
+		dpm_table->dpm_levels[0].enabled = true;
+	}
+
+	/* uclk dpm table setup - discrete levels */
+	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
+	dpm_table->flags = 0;
+	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+		dpm_table->count = ARRAY_SIZE(pptable->UclkFrequencyTable);
+		for (i = 0; i < dpm_table->count; ++i) {
+			dpm_table->dpm_levels[i].value = pptable->UclkFrequencyTable[i];
+			dpm_table->dpm_levels[i].enabled = true;
+		}
+	} else {
+		dpm_table->count = 1;
+		dpm_table->dpm_levels[0].value = pptable->UclkFrequencyTable[0];
+		dpm_table->dpm_levels[0].enabled = true;
+	}
+
+	/* socclk dpm table setup - single boot-time value */
+	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
+	dpm_table->flags = 0;
+	dpm_table->count = 1;
+	dpm_table->dpm_levels[0].value = pptable->SocclkFrequency;
+	dpm_table->dpm_levels[0].enabled = true;
+
+	/* vclk dpm table setup - single boot-time value */
+	dpm_table = &dpm_context->dpm_tables.vclk_table;
+	dpm_table->clk_type = SMU_VCLK;
+	dpm_table->flags = 0;
+	dpm_table->count = 1;
+	dpm_table->dpm_levels[0].value = pptable->VclkFrequency;
+	dpm_table->dpm_levels[0].enabled = true;
+
+	/* dclk dpm table setup - single boot-time value */
+	dpm_table = &dpm_context->dpm_tables.dclk_table;
+	dpm_table->clk_type = SMU_DCLK;
+	dpm_table->flags = 0;
+	dpm_table->count = 1;
+	dpm_table->dpm_levels[0].value = pptable->DclkFrequency;
+	dpm_table->dpm_levels[0].enabled = true;
+
+	return 0;
+}
+
 static int smu_v15_0_8_setup_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
@@ -452,6 +658,10 @@ static int smu_v15_0_8_set_default_dpm_table(struct smu_context *smu)
 	int ret;
 
 	ret = smu_v15_0_8_set_driver_pptable(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_v15_0_8_set_dpm_table(smu);
 	if (ret)
 		return ret;
 
@@ -714,6 +924,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.wait_for_event = smu_v15_0_wait_for_event,
 	.mode2_reset = smu_v15_0_8_mode2_reset,
+	.get_dpm_ultimate_freq = smu_v15_0_8_get_dpm_ultimate_freq,
 };
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
