@@ -736,7 +736,7 @@ make a neat patch, there's administrative work to be done:
 -  Usually you want a configuration option for your kernel hack. Edit
    ``Kconfig`` in the appropriate directory. The Config language is
    simple to use by cut and paste, and there's complete documentation in
-   ``Documentation/kbuild/kconfig-language.rst``.
+   Documentation/kbuild/kconfig-language.rst.
 
    In your description of the option, make sure you address both the
    expert user and the user who knows nothing about your feature.
@@ -746,7 +746,7 @@ make a neat patch, there's administrative work to be done:
 
 -  Edit the ``Makefile``: the CONFIG variables are exported here so you
    can usually just add a "obj-$(CONFIG_xxx) += xxx.o" line. The syntax
-   is documented in ``Documentation/kbuild/makefiles.rst``.
+   is documented in Documentation/kbuild/makefiles.rst.
 
 -  Put yourself in ``CREDITS`` if you consider what you've done
    noteworthy, usually beyond a single file (your name should be at the
@@ -755,7 +755,7 @@ make a neat patch, there's administrative work to be done:
    it implies a more-than-passing commitment to some part of the code.
 
 -  Finally, don't forget to read
-   ``Documentation/process/submitting-patches.rst``
+   Documentation/process/submitting-patches.rst.
 
 Kernel Cantrips
 ===============
