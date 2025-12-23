@@ -2,6 +2,7 @@
 
 #include <asm/barrier.h>
 #include <asm/rwonce.h>
+#include <linux/atomic.h>
 
 __rust_helper s8 rust_helper_atomic_i8_read(s8 *ptr)
 {
@@ -41,4 +42,21 @@ __rust_helper void rust_helper_atomic_i16_set(s16 *ptr, s16 val)
 __rust_helper void rust_helper_atomic_i16_set_release(s16 *ptr, s16 val)
 {
 	smp_store_release(ptr, val);
+}
+
+/*
+ * xchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
+ * architecture provding xchg() support for i8 and i16.
+ *
+ * The architectures that currently support Rust (x86_64, armv7,
+ * arm64, riscv, and loongarch) satisfy these requirements.
+ */
+__rust_helper s8 rust_helper_atomic_i8_xchg(s8 *ptr, s8 new)
+{
+	return xchg(ptr, new);
+}
+
+__rust_helper s16 rust_helper_atomic_i16_xchg(s16 *ptr, s16 new)
+{
+	return xchg(ptr, new);
 }
