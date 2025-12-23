@@ -38,7 +38,7 @@
 		#size-cells = <0>;
 
 		cpu-map {
-			cluster0 {
+			cluster0: cluster0 {
 				core0 {
 					cpu = <&A53_0>;
 				};
@@ -53,7 +53,7 @@
 				};
 			};
 
-			cluster1 {
+			cluster1: cluster1 {
 				core0 {
 					cpu = <&A72_0>;
 				};
