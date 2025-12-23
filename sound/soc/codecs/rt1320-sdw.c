@@ -1067,8 +1067,8 @@ static int rt1320_invrs_load(struct rt1320_sdw_priv *rt1320)
 	r_rsratio = rt1320_rsgain_to_rsratio(rt1320, r_rsgain);
 	dev_dbg(dev, "%s, LR rsratio=%lld, %lld\n", __func__, l_rsratio, r_rsratio);
 
-	l_invrs = (l_rsratio * factor) / 1000000000U;
-	r_invrs = (r_rsratio * factor) / 1000000000U;
+	l_invrs = div_u64(l_rsratio * factor, 1000000000U);
+	r_invrs = div_u64(r_rsratio * factor, 1000000000U);
 
 	rt1320_fw_param_protocol(rt1320, RT1320_GET_PARAM, 6, &r0_data[0], sizeof(struct rt1320_datafixpoint));
 	rt1320_fw_param_protocol(rt1320, RT1320_GET_PARAM, 7, &r0_data[1], sizeof(struct rt1320_datafixpoint));
@@ -1089,15 +1089,15 @@ static int rt1320_invrs_load(struct rt1320_sdw_priv *rt1320)
 static void rt1320_calc_r0(struct rt1320_sdw_priv *rt1320)
 {
 	struct device *dev = &rt1320->sdw_slave->dev;
-	unsigned long long l_calir0, r_calir0;
-	const unsigned int factor = (1 << 27);
+	unsigned long long l_calir0, r_calir0, l_calir0_lo, r_calir0_lo;
 
-	l_calir0 = (rt1320->r0_l_reg * 1000) / factor;
-	r_calir0 = (rt1320->r0_r_reg * 1000) / factor;
+	l_calir0 = rt1320->r0_l_reg >> 27;
+	r_calir0 = rt1320->r0_r_reg >> 27;
+	l_calir0_lo = (rt1320->r0_l_reg & ((1ull << 27) - 1) * 1000) >> 27;
+	r_calir0_lo = (rt1320->r0_r_reg & ((1ull << 27) - 1) * 1000) >> 27;
 
 	dev_dbg(dev, "%s, l_calir0=%lld.%03lld ohm, r_calir0=%lld.%03lld ohm\n", __func__,
-		l_calir0 / 1000, l_calir0 % 1000,
-		r_calir0 / 1000, r_calir0 % 1000);
+		l_calir0, l_calir0_lo, r_calir0, r_calir0_lo);
 }
 
 static void rt1320_calibrate(struct rt1320_sdw_priv *rt1320)
