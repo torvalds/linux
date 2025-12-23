@@ -3164,7 +3164,7 @@
 
 		mmss_noc: interconnect@1780000 {
 			compatible = "qcom,x1e80100-mmss-noc";
-			reg = <0 0x01780000 0 0x5B800>;
+			reg = <0 0x01780000 0 0x5b800>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -4165,7 +4165,7 @@
 
 		nsp_noc: interconnect@320c0000 {
 			compatible = "qcom,x1e80100-nsp-noc";
-			reg = <0 0x320C0000 0 0xe080>;
+			reg = <0 0x320c0000 0 0xe080>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 
@@ -4676,7 +4676,7 @@
 
 		lpass_lpicx_noc: interconnect@7430000 {
 			compatible = "qcom,x1e80100-lpass-lpicx-noc";
-			reg = <0 0x07430000 0 0x3A200>;
+			reg = <0 0x07430000 0 0x3a200>;
 
 			qcom,bcm-voters = <&apps_bcm_voter>;
 

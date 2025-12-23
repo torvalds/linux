@@ -24,7 +24,7 @@
 	chassis-type = "handset";
 
 	qcom,msm-id = <251 0>, <252 0>;
-	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
+	qcom,pmic-id = <0x10009 0x1000a 0x0 0x0>;
 
 	/* Bullhead firmware doesn't support PSCI */
 	/delete-node/ psci;

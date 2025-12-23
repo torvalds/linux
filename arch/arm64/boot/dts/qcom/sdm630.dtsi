@@ -262,7 +262,7 @@
 			pwr_cluster_sleep_0: cluster-sleep-0-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-dynamic-retention";
-				arm,psci-suspend-param = <0x400000F2>;
+				arm,psci-suspend-param = <0x400000f2>;
 				entry-latency-us = <284>;
 				exit-latency-us = <384>;
 				min-residency-us = <9987>;
@@ -272,7 +272,7 @@
 			pwr_cluster_sleep_1: cluster-sleep-0-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
-				arm,psci-suspend-param = <0x400000F3>;
+				arm,psci-suspend-param = <0x400000f3>;
 				entry-latency-us = <338>;
 				exit-latency-us = <423>;
 				min-residency-us = <9987>;
@@ -282,7 +282,7 @@
 			pwr_cluster_sleep_2: cluster-sleep-0-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "pwr-cluster-retention";
-				arm,psci-suspend-param = <0x400000F4>;
+				arm,psci-suspend-param = <0x400000f4>;
 				entry-latency-us = <515>;
 				exit-latency-us = <1821>;
 				min-residency-us = <9987>;
@@ -292,7 +292,7 @@
 			perf_cluster_sleep_0: cluster-sleep-1-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-dynamic-retention";
-				arm,psci-suspend-param = <0x400000F2>;
+				arm,psci-suspend-param = <0x400000f2>;
 				entry-latency-us = <272>;
 				exit-latency-us = <329>;
 				min-residency-us = <9987>;
@@ -302,7 +302,7 @@
 			perf_cluster_sleep_1: cluster-sleep-1-1 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
-				arm,psci-suspend-param = <0x400000F3>;
+				arm,psci-suspend-param = <0x400000f3>;
 				entry-latency-us = <332>;
 				exit-latency-us = <368>;
 				min-residency-us = <9987>;
@@ -312,7 +312,7 @@
 			perf_cluster_sleep_2: cluster-sleep-1-2 {
 				compatible = "arm,idle-state";
 				idle-state-name = "perf-cluster-retention";
-				arm,psci-suspend-param = <0x400000F4>;
+				arm,psci-suspend-param = <0x400000f4>;
 				entry-latency-us = <545>;
 				exit-latency-us = <1609>;
 				min-residency-us = <9987>;
