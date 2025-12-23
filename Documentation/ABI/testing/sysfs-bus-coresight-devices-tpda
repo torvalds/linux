@@ -41,3 +41,21 @@ Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>, Tao Zhang <tao.zhang@oss.qu
 Description:
 		(RW) Set global (all ports) flush request bit. The bit remains set until a
 		global flush request sequence completes.
+
+What:		/sys/bus/coresight/devices/<tpda-name>/syncr_mode
+Date:		December 2025
+KernelVersion:	6.20
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>, Tao Zhang <tao.zhang@oss.qualcomm.com>, Jie Gan <jie.gan@oss.qualcomm.com>
+Description:
+		(RW) Set mode the of the syncr counter.
+		mode 0 - COUNT[11:0] value represents the approximate number of bytes moved between two ASYNC packet requests
+		mode 1 - the bits COUNT[11:7] are used as a power of 2. for example, we could insert an async packet every 8K
+		         data by writing a value 13 to the COUNT[11:7] field.
+
+What:		/sys/bus/coresight/devices/<tpda-name>/syncr_count
+Date:		December 2025
+KernelVersion:	6.20
+Contact:	Jinlong Mao <jinlong.mao@oss.qualcomm.com>, Tao Zhang <tao.zhang@oss.qualcomm.com>, Jie Gan <jie.gan@oss.qualcomm.com>
+Description:
+		(RW) Set value the of the syncr counter.
+		Range: 0-4095

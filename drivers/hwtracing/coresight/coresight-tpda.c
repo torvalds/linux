@@ -163,6 +163,20 @@ static void tpda_enable_pre_port(struct tpda_drvdata *drvdata)
 	 */
 	if (drvdata->trig_flag_ts)
 		writel_relaxed(0x0, drvdata->base + TPDA_FPID_CR);
+
+	/* Initialize with a value of 0 */
+	val = 0;
+	if (drvdata->syncr_mode)
+		val |= TPDA_SYNCR_MODE_CTRL_MASK;
+
+	if (drvdata->syncr_count > 0 &&
+	    drvdata->syncr_count < TPDA_SYNCR_COUNT_MASK)
+		val |= drvdata->syncr_count;
+	else
+		/* Program the count to its MAX value by default */
+		val |= TPDA_SYNCR_COUNT_MASK;
+
+	writel_relaxed(val, drvdata->base + TPDA_SYNCR);
 }
 
 static int tpda_enable_port(struct tpda_drvdata *drvdata, int port)
@@ -385,8 +399,84 @@ static ssize_t global_flush_req_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(global_flush_req);
 
+static ssize_t syncr_mode_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val, syncr_val;
+
+	if (!drvdata->csdev->refcnt)
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	syncr_val = readl_relaxed(drvdata->base + TPDA_SYNCR);
+	val = FIELD_GET(TPDA_SYNCR_MODE_CTRL_MASK, syncr_val);
+
+	return sysfs_emit(buf, "%lu\n", val);
+}
+
+static ssize_t syncr_mode_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t size)
+{
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	/* set the mode when first enabling the device */
+	drvdata->syncr_mode = !!val;
+
+	return size;
+}
+static DEVICE_ATTR_RW(syncr_mode);
+
+static ssize_t syncr_count_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if (!drvdata->csdev->refcnt)
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	val = readl_relaxed(drvdata->base + TPDA_SYNCR);
+	val &= TPDA_SYNCR_COUNT_MASK;
+
+	return sysfs_emit(buf, "%lu\n", val);
+}
+
+static ssize_t syncr_count_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	if (val > TPDA_SYNCR_COUNT_MASK)
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	drvdata->syncr_count = val;
+
+	return size;
+}
+static DEVICE_ATTR_RW(syncr_count);
+
 static struct attribute *tpda_attrs[] = {
 	&dev_attr_global_flush_req.attr,
+	&dev_attr_syncr_mode.attr,
+	&dev_attr_syncr_count.attr,
 	tpda_trig_sysfs_rw(freq_ts_enable, FREQTS),
 	tpda_trig_sysfs_rw(trig_freq_enable, FRIE),
 	tpda_trig_sysfs_rw(trig_flag_ts_enable, FLRIE),

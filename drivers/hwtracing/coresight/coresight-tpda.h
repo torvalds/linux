@@ -9,6 +9,7 @@
 #define TPDA_CR			(0x000)
 #define TPDA_Pn_CR(n)		(0x004 + (n * 4))
 #define TPDA_FPID_CR		(0x084)
+#define TPDA_SYNCR		(0x08C)
 
 /* Cross trigger global (all ports) flush request bit */
 #define TPDA_CR_FLREQ		BIT(0)
@@ -36,6 +37,11 @@
 /* Aggregator port DSB data set element size bit */
 #define TPDA_Pn_CR_DSBSIZE		BIT(8)
 
+/* TPDA_SYNCR count mask */
+#define TPDA_SYNCR_COUNT_MASK		GENMASK(11, 0)
+/* TPDA_SYNCR mode control bit */
+#define TPDA_SYNCR_MODE_CTRL_MASK	GENMASK(12, 12)
+
 #define TPDA_MAX_INPORTS	32
 
 /**
@@ -52,6 +58,8 @@
  * @trig_freq:	Enable/disable cross trigger FREQ packet request interface.
  * @freq_ts:	Enable/disable the timestamp for all FREQ packets.
  * @cmbchan_mode: Configure the CMB/MCMB channel mode.
+ * @syncr_mode:	Setting the mode for counting packets.
+ * @syncr_count: Setting the value of the count.
  */
 struct tpda_drvdata {
 	void __iomem		*base;
@@ -66,6 +74,8 @@ struct tpda_drvdata {
 	bool			trig_freq;
 	bool			freq_ts;
 	bool			cmbchan_mode;
+	bool			syncr_mode;
+	u32			syncr_count;
 };
 
 /* Enumerate members of global control register(cr) */
