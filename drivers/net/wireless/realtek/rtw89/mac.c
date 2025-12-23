@@ -848,6 +848,7 @@ EXPORT_SYMBOL(rtw89_mac_get_err_status);
 int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 {
 	struct rtw89_ser *ser = &rtwdev->ser;
+	bool ser_l1_hdl = false;
 	u32 halt;
 	int ret = 0;
 
@@ -856,6 +857,12 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 		return -EINVAL;
 	}
 
+	if (err == MAC_AX_ERR_L1_DISABLE_EN || err == MAC_AX_ERR_L1_RCVY_EN)
+		ser_l1_hdl = true;
+
+	if (RTW89_CHK_FW_FEATURE(SER_L1_BY_EVENT, &rtwdev->fw) && ser_l1_hdl)
+		goto set;
+
 	ret = read_poll_timeout(rtw89_read32, halt, (halt == 0x0), 1000,
 				100000, false, rtwdev, R_AX_HALT_H2C_CTRL);
 	if (ret) {
@@ -863,10 +870,10 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 		return -EFAULT;
 	}
 
+set:
 	rtw89_write32(rtwdev, R_AX_HALT_H2C, err);
 
-	if (ser->prehandle_l1 &&
-	    (err == MAC_AX_ERR_L1_DISABLE_EN || err == MAC_AX_ERR_L1_RCVY_EN))
+	if (ser->prehandle_l1 && ser_l1_hdl)
 		return 0;
 
 	rtw89_write32(rtwdev, R_AX_HALT_H2C_CTRL, B_AX_HALT_H2C_TRIGGER);
