@@ -90,6 +90,8 @@
 #define LVTS_GOLDEN_TEMP_DEFAULT	50
 #define LVTS_COEFF_A_MT8195			-250460
 #define LVTS_COEFF_B_MT8195			250460
+#define LVTS_COEFF_A_MT7987			-204650
+#define LVTS_COEFF_B_MT7987			204650
 #define LVTS_COEFF_A_MT7988			-204650
 #define LVTS_COEFF_B_MT7988			204650
 #define LVTS_COEFF_A_MT8196			391460
@@ -1507,6 +1509,20 @@ static void lvts_remove(struct platform_device *pdev)
 		lvts_ctrl_set_enable(&lvts_td->lvts_ctrl[i], false);
 }
 
+static const struct lvts_ctrl_data mt7987_lvts_ap_data_ctrl[] = {
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT7987_CPU,
+			  .cal_offsets = { 0x04, 0x05, 0x06 } },
+			{ .dt_id = MT7987_ETH2P5G,
+			  .cal_offsets = { 0x08, 0x09, 0x0a } },
+		},
+		VALID_SENSOR_MAP(1, 1, 0, 0),
+		.offset = 0x0,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	},
+};
+
 static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
 	{
 		.lvts_sensor = {
@@ -1587,6 +1603,12 @@ static const u32 default_init_cmds[] = {
 	0xC10307A6, 0xC10306B8, 0xC1030500, 0xC1030420, 0xC1030300,
 	0xC1030030, 0xC10300F6, 0xC1030050, 0xC1030060, 0xC10300AC,
 	0xC10300FC, 0xC103009D, 0xC10300F1, 0xC10300E1
+};
+
+static const u32 mt7987_init_cmds[] = {
+	0xC1030300, 0xC1030420, 0xC1030500, 0xC10307A6, 0xC10308C7,
+	0xC103098D, 0xC1030C7C, 0xC1030AA8, 0xC10308CE, 0xC10308C7,
+	0xC1030B04, 0xC1030E01, 0xC10306B8
 };
 
 static const u32 mt7988_init_cmds[] = {
@@ -1993,6 +2015,19 @@ static const struct lvts_platform_ops lvts_platform_ops_mt8196 = {
 	.lvts_temp_to_raw = lvts_temp_to_raw_mt8196,
 };
 
+static const struct lvts_data mt7987_lvts_ap_data = {
+	.lvts_ctrl	= mt7987_lvts_ap_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt7987_lvts_ap_data_ctrl),
+	.conn_cmd	= mt7988_conn_cmds,
+	.init_cmd	= mt7987_init_cmds,
+	.num_conn_cmd	= ARRAY_SIZE(mt7988_conn_cmds),
+	.num_init_cmd	= ARRAY_SIZE(mt7987_init_cmds),
+	.temp_factor	= LVTS_COEFF_A_MT7987,
+	.temp_offset	= LVTS_COEFF_B_MT7987,
+	.gt_calib_bit_offset = 32,
+	.def_calibration = 19380,
+};
+
 static const struct lvts_data mt7988_lvts_ap_data = {
 	.lvts_ctrl	= mt7988_lvts_ap_data_ctrl,
 	.conn_cmd	= mt7988_conn_cmds,
@@ -2137,6 +2172,7 @@ static const struct lvts_data mt8196_lvts_ap_data = {
 };
 
 static const struct of_device_id lvts_of_match[] = {
+	{ .compatible = "mediatek,mt7987-lvts-ap", .data = &mt7987_lvts_ap_data },
 	{ .compatible = "mediatek,mt7988-lvts-ap", .data = &mt7988_lvts_ap_data },
 	{ .compatible = "mediatek,mt8186-lvts", .data = &mt8186_lvts_data },
 	{ .compatible = "mediatek,mt8188-lvts-mcu", .data = &mt8188_lvts_mcu_data },
