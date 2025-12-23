@@ -68,6 +68,7 @@ beyond).
    stable-kernel-rules
    management-style
    researcher-guidelines
+   coding-assistants
 
 Dealing with bugs
 -----------------
