@@ -65,6 +65,10 @@ no-header-test += asm/uctx.h
 no-header-test += asm/fbio.h
 endif
 
+ifeq ($(SRCARCH),xtensa)
+no-header-test += linux/bpf_perf_event.h
+endif
+
 # asm-generic/*.h is used by asm/*.h, and should not be included directly
 no-header-test += asm-generic/%
 
