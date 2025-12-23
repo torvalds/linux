@@ -1323,8 +1323,10 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 static inline unsigned int fuse_wr_pages(loff_t pos, size_t len,
 				     unsigned int max_pages)
 {
-	return min(((pos + len - 1) >> PAGE_SHIFT) - (pos >> PAGE_SHIFT) + 1,
-		   max_pages);
+	unsigned int pages = ((pos + len - 1) >> PAGE_SHIFT) -
+			     (pos >> PAGE_SHIFT) + 1;
+
+	return min(pages, max_pages);
 }
 
 static ssize_t fuse_perform_write(struct kiocb *iocb, struct iov_iter *ii)
