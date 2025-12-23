@@ -311,6 +311,203 @@ static int smu_v15_0_8_get_metrics_table_internal(struct smu_context *smu, uint3
 	return 0;
 }
 
+static int smu_v15_0_8_get_smu_metrics_data(struct smu_context *smu,
+					    MetricsMember_t member, uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret, xcc_id;
+
+	ret = smu_v15_0_8_get_metrics_table_internal(smu, 10, NULL);
+	if (ret)
+		return ret;
+
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+	case METRICS_AVERAGE_GFXCLK:
+			xcc_id = GET_INST(GC, 0);
+			*value = SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
+		break;
+	case METRICS_CURR_SOCCLK:
+	case METRICS_AVERAGE_SOCCLK:
+		*value = SMUQ10_ROUND(metrics->SocclkFrequency[0]);
+		break;
+	case METRICS_CURR_UCLK:
+	case METRICS_AVERAGE_UCLK:
+		*value = SMUQ10_ROUND(metrics->UclkFrequency[0]);
+		break;
+	case METRICS_CURR_VCLK:
+		*value = SMUQ10_ROUND(metrics->VclkFrequency[0]);
+		break;
+	case METRICS_CURR_DCLK:
+		*value = SMUQ10_ROUND(metrics->DclkFrequency[0]);
+		break;
+	case METRICS_CURR_FCLK:
+		*value = SMUQ10_ROUND(metrics->FclkFrequency[0]);
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = SMUQ10_ROUND(metrics->SocketGfxBusy);
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
+		break;
+	case METRICS_CURR_SOCKETPOWER:
+		*value = SMUQ10_ROUND(metrics->SocketPower) << 8;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+	{
+		struct amdgpu_device *adev = smu->adev;
+		u32 max_hbm_temp = 0;
+
+		/* Find max temperature across all HBM stacks */
+		if (adev->umc.active_mask) {
+			u64 mask = adev->umc.active_mask;
+			int stack_idx;
+
+			for_each_hbm_stack(stack_idx, mask) {
+				u32 temp;
+
+				if (!hbm_stack_mask_valid(mask))
+					continue;
+
+				temp = SMUQ10_ROUND(metrics->HbmTemperature[stack_idx]);
+				if (temp > max_hbm_temp)
+					max_hbm_temp = temp;
+			}
+		}
+		*value = max_hbm_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	}
+	/* This is the max of all VRs and not just SOC VR.
+	 */
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return 0;
+}
+
+static int smu_v15_0_8_get_current_clk_freq_by_table(struct smu_context *smu,
+						     enum smu_clk_type clk_type,
+						     uint32_t *value)
+{
+	MetricsMember_t member_type;
+
+	if (!value)
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		member_type = METRICS_CURR_GFXCLK;
+		break;
+	case SMU_UCLK:
+	case SMU_MCLK:
+		member_type = METRICS_CURR_UCLK;
+		break;
+	case SMU_SOCCLK:
+		member_type = METRICS_CURR_SOCCLK;
+		break;
+	case SMU_VCLK:
+		member_type = METRICS_CURR_VCLK;
+		break;
+	case SMU_DCLK:
+		member_type = METRICS_CURR_DCLK;
+		break;
+	case SMU_FCLK:
+		member_type = METRICS_CURR_FCLK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return smu_v15_0_8_get_smu_metrics_data(smu, member_type, value);
+}
+
+static int smu_v15_0_8_emit_clk_levels(struct smu_context *smu,
+				       enum smu_clk_type type, char *buf,
+				       int *offset)
+{
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+	struct smu_15_0_dpm_context *dpm_context;
+	struct smu_dpm_table *single_dpm_table = NULL;
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	int ret, now, size = *offset;
+
+	if (amdgpu_ras_intr_triggered()) {
+		sysfs_emit_at(buf, size, "unavailable\n");
+		return -EBUSY;
+	}
+
+	dpm_context = smu_dpm->dpm_context;
+
+	switch (type) {
+	case SMU_OD_SCLK:
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_SCLK");
+		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->gfxclk_pstate.curr.min,
+				      pstate_table->gfxclk_pstate.curr.max);
+		break;
+	case SMU_OD_MCLK:
+		size += sysfs_emit_at(buf, size, "%s:\n", "OD_MCLK");
+		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->uclk_pstate.curr.min,
+				      pstate_table->uclk_pstate.curr.max);
+		break;
+	case SMU_SCLK:
+	case SMU_GFXCLK:
+		single_dpm_table = &dpm_context->dpm_tables.gfx_table;
+		break;
+	case SMU_MCLK:
+	case SMU_UCLK:
+		single_dpm_table = &dpm_context->dpm_tables.uclk_table;
+		break;
+	case SMU_SOCCLK:
+		single_dpm_table = &dpm_context->dpm_tables.soc_table;
+		break;
+	case SMU_FCLK:
+		single_dpm_table = &dpm_context->dpm_tables.fclk_table;
+		break;
+	case SMU_VCLK:
+		single_dpm_table = &dpm_context->dpm_tables.vclk_table;
+		break;
+	case SMU_DCLK:
+		single_dpm_table = &dpm_context->dpm_tables.dclk_table;
+		break;
+	default:
+		break;
+	}
+
+	if (single_dpm_table) {
+		ret = smu_v15_0_8_get_current_clk_freq_by_table(smu, type, &now);
+		if (ret) {
+			dev_err(smu->adev->dev,
+				"Attempt to get current clk Failed!");
+			return ret;
+		}
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table, now,
+						   buf, offset);
+		if (ret < 0)
+			return ret;
+
+		return 0;
+	}
+
+	*offset = size;
+
+	return 0;
+}
+
 static int smu_v15_0_8_get_dpm_ultimate_freq(struct smu_context *smu,
 					     enum smu_clk_type clk_type,
 					     uint32_t *min, uint32_t *max)
@@ -1206,6 +1403,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_unique_id = smu_v15_0_8_get_unique_id,
 	.get_power_limit = smu_v15_0_8_get_power_limit,
 	.set_power_limit = smu_v15_0_set_power_limit,
+	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
 };
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
