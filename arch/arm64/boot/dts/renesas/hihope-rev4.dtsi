@@ -50,7 +50,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	cs2000: clk_multiplier@4f {
+	cs2000: clk-multiplier@4f {
 		#clock-cells = <0>;
 		compatible = "cirrus,cs2000-cp";
 		reg = <0x4f>;
