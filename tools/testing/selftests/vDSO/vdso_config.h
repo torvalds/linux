@@ -66,7 +66,7 @@ static const char *versions[7] = {
 };
 
 __attribute__((unused))
-static const char *names[2][7] = {
+static const char *names[2][8] = {
 	{
 		"__kernel_gettimeofday",
 		"__kernel_clock_gettime",
@@ -75,6 +75,7 @@ static const char *names[2][7] = {
 		"__kernel_getcpu",
 		"__kernel_clock_gettime64",
 		"__kernel_getrandom",
+		"__kernel_clock_getres_time64",
 	},
 	{
 		"__vdso_gettimeofday",
@@ -84,6 +85,7 @@ static const char *names[2][7] = {
 		"__vdso_getcpu",
 		"__vdso_clock_gettime64",
 		"__vdso_getrandom",
+		"__vdso_clock_getres_time64",
 	},
 };
 
