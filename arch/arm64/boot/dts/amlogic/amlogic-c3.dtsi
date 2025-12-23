@@ -108,7 +108,7 @@
 	firmware {
 		scmi: scmi {
 			compatible = "arm,scmi-smc";
-			arm,smc-id = <0x820000C1>;
+			arm,smc-id = <0x820000c1>;
 			shmem = <&scmi_shmem>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -989,7 +989,7 @@
 			nand: nand-controller@8d000 {
 				compatible = "amlogic,meson-axg-nfc";
 				reg = <0x0 0x8d000 0x0 0x200>,
-					<0x0 0x8C000 0x0 0x4>;
+					<0x0 0x8c000 0x0 0x4>;
 				reg-names = "nfc", "emmc";
 				interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
 				clocks = <&clkc_periphs CLKID_SYS_SD_EMMC_C>,
