@@ -8357,6 +8357,7 @@ X:	drivers/gpu/drm/msm/
 X:	drivers/gpu/drm/nova/
 X:	drivers/gpu/drm/radeon/
 X:	drivers/gpu/drm/tegra/
+X:	drivers/gpu/drm/tyr/
 X:	drivers/gpu/drm/xe/
 
 DRM DRIVERS AND COMMON INFRASTRUCTURE [RUST]
