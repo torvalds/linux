@@ -70,3 +70,13 @@ __rust_helper s16 rust_helper_atomic_i16_xchg_acquire(s16 *ptr, s16 new)
 {
 	return xchg_acquire(ptr, new);
 }
+
+__rust_helper s8 rust_helper_atomic_i8_xchg_release(s8 *ptr, s8 new)
+{
+	return xchg_release(ptr, new);
+}
+
+__rust_helper s16 rust_helper_atomic_i16_xchg_release(s16 *ptr, s16 new)
+{
+	return xchg_release(ptr, new);
+}
