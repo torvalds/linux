@@ -124,6 +124,14 @@ static void set_tilecfg(struct tile_config *cfg)
 	}
 }
 
+enum {
+	/* Check TMM0 against tiledata */
+	TEST_COMPARE_TILEDATA = 1,
+
+	/* Full VM save/restore */
+	TEST_SAVE_RESTORE = 2,
+};
+
 static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 						    struct tile_data *tiledata,
 						    struct xstate *xstate)
@@ -131,20 +139,20 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 	GUEST_ASSERT(this_cpu_has(X86_FEATURE_XSAVE) &&
 		     this_cpu_has(X86_FEATURE_OSXSAVE));
 	check_xtile_info();
-	GUEST_SYNC(1);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 
 	/* xfd=0, enable amx */
 	wrmsr(MSR_IA32_XFD, 0);
-	GUEST_SYNC(2);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == 0);
 	set_tilecfg(amx_cfg);
 	__ldtilecfg(amx_cfg);
-	GUEST_SYNC(3);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	/* Check save/restore when trap to userspace */
 	__tileloadd(tiledata);
-	GUEST_SYNC(4);
+	GUEST_SYNC(TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
 	__tilerelease();
-	GUEST_SYNC(5);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	/*
 	 * After XSAVEC, XTILEDATA is cleared in the xstate_bv but is set in
 	 * the xcomp_bv.
@@ -153,6 +161,8 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 	__xsavec(xstate, XFEATURE_MASK_XTILE_DATA);
 	GUEST_ASSERT(!(xstate->header.xstate_bv & XFEATURE_MASK_XTILE_DATA));
 	GUEST_ASSERT(xstate->header.xcomp_bv & XFEATURE_MASK_XTILE_DATA);
+
+	/* #NM test */
 
 	/* xfd=0x40000, disable amx tiledata */
 	wrmsr(MSR_IA32_XFD, XFEATURE_MASK_XTILE_DATA);
@@ -166,13 +176,13 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 	GUEST_ASSERT(!(xstate->header.xstate_bv & XFEATURE_MASK_XTILE_DATA));
 	GUEST_ASSERT((xstate->header.xcomp_bv & XFEATURE_MASK_XTILE_DATA));
 
-	GUEST_SYNC(6);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == XFEATURE_MASK_XTILE_DATA);
 	set_tilecfg(amx_cfg);
 	__ldtilecfg(amx_cfg);
 	/* Trigger #NM exception */
 	__tileloadd(tiledata);
-	GUEST_SYNC(10);
+	GUEST_SYNC(TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
 
 	GUEST_DONE();
 }
@@ -180,18 +190,18 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 void guest_nm_handler(struct ex_regs *regs)
 {
 	/* Check if #NM is triggered by XFEATURE_MASK_XTILE_DATA */
-	GUEST_SYNC(7);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	GUEST_ASSERT(!(get_cr0() & X86_CR0_TS));
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD_ERR) == XFEATURE_MASK_XTILE_DATA);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == XFEATURE_MASK_XTILE_DATA);
-	GUEST_SYNC(8);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD_ERR) == XFEATURE_MASK_XTILE_DATA);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == XFEATURE_MASK_XTILE_DATA);
 	/* Clear xfd_err */
 	wrmsr(MSR_IA32_XFD_ERR, 0);
 	/* xfd=0, enable amx */
 	wrmsr(MSR_IA32_XFD, 0);
-	GUEST_SYNC(9);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
 }
 
 int main(int argc, char *argv[])
@@ -244,6 +254,7 @@ int main(int argc, char *argv[])
 	memset(addr_gva2hva(vm, xstate), 0, PAGE_SIZE * DIV_ROUND_UP(XSAVE_SIZE, PAGE_SIZE));
 	vcpu_args_set(vcpu, 3, amx_cfg, tiledata, xstate);
 
+	int iter = 0;
 	for (;;) {
 		vcpu_run(vcpu);
 		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
@@ -253,20 +264,9 @@ int main(int argc, char *argv[])
 			REPORT_GUEST_ASSERT(uc);
 			/* NOT REACHED */
 		case UCALL_SYNC:
-			switch (uc.args[1]) {
-			case 1:
-			case 2:
-			case 3:
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-				fprintf(stderr, "GUEST_SYNC(%ld)\n", uc.args[1]);
-				break;
-			case 4:
-			case 10:
-				fprintf(stderr,
-				"GUEST_SYNC(%ld), check save/restore status\n", uc.args[1]);
+			++iter;
+			if (uc.args[1] & TEST_COMPARE_TILEDATA) {
+				fprintf(stderr, "GUEST_SYNC #%d, check TMM0 contents\n", iter);
 
 				/* Compacted mode, get amx offset by xsave area
 				 * size subtract 8K amx size.
@@ -279,11 +279,25 @@ int main(int argc, char *argv[])
 				ret = memcmp(amx_start, tiles_data, TILE_SIZE);
 				TEST_ASSERT(ret == 0, "memcmp failed, ret=%d", ret);
 				kvm_x86_state_cleanup(state);
-				break;
-			case 9:
-				fprintf(stderr,
-				"GUEST_SYNC(%ld), #NM exception and enable amx\n", uc.args[1]);
-				break;
+			}
+			if (uc.args[1] & TEST_SAVE_RESTORE) {
+				fprintf(stderr, "GUEST_SYNC #%d, save/restore VM state\n", iter);
+				state = vcpu_save_state(vcpu);
+				memset(&regs1, 0, sizeof(regs1));
+				vcpu_regs_get(vcpu, &regs1);
+
+				kvm_vm_release(vm);
+
+				/* Restore state in a new VM.  */
+				vcpu = vm_recreate_with_one_vcpu(vm);
+				vcpu_load_state(vcpu, state);
+				kvm_x86_state_cleanup(state);
+
+				memset(&regs2, 0, sizeof(regs2));
+				vcpu_regs_get(vcpu, &regs2);
+				TEST_ASSERT(!memcmp(&regs1, &regs2, sizeof(regs2)),
+					    "Unexpected register values after vcpu_load_state; rdi: %lx rsi: %lx",
+					    (ulong) regs2.rdi, (ulong) regs2.rsi);
 			}
 			break;
 		case UCALL_DONE:
@@ -293,22 +307,6 @@ int main(int argc, char *argv[])
 			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 
-		state = vcpu_save_state(vcpu);
-		memset(&regs1, 0, sizeof(regs1));
-		vcpu_regs_get(vcpu, &regs1);
-
-		kvm_vm_release(vm);
-
-		/* Restore state in a new VM.  */
-		vcpu = vm_recreate_with_one_vcpu(vm);
-		vcpu_load_state(vcpu, state);
-		kvm_x86_state_cleanup(state);
-
-		memset(&regs2, 0, sizeof(regs2));
-		vcpu_regs_get(vcpu, &regs2);
-		TEST_ASSERT(!memcmp(&regs1, &regs2, sizeof(regs2)),
-			    "Unexpected register values after vcpu_load_state; rdi: %lx rsi: %lx",
-			    (ulong) regs2.rdi, (ulong) regs2.rsi);
 	}
 done:
 	kvm_vm_free(vm);
