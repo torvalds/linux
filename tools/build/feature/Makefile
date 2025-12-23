@@ -13,6 +13,7 @@ FILES=                                          \
          test-gtk2-infobar.bin                  \
          test-hello.bin                         \
          test-libbfd.bin                        \
+	 test-libbfd-threadsafe.bin      	\
          test-disassembler-four-args.bin        \
          test-disassembler-init-styled.bin	\
          test-reallocarray.bin			\
@@ -266,6 +267,9 @@ $(OUTPUT)test-libpython.bin:
 
 $(OUTPUT)test-libbfd.bin:
 	$(BUILD_BFD)
+
+$(OUTPUT)test-libbfd-threadsafe.bin:
+	$(BUILD_BFD) || $(BUILD_BFD) -liberty || $(BUILD_BFD) -liberty -lz
 
 $(OUTPUT)test-disassembler-four-args.bin:
 	$(BUILD_BFD) -lopcodes || $(BUILD_BFD) -lopcodes -liberty || \
