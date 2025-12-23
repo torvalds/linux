@@ -629,7 +629,7 @@
 			compatible = "fsl,aips-bus", "simple-bus";
 			reg = <0 0x42800000 0 0x800000>;
 			ranges = <0x42800000 0x0 0x42800000 0x800000>,
-				 <0x28000000 0x0 0x28000000 0x1000000>;
+				 <0x24000000 0x0 0x24000000 0xc000000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
@@ -783,6 +783,38 @@
 				interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&scmi_clk IMX94_CLK_BUSWAKEUP>;
 				#mbox-cells = <2>;
+				status = "disabled";
+			};
+
+			xspi1: spi@42b90000 {
+				compatible = "nxp,imx94-xspi";
+				reg = <0x42b90000 0x50000>, <0x28000000 0x08000000>;
+				reg-names = "base", "mmap";
+				interrupts = <GIC_SPI 390 IRQ_TYPE_LEVEL_HIGH>,		// EENV0
+					     <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>,		// EENV1
+					     <GIC_SPI 392 IRQ_TYPE_LEVEL_HIGH>,		// EENV2
+					     <GIC_SPI 393 IRQ_TYPE_LEVEL_HIGH>,		// EENV3
+					     <GIC_SPI 394 IRQ_TYPE_LEVEL_HIGH>;		// EENV4
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX94_CLK_XSPI1>;
+				clock-names = "per";
+				status = "disabled";
+			};
+
+			xspi2: spi@42be0000 {
+				compatible = "nxp,imx94-xspi";
+				reg = <0x42be0000 0x50000>, <0x24000000 0x04000000>;
+				reg-names = "base", "mmap";
+				interrupts = <GIC_SPI 395 IRQ_TYPE_LEVEL_HIGH>,		// EENV0
+					     <GIC_SPI 396 IRQ_TYPE_LEVEL_HIGH>,		// EENV1
+					     <GIC_SPI 397 IRQ_TYPE_LEVEL_HIGH>,		// EENV2
+					     <GIC_SPI 398 IRQ_TYPE_LEVEL_HIGH>,		// EENV3
+					     <GIC_SPI 399 IRQ_TYPE_LEVEL_HIGH>;		// EENV4
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&scmi_clk IMX94_CLK_XSPI2>;
+				clock-names = "per";
 				status = "disabled";
 			};
 		};
