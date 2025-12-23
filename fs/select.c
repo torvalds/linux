@@ -1038,14 +1038,11 @@ static long do_restart_poll(struct restart_block *restart_block)
 {
 	struct pollfd __user *ufds = restart_block->poll.ufds;
 	int nfds = restart_block->poll.nfds;
-	struct timespec64 *to = NULL, end_time;
+	struct timespec64 *to = NULL;
 	int ret;
 
-	if (restart_block->poll.has_timeout) {
-		end_time.tv_sec = restart_block->poll.tv_sec;
-		end_time.tv_nsec = restart_block->poll.tv_nsec;
-		to = &end_time;
-	}
+	if (restart_block->poll.has_timeout)
+		to = &restart_block->poll.end_time;
 
 	ret = do_sys_poll(ufds, nfds, to);
 
@@ -1077,8 +1074,7 @@ SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
 		restart_block->poll.nfds = nfds;
 
 		if (timeout_msecs >= 0) {
-			restart_block->poll.tv_sec = end_time.tv_sec;
-			restart_block->poll.tv_nsec = end_time.tv_nsec;
+			restart_block->poll.end_time = end_time;
 			restart_block->poll.has_timeout = 1;
 		} else
 			restart_block->poll.has_timeout = 0;
