@@ -14,7 +14,6 @@
 #include <asm/apic.h>
 
 /* X2APIC */
-void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest);
 u32 x2apic_get_apic_id(u32 id);
 
 void x2apic_send_IPI_all(int vector);
@@ -41,6 +40,15 @@ static inline unsigned int __prepare_ICR(unsigned int shortcut, int vector,
 	}
 	return icr;
 }
+
+#ifdef CONFIG_X86_X2APIC
+static inline void __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
+{
+	unsigned long cfg = __prepare_ICR(0, vector, dest);
+
+	native_x2apic_icr_write(cfg, apicid);
+}
+#endif
 
 void default_init_apic_ldr(void);
 
