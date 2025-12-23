@@ -151,7 +151,8 @@ endif
 always-y := $(patsubst $(obj)/%.h,%.hdrtest, $(shell find $(obj) -name '*.h' 2>/dev/null))
 
 target-no-libc = $(filter-out $(uses-libc), $*.h)
-target-can-compile = $(filter-out $(no-header-test), $*.h)
+target-can-compile = $(and $(filter-out $(no-header-test), $*.h), \
+                           $(or $(CONFIG_CC_CAN_LINK), $(target-no-libc)))
 
 # Include the header twice to detect missing include guard.
 quiet_cmd_hdrtest = HDRTEST $<
