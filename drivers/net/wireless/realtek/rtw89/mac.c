@@ -1483,6 +1483,15 @@ static void rtw89_mac_power_switch_boot_mode(struct rtw89_dev *rtwdev)
 	rtw89_write32_clr(rtwdev, R_AX_RSV_CTRL, B_AX_R_DIS_PRST);
 }
 
+static int rtw89_mac_pwr_off_func_for_unplugged(struct rtw89_dev *rtwdev)
+{
+	/*
+	 * Avoid accessing IO for unplugged power-off to prevent warnings,
+	 * especially XTAL SI.
+	 */
+	return 0;
+}
+
 static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
@@ -1497,8 +1506,13 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		cfg_seq = chip->pwr_on_seq;
 		cfg_func = chip->ops->pwr_on_func;
 	} else {
-		cfg_seq = chip->pwr_off_seq;
-		cfg_func = chip->ops->pwr_off_func;
+		if (test_bit(RTW89_FLAG_UNPLUGGED, rtwdev->flags)) {
+			cfg_seq = NULL;
+			cfg_func = rtw89_mac_pwr_off_func_for_unplugged;
+		} else {
+			cfg_seq = chip->pwr_off_seq;
+			cfg_func = chip->ops->pwr_off_func;
+		}
 	}
 
 	if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
@@ -6969,6 +6983,12 @@ int rtw89_mac_write_xtal_si_ax(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 m
 		return ret;
 	}
 
+	if (!test_bit(RTW89_FLAG_UNPLUGGED, rtwdev->flags) &&
+	    (u32_get_bits(val32, B_AX_WL_XTAL_SI_ADDR_MASK) != offset ||
+	     u32_get_bits(val32, B_AX_WL_XTAL_SI_DATA_MASK) != val))
+		rtw89_warn(rtwdev, "xtal si write: offset=%x val=%x poll=%x\n",
+			   offset, val, val32);
+
 	return 0;
 }
 
@@ -6992,7 +7012,12 @@ int rtw89_mac_read_xtal_si_ax(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 		return ret;
 	}
 
-	*val = rtw89_read8(rtwdev, R_AX_WLAN_XTAL_SI_CTRL + 1);
+	if (!test_bit(RTW89_FLAG_UNPLUGGED, rtwdev->flags) &&
+	    u32_get_bits(val32, B_AX_WL_XTAL_SI_ADDR_MASK) != offset)
+		rtw89_warn(rtwdev, "xtal si read: offset=%x poll=%x\n",
+			   offset, val32);
+
+	*val = u32_get_bits(val32, B_AX_WL_XTAL_SI_DATA_MASK);
 
 	return 0;
 }
