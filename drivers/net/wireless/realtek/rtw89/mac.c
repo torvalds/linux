@@ -1478,13 +1478,11 @@ static void rtw89_mac_power_switch_boot_mode(struct rtw89_dev *rtwdev)
 
 static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 {
-#define PWR_ACT 1
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_pwr_cfg * const *cfg_seq;
 	int (*cfg_func)(struct rtw89_dev *rtwdev);
 	int ret;
-	u8 val;
 
 	rtw89_mac_power_switch_boot_mode(rtwdev);
 
@@ -1499,10 +1497,10 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 	if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		__rtw89_leave_ps_mode(rtwdev);
 
-	val = rtw89_read32_mask(rtwdev, R_AX_IC_PWR_STATE, B_AX_WLMAC_PWR_STE_MASK);
-	if (on && val == PWR_ACT) {
-		rtw89_err(rtwdev, "MAC has already powered on\n");
-		return -EBUSY;
+	if (on) {
+		ret = mac->reset_pwr_state(rtwdev);
+		if (ret)
+			return ret;
 	}
 
 	ret = cfg_func ? cfg_func(rtwdev) : rtw89_mac_pwr_seq(rtwdev, cfg_seq);
@@ -1529,7 +1527,6 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 	}
 
 	return 0;
-#undef PWR_ACT
 }
 
 int rtw89_mac_pwr_on(struct rtw89_dev *rtwdev)
@@ -3927,6 +3924,29 @@ static int rtw89_mac_feat_init(struct rtw89_dev *rtwdev)
 	offset += users * BACAM_1024BMP_OCC_ENTRY;
 	users = BACAM_MAX_RU_SUPPORT_B1_STA;
 	rtw89_fw_h2c_init_ba_cam_users(rtwdev, users, offset, RTW89_MAC_1);
+
+	return 0;
+}
+
+static int rtw89_mac_reset_pwr_state_ax(struct rtw89_dev *rtwdev)
+{
+	u8 val;
+
+	val = rtw89_read32_mask(rtwdev, R_AX_IC_PWR_STATE, B_AX_WLMAC_PWR_STE_MASK);
+	if (val == MAC_AX_MAC_ON) {
+		/*
+		 * A USB adapter might play as USB mass storage with driver and
+		 * then switch to WiFi adapter, causing it stays on power-on
+		 * state when doing WiFi USB probe. Return EAGAIN to caller to
+		 * power-off and power-on again to reset the state.
+		 */
+		if (rtwdev->hci.type == RTW89_HCI_TYPE_USB &&
+		    !test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
+			return -EAGAIN;
+
+		rtw89_err(rtwdev, "MAC has already powered on\n");
+		return -EBUSY;
+	}
 
 	return 0;
 }
@@ -7206,6 +7226,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.set_cpuio = set_cpuio_ax,
 	.dle_quota_change = dle_quota_change_ax,
 
+	.reset_pwr_state = rtw89_mac_reset_pwr_state_ax,
 	.disable_cpu = rtw89_mac_disable_cpu_ax,
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
 	.fwdl_get_status = rtw89_fw_get_rdy_ax,

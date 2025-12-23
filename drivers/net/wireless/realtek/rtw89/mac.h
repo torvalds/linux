@@ -1052,6 +1052,7 @@ struct rtw89_mac_gen_def {
 			 struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
 	int (*dle_quota_change)(struct rtw89_dev *rtwdev, bool band1_en);
 
+	int (*reset_pwr_state)(struct rtw89_dev *rtwdev);
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
 	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
 				bool dlfw, bool include_bb);
