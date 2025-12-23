@@ -57,8 +57,10 @@ Submitting Patches for Given SoC
 
 All typical platform related patches should be sent via SoC submaintainers
 (platform-specific maintainers).  This includes also changes to per-platform or
-shared defconfigs (scripts/get_maintainer.pl might not provide correct
-addresses in such case).
+shared defconfigs. Note that scripts/get_maintainer.pl might not provide
+correct addresses for the shared defconfig, so ignore its output and manually
+create CC-list based on MAINTAINERS file or use something like
+``scripts/get_maintainer.pl -f drivers/soc/FOO/``).
 
 Submitting Patches to the Main SoC Maintainers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
