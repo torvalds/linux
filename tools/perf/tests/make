@@ -124,6 +124,9 @@ make_minimal        += NO_LIBDW_DWARF_UNWIND=1 NO_LIBBPF=1
 make_minimal        += NO_SDT=1 NO_JVMTI=1 NO_LIBZSTD=1
 make_minimal        += NO_LIBCAP=1 NO_CAPSTONE=1
 
+# binutils 2_42 and newer have bfd_thread_init()
+new_libbfd := $(shell echo '#include <bfd.h>' | $(CC) -E -x c - | grep bfd_thread_init)
+
 # $(run) contains all available tests
 run := make_pure
 # Targets 'clean all' can be run together only through top level
@@ -137,7 +140,9 @@ MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
+ifneq ($(new_libbfd),)
 run += make_nondistro
+endif
 run += make_extra_tests
 run += make_jevents_all
 run += make_no_bpf_skel
