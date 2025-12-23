@@ -613,7 +613,7 @@ int ras_core_convert_soc_pa_to_cur_nps_pages(struct ras_core_context *ras_core,
 		return -EINVAL;
 
 	cur_nps_mode = ras_core_get_curr_nps_mode(ras_core);
-	if (!cur_nps_mode || cur_nps_mode > AMDGPU_NPS8_PARTITION_MODE)
+	if (!cur_nps_mode || cur_nps_mode > UMC_MEMORY_PARTITION_MODE_NPS8)
 		return -EINVAL;
 
 	memset(&record, 0, sizeof(record));
