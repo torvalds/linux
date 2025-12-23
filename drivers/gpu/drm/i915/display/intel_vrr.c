@@ -647,6 +647,20 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 }
 
 void
+intel_vrr_dcb_increment_flip_count(struct intel_crtc_state *crtc_state,
+				   struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	enum pipe pipe = crtc->pipe;
+
+	if (!crtc_state->vrr.dc_balance.enable)
+		return;
+
+	intel_de_write(display, PIPEDMC_DCB_FLIP_COUNT(pipe),
+		       ++crtc->dc_balance.flip_count);
+}
+
+void
 intel_vrr_dcb_reset(const struct intel_crtc_state *old_crtc_state,
 		    struct intel_crtc *crtc)
 {
@@ -656,6 +670,7 @@ intel_vrr_dcb_reset(const struct intel_crtc_state *old_crtc_state,
 	if (!old_crtc_state->vrr.dc_balance.enable)
 		return;
 
+	intel_de_write(display, PIPEDMC_DCB_FLIP_COUNT(pipe), 0);
 	intel_de_write(display, PIPEDMC_DCB_BALANCE_RESET(pipe), 0);
 }
 

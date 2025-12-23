@@ -6864,6 +6864,9 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 		intel_crtc_update_active_timings(new_crtc_state,
 						 new_crtc_state->vrr.enable);
 
+	if (new_crtc_state->vrr.dc_balance.enable)
+		intel_vrr_dcb_increment_flip_count(new_crtc_state, crtc);
+
 	/*
 	 * We usually enable FIFO underrun interrupts as part of the
 	 * CRTC enable sequence during modesets.  But when we inherit a
