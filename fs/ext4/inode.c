@@ -4133,9 +4133,13 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 	if (ext4_should_journal_data(inode)) {
 		err = ext4_dirty_journalled_data(handle, bh);
 	} else {
-		err = 0;
 		mark_buffer_dirty(bh);
-		if (ext4_should_order_data(inode))
+		/*
+		 * Only the written block requires ordered data to prevent
+		 * exposing stale data.
+		 */
+		if (!buffer_unwritten(bh) && !buffer_delay(bh) &&
+		    ext4_should_order_data(inode))
 			err = ext4_jbd2_inode_add_write(handle, inode, from,
 					length);
 	}
