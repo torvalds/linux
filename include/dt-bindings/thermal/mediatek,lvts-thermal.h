@@ -7,6 +7,9 @@
 #ifndef __MEDIATEK_LVTS_DT_H
 #define __MEDIATEK_LVTS_DT_H
 
+#define MT7987_CPU		0
+#define MT7987_ETH2P5G		1
+
 #define MT7988_CPU_0		0
 #define MT7988_CPU_1		1
 #define MT7988_ETH2P5G_0	2
