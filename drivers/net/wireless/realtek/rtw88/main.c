@@ -1483,6 +1483,8 @@ void rtw_core_scan_start(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif,
 
 	set_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 	set_bit(RTW_FLAG_SCANNING, rtwdev->flags);
+
+	rtw_phy_dig_set_max_coverage(rtwdev);
 }
 
 void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
@@ -1494,6 +1496,7 @@ void rtw_core_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	if (!rtwvif)
 		return;
 
+	rtw_phy_dig_reset(rtwdev);
 	clear_bit(RTW_FLAG_SCANNING, rtwdev->flags);
 	clear_bit(RTW_FLAG_DIG_DISABLE, rtwdev->flags);
 
