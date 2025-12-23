@@ -62,6 +62,7 @@
 #include "xe_pxp.h"
 #include "xe_query.h"
 #include "xe_shrinker.h"
+#include "xe_soc_remapper.h"
 #include "xe_survivability_mode.h"
 #include "xe_sriov.h"
 #include "xe_svm.h"
@@ -988,6 +989,10 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	xe_nvm_init(xe);
+
+	err = xe_soc_remapper_init(xe);
+	if (err)
+		return err;
 
 	err = xe_heci_gsc_init(xe);
 	if (err)
