@@ -823,6 +823,7 @@ intel_vrr_enable_dc_balancing(const struct intel_crtc_state *crtc_state)
 		       crtc_state->vrr.dc_balance.slope);
 	intel_de_write(display, PIPEDMC_DCB_VBLANK(pipe),
 		       crtc_state->vrr.dc_balance.vblank_target);
+	intel_dmc_configure_dc_balance_event(display, pipe, true);
 	intel_de_write(display, TRANS_ADAPTIVE_SYNC_DCB_CTL(cpu_transcoder),
 		       ADAPTIVE_SYNC_COUNTER_EN);
 	intel_pipedmc_dcb_enable(NULL, crtc);
@@ -840,6 +841,7 @@ intel_vrr_disable_dc_balancing(const struct intel_crtc_state *old_crtc_state)
 		return;
 
 	intel_pipedmc_dcb_disable(NULL, crtc);
+	intel_dmc_configure_dc_balance_event(display, pipe, false);
 	intel_de_write(display, TRANS_ADAPTIVE_SYNC_DCB_CTL(cpu_transcoder), 0);
 	intel_de_write(display, PIPEDMC_DCB_VMIN(pipe), 0);
 	intel_de_write(display, PIPEDMC_DCB_VMAX(pipe), 0);
