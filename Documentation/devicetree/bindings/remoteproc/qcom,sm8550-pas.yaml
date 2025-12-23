@@ -187,7 +187,6 @@ allOf:
             enum:
               - qcom,sm8550-adsp-pas
               - qcom,sm8650-adsp-pas
-              - qcom,sm8750-adsp-pas
               - qcom,x1e80100-adsp-pas
     then:
       properties:
