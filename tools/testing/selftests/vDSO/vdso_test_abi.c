@@ -179,7 +179,7 @@ static void vdso_test_clock_getres(clockid_t clk_id)
 		clock_getres_fail++;
 	}
 
-	ret = syscall(SYS_clock_getres, clk_id, &sys_ts);
+	ret = syscall(__NR_clock_getres, clk_id, &sys_ts);
 
 	ksft_print_msg("The syscall resolution is %lld %lld\n",
 			(long long)sys_ts.tv_sec, (long long)sys_ts.tv_nsec);
