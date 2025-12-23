@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023,2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _CORESIGHT_CORESIGHT_TPDA_H
@@ -8,6 +8,25 @@
 
 #define TPDA_CR			(0x000)
 #define TPDA_Pn_CR(n)		(0x004 + (n * 4))
+#define TPDA_FPID_CR		(0x084)
+
+/* Cross trigger FREQ packets timestamp bit */
+#define TPDA_CR_FREQTS		BIT(2)
+/* Cross trigger FREQ packet request bit */
+#define TPDA_CR_FRIE		BIT(3)
+/* Cross trigger FLAG packet request interface bit */
+#define TPDA_CR_FLRIE		BIT(4)
+/* Cross trigger synchronization bit */
+#define TPDA_CR_SRIE		BIT(5)
+/* Bits 6 ~ 12 is for atid value */
+#define TPDA_CR_ATID		GENMASK(12, 6)
+/*
+ * Channel mode bit of the packetization of CMB/MCB traffic
+ * 0 - raw channel mapping mode
+ * 1 - channel pair marking mode
+ */
+#define TPDA_CR_CMBCHANMODE	BIT(20)
+
 /* Aggregator port enable bit */
 #define TPDA_Pn_CR_ENA		BIT(0)
 /* Aggregator port CMB data set element size bit */
@@ -16,9 +35,6 @@
 #define TPDA_Pn_CR_DSBSIZE		BIT(8)
 
 #define TPDA_MAX_INPORTS	32
-
-/* Bits 6 ~ 12 is for atid value */
-#define TPDA_CR_ATID		GENMASK(12, 6)
 
 /**
  * struct tpda_drvdata - specifics associated to an TPDA component
@@ -29,6 +45,11 @@
  * @enable:     enable status of the component.
  * @dsb_esize   Record the DSB element size.
  * @cmb_esize   Record the CMB element size.
+ * @trig_async:	Enable/disable cross trigger synchronization sequence interface.
+ * @trig_flag_ts: Enable/disable cross trigger FLAG packet request interface.
+ * @trig_freq:	Enable/disable cross trigger FREQ packet request interface.
+ * @freq_ts:	Enable/disable the timestamp for all FREQ packets.
+ * @cmbchan_mode: Configure the CMB/MCMB channel mode.
  */
 struct tpda_drvdata {
 	void __iomem		*base;
@@ -38,6 +59,40 @@ struct tpda_drvdata {
 	u8			atid;
 	u32			dsb_esize;
 	u32			cmb_esize;
+	bool			trig_async;
+	bool			trig_flag_ts;
+	bool			trig_freq;
+	bool			freq_ts;
+	bool			cmbchan_mode;
 };
+
+/* Enumerate members of global control register(cr) */
+enum tpda_cr_mem {
+	FREQTS,
+	FRIE,
+	FLRIE,
+	SRIE,
+	CMBCHANMODE
+};
+
+/**
+ * struct tpda_trig_sysfs_attribute - Record the member variables of cross
+ * trigger register that need to be operated by sysfs file
+ * @attr:	The device attribute
+ * @mem:	The member in the control register data structure
+ */
+struct tpda_trig_sysfs_attribute {
+	struct device_attribute attr;
+	enum tpda_cr_mem mem;
+};
+
+#define tpda_trig_sysfs_rw(name, mem)				\
+	(&((struct tpda_trig_sysfs_attribute[]) {		\
+	   {							\
+		__ATTR(name, 0644, tpda_trig_sysfs_show,	\
+		tpda_trig_sysfs_store),				\
+		mem,						\
+	   }							\
+	   })[0].attr.attr)
 
 #endif  /* _CORESIGHT_CORESIGHT_TPDA_H */

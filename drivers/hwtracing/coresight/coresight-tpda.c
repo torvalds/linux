@@ -137,12 +137,32 @@ static int tpda_get_element_size(struct tpda_drvdata *drvdata,
 /* Settings pre enabling port control register */
 static void tpda_enable_pre_port(struct tpda_drvdata *drvdata)
 {
-	u32 val;
+	u32 val = 0;
 
-	val = readl_relaxed(drvdata->base + TPDA_CR);
-	val &= ~TPDA_CR_ATID;
 	val |= FIELD_PREP(TPDA_CR_ATID, drvdata->atid);
+	if (drvdata->trig_async)
+		val |= TPDA_CR_SRIE;
+
+	if (drvdata->trig_flag_ts)
+		val |= TPDA_CR_FLRIE;
+
+	if (drvdata->trig_freq)
+		val |= TPDA_CR_FRIE;
+
+	if (drvdata->freq_ts)
+		val |= TPDA_CR_FREQTS;
+
+	if (drvdata->cmbchan_mode)
+		val |= TPDA_CR_CMBCHANMODE;
+
 	writel_relaxed(val, drvdata->base + TPDA_CR);
+
+	/*
+	 * If FLRIE bit is set, set the master and channel
+	 * id as zero
+	 */
+	if (drvdata->trig_flag_ts)
+		writel_relaxed(0x0, drvdata->base + TPDA_FPID_CR);
 }
 
 static int tpda_enable_port(struct tpda_drvdata *drvdata, int port)
@@ -258,6 +278,87 @@ static const struct coresight_ops tpda_cs_ops = {
 	.link_ops	= &tpda_link_ops,
 };
 
+/* Read cross-trigger register member */
+static ssize_t tpda_trig_sysfs_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	struct tpda_trig_sysfs_attribute *tpda_attr =
+		container_of(attr, struct tpda_trig_sysfs_attribute, attr);
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	guard(spinlock)(&drvdata->spinlock);
+	switch (tpda_attr->mem) {
+	case FREQTS:
+		return sysfs_emit(buf, "%u\n", (unsigned int)drvdata->freq_ts);
+	case FRIE:
+		return sysfs_emit(buf, "%u\n", (unsigned int)drvdata->trig_freq);
+	case FLRIE:
+		return sysfs_emit(buf, "%u\n", (unsigned int)drvdata->trig_flag_ts);
+	case SRIE:
+		return sysfs_emit(buf, "%u\n", (unsigned int)drvdata->trig_async);
+	case CMBCHANMODE:
+		return sysfs_emit(buf, "%u\n", (unsigned int)drvdata->cmbchan_mode);
+
+	}
+	return -EINVAL;
+}
+
+static ssize_t tpda_trig_sysfs_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf,
+				     size_t size)
+{
+	struct tpda_trig_sysfs_attribute *tpda_attr =
+		container_of(attr, struct tpda_trig_sysfs_attribute, attr);
+	struct tpda_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if (kstrtoul(buf, 0, &val))
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	switch (tpda_attr->mem) {
+	case FREQTS:
+		drvdata->freq_ts = !!val;
+		break;
+	case FRIE:
+		drvdata->trig_freq = !!val;
+		break;
+	case FLRIE:
+		drvdata->trig_flag_ts = !!val;
+		break;
+	case SRIE:
+		drvdata->trig_async = !!val;
+		break;
+	case CMBCHANMODE:
+		drvdata->cmbchan_mode = !!val;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return size;
+}
+
+static struct attribute *tpda_attrs[] = {
+	tpda_trig_sysfs_rw(freq_ts_enable, FREQTS),
+	tpda_trig_sysfs_rw(trig_freq_enable, FRIE),
+	tpda_trig_sysfs_rw(trig_flag_ts_enable, FLRIE),
+	tpda_trig_sysfs_rw(trig_async_enable, SRIE),
+	tpda_trig_sysfs_rw(cmbchan_mode, CMBCHANMODE),
+	NULL,
+};
+
+static struct attribute_group tpda_attr_grp = {
+	.attrs	= tpda_attrs,
+};
+
+static const struct attribute_group *tpda_attr_grps[] = {
+	&tpda_attr_grp,
+	NULL,
+};
+
 static int tpda_init_default_data(struct tpda_drvdata *drvdata)
 {
 	int atid;
@@ -273,6 +374,7 @@ static int tpda_init_default_data(struct tpda_drvdata *drvdata)
 		return atid;
 
 	drvdata->atid = atid;
+	drvdata->freq_ts = true;
 	return 0;
 }
 
@@ -316,6 +418,7 @@ static int tpda_probe(struct amba_device *adev, const struct amba_id *id)
 	desc.ops = &tpda_cs_ops;
 	desc.pdata = adev->dev.platform_data;
 	desc.dev = &adev->dev;
+	desc.groups = tpda_attr_grps;
 	desc.access = CSDEV_ACCESS_IOMEM(base);
 	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev))
