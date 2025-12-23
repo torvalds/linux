@@ -536,9 +536,9 @@
 	pinctrl_keys: keysgrp {
 		fsl,pins = <
 			/* VOL- */
-			MX8MQ_IOMUXC_ENET_MDIO_GPIO1_IO17	0x01C0
+			MX8MQ_IOMUXC_ENET_MDIO_GPIO1_IO17	0x01c0
 			/* VOL+ */
-			MX8MQ_IOMUXC_ENET_MDC_GPIO1_IO16	0x01C0
+			MX8MQ_IOMUXC_ENET_MDC_GPIO1_IO16	0x01c0
 		>;
 	};
 
@@ -620,7 +620,7 @@
 	pinctrl_tcpc: tcpcgrp {
 		fsl,pins = <
 			/* TCPC_INT */
-			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x01C0
+			MX8MQ_IOMUXC_GPIO1_IO10_GPIO1_IO10	0x01c0
 		>;
 	};
 
