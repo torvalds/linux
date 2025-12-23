@@ -39,7 +39,7 @@ CPPI/QMSS Low Level Driver document (docs/CPPI_QMSS_LLD_SDS.pdf) at
 
 	git://git.ti.com/keystone-rtos/qmss-lld.git
 
-k2_qmss_pdsp_acc48_k2_le_1_0_0_9.bin firmware supports upto 48 accumulator
+k2_qmss_pdsp_acc48_k2_le_1_0_0_9.bin firmware supports up to 48 accumulator
 channels. This firmware is available under ti-keystone folder of
 firmware.git at
 
