@@ -54,6 +54,9 @@ properties:
           settings register.  For Exynos5420 this is given as 'sclk_usbphy30'
           in the CMU. It's not needed for Exynos2200.
 
+  power-domains:
+    maxItems: 1
+
   "#phy-cells":
     const: 1
 
