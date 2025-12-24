@@ -694,8 +694,8 @@ int WMM_param_handler(struct adapter *padapter, struct ndis_80211_var_ie *pIE)
 
 	if (!memcmp(&(pmlmeinfo->WMM_param), (pIE->data + 6), sizeof(struct WMM_para_element)))
 		return false;
-	else
-		memcpy(&(pmlmeinfo->WMM_param), (pIE->data + 6), sizeof(struct WMM_para_element));
+
+	memcpy(&(pmlmeinfo->WMM_param), (pIE->data + 6), sizeof(struct WMM_para_element));
 
 	pmlmeinfo->WMM_enable = 1;
 	return true;
@@ -1450,9 +1450,7 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 				return get_realtek_assoc_AP_vender(pIE);
 			else if (!memcmp(pIE->data, AIRGOCAP_OUI, 3))
 				return HT_IOT_PEER_AIRGO;
-			else
-				break;
-
+			break;
 		default:
 			break;
 		}

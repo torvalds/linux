@@ -1562,10 +1562,10 @@ void _rtw_join_timeout_handler(struct timer_list *t)
 					continue;
 
 				break;
-			} else {
-				rtw_indicate_disconnect(adapter);
-				break;
 			}
+
+			rtw_indicate_disconnect(adapter);
+			break;
 		}
 
 	} else {

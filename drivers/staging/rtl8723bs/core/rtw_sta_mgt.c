@@ -191,77 +191,76 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 		/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
 		spin_unlock_bh(&(pstapriv->sta_hash_lock));
 		return NULL;
-	} else {
-		psta = container_of(get_next(&pfree_sta_queue->queue), struct sta_info, list);
-
-		list_del_init(&(psta->list));
-
-		/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
-
-		_rtw_init_stainfo(psta);
-
-		psta->padapter = pstapriv->padapter;
-
-		memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
-
-		index = wifi_mac_hash(hwaddr);
-
-		if (index >= NUM_STA) {
-			spin_unlock_bh(&(pstapriv->sta_hash_lock));
-			psta = NULL;
-			goto exit;
-		}
-		phash_list = &(pstapriv->sta_hash[index]);
-
-		/* spin_lock_bh(&(pstapriv->sta_hash_lock)); */
-
-		list_add_tail(&psta->hash_list, phash_list);
-
-		pstapriv->asoc_sta_count++;
-
-		/* spin_unlock_bh(&(pstapriv->sta_hash_lock)); */
-
-/*  Commented by Albert 2009/08/13 */
-/*  For the SMC router, the sequence number of first packet of WPS handshake will be 0. */
-/*  In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable. */
-/*  So, we initialize the tid_rxseq variable as the 0xffff. */
-
-		for (i = 0; i < 16; i++)
-			memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
-
-		timer_setup(&psta->addba_retry_timer, addba_timer_hdl, 0);
-
-		/* for A-MPDU Rx reordering buffer control */
-		for (i = 0; i < 16 ; i++) {
-			preorder_ctrl = &psta->recvreorder_ctrl[i];
-
-			preorder_ctrl->padapter = pstapriv->padapter;
-
-			preorder_ctrl->enable = false;
-
-			preorder_ctrl->indicate_seq = 0xffff;
-			preorder_ctrl->wend_b = 0xffff;
-			/* preorder_ctrl->wsize_b = (NR_RECVBUFF-2); */
-			preorder_ctrl->wsize_b = 64;/* 64; */
-
-			INIT_LIST_HEAD(&preorder_ctrl->pending_recvframe_queue.queue);
-			spin_lock_init(&preorder_ctrl->pending_recvframe_queue.lock);
-
-			/* init recv timer */
-			timer_setup(&preorder_ctrl->reordering_ctrl_timer,
-				    rtw_reordering_ctrl_timeout_handler, 0);
-		}
-
-		/* init for DM */
-		psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
-		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
-
-		/* init for the sequence number of received management frame */
-		psta->RxMgmtFrameSeqNum = 0xffff;
-		spin_unlock_bh(&(pstapriv->sta_hash_lock));
-		/* alloc mac id for non-bc/mc station, */
-		rtw_alloc_macid(pstapriv->padapter, psta);
 	}
+	psta = container_of(get_next(&pfree_sta_queue->queue), struct sta_info, list);
+
+	list_del_init(&(psta->list));
+
+	/* spin_unlock_bh(&(pfree_sta_queue->lock)); */
+
+	_rtw_init_stainfo(psta);
+
+	psta->padapter = pstapriv->padapter;
+
+	memcpy(psta->hwaddr, hwaddr, ETH_ALEN);
+
+	index = wifi_mac_hash(hwaddr);
+
+	if (index >= NUM_STA) {
+		spin_unlock_bh(&(pstapriv->sta_hash_lock));
+		psta = NULL;
+		goto exit;
+	}
+	phash_list = &(pstapriv->sta_hash[index]);
+
+	/* spin_lock_bh(&(pstapriv->sta_hash_lock)); */
+
+	list_add_tail(&psta->hash_list, phash_list);
+
+	pstapriv->asoc_sta_count++;
+
+	/* spin_unlock_bh(&(pstapriv->sta_hash_lock)); */
+
+	/*  Commented by Albert 2009/08/13 */
+	/*  For the SMC router, the sequence number of first packet of WPS handshake will be 0. */
+	/*  In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable. */
+	/*  So, we initialize the tid_rxseq variable as the 0xffff. */
+
+	for (i = 0; i < 16; i++)
+		memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
+
+	timer_setup(&psta->addba_retry_timer, addba_timer_hdl, 0);
+
+	/* for A-MPDU Rx reordering buffer control */
+	for (i = 0; i < 16 ; i++) {
+		preorder_ctrl = &psta->recvreorder_ctrl[i];
+
+		preorder_ctrl->padapter = pstapriv->padapter;
+
+		preorder_ctrl->enable = false;
+
+		preorder_ctrl->indicate_seq = 0xffff;
+		preorder_ctrl->wend_b = 0xffff;
+		/* preorder_ctrl->wsize_b = (NR_RECVBUFF-2); */
+		preorder_ctrl->wsize_b = 64;/* 64; */
+
+		INIT_LIST_HEAD(&preorder_ctrl->pending_recvframe_queue.queue);
+		spin_lock_init(&preorder_ctrl->pending_recvframe_queue.lock);
+
+		/* init recv timer */
+		timer_setup(&preorder_ctrl->reordering_ctrl_timer,
+				rtw_reordering_ctrl_timeout_handler, 0);
+	}
+
+	/* init for DM */
+	psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
+	psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
+
+	/* init for the sequence number of received management frame */
+	psta->RxMgmtFrameSeqNum = 0xffff;
+	spin_unlock_bh(&(pstapriv->sta_hash_lock));
+	/* alloc mac id for non-bc/mc station, */
+	rtw_alloc_macid(pstapriv->padapter, psta);
 
 exit:
 
