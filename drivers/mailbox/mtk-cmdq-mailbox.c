@@ -636,7 +636,7 @@ static struct mbox_chan *cmdq_xlate(struct mbox_controller *mbox,
 static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
 {
 	static const char * const gce_name = "gce";
-	struct device_node *node, *parent = dev->of_node->parent;
+	struct device_node *parent = dev->of_node->parent;
 	struct clk_bulk_data *clks;
 
 	cmdq->clocks = devm_kcalloc(dev, cmdq->pdata->gce_num,
@@ -661,7 +661,7 @@ static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
 	 * as the clock of the main GCE must be enabled for additional IPs
 	 * to be reachable.
 	 */
-	for_each_child_of_node(parent, node) {
+	for_each_child_of_node_scoped(parent, node) {
 		int alias_id = of_alias_get_id(node, gce_name);
 
 		if (alias_id < 0 || alias_id >= cmdq->pdata->gce_num)
@@ -670,17 +670,13 @@ static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
 		clks = &cmdq->clocks[alias_id];
 
 		clks->id = devm_kasprintf(dev, GFP_KERNEL, "gce%d", alias_id);
-		if (!clks->id) {
-			of_node_put(node);
+		if (!clks->id)
 			return -ENOMEM;
-		}
 
 		clks->clk = of_clk_get(node, 0);
-		if (IS_ERR(clks->clk)) {
-			of_node_put(node);
+		if (IS_ERR(clks->clk))
 			return dev_err_probe(dev, PTR_ERR(clks->clk),
 					     "failed to get gce%d clock\n", alias_id);
-		}
 	}
 
 	return 0;
