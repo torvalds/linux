@@ -171,6 +171,16 @@
 	};
 };
 
+&canfd {
+	pinctrl-0 = <&can0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	channel0 {
+		status = "okay";
+	};
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
@@ -199,6 +209,17 @@
 };
 
 &pinctrl {
+	/*
+	 * CAN0 Pin Configuration:
+	 *
+	 * SW7[1] OFF; SW7[2] ON - Use P24_4 as CANTX0.
+	 * SW7[3] OFF; SW7[4] ON - Use P24_3 as CANRX0.
+	 */
+	can0_pins: can0-pins {
+		pinmux = <RZT2H_PORT_PINMUX(24, 3, 0x19)>, /* CANRX0 */
+			 <RZT2H_PORT_PINMUX(24, 4, 0x19)>; /* CANTX0 */
+	};
+
 	/*
 	 * GMAC2 Pin Configuration:
 	 *
