@@ -55,7 +55,9 @@ allOf:
         properties:
           compatible:
             contains:
-              const: imagis,ist3032c
+              enum:
+                - imagis,ist3032c
+                - imagis,ist3038
     then:
       properties:
         linux,keycodes: false
