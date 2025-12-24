@@ -2403,19 +2403,16 @@ static int of_populate_i3c_bus(struct i3c_master_controller *master)
 {
 	struct device *dev = &master->dev;
 	struct device_node *i3cbus_np = dev->of_node;
-	struct device_node *node;
 	int ret;
 	u32 val;
 
 	if (!i3cbus_np)
 		return 0;
 
-	for_each_available_child_of_node(i3cbus_np, node) {
+	for_each_available_child_of_node_scoped(i3cbus_np, node) {
 		ret = of_i3c_master_add_dev(master, node);
-		if (ret) {
-			of_node_put(node);
+		if (ret)
 			return ret;
-		}
 	}
 
 	/*
