@@ -281,4 +281,7 @@ void vpdma_dump_regs(struct vpdma_data *vpdma);
 int vpdma_create(struct platform_device *pdev, struct vpdma_data *vpdma,
 		void (*cb)(struct platform_device *pdev));
 
+/* load vpdma firmware*/
+int vpdma_load_firmware(struct vpdma_data *vpdma);
+
 #endif
