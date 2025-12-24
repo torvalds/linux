@@ -929,8 +929,8 @@ static struct clk_hw *kaanapali_rpmh_clocks[] = {
 	[RPMH_RF_CLK3]		= &clk_rpmh_clk3_a2_e0.hw,
 	[RPMH_RF_CLK3_A]	= &clk_rpmh_clk3_a2_e0_ao.hw,
 	[RPMH_RF_CLK4]		= &clk_rpmh_clk4_a2_e0.hw,
-	[RPMH_RF_CLK4]		= &clk_rpmh_clk4_a2_e0_ao.hw,
-	[RPMH_RF_CLK5_A]	= &clk_rpmh_clk5_a2_e0.hw,
+	[RPMH_RF_CLK4_A]	= &clk_rpmh_clk4_a2_e0_ao.hw,
+	[RPMH_RF_CLK5]		= &clk_rpmh_clk5_a2_e0.hw,
 	[RPMH_RF_CLK5_A]	= &clk_rpmh_clk5_a2_e0_ao.hw,
 	[RPMH_IPA_CLK]		= &clk_rpmh_ipa.hw,
 };
