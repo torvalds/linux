@@ -793,7 +793,7 @@
 	status = "okay";
 
 	zap-shader {
-		firmware-name = "qcom/x1e80100/medion/qcdxkmsuc8380.mbn";
+		firmware-name = "qcom/x1e80100/Medion/sprchrgd-14-s1/qcdxkmsuc8380.mbn";
 	};
 };
 
@@ -937,7 +937,7 @@
 };
 
 &iris {
-	firmware-name = "qcom/x1e80100/medion/qcvss8380.mbn";
+	firmware-name = "qcom/x1e80100/Medion/sprchrgd-14-s1/qcvss8380.mbn";
 
 	status = "okay";
 };
@@ -1141,15 +1141,15 @@
 };
 
 &remoteproc_adsp {
-	firmware-name = "qcom/x1e80100/medion/qcadsp8380.mbn",
-			"qcom/x1e80100/medion/adsp_dtbs.elf";
+	firmware-name = "qcom/x1e80100/Medion/sprchrgd-14-s1/qcadsp8380.mbn",
+			"qcom/x1e80100/Medion/sprchrgd-14-s1/adsp_dtbs.elf";
 
 	status = "okay";
 };
 
 &remoteproc_cdsp {
-	firmware-name = "qcom/x1e80100/medion/qccdsp8380.mbn",
-			"qcom/x1e80100/medion/cdsp_dtbs.elf";
+	firmware-name = "qcom/x1e80100/Medion/sprchrgd-14-s1/qccdsp8380.mbn",
+			"qcom/x1e80100/Medion/sprchrgd-14-s1/cdsp_dtbs.elf";
 
 	status = "okay";
 };
