@@ -36,6 +36,9 @@ properties:
     minItems: 1
     maxItems: 4
 
+  power-domains:
+    maxItems: 1
+
   samsung,pmu-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
