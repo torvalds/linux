@@ -62,14 +62,14 @@
 		/*
 		 * Enable either SLC or MLC
 		 */
-		slc: flash@20020000 {
+		slc: nand-controller@20020000 {
 			compatible = "nxp,lpc3220-slc";
 			reg = <0x20020000 0x1000>;
 			clocks = <&clk LPC32XX_CLK_SLC>;
 			status = "disabled";
 		};
 
-		mlc: flash@200a8000 {
+		mlc: nand-controller@200a8000 {
 			compatible = "nxp,lpc3220-mlc";
 			reg = <0x200a8000 0x11000>;
 			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
