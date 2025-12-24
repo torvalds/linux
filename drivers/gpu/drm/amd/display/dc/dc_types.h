@@ -1223,6 +1223,8 @@ struct replay_settings {
 	uint32_t replay_desync_error_fail_count;
 	/* The frame skip number dal send to DMUB */
 	uint16_t frame_skip_number;
+	/* Current Panel Replay event */
+	uint32_t replay_events;
 };
 
 /* To split out "global" and "per-panel" config settings.
