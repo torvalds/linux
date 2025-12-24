@@ -117,8 +117,10 @@ static int hfsplus_attr_build_record(hfsplus_attr_entry *entry, int record_type,
 		entry->inline_data.record_type = cpu_to_be32(record_type);
 		if (size <= HFSPLUS_MAX_INLINE_DATA_SIZE)
 			len = size;
-		else
+		else {
+			hfs_dbg("value size %zu is too big\n", size);
 			return HFSPLUS_INVALID_ATTR_RECORD;
+		}
 		entry->inline_data.length = cpu_to_be16(len);
 		memcpy(entry->inline_data.raw_bytes, value, len);
 		/*
@@ -238,7 +240,11 @@ int hfsplus_create_attr(struct inode *inode,
 					inode->i_ino,
 					value, size);
 	if (entry_size == HFSPLUS_INVALID_ATTR_RECORD) {
-		err = -EINVAL;
+		if (size > HFSPLUS_MAX_INLINE_DATA_SIZE)
+			err = -E2BIG;
+		else
+			err = -EINVAL;
+		hfs_dbg("unable to store value: err %d\n", err);
 		goto failed_create_attr;
 	}
 
@@ -250,8 +256,10 @@ int hfsplus_create_attr(struct inode *inode,
 	}
 
 	err = hfs_brec_insert(&fd, entry_ptr, entry_size);
-	if (err)
+	if (err) {
+		hfs_dbg("unable to store value: err %d\n", err);
 		goto failed_create_attr;
+	}
 
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ATTR_DIRTY);
 
