@@ -23,6 +23,7 @@ struct smb_rqst;
  *****************************************************************
  */
 int map_smb2_to_linux_error(char *buf, bool log_err);
+int smb2_init_maperror(void);
 int smb2_check_message(char *buf, unsigned int pdu_len, unsigned int len,
 		       struct TCP_Server_Info *server);
 unsigned int smb2_calc_size(void *buf);

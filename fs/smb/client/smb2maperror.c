@@ -75,3 +75,20 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 		smb_EIO1(smb_eio_trace_smb2_received_error, le32_to_cpu(smb2err));
 	return rc;
 }
+
+int __init smb2_init_maperror(void)
+{
+	unsigned int i;
+
+	/* Check whether the array is sorted in ascending order */
+	for (i = 1; i < ARRAY_SIZE(smb2_error_map_table); i++) {
+		if (smb2_error_map_table[i].smb2_status >=
+		    smb2_error_map_table[i - 1].smb2_status)
+			continue;
+
+		pr_err("smb2_error_map_table array order is incorrect\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
