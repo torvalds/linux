@@ -11,3 +11,11 @@ config COMMON_CLK_ASPEED
 
           The G4 and G5 series, including the ast2400 and ast2500, are supported
           by this driver.
+
+config COMMON_CLK_AST2700
+        bool "Clock driver for AST2700 SoC"
+        depends on ARCH_ASPEED || COMPILE_TEST
+        help
+          This driver provides support for clock on AST2700 SoC.
+          The driver is responsible for managing the various clocks required
+          by the peripherals and cores within the AST2700.
