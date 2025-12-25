@@ -1376,6 +1376,21 @@ static int smu_v15_0_8_get_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v15_0_8_populate_umd_state_clk(struct smu_context *smu)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+
+	pstate_table->gfxclk_pstate.curr.min = SMU_DPM_TABLE_MIN(gfx_table);
+	pstate_table->gfxclk_pstate.curr.max = SMU_DPM_TABLE_MAX(gfx_table);
+
+	pstate_table->uclk_pstate.curr.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.curr.max = SMU_DPM_TABLE_MAX(mem_table);
+	return 0;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -1404,7 +1419,8 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_power_limit = smu_v15_0_8_get_power_limit,
 	.set_power_limit = smu_v15_0_set_power_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
-};
+	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
+	};
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
 				     const struct cmn2asic_msg_mapping *message_map)
