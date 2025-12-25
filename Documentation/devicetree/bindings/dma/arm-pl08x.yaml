@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/arm-pl08x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM PrimeCells PL080 and PL081 and derivatives DMA controller
+title: ARM PrimeCell PL080 and PL081 and derivatives DMA controller
 
 maintainers:
   - Vinod Koul <vkoul@kernel.org>
