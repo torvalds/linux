@@ -801,7 +801,7 @@ static ssize_t query_label(char *buf, size_t buf_len,
 
 	perms = allperms;
 	if (view_only) {
-		label_for_each_in_ns(i, labels_ns(label), label, profile) {
+		label_for_each_in_scope(i, labels_ns(label), label, profile) {
 			profile_query_cb(profile, &perms, match_str, match_len);
 		}
 	} else {

@@ -1274,7 +1274,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @rules: ruleset to search
  * @label: label to check access permissions for
  * @state: state to start match in
- * @subns: whether to do permission checks on components in a subns
+ * @inview: whether to match labels in view or only in scope
  * @request: permissions to request
  * @perms: perms struct to set
  *
@@ -1287,7 +1287,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
 static int label_compound_match(struct aa_profile *profile,
 				struct aa_ruleset *rules,
 				struct aa_label *label,
-				aa_state_t state, bool subns, u32 request,
+				aa_state_t state, bool inview, u32 request,
 				struct aa_perms *perms)
 {
 	struct aa_profile *tp;
@@ -1295,7 +1295,7 @@ static int label_compound_match(struct aa_profile *profile,
 
 	/* find first subcomponent that is visible */
 	label_for_each(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, rules, tp, state);
 		if (!state)
@@ -1309,7 +1309,7 @@ static int label_compound_match(struct aa_profile *profile,
 
 next:
 	label_for_each_cont(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = aa_dfa_match(rules->policy->dfa, state, "//&");
 		state = match_component(profile, rules, tp, state);
@@ -1330,7 +1330,7 @@ fail:
  * @rules: ruleset to search
  * @label: label to check access permissions for
  * @start: state to start match in
- * @subns: whether to do permission checks on components in a subns
+ * @subns: whether to match labels in view or only in scope
  * @request: permissions to request
  * @perms: an initialized perms struct to add accumulation to
  *
@@ -1343,7 +1343,7 @@ fail:
 static int label_components_match(struct aa_profile *profile,
 				  struct aa_ruleset *rules,
 				  struct aa_label *label, aa_state_t start,
-				  bool subns, u32 request,
+				  bool inview, u32 request,
 				  struct aa_perms *perms)
 {
 	struct aa_profile *tp;
@@ -1353,7 +1353,7 @@ static int label_components_match(struct aa_profile *profile,
 
 	/* find first subcomponent to test */
 	label_for_each(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, rules, tp, start);
 		if (!state)
@@ -1368,7 +1368,7 @@ next:
 	tmp = *aa_lookup_perms(rules->policy, state);
 	aa_perms_accum(perms, &tmp);
 	label_for_each_cont(i, label, tp) {
-		if (!aa_ns_visible(profile->ns, tp->ns, subns))
+		if (!aa_ns_visible(profile->ns, tp->ns, inview))
 			continue;
 		state = match_component(profile, rules, tp, start);
 		if (!state)
@@ -1393,24 +1393,24 @@ fail:
  * @rules: ruleset to search
  * @label: label to match (NOT NULL)
  * @state: state to start in
- * @subns: whether to match subns components
+ * @subns: whether to match labels in view or only in scope
  * @request: permission request
  * @perms: Returns computed perms (NOT NULL)
  *
  * Returns: the state the match finished in, may be the none matching state
  */
 int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
-		   struct aa_label *label, aa_state_t state, bool subns,
+		   struct aa_label *label, aa_state_t state, bool inview,
 		   u32 request, struct aa_perms *perms)
 {
-	aa_state_t tmp = label_compound_match(profile, rules, label, state, subns,
-					request, perms);
+	aa_state_t tmp = label_compound_match(profile, rules, label, state,
+					      inview, request, perms);
 	if ((perms->allow & request) == request)
 		return 0;
 
 	/* failed compound_match try component matches */
 	*perms = allperms;
-	return label_components_match(profile, rules, label, state, subns,
+	return label_components_match(profile, rules, label, state, inview,
 				      request, perms);
 }
 

@@ -80,6 +80,19 @@ int aa_print_debug_params(char *buffer);
 /* Flag indicating whether initialization completed */
 extern int apparmor_initialized;
 
+/* semantic split of scope and view */
+#define aa_in_scope(SUBJ, OBJ)						\
+	aa_ns_visible(SUBJ, OBJ, false)
+
+#define aa_in_view(SUBJ, OBJ)						\
+	aa_ns_visible(SUBJ, OBJ, true)
+
+#define label_for_each_in_scope(I, NS, L, P)				\
+	label_for_each_in_ns(I, NS, L, P)
+
+#define fn_for_each_in_scope(L, P, FN)					\
+	fn_for_each_in_ns(L, P, FN)
+
 /* fn's in lib */
 const char *skipn_spaces(const char *str, size_t n);
 const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
@@ -316,7 +329,7 @@ __done:									\
 })
 
 
-#define __fn_build_in_ns(NS, P, NS_FN, OTHER_FN)			\
+#define __fn_build_in_scope(NS, P, NS_FN, OTHER_FN)			\
 ({									\
 	struct aa_label *__new;						\
 	if ((P)->ns != (NS))						\
@@ -326,10 +339,10 @@ __done:									\
 	(__new);							\
 })
 
-#define fn_label_build_in_ns(L, P, GFP, NS_FN, OTHER_FN)		\
+#define fn_label_build_in_scope(L, P, GFP, NS_FN, OTHER_FN)		\
 ({									\
 	fn_label_build((L), (P), (GFP),					\
-		__fn_build_in_ns(labels_ns(L), (P), (NS_FN), (OTHER_FN))); \
+		__fn_build_in_scope(labels_ns(L), (P), (NS_FN), (OTHER_FN))); \
 })
 
 #endif /* __AA_LIB_H */
