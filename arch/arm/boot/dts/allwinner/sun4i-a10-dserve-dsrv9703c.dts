@@ -112,7 +112,7 @@
 
 &i2c1 {
 	/* pull-ups and devices require AXP209 LDO3 */
-	status = "failed";
+	status = "fail";
 };
 
 &i2c2 {
