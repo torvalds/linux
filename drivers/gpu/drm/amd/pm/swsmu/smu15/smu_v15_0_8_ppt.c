@@ -1683,6 +1683,38 @@ static int smu_v15_0_8_od_edit_dpm_table(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v15_0_8_get_thermal_temperature_range(struct smu_context *smu,
+						     struct smu_temperature_range *range)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	uint32_t max_ctf, max_thm;
+
+	if (amdgpu_sriov_multi_vf_mode(smu->adev))
+		return 0;
+
+	if (!range)
+		return -EINVAL;
+
+	/* CTF (Critical Temperature Fault) limits */
+	max_ctf = max3(pptable->CTFLimitMID, pptable->CTFLimitXCD,
+		       pptable->CTFLimitAID);
+	range->hotspot_emergency_max = max_ctf * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	range->mem_emergency_max = pptable->CTFLimitHBM *
+				   SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	/* Thermal throttling limits */
+	max_thm = max3(pptable->ThermalLimitMID, pptable->ThermalLimitXCD,
+		       pptable->ThermalLimitAID);
+	range->hotspot_crit_max = max_thm * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	range->mem_crit_max = pptable->ThermalLimitHBM *
+			      SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -1714,6 +1746,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
 	.set_performance_level = smu_v15_0_8_set_performance_level,
 	.od_edit_dpm_table = smu_v15_0_8_od_edit_dpm_table,
+	.get_thermal_temperature_range = smu_v15_0_8_get_thermal_temperature_range,
 };
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
