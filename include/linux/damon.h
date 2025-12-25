@@ -203,7 +203,7 @@ struct damos_quota_goal {
 		u64 last_psi_total;
 		struct {
 			int nid;
-			unsigned short memcg_id;
+			u64 memcg_id;
 		};
 	};
 	struct list_head list;
@@ -419,7 +419,7 @@ struct damos_filter {
 	bool matching;
 	bool allow;
 	union {
-		unsigned short memcg_id;
+		u64 memcg_id;
 		struct damon_addr_range addr_range;
 		int target_idx;
 		struct damon_size_range sz_range;
