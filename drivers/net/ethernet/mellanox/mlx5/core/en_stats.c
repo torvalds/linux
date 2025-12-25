@@ -1608,12 +1608,13 @@ void mlx5e_stats_fec_get(struct mlx5e_priv *priv,
 {
 	int mode = fec_active_mode(priv->mdev);
 
-	if (mode == MLX5E_FEC_NOFEC ||
-	    !MLX5_CAP_PCAM_FEATURE(priv->mdev, ppcnt_statistical_group))
+	if (mode == MLX5E_FEC_NOFEC)
 		return;
 
-	fec_set_corrected_bits_total(priv, fec_stats);
-	fec_set_block_stats(priv, mode, fec_stats);
+	if (MLX5_CAP_PCAM_FEATURE(priv->mdev, ppcnt_statistical_group)) {
+		fec_set_corrected_bits_total(priv, fec_stats);
+		fec_set_block_stats(priv, mode, fec_stats);
+	}
 
 	if (MLX5_CAP_PCAM_REG(priv->mdev, pphcr))
 		fec_set_histograms_stats(priv, mode, hist);
