@@ -830,12 +830,6 @@ static inline unsigned short mem_cgroup_private_id(struct mem_cgroup *memcg)
 }
 struct mem_cgroup *mem_cgroup_from_private_id(unsigned short id);
 
-static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
-{
-	return mem_cgroup_private_id(memcg);
-}
-struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
-
 static inline u64 mem_cgroup_ino(struct mem_cgroup *memcg)
 {
 	return memcg ? cgroup_id(memcg->css.cgroup) : 0;
@@ -1280,18 +1274,6 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
 static inline void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
 		int (*fn)(struct task_struct *, void *), void *arg)
 {
-}
-
-static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
-{
-	return 0;
-}
-
-static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-{
-	WARN_ON_ONCE(id);
-	/* XXX: This should always return root_mem_cgroup */
-	return NULL;
 }
 
 static inline unsigned short mem_cgroup_private_id(struct mem_cgroup *memcg)
