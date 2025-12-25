@@ -2978,7 +2978,7 @@ out_no_pl08x:
 	return ret;
 }
 
-/* PL080 has 8 channels and the PL080 have just 2 */
+/* PL080 has 8 channels and the PL081 have just 2 */
 static struct vendor_data vendor_pl080 = {
 	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,
