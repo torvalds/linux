@@ -65,7 +65,7 @@ struct mem_cgroup_reclaim_cookie {
 
 #define MEM_CGROUP_ID_SHIFT	16
 
-struct mem_cgroup_id {
+struct mem_cgroup_private_id {
 	int id;
 	refcount_t ref;
 };
@@ -191,7 +191,7 @@ struct mem_cgroup {
 	struct cgroup_subsys_state css;
 
 	/* Private memcg ID. Used to ID objects that outlive the cgroup */
-	struct mem_cgroup_id id;
+	struct mem_cgroup_private_id id;
 
 	/* Accounted resources */
 	struct page_counter memory;		/* Both v1 & v2 */
@@ -821,12 +821,18 @@ void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
 void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
 			   int (*)(struct task_struct *, void *), void *arg);
 
-static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
+static inline unsigned short mem_cgroup_private_id(struct mem_cgroup *memcg)
 {
 	if (mem_cgroup_disabled())
 		return 0;
 
 	return memcg->id.id;
+}
+struct mem_cgroup *mem_cgroup_from_private_id(unsigned short id);
+
+static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
+{
+	return mem_cgroup_private_id(memcg);
 }
 struct mem_cgroup *mem_cgroup_from_id(unsigned short id);
 
@@ -1284,6 +1290,18 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 }
 
 static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+{
+	WARN_ON_ONCE(id);
+	/* XXX: This should always return root_mem_cgroup */
+	return NULL;
+}
+
+static inline unsigned short mem_cgroup_private_id(struct mem_cgroup *memcg)
+{
+	return 0;
+}
+
+static inline struct mem_cgroup *mem_cgroup_from_private_id(unsigned short id)
 {
 	WARN_ON_ONCE(id);
 	/* XXX: This should always return root_mem_cgroup */

@@ -369,7 +369,7 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
 
 		xa_for_each(&lru->xa, index, mlru) {
 			rcu_read_lock();
-			memcg = mem_cgroup_from_id(index);
+			memcg = mem_cgroup_from_private_id(index);
 			if (!mem_cgroup_tryget(memcg)) {
 				rcu_read_unlock();
 				continue;
