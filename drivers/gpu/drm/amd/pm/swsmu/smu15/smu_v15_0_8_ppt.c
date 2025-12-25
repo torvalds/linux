@@ -1391,6 +1391,298 @@ static int smu_v15_0_8_populate_umd_state_clk(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v15_0_8_set_gfx_soft_freq_limited_range(struct smu_context *smu,
+						       uint32_t min,
+						       uint32_t max)
+{
+	int ret;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxGfxClk,
+					      max & 0xffff, NULL);
+	if (ret)
+		return ret;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinGfxclk,
+					      min & 0xffff, NULL);
+
+	return ret;
+}
+
+static int smu_v15_0_8_set_performance_level(struct smu_context *smu,
+					     enum amd_dpm_forced_level level)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_15_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *uclk_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+	int ret;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM:
+		/* Determinism not supported on SMU v15.0.8 */
+		ret = -EOPNOTSUPP;
+		break;
+
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+		/* Restore GFXCLK to default range */
+		if ((SMU_DPM_TABLE_MIN(gfx_table) !=
+		     pstate_table->gfxclk_pstate.curr.min) ||
+		    (SMU_DPM_TABLE_MAX(gfx_table) !=
+		     pstate_table->gfxclk_pstate.curr.max)) {
+			ret = smu_v15_0_8_set_gfx_soft_freq_limited_range(
+				smu, SMU_DPM_TABLE_MIN(gfx_table),
+				SMU_DPM_TABLE_MAX(gfx_table));
+			if (ret)
+				goto out;
+
+			pstate_table->gfxclk_pstate.curr.min =
+				SMU_DPM_TABLE_MIN(gfx_table);
+			pstate_table->gfxclk_pstate.curr.max =
+				SMU_DPM_TABLE_MAX(gfx_table);
+		}
+
+		/* Restore UCLK to default max */
+		if (SMU_DPM_TABLE_MAX(uclk_table) !=
+		    pstate_table->uclk_pstate.curr.max) {
+			/* Min UCLK is not expected to be changed */
+			ret = smu_v15_0_set_soft_freq_limited_range(smu,
+								    SMU_UCLK, 0,
+								    SMU_DPM_TABLE_MAX(uclk_table),
+								    false);
+			if (ret)
+				goto out;
+
+			pstate_table->uclk_pstate.curr.max =
+				SMU_DPM_TABLE_MAX(uclk_table);
+		}
+
+		if (ret)
+			goto out;
+
+		smu_cmn_reset_custom_level(smu);
+
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+		ret = 0;
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+out:
+	return ret;
+}
+
+static int smu_v15_0_8_set_soft_freq_limited_range(struct smu_context *smu,
+						   enum smu_clk_type clk_type,
+						   uint32_t min, uint32_t max,
+						   bool automatic)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+	int ret = 0;
+
+	if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK &&
+	    clk_type != SMU_UCLK)
+		return -EINVAL;
+
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	if (smu_dpm->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
+		if (min >= max) {
+			dev_err(smu->adev->dev,
+				"Minimum clk should be less than the maximum allowed clock\n");
+			return -EINVAL;
+		}
+
+		if (clk_type == SMU_GFXCLK || clk_type == SMU_SCLK) {
+			if ((min == pstate_table->gfxclk_pstate.curr.min) &&
+			    (max == pstate_table->gfxclk_pstate.curr.max))
+				return 0;
+
+			ret = smu_v15_0_8_set_gfx_soft_freq_limited_range(smu,
+									  min, max);
+			if (!ret) {
+				pstate_table->gfxclk_pstate.curr.min = min;
+				pstate_table->gfxclk_pstate.curr.max = max;
+			}
+		}
+
+		if (clk_type == SMU_UCLK) {
+			if (max == pstate_table->uclk_pstate.curr.max)
+				return 0;
+
+			ret = smu_v15_0_set_soft_freq_limited_range(smu,
+								    SMU_UCLK,
+								    0, max,
+								    false);
+			if (!ret)
+				pstate_table->uclk_pstate.curr.max = max;
+		}
+
+		return ret;
+	}
+
+	return 0;
+}
+
+static int smu_v15_0_8_od_edit_dpm_table(struct smu_context *smu,
+					 enum PP_OD_DPM_TABLE_COMMAND type,
+					 long input[], uint32_t size)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+	struct smu_15_0_dpm_context *dpm_context = smu_dpm->dpm_context;
+	uint32_t min_clk, max_clk;
+	int ret;
+
+	/* Only allowed in manual mode */
+	if (smu_dpm->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		return -EINVAL;
+
+	switch (type) {
+	case PP_OD_EDIT_SCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+		min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.gfx_table);
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.gfx_table);
+		if (input[0] == 0) {
+			if (input[1] < min_clk) {
+				dev_warn(smu->adev->dev,
+					 "Minimum GFX clk (%ld) MHz specified is less than the minimum allowed (%d) MHz\n",
+					input[1], min_clk);
+				pstate_table->gfxclk_pstate.custom.min =
+					pstate_table->gfxclk_pstate.curr.min;
+				return -EINVAL;
+			}
+
+			pstate_table->gfxclk_pstate.custom.min = input[1];
+		} else if (input[0] == 1) {
+			if (input[1] > max_clk) {
+				dev_warn(smu->adev->dev,
+					 "Maximum GFX clk (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					input[1], max_clk);
+				pstate_table->gfxclk_pstate.custom.max =
+					pstate_table->gfxclk_pstate.curr.max;
+				return -EINVAL;
+			}
+
+			pstate_table->gfxclk_pstate.custom.max = input[1];
+		} else {
+			return -EINVAL;
+		}
+		break;
+	case PP_OD_EDIT_MCLK_VDDC_TABLE:
+		if (size != 2) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
+			dev_warn(smu->adev->dev,
+				 "UCLK_LIMITS setting not supported!\n");
+			return -EOPNOTSUPP;
+		}
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.uclk_table);
+		if (input[0] == 0) {
+			dev_info(smu->adev->dev,
+				 "Setting min UCLK level is not supported");
+			return -EINVAL;
+		} else if (input[0] == 1) {
+			if (input[1] > max_clk) {
+				dev_warn(smu->adev->dev,
+					 "Maximum UCLK (%ld) MHz specified is greater than the maximum allowed (%d) MHz\n",
+					input[1], max_clk);
+				pstate_table->uclk_pstate.custom.max =
+					pstate_table->uclk_pstate.curr.max;
+
+				return -EINVAL;
+			}
+
+			pstate_table->uclk_pstate.custom.max = input[1];
+		}
+		break;
+	case PP_OD_RESTORE_DEFAULT_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		/* Use the default frequencies for manual mode */
+		min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.gfx_table);
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.gfx_table);
+
+		ret = smu_v15_0_8_set_soft_freq_limited_range(smu,
+							      SMU_GFXCLK,
+							      min_clk, max_clk,
+							      false);
+		if (ret)
+			return ret;
+
+		min_clk = SMU_DPM_TABLE_MIN(&dpm_context->dpm_tables.uclk_table);
+		max_clk = SMU_DPM_TABLE_MAX(&dpm_context->dpm_tables.uclk_table);
+		ret = smu_v15_0_8_set_soft_freq_limited_range(smu,
+							      SMU_UCLK,
+							      min_clk, max_clk,
+							      false);
+		if (ret)
+			return ret;
+
+		smu_cmn_reset_custom_level(smu);
+		break;
+	case PP_OD_COMMIT_DPM_TABLE:
+		if (size != 0) {
+			dev_err(smu->adev->dev,
+				"Input parameter number not correct\n");
+			return -EINVAL;
+		}
+
+		if (!pstate_table->gfxclk_pstate.custom.min)
+			pstate_table->gfxclk_pstate.custom.min =
+				pstate_table->gfxclk_pstate.curr.min;
+
+		if (!pstate_table->gfxclk_pstate.custom.max)
+			pstate_table->gfxclk_pstate.custom.max =
+				pstate_table->gfxclk_pstate.curr.max;
+
+		min_clk = pstate_table->gfxclk_pstate.custom.min;
+		max_clk = pstate_table->gfxclk_pstate.custom.max;
+
+		ret = smu_v15_0_8_set_soft_freq_limited_range(smu,
+							      SMU_GFXCLK,
+							      min_clk, max_clk,
+							      false);
+		if (ret)
+			return ret;
+
+		/* Commit UCLK custom range (only max supported) */
+		if (pstate_table->uclk_pstate.custom.max) {
+			min_clk = pstate_table->uclk_pstate.curr.min;
+			max_clk = pstate_table->uclk_pstate.custom.max;
+			ret = smu_v15_0_8_set_soft_freq_limited_range(smu,
+								      SMU_UCLK,
+								      min_clk, max_clk,
+								      false);
+			if (ret)
+				return ret;
+		}
+
+		break;
+	default:
+		return -ENOSYS;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -1420,7 +1712,9 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.set_power_limit = smu_v15_0_set_power_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
-	};
+	.set_performance_level = smu_v15_0_8_set_performance_level,
+	.od_edit_dpm_table = smu_v15_0_8_od_edit_dpm_table,
+};
 
 static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
 				     const struct cmn2asic_msg_mapping *message_map)

@@ -1301,6 +1301,16 @@ void smu_cmn_get_backend_workload_mask(struct smu_context *smu,
 	}
 }
 
+void smu_cmn_reset_custom_level(struct smu_context *smu)
+{
+	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
+
+	pstate_table->gfxclk_pstate.custom.min = 0;
+	pstate_table->gfxclk_pstate.custom.max = 0;
+	pstate_table->uclk_pstate.custom.min = 0;
+	pstate_table->uclk_pstate.custom.max = 0;
+}
+
 static inline bool smu_cmn_freqs_match(uint32_t freq1, uint32_t freq2)
 {
 	/* Frequencies within 25 MHz are considered equal */
