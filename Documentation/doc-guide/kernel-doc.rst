@@ -56,10 +56,13 @@ documentation comments. For example::
 
 	scripts/kernel-doc -v -none drivers/foo/bar.c
 
-The documentation format is verified by the kernel build when it is
-requested to perform extra gcc checks::
+The documentation format of ``.c`` files is also verified by the kernel build
+when it is requested to perform extra gcc checks::
 
 	make W=n
+
+However, the above command does not verify header files. These should be checked
+separately using ``kernel-doc``.
 
 Function documentation
 ----------------------
