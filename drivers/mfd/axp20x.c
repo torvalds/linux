@@ -229,6 +229,8 @@ static const struct regmap_range axp717_writeable_ranges[] = {
 	regmap_reg_range(AXP717_DCDC_OUTPUT_CONTROL, AXP717_CPUSLDO_CONTROL),
 	regmap_reg_range(AXP717_ADC_CH_EN_CONTROL, AXP717_ADC_CH_EN_CONTROL),
 	regmap_reg_range(AXP717_ADC_DATA_SEL, AXP717_ADC_DATA_SEL),
+	regmap_reg_range(AXP717_TYPEC_CC_AA_EN, AXP717_TYPEC_CC_AA_EN),
+	regmap_reg_range(AXP717_TYPEC_CC_MODE_CONTROL, AXP717_TYPEC_CC_MODE_CONTROL),
 };
 
 static const struct regmap_range axp717_volatile_ranges[] = {
@@ -237,6 +239,7 @@ static const struct regmap_range axp717_volatile_ranges[] = {
 	regmap_reg_range(AXP717_BATT_PERCENT_DATA, AXP717_BATT_PERCENT_DATA),
 	regmap_reg_range(AXP717_BATT_V_H, AXP717_BATT_CHRG_I_L),
 	regmap_reg_range(AXP717_ADC_DATA_H, AXP717_ADC_DATA_L),
+	regmap_reg_range(AXP717_TYPEC_CC_STATUS, AXP717_TYPEC_CC_STATUS),
 };
 
 static const struct regmap_access_table axp717_writeable_table = {
@@ -458,7 +461,7 @@ static const struct regmap_config axp717_regmap_config = {
 	.val_bits = 8,
 	.wr_table = &axp717_writeable_table,
 	.volatile_table = &axp717_volatile_table,
-	.max_register = AXP717_ADC_DATA_L,
+	.max_register = AXP717_TYPEC_CC_STATUS,
 	.cache_type = REGCACHE_MAPLE,
 };
 

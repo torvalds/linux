@@ -174,6 +174,9 @@ enum axp20x_variants {
 #define AXP717_ADC_DATA_SEL		0xcd
 #define AXP717_ADC_DATA_H		0xce
 #define AXP717_ADC_DATA_L		0xcf
+#define AXP717_TYPEC_CC_AA_EN		0xe1
+#define AXP717_TYPEC_CC_MODE_CONTROL	0xe3
+#define AXP717_TYPEC_CC_STATUS		0xe7
 
 #define AXP806_STARTUP_SRC		0x00
 #define AXP806_CHIP_ID			0x03
