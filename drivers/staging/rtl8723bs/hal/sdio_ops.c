@@ -132,6 +132,7 @@ static u32 _cvrt2ftaddr(const u32 addr, u8 *pdevice_id, u16 *poffset)
 static u8 sdio_read8(struct intf_hdl *intfhdl, u32 addr)
 {
 	u32 ftaddr;
+
 	ftaddr = _cvrt2ftaddr(addr, NULL, NULL);
 
 	return sd_read8(intfhdl, ftaddr, NULL);
