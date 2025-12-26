@@ -10,5 +10,25 @@ static bool __maybe_unused
 {% endif %}
 xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ name }} *ptr)
 {
+{% if validate and enumerators %}
+	__be32 raw;
+	u32 val;
+
+	if (xdr_stream_decode_be32(xdr, &raw) < 0)
+		return false;
+	val = be32_to_cpu(raw);
+	/* Compiler may optimize to a range check for dense enums */
+	switch (val) {
+{% for e in enumerators %}
+	case {{ e.name }}:
+{% endfor %}
+		break;
+	default:
+		return false;
+	}
+	*ptr = raw;
+	return true;
+{% else %}
 	return xdr_stream_decode_be32(xdr, ptr) == 0;
+{% endif %}
 }

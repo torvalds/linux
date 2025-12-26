@@ -22,7 +22,7 @@ from xdr_ast import transform_parse_tree, _RpcProgram, Specification
 from xdr_ast import _XdrAst, _XdrEnum, _XdrPointer
 from xdr_ast import _XdrStruct, _XdrTypedef, _XdrUnion
 
-from xdr_parse import xdr_parser, set_xdr_annotate
+from xdr_parse import xdr_parser, set_xdr_annotate, set_xdr_enum_validation
 from xdr_parse import make_error_handler, XdrParseError
 from xdr_parse import handle_transform_error
 
@@ -98,6 +98,7 @@ def subcmd(args: Namespace) -> int:
     """Generate encoder and decoder functions"""
 
     set_xdr_annotate(args.annotate)
+    set_xdr_enum_validation(not args.no_enum_validation)
     parser = xdr_parser()
     with open(args.filename, encoding="utf-8") as f:
         source = f.read()

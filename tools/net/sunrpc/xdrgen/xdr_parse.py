@@ -13,6 +13,9 @@ from lark.exceptions import UnexpectedInput, UnexpectedToken, VisitError
 # Set to True to emit annotation comments in generated source
 annotate = False
 
+# Set to True to emit enum value validation in decoders
+enum_validation = True
+
 # Map internal Lark token names to human-readable names
 TOKEN_NAMES = {
     "__ANON_0": "identifier",
@@ -47,6 +50,17 @@ def set_xdr_annotate(set_it: bool) -> None:
 def get_xdr_annotate() -> bool:
     """Return True if --annotate was specified on the command line"""
     return annotate
+
+
+def set_xdr_enum_validation(set_it: bool) -> None:
+    """Set 'enum_validation' based on command line options"""
+    global enum_validation
+    enum_validation = set_it
+
+
+def get_xdr_enum_validation() -> bool:
+    """Return True when enum validation is enabled for decoder generation"""
+    return enum_validation
 
 
 def make_error_handler(source: str, filename: str) -> Callable[[UnexpectedInput], bool]:
