@@ -114,7 +114,11 @@ extern void trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 extern int trace_seq_path(struct trace_seq *s, const struct path *path);
 
 extern void trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
-			     int nmaskbits);
+			      int nmaskbits);
+
+extern void trace_seq_bitmask_list(struct trace_seq *s,
+				   const unsigned long *maskp,
+				   int nmaskbits);
 
 extern int trace_seq_hex_dump(struct trace_seq *s, const char *prefix_str,
 			      int prefix_type, int rowsize, int groupsize,
@@ -134,6 +138,12 @@ void trace_seq_bprintf(struct trace_seq *s, const char *fmt, const u32 *binary)
 static inline void
 trace_seq_bitmask(struct trace_seq *s, const unsigned long *maskp,
 		  int nmaskbits)
+{
+}
+
+static inline void
+trace_seq_bitmask_list(struct trace_seq *s, const unsigned long *maskp,
+		       int nmaskbits)
 {
 }
 
