@@ -5604,7 +5604,7 @@ u8 setkey_hdl(struct adapter *padapter, u8 *pbuf)
 		write_cam(padapter, cam_id, ctrl, addr, pparm->key);
 		netdev_dbg(padapter->pnetdev,
 			   "set group key camid:%d, addr:%pM, kid:%d, type:%s\n",
-			   cam_id, MAC_ARG(addr), pparm->keyid,
+			   cam_id, addr, pparm->keyid,
 			   security_type_str(pparm->algorithm));
 	}
 
@@ -5634,7 +5634,7 @@ u8 set_stakey_hdl(struct adapter *padapter, u8 *pbuf)
 	psta = rtw_get_stainfo(pstapriv, pparm->addr);
 	if (!psta) {
 		netdev_dbg(padapter->pnetdev, "%s sta:%pM not found\n",
-			   __func__, MAC_ARG(pparm->addr));
+			   __func__, pparm->addr);
 		ret = H2C_REJECTED;
 		goto exit;
 	}
@@ -5649,14 +5649,14 @@ write_to_cam:
 		while ((cam_id = rtw_camid_search(padapter, pparm->addr, -1)) >= 0) {
 			netdev_dbg(padapter->pnetdev,
 				   "clear key for addr:%pM, camid:%d\n",
-				   MAC_ARG(pparm->addr), cam_id);
+				   pparm->addr, cam_id);
 			clear_cam_entry(padapter, cam_id);
 			rtw_camid_free(padapter, cam_id);
 		}
 	} else {
 		netdev_dbg(padapter->pnetdev,
 			   "set pairwise key camid:%d, addr:%pM, kid:%d, type:%s\n",
-			   cam_id, MAC_ARG(pparm->addr), pparm->keyid,
+			   cam_id, pparm->addr, pparm->keyid,
 			   security_type_str(pparm->algorithm));
 		ctrl = BIT(15) | ((pparm->algorithm) << 2) | pparm->keyid;
 		write_cam(padapter, cam_id, ctrl, pparm->addr, pparm->key);
