@@ -1093,8 +1093,8 @@ static void rt1320_calc_r0(struct rt1320_sdw_priv *rt1320)
 
 	l_calir0 = rt1320->r0_l_reg >> 27;
 	r_calir0 = rt1320->r0_r_reg >> 27;
-	l_calir0_lo = (rt1320->r0_l_reg & ((1ull << 27) - 1) * 1000) >> 27;
-	r_calir0_lo = (rt1320->r0_r_reg & ((1ull << 27) - 1) * 1000) >> 27;
+	l_calir0_lo = ((rt1320->r0_l_reg & ((1ull << 27) - 1)) * 1000) >> 27;
+	r_calir0_lo = ((rt1320->r0_r_reg & ((1ull << 27) - 1)) * 1000) >> 27;
 
 	dev_dbg(dev, "%s, l_calir0=%lld.%03lld ohm, r_calir0=%lld.%03lld ohm\n", __func__,
 		l_calir0, l_calir0_lo, r_calir0, r_calir0_lo);
