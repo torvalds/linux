@@ -1715,6 +1715,78 @@ static int smu_v15_0_8_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v15_0_8_set_power_limit(struct smu_context *smu,
+				       enum smu_ppt_limit_type limit_type,
+				       uint32_t limit)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	int ret;
+
+	if (limit_type == SMU_FAST_PPT_LIMIT) {
+		if (!pptable->PPT1Max)
+			return -EOPNOTSUPP;
+
+		if (limit > pptable->PPT1Max || limit < pptable->PPT1Min) {
+			dev_err(smu->adev->dev,
+				"New PPT1 limit (%d) should be between min %d and max %d\n",
+				limit, pptable->PPT1Min, pptable->PPT1Max);
+			return -EINVAL;
+		}
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetFastPptLimit,
+						      limit, NULL);
+		if (ret)
+			dev_err(smu->adev->dev, "Set fast PPT limit failed!\n");
+
+		return ret;
+	}
+
+	return smu_v15_0_set_power_limit(smu, limit_type, limit);
+}
+
+static int smu_v15_0_8_get_ppt_limit(struct smu_context *smu,
+				     uint32_t *ppt_limit,
+				     enum smu_ppt_limit_type type,
+				     enum smu_ppt_limit_level level)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	PPTable_t *pptable = (PPTable_t *)smu_table->driver_pptable;
+	int ret = 0;
+
+	if (!ppt_limit)
+		return -EINVAL;
+
+	if (type == SMU_FAST_PPT_LIMIT) {
+		if (!pptable->PPT1Max)
+			return -EOPNOTSUPP;
+
+		switch (level) {
+		case SMU_PPT_LIMIT_MAX:
+			*ppt_limit = pptable->PPT1Max;
+			break;
+		case SMU_PPT_LIMIT_CURRENT:
+			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPptLimit,
+						   ppt_limit);
+			if (ret)
+				dev_err(smu->adev->dev,
+					"Get fast PPT limit failed!\n");
+			break;
+		case SMU_PPT_LIMIT_DEFAULT:
+			*ppt_limit = pptable->PPT1Default;
+			break;
+		case SMU_PPT_LIMIT_MIN:
+			*ppt_limit = pptable->PPT1Min;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.init_allowed_features = smu_v15_0_8_init_allowed_features,
 	.set_default_dpm_table = smu_v15_0_8_set_default_dpm_table,
@@ -1741,7 +1813,8 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.get_gpu_metrics = smu_v15_0_8_get_gpu_metrics,
 	.get_unique_id = smu_v15_0_8_get_unique_id,
 	.get_power_limit = smu_v15_0_8_get_power_limit,
-	.set_power_limit = smu_v15_0_set_power_limit,
+	.set_power_limit = smu_v15_0_8_set_power_limit,
+	.get_ppt_limit = smu_v15_0_8_get_ppt_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
 	.set_performance_level = smu_v15_0_8_set_performance_level,
