@@ -5980,12 +5980,32 @@ lbs_store(struct mddev *mddev, const char *buf, size_t len)
 	if (mddev->major_version == 0)
 		return -EINVAL;
 
-	if (mddev->pers)
-		return -EBUSY;
-
 	err = kstrtouint(buf, 10, &lbs);
 	if (err < 0)
 		return -EINVAL;
+
+	if (mddev->pers) {
+		unsigned int curr_lbs;
+
+		if (mddev->logical_block_size)
+			return -EBUSY;
+		/*
+		 * To fix forward compatibility issues, LBS is not
+		 * configured for arrays from old kernels (<=6.18) by default.
+		 * If the user confirms no rollback to old kernels,
+		 * enable LBS by writing current LBS — to prevent data
+		 * loss from LBS changes.
+		 */
+		curr_lbs = queue_logical_block_size(mddev->gendisk->queue);
+		if (lbs != curr_lbs)
+			return -EINVAL;
+
+		mddev->logical_block_size = curr_lbs;
+		set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
+		pr_info("%s: logical block size configured successfully, array will not be assembled in old kernels (<= 6.18)\n",
+			mdname(mddev));
+		return len;
+	}
 
 	err = mddev_lock(mddev);
 	if (err)
@@ -6162,7 +6182,27 @@ int mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim,
 			mdname(mddev));
 		return -EINVAL;
 	}
-	mddev->logical_block_size = lim->logical_block_size;
+
+	/* Only 1.x meta needs to set logical block size */
+	if (mddev->major_version == 0)
+		return 0;
+
+	/*
+	 * Fix forward compatibility issue. Only set LBS by default for
+	 * new arrays, mddev->events == 0 indicates the array was just
+	 * created. When assembling an array, read LBS from the superblock
+	 * instead — LBS is 0 in superblocks created by old kernels.
+	 */
+	if (!mddev->events) {
+		pr_info("%s: array will not be assembled in old kernels that lack configurable LBS support (<= 6.18)\n",
+			mdname(mddev));
+		mddev->logical_block_size = lim->logical_block_size;
+	}
+
+	if (!mddev->logical_block_size)
+		pr_warn("%s: echo current LBS to md/logical_block_size to prevent data loss issues from LBS changes.\n"
+			"\tNote: After setting, array will not be assembled in old kernels (<= 6.18)\n",
+			mdname(mddev));
 
 	return 0;
 }
