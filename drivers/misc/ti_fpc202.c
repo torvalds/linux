@@ -309,7 +309,6 @@ static void fpc202_remove_port(struct fpc202_priv *priv, int port_id)
 static int fpc202_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct device_node *i2c_handle;
 	struct fpc202_priv *priv;
 	int ret, port_id;
 
@@ -357,7 +356,7 @@ static int fpc202_probe(struct i2c_client *client)
 
 	bitmap_zero(priv->probed_ports, FPC202_NUM_PORTS);
 
-	for_each_child_of_node(dev->of_node, i2c_handle) {
+	for_each_child_of_node_scoped(dev->of_node, i2c_handle) {
 		ret = of_property_read_u32(i2c_handle, "reg", &port_id);
 		if (ret) {
 			if (ret == -EINVAL)
