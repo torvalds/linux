@@ -434,6 +434,117 @@ static int smu_v15_0_8_get_current_clk_freq_by_table(struct smu_context *smu,
 	return smu_v15_0_8_get_smu_metrics_data(smu, member_type, value);
 }
 
+static int smu_v15_0_8_get_current_activity_percent(struct smu_context *smu,
+						    enum amd_pp_sensors sensor,
+						    uint32_t *value)
+{
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = smu_v15_0_8_get_smu_metrics_data(smu,
+						       METRICS_AVERAGE_GFXACTIVITY, value);
+		break;
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+		ret = smu_v15_0_8_get_smu_metrics_data(smu,
+						       METRICS_AVERAGE_MEMACTIVITY, value);
+		break;
+	default:
+		dev_err(smu->adev->dev,
+			"Invalid sensor for retrieving clock activity\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int smu_v15_0_8_thermal_get_temperature(struct smu_context *smu,
+					       enum amd_pp_sensors sensor,
+					       uint32_t *value)
+{
+	int ret = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+		ret = smu_v15_0_8_get_smu_metrics_data(smu,
+						       METRICS_TEMPERATURE_HOTSPOT, value);
+		break;
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = smu_v15_0_8_get_smu_metrics_data(smu,
+						       METRICS_TEMPERATURE_MEM, value);
+		break;
+	default:
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+static int smu_v15_0_8_read_sensor(struct smu_context *smu,
+				   enum amd_pp_sensors sensor, void *data,
+				   uint32_t *size)
+{
+	struct smu_15_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	int ret = 0;
+
+	if (amdgpu_ras_intr_triggered())
+		return 0;
+
+	if (!data || !size)
+		return -EINVAL;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_MEM_LOAD:
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = smu_v15_0_8_get_current_activity_percent(smu, sensor,
+							       (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		ret = smu_v15_0_8_get_smu_metrics_data(smu,
+						       METRICS_CURR_SOCKETPOWER,
+						       (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
+	case AMDGPU_PP_SENSOR_MEM_TEMP:
+		ret = smu_v15_0_8_thermal_get_temperature(smu, sensor,
+							  (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smu_v15_0_8_get_current_clk_freq_by_table(smu,
+								SMU_UCLK, (uint32_t *)data);
+		/* the output clock frequency in 10K unit */
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smu_v15_0_8_get_current_clk_freq_by_table(smu,
+								SMU_GFXCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDBOARD:
+		*(uint32_t *)data = dpm_context->board_volt;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 static int smu_v15_0_8_emit_clk_levels(struct smu_context *smu,
 				       enum smu_clk_type type, char *buf,
 				       int *offset)
@@ -1816,6 +1927,7 @@ static const struct pptable_funcs smu_v15_0_8_ppt_funcs = {
 	.set_power_limit = smu_v15_0_8_set_power_limit,
 	.get_ppt_limit = smu_v15_0_8_get_ppt_limit,
 	.emit_clk_levels = smu_v15_0_8_emit_clk_levels,
+	.read_sensor = smu_v15_0_8_read_sensor,
 	.populate_umd_state_clk = smu_v15_0_8_populate_umd_state_clk,
 	.set_performance_level = smu_v15_0_8_set_performance_level,
 	.od_edit_dpm_table = smu_v15_0_8_od_edit_dpm_table,
