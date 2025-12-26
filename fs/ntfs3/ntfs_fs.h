@@ -591,6 +591,7 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 	      struct NTFS_DE *new_de);
 
 bool ni_is_dirty(struct inode *inode);
+loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data);
 int ni_write_parents(struct ntfs_inode *ni, int sync);
 
 /* Globals from fslog.c */
@@ -1105,6 +1106,13 @@ static inline bool is_sparsed(const struct ntfs_inode *ni)
 static inline int is_resident(struct ntfs_inode *ni)
 {
 	return ni->ni_flags & NI_FLAG_RESIDENT;
+}
+
+static inline loff_t ntfs_get_maxbytes(struct ntfs_inode *ni)
+{
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
+	return is_sparsed(ni) || is_compressed(ni) ? sbi->maxbytes_sparse :
+						     sbi->maxbytes;
 }
 
 static inline void le16_sub_cpu(__le16 *var, u16 val)

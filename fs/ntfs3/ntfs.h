@@ -81,6 +81,7 @@ typedef u32 CLST;
 #define SPARSE_LCN     ((CLST)-1)
 #define RESIDENT_LCN   ((CLST)-2)
 #define COMPRESSED_LCN ((CLST)-3)
+#define EOF_LCN       ((CLST)-4)
 
 enum RECORD_NUM {
 	MFT_REC_MFT		= 0,

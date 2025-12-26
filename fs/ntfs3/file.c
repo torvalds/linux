@@ -1474,6 +1474,31 @@ int ntfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	return ret;
 }
 
+/*
+ * ntfs_llseek - file_operations::llseek
+ */
+static loff_t ntfs_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct ntfs_inode *ni = ntfs_i(inode);
+	loff_t maxbytes = ntfs_get_maxbytes(ni);
+	loff_t ret;
+
+	if (whence == SEEK_DATA || whence == SEEK_HOLE) {
+		inode_lock_shared(inode);
+		/* Scan fragments for hole or data. */
+		ret = ni_seek_data_or_hole(ni, offset, whence == SEEK_DATA);
+		inode_unlock_shared(inode);
+
+		if (ret >= 0)
+			ret = vfs_setpos(file, ret, maxbytes);
+	} else {
+		ret = generic_file_llseek_size(file, offset, whence, maxbytes,
+					       i_size_read(inode));
+	}
+	return ret;
+}
+
 // clang-format off
 const struct inode_operations ntfs_file_inode_operations = {
 	.getattr	= ntfs_getattr,
@@ -1485,7 +1510,7 @@ const struct inode_operations ntfs_file_inode_operations = {
 };
 
 const struct file_operations ntfs_file_operations = {
-	.llseek		= generic_file_llseek,
+	.llseek		= ntfs_llseek,
 	.read_iter	= ntfs_file_read_iter,
 	.write_iter	= ntfs_file_write_iter,
 	.unlocked_ioctl = ntfs_ioctl,

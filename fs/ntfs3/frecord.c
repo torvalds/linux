@@ -3002,6 +3002,82 @@ bool ni_is_dirty(struct inode *inode)
 }
 
 /*
+ * ni_seek_data_or_hole
+ *
+ * Helper function for ntfs_llseek( SEEK_DATA/SEEK_HOLE )
+ */
+loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
+{
+	int err;
+	u8 cluster_bits = ni->mi.sbi->cluster_bits;
+	CLST vcn, lcn, clen;
+	loff_t vbo;
+
+	/* Enumerate all fragments. */
+	for (vcn = offset >> cluster_bits;; vcn += clen) {
+		err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL, false);
+		if (err) {
+			return err;
+		}
+
+		if (lcn == RESIDENT_LCN) {
+			/* clen - resident size in bytes. clen == ni->vfs_inode.i_size */
+			if (offset >= clen) {
+				/* check eof. */
+				return -ENXIO;
+			}
+
+			if (data) {
+				return offset;
+			}
+
+			return clen;
+		}
+
+		if (lcn == EOF_LCN) {
+			if (data) {
+				return -ENXIO;
+			}
+
+			/* implicit hole at the end of file. */
+			return ni->vfs_inode.i_size;
+		}
+
+		if (data) {
+			/*
+			 * Adjust the file offset to the next location in the file greater than
+			 * or equal to offset containing data. If offset points to data, then
+			 * the file offset is set to offset.
+			 */
+			if (lcn != SPARSE_LCN) {
+				vbo = (u64)vcn << cluster_bits;
+				return max(vbo, offset);
+			}
+		} else {
+			/*
+			 * Adjust the file offset to the next hole in the file greater than or 
+			 * equal to offset. If offset points into the middle of a hole, then the
+			 * file offset is set to offset. If there is no hole past offset, then the 
+			 * file offset is adjusted to the end of the file
+			 * (i.e., there is an implicit hole at the end of any file).
+			 */
+			if (lcn == SPARSE_LCN &&
+			    /* native compression hole begins at aligned vcn. */
+			    (!(ni->std_fa & FILE_ATTRIBUTE_COMPRESSED) ||
+			     !(vcn & (NTFS_LZNT_CLUSTERS - 1)))) {
+				vbo = (u64)vcn << cluster_bits;
+				return max(vbo, offset);
+			}
+		}
+
+		if (!clen) {
+			/* Corrupted file. */
+			return -EINVAL;
+		}
+	}
+}
+
+/*
  * ni_write_parents
  *
  * Helper function for ntfs_file_fsync.

@@ -940,7 +940,7 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 
 	if (!attr_b->non_res) {
 		*lcn = RESIDENT_LCN;
-		*len = 1;
+		*len = le32_to_cpu(attr_b->res.data_size);
 		goto out;
 	}
 
@@ -950,7 +950,7 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 			err = -EINVAL;
 		} else {
 			*len = 1;
-			*lcn = SPARSE_LCN;
+			*lcn = EOF_LCN;
 		}
 		goto out;
 	}
