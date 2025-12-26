@@ -517,11 +517,11 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	tmp_root->root_key.objectid = BTRFS_FS_TREE_OBJECTID;
 	root->fs_info->fs_root = tmp_root;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
+	btrfs_put_root(tmp_root);
 	if (ret) {
 		test_err("couldn't insert fs root %d", ret);
 		goto out;
 	}
-	btrfs_put_root(tmp_root);
 
 	tmp_root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(tmp_root)) {
@@ -532,11 +532,11 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 
 	tmp_root->root_key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	ret = btrfs_insert_fs_root(root->fs_info, tmp_root);
+	btrfs_put_root(tmp_root);
 	if (ret) {
-		test_err("couldn't insert fs root %d", ret);
+		test_err("couldn't insert subvolume root %d", ret);
 		goto out;
 	}
-	btrfs_put_root(tmp_root);
 
 	test_msg("running qgroup tests");
 	ret = test_no_shared_qgroup(root, sectorsize, nodesize);
