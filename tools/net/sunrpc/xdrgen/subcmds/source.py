@@ -8,6 +8,7 @@ import logging
 
 from argparse import Namespace
 from lark import logger
+from lark.exceptions import VisitError
 
 from generators.source_top import XdrSourceTopGenerator
 from generators.enum import XdrEnumGenerator
@@ -23,6 +24,7 @@ from xdr_ast import _XdrStruct, _XdrTypedef, _XdrUnion
 
 from xdr_parse import xdr_parser, set_xdr_annotate
 from xdr_parse import make_error_handler, XdrParseError
+from xdr_parse import handle_transform_error
 
 logger.setLevel(logging.INFO)
 
@@ -105,7 +107,11 @@ def subcmd(args: Namespace) -> int:
             )
         except XdrParseError:
             return 1
-        ast = transform_parse_tree(parse_tree)
+        try:
+            ast = transform_parse_tree(parse_tree)
+        except VisitError as e:
+            handle_transform_error(e, source, args.filename)
+            return 1
         match args.peer:
             case "server":
                 generate_server_source(args.filename, ast, args.language)

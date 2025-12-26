@@ -7,7 +7,7 @@ import sys
 from typing import Callable
 
 from lark import Lark
-from lark.exceptions import UnexpectedInput, UnexpectedToken
+from lark.exceptions import UnexpectedInput, UnexpectedToken, VisitError
 
 
 # Set to True to emit annotation comments in generated source
@@ -105,6 +105,44 @@ def make_error_handler(source: str, filename: str) -> Callable[[UnexpectedInput]
         raise XdrParseError()
 
     return handle_parse_error
+
+
+def handle_transform_error(e: VisitError, source: str, filename: str) -> None:
+    """Report a transform error with context.
+
+    Args:
+        e: The VisitError from Lark's transformer
+        source: The XDR source text being parsed
+        filename: The name of the file being parsed
+    """
+    lines = source.splitlines()
+
+    # Extract position from the tree node if available
+    line_num = 0
+    column = 0
+    if hasattr(e.obj, "meta") and e.obj.meta:
+        line_num = e.obj.meta.line
+        column = e.obj.meta.column
+
+    line_text = lines[line_num - 1] if 0 < line_num <= len(lines) else ""
+
+    # Build the error message
+    msg_parts = [f"{filename}:{line_num}:{column}: semantic error"]
+
+    # The original exception is typically a KeyError for undefined types
+    if isinstance(e.orig_exc, KeyError):
+        msg_parts.append(f"Undefined type '{e.orig_exc.args[0]}'")
+    else:
+        msg_parts.append(str(e.orig_exc))
+
+    # Show the offending line with a caret pointing to the error
+    if line_text:
+        msg_parts.append("")
+        msg_parts.append(f"    {line_text}")
+        prefix = line_text[: column - 1].expandtabs()
+        msg_parts.append(f"    {' ' * len(prefix)}^")
+
+    sys.stderr.write("\n".join(msg_parts) + "\n")
 
 
 def xdr_parser() -> Lark:
