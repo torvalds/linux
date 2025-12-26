@@ -66,6 +66,8 @@ def emit_header_maxsize(root: Specification, language: str, peer: str) -> None:
             gen = XdrStructGenerator(language, peer)
         elif isinstance(definition.value, _XdrUnion):
             gen = XdrUnionGenerator(language, peer)
+        elif isinstance(definition.value, _RpcProgram):
+            gen = XdrProgramGenerator(language, peer)
         else:
             continue
         gen.emit_maxsize(definition.value)
