@@ -31,6 +31,11 @@
 	};
 
 	host1x@50000000 {
+		dpaux1: dpaux@54040000 {
+			vdd-supply = <&pp3300>;
+			status = "okay";
+		};
+
 		dsia: dsi@54300000 {
 			avdd-dsi-csi-supply = <&vdd_dsi_csi>;
 			status = "okay";
@@ -56,6 +61,13 @@
 				link2 = <&link2>;
 				backlight = <&backlight>;
 			};
+		};
+
+		sor1: sor@54580000 {
+			avdd-io-hdmi-dp-supply = <&pp1800>;
+			vdd-hdmi-dp-pll-supply = <&avddio_1v05>;
+			nvidia,dpaux = <&dpaux1>;
+			status = "okay";
 		};
 
 		dpaux: dpaux@545c0000 {
