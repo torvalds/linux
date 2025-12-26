@@ -104,6 +104,7 @@ config PHY_NXP_PTN3222
 config PHY_SPACEMIT_K1_PCIE
 	tristate "PCIe and combo PHY driver for the SpacemiT K1 SoC"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
+	depends on COMMON_CLK
 	depends on HAS_IOMEM
 	depends on OF
 	select GENERIC_PHY
