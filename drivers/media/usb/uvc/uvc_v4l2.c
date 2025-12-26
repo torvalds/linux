@@ -230,6 +230,9 @@ static u32 uvc_v4l2_get_bytesperline(const struct uvc_format *format,
 	case V4L2_PIX_FMT_M420:
 		return frame->wWidth;
 
+	case V4L2_PIX_FMT_P010:
+		return frame->wWidth * 2;
+
 	default:
 		return format->bpp * frame->wWidth / 8;
 	}
