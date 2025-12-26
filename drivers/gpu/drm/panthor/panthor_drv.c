@@ -923,8 +923,10 @@ static int panthor_ioctl_bo_create(struct drm_device *ddev, void *data,
 	}
 
 	if ((args->flags & DRM_PANTHOR_BO_NO_MMAP) &&
-	    (args->flags & DRM_PANTHOR_BO_WB_MMAP))
-		return -EINVAL;
+	    (args->flags & DRM_PANTHOR_BO_WB_MMAP)) {
+		ret = -EINVAL;
+		goto out_dev_exit;
+	}
 
 	if (args->exclusive_vm_id) {
 		vm = panthor_vm_pool_get_vm(pfile->vms, args->exclusive_vm_id);

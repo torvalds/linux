@@ -508,11 +508,11 @@ static inline int drm_gem_huge_mnt_create(struct drm_device *dev,
 /**
  * drm_gem_get_huge_mnt - Get the huge tmpfs mountpoint used by a DRM device
  * @dev: DRM device
-
+ *
  * This function gets the huge tmpfs mountpoint used by DRM device @dev. A huge
  * tmpfs mountpoint is used instead of `shm_mnt` after a successful call to
  * drm_gem_huge_mnt_create() when CONFIG_TRANSPARENT_HUGEPAGE is enabled.
-
+ *
  * Returns:
  * The huge tmpfs mountpoint in use, NULL otherwise.
  */

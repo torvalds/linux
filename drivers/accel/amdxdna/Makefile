@@ -18,7 +18,6 @@ amdxdna-y := \
 	amdxdna_sysfs.o \
 	amdxdna_ubuf.o \
 	npu1_regs.o \
-	npu2_regs.o \
 	npu4_regs.o \
 	npu5_regs.o \
 	npu6_regs.o

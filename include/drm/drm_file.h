@@ -33,6 +33,7 @@
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/idr.h>
+#include <linux/xarray.h>
 
 #include <uapi/drm/drm.h>
 
@@ -316,10 +317,8 @@ struct drm_file {
 	/** @table_lock: Protects @object_idr. */
 	spinlock_t table_lock;
 
-	/** @syncobj_idr: Mapping of sync object handles to object pointers. */
-	struct idr syncobj_idr;
-	/** @syncobj_table_lock: Protects @syncobj_idr. */
-	spinlock_t syncobj_table_lock;
+	/** @syncobj_xa: Mapping of sync object handles to object pointers. */
+	struct xarray syncobj_xa;
 
 	/** @filp: Pointer to the core file structure. */
 	struct file *filp;

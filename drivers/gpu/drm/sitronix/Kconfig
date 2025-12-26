@@ -1,15 +1,43 @@
-config DRM_ST7571_I2C
-	tristate "DRM support for Sitronix ST7571 display panels (I2C)"
-	depends on DRM && I2C && MMU
+config DRM_ST7571
+	tristate "DRM support for Sitronix ST7567/ST7571 display panels"
+	depends on DRM && MMU
 	select DRM_CLIENT_SELECTION
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
-	select REGMAP_I2C
 	select VIDEOMODE_HELPERS
 	help
-	  DRM driver for Sitronix ST7571 panels controlled over I2C.
+	  Sitronix ST7571 is a driver and controller for 4-level gray
+	  scale and monochrome dot matrix LCD panels.
+
+	  DRM driver for Sitronix ST7567/ST7571 panels.
+	  This is only the core driver, a driver for the appropriate bus
+	  transport in your chip also must be selected.
+
+	  if M is selected the module will be called st7571.
+
+config DRM_ST7571_I2C
+	tristate "DRM support for Sitronix ST7567/ST7571 display panels (I2C)"
+	depends on DRM_ST7571 && I2C
+	select REGMAP
+	help
+	  Sitronix ST7571 is a driver and controller for 4-level gray
+	  scale and monochrome dot matrix LCD panels.
+
+	  DRM driver for Sitronix ST7565/ST7571 panels connected via I2C bus.
 
 	  if M is selected the module will be called st7571-i2c.
+
+config DRM_ST7571_SPI
+	tristate "DRM support for Sitronix ST7567/ST7571 display panels (SPI)"
+	depends on DRM_ST7571 && SPI
+	select REGMAP_SPI
+	help
+	  Sitronix ST7571 is a driver and controller for 4-level gray
+	  scale and monochrome dot matrix LCD panels.
+
+	  DRM driver for Sitronix ST7565/ST7571 panels connected via SPI bus.
+
+	  if M is selected the module will be called st7571-spi.
 
 config DRM_ST7586
 	tristate "DRM support for Sitronix ST7586 display panels"
@@ -40,3 +68,13 @@ config DRM_ST7735R
 
 	  If M is selected the module will be called st7735r.
 
+config DRM_ST7920
+	tristate "DRM support for Sitronix ST7920 LCD displays"
+	depends on DRM && SPI && MMU
+	select DRM_GEM_SHMEM_HELPER
+	select DRM_KMS_HELPER
+	select REGMAP_SPI
+	help
+	  DRM driver for the ST7920 Sitronix LCD controllers.
+
+	  If M is selected the module will be called st7920.

@@ -90,6 +90,7 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
 	{ .feature = AIE2_NPU_COMMAND, .min_minor = 15 },
 	{ .feature = AIE2_PREEMPT, .min_minor = 12 },
+	{ .feature = AIE2_TEMPORAL_ONLY, .min_minor = 12 },
 	{ 0 }
 };
 
