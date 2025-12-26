@@ -575,6 +575,11 @@ static int read_dma_buffer(struct thc_device *dev,
 		return -EINVAL;
 	}
 
+	if (!read_config->prd_tbls || !read_config->sgls[prd_table_index]) {
+		dev_err_once(dev->dev, "PRD tables are not ready yet\n");
+		return -EINVAL;
+	}
+
 	prd_tbl = &read_config->prd_tbls[prd_table_index];
 	mes_len = calc_message_len(prd_tbl, &nent);
 	if (mes_len > read_config->max_packet_size) {
