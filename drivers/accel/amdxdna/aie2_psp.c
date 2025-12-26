@@ -76,6 +76,21 @@ static int psp_exec(struct psp_device *psp, u32 *reg_vals)
 	return 0;
 }
 
+int aie2_psp_waitmode_poll(struct psp_device *psp)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(psp->ddev);
+	u32 mode_reg;
+	int ret;
+
+	ret = readx_poll_timeout(readl, PSP_REG(psp, PSP_PWAITMODE_REG), mode_reg,
+				 (mode_reg & 0x1) == 1,
+				 PSP_POLL_INTERVAL, PSP_POLL_TIMEOUT);
+	if (ret)
+		XDNA_ERR(xdna, "fw waitmode reg error, ret %d", ret);
+
+	return ret;
+}
+
 void aie2_psp_stop(struct psp_device *psp)
 {
 	u32 reg_vals[PSP_NUM_IN_REGS] = { PSP_RELEASE_TMR, };

@@ -1867,9 +1867,9 @@ int drm_plane_create_color_pipeline_property(struct drm_plane *plane,
 	prop = drm_property_create_enum(plane->dev, DRM_MODE_PROP_ATOMIC,
 					"COLOR_PIPELINE",
 					all_pipelines, len);
-	if (IS_ERR(prop)) {
+	if (!prop) {
 		kfree(all_pipelines);
-		return PTR_ERR(prop);
+		return -ENOMEM;
 	}
 
 	drm_object_attach_property(&plane->base, prop, 0);

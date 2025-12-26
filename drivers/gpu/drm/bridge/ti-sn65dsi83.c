@@ -406,6 +406,10 @@ static void sn65dsi83_reset_work(struct work_struct *ws)
 {
 	struct sn65dsi83 *ctx = container_of(ws, struct sn65dsi83, reset_work);
 	int ret;
+	int idx;
+
+	if (!drm_bridge_enter(&ctx->bridge, &idx))
+		return;
 
 	/* Reset the pipe */
 	ret = sn65dsi83_reset_pipe(ctx);
@@ -415,12 +419,18 @@ static void sn65dsi83_reset_work(struct work_struct *ws)
 	}
 	if (ctx->irq)
 		enable_irq(ctx->irq);
+
+	drm_bridge_exit(idx);
 }
 
 static void sn65dsi83_handle_errors(struct sn65dsi83 *ctx)
 {
 	unsigned int irq_stat;
 	int ret;
+	int idx;
+
+	if (!drm_bridge_enter(&ctx->bridge, &idx))
+		return;
 
 	/*
 	 * Schedule a reset in case of:
@@ -448,6 +458,8 @@ static void sn65dsi83_handle_errors(struct sn65dsi83 *ctx)
 
 		schedule_work(&ctx->reset_work);
 	}
+
+	drm_bridge_exit(idx);
 }
 
 static void sn65dsi83_monitor_work(struct work_struct *work)
@@ -470,6 +482,37 @@ static void sn65dsi83_monitor_stop(struct sn65dsi83 *ctx)
 	cancel_delayed_work_sync(&ctx->monitor_work);
 }
 
+/*
+ * Release resources taken by sn65dsi83_atomic_pre_enable().
+ *
+ * Invoked by sn65dsi83_atomic_disable() normally, or by devres after
+ * sn65dsi83_remove() in case this happens befora atomic_disable.
+ */
+static void sn65dsi83_release_resources(void *data)
+{
+	struct sn65dsi83 *ctx = (struct sn65dsi83 *)data;
+	int ret;
+
+	if (ctx->irq) {
+		/* Disable irq */
+		regmap_write(ctx->regmap, REG_IRQ_EN, 0x0);
+		regmap_write(ctx->regmap, REG_IRQ_GLOBAL, 0x0);
+	} else {
+		/* Stop the polling task */
+		sn65dsi83_monitor_stop(ctx);
+	}
+
+	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
+	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
+	usleep_range(10000, 11000);
+
+	ret = regulator_disable(ctx->vcc);
+	if (ret)
+		dev_err(ctx->dev, "Failed to disable vcc: %d\n", ret);
+
+	regcache_mark_dirty(ctx->regmap);
+}
+
 static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 					struct drm_atomic_state *state)
 {
@@ -485,11 +528,15 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 	__le16 le16val;
 	u16 val;
 	int ret;
+	int idx;
+
+	if (!drm_bridge_enter(bridge, &idx))
+		return;
 
 	ret = regulator_enable(ctx->vcc);
 	if (ret) {
 		dev_err(ctx->dev, "Failed to enable vcc: %d\n", ret);
-		return;
+		goto err_exit;
 	}
 
 	/* Deassert reset */
@@ -632,7 +679,7 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 		dev_err(ctx->dev, "failed to lock PLL, ret=%i\n", ret);
 		/* On failure, disable PLL again and exit. */
 		regmap_write(ctx->regmap, REG_RC_PLL_EN, 0x00);
-		return;
+		goto err_add_action;
 	}
 
 	/* Trigger reset after CSR register update. */
@@ -640,6 +687,11 @@ static void sn65dsi83_atomic_pre_enable(struct drm_bridge *bridge,
 
 	/* Wait for 10ms after soft reset as specified in datasheet */
 	usleep_range(10000, 12000);
+
+err_add_action:
+	devm_add_action(ctx->dev, sn65dsi83_release_resources, ctx);
+err_exit:
+	drm_bridge_exit(idx);
 }
 
 static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
@@ -647,6 +699,10 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
 	unsigned int pval;
+	int idx;
+
+	if (!drm_bridge_enter(bridge, &idx))
+		return;
 
 	/* Clear all errors that got asserted during initialization. */
 	regmap_read(ctx->regmap, REG_IRQ_STAT, &pval);
@@ -666,32 +722,22 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 		/* Use the polling task */
 		sn65dsi83_monitor_start(ctx);
 	}
+
+	drm_bridge_exit(idx);
 }
 
 static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
 				     struct drm_atomic_state *state)
 {
 	struct sn65dsi83 *ctx = bridge_to_sn65dsi83(bridge);
-	int ret;
+	int idx;
 
-	if (ctx->irq) {
-		/* Disable irq */
-		regmap_write(ctx->regmap, REG_IRQ_EN, 0x0);
-		regmap_write(ctx->regmap, REG_IRQ_GLOBAL, 0x0);
-	} else {
-		/* Stop the polling task */
-		sn65dsi83_monitor_stop(ctx);
-	}
+	if (!drm_bridge_enter(bridge, &idx))
+		return;
 
-	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
-	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
-	usleep_range(10000, 11000);
+	devm_release_action(ctx->dev, sn65dsi83_release_resources, ctx);
 
-	ret = regulator_disable(ctx->vcc);
-	if (ret)
-		dev_err(ctx->dev, "Failed to disable vcc: %d\n", ret);
-
-	regcache_mark_dirty(ctx->regmap);
+	drm_bridge_exit(idx);
 }
 
 static enum drm_mode_status
@@ -1012,7 +1058,7 @@ static void sn65dsi83_remove(struct i2c_client *client)
 {
 	struct sn65dsi83 *ctx = i2c_get_clientdata(client);
 
-	drm_bridge_remove(&ctx->bridge);
+	drm_bridge_unplug(&ctx->bridge);
 }
 
 static const struct i2c_device_id sn65dsi83_id[] = {

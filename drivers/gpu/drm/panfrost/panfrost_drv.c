@@ -95,6 +95,7 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 		PANFROST_FEATURE_ARRAY(JS_FEATURES, js_features, 15);
 		PANFROST_FEATURE(NR_CORE_GROUPS, nr_core_groups);
 		PANFROST_FEATURE(THREAD_TLS_ALLOC, thread_tls_alloc);
+		PANFROST_FEATURE(SELECTED_COHERENCY, selected_coherency);
 
 	case DRM_PANFROST_PARAM_SYSTEM_TIMESTAMP:
 		ret = panfrost_ioctl_query_timestamp(pfdev, &param->value);
@@ -125,6 +126,10 @@ static int panfrost_ioctl_get_param(struct drm_device *ddev, void *data, struct 
 	return 0;
 }
 
+#define PANFROST_BO_FLAGS	(PANFROST_BO_NOEXEC | \
+				 PANFROST_BO_HEAP | \
+				 PANFROST_BO_WB_MMAP)
+
 static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -134,8 +139,7 @@ static int panfrost_ioctl_create_bo(struct drm_device *dev, void *data,
 	struct panfrost_gem_mapping *mapping;
 	int ret;
 
-	if (!args->size || args->pad ||
-	    (args->flags & ~(PANFROST_BO_NOEXEC | PANFROST_BO_HEAP)))
+	if (!args->size || args->pad || (args->flags & ~PANFROST_BO_FLAGS))
 		return -EINVAL;
 
 	/* Heaps should never be executable */
@@ -579,6 +583,91 @@ static int panfrost_ioctl_jm_ctx_destroy(struct drm_device *dev, void *data,
 	return panfrost_jm_ctx_destroy(file, args->handle);
 }
 
+static int panfrost_ioctl_sync_bo(struct drm_device *ddev, void *data,
+				  struct drm_file *file)
+{
+	struct drm_panfrost_sync_bo *args = data;
+	struct drm_panfrost_bo_sync_op *ops;
+	struct drm_gem_object *obj;
+	int ret;
+	u32 i;
+
+	if (args->pad)
+		return -EINVAL;
+
+	if (!args->op_count)
+		return 0;
+
+	ops = kvmalloc_array(args->op_count, sizeof(*ops), GFP_KERNEL);
+	if (!ops) {
+		DRM_DEBUG("Failed to allocate incoming BO sync ops array\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(ops, (void __user *)(uintptr_t)args->ops,
+			   args->op_count * sizeof(*ops))) {
+		DRM_DEBUG("Failed to copy in BO sync ops\n");
+		ret = -EFAULT;
+		goto err_ops;
+	}
+
+	for (i = 0; i < args->op_count; i++) {
+		obj = drm_gem_object_lookup(file, ops[i].handle);
+		if (!obj) {
+			ret = -ENOENT;
+			goto err_ops;
+		}
+
+		ret = panfrost_gem_sync(obj, ops[i].type,
+					ops[i].offset, ops[i].size);
+
+		drm_gem_object_put(obj);
+
+		if (ret)
+			goto err_ops;
+	}
+
+err_ops:
+	kvfree(ops);
+
+	return ret;
+}
+
+static int panfrost_ioctl_query_bo_info(struct drm_device *dev, void *data,
+					struct drm_file *file_priv)
+{
+	struct drm_panfrost_query_bo_info *args = data;
+	struct drm_gem_object *gem_obj;
+	struct panfrost_gem_object *bo;
+
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
+	if (!gem_obj) {
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		return -ENOENT;
+	}
+
+	bo = to_panfrost_bo(gem_obj);
+	args->pad = 0;
+	args->create_flags = 0;
+	args->extra_flags = 0;
+
+	if (drm_gem_is_imported(gem_obj)) {
+		args->extra_flags |= DRM_PANFROST_BO_IS_IMPORTED;
+	} else {
+		if (bo->noexec)
+			args->create_flags |= PANFROST_BO_NOEXEC;
+
+		if (bo->is_heap)
+			args->create_flags |= PANFROST_BO_HEAP;
+
+		if (!bo->base.map_wc)
+			args->create_flags |= PANFROST_BO_WB_MMAP;
+	}
+
+	drm_gem_object_put(gem_obj);
+	return 0;
+}
+
 int panfrost_unstable_ioctl_check(void)
 {
 	if (!unstable_ioctls)
@@ -648,6 +737,8 @@ static const struct drm_ioctl_desc panfrost_drm_driver_ioctls[] = {
 	PANFROST_IOCTL(SET_LABEL_BO,	set_label_bo,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(JM_CTX_CREATE,	jm_ctx_create,	DRM_RENDER_ALLOW),
 	PANFROST_IOCTL(JM_CTX_DESTROY,	jm_ctx_destroy,	DRM_RENDER_ALLOW),
+	PANFROST_IOCTL(SYNC_BO,		sync_bo,	DRM_RENDER_ALLOW),
+	PANFROST_IOCTL(QUERY_BO_INFO,	query_bo_info,	DRM_RENDER_ALLOW),
 };
 
 static void panfrost_gpu_show_fdinfo(struct panfrost_device *pfdev,
@@ -837,6 +928,9 @@ static void panfrost_debugfs_init(struct drm_minor *minor)
  * - 1.4 - adds SET_LABEL_BO
  * - 1.5 - adds JM_CTX_{CREATE,DESTROY} ioctls and extend SUBMIT to allow
  *	   context creation with configurable priorities/affinity
+ * - 1.6 - adds PANFROST_BO_MAP_WB, PANFROST_IOCTL_SYNC_BO,
+ *	   PANFROST_IOCTL_QUERY_BO_INFO and
+ *	   DRM_PANFROST_PARAM_SELECTED_COHERENCY
  */
 static const struct drm_driver panfrost_drm_driver = {
 	.driver_features	= DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
@@ -849,14 +943,21 @@ static const struct drm_driver panfrost_drm_driver = {
 	.name			= "panfrost",
 	.desc			= "panfrost DRM",
 	.major			= 1,
-	.minor			= 5,
+	.minor			= 6,
 
 	.gem_create_object	= panfrost_gem_create_object,
+	.gem_prime_import	= panfrost_gem_prime_import,
 	.gem_prime_import_sg_table = panfrost_gem_prime_import_sg_table,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = panfrost_debugfs_init,
 #endif
 };
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+bool panfrost_transparent_hugepage = true;
+module_param_named(transparent_hugepage, panfrost_transparent_hugepage, bool, 0400);
+MODULE_PARM_DESC(transparent_hugepage, "Use a dedicated tmpfs mount point with Transparent Hugepage enabled (true = default)");
+#endif
 
 static int panfrost_probe(struct platform_device *pdev)
 {

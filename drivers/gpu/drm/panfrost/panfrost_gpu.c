@@ -159,8 +159,8 @@ static void panfrost_gpu_init_quirks(struct panfrost_device *pfdev)
 	    pfdev->features.revision >= 0x2000)
 		quirks |= JM_MAX_JOB_THROTTLE_LIMIT << JM_JOB_THROTTLE_LIMIT_SHIFT;
 	else if (panfrost_model_eq(pfdev, 0x6000) &&
-		 pfdev->features.coherency_features == COHERENCY_ACE)
-		quirks |= (COHERENCY_ACE_LITE | COHERENCY_ACE) <<
+		 pfdev->features.coherency_features == BIT(COHERENCY_ACE))
+		quirks |= (BIT(COHERENCY_ACE_LITE) | BIT(COHERENCY_ACE)) <<
 			   JM_FORCE_COHERENCY_FEATURES_SHIFT;
 
 	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_IDVS_GROUP_SIZE))
@@ -263,7 +263,27 @@ static int panfrost_gpu_init_features(struct panfrost_device *pfdev)
 	pfdev->features.max_threads = gpu_read(pfdev, GPU_THREAD_MAX_THREADS);
 	pfdev->features.thread_max_workgroup_sz = gpu_read(pfdev, GPU_THREAD_MAX_WORKGROUP_SIZE);
 	pfdev->features.thread_max_barrier_sz = gpu_read(pfdev, GPU_THREAD_MAX_BARRIER_SIZE);
-	pfdev->features.coherency_features = gpu_read(pfdev, GPU_COHERENCY_FEATURES);
+
+	if (panfrost_has_hw_feature(pfdev, HW_FEATURE_COHERENCY_REG))
+		pfdev->features.coherency_features = gpu_read(pfdev, GPU_COHERENCY_FEATURES);
+	else
+		pfdev->features.coherency_features = BIT(COHERENCY_ACE_LITE);
+
+	BUILD_BUG_ON(COHERENCY_ACE_LITE != DRM_PANFROST_GPU_COHERENCY_ACE_LITE);
+	BUILD_BUG_ON(COHERENCY_ACE != DRM_PANFROST_GPU_COHERENCY_ACE);
+	BUILD_BUG_ON(COHERENCY_NONE != DRM_PANFROST_GPU_COHERENCY_NONE);
+
+	if (!pfdev->coherent) {
+		pfdev->features.selected_coherency = COHERENCY_NONE;
+	} else if (pfdev->features.coherency_features & BIT(COHERENCY_ACE)) {
+		pfdev->features.selected_coherency = COHERENCY_ACE;
+	} else if (pfdev->features.coherency_features & BIT(COHERENCY_ACE_LITE)) {
+		pfdev->features.selected_coherency = COHERENCY_ACE_LITE;
+	} else {
+		drm_WARN(&pfdev->base, true, "No known coherency protocol supported");
+		pfdev->features.selected_coherency = COHERENCY_NONE;
+	}
+
 	pfdev->features.afbc_features = gpu_read(pfdev, GPU_AFBC_FEATURES);
 	for (i = 0; i < 4; i++)
 		pfdev->features.texture_features[i] = gpu_read(pfdev, GPU_TEXTURE_FEATURES(i));
