@@ -27,10 +27,13 @@ def read_static_key(name):
 def state_str(state):
     return prog['scx_enable_state_str'][state].string_().decode()
 
-ops = prog['scx_ops']
+root = prog['scx_root']
 enable_state = read_atomic("scx_enable_state_var")
 
-print(f'ops           : {ops.name.string_().decode()}')
+if root:
+    print(f'ops           : {root.ops.name.string_().decode()}')
+else:
+    print('ops           : ')
 print(f'enabled       : {read_static_key("__scx_enabled")}')
 print(f'switching_all : {read_int("scx_switching_all")}')
 print(f'switched_all  : {read_static_key("__scx_switched_all")}')
