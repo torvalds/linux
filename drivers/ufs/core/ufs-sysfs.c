@@ -1847,6 +1847,7 @@ static ssize_t defrag_trigger_store(struct device *dev,
 
 static DEVICE_ATTR_WO(defrag_trigger);
 
+#define UFS_HID_AVAILABLE_SIZE_INVALID 0xFFFFFFFFU
 static ssize_t fragmented_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1858,6 +1859,9 @@ static ssize_t fragmented_size_show(struct device *dev,
 			QUERY_ATTR_IDN_HID_AVAILABLE_SIZE, &value);
 	if (ret)
 		return ret;
+
+	if (value == UFS_HID_AVAILABLE_SIZE_INVALID)
+		return -ENODATA;
 
 	return sysfs_emit(buf, "%u\n", value);
 }
