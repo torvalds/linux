@@ -843,9 +843,8 @@ int ntfs_refresh_zone(struct ntfs_sb_info *sbi)
 /*
  * ntfs_update_mftmirr - Update $MFTMirr data.
  */
-void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
+void ntfs_update_mftmirr(struct ntfs_sb_info *sbi)
 {
-	int err;
 	struct super_block *sb = sbi->sb;
 	u32 blocksize, bytes;
 	sector_t block1, block2;
@@ -884,12 +883,7 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 
 		put_bh(bh1);
 		bh1 = NULL;
-
-		err = wait ? sync_dirty_buffer(bh2) : 0;
-
 		put_bh(bh2);
-		if (err)
-			return;
 	}
 
 	sbi->flags &= ~NTFS_FLAGS_MFTMIRR;
@@ -1357,9 +1351,7 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 					err = -ENOMEM;
 					goto out;
 				}
-
 				wait_on_buffer(bh);
-
 				lock_buffer(bh);
 				if (!buffer_uptodate(bh)) {
 					memset(bh->b_data, 0, blocksize);

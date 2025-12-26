@@ -1850,183 +1850,11 @@ enum REPARSE_SIGN ni_parse_reparse(struct ntfs_inode *ni, struct ATTRIB *attr,
 	return REPARSE_LINK;
 }
 
-/*
- * ni_fiemap - Helper for file_fiemap().
- *
- * Assumed ni_lock.
- * TODO: Less aggressive locks.
- */
-int ni_fiemap(struct ntfs_inode *ni, struct fiemap_extent_info *fieinfo,
-	      __u64 vbo, __u64 len)
-{
-	int err = 0;
-	struct ntfs_sb_info *sbi = ni->mi.sbi;
-	u8 cluster_bits = sbi->cluster_bits;
-	struct runs_tree run;
-	struct ATTRIB *attr;
-	CLST vcn = vbo >> cluster_bits;
-	CLST lcn, clen;
-	u64 valid = ni->i_valid;
-	u64 lbo, bytes;
-	u64 end, alloc_size;
-	size_t idx = -1;
-	u32 flags;
-	bool ok;
-
-	run_init(&run);
-	if (S_ISDIR(ni->vfs_inode.i_mode)) {
-		attr = ni_find_attr(ni, NULL, NULL, ATTR_ALLOC, I30_NAME,
-				    ARRAY_SIZE(I30_NAME), NULL, NULL);
-	} else {
-		attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL,
-				    NULL);
-		if (!attr) {
-			err = -EINVAL;
-			goto out;
-		}
-		if (is_attr_compressed(attr)) {
-			/* Unfortunately cp -r incorrectly treats compressed clusters. */
-			err = -EOPNOTSUPP;
-			ntfs_inode_warn(
-				&ni->vfs_inode,
-				"fiemap is not supported for compressed file (cp -r)");
-			goto out;
-		}
-	}
-
-	if (!attr || !attr->non_res) {
-		err = fiemap_fill_next_extent(
-			fieinfo, 0, 0,
-			attr ? le32_to_cpu(attr->res.data_size) : 0,
-			FIEMAP_EXTENT_DATA_INLINE | FIEMAP_EXTENT_LAST |
-				FIEMAP_EXTENT_MERGED);
-		goto out;
-	}
-
-	end = vbo + len;
-	alloc_size = le64_to_cpu(attr->nres.alloc_size);
-	if (end > alloc_size)
-		end = alloc_size;
-
-	while (vbo < end) {
-		if (idx == -1) {
-			ok = run_lookup_entry(&run, vcn, &lcn, &clen, &idx);
-		} else {
-			CLST vcn_next = vcn;
-
-			ok = run_get_entry(&run, ++idx, &vcn, &lcn, &clen) &&
-			     vcn == vcn_next;
-			if (!ok)
-				vcn = vcn_next;
-		}
-
-		if (!ok) {
-			err = attr_load_runs_vcn(ni, attr->type,
-						 attr_name(attr),
-						 attr->name_len, &run, vcn);
-
-			if (err)
-				break;
-
-			ok = run_lookup_entry(&run, vcn, &lcn, &clen, &idx);
-
-			if (!ok) {
-				err = -EINVAL;
-				break;
-			}
-		}
-
-		if (!clen) {
-			err = -EINVAL; // ?
-			break;
-		}
-
-		if (lcn == SPARSE_LCN) {
-			vcn += clen;
-			vbo = (u64)vcn << cluster_bits;
-			continue;
-		}
-
-		flags = FIEMAP_EXTENT_MERGED;
-		if (S_ISDIR(ni->vfs_inode.i_mode)) {
-			;
-		} else if (is_attr_compressed(attr)) {
-			CLST clst_data;
-
-			err = attr_is_frame_compressed(ni, attr,
-						       vcn >> attr->nres.c_unit,
-						       &clst_data, &run);
-			if (err)
-				break;
-			if (clst_data < NTFS_LZNT_CLUSTERS)
-				flags |= FIEMAP_EXTENT_ENCODED;
-		} else if (is_attr_encrypted(attr)) {
-			flags |= FIEMAP_EXTENT_DATA_ENCRYPTED;
-		}
-
-		vbo = (u64)vcn << cluster_bits;
-		bytes = (u64)clen << cluster_bits;
-		lbo = (u64)lcn << cluster_bits;
-
-		vcn += clen;
-
-		if (vbo + bytes >= end)
-			bytes = end - vbo;
-
-		if (vbo + bytes <= valid) {
-			;
-		} else if (vbo >= valid) {
-			flags |= FIEMAP_EXTENT_UNWRITTEN;
-		} else {
-			/* vbo < valid && valid < vbo + bytes */
-			u64 dlen = valid - vbo;
-
-			if (vbo + dlen >= end)
-				flags |= FIEMAP_EXTENT_LAST;
-
-			err = fiemap_fill_next_extent(fieinfo, vbo, lbo, dlen,
-						      flags);
-
-			if (err < 0)
-				break;
-			if (err == 1) {
-				err = 0;
-				break;
-			}
-
-			vbo = valid;
-			bytes -= dlen;
-			if (!bytes)
-				continue;
-
-			lbo += dlen;
-			flags |= FIEMAP_EXTENT_UNWRITTEN;
-		}
-
-		if (vbo + bytes >= end)
-			flags |= FIEMAP_EXTENT_LAST;
-
-		err = fiemap_fill_next_extent(fieinfo, vbo, lbo, bytes, flags);
-		if (err < 0)
-			break;
-		if (err == 1) {
-			err = 0;
-			break;
-		}
-
-		vbo += bytes;
-	}
-
-out:
-	run_close(&run);
-	return err;
-}
-
 static struct page *ntfs_lock_new_page(struct address_space *mapping,
-		pgoff_t index, gfp_t gfp)
+				       pgoff_t index, gfp_t gfp)
 {
-	struct folio *folio = __filemap_get_folio(mapping, index,
-			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
+	struct folio *folio = __filemap_get_folio(
+		mapping, index, FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp);
 	struct page *page;
 
 	if (IS_ERR(folio))
@@ -2186,7 +2014,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 
 		for (vcn = vbo >> sbi->cluster_bits; vcn < end; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
-						  &clen, &new, false);
+						  &clen, &new, false, NULL);
 			if (err)
 				goto out;
 		}
@@ -3017,7 +2845,8 @@ loff_t ni_seek_data_or_hole(struct ntfs_inode *ni, loff_t offset, bool data)
 
 	/* Enumerate all fragments. */
 	for (vcn = offset >> cluster_bits;; vcn += clen) {
-		err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL, false);
+		err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL, false,
+					  NULL);
 		if (err) {
 			return err;
 		}

@@ -14,6 +14,7 @@
 #include <linux/falloc.h>
 #include <linux/fiemap.h>
 #include <linux/fileattr.h>
+#include <linux/iomap.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -189,9 +190,6 @@ static int ntfs_extend_initialized_size(struct file *file,
 					const loff_t new_valid)
 {
 	struct inode *inode = &ni->vfs_inode;
-	struct address_space *mapping = inode->i_mapping;
-	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
-	loff_t pos = valid;
 	int err;
 
 	if (valid >= new_valid)
@@ -204,139 +202,40 @@ static int ntfs_extend_initialized_size(struct file *file,
 
 	WARN_ON(is_compressed(ni));
 
-	for (;;) {
-		u32 zerofrom, len;
-		struct folio *folio;
-		u8 bits;
-		CLST vcn, lcn, clen;
-
-		if (is_sparsed(ni)) {
-			bits = sbi->cluster_bits;
-			vcn = pos >> bits;
-
-			err = attr_data_get_block(ni, vcn, 1, &lcn, &clen, NULL,
-						  false);
-			if (err)
-				goto out;
-
-			if (lcn == SPARSE_LCN) {
-				pos = ((loff_t)clen + vcn) << bits;
-				ni->i_valid = pos;
-				goto next;
-			}
-		}
-
-		zerofrom = pos & (PAGE_SIZE - 1);
-		len = PAGE_SIZE - zerofrom;
-
-		if (pos + len > new_valid)
-			len = new_valid - pos;
-
-		err = ntfs_write_begin(NULL, mapping, pos, len, &folio, NULL);
-		if (err)
-			goto out;
-
-		folio_zero_range(folio, zerofrom, folio_size(folio) - zerofrom);
-
-		err = ntfs_write_end(NULL, mapping, pos, len, len, folio, NULL);
-		if (err < 0)
-			goto out;
-		pos += len;
-
-next:
-		if (pos >= new_valid)
-			break;
-
-		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
+	err = iomap_zero_range(inode, valid, new_valid - valid, NULL,
+			       &ntfs_iomap_ops, &ntfs_iomap_folio_ops, NULL);
+	if (err) {
+		ni->i_valid = valid;
+		ntfs_inode_warn(inode,
+				"failed to extend initialized size to %llx.",
+				new_valid);
+		return err;
 	}
 
 	return 0;
-
-out:
-	ni->i_valid = valid;
-	ntfs_inode_warn(inode, "failed to extend initialized size to %llx.",
-			new_valid);
-	return err;
 }
 
-/*
- * ntfs_zero_range - Helper function for punch_hole.
- *
- * It zeroes a range [vbo, vbo_to).
- */
-static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
+static void ntfs_filemap_close(struct vm_area_struct *vma)
 {
-	int err = 0;
-	struct address_space *mapping = inode->i_mapping;
-	u32 blocksize = i_blocksize(inode);
-	pgoff_t idx = vbo >> PAGE_SHIFT;
-	u32 from = vbo & (PAGE_SIZE - 1);
-	pgoff_t idx_end = (vbo_to + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	loff_t page_off;
-	struct buffer_head *head, *bh;
-	u32 bh_next, bh_off, to;
-	sector_t iblock;
-	struct folio *folio;
-	bool dirty = false;
+	struct inode *inode = file_inode(vma->vm_file);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	u64 from = (u64)vma->vm_pgoff << PAGE_SHIFT;
+	u64 to = min_t(u64, i_size_read(inode),
+		       from + vma->vm_end - vma->vm_start);
 
-	for (; idx < idx_end; idx += 1, from = 0) {
-		page_off = (loff_t)idx << PAGE_SHIFT;
-		to = (page_off + PAGE_SIZE) > vbo_to ? (vbo_to - page_off) :
-						       PAGE_SIZE;
-		iblock = page_off >> inode->i_blkbits;
-
-		folio = __filemap_get_folio(
-			mapping, idx, FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
-			mapping_gfp_constraint(mapping, ~__GFP_FS));
-		if (IS_ERR(folio))
-			return PTR_ERR(folio);
-
-		head = folio_buffers(folio);
-		if (!head)
-			head = create_empty_buffers(folio, blocksize, 0);
-
-		bh = head;
-		bh_off = 0;
-		do {
-			bh_next = bh_off + blocksize;
-
-			if (bh_next <= from || bh_off >= to)
-				continue;
-
-			if (!buffer_mapped(bh)) {
-				ntfs_get_block(inode, iblock, bh, 0);
-				/* Unmapped? It's a hole - nothing to do. */
-				if (!buffer_mapped(bh))
-					continue;
-			}
-
-			/* Ok, it's mapped. Make sure it's up-to-date. */
-			if (folio_test_uptodate(folio))
-				set_buffer_uptodate(bh);
-			else if (bh_read(bh, 0) < 0) {
-				err = -EIO;
-				folio_unlock(folio);
-				folio_put(folio);
-				goto out;
-			}
-
-			mark_buffer_dirty(bh);
-		} while (bh_off = bh_next, iblock += 1,
-			 head != (bh = bh->b_this_page));
-
-		folio_zero_segment(folio, from, to);
-		dirty = true;
-
-		folio_unlock(folio);
-		folio_put(folio);
-		cond_resched();
-	}
-out:
-	if (dirty)
+	if (ni->i_valid < to) {
+		ni->i_valid = to;
 		mark_inode_dirty(inode);
-	return err;
+	}
 }
+
+/* Copy of generic_file_vm_ops. */
+static const struct vm_operations_struct ntfs_file_vm_ops = {
+	.close = ntfs_filemap_close,
+	.fault = filemap_fault,
+	.map_pages = filemap_map_pages,
+	.page_mkwrite = filemap_page_mkwrite,
+};
 
 /*
  * ntfs_file_mmap_prepare - file_operations::mmap_prepare
@@ -346,7 +245,6 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 	struct file *file = desc->file;
 	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
-	u64 from = ((u64)desc->pgoff << PAGE_SHIFT);
 	bool rw = desc->vm_flags & VM_WRITE;
 	int err;
 
@@ -378,7 +276,8 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 	}
 
 	if (rw) {
-		u64 to = min_t(loff_t, i_size_read(inode),
+		u64 from = (u64)desc->pgoff << PAGE_SHIFT;
+		u64 to = min_t(u64, i_size_read(inode),
 			       from + vma_desc_size(desc));
 
 		if (is_sparsed(ni)) {
@@ -391,7 +290,8 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 
 			for (; vcn < end; vcn += len) {
 				err = attr_data_get_block(ni, vcn, 1, &lcn,
-							  &len, &new, true);
+							  &len, &new, true,
+							  NULL);
 				if (err)
 					goto out;
 			}
@@ -411,6 +311,8 @@ static int ntfs_file_mmap_prepare(struct vm_area_desc *desc)
 	}
 
 	err = generic_file_mmap_prepare(desc);
+	if (!err && rw)
+		desc->vm_ops = &ntfs_file_vm_ops;
 out:
 	return err;
 }
@@ -465,7 +367,7 @@ static int ntfs_extend(struct inode *inode, loff_t pos, size_t count,
 		 */
 		for (; vcn < cend_v; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend_v - vcn, &lcn,
-						  &clen, &new, true);
+						  &clen, &new, true, NULL);
 			if (err)
 				goto out;
 		}
@@ -474,7 +376,7 @@ static int ntfs_extend(struct inode *inode, loff_t pos, size_t count,
 		 */
 		for (; vcn < cend; vcn += clen) {
 			err = attr_data_get_block(ni, vcn, cend - vcn, &lcn,
-						  &clen, &new, false);
+						  &clen, &new, false, NULL);
 			if (err)
 				goto out;
 		}
@@ -503,25 +405,10 @@ out:
 
 static int ntfs_truncate(struct inode *inode, loff_t new_size)
 {
-	struct super_block *sb = inode->i_sb;
-	struct ntfs_inode *ni = ntfs_i(inode);
-	u64 new_valid;
 	int err;
+	struct ntfs_inode *ni = ntfs_i(inode);
+	u64 new_valid = min_t(u64, ni->i_valid, new_size);
 
-	if (!S_ISREG(inode->i_mode))
-		return 0;
-
-	if (is_compressed(ni)) {
-		if (ni->i_valid > new_size)
-			ni->i_valid = new_size;
-	} else {
-		err = block_truncate_page(inode->i_mapping, new_size,
-					  ntfs_get_block);
-		if (err)
-			return err;
-	}
-
-	new_valid = ntfs_up_block(sb, min_t(u64, ni->i_valid, new_size));
 	truncate_setsize(inode, new_size);
 
 	ni_lock(ni);
@@ -531,11 +418,11 @@ static int ntfs_truncate(struct inode *inode, loff_t new_size)
 			    &new_valid, ni->mi.sbi->options->prealloc, NULL);
 	up_write(&ni->file.run_lock);
 
-	if (new_valid < ni->i_valid)
-		ni->i_valid = new_valid;
+	ni->i_valid = new_valid;
 
 	ni_unlock(ni);
-	if (unlikely(err))
+
+	if (err)
 		return err;
 
 	ni->std_fa |= FILE_ATTRIBUTE_ARCHIVE;
@@ -646,13 +533,17 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 
 		tmp = min(vbo_a, end);
 		if (tmp > vbo) {
-			err = ntfs_zero_range(inode, vbo, tmp);
+			err = iomap_zero_range(inode, vbo, tmp - vbo, NULL,
+					       &ntfs_iomap_ops,
+					       &ntfs_iomap_folio_ops, NULL);
 			if (err)
 				goto out;
 		}
 
 		if (vbo < end_a && end_a < end) {
-			err = ntfs_zero_range(inode, end_a, end);
+			err = iomap_zero_range(inode, end_a, end - end_a, NULL,
+					       &ntfs_iomap_ops,
+					       &ntfs_iomap_folio_ops, NULL);
 			if (err)
 				goto out;
 		}
@@ -762,7 +653,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 			for (; vcn < cend_v; vcn += clen) {
 				err = attr_data_get_block(ni, vcn, cend_v - vcn,
 							  &lcn, &clen, &new,
-							  true);
+							  true, NULL);
 				if (err)
 					goto out;
 			}
@@ -772,7 +663,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 			for (; vcn < cend; vcn += clen) {
 				err = attr_data_get_block(ni, vcn, cend - vcn,
 							  &lcn, &clen, &new,
-							  false);
+							  false, NULL);
 				if (err)
 					goto out;
 			}
@@ -787,6 +678,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 			ni_unlock(ni);
 			if (err)
 				goto out;
+			i_size_write(inode, i_size);
 		} else if (new_size > i_size) {
 			i_size_write(inode, new_size);
 		}
@@ -923,11 +815,15 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
+	size_t bytes = iov_iter_count(iter);
 	ssize_t err;
 
 	err = check_read_restriction(inode);
 	if (err)
 		return err;
+
+	if (!bytes)
+		return 0; /* skip atime */
 
 	if (is_compressed(ni)) {
 		if (iocb->ki_flags & IOCB_DIRECT) {
@@ -940,13 +836,58 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	}
 
 	/* Check minimum alignment for dio. */
+	if ((iocb->ki_flags & IOCB_DIRECT) &&
+	    (is_resident(ni) || ((iocb->ki_pos | iov_iter_alignment(iter)) &
+				 ni->mi.sbi->bdev_blocksize_mask))) {
+		/* Fallback to buffered I/O */
+		iocb->ki_flags &= ~IOCB_DIRECT;
+	}
+
 	if (iocb->ki_flags & IOCB_DIRECT) {
-		struct super_block *sb = inode->i_sb;
-		struct ntfs_sb_info *sbi = sb->s_fs_info;
-		if ((iocb->ki_pos | iov_iter_alignment(iter)) &
-		    sbi->bdev_blocksize_mask) {
-			iocb->ki_flags &= ~IOCB_DIRECT;
+		loff_t valid, i_size;
+		loff_t vbo = iocb->ki_pos;
+		loff_t end = vbo + bytes;
+		unsigned int dio_flags = IOMAP_DIO_PARTIAL;
+
+		if (iocb->ki_flags & IOCB_NOWAIT) {
+			if (!inode_trylock_shared(inode))
+				return -EAGAIN;
+		} else {
+			inode_lock_shared(inode);
 		}
+
+		valid = ni->i_valid;
+		i_size = inode->i_size;
+
+		if (vbo < valid) {
+			if (valid < end) {
+				/* read cross 'valid' size. */
+				dio_flags |= IOMAP_DIO_FORCE_WAIT;
+			}
+
+			err = iomap_dio_rw(iocb, iter, &ntfs_iomap_ops, NULL,
+					   dio_flags, NULL, 0);
+
+			if (err > 0) {
+				end = vbo + err;
+				if (valid < end) {
+					size_t to_zero = end - valid;
+					/* Fix iter. */
+					iov_iter_revert(iter, to_zero);
+					iov_iter_zero(to_zero, iter);
+				}
+			}
+		} else if (vbo < i_size) {
+			if (end > i_size)
+				bytes = i_size - vbo;
+			iov_iter_zero(bytes, iter);
+			iocb->ki_pos += bytes;
+			err = bytes;
+		}
+
+		inode_unlock_shared(inode);
+		file_accessed(iocb->ki_filp);
+		return err;
 	}
 
 	return generic_file_read_iter(iocb, iter);
@@ -1070,7 +1011,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		off = valid & (frame_size - 1);
 
 		err = attr_data_get_block(ni, frame << NTFS_LZNT_CUNIT, 1, &lcn,
-					  &clen, NULL, false);
+					  &clen, NULL, false, NULL);
 		if (err)
 			goto out;
 
@@ -1273,8 +1214,9 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
 	struct ntfs_inode *ni = ntfs_i(inode);
-	ssize_t ret;
-	int err;
+	struct super_block *sb = inode->i_sb;
+	struct ntfs_sb_info *sbi = sb->s_fs_info;
+	ssize_t ret, err;
 
 	if (!inode_trylock(inode)) {
 		if (iocb->ki_flags & IOCB_NOWAIT)
@@ -1312,14 +1254,72 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out;
 
-	ret = is_compressed(ni) ? ntfs_compress_write(iocb, from) :
-				  __generic_file_write_iter(iocb, from);
+	if (is_compressed(ni)) {
+		ret = ntfs_compress_write(iocb, from);
+		goto out;
+	}
+
+	/* Check minimum alignment for dio. */
+	if ((iocb->ki_flags & IOCB_DIRECT) &&
+	    (is_resident(ni) || ((iocb->ki_pos | iov_iter_alignment(from)) &
+				 sbi->bdev_blocksize_mask))) {
+		/* Fallback to buffered I/O */
+		iocb->ki_flags &= ~IOCB_DIRECT;
+	}
+
+	if (!(iocb->ki_flags & IOCB_DIRECT)) {
+		ret = iomap_file_buffered_write(iocb, from, &ntfs_iomap_ops,
+						&ntfs_iomap_folio_ops, NULL);
+		inode_unlock(inode);
+
+		if (likely(ret > 0))
+			ret = generic_write_sync(iocb, ret);
+
+		return ret;
+	}
+
+	ret = iomap_dio_rw(iocb, from, &ntfs_iomap_ops, NULL, IOMAP_DIO_PARTIAL,
+			   NULL, 0);
+
+	if (ret == -ENOTBLK) {
+		/* Returns -ENOTBLK in case of a page invalidation failure for writes.*/
+		/* The callers needs to fall back to buffered I/O in this case. */
+		ret = 0;
+	}
+
+	if (ret >= 0 && iov_iter_count(from)) {
+		loff_t offset = iocb->ki_pos, endbyte;
+
+		iocb->ki_flags &= ~IOCB_DIRECT;
+		err = iomap_file_buffered_write(iocb, from, &ntfs_iomap_ops,
+						&ntfs_iomap_folio_ops, NULL);
+		if (err < 0) {
+			ret = err;
+			goto out;
+		}
+
+		/*
+		* We need to ensure that the pages within the page cache for
+		* the range covered by this I/O are written to disk and
+		* invalidated. This is in attempt to preserve the expected
+		* direct I/O semantics in the case we fallback to buffered I/O
+		* to complete off the I/O request.
+		*/
+		ret += err;
+		endbyte = offset + err - 1;
+		err = filemap_write_and_wait_range(inode->i_mapping, offset,
+						   endbyte);
+		if (err) {
+			ret = err;
+			goto out;
+		}
+
+		invalidate_mapping_pages(inode->i_mapping, offset >> PAGE_SHIFT,
+					 endbyte >> PAGE_SHIFT);
+	}
 
 out:
 	inode_unlock(inode);
-
-	if (ret > 0)
-		ret = generic_write_sync(iocb, ret);
 
 	return ret;
 }
@@ -1358,6 +1358,8 @@ int ntfs_file_open(struct inode *inode, struct file *file)
 		return -EOPNOTSUPP;
 #endif
 	}
+
+	file->f_mode |= FMODE_NOWAIT | FMODE_CAN_ODIRECT;
 
 	return generic_file_open(inode, file);
 }
@@ -1408,16 +1410,30 @@ int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (unlikely(is_bad_ni(ni)))
 		return -EINVAL;
 
-	err = fiemap_prep(inode, fieinfo, start, &len, ~FIEMAP_FLAG_XATTR);
-	if (err)
-		return err;
+	if (is_compressed(ni)) {
+		/* Unfortunately cp -r incorrectly treats compressed clusters. */
+		ntfs_inode_warn(inode,
+				"fiemap is not supported for compressed file");
+		return -EOPNOTSUPP;
+	}
 
-	ni_lock(ni);
+	if (S_ISDIR(inode->i_mode)) {
+		/* TODO: add support for dirs (ATTR_ALLOC). */
+		ntfs_inode_warn(inode,
+				"fiemap is not supported for directories");
+		return -EOPNOTSUPP;
+	}
 
-	err = ni_fiemap(ni, fieinfo, start, len);
+	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
+		ntfs_inode_warn(inode, "fiemap(xattr) is not supported");
+		return -EOPNOTSUPP;
+	}
 
-	ni_unlock(ni);
+	inode_lock_shared(inode);
 
+	err = iomap_fiemap(inode, fieinfo, start, len, &ntfs_iomap_ops);
+
+	inode_unlock_shared(inode);
 	return err;
 }
 
@@ -1463,7 +1479,7 @@ int ntfs_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!ret) {
 		ntfs_set_state(sbi, NTFS_DIRTY_CLEAR);
-		ntfs_update_mftmirr(sbi, false);
+		ntfs_update_mftmirr(sbi);
 	}
 
 	err = sync_blockdev(sb->s_bdev);

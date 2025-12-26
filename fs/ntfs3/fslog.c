@@ -5130,7 +5130,7 @@ commit_undo:
 
 undo_action_done:
 
-	ntfs_update_mftmirr(sbi, 0);
+	ntfs_update_mftmirr(sbi);
 
 	sbi->flags &= ~NTFS_FLAGS_NEED_REPLAY;
 
