@@ -326,31 +326,33 @@ out:
 EXPORT_SYMBOL(acpi_run_osc);
 
 static int acpi_osc_handshake(acpi_handle handle, const char *uuid_str,
-			      int rev, struct acpi_buffer *cap)
+			      int rev, u32 *capbuf, size_t bufsize)
 {
 	union acpi_object in_params[4], *out_obj;
-	size_t bufsize = cap->length / sizeof(u32);
 	struct acpi_object_list input;
+	struct acpi_buffer cap = {
+		.pointer = capbuf,
+		.length = bufsize * sizeof(u32),
+	};
 	struct acpi_buffer output;
-	u32 *capbuf, *retbuf, test;
+	u32 *retbuf, test;
 	guid_t guid;
 	int ret, i;
 
-	if (!cap || cap->length < 2 * sizeof(32) || guid_parse(uuid_str, &guid))
+	if (!capbuf || bufsize < 2 || guid_parse(uuid_str, &guid))
 		return -EINVAL;
 
 	/* First evaluate _OSC with OSC_QUERY_ENABLE set. */
-	capbuf = cap->pointer;
 	capbuf[OSC_QUERY_DWORD] = OSC_QUERY_ENABLE;
 
-	ret = acpi_eval_osc(handle, &guid, rev, cap, in_params, &output);
+	ret = acpi_eval_osc(handle, &guid, rev, &cap, in_params, &output);
 	if (ret)
 		return ret;
 
 	out_obj = output.pointer;
 	retbuf = (u32 *)out_obj->buffer.pointer;
 
-	if (acpi_osc_error_check(handle, &guid, rev, cap, retbuf)) {
+	if (acpi_osc_error_check(handle, &guid, rev, &cap, retbuf)) {
 		ret = -ENODATA;
 		goto out;
 	}
@@ -403,7 +405,7 @@ static int acpi_osc_handshake(acpi_handle handle, const char *uuid_str,
 		 */
 		acpi_handle_err(handle, "_OSC: errors while processing control request\n");
 		acpi_handle_err(handle, "_OSC: some features may be missing\n");
-		acpi_osc_error_check(handle, &guid, rev, cap, retbuf);
+		acpi_osc_error_check(handle, &guid, rev, &cap, retbuf);
 	}
 
 out:
@@ -446,10 +448,6 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 {
 	static const u8 sb_uuid_str[] = "0811B06E-4A27-44F9-8D60-3CBBC22E7B48";
 	u32 capbuf[2], feature_mask;
-	struct acpi_buffer cap = {
-		.pointer = capbuf,
-		.length = sizeof(capbuf),
-	};
 	acpi_handle handle;
 
 	feature_mask = OSC_SB_PR3_SUPPORT | OSC_SB_HOTPLUG_OST_SUPPORT |
@@ -497,7 +495,7 @@ static void acpi_bus_osc_negotiate_platform_control(void)
 
 	acpi_handle_info(handle, "platform _OSC: OS support mask [%08x]\n", feature_mask);
 
-	if (acpi_osc_handshake(handle, sb_uuid_str, 1, &cap))
+	if (acpi_osc_handshake(handle, sb_uuid_str, 1, capbuf, ARRAY_SIZE(capbuf)))
 		return;
 
 	feature_mask = capbuf[OSC_SUPPORT_DWORD];
@@ -532,10 +530,6 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 {
 	static const u8 sb_usb_uuid_str[] = "23A0D13A-26AB-486C-9C5F-0FFA525A575A";
 	u32 capbuf[3], control;
-	struct acpi_buffer cap = {
-		.pointer = capbuf,
-		.length = sizeof(capbuf),
-	};
 	acpi_handle handle;
 
 	if (!osc_sb_native_usb4_support_confirmed)
@@ -550,7 +544,7 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	capbuf[OSC_SUPPORT_DWORD] = 0;
 	capbuf[OSC_CONTROL_DWORD] = control;
 
-	if (acpi_osc_handshake(handle, sb_usb_uuid_str, 1, &cap))
+	if (acpi_osc_handshake(handle, sb_usb_uuid_str, 1, capbuf, ARRAY_SIZE(capbuf)))
 		return;
 
 	osc_sb_native_usb4_control = capbuf[OSC_CONTROL_DWORD];
