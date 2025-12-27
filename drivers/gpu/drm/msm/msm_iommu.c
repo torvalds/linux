@@ -364,7 +364,7 @@ msm_iommu_pagetable_prealloc_cleanup(struct msm_mmu *mmu, struct msm_mmu_preallo
 }
 
 /**
- * alloc_pt() - Custom page table allocator
+ * msm_iommu_pagetable_alloc_pt() - Custom page table allocator
  * @cookie: Cookie passed at page table allocation time.
  * @size: Size of the page table. This size should be fixed,
  * and determined at creation time based on the granule size.
@@ -416,7 +416,7 @@ msm_iommu_pagetable_alloc_pt(void *cookie, size_t size, gfp_t gfp)
 
 
 /**
- * free_pt() - Custom page table free function
+ * msm_iommu_pagetable_free_pt() - Custom page table free function
  * @cookie: Cookie passed at page table allocation time.
  * @data: Page table to free.
  * @size: Size of the page table. This size should be fixed,
