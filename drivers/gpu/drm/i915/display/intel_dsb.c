@@ -26,7 +26,7 @@
 struct intel_dsb {
 	enum intel_dsb_id id;
 
-	struct intel_dsb_buffer dsb_buf;
+	struct intel_dsb_buffer *dsb_buf;
 	struct intel_crtc *crtc;
 
 	/*
@@ -211,10 +211,10 @@ static void intel_dsb_dump(struct intel_dsb *dsb)
 	for (i = 0; i < ALIGN(dsb->free_pos, 64 / 4); i += 4)
 		drm_dbg_kms(display->drm,
 			    " 0x%08x: 0x%08x 0x%08x 0x%08x 0x%08x\n", i * 4,
-			    intel_dsb_buffer_read(&dsb->dsb_buf, i),
-			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 1),
-			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 2),
-			    intel_dsb_buffer_read(&dsb->dsb_buf, i + 3));
+			    intel_dsb_buffer_read(dsb->dsb_buf, i),
+			    intel_dsb_buffer_read(dsb->dsb_buf, i + 1),
+			    intel_dsb_buffer_read(dsb->dsb_buf, i + 2),
+			    intel_dsb_buffer_read(dsb->dsb_buf, i + 3));
 	drm_dbg_kms(display->drm, "}\n");
 }
 
@@ -231,12 +231,12 @@ unsigned int intel_dsb_size(struct intel_dsb *dsb)
 
 unsigned int intel_dsb_head(struct intel_dsb *dsb)
 {
-	return intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf);
+	return intel_dsb_buffer_ggtt_offset(dsb->dsb_buf);
 }
 
 static unsigned int intel_dsb_tail(struct intel_dsb *dsb)
 {
-	return intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf) + intel_dsb_size(dsb);
+	return intel_dsb_buffer_ggtt_offset(dsb->dsb_buf) + intel_dsb_size(dsb);
 }
 
 static void intel_dsb_ins_align(struct intel_dsb *dsb)
@@ -263,8 +263,8 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 	dsb->ins[0] = ldw;
 	dsb->ins[1] = udw;
 
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[0]);
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[1]);
+	intel_dsb_buffer_write(dsb->dsb_buf, dsb->free_pos++, dsb->ins[0]);
+	intel_dsb_buffer_write(dsb->dsb_buf, dsb->free_pos++, dsb->ins[1]);
 }
 
 static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
@@ -335,13 +335,13 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 
 	/* Update the count */
 	dsb->ins[0]++;
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+	intel_dsb_buffer_write(dsb->dsb_buf, dsb->ins_start_offset + 0,
 			       dsb->ins[0]);
 
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, val);
+	intel_dsb_buffer_write(dsb->dsb_buf, dsb->free_pos++, val);
 	/* if number of data words is odd, then the last dword should be 0.*/
 	if (dsb->free_pos & 0x1)
-		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos, 0);
+		intel_dsb_buffer_write(dsb->dsb_buf, dsb->free_pos, 0);
 }
 
 void intel_dsb_reg_write(struct intel_dsb *dsb,
@@ -521,7 +521,7 @@ static void intel_dsb_align_tail(struct intel_dsb *dsb)
 	aligned_tail = ALIGN(tail, CACHELINE_BYTES);
 
 	if (aligned_tail > tail)
-		intel_dsb_buffer_memset(&dsb->dsb_buf, dsb->free_pos, 0,
+		intel_dsb_buffer_memset(dsb->dsb_buf, dsb->free_pos, 0,
 					aligned_tail - tail);
 
 	dsb->free_pos = aligned_tail / 4;
@@ -541,7 +541,7 @@ static void intel_dsb_gosub_align(struct intel_dsb *dsb)
 	 * "Ensure GOSUB is not placed in cacheline QW slot 6 or 7 (numbered 0-7)"
 	 */
 	if (aligned_tail - tail <= 2 * 8)
-		intel_dsb_buffer_memset(&dsb->dsb_buf, dsb->free_pos, 0,
+		intel_dsb_buffer_memset(dsb->dsb_buf, dsb->free_pos, 0,
 					aligned_tail - tail);
 
 	dsb->free_pos = aligned_tail / 4;
@@ -606,14 +606,14 @@ void intel_dsb_gosub_finish(struct intel_dsb *dsb)
 	 */
 	intel_dsb_noop(dsb, 8);
 
-	intel_dsb_buffer_flush_map(&dsb->dsb_buf);
+	intel_dsb_buffer_flush_map(dsb->dsb_buf);
 }
 
 void intel_dsb_finish(struct intel_dsb *dsb)
 {
 	intel_dsb_align_tail(dsb);
 
-	intel_dsb_buffer_flush_map(&dsb->dsb_buf);
+	intel_dsb_buffer_flush_map(dsb->dsb_buf);
 }
 
 static u32 dsb_error_int_status(struct intel_display *display)
@@ -888,7 +888,7 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 			      !is_busy,
 			      100, 1000, false);
 	if (ret) {
-		u32 offset = intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf);
+		u32 offset = intel_dsb_buffer_ggtt_offset(dsb->dsb_buf);
 
 		intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id),
 				  DSB_ENABLE | DSB_HALT);
@@ -934,6 +934,7 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 				    unsigned int max_cmds)
 {
 	struct intel_display *display = to_intel_display(state);
+	struct intel_dsb_buffer *dsb_buf;
 	struct ref_tracker *wakeref;
 	struct intel_dsb *dsb;
 	unsigned int size;
@@ -953,8 +954,11 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	/* ~1 qword per instruction, full cachelines */
 	size = ALIGN(max_cmds * 8, CACHELINE_BYTES);
 
-	if (!intel_dsb_buffer_create(crtc, &dsb->dsb_buf, size))
+	dsb_buf = intel_dsb_buffer_create(display->drm, size);
+	if (IS_ERR(dsb_buf))
 		goto out_put_rpm;
+
+	dsb->dsb_buf = dsb_buf;
 
 	intel_display_rpm_put(display, wakeref);
 
@@ -988,7 +992,7 @@ out:
  */
 void intel_dsb_cleanup(struct intel_dsb *dsb)
 {
-	intel_dsb_buffer_cleanup(&dsb->dsb_buf);
+	intel_dsb_buffer_cleanup(dsb->dsb_buf);
 	kfree(dsb);
 }
 

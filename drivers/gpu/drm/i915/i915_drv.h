@@ -60,7 +60,6 @@
 #include "intel_step.h"
 #include "intel_uncore.h"
 
-struct dram_info;
 struct drm_i915_clock_gating_funcs;
 struct intel_display;
 struct intel_pxp;
@@ -273,8 +272,6 @@ struct drm_i915_private {
 
 	u32 suspend_count;
 	struct vlv_s0ix_state *vlv_s0ix_state;
-
-	const struct dram_info *dram_info;
 
 	struct intel_runtime_pm runtime_pm;
 

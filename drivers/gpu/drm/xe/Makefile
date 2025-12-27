@@ -195,15 +195,9 @@ endif
 
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
-	-I$(src)/display/ext \
 	-I$(src)/compat-i915-headers \
 	-I$(srctree)/drivers/gpu/drm/i915/display/ \
 	-Ddrm_i915_private=xe_device
-
-# Rule to build SOC code shared with i915
-$(obj)/i915-soc/%.o: $(srctree)/drivers/gpu/drm/i915/soc/%.c FORCE
-	$(call cmd,force_checksrc)
-	$(call if_changed_rule,cc_o_c)
 
 # Rule to build display code shared with i915
 $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
@@ -212,12 +206,10 @@ $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
 
 # Display code specific to xe
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
-	display/ext/i915_irq.o \
 	display/intel_bo.o \
 	display/intel_fb_bo.o \
 	display/intel_fbdev_fb.o \
 	display/xe_display.o \
-	display/xe_display_misc.o \
 	display/xe_display_rpm.o \
 	display/xe_display_wa.o \
 	display/xe_dsb_buffer.o \
@@ -227,11 +219,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_plane_initial.o \
 	display/xe_stolen.o \
 	display/xe_tdf.o
-
-# SOC code shared with i915
-xe-$(CONFIG_DRM_XE_DISPLAY) += \
-	i915-soc/intel_dram.o \
-	i915-soc/intel_rom.o
 
 # Display code shared with i915
 xe-$(CONFIG_DRM_XE_DISPLAY) += \
@@ -267,6 +254,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_display_power_map.o \
 	i915-display/intel_display_power_well.o \
 	i915-display/intel_display_rpm.o \
+	i915-display/intel_display_rps.o \
 	i915-display/intel_display_trace.o \
 	i915-display/intel_display_utils.o \
 	i915-display/intel_display_wa.o \
@@ -283,6 +271,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_dpll.o \
 	i915-display/intel_dpll_mgr.o \
 	i915-display/intel_dpt_common.o \
+	i915-display/intel_dram.o \
 	i915-display/intel_drrs.o \
 	i915-display/intel_dsb.o \
 	i915-display/intel_dsi.o \
@@ -310,14 +299,16 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
 	i915-display/intel_panel.o \
+	i915-display/intel_parent.o \
+	i915-display/intel_pch.o \
 	i915-display/intel_pfit.o \
 	i915-display/intel_plane.o \
 	i915-display/intel_pmdemand.o \
-	i915-display/intel_pch.o \
 	i915-display/intel_pps.o \
 	i915-display/intel_psr.o \
 	i915-display/intel_qp_tables.o \
 	i915-display/intel_quirks.o \
+	i915-display/intel_rom.o \
 	i915-display/intel_snps_hdmi_pll.o \
 	i915-display/intel_snps_phy.o \
 	i915-display/intel_tc.o \

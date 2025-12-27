@@ -109,7 +109,7 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 
 	wakeref = intel_display_power_get_if_enabled(display,
@@ -847,7 +847,7 @@ intel_crt_detect(struct drm_connector *connector,
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
 	struct drm_atomic_state *state;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int status;
 
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s] force=%d\n",
@@ -936,7 +936,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	struct i2c_adapter *ddc;
 	int ret;
 

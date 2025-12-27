@@ -542,43 +542,6 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 				  INTEL_UC_FIRMWARE_NOT_SUPPORTED);
 }
 
-static void __force_fw_fetch_failures(struct intel_uc_fw *uc_fw, int e)
-{
-	struct drm_i915_private *i915 = __uc_fw_to_gt(uc_fw)->i915;
-	bool user = e == -EINVAL;
-
-	if (i915_inject_probe_error(i915, e)) {
-		/* non-existing blob */
-		uc_fw->file_selected.path = "<invalid>";
-		uc_fw->user_overridden = user;
-	} else if (i915_inject_probe_error(i915, e)) {
-		/* require next major version */
-		uc_fw->file_wanted.ver.major += 1;
-		uc_fw->file_wanted.ver.minor = 0;
-		uc_fw->user_overridden = user;
-	} else if (i915_inject_probe_error(i915, e)) {
-		/* require next minor version */
-		uc_fw->file_wanted.ver.minor += 1;
-		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.ver.major &&
-		   i915_inject_probe_error(i915, e)) {
-		/* require prev major version */
-		uc_fw->file_wanted.ver.major -= 1;
-		uc_fw->file_wanted.ver.minor = 0;
-		uc_fw->user_overridden = user;
-	} else if (uc_fw->file_wanted.ver.minor &&
-		   i915_inject_probe_error(i915, e)) {
-		/* require prev minor version - hey, this should work! */
-		uc_fw->file_wanted.ver.minor -= 1;
-		uc_fw->user_overridden = user;
-	} else if (user && i915_inject_probe_error(i915, e)) {
-		/* officially unsupported platform */
-		uc_fw->file_wanted.ver.major = 0;
-		uc_fw->file_wanted.ver.minor = 0;
-		uc_fw->user_overridden = true;
-	}
-}
-
 static void uc_unpack_css_version(struct intel_uc_fw_ver *ver, u32 css_value)
 {
 	/* Get version numbers from the CSS header */
@@ -766,7 +729,7 @@ static int guc_check_version_range(struct intel_uc_fw *uc_fw)
 		return -EINVAL;
 	}
 
-	return i915_inject_probe_error(gt->i915, -EINVAL);
+	return 0;
 }
 
 static int check_fw_header(struct intel_gt *gt,
@@ -904,13 +867,6 @@ int intel_uc_fw_fetch(struct intel_uc_fw *uc_fw)
 
 	GEM_BUG_ON(!gt->wopcm.size);
 	GEM_BUG_ON(!intel_uc_fw_is_enabled(uc_fw));
-
-	err = i915_inject_probe_error(i915, -ENXIO);
-	if (err)
-		goto fail;
-
-	__force_fw_fetch_failures(uc_fw, -EINVAL);
-	__force_fw_fetch_failures(uc_fw, -ESTALE);
 
 	err = try_firmware_load(uc_fw, &fw);
 	memcpy(&file_ideal, &uc_fw->file_wanted, sizeof(file_ideal));
@@ -1088,10 +1044,6 @@ static int uc_fw_xfer(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 	u64 offset;
 	int ret;
 
-	ret = i915_inject_probe_error(gt->i915, -ETIMEDOUT);
-	if (ret)
-		return ret;
-
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 
 	/* Set the source address for the uCode */
@@ -1155,15 +1107,10 @@ int intel_uc_fw_mark_load_failed(struct intel_uc_fw *uc_fw, int err)
  */
 int intel_uc_fw_upload(struct intel_uc_fw *uc_fw, u32 dst_offset, u32 dma_flags)
 {
-	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
 	int err;
 
 	/* make sure the status was cleared the last time we reset the uc */
 	GEM_BUG_ON(intel_uc_fw_is_loaded(uc_fw));
-
-	err = i915_inject_probe_error(gt->i915, -ENOEXEC);
-	if (err)
-		return err;
 
 	if (!intel_uc_fw_is_loadable(uc_fw))
 		return -ENOEXEC;
@@ -1197,10 +1144,6 @@ static int uc_fw_rsa_data_create(struct intel_uc_fw *uc_fw)
 	size_t copied;
 	void *vaddr;
 	int err;
-
-	err = i915_inject_probe_error(gt->i915, -ENXIO);
-	if (err)
-		return err;
 
 	if (!uc_fw_need_rsa_in_memory(uc_fw))
 		return 0;
@@ -1243,6 +1186,7 @@ unpin_out:
 	i915_vma_unpin_and_release(&vma, 0);
 	return err;
 }
+ALLOW_ERROR_INJECTION(uc_fw_rsa_data_create, ERRNO);
 
 static void uc_fw_rsa_data_destroy(struct intel_uc_fw *uc_fw)
 {

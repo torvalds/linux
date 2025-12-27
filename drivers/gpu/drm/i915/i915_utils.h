@@ -43,28 +43,8 @@ struct drm_i915_private;
 			     __stringify(x), (long)(x))
 #endif
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
-
-int __i915_inject_probe_error(struct drm_i915_private *i915, int err,
-			      const char *func, int line);
-#define i915_inject_probe_error(_i915, _err) \
-	__i915_inject_probe_error((_i915), (_err), __func__, __LINE__)
-bool i915_error_injected(void);
-
-#else
-
-#define i915_inject_probe_error(i915, e) ({ BUILD_BUG_ON_INVALID(i915); 0; })
-#define i915_error_injected() false
-
-#endif
-
-#define i915_inject_probe_failure(i915) i915_inject_probe_error((i915), -ENODEV)
-
 #define i915_probe_error(i915, fmt, ...) ({ \
-	if (i915_error_injected()) \
-		drm_dbg(&(i915)->drm, fmt, ##__VA_ARGS__); \
-	else \
-		drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
+	drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
 })
 
 #ifndef fetch_and_zero

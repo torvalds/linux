@@ -9,6 +9,9 @@
 #include "xe_device_types.h"
 #include "xe_pm.h"
 
+/* -ENOENT means we got the ref, but there's no tracking */
+#define INTEL_WAKEREF_DEF ERR_PTR(-ENOENT)
+
 static struct ref_tracker *xe_display_rpm_get(const struct drm_device *drm)
 {
 	return xe_pm_runtime_resume_and_get(to_xe_device(drm)) ? INTEL_WAKEREF_DEF : NULL;

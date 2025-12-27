@@ -8,8 +8,7 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
-struct drm_device;
+struct intel_display;
 
 struct dram_info {
 	enum intel_dram_type {
@@ -35,11 +34,10 @@ struct dram_info {
 	bool has_16gb_dimms;
 };
 
-void intel_dram_edram_detect(struct drm_i915_private *i915);
-int intel_dram_detect(struct drm_i915_private *i915);
-unsigned int intel_fsb_freq(struct drm_i915_private *i915);
-unsigned int intel_mem_freq(struct drm_i915_private *i915);
-const struct dram_info *intel_dram_info(struct drm_device *drm);
+int intel_dram_detect(struct intel_display *display);
+unsigned int intel_fsb_freq(struct intel_display *display);
+unsigned int intel_mem_freq(struct intel_display *display);
+const struct dram_info *intel_dram_info(struct intel_display *display);
 const char *intel_dram_type_str(enum intel_dram_type type);
 
 #endif /* __INTEL_DRAM_H__ */

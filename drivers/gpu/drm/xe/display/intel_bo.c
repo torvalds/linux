@@ -3,9 +3,10 @@
 
 #include <drm/drm_gem.h>
 
-#include "xe_bo.h"
 #include "intel_bo.h"
 #include "intel_frontbuffer.h"
+#include "xe_bo.h"
+#include "xe_pxp.h"
 
 bool intel_bo_is_tiled(struct drm_gem_object *obj)
 {
@@ -27,6 +28,11 @@ bool intel_bo_is_shmem(struct drm_gem_object *obj)
 bool intel_bo_is_protected(struct drm_gem_object *obj)
 {
 	return xe_bo_is_protected(gem_to_xe_bo(obj));
+}
+
+int intel_bo_key_check(struct drm_gem_object *obj)
+{
+	return xe_pxp_obj_key_check(obj);
 }
 
 int intel_bo_fb_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)

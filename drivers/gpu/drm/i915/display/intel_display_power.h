@@ -9,14 +9,16 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-#include "intel_wakeref.h"
-
 enum aux_ch;
 enum port;
 struct i915_power_well;
 struct intel_display;
 struct intel_encoder;
+struct ref_tracker;
 struct seq_file;
+
+/* -ENOENT means we got the ref, but there's no tracking */
+#define INTEL_WAKEREF_DEF ERR_PTR(-ENOENT)
 
 /*
  * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
@@ -142,14 +144,14 @@ struct i915_power_domains {
 	u32 target_dc_state;
 	u32 allowed_dc_mask;
 
-	intel_wakeref_t init_wakeref;
-	intel_wakeref_t disable_wakeref;
+	struct ref_tracker *init_wakeref;
+	struct ref_tracker *disable_wakeref;
 
 	struct mutex lock;
 	int domain_use_count[POWER_DOMAIN_NUM];
 
 	struct delayed_work async_put_work;
-	intel_wakeref_t async_put_wakeref;
+	struct ref_tracker *async_put_wakeref;
 	struct intel_power_domain_mask async_put_domains[2];
 	int async_put_next_delay;
 
@@ -159,7 +161,7 @@ struct i915_power_domains {
 struct intel_display_power_domain_set {
 	struct intel_power_domain_mask mask;
 #ifdef CONFIG_DRM_I915_DEBUG_RUNTIME_PM
-	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM];
+	struct ref_tracker *wakerefs[POWER_DOMAIN_NUM];
 #endif
 };
 
@@ -187,24 +189,24 @@ u32 intel_display_power_get_current_dc_state(struct intel_display *display);
 
 bool intel_display_power_is_enabled(struct intel_display *display,
 				    enum intel_display_power_domain domain);
-intel_wakeref_t intel_display_power_get(struct intel_display *display,
-					enum intel_display_power_domain domain);
-intel_wakeref_t
+struct ref_tracker *intel_display_power_get(struct intel_display *display,
+					    enum intel_display_power_domain domain);
+struct ref_tracker *
 intel_display_power_get_if_enabled(struct intel_display *display,
 				   enum intel_display_power_domain domain);
 void __intel_display_power_put_async(struct intel_display *display,
 				     enum intel_display_power_domain domain,
-				     intel_wakeref_t wakeref,
+				     struct ref_tracker *wakeref,
 				     int delay_ms);
 void intel_display_power_flush_work(struct intel_display *display);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 void intel_display_power_put(struct intel_display *display,
 			     enum intel_display_power_domain domain,
-			     intel_wakeref_t wakeref);
+			     struct ref_tracker *wakeref);
 static inline void
 intel_display_power_put_async(struct intel_display *display,
 			      enum intel_display_power_domain domain,
-			      intel_wakeref_t wakeref)
+			      struct ref_tracker *wakeref)
 {
 	__intel_display_power_put_async(display, domain, wakeref, -1);
 }
@@ -212,7 +214,7 @@ intel_display_power_put_async(struct intel_display *display,
 static inline void
 intel_display_power_put_async_delay(struct intel_display *display,
 				    enum intel_display_power_domain domain,
-				    intel_wakeref_t wakeref,
+				    struct ref_tracker *wakeref,
 				    int delay_ms)
 {
 	__intel_display_power_put_async(display, domain, wakeref, delay_ms);
@@ -224,7 +226,7 @@ void intel_display_power_put_unchecked(struct intel_display *display,
 static inline void
 intel_display_power_put(struct intel_display *display,
 			enum intel_display_power_domain domain,
-			intel_wakeref_t wakeref)
+			struct ref_tracker *wakeref)
 {
 	intel_display_power_put_unchecked(display, domain);
 }
@@ -232,7 +234,7 @@ intel_display_power_put(struct intel_display *display,
 static inline void
 intel_display_power_put_async(struct intel_display *display,
 			      enum intel_display_power_domain domain,
-			      intel_wakeref_t wakeref)
+			      struct ref_tracker *wakeref)
 {
 	__intel_display_power_put_async(display, domain, INTEL_WAKEREF_DEF, -1);
 }
@@ -240,7 +242,7 @@ intel_display_power_put_async(struct intel_display *display,
 static inline void
 intel_display_power_put_async_delay(struct intel_display *display,
 				    enum intel_display_power_domain domain,
-				    intel_wakeref_t wakeref,
+				    struct ref_tracker *wakeref,
 				    int delay_ms)
 {
 	__intel_display_power_put_async(display, domain, INTEL_WAKEREF_DEF, delay_ms);
@@ -297,12 +299,18 @@ enum dbuf_slice {
 void gen9_dbuf_slices_update(struct intel_display *display,
 			     u8 req_slices);
 
-#define with_intel_display_power(display, domain, wf) \
-	for ((wf) = intel_display_power_get((display), (domain)); (wf); \
+#define __with_intel_display_power(display, domain, wf) \
+	for (struct ref_tracker *(wf) = intel_display_power_get((display), (domain)); (wf); \
 	     intel_display_power_put_async((display), (domain), (wf)), (wf) = NULL)
 
-#define with_intel_display_power_if_enabled(display, domain, wf) \
-	for ((wf) = intel_display_power_get_if_enabled((display), (domain)); (wf); \
+#define with_intel_display_power(display, domain) \
+	__with_intel_display_power(display, domain, __UNIQUE_ID(wakeref))
+
+#define __with_intel_display_power_if_enabled(display, domain, wf) \
+	for (struct ref_tracker *(wf) = intel_display_power_get_if_enabled((display), (domain)); (wf); \
 	     intel_display_power_put_async((display), (domain), (wf)), (wf) = NULL)
+
+#define with_intel_display_power_if_enabled(display, domain) \
+	__with_intel_display_power_if_enabled(display, domain, __UNIQUE_ID(wakeref))
 
 #endif /* __INTEL_DISPLAY_POWER_H__ */

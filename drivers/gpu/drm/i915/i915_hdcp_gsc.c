@@ -4,13 +4,14 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 #include <drm/intel/i915_hdcp_interface.h>
 
 #include "gem/i915_gem_region.h"
 #include "gt/intel_gt.h"
 #include "gt/uc/intel_gsc_uc_heci_cmd_submit.h"
 #include "i915_drv.h"
-#include "intel_hdcp_gsc.h"
+#include "i915_hdcp_gsc.h"
 
 struct intel_hdcp_gsc_context {
 	struct drm_i915_private *i915;
@@ -19,7 +20,7 @@ struct intel_hdcp_gsc_context {
 	void *hdcp_cmd_out;
 };
 
-bool intel_hdcp_gsc_check_status(struct drm_device *drm)
+static bool intel_hdcp_gsc_check_status(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_gt *gt = i915->media_gt;
@@ -87,7 +88,7 @@ out_unpin:
 	return err;
 }
 
-struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
+static struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
 {
 	struct drm_i915_private *i915 = to_i915(drm);
 	struct intel_hdcp_gsc_context *gsc_context;
@@ -111,7 +112,7 @@ struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *d
 	return gsc_context;
 }
 
-void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
+static void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
 {
 	if (!gsc_context)
 		return;
@@ -168,9 +169,9 @@ static int intel_gsc_send_sync(struct drm_i915_private *i915,
  * gsc cs memory header as stated in specs after which the normal HDCP payload
  * will follow
  */
-ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
-				void *msg_in, size_t msg_in_len,
-				void *msg_out, size_t msg_out_len)
+static ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
+				       void *msg_in, size_t msg_in_len,
+				       void *msg_out, size_t msg_out_len)
 {
 	struct drm_i915_private *i915 = gsc_context->i915;
 	struct intel_gt *gt = i915->media_gt;
@@ -237,3 +238,10 @@ ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
 err:
 	return ret;
 }
+
+const struct intel_display_hdcp_interface i915_display_hdcp_interface = {
+	.gsc_msg_send = intel_hdcp_gsc_msg_send,
+	.gsc_check_status = intel_hdcp_gsc_check_status,
+	.gsc_context_alloc = intel_hdcp_gsc_context_alloc,
+	.gsc_context_free = intel_hdcp_gsc_context_free,
+};

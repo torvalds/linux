@@ -8,11 +8,10 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "../display/intel_display_core.h" /* FIXME */
-
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
+#include "intel_display_core.h"
+#include "intel_display_utils.h"
 #include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
@@ -57,14 +56,17 @@ const char *intel_dram_type_str(enum intel_dram_type type)
 
 #undef DRAM_TYPE_STR
 
-static enum intel_dram_type pnv_dram_type(struct drm_i915_private *i915)
+static enum intel_dram_type pnv_dram_type(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	return intel_uncore_read(&i915->uncore, CSHRDDR3CTL) & CSHRDDR3CTL_DDR3 ?
 		INTEL_DRAM_DDR3 : INTEL_DRAM_DDR2;
 }
 
-static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
+static unsigned int pnv_mem_freq(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 tmp;
 
 	tmp = intel_uncore_read(&dev_priv->uncore, CLKCFG);
@@ -81,8 +83,9 @@ static unsigned int pnv_mem_freq(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static unsigned int ilk_mem_freq(struct drm_i915_private *dev_priv)
+static unsigned int ilk_mem_freq(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u16 ddrpll;
 
 	ddrpll = intel_uncore_read16(&dev_priv->uncore, DDRMPLL1);
@@ -96,19 +99,19 @@ static unsigned int ilk_mem_freq(struct drm_i915_private *dev_priv)
 	case 0x18:
 		return 1600000;
 	default:
-		drm_dbg(&dev_priv->drm, "unknown memory frequency 0x%02x\n",
-			ddrpll & 0xff);
+		drm_dbg_kms(display->drm, "unknown memory frequency 0x%02x\n",
+			    ddrpll & 0xff);
 		return 0;
 	}
 }
 
-static unsigned int chv_mem_freq(struct drm_i915_private *i915)
+static unsigned int chv_mem_freq(struct intel_display *display)
 {
 	u32 val;
 
-	vlv_iosf_sb_get(&i915->drm, BIT(VLV_IOSF_SB_CCK));
-	val = vlv_iosf_sb_read(&i915->drm, VLV_IOSF_SB_CCK, CCK_FUSE_REG);
-	vlv_iosf_sb_put(&i915->drm, BIT(VLV_IOSF_SB_CCK));
+	vlv_iosf_sb_get(display->drm, BIT(VLV_IOSF_SB_CCK));
+	val = vlv_iosf_sb_read(display->drm, VLV_IOSF_SB_CCK, CCK_FUSE_REG);
+	vlv_iosf_sb_put(display->drm, BIT(VLV_IOSF_SB_CCK));
 
 	switch ((val >> 2) & 0x7) {
 	case 3:
@@ -118,13 +121,13 @@ static unsigned int chv_mem_freq(struct drm_i915_private *i915)
 	}
 }
 
-static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
+static unsigned int vlv_mem_freq(struct intel_display *display)
 {
 	u32 val;
 
-	vlv_iosf_sb_get(&i915->drm, BIT(VLV_IOSF_SB_PUNIT));
-	val = vlv_iosf_sb_read(&i915->drm, VLV_IOSF_SB_PUNIT, PUNIT_REG_GPU_FREQ_STS);
-	vlv_iosf_sb_put(&i915->drm, BIT(VLV_IOSF_SB_PUNIT));
+	vlv_iosf_sb_get(display->drm, BIT(VLV_IOSF_SB_PUNIT));
+	val = vlv_iosf_sb_read(display->drm, VLV_IOSF_SB_PUNIT, PUNIT_REG_GPU_FREQ_STS);
+	vlv_iosf_sb_put(display->drm, BIT(VLV_IOSF_SB_PUNIT));
 
 	switch ((val >> 6) & 3) {
 	case 0:
@@ -139,22 +142,23 @@ static unsigned int vlv_mem_freq(struct drm_i915_private *i915)
 	return 0;
 }
 
-unsigned int intel_mem_freq(struct drm_i915_private *i915)
+unsigned int intel_mem_freq(struct intel_display *display)
 {
-	if (IS_PINEVIEW(i915))
-		return pnv_mem_freq(i915);
-	else if (GRAPHICS_VER(i915) == 5)
-		return ilk_mem_freq(i915);
-	else if (IS_CHERRYVIEW(i915))
-		return chv_mem_freq(i915);
-	else if (IS_VALLEYVIEW(i915))
-		return vlv_mem_freq(i915);
+	if (display->platform.pineview)
+		return pnv_mem_freq(display);
+	else if (DISPLAY_VER(display) == 5)
+		return ilk_mem_freq(display);
+	else if (display->platform.cherryview)
+		return chv_mem_freq(display);
+	else if (display->platform.valleyview)
+		return vlv_mem_freq(display);
 	else
 		return 0;
 }
 
-static unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
+static unsigned int i9xx_fsb_freq(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 fsb;
 
 	/*
@@ -167,7 +171,7 @@ static unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
 	 */
 	fsb = intel_uncore_read(&i915->uncore, CLKCFG) & CLKCFG_FSB_MASK;
 
-	if (IS_PINEVIEW(i915) || IS_MOBILE(i915)) {
+	if (display->platform.pineview || display->platform.mobile) {
 		switch (fsb) {
 		case CLKCFG_FSB_400:
 			return 400000;
@@ -208,8 +212,9 @@ static unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
 	}
 }
 
-static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
+static unsigned int ilk_fsb_freq(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u16 fsb;
 
 	fsb = intel_uncore_read16(&dev_priv->uncore, CSIPLL0) & 0x3ff;
@@ -230,33 +235,33 @@ static unsigned int ilk_fsb_freq(struct drm_i915_private *dev_priv)
 	case 0x018:
 		return 6400000;
 	default:
-		drm_dbg(&dev_priv->drm, "unknown fsb frequency 0x%04x\n", fsb);
+		drm_dbg_kms(display->drm, "unknown fsb frequency 0x%04x\n", fsb);
 		return 0;
 	}
 }
 
-unsigned int intel_fsb_freq(struct drm_i915_private *i915)
+unsigned int intel_fsb_freq(struct intel_display *display)
 {
-	if (GRAPHICS_VER(i915) == 5)
-		return ilk_fsb_freq(i915);
-	else if (GRAPHICS_VER(i915) == 3 || GRAPHICS_VER(i915) == 4)
-		return i9xx_fsb_freq(i915);
+	if (DISPLAY_VER(display) == 5)
+		return ilk_fsb_freq(display);
+	else if (IS_DISPLAY_VER(display, 3, 4))
+		return i9xx_fsb_freq(display);
 	else
 		return 0;
 }
 
-static int i915_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+static int i915_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
-	dram_info->fsb_freq = intel_fsb_freq(i915);
+	dram_info->fsb_freq = intel_fsb_freq(display);
 	if (dram_info->fsb_freq)
-		drm_dbg(&i915->drm, "FSB frequency: %d kHz\n", dram_info->fsb_freq);
+		drm_dbg_kms(display->drm, "FSB frequency: %d kHz\n", dram_info->fsb_freq);
 
-	dram_info->mem_freq = intel_mem_freq(i915);
+	dram_info->mem_freq = intel_mem_freq(display);
 	if (dram_info->mem_freq)
-		drm_dbg(&i915->drm, "DDR speed: %d kHz\n", dram_info->mem_freq);
+		drm_dbg_kms(display->drm, "DDR speed: %d kHz\n", dram_info->mem_freq);
 
-	if (IS_PINEVIEW(i915))
-		dram_info->type = pnv_dram_type(i915);
+	if (display->platform.pineview)
+		dram_info->type = pnv_dram_type(display);
 
 	return 0;
 }
@@ -267,69 +272,121 @@ static int intel_dimm_num_devices(const struct dram_dimm_info *dimm)
 }
 
 /* Returns total Gb for the whole DIMM */
-static int skl_get_dimm_size(u16 val)
+static int skl_get_dimm_s_size(u32 val)
 {
-	return (val & SKL_DRAM_SIZE_MASK) * 8;
+	return REG_FIELD_GET(SKL_DIMM_S_SIZE_MASK, val) * 8;
 }
 
-static int skl_get_dimm_width(u16 val)
+static int skl_get_dimm_l_size(u32 val)
 {
-	if (skl_get_dimm_size(val) == 0)
+	return REG_FIELD_GET(SKL_DIMM_L_SIZE_MASK, val) * 8;
+}
+
+static int skl_get_dimm_s_width(u32 val)
+{
+	if (skl_get_dimm_s_size(val) == 0)
 		return 0;
 
-	switch (val & SKL_DRAM_WIDTH_MASK) {
-	case SKL_DRAM_WIDTH_X8:
-	case SKL_DRAM_WIDTH_X16:
-	case SKL_DRAM_WIDTH_X32:
-		val = (val & SKL_DRAM_WIDTH_MASK) >> SKL_DRAM_WIDTH_SHIFT;
-		return 8 << val;
+	switch (val & SKL_DIMM_S_WIDTH_MASK) {
+	case SKL_DIMM_S_WIDTH_X8:
+	case SKL_DIMM_S_WIDTH_X16:
+	case SKL_DIMM_S_WIDTH_X32:
+		return 8 << REG_FIELD_GET(SKL_DIMM_S_WIDTH_MASK, val);
 	default:
 		MISSING_CASE(val);
 		return 0;
 	}
 }
 
-static int skl_get_dimm_ranks(u16 val)
+static int skl_get_dimm_l_width(u32 val)
 {
-	if (skl_get_dimm_size(val) == 0)
+	if (skl_get_dimm_l_size(val) == 0)
 		return 0;
 
-	val = (val & SKL_DRAM_RANK_MASK) >> SKL_DRAM_RANK_SHIFT;
+	switch (val & SKL_DIMM_L_WIDTH_MASK) {
+	case SKL_DIMM_L_WIDTH_X8:
+	case SKL_DIMM_L_WIDTH_X16:
+	case SKL_DIMM_L_WIDTH_X32:
+		return 8 << REG_FIELD_GET(SKL_DIMM_L_WIDTH_MASK, val);
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
 
-	return val + 1;
+static int skl_get_dimm_s_ranks(u32 val)
+{
+	if (skl_get_dimm_s_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(SKL_DIMM_S_RANK_MASK, val) + 1;
+}
+
+static int skl_get_dimm_l_ranks(u32 val)
+{
+	if (skl_get_dimm_l_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(SKL_DIMM_L_RANK_MASK, val) + 1;
 }
 
 /* Returns total Gb for the whole DIMM */
-static int icl_get_dimm_size(u16 val)
+static int icl_get_dimm_s_size(u32 val)
 {
-	return (val & ICL_DRAM_SIZE_MASK) * 8 / 2;
+	return REG_FIELD_GET(ICL_DIMM_S_SIZE_MASK, val) * 8 / 2;
 }
 
-static int icl_get_dimm_width(u16 val)
+static int icl_get_dimm_l_size(u32 val)
 {
-	if (icl_get_dimm_size(val) == 0)
+	return REG_FIELD_GET(ICL_DIMM_L_SIZE_MASK, val) * 8 / 2;
+}
+
+static int icl_get_dimm_s_width(u32 val)
+{
+	if (icl_get_dimm_s_size(val) == 0)
 		return 0;
 
-	switch (val & ICL_DRAM_WIDTH_MASK) {
-	case ICL_DRAM_WIDTH_X8:
-	case ICL_DRAM_WIDTH_X16:
-	case ICL_DRAM_WIDTH_X32:
-		val = (val & ICL_DRAM_WIDTH_MASK) >> ICL_DRAM_WIDTH_SHIFT;
-		return 8 << val;
+	switch (val & ICL_DIMM_S_WIDTH_MASK) {
+	case ICL_DIMM_S_WIDTH_X8:
+	case ICL_DIMM_S_WIDTH_X16:
+	case ICL_DIMM_S_WIDTH_X32:
+		return 8 << REG_FIELD_GET(ICL_DIMM_S_WIDTH_MASK, val);
 	default:
 		MISSING_CASE(val);
 		return 0;
 	}
 }
 
-static int icl_get_dimm_ranks(u16 val)
+static int icl_get_dimm_l_width(u32 val)
 {
-	if (icl_get_dimm_size(val) == 0)
+	if (icl_get_dimm_l_size(val) == 0)
 		return 0;
 
-	val = (val & ICL_DRAM_RANK_MASK) >> ICL_DRAM_RANK_SHIFT;
+	switch (val & ICL_DIMM_L_WIDTH_MASK) {
+	case ICL_DIMM_L_WIDTH_X8:
+	case ICL_DIMM_L_WIDTH_X16:
+	case ICL_DIMM_L_WIDTH_X32:
+		return 8 << REG_FIELD_GET(ICL_DIMM_L_WIDTH_MASK, val);
+	default:
+		MISSING_CASE(val);
+		return 0;
+	}
+}
 
-	return val + 1;
+static int icl_get_dimm_s_ranks(u32 val)
+{
+	if (icl_get_dimm_s_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(ICL_DIMM_S_RANK_MASK, val) + 1;
+}
+
+static int icl_get_dimm_l_ranks(u32 val)
+{
+	if (icl_get_dimm_l_size(val) == 0)
+		return 0;
+
+	return REG_FIELD_GET(ICL_DIMM_L_RANK_MASK, val) + 1;
 }
 
 static bool
@@ -340,38 +397,62 @@ skl_is_16gb_dimm(const struct dram_dimm_info *dimm)
 }
 
 static void
-skl_dram_get_dimm_info(struct drm_i915_private *i915,
-		       struct dram_dimm_info *dimm,
-		       int channel, char dimm_name, u16 val)
+skl_dram_print_dimm_info(struct intel_display *display,
+			 struct dram_dimm_info *dimm,
+			 int channel, char dimm_name)
 {
-	if (GRAPHICS_VER(i915) >= 11) {
-		dimm->size = icl_get_dimm_size(val);
-		dimm->width = icl_get_dimm_width(val);
-		dimm->ranks = icl_get_dimm_ranks(val);
-	} else {
-		dimm->size = skl_get_dimm_size(val);
-		dimm->width = skl_get_dimm_width(val);
-		dimm->ranks = skl_get_dimm_ranks(val);
-	}
-
-	drm_dbg_kms(&i915->drm,
+	drm_dbg_kms(display->drm,
 		    "CH%u DIMM %c size: %u Gb, width: X%u, ranks: %u, 16Gb+ DIMMs: %s\n",
 		    channel, dimm_name, dimm->size, dimm->width, dimm->ranks,
 		    str_yes_no(skl_is_16gb_dimm(dimm)));
 }
 
+static void
+skl_dram_get_dimm_l_info(struct intel_display *display,
+			 struct dram_dimm_info *dimm,
+			 int channel, u32 val)
+{
+	if (DISPLAY_VER(display) >= 11) {
+		dimm->size = icl_get_dimm_l_size(val);
+		dimm->width = icl_get_dimm_l_width(val);
+		dimm->ranks = icl_get_dimm_l_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_l_size(val);
+		dimm->width = skl_get_dimm_l_width(val);
+		dimm->ranks = skl_get_dimm_l_ranks(val);
+	}
+
+	skl_dram_print_dimm_info(display, dimm, channel, 'L');
+}
+
+static void
+skl_dram_get_dimm_s_info(struct intel_display *display,
+			 struct dram_dimm_info *dimm,
+			 int channel, u32 val)
+{
+	if (DISPLAY_VER(display) >= 11) {
+		dimm->size = icl_get_dimm_s_size(val);
+		dimm->width = icl_get_dimm_s_width(val);
+		dimm->ranks = icl_get_dimm_s_ranks(val);
+	} else {
+		dimm->size = skl_get_dimm_s_size(val);
+		dimm->width = skl_get_dimm_s_width(val);
+		dimm->ranks = skl_get_dimm_s_ranks(val);
+	}
+
+	skl_dram_print_dimm_info(display, dimm, channel, 'S');
+}
+
 static int
-skl_dram_get_channel_info(struct drm_i915_private *i915,
+skl_dram_get_channel_info(struct intel_display *display,
 			  struct dram_channel_info *ch,
 			  int channel, u32 val)
 {
-	skl_dram_get_dimm_info(i915, &ch->dimm_l,
-			       channel, 'L', val & 0xffff);
-	skl_dram_get_dimm_info(i915, &ch->dimm_s,
-			       channel, 'S', val >> 16);
+	skl_dram_get_dimm_l_info(display, &ch->dimm_l, channel, val);
+	skl_dram_get_dimm_s_info(display, &ch->dimm_s, channel, val);
 
 	if (ch->dimm_l.size == 0 && ch->dimm_s.size == 0) {
-		drm_dbg_kms(&i915->drm, "CH%u not populated\n", channel);
+		drm_dbg_kms(display->drm, "CH%u not populated\n", channel);
 		return -EINVAL;
 	}
 
@@ -385,7 +466,7 @@ skl_dram_get_channel_info(struct drm_i915_private *i915,
 	ch->is_16gb_dimm = skl_is_16gb_dimm(&ch->dimm_l) ||
 		skl_is_16gb_dimm(&ch->dimm_s);
 
-	drm_dbg_kms(&i915->drm, "CH%u ranks: %u, 16Gb+ DIMMs: %s\n",
+	drm_dbg_kms(display->drm, "CH%u ranks: %u, 16Gb+ DIMMs: %s\n",
 		    channel, ch->ranks, str_yes_no(ch->is_16gb_dimm));
 
 	return 0;
@@ -401,8 +482,9 @@ intel_is_dram_symmetric(const struct dram_channel_info *ch0,
 }
 
 static int
-skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+skl_dram_get_channels_info(struct intel_display *display, struct dram_info *dram_info)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct dram_channel_info ch0 = {}, ch1 = {};
 	u32 val;
 	int ret;
@@ -412,23 +494,23 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 
 	val = intel_uncore_read(&i915->uncore,
 				SKL_MAD_DIMM_CH0_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(i915, &ch0, 0, val);
+	ret = skl_dram_get_channel_info(display, &ch0, 0, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
 	val = intel_uncore_read(&i915->uncore,
 				SKL_MAD_DIMM_CH1_0_0_0_MCHBAR_MCMAIN);
-	ret = skl_dram_get_channel_info(i915, &ch1, 1, val);
+	ret = skl_dram_get_channel_info(display, &ch1, 1, val);
 	if (ret == 0)
 		dram_info->num_channels++;
 
 	if (dram_info->num_channels == 0) {
-		drm_info(&i915->drm, "Number of memory channels is zero\n");
+		drm_info(display->drm, "Number of memory channels is zero\n");
 		return -EINVAL;
 	}
 
 	if (ch0.ranks == 0 && ch1.ranks == 0) {
-		drm_info(&i915->drm, "couldn't get memory rank information\n");
+		drm_info(display->drm, "couldn't get memory rank information\n");
 		return -EINVAL;
 	}
 
@@ -436,18 +518,19 @@ skl_dram_get_channels_info(struct drm_i915_private *i915, struct dram_info *dram
 
 	dram_info->symmetric_memory = intel_is_dram_symmetric(&ch0, &ch1);
 
-	drm_dbg_kms(&i915->drm, "Memory configuration is symmetric? %s\n",
+	drm_dbg_kms(display->drm, "Memory configuration is symmetric? %s\n",
 		    str_yes_no(dram_info->symmetric_memory));
 
-	drm_dbg_kms(&i915->drm, "16Gb+ DIMMs: %s\n",
+	drm_dbg_kms(display->drm, "16Gb+ DIMMs: %s\n",
 		    str_yes_no(dram_info->has_16gb_dimms));
 
 	return 0;
 }
 
 static enum intel_dram_type
-skl_get_dram_type(struct drm_i915_private *i915)
+skl_get_dram_type(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val;
 
 	val = intel_uncore_read(&i915->uncore,
@@ -469,13 +552,13 @@ skl_get_dram_type(struct drm_i915_private *i915)
 }
 
 static int
-skl_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+skl_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
 	int ret;
 
-	dram_info->type = skl_get_dram_type(i915);
+	dram_info->type = skl_get_dram_type(display);
 
-	ret = skl_dram_get_channels_info(i915, dram_info);
+	ret = skl_dram_get_channels_info(display, dram_info);
 	if (ret)
 		return ret;
 
@@ -560,8 +643,9 @@ static void bxt_get_dimm_info(struct dram_dimm_info *dimm, u32 val)
 	dimm->size = bxt_get_dimm_size(val) * intel_dimm_num_devices(dimm);
 }
 
-static int bxt_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+static int bxt_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val;
 	u8 valid_ranks = 0;
 	int i;
@@ -582,11 +666,11 @@ static int bxt_get_dram_info(struct drm_i915_private *i915, struct dram_info *dr
 		bxt_get_dimm_info(&dimm, val);
 		type = bxt_get_dimm_type(val);
 
-		drm_WARN_ON(&i915->drm, type != INTEL_DRAM_UNKNOWN &&
+		drm_WARN_ON(display->drm, type != INTEL_DRAM_UNKNOWN &&
 			    dram_info->type != INTEL_DRAM_UNKNOWN &&
 			    dram_info->type != type);
 
-		drm_dbg_kms(&i915->drm,
+		drm_dbg_kms(display->drm,
 			    "CH%u DIMM size: %u Gb, width: X%u, ranks: %u\n",
 			    i - BXT_D_CR_DRP0_DUNIT_START,
 			    dimm.size, dimm.width, dimm.ranks);
@@ -599,25 +683,25 @@ static int bxt_get_dram_info(struct drm_i915_private *i915, struct dram_info *dr
 	}
 
 	if (dram_info->type == INTEL_DRAM_UNKNOWN || valid_ranks == 0) {
-		drm_info(&i915->drm, "couldn't get memory information\n");
+		drm_info(display->drm, "couldn't get memory information\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
+static int icl_pcode_read_mem_global_info(struct intel_display *display,
 					  struct dram_info *dram_info)
 {
 	u32 val = 0;
 	int ret;
 
-	ret = intel_pcode_read(&dev_priv->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+	ret = intel_pcode_read(display->drm, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
 			       ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
-	if (GRAPHICS_VER(dev_priv) == 12) {
+	if (DISPLAY_VER(display) >= 12) {
 		switch (val & 0xf) {
 		case 0:
 			dram_info->type = INTEL_DRAM_DDR4;
@@ -668,25 +752,25 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-static int gen11_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+static int gen11_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
 	int ret;
 
-	ret = skl_dram_get_channels_info(i915, dram_info);
+	ret = skl_dram_get_channels_info(display, dram_info);
 	if (ret)
 		return ret;
 
-	return icl_pcode_read_mem_global_info(i915, dram_info);
+	return icl_pcode_read_mem_global_info(display, dram_info);
 }
 
-static int gen12_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+static int gen12_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
-	return icl_pcode_read_mem_global_info(i915, dram_info);
+	return icl_pcode_read_mem_global_info(display, dram_info);
 }
 
-static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info *dram_info)
+static int xelpdp_get_dram_info(struct intel_display *display, struct dram_info *dram_info)
 {
-	struct intel_display *display = i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 val = intel_uncore_read(&i915->uncore, MTL_MEM_SS_INFO_GLOBAL);
 
 	switch (REG_FIELD_GET(MTL_DDR_TYPE_MASK, val)) {
@@ -709,11 +793,11 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info 
 		dram_info->type = INTEL_DRAM_LPDDR3;
 		break;
 	case 8:
-		drm_WARN_ON(&i915->drm, !IS_DGFX(i915));
+		drm_WARN_ON(display->drm, !display->platform.dgfx);
 		dram_info->type = INTEL_DRAM_GDDR;
 		break;
 	case 9:
-		drm_WARN_ON(&i915->drm, !IS_DGFX(i915));
+		drm_WARN_ON(display->drm, !display->platform.dgfx);
 		dram_info->type = INTEL_DRAM_GDDR_ECC;
 		break;
 	default:
@@ -731,41 +815,40 @@ static int xelpdp_get_dram_info(struct drm_i915_private *i915, struct dram_info 
 	return 0;
 }
 
-int intel_dram_detect(struct drm_i915_private *i915)
+int intel_dram_detect(struct intel_display *display)
 {
-	struct intel_display *display = i915->display;
 	struct dram_info *dram_info;
 	int ret;
 
-	if (IS_DG2(i915) || !intel_display_device_present(display))
+	if (display->platform.dg2 || !HAS_DISPLAY(display))
 		return 0;
 
-	dram_info = drmm_kzalloc(&i915->drm, sizeof(*dram_info), GFP_KERNEL);
+	dram_info = drmm_kzalloc(display->drm, sizeof(*dram_info), GFP_KERNEL);
 	if (!dram_info)
 		return -ENOMEM;
 
-	i915->dram_info = dram_info;
+	display->dram.info = dram_info;
 
 	if (DISPLAY_VER(display) >= 14)
-		ret = xelpdp_get_dram_info(i915, dram_info);
-	else if (GRAPHICS_VER(i915) >= 12)
-		ret = gen12_get_dram_info(i915, dram_info);
-	else if (GRAPHICS_VER(i915) >= 11)
-		ret = gen11_get_dram_info(i915, dram_info);
-	else if (IS_BROXTON(i915) || IS_GEMINILAKE(i915))
-		ret = bxt_get_dram_info(i915, dram_info);
-	else if (GRAPHICS_VER(i915) >= 9)
-		ret = skl_get_dram_info(i915, dram_info);
+		ret = xelpdp_get_dram_info(display, dram_info);
+	else if (DISPLAY_VER(display) >= 12)
+		ret = gen12_get_dram_info(display, dram_info);
+	else if (DISPLAY_VER(display) >= 11)
+		ret = gen11_get_dram_info(display, dram_info);
+	else if (display->platform.broxton || display->platform.geminilake)
+		ret = bxt_get_dram_info(display, dram_info);
+	else if (DISPLAY_VER(display) >= 9)
+		ret = skl_get_dram_info(display, dram_info);
 	else
-		ret = i915_get_dram_info(i915, dram_info);
+		ret = i915_get_dram_info(display, dram_info);
 
-	drm_dbg_kms(&i915->drm, "DRAM type: %s\n",
+	drm_dbg_kms(display->drm, "DRAM type: %s\n",
 		    intel_dram_type_str(dram_info->type));
 
-	drm_dbg_kms(&i915->drm, "DRAM channels: %u\n", dram_info->num_channels);
+	drm_dbg_kms(display->drm, "DRAM channels: %u\n", dram_info->num_channels);
 
-	drm_dbg_kms(&i915->drm, "Num QGV points %u\n", dram_info->num_qgv_points);
-	drm_dbg_kms(&i915->drm, "Num PSF GV points %u\n", dram_info->num_psf_gv_points);
+	drm_dbg_kms(display->drm, "Num QGV points %u\n", dram_info->num_qgv_points);
+	drm_dbg_kms(display->drm, "Num PSF GV points %u\n", dram_info->num_psf_gv_points);
 
 	/* TODO: Do we want to abort probe on dram detection failures? */
 	if (ret)
@@ -779,45 +862,7 @@ int intel_dram_detect(struct drm_i915_private *i915)
  * checks, and prefer not dereferencing on platforms that shouldn't look at dram
  * info, to catch accidental and incorrect dram info checks.
  */
-const struct dram_info *intel_dram_info(struct drm_device *drm)
+const struct dram_info *intel_dram_info(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(drm);
-
-	return i915->dram_info;
-}
-
-static u32 gen9_edram_size_mb(struct drm_i915_private *i915, u32 cap)
-{
-	static const u8 ways[8] = { 4, 8, 12, 16, 16, 16, 16, 16 };
-	static const u8 sets[4] = { 1, 1, 2, 2 };
-
-	return EDRAM_NUM_BANKS(cap) *
-		ways[EDRAM_WAYS_IDX(cap)] *
-		sets[EDRAM_SETS_IDX(cap)];
-}
-
-void intel_dram_edram_detect(struct drm_i915_private *i915)
-{
-	u32 edram_cap = 0;
-
-	if (!(IS_HASWELL(i915) || IS_BROADWELL(i915) || GRAPHICS_VER(i915) >= 9))
-		return;
-
-	edram_cap = intel_uncore_read_fw(&i915->uncore, HSW_EDRAM_CAP);
-
-	/* NB: We can't write IDICR yet because we don't have gt funcs set up */
-
-	if (!(edram_cap & EDRAM_ENABLED))
-		return;
-
-	/*
-	 * The needed capability bits for size calculation are not there with
-	 * pre gen9 so return 128MB always.
-	 */
-	if (GRAPHICS_VER(i915) < 9)
-		i915->edram_size_mb = 128;
-	else
-		i915->edram_size_mb = gen9_edram_size_mb(i915, edram_cap);
-
-	drm_info(&i915->drm, "Found %uMB of eDRAM\n", i915->edram_size_mb);
+	return display->dram.info;
 }

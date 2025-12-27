@@ -3,38 +3,39 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/dma-fence.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_vblank.h>
 
-#include "gt/intel_rps.h"
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_display_core.h"
 #include "intel_display_irq.h"
 #include "intel_display_rps.h"
 #include "intel_display_types.h"
+#include "intel_parent.h"
 
 struct wait_rps_boost {
 	struct wait_queue_entry wait;
 
 	struct drm_crtc *crtc;
-	struct i915_request *request;
+	struct dma_fence *fence;
 };
 
 static int do_rps_boost(struct wait_queue_entry *_wait,
 			unsigned mode, int sync, void *key)
 {
 	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
-	struct i915_request *rq = wait->request;
+	struct intel_display *display = to_intel_display(wait->crtc->dev);
 
 	/*
 	 * If we missed the vblank, but the request is already running it
 	 * is reasonable to assume that it will complete before the next
-	 * vblank without our intervention, so leave RPS alone.
+	 * vblank without our intervention, so leave RPS alone if not started.
 	 */
-	if (!i915_request_started(rq))
-		intel_rps_boost(rq);
-	i915_request_put(rq);
+	intel_parent_rps_boost_if_not_started(display, wait->fence);
+
+	dma_fence_put(wait->fence);
 
 	drm_crtc_vblank_put(wait->crtc);
 
@@ -49,7 +50,7 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc->dev);
 	struct wait_rps_boost *wait;
 
-	if (!dma_fence_is_i915(fence))
+	if (!intel_parent_rps_available(display))
 		return;
 
 	if (DISPLAY_VER(display) < 6)
@@ -64,7 +65,7 @@ void intel_display_rps_boost_after_vblank(struct drm_crtc *crtc,
 		return;
 	}
 
-	wait->request = to_request(dma_fence_get(fence));
+	wait->fence = dma_fence_get(fence);
 	wait->crtc = crtc;
 
 	wait->wait.func = do_rps_boost;
@@ -77,12 +78,14 @@ void intel_display_rps_mark_interactive(struct intel_display *display,
 					struct intel_atomic_state *state,
 					bool interactive)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
+	if (!intel_parent_rps_available(display))
+		return;
 
 	if (state->rps_interactive == interactive)
 		return;
 
-	intel_rps_mark_interactive(&to_gt(i915)->rps, interactive);
+	intel_parent_rps_mark_interactive(display, interactive);
+
 	state->rps_interactive = interactive;
 }
 
@@ -102,7 +105,5 @@ void ilk_display_rps_disable(struct intel_display *display)
 
 void ilk_display_rps_irq_handler(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	gen5_rps_irq_handler(&to_gt(i915)->rps);
+	intel_parent_rps_ilk_irq_handler(display);
 }

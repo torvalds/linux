@@ -86,7 +86,7 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 static int i915_sr_status(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool sr_enabled = false;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);

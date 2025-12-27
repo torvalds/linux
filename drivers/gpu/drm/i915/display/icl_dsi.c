@@ -1411,7 +1411,7 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		intel_wakeref_t wakeref;
+		struct ref_tracker *wakeref;
 
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
 		intel_display_power_put(display,
@@ -1722,7 +1722,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum transcoder dsi_trans;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum port port;
 	bool ret = false;
 	u32 tmp;

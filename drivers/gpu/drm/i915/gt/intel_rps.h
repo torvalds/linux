@@ -128,4 +128,6 @@ static inline void intel_rps_clear_timer(struct intel_rps *rps)
 	clear_bit(INTEL_RPS_TIMER, &rps->flags);
 }
 
+extern const struct intel_display_rps_interface i915_display_rps_interface;
+
 #endif /* INTEL_RPS_H */

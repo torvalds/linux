@@ -1,28 +1,21 @@
 // SPDX-License-Identifier: MIT
-/*
- * Copyright © 2023 Intel Corporation
- */
+/* Copyright © 2025 Intel Corporation */
 
-#include <linux/pci.h>
 #include <linux/pnp.h>
-#include <linux/vgaarb.h>
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
-#include <drm/intel/i915_drm.h>
-
-#include "../display/intel_display_core.h" /* FIXME */
 
 #include "i915_drv.h"
-#include "intel_gmch.h"
+#include "i915_gmch.h"
 #include "intel_pci_config.h"
 
-static void intel_gmch_bridge_release(struct drm_device *dev, void *bridge)
+static void i915_gmch_bridge_release(struct drm_device *dev, void *bridge)
 {
 	pci_dev_put(bridge);
 }
 
-int intel_gmch_bridge_setup(struct drm_i915_private *i915)
+int i915_gmch_bridge_setup(struct drm_i915_private *i915)
 {
 	int domain = pci_domain_nr(to_pci_dev(i915->drm.dev)->bus);
 
@@ -32,7 +25,7 @@ int intel_gmch_bridge_setup(struct drm_i915_private *i915)
 		return -EIO;
 	}
 
-	return drmm_add_action_or_reset(&i915->drm, intel_gmch_bridge_release,
+	return drmm_add_action_or_reset(&i915->drm, i915_gmch_bridge_release,
 					i915->gmch.pdev);
 }
 
@@ -84,7 +77,7 @@ intel_alloc_mchbar_resource(struct drm_i915_private *i915)
 }
 
 /* Setup MCHBAR if possible, return true if we should disable it again */
-void intel_gmch_bar_setup(struct drm_i915_private *i915)
+void i915_gmch_bar_setup(struct drm_i915_private *i915)
 {
 	u32 temp;
 	bool enabled;
@@ -121,7 +114,7 @@ void intel_gmch_bar_setup(struct drm_i915_private *i915)
 	}
 }
 
-void intel_gmch_bar_teardown(struct drm_i915_private *i915)
+void i915_gmch_bar_teardown(struct drm_i915_private *i915)
 {
 	if (i915->gmch.mchbar_need_disable) {
 		if (IS_I915G(i915) || IS_I915GM(i915)) {
@@ -145,44 +138,4 @@ void intel_gmch_bar_teardown(struct drm_i915_private *i915)
 
 	if (i915->gmch.mch_res.start)
 		release_resource(&i915->gmch.mch_res);
-}
-
-int intel_gmch_vga_set_state(struct drm_i915_private *i915, bool enable_decode)
-{
-	struct intel_display *display = i915->display;
-	unsigned int reg = DISPLAY_VER(display) >= 6 ? SNB_GMCH_CTRL : INTEL_GMCH_CTRL;
-	u16 gmch_ctrl;
-
-	if (pci_read_config_word(i915->gmch.pdev, reg, &gmch_ctrl)) {
-		drm_err(&i915->drm, "failed to read control word\n");
-		return -EIO;
-	}
-
-	if (!!(gmch_ctrl & INTEL_GMCH_VGA_DISABLE) == !enable_decode)
-		return 0;
-
-	if (enable_decode)
-		gmch_ctrl &= ~INTEL_GMCH_VGA_DISABLE;
-	else
-		gmch_ctrl |= INTEL_GMCH_VGA_DISABLE;
-
-	if (pci_write_config_word(i915->gmch.pdev, reg, gmch_ctrl)) {
-		drm_err(&i915->drm, "failed to write control word\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-unsigned int intel_gmch_vga_set_decode(struct pci_dev *pdev, bool enable_decode)
-{
-	struct drm_i915_private *i915 = pdev_to_i915(pdev);
-
-	intel_gmch_vga_set_state(i915, enable_decode);
-
-	if (enable_decode)
-		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
-		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-	else
-		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }

@@ -7,8 +7,6 @@
 
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
@@ -19,6 +17,7 @@
 #include "intel_display.h"
 #include "intel_display_regs.h"
 #include "intel_display_trace.h"
+#include "intel_dram.h"
 #include "intel_fb.h"
 #include "intel_mchbar_regs.h"
 #include "intel_wm.h"
@@ -91,7 +90,7 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 
 static const struct cxsr_latency *pnv_get_cxsr_latency(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 	bool is_ddr3 = dram_info->type == INTEL_DRAM_DDR3;
 	int i;
 

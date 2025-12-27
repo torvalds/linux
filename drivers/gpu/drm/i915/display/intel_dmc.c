@@ -1322,7 +1322,7 @@ static void intel_dmc_runtime_pm_get(struct intel_display *display)
 
 static void intel_dmc_runtime_pm_put(struct intel_display *display)
 {
-	intel_wakeref_t wakeref __maybe_unused =
+	struct ref_tracker *wakeref __maybe_unused =
 		fetch_and_zero(&display->dmc.wakeref);
 
 	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);

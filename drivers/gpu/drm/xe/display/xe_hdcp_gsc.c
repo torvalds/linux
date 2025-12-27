@@ -3,18 +3,20 @@
  * Copyright 2023, Intel Corporation.
  */
 
-#include <drm/drm_print.h>
-#include <drm/intel/i915_hdcp_interface.h>
 #include <linux/delay.h>
 
+#include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
+#include <drm/intel/i915_hdcp_interface.h>
+
 #include "abi/gsc_command_header_abi.h"
-#include "intel_hdcp_gsc.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gsc_submit.h"
+#include "xe_hdcp_gsc.h"
 #include "xe_map.h"
 #include "xe_pm.h"
 #include "xe_uc_fw.h"
@@ -30,7 +32,7 @@ struct intel_hdcp_gsc_context {
 
 #define HDCP_GSC_HEADER_SIZE sizeof(struct intel_gsc_mtl_header)
 
-bool intel_hdcp_gsc_check_status(struct drm_device *drm)
+static bool intel_hdcp_gsc_check_status(struct drm_device *drm)
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
@@ -96,7 +98,7 @@ out:
 	return ret;
 }
 
-struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
+static struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *drm)
 {
 	struct xe_device *xe = to_xe_device(drm);
 	struct intel_hdcp_gsc_context *gsc_context;
@@ -120,7 +122,7 @@ struct intel_hdcp_gsc_context *intel_hdcp_gsc_context_alloc(struct drm_device *d
 	return gsc_context;
 }
 
-void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
+static void intel_hdcp_gsc_context_free(struct intel_hdcp_gsc_context *gsc_context)
 {
 	if (!gsc_context)
 		return;
@@ -155,9 +157,9 @@ static int xe_gsc_send_sync(struct xe_device *xe,
 	return ret;
 }
 
-ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
-				void *msg_in, size_t msg_in_len,
-				void *msg_out, size_t msg_out_len)
+static ssize_t intel_hdcp_gsc_msg_send(struct intel_hdcp_gsc_context *gsc_context,
+				       void *msg_in, size_t msg_in_len,
+				       void *msg_out, size_t msg_out_len)
 {
 	struct xe_device *xe = gsc_context->xe;
 	const size_t max_msg_size = PAGE_SIZE - HDCP_GSC_HEADER_SIZE;
@@ -211,3 +213,10 @@ out:
 	xe_pm_runtime_put(xe);
 	return ret;
 }
+
+const struct intel_display_hdcp_interface xe_display_hdcp_interface = {
+	.gsc_msg_send = intel_hdcp_gsc_msg_send,
+	.gsc_check_status = intel_hdcp_gsc_check_status,
+	.gsc_context_alloc = intel_hdcp_gsc_context_alloc,
+	.gsc_context_free = intel_hdcp_gsc_context_free,
+};

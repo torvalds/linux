@@ -22,7 +22,6 @@
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_frontbuffer.h"
-#include "intel_panic.h"
 #include "intel_plane.h"
 #include "intel_sprite.h"
 
@@ -134,7 +133,7 @@ static struct intel_fbc *i9xx_plane_fbc(struct intel_display *display,
 					enum i9xx_plane_id i9xx_plane)
 {
 	if (i9xx_plane_has_fbc(display, i9xx_plane))
-		return display->fbc[INTEL_FBC_A];
+		return display->fbc.instances[INTEL_FBC_A];
 	else
 		return NULL;
 }
@@ -724,7 +723,7 @@ static bool i9xx_plane_get_hw_state(struct intel_plane *plane,
 	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
 	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret;
 	u32 val;
 
@@ -819,7 +818,7 @@ unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 
-	if (intel_plane_can_async_flip(plane, fb->format->format, fb->modifier))
+	if (intel_plane_can_async_flip(plane, fb->format, fb->modifier))
 		return 256 * 1024;
 
 	/* FIXME undocumented so not sure what's actually needed */
@@ -843,7 +842,7 @@ static unsigned int g4x_primary_min_alignment(struct intel_plane *plane,
 {
 	struct intel_display *display = to_intel_display(plane);
 
-	if (intel_plane_can_async_flip(plane, fb->format->format, fb->modifier))
+	if (intel_plane_can_async_flip(plane, fb->format, fb->modifier))
 		return 256 * 1024;
 
 	if (intel_scanout_needs_vtd_wa(display))
