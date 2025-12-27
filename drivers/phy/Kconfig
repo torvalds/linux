@@ -47,6 +47,16 @@ config GENERIC_PHY_MIPI_DPHY
 	  Provides a number of helpers a core functions for MIPI D-PHY
 	  drivers to us.
 
+config PHY_GOOGLE_USB
+	tristate "Google Tensor SoC USB PHY driver"
+	select GENERIC_PHY
+	help
+	  Enable support for the USB PHY on Google Tensor SoCs, starting with
+	  the G5 generation (Laguna). This driver provides the PHY interfaces
+	  to interact with the SNPS eUSB2 and USB 3.2/DisplayPort Combo PHY,
+	  both of which are integrated with the DWC3 USB DRD controller.
+	  This driver currently supports USB high-speed.
+
 config PHY_LPC18XX_USB_OTG
 	tristate "NXP LPC18xx/43xx SoC USB OTG PHY driver"
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
