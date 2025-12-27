@@ -715,8 +715,9 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	if (!(psta->state & _FW_LINKED))
 		return _FAIL;
 
-	/* TODO:_lock */
+	spin_lock_bh(&psta->lock);
 	if (update_attrib_sec_info(padapter, pattrib, psta) == _FAIL) {
+		spin_unlock_bh(&psta->lock);
 		res = _FAIL;
 		goto exit;
 	}
@@ -724,7 +725,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	update_attrib_phy_info(padapter, pattrib, psta);
 
 	pattrib->psta = psta;
-	/* TODO:_unlock */
+	spin_unlock_bh(&psta->lock);
 
 	pattrib->pctrl = 0;
 
