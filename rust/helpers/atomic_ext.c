@@ -107,3 +107,13 @@ __rust_helper bool rust_helper_atomic_i16_try_cmpxchg(s16 *ptr, s16 *old, s16 ne
 {
 	return try_cmpxchg(ptr, old, new);
 }
+
+__rust_helper bool rust_helper_atomic_i8_try_cmpxchg_acquire(s8 *ptr, s8 *old, s8 new)
+{
+	return try_cmpxchg_acquire(ptr, old, new);
+}
+
+__rust_helper bool rust_helper_atomic_i16_try_cmpxchg_acquire(s16 *ptr, s16 *old, s16 new)
+{
+	return try_cmpxchg_acquire(ptr, old, new);
+}
