@@ -195,8 +195,6 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	words_available = bytes_available / sizeof(u32);
 
 	if (bytes_available > len) {
-		dev_err(fifo->dt_device, "user read buffer too small (available bytes=%zu user buffer bytes=%zu)\n",
-			bytes_available, len);
 		ret = -EINVAL;
 		goto err_flush_rx;
 	}
@@ -268,19 +266,7 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	u32 *txbuf;
 	int ret;
 
-	if (len % sizeof(u32)) {
-		dev_err(fifo->dt_device,
-			"tried to send a packet that isn't word-aligned\n");
-		return -EINVAL;
-	}
-
 	words_to_write = len / sizeof(u32);
-
-	if (!words_to_write) {
-		dev_err(fifo->dt_device,
-			"tried to send a packet of length 0\n");
-		return -EINVAL;
-	}
 
 	/*
 	 * In 'Store-and-Forward' mode, the maximum packet that can be
@@ -291,7 +277,8 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	 * otherwise a 'Transmit Packet Overrun Error' interrupt will be
 	 * raised, which requires a reset of the TX circuit to recover.
 	 */
-	if (words_to_write > (fifo->tx_fifo_depth - 4))
+	if (!words_to_write || (len % sizeof(u32)) ||
+	    (words_to_write > (fifo->tx_fifo_depth - 4)))
 		return -EINVAL;
 
 	if (f->f_flags & O_NONBLOCK) {
