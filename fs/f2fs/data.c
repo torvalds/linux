@@ -664,10 +664,11 @@ unlock_out:
 
 static void __submit_merged_write_cond(struct f2fs_sb_info *sbi,
 				struct inode *inode, struct folio *folio,
-				nid_t ino, enum page_type type, bool force)
+				nid_t ino, enum page_type type)
 {
 	enum temp_type temp;
 	bool ret = true;
+	bool force = !inode && !folio && !ino;
 
 	for (temp = HOT; temp < NR_TEMP_TYPE; temp++) {
 		if (!force)	{
@@ -689,14 +690,14 @@ static void __submit_merged_write_cond(struct f2fs_sb_info *sbi,
 
 void f2fs_submit_merged_write(struct f2fs_sb_info *sbi, enum page_type type)
 {
-	__submit_merged_write_cond(sbi, NULL, NULL, 0, type, true);
+	__submit_merged_write_cond(sbi, NULL, NULL, 0, type);
 }
 
 void f2fs_submit_merged_write_cond(struct f2fs_sb_info *sbi,
 				struct inode *inode, struct folio *folio,
 				nid_t ino, enum page_type type)
 {
-	__submit_merged_write_cond(sbi, inode, folio, ino, type, false);
+	__submit_merged_write_cond(sbi, inode, folio, ino, type);
 }
 
 void f2fs_flush_merged_writes(struct f2fs_sb_info *sbi)
