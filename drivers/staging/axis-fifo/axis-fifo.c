@@ -157,7 +157,7 @@ static void reset_ip_core(struct axis_fifo *fifo)
 static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 			      size_t len, loff_t *off)
 {
-	struct axis_fifo *fifo = (struct axis_fifo *)f->private_data;
+	struct axis_fifo *fifo = f->private_data;
 	size_t bytes_available;
 	unsigned int words_available;
 	unsigned int copied;
@@ -268,7 +268,7 @@ end_unlock:
 static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 			       size_t len, loff_t *off)
 {
-	struct axis_fifo *fifo = (struct axis_fifo *)f->private_data;
+	struct axis_fifo *fifo = f->private_data;
 	unsigned int words_to_write;
 	u32 *txbuf;
 	int ret;
