@@ -35,33 +35,31 @@
 
 #define AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN	4
 
-#define XLLF_ISR_OFFSET  0x00000000  /* Interrupt Status */
-#define XLLF_IER_OFFSET  0x00000004  /* Interrupt Enable */
+#define XLLF_ISR_OFFSET		0x00 /* Interrupt Status */
+#define XLLF_IER_OFFSET		0x04 /* Interrupt Enable */
+#define XLLF_TDFR_OFFSET	0x08 /* Transmit Reset */
+#define XLLF_TDFV_OFFSET	0x0c /* Transmit Vacancy */
+#define XLLF_TDFD_OFFSET	0x10 /* Transmit Data */
+#define XLLF_TLR_OFFSET		0x14 /* Transmit Length */
+#define XLLF_RDFR_OFFSET	0x18 /* Receive Reset */
+#define XLLF_RDFO_OFFSET	0x1c /* Receive Occupancy */
+#define XLLF_RDFD_OFFSET	0x20 /* Receive Data */
+#define XLLF_RLR_OFFSET		0x24 /* Receive Length */
+#define XLLF_SRR_OFFSET		0x28 /* Local Link Reset */
+#define XLLF_TDR_OFFSET		0x2C /* Transmit Destination */
+#define XLLF_RDR_OFFSET		0x30 /* Receive Destination */
 
-#define XLLF_TDFR_OFFSET 0x00000008  /* Transmit Reset */
-#define XLLF_TDFV_OFFSET 0x0000000c  /* Transmit Vacancy */
-#define XLLF_TDFD_OFFSET 0x00000010  /* Transmit Data */
-#define XLLF_TLR_OFFSET  0x00000014  /* Transmit Length */
+#define XLLF_RDFR_RESET_MASK	0xa5 /* Receive reset value */
+#define XLLF_TDFR_RESET_MASK	0xa5 /* Transmit reset value */
+#define XLLF_SRR_RESET_MASK	0xa5 /* Local Link reset value */
 
-#define XLLF_RDFR_OFFSET 0x00000018  /* Receive Reset */
-#define XLLF_RDFO_OFFSET 0x0000001c  /* Receive Occupancy */
-#define XLLF_RDFD_OFFSET 0x00000020  /* Receive Data */
-#define XLLF_RLR_OFFSET  0x00000024  /* Receive Length */
-#define XLLF_SRR_OFFSET  0x00000028  /* Local Link Reset */
-#define XLLF_TDR_OFFSET  0x0000002C  /* Transmit Destination */
-#define XLLF_RDR_OFFSET  0x00000030  /* Receive Destination */
-
-#define XLLF_RDFR_RESET_MASK        0x000000a5 /* receive reset value */
-#define XLLF_TDFR_RESET_MASK        0x000000a5 /* Transmit reset value */
-#define XLLF_SRR_RESET_MASK         0x000000a5 /* Local Link reset value */
-
-#define XLLF_INT_RPURE_MASK       0x80000000 /* Receive under-read */
-#define XLLF_INT_RPORE_MASK       0x40000000 /* Receive over-read */
-#define XLLF_INT_RPUE_MASK        0x20000000 /* Receive underrun (empty) */
-#define XLLF_INT_TPOE_MASK        0x10000000 /* Transmit overrun */
-#define XLLF_INT_TC_MASK          0x08000000 /* Transmit complete */
-#define XLLF_INT_RC_MASK          0x04000000 /* Receive complete */
-#define XLLF_INT_TSE_MASK         0x02000000 /* Transmit length mismatch */
+#define XLLF_INT_RPURE_MASK	BIT(31) /* Receive under-read */
+#define XLLF_INT_RPORE_MASK	BIT(30) /* Receive over-read */
+#define XLLF_INT_RPUE_MASK	BIT(29) /* Receive underrun (empty) */
+#define XLLF_INT_TPOE_MASK	BIT(28) /* Transmit overrun */
+#define XLLF_INT_TC_MASK	BIT(27) /* Transmit complete */
+#define XLLF_INT_RC_MASK	BIT(26) /* Receive complete */
+#define XLLF_INT_TSE_MASK	BIT(25) /* Transmit length mismatch */
 
 #define XLLF_INT_CLEAR_ALL	GENMASK(31, 0)
 
