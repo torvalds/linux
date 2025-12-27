@@ -537,7 +537,6 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	struct resource *r_mem; /* IO mem resources */
 	struct device *dev = &pdev->dev; /* OS device (from device tree) */
 	struct axis_fifo *fifo = NULL;
-	char *device_name;
 	int rc = 0; /* error return value */
 	int irq;
 
@@ -545,10 +544,6 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	 *     init wrapper device
 	 * ----------------------------
 	 */
-
-	device_name = devm_kzalloc(dev, 32, GFP_KERNEL);
-	if (!device_name)
-		return -ENOMEM;
 
 	/* allocate device wrapper memory */
 	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
@@ -612,13 +607,17 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	if (fifo->id < 0)
 		return fifo->id;
 
-	snprintf(device_name, 32, "%s%d", DRIVER_NAME, fifo->id);
-
 	/* create character device */
 	fifo->miscdev.fops = &fops;
 	fifo->miscdev.minor = MISC_DYNAMIC_MINOR;
-	fifo->miscdev.name = device_name;
 	fifo->miscdev.parent = dev;
+	fifo->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+					    DRIVER_NAME, fifo->id);
+	if (!fifo->miscdev.name) {
+		ida_free(&axis_fifo_ida, fifo->id);
+		return -ENOMEM;
+	}
+
 	rc = misc_register(&fifo->miscdev);
 	if (rc < 0) {
 		ida_free(&axis_fifo_ida, fifo->id);
