@@ -90,3 +90,20 @@ __rust_helper s16 rust_helper_atomic_i16_xchg_relaxed(s16 *ptr, s16 new)
 {
 	return xchg_relaxed(ptr, new);
 }
+
+/*
+ * try_cmpxchg helpers depend on ARCH_SUPPORTS_ATOMIC_RMW and on the
+ * architecture provding try_cmpxchg() support for i8 and i16.
+ *
+ * The architectures that currently support Rust (x86_64, armv7,
+ * arm64, riscv, and loongarch) satisfy these requirements.
+ */
+__rust_helper bool rust_helper_atomic_i8_try_cmpxchg(s8 *ptr, s8 *old, s8 new)
+{
+	return try_cmpxchg(ptr, old, new);
+}
+
+__rust_helper bool rust_helper_atomic_i16_try_cmpxchg(s16 *ptr, s16 *old, s16 new)
+{
+	return try_cmpxchg(ptr, old, new);
+}
