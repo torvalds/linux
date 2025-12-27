@@ -421,17 +421,9 @@ static int axis_fifo_open(struct inode *inod, struct file *f)
 	return 0;
 }
 
-static int axis_fifo_close(struct inode *inod, struct file *f)
-{
-	f->private_data = NULL;
-
-	return 0;
-}
-
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.open = axis_fifo_open,
-	.release = axis_fifo_close,
 	.read = axis_fifo_read,
 	.write = axis_fifo_write,
 	.poll = axis_fifo_poll,
