@@ -193,11 +193,6 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 
 	bytes_available = ioread32(fifo->base_addr + XLLF_RLR_OFFSET);
 	words_available = bytes_available / sizeof(u32);
-	if (!bytes_available) {
-		dev_err(fifo->dt_device, "received a packet of length 0\n");
-		ret = -EIO;
-		goto end_unlock;
-	}
 
 	if (bytes_available > len) {
 		dev_err(fifo->dt_device, "user read buffer too small (available bytes=%zu user buffer bytes=%zu)\n",
