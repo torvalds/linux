@@ -11858,16 +11858,6 @@ F:	include/uapi/linux/hyperv.h
 F:	net/vmw_vsock/hyperv_transport.c
 F:	tools/hv/
 
-HYPER-V FRAMEBUFFER DRIVER
-M:	"K. Y. Srinivasan" <kys@microsoft.com>
-M:	Haiyang Zhang <haiyangz@microsoft.com>
-M:	Wei Liu <wei.liu@kernel.org>
-M:	Dexuan Cui <decui@microsoft.com>
-L:	linux-hyperv@vger.kernel.org
-S:	Obsolete
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hyperv/linux.git
-F:	drivers/video/fbdev/hyperv_fb.c
-
 HYPERBUS SUPPORT
 M:	Vignesh Raghavendra <vigneshr@ti.com>
 R:	Tudor Ambarus <tudor.ambarus@linaro.org>
