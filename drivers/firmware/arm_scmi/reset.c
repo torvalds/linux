@@ -65,7 +65,6 @@ struct reset_dom_info {
 };
 
 struct scmi_reset_info {
-	u32 version;
 	int num_domains;
 	bool notify_reset_cmd;
 	struct reset_dom_info *dom_info;
@@ -111,8 +110,7 @@ scmi_reset_domain_lookup(const struct scmi_protocol_handle *ph, u32 domain)
 
 static int
 scmi_reset_domain_attributes_get(const struct scmi_protocol_handle *ph,
-				 struct scmi_reset_info *pinfo,
-				 u32 domain, u32 version)
+				 struct scmi_reset_info *pinfo, u32 domain)
 {
 	int ret;
 	u32 attributes;
@@ -148,7 +146,7 @@ scmi_reset_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	 * If supported overwrite short name with the extended one;
 	 * on error just carry on and use already provided short name.
 	 */
-	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	if (!ret && PROTOCOL_REV_MAJOR(ph->version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(attributes))
 		ph->hops->extended_name_get(ph, RESET_DOMAIN_NAME_GET, domain,
 					    NULL, dom_info->name,
@@ -356,15 +354,10 @@ static const struct scmi_protocol_events reset_protocol_events = {
 static int scmi_reset_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int domain, ret;
-	u32 version;
 	struct scmi_reset_info *pinfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_dbg(ph->dev, "Reset Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
@@ -380,10 +373,9 @@ static int scmi_reset_protocol_init(const struct scmi_protocol_handle *ph)
 		return -ENOMEM;
 
 	for (domain = 0; domain < pinfo->num_domains; domain++)
-		scmi_reset_domain_attributes_get(ph, pinfo, domain, version);
+		scmi_reset_domain_attributes_get(ph, pinfo, domain);
 
-	pinfo->version = version;
-	return ph->set_priv(ph, pinfo, version);
+	return ph->set_priv(ph, pinfo);
 }
 
 static const struct scmi_protocol scmi_reset = {

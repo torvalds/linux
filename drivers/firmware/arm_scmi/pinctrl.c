@@ -117,7 +117,6 @@ struct scmi_pin_info {
 };
 
 struct scmi_pinctrl_info {
-	u32 version;
 	int nr_groups;
 	int nr_functions;
 	int nr_pins;
@@ -831,15 +830,10 @@ static const struct scmi_pinctrl_proto_ops pinctrl_proto_ops = {
 static int scmi_pinctrl_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	int ret;
-	u32 version;
 	struct scmi_pinctrl_info *pinfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_dbg(ph->dev, "Pinctrl Version %d.%d\n",
-		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	pinfo = devm_kzalloc(ph->dev, sizeof(*pinfo), GFP_KERNEL);
 	if (!pinfo)
@@ -864,9 +858,7 @@ static int scmi_pinctrl_protocol_init(const struct scmi_protocol_handle *ph)
 	if (!pinfo->functions)
 		return -ENOMEM;
 
-	pinfo->version = version;
-
-	return ph->set_priv(ph, pinfo, version);
+	return ph->set_priv(ph, pinfo);
 }
 
 static int scmi_pinctrl_protocol_deinit(const struct scmi_protocol_handle *ph)
