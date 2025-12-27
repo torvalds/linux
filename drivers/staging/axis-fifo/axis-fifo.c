@@ -32,6 +32,7 @@
 #include <linux/jiffies.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <linux/poll.h>
 
 /* ----------------------------
  *       driver parameters
@@ -345,6 +346,28 @@ end_unlock:
 	return ret;
 }
 
+static __poll_t axis_fifo_poll(struct file *f, poll_table *wait)
+{
+	struct axis_fifo *fifo = f->private_data;
+	__poll_t mask = 0;
+
+	if (fifo->has_rx_fifo) {
+		poll_wait(f, &fifo->read_queue, wait);
+
+		if (ioread32(fifo->base_addr + XLLF_RDFO_OFFSET))
+			mask |= EPOLLIN | EPOLLRDNORM;
+	}
+
+	if (fifo->has_tx_fifo) {
+		poll_wait(f, &fifo->write_queue, wait);
+
+		if (ioread32(fifo->base_addr + XLLF_TDFV_OFFSET))
+			mask |= EPOLLOUT | EPOLLWRNORM;
+	}
+
+	return mask;
+}
+
 static irqreturn_t axis_fifo_irq(int irq, void *dw)
 {
 	struct axis_fifo *fifo = dw;
@@ -410,7 +433,8 @@ static const struct file_operations fops = {
 	.open = axis_fifo_open,
 	.release = axis_fifo_close,
 	.read = axis_fifo_read,
-	.write = axis_fifo_write
+	.write = axis_fifo_write,
+	.poll = axis_fifo_poll,
 };
 
 static int axis_fifo_debugfs_regs_show(struct seq_file *m, void *p)
