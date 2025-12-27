@@ -25,9 +25,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/moduleparam.h>
 #include <linux/interrupt.h>
-#include <linux/param.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -91,24 +89,7 @@
 
 #define XLLF_INT_CLEAR_ALL	GENMASK(31, 0)
 
-/* ----------------------------
- *           globals
- * ----------------------------
- */
-static long read_timeout = 1000; /* ms to wait before read() times out */
-static long write_timeout = 1000; /* ms to wait before write() times out */
-
 static DEFINE_IDA(axis_fifo_ida);
-
-/* ----------------------------
- * module command-line arguments
- * ----------------------------
- */
-
-module_param(read_timeout, long, 0444);
-MODULE_PARM_DESC(read_timeout, "ms to wait before blocking read() timing out; set to -1 for no timeout");
-module_param(write_timeout, long, 0444);
-MODULE_PARM_DESC(write_timeout, "ms to wait before blocking write() timing out; set to -1 for no timeout");
 
 /* ----------------------------
  *            types
@@ -202,20 +183,11 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 		 * if nothing is currently available
 		 */
 		mutex_lock(&fifo->read_lock);
-		ret = wait_event_interruptible_timeout(fifo->read_queue,
-						       ioread32(fifo->base_addr + XLLF_RDFO_OFFSET),
-						       read_timeout);
 
-		if (ret <= 0) {
-			if (ret == 0) {
-				ret = -EAGAIN;
-			} else if (ret != -ERESTARTSYS) {
-				dev_err(fifo->dt_device, "wait_event_interruptible_timeout() error in read (ret=%i)\n",
-					ret);
-			}
-
+		ret = wait_event_interruptible(fifo->read_queue,
+				ioread32(fifo->base_addr + XLLF_RDFO_OFFSET));
+		if (ret)
 			goto end_unlock;
-		}
 	}
 
 	bytes_available = ioread32(fifo->base_addr + XLLF_RLR_OFFSET);
@@ -346,21 +318,11 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		 * currently enough room in the fifo
 		 */
 		mutex_lock(&fifo->write_lock);
-		ret = wait_event_interruptible_timeout(fifo->write_queue,
-						       ioread32(fifo->base_addr + XLLF_TDFV_OFFSET)
-								>= words_to_write,
-						       write_timeout);
 
-		if (ret <= 0) {
-			if (ret == 0) {
-				ret = -EAGAIN;
-			} else if (ret != -ERESTARTSYS) {
-				dev_err(fifo->dt_device, "wait_event_interruptible_timeout() error in write (ret=%i)\n",
-					ret);
-			}
-
+		ret = wait_event_interruptible(fifo->write_queue,
+			ioread32(fifo->base_addr + XLLF_TDFV_OFFSET) >= words_to_write);
+		if (ret)
 			goto end_unlock;
-		}
 	}
 
 	txbuf = vmemdup_user(buf, len);
@@ -673,18 +635,6 @@ static struct platform_driver axis_fifo_driver = {
 
 static int __init axis_fifo_init(void)
 {
-	if (read_timeout >= 0)
-		read_timeout = msecs_to_jiffies(read_timeout);
-	else
-		read_timeout = MAX_SCHEDULE_TIMEOUT;
-
-	if (write_timeout >= 0)
-		write_timeout = msecs_to_jiffies(write_timeout);
-	else
-		write_timeout = MAX_SCHEDULE_TIMEOUT;
-
-	pr_info("axis-fifo driver loaded with parameters read_timeout = %li, write_timeout = %li\n",
-		read_timeout, write_timeout);
 	return platform_driver_register(&axis_fifo_driver);
 }
 
