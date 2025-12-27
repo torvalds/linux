@@ -46,6 +46,7 @@ struct f_sourcesink {
 	unsigned isoc_mult;
 	unsigned isoc_maxburst;
 	unsigned buflen;
+	unsigned bulk_maxburst;
 	unsigned bulk_qlen;
 	unsigned iso_qlen;
 };
@@ -327,6 +328,12 @@ sourcesink_bind(struct usb_configuration *c, struct usb_function *f)
 		return id;
 	source_sink_intf_alt0.bInterfaceNumber = id;
 	source_sink_intf_alt1.bInterfaceNumber = id;
+
+	if (ss->bulk_maxburst > 15)
+		ss->bulk_maxburst = 15;
+
+	ss_source_comp_desc.bMaxBurst = ss->bulk_maxburst;
+	ss_sink_comp_desc.bMaxBurst = ss->bulk_maxburst;
 
 	/* allocate bulk endpoints */
 	ss->in_ep = usb_ep_autoconfig(cdev->gadget, &fs_source_desc);
@@ -853,6 +860,7 @@ static struct usb_function *source_sink_alloc_func(
 	ss->isoc_mult = ss_opts->isoc_mult;
 	ss->isoc_maxburst = ss_opts->isoc_maxburst;
 	ss->buflen = ss_opts->bulk_buflen;
+	ss->bulk_maxburst = ss_opts->bulk_maxburst;
 	ss->bulk_qlen = ss_opts->bulk_qlen;
 	ss->iso_qlen = ss_opts->iso_qlen;
 
@@ -1101,6 +1109,49 @@ end:
 
 CONFIGFS_ATTR(f_ss_opts_, isoc_maxburst);
 
+static ssize_t f_ss_opts_bulk_maxburst_show(struct config_item *item, char *page)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = sysfs_emit(page, "%u\n", opts->bulk_maxburst);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t f_ss_opts_bulk_maxburst_store(struct config_item *item,
+					     const char *page, size_t len)
+{
+	struct f_ss_opts *opts = to_f_ss_opts(item);
+	int ret;
+	u8 num;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	ret = kstrtou8(page, 0, &num);
+	if (ret)
+		goto end;
+
+	if (num > 15) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	opts->bulk_maxburst = num;
+	ret = len;
+end:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+CONFIGFS_ATTR(f_ss_opts_, bulk_maxburst);
+
 static ssize_t f_ss_opts_bulk_buflen_show(struct config_item *item, char *page)
 {
 	struct f_ss_opts *opts = to_f_ss_opts(item);
@@ -1222,6 +1273,7 @@ static struct configfs_attribute *ss_attrs[] = {
 	&f_ss_opts_attr_isoc_mult,
 	&f_ss_opts_attr_isoc_maxburst,
 	&f_ss_opts_attr_bulk_buflen,
+	&f_ss_opts_attr_bulk_maxburst,
 	&f_ss_opts_attr_bulk_qlen,
 	&f_ss_opts_attr_iso_qlen,
 	NULL,
