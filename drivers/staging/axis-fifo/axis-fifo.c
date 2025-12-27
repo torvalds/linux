@@ -9,11 +9,6 @@
  * See Xilinx PG080 document for IP details
  */
 
-/* ----------------------------
- *           includes
- * ----------------------------
- */
-
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -34,21 +29,11 @@
 #include <linux/debugfs.h>
 #include <linux/poll.h>
 
-/* ----------------------------
- *       driver parameters
- * ----------------------------
- */
-
 #define DRIVER_NAME "axis_fifo"
 
 #define READ_BUF_SIZE 128U /* read buffer length in words */
 
 #define AXIS_FIFO_DEBUG_REG_NAME_MAX_LEN	4
-
-/* ----------------------------
- *     IP register offsets
- * ----------------------------
- */
 
 #define XLLF_ISR_OFFSET  0x00000000  /* Interrupt Status */
 #define XLLF_IER_OFFSET  0x00000004  /* Interrupt Enable */
@@ -66,19 +51,9 @@
 #define XLLF_TDR_OFFSET  0x0000002C  /* Transmit Destination */
 #define XLLF_RDR_OFFSET  0x00000030  /* Receive Destination */
 
-/* ----------------------------
- *     reset register masks
- * ----------------------------
- */
-
 #define XLLF_RDFR_RESET_MASK        0x000000a5 /* receive reset value */
 #define XLLF_TDFR_RESET_MASK        0x000000a5 /* Transmit reset value */
 #define XLLF_SRR_RESET_MASK         0x000000a5 /* Local Link reset value */
-
-/* ----------------------------
- *       interrupt masks
- * ----------------------------
- */
 
 #define XLLF_INT_RPURE_MASK       0x80000000 /* Receive under-read */
 #define XLLF_INT_RPORE_MASK       0x40000000 /* Receive over-read */
@@ -92,26 +67,21 @@
 
 static DEFINE_IDA(axis_fifo_ida);
 
-/* ----------------------------
- *            types
- * ----------------------------
- */
-
 struct axis_fifo {
 	int id;
-	void __iomem *base_addr; /* kernel space memory */
+	void __iomem *base_addr;
 
-	unsigned int rx_fifo_depth; /* max words in the receive fifo */
-	unsigned int tx_fifo_depth; /* max words in the transmit fifo */
-	int has_rx_fifo; /* whether the IP has the rx fifo enabled */
-	int has_tx_fifo; /* whether the IP has the tx fifo enabled */
+	unsigned int rx_fifo_depth;
+	unsigned int tx_fifo_depth;
+	int has_rx_fifo;
+	int has_tx_fifo;
 
-	wait_queue_head_t read_queue; /* wait queue for asynchronos read */
+	wait_queue_head_t read_queue;
 	struct mutex read_lock; /* lock for reading */
-	wait_queue_head_t write_queue; /* wait queue for asynchronos write */
+	wait_queue_head_t write_queue;
 	struct mutex write_lock; /* lock for writing */
 
-	struct device *dt_device; /* device created from the device tree */
+	struct device *dt_device;
 	struct miscdevice miscdev;
 
 	struct dentry *debugfs_dir;
@@ -121,11 +91,6 @@ struct axis_fifo_debug_reg {
 	const char * const name;
 	unsigned int offset;
 };
-
-/* ----------------------------
- *        implementation
- * ----------------------------
- */
 
 static void reset_ip_core(struct axis_fifo *fifo)
 {
@@ -167,10 +132,6 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 	u32 tmp_buf[READ_BUF_SIZE];
 
 	if (f->f_flags & O_NONBLOCK) {
-		/*
-		 * Device opened in non-blocking mode. Try to lock it and then
-		 * check if any packet is available.
-		 */
 		if (!mutex_trylock(&fifo->read_lock))
 			return -EAGAIN;
 
@@ -179,10 +140,6 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 			goto end_unlock;
 		}
 	} else {
-		/* opened in blocking mode
-		 * wait for a packet available interrupt (or timeout)
-		 * if nothing is currently available
-		 */
 		mutex_lock(&fifo->read_lock);
 
 		ret = wait_event_interruptible(fifo->read_queue,
@@ -208,9 +165,6 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 		goto err_flush_rx;
 	}
 
-	/* read data into an intermediate buffer, copying the contents
-	 * to userspace when the buffer is full
-	 */
 	copied = 0;
 	while (words_available > 0) {
 		copy = min(words_available, READ_BUF_SIZE);
@@ -282,10 +236,6 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 
 	if (f->f_flags & O_NONBLOCK) {
-		/*
-		 * Device opened in non-blocking mode. Try to lock it and then
-		 * check if there is any room to write the given buffer.
-		 */
 		if (!mutex_trylock(&fifo->write_lock))
 			return -EAGAIN;
 
@@ -295,11 +245,6 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 			goto end_unlock;
 		}
 	} else {
-		/* opened in blocking mode */
-
-		/* wait for an interrupt (or timeout) if there isn't
-		 * currently enough room in the fifo
-		 */
 		mutex_lock(&fifo->write_lock);
 
 		ret = wait_event_interruptible(fifo->write_queue,
@@ -317,7 +262,6 @@ static ssize_t axis_fifo_write(struct file *f, const char __user *buf,
 	for (int i = 0; i < words_to_write; ++i)
 		iowrite32(txbuf[i], fifo->base_addr + XLLF_TDFD_OFFSET);
 
-	/* write packet size to fifo */
 	iowrite32(len, fifo->base_addr + XLLF_TLR_OFFSET);
 
 	ret = len;
@@ -508,18 +452,12 @@ end:
 
 static int axis_fifo_probe(struct platform_device *pdev)
 {
-	struct resource *r_mem; /* IO mem resources */
-	struct device *dev = &pdev->dev; /* OS device (from device tree) */
+	struct resource *r_mem;
+	struct device *dev = &pdev->dev;
 	struct axis_fifo *fifo = NULL;
 	int rc = 0; /* error return value */
 	int irq;
 
-	/* ----------------------------
-	 *     init wrapper device
-	 * ----------------------------
-	 */
-
-	/* allocate device wrapper memory */
 	fifo = devm_kzalloc(dev, sizeof(*fifo), GFP_KERNEL);
 	if (!fifo)
 		return -ENOMEM;
@@ -533,20 +471,9 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	mutex_init(&fifo->read_lock);
 	mutex_init(&fifo->write_lock);
 
-	/* ----------------------------
-	 *   init device memory space
-	 * ----------------------------
-	 */
-
-	/* get iospace for the device and request physical memory */
 	fifo->base_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &r_mem);
 	if (IS_ERR(fifo->base_addr))
 		return PTR_ERR(fifo->base_addr);
-
-	/* ----------------------------
-	 *          init IP
-	 * ----------------------------
-	 */
 
 	rc = axis_fifo_parse_dt(fifo);
 	if (rc)
@@ -554,17 +481,10 @@ static int axis_fifo_probe(struct platform_device *pdev)
 
 	reset_ip_core(fifo);
 
-	/* ----------------------------
-	 *    init device interrupts
-	 * ----------------------------
-	 */
-
-	/* get IRQ resource */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	/* request IRQ */
 	rc = devm_request_irq(fifo->dt_device, irq, &axis_fifo_irq, 0,
 			      DRIVER_NAME, fifo);
 	if (rc) {
@@ -573,15 +493,10 @@ static int axis_fifo_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	/* ----------------------------
-	 *      init char device
-	 * ----------------------------
-	 */
 	fifo->id = ida_alloc(&axis_fifo_ida, GFP_KERNEL);
 	if (fifo->id < 0)
 		return fifo->id;
 
-	/* create character device */
 	fifo->miscdev.fops = &fops;
 	fifo->miscdev.minor = MISC_DYNAMIC_MINOR;
 	fifo->miscdev.parent = dev;
