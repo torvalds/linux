@@ -156,12 +156,11 @@ static int determine_lmem_bar_size(struct xe_device *xe, struct xe_vram_region *
 static int get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size, u64 *poffset)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	unsigned int fw_ref;
 	u64 offset;
 	u32 reg;
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (!fw_ref)
+	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref.domains)
 		return -ETIMEDOUT;
 
 	if (GRAPHICS_VER(xe) >= 20) {
@@ -193,7 +192,6 @@ static int get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size, u64 *poffset)
 		offset = (u64)REG_FIELD_GET(XEHP_FLAT_CCS_PTR, reg) * SZ_64K;
 	}
 
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	*poffset = offset;
 
 	return 0;

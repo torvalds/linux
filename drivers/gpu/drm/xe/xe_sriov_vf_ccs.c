@@ -150,7 +150,8 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_sriov_vf_ccs_ctx *ctx)
 	xe_sriov_info(xe, "Allocating %s CCS BB pool size = %lldMB\n",
 		      ctx->ctx_id ? "Restore" : "Save", bb_pool_size / SZ_1M);
 
-	sa_manager = xe_sa_bo_manager_init(tile, bb_pool_size, SZ_16);
+	sa_manager = __xe_sa_bo_manager_init(tile, bb_pool_size, SZ_4K, SZ_16,
+					     XE_SA_BO_MANAGER_FLAG_SHADOW);
 
 	if (IS_ERR(sa_manager)) {
 		xe_sriov_err(xe, "Suballocator init failed with error: %pe\n",
@@ -162,9 +163,12 @@ static int alloc_bb_pool(struct xe_tile *tile, struct xe_sriov_vf_ccs_ctx *ctx)
 	offset = 0;
 	xe_map_memset(xe, &sa_manager->bo->vmap, offset, MI_NOOP,
 		      bb_pool_size);
+	xe_map_memset(xe, &sa_manager->shadow->vmap, offset, MI_NOOP,
+		      bb_pool_size);
 
 	offset = bb_pool_size - sizeof(u32);
 	xe_map_wr(xe, &sa_manager->bo->vmap, offset, u32, MI_BATCH_BUFFER_END);
+	xe_map_wr(xe, &sa_manager->shadow->vmap, offset, u32, MI_BATCH_BUFFER_END);
 
 	ctx->mem.ccs_bb_pool = sa_manager;
 
@@ -381,6 +385,18 @@ err_ret:
 	return err;
 }
 
+#define XE_SRIOV_VF_CCS_RW_BB_ADDR_OFFSET	(2 * sizeof(u32))
+void xe_sriov_vf_ccs_rw_update_bb_addr(struct xe_sriov_vf_ccs_ctx *ctx)
+{
+	u64 addr = xe_sa_manager_gpu_addr(ctx->mem.ccs_bb_pool);
+	struct xe_lrc *lrc = xe_exec_queue_lrc(ctx->mig_q);
+	struct xe_device *xe = gt_to_xe(ctx->mig_q->gt);
+
+	xe_device_wmb(xe);
+	xe_map_wr(xe, &lrc->bo->vmap, XE_SRIOV_VF_CCS_RW_BB_ADDR_OFFSET, u32, addr);
+	xe_device_wmb(xe);
+}
+
 /**
  * xe_sriov_vf_ccs_attach_bo - Insert CCS read write commands in the BO.
  * @bo: the &buffer object to which batch buffer commands will be added.
@@ -441,9 +457,7 @@ int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
 		if (!bb)
 			continue;
 
-		memset(bb->cs, MI_NOOP, bb->len * sizeof(u32));
-		xe_bb_free(bb, NULL);
-		bo->bb_ccs[ctx_id] = NULL;
+		xe_migrate_ccs_rw_copy_clear(bo, ctx_id);
 	}
 	return 0;
 }
@@ -463,8 +477,7 @@ void xe_sriov_vf_ccs_print(struct xe_device *xe, struct drm_printer *p)
 	if (!IS_VF_CCS_READY(xe))
 		return;
 
-	xe_pm_runtime_get(xe);
-
+	guard(xe_pm_runtime)(xe);
 	for_each_ccs_rw_ctx(ctx_id) {
 		bb_pool = xe->sriov.vf.ccs.contexts[ctx_id].mem.ccs_bb_pool;
 		if (!bb_pool)
@@ -475,6 +488,4 @@ void xe_sriov_vf_ccs_print(struct xe_device *xe, struct drm_printer *p)
 		drm_suballoc_dump_debug_info(&bb_pool->base, p, xe_sa_manager_gpu_addr(bb_pool));
 		drm_puts(p, "\n");
 	}
-
-	xe_pm_runtime_put(xe);
 }

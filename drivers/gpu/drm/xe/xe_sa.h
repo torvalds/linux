@@ -14,12 +14,14 @@
 struct dma_fence;
 struct xe_tile;
 
-struct xe_sa_manager *__xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 guard, u32 align);
+#define XE_SA_BO_MANAGER_FLAG_SHADOW	BIT(0)
+struct xe_sa_manager *__xe_sa_bo_manager_init(struct xe_tile *tile, u32 size,
+					      u32 guard, u32 align, u32 flags);
 struct drm_suballoc *__xe_sa_bo_new(struct xe_sa_manager *sa_manager, u32 size, gfp_t gfp);
 
 static inline struct xe_sa_manager *xe_sa_bo_manager_init(struct xe_tile *tile, u32 size, u32 align)
 {
-	return __xe_sa_bo_manager_init(tile, size, SZ_4K, align);
+	return __xe_sa_bo_manager_init(tile, size, SZ_4K, align, 0);
 }
 
 /**
@@ -67,6 +69,20 @@ static inline void *xe_sa_bo_cpu_addr(struct drm_suballoc *sa)
 {
 	return to_xe_sa_manager(sa->manager)->cpu_ptr +
 		drm_suballoc_soffset(sa);
+}
+
+void xe_sa_bo_swap_shadow(struct xe_sa_manager *sa_manager);
+void xe_sa_bo_sync_shadow(struct drm_suballoc *sa_bo);
+
+/**
+ * xe_sa_bo_swap_guard() - Retrieve the SA BO swap guard within sub-allocator.
+ * @sa_manager: the &xe_sa_manager
+ *
+ * Return: Sub alloctor swap guard mutex.
+ */
+static inline struct mutex *xe_sa_bo_swap_guard(struct xe_sa_manager *sa_manager)
+{
+	return &sa_manager->swap_guard;
 }
 
 #endif

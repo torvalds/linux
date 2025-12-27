@@ -23,7 +23,7 @@ int xe_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval);
 void xe_tlb_inval_vm(struct xe_tlb_inval *tlb_inval, struct xe_vm *vm);
 int xe_tlb_inval_range(struct xe_tlb_inval *tlb_inval,
 		       struct xe_tlb_inval_fence *fence,
-		       u64 start, u64 end, u32 asid);
+		       u64 start, u64 end, u32 asid, struct drm_suballoc *prl_sa);
 
 void xe_tlb_inval_fence_init(struct xe_tlb_inval *tlb_inval,
 			     struct xe_tlb_inval_fence *fence,

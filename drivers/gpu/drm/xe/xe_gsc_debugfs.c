@@ -37,9 +37,8 @@ static int gsc_info(struct seq_file *m, void *data)
 	struct xe_device *xe = gsc_to_xe(gsc);
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	xe_gsc_print_info(gsc, &p);
-	xe_pm_runtime_put(xe);
 
 	return 0;
 }

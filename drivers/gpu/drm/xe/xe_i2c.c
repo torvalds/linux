@@ -319,7 +319,7 @@ int xe_i2c_probe(struct xe_device *xe)
 	struct xe_i2c *i2c;
 	int ret;
 
-	if (xe->info.platform != XE_BATTLEMAGE)
+	if (!xe->info.has_i2c)
 		return 0;
 
 	if (IS_SRIOV_VF(xe))

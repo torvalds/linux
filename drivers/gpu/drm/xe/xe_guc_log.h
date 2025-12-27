@@ -13,14 +13,26 @@ struct drm_printer;
 struct xe_device;
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
-#define CRASH_BUFFER_SIZE       SZ_1M
-#define DEBUG_BUFFER_SIZE       SZ_8M
-#define CAPTURE_BUFFER_SIZE     SZ_2M
+#define XE_GUC_LOG_EVENT_DATA_BUFFER_SIZE	SZ_8M
+#define XE_GUC_LOG_CRASH_DUMP_BUFFER_SIZE	SZ_1M
+#define XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE	SZ_2M
 #else
-#define CRASH_BUFFER_SIZE	SZ_16K
-#define DEBUG_BUFFER_SIZE	SZ_64K
-#define CAPTURE_BUFFER_SIZE	SZ_1M
+#define XE_GUC_LOG_EVENT_DATA_BUFFER_SIZE	SZ_64K
+#define XE_GUC_LOG_CRASH_DUMP_BUFFER_SIZE	SZ_16K
+#define XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE	SZ_1M
 #endif
+
+#define GUC_LOG_SIZE (SZ_4K + \
+		      XE_GUC_LOG_EVENT_DATA_BUFFER_SIZE + \
+		      XE_GUC_LOG_CRASH_DUMP_BUFFER_SIZE + \
+		      XE_GUC_LOG_STATE_CAPTURE_BUFFER_SIZE)
+
+#define XE_GUC_LOG_EVENT_DATA_OFFSET	SZ_4K
+#define XE_GUC_LOG_CRASH_DUMP_OFFSET	(XE_GUC_LOG_EVENT_DATA_OFFSET + \
+					 XE_GUC_LOG_EVENT_DATA_BUFFER_SIZE)
+#define XE_GUC_LOG_STATE_CAPTURE_OFFSET	(XE_GUC_LOG_CRASH_DUMP_OFFSET + \
+					 XE_GUC_LOG_CRASH_DUMP_BUFFER_SIZE)
+
 /*
  * While we're using plain log level in i915, GuC controls are much more...
  * "elaborate"? We have a couple of bits for verbosity, separate bit for actual
@@ -40,6 +52,7 @@ struct xe_device;
 
 int xe_guc_log_init(struct xe_guc_log *log);
 void xe_guc_log_print(struct xe_guc_log *log, struct drm_printer *p);
+void xe_guc_log_print_lfd(struct xe_guc_log *log, struct drm_printer *p);
 void xe_guc_log_print_dmesg(struct xe_guc_log *log);
 struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, bool atomic);
 void xe_guc_log_snapshot_print(struct xe_guc_log_snapshot *snapshot, struct drm_printer *p);
@@ -51,11 +64,8 @@ xe_guc_log_get_level(struct xe_guc_log *log)
 	return log->level;
 }
 
-u32 xe_guc_log_section_size_capture(struct xe_guc_log *log);
-u32 xe_guc_get_log_buffer_size(struct xe_guc_log *log, enum guc_log_buffer_type type);
-u32 xe_guc_get_log_buffer_offset(struct xe_guc_log *log, enum guc_log_buffer_type type);
 bool xe_guc_check_log_buf_overflow(struct xe_guc_log *log,
-				   enum guc_log_buffer_type type,
+				   enum guc_log_type type,
 				   unsigned int full_cnt);
 
 #endif

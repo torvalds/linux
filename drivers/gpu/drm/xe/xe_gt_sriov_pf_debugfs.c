@@ -21,6 +21,7 @@
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_gt_sriov_pf_policy.h"
 #include "xe_gt_sriov_pf_service.h"
+#include "xe_guc.h"
 #include "xe_pm.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_provision.h"
@@ -123,11 +124,10 @@ static int POLICY##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_gt_sriov_pf_policy_set_##POLICY(gt, val);			\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -189,12 +189,11 @@ static int CONFIG##_set(void *data, u64 val)					\
 	if (val > (TYPE)~0ull)							\
 		return -EOVERFLOW;						\
 										\
-	xe_pm_runtime_get(xe);							\
+	guard(xe_pm_runtime)(xe);							\
 	err = xe_sriov_pf_wait_ready(xe) ?:					\
 	      xe_gt_sriov_pf_config_set_##CONFIG(gt, vfid, val);		\
 	if (!err)								\
 		xe_sriov_pf_provision_set_custom_mode(xe);			\
-	xe_pm_runtime_put(xe);							\
 										\
 	return err;								\
 }										\
@@ -249,11 +248,10 @@ static int set_threshold(void *data, u64 val, enum xe_guc_klv_threshold_index in
 	if (val > (u32)~0ull)
 		return -EOVERFLOW;
 
-	xe_pm_runtime_get(xe);
+	guard(xe_pm_runtime)(xe);
 	err = xe_gt_sriov_pf_config_set_threshold(gt, vfid, index, val);
 	if (!err)
 		xe_sriov_pf_provision_set_custom_mode(xe);
-	xe_pm_runtime_put(xe);
 
 	return err;
 }
@@ -304,9 +302,11 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 				   &sched_priority_fops);
 
 	/* register all threshold attributes */
-#define register_threshold_attribute(TAG, NAME, ...) \
-	debugfs_create_file_unsafe("threshold_" #NAME, 0644, parent, parent, \
-				   &NAME##_fops);
+#define register_threshold_attribute(TAG, NAME, VER...) ({				\
+	if (IF_ARGS(GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, VER), true, VER))		\
+		debugfs_create_file_unsafe("threshold_" #NAME, 0644, parent, parent,	\
+					   &NAME##_fops);				\
+});
 	MAKE_XE_GUC_KLV_THRESHOLDS_SET(register_threshold_attribute)
 #undef register_threshold_attribute
 }
@@ -358,9 +358,8 @@ static ssize_t control_write(struct file *file, const char __user *buf, size_t c
 		xe_gt_assert(gt, sizeof(cmd) > strlen(control_cmds[n].cmd));
 
 		if (sysfs_streq(cmd, control_cmds[n].cmd)) {
-			xe_pm_runtime_get(xe);
+			guard(xe_pm_runtime)(xe);
 			ret = control_cmds[n].fn ? (*control_cmds[n].fn)(gt, vfid) : 0;
-			xe_pm_runtime_put(xe);
 			break;
 		}
 	}

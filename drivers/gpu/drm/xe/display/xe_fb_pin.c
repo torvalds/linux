@@ -210,10 +210,11 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 	/* TODO: Consider sharing framebuffer mapping?
 	 * embed i915_vma inside intel_framebuffer
 	 */
-	xe_pm_runtime_get_noresume(xe);
-	ret = mutex_lock_interruptible(&ggtt->lock);
+	guard(xe_pm_runtime_noresume)(xe);
+	ACQUIRE(mutex_intr, lock)(&ggtt->lock);
+	ret = ACQUIRE_ERR(mutex_intr, &lock);
 	if (ret)
-		goto out;
+		return ret;
 
 	align = XE_PAGE_SIZE;
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
@@ -223,15 +224,13 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 		vma->node = bo->ggtt_node[tile0->id];
 	} else if (view->type == I915_GTT_VIEW_NORMAL) {
 		vma->node = xe_ggtt_node_init(ggtt);
-		if (IS_ERR(vma->node)) {
-			ret = PTR_ERR(vma->node);
-			goto out_unlock;
-		}
+		if (IS_ERR(vma->node))
+			return PTR_ERR(vma->node);
 
 		ret = xe_ggtt_node_insert_locked(vma->node, xe_bo_size(bo), align, 0);
 		if (ret) {
 			xe_ggtt_node_fini(vma->node);
-			goto out_unlock;
+			return ret;
 		}
 
 		xe_ggtt_map_bo(ggtt, vma->node, bo, xe->pat.idx[XE_CACHE_NONE]);
@@ -245,13 +244,13 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 		vma->node = xe_ggtt_node_init(ggtt);
 		if (IS_ERR(vma->node)) {
 			ret = PTR_ERR(vma->node);
-			goto out_unlock;
+			return ret;
 		}
 
 		ret = xe_ggtt_node_insert_locked(vma->node, size, align, 0);
 		if (ret) {
 			xe_ggtt_node_fini(vma->node);
-			goto out_unlock;
+			return ret;
 		}
 
 		ggtt_ofs = vma->node->base.start;
@@ -265,10 +264,6 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 					   rot_info->plane[i].dst_stride);
 	}
 
-out_unlock:
-	mutex_unlock(&ggtt->lock);
-out:
-	xe_pm_runtime_put(xe);
 	return ret;
 }
 

@@ -176,22 +176,11 @@ xe_svm_range_notifier_event_end(struct xe_vm *vm, struct drm_gpusvm_range *r,
 						   mmu_range);
 }
 
-static s64 xe_svm_stats_ktime_us_delta(ktime_t start)
-{
-	return IS_ENABLED(CONFIG_DEBUG_FS) ?
-		ktime_us_delta(ktime_get(), start) : 0;
-}
-
 static void xe_svm_tlb_inval_us_stats_incr(struct xe_gt *gt, ktime_t start)
 {
-	s64 us_delta = xe_svm_stats_ktime_us_delta(start);
+	s64 us_delta = xe_gt_stats_ktime_us_delta(start);
 
 	xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_TLB_INVAL_US, us_delta);
-}
-
-static ktime_t xe_svm_stats_ktime_get(void)
-{
-	return IS_ENABLED(CONFIG_DEBUG_FS) ? ktime_get() : 0;
 }
 
 static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
@@ -202,7 +191,7 @@ static void xe_svm_invalidate(struct drm_gpusvm *gpusvm,
 	struct xe_device *xe = vm->xe;
 	struct drm_gpusvm_range *r, *first;
 	struct xe_tile *tile;
-	ktime_t start = xe_svm_stats_ktime_get();
+	ktime_t start = xe_gt_stats_ktime_get();
 	u64 adj_start = mmu_range->start, adj_end = mmu_range->end;
 	u8 tile_mask = 0, id;
 	long err;
@@ -285,19 +274,21 @@ static int __xe_svm_garbage_collector(struct xe_vm *vm,
 	return 0;
 }
 
-static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 range_start, u64 range_end)
+static void xe_vma_set_default_attributes(struct xe_vma *vma)
+{
+	vma->attr.preferred_loc.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE;
+	vma->attr.preferred_loc.migration_policy = DRM_XE_MIGRATE_ALL_PAGES;
+	vma->attr.pat_index = vma->attr.default_pat_index;
+	vma->attr.atomic_access = DRM_XE_ATOMIC_UNDEFINED;
+}
+
+static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 start, u64 end)
 {
 	struct xe_vma *vma;
-	struct xe_vma_mem_attr default_attr = {
-		.preferred_loc = {
-			.devmem_fd = DRM_XE_PREFERRED_LOC_DEFAULT_DEVICE,
-			.migration_policy = DRM_XE_MIGRATE_ALL_PAGES,
-		},
-		.atomic_access = DRM_XE_ATOMIC_UNDEFINED,
-	};
-	int err = 0;
+	bool has_default_attr;
+	int err;
 
-	vma = xe_vm_find_vma_by_addr(vm, range_start);
+	vma = xe_vm_find_vma_by_addr(vm, start);
 	if (!vma)
 		return -EINVAL;
 
@@ -306,25 +297,30 @@ static int xe_svm_range_set_default_attr(struct xe_vm *vm, u64 range_start, u64 
 		return 0;
 	}
 
-	if (xe_vma_has_default_mem_attrs(vma))
-		return 0;
-
 	vm_dbg(&vm->xe->drm, "Existing VMA start=0x%016llx, vma_end=0x%016llx",
 	       xe_vma_start(vma), xe_vma_end(vma));
 
-	if (xe_vma_start(vma) == range_start && xe_vma_end(vma) == range_end) {
-		default_attr.pat_index = vma->attr.default_pat_index;
-		default_attr.default_pat_index  = vma->attr.default_pat_index;
-		vma->attr = default_attr;
-	} else {
-		vm_dbg(&vm->xe->drm, "Split VMA start=0x%016llx, vma_end=0x%016llx",
-		       range_start, range_end);
-		err = xe_vm_alloc_cpu_addr_mirror_vma(vm, range_start, range_end - range_start);
-		if (err) {
-			drm_warn(&vm->xe->drm, "VMA SPLIT failed: %pe\n", ERR_PTR(err));
-			xe_vm_kill(vm, true);
-			return err;
-		}
+	has_default_attr = xe_vma_has_default_mem_attrs(vma);
+
+	if (has_default_attr) {
+		start = xe_vma_start(vma);
+		end = xe_vma_end(vma);
+	} else if (xe_vma_start(vma) == start && xe_vma_end(vma) == end) {
+		xe_vma_set_default_attributes(vma);
+	}
+
+	xe_vm_find_cpu_addr_mirror_vma_range(vm, &start, &end);
+
+	if (xe_vma_start(vma) == start && xe_vma_end(vma) == end && has_default_attr)
+		return 0;
+
+	vm_dbg(&vm->xe->drm, "New VMA start=0x%016llx, vma_end=0x%016llx",  start, end);
+
+	err = xe_vm_alloc_cpu_addr_mirror_vma(vm, start, end - start);
+	if (err) {
+		drm_warn(&vm->xe->drm, "New VMA MAP failed: %pe\n", ERR_PTR(err));
+		xe_vm_kill(vm, true);
+		return err;
 	}
 
 	/*
@@ -435,7 +431,7 @@ static void xe_svm_copy_us_stats_incr(struct xe_gt *gt,
 				      unsigned long npages,
 				      ktime_t start)
 {
-	s64 us_delta = xe_svm_stats_ktime_us_delta(start);
+	s64 us_delta = xe_gt_stats_ktime_us_delta(start);
 
 	if (dir == XE_SVM_COPY_TO_VRAM) {
 		switch (npages) {
@@ -487,7 +483,7 @@ static int xe_svm_copy(struct page **pages,
 	u64 vram_addr = XE_VRAM_ADDR_INVALID;
 	int err = 0, pos = 0;
 	bool sram = dir == XE_SVM_COPY_TO_SRAM;
-	ktime_t start = xe_svm_stats_ktime_get();
+	ktime_t start = xe_gt_stats_ktime_get();
 
 	/*
 	 * This flow is complex: it locates physically contiguous device pages,
@@ -979,7 +975,7 @@ static void xe_svm_range_##elem##_us_stats_incr(struct xe_gt *gt, \
 						struct xe_svm_range *range, \
 						ktime_t start) \
 { \
-	s64 us_delta = xe_svm_stats_ktime_us_delta(start); \
+	s64 us_delta = xe_gt_stats_ktime_us_delta(start); \
 \
 	switch (xe_svm_range_size(range)) { \
 	case SZ_4K: \
@@ -1024,7 +1020,7 @@ static int __xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 	struct drm_pagemap *dpagemap;
 	struct xe_tile *tile = gt_to_tile(gt);
 	int migrate_try_count = ctx.devmem_only ? 3 : 1;
-	ktime_t start = xe_svm_stats_ktime_get(), bind_start, get_pages_start;
+	ktime_t start = xe_gt_stats_ktime_get(), bind_start, get_pages_start;
 	int err;
 
 	lockdep_assert_held_write(&vm->lock);
@@ -1063,7 +1059,7 @@ retry:
 
 	if (--migrate_try_count >= 0 &&
 	    xe_svm_range_needs_migrate_to_vram(range, vma, !!dpagemap || ctx.devmem_only)) {
-		ktime_t migrate_start = xe_svm_stats_ktime_get();
+		ktime_t migrate_start = xe_gt_stats_ktime_get();
 
 		/* TODO : For multi-device dpagemap will be used to find the
 		 * remote tile and remote device. Will need to modify
@@ -1100,7 +1096,7 @@ retry:
 	}
 
 get_pages:
-	get_pages_start = xe_svm_stats_ktime_get();
+	get_pages_start = xe_gt_stats_ktime_get();
 
 	range_debug(range, "GET PAGES");
 	err = xe_svm_range_get_pages(vm, range, &ctx);
@@ -1127,7 +1123,7 @@ get_pages:
 	xe_svm_range_get_pages_us_stats_incr(gt, range, get_pages_start);
 	range_debug(range, "PAGE FAULT - BIND");
 
-	bind_start = xe_svm_stats_ktime_get();
+	bind_start = xe_gt_stats_ktime_get();
 	xe_validation_guard(&vctx, &vm->xe->val, &exec, (struct xe_val_flags) {}, err) {
 		err = xe_vm_drm_exec_lock(vm, &exec);
 		drm_exec_retry_on_contention(&exec);

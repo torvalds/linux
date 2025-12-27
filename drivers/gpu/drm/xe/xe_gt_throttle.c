@@ -85,7 +85,7 @@ u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg reg;
-	u32 val, mask;
+	u32 mask;
 
 	if (xe_gt_is_media_type(gt))
 		reg = MTL_MEDIA_PERF_LIMIT_REASONS;
@@ -97,11 +97,8 @@ u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 	else
 		mask = GT0_PERF_LIMIT_REASONS_MASK;
 
-	xe_pm_runtime_get(xe);
-	val = xe_mmio_read32(&gt->mmio, reg) & mask;
-	xe_pm_runtime_put(xe);
-
-	return val;
+	guard(xe_pm_runtime)(xe);
+	return xe_mmio_read32(&gt->mmio, reg) & mask;
 }
 
 static bool is_throttled_by(struct xe_gt *gt, u32 mask)

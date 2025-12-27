@@ -425,7 +425,7 @@ static ssize_t event_attr_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr =
 		container_of(attr, struct perf_pmu_events_attr, attr);
 
-	return sprintf(buf, "event=%#04llx\n", pmu_attr->id);
+	return sysfs_emit(buf, "event=%#04llx\n", pmu_attr->id);
 }
 
 #define XE_EVENT_ATTR(name_, v_, id_)					\

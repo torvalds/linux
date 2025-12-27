@@ -227,6 +227,9 @@
 
 #define MIRROR_FUSE1				XE_REG(0x911c)
 
+#define FUSE2					XE_REG(0x9120)
+#define   PRODUCTION_HW				REG_BIT(2)
+
 #define MIRROR_L3BANK_ENABLE			XE_REG(0x9130)
 #define   XE3_L3BANK_ENABLE			REG_GENMASK(31, 0)
 

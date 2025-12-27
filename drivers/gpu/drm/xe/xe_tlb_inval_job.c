@@ -7,7 +7,9 @@
 #include "xe_dep_job_types.h"
 #include "xe_dep_scheduler.h"
 #include "xe_exec_queue.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_types.h"
+#include "xe_page_reclaim.h"
 #include "xe_tlb_inval.h"
 #include "xe_tlb_inval_job.h"
 #include "xe_migrate.h"
@@ -24,6 +26,8 @@ struct xe_tlb_inval_job {
 	struct xe_exec_queue *q;
 	/** @vm: VM which TLB invalidation is being issued for */
 	struct xe_vm *vm;
+	/** @prl: Embedded copy of page reclaim list */
+	struct xe_page_reclaim_list prl;
 	/** @refcount: ref count of this job */
 	struct kref refcount;
 	/**
@@ -47,9 +51,16 @@ static struct dma_fence *xe_tlb_inval_job_run(struct xe_dep_job *dep_job)
 		container_of(dep_job, typeof(*job), dep);
 	struct xe_tlb_inval_fence *ifence =
 		container_of(job->fence, typeof(*ifence), base);
+	struct drm_suballoc *prl_sa = NULL;
+
+	if (xe_page_reclaim_list_valid(&job->prl)) {
+		prl_sa = xe_page_reclaim_create_prl_bo(job->tlb_inval, &job->prl, ifence);
+		if (IS_ERR(prl_sa))
+			prl_sa = NULL; /* Indicate fall back PPC flush with NULL */
+	}
 
 	xe_tlb_inval_range(job->tlb_inval, ifence, job->start,
-			   job->end, job->vm->usm.asid);
+			   job->end, job->vm->usm.asid, prl_sa);
 
 	return job->fence;
 }
@@ -107,6 +118,7 @@ xe_tlb_inval_job_create(struct xe_exec_queue *q, struct xe_tlb_inval *tlb_inval,
 	job->start = start;
 	job->end = end;
 	job->fence_armed = false;
+	xe_page_reclaim_list_init(&job->prl);
 	job->dep.ops = &dep_job_ops;
 	job->type = type;
 	kref_init(&job->refcount);
@@ -140,6 +152,25 @@ err_job:
 	return ERR_PTR(err);
 }
 
+/**
+ * xe_tlb_inval_job_add_page_reclaim() - Embed PRL into a TLB job
+ * @job: TLB invalidation job that may trigger reclamation
+ * @prl: Page reclaim list populated during unbind
+ *
+ * Copies @prl into the job and takes an extra reference to the entry page so
+ * ownership can transfer to the TLB fence when the job is pushed.
+ */
+void xe_tlb_inval_job_add_page_reclaim(struct xe_tlb_inval_job *job,
+				       struct xe_page_reclaim_list *prl)
+{
+	struct xe_device *xe = gt_to_xe(job->q->gt);
+
+	xe_gt_WARN_ON(job->q->gt, !xe->info.has_page_reclaim_hw_assist);
+	job->prl = *prl;
+	/* Pair with put in job_destroy */
+	xe_page_reclaim_entries_get(job->prl.entries);
+}
+
 static void xe_tlb_inval_job_destroy(struct kref *ref)
 {
 	struct xe_tlb_inval_job *job = container_of(ref, typeof(*job),
@@ -149,6 +180,9 @@ static void xe_tlb_inval_job_destroy(struct kref *ref)
 	struct xe_exec_queue *q = job->q;
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_vm *vm = job->vm;
+
+	/* BO creation retains a copy (if used), so no longer needed */
+	xe_page_reclaim_entries_put(job->prl.entries);
 
 	if (!job->fence_armed)
 		kfree(ifence);

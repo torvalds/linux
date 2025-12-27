@@ -34,6 +34,7 @@
 #include "xe_res_cursor.h"
 #include "xe_sa.h"
 #include "xe_sched_job.h"
+#include "xe_sriov_vf_ccs.h"
 #include "xe_sync.h"
 #include "xe_trace_bo.h"
 #include "xe_validation.h"
@@ -1103,11 +1104,15 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
 	u32 batch_size, batch_size_allocated;
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_res_cursor src_it, ccs_it;
+	struct xe_sriov_vf_ccs_ctx *ctx;
+	struct xe_sa_manager *bb_pool;
 	u64 size = xe_bo_size(src_bo);
 	struct xe_bb *bb = NULL;
 	u64 src_L0, src_L0_ofs;
 	u32 src_L0_pt;
 	int err;
+
+	ctx = &xe->sriov.vf.ccs.contexts[read_write];
 
 	xe_res_first_sg(xe_bo_sg(src_bo), 0, size, &src_it);
 
@@ -1141,11 +1146,15 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
 		size -= src_L0;
 	}
 
+	bb_pool = ctx->mem.ccs_bb_pool;
+	guard(mutex) (xe_sa_bo_swap_guard(bb_pool));
+	xe_sa_bo_swap_shadow(bb_pool);
+
 	bb = xe_bb_ccs_new(gt, batch_size, read_write);
 	if (IS_ERR(bb)) {
 		drm_err(&xe->drm, "BB allocation failed.\n");
 		err = PTR_ERR(bb);
-		goto err_ret;
+		return err;
 	}
 
 	batch_size_allocated = batch_size;
@@ -1194,10 +1203,52 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
 	xe_assert(xe, (batch_size_allocated == bb->len));
 	src_bo->bb_ccs[read_write] = bb;
 
+	xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
+	xe_sa_bo_sync_shadow(bb->bo);
 	return 0;
+}
 
-err_ret:
-	return err;
+/**
+ * xe_migrate_ccs_rw_copy_clear() - Clear the CCS read/write batch buffer
+ * content.
+ * @src_bo: The buffer object @src is currently bound to.
+ * @read_write : Creates BB commands for CCS read/write.
+ *
+ * Directly clearing the BB lacks atomicity and can lead to undefined
+ * behavior if the vCPU is halted mid-operation during the clearing
+ * process. To avoid this issue, we use a shadow buffer object approach.
+ *
+ * First swap the SA BO address with the shadow BO, perform the clearing
+ * operation on the BB, update the shadow BO in the ring buffer, then
+ * sync the shadow and the actual buffer to maintain consistency.
+ *
+ * Returns: None.
+ */
+void xe_migrate_ccs_rw_copy_clear(struct xe_bo *src_bo,
+				  enum xe_sriov_vf_ccs_rw_ctxs read_write)
+{
+	struct xe_bb *bb = src_bo->bb_ccs[read_write];
+	struct xe_device *xe = xe_bo_device(src_bo);
+	struct xe_sriov_vf_ccs_ctx *ctx;
+	struct xe_sa_manager *bb_pool;
+	u32 *cs;
+
+	xe_assert(xe, IS_SRIOV_VF(xe));
+
+	ctx = &xe->sriov.vf.ccs.contexts[read_write];
+	bb_pool = ctx->mem.ccs_bb_pool;
+
+	guard(mutex) (xe_sa_bo_swap_guard(bb_pool));
+	xe_sa_bo_swap_shadow(bb_pool);
+
+	cs = xe_sa_bo_cpu_addr(bb->bo);
+	memset(cs, MI_NOOP, bb->len * sizeof(u32));
+	xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
+
+	xe_sa_bo_sync_shadow(bb->bo);
+
+	xe_bb_free(bb, NULL);
+	src_bo->bb_ccs[read_write] = NULL;
 }
 
 /**

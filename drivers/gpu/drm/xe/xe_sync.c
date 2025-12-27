@@ -228,6 +228,32 @@ int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 	return 0;
 }
 
+/**
+ * xe_sync_entry_wait() - Wait on in-sync
+ * @sync: Sync object
+ *
+ * If the sync is in an in-sync, wait on the sync to signal.
+ *
+ * Return: 0 on success, -ERESTARTSYS on failure (interruption)
+ */
+int xe_sync_entry_wait(struct xe_sync_entry *sync)
+{
+	return xe_sync_needs_wait(sync) ?
+		dma_fence_wait(sync->fence, true) : 0;
+}
+
+/**
+ * xe_sync_needs_wait() - Sync needs a wait (input dma-fence not signaled)
+ * @sync: Sync object
+ *
+ * Return: True if sync needs a wait, False otherwise
+ */
+bool xe_sync_needs_wait(struct xe_sync_entry *sync)
+{
+	return sync->fence &&
+	       !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &sync->fence->flags);
+}
+
 void xe_sync_entry_signal(struct xe_sync_entry *sync, struct dma_fence *fence)
 {
 	if (!(sync->flags & DRM_XE_SYNC_FLAG_SIGNAL))
@@ -311,8 +337,11 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 		struct xe_tile *tile;
 		u8 id;
 
-		for_each_tile(tile, vm->xe, id)
-			num_fence += (1 + XE_MAX_GT_PER_TILE);
+		for_each_tile(tile, vm->xe, id) {
+			num_fence++;
+			for_each_tlb_inval(i)
+				num_fence++;
+		}
 
 		fences = kmalloc_array(num_fence, sizeof(*fences),
 				       GFP_KERNEL);
