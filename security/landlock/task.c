@@ -166,15 +166,15 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 }
 
 /**
- * domain_is_scoped - Checks if the client domain is scoped in the same
- *		      domain as the server.
+ * domain_is_scoped - Check if an interaction from a client/sender to a
+ *		      server/receiver should be restricted based on scope controls.
  *
  * @client: IPC sender domain.
  * @server: IPC receiver domain.
  * @scope: The scope restriction criteria.
  *
- * Returns: True if the @client domain is scoped to access the @server,
- * unless the @server is also scoped in the same domain as @client.
+ * Returns: True if @server is in a different domain from @client, and @client
+ * is scoped to access @server (i.e. access should be denied).
  */
 static bool domain_is_scoped(const struct landlock_ruleset *const client,
 			     const struct landlock_ruleset *const server,
