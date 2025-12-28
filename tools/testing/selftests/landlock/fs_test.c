@@ -7069,8 +7069,8 @@ static int matches_log_fs_extra(struct __test_metadata *const _metadata,
 		return -E2BIG;
 
 	/*
-	 * It is assume that absolute_path does not contain control characters nor
-	 * spaces, see audit_string_contains_control().
+	 * It is assumed that absolute_path does not contain control
+	 * characters nor spaces, see audit_string_contains_control().
 	 */
 	absolute_path = realpath(path, NULL);
 	if (!absolute_path)
