@@ -4,6 +4,7 @@
 
 #include <linux/align.h>
 #include <linux/mmzone.h>
+#include <linux/sizes.h>
 
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(_AC(1, UL) << PAGE_SHIFT)
