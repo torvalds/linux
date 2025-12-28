@@ -156,16 +156,17 @@ macro_rules! impl_atomic_method {
     }
 }
 
-// Delcares $ops trait with methods and implements the trait for `i32` and `i64`.
-macro_rules! declare_and_impl_atomic_methods {
-    ($(#[$attr:meta])* $pub:vis trait $ops:ident {
-        $(
-            $(#[doc=$doc:expr])*
-            fn $func:ident [$($variant:ident),*]($($arg_sig:tt)*) $( -> $ret:ty)? {
-                $unsafe:tt { bindings::#call($($arg:tt)*) }
-            }
-        )*
-    }) => {
+macro_rules! declare_atomic_ops_trait {
+    (
+        $(#[$attr:meta])* $pub:vis trait $ops:ident {
+            $(
+                $(#[doc=$doc:expr])*
+                fn $func:ident [$($variant:ident),*]($($arg_sig:tt)*) $( -> $ret:ty)? {
+                    $unsafe:tt { bindings::#call($($arg:tt)*) }
+                }
+            )*
+        }
+    ) => {
         $(#[$attr])*
         $pub trait $ops: AtomicImpl {
             $(
@@ -175,21 +176,25 @@ macro_rules! declare_and_impl_atomic_methods {
                 );
             )*
         }
+    }
+}
 
-        impl $ops for i32 {
+macro_rules! impl_atomic_ops_for_one {
+    (
+        $ty:ty => $ctype:ident,
+        $(#[$attr:meta])* $pub:vis trait $ops:ident {
             $(
-                impl_atomic_method!(
-                    (atomic) $func[$($variant)*]($($arg_sig)*) $(-> $ret)? {
-                        $unsafe { call($($arg)*) }
-                    }
-                );
+                $(#[doc=$doc:expr])*
+                fn $func:ident [$($variant:ident),*]($($arg_sig:tt)*) $( -> $ret:ty)? {
+                    $unsafe:tt { bindings::#call($($arg:tt)*) }
+                }
             )*
         }
-
-        impl $ops for i64 {
+    ) => {
+        impl $ops for $ty {
             $(
                 impl_atomic_method!(
-                    (atomic64) $func[$($variant)*]($($arg_sig)*) $(-> $ret)? {
+                    ($ctype) $func[$($variant)*]($($arg_sig)*) $(-> $ret)? {
                         $unsafe { call($($arg)*) }
                     }
                 );
@@ -198,7 +203,47 @@ macro_rules! declare_and_impl_atomic_methods {
     }
 }
 
+// Declares $ops trait with methods and implements the trait.
+macro_rules! declare_and_impl_atomic_methods {
+    (
+        [ $($map:tt)* ]
+        $(#[$attr:meta])* $pub:vis trait $ops:ident { $($body:tt)* }
+    ) => {
+        declare_and_impl_atomic_methods!(
+            @with_ops_def
+            [ $($map)* ]
+            ( $(#[$attr])* $pub trait $ops { $($body)* } )
+        );
+    };
+
+    (@with_ops_def [ $($map:tt)* ] ( $($ops_def:tt)* )) => {
+        declare_atomic_ops_trait!( $($ops_def)* );
+
+        declare_and_impl_atomic_methods!(
+            @munch
+            [ $($map)* ]
+            ( $($ops_def)* )
+        );
+    };
+
+    (@munch [] ( $($ops_def:tt)* )) => {};
+
+    (@munch [ $ty:ty => $ctype:ident $(, $($rest:tt)*)? ] ( $($ops_def:tt)* )) => {
+        impl_atomic_ops_for_one!(
+            $ty => $ctype,
+            $($ops_def)*
+        );
+
+        declare_and_impl_atomic_methods!(
+            @munch
+            [ $($($rest)*)? ]
+            ( $($ops_def)* )
+        );
+    };
+}
+
 declare_and_impl_atomic_methods!(
+    [ i32 => atomic, i64 => atomic64 ]
     /// Basic atomic operations
     pub trait AtomicBasicOps {
         /// Atomic read (load).
@@ -216,6 +261,7 @@ declare_and_impl_atomic_methods!(
 );
 
 declare_and_impl_atomic_methods!(
+    [ i32 => atomic, i64 => atomic64 ]
     /// Exchange and compare-and-exchange atomic operations
     pub trait AtomicExchangeOps {
         /// Atomic exchange.
@@ -243,6 +289,7 @@ declare_and_impl_atomic_methods!(
 );
 
 declare_and_impl_atomic_methods!(
+    [ i32 => atomic, i64 => atomic64 ]
     /// Atomic arithmetic operations
     pub trait AtomicArithmeticOps {
         /// Atomic add (wrapping).
