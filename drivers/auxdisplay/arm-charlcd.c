@@ -264,7 +264,6 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 	struct charlcd *lcd;
-	struct resource *res;
 
 	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
@@ -272,7 +271,7 @@ static int __init charlcd_probe(struct platform_device *pdev)
 
 	lcd->dev = &pdev->dev;
 
-	lcd->virtbase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	lcd->virtbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lcd->virtbase))
 		return PTR_ERR(lcd->virtbase);
 
@@ -292,8 +291,6 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	 */
 	INIT_DELAYED_WORK(&lcd->init_work, charlcd_init_work);
 	schedule_delayed_work(&lcd->init_work, 0);
-
-	dev_info(dev, "initialized ARM character LCD at %pa\n", &res->start);
 
 	return 0;
 }
