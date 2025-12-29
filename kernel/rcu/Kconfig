@@ -142,6 +142,29 @@ config TASKS_TRACE_RCU
 	default n
 	select IRQ_WORK
 
+config TASKS_TRACE_RCU_NO_MB
+	bool "Override RCU Tasks Trace inclusion of read-side memory barriers"
+	depends on RCU_EXPERT && TASKS_TRACE_RCU
+	default ARCH_WANTS_NO_INSTR
+	help
+	  This option prevents the use of read-side memory barriers in
+	  rcu_read_lock_tasks_trace() and rcu_read_unlock_tasks_trace()
+	  even in kernels built with CONFIG_ARCH_WANTS_NO_INSTR=n, that is,
+	  in kernels that do not have noinstr set up in entry/exit code.
+	  By setting this option, you are promising to carefully review
+	  use of ftrace, BPF, and friends to ensure that no tracing
+	  operation is attached to a function that runs in that portion
+	  of the entry/exit code that RCU does not watch, that is,
+	  where rcu_is_watching() returns false.  Alternatively, you
+	  might choose to never remove traces except by rebooting.
+
+	  Those wishing to disable read-side memory barriers for an entire
+	  architecture can select this Kconfig option, hence the polarity.
+
+	  Say Y here if you need speed and will review use of tracing.
+	  Say N here for certain esoteric testing of RCU itself.
+	  Take the default if you are unsure.
+
 config RCU_STALL_COMMON
 	def_bool TREE_RCU
 	help
