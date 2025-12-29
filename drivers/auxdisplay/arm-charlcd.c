@@ -9,8 +9,8 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/of.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -328,7 +328,7 @@ static struct platform_driver charlcd_driver = {
 		.name = DRIVERNAME,
 		.pm = &charlcd_pm_ops,
 		.suppress_bind_attrs = true,
-		.of_match_table = of_match_ptr(charlcd_match),
+		.of_match_table = charlcd_match,
 	},
 };
 builtin_platform_driver_probe(charlcd_driver, charlcd_probe);
