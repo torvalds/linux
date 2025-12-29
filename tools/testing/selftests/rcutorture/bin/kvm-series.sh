@@ -32,6 +32,7 @@ then
 	echo "$0: Repetition ('*') not allowed in config list."
 	exit 1
 fi
+config_list_len="`echo ${config_list} | wc -w | awk '{ print $1; }'`"
 
 commit_list="${2}"
 if test -z "${commit_list}"
@@ -47,6 +48,7 @@ then
 	exit 2
 fi
 sha1_list=`cat $T/commits`
+sha1_list_len="`echo ${sha1_list} | wc -w | awk '{ print $1; }'`"
 
 shift
 shift
@@ -80,6 +82,8 @@ echo " --- Results directory: " $ds | tee -a $T/log
 # turning preemption on and off.  Defer actual runs in order to run
 # lots of them concurrently on large systems.
 touch $T/torunlist
+n2build="$((config_list_len*sha1_list_len))"
+nbuilt=0
 for config in ${config_list}
 do
 	sha_n=0
@@ -87,7 +91,7 @@ do
 	do
 		sha1=${sha_n}.${sha} # Enable "sort -k1nr" to list commits in order.
 		echo
-		echo Starting ${config}/${sha1} at `date` | tee -a $T/log
+		echo Starting ${config}/${sha1} "($((nbuilt+1)) of ${n2build})" at `date` | tee -a $T/log
 		git checkout --detach "${sha}"
 		tools/testing/selftests/rcutorture/bin/kvm.sh --configs "$config" --datestamp "$ds/${config}/${sha1}" --duration 1 --build-only --trust-make "$@"
 		curret=$?
@@ -115,6 +119,7 @@ do
 			ret=${curret}
 		fi
 		sha_n=$((sha_n+1))
+		nbuilt=$((nbuilt+1))
 	done
 done
 
