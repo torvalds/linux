@@ -2455,6 +2455,9 @@ static DEFINE_TORTURE_RANDOM_PERCPU(rcu_torture_timer_rand);
  */
 static void rcu_torture_timer(struct timer_list *unused)
 {
+	WARN_ON_ONCE(!in_serving_softirq());
+	WARN_ON_ONCE(in_hardirq());
+	WARN_ON_ONCE(in_nmi());
 	atomic_long_inc(&n_rcu_torture_timers);
 	(void)rcu_torture_one_read(this_cpu_ptr(&rcu_torture_timer_rand), -1);
 
