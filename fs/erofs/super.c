@@ -330,12 +330,13 @@ static int erofs_read_superblock(struct super_block *sb)
 	}
 	sbi->packed_nid = le64_to_cpu(dsb->packed_nid);
 	if (erofs_sb_has_metabox(sbi)) {
+		ret = -EFSCORRUPTED;
 		if (sbi->sb_size <= offsetof(struct erofs_super_block,
 					     metabox_nid))
-			return -EFSCORRUPTED;
+			goto out;
 		sbi->metabox_nid = le64_to_cpu(dsb->metabox_nid);
 		if (sbi->metabox_nid & BIT_ULL(EROFS_DIRENT_NID_METABOX_BIT))
-			return -EFSCORRUPTED;	/* self-loop detection */
+			goto out;		/* self-loop detection */
 	}
 	sbi->inos = le64_to_cpu(dsb->inos);
 
