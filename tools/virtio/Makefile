@@ -20,8 +20,9 @@ CFLAGS += -g -O2 -Werror -Wno-maybe-uninitialized -Wall -I. -I../include/ -I ../
 CFLAGS += -pthread
 LDFLAGS += -pthread
 vpath %.c ../../drivers/virtio ../../drivers/vhost
+BUILD=KCFLAGS="-I "`pwd`/../../drivers/vhost ${MAKE} -C `pwd`/../.. V=${V}
 mod:
-	${MAKE} -C `pwd`/../.. M=`pwd`/vhost_test V=${V}
+	${BUILD} M=`pwd`/vhost_test
 
 #oot: build vhost as an out of tree module for a distro kernel
 #no effort is taken to make it actually build or work, but tends to mostly work
@@ -37,8 +38,9 @@ OOT_CONFIGS=\
 	CONFIG_VHOST_NET=n \
 	CONFIG_VHOST_SCSI=n \
 	CONFIG_VHOST_VSOCK=n \
-	CONFIG_VHOST_RING=n
-OOT_BUILD=KCFLAGS="-I "${OOT_VHOST} ${MAKE} -C ${OOT_KSRC} V=${V}
+	CONFIG_VHOST_RING=n \
+	CONFIG_VHOST_VDPA=n
+OOT_BUILD=KCFLAGS="-include "`pwd`"/oot-stubs.h -I "${OOT_VHOST} ${MAKE} -C ${OOT_KSRC} V=${V}
 oot-build:
 	echo "UNSUPPORTED! Don't use the resulting modules in production!"
 	${OOT_BUILD} M=`pwd`/vhost_test

@@ -17,6 +17,7 @@
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/xarray.h>
+#include <asm/hypervisor.h>
 
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
@@ -507,6 +508,11 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	const struct firmware *fw;
 	unsigned long bars = 0;
 	int i, nvec, ret;
+
+	if (!hypervisor_is_type(X86_HYPER_NATIVE)) {
+		XDNA_ERR(xdna, "Running under hypervisor not supported");
+		return -EINVAL;
+	}
 
 	ndev = drmm_kzalloc(&xdna->ddev, sizeof(*ndev), GFP_KERNEL);
 	if (!ndev)

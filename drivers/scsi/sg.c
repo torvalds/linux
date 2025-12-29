@@ -731,6 +731,8 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
+	hp->duration = jiffies_to_msecs(jiffies);
+
 	if (hp->interface_id != 'S') {
 		sg_remove_request(sfp, srp);
 		return -ENOSYS;
@@ -815,7 +817,6 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		return -ENODEV;
 	}
 
-	hp->duration = jiffies_to_msecs(jiffies);
 	if (hp->interface_id != '\0' &&	/* v3 (or later) interface */
 	    (SG_FLAG_Q_AT_TAIL & hp->flags))
 		at_head = 0;
@@ -1338,9 +1339,6 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 				      "sg_cmd_done: pack_id=%d, res=0x%x\n",
 				      srp->header.pack_id, result));
 	srp->header.resid = resid;
-	ms = jiffies_to_msecs(jiffies);
-	srp->header.duration = (ms > srp->header.duration) ?
-				(ms - srp->header.duration) : 0;
 	if (0 != result) {
 		struct scsi_sense_hdr sshdr;
 
@@ -1389,6 +1387,9 @@ sg_rq_end_io(struct request *rq, blk_status_t status)
 			done = 0;
 	}
 	srp->done = done;
+	ms = jiffies_to_msecs(jiffies);
+	srp->header.duration = (ms > srp->header.duration) ?
+				(ms - srp->header.duration) : 0;
 	write_unlock_irqrestore(&sfp->rq_list_lock, iflags);
 
 	if (likely(done)) {
@@ -2533,6 +2534,7 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
 	const sg_io_hdr_t *hp;
 	const char * cp;
 	unsigned int ms;
+	unsigned int duration;
 
 	k = 0;
 	list_for_each_entry(fp, &sdp->sfds, sfd_siblings) {
@@ -2570,13 +2572,17 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
 			seq_printf(s, " id=%d blen=%d",
 				   srp->header.pack_id, blen);
 			if (srp->done)
-				seq_printf(s, " dur=%d", hp->duration);
+				seq_printf(s, " dur=%u", hp->duration);
 			else {
 				ms = jiffies_to_msecs(jiffies);
-				seq_printf(s, " t_o/elap=%d/%d",
+				duration = READ_ONCE(hp->duration);
+				if (duration)
+					duration = (ms > duration ?
+						    ms - duration : 0);
+				seq_printf(s, " t_o/elap=%u/%u",
 					(new_interface ? hp->timeout :
 						  jiffies_to_msecs(fp->timeout)),
-					(ms > hp->duration ? ms - hp->duration : 0));
+					duration);
 			}
 			seq_printf(s, "ms sgat=%d op=0x%02x\n", usg,
 				   (int) srp->data.cmd_opcode);
