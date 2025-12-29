@@ -4836,6 +4836,7 @@ static void ice_deinit_features(struct ice_pf *pf)
 		ice_dpll_deinit(pf);
 	if (pf->eswitch_mode == DEVLINK_ESWITCH_MODE_SWITCHDEV)
 		xa_destroy(&pf->eswitch.reprs);
+	ice_hwmon_exit(pf);
 }
 
 static void ice_init_wakeup(struct ice_pf *pf)
@@ -5436,8 +5437,6 @@ static void ice_remove(struct pci_dev *pdev)
 		set_bit(ICE_VF_RESETS_DISABLED, pf->state);
 		ice_free_vfs(pf);
 	}
-
-	ice_hwmon_exit(pf);
 
 	if (!ice_is_safe_mode(pf))
 		ice_remove_arfs(pf);
