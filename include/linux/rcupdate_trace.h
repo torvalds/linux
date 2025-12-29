@@ -184,6 +184,20 @@ static inline void rcu_barrier_tasks_trace(void)
 	srcu_barrier(&rcu_tasks_trace_srcu_struct);
 }
 
+/**
+ * rcu_tasks_trace_expedite_current - Expedite the current Tasks Trace RCU grace period
+ *
+ * Cause the current Tasks Trace RCU grace period to become expedited.
+ * The grace period following the current one might also be expedited.
+ * If there is no current grace period, one might be created.  If the
+ * current grace period is currently sleeping, that sleep will complete
+ * before expediting will take effect.
+ */
+static inline void rcu_tasks_trace_expedite_current(void)
+{
+	srcu_expedite_current(&rcu_tasks_trace_srcu_struct);
+}
+
 // Placeholders to enable stepwise transition.
 void __init rcu_tasks_trace_suppress_unused(void);
 
