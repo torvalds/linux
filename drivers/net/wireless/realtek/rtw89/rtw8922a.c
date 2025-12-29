@@ -3011,6 +3011,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.wowlan_stub		= &rtw_wowlan_stub_8922a,
 #endif
 	.xtal_info		= NULL,
+	.default_quirks		= 0,
 };
 EXPORT_SYMBOL(rtw8922a_chip_info);
 

@@ -2400,6 +2400,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif
 	.xtal_info		= &rtw8852a_xtal_info,
+	.default_quirks		= 0,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 
