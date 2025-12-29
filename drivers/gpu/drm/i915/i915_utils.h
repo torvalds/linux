@@ -38,22 +38,18 @@
 
 struct drm_i915_private;
 
-#ifndef MISSING_CASE
 #define MISSING_CASE(x) WARN(1, "Missing case (%s == %ld)\n", \
 			     __stringify(x), (long)(x))
-#endif
 
 #define i915_probe_error(i915, fmt, ...) ({ \
 	drm_err(&(i915)->drm, fmt, ##__VA_ARGS__); \
 })
 
-#ifndef fetch_and_zero
 #define fetch_and_zero(ptr) ({						\
 	typeof(*ptr) __T = *(ptr);					\
 	*(ptr) = (typeof(*ptr))0;					\
 	__T;								\
 })
-#endif
 
 /*
  * check_user_mbz: Check that a user value exists and is zero
