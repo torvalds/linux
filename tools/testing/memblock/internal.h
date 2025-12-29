@@ -15,8 +15,7 @@ bool mirrored_kernelcore = false;
 
 struct page {};
 
-void memblock_free_pages(struct page *page, unsigned long pfn,
-			 unsigned int order)
+void memblock_free_pages(unsigned long pfn, unsigned int order)
 {
 }
 
