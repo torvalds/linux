@@ -6532,7 +6532,7 @@ F:	rust/kernel/cpufreq.rs
 F:	tools/testing/selftests/cpufreq/
 
 CPU FREQUENCY DRIVERS - VIRTUAL MACHINE CPUFREQ
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	drivers/cpufreq/virtual-cpufreq.c
@@ -7170,7 +7170,7 @@ F:	drivers/base/devcoredump.c
 F:	include/linux/devcoredump.h
 
 DEVICE DEPENDENCY HELPER SCRIPT
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	scripts/dev-needs.sh
@@ -19544,7 +19544,7 @@ F:	include/linux/oa_tc6.h
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Rob Herring <robh@kernel.org>
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/devicetree/list/
