@@ -8739,10 +8739,10 @@ int rtw89_fw_h2c_wow_cam_update(struct rtw89_dev *rtwdev,
 	if (!cam_info->valid)
 		goto fill_valid;
 
-	h2c->wkfm0 = le32_encode_bits(cam_info->mask[0], RTW89_H2C_WOW_CAM_UPD_WKFM0);
-	h2c->wkfm1 = le32_encode_bits(cam_info->mask[1], RTW89_H2C_WOW_CAM_UPD_WKFM1);
-	h2c->wkfm2 = le32_encode_bits(cam_info->mask[2], RTW89_H2C_WOW_CAM_UPD_WKFM2);
-	h2c->wkfm3 = le32_encode_bits(cam_info->mask[3], RTW89_H2C_WOW_CAM_UPD_WKFM3);
+	h2c->wkfm0 = cam_info->mask[0];
+	h2c->wkfm1 = cam_info->mask[1];
+	h2c->wkfm2 = cam_info->mask[2];
+	h2c->wkfm3 = cam_info->mask[3];
 	h2c->w5 = le32_encode_bits(cam_info->crc, RTW89_H2C_WOW_CAM_UPD_W5_CRC) |
 		  le32_encode_bits(cam_info->negative_pattern_match,
 				   RTW89_H2C_WOW_CAM_UPD_W5_NEGATIVE_PATTERN_MATCH) |
