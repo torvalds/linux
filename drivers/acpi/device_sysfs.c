@@ -403,6 +403,33 @@ hid_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(hid);
 
+static ssize_t cid_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	struct acpi_device_info *info = NULL;
+	ssize_t len = 0;
+
+	acpi_get_object_info(acpi_dev->handle, &info);
+	if (!info)
+		return 0;
+
+	if (info->valid & ACPI_VALID_CID) {
+		struct acpi_pnp_device_id_list *cid_list = &info->compatible_id_list;
+		int i;
+
+		for (i = 0; i < cid_list->count - 1; i++)
+			len += sysfs_emit_at(buf, len, "%s,", cid_list->ids[i].string);
+
+		len += sysfs_emit_at(buf, len, "%s\n", cid_list->ids[i].string);
+	}
+
+	kfree(info);
+
+	return len;
+}
+static DEVICE_ATTR_RO(cid);
+
 static ssize_t uid_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -520,6 +547,7 @@ static DEVICE_ATTR_RO(status);
 static struct attribute *acpi_attrs[] = {
 	&dev_attr_path.attr,
 	&dev_attr_hid.attr,
+	&dev_attr_cid.attr,
 	&dev_attr_modalias.attr,
 	&dev_attr_description.attr,
 	&dev_attr_adr.attr,
@@ -561,6 +589,9 @@ static bool acpi_show_attr(struct acpi_device *dev, const struct device_attribut
 
 	if (attr == &dev_attr_status)
 		return acpi_has_method(dev->handle, "_STA");
+
+	if (attr == &dev_attr_cid)
+		return acpi_has_method(dev->handle, "_CID");
 
 	/*
 	 * If device has _EJ0, 'eject' file is created that is used to trigger
