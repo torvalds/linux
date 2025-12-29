@@ -152,7 +152,7 @@ static void trigger_drop_group(struct config_group *group,
 	config_item_put(item);
 }
 
-static struct configfs_group_operations trigger_ops = {
+static const struct configfs_group_operations trigger_ops = {
 	.make_group	= &trigger_make_group,
 	.drop_item	= &trigger_drop_group,
 };
