@@ -132,6 +132,8 @@ fi
 cpusused=0
 touch $T/successlistfile
 touch $T/faillistfile
+n2run="`wc -l $T/torunlist | awk '{ print $1; }'`"
+nrun=0
 
 # do_run_one_qemu ds resultsdir qemu_curout
 #
@@ -193,9 +195,10 @@ run_one_qemu () {
 	then
 		cleanup_qemu_batch "${batchncpus}"
 	fi
-	echo Starting ${config_sha1} using ${batchncpus} CPUs `date`
+	echo Starting ${config_sha1} using ${batchncpus} CPUs "($((nrun+1)) of ${n2run})" `date`
 	qemu_curout="${DS}/${config_sha1}/qemu-series"
 	do_run_one_qemu "$ds" "${config_sha1}" ${qemu_curout} &
+	nrun="$((nrun+1))"
 }
 
 # Re-ordering the runs will mess up the affinity chosen at build time
