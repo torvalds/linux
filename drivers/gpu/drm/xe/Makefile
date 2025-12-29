@@ -196,8 +196,7 @@ endif
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
 	-I$(src)/compat-i915-headers \
-	-I$(srctree)/drivers/gpu/drm/i915/display/ \
-	-Ddrm_i915_private=xe_device
+	-I$(srctree)/drivers/gpu/drm/i915/display/
 
 # Rule to build display code shared with i915
 $(obj)/i915-display/%.o: $(srctree)/drivers/gpu/drm/i915/display/%.c FORCE
