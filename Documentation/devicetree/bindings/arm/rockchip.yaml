@@ -907,19 +907,19 @@ properties:
           - const: radxa,cm3
           - const: rockchip,rk3566
 
-      - description: Radxa Compute Module 5 (CM5)
-        items:
-          - enum:
-              - radxa,cm5-io
-          - const: radxa,cm5
-          - const: rockchip,rk3588s
-
       - description: Radxa CM3I
         items:
           - enum:
               - radxa,e25
           - const: radxa,cm3i
           - const: rockchip,rk3568
+
+      - description: Radxa CM5
+        items:
+          - enum:
+              - radxa,cm5-io
+          - const: radxa,cm5
+          - const: rockchip,rk3588s
 
       - description: Radxa E20C
         items:
