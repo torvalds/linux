@@ -991,7 +991,7 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 		return;
 	poll_data = &qm->poll_data[cqn];
 
-	while (QM_EQE_PHASE(dw0) != qm->status.eqc_phase) {
+	do {
 		poll_data->qp_finish_id[eqe_num] = dw0 & QM_EQE_CQN_MASK;
 		eqe_num++;
 
@@ -1004,11 +1004,10 @@ static void qm_get_complete_eqe_num(struct hisi_qm *qm)
 			qm->status.eq_head++;
 		}
 
-		if (eqe_num == (eq_depth >> 1) - 1)
-			break;
-
 		dw0 = le32_to_cpu(eqe->dw0);
-	}
+		if (QM_EQE_PHASE(dw0) != qm->status.eqc_phase)
+			break;
+	} while (eqe_num < (eq_depth >> 1) - 1);
 
 	poll_data->eqe_num = eqe_num;
 	queue_work(qm->wq, &poll_data->work);
