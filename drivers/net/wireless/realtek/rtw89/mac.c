@@ -1529,8 +1529,10 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		return ret;
 
 	if (on) {
-		if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
+		if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags)) {
+			rtw89_mac_efuse_read_ecv(rtwdev);
 			mac->efuse_read_fw_secure(rtwdev);
+		}
 
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
@@ -7281,6 +7283,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.parse_phycap_map = rtw89_parse_phycap_map_ax,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_ax,
+	.efuse_read_ecv = NULL,
 
 	.cfg_plt = rtw89_mac_cfg_plt_ax,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_ax,

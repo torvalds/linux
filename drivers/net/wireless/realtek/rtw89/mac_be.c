@@ -2774,6 +2774,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.parse_phycap_map = rtw89_parse_phycap_map_be,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
 	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_be,
+	.efuse_read_ecv = rtw89_efuse_read_ecv_be,
 
 	.cfg_plt = rtw89_mac_cfg_plt_be,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_be,
