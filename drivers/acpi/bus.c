@@ -294,7 +294,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	int ret;
 
 	if (!context || !context->cap.pointer ||
-	    context->cap.length < 2 * sizeof(32) ||
+	    context->cap.length < 2 * sizeof(u32) ||
 	    guid_parse(context->uuid_str, &guid))
 		return AE_BAD_PARAMETER;
 
