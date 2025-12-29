@@ -84,7 +84,7 @@ static void pci_secondary_epc_epf_unlink(struct config_item *epf_item,
 	pci_epc_remove_epf(epc, epf, SECONDARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_secondary_epc_item_ops = {
+static const struct configfs_item_operations pci_secondary_epc_item_ops = {
 	.allow_link	= pci_secondary_epc_epf_link,
 	.drop_link	= pci_secondary_epc_epf_unlink,
 };
@@ -148,7 +148,7 @@ static void pci_primary_epc_epf_unlink(struct config_item *epf_item,
 	pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_primary_epc_item_ops = {
+static const struct configfs_item_operations pci_primary_epc_item_ops = {
 	.allow_link	= pci_primary_epc_epf_link,
 	.drop_link	= pci_primary_epc_epf_unlink,
 };
@@ -256,7 +256,7 @@ static void pci_epc_epf_unlink(struct config_item *epc_item,
 	pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 }
 
-static struct configfs_item_operations pci_epc_item_ops = {
+static const struct configfs_item_operations pci_epc_item_ops = {
 	.allow_link	= pci_epc_epf_link,
 	.drop_link	= pci_epc_epf_unlink,
 };
@@ -507,7 +507,7 @@ static void pci_epf_release(struct config_item *item)
 	kfree(epf_group);
 }
 
-static struct configfs_item_operations pci_epf_ops = {
+static const struct configfs_item_operations pci_epf_ops = {
 	.allow_link		= pci_epf_vepf_link,
 	.drop_link		= pci_epf_vepf_unlink,
 	.release		= pci_epf_release,
@@ -657,7 +657,7 @@ static void pci_epf_drop(struct config_group *group, struct config_item *item)
 	config_item_put(item);
 }
 
-static struct configfs_group_operations pci_epf_group_ops = {
+static const struct configfs_group_operations pci_epf_group_ops = {
 	.make_group     = &pci_epf_make,
 	.drop_item      = &pci_epf_drop,
 };
