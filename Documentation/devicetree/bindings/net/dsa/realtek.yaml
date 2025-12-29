@@ -10,7 +10,7 @@ allOf:
   - $ref: dsa.yaml#/$defs/ethernet-ports
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description:
   Realtek advertises these chips as fast/gigabit switches or unmanaged

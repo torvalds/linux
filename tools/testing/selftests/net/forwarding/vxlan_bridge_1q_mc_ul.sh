@@ -138,13 +138,18 @@ install_capture()
 	defer tc qdisc del dev "$dev" clsact
 
 	tc filter add dev "$dev" ingress proto ip pref 104 \
-	   flower skip_hw ip_proto udp dst_port "$VXPORT" \
-	   action pass
+	   u32 match ip protocol 0x11 0xff \
+	       match u16 "$VXPORT" 0xffff at 0x16 \
+	       match u16 0x0800 0xffff at 0x30 \
+	       action pass
 	defer tc filter del dev "$dev" ingress proto ip pref 104
 
 	tc filter add dev "$dev" ingress proto ipv6 pref 106 \
-	   flower skip_hw ip_proto udp dst_port "$VXPORT" \
-	   action pass
+	   u32 match ip6 protocol 0x11 0xff \
+	       match u16 "$VXPORT" 0xffff at 0x2a \
+	       match u16 0x86dd 0xffff at 0x44 \
+	       match u8 0x11 0xff at 0x4c \
+	       action pass
 	defer tc filter del dev "$dev" ingress proto ipv6 pref 106
 }
 
@@ -248,13 +253,6 @@ vx_create()
 }
 export -f vx_create
 
-vx_wait()
-{
-	# Wait for all the ARP, IGMP etc. noise to settle down so that the
-	# tunnel is clear for measurements.
-	sleep 10
-}
-
 vx10_create()
 {
 	vx_create vx10 10 id 1000 "$@"
@@ -266,18 +264,6 @@ vx20_create()
 	vx_create vx20 20 id 2000 "$@"
 }
 export -f vx20_create
-
-vx10_create_wait()
-{
-	vx10_create "$@"
-	vx_wait
-}
-
-vx20_create_wait()
-{
-	vx20_create "$@"
-	vx_wait
-}
 
 ns_init_common()
 {
@@ -554,7 +540,7 @@ ipv4_nomcroute()
 	# Install a misleading (S,G) rule to attempt to trick the system into
 	# pushing the packets elsewhere.
 	adf_install_broken_sg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$swp2"
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$swp2"
 	do_test 4 10 0 "IPv4 nomcroute"
 }
 
@@ -562,7 +548,7 @@ ipv6_nomcroute()
 {
 	# Like for IPv4, install a misleading (S,G).
 	adf_install_broken_sg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$swp2"
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$swp2"
 	do_test 6 10 0 "IPv6 nomcroute"
 }
 
@@ -581,35 +567,35 @@ ipv6_nomcroute_rx()
 ipv4_mcroute()
 {
 	adf_install_sg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	do_test 4 10 10 "IPv4 mcroute"
 }
 
 ipv6_mcroute()
 {
 	adf_install_sg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	do_test 6 10 10 "IPv6 mcroute"
 }
 
 ipv4_mcroute_rx()
 {
 	adf_install_sg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	ipv4_do_test_rx 0 "IPv4 mcroute ping"
 }
 
 ipv6_mcroute_rx()
 {
 	adf_install_sg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	ipv6_do_test_rx 0 "IPv6 mcroute ping"
 }
 
 ipv4_mcroute_changelink()
 {
 	adf_install_sg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR"
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR"
 	ip link set dev vx10 type vxlan mcroute
 	sleep 1
 	do_test 4 10 10 "IPv4 mcroute changelink"
@@ -618,7 +604,7 @@ ipv4_mcroute_changelink()
 ipv6_mcroute_changelink()
 {
 	adf_install_sg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	ip link set dev vx20 type vxlan mcroute
 	sleep 1
 	do_test 6 10 10 "IPv6 mcroute changelink"
@@ -627,47 +613,47 @@ ipv6_mcroute_changelink()
 ipv4_mcroute_starg()
 {
 	adf_install_starg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	do_test 4 10 10 "IPv4 mcroute (*,G)"
 }
 
 ipv6_mcroute_starg()
 {
 	adf_install_starg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	do_test 6 10 10 "IPv6 mcroute (*,G)"
 }
 
 ipv4_mcroute_starg_rx()
 {
 	adf_install_starg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	ipv4_do_test_rx 0 "IPv4 mcroute (*,G) ping"
 }
 
 ipv6_mcroute_starg_rx()
 {
 	adf_install_starg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	ipv6_do_test_rx 0 "IPv6 mcroute (*,G) ping"
 }
 
 ipv4_mcroute_noroute()
 {
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	do_test 4 0 0 "IPv4 mcroute, no route"
 }
 
 ipv6_mcroute_noroute()
 {
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	do_test 6 0 0 "IPv6 mcroute, no route"
 }
 
 ipv4_mcroute_fdb()
 {
 	adf_install_sg
-	vx10_create_wait local 192.0.2.100 dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 dev "$IPMR" mcroute
 	bridge fdb add dev vx10 \
 		00:00:00:00:00:00 self static dst "$GROUP4" via "$IPMR"
 	do_test 4 10 10 "IPv4 mcroute FDB"
@@ -676,7 +662,7 @@ ipv4_mcroute_fdb()
 ipv6_mcroute_fdb()
 {
 	adf_install_sg
-	vx20_create_wait local 2001:db8:4::1 dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 dev "$IPMR" mcroute
 	bridge -6 fdb add dev vx20 \
 		00:00:00:00:00:00 self static dst "$GROUP6" via "$IPMR"
 	do_test 6 10 10 "IPv6 mcroute FDB"
@@ -686,7 +672,7 @@ ipv6_mcroute_fdb()
 ipv4_mcroute_fdb_oif0()
 {
 	adf_install_sg
-	vx10_create_wait local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.100 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
 	do_test 4 10 10 "IPv4 mcroute oif=0"
@@ -703,7 +689,7 @@ ipv6_mcroute_fdb_oif0()
 	defer ip -6 route del table local multicast "$GROUP6/128" dev "$IPMR"
 
 	adf_install_sg
-	vx20_create_wait local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:4::1 group "$GROUP6" dev "$IPMR" mcroute
 	bridge -6 fdb del dev vx20 00:00:00:00:00:00
 	bridge -6 fdb add dev vx20 00:00:00:00:00:00 self static dst "$GROUP6"
 	do_test 6 10 10 "IPv6 mcroute oif=0"
@@ -716,7 +702,7 @@ ipv4_mcroute_fdb_oif0_sep()
 	adf_install_sg_sep
 
 	adf_ip_addr_add lo 192.0.2.120/28
-	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
 	do_test 4 10 10 "IPv4 mcroute TX!=RX oif=0"
@@ -727,7 +713,7 @@ ipv4_mcroute_fdb_oif0_sep_rx()
 	adf_install_sg_sep_rx lo
 
 	adf_ip_addr_add lo 192.0.2.120/28
-	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add dev vx10 00:00:00:00:00:00 self static dst "$GROUP4"
 	ipv4_do_test_rx 0 "IPv4 mcroute TX!=RX oif=0 ping"
@@ -738,7 +724,7 @@ ipv4_mcroute_fdb_sep_rx()
 	adf_install_sg_sep_rx lo
 
 	adf_ip_addr_add lo 192.0.2.120/28
-	vx10_create_wait local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
+	vx10_create local 192.0.2.120 group "$GROUP4" dev "$IPMR" mcroute
 	bridge fdb del dev vx10 00:00:00:00:00:00
 	bridge fdb add \
 	       dev vx10 00:00:00:00:00:00 self static dst "$GROUP4" via lo
@@ -750,7 +736,7 @@ ipv6_mcroute_fdb_sep_rx()
 	adf_install_sg_sep_rx "X$IPMR"
 
 	adf_ip_addr_add "X$IPMR" 2001:db8:5::1/64
-	vx20_create_wait local 2001:db8:5::1 group "$GROUP6" dev "$IPMR" mcroute
+	vx20_create local 2001:db8:5::1 group "$GROUP6" dev "$IPMR" mcroute
 	bridge -6 fdb del dev vx20 00:00:00:00:00:00
 	bridge -6 fdb add dev vx20 00:00:00:00:00:00 \
 			  self static dst "$GROUP6" via "X$IPMR"
