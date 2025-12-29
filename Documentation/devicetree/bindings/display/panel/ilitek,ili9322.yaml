@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Ilitek ILI9322 TFT panel driver with SPI control bus
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   This is a driver for 320x240 TFT panels, accepting a variety of input

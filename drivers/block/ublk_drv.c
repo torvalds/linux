@@ -1080,12 +1080,20 @@ static inline struct ublk_uring_cmd_pdu *ublk_get_uring_cmd_pdu(
 	return io_uring_cmd_to_pdu(ioucmd, struct ublk_uring_cmd_pdu);
 }
 
+static void ublk_end_request(struct request *req, blk_status_t error)
+{
+	local_bh_disable();
+	blk_mq_end_request(req, error);
+	local_bh_enable();
+}
+
 /* todo: handle partial completion */
 static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
 				      bool need_map)
 {
 	unsigned int unmapped_bytes;
 	blk_status_t res = BLK_STS_OK;
+	bool requeue;
 
 	/* failed read IO if nothing is read */
 	if (!io->res && req_op(req) == REQ_OP_READ)
@@ -1117,14 +1125,30 @@ static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
 	if (unlikely(unmapped_bytes < io->res))
 		io->res = unmapped_bytes;
 
-	if (blk_update_request(req, BLK_STS_OK, io->res))
+	/*
+	 * Run bio->bi_end_io() with softirqs disabled. If the final fput
+	 * happens off this path, then that will prevent ublk's blkdev_release()
+	 * from being called on current's task work, see fput() implementation.
+	 *
+	 * Otherwise, ublk server may not provide forward progress in case of
+	 * reading the partition table from bdev_open() with disk->open_mutex
+	 * held, and causes dead lock as we could already be holding
+	 * disk->open_mutex here.
+	 *
+	 * Preferably we would not be doing IO with a mutex held that is also
+	 * used for release, but this work-around will suffice for now.
+	 */
+	local_bh_disable();
+	requeue = blk_update_request(req, BLK_STS_OK, io->res);
+	local_bh_enable();
+	if (requeue)
 		blk_mq_requeue_request(req, true);
 	else if (likely(!blk_should_fake_timeout(req->q)))
 		__blk_mq_end_request(req, BLK_STS_OK);
 
 	return;
 exit:
-	blk_mq_end_request(req, res);
+	ublk_end_request(req, res);
 }
 
 static struct io_uring_cmd *__ublk_prep_compl_io_cmd(struct ublk_io *io,
@@ -1164,7 +1188,7 @@ static inline void __ublk_abort_rq(struct ublk_queue *ubq,
 	if (ublk_nosrv_dev_should_queue_io(ubq->dev))
 		blk_mq_requeue_request(rq, false);
 	else
-		blk_mq_end_request(rq, BLK_STS_IOERR);
+		ublk_end_request(rq, BLK_STS_IOERR);
 }
 
 static void
@@ -1209,7 +1233,7 @@ __ublk_do_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
 			ublk_auto_buf_reg_fallback(ubq, req->tag);
 			return AUTO_BUF_REG_FALLBACK;
 		}
-		blk_mq_end_request(req, BLK_STS_IOERR);
+		ublk_end_request(req, BLK_STS_IOERR);
 		return AUTO_BUF_REG_FAIL;
 	}
 
@@ -1583,8 +1607,7 @@ static bool ublk_check_and_reset_active_ref(struct ublk_device *ub)
 {
 	int i, j;
 
-	if (!(ub->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY |
-					UBLK_F_AUTO_BUF_REG)))
+	if (!ublk_dev_need_req_ref(ub))
 		return false;
 
 	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {

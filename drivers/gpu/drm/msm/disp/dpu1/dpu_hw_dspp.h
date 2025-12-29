@@ -22,7 +22,7 @@ struct dpu_hw_pcc_coeff {
 };
 
 /**
- * struct dpu_hw_pcc - pcc feature structure
+ * struct dpu_hw_pcc_cfg - pcc feature structure
  * @r: red coefficients.
  * @g: green coefficients.
  * @b: blue coefficients.
@@ -40,7 +40,7 @@ struct dpu_hw_pcc_cfg {
  */
 struct dpu_hw_dspp_ops {
 	/**
-	 * setup_pcc - setup dspp pcc
+	 * @setup_pcc: setup_pcc - setup dspp pcc
 	 * @ctx: Pointer to dspp context
 	 * @cfg: Pointer to configuration
 	 */
@@ -69,7 +69,7 @@ struct dpu_hw_dspp {
 };
 
 /**
- * dpu_hw_dspp - convert base object dpu_hw_base to container
+ * to_dpu_hw_dspp - convert base object dpu_hw_base to container
  * @hw: Pointer to base hardware block
  * return: Pointer to hardware block container
  */

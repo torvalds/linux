@@ -1400,6 +1400,7 @@ static inline void mtmsr_isync(unsigned long val)
 				     : "r" ((unsigned long)(v)) \
 				     : "memory")
 #define wrtspr(rn)	asm volatile("mtspr " __stringify(rn) ",2" : : : "memory")
+#define wrtspr_sync(rn)	asm volatile("mtspr " __stringify(rn) ",2; sync" : : : "memory")
 
 static inline void wrtee(unsigned long val)
 {

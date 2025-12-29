@@ -219,11 +219,12 @@ static bool __init cpu0_node_has_opp_v2_prop(void)
 
 static int __init cpufreq_dt_platdev_init(void)
 {
-	const void *data;
+	const void *data = NULL;
 
-	data = of_machine_get_match_data(allowlist);
-	if (data)
+	if (of_machine_device_match(allowlist)) {
+		data = of_machine_get_match_data(allowlist);
 		goto create_pdev;
+	}
 
 	if (cpu0_node_has_opp_v2_prop() && !of_machine_device_match(blocklist))
 		goto create_pdev;

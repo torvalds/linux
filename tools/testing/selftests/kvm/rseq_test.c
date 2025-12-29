@@ -215,6 +215,7 @@ int main(int argc, char *argv[])
 		switch (opt) {
 		case 'u':
 			skip_sanity_check = true;
+			break;
 		case 'l':
 			latency = atoi_paranoid(optarg);
 			break;
