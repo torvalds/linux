@@ -69,17 +69,24 @@ struct ScatterGatherEntry {
 }
 
 /// This entry specifies that a fixup should happen at `target_offset` of the
-/// buffer. If `skip` is nonzero, then the fixup is a `binder_fd_array_object`
-/// and is applied later. Otherwise if `skip` is zero, then the size of the
-/// fixup is `sizeof::<u64>()` and `pointer_value` is written to the buffer.
-struct PointerFixupEntry {
-    /// The number of bytes to skip, or zero for a `binder_buffer_object` fixup.
-    skip: usize,
-    /// The translated pointer to write when `skip` is zero.
-    pointer_value: u64,
-    /// The offset at which the value should be written. The offset is relative
-    /// to the original buffer.
-    target_offset: usize,
+/// buffer.
+enum PointerFixupEntry {
+    /// A fixup for a `binder_buffer_object`.
+    Fixup {
+        /// The translated pointer to write.
+        pointer_value: u64,
+        /// The offset at which the value should be written. The offset is relative
+        /// to the original buffer.
+        target_offset: usize,
+    },
+    /// A skip for a `binder_fd_array_object`.
+    Skip {
+        /// The number of bytes to skip.
+        skip: usize,
+        /// The offset at which the skip should happen. The offset is relative
+        /// to the original buffer.
+        target_offset: usize,
+    },
 }
 
 /// Return type of `apply_and_validate_fixup_in_parent`.
@@ -762,8 +769,7 @@ impl Thread {
 
                     parent_entry.fixup_min_offset = info.new_min_offset;
                     parent_entry.pointer_fixups.push(
-                        PointerFixupEntry {
-                            skip: 0,
+                        PointerFixupEntry::Fixup {
                             pointer_value: buffer_ptr_in_user_space,
                             target_offset: info.target_offset,
                         },
@@ -807,9 +813,8 @@ impl Thread {
                 parent_entry
                     .pointer_fixups
                     .push(
-                        PointerFixupEntry {
+                        PointerFixupEntry::Skip {
                             skip: fds_len,
-                            pointer_value: 0,
                             target_offset: info.target_offset,
                         },
                         GFP_KERNEL,
@@ -871,17 +876,21 @@ impl Thread {
             let mut reader =
                 UserSlice::new(UserPtr::from_addr(sg_entry.sender_uaddr), sg_entry.length).reader();
             for fixup in &mut sg_entry.pointer_fixups {
-                let fixup_len = if fixup.skip == 0 {
-                    size_of::<u64>()
-                } else {
-                    fixup.skip
+                let (fixup_len, fixup_offset) = match fixup {
+                    PointerFixupEntry::Fixup { target_offset, .. } => {
+                        (size_of::<u64>(), *target_offset)
+                    }
+                    PointerFixupEntry::Skip {
+                        skip,
+                        target_offset,
+                    } => (*skip, *target_offset),
                 };
 
-                let target_offset_end = fixup.target_offset.checked_add(fixup_len).ok_or(EINVAL)?;
-                if fixup.target_offset < end_of_previous_fixup || offset_end < target_offset_end {
+                let target_offset_end = fixup_offset.checked_add(fixup_len).ok_or(EINVAL)?;
+                if fixup_offset < end_of_previous_fixup || offset_end < target_offset_end {
                     pr_warn!(
                         "Fixups oob {} {} {} {}",
-                        fixup.target_offset,
+                        fixup_offset,
                         end_of_previous_fixup,
                         offset_end,
                         target_offset_end
@@ -890,13 +899,13 @@ impl Thread {
                 }
 
                 let copy_off = end_of_previous_fixup;
-                let copy_len = fixup.target_offset - end_of_previous_fixup;
+                let copy_len = fixup_offset - end_of_previous_fixup;
                 if let Err(err) = alloc.copy_into(&mut reader, copy_off, copy_len) {
                     pr_warn!("Failed copying into alloc: {:?}", err);
                     return Err(err.into());
                 }
-                if fixup.skip == 0 {
-                    let res = alloc.write::<u64>(fixup.target_offset, &fixup.pointer_value);
+                if let PointerFixupEntry::Fixup { pointer_value, .. } = fixup {
+                    let res = alloc.write::<u64>(fixup_offset, pointer_value);
                     if let Err(err) = res {
                         pr_warn!("Failed copying ptr into alloc: {:?}", err);
                         return Err(err.into());
