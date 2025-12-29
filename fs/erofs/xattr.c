@@ -132,17 +132,15 @@ static int erofs_xattr_copy_to_buffer(struct erofs_xattr_iter *it,
 {
 	unsigned int slice, processed;
 	struct super_block *sb = it->sb;
-	void *src;
 
 	for (processed = 0; processed < len; processed += slice) {
 		it->kaddr = erofs_bread(&it->buf, it->pos, true);
 		if (IS_ERR(it->kaddr))
 			return PTR_ERR(it->kaddr);
 
-		src = it->kaddr;
 		slice = min_t(unsigned int, sb->s_blocksize -
 				erofs_blkoff(sb, it->pos), len - processed);
-		memcpy(it->buffer + it->buffer_ofs, src, slice);
+		memcpy(it->buffer + it->buffer_ofs, it->kaddr, slice);
 		it->buffer_ofs += slice;
 		it->pos += slice;
 	}
