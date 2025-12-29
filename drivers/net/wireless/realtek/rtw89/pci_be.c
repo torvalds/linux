@@ -184,10 +184,13 @@ static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
 
 static int rtw89_pci_poll_txdma_ch_idle_be(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	u32 dma_busy1 = info->dma_busy1.addr;
+	u32 check = info->dma_busy1.mask;
 	u32 val;
 
-	return read_poll_timeout(rtw89_read32, val, (val & DMA_BUSY1_CHECK_BE) == 0,
-				 10, 1000, false, rtwdev, R_BE_HAXI_DMA_BUSY1);
+	return read_poll_timeout(rtw89_read32, val, (val & check) == 0,
+				 10, 1000, false, rtwdev, dma_busy1);
 }
 
 static int rtw89_pci_poll_rxdma_ch_idle_be(struct rtw89_dev *rtwdev)
