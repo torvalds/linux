@@ -12,27 +12,27 @@
 #include <linux/rcupdate.h>
 #include <linux/cleanup.h>
 
-extern struct lockdep_map rcu_trace_lock_map;
+#ifdef CONFIG_TASKS_TRACE_RCU
+extern struct srcu_struct rcu_tasks_trace_srcu_struct;
+#endif // #ifdef CONFIG_TASKS_TRACE_RCU
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
+#if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_TASKS_TRACE_RCU)
 
 static inline int rcu_read_lock_trace_held(void)
 {
-	return lock_is_held(&rcu_trace_lock_map);
+	return srcu_read_lock_held(&rcu_tasks_trace_srcu_struct);
 }
 
-#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#else // #if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_TASKS_TRACE_RCU)
 
 static inline int rcu_read_lock_trace_held(void)
 {
 	return 1;
 }
 
-#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+#endif // #else // #if defined(CONFIG_DEBUG_LOCK_ALLOC) && defined(CONFIG_TASKS_TRACE_RCU)
 
 #ifdef CONFIG_TASKS_TRACE_RCU
-
-void rcu_read_unlock_trace_special(struct task_struct *t);
 
 /**
  * rcu_read_lock_trace - mark beginning of RCU-trace read-side critical section
@@ -50,12 +50,14 @@ static inline void rcu_read_lock_trace(void)
 {
 	struct task_struct *t = current;
 
-	WRITE_ONCE(t->trc_reader_nesting, READ_ONCE(t->trc_reader_nesting) + 1);
-	barrier();
-	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) &&
-	    t->trc_reader_special.b.need_mb)
-		smp_mb(); // Pairs with update-side barriers
-	rcu_lock_acquire(&rcu_trace_lock_map);
+	if (t->trc_reader_nesting++) {
+		// In case we interrupted a Tasks Trace RCU reader.
+		rcu_try_lock_acquire(&rcu_tasks_trace_srcu_struct.dep_map);
+		return;
+	}
+	barrier();  // nesting before scp to protect against interrupt handler.
+	t->trc_reader_scp = srcu_read_lock_fast(&rcu_tasks_trace_srcu_struct);
+	smp_mb(); // Placeholder for more selective ordering
 }
 
 /**
@@ -69,26 +71,75 @@ static inline void rcu_read_lock_trace(void)
  */
 static inline void rcu_read_unlock_trace(void)
 {
-	int nesting;
+	struct srcu_ctr __percpu *scp;
 	struct task_struct *t = current;
 
-	rcu_lock_release(&rcu_trace_lock_map);
-	nesting = READ_ONCE(t->trc_reader_nesting) - 1;
-	barrier(); // Critical section before disabling.
-	// Disable IPI-based setting of .need_qs.
-	WRITE_ONCE(t->trc_reader_nesting, INT_MIN + nesting);
-	if (likely(!READ_ONCE(t->trc_reader_special.s)) || nesting) {
-		WRITE_ONCE(t->trc_reader_nesting, nesting);
-		return;  // We assume shallow reader nesting.
-	}
-	WARN_ON_ONCE(nesting != 0);
-	rcu_read_unlock_trace_special(t);
+	smp_mb(); // Placeholder for more selective ordering
+	scp = t->trc_reader_scp;
+	barrier();  // scp before nesting to protect against interrupt handler.
+	if (!--t->trc_reader_nesting)
+		srcu_read_unlock_fast(&rcu_tasks_trace_srcu_struct, scp);
+	else
+		srcu_lock_release(&rcu_tasks_trace_srcu_struct.dep_map);
 }
 
-void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func);
-void synchronize_rcu_tasks_trace(void);
-void rcu_barrier_tasks_trace(void);
+/**
+ * call_rcu_tasks_trace() - Queue a callback trace task-based grace period
+ * @rhp: structure to be used for queueing the RCU updates.
+ * @func: actual callback function to be invoked after the grace period
+ *
+ * The callback function will be invoked some time after a trace rcu-tasks
+ * grace period elapses, in other words after all currently executing
+ * trace rcu-tasks read-side critical sections have completed. These
+ * read-side critical sections are delimited by calls to rcu_read_lock_trace()
+ * and rcu_read_unlock_trace().
+ *
+ * See the description of call_rcu() for more detailed information on
+ * memory ordering guarantees.
+ */
+static inline void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t func)
+{
+	call_srcu(&rcu_tasks_trace_srcu_struct, rhp, func);
+}
+
+/**
+ * synchronize_rcu_tasks_trace - wait for a trace rcu-tasks grace period
+ *
+ * Control will return to the caller some time after a trace rcu-tasks
+ * grace period has elapsed, in other words after all currently executing
+ * trace rcu-tasks read-side critical sections have elapsed. These read-side
+ * critical sections are delimited by calls to rcu_read_lock_trace()
+ * and rcu_read_unlock_trace().
+ *
+ * This is a very specialized primitive, intended only for a few uses in
+ * tracing and other situations requiring manipulation of function preambles
+ * and profiling hooks.  The synchronize_rcu_tasks_trace() function is not
+ * (yet) intended for heavy use from multiple CPUs.
+ *
+ * See the description of synchronize_rcu() for more detailed information
+ * on memory ordering guarantees.
+ */
+static inline void synchronize_rcu_tasks_trace(void)
+{
+	synchronize_srcu(&rcu_tasks_trace_srcu_struct);
+}
+
+/**
+ * rcu_barrier_tasks_trace - Wait for in-flight call_rcu_tasks_trace() callbacks.
+ *
+ * Note that rcu_barrier_tasks_trace() is not obligated to actually wait,
+ * for example, if there are no pending callbacks.
+ */
+static inline void rcu_barrier_tasks_trace(void)
+{
+	srcu_barrier(&rcu_tasks_trace_srcu_struct);
+}
+
+// Placeholders to enable stepwise transition.
+void rcu_tasks_trace_get_gp_data(int *flags, unsigned long *gp_seq);
+void __init rcu_tasks_trace_suppress_unused(void);
 struct task_struct *get_rcu_tasks_trace_gp_kthread(void);
+
 #else
 /*
  * The BPF JIT forms these addresses even when it doesn't call these
