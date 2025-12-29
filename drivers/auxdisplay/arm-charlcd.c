@@ -157,7 +157,8 @@ static bool charlcd_4bit_read_bf(struct charlcd *lcd)
 		writel(0x01, lcd->virtbase + CHAR_MASK);
 	}
 	readl(lcd->virtbase + CHAR_COM);
-	return charlcd_4bit_read_char(lcd) & HD_BUSY_FLAG ? true : false;
+
+	return charlcd_4bit_read_char(lcd) & HD_BUSY_FLAG;
 }
 
 static void charlcd_4bit_wait_busy(struct charlcd *lcd)
