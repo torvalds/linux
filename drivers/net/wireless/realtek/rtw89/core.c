@@ -5086,7 +5086,7 @@ static void rtw89_init_vht_cap(struct rtw89_dev *rtwdev,
 	}
 
 	vht_cap->vht_supported = true;
-	vht_cap->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+	vht_cap->cap = chip->max_vht_mpdu_cap |
 		       IEEE80211_VHT_CAP_SHORT_GI_80 |
 		       IEEE80211_VHT_CAP_RXSTBC_1 |
 		       IEEE80211_VHT_CAP_HTC_VHT |
@@ -5214,7 +5214,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 					IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
 		       le16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
 					IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
-		       le16_encode_bits(IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+		       le16_encode_bits(chip->max_vht_mpdu_cap,
 					IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN);
 		iftype_data->he_6ghz_capa.capa = capa;
 	}
@@ -5252,7 +5252,7 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	eht_cap->has_eht = true;
 
 	eht_cap_elem->mac_cap_info[0] =
-		u8_encode_bits(IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991,
+		u8_encode_bits(chip->max_eht_mpdu_cap,
 			       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
 	eht_cap_elem->mac_cap_info[1] = 0;
 
@@ -6399,8 +6399,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	hw->extra_tx_headroom = tx_headroom;
 	hw->queues = IEEE80211_NUM_ACS;
-	hw->max_rx_aggregation_subframes = RTW89_MAX_RX_AGG_NUM;
-	hw->max_tx_aggregation_subframes = RTW89_MAX_TX_AGG_NUM;
+	hw->max_rx_aggregation_subframes = chip->max_rx_agg_num;
+	hw->max_tx_aggregation_subframes = chip->max_tx_agg_num;
 	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
 
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
