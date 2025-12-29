@@ -1573,6 +1573,8 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_APBT = 0xD1,
 	XTAL_SI_PLL = 0xE0,
 	XTAL_SI_PLL_1 = 0xE1,
+	XTAL_SI_CHIP_ID_L = 0xFD,
+	XTAL_SI_CHIP_ID_H = 0xFE,
 };
 
 static inline

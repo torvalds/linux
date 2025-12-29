@@ -6081,7 +6081,9 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	int ret;
+	u8 val2;
 	u8 val;
 	u8 cv;
 
@@ -6093,14 +6095,28 @@ static void rtw89_read_chip_ver(struct rtw89_dev *rtwdev)
 			cv = CHIP_CBV;
 	}
 
-	rtwdev->hal.cv = cv;
+	hal->cv = cv;
 
-	if (rtw89_is_rtl885xb(rtwdev)) {
+	if (rtw89_is_rtl885xb(rtwdev) || chip->chip_gen >= RTW89_CHIP_BE) {
 		ret = rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_CV, &val);
 		if (ret)
 			return;
 
-		rtwdev->hal.acv = u8_get_bits(val, XTAL_SI_ACV_MASK);
+		hal->acv = u8_get_bits(val, XTAL_SI_ACV_MASK);
+	}
+
+	if (chip->chip_gen >= RTW89_CHIP_BE) {
+		hal->cid =
+			rtw89_read32_mask(rtwdev, R_BE_SYS_CHIPINFO, B_BE_HW_ID_MASK);
+
+		ret = rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_CHIP_ID_L, &val);
+		if (ret)
+			return;
+		ret = rtw89_mac_read_xtal_si(rtwdev, XTAL_SI_CHIP_ID_H, &val2);
+		if (ret)
+			return;
+
+		hal->aid = val | val2 << 8;
 	}
 }
 
@@ -6310,6 +6326,8 @@ void rtw89_core_rfkill_poll(struct rtw89_dev *rtwdev, bool force)
 
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	int ret;
 
 	rtw89_read_chip_ver(rtwdev);
@@ -6348,6 +6366,9 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 
 	rtw89_core_setup_rfe_parms(rtwdev);
 	rtwdev->ps_mode = rtw89_update_ps_mode(rtwdev);
+
+	rtw89_info(rtwdev, "chip info CID: %x, CV: %x, AID: %x, ACV: %x, RFE: %d\n",
+		   hal->cid, hal->cv, hal->aid, hal->acv, efuse->rfe_type);
 
 out:
 	rtw89_mac_pwr_off(rtwdev);

@@ -628,8 +628,6 @@ static int rtw8922a_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
 	rtw8922a_efuse_parsing_tssi(rtwdev, map);
 	rtw8922a_efuse_parsing_gain_offset(rtwdev, map);
 
-	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
-
 	return 0;
 }
 
