@@ -136,9 +136,7 @@ static inline void rcu_barrier_tasks_trace(void)
 }
 
 // Placeholders to enable stepwise transition.
-void rcu_tasks_trace_get_gp_data(int *flags, unsigned long *gp_seq);
 void __init rcu_tasks_trace_suppress_unused(void);
-struct task_struct *get_rcu_tasks_trace_gp_kthread(void);
 
 #else
 /*
