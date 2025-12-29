@@ -315,6 +315,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &hdptxphy {
 	status = "okay";
 };
@@ -833,6 +837,10 @@
 			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
+};
+
+&sai6 {
+	status = "okay";
 };
 
 &sdhci {
