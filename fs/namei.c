@@ -881,7 +881,7 @@ static bool try_to_unlazy(struct nameidata *nd)
 {
 	struct dentry *parent = nd->path.dentry;
 
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+	VFS_BUG_ON(!(nd->flags & LOOKUP_RCU));
 
 	if (unlikely(nd->depth && !legitimize_links(nd)))
 		goto out1;
@@ -916,7 +916,8 @@ out:
 static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry)
 {
 	int res;
-	BUG_ON(!(nd->flags & LOOKUP_RCU));
+
+	VFS_BUG_ON(!(nd->flags & LOOKUP_RCU));
 
 	if (unlikely(nd->depth && !legitimize_links(nd)))
 		goto out2;
