@@ -642,7 +642,7 @@ static void nullb_device_release(struct config_item *item)
 	null_free_dev(dev);
 }
 
-static struct configfs_item_operations nullb_device_ops = {
+static const struct configfs_item_operations nullb_device_ops = {
 	.release	= nullb_device_release,
 };
 
@@ -739,7 +739,7 @@ static struct configfs_attribute *nullb_group_attrs[] = {
 	NULL,
 };
 
-static struct configfs_group_operations nullb_group_ops = {
+static const struct configfs_group_operations nullb_group_ops = {
 	.make_group	= nullb_group_make_group,
 	.drop_item	= nullb_group_drop_item,
 };
