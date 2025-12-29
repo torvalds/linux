@@ -99,6 +99,19 @@ int ns_get_path(struct path *path, struct task_struct *task,
 	return ns_get_path_cb(path, ns_get_path_task, &args);
 }
 
+struct file *open_namespace_file(struct ns_common *ns)
+{
+	struct path path __free(path_put) = {};
+	int err;
+
+	/* call first to consume reference */
+	err = path_from_stashed(&ns->stashed, nsfs_mnt, ns, &path);
+	if (err < 0)
+		return ERR_PTR(err);
+
+	return dentry_open(&path, O_RDONLY, current_cred());
+}
+
 /**
  * open_namespace - open a namespace
  * @ns: the namespace to open
