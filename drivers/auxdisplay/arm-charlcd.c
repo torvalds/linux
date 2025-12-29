@@ -13,7 +13,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
@@ -115,20 +115,14 @@ static u8 charlcd_4bit_read_char(struct charlcd *lcd)
 {
 	u8 data;
 	u32 val;
-	int i;
 
 	/* If we can, use an IRQ to wait for the data, else poll */
 	if (lcd->irq >= 0)
 		charlcd_wait_complete_irq(lcd);
 	else {
-		i = 0;
-		val = 0;
-		while (!(val & CHAR_RAW_VALID) && i < 10) {
-			udelay(100);
-			val = readl(lcd->virtbase + CHAR_RAW);
-			i++;
-		}
-
+		udelay(100);
+		readl_poll_timeout_atomic(lcd->virtbase + CHAR_RAW, val,
+					  val & CHAR_RAW_VALID, 100, 1000);
 		writel(CHAR_RAW_CLEAR, lcd->virtbase + CHAR_RAW);
 	}
 	msleep(1);
@@ -140,13 +134,9 @@ static u8 charlcd_4bit_read_char(struct charlcd *lcd)
 	 * The second read for the low bits does not trigger an IRQ
 	 * so in this case we have to poll for the 4 lower bits
 	 */
-	i = 0;
-	val = 0;
-	while (!(val & CHAR_RAW_VALID) && i < 10) {
-		udelay(100);
-		val = readl(lcd->virtbase + CHAR_RAW);
-		i++;
-	}
+	udelay(100);
+	readl_poll_timeout_atomic(lcd->virtbase + CHAR_RAW, val,
+				  val & CHAR_RAW_VALID, 100, 1000);
 	writel(CHAR_RAW_CLEAR, lcd->virtbase + CHAR_RAW);
 	msleep(1);
 
