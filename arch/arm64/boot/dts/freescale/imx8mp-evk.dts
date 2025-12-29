@@ -84,6 +84,27 @@
 		clock-frequency = <100000000>;
 	};
 
+	reg_1v5: regulator-1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "1v5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	reg_2v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "2v8";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+	};
+
 	reg_audio_3v3: regulator-audio-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "audio-3v3";
@@ -548,6 +569,30 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	camera@3c {
+	       compatible = "ovti,ov5640";
+	       reg = <0x3c>;
+	       pinctrl-names = "default";
+	       pinctrl-0 = <&pinctrl_csi0_pwn>, <&pinctrl_csi0_rst>, <&pinctrl_csi_mclk>;
+	       clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
+	       clock-names = "xclk";
+	       assigned-clocks = <&clk IMX8MP_CLK_IPP_DO_CLKO2>;
+	       assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
+	       assigned-clock-rates = <24000000>;
+	       powerdown-gpios = <&gpio2 11 GPIO_ACTIVE_HIGH>;
+	       AVDD-supply = <&reg_2v8>;
+	       DVDD-supply = <&reg_1v5>;
+	       DOVDD-supply = <&reg_1v8>;
+	       status = "okay";
+
+	       port {
+		       ov5640_mipi_0_ep: endpoint {
+			       remote-endpoint = <&mipi_csi0_ep>;
+			       data-lanes = <1 2>;
+		       };
+	       };
+	};
+
 	hdmi@3d {
 		compatible = "adi,adv7535";
 		reg = <0x3d>;
@@ -652,6 +697,10 @@
 	 */
 };
 
+&isi_0 {
+	status = "okay";
+};
+
 &lcdif1 {
 	status = "okay";
 };
@@ -668,6 +717,19 @@
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <196608000>;
 	status = "okay";
+};
+
+&mipi_csi_0 {
+	status = "okay";
+
+	ports {
+	       port@0 {
+		       mipi_csi0_ep: endpoint {
+				remote-endpoint = <&ov5640_mipi_0_ep>;
+				data-lanes = <1 2>;
+		       };
+	       };
+	};
 };
 
 &mipi_dsi {
@@ -840,6 +902,24 @@
 	pinctrl_audio_pwr_reg: audiopwrreggrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SAI3_RXC__GPIO4_IO29		0xd6
+		>;
+	};
+
+	pinctrl_csi_mclk: csi_mclk_grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO15__CCM_CLKO2	0x50
+		>;
+	};
+
+	pinctrl_csi0_pwn: csi0_pwn_grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD1_STROBE__GPIO2_IO11	0x10
+		>;
+	};
+
+	pinctrl_csi0_rst: csi0_rst_grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO06__GPIO1_IO06	0x10
 		>;
 	};
 
