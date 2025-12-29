@@ -14,7 +14,6 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <generated/utsrelease.h>
 
@@ -56,8 +55,6 @@
 /**
  * struct charlcd - Private data structure
  * @dev: a pointer back to containing device
- * @phybase: the offset to the controller in physical memory
- * @physize: the size of the physical page
  * @virtbase: the offset to the controller in virtual memory
  * @irq: reserved interrupt number
  * @complete: completion structure for the last LCD command
@@ -65,8 +62,6 @@
  */
 struct charlcd {
 	struct device *dev;
-	u32 phybase;
-	u32 physize;
 	void __iomem *virtbase;
 	int irq;
 	struct completion complete;
@@ -266,44 +261,27 @@ static void charlcd_init_work(struct work_struct *work)
 
 static int __init charlcd_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	int ret;
 	struct charlcd *lcd;
 	struct resource *res;
 
-	lcd = kzalloc(sizeof(*lcd), GFP_KERNEL);
+	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
 	lcd->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		ret = -ENOENT;
-		goto out_no_resource;
-	}
-	lcd->phybase = res->start;
-	lcd->physize = resource_size(res);
-
-	if (request_mem_region(lcd->phybase, lcd->physize,
-			       DRIVERNAME) == NULL) {
-		ret = -EBUSY;
-		goto out_no_memregion;
-	}
-
-	lcd->virtbase = ioremap(lcd->phybase, lcd->physize);
-	if (!lcd->virtbase) {
-		ret = -ENOMEM;
-		goto out_no_memregion;
-	}
+	lcd->virtbase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(lcd->virtbase))
+		return PTR_ERR(lcd->virtbase);
 
 	lcd->irq = platform_get_irq(pdev, 0);
 	/* If no IRQ is supplied, we'll survive without it */
 	if (lcd->irq >= 0) {
-		if (request_irq(lcd->irq, charlcd_interrupt, 0,
-				DRIVERNAME, lcd)) {
-			ret = -EIO;
-			goto out_no_irq;
-		}
+		ret = devm_request_irq(dev, lcd->irq, charlcd_interrupt, 0, DRIVERNAME, lcd);
+		if (ret)
+			return ret;
 	}
 
 	platform_set_drvdata(pdev, lcd);
@@ -315,18 +293,9 @@ static int __init charlcd_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&lcd->init_work, charlcd_init_work);
 	schedule_delayed_work(&lcd->init_work, 0);
 
-	dev_info(&pdev->dev, "initialized ARM character LCD at %08x\n",
-		lcd->phybase);
+	dev_info(dev, "initialized ARM character LCD at %pa\n", &res->start);
 
 	return 0;
-
-out_no_irq:
-	iounmap(lcd->virtbase);
-out_no_memregion:
-	release_mem_region(lcd->phybase, lcd->physize);
-out_no_resource:
-	kfree(lcd);
-	return ret;
 }
 
 static int charlcd_suspend(struct device *dev)
