@@ -69,6 +69,12 @@ static inline void __tileloadd(void *tile)
 		     : : "a"(tile), "d"(0));
 }
 
+static inline int tileloadd_safe(void *tile)
+{
+	return kvm_asm_safe(".byte 0xc4,0xe2,0x7b,0x4b,0x04,0x10",
+			    "a"(tile), "d"(0));
+}
+
 static inline void __tilerelease(void)
 {
 	asm volatile(".byte 0xc4, 0xe2, 0x78, 0x49, 0xc0" ::);
@@ -142,6 +148,8 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 						    struct tile_data *tiledata,
 						    struct xstate *xstate)
 {
+	int vector;
+
 	GUEST_ASSERT(this_cpu_has(X86_FEATURE_XSAVE) &&
 		     this_cpu_has(X86_FEATURE_OSXSAVE));
 	check_xtile_info();
@@ -195,17 +203,13 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == XFEATURE_MASK_XTILE_DATA);
 	set_tilecfg(amx_cfg);
 	__ldtilecfg(amx_cfg);
+
 	/* Trigger #NM exception */
-	__tileloadd(tiledata);
-	GUEST_SYNC(TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
+	vector = tileloadd_safe(tiledata);
+	__GUEST_ASSERT(vector == NM_VECTOR,
+		       "Wanted #NM on tileloadd with XFD[18]=1, got %s",
+		       ex_str(vector));
 
-	GUEST_DONE();
-}
-
-void guest_nm_handler(struct ex_regs *regs)
-{
-	/* Check if #NM is triggered by XFEATURE_MASK_XTILE_DATA */
-	GUEST_SYNC(TEST_SAVE_RESTORE);
 	GUEST_ASSERT(!(get_cr0() & X86_CR0_TS));
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD_ERR) == XFEATURE_MASK_XTILE_DATA);
 	GUEST_ASSERT(rdmsr(MSR_IA32_XFD) == XFEATURE_MASK_XTILE_DATA);
@@ -217,6 +221,11 @@ void guest_nm_handler(struct ex_regs *regs)
 	/* xfd=0, enable amx */
 	wrmsr(MSR_IA32_XFD, 0);
 	GUEST_SYNC(TEST_SAVE_RESTORE);
+
+	__tileloadd(tiledata);
+	GUEST_SYNC(TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
+
+	GUEST_DONE();
 }
 
 int main(int argc, char *argv[])
@@ -252,9 +261,6 @@ int main(int argc, char *argv[])
 	xsave_restore_size = kvm_cpu_property(X86_PROPERTY_XSTATE_MAX_SIZE);
 
 	vcpu_regs_get(vcpu, &regs1);
-
-	/* Register #NM handler */
-	vm_install_exception_handler(vm, NM_VECTOR, guest_nm_handler);
 
 	/* amx cfg for guest_code */
 	amx_cfg = vm_vaddr_alloc_page(vm);
