@@ -379,12 +379,6 @@ allOf:
             - const: xo
               description: GPUCC clocksource clock
 
-        reg-names:
-          minItems: 1
-          items:
-            - const: kgsl_3d0_reg_memory
-            - const: cx_dbgc
-
       required:
         - clocks
         - clock-names
