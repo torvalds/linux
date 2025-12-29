@@ -2076,6 +2076,33 @@ struct rtw89_h2c_wow_cam_update {
 #define RTW89_H2C_WOW_CAM_UPD_W5_BC BIT(26)
 #define RTW89_H2C_WOW_CAM_UPD_W5_VALID BIT(31)
 
+struct rtw89_h2c_wow_payload_cam_update {
+	__le32 w0;
+	__le32 wkfm0;
+	__le32 wkfm1;
+	__le32 wkfm2;
+	__le32 wkfm3;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+} __packed;
+
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W0_R_W BIT(0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W0_IDX GENMASK(7, 1)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_WKFM0 GENMASK(31, 0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_WKFM1 GENMASK(31, 0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_WKFM2 GENMASK(31, 0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_WKFM3 GENMASK(31, 0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W5_UC BIT(0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W5_MC BIT(1)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W5_BC BIT(2)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W5_SKIP_MAC_HDR BIT(7)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W6_CRC GENMASK(15, 0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W7_NEGATIVE_PATTERN_MATCH BIT(0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W8_VALID BIT(0)
+#define RTW89_H2C_WOW_PLD_CAM_UPD_W8_WOW_PTR BIT(1)
+
 struct rtw89_h2c_wow_gtk_ofld {
 	__le32 w0;
 	__le32 w1;
@@ -4266,6 +4293,7 @@ enum rtw89_wow_h2c_func {
 	H2C_FUNC_WAKEUP_CTRL		= 0x8,
 	H2C_FUNC_WOW_CAM_UPD		= 0xC,
 	H2C_FUNC_AOAC_REPORT_REQ	= 0xD,
+	H2C_FUNC_WOW_PLD_CAM_UPD	= 0x12,
 
 	NUM_OF_RTW89_WOW_H2C_FUNC,
 };
@@ -5015,6 +5043,8 @@ int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link, bool enable);
 int rtw89_fw_h2c_wow_cam_update(struct rtw89_dev *rtwdev,
 				struct rtw89_wow_cam_info *cam_info);
+int rtw89_fw_h2c_wow_cam_update_v1(struct rtw89_dev *rtwdev,
+				   struct rtw89_wow_cam_info *cam_info);
 int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      bool enable);
@@ -5176,6 +5206,15 @@ int rtw89_chip_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 	}
 
 	return 0;
+}
+
+static inline
+int rtw89_chip_h2c_wow_cam_update(struct rtw89_dev *rtwdev,
+				  struct rtw89_wow_cam_info *cam_info)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->h2c_wow_cam_update(rtwdev, cam_info);
 }
 
 /* Must consider compatibility; don't insert new in the mid.

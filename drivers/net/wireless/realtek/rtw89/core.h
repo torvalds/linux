@@ -25,6 +25,7 @@ struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
 struct rtw89_debugfs;
 struct rtw89_regd_data;
+struct rtw89_wow_cam_info;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -3835,6 +3836,8 @@ struct rtw89_chip_ops {
 			  struct rtw89_vif_link *rtwvif_link,
 			  struct rtw89_sta_link *rtwsta_link,
 			  bool valid, struct ieee80211_ampdu_params *params);
+	int (*h2c_wow_cam_update)(struct rtw89_dev *rtwdev,
+				  struct rtw89_wow_cam_info *cam_info);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
