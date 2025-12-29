@@ -158,7 +158,7 @@ static void simple_child_release(struct config_item *item)
 	kfree(to_simple_child(item));
 }
 
-static struct configfs_item_operations simple_child_item_ops = {
+static const struct configfs_item_operations simple_child_item_ops = {
 	.release	= simple_child_release,
 };
 
@@ -215,7 +215,7 @@ static void simple_children_release(struct config_item *item)
 	kfree(to_simple_children(item));
 }
 
-static struct configfs_item_operations simple_children_item_ops = {
+static const struct configfs_item_operations simple_children_item_ops = {
 	.release	= simple_children_release,
 };
 
@@ -223,7 +223,7 @@ static struct configfs_item_operations simple_children_item_ops = {
  * Note that, since no extra work is required on ->drop_item(),
  * no ->drop_item() is provided.
  */
-static struct configfs_group_operations simple_children_group_ops = {
+static const struct configfs_group_operations simple_children_group_ops = {
 	.make_item	= simple_children_make_item,
 };
 
@@ -292,7 +292,7 @@ static struct configfs_attribute *group_children_attrs[] = {
  * Note that, since no extra work is required on ->drop_item(),
  * no ->drop_item() is provided.
  */
-static struct configfs_group_operations group_children_group_ops = {
+static const struct configfs_group_operations group_children_group_ops = {
 	.make_group	= group_children_make_group,
 };
 
