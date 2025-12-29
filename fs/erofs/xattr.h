@@ -45,17 +45,10 @@ extern const struct xattr_handler * const erofs_xattr_handlers[];
 
 int erofs_xattr_prefixes_init(struct super_block *sb);
 void erofs_xattr_prefixes_cleanup(struct super_block *sb);
-int erofs_getxattr(struct inode *, int, const char *, void *, size_t);
 ssize_t erofs_listxattr(struct dentry *, char *, size_t);
 #else
 static inline int erofs_xattr_prefixes_init(struct super_block *sb) { return 0; }
 static inline void erofs_xattr_prefixes_cleanup(struct super_block *sb) {}
-static inline int erofs_getxattr(struct inode *inode, int index,
-				 const char *name, void *buffer,
-				 size_t buffer_size)
-{
-	return -EOPNOTSUPP;
-}
 
 #define erofs_listxattr (NULL)
 #define erofs_xattr_handlers (NULL)
