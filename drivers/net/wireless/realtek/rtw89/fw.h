@@ -2053,70 +2053,28 @@ static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAC_ID(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
 }
 
-static inline void RTW89_SET_WOW_CAM_UPD_R_W(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
-}
+struct rtw89_h2c_wow_cam_update {
+	__le32 w0;
+	__le32 wkfm0;
+	__le32 wkfm1;
+	__le32 wkfm2;
+	__le32 wkfm3;
+	__le32 w5;
+} __packed;
 
-static inline void RTW89_SET_WOW_CAM_UPD_IDX(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 1));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_WKFM1(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 0));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_WKFM2(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 2, val, GENMASK(31, 0));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_WKFM3(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 3, val, GENMASK(31, 0));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_WKFM4(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 4, val, GENMASK(31, 0));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_CRC(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, GENMASK(15, 0));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_NEGATIVE_PATTERN_MATCH(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(22));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_SKIP_MAC_HDR(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(23));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_UC(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(24));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_MC(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(25));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_BC(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(26));
-}
-
-static inline void RTW89_SET_WOW_CAM_UPD_VALID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(31));
-}
+#define RTW89_H2C_WOW_CAM_UPD_W0_R_W BIT(0)
+#define RTW89_H2C_WOW_CAM_UPD_W0_IDX GENMASK(7, 1)
+#define RTW89_H2C_WOW_CAM_UPD_WKFM0 GENMASK(31, 0)
+#define RTW89_H2C_WOW_CAM_UPD_WKFM1 GENMASK(31, 0)
+#define RTW89_H2C_WOW_CAM_UPD_WKFM2 GENMASK(31, 0)
+#define RTW89_H2C_WOW_CAM_UPD_WKFM3 GENMASK(31, 0)
+#define RTW89_H2C_WOW_CAM_UPD_W5_CRC GENMASK(15, 0)
+#define RTW89_H2C_WOW_CAM_UPD_W5_NEGATIVE_PATTERN_MATCH BIT(22)
+#define RTW89_H2C_WOW_CAM_UPD_W5_SKIP_MAC_HDR BIT(23)
+#define RTW89_H2C_WOW_CAM_UPD_W5_UC BIT(24)
+#define RTW89_H2C_WOW_CAM_UPD_W5_MC BIT(25)
+#define RTW89_H2C_WOW_CAM_UPD_W5_BC BIT(26)
+#define RTW89_H2C_WOW_CAM_UPD_W5_VALID BIT(31)
 
 struct rtw89_h2c_wow_gtk_ofld {
 	__le32 w0;
@@ -5055,8 +5013,8 @@ int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtw
 			    bool enable);
 int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link, bool enable);
-int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
-			    struct rtw89_wow_cam_info *cam_info);
+int rtw89_fw_h2c_wow_cam_update(struct rtw89_dev *rtwdev,
+				struct rtw89_wow_cam_info *cam_info);
 int rtw89_fw_h2c_wow_gtk_ofld(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      bool enable);
