@@ -347,8 +347,10 @@ static int erofs_read_superblock(struct super_block *sb)
 	if (dsb->volume_name[0]) {
 		sbi->volume_name = kstrndup(dsb->volume_name,
 					    sizeof(dsb->volume_name), GFP_KERNEL);
-		if (!sbi->volume_name)
-			return -ENOMEM;
+		if (!sbi->volume_name) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	/* parse on-disk compression configurations */
