@@ -269,9 +269,10 @@ int uncore_freq_add_entry(struct uncore_data *data, int cpu)
 			goto uncore_unlock;
 
 		data->instance_id = ret;
-		sprintf(data->name, "uncore%02d", ret);
+		scnprintf(data->name, sizeof(data->name), "uncore%02d", ret);
 	} else {
-		sprintf(data->name, "package_%02d_die_%02d", data->package_id, data->die_id);
+		scnprintf(data->name, sizeof(data->name), "package_%02d_die_%02d",
+			  data->package_id, data->die_id);
 	}
 
 	uncore_read(data, &data->initial_min_freq_khz, UNCORE_INDEX_MIN_FREQ);
