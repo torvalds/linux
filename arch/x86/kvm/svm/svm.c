@@ -3501,6 +3501,7 @@ int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 __exit_code)
 	if (exit_code >= ARRAY_SIZE(svm_exit_handlers))
 		goto unexpected_vmexit;
 
+	exit_code = array_index_nospec(exit_code, ARRAY_SIZE(svm_exit_handlers));
 	if (!svm_exit_handlers[exit_code])
 		goto unexpected_vmexit;
 
