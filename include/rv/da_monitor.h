@@ -8,7 +8,7 @@
  * The dot2k tool is available at tools/verification/dot2k/
  *
  * For further information, see:
- *   Documentation/trace/rv/da_monitor_synthesis.rst
+ *   Documentation/trace/rv/monitor_synthesis.rst
  */
 
 #ifndef _RV_DA_MONITOR_H
