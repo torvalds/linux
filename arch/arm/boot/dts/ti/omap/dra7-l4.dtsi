@@ -109,7 +109,6 @@
 				scm_conf1: scm_conf@1c04 {
 					compatible = "syscon";
 					reg = <0x1c04 0x0020>;
-					#syscon-cells = <2>;
 				};
 
 				scm_conf_pcie: scm_conf@1c24 {
