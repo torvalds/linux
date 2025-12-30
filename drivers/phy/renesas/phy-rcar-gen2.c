@@ -85,7 +85,7 @@ static int rcar_gen2_phy_init(struct phy *p)
 	 * Try to acquire exclusive access to PHY.  The first driver calling
 	 * phy_init()  on a given channel wins, and all attempts  to use another
 	 * PHY on this channel will fail until phy_exit() is called by the first
-	 * driver.   Achieving this with cmpxcgh() should be SMP-safe.
+	 * driver.   Achieving this with cmpxchg() should be SMP-safe.
 	 */
 	if (cmpxchg(&channel->selected_phy, -1, phy->number) != -1)
 		return -EBUSY;
