@@ -195,6 +195,9 @@ void phy_pm_runtime_put(struct phy *phy)
 	if (!phy)
 		return;
 
+	if (!pm_runtime_enabled(&phy->dev))
+		return;
+
 	pm_runtime_put(&phy->dev);
 }
 EXPORT_SYMBOL_GPL(phy_pm_runtime_put);
