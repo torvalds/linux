@@ -1396,9 +1396,9 @@ static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 	 * can use multiple transactions, every time btrfs_end_transaction() is
 	 * called at btrfs_rebuild_free_space_tree() we finish the creation of
 	 * new block groups by calling btrfs_create_pending_block_groups(), and
-	 * that in turn calls us, through add_block_group_free_space(), to add
-	 * a free space info item and a free space extent item for the block
-	 * group.
+	 * that in turn calls us, through btrfs_add_block_group_free_space(),
+	 * to add a free space info item and a free space extent item for the
+	 * block group.
 	 *
 	 * Then later btrfs_rebuild_free_space_tree() may find such new block
 	 * groups and processes them with populate_free_space_tree(), which can
