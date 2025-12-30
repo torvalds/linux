@@ -162,9 +162,9 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 		    "Unknown or unsupported guest mode: 0x%x", vm->mode);
 
 	/* If needed, create the top-level page table. */
-	if (!vm->pgd_created) {
-		vm->pgd = vm_alloc_page_table(vm);
-		vm->pgd_created = true;
+	if (!vm->mmu.pgd_created) {
+		vm->mmu.pgd = vm_alloc_page_table(vm);
+		vm->mmu.pgd_created = true;
 	}
 }
 
@@ -175,7 +175,7 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t *parent_pte,
 	uint64_t *page_table = addr_gpa2hva(vm, pt_gpa);
 	int index = (vaddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
 
-	TEST_ASSERT((*parent_pte & PTE_PRESENT_MASK) || parent_pte == &vm->pgd,
+	TEST_ASSERT((*parent_pte & PTE_PRESENT_MASK) || parent_pte == &vm->mmu.pgd,
 		    "Parent PTE (level %d) not PRESENT for gva: 0x%08lx",
 		    level + 1, vaddr);
 
@@ -218,7 +218,7 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 {
 	const uint64_t pg_size = PG_LEVEL_SIZE(level);
-	uint64_t *pte = &vm->pgd;
+	uint64_t *pte = &vm->mmu.pgd;
 	int current_level;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXVYY_4K,
@@ -243,7 +243,7 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 	 * Allocate upper level page tables, if not already present.  Return
 	 * early if a hugepage was created.
 	 */
-	for (current_level = vm->pgtable_levels;
+	for (current_level = vm->mmu.pgtable_levels;
 	     current_level > PG_LEVEL_4K;
 	     current_level--) {
 		pte = virt_create_upper_pte(vm, pte, vaddr, paddr,
@@ -309,14 +309,14 @@ static bool vm_is_target_pte(uint64_t *pte, int *level, int current_level)
 static uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
 					   int *level)
 {
-	int va_width = 12 + (vm->pgtable_levels) * 9;
-	uint64_t *pte = &vm->pgd;
+	int va_width = 12 + (vm->mmu.pgtable_levels) * 9;
+	uint64_t *pte = &vm->mmu.pgd;
 	int current_level;
 
 	TEST_ASSERT(!vm->arch.is_pt_protected,
 		    "Walking page tables of protected guests is impossible");
 
-	TEST_ASSERT(*level >= PG_LEVEL_NONE && *level <= vm->pgtable_levels,
+	TEST_ASSERT(*level >= PG_LEVEL_NONE && *level <= vm->mmu.pgtable_levels,
 		    "Invalid PG_LEVEL_* '%d'", *level);
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXVYY_4K,
@@ -332,7 +332,7 @@ static uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
 		    (((int64_t)vaddr << (64 - va_width) >> (64 - va_width))),
 		    "Canonical check failed.  The virtual address is invalid.");
 
-	for (current_level = vm->pgtable_levels;
+	for (current_level = vm->mmu.pgtable_levels;
 	     current_level > PG_LEVEL_4K;
 	     current_level--) {
 		pte = virt_get_pte(vm, pte, vaddr, current_level);
@@ -357,7 +357,7 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	uint64_t *pde, *pde_start;
 	uint64_t *pte, *pte_start;
 
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		return;
 
 	fprintf(stream, "%*s                                          "
@@ -365,7 +365,7 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	fprintf(stream, "%*s      index hvaddr         gpaddr         "
 		"addr         w exec dirty\n",
 		indent, "");
-	pml4e_start = (uint64_t *) addr_gpa2hva(vm, vm->pgd);
+	pml4e_start = (uint64_t *) addr_gpa2hva(vm, vm->mmu.pgd);
 	for (uint16_t n1 = 0; n1 <= 0x1ffu; n1++) {
 		pml4e = &pml4e_start[n1];
 		if (!(*pml4e & PTE_PRESENT_MASK))
@@ -538,7 +538,7 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	sregs.cr4 |= X86_CR4_PAE | X86_CR4_OSFXSR;
 	if (kvm_cpu_has(X86_FEATURE_XSAVE))
 		sregs.cr4 |= X86_CR4_OSXSAVE;
-	if (vm->pgtable_levels == 5)
+	if (vm->mmu.pgtable_levels == 5)
 		sregs.cr4 |= X86_CR4_LA57;
 	sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
@@ -549,7 +549,7 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	kvm_seg_set_kernel_data_64bit(&sregs.gs);
 	kvm_seg_set_tss_64bit(vm->arch.tss, &sregs.tr);
 
-	sregs.cr3 = vm->pgd;
+	sregs.cr3 = vm->mmu.pgd;
 	vcpu_sregs_set(vcpu, &sregs);
 }
 

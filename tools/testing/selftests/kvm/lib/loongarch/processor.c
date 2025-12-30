@@ -50,11 +50,11 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 	int i;
 	vm_paddr_t child, table;
 
-	if (vm->pgd_created)
+	if (vm->mmu.pgd_created)
 		return;
 
 	child = table = 0;
-	for (i = 0; i < vm->pgtable_levels; i++) {
+	for (i = 0; i < vm->mmu.pgtable_levels; i++) {
 		invalid_pgtable[i] = child;
 		table = vm_phy_page_alloc(vm, LOONGARCH_PAGE_TABLE_PHYS_MIN,
 				vm->memslots[MEM_REGION_PT]);
@@ -62,8 +62,8 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 		virt_set_pgtable(vm, table, child);
 		child = table;
 	}
-	vm->pgd = table;
-	vm->pgd_created = true;
+	vm->mmu.pgd = table;
+	vm->mmu.pgd_created = true;
 }
 
 static int virt_pte_none(uint64_t *ptep, int level)
@@ -77,11 +77,11 @@ static uint64_t *virt_populate_pte(struct kvm_vm *vm, vm_vaddr_t gva, int alloc)
 	uint64_t *ptep;
 	vm_paddr_t child;
 
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		goto unmapped_gva;
 
-	child = vm->pgd;
-	level = vm->pgtable_levels - 1;
+	child = vm->mmu.pgd;
+	level = vm->mmu.pgtable_levels - 1;
 	while (level > 0) {
 		ptep = addr_gpa2hva(vm, child) + virt_pte_index(vm, gva, level) * 8;
 		if (virt_pte_none(ptep, level)) {
@@ -161,11 +161,11 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 {
 	int level;
 
-	if (!vm->pgd_created)
+	if (!vm->mmu.pgd_created)
 		return;
 
-	level = vm->pgtable_levels - 1;
-	pte_dump(stream, vm, indent, vm->pgd, level);
+	level = vm->mmu.pgtable_levels - 1;
+	pte_dump(stream, vm, indent, vm->mmu.pgd, level);
 }
 
 void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
@@ -297,7 +297,7 @@ static void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	width = vm->page_shift - 3;
 
-	switch (vm->pgtable_levels) {
+	switch (vm->mmu.pgtable_levels) {
 	case 4:
 		/* pud page shift and width */
 		val = (vm->page_shift + width * 2) << 20 | (width << 25);
@@ -309,15 +309,15 @@ static void loongarch_vcpu_setup(struct kvm_vcpu *vcpu)
 		val |= vm->page_shift | width << 5;
 		break;
 	default:
-		TEST_FAIL("Got %u page table levels, expected 3 or 4", vm->pgtable_levels);
+		TEST_FAIL("Got %u page table levels, expected 3 or 4", vm->mmu.pgtable_levels);
 	}
 
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_PWCTL0, val);
 
 	/* PGD page shift and width */
-	val = (vm->page_shift + width * (vm->pgtable_levels - 1)) | width << 6;
+	val = (vm->page_shift + width * (vm->mmu.pgtable_levels - 1)) | width << 6;
 	loongarch_set_csr(vcpu, LOONGARCH_CSR_PWCTL1, val);
-	loongarch_set_csr(vcpu, LOONGARCH_CSR_PGDL, vm->pgd);
+	loongarch_set_csr(vcpu, LOONGARCH_CSR_PGDL, vm->mmu.pgd);
 
 	/*
 	 * Refill exception runs on real mode

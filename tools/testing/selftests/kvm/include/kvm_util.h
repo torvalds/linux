@@ -88,12 +88,17 @@ enum kvm_mem_region_type {
 	NR_MEM_REGIONS,
 };
 
+struct kvm_mmu {
+	bool pgd_created;
+	uint64_t pgd;
+	int pgtable_levels;
+};
+
 struct kvm_vm {
 	int mode;
 	unsigned long type;
 	int kvm_fd;
 	int fd;
-	unsigned int pgtable_levels;
 	unsigned int page_size;
 	unsigned int page_shift;
 	unsigned int pa_bits;
@@ -104,12 +109,12 @@ struct kvm_vm {
 	struct sparsebit *vpages_valid;
 	struct sparsebit *vpages_mapped;
 	bool has_irqchip;
-	bool pgd_created;
 	vm_paddr_t ucall_mmio_addr;
-	vm_paddr_t pgd;
 	vm_vaddr_t handlers;
 	uint32_t dirty_ring_size;
 	uint64_t gpa_tag_mask;
+
+	struct kvm_mmu mmu;
 
 	struct kvm_vm_arch arch;
 
