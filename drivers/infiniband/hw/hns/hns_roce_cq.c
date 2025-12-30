@@ -55,7 +55,7 @@ void hns_roce_get_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->ibucontext.device);
 	struct hns_roce_cq_table *cq_table = &hr_dev->cq_table;
-	u32 least_load = cq_table->ctx_num[0];
+	u32 least_load = U32_MAX;
 	u8 bankid = 0;
 	u8 i;
 
@@ -63,7 +63,10 @@ void hns_roce_get_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx)
 		return;
 
 	mutex_lock(&cq_table->bank_mutex);
-	for (i = 1; i < HNS_ROCE_CQ_BANK_NUM; i++) {
+	for (i = 0; i < HNS_ROCE_CQ_BANK_NUM; i++) {
+		if (!(cq_table->valid_cq_bank_mask & BIT(i)))
+			continue;
+
 		if (cq_table->ctx_num[i] < least_load) {
 			least_load = cq_table->ctx_num[i];
 			bankid = i;
@@ -581,6 +584,11 @@ void hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
 		cq_table->bank[i].max = hr_dev->caps.num_cqs /
 					HNS_ROCE_CQ_BANK_NUM - 1;
 	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_LIMIT_BANK)
+		cq_table->valid_cq_bank_mask = VALID_CQ_BANK_MASK_LIMIT;
+	else
+		cq_table->valid_cq_bank_mask = VALID_CQ_BANK_MASK_DEFAULT;
 }
 
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev)

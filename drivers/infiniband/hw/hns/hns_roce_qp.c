@@ -197,22 +197,16 @@ static u8 get_affinity_cq_bank(u8 qp_bank)
 	return (qp_bank >> 1) & CQ_BANKID_MASK;
 }
 
-static u8 get_least_load_bankid_for_qp(struct ib_qp_init_attr *init_attr,
-					struct hns_roce_bank *bank)
+static u8 get_least_load_bankid_for_qp(struct hns_roce_bank *bank, u8 valid_qp_bank_mask)
 {
 #define INVALID_LOAD_QPNUM 0xFFFFFFFF
-	struct ib_cq *scq = init_attr->send_cq;
 	u32 least_load = INVALID_LOAD_QPNUM;
-	unsigned long cqn = 0;
 	u8 bankid = 0;
 	u32 bankcnt;
 	u8 i;
 
-	if (scq)
-		cqn = to_hr_cq(scq)->cqn;
-
 	for (i = 0; i < HNS_ROCE_QP_BANK_NUM; i++) {
-		if (scq && (get_affinity_cq_bank(i) != (cqn & CQ_BANKID_MASK)))
+		if (!(valid_qp_bank_mask & BIT(i)))
 			continue;
 
 		bankcnt = bank[i].inuse;
@@ -246,6 +240,42 @@ static int alloc_qpn_with_bankid(struct hns_roce_bank *bank, u8 bankid,
 
 	return 0;
 }
+
+static bool use_ext_sge(struct ib_qp_init_attr *init_attr)
+{
+	return init_attr->cap.max_send_sge > HNS_ROCE_SGE_IN_WQE ||
+		init_attr->qp_type == IB_QPT_UD ||
+		init_attr->qp_type == IB_QPT_GSI;
+}
+
+static u8 select_qp_bankid(struct hns_roce_dev *hr_dev,
+			   struct ib_qp_init_attr *init_attr)
+{
+	struct hns_roce_qp_table *qp_table = &hr_dev->qp_table;
+	struct hns_roce_bank *bank = qp_table->bank;
+	struct ib_cq *scq = init_attr->send_cq;
+	u8 valid_qp_bank_mask = 0;
+	unsigned long cqn = 0;
+	u8 i;
+
+	if (scq)
+		cqn = to_hr_cq(scq)->cqn;
+
+	for (i = 0; i < HNS_ROCE_QP_BANK_NUM; i++) {
+		if (scq && (get_affinity_cq_bank(i) != (cqn & CQ_BANKID_MASK)))
+			continue;
+
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_LIMIT_BANK) &&
+		    use_ext_sge(init_attr) &&
+		    !(VALID_EXT_SGE_QP_BANK_MASK_LIMIT & BIT(i)))
+			continue;
+
+		valid_qp_bank_mask |= BIT(i);
+	}
+
+	return get_least_load_bankid_for_qp(bank, valid_qp_bank_mask);
+}
+
 static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		     struct ib_qp_init_attr *init_attr)
 {
@@ -258,8 +288,7 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		num = 1;
 	} else {
 		mutex_lock(&qp_table->bank_mutex);
-		bankid = get_least_load_bankid_for_qp(init_attr, qp_table->bank);
-
+		bankid = select_qp_bankid(hr_dev, init_attr);
 		ret = alloc_qpn_with_bankid(&qp_table->bank[bankid], bankid,
 					    &num);
 		if (ret) {
