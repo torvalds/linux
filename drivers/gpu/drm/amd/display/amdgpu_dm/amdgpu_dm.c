@@ -6418,7 +6418,8 @@ ffu:
 			   &flip_addrs->dirty_rect_count, true);
 }
 
-static void update_stream_scaling_settings(const struct drm_display_mode *mode,
+static void update_stream_scaling_settings(struct drm_device *dev,
+					   const struct drm_display_mode *mode,
 					   const struct dm_connector_state *dm_state,
 					   struct dc_stream_state *stream)
 {
@@ -6468,8 +6469,8 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 	stream->src = src;
 	stream->dst = dst;
 
-	DRM_DEBUG_KMS("Destination Rectangle x:%d  y:%d  width:%d  height:%d\n",
-		      dst.x, dst.y, dst.width, dst.height);
+	drm_dbg_kms(dev, "Destination Rectangle x:%d  y:%d  width:%d  height:%d\n",
+		    dst.x, dst.y, dst.width, dst.height);
 
 }
 
@@ -7357,7 +7358,7 @@ create_stream_for_sink(struct drm_connector *connector,
 		apply_dsc_policy_for_stream(aconnector, sink, stream, &dsc_caps);
 #endif
 
-	update_stream_scaling_settings(&mode, dm_state, stream);
+	update_stream_scaling_settings(dev, &mode, dm_state, stream);
 
 	fill_audio_info(
 		&stream->audio_info,
@@ -8092,7 +8093,7 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
-			DRM_DEBUG_KMS("Pruned mode %d x %d (clk %d) %s %s -- %s\n",
+			drm_dbg_kms(connector->dev, "Pruned mode %d x %d (clk %d) %s %s -- %s\n",
 				      drm_mode->hdisplay,
 				      drm_mode->vdisplay,
 				      drm_mode->clock,
@@ -8444,7 +8445,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		drm_dp_atomic_find_time_slots(state, mst_mgr, mst_port,
 					      dm_new_connector_state->pbn);
 	if (dm_new_connector_state->vcpi_slots < 0) {
-		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
+		drm_dbg_atomic(connector->dev, "failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
 		return dm_new_connector_state->vcpi_slots;
 	}
 	return 0;
@@ -10894,7 +10895,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		stream_update.stream = dm_new_crtc_state->stream;
 		if (scaling_changed) {
-			update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
+			update_stream_scaling_settings(dev, &dm_new_con_state->base.crtc->mode,
 					dm_new_con_state, dm_new_crtc_state->stream);
 
 			stream_update.src = dm_new_crtc_state->stream->src;
@@ -11613,7 +11614,7 @@ skip_modeset:
 	/* Scaling or underscan settings */
 	if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state) ||
 				drm_atomic_crtc_needs_modeset(new_crtc_state))
-		update_stream_scaling_settings(
+		update_stream_scaling_settings(adev_to_drm(adev),
 			&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
 
 	/* ABM settings */
@@ -11876,7 +11877,7 @@ static int dm_check_native_cursor_state(struct drm_crtc *new_plane_crtc,
 	new_acrtc = to_amdgpu_crtc(new_plane_crtc);
 
 	if (new_plane_state->src_x != 0 || new_plane_state->src_y != 0) {
-		DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
+		drm_dbg_atomic(new_plane_crtc->dev, "Cropping not supported for cursor plane\n");
 		return -EINVAL;
 	}
 
@@ -11975,7 +11976,7 @@ static int dm_update_plane_state(struct dc *dc,
 		if (!dm_old_crtc_state->stream)
 			return 0;
 
-		DRM_DEBUG_ATOMIC("Disabling DRM plane: %d on DRM crtc %d\n",
+		drm_dbg_atomic(old_plane_crtc->dev, "Disabling DRM plane: %d on DRM crtc %d\n",
 				plane->base.id, old_plane_crtc->base.id);
 
 		ret = dm_atomic_get_state(state, &dm_state);
@@ -12028,7 +12029,7 @@ static int dm_update_plane_state(struct dc *dc,
 			goto out;
 		}
 
-		DRM_DEBUG_ATOMIC("Enabling DRM plane: %d on DRM crtc %d\n",
+		drm_dbg_atomic(new_plane_crtc->dev, "Enabling DRM plane: %d on DRM crtc %d\n",
 				 plane->base.id, new_plane_crtc->base.id);
 
 		ret = fill_dc_plane_attributes(
@@ -13120,7 +13121,7 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 				amd_vsdb->version == HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3) {
 			vsdb_info->replay_mode = (amd_vsdb->feature_caps & AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE) ? true : false;
 			vsdb_info->amd_vsdb_version = HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3;
-			DRM_DEBUG_KMS("Panel supports Replay Mode: %d\n", vsdb_info->replay_mode);
+			drm_dbg_kms(aconnector->base.dev, "Panel supports Replay Mode: %d\n", vsdb_info->replay_mode);
 
 			return true;
 		}
