@@ -78,7 +78,7 @@ union ap_queue_status_reg {
 };
 
 /**
- * ap_intructions_available() - Test if AP instructions are available.
+ * ap_instructions_available() - Test if AP instructions are available.
  *
  * Returns true if the AP instructions are installed, otherwise false.
  */
