@@ -305,8 +305,23 @@ static __always_inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
 		      i3c_i2c_driver_unregister,	\
 		      __i2cdrv)
 
+#if IS_ENABLED(CONFIG_I3C)
 int i3c_device_do_xfers(struct i3c_device *dev, struct i3c_xfer *xfers,
 			int nxfers, enum i3c_xfer_mode mode);
+u32 i3c_device_get_supported_xfer_mode(struct i3c_device *dev);
+#else
+static inline int
+i3c_device_do_xfers(struct i3c_device *dev, struct i3c_xfer *xfers,
+		    int nxfers, enum i3c_xfer_mode mode)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline u32 i3c_device_get_supported_xfer_mode(struct i3c_device *dev)
+{
+	return 0;
+}
+#endif
 
 int i3c_device_do_setdasa(struct i3c_device *dev);
 
@@ -348,6 +363,5 @@ int i3c_device_request_ibi(struct i3c_device *dev,
 void i3c_device_free_ibi(struct i3c_device *dev);
 int i3c_device_enable_ibi(struct i3c_device *dev);
 int i3c_device_disable_ibi(struct i3c_device *dev);
-u32 i3c_device_get_supported_xfer_mode(struct i3c_device *dev);
 
 #endif /* I3C_DEV_H */
