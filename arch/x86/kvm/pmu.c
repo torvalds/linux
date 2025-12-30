@@ -853,7 +853,7 @@ void kvm_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
-	if (KVM_BUG_ON(kvm_vcpu_has_run(vcpu), vcpu->kvm))
+	if (KVM_BUG_ON(!kvm_can_set_cpuid_and_feature_msrs(vcpu), vcpu->kvm))
 		return;
 
 	/*

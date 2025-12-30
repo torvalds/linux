@@ -534,17 +534,20 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 	BUILD_BUG_ON(sizeof(vcpu_caps) != sizeof(vcpu->arch.cpu_caps));
 
 	/*
-	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
-	 * MAXPHYADDR, GBPAGES support, AMD reserved bit behavior, etc.. aren't
-	 * tracked in kvm_mmu_page_role.  As a result, KVM may miss guest page
-	 * faults due to reusing SPs/SPTEs. In practice no sane VMM mucks with
-	 * the core vCPU model on the fly. It would've been better to forbid any
-	 * KVM_SET_CPUID{,2} calls after KVM_RUN altogether but unfortunately
-	 * some VMMs (e.g. QEMU) reuse vCPU fds for CPU hotplug/unplug and do
+	 * KVM does not correctly handle changing guest CPUID after KVM_RUN or
+	 * while L2 is active, as MAXPHYADDR, GBPAGES support, AMD reserved bit
+	 * behavior, etc. aren't tracked in kvm_mmu_page_role, and L2 state
+	 * can't be adjusted (without breaking L2 in some way).  As a result,
+	 * KVM may reuse SPs/SPTEs and/or run L2 with bad/misconfigured state.
+	 *
+	 * In practice, no sane VMM mucks with the core vCPU model on the fly.
+	 * It would've been better to forbid any KVM_SET_CPUID{,2} calls after
+	 * KVM_RUN or KVM_SET_NESTED_STATE altogether, but unfortunately some
+	 * VMMs (e.g. QEMU) reuse vCPU fds for CPU hotplug/unplug and do
 	 * KVM_SET_CPUID{,2} again. To support this legacy behavior, check
 	 * whether the supplied CPUID data is equal to what's already set.
 	 */
-	if (kvm_vcpu_has_run(vcpu)) {
+	if (!kvm_can_set_cpuid_and_feature_msrs(vcpu)) {
 		r = kvm_cpuid_check_equal(vcpu, e2, nent);
 		if (r)
 			goto err;

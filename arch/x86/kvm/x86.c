@@ -2314,13 +2314,14 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	u64 val;
 
 	/*
-	 * Disallow writes to immutable feature MSRs after KVM_RUN.  KVM does
-	 * not support modifying the guest vCPU model on the fly, e.g. changing
-	 * the nVMX capabilities while L2 is running is nonsensical.  Allow
-	 * writes of the same value, e.g. to allow userspace to blindly stuff
-	 * all MSRs when emulating RESET.
+	 * Reject writes to immutable feature MSRs if the vCPU model is frozen,
+	 * as KVM doesn't support modifying the guest vCPU model on the fly,
+	 * e.g. changing the VMX capabilities MSRs while L2 is active is
+	 * nonsensical.  Allow writes of the same value, e.g. so that userspace
+	 * can blindly stuff all MSRs when emulating RESET.
 	 */
-	if (kvm_vcpu_has_run(vcpu) && kvm_is_immutable_feature_msr(index) &&
+	if (!kvm_can_set_cpuid_and_feature_msrs(vcpu) &&
+	    kvm_is_immutable_feature_msr(index) &&
 	    (do_get_msr(vcpu, index, &val) || *data != val))
 		return -EINVAL;
 
