@@ -2911,6 +2911,8 @@ static void ath11k_peer_assoc_h_phymode(struct ath11k *ar,
 
 	arg->peer_phymode = phymode;
 	WARN_ON(phymode == MODE_UNKNOWN);
+
+	ath11k_cfr_update_phymode(ar, phymode);
 }
 
 static void ath11k_peer_assoc_prepare(struct ath11k *ar,
