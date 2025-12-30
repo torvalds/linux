@@ -20,6 +20,7 @@
 #include "ivpu_hw.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_pm.h"
+#include "vpu_boot_api.h"
 
 static inline struct ivpu_device *seq_to_ivpu(struct seq_file *s)
 {
@@ -96,7 +97,8 @@ static int last_bootmode_show(struct seq_file *s, void *v)
 {
 	struct ivpu_device *vdev = seq_to_ivpu(s);
 
-	seq_printf(s, "%s\n", (vdev->pm->is_warmboot) ? "warmboot" : "coldboot");
+	seq_printf(s, "%s\n", (vdev->fw->last_boot_mode == VPU_BOOT_TYPE_WARMBOOT) ?
+		   "warm boot" : "cold boot");
 
 	return 0;
 }
