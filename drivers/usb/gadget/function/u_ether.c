@@ -1039,6 +1039,36 @@ int gether_set_ifname(struct net_device *net, const char *name, int len)
 }
 EXPORT_SYMBOL_GPL(gether_set_ifname);
 
+void gether_setup_opts_default(struct gether_opts *opts, const char *name)
+{
+	opts->qmult = QMULT_DEFAULT;
+	snprintf(opts->name, sizeof(opts->name), "%s%%d", name);
+	eth_random_addr(opts->dev_mac);
+	opts->addr_assign_type = NET_ADDR_RANDOM;
+	eth_random_addr(opts->host_mac);
+}
+EXPORT_SYMBOL_GPL(gether_setup_opts_default);
+
+void gether_apply_opts(struct net_device *net, struct gether_opts *opts)
+{
+	struct eth_dev *dev = netdev_priv(net);
+
+	dev->qmult = opts->qmult;
+
+	if (opts->ifname_set) {
+		strscpy(net->name, opts->name, sizeof(net->name));
+		dev->ifname_set = true;
+	}
+
+	memcpy(dev->host_mac, opts->host_mac, sizeof(dev->host_mac));
+
+	if (opts->addr_assign_type == NET_ADDR_SET) {
+		memcpy(dev->dev_mac, opts->dev_mac, sizeof(dev->dev_mac));
+		net->addr_assign_type = opts->addr_assign_type;
+	}
+}
+EXPORT_SYMBOL_GPL(gether_apply_opts);
+
 void gether_suspend(struct gether *link)
 {
 	struct eth_dev *dev = link->ioport;
