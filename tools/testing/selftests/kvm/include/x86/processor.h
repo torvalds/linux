@@ -1452,6 +1452,7 @@ enum pg_level {
 #define PTE_NX_MASK(mmu)		((mmu)->arch.pte_masks.nx)
 #define PTE_C_BIT_MASK(mmu)		((mmu)->arch.pte_masks.c)
 #define PTE_S_BIT_MASK(mmu)		((mmu)->arch.pte_masks.s)
+#define PTE_ALWAYS_SET_MASK(mmu)	((mmu)->arch.pte_masks.always_set)
 
 /*
  * For PTEs without a PRESENT bit (i.e. EPT entries), treat the PTE as present

@@ -75,6 +75,9 @@ void vm_enable_npt(struct kvm_vm *vm)
 	pte_masks = vm->mmu.arch.pte_masks;
 	pte_masks.c = 0;
 
+	/* NPT walks are treated as user accesses, so set the 'user' bit. */
+	pte_masks.always_set = pte_masks.user;
+
 	tdp_mmu_init(vm, vm->mmu.pgtable_levels, &pte_masks);
 }
 

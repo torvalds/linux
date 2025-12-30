@@ -22,6 +22,8 @@ struct pte_masks {
 	uint64_t nx;
 	uint64_t c;
 	uint64_t s;
+
+	uint64_t always_set;
 };
 
 struct kvm_mmu_arch {
