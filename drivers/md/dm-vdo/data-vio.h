@@ -88,8 +88,8 @@ struct zoned_pbn {
 };
 
 /*
- * Where a data_vio is on the compression path; advance_compression_stage() depends on the order of
- * this enum.
+ * Where a data_vio is on the compression path; advance_data_vio_compression_stage()
+ * depends on the order of this enum.
  */
 enum data_vio_compression_stage {
 	/* A data_vio which has not yet entered the compression path */
