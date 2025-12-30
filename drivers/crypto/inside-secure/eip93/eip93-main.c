@@ -90,7 +90,7 @@ static void eip93_unregister_algs(unsigned int i)
 			crypto_unregister_aead(&eip93_algs[j]->alg.aead);
 			break;
 		case EIP93_ALG_TYPE_HASH:
-			crypto_unregister_ahash(&eip93_algs[i]->alg.ahash);
+			crypto_unregister_ahash(&eip93_algs[j]->alg.ahash);
 			break;
 		}
 	}
