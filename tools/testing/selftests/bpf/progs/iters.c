@@ -1926,4 +1926,79 @@ static int loop1_wrapper(void)
 	);
 }
 
+/*
+ * This is similar to a test case absent_mark_in_the_middle_state(),
+ * but adapted for use with bpf_loop().
+ */
+SEC("raw_tp")
+__flag(BPF_F_TEST_STATE_FREQ)
+__failure __msg("math between fp pointer and register with unbounded min value is not allowed")
+__naked void absent_mark_in_the_middle_state4(void)
+{
+	/*
+	 * Equivalent to a C program below:
+	 *
+	 * int main(void) {
+	 *   fp[-8] = bpf_get_prandom_u32();
+	 *   fp[-16] = -32;                    // used in a memory access below
+	 *   bpf_loop(7, loop_cb4, fp, 0);
+	 *   return 0;
+	 * }
+	 *
+	 * int loop_cb4(int i, void *ctx) {
+	 *   if (unlikely(ctx[-8] > bpf_get_prandom_u32()))
+	 *     *(u64 *)(fp + ctx[-16]) = 42;   // aligned access expected
+	 *   if (unlikely(fp[-8] > bpf_get_prandom_u32()))
+	 *     ctx[-16] = -31;                 // makes said access unaligned
+	 *   return 0;
+	 * }
+	 */
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+		"r8 = r0;"
+		"*(u64 *)(r10 - 8) = r0;"
+		"*(u64 *)(r10 - 16) = -32;"
+		"r1 = 7;"
+		"r2 = loop_cb4 ll;"
+		"r3 = r10;"
+		"r4 = 0;"
+		"call %[bpf_loop];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_loop),
+		  __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
+__used __naked
+static void loop_cb4(void)
+{
+	asm volatile (
+		"r9 = r2;"
+		"r8 = *(u64 *)(r9 - 8);"
+		"r6 = *(u64 *)(r9 - 16);"
+		"call %[bpf_get_prandom_u32];"
+		"if r0 > r8 goto use_fp16_%=;"
+	"1:"
+		"call %[bpf_get_prandom_u32];"
+		"if r0 > r8 goto update_fp16_%=;"
+	"2:"
+		"r0 = 0;"
+		"exit;"
+	"use_fp16_%=:"
+		"r1 = r10;"
+		"r1 += r6;"
+		"*(u64 *)(r1 + 0) = 42;"
+		"goto 1b;"
+	"update_fp16_%=:"
+		"*(u64 *)(r9 - 16) = -31;"
+		"goto 2b;"
+		:
+		: __imm(bpf_get_prandom_u32)
+		: __clobber_all
+	);
+}
+
 char _license[] SEC("license") = "GPL";
