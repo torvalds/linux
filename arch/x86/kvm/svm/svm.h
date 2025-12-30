@@ -426,7 +426,10 @@ static __always_inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 
 static inline bool svm_is_vmrun_failure(u64 exit_code)
 {
-	return (u32)exit_code == (u32)SVM_EXIT_ERR;
+	if (cpu_feature_enabled(X86_FEATURE_HYPERVISOR))
+		return (u32)exit_code == (u32)SVM_EXIT_ERR;
+
+	return exit_code == SVM_EXIT_ERR;
 }
 
 /*
