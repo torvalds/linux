@@ -1840,6 +1840,41 @@ static int mt9m114_ifp_enum_frameintervals(struct v4l2_subdev *sd,
 	return 0;
 }
 
+/*
+ * Helper function to update IFP crop, compose rectangles and source format
+ * when the pixel border size changes, which requires resetting these.
+ */
+static void mt9m114_ifp_update_sel_and_src_fmt(struct v4l2_subdev_state *state)
+{
+	struct v4l2_mbus_framefmt *src_format, *sink_format;
+	struct v4l2_rect *crop;
+	unsigned int border;
+
+	sink_format = v4l2_subdev_state_get_format(state, 0);
+	src_format = v4l2_subdev_state_get_format(state, 1);
+	crop = v4l2_subdev_state_get_crop(state, 0);
+	border = mt9m114_ifp_get_border(state);
+
+	crop->left = border;
+	crop->top = border;
+	crop->width = sink_format->width - 2 * border;
+	crop->height = sink_format->height - 2 * border;
+	*v4l2_subdev_state_get_compose(state, 0) = *crop;
+
+	src_format->width = crop->width;
+	src_format->height = crop->height;
+
+	if (src_format->code == MEDIA_BUS_FMT_SGRBG10_1X10) {
+		src_format->colorspace = V4L2_COLORSPACE_RAW;
+		src_format->ycbcr_enc = V4L2_YCBCR_ENC_601;
+		src_format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	} else {
+		src_format->colorspace = V4L2_COLORSPACE_SRGB;
+		src_format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+		src_format->quantization = V4L2_QUANTIZATION_DEFAULT;
+	}
+}
+
 static int mt9m114_ifp_set_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
 			       struct v4l2_subdev_format *fmt)
@@ -1863,11 +1898,19 @@ static int mt9m114_ifp_set_fmt(struct v4l2_subdev *sd,
 		/* Only the media bus code can be changed on the source pad. */
 		info = mt9m114_format_info(sensor, 1, fmt->format.code);
 
-		format->code = info->code;
-
-		/* If the output format is RAW10, bypass the scaler. */
-		if (format->code == MEDIA_BUS_FMT_SGRBG10_1X10)
-			*format = *v4l2_subdev_state_get_format(state, 0);
+		/*
+		 * If the output format changes from/to RAW10 then the crop
+		 * rectangle needs to be adjusted to add / remove the 4 pixel
+		 * border used for demosaicing. And these changes then need to
+		 * be propagated to the compose rectangle and source format.
+		 */
+		if ((format->code == MEDIA_BUS_FMT_SGRBG10_1X10) !=
+		    (info->code == MEDIA_BUS_FMT_SGRBG10_1X10)) {
+			format->code = info->code;
+			mt9m114_ifp_update_sel_and_src_fmt(state);
+		} else {
+			format->code = info->code;
+		}
 	}
 
 	fmt->format = *format;
