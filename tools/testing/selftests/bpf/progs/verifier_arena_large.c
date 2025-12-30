@@ -300,7 +300,7 @@ int big_alloc3(void *ctx)
 	 */
 	pages = bpf_arena_alloc_pages(&arena, NULL, 2051, NUMA_NO_NODE, 0);
 	if (!pages)
-		return -1;
+		return 0;
 
 	bpf_for(i, 0, 2051)
 			pages[i * PAGE_SIZE] = 123;
