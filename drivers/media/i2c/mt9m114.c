@@ -789,14 +789,6 @@ static int mt9m114_initialize(struct mt9m114 *sensor)
 	if (ret < 0)
 		return ret;
 
-	ret = mt9m114_set_state(sensor, MT9M114_SYS_STATE_ENTER_CONFIG_CHANGE);
-	if (ret < 0)
-		return ret;
-
-	ret = mt9m114_set_state(sensor, MT9M114_SYS_STATE_ENTER_SUSPEND);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
@@ -966,6 +958,10 @@ static int mt9m114_start_streaming(struct mt9m114 *sensor,
 	ret = pm_runtime_resume_and_get(&sensor->client->dev);
 	if (ret)
 		return ret;
+
+	ret = mt9m114_initialize(sensor);
+	if (ret)
+		goto error;
 
 	ret = mt9m114_configure_ifp(sensor, ifp_state);
 	if (ret)
@@ -2318,19 +2314,8 @@ static int __maybe_unused mt9m114_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct mt9m114 *sensor = ifp_to_mt9m114(sd);
-	int ret;
 
-	ret = mt9m114_power_on(sensor);
-	if (ret)
-		return ret;
-
-	ret = mt9m114_initialize(sensor);
-	if (ret) {
-		mt9m114_power_off(sensor);
-		return ret;
-	}
-
-	return 0;
+	return mt9m114_power_on(sensor);
 }
 
 static int __maybe_unused mt9m114_runtime_suspend(struct device *dev)
@@ -2574,8 +2559,8 @@ static int mt9m114_probe(struct i2c_client *client)
 	/*
 	 * Identify the sensor. The driver supports runtime PM, but needs to
 	 * work when runtime PM is disabled in the kernel. To that end, power
-	 * the sensor on manually here, and initialize it after identification
-	 * to reach the same state as if resumed through runtime PM.
+	 * the sensor on manually here to reach the same state as if resumed
+	 * through runtime PM.
 	 */
 	ret = mt9m114_power_on(sensor);
 	if (ret < 0) {
@@ -2584,10 +2569,6 @@ static int mt9m114_probe(struct i2c_client *client)
 	}
 
 	ret = mt9m114_identify(sensor);
-	if (ret < 0)
-		goto error_power_off;
-
-	ret = mt9m114_initialize(sensor);
 	if (ret < 0)
 		goto error_power_off;
 
