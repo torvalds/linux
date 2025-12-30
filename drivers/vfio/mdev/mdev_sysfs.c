@@ -156,7 +156,7 @@ static void mdev_type_release(struct kobject *kobj)
 	struct mdev_type *type = to_mdev_type(kobj);
 
 	pr_debug("Releasing group %s\n", kobj->name);
-	/* Pairs with the get in add_mdev_supported_type() */
+	/* Pairs with the get in mdev_type_add() */
 	put_device(type->parent->dev);
 }
 
