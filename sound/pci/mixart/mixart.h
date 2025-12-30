@@ -125,7 +125,7 @@ struct mixart_stream {
 
 	u64  abs_period_elapsed;  /* last absolute stream position where period_elapsed was called (multiple of runtime->period_size) */
 	u32  buf_periods;         /* periods counter in the buffer (< runtime->periods) */
-	u32  buf_period_frag;     /* defines with buf_period_pos the exact position in the buffer (< runtime->period_size) */
+	u32  buf_period_frag;     /* defines with buf_periods the exact position in the buffer (< runtime->period_size) */
 
 	int channels;
 };
