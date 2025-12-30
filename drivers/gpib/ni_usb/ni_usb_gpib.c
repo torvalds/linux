@@ -1780,7 +1780,7 @@ static int ni_usb_setup_init(struct gpib_board *board, struct ni_usb_register *w
 	i++;
 	if (i > NUM_INIT_WRITES) {
 		dev_err(&usb_dev->dev, "bug!, buffer overrun, i=%i\n", i);
-		return 0;
+		return -EINVAL;
 	}
 	return i;
 }
@@ -1799,10 +1799,12 @@ static int ni_usb_init(struct gpib_board *board)
 		return -ENOMEM;
 
 	writes_len = ni_usb_setup_init(board, writes);
-	if (writes_len)
-		retval = ni_usb_write_registers(ni_priv, writes, writes_len, &ibsta);
-	else
-		return -EFAULT;
+	if (writes_len < 0) {
+		kfree(writes);
+		return writes_len;
+	}
+
+	retval = ni_usb_write_registers(ni_priv, writes, writes_len, &ibsta);
 	kfree(writes);
 	if (retval) {
 		dev_err(&usb_dev->dev, "register write failed, retval=%i\n", retval);
