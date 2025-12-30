@@ -3270,11 +3270,6 @@ skip_vmsa_free:
 		kvfree(svm->sev_es.ghcb_sa);
 }
 
-static u64 kvm_get_cached_sw_exit_code(struct vmcb_control_area *control)
-{
-	return (((u64)control->exit_code_hi) << 32) | control->exit_code;
-}
-
 static void dump_ghcb(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
@@ -3296,7 +3291,7 @@ static void dump_ghcb(struct vcpu_svm *svm)
 	 */
 	pr_err("GHCB (GPA=%016llx) snapshot:\n", svm->vmcb->control.ghcb_gpa);
 	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_code",
-	       kvm_get_cached_sw_exit_code(control), kvm_ghcb_sw_exit_code_is_valid(svm));
+	       control->exit_code, kvm_ghcb_sw_exit_code_is_valid(svm));
 	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_info_1",
 	       control->exit_info_1, kvm_ghcb_sw_exit_info_1_is_valid(svm));
 	pr_err("%-20s%016llx is_valid: %u\n", "sw_exit_info_2",
@@ -3330,7 +3325,6 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct ghcb *ghcb = svm->sev_es.ghcb;
-	u64 exit_code;
 
 	/*
 	 * The GHCB protocol so far allows for the following data
@@ -3364,9 +3358,7 @@ static void sev_es_sync_from_ghcb(struct vcpu_svm *svm)
 		__kvm_emulate_msr_write(vcpu, MSR_IA32_XSS, kvm_ghcb_get_xss(svm));
 
 	/* Copy the GHCB exit information into the VMCB fields */
-	exit_code = kvm_ghcb_get_sw_exit_code(svm);
-	control->exit_code = lower_32_bits(exit_code);
-	control->exit_code_hi = upper_32_bits(exit_code);
+	control->exit_code = kvm_ghcb_get_sw_exit_code(svm);
 	control->exit_info_1 = kvm_ghcb_get_sw_exit_info_1(svm);
 	control->exit_info_2 = kvm_ghcb_get_sw_exit_info_2(svm);
 	svm->sev_es.sw_scratch = kvm_ghcb_get_sw_scratch_if_valid(svm);
@@ -3379,14 +3371,7 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
-	u64 exit_code;
 	u64 reason;
-
-	/*
-	 * Retrieve the exit code now even though it may not be marked valid
-	 * as it could help with debugging.
-	 */
-	exit_code = kvm_get_cached_sw_exit_code(control);
 
 	/* Only GHCB Usage code 0 is supported */
 	if (svm->sev_es.ghcb->ghcb_usage) {
@@ -3401,7 +3386,7 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	    !kvm_ghcb_sw_exit_info_2_is_valid(svm))
 		goto vmgexit_err;
 
-	switch (exit_code) {
+	switch (control->exit_code) {
 	case SVM_EXIT_READ_DR7:
 		break;
 	case SVM_EXIT_WRITE_DR7:
@@ -3502,15 +3487,19 @@ static int sev_es_validate_vmgexit(struct vcpu_svm *svm)
 	return 0;
 
 vmgexit_err:
+	/*
+	 * Print the exit code even though it may not be marked valid as it
+	 * could help with debugging.
+	 */
 	if (reason == GHCB_ERR_INVALID_USAGE) {
 		vcpu_unimpl(vcpu, "vmgexit: ghcb usage %#x is not valid\n",
 			    svm->sev_es.ghcb->ghcb_usage);
 	} else if (reason == GHCB_ERR_INVALID_EVENT) {
 		vcpu_unimpl(vcpu, "vmgexit: exit code %#llx is not valid\n",
-			    exit_code);
+			    control->exit_code);
 	} else {
 		vcpu_unimpl(vcpu, "vmgexit: exit code %#llx input is not valid\n",
-			    exit_code);
+			    control->exit_code);
 		dump_ghcb(svm);
 	}
 
@@ -4349,7 +4338,7 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb_control_area *control = &svm->vmcb->control;
-	u64 ghcb_gpa, exit_code;
+	u64 ghcb_gpa;
 	int ret;
 
 	/* Validate the GHCB */
@@ -4391,8 +4380,7 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 
 	svm_vmgexit_success(svm, 0);
 
-	exit_code = kvm_get_cached_sw_exit_code(control);
-	switch (exit_code) {
+	switch (control->exit_code) {
 	case SVM_VMGEXIT_MMIO_READ:
 		ret = setup_vmgexit_scratch(svm, true, control->exit_info_2);
 		if (ret)
@@ -4484,7 +4472,7 @@ int sev_handle_vmgexit(struct kvm_vcpu *vcpu)
 		ret = -EINVAL;
 		break;
 	default:
-		ret = svm_invoke_exit_handler(vcpu, exit_code);
+		ret = svm_invoke_exit_handler(vcpu, control->exit_code);
 	}
 
 	return ret;

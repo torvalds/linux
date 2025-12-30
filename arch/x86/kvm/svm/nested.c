@@ -45,7 +45,6 @@ static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
 		 * correctly fill in the high bits of exit_info_1.
 		 */
 		vmcb->control.exit_code = SVM_EXIT_NPF;
-		vmcb->control.exit_code_hi = 0;
 		vmcb->control.exit_info_1 = (1ULL << 32);
 		vmcb->control.exit_info_2 = fault->address;
 	}
@@ -441,7 +440,6 @@ void __nested_copy_vmcb_control_to_cache(struct kvm_vcpu *vcpu,
 	to->int_vector          = from->int_vector;
 	to->int_state           = from->int_state;
 	to->exit_code           = from->exit_code;
-	to->exit_code_hi        = from->exit_code_hi;
 	to->exit_info_1         = from->exit_info_1;
 	to->exit_info_2         = from->exit_info_2;
 	to->exit_int_info       = from->exit_int_info;
@@ -747,8 +745,8 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm,
 	enter_guest_mode(vcpu);
 
 	/*
-	 * Filled at exit: exit_code, exit_code_hi, exit_info_1, exit_info_2,
-	 * exit_int_info, exit_int_info_err, next_rip, insn_len, insn_bytes.
+	 * Filled at exit: exit_code, exit_info_1, exit_info_2, exit_int_info,
+	 * exit_int_info_err, next_rip, insn_len, insn_bytes.
 	 */
 
 	if (guest_cpu_cap_has(vcpu, X86_FEATURE_VGIF) &&
@@ -1018,7 +1016,6 @@ int nested_svm_vmrun(struct kvm_vcpu *vcpu)
 	if (!nested_vmcb_check_save(vcpu) ||
 	    !nested_vmcb_check_controls(vcpu)) {
 		vmcb12->control.exit_code    = SVM_EXIT_ERR;
-		vmcb12->control.exit_code_hi = -1u;
 		vmcb12->control.exit_info_1  = 0;
 		vmcb12->control.exit_info_2  = 0;
 		goto out;
@@ -1051,7 +1048,6 @@ out_exit_err:
 	svm->soft_int_injected = false;
 
 	svm->vmcb->control.exit_code    = SVM_EXIT_ERR;
-	svm->vmcb->control.exit_code_hi = -1u;
 	svm->vmcb->control.exit_info_1  = 0;
 	svm->vmcb->control.exit_info_2  = 0;
 
@@ -1163,7 +1159,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	vmcb12->control.int_state         = vmcb02->control.int_state;
 	vmcb12->control.exit_code         = vmcb02->control.exit_code;
-	vmcb12->control.exit_code_hi      = vmcb02->control.exit_code_hi;
 	vmcb12->control.exit_info_1       = vmcb02->control.exit_info_1;
 	vmcb12->control.exit_info_2       = vmcb02->control.exit_info_2;
 
@@ -1460,7 +1455,7 @@ static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
 
 static int nested_svm_intercept(struct vcpu_svm *svm)
 {
-	u32 exit_code = svm->vmcb->control.exit_code;
+	u64 exit_code = svm->vmcb->control.exit_code;
 	int vmexit = NESTED_EXIT_HOST;
 
 	if (svm_is_vmrun_failure(exit_code))
@@ -1532,7 +1527,6 @@ static void nested_svm_inject_exception_vmexit(struct kvm_vcpu *vcpu)
 	struct vmcb *vmcb = svm->vmcb;
 
 	vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + ex->vector;
-	vmcb->control.exit_code_hi = 0;
 
 	if (ex->has_error_code)
 		vmcb->control.exit_info_1 = ex->error_code;
@@ -1708,7 +1702,6 @@ static void nested_copy_vmcb_cache_to_control(struct vmcb_control_area *dst,
 	dst->int_vector           = from->int_vector;
 	dst->int_state            = from->int_state;
 	dst->exit_code            = from->exit_code;
-	dst->exit_code_hi         = from->exit_code_hi;
 	dst->exit_info_1          = from->exit_info_1;
 	dst->exit_info_2          = from->exit_info_2;
 	dst->exit_int_info        = from->exit_int_info;
