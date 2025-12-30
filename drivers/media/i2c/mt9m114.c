@@ -1984,7 +1984,7 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 				     struct v4l2_subdev_state *state,
 				     struct v4l2_subdev_selection *sel)
 {
-	struct v4l2_mbus_framefmt *format;
+	struct v4l2_mbus_framefmt *format, *src_format;
 	struct v4l2_rect *crop;
 	struct v4l2_rect *compose;
 	unsigned int border;
@@ -1997,8 +1997,16 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 	if (sel->pad != 0)
 		return -EINVAL;
 
-	format = v4l2_subdev_state_get_format(state, 0);
 	crop = v4l2_subdev_state_get_crop(state, 0);
+
+	/* Crop and compose cannot be changed when bypassing the scaler. */
+	src_format = v4l2_subdev_state_get_format(state, 1);
+	if (src_format->code == MEDIA_BUS_FMT_SGRBG10_1X10) {
+		sel->r = *crop;
+		return 0;
+	}
+
+	format = v4l2_subdev_state_get_format(state, 0);
 	compose = v4l2_subdev_state_get_compose(state, 0);
 
 	if (sel->target == V4L2_SEL_TGT_CROP) {
@@ -2043,9 +2051,8 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 	}
 
 	/* Propagate the compose rectangle to the source format. */
-	format = v4l2_subdev_state_get_format(state, 1);
-	format->width = compose->width;
-	format->height = compose->height;
+	src_format->width = compose->width;
+	src_format->height = compose->height;
 
 	return 0;
 }
