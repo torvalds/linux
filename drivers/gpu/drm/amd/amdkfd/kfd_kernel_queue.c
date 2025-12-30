@@ -228,7 +228,7 @@ int kq_acquire_packet_buffer(struct kernel_queue *kq,
 	if (packet_size_in_dwords > available_size) {
 		/*
 		 * make sure calling functions know
-		 * acquire_packet_buffer() failed
+		 * kq_acquire_packet_buffer() failed
 		 */
 		goto err_no_space;
 	}
