@@ -2623,7 +2623,7 @@ static void acpi_scan_claim_resources(struct acpi_device *adev)
 		if ((res->flags & IORESOURCE_DISABLED) || res->end < res->start)
 			continue;
 
-		if (res->flags & IORESOURCE_IO) {
+		if (resource_type(res) == IORESOURCE_IO) {
 			/*
 			 * Follow the PNP system driver and on x86 skip I/O
 			 * resources that start below 0x100 (the "standard PC
@@ -2634,7 +2634,7 @@ static void acpi_scan_claim_resources(struct acpi_device *adev)
 				continue;
 			}
 			r = request_region(res->start, resource_size(res), regionid);
-		} else if (res->flags & IORESOURCE_MEM) {
+		} else if (resource_type(res) == IORESOURCE_MEM) {
 			r = request_mem_region(res->start, resource_size(res), regionid);
 		} else {
 			continue;
