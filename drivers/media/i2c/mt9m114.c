@@ -1892,6 +1892,9 @@ static int mt9m114_ifp_set_fmt(struct v4l2_subdev *sd,
 		format->height = clamp(ALIGN(fmt->format.height, 8),
 				       MT9M114_PIXEL_ARRAY_MIN_OUTPUT_HEIGHT,
 				       MT9M114_PIXEL_ARRAY_HEIGHT);
+
+		/* Propagate changes downstream. */
+		mt9m114_ifp_update_sel_and_src_fmt(state);
 	} else {
 		const struct mt9m114_format_info *info;
 
