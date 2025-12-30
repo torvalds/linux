@@ -1295,8 +1295,6 @@ acpi_backlight_cap_match(acpi_handle handle, u32 level, void *context,
  * The device will get a Linux specific CID added in scan.c to
  * identify the device as an ACPI graphics device
  * Be aware that the graphics device may not be physically present
- * Use acpi_video_get_capabilities() to detect general ACPI video
- * capabilities of present cards
  */
 long acpi_is_video_device(acpi_handle handle)
 {
