@@ -59,11 +59,9 @@ uint64_t memstress_nested_pages(int nr_vcpus)
 	return 513 + 10 * nr_vcpus;
 }
 
-void memstress_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
+static void memstress_setup_ept_mappings(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	uint64_t start, end;
-
-	prepare_eptp(vmx, vm);
 
 	/*
 	 * Identity map the first 4G and the test region with 1G pages so that
@@ -79,7 +77,7 @@ void memstress_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
 
 void memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[])
 {
-	struct vmx_pages *vmx, *vmx0 = NULL;
+	struct vmx_pages *vmx;
 	struct kvm_regs regs;
 	vm_vaddr_t vmx_gva;
 	int vcpu_id;
@@ -87,18 +85,13 @@ void memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vc
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 	TEST_REQUIRE(kvm_cpu_has_ept());
 
+	vm_enable_ept(vm);
 	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 		vmx = vcpu_alloc_vmx(vm, &vmx_gva);
 
-		if (vcpu_id == 0) {
-			memstress_setup_ept(vmx, vm);
-			vmx0 = vmx;
-		} else {
-			/* Share the same EPT table across all vCPUs. */
-			vmx->eptp = vmx0->eptp;
-			vmx->eptp_hva = vmx0->eptp_hva;
-			vmx->eptp_gpa = vmx0->eptp_gpa;
-		}
+		/* The EPTs are shared across vCPUs, setup the mappings once */
+		if (vcpu_id == 0)
+			memstress_setup_ept_mappings(vmx, vm);
 
 		/*
 		 * Override the vCPU to run memstress_l1_guest_code() which will

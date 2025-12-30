@@ -93,6 +93,9 @@ static void test_vmx_dirty_log(bool enable_ept)
 
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
+	if (enable_ept)
+		vm_enable_ept(vm);
+
 	vmx = vcpu_alloc_vmx(vm, &vmx_pages_gva);
 	vcpu_args_set(vcpu, 1, vmx_pages_gva);
 
@@ -113,14 +116,10 @@ static void test_vmx_dirty_log(bool enable_ept)
 	 * ... pages in the L2 GPA range [0xc0001000, 0xc0003000) will map to
 	 * 0xc0000000.
 	 *
-	 * Note that prepare_eptp should be called only L1's GPA map is done,
-	 * meaning after the last call to virt_map.
-	 *
 	 * When EPT is disabled, the L2 guest code will still access the same L1
 	 * GPAs as the EPT enabled case.
 	 */
 	if (enable_ept) {
-		prepare_eptp(vmx, vm);
 		tdp_identity_map_default_memslots(vmx, vm);
 		tdp_map(vmx, vm, NESTED_TEST_MEM1, GUEST_TEST_MEM, PAGE_SIZE);
 		tdp_map(vmx, vm, NESTED_TEST_MEM2, GUEST_TEST_MEM, PAGE_SIZE);

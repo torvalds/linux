@@ -187,6 +187,15 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 	virt_mmu_init(vm, &vm->mmu, &pte_masks);
 }
 
+void tdp_mmu_init(struct kvm_vm *vm, int pgtable_levels,
+		  struct pte_masks *pte_masks)
+{
+	TEST_ASSERT(!vm->arch.tdp_mmu, "TDP MMU already initialized");
+
+	vm->arch.tdp_mmu = calloc(1, sizeof(*vm->arch.tdp_mmu));
+	virt_mmu_init(vm, vm->arch.tdp_mmu, pte_masks);
+}
+
 static void *virt_get_pte(struct kvm_vm *vm, struct kvm_mmu *mmu,
 			  uint64_t *parent_pte, uint64_t vaddr, int level)
 {

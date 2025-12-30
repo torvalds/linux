@@ -520,13 +520,11 @@ struct vmx_pages {
 	uint64_t vmwrite_gpa;
 	void *vmwrite;
 
-	void *eptp_hva;
-	uint64_t eptp_gpa;
-	void *eptp;
-
 	void *apic_access_hva;
 	uint64_t apic_access_gpa;
 	void *apic_access;
+
+	uint64_t eptp_gpa;
 };
 
 union vmx_basic {
@@ -568,7 +566,7 @@ void tdp_identity_map_default_memslots(struct vmx_pages *vmx,
 void tdp_identity_map_1g(struct vmx_pages *vmx, struct kvm_vm *vm,
 			 uint64_t addr, uint64_t size);
 bool kvm_cpu_has_ept(void);
-void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm);
+void vm_enable_ept(struct kvm_vm *vm);
 void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm);
 
 #endif /* SELFTEST_KVM_VMX_H */

@@ -26,6 +26,8 @@ struct kvm_mmu_arch {
 	struct pte_masks pte_masks;
 };
 
+struct kvm_mmu;
+
 struct kvm_vm_arch {
 	vm_vaddr_t gdt;
 	vm_vaddr_t tss;
@@ -35,6 +37,8 @@ struct kvm_vm_arch {
 	uint64_t s_bit;
 	int sev_fd;
 	bool is_pt_protected;
+
+	struct kvm_mmu *tdp_mmu;
 };
 
 static inline bool __vm_arch_has_protected_memory(struct kvm_vm_arch *arch)
