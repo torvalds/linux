@@ -1105,7 +1105,7 @@ static int dlm_query_region_handler(struct o2net_msg *msg, u32 len,
 	mlog(0, "Node %u queries hb regions on domain %s\n", qr->qr_node,
 	     qr->qr_domain);
 
-	/* buffer used in dlm_mast_regions() */
+	/* buffer used in dlm_match_regions() */
 	local = kmalloc(sizeof(qr->qr_regions), GFP_KERNEL);
 	if (!local)
 		return -ENOMEM;
