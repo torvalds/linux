@@ -3469,12 +3469,6 @@ no_vmsa:
 
 int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 {
-	if (exit_code >= ARRAY_SIZE(svm_exit_handlers))
-		goto unexpected_vmexit;
-
-	if (!svm_exit_handlers[exit_code])
-		goto unexpected_vmexit;
-
 #ifdef CONFIG_MITIGATION_RETPOLINE
 	if (exit_code == SVM_EXIT_MSR)
 		return msr_interception(vcpu);
@@ -3491,6 +3485,12 @@ int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 		return sev_handle_vmgexit(vcpu);
 #endif
 #endif
+	if (exit_code >= ARRAY_SIZE(svm_exit_handlers))
+		goto unexpected_vmexit;
+
+	if (!svm_exit_handlers[exit_code])
+		goto unexpected_vmexit;
+
 	return svm_exit_handlers[exit_code](vcpu);
 
 unexpected_vmexit:
