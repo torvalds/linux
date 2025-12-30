@@ -14,6 +14,8 @@ struct pte_masks {
 	uint64_t present;
 	uint64_t writable;
 	uint64_t user;
+	uint64_t readable;
+	uint64_t executable;
 	uint64_t accessed;
 	uint64_t dirty;
 	uint64_t huge;
@@ -37,8 +39,6 @@ struct kvm_vm_arch {
 	uint64_t s_bit;
 	int sev_fd;
 	bool is_pt_protected;
-
-	struct kvm_mmu *tdp_mmu;
 };
 
 static inline bool __vm_arch_has_protected_memory(struct kvm_vm_arch *arch)

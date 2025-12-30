@@ -1444,6 +1444,8 @@ enum pg_level {
 #define PTE_PRESENT_MASK(mmu)		((mmu)->arch.pte_masks.present)
 #define PTE_WRITABLE_MASK(mmu)		((mmu)->arch.pte_masks.writable)
 #define PTE_USER_MASK(mmu)		((mmu)->arch.pte_masks.user)
+#define PTE_READABLE_MASK(mmu)		((mmu)->arch.pte_masks.readable)
+#define PTE_EXECUTABLE_MASK(mmu)	((mmu)->arch.pte_masks.executable)
 #define PTE_ACCESSED_MASK(mmu)		((mmu)->arch.pte_masks.accessed)
 #define PTE_DIRTY_MASK(mmu)		((mmu)->arch.pte_masks.dirty)
 #define PTE_HUGE_MASK(mmu)		((mmu)->arch.pte_masks.huge)
@@ -1451,13 +1453,23 @@ enum pg_level {
 #define PTE_C_BIT_MASK(mmu)		((mmu)->arch.pte_masks.c)
 #define PTE_S_BIT_MASK(mmu)		((mmu)->arch.pte_masks.s)
 
-#define is_present_pte(mmu, pte)	(!!(*(pte) & PTE_PRESENT_MASK(mmu)))
+/*
+ * For PTEs without a PRESENT bit (i.e. EPT entries), treat the PTE as present
+ * if it's executable or readable, as EPT supports execute-only PTEs, but not
+ * write-only PTEs.
+ */
+#define is_present_pte(mmu, pte)		\
+	(PTE_PRESENT_MASK(mmu) ?		\
+	 !!(*(pte) & PTE_PRESENT_MASK(mmu)) :	\
+	 !!(*(pte) & (PTE_READABLE_MASK(mmu) | PTE_EXECUTABLE_MASK(mmu))))
+#define is_executable_pte(mmu, pte)	\
+	((*(pte) & (PTE_EXECUTABLE_MASK(mmu) | PTE_NX_MASK(mmu))) == PTE_EXECUTABLE_MASK(mmu))
 #define is_writable_pte(mmu, pte)	(!!(*(pte) & PTE_WRITABLE_MASK(mmu)))
 #define is_user_pte(mmu, pte)		(!!(*(pte) & PTE_USER_MASK(mmu)))
 #define is_accessed_pte(mmu, pte)	(!!(*(pte) & PTE_ACCESSED_MASK(mmu)))
 #define is_dirty_pte(mmu, pte)		(!!(*(pte) & PTE_DIRTY_MASK(mmu)))
 #define is_huge_pte(mmu, pte)		(!!(*(pte) & PTE_HUGE_MASK(mmu)))
-#define is_nx_pte(mmu, pte)		(!!(*(pte) & PTE_NX_MASK(mmu)))
+#define is_nx_pte(mmu, pte)		(!is_executable_pte(mmu, pte))
 
 void tdp_mmu_init(struct kvm_vm *vm, int pgtable_levels,
 		  struct pte_masks *pte_masks);

@@ -165,6 +165,10 @@ static void virt_mmu_init(struct kvm_vm *vm, struct kvm_mmu *mmu,
 		mmu->pgd_created = true;
 		mmu->arch.pte_masks = *pte_masks;
 	}
+
+	TEST_ASSERT(mmu->pgtable_levels == 4 || mmu->pgtable_levels == 5,
+		    "Selftests MMU only supports 4-level and 5-level paging, not %u-level paging",
+		    mmu->pgtable_levels);
 }
 
 void virt_arch_pgd_alloc(struct kvm_vm *vm)
@@ -180,6 +184,7 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 		.dirty		=	BIT_ULL(6),
 		.huge		=	BIT_ULL(7),
 		.nx		=	BIT_ULL(63),
+		.executable	=	0,
 		.c		=	vm->arch.c_bit,
 		.s		=	vm->arch.s_bit,
 	};
@@ -190,10 +195,10 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 void tdp_mmu_init(struct kvm_vm *vm, int pgtable_levels,
 		  struct pte_masks *pte_masks)
 {
-	TEST_ASSERT(!vm->arch.tdp_mmu, "TDP MMU already initialized");
+	TEST_ASSERT(!vm->stage2_mmu.pgtable_levels, "TDP MMU already initialized");
 
-	vm->arch.tdp_mmu = calloc(1, sizeof(*vm->arch.tdp_mmu));
-	virt_mmu_init(vm, vm->arch.tdp_mmu, pte_masks);
+	vm->stage2_mmu.pgtable_levels = pgtable_levels;
+	virt_mmu_init(vm, &vm->stage2_mmu, pte_masks);
 }
 
 static void *virt_get_pte(struct kvm_vm *vm, struct kvm_mmu *mmu,
@@ -223,7 +228,8 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 	paddr = vm_untag_gpa(vm, paddr);
 
 	if (!is_present_pte(mmu, pte)) {
-		*pte = PTE_PRESENT_MASK(mmu) | PTE_WRITABLE_MASK(mmu);
+		*pte = PTE_PRESENT_MASK(mmu) | PTE_READABLE_MASK(mmu) |
+		       PTE_WRITABLE_MASK(mmu) | PTE_EXECUTABLE_MASK(mmu);
 		if (current_level == target_level)
 			*pte |= PTE_HUGE_MASK(mmu) | (paddr & PHYSICAL_PAGE_MASK);
 		else
@@ -269,6 +275,9 @@ void __virt_pg_map(struct kvm_vm *vm, struct kvm_mmu *mmu, uint64_t vaddr,
 	TEST_ASSERT(vm_untag_gpa(vm, paddr) == paddr,
 		    "Unexpected bits in paddr: %lx", paddr);
 
+	TEST_ASSERT(!PTE_EXECUTABLE_MASK(mmu) || !PTE_NX_MASK(mmu),
+		    "X and NX bit masks cannot be used simultaneously");
+
 	/*
 	 * Allocate upper level page tables, if not already present.  Return
 	 * early if a hugepage was created.
@@ -286,7 +295,9 @@ void __virt_pg_map(struct kvm_vm *vm, struct kvm_mmu *mmu, uint64_t vaddr,
 	pte = virt_get_pte(vm, mmu, pte, vaddr, PG_LEVEL_4K);
 	TEST_ASSERT(!is_present_pte(mmu, pte),
 		    "PTE already present for 4k page at vaddr: 0x%lx", vaddr);
-	*pte = PTE_PRESENT_MASK(mmu) | PTE_WRITABLE_MASK(mmu) | (paddr & PHYSICAL_PAGE_MASK);
+	*pte = PTE_PRESENT_MASK(mmu) | PTE_READABLE_MASK(mmu) |
+	       PTE_WRITABLE_MASK(mmu) | PTE_EXECUTABLE_MASK(mmu) |
+	       (paddr & PHYSICAL_PAGE_MASK);
 
 	/*
 	 * Neither SEV nor TDX supports shared page tables, so only the final
