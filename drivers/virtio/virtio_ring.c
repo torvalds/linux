@@ -805,10 +805,16 @@ static void detach_buf_split(struct vring_virtqueue *vq, unsigned int head,
 	}
 }
 
+static bool virtqueue_poll_split(const struct vring_virtqueue *vq,
+				 unsigned int last_used_idx)
+{
+	return (u16)last_used_idx != virtio16_to_cpu(vq->vq.vdev,
+			vq->split.vring.used->idx);
+}
+
 static bool more_used_split(const struct vring_virtqueue *vq)
 {
-	return vq->last_used_idx != virtio16_to_cpu(vq->vq.vdev,
-			vq->split.vring.used->idx);
+	return virtqueue_poll_split(vq, vq->last_used_idx);
 }
 
 static void *virtqueue_get_buf_ctx_split(struct virtqueue *_vq,
@@ -916,13 +922,6 @@ static unsigned int virtqueue_enable_cb_prepare_split(struct virtqueue *_vq)
 			last_used_idx = vq->last_used_idx);
 	END_USE(vq);
 	return last_used_idx;
-}
-
-static bool virtqueue_poll_split(struct vring_virtqueue *vq,
-				 unsigned int last_used_idx)
-{
-	return (u16)last_used_idx != virtio16_to_cpu(vq->vq.vdev,
-			vq->split.vring.used->idx);
 }
 
 static bool virtqueue_enable_cb_delayed_split(struct virtqueue *_vq)
@@ -1709,16 +1708,20 @@ static inline bool is_used_desc_packed(const struct vring_virtqueue *vq,
 	return avail == used && used == used_wrap_counter;
 }
 
+static bool virtqueue_poll_packed(const struct vring_virtqueue *vq, u16 off_wrap)
+{
+	bool wrap_counter;
+	u16 used_idx;
+
+	wrap_counter = off_wrap >> VRING_PACKED_EVENT_F_WRAP_CTR;
+	used_idx = off_wrap & ~(1 << VRING_PACKED_EVENT_F_WRAP_CTR);
+
+	return is_used_desc_packed(vq, used_idx, wrap_counter);
+}
+
 static bool more_used_packed(const struct vring_virtqueue *vq)
 {
-	u16 last_used;
-	u16 last_used_idx;
-	bool used_wrap_counter;
-
-	last_used_idx = READ_ONCE(vq->last_used_idx);
-	last_used = packed_last_used(last_used_idx);
-	used_wrap_counter = packed_used_wrap_counter(last_used_idx);
-	return is_used_desc_packed(vq, last_used, used_wrap_counter);
+	return virtqueue_poll_packed(vq, READ_ONCE(vq->last_used_idx));
 }
 
 static void *virtqueue_get_buf_ctx_packed(struct virtqueue *_vq,
@@ -1840,17 +1843,6 @@ static unsigned int virtqueue_enable_cb_prepare_packed(struct virtqueue *_vq)
 
 	END_USE(vq);
 	return vq->last_used_idx;
-}
-
-static bool virtqueue_poll_packed(struct vring_virtqueue *vq, u16 off_wrap)
-{
-	bool wrap_counter;
-	u16 used_idx;
-
-	wrap_counter = off_wrap >> VRING_PACKED_EVENT_F_WRAP_CTR;
-	used_idx = off_wrap & ~(1 << VRING_PACKED_EVENT_F_WRAP_CTR);
-
-	return is_used_desc_packed(vq, used_idx, wrap_counter);
 }
 
 static bool virtqueue_enable_cb_delayed_packed(struct virtqueue *_vq)
