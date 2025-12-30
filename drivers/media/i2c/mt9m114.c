@@ -851,6 +851,18 @@ static int mt9m114_configure_pa(struct mt9m114 *sensor,
 	return ret;
 }
 
+/*
+ * For source pad formats other then RAW10 the IFP removes a 4 pixel border from
+ * its sink pad format size for demosaicing.
+ */
+static int mt9m114_ifp_get_border(struct v4l2_subdev_state *state)
+{
+	const struct v4l2_mbus_framefmt *format =
+		v4l2_subdev_state_get_format(state, 1);
+
+	return format->code == MEDIA_BUS_FMT_SGRBG10_1X10 ? 0 : 4;
+}
+
 static int mt9m114_configure_ifp(struct mt9m114 *sensor,
 				 struct v4l2_subdev_state *state)
 {
@@ -858,6 +870,7 @@ static int mt9m114_configure_ifp(struct mt9m114 *sensor,
 	const struct v4l2_mbus_framefmt *format;
 	const struct v4l2_rect *crop;
 	const struct v4l2_rect *compose;
+	unsigned int border;
 	u64 output_format;
 	int ret = 0;
 
@@ -872,15 +885,18 @@ static int mt9m114_configure_ifp(struct mt9m114 *sensor,
 		return ret;
 
 	/*
-	 * Color pipeline (IFP) cropping and scaling. Subtract 4 from the left
-	 * and top coordinates to compensate for the lines and columns removed
-	 * by demosaicing that are taken into account in the crop rectangle but
-	 * not in the hardware.
+	 * Color pipeline (IFP) cropping and scaling. The crop window registers
+	 * apply cropping after demosaicing, which itself consumes 4 pixels on
+	 * each side of the image. The crop rectangle exposed to userspace
+	 * includes that demosaicing border, subtract it from the left and top
+	 * coordinates to configure the crop window.
 	 */
+	border = mt9m114_ifp_get_border(state);
+
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_XOFFSET,
-		  crop->left - 4, &ret);
+		  crop->left - border, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_YOFFSET,
-		  crop->top - 4, &ret);
+		  crop->top - border, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_WIDTH,
 		  crop->width, &ret);
 	cci_write(sensor->regmap, MT9M114_CAM_CROP_WINDOW_HEIGHT,
@@ -1865,6 +1881,7 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 {
 	const struct v4l2_mbus_framefmt *format;
 	const struct v4l2_rect *crop;
+	unsigned int border;
 	int ret = 0;
 
 	/* Crop and compose are only supported on the sink pad. */
@@ -1879,15 +1896,17 @@ static int mt9m114_ifp_get_selection(struct v4l2_subdev *sd,
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		/*
-		 * The crop default and bounds are equal to the sink
-		 * format size minus 4 pixels on each side for demosaicing.
+		 * Crop defaults and bounds are equal to the sink format size.
+		 * For source pad formats other then RAW10 this gets reduced
+		 * by 4 pixels on each side for demosaicing.
 		 */
 		format = v4l2_subdev_state_get_format(state, 0);
+		border = mt9m114_ifp_get_border(state);
 
-		sel->r.left = 4;
-		sel->r.top = 4;
-		sel->r.width = format->width - 8;
-		sel->r.height = format->height - 8;
+		sel->r.left = border;
+		sel->r.top = border;
+		sel->r.width = format->width - 2 * border;
+		sel->r.height = format->height - 2 * border;
 		break;
 
 	case V4L2_SEL_TGT_COMPOSE:
@@ -1922,6 +1941,7 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 	struct v4l2_rect *compose;
+	unsigned int border;
 
 	if (sel->target != V4L2_SEL_TGT_CROP &&
 	    sel->target != V4L2_SEL_TGT_COMPOSE)
@@ -1937,21 +1957,23 @@ static int mt9m114_ifp_set_selection(struct v4l2_subdev *sd,
 
 	if (sel->target == V4L2_SEL_TGT_CROP) {
 		/*
-		 * Clamp the crop rectangle. Demosaicing removes 4 pixels on
-		 * each side of the image.
+		 * Clamp the crop rectangle. For source pad formats other then
+		 * RAW10 demosaicing removes 4 pixels on each side of the image.
 		 */
-		crop->left = clamp_t(unsigned int, ALIGN(sel->r.left, 2), 4,
-				     format->width - 4 -
+		border = mt9m114_ifp_get_border(state);
+
+		crop->left = clamp_t(unsigned int, ALIGN(sel->r.left, 2), border,
+				     format->width - border -
 				     MT9M114_SCALER_CROPPED_INPUT_WIDTH);
-		crop->top = clamp_t(unsigned int, ALIGN(sel->r.top, 2), 4,
-				    format->height - 4 -
+		crop->top = clamp_t(unsigned int, ALIGN(sel->r.top, 2), border,
+				    format->height - border -
 				    MT9M114_SCALER_CROPPED_INPUT_HEIGHT);
 		crop->width = clamp_t(unsigned int, ALIGN(sel->r.width, 2),
 				      MT9M114_SCALER_CROPPED_INPUT_WIDTH,
-				      format->width - 4 - crop->left);
+				      format->width - border - crop->left);
 		crop->height = clamp_t(unsigned int, ALIGN(sel->r.height, 2),
 				       MT9M114_SCALER_CROPPED_INPUT_HEIGHT,
-				       format->height - 4 - crop->top);
+				       format->height - border - crop->top);
 
 		sel->r = *crop;
 
