@@ -19830,8 +19830,10 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 				}
 			}
 			if (bpf_calls_callback(env, insn_idx)) {
-				if (states_equal(env, &sl->state, cur, RANGE_WITHIN))
+				if (states_equal(env, &sl->state, cur, RANGE_WITHIN)) {
+					loop = true;
 					goto hit;
+				}
 				goto skip_inf_loop_check;
 			}
 			/* attempt to detect infinite loop to avoid unnecessary doomed work */
@@ -25071,15 +25073,18 @@ dfs_continue:
 			}
 			/*
 			 * Assign SCC number only if component has two or more elements,
-			 * or if component has a self reference.
+			 * or if component has a self reference, or if instruction is a
+			 * callback calling function (implicit loop).
 			 */
-			assign_scc = stack[stack_sz - 1] != w;
-			for (j = 0; j < succ->cnt; ++j) {
+			assign_scc = stack[stack_sz - 1] != w;	/* two or more elements? */
+			for (j = 0; j < succ->cnt; ++j) {	/* self reference? */
 				if (succ->items[j] == w) {
 					assign_scc = true;
 					break;
 				}
 			}
+			if (bpf_calls_callback(env, w)) /* implicit loop? */
+				assign_scc = true;
 			/* Pop component elements from stack */
 			do {
 				t = stack[--stack_sz];
