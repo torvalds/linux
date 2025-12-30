@@ -4,7 +4,6 @@
  */
 
 #include <asm/vdso.h>
-#include <linux/getcpu.h>
 
 static __always_inline int read_cpu_id(void)
 {
@@ -28,8 +27,8 @@ static __always_inline int read_cpu_id(void)
 }
 
 extern
-int __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused);
-int __vdso_getcpu(unsigned int *cpu, unsigned int *node, struct getcpu_cache *unused)
+int __vdso_getcpu(unsigned int *cpu, unsigned int *node, void *unused);
+int __vdso_getcpu(unsigned int *cpu, unsigned int *node, void *unused)
 {
 	int cpu_id;
 
