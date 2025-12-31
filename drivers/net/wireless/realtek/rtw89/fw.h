@@ -4586,13 +4586,23 @@ struct rtw89_fw_h2c_rfk_pre_info {
 	__le32 mlo_1_1;
 } __packed;
 
-struct rtw89_fw_h2c_rfk_pre_info_mcc {
+struct rtw89_fw_h2c_rfk_pre_info_mcc_v0 {
+	__le32 tbl_18[NUM_OF_RTW89_FW_RFK_TBL][NUM_OF_RTW89_FW_RFK_PATH];
+	__le32 cur_18[NUM_OF_RTW89_FW_RFK_PATH];
+	__le32 mlo_mode;
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info_mcc_v1 {
 	__le32 tbl_18[NUM_OF_RTW89_FW_RFK_TBL];
 	__le32 cur_18[NUM_OF_RTW89_FW_RFK_PATH];
 	__le32 mlo_mode;
 	__le32 mlo_1_1;
 	u8 phy_idx;
 	u8 tbl_idx;
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info_mcc {
+	struct rtw89_fw_h2c_rfk_pre_info_mcc_v1 base;
 	u8 rsvd[2];
 	__le32 aid;
 } __packed;
