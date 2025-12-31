@@ -125,11 +125,17 @@ static void set_tilecfg(struct tile_config *cfg)
 }
 
 enum {
+	/* Retrieve TMM0 from guest, stash it for TEST_RESTORE_TILEDATA */
+	TEST_SAVE_TILEDATA = 1,
+
 	/* Check TMM0 against tiledata */
-	TEST_COMPARE_TILEDATA = 1,
+	TEST_COMPARE_TILEDATA = 2,
+
+	/* Restore TMM0 from earlier save */
+	TEST_RESTORE_TILEDATA = 4,
 
 	/* Full VM save/restore */
-	TEST_SAVE_RESTORE = 2,
+	TEST_SAVE_RESTORE = 8,
 };
 
 static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
@@ -150,7 +156,16 @@ static void __attribute__((__flatten__)) guest_code(struct tile_config *amx_cfg,
 	GUEST_SYNC(TEST_SAVE_RESTORE);
 	/* Check save/restore when trap to userspace */
 	__tileloadd(tiledata);
-	GUEST_SYNC(TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
+	GUEST_SYNC(TEST_SAVE_TILEDATA | TEST_COMPARE_TILEDATA | TEST_SAVE_RESTORE);
+
+	/* xfd=0x40000, disable amx tiledata */
+	wrmsr(MSR_IA32_XFD, XFEATURE_MASK_XTILE_DATA);
+
+	/* host tries setting tiledata while guest XFD is set */
+	GUEST_SYNC(TEST_RESTORE_TILEDATA);
+	GUEST_SYNC(TEST_SAVE_RESTORE);
+
+	wrmsr(MSR_IA32_XFD, 0);
 	__tilerelease();
 	GUEST_SYNC(TEST_SAVE_RESTORE);
 	/*
@@ -210,10 +225,10 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_x86_state *state;
+	struct kvm_x86_state *tile_state = NULL;
 	int xsave_restore_size;
 	vm_vaddr_t amx_cfg, tiledata, xstate;
 	struct ucall uc;
-	u32 amx_offset;
 	int ret;
 
 	/*
@@ -265,20 +280,27 @@ int main(int argc, char *argv[])
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			++iter;
+			if (uc.args[1] & TEST_SAVE_TILEDATA) {
+				fprintf(stderr, "GUEST_SYNC #%d, save tiledata\n", iter);
+				tile_state = vcpu_save_state(vcpu);
+			}
 			if (uc.args[1] & TEST_COMPARE_TILEDATA) {
 				fprintf(stderr, "GUEST_SYNC #%d, check TMM0 contents\n", iter);
 
 				/* Compacted mode, get amx offset by xsave area
 				 * size subtract 8K amx size.
 				 */
-				amx_offset = xsave_restore_size - NUM_TILES*TILE_SIZE;
-				state = vcpu_save_state(vcpu);
-				void *amx_start = (void *)state->xsave + amx_offset;
+				u32 amx_offset = xsave_restore_size - NUM_TILES*TILE_SIZE;
+				void *amx_start = (void *)tile_state->xsave + amx_offset;
 				void *tiles_data = (void *)addr_gva2hva(vm, tiledata);
 				/* Only check TMM0 register, 1 tile */
 				ret = memcmp(amx_start, tiles_data, TILE_SIZE);
 				TEST_ASSERT(ret == 0, "memcmp failed, ret=%d", ret);
-				kvm_x86_state_cleanup(state);
+			}
+			if (uc.args[1] & TEST_RESTORE_TILEDATA) {
+				fprintf(stderr, "GUEST_SYNC #%d, before KVM_SET_XSAVE\n", iter);
+				vcpu_xsave_set(vcpu, tile_state->xsave);
+				fprintf(stderr, "GUEST_SYNC #%d, after KVM_SET_XSAVE\n", iter);
 			}
 			if (uc.args[1] & TEST_SAVE_RESTORE) {
 				fprintf(stderr, "GUEST_SYNC #%d, save/restore VM state\n", iter);
