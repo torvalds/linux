@@ -862,8 +862,119 @@ static inline int make_out_path(char *buf, u32 buf_sz, const char *in_path, cons
 	return 0;
 }
 
+/*
+ * Patch the .BTF_ids section of an ELF file with data from provided file.
+ * Equivalent to: objcopy --update-section .BTF_ids=<btfids> <elf>
+ *
+ * 1. Find .BTF_ids section in the ELF
+ * 2. Verify that blob file size matches section size
+ * 3. Update section data buffer with blob data
+ * 4. Write the ELF file
+ */
+static int patch_btfids(const char *btfids_path, const char *elf_path)
+{
+	Elf_Scn *scn = NULL;
+	FILE *btfids_file;
+	size_t shdrstrndx;
+	int fd, err = -1;
+	Elf_Data *data;
+	struct stat st;
+	GElf_Shdr sh;
+	char *name;
+	Elf *elf;
+
+	elf_version(EV_CURRENT);
+
+	fd = open(elf_path, O_RDWR, 0666);
+	if (fd < 0) {
+		pr_err("FAILED to open %s: %s\n", elf_path, strerror(errno));
+		return -1;
+	}
+
+	elf = elf_begin(fd, ELF_C_RDWR_MMAP, NULL);
+	if (!elf) {
+		close(fd);
+		pr_err("FAILED cannot create ELF descriptor: %s\n", elf_errmsg(-1));
+		return -1;
+	}
+
+	elf_flagelf(elf, ELF_C_SET, ELF_F_LAYOUT);
+
+	if (elf_getshdrstrndx(elf, &shdrstrndx) != 0) {
+		pr_err("FAILED cannot get shdr str ndx\n");
+		goto out;
+	}
+
+	while ((scn = elf_nextscn(elf, scn)) != NULL) {
+
+		if (gelf_getshdr(scn, &sh) != &sh) {
+			pr_err("FAILED to get section header\n");
+			goto out;
+		}
+
+		name = elf_strptr(elf, shdrstrndx, sh.sh_name);
+		if (!name)
+			continue;
+
+		if (strcmp(name, BTF_IDS_SECTION) == 0)
+			break;
+	}
+
+	if (!scn) {
+		pr_err("FAILED: section %s not found in %s\n", BTF_IDS_SECTION, elf_path);
+		goto out;
+	}
+
+	data = elf_getdata(scn, NULL);
+	if (!data) {
+		pr_err("FAILED to get %s section data from %s\n", BTF_IDS_SECTION, elf_path);
+		goto out;
+	}
+
+	if (stat(btfids_path, &st) < 0) {
+		pr_err("FAILED to stat %s: %s\n", btfids_path, strerror(errno));
+		goto out;
+	}
+
+	if ((size_t)st.st_size != data->d_size) {
+		pr_err("FAILED: size mismatch - %s section in %s is %zu bytes, %s is %zu bytes\n",
+		       BTF_IDS_SECTION, elf_path, data->d_size, btfids_path, (size_t)st.st_size);
+		goto out;
+	}
+
+	btfids_file = fopen(btfids_path, "rb");
+	if (!btfids_file) {
+		pr_err("FAILED to open %s: %s\n", btfids_path, strerror(errno));
+		goto out;
+	}
+
+	pr_debug("Copying data from %s to %s section of %s (%zu bytes)\n",
+		 btfids_path, BTF_IDS_SECTION, elf_path, data->d_size);
+
+	if (fread(data->d_buf, data->d_size, 1, btfids_file) != 1) {
+		pr_err("FAILED to read %s\n", btfids_path);
+		fclose(btfids_file);
+		goto out;
+	}
+	fclose(btfids_file);
+
+	elf_flagdata(data, ELF_C_SET, ELF_F_DIRTY);
+	if (elf_update(elf, ELF_C_WRITE) < 0) {
+		pr_err("FAILED to update ELF file %s\n", elf_path);
+		goto out;
+	}
+
+	err = 0;
+out:
+	elf_end(elf);
+	close(fd);
+
+	return err;
+}
+
 static const char * const resolve_btfids_usage[] = {
 	"resolve_btfids [<options>] <ELF object>",
+	"resolve_btfids --patch_btfids <.BTF_ids file> <ELF object>",
 	NULL
 };
 
@@ -880,6 +991,7 @@ int main(int argc, const char **argv)
 		.funcs    = RB_ROOT,
 		.sets     = RB_ROOT,
 	};
+	const char *btfids_path = NULL;
 	bool fatal_warnings = false;
 	char out_path[PATH_MAX];
 
@@ -894,6 +1006,8 @@ int main(int argc, const char **argv)
 			    "turn warnings into errors"),
 		OPT_BOOLEAN(0, "distill_base", &obj.distill_base,
 			    "distill --btf_base and emit .BTF.base section data"),
+		OPT_STRING(0, "patch_btfids", &btfids_path, "file",
+			   "path to .BTF_ids section data blob to patch into ELF file"),
 		OPT_END()
 	};
 	int err = -1;
@@ -904,6 +1018,9 @@ int main(int argc, const char **argv)
 		usage_with_options(resolve_btfids_usage, btfid_options);
 
 	obj.path = argv[0];
+
+	if (btfids_path)
+		return patch_btfids(btfids_path, obj.path);
 
 	if (load_btf(&obj))
 		goto out;

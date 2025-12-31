@@ -266,7 +266,7 @@ vmlinux_link "${VMLINUX}"
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
 	info OBJCOPY ${btfids_vmlinux}
-	${OBJCOPY} --update-section .BTF_ids=${btfids_vmlinux} ${VMLINUX}
+	${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} ${VMLINUX}
 fi
 
 mksysmap "${VMLINUX}" System.map

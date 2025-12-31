@@ -123,7 +123,7 @@ embed_btf_data()
 	fi
 	local btf_ids="${ELF_FILE}.BTF_ids"
 	if [ -f "${btf_ids}" ]; then
-		${OBJCOPY} --update-section .BTF_ids=${btf_ids} ${ELF_FILE}
+		${RESOLVE_BTFIDS} --patch_btfids ${btf_ids} ${ELF_FILE}
 	fi
 }
 
