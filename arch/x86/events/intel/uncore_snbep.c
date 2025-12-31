@@ -6660,10 +6660,19 @@ static const struct attribute_group dmr_cxlcm_uncore_format_group = {
 	.attrs = dmr_cxlcm_uncore_formats_attr,
 };
 
+static struct event_constraint dmr_uncore_cxlcm_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT_RANGE(0x1, 0x24, 0x0f),
+	UNCORE_EVENT_CONSTRAINT_RANGE(0x41, 0x41, 0xf0),
+	UNCORE_EVENT_CONSTRAINT_RANGE(0x50, 0x5e, 0xf0),
+	UNCORE_EVENT_CONSTRAINT_RANGE(0x60, 0x61, 0xf0),
+	EVENT_CONSTRAINT_END
+};
+
 static struct intel_uncore_type dmr_uncore_cxlcm = {
 	.name			= "cxlcm",
 	.event_mask		= GENERIC_PMON_RAW_EVENT_MASK,
 	.event_mask_ext		= DMR_CXLCM_EVENT_MASK_EXT,
+	.constraints		= dmr_uncore_cxlcm_constraints,
 	.format_group		= &dmr_cxlcm_uncore_format_group,
 	.attr_update		= uncore_alias_groups,
 };
@@ -6675,9 +6684,20 @@ static struct intel_uncore_type dmr_uncore_hamvf = {
 	.attr_update		= uncore_alias_groups,
 };
 
+static struct event_constraint dmr_uncore_cbo_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x11, 0x1),
+	UNCORE_EVENT_CONSTRAINT_RANGE(0x19, 0x1a, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x21, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x1),
+	UNCORE_EVENT_CONSTRAINT(0x36, 0x1),
+	EVENT_CONSTRAINT_END
+};
+
 static struct intel_uncore_type dmr_uncore_cbo = {
 	.name			= "cbo",
 	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.constraints            = dmr_uncore_cbo_constraints,
 	.format_group		= &dmr_sca_uncore_format_group,
 	.attr_update		= uncore_alias_groups,
 };
@@ -6711,9 +6731,16 @@ static struct intel_uncore_type dmr_uncore_dda = {
 	.attr_update		= uncore_alias_groups,
 };
 
+static struct event_constraint dmr_uncore_sbo_constraints[] = {
+	UNCORE_EVENT_CONSTRAINT(0x1f, 0x01),
+	UNCORE_EVENT_CONSTRAINT(0x25, 0x01),
+	EVENT_CONSTRAINT_END
+};
+
 static struct intel_uncore_type dmr_uncore_sbo = {
 	.name			= "sbo",
 	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.constraints		= dmr_uncore_sbo_constraints,
 	.format_group		= &dmr_sca_uncore_format_group,
 	.attr_update		= uncore_alias_groups,
 };
