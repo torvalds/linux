@@ -164,6 +164,34 @@ void cs_dsp_mock_bin_add_patch(struct cs_dsp_mock_bin_builder *builder,
 EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_add_patch, "FW_CS_DSP_KUNIT_TEST_UTILS");
 
 /**
+ * cs_dsp_mock_bin_add_patch_off32() - Add a patch data block with 32-bit offset.
+ *
+ * @builder:		Pointer to struct cs_dsp_mock_bin_builder.
+ * @alg_id:		Algorithm ID for the patch.
+ * @alg_ver:		Algorithm version for the patch.
+ * @mem_region:		Memory region for the patch.
+ * @reg_addr_offset:	Offset to start of data in register addresses.
+ * @payload_data:	Pointer to buffer containing the payload data.
+ * @payload_len_bytes:	Length of payload data in bytes.
+ */
+void cs_dsp_mock_bin_add_patch_off32(struct cs_dsp_mock_bin_builder *builder,
+				     unsigned int alg_id, unsigned int alg_ver,
+				     int mem_region, unsigned int reg_addr_offset,
+				     const void *payload_data, size_t payload_len_bytes)
+{
+	/* Payload length must be a multiple of 4 */
+	KUNIT_ASSERT_EQ(builder->test_priv->test, payload_len_bytes % 4, 0);
+
+	/* Mark the block as using the 32-bit offset */
+	mem_region |= 0xf400;
+
+	cs_dsp_mock_bin_add_raw_block(builder, alg_id, alg_ver,
+				      mem_region, 0, reg_addr_offset,
+				      payload_data, payload_len_bytes);
+}
+EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_bin_add_patch_off32, "FW_CS_DSP_KUNIT_TEST_UTILS");
+
+/**
  * cs_dsp_mock_bin_init() - Initialize a struct cs_dsp_mock_bin_builder.
  *
  * @priv:		Pointer to struct cs_dsp_test.
