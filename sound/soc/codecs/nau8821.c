@@ -806,16 +806,20 @@ nau8821_get_osr(struct nau8821 *nau8821, int stream)
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		regmap_read(nau8821->regmap, NAU8821_R2C_DAC_CTRL1, &osr);
 		osr &= NAU8821_DAC_OVERSAMPLE_MASK;
+
 		if (osr >= ARRAY_SIZE(osr_dac_sel))
 			return NULL;
+
 		return &osr_dac_sel[osr];
-	} else {
-		regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
-		osr &= NAU8821_ADC_SYNC_DOWN_MASK;
-		if (osr >= ARRAY_SIZE(osr_adc_sel))
-			return NULL;
-		return &osr_adc_sel[osr];
 	}
+
+	regmap_read(nau8821->regmap, NAU8821_R2B_ADC_RATE, &osr);
+	osr &= NAU8821_ADC_SYNC_DOWN_MASK;
+
+	if (osr >= ARRAY_SIZE(osr_adc_sel))
+		return NULL;
+
+	return &osr_adc_sel[osr];
 }
 
 static int nau8821_dai_startup(struct snd_pcm_substream *substream,
