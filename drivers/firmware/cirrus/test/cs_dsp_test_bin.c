@@ -69,6 +69,10 @@ struct bin_test_param {
 	int mem_type;
 	unsigned int offset_words;
 	int alg_idx;
+	void (*add_patch)(struct cs_dsp_mock_bin_builder *builder,
+			  unsigned int alg_id, unsigned int alg_ver,
+			  int mem_region, unsigned int reg_addr_offset,
+			  const void *payload_data, size_t payload_len_bytes);
 };
 
 static const struct cs_dsp_mock_alg_def bin_test_mock_algs[] = {
@@ -128,12 +132,12 @@ static void bin_patch_one_word(struct kunit *test)
 							bin_test_mock_algs[param->alg_idx].id,
 							param->mem_type);
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  param->offset_words * reg_inc_per_word,
-				  &payload_data, sizeof(payload_data));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 param->offset_words * reg_inc_per_word,
+			 &payload_data, sizeof(payload_data));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -177,12 +181,12 @@ static void bin_patch_one_multiword(struct kunit *test)
 							bin_test_mock_algs[param->alg_idx].id,
 							param->mem_type);
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  param->offset_words * reg_inc_per_word,
-				  payload_data, sizeof(payload_data));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 param->offset_words * reg_inc_per_word,
+			 payload_data, sizeof(payload_data));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -228,12 +232,12 @@ static void bin_patch_multi_oneword(struct kunit *test)
 
 	/* Add one payload per word */
 	for (i = 0; i < ARRAY_SIZE(payload_data); ++i) {
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  (param->offset_words + i) * reg_inc_per_word,
-					  &payload_data[i], sizeof(payload_data[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 (param->offset_words + i) * reg_inc_per_word,
+				 &payload_data[i], sizeof(payload_data[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -285,13 +289,13 @@ static void bin_patch_multi_oneword_unordered(struct kunit *test)
 
 	/* Add one payload per word */
 	for (i = 0; i < ARRAY_SIZE(word_order); ++i) {
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  (param->offset_words + word_order[i]) *
-					  reg_inc_per_word,
-					  &payload_data[word_order[i]], sizeof(payload_data[0]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 (param->offset_words + word_order[i]) *
+				 reg_inc_per_word,
+				 &payload_data[word_order[i]], sizeof(payload_data[0]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -346,12 +350,12 @@ static void bin_patch_multi_oneword_sparse_unordered(struct kunit *test)
 
 	/* Add one payload per word */
 	for (i = 0; i < ARRAY_SIZE(word_offsets); ++i) {
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  word_offsets[i] * reg_inc_per_word,
-					  &payload_data[i], sizeof(payload_data[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 word_offsets[i] * reg_inc_per_word,
+				 &payload_data[i], sizeof(payload_data[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -413,27 +417,27 @@ static void bin_patch_one_word_multiple_mems(struct kunit *test)
 	}
 
 	/* Add words to XM, YM and ZM */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  WMFW_ADSP2_XM,
-				  param->offset_words * reg_inc_per_word,
-				  &payload_data[0], sizeof(payload_data[0]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 WMFW_ADSP2_XM,
+			 param->offset_words * reg_inc_per_word,
+			 &payload_data[0], sizeof(payload_data[0]));
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  WMFW_ADSP2_YM,
-				  param->offset_words * reg_inc_per_word,
-				  &payload_data[1], sizeof(payload_data[1]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 WMFW_ADSP2_YM,
+			 param->offset_words * reg_inc_per_word,
+			 &payload_data[1], sizeof(payload_data[1]));
 
 	if (cs_dsp_mock_has_zm(priv)) {
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  WMFW_ADSP2_ZM,
-					  param->offset_words * reg_inc_per_word,
-					  &payload_data[2], sizeof(payload_data[2]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 WMFW_ADSP2_ZM,
+				 param->offset_words * reg_inc_per_word,
+				 &payload_data[2], sizeof(payload_data[2]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -502,12 +506,12 @@ static void bin_patch_one_word_multiple_algs(struct kunit *test)
 	for (i = 0; i < ARRAY_SIZE(bin_test_mock_algs); ++i) {
 		reg_inc_per_word = cs_dsp_mock_reg_addr_inc_per_unpacked_word(priv);
 
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[i].id,
-					  bin_test_mock_algs[i].ver,
-					  param->mem_type,
-					  param->offset_words * reg_inc_per_word,
-					  &payload_data[i], sizeof(payload_data[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[i].id,
+				 bin_test_mock_algs[i].ver,
+				 param->mem_type,
+				 param->offset_words * reg_inc_per_word,
+				 &payload_data[i], sizeof(payload_data[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -565,12 +569,12 @@ static void bin_patch_one_word_multiple_algs_unordered(struct kunit *test)
 		alg_idx = alg_order[i];
 		reg_inc_per_word = cs_dsp_mock_reg_addr_inc_per_unpacked_word(priv);
 
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[alg_idx].id,
-					  bin_test_mock_algs[alg_idx].ver,
-					  param->mem_type,
-					  param->offset_words * reg_inc_per_word,
-					  &payload_data[i], sizeof(payload_data[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[alg_idx].id,
+				 bin_test_mock_algs[alg_idx].ver,
+				 param->mem_type,
+				 param->offset_words * reg_inc_per_word,
+				 &payload_data[i], sizeof(payload_data[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -628,12 +632,12 @@ static void bin_patch_1_packed(struct kunit *test)
 	patch_pos_words = round_up(alg_base_words + param->offset_words, 4);
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -688,20 +692,20 @@ static void bin_patch_1_packed_1_single_trailing(struct kunit *test)
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 	/* Patch packed block */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	/* ... and the unpacked word following that */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 4) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 4) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -768,27 +772,27 @@ static void bin_patch_1_packed_2_single_trailing(struct kunit *test)
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 	/* Patch packed block */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	/* ... and the unpacked words following that */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 4) - alg_base_words) * 4,
-				  &unpacked_payloads[0], sizeof(unpacked_payloads[0]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 4) - alg_base_words) * 4,
+			 &unpacked_payloads[0], sizeof(unpacked_payloads[0]));
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 5) - alg_base_words) * 4,
-				  &unpacked_payloads[1], sizeof(unpacked_payloads[1]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 5) - alg_base_words) * 4,
+			 &unpacked_payloads[1], sizeof(unpacked_payloads[1]));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -857,34 +861,34 @@ static void bin_patch_1_packed_3_single_trailing(struct kunit *test)
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 	/* Patch packed block */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	/* ... and the unpacked words following that */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 4) - alg_base_words) * 4,
-				  &unpacked_payloads[0], sizeof(unpacked_payloads[0]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 4) - alg_base_words) * 4,
+			 &unpacked_payloads[0], sizeof(unpacked_payloads[0]));
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 5) - alg_base_words) * 4,
-				  &unpacked_payloads[1], sizeof(unpacked_payloads[1]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 5) - alg_base_words) * 4,
+			 &unpacked_payloads[1], sizeof(unpacked_payloads[1]));
 
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 6) - alg_base_words) * 4,
-				  &unpacked_payloads[2], sizeof(unpacked_payloads[2]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 6) - alg_base_words) * 4,
+			 &unpacked_payloads[2], sizeof(unpacked_payloads[2]));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -953,20 +957,20 @@ static void bin_patch_1_packed_2_trailing(struct kunit *test)
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 	/* Patch packed block */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	/* ... and the unpacked words following that */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 4) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 4) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1035,20 +1039,20 @@ static void bin_patch_1_packed_3_trailing(struct kunit *test)
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 	/* Patch packed block */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	/* ... and the unpacked words following that */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((patch_pos_words + 4) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((patch_pos_words + 4) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1117,20 +1121,20 @@ static void bin_patch_1_single_leading_1_packed(struct kunit *test)
 	packed_patch_pos_words = round_up(alg_base_words + param->offset_words, 4) + 4;
 
 	/* Patch the leading unpacked word */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 1) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 1) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 	/* ... then the packed block */
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(packed_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1196,26 +1200,26 @@ static void bin_patch_2_single_leading_1_packed(struct kunit *test)
 	packed_patch_pos_words = round_up(alg_base_words + param->offset_words, 4) + 4;
 
 	/* Patch the leading unpacked words */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 2) - alg_base_words) * 4,
-				  &unpacked_payload[0], sizeof(unpacked_payload[0]));
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 1) - alg_base_words) * 4,
-				  &unpacked_payload[1], sizeof(unpacked_payload[1]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 2) - alg_base_words) * 4,
+			 &unpacked_payload[0], sizeof(unpacked_payload[0]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 1) - alg_base_words) * 4,
+			 &unpacked_payload[1], sizeof(unpacked_payload[1]));
 	/* ... then the packed block */
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(packed_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1283,20 +1287,20 @@ static void bin_patch_2_leading_1_packed(struct kunit *test)
 	packed_patch_pos_words = round_up(alg_base_words + param->offset_words, 4) + 4;
 
 	/* Patch the leading unpacked words */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 2) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 2) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 	/* ... then the packed block */
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(packed_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1364,32 +1368,32 @@ static void bin_patch_3_single_leading_1_packed(struct kunit *test)
 	packed_patch_pos_words = round_up(alg_base_words + param->offset_words, 4) + 4;
 
 	/* Patch the leading unpacked words */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 3) - alg_base_words) * 4,
-				  &unpacked_payload[0], sizeof(unpacked_payload[0]));
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 2) - alg_base_words) * 4,
-				  &unpacked_payload[1], sizeof(unpacked_payload[1]));
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 1) - alg_base_words) * 4,
-				  &unpacked_payload[2], sizeof(unpacked_payload[2]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 3) - alg_base_words) * 4,
+			 &unpacked_payload[0], sizeof(unpacked_payload[0]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 2) - alg_base_words) * 4,
+			 &unpacked_payload[1], sizeof(unpacked_payload[1]));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 1) - alg_base_words) * 4,
+			 &unpacked_payload[2], sizeof(unpacked_payload[2]));
 	/* ... then the packed block */
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(packed_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1457,20 +1461,20 @@ static void bin_patch_3_leading_1_packed(struct kunit *test)
 	packed_patch_pos_words = round_up(alg_base_words + param->offset_words, 4) + 4;
 
 	/* Patch the leading unpacked words */
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  unpacked_mem_type,
-				  ((packed_patch_pos_words - 3) - alg_base_words) * 4,
-				  unpacked_payload, sizeof(unpacked_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 unpacked_mem_type,
+			 ((packed_patch_pos_words - 3) - alg_base_words) * 4,
+			 unpacked_payload, sizeof(unpacked_payload));
 	/* ... then the packed block */
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(packed_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  param->mem_type,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  &packed_payload, sizeof(packed_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 param->mem_type,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 &packed_payload, sizeof(packed_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1537,12 +1541,12 @@ static void bin_patch_multi_onepacked(struct kunit *test)
 	for (i = 0; i < ARRAY_SIZE(packed_payloads); ++i) {
 		patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words + (i * 4));
 		payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  payload_offset,
-					  &packed_payloads[i], sizeof(packed_payloads[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 payload_offset,
+				 &packed_payloads[i], sizeof(packed_payloads[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -1602,13 +1606,13 @@ static void bin_patch_multi_onepacked_unordered(struct kunit *test)
 		patch_pos_in_packed_regs =
 			_num_words_to_num_packed_regs(patch_pos_words + (payload_order[i] * 4));
 		payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  payload_offset,
-					  &packed_payloads[payload_order[i]],
-					  sizeof(packed_payloads[0]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 payload_offset,
+				 &packed_payloads[payload_order[i]],
+				 sizeof(packed_payloads[0]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -1665,13 +1669,13 @@ static void bin_patch_multi_onepacked_sparse_unordered(struct kunit *test)
 		patch_pos_words = round_up(alg_base_words + word_offsets[i], 4);
 		patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 		payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[param->alg_idx].id,
-					  bin_test_mock_algs[param->alg_idx].ver,
-					  param->mem_type,
-					  payload_offset,
-					  &packed_payloads[i],
-					  sizeof(packed_payloads[0]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[param->alg_idx].id,
+				 bin_test_mock_algs[param->alg_idx].ver,
+				 param->mem_type,
+				 payload_offset,
+				 &packed_payloads[i],
+				 sizeof(packed_payloads[0]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -1737,21 +1741,21 @@ static void bin_patch_1_packed_multiple_mems(struct kunit *test)
 	/* Add XM and YM patches */
 	alg_base_in_packed_regs = _num_words_to_num_packed_regs(alg_xm_base_words);
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(xm_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  WMFW_HALO_XM_PACKED,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  packed_xm_payload, sizeof(packed_xm_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 WMFW_HALO_XM_PACKED,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 packed_xm_payload, sizeof(packed_xm_payload));
 
 	alg_base_in_packed_regs = _num_words_to_num_packed_regs(alg_ym_base_words);
 	patch_pos_in_packed_regs = _num_words_to_num_packed_regs(ym_patch_pos_words);
-	cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-				  bin_test_mock_algs[param->alg_idx].id,
-				  bin_test_mock_algs[param->alg_idx].ver,
-				  WMFW_HALO_YM_PACKED,
-				  (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
-				  packed_ym_payload, sizeof(packed_ym_payload));
+	param->add_patch(priv->local->bin_builder,
+			 bin_test_mock_algs[param->alg_idx].id,
+			 bin_test_mock_algs[param->alg_idx].ver,
+			 WMFW_HALO_YM_PACKED,
+			 (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4,
+			 packed_ym_payload, sizeof(packed_ym_payload));
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
 	KUNIT_ASSERT_EQ(test,
@@ -1821,12 +1825,12 @@ static void bin_patch_1_packed_multiple_algs(struct kunit *test)
 		patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 		payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[i].id,
-					  bin_test_mock_algs[i].ver,
-					  param->mem_type,
-					  payload_offset,
-					  packed_payload[i], sizeof(packed_payload[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[i].id,
+				 bin_test_mock_algs[i].ver,
+				 param->mem_type,
+				 payload_offset,
+				 packed_payload[i], sizeof(packed_payload[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -1907,12 +1911,12 @@ static void bin_patch_1_packed_multiple_algs_unordered(struct kunit *test)
 		patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 
 		payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-		cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-					  bin_test_mock_algs[alg_idx].id,
-					  bin_test_mock_algs[alg_idx].ver,
-					  param->mem_type,
-					  payload_offset,
-					  packed_payload[i], sizeof(packed_payload[i]));
+		param->add_patch(priv->local->bin_builder,
+				 bin_test_mock_algs[alg_idx].id,
+				 bin_test_mock_algs[alg_idx].ver,
+				 param->mem_type,
+				 payload_offset,
+				 packed_payload[i], sizeof(packed_payload[i]));
 	}
 
 	fw = cs_dsp_mock_bin_get_firmware(priv->local->bin_builder);
@@ -2004,22 +2008,22 @@ static void bin_patch_mixed_packed_unpacked_random(struct kunit *test)
 			alg_base_in_packed_regs = _num_words_to_num_packed_regs(alg_base_words);
 			patch_pos_in_packed_regs = _num_words_to_num_packed_regs(patch_pos_words);
 			payload_offset = (patch_pos_in_packed_regs - alg_base_in_packed_regs) * 4;
-			cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-						  bin_test_mock_algs[0].id,
-						  bin_test_mock_algs[0].ver,
-						  param->mem_type,
-						  payload_offset,
-						  payload->packed[i],
-						  sizeof(payload->packed[i]));
+			param->add_patch(priv->local->bin_builder,
+					 bin_test_mock_algs[0].id,
+					 bin_test_mock_algs[0].ver,
+					 param->mem_type,
+					 payload_offset,
+					 payload->packed[i],
+					 sizeof(payload->packed[i]));
 		} else {
 			payload_offset = offset_words[i] * 4;
-			cs_dsp_mock_bin_add_patch(priv->local->bin_builder,
-						  bin_test_mock_algs[0].id,
-						  bin_test_mock_algs[0].ver,
-						  unpacked_mem_type,
-						  payload_offset,
-						  &payload->unpacked[i],
-						  sizeof(payload->unpacked[i]));
+			param->add_patch(priv->local->bin_builder,
+					 bin_test_mock_algs[0].id,
+					 bin_test_mock_algs[0].ver,
+					 unpacked_mem_type,
+					 payload_offset,
+					 &payload->unpacked[i],
+					 sizeof(payload->unpacked[i]));
 		}
 	}
 
@@ -2295,53 +2299,55 @@ static int cs_dsp_bin_test_adsp2_16bit_init(struct kunit *test)
 	return cs_dsp_bin_test_common_init(test, dsp, 1);
 }
 
+#define WMDR_PATCH_SHORT .add_patch = cs_dsp_mock_bin_add_patch
+
 /* Parameterize on choice of XM or YM with a range of word offsets */
 static const struct bin_test_param x_or_y_and_offset_param_cases[] = {
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 0 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 1 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 2 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 3 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 4 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 23 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 22 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 21 },
-	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 20 },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 1,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 2,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 3,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 23, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 22, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 21, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 20, WMDR_PATCH_SHORT },
 
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 0 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 1 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 2 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 3 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 4 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 23 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 22 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 21 },
-	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 20 },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 1,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 2,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 3,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 23, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 22, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 21, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 20, WMDR_PATCH_SHORT },
 };
 
 /* Parameterize on ZM with a range of word offsets */
 static const struct bin_test_param z_and_offset_param_cases[] = {
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 0 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 1 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 2 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 3 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 4 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 23 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 22 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 21 },
-	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 20 },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 1,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 2,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 3,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 23, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 22, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 21, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .offset_words = 20, WMDR_PATCH_SHORT },
 };
 
 /* Parameterize on choice of packed XM or YM with a range of word offsets */
 static const struct bin_test_param packed_x_or_y_and_offset_param_cases[] = {
-	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 4 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 8 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 12 },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 8,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 12, WMDR_PATCH_SHORT },
 
-	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 4 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 8 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 12 },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 8,  WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 12, WMDR_PATCH_SHORT },
 };
 
 static void x_or_y_or_z_and_offset_param_desc(const struct bin_test_param *param,
@@ -2366,8 +2372,8 @@ KUNIT_ARRAY_PARAM(packed_x_or_y_and_offset,
 
 /* Parameterize on choice of packed XM or YM */
 static const struct bin_test_param packed_x_or_y_param_cases[] = {
-	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0 },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0, WMDR_PATCH_SHORT },
 };
 
 static void x_or_y_or_z_param_desc(const struct bin_test_param *param,
@@ -2379,15 +2385,15 @@ static void x_or_y_or_z_param_desc(const struct bin_test_param *param,
 KUNIT_ARRAY_PARAM(packed_x_or_y, packed_x_or_y_param_cases, x_or_y_or_z_param_desc);
 
 static const struct bin_test_param offset_param_cases[] = {
-	{ .offset_words = 0 },
-	{ .offset_words = 1 },
-	{ .offset_words = 2 },
-	{ .offset_words = 3 },
-	{ .offset_words = 4 },
-	{ .offset_words = 23 },
-	{ .offset_words = 22 },
-	{ .offset_words = 21 },
-	{ .offset_words = 20 },
+	{ .offset_words = 0,  WMDR_PATCH_SHORT },
+	{ .offset_words = 1,  WMDR_PATCH_SHORT },
+	{ .offset_words = 2,  WMDR_PATCH_SHORT },
+	{ .offset_words = 3,  WMDR_PATCH_SHORT },
+	{ .offset_words = 4,  WMDR_PATCH_SHORT },
+	{ .offset_words = 23, WMDR_PATCH_SHORT },
+	{ .offset_words = 22, WMDR_PATCH_SHORT },
+	{ .offset_words = 21, WMDR_PATCH_SHORT },
+	{ .offset_words = 20, WMDR_PATCH_SHORT },
 };
 
 static void offset_param_desc(const struct bin_test_param *param, char *desc)
@@ -2398,10 +2404,10 @@ static void offset_param_desc(const struct bin_test_param *param, char *desc)
 KUNIT_ARRAY_PARAM(offset, offset_param_cases, offset_param_desc);
 
 static const struct bin_test_param alg_param_cases[] = {
-	{ .alg_idx = 0 },
-	{ .alg_idx = 1 },
-	{ .alg_idx = 2 },
-	{ .alg_idx = 3 },
+	{ .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
 static void alg_param_desc(const struct bin_test_param *param, char *desc)
@@ -2415,15 +2421,15 @@ static void alg_param_desc(const struct bin_test_param *param, char *desc)
 KUNIT_ARRAY_PARAM(alg, alg_param_cases, alg_param_desc);
 
 static const struct bin_test_param x_or_y_and_alg_param_cases[] = {
-	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 0 },
-	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 1 },
-	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 2 },
-	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 3 },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 3, WMDR_PATCH_SHORT },
 
-	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 0 },
-	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 1 },
-	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 2 },
-	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 3 },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
 static void x_or_y_or_z_and_alg_param_desc(const struct bin_test_param *param, char *desc)
@@ -2438,24 +2444,24 @@ static void x_or_y_or_z_and_alg_param_desc(const struct bin_test_param *param, c
 KUNIT_ARRAY_PARAM(x_or_y_and_alg, x_or_y_and_alg_param_cases, x_or_y_or_z_and_alg_param_desc);
 
 static const struct bin_test_param z_and_alg_param_cases[] = {
-	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 0 },
-	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 1 },
-	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 2 },
-	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 3 },
+	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
 KUNIT_ARRAY_PARAM(z_and_alg, z_and_alg_param_cases, x_or_y_or_z_and_alg_param_desc);
 
 static const struct bin_test_param packed_x_or_y_and_alg_param_cases[] = {
-	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 0 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 1 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 2 },
-	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 3 },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 3, WMDR_PATCH_SHORT },
 
-	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 0 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 1 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 2 },
-	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 3 },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 0, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 1, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 2, WMDR_PATCH_SHORT },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
 KUNIT_ARRAY_PARAM(packed_x_or_y_and_alg, packed_x_or_y_and_alg_param_cases,
