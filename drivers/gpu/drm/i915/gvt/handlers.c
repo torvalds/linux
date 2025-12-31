@@ -61,6 +61,7 @@
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
 
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
 
 #include "display_helpers.h"

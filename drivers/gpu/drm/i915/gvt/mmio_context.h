@@ -38,8 +38,6 @@
 
 #include <linux/types.h>
 
-#include "gt/intel_engine_regs.h"
-
 struct i915_request;
 struct intel_context;
 struct intel_engine_cs;
@@ -56,8 +54,5 @@ bool is_inhibit_context(struct intel_context *ce);
 
 int intel_vgpu_restore_inhibit_context(struct intel_vgpu *vgpu,
 				       struct i915_request *req);
-
-#define IS_RESTORE_INHIBIT(a) \
-	IS_MASKED_BITS_ENABLED(a, CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT)
 
 #endif
