@@ -19086,11 +19086,9 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 	if (exact == EXACT)
 		return regs_exact(rold, rcur, idmap);
 
-	if (rold->type == NOT_INIT) {
-		if (exact == NOT_EXACT || rcur->type == NOT_INIT)
-			/* explored state can't have used this */
-			return true;
-	}
+	if (rold->type == NOT_INIT)
+		/* explored state can't have used this */
+		return true;
 
 	/* Enforce that register types have to match exactly, including their
 	 * modifiers (like PTR_MAYBE_NULL, MEM_RDONLY, etc), as a general
@@ -19259,7 +19257,7 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 
 		spi = i / BPF_REG_SIZE;
 
-		if (exact != NOT_EXACT &&
+		if (exact == EXACT &&
 		    (i >= cur->allocated_stack ||
 		     old->stack[spi].slot_type[i % BPF_REG_SIZE] !=
 		     cur->stack[spi].slot_type[i % BPF_REG_SIZE]))
