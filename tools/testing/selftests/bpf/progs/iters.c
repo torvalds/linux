@@ -1997,6 +1997,71 @@ static void loop_cb4(void)
 		"goto 2b;"
 		:
 		: __imm(bpf_get_prandom_u32)
+	);
+}
+
+SEC("raw_tp")
+__success
+__naked int stack_misc_vs_scalar_in_a_loop(void)
+{
+	asm volatile(
+		"*(u8 *)(r10 - 15) = 1;" /* This marks stack slot fp[-16] as STACK_MISC. */
+		"*(u8 *)(r10 - 23) = 1;"
+		"*(u8 *)(r10 - 31) = 1;"
+		"*(u8 *)(r10 - 39) = 1;"
+		"*(u8 *)(r10 - 47) = 1;"
+		"*(u8 *)(r10 - 55) = 1;"
+		"*(u8 *)(r10 - 63) = 1;"
+		"*(u8 *)(r10 - 71) = 1;"
+		"*(u8 *)(r10 - 79) = 1;"
+		"r1 = r10;"
+		"r1 += -8;"
+		"r2 = 0;"
+		"r3 = 10;"
+		"call %[bpf_iter_num_new];"
+	"loop_%=:"
+		"r1 = r10;"
+		"r1 += -8;"
+		"call %[bpf_iter_num_next];"
+		"if r0 == 0 goto loop_end_%=;"
+
+#define maybe_change_stack_slot(off) \
+		"call %[bpf_get_prandom_u32];"	\
+		"if r0 == 42 goto +1;"		\
+		"goto +1;"			\
+		"*(u64 *)(r10 " #off ") = r0;"
+
+		/*
+		 * When comparing verifier states fp[-16] will be
+		 * either STACK_MISC or SCALAR. Pruning logic should
+		 * consider old STACK_MISC equivalent to current SCALAR
+		 * to avoid states explosion.
+		 */
+		maybe_change_stack_slot(-16)
+		maybe_change_stack_slot(-24)
+		maybe_change_stack_slot(-32)
+		maybe_change_stack_slot(-40)
+		maybe_change_stack_slot(-48)
+		maybe_change_stack_slot(-56)
+		maybe_change_stack_slot(-64)
+		maybe_change_stack_slot(-72)
+		maybe_change_stack_slot(-80)
+
+#undef maybe_change_stack_slot
+
+		"goto loop_%=;"
+	"loop_end_%=:"
+		"r1 = r10;"
+		"r1 += -8;"
+		"call %[bpf_iter_num_destroy];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_get_prandom_u32),
+		  __imm(bpf_iter_num_new),
+		  __imm(bpf_iter_num_next),
+		  __imm(bpf_iter_num_destroy),
+		  __imm_addr(amap)
 		: __clobber_all
 	);
 }
