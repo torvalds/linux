@@ -4815,6 +4815,9 @@ struct rtw89_fw_info {
 #define RTW89_SET_FW_FEATURE(_fw_feature, _fw) \
 	set_bit(_fw_feature, (_fw)->feature_map)
 
+#define RTW89_CLR_FW_FEATURE(_fw_feature, _fw) \
+	clear_bit(_fw_feature, (_fw)->feature_map)
+
 struct rtw89_cam_info {
 	DECLARE_BITMAP(addr_cam_map, RTW89_MAX_ADDR_CAM_NUM);
 	DECLARE_BITMAP(bssid_cam_map, RTW89_MAX_BSSID_CAM_NUM);

@@ -812,6 +812,8 @@ struct __fw_feat_cfg {
 	enum rtw89_fw_feature feature;
 	u32 ver_code;
 	bool (*cond)(u32 suit_ver_code, u32 comp_ver_code);
+	bool disable;
+	int size;
 };
 
 #define __CFG_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _feat) \
@@ -821,6 +823,30 @@ struct __fw_feat_cfg {
 		.ver_code = RTW89_FW_VER_CODE(_maj, _min, _sub, _idx), \
 		.cond = __fw_feat_cond_ ## _cond, \
 	}
+
+#define __S_DIS_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _feat) \
+	{ \
+		.chip_id = _chip, \
+		.feature = RTW89_FW_FEATURE_ ## _feat, \
+		.ver_code = RTW89_FW_VER_CODE(_maj, _min, _sub, _idx), \
+		.cond = __fw_feat_cond_ ## _cond, \
+		.disable = true, \
+		.size = 1, \
+	}
+
+#define __G_DIS_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _grp) \
+	{ \
+		.chip_id = _chip, \
+		.feature = RTW89_FW_FEATURE_ ## _grp ## _MIN, \
+		.ver_code = RTW89_FW_VER_CODE(_maj, _min, _sub, _idx), \
+		.cond = __fw_feat_cond_ ## _cond, \
+		.disable = true, \
+		.size = RTW89_FW_FEATURE_ ## _grp ## _MAX - \
+			RTW89_FW_FEATURE_ ## _grp ## _MIN + 1, \
+	}
+
+#define __DIS_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _feat, _type) \
+	__##_type##_DIS_FW_FEAT(_chip, _cond, _maj, _min, _sub, _idx, _feat)
 
 static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8851B, ge, 0, 29, 37, 1, TX_WAKE),
@@ -908,8 +934,16 @@ static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
 		if (chip->chip_id != ent->chip_id)
 			continue;
 
-		if (ent->cond(ver_code, ent->ver_code))
+		if (!ent->cond(ver_code, ent->ver_code))
+			continue;
+
+		if (!ent->disable) {
 			RTW89_SET_FW_FEATURE(ent->feature, fw);
+			continue;
+		}
+
+		for (int n = 0; n < ent->size; n++)
+			RTW89_CLR_FW_FEATURE(ent->feature + n, fw);
 	}
 }
 
