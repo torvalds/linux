@@ -882,7 +882,7 @@ extern int devm_spi_register_controller(struct device *dev,
 					struct spi_controller *ctlr);
 extern void spi_unregister_controller(struct spi_controller *ctlr);
 
-#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+#if IS_ENABLED(CONFIG_OF)
 extern struct spi_controller *of_find_spi_controller_by_node(struct device_node *node);
 #else
 static inline struct spi_controller *of_find_spi_controller_by_node(struct device_node *node)
