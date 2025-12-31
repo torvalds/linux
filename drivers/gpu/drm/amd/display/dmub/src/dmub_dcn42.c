@@ -321,11 +321,9 @@ void dmub_dcn42_set_outbox1_rptr(struct dmub_srv *dmub, uint32_t rptr_offset)
 
 bool dmub_dcn42_is_supported(struct dmub_srv *dmub)
 {
-	uint32_t supported = 0;
-
-	REG_GET(CC_DC_PIPE_DIS, DC_DMCUB_ENABLE, &supported);
-
-	return supported;
+	// DCN without DMUB is not a supported configuration; safe to assume that it is always
+	// present.
+	return true;
 }
 
 union dmub_fw_boot_options dmub_dcn42_get_fw_boot_option(struct dmub_srv *dmub)
