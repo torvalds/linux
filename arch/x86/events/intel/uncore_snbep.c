@@ -471,6 +471,14 @@
 
 #define SPR_C0_MSR_PMON_BOX_FILTER0		0x200e
 
+/* DMR */
+#define DMR_CXLCM_EVENT_MASK_EXT		0xf
+#define DMR_HAMVF_EVENT_MASK_EXT		0xffffffff
+#define DMR_PCIE4_EVENT_MASK_EXT		0xffffff
+
+#define DMR_IMC_PMON_FIXED_CTR			0x18
+#define DMR_IMC_PMON_FIXED_CTL			0x10
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(event2, event, "config:0-6");
 DEFINE_UNCORE_FORMAT_ATTR(event_ext, event, "config:0-7,21");
@@ -486,6 +494,10 @@ DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en, tid_en, "config:19");
 DEFINE_UNCORE_FORMAT_ATTR(tid_en2, tid_en, "config:16");
 DEFINE_UNCORE_FORMAT_ATTR(inv, inv, "config:23");
+DEFINE_UNCORE_FORMAT_ATTR(inv2, inv, "config:21");
+DEFINE_UNCORE_FORMAT_ATTR(thresh_ext, thresh_ext, "config:32-35");
+DEFINE_UNCORE_FORMAT_ATTR(thresh10, thresh, "config:23-32");
+DEFINE_UNCORE_FORMAT_ATTR(thresh9_2, thresh, "config:23-31");
 DEFINE_UNCORE_FORMAT_ATTR(thresh9, thresh, "config:24-35");
 DEFINE_UNCORE_FORMAT_ATTR(thresh8, thresh, "config:24-31");
 DEFINE_UNCORE_FORMAT_ATTR(thresh6, thresh, "config:24-29");
@@ -494,6 +506,13 @@ DEFINE_UNCORE_FORMAT_ATTR(occ_sel, occ_sel, "config:14-15");
 DEFINE_UNCORE_FORMAT_ATTR(occ_invert, occ_invert, "config:30");
 DEFINE_UNCORE_FORMAT_ATTR(occ_edge, occ_edge, "config:14-51");
 DEFINE_UNCORE_FORMAT_ATTR(occ_edge_det, occ_edge_det, "config:31");
+DEFINE_UNCORE_FORMAT_ATTR(port_en, port_en, "config:32-35");
+DEFINE_UNCORE_FORMAT_ATTR(rs3_sel, rs3_sel, "config:36");
+DEFINE_UNCORE_FORMAT_ATTR(rx_sel, rx_sel, "config:37");
+DEFINE_UNCORE_FORMAT_ATTR(tx_sel, tx_sel, "config:38");
+DEFINE_UNCORE_FORMAT_ATTR(iep_sel, iep_sel, "config:39");
+DEFINE_UNCORE_FORMAT_ATTR(vc_sel, vc_sel, "config:40-47");
+DEFINE_UNCORE_FORMAT_ATTR(port_sel, port_sel, "config:48-55");
 DEFINE_UNCORE_FORMAT_ATTR(ch_mask, ch_mask, "config:36-43");
 DEFINE_UNCORE_FORMAT_ATTR(ch_mask2, ch_mask, "config:36-47");
 DEFINE_UNCORE_FORMAT_ATTR(fc_mask, fc_mask, "config:44-46");
@@ -6709,3 +6728,213 @@ void gnr_uncore_mmio_init(void)
 }
 
 /* end of GNR uncore support */
+
+/* DMR uncore support */
+#define UNCORE_DMR_NUM_UNCORE_TYPES	52
+
+static struct attribute *dmr_imc_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh10.attr,
+	NULL,
+};
+
+static const struct attribute_group dmr_imc_uncore_format_group = {
+	.name = "format",
+	.attrs = dmr_imc_uncore_formats_attr,
+};
+
+static struct intel_uncore_type dmr_uncore_imc = {
+	.name			= "imc",
+	.fixed_ctr_bits		= 48,
+	.fixed_ctr		= DMR_IMC_PMON_FIXED_CTR,
+	.fixed_ctl		= DMR_IMC_PMON_FIXED_CTL,
+	.ops			= &spr_uncore_mmio_ops,
+	.format_group		= &dmr_imc_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct attribute *dmr_sca_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask_ext5.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	NULL,
+};
+
+static const struct attribute_group dmr_sca_uncore_format_group = {
+	.name = "format",
+	.attrs = dmr_sca_uncore_formats_attr,
+};
+
+static struct intel_uncore_type dmr_uncore_sca = {
+	.name			= "sca",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct attribute *dmr_cxlcm_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv2.attr,
+	&format_attr_thresh9_2.attr,
+	&format_attr_port_en.attr,
+	NULL,
+};
+
+static const struct attribute_group dmr_cxlcm_uncore_format_group = {
+	.name = "format",
+	.attrs = dmr_cxlcm_uncore_formats_attr,
+};
+
+static struct intel_uncore_type dmr_uncore_cxlcm = {
+	.name			= "cxlcm",
+	.event_mask		= GENERIC_PMON_RAW_EVENT_MASK,
+	.event_mask_ext		= DMR_CXLCM_EVENT_MASK_EXT,
+	.format_group		= &dmr_cxlcm_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_hamvf = {
+	.name			= "hamvf",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_ula = {
+	.name			= "ula",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_ubr = {
+	.name			= "ubr",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct attribute *dmr_pcie4_uncore_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_umask.attr,
+	&format_attr_edge.attr,
+	&format_attr_inv.attr,
+	&format_attr_thresh8.attr,
+	&format_attr_thresh_ext.attr,
+	&format_attr_rs3_sel.attr,
+	&format_attr_rx_sel.attr,
+	&format_attr_tx_sel.attr,
+	&format_attr_iep_sel.attr,
+	&format_attr_vc_sel.attr,
+	&format_attr_port_sel.attr,
+	NULL,
+};
+
+static const struct attribute_group dmr_pcie4_uncore_format_group = {
+	.name = "format",
+	.attrs = dmr_pcie4_uncore_formats_attr,
+};
+
+static struct intel_uncore_type dmr_uncore_pcie4 = {
+	.name			= "pcie4",
+	.event_mask_ext		= DMR_PCIE4_EVENT_MASK_EXT,
+	.format_group		= &dmr_pcie4_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_crs = {
+	.name			= "crs",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_cpc = {
+	.name			= "cpc",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_itc = {
+	.name			= "itc",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_otc = {
+	.name			= "otc",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_cms = {
+	.name			= "cms",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_pcie6 = {
+	.name			= "pcie6",
+	.event_mask_ext		= DMR_PCIE4_EVENT_MASK_EXT,
+	.format_group		= &dmr_pcie4_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type *dmr_uncores[UNCORE_DMR_NUM_UNCORE_TYPES] = {
+	NULL, NULL, NULL, NULL,
+	&spr_uncore_pcu,
+	&gnr_uncore_ubox,
+	&dmr_uncore_imc,
+	NULL,
+	NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL,
+	&dmr_uncore_sca,
+	&dmr_uncore_cxlcm,
+	NULL, NULL, NULL,
+	NULL, NULL,
+	&dmr_uncore_hamvf,
+	NULL,
+	NULL, NULL, NULL,
+	&dmr_uncore_ula,
+	NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL,
+	&dmr_uncore_ubr,
+	NULL,
+	&dmr_uncore_pcie4,
+	&dmr_uncore_crs,
+	&dmr_uncore_cpc,
+	&dmr_uncore_itc,
+	&dmr_uncore_otc,
+	&dmr_uncore_cms,
+	&dmr_uncore_pcie6,
+};
+
+int dmr_uncore_imh_units_ignore[] = {
+	0x13,		/* MSE */
+	UNCORE_IGNORE_END
+};
+
+int dmr_uncore_pci_init(void)
+{
+	uncore_pci_uncores = uncore_get_uncores(UNCORE_ACCESS_PCI, 0, NULL,
+						UNCORE_DMR_NUM_UNCORE_TYPES,
+						dmr_uncores);
+	return 0;
+}
+void dmr_uncore_mmio_init(void)
+{
+	uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO, 0, NULL,
+						 UNCORE_DMR_NUM_UNCORE_TYPES,
+						 dmr_uncores);
+}
+
+/* end of DMR uncore support */

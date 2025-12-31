@@ -5,6 +5,8 @@
 
 /* Generic device ID of a discovery table device */
 #define UNCORE_DISCOVERY_TABLE_DEVICE		0x09a7
+/* Device ID used on DMR */
+#define DMR_UNCORE_DISCOVERY_TABLE_DEVICE	0x09a1
 /* Capability ID for a discovery table device */
 #define UNCORE_EXT_CAP_ID_DISCOVERY		0x23
 /* First DVSEC offset */

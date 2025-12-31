@@ -1831,6 +1831,14 @@ static const struct uncore_plat_init gnr_uncore_init __initconst = {
 	.domain[0].units_ignore = gnr_uncore_units_ignore,
 };
 
+static const struct uncore_plat_init dmr_uncore_init __initconst = {
+	.pci_init = dmr_uncore_pci_init,
+	.mmio_init = dmr_uncore_mmio_init,
+	.domain[0].base_is_pci = true,
+	.domain[0].discovery_base = DMR_UNCORE_DISCOVERY_TABLE_DEVICE,
+	.domain[0].units_ignore = dmr_uncore_imh_units_ignore,
+};
+
 static const struct uncore_plat_init generic_uncore_init __initconst = {
 	.cpu_init = intel_uncore_generic_uncore_cpu_init,
 	.pci_init = intel_uncore_generic_uncore_pci_init,
@@ -1898,6 +1906,7 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	&gnr_uncore_init),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	&gnr_uncore_init),
 	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,	&gnr_uncore_init),
+	X86_MATCH_VFM(INTEL_DIAMONDRAPIDS_X,	&dmr_uncore_init),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_uncore_match);
