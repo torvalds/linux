@@ -872,15 +872,16 @@ static int nau8821_hw_params(struct snd_pcm_substream *substream,
 	if (ctrl_val & NAU8821_I2S_MS_MASTER) {
 		/* get the bclk and fs ratio */
 		bclk_fs = snd_soc_params_to_bclk(params) / nau8821->fs;
+
 		if (bclk_fs <= 32)
 			clk_div = 3;
 		else if (bclk_fs <= 64)
 			clk_div = 2;
 		else if (bclk_fs <= 128)
 			clk_div = 1;
-		else {
+		else
 			return -EINVAL;
-		}
+
 		regmap_update_bits(nau8821->regmap, NAU8821_R1D_I2S_PCM_CTRL2,
 			NAU8821_I2S_LRC_DIV_MASK | NAU8821_I2S_BLK_DIV_MASK,
 			(clk_div << NAU8821_I2S_LRC_DIV_SFT) | clk_div);
