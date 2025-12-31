@@ -2813,7 +2813,7 @@ static void rtw89_core_bcn_track_assoc(struct rtw89_dev *rtwdev,
 
 	rcu_read_lock();
 	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
-	beacon_int = bss_conf->beacon_int;
+	beacon_int = bss_conf->beacon_int ?: 100;
 	dtim = bss_conf->dtim_period;
 	rcu_read_unlock();
 
@@ -2843,9 +2843,7 @@ static void rtw89_core_bcn_track_reset(struct rtw89_dev *rtwdev)
 	memset(&rtwdev->bcn_track, 0, sizeof(rtwdev->bcn_track));
 }
 
-static void rtw89_vif_rx_bcn_stat(struct rtw89_dev *rtwdev,
-				  struct ieee80211_bss_conf *bss_conf,
-				  struct sk_buff *skb)
+static void rtw89_vif_rx_bcn_stat(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 {
 #define RTW89_APPEND_TSF_2GHZ 384
 #define RTW89_APPEND_TSF_5GHZ 52
@@ -2854,12 +2852,16 @@ static void rtw89_vif_rx_bcn_stat(struct rtw89_dev *rtwdev,
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
 	struct rtw89_beacon_stat *bcn_stat = &rtwdev->phystat.bcn_stat;
 	struct rtw89_beacon_track_info *bcn_track = &rtwdev->bcn_track;
-	u32 bcn_intvl_us = ieee80211_tu_to_usec(bss_conf->beacon_int);
+	u32 bcn_intvl_us = ieee80211_tu_to_usec(bcn_track->beacon_int);
 	u64 tsf = le64_to_cpu(mgmt->u.beacon.timestamp);
 	u8 wp, num = bcn_stat->num;
 	u16 append;
 
 	if (!RTW89_CHK_FW_FEATURE(BEACON_TRACKING, &rtwdev->fw))
+		return;
+
+	/* Skip if not yet associated */
+	if (!bcn_intvl_us)
 		return;
 
 	switch (rx_status->band) {
@@ -2949,7 +2951,7 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		pkt_stat->beacon_rate = desc_info->data_rate;
 		pkt_stat->beacon_len = skb->len;
 
-		rtw89_vif_rx_bcn_stat(rtwdev, bss_conf, skb);
+		rtw89_vif_rx_bcn_stat(rtwdev, skb);
 	}
 
 	if (!ether_addr_equal(bss_conf->addr, hdr->addr1))
