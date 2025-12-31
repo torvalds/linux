@@ -1817,6 +1817,13 @@ static const struct uncore_plat_init ptl_uncore_init __initconst = {
 	.domain[0].global_init = uncore_mmio_global_init,
 };
 
+static const struct uncore_plat_init nvl_uncore_init __initconst = {
+	.cpu_init = nvl_uncore_cpu_init,
+	.mmio_init = ptl_uncore_mmio_init,
+	.domain[0].discovery_base = PACKAGE_UNCORE_DISCOVERY_MSR,
+	.domain[0].global_init = uncore_mmio_global_init,
+};
+
 static const struct uncore_plat_init icx_uncore_init __initconst = {
 	.cpu_init = icx_uncore_cpu_init,
 	.pci_init = icx_uncore_pci_init,
@@ -1916,6 +1923,8 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&lnl_uncore_init),
 	X86_MATCH_VFM(INTEL_PANTHERLAKE_L,	&ptl_uncore_init),
 	X86_MATCH_VFM(INTEL_WILDCATLAKE_L,	&ptl_uncore_init),
+	X86_MATCH_VFM(INTEL_NOVALAKE,		&nvl_uncore_init),
+	X86_MATCH_VFM(INTEL_NOVALAKE_L,		&nvl_uncore_init),
 	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	&spr_uncore_init),
 	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,	&spr_uncore_init),
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	&gnr_uncore_init),

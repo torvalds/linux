@@ -256,6 +256,19 @@
 /* PTL cNCU register */
 #define PTL_UNC_CNCU_MSR_OFFSET			0x140
 
+/* NVL cNCU register */
+#define NVL_UNC_CNCU_BOX_CTL			0x202e
+#define NVL_UNC_CNCU_FIXED_CTR			0x2028
+#define NVL_UNC_CNCU_FIXED_CTRL			0x2022
+
+/* NVL SANTA register */
+#define NVL_UNC_SANTA_CTR0			0x2048
+#define NVL_UNC_SANTA_CTRL0			0x2042
+
+/* NVL CBOX register */
+#define NVL_UNC_CBOX_PER_CTR0			0x2108
+#define NVL_UNC_CBOX_PERFEVTSEL0		0x2102
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(chmask, chmask, "config:8-11");
@@ -1979,3 +1992,30 @@ void ptl_uncore_cpu_init(void)
 }
 
 /* end of Panther Lake uncore support */
+
+/* Nova Lake uncore support */
+
+static struct intel_uncore_type *nvl_msr_uncores[] = {
+	&mtl_uncore_cbox,
+	&ptl_uncore_santa,
+	&mtl_uncore_cncu,
+	NULL
+};
+
+void nvl_uncore_cpu_init(void)
+{
+	mtl_uncore_cbox.num_boxes = 12;
+	mtl_uncore_cbox.perf_ctr = NVL_UNC_CBOX_PER_CTR0,
+	mtl_uncore_cbox.event_ctl = NVL_UNC_CBOX_PERFEVTSEL0,
+
+	ptl_uncore_santa.perf_ctr = NVL_UNC_SANTA_CTR0,
+	ptl_uncore_santa.event_ctl = NVL_UNC_SANTA_CTRL0,
+
+	mtl_uncore_cncu.box_ctl = NVL_UNC_CNCU_BOX_CTL;
+	mtl_uncore_cncu.fixed_ctr = NVL_UNC_CNCU_FIXED_CTR;
+	mtl_uncore_cncu.fixed_ctl = NVL_UNC_CNCU_FIXED_CTRL;
+
+	uncore_msr_uncores = nvl_msr_uncores;
+}
+
+/* end of Nova Lake uncore support */
