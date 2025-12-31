@@ -2149,7 +2149,8 @@ static void bin_patch_name_and_info(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, reg_val, payload_data);
 }
 
-static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp)
+static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp,
+					int wmdr_ver)
 {
 	struct cs_dsp_test *priv;
 	struct cs_dsp_mock_xm_header *xm_hdr;
@@ -2197,7 +2198,7 @@ static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	priv->local->bin_builder =
-		cs_dsp_mock_bin_init(priv, 1,
+		cs_dsp_mock_bin_init(priv, wmdr_ver,
 				     cs_dsp_mock_xm_header_get_fw_version(xm_hdr));
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, priv->local->bin_builder);
 
@@ -2227,7 +2228,7 @@ static int cs_dsp_bin_test_common_init(struct kunit *test, struct cs_dsp *dsp)
 	return kunit_add_action_or_reset(priv->test, _cs_dsp_remove_wrapper, dsp);
 }
 
-static int cs_dsp_bin_test_halo_init(struct kunit *test)
+static int cs_dsp_bin_test_halo_init_common(struct kunit *test, int wmdr_ver)
 {
 	struct cs_dsp *dsp;
 
@@ -2243,7 +2244,17 @@ static int cs_dsp_bin_test_halo_init(struct kunit *test)
 	dsp->base = cs_dsp_mock_halo_core_base;
 	dsp->base_sysinfo = cs_dsp_mock_halo_sysinfo_base;
 
-	return cs_dsp_bin_test_common_init(test, dsp);
+	return cs_dsp_bin_test_common_init(test, dsp, wmdr_ver);
+}
+
+static int cs_dsp_bin_test_halo_init(struct kunit *test)
+{
+	return cs_dsp_bin_test_halo_init_common(test, 1);
+}
+
+static int cs_dsp_bin_test_halo_wmdr3_init(struct kunit *test)
+{
+	return cs_dsp_bin_test_halo_init_common(test, 3);
 }
 
 static int cs_dsp_bin_test_adsp2_32bit_init(struct kunit *test)
@@ -2262,7 +2273,7 @@ static int cs_dsp_bin_test_adsp2_32bit_init(struct kunit *test)
 	dsp->num_mems = cs_dsp_mock_count_regions(cs_dsp_mock_adsp2_32bit_dsp1_region_sizes);
 	dsp->base = cs_dsp_mock_adsp2_32bit_sysbase;
 
-	return cs_dsp_bin_test_common_init(test, dsp);
+	return cs_dsp_bin_test_common_init(test, dsp, 1);
 }
 
 static int cs_dsp_bin_test_adsp2_16bit_init(struct kunit *test)
@@ -2281,7 +2292,7 @@ static int cs_dsp_bin_test_adsp2_16bit_init(struct kunit *test)
 	dsp->num_mems = cs_dsp_mock_count_regions(cs_dsp_mock_adsp2_16bit_dsp1_region_sizes);
 	dsp->base = cs_dsp_mock_adsp2_16bit_sysbase;
 
-	return cs_dsp_bin_test_common_init(test, dsp);
+	return cs_dsp_bin_test_common_init(test, dsp, 1);
 }
 
 /* Parameterize on choice of XM or YM with a range of word offsets */
@@ -2539,6 +2550,12 @@ static struct kunit_suite cs_dsp_bin_test_halo = {
 	.test_cases = cs_dsp_bin_test_cases_halo,
 };
 
+static struct kunit_suite cs_dsp_bin_test_halo_wmdr3 = {
+	.name = "cs_dsp_bin_halo_wmdr_v3",
+	.init = cs_dsp_bin_test_halo_wmdr3_init,
+	.test_cases = cs_dsp_bin_test_cases_halo,
+};
+
 static struct kunit_suite cs_dsp_bin_test_adsp2_32bit = {
 	.name = "cs_dsp_bin_adsp2_32bit",
 	.init = cs_dsp_bin_test_adsp2_32bit_init,
@@ -2552,5 +2569,6 @@ static struct kunit_suite cs_dsp_bin_test_adsp2_16bit = {
 };
 
 kunit_test_suites(&cs_dsp_bin_test_halo,
+		  &cs_dsp_bin_test_halo_wmdr3,
 		  &cs_dsp_bin_test_adsp2_32bit,
 		  &cs_dsp_bin_test_adsp2_16bit);
