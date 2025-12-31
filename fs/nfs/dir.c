@@ -1440,7 +1440,8 @@ static void nfs_set_verifier_locked(struct dentry *dentry, unsigned long verf)
 
 	if (!dir || !nfs_verify_change_attribute(dir, verf))
 		return;
-	if (inode && NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0))
+	if (NFS_PROTO(dir)->have_delegation(dir, FMODE_READ, 0) ||
+	    (inode && NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0)))
 		nfs_set_verifier_delegated(&verf);
 	dentry->d_time = verf;
 }
@@ -1465,6 +1466,49 @@ void nfs_set_verifier(struct dentry *dentry, unsigned long verf)
 EXPORT_SYMBOL_GPL(nfs_set_verifier);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
+static void nfs_clear_verifier_file(struct inode *inode)
+{
+	struct dentry *alias;
+	struct inode *dir;
+
+	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
+		spin_lock(&alias->d_lock);
+		dir = d_inode_rcu(alias->d_parent);
+		if (!dir ||
+		    !NFS_PROTO(dir)->have_delegation(dir, FMODE_READ, 0))
+			nfs_unset_verifier_delegated(&alias->d_time);
+		spin_unlock(&alias->d_lock);
+	}
+}
+
+static void nfs_clear_verifier_directory(struct inode *dir)
+{
+	struct dentry *this_parent;
+	struct dentry *dentry;
+	struct inode *inode;
+
+	if (hlist_empty(&dir->i_dentry))
+		return;
+	this_parent =
+		hlist_entry(dir->i_dentry.first, struct dentry, d_u.d_alias);
+
+	spin_lock(&this_parent->d_lock);
+	nfs_unset_verifier_delegated(&this_parent->d_time);
+	dentry = d_first_child(this_parent);
+	hlist_for_each_entry_from(dentry, d_sib) {
+		if (unlikely(dentry->d_flags & DCACHE_DENTRY_CURSOR))
+			continue;
+		inode = d_inode_rcu(dentry);
+		if (inode &&
+		    NFS_PROTO(inode)->have_delegation(inode, FMODE_READ, 0))
+			continue;
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+		nfs_unset_verifier_delegated(&dentry->d_time);
+		spin_unlock(&dentry->d_lock);
+	}
+	spin_unlock(&this_parent->d_lock);
+}
+
 /**
  * nfs_clear_verifier_delegated - clear the dir verifier delegation tag
  * @inode: pointer to inode
@@ -1477,16 +1521,13 @@ EXPORT_SYMBOL_GPL(nfs_set_verifier);
  */
 void nfs_clear_verifier_delegated(struct inode *inode)
 {
-	struct dentry *alias;
-
 	if (!inode)
 		return;
 	spin_lock(&inode->i_lock);
-	hlist_for_each_entry(alias, &inode->i_dentry, d_u.d_alias) {
-		spin_lock(&alias->d_lock);
-		nfs_unset_verifier_delegated(&alias->d_time);
-		spin_unlock(&alias->d_lock);
-	}
+	if (S_ISREG(inode->i_mode))
+		nfs_clear_verifier_file(inode);
+	else if (S_ISDIR(inode->i_mode))
+		nfs_clear_verifier_directory(inode);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_clear_verifier_delegated);
