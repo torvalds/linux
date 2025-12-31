@@ -1679,11 +1679,9 @@ int nau8821_enable_jack_detect(struct snd_soc_component *component,
 	ret = devm_request_threaded_irq(nau8821->dev, nau8821->irq, NULL,
 		nau8821_interrupt, IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 		"nau8821", nau8821);
-	if (ret) {
+	if (ret)
 		dev_err(nau8821->dev, "Cannot request irq %d (%d)\n",
 			nau8821->irq, ret);
-		return ret;
-	}
 
 	return ret;
 }
