@@ -47,6 +47,16 @@ struct uncore_event_desc;
 struct freerunning_counters;
 struct intel_uncore_topology;
 
+struct uncore_plat_init {
+	void	(*cpu_init)(void);
+	int	(*pci_init)(void);
+	void	(*mmio_init)(void);
+	/* Discovery table is required */
+	bool	use_discovery;
+	/* The units in the discovery table should be ignored. */
+	int	*uncore_units_ignore;
+};
+
 struct intel_uncore_type {
 	const char *name;
 	int num_counters;

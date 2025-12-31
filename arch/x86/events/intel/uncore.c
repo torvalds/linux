@@ -1697,133 +1697,123 @@ err:
 	return ret;
 }
 
-struct intel_uncore_init_fun {
-	void	(*cpu_init)(void);
-	int	(*pci_init)(void);
-	void	(*mmio_init)(void);
-	/* Discovery table is required */
-	bool	use_discovery;
-	/* The units in the discovery table should be ignored. */
-	int	*uncore_units_ignore;
-};
-
-static const struct intel_uncore_init_fun nhm_uncore_init __initconst = {
+static const struct uncore_plat_init nhm_uncore_init __initconst = {
 	.cpu_init = nhm_uncore_cpu_init,
 };
 
-static const struct intel_uncore_init_fun snb_uncore_init __initconst = {
+static const struct uncore_plat_init snb_uncore_init __initconst = {
 	.cpu_init = snb_uncore_cpu_init,
 	.pci_init = snb_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun ivb_uncore_init __initconst = {
+static const struct uncore_plat_init ivb_uncore_init __initconst = {
 	.cpu_init = snb_uncore_cpu_init,
 	.pci_init = ivb_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun hsw_uncore_init __initconst = {
+static const struct uncore_plat_init hsw_uncore_init __initconst = {
 	.cpu_init = snb_uncore_cpu_init,
 	.pci_init = hsw_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun bdw_uncore_init __initconst = {
+static const struct uncore_plat_init bdw_uncore_init __initconst = {
 	.cpu_init = snb_uncore_cpu_init,
 	.pci_init = bdw_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun snbep_uncore_init __initconst = {
+static const struct uncore_plat_init snbep_uncore_init __initconst = {
 	.cpu_init = snbep_uncore_cpu_init,
 	.pci_init = snbep_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun nhmex_uncore_init __initconst = {
+static const struct uncore_plat_init nhmex_uncore_init __initconst = {
 	.cpu_init = nhmex_uncore_cpu_init,
 };
 
-static const struct intel_uncore_init_fun ivbep_uncore_init __initconst = {
+static const struct uncore_plat_init ivbep_uncore_init __initconst = {
 	.cpu_init = ivbep_uncore_cpu_init,
 	.pci_init = ivbep_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun hswep_uncore_init __initconst = {
+static const struct uncore_plat_init hswep_uncore_init __initconst = {
 	.cpu_init = hswep_uncore_cpu_init,
 	.pci_init = hswep_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun bdx_uncore_init __initconst = {
+static const struct uncore_plat_init bdx_uncore_init __initconst = {
 	.cpu_init = bdx_uncore_cpu_init,
 	.pci_init = bdx_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun knl_uncore_init __initconst = {
+static const struct uncore_plat_init knl_uncore_init __initconst = {
 	.cpu_init = knl_uncore_cpu_init,
 	.pci_init = knl_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun skl_uncore_init __initconst = {
+static const struct uncore_plat_init skl_uncore_init __initconst = {
 	.cpu_init = skl_uncore_cpu_init,
 	.pci_init = skl_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun skx_uncore_init __initconst = {
+static const struct uncore_plat_init skx_uncore_init __initconst = {
 	.cpu_init = skx_uncore_cpu_init,
 	.pci_init = skx_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun icl_uncore_init __initconst = {
+static const struct uncore_plat_init icl_uncore_init __initconst = {
 	.cpu_init = icl_uncore_cpu_init,
 	.pci_init = skl_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun tgl_uncore_init __initconst = {
+static const struct uncore_plat_init tgl_uncore_init __initconst = {
 	.cpu_init = tgl_uncore_cpu_init,
 	.mmio_init = tgl_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun tgl_l_uncore_init __initconst = {
+static const struct uncore_plat_init tgl_l_uncore_init __initconst = {
 	.cpu_init = tgl_uncore_cpu_init,
 	.mmio_init = tgl_l_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun rkl_uncore_init __initconst = {
+static const struct uncore_plat_init rkl_uncore_init __initconst = {
 	.cpu_init = tgl_uncore_cpu_init,
 	.pci_init = skl_uncore_pci_init,
 };
 
-static const struct intel_uncore_init_fun adl_uncore_init __initconst = {
+static const struct uncore_plat_init adl_uncore_init __initconst = {
 	.cpu_init = adl_uncore_cpu_init,
 	.mmio_init = adl_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun mtl_uncore_init __initconst = {
+static const struct uncore_plat_init mtl_uncore_init __initconst = {
 	.cpu_init = mtl_uncore_cpu_init,
 	.mmio_init = adl_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun lnl_uncore_init __initconst = {
+static const struct uncore_plat_init lnl_uncore_init __initconst = {
 	.cpu_init = lnl_uncore_cpu_init,
 	.mmio_init = lnl_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun ptl_uncore_init __initconst = {
+static const struct uncore_plat_init ptl_uncore_init __initconst = {
 	.cpu_init = ptl_uncore_cpu_init,
 	.mmio_init = ptl_uncore_mmio_init,
 	.use_discovery = true,
 };
 
-static const struct intel_uncore_init_fun icx_uncore_init __initconst = {
+static const struct uncore_plat_init icx_uncore_init __initconst = {
 	.cpu_init = icx_uncore_cpu_init,
 	.pci_init = icx_uncore_pci_init,
 	.mmio_init = icx_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun snr_uncore_init __initconst = {
+static const struct uncore_plat_init snr_uncore_init __initconst = {
 	.cpu_init = snr_uncore_cpu_init,
 	.pci_init = snr_uncore_pci_init,
 	.mmio_init = snr_uncore_mmio_init,
 };
 
-static const struct intel_uncore_init_fun spr_uncore_init __initconst = {
+static const struct uncore_plat_init spr_uncore_init __initconst = {
 	.cpu_init = spr_uncore_cpu_init,
 	.pci_init = spr_uncore_pci_init,
 	.mmio_init = spr_uncore_mmio_init,
@@ -1831,7 +1821,7 @@ static const struct intel_uncore_init_fun spr_uncore_init __initconst = {
 	.uncore_units_ignore = spr_uncore_units_ignore,
 };
 
-static const struct intel_uncore_init_fun gnr_uncore_init __initconst = {
+static const struct uncore_plat_init gnr_uncore_init __initconst = {
 	.cpu_init = gnr_uncore_cpu_init,
 	.pci_init = gnr_uncore_pci_init,
 	.mmio_init = gnr_uncore_mmio_init,
@@ -1839,7 +1829,7 @@ static const struct intel_uncore_init_fun gnr_uncore_init __initconst = {
 	.uncore_units_ignore = gnr_uncore_units_ignore,
 };
 
-static const struct intel_uncore_init_fun generic_uncore_init __initconst = {
+static const struct uncore_plat_init generic_uncore_init __initconst = {
 	.cpu_init = intel_uncore_generic_uncore_cpu_init,
 	.pci_init = intel_uncore_generic_uncore_pci_init,
 	.mmio_init = intel_uncore_generic_uncore_mmio_init,
@@ -1910,7 +1900,7 @@ MODULE_DEVICE_TABLE(x86cpu, intel_uncore_match);
 static int __init intel_uncore_init(void)
 {
 	const struct x86_cpu_id *id;
-	struct intel_uncore_init_fun *uncore_init;
+	struct uncore_plat_init *uncore_init;
 	int pret = 0, cret = 0, mret = 0, ret;
 
 	if (boot_cpu_has(X86_FEATURE_HYPERVISOR))
@@ -1921,16 +1911,16 @@ static int __init intel_uncore_init(void)
 
 	id = x86_match_cpu(intel_uncore_match);
 	if (!id) {
-		if (!uncore_no_discover && intel_uncore_has_discovery_tables(NULL))
-			uncore_init = (struct intel_uncore_init_fun *)&generic_uncore_init;
+		if (!uncore_no_discover && uncore_discovery(NULL))
+			uncore_init = (struct uncore_plat_init *)&generic_uncore_init;
 		else
 			return -ENODEV;
 	} else {
-		uncore_init = (struct intel_uncore_init_fun *)id->driver_data;
+		uncore_init = (struct uncore_plat_init *)id->driver_data;
 		if (uncore_no_discover && uncore_init->use_discovery)
 			return -ENODEV;
 		if (uncore_init->use_discovery &&
-		    !intel_uncore_has_discovery_tables(uncore_init->uncore_units_ignore))
+		    !uncore_discovery(uncore_init))
 			return -ENODEV;
 	}
 

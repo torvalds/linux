@@ -350,7 +350,7 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	return __parse_discovery_table(addr, die, parsed, ignore);
 }
 
-static bool intel_uncore_has_discovery_tables_pci(int *ignore)
+static bool uncore_discovery_pci(int *ignore)
 {
 	u32 device, val, entry_id, bar_offset;
 	int die, dvsec = 0, ret = true;
@@ -399,7 +399,7 @@ err:
 	return ret;
 }
 
-static bool intel_uncore_has_discovery_tables_msr(int *ignore)
+static bool uncore_discovery_msr(int *ignore)
 {
 	unsigned long *die_mask;
 	bool parsed = false;
@@ -432,10 +432,12 @@ static bool intel_uncore_has_discovery_tables_msr(int *ignore)
 	return parsed;
 }
 
-bool intel_uncore_has_discovery_tables(int *ignore)
+bool uncore_discovery(struct uncore_plat_init *init)
 {
-	return intel_uncore_has_discovery_tables_msr(ignore) ||
-	       intel_uncore_has_discovery_tables_pci(ignore);
+	int *ignore = init ? init->uncore_units_ignore : NULL;
+
+	return uncore_discovery_msr(ignore) ||
+	       uncore_discovery_pci(ignore);
 }
 
 void intel_uncore_clear_discovery_tables(void)

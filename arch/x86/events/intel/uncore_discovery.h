@@ -136,7 +136,7 @@ struct intel_uncore_discovery_type {
 	u16		num_units;	/* number of units */
 };
 
-bool intel_uncore_has_discovery_tables(int *ignore);
+bool uncore_discovery(struct uncore_plat_init *init);
 void intel_uncore_clear_discovery_tables(void);
 void intel_uncore_generic_uncore_cpu_init(void);
 int intel_uncore_generic_uncore_pci_init(void);
