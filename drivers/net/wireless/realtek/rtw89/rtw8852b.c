@@ -313,6 +313,27 @@ static void rtw8852b_pwr_sps_ana(struct rtw89_dev *rtwdev)
 		rtw89_write16(rtwdev, R_AX_SPS_ANA_ON_CTRL2, RTL8852B_RFE_05_SPS_ANA);
 }
 
+static void rtw8852b_pwr_sps_dig_off(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	if (efuse->rfe_type == 0x5) {
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_C1_L1_MASK, 0x1);
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_C2_L1_MASK, 0x1);
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_C3_L1_MASK, 0x2);
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_R1_L1_MASK, 0x1);
+	} else {
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_C1_L1_MASK, 0x1);
+		rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0,
+				   B_AX_C3_L1_MASK, 0x3);
+	}
+}
+
 static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -338,8 +359,7 @@ static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0, B_AX_C1_L1_MASK, 0x1);
-	rtw89_write32_mask(rtwdev, R_AX_SPS_DIG_OFF_CTRL0, B_AX_C3_L1_MASK, 0x3);
+	rtw8852b_pwr_sps_dig_off(rtwdev);
 	rtw89_write32_set(rtwdev, R_AX_SYS_PW_CTRL, B_AX_EN_WLON);
 	rtw89_write32_set(rtwdev, R_AX_SYS_PW_CTRL, B_AX_APFN_ONMAC);
 
