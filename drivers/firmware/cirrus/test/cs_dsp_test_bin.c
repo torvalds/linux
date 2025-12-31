@@ -2300,6 +2300,7 @@ static int cs_dsp_bin_test_adsp2_16bit_init(struct kunit *test)
 }
 
 #define WMDR_PATCH_SHORT .add_patch = cs_dsp_mock_bin_add_patch
+#define WMDR_PATCH_LONG .add_patch = cs_dsp_mock_bin_add_patch_off32
 
 /* Parameterize on choice of XM or YM with a range of word offsets */
 static const struct bin_test_param x_or_y_and_offset_param_cases[] = {
@@ -2322,6 +2323,28 @@ static const struct bin_test_param x_or_y_and_offset_param_cases[] = {
 	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 22, WMDR_PATCH_SHORT },
 	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 21, WMDR_PATCH_SHORT },
 	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 20, WMDR_PATCH_SHORT },
+};
+
+static const struct bin_test_param x_or_y_and_long_offset_param_cases[] = {
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 0,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 1,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 2,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 3,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 4,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 23, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 22, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 21, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .offset_words = 20, WMDR_PATCH_LONG },
+
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 0,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 1,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 2,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 3,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 4,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 23, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 22, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 21, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .offset_words = 20, WMDR_PATCH_LONG },
 };
 
 /* Parameterize on ZM with a range of word offsets */
@@ -2350,16 +2373,33 @@ static const struct bin_test_param packed_x_or_y_and_offset_param_cases[] = {
 	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 12, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param packed_x_or_y_and_long_offset_param_cases[] = {
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 4,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 8,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 12, WMDR_PATCH_LONG },
+
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 4,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 8,  WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 12, WMDR_PATCH_LONG },
+};
+
 static void x_or_y_or_z_and_offset_param_desc(const struct bin_test_param *param,
 					   char *desc)
 {
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s@%u",
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s@%u %s",
 		 cs_dsp_mem_region_name(param->mem_type),
-		 param->offset_words);
+		 param->offset_words,
+		 (param->add_patch == cs_dsp_mock_bin_add_patch_off32) ? "offs32" : "");
 }
 
 KUNIT_ARRAY_PARAM(x_or_y_and_offset,
 		  x_or_y_and_offset_param_cases,
+		  x_or_y_or_z_and_offset_param_desc);
+
+KUNIT_ARRAY_PARAM(x_or_y_and_long_offset,
+		  x_or_y_and_long_offset_param_cases,
 		  x_or_y_or_z_and_offset_param_desc);
 
 KUNIT_ARRAY_PARAM(z_and_offset,
@@ -2370,19 +2410,31 @@ KUNIT_ARRAY_PARAM(packed_x_or_y_and_offset,
 		  packed_x_or_y_and_offset_param_cases,
 		  x_or_y_or_z_and_offset_param_desc);
 
+KUNIT_ARRAY_PARAM(packed_x_or_y_and_long_offset,
+		  packed_x_or_y_and_long_offset_param_cases,
+		  x_or_y_or_z_and_offset_param_desc);
+
 /* Parameterize on choice of packed XM or YM */
 static const struct bin_test_param packed_x_or_y_param_cases[] = {
 	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0, WMDR_PATCH_SHORT },
 	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param packed_x_or_y_long_param_cases[] = {
+	{ .mem_type = WMFW_HALO_XM_PACKED, .offset_words = 0, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .offset_words = 0, WMDR_PATCH_LONG },
+};
+
 static void x_or_y_or_z_param_desc(const struct bin_test_param *param,
 					   char *desc)
 {
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s", cs_dsp_mem_region_name(param->mem_type));
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s %s",
+		 cs_dsp_mem_region_name(param->mem_type),
+		 (param->add_patch == cs_dsp_mock_bin_add_patch_off32) ? "offs32" : "");
 }
 
 KUNIT_ARRAY_PARAM(packed_x_or_y, packed_x_or_y_param_cases, x_or_y_or_z_param_desc);
+KUNIT_ARRAY_PARAM(packed_x_or_y_long, packed_x_or_y_long_param_cases, x_or_y_or_z_param_desc);
 
 static const struct bin_test_param offset_param_cases[] = {
 	{ .offset_words = 0,  WMDR_PATCH_SHORT },
@@ -2396,12 +2448,27 @@ static const struct bin_test_param offset_param_cases[] = {
 	{ .offset_words = 20, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param long_offset_param_cases[] = {
+	{ .offset_words = 0,  WMDR_PATCH_LONG },
+	{ .offset_words = 1,  WMDR_PATCH_LONG },
+	{ .offset_words = 2,  WMDR_PATCH_LONG },
+	{ .offset_words = 3,  WMDR_PATCH_LONG },
+	{ .offset_words = 4,  WMDR_PATCH_LONG },
+	{ .offset_words = 23, WMDR_PATCH_LONG },
+	{ .offset_words = 22, WMDR_PATCH_LONG },
+	{ .offset_words = 21, WMDR_PATCH_LONG },
+	{ .offset_words = 20, WMDR_PATCH_LONG },
+};
+
 static void offset_param_desc(const struct bin_test_param *param, char *desc)
 {
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "@%u", param->offset_words);
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "@%u %s",
+		 param->offset_words,
+		 (param->add_patch == cs_dsp_mock_bin_add_patch_off32) ? "offs32" : "");
 }
 
 KUNIT_ARRAY_PARAM(offset, offset_param_cases, offset_param_desc);
+KUNIT_ARRAY_PARAM(long_offset, long_offset_param_cases, offset_param_desc);
 
 static const struct bin_test_param alg_param_cases[] = {
 	{ .alg_idx = 0, WMDR_PATCH_SHORT },
@@ -2410,15 +2477,24 @@ static const struct bin_test_param alg_param_cases[] = {
 	{ .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param alg_long_param_cases[] = {
+	{ .alg_idx = 0, WMDR_PATCH_LONG },
+	{ .alg_idx = 1, WMDR_PATCH_LONG },
+	{ .alg_idx = 2, WMDR_PATCH_LONG },
+	{ .alg_idx = 3, WMDR_PATCH_LONG },
+};
+
 static void alg_param_desc(const struct bin_test_param *param, char *desc)
 {
 	WARN_ON(param->alg_idx >= ARRAY_SIZE(bin_test_mock_algs));
 
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "alg[%u] (%#x)",
-		 param->alg_idx, bin_test_mock_algs[param->alg_idx].id);
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "alg[%u] (%#x) %s",
+		 param->alg_idx, bin_test_mock_algs[param->alg_idx].id,
+		(param->add_patch == cs_dsp_mock_bin_add_patch_off32) ? "offs32" : "");
 }
 
 KUNIT_ARRAY_PARAM(alg, alg_param_cases, alg_param_desc);
+KUNIT_ARRAY_PARAM(alg_long, alg_long_param_cases, alg_param_desc);
 
 static const struct bin_test_param x_or_y_and_alg_param_cases[] = {
 	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 0, WMDR_PATCH_SHORT },
@@ -2432,16 +2508,31 @@ static const struct bin_test_param x_or_y_and_alg_param_cases[] = {
 	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param x_or_y_and_alg_long_param_cases[] = {
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 0, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 1, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 2, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_XM, .alg_idx = 3, WMDR_PATCH_LONG },
+
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 0, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 1, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 2, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_ADSP2_YM, .alg_idx = 3, WMDR_PATCH_LONG },
+};
+
 static void x_or_y_or_z_and_alg_param_desc(const struct bin_test_param *param, char *desc)
 {
 	WARN_ON(param->alg_idx >= ARRAY_SIZE(bin_test_mock_algs));
 
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s alg[%u] (%#x)",
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s alg[%u] (%#x) %s",
 		 cs_dsp_mem_region_name(param->mem_type),
-		 param->alg_idx, bin_test_mock_algs[param->alg_idx].id);
+		 param->alg_idx, bin_test_mock_algs[param->alg_idx].id,
+		 (param->add_patch == cs_dsp_mock_bin_add_patch_off32) ? "offs32" : "");
 }
 
 KUNIT_ARRAY_PARAM(x_or_y_and_alg, x_or_y_and_alg_param_cases, x_or_y_or_z_and_alg_param_desc);
+KUNIT_ARRAY_PARAM(x_or_y_and_alg_long, x_or_y_and_alg_long_param_cases,
+		  x_or_y_or_z_and_alg_param_desc);
 
 static const struct bin_test_param z_and_alg_param_cases[] = {
 	{ .mem_type = WMFW_ADSP2_ZM, .alg_idx = 0, WMDR_PATCH_SHORT },
@@ -2464,7 +2555,22 @@ static const struct bin_test_param packed_x_or_y_and_alg_param_cases[] = {
 	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 3, WMDR_PATCH_SHORT },
 };
 
+static const struct bin_test_param packed_x_or_y_and_alg_long_param_cases[] = {
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 0, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 1, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 2, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_XM_PACKED, .alg_idx = 3, WMDR_PATCH_LONG },
+
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 0, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 1, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 2, WMDR_PATCH_LONG },
+	{ .mem_type = WMFW_HALO_YM_PACKED, .alg_idx = 3, WMDR_PATCH_LONG },
+};
+
 KUNIT_ARRAY_PARAM(packed_x_or_y_and_alg, packed_x_or_y_and_alg_param_cases,
+		  x_or_y_or_z_and_alg_param_desc);
+
+KUNIT_ARRAY_PARAM(packed_x_or_y_and_alg_long, packed_x_or_y_and_alg_long_param_cases,
 		  x_or_y_or_z_and_alg_param_desc);
 
 static struct kunit_case cs_dsp_bin_test_cases_halo[] = {
@@ -2522,6 +2628,111 @@ static struct kunit_case cs_dsp_bin_test_cases_halo[] = {
 	{ } /* terminator */
 };
 
+static struct kunit_case cs_dsp_bin_test_cases_halo_wmdr3[] = {
+	/* Unpacked memory */
+	KUNIT_CASE_PARAM(bin_patch_one_word, x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_multiword, x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword, x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword_unordered, x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_mems, offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_mems, alg_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword_sparse_unordered, x_or_y_and_alg_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_algs, x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_algs_unordered, x_or_y_and_offset_gen_params),
+
+	/* Packed memory tests */
+	KUNIT_CASE_PARAM(bin_patch_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_1_single_trailing,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_2_single_trailing,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_3_single_trailing,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_2_trailing,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_3_trailing,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_single_leading_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_2_single_leading_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_2_leading_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_3_single_leading_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_3_leading_1_packed,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked_unordered,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_mems, offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_mems, alg_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked_sparse_unordered,
+			 packed_x_or_y_and_alg_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_algs,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_algs_unordered,
+			 packed_x_or_y_and_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_mixed_packed_unpacked_random,
+			 packed_x_or_y_gen_params),
+
+	/* Unpacked memory with long-offset blocks */
+	KUNIT_CASE_PARAM(bin_patch_one_word, x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_multiword, x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword, x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword_unordered, x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_mems, long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_mems, alg_long_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_oneword_sparse_unordered, x_or_y_and_alg_long_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_algs, x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_one_word_multiple_algs_unordered,
+			   x_or_y_and_long_offset_gen_params),
+
+	/* Packed memory tests with long offset blocks */
+	KUNIT_CASE_PARAM(bin_patch_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_1_single_trailing,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_2_single_trailing,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_3_single_trailing,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_2_trailing,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_3_trailing,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_single_leading_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_2_single_leading_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_2_leading_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_3_single_leading_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_3_leading_1_packed,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked_unordered,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_mems, long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_mems, alg_long_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_multi_onepacked_sparse_unordered,
+			 packed_x_or_y_and_alg_long_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_algs,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_1_packed_multiple_algs_unordered,
+			 packed_x_or_y_and_long_offset_gen_params),
+	KUNIT_CASE_PARAM(bin_patch_mixed_packed_unpacked_random,
+			 packed_x_or_y_long_gen_params),
+
+	KUNIT_CASE(bin_patch_name_and_info),
+
+	{ } /* terminator */
+};
+
 static struct kunit_case cs_dsp_bin_test_cases_adsp2[] = {
 	/* XM and YM */
 	KUNIT_CASE_PARAM(bin_patch_one_word, x_or_y_and_offset_gen_params),
@@ -2559,7 +2770,7 @@ static struct kunit_suite cs_dsp_bin_test_halo = {
 static struct kunit_suite cs_dsp_bin_test_halo_wmdr3 = {
 	.name = "cs_dsp_bin_halo_wmdr_v3",
 	.init = cs_dsp_bin_test_halo_wmdr3_init,
-	.test_cases = cs_dsp_bin_test_cases_halo,
+	.test_cases = cs_dsp_bin_test_cases_halo_wmdr3,
 };
 
 static struct kunit_suite cs_dsp_bin_test_adsp2_32bit = {
