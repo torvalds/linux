@@ -4574,9 +4574,15 @@ struct rtw89_fw_h2c_rfk_pre_info_v1 {
 	__le32 mlo_1_1;
 } __packed;
 
-struct rtw89_fw_h2c_rfk_pre_info {
+struct rtw89_fw_h2c_rfk_pre_info_v2 {
 	struct rtw89_fw_h2c_rfk_pre_info_v1 base_v1;
 	__le32 cur_bandwidth[NUM_OF_RTW89_FW_RFK_PATH];
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info {
+	__le32 mlo_mode;
+	__le32 phy_idx;
+	__le32 mlo_1_1;
 } __packed;
 
 struct rtw89_h2c_rf_tssi {
