@@ -1169,7 +1169,7 @@ bfa_fcs_fabric_vport_lookup(struct bfa_fcs_fabric_s *fabric, wwn_t pwwn)
  *         This function should be used only if there is any requirement
 *          to check for FOS version below 6.3.
  *         To check if the attached fabric is a brocade fabric, use
- *         bfa_lps_is_brcd_fabric() which works for FOS versions 6.3
+ *         fabric->lps->brcd_switch which works for FOS versions 6.3
  *         or above only.
  */
 
