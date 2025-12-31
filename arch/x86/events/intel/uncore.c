@@ -1697,6 +1697,21 @@ err:
 	return ret;
 }
 
+static int uncore_mmio_global_init(u64 ctl)
+{
+	void __iomem *io_addr;
+
+	io_addr = ioremap(ctl, sizeof(ctl));
+	if (!io_addr)
+		return -ENOMEM;
+
+	/* Clear freeze bit (0) to enable all counters. */
+	writel(0, io_addr);
+
+	iounmap(io_addr);
+	return 0;
+}
+
 static const struct uncore_plat_init nhm_uncore_init __initconst = {
 	.cpu_init = nhm_uncore_cpu_init,
 };
@@ -1839,6 +1854,7 @@ static const struct uncore_plat_init dmr_uncore_init __initconst = {
 	.domain[0].units_ignore = dmr_uncore_imh_units_ignore,
 	.domain[1].discovery_base = CBB_UNCORE_DISCOVERY_MSR,
 	.domain[1].units_ignore = dmr_uncore_cbb_units_ignore,
+	.domain[1].global_init = uncore_mmio_global_init,
 };
 
 static const struct uncore_plat_init generic_uncore_init __initconst = {

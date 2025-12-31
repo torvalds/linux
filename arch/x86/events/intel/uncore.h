@@ -51,6 +51,8 @@ struct uncore_discovery_domain {
 	/* MSR address or PCI device used as the discovery base */
 	u32	discovery_base;
 	bool	base_is_pci;
+	int	(*global_init)(u64 ctl);
+
 	/* The units in the discovery table should be ignored. */
 	int	*units_ignore;
 };

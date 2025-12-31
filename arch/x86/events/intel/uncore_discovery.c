@@ -286,6 +286,9 @@ static int __parse_discovery_table(struct uncore_discovery_domain *domain,
 	if (!io_addr)
 		return -ENOMEM;
 
+	if (domain->global_init && domain->global_init(global.ctl))
+		return -ENODEV;
+
 	/* Parsing Unit Discovery State */
 	for (i = 0; i < global.max_units; i++) {
 		memcpy_fromio(&unit, io_addr + (i + 1) * (global.stride * 8),
