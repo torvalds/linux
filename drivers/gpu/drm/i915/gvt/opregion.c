@@ -22,8 +22,9 @@
  */
 
 #include <linux/acpi.h>
-#include "i915_drv.h"
+
 #include "gvt.h"
+#include "i915_drv.h"
 
 /*
  * Note: Only for GVT-g virtual VBT generation, other usage must
