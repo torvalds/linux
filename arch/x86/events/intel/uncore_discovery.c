@@ -12,24 +12,6 @@
 static struct rb_root discovery_tables = RB_ROOT;
 static int num_discovered_types[UNCORE_ACCESS_MAX];
 
-static bool has_generic_discovery_table(void)
-{
-	struct pci_dev *dev;
-	int dvsec;
-
-	dev = pci_get_device(PCI_VENDOR_ID_INTEL, UNCORE_DISCOVERY_TABLE_DEVICE, NULL);
-	if (!dev)
-		return false;
-
-	/* A discovery table device has the unique capability ID. */
-	dvsec = pci_find_next_ext_capability(dev, 0, UNCORE_EXT_CAP_ID_DISCOVERY);
-	pci_dev_put(dev);
-	if (dvsec)
-		return true;
-
-	return false;
-}
-
 static int logical_die_id;
 
 static int get_device_die_id(struct pci_dev *dev)
@@ -358,12 +340,7 @@ static bool uncore_discovery_pci(struct uncore_discovery_domain *domain)
 	struct pci_dev *dev = NULL;
 	bool parsed = false;
 
-	if (domain->discovery_base)
-		device = domain->discovery_base;
-	else if (has_generic_discovery_table())
-		device = UNCORE_DISCOVERY_TABLE_DEVICE;
-	else
-		device = PCI_ANY_ID;
+	device = domain->discovery_base;
 
 	/*
 	 * Start a new search and iterates through the list of
@@ -406,7 +383,7 @@ static bool uncore_discovery_msr(struct uncore_discovery_domain *domain)
 {
 	unsigned long *die_mask;
 	bool parsed = false;
-	int cpu, die, msr;
+	int cpu, die;
 	u64 base;
 
 	die_mask = kcalloc(BITS_TO_LONGS(uncore_max_dies()),
@@ -414,16 +391,13 @@ static bool uncore_discovery_msr(struct uncore_discovery_domain *domain)
 	if (!die_mask)
 		return false;
 
-	msr = domain->discovery_base ?
-	      domain->discovery_base : UNCORE_DISCOVERY_MSR;
-
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		die = topology_logical_die_id(cpu);
 		if (__test_and_set_bit(die, die_mask))
 			continue;
 
-		if (rdmsrq_safe_on_cpu(cpu, msr, &base))
+		if (rdmsrq_safe_on_cpu(cpu, domain->discovery_base, &base))
 			continue;
 
 		if (!base)
@@ -446,10 +420,12 @@ bool uncore_discovery(struct uncore_plat_init *init)
 
 	for (i = 0; i < UNCORE_DISCOVERY_DOMAINS; i++) {
 		domain = &init->domain[i];
-		if (!domain->base_is_pci)
-			ret |= uncore_discovery_msr(domain);
-		else
-			ret |= uncore_discovery_pci(domain);
+		if (domain->discovery_base) {
+			if (!domain->base_is_pci)
+				ret |= uncore_discovery_msr(domain);
+			else
+				ret |= uncore_discovery_pci(domain);
+		}
 	}
 
 	return ret;

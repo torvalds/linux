@@ -1835,6 +1835,9 @@ static const struct uncore_plat_init generic_uncore_init __initconst = {
 	.cpu_init = intel_uncore_generic_uncore_cpu_init,
 	.pci_init = intel_uncore_generic_uncore_pci_init,
 	.mmio_init = intel_uncore_generic_uncore_mmio_init,
+	.domain[0].base_is_pci = true,
+	.domain[0].discovery_base = PCI_ANY_ID,
+	.domain[1].discovery_base = UNCORE_DISCOVERY_MSR,
 };
 
 static const struct x86_cpu_id intel_uncore_match[] __initconst = {
