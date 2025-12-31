@@ -406,16 +406,6 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 
 	{ "Mic Bias", NULL, "Mic Bias Gen" },
 
-	{ "Left Line Mux", "Line 1", "LINPUT1" },
-	{ "Left Line Mux", "Line 2", "LINPUT2" },
-	{ "Left Line Mux", "PGA", "Left PGA Mux" },
-	{ "Left Line Mux", "Differential", "Differential Mux" },
-
-	{ "Right Line Mux", "Line 1", "RINPUT1" },
-	{ "Right Line Mux", "Line 2", "RINPUT2" },
-	{ "Right Line Mux", "PGA", "Right PGA Mux" },
-	{ "Right Line Mux", "Differential", "Differential Mux" },
-
 	{ "Left Mixer", NULL, "Left DAC" },
 	{ "Left Mixer", "Left Bypass Switch", "Left Line Mux" },
 	{ "Left Mixer", "Right Playback Switch", "Right DAC" },
