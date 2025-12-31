@@ -301,9 +301,12 @@ EXPORT_SYMBOL(bio_init);
  */
 void bio_reset(struct bio *bio, struct block_device *bdev, blk_opf_t opf)
 {
+	struct bio_vec          *bv = bio->bi_io_vec;
+
 	bio_uninit(bio);
 	memset(bio, 0, BIO_RESET_BYTES);
 	atomic_set(&bio->__bi_remaining, 1);
+	bio->bi_io_vec = bv;
 	bio->bi_bdev = bdev;
 	if (bio->bi_bdev)
 		bio_associate_blkg(bio);
