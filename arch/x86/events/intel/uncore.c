@@ -1814,6 +1814,7 @@ static const struct uncore_plat_init ptl_uncore_init __initconst = {
 	.cpu_init = ptl_uncore_cpu_init,
 	.mmio_init = ptl_uncore_mmio_init,
 	.domain[0].discovery_base = UNCORE_DISCOVERY_MSR,
+	.domain[0].global_init = uncore_mmio_global_init,
 };
 
 static const struct uncore_plat_init icx_uncore_init __initconst = {
