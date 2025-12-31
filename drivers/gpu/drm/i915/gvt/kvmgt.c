@@ -52,6 +52,7 @@
 #include "gvt.h"
 #include "i915_drv.h"
 #include "intel_gvt.h"
+#include "sched_policy.h"
 
 MODULE_IMPORT_NS("DMA_BUF");
 MODULE_IMPORT_NS("I915_GVT");

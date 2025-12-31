@@ -54,7 +54,6 @@
 #include "mmio_context.h"
 #include "page_track.h"
 #include "reg.h"
-#include "sched_policy.h"
 #include "scheduler.h"
 
 #define GVT_MAX_VGPU 8

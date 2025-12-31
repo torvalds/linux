@@ -33,6 +33,7 @@
 
 #include "gvt.h"
 #include "i915_drv.h"
+#include "sched_policy.h"
 
 static bool vgpu_has_pending_workload(struct intel_vgpu *vgpu)
 {

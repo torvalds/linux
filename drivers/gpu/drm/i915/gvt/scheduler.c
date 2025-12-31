@@ -49,6 +49,7 @@
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
 #include "i915_perf_oa_regs.h"
+#include "sched_policy.h"
 
 #define RING_CTX_OFF(x) \
 	offsetof(struct execlist_ring_context, x)
