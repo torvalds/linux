@@ -4471,6 +4471,7 @@ enum rtw89_mrc_h2c_func {
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
 #define H2C_CL_OUTSRC_RF_FW_NOTIFY	0xa
 #define H2C_FUNC_OUTSRC_RF_GET_MCCCH	0x2
+#define H2C_FUNC_OUTSRC_RF_MCC_INFO	0xf
 #define H2C_FUNC_OUTSRC_RF_PS_INFO	0x10
 #define H2C_CL_OUTSRC_RF_FW_RFK		0xb
 
@@ -4583,6 +4584,17 @@ struct rtw89_fw_h2c_rfk_pre_info {
 	__le32 mlo_mode;
 	__le32 phy_idx;
 	__le32 mlo_1_1;
+} __packed;
+
+struct rtw89_fw_h2c_rfk_pre_info_mcc {
+	__le32 tbl_18[NUM_OF_RTW89_FW_RFK_TBL];
+	__le32 cur_18[NUM_OF_RTW89_FW_RFK_PATH];
+	__le32 mlo_mode;
+	__le32 mlo_1_1;
+	u8 phy_idx;
+	u8 tbl_idx;
+	u8 rsvd[2];
+	__le32 aid;
 } __packed;
 
 struct rtw89_h2c_rf_tssi {
@@ -4942,6 +4954,7 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_rf_ps_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx);
+int rtw89_fw_h2c_rf_pre_ntfy_mcc(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_mcc_dig(struct rtw89_dev *rtwdev,
 			 enum rtw89_chanctx_idx chanctx_idx,
 			 u8 mcc_role_idx, u8 pd_val, bool en);

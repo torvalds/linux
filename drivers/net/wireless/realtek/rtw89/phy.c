@@ -3808,6 +3808,12 @@ int rtw89_phy_rfk_pre_ntfy_and_wait(struct rtw89_dev *rtwdev,
 {
 	int ret;
 
+	if (RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
+		goto pre_ntfy;
+
+	return rtw89_fw_h2c_rf_pre_ntfy_mcc(rtwdev, phy_idx);
+
+pre_ntfy:
 	rtw89_phy_rfk_report_prep(rtwdev);
 
 	ret = rtw89_fw_h2c_rf_pre_ntfy(rtwdev, phy_idx);
