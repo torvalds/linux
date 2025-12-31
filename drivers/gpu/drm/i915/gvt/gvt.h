@@ -38,6 +38,8 @@
 #include <linux/vfio.h>
 #include <asm/kvm_page_track.h>
 
+#include "display/intel_display_limits.h"
+
 #include "gt/intel_gt.h"
 
 #include "cmd_parser.h"
