@@ -11,36 +11,6 @@
 #include <linux/xattr.h>
 
 #ifdef CONFIG_EROFS_FS_XATTR
-extern const struct xattr_handler erofs_xattr_user_handler;
-extern const struct xattr_handler erofs_xattr_trusted_handler;
-extern const struct xattr_handler erofs_xattr_security_handler;
-
-static inline const char *erofs_xattr_prefix(unsigned int idx,
-					     struct dentry *dentry)
-{
-	const struct xattr_handler *handler = NULL;
-
-	static const struct xattr_handler * const xattr_handler_map[] = {
-		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
-#ifdef CONFIG_EROFS_FS_POSIX_ACL
-		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &nop_posix_acl_access,
-		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &nop_posix_acl_default,
-#endif
-		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
-#ifdef CONFIG_EROFS_FS_SECURITY
-		[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
-#endif
-	};
-
-	if (idx && idx < ARRAY_SIZE(xattr_handler_map))
-		handler = xattr_handler_map[idx];
-
-	if (!xattr_handler_can_list(handler, dentry))
-		return NULL;
-
-	return xattr_prefix(handler);
-}
-
 extern const struct xattr_handler * const erofs_xattr_handlers[];
 
 int erofs_xattr_prefixes_init(struct super_block *sb);

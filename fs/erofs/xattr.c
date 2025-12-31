@@ -25,6 +25,8 @@ struct erofs_xattr_iter {
 	struct dentry *dentry;
 };
 
+static const char *erofs_xattr_prefix(unsigned int idx, struct dentry *dentry);
+
 static int erofs_init_inode_xattrs(struct inode *inode)
 {
 	struct erofs_inode *const vi = EROFS_I(inode);
@@ -431,14 +433,14 @@ static int erofs_xattr_generic_get(const struct xattr_handler *handler,
 	return erofs_getxattr(inode, handler->flags, name, buffer, size);
 }
 
-const struct xattr_handler erofs_xattr_user_handler = {
+static const struct xattr_handler erofs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_USER,
 	.list	= erofs_xattr_user_list,
 	.get	= erofs_xattr_generic_get,
 };
 
-const struct xattr_handler erofs_xattr_trusted_handler = {
+static const struct xattr_handler erofs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_TRUSTED,
 	.list	= erofs_xattr_trusted_list,
@@ -446,7 +448,7 @@ const struct xattr_handler erofs_xattr_trusted_handler = {
 };
 
 #ifdef CONFIG_EROFS_FS_SECURITY
-const struct xattr_handler __maybe_unused erofs_xattr_security_handler = {
+static const struct xattr_handler erofs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.flags	= EROFS_XATTR_INDEX_SECURITY,
 	.get	= erofs_xattr_generic_get,
@@ -461,6 +463,29 @@ const struct xattr_handler * const erofs_xattr_handlers[] = {
 #endif
 	NULL,
 };
+
+static const char *erofs_xattr_prefix(unsigned int idx, struct dentry *dentry)
+{
+	static const struct xattr_handler * const xattr_handler_map[] = {
+		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
+#ifdef CONFIG_EROFS_FS_POSIX_ACL
+		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &nop_posix_acl_access,
+		[EROFS_XATTR_INDEX_POSIX_ACL_DEFAULT] = &nop_posix_acl_default,
+#endif
+		[EROFS_XATTR_INDEX_TRUSTED] = &erofs_xattr_trusted_handler,
+#ifdef CONFIG_EROFS_FS_SECURITY
+		[EROFS_XATTR_INDEX_SECURITY] = &erofs_xattr_security_handler,
+#endif
+	};
+	const struct xattr_handler *handler = NULL;
+
+	if (idx && idx < ARRAY_SIZE(xattr_handler_map)) {
+		handler = xattr_handler_map[idx];
+		if (xattr_handler_can_list(handler, dentry))
+			return xattr_prefix(handler);
+	}
+	return NULL;
+}
 
 void erofs_xattr_prefixes_cleanup(struct super_block *sb)
 {
