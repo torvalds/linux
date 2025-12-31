@@ -478,7 +478,7 @@ void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
 	bool prehdl_link = false;
 
 	if (chip->chip_gen != RTW89_CHIP_AX &&
-	    !RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw) &&
+	    !RTW89_CHK_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY, &rtwdev->fw) &&
 	    !mon && !rtw89_entity_check_hw(rtwdev, rtwvif_link->phy_idx))
 		prehdl_link = true;
 
@@ -6244,7 +6244,7 @@ int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		goto wake_queue;
 	}
 
-	if (RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
+	if (RTW89_CHK_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
 		rtw89_chip_rfk_channel(rtwdev, target);
 
 	rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;
