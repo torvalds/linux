@@ -436,7 +436,7 @@ uncore_get_event_constraint(struct intel_uncore_box *box, struct perf_event *eve
 
 	if (type->constraints) {
 		for_each_event_constraint(c, type->constraints) {
-			if ((event->hw.config & c->cmask) == c->code)
+			if (constraint_match(c, event->hw.config))
 				return c;
 		}
 	}
