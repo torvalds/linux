@@ -205,6 +205,7 @@ if is_enabled CONFIG_KALLSYMS || is_enabled CONFIG_DEBUG_INFO_BTF; then
 fi
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
+	info BTF .tmp_vmlinux1
 	if ! ${srctree}/scripts/gen-btf.sh .tmp_vmlinux1; then
 		echo >&2 "Failed to generate BTF for vmlinux"
 		echo >&2 "Try to disable CONFIG_DEBUG_INFO_BTF"
@@ -265,7 +266,7 @@ fi
 vmlinux_link "${VMLINUX}"
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
-	info OBJCOPY ${btfids_vmlinux}
+	info BTFIDS ${VMLINUX}
 	${RESOLVE_BTFIDS} --patch_btfids ${btfids_vmlinux} ${VMLINUX}
 fi
 

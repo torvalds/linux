@@ -60,28 +60,20 @@ is_enabled() {
 	grep -q "^$1=y" ${objtree}/include/config/auto.conf
 }
 
-info()
-{
-	printf "  %-7s %s\n" "${1}" "${2}"
-}
-
 case "${KBUILD_VERBOSE}" in
 *1*)
 	set -x
 	;;
 esac
 
-
 gen_btf_data()
 {
-	info BTF "${ELF_FILE}"
 	btf1="${ELF_FILE}.BTF.1"
 	${PAHOLE} -J ${PAHOLE_FLAGS}			\
 		${BTF_BASE:+--btf_base ${BTF_BASE}}	\
 		--btf_encode_detached=${btf1}		\
 		"${ELF_FILE}"
 
-	info BTFIDS "${ELF_FILE}"
 	${RESOLVE_BTFIDS} ${RESOLVE_BTFIDS_FLAGS}	\
 		${BTF_BASE:+--btf_base ${BTF_BASE}}	\
 		--btf ${btf1} "${ELF_FILE}"
@@ -95,7 +87,6 @@ gen_btf_o()
 	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
 	# deletes all symbols including __start_BTF and __stop_BTF, which will
 	# be redefined in the linker script.
-	info OBJCOPY "${btf_data}"
 	echo "" | ${CC} ${CLANG_FLAGS} ${KBUILD_CFLAGS} -c -x c -o ${btf_data} -
 	${OBJCOPY} --add-section .BTF=${ELF_FILE}.BTF \
 		--set-section-flags .BTF=alloc,readonly ${btf_data}
@@ -113,7 +104,6 @@ gen_btf_o()
 
 embed_btf_data()
 {
-	info OBJCOPY "${ELF_FILE}.BTF"
 	${OBJCOPY} --add-section .BTF=${ELF_FILE}.BTF ${ELF_FILE}
 
 	# a module might not have a .BTF_ids or .BTF.base section
