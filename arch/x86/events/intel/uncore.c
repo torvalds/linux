@@ -1837,6 +1837,8 @@ static const struct uncore_plat_init dmr_uncore_init __initconst = {
 	.domain[0].base_is_pci = true,
 	.domain[0].discovery_base = DMR_UNCORE_DISCOVERY_TABLE_DEVICE,
 	.domain[0].units_ignore = dmr_uncore_imh_units_ignore,
+	.domain[1].discovery_base = CBB_UNCORE_DISCOVERY_MSR,
+	.domain[1].units_ignore = dmr_uncore_cbb_units_ignore,
 };
 
 static const struct uncore_plat_init generic_uncore_init __initconst = {

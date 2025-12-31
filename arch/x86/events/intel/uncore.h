@@ -615,6 +615,7 @@ extern struct event_constraint uncore_constraint_empty;
 extern int spr_uncore_units_ignore[];
 extern int gnr_uncore_units_ignore[];
 extern int dmr_uncore_imh_units_ignore[];
+extern int dmr_uncore_cbb_units_ignore[];
 
 /* uncore_snb.c */
 int snb_uncore_pci_init(void);

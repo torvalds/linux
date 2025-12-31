@@ -2,6 +2,8 @@
 
 /* Store the full address of the global discovery table */
 #define UNCORE_DISCOVERY_MSR			0x201e
+/* Base address of uncore perfmon discovery table for CBB domain */
+#define CBB_UNCORE_DISCOVERY_MSR		0x710
 
 /* Generic device ID of a discovery table device */
 #define UNCORE_DISCOVERY_TABLE_DEVICE		0x09a7

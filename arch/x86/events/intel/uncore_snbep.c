@@ -6807,8 +6807,44 @@ static struct intel_uncore_type dmr_uncore_hamvf = {
 	.attr_update		= uncore_alias_groups,
 };
 
+static struct intel_uncore_type dmr_uncore_cbo = {
+	.name			= "cbo",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_santa = {
+	.name			= "santa",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_cncu = {
+	.name			= "cncu",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_sncu = {
+	.name			= "sncu",
+	.attr_update		= uncore_alias_groups,
+};
+
 static struct intel_uncore_type dmr_uncore_ula = {
 	.name			= "ula",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_dda = {
+	.name			= "dda",
+	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
+	.format_group		= &dmr_sca_uncore_format_group,
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type dmr_uncore_sbo = {
+	.name			= "sbo",
 	.event_mask_ext		= DMR_HAMVF_EVENT_MASK_EXT,
 	.format_group		= &dmr_sca_uncore_format_group,
 	.attr_update		= uncore_alias_groups,
@@ -6902,10 +6938,15 @@ static struct intel_uncore_type *dmr_uncores[UNCORE_DMR_NUM_UNCORE_TYPES] = {
 	NULL, NULL, NULL,
 	NULL, NULL,
 	&dmr_uncore_hamvf,
-	NULL,
-	NULL, NULL, NULL,
+	&dmr_uncore_cbo,
+	&dmr_uncore_santa,
+	&dmr_uncore_cncu,
+	&dmr_uncore_sncu,
 	&dmr_uncore_ula,
-	NULL, NULL, NULL, NULL,
+	&dmr_uncore_dda,
+	NULL,
+	&dmr_uncore_sbo,
+	NULL,
 	NULL, NULL, NULL,
 	&dmr_uncore_ubr,
 	NULL,
@@ -6920,6 +6961,11 @@ static struct intel_uncore_type *dmr_uncores[UNCORE_DMR_NUM_UNCORE_TYPES] = {
 
 int dmr_uncore_imh_units_ignore[] = {
 	0x13,		/* MSE */
+	UNCORE_IGNORE_END
+};
+
+int dmr_uncore_cbb_units_ignore[] = {
+	0x25,		/* SB2UCIE */
 	UNCORE_IGNORE_END
 };
 
