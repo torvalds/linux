@@ -720,7 +720,8 @@ static void rtw89_ops_vif_cfg_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_MLD_VALID_LINKS) {
 		struct rtw89_vif_link *cur = rtw89_get_designated_link(rtwvif);
 
-		rtw89_chip_rfk_channel(rtwdev, cur);
+		if (RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
+			rtw89_chip_rfk_channel(rtwdev, cur);
 
 		if (hweight16(vif->active_links) == 1)
 			rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;

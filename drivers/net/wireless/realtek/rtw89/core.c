@@ -470,6 +470,32 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_1);
 }
 
+void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
+			    struct rtw89_vif_link *rtwvif_link)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool mon = !!rtwdev->pure_monitor_mode_vif;
+	bool prehdl_link = false;
+
+	if (chip->chip_gen != RTW89_CHIP_AX &&
+	    !RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw) &&
+	    !mon && !rtw89_entity_check_hw(rtwdev, rtwvif_link->phy_idx))
+		prehdl_link = true;
+
+	if (prehdl_link) {
+		rtw89_entity_force_hw(rtwdev, rtwvif_link->phy_idx);
+		rtw89_set_channel(rtwdev);
+	}
+
+	if (chip->ops->rfk_channel)
+		chip->ops->rfk_channel(rtwdev, rtwvif_link);
+
+	if (prehdl_link) {
+		rtw89_entity_force_hw(rtwdev, RTW89_PHY_NUM);
+		rtw89_set_channel(rtwdev);
+	}
+}
+
 static void rtw89_chip_rfk_channel_for_pure_mon_vif(struct rtw89_dev *rtwdev,
 						    enum rtw89_phy_idx phy_idx)
 {
@@ -6218,7 +6244,8 @@ int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		goto wake_queue;
 	}
 
-	rtw89_chip_rfk_channel(rtwdev, target);
+	if (RTW89_CHK_FW_FEATURE(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
+		rtw89_chip_rfk_channel(rtwdev, target);
 
 	rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;
 
