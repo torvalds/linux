@@ -144,5 +144,3 @@ SYM_CODE_START(smpboot_entry)
 SYM_CODE_END(smpboot_entry)
 
 #endif /* CONFIG_SMP */
-
-SYM_ENTRY(kernel_entry_end, SYM_L_GLOBAL, SYM_A_NONE)
