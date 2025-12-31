@@ -4068,34 +4068,24 @@ static struct freerunning_counters skx_iio_freerunning[] = {
 	[SKX_IIO_MSR_UTIL]	= { 0xb08, 0x1, 0x10, 8, 36 },
 };
 
+#define INTEL_UNCORE_FR_EVENT_DESC(name, umask, scl)			\
+	INTEL_UNCORE_EVENT_DESC(name,					\
+				"event=0xff,umask=" __stringify(umask)),\
+	INTEL_UNCORE_EVENT_DESC(name.scale, __stringify(scl)),		\
+	INTEL_UNCORE_EVENT_DESC(name.unit, "MiB")
+
 static struct uncore_event_desc skx_uncore_iio_freerunning_events[] = {
 	/* Free-Running IO CLOCKS Counter */
 	INTEL_UNCORE_EVENT_DESC(ioclk,			"event=0xff,umask=0x10"),
 	/* Free-Running IIO BANDWIDTH Counters */
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0,		"event=0xff,umask=0x20"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1,		"event=0xff,umask=0x21"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2,		"event=0xff,umask=0x22"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3,		"event=0xff,umask=0x23"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port0,		"event=0xff,umask=0x24"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port0.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port0.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port1,		"event=0xff,umask=0x25"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port1.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port1.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port2,		"event=0xff,umask=0x26"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port2.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port2.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port3,		"event=0xff,umask=0x27"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port3.scale,	"3.814697266e-6"),
-	INTEL_UNCORE_EVENT_DESC(bw_out_port3.unit,	"MiB"),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port0,  0x20, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port1,  0x21, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port2,  0x22, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port3,  0x23, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_out_port0, 0x24, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_out_port1, 0x25, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_out_port2, 0x26, 3.814697266e-6),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_out_port3, 0x27, 3.814697266e-6),
 	/* Free-running IIO UTILIZATION Counters */
 	INTEL_UNCORE_EVENT_DESC(util_in_port0,		"event=0xff,umask=0x30"),
 	INTEL_UNCORE_EVENT_DESC(util_out_port0,		"event=0xff,umask=0x31"),
@@ -4910,30 +4900,14 @@ static struct uncore_event_desc snr_uncore_iio_freerunning_events[] = {
 	/* Free-Running IIO CLOCKS Counter */
 	INTEL_UNCORE_EVENT_DESC(ioclk,			"event=0xff,umask=0x10"),
 	/* Free-Running IIO BANDWIDTH IN Counters */
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0,		"event=0xff,umask=0x20"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port0.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1,		"event=0xff,umask=0x21"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port1.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2,		"event=0xff,umask=0x22"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port2.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3,		"event=0xff,umask=0x23"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port3.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port4,		"event=0xff,umask=0x24"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port4.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port4.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port5,		"event=0xff,umask=0x25"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port5.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port5.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port6,		"event=0xff,umask=0x26"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port6.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port6.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port7,		"event=0xff,umask=0x27"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port7.scale,	"3.0517578125e-5"),
-	INTEL_UNCORE_EVENT_DESC(bw_in_port7.unit,	"MiB"),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port0, 0x20, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port1, 0x21, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port2, 0x22, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port3, 0x23, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port4, 0x24, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port5, 0x25, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port6, 0x26, 3.0517578125e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(bw_in_port7, 0x27, 3.0517578125e-5),
 	{ /* end: all zeroes */ },
 };
 
@@ -5266,12 +5240,8 @@ static struct freerunning_counters snr_imc_freerunning[] = {
 static struct uncore_event_desc snr_uncore_imc_freerunning_events[] = {
 	INTEL_UNCORE_EVENT_DESC(dclk,		"event=0xff,umask=0x10"),
 
-	INTEL_UNCORE_EVENT_DESC(read,		"event=0xff,umask=0x20"),
-	INTEL_UNCORE_EVENT_DESC(read.scale,	"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(read.unit,	"MiB"),
-	INTEL_UNCORE_EVENT_DESC(write,		"event=0xff,umask=0x21"),
-	INTEL_UNCORE_EVENT_DESC(write.scale,	"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(write.unit,	"MiB"),
+	INTEL_UNCORE_FR_EVENT_DESC(read,  0x20, 6.103515625e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(write, 0x21, 6.103515625e-5),
 	{ /* end: all zeroes */ },
 };
 
@@ -5836,19 +5806,10 @@ static struct freerunning_counters icx_imc_freerunning[] = {
 static struct uncore_event_desc icx_uncore_imc_freerunning_events[] = {
 	INTEL_UNCORE_EVENT_DESC(dclk,			"event=0xff,umask=0x10"),
 
-	INTEL_UNCORE_EVENT_DESC(read,			"event=0xff,umask=0x20"),
-	INTEL_UNCORE_EVENT_DESC(read.scale,		"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(read.unit,		"MiB"),
-	INTEL_UNCORE_EVENT_DESC(write,			"event=0xff,umask=0x21"),
-	INTEL_UNCORE_EVENT_DESC(write.scale,		"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(write.unit,		"MiB"),
-
-	INTEL_UNCORE_EVENT_DESC(ddrt_read,		"event=0xff,umask=0x30"),
-	INTEL_UNCORE_EVENT_DESC(ddrt_read.scale,	"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(ddrt_read.unit,		"MiB"),
-	INTEL_UNCORE_EVENT_DESC(ddrt_write,		"event=0xff,umask=0x31"),
-	INTEL_UNCORE_EVENT_DESC(ddrt_write.scale,	"6.103515625e-5"),
-	INTEL_UNCORE_EVENT_DESC(ddrt_write.unit,	"MiB"),
+	INTEL_UNCORE_FR_EVENT_DESC(read,       0x20, 6.103515625e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(write,      0x21, 6.103515625e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(ddrt_read,  0x30, 6.103515625e-5),
+	INTEL_UNCORE_FR_EVENT_DESC(ddrt_write, 0x31, 6.103515625e-5),
 	{ /* end: all zeroes */ },
 };
 
