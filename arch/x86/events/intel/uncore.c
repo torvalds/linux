@@ -1798,7 +1798,7 @@ static const struct uncore_plat_init lnl_uncore_init __initconst = {
 static const struct uncore_plat_init ptl_uncore_init __initconst = {
 	.cpu_init = ptl_uncore_cpu_init,
 	.mmio_init = ptl_uncore_mmio_init,
-	.use_discovery = true,
+	.domain[0].discovery_base = UNCORE_DISCOVERY_MSR,
 };
 
 static const struct uncore_plat_init icx_uncore_init __initconst = {
@@ -1817,16 +1817,18 @@ static const struct uncore_plat_init spr_uncore_init __initconst = {
 	.cpu_init = spr_uncore_cpu_init,
 	.pci_init = spr_uncore_pci_init,
 	.mmio_init = spr_uncore_mmio_init,
-	.use_discovery = true,
-	.uncore_units_ignore = spr_uncore_units_ignore,
+	.domain[0].base_is_pci = true,
+	.domain[0].discovery_base = UNCORE_DISCOVERY_TABLE_DEVICE,
+	.domain[0].units_ignore = spr_uncore_units_ignore,
 };
 
 static const struct uncore_plat_init gnr_uncore_init __initconst = {
 	.cpu_init = gnr_uncore_cpu_init,
 	.pci_init = gnr_uncore_pci_init,
 	.mmio_init = gnr_uncore_mmio_init,
-	.use_discovery = true,
-	.uncore_units_ignore = gnr_uncore_units_ignore,
+	.domain[0].base_is_pci = true,
+	.domain[0].discovery_base = UNCORE_DISCOVERY_TABLE_DEVICE,
+	.domain[0].units_ignore = gnr_uncore_units_ignore,
 };
 
 static const struct uncore_plat_init generic_uncore_init __initconst = {
@@ -1897,6 +1899,16 @@ static const struct x86_cpu_id intel_uncore_match[] __initconst = {
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_uncore_match);
 
+static bool uncore_use_discovery(struct uncore_plat_init *config)
+{
+	for (int i = 0; i < UNCORE_DISCOVERY_DOMAINS; i++) {
+		if (config->domain[i].discovery_base)
+			return true;
+	}
+
+	return false;
+}
+
 static int __init intel_uncore_init(void)
 {
 	const struct x86_cpu_id *id;
@@ -1911,15 +1923,14 @@ static int __init intel_uncore_init(void)
 
 	id = x86_match_cpu(intel_uncore_match);
 	if (!id) {
-		if (!uncore_no_discover && uncore_discovery(NULL))
-			uncore_init = (struct uncore_plat_init *)&generic_uncore_init;
-		else
+		uncore_init = (struct uncore_plat_init *)&generic_uncore_init;
+		if (uncore_no_discover || !uncore_discovery(uncore_init))
 			return -ENODEV;
 	} else {
 		uncore_init = (struct uncore_plat_init *)id->driver_data;
-		if (uncore_no_discover && uncore_init->use_discovery)
+		if (uncore_no_discover && uncore_use_discovery(uncore_init))
 			return -ENODEV;
-		if (uncore_init->use_discovery &&
+		if (uncore_use_discovery(uncore_init) &&
 		    !uncore_discovery(uncore_init))
 			return -ENODEV;
 	}

@@ -47,14 +47,21 @@ struct uncore_event_desc;
 struct freerunning_counters;
 struct intel_uncore_topology;
 
+struct uncore_discovery_domain {
+	/* MSR address or PCI device used as the discovery base */
+	u32	discovery_base;
+	bool	base_is_pci;
+	/* The units in the discovery table should be ignored. */
+	int	*units_ignore;
+};
+
+#define UNCORE_DISCOVERY_DOMAINS	2
 struct uncore_plat_init {
 	void	(*cpu_init)(void);
 	int	(*pci_init)(void);
 	void	(*mmio_init)(void);
-	/* Discovery table is required */
-	bool	use_discovery;
-	/* The units in the discovery table should be ignored. */
-	int	*uncore_units_ignore;
+
+	struct uncore_discovery_domain domain[UNCORE_DISCOVERY_DOMAINS];
 };
 
 struct intel_uncore_type {

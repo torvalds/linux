@@ -259,23 +259,24 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 }
 
 static bool
-uncore_ignore_unit(struct uncore_unit_discovery *unit, int *ignore)
+uncore_ignore_unit(struct uncore_unit_discovery *unit,
+		   struct uncore_discovery_domain *domain)
 {
 	int i;
 
-	if (!ignore)
+	if (!domain || !domain->units_ignore)
 		return false;
 
-	for (i = 0; ignore[i] != UNCORE_IGNORE_END ; i++) {
-		if (unit->box_type == ignore[i])
+	for (i = 0; domain->units_ignore[i] != UNCORE_IGNORE_END ; i++) {
+		if (unit->box_type == domain->units_ignore[i])
 			return true;
 	}
 
 	return false;
 }
 
-static int __parse_discovery_table(resource_size_t addr, int die,
-				   bool *parsed, int *ignore)
+static int __parse_discovery_table(struct uncore_discovery_domain *domain,
+				   resource_size_t addr, int die, bool *parsed)
 {
 	struct uncore_global_discovery global;
 	struct uncore_unit_discovery unit;
@@ -314,7 +315,7 @@ static int __parse_discovery_table(resource_size_t addr, int die,
 		if (unit.access_type >= UNCORE_ACCESS_MAX)
 			continue;
 
-		if (uncore_ignore_unit(&unit, ignore))
+		if (uncore_ignore_unit(&unit, domain))
 			continue;
 
 		uncore_insert_box_info(&unit, die);
@@ -325,9 +326,9 @@ static int __parse_discovery_table(resource_size_t addr, int die,
 	return 0;
 }
 
-static int parse_discovery_table(struct pci_dev *dev, int die,
-				 u32 bar_offset, bool *parsed,
-				 int *ignore)
+static int parse_discovery_table(struct uncore_discovery_domain *domain,
+				 struct pci_dev *dev, int die,
+				 u32 bar_offset, bool *parsed)
 {
 	resource_size_t addr;
 	u32 val;
@@ -347,17 +348,19 @@ static int parse_discovery_table(struct pci_dev *dev, int die,
 	}
 #endif
 
-	return __parse_discovery_table(addr, die, parsed, ignore);
+	return __parse_discovery_table(domain, addr, die, parsed);
 }
 
-static bool uncore_discovery_pci(int *ignore)
+static bool uncore_discovery_pci(struct uncore_discovery_domain *domain)
 {
 	u32 device, val, entry_id, bar_offset;
 	int die, dvsec = 0, ret = true;
 	struct pci_dev *dev = NULL;
 	bool parsed = false;
 
-	if (has_generic_discovery_table())
+	if (domain->discovery_base)
+		device = domain->discovery_base;
+	else if (has_generic_discovery_table())
 		device = UNCORE_DISCOVERY_TABLE_DEVICE;
 	else
 		device = PCI_ANY_ID;
@@ -386,7 +389,7 @@ static bool uncore_discovery_pci(int *ignore)
 			if (die < 0)
 				continue;
 
-			parse_discovery_table(dev, die, bar_offset, &parsed, ignore);
+			parse_discovery_table(domain, dev, die, bar_offset, &parsed);
 		}
 	}
 
@@ -399,11 +402,11 @@ err:
 	return ret;
 }
 
-static bool uncore_discovery_msr(int *ignore)
+static bool uncore_discovery_msr(struct uncore_discovery_domain *domain)
 {
 	unsigned long *die_mask;
 	bool parsed = false;
-	int cpu, die;
+	int cpu, die, msr;
 	u64 base;
 
 	die_mask = kcalloc(BITS_TO_LONGS(uncore_max_dies()),
@@ -411,19 +414,22 @@ static bool uncore_discovery_msr(int *ignore)
 	if (!die_mask)
 		return false;
 
+	msr = domain->discovery_base ?
+	      domain->discovery_base : UNCORE_DISCOVERY_MSR;
+
 	cpus_read_lock();
 	for_each_online_cpu(cpu) {
 		die = topology_logical_die_id(cpu);
 		if (__test_and_set_bit(die, die_mask))
 			continue;
 
-		if (rdmsrq_safe_on_cpu(cpu, UNCORE_DISCOVERY_MSR, &base))
+		if (rdmsrq_safe_on_cpu(cpu, msr, &base))
 			continue;
 
 		if (!base)
 			continue;
 
-		__parse_discovery_table(base, die, &parsed, ignore);
+		__parse_discovery_table(domain, base, die, &parsed);
 	}
 
 	cpus_read_unlock();
@@ -434,10 +440,19 @@ static bool uncore_discovery_msr(int *ignore)
 
 bool uncore_discovery(struct uncore_plat_init *init)
 {
-	int *ignore = init ? init->uncore_units_ignore : NULL;
+	struct uncore_discovery_domain *domain;
+	bool ret = false;
+	int i;
 
-	return uncore_discovery_msr(ignore) ||
-	       uncore_discovery_pci(ignore);
+	for (i = 0; i < UNCORE_DISCOVERY_DOMAINS; i++) {
+		domain = &init->domain[i];
+		if (!domain->base_is_pci)
+			ret |= uncore_discovery_msr(domain);
+		else
+			ret |= uncore_discovery_pci(domain);
+	}
+
+	return ret;
 }
 
 void intel_uncore_clear_discovery_tables(void)
