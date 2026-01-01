@@ -80,6 +80,7 @@ usage () {
 	echo "       --kasan"
 	echo "       --kconfig Kconfig-options"
 	echo "       --kcsan"
+	echo "       --kill-previous"
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --memory megabytes|nnnG"
@@ -206,6 +207,9 @@ do
 	--kcsan)
 		TORTURE_KCONFIG_KCSAN_ARG="$debuginfo CONFIG_KCSAN=y CONFIG_KCSAN_STRICT=y CONFIG_KCSAN_REPORT_ONCE_IN_MS=100000 CONFIG_KCSAN_VERBOSE=y CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y"; export TORTURE_KCONFIG_KCSAN_ARG
 		;;
+	--kill-previous)
+		TORTURE_KILL_PREVIOUS=1
+		;;
 	--kmake-arg|--kmake-args)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
 		TORTURE_KMAKE_ARG="`echo "$TORTURE_KMAKE_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
@@ -278,6 +282,25 @@ done
 # Prevent concurrent kvm.sh runs on the same source tree.  The flock
 # is automatically released when the script exits, even if killed.
 TORTURE_LOCK="$RCUTORTURE/.kvm.sh.lock"
+
+# Terminate any processes holding the lock file, if requested.
+if test -n "$TORTURE_KILL_PREVIOUS"
+then
+	if test -e "$TORTURE_LOCK"
+	then
+		echo "Killing processes holding $TORTURE_LOCK..."
+		if fuser -k "$TORTURE_LOCK" >/dev/null 2>&1
+		then
+			sleep 2
+			echo "Previous kvm.sh processes killed."
+		else
+			echo "No processes were holding the lock."
+		fi
+	else
+		echo "No lock file exists, nothing to kill."
+	fi
+fi
+
 if test -z "$dryrun"
 then
 	# Create a file descriptor and flock it, so that when kvm.sh (and its
@@ -287,7 +310,7 @@ then
 	then
 		echo "ERROR: Another kvm.sh instance is already running on this tree."
 		echo "       Lock file: $TORTURE_LOCK"
-		echo "       To run kvm.sh, kill all existing kvm.sh runs first."
+		echo "       To run kvm.sh, kill all existing kvm.sh runs first (--kill-previous)."
 		exit 1
 	fi
 fi
