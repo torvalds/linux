@@ -116,12 +116,14 @@ int xe_migrate_init(struct xe_migrate *m);
 struct dma_fence *xe_migrate_to_vram(struct xe_migrate *m,
 				     unsigned long npages,
 				     struct drm_pagemap_addr *src_addr,
-				     u64 dst_addr);
+				     u64 dst_addr,
+				     struct dma_fence *deps);
 
 struct dma_fence *xe_migrate_from_vram(struct xe_migrate *m,
 				       unsigned long npages,
 				       u64 src_addr,
-				       struct drm_pagemap_addr *dst_addr);
+				       struct drm_pagemap_addr *dst_addr,
+				       struct dma_fence *deps);
 
 struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				  struct xe_bo *src_bo,

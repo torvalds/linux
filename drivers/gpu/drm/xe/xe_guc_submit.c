@@ -407,7 +407,7 @@ static int guc_init_global_schedule_policy(struct xe_guc *guc)
 
 	*emit++ = XE_GUC_ACTION_UPDATE_SCHEDULING_POLICIES_KLV;
 
-	if (CCS_MASK(guc_to_gt(guc)))
+	if (CCS_INSTANCES(guc_to_gt(guc)))
 		emit = emit_render_compute_yield_klv(emit);
 
 	count = emit - data;
@@ -672,6 +672,23 @@ static void set_exec_queue_group_banned(struct xe_exec_queue *q)
 		set_exec_queue_banned(eq);
 	mutex_unlock(&group->list_lock);
 }
+
+/* Helper for context registration H2G */
+struct guc_ctxt_registration_info {
+	u32 flags;
+	u32 context_idx;
+	u32 engine_class;
+	u32 engine_submit_mask;
+	u32 wq_desc_lo;
+	u32 wq_desc_hi;
+	u32 wq_base_lo;
+	u32 wq_base_hi;
+	u32 wq_size;
+	u32 cgp_lo;
+	u32 cgp_hi;
+	u32 hwlrca_lo;
+	u32 hwlrca_hi;
+};
 
 #define parallel_read(xe_, map_, field_) \
 	xe_map_rd_field(xe_, &map_, 0, struct guc_submit_parallel_scratch, \
@@ -3544,6 +3561,27 @@ void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p)
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
 		guc_exec_queue_print(q, p);
 	mutex_unlock(&guc->submission_state.lock);
+}
+
+/**
+ * xe_guc_has_registered_mlrc_queues - check whether there are any MLRC queues
+ * registered with the GuC
+ * @guc: GuC.
+ *
+ * Return: true if any MLRC queue is registered with the GuC, false otherwise.
+ */
+bool xe_guc_has_registered_mlrc_queues(struct xe_guc *guc)
+{
+	struct xe_exec_queue *q;
+	unsigned long index;
+
+	guard(mutex)(&guc->submission_state.lock);
+
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+		if (q->width > 1)
+			return true;
+
+	return false;
 }
 
 /**

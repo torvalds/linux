@@ -21,11 +21,16 @@
 const char *xe_guc_klv_key_to_string(u16 key)
 {
 	switch (key) {
+	/* GuC Global Config KLVs */
+	case GUC_KLV_GLOBAL_CFG_GROUP_SCHEDULING_AVAILABLE_KEY:
+		return "group_scheduling_available";
 	/* VGT POLICY keys */
 	case GUC_KLV_VGT_POLICY_SCHED_IF_IDLE_KEY:
 		return "sched_if_idle";
 	case GUC_KLV_VGT_POLICY_ADVERSE_SAMPLE_PERIOD_KEY:
 		return "sample_period";
+	case GUC_KLV_VGT_POLICY_ENGINE_GROUP_CONFIG_KEY:
+		return "engine_group_config";
 	case GUC_KLV_VGT_POLICY_RESET_AFTER_VF_SWITCH_KEY:
 		return "reset_engine";
 	/* VF CFG keys */
@@ -51,6 +56,10 @@ const char *xe_guc_klv_key_to_string(u16 key)
 		return "begin_ctx_id";
 	case GUC_KLV_VF_CFG_SCHED_PRIORITY_KEY:
 		return "sched_priority";
+	case GUC_KLV_VF_CFG_ENGINE_GROUP_EXEC_QUANTUM_KEY:
+		return "sched_groups_exec_quantum";
+	case GUC_KLV_VF_CFG_ENGINE_GROUP_PREEMPT_TIMEOUT_KEY:
+		return "sched_groups_preempt_timeout";
 
 	/* VF CFG threshold keys */
 #define define_threshold_key_to_string_case(TAG, NAME, ...)	\

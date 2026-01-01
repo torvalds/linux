@@ -17,7 +17,7 @@ int xe_gt_ccs_mode_sysfs_init(struct xe_gt *gt);
 static inline bool xe_gt_ccs_mode_enabled(const struct xe_gt *gt)
 {
 	/* Check if there are more than one compute engines available */
-	return hweight32(CCS_MASK(gt)) > 1;
+	return hweight32(CCS_INSTANCES(gt)) > 1;
 }
 
 #endif
