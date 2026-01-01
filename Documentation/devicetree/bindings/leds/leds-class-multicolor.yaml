@@ -21,7 +21,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^multi-led(@[0-9a-f])?$"
+    pattern: "^multi-led(@[0-9a-f]|-[0-9]+)?$"
 
   color:
     description: |
