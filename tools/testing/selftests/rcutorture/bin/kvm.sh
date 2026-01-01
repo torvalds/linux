@@ -275,6 +275,23 @@ do
 	shift
 done
 
+# Prevent concurrent kvm.sh runs on the same source tree.  The flock
+# is automatically released when the script exits, even if killed.
+TORTURE_LOCK="$RCUTORTURE/.kvm.sh.lock"
+if test -z "$dryrun"
+then
+	# Create a file descriptor and flock it, so that when kvm.sh (and its
+	# children) exit, the flock is released by the kernel automatically.
+	exec 9>"$TORTURE_LOCK"
+	if ! flock -n 9
+	then
+		echo "ERROR: Another kvm.sh instance is already running on this tree."
+		echo "       Lock file: $TORTURE_LOCK"
+		echo "       To run kvm.sh, kill all existing kvm.sh runs first."
+		exit 1
+	fi
+fi
+
 if test -n "$dryrun" || test -z "$TORTURE_INITRD" || tools/testing/selftests/rcutorture/bin/mkinitrd.sh
 then
 	:
