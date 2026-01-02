@@ -1084,7 +1084,7 @@ config HID_SIGMAMICRO
 	  - Rapoo V500
 
 config HID_SONY
-	tristate "Sony PS2/3/4 accessories"
+	tristate "Sony PS2/3/4/5 accessories"
 	depends on USB_HID
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
@@ -1094,12 +1094,12 @@ config HID_SONY
 	Support for
 
 	  * Sony PS3 6-axis controllers
-	  * Sony PS4 DualShock 4 controllers
 	  * Buzz controllers
 	  * Sony PS3 Blue-ray Disk Remote Control (Bluetooth)
 	  * Logitech Harmony adapter for Sony Playstation 3 (Bluetooth)
 	  * Guitar Hero Live PS3, Wii U and PS4 guitar dongles
 	  * Guitar Hero PS3 and PC guitar dongles
+	  * Rock Band 4 PS4 and PS5 guitars
 
 config SONY_FF
 	bool "Sony PS2/3/4 accessories force feedback support"
