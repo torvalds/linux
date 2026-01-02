@@ -4,6 +4,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
+#include "bpf_misc.h"
 
 struct nf_conn;
 
@@ -17,6 +18,10 @@ struct bpf_ct_opts___local {
 struct nf_conn *bpf_skb_ct_alloc(struct __sk_buff *, struct bpf_sock_tuple *, u32,
 				 struct bpf_ct_opts___local *, u32) __ksym;
 struct nf_conn *bpf_skb_ct_lookup(struct __sk_buff *, struct bpf_sock_tuple *, u32,
+				  struct bpf_ct_opts___local *, u32) __ksym;
+struct nf_conn *bpf_xdp_ct_alloc(struct xdp_md *, struct bpf_sock_tuple *, u32,
+				 struct bpf_ct_opts___local *, u32) __ksym;
+struct nf_conn *bpf_xdp_ct_lookup(struct xdp_md *, struct bpf_sock_tuple *, u32,
 				  struct bpf_ct_opts___local *, u32) __ksym;
 struct nf_conn *bpf_ct_insert_entry(struct nf_conn *) __ksym;
 void bpf_ct_release(struct nf_conn *) __ksym;
@@ -143,6 +148,58 @@ int change_status_after_alloc(struct __sk_buff *ctx)
 	if (!ct)
 		return 0;
 	bpf_ct_change_status(ct, 0);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("Possibly NULL pointer passed to trusted arg1")
+int lookup_null_bpf_tuple(struct __sk_buff *ctx)
+{
+	struct bpf_ct_opts___local opts = {};
+	struct nf_conn *ct;
+
+	ct = bpf_skb_ct_lookup(ctx, NULL, 0, &opts, sizeof(opts));
+	if (ct)
+		bpf_ct_release(ct);
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("Possibly NULL pointer passed to trusted arg3")
+int lookup_null_bpf_opts(struct __sk_buff *ctx)
+{
+	struct bpf_sock_tuple tup = {};
+	struct nf_conn *ct;
+
+	ct = bpf_skb_ct_lookup(ctx, &tup, sizeof(tup.ipv4), NULL, sizeof(struct bpf_ct_opts___local));
+	if (ct)
+		bpf_ct_release(ct);
+	return 0;
+}
+
+SEC("?xdp")
+__failure __msg("Possibly NULL pointer passed to trusted arg1")
+int xdp_lookup_null_bpf_tuple(struct xdp_md *ctx)
+{
+	struct bpf_ct_opts___local opts = {};
+	struct nf_conn *ct;
+
+	ct = bpf_xdp_ct_lookup(ctx, NULL, 0, &opts, sizeof(opts));
+	if (ct)
+		bpf_ct_release(ct);
+	return 0;
+}
+
+SEC("?xdp")
+__failure __msg("Possibly NULL pointer passed to trusted arg3")
+int xdp_lookup_null_bpf_opts(struct xdp_md *ctx)
+{
+	struct bpf_sock_tuple tup = {};
+	struct nf_conn *ct;
+
+	ct = bpf_xdp_ct_lookup(ctx, &tup, sizeof(tup.ipv4), NULL, sizeof(struct bpf_ct_opts___local));
+	if (ct)
+		bpf_ct_release(ct);
 	return 0;
 }
 
