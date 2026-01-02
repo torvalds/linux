@@ -761,6 +761,9 @@ const struct acpi_device *acpi_companion_match(const struct device *dev)
 	if (list_empty(&adev->pnp.ids))
 		return NULL;
 
+	if (adev->pnp.type.backlight)
+		return adev;
+
 	return acpi_primary_dev_companion(adev, dev);
 }
 

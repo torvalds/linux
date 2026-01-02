@@ -118,7 +118,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	int count = 0;
 
 	/* If the ACPI node already has a physical device attached, skip it. */
-	if (adev->physical_node_count)
+	if (adev->physical_node_count && !adev->pnp.type.backlight)
 		return NULL;
 
 	match = acpi_match_acpi_device(forbidden_id_list, adev);
@@ -135,7 +135,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 		}
 	}
 
-	if (adev->device_type == ACPI_BUS_TYPE_DEVICE) {
+	if (adev->device_type == ACPI_BUS_TYPE_DEVICE && !adev->pnp.type.backlight) {
 		struct list_head resource_list = LIST_HEAD_INIT(resource_list);
 
 		count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
