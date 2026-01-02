@@ -153,7 +153,7 @@ long rbtree_api_add_to_multiple_trees(void *ctx)
 }
 
 SEC("?tc")
-__failure __msg("dereference of modified ptr_or_null_ ptr R2 off=16 disallowed")
+__failure __msg("Possibly NULL pointer passed to trusted arg1")
 long rbtree_api_use_unchecked_remove_retval(void *ctx)
 {
 	struct bpf_rb_node *res;
