@@ -138,7 +138,9 @@ int swnode_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
  * A special node that identifies undefined GPIOs, this is primarily used as
  * a key for internal chip selects in SPI bindings.
  */
-const struct software_node swnode_gpio_undefined = { };
+const struct software_node swnode_gpio_undefined = {
+	.name = "swnode-gpio-undefined",
+};
 EXPORT_SYMBOL_NS_GPL(swnode_gpio_undefined, "GPIO_SWNODE");
 
 static int __init swnode_gpio_init(void)
