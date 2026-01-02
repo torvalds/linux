@@ -1434,7 +1434,7 @@ bool __bpf_dynptr_is_rdonly(const struct bpf_dynptr_kern *ptr);
 int __bpf_dynptr_write(const struct bpf_dynptr_kern *dst, u64 offset,
 		       void *src, u64 len, u64 flags);
 void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *p, u64 offset,
-			    void *buffer__opt, u64 buffer__szk);
+			    void *buffer__nullable, u64 buffer__szk);
 
 static inline int bpf_dynptr_check_off_len(const struct bpf_dynptr_kern *ptr, u64 offset, u64 len)
 {

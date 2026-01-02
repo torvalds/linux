@@ -178,25 +178,34 @@ Here, the dynptr will be treated as an uninitialized dynptr. Without this
 annotation, the verifier will reject the program if the dynptr passed in is
 not initialized.
 
-2.3.4 __opt Annotation
--------------------------
+2.3.4 __nullable Annotation
+---------------------------
 
-This annotation is used to indicate that the buffer associated with an __sz or __szk
-argument may be null. If the function is passed a nullptr in place of the buffer,
-the verifier will not check that length is appropriate for the buffer. The kfunc is
-responsible for checking if this buffer is null before using it.
+This annotation is used to indicate that the pointer argument may be NULL.
+The verifier will allow passing NULL for such arguments.
 
 An example is given below::
 
-        __bpf_kfunc void *bpf_dynptr_slice(..., void *buffer__opt, u32 buffer__szk)
+        __bpf_kfunc void bpf_task_release(struct task_struct *task__nullable)
         {
         ...
         }
 
-Here, the buffer may be null. If buffer is not null, it at least of size buffer_szk.
-Either way, the returned buffer is either NULL, or of size buffer_szk. Without this
-annotation, the verifier will reject the program if a null pointer is passed in with
-a nonzero size.
+Here, the task pointer may be NULL. The kfunc is responsible for checking if
+the pointer is NULL before dereferencing it.
+
+The __nullable annotation can be combined with other annotations. For example,
+when used with __sz or __szk annotations for memory and size pairs, the
+verifier will skip size validation when a NULL pointer is passed, but will
+still process the size argument to extract constant size information when
+needed::
+
+        __bpf_kfunc void *bpf_dynptr_slice(..., void *buffer__nullable,
+                                           u32 buffer__szk)
+
+Here, the buffer may be NULL. If the buffer is not NULL, it must be at least
+buffer__szk bytes in size. The kfunc is responsible for checking if the buffer
+is NULL before using it.
 
 2.3.5 __str Annotation
 ----------------------------
