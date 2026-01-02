@@ -2206,16 +2206,14 @@ err:
 static int qcom_probe_nand_devices(struct qcom_nand_controller *nandc)
 {
 	struct device *dev = nandc->dev;
-	struct device_node *dn = dev->of_node, *child;
+	struct device_node *dn = dev->of_node;
 	struct qcom_nand_host *host;
 	int ret = -ENODEV;
 
-	for_each_available_child_of_node(dn, child) {
+	for_each_available_child_of_node_scoped(dn, child) {
 		host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
-		if (!host) {
-			of_node_put(child);
+		if (!host)
 			return -ENOMEM;
-		}
 
 		ret = qcom_nand_host_init_and_register(nandc, host, child);
 		if (ret) {
