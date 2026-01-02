@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: spacemit,k1-pinctrl
+    enum:
+      - spacemit,k1-pinctrl
+      - spacemit,k3-pinctrl
 
   reg:
     items:
@@ -80,6 +82,12 @@ patternProperties:
 
               - enum: [ 7, 10, 13, 16, 19, 23, 26, 29 ]
                 description: For K1 SoC, 3.3V voltage output
+
+              - enum: [ 2, 4, 6, 7, 9, 11, 13, 14, 21, 23, 25, 26, 28, 30, 31, 33 ]
+                description: For K3 SoC, 1.8V voltage output
+
+              - enum: [ 3, 5, 7, 9, 11, 13, 15, 17, 25, 27, 29, 31, 33, 35, 37, 38 ]
+                description: For K3 SoC, 1.8V voltage output
 
           input-schmitt:
             description: |
