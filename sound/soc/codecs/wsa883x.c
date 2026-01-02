@@ -1058,22 +1058,23 @@ static int wsa883x_init(struct wsa883x_priv *wsa883x)
 
 	switch (variant) {
 	case WSA8830:
-		dev_info(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8830\n",
-			 version);
+		dev_dbg(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8830\n",
+			version);
 		break;
 	case WSA8835:
-		dev_info(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8835\n",
-			 version);
+		dev_dbg(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8835\n",
+			version);
 		break;
 	case WSA8832:
-		dev_info(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8832\n",
-			 version);
+		dev_dbg(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8832\n",
+			version);
 		break;
 	case WSA8835_V2:
-		dev_info(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8835_V2\n",
-			 version);
+		dev_dbg(wsa883x->dev, "WSA883X Version 1_%d, Variant: WSA8835_V2\n",
+			version);
 		break;
 	default:
+		dev_warn(wsa883x->dev, "unknown variant: %d\n", variant);
 		break;
 	}
 
