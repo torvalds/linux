@@ -129,8 +129,7 @@ impl Device {
         // SAFETY: `self.as_raw()` provides a valid `*mut pwm_device` pointer.
         // `&c_wf` is a valid pointer to a `pwm_waveform` struct. The C function
         // handles all necessary internal locking.
-        let ret = unsafe { bindings::pwm_set_waveform_might_sleep(self.as_raw(), &c_wf, exact) };
-        to_result(ret)
+        to_result(unsafe { bindings::pwm_set_waveform_might_sleep(self.as_raw(), &c_wf, exact) })
     }
 
     /// Queries the hardware for the configuration it would apply for a given
@@ -160,9 +159,7 @@ impl Device {
 
         // SAFETY: `self.as_raw()` is a valid pointer. We provide a valid pointer
         // to a stack-allocated `pwm_waveform` struct for the kernel to fill.
-        let ret = unsafe { bindings::pwm_get_waveform_might_sleep(self.as_raw(), &mut c_wf) };
-
-        to_result(ret)?;
+        to_result(unsafe { bindings::pwm_get_waveform_might_sleep(self.as_raw(), &mut c_wf) })?;
 
         Ok(Waveform::from(c_wf))
     }
@@ -263,8 +260,8 @@ impl<T: PwmOps> Adapter<T> {
                 core::ptr::from_ref::<T::WfHw>(wfhw).cast::<u8>(),
                 wfhw_ptr.cast::<u8>(),
                 size,
-            );
-        }
+            )
+        };
 
         Ok(())
     }
@@ -284,8 +281,8 @@ impl<T: PwmOps> Adapter<T> {
                 wfhw_ptr.cast::<u8>(),
                 core::ptr::from_mut::<T::WfHw>(&mut wfhw).cast::<u8>(),
                 size,
-            );
-        }
+            )
+        };
 
         Ok(wfhw)
     }
@@ -311,9 +308,7 @@ impl<T: PwmOps> Adapter<T> {
         // Now, call the original release function to free the `pwm_chip` itself.
         // SAFETY: `dev` is the valid pointer passed into this callback, which is
         // the expected argument for `pwmchip_release`.
-        unsafe {
-            bindings::pwmchip_release(dev);
-        }
+        unsafe { bindings::pwmchip_release(dev) };
     }
 
     /// # Safety
@@ -413,9 +408,7 @@ impl<T: PwmOps> Adapter<T> {
         match T::round_waveform_fromhw(chip, pwm, &wfhw, &mut rust_wf) {
             Ok(()) => {
                 // SAFETY: `wf_ptr` is guaranteed valid by the C caller.
-                unsafe {
-                    *wf_ptr = rust_wf.into();
-                };
+                unsafe { *wf_ptr = rust_wf.into() };
                 0
             }
             Err(e) => e.to_errno(),
@@ -614,16 +607,12 @@ impl<T: PwmOps> Chip<T> {
         })?;
 
         // SAFETY: `c_chip_ptr` points to a valid chip.
-        unsafe {
-            (*c_chip_ptr).dev.release = Some(Adapter::<T>::release_callback);
-        }
+        unsafe { (*c_chip_ptr).dev.release = Some(Adapter::<T>::release_callback) };
 
         // SAFETY: `c_chip_ptr` points to a valid chip.
         // The `Adapter`'s `VTABLE` has a 'static lifetime, so the pointer
         // returned by `as_raw()` is always valid.
-        unsafe {
-            (*c_chip_ptr).ops = Adapter::<T>::VTABLE.as_raw();
-        }
+        unsafe { (*c_chip_ptr).ops = Adapter::<T>::VTABLE.as_raw() };
 
         // Cast the `*mut bindings::pwm_chip` to `*mut Chip`. This is valid because
         // `Chip` is `repr(transparent)` over `Opaque<bindings::pwm_chip>`, and
@@ -645,9 +634,7 @@ unsafe impl<T: PwmOps> AlwaysRefCounted for Chip<T> {
     fn inc_ref(&self) {
         // SAFETY: `self.0.get()` points to a valid `pwm_chip` because `self` exists.
         // The embedded `dev` is valid. `get_device` increments its refcount.
-        unsafe {
-            bindings::get_device(&raw mut (*self.0.get()).dev);
-        }
+        unsafe { bindings::get_device(&raw mut (*self.0.get()).dev) };
     }
 
     #[inline]
@@ -656,9 +643,7 @@ unsafe impl<T: PwmOps> AlwaysRefCounted for Chip<T> {
 
         // SAFETY: `obj` is a valid pointer to a `Chip` (and thus `bindings::pwm_chip`)
         // with a non-zero refcount. `put_device` handles decrement and final release.
-        unsafe {
-            bindings::put_device(&raw mut (*c_chip_ptr).dev);
-        }
+        unsafe { bindings::put_device(&raw mut (*c_chip_ptr).dev) };
     }
 }
 
@@ -692,9 +677,7 @@ impl<T: PwmOps> UnregisteredChip<'_, T> {
 
         // SAFETY: `c_chip_ptr` points to a valid chip with its ops initialized.
         // `__pwmchip_add` is the C function to register the chip with the PWM core.
-        unsafe {
-            to_result(bindings::__pwmchip_add(c_chip_ptr, core::ptr::null_mut()))?;
-        }
+        to_result(unsafe { bindings::__pwmchip_add(c_chip_ptr, core::ptr::null_mut()) })?;
 
         let registration = Registration {
             chip: ARef::clone(&self.chip),
@@ -730,9 +713,7 @@ impl<T: PwmOps> Drop for Registration<T> {
         // SAFETY: `chip_raw` points to a chip that was successfully registered.
         // `bindings::pwmchip_remove` is the correct C function to unregister it.
         // This `drop` implementation is called automatically by `devres` on driver unbind.
-        unsafe {
-            bindings::pwmchip_remove(chip_raw);
-        }
+        unsafe { bindings::pwmchip_remove(chip_raw) };
     }
 }
 
