@@ -3653,6 +3653,7 @@ void pci_acs_init(struct pci_dev *dev)
 		return;
 
 	pci_read_config_word(dev, pos + PCI_ACS_CAP, &dev->acs_capabilities);
+	pci_disable_broken_acs_cap(dev);
 }
 
 /**

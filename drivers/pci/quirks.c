@@ -5801,7 +5801,7 @@ DECLARE_PCI_FIXUP_CLASS_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 
 /*
  * Some IDT switches incorrectly flag an ACS Source Validation error on
- * completions for config read requests even though PCIe r4.0, sec
+ * completions for config read requests even though PCIe r7.0, sec
  * 6.12.1.1, says that completions are never affected by ACS Source
  * Validation.  Here's the text of IDT 89H32H8G3-YC, erratum #36:
  *
@@ -5814,44 +5814,20 @@ DECLARE_PCI_FIXUP_CLASS_RESUME_EARLY(PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
  *
  * The workaround suggested by IDT is to issue a config write to the
  * downstream device before issuing the first config read.  This allows the
- * downstream device to capture its bus and device numbers (see PCIe r4.0,
- * sec 2.2.9), thus avoiding the ACS error on the completion.
+ * downstream device to capture its bus and device numbers (see PCIe r7.0,
+ * sec 2.2.9.1), thus avoiding the ACS error on the completion.
  *
  * However, we don't know when the device is ready to accept the config
- * write, so we do config reads until we receive a non-Config Request Retry
- * Status, then do the config write.
- *
- * To avoid hitting the erratum when doing the config reads, we disable ACS
- * SV around this process.
+ * write, and the issue affects resets of the switch as well as enumeration,
+ * so disable use of ACS SV for these devices altogether.
  */
-int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *l, int timeout)
+void pci_disable_broken_acs_cap(struct pci_dev *pdev)
 {
-	int pos;
-	u16 ctrl = 0;
-	bool found;
-	struct pci_dev *bridge = bus->self;
-
-	pos = bridge->acs_cap;
-
-	/* Disable ACS SV before initial config reads */
-	if (pos) {
-		pci_read_config_word(bridge, pos + PCI_ACS_CTRL, &ctrl);
-		if (ctrl & PCI_ACS_SV)
-			pci_write_config_word(bridge, pos + PCI_ACS_CTRL,
-					      ctrl & ~PCI_ACS_SV);
+	if (pdev->vendor == PCI_VENDOR_ID_IDT &&
+	    pdev->device == 0x80b5) {
+		pci_info(pdev, "Disabling broken ACS SV; downstream device isolation reduced\n");
+		pdev->acs_capabilities &= ~PCI_ACS_SV;
 	}
-
-	found = pci_bus_generic_read_dev_vendor_id(bus, devfn, l, timeout);
-
-	/* Write Vendor ID (read-only) so the endpoint latches its bus/dev */
-	if (found)
-		pci_bus_write_config_word(bus, devfn, PCI_VENDOR_ID, 0);
-
-	/* Re-enable ACS_SV if it was previously enabled */
-	if (ctrl & PCI_ACS_SV)
-		pci_write_config_word(bridge, pos + PCI_ACS_CTRL, ctrl);
-
-	return found;
 }
 
 /*
