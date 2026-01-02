@@ -840,7 +840,7 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 		return PTR_ERR(nfc->clk);
 	}
 
-	nfc->variant = (enum vf610_nfc_variant)device_get_match_data(&pdev->dev);
+	nfc->variant = (unsigned long)device_get_match_data(&pdev->dev);
 	if (!nfc->variant)
 		return -ENODEV;
 
