@@ -527,7 +527,7 @@
 				interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 37>;
 				#address-cells = <1>;
-				#size-cells = <1>;
+				#size-cells = <0>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(12)>,
 				       <&dma0 AT91_XDMAC_DT_PERID(11)>;
 				dma-names = "tx", "rx";
