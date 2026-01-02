@@ -16,9 +16,8 @@ use kernel::{
     seq_file::SeqFile,
     seq_print,
     sync::poll::{PollCondVar, PollTable},
-    sync::{Arc, SpinLock},
+    sync::{aref::ARef, Arc, SpinLock},
     task::Task,
-    types::ARef,
     uaccess::UserSlice,
     uapi,
 };

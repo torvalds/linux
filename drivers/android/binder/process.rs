@@ -28,11 +28,11 @@ use kernel::{
     seq_print,
     sync::poll::PollTable,
     sync::{
+        aref::ARef,
         lock::{spinlock::SpinLockBackend, Guard},
         Arc, ArcBorrow, CondVar, CondVarTimeoutResult, Mutex, SpinLock, UniqueArc,
     },
     task::Task,
-    types::ARef,
     uaccess::{UserSlice, UserSliceReader},
     uapi,
     workqueue::{self, Work},
