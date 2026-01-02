@@ -68,10 +68,7 @@ __bpf_kfunc void bpf_put_file(struct file *file)
  *
  * Resolve the pathname for the supplied *path* and store it in *buf*. This BPF
  * kfunc is the safer variant of the legacy bpf_d_path() helper and should be
- * used in place of bpf_d_path() whenever possible. It enforces KF_TRUSTED_ARGS
- * semantics, meaning that the supplied *path* must itself hold a valid
- * reference, or else the BPF program will be outright rejected by the BPF
- * verifier.
+ * used in place of bpf_d_path() whenever possible.
  *
  * This BPF kfunc may only be called from BPF LSM programs.
  *
@@ -377,9 +374,8 @@ static int bpf_fs_kfuncs_filter(const struct bpf_prog *prog, u32 kfunc_id)
 	return -EACCES;
 }
 
-/* bpf_[set|remove]_dentry_xattr.* hooks have KF_TRUSTED_ARGS and
- * KF_SLEEPABLE, so they are only available to sleepable hooks with
- * dentry arguments.
+/* bpf_[set|remove]_dentry_xattr.* hooks have KF_SLEEPABLE, so they are only
+ * available to sleepable hooks with dentry arguments.
  *
  * Setting and removing xattr requires exclusive lock on dentry->d_inode.
  * Some hooks already locked d_inode, while some hooks have not locked
