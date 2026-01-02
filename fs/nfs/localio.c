@@ -461,6 +461,8 @@ nfs_local_iters_init(struct nfs_local_kiocb *iocb, int rw)
 	v = 0;
 	total = hdr->args.count;
 	base = hdr->args.pgbase;
+	pagevec += base >> PAGE_SHIFT;
+	base &= ~PAGE_MASK;
 	while (total && v < hdr->page_array.npages) {
 		len = min_t(size_t, total, PAGE_SIZE - base);
 		bvec_set_page(&iocb->bvec[v], *pagevec, len, base);
