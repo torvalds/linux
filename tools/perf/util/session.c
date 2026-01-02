@@ -841,6 +841,28 @@ static void callchain__lbr_callstack_printf(struct perf_sample *sample)
 	}
 }
 
+static const char *callchain_context_str(u64 ip)
+{
+	switch (ip) {
+	case PERF_CONTEXT_HV:
+		return " (PERF_CONTEXT_HV)";
+	case PERF_CONTEXT_KERNEL:
+		return " (PERF_CONTEXT_KERNEL)";
+	case PERF_CONTEXT_USER:
+		return " (PERF_CONTEXT_USER)";
+	case PERF_CONTEXT_GUEST:
+		return " (PERF_CONTEXT_GUEST)";
+	case PERF_CONTEXT_GUEST_KERNEL:
+		return " (PERF_CONTEXT_GUEST_KERNEL)";
+	case PERF_CONTEXT_GUEST_USER:
+		return " (PERF_CONTEXT_GUEST_USER)";
+	case PERF_CONTEXT_USER_DEFERRED:
+		return " (PERF_CONTEXT_USER_DEFERRED)";
+	default:
+		return "";
+	}
+}
+
 static void callchain__printf(struct evsel *evsel,
 			      struct perf_sample *sample)
 {
@@ -853,8 +875,9 @@ static void callchain__printf(struct evsel *evsel,
 	printf("... FP chain: nr:%" PRIu64 "\n", callchain->nr);
 
 	for (i = 0; i < callchain->nr; i++)
-		printf("..... %2d: %016" PRIx64 "\n",
-		       i, callchain->ips[i]);
+		printf("..... %2d: %016" PRIx64 "%s\n",
+		       i, callchain->ips[i],
+		       callchain_context_str(callchain->ips[i]));
 
 	if (sample->deferred_callchain)
 		printf("...... (deferred)\n");
