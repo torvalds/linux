@@ -371,7 +371,7 @@ int __init dove_init_pmu_legacy(const struct dove_pmu_initdata *initdata)
  */
 int __init dove_init_pmu(void)
 {
-	struct device_node *np_pmu, *domains_node, *np;
+	struct device_node *np_pmu, *domains_node;
 	struct pmu_data *pmu;
 	int ret, parent_irq;
 
@@ -404,21 +404,18 @@ int __init dove_init_pmu(void)
 
 	pmu_reset_init(pmu);
 
-	for_each_available_child_of_node(domains_node, np) {
+	for_each_available_child_of_node_scoped(domains_node, np) {
 		struct of_phandle_args args;
 		struct pmu_domain *domain;
 
 		domain = kzalloc(sizeof(*domain), GFP_KERNEL);
-		if (!domain) {
-			of_node_put(np);
+		if (!domain)
 			break;
-		}
 
 		domain->pmu = pmu;
 		domain->base.name = kasprintf(GFP_KERNEL, "%pOFn", np);
 		if (!domain->base.name) {
 			kfree(domain);
-			of_node_put(np);
 			break;
 		}
 
