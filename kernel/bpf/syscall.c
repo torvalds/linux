@@ -616,9 +616,7 @@ int bpf_map_alloc_pages(const struct bpf_map *map, int nid,
 	unsigned long i, j;
 	struct page *pg;
 	int ret = 0;
-	struct mem_cgroup *memcg, *old_memcg;
 
-	bpf_map_memcg_enter(map, &old_memcg, &memcg);
 	for (i = 0; i < nr_pages; i++) {
 		pg = __bpf_alloc_page(nid);
 
@@ -632,7 +630,6 @@ int bpf_map_alloc_pages(const struct bpf_map *map, int nid,
 		break;
 	}
 
-	bpf_map_memcg_exit(old_memcg, memcg);
 	return ret;
 }
 
