@@ -72,10 +72,14 @@ patternProperties:
             enum: [ 0, 1 ]
 
           drive-strength:
-            description: |
-              typical current when output high level.
-              1.8V output: 11, 21, 32, 42 (mA)
-              3.3V output: 7, 10, 13, 16, 19, 23, 26, 29 (mA)
+            description:
+              typical current (in mA) when the output at high level.
+            oneOf:
+              - enum: [ 11, 21, 32, 42 ]
+                description: For K1 SoC, 1.8V voltage output
+
+              - enum: [ 7, 10, 13, 16, 19, 23, 26, 29 ]
+                description: For K1 SoC, 3.3V voltage output
 
           input-schmitt:
             description: |
