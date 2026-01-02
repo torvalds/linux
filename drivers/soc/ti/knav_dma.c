@@ -709,10 +709,8 @@ static int knav_dma_probe(struct platform_device *pdev)
 	struct device_node *child;
 	int ret = 0;
 
-	if (!node) {
-		dev_err(&pdev->dev, "could not find device info\n");
-		return -EINVAL;
-	}
+	if (!node)
+		return dev_err_probe(dev, -EINVAL, "could not find device info\n");
 
 	kdev = devm_kzalloc(dev,
 			sizeof(struct knav_dma_pool_device), GFP_KERNEL);
@@ -725,7 +723,7 @@ static int knav_dma_probe(struct platform_device *pdev)
 	pm_runtime_enable(kdev->dev);
 	ret = pm_runtime_resume_and_get(kdev->dev);
 	if (ret < 0) {
-		dev_err(kdev->dev, "unable to enable pktdma, err %d\n", ret);
+		dev_err(dev, "unable to enable pktdma, err %d\n", ret);
 		goto err_pm_disable;
 	}
 
@@ -734,14 +732,13 @@ static int knav_dma_probe(struct platform_device *pdev)
 		ret = dma_init(node, child);
 		if (ret) {
 			of_node_put(child);
-			dev_err(&pdev->dev, "init failed with %d\n", ret);
+			dev_err(dev, "init failed with %d\n", ret);
 			break;
 		}
 	}
 
 	if (list_empty(&kdev->list)) {
-		dev_err(dev, "no valid dma instance\n");
-		ret = -ENODEV;
+		ret = dev_err_probe(dev, -ENODEV, "no valid dma instance\n");
 		goto err_put_sync;
 	}
 
