@@ -1271,7 +1271,6 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 	struct zynqmp_r5_core **r5_cores;
 	enum rpu_oper_mode fw_reg_val;
 	struct device **child_devs;
-	struct device_node *child;
 	enum rpu_tcm_comb tcm_mode;
 	int core_count, ret, i;
 	struct mbox_info *ipi;
@@ -1350,10 +1349,9 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 	}
 
 	i = 0;
-	for_each_available_child_of_node(dev_node, child) {
+	for_each_available_child_of_node_scoped(dev_node, child) {
 		child_pdev = of_find_device_by_node(child);
 		if (!child_pdev) {
-			of_node_put(child);
 			ret = -ENODEV;
 			goto release_r5_cores;
 		}
@@ -1363,7 +1361,6 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		/* create and add remoteproc instance of type struct rproc */
 		r5_cores[i] = zynqmp_r5_add_rproc_core(&child_pdev->dev);
 		if (IS_ERR(r5_cores[i])) {
-			of_node_put(child);
 			ret = PTR_ERR(r5_cores[i]);
 			r5_cores[i] = NULL;
 			goto release_r5_cores;
@@ -1383,10 +1380,8 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		 * If two child nodes are available in dts in lockstep mode,
 		 * then ignore second child node.
 		 */
-		if (cluster_mode == LOCKSTEP_MODE) {
-			of_node_put(child);
+		if (cluster_mode == LOCKSTEP_MODE)
 			break;
-		}
 
 		i++;
 	}
