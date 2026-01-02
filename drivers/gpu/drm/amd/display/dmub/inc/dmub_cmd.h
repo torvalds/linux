@@ -1091,7 +1091,10 @@ union dmub_fw_boot_options {
 		uint32_t lower_hbr3_phy_ssc: 1; /**< 1 to lower hbr3 phy ssc to 0.125 percent */
 		uint32_t override_hbr3_pll_vco: 1; /**< 1 to override the hbr3 pll vco to 0 */
 		uint32_t disable_dpia_bw_allocation: 1; /**< 1 to disable the USB4 DPIA BW allocation */
-		uint32_t reserved : 4; /**< reserved */
+		uint32_t bootcrc_en_at_preos: 1; /**< 1 to run the boot time crc during warm/cold boot*/
+		uint32_t bootcrc_en_at_S0i3: 1; /**< 1 to run the boot time crc during S0i3 boot*/
+		uint32_t bootcrc_boot_mode: 1; /**< 1 for S0i3 resume and 0 for Warm/cold boot*/
+		uint32_t reserved : 1; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -2638,7 +2641,7 @@ union dmub_fams2_global_feature_config {
 		uint32_t enable_visual_confirm: 1;
 		uint32_t allow_delay_check_mode: 2;
 		uint32_t legacy_method_no_fams2 : 1;
-		uint32_t reserved: 23;
+		uint32_t reserved : 23;
 	} bits;
 	uint32_t all;
 };
@@ -4375,6 +4378,7 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 	REPLAY_GENERAL_CMD_VIDEO_CONFERENCING,
+	REPLAY_GENERAL_CMD_SET_CONTINUOUSLY_RESYNC,
 };
 
 struct dmub_alpm_auxless_data {
