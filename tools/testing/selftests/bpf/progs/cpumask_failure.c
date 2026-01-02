@@ -110,7 +110,7 @@ SEC("tp_btf/task_newtask")
 __failure __msg("NULL pointer passed to trusted arg0")
 int BPF_PROG(test_cpumask_null, struct task_struct *task, u64 clone_flags)
 {
-  /* NULL passed to KF_TRUSTED_ARGS kfunc. */
+  /* NULL passed to kfunc. */
 	bpf_cpumask_empty(NULL);
 
 	return 0;

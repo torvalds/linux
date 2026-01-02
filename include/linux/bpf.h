@@ -753,7 +753,7 @@ enum bpf_type_flag {
 	MEM_ALLOC		= BIT(11 + BPF_BASE_TYPE_BITS),
 
 	/* PTR was passed from the kernel in a trusted context, and may be
-	 * passed to KF_TRUSTED_ARGS kfuncs or BPF helper functions.
+	 * passed to kfuncs or BPF helper functions.
 	 * Confusingly, this is _not_ the opposite of PTR_UNTRUSTED above.
 	 * PTR_UNTRUSTED refers to a kptr that was read directly from a map
 	 * without invoking bpf_kptr_xchg(). What we really need to know is
