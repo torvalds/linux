@@ -1540,13 +1540,10 @@ static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 
 static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_device *device = data;
-	struct acpi_video_bus *video = acpi_driver_data(device);
+	struct acpi_video_bus *video = data;
+	struct acpi_device *device = video->device;
 	struct input_dev *input;
 	int keycode = 0;
-
-	if (!video || !video->input)
-		return;
 
 	input = video->input;
 
@@ -2076,7 +2073,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 		goto err_del;
 
 	error = acpi_dev_install_notify_handler(device, ACPI_DEVICE_NOTIFY,
-						acpi_video_bus_notify, device);
+						acpi_video_bus_notify, video);
 	if (error)
 		goto err_remove;
 
