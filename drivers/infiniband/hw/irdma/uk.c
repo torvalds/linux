@@ -114,7 +114,6 @@ void irdma_clr_wqes(struct irdma_qp_uk *qp, u32 qp_wqe_idx)
  */
 void irdma_uk_qp_post_wr(struct irdma_qp_uk *qp)
 {
-	dma_wmb();
 	writel(qp->qp_id, qp->wqe_alloc_db);
 }
 
@@ -1106,8 +1105,6 @@ void irdma_uk_cq_request_notification(struct irdma_cq_uk *cq,
 		   FIELD_PREP(IRDMA_CQ_DBSA_ARM_NEXT, arm_next);
 
 	set_64bit_val(cq->shadow_area, 32, temp_val);
-
-	dma_wmb(); /* make sure WQE is populated before valid bit is set */
 
 	writel(cq->cq_id, cq->cqe_alloc_db);
 }

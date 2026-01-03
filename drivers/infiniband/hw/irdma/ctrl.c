@@ -3887,8 +3887,6 @@ void irdma_sc_ccq_arm(struct irdma_sc_cq *ccq)
 	set_64bit_val(ccq->cq_uk.shadow_area, 32, temp_val);
 	spin_unlock_irqrestore(&ccq->dev->cqp_lock, flags);
 
-	dma_wmb(); /* make sure shadow area is updated before arming */
-
 	writel(ccq->cq_uk.cq_id, ccq->dev->cq_arm_db);
 }
 
