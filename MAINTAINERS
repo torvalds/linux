@@ -18283,7 +18283,7 @@ X:	net/wireless/
 X:	tools/testing/selftests/net/can/
 
 NETWORKING [IOAM]
-M:	Justin Iurman <justin.iurman@uliege.be>
+M:	Justin Iurman <justin.iurman@gmail.com>
 S:	Maintained
 F:	Documentation/networking/ioam6*
 F:	include/linux/ioam6*
