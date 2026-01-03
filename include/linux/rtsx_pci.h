@@ -1230,6 +1230,7 @@ struct rtsx_pcr {
 #define EXTRA_CAPS_MMC_8BIT		(1 << 5)
 #define EXTRA_CAPS_NO_MMC		(1 << 7)
 #define EXTRA_CAPS_SD_EXPRESS		(1 << 8)
+#define EXTRA_CAPS_NO_AGGRESSIVE_PM	(1 << 9)
 	u32				extra_caps;
 
 #define IC_VER_A			0

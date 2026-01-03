@@ -78,6 +78,9 @@ static void rtsx_base_fetch_vendor_settings(struct rtsx_pcr *pcr)
 	if (CHK_PCI_PID(pcr, PID_524A) || CHK_PCI_PID(pcr, PID_525A))
 		pcr->rtd3_en = rtsx_reg_to_rtd3_uhsii(reg);
 
+	if (CHK_PCI_PID(pcr, PID_525A))
+		pcr->extra_caps |= EXTRA_CAPS_NO_AGGRESSIVE_PM;
+
 	if (rtsx_check_mmc_support(reg))
 		pcr->extra_caps |= EXTRA_CAPS_NO_MMC;
 	pcr->sd30_drive_sel_3v3 = rtsx_reg_to_sd30_drive_sel_3v3(reg);
