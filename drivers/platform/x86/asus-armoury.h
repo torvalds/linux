@@ -843,7 +843,7 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "GA403U"),
+			DMI_MATCH(DMI_BOARD_NAME, "GA403UI"),
 		},
 		.driver_data = &(struct power_data) {
 			.ac_data = &(struct power_limits) {
