@@ -317,6 +317,8 @@ static const struct ec_sensor_info sensors_family_amd_trx_50[] = {
 static const struct ec_sensor_info sensors_family_amd_wrx_90[] = {
 	[ec_sensor_temp_cpu_package] =
 		EC_SENSOR("CPU Package", hwmon_temp, 1, 0x00, 0x31),
+	[ec_sensor_temp_vrme] = EC_SENSOR("VRM_E", hwmon_temp, 1, 0x00, 0x33),
+	[ec_sensor_temp_vrmw] = EC_SENSOR("VRM_W", hwmon_temp, 1, 0x00, 0x34),
 	[ec_sensor_fan_cpu_opt] =
 		EC_SENSOR("CPU_Opt", hwmon_fan, 2, 0x00, 0xb0),
 	[ec_sensor_fan_vrmw_hs] =
@@ -574,7 +576,8 @@ static const struct ec_board_info board_info_pro_ws_wrx90e_sage_se = {
 	/* Board also has a nct6798 with 7 more fans and temperatures */
 	.sensors = SENSOR_TEMP_CPU_PACKAGE | SENSOR_TEMP_T_SENSOR |
 		SENSOR_FAN_CPU_OPT | SENSOR_FAN_USB4 | SENSOR_FAN_M2 |
-		SENSOR_FAN_VRME_HS | SENSOR_FAN_VRMW_HS,
+		SENSOR_FAN_VRME_HS | SENSOR_FAN_VRMW_HS |
+		SENSOR_TEMP_VRME | SENSOR_TEMP_VRMW,
 	.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
 	.family = family_amd_wrx_90,
 };
