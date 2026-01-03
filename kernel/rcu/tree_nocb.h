@@ -1081,30 +1081,6 @@ static int rcu_nocb_rdp_deoffload(struct rcu_data *rdp)
 	return 0;
 }
 
-int rcu_nocb_cpu_deoffload(int cpu)
-{
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-	int ret = 0;
-
-	cpus_read_lock();
-	mutex_lock(&rcu_state.nocb_mutex);
-	if (rcu_rdp_is_offloaded(rdp)) {
-		if (!cpu_online(cpu)) {
-			ret = rcu_nocb_rdp_deoffload(rdp);
-			if (!ret)
-				cpumask_clear_cpu(cpu, rcu_nocb_mask);
-		} else {
-			pr_info("NOCB: Cannot CB-deoffload online CPU %d\n", rdp->cpu);
-			ret = -EINVAL;
-		}
-	}
-	mutex_unlock(&rcu_state.nocb_mutex);
-	cpus_read_unlock();
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(rcu_nocb_cpu_deoffload);
-
 static bool rcu_nocb_rdp_offload_wait_cond(struct rcu_data *rdp)
 {
 	unsigned long flags;
@@ -1149,27 +1125,51 @@ static int rcu_nocb_rdp_offload(struct rcu_data *rdp)
 	return 0;
 }
 
-int rcu_nocb_cpu_offload(int cpu)
+/* Common helper for CPU offload/deoffload operations. */
+static int rcu_nocb_cpu_toggle_offload(int cpu, bool offload)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	int ret = 0;
 
 	cpus_read_lock();
 	mutex_lock(&rcu_state.nocb_mutex);
-	if (!rcu_rdp_is_offloaded(rdp)) {
-		if (!cpu_online(cpu)) {
-			ret = rcu_nocb_rdp_offload(rdp);
-			if (!ret)
-				cpumask_set_cpu(cpu, rcu_nocb_mask);
-		} else {
-			pr_info("NOCB: Cannot CB-offload online CPU %d\n", rdp->cpu);
-			ret = -EINVAL;
-		}
+
+	/* Already in desired state, nothing to do. */
+	if (rcu_rdp_is_offloaded(rdp) == offload)
+		goto out_unlock;
+
+	if (cpu_online(cpu)) {
+		pr_info("NOCB: Cannot CB-%soffload online CPU %d\n",
+			offload ? "" : "de", rdp->cpu);
+		ret = -EINVAL;
+		goto out_unlock;
 	}
+
+	if (offload) {
+		ret = rcu_nocb_rdp_offload(rdp);
+		if (!ret)
+			cpumask_set_cpu(cpu, rcu_nocb_mask);
+	} else {
+		ret = rcu_nocb_rdp_deoffload(rdp);
+		if (!ret)
+			cpumask_clear_cpu(cpu, rcu_nocb_mask);
+	}
+
+out_unlock:
 	mutex_unlock(&rcu_state.nocb_mutex);
 	cpus_read_unlock();
-
 	return ret;
+}
+
+int rcu_nocb_cpu_deoffload(int cpu)
+{
+	return rcu_nocb_cpu_toggle_offload(cpu, false /* de-offload */);
+}
+EXPORT_SYMBOL_GPL(rcu_nocb_cpu_deoffload);
+
+int rcu_nocb_cpu_offload(int cpu)
+{
+	return rcu_nocb_cpu_toggle_offload(cpu, true /* offload */);
 }
 EXPORT_SYMBOL_GPL(rcu_nocb_cpu_offload);
 
