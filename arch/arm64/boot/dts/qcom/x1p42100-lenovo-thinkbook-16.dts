@@ -1560,6 +1560,8 @@
 	maximum-speed = "high-speed";
 	phys = <&usb_1_ss2_hsphy>;
 	phy-names = "usb2-phy";
+
+	/delete-property/ port@1;
 };
 
 &usb_1_ss2_hsphy {
