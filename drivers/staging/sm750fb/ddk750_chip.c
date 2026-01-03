@@ -249,7 +249,7 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 	 * Reset the memory controller.
 	 * If the memory controller is not reset in SM750,
 	 * the system might hang when sw accesses the memory.
-	 * The memory should be resetted after changing the MXCLK.
+	 * The memory should be reset after changing the MXCLK.
 	 */
 	if (p_init_param->reset_memory == 1) {
 		reg = peek32(MISC_CTRL);
