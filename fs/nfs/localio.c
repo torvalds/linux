@@ -58,6 +58,11 @@ struct nfs_local_fsync_ctx {
 static bool localio_enabled __read_mostly = true;
 module_param(localio_enabled, bool, 0644);
 
+static int nfs_local_do_read(struct nfs_local_kiocb *iocb,
+			     const struct rpc_call_ops *call_ops);
+static int nfs_local_do_write(struct nfs_local_kiocb *iocb,
+			      const struct rpc_call_ops *call_ops);
+
 static inline bool nfs_client_is_local(const struct nfs_client *clp)
 {
 	return !!rcu_access_pointer(clp->cl_uuid.net);
@@ -542,13 +547,50 @@ nfs_local_iocb_release(struct nfs_local_kiocb *iocb)
 	nfs_local_iocb_free(iocb);
 }
 
-static void
-nfs_local_pgio_release(struct nfs_local_kiocb *iocb)
+static void nfs_local_pgio_restart(struct nfs_local_kiocb *iocb,
+				   struct nfs_pgio_header *hdr)
+{
+	int status = 0;
+
+	iocb->kiocb.ki_pos = hdr->args.offset;
+	iocb->kiocb.ki_flags &= ~(IOCB_DSYNC | IOCB_SYNC | IOCB_DIRECT);
+	iocb->kiocb.ki_complete = NULL;
+	iocb->aio_complete_work = NULL;
+	iocb->end_iter_index = -1;
+
+	switch (hdr->rw_mode) {
+	case FMODE_READ:
+		nfs_local_iters_init(iocb, ITER_DEST);
+		status = nfs_local_do_read(iocb, hdr->task.tk_ops);
+		break;
+	case FMODE_WRITE:
+		nfs_local_iters_init(iocb, ITER_SOURCE);
+		status = nfs_local_do_write(iocb, hdr->task.tk_ops);
+		break;
+	default:
+		status = -EOPNOTSUPP;
+	}
+
+	if (status != 0) {
+		nfs_local_iocb_release(iocb);
+		hdr->task.tk_status = status;
+		nfs_local_hdr_release(hdr, hdr->task.tk_ops);
+	}
+}
+
+static void nfs_local_pgio_release(struct nfs_local_kiocb *iocb)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
+	struct rpc_task *task = &hdr->task;
 
-	nfs_local_iocb_release(iocb);
-	nfs_local_hdr_release(hdr, hdr->task.tk_ops);
+	task->tk_action = NULL;
+	task->tk_ops->rpc_call_done(task, hdr);
+
+	if (task->tk_action == NULL) {
+		nfs_local_iocb_release(iocb);
+		task->tk_ops->rpc_release(hdr);
+	} else
+		nfs_local_pgio_restart(iocb, hdr);
 }
 
 /*
@@ -773,19 +815,7 @@ static void nfs_local_write_done(struct nfs_local_kiocb *iocb)
 		pr_info_ratelimited("nfs: Unexpected direct I/O write alignment failure\n");
 	}
 
-	/* Handle short writes as if they are ENOSPC */
-	status = hdr->res.count;
-	if (status > 0 && status < hdr->args.count) {
-		hdr->mds_offset += status;
-		hdr->args.offset += status;
-		hdr->args.pgbase += status;
-		hdr->args.count -= status;
-		nfs_set_pgio_error(hdr, -ENOSPC, hdr->args.offset);
-		status = -ENOSPC;
-		/* record -ENOSPC in terms of nfs_local_pgio_done */
-		(void) nfs_local_pgio_done(iocb, status, true);
-	}
-	if (hdr->task.tk_status < 0)
+	if (status < 0)
 		nfs_reset_boot_verifier(hdr->inode);
 }
 
