@@ -35,6 +35,7 @@ enum {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	FAULT_INFO_RATE,	/* struct f2fs_fault_info */
 	FAULT_INFO_TYPE,	/* struct f2fs_fault_info */
+	FAULT_INFO_TIMEOUT,	/* struct f2fs_fault_info */
 #endif
 	RESERVED_BLOCKS,	/* struct f2fs_sb_info */
 	CPRC_INFO,	/* struct ckpt_req_control */
@@ -527,6 +528,12 @@ out:
 	if (a->struct_type == FAULT_INFO_RATE) {
 		if (f2fs_build_fault_attr(sbi, t, 0, FAULT_RATE))
 			return -EINVAL;
+		return count;
+	}
+	if (a->struct_type == FAULT_INFO_TIMEOUT) {
+		if (f2fs_build_fault_attr(sbi, 0, t, FAULT_TIMEOUT))
+			return -EINVAL;
+		f2fs_simulate_lock_timeout(sbi);
 		return count;
 	}
 #endif
@@ -1233,6 +1240,7 @@ STAT_INFO_RO_ATTR(gc_background_calls, gc_call_count[BACKGROUND]);
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_RATE, inject_rate);
 FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_TYPE, inject_type);
+FAULT_INFO_GENERAL_RW_ATTR(FAULT_INFO_TIMEOUT, inject_lock_timeout);
 #endif
 
 /* RESERVED_BLOCKS ATTR */
@@ -1362,6 +1370,7 @@ static struct attribute *f2fs_attrs[] = {
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	ATTR_LIST(inject_rate),
 	ATTR_LIST(inject_type),
+	ATTR_LIST(inject_lock_timeout),
 #endif
 	ATTR_LIST(data_io_flag),
 	ATTR_LIST(node_io_flag),

@@ -372,7 +372,7 @@ next:
 
 out:
 	if (time_to_inject(sbi, FAULT_ATOMIC_TIMEOUT))
-		f2fs_io_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT);
+		f2fs_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT, true);
 
 	if (ret) {
 		sbi->revoked_atomic_block += fi->atomic_write_cnt;

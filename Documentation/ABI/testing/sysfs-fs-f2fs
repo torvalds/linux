@@ -948,3 +948,17 @@ Description:	This is a threshold, once a thread enters critical region that lock
 		elapsed time exceeds this threshold, f2fs will print tracepoint to dump information
 		of related context. This sysfs entry can be used to control the value of threshold,
 		by default, the value is 500 ms.
+
+What:		/sys/fs/f2fs/<disk>/inject_timeout_type
+Date:		December 2025
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This sysfs entry can be used to change type of injected timeout:
+		==========     ===============================
+		Flag_Value     Flag_Description
+		==========     ===============================
+		0x00000000     No timeout (default)
+		0x00000001     Simulate running time
+		0x00000002     Simulate IO type sleep time
+		0x00000003     Simulate Non-IO type sleep time
+		0x00000004     Simulate runnable time
+		==========     ===============================

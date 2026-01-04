@@ -97,7 +97,56 @@ int f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned long rate,
 		f2fs_info(sbi, "build fault injection type: 0x%lx", type);
 	}
 
+	if (fo & FAULT_TIMEOUT) {
+		if (type >= TIMEOUT_TYPE_MAX)
+			return -EINVAL;
+		ffi->inject_lock_timeout = (unsigned int)type;
+		f2fs_info(sbi, "build fault timeout injection type: 0x%lx", type);
+	}
+
 	return 0;
+}
+
+static void inject_timeout(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_fault_info *ffi = &F2FS_OPTION(sbi).fault_info;
+	enum f2fs_timeout_type type = ffi->inject_lock_timeout;
+	unsigned long start_time = jiffies;
+	unsigned long timeout = HZ;
+
+	switch (type) {
+	case TIMEOUT_TYPE_RUNNING:
+		while (!time_after(jiffies, start_time + timeout)) {
+			if (fatal_signal_pending(current))
+				return;
+			;
+		}
+		break;
+	case TIMEOUT_TYPE_IO_SLEEP:
+		f2fs_schedule_timeout_killable(timeout, true);
+		break;
+	case TIMEOUT_TYPE_NONIO_SLEEP:
+		f2fs_schedule_timeout_killable(timeout, false);
+		break;
+	case TIMEOUT_TYPE_RUNNABLE:
+		while (!time_after(jiffies, start_time + timeout)) {
+			if (fatal_signal_pending(current))
+				return;
+			schedule();
+		}
+		break;
+	default:
+		return;
+	}
+}
+
+void f2fs_simulate_lock_timeout(struct f2fs_sb_info *sbi)
+{
+	struct f2fs_lock_context lc;
+
+	f2fs_lock_op(sbi, &lc);
+	inject_timeout(sbi);
+	f2fs_unlock_op(sbi, &lc);
 }
 #endif
 

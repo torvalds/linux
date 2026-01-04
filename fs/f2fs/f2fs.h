@@ -73,7 +73,8 @@ enum {
 enum fault_option {
 	FAULT_RATE	= 1,	/* only update fault rate */
 	FAULT_TYPE	= 2,	/* only update fault type */
-	FAULT_ALL	= 4,	/* reset all fault injection options/stats */
+	FAULT_TIMEOUT	= 4,	/* only update fault timeout type */
+	FAULT_ALL	= 8,	/* reset all fault injection options/stats */
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -83,6 +84,7 @@ struct f2fs_fault_info {
 	unsigned int inject_type;
 	/* Used to account total count of injection for each type */
 	unsigned int inject_count[FAULT_MAX];
+	unsigned int inject_lock_timeout;	/* inject lock timeout */
 };
 
 extern const char *f2fs_fault_name[FAULT_MAX];
@@ -182,6 +184,15 @@ enum f2fs_lock_name {
 	LOCK_NAME_GC_LOCK,
 	LOCK_NAME_CP_GLOBAL,
 	LOCK_NAME_IO_RWSEM,
+};
+
+enum f2fs_timeout_type {
+	TIMEOUT_TYPE_NONE,
+	TIMEOUT_TYPE_RUNNING,
+	TIMEOUT_TYPE_IO_SLEEP,
+	TIMEOUT_TYPE_NONIO_SLEEP,
+	TIMEOUT_TYPE_RUNNABLE,
+	TIMEOUT_TYPE_MAX,
 };
 
 /*
@@ -4927,12 +4938,17 @@ static inline bool f2fs_need_verity(const struct inode *inode, pgoff_t idx)
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 extern int f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned long rate,
 					unsigned long type, enum fault_option fo);
+extern void f2fs_simulate_lock_timeout(struct f2fs_sb_info *sbi);
 #else
 static inline int f2fs_build_fault_attr(struct f2fs_sb_info *sbi,
 					unsigned long rate, unsigned long type,
 					enum fault_option fo)
 {
 	return 0;
+}
+static inline void f2fs_simulate_lock_timeout(struct f2fs_sb_info *sbi)
+{
+	return;
 }
 #endif
 
@@ -4984,14 +5000,14 @@ static inline void __f2fs_schedule_timeout(long timeout, bool io)
 #define f2fs_schedule_timeout(timeout)			\
 			__f2fs_schedule_timeout(timeout, false)
 
-static inline void f2fs_io_schedule_timeout_killable(long timeout)
+static inline void f2fs_schedule_timeout_killable(long timeout, bool io)
 {
 	unsigned long last_time = jiffies + timeout;
 
 	while (jiffies < last_time) {
 		if (fatal_signal_pending(current))
 			return;
-		__f2fs_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT, true);
+		__f2fs_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT, io);
 	}
 }
 

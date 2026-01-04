@@ -64,7 +64,7 @@ static inline void trace_lock_elapsed_time_end(struct f2fs_rwsem *sem,
 		return;
 
 	if (time_to_inject(sem->sbi, FAULT_LOCK_TIMEOUT))
-		f2fs_io_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT);
+		f2fs_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT, true);
 
 	get_lock_elapsed_time(&tts);
 
