@@ -1472,7 +1472,7 @@ static void f2fs_map_lock(struct f2fs_sb_info *sbi,
 {
 	f2fs_down_read(&sbi->cp_enable_rwsem);
 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
-		f2fs_down_read(&sbi->node_change);
+		f2fs_down_read_trace(&sbi->node_change, lc);
 	else
 		f2fs_lock_op(sbi, lc);
 }
@@ -1482,7 +1482,7 @@ static void f2fs_map_unlock(struct f2fs_sb_info *sbi,
 				int flag)
 {
 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
-		f2fs_up_read(&sbi->node_change);
+		f2fs_up_read_trace(&sbi->node_change, lc);
 	else
 		f2fs_unlock_op(sbi, lc);
 	f2fs_up_read(&sbi->cp_enable_rwsem);

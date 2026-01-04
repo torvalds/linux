@@ -186,7 +186,8 @@ TRACE_DEFINE_ENUM(CP_PHASE_FINISH_CHECKPOINT);
 
 #define show_lock_name(lock)						\
 	__print_symbolic(lock,						\
-		{ LOCK_NAME_CP_RWSEM,		"cp_rwsem" })
+		{ LOCK_NAME_CP_RWSEM,		"cp_rwsem" },		\
+		{ LOCK_NAME_NODE_CHANGE,	"node_change" })
 
 struct f2fs_sb_info;
 struct f2fs_io_info;

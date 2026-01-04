@@ -176,6 +176,7 @@ enum device_allocation_policy {
 enum f2fs_lock_name {
 	LOCK_NAME_NONE,
 	LOCK_NAME_CP_RWSEM,
+	LOCK_NAME_NODE_CHANGE,
 };
 
 /*
