@@ -22,7 +22,7 @@
 #include <linux/time.h>
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
-#include <linux/sched.h> /* for clone_args */
+#include <linux/sched.h> /* for CLONE_* */
 #include <linux/stat.h>  /* for statx() */
 
 #include "errno.h"
@@ -363,19 +363,11 @@ pid_t fork(void)
 static __attribute__((unused))
 pid_t sys_vfork(void)
 {
-#if defined(__NR_vfork)
+#if defined(__NR_clone)
+	/* See the note in sys_fork(). */
+	return my_syscall5(__NR_clone, CLONE_VM | CLONE_VFORK | SIGCHLD, 0, 0, 0, 0);
+#elif defined(__NR_vfork)
 	return my_syscall0(__NR_vfork);
-#else
-	/*
-	 * clone() could be used but has different argument orders per
-	 * architecture.
-	 */
-	struct clone_args args = {
-		.flags		= CLONE_VM | CLONE_VFORK,
-		.exit_signal	= SIGCHLD,
-	};
-
-	return my_syscall2(__NR_clone3, &args, sizeof(args));
 #endif
 }
 #endif
