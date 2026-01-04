@@ -180,6 +180,7 @@ enum f2fs_lock_name {
 	LOCK_NAME_NODE_WRITE,
 	LOCK_NAME_GC_LOCK,
 	LOCK_NAME_CP_GLOBAL,
+	LOCK_NAME_IO_RWSEM,
 };
 
 /*
