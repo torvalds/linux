@@ -4988,8 +4988,7 @@ static inline void f2fs_io_schedule_timeout_killable(long timeout)
 	while (timeout) {
 		if (fatal_signal_pending(current))
 			return;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		io_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT);
+		__f2fs_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT, true);
 		if (timeout <= DEFAULT_SCHEDULE_TIMEOUT)
 			return;
 		timeout -= DEFAULT_SCHEDULE_TIMEOUT;
