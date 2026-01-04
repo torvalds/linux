@@ -361,34 +361,6 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 	return NULL;
 }
 
-/**
- * ib_device_get_by_name - Find an IB device by name
- * @name: The name to look for
- * @driver_id: The driver ID that must match (RDMA_DRIVER_UNKNOWN matches all)
- *
- * Find and hold an ib_device by its name. The caller must call
- * ib_device_put() on the returned pointer.
- */
-struct ib_device *ib_device_get_by_name(const char *name,
-					enum rdma_driver_id driver_id)
-{
-	struct ib_device *device;
-
-	down_read(&devices_rwsem);
-	device = __ib_device_get_by_name(name);
-	if (device && driver_id != RDMA_DRIVER_UNKNOWN &&
-	    device->ops.driver_id != driver_id)
-		device = NULL;
-
-	if (device) {
-		if (!ib_device_try_get(device))
-			device = NULL;
-	}
-	up_read(&devices_rwsem);
-	return device;
-}
-EXPORT_SYMBOL(ib_device_get_by_name);
-
 static int rename_compat_devs(struct ib_device *device)
 {
 	struct ib_core_device *cdev;
@@ -2876,7 +2848,6 @@ int ib_add_sub_device(struct ib_device *parent,
 
 	return ret;
 }
-EXPORT_SYMBOL(ib_add_sub_device);
 
 int ib_del_sub_device_and_put(struct ib_device *sub)
 {
@@ -2895,7 +2866,6 @@ int ib_del_sub_device_and_put(struct ib_device *sub)
 
 	return 0;
 }
-EXPORT_SYMBOL(ib_del_sub_device_and_put);
 
 #ifdef CONFIG_INFINIBAND_VIRT_DMA
 int ib_dma_virt_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents)

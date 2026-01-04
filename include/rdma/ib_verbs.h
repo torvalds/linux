@@ -4562,8 +4562,6 @@ static inline bool ib_device_try_get(struct ib_device *dev)
 void ib_device_put(struct ib_device *device);
 struct ib_device *ib_device_get_by_netdev(struct net_device *ndev,
 					  enum rdma_driver_id driver_id);
-struct ib_device *ib_device_get_by_name(const char *name,
-					enum rdma_driver_id driver_id);
 struct net_device *ib_get_net_dev_by_params(struct ib_device *dev, u32 port,
 					    u16 pkey, const union ib_gid *gid,
 					    const struct sockaddr *addr);
