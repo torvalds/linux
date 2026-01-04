@@ -18,7 +18,7 @@ fi
 echo Build directory: `pwd` > ${resdir}/testid.txt
 if test -d .git
 then
-	echo Current commit: `git rev-parse HEAD` >> ${resdir}/testid.txt
+	echo Current commit: `git show --oneline --no-patch HEAD` >> ${resdir}/testid.txt
 	echo >> ${resdir}/testid.txt
 	echo ' ---' Output of "'"git status"'": >> ${resdir}/testid.txt
 	git status >> ${resdir}/testid.txt
