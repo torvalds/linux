@@ -320,10 +320,7 @@ int expect_syszr(int expr, int llen)
 {
 	int ret = 0;
 
-	if (errno == ENOSYS) {
-		llen += printf(" = ENOSYS");
-		result(llen, SKIPPED);
-	} else if (expr) {
+	if (expr) {
 		ret = 1;
 		llen += printf(" = %d %s ", expr, errorname(errno));
 		result(llen, FAIL);
@@ -363,10 +360,7 @@ int expect_sysne(int expr, int llen, int val)
 {
 	int ret = 0;
 
-	if (errno == ENOSYS) {
-		llen += printf(" = ENOSYS");
-		result(llen, SKIPPED);
-	} else if (expr == val) {
+	if (expr == val) {
 		ret = 1;
 		llen += printf(" = %d %s ", expr, errorname(errno));
 		result(llen, FAIL);
@@ -391,9 +385,7 @@ int expect_syserr2(int expr, int expret, int experr1, int experr2, int llen)
 	int _errno = errno;
 
 	llen += printf(" = %d %s ", expr, errorname(_errno));
-	if (errno == ENOSYS) {
-		result(llen, SKIPPED);
-	} else if (expr != expret || (_errno != experr1 && _errno != experr2)) {
+	if (expr != expret || (_errno != experr1 && _errno != experr2)) {
 		ret = 1;
 		if (experr2 == 0)
 			llen += printf(" != (%d %s) ", expret, errorname(experr1));
