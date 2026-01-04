@@ -247,8 +247,8 @@ void optee_rpc_cmd_free_suppl(struct tee_context *ctx, struct tee_shm *shm)
 	param.u.value.c = 0;
 
 	/*
-	 * Match the tee_shm_get_from_id() in cmd_alloc_suppl() as secure
-	 * world has released its reference.
+	 * Match the tee_shm_get_from_id() in optee_rpc_cmd_alloc_suppl()
+	 * as secure world has released its reference.
 	 *
 	 * It's better to do this before sending the request to supplicant
 	 * as we'd like to let the process doing the initial allocation to
