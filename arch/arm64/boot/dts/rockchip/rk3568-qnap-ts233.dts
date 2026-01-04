@@ -18,8 +18,8 @@
 	};
 };
 
-/* connected to sata2 */
-&combphy2 {
+/* Connected to usb_host0_xhci */
+&combphy0 {
 	status = "okay";
 };
 
@@ -93,7 +93,7 @@
 	};
 };
 
-&sata2 {
+&sata1 {
 	status = "okay";
 };
 

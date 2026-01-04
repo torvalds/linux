@@ -112,13 +112,13 @@
 	};
 };
 
-/* connected to usb_host0_xhci */
-&combphy0 {
+/* Connected USB3 on TS133 / SATA1 on all the others */
+&combphy1 {
 	status = "okay";
 };
 
-/* connected to sata1 */
-&combphy1 {
+/* Connected to SATA2 */
+&combphy2 {
 	status = "okay";
 };
 
@@ -484,7 +484,7 @@
 	status = "okay";
 };
 
-&sata1 {
+&sata2 {
 	status = "okay";
 };
 
