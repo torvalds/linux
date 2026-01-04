@@ -12,16 +12,10 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	keys {
+	keys: keys {
 		compatible = "gpio-keys";
-		pinctrl-0 = <&copy_button_pin>, <&reset_button_pin>;
+		pinctrl-0 = <&reset_button_pin>;
 		pinctrl-names = "default";
-
-		key-copy {
-			label = "copy";
-			gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_COPY>;
-		};
 
 		key-reset {
 			label = "reset";
