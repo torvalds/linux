@@ -2178,10 +2178,10 @@ static int atcphy_load_tunables(struct apple_atcphy *atcphy)
 	for (int i = 0; i < ARRAY_SIZE(tunables); i++) {
 		*tunables[i].tunable = devm_apple_tunable_parse(
 			atcphy->dev, atcphy->np, tunables[i].dt_name, tunables[i].res);
-		if (IS_ERR(tunables[i].tunable)) {
+		if (IS_ERR(*tunables[i].tunable)) {
 			dev_err(atcphy->dev, "Failed to read tunable %s: %ld\n",
-				tunables[i].dt_name, PTR_ERR(tunables[i].tunable));
-			return PTR_ERR(tunables[i].tunable);
+				tunables[i].dt_name, PTR_ERR(*tunables[i].tunable));
+			return PTR_ERR(*tunables[i].tunable);
 		}
 	}
 
