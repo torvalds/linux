@@ -178,6 +178,7 @@ enum f2fs_lock_name {
 	LOCK_NAME_CP_RWSEM,
 	LOCK_NAME_NODE_CHANGE,
 	LOCK_NAME_NODE_WRITE,
+	LOCK_NAME_GC_LOCK,
 };
 
 /*
@@ -1408,16 +1409,6 @@ struct atgc_management {
 	unsigned long long age_threshold;	/* age threshold */
 };
 
-struct f2fs_gc_control {
-	unsigned int victim_segno;	/* target victim segment number */
-	int init_gc_type;		/* FG_GC or BG_GC */
-	bool no_bg_gc;			/* check the space and stop bg_gc */
-	bool should_migrate_blocks;	/* should migrate blocks */
-	bool err_gc_skipped;		/* return EAGAIN if GC skipped */
-	bool one_time;			/* require one time GC in one migration unit */
-	unsigned int nr_free_secs;	/* # of free sections to do GC */
-};
-
 struct f2fs_time_stat {
 	unsigned long long total_time;		/* total wall clock time */
 #ifdef CONFIG_64BIT
@@ -1434,6 +1425,17 @@ struct f2fs_time_stat {
 struct f2fs_lock_context {
 	struct f2fs_time_stat ts;
 	bool lock_trace;
+};
+
+struct f2fs_gc_control {
+	unsigned int victim_segno;	/* target victim segment number */
+	int init_gc_type;		/* FG_GC or BG_GC */
+	bool no_bg_gc;			/* check the space and stop bg_gc */
+	bool should_migrate_blocks;	/* should migrate blocks */
+	bool err_gc_skipped;		/* return EAGAIN if GC skipped */
+	bool one_time;			/* require one time GC in one migration unit */
+	unsigned int nr_free_secs;	/* # of free sections to do GC */
+	struct f2fs_lock_context lc;	/* lock context for gc_lock */
 };
 
 /*
