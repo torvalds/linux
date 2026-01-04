@@ -1349,6 +1349,13 @@ static int xsk_bind(struct socket *sock, struct sockaddr_unsized *addr, int addr
 		}
 
 		if (umem_xs->queue_id != qid || umem_xs->dev != dev) {
+			/* One fill and completion ring required for each queue id. */
+			if (!xsk_validate_queues(xs)) {
+				err = -EINVAL;
+				sockfd_put(sock);
+				goto out_unlock;
+			}
+
 			/* Share the umem with another socket on another qid
 			 * and/or device.
 			 */
