@@ -4985,13 +4985,12 @@ static inline void __f2fs_schedule_timeout(long timeout, bool io)
 
 static inline void f2fs_io_schedule_timeout_killable(long timeout)
 {
-	while (timeout) {
+	unsigned long last_time = jiffies + timeout;
+
+	while (jiffies < last_time) {
 		if (fatal_signal_pending(current))
 			return;
 		__f2fs_schedule_timeout(DEFAULT_SCHEDULE_TIMEOUT, true);
-		if (timeout <= DEFAULT_SCHEDULE_TIMEOUT)
-			return;
-		timeout -= DEFAULT_SCHEDULE_TIMEOUT;
 	}
 }
 
