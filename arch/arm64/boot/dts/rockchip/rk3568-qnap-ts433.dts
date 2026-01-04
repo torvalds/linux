@@ -6,6 +6,7 @@
 
 /dts-v1/;
 
+#include "rk3568.dtsi"
 #include "rk3568-qnap-tsx33.dtsi"
 
 / {
