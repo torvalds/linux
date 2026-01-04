@@ -3064,19 +3064,21 @@ int f2fs_write_single_data_page(struct folio *folio, int *submitted,
 write:
 	/* Dentry/quota blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode) || quota_inode) {
+		struct f2fs_lock_context lc;
+
 		/*
 		 * We need to wait for node_write to avoid block allocation during
 		 * checkpoint. This can only happen to quota writes which can cause
 		 * the below discard race condition.
 		 */
 		if (quota_inode)
-			f2fs_down_read(&sbi->node_write);
+			f2fs_down_read_trace(&sbi->node_write, &lc);
 
 		fio.need_lock = LOCK_DONE;
 		err = f2fs_do_write_data_page(&fio);
 
 		if (quota_inode)
-			f2fs_up_read(&sbi->node_write);
+			f2fs_up_read_trace(&sbi->node_write, &lc);
 
 		goto done;
 	}

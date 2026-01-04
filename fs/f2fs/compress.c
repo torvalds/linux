@@ -1309,7 +1309,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 		 * checkpoint. This can only happen to quota writes which can cause
 		 * the below discard race condition.
 		 */
-		f2fs_down_read(&sbi->node_write);
+		f2fs_down_read_trace(&sbi->node_write, &lc);
 	} else if (!f2fs_trylock_op(sbi, &lc)) {
 		goto out_free;
 	}
@@ -1434,7 +1434,7 @@ unlock_continue:
 
 	f2fs_put_dnode(&dn);
 	if (quota_inode)
-		f2fs_up_read(&sbi->node_write);
+		f2fs_up_read_trace(&sbi->node_write, &lc);
 	else
 		f2fs_unlock_op(sbi, &lc);
 
@@ -1463,7 +1463,7 @@ out_put_dnode:
 	f2fs_put_dnode(&dn);
 out_unlock_op:
 	if (quota_inode)
-		f2fs_up_read(&sbi->node_write);
+		f2fs_up_read_trace(&sbi->node_write, &lc);
 	else
 		f2fs_unlock_op(sbi, &lc);
 out_free:
