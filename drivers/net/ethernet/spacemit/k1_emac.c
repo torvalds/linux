@@ -46,8 +46,6 @@
 #define EMAC_RX_FRAMES			64
 #define EMAC_RX_COAL_TIMEOUT		(600 * 312)
 
-#define DEFAULT_FC_PAUSE_TIME		0xffff
-#define DEFAULT_FC_FIFO_HIGH		1600
 #define DEFAULT_TX_ALMOST_FULL		0x1f8
 #define DEFAULT_TX_THRESHOLD		1518
 #define DEFAULT_RX_THRESHOLD		12
@@ -132,9 +130,6 @@ struct emac_priv {
 	u32 tx_delay;
 	u32 rx_delay;
 
-	bool flow_control_autoneg;
-	u8 flow_control;
-
 	/* Softirq-safe, hold while touching hardware statistics */
 	spinlock_t stats_lock;
 };
@@ -179,9 +174,7 @@ static void emac_set_mac_addr_reg(struct emac_priv *priv,
 
 static void emac_set_mac_addr(struct emac_priv *priv, const unsigned char *addr)
 {
-	/* We use only one address, so set the same for flow control as well */
 	emac_set_mac_addr_reg(priv, addr, MAC_ADDRESS1_HIGH);
-	emac_set_mac_addr_reg(priv, addr, MAC_FC_SOURCE_ADDRESS_HIGH);
 }
 
 static void emac_reset_hw(struct emac_priv *priv)
@@ -200,9 +193,6 @@ static void emac_reset_hw(struct emac_priv *priv)
 
 static void emac_init_hw(struct emac_priv *priv)
 {
-	/* Destination address for 802.3x Ethernet flow control */
-	u8 fc_dest_addr[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x01 };
-
 	u32 rxirq = 0, dma = 0;
 
 	regmap_set_bits(priv->regmap_apmu,
@@ -227,12 +217,6 @@ static void emac_init_hw(struct emac_priv *priv)
 	emac_wr(priv, MAC_TRANSMIT_PACKET_START_THRESHOLD,
 		DEFAULT_TX_THRESHOLD);
 	emac_wr(priv, MAC_RECEIVE_PACKET_START_THRESHOLD, DEFAULT_RX_THRESHOLD);
-
-	/* Configure flow control (enabled in emac_adjust_link() later) */
-	emac_set_mac_addr_reg(priv, fc_dest_addr, MAC_FC_SOURCE_ADDRESS_HIGH);
-	emac_wr(priv, MAC_FC_PAUSE_HIGH_THRESHOLD, DEFAULT_FC_FIFO_HIGH);
-	emac_wr(priv, MAC_FC_HIGH_PAUSE_TIME, DEFAULT_FC_PAUSE_TIME);
-	emac_wr(priv, MAC_FC_PAUSE_LOW_THRESHOLD, 0);
 
 	/* RX IRQ mitigation */
 	rxirq = FIELD_PREP(MREGBIT_RECEIVE_IRQ_FRAME_COUNTER_MASK,
@@ -1018,57 +1002,6 @@ static int emac_mdio_init(struct emac_priv *priv)
 	return ret;
 }
 
-static void emac_set_tx_fc(struct emac_priv *priv, bool enable)
-{
-	u32 val;
-
-	val = emac_rd(priv, MAC_FC_CONTROL);
-
-	FIELD_MODIFY(MREGBIT_FC_GENERATION_ENABLE, &val, enable);
-	FIELD_MODIFY(MREGBIT_AUTO_FC_GENERATION_ENABLE, &val, enable);
-
-	emac_wr(priv, MAC_FC_CONTROL, val);
-}
-
-static void emac_set_rx_fc(struct emac_priv *priv, bool enable)
-{
-	u32 val = emac_rd(priv, MAC_FC_CONTROL);
-
-	FIELD_MODIFY(MREGBIT_FC_DECODE_ENABLE, &val, enable);
-
-	emac_wr(priv, MAC_FC_CONTROL, val);
-}
-
-static void emac_set_fc(struct emac_priv *priv, u8 fc)
-{
-	emac_set_tx_fc(priv, fc & FLOW_CTRL_TX);
-	emac_set_rx_fc(priv, fc & FLOW_CTRL_RX);
-	priv->flow_control = fc;
-}
-
-static void emac_set_fc_autoneg(struct emac_priv *priv)
-{
-	struct phy_device *phydev = priv->ndev->phydev;
-	u32 local_adv, remote_adv;
-	u8 fc;
-
-	local_adv = linkmode_adv_to_lcl_adv_t(phydev->advertising);
-
-	remote_adv = 0;
-
-	if (phydev->pause)
-		remote_adv |= LPA_PAUSE_CAP;
-
-	if (phydev->asym_pause)
-		remote_adv |= LPA_PAUSE_ASYM;
-
-	fc = mii_resolve_flowctrl_fdx(local_adv, remote_adv);
-
-	priv->flow_control_autoneg = true;
-
-	emac_set_fc(priv, fc);
-}
-
 /*
  * Even though this MAC supports gigabit operation, it only provides 32-bit
  * statistics counters. The most overflow-prone counters are the "bytes" ones,
@@ -1425,42 +1358,6 @@ static void emac_ethtool_get_regs(struct net_device *dev,
 			emac_rd(priv, MAC_GLOBAL_CONTROL + i * 4);
 }
 
-static void emac_get_pauseparam(struct net_device *dev,
-				struct ethtool_pauseparam *pause)
-{
-	struct emac_priv *priv = netdev_priv(dev);
-
-	pause->autoneg = priv->flow_control_autoneg;
-	pause->tx_pause = !!(priv->flow_control & FLOW_CTRL_TX);
-	pause->rx_pause = !!(priv->flow_control & FLOW_CTRL_RX);
-}
-
-static int emac_set_pauseparam(struct net_device *dev,
-			       struct ethtool_pauseparam *pause)
-{
-	struct emac_priv *priv = netdev_priv(dev);
-	u8 fc = 0;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
-	priv->flow_control_autoneg = pause->autoneg;
-
-	if (pause->autoneg) {
-		emac_set_fc_autoneg(priv);
-	} else {
-		if (pause->tx_pause)
-			fc |= FLOW_CTRL_TX;
-
-		if (pause->rx_pause)
-			fc |= FLOW_CTRL_RX;
-
-		emac_set_fc(priv, fc);
-	}
-
-	return 0;
-}
-
 static void emac_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
@@ -1634,8 +1531,6 @@ static void emac_adjust_link(struct net_device *dev)
 		}
 
 		emac_wr(priv, MAC_GLOBAL_CONTROL, ctrl);
-
-		emac_set_fc_autoneg(priv);
 	}
 
 	phy_print_status(phydev);
@@ -1714,8 +1609,6 @@ static int emac_phy_connect(struct net_device *ndev)
 		ret = -ENODEV;
 		goto err_node_put;
 	}
-
-	phy_support_asym_pause(phydev);
 
 	phydev->mac_managed_pm = true;
 
@@ -1886,9 +1779,6 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_sset_count		= emac_get_sset_count,
 	.get_strings		= emac_get_strings,
 	.get_ethtool_stats	= emac_get_ethtool_stats,
-
-	.get_pauseparam		= emac_get_pauseparam,
-	.set_pauseparam		= emac_set_pauseparam,
 };
 
 static const struct net_device_ops emac_netdev_ops = {
