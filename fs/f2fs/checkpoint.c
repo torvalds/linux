@@ -63,6 +63,9 @@ static inline void trace_lock_elapsed_time_end(struct f2fs_rwsem *sem,
 	if (!lc->lock_trace)
 		return;
 
+	if (time_to_inject(sem->sbi, FAULT_LOCK_TIMEOUT))
+		f2fs_io_schedule_timeout_killable(DEFAULT_FAULT_TIMEOUT);
+
 	get_lock_elapsed_time(&tts);
 
 	total_time = div_u64(tts.total_time - lc->ts.total_time, npm);
