@@ -939,3 +939,11 @@ Description:	Controls write priority in multi-devices setups. A value of 0 means
 		allocate_section_policy = 1  Prioritize writing to section before allocate_section_hint
 		allocate_section_policy = 2  Prioritize writing to section after allocate_section_hint
 		===========================  ==========================================================
+
+What:		/sys/fs/f2fs/<disk>/max_lock_elapsed_time
+Date:		December 2025
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	This is a threshold, once a thread enters critical region that lock covers, total
+		elapsed time exceeds this threshold, f2fs will print tracepoint to dump information
+		of related context. This sysfs entry can be used to control the value of threshold,
+		by default, the value is 500 ms.

@@ -66,7 +66,7 @@ static inline void trace_lock_elapsed_time_end(struct f2fs_rwsem *sem,
 	get_lock_elapsed_time(&tts);
 
 	total_time = div_u64(tts.total_time - lc->ts.total_time, npm);
-	if (total_time <= MAX_LOCK_ELAPSED_TIME)
+	if (total_time <= sem->sbi->max_lock_elapsed_time)
 		return;
 
 #ifdef CONFIG_64BIT
