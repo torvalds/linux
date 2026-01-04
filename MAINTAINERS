@@ -25678,7 +25678,7 @@ TEGRA NAND DRIVER
 M:	Stefan Agner <stefan@agner.ch>
 M:	Lucas Stach <dev@lynxeye.de>
 S:	Maintained
-F:	Documentation/devicetree/bindings/mtd/nvidia-tegra20-nand.txt
+F:	Documentation/devicetree/bindings/mtd/nvidia,tegra20-nand.yaml
 F:	drivers/mtd/nand/raw/tegra_nand.c
 
 TEGRA PWM DRIVER
