@@ -902,20 +902,12 @@ static int psp_tmr_init(struct psp_context *psp)
 
 static bool psp_skip_tmr(struct psp_context *psp)
 {
-	switch (amdgpu_ip_version(psp->adev, MP0_HWIP, 0)) {
-	case IP_VERSION(11, 0, 9):
-	case IP_VERSION(11, 0, 7):
-	case IP_VERSION(13, 0, 2):
-	case IP_VERSION(13, 0, 6):
-	case IP_VERSION(13, 0, 10):
-	case IP_VERSION(13, 0, 12):
-	case IP_VERSION(13, 0, 14):
-	case IP_VERSION(15, 0, 0):
-	case IP_VERSION(15, 0, 8):
-		return true;
-	default:
-		return false;
-	}
+	u32 ip_version = amdgpu_ip_version(psp->adev, MP0_HWIP, 0);
+
+	if (amdgpu_sriov_vf(psp->adev))
+		return (ip_version >= IP_VERSION(11, 0, 7)) ? true : false;
+	else
+		return (!psp->boot_time_tmr || !psp->autoload_supported) ? false : true;
 }
 
 static int psp_tmr_load(struct psp_context *psp)
@@ -923,10 +915,7 @@ static int psp_tmr_load(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
-	/* For Navi12 and CHIP_SIENNA_CICHLID SRIOV, do not set up TMR.
-	 * Already set up by host driver.
-	 */
-	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
+	if (psp_skip_tmr(psp))
 		return 0;
 
 	cmd = acquire_psp_cmd_buf(psp);
@@ -958,10 +947,7 @@ static int psp_tmr_unload(struct psp_context *psp)
 	int ret;
 	struct psp_gfx_cmd_resp *cmd;
 
-	/* skip TMR unload for Navi12 and CHIP_SIENNA_CICHLID SRIOV,
-	 * as TMR is not loaded at all
-	 */
-	if (amdgpu_sriov_vf(psp->adev) && psp_skip_tmr(psp))
+	if (psp_skip_tmr(psp))
 		return 0;
 
 	cmd = acquire_psp_cmd_buf(psp);
@@ -2632,12 +2618,10 @@ skip_pin_bo:
 			return ret;
 	}
 
-	if (!psp->boot_time_tmr || !psp->autoload_supported) {
-		ret = psp_tmr_load(psp);
-		if (ret) {
-			dev_err(adev->dev, "PSP load tmr failed!\n");
-			return ret;
-		}
+	ret = psp_tmr_load(psp);
+	if (ret) {
+		dev_err(adev->dev, "PSP load tmr failed!\n");
+		return ret;
 	}
 
 	return 0;
