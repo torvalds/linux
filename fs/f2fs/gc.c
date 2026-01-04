@@ -2263,6 +2263,7 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(file_inode(filp));
 	__u64 old_block_count, shrunk_blocks;
 	struct cp_control cpc = { CP_RESIZE, 0, 0, 0 };
+	struct f2fs_lock_context lc;
 	unsigned int secs;
 	int err = 0;
 	__u32 rem;
@@ -2312,7 +2313,7 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
 	}
 
 	/* stop CP to protect MAIN_SEC in free_segment_range */
-	f2fs_lock_op(sbi);
+	f2fs_lock_op(sbi, &lc);
 
 	spin_lock(&sbi->stat_lock);
 	if (shrunk_blocks + valid_user_blocks(sbi) +
@@ -2327,7 +2328,7 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
 	err = free_segment_range(sbi, secs, true);
 
 out_unlock:
-	f2fs_unlock_op(sbi);
+	f2fs_unlock_op(sbi, &lc);
 	f2fs_up_write(&sbi->gc_lock);
 out_drop_write:
 	mnt_drop_write_file(filp);

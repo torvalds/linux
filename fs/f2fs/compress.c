@@ -1290,6 +1290,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 	struct dnode_of_data dn;
 	struct node_info ni;
 	struct compress_io_ctx *cic;
+	struct f2fs_lock_context lc;
 	pgoff_t start_idx = start_idx_of_cluster(cc);
 	unsigned int last_index = cc->cluster_size - 1;
 	loff_t psize;
@@ -1309,7 +1310,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 		 * the below discard race condition.
 		 */
 		f2fs_down_read(&sbi->node_write);
-	} else if (!f2fs_trylock_op(sbi)) {
+	} else if (!f2fs_trylock_op(sbi, &lc)) {
 		goto out_free;
 	}
 
@@ -1435,7 +1436,7 @@ unlock_continue:
 	if (quota_inode)
 		f2fs_up_read(&sbi->node_write);
 	else
-		f2fs_unlock_op(sbi);
+		f2fs_unlock_op(sbi, &lc);
 
 	spin_lock(&fi->i_size_lock);
 	if (fi->last_disk_size < psize)
@@ -1464,7 +1465,7 @@ out_unlock_op:
 	if (quota_inode)
 		f2fs_up_read(&sbi->node_write);
 	else
-		f2fs_unlock_op(sbi);
+		f2fs_unlock_op(sbi, &lc);
 out_free:
 	for (i = 0; i < cc->valid_nr_cpages; i++) {
 		f2fs_compress_free_page(cc->cpages[i]);
@@ -1511,6 +1512,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
 {
 	struct address_space *mapping = cc->inode->i_mapping;
 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
+	struct f2fs_lock_context lc;
 	int submitted, compr_blocks, i;
 	int ret = 0;
 
@@ -1529,7 +1531,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
 
 	/* overwrite compressed cluster w/ normal cluster */
 	if (compr_blocks > 0)
-		f2fs_lock_op(sbi);
+		f2fs_lock_op(sbi, &lc);
 
 	for (i = 0; i < cc->cluster_size; i++) {
 		struct folio *folio;
@@ -1585,7 +1587,7 @@ continue_unlock:
 
 out:
 	if (compr_blocks > 0)
-		f2fs_unlock_op(sbi);
+		f2fs_unlock_op(sbi, &lc);
 
 	f2fs_balance_fs(sbi, true);
 	return ret;
