@@ -67,8 +67,6 @@
 #define OC_SKH_DEVICE_VF 0x728
 #define OCRDMA_MAX_AH 512
 
-#define OCRDMA_UVERBS(CMD_NAME) (1ull << IB_USER_VERBS_CMD_##CMD_NAME)
-
 #define convert_to_64bit(lo, hi) ((u64)hi << 32 | (u64)lo)
 #define EQ_INTR_PER_SEC_THRSH_HI 150000
 #define EQ_INTR_PER_SEC_THRSH_LOW 100000
