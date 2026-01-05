@@ -172,7 +172,7 @@ struct pt_regs {
 #endif /* !__i386__ */
 
 #ifdef CONFIG_PARAVIRT
-#include <asm/paravirt_types.h>
+#include <asm/paravirt-base.h>
 #endif
 
 #include <asm/proto.h>
