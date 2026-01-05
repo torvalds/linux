@@ -8,6 +8,7 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/static_call.h>
+#include <linux/sched/cputime.h>
 
 #include <asm/paravirt.h>
 #include <asm/xen/hypervisor.h>

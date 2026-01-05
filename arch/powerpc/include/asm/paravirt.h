@@ -23,9 +23,6 @@ static inline bool is_shared_processor(void)
 }
 
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
-extern struct static_key paravirt_steal_enabled;
-extern struct static_key paravirt_steal_rq_enabled;
-
 u64 pseries_paravirt_steal_clock(int cpu);
 
 static inline u64 paravirt_steal_clock(int cpu)

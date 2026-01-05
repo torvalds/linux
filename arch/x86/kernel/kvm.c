@@ -30,6 +30,7 @@
 #include <linux/cc_platform.h>
 #include <linux/efi.h>
 #include <linux/kvm_types.h>
+#include <linux/sched/cputime.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
 #include <asm/traps.h>

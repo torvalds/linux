@@ -19,13 +19,11 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/static_call.h>
+#include <linux/sched/cputime.h>
 
 #include <asm/paravirt.h>
 #include <asm/pvclock-abi.h>
 #include <asm/smp_plat.h>
-
-struct static_key paravirt_steal_enabled;
-struct static_key paravirt_steal_rq_enabled;
 
 static u64 native_steal_clock(int cpu)
 {
