@@ -587,7 +587,6 @@ out:
 static int ext4_map_create_blocks(handle_t *handle, struct inode *inode,
 				  struct ext4_map_blocks *map, int flags)
 {
-	struct extent_status es;
 	unsigned int status;
 	int err, retval = 0;
 
@@ -646,16 +645,6 @@ static int ext4_map_create_blocks(handle_t *handle, struct inode *inode,
 					 map->m_len);
 		if (err)
 			return err;
-	}
-
-	/*
-	 * If the extent has been zeroed out, we don't need to update
-	 * extent status tree.
-	 */
-	if (flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE &&
-	    ext4_es_lookup_extent(inode, map->m_lblk, NULL, &es, &map->m_seq)) {
-		if (ext4_es_is_written(&es))
-			return retval;
 	}
 
 	status = map->m_flags & EXT4_MAP_UNWRITTEN ?
