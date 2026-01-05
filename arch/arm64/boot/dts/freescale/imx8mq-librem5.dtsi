@@ -1437,6 +1437,7 @@
 	max-frequency = <50000000>;
 	disable-wp;
 	cap-sdio-irq;
+	cap-power-off-card;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "okay";
