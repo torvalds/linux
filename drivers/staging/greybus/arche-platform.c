@@ -572,7 +572,7 @@ static __maybe_unused int arche_platform_suspend(struct device *dev)
 	 * If timing profile premits, we may shutdown bridge
 	 * completely
 	 *
-	 * TODO: sequence ??
+	 * TODO: define shutdown sequence
 	 *
 	 * Also, need to make sure we meet precondition for unipro suspend
 	 * Precondition: Definition ???
