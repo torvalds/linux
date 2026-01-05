@@ -3637,13 +3637,8 @@ static __cold int io_uring_create(struct io_ctx_config *config)
 	}
 
 	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER
-	    && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
-		/*
-		 * Unlike io_register_enable_rings(), don't need WRITE_ONCE()
-		 * since ctx isn't yet accessible from other tasks
-		 */
+	    && !(ctx->flags & IORING_SETUP_R_DISABLED))
 		ctx->submitter_task = get_task_struct(current);
-	}
 
 	file = io_uring_get_file(ctx);
 	if (IS_ERR(file)) {
