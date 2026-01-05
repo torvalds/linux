@@ -212,7 +212,7 @@ struct paravirt_patch_template {
 
 extern struct paravirt_patch_template pv_ops;
 
-#define paravirt_ptr(op)	[paravirt_opptr] "m" (pv_ops.op)
+#define paravirt_ptr(array, op)	[paravirt_opptr] "m" (array.op)
 
 /*
  * This generates an indirect call based on the operation type number.
@@ -362,19 +362,19 @@ extern struct paravirt_patch_template pv_ops;
  *   feature is not active, the direct call is used as above via the
  *   ALT_FLAG_DIRECT_CALL special case and the "always on" feature.
  */
-#define ____PVOP_CALL(ret, op, call_clbr, extra_clbr, ...)	\
+#define ____PVOP_CALL(ret, array, op, call_clbr, extra_clbr, ...)	\
 	({								\
 		PVOP_CALL_ARGS;						\
 		asm volatile(ALTERNATIVE(PARAVIRT_CALL, ALT_CALL_INSTR,	\
 				ALT_CALL_ALWAYS)			\
 			     : call_clbr, ASM_CALL_CONSTRAINT		\
-			     : paravirt_ptr(op),			\
+			     : paravirt_ptr(array, op),			\
 			       ##__VA_ARGS__				\
 			     : "memory", "cc" extra_clbr);		\
 		ret;							\
 	})
 
-#define ____PVOP_ALT_CALL(ret, op, alt, cond, call_clbr,		\
+#define ____PVOP_ALT_CALL(ret, array, op, alt, cond, call_clbr,		\
 			  extra_clbr, ...)				\
 	({								\
 		PVOP_CALL_ARGS;						\
@@ -382,102 +382,102 @@ extern struct paravirt_patch_template pv_ops;
 				 ALT_CALL_INSTR, ALT_CALL_ALWAYS,	\
 				 alt, cond)				\
 			     : call_clbr, ASM_CALL_CONSTRAINT		\
-			     : paravirt_ptr(op),			\
+			     : paravirt_ptr(array, op),			\
 			       ##__VA_ARGS__				\
 			     : "memory", "cc" extra_clbr);		\
 		ret;							\
 	})
 
-#define __PVOP_CALL(rettype, op, ...)					\
-	____PVOP_CALL(PVOP_RETVAL(rettype), op,				\
+#define __PVOP_CALL(rettype, array, op, ...)				\
+	____PVOP_CALL(PVOP_RETVAL(rettype), array, op,			\
 		      PVOP_CALL_CLOBBERS, EXTRA_CLOBBERS, ##__VA_ARGS__)
 
-#define __PVOP_ALT_CALL(rettype, op, alt, cond, ...)			\
-	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), op, alt, cond,		\
+#define __PVOP_ALT_CALL(rettype, array, op, alt, cond, ...)		\
+	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), array, op, alt, cond,	\
 			  PVOP_CALL_CLOBBERS, EXTRA_CLOBBERS,		\
 			  ##__VA_ARGS__)
 
-#define __PVOP_CALLEESAVE(rettype, op, ...)				\
-	____PVOP_CALL(PVOP_RETVAL(rettype), op.func,			\
+#define __PVOP_CALLEESAVE(rettype, array, op, ...)			\
+	____PVOP_CALL(PVOP_RETVAL(rettype), array, op.func,		\
 		      PVOP_CALLEE_CLOBBERS, , ##__VA_ARGS__)
 
-#define __PVOP_ALT_CALLEESAVE(rettype, op, alt, cond, ...)		\
-	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), op.func, alt, cond,	\
+#define __PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond, ...)	\
+	____PVOP_ALT_CALL(PVOP_RETVAL(rettype), array, op.func, alt, cond, \
 			  PVOP_CALLEE_CLOBBERS, , ##__VA_ARGS__)
 
 
-#define __PVOP_VCALL(op, ...)						\
-	(void)____PVOP_CALL(, op, PVOP_VCALL_CLOBBERS,			\
+#define __PVOP_VCALL(array, op, ...)					\
+	(void)____PVOP_CALL(, array, op, PVOP_VCALL_CLOBBERS,		\
 		       VEXTRA_CLOBBERS, ##__VA_ARGS__)
 
-#define __PVOP_ALT_VCALL(op, alt, cond, ...)				\
-	(void)____PVOP_ALT_CALL(, op, alt, cond,			\
+#define __PVOP_ALT_VCALL(array, op, alt, cond, ...)			\
+	(void)____PVOP_ALT_CALL(, array, op, alt, cond,			\
 				PVOP_VCALL_CLOBBERS, VEXTRA_CLOBBERS,	\
 				##__VA_ARGS__)
 
-#define __PVOP_VCALLEESAVE(op, ...)					\
-	(void)____PVOP_CALL(, op.func,					\
+#define __PVOP_VCALLEESAVE(array, op, ...)				\
+	(void)____PVOP_CALL(, array, op.func,				\
 			    PVOP_VCALLEE_CLOBBERS, , ##__VA_ARGS__)
 
-#define __PVOP_ALT_VCALLEESAVE(op, alt, cond, ...)			\
-	(void)____PVOP_ALT_CALL(, op.func, alt, cond,			\
+#define __PVOP_ALT_VCALLEESAVE(array, op, alt, cond, ...)		\
+	(void)____PVOP_ALT_CALL(, array, op.func, alt, cond,		\
 				PVOP_VCALLEE_CLOBBERS, , ##__VA_ARGS__)
 
 
-#define PVOP_CALL0(rettype, op)						\
-	__PVOP_CALL(rettype, op)
-#define PVOP_VCALL0(op)							\
-	__PVOP_VCALL(op)
-#define PVOP_ALT_CALL0(rettype, op, alt, cond)				\
-	__PVOP_ALT_CALL(rettype, op, alt, cond)
-#define PVOP_ALT_VCALL0(op, alt, cond)					\
-	__PVOP_ALT_VCALL(op, alt, cond)
+#define PVOP_CALL0(rettype, array, op)					\
+	__PVOP_CALL(rettype, array, op)
+#define PVOP_VCALL0(array, op)						\
+	__PVOP_VCALL(array, op)
+#define PVOP_ALT_CALL0(rettype, array, op, alt, cond)			\
+	__PVOP_ALT_CALL(rettype, array, op, alt, cond)
+#define PVOP_ALT_VCALL0(array, op, alt, cond)				\
+	__PVOP_ALT_VCALL(array, op, alt, cond)
 
-#define PVOP_CALLEE0(rettype, op)					\
-	__PVOP_CALLEESAVE(rettype, op)
-#define PVOP_VCALLEE0(op)						\
-	__PVOP_VCALLEESAVE(op)
-#define PVOP_ALT_CALLEE0(rettype, op, alt, cond)			\
-	__PVOP_ALT_CALLEESAVE(rettype, op, alt, cond)
-#define PVOP_ALT_VCALLEE0(op, alt, cond)				\
-	__PVOP_ALT_VCALLEESAVE(op, alt, cond)
-
-
-#define PVOP_CALL1(rettype, op, arg1)					\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1))
-#define PVOP_VCALL1(op, arg1)						\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_VCALL1(op, arg1, alt, cond)				\
-	__PVOP_ALT_VCALL(op, alt, cond, PVOP_CALL_ARG1(arg1))
-
-#define PVOP_CALLEE1(rettype, op, arg1)					\
-	__PVOP_CALLEESAVE(rettype, op, PVOP_CALL_ARG1(arg1))
-#define PVOP_VCALLEE1(op, arg1)						\
-	__PVOP_VCALLEESAVE(op, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_CALLEE1(rettype, op, arg1, alt, cond)			\
-	__PVOP_ALT_CALLEESAVE(rettype, op, alt, cond, PVOP_CALL_ARG1(arg1))
-#define PVOP_ALT_VCALLEE1(op, arg1, alt, cond)				\
-	__PVOP_ALT_VCALLEESAVE(op, alt, cond, PVOP_CALL_ARG1(arg1))
+#define PVOP_CALLEE0(rettype, array, op)				\
+	__PVOP_CALLEESAVE(rettype, array, op)
+#define PVOP_VCALLEE0(array, op)					\
+	__PVOP_VCALLEESAVE(array, op)
+#define PVOP_ALT_CALLEE0(rettype, array, op, alt, cond)			\
+	__PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond)
+#define PVOP_ALT_VCALLEE0(array, op, alt, cond)				\
+	__PVOP_ALT_VCALLEESAVE(array, op, alt, cond)
 
 
-#define PVOP_CALL2(rettype, op, arg1, arg2)				\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
-#define PVOP_VCALL2(op, arg1, arg2)					\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+#define PVOP_CALL1(rettype, array, op, arg1)				\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_VCALL1(array, op, arg1)					\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_VCALL1(array, op, arg1, alt, cond)			\
+	__PVOP_ALT_VCALL(array, op, alt, cond, PVOP_CALL_ARG1(arg1))
 
-#define PVOP_CALL3(rettype, op, arg1, arg2, arg3)			\
-	__PVOP_CALL(rettype, op, PVOP_CALL_ARG1(arg1),			\
+#define PVOP_CALLEE1(rettype, array, op, arg1)				\
+	__PVOP_CALLEESAVE(rettype, array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_VCALLEE1(array, op, arg1)					\
+	__PVOP_VCALLEESAVE(array, op, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_CALLEE1(rettype, array, op, arg1, alt, cond)		\
+	__PVOP_ALT_CALLEESAVE(rettype, array, op, alt, cond, PVOP_CALL_ARG1(arg1))
+#define PVOP_ALT_VCALLEE1(array, op, arg1, alt, cond)			\
+	__PVOP_ALT_VCALLEESAVE(array, op, alt, cond, PVOP_CALL_ARG1(arg1))
+
+
+#define PVOP_CALL2(rettype, array, op, arg1, arg2)			\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+#define PVOP_VCALL2(array, op, arg1, arg2)				\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2))
+
+#define PVOP_CALL3(rettype, array, op, arg1, arg2, arg3)		\
+	__PVOP_CALL(rettype, array, op, PVOP_CALL_ARG1(arg1),		\
 		    PVOP_CALL_ARG2(arg2), PVOP_CALL_ARG3(arg3))
-#define PVOP_VCALL3(op, arg1, arg2, arg3)				\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1),				\
+#define PVOP_VCALL3(array, op, arg1, arg2, arg3)			\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1),			\
 		     PVOP_CALL_ARG2(arg2), PVOP_CALL_ARG3(arg3))
 
-#define PVOP_CALL4(rettype, op, arg1, arg2, arg3, arg4)			\
-	__PVOP_CALL(rettype, op,					\
+#define PVOP_CALL4(rettype, array, op, arg1, arg2, arg3, arg4)		\
+	__PVOP_CALL(rettype, array, op,					\
 		    PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2),		\
 		    PVOP_CALL_ARG3(arg3), PVOP_CALL_ARG4(arg4))
-#define PVOP_VCALL4(op, arg1, arg2, arg3, arg4)				\
-	__PVOP_VCALL(op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2),	\
+#define PVOP_VCALL4(array, op, arg1, arg2, arg3, arg4)			\
+	__PVOP_VCALL(array, op, PVOP_CALL_ARG1(arg1), PVOP_CALL_ARG2(arg2), \
 		     PVOP_CALL_ARG3(arg3), PVOP_CALL_ARG4(arg4))
 
 #endif	/* __ASSEMBLER__ */
