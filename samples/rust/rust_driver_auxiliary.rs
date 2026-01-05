@@ -6,13 +6,15 @@
 
 use kernel::{
     auxiliary,
-    device::{Bound, Core},
+    device::{
+        Bound,
+        Core, //
+    },
     devres::Devres,
     driver,
-    error::Error,
     pci,
     prelude::*,
-    InPlaceModule,
+    InPlaceModule, //
 };
 
 use core::any::TypeId;
