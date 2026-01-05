@@ -24,12 +24,6 @@ description: |
   ratified states, with the exception of the I, Zicntr & Zihpm extensions.
   See the "i" property for more information.
 
-select:
-  properties:
-    compatible:
-      contains:
-        const: riscv
-
 properties:
   riscv,isa:
     description:
