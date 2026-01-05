@@ -967,6 +967,11 @@ void ksz_ptp_clock_unregister(struct dsa_switch *ds)
 		ptp_clock_unregister(ptp_data->clock);
 }
 
+static int ksz_read_ts(struct ksz_port *port, u16 reg, u32 *ts)
+{
+	return ksz_read32(port->ksz_dev, reg, ts);
+}
+
 static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)
 {
 	struct ksz_ptp_irq *ptpmsg_irq = dev_id;
@@ -980,7 +985,7 @@ static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)
 	dev = port->ksz_dev;
 
 	if (ptpmsg_irq->ts_en) {
-		ret = ksz_read32(dev, ptpmsg_irq->ts_reg, &tstamp_raw);
+		ret = ksz_read_ts(port, ptpmsg_irq->ts_reg, &tstamp_raw);
 		if (ret)
 			return IRQ_NONE;
 
