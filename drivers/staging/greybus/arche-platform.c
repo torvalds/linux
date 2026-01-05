@@ -569,7 +569,7 @@ static void arche_platform_remove(struct platform_device *pdev)
 static __maybe_unused int arche_platform_suspend(struct device *dev)
 {
 	/*
-	 * If timing profile premits, we may shutdown bridge
+	 * If timing profile permits, we may shutdown bridge
 	 * completely
 	 *
 	 * TODO: define shutdown sequence
