@@ -22,12 +22,37 @@ FIXTURE(merge)
 	struct procmap_fd procmap;
 };
 
+static char *map_carveout(unsigned int page_size)
+{
+	return mmap(NULL, 30 * page_size, PROT_NONE,
+		    MAP_ANON | MAP_PRIVATE, -1, 0);
+}
+
+static pid_t do_fork(struct procmap_fd *procmap)
+{
+	pid_t pid = fork();
+
+	if (pid == -1)
+		return -1;
+	if (pid != 0) {
+		wait(NULL);
+		return pid;
+	}
+
+	/* Reopen for child. */
+	if (close_procmap(procmap))
+		return -1;
+	if (open_self_procmap(procmap))
+		return -1;
+
+	return 0;
+}
+
 FIXTURE_SETUP(merge)
 {
 	self->page_size = psize();
 	/* Carve out PROT_NONE region to map over. */
-	self->carveout = mmap(NULL, 30 * self->page_size, PROT_NONE,
-			      MAP_ANON | MAP_PRIVATE, -1, 0);
+	self->carveout = map_carveout(self->page_size);
 	ASSERT_NE(self->carveout, MAP_FAILED);
 	/* Setup PROCMAP_QUERY interface. */
 	ASSERT_EQ(open_self_procmap(&self->procmap), 0);
@@ -36,11 +61,50 @@ FIXTURE_SETUP(merge)
 FIXTURE_TEARDOWN(merge)
 {
 	ASSERT_EQ(munmap(self->carveout, 30 * self->page_size), 0);
-	ASSERT_EQ(close_procmap(&self->procmap), 0);
+	/* May fail for parent of forked process. */
+	close_procmap(&self->procmap);
 	/*
 	 * Clear unconditionally, as some tests set this. It is no issue if this
 	 * fails (KSM may be disabled for instance).
 	 */
+	prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0);
+}
+
+FIXTURE(merge_with_fork)
+{
+	unsigned int page_size;
+	char *carveout;
+	struct procmap_fd procmap;
+};
+
+FIXTURE_VARIANT(merge_with_fork)
+{
+	bool forked;
+};
+
+FIXTURE_VARIANT_ADD(merge_with_fork, forked)
+{
+	.forked = true,
+};
+
+FIXTURE_VARIANT_ADD(merge_with_fork, unforked)
+{
+	.forked = false,
+};
+
+FIXTURE_SETUP(merge_with_fork)
+{
+	self->page_size = psize();
+	self->carveout = map_carveout(self->page_size);
+	ASSERT_NE(self->carveout, MAP_FAILED);
+	ASSERT_EQ(open_self_procmap(&self->procmap), 0);
+}
+
+FIXTURE_TEARDOWN(merge_with_fork)
+{
+	ASSERT_EQ(munmap(self->carveout, 30 * self->page_size), 0);
+	ASSERT_EQ(close_procmap(&self->procmap), 0);
+	/* See above. */
 	prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0);
 }
 
@@ -322,8 +386,8 @@ TEST_F(merge, forked_target_vma)
 	unsigned int page_size = self->page_size;
 	char *carveout = self->carveout;
 	struct procmap_fd *procmap = &self->procmap;
-	pid_t pid;
 	char *ptr, *ptr2;
+	pid_t pid;
 	int i;
 
 	/*
@@ -344,19 +408,10 @@ TEST_F(merge, forked_target_vma)
 	 */
 	ptr[0] = 'x';
 
-	pid = fork();
+	pid = do_fork(&self->procmap);
 	ASSERT_NE(pid, -1);
-
-	if (pid != 0) {
-		wait(NULL);
+	if (pid != 0)
 		return;
-	}
-
-	/* Child process below: */
-
-	/* Reopen for child. */
-	ASSERT_EQ(close_procmap(&self->procmap), 0);
-	ASSERT_EQ(open_self_procmap(&self->procmap), 0);
 
 	/* unCOWing everything does not cause the AVC to go away. */
 	for (i = 0; i < 5 * page_size; i += page_size)
@@ -386,8 +441,8 @@ TEST_F(merge, forked_source_vma)
 	unsigned int page_size = self->page_size;
 	char *carveout = self->carveout;
 	struct procmap_fd *procmap = &self->procmap;
-	pid_t pid;
 	char *ptr, *ptr2;
+	pid_t pid;
 	int i;
 
 	/*
@@ -408,19 +463,10 @@ TEST_F(merge, forked_source_vma)
 	 */
 	ptr[0] = 'x';
 
-	pid = fork();
+	pid = do_fork(&self->procmap);
 	ASSERT_NE(pid, -1);
-
-	if (pid != 0) {
-		wait(NULL);
+	if (pid != 0)
 		return;
-	}
-
-	/* Child process below: */
-
-	/* Reopen for child. */
-	ASSERT_EQ(close_procmap(&self->procmap), 0);
-	ASSERT_EQ(open_self_procmap(&self->procmap), 0);
 
 	/* unCOWing everything does not cause the AVC to go away. */
 	for (i = 0; i < 5 * page_size; i += page_size)
@@ -1171,10 +1217,11 @@ TEST_F(merge, mremap_correct_placed_faulted)
 	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr + 15 * page_size);
 }
 
-TEST_F(merge, mremap_faulted_to_unfaulted_prev)
+TEST_F(merge_with_fork, mremap_faulted_to_unfaulted_prev)
 {
 	struct procmap_fd *procmap = &self->procmap;
 	unsigned int page_size = self->page_size;
+	unsigned long offset;
 	char *ptr_a, *ptr_b;
 
 	/*
@@ -1196,6 +1243,14 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev)
 	ASSERT_NE(ptr_a, MAP_FAILED);
 	/* Fault it in. */
 	ptr_a[0] = 'x';
+
+	if (variant->forked) {
+		pid_t pid = do_fork(&self->procmap);
+
+		ASSERT_NE(pid, -1);
+		if (pid != 0)
+			return;
+	}
 
 	/*
 	 * Now move it out of the way so we can place VMA B in position,
@@ -1220,16 +1275,19 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev)
 		       &self->carveout[page_size + 3 * page_size]);
 	ASSERT_NE(ptr_a, MAP_FAILED);
 
-	/* The VMAs should have merged. */
+	/* The VMAs should have merged, if not forked. */
 	ASSERT_TRUE(find_vma_procmap(procmap, ptr_b));
 	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_b);
-	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_b + 6 * page_size);
+
+	offset = variant->forked ? 3 * page_size : 6 * page_size;
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_b + offset);
 }
 
-TEST_F(merge, mremap_faulted_to_unfaulted_next)
+TEST_F(merge_with_fork, mremap_faulted_to_unfaulted_next)
 {
 	struct procmap_fd *procmap = &self->procmap;
 	unsigned int page_size = self->page_size;
+	unsigned long offset;
 	char *ptr_a, *ptr_b;
 
 	/*
@@ -1252,6 +1310,14 @@ TEST_F(merge, mremap_faulted_to_unfaulted_next)
 	ASSERT_NE(ptr_a, MAP_FAILED);
 	/* Fault it in. */
 	ptr_a[0] = 'x';
+
+	if (variant->forked) {
+		pid_t pid = do_fork(&self->procmap);
+
+		ASSERT_NE(pid, -1);
+		if (pid != 0)
+			return;
+	}
 
 	/*
 	 * Now move it out of the way so we can place VMA B in position,
@@ -1276,16 +1342,18 @@ TEST_F(merge, mremap_faulted_to_unfaulted_next)
 		       &self->carveout[page_size]);
 	ASSERT_NE(ptr_a, MAP_FAILED);
 
-	/* The VMAs should have merged. */
+	/* The VMAs should have merged, if not forked. */
 	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
 	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
-	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 6 * page_size);
+	offset = variant->forked ? 3 * page_size : 6 * page_size;
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + offset);
 }
 
-TEST_F(merge, mremap_faulted_to_unfaulted_prev_unfaulted_next)
+TEST_F(merge_with_fork, mremap_faulted_to_unfaulted_prev_unfaulted_next)
 {
 	struct procmap_fd *procmap = &self->procmap;
 	unsigned int page_size = self->page_size;
+	unsigned long offset;
 	char *ptr_a, *ptr_b, *ptr_c;
 
 	/*
@@ -1306,6 +1374,14 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev_unfaulted_next)
 	ASSERT_NE(ptr_b, MAP_FAILED);
 	/* Fault it in. */
 	ptr_b[0] = 'x';
+
+	if (variant->forked) {
+		pid_t pid = do_fork(&self->procmap);
+
+		ASSERT_NE(pid, -1);
+		if (pid != 0)
+			return;
+	}
 
 	/*
 	 * Now move it out of the way so we can place VMAs A, C in position,
@@ -1337,13 +1413,21 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev_unfaulted_next)
 		       &self->carveout[page_size + 3 * page_size]);
 	ASSERT_NE(ptr_b, MAP_FAILED);
 
-	/* The VMAs should have merged. */
+	/* The VMAs should have merged, if not forked. */
 	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
 	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
-	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 9 * page_size);
+	offset = variant->forked ? 3 * page_size : 9 * page_size;
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + offset);
+
+	/* If forked, B and C should also not have merged. */
+	if (variant->forked) {
+		ASSERT_TRUE(find_vma_procmap(procmap, ptr_b));
+		ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_b);
+		ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_b + 3 * page_size);
+	}
 }
 
-TEST_F(merge, mremap_faulted_to_unfaulted_prev_faulted_next)
+TEST_F(merge_with_fork, mremap_faulted_to_unfaulted_prev_faulted_next)
 {
 	struct procmap_fd *procmap = &self->procmap;
 	unsigned int page_size = self->page_size;
@@ -1373,6 +1457,14 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev_faulted_next)
 	/* Fault it in. */
 	ptr_bc[0] = 'x';
 
+	if (variant->forked) {
+		pid_t pid = do_fork(&self->procmap);
+
+		ASSERT_NE(pid, -1);
+		if (pid != 0)
+			return;
+	}
+
 	/*
 	 * Now move VMA B out the way (splitting VMA BC) so we can place VMA A
 	 * in position, unfaulted, and leave the remainder of the VMA we just
@@ -1397,10 +1489,16 @@ TEST_F(merge, mremap_faulted_to_unfaulted_prev_faulted_next)
 		       &self->carveout[page_size + 3 * page_size]);
 	ASSERT_NE(ptr_b, MAP_FAILED);
 
-	/* The VMAs should have merged. */
-	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
-	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
-	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 9 * page_size);
+	/* The VMAs should have merged. A,B,C if unforked, B, C if forked. */
+	if (variant->forked) {
+		ASSERT_TRUE(find_vma_procmap(procmap, ptr_b));
+		ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_b);
+		ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_b + 6 * page_size);
+	} else {
+		ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
+		ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
+		ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 9 * page_size);
+	}
 }
 
 TEST_HARNESS_MAIN
