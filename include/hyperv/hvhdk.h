@@ -800,6 +800,53 @@ struct hv_x64_memory_intercept_message {
 	u8 instruction_bytes[16];
 } __packed;
 
+#if IS_ENABLED(CONFIG_ARM64)
+union hv_arm64_vp_execution_state {
+	u16 as_uint16;
+	struct {
+		u16 cpl:2; /* Exception Level (EL) */
+		u16 debug_active:1;
+		u16 interruption_pending:1;
+		u16 vtl:4;
+		u16 virtualization_fault_active:1;
+		u16 reserved:7;
+	} __packed;
+};
+
+struct hv_arm64_intercept_message_header {
+	u32 vp_index;
+	u8 instruction_length;
+	u8 intercept_access_type;
+	union hv_arm64_vp_execution_state execution_state;
+	u64 pc;
+	u64 cpsr;
+} __packed;
+
+union hv_arm64_memory_access_info {
+	u8 as_uint8;
+	struct {
+		u8 gva_valid:1;
+		u8 gva_gpa_valid:1;
+		u8 hypercall_output_pending:1;
+		u8 reserved:5;
+	} __packed;
+};
+
+struct hv_arm64_memory_intercept_message {
+	struct hv_arm64_intercept_message_header header;
+	u32 cache_type; /* enum hv_cache_type */
+	u8 instruction_byte_count;
+	union hv_arm64_memory_access_info memory_access_info;
+	u16 reserved1;
+	u8 instruction_bytes[4];
+	u32 reserved2;
+	u64 guest_virtual_address;
+	u64 guest_physical_address;
+	u64 syndrome;
+} __packed;
+
+#endif /* CONFIG_ARM64 */
+
 /*
  * Dispatch state for the VP communicated by the hypervisor to the
  * VP-dispatching thread in the root on return from HVCALL_DISPATCH_VP.
