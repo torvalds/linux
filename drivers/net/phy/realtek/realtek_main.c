@@ -1154,7 +1154,8 @@ static int rtlgen_read_status(struct phy_device *phydev)
 	if (!phydev->link)
 		return 0;
 
-	val = phy_read_paged(phydev, 0xa43, 0x12);
+	val = phy_read_paged(phydev, RTL822X_VND2_TO_PAGE(RTL_VND2_PHYSR),
+			     RTL822X_VND2_TO_PAGE_REG(RTL_VND2_PHYSR));
 	if (val < 0)
 		return val;
 
