@@ -1647,10 +1647,11 @@ static void device_suspend_late(struct device *dev, pm_message_t state, bool asy
 		goto Complete;
 
 	/*
-	 * Disable runtime PM for the device without checking if there is a
-	 * pending resume request for it.
+	 * After this point, any runtime PM operations targeting the device
+	 * will fail until the corresponding pm_runtime_enable() call in
+	 * device_resume_early().
 	 */
-	__pm_runtime_disable(dev, false);
+	pm_runtime_disable(dev);
 
 	if (dev->power.syscore)
 		goto Skip;
