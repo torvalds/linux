@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -31,11 +32,18 @@
 struct	es8389_private {
 	struct regmap *regmap;
 	struct clk *mclk;
+	struct regulator_bulk_data core_supply[2];
 	unsigned int sysclk;
 	int mastermode;
 
 	u8 mclk_src;
+	u8 vddd;
 	enum snd_soc_bias_level bias_level;
+};
+
+static const char * const es8389_core_supplies[] = {
+	"vddd",
+	"vdda",
 };
 
 static bool es8389_volatile_register(struct device *dev,
@@ -818,13 +826,21 @@ static int es8389_resume(struct snd_soc_component *component)
 
 static int es8389_probe(struct snd_soc_component *component)
 {
-	int ret;
+	int ret, i;
 	struct es8389_private *es8389 = snd_soc_component_get_drvdata(component);
 
 	ret = device_property_read_u8(component->dev, "everest,mclk-src", &es8389->mclk_src);
 	if (ret != 0) {
 		dev_dbg(component->dev, "mclk-src return %d", ret);
 		es8389->mclk_src = ES8389_MCLK_SOURCE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(es8389_core_supplies); i++)
+		es8389->core_supply[i].supply = es8389_core_supplies[i];
+	ret = devm_regulator_bulk_get(component->dev, ARRAY_SIZE(es8389_core_supplies), es8389->core_supply);
+	if (ret) {
+		dev_err(component->dev, "Failed to request core supplies %d\n", ret);
+		return ret;
 	}
 
 	es8389->mclk = devm_clk_get(component->dev, "mclk");
@@ -838,6 +854,13 @@ static int es8389_probe(struct snd_soc_component *component)
 	ret = clk_prepare_enable(es8389->mclk);
 	if (ret) {
 		dev_err(component->dev, "%s, unable to enable mclk\n", __func__);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(es8389_core_supplies), es8389->core_supply);
+	if (ret) {
+		dev_err(component->dev, "Failed to enable core supplies: %d\n", ret);
+		clk_disable_unprepare(es8389->mclk);
 		return ret;
 	}
 
@@ -907,6 +930,8 @@ static void es8389_i2c_shutdown(struct i2c_client *i2c)
 	regmap_write(es8389->regmap, ES8389_ANA_CTL1, 0x08);
 	regmap_write(es8389->regmap, ES8389_ISO_CTL, 0xC1);
 	regmap_write(es8389->regmap, ES8389_PULL_DOWN, 0x00);
+
+	regulator_bulk_disable(ARRAY_SIZE(es8389_core_supplies), es8389->core_supply);
 }
 
 static int es8389_i2c_probe(struct i2c_client *i2c_client)
