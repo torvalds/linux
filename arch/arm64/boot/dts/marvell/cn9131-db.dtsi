@@ -31,6 +31,7 @@
 
 	cp1_usb3_0_phy0: usb-phy-3 {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 		vcc-supply = <&cp1_reg_usb3_vbus0>;
 	};
 
