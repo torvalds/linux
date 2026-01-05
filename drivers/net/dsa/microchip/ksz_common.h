@@ -271,6 +271,7 @@ enum ksz_regs {
 	REG_SW_PME_CTRL,
 	REG_PORT_PME_STATUS,
 	REG_PORT_PME_CTRL,
+	PTP_CLK_CTRL,
 };
 
 enum ksz_masks {

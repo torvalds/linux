@@ -585,13 +585,14 @@ void ksz_port_deferred_xmit(struct kthread_work *work)
 
 static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 {
+	const u16 *regs = dev->info->regs;
 	u32 nanoseconds;
 	u32 seconds;
 	u8 phase;
 	int ret;
 
 	/* Copy current PTP clock into shadow registers and read */
-	ret = ksz_rmw16(dev, REG_PTP_CLK_CTRL, PTP_READ_TIME, PTP_READ_TIME);
+	ret = ksz_rmw16(dev, regs[PTP_CLK_CTRL], PTP_READ_TIME, PTP_READ_TIME);
 	if (ret)
 		return ret;
 
@@ -676,6 +677,7 @@ static int ksz_ptp_settime(struct ptp_clock_info *ptp,
 {
 	struct ksz_ptp_data *ptp_data = ptp_caps_to_data(ptp);
 	struct ksz_device *dev = ptp_data_to_ksz_dev(ptp_data);
+	const u16 *regs = dev->info->regs;
 	int ret;
 
 	mutex_lock(&ptp_data->lock);
@@ -693,7 +695,7 @@ static int ksz_ptp_settime(struct ptp_clock_info *ptp,
 	if (ret)
 		goto unlock;
 
-	ret = ksz_rmw16(dev, REG_PTP_CLK_CTRL, PTP_LOAD_TIME, PTP_LOAD_TIME);
+	ret = ksz_rmw16(dev, regs[PTP_CLK_CTRL], PTP_LOAD_TIME, PTP_LOAD_TIME);
 	if (ret)
 		goto unlock;
 
@@ -723,6 +725,7 @@ static int ksz_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct ksz_ptp_data *ptp_data = ptp_caps_to_data(ptp);
 	struct ksz_device *dev = ptp_data_to_ksz_dev(ptp_data);
+	const u16 *regs = dev->info->regs;
 	u64 base, adj;
 	bool negative;
 	u32 data32;
@@ -743,12 +746,12 @@ static int ksz_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		if (ret)
 			goto unlock;
 
-		ret = ksz_rmw16(dev, REG_PTP_CLK_CTRL, PTP_CLK_ADJ_ENABLE,
+		ret = ksz_rmw16(dev, regs[PTP_CLK_CTRL], PTP_CLK_ADJ_ENABLE,
 				PTP_CLK_ADJ_ENABLE);
 		if (ret)
 			goto unlock;
 	} else {
-		ret = ksz_rmw16(dev, REG_PTP_CLK_CTRL, PTP_CLK_ADJ_ENABLE, 0);
+		ret = ksz_rmw16(dev, regs[PTP_CLK_CTRL], PTP_CLK_ADJ_ENABLE, 0);
 		if (ret)
 			goto unlock;
 	}
@@ -763,6 +766,7 @@ static int ksz_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	struct ksz_ptp_data *ptp_data = ptp_caps_to_data(ptp);
 	struct ksz_device *dev = ptp_data_to_ksz_dev(ptp_data);
 	struct timespec64 delta64 = ns_to_timespec64(delta);
+	const u16 *regs = dev->info->regs;
 	s32 sec, nsec;
 	u16 data16;
 	int ret;
@@ -782,7 +786,7 @@ static int ksz_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	if (ret)
 		goto unlock;
 
-	ret = ksz_read16(dev, REG_PTP_CLK_CTRL, &data16);
+	ret = ksz_read16(dev, regs[PTP_CLK_CTRL], &data16);
 	if (ret)
 		goto unlock;
 
@@ -794,7 +798,7 @@ static int ksz_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	else
 		data16 |= PTP_STEP_DIR;
 
-	ret = ksz_write16(dev, REG_PTP_CLK_CTRL, data16);
+	ret = ksz_write16(dev, regs[PTP_CLK_CTRL], data16);
 	if (ret)
 		goto unlock;
 
@@ -882,9 +886,10 @@ out:
 static int ksz_ptp_start_clock(struct ksz_device *dev)
 {
 	struct ksz_ptp_data *ptp_data = &dev->ptp_data;
+	const u16 *regs = dev->info->regs;
 	int ret;
 
-	ret = ksz_rmw16(dev, REG_PTP_CLK_CTRL, PTP_CLK_ENABLE, PTP_CLK_ENABLE);
+	ret = ksz_rmw16(dev, regs[PTP_CLK_CTRL], PTP_CLK_ENABLE, PTP_CLK_ENABLE);
 	if (ret)
 		return ret;
 

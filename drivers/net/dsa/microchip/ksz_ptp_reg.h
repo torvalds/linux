@@ -15,8 +15,7 @@
 #define LED_SRC_PTP_GPIO_2		BIT(2)
 
 /* 5 - PTP Clock */
-#define REG_PTP_CLK_CTRL		0x0500
-
+/* REG_PTP_CLK_CTRL */
 #define PTP_STEP_ADJ			BIT(6)
 #define PTP_STEP_DIR			BIT(5)
 #define PTP_READ_TIME			BIT(4)
