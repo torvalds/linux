@@ -572,7 +572,7 @@ void irdma_cleanup_pending_cqp_op(struct irdma_pci_f *rf)
 	}
 }
 
-static int irdma_get_timeout_threshold(struct irdma_sc_dev *dev)
+int irdma_get_timeout_threshold(struct irdma_sc_dev *dev)
 {
 	u16 time_s = dev->vc_caps.cqp_timeout_s;
 
