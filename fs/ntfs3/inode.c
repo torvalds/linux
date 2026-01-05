@@ -1019,7 +1019,7 @@ static int ntfs_writepages(struct address_space *mapping,
 		return -EIO;
 
 	if (is_resident(ni)) {
-		struct folio *folio;
+		struct folio *folio = NULL;
 
 		while ((folio = writeback_iter(mapping, wbc, folio, &err)))
 			err = ntfs_resident_writepage(folio, wbc);
