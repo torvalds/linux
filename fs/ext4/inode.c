@@ -3813,9 +3813,14 @@ static int ext4_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 			ret = ext4_map_blocks(NULL, inode, &map, 0);
 			/*
 			 * For atomic writes the entire requested length should
-			 * be mapped.
+			 * be mapped. For DAX we convert extents to initialized
+			 * ones before copying the data, otherwise we do it
+			 * after I/O so there's no need to call into
+			 * ext4_iomap_alloc().
 			 */
-			if (map.m_flags & EXT4_MAP_MAPPED) {
+			if ((map.m_flags & EXT4_MAP_MAPPED) ||
+			    (!(flags & IOMAP_DAX) &&
+			     (map.m_flags & EXT4_MAP_UNWRITTEN))) {
 				if ((!(flags & IOMAP_ATOMIC) && ret > 0) ||
 				   (flags & IOMAP_ATOMIC && ret >= orig_mlen))
 					goto out;
