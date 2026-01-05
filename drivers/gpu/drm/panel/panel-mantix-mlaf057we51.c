@@ -80,8 +80,6 @@ static int mantix_enable(struct drm_panel *panel)
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 10000, 12000);
 
-	mipi_dsi_turn_on_peripheral_multi(&dsi_ctx);
-
 	return dsi_ctx.accum_err;
 }
 
