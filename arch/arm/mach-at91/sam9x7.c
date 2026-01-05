@@ -17,8 +17,6 @@
 static void __init sam9x7_init(void)
 {
 	of_platform_default_populate(NULL, NULL, NULL);
-
-	sam9x7_pm_init();
 }
 
 static const char * const sam9x7_dt_board_compat[] __initconst = {
@@ -28,6 +26,7 @@ static const char * const sam9x7_dt_board_compat[] __initconst = {
 
 DT_MACHINE_START(sam9x7_dt, "Microchip SAM9X7")
 	/* Maintainer: Microchip */
+	.init_late	= sam9x7_pm_init,
 	.init_machine	= sam9x7_init,
 	.dt_compat	= sam9x7_dt_board_compat,
 MACHINE_END
