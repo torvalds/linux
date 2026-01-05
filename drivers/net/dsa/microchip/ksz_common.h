@@ -273,6 +273,7 @@ enum ksz_regs {
 	REG_PORT_PME_CTRL,
 	PTP_CLK_CTRL,
 	PTP_RTC_NANOSEC,
+	PTP_RTC_SEC,
 };
 
 enum ksz_masks {
