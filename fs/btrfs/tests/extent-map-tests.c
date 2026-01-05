@@ -1059,6 +1059,7 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 
 	if (out_stripe_len != BTRFS_STRIPE_LEN) {
 		test_err("calculated stripe length doesn't match");
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1066,12 +1067,14 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 		for (i = 0; i < out_ndaddrs; i++)
 			test_msg("mapped %llu", logical[i]);
 		test_err("unexpected number of mapped addresses: %d", out_ndaddrs);
+		ret = -EINVAL;
 		goto out;
 	}
 
 	for (i = 0; i < out_ndaddrs; i++) {
 		if (logical[i] != test->mapped_logical[i]) {
 			test_err("unexpected logical address mapped");
+			ret = -EINVAL;
 			goto out;
 		}
 	}
