@@ -699,7 +699,7 @@ static void wbt_requeue(struct rq_qos *rqos, struct request *rq)
 /*
  * Enable wbt if defaults are configured that way
  */
-void wbt_enable_default(struct gendisk *disk)
+static bool __wbt_enable_default(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 	struct rq_qos *rqos;
@@ -716,18 +716,30 @@ void wbt_enable_default(struct gendisk *disk)
 		if (enable && RQWB(rqos)->enable_state == WBT_STATE_OFF_DEFAULT)
 			RQWB(rqos)->enable_state = WBT_STATE_ON_DEFAULT;
 		mutex_unlock(&disk->rqos_state_mutex);
-		return;
+		return false;
 	}
 	mutex_unlock(&disk->rqos_state_mutex);
 
 	/* Queue not registered? Maybe shutting down... */
 	if (!blk_queue_registered(q))
-		return;
+		return false;
 
 	if (queue_is_mq(q) && enable)
-		wbt_init(disk);
+		return true;
+	return false;
+}
+
+void wbt_enable_default(struct gendisk *disk)
+{
+	__wbt_enable_default(disk);
 }
 EXPORT_SYMBOL_GPL(wbt_enable_default);
+
+void wbt_init_enable_default(struct gendisk *disk)
+{
+	if (__wbt_enable_default(disk))
+		WARN_ON_ONCE(wbt_init(disk));
+}
 
 u64 wbt_default_latency_nsec(struct request_queue *q)
 {

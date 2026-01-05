@@ -106,8 +106,7 @@ EXPORT_SYMBOL_GPL(kunit_driver_create);
 
 /* Helper which creates a kunit_device, attaches it to the kunit_bus*/
 static struct kunit_device *kunit_device_register_internal(struct kunit *test,
-							   const char *name,
-							   const struct device_driver *drv)
+							   const char *name)
 {
 	struct kunit_device *kunit_dev;
 	int err = -ENOMEM;
@@ -150,7 +149,7 @@ struct device *kunit_device_register_with_driver(struct kunit *test,
 						 const char *name,
 						 const struct device_driver *drv)
 {
-	struct kunit_device *kunit_dev = kunit_device_register_internal(test, name, drv);
+	struct kunit_device *kunit_dev = kunit_device_register_internal(test, name);
 
 	if (IS_ERR_OR_NULL(kunit_dev))
 		return ERR_CAST(kunit_dev);
@@ -172,7 +171,7 @@ struct device *kunit_device_register(struct kunit *test, const char *name)
 	if (IS_ERR(drv))
 		return ERR_CAST(drv);
 
-	dev = kunit_device_register_internal(test, name, drv);
+	dev = kunit_device_register_internal(test, name);
 	if (IS_ERR(dev)) {
 		kunit_release_action(test, driver_unregister_wrapper, (void *)drv);
 		return ERR_CAST(dev);

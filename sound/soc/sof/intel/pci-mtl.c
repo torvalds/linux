@@ -47,7 +47,7 @@ static const struct sof_dev_desc mtl_desc = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/mtl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-tplg",
 	},
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-mtl.ri",
@@ -77,7 +77,7 @@ static const struct sof_dev_desc arl_desc = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/arl",
 	},
 	.default_tplg_path = {
-		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-tplg",
 	},
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-arl.ri",
@@ -107,7 +107,7 @@ static const struct sof_dev_desc arl_s_desc = {
 		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/arl-s",
 	},
 	.default_tplg_path = {
-		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-tplg",
 	},
 	.default_fw_filename = {
 		[SOF_IPC_TYPE_4] = "sof-arl-s.ri",

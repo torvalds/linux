@@ -1033,5 +1033,83 @@
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root"
         ]
+    },
+    {
+        "id": "6e4f",
+        "name": "Try to delete ets drr class' qdisc while still keeping it in the active list",
+        "category": [
+            "qdisc",
+            "ets",
+            "tbf"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: ets bands 2 strict 1",
+            "$TC qdisc add dev $DUMMY parent 1:2 handle 20: tbf rate 8bit burst 100b latency 1s",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:2",
+            "ping -c2 -W0.01 -s 56 -I $DUMMY 10.10.11.11 || true",
+            "$TC qdisc change dev $DUMMY root handle 1: ets bands 2 strict 2",
+            "$TC qdisc change dev $DUMMY root handle 1: ets bands 1 strict 1"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -s 56 -I $DUMMY 10.10.11.11",
+        "expExitCode": "1",
+        "verifyCmd": "$TC -s -j qdisc ls dev $DUMMY root",
+        "matchJSON": [
+            {
+                "kind": "ets",
+                "handle": "1:",
+                "bytes": 196,
+                "packets": 2
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1:"
+        ]
+    },
+    {
+        "id": "0b8f",
+        "name": "Try to add ets class to the active list twice",
+        "category": [
+            "qdisc",
+            "ets",
+            "tbf"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.11.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: ets bands 2 strict 1",
+            "$TC qdisc add dev $DUMMY parent 1:2 handle 20: tbf rate 8bit burst 100b latency 1s",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:2",
+            "ping -c2 -W0.01 -s 56 -I $DUMMY 10.10.11.11 || true",
+            "$TC qdisc change dev $DUMMY root handle 1: ets bands 2 strict 2",
+            "$TC qdisc change dev $DUMMY root handle 1: ets bands 2 strict 1"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -s 56 -I $DUMMY 10.10.11.11",
+        "expExitCode": "1",
+        "verifyCmd": "$TC -s -j qdisc ls dev $DUMMY root",
+        "matchJSON": [
+            {
+                "kind": "ets",
+                "handle": "1:",
+                "bytes": 98,
+                "packets": 1
+            }
+        ],
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1:"
+        ]
     }
 ]

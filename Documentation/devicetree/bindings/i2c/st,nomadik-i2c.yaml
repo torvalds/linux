@@ -12,7 +12,7 @@ description: The Nomadik I2C host controller began its life in the ST
   DB8500 after the merge of these two companies wireless divisions.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 # Need a custom select here or 'arm,primecell' will match on lots of nodes
 select:
