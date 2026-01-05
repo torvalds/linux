@@ -2130,8 +2130,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		mirror = first;
 	for ( ; mirror <= last ; mirror++) {
 		p = &conf->mirrors[mirror];
-		if (p->recovery_disabled == mddev->recovery_disabled)
-			continue;
 		if (p->rdev) {
 			if (test_bit(WantReplacement, &p->rdev->flags) &&
 			    p->replacement == NULL && repl_slot < 0)
@@ -2143,7 +2141,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		if (err)
 			return err;
 		p->head_position = 0;
-		p->recovery_disabled = mddev->recovery_disabled - 1;
 		rdev->raid_disk = mirror;
 		err = 0;
 		if (rdev->saved_raid_disk != mirror)
@@ -2196,7 +2193,6 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 	 * is not possible.
 	 */
 	if (!test_bit(Faulty, &rdev->flags) &&
-	    mddev->recovery_disabled != p->recovery_disabled &&
 	    (!p->replacement || p->replacement == rdev) &&
 	    number < conf->geo.raid_disks &&
 	    enough(conf, -1)) {
@@ -2535,8 +2531,6 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 					pr_notice("md/raid10:%s: recovery aborted due to read error\n",
 						  mdname(mddev));
 
-					conf->mirrors[dw].recovery_disabled
-						= mddev->recovery_disabled;
 					set_bit(MD_RECOVERY_INTR,
 						&mddev->recovery);
 					break;
@@ -4075,8 +4069,6 @@ static int raid10_run(struct mddev *mddev)
 		    disk->replacement->saved_raid_disk < 0) {
 			conf->fullsync = 1;
 		}
-
-		disk->recovery_disabled = mddev->recovery_disabled - 1;
 	}
 
 	if (mddev->resync_offset != MaxSector)

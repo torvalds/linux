@@ -640,7 +640,6 @@ struct r5conf {
 					    * (fresh device added).
 					    * Cleared when a sync completes.
 					    */
-	int			recovery_disabled;
 	/* per cpu variables */
 	struct raid5_percpu __percpu *percpu;
 	int scribble_disks;

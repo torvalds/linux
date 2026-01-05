@@ -505,12 +505,6 @@ struct mddev {
 	int				ok_start_degraded;
 
 	unsigned long			recovery;
-	/* If a RAID personality determines that recovery (of a particular
-	 * device) will fail due to a read error on the source device, it
-	 * takes a copy of this number and does not attempt recovery again
-	 * until this number changes.
-	 */
-	int				recovery_disabled;
 
 	int				in_sync;	/* know to not need resync */
 	/* 'open_mutex' avoids races between 'md_open' and 'do_md_stop', so

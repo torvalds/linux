@@ -2618,9 +2618,6 @@ static int bind_rdev_to_array(struct md_rdev *rdev, struct mddev *mddev)
 	list_add_rcu(&rdev->same_set, &mddev->disks);
 	bd_link_disk_holder(rdev->bdev, mddev->gendisk);
 
-	/* May as well allow recovery to be retried once */
-	mddev->recovery_disabled++;
-
 	return 0;
 
  fail:

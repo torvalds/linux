@@ -1760,7 +1760,6 @@ static void raid1_error(struct mddev *mddev, struct md_rdev *rdev)
 		set_bit(MD_BROKEN, &mddev->flags);
 
 		if (!test_bit(MD_FAILLAST_DEV, &mddev->flags)) {
-			conf->recovery_disabled = mddev->recovery_disabled;
 			spin_unlock_irqrestore(&conf->device_lock, flags);
 			return;
 		}
@@ -1904,7 +1903,6 @@ static bool raid1_remove_conf(struct r1conf *conf, int disk)
 
 	/* Only remove non-faulty devices if recovery is not possible. */
 	if (!test_bit(Faulty, &rdev->flags) &&
-	    rdev->mddev->recovery_disabled != conf->recovery_disabled &&
 	    rdev->mddev->degraded < conf->raid_disks)
 		return false;
 
@@ -1923,9 +1921,6 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct raid1_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
-
-	if (mddev->recovery_disabled == conf->recovery_disabled)
-		return -EBUSY;
 
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
@@ -2346,7 +2341,6 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 		 */
 		if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery) ||
 		    !fix_sync_read_error(r1_bio)) {
-			conf->recovery_disabled = mddev->recovery_disabled;
 			md_done_sync(mddev, r1_bio->sectors);
 			md_sync_error(mddev);
 			put_buf(r1_bio);
@@ -2948,16 +2942,12 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		*skipped = 1;
 		put_buf(r1_bio);
 
-		if (!ok) {
-			/* Cannot record the badblocks, so need to
+		if (!ok)
+			/* Cannot record the badblocks, md_error has set INTR,
 			 * abort the resync.
-			 * If there are multiple read targets, could just
-			 * fail the really bad ones ???
 			 */
-			conf->recovery_disabled = mddev->recovery_disabled;
-			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			return 0;
-		} else
+		else
 			return min_bad;
 
 	}
@@ -3144,7 +3134,6 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	init_waitqueue_head(&conf->wait_barrier);
 
 	bio_list_init(&conf->pending_bio_list);
-	conf->recovery_disabled = mddev->recovery_disabled - 1;
 
 	err = -EIO;
 	for (i = 0; i < conf->raid_disks * 2; i++) {
