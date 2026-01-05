@@ -114,7 +114,7 @@ struct simple_xattr {
 	struct rb_node rb_node;
 	char *name;
 	size_t size;
-	char value[];
+	char value[] __counted_by(size);
 };
 
 void simple_xattrs_init(struct simple_xattrs *xattrs);
