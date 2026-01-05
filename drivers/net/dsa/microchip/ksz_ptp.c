@@ -742,7 +742,7 @@ static int ksz_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		if (!negative)
 			data32 |= PTP_RATE_DIR;
 
-		ret = ksz_write32(dev, REG_PTP_SUBNANOSEC_RATE, data32);
+		ret = ksz_write32(dev, regs[PTP_SUBNANOSEC_RATE], data32);
 		if (ret)
 			goto unlock;
 

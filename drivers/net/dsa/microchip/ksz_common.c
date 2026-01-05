@@ -573,6 +573,7 @@ static const u16 ksz8463_regs[] = {
 	[PTP_RTC_NANOSEC]		= 0x0604,
 	[PTP_RTC_SEC]			= 0x0608,
 	[PTP_RTC_SUB_NANOSEC]		= 0x060C,
+	[PTP_SUBNANOSEC_RATE]		= 0x0610,
 };
 
 static const u32 ksz8463_masks[] = {
@@ -811,6 +812,7 @@ static const u16 ksz9477_regs[] = {
 	[PTP_RTC_SUB_NANOSEC]		= 0x0502,
 	[PTP_RTC_NANOSEC]		= 0x0504,
 	[PTP_RTC_SEC]			= 0x0508,
+	[PTP_SUBNANOSEC_RATE]		= 0x050C,
 };
 
 static const u32 ksz9477_masks[] = {
