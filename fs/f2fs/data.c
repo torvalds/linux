@@ -2497,6 +2497,18 @@ got_it:
 			continue;
 		}
 
+		/* We must increment read_pages_pending before possible BIOs submitting
+		 * to prevent from premature folio_end_read() call on folio
+		 */
+		if (folio_test_large(folio)) {
+			ffs = ffs_find_or_alloc(folio);
+
+			/* set the bitmap to wait */
+			spin_lock_irq(&ffs->state_lock);
+			ffs->read_pages_pending++;
+			spin_unlock_irq(&ffs->state_lock);
+		}
+
 		/*
 		 * This page will go to BIO.  Do we need to send this
 		 * BIO off first?
@@ -2523,15 +2535,6 @@ submit_and_realloc:
 		if (!bio_add_folio(bio, folio, F2FS_BLKSIZE,
 					offset << PAGE_SHIFT))
 			goto submit_and_realloc;
-
-		if (folio_test_large(folio)) {
-			ffs = ffs_find_or_alloc(folio);
-
-			/* set the bitmap to wait */
-			spin_lock_irq(&ffs->state_lock);
-			ffs->read_pages_pending++;
-			spin_unlock_irq(&ffs->state_lock);
-		}
 
 		inc_page_count(F2FS_I_SB(inode), F2FS_RD_DATA);
 		f2fs_update_iostat(F2FS_I_SB(inode), NULL, FS_DATA_READ_IO,
