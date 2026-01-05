@@ -2207,13 +2207,18 @@ bool
 intel_lt_phy_pll_compare_hw_state(const struct intel_lt_phy_pll_state *a,
 				  const struct intel_lt_phy_pll_state *b)
 {
-	if (memcmp(&a->config, &b->config, sizeof(a->config)) != 0)
-		return false;
+	/*
+	 * With LT PHY values other than VDR0_CONFIG and VDR2_CONFIG are
+	 * unreliable. They cannot always be read back since internally
+	 * after power gating values are not restored back to the
+	 * shadow VDR registers. Thus we do not compare the whole state
+	 * just the two VDR registers.
+	 */
+	if (a->config[0] == b->config[0] &&
+	    a->config[2] == b->config[2])
+		return true;
 
-	if (memcmp(&a->data, &b->data, sizeof(a->data)) != 0)
-		return false;
-
-	return true;
+	return false;
 }
 
 void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
