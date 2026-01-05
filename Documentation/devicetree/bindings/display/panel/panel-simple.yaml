@@ -351,7 +351,9 @@ if:
     properties:
       compatible:
         contains:
-          const: innolux,g101ice-l01
+          enum:
+            - innolux,g101ice-l01
+            - yes-optoelectronics,ytc700tlag-05-201c
 then:
   properties:
     data-mapping: false
