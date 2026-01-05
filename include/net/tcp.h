@@ -1243,11 +1243,26 @@ struct rate_sample {
 struct tcp_congestion_ops {
 /* fast path fields are put first to fill one cache line */
 
+	/* A congestion control (CC) must provide one of either:
+	 *
+	 * (a) a cong_avoid function, if the CC wants to use the core TCP
+	 *     stack's default functionality to implement a "classic"
+	 *     (Reno/CUBIC-style) response to packet loss, RFC3168 ECN,
+	 *     idle periods, pacing rate computations, etc.
+	 *
+	 * (b) a cong_control function, if the CC wants custom behavior and
+	 *      complete control of all congestion control behaviors.
+	 */
+	/* (a) "classic" response: calculate new cwnd.
+	 */
+	void (*cong_avoid)(struct sock *sk, u32 ack, u32 acked);
+	/* (b) "custom" response: call when packets are delivered to update
+	 * cwnd and pacing rate, after all the ca_state processing.
+	 */
+	void (*cong_control)(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs);
+
 	/* return slow start threshold (required) */
 	u32 (*ssthresh)(struct sock *sk);
-
-	/* do new cwnd calculation (required) */
-	void (*cong_avoid)(struct sock *sk, u32 ack, u32 acked);
 
 	/* call before changing ca_state (optional) */
 	void (*set_state)(struct sock *sk, u8 new_state);
@@ -1261,14 +1276,8 @@ struct tcp_congestion_ops {
 	/* hook for packet ack accounting (optional) */
 	void (*pkts_acked)(struct sock *sk, const struct ack_sample *sample);
 
-	/* override sysctl_tcp_min_tso_segs */
+	/* override sysctl_tcp_min_tso_segs (optional) */
 	u32 (*min_tso_segs)(struct sock *sk);
-
-	/* call when packets are delivered to update cwnd and pacing rate,
-	 * after all the ca_state processing. (optional)
-	 */
-	void (*cong_control)(struct sock *sk, u32 ack, int flag, const struct rate_sample *rs);
-
 
 	/* new value of cwnd after loss (required) */
 	u32  (*undo_cwnd)(struct sock *sk);
