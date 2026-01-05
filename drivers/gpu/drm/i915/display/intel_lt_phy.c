@@ -31,6 +31,7 @@
 #define INTEL_LT_PHY_BOTH_LANES		(INTEL_LT_PHY_LANE1 |\
 					 INTEL_LT_PHY_LANE0)
 #define MODE_DP				3
+#define MODE_HDMI_20			4
 #define Q32_TO_INT(x)	((x) >> 32)
 #define Q32_TO_FRAC(x)	((x) & 0xFFFFFFFF)
 #define DCO_MIN_FREQ_MHZ	11850
@@ -1751,6 +1752,7 @@ int
 intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	int clk;
 	const struct intel_lt_phy_pll_state *lt_state =
 		&crtc_state->dpll_hw_state.ltpll;
@@ -1768,8 +1770,11 @@ intel_lt_phy_calc_port_clock(struct intel_encoder *encoder,
 		rate = REG_FIELD_GET8(LT_PHY_VDR_RATE_ENCODING_MASK,
 				      lt_state->config[0]);
 		clk = intel_lt_phy_get_dp_clock(rate);
-	} else {
+	} else if (mode == MODE_HDMI_20) {
 		clk = intel_lt_phy_calc_hdmi_port_clock(crtc_state);
+	} else {
+		drm_WARN_ON(display->drm, "Unsupported LT PHY Mode!\n");
+		clk = xe3plpd_lt_hdmi_252.clock;
 	}
 
 	return clk;
