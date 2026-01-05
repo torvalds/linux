@@ -794,13 +794,13 @@ static int cpg_mrcr_set_reset_state(struct reset_controller_dev *rcdev,
 
 	/* Verify the operation */
 	val = readl(reg_addr);
-	if (set == !(bitmask & val)) {
-		dev_err(priv->dev, "Reset register %u%02u operation failed\n", reg, bit);
-		spin_unlock_irqrestore(&priv->pub.rmw_lock, flags);
-		return -EIO;
-	}
 
 	spin_unlock_irqrestore(&priv->pub.rmw_lock, flags);
+
+	if (set == !(bitmask & val)) {
+		dev_err(priv->dev, "Reset register %u%02u operation failed\n", reg, bit);
+		return -EIO;
+	}
 
 	return 0;
 }
