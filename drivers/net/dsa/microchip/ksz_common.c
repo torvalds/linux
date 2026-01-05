@@ -570,6 +570,7 @@ static const u16 ksz8463_regs[] = {
 	[S_BROADCAST_CTRL]		= 0x06,
 	[S_MULTICAST_CTRL]		= 0x04,
 	[PTP_CLK_CTRL]			= 0x0600,
+	[PTP_RTC_NANOSEC]		= 0x0604,
 };
 
 static const u32 ksz8463_masks[] = {
@@ -805,6 +806,7 @@ static const u16 ksz9477_regs[] = {
 	[REG_PORT_PME_STATUS]		= 0x0013,
 	[REG_PORT_PME_CTRL]		= 0x0017,
 	[PTP_CLK_CTRL]			= 0x0500,
+	[PTP_RTC_NANOSEC]		= 0x0504,
 };
 
 static const u32 ksz9477_masks[] = {

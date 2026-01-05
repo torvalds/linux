@@ -600,7 +600,7 @@ static int _ksz_ptp_gettime(struct ksz_device *dev, struct timespec64 *ts)
 	if (ret)
 		return ret;
 
-	ret = ksz_read32(dev, REG_PTP_RTC_NANOSEC, &nanoseconds);
+	ret = ksz_read32(dev, regs[PTP_RTC_NANOSEC], &nanoseconds);
 	if (ret)
 		return ret;
 
@@ -687,7 +687,7 @@ static int ksz_ptp_settime(struct ptp_clock_info *ptp,
 	if (ret)
 		goto unlock;
 
-	ret = ksz_write32(dev, REG_PTP_RTC_NANOSEC, ts->tv_nsec);
+	ret = ksz_write32(dev, regs[PTP_RTC_NANOSEC], ts->tv_nsec);
 	if (ret)
 		goto unlock;
 
@@ -778,7 +778,7 @@ static int ksz_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	 */
 	sec = div_s64_rem(delta, NSEC_PER_SEC, &nsec);
 
-	ret = ksz_write32(dev, REG_PTP_RTC_NANOSEC, abs(nsec));
+	ret = ksz_write32(dev, regs[PTP_RTC_NANOSEC], abs(nsec));
 	if (ret)
 		goto unlock;
 
