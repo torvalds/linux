@@ -7,18 +7,10 @@
  * Author: Claudiu Beznea <claudiu.beznea@microchip.com>
  */
 
-#include <linux/of.h>
-#include <linux/of_platform.h>
-
 #include <asm/mach/arch.h>
 #include <asm/system_misc.h>
 
 #include "generic.h"
-
-static void __init sam9x60_init(void)
-{
-	of_platform_default_populate(NULL, NULL, NULL);
-}
 
 static const char *const sam9x60_dt_board_compat[] __initconst = {
 	"microchip,sam9x60",
@@ -28,6 +20,5 @@ static const char *const sam9x60_dt_board_compat[] __initconst = {
 DT_MACHINE_START(sam9x60_dt, "Microchip SAM9X60")
 	/* Maintainer: Microchip */
 	.init_late	= sam9x60_pm_init,
-	.init_machine	= sam9x60_init,
 	.dt_compat	= sam9x60_dt_board_compat,
 MACHINE_END
