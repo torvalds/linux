@@ -527,6 +527,7 @@ static struct {
 	int idx_off;
 } pv_ops_tables[] = {
 	{ .name = "pv_ops", },
+	{ .name = "pv_ops_lock", },
 	{ .name = NULL, .idx_off = -1 }
 };
 

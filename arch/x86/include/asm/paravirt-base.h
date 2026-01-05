@@ -26,4 +26,10 @@ u64 _paravirt_ident_64(u64);
 #endif
 #define paravirt_nop	((void *)nop_func)
 
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+void paravirt_set_cap(void);
+#else
+static inline void paravirt_set_cap(void) { }
+#endif
+
 #endif /* _ASM_X86_PARAVIRT_BASE_H */
