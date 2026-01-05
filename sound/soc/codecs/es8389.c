@@ -629,10 +629,6 @@ static int es8389_set_bias_level(struct snd_soc_component *component,
 		regmap_write(es8389->regmap, ES8389_CSM_JUMP, 0xE4);
 		regmap_write(es8389->regmap, ES8389_RESET, 0x01);
 		regmap_write(es8389->regmap, ES8389_CLK_OFF1, 0xC3);
-		regmap_update_bits(es8389->regmap, ES8389_ADC_HPF1, 0x0f, 0x0a);
-		regmap_update_bits(es8389->regmap, ES8389_ADC_HPF2, 0x0f, 0x0a);
-		usleep_range(70000, 72000);
-		regmap_write(es8389->regmap, ES8389_DAC_RESET, 0X00);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -663,6 +659,7 @@ static int es8389_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8389_private *es8389 = snd_soc_component_get_drvdata(component);
+	unsigned int regv;
 
 	if (mute) {
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -673,10 +670,22 @@ static int es8389_mute(struct snd_soc_dai *dai, int mute, int direction)
 						0x03, 0x03);
 		}
 	} else {
+		regmap_read(es8389->regmap, ES8389_CSM_STATE1, &regv);
+		if (regv != ES8389_STATE_ON) {
+			regmap_update_bits(es8389->regmap, ES8389_HPSW, 0x20, 0x20);
+			regmap_write(es8389->regmap, ES8389_ANA_CTL1, 0xD9);
+			regmap_write(es8389->regmap, ES8389_ADC_EN, 0x8F);
+			regmap_write(es8389->regmap, ES8389_CSM_JUMP, 0xE4);
+			regmap_write(es8389->regmap, ES8389_RESET, 0x01);
+			regmap_write(es8389->regmap, ES8389_CLK_OFF1, 0xC3);
+		}
+
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
 			regmap_update_bits(es8389->regmap, ES8389_DAC_FORMAT_MUTE,
 						0x03, 0x00);
 		} else {
+			regmap_update_bits(es8389->regmap, ES8389_ADC_HPF1, 0x0f, 0x0a);
+			regmap_update_bits(es8389->regmap, ES8389_ADC_HPF2, 0x0f, 0x0a);
 			regmap_update_bits(es8389->regmap, ES8389_ADC_FORMAT_MUTE,
 						0x03, 0x00);
 		}
