@@ -119,7 +119,6 @@ allOf:
             - const: llcc5_base
             - const: llcc6_base
             - const: llcc7_base
-            - const: llcc7_base
             - const: llcc8_base
             - const: llcc9_base
             - const: llcc10_base
