@@ -42,7 +42,6 @@
 	};
 
 	gpio-leds {
-		pinctrl-names = "default";
 		compatible = "gpio-leds";
 		/* No assigned functions to the LEDs by default */
 		led1 {

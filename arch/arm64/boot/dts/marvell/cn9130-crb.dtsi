@@ -93,7 +93,6 @@
 
 /* on-board eMMC U6 */
 &ap_sdhci0 {
-	pinctrl-names = "default";
 	bus-width = <8>;
 	status = "okay";
 	mmc-ddr-1_8v;
