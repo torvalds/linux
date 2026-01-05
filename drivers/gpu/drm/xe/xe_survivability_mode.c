@@ -321,7 +321,7 @@ static int enable_boot_survivability_mode(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	/* Make sure xe_heci_gsc_init() knows about survivability mode */
+	/* Make sure xe_heci_gsc_init() and xe_i2c_probe() are aware of survivability */
 	survivability->mode = true;
 
 	xe_heci_gsc_init(xe);
