@@ -274,6 +274,7 @@ enum ksz_regs {
 	PTP_CLK_CTRL,
 	PTP_RTC_NANOSEC,
 	PTP_RTC_SEC,
+	PTP_RTC_SUB_NANOSEC,
 };
 
 enum ksz_masks {

@@ -24,8 +24,7 @@
 #define PTP_CLK_ENABLE			BIT(1)
 #define PTP_CLK_RESET			BIT(0)
 
-#define REG_PTP_RTC_SUB_NANOSEC__2	0x0502
-
+/* REG_PTP_RTC_SUB_NANOSEC */
 #define PTP_RTC_SUB_NANOSEC_M		0x0007
 #define PTP_RTC_0NS			0x00
 
