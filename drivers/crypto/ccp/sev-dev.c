@@ -127,13 +127,6 @@ static size_t sev_es_tmr_size = SEV_TMR_SIZE;
 #define NV_LENGTH (32 * 1024)
 static void *sev_init_ex_buffer;
 
-/*
- * SEV_DATA_RANGE_LIST:
- *   Array containing range of pages that firmware transitions to HV-fixed
- *   page state.
- */
-static struct sev_data_range_list *snp_range_list;
-
 static void __sev_firmware_shutdown(struct sev_device *sev, bool panic);
 
 static int snp_shutdown_on_panic(struct notifier_block *nb,
@@ -1361,6 +1354,7 @@ static int snp_filter_reserved_mem_regions(struct resource *rs, void *arg)
 
 static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 {
+	struct sev_data_range_list *snp_range_list __free(kfree) = NULL;
 	struct psp_device *psp = psp_master;
 	struct sev_data_snp_init_ex data;
 	struct sev_device *sev;
@@ -2778,11 +2772,6 @@ static void __sev_firmware_shutdown(struct sev_device *sev, bool panic)
 					  get_order(NV_LENGTH),
 					  true);
 		sev_init_ex_buffer = NULL;
-	}
-
-	if (snp_range_list) {
-		kfree(snp_range_list);
-		snp_range_list = NULL;
 	}
 
 	__sev_snp_shutdown_locked(&error, panic);
