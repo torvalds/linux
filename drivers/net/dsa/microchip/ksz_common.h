@@ -108,6 +108,7 @@ struct ksz_irq {
 	int irq_num;
 	char name[16];
 	struct ksz_device *dev;
+	u16 irq0_offset;
 };
 
 struct ksz_ptp_irq {

@@ -1008,7 +1008,7 @@ static irqreturn_t ksz_ptp_irq_thread_fn(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	for (n = 0; n < ptpirq->nirqs; ++n) {
-		if (data & BIT(n + KSZ_PTP_INT_START)) {
+		if (data & BIT(n + ptpirq->irq0_offset)) {
 			sub_irq = irq_find_mapping(ptpirq->domain, n);
 			handle_nested_irq(sub_irq);
 			++nhandled;
@@ -1023,14 +1023,14 @@ static void ksz_ptp_irq_mask(struct irq_data *d)
 {
 	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
 
-	kirq->masked &= ~BIT(d->hwirq + KSZ_PTP_INT_START);
+	kirq->masked &= ~BIT(d->hwirq + kirq->irq0_offset);
 }
 
 static void ksz_ptp_irq_unmask(struct irq_data *d)
 {
 	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
 
-	kirq->masked |= BIT(d->hwirq + KSZ_PTP_INT_START);
+	kirq->masked |= BIT(d->hwirq + kirq->irq0_offset);
 }
 
 static void ksz_ptp_irq_bus_lock(struct irq_data *d)
@@ -1126,6 +1126,8 @@ int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p)
 	ptpirq->reg_mask = ops->get_port_addr(p, REG_PTP_PORT_TX_INT_ENABLE__2);
 	ptpirq->reg_status = ops->get_port_addr(p,
 						REG_PTP_PORT_TX_INT_STATUS__2);
+	ptpirq->irq0_offset = KSZ_PTP_INT_START;
+
 	snprintf(ptpirq->name, sizeof(ptpirq->name), "ptp-irq-%d", p);
 
 	init_completion(&port->tstamp_msg_comp);
