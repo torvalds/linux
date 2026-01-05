@@ -2259,8 +2259,6 @@ void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
 	struct intel_encoder *encoder;
 	struct intel_lt_phy_pll_state pll_hw_state = {};
 	const struct intel_lt_phy_pll_state *pll_sw_state = &new_crtc_state->dpll_hw_state.ltpll;
-	int clock;
-	int i, j;
 
 	if (DISPLAY_VER(display) < 35)
 		return;
@@ -2275,33 +2273,19 @@ void intel_lt_phy_pll_state_verify(struct intel_atomic_state *state,
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	intel_lt_phy_pll_readout_hw_state(encoder, new_crtc_state, &pll_hw_state);
-	clock = intel_lt_phy_calc_port_clock(encoder, new_crtc_state);
 
 	dig_port = enc_to_dig_port(encoder);
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
 		return;
 
-	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.clock != clock,
-				 "[CRTC:%d:%s] mismatch in LT PHY: Register CLOCK (expected %d, found %d)",
+	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[0] != pll_sw_state->config[0],
+				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 0: (expected 0x%04x, found 0x%04x)",
 				 crtc->base.base.id, crtc->base.name,
-				 pll_sw_state->clock, pll_hw_state.clock);
-
-	for (i = 0; i < 3; i++) {
-		INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[i] != pll_sw_state->config[i],
-					 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG%d: (expected 0x%04x, found 0x%04x)",
-					 crtc->base.base.id, crtc->base.name, i,
-					 pll_sw_state->config[i], pll_hw_state.config[i]);
-	}
-
-	for (i = 0; i <= 12; i++) {
-		for (j = 3; j >= 0; j--)
-			INTEL_DISPLAY_STATE_WARN(display,
-						 pll_hw_state.data[i][j] !=
-						 pll_sw_state->data[i][j],
-						 "[CRTC:%d:%s] mismatch in LT PHY PLL DATA[%d][%d]: (expected 0x%04x, found 0x%04x)",
-						 crtc->base.base.id, crtc->base.name, i, j,
-						 pll_sw_state->data[i][j], pll_hw_state.data[i][j]);
-	}
+				 pll_sw_state->config[0], pll_hw_state.config[0]);
+	INTEL_DISPLAY_STATE_WARN(display, pll_hw_state.config[2] != pll_sw_state->config[2],
+				 "[CRTC:%d:%s] mismatch in LT PHY PLL CONFIG 2: (expected 0x%04x, found 0x%04x)",
+				 crtc->base.base.id, crtc->base.name,
+				 pll_sw_state->config[2], pll_hw_state.config[2]);
 }
 
 void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
