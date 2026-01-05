@@ -2399,7 +2399,8 @@ static struct f2fs_folio_state *ffs_find_or_alloc(struct folio *folio)
 	if (ffs)
 		return ffs;
 
-	ffs = f2fs_kmem_cache_alloc(ffs_entry_slab, GFP_NOIO, true, NULL);
+	ffs = f2fs_kmem_cache_alloc(ffs_entry_slab,
+			GFP_NOIO | __GFP_ZERO, true, NULL);
 
 	spin_lock_init(&ffs->state_lock);
 	folio_attach_private(folio, ffs);
