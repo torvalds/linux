@@ -17,6 +17,11 @@
 	compatible = "purism,librem5", "fsl,imx8mq";
 	chassis-type = "handset";
 
+	aliases {
+		rtc0 = &rtc;
+		rtc1 = &snvs_rtc;
+	};
+
 	backlight_dsi: backlight-dsi {
 		compatible = "led-backlight";
 		leds = <&led_backlight>;
@@ -1001,7 +1006,7 @@
 		};
 	};
 
-	rtc@68 {
+	rtc: rtc@68 {
 		compatible = "microcrystal,rv4162";
 		reg = <0x68>;
 		pinctrl-names = "default";
@@ -1314,10 +1319,6 @@
 
 &snvs_pwrkey {
 	status = "okay";
-};
-
-&snvs_rtc {
-	status = "disabled";
 };
 
 &uart1 { /* console */
