@@ -31,6 +31,15 @@ can retrieve and restore the preserved state from KHO FDT.
 Subsystems participating in KHO can define their own format for state
 serialization and preservation.
 
+KHO FDT and structures defined by the subsystems form an ABI between pre-kexec
+and post-kexec kernels. This ABI is defined by header files in
+``include/linux/kho/abi`` directory.
+
+.. toctree::
+   :maxdepth: 1
+
+   abi.rst
+
 .. _kho_scratch:
 
 Scratch Regions
