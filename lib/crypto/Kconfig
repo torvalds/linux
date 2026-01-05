@@ -116,7 +116,7 @@ config CRYPTO_LIB_NH
 
 config CRYPTO_LIB_NH_ARCH
 	bool
-	depends on CRYPTO_LIB_NH && !UML
+	depends on CRYPTO_LIB_NH && !UML && !KMSAN
 	default y if ARM && KERNEL_MODE_NEON
 	default y if ARM64 && KERNEL_MODE_NEON
 	default y if X86_64
