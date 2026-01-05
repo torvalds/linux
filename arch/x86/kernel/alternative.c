@@ -593,39 +593,38 @@ struct patch_site {
 	u8 len;
 };
 
-static void __init_or_module analyze_patch_site(struct patch_site *ps,
-						struct alt_instr *start,
-						struct alt_instr *end)
+static struct alt_instr * __init_or_module analyze_patch_site(struct patch_site *ps,
+							     struct alt_instr *start,
+							     struct alt_instr *end)
 {
-	struct alt_instr *r;
+	struct alt_instr *alt = start;
 
 	ps->instr = instr_va(start);
-	ps->len = start->instrlen;
 
 	/*
 	 * In case of nested ALTERNATIVE()s the outer alternative might add
 	 * more padding. To ensure consistent patching find the max padding for
 	 * all alt_instr entries for this site (nested alternatives result in
 	 * consecutive entries).
+	 * Find the last alt_instr eligible for patching at the site.
 	 */
-	for (r = start+1; r < end && instr_va(r) == ps->instr; r++) {
-		ps->len = max(ps->len, r->instrlen);
-		start->instrlen = r->instrlen = ps->len;
+	for (; alt < end && instr_va(alt) == ps->instr; alt++) {
+		ps->len = max(ps->len, alt->instrlen);
+
+		BUG_ON(alt->cpuid >= (NCAPINTS + NBUGINTS) * 32);
+		/*
+		 * Patch if either:
+		 * - feature is present
+		 * - feature not present but ALT_FLAG_NOT is set to mean,
+		 *   patch if feature is *NOT* present.
+		 */
+		if (!boot_cpu_has(alt->cpuid) != !(alt->flags & ALT_FLAG_NOT))
+			ps->alt = alt;
 	}
 
 	BUG_ON(ps->len > sizeof(ps->buff));
-	BUG_ON(start->cpuid >= (NCAPINTS + NBUGINTS) * 32);
 
-	/*
-	 * Patch if either:
-	 * - feature is present
-	 * - feature not present but ALT_FLAG_NOT is set to mean,
-	 *   patch if feature is *NOT* present.
-	 */
-	if (!boot_cpu_has(start->cpuid) == !(start->flags & ALT_FLAG_NOT))
-		ps->alt = NULL;
-	else
-		ps->alt = start;
+	return alt;
 }
 
 static void __init_or_module prep_patch_site(struct patch_site *ps)
@@ -704,10 +703,14 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	 * So be careful if you want to change the scan order to any other
 	 * order.
 	 */
-	for (a = start; a < end; a++) {
-		struct patch_site ps;
+	a = start;
+	while (a < end) {
+		struct patch_site ps = {
+			.alt = NULL,
+			.len = 0
+		};
 
-		analyze_patch_site(&ps, a, end);
+		a = analyze_patch_site(&ps, a, end);
 		prep_patch_site(&ps);
 		patch_site(&ps);
 	}
