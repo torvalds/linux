@@ -26,6 +26,8 @@
 #include <net/tcp_states.h>
 #include <net/l3mdev.h>
 
+#define IP_OPTIONS_DATA_FIXED_SIZE 40
+
 /** struct ip_options - IP Options
  *
  * @faddr - Saved first hop address
@@ -58,12 +60,9 @@ struct ip_options {
 
 struct ip_options_rcu {
 	struct rcu_head rcu;
-	struct ip_options opt;
-};
 
-struct ip_options_data {
-	struct ip_options_rcu	opt;
-	char			data[40];
+	/* Must be last as it ends in a flexible-array member. */
+	struct ip_options opt;
 };
 
 struct inet_request_sock {

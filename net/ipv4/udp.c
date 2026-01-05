@@ -1269,6 +1269,8 @@ EXPORT_IPV6_MOD_GPL(udp_cmsg_send);
 
 int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
+	DEFINE_RAW_FLEX(struct ip_options_rcu, opt_copy, opt.__data,
+			IP_OPTIONS_DATA_FIXED_SIZE);
 	struct inet_sock *inet = inet_sk(sk);
 	struct udp_sock *up = udp_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_in *, usin, msg->msg_name);
@@ -1286,7 +1288,6 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int corkreq = udp_test_bit(CORK, sk) || msg->msg_flags & MSG_MORE;
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sk_buff *skb;
-	struct ip_options_data opt_copy;
 	int uc_index;
 
 	if (len > 0xFFFF)
@@ -1368,9 +1369,9 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		rcu_read_lock();
 		inet_opt = rcu_dereference(inet->inet_opt);
 		if (inet_opt) {
-			memcpy(&opt_copy, inet_opt,
+			memcpy(opt_copy, inet_opt,
 			       sizeof(*inet_opt) + inet_opt->opt.optlen);
-			ipc.opt = &opt_copy.opt;
+			ipc.opt = opt_copy;
 		}
 		rcu_read_unlock();
 	}

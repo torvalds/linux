@@ -1606,7 +1606,8 @@ void ip_send_unicast_reply(struct sock *sk, const struct sock *orig_sk,
 			   const struct ip_reply_arg *arg,
 			   unsigned int len, u64 transmit_time, u32 txhash)
 {
-	struct ip_options_data replyopts;
+	DEFINE_RAW_FLEX(struct ip_options_rcu, replyopts, opt.__data,
+			IP_OPTIONS_DATA_FIXED_SIZE);
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
 	struct rtable *rt = skb_rtable(skb);
@@ -1615,18 +1616,18 @@ void ip_send_unicast_reply(struct sock *sk, const struct sock *orig_sk,
 	int err;
 	int oif;
 
-	if (__ip_options_echo(net, &replyopts.opt.opt, skb, sopt))
+	if (__ip_options_echo(net, &replyopts->opt, skb, sopt))
 		return;
 
 	ipcm_init(&ipc);
 	ipc.addr = daddr;
 	ipc.sockc.transmit_time = transmit_time;
 
-	if (replyopts.opt.opt.optlen) {
-		ipc.opt = &replyopts.opt;
+	if (replyopts->opt.optlen) {
+		ipc.opt = replyopts;
 
-		if (replyopts.opt.opt.srr)
-			daddr = replyopts.opt.opt.faddr;
+		if (replyopts->opt.srr)
+			daddr = replyopts->opt.faddr;
 	}
 
 	oif = arg->bound_dev_if;
