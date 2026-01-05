@@ -1654,12 +1654,16 @@ static int __maybe_unused rtsx_pci_suspend(struct device *dev_d)
 	struct pci_dev *pcidev = to_pci_dev(dev_d);
 	struct pcr_handle *handle = pci_get_drvdata(pcidev);
 	struct rtsx_pcr *pcr = handle->pcr;
+	struct rtsx_slot *slot = &pcr->slots[RTSX_SD_CARD];
 
 	dev_dbg(&(pcidev->dev), "--> %s\n", __func__);
 
 	cancel_delayed_work_sync(&pcr->carddet_work);
 
 	mutex_lock(&pcr->pcr_mutex);
+
+	if (slot->p_dev && slot->power_off)
+		slot->power_off(slot->p_dev);
 
 	rtsx_pci_power_off(pcr, HOST_ENTER_S3, false);
 
@@ -1772,12 +1776,17 @@ static int rtsx_pci_runtime_suspend(struct device *device)
 	struct pci_dev *pcidev = to_pci_dev(device);
 	struct pcr_handle *handle = pci_get_drvdata(pcidev);
 	struct rtsx_pcr *pcr = handle->pcr;
+	struct rtsx_slot *slot = &pcr->slots[RTSX_SD_CARD];
 
 	dev_dbg(device, "--> %s\n", __func__);
 
 	cancel_delayed_work_sync(&pcr->carddet_work);
 
 	mutex_lock(&pcr->pcr_mutex);
+
+	if (slot->p_dev && slot->power_off)
+		slot->power_off(slot->p_dev);
+
 	rtsx_pci_power_off(pcr, HOST_ENTER_S3, true);
 
 	mutex_unlock(&pcr->pcr_mutex);

@@ -47,6 +47,7 @@ struct realtek_pci_sdmmc {
 };
 
 static int sdmmc_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios);
+static int sd_power_on(struct realtek_pci_sdmmc *host, unsigned char power_mode);
 
 static inline struct device *sdmmc_dev(struct realtek_pci_sdmmc *host)
 {
@@ -821,6 +822,15 @@ static void sd_request(struct work_struct *work)
 
 	rtsx_pci_start_run(pcr);
 
+	if (host->prev_power_state == MMC_POWER_OFF) {
+		err = sd_power_on(host, MMC_POWER_ON);
+		if (err) {
+			cmd->error = err;
+			mutex_unlock(&pcr->pcr_mutex);
+			goto finish;
+		}
+	}
+
 	rtsx_pci_switch_clock(pcr, host->clock, host->ssc_depth,
 			host->initial_mode, host->double_clk, host->vpclk);
 	rtsx_pci_write_register(pcr, CARD_SELECT, 0x07, SD_MOD_SEL);
@@ -1481,6 +1491,16 @@ static void rtsx_pci_sdmmc_card_event(struct platform_device *pdev)
 	mmc_detect_change(host->mmc, 0);
 }
 
+static void rtsx_pci_sdmmc_power_off(struct platform_device *pdev)
+{
+	struct realtek_pci_sdmmc *host = platform_get_drvdata(pdev);
+
+	if (!host)
+		return;
+
+	host->prev_power_state = MMC_POWER_OFF;
+}
+
 static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
@@ -1513,6 +1533,7 @@ static int rtsx_pci_sdmmc_drv_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 	pcr->slots[RTSX_SD_CARD].p_dev = pdev;
 	pcr->slots[RTSX_SD_CARD].card_event = rtsx_pci_sdmmc_card_event;
+	pcr->slots[RTSX_SD_CARD].power_off = rtsx_pci_sdmmc_power_off;
 
 	mutex_init(&host->host_mutex);
 
@@ -1544,6 +1565,7 @@ static void rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	pcr = host->pcr;
 	pcr->slots[RTSX_SD_CARD].p_dev = NULL;
 	pcr->slots[RTSX_SD_CARD].card_event = NULL;
+	pcr->slots[RTSX_SD_CARD].power_off = NULL;
 	mmc = host->mmc;
 
 	cancel_work_sync(&host->work);
