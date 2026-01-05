@@ -276,6 +276,7 @@ enum ksz_regs {
 	PTP_RTC_SEC,
 	PTP_RTC_SUB_NANOSEC,
 	PTP_SUBNANOSEC_RATE,
+	PTP_MSG_CONF1,
 };
 
 enum ksz_masks {

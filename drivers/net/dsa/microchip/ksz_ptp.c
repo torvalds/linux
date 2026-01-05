@@ -263,6 +263,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 {
 	struct ksz_tagger_data *tagger_data = ksz_tagger_data(dev->ds);
 	struct ksz_ptp_data *ptp_data = &dev->ptp_data;
+	const u16 *regs = dev->info->regs;
 	struct ksz_port *prt;
 	struct dsa_port *dp;
 	bool tag_en = false;
@@ -283,7 +284,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 
 	tagger_data->hwtstamp_set_state(dev->ds, tag_en);
 
-	return ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_ENABLE,
+	return ksz_rmw16(dev, regs[PTP_MSG_CONF1], PTP_ENABLE,
 			 tag_en ? PTP_ENABLE : 0);
 }
 
@@ -335,6 +336,7 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 				   struct ksz_port *prt,
 				   struct kernel_hwtstamp_config *config)
 {
+	const u16 *regs = dev->info->regs;
 	int ret;
 
 	if (config->flags)
@@ -353,7 +355,7 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = false;
 		prt->hwts_tx_en = true;
 
-		ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_1STEP, PTP_1STEP);
+		ret = ksz_rmw16(dev, regs[PTP_MSG_CONF1], PTP_1STEP, PTP_1STEP);
 		if (ret)
 			return ret;
 
@@ -367,7 +369,7 @@ static int ksz_set_hwtstamp_config(struct ksz_device *dev,
 		prt->ptpmsg_irq[KSZ_PDRES_MSG].ts_en = true;
 		prt->hwts_tx_en = true;
 
-		ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_1STEP, 0);
+		ret = ksz_rmw16(dev, regs[PTP_MSG_CONF1], PTP_1STEP, 0);
 		if (ret)
 			return ret;
 
@@ -902,6 +904,7 @@ static int ksz_ptp_start_clock(struct ksz_device *dev)
 int ksz_ptp_clock_register(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	const u16 *regs = dev->info->regs;
 	struct ksz_ptp_data *ptp_data;
 	int ret;
 	u8 i;
@@ -941,7 +944,7 @@ int ksz_ptp_clock_register(struct dsa_switch *ds)
 	/* Currently only P2P mode is supported. When 802_1AS bit is set, it
 	 * forwards all PTP packets to host port and none to other ports.
 	 */
-	ret = ksz_rmw16(dev, REG_PTP_MSG_CONF1, PTP_TC_P2P | PTP_802_1AS,
+	ret = ksz_rmw16(dev, regs[PTP_MSG_CONF1], PTP_TC_P2P | PTP_802_1AS,
 			PTP_TC_P2P | PTP_802_1AS);
 	if (ret)
 		return ret;
