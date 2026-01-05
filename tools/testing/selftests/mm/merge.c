@@ -1171,4 +1171,236 @@ TEST_F(merge, mremap_correct_placed_faulted)
 	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr + 15 * page_size);
 }
 
+TEST_F(merge, mremap_faulted_to_unfaulted_prev)
+{
+	struct procmap_fd *procmap = &self->procmap;
+	unsigned int page_size = self->page_size;
+	char *ptr_a, *ptr_b;
+
+	/*
+	 * mremap() such that A and B merge:
+	 *
+	 *                             |------------|
+	 *                             |    \       |
+	 *           |-----------|     |    /  |---------|
+	 *           | unfaulted |     v    \  | faulted |
+	 *           |-----------|          /  |---------|
+	 *                 B                \       A
+	 */
+
+	/* Map VMA A into place. */
+	ptr_a = mmap(&self->carveout[page_size + 3 * page_size],
+		     3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+	/* Fault it in. */
+	ptr_a[0] = 'x';
+
+	/*
+	 * Now move it out of the way so we can place VMA B in position,
+	 * unfaulted.
+	 */
+	ptr_a = mremap(ptr_a, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE, &self->carveout[20 * page_size]);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/* Map VMA B into place. */
+	ptr_b = mmap(&self->carveout[page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/*
+	 * Now move VMA A into position with MREMAP_DONTUNMAP to catch incorrect
+	 * anon_vma propagation.
+	 */
+	ptr_a = mremap(ptr_a, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
+		       &self->carveout[page_size + 3 * page_size]);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/* The VMAs should have merged. */
+	ASSERT_TRUE(find_vma_procmap(procmap, ptr_b));
+	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_b);
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_b + 6 * page_size);
+}
+
+TEST_F(merge, mremap_faulted_to_unfaulted_next)
+{
+	struct procmap_fd *procmap = &self->procmap;
+	unsigned int page_size = self->page_size;
+	char *ptr_a, *ptr_b;
+
+	/*
+	 * mremap() such that A and B merge:
+	 *
+	 *      |---------------------------|
+	 *      |                   \       |
+	 *      |    |-----------|  /  |---------|
+	 *      v    | unfaulted |  \  | faulted |
+	 *           |-----------|  /  |---------|
+	 *                 B        \       A
+	 *
+	 * Then unmap VMA A to trigger the bug.
+	 */
+
+	/* Map VMA A into place. */
+	ptr_a = mmap(&self->carveout[page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+	/* Fault it in. */
+	ptr_a[0] = 'x';
+
+	/*
+	 * Now move it out of the way so we can place VMA B in position,
+	 * unfaulted.
+	 */
+	ptr_a = mremap(ptr_a, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE, &self->carveout[20 * page_size]);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/* Map VMA B into place. */
+	ptr_b = mmap(&self->carveout[page_size + 3 * page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/*
+	 * Now move VMA A into position with MREMAP_DONTUNMAP to catch incorrect
+	 * anon_vma propagation.
+	 */
+	ptr_a = mremap(ptr_a, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
+		       &self->carveout[page_size]);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/* The VMAs should have merged. */
+	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
+	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 6 * page_size);
+}
+
+TEST_F(merge, mremap_faulted_to_unfaulted_prev_unfaulted_next)
+{
+	struct procmap_fd *procmap = &self->procmap;
+	unsigned int page_size = self->page_size;
+	char *ptr_a, *ptr_b, *ptr_c;
+
+	/*
+	 * mremap() with MREMAP_DONTUNMAP such that A, B and C merge:
+	 *
+	 *                  |---------------------------|
+	 *                  |                   \       |
+	 * |-----------|    |    |-----------|  /  |---------|
+	 * | unfaulted |    v    | unfaulted |  \  | faulted |
+	 * |-----------|         |-----------|  /  |---------|
+	 *       A                     C        \        B
+	 */
+
+	/* Map VMA B into place. */
+	ptr_b = mmap(&self->carveout[page_size + 3 * page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+	/* Fault it in. */
+	ptr_b[0] = 'x';
+
+	/*
+	 * Now move it out of the way so we can place VMAs A, C in position,
+	 * unfaulted.
+	 */
+	ptr_b = mremap(ptr_b, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE, &self->carveout[20 * page_size]);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/* Map VMA A into place. */
+
+	ptr_a = mmap(&self->carveout[page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/* Map VMA C into place. */
+	ptr_c = mmap(&self->carveout[page_size + 3 * page_size + 3 * page_size],
+		     3 * page_size, PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_c, MAP_FAILED);
+
+	/*
+	 * Now move VMA B into position with MREMAP_DONTUNMAP to catch incorrect
+	 * anon_vma propagation.
+	 */
+	ptr_b = mremap(ptr_b, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
+		       &self->carveout[page_size + 3 * page_size]);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/* The VMAs should have merged. */
+	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
+	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 9 * page_size);
+}
+
+TEST_F(merge, mremap_faulted_to_unfaulted_prev_faulted_next)
+{
+	struct procmap_fd *procmap = &self->procmap;
+	unsigned int page_size = self->page_size;
+	char *ptr_a, *ptr_b, *ptr_bc;
+
+	/*
+	 * mremap() with MREMAP_DONTUNMAP such that A, B and C merge:
+	 *
+	 *                  |---------------------------|
+	 *                  |                   \       |
+	 * |-----------|    |    |-----------|  /  |---------|
+	 * | unfaulted |    v    |  faulted  |  \  | faulted |
+	 * |-----------|         |-----------|  /  |---------|
+	 *       A                     C        \       B
+	 */
+
+	/*
+	 * Map VMA B and C into place. We have to map them together so their
+	 * anon_vma is the same and the vma->vm_pgoff's are correctly aligned.
+	 */
+	ptr_bc = mmap(&self->carveout[page_size + 3 * page_size],
+		      3 * page_size + 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_bc, MAP_FAILED);
+
+	/* Fault it in. */
+	ptr_bc[0] = 'x';
+
+	/*
+	 * Now move VMA B out the way (splitting VMA BC) so we can place VMA A
+	 * in position, unfaulted, and leave the remainder of the VMA we just
+	 * moved in place, faulted, as VMA C.
+	 */
+	ptr_b = mremap(ptr_bc, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE, &self->carveout[20 * page_size]);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/* Map VMA A into place. */
+	ptr_a = mmap(&self->carveout[page_size], 3 * page_size,
+		     PROT_READ | PROT_WRITE,
+		     MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+	ASSERT_NE(ptr_a, MAP_FAILED);
+
+	/*
+	 * Now move VMA B into position with MREMAP_DONTUNMAP to catch incorrect
+	 * anon_vma propagation.
+	 */
+	ptr_b = mremap(ptr_b, 3 * page_size, 3 * page_size,
+		       MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_DONTUNMAP,
+		       &self->carveout[page_size + 3 * page_size]);
+	ASSERT_NE(ptr_b, MAP_FAILED);
+
+	/* The VMAs should have merged. */
+	ASSERT_TRUE(find_vma_procmap(procmap, ptr_a));
+	ASSERT_EQ(procmap->query.vma_start, (unsigned long)ptr_a);
+	ASSERT_EQ(procmap->query.vma_end, (unsigned long)ptr_a + 9 * page_size);
+}
+
 TEST_HARNESS_MAIN
