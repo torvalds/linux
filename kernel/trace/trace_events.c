@@ -1688,6 +1688,38 @@ static int t_show_filters(struct seq_file *m, void *v)
 	return 0;
 }
 
+/**
+ * t_show_triggers - seq_file callback to display active event triggers
+ * @m: The seq_file interface for formatted output
+ * @v: The current trace_event_file being iterated
+ *
+ * Iterates through the trigger list of the current event file and prints
+ * each active trigger's configuration using its associated print
+ * operation.
+ */
+static int t_show_triggers(struct seq_file *m, void *v)
+{
+	struct trace_event_file *file = v;
+	struct trace_event_call *call = file->event_call;
+	struct event_trigger_data *data;
+
+	/*
+	 * The event_mutex is held by t_start(), protecting the
+	 * file->triggers list traversal.
+	 */
+	if (list_empty(&file->triggers))
+		return 0;
+
+	list_for_each_entry_rcu(data, &file->triggers, list) {
+		seq_printf(m, "%s:%s\t", call->class->system,
+			   trace_event_name(call));
+
+		data->cmd_ops->print(m, data);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_MODULES
 static int s_show(struct seq_file *m, void *v)
 {
@@ -2516,6 +2548,7 @@ ftrace_event_npid_write(struct file *filp, const char __user *ubuf,
 static int ftrace_event_avail_open(struct inode *inode, struct file *file);
 static int ftrace_event_set_open(struct inode *inode, struct file *file);
 static int ftrace_event_show_filters_open(struct inode *inode, struct file *file);
+static int ftrace_event_show_triggers_open(struct inode *inode, struct file *file);
 static int ftrace_event_set_pid_open(struct inode *inode, struct file *file);
 static int ftrace_event_set_npid_open(struct inode *inode, struct file *file);
 static int ftrace_event_release(struct inode *inode, struct file *file);
@@ -2538,6 +2571,13 @@ static const struct seq_operations show_show_event_filters_seq_ops = {
 	.start = t_start,
 	.next = t_next,
 	.show = t_show_filters,
+	.stop = t_stop,
+};
+
+static const struct seq_operations show_show_event_triggers_seq_ops = {
+	.start = t_start,
+	.next = t_next,
+	.show = t_show_triggers,
 	.stop = t_stop,
 };
 
@@ -2572,6 +2612,13 @@ static const struct file_operations ftrace_set_event_fops = {
 
 static const struct file_operations ftrace_show_event_filters_fops = {
 	.open = ftrace_event_show_filters_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
+};
+
+static const struct file_operations ftrace_show_event_triggers_fops = {
+	.open = ftrace_event_show_triggers_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = seq_release,
@@ -2733,6 +2780,20 @@ static int
 ftrace_event_show_filters_open(struct inode *inode, struct file *file)
 {
 	return ftrace_event_open(inode, file, &show_show_event_filters_seq_ops);
+}
+
+/**
+ * ftrace_event_show_triggers_open - open interface for show_event_triggers
+ * @inode: The inode of the file
+ * @file: The file being opened
+ *
+ * Connects the show_event_triggers file to the sequence operations
+ * required to iterate over and display active event triggers.
+ */
+static int
+ftrace_event_show_triggers_open(struct inode *inode, struct file *file)
+{
+	return ftrace_event_open(inode, file, &show_show_event_triggers_seq_ops);
 }
 
 static int
@@ -4457,6 +4518,9 @@ create_event_toplevel_files(struct dentry *parent, struct trace_array *tr)
 
 	trace_create_file("show_event_filters", TRACE_MODE_READ, parent, tr,
 			  &ftrace_show_event_filters_fops);
+
+	trace_create_file("show_event_triggers", TRACE_MODE_READ, parent, tr,
+			  &ftrace_show_event_triggers_fops);
 
 	nr_entries = ARRAY_SIZE(events_entries);
 
