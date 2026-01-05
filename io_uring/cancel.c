@@ -2,10 +2,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/namei.h>
 #include <linux/nospec.h>
 #include <linux/io_uring.h>
 

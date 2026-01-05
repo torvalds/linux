@@ -2,7 +2,6 @@
 #ifndef IOU_FILE_TABLE_H
 #define IOU_FILE_TABLE_H
 
-#include <linux/file.h>
 #include <linux/io_uring_types.h>
 #include "rsrc.h"
 
