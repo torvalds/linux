@@ -5,22 +5,39 @@
 //! C header: [`include/linux/platform_device.h`](srctree/include/linux/platform_device.h)
 
 use crate::{
-    acpi, bindings, container_of,
-    device::{self, Bound},
+    acpi,
+    bindings,
+    container_of,
+    device::{
+        self,
+        Bound, //
+    },
     driver,
-    error::{from_result, to_result, Result},
-    io::{mem::IoRequest, Resource},
-    irq::{self, IrqRequest},
+    error::{
+        from_result,
+        to_result, //
+    },
+    io::{
+        mem::IoRequest,
+        Resource, //
+    },
+    irq::{
+        self,
+        IrqRequest, //
+    },
     of,
     prelude::*,
     types::Opaque,
-    ThisModule,
+    ThisModule, //
 };
 
 use core::{
     marker::PhantomData,
     mem::offset_of,
-    ptr::{addr_of_mut, NonNull},
+    ptr::{
+        addr_of_mut,
+        NonNull, //
+    },
 };
 
 /// An adapter for the registration of platform drivers.

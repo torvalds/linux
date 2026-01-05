@@ -66,13 +66,17 @@ use kernel::{
     acpi,
     device::{
         self,
-        property::{FwNodeReferenceArgs, NArgs},
+        property::{
+            FwNodeReferenceArgs,
+            NArgs, //
+        },
         Core,
     },
-    of, platform,
+    of,
+    platform,
     prelude::*,
     str::CString,
-    sync::aref::ARef,
+    sync::aref::ARef, //
 };
 
 struct SampleDriver {
