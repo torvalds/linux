@@ -410,7 +410,7 @@ impl<T: MiscDevice> MiscdeviceVTable<T> {
         compat_ioctl: if T::HAS_COMPAT_IOCTL {
             Some(Self::compat_ioctl)
         } else if T::HAS_IOCTL {
-            Some(bindings::compat_ptr_ioctl)
+            bindings::compat_ptr_ioctl
         } else {
             None
         },

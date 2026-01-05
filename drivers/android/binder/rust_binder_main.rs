@@ -322,8 +322,7 @@ pub static rust_binder_fops: AssertSync<kernel::bindings::file_operations> = {
         owner: THIS_MODULE.as_ptr(),
         poll: Some(rust_binder_poll),
         unlocked_ioctl: Some(rust_binder_ioctl),
-        #[cfg(CONFIG_COMPAT)]
-        compat_ioctl: Some(bindings::compat_ptr_ioctl),
+        compat_ioctl: bindings::compat_ptr_ioctl,
         mmap: Some(rust_binder_mmap),
         open: Some(rust_binder_open),
         release: Some(rust_binder_release),
