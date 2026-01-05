@@ -1624,9 +1624,6 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path)
 	struct dentry *dentry = path->dentry;
 	unsigned int flags = dentry->d_flags;
 
-	if (likely(!(flags & DCACHE_MANAGED_DENTRY)))
-		return true;
-
 	if (unlikely(nd->flags & LOOKUP_NO_XDEV))
 		return false;
 
