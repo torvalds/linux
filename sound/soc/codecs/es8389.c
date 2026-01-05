@@ -38,6 +38,7 @@ struct	es8389_private {
 
 	u8 mclk_src;
 	u8 vddd;
+	int version;
 	enum snd_soc_bias_level bias_level;
 };
 
@@ -681,6 +682,10 @@ static int es8389_mute(struct snd_soc_dai *dai, int mute, int direction)
 		}
 
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (!es8389->version) {
+				regmap_write(es8389->regmap, ES8389_DAC_RESET, 0X00);
+				usleep_range(70000, 72000);
+			}
 			regmap_update_bits(es8389->regmap, ES8389_DAC_FORMAT_MUTE,
 						0x03, 0x00);
 		} else {
@@ -730,7 +735,10 @@ static struct snd_soc_dai_driver es8389_dai = {
 static void es8389_init(struct snd_soc_component *component)
 {
 	struct es8389_private *es8389 = snd_soc_component_get_drvdata(component);
+	unsigned int reg;
 
+	regmap_read(es8389->regmap, ES8389_MAX_REGISTER, &reg);
+	es8389->version = reg;
 	regmap_write(es8389->regmap, ES8389_ISO_CTL, 0x00);
 	regmap_write(es8389->regmap, ES8389_RESET, 0x7E);
 	regmap_write(es8389->regmap, ES8389_ISO_CTL, 0x38);
