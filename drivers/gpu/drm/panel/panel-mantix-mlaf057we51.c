@@ -96,6 +96,9 @@ static int mantix_disable(struct drm_panel *panel)
 	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 
+	/* T10 */
+	mipi_dsi_msleep(&dsi_ctx, 150);
+
 	return dsi_ctx.accum_err;
 }
 
@@ -103,15 +106,16 @@ static int mantix_unprepare(struct drm_panel *panel)
 {
 	struct mantix *ctx = panel_to_mantix(panel);
 
-	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 1);
-	usleep_range(5000, 6000);
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-
 	regulator_disable(ctx->avee);
 	regulator_disable(ctx->avdd);
 	/* T11 */
 	usleep_range(5000, 6000);
 	regulator_disable(ctx->vddi);
+
+	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 1);
+	usleep_range(5000, 6000);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+
 	/* T14 */
 	msleep(50);
 
