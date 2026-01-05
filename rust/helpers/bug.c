@@ -2,12 +2,12 @@
 
 #include <linux/bug.h>
 
-__noreturn void rust_helper_BUG(void)
+__rust_helper __noreturn void rust_helper_BUG(void)
 {
 	BUG();
 }
 
-bool rust_helper_WARN_ON(bool cond)
+__rust_helper bool rust_helper_WARN_ON(bool cond)
 {
 	return WARN_ON(cond);
 }
