@@ -37,7 +37,6 @@
 #include <asm/unistd.h>
 #include <asm/fixmap.h>
 #include <asm/traps.h>
-#include <asm/paravirt.h>
 
 #define CREATE_TRACE_POINTS
 #include "vsyscall_trace.h"

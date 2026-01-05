@@ -13,7 +13,6 @@
 #include <linux/spinlock.h>
 
 #include <asm/mshyperv.h>
-#include <asm/paravirt.h>
 #include <asm/apic.h>
 #include <asm/msr.h>
 

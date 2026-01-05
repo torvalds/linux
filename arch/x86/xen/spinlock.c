@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 
-#include <asm/paravirt.h>
 #include <asm/qspinlock.h>
 
 #include <xen/events.h>

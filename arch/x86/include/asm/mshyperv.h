@@ -8,7 +8,6 @@
 #include <linux/io.h>
 #include <linux/static_call.h>
 #include <asm/nospec-branch.h>
-#include <asm/paravirt.h>
 #include <asm/msr.h>
 #include <hyperv/hvhdk.h>
 #include <asm/fpu/types.h>
