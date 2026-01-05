@@ -94,9 +94,16 @@ struct rz_dmac_icu {
 	u8 dmac_index;
 };
 
+struct rz_dmac_info {
+	void (*icu_register_dma_req)(struct platform_device *icu_dev,
+				     u8 dmac_index, u8 dmac_channel, u16 req_no);
+	u16 default_dma_req_no;
+};
+
 struct rz_dmac {
 	struct dma_device engine;
 	struct rz_dmac_icu icu;
+	const struct rz_dmac_info *info;
 	struct device *dev;
 	struct reset_control *rstc;
 	void __iomem *base;
@@ -104,8 +111,6 @@ struct rz_dmac {
 
 	unsigned int n_channels;
 	struct rz_dmac_chan *channels;
-
-	bool has_icu;
 
 	DECLARE_BITMAP(modules, 1024);
 };
@@ -318,6 +323,16 @@ static void rz_dmac_set_dmars_register(struct rz_dmac *dmac, int nr, u32 dmars)
 	rz_dmac_ext_writel(dmac, dmars32, dmars_offset);
 }
 
+static void rz_dmac_set_dma_req_no(struct rz_dmac *dmac, unsigned int index,
+				   int req_no)
+{
+	if (dmac->info->icu_register_dma_req)
+		dmac->info->icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
+						 index, req_no);
+	else
+		rz_dmac_set_dmars_register(dmac, index, req_no);
+}
+
 static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 {
 	struct dma_chan *chan = &channel->vc.chan;
@@ -335,13 +350,7 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV;
 
-	if (dmac->has_icu) {
-		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
-					   channel->index,
-					   RZV2H_ICU_DMAC_REQ_NO_DEFAULT);
-	} else {
-		rz_dmac_set_dmars_register(dmac, channel->index, 0);
-	}
+	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
 
 	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG | CHCTRL_SETEN;
@@ -392,12 +401,7 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 
 	channel->lmdesc.tail = lmdesc;
 
-	if (dmac->has_icu) {
-		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
-					   channel->index, channel->mid_rid);
-	} else {
-		rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
-	}
+	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
 
 	channel->chctrl = CHCTRL_SETEN;
 }
@@ -675,13 +679,7 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
 
-	if (dmac->has_icu) {
-		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
-					   channel->index,
-					   RZV2H_ICU_DMAC_REQ_NO_DEFAULT);
-	} else {
-		rz_dmac_set_dmars_register(dmac, channel->index, 0);
-	}
+	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
 }
 
 /*
@@ -870,13 +868,12 @@ static int rz_dmac_parse_of_icu(struct device *dev, struct rz_dmac *dmac)
 	uint32_t dmac_index;
 	int ret;
 
-	ret = of_parse_phandle_with_fixed_args(np, "renesas,icu", 1, 0, &args);
-	if (ret == -ENOENT)
+	if (!dmac->info->icu_register_dma_req)
 		return 0;
+
+	ret = of_parse_phandle_with_fixed_args(np, "renesas,icu", 1, 0, &args);
 	if (ret)
 		return ret;
-
-	dmac->has_icu = true;
 
 	dmac->icu.pdev = of_find_device_by_node(args.np);
 	of_node_put(args.np);
@@ -932,6 +929,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (!dmac)
 		return -ENOMEM;
 
+	dmac->info = device_get_match_data(&pdev->dev);
 	dmac->dev = &pdev->dev;
 	platform_set_drvdata(pdev, dmac);
 
@@ -949,7 +947,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->base))
 		return PTR_ERR(dmac->base);
 
-	if (!dmac->has_icu) {
+	if (!dmac->info->icu_register_dma_req) {
 		dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dmac->ext_base))
 			return PTR_ERR(dmac->ext_base);
@@ -1069,9 +1067,18 @@ static void rz_dmac_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
+static const struct rz_dmac_info rz_dmac_v2h_info = {
+	.icu_register_dma_req = rzv2h_icu_register_dma_req,
+	.default_dma_req_no = RZV2H_ICU_DMAC_REQ_NO_DEFAULT,
+};
+
+static const struct rz_dmac_info rz_dmac_generic_info = {
+	.default_dma_req_no = 0,
+};
+
 static const struct of_device_id of_rz_dmac_match[] = {
-	{ .compatible = "renesas,r9a09g057-dmac", },
-	{ .compatible = "renesas,rz-dmac", },
+	{ .compatible = "renesas,r9a09g057-dmac", .data = &rz_dmac_v2h_info },
+	{ .compatible = "renesas,rz-dmac", .data = &rz_dmac_generic_info },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, of_rz_dmac_match);
