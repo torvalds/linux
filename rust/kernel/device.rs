@@ -5,12 +5,20 @@
 //! C header: [`include/linux/device.h`](srctree/include/linux/device.h)
 
 use crate::{
-    bindings, fmt,
+    bindings,
+    fmt,
     prelude::*,
     sync::aref::ARef,
-    types::{ForeignOwnable, Opaque},
+    types::{
+        ForeignOwnable,
+        Opaque, //
+    }, //
 };
-use core::{any::TypeId, marker::PhantomData, ptr};
+use core::{
+    any::TypeId,
+    marker::PhantomData,
+    ptr, //
+};
 
 use crate::str::CStrExt as _;
 
