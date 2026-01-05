@@ -6,14 +6,23 @@
 //! C header: [`include/linux/usb.h`](srctree/include/linux/usb.h)
 
 use crate::{
-    bindings, device,
-    device_id::{RawDeviceId, RawDeviceIdIndex},
+    bindings,
+    device,
+    device_id::{
+        RawDeviceId,
+        RawDeviceIdIndex, //
+    },
     driver,
-    error::{from_result, to_result, Result},
+    error::{
+        from_result,
+        to_result, //
+    },
     prelude::*,
-    str::CStr,
-    types::{AlwaysRefCounted, Opaque},
-    ThisModule,
+    types::{
+        AlwaysRefCounted,
+        Opaque, //
+    },
+    ThisModule, //
 };
 use core::{
     marker::PhantomData,
