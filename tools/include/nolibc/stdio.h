@@ -272,6 +272,25 @@ char *fgets(char *s, int size, FILE *stream)
 }
 
 
+/* fseek */
+static __attribute__((unused))
+int fseek(FILE *stream, long offset, int whence)
+{
+	int fd = fileno(stream);
+	off_t ret;
+
+	ret = lseek(fd, offset, whence);
+
+	/* lseek() and fseek() differ in that lseek returns the new
+	 * position or -1, fseek() returns either 0 or -1.
+	 */
+	if (ret >= 0)
+		return 0;
+
+	return -1;
+}
+
+
 /* minimal printf(). It supports the following formats:
  *  - %[l*]{d,u,c,x,p}
  *  - %s
