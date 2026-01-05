@@ -18,6 +18,7 @@
 #include <linux/clk.h>
 #include <linux/string_choices.h>
 
+#include "../phylib.h"
 #include "realtek.h"
 
 #define RTL8201F_IER				0x13
@@ -140,9 +141,8 @@
 #define   RTL822X_VND1_SERDES_INBAND_ENABLE	0x70d0
 #define RTL822X_VND1_SERDES_DATA		0x7589
 
-/* RTL822X_VND2_XXXXX registers are only accessible when phydev->is_c45
- * is set, they cannot be accessed by C45-over-C22.
- */
+#define RTL822X_VND2_TO_PAGE(reg)		((reg) >> 4)
+#define RTL822X_VND2_TO_PAGE_REG(reg)		(16 + (((reg) & GENMASK(3, 0)) >> 1))
 #define RTL822X_VND2_C22_REG(reg)		(0xa400 + 2 * (reg))
 
 #define RTL8221B_VND2_INER			0xa4d2
@@ -1247,6 +1247,79 @@ static int rtl822x_probe(struct phy_device *phydev)
 	return 0;
 }
 
+/* RTL822x cannot access MDIO_MMD_VEND2 via MII_MMD_CTRL/MII_MMD_DATA.
+ * A mapping to use paged access needs to be used instead.
+ * All other MMD devices can be accessed as usual.
+ */
+static int rtl822xb_read_mmd(struct phy_device *phydev, int devnum, u16 reg)
+{
+	int oldpage, ret, read_ret;
+	u16 page;
+
+	/* Use default method for all MMDs except MDIO_MMD_VEND2 or in case
+	 * Clause-45 access is available
+	 */
+	if (devnum != MDIO_MMD_VEND2 || phydev->is_c45)
+		return mmd_phy_read(phydev->mdio.bus, phydev->mdio.addr,
+				    phydev->is_c45, devnum, reg);
+
+	/* Use paged access for MDIO_MMD_VEND2 over Clause-22 */
+	page = RTL822X_VND2_TO_PAGE(reg);
+	oldpage = __phy_read(phydev, RTL821x_PAGE_SELECT);
+	if (oldpage < 0)
+		return oldpage;
+
+	if (oldpage != page) {
+		ret = __phy_write(phydev, RTL821x_PAGE_SELECT, page);
+		if (ret < 0)
+			return ret;
+	}
+
+	read_ret = __phy_read(phydev, RTL822X_VND2_TO_PAGE_REG(reg));
+	if (oldpage != page) {
+		ret = __phy_write(phydev, RTL821x_PAGE_SELECT, oldpage);
+		if (ret < 0)
+			return ret;
+	}
+
+	return read_ret;
+}
+
+static int rtl822xb_write_mmd(struct phy_device *phydev, int devnum, u16 reg,
+			      u16 val)
+{
+	int oldpage, ret, write_ret;
+	u16 page;
+
+	/* Use default method for all MMDs except MDIO_MMD_VEND2 or in case
+	 * Clause-45 access is available
+	 */
+	if (devnum != MDIO_MMD_VEND2 || phydev->is_c45)
+		return mmd_phy_write(phydev->mdio.bus, phydev->mdio.addr,
+				     phydev->is_c45, devnum, reg, val);
+
+	/* Use paged access for MDIO_MMD_VEND2 over Clause-22 */
+	page = RTL822X_VND2_TO_PAGE(reg);
+	oldpage = __phy_read(phydev, RTL821x_PAGE_SELECT);
+	if (oldpage < 0)
+		return oldpage;
+
+	if (oldpage != page) {
+		ret = __phy_write(phydev, RTL821x_PAGE_SELECT, page);
+		if (ret < 0)
+			return ret;
+	}
+
+	write_ret = __phy_write(phydev,  RTL822X_VND2_TO_PAGE_REG(reg), val);
+	if (oldpage != page) {
+		ret = __phy_write(phydev, RTL821x_PAGE_SELECT, oldpage);
+		if (ret < 0)
+			return ret;
+	}
+
+	return write_ret;
+}
+
 static int rtl822x_set_serdes_option_mode(struct phy_device *phydev, bool gen1)
 {
 	bool has_2500, has_sgmii;
@@ -2150,6 +2223,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		.match_phy_device = rtl8221b_match_phy_device,
 		.name		= "RTL8226B_RTL8221B 2.5Gbps PHY",
@@ -2164,6 +2239,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc838),
 		.name		= "RTL8226-CG 2.5Gbps PHY",
@@ -2176,6 +2253,8 @@ static struct phy_driver realtek_drvs[] = {
 		.read_status	= rtl822xb_c45_read_status,
 		.suspend	= genphy_c45_pma_suspend,
 		.resume		= rtlgen_c45_resume,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		PHY_ID_MATCH_EXACT(0x001cc848),
 		.name		= "RTL8226B-CG_RTL8221B-CG 2.5Gbps PHY",
@@ -2190,6 +2269,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		.match_phy_device = rtl8221b_vb_cg_c22_match_phy_device,
 		.name		= "RTL8221B-VB-CG 2.5Gbps PHY (C22)",
@@ -2205,6 +2286,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		.match_phy_device = rtl8221b_vb_cg_c45_match_phy_device,
 		.name		= "RTL8221B-VB-CG 2.5Gbps PHY (C45)",
@@ -2235,6 +2318,8 @@ static struct phy_driver realtek_drvs[] = {
 		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		.match_phy_device = rtl8221b_vm_cg_c45_match_phy_device,
 		.name		= "RTL8221B-VM-CG 2.5Gbps PHY (C45)",
