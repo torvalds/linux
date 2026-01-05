@@ -1085,7 +1085,6 @@
 		assigned-clock-parents = <&clk IMX8MQ_AUDIO_PLL1_OUT>;
 		assigned-clock-rates = <24576000>;
 		#sound-dai-cells = <0>;
-		mic-cfg = <0x200>;
 		DCVDD-supply = <&reg_aud_1v8>;
 		DBVDD-supply = <&reg_aud_1v8>;
 		AVDD-supply = <&reg_aud_1v8>;
