@@ -133,7 +133,7 @@ static inline bool softleaf_is_none(softleaf_t entry)
 
 /**
  * softleaf_type() - Identify the type of leaf entry.
- * @enntry: Leaf entry.
+ * @entry: Leaf entry.
  *
  * Returns: the leaf entry type associated with @entry.
  */
@@ -534,7 +534,7 @@ static inline bool pte_is_uffd_wp_marker(pte_t pte)
 /**
  * pte_is_uffd_marker() - Does this PTE entry encode a userfault-specific marker
  * leaf entry?
- * @entry: Leaf entry.
+ * @pte: PTE entry.
  *
  * It's useful to be able to determine which leaf entries encode UFFD-specific
  * markers so we can handle these correctly.

@@ -237,6 +237,7 @@ struct ublk_device {
 	bool canceling;
 	pid_t 	ublksrv_tgid;
 	struct delayed_work	exit_work;
+	struct work_struct	partition_scan_work;
 
 	struct ublk_queue       *queues[];
 };
@@ -253,6 +254,20 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq);
 static inline struct request *__ublk_check_and_get_req(struct ublk_device *ub,
 		u16 q_id, u16 tag, struct ublk_io *io, size_t offset);
 static inline unsigned int ublk_req_build_flags(struct request *req);
+
+static void ublk_partition_scan_work(struct work_struct *work)
+{
+	struct ublk_device *ub =
+		container_of(work, struct ublk_device, partition_scan_work);
+
+	if (WARN_ON_ONCE(!test_and_clear_bit(GD_SUPPRESS_PART_SCAN,
+					     &ub->ub_disk->state)))
+		return;
+
+	mutex_lock(&ub->ub_disk->open_mutex);
+	bdev_disk_changed(ub->ub_disk, false);
+	mutex_unlock(&ub->ub_disk->open_mutex);
+}
 
 static inline struct ublksrv_io_desc *
 ublk_get_iod(const struct ublk_queue *ubq, unsigned tag)
@@ -1607,8 +1622,7 @@ static bool ublk_check_and_reset_active_ref(struct ublk_device *ub)
 {
 	int i, j;
 
-	if (!(ub->dev_info.flags & (UBLK_F_SUPPORT_ZERO_COPY |
-					UBLK_F_AUTO_BUF_REG)))
+	if (!ublk_dev_need_req_ref(ub))
 		return false;
 
 	for (i = 0; i < ub->dev_info.nr_hw_queues; i++) {
@@ -2027,6 +2041,7 @@ static void ublk_stop_dev(struct ublk_device *ub)
 	mutex_lock(&ub->mutex);
 	ublk_stop_dev_unlocked(ub);
 	mutex_unlock(&ub->mutex);
+	flush_work(&ub->partition_scan_work);
 	ublk_cancel_dev(ub);
 }
 
@@ -2955,9 +2970,17 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	ublk_apply_params(ub);
 
-	/* don't probe partitions if any daemon task is un-trusted */
-	if (ub->unprivileged_daemons)
-		set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
+	/*
+	 * Suppress partition scan to avoid potential IO hang.
+	 *
+	 * If ublk server error occurs during partition scan, the IO may
+	 * wait while holding ub->mutex, which can deadlock with other
+	 * operations that need the mutex. Defer partition scan to async
+	 * work.
+	 * For unprivileged daemons, keep GD_SUPPRESS_PART_SCAN set
+	 * permanently.
+	 */
+	set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 
 	ublk_get_device(ub);
 	ub->dev_info.state = UBLK_S_DEV_LIVE;
@@ -2973,6 +2996,10 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 		goto out_put_cdev;
 
 	set_bit(UB_STATE_USED, &ub->state);
+
+	/* Schedule async partition scan for trusted daemons */
+	if (!ub->unprivileged_daemons)
+		schedule_work(&ub->partition_scan_work);
 
 out_put_cdev:
 	if (ret) {
@@ -3139,6 +3166,7 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 	mutex_init(&ub->mutex);
 	spin_lock_init(&ub->lock);
 	mutex_init(&ub->cancel_mutex);
+	INIT_WORK(&ub->partition_scan_work, ublk_partition_scan_work);
 
 	ret = ublk_alloc_dev_number(ub, header->dev_id);
 	if (ret < 0)
