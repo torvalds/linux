@@ -246,12 +246,11 @@ static inline void backlog_lock_irq_disable(struct softnet_data *sd)
 }
 
 static inline void backlog_unlock_irq_restore(struct softnet_data *sd,
-					      unsigned long *flags)
+					      unsigned long flags)
 {
 	if (IS_ENABLED(CONFIG_RPS) || use_backlog_threads())
-		spin_unlock_irqrestore(&sd->input_pkt_queue.lock, *flags);
-	else
-		local_irq_restore(*flags);
+		spin_unlock(&sd->input_pkt_queue.lock);
+	local_irq_restore(flags);
 }
 
 static inline void backlog_unlock_irq_enable(struct softnet_data *sd)
@@ -5247,7 +5246,7 @@ void kick_defer_list_purge(unsigned int cpu)
 		if (!__test_and_set_bit(NAPI_STATE_SCHED, &sd->backlog.state))
 			__napi_schedule_irqoff(&sd->backlog);
 
-		backlog_unlock_irq_restore(sd, &flags);
+		backlog_unlock_irq_restore(sd, flags);
 
 	} else if (!cmpxchg(&sd->defer_ipi_scheduled, 0, 1)) {
 		smp_call_function_single_async(cpu, &sd->defer_csd);
@@ -5334,14 +5333,14 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 		}
 		__skb_queue_tail(&sd->input_pkt_queue, skb);
 		tail = rps_input_queue_tail_incr(sd);
-		backlog_unlock_irq_restore(sd, &flags);
+		backlog_unlock_irq_restore(sd, flags);
 
 		/* save the tail outside of the critical section */
 		rps_input_queue_tail_save(qtail, tail);
 		return NET_RX_SUCCESS;
 	}
 
-	backlog_unlock_irq_restore(sd, &flags);
+	backlog_unlock_irq_restore(sd, flags);
 
 cpu_backlog_drop:
 	reason = SKB_DROP_REASON_CPU_BACKLOG;
