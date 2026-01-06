@@ -227,8 +227,9 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 {
 	struct dcmi_buf *buf;
 
+	/* Nothing to do if we are not running */
 	if (dcmi->state != RUNNING)
-		return -EINVAL;
+		return 0;
 
 	/* Restart a new DMA transfer with next buffer */
 	if (list_empty(&dcmi->buffers)) {
@@ -240,52 +241,6 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 	dcmi->active = buf;
 
 	return dcmi_start_capture(dcmi, buf);
-}
-
-static void dcmi_dma_callback(void *param)
-{
-	struct stm32_dcmi *dcmi = (struct stm32_dcmi *)param;
-	struct dma_tx_state state;
-	enum dma_status status;
-	struct dcmi_buf *buf = dcmi->active;
-
-	spin_lock_irq(&dcmi->irqlock);
-
-	/* Check DMA status */
-	status = dmaengine_tx_status(dcmi->dma_chan, dcmi->dma_cookie, &state);
-
-	switch (status) {
-	case DMA_IN_PROGRESS:
-		dev_dbg(dcmi->dev, "%s: Received DMA_IN_PROGRESS\n", __func__);
-		break;
-	case DMA_PAUSED:
-		dev_err(dcmi->dev, "%s: Received DMA_PAUSED\n", __func__);
-		break;
-	case DMA_ERROR:
-		dev_err(dcmi->dev, "%s: Received DMA_ERROR\n", __func__);
-
-		/* Return buffer to V4L2 in error state */
-		dcmi_buffer_done(dcmi, buf, 0, -EIO);
-		break;
-	case DMA_COMPLETE:
-		dev_dbg(dcmi->dev, "%s: Received DMA_COMPLETE\n", __func__);
-
-		/* Return buffer to V4L2 */
-		dcmi_buffer_done(dcmi, buf, buf->size, 0);
-
-		spin_unlock_irq(&dcmi->irqlock);
-
-		/* Restart capture */
-		if (dcmi_restart_capture(dcmi))
-			dev_err(dcmi->dev, "%s: Cannot restart capture on DMA complete\n",
-				__func__);
-		return;
-	default:
-		dev_err(dcmi->dev, "%s: Received unknown status\n", __func__);
-		break;
-	}
-
-	spin_unlock_irq(&dcmi->irqlock);
 }
 
 static int dcmi_start_dma(struct stm32_dcmi *dcmi,
@@ -344,7 +299,7 @@ static void dcmi_set_crop(struct stm32_dcmi *dcmi)
 	reg_set(dcmi->regs, DCMI_CR, CR_CROP);
 }
 
-static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
+static void dcmi_process_frame(struct stm32_dcmi *dcmi)
 {
 	struct dma_tx_state state;
 	enum dma_status status;
@@ -354,13 +309,11 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 		return;
 
 	/*
-	 * Because of variable JPEG buffer size sent by sensor,
-	 * DMA transfer never completes due to transfer size never reached.
-	 * In order to ensure that all the JPEG data are transferred
-	 * in active buffer memory, DMA is drained.
-	 * Then DMA tx status gives the amount of data transferred
-	 * to memory, which is then returned to V4L2 through the active
-	 * buffer payload.
+	 * At the time FRAME interrupt is received, all dma req have been sent to the DMA,
+	 * however DMA might still be transferring data hence first synchronize prior to
+	 * getting the status of the DMA transfer.
+	 * Then DMA tx status gives the amount of data transferred to memory, which is then
+	 * returned to V4L2 through the active buffer payload.
 	 */
 
 	spin_unlock_irq(&dcmi->irqlock);
@@ -368,16 +321,16 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 	dmaengine_synchronize(dcmi->dma_chan);
 	spin_lock_irq(&dcmi->irqlock);
 
-	/* Get DMA residue to get JPEG size */
+	/* Get DMA status and residue size */
 	status = dmaengine_tx_status(dcmi->dma_chan, dcmi->dma_cookie, &state);
 	if (status != DMA_ERROR && state.residue < buf->size) {
-		/* Return JPEG buffer to V4L2 with received JPEG buffer size */
+		/* Return buffer to V4L2 with received data size */
 		dcmi_buffer_done(dcmi, buf, buf->size - state.residue, 0);
 	} else {
 		dcmi->errors_count++;
-		dev_err(dcmi->dev, "%s: Cannot get JPEG size from DMA\n",
-			__func__);
-		/* Return JPEG buffer to V4L2 in ERROR state */
+		dev_err(dcmi->dev, "%s: DMA error. status: 0x%x, residue: %d\n",
+			__func__, status, state.residue);
+		/* Return buffer to V4L2 in ERROR state */
 		dcmi_buffer_done(dcmi, buf, 0, -EIO);
 	}
 
@@ -385,11 +338,6 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 	/* Abort DMA operation */
 	dmaengine_terminate_sync(dcmi->dma_chan);
 	spin_lock_irq(&dcmi->irqlock);
-
-	/* Restart capture */
-	if (dcmi_restart_capture(dcmi))
-		dev_err(dcmi->dev, "%s: Cannot restart capture on JPEG received\n",
-			__func__);
 }
 
 static irqreturn_t dcmi_irq_thread(int irq, void *arg)
@@ -420,12 +368,10 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 	if (dcmi->misr & IT_ERR)
 		dcmi->errors_count++;
 
-	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG &&
-	    dcmi->misr & IT_FRAME) {
-		/* JPEG received */
-		dcmi_process_jpeg(dcmi);
-		spin_unlock_irq(&dcmi->irqlock);
-		return IRQ_HANDLED;
+	if (dcmi->misr & IT_FRAME) {
+		dcmi_process_frame(dcmi);
+		if (dcmi_restart_capture(dcmi))
+			dev_err(dcmi->dev, "%s: Cannot restart capture\n", __func__);
 	}
 
 	spin_unlock_irq(&dcmi->irqlock);
@@ -541,10 +487,6 @@ static int dcmi_buf_prepare(struct vb2_buffer *vb)
 			sg_free_table(&buf->sgt);
 			return -EIO;
 		}
-
-		/* Set completion callback routine for notification */
-		buf->dma_desc->callback = dcmi_dma_callback;
-		buf->dma_desc->callback_param = dcmi;
 
 		/* Mark the descriptor as reusable to avoid having to prepare it */
 		ret = dmaengine_desc_set_reuse(buf->dma_desc);
@@ -818,10 +760,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* Enable interruptions */
-	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG)
-		reg_set(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
-	else
-		reg_set(dcmi->regs, DCMI_IER, IT_OVR | IT_ERR);
+	reg_set(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
 
 	spin_unlock_irq(&dcmi->irqlock);
 
