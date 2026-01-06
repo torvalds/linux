@@ -78,6 +78,9 @@ attribute-sets:
       -
         name: scope
         type: string
+      -
+        name: min-threads
+        type: u32
   -
     name: version
     attributes:
@@ -159,6 +162,7 @@ operations:
             - gracetime
             - leasetime
             - scope
+            - min-threads
     -
       name: threads-get
       doc: get the number of running threads
@@ -170,6 +174,7 @@ operations:
             - gracetime
             - leasetime
             - scope
+            - min-threads
     -
       name: version-set
       doc: set nfs enabled versions
