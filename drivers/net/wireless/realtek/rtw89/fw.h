@@ -4311,7 +4311,8 @@ struct rtw89_fw_element_hdr {
 	__le32 id; /* enum rtw89_fw_element_id */
 	__le32 size; /* exclude header size */
 	u8 ver[4];
-	__le32 rsvd0;
+	__le16 aid; /* should match rtw89_hal::aid */
+	__le16 rsvd0;
 	__le32 rsvd1;
 	__le32 rsvd2;
 	union {
