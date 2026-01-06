@@ -1163,9 +1163,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @mask_interrupts: ignore interrupt
  * @pci_access_mutex: Mutex to synchronize ioctl, sysfs show path and
  *			pci resource handling
- * @fault_reset_work_q_name: fw fault work queue
- * @fault_reset_work_q: ""
- * @fault_reset_work: ""
+ * @fault_reset_work_q: fw fault workqueue
+ * @fault_reset_work: fw fault work
  * @firmware_event_thread: fw event work queue
  * @fw_event_lock:
  * @fw_event_list: list of fw events
@@ -1349,7 +1348,6 @@ struct MPT3SAS_ADAPTER {
 	u8		mask_interrupts;
 
 	/* fw fault handler */
-	char		fault_reset_work_q_name[20];
 	struct workqueue_struct *fault_reset_work_q;
 	struct delayed_work fault_reset_work;
 
