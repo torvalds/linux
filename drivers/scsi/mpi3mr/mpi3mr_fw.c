@@ -2878,11 +2878,8 @@ void mpi3mr_start_watchdog(struct mpi3mr_ioc *mrioc)
 		return;
 
 	INIT_DELAYED_WORK(&mrioc->watchdog_work, mpi3mr_watchdog_work);
-	snprintf(mrioc->watchdog_work_q_name,
-	    sizeof(mrioc->watchdog_work_q_name), "watchdog_%s%d", mrioc->name,
-	    mrioc->id);
 	mrioc->watchdog_work_q = alloc_ordered_workqueue(
-		"%s", WQ_MEM_RECLAIM, mrioc->watchdog_work_q_name);
+		"watchdog_%s%d", WQ_MEM_RECLAIM, mrioc->name, mrioc->id);
 	if (!mrioc->watchdog_work_q) {
 		ioc_err(mrioc, "%s: failed (line=%d)\n", __func__, __LINE__);
 		return;
