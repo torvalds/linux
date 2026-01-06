@@ -3461,6 +3461,92 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl_g7);
 
+int rtw89_fw_h2c_default_cmac_tbl_be(struct rtw89_dev *rtwdev,
+				     struct rtw89_vif_link *rtwvif_link,
+				     struct rtw89_sta_link *rtwsta_link)
+{
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
+	bool preld = rtw89_mac_chk_preload_allow(rtwdev);
+	struct rtw89_h2c_cctlinfo_ud_be *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for default cmac be\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_be *)skb->data;
+
+	h2c->c0 = le32_encode_bits(mac_id, BE_CCTL_INFO_C0_V1_MACID) |
+		  le32_encode_bits(1, BE_CCTL_INFO_C0_V1_OP);
+
+	h2c->w0 = le32_encode_bits(4, BE_CCTL_INFO_W0_DATARATE);
+	h2c->m0 = cpu_to_le32(BE_CCTL_INFO_W0_ALL);
+
+	h2c->w1 = le32_encode_bits(4, BE_CCTL_INFO_W1_DATA_RTY_LOWEST_RATE) |
+		  le32_encode_bits(0xa, BE_CCTL_INFO_W1_RTSRATE) |
+		  le32_encode_bits(4, BE_CCTL_INFO_W1_RTS_RTY_LOWEST_RATE);
+	h2c->m1 = cpu_to_le32(BE_CCTL_INFO_W1_ALL);
+
+	h2c->w1 = le32_encode_bits(preld, BE_CCTL_INFO_W2_PRELOAD_ENABLE);
+	h2c->m2 = cpu_to_le32(BE_CCTL_INFO_W2_ALL);
+
+	h2c->m3 = cpu_to_le32(BE_CCTL_INFO_W3_ALL);
+
+	h2c->w4 = le32_encode_bits(0xFFFF, BE_CCTL_INFO_W4_ACT_SUBCH_CBW);
+	h2c->m4 = cpu_to_le32(BE_CCTL_INFO_W4_ALL);
+
+	h2c->w5 = le32_encode_bits(2, BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING0_V1) |
+		  le32_encode_bits(2, BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING1_V1) |
+		  le32_encode_bits(2, BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING2_V1) |
+		  le32_encode_bits(2, BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING3_V1) |
+		  le32_encode_bits(2, BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING4_V1);
+	h2c->m5 = cpu_to_le32(BE_CCTL_INFO_W5_ALL);
+
+	h2c->w6 = le32_encode_bits(0xb, BE_CCTL_INFO_W6_RESP_REF_RATE);
+	h2c->m6 = cpu_to_le32(BE_CCTL_INFO_W6_ALL);
+
+	h2c->w7 = le32_encode_bits(1, BE_CCTL_INFO_W7_NC) |
+		  le32_encode_bits(1, BE_CCTL_INFO_W7_NR) |
+		  le32_encode_bits(1, BE_CCTL_INFO_W7_CB) |
+		  le32_encode_bits(0x1, BE_CCTL_INFO_W7_CSI_PARA_EN) |
+		  le32_encode_bits(0xb, BE_CCTL_INFO_W7_CSI_FIX_RATE);
+	h2c->m7 = cpu_to_le32(BE_CCTL_INFO_W7_ALL);
+
+	h2c->m8 = cpu_to_le32(BE_CCTL_INFO_W8_ALL);
+
+	h2c->w14 = le32_encode_bits(0, BE_CCTL_INFO_W14_VO_CURR_RATE) |
+		   le32_encode_bits(0, BE_CCTL_INFO_W14_VI_CURR_RATE) |
+		   le32_encode_bits(0, BE_CCTL_INFO_W14_BE_CURR_RATE_L);
+	h2c->m14 = cpu_to_le32(BE_CCTL_INFO_W14_ALL);
+
+	h2c->w15 = le32_encode_bits(0, BE_CCTL_INFO_W15_BE_CURR_RATE_H) |
+		   le32_encode_bits(0, BE_CCTL_INFO_W15_BK_CURR_RATE) |
+		   le32_encode_bits(0, BE_CCTL_INFO_W15_MGNT_CURR_RATE);
+	h2c->m15 = cpu_to_le32(BE_CCTL_INFO_W15_ALL);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl_be);
+
 static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 				     struct ieee80211_link_sta *link_sta,
 				     u8 *pads)

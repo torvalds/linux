@@ -1737,4 +1737,16 @@ void rtw89_tx_rpt_skbs_purge(struct rtw89_dev *rtwdev)
 			rtw89_tx_rpt_tx_status(rtwdev, skbs[i],
 					       RTW89_TX_MACID_DROP);
 }
+
+static inline bool rtw89_mac_chk_preload_allow(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hci.type != RTW89_HCI_TYPE_PCIE)
+		return false;
+
+	if (rtwdev->chip->chip_id == RTL8922D && rtwdev->hal.cid == RTL8922D_CID7090)
+		return true;
+
+	return false;
+}
+
 #endif
