@@ -229,7 +229,7 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 		goto err;
 
 	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
-	if (hci->info && hci->info->init) {
+	if (hci->info->init) {
 		ret = hci->info->init(hci);
 		if (ret)
 			goto err;
@@ -244,7 +244,7 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	return 0;
 
 err_exit:
-	if (hci->info && hci->info->exit)
+	if (hci->info->exit)
 		hci->info->exit(hci);
 err:
 	platform_device_put(hci->pdev);
@@ -258,7 +258,7 @@ static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 	struct platform_device *pdev = hci->pdev;
 	int dev_id = pdev->id;
 
-	if (hci->info && hci->info->exit)
+	if (hci->info->exit)
 		hci->info->exit(hci);
 
 	platform_device_unregister(pdev);
