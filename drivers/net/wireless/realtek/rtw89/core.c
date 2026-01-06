@@ -1659,11 +1659,32 @@ static __le32 rtw89_build_txwd_body2_v2(struct rtw89_tx_desc_info *desc_info)
 	return cpu_to_le32(dword);
 }
 
+static __le32 rtw89_build_txwd_body2_v3(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(BE_TXD_BODY2_TID_IND_V1, desc_info->tid_indicate) |
+		    FIELD_PREP(BE_TXD_BODY2_QSEL_V1, desc_info->qsel) |
+		    FIELD_PREP(BE_TXD_BODY2_TXPKTSIZE, desc_info->pkt_size) |
+		    FIELD_PREP(BE_TXD_BODY2_AGG_EN, desc_info->agg_en) |
+		    FIELD_PREP(BE_TXD_BODY2_MACID_V1, desc_info->mac_id);
+
+	return cpu_to_le32(dword);
+}
+
 static __le32 rtw89_build_txwd_body3_v2(struct rtw89_tx_desc_info *desc_info)
 {
 	u32 dword = FIELD_PREP(BE_TXD_BODY3_WIFI_SEQ, desc_info->seq) |
 		    FIELD_PREP(BE_TXD_BODY3_MLO_FLAG, desc_info->mlo) |
 		    FIELD_PREP(BE_TXD_BODY3_IS_MLD_SW_EN, desc_info->sw_mld);
+
+	return cpu_to_le32(dword);
+}
+
+static __le32 rtw89_build_txwd_body3_v3(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(BE_TXD_BODY3_WIFI_SEQ, desc_info->seq) |
+		    FIELD_PREP(BE_TXD_BODY3_MLO_FLAG, desc_info->mlo) |
+		    FIELD_PREP(BE_TXD_BODY3_IS_MLD_SW_EN, desc_info->sw_mld) |
+		    FIELD_PREP(BE_TXD_BODY3_BK_V1, desc_info->bk);
 
 	return cpu_to_le32(dword);
 }
@@ -1739,6 +1760,15 @@ static __le32 rtw89_build_txwd_info2_v2(struct rtw89_tx_desc_info *desc_info)
 	return cpu_to_le32(dword);
 }
 
+static __le32 rtw89_build_txwd_info2_v3(struct rtw89_tx_desc_info *desc_info)
+{
+	u32 dword = FIELD_PREP(BE_TXD_INFO2_AMPDU_DENSITY, desc_info->ampdu_density) |
+		    FIELD_PREP(BE_TXD_INFO2_FORCE_KEY_EN_V1, desc_info->sec_en) |
+		    FIELD_PREP(BE_TXD_INFO2_SEC_CAM_IDX_V1, desc_info->sec_cam_idx);
+
+	return cpu_to_le32(dword);
+}
+
 static __le32 rtw89_build_txwd_info4_v2(struct rtw89_tx_desc_info *desc_info)
 {
 	bool rts_en = !desc_info->is_bmc;
@@ -1776,6 +1806,35 @@ void rtw89_core_fill_txdesc_v2(struct rtw89_dev *rtwdev,
 	txwd_info->dword4 = rtw89_build_txwd_info4_v2(desc_info);
 }
 EXPORT_SYMBOL(rtw89_core_fill_txdesc_v2);
+
+void rtw89_core_fill_txdesc_v3(struct rtw89_dev *rtwdev,
+			       struct rtw89_tx_desc_info *desc_info,
+			       void *txdesc)
+{
+	struct rtw89_txwd_body_v2 *txwd_body = txdesc;
+	struct rtw89_txwd_info_v2 *txwd_info;
+
+	txwd_body->dword0 = rtw89_build_txwd_body0_v2(desc_info);
+	txwd_body->dword1 = rtw89_build_txwd_body1_v2(desc_info);
+	txwd_body->dword2 = rtw89_build_txwd_body2_v3(desc_info);
+	txwd_body->dword3 = rtw89_build_txwd_body3_v3(desc_info);
+	if (desc_info->sec_en) {
+		txwd_body->dword4 = rtw89_build_txwd_body4_v2(desc_info);
+		txwd_body->dword5 = rtw89_build_txwd_body5_v2(desc_info);
+	}
+	txwd_body->dword6 = rtw89_build_txwd_body6_v2(desc_info);
+	txwd_body->dword7 = rtw89_build_txwd_body7_v2(desc_info);
+
+	if (!desc_info->en_wd_info)
+		return;
+
+	txwd_info = (struct rtw89_txwd_info_v2 *)(txwd_body + 1);
+	txwd_info->dword0 = rtw89_build_txwd_info0_v2(desc_info);
+	txwd_info->dword1 = rtw89_build_txwd_info1_v2(desc_info);
+	txwd_info->dword2 = rtw89_build_txwd_info2_v3(desc_info);
+	txwd_info->dword4 = rtw89_build_txwd_info4_v2(desc_info);
+}
+EXPORT_SYMBOL(rtw89_core_fill_txdesc_v3);
 
 static __le32 rtw89_build_txwd_fwcmd0_v1(struct rtw89_tx_desc_info *desc_info)
 {
