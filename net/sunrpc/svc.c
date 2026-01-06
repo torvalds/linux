@@ -763,53 +763,19 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
-static struct svc_pool *
-svc_pool_next(struct svc_serv *serv, struct svc_pool *pool, unsigned int *state)
-{
-	return pool ? pool : &serv->sv_pools[(*state)++ % serv->sv_nrpools];
-}
-
-static struct svc_pool *
-svc_pool_victim(struct svc_serv *serv, struct svc_pool *target_pool,
-		unsigned int *state)
-{
-	struct svc_pool *pool;
-	unsigned int i;
-
-	pool = target_pool;
-
-	if (!pool) {
-		for (i = 0; i < serv->sv_nrpools; i++) {
-			pool = &serv->sv_pools[--(*state) % serv->sv_nrpools];
-			if (pool->sp_nrthreads)
-				break;
-		}
-	}
-
-	if (pool && pool->sp_nrthreads) {
-		set_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
-		set_bit(SP_NEED_VICTIM, &pool->sp_flags);
-		return pool;
-	}
-	return NULL;
-}
-
 static int
 svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
 	struct svc_rqst	*rqstp;
 	struct task_struct *task;
-	struct svc_pool *chosen_pool;
-	unsigned int state = serv->sv_nrthreads-1;
 	int node;
 	int err;
 
 	do {
 		nrservs--;
-		chosen_pool = svc_pool_next(serv, pool, &state);
-		node = svc_pool_map_get_node(chosen_pool->sp_id);
+		node = svc_pool_map_get_node(pool->sp_id);
 
-		rqstp = svc_prepare_thread(serv, chosen_pool, node);
+		rqstp = svc_prepare_thread(serv, pool, node);
 		if (!rqstp)
 			return -ENOMEM;
 		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
@@ -821,7 +787,7 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 
 		rqstp->rq_task = task;
 		if (serv->sv_nrpools > 1)
-			svc_pool_map_set_cpumask(task, chosen_pool->sp_id);
+			svc_pool_map_set_cpumask(task, pool->sp_id);
 
 		svc_sock_update_bufs(serv);
 		wake_up_process(task);
@@ -840,16 +806,11 @@ svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 static int
 svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
 {
-	unsigned int state = serv->sv_nrthreads-1;
-	struct svc_pool *victim;
-
 	do {
-		victim = svc_pool_victim(serv, pool, &state);
-		if (!victim)
-			break;
-		svc_pool_wake_idle_thread(victim);
-		wait_on_bit(&victim->sp_flags, SP_VICTIM_REMAINS,
-			    TASK_IDLE);
+		set_bit(SP_VICTIM_REMAINS, &pool->sp_flags);
+		set_bit(SP_NEED_VICTIM, &pool->sp_flags);
+		svc_pool_wake_idle_thread(pool);
+		wait_on_bit(&pool->sp_flags, SP_VICTIM_REMAINS, TASK_IDLE);
 		nrservs++;
 	} while (nrservs < 0);
 	return 0;
