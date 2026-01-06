@@ -16891,12 +16891,12 @@ init_err_dl:
 
 init_err_pci_clean:
 	bnxt_hwrm_func_drv_unrgtr(bp);
-	bnxt_free_hwrm_resources(bp);
-	bnxt_hwmon_uninit(bp);
-	bnxt_ethtool_free(bp);
 	bnxt_ptp_clear(bp);
 	kfree(bp->ptp_cfg);
 	bp->ptp_cfg = NULL;
+	bnxt_free_hwrm_resources(bp);
+	bnxt_hwmon_uninit(bp);
+	bnxt_ethtool_free(bp);
 	kfree(bp->fw_health);
 	bp->fw_health = NULL;
 	bnxt_cleanup_pci(bp);
