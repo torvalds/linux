@@ -816,6 +816,13 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 		return 0;
 	}
 
+	/*
+	 * If the delalloc range is only one fs block and can not be inlined,
+	 * do not even bother try compression, as there will be no space saving
+	 * and will always fallback to regular write later.
+	 */
+	if (start != 0 && end + 1 - start <= fs_info->sectorsize)
+		return 0;
 	/* Defrag ioctl takes precedence over mount options and properties. */
 	if (inode->defrag_compress == BTRFS_DEFRAG_DONT_COMPRESS)
 		return 0;
@@ -953,18 +960,7 @@ again:
 	if (actual_end <= start)
 		goto cleanup_and_bail_uncompressed;
 
-	total_compressed = actual_end - start;
-
-	/*
-	 * Skip compression for a small file range(<=blocksize) that
-	 * isn't an inline extent, since it doesn't save disk space at all.
-	 */
-	if (total_compressed <= blocksize &&
-	   (start > 0 || end + 1 < inode->disk_i_size))
-		goto cleanup_and_bail_uncompressed;
-
-	total_compressed = min_t(unsigned long, total_compressed,
-			BTRFS_MAX_UNCOMPRESSED);
+	total_compressed = min_t(unsigned long, actual_end - start, BTRFS_MAX_UNCOMPRESSED);
 	total_in = 0;
 	ret = 0;
 
