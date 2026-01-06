@@ -488,9 +488,6 @@ static int mchp_rds_ptp_hwtstamp_set(struct mii_timestamper *mii_ts,
 	unsigned long flags;
 	int rc;
 
-	clock->hwts_tx_type = config->tx_type;
-	clock->rx_filter = config->rx_filter;
-
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		clock->layer = 0;
@@ -513,6 +510,15 @@ static int mchp_rds_ptp_hwtstamp_set(struct mii_timestamper *mii_ts,
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 		clock->layer = PTP_CLASS_L4 | PTP_CLASS_L2;
 		clock->version = PTP_CLASS_V2;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_ONESTEP_SYNC:
+	case HWTSTAMP_TX_ON:
+	case HWTSTAMP_TX_OFF:
 		break;
 	default:
 		return -ERANGE;
@@ -553,7 +559,7 @@ static int mchp_rds_ptp_hwtstamp_set(struct mii_timestamper *mii_ts,
 	if (rc < 0)
 		return rc;
 
-	if (clock->hwts_tx_type == HWTSTAMP_TX_ONESTEP_SYNC)
+	if (config->tx_type == HWTSTAMP_TX_ONESTEP_SYNC)
 		/* Enable / disable of the TX timestamp in the SYNC frames */
 		rc = mchp_rds_phy_modify_mmd(clock, MCHP_RDS_PTP_TX_MOD,
 					     MCHP_RDS_PTP_PORT,
@@ -587,8 +593,13 @@ static int mchp_rds_ptp_hwtstamp_set(struct mii_timestamper *mii_ts,
 	/* Now enable the timestamping interrupts */
 	rc = mchp_rds_ptp_config_intr(clock,
 				      config->rx_filter != HWTSTAMP_FILTER_NONE);
+	if (rc < 0)
+		return rc;
 
-	return rc < 0 ? rc : 0;
+	clock->hwts_tx_type = config->tx_type;
+	clock->rx_filter = config->rx_filter;
+
+	return 0;
 }
 
 static int mchp_rds_ptp_ts_info(struct mii_timestamper *mii_ts,
