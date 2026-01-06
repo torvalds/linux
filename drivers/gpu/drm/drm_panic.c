@@ -1072,8 +1072,11 @@ void drm_panic_unregister(struct drm_device *dev)
  */
 void __init drm_panic_init(void)
 {
-	if (drm_panic_type == -1)
-		drm_panic_type_set(CONFIG_DRM_PANIC_SCREEN, NULL);
+	if (drm_panic_type == -1 && drm_panic_type_set(CONFIG_DRM_PANIC_SCREEN, NULL)) {
+		pr_warn("Unsupported value for CONFIG_DRM_PANIC_SCREEN ('%s'), falling back to 'user'...\n",
+			CONFIG_DRM_PANIC_SCREEN);
+		drm_panic_type = DRM_PANIC_TYPE_USER;
+	}
 	drm_panic_qr_init();
 }
 
