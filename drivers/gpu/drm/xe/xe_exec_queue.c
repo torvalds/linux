@@ -84,9 +84,8 @@
  * group is destroyed. The secondary queues hold a reference to the primary
  * queue thus preventing the group from being destroyed when user destroys
  * the primary queue. Once the primary queue is destroyed, secondary queues
- * can't be added to the queue group, but they can continue to submit the
- * jobs if the DRM_XE_MULTI_GROUP_KEEP_ACTIVE flag is set during the multi
- * queue group creation.
+ * can't be added to the queue group and new job submissions on existing
+ * secondary queues are not allowed.
  *
  * The queues of a multi queue group can set their priority within the group
  * through the DRM_XE_EXEC_QUEUE_SET_PROPERTY_MULTI_QUEUE_PRIORITY property.
