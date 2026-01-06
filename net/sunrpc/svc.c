@@ -763,44 +763,61 @@ void svc_pool_wake_idle_thread(struct svc_pool *pool)
 }
 EXPORT_SYMBOL_GPL(svc_pool_wake_idle_thread);
 
-static int
-svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
+/**
+ * svc_new_thread - spawn a new thread in the given pool
+ * @serv: the serv to which the pool belongs
+ * @pool: pool in which thread should be spawned
+ *
+ * Create a new thread inside @pool, which is a part of @serv.
+ * Caller must hold the service mutex.
+ *
+ * Returns 0 on success, or -errno on failure.
+ */
+int svc_new_thread(struct svc_serv *serv, struct svc_pool *pool)
 {
 	struct svc_rqst	*rqstp;
 	struct task_struct *task;
 	int node;
-	int err;
+	int err = 0;
 
-	do {
-		nrservs--;
-		node = svc_pool_map_get_node(pool->sp_id);
+	node = svc_pool_map_get_node(pool->sp_id);
 
-		rqstp = svc_prepare_thread(serv, pool, node);
-		if (!rqstp)
-			return -ENOMEM;
-		task = kthread_create_on_node(serv->sv_threadfn, rqstp,
-					      node, "%s", serv->sv_name);
-		if (IS_ERR(task)) {
-			svc_exit_thread(rqstp);
-			return PTR_ERR(task);
-		}
+	rqstp = svc_prepare_thread(serv, pool, node);
+	if (!rqstp)
+		return -ENOMEM;
+	task = kthread_create_on_node(serv->sv_threadfn, rqstp,
+				      node, "%s", serv->sv_name);
+	if (IS_ERR(task)) {
+		err = PTR_ERR(task);
+		goto out;
+	}
 
-		rqstp->rq_task = task;
-		if (serv->sv_nrpools > 1)
-			svc_pool_map_set_cpumask(task, pool->sp_id);
+	rqstp->rq_task = task;
+	if (serv->sv_nrpools > 1)
+		svc_pool_map_set_cpumask(task, pool->sp_id);
 
-		svc_sock_update_bufs(serv);
-		wake_up_process(task);
+	svc_sock_update_bufs(serv);
+	wake_up_process(task);
 
-		wait_var_event(&rqstp->rq_err, rqstp->rq_err != -EAGAIN);
-		err = rqstp->rq_err;
-		if (err) {
-			svc_exit_thread(rqstp);
-			return err;
-		}
-	} while (nrservs > 0);
+	/* Wait for the thread to signal initialization status */
+	wait_var_event(&rqstp->rq_err, rqstp->rq_err != -EAGAIN);
+	err = rqstp->rq_err;
+out:
+	if (err)
+		svc_exit_thread(rqstp);
+	return err;
+}
+EXPORT_SYMBOL_GPL(svc_new_thread);
 
-	return 0;
+static int
+svc_start_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
+{
+	int err = 0;
+
+	while (!err && nrservs--)
+		err = svc_new_thread(serv, pool);
+
+	return err;
 }
 
 static int
