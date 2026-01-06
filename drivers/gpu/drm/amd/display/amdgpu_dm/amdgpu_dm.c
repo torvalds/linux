@@ -13146,9 +13146,24 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 
 		if (ieeeId == HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_IEEE_REGISTRATION_ID &&
 				amd_vsdb->version == HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3) {
+			u8 panel_type;
 			vsdb_info->replay_mode = (amd_vsdb->feature_caps & AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE) ? true : false;
 			vsdb_info->amd_vsdb_version = HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3;
 			drm_dbg_kms(aconnector->base.dev, "Panel supports Replay Mode: %d\n", vsdb_info->replay_mode);
+			panel_type = (amd_vsdb->color_space_eotf_support & AMD_VDSB_VERSION_3_PANEL_TYPE_MASK) >> AMD_VDSB_VERSION_3_PANEL_TYPE_SHIFT;
+			switch (panel_type) {
+			case AMD_VSDB_PANEL_TYPE_OLED:
+				aconnector->dc_link->panel_type = PANEL_TYPE_OLED;
+				break;
+			case AMD_VSDB_PANEL_TYPE_MINILED:
+				aconnector->dc_link->panel_type = PANEL_TYPE_MINILED;
+				break;
+			default:
+				aconnector->dc_link->panel_type = PANEL_TYPE_NONE;
+				break;
+			}
+			drm_dbg_kms(aconnector->base.dev, "Panel type: %d\n",
+				    aconnector->dc_link->panel_type);
 
 			return true;
 		}

@@ -1734,6 +1734,7 @@ struct dc_scratch_space {
 	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
 
 	struct dc_panel_config panel_config;
+	enum dc_panel_type panel_type;
 	struct phy_state phy_state;
 	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY

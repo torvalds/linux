@@ -964,6 +964,13 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum dc_panel_type {
+	PANEL_TYPE_NONE = 0, // UNKONWN, not determined yet
+	PANEL_TYPE_LCD = 1,
+	PANEL_TYPE_OLED = 2,
+	PANEL_TYPE_MINILED = 3,
+};
+
 enum backlight_control_type {
 	BACKLIGHT_CONTROL_PWM = 0,
 	BACKLIGHT_CONTROL_VESA_AUX = 1,
