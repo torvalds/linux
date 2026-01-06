@@ -100,6 +100,7 @@ static enum mi_bits_per_pixel get_mi_bpp(
 static enum mi_tiling_format get_mi_tiling(
 		struct dc_tiling_info *tiling_info)
 {
+	ASSERT(tiling_info->gfxversion == DcGfxVersion8);
 	switch (tiling_info->gfx8.array_mode) {
 	case DC_ARRAY_1D_TILED_THIN1:
 	case DC_ARRAY_1D_TILED_THICK:
@@ -433,6 +434,7 @@ static void program_tiling(
 	struct dce_mem_input *dce_mi, const struct dc_tiling_info *info)
 {
 	if (dce_mi->masks->GRPH_SW_MODE) { /* GFX9 */
+		ASSERT(info->gfxversion == DcGfxVersion9);
 		REG_UPDATE_6(GRPH_CONTROL,
 				GRPH_SW_MODE, info->gfx9.swizzle,
 				GRPH_NUM_BANKS, log_2(info->gfx9.num_banks),
@@ -447,6 +449,7 @@ static void program_tiling(
 	}
 
 	if (dce_mi->masks->GRPH_MICRO_TILE_MODE) { /* GFX8 */
+		ASSERT(info->gfxversion == DcGfxVersion8);
 		REG_UPDATE_9(GRPH_CONTROL,
 				GRPH_NUM_BANKS, info->gfx8.num_banks,
 				GRPH_BANK_WIDTH, info->gfx8.bank_width,
