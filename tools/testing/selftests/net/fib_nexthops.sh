@@ -800,6 +800,14 @@ ipv6_fcnal()
 	set +e
 	check_nexthop "dev veth1" ""
 	log_test $? 0 "Nexthops removed on admin down"
+
+	# error routes should be deleted when their nexthop is deleted
+	run_cmd "$IP li set dev veth1 up"
+	run_cmd "$IP -6 nexthop add id 58 dev veth1"
+	run_cmd "$IP ro add blackhole 2001:db8:101::1/128 nhid 58"
+	run_cmd "$IP nexthop del id 58"
+	check_route6 "2001:db8:101::1" ""
+	log_test $? 0 "Error route removed on nexthop deletion"
 }
 
 ipv6_grp_refs()
@@ -1459,6 +1467,13 @@ ipv4_fcnal()
 
 	run_cmd "$IP ro del 172.16.102.0/24"
 	log_test $? 0 "Delete route when not specifying nexthop attributes"
+
+	# error routes should be deleted when their nexthop is deleted
+	run_cmd "$IP nexthop add id 23 dev veth1"
+	run_cmd "$IP ro add blackhole 172.16.102.100/32 nhid 23"
+	run_cmd "$IP nexthop del id 23"
+	check_route "172.16.102.100" ""
+	log_test $? 0 "Error route removed on nexthop deletion"
 }
 
 ipv4_grp_fcnal()

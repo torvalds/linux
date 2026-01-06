@@ -12,7 +12,7 @@ description:
   including IXP42x, IXP43x, IXP45x and IXP46x.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 properties:
   intel,ixp4xx-eb-t1:

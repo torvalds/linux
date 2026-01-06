@@ -25,7 +25,7 @@ extern __always_inline unsigned long native_save_fl(void)
 	 */
 	asm volatile("# __raw_save_flags\n\t"
 		     "pushf ; pop %0"
-		     : "=rm" (flags)
+		     : ASM_OUTPUT_RM (flags)
 		     : /* no input */
 		     : "memory");
 

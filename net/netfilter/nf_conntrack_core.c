@@ -2487,6 +2487,7 @@ void nf_conntrack_cleanup_net(struct net *net)
 void nf_conntrack_cleanup_net_list(struct list_head *net_exit_list)
 {
 	struct nf_ct_iter_data iter_data = {};
+	unsigned long start = jiffies;
 	struct net *net;
 	int busy;
 
@@ -2507,6 +2508,8 @@ i_see_dead_people:
 			busy = 1;
 	}
 	if (busy) {
+		DEBUG_NET_WARN_ONCE(time_after(jiffies, start + 60 * HZ),
+				    "conntrack cleanup blocked for 60s");
 		schedule();
 		goto i_see_dead_people;
 	}

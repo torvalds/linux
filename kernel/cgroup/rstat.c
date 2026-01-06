@@ -71,7 +71,6 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 {
 	struct llist_head *lhead;
 	struct css_rstat_cpu *rstatc;
-	struct css_rstat_cpu __percpu *rstatc_pcpu;
 	struct llist_node *self;
 
 	/*
@@ -104,18 +103,22 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 	/*
 	 * This function can be renentered by irqs and nmis for the same cgroup
 	 * and may try to insert the same per-cpu lnode into the llist. Note
-	 * that llist_add() does not protect against such scenarios.
+	 * that llist_add() does not protect against such scenarios. In addition
+	 * this same per-cpu lnode can be modified through init_llist_node()
+	 * from css_rstat_flush() running on a different CPU.
 	 *
 	 * To protect against such stacked contexts of irqs/nmis, we use the
 	 * fact that lnode points to itself when not on a list and then use
-	 * this_cpu_cmpxchg() to atomically set to NULL to select the winner
+	 * try_cmpxchg() to atomically set to NULL to select the winner
 	 * which will call llist_add(). The losers can assume the insertion is
 	 * successful and the winner will eventually add the per-cpu lnode to
 	 * the llist.
+	 *
+	 * Please note that we can not use this_cpu_cmpxchg() here as on some
+	 * archs it is not safe against modifications from multiple CPUs.
 	 */
 	self = &rstatc->lnode;
-	rstatc_pcpu = css->rstat_cpu;
-	if (this_cpu_cmpxchg(rstatc_pcpu->lnode.next, self, NULL) != self)
+	if (!try_cmpxchg(&rstatc->lnode.next, &self, NULL))
 		return;
 
 	lhead = ss_lhead_cpu(css->ss, cpu);

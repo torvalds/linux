@@ -89,13 +89,13 @@ enum dpu_hw_cdwn_op_mode_method_h_v {
  */
 struct dpu_hw_cdm_ops {
 	/**
-	 * Enable the CDM module
+	 * @enable: Enable the CDM module
 	 * @cdm         Pointer to chroma down context
 	 */
 	int (*enable)(struct dpu_hw_cdm *cdm, struct dpu_hw_cdm_cfg *cfg);
 
 	/**
-	 * Enable/disable the connection with pingpong
+	 * @bind_pingpong_blk: Enable/disable the connection with pingpong
 	 * @cdm         Pointer to chroma down context
 	 * @pp          pingpong block id.
 	 */

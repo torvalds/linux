@@ -28,7 +28,7 @@ config KUNIT_FAULT_TEST
 	bool "Enable KUnit tests which print BUG stacktraces"
 	depends on KUNIT_TEST
 	depends on !UML
-	default y
+	default !PANIC_ON_OOPS
 	help
 	  Enables fault handling tests for the KUnit framework. These tests may
 	  trigger a kernel BUG(), and the associated stack trace, even when they

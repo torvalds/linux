@@ -831,7 +831,6 @@ int usbnet_stop(struct net_device *net)
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
 	netif_stop_queue(net);
-	netdev_reset_queue(net);
 
 	netif_info(dev, ifdown, dev->net,
 		   "stop stats: rx/tx %lu/%lu, errs %lu/%lu\n",
@@ -874,6 +873,8 @@ int usbnet_stop(struct net_device *net)
 	cancel_work_sync(&dev->bh_work);
 	timer_delete_sync(&dev->delay);
 	cancel_work_sync(&dev->kevent);
+
+	netdev_reset_queue(net);
 
 	if (!pm)
 		usb_autopm_put_interface(dev->intf);

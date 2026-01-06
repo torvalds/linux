@@ -495,7 +495,11 @@ int iopt_map_file_pages(struct iommufd_ctx *ictx, struct io_pagetable *iopt,
 		return -EOVERFLOW;
 
 	start_byte = start - ALIGN_DOWN(start, PAGE_SIZE);
-	dmabuf = dma_buf_get(fd);
+	if (IS_ENABLED(CONFIG_DMA_SHARED_BUFFER))
+		dmabuf = dma_buf_get(fd);
+	else
+		dmabuf = ERR_PTR(-ENXIO);
+
 	if (!IS_ERR(dmabuf)) {
 		pages = iopt_alloc_dmabuf_pages(ictx, dmabuf, start_byte, start,
 						length,

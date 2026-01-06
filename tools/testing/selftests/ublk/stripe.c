@@ -134,7 +134,7 @@ static int stripe_queue_tgt_rw_io(struct ublk_thread *t, struct ublk_queue *q,
 	struct stripe_array *s = alloc_stripe_array(conf, iod);
 	struct ublk_io *io = ublk_get_io(q, tag);
 	int i, extra = zc ? 2 : 0;
-	void *base = (zc | auto_zc) ? NULL : (void *)iod->addr;
+	void *base = io->buf_addr;
 
 	io->private_data = s;
 	calculate_stripe_array(conf, iod, s, base);
