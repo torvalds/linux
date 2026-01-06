@@ -417,7 +417,7 @@ static bool gpio_shared_dev_is_reset_gpio(struct device *consumer,
 		 * Reuse the fwnode of the real device, next time we'll use it
 		 * in the normal path.
 		 */
-		ref->fwnode = fwnode_handle_get(real_ref->fwnode);
+		ref->fwnode = fwnode_handle_get(reset_fwnode);
 		return true;
 	}
 
