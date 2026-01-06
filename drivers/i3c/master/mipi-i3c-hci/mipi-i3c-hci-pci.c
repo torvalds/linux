@@ -181,16 +181,25 @@ static void intel_i3c_exit(struct mipi_i3c_hci_pci *hci)
 	intel_ltr_hide(&hci->pci->dev);
 }
 
-static const struct mipi_i3c_hci_pci_info intel_1_info = {
+static const struct mipi_i3c_hci_pci_info intel_mi_1_info = {
 	.init = intel_i3c_init,
 	.exit = intel_i3c_exit,
 	.name = "intel-lpss-i3c",
-	.id = {0},
-	.instance_offset = {0},
-	.instance_count = 1,
+	.id = {0, 1},
+	.instance_offset = {0, 0x400},
+	.instance_count = 2,
 };
 
-static const struct mipi_i3c_hci_pci_info intel_2_info = {
+static const struct mipi_i3c_hci_pci_info intel_mi_2_info = {
+	.init = intel_i3c_init,
+	.exit = intel_i3c_exit,
+	.name = "intel-lpss-i3c",
+	.id = {2, 3},
+	.instance_offset = {0, 0x400},
+	.instance_count = 2,
+};
+
+static const struct mipi_i3c_hci_pci_info intel_si_2_info = {
 	.init = intel_i3c_init,
 	.exit = intel_i3c_exit,
 	.name = "intel-lpss-i3c",
@@ -296,17 +305,17 @@ static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 
 static const struct pci_device_id mipi_i3c_hci_pci_devices[] = {
 	/* Wildcat Lake-U */
-	{ PCI_VDEVICE(INTEL, 0x4d7c), (kernel_ulong_t)&intel_1_info},
-	{ PCI_VDEVICE(INTEL, 0x4d6f), (kernel_ulong_t)&intel_2_info},
+	{ PCI_VDEVICE(INTEL, 0x4d7c), (kernel_ulong_t)&intel_mi_1_info},
+	{ PCI_VDEVICE(INTEL, 0x4d6f), (kernel_ulong_t)&intel_si_2_info},
 	/* Panther Lake-H */
-	{ PCI_VDEVICE(INTEL, 0xe37c), (kernel_ulong_t)&intel_1_info},
-	{ PCI_VDEVICE(INTEL, 0xe36f), (kernel_ulong_t)&intel_2_info},
+	{ PCI_VDEVICE(INTEL, 0xe37c), (kernel_ulong_t)&intel_mi_1_info},
+	{ PCI_VDEVICE(INTEL, 0xe36f), (kernel_ulong_t)&intel_si_2_info},
 	/* Panther Lake-P */
-	{ PCI_VDEVICE(INTEL, 0xe47c), (kernel_ulong_t)&intel_1_info},
-	{ PCI_VDEVICE(INTEL, 0xe46f), (kernel_ulong_t)&intel_2_info},
+	{ PCI_VDEVICE(INTEL, 0xe47c), (kernel_ulong_t)&intel_mi_1_info},
+	{ PCI_VDEVICE(INTEL, 0xe46f), (kernel_ulong_t)&intel_si_2_info},
 	/* Nova Lake-S */
-	{ PCI_VDEVICE(INTEL, 0x6e2c), (kernel_ulong_t)&intel_1_info},
-	{ PCI_VDEVICE(INTEL, 0x6e2d), (kernel_ulong_t)&intel_2_info},
+	{ PCI_VDEVICE(INTEL, 0x6e2c), (kernel_ulong_t)&intel_mi_1_info},
+	{ PCI_VDEVICE(INTEL, 0x6e2d), (kernel_ulong_t)&intel_mi_2_info},
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, mipi_i3c_hci_pci_devices);
