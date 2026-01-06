@@ -4234,6 +4234,60 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_txtime_cmac_tbl_g7);
 
+int rtw89_fw_h2c_txtime_cmac_tbl_be(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta_link *rtwsta_link)
+{
+	struct rtw89_h2c_cctlinfo_ud_be *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for txtime_cmac_be\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_be *)skb->data;
+
+	h2c->c0 = le32_encode_bits(rtwsta_link->mac_id, BE_CCTL_INFO_C0_V1_MACID) |
+		  le32_encode_bits(1, BE_CCTL_INFO_C0_V1_OP);
+
+	if (rtwsta_link->cctl_tx_time) {
+		h2c->w3 |= le32_encode_bits(1, BE_CCTL_INFO_W3_AMPDU_TIME_SEL);
+		h2c->m3 |= cpu_to_le32(BE_CCTL_INFO_W3_AMPDU_TIME_SEL);
+
+		h2c->w2 |= le32_encode_bits(rtwsta_link->ampdu_max_time,
+					   BE_CCTL_INFO_W2_AMPDU_MAX_TIME);
+		h2c->m2 |= cpu_to_le32(BE_CCTL_INFO_W2_AMPDU_MAX_TIME);
+	}
+	if (rtwsta_link->cctl_tx_retry_limit) {
+		h2c->w2 |= le32_encode_bits(1, BE_CCTL_INFO_W2_DATA_TXCNT_LMT_SEL) |
+			   le32_encode_bits(rtwsta_link->data_tx_cnt_lmt,
+					    BE_CCTL_INFO_W2_DATA_TX_CNT_LMT);
+		h2c->m2 |= cpu_to_le32(BE_CCTL_INFO_W2_DATA_TXCNT_LMT_SEL |
+				       BE_CCTL_INFO_W2_DATA_TX_CNT_LMT);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_txtime_cmac_tbl_be);
+
 int rtw89_fw_h2c_punctured_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				       struct rtw89_vif_link *rtwvif_link,
 				       u16 punctured)
