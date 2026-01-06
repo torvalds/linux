@@ -93,10 +93,7 @@ mod elf {
 
             // Get the start of the name.
             elf.get(name_idx..)
-                // Stop at the first `0`.
-                .and_then(|nstr| nstr.get(0..=nstr.iter().position(|b| *b == 0)?))
-                // Convert into CStr. This should never fail because of the line above.
-                .and_then(|nstr| CStr::from_bytes_with_nul(nstr).ok())
+                .and_then(|nstr| CStr::from_bytes_until_nul(nstr).ok())
                 // Convert into str.
                 .and_then(|c_str| c_str.to_str().ok())
                 // Check that the name matches.
