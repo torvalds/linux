@@ -2022,9 +2022,7 @@ bool dcn20_fast_validate_bw(
 
 	dcn20_merge_pipes_for_validate(dc, context);
 
-	DC_FP_START();
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, validate_mode);
-	DC_FP_END();
 
 	*pipe_cnt_out = pipe_cnt;
 
