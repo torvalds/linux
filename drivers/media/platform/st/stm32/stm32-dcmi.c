@@ -334,10 +334,8 @@ static void dcmi_process_frame(struct stm32_dcmi *dcmi)
 		dcmi_buffer_done(dcmi, buf, 0, -EIO);
 	}
 
-	spin_unlock_irq(&dcmi->irqlock);
 	/* Abort DMA operation */
-	dmaengine_terminate_sync(dcmi->dma_chan);
-	spin_lock_irq(&dcmi->irqlock);
+	dmaengine_terminate_async(dcmi->dma_chan);
 }
 
 static irqreturn_t dcmi_irq_thread(int irq, void *arg)
@@ -355,10 +353,8 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 		if (dcmi->overrun_count > OVERRUN_ERROR_THRESHOLD)
 			dcmi->errors_count++;
 
-		spin_unlock_irq(&dcmi->irqlock);
-		dmaengine_terminate_sync(dcmi->dma_chan);
+		dmaengine_terminate_async(dcmi->dma_chan);
 
-		spin_lock_irq(&dcmi->irqlock);
 		if (dcmi_restart_capture(dcmi))
 			dev_err(dcmi->dev, "%s: Cannot restart capture\n", __func__);
 		spin_unlock_irq(&dcmi->irqlock);
