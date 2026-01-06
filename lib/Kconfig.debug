@@ -1274,7 +1274,7 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	  high-availability systems that have uptime guarantees and
 	  where a hung tasks must be resolved ASAP.
 
-	  Say N if unsure.
+	  Say 0 if unsure.
 
 config DETECT_HUNG_TASK_BLOCKER
 	bool "Dump Hung Tasks Blocker"
