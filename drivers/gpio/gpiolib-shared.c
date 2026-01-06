@@ -443,13 +443,9 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 				 unsigned long lflags)
 {
 	const char *dev_id = dev_name(consumer);
+	struct gpiod_lookup_table *lookup;
 	struct gpio_shared_entry *entry;
 	struct gpio_shared_ref *ref;
-
-	struct gpiod_lookup_table *lookup __free(kfree) =
-			kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
-	if (!lookup)
-		return -ENOMEM;
 
 	list_for_each_entry(entry, &gpio_shared_list, list) {
 		list_for_each_entry(ref, &entry->refs, list) {
@@ -482,6 +478,10 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 			if (!key)
 				return -ENOMEM;
 
+			lookup = kzalloc(struct_size(lookup, table, 2), GFP_KERNEL);
+			if (!lookup)
+				return -ENOMEM;
+
 			pr_debug("Adding machine lookup entry for a shared GPIO for consumer %s, with key '%s' and con_id '%s'\n",
 				 dev_id, key, ref->con_id ?: "none");
 
@@ -489,7 +489,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 			lookup->table[0] = GPIO_LOOKUP(no_free_ptr(key), 0,
 						       ref->con_id, lflags);
 
-			ref->lookup = no_free_ptr(lookup);
+			ref->lookup = lookup;
 			gpiod_add_lookup_table(ref->lookup);
 
 			return 0;
