@@ -11466,6 +11466,7 @@ static inline bool in_sleepable_context(struct bpf_verifier_env *env)
 {
 	return !env->cur_state->active_rcu_locks &&
 	       !env->cur_state->active_preempt_locks &&
+	       !env->cur_state->active_locks &&
 	       !env->cur_state->active_irq_id &&
 	       in_sleepable(env);
 }
