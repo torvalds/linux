@@ -59,10 +59,8 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 	 * If FP/ASIMD is not implemented, FPEXC is UNDEFINED and any access to
 	 * it will cause an exception.
 	 */
-	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd()) {
+	if (vcpu_el1_is_32bit(vcpu) && system_supports_fpsimd())
 		write_sysreg(1 << 30, fpexc32_el2);
-		isb();
-	}
 }
 
 static inline void __activate_cptr_traps_nvhe(struct kvm_vcpu *vcpu)
