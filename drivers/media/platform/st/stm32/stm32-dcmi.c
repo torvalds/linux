@@ -227,24 +227,17 @@ static int dcmi_restart_capture(struct stm32_dcmi *dcmi)
 {
 	struct dcmi_buf *buf;
 
-	spin_lock_irq(&dcmi->irqlock);
-
-	if (dcmi->state != RUNNING) {
-		spin_unlock_irq(&dcmi->irqlock);
+	if (dcmi->state != RUNNING)
 		return -EINVAL;
-	}
 
 	/* Restart a new DMA transfer with next buffer */
 	if (list_empty(&dcmi->buffers)) {
 		dev_dbg(dcmi->dev, "Capture restart is deferred to next buffer queueing\n");
 		dcmi->state = WAIT_FOR_BUFFER;
-		spin_unlock_irq(&dcmi->irqlock);
 		return 0;
 	}
 	buf = list_entry(dcmi->buffers.next, struct dcmi_buf, list);
 	dcmi->active = buf;
-
-	spin_unlock_irq(&dcmi->irqlock);
 
 	return dcmi_start_capture(dcmi, buf);
 }
@@ -370,8 +363,10 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 	 * buffer payload.
 	 */
 
+	spin_unlock_irq(&dcmi->irqlock);
 	/* Drain DMA */
 	dmaengine_synchronize(dcmi->dma_chan);
+	spin_lock_irq(&dcmi->irqlock);
 
 	/* Get DMA residue to get JPEG size */
 	status = dmaengine_tx_status(dcmi->dma_chan, dcmi->dma_cookie, &state);
@@ -386,8 +381,10 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 		dcmi_buffer_done(dcmi, buf, 0, -EIO);
 	}
 
+	spin_unlock_irq(&dcmi->irqlock);
 	/* Abort DMA operation */
 	dmaengine_terminate_sync(dcmi->dma_chan);
+	spin_lock_irq(&dcmi->irqlock);
 
 	/* Restart capture */
 	if (dcmi_restart_capture(dcmi))
@@ -413,8 +410,10 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 		spin_unlock_irq(&dcmi->irqlock);
 		dmaengine_terminate_sync(dcmi->dma_chan);
 
+		spin_lock_irq(&dcmi->irqlock);
 		if (dcmi_restart_capture(dcmi))
 			dev_err(dcmi->dev, "%s: Cannot restart capture\n", __func__);
+		spin_unlock_irq(&dcmi->irqlock);
 
 		return IRQ_HANDLED;
 	}
@@ -424,8 +423,8 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 	if (dcmi->sd_format->fourcc == V4L2_PIX_FMT_JPEG &&
 	    dcmi->misr & IT_FRAME) {
 		/* JPEG received */
-		spin_unlock_irq(&dcmi->irqlock);
 		dcmi_process_jpeg(dcmi);
+		spin_unlock_irq(&dcmi->irqlock);
 		return IRQ_HANDLED;
 	}
 
@@ -599,11 +598,9 @@ static void dcmi_buf_queue(struct vb2_buffer *vb)
 		dev_dbg(dcmi->dev, "Starting capture on buffer[%d] queued\n",
 			buf->vb.vb2_buf.index);
 
-		spin_unlock_irq(&dcmi->irqlock);
 		if (dcmi_start_capture(dcmi, buf))
 			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
 				__func__);
-		return;
 	}
 
 	spin_unlock_irq(&dcmi->irqlock);
@@ -812,11 +809,11 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	dev_dbg(dcmi->dev, "Start streaming, starting capture\n");
 
-	spin_unlock_irq(&dcmi->irqlock);
 	ret = dcmi_start_capture(dcmi, buf);
 	if (ret) {
 		dev_err(dcmi->dev, "%s: Start streaming failed, cannot start capture\n",
 			__func__);
+		spin_unlock_irq(&dcmi->irqlock);
 		goto err_pipeline_stop;
 	}
 
@@ -825,6 +822,8 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		reg_set(dcmi->regs, DCMI_IER, IT_FRAME | IT_OVR | IT_ERR);
 	else
 		reg_set(dcmi->regs, DCMI_IER, IT_OVR | IT_ERR);
+
+	spin_unlock_irq(&dcmi->irqlock);
 
 	return 0;
 
