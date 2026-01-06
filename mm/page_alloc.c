@@ -4798,43 +4798,21 @@ restart:
 		 */
 		if (costly_order && (gfp_mask & __GFP_NORETRY)) {
 			/*
-			 * If allocating entire pageblock(s) and compaction
-			 * failed because all zones are below low watermarks
-			 * or is prohibited because it recently failed at this
-			 * order, fail immediately unless the allocator has
-			 * requested compaction and reclaim retry.
-			 *
-			 * Reclaim is
-			 *  - potentially very expensive because zones are far
-			 *    below their low watermarks or this is part of very
-			 *    bursty high order allocations,
-			 *  - not guaranteed to help because isolate_freepages()
-			 *    may not iterate over freed pages as part of its
-			 *    linear scan, and
-			 *  - unlikely to make entire pageblocks free on its
-			 *    own.
-			 */
-			if (compact_result == COMPACT_SKIPPED ||
-			    compact_result == COMPACT_DEFERRED)
-				goto nopage;
-
-			/*
 			 * THP page faults may attempt local node only first,
 			 * but are then allowed to only compact, not reclaim,
 			 * see alloc_pages_mpol().
 			 *
-			 * Compaction can fail for other reasons than those
-			 * checked above and we don't want such THP allocations
-			 * to put reclaim pressure on a single node in a
-			 * situation where other nodes might have plenty of
-			 * available memory.
+			 * Compaction has failed above and we don't want such
+			 * THP allocations to put reclaim pressure on a single
+			 * node in a situation where other nodes might have
+			 * plenty of available memory.
 			 */
 			if (gfp_mask & __GFP_THISNODE)
 				goto nopage;
 
 			/*
-			 * Looks like reclaim/compaction is worth trying, but
-			 * sync compaction could be very expensive, so keep
+			 * Proceed with single round of reclaim/compaction, but
+			 * since sync compaction could be very expensive, keep
 			 * using async compaction.
 			 */
 			compact_priority = INIT_COMPACT_PRIORITY;
