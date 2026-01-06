@@ -20357,6 +20357,7 @@ L:	linux-pci@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/qcom,pcie-ep.yaml
+F:	Documentation/devicetree/bindings/pci/qcom,sa8255p-pcie-ep.yaml
 F:	drivers/pci/controller/dwc/pcie-qcom-common.c
 F:	drivers/pci/controller/dwc/pcie-qcom-ep.c
 
