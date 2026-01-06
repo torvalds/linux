@@ -106,22 +106,6 @@ fail:
 	return ERR_PTR(-ENOMEM);
 }
 
-static inline void write_compress_length(char *buf, size_t len)
-{
-	__le32 dlen;
-
-	dlen = cpu_to_le32(len);
-	memcpy(buf, &dlen, LZO_LEN);
-}
-
-static inline size_t read_compress_length(const char *buf)
-{
-	__le32 dlen;
-
-	memcpy(&dlen, buf, LZO_LEN);
-	return le32_to_cpu(dlen);
-}
-
 /*
  * Write data into @out_folio and queue it into @out_bio.
  *
@@ -225,7 +209,7 @@ static int copy_compressed_data_to_bio(struct btrfs_fs_info *fs_info,
 
 	/* Write the segment header first. */
 	kaddr = kmap_local_folio(*out_folio, offset_in_folio(*out_folio, *total_out));
-	write_compress_length(kaddr, compressed_size);
+	put_unaligned_le32(compressed_size, kaddr);
 	kunmap_local(kaddr);
 	ret = write_and_queue_folio(out_bio, out_folio, total_out, LZO_LEN);
 	if (ret < 0)
@@ -362,7 +346,7 @@ int lzo_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 	/* Store the size of all chunks of compressed data */
 	sizes_ptr = kmap_local_folio(bio_first_folio_all(bio), 0);
-	write_compress_length(sizes_ptr, total_out);
+	put_unaligned_le32(total_out, sizes_ptr);
 	kunmap_local(sizes_ptr);
 out:
 	/*
@@ -450,7 +434,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		return -EINVAL;
 	ASSERT(folio_size(fi.folio) == btrfs_min_folio_size(fs_info));
 	kaddr = kmap_local_folio(fi.folio, 0);
-	len_in = read_compress_length(kaddr);
+	len_in = get_unaligned_le32(kaddr);
 	kunmap_local(kaddr);
 	cur_in += LZO_LEN;
 
@@ -489,7 +473,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		cur_folio = get_current_folio(cb, &fi, &cur_folio_index, cur_in);
 		ASSERT(cur_folio);
 		kaddr = kmap_local_folio(cur_folio, 0);
-		seg_len = read_compress_length(kaddr + offset_in_folio(cur_folio, cur_in));
+		seg_len = get_unaligned_le32(kaddr + offset_in_folio(cur_folio, cur_in));
 		kunmap_local(kaddr);
 		cur_in += LZO_LEN;
 
@@ -560,12 +544,12 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	if (unlikely(srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2))
 		return -EUCLEAN;
 
-	in_len = read_compress_length(data_in);
+	in_len = get_unaligned_le32(data_in);
 	if (unlikely(in_len != srclen))
 		return -EUCLEAN;
 	data_in += LZO_LEN;
 
-	in_len = read_compress_length(data_in);
+	in_len = get_unaligned_le32(data_in);
 	if (unlikely(in_len != srclen - LZO_LEN * 2))
 		return -EUCLEAN;
 	data_in += LZO_LEN;
