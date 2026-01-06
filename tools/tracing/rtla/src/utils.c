@@ -113,7 +113,7 @@ void get_duration(time_t start_time, char *output, int output_size)
  * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
  * filling cpu_set_t argument.
  *
- * Returns 1 on success, 0 otherwise.
+ * Returns 0 on success, 1 otherwise.
  */
 int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 {
