@@ -181,12 +181,13 @@ actions_parse(struct actions *self, const char *trigger, const char *tracefn)
 		/* Takes two arguments, num (signal) and pid */
 		while (token != NULL) {
 			if (strlen(token) > 4 && strncmp(token, "num=", 4) == 0) {
-				signal = atoi(token + 4);
+				if (strtoi(token + 4, &signal))
+					return -1;
 			} else if (strlen(token) > 4 && strncmp(token, "pid=", 4) == 0) {
 				if (strncmp(token + 4, "parent", 7) == 0)
 					pid = -1;
-				else
-					pid = atoi(token + 4);
+				else if (strtoi(token + 4, &pid))
+					return -1;
 			} else {
 				/* Invalid argument */
 				return -1;

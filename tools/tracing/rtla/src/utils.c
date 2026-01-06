@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <sched.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include "utils.h"
 
@@ -127,16 +128,18 @@ int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	for (p = cpu_list; *p; ) {
-		cpu = atoi(p);
-		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
+		if (strtoi(p, &cpu))
+			goto err;
+		if (cpu < 0 || cpu >= nr_cpus)
 			goto err;
 
 		while (isdigit(*p))
 			p++;
 		if (*p == '-') {
 			p++;
-			end_cpu = atoi(p);
-			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
+			if (strtoi(p, &end_cpu))
+				goto err;
+			if (end_cpu < cpu || end_cpu >= nr_cpus)
 				goto err;
 			while (isdigit(*p))
 				p++;
@@ -337,6 +340,7 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 	struct dirent *proc_entry;
 	DIR *procfs;
 	int retval;
+	int pid;
 
 	if (strlen(comm_prefix) >= MAX_PATH) {
 		err_msg("Command prefix is too long: %d < strlen(%s)\n",
@@ -356,8 +360,12 @@ int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr)
 		if (!retval)
 			continue;
 
+		if (strtoi(proc_entry->d_name, &pid)) {
+			err_msg("'%s' is not a valid pid", proc_entry->d_name);
+			goto out_err;
+		}
 		/* procfs_is_workload_pid confirmed it is a pid */
-		retval = __set_sched_attr(atoi(proc_entry->d_name), attr);
+		retval = __set_sched_attr(pid, attr);
 		if (retval) {
 			err_msg("Error setting sched attributes for pid:%s\n", proc_entry->d_name);
 			goto out_err;
@@ -998,4 +1006,26 @@ char *parse_optional_arg(int argc, char **argv)
 	} else {
 		return NULL;
 	}
+}
+
+/*
+ * strtoi - convert string to integer with error checking
+ *
+ * Returns 0 on success, -1 if conversion fails or result is out of int range.
+ */
+int strtoi(const char *s, int *res)
+{
+	char *end_ptr;
+	long lres;
+
+	if (!*s)
+		return -1;
+
+	errno = 0;
+	lres = strtol(s, &end_ptr, 0);
+	if (errno || *end_ptr || lres > INT_MAX || lres < INT_MIN)
+		return -1;
+
+	*res = (int) lres;
+	return 0;
 }
