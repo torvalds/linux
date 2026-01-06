@@ -231,6 +231,8 @@ eventually gets pushed out to disk.  This tunable is used to define when dirty
 inode is old enough to be eligible for writeback by the kernel flusher threads.
 And, it is also used as the interval to wakeup dirtytime_writeback thread.
 
+Setting this to zero disables periodic dirtytime writeback.
+
 
 dirty_writeback_centisecs
 =========================
