@@ -14,12 +14,10 @@
 /*
  * Debugging macros etc
  */
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 extern unsigned int		rpc_debug;
 extern unsigned int		nfs_debug;
 extern unsigned int		nfsd_debug;
 extern unsigned int		nlm_debug;
-#endif
 
 #define dprintk(fmt, ...)						\
 	dfprintk(FACILITY, fmt, ##__VA_ARGS__)
