@@ -1298,11 +1298,13 @@ unsigned long drm_gem_get_unmapped_area(struct file *filp, unsigned long uaddr,
 	unsigned long ret;
 
 	obj = drm_gem_object_lookup_at_offset(filp, pgoff, len >> PAGE_SHIFT);
-	if (IS_ERR(obj) || !obj->filp || !obj->filp->f_op->get_unmapped_area)
-		return mm_get_unmapped_area(filp, uaddr, len, 0, flags);
+	if (IS_ERR(obj))
+		obj = NULL;
 
-	ret = obj->filp->f_op->get_unmapped_area(obj->filp, uaddr, len, 0,
-						 flags);
+	if (!obj || !obj->filp || !obj->filp->f_op->get_unmapped_area)
+		ret = mm_get_unmapped_area(filp, uaddr, len, 0, flags);
+	else
+		ret = obj->filp->f_op->get_unmapped_area(obj->filp, uaddr, len, 0, flags);
 
 	drm_gem_object_put(obj);
 
