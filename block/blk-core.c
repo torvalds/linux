@@ -114,12 +114,12 @@ static const char *const blk_op_name[] = {
 #undef REQ_OP_NAME
 
 /**
- * blk_op_str - Return string XXX in the REQ_OP_XXX.
- * @op: REQ_OP_XXX.
+ * blk_op_str - Return the string "name" for an operation REQ_OP_name.
+ * @op: a request operation.
  *
- * Description: Centralize block layer function to convert REQ_OP_XXX into
- * string format. Useful in the debugging and tracing bio or request. For
- * invalid REQ_OP_XXX it returns string "UNKNOWN".
+ * Convert a request operation REQ_OP_name into the string "name". Useful for
+ * debugging and tracing BIOs and requests. For an invalid request operation
+ * code, the string "UNKNOWN" is returned.
  */
 inline const char *blk_op_str(enum req_op op)
 {

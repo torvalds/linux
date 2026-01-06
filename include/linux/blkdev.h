@@ -1026,7 +1026,7 @@ extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 
-/* Helper to convert REQ_OP_XXX to its string format XXX */
+/* Convert a request operation REQ_OP_name into the string "name" */
 extern const char *blk_op_str(enum req_op op);
 
 int blk_status_to_errno(blk_status_t status);
