@@ -2,17 +2,21 @@ Kernel driver coretemp
 ======================
 
 Supported chips:
-  * All Intel Core family
+  * All Intel Core family and Atom processors with Digital Thermal Sensor (DTS)
 
     Prefix: 'coretemp'
 
-    CPUID: family 0x6, models
+    CPUID: family 0x6, models with X86_FEATURE_DTHERM, including:
 
 			    - 0xe (Pentium M DC), 0xf (Core 2 DC 65nm),
 			    - 0x16 (Core 2 SC 65nm), 0x17 (Penryn 45nm),
 			    - 0x1a (Nehalem), 0x1c (Atom), 0x1e (Lynnfield),
 			    - 0x26 (Tunnel Creek Atom), 0x27 (Medfield Atom),
-			    - 0x36 (Cedar Trail Atom)
+			    - 0x36 (Cedar Trail Atom), 0x37 (Bay Trail Atom),
+			    - 0x4a (Merrifield Atom), 0x4c (Cherry Trail Atom),
+			    - 0x5a (Moorefield Atom), 0x5c (Apollo Lake Atom),
+			    - 0x7a (Gemini Lake Atom),
+			    - 0x96 (Elkhart Lake Atom), 0x9c (Jasper Lake Atom)
 
     Datasheet:
 
@@ -28,9 +32,9 @@ Description
 
 This driver permits reading the DTS (Digital Temperature Sensor) embedded
 inside Intel CPUs. This driver can read both the per-core and per-package
-temperature using the appropriate sensors. The per-package sensor is new;
-as of now, it is present only in the SandyBridge platform. The driver will
-show the temperature of all cores inside a package under a single device
+temperature using the appropriate sensors. The per-package sensor is
+available on Sandy Bridge and all newer processors. The driver will show
+the temperature of all cores inside a package under a single device
 directory inside hwmon.
 
 Temperature is measured in degrees Celsius and measurement resolution is
@@ -56,10 +60,11 @@ tempX_label	  Contains string "Core X", where X is processor
 		  where Y is the package number.
 ================= ========================================================
 
-On CPU models which support it, TjMax is read from a model-specific register.
-On other models, it is set to an arbitrary value based on weak heuristics.
-If these heuristics don't work for you, you can pass the correct TjMax value
-as a module parameter (tjmax).
+On modern CPUs (Nehalem and newer), TjMax is read from the
+MSR_IA32_TEMPERATURE_TARGET register. On older models without this MSR,
+TjMax is determined using lookup tables or heuristics. If these don't work
+for your CPU, you can pass the correct TjMax value as a module parameter
+(tjmax).
 
 Appendix A. Known TjMax lists (TBD):
 Some information comes from ark.intel.com
@@ -99,6 +104,40 @@ Process		Processor					TjMax(C)
 		Z2760						90
 		D2700/2550/2500					100
 		N2850/2800/2650/2600				100
+
+22nm		Atom Processors (Silvermont/Bay Trail)
+		E3845/3827/3826/3825/3815/3805			110
+		Z3795/3775/3770/3740/3736/3735/3680		90
+
+22nm		Atom Processors (Silvermont/Moorefield)
+		Z3580/3570/3560/3530				90
+
+14nm		Atom Processors (Airmont/Cherry Trail)
+		x5-Z8550/Z8500/Z8350/Z8330/Z8300		90
+		x7-Z8750/Z8700					90
+
+14nm		Atom Processors (Goldmont/Apollo Lake)
+		x5-E3940/E3930					105
+		x7-E3950					105
+
+14nm		Celeron/Pentium Processors
+		(Goldmont/Apollo Lake)
+		J3455/J3355					105
+		N3450/N3350					105
+		N4200						105
+
+14nm		Celeron/Pentium Processors
+		(Goldmont Plus/Gemini Lake)
+		J4105/J4005					105
+		N4100/N4000					105
+		N5000						105
+
+10nm		Atom Processors (Tremont/Elkhart Lake)
+		x6000E						105
+
+10nm		Celeron/Pentium Processors
+		(Tremont/Jasper Lake)
+		N4500/N5100/N6000 series			105
 
 45nm		Xeon Processors 5400 Quad-Core
 		X5492, X5482, X5472, X5470, X5460, X5450	85
