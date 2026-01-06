@@ -4061,8 +4061,8 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 	unsigned long i;
 	int ret = 0;
 
-	WARN_ON(start > eb->len);
-	WARN_ON(start + len > eb->start + eb->len);
+	if (check_eb_range(eb, start, len))
+		return -EINVAL;
 
 	if (eb->addr) {
 		if (copy_to_user_nofault(dstv, eb->addr + start, len))
