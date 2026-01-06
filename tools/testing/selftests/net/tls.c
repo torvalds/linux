@@ -3260,17 +3260,25 @@ TEST(data_steal) {
 	ASSERT_EQ(setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls")), 0);
 
 	/* Spawn a child and get it into the read wait path of the underlying
-	 * TCP socket.
+	 * TCP socket (before kernel .recvmsg is replaced with the TLS one).
 	 */
 	pid = fork();
 	ASSERT_GE(pid, 0);
 	if (!pid) {
-		EXPECT_EQ(recv(cfd, buf, sizeof(buf) / 2, MSG_WAITALL),
-			  sizeof(buf) / 2);
+		EXPECT_EQ(recv(cfd, buf, sizeof(buf) / 2 + 1, MSG_WAITALL),
+			  sizeof(buf) / 2 + 1);
 		exit(!__test_passed(_metadata));
 	}
 
-	usleep(10000);
+	/* Send a sync byte and poll until it's consumed to ensure
+	 * the child is in recv() before we proceed to install TLS.
+	 */
+	ASSERT_EQ(send(fd, buf, 1, 0), 1);
+	do {
+		usleep(500);
+	} while (recv(cfd, buf, 1, MSG_PEEK | MSG_DONTWAIT) == 1);
+	EXPECT_EQ(errno, EAGAIN);
+
 	ASSERT_EQ(setsockopt(fd, SOL_TLS, TLS_TX, &tls, tls.len), 0);
 	ASSERT_EQ(setsockopt(cfd, SOL_TLS, TLS_RX, &tls, tls.len), 0);
 
