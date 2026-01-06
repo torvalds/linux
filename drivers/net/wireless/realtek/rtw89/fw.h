@@ -4335,6 +4335,7 @@ enum rtw89_ps_h2c_func {
 #define H2C_FUNC_MAC_CCTLINFO_UD_V1	0xa
 #define H2C_FUNC_MAC_DCTLINFO_UD_V2	0xc
 #define H2C_FUNC_MAC_BCN_UPD_BE		0xd
+#define H2C_FUNC_MAC_DCTLINFO_UD_V3	0x10
 #define H2C_FUNC_MAC_CCTLINFO_UD_G7	0x11
 
 /* CLASS 6 - Address CAM */
@@ -4877,6 +4878,9 @@ int rtw89_fw_h2c_default_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_default_dmac_tbl_v2(struct rtw89_dev *rtwdev,
 				     struct rtw89_vif_link *rtwvif_link,
 				     struct rtw89_sta_link *rtwsta_link);
+int rtw89_fw_h2c_default_dmac_tbl_v3(struct rtw89_dev *rtwdev,
+				     struct rtw89_vif_link *rtwvif_link,
+				     struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct rtw89_vif_link *rtwvif_link,
 				struct rtw89_sta_link *rtwsta_link);
@@ -4909,6 +4913,9 @@ int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
 				 struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_dctl_sec_cam_v2(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link);
+int rtw89_fw_h2c_dctl_sec_cam_v3(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif_link *rtwvif_link,
 				 struct rtw89_sta_link *rtwsta_link);
 void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h);
