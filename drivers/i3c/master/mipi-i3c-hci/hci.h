@@ -62,7 +62,6 @@ struct i3c_hci {
 	void *vendor_data;
 };
 
-
 /*
  * Structure to represent a master initiated transfer.
  * The rnw, data and data_len fields must be initialized before calling any
@@ -108,7 +107,6 @@ static inline void hci_free_xfer(struct hci_xfer *xfer, unsigned int n)
 	kfree(xfer);
 }
 
-
 /* This abstracts PIO vs DMA operations */
 struct hci_io_ops {
 	bool (*irq_handler)(struct i3c_hci *hci);
@@ -126,20 +124,17 @@ struct hci_io_ops {
 extern const struct hci_io_ops mipi_i3c_hci_pio;
 extern const struct hci_io_ops mipi_i3c_hci_dma;
 
-
 /* Our per device master private data */
 struct i3c_hci_dev_data {
 	int dat_idx;
 	void *ibi_data;
 };
 
-
 /* list of quirks */
 #define HCI_QUIRK_RAW_CCC	BIT(1)	/* CCC framing must be explicit */
 #define HCI_QUIRK_PIO_MODE	BIT(2)  /* Set PIO mode for AMD platforms */
 #define HCI_QUIRK_OD_PP_TIMING		BIT(3)  /* Set OD and PP timings for AMD platforms */
 #define HCI_QUIRK_RESP_BUF_THLD		BIT(4)  /* Set resp buf thld to 0 for AMD platforms */
-
 
 /* global functions */
 void mipi_i3c_hci_resume(struct i3c_hci *hci);

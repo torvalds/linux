@@ -20,7 +20,6 @@
 #include "cmd.h"
 #include "ibi.h"
 
-
 /*
  * Software Parameter Values (somewhat arb itrary for now).
  * Some of them could be determined at run time eventually.
@@ -123,7 +122,6 @@
 #define DATA_BUF_BLP			BIT(31)	/* Buffer Vs. List Pointer */
 #define DATA_BUF_IOC			BIT(30)	/* Interrupt on Completion */
 #define DATA_BUF_BLOCK_SIZE		GENMASK(15, 0)
-
 
 struct hci_rh_data {
 	void __iomem *regs;

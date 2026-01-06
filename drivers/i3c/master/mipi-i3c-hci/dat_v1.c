@@ -15,7 +15,6 @@
 #include "hci.h"
 #include "dat.h"
 
-
 /*
  * Device Address Table Structure
  */

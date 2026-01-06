@@ -16,7 +16,6 @@
 #include "ext_caps.h"
 #include "xfer_mode_rate.h"
 
-
 /* Extended Capability Header */
 #define CAP_HEADER_LENGTH		GENMASK(23, 8)
 #define CAP_HEADER_ID			GENMASK(7, 0)

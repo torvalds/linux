@@ -21,7 +21,6 @@
 #include "cmd.h"
 #include "dat.h"
 
-
 /*
  * Host Controller Capabilities and Operation Registers
  */
@@ -108,7 +107,6 @@
 
 #define DEV_CTX_BASE_LO			0x60
 #define DEV_CTX_BASE_HI			0x64
-
 
 static inline struct i3c_hci *to_i3c_hci(struct i3c_master_controller *m)
 {
