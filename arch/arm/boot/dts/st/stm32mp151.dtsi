@@ -123,6 +123,14 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
+		sram4: sram@10050000 {
+			compatible = "mmio-sram";
+			reg = <0x10050000 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x10050000 0x10000>;
+		};
+
 		ipcc: mailbox@4c001000 {
 			compatible = "st,stm32mp1-ipcc";
 			#mbox-cells = <1>;
