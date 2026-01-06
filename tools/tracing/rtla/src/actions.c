@@ -19,8 +19,6 @@ actions_init(struct actions *self)
 	self->len = 0;
 	self->continue_flag = false;
 
-	memset(&self->present, 0, sizeof(self->present));
-
 	/* This has to be set by the user */
 	self->trace_output_inst = NULL;
 }
