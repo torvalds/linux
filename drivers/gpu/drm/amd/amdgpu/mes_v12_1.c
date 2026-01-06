@@ -512,7 +512,7 @@ static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
 		rrmt_opt->mode = (xcc_id == rrmt_opt->xcd_die_id) ?
 			 MES_RRMT_MODE_LOCAL_XCD : MES_RRMT_MODE_REMOTE_XCD;
 	} else {
-		rrmt_opt->mode = MES_RRMT_MODE_LOCAL_REMOTE_AID;
+		rrmt_opt->mode = MES_RRMT_MODE_REMOTE_MID;
 	}
 }
 
