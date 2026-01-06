@@ -301,23 +301,6 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 			  struct dcmi_buf *buf)
 {
 	struct dma_async_tx_descriptor *desc = NULL;
-	struct dma_slave_config config;
-	int ret;
-
-	memset(&config, 0, sizeof(config));
-
-	config.src_addr = (dma_addr_t)dcmi->res->start + DCMI_DR;
-	config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	config.dst_maxburst = 4;
-
-	/* Configure DMA channel */
-	ret = dmaengine_slave_config(dcmi->dma_chan, &config);
-	if (ret < 0) {
-		dev_err(dcmi->dev, "%s: DMA channel config failed (%d)\n",
-			__func__, ret);
-		return ret;
-	}
 
 	/*
 	 * Avoid call of dmaengine_terminate_sync() between
@@ -1888,6 +1871,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	struct vb2_queue *q;
 	struct dma_chan *chan;
 	struct dma_slave_caps caps;
+	struct dma_slave_config dma_config;
 	struct clk *mclk;
 	int ret = 0;
 
@@ -1953,6 +1937,19 @@ static int dcmi_probe(struct platform_device *pdev)
 	ret = dma_get_slave_caps(chan, &caps);
 	if (!ret && caps.max_sg_burst)
 		dcmi->dma_max_burst = caps.max_sg_burst	* DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+	memset(&dma_config, 0, sizeof(dma_config));
+
+	dma_config.src_addr = (dma_addr_t)dcmi->res->start + DCMI_DR;
+	dma_config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+
+	/* Configure DMA channel */
+	ret = dmaengine_slave_config(chan, &dma_config);
+	if (ret < 0) {
+		dev_err(dcmi->dev, "%s: DMA channel config failed (%d)\n",
+			__func__, ret);
+		goto err_dma_slave_config;
+	}
 
 	spin_lock_init(&dcmi->irqlock);
 	mutex_init(&dcmi->lock);
@@ -2072,6 +2069,7 @@ err_device_unregister:
 	v4l2_device_unregister(&dcmi->v4l2_dev);
 err_media_device_cleanup:
 	media_device_cleanup(&dcmi->mdev);
+err_dma_slave_config:
 	dma_release_channel(dcmi->dma_chan);
 
 	return ret;
