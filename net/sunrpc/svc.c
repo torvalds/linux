@@ -820,9 +820,14 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
  * svc_set_pool_threads - adjust number of threads per pool
  * @serv: RPC service to adjust
  * @pool: Specific pool from which to choose threads
- * @nrservs: New number of threads for @serv (0 means kill all threads)
+ * @min_threads: min number of threads to run in @pool
+ * @max_threads: max number of threads in @pool (0 means kill all threads)
  *
- * Create or destroy threads in @pool to bring it to @nrservs.
+ * Create or destroy threads in @pool to bring it into an acceptable range
+ * between @min_threads and @max_threads.
+ *
+ * If @min_threads is 0 or larger than @max_threads, then it is ignored and
+ * the pool will be set to run a static @max_threads number of threads.
  *
  * Caller must ensure mutual exclusion between this and server startup or
  * shutdown.
@@ -832,16 +837,36 @@ svc_stop_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
  */
 int
 svc_set_pool_threads(struct svc_serv *serv, struct svc_pool *pool,
-		     unsigned int nrservs)
+		     unsigned int min_threads, unsigned int max_threads)
 {
-	int delta = nrservs;
+	int delta;
 
 	if (!pool)
 		return -EINVAL;
 
-	pool->sp_nrthrmax = nrservs;
-	delta -= pool->sp_nrthreads;
+	/* clamp min threads to the max */
+	if (min_threads > max_threads)
+		min_threads = max_threads;
 
+	pool->sp_nrthrmin = min_threads;
+	pool->sp_nrthrmax = max_threads;
+
+	/*
+	 * When min_threads is set, then only change the number of
+	 * threads to bring it within an acceptable range.
+	 */
+	if (min_threads) {
+		if (pool->sp_nrthreads > max_threads)
+			delta = max_threads;
+		else if (pool->sp_nrthreads < min_threads)
+			delta = min_threads;
+		else
+			return 0;
+	} else {
+		delta = max_threads;
+	}
+
+	delta -= pool->sp_nrthreads;
 	if (delta > 0)
 		return svc_start_kthreads(serv, pool, delta);
 	if (delta < 0)
@@ -853,6 +878,7 @@ EXPORT_SYMBOL_GPL(svc_set_pool_threads);
 /**
  * svc_set_num_threads - adjust number of threads in serv
  * @serv: RPC service to adjust
+ * @min_threads: min number of threads to run per pool
  * @nrservs: New number of threads for @serv (0 means kill all threads)
  *
  * Create or destroy threads in @serv to bring it to @nrservs. If there
@@ -867,20 +893,23 @@ EXPORT_SYMBOL_GPL(svc_set_pool_threads);
  * adjusted; the caller is responsible for recovery.
  */
 int
-svc_set_num_threads(struct svc_serv *serv, unsigned int nrservs)
+svc_set_num_threads(struct svc_serv *serv, unsigned int min_threads,
+		    unsigned int nrservs)
 {
 	unsigned int base = nrservs / serv->sv_nrpools;
 	unsigned int remain = nrservs % serv->sv_nrpools;
 	int i, err = 0;
 
 	for (i = 0; i < serv->sv_nrpools; ++i) {
+		struct svc_pool *pool = &serv->sv_pools[i];
 		int threads = base;
 
 		if (remain) {
 			++threads;
 			--remain;
 		}
-		err = svc_set_pool_threads(serv, &serv->sv_pools[i], threads);
+
+		err = svc_set_pool_threads(serv, pool, min_threads, threads);
 		if (err)
 			break;
 	}
