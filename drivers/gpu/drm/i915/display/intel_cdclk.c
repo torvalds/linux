@@ -1948,6 +1948,8 @@ static u32 bxt_cdclk_cd2x_pipe(struct intel_display *display, enum pipe pipe)
 static u32 bxt_cdclk_cd2x_div_sel(struct intel_display *display,
 				  int cdclk, int vco, u16 waveform)
 {
+	u32 ret;
+
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
 	switch (cdclk_divider(cdclk, vco, waveform)) {
 	default:
@@ -1956,14 +1958,27 @@ static u32 bxt_cdclk_cd2x_div_sel(struct intel_display *display,
 		drm_WARN_ON(display->drm, vco != 0);
 		fallthrough;
 	case 2:
-		return BXT_CDCLK_CD2X_DIV_SEL_1;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
 	case 3:
-		return BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		break;
 	case 4:
-		return BXT_CDCLK_CD2X_DIV_SEL_2;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_2;
+		break;
 	case 8:
-		return BXT_CDCLK_CD2X_DIV_SEL_4;
+		ret = BXT_CDCLK_CD2X_DIV_SEL_4;
+		break;
 	}
+
+	/*
+	 * On Xe3_LPD onward, the expectation is to always have
+	 * BXT_CDCLK_CD2X_DIV_SEL_1 as the default.
+	 */
+	if (DISPLAY_VER(display) >= 30)
+		drm_WARN_ON(display->drm, ret != BXT_CDCLK_CD2X_DIV_SEL_1);
+
+	return ret;
 }
 
 static u16 cdclk_squash_waveform(struct intel_display *display,
@@ -2151,8 +2166,10 @@ static u32 bxt_cdclk_ctl(struct intel_display *display,
 
 	waveform = cdclk_squash_waveform(display, cdclk);
 
-	val = bxt_cdclk_cd2x_div_sel(display, cdclk, vco, waveform) |
-		bxt_cdclk_cd2x_pipe(display, pipe);
+	val = bxt_cdclk_cd2x_div_sel(display, cdclk, vco, waveform);
+
+	if (DISPLAY_VER(display) < 30)
+		val |= bxt_cdclk_cd2x_pipe(display, pipe);
 
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
