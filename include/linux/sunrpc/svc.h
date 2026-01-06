@@ -35,8 +35,9 @@
  */
 struct svc_pool {
 	unsigned int		sp_id;		/* pool id; also node id on NUMA */
+	unsigned int		sp_nrthreads;	/* # of threads currently running in pool */
+	unsigned int		sp_nrthrmax;	/* Max requested number of threads in pool */
 	struct lwq		sp_xprts;	/* pending transports */
-	unsigned int		sp_nrthreads;	/* # of threads in pool */
 	struct list_head	sp_all_threads;	/* all server threads */
 	struct llist_head	sp_idle_threads; /* idle server threads */
 
