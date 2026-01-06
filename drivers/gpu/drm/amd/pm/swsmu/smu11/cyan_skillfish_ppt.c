@@ -605,4 +605,5 @@ void cyan_skillfish_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = cyan_skillfish_table_map;
 	smu->is_apu = true;
 	smu_v11_0_set_smu_mailbox_registers(smu);
+	smu_v11_0_init_msg_ctl(smu, cyan_skillfish_message_map);
 }

@@ -2569,4 +2569,5 @@ void vangogh_set_ppt_funcs(struct smu_context *smu)
 	smu->workload_map = vangogh_workload_map;
 	smu->is_apu = true;
 	smu_v11_0_set_smu_mailbox_registers(smu);
+	smu_v11_0_init_msg_ctl(smu, vangogh_message_map);
 }

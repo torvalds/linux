@@ -3189,4 +3189,5 @@ void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
 	smu->pwr_src_map = sienna_cichlid_pwr_src_map;
 	smu->workload_map = sienna_cichlid_workload_map;
 	smu_v11_0_set_smu_mailbox_registers(smu);
+	smu_v11_0_init_msg_ctl(smu, sienna_cichlid_message_map);
 }
