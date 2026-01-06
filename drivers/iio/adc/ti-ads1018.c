@@ -211,8 +211,7 @@ static u32 ads1018_calc_delay(unsigned int hz)
  * Reads the most recent ADC conversion value, without updating the
  * device's configuration.
  *
- * Context: Expects iio_device_claim_buffer_mode() is held and SPI bus
- *	    *exclusive* use.
+ * Context: Expects SPI bus *exclusive* use.
  *
  * Return: 0 on success, negative errno on error.
  */
