@@ -32,7 +32,9 @@ void
 actions_destroy(struct actions *self)
 {
 	/* Free any action-specific data */
-	for (struct action *action = self->list; action < self->list + self->len; action++) {
+	struct action *action;
+
+	for_each_action(self, action) {
 		if (action->type == ACTION_SHELL)
 			free(action->command);
 		if (action->type == ACTION_TRACE_OUTPUT)
@@ -223,7 +225,7 @@ actions_perform(struct actions *self)
 	int pid, retval;
 	const struct action *action;
 
-	for (action = self->list; action < self->list + self->len; action++) {
+	for_each_action(self, action) {
 		switch (action->type) {
 		case ACTION_TRACE_OUTPUT:
 			retval = save_trace_to_file(self->trace_output_inst, action->trace_output);
