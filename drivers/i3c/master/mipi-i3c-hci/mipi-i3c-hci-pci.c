@@ -12,6 +12,7 @@
 #include <linux/idr.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_data/mipi-i3c-hci.h>
@@ -20,7 +21,6 @@
 
 struct mipi_i3c_hci_pci {
 	struct pci_dev *pci;
-	struct platform_device *pdev;
 	void __iomem *base;
 	const struct mipi_i3c_hci_pci_info *info;
 	void *private;
@@ -187,12 +187,45 @@ static const struct mipi_i3c_hci_pci_info intel_2_info = {
 	.id = 2,
 };
 
+struct mipi_i3c_hci_pci_cell_data {
+	struct mipi_i3c_hci_platform_data pdata;
+	struct resource res;
+};
+
+static void mipi_i3c_hci_pci_setup_cell(struct mipi_i3c_hci_pci *hci,
+					struct mipi_i3c_hci_pci_cell_data *data,
+					struct mfd_cell *cell)
+{
+	data->pdata.base_regs = hci->base;
+
+	data->res = DEFINE_RES_IRQ(0);
+
+	cell->name = hci->info->name;
+	cell->id = hci->info->id;
+	cell->platform_data = &data->pdata;
+	cell->pdata_size = sizeof(data->pdata);
+	cell->num_resources = 1;
+	cell->resources = &data->res;
+}
+
+static int mipi_i3c_hci_pci_add_instances(struct mipi_i3c_hci_pci *hci)
+{
+	struct mipi_i3c_hci_pci_cell_data *data __free(kfree) = kzalloc(sizeof(*data), GFP_KERNEL);
+	struct mfd_cell *cells __free(kfree) = kzalloc(sizeof(*cells), GFP_KERNEL);
+	int irq = pci_irq_vector(hci->pci, 0);
+
+	if (!cells || !data)
+		return -ENOMEM;
+
+	mipi_i3c_hci_pci_setup_cell(hci, data, cells);
+
+	return mfd_add_devices(&hci->pci->dev, 0, cells, 1, NULL, irq, NULL);
+}
+
 static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 				  const struct pci_device_id *id)
 {
-	struct mipi_i3c_hci_platform_data pdata = {};
 	struct mipi_i3c_hci_pci *hci;
-	struct resource res;
 	int ret;
 
 	hci = devm_kzalloc(&pci->dev, sizeof(*hci), GFP_KERNEL);
@@ -215,38 +248,13 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	if (ret < 0)
 		return ret;
 
-	memset(&res, 0, sizeof(res));
-
-	res.flags = IORESOURCE_IRQ;
-	res.start = pci_irq_vector(hci->pci, 0);
-	res.end = res.start;
-
 	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
 
-	hci->pdev = platform_device_alloc(hci->info->name, hci->info->id);
-	if (!hci->pdev)
-		return -ENOMEM;
-
-	hci->pdev->dev.parent = &pci->dev;
-	device_set_node(&hci->pdev->dev, dev_fwnode(&pci->dev));
-
-	ret = platform_device_add_resources(hci->pdev, &res, 1);
+	ret = hci->info->init ? hci->info->init(hci) : 0;
 	if (ret)
-		goto err;
+		return ret;
 
-	pdata.base_regs = hci->base;
-
-	ret = platform_device_add_data(hci->pdev, &pdata, sizeof(pdata));
-	if (ret)
-		goto err;
-
-	if (hci->info->init) {
-		ret = hci->info->init(hci);
-		if (ret)
-			goto err;
-	}
-
-	ret = platform_device_add(hci->pdev);
+	ret = mipi_i3c_hci_pci_add_instances(hci);
 	if (ret)
 		goto err_exit;
 
@@ -257,20 +265,17 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 err_exit:
 	if (hci->info->exit)
 		hci->info->exit(hci);
-err:
-	platform_device_put(hci->pdev);
 	return ret;
 }
 
 static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 {
 	struct mipi_i3c_hci_pci *hci = pci_get_drvdata(pci);
-	struct platform_device *pdev = hci->pdev;
 
 	if (hci->info->exit)
 		hci->info->exit(hci);
 
-	platform_device_unregister(pdev);
+	mfd_remove_devices(&pci->dev);
 }
 
 static const struct pci_device_id mipi_i3c_hci_pci_devices[] = {

@@ -69,6 +69,7 @@ config MIPI_I3C_HCI_PCI
 	tristate "MIPI I3C Host Controller Interface PCI support"
 	depends on MIPI_I3C_HCI
 	depends on PCI
+	select MFD_CORE
 	help
 	  Support for MIPI I3C Host Controller Interface compatible hardware
 	  on the PCI bus.
