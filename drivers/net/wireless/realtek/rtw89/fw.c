@@ -3877,6 +3877,134 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_assoc_cmac_tbl_g7);
 
+int rtw89_fw_h2c_assoc_cmac_tbl_be(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link,
+				   struct rtw89_sta_link *rtwsta_link)
+{
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
+	struct rtw89_h2c_cctlinfo_ud_be *h2c;
+	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_link_sta *link_sta;
+	u8 pads[RTW89_PPE_BW_NUM];
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	u16 lowest_rate;
+	int ret;
+
+	memset(pads, 0, sizeof(pads));
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for assoc cmac be\n");
+		return -ENOMEM;
+	}
+
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
+
+	if (rtwsta_link) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+		if (link_sta->eht_cap.has_eht)
+			__get_sta_eht_pkt_padding(rtwdev, link_sta, pads);
+		else if (link_sta->he_cap.has_he)
+			__get_sta_he_pkt_padding(rtwdev, link_sta, pads);
+	}
+
+	if (vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_be *)skb->data;
+
+	h2c->c0 = le32_encode_bits(mac_id, BE_CCTL_INFO_C0_V1_MACID) |
+		  le32_encode_bits(1, BE_CCTL_INFO_C0_V1_OP);
+
+	h2c->w0 = le32_encode_bits(1, BE_CCTL_INFO_W0_DISRTSFB) |
+		  le32_encode_bits(1, BE_CCTL_INFO_W0_DISDATAFB);
+	h2c->m0 = cpu_to_le32(BE_CCTL_INFO_W0_DISRTSFB |
+			      BE_CCTL_INFO_W0_DISDATAFB);
+
+	h2c->w1 = le32_encode_bits(lowest_rate, BE_CCTL_INFO_W1_RTS_RTY_LOWEST_RATE);
+	h2c->m1 = cpu_to_le32(BE_CCTL_INFO_W1_RTS_RTY_LOWEST_RATE);
+
+	h2c->w2 = le32_encode_bits(0, BE_CCTL_INFO_W2_DATA_TXCNT_LMT_SEL);
+	h2c->m2 = cpu_to_le32(BE_CCTL_INFO_W2_DATA_TXCNT_LMT_SEL);
+
+	h2c->w3 = le32_encode_bits(0, BE_CCTL_INFO_W3_RTS_TXCNT_LMT_SEL);
+	h2c->m3 = cpu_to_le32(BE_CCTL_INFO_W3_RTS_TXCNT_LMT_SEL);
+
+	h2c->w4 = le32_encode_bits(rtwvif_link->port, BE_CCTL_INFO_W4_MULTI_PORT_ID);
+	h2c->m4 = cpu_to_le32(BE_CCTL_INFO_W4_MULTI_PORT_ID);
+
+	if (bss_conf->eht_support) {
+		u16 punct = bss_conf->chanreq.oper.punctured;
+
+		h2c->w4 |= le32_encode_bits(~punct,
+					    BE_CCTL_INFO_W4_ACT_SUBCH_CBW);
+		h2c->m4 |= cpu_to_le32(BE_CCTL_INFO_W4_ACT_SUBCH_CBW);
+	}
+
+	h2c->w5 = le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_20],
+				   BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING0_V1) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_40],
+				   BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING1_V1) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_80],
+				   BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING2_V1) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_160],
+				   BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING3_V1) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_320],
+				   BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING4_V1);
+	h2c->m5 = cpu_to_le32(BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING0_V1 |
+			      BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING1_V1 |
+			      BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING2_V1 |
+			      BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING3_V1 |
+			      BE_CCTL_INFO_W5_NOMINAL_PKT_PADDING4_V1);
+
+	if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE) {
+		h2c->w5 |= le32_encode_bits(0, BE_CCTL_INFO_W5_DATA_DCM_V1);
+		h2c->m5 |= cpu_to_le32(BE_CCTL_INFO_W5_DATA_DCM_V1);
+	}
+
+	h2c->w6 = le32_encode_bits(vif->cfg.aid, BE_CCTL_INFO_W6_AID12_PAID) |
+		  le32_encode_bits(vif->type == NL80211_IFTYPE_STATION ? 1 : 0,
+				   BE_CCTL_INFO_W6_ULDL);
+	h2c->m6 = cpu_to_le32(BE_CCTL_INFO_W6_AID12_PAID | BE_CCTL_INFO_W6_ULDL);
+
+	if (rtwsta_link) {
+		h2c->w8 = le32_encode_bits(link_sta->he_cap.has_he,
+					   BE_CCTL_INFO_W8_BSR_QUEUE_SIZE_FORMAT_V1);
+		h2c->m8 = cpu_to_le32(BE_CCTL_INFO_W8_BSR_QUEUE_SIZE_FORMAT_V1);
+	}
+
+	rcu_read_unlock();
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_assoc_cmac_tbl_be);
+
 int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct rtw89_vif_link *rtwvif_link,
 				   struct rtw89_sta_link *rtwsta_link)
