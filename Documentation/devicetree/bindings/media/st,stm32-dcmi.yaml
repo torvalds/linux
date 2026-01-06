@@ -27,11 +27,14 @@ properties:
       - const: mclk
 
   dmas:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   dma-names:
     items:
       - const: tx
+      - const: mdma_tx
+    minItems: 1
 
   resets:
     maxItems: 1
@@ -39,6 +42,12 @@ properties:
   access-controllers:
     minItems: 1
     maxItems: 2
+
+  sram:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to a reserved SRAM region which is used as temporary
+      storage memory between DMA and MDMA engines.
 
   port:
     $ref: /schemas/graph.yaml#/$defs/port-base
