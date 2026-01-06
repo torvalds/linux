@@ -781,7 +781,6 @@ int btrfs_bin_search(const struct extent_buffer *eb, int first_slot,
 			const unsigned long idx = get_eb_folio_index(eb, offset);
 			char *kaddr = folio_address(eb->folios[idx]);
 
-			oil = get_eb_offset_in_folio(eb, offset);
 			tmp = (struct btrfs_disk_key *)(kaddr + oil);
 		} else {
 			read_extent_buffer(eb, &unaligned, offset, key_size);
