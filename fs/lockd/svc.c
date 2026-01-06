@@ -141,7 +141,7 @@ lockd(void *vrqstp)
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
 		nlmsvc_retry_blocked(rqstp);
-		svc_recv(rqstp);
+		svc_recv(rqstp, 0);
 	}
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
