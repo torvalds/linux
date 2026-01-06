@@ -504,6 +504,7 @@ struct rtw89_phy_sts_iehdr {
 
 /* BE RXD dword2 */
 #define BE_RXD_MAC_ID_MASK GENMASK(7, 0)
+#define BE_RXD_MAC_ID_V1 GENMASK(9, 0)
 #define BE_RXD_TYPE_MASK GENMASK(11, 10)
 #define BE_RXD_LAST_MSDU BIT(12)
 #define BE_RXD_AMSDU_CUT BIT(13)
@@ -535,6 +536,7 @@ struct rtw89_phy_sts_iehdr {
 #define BE_RXD_QNULL BIT(22)
 #define BE_RXD_A4_FRAME BIT(23)
 #define BE_RXD_FRAG_MASK GENMASK(27, 24)
+#define BE_RXD_GET_CH_INFO_V2 GENMASK(31, 29)
 #define BE_RXD_GET_CH_INFO_V1_MASK GENMASK(31, 30)
 
 /* BE RXD dword4 */
@@ -550,10 +552,14 @@ struct rtw89_phy_sts_iehdr {
 
 /* BE RXD dword6 */
 #define BE_RXD_ADDR_CAM_MASK GENMASK(7, 0)
+#define BE_RXD_ADDR_CAM_V1 GENMASK(9, 0)
+#define BE_RXD_RX_STATISTICS_V1 BIT(11)
+#define BE_RXD_SMART_ANT_V1 BIT(12)
 #define BE_RXD_SR_EN BIT(13)
 #define BE_RXD_NON_SRG_PPDU BIT(14)
 #define BE_RXD_INTER_PPDU BIT(15)
 #define BE_RXD_USER_ID_MASK GENMASK(21, 16)
+#define BE_RXD_SEC_CAM_IDX_V1 GENMASK(31, 22)
 #define BE_RXD_RX_STATISTICS BIT(22)
 #define BE_RXD_SMART_ANT BIT(23)
 #define BE_RXD_SEC_CAM_IDX_MASK GENMASK(31, 24)
