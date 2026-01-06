@@ -1580,7 +1580,7 @@ Documentation/ABI/testing/sysfs-class-power.
 Hardware damage detection capability
 ------------------------------------
 
-sysfs attributes: hwdd_status
+sysfs attributes: hwdd_status, hwdd_detail
 
 Thinkpads are adding the ability to detect and report hardware damage.
 Add new sysfs interface to identify the damaged device status.
@@ -1594,6 +1594,21 @@ This value displays status of device damaged.
 
 - 0 = Not Damaged
 - 1 = Damaged
+
+The command to check location of damaged device is::
+
+        cat /sys/devices/platform/thinkpad_acpi/hwdd_detail
+
+This value displays location of damaged device having 1 line per damaged "item".
+For example:
+
+if no damage is detected:
+
+- No damage detected
+
+if damage detected:
+
+- TYPE-C: Base, Right side, Center port
 
 The property is read-only. If feature is not supported then sysfs
 attribute is not created.

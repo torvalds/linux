@@ -11090,8 +11090,24 @@ static const struct attribute_group auxmac_attr_group = {
 #define HWDD_NOT_SUPPORTED	BIT(31)
 #define HWDD_SUPPORT_USBC	BIT(0)
 
-#define PORT_STATUS		GENMASK(7, 4)
-#define NUM_PORTS		4
+#define PORT_STATUS     GENMASK(7, 4)
+#define LID_STATUS      GENMASK(11, 8)
+#define BASE_STATUS     GENMASK(15, 12)
+#define POS_STATUS      GENMASK(3, 2)
+#define PANEL_STATUS    GENMASK(1, 0)
+
+#define PORT_DETAIL_OFFSET	16
+
+#define PANEL_TOP	0
+#define PANEL_BASE	1
+#define PANEL_LEFT	2
+#define PANEL_RIGHT	3
+
+#define POS_LEFT	0
+#define POS_CENTER	1
+#define POS_RIGHT	2
+
+#define NUM_PORTS	4
 
 static bool hwdd_support_available;
 static bool ucdd_supported;
@@ -11107,6 +11123,88 @@ static int hwdd_command(int command, int *output)
 		return -EIO;
 
 	return 0;
+}
+
+static bool display_damage(char *buf, int *count, char *type, unsigned int dmg_status)
+{
+	unsigned char lid_status, base_status, port_status;
+	unsigned char loc_status, pos_status, panel_status;
+	bool damage_detected = false;
+	int i;
+
+	port_status = FIELD_GET(PORT_STATUS, dmg_status);
+	lid_status = FIELD_GET(LID_STATUS, dmg_status);
+	base_status = FIELD_GET(BASE_STATUS, dmg_status);
+	for (i = 0; i < NUM_PORTS; i++) {
+		if (!(dmg_status & BIT(i)) || !(port_status & BIT(i)))
+			continue;
+
+		*count += sysfs_emit_at(buf, *count, "%s: ", type);
+		loc_status = (dmg_status >> (PORT_DETAIL_OFFSET + (4 * i))) & 0xF;
+		pos_status = FIELD_GET(POS_STATUS, loc_status);
+		panel_status = FIELD_GET(PANEL_STATUS, loc_status);
+
+		if (lid_status & BIT(i))
+			*count += sysfs_emit_at(buf, *count, "Lid, ");
+		if (base_status & BIT(i))
+			*count += sysfs_emit_at(buf, *count, "Base, ");
+
+		switch (pos_status) {
+		case PANEL_TOP:
+			*count += sysfs_emit_at(buf, *count, "Top, ");
+			break;
+		case PANEL_BASE:
+			*count += sysfs_emit_at(buf, *count, "Bottom, ");
+			break;
+		case PANEL_LEFT:
+			*count += sysfs_emit_at(buf, *count, "Left, ");
+			break;
+		case PANEL_RIGHT:
+			*count += sysfs_emit_at(buf, *count, "Right, ");
+			break;
+		default:
+			pr_err("Unexpected value %d in switch statement\n", pos_status);
+		}
+
+		switch (panel_status) {
+		case POS_LEFT:
+			*count += sysfs_emit_at(buf, *count, "Left port\n");
+			break;
+		case POS_CENTER:
+			*count += sysfs_emit_at(buf, *count, "Center port\n");
+			break;
+		case POS_RIGHT:
+			*count += sysfs_emit_at(buf, *count, "Right port\n");
+			break;
+		default:
+			*count += sysfs_emit_at(buf, *count, "Undefined\n");
+			break;
+		}
+		damage_detected = true;
+	}
+	return damage_detected;
+}
+
+/* sysfs type-c damage detection detail */
+static ssize_t hwdd_detail_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned int damage_status;
+	int err, count = 0;
+
+	if (!ucdd_supported)
+		return -ENODEV;
+
+	/* Get USB TYPE-C damage status */
+	err = hwdd_command(HWDD_GET_DMG_USBC, &damage_status);
+	if (err)
+		return err;
+
+	if (!display_damage(buf, &count, "Type-C", damage_status))
+		count += sysfs_emit_at(buf, count, "No damage detected\n");
+
+	return count;
 }
 
 /* sysfs type-c damage detection capability */
@@ -11136,9 +11234,11 @@ static ssize_t hwdd_status_show(struct device *dev,
 	return sysfs_emit(buf, "0\n");
 }
 static DEVICE_ATTR_RO(hwdd_status);
+static DEVICE_ATTR_RO(hwdd_detail);
 
 static struct attribute *hwdd_attributes[] = {
 	&dev_attr_hwdd_status.attr,
+	&dev_attr_hwdd_detail.attr,
 	NULL
 };
 
