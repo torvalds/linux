@@ -19,6 +19,12 @@
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 
+/*
+ * There can up to 15 instances, but implementations have at most 2 at this
+ * time.
+ */
+#define INST_MAX 2
+
 struct mipi_i3c_hci_pci {
 	struct pci_dev *pci;
 	void __iomem *base;
@@ -30,7 +36,9 @@ struct mipi_i3c_hci_pci_info {
 	int (*init)(struct mipi_i3c_hci_pci *hci);
 	void (*exit)(struct mipi_i3c_hci_pci *hci);
 	const char *name;
-	int id;
+	int id[INST_MAX];
+	u32 instance_offset[INST_MAX];
+	int instance_count;
 };
 
 #define INTEL_PRIV_OFFSET		0x2b0
@@ -177,14 +185,18 @@ static const struct mipi_i3c_hci_pci_info intel_1_info = {
 	.init = intel_i3c_init,
 	.exit = intel_i3c_exit,
 	.name = "intel-lpss-i3c",
-	.id = 0,
+	.id = {0},
+	.instance_offset = {0},
+	.instance_count = 1,
 };
 
 static const struct mipi_i3c_hci_pci_info intel_2_info = {
 	.init = intel_i3c_init,
 	.exit = intel_i3c_exit,
 	.name = "intel-lpss-i3c",
-	.id = 2,
+	.id = {2},
+	.instance_offset = {0},
+	.instance_count = 1,
 };
 
 struct mipi_i3c_hci_pci_cell_data {
@@ -192,34 +204,38 @@ struct mipi_i3c_hci_pci_cell_data {
 	struct resource res;
 };
 
-static void mipi_i3c_hci_pci_setup_cell(struct mipi_i3c_hci_pci *hci,
+static void mipi_i3c_hci_pci_setup_cell(struct mipi_i3c_hci_pci *hci, int idx,
 					struct mipi_i3c_hci_pci_cell_data *data,
 					struct mfd_cell *cell)
 {
-	data->pdata.base_regs = hci->base;
+	data->pdata.base_regs = hci->base + hci->info->instance_offset[idx];
 
 	data->res = DEFINE_RES_IRQ(0);
 
 	cell->name = hci->info->name;
-	cell->id = hci->info->id;
+	cell->id = hci->info->id[idx];
 	cell->platform_data = &data->pdata;
 	cell->pdata_size = sizeof(data->pdata);
 	cell->num_resources = 1;
 	cell->resources = &data->res;
 }
 
+#define mipi_i3c_hci_pci_alloc(h, x) kcalloc((h)->info->instance_count, sizeof(*(x)), GFP_KERNEL)
+
 static int mipi_i3c_hci_pci_add_instances(struct mipi_i3c_hci_pci *hci)
 {
-	struct mipi_i3c_hci_pci_cell_data *data __free(kfree) = kzalloc(sizeof(*data), GFP_KERNEL);
-	struct mfd_cell *cells __free(kfree) = kzalloc(sizeof(*cells), GFP_KERNEL);
+	struct mipi_i3c_hci_pci_cell_data *data __free(kfree) = mipi_i3c_hci_pci_alloc(hci, data);
+	struct mfd_cell *cells __free(kfree) = mipi_i3c_hci_pci_alloc(hci, cells);
 	int irq = pci_irq_vector(hci->pci, 0);
+	int nr = hci->info->instance_count;
 
 	if (!cells || !data)
 		return -ENOMEM;
 
-	mipi_i3c_hci_pci_setup_cell(hci, data, cells);
+	for (int i = 0; i < nr; i++)
+		mipi_i3c_hci_pci_setup_cell(hci, i, data + i, cells + i);
 
-	return mfd_add_devices(&hci->pci->dev, 0, cells, 1, NULL, irq, NULL);
+	return mfd_add_devices(&hci->pci->dev, 0, cells, nr, NULL, irq, NULL);
 }
 
 static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
