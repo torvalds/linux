@@ -23,10 +23,10 @@ EXPORT_SYMBOL_NS_GPL(cs_dsp_mock_halo_dsp1_regions, "FW_CS_DSP_KUNIT_TEST_UTILS"
 /*  List of sizes in bytes, for each entry above */
 const unsigned int cs_dsp_mock_halo_dsp1_region_sizes[] = {
 	0x5000,		/* PM_PACKED */
-	0x6000,		/* XM_PACKED */
-	0x47F4,		/* YM_PACKED */
-	0x8000,		/* XM_UNPACKED_24 */
-	0x5FF8,		/* YM_UNPACKED_24 */
+	0x8fff4,	/* XM_PACKED */
+	0x8fff4,	/* YM_PACKED */
+	0xbfff8,	/* XM_UNPACKED_24 */
+	0xbfff8,	/* YM_UNPACKED_24 */
 
 	0		/* terminator */
 };

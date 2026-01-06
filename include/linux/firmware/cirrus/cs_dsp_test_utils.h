@@ -126,7 +126,7 @@ struct cs_dsp_mock_bin_builder *cs_dsp_mock_bin_init(struct cs_dsp_test *priv,
 						     unsigned int fw_version);
 void cs_dsp_mock_bin_add_raw_block(struct cs_dsp_mock_bin_builder *builder,
 				   unsigned int alg_id, unsigned int alg_ver,
-				   int type, unsigned int offset,
+				   int type, u16 offset, u32 offset32,
 				   const void *payload_data, size_t payload_len_bytes);
 void cs_dsp_mock_bin_add_info(struct cs_dsp_mock_bin_builder *builder,
 			      const char *info);
@@ -136,6 +136,10 @@ void cs_dsp_mock_bin_add_patch(struct cs_dsp_mock_bin_builder *builder,
 			       unsigned int alg_id, unsigned int alg_ver,
 			       int mem_region, unsigned int reg_addr_offset,
 			       const void *payload_data, size_t payload_len_bytes);
+void cs_dsp_mock_bin_add_patch_off32(struct cs_dsp_mock_bin_builder *builder,
+				     unsigned int alg_id, unsigned int alg_ver,
+				     int mem_region, unsigned int reg_addr_offset,
+				     const void *payload_data, size_t payload_len_bytes);
 struct firmware *cs_dsp_mock_bin_get_firmware(struct cs_dsp_mock_bin_builder *builder);
 
 struct cs_dsp_mock_wmfw_builder *cs_dsp_mock_wmfw_init(struct cs_dsp_test *priv,
