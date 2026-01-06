@@ -2532,7 +2532,7 @@ static void stm32_spi_remove(struct platform_device *pdev)
 	pinctrl_pm_select_sleep_state(&pdev->dev);
 }
 
-static int __maybe_unused stm32_spi_runtime_suspend(struct device *dev)
+static int stm32_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct stm32_spi *spi = spi_controller_get_devdata(ctrl);
@@ -2542,7 +2542,7 @@ static int __maybe_unused stm32_spi_runtime_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused stm32_spi_runtime_resume(struct device *dev)
+static int stm32_spi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct stm32_spi *spi = spi_controller_get_devdata(ctrl);
@@ -2555,7 +2555,7 @@ static int __maybe_unused stm32_spi_runtime_resume(struct device *dev)
 	return clk_prepare_enable(spi->clk);
 }
 
-static int __maybe_unused stm32_spi_suspend(struct device *dev)
+static int stm32_spi_suspend(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	int ret;
@@ -2567,7 +2567,7 @@ static int __maybe_unused stm32_spi_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused stm32_spi_resume(struct device *dev)
+static int stm32_spi_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct stm32_spi *spi = spi_controller_get_devdata(ctrl);
@@ -2597,9 +2597,8 @@ static int __maybe_unused stm32_spi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops stm32_spi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_spi_suspend, stm32_spi_resume)
-	SET_RUNTIME_PM_OPS(stm32_spi_runtime_suspend,
-			   stm32_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(stm32_spi_suspend, stm32_spi_resume)
+	RUNTIME_PM_OPS(stm32_spi_runtime_suspend, stm32_spi_runtime_resume, NULL)
 };
 
 static struct platform_driver stm32_spi_driver = {
@@ -2607,7 +2606,7 @@ static struct platform_driver stm32_spi_driver = {
 	.remove = stm32_spi_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.pm = &stm32_spi_pm_ops,
+		.pm = pm_ptr(&stm32_spi_pm_ops),
 		.of_match_table = stm32_spi_of_match,
 	},
 };
