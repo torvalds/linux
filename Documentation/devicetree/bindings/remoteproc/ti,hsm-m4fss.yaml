@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/remoteproc/ti,hsm-m4fss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI K3 HSM M4F processor subsystems
+
+maintainers:
+  - Beleswar Padhi <b-padhi@ti.com>
+
+description: |
+  Some K3 family SoCs have a HSM (High Security Module) M4F core in the
+  Wakeup Voltage Domain which could be used to run secure services like
+  Authentication. Some of those are J721S2, J784S4, J722S, AM62X.
+
+$ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,hsm-m4fss
+
+  reg:
+    items:
+      - description: SRAM0_0 internal memory region
+      - description: SRAM0_1 internal memory region
+      - description: SRAM1 internal memory region
+
+  reg-names:
+    items:
+      - const: sram0_0
+      - const: sram0_1
+      - const: sram1
+
+  resets:
+    maxItems: 1
+
+  firmware-name:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - resets
+  - firmware-name
+  - ti,sci
+  - ti,sci-dev-id
+  - ti,sci-proc-ids
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        remoteproc@43c00000 {
+            compatible = "ti,hsm-m4fss";
+            reg = <0x00 0x43c00000 0x00 0x20000>,
+                  <0x00 0x43c20000 0x00 0x10000>,
+                  <0x00 0x43c30000 0x00 0x10000>;
+            reg-names = "sram0_0", "sram0_1", "sram1";
+            resets = <&k3_reset 225 1>;
+            firmware-name = "hsm.bin";
+            ti,sci = <&sms>;
+            ti,sci-dev-id = <225>;
+            ti,sci-proc-ids = <0x80 0xff>;
+        };
+    };
