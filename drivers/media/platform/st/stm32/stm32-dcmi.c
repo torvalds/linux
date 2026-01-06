@@ -402,9 +402,21 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 	spin_lock_irq(&dcmi->irqlock);
 
 	if (dcmi->misr & IT_OVR) {
+		/* Disable capture */
+		reg_clear(dcmi->regs, DCMI_CR, CR_CAPTURE);
+
 		dcmi->overrun_count++;
+
 		if (dcmi->overrun_count > OVERRUN_ERROR_THRESHOLD)
 			dcmi->errors_count++;
+
+		spin_unlock_irq(&dcmi->irqlock);
+		dmaengine_terminate_sync(dcmi->dma_chan);
+
+		if (dcmi_restart_capture(dcmi))
+			dev_err(dcmi->dev, "%s: Cannot restart capture\n", __func__);
+
+		return IRQ_HANDLED;
 	}
 	if (dcmi->misr & IT_ERR)
 		dcmi->errors_count++;
