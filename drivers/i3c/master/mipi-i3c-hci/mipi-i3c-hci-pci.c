@@ -14,12 +14,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_data/mipi-i3c-hci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 
 struct mipi_i3c_hci_pci {
 	struct pci_dev *pci;
 	struct platform_device *pdev;
+	void __iomem *base;
 	const struct mipi_i3c_hci_pci_info *info;
 	void *private;
 };
@@ -32,7 +34,6 @@ struct mipi_i3c_hci_pci_info {
 };
 
 #define INTEL_PRIV_OFFSET		0x2b0
-#define INTEL_PRIV_SIZE			0x28
 #define INTEL_RESETS			0x04
 #define INTEL_RESETS_RESET		BIT(0)
 #define INTEL_RESETS_RESET_DONE		BIT(1)
@@ -143,19 +144,12 @@ static void intel_reset(void __iomem *priv)
 	writel(INTEL_RESETS_RESET, priv + INTEL_RESETS);
 }
 
-static void __iomem *intel_priv(struct pci_dev *pci)
-{
-	resource_size_t base = pci_resource_start(pci, 0);
-
-	return devm_ioremap(&pci->dev, base + INTEL_PRIV_OFFSET, INTEL_PRIV_SIZE);
-}
-
 static int intel_i3c_init(struct mipi_i3c_hci_pci *hci)
 {
 	struct intel_host *host = devm_kzalloc(&hci->pci->dev, sizeof(*host), GFP_KERNEL);
-	void __iomem *priv = intel_priv(hci->pci);
+	void __iomem *priv = hci->base + INTEL_PRIV_OFFSET;
 
-	if (!host || !priv)
+	if (!host)
 		return -ENOMEM;
 
 	dma_set_mask_and_coherent(&hci->pci->dev, DMA_BIT_MASK(64));
@@ -196,8 +190,9 @@ static const struct mipi_i3c_hci_pci_info intel_2_info = {
 static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 				  const struct pci_device_id *id)
 {
+	struct mipi_i3c_hci_platform_data pdata = {};
 	struct mipi_i3c_hci_pci *hci;
-	struct resource res[2];
+	struct resource res;
 	int ret;
 
 	hci = devm_kzalloc(&pci->dev, sizeof(*hci), GFP_KERNEL);
@@ -212,19 +207,19 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 
 	pci_set_master(pci);
 
+	hci->base = pcim_iomap_region(pci, 0, pci_name(pci));
+	if (IS_ERR(hci->base))
+		return PTR_ERR(hci->base);
+
 	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		return ret;
 
 	memset(&res, 0, sizeof(res));
 
-	res[0].flags = IORESOURCE_MEM;
-	res[0].start = pci_resource_start(pci, 0);
-	res[0].end = pci_resource_end(pci, 0);
-
-	res[1].flags = IORESOURCE_IRQ;
-	res[1].start = pci_irq_vector(hci->pci, 0);
-	res[1].end = res[1].start;
+	res.flags = IORESOURCE_IRQ;
+	res.start = pci_irq_vector(hci->pci, 0);
+	res.end = res.start;
 
 	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
 
@@ -235,7 +230,13 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	hci->pdev->dev.parent = &pci->dev;
 	device_set_node(&hci->pdev->dev, dev_fwnode(&pci->dev));
 
-	ret = platform_device_add_resources(hci->pdev, res, ARRAY_SIZE(res));
+	ret = platform_device_add_resources(hci->pdev, &res, 1);
+	if (ret)
+		goto err;
+
+	pdata.base_regs = hci->base;
+
+	ret = platform_device_add_data(hci->pdev, &pdata, sizeof(pdata));
 	if (ret)
 		goto err;
 
