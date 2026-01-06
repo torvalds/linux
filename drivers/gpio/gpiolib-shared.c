@@ -38,6 +38,7 @@ struct gpio_shared_ref {
 	int dev_id;
 	/* Protects the auxiliary device struct and the lookup table. */
 	struct mutex lock;
+	struct lock_class_key lock_key;
 	struct auxiliary_device adev;
 	struct gpiod_lookup_table *lookup;
 };
@@ -99,7 +100,8 @@ static struct gpio_shared_ref *gpio_shared_make_ref(struct fwnode_handle *fwnode
 	ref->flags = flags;
 	ref->con_id = no_free_ptr(con_id_cpy);
 	ref->fwnode = fwnode;
-	mutex_init(&ref->lock);
+	lockdep_register_key(&ref->lock_key);
+	mutex_init_with_key(&ref->lock, &ref->lock_key);
 
 	return no_free_ptr(ref);
 }
@@ -378,6 +380,11 @@ static bool gpio_shared_dev_is_reset_gpio(struct device *consumer,
 	 * arguments match the ones from this consumer's node.
 	 */
 	list_for_each_entry(real_ref, &entry->refs, list) {
+		if (real_ref == ref)
+			continue;
+
+		guard(mutex)(&real_ref->lock);
+
 		if (!real_ref->fwnode)
 			continue;
 
@@ -568,15 +575,6 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 		if (!device_match_fwnode(&gdev->dev, entry->fwnode))
 			continue;
 
-		/*
-		 * For some reason if we call synchronize_srcu() in GPIO core,
-		 * descent here and take this mutex and then recursively call
-		 * synchronize_srcu() again from gpiochip_remove() (which is
-		 * totally fine) called after gpio_shared_remove_adev(),
-		 * lockdep prints a false positive deadlock splat. Disable
-		 * lockdep here.
-		 */
-		lockdep_off();
 		list_for_each_entry(ref, &entry->refs, list) {
 			guard(mutex)(&ref->lock);
 
@@ -589,7 +587,6 @@ void gpio_device_teardown_shared(struct gpio_device *gdev)
 
 			gpio_shared_remove_adev(&ref->adev);
 		}
-		lockdep_on();
 	}
 }
 
@@ -685,6 +682,7 @@ static void gpio_shared_drop_ref(struct gpio_shared_ref *ref)
 {
 	list_del(&ref->list);
 	mutex_destroy(&ref->lock);
+	lockdep_unregister_key(&ref->lock_key);
 	kfree(ref->con_id);
 	ida_free(&gpio_shared_ida, ref->dev_id);
 	fwnode_handle_put(ref->fwnode);
