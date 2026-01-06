@@ -128,8 +128,8 @@ static int loongson_uart_probe(struct platform_device *pdev)
 	port->private_data = priv;
 
 	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &priv->res);
-	if (!port->membase)
-		return -ENOMEM;
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
 
 	port->mapbase = priv->res->start;
 	port->mapsize = resource_size(priv->res);

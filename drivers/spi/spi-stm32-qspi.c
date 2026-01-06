@@ -910,7 +910,7 @@ static void stm32_qspi_remove(struct platform_device *pdev)
 	clk_disable_unprepare(qspi->clk);
 }
 
-static int __maybe_unused stm32_qspi_runtime_suspend(struct device *dev)
+static int stm32_qspi_runtime_suspend(struct device *dev)
 {
 	struct stm32_qspi *qspi = dev_get_drvdata(dev);
 
@@ -919,21 +919,21 @@ static int __maybe_unused stm32_qspi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused stm32_qspi_runtime_resume(struct device *dev)
+static int stm32_qspi_runtime_resume(struct device *dev)
 {
 	struct stm32_qspi *qspi = dev_get_drvdata(dev);
 
 	return clk_prepare_enable(qspi->clk);
 }
 
-static int __maybe_unused stm32_qspi_suspend(struct device *dev)
+static int stm32_qspi_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused stm32_qspi_resume(struct device *dev)
+static int stm32_qspi_resume(struct device *dev)
 {
 	struct stm32_qspi *qspi = dev_get_drvdata(dev);
 	int ret;
@@ -957,9 +957,8 @@ static int __maybe_unused stm32_qspi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops stm32_qspi_pm_ops = {
-	SET_RUNTIME_PM_OPS(stm32_qspi_runtime_suspend,
-			   stm32_qspi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(stm32_qspi_suspend, stm32_qspi_resume)
+	RUNTIME_PM_OPS(stm32_qspi_runtime_suspend, stm32_qspi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(stm32_qspi_suspend, stm32_qspi_resume)
 };
 
 static const struct of_device_id stm32_qspi_match[] = {
@@ -974,7 +973,7 @@ static struct platform_driver stm32_qspi_driver = {
 	.driver	= {
 		.name = "stm32-qspi",
 		.of_match_table = stm32_qspi_match,
-		.pm = &stm32_qspi_pm_ops,
+		.pm = pm_ptr(&stm32_qspi_pm_ops),
 	},
 };
 module_platform_driver(stm32_qspi_driver);

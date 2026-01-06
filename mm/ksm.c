@@ -650,7 +650,7 @@ static int break_ksm_pmd_entry(pmd_t *pmdp, unsigned long addr, unsigned long en
 		}
 	}
 out_unlock:
-	pte_unmap_unlock(ptep, ptl);
+	pte_unmap_unlock(start_ptep, ptl);
 	return found;
 }
 

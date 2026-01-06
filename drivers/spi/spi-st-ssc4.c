@@ -403,7 +403,7 @@ static int spi_st_runtime_resume(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused spi_st_suspend(struct device *dev)
+static int spi_st_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;
@@ -415,7 +415,7 @@ static int __maybe_unused spi_st_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused spi_st_resume(struct device *dev)
+static int spi_st_resume(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
 	int ret;

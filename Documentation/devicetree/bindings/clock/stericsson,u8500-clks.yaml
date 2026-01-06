@@ -8,7 +8,7 @@ title: ST-Ericsson DB8500 (U8500) clocks
 
 maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: While named "U8500 clocks" these clocks are inside the
   DB8500 digital baseband system-on-chip and its siblings such as

@@ -187,7 +187,6 @@ static int remove_extent_ref(struct btrfs_root *root, u64 bytenr,
 	ret = btrfs_search_slot(&trans, root, &key, path, -1, 1);
 	if (ret) {
 		test_err("couldn't find backref %d", ret);
-		btrfs_free_path(path);
 		return ret;
 	}
 	btrfs_del_item(&trans, root, path);
