@@ -424,7 +424,7 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int val, bool cached);
 
 /**
- * _snd_hda_set_pin_ctl - Set a pin-control value safely
+ * snd_hda_set_pin_ctl - Set a pin-control value safely
  * @codec: the codec instance
  * @pin: the pin NID to set the control
  * @val: the pin-control value (AC_PINCTL_* bits)
