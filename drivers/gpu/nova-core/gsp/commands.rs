@@ -30,7 +30,6 @@ use crate::{
         },
     },
     sbuffer::SBufferIter,
-    util,
 };
 
 /// The `GspSetSystemInfo` command.
@@ -209,7 +208,9 @@ impl GetGspStaticInfoReply {
     /// Returns the name of the GPU as a string, or `None` if the string given by the GSP was
     /// invalid.
     pub(crate) fn gpu_name(&self) -> Option<&str> {
-        util::str_from_null_terminated(&self.gpu_name)
+        CStr::from_bytes_until_nul(&self.gpu_name)
+            .ok()
+            .and_then(|cstr| cstr.to_str().ok())
     }
 }
 
