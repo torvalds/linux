@@ -604,7 +604,7 @@ config USB_UHCI_ASPEED
 
 config USB_FHCI_HCD
 	tristate "Freescale QE USB Host Controller support"
-	depends on OF_GPIO && QE_GPIO && QUICC_ENGINE
+	depends on QE_GPIO && QUICC_ENGINE
 	select FSL_GTM
 	select QE_USB
 	help
