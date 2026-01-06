@@ -16,6 +16,7 @@
 #include <as-layout.h>
 #include <kern_util.h>
 #include <os.h>
+#include <skas.h>
 #include <sysdep/mcontext.h>
 #include <um_malloc.h>
 #include <sys/ucontext.h>
@@ -224,6 +225,8 @@ void set_handler(int sig)
 	sigaddset(&action.sa_mask, SIGIO);
 	sigaddset(&action.sa_mask, SIGWINCH);
 	sigaddset(&action.sa_mask, SIGALRM);
+	if (using_seccomp)
+		sigaddset(&action.sa_mask, SIGCHLD);
 
 	if (sig == SIGSEGV)
 		flags |= SA_NODEFER;
