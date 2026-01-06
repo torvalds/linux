@@ -54,7 +54,7 @@ struct osnoise_context {
 };
 
 extern struct trace_instance *trace_inst;
-extern int stop_tracing;
+extern volatile int stop_tracing;
 
 struct hist_params {
 	char			no_irq;
