@@ -446,7 +446,9 @@ struct svc_serv *  svc_create_pooled(struct svc_program *prog,
 				     struct svc_stat *stats,
 				     unsigned int bufsize,
 				     int (*threadfn)(void *data));
-int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
+int		   svc_set_pool_threads(struct svc_serv *serv, struct svc_pool *pool,
+					unsigned int nrservs);
+int		   svc_set_num_threads(struct svc_serv *serv, unsigned int nrservs);
 int		   svc_pool_stats_open(struct svc_info *si, struct file *file);
 void		   svc_process(struct svc_rqst *rqstp);
 void		   svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp);
