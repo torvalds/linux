@@ -771,7 +771,7 @@ int btrfs_bin_search(const struct extent_buffer *eb, int first_slot,
 		unsigned long offset;
 		struct btrfs_disk_key *tmp;
 		struct btrfs_disk_key unaligned;
-		int mid;
+		u32 mid;
 
 		mid = (low + high) / 2;
 		offset = p + mid * item_size;
