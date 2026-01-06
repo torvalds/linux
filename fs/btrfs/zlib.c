@@ -157,7 +157,6 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	int ret;
 	char *data_in = NULL;
-	char *cfolio_out;
 	struct folio *in_folio = NULL;
 	struct folio *out_folio = NULL;
 	const u32 blocksize = fs_info->sectorsize;
@@ -180,11 +179,10 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 		ret = -ENOMEM;
 		goto out;
 	}
-	cfolio_out = folio_address(out_folio);
 
 	workspace->strm.next_in = workspace->buf;
 	workspace->strm.avail_in = 0;
-	workspace->strm.next_out = cfolio_out;
+	workspace->strm.next_out = folio_address(out_folio);
 	workspace->strm.avail_out = min_folio_size;
 
 	while (workspace->strm.total_in < len) {
@@ -263,9 +261,8 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 				ret = -ENOMEM;
 				goto out;
 			}
-			cfolio_out = folio_address(out_folio);
 			workspace->strm.avail_out = min_folio_size;
-			workspace->strm.next_out = cfolio_out;
+			workspace->strm.next_out = folio_address(out_folio);
 		}
 		/* We're all done. */
 		if (workspace->strm.total_in >= len)
@@ -301,9 +298,8 @@ int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
 				ret = -ENOMEM;
 				goto out;
 			}
-			cfolio_out = folio_address(out_folio);
 			workspace->strm.avail_out = min_folio_size;
-			workspace->strm.next_out = cfolio_out;
+			workspace->strm.next_out = folio_address(out_folio);
 		}
 	}
 	/* Queue the remaining part of the folio. */
