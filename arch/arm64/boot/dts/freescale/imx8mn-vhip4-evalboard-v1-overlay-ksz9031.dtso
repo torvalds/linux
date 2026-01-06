@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2021 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mn-pinfunc.h"
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec1>;
+	phy-handle = <&ethphy0>;
+	phy-mode = "rgmii-id";
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl_fec1: fec1-grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_ENET_MDC_ENET1_MDC			0x16
+			MX8MN_IOMUXC_ENET_MDIO_ENET1_MDIO		0x96
+			MX8MN_IOMUXC_ENET_TD3_ENET1_RGMII_TD3		0x16
+			MX8MN_IOMUXC_ENET_TD2_ENET1_RGMII_TD2		0x16
+			MX8MN_IOMUXC_ENET_TD1_ENET1_RGMII_TD1		0x16
+			MX8MN_IOMUXC_ENET_TD0_ENET1_RGMII_TD0		0x16
+			MX8MN_IOMUXC_ENET_RD3_ENET1_RGMII_RD3		0x96
+			MX8MN_IOMUXC_ENET_RD2_ENET1_RGMII_RD2		0x96
+			MX8MN_IOMUXC_ENET_RD1_ENET1_RGMII_RD1		0x96
+			MX8MN_IOMUXC_ENET_RD0_ENET1_RGMII_RD0		0x96
+			MX8MN_IOMUXC_ENET_TXC_ENET1_RGMII_TXC		0x16
+			MX8MN_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x96
+			MX8MN_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x96
+			MX8MN_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x16
+			MX8MN_IOMUXC_SAI3_TXFS_GPIO4_IO31		0x1d6
+		>;
+	};
+};
