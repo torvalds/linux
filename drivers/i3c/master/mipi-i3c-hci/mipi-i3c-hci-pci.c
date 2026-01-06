@@ -203,6 +203,10 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 
 	pci_set_master(pci);
 
+	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
+
 	memset(&res, 0, sizeof(res));
 
 	res[0].flags = IORESOURCE_MEM;
@@ -210,8 +214,8 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	res[0].end = pci_resource_end(pci, 0);
 
 	res[1].flags = IORESOURCE_IRQ;
-	res[1].start = pci->irq;
-	res[1].end = pci->irq;
+	res[1].start = pci_irq_vector(hci->pci, 0);
+	res[1].end = res[1].start;
 
 	dev_id = ida_alloc(&mipi_i3c_hci_pci_ida, GFP_KERNEL);
 	if (dev_id < 0)
