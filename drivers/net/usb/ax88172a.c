@@ -210,11 +210,7 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 	ret = asix_read_phy_addr(dev, priv->use_embdphy);
 	if (ret < 0)
 		goto free;
-	if (ret >= PHY_MAX_ADDR) {
-		netdev_err(dev->net, "Invalid PHY address %#x\n", ret);
-		ret = -ENODEV;
-		goto free;
-	}
+
 	priv->phy_addr = ret;
 
 	ax88172a_reset_phy(dev, priv->use_embdphy);

@@ -660,7 +660,13 @@ extern int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long a
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 				       unsigned long address, pte_t *ptep)
 {
-	pte_t pte = __pte(atomic_long_xchg((atomic_long_t *)ptep, 0));
+#ifdef CONFIG_SMP
+	pte_t pte = __pte(xchg(&ptep->pte, 0));
+#else
+	pte_t pte = *ptep;
+
+	set_pte(ptep, __pte(0));
+#endif
 
 	page_table_check_pte_clear(mm, pte);
 
@@ -997,7 +1003,13 @@ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 					unsigned long address, pmd_t *pmdp)
 {
-	pmd_t pmd = __pmd(atomic_long_xchg((atomic_long_t *)pmdp, 0));
+#ifdef CONFIG_SMP
+	pmd_t pmd = __pmd(xchg(&pmdp->pmd, 0));
+#else
+	pmd_t pmd = *pmdp;
+
+	pmd_clear(pmdp);
+#endif
 
 	page_table_check_pmd_clear(mm, pmd);
 

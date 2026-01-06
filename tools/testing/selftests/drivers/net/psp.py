@@ -573,8 +573,9 @@ def psp_ip_ver_test_builder(name, test_func, psp_ver, ipver):
     """Build test cases for each combo of PSP version and IP version"""
     def test_case(cfg):
         cfg.require_ipver(ipver)
-        test_case.__name__ = f"{name}_v{psp_ver}_ip{ipver}"
         test_func(cfg, psp_ver, ipver)
+
+    test_case.__name__ = f"{name}_v{psp_ver}_ip{ipver}"
     return test_case
 
 
@@ -582,8 +583,9 @@ def ipver_test_builder(name, test_func, ipver):
     """Build test cases for each IP version"""
     def test_case(cfg):
         cfg.require_ipver(ipver)
-        test_case.__name__ = f"{name}_ip{ipver}"
         test_func(cfg, ipver)
+
+    test_case.__name__ = f"{name}_ip{ipver}"
     return test_case
 
 
