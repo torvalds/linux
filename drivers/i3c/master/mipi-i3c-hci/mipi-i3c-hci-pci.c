@@ -27,9 +27,9 @@ struct mipi_i3c_hci_pci {
 struct mipi_i3c_hci_pci_info {
 	int (*init)(struct mipi_i3c_hci_pci *hci);
 	void (*exit)(struct mipi_i3c_hci_pci *hci);
+	const char *name;
+	int id;
 };
-
-static DEFINE_IDA(mipi_i3c_hci_pci_ida);
 
 #define INTEL_PRIV_OFFSET		0x2b0
 #define INTEL_PRIV_SIZE			0x28
@@ -179,9 +179,18 @@ static void intel_i3c_exit(struct mipi_i3c_hci_pci *hci)
 	intel_ltr_hide(&hci->pci->dev);
 }
 
-static const struct mipi_i3c_hci_pci_info intel_info = {
+static const struct mipi_i3c_hci_pci_info intel_1_info = {
 	.init = intel_i3c_init,
 	.exit = intel_i3c_exit,
+	.name = "intel-lpss-i3c",
+	.id = 0,
+};
+
+static const struct mipi_i3c_hci_pci_info intel_2_info = {
+	.init = intel_i3c_init,
+	.exit = intel_i3c_exit,
+	.name = "intel-lpss-i3c",
+	.id = 2,
 };
 
 static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
@@ -189,7 +198,7 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 {
 	struct mipi_i3c_hci_pci *hci;
 	struct resource res[2];
-	int dev_id, ret;
+	int ret;
 
 	hci = devm_kzalloc(&pci->dev, sizeof(*hci), GFP_KERNEL);
 	if (!hci)
@@ -217,11 +226,9 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	res[1].start = pci_irq_vector(hci->pci, 0);
 	res[1].end = res[1].start;
 
-	dev_id = ida_alloc(&mipi_i3c_hci_pci_ida, GFP_KERNEL);
-	if (dev_id < 0)
-		return dev_id;
+	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
 
-	hci->pdev = platform_device_alloc("mipi-i3c-hci", dev_id);
+	hci->pdev = platform_device_alloc(hci->info->name, hci->info->id);
 	if (!hci->pdev)
 		return -ENOMEM;
 
@@ -232,7 +239,6 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 	if (ret)
 		goto err;
 
-	hci->info = (const struct mipi_i3c_hci_pci_info *)id->driver_data;
 	if (hci->info->init) {
 		ret = hci->info->init(hci);
 		if (ret)
@@ -252,7 +258,6 @@ err_exit:
 		hci->info->exit(hci);
 err:
 	platform_device_put(hci->pdev);
-	ida_free(&mipi_i3c_hci_pci_ida, dev_id);
 	return ret;
 }
 
@@ -260,28 +265,26 @@ static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 {
 	struct mipi_i3c_hci_pci *hci = pci_get_drvdata(pci);
 	struct platform_device *pdev = hci->pdev;
-	int dev_id = pdev->id;
 
 	if (hci->info->exit)
 		hci->info->exit(hci);
 
 	platform_device_unregister(pdev);
-	ida_free(&mipi_i3c_hci_pci_ida, dev_id);
 }
 
 static const struct pci_device_id mipi_i3c_hci_pci_devices[] = {
 	/* Wildcat Lake-U */
-	{ PCI_VDEVICE(INTEL, 0x4d7c), (kernel_ulong_t)&intel_info},
-	{ PCI_VDEVICE(INTEL, 0x4d6f), (kernel_ulong_t)&intel_info},
+	{ PCI_VDEVICE(INTEL, 0x4d7c), (kernel_ulong_t)&intel_1_info},
+	{ PCI_VDEVICE(INTEL, 0x4d6f), (kernel_ulong_t)&intel_2_info},
 	/* Panther Lake-H */
-	{ PCI_VDEVICE(INTEL, 0xe37c), (kernel_ulong_t)&intel_info},
-	{ PCI_VDEVICE(INTEL, 0xe36f), (kernel_ulong_t)&intel_info},
+	{ PCI_VDEVICE(INTEL, 0xe37c), (kernel_ulong_t)&intel_1_info},
+	{ PCI_VDEVICE(INTEL, 0xe36f), (kernel_ulong_t)&intel_2_info},
 	/* Panther Lake-P */
-	{ PCI_VDEVICE(INTEL, 0xe47c), (kernel_ulong_t)&intel_info},
-	{ PCI_VDEVICE(INTEL, 0xe46f), (kernel_ulong_t)&intel_info},
+	{ PCI_VDEVICE(INTEL, 0xe47c), (kernel_ulong_t)&intel_1_info},
+	{ PCI_VDEVICE(INTEL, 0xe46f), (kernel_ulong_t)&intel_2_info},
 	/* Nova Lake-S */
-	{ PCI_VDEVICE(INTEL, 0x6e2c), (kernel_ulong_t)&intel_info},
-	{ PCI_VDEVICE(INTEL, 0x6e2d), (kernel_ulong_t)&intel_info},
+	{ PCI_VDEVICE(INTEL, 0x6e2c), (kernel_ulong_t)&intel_1_info},
+	{ PCI_VDEVICE(INTEL, 0x6e2d), (kernel_ulong_t)&intel_2_info},
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, mipi_i3c_hci_pci_devices);

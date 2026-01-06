@@ -790,9 +790,16 @@ static const struct acpi_device_id i3c_hci_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, i3c_hci_acpi_match);
 
+static const struct platform_device_id i3c_hci_driver_ids[] = {
+	{ .name = "intel-lpss-i3c" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, i3c_hci_driver_ids);
+
 static struct platform_driver i3c_hci_driver = {
 	.probe = i3c_hci_probe,
 	.remove = i3c_hci_remove,
+	.id_table = i3c_hci_driver_ids,
 	.driver = {
 		.name = "mipi-i3c-hci",
 		.of_match_table = of_match_ptr(i3c_hci_of_match),
