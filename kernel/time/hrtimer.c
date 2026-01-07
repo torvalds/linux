@@ -50,6 +50,14 @@
 #include "tick-internal.h"
 
 /*
+ * The resolution of the clocks. The resolution value is returned in
+ * the clock_getres() system call to give application programmers an
+ * idea of the (in)accuracy of timers. Timer values are rounded up to
+ * this resolution values.
+ */
+#define HIGH_RES_NSEC		1
+
+/*
  * Masks for selecting the soft and hard context timers from
  * cpu_base->active
  */
