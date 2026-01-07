@@ -16,7 +16,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/bitops.h>
 #include <linux/delay.h>
 
 #include <linux/iio/iio.h>
