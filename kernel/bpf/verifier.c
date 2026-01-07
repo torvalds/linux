@@ -11466,6 +11466,7 @@ static inline bool in_sleepable_context(struct bpf_verifier_env *env)
 {
 	return !env->cur_state->active_rcu_locks &&
 	       !env->cur_state->active_preempt_locks &&
+	       !env->cur_state->active_locks &&
 	       !env->cur_state->active_irq_id &&
 	       in_sleepable(env);
 }
@@ -12372,6 +12373,7 @@ enum special_kfunc_type {
 	KF_bpf_task_work_schedule_resume_impl,
 	KF_bpf_arena_alloc_pages,
 	KF_bpf_arena_free_pages,
+	KF_bpf_arena_reserve_pages,
 };
 
 BTF_ID_LIST(special_kfunc_list)
@@ -12448,6 +12450,7 @@ BTF_ID(func, bpf_task_work_schedule_signal_impl)
 BTF_ID(func, bpf_task_work_schedule_resume_impl)
 BTF_ID(func, bpf_arena_alloc_pages)
 BTF_ID(func, bpf_arena_free_pages)
+BTF_ID(func, bpf_arena_reserve_pages)
 
 static bool is_task_work_add_kfunc(u32 func_id)
 {
@@ -12883,10 +12886,17 @@ static bool is_bpf_res_spin_lock_kfunc(u32 btf_id)
 	       btf_id == special_kfunc_list[KF_bpf_res_spin_unlock_irqrestore];
 }
 
+static bool is_bpf_arena_kfunc(u32 btf_id)
+{
+	return btf_id == special_kfunc_list[KF_bpf_arena_alloc_pages] ||
+	       btf_id == special_kfunc_list[KF_bpf_arena_free_pages] ||
+	       btf_id == special_kfunc_list[KF_bpf_arena_reserve_pages];
+}
+
 static bool kfunc_spin_allowed(u32 btf_id)
 {
 	return is_bpf_graph_api_kfunc(btf_id) || is_bpf_iter_num_api_kfunc(btf_id) ||
-	       is_bpf_res_spin_lock_kfunc(btf_id);
+	       is_bpf_res_spin_lock_kfunc(btf_id) || is_bpf_arena_kfunc(btf_id);
 }
 
 static bool is_sync_callback_calling_kfunc(u32 btf_id)

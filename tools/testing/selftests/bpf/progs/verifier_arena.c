@@ -10,6 +10,8 @@
 #include "bpf_experimental.h"
 #include "bpf_arena_common.h"
 
+#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+
 struct {
 	__uint(type, BPF_MAP_TYPE_ARENA);
 	__uint(map_flags, BPF_F_MMAPABLE);
@@ -439,4 +441,40 @@ int iter_maps3(struct bpf_iter__bpf_map *ctx)
 	return 0;
 }
 
+private(ARENA_TESTS) struct bpf_spin_lock arena_bpf_test_lock;
+
+/* Use the arena kfunc API while under a BPF lock. */
+SEC("syscall")
+__success __retval(0)
+int arena_kfuncs_under_bpf_lock(void *ctx)
+{
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST)
+	char __arena *page;
+	int ret;
+
+	bpf_spin_lock(&arena_bpf_test_lock);
+
+	/* Get a separate region of the arena. */
+	page = arena_base(&arena);
+	ret = bpf_arena_reserve_pages(&arena, page, 1);
+	if (ret) {
+		bpf_spin_unlock(&arena_bpf_test_lock);
+		return 1;
+	}
+
+	bpf_arena_free_pages(&arena, page, 1);
+
+	page = bpf_arena_alloc_pages(&arena, NULL, 1, NUMA_NO_NODE, 0);
+	if (!page) {
+		bpf_spin_unlock(&arena_bpf_test_lock);
+		return 2;
+	}
+
+	bpf_arena_free_pages(&arena, page, 1);
+
+	bpf_spin_unlock(&arena_bpf_test_lock);
+#endif
+
+	return 0;
+}
 char _license[] SEC("license") = "GPL";
