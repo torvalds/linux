@@ -524,15 +524,14 @@ static int common_file_perm(const char *op, struct file *file, u32 mask)
 {
 	struct aa_label *label;
 	int error = 0;
-	bool needput;
 
 	/* don't reaudit files closed during inheritance */
 	if (unlikely(file->f_path.dentry == aa_null.dentry))
 		return -EACCES;
 
-	label = __begin_current_label_crit_section(&needput);
+	label = begin_current_label_crit_section();
 	error = aa_file_perm(op, current_cred(), label, file, mask, false);
-	__end_current_label_crit_section(label, needput);
+	end_current_label_crit_section(label);
 
 	return error;
 }
