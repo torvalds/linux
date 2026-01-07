@@ -860,8 +860,6 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 	struct nfs_delegation *delegation;
 	struct nfs_delegation *ret = NULL;
 
-	if (!inode)
-		return;
 	rcu_read_lock();
 	delegation = nfs4_get_valid_delegation(inode);
 	if (!delegation)
