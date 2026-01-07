@@ -1907,59 +1907,6 @@ out_free:
 	return retval;
 }
 
-static int do_execve(struct filename *filename,
-	const char __user *const __user *__argv,
-	const char __user *const __user *__envp)
-{
-	struct user_arg_ptr argv = { .ptr.native = __argv };
-	struct user_arg_ptr envp = { .ptr.native = __envp };
-	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
-}
-
-static int do_execveat(int fd, struct filename *filename,
-		const char __user *const __user *__argv,
-		const char __user *const __user *__envp,
-		int flags)
-{
-	struct user_arg_ptr argv = { .ptr.native = __argv };
-	struct user_arg_ptr envp = { .ptr.native = __envp };
-
-	return do_execveat_common(fd, filename, argv, envp, flags);
-}
-
-#ifdef CONFIG_COMPAT
-static int compat_do_execve(struct filename *filename,
-	const compat_uptr_t __user *__argv,
-	const compat_uptr_t __user *__envp)
-{
-	struct user_arg_ptr argv = {
-		.is_compat = true,
-		.ptr.compat = __argv,
-	};
-	struct user_arg_ptr envp = {
-		.is_compat = true,
-		.ptr.compat = __envp,
-	};
-	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
-}
-
-static int compat_do_execveat(int fd, struct filename *filename,
-			      const compat_uptr_t __user *__argv,
-			      const compat_uptr_t __user *__envp,
-			      int flags)
-{
-	struct user_arg_ptr argv = {
-		.is_compat = true,
-		.ptr.compat = __argv,
-	};
-	struct user_arg_ptr envp = {
-		.is_compat = true,
-		.ptr.compat = __envp,
-	};
-	return do_execveat_common(fd, filename, argv, envp, flags);
-}
-#endif
-
 void set_binfmt(struct linux_binfmt *new)
 {
 	struct mm_struct *mm = current->mm;
@@ -1984,12 +1931,18 @@ void set_dumpable(struct mm_struct *mm, int value)
 	__mm_flags_set_mask_dumpable(mm, value);
 }
 
+static inline struct user_arg_ptr native_arg(const char __user *const __user *p)
+{
+	return (struct user_arg_ptr){.ptr.native = p};
+}
+
 SYSCALL_DEFINE3(execve,
 		const char __user *, filename,
 		const char __user *const __user *, argv,
 		const char __user *const __user *, envp)
 {
-	return do_execve(getname(filename), argv, envp);
+	return do_execveat_common(AT_FDCWD, getname(filename),
+				  native_arg(argv), native_arg(envp), 0);
 }
 
 SYSCALL_DEFINE5(execveat,
@@ -1998,17 +1951,23 @@ SYSCALL_DEFINE5(execveat,
 		const char __user *const __user *, envp,
 		int, flags)
 {
-	return do_execveat(fd,
-			   getname_uflags(filename, flags),
-			   argv, envp, flags);
+	return do_execveat_common(fd, getname_uflags(filename, flags),
+				  native_arg(argv), native_arg(envp), flags);
 }
 
 #ifdef CONFIG_COMPAT
+
+static inline struct user_arg_ptr compat_arg(const compat_uptr_t __user *p)
+{
+	return (struct user_arg_ptr){.is_compat = true, .ptr.compat = p};
+}
+
 COMPAT_SYSCALL_DEFINE3(execve, const char __user *, filename,
 	const compat_uptr_t __user *, argv,
 	const compat_uptr_t __user *, envp)
 {
-	return compat_do_execve(getname(filename), argv, envp);
+	return do_execveat_common(AT_FDCWD, getname(filename),
+				  compat_arg(argv), compat_arg(envp), 0);
 }
 
 COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
@@ -2017,9 +1976,8 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 		       const compat_uptr_t __user *, envp,
 		       int,  flags)
 {
-	return compat_do_execveat(fd,
-				  getname_uflags(filename, flags),
-				  argv, envp, flags);
+	return do_execveat_common(fd, getname_uflags(filename, flags),
+				  compat_arg(argv), compat_arg(envp), flags);
 }
 #endif
 
