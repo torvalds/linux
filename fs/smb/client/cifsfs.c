@@ -1149,9 +1149,6 @@ cifs_setlease(struct file *file, int arg, struct file_lease **lease, void **priv
 	struct inode *inode = file_inode(file);
 	struct cifsFileInfo *cfile = file->private_data;
 
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-
 	/* Check if file is oplocked if this is request for new lease */
 	if (arg == F_UNLCK ||
 	    ((arg == F_RDLCK) && CIFS_CACHE_READ(CIFS_I(inode))) ||
@@ -1712,6 +1709,7 @@ const struct file_operations cifs_dir_ops = {
 	.remap_file_range = cifs_remap_file_range,
 	.llseek = generic_file_llseek,
 	.fsync = cifs_dir_fsync,
+	.setlease = simple_nosetlease,
 };
 
 static void
