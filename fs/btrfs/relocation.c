@@ -4743,6 +4743,10 @@ int btrfs_last_identity_remap_gone(struct btrfs_chunk_map *chunk_map,
 
 	btrfs_remove_bg_from_sinfo(bg);
 
+	spin_lock(&bg->lock);
+	clear_bit(BLOCK_GROUP_FLAG_STRIPE_REMOVAL_PENDING, &bg->runtime_flags);
+	spin_unlock(&bg->lock);
+
 	ret = remove_chunk_stripes(trans, chunk_map, path);
 	if (unlikely(ret)) {
 		btrfs_abort_transaction(trans, ret);

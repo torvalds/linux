@@ -4794,6 +4794,10 @@ void btrfs_mark_bg_fully_remapped(struct btrfs_block_group *bg,
 
 
 	if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
+		spin_lock(&bg->lock);
+		set_bit(BLOCK_GROUP_FLAG_STRIPE_REMOVAL_PENDING, &bg->runtime_flags);
+		spin_unlock(&bg->lock);
+
 		btrfs_discard_queue_work(&fs_info->discard_ctl, bg);
 	} else {
 		spin_lock(&fs_info->unused_bgs_lock);
@@ -4810,4 +4814,75 @@ void btrfs_mark_bg_fully_remapped(struct btrfs_block_group *bg,
 		list_add_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
 		spin_unlock(&fs_info->unused_bgs_lock);
 	}
+}
+
+/*
+ * Compare the block group and chunk trees, and find any fully-remapped block
+ * groups which haven't yet had their chunk stripes and device extents removed,
+ * and put them on the fully_remapped_bgs list so this gets done.
+ *
+ * This happens when a block group becomes fully remapped, i.e. its last
+ * identity mapping is removed, and the volume is unmounted before async
+ * discard has finished. It's important this gets done as until it is the
+ * chunk's stripes are dead space.
+ */
+int btrfs_populate_fully_remapped_bgs_list(struct btrfs_fs_info *fs_info)
+{
+	struct rb_node *node_bg, *node_chunk;
+
+	node_bg = rb_first_cached(&fs_info->block_group_cache_tree);
+	node_chunk = rb_first_cached(&fs_info->mapping_tree);
+
+	while (node_bg && node_chunk) {
+		struct btrfs_block_group *bg;
+		struct btrfs_chunk_map *map;
+
+		bg = rb_entry(node_bg, struct btrfs_block_group, cache_node);
+		map = rb_entry(node_chunk, struct btrfs_chunk_map, rb_node);
+
+		ASSERT(bg->start == map->start);
+
+		if (!(bg->flags & BTRFS_BLOCK_GROUP_REMAPPED))
+			goto next;
+
+		if (bg->identity_remap_count != 0)
+			goto next;
+
+		if (map->num_stripes == 0)
+			goto next;
+
+		spin_lock(&fs_info->unused_bgs_lock);
+
+		if (list_empty(&bg->bg_list)) {
+			btrfs_get_block_group(bg);
+			list_add_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
+		} else {
+			list_move_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
+		}
+
+		spin_unlock(&fs_info->unused_bgs_lock);
+
+		/*
+		 * Ideally we'd want to call btrfs_discard_queue_work() here,
+		 * but it'd do nothing as the discard worker hasn't been
+		 * started yet.
+		 *
+		 * The block group will get added to the discard list when
+		 * btrfs_handle_fully_remapped_bgs() gets called, when we
+		 * commit the first transaction.
+		 */
+		if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
+			spin_lock(&bg->lock);
+			set_bit(BLOCK_GROUP_FLAG_STRIPE_REMOVAL_PENDING, &bg->runtime_flags);
+			spin_unlock(&bg->lock);
+		}
+
+next:
+		node_bg = rb_next(node_bg);
+		node_chunk = rb_next(node_chunk);
+	}
+
+	ASSERT(!node_bg && !node_chunk);
+
+	return 0;
 }
