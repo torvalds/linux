@@ -66,6 +66,7 @@ const struct file_operations nfs_dir_operations = {
 	.open		= nfs_opendir,
 	.release	= nfs_closedir,
 	.fsync		= nfs_fsync_dir,
+	.setlease	= simple_nosetlease,
 };
 
 const struct address_space_operations nfs_dir_aops = {
