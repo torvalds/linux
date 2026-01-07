@@ -60,12 +60,6 @@ static void nfs_mark_delegation_revoked(struct nfs_server *server,
 	}
 }
 
-static struct nfs_delegation *nfs_get_delegation(struct nfs_delegation *delegation)
-{
-	refcount_inc(&delegation->refcount);
-	return delegation;
-}
-
 void nfs_put_delegation(struct nfs_delegation *delegation)
 {
 	if (refcount_dec_and_test(&delegation->refcount))
@@ -312,25 +306,29 @@ static struct inode *nfs_delegation_grab_inode(struct nfs_delegation *delegation
 static struct nfs_delegation *
 nfs_start_delegation_return(struct nfs_inode *nfsi)
 {
-	struct nfs_delegation *ret = NULL;
 	struct nfs_delegation *delegation;
+	bool return_now = false;
 
 	lockdep_assert_in_rcu_read_lock();
 
 	delegation = rcu_dereference(nfsi->delegation);
-	if (!delegation)
+	if (!delegation || !refcount_inc_not_zero(&delegation->refcount))
 		return NULL;
 
 	spin_lock(&delegation->lock);
 	if (delegation->inode &&
 	    !test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
 		clear_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
-		ret = nfs_get_delegation(delegation);
+		return_now = true;
 	}
 	spin_unlock(&delegation->lock);
-	if (ret)
-		nfs_clear_verifier_delegated(&nfsi->vfs_inode);
-	return ret;
+
+	if (!return_now) {
+		nfs_put_delegation(delegation);
+		return NULL;
+	}
+	nfs_clear_verifier_delegated(&nfsi->vfs_inode);
+	return delegation;
 }
 
 static void nfs_abort_delegation_return(struct nfs_delegation *delegation,
