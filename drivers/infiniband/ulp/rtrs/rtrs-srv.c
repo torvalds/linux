@@ -883,7 +883,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	get_device(&srv_path->srv->dev);
 	err = rtrs_srv_change_state(srv_path, RTRS_SRV_CONNECTED);
 	if (!err) {
-		rtrs_err(s, "rtrs_srv_change_state(), err: %pe\n", ERR_PTR(err));
+		rtrs_err(s, "rtrs_srv_change_state() failed\n");
 		goto iu_free;
 	}
 
