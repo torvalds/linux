@@ -1342,4 +1342,4 @@ in-tree filesystems have done).
 fs/namei.c primitives that consume filesystem references (do_renameat2(),
 do_linkat(), do_symlinkat(), do_mkdirat(), do_mknodat(), do_unlinkat()
 and do_rmdir()) are getting replaced with non-consuming analogues
-(filename_renameat2(), etc.)  Replaced so far: do_renameat2().
+(filename_renameat2(), etc.)  Replaced so far: do_renameat2(), do_linkat().

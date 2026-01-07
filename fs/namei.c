@@ -5729,9 +5729,9 @@ EXPORT_SYMBOL(vfs_link);
  * We don't follow them on the oldname either to be compatible
  * with linux 2.0, and to avoid hard-linking to directories
  * and other special files.  --ADM
- */
-int do_linkat(int olddfd, struct filename *old, int newdfd,
-	      struct filename *new, int flags)
+*/
+int filename_linkat(int olddfd, struct filename *old,
+		    int newdfd, struct filename *new, int flags)
 {
 	struct mnt_idmap *idmap;
 	struct dentry *new_dentry;
@@ -5740,10 +5740,8 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
 	int how = 0;
 	int error;
 
-	if ((flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH)) != 0) {
-		error = -EINVAL;
-		goto out_putnames;
-	}
+	if ((flags & ~(AT_SYMLINK_FOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
 	/*
 	 * To use null names we require CAP_DAC_READ_SEARCH or
 	 * that the open-time creds of the dfd matches current.
@@ -5758,7 +5756,7 @@ int do_linkat(int olddfd, struct filename *old, int newdfd,
 retry:
 	error = filename_lookup(olddfd, old, how, &old_path, NULL);
 	if (error)
-		goto out_putnames;
+		return error;
 
 	new_dentry = filename_create(newdfd, new, &new_path,
 					(how & LOOKUP_REVAL));
@@ -5794,23 +5792,22 @@ out_dput:
 	}
 out_putpath:
 	path_put(&old_path);
-out_putnames:
-	putname(old);
-	putname(new);
-
 	return error;
 }
 
 SYSCALL_DEFINE5(linkat, int, olddfd, const char __user *, oldname,
 		int, newdfd, const char __user *, newname, int, flags)
 {
-	return do_linkat(olddfd, getname_uflags(oldname, flags),
-		newdfd, getname(newname), flags);
+	CLASS(filename_uflags, old)(oldname, flags);
+	CLASS(filename, new)(newname);
+	return filename_linkat(olddfd, old, newdfd, new, flags);
 }
 
 SYSCALL_DEFINE2(link, const char __user *, oldname, const char __user *, newname)
 {
-	return do_linkat(AT_FDCWD, getname(oldname), AT_FDCWD, getname(newname), 0);
+	CLASS(filename, old)(oldname);
+	CLASS(filename, new)(newname);
+	return filename_linkat(AT_FDCWD, old, AT_FDCWD, new, 0);
 }
 
 /**

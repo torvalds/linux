@@ -280,12 +280,13 @@ int io_linkat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_link *lnk = io_kiocb_to_cmd(req, struct io_link);
+	CLASS(filename_complete_delayed, old)(&lnk->oldpath);
+	CLASS(filename_complete_delayed, new)(&lnk->newpath);
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_linkat(lnk->old_dfd, complete_getname(&lnk->oldpath),
-			lnk->new_dfd, complete_getname(&lnk->newpath), lnk->flags);
+	ret = filename_linkat(lnk->old_dfd, old, lnk->new_dfd, new, lnk->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);

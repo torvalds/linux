@@ -62,7 +62,7 @@ int filename_renameat2(int olddfd, struct filename *oldname, int newdfd,
 int do_mkdirat(int dfd, struct filename *name, umode_t mode);
 int do_mknodat(int dfd, struct filename *name, umode_t mode, unsigned int dev);
 int do_symlinkat(struct filename *from, int newdfd, struct filename *to);
-int do_linkat(int olddfd, struct filename *old, int newdfd,
+int filename_linkat(int olddfd, struct filename *old, int newdfd,
 			struct filename *new, int flags);
 int vfs_tmpfile(struct mnt_idmap *idmap,
 		const struct path *parentpath,

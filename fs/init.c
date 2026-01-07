@@ -145,8 +145,9 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 
 int __init init_link(const char *oldname, const char *newname)
 {
-	return do_linkat(AT_FDCWD, getname_kernel(oldname),
-			 AT_FDCWD, getname_kernel(newname), 0);
+	CLASS(filename_kernel, old)(oldname);
+	CLASS(filename_kernel, new)(newname);
+	return filename_linkat(AT_FDCWD, old, AT_FDCWD, new, 0);
 }
 
 int __init init_symlink(const char *oldname, const char *newname)
