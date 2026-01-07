@@ -30,6 +30,9 @@
 /*
  * P17_4 = SD1_CD; DSW5[3] = ON; DSW19[1] = OFF; DSW19[2] = ON
  * P08_6 = SD1_IOVS; DSW5[3] = ON
+ * To enable proper operation in 1.8V modes, JP21 must have pins 2 and 3
+ * connected by the jumper. This connects SD1 power-supply control IC output
+ * back to VCC1833_7.
  */
 #define SD1_MICRO_SD	1
 

@@ -453,6 +453,12 @@
 				 <&sysctrl R9A06G032_CLK_SWITCH>;
 			clock-names = "hclk", "clk";
 			power-domains = <&sysctrl>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "dlr", "switch", "prp", "hub", "ptrn";
 			status = "disabled";
 
 			ethernet-ports {
