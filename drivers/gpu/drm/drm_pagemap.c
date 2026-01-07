@@ -582,7 +582,7 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 
 	err = ops->populate_devmem_pfn(devmem_allocation, npages, migrate.dst);
 	if (err)
-		goto err_finalize;
+		goto err_aborted_migration;
 
 	own_pages = 0;
 
@@ -621,8 +621,10 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		err = drm_pagemap_migrate_range(devmem_allocation, migrate.src, migrate.dst,
 						pages, pagemap_addr, &last, &cur,
 						mdetails);
-		if (err)
+		if (err) {
+			npages = i + 1;
 			goto err_finalize;
+		}
 	}
 	cur.start = npages;
 	cur.ops = NULL; /* Force migration */
@@ -646,7 +648,7 @@ err_finalize:
 err_aborted_migration:
 	migrate_vma_pages(&migrate);
 
-	for (i = 0; i < npages;) {
+	for (i = 0; !err && i < npages;) {
 		struct page *page = migrate_pfn_to_page(migrate.src[i]);
 		unsigned long nr_pages = page ? NR_PAGES(folio_order(page_folio(page))) : 1;
 
