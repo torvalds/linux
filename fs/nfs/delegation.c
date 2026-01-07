@@ -72,13 +72,6 @@ static void nfs_put_delegation(struct nfs_delegation *delegation)
 		__nfs_free_delegation(delegation);
 }
 
-static void nfs_free_delegation(struct nfs_server *server,
-		struct nfs_delegation *delegation)
-{
-	nfs_mark_delegation_revoked(server, delegation);
-	nfs_put_delegation(delegation);
-}
-
 /**
  * nfs_mark_delegation_referenced - set delegation's REFERENCED flag
  * @delegation: delegation to process
@@ -539,7 +532,8 @@ out:
 		__nfs_free_delegation(delegation);
 	if (freeme != NULL) {
 		nfs_do_return_delegation(inode, freeme, 0);
-		nfs_free_delegation(server, freeme);
+		nfs_mark_delegation_revoked(server, freeme);
+		nfs_put_delegation(freeme);
 	}
 	return status;
 }
@@ -752,7 +746,8 @@ void nfs_inode_evict_delegation(struct inode *inode)
 
 	set_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
 	nfs_do_return_delegation(inode, delegation, 1);
-	nfs_free_delegation(server, delegation);
+	nfs_mark_delegation_revoked(server, delegation);
+	nfs_put_delegation(delegation);
 }
 
 /**
@@ -1250,8 +1245,10 @@ restart:
 		rcu_read_unlock();
 		if (delegation != NULL) {
 			if (nfs_detach_delegation(NFS_I(inode), delegation,
-						server) != NULL)
-				nfs_free_delegation(server, delegation);
+						server) != NULL) {
+				nfs_mark_delegation_revoked(server, delegation);
+				nfs_put_delegation(delegation);
+			}
 			/* Match nfs_start_delegation_return */
 			nfs_put_delegation(delegation);
 		}
