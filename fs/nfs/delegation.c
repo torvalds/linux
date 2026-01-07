@@ -1453,7 +1453,7 @@ int nfs_delegations_present(struct nfs_client *clp)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
-		if (!list_empty(&server->delegations)) {
+		if (atomic_long_read(&server->nr_active_delegations) > 0) {
 			ret = 1;
 			break;
 		}
