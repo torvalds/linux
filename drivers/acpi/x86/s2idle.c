@@ -515,7 +515,8 @@ static struct acpi_scan_handler lps0_handler = {
 
 static int acpi_s2idle_begin_lps0(void)
 {
-	if (pm_debug_messages_on && !lpi_constraints_table) {
+	if (lps0_device_handle && !sleep_no_lps0 && pm_debug_messages_on &&
+	    !lpi_constraints_table) {
 		if (acpi_s2idle_vendor_amd())
 			lpi_device_get_constraints_amd();
 		else
