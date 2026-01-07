@@ -52,7 +52,7 @@ fn signature_reg_fuse_version_ga102(
     let ucode_idx = match usize::from(ucode_id) {
         ucode_id @ 1..=regs::NV_FUSE_OPT_FPF_SIZE => ucode_id - 1,
         _ => {
-            dev_err!(dev, "invalid ucode id {:#x}", ucode_id);
+            dev_err!(dev, "invalid ucode id {:#x}\n", ucode_id);
             return Err(EINVAL);
         }
     };
@@ -66,7 +66,7 @@ fn signature_reg_fuse_version_ga102(
     } else if engine_id_mask & 0x0400 != 0 {
         regs::NV_FUSE_OPT_FPF_GSP_UCODE1_VERSION::read(bar, ucode_idx).data()
     } else {
-        dev_err!(dev, "unexpected engine_id_mask {:#x}", engine_id_mask);
+        dev_err!(dev, "unexpected engine_id_mask {:#x}\n", engine_id_mask);
         return Err(EINVAL);
     };
 

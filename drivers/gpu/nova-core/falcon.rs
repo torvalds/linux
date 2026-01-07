@@ -469,7 +469,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         if dma_start % DmaAddress::from(DMA_LEN) > 0 {
             dev_err!(
                 self.dev,
-                "DMA transfer start addresses must be a multiple of {}",
+                "DMA transfer start addresses must be a multiple of {}\n",
                 DMA_LEN
             );
             return Err(EINVAL);
@@ -492,11 +492,11 @@ impl<E: FalconEngine + 'static> Falcon<E> {
             .and_then(|size| size.checked_add(load_offsets.src_start))
         {
             None => {
-                dev_err!(self.dev, "DMA transfer length overflow");
+                dev_err!(self.dev, "DMA transfer length overflow\n");
                 return Err(EOVERFLOW);
             }
             Some(upper_bound) if usize::from_safe_cast(upper_bound) > fw.size() => {
-                dev_err!(self.dev, "DMA transfer goes beyond range of DMA object");
+                dev_err!(self.dev, "DMA transfer goes beyond range of DMA object\n");
                 return Err(EINVAL);
             }
             Some(_) => (),

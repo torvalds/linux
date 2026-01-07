@@ -82,7 +82,7 @@ impl super::Gsp {
         if frts_status != 0 {
             dev_err!(
                 dev,
-                "FWSEC-FRTS returned with error code {:#x}",
+                "FWSEC-FRTS returned with error code {:#x}\n",
                 frts_status
             );
 

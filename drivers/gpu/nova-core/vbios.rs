@@ -790,7 +790,7 @@ impl PciAtBiosImage {
         // read the 4 bytes at the offset specified in the token
         let offset = usize::from(token.data_offset);
         let bytes: [u8; 4] = self.base.data[offset..offset + 4].try_into().map_err(|_| {
-            dev_err!(self.base.dev, "Failed to convert data slice to array");
+            dev_err!(self.base.dev, "Failed to convert data slice to array\n");
             EINVAL
         })?;
 
