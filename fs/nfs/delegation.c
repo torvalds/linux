@@ -350,14 +350,9 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 		struct nfs_delegation *delegation,
 		struct nfs_client *clp)
 {
-	struct nfs_delegation *deleg_cur =
-		rcu_dereference_protected(nfsi->delegation,
-				lockdep_is_held(&clp->cl_lock));
+	lockdep_assert_held(&clp->cl_lock);
 
 	trace_nfs4_detach_delegation(&nfsi->vfs_inode, delegation->type);
-
-	if (delegation != deleg_cur)
-		return false;
 
 	spin_lock(&delegation->lock);
 	if (!delegation->inode) {
@@ -378,10 +373,14 @@ static bool nfs_detach_delegation(struct nfs_inode *nfsi,
 		struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
-	bool ret;
+	struct nfs_delegation *deleg_cur;
+	bool ret = false;
 
 	spin_lock(&clp->cl_lock);
-	ret = nfs_detach_delegation_locked(nfsi, delegation, clp);
+	deleg_cur = rcu_dereference_protected(nfsi->delegation,
+				lockdep_is_held(&clp->cl_lock));
+	if (delegation == deleg_cur)
+		ret = nfs_detach_delegation_locked(nfsi, delegation, clp);
 	spin_unlock(&clp->cl_lock);
 	return ret;
 }
