@@ -154,7 +154,6 @@
 		ranges = <0x83000000 0 0x00000000 0 0x00000000 0 0x20000000>;
 
 		brcm,pcie-ob;
-		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x00000000>;
 
 		status = "disabled";
@@ -184,7 +183,6 @@
 		ranges = <0x83000000 0 0x00000000 0 0x30000000 0 0x20000000>;
 
 		brcm,pcie-ob;
-		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x30000000>;
 
 		status = "disabled";
