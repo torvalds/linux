@@ -108,7 +108,6 @@ void xe_page_reclaim_list_invalidate(struct xe_page_reclaim_list *prl)
  */
 void xe_page_reclaim_list_init(struct xe_page_reclaim_list *prl)
 {
-	// xe_page_reclaim_list_invalidate(prl);
 	prl->entries = NULL;
 	prl->num_entries = 0;
 }
