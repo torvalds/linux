@@ -13,6 +13,7 @@
  * Based on smia-sensor.c by Tuukka Toivonen <tuukkat76@gmail.com>
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -1209,7 +1210,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 
 			dev_dbg(&client->dev, "jolly good! %u\n", j);
 
-			sensor->default_mbus_frame_fmts |= 1 << j;
+			sensor->default_mbus_frame_fmts |= BIT_U64(j);
 		}
 	}
 
@@ -1242,7 +1243,7 @@ static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 				f->compressed - sensor->compressed_min_bpp];
 		unsigned int j;
 
-		if (!(sensor->default_mbus_frame_fmts & 1 << i))
+		if (!(sensor->default_mbus_frame_fmts & BIT_U64(i)))
 			continue;
 
 		pll->bits_per_pixel = f->compressed;
@@ -2090,7 +2091,7 @@ static const struct ccs_csi_data_format
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(ccs_csi_data_formats); i++) {
-		if (sensor->mbus_frame_fmts & (1 << i) &&
+		if (sensor->mbus_frame_fmts & BIT_U64(i) &&
 		    ccs_csi_data_formats[i].code == code)
 			return &ccs_csi_data_formats[i];
 	}
@@ -2120,7 +2121,7 @@ static int ccs_enum_mbus_code(struct v4l2_subdev *subdev,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ccs_csi_data_formats); i++) {
-		if (sensor->mbus_frame_fmts & (1 << i))
+		if (sensor->mbus_frame_fmts & BIT_U64(i))
 			idx++;
 
 		if (idx == code->index) {
