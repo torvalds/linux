@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/if.h>
@@ -15583,7 +15583,8 @@ static int nl80211_parse_nan_band_config(struct wiphy *wiphy,
 static int nl80211_parse_nan_conf(struct wiphy *wiphy,
 				  struct genl_info *info,
 				  struct cfg80211_nan_conf *conf,
-				  u32 *changed_flags)
+				  u32 *changed_flags,
+				  bool start)
 {
 	struct nlattr *attrs[NL80211_NAN_CONF_ATTR_MAX + 1];
 	int err, rem;
@@ -15630,7 +15631,7 @@ static int nl80211_parse_nan_conf(struct wiphy *wiphy,
 		return err;
 
 	changed |= CFG80211_NAN_CONF_CHANGED_CONFIG;
-	if (attrs[NL80211_NAN_CONF_CLUSTER_ID])
+	if (attrs[NL80211_NAN_CONF_CLUSTER_ID] && start)
 		conf->cluster_id =
 			nla_data(attrs[NL80211_NAN_CONF_CLUSTER_ID]);
 
@@ -15741,7 +15742,7 @@ static int nl80211_start_nan(struct sk_buff *skb, struct genl_info *info)
 	if (!info->attrs[NL80211_ATTR_NAN_MASTER_PREF])
 		return -EINVAL;
 
-	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, NULL);
+	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, NULL, true);
 	if (err)
 		return err;
 
@@ -16107,7 +16108,7 @@ static int nl80211_nan_change_config(struct sk_buff *skb,
 	if (!wdev_running(wdev))
 		return -ENOTCONN;
 
-	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, &changed);
+	err = nl80211_parse_nan_conf(&rdev->wiphy, info, &conf, &changed, false);
 	if (err)
 		return err;
 

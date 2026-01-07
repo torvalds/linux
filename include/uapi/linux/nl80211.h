@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -7454,6 +7454,8 @@ enum nl80211_nan_band_conf_attributes {
  *	address that can take values from 50-6F-9A-01-00-00 to
  *	50-6F-9A-01-FF-FF. This attribute is optional. If not present,
  *	a random Cluster ID will be chosen.
+ *	This attribute will be ignored in NL80211_CMD_CHANGE_NAN_CONFIG
+ *	since after NAN was started, the cluster ID can no longer change.
  * @NL80211_NAN_CONF_EXTRA_ATTRS: Additional NAN attributes to be
  *	published in the beacons. This is an optional byte array.
  * @NL80211_NAN_CONF_VENDOR_ELEMS: Vendor-specific elements that will
