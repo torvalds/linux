@@ -112,6 +112,17 @@ config AD4130
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad4130.
 
+config AD4134
+	tristate "Analog Device AD4134 ADC Driver"
+	depends on SPI
+	select REGMAP_SPI
+	select CRC8
+	help
+	  Say yes here to build support for Analog Devices AD4134 SPI analog to
+	  digital converters (ADC).
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad4134_spi.
 
 config AD4170_4
 	tristate "Analog Device AD4170-4 ADC Driver"
