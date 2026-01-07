@@ -603,20 +603,6 @@ static int gpy_update_interface(struct phy_device *phydev)
 	case SPEED_100:
 	case SPEED_10:
 		phydev->interface = PHY_INTERFACE_MODE_SGMII;
-		if (gpy_sgmii_aneg_en(phydev))
-			break;
-		/* Enable and restart SGMII ANEG for 10/100/1000Mbps link speed
-		 * if ANEG is disabled (in 2500-BaseX mode).
-		 */
-		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
-				     VSPEC1_SGMII_ANEN_ANRS,
-				     VSPEC1_SGMII_ANEN_ANRS);
-		if (ret < 0) {
-			phydev_err(phydev,
-				   "Error: Enable of SGMII ANEG failed: %d\n",
-				   ret);
-			return ret;
-		}
 		break;
 	}
 
@@ -1060,6 +1046,27 @@ static int gpy_led_polarity_set(struct phy_device *phydev, int index,
 	return -EINVAL;
 }
 
+static unsigned int gpy_inband_caps(struct phy_device *phydev,
+				    phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE;
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return LINK_INBAND_DISABLE;
+	default:
+		return 0;
+	}
+}
+
+static int gpy_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	return phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
+			      VSPEC1_SGMII_ANEN_ANRS,
+			      (modes == LINK_INBAND_DISABLE) ? 0 :
+			      VSPEC1_SGMII_ANEN_ANRS);
+}
+
 static struct phy_driver gpy_drivers[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY2xx),
@@ -1067,6 +1074,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1090,6 +1099,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1112,6 +1123,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1135,6 +1148,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1157,6 +1172,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1179,6 +1196,8 @@ static struct phy_driver gpy_drivers[] = {
 		.name		= "Maxlinear Ethernet GPY212B",
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.probe		= gpy_probe,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -1202,6 +1221,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1225,6 +1246,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1247,6 +1270,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy21x_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1269,6 +1294,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1286,6 +1313,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1303,6 +1332,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
@@ -1320,6 +1351,8 @@ static struct phy_driver gpy_drivers[] = {
 		.get_features	= genphy_c45_pma_read_abilities,
 		.config_init	= gpy_config_init,
 		.probe		= gpy_probe,
+		.inband_caps	= gpy_inband_caps,
+		.config_inband	= gpy_config_inband,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.config_aneg	= gpy_config_aneg,
