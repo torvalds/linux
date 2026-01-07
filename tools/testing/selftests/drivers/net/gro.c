@@ -926,6 +926,28 @@ static void set_timeout(int fd)
 		error(1, errno, "cannot set timeout, setsockopt failed");
 }
 
+static void set_rcvbuf(int fd)
+{
+	int bufsize = 1 * 1024 * 1024; /* 1 MB */
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize)))
+		error(1, errno, "cannot set rcvbuf size, setsockopt failed");
+}
+
+static void recv_error(int fd, int rcv_errno)
+{
+	struct tpacket_stats stats;
+	socklen_t len;
+
+	len = sizeof(stats);
+	if (getsockopt(fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
+		error(1, errno, "can't get stats");
+
+	fprintf(stderr, "Socket stats: packets=%u, drops=%u\n",
+		stats.tp_packets, stats.tp_drops);
+	error(1, rcv_errno, "could not receive");
+}
+
 static void check_recv_pkts(int fd, int *correct_payload,
 			    int correct_num_pkts)
 {
@@ -950,7 +972,7 @@ static void check_recv_pkts(int fd, int *correct_payload,
 		ip_ext_len = 0;
 		pkt_size = recv(fd, buffer, IP_MAXPACKET + ETH_HLEN + 1, 0);
 		if (pkt_size < 0)
-			error(1, errno, "could not receive");
+			recv_error(fd, errno);
 
 		if (iph->version == 4)
 			ip_ext_len = (iph->ihl - 5) * 4;
@@ -1126,6 +1148,7 @@ static void gro_receiver(void)
 		error(1, 0, "socket creation");
 	setup_sock_filter(rxfd);
 	set_timeout(rxfd);
+	set_rcvbuf(rxfd);
 	bind_packetsocket(rxfd);
 
 	ksft_ready();
