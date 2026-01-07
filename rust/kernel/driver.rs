@@ -108,10 +108,14 @@ use pin_init::{pin_data, pinned_drop, PinInit};
 ///
 /// Implementors must guarantee that:
 /// - `DriverType` is `repr(C)`,
+/// - `DriverData` is the type of the driver's device private data.
 /// - `DriverType` embeds a valid `struct device_driver` at byte offset `DEVICE_DRIVER_OFFSET`.
 pub unsafe trait DriverLayout {
     /// The specific driver type embedding a `struct device_driver`.
     type DriverType: Default;
+
+    /// The type of the driver's device private data.
+    type DriverData;
 
     /// Byte offset of the embedded `struct device_driver` within `DriverType`.
     ///

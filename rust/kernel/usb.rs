@@ -29,10 +29,12 @@ pub struct Adapter<T: Driver>(T);
 
 // SAFETY:
 // - `bindings::usb_driver` is a C type declared as `repr(C)`.
+// - `T` is the type of the driver's device private data.
 // - `struct usb_driver` embeds a `struct device_driver`.
 // - `DEVICE_DRIVER_OFFSET` is the correct byte offset to the embedded `struct device_driver`.
 unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
     type DriverType = bindings::usb_driver;
+    type DriverData = T;
     const DEVICE_DRIVER_OFFSET: usize = core::mem::offset_of!(Self::DriverType, driver);
 }
 
