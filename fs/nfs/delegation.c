@@ -943,16 +943,6 @@ static bool nfs_server_mark_return_all_delegations(struct nfs_server *server)
 	return ret;
 }
 
-static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
-{
-	struct nfs_server *server;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
-		nfs_server_mark_return_all_delegations(server);
-	rcu_read_unlock();
-}
-
 static void nfs_delegation_run_state_manager(struct nfs_client *clp)
 {
 	if (test_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state))
@@ -966,7 +956,13 @@ static void nfs_delegation_run_state_manager(struct nfs_client *clp)
  */
 void nfs_expire_all_delegations(struct nfs_client *clp)
 {
-	nfs_client_mark_return_all_delegations(clp);
+	struct nfs_server *server;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
+		nfs_server_mark_return_all_delegations(server);
+	rcu_read_unlock();
+
 	nfs_delegation_run_state_manager(clp);
 }
 
