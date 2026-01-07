@@ -112,12 +112,6 @@ static inline void hrtimer_set_expires_range_ns(struct hrtimer *timer, ktime_t t
 	timer->node.expires = ktime_add_safe(time, ns_to_ktime(delta));
 }
 
-static inline void hrtimer_set_expires_tv64(struct hrtimer *timer, s64 tv64)
-{
-	timer->node.expires = tv64;
-	timer->_softexpires = tv64;
-}
-
 static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
 {
 	timer->node.expires = ktime_add_safe(timer->node.expires, time);
@@ -136,15 +130,6 @@ static inline ktime_t hrtimer_get_expires(const struct hrtimer *timer)
 }
 
 static inline ktime_t hrtimer_get_softexpires(const struct hrtimer *timer)
-{
-	return timer->_softexpires;
-}
-
-static inline s64 hrtimer_get_expires_tv64(const struct hrtimer *timer)
-{
-	return timer->node.expires;
-}
-static inline s64 hrtimer_get_softexpires_tv64(const struct hrtimer *timer)
 {
 	return timer->_softexpires;
 }

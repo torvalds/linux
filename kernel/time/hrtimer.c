@@ -814,7 +814,7 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 	struct hrtimer_clock_base *base = timer->base;
 	ktime_t expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 
-	WARN_ON_ONCE(hrtimer_get_expires_tv64(timer) < 0);
+	WARN_ON_ONCE(hrtimer_get_expires(timer) < 0);
 
 	/*
 	 * CLOCK_REALTIME timer might be requested with an absolute
@@ -1061,7 +1061,7 @@ u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 
 		orun = ktime_divns(delta, incr);
 		hrtimer_add_expires_ns(timer, incr * orun);
-		if (hrtimer_get_expires_tv64(timer) > now)
+		if (hrtimer_get_expires(timer) > now)
 			return orun;
 		/*
 		 * This (and the ktime_add() below) is the
@@ -1843,7 +1843,7 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 			 * are right-of a not yet expired timer, because that
 			 * timer will have to trigger a wakeup anyway.
 			 */
-			if (basenow < hrtimer_get_softexpires_tv64(timer))
+			if (basenow < hrtimer_get_softexpires(timer))
 				break;
 
 			__run_hrtimer(cpu_base, base, timer, &basenow, flags);
