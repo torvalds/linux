@@ -140,7 +140,8 @@ int __init init_stat(const char *filename, struct kstat *stat, int flags)
 
 int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 {
-	return do_mknodat(AT_FDCWD, getname_kernel(filename), mode, dev);
+	CLASS(filename_kernel, name)(filename);
+	return filename_mknodat(AT_FDCWD, name, mode, dev);
 }
 
 int __init init_link(const char *oldname, const char *newname)
