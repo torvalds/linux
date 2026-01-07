@@ -184,7 +184,7 @@ static void rtrs_srv_reg_mr_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rtrs_srv_path *srv_path = to_srv_path(s);
 
 	if (wc->status != IB_WC_SUCCESS) {
-		rtrs_err(s, "REG MR failed: %s\n",
+		rtrs_err_rl(s, "REG MR failed: %s\n",
 			  ib_wc_status_msg(wc->status));
 		close_path(srv_path);
 		return;
