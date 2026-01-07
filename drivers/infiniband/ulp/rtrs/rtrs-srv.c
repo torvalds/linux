@@ -905,6 +905,12 @@ static int process_info_req(struct rtrs_srv_con *con,
 				      tx_iu->dma_addr,
 				      tx_iu->size, DMA_TO_DEVICE);
 
+	/*
+	 * Now disable zombie connection closing. Since from the logs and code,
+	 * we know that it can never be in CONNECTED state.
+	 */
+	srv_path->connection_timeout = 0;
+
 	/* Send info response */
 	err = rtrs_iu_post_send(&con->c, tx_iu, tx_sz, reg_wr);
 	if (err) {
@@ -1531,17 +1537,38 @@ static int sockaddr_cmp(const struct sockaddr *a, const struct sockaddr *b)
 	}
 }
 
+/* Let's close connections which have been waiting for more than 30 seconds */
+#define RTRS_MAX_CONN_TIMEOUT 30000
+
+static void rtrs_srv_check_close_path(struct rtrs_srv_path *srv_path)
+{
+	struct rtrs_path *s = &srv_path->s;
+
+	if (srv_path->state == RTRS_SRV_CONNECTING && srv_path->connection_timeout &&
+	   (jiffies_to_msecs(jiffies - srv_path->connection_timeout) > RTRS_MAX_CONN_TIMEOUT)) {
+		rtrs_err(s, "Closing zombie path\n");
+		close_path(srv_path);
+	}
+}
+
 static bool __is_path_w_addr_exists(struct rtrs_srv_sess *srv,
 				    struct rdma_addr *addr)
 {
 	struct rtrs_srv_path *srv_path;
 
-	list_for_each_entry(srv_path, &srv->paths_list, s.entry)
+	list_for_each_entry(srv_path, &srv->paths_list, s.entry) {
 		if (!sockaddr_cmp((struct sockaddr *)&srv_path->s.dst_addr,
 				  (struct sockaddr *)&addr->dst_addr) &&
 		    !sockaddr_cmp((struct sockaddr *)&srv_path->s.src_addr,
-				  (struct sockaddr *)&addr->src_addr))
+				  (struct sockaddr *)&addr->src_addr)) {
+			rtrs_err((&srv_path->s),
+				 "Path (%s) with same addr exists (lifetime %u)\n",
+				 rtrs_srv_state_str(srv_path->state),
+				 (jiffies_to_msecs(jiffies - srv_path->connection_timeout)));
+			rtrs_srv_check_close_path(srv_path);
 			return true;
+		}
+	}
 
 	return false;
 }
@@ -1779,7 +1806,6 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 	}
 	if (__is_path_w_addr_exists(srv, &cm_id->route.addr)) {
 		err = -EEXIST;
-		pr_err("Path with same addr exists\n");
 		goto err;
 	}
 	srv_path = kzalloc(sizeof(*srv_path), GFP_KERNEL);
@@ -1826,6 +1852,7 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 	spin_lock_init(&srv_path->state_lock);
 	INIT_WORK(&srv_path->close_work, rtrs_srv_close_work);
 	rtrs_srv_init_hb(srv_path);
+	srv_path->connection_timeout = 0;
 
 	srv_path->s.dev = rtrs_ib_dev_find_or_add(cm_id->device, &dev_pd);
 	if (!srv_path->s.dev) {
@@ -1931,8 +1958,10 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 			goto reject_w_err;
 		}
 		if (s->con[cid]) {
-			rtrs_err(s, "Connection already exists: %d\n",
-				  cid);
+			rtrs_err(s, "Connection (%s) already exists: %d (lifetime %u)\n",
+				 rtrs_srv_state_str(srv_path->state), cid,
+				 (jiffies_to_msecs(jiffies - srv_path->connection_timeout)));
+			rtrs_srv_check_close_path(srv_path);
 			mutex_unlock(&srv->paths_mutex);
 			goto reject_w_err;
 		}
@@ -1947,6 +1976,12 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 			goto reject_w_err;
 		}
 	}
+
+	/*
+	 * Start of any connection creation resets the timeout for the path.
+	 */
+	srv_path->connection_timeout = jiffies;
+
 	err = create_con(srv_path, cm_id, cid);
 	if (err) {
 		rtrs_err((&srv_path->s), "create_con(), error %pe\n", ERR_PTR(err));
