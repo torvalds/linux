@@ -113,6 +113,28 @@
 				     <&A57_3>;
 	};
 
+	osc: clock-25000000 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+	};
+
+	iprocmed: iprocmed {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	iprocslow: iprocslow {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll_scr BCM_NS2_GENPLL_SCR_SCR_CLK>;
+		clock-div = <4>;
+		clock-mult = <1>;
+	};
+
 	pcie0: pcie@20020000 {
 		compatible = "brcm,iproc-pcie";
 		reg = <0 0x20020000 0 0x1000>;
@@ -196,8 +218,6 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
-
-		#include "ns2-clock.dtsi"
 
 		enet: ethernet@61000000 {
 			compatible = "brcm,ns2-amac";
@@ -334,6 +354,55 @@
 			#iommu-cells = <1>;
 		};
 
+		lcpll_ddr: clock-controller@6501d058 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-lcpll-ddr";
+			reg = <0x6501d058 0x20>,
+			      <0x6501c020 0x4>,
+			      <0x6501d04c 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll_ddr", "pcie_sata_usb",
+					     "ddr", "ddr_ch2_unused",
+					     "ddr_ch3_unused", "ddr_ch4_unused",
+					     "ddr_ch5_unused";
+		};
+
+		lcpll_ports: clock-controller@6501d078 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-lcpll-ports";
+			reg = <0x6501d078 0x20>,
+			      <0x6501c020 0x4>,
+			      <0x6501d054 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "lcpll_ports", "wan", "rgmii",
+					     "ports_ch2_unused",
+					     "ports_ch3_unused",
+					     "ports_ch4_unused",
+					     "ports_ch5_unused";
+		};
+
+		genpll_scr: clock-controller@6501d098 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-genpll-scr";
+			reg = <0x6501d098 0x32>,
+			      <0x6501c020 0x4>,
+			      <0x6501d044 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll_scr", "scr", "fs",
+					     "audio_ref", "scr_ch3_unused",
+					     "scr_ch4_unused", "scr_ch5_unused";
+		};
+
+		genpll_sw: clock-controller@6501d0c4 {
+			#clock-cells = <1>;
+			compatible = "brcm,ns2-genpll-sw";
+			reg = <0x6501d0c4 0x32>,
+			      <0x6501c020 0x4>,
+			      <0x6501d044 0x4>;
+			clocks = <&osc>;
+			clock-output-names = "genpll_sw", "rpe", "250", "nic",
+					     "chimp", "port", "sdio";
+		};
 		pinctrl: pinctrl@6501d130 {
 			compatible = "brcm,ns2-pinmux";
 			reg = <0x6501d130 0x08>,
