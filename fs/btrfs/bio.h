@@ -90,6 +90,9 @@ struct btrfs_bio {
 	 */
 	bool is_scrub:1;
 
+	/* Whether the bio is coming from copy_remapped_data_io(). */
+	bool is_remap:1;
+
 	/* Whether the csum generation for data write is async. */
 	bool async_csum:1;
 

@@ -4557,7 +4557,8 @@ static noinline int find_free_extent(struct btrfs_root *root,
 		    block_group->cached != BTRFS_CACHE_NO) {
 			down_read(&space_info->groups_sem);
 			if (list_empty(&block_group->list) ||
-			    block_group->ro) {
+			    block_group->ro ||
+			    (block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) {
 				/*
 				 * someone is removing this block group,
 				 * we can't jump into the have_block_group
@@ -4591,7 +4592,8 @@ search:
 
 		ffe_ctl->hinted = false;
 		/* If the block group is read-only, we can skip it entirely. */
-		if (unlikely(block_group->ro)) {
+		if (unlikely(block_group->ro ||
+			     (block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED))) {
 			if (ffe_ctl->for_treelog)
 				btrfs_clear_treelog_bg(block_group);
 			if (ffe_ctl->for_data_reloc)
