@@ -4203,8 +4203,8 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	do {
 		if (first_n && !defer_count) {
 			defer_count = atomic_long_inc_return(&q->defer_count);
-			if (unlikely(defer_count > READ_ONCE(q->limit))) {
-				kfree_skb_reason(skb, SKB_DROP_REASON_QDISC_DROP);
+			if (unlikely(defer_count > READ_ONCE(net_hotdata.qdisc_max_burst))) {
+				kfree_skb_reason(skb, SKB_DROP_REASON_QDISC_BURST_DROP);
 				return NET_XMIT_DROP;
 			}
 		}
@@ -4222,7 +4222,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 	ll_list = llist_del_all(&q->defer_list);
 	/* There is a small race because we clear defer_count not atomically
 	 * with the prior llist_del_all(). This means defer_list could grow
-	 * over q->limit.
+	 * over qdisc_max_burst.
 	 */
 	atomic_long_set(&q->defer_count, 0);
 
