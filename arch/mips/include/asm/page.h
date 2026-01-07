@@ -90,6 +90,7 @@ static inline void clear_user_page(void *addr, unsigned long vaddr,
 	if (pages_do_alias((unsigned long) addr, vaddr & PAGE_MASK))
 		flush_data_cache_page((unsigned long)addr);
 }
+#define clear_user_page clear_user_page
 
 struct vm_area_struct;
 extern void copy_user_highpage(struct page *to, struct page *from,

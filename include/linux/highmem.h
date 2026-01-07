@@ -197,15 +197,35 @@ static inline void invalidate_kernel_vmap_range(void *vaddr, int size)
 }
 #endif
 
-/* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
 #ifndef clear_user_highpage
+#ifndef clear_user_page
+/**
+ * clear_user_page() - clear a page to be mapped to user space
+ * @addr: the address of the page
+ * @vaddr: the address of the user mapping
+ * @page: the page
+ *
+ * We condition the definition of clear_user_page() on the architecture
+ * not having a custom clear_user_highpage(). That's because if there
+ * is some special flushing needed for clear_user_highpage() then it
+ * is likely that clear_user_page() also needs some magic. And, since
+ * our only caller is the generic clear_user_highpage(), not defining
+ * is not much of a loss.
+ */
+static inline void clear_user_page(void *addr, unsigned long vaddr, struct page *page)
+{
+	clear_page(addr);
+}
+#endif
+
+/* when CONFIG_HIGHMEM is not set these will be plain clear/copy_page */
 static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
 	void *addr = kmap_local_page(page);
 	clear_user_page(addr, vaddr, page);
 	kunmap_local(addr);
 }
-#endif
+#endif /* clear_user_highpage */
 
 #ifndef vma_alloc_zeroed_movable_folio
 /**
