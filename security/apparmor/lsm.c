@@ -584,7 +584,7 @@ static int common_mmap(const char *op, struct file *file, unsigned long prot,
 static int apparmor_mmap_file(struct file *file, unsigned long reqprot,
 			      unsigned long prot, unsigned long flags)
 {
-	return common_mmap(OP_FMMAP, file, prot, flags, GFP_ATOMIC);
+	return common_mmap(OP_FMMAP, file, prot, flags, false);
 }
 
 static int apparmor_file_mprotect(struct vm_area_struct *vma,
