@@ -813,7 +813,6 @@
 			interrupts = <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "spi_l1_intr";
 			clocks = <&iprocmed>;
-			clock-names = "iprocmed";
 			num-cs = <2>;
 			#address-cells = <1>;
 			#size-cells = <0>;
