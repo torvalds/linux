@@ -107,10 +107,16 @@ use pin_init::{pin_data, pinned_drop, PinInit};
 /// # Safety
 ///
 /// Implementors must guarantee that:
-/// - `DriverType` is `repr(C)`.
+/// - `DriverType` is `repr(C)`,
+/// - `DriverType` embeds a valid `struct device_driver` at byte offset `DEVICE_DRIVER_OFFSET`.
 pub unsafe trait DriverLayout {
     /// The specific driver type embedding a `struct device_driver`.
     type DriverType: Default;
+
+    /// Byte offset of the embedded `struct device_driver` within `DriverType`.
+    ///
+    /// This must correspond exactly to the location of the embedded `struct device_driver` field.
+    const DEVICE_DRIVER_OFFSET: usize;
 }
 
 /// The [`RegistrationOps`] trait serves as generic interface for subsystems (e.g., PCI, Platform,

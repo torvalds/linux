@@ -52,8 +52,11 @@ pub struct Adapter<T: Driver>(T);
 
 // SAFETY:
 // - `bindings::pci_driver` is a C type declared as `repr(C)`.
+// - `struct pci_driver` embeds a `struct device_driver`.
+// - `DEVICE_DRIVER_OFFSET` is the correct byte offset to the embedded `struct device_driver`.
 unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
     type DriverType = bindings::pci_driver;
+    const DEVICE_DRIVER_OFFSET: usize = core::mem::offset_of!(Self::DriverType, driver);
 }
 
 // SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
