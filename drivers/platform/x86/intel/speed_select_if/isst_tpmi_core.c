@@ -1721,6 +1721,9 @@ void tpmi_sst_dev_remove(struct auxiliary_device *auxdev)
 }
 EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, "INTEL_TPMI_SST");
 
+#define SST_PP_CAP_CP_ENABLE	BIT(0)
+#define SST_PP_CAP_PP_ENABLE	BIT(1)
+
 void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
 {
 	struct tpmi_sst_struct *tpmi_sst = auxiliary_get_drvdata(auxdev);
@@ -1741,12 +1744,19 @@ void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
 		if (!pd_info || !pd_info->sst_base)
 			continue;
 
+		if (!(pd_info->sst_header.cap_mask & SST_PP_CAP_CP_ENABLE))
+			goto process_pp_suspend;
+
 		cp_base = pd_info->sst_base + pd_info->sst_header.cp_offset;
 		pd_info->saved_sst_cp_control = readq(cp_base + SST_CP_CONTROL_OFFSET);
 		memcpy_fromio(pd_info->saved_clos_configs, cp_base + SST_CLOS_CONFIG_0_OFFSET,
 			      sizeof(pd_info->saved_clos_configs));
 		memcpy_fromio(pd_info->saved_clos_assocs, cp_base + SST_CLOS_ASSOC_0_OFFSET,
 			      sizeof(pd_info->saved_clos_assocs));
+
+process_pp_suspend:
+		if (!(pd_info->sst_header.cap_mask & SST_PP_CAP_PP_ENABLE))
+			continue;
 
 		pd_info->saved_pp_control = readq(pd_info->sst_base +
 						  pd_info->sst_header.pp_offset +
@@ -1775,12 +1785,19 @@ void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 		if (!pd_info || !pd_info->sst_base)
 			continue;
 
+		if (!(pd_info->sst_header.cap_mask & SST_PP_CAP_CP_ENABLE))
+			goto process_pp_resume;
+
 		cp_base = pd_info->sst_base + pd_info->sst_header.cp_offset;
 		writeq(pd_info->saved_sst_cp_control, cp_base + SST_CP_CONTROL_OFFSET);
 		memcpy_toio(cp_base + SST_CLOS_CONFIG_0_OFFSET, pd_info->saved_clos_configs,
 			    sizeof(pd_info->saved_clos_configs));
 		memcpy_toio(cp_base + SST_CLOS_ASSOC_0_OFFSET, pd_info->saved_clos_assocs,
 			    sizeof(pd_info->saved_clos_assocs));
+
+process_pp_resume:
+		if (!(pd_info->sst_header.cap_mask & SST_PP_CAP_PP_ENABLE))
+			continue;
 
 		writeq(pd_info->saved_pp_control, power_domain_info->sst_base +
 		       pd_info->sst_header.pp_offset + SST_PP_CONTROL_OFFSET);
