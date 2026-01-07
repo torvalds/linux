@@ -591,22 +591,6 @@ out:
 	return err;
 }
 
-static bool nfs_delegation_need_return(struct nfs_delegation *delegation)
-{
-	bool ret = false;
-
-	trace_nfs_delegation_need_return(delegation);
-
-	if (test_and_clear_bit(NFS_DELEGATION_RETURN, &delegation->flags))
-		ret = true;
-	if (test_bit(NFS_DELEGATION_RETURNING, &delegation->flags) ||
-	    test_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags) ||
-	    test_bit(NFS_DELEGATION_REVOKED, &delegation->flags))
-		ret = false;
-
-	return ret;
-}
-
 static int nfs_server_return_marked_delegations(struct nfs_server *server,
 		void __always_unused *data)
 {
@@ -641,11 +625,17 @@ restart:
 	list_for_each_entry_from_rcu(delegation, &server->delegations, super_list) {
 		struct inode *to_put = NULL;
 
-		if (!nfs_delegation_need_return(delegation)) {
+		trace_nfs_delegation_need_return(delegation);
+
+		if (!test_and_clear_bit(NFS_DELEGATION_RETURN, &delegation->flags) ||
+		    test_bit(NFS_DELEGATION_RETURNING, &delegation->flags) ||
+		    test_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags) ||
+		    test_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
 			if (nfs4_is_valid_delegation(delegation, 0))
 				prev = delegation;
 			continue;
 		}
+
 		inode = nfs_delegation_grab_inode(delegation);
 		if (inode == NULL)
 			continue;
