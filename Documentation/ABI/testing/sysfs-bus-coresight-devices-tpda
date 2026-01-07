@@ -50,7 +50,7 @@ Description:
 		(RW) Set mode the of the syncr counter.
 		mode 0 - COUNT[11:0] value represents the approximate number of bytes moved between two ASYNC packet requests
 		mode 1 - the bits COUNT[11:7] are used as a power of 2. for example, we could insert an async packet every 8K
-		         data by writing a value 13 to the COUNT[11:7] field.
+		data by writing a value 13 to the COUNT[11:7] field.
 
 What:		/sys/bus/coresight/devices/<tpda-name>/syncr_count
 Date:		December 2025
