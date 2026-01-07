@@ -1227,7 +1227,7 @@ static void usbg_submit_cmd(struct usbg_cmd *cmd)
 		goto out;
 
 	target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess, cmd->cmd_buf,
-			  cmd->sense_iu.sense, cmd->unpacked_lun, 0,
+			  cmd->sense_iu.sense, cmd->unpacked_lun, cmd->data_len,
 			  cmd->prio_attr, dir, flags);
 
 	return;
@@ -1389,6 +1389,7 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 	cmd->tmr_func = 0;
 	cmd->tmr_rsp = RC_RESPONSE_UNKNOWN;
 	cmd->flags = 0;
+	cmd->data_len = 0;
 
 	cmd_iu = (struct command_iu *)iu;
 
