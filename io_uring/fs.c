@@ -82,13 +82,14 @@ int io_renameat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_rename *ren = io_kiocb_to_cmd(req, struct io_rename);
+	CLASS(filename_complete_delayed, old)(&ren->oldpath);
+	CLASS(filename_complete_delayed, new)(&ren->newpath);
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_renameat2(ren->old_dfd, complete_getname(&ren->oldpath),
-			   ren->new_dfd, complete_getname(&ren->newpath),
-			   ren->flags);
+	ret = filename_renameat2(ren->old_dfd, old,
+				 ren->new_dfd, new, ren->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);

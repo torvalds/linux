@@ -6028,8 +6028,8 @@ out:
 }
 EXPORT_SYMBOL(vfs_rename);
 
-int do_renameat2(int olddfd, struct filename *from, int newdfd,
-		 struct filename *to, unsigned int flags)
+int filename_renameat2(int olddfd, struct filename *from,
+		       int newdfd, struct filename *to, unsigned int flags)
 {
 	struct renamedata rd;
 	struct path old_path, new_path;
@@ -6038,20 +6038,20 @@ int do_renameat2(int olddfd, struct filename *from, int newdfd,
 	struct delegated_inode delegated_inode = { };
 	unsigned int lookup_flags = 0;
 	bool should_retry = false;
-	int error = -EINVAL;
+	int error;
 
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
-		goto put_names;
+		return -EINVAL;
 
 	if ((flags & (RENAME_NOREPLACE | RENAME_WHITEOUT)) &&
 	    (flags & RENAME_EXCHANGE))
-		goto put_names;
+		return -EINVAL;
 
 retry:
 	error = filename_parentat(olddfd, from, lookup_flags, &old_path,
 				  &old_last, &old_type);
 	if (error)
-		goto put_names;
+		return error;
 
 	error = filename_parentat(newdfd, to, lookup_flags, &new_path, &new_last,
 				  &new_type);
@@ -6128,30 +6128,30 @@ exit1:
 		lookup_flags |= LOOKUP_REVAL;
 		goto retry;
 	}
-put_names:
-	putname(from);
-	putname(to);
 	return error;
 }
 
 SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 		int, newdfd, const char __user *, newname, unsigned int, flags)
 {
-	return do_renameat2(olddfd, getname(oldname), newdfd, getname(newname),
-				flags);
+	CLASS(filename, old)(oldname);
+	CLASS(filename, new)(newname);
+	return filename_renameat2(olddfd, old, newdfd, new, flags);
 }
 
 SYSCALL_DEFINE4(renameat, int, olddfd, const char __user *, oldname,
 		int, newdfd, const char __user *, newname)
 {
-	return do_renameat2(olddfd, getname(oldname), newdfd, getname(newname),
-				0);
+	CLASS(filename, old)(oldname);
+	CLASS(filename, new)(newname);
+	return filename_renameat2(olddfd, old, newdfd, new, 0);
 }
 
 SYSCALL_DEFINE2(rename, const char __user *, oldname, const char __user *, newname)
 {
-	return do_renameat2(AT_FDCWD, getname(oldname), AT_FDCWD,
-				getname(newname), 0);
+	CLASS(filename, old)(oldname);
+	CLASS(filename, new)(newname);
+	return filename_renameat2(AT_FDCWD, old, AT_FDCWD, new, 0);
 }
 
 int readlink_copy(char __user *buffer, int buflen, const char *link, int linklen)

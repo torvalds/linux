@@ -1334,3 +1334,12 @@ end_creating() and the parent will be unlocked precisely when necessary.
 
 kill_litter_super() is gone; convert to DCACHE_PERSISTENT use (as all
 in-tree filesystems have done).
+
+---
+
+**mandatory**
+
+fs/namei.c primitives that consume filesystem references (do_renameat2(),
+do_linkat(), do_symlinkat(), do_mkdirat(), do_mknodat(), do_unlinkat()
+and do_rmdir()) are getting replaced with non-consuming analogues
+(filename_renameat2(), etc.)  Replaced so far: do_renameat2().
