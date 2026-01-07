@@ -12,6 +12,7 @@
 
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
+#include "xe_gt_stats.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_pat.h"

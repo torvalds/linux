@@ -97,12 +97,15 @@ static int send_tlb_inval_ggtt(struct xe_tlb_inval *tlb_inval, u32 seqno)
 static int send_page_reclaim(struct xe_guc *guc, u32 seqno,
 			     u64 gpu_addr)
 {
+	struct xe_gt *gt = guc_to_gt(guc);
 	u32 action[] = {
 		XE_GUC_ACTION_PAGE_RECLAMATION,
 		seqno,
 		lower_32_bits(gpu_addr),
 		upper_32_bits(gpu_addr),
 	};
+
+	xe_gt_stats_incr(gt, XE_GT_STATS_ID_PRL_ISSUED_COUNT, 1);
 
 	return xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action),
 			      G2H_LEN_DW_PAGE_RECLAMATION, 1);

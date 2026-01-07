@@ -91,6 +91,7 @@ void xe_page_reclaim_list_invalidate(struct xe_page_reclaim_list *prl);
 		struct xe_page_reclaim_list *__prl = (prl);				\
 											\
 		xe_page_reclaim_list_invalidate(__prl);					\
+		xe_gt_stats_incr(__gt, XE_GT_STATS_ID_PRL_ABORTED_COUNT, 1);		\
 		vm_dbg(&gt_to_xe(__gt)->drm, "PRL aborted: " fmt, ##__VA_ARGS__);	\
 	} while (0)
 

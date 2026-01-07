@@ -76,6 +76,11 @@ static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
 		     "hw_engine_group_suspend_lr_queue_us"),
 	DEF_STAT_STR(HW_ENGINE_GROUP_WAIT_DMA_QUEUE_US,
 		     "hw_engine_group_wait_dma_queue_us"),
+	DEF_STAT_STR(PRL_4K_ENTRY_COUNT, "prl_4k_entry_count"),
+	DEF_STAT_STR(PRL_64K_ENTRY_COUNT, "prl_64k_entry_count"),
+	DEF_STAT_STR(PRL_2M_ENTRY_COUNT, "prl_2m_entry_count"),
+	DEF_STAT_STR(PRL_ISSUED_COUNT, "prl_issued_count"),
+	DEF_STAT_STR(PRL_ABORTED_COUNT, "prl_aborted_count"),
 };
 
 /**
