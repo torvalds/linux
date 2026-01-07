@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/unaligned.h>
+#include "fips-mldsa.h"
 
 #define Q 8380417 /* The prime q = 2^23 - 2^13 + 1 */
 #define QINV_MOD_2_32 58728449 /* Multiplicative inverse of q mod 2^32 */
@@ -647,6 +648,36 @@ int mldsa_verify(enum mldsa_alg alg, const u8 *sig, size_t sig_len,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mldsa_verify);
+
+#ifdef CONFIG_CRYPTO_FIPS
+static int __init mldsa_mod_init(void)
+{
+	if (fips_enabled) {
+		/*
+		 * FIPS cryptographic algorithm self-test.  As per the FIPS
+		 * Implementation Guidance, testing any ML-DSA parameter set
+		 * satisfies the test requirement for all of them, and only a
+		 * positive test is required.
+		 */
+		int err = mldsa_verify(MLDSA65, fips_test_mldsa65_signature,
+				       sizeof(fips_test_mldsa65_signature),
+				       fips_test_mldsa65_message,
+				       sizeof(fips_test_mldsa65_message),
+				       fips_test_mldsa65_public_key,
+				       sizeof(fips_test_mldsa65_public_key));
+		if (err)
+			panic("mldsa: FIPS self-test failed; err=%pe\n",
+			      ERR_PTR(err));
+	}
+	return 0;
+}
+subsys_initcall(mldsa_mod_init);
+
+static void __exit mldsa_mod_exit(void)
+{
+}
+module_exit(mldsa_mod_exit);
+#endif /* CONFIG_CRYPTO_FIPS */
 
 MODULE_DESCRIPTION("ML-DSA signature verification");
 MODULE_LICENSE("GPL");
