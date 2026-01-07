@@ -1789,20 +1789,16 @@ static int do_execveat_common(int fd, struct filename *filename,
 	 * whether NPROC limit is still exceeded.
 	 */
 	if ((current->flags & PF_NPROC_EXCEEDED) &&
-	    is_rlimit_overlimit(current_ucounts(), UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC))) {
-		retval = -EAGAIN;
-		goto out_ret;
-	}
+	    is_rlimit_overlimit(current_ucounts(), UCOUNT_RLIMIT_NPROC, rlimit(RLIMIT_NPROC)))
+		return -EAGAIN;
 
 	/* We're below the limit (still or again), so we don't want to make
 	 * further execve() calls fail. */
 	current->flags &= ~PF_NPROC_EXCEEDED;
 
 	bprm = alloc_bprm(fd, filename, flags);
-	if (IS_ERR(bprm)) {
-		retval = PTR_ERR(bprm);
-		goto out_ret;
-	}
+	if (IS_ERR(bprm))
+		return PTR_ERR(bprm);
 
 	retval = count(argv, MAX_ARG_STRINGS);
 	if (retval < 0)
@@ -1850,9 +1846,6 @@ static int do_execveat_common(int fd, struct filename *filename,
 	retval = bprm_execve(bprm);
 out_free:
 	free_bprm(bprm);
-
-out_ret:
-	putname(filename);
 	return retval;
 }
 
@@ -1941,7 +1934,8 @@ SYSCALL_DEFINE3(execve,
 		const char __user *const __user *, argv,
 		const char __user *const __user *, envp)
 {
-	return do_execveat_common(AT_FDCWD, getname(filename),
+	CLASS(filename, name)(filename);
+	return do_execveat_common(AT_FDCWD, name,
 				  native_arg(argv), native_arg(envp), 0);
 }
 
@@ -1951,7 +1945,8 @@ SYSCALL_DEFINE5(execveat,
 		const char __user *const __user *, envp,
 		int, flags)
 {
-	return do_execveat_common(fd, getname_uflags(filename, flags),
+	CLASS(filename_uflags, name)(filename, flags);
+	return do_execveat_common(fd, name,
 				  native_arg(argv), native_arg(envp), flags);
 }
 
@@ -1966,7 +1961,8 @@ COMPAT_SYSCALL_DEFINE3(execve, const char __user *, filename,
 	const compat_uptr_t __user *, argv,
 	const compat_uptr_t __user *, envp)
 {
-	return do_execveat_common(AT_FDCWD, getname(filename),
+	CLASS(filename, name)(filename);
+	return do_execveat_common(AT_FDCWD, name,
 				  compat_arg(argv), compat_arg(envp), 0);
 }
 
@@ -1976,7 +1972,8 @@ COMPAT_SYSCALL_DEFINE5(execveat, int, fd,
 		       const compat_uptr_t __user *, envp,
 		       int,  flags)
 {
-	return do_execveat_common(fd, getname_uflags(filename, flags),
+	CLASS(filename_uflags, name)(filename, flags);
+	return do_execveat_common(fd, name,
 				  compat_arg(argv), compat_arg(envp), flags);
 }
 #endif
