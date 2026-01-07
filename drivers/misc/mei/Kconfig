@@ -2,7 +2,7 @@
 # Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
-	depends on X86 && PCI
+	depends on PCI
 	default X86_64 || MATOM
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
