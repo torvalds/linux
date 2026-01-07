@@ -265,6 +265,8 @@ void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 	rdev_stop_nan(rdev, wdev);
 	wdev->is_running = false;
 
+	eth_zero_addr(wdev->u.nan.cluster_id);
+
 	rdev->opencount--;
 }
 
