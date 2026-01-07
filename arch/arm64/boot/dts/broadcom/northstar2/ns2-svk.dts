@@ -115,9 +115,9 @@
 		compatible = "atmel,at25";
 		reg = <0>;
 		spi-max-frequency = <5000000>;
-		at25,byte-len = <0x8000>;
-		at25,addr-mode = <2>;
-		at25,page-size = <64>;
+		size = <0x8000>;
+		address-width = <16>;
+		pagesize = <64>;
 		spi-cpha;
 		spi-cpol;
 		pl022,interface = <0>;
