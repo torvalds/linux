@@ -16126,6 +16126,9 @@ void cfg80211_nan_match(struct wireless_dev *wdev,
 	struct sk_buff *msg;
 	void *hdr;
 
+	if (WARN_ON(wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return;
+
 	if (WARN_ON(!match->inst_id || !match->peer_inst_id || !match->addr))
 		return;
 
@@ -16207,6 +16210,9 @@ void cfg80211_nan_func_terminated(struct wireless_dev *wdev,
 	struct sk_buff *msg;
 	struct nlattr *func_attr;
 	void *hdr;
+
+	if (WARN_ON(wiphy->nan_capa.flags & WIPHY_NAN_FLAGS_USERSPACE_DE))
+		return;
 
 	if (WARN_ON(!inst_id))
 		return;
