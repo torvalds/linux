@@ -148,7 +148,7 @@ struct guc_lfd_data_os_info {
 } __packed;
 
 /**
- * struct guc_logfile_header - Header of GuC Log Streaming-LFD-File Format.
+ * struct guc_lfd_file_header - Header of GuC Log Streaming-LFD-File Format.
  * This structure encapsulates the layout of the guc-log-file format
  */
 struct guc_lfd_file_header {
@@ -163,8 +163,7 @@ struct guc_lfd_file_header {
 #define GUC_LFD_FILE_HEADER_VERSION_MASK_MAJOR	GENMASK(31, 16)
 #define GUC_LFD_FILE_HEADER_VERSION_MASK_MINOR	GENMASK(15, 0)
 
-	/** @stream: A stream of one or more guc_lfd_data LFD blocks
-	 */
+	/** @stream: A stream of one or more guc_lfd_data LFD blocks */
 	u32 stream[];
 } __packed;
 
