@@ -12,6 +12,17 @@ struct btrfs_trans_handle;
 struct btrfs_ordered_extent;
 struct btrfs_pending_snapshot;
 
+static inline bool should_relocate_using_remap_tree(const struct btrfs_block_group *bg)
+{
+	if (!btrfs_fs_incompat(bg->fs_info, REMAP_TREE))
+		return false;
+
+	if (bg->flags & (BTRFS_BLOCK_GROUP_SYSTEM | BTRFS_BLOCK_GROUP_METADATA_REMAP))
+		return false;
+
+	return true;
+}
+
 int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 			       bool verbose);
 int btrfs_init_reloc_root(struct btrfs_trans_handle *trans, struct btrfs_root *root);

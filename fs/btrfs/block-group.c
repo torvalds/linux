@@ -2396,6 +2396,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 	cache->used = btrfs_stack_block_group_v2_used(bgi);
 	cache->last_used = cache->used;
 	cache->flags = btrfs_stack_block_group_v2_flags(bgi);
+	cache->last_flags = cache->flags;
 	cache->global_root_id = btrfs_stack_block_group_v2_chunk_objectid(bgi);
 	cache->space_info = btrfs_find_space_info(info, cache->flags);
 	cache->remap_bytes = btrfs_stack_block_group_v2_remap_bytes(bgi);
@@ -2700,6 +2701,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	block_group->last_used = block_group->used;
 	block_group->last_remap_bytes = block_group->remap_bytes;
 	block_group->last_identity_remap_count = block_group->identity_remap_count;
+	block_group->last_flags = block_group->flags;
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = block_group->length;
@@ -3184,13 +3186,15 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 	/* No change in values, can safely skip it. */
 	if (cache->last_used == used &&
 	    cache->last_remap_bytes == remap_bytes &&
-	    cache->last_identity_remap_count == identity_remap_count) {
+	    cache->last_identity_remap_count == identity_remap_count &&
+	    cache->last_flags == cache->flags) {
 		spin_unlock(&cache->lock);
 		return 0;
 	}
 	cache->last_used = used;
 	cache->last_remap_bytes = remap_bytes;
 	cache->last_identity_remap_count = identity_remap_count;
+	cache->last_flags = cache->flags;
 	spin_unlock(&cache->lock);
 
 	key.objectid = cache->start;

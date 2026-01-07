@@ -380,8 +380,13 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 	factor = btrfs_bg_type_to_factor(block_group->flags);
 
 	spin_lock(&space_info->lock);
-	space_info->total_bytes += block_group->length;
-	space_info->disk_total += block_group->length * factor;
+
+	if (!(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED) ||
+	    block_group->identity_remap_count != 0) {
+		space_info->total_bytes += block_group->length;
+		space_info->disk_total += block_group->length * factor;
+	}
+
 	space_info->bytes_used += block_group->used;
 	space_info->disk_used += block_group->used * factor;
 	space_info->bytes_readonly += block_group->bytes_super;

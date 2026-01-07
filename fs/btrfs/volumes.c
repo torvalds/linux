@@ -3400,13 +3400,48 @@ out:
 	return ret;
 }
 
-int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset,
-			 bool verbose)
+static int btrfs_relocate_chunk_finish(struct btrfs_fs_info *fs_info,
+				       struct btrfs_block_group *bg)
 {
 	struct btrfs_root *root = fs_info->chunk_root;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_block_group *block_group;
 	u64 length;
+	int ret;
+
+	btrfs_discard_cancel_work(&fs_info->discard_ctl, bg);
+	length = bg->length;
+	btrfs_put_block_group(bg);
+
+	/*
+	 * On a zoned file system, discard the whole block group, this will
+	 * trigger a REQ_OP_ZONE_RESET operation on the device zone. If
+	 * resetting the zone fails, don't treat it as a fatal problem from the
+	 * filesystem's point of view.
+	 */
+	if (btrfs_is_zoned(fs_info)) {
+		ret = btrfs_discard_extent(fs_info, bg->start, length, NULL);
+		if (ret)
+			btrfs_info(fs_info, "failed to reset zone %llu after relocation",
+				   bg->start);
+	}
+
+	trans = btrfs_start_trans_remove_block_group(root->fs_info, bg->start);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		btrfs_handle_fs_error(root->fs_info, ret, NULL);
+		return ret;
+	}
+
+	/* Step two, delete the device extents and the chunk tree entries. */
+	ret = btrfs_remove_chunk(trans, bg->start);
+	btrfs_end_transaction(trans);
+
+	return ret;
+}
+
+int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset, bool verbose)
+{
+	struct btrfs_block_group *block_group;
 	int ret;
 
 	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
@@ -3446,38 +3481,15 @@ int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset,
 	block_group = btrfs_lookup_block_group(fs_info, chunk_offset);
 	if (!block_group)
 		return -ENOENT;
-	btrfs_discard_cancel_work(&fs_info->discard_ctl, block_group);
-	length = block_group->length;
-	btrfs_put_block_group(block_group);
 
-	/*
-	 * On a zoned file system, discard the whole block group, this will
-	 * trigger a REQ_OP_ZONE_RESET operation on the device zone. If
-	 * resetting the zone fails, don't treat it as a fatal problem from the
-	 * filesystem's point of view.
-	 */
-	if (btrfs_is_zoned(fs_info)) {
-		ret = btrfs_discard_extent(fs_info, chunk_offset, length, NULL);
-		if (ret)
-			btrfs_info(fs_info,
-				"failed to reset zone %llu after relocation",
-				chunk_offset);
+	if (should_relocate_using_remap_tree(block_group)) {
+		/* If we're relocating using the remap tree we're now done. */
+		btrfs_put_block_group(block_group);
+		ret = 0;
+	} else {
+		ret = btrfs_relocate_chunk_finish(fs_info, block_group);
 	}
 
-	trans = btrfs_start_trans_remove_block_group(root->fs_info,
-						     chunk_offset);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		btrfs_handle_fs_error(root->fs_info, ret, NULL);
-		return ret;
-	}
-
-	/*
-	 * step two, delete the device extents and the
-	 * chunk tree entries
-	 */
-	ret = btrfs_remove_chunk(trans, chunk_offset);
-	btrfs_end_transaction(trans);
 	return ret;
 }
 
@@ -4149,6 +4161,14 @@ again:
 
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
 		chunk_type = btrfs_chunk_type(leaf, chunk);
+
+		/* Check if chunk has already been fully relocated. */
+		if (chunk_type & BTRFS_BLOCK_GROUP_REMAPPED &&
+		    btrfs_chunk_num_stripes(leaf, chunk) == 0) {
+			btrfs_release_path(path);
+			mutex_unlock(&fs_info->reclaim_bgs_lock);
+			goto loop;
+		}
 
 		if (!counting) {
 			spin_lock(&fs_info->balance_lock);
