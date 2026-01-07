@@ -3178,8 +3178,11 @@ close_path:
 void rtrs_clt_ib_event_handler(struct ib_event_handler *handler,
 			       struct ib_event *ibevent)
 {
-	pr_info("Handling event: %s (%d).\n", ib_event_msg(ibevent->event),
-		ibevent->event);
+	struct ib_device *idev = ibevent->device;
+	u32 port_num = ibevent->element.port_num;
+
+	pr_info("Handling event: %s (%d). HCA name: %s, port num: %u\n",
+			ib_event_msg(ibevent->event), ibevent->event, idev->name, port_num);
 }
 
 
