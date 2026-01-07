@@ -1067,6 +1067,24 @@ static int remove_block_group_item(struct btrfs_trans_handle *trans,
 	return btrfs_del_item(trans, root, path);
 }
 
+void btrfs_remove_bg_from_sinfo(struct btrfs_block_group *bg)
+{
+	int factor = btrfs_bg_type_to_factor(bg->flags);
+
+	spin_lock(&bg->space_info->lock);
+	if (btrfs_test_opt(bg->fs_info, ENOSPC_DEBUG)) {
+		WARN_ON(bg->space_info->total_bytes < bg->length);
+		WARN_ON(bg->space_info->bytes_readonly < bg->length - bg->zone_unusable);
+		WARN_ON(bg->space_info->bytes_zone_unusable < bg->zone_unusable);
+		WARN_ON(bg->space_info->disk_total < bg->length * factor);
+	}
+	bg->space_info->total_bytes -= bg->length;
+	bg->space_info->bytes_readonly -= (bg->length - bg->zone_unusable);
+	btrfs_space_info_update_bytes_zone_unusable(bg->space_info, -bg->zone_unusable);
+	bg->space_info->disk_total -= bg->length * factor;
+	spin_unlock(&bg->space_info->lock);
+}
+
 int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			     struct btrfs_chunk_map *map)
 {
@@ -1078,7 +1096,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	struct kobject *kobj = NULL;
 	int ret;
 	int index;
-	int factor;
 	struct btrfs_caching_control *caching_ctl = NULL;
 	bool remove_map;
 	bool remove_rsv = false;
@@ -1087,7 +1104,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	if (!block_group)
 		return -ENOENT;
 
-	BUG_ON(!block_group->ro);
+	BUG_ON(!block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED));
 
 	trace_btrfs_remove_block_group(block_group);
 	/*
@@ -1099,7 +1116,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 				  block_group->length);
 
 	index = btrfs_bg_flags_to_raid_index(block_group->flags);
-	factor = btrfs_bg_type_to_factor(block_group->flags);
 
 	/* make sure this block group isn't part of an allocation cluster */
 	cluster = &fs_info->data_alloc_cluster;
@@ -1223,25 +1239,10 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	spin_lock(&block_group->space_info->lock);
 	list_del_init(&block_group->ro_list);
-
-	if (btrfs_test_opt(fs_info, ENOSPC_DEBUG)) {
-		WARN_ON(block_group->space_info->total_bytes
-			< block_group->length);
-		WARN_ON(block_group->space_info->bytes_readonly
-			< block_group->length - block_group->zone_unusable);
-		WARN_ON(block_group->space_info->bytes_zone_unusable
-			< block_group->zone_unusable);
-		WARN_ON(block_group->space_info->disk_total
-			< block_group->length * factor);
-	}
-	block_group->space_info->total_bytes -= block_group->length;
-	block_group->space_info->bytes_readonly -=
-		(block_group->length - block_group->zone_unusable);
-	btrfs_space_info_update_bytes_zone_unusable(block_group->space_info,
-						    -block_group->zone_unusable);
-	block_group->space_info->disk_total -= block_group->length * factor;
-
 	spin_unlock(&block_group->space_info->lock);
+
+	if (!(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED))
+		btrfs_remove_bg_from_sinfo(block_group);
 
 	/*
 	 * Remove the free space for the block group from the free space tree
@@ -1575,8 +1576,10 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
-		if (btrfs_is_block_group_used(block_group) || block_group->ro ||
-		    list_is_singular(&block_group->list)) {
+		if (btrfs_is_block_group_used(block_group) ||
+		    (block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) ||
+		    list_is_singular(&block_group->list) ||
+		    test_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &block_group->runtime_flags)) {
 			/*
 			 * We want to bail if we made new allocations or have
 			 * outstanding allocations in this block group.  We do
@@ -1617,9 +1620,10 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		 * needing to allocate extents from the block group.
 		 */
 		used = btrfs_space_info_used(space_info, true);
-		if ((space_info->total_bytes - block_group->length < used &&
-		     block_group->zone_unusable < block_group->length) ||
-		    has_unwritten_metadata(block_group)) {
+		if (((space_info->total_bytes - block_group->length < used &&
+		      block_group->zone_unusable < block_group->length) ||
+		     has_unwritten_metadata(block_group)) &&
+		    !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) {
 			/*
 			 * Add a reference for the list, compensate for the ref
 			 * drop under the "next" label for the
@@ -1784,6 +1788,9 @@ void btrfs_mark_bg_unused(struct btrfs_block_group *bg)
 		btrfs_get_block_group(bg);
 		trace_btrfs_add_unused_block_group(bg);
 		list_add_tail(&bg->bg_list, &fs_info->unused_bgs);
+	} else if (bg->flags & BTRFS_BLOCK_GROUP_REMAPPED &&
+		   bg->identity_remap_count == 0) {
+		/* Leave fully remapped block groups on the fully_remapped_bgs list. */
 	} else if (!test_bit(BLOCK_GROUP_FLAG_NEW, &bg->runtime_flags)) {
 		/* Pull out the block group from the reclaim_bgs list. */
 		trace_btrfs_add_unused_block_group(bg);
@@ -4581,6 +4588,13 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 		list_del_init(&block_group->bg_list);
 		btrfs_put_block_group(block_group);
 	}
+
+	while (!list_empty(&info->fully_remapped_bgs)) {
+		block_group = list_first_entry(&info->fully_remapped_bgs,
+					       struct btrfs_block_group, bg_list);
+		list_del_init(&block_group->bg_list);
+		btrfs_put_block_group(block_group);
+	}
 	spin_unlock(&info->unused_bgs_lock);
 
 	spin_lock(&info->zone_active_bgs_lock);
@@ -4767,4 +4781,25 @@ bool btrfs_block_group_should_use_size_class(const struct btrfs_block_group *bg)
 	if (!btrfs_is_block_group_data_only(bg))
 		return false;
 	return true;
+}
+
+void btrfs_mark_bg_fully_remapped(struct btrfs_block_group *bg,
+				  struct btrfs_trans_handle *trans)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+
+	spin_lock(&fs_info->unused_bgs_lock);
+	/*
+	 * The block group might already be on the unused_bgs list, remove it
+	 * if it is. It'll get readded after the async discard worker finishes,
+	 * or in btrfs_handle_fully_remapped_bgs() if we're not using async
+	 * discard.
+	 */
+	if (!list_empty(&bg->bg_list))
+		list_del(&bg->bg_list);
+	else
+		btrfs_get_block_group(bg);
+
+	list_add_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
+	spin_unlock(&fs_info->unused_bgs_lock);
 }
