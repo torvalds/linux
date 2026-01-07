@@ -300,6 +300,8 @@ void kvm_get_kimage_voffset(struct alt_instr *alt,
 	__le32 *origptr, __le32 *updptr, int nr_inst);
 void kvm_compute_final_ctr_el0(struct alt_instr *alt,
 	__le32 *origptr, __le32 *updptr, int nr_inst);
+void kvm_pan_patch_el2_entry(struct alt_instr *alt,
+			     __le32 *origptr, __le32 *updptr, int nr_inst);
 void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr, u64 elr_virt,
 	u64 elr_phys, u64 par, uintptr_t vcpu, u64 far, u64 hpfar);
 

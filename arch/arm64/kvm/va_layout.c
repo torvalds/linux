@@ -296,3 +296,31 @@ void kvm_compute_final_ctr_el0(struct alt_instr *alt,
 	generate_mov_q(read_sanitised_ftr_reg(SYS_CTR_EL0),
 		       origptr, updptr, nr_inst);
 }
+
+void kvm_pan_patch_el2_entry(struct alt_instr *alt,
+			     __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	/*
+	 * If we're running at EL1 without hVHE, then SCTLR_EL2.SPAN means
+	 * nothing to us (it is RES1), and we don't need to set PSTATE.PAN
+	 * to anything useful.
+	 */
+	if (!is_kernel_in_hyp_mode() && !cpus_have_cap(ARM64_KVM_HVHE))
+		return;
+
+	/*
+	 * Leap of faith: at this point, we must be running VHE one way or
+	 * another, and FEAT_PAN is required to be implemented. If KVM
+	 * explodes at runtime because your system does not abide by this
+	 * requirement, call your favourite HW vendor, they have screwed up.
+	 *
+	 * We don't expect hVHE to access any userspace mapping, so always
+	 * set PSTATE.PAN on enty. Same thing if we have PAN enabled on an
+	 * EL2 kernel. Only force it to 0 if we have not configured PAN in
+	 * the kernel (and you know this is really silly).
+	 */
+	if (cpus_have_cap(ARM64_KVM_HVHE) || IS_ENABLED(CONFIG_ARM64_PAN))
+		*updptr = cpu_to_le32(ENCODE_PSTATE(1, PAN));
+	else
+		*updptr = cpu_to_le32(ENCODE_PSTATE(0, PAN));
+}
