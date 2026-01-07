@@ -412,7 +412,30 @@ static int drm_bridge_connector_clear_infoframe(struct drm_connector *connector,
 	if (!bridge)
 		return -EINVAL;
 
-	return bridge->funcs->hdmi_clear_infoframe(bridge, type);
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		/* required */
+		return bridge->funcs->hdmi_clear_avi_infoframe(bridge);
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		/* required */
+		return bridge->funcs->hdmi_clear_hdmi_infoframe(bridge);
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_AUDIO)
+			return bridge->funcs->hdmi_clear_audio_infoframe(bridge);
+		break;
+	case HDMI_INFOFRAME_TYPE_DRM:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME)
+			return bridge->funcs->hdmi_clear_hdr_drm_infoframe(bridge);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_SPD_INFOFRAME)
+			return bridge->funcs->hdmi_clear_spd_infoframe(bridge);
+		break;
+	}
+
+	drm_dbg_driver(connector->dev, "Unsupported HDMI InfoFrame %x\n", type);
+
+	return 0;
 }
 
 static int drm_bridge_connector_write_infoframe(struct drm_connector *connector,
@@ -427,7 +450,30 @@ static int drm_bridge_connector_write_infoframe(struct drm_connector *connector,
 	if (!bridge)
 		return -EINVAL;
 
-	return bridge->funcs->hdmi_write_infoframe(bridge, type, buffer, len);
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_AVI:
+		/* required */
+		return bridge->funcs->hdmi_write_avi_infoframe(bridge, buffer, len);
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		/* required */
+		return bridge->funcs->hdmi_write_hdmi_infoframe(bridge, buffer, len);
+	case HDMI_INFOFRAME_TYPE_AUDIO:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_AUDIO)
+			return bridge->funcs->hdmi_write_audio_infoframe(bridge, buffer, len);
+		break;
+	case HDMI_INFOFRAME_TYPE_DRM:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME)
+			return bridge->funcs->hdmi_write_hdr_drm_infoframe(bridge, buffer, len);
+		break;
+	case HDMI_INFOFRAME_TYPE_SPD:
+		if (bridge->ops & DRM_BRIDGE_OP_HDMI_SPD_INFOFRAME)
+			return bridge->funcs->hdmi_write_spd_infoframe(bridge, buffer, len);
+		break;
+	}
+
+	drm_dbg_driver(connector->dev, "Unsupported HDMI InfoFrame %x\n", type);
+
+	return 0;
 }
 
 static const struct drm_edid *
@@ -709,8 +755,20 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 		if (bridge->ops & DRM_BRIDGE_OP_HDMI) {
 			if (bridge_connector->bridge_hdmi)
 				return ERR_PTR(-EBUSY);
-			if (!bridge->funcs->hdmi_write_infoframe ||
-			    !bridge->funcs->hdmi_clear_infoframe)
+			if (!bridge->funcs->hdmi_write_avi_infoframe ||
+			    !bridge->funcs->hdmi_clear_avi_infoframe ||
+			    !bridge->funcs->hdmi_write_hdmi_infoframe ||
+			    !bridge->funcs->hdmi_clear_hdmi_infoframe)
+				return ERR_PTR(-EINVAL);
+
+			if (bridge->ops & DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME &&
+			    (!bridge->funcs->hdmi_write_hdr_drm_infoframe ||
+			     !bridge->funcs->hdmi_clear_hdr_drm_infoframe))
+				return ERR_PTR(-EINVAL);
+
+			if (bridge->ops & DRM_BRIDGE_OP_HDMI_SPD_INFOFRAME &&
+			    (!bridge->funcs->hdmi_write_spd_infoframe ||
+			     !bridge->funcs->hdmi_clear_spd_infoframe))
 				return ERR_PTR(-EINVAL);
 
 			bridge_connector->bridge_hdmi = drm_bridge_get(bridge);
@@ -732,7 +790,9 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			    !bridge->hdmi_audio_spdif_playback)
 				return ERR_PTR(-EINVAL);
 
-			if (!bridge->funcs->hdmi_audio_prepare ||
+			if (!bridge->funcs->hdmi_write_audio_infoframe ||
+			    !bridge->funcs->hdmi_clear_audio_infoframe ||
+			    !bridge->funcs->hdmi_audio_prepare ||
 			    !bridge->funcs->hdmi_audio_shutdown)
 				return ERR_PTR(-EINVAL);
 
