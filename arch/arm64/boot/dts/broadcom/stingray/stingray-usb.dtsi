@@ -31,16 +31,6 @@
 			status = "disabled";
 		};
 
-		bdc0: usb@2000 {
-			compatible = "brcm,bdc-v0.16";
-			reg = <0x0 0x00002000 0x0 0x1000>;
-			interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usbphy0 0>, <&usbphy0 1>;
-			phy-names = "phy0", "phy1";
-			dma-coherent;
-			status = "disabled";
-		};
-
 		usbphy1: usb-phy@10000 {
 			compatible = "brcm,sr-usb-combo-phy";
 			reg = <0x0 0x00010000 0x0 0x100>;
@@ -65,13 +55,4 @@
 			status = "disabled";
 		};
 
-		bdc1: usb@21000 {
-			compatible = "brcm,bdc-v0.16";
-			reg = <0x0 0x00021000 0x0 0x1000>;
-			interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
-			phys = <&usbphy2>;
-			phy-names = "phy0";
-			dma-coherent;
-			status = "disabled";
-		};
 	};
