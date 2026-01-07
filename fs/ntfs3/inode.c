@@ -969,7 +969,7 @@ static ssize_t ntfs_writeback_range(struct iomap_writepage_ctx *wpc,
 }
 
 
-const struct iomap_writeback_ops ntfs_writeback_ops = {
+static const struct iomap_writeback_ops ntfs_writeback_ops = {
 	.writeback_range = ntfs_writeback_range,
 	.writeback_submit = iomap_ioend_writeback_submit,
 };
