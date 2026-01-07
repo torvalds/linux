@@ -1006,8 +1006,7 @@ static void nfs_mark_return_unused_delegation_types(struct nfs_server *server,
 	}
 }
 
-static void nfs_client_mark_return_unused_delegation_types(struct nfs_client *clp,
-							fmode_t flags)
+void nfs_expire_unused_delegation_types(struct nfs_client *clp, fmode_t flags)
 {
 	struct nfs_server *server;
 
@@ -1015,6 +1014,8 @@ static void nfs_client_mark_return_unused_delegation_types(struct nfs_client *cl
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
 		nfs_mark_return_unused_delegation_types(server, flags);
 	rcu_read_unlock();
+
+	nfs_delegation_run_state_manager(clp);
 }
 
 static void nfs_revoke_delegation(struct inode *inode,
@@ -1110,18 +1111,6 @@ void nfs_remove_bad_delegation(struct inode *inode,
 		nfs_revoke_delegation(inode, stateid);
 }
 EXPORT_SYMBOL_GPL(nfs_remove_bad_delegation);
-
-/**
- * nfs_expire_unused_delegation_types
- * @clp: client to process
- * @flags: delegation types to expire
- *
- */
-void nfs_expire_unused_delegation_types(struct nfs_client *clp, fmode_t flags)
-{
-	nfs_client_mark_return_unused_delegation_types(clp, flags);
-	nfs_delegation_run_state_manager(clp);
-}
 
 static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
 {
