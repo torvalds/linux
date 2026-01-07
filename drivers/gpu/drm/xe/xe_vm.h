@@ -379,7 +379,7 @@ static inline void xe_vm_set_validation_exec(struct xe_vm *vm, struct drm_exec *
 }
 
 /**
- * xe_vm_set_validation_exec() - Accessor to read the drm_exec object
+ * xe_vm_validation_exec() - Accessor to read the drm_exec object
  * @vm: The vm we want to register a drm_exec object with.
  *
  * Return: The drm_exec object used to lock the vm's resv. The value
