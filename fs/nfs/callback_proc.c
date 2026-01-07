@@ -51,12 +51,18 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 				-ntohl(res->status));
 		goto out;
 	}
-	rcu_read_lock();
+
 	delegation = nfs4_get_valid_delegation(inode);
-	if (delegation == NULL || (delegation->type & FMODE_WRITE) == 0)
+	if (!delegation)
 		goto out_iput;
-	res->size = i_size_read(inode);
+	if ((delegation->type & FMODE_WRITE) == 0) {
+		nfs_put_delegation(delegation);
+		goto out_iput;
+	}
 	res->change_attr = delegation->change_attr;
+	nfs_put_delegation(delegation);
+
+	res->size = i_size_read(inode);
 	if (nfs_have_writebacks(inode))
 		res->change_attr++;
 	res->atime = inode_get_atime(inode);
@@ -71,7 +77,6 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 			  FATTR4_WORD2_TIME_DELEG_MODIFY) & args->bitmap[2];
 	res->status = 0;
 out_iput:
-	rcu_read_unlock();
 	trace_nfs4_cb_getattr(cps->clp, &args->fh, inode, -ntohl(res->status));
 	nfs_iput_and_deactive(inode);
 out:

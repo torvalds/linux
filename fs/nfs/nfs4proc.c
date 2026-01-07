@@ -1615,10 +1615,11 @@ static bool can_open_delegated(const struct inode *inode, fmode_t fmode,
 	struct nfs_delegation *delegation;
 	bool ret = false;
 
-	rcu_read_lock();
 	delegation = nfs4_get_valid_delegation(inode);
-	if (!delegation || (delegation->type & fmode) != fmode)
-		goto out_unlock;
+	if (!delegation)
+		return false;
+	if ((delegation->type & fmode) != fmode)
+		goto out_put_delegation;
 
 	switch (claim) {
 	case NFS4_OPEN_CLAIM_PREVIOUS:
@@ -1637,8 +1638,8 @@ static bool can_open_delegated(const struct inode *inode, fmode_t fmode,
 		break;
 	}
 
-out_unlock:
-	rcu_read_unlock();
+out_put_delegation:
+	nfs_put_delegation(delegation);
 	return ret;
 }
 
@@ -1913,10 +1914,11 @@ int update_open_stateid(struct nfs4_state *state,
 
 	fmode &= (FMODE_READ|FMODE_WRITE);
 
-	rcu_read_lock();
 	spin_lock(&state->owner->so_lock);
 	if (open_stateid != NULL) {
+		rcu_read_lock();
 		nfs_state_set_open_stateid(state, open_stateid, fmode, &freeme);
+		rcu_read_unlock();
 		ret = 1;
 	}
 
@@ -1940,11 +1942,11 @@ int update_open_stateid(struct nfs4_state *state,
 	ret = 1;
 no_delegation_unlock:
 	spin_unlock(&deleg_cur->lock);
+	nfs_put_delegation(deleg_cur);
 no_delegation:
 	if (ret)
 		update_open_stateflags(state, fmode);
 	spin_unlock(&state->owner->so_lock);
-	rcu_read_unlock();
 
 	if (test_bit(NFS_STATE_RECLAIM_NOGRACE, &state->flags))
 		nfs4_schedule_state_manager(clp);
@@ -1978,14 +1980,12 @@ static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmo
 	struct nfs_delegation *delegation;
 
 	fmode &= FMODE_READ|FMODE_WRITE;
-	rcu_read_lock();
 	delegation = nfs4_get_valid_delegation(inode);
-	if (delegation == NULL || (delegation->type & fmode) == fmode) {
-		rcu_read_unlock();
+	if (!delegation)
 		return;
-	}
-	rcu_read_unlock();
-	nfs4_inode_return_delegation(inode);
+	if ((delegation->type & fmode) != fmode)
+		nfs4_inode_return_delegation(inode);
+	nfs_put_delegation(delegation);
 }
 
 static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
