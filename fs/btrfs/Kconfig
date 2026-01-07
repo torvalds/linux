@@ -116,4 +116,6 @@ config BTRFS_EXPERIMENTAL
 
 	  - asynchronous checksum generation for data writes
 
+	  - remap-tree - logical address remapping tree
+
 	  If unsure, say N.
