@@ -402,21 +402,6 @@ static struct nfs_delegation *nfs_detach_delegation(struct nfs_inode *nfsi,
 	return delegation;
 }
 
-static struct nfs_delegation *
-nfs_inode_detach_delegation(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_delegation *delegation;
-
-	rcu_read_lock();
-	delegation = rcu_dereference(nfsi->delegation);
-	if (delegation != NULL)
-		delegation = nfs_detach_delegation(nfsi, delegation, server);
-	rcu_read_unlock();
-	return delegation;
-}
-
 static void
 nfs_update_delegation_cred(struct nfs_delegation *delegation,
 		const struct cred *cred)
@@ -774,15 +759,23 @@ int nfs_client_return_marked_delegations(struct nfs_client *clp)
  */
 void nfs_inode_evict_delegation(struct inode *inode)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_delegation *delegation;
 
-	delegation = nfs_inode_detach_delegation(inode);
-	if (delegation != NULL) {
-		set_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
-		set_bit(NFS_DELEGATION_INODE_FREEING, &delegation->flags);
-		nfs_do_return_delegation(inode, delegation, 1);
-		nfs_free_delegation(NFS_SERVER(inode), delegation);
-	}
+	rcu_read_lock();
+	delegation = rcu_dereference(nfsi->delegation);
+	if (delegation)
+		delegation = nfs_detach_delegation(nfsi, delegation, server);
+	rcu_read_unlock();
+
+	if (!delegation)
+		return;
+
+	set_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
+	set_bit(NFS_DELEGATION_INODE_FREEING, &delegation->flags);
+	nfs_do_return_delegation(inode, delegation, 1);
+	nfs_free_delegation(server, delegation);
 }
 
 /**
