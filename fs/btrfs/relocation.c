@@ -4597,6 +4597,60 @@ out:
 	return ret;
 }
 
+static int find_next_identity_remap(struct btrfs_trans_handle *trans,
+				    struct btrfs_path *path, u64 bg_end,
+				    u64 last_start, u64 *start, u64 *length)
+{
+	int ret;
+	struct btrfs_key key, found_key;
+	struct btrfs_root *remap_root = trans->fs_info->remap_root;
+	struct extent_buffer *leaf;
+
+	key.objectid = last_start;
+	key.type = BTRFS_IDENTITY_REMAP_KEY;
+	key.offset = 0;
+
+	ret = btrfs_search_slot(trans, remap_root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	leaf = path->nodes[0];
+	while (true) {
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(remap_root, path);
+
+			if (ret != 0) {
+				if (ret == 1)
+					ret = -ENOENT;
+				goto out;
+			}
+
+			leaf = path->nodes[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (found_key.objectid >= bg_end) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (found_key.type == BTRFS_IDENTITY_REMAP_KEY) {
+			*start = found_key.objectid;
+			*length = found_key.offset;
+			ret = 0;
+			goto out;
+		}
+
+		path->slots[0]++;
+	}
+
+out:
+	btrfs_release_path(path);
+
+	return ret;
+}
+
 static int remove_chunk_stripes(struct btrfs_trans_handle *trans,
 				struct btrfs_chunk_map *chunk_map,
 				struct btrfs_path *path)
@@ -4739,6 +4793,92 @@ static void adjust_identity_remap_count(struct btrfs_trans_handle *trans,
 		btrfs_mark_bg_fully_remapped(bg, trans);
 }
 
+static int add_remap_entry(struct btrfs_trans_handle *trans,
+			   struct btrfs_path *path,
+			   struct btrfs_block_group *src_bg, u64 old_addr,
+			   u64 new_addr, u64 length)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_key key, new_key;
+	int ret;
+	int identity_count_delta = 0;
+
+	key.objectid = old_addr;
+	key.type = (u8)-1;
+	key.offset = (u64)-1;
+
+	ret = btrfs_search_slot(trans, fs_info->remap_root, &key, path, -1, 1);
+	if (ret < 0)
+		goto end;
+
+	if (path->slots[0] == 0) {
+		ret = -ENOENT;
+		goto end;
+	}
+
+	path->slots[0]--;
+
+	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+
+	if (key.type != BTRFS_IDENTITY_REMAP_KEY ||
+	    key.objectid > old_addr ||
+	    key.objectid + key.offset <= old_addr) {
+		ret = -ENOENT;
+		goto end;
+	}
+
+	/* Shorten or delete identity mapping entry. */
+	if (key.objectid == old_addr) {
+		ret = btrfs_del_item(trans, fs_info->remap_root, path);
+		if (ret)
+			goto end;
+
+		identity_count_delta--;
+	} else {
+		new_key.objectid = key.objectid;
+		new_key.type = BTRFS_IDENTITY_REMAP_KEY;
+		new_key.offset = old_addr - key.objectid;
+
+		btrfs_set_item_key_safe(trans, path, &new_key);
+	}
+
+	btrfs_release_path(path);
+
+	/* Create new remap entry. */
+	ret = add_remap_item(trans, path, new_addr, length, old_addr);
+	if (ret)
+		goto end;
+
+	/* Add entry for remainder of identity mapping, if necessary. */
+	if (key.objectid + key.offset != old_addr + length) {
+		new_key.objectid = old_addr + length;
+		new_key.type = BTRFS_IDENTITY_REMAP_KEY;
+		new_key.offset = key.objectid + key.offset - old_addr - length;
+
+		ret = btrfs_insert_empty_item(trans, fs_info->remap_root,
+					      path, &new_key, 0);
+		if (ret)
+			goto end;
+
+		btrfs_release_path(path);
+
+		identity_count_delta++;
+	}
+
+	/* Add backref. */
+	ret = add_remap_backref_item(trans, path, new_addr, length, old_addr);
+	if (ret)
+		goto end;
+
+	if (identity_count_delta != 0)
+		adjust_identity_remap_count(trans, src_bg, identity_count_delta);
+
+end:
+	btrfs_release_path(path);
+
+	return ret;
+}
+
 static int mark_chunk_remapped(struct btrfs_trans_handle *trans,
 			       struct btrfs_path *path, u64 start)
 {
@@ -4784,6 +4924,184 @@ static int mark_chunk_remapped(struct btrfs_trans_handle *trans,
 end:
 	btrfs_free_chunk_map(chunk_map);
 	btrfs_release_path(path);
+
+	return ret;
+}
+
+static int do_remap_reloc_trans(struct btrfs_fs_info *fs_info,
+				struct btrfs_block_group *src_bg,
+				struct btrfs_path *path, u64 *last_start)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *extent_root;
+	struct btrfs_key ins;
+	struct btrfs_block_group *dest_bg = NULL;
+	u64 start = 0, remap_length = 0;
+	u64 length, new_addr, min_size;
+	int ret;
+	const bool is_data = (src_bg->flags & BTRFS_BLOCK_GROUP_DATA);
+	bool no_more = false;
+	bool made_reservation = false, bg_needs_free_space;
+	struct btrfs_space_info *sinfo = src_bg->space_info;
+
+	extent_root = btrfs_extent_root(fs_info, src_bg->start);
+
+	trans = btrfs_start_transaction(extent_root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	mutex_lock(&fs_info->remap_mutex);
+
+	ret = find_next_identity_remap(trans, path, src_bg->start + src_bg->length,
+				       *last_start, &start, &remap_length);
+	if (ret == -ENOENT) {
+		no_more = true;
+		goto next;
+	} else if (ret) {
+		mutex_unlock(&fs_info->remap_mutex);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
+
+	/* Try to reserve enough space for block. */
+	spin_lock(&sinfo->lock);
+	btrfs_space_info_update_bytes_may_use(sinfo, remap_length);
+	spin_unlock(&sinfo->lock);
+
+	if (is_data)
+		min_size = fs_info->sectorsize;
+	else
+		min_size = fs_info->nodesize;
+
+	/*
+	 * We're using btrfs_reserve_extent() to allocate a contiguous
+	 * logical address range, but this will become a remap item rather than
+	 * an extent in the extent tree.
+	 *
+	 * Short allocations are fine: it means that we chop off the beginning
+	 * of the identity remap that we're processing, and will tackle the
+	 * rest of it the next time round.
+	 */
+	ret = btrfs_reserve_extent(fs_info->fs_root, remap_length, remap_length,
+				   min_size, 0, 0, &ins, is_data, false);
+	if (ret) {
+		spin_lock(&sinfo->lock);
+		btrfs_space_info_update_bytes_may_use(sinfo, -remap_length);
+		spin_unlock(&sinfo->lock);
+
+		mutex_unlock(&fs_info->remap_mutex);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
+
+	made_reservation = true;
+
+	new_addr = ins.objectid;
+	length = ins.offset;
+
+	if (!is_data && !IS_ALIGNED(length, fs_info->nodesize)) {
+		u64 new_length = ALIGN_DOWN(length, fs_info->nodesize);
+
+		btrfs_free_reserved_extent(fs_info, new_addr + new_length,
+					   length - new_length, 0);
+
+		length = new_length;
+	}
+
+	dest_bg = btrfs_lookup_block_group(fs_info, new_addr);
+
+	mutex_lock(&dest_bg->free_space_lock);
+	bg_needs_free_space = test_bit(BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
+				       &dest_bg->runtime_flags);
+	mutex_unlock(&dest_bg->free_space_lock);
+
+	if (bg_needs_free_space) {
+		ret = btrfs_add_block_group_free_space(trans, dest_bg);
+		if (ret)
+			goto fail;
+	}
+
+	ret = copy_remapped_data(fs_info, start, new_addr, length);
+	if (ret)
+		goto fail;
+
+	ret = btrfs_remove_from_free_space_tree(trans, new_addr, length);
+	if (ret)
+		goto fail;
+
+	ret = add_remap_entry(trans, path, src_bg, start, new_addr, length);
+	if (ret) {
+		btrfs_add_to_free_space_tree(trans, new_addr, length);
+		goto fail;
+	}
+
+	adjust_block_group_remap_bytes(trans, dest_bg, length);
+	btrfs_free_reserved_bytes(dest_bg, length, 0);
+
+	spin_lock(&sinfo->lock);
+	sinfo->bytes_readonly += length;
+	spin_unlock(&sinfo->lock);
+
+next:
+	if (dest_bg)
+		btrfs_put_block_group(dest_bg);
+
+	if (made_reservation)
+		btrfs_dec_block_group_reservations(fs_info, new_addr);
+
+	mutex_unlock(&fs_info->remap_mutex);
+
+	if (src_bg->identity_remap_count == 0) {
+		bool mark_fully_remapped = false;
+
+		spin_lock(&src_bg->lock);
+		if (!test_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &src_bg->runtime_flags)) {
+			mark_fully_remapped = true;
+			set_bit(BLOCK_GROUP_FLAG_FULLY_REMAPPED, &src_bg->runtime_flags);
+		}
+		spin_unlock(&src_bg->lock);
+
+		if (mark_fully_remapped)
+			btrfs_mark_bg_fully_remapped(src_bg, trans);
+	}
+
+	ret = btrfs_end_transaction(trans);
+	if (ret)
+		return ret;
+
+	if (no_more)
+		return 1;
+
+	*last_start = start;
+
+	return 0;
+
+fail:
+	if (dest_bg)
+		btrfs_put_block_group(dest_bg);
+
+	btrfs_free_reserved_extent(fs_info, new_addr, length, 0);
+
+	mutex_unlock(&fs_info->remap_mutex);
+	btrfs_end_transaction(trans);
+
+	return ret;
+}
+
+static int do_remap_reloc(struct btrfs_fs_info *fs_info, struct btrfs_path *path,
+			  struct btrfs_block_group *bg)
+{
+	u64 last_start = bg->start;
+	int ret;
+
+	while (true) {
+		ret = do_remap_reloc_trans(fs_info, bg, path, &last_start);
+		if (ret) {
+			if (ret == 1)
+				ret = 0;
+			break;
+		}
+	}
 
 	return ret;
 }
@@ -5073,6 +5391,14 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start,
 				goto out;
 		}
 		ret = start_block_group_remapping(fs_info, path, bg);
+		if (ret)
+			goto out;
+
+		ret = do_remap_reloc(fs_info, path, rc->block_group);
+		if (ret)
+			goto out;
+
+		btrfs_delete_unused_bgs(fs_info);
 	} else {
 		ret = do_nonremap_reloc(fs_info, verbose, rc);
 	}
