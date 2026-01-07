@@ -178,9 +178,9 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `I2cClient::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { idev.as_ref().drvdata_obtain::<T>() };
+        let data = unsafe { idev.as_ref().drvdata_borrow::<T>() };
 
-        T::unbind(idev, data.as_ref());
+        T::unbind(idev, data);
     }
 
     extern "C" fn shutdown_callback(idev: *mut bindings::i2c_client) {

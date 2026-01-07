@@ -123,9 +123,9 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: `remove_callback` is only ever called after a successful call to
         // `probe_callback`, hence it's guaranteed that `Device::set_drvdata()` has been called
         // and stored a `Pin<KBox<T>>`.
-        let data = unsafe { pdev.as_ref().drvdata_obtain::<T>() };
+        let data = unsafe { pdev.as_ref().drvdata_borrow::<T>() };
 
-        T::unbind(pdev, data.as_ref());
+        T::unbind(pdev, data);
     }
 }
 

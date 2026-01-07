@@ -85,6 +85,8 @@ enum probe_type {
  *		uevent.
  * @p:		Driver core's private data, no one other than the driver
  *		core can touch this.
+ * @p_cb:	Callbacks private to the driver core; no one other than the
+ *		driver core is allowed to touch this.
  *
  * The device driver-model tracks all of the drivers known to the system.
  * The main reason for this tracking is to enable the driver core to match
@@ -119,6 +121,13 @@ struct device_driver {
 	void (*coredump) (struct device *dev);
 
 	struct driver_private *p;
+	struct {
+		/*
+		 * Called after remove() and after all devres entries have been
+		 * processed. This is a Rust only callback.
+		 */
+		void (*post_unbind_rust)(struct device *dev);
+	} p_cb;
 };
 
 

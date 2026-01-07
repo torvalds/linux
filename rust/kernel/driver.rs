@@ -177,7 +177,39 @@ unsafe impl<T: RegistrationOps> Sync for Registration<T> {}
 // any thread, so `Registration` is `Send`.
 unsafe impl<T: RegistrationOps> Send for Registration<T> {}
 
-impl<T: RegistrationOps> Registration<T> {
+impl<T: RegistrationOps + 'static> Registration<T> {
+    extern "C" fn post_unbind_callback(dev: *mut bindings::device) {
+        // SAFETY: The driver core only ever calls the post unbind callback with a valid pointer to
+        // a `struct device`.
+        //
+        // INVARIANT: `dev` is valid for the duration of the `post_unbind_callback()`.
+        let dev = unsafe { &*dev.cast::<device::Device<device::CoreInternal>>() };
+
+        // `remove()` and all devres callbacks have been completed at this point, hence drop the
+        // driver's device private data.
+        //
+        // SAFETY: By the safety requirements of the `Driver` trait, `T::DriverData` is the
+        // driver's device private data type.
+        drop(unsafe { dev.drvdata_obtain::<T::DriverData>() });
+    }
+
+    /// Attach generic `struct device_driver` callbacks.
+    fn callbacks_attach(drv: &Opaque<T::DriverType>) {
+        let ptr = drv.get().cast::<u8>();
+
+        // SAFETY:
+        // - `drv.get()` yields a valid pointer to `Self::DriverType`.
+        // - Adding `DEVICE_DRIVER_OFFSET` yields the address of the embedded `struct device_driver`
+        //   as guaranteed by the safety requirements of the `Driver` trait.
+        let base = unsafe { ptr.add(T::DEVICE_DRIVER_OFFSET) };
+
+        // CAST: `base` points to the offset of the embedded `struct device_driver`.
+        let base = base.cast::<bindings::device_driver>();
+
+        // SAFETY: It is safe to set the fields of `struct device_driver` on initialization.
+        unsafe { (*base).p_cb.post_unbind_rust = Some(Self::post_unbind_callback) };
+    }
+
     /// Creates a new instance of the registration object.
     pub fn new(name: &'static CStr, module: &'static ThisModule) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
@@ -188,6 +220,8 @@ impl<T: RegistrationOps> Registration<T> {
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write, and it has
                 // just been initialised above, so it's also valid for read.
                 let drv = unsafe { &*(ptr as *const Opaque<T::DriverType>) };
+
+                Self::callbacks_attach(drv);
 
                 // SAFETY: `drv` is guaranteed to be pinned until `T::unregister`.
                 unsafe { T::register(drv, name, module) }
