@@ -160,7 +160,8 @@ int __init init_symlink(const char *oldname, const char *newname)
 
 int __init init_unlink(const char *pathname)
 {
-	return do_unlinkat(AT_FDCWD, getname_kernel(pathname));
+	CLASS(filename_kernel, name)(pathname);
+	return filename_unlinkat(AT_FDCWD, name);
 }
 
 int __init init_mkdir(const char *pathname, umode_t mode)
@@ -171,7 +172,8 @@ int __init init_mkdir(const char *pathname, umode_t mode)
 
 int __init init_rmdir(const char *pathname)
 {
-	return do_rmdir(AT_FDCWD, getname_kernel(pathname));
+	CLASS(filename_kernel, name)(pathname);
+	return filename_rmdir(AT_FDCWD, name);
 }
 
 int __init init_utimes(char *filename, struct timespec64 *ts)

@@ -134,14 +134,15 @@ int io_unlinkat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_unlinkat(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_unlink *un = io_kiocb_to_cmd(req, struct io_unlink);
+	CLASS(filename_complete_delayed, name)(&un->filename);
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
 	if (un->flags & AT_REMOVEDIR)
-		ret = do_rmdir(un->dfd, complete_getname(&un->filename));
+		ret = filename_rmdir(un->dfd, name);
 	else
-		ret = do_unlinkat(un->dfd, complete_getname(&un->filename));
+		ret = filename_unlinkat(un->dfd, name);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
