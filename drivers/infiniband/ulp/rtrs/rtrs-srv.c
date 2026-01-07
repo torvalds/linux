@@ -317,8 +317,8 @@ static int rdma_write_sg(struct rtrs_srv_op *id)
 	err = ib_post_send(id->con->c.qp, &id->tx_wr.wr, NULL);
 	if (err)
 		rtrs_err(s,
-			  "Posting RDMA-Write-Request to QP failed, err: %d\n",
-			  err);
+			  "Posting RDMA-Write-Request to QP failed, err: %pe\n",
+			  ERR_PTR(err));
 
 	return err;
 }
@@ -434,8 +434,8 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 
 	err = ib_post_send(id->con->c.qp, wr, NULL);
 	if (err)
-		rtrs_err_rl(s, "Posting RDMA-Reply to QP failed, err: %d\n",
-			     err);
+		rtrs_err_rl(s, "Posting RDMA-Reply to QP failed, err: %pe\n",
+			    ERR_PTR(err));
 
 	return err;
 }
@@ -519,8 +519,8 @@ bool rtrs_srv_resp_rdma(struct rtrs_srv_op *id, int status)
 		err = rdma_write_sg(id);
 
 	if (err) {
-		rtrs_err_rl(s, "IO response failed: %d: srv_path=%s\n", err,
-			    kobject_name(&srv_path->kobj));
+		rtrs_err_rl(s, "IO response failed: %pe: srv_path=%s\n",
+			    ERR_PTR(err), kobject_name(&srv_path->kobj));
 		close_path(srv_path);
 	}
 out:
@@ -637,7 +637,7 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 					DMA_TO_DEVICE, rtrs_srv_rdma_done);
 			if (!srv_mr->iu) {
 				err = -ENOMEM;
-				rtrs_err(ss, "rtrs_iu_alloc(), err: %d\n", err);
+				rtrs_err(ss, "rtrs_iu_alloc(), err: %pe\n", ERR_PTR(err));
 				goto dereg_mr;
 			}
 		}
@@ -813,7 +813,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 
 	err = post_recv_path(srv_path);
 	if (err) {
-		rtrs_err(s, "post_recv_path(), err: %d\n", err);
+		rtrs_err(s, "post_recv_path(), err: %pe\n", ERR_PTR(err));
 		return err;
 	}
 
@@ -876,7 +876,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	get_device(&srv_path->srv->dev);
 	err = rtrs_srv_change_state(srv_path, RTRS_SRV_CONNECTED);
 	if (!err) {
-		rtrs_err(s, "rtrs_srv_change_state(), err: %d\n", err);
+		rtrs_err(s, "rtrs_srv_change_state(), err: %pe\n", ERR_PTR(err));
 		goto iu_free;
 	}
 
@@ -890,7 +890,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	 */
 	err = rtrs_srv_path_up(srv_path);
 	if (err) {
-		rtrs_err(s, "rtrs_srv_path_up(), err: %d\n", err);
+		rtrs_err(s, "rtrs_srv_path_up(), err: %pe\n", ERR_PTR(err));
 		goto iu_free;
 	}
 
@@ -901,7 +901,7 @@ static int process_info_req(struct rtrs_srv_con *con,
 	/* Send info response */
 	err = rtrs_iu_post_send(&con->c, tx_iu, tx_sz, reg_wr);
 	if (err) {
-		rtrs_err(s, "rtrs_iu_post_send(), err: %d\n", err);
+		rtrs_err(s, "rtrs_iu_post_send(), err: %pe\n", ERR_PTR(err));
 iu_free:
 		rtrs_iu_free(tx_iu, srv_path->s.dev->ib_dev, 1);
 	}
@@ -969,7 +969,7 @@ static int post_recv_info_req(struct rtrs_srv_con *con)
 	/* Prepare for getting info response */
 	err = rtrs_iu_post_recv(&con->c, rx_iu);
 	if (err) {
-		rtrs_err(s, "rtrs_iu_post_recv(), err: %d\n", err);
+		rtrs_err(s, "rtrs_iu_post_recv(), err: %pe\n", ERR_PTR(err));
 		rtrs_iu_free(rx_iu, srv_path->s.dev->ib_dev, 1);
 		return err;
 	}
@@ -1015,7 +1015,7 @@ static int post_recv_path(struct rtrs_srv_path *srv_path)
 
 		err = post_recv_io(to_srv_con(srv_path->s.con[cid]), q_size);
 		if (err) {
-			rtrs_err(s, "post_recv_io(), err: %d\n", err);
+			rtrs_err(s, "post_recv_io(), err: %pe\n", ERR_PTR(err));
 			return err;
 		}
 	}
@@ -1063,8 +1063,8 @@ static void process_read(struct rtrs_srv_con *con,
 
 	if (ret) {
 		rtrs_err_rl(s,
-			     "Processing read request failed, user module cb reported for msg_id %d, err: %d\n",
-			     buf_id, ret);
+			     "Processing read request failed, user module cb reported for msg_id %d, err: %pe\n",
+			     buf_id, ERR_PTR(ret));
 		goto send_err_msg;
 	}
 
@@ -1074,8 +1074,8 @@ send_err_msg:
 	ret = send_io_resp_imm(con, id, ret);
 	if (ret < 0) {
 		rtrs_err_rl(s,
-			     "Sending err msg for failed RDMA-Write-Req failed, msg_id %d, err: %d\n",
-			     buf_id, ret);
+			     "Sending err msg for failed RDMA-Write-Req failed, msg_id %d, err: %pe\n",
+			     buf_id, ERR_PTR(ret));
 		close_path(srv_path);
 	}
 	rtrs_srv_put_ops_ids(srv_path);
@@ -1115,8 +1115,8 @@ static void process_write(struct rtrs_srv_con *con,
 			       data + data_len, usr_len);
 	if (ret) {
 		rtrs_err_rl(s,
-			     "Processing write request failed, user module callback reports err: %d\n",
-			     ret);
+			     "Processing write request failed, user module callback reports err: %pe\n",
+			     ERR_PTR(ret));
 		goto send_err_msg;
 	}
 
@@ -1126,8 +1126,8 @@ send_err_msg:
 	ret = send_io_resp_imm(con, id, ret);
 	if (ret < 0) {
 		rtrs_err_rl(s,
-			     "Processing write request failed, sending I/O response failed, msg_id %d, err: %d\n",
-			     buf_id, ret);
+			     "Processing write request failed, sending I/O response failed, msg_id %d, err: %pe\n",
+			     buf_id, ERR_PTR(ret));
 		close_path(srv_path);
 	}
 	rtrs_srv_put_ops_ids(srv_path);
@@ -1257,7 +1257,8 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 		srv_path->s.hb_missed_cnt = 0;
 		err = rtrs_post_recv_empty(&con->c, &io_comp_cqe);
 		if (err) {
-			rtrs_err(s, "rtrs_post_recv(), err: %d\n", err);
+			rtrs_err(s, "rtrs_post_recv(), err: %pe\n",
+				 ERR_PTR(err));
 			close_path(srv_path);
 			break;
 		}
@@ -1282,8 +1283,8 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 				mr->msg_id = msg_id;
 				err = rtrs_srv_inv_rkey(con, mr);
 				if (err) {
-					rtrs_err(s, "rtrs_post_recv(), err: %d\n",
-						  err);
+					rtrs_err(s, "rtrs_post_recv(), err: %pe\n",
+						 ERR_PTR(err));
 					close_path(srv_path);
 					break;
 				}
@@ -1632,7 +1633,7 @@ static int rtrs_rdma_do_accept(struct rtrs_srv_path *srv_path,
 
 	err = rdma_accept(cm_id, &param);
 	if (err)
-		pr_err("rdma_accept(), err: %d\n", err);
+		pr_err("rdma_accept(), err: %pe\n", ERR_PTR(err));
 
 	return err;
 }
@@ -1650,7 +1651,7 @@ static int rtrs_rdma_do_reject(struct rdma_cm_id *cm_id, int errno)
 
 	err = rdma_reject(cm_id, &msg, sizeof(msg), IB_CM_REJ_CONSUMER_DEFINED);
 	if (err)
-		pr_err("rdma_reject(), err: %d\n", err);
+		pr_err("rdma_reject(), err: %pe\n", ERR_PTR(err));
 
 	/* Bounce errno back */
 	return errno;
@@ -1726,7 +1727,7 @@ static int create_con(struct rtrs_srv_path *srv_path,
 				 max_send_wr, max_recv_wr,
 				 IB_POLL_WORKQUEUE);
 	if (err) {
-		rtrs_err(s, "rtrs_cq_qp_create(), err: %d\n", err);
+		rtrs_err(s, "rtrs_cq_qp_create(), err: %pe\n", ERR_PTR(err));
 		goto free_con;
 	}
 	if (con->c.cid == 0) {
@@ -1941,7 +1942,7 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	}
 	err = create_con(srv_path, cm_id, cid);
 	if (err) {
-		rtrs_err((&srv_path->s), "create_con(), error %d\n", err);
+		rtrs_err((&srv_path->s), "create_con(), error %pe\n", ERR_PTR(err));
 		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since session has other connections we follow normal way
@@ -1952,7 +1953,8 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 	}
 	err = rtrs_rdma_do_accept(srv_path, cm_id);
 	if (err) {
-		rtrs_err((&srv_path->s), "rtrs_rdma_do_accept(), error %d\n", err);
+		rtrs_err((&srv_path->s), "rtrs_rdma_do_accept(), error %pe\n",
+			 ERR_PTR(err));
 		rtrs_rdma_do_reject(cm_id, err);
 		/*
 		 * Since current connection was successfully added to the
@@ -2003,8 +2005,8 @@ static int rtrs_srv_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_REJECTED:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 	case RDMA_CM_EVENT_UNREACHABLE:
-		rtrs_err(s, "CM error (CM event: %s, err: %d)\n",
-			  rdma_event_msg(ev->event), ev->status);
+		rtrs_err(s, "CM error (CM event: %s, err: %pe)\n",
+			  rdma_event_msg(ev->event), ERR_PTR(ev->status));
 		fallthrough;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_ADDR_CHANGE:
@@ -2013,8 +2015,8 @@ static int rtrs_srv_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		close_path(srv_path);
 		break;
 	default:
-		pr_err("Ignoring unexpected CM event %s, err %d\n",
-		       rdma_event_msg(ev->event), ev->status);
+		pr_err("Ignoring unexpected CM event %s, err %pe\n",
+		       rdma_event_msg(ev->event), ERR_PTR(ev->status));
 		break;
 	}
 
@@ -2038,13 +2040,13 @@ static struct rdma_cm_id *rtrs_srv_cm_init(struct rtrs_srv_ctx *ctx,
 	}
 	ret = rdma_bind_addr(cm_id, addr);
 	if (ret) {
-		pr_err("Binding RDMA address failed, err: %d\n", ret);
+		pr_err("Binding RDMA address failed, err: %pe\n", ERR_PTR(ret));
 		goto err_cm;
 	}
 	ret = rdma_listen(cm_id, 64);
 	if (ret) {
-		pr_err("Listening on RDMA connection failed, err: %d\n",
-		       ret);
+		pr_err("Listening on RDMA connection failed, err: %pe\n",
+		       ERR_PTR(ret));
 		goto err_cm;
 	}
 
@@ -2322,8 +2324,8 @@ static int __init rtrs_server_init(void)
 
 	err = check_module_params();
 	if (err) {
-		pr_err("Failed to load module, invalid module parameters, err: %d\n",
-		       err);
+		pr_err("Failed to load module, invalid module parameters, err: %pe\n",
+		       ERR_PTR(err));
 		return err;
 	}
 	err = class_register(&rtrs_dev_class);
