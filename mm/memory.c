@@ -7265,6 +7265,15 @@ static void clear_contig_highpages(struct page *page, unsigned long addr,
 	}
 }
 
+/*
+ * When zeroing a folio, we want to differentiate between pages in the
+ * vicinity of the faulting address where we have spatial and temporal
+ * locality, and those far away where we don't.
+ *
+ * Use a radius of 2 for determining the local neighbourhood.
+ */
+#define FOLIO_ZERO_LOCALITY_RADIUS	2
+
 /**
  * folio_zero_user - Zero a folio which will be mapped to userspace.
  * @folio: The folio to zero.
@@ -7272,10 +7281,36 @@ static void clear_contig_highpages(struct page *page, unsigned long addr,
  */
 void folio_zero_user(struct folio *folio, unsigned long addr_hint)
 {
-	unsigned long base_addr = ALIGN_DOWN(addr_hint, folio_size(folio));
+	const unsigned long base_addr = ALIGN_DOWN(addr_hint, folio_size(folio));
+	const long fault_idx = (addr_hint - base_addr) / PAGE_SIZE;
+	const struct range pg = DEFINE_RANGE(0, folio_nr_pages(folio) - 1);
+	const int radius = FOLIO_ZERO_LOCALITY_RADIUS;
+	struct range r[3];
+	int i;
 
-	clear_contig_highpages(folio_page(folio, 0),
-				base_addr, folio_nr_pages(folio));
+	/*
+	 * Faulting page and its immediate neighbourhood. Will be cleared at the
+	 * end to keep its cachelines hot.
+	 */
+	r[2] = DEFINE_RANGE(clamp_t(s64, fault_idx - radius, pg.start, pg.end),
+			    clamp_t(s64, fault_idx + radius, pg.start, pg.end));
+
+	/* Region to the left of the fault */
+	r[1] = DEFINE_RANGE(pg.start,
+			    clamp_t(s64, r[2].start - 1, pg.start - 1, r[2].start));
+
+	/* Region to the right of the fault: always valid for the common fault_idx=0 case. */
+	r[0] = DEFINE_RANGE(clamp_t(s64, r[2].end + 1, r[2].end, pg.end + 1),
+			    pg.end);
+
+	for (i = 0; i < ARRAY_SIZE(r); i++) {
+		const unsigned long addr = base_addr + r[i].start * PAGE_SIZE;
+		const unsigned int nr_pages = range_len(&r[i]);
+		struct page *page = folio_page(folio, r[i].start);
+
+		if (nr_pages > 0)
+			clear_contig_highpages(page, addr, nr_pages);
+	}
 }
 
 static int copy_user_gigantic_page(struct folio *dst, struct folio *src,
