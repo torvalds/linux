@@ -1618,10 +1618,9 @@ static int generate_reclaim_entry(struct xe_tile *tile,
 	} else if (is_2m_pte(xe_child)) {
 		reclamation_size = COMPUTE_RECLAIM_ADDRESS_MASK(SZ_2M);  /* reclamation_size = 9 */
 	} else {
-		xe_page_reclaim_list_invalidate(prl);
-		vm_dbg(&tile_to_xe(tile)->drm,
-		       "PRL invalidate: unsupported PTE level=%u pte=%#llx\n",
-		       xe_child->level, pte);
+		xe_page_reclaim_list_abort(tile->primary_gt, prl,
+					   "unsupported PTE level=%u pte=%#llx",
+					   xe_child->level, pte);
 		return -EINVAL;
 	}
 
@@ -1670,10 +1669,9 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 					break;
 			} else {
 				/* overflow, mark as invalid */
-				xe_page_reclaim_list_invalidate(xe_walk->prl);
-				vm_dbg(&xe->drm,
-				       "PRL invalidate: overflow while adding pte=%#llx",
-				       pte);
+				xe_page_reclaim_list_abort(xe_walk->tile->primary_gt, xe_walk->prl,
+							   "overflow while adding pte=%#llx",
+							   pte);
 				break;
 			}
 		}
@@ -1682,10 +1680,9 @@ static int xe_pt_stage_unbind_entry(struct xe_ptw *parent, pgoff_t offset,
 	/* If aborting page walk early, invalidate PRL since PTE may be dropped from this abort */
 	if (xe_pt_check_kill(addr, next, level - 1, xe_child, action, walk) &&
 	    xe_walk->prl && level > 1 && xe_child->base.children && xe_child->num_live != 0) {
-		xe_page_reclaim_list_invalidate(xe_walk->prl);
-		vm_dbg(&xe->drm,
-		       "PRL invalidate: kill at level=%u addr=%#llx next=%#llx num_live=%u\n",
-		       level, addr, next, xe_child->num_live);
+		xe_page_reclaim_list_abort(xe_walk->tile->primary_gt, xe_walk->prl,
+					   "kill at level=%u addr=%#llx next=%#llx num_live=%u\n",
+					   level, addr, next, xe_child->num_live);
 	}
 
 	return 0;
