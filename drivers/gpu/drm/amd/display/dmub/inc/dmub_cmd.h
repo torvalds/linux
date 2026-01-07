@@ -1635,9 +1635,9 @@ union dmub_inbox0_cmd_lock_hw {
 		uint32_t lock_dig: 1;
 		uint32_t triple_buffer_lock: 1;
 
-		uint32_t lock: 1;				/**< Lock */
+		uint32_t lock: 1;			/**< Lock */
 		uint32_t should_release: 1;		/**< Release */
-		uint32_t reserved: 7; 			/**< Reserved for extending more clients, HW, etc. */
+		uint32_t reserved: 7;			/**< Reserved for extending more clients, HW, etc. */
 	} bits;
 	uint32_t all;
 };
@@ -2658,7 +2658,6 @@ struct dmub_cmd_fams2_global_config {
 
 union dmub_cmd_fams2_config {
 	struct dmub_cmd_fams2_global_config global;
-// coverity[cert_dcl37_c_violation:FALSE]  errno.h, stddef.h, stdint.h not included in atombios.h
 	struct dmub_fams2_stream_static_state stream; //v0
 	union {
 		struct dmub_fams2_cmd_stream_static_base_state base;
@@ -3678,7 +3677,7 @@ struct dmub_cmd_psr_copy_settings_data {
 	/**
 	 * @ rate_control_caps : Indicate FreeSync PSR Sink Capabilities
 	 */
-	uint8_t rate_control_caps ;
+	uint8_t rate_control_caps;
 	/*
 	 * Force PSRSU always doing full frame update
 	 */
@@ -5164,8 +5163,8 @@ enum dmub_cmd_lsdma_type {
 	 */
 	DMUB_CMD__LSDMA_LINEAR_COPY = 1,
 	/**
-	* LSDMA copies data from source to destination linearly in sub window
-	*/
+	 * LSDMA copies data from source to destination linearly in sub window
+	 */
 	DMUB_CMD__LSDMA_LINEAR_SUB_WINDOW_COPY = 2,
 	/**
 	 * Send the tiled-to-tiled copy command
