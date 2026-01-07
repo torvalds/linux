@@ -152,8 +152,9 @@ int __init init_link(const char *oldname, const char *newname)
 
 int __init init_symlink(const char *oldname, const char *newname)
 {
-	return do_symlinkat(getname_kernel(oldname), AT_FDCWD,
-			    getname_kernel(newname));
+	CLASS(filename_kernel, old)(oldname);
+	CLASS(filename_kernel, new)(newname);
+	return filename_symlinkat(old, AT_FDCWD, new);
 }
 
 int __init init_unlink(const char *pathname)

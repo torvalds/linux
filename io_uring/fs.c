@@ -233,12 +233,13 @@ int io_symlinkat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 int io_symlinkat(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_link *sl = io_kiocb_to_cmd(req, struct io_link);
+	CLASS(filename_complete_delayed, old)(&sl->oldpath);
+	CLASS(filename_complete_delayed, new)(&sl->newpath);
 	int ret;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	ret = do_symlinkat(complete_getname(&sl->oldpath), sl->new_dfd,
-			   complete_getname(&sl->newpath));
+	ret = filename_symlinkat(old, sl->new_dfd, new);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_req_set_res(req, ret, 0);
