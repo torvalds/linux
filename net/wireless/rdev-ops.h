@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018, 2021-2025 Intel Corporation
+ * Copyright (C) 2018, 2021-2026 Intel Corporation
  */
 #ifndef __CFG80211_RDEV_OPS
 #define __CFG80211_RDEV_OPS
@@ -77,42 +77,42 @@ rdev_change_virtual_intf(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_add_key(struct cfg80211_registered_device *rdev,
-			       struct net_device *netdev, int link_id,
+			       struct wireless_dev *wdev, int link_id,
 			       u8 key_index, bool pairwise, const u8 *mac_addr,
 			       struct key_params *params)
 {
 	int ret;
-	trace_rdev_add_key(&rdev->wiphy, netdev, link_id, key_index, pairwise,
+	trace_rdev_add_key(&rdev->wiphy, wdev, link_id, key_index, pairwise,
 			   mac_addr, params->mode);
-	ret = rdev->ops->add_key(&rdev->wiphy, netdev, link_id, key_index,
+	ret = rdev->ops->add_key(&rdev->wiphy, wdev, link_id, key_index,
 				  pairwise, mac_addr, params);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int
-rdev_get_key(struct cfg80211_registered_device *rdev, struct net_device *netdev,
+rdev_get_key(struct cfg80211_registered_device *rdev, struct wireless_dev *wdev,
 	     int link_id, u8 key_index, bool pairwise, const u8 *mac_addr,
 	     void *cookie,
 	     void (*callback)(void *cookie, struct key_params*))
 {
 	int ret;
-	trace_rdev_get_key(&rdev->wiphy, netdev, link_id, key_index, pairwise,
+	trace_rdev_get_key(&rdev->wiphy, wdev, link_id, key_index, pairwise,
 			   mac_addr);
-	ret = rdev->ops->get_key(&rdev->wiphy, netdev, link_id, key_index,
+	ret = rdev->ops->get_key(&rdev->wiphy, wdev, link_id, key_index,
 				  pairwise, mac_addr, cookie, callback);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_del_key(struct cfg80211_registered_device *rdev,
-			       struct net_device *netdev, int link_id,
+			       struct wireless_dev *wdev, int link_id,
 			       u8 key_index, bool pairwise, const u8 *mac_addr)
 {
 	int ret;
-	trace_rdev_del_key(&rdev->wiphy, netdev, link_id, key_index, pairwise,
+	trace_rdev_del_key(&rdev->wiphy, wdev, link_id, key_index, pairwise,
 			   mac_addr);
-	ret = rdev->ops->del_key(&rdev->wiphy, netdev, link_id, key_index,
+	ret = rdev->ops->del_key(&rdev->wiphy, wdev, link_id, key_index,
 				  pairwise, mac_addr);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
@@ -134,12 +134,12 @@ rdev_set_default_key(struct cfg80211_registered_device *rdev,
 
 static inline int
 rdev_set_default_mgmt_key(struct cfg80211_registered_device *rdev,
-			  struct net_device *netdev, int link_id, u8 key_index)
+			  struct wireless_dev *wdev, int link_id, u8 key_index)
 {
 	int ret;
-	trace_rdev_set_default_mgmt_key(&rdev->wiphy, netdev, link_id,
+	trace_rdev_set_default_mgmt_key(&rdev->wiphy, wdev, link_id,
 					key_index);
-	ret = rdev->ops->set_default_mgmt_key(&rdev->wiphy, netdev, link_id,
+	ret = rdev->ops->set_default_mgmt_key(&rdev->wiphy, wdev, link_id,
 					       key_index);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
@@ -147,14 +147,14 @@ rdev_set_default_mgmt_key(struct cfg80211_registered_device *rdev,
 
 static inline int
 rdev_set_default_beacon_key(struct cfg80211_registered_device *rdev,
-			    struct net_device *netdev, int link_id,
+			    struct wireless_dev *wdev, int link_id,
 			    u8 key_index)
 {
 	int ret;
 
-	trace_rdev_set_default_beacon_key(&rdev->wiphy, netdev, link_id,
+	trace_rdev_set_default_beacon_key(&rdev->wiphy, wdev, link_id,
 					  key_index);
-	ret = rdev->ops->set_default_beacon_key(&rdev->wiphy, netdev, link_id,
+	ret = rdev->ops->set_default_beacon_key(&rdev->wiphy, wdev, link_id,
 						 key_index);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;

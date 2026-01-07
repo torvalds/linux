@@ -532,11 +532,11 @@ qtnf_dump_station(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return ret;
 }
 
-static int qtnf_add_key(struct wiphy *wiphy, struct net_device *dev,
+static int qtnf_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 			int link_id, u8 key_index, bool pairwise,
 			const u8 *mac_addr, struct key_params *params)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;
 
 	ret = qtnf_cmd_send_add_key(vif, key_index, pairwise, mac_addr, params);
@@ -548,11 +548,11 @@ static int qtnf_add_key(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-static int qtnf_del_key(struct wiphy *wiphy, struct net_device *dev,
+static int qtnf_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 			int link_id, u8 key_index, bool pairwise,
 			const u8 *mac_addr)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;
 
 	ret = qtnf_cmd_send_del_key(vif, key_index, pairwise, mac_addr);
@@ -587,10 +587,10 @@ static int qtnf_set_default_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int
-qtnf_set_default_mgmt_key(struct wiphy *wiphy, struct net_device *dev,
+qtnf_set_default_mgmt_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 			  int link_id, u8 key_index)
 {
-	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;
 
 	ret = qtnf_cmd_send_set_default_mgmt_key(vif, key_index);

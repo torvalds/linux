@@ -534,7 +534,7 @@ static int wilc_wfi_cfg_copy_wpa_info(struct wilc_wfi_key *key_info,
 	return 0;
 }
 
-static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+static int add_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 		   u8 key_index, bool pairwise, const u8 *mac_addr,
 		   struct key_params *params)
 
@@ -544,7 +544,7 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 	const u8 *tx_mic = NULL;
 	u8 mode = WILC_FW_SEC_NO;
 	u8 op_mode;
-	struct wilc_vif *vif = netdev_priv(netdev);
+	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 	struct wilc_wfi_key *key;
 
@@ -632,19 +632,19 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 		break;
 
 	default:
-		netdev_err(netdev, "%s: Unsupported cipher\n", __func__);
+		netdev_err(wdev->netdev, "%s: Unsupported cipher\n", __func__);
 		ret = -ENOTSUPP;
 	}
 
 	return ret;
 }
 
-static int del_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+static int del_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 		   u8 key_index,
 		   bool pairwise,
 		   const u8 *mac_addr)
 {
-	struct wilc_vif *vif = netdev_priv(netdev);
+	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 
 	if (!pairwise && (key_index == 4 || key_index == 5)) {
@@ -680,12 +680,12 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
 	return 0;
 }
 
-static int get_key(struct wiphy *wiphy, struct net_device *netdev, int link_id,
+static int get_key(struct wiphy *wiphy, struct wireless_dev *wdev, int link_id,
 		   u8 key_index, bool pairwise, const u8 *mac_addr,
 		   void *cookie,
 		   void (*callback)(void *cookie, struct key_params *))
 {
-	struct wilc_vif *vif = netdev_priv(netdev);
+	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	struct wilc_priv *priv = &vif->priv;
 	struct  key_params key_params;
 
@@ -725,10 +725,10 @@ static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 	return 0;
 }
 
-static int set_default_mgmt_key(struct wiphy *wiphy, struct net_device *netdev,
+static int set_default_mgmt_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 				int link_id, u8 key_index)
 {
-	struct wilc_vif *vif = netdev_priv(netdev);
+	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 
 	return wilc_set_default_mgmt_key_index(vif, key_index);
 }

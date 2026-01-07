@@ -141,11 +141,11 @@ static void *mwifiex_cfg80211_get_adapter(struct wiphy *wiphy)
  * CFG802.11 operation handler to delete a network key.
  */
 static int
-mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct net_device *netdev,
+mwifiex_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 int link_id, u8 key_index, bool pairwise,
 			 const u8 *mac_addr)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	static const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
 
@@ -480,11 +480,11 @@ mwifiex_cfg80211_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
  * CFG802.11 operation handler to add a network key.
  */
 static int
-mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
+mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 int link_id, u8 key_index, bool pairwise,
 			 const u8 *mac_addr, struct key_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_wep_key *wep_key;
 	static const u8 bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	const u8 *peer_mac = pairwise ? mac_addr : bc_mac;
@@ -518,11 +518,11 @@ mwifiex_cfg80211_add_key(struct wiphy *wiphy, struct net_device *netdev,
  */
 static int
 mwifiex_cfg80211_set_default_mgmt_key(struct wiphy *wiphy,
-				      struct net_device *netdev,
+				      struct wireless_dev *wdev,
 				      int link_id,
 				      u8 key_index)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(netdev);
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
 	struct mwifiex_ds_encrypt_key encrypt_key;
 
 	wiphy_dbg(wiphy, "set default mgmt key, key index=%d\n", key_index);

@@ -4924,24 +4924,24 @@ struct cfg80211_ops {
 				 struct wireless_dev *wdev,
 				 unsigned int link_id);
 
-	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
+	int	(*add_key)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   int link_id, u8 key_index, bool pairwise,
 			   const u8 *mac_addr, struct key_params *params);
-	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
+	int	(*get_key)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   int link_id, u8 key_index, bool pairwise,
 			   const u8 *mac_addr, void *cookie,
 			   void (*callback)(void *cookie, struct key_params*));
-	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
+	int	(*del_key)(struct wiphy *wiphy, struct wireless_dev *wdev,
 			   int link_id, u8 key_index, bool pairwise,
 			   const u8 *mac_addr);
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev, int link_id,
 				   u8 key_index, bool unicast, bool multicast);
 	int	(*set_default_mgmt_key)(struct wiphy *wiphy,
-					struct net_device *netdev, int link_id,
+					struct wireless_dev *wdev, int link_id,
 					u8 key_index);
 	int	(*set_default_beacon_key)(struct wiphy *wiphy,
-					  struct net_device *netdev,
+					  struct wireless_dev *wdev,
 					  int link_id,
 					  u8 key_index);
 
