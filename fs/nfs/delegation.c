@@ -315,7 +315,7 @@ static struct inode *nfs_delegation_grab_inode(struct nfs_delegation *delegation
 }
 
 static struct nfs_delegation *
-nfs_start_delegation_return_locked(struct nfs_inode *nfsi)
+nfs_start_delegation_return(struct nfs_inode *nfsi)
 {
 	struct nfs_delegation *ret = NULL;
 	struct nfs_delegation *delegation;
@@ -588,7 +588,7 @@ static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation 
 out_return:
 	err = nfs_do_return_delegation(inode, delegation, issync);
 out:
-	/* Refcount matched in nfs_start_delegation_return_locked() */
+	/* Refcount matched in nfs_start_delegation_return() */
 	nfs_put_delegation(delegation);
 	return err;
 }
@@ -663,7 +663,7 @@ restart:
 			}
 		}
 
-		delegation = nfs_start_delegation_return_locked(NFS_I(inode));
+		delegation = nfs_start_delegation_return(NFS_I(inode));
 		rcu_read_unlock();
 
 		iput(to_put);
@@ -786,7 +786,7 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	struct nfs_delegation *delegation;
 
 	rcu_read_lock();
-	delegation = nfs_start_delegation_return_locked(nfsi);
+	delegation = nfs_start_delegation_return(nfsi);
 	rcu_read_unlock();
 
 	if (!delegation)
@@ -1263,13 +1263,13 @@ restart:
 		inode = nfs_delegation_grab_inode(delegation);
 		if (inode == NULL)
 			continue;
-		delegation = nfs_start_delegation_return_locked(NFS_I(inode));
+		delegation = nfs_start_delegation_return(NFS_I(inode));
 		rcu_read_unlock();
 		if (delegation != NULL) {
 			if (nfs_detach_delegation(NFS_I(inode), delegation,
 						server) != NULL)
 				nfs_free_delegation(server, delegation);
-			/* Match nfs_start_delegation_return_locked */
+			/* Match nfs_start_delegation_return */
 			nfs_put_delegation(delegation);
 		}
 		iput(inode);
