@@ -29,9 +29,6 @@ static int gpio_lmux_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_lmux *glm = gpiochip_get_data(gc);
 	int ret;
 
-	if (offset > gc->ngpio)
-		return -EINVAL;
-
 	ret = mux_control_select_delay(glm->mux, glm->gpio_mux_states[offset],
 				       MUX_SELECT_DELAY_US);
 	if (ret < 0)
@@ -40,12 +37,6 @@ static int gpio_lmux_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	ret = gpiod_get_raw_value_cansleep(glm->muxed_gpio);
 	mux_control_deselect(glm->mux);
 	return ret;
-}
-
-static int gpio_lmux_gpio_set(struct gpio_chip *gc, unsigned int offset,
-			      int value)
-{
-	return -EOPNOTSUPP;
 }
 
 static int gpio_lmux_gpio_get_direction(struct gpio_chip *gc,
@@ -80,7 +71,6 @@ static int gpio_lmux_probe(struct platform_device *pdev)
 	glm->gc.parent = dev;
 
 	glm->gc.get = gpio_lmux_gpio_get;
-	glm->gc.set = gpio_lmux_gpio_set;
 	glm->gc.get_direction = gpio_lmux_gpio_get_direction;
 
 	glm->mux = devm_mux_control_get(dev, NULL);
