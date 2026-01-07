@@ -541,10 +541,6 @@ int intel_huc_auth(struct intel_huc *huc, enum intel_huc_authentication_type typ
 	if (intel_huc_is_authenticated(huc, type))
 		return -EEXIST;
 
-	ret = i915_inject_probe_error(gt->i915, -ENXIO);
-	if (ret)
-		goto fail;
-
 	switch (type) {
 	case INTEL_HUC_AUTH_BY_GUC:
 		ret = intel_guc_auth_huc(guc, intel_guc_ggtt_offset(guc, huc->fw.rsa_data));

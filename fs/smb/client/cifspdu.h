@@ -12,7 +12,7 @@
 #include <net/sock.h>
 #include <linux/unaligned.h>
 #include "../common/smbfsctl.h"
-#include "../common/smb2pdu.h"
+#include "../common/smb1pdu.h"
 
 #define CIFS_PROT   0
 #define POSIX_PROT  (CIFS_PROT+1)

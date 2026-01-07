@@ -1316,7 +1316,7 @@ typedef struct drm_i915_gem_object *
 
 static inline bool igt_can_allocate_thp(struct drm_i915_private *i915)
 {
-	return i915->mm.gemfs && has_transparent_hugepage();
+	return !!drm_gem_get_huge_mnt(&i915->drm);
 }
 
 static struct drm_i915_gem_object *
@@ -1761,7 +1761,6 @@ static int igt_tmpfs_fallback(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct i915_address_space *vm;
 	struct i915_gem_context *ctx;
-	struct vfsmount *gemfs = i915->mm.gemfs;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 	struct file *file;
@@ -1779,15 +1778,8 @@ static int igt_tmpfs_fallback(void *arg)
 	}
 	vm = i915_gem_context_get_eb_vm(ctx);
 
-	/*
-	 * Make sure that we don't burst into a ball of flames upon falling back
-	 * to tmpfs, which we rely on if on the off-chance we encounter a failure
-	 * when setting up gemfs.
-	 */
-
-	i915->mm.gemfs = NULL;
-
-	obj = i915_gem_object_create_shmem(i915, PAGE_SIZE);
+	obj = i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_SMEM],
+					    PAGE_SIZE, 0, I915_BO_ALLOC_NOTHP);
 	if (IS_ERR(obj)) {
 		err = PTR_ERR(obj);
 		goto out_restore;
@@ -1819,7 +1811,6 @@ static int igt_tmpfs_fallback(void *arg)
 out_put:
 	i915_gem_object_put(obj);
 out_restore:
-	i915->mm.gemfs = gemfs;
 
 	i915_vm_put(vm);
 out:

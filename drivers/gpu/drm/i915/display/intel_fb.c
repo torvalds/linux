@@ -20,7 +20,7 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "intel_frontbuffer.h"
-#include "intel_panic.h"
+#include "intel_parent.h"
 #include "intel_plane.h"
 
 #define check_array_bounds(display, a, i) drm_WARN_ON((display)->drm, (i) >= ARRAY_SIZE(a))
@@ -558,7 +558,7 @@ static bool plane_has_modifier(struct intel_display *display,
 	 * where supported.
 	 */
 	if (intel_fb_is_ccs_modifier(md->modifier) &&
-	    HAS_AUX_CCS(display) != !!md->ccs.packed_aux_planes)
+	    intel_parent_has_auxccs(display) != !!md->ccs.packed_aux_planes)
 		return false;
 
 	if (md->modifier == I915_FORMAT_MOD_4_TILED_BMG_CCS &&
@@ -2216,7 +2216,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	int ret;
 	int i;
 
-	intel_fb->panic = intel_panic_alloc();
+	intel_fb->panic = intel_parent_panic_alloc(display);
 	if (!intel_fb->panic)
 		return -ENOMEM;
 

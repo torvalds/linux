@@ -1283,6 +1283,8 @@ struct bpf_ksym {
 	struct list_head	 lnode;
 	struct latch_tree_node	 tnode;
 	bool			 prog;
+	u32			 fp_start;
+	u32			 fp_end;
 };
 
 enum bpf_tramp_prog_type {
@@ -1511,6 +1513,7 @@ void bpf_image_ksym_add(struct bpf_ksym *ksym);
 void bpf_image_ksym_del(struct bpf_ksym *ksym);
 void bpf_ksym_add(struct bpf_ksym *ksym);
 void bpf_ksym_del(struct bpf_ksym *ksym);
+bool bpf_has_frame_pointer(unsigned long ip);
 int bpf_jit_charge_modmem(u32 size);
 void bpf_jit_uncharge_modmem(u32 size);
 bool bpf_prog_has_trampoline(const struct bpf_prog *prog);

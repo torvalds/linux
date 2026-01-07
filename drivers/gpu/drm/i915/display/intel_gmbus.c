@@ -35,8 +35,6 @@
 #include <drm/drm_print.h>
 #include <drm/display/drm_hdcp_helper.h>
 
-#include "i915_drv.h"
-#include "i915_irq.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
@@ -44,6 +42,7 @@
 #include "intel_display_wa.h"
 #include "intel_gmbus.h"
 #include "intel_gmbus_regs.h"
+#include "intel_parent.h"
 
 struct intel_gmbus {
 	struct i2c_adapter adapter;
@@ -391,12 +390,11 @@ intel_gpio_setup(struct intel_gmbus *bus, i915_reg_t gpio_reg)
 
 static bool has_gmbus_irq(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	/*
 	 * encoder->shutdown() may want to use GMBUS
 	 * after irqs have already been disabled.
 	 */
-	return HAS_GMBUS_IRQ(display) && intel_irqs_enabled(i915);
+	return HAS_GMBUS_IRQ(display) && intel_parent_irq_enabled(display);
 }
 
 static int gmbus_wait(struct intel_display *display, u32 status, u32 irq_en)
@@ -791,7 +789,7 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 	struct intel_display *display = bus->display;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_GMBUS);
@@ -831,7 +829,7 @@ int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
 			.buf = buf,
 		}
 	};
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_GMBUS);

@@ -33,6 +33,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "display/intel_display_irq.h"
 #include "display/intel_hotplug.h"
@@ -1252,3 +1253,18 @@ void intel_synchronize_hardirq(struct drm_i915_private *i915)
 {
 	synchronize_hardirq(to_pci_dev(i915->drm.dev)->irq);
 }
+
+static bool _intel_irq_enabled(struct drm_device *drm)
+{
+	return intel_irqs_enabled(to_i915(drm));
+}
+
+static void _intel_irq_synchronize(struct drm_device *drm)
+{
+	return intel_synchronize_irq(to_i915(drm));
+}
+
+const struct intel_display_irq_interface i915_display_irq_interface = {
+	.enabled = _intel_irq_enabled,
+	.synchronize = _intel_irq_synchronize,
+};

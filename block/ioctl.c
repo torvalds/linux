@@ -442,11 +442,12 @@ static int blkdev_pr_read_keys(struct block_device *bdev, blk_mode_t mode,
 	if (copy_from_user(&read_keys, arg, sizeof(read_keys)))
 		return -EFAULT;
 
-	keys_info_len = struct_size(keys_info, keys, read_keys.num_keys);
-	if (keys_info_len == SIZE_MAX)
+	if (read_keys.num_keys > PR_KEYS_MAX)
 		return -EINVAL;
 
-	keys_info = kzalloc(keys_info_len, GFP_KERNEL);
+	keys_info_len = struct_size(keys_info, keys, read_keys.num_keys);
+
+	keys_info = kvzalloc(keys_info_len, GFP_KERNEL);
 	if (!keys_info)
 		return -ENOMEM;
 
@@ -473,7 +474,7 @@ static int blkdev_pr_read_keys(struct block_device *bdev, blk_mode_t mode,
 	if (copy_to_user(arg, &read_keys, sizeof(read_keys)))
 		ret = -EFAULT;
 out:
-	kfree(keys_info);
+	kvfree(keys_info);
 	return ret;
 }
 

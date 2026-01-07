@@ -696,13 +696,6 @@ struct xe_device {
 	 * drm_i915_private during build. After cleanup these should go away,
 	 * migrating to the right sub-structs
 	 */
-	const struct dram_info *dram_info;
-
-	/*
-	 * edram size in MB.
-	 * Cannot be determined by PCIID. You must always read a register.
-	 */
-	u32 edram_size_mb;
 
 	struct intel_uncore {
 		spinlock_t lock;

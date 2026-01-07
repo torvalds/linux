@@ -10,8 +10,8 @@
 
 #include "intel_display_core.h"
 #include "intel_display_types.h"
-#include "intel_hdcp_gsc.h"
 #include "intel_hdcp_gsc_message.h"
+#include "intel_parent.h"
 
 static int
 intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
@@ -44,10 +44,9 @@ intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 	session_init_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 	session_init_in.protocol = data->protocol;
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &session_init_in,
-				       sizeof(session_init_in),
-				       &session_init_out,
-				       sizeof(session_init_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &session_init_in, sizeof(session_init_in),
+					      &session_init_out, sizeof(session_init_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -106,10 +105,9 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 	memcpy(verify_rxcert_in.r_rx, &rx_cert->r_rx, HDCP_2_2_RRX_LEN);
 	memcpy(verify_rxcert_in.rx_caps, rx_cert->rx_caps, HDCP_2_2_RXCAPS_LEN);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &verify_rxcert_in,
-				       sizeof(verify_rxcert_in),
-				       &verify_rxcert_out,
-				       sizeof(verify_rxcert_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &verify_rxcert_in, sizeof(verify_rxcert_in),
+					      &verify_rxcert_out, sizeof(verify_rxcert_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed: %zd\n", byte);
 		return byte;
@@ -169,10 +167,9 @@ intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 	memcpy(send_hprime_in.h_prime, rx_hprime->h_prime,
 	       HDCP_2_2_H_PRIME_LEN);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &send_hprime_in,
-				       sizeof(send_hprime_in),
-				       &send_hprime_out,
-				       sizeof(send_hprime_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &send_hprime_in, sizeof(send_hprime_in),
+					      &send_hprime_out, sizeof(send_hprime_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -220,10 +217,9 @@ intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *dat
 	memcpy(pairing_info_in.e_kh_km, pairing_info->e_kh_km,
 	       HDCP_2_2_E_KH_KM_LEN);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &pairing_info_in,
-				       sizeof(pairing_info_in),
-				       &pairing_info_out,
-				       sizeof(pairing_info_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &pairing_info_in, sizeof(pairing_info_in),
+					      &pairing_info_out, sizeof(pairing_info_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -269,8 +265,9 @@ intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 	lc_init_in.port.physical_port = (u8)data->hdcp_ddi;
 	lc_init_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &lc_init_in, sizeof(lc_init_in),
-				       &lc_init_out, sizeof(lc_init_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &lc_init_in, sizeof(lc_init_in),
+					      &lc_init_out, sizeof(lc_init_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -321,10 +318,9 @@ intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 	memcpy(verify_lprime_in.l_prime, rx_lprime->l_prime,
 	       HDCP_2_2_L_PRIME_LEN);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &verify_lprime_in,
-				       sizeof(verify_lprime_in),
-				       &verify_lprime_out,
-				       sizeof(verify_lprime_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &verify_lprime_in, sizeof(verify_lprime_in),
+					      &verify_lprime_out, sizeof(verify_lprime_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -370,8 +366,9 @@ intel_hdcp_gsc_get_session_key(struct device *dev,
 	get_skey_in.port.physical_port = (u8)data->hdcp_ddi;
 	get_skey_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &get_skey_in, sizeof(get_skey_in),
-				       &get_skey_out, sizeof(get_skey_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &get_skey_in, sizeof(get_skey_in),
+					      &get_skey_out, sizeof(get_skey_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -434,10 +431,9 @@ intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 	memcpy(verify_repeater_in.receiver_ids, rep_topology->receiver_ids,
 	       HDCP_2_2_RECEIVER_IDS_MAX_LEN);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &verify_repeater_in,
-				       sizeof(verify_repeater_in),
-				       &verify_repeater_out,
-				       sizeof(verify_repeater_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &verify_repeater_in, sizeof(verify_repeater_in),
+					      &verify_repeater_out, sizeof(verify_repeater_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -504,9 +500,9 @@ intel_hdcp_gsc_verify_mprime(struct device *dev,
 
 	verify_mprime_in->k = cpu_to_be16(data->k);
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, verify_mprime_in, cmd_size,
-				       &verify_mprime_out,
-				       sizeof(verify_mprime_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      verify_mprime_in, cmd_size,
+					      &verify_mprime_out, sizeof(verify_mprime_out));
 	kfree(verify_mprime_in);
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
@@ -552,10 +548,9 @@ static int intel_hdcp_gsc_enable_authentication(struct device *dev,
 	enable_auth_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 	enable_auth_in.stream_type = data->streams[0].stream_type;
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &enable_auth_in,
-				       sizeof(enable_auth_in),
-				       &enable_auth_out,
-				       sizeof(enable_auth_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &enable_auth_in, sizeof(enable_auth_in),
+					      &enable_auth_out, sizeof(enable_auth_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -599,10 +594,9 @@ intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 	session_close_in.port.physical_port = (u8)data->hdcp_ddi;
 	session_close_in.port.attached_transcoder = (u8)data->hdcp_transcoder;
 
-	byte = intel_hdcp_gsc_msg_send(gsc_context, &session_close_in,
-				       sizeof(session_close_in),
-				       &session_close_out,
-				       sizeof(session_close_out));
+	byte = intel_parent_hdcp_gsc_msg_send(display, gsc_context,
+					      &session_close_in, sizeof(session_close_in),
+					      &session_close_out, sizeof(session_close_out));
 	if (byte < 0) {
 		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
@@ -645,7 +639,7 @@ int intel_hdcp_gsc_init(struct intel_display *display)
 
 	mutex_lock(&display->hdcp.hdcp_mutex);
 
-	gsc_context = intel_hdcp_gsc_context_alloc(display->drm);
+	gsc_context = intel_parent_hdcp_gsc_context_alloc(display);
 	if (IS_ERR(gsc_context)) {
 		ret = PTR_ERR(gsc_context);
 		kfree(arbiter);
@@ -665,7 +659,7 @@ out:
 
 void intel_hdcp_gsc_fini(struct intel_display *display)
 {
-	intel_hdcp_gsc_context_free(display->hdcp.gsc_context);
+	intel_parent_hdcp_gsc_context_free(display, display->hdcp.gsc_context);
 	display->hdcp.gsc_context = NULL;
 	kfree(display->hdcp.arbiter);
 	display->hdcp.arbiter = NULL;

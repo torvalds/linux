@@ -154,6 +154,8 @@ properties:
       - hannstar,hsd070pww1
         # HannStar Display Corp. HSD100PXN1 10.1" XGA LVDS panel
       - hannstar,hsd100pxn1
+        # HannStar Display Corp. HSD156JUW2 15.6" FHD (1920x1080) TFT LCD panel
+      - hannstar,hsd156juw2
         # Hitachi Ltd. Corporation 9" WVGA (800x480) TFT LCD panel
       - hit,tx23d38vm0caa
         # Innolux AT043TN24 4.3" WQVGA TFT LCD panel

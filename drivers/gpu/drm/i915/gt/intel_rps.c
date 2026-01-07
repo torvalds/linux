@@ -6,12 +6,13 @@
 #include <linux/string_helpers.h>
 
 #include <drm/intel/i915_drm.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "display/intel_display_rps.h"
 #include "display/vlv_clock.h"
-#include "soc/intel_dram.h"
 
 #include "i915_drv.h"
+#include "i915_freq.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "i915_wait_util.h"
@@ -284,8 +285,8 @@ static void gen5_rps_init(struct intel_rps *rps)
 	u32 rgvmodectl;
 	int c_m, i;
 
-	fsb_freq = intel_fsb_freq(i915);
-	mem_freq = intel_mem_freq(i915);
+	fsb_freq = ilk_fsb_freq(i915);
+	mem_freq = ilk_mem_freq(i915);
 
 	if (fsb_freq <= 3200000)
 		c_m = 0;
@@ -2913,6 +2914,39 @@ bool i915_gpu_turbo_disable(void)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
+
+static void boost_if_not_started(struct dma_fence *fence)
+{
+	struct i915_request *rq;
+
+	if (!dma_fence_is_i915(fence))
+		return;
+
+	rq = to_request(fence);
+
+	if (!i915_request_started(rq))
+		intel_rps_boost(rq);
+}
+
+static void mark_interactive(struct drm_device *drm, bool interactive)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	intel_rps_mark_interactive(&to_gt(i915)->rps, interactive);
+}
+
+static void ilk_irq_handler(struct drm_device *drm)
+{
+	struct drm_i915_private *i915 = to_i915(drm);
+
+	gen5_rps_irq_handler(&to_gt(i915)->rps);
+}
+
+const struct intel_display_rps_interface i915_display_rps_interface = {
+	.boost_if_not_started = boost_if_not_started,
+	.mark_interactive = mark_interactive,
+	.ilk_irq_handler = ilk_irq_handler,
+};
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftest_rps.c"

@@ -17,6 +17,7 @@
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/xarray.h>
+#include <asm/hypervisor.h>
 
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
@@ -321,7 +322,7 @@ static int aie2_xrs_set_dft_dpm_level(struct drm_device *ddev, u32 dpm_level)
 	if (ndev->pw_mode != POWER_MODE_DEFAULT || ndev->dpm_level == dpm_level)
 		return 0;
 
-	return ndev->priv->hw_ops.set_dpm(ndev, dpm_level);
+	return aie2_pm_set_dpm(ndev, dpm_level);
 }
 
 static struct xrs_action_ops aie2_xrs_actions = {
@@ -507,6 +508,11 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	const struct firmware *fw;
 	unsigned long bars = 0;
 	int i, nvec, ret;
+
+	if (!hypervisor_is_type(X86_HYPER_NATIVE)) {
+		XDNA_ERR(xdna, "Running under hypervisor not supported");
+		return -EINVAL;
+	}
 
 	ndev = drmm_kzalloc(&xdna->ddev, sizeof(*ndev), GFP_KERNEL);
 	if (!ndev)

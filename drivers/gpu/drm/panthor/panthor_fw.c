@@ -1044,7 +1044,8 @@ static void panthor_fw_init_global_iface(struct panthor_device *ptdev)
 	if (panthor_fw_has_glb_state(ptdev))
 		glb_iface->input->ack_irq_mask |= GLB_STATE_MASK;
 
-	panthor_fw_update_reqs(glb_iface, req, GLB_IDLE_EN, GLB_IDLE_EN);
+	panthor_fw_update_reqs(glb_iface, req, GLB_IDLE_EN | GLB_COUNTER_EN,
+			       GLB_IDLE_EN | GLB_COUNTER_EN);
 	panthor_fw_toggle_reqs(glb_iface, req, ack,
 			       GLB_CFG_ALLOC_EN |
 			       GLB_CFG_POWEROFF_TIMER |
@@ -1187,7 +1188,6 @@ void panthor_fw_pre_reset(struct panthor_device *ptdev, bool on_hang)
 		else
 			ptdev->reset.fast = true;
 	}
-	panthor_fw_stop(ptdev);
 
 	panthor_job_irq_suspend(&ptdev->fw->irq);
 	panthor_fw_stop(ptdev);
@@ -1260,10 +1260,6 @@ void panthor_fw_unplug(struct panthor_device *ptdev)
 		/* Make sure the IRQ handler cannot be called after that point. */
 		if (ptdev->fw->irq.irq)
 			panthor_job_irq_suspend(&ptdev->fw->irq);
-
-		panthor_fw_halt_mcu(ptdev);
-		if (!panthor_fw_wait_mcu_halted(ptdev))
-			drm_warn(&ptdev->base, "Failed to halt MCU on unplug");
 
 		panthor_fw_stop(ptdev);
 	}

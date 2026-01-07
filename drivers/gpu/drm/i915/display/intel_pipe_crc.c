@@ -30,13 +30,12 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_drv.h"
-#include "i915_irq.h"
 #include "intel_atomic.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_parent.h"
 #include "intel_pipe_crc.h"
 #include "intel_pipe_crc_regs.h"
 
@@ -589,7 +588,7 @@ int intel_crtc_set_crc_source(struct drm_crtc *_crtc, const char *source_name)
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
 	enum pipe pipe = crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u32 val = 0; /* shut up gcc */
 	int ret = 0;
 	bool enable;
@@ -658,7 +657,6 @@ void intel_crtc_enable_pipe_crc(struct intel_crtc *crtc)
 void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_pipe_crc *pipe_crc = &crtc->pipe_crc;
 	enum pipe pipe = crtc->pipe;
 
@@ -669,5 +667,5 @@ void intel_crtc_disable_pipe_crc(struct intel_crtc *crtc)
 
 	intel_de_write(display, PIPE_CRC_CTL(display, pipe), 0);
 	intel_de_posting_read(display, PIPE_CRC_CTL(display, pipe));
-	intel_synchronize_irq(dev_priv);
+	intel_parent_irq_synchronize(display);
 }

@@ -52,11 +52,6 @@ struct drm_scanout_buffer;
 struct drm_writeback_connector;
 struct drm_writeback_job;
 
-enum mode_set_atomic {
-	LEAVE_ATOMIC_MODE_SET,
-	ENTER_ATOMIC_MODE_SET,
-};
-
 /**
  * struct drm_crtc_helper_funcs - helper operations for CRTCs
  *
@@ -252,24 +247,6 @@ struct drm_crtc_helper_funcs {
 	 */
 	int (*mode_set_base)(struct drm_crtc *crtc, int x, int y,
 			     struct drm_framebuffer *old_fb);
-
-	/**
-	 * @mode_set_base_atomic:
-	 *
-	 * This callback is used by the fbdev helpers to set a new framebuffer
-	 * and scanout without sleeping, i.e. from an atomic calling context. It
-	 * is only used to implement kgdb support.
-	 *
-	 * This callback is optional and only needed for kgdb support in the fbdev
-	 * helpers.
-	 *
-	 * RETURNS:
-	 *
-	 * 0 on success or a negative error code on failure.
-	 */
-	int (*mode_set_base_atomic)(struct drm_crtc *crtc,
-				    struct drm_framebuffer *fb, int x, int y,
-				    enum mode_set_atomic);
 
 	/**
 	 * @disable:

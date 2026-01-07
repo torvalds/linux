@@ -8,7 +8,6 @@
 #include <drm/drm_blend.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
@@ -23,6 +22,7 @@
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_dram.h"
 #include "intel_fb.h"
 #include "intel_fixed.h"
 #include "intel_flipq.h"
@@ -718,7 +718,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	enum intel_display_power_domain power_domain;
 	enum pipe pipe = crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	enum plane_id plane_id;
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
@@ -3125,7 +3125,7 @@ static bool skl_watermark_ipc_can_enable(struct intel_display *display)
 	if (display->platform.kabylake ||
 	    display->platform.coffeelake ||
 	    display->platform.cometlake) {
-		const struct dram_info *dram_info = intel_dram_info(display->drm);
+		const struct dram_info *dram_info = intel_dram_info(display);
 
 		return dram_info->symmetric_memory;
 	}
@@ -3169,7 +3169,7 @@ static void increase_wm_latency(struct intel_display *display, int inc)
 
 static bool need_16gb_dimm_wa(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 
 	return (display->platform.skylake || display->platform.kabylake ||
 		display->platform.coffeelake || display->platform.cometlake ||

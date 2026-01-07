@@ -11,7 +11,6 @@
 
 #include "aie2_pci.h"
 #include "amdxdna_pci_drv.h"
-#include "amdxdna_pm.h"
 
 #define SMU_RESULT_OK		1
 
@@ -67,16 +66,12 @@ int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 	u32 freq;
 	int ret;
 
-	ret = amdxdna_pm_resume_get(ndev->xdna);
-	if (ret)
-		return ret;
-
 	ret = aie2_smu_exec(ndev, AIE2_SMU_SET_MPNPUCLK_FREQ,
 			    ndev->priv->dpm_clk_tbl[dpm_level].npuclk, &freq);
 	if (ret) {
 		XDNA_ERR(ndev->xdna, "Set npu clock to %d failed, ret %d\n",
 			 ndev->priv->dpm_clk_tbl[dpm_level].npuclk, ret);
-		goto suspend_put;
+		return ret;
 	}
 	ndev->npuclk_freq = freq;
 
@@ -85,10 +80,9 @@ int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 	if (ret) {
 		XDNA_ERR(ndev->xdna, "Set h clock to %d failed, ret %d\n",
 			 ndev->priv->dpm_clk_tbl[dpm_level].hclk, ret);
-		goto suspend_put;
+		return ret;
 	}
 
-	amdxdna_pm_suspend_put(ndev->xdna);
 	ndev->hclk_freq = freq;
 	ndev->dpm_level = dpm_level;
 	ndev->max_tops = 2 * ndev->total_col;
@@ -98,35 +92,26 @@ int npu1_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 		 ndev->npuclk_freq, ndev->hclk_freq);
 
 	return 0;
-
-suspend_put:
-	amdxdna_pm_suspend_put(ndev->xdna);
-	return ret;
 }
 
 int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 {
 	int ret;
 
-	ret = amdxdna_pm_resume_get(ndev->xdna);
-	if (ret)
-		return ret;
-
 	ret = aie2_smu_exec(ndev, AIE2_SMU_SET_HARD_DPMLEVEL, dpm_level, NULL);
 	if (ret) {
 		XDNA_ERR(ndev->xdna, "Set hard dpm level %d failed, ret %d ",
 			 dpm_level, ret);
-		goto suspend_put;
+		return ret;
 	}
 
 	ret = aie2_smu_exec(ndev, AIE2_SMU_SET_SOFT_DPMLEVEL, dpm_level, NULL);
 	if (ret) {
 		XDNA_ERR(ndev->xdna, "Set soft dpm level %d failed, ret %d",
 			 dpm_level, ret);
-		goto suspend_put;
+		return ret;
 	}
 
-	amdxdna_pm_suspend_put(ndev->xdna);
 	ndev->npuclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].npuclk;
 	ndev->hclk_freq = ndev->priv->dpm_clk_tbl[dpm_level].hclk;
 	ndev->dpm_level = dpm_level;
@@ -137,10 +122,6 @@ int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
 		 ndev->npuclk_freq, ndev->hclk_freq);
 
 	return 0;
-
-suspend_put:
-	amdxdna_pm_suspend_put(ndev->xdna);
-	return ret;
 }
 
 int aie2_smu_init(struct amdxdna_dev_hdl *ndev)

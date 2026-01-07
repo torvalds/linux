@@ -180,26 +180,16 @@ static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	unsigned long flags = DRM_DP_BW_OVERHEAD_MST;
-	int overhead;
 
-	flags |= intel_dp_is_uhbr(crtc_state) ? DRM_DP_BW_OVERHEAD_UHBR : 0;
 	flags |= ssc ? DRM_DP_BW_OVERHEAD_SSC_REF_CLK : 0;
 	flags |= crtc_state->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
 
-	if (dsc_slice_count)
-		flags |= DRM_DP_BW_OVERHEAD_DSC;
-
-	overhead = drm_dp_bw_overhead(crtc_state->lane_count,
-				      adjusted_mode->hdisplay,
-				      dsc_slice_count,
-				      bpp_x16,
-				      flags);
-
-	/*
-	 * TODO: clarify whether a minimum required by the fixed FEC overhead
-	 * in the bspec audio programming sequence is required here.
-	 */
-	return max(overhead, intel_dp_bw_fec_overhead(crtc_state->fec_enable));
+	return intel_dp_link_bw_overhead(crtc_state->port_clock,
+					 crtc_state->lane_count,
+					 adjusted_mode->hdisplay,
+					 dsc_slice_count,
+					 bpp_x16,
+					 flags);
 }
 
 static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
@@ -344,8 +334,8 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		}
 
 		link_bpp_x16 = dsc ? bpp_x16 :
-			fxp_q4_from_int(intel_dp_output_bpp(crtc_state->output_format,
-							    fxp_q4_to_int(bpp_x16)));
+			intel_dp_output_format_link_bpp_x16(crtc_state->output_format,
+							    fxp_q4_to_int(bpp_x16));
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
@@ -1468,6 +1458,8 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 	const int min_bpp = 18;
 	int max_dotclk = display->cdclk.max_dotclk_freq;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
+	unsigned long bw_overhead_flags =
+		DRM_DP_BW_OVERHEAD_MST | DRM_DP_BW_OVERHEAD_SSC_REF_CLK;
 	int ret;
 	bool dsc = false;
 	u16 dsc_max_compressed_bpp = 0;
@@ -1499,7 +1491,10 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 
 	max_rate = intel_dp_max_link_data_rate(intel_dp,
 					       max_link_clock, max_lanes);
-	mode_rate = intel_dp_link_required(mode->clock, min_bpp);
+	mode_rate = intel_dp_link_required(max_link_clock, max_lanes,
+					   mode->clock, mode->hdisplay,
+					   fxp_q4_from_int(min_bpp),
+					   bw_overhead_flags);
 
 	/*
 	 * TODO:

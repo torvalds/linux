@@ -36,10 +36,7 @@
 
 #define gt_probe_error(_gt, _fmt, ...) \
 	do { \
-		if (i915_error_injected()) \
-			gt_dbg(_gt, _fmt, ##__VA_ARGS__); \
-		else \
-			gt_err(_gt, _fmt, ##__VA_ARGS__); \
+		gt_err(_gt, _fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define gt_WARN(_gt, _condition, _fmt, ...) \

@@ -8201,6 +8201,9 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/display/sitronix,st7567.yaml
 F:	Documentation/devicetree/bindings/display/sitronix,st7571.yaml
 F:	drivers/gpu/drm/sitronix/st7571-i2c.c
+F:	drivers/gpu/drm/sitronix/st7571-spi.c
+F:	drivers/gpu/drm/sitronix/st7571.c
+F:	drivers/gpu/drm/sitronix/st7571.h
 
 DRM DRIVER FOR SITRONIX ST7701 PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
@@ -8222,6 +8225,13 @@ S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	Documentation/devicetree/bindings/display/sitronix,st7735r.yaml
 F:	drivers/gpu/drm/sitronix/st7735r.c
+
+DRM DRIVER FOR SITRONIX ST7920 LCD DISPLAYS
+M:	Iker Pedrosa <ikerpedrosam@gmail.com>
+S:	Maintained
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	Documentation/devicetree/bindings/display/sitronix,st7920.yaml
+F:	drivers/gpu/drm/sitronix/st7920.c
 
 DRM DRIVER FOR SOLOMON SSD130X OLED DISPLAYS
 M:	Javier Martinez Canillas <javierm@redhat.com>
@@ -18028,7 +18038,6 @@ F:	drivers/net/ethernet/neterion/
 
 NETFILTER
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
-M:	Jozsef Kadlecsik <kadlec@netfilter.org>
 M:	Florian Westphal <fw@strlen.de>
 R:	Phil Sutter <phil@nwl.cc>
 L:	netfilter-devel@vger.kernel.org
@@ -26464,6 +26473,7 @@ L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-trace-kernel/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
+F:	Documentation/core-api/tracepoint.rst
 F:	Documentation/trace/*
 F:	fs/tracefs/
 F:	include/linux/trace*.h

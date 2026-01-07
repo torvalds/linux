@@ -6,8 +6,6 @@
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_bw.h"
@@ -16,6 +14,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pcode.h"
 #include "intel_uncore.h"
@@ -800,7 +799,7 @@ static unsigned int icl_qgv_bw(struct intel_display *display,
 
 void intel_bw_init_hw(struct intel_display *display)
 {
-	const struct dram_info *dram_info = intel_dram_info(display->drm);
+	const struct dram_info *dram_info = intel_dram_info(display);
 
 	if (!HAS_DISPLAY(display))
 		return;

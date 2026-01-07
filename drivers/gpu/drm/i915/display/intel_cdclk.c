@@ -28,10 +28,7 @@
 #include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 
-#include "soc/intel_dram.h"
-
 #include "hsw_ips.h"
-#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
@@ -42,11 +39,13 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_dram.h"
 #include "intel_mchbar_regs.h"
 #include "intel_pci_config.h"
 #include "intel_pcode.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
+#include "intel_step.h"
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
@@ -668,7 +667,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {
@@ -758,7 +757,7 @@ static void chv_set_cdclk(struct intel_display *display,
 {
 	int cdclk = cdclk_config->cdclk;
 	u32 val, cmd = cdclk_config->voltage_level;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int ret;
 
 	switch (cdclk) {
@@ -3738,10 +3737,8 @@ static int pch_rawclk(struct intel_display *display)
 
 static int i9xx_hrawclk(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	/* hrawclock is 1/4 the FSB frequency */
-	return DIV_ROUND_CLOSEST(intel_fsb_freq(i915), 4);
+	return DIV_ROUND_CLOSEST(intel_fsb_freq(display), 4);
 }
 
 /**

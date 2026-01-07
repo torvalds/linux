@@ -456,7 +456,7 @@ EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_tt_unpopulate);
 /* Test the shrinker functions and dump the result */
 static int ttm_tt_debugfs_shrink_show(struct seq_file *m, void *data)
 {
-	struct ttm_operation_ctx ctx = { false, false };
+	struct ttm_operation_ctx ctx = { };
 
 	seq_printf(m, "%d\n", ttm_global_swapout(&ctx, GFP_KERNEL));
 	return 0;

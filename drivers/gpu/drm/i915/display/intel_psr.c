@@ -494,82 +494,37 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 	return val;
 }
 
-static u8 intel_dp_get_su_capability(struct intel_dp *intel_dp)
-{
-	u8 su_capability = 0;
-
-	if (intel_dp->psr.sink_panel_replay_su_support) {
-		if (drm_dp_dpcd_read_byte(&intel_dp->aux,
-					  DP_PANEL_REPLAY_CAP_CAPABILITY,
-					  &su_capability) < 0)
-			return 0;
-	} else {
-		su_capability = intel_dp->psr_dpcd[1];
-	}
-
-	return su_capability;
-}
-
-static unsigned int
-intel_dp_get_su_x_granularity_offset(struct intel_dp *intel_dp)
-{
-	return intel_dp->psr.sink_panel_replay_su_support ?
-		DP_PANEL_REPLAY_CAP_X_GRANULARITY :
-		DP_PSR2_SU_X_GRANULARITY;
-}
-
-static unsigned int
-intel_dp_get_su_y_granularity_offset(struct intel_dp *intel_dp)
-{
-	return intel_dp->psr.sink_panel_replay_su_support ?
-		DP_PANEL_REPLAY_CAP_Y_GRANULARITY :
-		DP_PSR2_SU_Y_GRANULARITY;
-}
-
-/*
- * Note: Bits related to granularity are same in panel replay and psr
- * registers. Rely on PSR definitions on these "common" bits.
- */
-static void intel_dp_get_su_granularity(struct intel_dp *intel_dp)
+static void _psr_compute_su_granularity(struct intel_dp *intel_dp,
+					struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	ssize_t r;
-	u16 w;
+	__le16 w;
 	u8 y;
-
-	/*
-	 * TODO: Do we need to take into account panel supporting both PSR and
-	 * Panel replay?
-	 */
 
 	/*
 	 * If sink don't have specific granularity requirements set legacy
 	 * ones.
 	 */
-	if (!(intel_dp_get_su_capability(intel_dp) &
-	      DP_PSR2_SU_GRANULARITY_REQUIRED)) {
+	if (!(connector->dp.psr_caps.dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED)) {
 		/* As PSR2 HW sends full lines, we do not care about x granularity */
-		w = 4;
+		w = cpu_to_le16(4);
 		y = 4;
 		goto exit;
 	}
 
-	r = drm_dp_dpcd_read(&intel_dp->aux,
-			     intel_dp_get_su_x_granularity_offset(intel_dp),
-			     &w, 2);
-	if (r != 2)
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &w, sizeof(w));
+	if (r != sizeof(w))
 		drm_dbg_kms(display->drm,
 			    "Unable to read selective update x granularity\n");
 	/*
 	 * Spec says that if the value read is 0 the default granularity should
 	 * be used instead.
 	 */
-	if (r != 2 || w == 0)
-		w = 4;
+	if (r != sizeof(w) || w == 0)
+		w = cpu_to_le16(4);
 
-	r = drm_dp_dpcd_read(&intel_dp->aux,
-			     intel_dp_get_su_y_granularity_offset(intel_dp),
-			     &y, 1);
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_Y_GRANULARITY, &y, 1);
 	if (r != 1) {
 		drm_dbg_kms(display->drm,
 			    "Unable to read selective update y granularity\n");
@@ -579,17 +534,17 @@ static void intel_dp_get_su_granularity(struct intel_dp *intel_dp)
 		y = 1;
 
 exit:
-	intel_dp->psr.su_w_granularity = w;
-	intel_dp->psr.su_y_granularity = y;
+	connector->dp.psr_caps.su_w_granularity = le16_to_cpu(w);
+	connector->dp.psr_caps.su_y_granularity = y;
 }
 
 static enum intel_panel_replay_dsc_support
-compute_pr_dsc_support(struct intel_dp *intel_dp)
+compute_pr_dsc_support(struct intel_connector *connector)
 {
 	u8 pr_dsc_mode;
 	u8 val;
 
-	val = intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)];
+	val = connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)];
 	pr_dsc_mode = REG_FIELD_GET8(DP_PANEL_REPLAY_DSC_DECODE_CAPABILITY_IN_PR_MASK, val);
 
 	switch (pr_dsc_mode) {
@@ -621,7 +576,31 @@ static const char *panel_replay_dsc_support_str(enum intel_panel_replay_dsc_supp
 	};
 }
 
-static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
+static void _panel_replay_compute_su_granularity(struct intel_connector *connector)
+{
+	u16 w;
+	u8 y;
+
+	if (!(connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+	       DP_PANEL_REPLAY_SU_GRANULARITY_REQUIRED)) {
+		w = 4;
+		y = 4;
+		goto exit;
+	}
+
+	/*
+	 * Spec says that if the value read is 0 the default granularity should
+	 * be used instead.
+	 */
+	w = le16_to_cpu(*(__le16 *)&connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_X_GRANULARITY)]) ? : 4;
+	y = connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_Y_GRANULARITY)] ? : 1;
+
+exit:
+	connector->dp.panel_replay_caps.su_w_granularity = w;
+	connector->dp.panel_replay_caps.su_y_granularity = y;
+}
+
+static void _panel_replay_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int ret;
@@ -631,11 +610,12 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 		return;
 
 	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PANEL_REPLAY_CAP_SUPPORT,
-				    &intel_dp->pr_dpcd, sizeof(intel_dp->pr_dpcd));
+				    &connector->dp.panel_replay_caps.dpcd,
+				    sizeof(connector->dp.panel_replay_caps.dpcd));
 	if (ret < 0)
 		return;
 
-	if (!(intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+	if (!(connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
 	      DP_PANEL_REPLAY_SUPPORT))
 		return;
 
@@ -646,7 +626,7 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 			return;
 		}
 
-		if (!(intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+		if (!(connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
 		      DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT)) {
 			drm_dbg_kms(display->drm,
 				    "Panel doesn't support early transport, eDP Panel Replay not possible\n");
@@ -654,36 +634,40 @@ static void _panel_replay_init_dpcd(struct intel_dp *intel_dp)
 		}
 	}
 
+	connector->dp.panel_replay_caps.support = true;
 	intel_dp->psr.sink_panel_replay_support = true;
 
-	if (intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
-	    DP_PANEL_REPLAY_SU_SUPPORT)
-		intel_dp->psr.sink_panel_replay_su_support = true;
+	if (connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+	    DP_PANEL_REPLAY_SU_SUPPORT) {
+		connector->dp.panel_replay_caps.su_support = true;
 
-	intel_dp->psr.sink_panel_replay_dsc_support = compute_pr_dsc_support(intel_dp);
+		_panel_replay_compute_su_granularity(connector);
+	}
+
+	connector->dp.panel_replay_caps.dsc_support = compute_pr_dsc_support(connector);
 
 	drm_dbg_kms(display->drm,
 		    "Panel replay %sis supported by panel (in DSC mode: %s)\n",
-		    intel_dp->psr.sink_panel_replay_su_support ?
+		    connector->dp.panel_replay_caps.su_support ?
 		    "selective_update " : "",
-		    panel_replay_dsc_support_str(intel_dp->psr.sink_panel_replay_dsc_support));
+		    panel_replay_dsc_support_str(connector->dp.panel_replay_caps.dsc_support));
 }
 
-static void _psr_init_dpcd(struct intel_dp *intel_dp)
+static void _psr_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int ret;
 
-	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PSR_SUPPORT, intel_dp->psr_dpcd,
-				    sizeof(intel_dp->psr_dpcd));
+	ret = drm_dp_dpcd_read_data(&intel_dp->aux, DP_PSR_SUPPORT, connector->dp.psr_caps.dpcd,
+				    sizeof(connector->dp.psr_caps.dpcd));
 	if (ret < 0)
 		return;
 
-	if (!intel_dp->psr_dpcd[0])
+	if (!connector->dp.psr_caps.dpcd[0])
 		return;
 
 	drm_dbg_kms(display->drm, "eDP panel supports PSR version %x\n",
-		    intel_dp->psr_dpcd[0]);
+		    connector->dp.psr_caps.dpcd[0]);
 
 	if (drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_NO_PSR)) {
 		drm_dbg_kms(display->drm,
@@ -697,13 +681,14 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 		return;
 	}
 
+	connector->dp.psr_caps.support = true;
 	intel_dp->psr.sink_support = true;
-	intel_dp->psr.sink_sync_latency =
-		intel_dp_get_sink_sync_latency(intel_dp);
+
+	connector->dp.psr_caps.sync_latency = intel_dp_get_sink_sync_latency(intel_dp);
 
 	if (DISPLAY_VER(display) >= 9 &&
-	    intel_dp->psr_dpcd[0] >= DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
-		bool y_req = intel_dp->psr_dpcd[1] &
+	    connector->dp.psr_caps.dpcd[0] >= DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
+		bool y_req = connector->dp.psr_caps.dpcd[1] &
 			     DP_PSR2_SU_Y_COORDINATE_REQUIRED;
 
 		/*
@@ -717,22 +702,21 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 		 * Y-coordinate requirement panels we would need to enable
 		 * GTC first.
 		 */
-		intel_dp->psr.sink_psr2_support = y_req &&
+		connector->dp.psr_caps.su_support = y_req &&
 			intel_alpm_aux_wake_supported(intel_dp);
 		drm_dbg_kms(display->drm, "PSR2 %ssupported\n",
-			    intel_dp->psr.sink_psr2_support ? "" : "not ");
+			    connector->dp.psr_caps.su_support ? "" : "not ");
 	}
+
+	if (connector->dp.psr_caps.su_support)
+		_psr_compute_su_granularity(intel_dp, connector);
 }
 
-void intel_psr_init_dpcd(struct intel_dp *intel_dp)
+void intel_psr_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector)
 {
-	_psr_init_dpcd(intel_dp);
+	_psr_init_dpcd(intel_dp, connector);
 
-	_panel_replay_init_dpcd(intel_dp);
-
-	if (intel_dp->psr.sink_psr2_support ||
-	    intel_dp->psr.sink_panel_replay_su_support)
-		intel_dp_get_su_granularity(intel_dp);
+	_panel_replay_init_dpcd(intel_dp, connector);
 }
 
 static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
@@ -772,8 +756,9 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 		       aux_ctl);
 }
 
-static bool psr2_su_region_et_valid(struct intel_dp *intel_dp, bool panel_replay)
+static bool psr2_su_region_et_valid(struct intel_connector *connector, bool panel_replay)
 {
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	if (DISPLAY_VER(display) < 20 || !intel_dp_is_edp(intel_dp) ||
@@ -781,9 +766,9 @@ static bool psr2_su_region_et_valid(struct intel_dp *intel_dp, bool panel_replay
 		return false;
 
 	return panel_replay ?
-		intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+		connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
 		DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT :
-		intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_ET_SUPPORTED;
+		connector->dp.psr_caps.dpcd[0] == DP_PSR2_WITH_Y_COORD_ET_SUPPORTED;
 }
 
 static void _panel_replay_enable_sink(struct intel_dp *intel_dp,
@@ -924,7 +909,7 @@ static u8 psr_compute_idle_frames(struct intel_dp *intel_dp)
 	 * off-by-one issue that HW has in some cases.
 	 */
 	idle_frames = max(6, connector->panel.vbt.psr.idle_frames);
-	idle_frames = max(idle_frames, intel_dp->psr.sink_sync_latency + 1);
+	idle_frames = max(idle_frames, connector->dp.psr_caps.sync_latency + 1);
 
 	if (drm_WARN_ON(display->drm, idle_frames > 0xf))
 		idle_frames = 0xf;
@@ -1019,10 +1004,11 @@ static int psr2_block_count(struct intel_dp *intel_dp)
 
 static u8 frames_before_su_entry(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	u8 frames_before_su_entry;
 
 	frames_before_su_entry = max_t(u8,
-				       intel_dp->psr.sink_sync_latency + 1,
+				       connector->dp.psr_caps.sync_latency + 1,
 				       2);
 
 	/* Entry setup frames must be at least 1 less than frames before SU entry */
@@ -1304,25 +1290,32 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 	return crtc_state->enable_psr2_sel_fetch = true;
 }
 
-static bool psr2_granularity_check(struct intel_dp *intel_dp,
-				   struct intel_crtc_state *crtc_state)
+static bool psr2_granularity_check(struct intel_crtc_state *crtc_state,
+				   struct intel_connector *connector)
 {
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	u16 y_granularity = 0;
+	u16 sink_y_granularity = crtc_state->has_panel_replay ?
+		connector->dp.panel_replay_caps.su_y_granularity :
+		connector->dp.psr_caps.su_y_granularity;
+	u16 sink_w_granularity =  crtc_state->has_panel_replay ?
+		connector->dp.panel_replay_caps.su_w_granularity :
+		connector->dp.psr_caps.su_w_granularity;
 
 	/* PSR2 HW only send full lines so we only need to validate the width */
-	if (crtc_hdisplay % intel_dp->psr.su_w_granularity)
+	if (crtc_hdisplay % sink_w_granularity)
 		return false;
 
-	if (crtc_vdisplay % intel_dp->psr.su_y_granularity)
+	if (crtc_vdisplay % sink_y_granularity)
 		return false;
 
 	/* HW tracking is only aligned to 4 lines */
 	if (!crtc_state->enable_psr2_sel_fetch)
-		return intel_dp->psr.su_y_granularity == 4;
+		return sink_y_granularity == 4;
 
 	/*
 	 * adl_p and mtl platforms have 1 line granularity.
@@ -1330,11 +1323,11 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 	 * to match sink requirement if multiple of 4.
 	 */
 	if (display->platform.alderlake_p || DISPLAY_VER(display) >= 14)
-		y_granularity = intel_dp->psr.su_y_granularity;
-	else if (intel_dp->psr.su_y_granularity <= 2)
+		y_granularity = sink_y_granularity;
+	else if (sink_y_granularity <= 2)
 		y_granularity = 4;
-	else if ((intel_dp->psr.su_y_granularity % 4) == 0)
-		y_granularity = intel_dp->psr.su_y_granularity;
+	else if ((sink_y_granularity % 4) == 0)
+		y_granularity = sink_y_granularity;
 
 	if (y_granularity == 0 || crtc_vdisplay % y_granularity)
 		return false;
@@ -1372,16 +1365,18 @@ static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_d
 }
 
 static int intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
+					struct drm_connector_state *conn_state,
 					const struct drm_display_mode *adjusted_mode)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	int psr_setup_time = drm_dp_psr_setup_time(intel_dp->psr_dpcd);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	int psr_setup_time = drm_dp_psr_setup_time(connector->dp.psr_caps.dpcd);
 	int entry_setup_frames = 0;
 
 	if (psr_setup_time < 0) {
 		drm_dbg_kms(display->drm,
 			    "PSR condition failed: Invalid PSR setup time (0x%02x)\n",
-			    intel_dp->psr_dpcd[1]);
+			    connector->dp.psr_caps.dpcd[1]);
 		return -ETIME;
 	}
 
@@ -1522,14 +1517,16 @@ static bool alpm_config_valid(struct intel_dp *intel_dp,
 }
 
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
-				    struct intel_crtc_state *crtc_state)
+				    struct intel_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	int psr_max_h = 0, psr_max_v = 0, max_bpp = 0;
 
-	if (!intel_dp->psr.sink_psr2_support || display->params.enable_psr == 1)
+	if (!connector->dp.psr_caps.su_support || display->params.enable_psr == 1)
 		return false;
 
 	/* JSL and EHL only supports eDP 1.3 */
@@ -1621,9 +1618,11 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
-					  struct intel_crtc_state *crtc_state)
+static bool intel_sel_update_config_valid(struct intel_crtc_state *crtc_state,
+					  struct drm_connector_state *conn_state)
 {
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	if (HAS_PSR2_SEL_FETCH(display) &&
@@ -1640,7 +1639,8 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 		goto unsupported;
 	}
 
-	if (!crtc_state->has_panel_replay && !intel_psr2_config_valid(intel_dp, crtc_state))
+	if (!crtc_state->has_panel_replay && !intel_psr2_config_valid(intel_dp, crtc_state,
+								      conn_state))
 		goto unsupported;
 
 	if (!_compute_psr2_sdp_prior_scanline_indication(intel_dp, crtc_state)) {
@@ -1653,11 +1653,11 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 		if (DISPLAY_VER(display) < 14)
 			goto unsupported;
 
-		if (!intel_dp->psr.sink_panel_replay_su_support)
+		if (!connector->dp.panel_replay_caps.su_support)
 			goto unsupported;
 
 		if (intel_dsc_enabled_on_link(crtc_state) &&
-		    intel_dp->psr.sink_panel_replay_dsc_support !=
+		    connector->dp.panel_replay_caps.dsc_support !=
 		    INTEL_DP_PANEL_REPLAY_DSC_SELECTIVE_UPDATE) {
 			drm_dbg_kms(display->drm,
 				    "Selective update with Panel Replay not enabled because it's not supported with DSC\n");
@@ -1671,14 +1671,14 @@ static bool intel_sel_update_config_valid(struct intel_dp *intel_dp,
 		goto unsupported;
 	}
 
-	if (!psr2_granularity_check(intel_dp, crtc_state)) {
+	if (!psr2_granularity_check(crtc_state, connector)) {
 		drm_dbg_kms(display->drm,
 			    "Selective update not enabled, SU granularity not compatible\n");
 		goto unsupported;
 	}
 
-	crtc_state->enable_psr2_su_region_et =
-		psr2_su_region_et_valid(intel_dp, crtc_state->has_panel_replay);
+	crtc_state->enable_psr2_su_region_et = psr2_su_region_et_valid(connector,
+								       crtc_state->has_panel_replay);
 
 	return true;
 
@@ -1688,7 +1688,8 @@ unsupported:
 }
 
 static bool _psr_compute_config(struct intel_dp *intel_dp,
-				struct intel_crtc_state *crtc_state)
+				struct intel_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
@@ -1703,7 +1704,7 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 	if (crtc_state->vrr.enable)
 		return false;
 
-	entry_setup_frames = intel_psr_entry_setup_frames(intel_dp, adjusted_mode);
+	entry_setup_frames = intel_psr_entry_setup_frames(intel_dp, conn_state, adjusted_mode);
 
 	if (entry_setup_frames >= 0) {
 		intel_dp->psr.entry_setup_frames = entry_setup_frames;
@@ -1717,17 +1718,31 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool
-_panel_replay_compute_config(struct intel_dp *intel_dp,
-			     struct intel_crtc_state *crtc_state,
-			     const struct drm_connector_state *conn_state)
+static inline bool compute_link_off_after_as_sdp_when_pr_active(struct intel_connector *connector)
 {
-	struct intel_display *display = to_intel_display(intel_dp);
+	return (connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+		DP_PANEL_REPLAY_LINK_OFF_SUPPORTED_IN_PR_AFTER_ADAPTIVE_SYNC_SDP);
+}
+
+static inline bool compute_disable_as_sdp_when_pr_active(struct intel_connector *connector)
+{
+	return !(connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_CAPABILITY)] &
+		 DP_PANEL_REPLAY_ASYNC_VIDEO_TIMING_NOT_SUPPORTED_IN_PR);
+}
+
+static bool _panel_replay_compute_config(struct intel_crtc_state *crtc_state,
+					 const struct drm_connector_state *conn_state)
+{
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 
 	if (!CAN_PANEL_REPLAY(intel_dp))
+		return false;
+
+	if (!connector->dp.panel_replay_caps.support)
 		return false;
 
 	if (!panel_replay_global_enabled(intel_dp)) {
@@ -1742,12 +1757,15 @@ _panel_replay_compute_config(struct intel_dp *intel_dp,
 	}
 
 	if (intel_dsc_enabled_on_link(crtc_state) &&
-	    intel_dp->psr.sink_panel_replay_dsc_support ==
+	    connector->dp.panel_replay_caps.dsc_support ==
 	    INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED) {
 		drm_dbg_kms(display->drm,
 			    "Panel Replay not enabled because it's not supported with DSC\n");
 		return false;
 	}
+
+	crtc_state->link_off_after_as_sdp_when_pr_active = compute_link_off_after_as_sdp_when_pr_active(connector);
+	crtc_state->disable_as_sdp_when_pr_active = compute_disable_as_sdp_when_pr_active(connector);
 
 	if (!intel_dp_is_edp(intel_dp))
 		return true;
@@ -1824,6 +1842,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 
 	if (!psr_global_enabled(intel_dp)) {
@@ -1855,18 +1874,16 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	}
 
 	/* Only used for state verification. */
-	crtc_state->panel_replay_dsc_support = intel_dp->psr.sink_panel_replay_dsc_support;
-	crtc_state->has_panel_replay = _panel_replay_compute_config(intel_dp,
-								    crtc_state,
-								    conn_state);
+	crtc_state->panel_replay_dsc_support = connector->dp.panel_replay_caps.dsc_support;
+	crtc_state->has_panel_replay = _panel_replay_compute_config(crtc_state, conn_state);
 
 	crtc_state->has_psr = crtc_state->has_panel_replay ? true :
-		_psr_compute_config(intel_dp, crtc_state);
+		_psr_compute_config(intel_dp, crtc_state, conn_state);
 
 	if (!crtc_state->has_psr)
 		return;
 
-	crtc_state->has_sel_update = intel_sel_update_config_valid(intel_dp, crtc_state);
+	crtc_state->has_sel_update = intel_sel_update_config_valid(crtc_state, conn_state);
 }
 
 void intel_psr_get_config(struct intel_encoder *encoder,
@@ -2701,7 +2718,7 @@ intel_psr2_sel_fetch_et_alignment(struct intel_atomic_state *state,
 	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
 		struct drm_rect inter;
 
-		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
+		if (new_plane_state->hw.crtc != crtc_state->uapi.crtc)
 			continue;
 
 		if (plane->id != PLANE_CURSOR)
@@ -2734,7 +2751,7 @@ static bool psr2_sel_fetch_plane_state_supported(const struct intel_plane_state 
 	if (plane_state->uapi.dst.y1 < 0 ||
 	    plane_state->uapi.dst.x1 < 0 ||
 	    plane_state->scaler_id >= 0 ||
-	    plane_state->uapi.rotation != DRM_MODE_ROTATE_0)
+	    plane_state->hw.rotation != DRM_MODE_ROTATE_0)
 		return false;
 
 	return true;
@@ -2749,7 +2766,8 @@ static bool psr2_sel_fetch_plane_state_supported(const struct intel_plane_state 
  */
 static bool psr2_sel_fetch_pipe_state_supported(const struct intel_crtc_state *crtc_state)
 {
-	if (crtc_state->scaler_state.scaler_id >= 0)
+	if (crtc_state->scaler_state.scaler_id >= 0 ||
+	    crtc_state->async_flip_planes)
 		return false;
 
 	return true;
@@ -2838,7 +2856,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		struct drm_rect src, damaged_area = { .x1 = 0, .y1 = -1,
 						      .x2 = INT_MAX };
 
-		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
+		if (new_plane_state->hw.crtc != crtc_state->uapi.crtc)
 			continue;
 
 		if (!new_plane_state->uapi.visible &&
@@ -2937,7 +2955,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		struct drm_rect *sel_fetch_area, inter;
 		struct intel_plane *linked = new_plane_state->planar_linked_plane;
 
-		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc ||
+		if (new_plane_state->hw.crtc != crtc_state->uapi.crtc ||
 		    !new_plane_state->uapi.visible)
 			continue;
 
@@ -2992,9 +3010,9 @@ skip_sel_fetch_set_loop:
 	return 0;
 }
 
-void intel_psr2_panic_force_full_update(struct intel_display *display,
-					struct intel_crtc_state *crtc_state)
+void intel_psr2_panic_force_full_update(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val = man_trk_ctl_enable_bit_get(display);
@@ -4109,24 +4127,22 @@ psr_source_status(struct intel_dp *intel_dp, struct seq_file *m)
 	seq_printf(m, "Source PSR/PanelReplay status: %s [0x%08x]\n", status, val);
 }
 
-static void intel_psr_sink_capability(struct intel_dp *intel_dp,
+static void intel_psr_sink_capability(struct intel_connector *connector,
 				      struct seq_file *m)
 {
-	struct intel_psr *psr = &intel_dp->psr;
-
 	seq_printf(m, "Sink support: PSR = %s",
-		   str_yes_no(psr->sink_support));
+		   str_yes_no(connector->dp.psr_caps.support));
 
-	if (psr->sink_support)
-		seq_printf(m, " [0x%02x]", intel_dp->psr_dpcd[0]);
-	if (intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_ET_SUPPORTED)
+	if (connector->dp.psr_caps.support)
+		seq_printf(m, " [0x%02x]", connector->dp.psr_caps.dpcd[0]);
+	if (connector->dp.psr_caps.dpcd[0] == DP_PSR2_WITH_Y_COORD_ET_SUPPORTED)
 		seq_printf(m, " (Early Transport)");
-	seq_printf(m, ", Panel Replay = %s", str_yes_no(psr->sink_panel_replay_support));
+	seq_printf(m, ", Panel Replay = %s", str_yes_no(connector->dp.panel_replay_caps.support));
 	seq_printf(m, ", Panel Replay Selective Update = %s",
-		   str_yes_no(psr->sink_panel_replay_su_support));
+		   str_yes_no(connector->dp.panel_replay_caps.su_support));
 	seq_printf(m, ", Panel Replay DSC support = %s",
-		   panel_replay_dsc_support_str(psr->sink_panel_replay_dsc_support));
-	if (intel_dp->pr_dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
+		   panel_replay_dsc_support_str(connector->dp.panel_replay_caps.dsc_support));
+	if (connector->dp.panel_replay_caps.dpcd[INTEL_PR_DPCD_INDEX(DP_PANEL_REPLAY_CAP_SUPPORT)] &
 	    DP_PANEL_REPLAY_EARLY_TRANSPORT_SUPPORT)
 		seq_printf(m, " (Early Transport)");
 	seq_printf(m, "\n");
@@ -4164,7 +4180,8 @@ static void intel_psr_print_mode(struct intel_dp *intel_dp,
 		seq_printf(m, "  %s\n", psr->no_psr_reason);
 }
 
-static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
+static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp,
+			    struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
@@ -4173,9 +4190,9 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	bool enabled;
 	u32 val, psr2_ctl;
 
-	intel_psr_sink_capability(intel_dp, m);
+	intel_psr_sink_capability(connector, m);
 
-	if (!(psr->sink_support || psr->sink_panel_replay_support))
+	if (!(connector->dp.psr_caps.support || connector->dp.panel_replay_caps.support))
 		return 0;
 
 	wakeref = intel_display_rpm_get(display);
@@ -4289,7 +4306,7 @@ static int i915_edp_psr_status_show(struct seq_file *m, void *data)
 	if (!intel_dp)
 		return -ENODEV;
 
-	return intel_psr_status(m, intel_dp);
+	return intel_psr_status(m, intel_dp, intel_dp->attached_connector);
 }
 DEFINE_SHOW_ATTRIBUTE(i915_edp_psr_status);
 
@@ -4423,7 +4440,7 @@ static int i915_psr_status_show(struct seq_file *m, void *data)
 	struct intel_connector *connector = m->private;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 
-	return intel_psr_status(m, intel_dp);
+	return intel_psr_status(m, intel_dp, connector);
 }
 DEFINE_SHOW_ATTRIBUTE(i915_psr_status);
 

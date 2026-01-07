@@ -12,6 +12,7 @@
 #include "panfrost_device.h"
 #include "panfrost_devfreq.h"
 #include "panfrost_features.h"
+#include "panfrost_gem.h"
 #include "panfrost_issues.h"
 #include "panfrost_gpu.h"
 #include "panfrost_job.h"
@@ -266,6 +267,8 @@ int panfrost_device_init(struct panfrost_device *pfdev)
 	err = panfrost_perfcnt_init(pfdev);
 	if (err)
 		goto out_job;
+
+	panfrost_gem_init(pfdev);
 
 	return 0;
 out_job:

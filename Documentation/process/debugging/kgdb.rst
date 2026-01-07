@@ -889,34 +889,6 @@ in the virtual console layer. On resuming kernel execution, the kernel
 debugger calls kgdboc_post_exp_handler() which in turn calls
 con_debug_leave().
 
-Any video driver that wants to be compatible with the kernel debugger
-and the atomic kms callbacks must implement the ``mode_set_base_atomic``,
-``fb_debug_enter`` and ``fb_debug_leave operations``. For the
-``fb_debug_enter`` and ``fb_debug_leave`` the option exists to use the
-generic drm fb helper functions or implement something custom for the
-hardware. The following example shows the initialization of the
-.mode_set_base_atomic operation in
-drivers/gpu/drm/i915/intel_display.c::
-
-
-    static const struct drm_crtc_helper_funcs intel_helper_funcs = {
-    [...]
-            .mode_set_base_atomic = intel_pipe_set_base_atomic,
-    [...]
-    };
-
-
-Here is an example of how the i915 driver initializes the
-fb_debug_enter and fb_debug_leave functions to use the generic drm
-helpers in ``drivers/gpu/drm/i915/intel_fb.c``::
-
-
-    static struct fb_ops intelfb_ops = {
-    [...]
-           .fb_debug_enter = drm_fb_helper_debug_enter,
-           .fb_debug_leave = drm_fb_helper_debug_leave,
-    [...]
-    };
 
 
 Credits

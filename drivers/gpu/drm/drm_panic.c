@@ -39,12 +39,6 @@ MODULE_AUTHOR("Jocelyn Falempe");
 MODULE_DESCRIPTION("DRM panic handler");
 MODULE_LICENSE("GPL");
 
-static char drm_panic_screen[16] = CONFIG_DRM_PANIC_SCREEN;
-module_param_string(panic_screen, drm_panic_screen, sizeof(drm_panic_screen), 0644);
-MODULE_PARM_DESC(panic_screen,
-		 "Choose what will be displayed by drm_panic, 'user' or 'kmsg' [default="
-		 CONFIG_DRM_PANIC_SCREEN "]");
-
 /**
  * DOC: overview
  *
@@ -813,14 +807,59 @@ static void draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
 		draw_panic_static_user(sb);
 }
 #else
-static void draw_panic_static_qr_code(struct drm_scanout_buffer *sb)
-{
-	draw_panic_static_user(sb);
-}
-
 static void drm_panic_qr_init(void) {};
 static void drm_panic_qr_exit(void) {};
 #endif
+
+enum drm_panic_type {
+	DRM_PANIC_TYPE_KMSG,
+	DRM_PANIC_TYPE_USER,
+	DRM_PANIC_TYPE_QR,
+};
+
+static enum drm_panic_type drm_panic_type = -1;
+
+static const char *drm_panic_type_map[] = {
+	[DRM_PANIC_TYPE_KMSG] = "kmsg",
+	[DRM_PANIC_TYPE_USER] = "user",
+#if IS_ENABLED(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+	[DRM_PANIC_TYPE_QR] = "qr",
+#endif
+};
+
+static int drm_panic_type_set(const char *val, const struct kernel_param *kp)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(drm_panic_type_map); i++) {
+		if (!strcmp(val, drm_panic_type_map[i])) {
+			drm_panic_type = i;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int drm_panic_type_get(char *buffer, const struct kernel_param *kp)
+{
+	return scnprintf(buffer, PAGE_SIZE, "%s\n",
+			 drm_panic_type_map[drm_panic_type]);
+}
+
+static const struct kernel_param_ops drm_panic_ops = {
+	.set = drm_panic_type_set,
+	.get = drm_panic_type_get,
+};
+
+module_param_cb(panic_screen, &drm_panic_ops, NULL, 0644);
+MODULE_PARM_DESC(panic_screen,
+#if IS_ENABLED(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+		 "Choose what will be displayed by drm_panic, 'user', 'kmsg' or 'qr' [default="
+#else
+		 "Choose what will be displayed by drm_panic, 'user' or 'kmsg' [default="
+#endif
+		 CONFIG_DRM_PANIC_SCREEN "]");
 
 /*
  * drm_panic_is_format_supported()
@@ -838,11 +877,19 @@ static bool drm_panic_is_format_supported(const struct drm_format_info *format)
 
 static void draw_panic_dispatch(struct drm_scanout_buffer *sb)
 {
-	if (!strcmp(drm_panic_screen, "kmsg")) {
+	switch (drm_panic_type) {
+	case DRM_PANIC_TYPE_KMSG:
 		draw_panic_static_kmsg(sb);
-	} else if (!strcmp(drm_panic_screen, "qr_code")) {
+		break;
+
+#if IS_ENABLED(CONFIG_DRM_PANIC_SCREEN_QR_CODE)
+	case DRM_PANIC_TYPE_QR:
 		draw_panic_static_qr_code(sb);
-	} else {
+		break;
+#endif
+
+	case DRM_PANIC_TYPE_USER:
+	default:
 		draw_panic_static_user(sb);
 	}
 }
@@ -1025,6 +1072,8 @@ void drm_panic_unregister(struct drm_device *dev)
  */
 void __init drm_panic_init(void)
 {
+	if (drm_panic_type == -1)
+		drm_panic_type_set(CONFIG_DRM_PANIC_SCREEN, NULL);
 	drm_panic_qr_init();
 }
 

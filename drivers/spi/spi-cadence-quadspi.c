@@ -2001,8 +2001,10 @@ static int cqspi_probe(struct platform_device *pdev)
 
 	if (cqspi->use_direct_mode) {
 		ret = cqspi_request_mmap_dma(cqspi);
-		if (ret == -EPROBE_DEFER)
+		if (ret == -EPROBE_DEFER) {
+			dev_err_probe(&pdev->dev, ret, "Failed to request mmap DMA\n");
 			goto probe_setup_failed;
+		}
 	}
 
 	ret = spi_register_controller(host);
@@ -2024,7 +2026,9 @@ probe_setup_failed:
 probe_reset_failed:
 	if (cqspi->is_jh7110)
 		cqspi_jh7110_disable_clk(pdev, cqspi);
-	clk_disable_unprepare(cqspi->clk);
+
+	if (pm_runtime_get_sync(&pdev->dev) >= 0)
+		clk_disable_unprepare(cqspi->clk);
 probe_clk_failed:
 	return ret;
 }

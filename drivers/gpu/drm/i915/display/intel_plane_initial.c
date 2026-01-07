@@ -39,7 +39,7 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
-		if (!crtc_state->uapi.active)
+		if (!crtc_state->hw.active)
 			continue;
 
 		if (!plane_state->ggtt_vma)
@@ -411,10 +411,12 @@ void intel_initial_plane_config(struct intel_display *display)
 	struct intel_crtc *crtc;
 
 	for_each_intel_crtc(display->drm, crtc) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 		struct intel_initial_plane_config *plane_config =
 			&plane_configs[crtc->pipe];
 
-		if (!to_intel_crtc_state(crtc->base.state)->uapi.active)
+		if (!crtc_state->hw.active)
 			continue;
 
 		/*

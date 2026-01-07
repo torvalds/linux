@@ -41,8 +41,9 @@ int ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu
 				 u64 size, struct drm_mm_node *node);
 void ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *node);
 
-int ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
-			     u64 vpu_addr, struct sg_table *sgt, bool llc_coherent, bool read_only);
+int
+ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u64 vpu_addr,
+			 struct sg_table *sgt, size_t bo_size, bool llc_coherent, bool read_only);
 void ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 				u64 vpu_addr, struct sg_table *sgt);
 int ivpu_mmu_context_set_pages_ro(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,

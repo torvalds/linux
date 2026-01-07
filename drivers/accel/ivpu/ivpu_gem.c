@@ -95,7 +95,7 @@ int __must_check ivpu_bo_bind(struct ivpu_bo *bo)
 
 	if (!bo->mmu_mapped) {
 		drm_WARN_ON(&vdev->drm, !bo->ctx);
-		ret = ivpu_mmu_context_map_sgt(vdev, bo->ctx, bo->vpu_addr, sgt,
+		ret = ivpu_mmu_context_map_sgt(vdev, bo->ctx, bo->vpu_addr, sgt, ivpu_bo_size(bo),
 					       ivpu_bo_is_snooped(bo), ivpu_bo_is_read_only(bo));
 		if (ret) {
 			ivpu_err(vdev, "Failed to map BO in MMU: %d\n", ret);

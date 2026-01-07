@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/seq_buf.h>
+
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
@@ -56,6 +58,100 @@
  *
  * The code also supports underrun detection on the PCH transcoder.
  */
+
+#define UNDERRUN_DBG1_NUM_PLANES 6
+
+static void log_underrun_dbg1(struct intel_display *display, enum pipe pipe,
+			      unsigned long plane_mask, const char *info)
+{
+	DECLARE_SEQ_BUF(planes_desc, 32);
+	unsigned int i;
+
+	if (!plane_mask)
+		return;
+
+	for_each_set_bit(i, &plane_mask, UNDERRUN_DBG1_NUM_PLANES) {
+		if (i == 0)
+			seq_buf_puts(&planes_desc, "[C]");
+		else
+			seq_buf_printf(&planes_desc, "[%d]", i);
+	}
+
+	drm_err(display->drm, "Pipe %c FIFO underrun info: %s on planes: %s\n",
+		pipe_name(pipe), info, seq_buf_str(&planes_desc));
+
+	drm_WARN_ON(display->drm, seq_buf_has_overflowed(&planes_desc));
+}
+
+static void read_underrun_dbg1(struct intel_display *display, enum pipe pipe, bool log)
+{
+	u32 val = intel_de_read(display, UNDERRUN_DBG1(pipe));
+
+	if (!val)
+		return;
+
+	intel_de_write(display, UNDERRUN_DBG1(pipe), val);
+
+	if (!log)
+		return;
+
+	log_underrun_dbg1(display, pipe, REG_FIELD_GET(UNDERRUN_DBUF_BLOCK_NOT_VALID_MASK, val),
+			  "DBUF block not valid");
+	log_underrun_dbg1(display, pipe, REG_FIELD_GET(UNDERRUN_DDB_EMPTY_MASK, val),
+			  "DDB empty");
+	log_underrun_dbg1(display, pipe, REG_FIELD_GET(UNDERRUN_DBUF_NOT_FILLED_MASK, val),
+			  "DBUF not completely filled");
+	log_underrun_dbg1(display, pipe, REG_FIELD_GET(UNDERRUN_BELOW_WM0_MASK, val),
+			  "DBUF below WM0");
+}
+
+static void read_underrun_dbg2(struct intel_display *display, enum pipe pipe, bool log)
+{
+	u32 val = intel_de_read(display, UNDERRUN_DBG2(pipe));
+
+	if (!(val & UNDERRUN_FRAME_LINE_COUNTERS_FROZEN))
+		return;
+
+	intel_de_write(display, UNDERRUN_DBG2(pipe), UNDERRUN_FRAME_LINE_COUNTERS_FROZEN);
+
+	if (log)
+		drm_err(display->drm,
+			"Pipe %c FIFO underrun info: frame count: %u, line count: %u\n",
+			pipe_name(pipe),
+			REG_FIELD_GET(UNDERRUN_PIPE_FRAME_COUNT_MASK, val),
+			REG_FIELD_GET(UNDERRUN_LINE_COUNT_MASK, val));
+}
+
+static void read_underrun_dbg_pkgc(struct intel_display *display, bool log)
+{
+	u32 val = intel_de_read(display, GEN12_DCPR_STATUS_1);
+
+	if (!(val & XE3P_UNDERRUN_PKGC))
+		return;
+
+	/*
+	 * Note: If there are multiple pipes enabled, only one of them will see
+	 * XE3P_UNDERRUN_PKGC set.
+	 */
+	intel_de_write(display, GEN12_DCPR_STATUS_1, XE3P_UNDERRUN_PKGC);
+
+	if (log)
+		drm_err(display->drm,
+			"General FIFO underrun info: Package C-state blocking memory\n");
+}
+
+static void read_underrun_dbg_info(struct intel_display *display,
+				   enum pipe pipe,
+				   bool log)
+{
+	if (!HAS_UNDERRUN_DBG_INFO(display))
+		return;
+
+	read_underrun_dbg1(display, pipe, log);
+	read_underrun_dbg2(display, pipe, log);
+	intel_fbc_read_underrun_dbg_info(display, pipe, log);
+	read_underrun_dbg_pkgc(display, log);
+}
 
 static bool ivb_can_enable_err_int(struct intel_display *display)
 {
@@ -262,6 +358,17 @@ static bool __intel_set_cpu_fifo_underrun_reporting(struct intel_display *displa
 	old = !crtc->cpu_fifo_underrun_disabled;
 	crtc->cpu_fifo_underrun_disabled = !enable;
 
+	/*
+	 * The debug bits get latched at the time of the FIFO underrun ISR bit
+	 * getting set.  That means that any non-zero debug bit that is read when
+	 * handling a FIFO underrun interrupt has the potential to belong to
+	 * another underrun event (past or future).  To alleviate this problem,
+	 * let's clear existing bits before enabling the interrupt, so that at
+	 * least we don't get information that is too out-of-date.
+	 */
+	if (enable && !old)
+		read_underrun_dbg_info(display, pipe, false);
+
 	if (HAS_GMCH(display))
 		i9xx_set_fifo_underrun_reporting(display, pipe, enable, old);
 	else if (display->platform.ironlake || display->platform.sandybridge)
@@ -379,6 +486,8 @@ void intel_cpu_fifo_underrun_irq_handler(struct intel_display *display,
 		trace_intel_cpu_fifo_underrun(display, pipe);
 
 		drm_err(display->drm, "CPU pipe %c FIFO underrun\n", pipe_name(pipe));
+
+		read_underrun_dbg_info(display, pipe, true);
 	}
 
 	intel_fbc_handle_fifo_underrun_irq(display);

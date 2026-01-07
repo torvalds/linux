@@ -13,6 +13,7 @@
 #include "amdxdna_pci_drv.h"
 
 /* NPU Public Registers on MpNPUAxiXbar (refer to Diag npu_registers.h) */
+#define MPNPU_PWAITMODE                0x301003C
 #define MPNPU_PUB_SEC_INTR             0x3010060
 #define MPNPU_PUB_PWRMGMT_INTR         0x3010064
 #define MPNPU_PUB_SCRATCH0             0x301006C
@@ -89,6 +90,7 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
 	{ .feature = AIE2_NPU_COMMAND, .min_minor = 15 },
 	{ .feature = AIE2_PREEMPT, .min_minor = 12 },
+	{ .feature = AIE2_TEMPORAL_ONLY, .min_minor = 12 },
 	{ 0 }
 };
 
@@ -116,6 +118,7 @@ static const struct amdxdna_dev_priv npu4_dev_priv = {
 		DEFINE_BAR_OFFSET(PSP_INTR_REG,   NPU4_PSP, MP0_C2PMSG_73),
 		DEFINE_BAR_OFFSET(PSP_STATUS_REG, NPU4_PSP, MP0_C2PMSG_123),
 		DEFINE_BAR_OFFSET(PSP_RESP_REG,   NPU4_REG, MPNPU_PUB_SCRATCH3),
+		DEFINE_BAR_OFFSET(PSP_PWAITMODE_REG, NPU4_REG, MPNPU_PWAITMODE),
 	},
 	.smu_regs_off   = {
 		DEFINE_BAR_OFFSET(SMU_CMD_REG,  NPU4_SMU, MP1_C2PMSG_0),

@@ -1184,7 +1184,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 *
 	 * FIXME: break up the workarounds and apply them at the right time!
 	 */
-	intel_clock_gating_init(dev_priv);
+	intel_clock_gating_init(&dev_priv->drm);
 
 	for_each_gt(gt, dev_priv, i) {
 		ret = intel_gt_init(gt);
@@ -1235,7 +1235,7 @@ err_unlock:
 		/* Minimal basic recovery for KMS */
 		ret = i915_ggtt_enable_hw(dev_priv);
 		i915_ggtt_resume(to_gt(dev_priv)->ggtt);
-		intel_clock_gating_init(dev_priv);
+		intel_clock_gating_init(&dev_priv->drm);
 	}
 
 	i915_gem_drain_freed_objects(dev_priv);

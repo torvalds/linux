@@ -70,6 +70,7 @@ enum psp_reg_idx {
 	PSP_INTR_REG = PSP_NUM_IN_REGS,
 	PSP_STATUS_REG,
 	PSP_RESP_REG,
+	PSP_PWAITMODE_REG,
 	PSP_MAX_REGS /* Keep this at the end */
 };
 
@@ -231,6 +232,7 @@ struct aie2_hw_ops {
 enum aie2_fw_feature {
 	AIE2_NPU_COMMAND,
 	AIE2_PREEMPT,
+	AIE2_TEMPORAL_ONLY,
 	AIE2_FEATURE_MAX
 };
 
@@ -285,11 +287,13 @@ int npu4_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
 /* aie2_pm.c */
 int aie2_pm_init(struct amdxdna_dev_hdl *ndev);
 int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type target);
+int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level);
 
 /* aie2_psp.c */
 struct psp_device *aie2m_psp_create(struct drm_device *ddev, struct psp_config *conf);
 int aie2_psp_start(struct psp_device *psp);
 void aie2_psp_stop(struct psp_device *psp);
+int aie2_psp_waitmode_poll(struct psp_device *psp);
 
 /* aie2_error.c */
 int aie2_error_async_events_alloc(struct amdxdna_dev_hdl *ndev);

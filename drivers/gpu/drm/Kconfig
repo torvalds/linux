@@ -265,153 +265,6 @@ config DRM_SCHED
 	tristate
 	depends on DRM
 
-source "drivers/gpu/drm/sysfb/Kconfig"
-
-source "drivers/gpu/drm/arm/Kconfig"
-
-source "drivers/gpu/drm/radeon/Kconfig"
-
-source "drivers/gpu/drm/amd/amdgpu/Kconfig"
-
-source "drivers/gpu/drm/nouveau/Kconfig"
-
-source "drivers/gpu/drm/nova/Kconfig"
-
-source "drivers/gpu/drm/i915/Kconfig"
-
-source "drivers/gpu/drm/xe/Kconfig"
-
-source "drivers/gpu/drm/kmb/Kconfig"
-
-config DRM_VGEM
-	tristate "Virtual GEM provider"
-	depends on DRM && MMU
-	select DRM_GEM_SHMEM_HELPER
-	help
-	  Choose this option to get a virtual graphics memory manager,
-	  as used by Mesa's software renderer for enhanced performance.
-	  If M is selected the module will be called vgem.
-
-source "drivers/gpu/drm/vkms/Kconfig"
-
-source "drivers/gpu/drm/exynos/Kconfig"
-
-source "drivers/gpu/drm/rockchip/Kconfig"
-
-source "drivers/gpu/drm/vmwgfx/Kconfig"
-
-source "drivers/gpu/drm/gma500/Kconfig"
-
-source "drivers/gpu/drm/udl/Kconfig"
-
-source "drivers/gpu/drm/ast/Kconfig"
-
-source "drivers/gpu/drm/mgag200/Kconfig"
-
-source "drivers/gpu/drm/armada/Kconfig"
-
-source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
-
-source "drivers/gpu/drm/renesas/Kconfig"
-
-source "drivers/gpu/drm/sun4i/Kconfig"
-
-source "drivers/gpu/drm/omapdrm/Kconfig"
-
-source "drivers/gpu/drm/tilcdc/Kconfig"
-
-source "drivers/gpu/drm/qxl/Kconfig"
-
-source "drivers/gpu/drm/virtio/Kconfig"
-
-source "drivers/gpu/drm/msm/Kconfig"
-
-source "drivers/gpu/drm/fsl-dcu/Kconfig"
-
-source "drivers/gpu/drm/tegra/Kconfig"
-
-source "drivers/gpu/drm/stm/Kconfig"
-
-source "drivers/gpu/drm/panel/Kconfig"
-
-source "drivers/gpu/drm/bridge/Kconfig"
-
-source "drivers/gpu/drm/sti/Kconfig"
-
-source "drivers/gpu/drm/imx/Kconfig"
-
-source "drivers/gpu/drm/ingenic/Kconfig"
-
-source "drivers/gpu/drm/v3d/Kconfig"
-
-source "drivers/gpu/drm/vc4/Kconfig"
-
-source "drivers/gpu/drm/loongson/Kconfig"
-
-source "drivers/gpu/drm/etnaviv/Kconfig"
-
-source "drivers/gpu/drm/hisilicon/Kconfig"
-
-source "drivers/gpu/drm/logicvc/Kconfig"
-
-source "drivers/gpu/drm/mediatek/Kconfig"
-
-source "drivers/gpu/drm/mxsfb/Kconfig"
-
-source "drivers/gpu/drm/meson/Kconfig"
-
-source "drivers/gpu/drm/tiny/Kconfig"
-
-source "drivers/gpu/drm/pl111/Kconfig"
-
-source "drivers/gpu/drm/tve200/Kconfig"
-
-source "drivers/gpu/drm/xen/Kconfig"
-
-source "drivers/gpu/drm/vboxvideo/Kconfig"
-
-source "drivers/gpu/drm/lima/Kconfig"
-
-source "drivers/gpu/drm/panfrost/Kconfig"
-
-source "drivers/gpu/drm/panthor/Kconfig"
-
-source "drivers/gpu/drm/aspeed/Kconfig"
-
-source "drivers/gpu/drm/mcde/Kconfig"
-
-source "drivers/gpu/drm/tidss/Kconfig"
-
-source "drivers/gpu/drm/adp/Kconfig"
-
-source "drivers/gpu/drm/xlnx/Kconfig"
-
-source "drivers/gpu/drm/gud/Kconfig"
-
-source "drivers/gpu/drm/sitronix/Kconfig"
-
-source "drivers/gpu/drm/solomon/Kconfig"
-
-source "drivers/gpu/drm/sprd/Kconfig"
-
-source "drivers/gpu/drm/imagination/Kconfig"
-
-source "drivers/gpu/drm/tyr/Kconfig"
-
-config DRM_HYPERV
-	tristate "DRM Support for Hyper-V synthetic video device"
-	depends on DRM && PCI && HYPERV_VMBUS
-	select DRM_CLIENT_SELECTION
-	select DRM_KMS_HELPER
-	select DRM_GEM_SHMEM_HELPER
-	help
-	 This is a KMS driver for Hyper-V synthetic video device. Choose this
-	 option if you would like to enable drm driver for Hyper-V virtual
-	 machine. Unselect Hyper-V framebuffer driver (CONFIG_FB_HYPERV) so
-	 that DRM driver is used by default.
-
-	 If M is selected the module will be called hyperv_drm.
-
 # Separate option as not all DRM drivers use it
 config DRM_PANEL_BACKLIGHT_QUIRKS
 	tristate
@@ -423,6 +276,72 @@ config DRM_LIB_RANDOM
 config DRM_PRIVACY_SCREEN
 	bool
 	default n
+
+# DRM driver Kconfig files, sorted
+source "drivers/gpu/drm/adp/Kconfig"
+source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+source "drivers/gpu/drm/arm/Kconfig"
+source "drivers/gpu/drm/armada/Kconfig"
+source "drivers/gpu/drm/aspeed/Kconfig"
+source "drivers/gpu/drm/ast/Kconfig"
+source "drivers/gpu/drm/atmel-hlcdc/Kconfig"
+source "drivers/gpu/drm/bridge/Kconfig"
+source "drivers/gpu/drm/etnaviv/Kconfig"
+source "drivers/gpu/drm/exynos/Kconfig"
+source "drivers/gpu/drm/fsl-dcu/Kconfig"
+source "drivers/gpu/drm/gma500/Kconfig"
+source "drivers/gpu/drm/gud/Kconfig"
+source "drivers/gpu/drm/hisilicon/Kconfig"
+source "drivers/gpu/drm/hyperv/Kconfig"
+source "drivers/gpu/drm/i915/Kconfig"
+source "drivers/gpu/drm/imagination/Kconfig"
+source "drivers/gpu/drm/imx/Kconfig"
+source "drivers/gpu/drm/ingenic/Kconfig"
+source "drivers/gpu/drm/kmb/Kconfig"
+source "drivers/gpu/drm/lima/Kconfig"
+source "drivers/gpu/drm/logicvc/Kconfig"
+source "drivers/gpu/drm/loongson/Kconfig"
+source "drivers/gpu/drm/mcde/Kconfig"
+source "drivers/gpu/drm/mediatek/Kconfig"
+source "drivers/gpu/drm/meson/Kconfig"
+source "drivers/gpu/drm/mgag200/Kconfig"
+source "drivers/gpu/drm/msm/Kconfig"
+source "drivers/gpu/drm/mxsfb/Kconfig"
+source "drivers/gpu/drm/nouveau/Kconfig"
+source "drivers/gpu/drm/nova/Kconfig"
+source "drivers/gpu/drm/omapdrm/Kconfig"
+source "drivers/gpu/drm/panel/Kconfig"
+source "drivers/gpu/drm/panfrost/Kconfig"
+source "drivers/gpu/drm/panthor/Kconfig"
+source "drivers/gpu/drm/pl111/Kconfig"
+source "drivers/gpu/drm/qxl/Kconfig"
+source "drivers/gpu/drm/radeon/Kconfig"
+source "drivers/gpu/drm/renesas/Kconfig"
+source "drivers/gpu/drm/rockchip/Kconfig"
+source "drivers/gpu/drm/sitronix/Kconfig"
+source "drivers/gpu/drm/solomon/Kconfig"
+source "drivers/gpu/drm/sprd/Kconfig"
+source "drivers/gpu/drm/sti/Kconfig"
+source "drivers/gpu/drm/stm/Kconfig"
+source "drivers/gpu/drm/sun4i/Kconfig"
+source "drivers/gpu/drm/sysfb/Kconfig"
+source "drivers/gpu/drm/tegra/Kconfig"
+source "drivers/gpu/drm/tidss/Kconfig"
+source "drivers/gpu/drm/tilcdc/Kconfig"
+source "drivers/gpu/drm/tiny/Kconfig"
+source "drivers/gpu/drm/tve200/Kconfig"
+source "drivers/gpu/drm/tyr/Kconfig"
+source "drivers/gpu/drm/udl/Kconfig"
+source "drivers/gpu/drm/v3d/Kconfig"
+source "drivers/gpu/drm/vboxvideo/Kconfig"
+source "drivers/gpu/drm/vc4/Kconfig"
+source "drivers/gpu/drm/vgem/Kconfig"
+source "drivers/gpu/drm/virtio/Kconfig"
+source "drivers/gpu/drm/vkms/Kconfig"
+source "drivers/gpu/drm/vmwgfx/Kconfig"
+source "drivers/gpu/drm/xe/Kconfig"
+source "drivers/gpu/drm/xen/Kconfig"
+source "drivers/gpu/drm/xlnx/Kconfig"
 
 endif
 

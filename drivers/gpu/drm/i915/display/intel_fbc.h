@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 enum fb_op_origin;
+enum pipe;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -46,6 +47,8 @@ void intel_fbc_flush(struct intel_display *display,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane);
 void intel_fbc_handle_fifo_underrun_irq(struct intel_display *display);
+void intel_fbc_read_underrun_dbg_info(struct intel_display *display,
+				      enum pipe, bool log);
 void intel_fbc_reset_underrun(struct intel_display *display);
 void intel_fbc_crtc_debugfs_add(struct intel_crtc *crtc);
 void intel_fbc_debugfs_register(struct intel_display *display);

@@ -10,6 +10,7 @@
 
 #include "aie2_pci.h"
 #include "amdxdna_pci_drv.h"
+#include "amdxdna_pm.h"
 
 #define AIE2_CLK_GATING_ENABLE	1
 #define AIE2_CLK_GATING_DISABLE	0
@@ -24,6 +25,20 @@ static int aie2_pm_set_clk_gating(struct amdxdna_dev_hdl *ndev, u32 val)
 
 	ndev->clk_gating = val;
 	return 0;
+}
+
+int aie2_pm_set_dpm(struct amdxdna_dev_hdl *ndev, u32 dpm_level)
+{
+	int ret;
+
+	ret = amdxdna_pm_resume_get(ndev->xdna);
+	if (ret)
+		return ret;
+
+	ret = ndev->priv->hw_ops.set_dpm(ndev, dpm_level);
+	amdxdna_pm_suspend_put(ndev->xdna);
+
+	return ret;
 }
 
 int aie2_pm_init(struct amdxdna_dev_hdl *ndev)
@@ -94,7 +109,7 @@ int aie2_pm_set_mode(struct amdxdna_dev_hdl *ndev, enum amdxdna_power_mode_type 
 		return -EOPNOTSUPP;
 	}
 
-	ret = ndev->priv->hw_ops.set_dpm(ndev, dpm_level);
+	ret = aie2_pm_set_dpm(ndev, dpm_level);
 	if (ret)
 		return ret;
 

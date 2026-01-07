@@ -1414,7 +1414,7 @@ setup_irq_thread(struct irqaction *new, unsigned int irq, bool secondary)
 	 * Ensure the thread adjusts the affinity once it reaches the
 	 * thread function.
 	 */
-	new->thread_flags = BIT(IRQTF_AFFINITY);
+	set_bit(IRQTF_AFFINITY, &new->thread_flags);
 
 	return 0;
 }

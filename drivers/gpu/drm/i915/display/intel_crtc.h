@@ -37,7 +37,7 @@ void intel_crtc_arm_vblank_event(struct intel_crtc_state *crtc_state);
 void intel_crtc_prepare_vblank_event(struct intel_crtc_state *crtc_state,
 				     struct drm_pending_vblank_event **event);
 u32 intel_crtc_max_vblank_count(const struct intel_crtc_state *crtc_state);
-int intel_crtc_init(struct intel_display *display, enum pipe pipe);
+int intel_crtc_init(struct intel_display *display);
 int intel_crtc_get_pipe_from_crtc_id_ioctl(struct drm_device *dev, void *data,
 					   struct drm_file *file_priv);
 struct intel_crtc_state *intel_crtc_state_alloc(struct intel_crtc *crtc);

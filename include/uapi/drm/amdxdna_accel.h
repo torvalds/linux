@@ -19,6 +19,14 @@ extern "C" {
 #define AMDXDNA_INVALID_BO_HANDLE	0
 #define AMDXDNA_INVALID_FENCE_HANDLE	0
 
+/*
+ * Define hardware context priority
+ */
+#define AMDXDNA_QOS_REALTIME_PRIORITY	0x100
+#define AMDXDNA_QOS_HIGH_PRIORITY	0x180
+#define AMDXDNA_QOS_NORMAL_PRIORITY	0x200
+#define AMDXDNA_QOS_LOW_PRIORITY	0x280
+
 enum amdxdna_device_type {
 	AMDXDNA_DEV_TYPE_UNKNOWN = -1,
 	AMDXDNA_DEV_TYPE_KMQ,

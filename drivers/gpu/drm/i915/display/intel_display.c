@@ -372,7 +372,7 @@ void assert_transcoder(struct intel_display *display,
 {
 	bool cur_state;
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	/* we keep both pipes enabled on 830 */
 	if (display->platform.i830)
@@ -1810,7 +1810,17 @@ bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
 		return false;
 }
 
-/* Prefer intel_encoder_is_tc() */
+/*
+ * This function returns true if the DDI port respective to the PHY enumeration
+ * is a Type-C capable port.
+ *
+ * Depending on the VBT, the port might be configured
+ * as a "dedicated external" port, meaning that actual physical PHY is outside
+ * of the Type-C subsystem and, as such, not really a "Type-C PHY".
+ *
+ * Prefer intel_encoder_is_tc(), especially if you really need to know if we
+ * are dealing with Type-C connections.
+ */
 bool intel_phy_is_tc(struct intel_display *display, enum phy phy)
 {
 	/*
@@ -1859,15 +1869,30 @@ enum phy intel_port_to_phy(struct intel_display *display, enum port port)
 }
 
 /* Prefer intel_encoder_to_tc() */
+/*
+ * Return TC_PORT_1..I915_MAX_TC_PORTS for any TypeC DDI port. The function
+ * can be also called for TypeC DDI ports not connected to a TypeC PHY such as
+ * the PORT_TC1..4 ports on RKL/ADLS/BMG.
+ */
 enum tc_port intel_port_to_tc(struct intel_display *display, enum port port)
 {
-	if (!intel_phy_is_tc(display, intel_port_to_phy(display, port)))
-		return TC_PORT_NONE;
-
 	if (DISPLAY_VER(display) >= 12)
 		return TC_PORT_1 + port - PORT_TC1;
 	else
 		return TC_PORT_1 + port - PORT_C;
+}
+
+/*
+ * Return TC_PORT_1..I915_MAX_TC_PORTS for TypeC DDI ports connected to a TypeC PHY.
+ * Note that on RKL, ADLS, BMG the PORT_TC1..4 ports are connected to a non-TypeC
+ * PHY, so on those platforms the function returns TC_PORT_NONE.
+ */
+enum tc_port intel_tc_phy_port_to_tc(struct intel_display *display, enum port port)
+{
+	if (!intel_phy_is_tc(display, intel_port_to_phy(display, port)))
+		return TC_PORT_NONE;
+
+	return intel_port_to_tc(display, port);
 }
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder)
@@ -1894,6 +1919,10 @@ bool intel_encoder_is_snps(struct intel_encoder *encoder)
 bool intel_encoder_is_tc(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (dig_port && dig_port->dedicated_external)
+		return false;
 
 	return intel_phy_is_tc(display, intel_encoder_to_phy(encoder));
 }
@@ -1902,7 +1931,7 @@ enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_port_to_tc(display, encoder->port);
+	return intel_tc_phy_port_to_tc(display, encoder->port);
 }
 
 enum intel_display_power_domain
@@ -3020,7 +3049,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	enum intel_display_power_domain power_domain;
 	enum transcoder cpu_transcoder = (enum transcoder)crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 tmp;
 
@@ -3364,7 +3393,7 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	struct intel_display *display = to_intel_display(crtc);
 	enum intel_display_power_domain power_domain;
 	enum transcoder cpu_transcoder = (enum transcoder)crtc->pipe;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool ret = false;
 	u32 tmp;
 
@@ -3454,12 +3483,11 @@ static bool transcoder_ddi_func_is_enabled(struct intel_display *display,
 					   enum transcoder cpu_transcoder)
 {
 	enum intel_display_power_domain power_domain;
-	intel_wakeref_t wakeref;
 	u32 tmp = 0;
 
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 
-	with_intel_display_power_if_enabled(display, power_domain, wakeref)
+	with_intel_display_power_if_enabled(display, power_domain)
 		tmp = intel_de_read(display,
 				    TRANS_DDI_FUNC_CTL(display, cpu_transcoder));
 
@@ -3481,10 +3509,9 @@ static void enabled_uncompressed_joiner_pipes(struct intel_display *display,
 					 joiner_pipes(display)) {
 		enum intel_display_power_domain power_domain;
 		enum pipe pipe = crtc->pipe;
-		intel_wakeref_t wakeref;
 
 		power_domain = POWER_DOMAIN_PIPE(pipe);
-		with_intel_display_power_if_enabled(display, power_domain, wakeref) {
+		with_intel_display_power_if_enabled(display, power_domain) {
 			u32 tmp = intel_de_read(display, ICL_PIPE_DSS_CTL1(pipe));
 
 			if (tmp & UNCOMPRESSED_JOINER_PRIMARY)
@@ -3510,10 +3537,9 @@ static void enabled_bigjoiner_pipes(struct intel_display *display,
 					 joiner_pipes(display)) {
 		enum intel_display_power_domain power_domain;
 		enum pipe pipe = crtc->pipe;
-		intel_wakeref_t wakeref;
 
 		power_domain = intel_dsc_power_domain(crtc, (enum transcoder)pipe);
-		with_intel_display_power_if_enabled(display, power_domain, wakeref) {
+		with_intel_display_power_if_enabled(display, power_domain) {
 			u32 tmp = intel_de_read(display, ICL_PIPE_DSS_CTL1(pipe));
 
 			if (!(tmp & BIG_JOINER_ENABLE))
@@ -3580,10 +3606,9 @@ static void enabled_ultrajoiner_pipes(struct intel_display *display,
 					 joiner_pipes(display)) {
 		enum intel_display_power_domain power_domain;
 		enum pipe pipe = crtc->pipe;
-		intel_wakeref_t wakeref;
 
 		power_domain = intel_dsc_power_domain(crtc, (enum transcoder)pipe);
-		with_intel_display_power_if_enabled(display, power_domain, wakeref) {
+		with_intel_display_power_if_enabled(display, power_domain) {
 			u32 tmp = intel_de_read(display, ICL_PIPE_DSS_CTL1(pipe));
 
 			if (!(tmp & ULTRA_JOINER_ENABLE))
@@ -3741,12 +3766,11 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 	for_each_cpu_transcoder_masked(display, cpu_transcoder,
 				       panel_transcoder_mask) {
 		enum intel_display_power_domain power_domain;
-		intel_wakeref_t wakeref;
 		enum pipe trans_pipe;
 		u32 tmp = 0;
 
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
-		with_intel_display_power_if_enabled(display, power_domain, wakeref)
+		with_intel_display_power_if_enabled(display, power_domain)
 			tmp = intel_de_read(display,
 					    TRANS_DDI_FUNC_CTL(display, cpu_transcoder));
 
@@ -4977,24 +5001,6 @@ pipe_config_pll_mismatch(struct drm_printer *p, bool fastset,
 	intel_dpll_dump_hw_state(display, p, b);
 }
 
-static void
-pipe_config_cx0pll_mismatch(struct drm_printer *p, bool fastset,
-			    const struct intel_crtc *crtc,
-			    const char *name,
-			    const struct intel_cx0pll_state *a,
-			    const struct intel_cx0pll_state *b)
-{
-	struct intel_display *display = to_intel_display(crtc);
-	char *chipname = a->use_c10 ? "C10" : "C20";
-
-	pipe_config_mismatch(p, fastset, crtc, name, chipname);
-
-	drm_printf(p, "expected:\n");
-	intel_cx0pll_dump_hw_state(display, a);
-	drm_printf(p, "found:\n");
-	intel_cx0pll_dump_hw_state(display, b);
-}
-
 static bool allow_vblank_delay_fastset(const struct intel_crtc_state *old_crtc_state)
 {
 	struct intel_display *display = to_intel_display(old_crtc_state);
@@ -5142,16 +5148,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		pipe_config_pll_mismatch(&p, fastset, crtc, __stringify(name), \
 					 &current_config->name, \
 					 &pipe_config->name); \
-		ret = false; \
-	} \
-} while (0)
-
-#define PIPE_CONF_CHECK_PLL_CX0(name) do { \
-	if (!intel_cx0pll_compare_hw_state(&current_config->name, \
-					   &pipe_config->name)) { \
-		pipe_config_cx0pll_mismatch(&p, fastset, crtc, __stringify(name), \
-					    &current_config->name, \
-					    &pipe_config->name); \
 		ret = false; \
 	} \
 } while (0)
@@ -5395,8 +5391,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	/* FIXME convert MTL+ platforms over to dpll_mgr */
 	if (HAS_LT_PHY(display))
 		PIPE_CONF_CHECK_PLL_LT(dpll_hw_state.ltpll);
-	else if (DISPLAY_VER(display) >= 14)
-		PIPE_CONF_CHECK_PLL_CX0(dpll_hw_state.cx0pll);
 
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);
@@ -6032,14 +6026,6 @@ static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
 		return -EINVAL;
 	}
 
-	/* FIXME: selective fetch should be disabled for async flips */
-	if (new_crtc_state->enable_psr2_sel_fetch) {
-		drm_dbg_kms(display->drm,
-			    "[CRTC:%d:%s] async flip disallowed with PSR2 selective fetch\n",
-			    crtc->base.base.id, crtc->base.name);
-		return -EINVAL;
-	}
-
 	for_each_oldnew_intel_plane_in_state(state, plane, old_plane_state,
 					     new_plane_state, i) {
 		if (plane->pipe != crtc->pipe)
@@ -6130,7 +6116,7 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 		if (!plane->async_flip)
 			continue;
 
-		if (!intel_plane_can_async_flip(plane, new_plane_state->hw.fb->format->format,
+		if (!intel_plane_can_async_flip(plane, new_plane_state->hw.fb->format,
 						new_plane_state->hw.fb->modifier)) {
 			drm_dbg_kms(display->drm,
 				    "[PLANE:%d:%s] pixel format %p4cc / modifier 0x%llx does not support async flip\n",
@@ -7399,7 +7385,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	struct intel_power_domain_mask put_domains[I915_MAX_PIPES] = {};
-	intel_wakeref_t wakeref = NULL;
+	struct ref_tracker *wakeref = NULL;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)

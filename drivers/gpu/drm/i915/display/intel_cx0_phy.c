@@ -11,6 +11,7 @@
 #include "intel_alpm.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
+#include "intel_display_regs.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
@@ -104,11 +105,11 @@ static void intel_cx0_program_msgbus_timer(struct intel_encoder *encoder)
  * We also do the msgbus timer programming here to ensure that the timer
  * is already programmed before any access to the msgbus.
  */
-static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
+static struct ref_tracker *intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	intel_psr_pause(intel_dp);
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DC_OFF);
@@ -117,7 +118,7 @@ static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *enc
 	return wakeref;
 }
 
-static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
+static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -444,13 +445,38 @@ static u8 intel_c10_get_tx_term_ctl(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static void intel_c10_msgbus_access_begin(struct intel_encoder *encoder,
+					  u8 lane_mask)
+{
+	if (!intel_encoder_is_c10phy(encoder))
+		return;
+
+	intel_cx0_rmw(encoder, lane_mask, PHY_C10_VDR_CONTROL(1),
+		      0, C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
+}
+
+static void intel_c10_msgbus_access_commit(struct intel_encoder *encoder,
+					   u8 lane_mask, bool master_lane)
+{
+	u8 val = C10_VDR_CTRL_UPDATE_CFG;
+
+	if (!intel_encoder_is_c10phy(encoder))
+		return;
+
+	if (master_lane)
+		val |= C10_VDR_CTRL_MASTER_LANE;
+
+	intel_cx0_rmw(encoder, lane_mask, PHY_C10_VDR_CONTROL(1),
+		      0, val, MB_WRITE_COMMITTED);
+}
+
 void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_ddi_buf_trans *trans;
 	u8 owned_lane_mask;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int n_entries, ln;
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
@@ -467,9 +493,9 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 		return;
 	}
 
+	intel_c10_msgbus_access_begin(encoder, owned_lane_mask);
+
 	if (intel_encoder_is_c10phy(encoder)) {
-		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C10_VDR_CONTROL(1),
-			      0, C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
 		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C10_VDR_CMN(3),
 			      C10_CMN3_TXVBOOST_MASK,
 			      C10_CMN3_TXVBOOST(intel_c10_get_tx_vboost_lvl(crtc_state)),
@@ -508,9 +534,7 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 		      0, PHY_C10_VDR_OVRD_TX1 | PHY_C10_VDR_OVRD_TX2,
 		      MB_WRITE_COMMITTED);
 
-	if (intel_encoder_is_c10phy(encoder))
-		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C10_VDR_CONTROL(1),
-			      0, C10_VDR_CTRL_UPDATE_CFG, MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_commit(encoder, owned_lane_mask, false);
 
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
@@ -2005,7 +2029,7 @@ static const struct intel_c20pll_state * const mtl_c20_hdmi_tables[] = {
 };
 
 static const struct intel_c10pll_state * const *
-intel_c10pll_tables_get(struct intel_crtc_state *crtc_state,
+intel_c10pll_tables_get(const struct intel_crtc_state *crtc_state,
 			struct intel_encoder *encoder)
 {
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
@@ -2035,6 +2059,15 @@ static void intel_cx0pll_update_ssc(struct intel_encoder *encoder,
 	}
 }
 
+#define C10_PLL_SSC_REG_START_IDX	4
+#define C10_PLL_SSC_REG_COUNT		5
+
+static bool intel_c10pll_ssc_enabled(const struct intel_c10pll_state *pll_state)
+{
+	return memchr_inv(&pll_state->pll[C10_PLL_SSC_REG_START_IDX],
+			  0, sizeof(pll_state->pll[0]) * C10_PLL_SSC_REG_COUNT);
+}
+
 static void intel_c10pll_update_pll(struct intel_encoder *encoder,
 				    struct intel_cx0pll_state *pll_state)
 {
@@ -2044,16 +2077,42 @@ static void intel_c10pll_update_pll(struct intel_encoder *encoder,
 	if (pll_state->ssc_enabled)
 		return;
 
-	drm_WARN_ON(display->drm, ARRAY_SIZE(pll_state->c10.pll) < 9);
-	for (i = 4; i < 9; i++)
+	drm_WARN_ON(display->drm, ARRAY_SIZE(pll_state->c10.pll) <
+				  C10_PLL_SSC_REG_START_IDX + C10_PLL_SSC_REG_COUNT);
+	for (i = C10_PLL_SSC_REG_START_IDX;
+	     i < C10_PLL_SSC_REG_START_IDX + C10_PLL_SSC_REG_COUNT;
+	     i++)
 		pll_state->c10.pll[i] = 0;
 }
 
+static bool c10pll_state_is_dp(const struct intel_c10pll_state *pll_state)
+{
+	return !REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
+}
+
+static bool c20pll_state_is_dp(const struct intel_c20pll_state *pll_state)
+{
+	return pll_state->vdr.serdes_rate & PHY_C20_IS_DP;
+}
+
+static bool cx0pll_state_is_dp(const struct intel_cx0pll_state *pll_state)
+{
+	if (pll_state->use_c10)
+		return c10pll_state_is_dp(&pll_state->c10);
+
+	return c20pll_state_is_dp(&pll_state->c20);
+}
+
+/*
+ * TODO: Convert the following to align with intel_c20pll_find_table() and
+ * intel_c20pll_calc_state_from_table().
+ */
 static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 					      const struct intel_c10pll_state * const *tables,
-					      bool is_dp, int port_clock,
+					      bool is_dp, int port_clock, int lane_count,
 					      struct intel_cx0pll_state *pll_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	int i;
 
 	for (i = 0; tables[i]; i++) {
@@ -2061,7 +2120,11 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 			pll_state->c10 = *tables[i];
 			intel_cx0pll_update_ssc(encoder, pll_state, is_dp);
 			intel_c10pll_update_pll(encoder, pll_state);
+
 			pll_state->use_c10 = true;
+			pll_state->lane_count = lane_count;
+
+			drm_WARN_ON(display->drm, is_dp != c10pll_state_is_dp(&pll_state->c10));
 
 			return 0;
 		}
@@ -2070,9 +2133,12 @@ static int intel_c10pll_calc_state_from_table(struct intel_encoder *encoder,
 	return -EINVAL;
 }
 
-static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
-				   struct intel_encoder *encoder)
+static int intel_c10pll_calc_state(const struct intel_crtc_state *crtc_state,
+				   struct intel_encoder *encoder,
+				   struct intel_dpll_hw_state *hw_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
+	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
 	const struct intel_c10pll_state * const *tables;
 	int err;
 
@@ -2080,33 +2146,116 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 	if (!tables)
 		return -EINVAL;
 
-	err = intel_c10pll_calc_state_from_table(encoder, tables,
-						 intel_crtc_has_dp_encoder(crtc_state),
-						 crtc_state->port_clock,
-						 &crtc_state->dpll_hw_state.cx0pll);
+	err = intel_c10pll_calc_state_from_table(encoder, tables, is_dp,
+						 crtc_state->port_clock, crtc_state->lane_count,
+						 &hw_state->cx0pll);
 
 	if (err == 0 || !intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return err;
 
 	/* For HDMI PLLs try SNPS PHY algorithm, if there are no precomputed tables */
-	intel_snps_hdmi_pll_compute_c10pll(&crtc_state->dpll_hw_state.cx0pll.c10,
+	intel_snps_hdmi_pll_compute_c10pll(&hw_state->cx0pll.c10,
 					   crtc_state->port_clock);
-	intel_c10pll_update_pll(encoder,
-				&crtc_state->dpll_hw_state.cx0pll);
-	crtc_state->dpll_hw_state.cx0pll.use_c10 = true;
+	intel_c10pll_update_pll(encoder, &hw_state->cx0pll);
+
+	hw_state->cx0pll.use_c10 = true;
+	hw_state->cx0pll.lane_count = crtc_state->lane_count;
+
+	drm_WARN_ON(display->drm, is_dp != c10pll_state_is_dp(&hw_state->cx0pll.c10));
 
 	return 0;
 }
 
 static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c10pll_state *pll_state);
+					const struct intel_c10pll_state *pll_state)
+{
+	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
+	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
+	int tmpclk = 0;
+
+	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
+		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
+		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
+		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
+	}
+
+	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
+		      pll_state->pll[2]) / 2 + 16;
+
+	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
+	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
+
+	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
+				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
+				     10 << (tx_clk_div + 16));
+	tmpclk *= (hdmi_div ? 2 : 1);
+
+	return tmpclk;
+}
+
+static int readout_enabled_lane_count(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	u8 enabled_tx_lane_count = 0;
+	int max_tx_lane_count = 4;
+	bool lane_reversal;
+	int tx_lane;
+
+	lane_reversal = intel_de_read(display, XELPDP_PORT_BUF_CTL1(display, encoder->port)) &
+			XELPDP_PORT_REVERSAL;
+
+	/*
+	 * TODO: also check inactive TX lanes in all PHY lanes owned by the
+	 * display. For now checking only those PHY lane(s) which are owned
+	 * based on the active TX lane count (i.e.
+	 *   1,2 active TX lanes -> PHY lane#0
+	 *   3,4 active TX lanes -> PHY lane#0 and PHY lane#1).
+	 *
+	 * In case of lane reversal for 1, 2 active TX lanes, only PHY
+	 * lane#1 is used. This is only possible in TypeC legacy mode or if
+	 * the port is connected to a non-TC PHY. In both of these cases both
+	 * PHY lane#0 and #1 are owned by display, so check all 4 TX lanes in
+	 * both PHY lanes in those cases.
+	 */
+	if (!lane_reversal)
+		max_tx_lane_count = DDI_PORT_WIDTH_GET(intel_de_read(display,
+								     DDI_BUF_CTL(encoder->port)));
+
+	if (!drm_WARN_ON(display->drm, max_tx_lane_count == 0))
+		max_tx_lane_count = round_up(max_tx_lane_count, 2);
+
+	for (tx_lane = 0; tx_lane < max_tx_lane_count; tx_lane++) {
+		u8 phy_lane_mask = tx_lane < 2 ? INTEL_CX0_LANE0 : INTEL_CX0_LANE1;
+		int tx = tx_lane % 2 + 1;
+		u8 val;
+
+		val = intel_cx0_read(encoder, phy_lane_mask, PHY_CX0_TX_CONTROL(tx, 2));
+		if (!(val & CONTROL2_DISABLE_SINGLE_TX))
+			enabled_tx_lane_count++;
+	}
+
+	return enabled_tx_lane_count;
+}
+
+static bool readout_ssc_state(struct intel_encoder *encoder, bool is_mpll_b)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	return intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port)) &
+		(is_mpll_b ? XELPDP_SSC_ENABLE_PLLB : XELPDP_SSC_ENABLE_PLLA);
+}
 
 static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
-					  struct intel_c10pll_state *pll_state)
+					  struct intel_cx0pll_state *cx0pll_state)
 {
+	struct intel_c10pll_state *pll_state = &cx0pll_state->c10;
+	struct intel_display *display = to_intel_display(encoder);
+	enum phy phy = intel_encoder_to_phy(encoder);
 	u8 lane = INTEL_CX0_LANE0;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i;
+
+	cx0pll_state->use_c10 = true;
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
@@ -2114,9 +2263,9 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	 * According to C10 VDR Register programming Sequence we need
 	 * to do this to read PHY internal registers from MsgBus.
 	 */
-	intel_cx0_rmw(encoder, lane, PHY_C10_VDR_CONTROL(1),
-		      0, C10_VDR_CTRL_MSGBUS_ACCESS,
-		      MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_begin(encoder, lane);
+
+	cx0pll_state->lane_count = readout_enabled_lane_count(encoder);
 
 	for (i = 0; i < ARRAY_SIZE(pll_state->pll); i++)
 		pll_state->pll[i] = intel_cx0_read(encoder, lane, PHY_C10_VDR_PLL(i));
@@ -2127,6 +2276,15 @@ static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 
 	pll_state->clock = intel_c10pll_calc_port_clock(encoder, pll_state);
+
+	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, true);
+
+	if (cx0pll_state->ssc_enabled != intel_c10pll_ssc_enabled(pll_state))
+		drm_dbg_kms(display->drm,
+			    "PHY %c: SSC state mismatch: port SSC is %s, PLL SSC is %s\n",
+			    phy_name(phy),
+			    str_enabled_disabled(cx0pll_state->ssc_enabled),
+			    str_enabled_disabled(intel_c10pll_ssc_enabled(pll_state)));
 }
 
 static void intel_c10_pll_program(struct intel_display *display,
@@ -2135,9 +2293,7 @@ static void intel_c10_pll_program(struct intel_display *display,
 {
 	int i;
 
-	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
-		      0, C10_VDR_CTRL_MSGBUS_ACCESS,
-		      MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_begin(encoder, INTEL_CX0_BOTH_LANES);
 
 	/* Program the pll values only for the master lane */
 	for (i = 0; i < ARRAY_SIZE(pll_state->pll); i++)
@@ -2152,12 +2308,11 @@ static void intel_c10_pll_program(struct intel_display *display,
 	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CUSTOM_WIDTH,
 		      C10_VDR_CUSTOM_WIDTH_MASK, C10_VDR_CUSTOM_WIDTH_8_10,
 		      MB_WRITE_COMMITTED);
-	intel_cx0_rmw(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_CONTROL(1),
-		      0, C10_VDR_CTRL_MASTER_LANE | C10_VDR_CTRL_UPDATE_CFG,
-		      MB_WRITE_COMMITTED);
+
+	intel_c10_msgbus_access_commit(encoder, INTEL_CX0_LANE0, true);
 }
 
-static void intel_c10pll_dump_hw_state(struct intel_display *display,
+static void intel_c10pll_dump_hw_state(struct drm_printer *p,
 				       const struct intel_c10pll_state *hw_state)
 {
 	bool fracen;
@@ -2166,33 +2321,32 @@ static void intel_c10pll_dump_hw_state(struct intel_display *display,
 	unsigned int multiplier, tx_clk_div;
 
 	fracen = hw_state->pll[0] & C10_PLL0_FRACEN;
-	drm_dbg_kms(display->drm, "c10pll_hw_state: fracen: %s, ",
-		    str_yes_no(fracen));
+	drm_printf(p, "c10pll_hw_state: clock: %d, fracen: %s, ",
+		   hw_state->clock, str_yes_no(fracen));
 
 	if (fracen) {
 		frac_quot = hw_state->pll[12] << 8 | hw_state->pll[11];
 		frac_rem =  hw_state->pll[14] << 8 | hw_state->pll[13];
 		frac_den =  hw_state->pll[10] << 8 | hw_state->pll[9];
-		drm_dbg_kms(display->drm, "quot: %u, rem: %u, den: %u,\n",
-			    frac_quot, frac_rem, frac_den);
+		drm_printf(p, "quot: %u, rem: %u, den: %u,\n",
+			   frac_quot, frac_rem, frac_den);
 	}
 
 	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, hw_state->pll[3]) << 8 |
 		      hw_state->pll[2]) / 2 + 16;
 	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, hw_state->pll[15]);
-	drm_dbg_kms(display->drm,
-		    "multiplier: %u, tx_clk_div: %u.\n", multiplier, tx_clk_div);
+	drm_printf(p,
+		   "multiplier: %u, tx_clk_div: %u.\n", multiplier, tx_clk_div);
 
-	drm_dbg_kms(display->drm, "c10pll_rawhw_state:");
-	drm_dbg_kms(display->drm, "tx: 0x%x, cmn: 0x%x\n", hw_state->tx,
-		    hw_state->cmn);
+	drm_printf(p, "c10pll_rawhw_state:");
+	drm_printf(p, "tx: 0x%x, cmn: 0x%x\n", hw_state->tx, hw_state->cmn);
 
 	BUILD_BUG_ON(ARRAY_SIZE(hw_state->pll) % 4);
 	for (i = 0; i < ARRAY_SIZE(hw_state->pll); i = i + 4)
-		drm_dbg_kms(display->drm,
-			    "pll[%d] = 0x%x, pll[%d] = 0x%x, pll[%d] = 0x%x, pll[%d] = 0x%x\n",
-			    i, hw_state->pll[i], i + 1, hw_state->pll[i + 1],
-			    i + 2, hw_state->pll[i + 2], i + 3, hw_state->pll[i + 3]);
+		drm_printf(p,
+			   "pll[%d] = 0x%x, pll[%d] = 0x%x, pll[%d] = 0x%x, pll[%d] = 0x%x\n",
+			   i, hw_state->pll[i], i + 1, hw_state->pll[i + 1],
+			   i + 2, hw_state->pll[i + 2], i + 3, hw_state->pll[i + 3]);
 }
 
 /*
@@ -2210,7 +2364,7 @@ static bool is_arrowlake_s_by_host_bridge(void)
 	return pdev && IS_ARROWLAKE_S_BY_HOST_BRIDGE_ID(host_bridge_pci_dev_id);
 }
 
-static u16 intel_c20_hdmi_tmds_tx_cgf_1(struct intel_crtc_state *crtc_state)
+static u16 intel_c20_hdmi_tmds_tx_cgf_1(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	u16 tx_misc;
@@ -2234,9 +2388,9 @@ static u16 intel_c20_hdmi_tmds_tx_cgf_1(struct intel_crtc_state *crtc_state)
 		C20_PHY_TX_DCC_BYPASS | C20_PHY_TX_TERM_CTL(tx_term_ctrl));
 }
 
-static int intel_c20_compute_hdmi_tmds_pll(struct intel_crtc_state *crtc_state)
+static int intel_c20_compute_hdmi_tmds_pll(const struct intel_crtc_state *crtc_state,
+					   struct intel_c20pll_state *pll_state)
 {
-	struct intel_c20pll_state *pll_state = &crtc_state->dpll_hw_state.cx0pll.c20;
 	u64 datarate;
 	u64 mpll_tx_clk_div;
 	u64 vco_freq_shift;
@@ -2304,7 +2458,7 @@ static int intel_c20_compute_hdmi_tmds_pll(struct intel_crtc_state *crtc_state)
 }
 
 static const struct intel_c20pll_state * const *
-intel_c20_pll_tables_get(struct intel_crtc_state *crtc_state,
+intel_c20_pll_tables_get(const struct intel_crtc_state *crtc_state,
 			 struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -2330,195 +2484,6 @@ intel_c20_pll_tables_get(struct intel_crtc_state *crtc_state,
 
 	MISSING_CASE(encoder->type);
 	return NULL;
-}
-
-static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
-				   struct intel_encoder *encoder)
-{
-	const struct intel_c20pll_state * const *tables;
-	int i;
-
-	/* try computed C20 HDMI tables before using consolidated tables */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		if (intel_c20_compute_hdmi_tmds_pll(crtc_state) == 0)
-			return 0;
-	}
-
-	tables = intel_c20_pll_tables_get(crtc_state, encoder);
-	if (!tables)
-		return -EINVAL;
-
-	for (i = 0; tables[i]; i++) {
-		if (crtc_state->port_clock == tables[i]->clock) {
-			crtc_state->dpll_hw_state.cx0pll.c20 = *tables[i];
-			intel_cx0pll_update_ssc(encoder,
-						&crtc_state->dpll_hw_state.cx0pll,
-						intel_crtc_has_dp_encoder(crtc_state));
-			crtc_state->dpll_hw_state.cx0pll.use_c10 = false;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
-int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
-			    struct intel_encoder *encoder)
-{
-	if (intel_encoder_is_c10phy(encoder))
-		return intel_c10pll_calc_state(crtc_state, encoder);
-	return intel_c20pll_calc_state(crtc_state, encoder);
-}
-
-static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)
-{
-	return state->tx[0] & C20_PHY_USE_MPLLB;
-}
-
-static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c20pll_state *pll_state)
-{
-	unsigned int frac, frac_en, frac_quot, frac_rem, frac_den;
-	unsigned int multiplier, refclk = 38400;
-	unsigned int tx_clk_div;
-	unsigned int ref_clk_mpllb_div;
-	unsigned int fb_clk_div4_en;
-	unsigned int ref, vco;
-	unsigned int tx_rate_mult;
-	unsigned int tx_rate = REG_FIELD_GET(C20_PHY_TX_RATE, pll_state->tx[0]);
-
-	if (intel_c20phy_use_mpllb(pll_state)) {
-		tx_rate_mult = 1;
-		frac_en = REG_FIELD_GET(C20_MPLLB_FRACEN, pll_state->mpllb[6]);
-		frac_quot = pll_state->mpllb[8];
-		frac_rem =  pll_state->mpllb[9];
-		frac_den =  pll_state->mpllb[7];
-		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mpllb[0]);
-		tx_clk_div = REG_FIELD_GET(C20_MPLLB_TX_CLK_DIV_MASK, pll_state->mpllb[0]);
-		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mpllb[6]);
-		fb_clk_div4_en = 0;
-	} else {
-		tx_rate_mult = 2;
-		frac_en = REG_FIELD_GET(C20_MPLLA_FRACEN, pll_state->mplla[6]);
-		frac_quot = pll_state->mplla[8];
-		frac_rem =  pll_state->mplla[9];
-		frac_den =  pll_state->mplla[7];
-		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mplla[0]);
-		tx_clk_div = REG_FIELD_GET(C20_MPLLA_TX_CLK_DIV_MASK, pll_state->mplla[1]);
-		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mplla[6]);
-		fb_clk_div4_en = REG_FIELD_GET(C20_FB_CLK_DIV4_EN, pll_state->mplla[0]);
-	}
-
-	if (frac_en)
-		frac = frac_quot + DIV_ROUND_CLOSEST(frac_rem, frac_den);
-	else
-		frac = 0;
-
-	ref = DIV_ROUND_CLOSEST(refclk * (1 << (1 + fb_clk_div4_en)), 1 << ref_clk_mpllb_div);
-	vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(ref, (multiplier << (17 - 2)) + frac) >> 17, 10);
-
-	return vco << tx_rate_mult >> tx_clk_div >> tx_rate;
-}
-
-static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
-					  struct intel_c20pll_state *pll_state)
-{
-	struct intel_display *display = to_intel_display(encoder);
-	bool cntx;
-	intel_wakeref_t wakeref;
-	int i;
-
-	wakeref = intel_cx0_phy_transaction_begin(encoder);
-
-	/* 1. Read current context selection */
-	cntx = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_SERDES_RATE) & PHY_C20_CONTEXT_TOGGLE;
-
-	/* Read Tx configuration */
-	for (i = 0; i < ARRAY_SIZE(pll_state->tx); i++) {
-		if (cntx)
-			pll_state->tx[i] = intel_c20_sram_read(encoder,
-							       INTEL_CX0_LANE0,
-							       PHY_C20_B_TX_CNTX_CFG(display, i));
-		else
-			pll_state->tx[i] = intel_c20_sram_read(encoder,
-							       INTEL_CX0_LANE0,
-							       PHY_C20_A_TX_CNTX_CFG(display, i));
-	}
-
-	/* Read common configuration */
-	for (i = 0; i < ARRAY_SIZE(pll_state->cmn); i++) {
-		if (cntx)
-			pll_state->cmn[i] = intel_c20_sram_read(encoder,
-								INTEL_CX0_LANE0,
-								PHY_C20_B_CMN_CNTX_CFG(display, i));
-		else
-			pll_state->cmn[i] = intel_c20_sram_read(encoder,
-								INTEL_CX0_LANE0,
-								PHY_C20_A_CMN_CNTX_CFG(display, i));
-	}
-
-	if (intel_c20phy_use_mpllb(pll_state)) {
-		/* MPLLB configuration */
-		for (i = 0; i < ARRAY_SIZE(pll_state->mpllb); i++) {
-			if (cntx)
-				pll_state->mpllb[i] = intel_c20_sram_read(encoder,
-									  INTEL_CX0_LANE0,
-									  PHY_C20_B_MPLLB_CNTX_CFG(display, i));
-			else
-				pll_state->mpllb[i] = intel_c20_sram_read(encoder,
-									  INTEL_CX0_LANE0,
-									  PHY_C20_A_MPLLB_CNTX_CFG(display, i));
-		}
-	} else {
-		/* MPLLA configuration */
-		for (i = 0; i < ARRAY_SIZE(pll_state->mplla); i++) {
-			if (cntx)
-				pll_state->mplla[i] = intel_c20_sram_read(encoder,
-									  INTEL_CX0_LANE0,
-									  PHY_C20_B_MPLLA_CNTX_CFG(display, i));
-			else
-				pll_state->mplla[i] = intel_c20_sram_read(encoder,
-									  INTEL_CX0_LANE0,
-									  PHY_C20_A_MPLLA_CNTX_CFG(display, i));
-		}
-	}
-
-	pll_state->clock = intel_c20pll_calc_port_clock(encoder, pll_state);
-
-	intel_cx0_phy_transaction_end(encoder, wakeref);
-}
-
-static void intel_c20pll_dump_hw_state(struct intel_display *display,
-				       const struct intel_c20pll_state *hw_state)
-{
-	int i;
-
-	drm_dbg_kms(display->drm, "c20pll_hw_state:\n");
-	drm_dbg_kms(display->drm,
-		    "tx[0] = 0x%.4x, tx[1] = 0x%.4x, tx[2] = 0x%.4x\n",
-		    hw_state->tx[0], hw_state->tx[1], hw_state->tx[2]);
-	drm_dbg_kms(display->drm,
-		    "cmn[0] = 0x%.4x, cmn[1] = 0x%.4x, cmn[2] = 0x%.4x, cmn[3] = 0x%.4x\n",
-		    hw_state->cmn[0], hw_state->cmn[1], hw_state->cmn[2], hw_state->cmn[3]);
-
-	if (intel_c20phy_use_mpllb(hw_state)) {
-		for (i = 0; i < ARRAY_SIZE(hw_state->mpllb); i++)
-			drm_dbg_kms(display->drm, "mpllb[%d] = 0x%.4x\n", i,
-				    hw_state->mpllb[i]);
-	} else {
-		for (i = 0; i < ARRAY_SIZE(hw_state->mplla); i++)
-			drm_dbg_kms(display->drm, "mplla[%d] = 0x%.4x\n", i,
-				    hw_state->mplla[i]);
-	}
-}
-
-void intel_cx0pll_dump_hw_state(struct intel_display *display,
-				const struct intel_cx0pll_state *hw_state)
-{
-	if (hw_state->use_c10)
-		intel_c10pll_dump_hw_state(display, &hw_state->c10);
-	else
-		intel_c20pll_dump_hw_state(display, &hw_state->c20);
 }
 
 static u8 intel_c20_get_dp_rate(u32 clock)
@@ -2585,15 +2550,6 @@ static bool is_dp2(u32 clock)
 	return false;
 }
 
-static bool intel_c20_protocol_switch_valid(struct intel_encoder *encoder)
-{
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
-
-	/* banks should not be cleared for DPALT/USB4/TBT modes */
-	/* TODO: optimize re-calibration in legacy mode */
-	return intel_tc_port_in_legacy_mode(intel_dig_port);
-}
-
 static int intel_get_c20_custom_width(u32 clock, bool dp)
 {
 	if (dp && is_dp2(clock))
@@ -2604,13 +2560,331 @@ static int intel_get_c20_custom_width(u32 clock, bool dp)
 		return 0;
 }
 
+static void intel_c20_calc_vdr_params(struct intel_c20pll_vdr_state *vdr, bool is_dp,
+				      int port_clock)
+{
+	vdr->custom_width = intel_get_c20_custom_width(port_clock, is_dp);
+
+	vdr->serdes_rate = 0;
+	vdr->hdmi_rate = 0;
+
+	if (is_dp) {
+		vdr->serdes_rate = PHY_C20_IS_DP |
+				   PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock));
+	} else {
+		if (intel_hdmi_is_frl(port_clock))
+			vdr->serdes_rate = PHY_C20_IS_HDMI_FRL;
+
+		vdr->hdmi_rate = intel_c20_get_hdmi_rate(port_clock);
+	}
+}
+
+#define PHY_C20_SERDES_RATE_MASK	(PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK | PHY_C20_IS_HDMI_FRL)
+
+static void intel_c20_readout_vdr_params(struct intel_encoder *encoder,
+					 struct intel_c20pll_vdr_state *vdr, bool *cntx)
+{
+	u8 serdes;
+
+	serdes = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_SERDES_RATE);
+	*cntx = serdes & PHY_C20_CONTEXT_TOGGLE;
+
+	vdr->custom_width = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_CUSTOM_WIDTH) &
+			    PHY_C20_CUSTOM_WIDTH_MASK;
+
+	vdr->serdes_rate = serdes & PHY_C20_SERDES_RATE_MASK;
+	if (!(vdr->serdes_rate & PHY_C20_IS_DP))
+		vdr->hdmi_rate = intel_cx0_read(encoder, INTEL_CX0_LANE0, PHY_C20_VDR_HDMI_RATE) &
+				 PHY_C20_HDMI_RATE_MASK;
+	else
+		vdr->hdmi_rate = 0;
+}
+
+static void intel_c20_program_vdr_params(struct intel_encoder *encoder,
+					 const struct intel_c20pll_vdr_state *vdr,
+					 u8 owned_lane_mask)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	drm_WARN_ON(display->drm, vdr->custom_width & ~PHY_C20_CUSTOM_WIDTH_MASK);
+	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_WIDTH,
+		      PHY_C20_CUSTOM_WIDTH_MASK, vdr->custom_width,
+		      MB_WRITE_COMMITTED);
+
+	drm_WARN_ON(display->drm, vdr->serdes_rate & ~PHY_C20_SERDES_RATE_MASK);
+	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
+		      PHY_C20_SERDES_RATE_MASK, vdr->serdes_rate,
+		      MB_WRITE_COMMITTED);
+
+	if (vdr->serdes_rate & PHY_C20_IS_DP)
+		return;
+
+	drm_WARN_ON(display->drm, vdr->hdmi_rate & ~PHY_C20_HDMI_RATE_MASK);
+	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
+		      PHY_C20_HDMI_RATE_MASK, vdr->hdmi_rate,
+		      MB_WRITE_COMMITTED);
+}
+
+static const struct intel_c20pll_state *
+intel_c20_pll_find_table(const struct intel_crtc_state *crtc_state,
+			 struct intel_encoder *encoder)
+{
+	const struct intel_c20pll_state * const *tables;
+	int i;
+
+	tables = intel_c20_pll_tables_get(crtc_state, encoder);
+	if (!tables)
+		return NULL;
+
+	for (i = 0; tables[i]; i++)
+		if (crtc_state->port_clock == tables[i]->clock)
+			return tables[i];
+
+	return NULL;
+}
+
+static int intel_c20pll_calc_state_from_table(const struct intel_crtc_state *crtc_state,
+					      struct intel_encoder *encoder,
+					      struct intel_cx0pll_state *pll_state)
+{
+	const struct intel_c20pll_state *table;
+
+	table = intel_c20_pll_find_table(crtc_state, encoder);
+	if (!table)
+		return -EINVAL;
+
+	pll_state->c20 = *table;
+
+	intel_cx0pll_update_ssc(encoder, pll_state, intel_crtc_has_dp_encoder(crtc_state));
+
+	return 0;
+}
+
+static int intel_c20pll_calc_state(const struct intel_crtc_state *crtc_state,
+				   struct intel_encoder *encoder,
+				   struct intel_dpll_hw_state *hw_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	bool is_dp = intel_crtc_has_dp_encoder(crtc_state);
+	int err = -ENOENT;
+
+	hw_state->cx0pll.use_c10 = false;
+	hw_state->cx0pll.lane_count = crtc_state->lane_count;
+
+	/* try computed C20 HDMI tables before using consolidated tables */
+	if (!is_dp)
+		/* TODO: Update SSC state for HDMI as well */
+		err = intel_c20_compute_hdmi_tmds_pll(crtc_state, &hw_state->cx0pll.c20);
+
+	if (err)
+		err = intel_c20pll_calc_state_from_table(crtc_state, encoder,
+							 &hw_state->cx0pll);
+
+	if (err)
+		return err;
+
+	intel_c20_calc_vdr_params(&hw_state->cx0pll.c20.vdr,
+				  is_dp, crtc_state->port_clock);
+
+	drm_WARN_ON(display->drm, is_dp != c20pll_state_is_dp(&hw_state->cx0pll.c20));
+
+	return 0;
+}
+
+int intel_cx0pll_calc_state(const struct intel_crtc_state *crtc_state,
+			    struct intel_encoder *encoder,
+			    struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	if (intel_encoder_is_c10phy(encoder))
+		return intel_c10pll_calc_state(crtc_state, encoder, hw_state);
+	return intel_c20pll_calc_state(crtc_state, encoder, hw_state);
+}
+
+static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)
+{
+	return state->tx[0] & C20_PHY_USE_MPLLB;
+}
+
+static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
+					const struct intel_c20pll_state *pll_state)
+{
+	unsigned int frac, frac_en, frac_quot, frac_rem, frac_den;
+	unsigned int multiplier, refclk = 38400;
+	unsigned int tx_clk_div;
+	unsigned int ref_clk_mpllb_div;
+	unsigned int fb_clk_div4_en;
+	unsigned int ref, vco;
+	unsigned int tx_rate_mult;
+	unsigned int tx_rate = REG_FIELD_GET(C20_PHY_TX_RATE, pll_state->tx[0]);
+
+	if (intel_c20phy_use_mpllb(pll_state)) {
+		tx_rate_mult = 1;
+		frac_en = REG_FIELD_GET(C20_MPLLB_FRACEN, pll_state->mpllb[6]);
+		frac_quot = pll_state->mpllb[8];
+		frac_rem =  pll_state->mpllb[9];
+		frac_den =  pll_state->mpllb[7];
+		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mpllb[0]);
+		tx_clk_div = REG_FIELD_GET(C20_MPLLB_TX_CLK_DIV_MASK, pll_state->mpllb[0]);
+		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mpllb[6]);
+		fb_clk_div4_en = 0;
+	} else {
+		tx_rate_mult = 2;
+		frac_en = REG_FIELD_GET(C20_MPLLA_FRACEN, pll_state->mplla[6]);
+		frac_quot = pll_state->mplla[8];
+		frac_rem =  pll_state->mplla[9];
+		frac_den =  pll_state->mplla[7];
+		multiplier = REG_FIELD_GET(C20_MULTIPLIER_MASK, pll_state->mplla[0]);
+		tx_clk_div = REG_FIELD_GET(C20_MPLLA_TX_CLK_DIV_MASK, pll_state->mplla[1]);
+		ref_clk_mpllb_div = REG_FIELD_GET(C20_REF_CLK_MPLLB_DIV_MASK, pll_state->mplla[6]);
+		fb_clk_div4_en = REG_FIELD_GET(C20_FB_CLK_DIV4_EN, pll_state->mplla[0]);
+	}
+
+	if (frac_en)
+		frac = frac_quot + DIV_ROUND_CLOSEST(frac_rem, frac_den);
+	else
+		frac = 0;
+
+	ref = DIV_ROUND_CLOSEST(refclk * (1 << (1 + fb_clk_div4_en)), 1 << ref_clk_mpllb_div);
+	vco = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(ref, (multiplier << (17 - 2)) + frac) >> 17, 10);
+
+	return vco << tx_rate_mult >> tx_clk_div >> tx_rate;
+}
+
+static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
+					  struct intel_cx0pll_state *cx0pll_state)
+{
+	struct intel_c20pll_state *pll_state = &cx0pll_state->c20;
+	struct intel_display *display = to_intel_display(encoder);
+	bool cntx;
+	struct ref_tracker *wakeref;
+	int i;
+
+	cx0pll_state->use_c10 = false;
+
+	wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	cx0pll_state->lane_count = readout_enabled_lane_count(encoder);
+
+	/* 1. Read VDR params and current context selection */
+	intel_c20_readout_vdr_params(encoder, &pll_state->vdr, &cntx);
+
+	/* Read Tx configuration */
+	for (i = 0; i < ARRAY_SIZE(pll_state->tx); i++) {
+		if (cntx)
+			pll_state->tx[i] = intel_c20_sram_read(encoder,
+							       INTEL_CX0_LANE0,
+							       PHY_C20_B_TX_CNTX_CFG(display, i));
+		else
+			pll_state->tx[i] = intel_c20_sram_read(encoder,
+							       INTEL_CX0_LANE0,
+							       PHY_C20_A_TX_CNTX_CFG(display, i));
+	}
+
+	/* Read common configuration */
+	for (i = 0; i < ARRAY_SIZE(pll_state->cmn); i++) {
+		if (cntx)
+			pll_state->cmn[i] = intel_c20_sram_read(encoder,
+								INTEL_CX0_LANE0,
+								PHY_C20_B_CMN_CNTX_CFG(display, i));
+		else
+			pll_state->cmn[i] = intel_c20_sram_read(encoder,
+								INTEL_CX0_LANE0,
+								PHY_C20_A_CMN_CNTX_CFG(display, i));
+	}
+
+	if (intel_c20phy_use_mpllb(pll_state)) {
+		/* MPLLB configuration */
+		for (i = 0; i < ARRAY_SIZE(pll_state->mpllb); i++) {
+			if (cntx)
+				pll_state->mpllb[i] = intel_c20_sram_read(encoder,
+									  INTEL_CX0_LANE0,
+									  PHY_C20_B_MPLLB_CNTX_CFG(display, i));
+			else
+				pll_state->mpllb[i] = intel_c20_sram_read(encoder,
+									  INTEL_CX0_LANE0,
+									  PHY_C20_A_MPLLB_CNTX_CFG(display, i));
+		}
+	} else {
+		/* MPLLA configuration */
+		for (i = 0; i < ARRAY_SIZE(pll_state->mplla); i++) {
+			if (cntx)
+				pll_state->mplla[i] = intel_c20_sram_read(encoder,
+									  INTEL_CX0_LANE0,
+									  PHY_C20_B_MPLLA_CNTX_CFG(display, i));
+			else
+				pll_state->mplla[i] = intel_c20_sram_read(encoder,
+									  INTEL_CX0_LANE0,
+									  PHY_C20_A_MPLLA_CNTX_CFG(display, i));
+		}
+	}
+
+	pll_state->clock = intel_c20pll_calc_port_clock(encoder, pll_state);
+
+	intel_cx0_phy_transaction_end(encoder, wakeref);
+
+	cx0pll_state->ssc_enabled = readout_ssc_state(encoder, intel_c20phy_use_mpllb(pll_state));
+}
+
+static void intel_c20pll_dump_hw_state(struct drm_printer *p,
+				       const struct intel_c20pll_state *hw_state)
+{
+	int i;
+
+	drm_printf(p, "c20pll_hw_state: clock: %d\n", hw_state->clock);
+	drm_printf(p,
+		   "tx[0] = 0x%.4x, tx[1] = 0x%.4x, tx[2] = 0x%.4x\n",
+		   hw_state->tx[0], hw_state->tx[1], hw_state->tx[2]);
+	drm_printf(p,
+		   "cmn[0] = 0x%.4x, cmn[1] = 0x%.4x, cmn[2] = 0x%.4x, cmn[3] = 0x%.4x\n",
+		   hw_state->cmn[0], hw_state->cmn[1], hw_state->cmn[2], hw_state->cmn[3]);
+
+	if (intel_c20phy_use_mpllb(hw_state)) {
+		for (i = 0; i < ARRAY_SIZE(hw_state->mpllb); i++)
+			drm_printf(p, "mpllb[%d] = 0x%.4x\n", i, hw_state->mpllb[i]);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(hw_state->mplla); i++)
+			drm_printf(p, "mplla[%d] = 0x%.4x\n", i, hw_state->mplla[i]);
+
+		/* For full coverage, also print the additional PLL B entry. */
+		BUILD_BUG_ON(ARRAY_SIZE(hw_state->mplla) + 1 != ARRAY_SIZE(hw_state->mpllb));
+		drm_printf(p, "mpllb[%d] = 0x%.4x\n", i, hw_state->mpllb[i]);
+	}
+
+	drm_printf(p,
+		   "vdr: custom width: 0x%02x, serdes rate: 0x%02x, hdmi rate: 0x%02x\n",
+		   hw_state->vdr.custom_width, hw_state->vdr.serdes_rate, hw_state->vdr.hdmi_rate);
+}
+
+void intel_cx0pll_dump_hw_state(struct drm_printer *p,
+				const struct intel_cx0pll_state *hw_state)
+{
+	drm_printf(p,
+		   "cx0pll_hw_state: lane_count: %d, ssc_enabled: %s, use_c10: %s, tbt_mode: %s\n",
+		   hw_state->lane_count, str_yes_no(hw_state->ssc_enabled),
+		   str_yes_no(hw_state->use_c10), str_yes_no(hw_state->tbt_mode));
+
+	if (hw_state->use_c10)
+		intel_c10pll_dump_hw_state(p, &hw_state->c10);
+	else
+		intel_c20pll_dump_hw_state(p, &hw_state->c20);
+}
+
+static bool intel_c20_protocol_switch_valid(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+
+	/* banks should not be cleared for DPALT/USB4/TBT modes */
+	/* TODO: optimize re-calibration in legacy mode */
+	return intel_tc_port_in_legacy_mode(intel_dig_port);
+}
+
 static void intel_c20_pll_program(struct intel_display *display,
 				  struct intel_encoder *encoder,
-				  const struct intel_c20pll_state *pll_state,
-				  bool is_dp, int port_clock)
+				  const struct intel_c20pll_state *pll_state)
 {
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
-	u8 serdes;
 	bool cntx;
 	int i;
 
@@ -2679,30 +2953,11 @@ static void intel_c20_pll_program(struct intel_display *display,
 		}
 	}
 
-	/* 4. Program custom width to match the link protocol */
-	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_WIDTH,
-		      PHY_C20_CUSTOM_WIDTH_MASK,
-		      PHY_C20_CUSTOM_WIDTH(intel_get_c20_custom_width(port_clock, is_dp)),
-		      MB_WRITE_COMMITTED);
-
-	/* 5. For DP or 6. For HDMI */
-	serdes = 0;
-	if (is_dp)
-		serdes = PHY_C20_IS_DP |
-			 PHY_C20_DP_RATE(intel_c20_get_dp_rate(port_clock));
-	else if (intel_hdmi_is_frl(port_clock))
-		serdes = PHY_C20_IS_HDMI_FRL;
-
-	intel_cx0_rmw(encoder, owned_lane_mask, PHY_C20_VDR_CUSTOM_SERDES_RATE,
-		      PHY_C20_IS_DP | PHY_C20_DP_RATE_MASK | PHY_C20_IS_HDMI_FRL,
-		      serdes,
-		      MB_WRITE_COMMITTED);
-
-	if (!is_dp)
-		intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
-			      PHY_C20_HDMI_RATE_MASK,
-			      intel_c20_get_hdmi_rate(port_clock),
-			      MB_WRITE_COMMITTED);
+	/*
+	 * 4. Program custom width to match the link protocol.
+	 * 5. For DP or 6. For HDMI
+	 */
+	intel_c20_program_vdr_params(encoder, &pll_state->vdr, owned_lane_mask);
 
 	/*
 	 * 7. Write Vendor specific registers to toggle context setting to load
@@ -2713,39 +2968,13 @@ static void intel_c20_pll_program(struct intel_display *display,
 		      MB_WRITE_COMMITTED);
 }
 
-static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-					const struct intel_c10pll_state *pll_state)
-{
-	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
-	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
-	int tmpclk = 0;
-
-	if (pll_state->pll[0] & C10_PLL0_FRACEN) {
-		frac_quot = pll_state->pll[12] << 8 | pll_state->pll[11];
-		frac_rem =  pll_state->pll[14] << 8 | pll_state->pll[13];
-		frac_den =  pll_state->pll[10] << 8 | pll_state->pll[9];
-	}
-
-	multiplier = (REG_FIELD_GET8(C10_PLL3_MULTIPLIERH_MASK, pll_state->pll[3]) << 8 |
-		      pll_state->pll[2]) / 2 + 16;
-
-	tx_clk_div = REG_FIELD_GET8(C10_PLL15_TXCLKDIV_MASK, pll_state->pll[15]);
-	hdmi_div = REG_FIELD_GET8(C10_PLL15_HDMIDIV_MASK, pll_state->pll[15]);
-
-	tmpclk = DIV_ROUND_CLOSEST_ULL(mul_u32_u32(refclk, (multiplier << 16) + frac_quot) +
-				     DIV_ROUND_CLOSEST(refclk * frac_rem, frac_den),
-				     10 << (tx_clk_div + 16));
-	tmpclk *= (hdmi_div ? 2 : 1);
-
-	return tmpclk;
-}
-
 static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 					 const struct intel_cx0pll_state *pll_state,
-					 bool is_dp, int port_clock,
+					 int port_clock,
 					 bool lane_reversal)
 {
 	struct intel_display *display = to_intel_display(encoder);
+	bool is_dp = cx0pll_state_is_dp(pll_state);
 	u32 val = 0;
 
 	intel_de_rmw(display, XELPDP_PORT_BUF_CTL1(display, encoder->port),
@@ -2830,7 +3059,7 @@ void intel_cx0_powerdown_change_sequence(struct intel_encoder *encoder,
 				       intel_cx0_get_powerdown_update(lane_mask),
 				       XELPDP_PORT_POWERDOWN_UPDATE_TIMEOUT_MS))
 		drm_warn(display->drm,
-			 "PHY %c failed to bring out of lane reset\n",
+			 "PHY %c failed to change powerdown state\n",
 			 phy_name(phy));
 }
 
@@ -2938,11 +3167,7 @@ static void intel_cx0_program_phy_lane(struct intel_encoder *encoder, int lane_c
 	bool dp_alt_mode = intel_tc_port_in_dp_alt_mode(enc_to_dig_port(encoder));
 	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(encoder);
 
-	if (intel_encoder_is_c10phy(encoder))
-		intel_cx0_rmw(encoder, owned_lane_mask,
-			      PHY_C10_VDR_CONTROL(1), 0,
-			      C10_VDR_CTRL_MSGBUS_ACCESS,
-			      MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_begin(encoder, owned_lane_mask);
 
 	if (lane_reversal)
 		disables = REG_GENMASK8(3, 0) >> lane_count;
@@ -2967,11 +3192,7 @@ static void intel_cx0_program_phy_lane(struct intel_encoder *encoder, int lane_c
 			      MB_WRITE_COMMITTED);
 	}
 
-	if (intel_encoder_is_c10phy(encoder))
-		intel_cx0_rmw(encoder, owned_lane_mask,
-			      PHY_C10_VDR_CONTROL(1), 0,
-			      C10_VDR_CTRL_UPDATE_CFG,
-			      MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_commit(encoder, owned_lane_mask, false);
 }
 
 static u32 intel_cx0_get_pclk_pll_request(u8 lane_mask)
@@ -2996,23 +3217,30 @@ static u32 intel_cx0_get_pclk_pll_ack(u8 lane_mask)
 	return val;
 }
 
-static void __intel_cx0pll_enable(struct intel_encoder *encoder,
-				  const struct intel_cx0pll_state *pll_state,
-				  bool is_dp, int port_clock, int lane_count)
+static void intel_cx0pll_enable(struct intel_encoder *encoder,
+				const struct intel_cx0pll_state *pll_state)
 {
+	int port_clock = pll_state->use_c10 ? pll_state->c10.clock : pll_state->c20.clock;
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool lane_reversal = dig_port->lane_reversal;
 	u8 maxpclk_lane = lane_reversal ? INTEL_CX0_LANE1 :
 					  INTEL_CX0_LANE0;
-	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
+	struct ref_tracker *wakeref = intel_cx0_phy_transaction_begin(encoder);
+
+	/*
+	 * Lane reversal is never used in DP-alt mode, in that case the
+	 * corresponding lane swapping (based on the TypeC cable flip state
+	 * for instance) is handled automatically by the HW via a TCSS mux.
+	 */
+	drm_WARN_ON(display->drm, lane_reversal && intel_tc_port_in_dp_alt_mode(dig_port));
 
 	/*
 	 * 1. Program PORT_CLOCK_CTL REGISTER to configure
 	 * clock muxes, gating and SSC
 	 */
-	intel_program_port_clock_ctl(encoder, pll_state, is_dp, port_clock, lane_reversal);
+	intel_program_port_clock_ctl(encoder, pll_state, port_clock, lane_reversal);
 
 	/* 2. Bring PHY out of reset. */
 	intel_cx0_phy_lane_reset(encoder, lane_reversal);
@@ -3034,13 +3262,13 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 	if (intel_encoder_is_c10phy(encoder))
 		intel_c10_pll_program(display, encoder, &pll_state->c10);
 	else
-		intel_c20_pll_program(display, encoder, &pll_state->c20, is_dp, port_clock);
+		intel_c20_pll_program(display, encoder, &pll_state->c20);
 
 	/*
 	 * 6. Program the enabled and disabled owned PHY lane
 	 * transmitters over message bus
 	 */
-	intel_cx0_program_phy_lane(encoder, lane_count, lane_reversal);
+	intel_cx0_program_phy_lane(encoder, pll_state->lane_count, lane_reversal);
 
 	/*
 	 * 7. Follow the Display Voltage Frequency Switching - Sequence
@@ -3074,16 +3302,40 @@ static void __intel_cx0pll_enable(struct intel_encoder *encoder,
 	 * Frequency Change. We handle this step in bxt_set_cdclk().
 	 */
 
-	/* TODO: enable TBT-ALT mode */
+	/*
+	 * 12. Toggle powerdown if HDMI is enabled on C10 PHY.
+	 *
+	 * Wa_13013502646:
+	 * Fixes: HDMI lane to lane skew violations on C10 display PHYs.
+	 * Workaround: Toggle powerdown value by setting first to P0 and then to P2, for both
+	 * PHY lanes.
+	 */
+	if (!cx0pll_state_is_dp(pll_state) && pll_state->use_c10) {
+		intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,
+						    XELPDP_P0_STATE_ACTIVE);
+		intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,
+						    XELPDP_P2_STATE_READY);
+	}
+
 	intel_cx0_phy_transaction_end(encoder, wakeref);
 }
 
-static void intel_cx0pll_enable(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state)
+void intel_mtl_tbt_pll_calc_state(struct intel_dpll_hw_state *hw_state)
 {
-	__intel_cx0pll_enable(encoder, &crtc_state->dpll_hw_state.cx0pll,
-			      intel_crtc_has_dp_encoder(crtc_state),
-			      crtc_state->port_clock, crtc_state->lane_count);
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->cx0pll.tbt_mode = true;
+}
+
+bool intel_mtl_tbt_pll_readout_hw_state(struct intel_display *display,
+					struct intel_dpll *pll,
+					struct intel_dpll_hw_state *hw_state)
+{
+	memset(hw_state, 0, sizeof(*hw_state));
+
+	hw_state->cx0pll.tbt_mode = true;
+
+	return true;
 }
 
 int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
@@ -3148,8 +3400,7 @@ static int intel_mtl_tbt_clock_select(struct intel_display *display,
 	}
 }
 
-void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
+void intel_mtl_tbt_pll_enable_clock(struct intel_encoder *encoder, int port_clock)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3163,7 +3414,7 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 
 	mask = XELPDP_DDI_CLOCK_SELECT_MASK(display);
 	val |= XELPDP_DDI_CLOCK_SELECT_PREP(display,
-					    intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+					    intel_mtl_tbt_clock_select(display, port_clock));
 
 	mask |= XELPDP_FORWARD_CLOCK_UNGATE;
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
@@ -3201,18 +3452,23 @@ void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	 * clock frequency.
 	 */
 	intel_de_write(display, DDI_CLK_VALFREQ(encoder->port),
-		       crtc_state->port_clock);
+		       port_clock);
 }
 
 void intel_mtl_pll_enable(struct intel_encoder *encoder,
-			  const struct intel_crtc_state *crtc_state)
+			  struct intel_dpll *pll,
+			  const struct intel_dpll_hw_state *dpll_hw_state)
+{
+	intel_cx0pll_enable(encoder, &dpll_hw_state->cx0pll);
+}
+
+void intel_mtl_pll_enable_clock(struct intel_encoder *encoder,
+				const struct intel_crtc_state *crtc_state)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable(encoder, crtc_state);
-	else
-		intel_cx0pll_enable(encoder, crtc_state);
+		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
 }
 
 /*
@@ -3224,7 +3480,7 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i;
 	u8 owned_lane_mask;
 
@@ -3236,9 +3492,7 @@ void intel_lnl_mac_transmit_lfps(struct intel_encoder *encoder,
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
-	if (intel_encoder_is_c10phy(encoder))
-		intel_cx0_rmw(encoder, owned_lane_mask, PHY_C10_VDR_CONTROL(1), 0,
-			      C10_VDR_CTRL_MSGBUS_ACCESS, MB_WRITE_COMMITTED);
+	intel_c10_msgbus_access_begin(encoder, owned_lane_mask);
 
 	for (i = 0; i < 4; i++) {
 		int tx = i % 2 + 1;
@@ -3273,7 +3527,7 @@ static void intel_cx0pll_disable(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
-	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
+	struct ref_tracker *wakeref = intel_cx0_phy_transaction_begin(encoder);
 
 	/* 1. Change owned PHY lane power to Disable state. */
 	intel_cx0_powerdown_change_sequence(encoder, INTEL_CX0_BOTH_LANES,
@@ -3329,7 +3583,7 @@ static bool intel_cx0_pll_is_enabled(struct intel_encoder *encoder)
 			     intel_cx0_get_pclk_pll_request(lane);
 }
 
-void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
+void intel_mtl_tbt_pll_disable_clock(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
@@ -3369,12 +3623,15 @@ void intel_mtl_tbt_pll_disable(struct intel_encoder *encoder)
 
 void intel_mtl_pll_disable(struct intel_encoder *encoder)
 {
+	intel_cx0pll_disable(encoder);
+}
+
+void intel_mtl_pll_disable_clock(struct intel_encoder *encoder)
+{
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_disable(encoder);
-	else
-		intel_cx0pll_disable(encoder);
+		intel_mtl_tbt_pll_disable_clock(encoder);
 }
 
 enum icl_port_dpll_id
@@ -3398,50 +3655,20 @@ intel_mtl_port_pll_type(struct intel_encoder *encoder,
 		return ICL_PORT_DPLL_DEFAULT;
 }
 
-static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
-				      struct intel_crtc *crtc,
-				      struct intel_encoder *encoder,
-				      struct intel_c10pll_state *mpllb_hw_state)
-{
-	struct intel_display *display = to_intel_display(state);
-	const struct intel_c10pll_state *mpllb_sw_state = &state->dpll_hw_state.cx0pll.c10;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mpllb_sw_state->pll); i++) {
-		u8 expected = mpllb_sw_state->pll[i];
-
-		INTEL_DISPLAY_STATE_WARN(display, mpllb_hw_state->pll[i] != expected,
-					 "[CRTC:%d:%s] mismatch in C10MPLLB: Register[%d] (expected 0x%02x, found 0x%02x)",
-					 crtc->base.base.id, crtc->base.name, i,
-					 expected, mpllb_hw_state->pll[i]);
-	}
-
-	INTEL_DISPLAY_STATE_WARN(display, mpllb_hw_state->tx != mpllb_sw_state->tx,
-				 "[CRTC:%d:%s] mismatch in C10MPLLB: Register TX0 (expected 0x%02x, found 0x%02x)",
-				 crtc->base.base.id, crtc->base.name,
-				 mpllb_sw_state->tx, mpllb_hw_state->tx);
-
-	INTEL_DISPLAY_STATE_WARN(display, mpllb_hw_state->cmn != mpllb_sw_state->cmn,
-				 "[CRTC:%d:%s] mismatch in C10MPLLB: Register CMN0 (expected 0x%02x, found 0x%02x)",
-				 crtc->base.base.id, crtc->base.name,
-				 mpllb_sw_state->cmn, mpllb_hw_state->cmn);
-}
-
-void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
+bool intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 				   struct intel_cx0pll_state *pll_state)
 {
-	pll_state->use_c10 = false;
+	memset(pll_state, 0, sizeof(*pll_state));
 
-	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
-	if (pll_state->tbt_mode)
-		return;
+	if (!intel_cx0_pll_is_enabled(encoder))
+		return false;
 
-	if (intel_encoder_is_c10phy(encoder)) {
-		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
-		pll_state->use_c10 = true;
-	} else {
-		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
-	}
+	if (intel_encoder_is_c10phy(encoder))
+		intel_c10pll_readout_hw_state(encoder, pll_state);
+	else
+		intel_c20pll_readout_hw_state(encoder, pll_state);
+
+	return true;
 }
 
 static bool mtl_compare_hw_state_c10(const struct intel_c10pll_state *a,
@@ -3505,91 +3732,6 @@ int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 	return intel_c20pll_calc_port_clock(encoder, &pll_state->c20);
 }
 
-static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
-				      struct intel_crtc *crtc,
-				      struct intel_encoder *encoder,
-				      struct intel_c20pll_state *mpll_hw_state)
-{
-	struct intel_display *display = to_intel_display(state);
-	const struct intel_c20pll_state *mpll_sw_state = &state->dpll_hw_state.cx0pll.c20;
-	bool sw_use_mpllb = intel_c20phy_use_mpllb(mpll_sw_state);
-	bool hw_use_mpllb = intel_c20phy_use_mpllb(mpll_hw_state);
-	int clock = intel_c20pll_calc_port_clock(encoder, mpll_sw_state);
-	int i;
-
-	INTEL_DISPLAY_STATE_WARN(display, mpll_hw_state->clock != clock,
-				 "[CRTC:%d:%s] mismatch in C20: Register CLOCK (expected %d, found %d)",
-				 crtc->base.base.id, crtc->base.name,
-				 mpll_sw_state->clock, mpll_hw_state->clock);
-
-	INTEL_DISPLAY_STATE_WARN(display, sw_use_mpllb != hw_use_mpllb,
-				 "[CRTC:%d:%s] mismatch in C20: Register MPLLB selection (expected %d, found %d)",
-				 crtc->base.base.id, crtc->base.name,
-				 sw_use_mpllb, hw_use_mpllb);
-
-	if (hw_use_mpllb) {
-		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mpllb); i++) {
-			INTEL_DISPLAY_STATE_WARN(display, mpll_hw_state->mpllb[i] != mpll_sw_state->mpllb[i],
-						 "[CRTC:%d:%s] mismatch in C20MPLLB: Register[%d] (expected 0x%04x, found 0x%04x)",
-						 crtc->base.base.id, crtc->base.name, i,
-						 mpll_sw_state->mpllb[i], mpll_hw_state->mpllb[i]);
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mplla); i++) {
-			INTEL_DISPLAY_STATE_WARN(display, mpll_hw_state->mplla[i] != mpll_sw_state->mplla[i],
-						 "[CRTC:%d:%s] mismatch in C20MPLLA: Register[%d] (expected 0x%04x, found 0x%04x)",
-						 crtc->base.base.id, crtc->base.name, i,
-						 mpll_sw_state->mplla[i], mpll_hw_state->mplla[i]);
-		}
-	}
-
-	for (i = 0; i < ARRAY_SIZE(mpll_sw_state->tx); i++) {
-		INTEL_DISPLAY_STATE_WARN(display, mpll_hw_state->tx[i] != mpll_sw_state->tx[i],
-					 "[CRTC:%d:%s] mismatch in C20: Register TX[%i] (expected 0x%04x, found 0x%04x)",
-					 crtc->base.base.id, crtc->base.name, i,
-					 mpll_sw_state->tx[i], mpll_hw_state->tx[i]);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(mpll_sw_state->cmn); i++) {
-		INTEL_DISPLAY_STATE_WARN(display, mpll_hw_state->cmn[i] != mpll_sw_state->cmn[i],
-					 "[CRTC:%d:%s] mismatch in C20: Register CMN[%i] (expected 0x%04x, found 0x%04x)",
-					 crtc->base.base.id, crtc->base.name, i,
-					 mpll_sw_state->cmn[i], mpll_hw_state->cmn[i]);
-	}
-}
-
-void intel_cx0pll_state_verify(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
-{
-	struct intel_display *display = to_intel_display(state);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_encoder *encoder;
-	struct intel_cx0pll_state mpll_hw_state = {};
-
-	if (!IS_DISPLAY_VER(display, 14, 30))
-		return;
-
-	if (!new_crtc_state->hw.active)
-		return;
-
-	/* intel_get_crtc_new_encoder() only works for modeset/fastset commits */
-	if (!intel_crtc_needs_modeset(new_crtc_state) &&
-	    !intel_crtc_needs_fastset(new_crtc_state))
-		return;
-
-	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
-	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
-
-	if (mpll_hw_state.tbt_mode)
-		return;
-
-	if (intel_encoder_is_c10phy(encoder))
-		intel_c10pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c10);
-	else
-		intel_c20pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c20);
-}
-
 /*
  * WA 14022081154
  * The dedicated display PHYs reset to a power state that blocks S0ix, increasing idle
@@ -3613,6 +3755,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 	for_each_intel_encoder(display->drm, encoder) {
 		struct intel_cx0pll_state pll_state = {};
 		int port_clock = 162000;
+		int lane_count = 4;
 
 		if (!intel_encoder_is_dig_port(encoder))
 			continue;
@@ -3625,7 +3768,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 
 		if (intel_c10pll_calc_state_from_table(encoder,
 						       mtl_c10_edp_tables,
-						       true, port_clock,
+						       true, port_clock, lane_count,
 						       &pll_state) < 0) {
 			drm_WARN_ON(display->drm,
 				    "Unable to calc C10 state from the tables\n");
@@ -3636,7 +3779,7 @@ void intel_cx0_pll_power_save_wa(struct intel_display *display)
 			    "[ENCODER:%d:%s] Applying power saving workaround on disabled PLL\n",
 			    encoder->base.base.id, encoder->base.name);
 
-		__intel_cx0pll_enable(encoder, &pll_state, true, port_clock, 4);
+		intel_cx0pll_enable(encoder, &pll_state);
 		intel_cx0pll_disable(encoder);
 	}
 }

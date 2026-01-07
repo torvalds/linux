@@ -1324,11 +1324,11 @@ intel_lt_phy_config_changed(struct intel_encoder *encoder,
 	return true;
 }
 
-static intel_wakeref_t intel_lt_phy_transaction_begin(struct intel_encoder *encoder)
+static struct ref_tracker *intel_lt_phy_transaction_begin(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	intel_psr_pause(intel_dp);
 	wakeref = intel_display_power_get(display, POWER_DOMAIN_DC_OFF);
@@ -1336,7 +1336,7 @@ static intel_wakeref_t intel_lt_phy_transaction_begin(struct intel_encoder *enco
 	return wakeref;
 }
 
-static void intel_lt_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
+static void intel_lt_phy_transaction_end(struct intel_encoder *encoder, struct ref_tracker *wakeref)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -1932,7 +1932,7 @@ void intel_lt_phy_pll_enable(struct intel_encoder *encoder,
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	enum port port = encoder->port;
-	intel_wakeref_t wakeref = 0;
+	struct ref_tracker *wakeref = 0;
 	u32 lane_phy_pulse_status = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
 					? (XE3PLPDP_LANE_PHY_PULSE_STATUS(0) |
 					   XE3PLPDP_LANE_PHY_PULSE_STATUS(1))
@@ -2060,7 +2060,7 @@ void intel_lt_phy_pll_disable(struct intel_encoder *encoder)
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	enum port port = encoder->port;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	u8 owned_lane_mask = intel_lt_phy_get_owned_lane_mask(encoder);
 	u32 lane_pipe_reset = owned_lane_mask == INTEL_LT_PHY_BOTH_LANES
 				? (XELPDP_LANE_PIPE_RESET(0) |
@@ -2137,7 +2137,7 @@ void intel_lt_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_ddi_buf_trans *trans;
 	u8 owned_lane_mask;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int n_entries, ln;
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
@@ -2222,7 +2222,7 @@ void intel_lt_phy_pll_readout_hw_state(struct intel_encoder *encoder,
 {
 	u8 owned_lane_mask;
 	u8 lane;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	int i, j, k;
 
 	pll_state->tbt_mode = intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder));
@@ -2310,7 +2310,7 @@ void intel_xe3plpd_pll_enable(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_enable(encoder, crtc_state);
+		intel_mtl_tbt_pll_enable_clock(encoder, crtc_state->port_clock);
 	else
 		intel_lt_phy_pll_enable(encoder, crtc_state);
 }
@@ -2320,7 +2320,7 @@ void intel_xe3plpd_pll_disable(struct intel_encoder *encoder)
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		intel_mtl_tbt_pll_disable(encoder);
+		intel_mtl_tbt_pll_disable_clock(encoder);
 	else
 		intel_lt_phy_pll_disable(encoder);
 

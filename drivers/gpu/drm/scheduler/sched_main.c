@@ -344,7 +344,7 @@ drm_sched_rq_select_entity_fifo(struct drm_gpu_scheduler *sched,
  */
 static void drm_sched_run_job_queue(struct drm_gpu_scheduler *sched)
 {
-	if (!READ_ONCE(sched->pause_submit))
+	if (!drm_sched_is_stopped(sched))
 		queue_work(sched->submit_wq, &sched->work_run_job);
 }
 
@@ -354,7 +354,7 @@ static void drm_sched_run_job_queue(struct drm_gpu_scheduler *sched)
  */
 static void drm_sched_run_free_queue(struct drm_gpu_scheduler *sched)
 {
-	if (!READ_ONCE(sched->pause_submit))
+	if (!drm_sched_is_stopped(sched))
 		queue_work(sched->submit_wq, &sched->work_free_job);
 }
 
@@ -729,7 +729,9 @@ EXPORT_SYMBOL(drm_sched_start);
  *
  * Drivers can still save and restore their state for recovery operations, but
  * we shouldn't make this a general scheduler feature around the dma_fence
- * interface.
+ * interface. The suggested driver-side replacement is to use
+ * drm_sched_for_each_pending_job() after stopping the scheduler and implement
+ * their own recovery operations.
  */
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched)
 {
@@ -1567,3 +1569,35 @@ void drm_sched_wqueue_start(struct drm_gpu_scheduler *sched)
 	queue_work(sched->submit_wq, &sched->work_free_job);
 }
 EXPORT_SYMBOL(drm_sched_wqueue_start);
+
+/**
+ * drm_sched_is_stopped() - Checks whether drm_sched is stopped
+ * @sched: DRM scheduler
+ *
+ * Return: true if sched is stopped, false otherwise
+ */
+bool drm_sched_is_stopped(struct drm_gpu_scheduler *sched)
+{
+	return READ_ONCE(sched->pause_submit);
+}
+EXPORT_SYMBOL(drm_sched_is_stopped);
+
+/**
+ * drm_sched_job_is_signaled() - DRM scheduler job is signaled
+ * @job: DRM scheduler job
+ *
+ * Determine if DRM scheduler job is signaled. DRM scheduler should be stopped
+ * to obtain a stable snapshot of state. Both parent fence (hardware fence) and
+ * finished fence (software fence) are checked to determine signaling state.
+ *
+ * Return: true if job is signaled, false otherwise
+ */
+bool drm_sched_job_is_signaled(struct drm_sched_job *job)
+{
+	struct drm_sched_fence *s_fence = job->s_fence;
+
+	WARN_ON(!drm_sched_is_stopped(job->sched));
+	return (s_fence->parent && dma_fence_is_signaled(s_fence->parent)) ||
+		dma_fence_is_signaled(&s_fence->finished);
+}
+EXPORT_SYMBOL(drm_sched_job_is_signaled);

@@ -1911,10 +1911,6 @@ retry:
 	__i915_gem_object_flush_map(wa_ctx->vma->obj, 0, batch_ptr - batch);
 	__i915_gem_object_release_map(wa_ctx->vma->obj);
 
-	/* Verify that we can handle failure to setup the wa_ctx */
-	if (!err)
-		err = i915_inject_probe_error(engine->i915, -ENODEV);
-
 err_unpin:
 	if (err)
 		i915_vma_unpin(wa_ctx->vma);

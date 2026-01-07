@@ -2518,7 +2518,7 @@ intel_hdmi_set_edid(struct drm_connector *_connector)
 	struct intel_display *display = to_intel_display(connector);
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct i2c_adapter *ddc = connector->base.ddc;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	const struct drm_edid *drm_edid;
 	bool connected = false;
 
@@ -2561,7 +2561,7 @@ intel_hdmi_detect(struct drm_connector *_connector, bool force)
 	enum drm_connector_status status = connector_status_disconnected;
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct intel_encoder *encoder = &hdmi_to_dig_port(intel_hdmi)->base;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.base.id, connector->base.name);

@@ -709,8 +709,10 @@ static void i830_init_clock_gating(struct drm_i915_private *i915)
 			   _MASKED_BIT_ENABLE(MEM_DISPLAY_B_TRICKLE_FEED_DISABLE));
 }
 
-void intel_clock_gating_init(struct drm_i915_private *i915)
+void intel_clock_gating_init(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	i915->clock_gating_funcs->init_clock_gating(i915);
 }
 
@@ -749,15 +751,17 @@ CG_FUNCS(nop);
 
 /**
  * intel_clock_gating_hooks_init - setup the clock gating hooks
- * @i915: device private
+ * @drm: drm device
  *
  * Setup the hooks that configure which clocks of a given platform can be
  * gated and also apply various GT and display specific workarounds for these
  * platforms. Note that some GT specific workarounds are applied separately
  * when GPU contexts or batchbuffers start their execution.
  */
-void intel_clock_gating_hooks_init(struct drm_i915_private *i915)
+void intel_clock_gating_hooks_init(struct drm_device *drm)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
+
 	if (IS_DG2(i915))
 		i915->clock_gating_funcs = &dg2_clock_gating_funcs;
 	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
