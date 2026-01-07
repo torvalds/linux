@@ -76,6 +76,9 @@
 /* Tracks RAID stripes in block groups. */
 #define BTRFS_RAID_STRIPE_TREE_OBJECTID 12ULL
 
+/* Holds details of remapped addresses after relocation. */
+#define BTRFS_REMAP_TREE_OBJECTID 13ULL
+
 /* device stats in the device tree */
 #define BTRFS_DEV_STATS_OBJECTID 0ULL
 
@@ -281,6 +284,10 @@
 #define BTRFS_CHUNK_ITEM_KEY	228
 
 #define BTRFS_RAID_STRIPE_KEY	230
+
+#define BTRFS_IDENTITY_REMAP_KEY 	234
+#define BTRFS_REMAP_KEY		 	235
+#define BTRFS_REMAP_BACKREF_KEY	 	236
 
 /*
  * Records the overall state of the qgroups.
@@ -1161,6 +1168,7 @@ struct btrfs_dev_replace_item {
 #define BTRFS_BLOCK_GROUP_RAID6         (1ULL << 8)
 #define BTRFS_BLOCK_GROUP_RAID1C3       (1ULL << 9)
 #define BTRFS_BLOCK_GROUP_RAID1C4       (1ULL << 10)
+#define BTRFS_BLOCK_GROUP_REMAPPED      (1ULL << 11)
 #define BTRFS_BLOCK_GROUP_RESERVED	(BTRFS_AVAIL_ALLOC_BIT_SINGLE | \
 					 BTRFS_SPACE_INFO_GLOBAL_RSV)
 
@@ -1321,6 +1329,15 @@ struct btrfs_verity_descriptor_item {
 	 */
 	__le64 reserved[2];
 	__u8 encryption;
+} __attribute__ ((__packed__));
+
+/*
+ * For a range identified by a BTRFS_REMAP_KEY item in the remap tree, gives
+ * the address that the start of the range will get remapped to.  This
+ * structure is also shared by BTRFS_REMAP_BACKREF_KEY.
+ */
+struct btrfs_remap_item {
+	__le64 address;
 } __attribute__ ((__packed__));
 
 #endif /* _BTRFS_CTREE_H_ */
