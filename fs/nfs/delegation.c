@@ -318,10 +318,14 @@ static struct nfs_delegation *
 nfs_start_delegation_return_locked(struct nfs_inode *nfsi)
 {
 	struct nfs_delegation *ret = NULL;
-	struct nfs_delegation *delegation = rcu_dereference(nfsi->delegation);
+	struct nfs_delegation *delegation;
 
-	if (delegation == NULL)
-		goto out;
+	lockdep_assert_in_rcu_read_lock();
+
+	delegation = rcu_dereference(nfsi->delegation);
+	if (!delegation)
+		return NULL;
+
 	spin_lock(&delegation->lock);
 	if (delegation->inode &&
 	    !test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
@@ -332,7 +336,6 @@ nfs_start_delegation_return_locked(struct nfs_inode *nfsi)
 	spin_unlock(&delegation->lock);
 	if (ret)
 		nfs_clear_verifier_delegated(&nfsi->vfs_inode);
-out:
 	return ret;
 }
 
