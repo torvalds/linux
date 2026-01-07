@@ -3309,9 +3309,10 @@ void trace_printk_init_buffers(void)
 	pr_warn("**********************************************************\n");
 
 	/* Expand the buffers to set size */
-	tracing_update_buffers(&global_trace);
-
-	buffers_allocated = 1;
+	if (tracing_update_buffers(&global_trace) < 0)
+		pr_err("Failed to expand tracing buffers for trace_printk() calls\n");
+	else
+		buffers_allocated = 1;
 
 	/*
 	 * trace_printk_init_buffers() can be called by modules.
