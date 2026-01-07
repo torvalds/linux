@@ -1929,6 +1929,8 @@ static const char *alloc_name(struct btrfs_space_info *space_info)
 	case BTRFS_BLOCK_GROUP_SYSTEM:
 		ASSERT(space_info->subgroup_id == BTRFS_SUB_GROUP_PRIMARY);
 		return "system";
+	case BTRFS_BLOCK_GROUP_METADATA_REMAP:
+		return "metadata-remap";
 	default:
 		WARN_ON(1);
 		return "invalid-combination";
