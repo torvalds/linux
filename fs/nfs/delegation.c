@@ -309,11 +309,13 @@ nfs_start_delegation_return(struct nfs_inode *nfsi)
 	struct nfs_delegation *delegation;
 	bool return_now = false;
 
-	lockdep_assert_in_rcu_read_lock();
-
+	rcu_read_lock();
 	delegation = rcu_dereference(nfsi->delegation);
-	if (!delegation || !refcount_inc_not_zero(&delegation->refcount))
+	if (!delegation || !refcount_inc_not_zero(&delegation->refcount)) {
+		rcu_read_unlock();
 		return NULL;
+	}
+	rcu_read_unlock();
 
 	spin_lock(&delegation->lock);
 	if (delegation->inode &&
@@ -767,10 +769,7 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	struct nfs_delegation *delegation;
 	int err;
 
-	rcu_read_lock();
 	delegation = nfs_start_delegation_return(nfsi);
-	rcu_read_unlock();
-
 	if (!delegation)
 		return 0;
 
