@@ -259,6 +259,8 @@ struct nfs_server {
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
+	spinlock_t		delegations_lock;
+	struct list_head	delegations_return;
 	atomic_long_t		nr_active_delegations;
 	unsigned int		delegation_hash_mask;
 	struct hlist_head	*delegation_hash_table;
@@ -266,9 +268,8 @@ struct nfs_server {
 	struct list_head	ss_src_copies;
 
 	unsigned long		delegation_flags;
-#define NFS4SERV_DELEGRETURN		(1)
-#define NFS4SERV_DELEGATION_EXPIRED	(2)
-#define NFS4SERV_DELEGRETURN_DELAYED	(3)
+#define NFS4SERV_DELEGATION_EXPIRED	(1)
+#define NFS4SERV_DELEGRETURN_DELAYED	(2)
 	unsigned long		delegation_gen;
 	unsigned long		mig_gen;
 	unsigned long		mig_status;

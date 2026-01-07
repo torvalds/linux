@@ -26,12 +26,12 @@ struct nfs_delegation {
 	unsigned long flags;
 	refcount_t refcount;
 	spinlock_t lock;
+	struct list_head entry;
 	struct rcu_head rcu;
 };
 
 enum {
 	NFS_DELEGATION_NEED_RECLAIM = 0,
-	NFS_DELEGATION_RETURN,
 	NFS_DELEGATION_RETURN_IF_CLOSED,
 	NFS_DELEGATION_REFERENCED,
 	NFS_DELEGATION_RETURNING,
