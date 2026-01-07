@@ -1359,7 +1359,9 @@ static void free_path_reqs(struct rtrs_clt_path *clt_path)
 
 static int alloc_path_reqs(struct rtrs_clt_path *clt_path)
 {
+	struct ib_device *ib_dev = clt_path->s.dev->ib_dev;
 	struct rtrs_clt_io_req *req;
+	enum ib_mr_type mr_type;
 	int i, err = -ENOMEM;
 
 	clt_path->reqs = kcalloc(clt_path->queue_depth,
@@ -1367,6 +1369,11 @@ static int alloc_path_reqs(struct rtrs_clt_path *clt_path)
 				 GFP_KERNEL);
 	if (!clt_path->reqs)
 		return -ENOMEM;
+
+	if (ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
+		mr_type = IB_MR_TYPE_SG_GAPS;
+	else
+		mr_type = IB_MR_TYPE_MEM_REG;
 
 	for (i = 0; i < clt_path->queue_depth; ++i) {
 		req = &clt_path->reqs[i];
@@ -1381,8 +1388,7 @@ static int alloc_path_reqs(struct rtrs_clt_path *clt_path)
 		if (!req->sge)
 			goto out;
 
-		req->mr = ib_alloc_mr(clt_path->s.dev->ib_pd,
-				      IB_MR_TYPE_MEM_REG,
+		req->mr = ib_alloc_mr(clt_path->s.dev->ib_pd, mr_type,
 				      clt_path->max_pages_per_mr);
 		if (IS_ERR(req->mr)) {
 			err = PTR_ERR(req->mr);

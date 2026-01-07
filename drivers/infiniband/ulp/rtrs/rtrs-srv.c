@@ -562,13 +562,15 @@ static void unmap_cont_bufs(struct rtrs_srv_path *srv_path)
 
 static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 {
+	struct ib_device *ib_dev = srv_path->s.dev->ib_dev;
 	struct rtrs_srv_sess *srv = srv_path->srv;
 	struct rtrs_path *ss = &srv_path->s;
 	int i, err, mrs_num;
 	unsigned int chunk_bits;
+	enum ib_mr_type mr_type;
 	int chunks_per_mr = 1;
-	struct ib_mr *mr;
 	struct sg_table *sgt;
+	struct ib_mr *mr;
 
 	/*
 	 * Here we map queue_depth chunks to MR.  Firstly we have to
@@ -617,8 +619,13 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 			err = -EINVAL;
 			goto free_sg;
 		}
-		mr = ib_alloc_mr(srv_path->s.dev->ib_pd, IB_MR_TYPE_MEM_REG,
-				 nr_sgt);
+
+		if (ib_dev->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
+			mr_type = IB_MR_TYPE_SG_GAPS;
+		else
+			mr_type = IB_MR_TYPE_MEM_REG;
+
+		mr = ib_alloc_mr(srv_path->s.dev->ib_pd, mr_type, nr_sgt);
 		if (IS_ERR(mr)) {
 			err = PTR_ERR(mr);
 			goto unmap_sg;
