@@ -7381,7 +7381,7 @@ static int __init mlxplat_dmi_ng400_hi171_matched(const struct dmi_system_id *dm
 	mlxplat_hotplug = &mlxplat_mlxcpld_ng800_hi171_data;
 	mlxplat_hotplug->deferred_nr =
 		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
-	mlxplat_led = &mlxplat_default_ng_led_data;
+	mlxplat_led = &mlxplat_xdr_led_data;
 	mlxplat_regs_io = &mlxplat_default_ng_regs_io_data;
 	mlxplat_fan = &mlxplat_xdr_fan_data;
 
