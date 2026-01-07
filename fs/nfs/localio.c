@@ -985,8 +985,6 @@ int nfs_local_doio(struct nfs_client *clp, struct nfsd_file *localio,
 	}
 
 	if (status != 0) {
-		if (status == -EAGAIN)
-			nfs_localio_disable_client(clp);
 		nfs_local_iocb_release(iocb);
 		hdr->task.tk_status = status;
 		nfs_local_hdr_release(hdr, call_ops);
