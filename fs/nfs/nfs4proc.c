@@ -1609,26 +1609,37 @@ out:
 	return ret;
 }
 
-static int can_open_delegated(struct nfs_delegation *delegation, fmode_t fmode,
-		enum open_claim_type4 claim)
+static bool can_open_delegated(const struct inode *inode, fmode_t fmode,
+		enum open_claim_type4 claim, nfs4_stateid *stateid)
 {
-	if (delegation == NULL)
-		return 0;
-	if ((delegation->type & fmode) != fmode)
-		return 0;
+	struct nfs_delegation *delegation;
+	bool ret = false;
+
+	rcu_read_lock();
+	delegation = nfs4_get_valid_delegation(inode);
+	if (!delegation || (delegation->type & fmode) != fmode)
+		goto out_unlock;
+
 	switch (claim) {
-	case NFS4_OPEN_CLAIM_NULL:
-	case NFS4_OPEN_CLAIM_FH:
-		break;
 	case NFS4_OPEN_CLAIM_PREVIOUS:
-		if (!test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
+		if (test_bit(NFS_DELEGATION_NEED_RECLAIM, &delegation->flags))
 			break;
 		fallthrough;
+	case NFS4_OPEN_CLAIM_NULL:
+	case NFS4_OPEN_CLAIM_FH:
+		nfs_mark_delegation_referenced(delegation);
+		/* Save the delegation stateid */
+		if (stateid)
+			nfs4_stateid_copy(stateid, &delegation->stateid);
+		ret = true;
+		break;
 	default:
-		return 0;
+		break;
 	}
-	nfs_mark_delegation_referenced(delegation);
-	return 1;
+
+out_unlock:
+	rcu_read_unlock();
+	return ret;
 }
 
 static void update_open_stateflags(struct nfs4_state *state, fmode_t fmode)
@@ -1981,7 +1992,6 @@ static void nfs4_return_incompatible_delegation(struct inode *inode, fmode_t fmo
 static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 {
 	struct nfs4_state *state = opendata->state;
-	struct nfs_delegation *delegation;
 	int open_mode = opendata->o_arg.open_flags;
 	fmode_t fmode = opendata->o_arg.fmode;
 	enum open_claim_type4 claim = opendata->o_arg.claim;
@@ -1996,15 +2006,10 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 			goto out_return_state;
 		}
 		spin_unlock(&state->owner->so_lock);
-		rcu_read_lock();
-		delegation = nfs4_get_valid_delegation(state->inode);
-		if (!can_open_delegated(delegation, fmode, claim)) {
-			rcu_read_unlock();
+
+		if (!can_open_delegated(state->inode, fmode, claim, &stateid))
 			break;
-		}
-		/* Save the delegation */
-		nfs4_stateid_copy(&stateid, &delegation->stateid);
-		rcu_read_unlock();
+
 		nfs_release_seqid(opendata->o_arg.seqid);
 		if (!opendata->is_recover) {
 			ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
@@ -2556,16 +2561,14 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	 * a delegation instead.
 	 */
 	if (data->state != NULL) {
-		struct nfs_delegation *delegation;
-
 		if (can_open_cached(data->state, data->o_arg.fmode,
 					data->o_arg.open_flags, claim))
 			goto out_no_action;
-		rcu_read_lock();
-		delegation = nfs4_get_valid_delegation(data->state->inode);
-		if (can_open_delegated(delegation, data->o_arg.fmode, claim))
-			goto unlock_no_action;
-		rcu_read_unlock();
+		if (can_open_delegated(data->state->inode, data->o_arg.fmode,
+				claim, NULL)) {
+			trace_nfs4_cached_open(data->state);
+			goto out_no_action;
+		}
 	}
 	/* Update client id. */
 	data->o_arg.clientid = clp->cl_clientid;
@@ -2601,9 +2604,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 			data->o_arg.createmode = NFS4_CREATE_GUARDED;
 	}
 	return;
-unlock_no_action:
-	trace_nfs4_cached_open(data->state);
-	rcu_read_unlock();
+
 out_no_action:
 	task->tk_action = NULL;
 out_wait:
