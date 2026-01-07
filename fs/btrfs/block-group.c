@@ -2387,7 +2387,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 
 	cache->length = key->offset;
 	cache->used = btrfs_stack_block_group_used(bgi);
-	cache->commit_used = cache->used;
+	cache->last_used = cache->used;
 	cache->flags = btrfs_stack_block_group_flags(bgi);
 	cache->global_root_id = btrfs_stack_block_group_chunk_objectid(bgi);
 	cache->space_info = btrfs_find_space_info(info, cache->flags);
@@ -2666,7 +2666,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_item bgi;
 	struct btrfs_root *root = btrfs_block_group_root(fs_info);
 	struct btrfs_key key;
-	u64 old_commit_used;
+	u64 old_last_used;
 	int ret;
 
 	spin_lock(&block_group->lock);
@@ -2674,8 +2674,8 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_block_group_chunk_objectid(&bgi,
 						   block_group->global_root_id);
 	btrfs_set_stack_block_group_flags(&bgi, block_group->flags);
-	old_commit_used = block_group->commit_used;
-	block_group->commit_used = block_group->used;
+	old_last_used = block_group->last_used;
+	block_group->last_used = block_group->used;
 	key.objectid = block_group->start;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	key.offset = block_group->length;
@@ -2684,7 +2684,7 @@ static int insert_block_group_item(struct btrfs_trans_handle *trans,
 	ret = btrfs_insert_item(trans, root, &key, &bgi, sizeof(bgi));
 	if (ret < 0) {
 		spin_lock(&block_group->lock);
-		block_group->commit_used = old_commit_used;
+		block_group->last_used = old_last_used;
 		spin_unlock(&block_group->lock);
 	}
 
@@ -3134,7 +3134,7 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	struct btrfs_block_group_item bgi;
 	struct btrfs_key key;
-	u64 old_commit_used;
+	u64 old_last_used;
 	u64 used;
 
 	/*
@@ -3144,14 +3144,14 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 	 * may be changed.
 	 */
 	spin_lock(&cache->lock);
-	old_commit_used = cache->commit_used;
+	old_last_used = cache->last_used;
 	used = cache->used;
 	/* No change in used bytes, can safely skip it. */
-	if (cache->commit_used == used) {
+	if (cache->last_used == used) {
 		spin_unlock(&cache->lock);
 		return 0;
 	}
-	cache->commit_used = used;
+	cache->last_used = used;
 	spin_unlock(&cache->lock);
 
 	key.objectid = cache->start;
@@ -3175,17 +3175,17 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 fail:
 	btrfs_release_path(path);
 	/*
-	 * We didn't update the block group item, need to revert commit_used
+	 * We didn't update the block group item, need to revert last_used
 	 * unless the block group item didn't exist yet - this is to prevent a
 	 * race with a concurrent insertion of the block group item, with
 	 * insert_block_group_item(), that happened just after we attempted to
-	 * update. In that case we would reset commit_used to 0 just after the
+	 * update. In that case we would reset last_used to 0 just after the
 	 * insertion set it to a value greater than 0 - if the block group later
 	 * becomes with 0 used bytes, we would incorrectly skip its update.
 	 */
 	if (ret < 0 && ret != -ENOENT) {
 		spin_lock(&cache->lock);
-		cache->commit_used = old_commit_used;
+		cache->last_used = old_last_used;
 		spin_unlock(&cache->lock);
 	}
 	return ret;
