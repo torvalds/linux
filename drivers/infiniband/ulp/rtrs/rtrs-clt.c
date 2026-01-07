@@ -1946,8 +1946,8 @@ static int rtrs_rdma_conn_rejected(struct rtrs_clt_con *con,
 				  status, rej_msg, ERR_PTR(errno));
 	} else {
 		rtrs_err(s,
-			  "Connect rejected but with malformed message: status %pe (%s)\n",
-			  ERR_PTR(status), rej_msg);
+			  "Connect rejected but with malformed message: status %d (%s)\n",
+			  status, rej_msg);
 	}
 
 	return -ECONNRESET;
@@ -2014,27 +2014,53 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_UNREACHABLE:
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		rtrs_wrn(s, "CM error (CM event: %s, err: %pe)\n",
-			 rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			rtrs_wrn(s, "CM error (CM event: %s, err: %pe)\n",
+				rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			rtrs_wrn(s, "CM error (CM event: %s, err: %s)\n",
+				rdma_event_msg(ev->event),
+				rdma_reject_msg(cm_id, ev->status));
+		}
 		cm_err = -ECONNRESET;
 		break;
 	case RDMA_CM_EVENT_ADDR_ERROR:
 	case RDMA_CM_EVENT_ROUTE_ERROR:
-		rtrs_wrn(s, "CM error (CM event: %s, err: %pe)\n",
-			 rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			rtrs_wrn(s, "CM error (CM event: %s, err: %pe)\n",
+				rdma_event_msg(ev->event),
+				ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			rtrs_wrn(s, "CM error (CM event: %s, err: %s)\n",
+				rdma_event_msg(ev->event),
+				rdma_reject_msg(cm_id, ev->status));
+		}
 		cm_err = -EHOSTUNREACH;
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		/*
 		 * Device removal is a special case.  Queue close and return 0.
 		 */
-		rtrs_wrn_rl(s, "CM event: %s, status: %pe\n", rdma_event_msg(ev->event),
-			    ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			rtrs_wrn_rl(s, "CM event: %s, status: %pe\n",
+					rdma_event_msg(ev->event),
+					ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			rtrs_wrn_rl(s, "CM event: %s, status: %s\n",
+					rdma_event_msg(ev->event),
+					rdma_reject_msg(cm_id, ev->status));
+		}
 		rtrs_clt_close_conns(clt_path, false);
 		return 0;
 	default:
-		rtrs_err(s, "Unexpected RDMA CM error (CM event: %s, err: %pe)\n",
-			 rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			rtrs_err(s, "Unexpected RDMA CM error (CM event: %s, err: %pe)\n",
+				rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			rtrs_err(s, "Unexpected RDMA CM error (CM event: %s, err: %s)\n",
+				rdma_event_msg(ev->event),
+				rdma_reject_msg(cm_id, ev->status));
+		}
 		cm_err = -ECONNRESET;
 		break;
 	}

@@ -2012,8 +2012,15 @@ static int rtrs_srv_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_REJECTED:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 	case RDMA_CM_EVENT_UNREACHABLE:
-		rtrs_err(s, "CM error (CM event: %s, err: %pe)\n",
-			  rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			rtrs_err(s, "CM error (CM event: %s, err: %pe)\n",
+					rdma_event_msg(ev->event),
+					ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			rtrs_err(s, "CM error (CM event: %s, err: %s)\n",
+					rdma_event_msg(ev->event),
+					rdma_reject_msg(cm_id, ev->status));
+		}
 		fallthrough;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_ADDR_CHANGE:
@@ -2022,8 +2029,15 @@ static int rtrs_srv_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		close_path(srv_path);
 		break;
 	default:
-		pr_err("Ignoring unexpected CM event %s, err %pe\n",
-		       rdma_event_msg(ev->event), ERR_PTR(ev->status));
+		if (ev->status < 0) {
+			pr_err("Ignoring unexpected CM event %s, err %pe\n",
+					rdma_event_msg(ev->event),
+					ERR_PTR(ev->status));
+		} else if (ev->status > 0) {
+			pr_err("Ignoring unexpected CM event %s, err %s\n",
+					rdma_event_msg(ev->event),
+					rdma_reject_msg(cm_id, ev->status));
+		}
 		break;
 	}
 
