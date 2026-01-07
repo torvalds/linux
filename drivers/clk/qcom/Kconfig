@@ -46,6 +46,16 @@ config CLK_GLYMUR_TCSRCC
 	  Support for the TCSR clock controller on GLYMUR devices.
 	  Say Y if you want to use peripheral devices such as USB/PCIe/EDP.
 
+config CLK_KAANAPALI_DISPCC
+	tristate "Kaanapali Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_KAANAPALI_GCC
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Kaanapali devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config CLK_KAANAPALI_GCC
 	tristate "Kaanapali Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
