@@ -199,7 +199,7 @@
 		clock-mult = <1>;
 	};
 
-	scr {
+	scr-bus@61000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -303,7 +303,7 @@
 		};
 	};
 
-	crmu: crmu {
+	crmu: crmu-bus@66400000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -412,7 +412,7 @@
 	#include "stingray-pcie.dtsi"
 	#include "stingray-usb.dtsi"
 
-	hsls {
+	hsls-bus@68900000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -725,7 +725,7 @@
 		};
 	};
 
-	tmons {
+	tmons-bus@8f100000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -814,18 +814,18 @@
 		};
 	};
 
-	nic-hsls {
+	nic-hsls-bus@60800000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0  0x0 0x7fffffff>;
+		ranges = <0x0 0x0 0x60800000 0x6fffff>;
 
-		nic_i2c0: i2c@60826100 {
+		nic_i2c0: i2c@26100 {
 			compatible = "brcm,iproc-nic-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x60826100 0x100>,
-			      <0x60e00408 0x1000>;
+			reg = <0x026100 0x100>,
+			      <0x600408 0x1000>;
 			brcm,ape-hsls-addr-mask = <0x03400000>;
 			clock-frequency = <100000>;
 			status = "disabled";
