@@ -505,8 +505,7 @@
 			ranges = <0 0x65590000 0x10000>;
 
 			pmu@9000 {
-				compatible = "arm,cci-400-pmu,r1",
-					     "arm,cci-400-pmu";
+				compatible = "arm,cci-400-pmu,r1";
 				reg = <0x9000 0x4000>;
 				interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>,
