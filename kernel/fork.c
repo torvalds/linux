@@ -1356,7 +1356,7 @@ struct file *get_task_exe_file(struct task_struct *task)
  * @task: The task.
  *
  * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
- * this kernel workthread has transiently adopted a user mm with use_mm,
+ * this kernel workthread has transiently adopted a user mm with kthread_use_mm,
  * to do its AIO) is not set and if so returns a reference to it, after
  * bumping up the use count.  User must release the mm via mmput()
  * after use.  Typically used by /proc and ptrace.
