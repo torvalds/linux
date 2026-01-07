@@ -336,17 +336,6 @@ out:
 	return ret;
 }
 
-static struct nfs_delegation *
-nfs_start_delegation_return(struct nfs_inode *nfsi)
-{
-	struct nfs_delegation *delegation;
-
-	rcu_read_lock();
-	delegation = nfs_start_delegation_return_locked(nfsi);
-	rcu_read_unlock();
-	return delegation;
-}
-
 static void nfs_abort_delegation_return(struct nfs_delegation *delegation,
 					struct nfs_server *server, int err)
 {
@@ -793,15 +782,18 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
 
-	delegation = nfs_start_delegation_return(nfsi);
-	if (delegation != NULL) {
-		/* Synchronous recall of any application leases */
-		break_lease(inode, O_WRONLY | O_RDWR);
-		if (S_ISREG(inode->i_mode))
-			nfs_wb_all(inode);
-		return nfs_end_delegation_return(inode, delegation, 1);
-	}
-	return 0;
+	rcu_read_lock();
+	delegation = nfs_start_delegation_return_locked(nfsi);
+	rcu_read_unlock();
+
+	if (!delegation)
+		return 0;
+
+	/* Synchronous recall of any application leases */
+	break_lease(inode, O_WRONLY | O_RDWR);
+	if (S_ISREG(inode->i_mode))
+		nfs_wb_all(inode);
+	return nfs_end_delegation_return(inode, delegation, 1);
 }
 
 /**
