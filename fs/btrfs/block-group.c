@@ -4792,18 +4792,22 @@ void btrfs_mark_bg_fully_remapped(struct btrfs_block_group *bg,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 
-	spin_lock(&fs_info->unused_bgs_lock);
-	/*
-	 * The block group might already be on the unused_bgs list, remove it
-	 * if it is. It'll get readded after the async discard worker finishes,
-	 * or in btrfs_handle_fully_remapped_bgs() if we're not using async
-	 * discard.
-	 */
-	if (!list_empty(&bg->bg_list))
-		list_del(&bg->bg_list);
-	else
-		btrfs_get_block_group(bg);
 
-	list_add_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
-	spin_unlock(&fs_info->unused_bgs_lock);
+	if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
+		btrfs_discard_queue_work(&fs_info->discard_ctl, bg);
+	} else {
+		spin_lock(&fs_info->unused_bgs_lock);
+		/*
+		 * The block group might already be on the unused_bgs list,
+		 * remove it if it is. It'll get readded after
+		 * btrfs_handle_fully_remapped_bgs() finishes.
+		 */
+		if (!list_empty(&bg->bg_list))
+			list_del(&bg->bg_list);
+		else
+			btrfs_get_block_group(bg);
+
+		list_add_tail(&bg->bg_list, &fs_info->fully_remapped_bgs);
+		spin_unlock(&fs_info->unused_bgs_lock);
+	}
 }
