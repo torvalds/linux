@@ -660,6 +660,60 @@ static int nfs_server_return_marked_delegations(struct nfs_server *server,
 	return err;
 }
 
+static inline bool nfs_delegations_over_limit(struct nfs_server *server)
+{
+	return !list_empty_careful(&server->delegations_lru) &&
+		atomic_long_read(&server->nr_active_delegations) >
+		nfs_delegation_watermark;
+}
+
+static void nfs_delegations_return_from_lru(struct nfs_server *server)
+{
+	struct nfs_delegation *d, *n;
+	unsigned int pass = 0;
+	bool moved = false;
+
+retry:
+	spin_lock(&server->delegations_lock);
+	list_for_each_entry_safe(d, n, &server->delegations_lru, entry) {
+		if (!nfs_delegations_over_limit(server))
+			break;
+		if (pass == 0 && test_bit(NFS_DELEGATION_REFERENCED, &d->flags))
+			continue;
+		list_move_tail(&d->entry, &server->delegations_return);
+		moved = true;
+	}
+	spin_unlock(&server->delegations_lock);
+
+	/*
+	 * If we are still over the limit, try to reclaim referenced delegations
+	 * as well.
+	 */
+	if (pass == 0 && nfs_delegations_over_limit(server)) {
+		pass++;
+		goto retry;
+	}
+
+	if (moved) {
+		set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
+		nfs4_schedule_state_manager(server->nfs_client);
+	}
+}
+
+static void nfs_delegation_add_lru(struct nfs_server *server,
+		struct nfs_delegation *delegation)
+{
+	spin_lock(&server->delegations_lock);
+	if (list_empty(&delegation->entry)) {
+		list_add_tail(&delegation->entry, &server->delegations_lru);
+		refcount_inc(&delegation->refcount);
+	}
+	spin_unlock(&server->delegations_lock);
+
+	if (nfs_delegations_over_limit(server))
+		nfs_delegations_return_from_lru(server);
+}
+
 static bool nfs_server_clear_delayed_delegations(struct nfs_server *server)
 {
 	struct nfs_delegation *d;
@@ -825,6 +879,7 @@ out_unlock:
  */
 void nfs4_inode_return_delegation_on_close(struct inode *inode)
 {
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_delegation *delegation;
 	bool return_now = false;
 
@@ -832,9 +887,7 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 	if (!delegation)
 		return;
 
-	if (test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags) ||
-	    atomic_long_read(&NFS_SERVER(inode)->nr_active_delegations) >=
-	    nfs_delegation_watermark) {
+	if (test_bit(NFS_DELEGATION_RETURN_IF_CLOSED, &delegation->flags)) {
 		spin_lock(&delegation->lock);
 		if (delegation->inode &&
 		    list_empty(&NFS_I(inode)->open_files) &&
@@ -848,6 +901,8 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 	if (return_now) {
 		nfs_clear_verifier_delegated(inode);
 		nfs_end_delegation_return(inode, delegation, 0);
+	} else {
+		nfs_delegation_add_lru(server, delegation);
 	}
 	nfs_put_delegation(delegation);
 }

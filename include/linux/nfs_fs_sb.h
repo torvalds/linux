@@ -261,6 +261,7 @@ struct nfs_server {
 	struct list_head	delegations;
 	spinlock_t		delegations_lock;
 	struct list_head	delegations_return;
+	struct list_head	delegations_lru;
 	atomic_long_t		nr_active_delegations;
 	unsigned int		delegation_hash_mask;
 	struct hlist_head	*delegation_hash_table;
