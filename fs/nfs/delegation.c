@@ -52,12 +52,13 @@ static void __nfs_free_delegation(struct nfs_delegation *delegation)
 static void nfs_mark_delegation_revoked(struct nfs_server *server,
 		struct nfs_delegation *delegation)
 {
-	if (!test_and_set_bit(NFS_DELEGATION_REVOKED, &delegation->flags)) {
-		delegation->stateid.type = NFS4_INVALID_STATEID_TYPE;
-		atomic_long_dec(&server->nr_active_delegations);
-		if (!test_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
-			nfs_clear_verifier_delegated(delegation->inode);
-	}
+	if (test_and_set_bit(NFS_DELEGATION_REVOKED, &delegation->flags))
+		return;
+
+	delegation->stateid.type = NFS4_INVALID_STATEID_TYPE;
+	atomic_long_dec(&server->nr_active_delegations);
+	if (!test_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
+		nfs_clear_verifier_delegated(delegation->inode);
 }
 
 void nfs_put_delegation(struct nfs_delegation *delegation)
