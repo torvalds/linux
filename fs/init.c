@@ -164,7 +164,8 @@ int __init init_unlink(const char *pathname)
 
 int __init init_mkdir(const char *pathname, umode_t mode)
 {
-	return do_mkdirat(AT_FDCWD, getname_kernel(pathname), mode);
+	CLASS(filename_kernel, name)(pathname);
+	return filename_mkdirat(AT_FDCWD, name, mode);
 }
 
 int __init init_rmdir(const char *pathname)
