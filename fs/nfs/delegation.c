@@ -1129,15 +1129,21 @@ void nfs_remove_bad_delegation(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(nfs_remove_bad_delegation);
 
-static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
+static bool nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
 {
-	struct nfs_delegation *delegation;
+	struct nfs_delegation *d, *n;
+	bool marked = false;
 
-	list_for_each_entry_rcu(delegation, &server->delegations, super_list) {
-		if (test_and_clear_bit(NFS_DELEGATION_REFERENCED, &delegation->flags))
+	spin_lock(&server->delegations_lock);
+	list_for_each_entry_safe(d, n, &server->delegations_lru, entry) {
+		if (test_and_clear_bit(NFS_DELEGATION_REFERENCED, &d->flags))
 			continue;
-		nfs_mark_return_if_closed_delegation(server, delegation);
+		list_move_tail(&d->entry, &server->delegations_return);
+		marked = true;
 	}
+	spin_unlock(&server->delegations_lock);
+
+	return marked;
 }
 
 /**
@@ -1148,13 +1154,17 @@ static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
 void nfs_expire_unreferenced_delegations(struct nfs_client *clp)
 {
 	struct nfs_server *server;
+	bool marked = false;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link)
-		nfs_mark_return_unreferenced_delegations(server);
+		marked |= nfs_mark_return_unreferenced_delegations(server);
 	rcu_read_unlock();
 
-	nfs_delegation_run_state_manager(clp);
+	if (marked) {
+		set_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state);
+		nfs4_schedule_state_manager(clp);
+	}
 }
 
 /**
