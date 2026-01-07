@@ -92,13 +92,17 @@ macro_rules! i2c_device_table {
 /// An adapter for the registration of I2C drivers.
 pub struct Adapter<T: Driver>(T);
 
-// SAFETY: A call to `unregister` for a given instance of `RegType` is guaranteed to be valid if
+// SAFETY:
+// - `bindings::i2c_driver` is a C type declared as `repr(C)`.
+unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
+    type DriverType = bindings::i2c_driver;
+}
+
+// SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
 // a preceding call to `register` has been successful.
 unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
-    type RegType = bindings::i2c_driver;
-
     unsafe fn register(
-        idrv: &Opaque<Self::RegType>,
+        idrv: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result {
@@ -133,12 +137,12 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
             (*idrv.get()).driver.acpi_match_table = acpi_table;
         }
 
-        // SAFETY: `idrv` is guaranteed to be a valid `RegType`.
+        // SAFETY: `idrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe { bindings::i2c_register_driver(module.0, idrv.get()) })
     }
 
-    unsafe fn unregister(idrv: &Opaque<Self::RegType>) {
-        // SAFETY: `idrv` is guaranteed to be a valid `RegType`.
+    unsafe fn unregister(idrv: &Opaque<Self::DriverType>) {
+        // SAFETY: `idrv` is guaranteed to be a valid `DriverType`.
         unsafe { bindings::i2c_del_driver(idrv.get()) }
     }
 }

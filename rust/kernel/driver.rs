@@ -99,23 +99,33 @@ use crate::{acpi, device, of, str::CStr, try_pin_init, types::Opaque, ThisModule
 use core::pin::Pin;
 use pin_init::{pin_data, pinned_drop, PinInit};
 
+/// Trait describing the layout of a specific device driver.
+///
+/// This trait describes the layout of a specific driver structure, such as `struct pci_driver` or
+/// `struct platform_driver`.
+///
+/// # Safety
+///
+/// Implementors must guarantee that:
+/// - `DriverType` is `repr(C)`.
+pub unsafe trait DriverLayout {
+    /// The specific driver type embedding a `struct device_driver`.
+    type DriverType: Default;
+}
+
 /// The [`RegistrationOps`] trait serves as generic interface for subsystems (e.g., PCI, Platform,
 /// Amba, etc.) to provide the corresponding subsystem specific implementation to register /
-/// unregister a driver of the particular type (`RegType`).
+/// unregister a driver of the particular type (`DriverType`).
 ///
-/// For instance, the PCI subsystem would set `RegType` to `bindings::pci_driver` and call
+/// For instance, the PCI subsystem would set `DriverType` to `bindings::pci_driver` and call
 /// `bindings::__pci_register_driver` from `RegistrationOps::register` and
 /// `bindings::pci_unregister_driver` from `RegistrationOps::unregister`.
 ///
 /// # Safety
 ///
-/// A call to [`RegistrationOps::unregister`] for a given instance of `RegType` is only valid if a
-/// preceding call to [`RegistrationOps::register`] has been successful.
-pub unsafe trait RegistrationOps {
-    /// The type that holds information about the registration. This is typically a struct defined
-    /// by the C portion of the kernel.
-    type RegType: Default;
-
+/// A call to [`RegistrationOps::unregister`] for a given instance of `DriverType` is only valid if
+/// a preceding call to [`RegistrationOps::register`] has been successful.
+pub unsafe trait RegistrationOps: DriverLayout {
     /// Registers a driver.
     ///
     /// # Safety
@@ -123,7 +133,7 @@ pub unsafe trait RegistrationOps {
     /// On success, `reg` must remain pinned and valid until the matching call to
     /// [`RegistrationOps::unregister`].
     unsafe fn register(
-        reg: &Opaque<Self::RegType>,
+        reg: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result;
@@ -134,7 +144,7 @@ pub unsafe trait RegistrationOps {
     ///
     /// Must only be called after a preceding successful call to [`RegistrationOps::register`] for
     /// the same `reg`.
-    unsafe fn unregister(reg: &Opaque<Self::RegType>);
+    unsafe fn unregister(reg: &Opaque<Self::DriverType>);
 }
 
 /// A [`Registration`] is a generic type that represents the registration of some driver type (e.g.
@@ -146,7 +156,7 @@ pub unsafe trait RegistrationOps {
 #[pin_data(PinnedDrop)]
 pub struct Registration<T: RegistrationOps> {
     #[pin]
-    reg: Opaque<T::RegType>,
+    reg: Opaque<T::DriverType>,
 }
 
 // SAFETY: `Registration` has no fields or methods accessible via `&Registration`, so it is safe to
@@ -161,13 +171,13 @@ impl<T: RegistrationOps> Registration<T> {
     /// Creates a new instance of the registration object.
     pub fn new(name: &'static CStr, module: &'static ThisModule) -> impl PinInit<Self, Error> {
         try_pin_init!(Self {
-            reg <- Opaque::try_ffi_init(|ptr: *mut T::RegType| {
+            reg <- Opaque::try_ffi_init(|ptr: *mut T::DriverType| {
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write.
-                unsafe { ptr.write(T::RegType::default()) };
+                unsafe { ptr.write(T::DriverType::default()) };
 
                 // SAFETY: `try_ffi_init` guarantees that `ptr` is valid for write, and it has
                 // just been initialised above, so it's also valid for read.
-                let drv = unsafe { &*(ptr as *const Opaque<T::RegType>) };
+                let drv = unsafe { &*(ptr as *const Opaque<T::DriverType>) };
 
                 // SAFETY: `drv` is guaranteed to be pinned until `T::unregister`.
                 unsafe { T::register(drv, name, module) }

@@ -26,13 +26,17 @@ use core::{
 /// An adapter for the registration of platform drivers.
 pub struct Adapter<T: Driver>(T);
 
-// SAFETY: A call to `unregister` for a given instance of `RegType` is guaranteed to be valid if
+// SAFETY:
+// - `bindings::platform_driver` is a C type declared as `repr(C)`.
+unsafe impl<T: Driver + 'static> driver::DriverLayout for Adapter<T> {
+    type DriverType = bindings::platform_driver;
+}
+
+// SAFETY: A call to `unregister` for a given instance of `DriverType` is guaranteed to be valid if
 // a preceding call to `register` has been successful.
 unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
-    type RegType = bindings::platform_driver;
-
     unsafe fn register(
-        pdrv: &Opaque<Self::RegType>,
+        pdrv: &Opaque<Self::DriverType>,
         name: &'static CStr,
         module: &'static ThisModule,
     ) -> Result {
@@ -55,12 +59,12 @@ unsafe impl<T: Driver + 'static> driver::RegistrationOps for Adapter<T> {
             (*pdrv.get()).driver.acpi_match_table = acpi_table;
         }
 
-        // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
+        // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe { bindings::__platform_driver_register(pdrv.get(), module.0) })
     }
 
-    unsafe fn unregister(pdrv: &Opaque<Self::RegType>) {
-        // SAFETY: `pdrv` is guaranteed to be a valid `RegType`.
+    unsafe fn unregister(pdrv: &Opaque<Self::DriverType>) {
+        // SAFETY: `pdrv` is guaranteed to be a valid `DriverType`.
         unsafe { bindings::platform_driver_unregister(pdrv.get()) };
     }
 }
