@@ -227,7 +227,6 @@ struct filename *getname_uflags(const char __user *filename, int uflags)
 
 struct filename *__getname_maybe_null(const char __user *pathname)
 {
-	struct filename *name;
 	char c;
 
 	/* try to save on allocations; loss on um, though */
@@ -236,12 +235,11 @@ struct filename *__getname_maybe_null(const char __user *pathname)
 	if (!c)
 		return NULL;
 
-	name = getname_flags(pathname, LOOKUP_EMPTY);
-	if (!IS_ERR(name) && !(name->name[0])) {
-		putname(name);
-		name = NULL;
-	}
-	return name;
+	CLASS(filename_flags, name)(pathname, LOOKUP_EMPTY);
+	/* empty pathname translates to NULL */
+	if (!IS_ERR(name) && !(name->name[0]))
+		return NULL;
+	return no_free_ptr(name);
 }
 
 struct filename *getname_kernel(const char * filename)
