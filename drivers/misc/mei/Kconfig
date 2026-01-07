@@ -49,7 +49,7 @@ config INTEL_MEI_TXE
 config INTEL_MEI_GSC
 	tristate "Intel MEI GSC embedded device"
 	depends on INTEL_MEI_ME
-	depends on DRM_I915 || DRM_XE
+	depends on DRM_I915!=n || DRM_XE!=n
 	help
 	  Intel auxiliary driver for GSC devices embedded in Intel graphics devices.
 
@@ -84,7 +84,7 @@ config INTEL_MEI_VSC
 config INTEL_MEI_LB
 	tristate "Intel Late Binding (LB) support on ME Interface"
 	depends on INTEL_MEI_ME
-	depends on DRM_XE
+	depends on DRM_XE!=n
 	help
 	  Enable support for Intel Late Binding (LB) via the MEI interface.
 
