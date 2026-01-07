@@ -784,7 +784,7 @@ nvgrace_gpu_write(struct vfio_device *core_vdev,
 static int nvgrace_get_dmabuf_phys(struct vfio_pci_core_device *core_vdev,
 				   struct p2pdma_provider **provider,
 				   unsigned int region_index,
-				   struct dma_buf_phys_vec *phys_vec,
+				   struct phys_vec *phys_vec,
 				   struct vfio_region_dma_range *dma_ranges,
 				   size_t nr_ranges)
 {

@@ -2002,7 +2002,7 @@ static const struct dma_buf_ops iommufd_test_dmabuf_ops = {
 };
 
 int iommufd_test_dma_buf_iommufd_map(struct dma_buf_attachment *attachment,
-				     struct dma_buf_phys_vec *phys)
+				     struct phys_vec *phys)
 {
 	struct iommufd_test_dma_buf *priv = attachment->dmabuf->priv;
 
