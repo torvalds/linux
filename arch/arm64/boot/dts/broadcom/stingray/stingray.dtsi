@@ -691,7 +691,7 @@
 			status = "disabled";
 		};
 
-		nand: nand@360000 {
+		nand: nand-controller@360000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x00360000 0x600>,
 			      <0x0050a408 0x600>,
@@ -704,7 +704,7 @@
 			status = "disabled";
 		};
 
-		sdio0: sdhci@3f1000 {
+		sdio0: mmc@3f1000 {
 			compatible = "brcm,sdhci-iproc";
 			reg = <0x003f1000 0x100>;
 			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>;
@@ -714,7 +714,7 @@
 			status = "disabled";
 		};
 
-		sdio1: sdhci@3f2000 {
+		sdio1: mmc@3f2000 {
 			compatible = "brcm,sdhci-iproc";
 			reg = <0x003f2000 0x100>;
 			interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
