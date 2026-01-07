@@ -64,6 +64,9 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define ASUS_SPURIOUS_CODE_0X8A 0x8a
 #define ASUS_SPURIOUS_CODE_0X9E 0x9e
 
+/* Special key codes */
+#define ASUS_FAN_CTRL_KEY_CODE 0xae
+
 #define SUPPORT_KBD_BACKLIGHT BIT(0)
 
 #define MAX_TOUCH_MAJOR 8
@@ -378,12 +381,34 @@ static int asus_raw_event(struct hid_device *hdev,
 	if (report->id == FEATURE_KBD_LED_REPORT_ID1 || report->id == FEATURE_KBD_LED_REPORT_ID2)
 		return -1;
 	if (drvdata->quirks & QUIRK_ROG_NKEY_KEYBOARD) {
-		/*
-		 * ASUS ROG laptops send these codes during normal operation
-		 * with no discernable reason. Filter them out to avoid
-		 * unmapped warning messages.
-		 */
 		if (report->id == FEATURE_KBD_REPORT_ID) {
+			/*
+			 * Fn+F5 fan control key - try to send WMI event to toggle fan mode.
+			 * If successful, block the event from reaching userspace.
+			 * If asus-wmi is unavailable or the call fails, let the event
+			 * pass to userspace so it can implement its own fan control.
+			 */
+			if (data[1] == ASUS_FAN_CTRL_KEY_CODE) {
+				int ret = asus_wmi_send_event(drvdata, ASUS_FAN_CTRL_KEY_CODE);
+
+				if (ret == 0) {
+					/* Successfully handled by asus-wmi, block event */
+					return -1;
+				}
+
+				/*
+				 * Warn if asus-wmi failed (but not if it's unavailable).
+				 * Let the event reach userspace in all failure cases.
+				 */
+				if (ret != -ENODEV)
+					hid_warn(hdev, "Failed to notify asus-wmi: %d\n", ret);
+			}
+
+			/*
+			 * ASUS ROG laptops send these codes during normal operation
+			 * with no discernable reason. Filter them out to avoid
+			 * unmapped warning messages.
+			 */
 			if (data[1] == ASUS_SPURIOUS_CODE_0XEA ||
 			    data[1] == ASUS_SPURIOUS_CODE_0XEC ||
 			    data[1] == ASUS_SPURIOUS_CODE_0X02 ||
