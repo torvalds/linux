@@ -136,7 +136,7 @@ out:
 static inline int is_umdir_used(char *dir)
 {
 	char pid[sizeof("nnnnnnnnn")], *end, *file;
-	int fd, p, n, err;
+	int fd, p, n;
 	size_t filelen = strlen(dir) + sizeof("/pid") + 1;
 
 	file = malloc(filelen);
@@ -155,7 +155,6 @@ static inline int is_umdir_used(char *dir)
 		goto out;
 	}
 
-	err = 0;
 	n = read(fd, pid, sizeof(pid));
 	if (n < 0) {
 		printk(UM_KERN_ERR "is_umdir_used : couldn't read pid file "
