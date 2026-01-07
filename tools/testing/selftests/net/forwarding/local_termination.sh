@@ -306,39 +306,39 @@ run_test()
 
 	if [ $skip_ptp = false ]; then
 		check_rcv $rcv_if_name "1588v2 over L2 transport, Sync" \
-			"ethertype PTP (0x88f7).* PTPv2.* msg type : sync msg" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type *: sync msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over L2 transport, Follow-Up" \
-			"ethertype PTP (0x88f7).* PTPv2.* msg type : follow up msg" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type *: follow up msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over L2 transport, Peer Delay Request" \
-			"ethertype PTP (0x88f7).* PTPv2.* msg type : peer delay req msg" \
+			"ethertype PTP (0x88f7).* PTPv2.* msg type *: peer delay req msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv4, Sync" \
-			"ethertype IPv4 (0x0800).* PTPv2.* msg type : sync msg" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type *: sync msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv4, Follow-Up" \
-			"ethertype IPv4 (0x0800).* PTPv2.* msg type : follow up msg" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type *: follow up msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv4, Peer Delay Request" \
-			"ethertype IPv4 (0x0800).* PTPv2.* msg type : peer delay req msg" \
+			"ethertype IPv4 (0x0800).* PTPv2.* msg type *: peer delay req msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv6, Sync" \
-			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : sync msg" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type *: sync msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv6, Follow-Up" \
-			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : follow up msg" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type *: follow up msg" \
 			true "$test_name"
 
 		check_rcv $rcv_if_name "1588v2 over IPv6, Peer Delay Request" \
-			"ethertype IPv6 (0x86dd).* PTPv2.* msg type : peer delay req msg" \
+			"ethertype IPv6 (0x86dd).* PTPv2.* msg type *: peer delay req msg" \
 			true "$test_name"
 	fi
 
