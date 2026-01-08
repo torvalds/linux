@@ -887,11 +887,6 @@ impl PmuLookupTable {
             ret
         };
 
-        // Debug logging of entries (dumps the table data to dmesg)
-        for i in (header_len..required_bytes).step_by(entry_len) {
-            dev_dbg!(dev, "PMU entry: {:02x?}\n", &data[i..][..entry_len]);
-        }
-
         Ok(PmuLookupTable { header, table_data })
     }
 
