@@ -665,11 +665,6 @@ static bool should_async_write(struct btrfs_bio *bbio)
 	bool auto_csum_mode = true;
 
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
-	enum btrfs_offload_csum_mode csum_mode = READ_ONCE(fs_devices->offload_csum_mode);
-
-	if (csum_mode == BTRFS_OFFLOAD_CSUM_FORCE_ON)
-		return true;
 	/*
 	 * Write bios will calculate checksum and submit bio at the same time.
 	 * Unless explicitly required don't offload serial csum calculate and bio
