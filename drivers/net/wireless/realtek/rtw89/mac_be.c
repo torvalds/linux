@@ -331,6 +331,11 @@ static void ple_quota_cfg_be(struct rtw89_dev *rtwdev,
 	SET_QUOTA(cpu_io, PLE, 10);
 	SET_QUOTA(tx_rpt, PLE, 11);
 	SET_QUOTA(h2d, PLE, 12);
+
+	if (rtwdev->chip->chip_id == RTL8922A)
+		return;
+
+	SET_QUOTA(snrpt, PLE, 13);
 }
 
 static void rtw89_mac_hci_func_en_be(struct rtw89_dev *rtwdev)
