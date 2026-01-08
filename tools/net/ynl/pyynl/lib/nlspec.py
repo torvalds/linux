@@ -129,8 +129,8 @@ class SpecEnumSet(SpecElement):
 
         prev_entry = None
         value_start = self.yaml.get('value-start', 0)
-        self.entries = dict()
-        self.entries_by_val = dict()
+        self.entries = {}
+        self.entries_by_val = {}
         for entry in self.yaml['entries']:
             e = self.new_entry(entry, prev_entry, value_start)
             self.entries[e.name] = e
@@ -451,6 +451,7 @@ class SpecFamily(SpecElement):
             stream.seek(0)
             spec = pyyaml.safe_load(stream)
 
+        self.fixed_header = None
         self._resolution_list = []
 
         super().__init__(self, spec)
@@ -579,13 +580,13 @@ class SpecFamily(SpecElement):
             self.msgs[op.name] = op
 
     def find_operation(self, name):
-      """
-      For a given operation name, find and return operation spec.
-      """
-      for op in self.yaml['operations']['list']:
-        if name == op['name']:
-          return op
-      return None
+        """
+        For a given operation name, find and return operation spec.
+        """
+        for op in self.yaml['operations']['list']:
+            if name == op['name']:
+                return op
+        return None
 
     def resolve(self):
         self.resolve_up(super())
