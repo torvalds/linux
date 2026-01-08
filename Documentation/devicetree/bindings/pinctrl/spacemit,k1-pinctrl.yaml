@@ -32,6 +32,10 @@ properties:
   resets:
     maxItems: 1
 
+  spacemit,apbc:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to syscon that access the protected register
+
 patternProperties:
   '-cfg$':
     type: object
@@ -138,6 +142,7 @@ examples:
             clocks = <&syscon_apbc 42>,
                      <&syscon_apbc 94>;
             clock-names = "func", "bus";
+            spacemit,apbc = <&syscon_apbc>;
 
             uart0_2_cfg: uart0-2-cfg {
                 uart0-2-pins {
