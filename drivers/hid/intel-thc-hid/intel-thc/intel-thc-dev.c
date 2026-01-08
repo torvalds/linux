@@ -1593,7 +1593,7 @@ int thc_i2c_set_rx_max_size(struct thc_device *dev, u32 max_rx_size)
 	if (!max_rx_size)
 		return -EOPNOTSUPP;
 
-	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &val);
+	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, &val);
 	if (ret)
 		return ret;
 
@@ -1662,7 +1662,7 @@ int thc_i2c_set_rx_int_delay(struct thc_device *dev, u32 delay_us)
 	if (!delay_us)
 		return -EOPNOTSUPP;
 
-	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SW_SEQ_STS_OFFSET, &val);
+	ret = regmap_read(dev->thc_regmap, THC_M_PRT_SPI_ICRRD_OPCODE_OFFSET, &val);
 	if (ret)
 		return ret;
 
