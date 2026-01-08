@@ -7,8 +7,10 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -47,6 +49,27 @@
 #define PAD_PULLUP		BIT(14)
 #define PAD_PULL_EN		BIT(15)
 
+#define IO_PWR_DOMAIN_OFFSET	0x800
+
+#define IO_PWR_DOMAIN_GPIO2_Kx  0x0c
+#define IO_PWR_DOMAIN_MMC_Kx    0x1c
+
+#define IO_PWR_DOMAIN_GPIO3_K1  0x10
+#define IO_PWR_DOMAIN_QSPI_K1   0x20
+
+#define IO_PWR_DOMAIN_GPIO1_K3  0x04
+#define IO_PWR_DOMAIN_GPIO5_K3  0x10
+#define IO_PWR_DOMAIN_GPIO4_K3  0x20
+#define IO_PWR_DOMAIN_QSPI_K3   0x2c
+
+#define IO_PWR_DOMAIN_V18EN	BIT(2)
+
+#define APBC_ASFAR		0x50
+#define APBC_ASSAR		0x54
+
+#define APBC_ASFAR_AKEY		0xbaba
+#define APBC_ASSAR_AKEY		0xeb10
+
 struct spacemit_pin_drv_strength {
 	u8		val;
 	u32		mA;
@@ -78,6 +101,8 @@ struct spacemit_pinctrl {
 	raw_spinlock_t				lock;
 
 	void __iomem				*regs;
+
+	struct regmap				*regmap_apbc;
 };
 
 struct spacemit_pinctrl_data {
@@ -85,6 +110,7 @@ struct spacemit_pinctrl_data {
 	const struct spacemit_pin	*data;
 	u16				npins;
 	unsigned int			(*pin_to_offset)(unsigned int pin);
+	unsigned int			(*pin_to_io_pd_offset)(unsigned int pin);
 	const struct spacemit_pinctrl_dconf	*dconf;
 };
 
@@ -144,6 +170,56 @@ static unsigned int spacemit_k3_pin_to_offset(unsigned int pin)
 	unsigned int offset = pin > 130 ? (pin + 2) : pin;
 
 	return offset << 2;
+}
+
+static unsigned int spacemit_k1_pin_to_io_pd_offset(unsigned int pin)
+{
+	unsigned int offset = 0;
+
+	switch (pin) {
+	case 47 ... 52:
+		offset = IO_PWR_DOMAIN_GPIO3_K1;
+		break;
+	case 75 ... 80:
+		offset = IO_PWR_DOMAIN_GPIO2_Kx;
+		break;
+	case 98 ... 103:
+		offset = IO_PWR_DOMAIN_QSPI_K1;
+		break;
+	case 104 ... 109:
+		offset = IO_PWR_DOMAIN_MMC_Kx;
+		break;
+	}
+
+	return offset;
+}
+
+static unsigned int spacemit_k3_pin_to_io_pd_offset(unsigned int pin)
+{
+	unsigned int offset = 0;
+
+	switch (pin) {
+	case 0 ... 20:
+		offset = IO_PWR_DOMAIN_GPIO1_K3;
+		break;
+	case 21 ... 41:
+		offset = IO_PWR_DOMAIN_GPIO2_Kx;
+		break;
+	case 76 ... 98:
+		offset = IO_PWR_DOMAIN_GPIO4_K3;
+		break;
+	case 99 ... 127:
+		offset = IO_PWR_DOMAIN_GPIO5_K3;
+		break;
+	case 132 ... 137:
+		offset = IO_PWR_DOMAIN_MMC_Kx;
+		break;
+	case 138 ... 144:
+		offset = IO_PWR_DOMAIN_QSPI_K3;
+		break;
+	}
+
+	return offset;
 }
 
 static inline void __iomem *spacemit_pin_to_reg(struct spacemit_pinctrl *pctrl,
@@ -365,6 +441,42 @@ static int spacemit_pctrl_check_power(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static void spacemit_set_io_pwr_domain(struct spacemit_pinctrl *pctrl,
+				      const struct spacemit_pin *spin,
+				      const enum spacemit_pin_io_type type)
+{
+	u32 offset, val = 0;
+
+	if (!pctrl->regmap_apbc)
+		return;
+
+	offset = pctrl->data->pin_to_io_pd_offset(spin->pin);
+
+	/* Other bits are reserved so don't need to save them */
+	if (type == IO_TYPE_1V8)
+		val = IO_PWR_DOMAIN_V18EN;
+
+	/*
+	 * IO power domain registers are protected and cannot be accessed
+	 * directly. Before performing any read or write to the IO power
+	 * domain registers, an explicit unlock sequence must be issued
+	 * via the AIB Secure Access Register (ASAR).
+	 *
+	 * The unlock sequence allows exactly one subsequent access to the
+	 * IO power domain registers. After that access completes, the ASAR
+	 * keys are automatically cleared, and the registers become locked
+	 * again.
+	 *
+	 * This mechanism ensures that IO power domain configuration is
+	 * performed intentionally, as incorrect voltage settings may
+	 * result in functional failures or hardware damage.
+	 */
+	regmap_write(pctrl->regmap_apbc, APBC_ASFAR, APBC_ASFAR_AKEY);
+	regmap_write(pctrl->regmap_apbc, APBC_ASSAR, APBC_ASSAR_AKEY);
+
+	writel_relaxed(val, pctrl->regs + IO_PWR_DOMAIN_OFFSET + offset);
+}
+
 static int spacemit_pctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 					 struct device_node *np,
 					 struct pinctrl_map **maps,
@@ -572,7 +684,8 @@ static int spacemit_pinconf_get(struct pinctrl_dev *pctldev,
 
 #define ENABLE_DRV_STRENGTH	BIT(1)
 #define ENABLE_SLEW_RATE	BIT(2)
-static int spacemit_pinconf_generate_config(const struct spacemit_pin *spin,
+static int spacemit_pinconf_generate_config(struct spacemit_pinctrl *pctrl,
+					    const struct spacemit_pin *spin,
 					    const struct spacemit_pinctrl_dconf *dconf,
 					    unsigned long *configs,
 					    unsigned int num_configs,
@@ -646,6 +759,7 @@ static int spacemit_pinconf_generate_config(const struct spacemit_pin *spin,
 			default:
 				return -EINVAL;
 			}
+			spacemit_set_io_pwr_domain(pctrl, spin, type);
 		}
 
 		val = spacemit_get_driver_strength(type, dconf, drv_strength);
@@ -701,7 +815,7 @@ static int spacemit_pinconf_set(struct pinctrl_dev *pctldev,
 	const struct spacemit_pin *spin = spacemit_get_pin(pctrl, pin);
 	u32 value;
 
-	if (spacemit_pinconf_generate_config(spin, pctrl->data->dconf,
+	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
 					     configs, num_configs, &value))
 		return -EINVAL;
 
@@ -724,7 +838,7 @@ static int spacemit_pinconf_group_set(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 
 	spin = spacemit_get_pin(pctrl, group->grp.pins[0]);
-	if (spacemit_pinconf_generate_config(spin, pctrl->data->dconf,
+	if (spacemit_pinconf_generate_config(pctrl, spin, pctrl->data->dconf,
 					     configs, num_configs, &value))
 		return -EINVAL;
 
@@ -795,6 +909,7 @@ static const struct pinconf_ops spacemit_pinconf_ops = {
 
 static int spacemit_pinctrl_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct spacemit_pinctrl *pctrl;
 	struct clk *func_clk, *bus_clk;
@@ -815,6 +930,12 @@ static int spacemit_pinctrl_probe(struct platform_device *pdev)
 	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctrl->regs))
 		return PTR_ERR(pctrl->regs);
+
+	pctrl->regmap_apbc = syscon_regmap_lookup_by_phandle(np, "spacemit,apbc");
+	if (IS_ERR(pctrl->regmap_apbc)) {
+		dev_warn(dev, "no syscon found, disable power voltage switch functionality\n");
+		pctrl->regmap_apbc = NULL;
+	}
 
 	func_clk = devm_clk_get_enabled(dev, "func");
 	if (IS_ERR(func_clk))
@@ -1118,6 +1239,7 @@ static const struct spacemit_pinctrl_data k1_pinctrl_data = {
 	.data = k1_pin_data,
 	.npins = ARRAY_SIZE(k1_pin_desc),
 	.pin_to_offset = spacemit_k1_pin_to_offset,
+	.pin_to_io_pd_offset = spacemit_k1_pin_to_io_pd_offset,
 	.dconf = &k1_drive_conf,
 };
 
@@ -1455,6 +1577,7 @@ static const struct spacemit_pinctrl_data k3_pinctrl_data = {
 	.data = k3_pin_data,
 	.npins = ARRAY_SIZE(k3_pin_desc),
 	.pin_to_offset = spacemit_k3_pin_to_offset,
+	.pin_to_io_pd_offset = spacemit_k3_pin_to_io_pd_offset,
 	.dconf = &k3_drive_conf,
 };
 
