@@ -2804,6 +2804,10 @@ int idpf_send_get_stats_msg(struct idpf_vport *vport)
  * @vport: virtual port data structure
  * @get: flag to set or get rss look up table
  *
+ * When rxhash is disabled, RSS LUT will be configured with zeros.  If rxhash
+ * is enabled, the LUT values stored in driver's soft copy will be used to setup
+ * the HW.
+ *
  * Returns 0 on success, negative on failure.
  */
 int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
@@ -2814,10 +2818,12 @@ int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
 	struct idpf_rss_data *rss_data;
 	int buf_size, lut_buf_size;
 	ssize_t reply_sz;
+	bool rxhash_ena;
 	int i;
 
 	rss_data =
 		&vport->adapter->vport_config[vport->idx]->user_config.rss_data;
+	rxhash_ena = idpf_is_feature_ena(vport, NETIF_F_RXHASH);
 	buf_size = struct_size(rl, lut, rss_data->rss_lut_size);
 	rl = kzalloc(buf_size, GFP_KERNEL);
 	if (!rl)
@@ -2839,7 +2845,8 @@ int idpf_send_get_set_rss_lut_msg(struct idpf_vport *vport, bool get)
 	} else {
 		rl->lut_entries = cpu_to_le16(rss_data->rss_lut_size);
 		for (i = 0; i < rss_data->rss_lut_size; i++)
-			rl->lut[i] = cpu_to_le32(rss_data->rss_lut[i]);
+			rl->lut[i] = rxhash_ena ?
+				cpu_to_le32(rss_data->rss_lut[i]) : 0;
 
 		xn_params.vc_op = VIRTCHNL2_OP_SET_RSS_LUT;
 	}
@@ -3570,6 +3577,7 @@ init_failed:
  */
 void idpf_vc_core_deinit(struct idpf_adapter *adapter)
 {
+	struct idpf_hw *hw = &adapter->hw;
 	bool remove_in_prog;
 
 	if (!test_bit(IDPF_VC_CORE_INIT, adapter->flags))
@@ -3592,6 +3600,9 @@ void idpf_vc_core_deinit(struct idpf_adapter *adapter)
 	cancel_delayed_work_sync(&adapter->mbx_task);
 
 	idpf_vport_params_buf_rel(adapter);
+
+	kfree(hw->lan_regs);
+	hw->lan_regs = NULL;
 
 	kfree(adapter->vports);
 	adapter->vports = NULL;
