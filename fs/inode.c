@@ -2090,7 +2090,7 @@ static int inode_update_atime(struct inode *inode)
 	return inode_time_dirty_flag(inode);
 }
 
-static int inode_update_cmtime(struct inode *inode)
+static int inode_update_cmtime(struct inode *inode, unsigned int flags)
 {
 	struct timespec64 ctime = inode_get_ctime(inode);
 	struct timespec64 mtime = inode_get_mtime(inode);
@@ -2101,12 +2101,27 @@ static int inode_update_cmtime(struct inode *inode)
 	mtime_changed = !timespec64_equal(&now, &mtime);
 	if (mtime_changed || !timespec64_equal(&now, &ctime))
 		dirty = inode_time_dirty_flag(inode);
+
+	/*
+	 * Pure timestamp updates can be recorded in the inode without blocking
+	 * by not dirtying the inode.  But when the file system requires
+	 * i_version updates, the update of i_version can still block.
+	 * Error out if we'd actually have to update i_version or don't support
+	 * lazytime.
+	 */
+	if (IS_I_VERSION(inode)) {
+		if (flags & IOCB_NOWAIT) {
+			if (!(inode->i_sb->s_flags & SB_LAZYTIME) ||
+			    inode_iversion_need_inc(inode))
+				return -EAGAIN;
+		} else {
+			if (inode_maybe_inc_iversion(inode, !!dirty))
+				dirty |= I_DIRTY_SYNC;
+		}
+	}
+
 	if (mtime_changed)
 		inode_set_mtime_to_ts(inode, now);
-
-	if (IS_I_VERSION(inode) && inode_maybe_inc_iversion(inode, !!dirty))
-		dirty |= I_DIRTY_SYNC;
-
 	return dirty;
 }
 
@@ -2131,7 +2146,7 @@ int inode_update_time(struct inode *inode, enum fs_update_time type,
 	case FS_UPD_ATIME:
 		return inode_update_atime(inode);
 	case FS_UPD_CMTIME:
-		return inode_update_cmtime(inode);
+		return inode_update_cmtime(inode, flags);
 	default:
 		WARN_ON_ONCE(1);
 		return -EIO;
@@ -2151,6 +2166,16 @@ int generic_update_time(struct inode *inode, enum fs_update_time type,
 		unsigned int flags)
 {
 	int dirty;
+
+	/*
+	 * ->dirty_inode is what could make generic timestamp updates block.
+	 * Don't support non-blocking timestamp updates here if it is set.
+	 * File systems that implement ->dirty_inode but want to support
+	 * non-blocking timestamp updates should call inode_update_time
+	 * directly.
+	 */
+	if ((flags & IOCB_NOWAIT) && inode->i_sb->s_op->dirty_inode)
+		return -EAGAIN;
 
 	dirty = inode_update_time(inode, type, flags);
 	if (dirty <= 0)
@@ -2380,15 +2405,13 @@ static int file_update_time_flags(struct file *file, unsigned int flags)
 	if (!need_update)
 		return 0;
 
-	if (flags & IOCB_NOWAIT)
-		return -EAGAIN;
-
+	flags &= IOCB_NOWAIT;
 	if (mnt_get_write_access_file(file))
 		return 0;
 	if (inode->i_op->update_time)
-		ret = inode->i_op->update_time(inode, FS_UPD_CMTIME, 0);
+		ret = inode->i_op->update_time(inode, FS_UPD_CMTIME, flags);
 	else
-		ret = generic_update_time(inode, FS_UPD_CMTIME, 0);
+		ret = generic_update_time(inode, FS_UPD_CMTIME, flags);
 	mnt_put_write_access_file(file);
 	return ret;
 }

@@ -878,6 +878,9 @@ int orangefs_update_time(struct inode *inode, enum fs_update_time type,
 	struct iattr iattr = { };
 	int dirty;
 
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
 	switch (type) {
 	case FS_UPD_ATIME:
 		iattr.ia_valid = ATTR_ATIME;

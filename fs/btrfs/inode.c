@@ -6353,6 +6353,8 @@ static int btrfs_update_time(struct inode *inode, enum fs_update_time type,
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
 
 	dirty = inode_update_time(inode, type, flags);
 	if (dirty <= 0)
