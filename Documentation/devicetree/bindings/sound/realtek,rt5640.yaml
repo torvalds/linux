@@ -104,6 +104,7 @@ properties:
       - 4 # Use GPIO2 for jack-detect
       - 5 # Use GPIO3 for jack-detect
       - 6 # Use GPIO4 for jack-detect
+      - 7 # HDA?
 
   realtek,jack-detect-not-inverted:
     description:
