@@ -9399,6 +9399,7 @@ F:	Documentation/devicetree/bindings/net/ethernet-connector.yaml
 F:	Documentation/devicetree/bindings/net/ethernet-phy.yaml
 F:	Documentation/devicetree/bindings/net/mdio*
 F:	Documentation/devicetree/bindings/net/qca,ar803x.yaml
+F:	Documentation/networking/phy-port.rst
 F:	Documentation/networking/phy.rst
 F:	drivers/net/mdio/
 F:	drivers/net/mdio/acpi_mdio.c
@@ -18221,6 +18222,7 @@ F:	net/ethtool/phy.c
 NETWORKING [ETHTOOL PHY PORT]
 M:	Maxime Chevallier <maxime.chevallier@bootlin.com>
 F:	Documentation/devicetree/bindings/net/ethernet-connector.yaml
+F:	Documentation/networking/phy-port.rst
 F:	drivers/net/phy/phy_port.c
 F:	include/linux/phy_port.h
 K:	struct\s+phy_port|phy_port_
