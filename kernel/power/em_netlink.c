@@ -17,17 +17,14 @@
 #include "em_netlink.h"
 #include "em_netlink_autogen.h"
 
-#define DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN		256
-
 /*************************** Command encoding ********************************/
 static int __em_nl_get_pd_size(struct em_perf_domain *pd, void *data)
 {
-	char cpus_buf[DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN];
+	int nr_cpus, msg_sz, cpus_sz;
 	int *tot_msg_sz = data;
-	int msg_sz, cpus_sz;
 
-	cpus_sz = snprintf(cpus_buf, sizeof(cpus_buf), "%*pb",
-			   cpumask_pr_args(to_cpumask(pd->cpus)));
+	nr_cpus = cpumask_weight(to_cpumask(pd->cpus));
+	cpus_sz = nla_total_size_64bit(sizeof(u64)) * nr_cpus;
 
 	msg_sz = nla_total_size(0) +
 		 /* DEV_ENERGYMODEL_A_PERF_DOMAINS_PERF_DOMAIN */
@@ -44,9 +41,10 @@ static int __em_nl_get_pd_size(struct em_perf_domain *pd, void *data)
 
 static int __em_nl_get_pd(struct em_perf_domain *pd, void *data)
 {
-	char cpus_buf[DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN];
 	struct sk_buff *msg = data;
+	struct cpumask *cpumask;
 	struct nlattr *entry;
+	int cpu;
 
 	entry = nla_nest_start(msg,
 			       DEV_ENERGYMODEL_A_PERF_DOMAINS_PERF_DOMAIN);
@@ -61,10 +59,12 @@ static int __em_nl_get_pd(struct em_perf_domain *pd, void *data)
 			      pd->flags, DEV_ENERGYMODEL_A_PERF_DOMAIN_PAD))
 		goto out_cancel_nest;
 
-	snprintf(cpus_buf, sizeof(cpus_buf), "%*pb",
-		 cpumask_pr_args(to_cpumask(pd->cpus)));
-	if (nla_put_string(msg, DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS, cpus_buf))
-		goto out_cancel_nest;
+	cpumask = to_cpumask(pd->cpus);
+	for_each_cpu(cpu, cpumask) {
+		if (nla_put_u64_64bit(msg, DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS,
+				      cpu, DEV_ENERGYMODEL_A_PERF_DOMAIN_PAD))
+			goto out_cancel_nest;
+	}
 
 	nla_nest_end(msg, entry);
 
