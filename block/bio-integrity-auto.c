@@ -140,7 +140,7 @@ bool bio_integrity_prep(struct bio *bio)
 				return true;
 			set_flags = false;
 			gfp |= __GFP_ZERO;
-		} else if (bi->csum_type == BLK_INTEGRITY_CSUM_NONE)
+		} else if (bi->metadata_size > bi->pi_tuple_size)
 			gfp |= __GFP_ZERO;
 		break;
 	default:
