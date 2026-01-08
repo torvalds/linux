@@ -11915,6 +11915,26 @@ static char *bnxt_report_fec(struct bnxt_link_info *link_info)
 	}
 }
 
+static char *bnxt_link_down_reason(struct bnxt_link_info *link_info)
+{
+	u8 reason = link_info->link_down_reason;
+
+	/* Multiple bits can be set, we report 1 bit only in order of
+	 * priority.
+	 */
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_RF)
+		return "(Remote fault)";
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_OTP_SPEED_VIOLATION)
+		return "(OTP Speed limit violation)";
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_CABLE_REMOVED)
+		return "(Cable removed)";
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_MODULE_FAULT)
+		return "(Module fault)";
+	if (reason & PORT_PHY_QCFG_RESP_LINK_DOWN_REASON_BMC_REQUEST)
+		return "(BMC request down)";
+	return "";
+}
+
 void bnxt_report_link(struct bnxt *bp)
 {
 	if (BNXT_LINK_IS_UP(bp)) {
@@ -11972,8 +11992,10 @@ void bnxt_report_link(struct bnxt *bp)
 				    (fec & BNXT_FEC_AUTONEG) ? "on" : "off",
 				    bnxt_report_fec(&bp->link_info));
 	} else {
+		char *str = bnxt_link_down_reason(&bp->link_info);
+
 		netif_carrier_off(bp->dev);
-		netdev_err(bp->dev, "NIC Link is Down\n");
+		netdev_err(bp->dev, "NIC Link is Down %s\n", str);
 	}
 }
 
@@ -12173,6 +12195,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->phy_addr = resp->eee_config_phy_addr &
 			      PORT_PHY_QCFG_RESP_PHY_ADDR_MASK;
 	link_info->module_status = resp->module_status;
+	link_info->link_down_reason = resp->link_down_reason;
 
 	if (bp->phy_flags & BNXT_PHY_FL_EEE_CAP) {
 		struct ethtool_keee *eee = &bp->eee;
