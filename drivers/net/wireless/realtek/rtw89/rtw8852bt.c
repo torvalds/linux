@@ -878,6 +878,7 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V1,
 	.rfkill_init		= &rtw8852bt_rfkill_regs,
 	.rfkill_get		= {R_AX_GPIO_EXT_CTRL, B_AX_GPIO_IN_9},
+	.btc_sb			= {{{R_AX_SCOREBOARD, R_AX_SCOREBOARD},}},
 	.dma_ch_mask		= BIT(RTW89_DMA_ACH4) | BIT(RTW89_DMA_ACH5) |
 				  BIT(RTW89_DMA_ACH6) | BIT(RTW89_DMA_ACH7) |
 				  BIT(RTW89_DMA_B1MG) | BIT(RTW89_DMA_B1HI),

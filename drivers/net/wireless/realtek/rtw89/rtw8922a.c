@@ -3005,6 +3005,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
 	.rfkill_init		= &rtw8922a_rfkill_regs,
 	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
+	.btc_sb			= {{{R_BE_SCOREBOARD, R_BE_SCOREBOARD},}},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM

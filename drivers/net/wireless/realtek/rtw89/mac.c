@@ -1498,6 +1498,7 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_pwr_cfg * const *cfg_seq;
 	int (*cfg_func)(struct rtw89_dev *rtwdev);
+	u32 reg = chip->btc_sb.n[0].cfg;
 	int ret;
 
 	rtw89_mac_power_switch_boot_mode(rtwdev);
@@ -1537,14 +1538,14 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
 		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
-		rtw89_write8(rtwdev, R_AX_SCOREBOARD + 3, MAC_AX_NOTIFY_TP_MAJOR);
+		rtw89_write8(rtwdev, reg + 3, MAC_AX_NOTIFY_TP_MAJOR);
 	} else {
 		clear_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		clear_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
-		rtw89_write8(rtwdev, R_AX_SCOREBOARD + 3, MAC_AX_NOTIFY_PWR_MAJOR);
+		rtw89_write8(rtwdev, reg + 3, MAC_AX_NOTIFY_PWR_MAJOR);
 		rtw89_set_entity_state(rtwdev, RTW89_PHY_0, false);
 		rtw89_set_entity_state(rtwdev, RTW89_PHY_1, false);
 	}
@@ -6413,9 +6414,11 @@ int rtw89_mac_cfg_plt_ax(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
 
 void rtw89_mac_cfg_sb(struct rtw89_dev *rtwdev, u32 val)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 reg = chip->btc_sb.n[0].cfg;
 	u32 fw_sb;
 
-	fw_sb = rtw89_read32(rtwdev, R_AX_SCOREBOARD);
+	fw_sb = rtw89_read32(rtwdev, reg);
 	fw_sb = FIELD_GET(B_MAC_AX_SB_FW_MASK, fw_sb);
 	fw_sb = fw_sb & ~B_MAC_AX_BTGS1_NOTIFY;
 	if (!test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
@@ -6426,13 +6429,16 @@ void rtw89_mac_cfg_sb(struct rtw89_dev *rtwdev, u32 val)
 	val = B_AX_TOGGLE |
 	      FIELD_PREP(B_MAC_AX_SB_DRV_MASK, val) |
 	      FIELD_PREP(B_MAC_AX_SB_FW_MASK, fw_sb);
-	rtw89_write32(rtwdev, R_AX_SCOREBOARD, val);
+	rtw89_write32(rtwdev, reg, val);
 	fsleep(1000); /* avoid BT FW loss information */
 }
 
 u32 rtw89_mac_get_sb(struct rtw89_dev *rtwdev)
 {
-	return rtw89_read32(rtwdev, R_AX_SCOREBOARD);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 reg = chip->btc_sb.n[0].get;
+
+	return rtw89_read32(rtwdev, reg);
 }
 
 int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl)
