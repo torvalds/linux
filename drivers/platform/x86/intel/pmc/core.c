@@ -776,16 +776,26 @@ static inline u64 adjust_lpm_residency(struct pmc *pmc, u32 offset,
 static int pmc_core_substate_res_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
-	const int lpm_adj_x2 = pmc->map->lpm_res_counter_step_x2;
-	u32 offset = pmc->map->lpm_residency_offset;
-	u8 mode;
+	unsigned int pmc_idx;
 
-	seq_printf(s, "%-10s %-15s\n", "Substate", "Residency");
+	for (pmc_idx = 0; pmc_idx < ARRAY_SIZE(pmcdev->pmcs); ++pmc_idx) {
+		int lpm_adj_x2;
+		struct pmc *pmc;
+		u32 offset;
+		u8 mode;
 
-	pmc_for_each_mode(mode, pmc) {
-		seq_printf(s, "%-10s %-15llu\n", pmc_lpm_modes[mode],
-			   adjust_lpm_residency(pmc, offset + (4 * mode), lpm_adj_x2));
+		pmc = pmcdev->pmcs[pmc_idx];
+		if (!pmc)
+			continue;
+
+		lpm_adj_x2 = pmc->map->lpm_res_counter_step_x2;
+		offset = pmc->map->lpm_residency_offset;
+
+		seq_printf(s, "pmc%u %10s %15s\n", pmc_idx, "Substate", "Residency");
+		pmc_for_each_mode(mode, pmc) {
+			seq_printf(s, "%15s %15llu\n", pmc_lpm_modes[mode],
+				   adjust_lpm_residency(pmc, offset + (4 * mode), lpm_adj_x2));
+		}
 	}
 
 	return 0;
