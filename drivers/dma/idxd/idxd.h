@@ -252,6 +252,9 @@ struct idxd_hw {
 	struct opcap opcap;
 	u32 cmd_cap;
 	union iaa_cap_reg iaa_cap;
+	union dsacap0_reg dsacap0;
+	union dsacap1_reg dsacap1;
+	union dsacap2_reg dsacap2;
 };
 
 enum idxd_device_state {
