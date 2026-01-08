@@ -1625,7 +1625,7 @@ void rtw89_fwdl_secure_idmem_share_mode(struct rtw89_dev *rtwdev, u8 mode)
 	if (!mac->fwdl_secure_idmem_share_mode)
 		return;
 
-	return mac->fwdl_secure_idmem_share_mode(rtwdev, mode);
+	mac->fwdl_secure_idmem_share_mode(rtwdev, mode);
 }
 
 static inline
