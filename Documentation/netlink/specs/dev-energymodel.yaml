@@ -43,16 +43,6 @@ definitions:
 
 attribute-sets:
   -
-    name: perf-domains
-    doc: >-
-      Information on all the performance domains.
-    attributes:
-      -
-        name: perf-domain
-        type: nest
-        nested-attributes: perf-domain
-        multi-attr: true
-  -
     name: perf-domain
     doc: >-
       Information on a single performance domains.
@@ -133,12 +123,21 @@ operations:
   list:
     -
       name: get-perf-domains
-      attribute-set: perf-domains
+      attribute-set: perf-domain
       doc: Get the list of information for all performance domains.
       do:
-        reply:
+        request:
           attributes:
-            - perf-domain
+            - perf-domain-id
+        reply:
+          attributes: &perf-domain-attrs
+            - pad
+            - perf-domain-id
+            - flags
+            - cpus
+      dump:
+        reply:
+          attributes: *perf-domain-attrs
     -
       name: get-perf-table
       attribute-set: perf-table
