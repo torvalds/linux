@@ -5818,6 +5818,7 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 
 	rtw89_phy_dm_init(rtwdev);
 
+	rtw89_mac_set_edcca_mode_bands(rtwdev, true);
 	rtw89_mac_cfg_ppdu_status_bands(rtwdev, true);
 	rtw89_mac_cfg_phy_rpt_bands(rtwdev, true);
 	rtw89_mac_update_rts_threshold(rtwdev);

@@ -2392,6 +2392,65 @@ void rtw89_mac_cfg_phy_rpt_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 EXPORT_SYMBOL(rtw89_mac_cfg_phy_rpt_be);
 
 static
+void rtw89_mac_set_edcca_mode_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal)
+{
+	u16 resp_ack, resp_rts, resp_rts_punc, resp_normal, resp_normal_punc;
+
+	if (rtwdev->chip->chip_id == RTL8922A)
+		return;
+
+	resp_ack = RESP_ACK_CFG_BE;
+	resp_rts = RESP_RTS_CFG_BE;
+	resp_rts_punc = RESP_RTS_PUNC_CFG_BE;
+	resp_normal = RESP_NORMAL_CFG_BE;
+	resp_normal_punc = RESP_NORMAL_PUNC_CFG_BE;
+
+	if (normal) {
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_LEGACY,
+				  resp_ack, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_HE,
+				  resp_ack, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_EHT_LEG_PUNC,
+				  resp_ack, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_RTS_RESP_LEGACY,
+				  resp_rts, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_RTS_RESP_LEGACY_PUNC,
+				  resp_rts_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_MURTS_RESP_LEGACY,
+				  resp_normal, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_MURTS_RESP_LEGACY_PUNC,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_LEGACY,
+				  resp_normal, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_HE,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_EHT_LEG_PUNC,
+				  resp_normal_punc, mac_idx);
+	} else {
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_LEGACY,
+				  resp_normal, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_HE,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_ACK_BA_RESP_EHT_LEG_PUNC,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_RTS_RESP_LEGACY,
+				  resp_rts, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_RTS_RESP_LEGACY_PUNC,
+				  resp_rts_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_MURTS_RESP_LEGACY,
+				  resp_normal, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_RX_MURTS_RESP_LEGACY_PUNC,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_LEGACY,
+				  resp_normal, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_HE,
+				  resp_normal_punc, mac_idx);
+		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_EHT_LEG_PUNC,
+				  resp_normal_punc, mac_idx);
+	}
+}
+
+static
 int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
 	u32 reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PPDU_STAT, mac_idx);
@@ -2993,6 +3052,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_be,
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_be,
 	.cfg_phy_rpt = rtw89_mac_cfg_phy_rpt_be,
+	.set_edcca_mode = rtw89_mac_set_edcca_mode_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,

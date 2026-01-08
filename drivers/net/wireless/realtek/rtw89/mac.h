@@ -1055,6 +1055,7 @@ struct rtw89_mac_gen_def {
 			    u8 mac_idx);
 	int (*cfg_ppdu_status)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 	void (*cfg_phy_rpt)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
+	void (*set_edcca_mode)(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal);
 
 	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
 	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
@@ -1127,6 +1128,14 @@ u32 rtw89_mac_reg_by_idx(struct rtw89_dev *rtwdev, u32 reg_base, u8 band)
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 
 	return band == 0 ? reg_base : (reg_base + mac->band1_offset);
+}
+
+static inline void
+rtw89_write16_idx(struct rtw89_dev *rtwdev, u32 addr, u16 data, u8 band)
+{
+	addr = rtw89_mac_reg_by_idx(rtwdev, addr, band);
+
+	rtw89_write16(rtwdev, addr, data);
 }
 
 static inline
@@ -1362,6 +1371,24 @@ int rtw89_mac_cfg_ppdu_status_bands(struct rtw89_dev *rtwdev, bool enable)
 		return 0;
 
 	return rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_1, enable);
+}
+
+static inline
+void rtw89_mac_set_edcca_mode(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->set_edcca_mode)
+		return;
+
+	mac->set_edcca_mode(rtwdev, mac_idx, normal);
+}
+
+static inline
+void rtw89_mac_set_edcca_mode_bands(struct rtw89_dev *rtwdev, bool normal)
+{
+	rtw89_mac_set_edcca_mode(rtwdev, RTW89_MAC_0, normal);
+	rtw89_mac_set_edcca_mode(rtwdev, RTW89_MAC_1, normal);
 }
 
 void rtw89_mac_set_rx_fltr(struct rtw89_dev *rtwdev, u8 mac_idx, u32 rx_fltr);
