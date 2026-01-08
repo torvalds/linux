@@ -455,6 +455,11 @@ static struct quirk_entry quirk_acer_travelmate_2490 = {
 	.mailled = 1,
 };
 
+static struct quirk_entry quirk_acer_nitro_an515_58 = {
+	.predator_v4 = 1,
+	.pwm = 1,
+};
+
 static struct quirk_entry quirk_acer_predator_ph315_53 = {
 	.turbo = 1,
 	.cpu_fans = 1,
@@ -655,7 +660,7 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Nitro AN515-58"),
 		},
-		.driver_data = &quirk_acer_predator_v4,
+		.driver_data = &quirk_acer_nitro_an515_58,
 	},
 	{
 		.callback = dmi_matched,
