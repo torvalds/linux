@@ -708,7 +708,7 @@ static int os05b10_disable_streams(struct v4l2_subdev *sd,
 
 	pm_runtime_put(os05b10->dev);
 
-	return ret;
+	return 0;
 }
 
 static int os05b10_init_state(struct v4l2_subdev *sd,
@@ -884,17 +884,13 @@ static u64 os05b10_pixel_rate(struct os05b10 *os05b10,
 			      const struct os05b10_mode *mode)
 {
 	u64 link_freq = link_frequencies[os05b10->link_freq_index];
-	const unsigned int lanes = os05b10->data_lanes;
-	u64 numerator = link_freq * 2 * lanes;
-	unsigned int bpp = mode->bpp;
+	u64 pixel_rate = div_u64(link_freq * 2 * os05b10->data_lanes, mode->bpp);
 
-	do_div(numerator, bpp);
+	dev_dbg(os05b10->dev,
+		"link_freq=%llu bpp=%u lanes=%u pixel_rate=%llu\n",
+		link_freq, mode->bpp, os05b10->data_lanes, pixel_rate);
 
-	dev_info(os05b10->dev,
-		 "link_freq=%llu bpp=%u lanes=%u pixel_rate=%llu\n",
-		 link_freq, bpp, lanes, numerator);
-
-	return numerator;
+	return pixel_rate;
 }
 
 static int os05b10_init_controls(struct os05b10 *os05b10)
@@ -977,7 +973,6 @@ static int os05b10_probe(struct i2c_client *client)
 {
 	struct os05b10 *os05b10;
 	unsigned int xclk_freq;
-	unsigned int i;
 	int ret;
 
 	os05b10 = devm_kzalloc(&client->dev, sizeof(*os05b10), GFP_KERNEL);
@@ -1005,7 +1000,7 @@ static int os05b10_probe(struct i2c_client *client)
 				     "xclk frequency not supported: %d Hz\n",
 				     xclk_freq);
 
-	for (i = 0; i < ARRAY_SIZE(os05b10_supply_name); i++)
+	for (unsigned int i = 0; i < ARRAY_SIZE(os05b10_supply_name); i++)
 		os05b10->supplies[i].supply = os05b10_supply_name[i];
 
 	ret = devm_regulator_bulk_get(os05b10->dev,
