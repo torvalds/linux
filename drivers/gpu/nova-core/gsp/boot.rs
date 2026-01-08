@@ -238,11 +238,10 @@ impl super::Gsp {
 
         // Obtain and display basic GPU information.
         let info = commands::get_gsp_info(&mut self.cmdq, bar)?;
-        dev_info!(
-            pdev.as_ref(),
-            "GPU name: {}\n",
-            info.gpu_name().unwrap_or("invalid GPU name")
-        );
+        match info.gpu_name() {
+            Ok(name) => dev_info!(pdev.as_ref(), "GPU name: {}\n", name),
+            Err(e) => dev_warn!(pdev.as_ref(), "GPU name unavailable: {:?}\n", e),
+        }
 
         Ok(())
     }
