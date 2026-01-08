@@ -17,6 +17,11 @@ import yaml as pyyaml
 jsonschema = None
 
 
+class SpecException(Exception):
+    """Netlink spec exception.
+    """
+
+
 class SpecElement:
     """Netlink spec element.
 
@@ -385,7 +390,7 @@ class SpecOperation(SpecElement):
         elif self.is_resv:
             attr_set_name = ''
         else:
-            raise Exception(f"Can't resolve attribute set for op '{self.name}'")
+            raise SpecException(f"Can't resolve attribute set for op '{self.name}'")
         if attr_set_name:
             self.attr_set = self.family.attr_sets[attr_set_name]
 
@@ -440,7 +445,7 @@ class SpecFamily(SpecElement):
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
             if not first.startswith(prefix):
-                raise Exception('SPDX license tag required in the spec')
+                raise SpecException('SPDX license tag required in the spec')
             self.license = first[len(prefix):]
 
             stream.seek(0)
@@ -555,7 +560,7 @@ class SpecFamily(SpecElement):
                 req_val_next = req_val + 1
                 rsp_val_next = rsp_val + rsp_inc
             else:
-                raise Exception("Can't parse directional ops")
+                raise SpecException("Can't parse directional ops")
 
             if req_val == req_val_next:
                 req_val = None

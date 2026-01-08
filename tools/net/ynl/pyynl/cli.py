@@ -15,7 +15,7 @@ import textwrap
 
 # pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
-from lib import YnlFamily, Netlink, NlError, SpecFamily
+from lib import YnlFamily, Netlink, NlError, SpecFamily, SpecException, YnlException
 
 SYS_SCHEMA_DIR='/usr/share/ynl'
 RELATIVE_SCHEMA_DIR='../../../../Documentation/netlink'
@@ -30,7 +30,7 @@ def schema_dir():
     if not os.path.isdir(schema_dir_):
         schema_dir_ = SYS_SCHEMA_DIR
     if not os.path.isdir(schema_dir_):
-        raise Exception(f"Schema directory {schema_dir_} does not exist")
+        raise YnlException(f"Schema directory {schema_dir_} does not exist")
     return schema_dir_
 
 def spec_dir():
@@ -40,7 +40,7 @@ def spec_dir():
     """
     spec_dir_ = schema_dir() + '/specs'
     if not os.path.isdir(spec_dir_):
-        raise Exception(f"Spec directory {spec_dir_} does not exist")
+        raise YnlException(f"Spec directory {spec_dir_} does not exist")
     return spec_dir_
 
 
@@ -189,12 +189,12 @@ def main():
     else:
         spec = args.spec
     if not os.path.isfile(spec):
-        raise Exception(f"Spec file {spec} does not exist")
+        raise YnlException(f"Spec file {spec} does not exist")
 
     if args.validate:
         try:
             SpecFamily(spec, args.schema)
-        except Exception as error:
+        except SpecException as error:
             print(error)
             sys.exit(1)
         return
