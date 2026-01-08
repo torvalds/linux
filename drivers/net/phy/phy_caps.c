@@ -80,6 +80,14 @@ int __init phy_caps_init(void)
 	/* Fill the caps array from net/ethtool/common.c */
 	for (i = 0; i < __ETHTOOL_LINK_MODE_MASK_NBITS; i++) {
 		linkmode = &link_mode_params[i];
+
+		/* Sanity check the linkmodes array for number of pairs */
+		if (linkmode->pairs < linkmode->min_pairs) {
+			pr_err("Pairs count must not be under min_pairs for linkmode %d\n",
+			       i);
+			return -EINVAL;
+		}
+
 		capa = speed_duplex_to_capa(linkmode->speed, linkmode->duplex);
 
 		if (capa < 0) {
