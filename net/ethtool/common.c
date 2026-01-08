@@ -468,6 +468,21 @@ const struct link_mode_info link_mode_params[] = {
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 EXPORT_SYMBOL_GPL(link_mode_params);
 
+static const char ethtool_link_medium_names[][ETH_GSTRING_LEN] = {
+	[ETHTOOL_LINK_MEDIUM_BASET] = "BaseT",
+	[ETHTOOL_LINK_MEDIUM_BASEK] = "BaseK",
+	[ETHTOOL_LINK_MEDIUM_BASES] = "BaseS",
+	[ETHTOOL_LINK_MEDIUM_BASEC] = "BaseC",
+	[ETHTOOL_LINK_MEDIUM_BASEL] = "BaseL",
+	[ETHTOOL_LINK_MEDIUM_BASED] = "BaseD",
+	[ETHTOOL_LINK_MEDIUM_BASEE] = "BaseE",
+	[ETHTOOL_LINK_MEDIUM_BASEF] = "BaseF",
+	[ETHTOOL_LINK_MEDIUM_BASEV] = "BaseV",
+	[ETHTOOL_LINK_MEDIUM_BASEMLD] = "BaseMLD",
+	[ETHTOOL_LINK_MEDIUM_NONE] = "None",
+};
+static_assert(ARRAY_SIZE(ethtool_link_medium_names) == __ETHTOOL_LINK_MEDIUM_LAST);
+
 const char netif_msg_class_names[][ETH_GSTRING_LEN] = {
 	[NETIF_MSG_DRV_BIT]		= "drv",
 	[NETIF_MSG_PROBE_BIT]		= "probe",
@@ -1201,3 +1216,15 @@ void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id)
 	ethtool_rss_notify(dev, ETHTOOL_MSG_RSS_DELETE_NTF, context_id);
 }
 EXPORT_SYMBOL(ethtool_rxfh_context_lost);
+
+enum ethtool_link_medium ethtool_str_to_medium(const char *str)
+{
+	int i;
+
+	for (i = 0; i < __ETHTOOL_LINK_MEDIUM_LAST; i++)
+		if (!strcmp(ethtool_link_medium_names[i], str))
+			return i;
+
+	return ETHTOOL_LINK_MEDIUM_NONE;
+}
+EXPORT_SYMBOL_GPL(ethtool_str_to_medium);

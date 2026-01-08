@@ -61,4 +61,9 @@ const struct link_capabilities *
 phy_caps_lookup(int speed, unsigned int duplex, const unsigned long *supported,
 		bool exact);
 
+void phy_caps_medium_get_supported(unsigned long *supported,
+				   enum ethtool_link_medium medium,
+				   int lanes);
+u32 phy_caps_mediums_from_linkmodes(unsigned long *linkmodes);
+
 #endif /* __PHY_CAPS_H */
