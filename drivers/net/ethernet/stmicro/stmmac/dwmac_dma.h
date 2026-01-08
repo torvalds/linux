@@ -22,13 +22,9 @@
 #define DMA_TX_BASE_ADDR	0x00001010	/* Transmit List Base */
 
 #define DMA_STATUS		0x00001014	/* Status Register */
-#define DMA_STATUS_GLPII	0x40000000	/* GMAC LPI interrupt */
 #define DMA_STATUS_GPI		0x10000000	/* PMT interrupt */
 #define DMA_STATUS_GMI		0x08000000	/* MMC interrupt */
 #define DMA_STATUS_GLI		0x04000000	/* GMAC Line interface int */
-#define DMA_STATUS_EB_MASK	0x00380000	/* Error Bits Mask */
-#define DMA_STATUS_EB_TX_ABORT	0x00080000	/* Error Bits - TX Abort */
-#define DMA_STATUS_EB_RX_ABORT	0x00100000	/* Error Bits - RX Abort */
 #define DMA_STATUS_TS_MASK	GENMASK(22, 20)	/* Transmit Process State */
 #define DMA_STATUS_RS_MASK	GENMASK(19, 17)	/* Receive Process State */
 #define DMA_STATUS_NIS	0x00010000	/* Normal Interrupt Summary */
@@ -79,9 +75,7 @@
 /* DMA Normal interrupt */
 #define DMA_INTR_ENA_NIE 0x00010000	/* Normal Summary */
 #define DMA_INTR_ENA_TIE 0x00000001	/* Transmit Interrupt */
-#define DMA_INTR_ENA_TUE 0x00000004	/* Transmit Buffer Unavailable */
 #define DMA_INTR_ENA_RIE 0x00000040	/* Receive Interrupt */
-#define DMA_INTR_ENA_ERE 0x00004000	/* Early Receive */
 
 #define DMA_INTR_NORMAL	(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
 			DMA_INTR_ENA_TIE)
@@ -89,14 +83,7 @@
 /* DMA Abnormal interrupt */
 #define DMA_INTR_ENA_AIE 0x00008000	/* Abnormal Summary */
 #define DMA_INTR_ENA_FBE 0x00002000	/* Fatal Bus Error */
-#define DMA_INTR_ENA_ETE 0x00000400	/* Early Transmit */
-#define DMA_INTR_ENA_RWE 0x00000200	/* Receive Watchdog */
-#define DMA_INTR_ENA_RSE 0x00000100	/* Receive Stopped */
-#define DMA_INTR_ENA_RUE 0x00000080	/* Receive Buffer Unavailable */
 #define DMA_INTR_ENA_UNE 0x00000020	/* Tx Underflow */
-#define DMA_INTR_ENA_OVE 0x00000010	/* Receive Overflow */
-#define DMA_INTR_ENA_TJE 0x00000008	/* Transmit Jabber */
-#define DMA_INTR_ENA_TSE 0x00000002	/* Transmit Stopped */
 
 #define DMA_INTR_ABNORMAL	(DMA_INTR_ENA_AIE | DMA_INTR_ENA_FBE | \
 				DMA_INTR_ENA_UNE)
@@ -128,8 +115,6 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_CHAN_STATUS(chan)	dma_chan_base_addr(DMA_STATUS, chan)
 #define DMA_CHAN_CONTROL(chan)	dma_chan_base_addr(DMA_CONTROL, chan)
 #define DMA_CHAN_INTR_ENA(chan)	dma_chan_base_addr(DMA_INTR_ENA, chan)
-#define DMA_CHAN_MISSED_FRAME_CTR(chan)	\
-				dma_chan_base_addr(DMA_MISSED_FRAME_CTR, chan)
 #define DMA_CHAN_RX_WATCHDOG(chan)	\
 				dma_chan_base_addr(DMA_RX_WATCHDOG, chan)
 
@@ -144,14 +129,6 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_AXI_LPI_XIT_FRM	BIT(30)
 #define DMA_AXI_WR_OSR_LMT	GENMASK(23, 20)
 #define DMA_AXI_RD_OSR_LMT	GENMASK(19, 16)
-
-#define DMA_AXI_OSR_MAX		0xf
-#define DMA_AXI_MAX_OSR_LIMIT ((DMA_AXI_OSR_MAX << DMA_AXI_WR_OSR_LMT_SHIFT) | \
-			       (DMA_AXI_OSR_MAX << DMA_AXI_RD_OSR_LMT_SHIFT))
-#define DMA_BURST_LEN_DEFAULT	(DMA_AXI_BLEN256 | DMA_AXI_BLEN128 | \
-				 DMA_AXI_BLEN64 | DMA_AXI_BLEN32 | \
-				 DMA_AXI_BLEN16 | DMA_AXI_BLEN8 | \
-				 DMA_AXI_BLEN4)
 
 #define	DMA_AXI_1KBBE		BIT(13)
 

@@ -24,31 +24,12 @@
 
 #define DMA_SYS_BUS_MODE		0x00001004
 
-#define DMA_BUS_MODE_SPH		BIT(24)
 #define DMA_BUS_MODE_PBL		BIT(16)
 #define DMA_BUS_MODE_RPBL_MASK		GENMASK(21, 16)
 #define DMA_BUS_MODE_MB			BIT(14)
 #define DMA_BUS_MODE_FB			BIT(0)
 
 #define DMA_STATUS			0x00001008
-
-#define DMA_STATUS_MAC			BIT(17)
-#define DMA_STATUS_MTL			BIT(16)
-#define DMA_STATUS_CHAN7		BIT(7)
-#define DMA_STATUS_CHAN6		BIT(6)
-#define DMA_STATUS_CHAN5		BIT(5)
-#define DMA_STATUS_CHAN4		BIT(4)
-#define DMA_STATUS_CHAN3		BIT(3)
-#define DMA_STATUS_CHAN2		BIT(2)
-#define DMA_STATUS_CHAN1		BIT(1)
-#define DMA_STATUS_CHAN0		BIT(0)
-
-#define DMA_DEBUG_STATUS_0		0x0000100c
-#define DMA_DEBUG_STATUS_1		0x00001010
-#define DMA_DEBUG_STATUS_2		0x00001014
-
-#define DMA_DEBUG_STATUS_TS_MASK	0xf
-#define DMA_DEBUG_STATUS_RS_MASK	0xf
 
 #define DMA_AXI_BUS_MODE		0x00001028
 
@@ -58,15 +39,9 @@
 #define DMA_AXI_RD_OSR_LMT		GENMASK(19, 16)
 
 #define DMA_SYS_BUS_MB			BIT(14)
-#define DMA_AXI_1KBBE			BIT(13)
 #define DMA_SYS_BUS_AAL			DMA_AXI_AAL
 #define DMA_SYS_BUS_EAME		BIT(11)
 #define DMA_SYS_BUS_FB			BIT(0)
-
-#define DMA_BURST_LEN_DEFAULT		(DMA_AXI_BLEN256 | DMA_AXI_BLEN128 | \
-					DMA_AXI_BLEN64 | DMA_AXI_BLEN32 | \
-					DMA_AXI_BLEN16 | DMA_AXI_BLEN8 | \
-					DMA_AXI_BLEN4)
 
 #define DMA_TBS_CTRL			0x00001050
 
@@ -91,12 +66,9 @@ static inline u32 dma_chanx_base_addr(const struct dwmac4_addrs *addrs,
 	return addr;
 }
 
-#define DMA_CHAN_REG_NUMBER		17
-
 #define DMA_CHAN_CONTROL(addrs, x)	dma_chanx_base_addr(addrs, x)
 
 #define DMA_CONTROL_SPH			BIT(24)
-#define DMA_CONTROL_MSS_MASK		GENMASK(13, 0)
 
 #define DMA_CHAN_TX_CONTROL(addrs, x)	(dma_chanx_base_addr(addrs, x) + 0x4)
 
@@ -125,16 +97,8 @@ static inline u32 dma_chanx_base_addr(const struct dwmac4_addrs *addrs,
 #define DMA_CHAN_INTR_ENA_AIE		BIT(15)
 #define DMA_CHAN_INTR_ENA_NIE_4_10	BIT(15)
 #define DMA_CHAN_INTR_ENA_AIE_4_10	BIT(14)
-#define DMA_CHAN_INTR_ENA_CDE		BIT(13)
 #define DMA_CHAN_INTR_ENA_FBE		BIT(12)
-#define DMA_CHAN_INTR_ENA_ERE		BIT(11)
-#define DMA_CHAN_INTR_ENA_ETE		BIT(10)
-#define DMA_CHAN_INTR_ENA_RWE		BIT(9)
-#define DMA_CHAN_INTR_ENA_RSE		BIT(8)
-#define DMA_CHAN_INTR_ENA_RBUE		BIT(7)
 #define DMA_CHAN_INTR_ENA_RIE		BIT(6)
-#define DMA_CHAN_INTR_ENA_TBUE		BIT(2)
-#define DMA_CHAN_INTR_ENA_TSE		BIT(1)
 #define DMA_CHAN_INTR_ENA_TIE		BIT(0)
 
 #define DMA_CHAN_INTR_NORMAL		(DMA_CHAN_INTR_ENA_NIE | \
@@ -173,9 +137,6 @@ static inline u32 dma_chanx_base_addr(const struct dwmac4_addrs *addrs,
 
 /* Interrupt status per channel */
 #define DMA_CHAN_STATUS_REB		GENMASK(21, 19)
-#define DMA_CHAN_STATUS_REB_SHIFT	19
-#define DMA_CHAN_STATUS_TEB		GENMASK(18, 16)
-#define DMA_CHAN_STATUS_TEB_SHIFT	16
 #define DMA_CHAN_STATUS_NIS		BIT(15)
 #define DMA_CHAN_STATUS_AIS		BIT(14)
 #define DMA_CHAN_STATUS_CDE		BIT(13)
@@ -208,11 +169,6 @@ static inline u32 dma_chanx_base_addr(const struct dwmac4_addrs *addrs,
 					 DMA_CHAN_STATUS_TPS | \
 					 DMA_CHAN_STATUS_TI | \
 					 DMA_CHAN_STATUS_MSK_COMMON)
-
-#define DMA_CHAN0_DBG_STAT_TPS		GENMASK(15, 12)
-#define DMA_CHAN0_DBG_STAT_TPS_SHIFT	12
-#define DMA_CHAN0_DBG_STAT_RPS		GENMASK(11, 8)
-#define DMA_CHAN0_DBG_STAT_RPS_SHIFT	8
 
 int dwmac4_dma_reset(void __iomem *ioaddr);
 void dwmac4_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
