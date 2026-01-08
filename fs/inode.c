@@ -2378,31 +2378,30 @@ out:
 }
 EXPORT_SYMBOL(current_time);
 
+static inline bool need_cmtime_update(struct inode *inode)
+{
+	struct timespec64 now = current_time(inode), ts;
+
+	ts = inode_get_mtime(inode);
+	if (!timespec64_equal(&ts, &now))
+		return true;
+	ts = inode_get_ctime(inode);
+	if (!timespec64_equal(&ts, &now))
+		return true;
+	return IS_I_VERSION(inode) && inode_iversion_need_inc(inode);
+}
+
 static int file_update_time_flags(struct file *file, unsigned int flags)
 {
 	struct inode *inode = file_inode(file);
-	struct timespec64 now, ts;
-	bool need_update = false;
-	int ret = 0;
+	int ret;
 
 	/* First try to exhaust all avenues to not sync */
 	if (IS_NOCMTIME(inode))
 		return 0;
 	if (unlikely(file->f_mode & FMODE_NOCMTIME))
 		return 0;
-
-	now = current_time(inode);
-
-	ts = inode_get_mtime(inode);
-	if (!timespec64_equal(&ts, &now))
-		need_update = true;
-	ts = inode_get_ctime(inode);
-	if (!timespec64_equal(&ts, &now))
-		need_update = true;
-	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
-		need_update = true;
-
-	if (!need_update)
+	if (!need_cmtime_update(inode))
 		return 0;
 
 	flags &= IOCB_NOWAIT;
