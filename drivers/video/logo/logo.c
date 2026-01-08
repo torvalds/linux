@@ -79,11 +79,6 @@ const struct linux_logo * __ref fb_find_logo(int depth)
 		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
 		logo = &logo_dec_clut224;
 #endif
-#ifdef CONFIG_LOGO_MAC_CLUT224
-		/* Macintosh Linux logo on m68k */
-		if (MACH_IS_MAC)
-			logo = &logo_mac_clut224;
-#endif
 #ifdef CONFIG_LOGO_PARISC_CLUT224
 		/* PA-RISC Linux logo */
 		logo = &logo_parisc_clut224;

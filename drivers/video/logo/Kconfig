@@ -76,10 +76,6 @@ config LOGO_DEC_CLUT224
 	depends on MACH_DECSTATION || ALPHA
 	default y
 
-config LOGO_MAC_CLUT224
-	bool "224-color Macintosh Linux logo"
-	depends on MAC
-	default y
 
 config LOGO_PARISC_CLUT224
 	bool "224-color PA-RISC Linux logo"
