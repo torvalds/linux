@@ -6567,6 +6567,9 @@ int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings)
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		if (!rx_rings)
 			return 0;
+		if (bp->rss_cap & BNXT_RSS_CAP_LARGE_RSS_CTX)
+			return BNXT_RSS_TABLE_MAX_TBL_P5;
+
 		return bnxt_calc_nr_ring_pages(rx_rings - 1,
 					       BNXT_RSS_TABLE_ENTRIES_P5);
 	}
@@ -8077,6 +8080,11 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	bp->rx_nr_rings = rx_rings;
 	bp->cp_nr_rings = hwr.cp;
 
+	/* Fall back if we cannot reserve enough HW RSS contexts */
+	if ((bp->rss_cap & BNXT_RSS_CAP_LARGE_RSS_CTX) &&
+	    hwr.rss_ctx < bnxt_get_total_rss_ctxs(bp, &hwr))
+		bp->rss_cap &= ~BNXT_RSS_CAP_LARGE_RSS_CTX;
+
 	if (!bnxt_rings_ok(bp, &hwr))
 		return -ENOMEM;
 
@@ -9566,6 +9574,10 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 	hw_resc->max_vnics = le16_to_cpu(resp->max_vnics);
 	hw_resc->min_stat_ctxs = le16_to_cpu(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
+
+	if (hw_resc->max_rsscos_ctxs >=
+	    hw_resc->max_vnics * BNXT_LARGE_RSS_TO_VNIC_RATIO)
+		bp->rss_cap |= BNXT_RSS_CAP_LARGE_RSS_CTX;
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		u16 max_msix = le16_to_cpu(resp->max_msix);

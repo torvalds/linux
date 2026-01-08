@@ -1367,6 +1367,8 @@ struct bnxt_hw_resc {
 	u32	max_rx_wm_flows;
 };
 
+#define BNXT_LARGE_RSS_TO_VNIC_RATIO	7
+
 #if defined(CONFIG_BNXT_SRIOV)
 struct bnxt_vf_info {
 	u16	fw_fid;
@@ -2410,6 +2412,7 @@ struct bnxt {
 #define BNXT_RSS_CAP_ESP_V6_RSS_CAP		BIT(7)
 #define BNXT_RSS_CAP_MULTI_RSS_CTX		BIT(8)
 #define BNXT_RSS_CAP_IPV6_FLOW_LABEL_RSS_CAP	BIT(9)
+#define BNXT_RSS_CAP_LARGE_RSS_CTX		BIT(10)
 
 	u8			rss_hash_key[HW_HASH_KEY_SIZE];
 	u8			rss_hash_key_valid:1;
