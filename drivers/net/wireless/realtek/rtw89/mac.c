@@ -2283,8 +2283,8 @@ error:
 	return ret;
 }
 
-static int preload_init_set(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
-			    enum rtw89_qta_mode mode)
+static int preload_init_set_ax(struct rtw89_dev *rtwdev, u8 mac_idx,
+			       enum rtw89_qta_mode mode)
 {
 	u32 reg, max_preld_size, min_rsvd_size;
 
@@ -2312,13 +2312,14 @@ static bool is_qta_poh(struct rtw89_dev *rtwdev)
 int rtw89_mac_preload_init(struct rtw89_dev *rtwdev, enum rtw89_mac_idx mac_idx,
 			   enum rtw89_qta_mode mode)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (chip->chip_id == RTL8852A || rtw89_is_rtl885xb(rtwdev) ||
 	    !is_qta_poh(rtwdev))
 		return 0;
 
-	return preload_init_set(rtwdev, mac_idx, mode);
+	return mac->preload_init(rtwdev, mac_idx, mode);
 }
 
 static bool dle_is_txq_empty(struct rtw89_dev *rtwdev)
@@ -7287,6 +7288,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.check_mac_en = rtw89_mac_check_mac_en_ax,
 	.sys_init = sys_init_ax,
 	.trx_init = trx_init_ax,
+	.preload_init = preload_init_set_ax,
 	.err_imr_ctrl = err_imr_ctrl_ax,
 	.hci_func_en = rtw89_mac_hci_func_en_ax,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_ax,
