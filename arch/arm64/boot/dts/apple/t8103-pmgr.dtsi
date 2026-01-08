@@ -733,6 +733,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "gfx";
+		power-domains = <&ps_pmp>;
 	};
 
 	ps_dcs4: power-controller@320 {
