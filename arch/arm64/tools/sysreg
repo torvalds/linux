@@ -2256,9 +2256,10 @@ UnsignedEnum	43:40	FWB
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	39:36	IDS
-	0b0000	0x0
-	0b0001	0x18
+UnsignedEnum	39:36	IDS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	EL3
 EndEnum
 UnsignedEnum	35:32	AT
 	0b0000	NI
