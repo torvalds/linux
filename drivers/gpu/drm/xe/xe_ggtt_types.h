@@ -71,6 +71,11 @@ struct xe_ggtt_node {
 	bool invalidate_on_remove;
 };
 
+typedef void (*xe_ggtt_set_pte_fn)(struct xe_ggtt *ggtt, u64 addr, u64 pte);
+typedef void (*xe_ggtt_transform_cb)(struct xe_ggtt *ggtt,
+				     struct xe_ggtt_node *node,
+				     u64 pte_flags,
+				     xe_ggtt_set_pte_fn set_pte, void *arg);
 /**
  * struct xe_ggtt_pt_ops - GGTT Page table operations
  * Which can vary from platform to platform.
@@ -78,8 +83,10 @@ struct xe_ggtt_node {
 struct xe_ggtt_pt_ops {
 	/** @pte_encode_flags: Encode PTE flags for a given BO */
 	u64 (*pte_encode_flags)(struct xe_bo *bo, u16 pat_index);
+
 	/** @ggtt_set_pte: Directly write into GGTT's PTE */
-	void (*ggtt_set_pte)(struct xe_ggtt *ggtt, u64 addr, u64 pte);
+	xe_ggtt_set_pte_fn ggtt_set_pte;
+
 	/** @ggtt_get_pte: Directly read from GGTT's PTE */
 	u64 (*ggtt_get_pte)(struct xe_ggtt *ggtt, u64 addr);
 };
