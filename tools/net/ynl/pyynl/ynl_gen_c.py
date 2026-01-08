@@ -200,7 +200,7 @@ class Type(SpecAttr):
     # pylint: disable=assignment-from-none
     def arg_member(self, ri):
         member = self._complex_member_type(ri)
-        if member:
+        if member is not None:
             spc = ' ' if member[-1] != '*' else ''
             arg = [member + spc + '*' + self.c_name]
             if self.presence_type() == 'count':
@@ -210,7 +210,7 @@ class Type(SpecAttr):
 
     def struct_member(self, ri):
         member = self._complex_member_type(ri)
-        if member:
+        if member is not None:
             ptr = '*' if self.is_multi_val() else ''
             if self.is_recursive_for_op(ri):
                 ptr = '*'
@@ -258,9 +258,9 @@ class Type(SpecAttr):
 
     def attr_get(self, ri, var, first):
         lines, init_lines, _ = self._attr_get(ri, var)
-        if type(lines) is str:
+        if isinstance(lines, str):
             lines = [lines]
-        if type(init_lines) is str:
+        if isinstance(init_lines, str):
             init_lines = [init_lines]
 
         kw = 'if' if first else 'else if'
@@ -1002,7 +1002,7 @@ class Struct:
         self.in_multi_val = False  # used by a MultiAttr or and legacy arrays
 
         self.attr_list = []
-        self.attrs = dict()
+        self.attrs = {}
         if type_list is not None:
             for t in type_list:
                 self.attr_list.append((t, self.attr_set[t]),)
@@ -1094,8 +1094,8 @@ class EnumSet(SpecEnumSet):
         return EnumEntry(self, entry, prev_entry, value_start)
 
     def value_range(self):
-        low = min([x.value for x in self.entries.values()])
-        high = max([x.value for x in self.entries.values()])
+        low = min(x.value for x in self.entries.values())
+        high = max(x.value for x in self.entries.values())
 
         if high - low + 1 != len(self.entries):
             return None, None
@@ -1234,6 +1234,12 @@ class Family(SpecFamily):
         self.hooks = None
         delattr(self, "hooks")
 
+        self.root_sets = {}
+        self.pure_nested_structs = {}
+        self.kernel_policy = None
+        self.global_policy = None
+        self.global_policy_set = None
+
         super().__init__(file_name, exclude_ops=exclude_ops)
 
         self.fam_key = c_upper(self.yaml.get('c-family-name', self.yaml["name"] + '_FAMILY_NAME'))
@@ -1268,18 +1274,18 @@ class Family(SpecFamily):
 
         self.mcgrps = self.yaml.get('mcast-groups', {'list': []})
 
-        self.hooks = dict()
+        self.hooks = {}
         for when in ['pre', 'post']:
-            self.hooks[when] = dict()
+            self.hooks[when] = {}
             for op_mode in ['do', 'dump']:
-                self.hooks[when][op_mode] = dict()
+                self.hooks[when][op_mode] = {}
                 self.hooks[when][op_mode]['set'] = set()
                 self.hooks[when][op_mode]['list'] = []
 
         # dict space-name -> 'request': set(attrs), 'reply': set(attrs)
-        self.root_sets = dict()
+        self.root_sets = {}
         # dict space-name -> Struct
-        self.pure_nested_structs = dict()
+        self.pure_nested_structs = {}
 
         self._mark_notify()
         self._mock_up_events()
@@ -1627,7 +1633,7 @@ class RenderInfo:
 
         self.cw = cw
 
-        self.struct = dict()
+        self.struct = {}
         if op_mode == 'notify':
             op_mode = 'do' if 'do' in op else 'dump'
         for op_dir in ['request', 'reply']:
@@ -1794,7 +1800,7 @@ class CodeWriter:
         if not local_vars:
             return
 
-        if type(local_vars) is str:
+        if isinstance(local_vars, str):
             local_vars = [local_vars]
 
         local_vars.sort(key=len, reverse=True)
@@ -1814,20 +1820,19 @@ class CodeWriter:
     def writes_defines(self, defines):
         longest = 0
         for define in defines:
-            if len(define[0]) > longest:
-                longest = len(define[0])
+            longest = max(len(define[0]), longest)
         longest = ((longest + 8) // 8) * 8
         for define in defines:
             line = '#define ' + define[0]
             line += '\t' * ((longest - len(define[0]) + 7) // 8)
-            if type(define[1]) is int:
+            if isinstance(define[1], int):
                 line += str(define[1])
-            elif type(define[1]) is str:
+            elif isinstance(define[1], str):
                 line += '"' + define[1] + '"'
             self.p(line)
 
     def write_struct_init(self, members):
-        longest = max([len(x[0]) for x in members])
+        longest = max(len(x[0]) for x in members)
         longest += 1  # because we prepend a .
         longest = ((longest + 8) // 8) * 8
         for one in members:
@@ -2670,7 +2675,7 @@ def print_req_free(ri):
 
 
 def print_rsp_type(ri):
-    if (ri.op_mode == 'do' or ri.op_mode == 'dump') and 'reply' in ri.op[ri.op_mode]:
+    if ri.op_mode in ('do', 'dump') and 'reply' in ri.op[ri.op_mode]:
         direction = 'reply'
     elif ri.op_mode == 'event':
         direction = 'reply'
@@ -2683,7 +2688,7 @@ def print_wrapped_type(ri):
     ri.cw.block_start(line=f"{type_name(ri, 'reply')}")
     if ri.op_mode == 'dump':
         ri.cw.p(f"{type_name(ri, 'reply')} *next;")
-    elif ri.op_mode == 'notify' or ri.op_mode == 'event':
+    elif ri.op_mode in ('notify', 'event'):
         ri.cw.p('__u16 family;')
         ri.cw.p('__u8 cmd;')
         ri.cw.p('struct ynl_ntf_base_type *next;')
@@ -2946,7 +2951,7 @@ def print_kernel_op_table_hdr(family, cw):
 
 def print_kernel_op_table(family, cw):
     print_kernel_op_table_fwd(family, cw, terminate=False)
-    if family.kernel_policy == 'global' or family.kernel_policy == 'per-op':
+    if family.kernel_policy in ('global', 'per-op'):
         for op_name, op in family.ops.items():
             if op.is_async:
                 continue
