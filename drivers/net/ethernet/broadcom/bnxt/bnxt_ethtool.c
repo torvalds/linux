@@ -3848,9 +3848,25 @@ static int nvm_update_err_to_stderr(struct net_device *dev, u8 result,
 #define BNXT_NVM_MORE_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_MODE))
 #define BNXT_NVM_LAST_FLAG	(cpu_to_le16(NVM_MODIFY_REQ_FLAGS_BATCH_LAST))
 
+static int bnxt_hwrm_nvm_defrag(struct bnxt *bp)
+{
+	struct hwrm_nvm_defrag_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_NVM_DEFRAG);
+	if (rc)
+		return rc;
+	req->flags = cpu_to_le32(NVM_DEFRAG_REQ_FLAGS_DEFRAG);
+	hwrm_req_timeout(bp, req, bp->hwrm_cmd_max_timeout);
+
+	return hwrm_req_send(bp, req);
+}
+
 static int bnxt_resize_update_entry(struct net_device *dev, size_t fw_size,
 				    struct netlink_ext_ack *extack)
 {
+	struct bnxt *bp = netdev_priv(dev);
+	bool retry = false;
 	u32 item_len;
 	int rc;
 
@@ -3863,9 +3879,19 @@ static int bnxt_resize_update_entry(struct net_device *dev, size_t fw_size,
 	}
 
 	if (fw_size > item_len) {
-		rc = bnxt_flash_nvram(dev, BNX_DIR_TYPE_UPDATE,
-				      BNX_DIR_ORDINAL_FIRST, 0, 1,
-				      round_up(fw_size, 4096), NULL, 0);
+		do {
+			rc = bnxt_flash_nvram(dev, BNX_DIR_TYPE_UPDATE,
+					      BNX_DIR_ORDINAL_FIRST, 0, 1,
+					      round_up(fw_size, 4096), NULL,
+					      0);
+
+			if (rc == -ENOSPC) {
+				if (retry || bnxt_hwrm_nvm_defrag(bp))
+					break;
+				retry = true;
+			}
+		} while (rc == -ENOSPC);
+
 		if (rc) {
 			BNXT_NVM_ERR_MSG(dev, extack, MSG_RESIZE_UPDATE_ERR);
 			return rc;
