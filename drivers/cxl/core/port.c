@@ -1590,7 +1590,7 @@ static int update_decoder_targets(struct device *dev, void *data)
 			cxlsd->target[i] = dport;
 			dev_dbg(dev, "dport%d found in target list, index %d\n",
 				dport->port_id, i);
-			return 1;
+			return 0;
 		}
 	}
 
