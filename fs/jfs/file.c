@@ -6,6 +6,7 @@
 
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/posix_acl.h>
 #include <linux/quotaops.h>
 #include "jfs_incore.h"
@@ -153,4 +154,5 @@ const struct file_operations jfs_file_operations = {
 	.release	= jfs_release,
 	.unlocked_ioctl = jfs_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
+	.setlease	= generic_setlease,
 };
