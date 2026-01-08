@@ -23,6 +23,8 @@ int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node,
 				       u64 start, u64 size);
 void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node);
 void xe_ggtt_shift_nodes_locked(struct xe_ggtt *ggtt, s64 shift);
+u64 xe_ggtt_start(struct xe_ggtt *ggtt);
+u64 xe_ggtt_size(struct xe_ggtt *ggtt);
 
 int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align);
 int xe_ggtt_node_insert_locked(struct xe_ggtt_node *node,

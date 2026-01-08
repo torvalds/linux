@@ -393,8 +393,8 @@ static int pf_push_full_vf_config(struct xe_gt *gt, unsigned int vfid)
 	xe_gt_assert(gt, num_dwords <= max_cfg_dwords);
 
 	if (vfid == PFID) {
-		u64 ggtt_start = xe_wopcm_size(gt_to_xe(gt));
-		u64 ggtt_size = gt_to_tile(gt)->mem.ggtt->size - ggtt_start;
+		u64 ggtt_start = xe_ggtt_start(gt_to_tile(gt)->mem.ggtt);
+		u64 ggtt_size = xe_ggtt_size(gt_to_tile(gt)->mem.ggtt);
 
 		/* plain PF config data will never include a real GGTT region */
 		xe_gt_assert(gt, !encode_config_ggtt(cfg + num_dwords, config, true));

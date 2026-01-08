@@ -137,10 +137,32 @@ static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 	}
 }
 
+/**
+ * xe_ggtt_start - Get starting offset of GGTT.
+ * @ggtt: &xe_ggtt
+ *
+ * Returns: Starting offset for this &xe_ggtt.
+ */
+u64 xe_ggtt_start(struct xe_ggtt *ggtt)
+{
+	return ggtt->start;
+}
+
+/**
+ * xe_ggtt_size - Get size of GGTT.
+ * @ggtt: &xe_ggtt
+ *
+ * Returns: Total usable size of this &xe_ggtt.
+ */
+u64 xe_ggtt_size(struct xe_ggtt *ggtt)
+{
+	return ggtt->size;
+}
+
 static void xe_ggtt_set_pte(struct xe_ggtt *ggtt, u64 addr, u64 pte)
 {
 	xe_tile_assert(ggtt->tile, !(addr & XE_PTE_MASK));
-	xe_tile_assert(ggtt->tile, addr < ggtt->size);
+	xe_tile_assert(ggtt->tile, addr < ggtt->start + ggtt->size);
 
 	writeq(pte, &ggtt->gsm[addr >> XE_PTE_SHIFT]);
 }
@@ -256,16 +278,16 @@ static const struct xe_ggtt_pt_ops xelpg_pt_wa_ops = {
 	.ggtt_get_pte = xe_ggtt_get_pte,
 };
 
-static void __xe_ggtt_init_early(struct xe_ggtt *ggtt, u32 reserved)
+static void __xe_ggtt_init_early(struct xe_ggtt *ggtt, u64 start, u64 size)
 {
-	drm_mm_init(&ggtt->mm, reserved,
-		    ggtt->size - reserved);
+	ggtt->start = start;
+	ggtt->size = size;
+	drm_mm_init(&ggtt->mm, start, size);
 }
 
-int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 reserved, u32 size)
+int xe_ggtt_init_kunit(struct xe_ggtt *ggtt, u32 start, u32 size)
 {
-	ggtt->size = size;
-	__xe_ggtt_init_early(ggtt, reserved);
+	__xe_ggtt_init_early(ggtt, start, size);
 	return 0;
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_ggtt_init_kunit);
@@ -293,26 +315,32 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	struct xe_device *xe = tile_to_xe(ggtt->tile);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	unsigned int gsm_size;
+	u64 ggtt_start, wopcm = xe_wopcm_size(xe), ggtt_size;
 	int err;
 
-	if (IS_SRIOV_VF(xe) || GRAPHICS_VERx100(xe) >= 1250)
-		gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
-	else
-		gsm_size = probe_gsm_size(pdev);
-
-	if (gsm_size == 0) {
-		xe_tile_err(ggtt->tile, "Hardware reported no preallocated GSM\n");
-		return -ENOMEM;
+	if (!IS_SRIOV_VF(xe)) {
+		if (GRAPHICS_VERx100(xe) >= 1250)
+			gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
+		else
+			gsm_size = probe_gsm_size(pdev);
+		if (gsm_size == 0) {
+			xe_tile_err(ggtt->tile, "Hardware reported no preallocated GSM\n");
+			return -ENOMEM;
+		}
+		ggtt_start = wopcm;
+		ggtt_size = (gsm_size / 8) * (u64)XE_PAGE_SIZE - ggtt_start;
+	} else {
+		/* GGTT is expected to be 4GiB */
+		ggtt_start = wopcm;
+		ggtt_size = SZ_4G - ggtt_start;
 	}
 
 	ggtt->gsm = ggtt->tile->mmio.regs + SZ_8M;
-	ggtt->size = (gsm_size / 8) * (u64) XE_PAGE_SIZE;
-
 	if (IS_DGFX(xe) && xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
 		ggtt->flags |= XE_GGTT_FLAGS_64K;
 
-	if (ggtt->size > GUC_GGTT_TOP)
-		ggtt->size = GUC_GGTT_TOP;
+	if (ggtt_size + ggtt_start > GUC_GGTT_TOP)
+		ggtt_size = GUC_GGTT_TOP - ggtt_start;
 
 	if (GRAPHICS_VERx100(xe) >= 1270)
 		ggtt->pt_ops =
@@ -326,7 +354,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	if (!ggtt->wq)
 		return -ENOMEM;
 
-	__xe_ggtt_init_early(ggtt, xe_wopcm_size(xe));
+	__xe_ggtt_init_early(ggtt, ggtt_start, ggtt_size);
 
 	err = drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
 	if (err)
@@ -563,11 +591,9 @@ void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node)
 static void xe_ggtt_assert_fit(struct xe_ggtt *ggtt, u64 start, u64 size)
 {
 	struct xe_tile *tile = ggtt->tile;
-	struct xe_device *xe = tile_to_xe(tile);
-	u64 __maybe_unused wopcm = xe_wopcm_size(xe);
 
-	xe_tile_assert(tile, start >= wopcm);
-	xe_tile_assert(tile, start + size < ggtt->size - wopcm);
+	xe_tile_assert(tile, start >= ggtt->start);
+	xe_tile_assert(tile, start + size <= ggtt->start + ggtt->size);
 }
 
 /**
@@ -890,14 +916,12 @@ u64 xe_ggtt_largest_hole(struct xe_ggtt *ggtt, u64 alignment, u64 *spare)
 {
 	const struct drm_mm *mm = &ggtt->mm;
 	const struct drm_mm_node *entry;
-	u64 hole_min_start = xe_wopcm_size(tile_to_xe(ggtt->tile));
 	u64 hole_start, hole_end, hole_size;
 	u64 max_hole = 0;
 
 	mutex_lock(&ggtt->lock);
-
 	drm_mm_for_each_hole(entry, mm, hole_start, hole_end) {
-		hole_start = max(hole_start, hole_min_start);
+		hole_start = max(hole_start, ggtt->start);
 		hole_start = ALIGN(hole_start, alignment);
 		hole_end = ALIGN_DOWN(hole_end, alignment);
 		if (hole_start >= hole_end)
@@ -1069,15 +1093,13 @@ u64 xe_ggtt_print_holes(struct xe_ggtt *ggtt, u64 alignment, struct drm_printer 
 {
 	const struct drm_mm *mm = &ggtt->mm;
 	const struct drm_mm_node *entry;
-	u64 hole_min_start = xe_wopcm_size(tile_to_xe(ggtt->tile));
 	u64 hole_start, hole_end, hole_size;
 	u64 total = 0;
 	char buf[10];
 
 	mutex_lock(&ggtt->lock);
-
 	drm_mm_for_each_hole(entry, mm, hole_start, hole_end) {
-		hole_start = max(hole_start, hole_min_start);
+		hole_start = max(hole_start, ggtt->start);
 		hole_start = ALIGN(hole_start, alignment);
 		hole_end = ALIGN_DOWN(hole_end, alignment);
 		if (hole_start >= hole_end)

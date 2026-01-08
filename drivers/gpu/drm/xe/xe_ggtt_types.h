@@ -22,7 +22,9 @@ struct xe_gt;
 struct xe_ggtt {
 	/** @tile: Back pointer to tile where this GGTT belongs */
 	struct xe_tile *tile;
-	/** @size: Total size of this GGTT */
+	/** @start: Start offset of GGTT */
+	u64 start;
+	/** @size: Total usable size of this GGTT */
 	u64 size;
 
 #define XE_GGTT_FLAGS_64K BIT(0)
