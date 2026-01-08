@@ -233,6 +233,7 @@ do {								\
 
 #else /* !CONFIG_PREEMPT_RT */
 
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 
 /*
