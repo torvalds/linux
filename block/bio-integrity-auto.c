@@ -52,19 +52,7 @@ static bool bip_should_check(struct bio_integrity_payload *bip)
 
 static bool bi_offload_capable(struct blk_integrity *bi)
 {
-	switch (bi->csum_type) {
-	case BLK_INTEGRITY_CSUM_CRC64:
-		return bi->metadata_size == sizeof(struct crc64_pi_tuple);
-	case BLK_INTEGRITY_CSUM_CRC:
-	case BLK_INTEGRITY_CSUM_IP:
-		return bi->metadata_size == sizeof(struct t10_pi_tuple);
-	default:
-		pr_warn_once("%s: unknown integrity checksum type:%d\n",
-			__func__, bi->csum_type);
-		fallthrough;
-	case BLK_INTEGRITY_CSUM_NONE:
-		return false;
-	}
+	return bi->metadata_size == bi->pi_tuple_size;
 }
 
 /**
