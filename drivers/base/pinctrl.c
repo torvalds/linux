@@ -14,6 +14,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
 
+#include "base.h"
+
 /**
  * pinctrl_bind_pins() - called by the device core before probe
  * @dev: the device that is just about to probe
