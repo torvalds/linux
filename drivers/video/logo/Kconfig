@@ -25,6 +25,7 @@ config LOGO_LINUX_MONO
 config LOGO_LINUX_MONO_FILE
 	string "Monochrome logo .pbm file"
 	depends on LOGO_LINUX_MONO
+	default "drivers/video/logo/logo_superh_mono.pbm" if SUPERH
 	default "drivers/video/logo/logo_linux_mono.pbm"
 	help
 	  Takes a path to a monochromatic logo in the portable pixmap file
@@ -42,6 +43,7 @@ config LOGO_LINUX_VGA16
 config LOGO_LINUX_VGA16_FILE
 	string "16-color logo .ppm file"
 	depends on LOGO_LINUX_VGA16
+	default "drivers/video/logo/logo_superh_vga16.ppm" if SUPERH
 	default "drivers/video/logo/logo_linux_vga16.ppm"
 	help
 	  Takes a path to a logo in the portable pixmap file format (.ppm),
@@ -61,6 +63,11 @@ config LOGO_LINUX_CLUT224
 config LOGO_LINUX_CLUT224_FILE
 	string "224-color logo .ppm file"
 	depends on LOGO_LINUX_CLUT224
+	default "drivers/video/logo/logo_dec_clut224.ppm" if MACH_DECSTATION || ALPHA
+	default "drivers/video/logo/logo_parisc_clut224.ppm" if PARISC
+	default "drivers/video/logo/logo_sgi_clut224.ppm" if SGI_IP22 || SGI_IP27 || SGI_IP32
+	default "drivers/video/logo/logo_sun_clut224.ppm" if SPARC
+	default "drivers/video/logo/logo_superh_clut224.ppm" if SUPERH
 	default "drivers/video/logo/logo_linux_clut224.ppm"
 	help
 	  Takes a path to a 224-color logo in the portable pixmap file
@@ -70,41 +77,5 @@ config LOGO_LINUX_CLUT224_FILE
 	  an image palette to 224 colors and convert it into a ppm file:
 
 	    magick source_image -compress none -colors 224 destination.ppm
-
-config LOGO_DEC_CLUT224
-	bool "224-color Digital Equipment Corporation Linux logo"
-	depends on MACH_DECSTATION || ALPHA
-	default y
-
-
-config LOGO_PARISC_CLUT224
-	bool "224-color PA-RISC Linux logo"
-	depends on PARISC
-	default y
-
-config LOGO_SGI_CLUT224
-	bool "224-color SGI Linux logo"
-	depends on SGI_IP22 || SGI_IP27 || SGI_IP32
-	default y
-
-config LOGO_SUN_CLUT224
-	bool "224-color Sun Linux logo"
-	depends on SPARC
-	default y
-
-config LOGO_SUPERH_MONO
-	bool "Black and white SuperH Linux logo"
-	depends on SUPERH
-	default y
-
-config LOGO_SUPERH_VGA16
-	bool "16-color SuperH Linux logo"
-	depends on SUPERH
-	default y
-
-config LOGO_SUPERH_CLUT224
-	bool "224-color SuperH Linux logo"
-	depends on SUPERH
-	default y
 
 endif # LOGO
