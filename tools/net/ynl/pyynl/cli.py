@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
+"""
+YNL cli tool
+"""
+
 import argparse
 import json
 import os
@@ -9,6 +13,7 @@ import pprint
 import sys
 import textwrap
 
+# pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily, Netlink, NlError, SpecFamily
 
@@ -16,6 +21,10 @@ sys_schema_dir='/usr/share/ynl'
 relative_schema_dir='../../../../Documentation/netlink'
 
 def schema_dir():
+    """
+    Return the effective schema directory, preferring in-tree before
+    system schema directory.
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     schema_dir = os.path.abspath(f"{script_dir}/{relative_schema_dir}")
     if not os.path.isdir(schema_dir):
@@ -25,6 +34,10 @@ def schema_dir():
     return schema_dir
 
 def spec_dir():
+    """
+    Return the effective spec directory, relative to the effective
+    schema directory.
+    """
     spec_dir = schema_dir() + '/specs'
     if not os.path.isdir(spec_dir):
         raise Exception(f"Spec directory {spec_dir} does not exist")
@@ -32,6 +45,7 @@ def spec_dir():
 
 
 class YnlEncoder(json.JSONEncoder):
+    """A custom encoder for emitting JSON with ynl-specific instance types"""
     def default(self, obj):
         if isinstance(obj, bytes):
             return bytes.hex(obj)
@@ -94,7 +108,10 @@ def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
         print_attr_list(ynl, mode_spec['attributes'], attr_set)
 
 
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def main():
+    """YNL cli tool"""
+
     description = """
     YNL CLI utility - a general purpose netlink utility that uses YAML
     specs to drive protocol encoding and decoding.
