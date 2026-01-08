@@ -51,7 +51,7 @@
 
 struct dwc3_imx8mp {
 	struct device			*dev;
-	struct platform_device		*dwc3;
+	struct platform_device		*dwc3_pdev;
 	void __iomem			*hsio_blk_base;
 	void __iomem			*glue_base;
 	struct clk			*hsio_clk;
@@ -100,7 +100,7 @@ static void imx8mp_configure_glue(struct dwc3_imx8mp *dwc3_imx)
 static void dwc3_imx8mp_wakeup_enable(struct dwc3_imx8mp *dwc3_imx,
 				      pm_message_t msg)
 {
-	struct dwc3	*dwc3 = platform_get_drvdata(dwc3_imx->dwc3);
+	struct dwc3	*dwc3 = platform_get_drvdata(dwc3_imx->dwc3_pdev);
 	u32		val;
 
 	if (!dwc3)
@@ -142,7 +142,7 @@ static const struct software_node dwc3_imx8mp_swnode = {
 static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 {
 	struct dwc3_imx8mp	*dwc3_imx = _dwc3_imx;
-	struct dwc3		*dwc = platform_get_drvdata(dwc3_imx->dwc3);
+	struct dwc3		*dwc = platform_get_drvdata(dwc3_imx->dwc3_pdev);
 
 	if (!dwc3_imx->pm_suspended)
 		return IRQ_HANDLED;
@@ -233,8 +233,8 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 		goto remove_swnode;
 	}
 
-	dwc3_imx->dwc3 = of_find_device_by_node(dwc3_np);
-	if (!dwc3_imx->dwc3) {
+	dwc3_imx->dwc3_pdev = of_find_device_by_node(dwc3_np);
+	if (!dwc3_imx->dwc3_pdev) {
 		dev_err(dev, "failed to get dwc3 platform device\n");
 		err = -ENODEV;
 		goto depopulate;
@@ -253,7 +253,7 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 	return 0;
 
 put_dwc3:
-	put_device(&dwc3_imx->dwc3->dev);
+	put_device(&dwc3_imx->dwc3_pdev->dev);
 depopulate:
 	of_platform_depopulate(dev);
 remove_swnode:
@@ -270,7 +270,7 @@ static void dwc3_imx8mp_remove(struct platform_device *pdev)
 	struct dwc3_imx8mp *dwc3_imx = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
-	put_device(&dwc3_imx->dwc3->dev);
+	put_device(&dwc3_imx->dwc3_pdev->dev);
 
 	pm_runtime_get_sync(dev);
 	of_platform_depopulate(dev);
@@ -296,7 +296,7 @@ static int dwc3_imx8mp_suspend(struct dwc3_imx8mp *dwc3_imx, pm_message_t msg)
 
 static int dwc3_imx8mp_resume(struct dwc3_imx8mp *dwc3_imx, pm_message_t msg)
 {
-	struct dwc3	*dwc = platform_get_drvdata(dwc3_imx->dwc3);
+	struct dwc3	*dwc = platform_get_drvdata(dwc3_imx->dwc3_pdev);
 	int ret = 0;
 
 	if (!dwc3_imx->pm_suspended)
