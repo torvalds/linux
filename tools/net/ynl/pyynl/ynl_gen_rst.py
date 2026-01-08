@@ -19,6 +19,7 @@ import sys
 import argparse
 import logging
 
+# pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlDocGenerator    # pylint: disable=C0413
 
@@ -60,6 +61,7 @@ def write_to_rstfile(content: str, filename: str) -> None:
         rst_file.write(content)
 
 
+# pylint: disable=broad-exception-caught
 def main() -> None:
     """Main function that reads the YAML files and generates the RST files"""
 
