@@ -2003,12 +2003,65 @@ int rtw89_mac_cfg_gnt_v2(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v2);
 
+int rtw89_mac_cfg_gnt_v3(struct rtw89_dev *rtwdev,
+			 const struct rtw89_mac_ax_coex_gnt *gnt_cfg)
+{
+	u32 val = 0;
+
+	if (gnt_cfg->band[0].gnt_bt)
+		val |= B_BE_PTA_GNT_BT0_BB_VAL | B_BE_PTA_GNT_BT0_RX_BB0_VAL |
+		       B_BE_PTA_GNT_BT0_TX_BB0_VAL;
+
+	if (gnt_cfg->band[0].gnt_bt_sw_en)
+		val |= B_BE_PTA_GNT_BT0_BB_SWCTRL | B_BE_PTA_GNT_BT0_RX_BB0_SWCTRL |
+		       B_BE_PTA_GNT_BT0_TX_BB0_SWCTRL;
+
+	if (gnt_cfg->band[0].gnt_wl)
+		val |= B_BE_PTA_GNT_WL_BB0_VAL;
+
+	if (gnt_cfg->band[0].gnt_wl_sw_en)
+		val |= B_BE_PTA_GNT_WL_BB0_SWCTRL;
+
+	if (gnt_cfg->band[1].gnt_bt)
+		val |= B_BE_PTA_GNT_BT0_BB_VAL | B_BE_PTA_GNT_BT0_RX_BB1_VAL |
+		       B_BE_PTA_GNT_BT0_TX_BB1_VAL;
+
+	if (gnt_cfg->band[1].gnt_bt_sw_en)
+		val |= B_BE_PTA_GNT_BT0_BB_SWCTRL | B_BE_PTA_GNT_BT0_RX_BB1_SWCTRL |
+		       B_BE_PTA_GNT_BT0_TX_BB1_SWCTRL;
+
+	if (gnt_cfg->band[1].gnt_wl)
+		val |= B_BE_PTA_GNT_WL_BB1_VAL;
+
+	if (gnt_cfg->band[1].gnt_wl_sw_en)
+		val |= B_BE_PTA_GNT_WL_BB1_SWCTRL;
+
+	if (gnt_cfg->bt[0].wlan_act_en)
+		val |= B_BE_PTA_WL_ACT0_SWCTRL | B_BE_PTA_WL_ACT_RX_BT0_SWCTRL |
+			   B_BE_PTA_WL_ACT_TX_BT0_SWCTRL;
+	if (gnt_cfg->bt[0].wlan_act)
+		val |= B_BE_PTA_WL_ACT0_VAL | B_BE_PTA_WL_ACT_RX_BT0_VAL |
+			   B_BE_PTA_WL_ACT_TX_BT0_VAL;
+	if (gnt_cfg->bt[1].wlan_act_en)
+		val |= B_BE_PTA_WL_ACT1_SWCTRL | B_BE_PTA_WL_ACT_RX_BT1_SWCTRL |
+			   B_BE_PTA_WL_ACT_TX_BT1_SWCTRL;
+	if (gnt_cfg->bt[1].wlan_act)
+		val |= B_BE_PTA_WL_ACT1_VAL | B_BE_PTA_WL_ACT_RX_BT1_VAL |
+			   B_BE_PTA_WL_ACT_TX_BT1_VAL;
+
+	rtw89_write32(rtwdev, R_BE_PTA_GNT_SW_CTRL, val);
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v3);
+
 int rtw89_mac_cfg_ctrl_path_v2(struct rtw89_dev *rtwdev, bool wl)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
 	struct rtw89_mac_ax_wl_act *gbt = dm->gnt.bt;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	int i;
 
 	if (wl)
@@ -2023,7 +2076,11 @@ int rtw89_mac_cfg_ctrl_path_v2(struct rtw89_dev *rtwdev, bool wl)
 		gbt[i].wlan_act_en = 0;
 	}
 
-	return rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+	if (chip->chip_id == RTL8922A)
+		return rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+	else
+		return rtw89_mac_cfg_gnt_v3(rtwdev, &dm->gnt);
+
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v2);
 
