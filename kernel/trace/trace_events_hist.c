@@ -6907,8 +6907,6 @@ static int event_hist_trigger_parse(struct event_command *cmd_ops,
  out_unreg:
 	event_trigger_unregister(cmd_ops, file, glob+1, trigger_data);
  out_free:
-	event_trigger_reset_filter(cmd_ops, trigger_data);
-
 	remove_hist_vars(hist_data);
 
 	trigger_data_free(trigger_data);
