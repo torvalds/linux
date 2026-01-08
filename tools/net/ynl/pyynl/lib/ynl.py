@@ -155,22 +155,22 @@ class NlAttr:
 
     @classmethod
     def get_format(cls, attr_type, byte_order=None):
-        format = cls.type_formats[attr_type]
+        format_ = cls.type_formats[attr_type]
         if byte_order:
-            return format.big if byte_order == "big-endian" \
-                else format.little
-        return format.native
+            return format_.big if byte_order == "big-endian" \
+                else format_.little
+        return format_.native
 
     def as_scalar(self, attr_type, byte_order=None):
-        format = self.get_format(attr_type, byte_order)
-        return format.unpack(self.raw)[0]
+        format_ = self.get_format(attr_type, byte_order)
+        return format_.unpack(self.raw)[0]
 
     def as_auto_scalar(self, attr_type, byte_order=None):
         if len(self.raw) != 4 and len(self.raw) != 8:
             raise Exception(f"Auto-scalar len payload be 4 or 8 bytes, got {len(self.raw)}")
         real_type = attr_type[0] + str(len(self.raw) * 8)
-        format = self.get_format(real_type, byte_order)
-        return format.unpack(self.raw)[0]
+        format_ = self.get_format(real_type, byte_order)
+        return format_.unpack(self.raw)[0]
 
     def as_strz(self):
         return self.raw.decode('ascii')[:-1]
@@ -178,9 +178,9 @@ class NlAttr:
     def as_bin(self):
         return self.raw
 
-    def as_c_array(self, type):
-        format = self.get_format(type)
-        return [ x[0] for x in format.iter_unpack(self.raw) ]
+    def as_c_array(self, c_type):
+        format_ = self.get_format(c_type)
+        return [ x[0] for x in format_.iter_unpack(self.raw) ]
 
     def __repr__(self):
         return f"[type:{self.type} len:{self._len}] {self.raw}"
@@ -256,8 +256,8 @@ class NlMsg:
         policy = {}
         for attr in NlAttrs(raw):
             if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
-                type = attr.as_scalar('u32')
-                policy['type'] = Netlink.AttrType(type).name
+                type_ = attr.as_scalar('u32')
+                policy['type'] = Netlink.AttrType(type_).name
             elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
                 policy['min-value'] = attr.as_scalar('s64')
             elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
@@ -612,8 +612,8 @@ class YnlFamily(SpecFamily):
             elif isinstance(value, dict) and attr.struct_name:
                 attr_payload = self._encode_struct(attr.struct_name, value)
             elif isinstance(value, list) and attr.sub_type in NlAttr.type_formats:
-                format = NlAttr.get_format(attr.sub_type)
-                attr_payload = b''.join([format.pack(x) for x in value])
+                format_ = NlAttr.get_format(attr.sub_type)
+                attr_payload = b''.join([format_.pack(x) for x in value])
             else:
                 raise Exception(f'Unknown type for binary attribute, value: {value}')
         elif attr['type'] in NlAttr.type_formats or attr.is_auto_scalar:
@@ -622,8 +622,8 @@ class YnlFamily(SpecFamily):
                 attr_type = attr["type"][0] + ('32' if scalar.bit_length() <= 32 else '64')
             else:
                 attr_type = attr["type"]
-            format = NlAttr.get_format(attr_type, attr.byte_order)
-            attr_payload = format.pack(scalar)
+            format_ = NlAttr.get_format(attr_type, attr.byte_order)
+            attr_payload = format_.pack(scalar)
         elif attr['type'] in "bitfield32":
             scalar_value = self._get_scalar(attr, value["value"])
             scalar_selector = self._get_scalar(attr, value["selector"])
@@ -915,8 +915,8 @@ class YnlFamily(SpecFamily):
                     else:
                         size += m.len
                 else:
-                    format = NlAttr.get_format(m.type, m.byte_order)
-                    size += format.size
+                    format_ = NlAttr.get_format(m.type, m.byte_order)
+                    size += format_.size
             return size
         else:
             return 0
@@ -931,17 +931,17 @@ class YnlFamily(SpecFamily):
                 offset += m.len
             elif m.type == 'binary':
                 if m.struct:
-                    len = self._struct_size(m.struct)
-                    value = self._decode_struct(data[offset : offset + len],
+                    len_ = self._struct_size(m.struct)
+                    value = self._decode_struct(data[offset : offset + len_],
                                                 m.struct)
-                    offset += len
+                    offset += len_
                 else:
                     value = data[offset : offset + m.len]
                     offset += m.len
             else:
-                format = NlAttr.get_format(m.type, m.byte_order)
-                [ value ] = format.unpack_from(data, offset)
-                offset += format.size
+                format_ = NlAttr.get_format(m.type, m.byte_order)
+                [ value ] = format_.unpack_from(data, offset)
+                offset += format_.size
             if value is not None:
                 if m.enum:
                     value = self._decode_enum(value, m)
@@ -970,8 +970,8 @@ class YnlFamily(SpecFamily):
             else:
                 if value is None:
                     value = 0
-                format = NlAttr.get_format(m.type, m.byte_order)
-                attr_payload += format.pack(value)
+                format_ = NlAttr.get_format(m.type, m.byte_order)
+                attr_payload += format_.pack(value)
         return attr_payload
 
     def _formatted_string(self, raw, display_hint):

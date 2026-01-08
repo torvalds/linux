@@ -10,7 +10,7 @@ specifications.
 import collections
 import importlib
 import os
-import yaml
+import yaml as pyyaml
 
 
 # To be loaded dynamically as needed
@@ -313,11 +313,11 @@ class SpecSubMessage(SpecElement):
 
         self.formats = collections.OrderedDict()
         for elem in self.yaml['formats']:
-            format = self.new_format(family, elem)
-            self.formats[format.value] = format
+            msg_format = self.new_format(family, elem)
+            self.formats[msg_format.value] = msg_format
 
-    def new_format(self, family, format):
-        return SpecSubMessageFormat(family, format)
+    def new_format(self, family, msg_format):
+        return SpecSubMessageFormat(family, msg_format)
 
 
 class SpecSubMessageFormat(SpecElement):
@@ -436,7 +436,7 @@ class SpecFamily(SpecElement):
         kernel_family   dict of kernel family attributes
     """
     def __init__(self, spec_path, schema_path=None, exclude_ops=None):
-        with open(spec_path, "r") as stream:
+        with open(spec_path, "r", encoding='utf-8') as stream:
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
             if not first.startswith(prefix):
@@ -444,7 +444,7 @@ class SpecFamily(SpecElement):
             self.license = first[len(prefix):]
 
             stream.seek(0)
-            spec = yaml.safe_load(stream)
+            spec = pyyaml.safe_load(stream)
 
         self._resolution_list = []
 
@@ -460,8 +460,8 @@ class SpecFamily(SpecElement):
         if schema_path:
             global jsonschema
 
-            with open(schema_path, "r") as stream:
-                schema = yaml.safe_load(stream)
+            with open(schema_path, "r", encoding='utf-8') as stream:
+                schema = pyyaml.safe_load(stream)
 
             if jsonschema is None:
                 jsonschema = importlib.import_module("jsonschema")
