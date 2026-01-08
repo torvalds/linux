@@ -1,0 +1,1106 @@
+[
+  {
+    "EventName": "fp_ret_x87_fp_ops.add_sub_ops",
+    "EventCode": "0x02",
+    "BriefDescription": "Retired x87 floating-point add and subtract uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_ret_x87_fp_ops.mul_ops",
+    "EventCode": "0x02",
+    "BriefDescription": "Retired x87 floating-point multiply uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_ret_x87_fp_ops.div_sqrt_ops",
+    "EventCode": "0x02",
+    "BriefDescription": "Retired x87 floating-point divide and square root uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_ret_x87_fp_ops.all",
+    "EventCode": "0x02",
+    "BriefDescription": "Retired x87 floating-point uops of all types.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.add_sub_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX add and subtract FLOPs.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.mult_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX multiply FLOPs.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.div_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX divide and square root FLOPs.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.mac_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX multiply-accumulate FLOPs (each operation is counted as 2 FLOPs, bfloat operations are not included).",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.bfloat16_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX bfloat16 FLOPs.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.scalar_single_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX scalar single-precision (FP32) FLOPs.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.packed_single_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX packed single-precision (FP32) FLOPs.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.scalar_double_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX scalar double-precision (FP64) FLOPs.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.packed_double_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX packed double-precision (FP64) FLOPs.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.scalar_half_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX scalar half-precision (FP16) FLOPs.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.packed_half_flops",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX packed half-precision (FP16) FLOPs.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_ret_sse_avx_ops.all",
+    "EventCode": "0x03",
+    "BriefDescription": "Retired SSE and AVX FLOPs of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.x87",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired x87 floating-point uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.mmx",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired MMX floating-point uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.scalar",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired scalar floating-point uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.pack_128",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired packed 128-bit floating-point uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.pack_256",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired packed 256-bit floating-point uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.pack_512",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired packed 512-bit floating-point uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_ops_ret_by_width.all",
+    "EventCode": "0x08",
+    "BriefDescription": "Retired floating-point uops of all widths.",
+    "UMask": "0x3f"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_add",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point add uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_sub",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point subtract uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_mul",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point multiply uops.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_mac",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point multiply-accumulate uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_div",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point divide uops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_sqrt",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point square root uops.",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_cmp",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point compare uops.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_cvt",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point convert uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_blend",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point blend uops.",
+    "UMask": "0x09"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_move",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point move uops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_shuffle",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_bfloat",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point bfloat uops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_logical",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point move uops.",
+    "UMask": "0x0d"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_other",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point uops of other types.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.scalar_all",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired scalar floating-point uops of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_add",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point add uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_sub",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point subtract uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_mul",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point multiply uops.",
+    "UMask": "0x30"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_mac",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point multiply-accumulate uops.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_div",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point divide uops.",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_sqrt",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point square root uops.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_cmp",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point compare uops.",
+    "UMask": "0x70"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_cvt",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point convert uops.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_blend",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point blend uops.",
+    "UMask": "0x90"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_move",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point move uops.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_shuffle",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_bfloat",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point bfloat uops.",
+    "UMask": "0xc0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_logical",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point logical uops.",
+    "UMask": "0xd0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_other",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point uops of other types.",
+    "UMask": "0xe0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.vector_all",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired vector floating-point uops of all types.",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "fp_ops_ret_by_type.all",
+    "EventCode": "0x0a",
+    "BriefDescription": "Retired floating-point uops of all types.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_add",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer add uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_sub",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer subtract uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_mul",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer multiply uops.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_mac",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer multiply-accumulate uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_aes",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer AES uops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_sha",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer SHA uops.",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_cmp",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer compare uops.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_cvt",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer convert or pack uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_shift",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer shift or rotate uops.",
+    "UMask": "0x09"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_mov",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer move uops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_shuffle",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_vnni",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer VNNI uops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_logical",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer logical uops.",
+    "UMask": "0x0d"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_other",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer multiply uops of other types.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.mmx_all",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX integer uops of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_add",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer add uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_sub",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer subtract uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_mul",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer multiply uops.",
+    "UMask": "0x30"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_mac",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer multiply-accumulate uops.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_aes",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer AES uops.",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_sha",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer SHA uops.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_cmp",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer compare uops.",
+    "UMask": "0x70"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_cvt",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer convert or pack uops.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_shift",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer shift or rotate uops.",
+    "UMask": "0x90"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_mov",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer move uops.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_shuffle",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_vnni",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer VNNI uops.",
+    "UMask": "0xc0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_logical",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer logical uops.",
+    "UMask": "0xd0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_other",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer uops of other types.",
+    "UMask": "0xe0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.sse_avx_all",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired SSE and AVX integer uops of all types.",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "fp_sse_avx_ops_ret.all",
+    "EventCode": "0x0b",
+    "BriefDescription": "Retired MMX, SSE and AVX integer uops of all types.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_add",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point add uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_sub",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point subtract uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_mul",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point multiply uops.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_mac",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point multiply-accumulate uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_div",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point divide uops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_sqrt",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point square root uops.",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_cmp",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point compare uops.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_cvt",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point convert uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_blend",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point blend uops.",
+    "UMask": "0x09"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_mov",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point move uops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_shuffle",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_bfloat",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point bfloat uops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_logical",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point logical uops.",
+    "UMask": "0x0d"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_other",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point uops of other types.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp128_all",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 128-bit packed floating-point uops of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_add",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point add uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_sub",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point subtract uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_mul",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point multiply uops.",
+    "UMask": "0x30"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_mac",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point multiply-accumulate uops.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_div",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point divide uops.",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_sqrt",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point square root uops.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_cmp",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point compare uops.",
+    "UMask": "0x70"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_cvt",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point convert uops.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_blend",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point blend uops.",
+    "UMask": "0x90"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_mov",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point move uops.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_shuffle",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_logical",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point logical uops.",
+    "UMask": "0xd0"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_other",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point uops of other types.",
+    "UMask": "0xe0"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp256_all",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired 256-bit packed floating-point uops of all types.",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "fp_pack_ops_ret.fp_all",
+    "EventCode": "0x0c",
+    "BriefDescription": "Retired packed floating-point uops of all types.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_add",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer add uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_sub",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer subtract uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_mul",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer multiply uops.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_mac",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer multiply-accumulate uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_aes",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer AES uops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_sha",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer SHA uops.",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_cmp",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer compare uops.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_cvt",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer convert or pack uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_shift",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer shift or rotate uops.",
+    "UMask": "0x09"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_mov",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer move uops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_shuffle",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_vnni",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer VNNI ops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_logical",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer logical uops.",
+    "UMask": "0x0d"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_other",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer uops of other types.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int128_all",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 128-bit packed integer uops of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_add",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer add uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_sub",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer subtract uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_mul",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer multiply uops.",
+    "UMask": "0x30"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_mac",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer multiply-accumulate uops.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_cmp",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer compare uops.",
+    "UMask": "0x70"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_shift",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer shift or rotate uops.",
+    "UMask": "0x90"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_mov",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer move uops.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_shuffle",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_vnni",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer VNNI uops.",
+    "UMask": "0xc0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_logical",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer logical uops.",
+    "UMask": "0xd0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_other",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer uops of other types.",
+    "UMask": "0xe0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int256_all",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired 256-bit packed integer uops of all types.",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "fp_pack_int_ops_ret.int_all",
+    "EventCode": "0x0d",
+    "BriefDescription": "Retired packed integer uops of all types.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "fp_disp_faults.x87_fill_fault",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults for x87 fills.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_disp_faults.xmm_fill_fault",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults for XMM fills.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_disp_faults.ymm_fill_fault",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults for YMM fills.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_disp_faults.ymm_spill_fault",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults for YMM spills.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_disp_faults.sse_avx_all",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults of all types for SSE and AVX ops.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_disp_faults.all",
+    "EventCode": "0x0e",
+    "BriefDescription": "Floating-point dispatch faults of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_add",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point add uops.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_sub",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point subtract uops.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_mul",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point multiply uops.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_mac",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point multiply-accumulate uops.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_div",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point divide uops.",
+    "UMask": "0x05"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_sqrt",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point square root uops.",
+    "UMask": "0x06"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_cmp",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point compare uops.",
+    "UMask": "0x07"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_cvt",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point convert uops.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_blend",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point blend uops.",
+    "UMask": "0x09"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_mov",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point move uops.",
+    "UMask": "0x0a"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_shuffle",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0x0b"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_bfloat",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point bfloat uops.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_logical",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point logical uops.",
+    "UMask": "0x0d"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_other",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point uops of other types.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.fp512_all",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed floating-point uops of all types.",
+    "UMask": "0x0f"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_add",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer add uops.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_sub",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer subtract uops.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_mul",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer multiply uops.",
+    "UMask": "0x30"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_mac",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer multiply-accumulate uops.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_aes",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer AES uops.",
+    "UMask": "0x50"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_sha",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer SHA uops.",
+    "UMask": "0x60"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_cmp",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer compare uops.",
+    "UMask": "0x70"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_cvt",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer convert or pack uops.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_shift",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer shift or rotate uops.",
+    "UMask": "0x90"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_mov",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer move uops.",
+    "UMask": "0xa0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_shuffle",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer shuffle uops (may include instructions not necessarily thought of as including shuffles e.g. horizontal add, dot product, and certain MOV instructions).",
+    "UMask": "0xb0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_vnni",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer VNNI uops.",
+    "UMask": "0xc0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_logical",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer logical uops.",
+    "UMask": "0xd0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_other",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer uops of other types.",
+    "UMask": "0xe0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.int512_all",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed integer uops of all types.",
+    "UMask": "0xf0"
+  },
+  {
+    "EventName": "fp_pack_512b_ops_ret.512b_all",
+    "EventCode": "0x0f",
+    "BriefDescription": "Retired 512-bit packed uops of all types.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "fp_nsq_read_stalls.fp_prf",
+    "EventCode": "0x13",
+    "BriefDescription": "Cycles when reads of the NSQ and writes to the floating-point or SIMD schedulers are stalled due to insufficient free physical register file (FP-PRF) entries.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_nsq_read_stalls.k_prf",
+    "EventCode": "0x13",
+    "BriefDescription": "Cycles when reads of the NSQ and writes to the floating-point or SIMD schedulers are stalled due to insufficient free mask physical register file (K-PRF) entries.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_nsq_read_stalls.fp_sq",
+    "EventCode": "0x13",
+    "BriefDescription": "Cycles when reads of the NSQ and writes to the floating-point or SIMD schedulers are stalled due to insufficient free scheduler entries.",
+    "UMask": "0x0e"
+  },
+  {
+    "EventName": "fp_nsq_read_stalls.all",
+    "EventCode": "0x13",
+    "BriefDescription": "Cycles when reads of the NSQ and writes to the floating-point or SIMD schedulers are stalled due to any reason.",
+    "UMask": "0x0e"
+  }
+]
