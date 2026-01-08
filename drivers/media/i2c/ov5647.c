@@ -118,7 +118,6 @@ struct ov5647 {
 	struct v4l2_subdev		sd;
 	struct regmap			*regmap;
 	struct media_pad		pad;
-	struct mutex			lock;
 	struct clk			*xclk;
 	struct gpio_desc		*pwdn;
 	struct regulator_bulk_data	supplies[OV5647_NUM_SUPPLIES];
@@ -686,10 +685,10 @@ __ov5647_get_pad_crop(struct ov5647 *ov5647,
 static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5647 *sensor = to_sensor(sd);
+	struct v4l2_subdev_state *state;
 	int ret;
 
-	mutex_lock(&sensor->lock);
+	state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -710,14 +709,14 @@ static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	mutex_unlock(&sensor->lock);
+	v4l2_subdev_unlock_state(state);
 
 	return 0;
 
 error_pm:
 	pm_runtime_put(&client->dev);
 error_unlock:
-	mutex_unlock(&sensor->lock);
+	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -785,7 +784,6 @@ static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
 	const struct v4l2_mbus_framefmt *sensor_format;
 	struct ov5647 *sensor = to_sensor(sd);
 
-	mutex_lock(&sensor->lock);
 	switch (format->which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
 		sensor_format = v4l2_subdev_state_get_format(sd_state,
@@ -799,7 +797,6 @@ static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
 	*fmt = *sensor_format;
 	/* The code we pass back must reflect the current h/vflips. */
 	fmt->code = ov5647_get_mbus_code(sd);
-	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
@@ -817,7 +814,6 @@ static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
 				      fmt->width, fmt->height);
 
 	/* Update the sensor mode and apply at it at streamon time. */
-	mutex_lock(&sensor->lock);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_state_get_format(sd_state, format->pad) = mode->format;
 	} else {
@@ -851,7 +847,6 @@ static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
 	*fmt = mode->format;
 	/* The code we pass back must reflect the current h/vflips. */
 	fmt->code = ov5647_get_mbus_code(sd);
-	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
@@ -864,10 +859,8 @@ static int ov5647_get_selection(struct v4l2_subdev *sd,
 	case V4L2_SEL_TGT_CROP: {
 		struct ov5647 *sensor = to_sensor(sd);
 
-		mutex_lock(&sensor->lock);
 		sel->r = *__ov5647_get_pad_crop(sensor, sd_state, sel->pad,
 						sel->which);
-		mutex_unlock(&sensor->lock);
 
 		return 0;
 	}
@@ -959,9 +952,6 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev *sd = &sensor->sd;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
-
-
-	/* v4l2_ctrl_lock() locks our own mutex */
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
 		int exposure_max, exposure_def;
@@ -1070,8 +1060,6 @@ static int ov5647_init_controls(struct ov5647 *sensor)
 	struct device *dev = &client->dev;
 
 	v4l2_ctrl_handler_init(&sensor->ctrls, 14);
-
-	sensor->ctrls.lock = &sensor->lock;
 
 	v4l2_ctrl_new_std(&sensor->ctrls, &ov5647_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 0);
@@ -1220,8 +1208,6 @@ static int ov5647_probe(struct i2c_client *client)
 	if (ret)
 		dev_err_probe(dev, ret, "Failed to get power regulators\n");
 
-	mutex_init(&sensor->lock);
-
 	sensor->mode = OV5647_DEFAULT_MODE;
 
 	sd = &sensor->sd;
@@ -1231,7 +1217,7 @@ static int ov5647_probe(struct i2c_client *client)
 
 	ret = ov5647_init_controls(sensor);
 	if (ret)
-		goto mutex_destroy;
+		return ret;
 
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
@@ -1254,27 +1240,35 @@ static int ov5647_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto power_off;
 
-	ret = v4l2_async_register_subdev_sensor(sd);
-	if (ret < 0)
+	sd->state_lock = sensor->ctrls.lock;
+	ret = v4l2_subdev_init_finalize(sd);
+	if (ret < 0) {
+		ret = dev_err_probe(dev, ret, "failed to init subdev\n");
 		goto power_off;
+	}
 
 	/* Enable runtime PM and turn off the device */
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+	ret = v4l2_async_register_subdev_sensor(sd);
+	if (ret < 0)
+		goto v4l2_subdev_cleanup;
+
 	pm_runtime_idle(dev);
 
 	dev_dbg(dev, "OmniVision OV5647 camera driver probed\n");
 
 	return 0;
 
+v4l2_subdev_cleanup:
+	v4l2_subdev_cleanup(sd);
 power_off:
 	ov5647_power_off(dev);
 entity_cleanup:
 	media_entity_cleanup(&sd->entity);
 ctrl_handler_free:
 	v4l2_ctrl_handler_free(&sensor->ctrls);
-mutex_destroy:
-	mutex_destroy(&sensor->lock);
 
 	return ret;
 }
@@ -1285,11 +1279,11 @@ static void ov5647_remove(struct i2c_client *client)
 	struct ov5647 *sensor = to_sensor(sd);
 
 	v4l2_async_unregister_subdev(&sensor->sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 	v4l2_device_unregister_subdev(sd);
 	pm_runtime_disable(&client->dev);
-	mutex_destroy(&sensor->lock);
 }
 
 static const struct dev_pm_ops ov5647_pm_ops = {
