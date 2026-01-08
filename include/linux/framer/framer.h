@@ -96,7 +96,7 @@ struct framer {
 #if IS_ENABLED(CONFIG_GENERIC_FRAMER)
 int framer_pm_runtime_get(struct framer *framer);
 int framer_pm_runtime_get_sync(struct framer *framer);
-int framer_pm_runtime_put(struct framer *framer);
+void framer_pm_runtime_put(struct framer *framer);
 int framer_pm_runtime_put_sync(struct framer *framer);
 int framer_init(struct framer *framer);
 int framer_exit(struct framer *framer);
@@ -124,9 +124,8 @@ static inline int framer_pm_runtime_get_sync(struct framer *framer)
 	return -ENOSYS;
 }
 
-static inline int framer_pm_runtime_put(struct framer *framer)
+static inline void framer_pm_runtime_put(struct framer *framer)
 {
-	return -ENOSYS;
 }
 
 static inline int framer_pm_runtime_put_sync(struct framer *framer)

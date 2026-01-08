@@ -60,12 +60,12 @@ int framer_pm_runtime_get_sync(struct framer *framer)
 }
 EXPORT_SYMBOL_GPL(framer_pm_runtime_get_sync);
 
-int framer_pm_runtime_put(struct framer *framer)
+void framer_pm_runtime_put(struct framer *framer)
 {
 	if (!pm_runtime_enabled(&framer->dev))
-		return -EOPNOTSUPP;
+		return;
 
-	return pm_runtime_put(&framer->dev);
+	pm_runtime_put(&framer->dev);
 }
 EXPORT_SYMBOL_GPL(framer_pm_runtime_put);
 

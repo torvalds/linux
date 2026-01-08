@@ -374,11 +374,8 @@ int cpsw_ethtool_op_begin(struct net_device *ndev)
 void cpsw_ethtool_op_complete(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	int ret;
 
-	ret = pm_runtime_put(priv->cpsw->dev);
-	if (ret < 0)
-		cpsw_err(priv, drv, "ethtool complete failed %d\n", ret);
+	pm_runtime_put(priv->cpsw->dev);
 }
 
 void cpsw_get_channels(struct net_device *ndev, struct ethtool_channels *ch)
