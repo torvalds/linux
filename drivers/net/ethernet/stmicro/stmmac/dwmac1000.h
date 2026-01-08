@@ -76,7 +76,6 @@ enum power_event {
 /* SGMII/RGMII status register */
 #define GMAC_RGSMIIIS_LNKMODE		BIT(0)
 #define GMAC_RGSMIIIS_SPEED		GENMASK(2, 1)
-#define GMAC_RGSMIIIS_SPEED_SHIFT	1
 #define GMAC_RGSMIIIS_LNKSTS		BIT(3)
 #define GMAC_RGSMIIIS_JABTO		BIT(4)
 #define GMAC_RGSMIIIS_FALSECARDET	BIT(5)
@@ -133,8 +132,7 @@ enum inter_frame_gap {
 #define GMAC_MII_ADDR_WRITE	0x00000002	/* MII Write */
 #define GMAC_MII_ADDR_BUSY	0x00000001	/* MII Busy */
 /* GMAC FLOW CTRL defines */
-#define GMAC_FLOW_CTRL_PT_MASK	0xffff0000	/* Pause Time Mask */
-#define GMAC_FLOW_CTRL_PT_SHIFT	16
+#define GMAC_FLOW_CTRL_PT_MASK	GENMASK(31, 16)	/* Pause Time Mask */
 #define GMAC_FLOW_CTRL_UP	0x00000008	/* Unicast pause frame enable */
 #define GMAC_FLOW_CTRL_RFE	0x00000004	/* Rx Flow Control Enable */
 #define GMAC_FLOW_CTRL_TFE	0x00000002	/* Tx Flow Control Enable */
@@ -147,7 +145,6 @@ enum inter_frame_gap {
 #define GMAC_DEBUG_TWCSTS	BIT(22) /* MTL Tx FIFO Write Controller */
 /* MTL Tx FIFO Read Controller Status */
 #define GMAC_DEBUG_TRCSTS_MASK	GENMASK(21, 20)
-#define GMAC_DEBUG_TRCSTS_SHIFT	20
 #define GMAC_DEBUG_TRCSTS_IDLE	0
 #define GMAC_DEBUG_TRCSTS_READ	1
 #define GMAC_DEBUG_TRCSTS_TXW	2
@@ -155,7 +152,6 @@ enum inter_frame_gap {
 #define GMAC_DEBUG_TXPAUSED	BIT(19) /* MAC Transmitter in PAUSE */
 /* MAC Transmit Frame Controller Status */
 #define GMAC_DEBUG_TFCSTS_MASK	GENMASK(18, 17)
-#define GMAC_DEBUG_TFCSTS_SHIFT	17
 #define GMAC_DEBUG_TFCSTS_IDLE	0
 #define GMAC_DEBUG_TFCSTS_WAIT	1
 #define GMAC_DEBUG_TFCSTS_GEN_PAUSE	2
@@ -163,13 +159,11 @@ enum inter_frame_gap {
 /* MAC GMII or MII Transmit Protocol Engine Status */
 #define GMAC_DEBUG_TPESTS	BIT(16)
 #define GMAC_DEBUG_RXFSTS_MASK	GENMASK(9, 8) /* MTL Rx FIFO Fill-level */
-#define GMAC_DEBUG_RXFSTS_SHIFT	8
 #define GMAC_DEBUG_RXFSTS_EMPTY	0
 #define GMAC_DEBUG_RXFSTS_BT	1
 #define GMAC_DEBUG_RXFSTS_AT	2
 #define GMAC_DEBUG_RXFSTS_FULL	3
 #define GMAC_DEBUG_RRCSTS_MASK	GENMASK(6, 5) /* MTL Rx FIFO Read Controller */
-#define GMAC_DEBUG_RRCSTS_SHIFT	5
 #define GMAC_DEBUG_RRCSTS_IDLE	0
 #define GMAC_DEBUG_RRCSTS_RDATA	1
 #define GMAC_DEBUG_RRCSTS_RSTAT	2
@@ -177,7 +171,6 @@ enum inter_frame_gap {
 #define GMAC_DEBUG_RWCSTS	BIT(4) /* MTL Rx FIFO Write Controller Active */
 /* MAC Receive Frame Controller FIFO Status */
 #define GMAC_DEBUG_RFCFCSTS_MASK	GENMASK(2, 1)
-#define GMAC_DEBUG_RFCFCSTS_SHIFT	1
 /* MAC GMII or MII Receive Protocol Engine Status */
 #define GMAC_DEBUG_RPESTS	BIT(0)
 
@@ -187,8 +180,7 @@ enum inter_frame_gap {
 #define DMA_BUS_MODE_DSL_MASK	0x0000007c	/* Descriptor Skip Length */
 #define DMA_BUS_MODE_DSL_SHIFT	2		/*   (in DWORDS)      */
 /* Programmable burst length (passed thorugh platform)*/
-#define DMA_BUS_MODE_PBL_MASK	0x00003f00	/* Programmable Burst Len */
-#define DMA_BUS_MODE_PBL_SHIFT	8
+#define DMA_BUS_MODE_PBL_MASK	GENMASK(13, 8)	/* Programmable Burst Len */
 #define DMA_BUS_MODE_ATDS	0x00000080	/* Alternate Descriptor Size */
 
 enum rx_tx_priority_ratio {
@@ -199,8 +191,7 @@ enum rx_tx_priority_ratio {
 
 #define DMA_BUS_MODE_FB		0x00010000	/* Fixed burst */
 #define DMA_BUS_MODE_MB		0x04000000	/* Mixed burst */
-#define DMA_BUS_MODE_RPBL_MASK	0x007e0000	/* Rx-Programmable Burst Len */
-#define DMA_BUS_MODE_RPBL_SHIFT	17
+#define DMA_BUS_MODE_RPBL_MASK	GENMASK(22, 17)	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_USP	0x00800000
 #define DMA_BUS_MODE_MAXPBL	0x01000000
 #define DMA_BUS_MODE_AAL	0x02000000
@@ -320,7 +311,6 @@ enum rtc_control {
 /* PTP and timestamping registers */
 
 #define GMAC3_X_ATSNS       GENMASK(29, 25)
-#define GMAC3_X_ATSNS_SHIFT 25
 
 #define GMAC_PTP_TCR_ATSFC	BIT(24)
 #define GMAC_PTP_TCR_ATSEN0	BIT(25)

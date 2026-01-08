@@ -59,11 +59,7 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_AXI_EN_LPI		BIT(31)
 #define DMA_AXI_LPI_XIT_FRM	BIT(30)
 #define DMA_AXI_WR_OSR_LMT	GENMASK(23, 20)
-#define DMA_AXI_WR_OSR_LMT_SHIFT	20
-#define DMA_AXI_WR_OSR_LMT_MASK	0xf
 #define DMA_AXI_RD_OSR_LMT	GENMASK(19, 16)
-#define DMA_AXI_RD_OSR_LMT_SHIFT	16
-#define DMA_AXI_RD_OSR_LMT_MASK	0xf
 
 #define DMA_AXI_OSR_MAX		0xf
 #define DMA_AXI_MAX_OSR_LIMIT ((DMA_AXI_OSR_MAX << DMA_AXI_WR_OSR_LMT_SHIFT) | \
@@ -123,10 +119,8 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_STATUS_EB_MASK	0x00380000	/* Error Bits Mask */
 #define DMA_STATUS_EB_TX_ABORT	0x00080000	/* Error Bits - TX Abort */
 #define DMA_STATUS_EB_RX_ABORT	0x00100000	/* Error Bits - RX Abort */
-#define DMA_STATUS_TS_MASK	0x00700000	/* Transmit Process State */
-#define DMA_STATUS_TS_SHIFT	20
-#define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
-#define DMA_STATUS_RS_SHIFT	17
+#define DMA_STATUS_TS_MASK	GENMASK(22, 20)	/* Transmit Process State */
+#define DMA_STATUS_RS_MASK	GENMASK(19, 17)	/* Receive Process State */
 #define DMA_STATUS_NIS	0x00010000	/* Normal Interrupt Summary */
 #define DMA_STATUS_AIS	0x00008000	/* Abnormal Interrupt Summary */
 #define DMA_STATUS_ERI	0x00004000	/* Early Receive Interrupt */

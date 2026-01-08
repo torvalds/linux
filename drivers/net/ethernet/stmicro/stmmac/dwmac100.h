@@ -59,8 +59,7 @@
 #define MAC_CORE_INIT (MAC_CONTROL_HBD)
 
 /* MAC FLOW CTRL defines */
-#define MAC_FLOW_CTRL_PT_MASK	0xffff0000	/* Pause Time Mask */
-#define MAC_FLOW_CTRL_PT_SHIFT	16
+#define MAC_FLOW_CTRL_PT_MASK	GENMASK(31, 16)	/* Pause Time Mask */
 #define MAC_FLOW_CTRL_PASS	0x00000004	/* Pass Control Frames */
 #define MAC_FLOW_CTRL_ENABLE	0x00000002	/* Flow Control Enable */
 #define MAC_FLOW_CTRL_PAUSE	0x00000001	/* Flow Control Busy ... */
@@ -76,10 +75,8 @@
 /* DMA Bus Mode register defines */
 #define DMA_BUS_MODE_DBO	0x00100000	/* Descriptor Byte Ordering */
 #define DMA_BUS_MODE_BLE	0x00000080	/* Big Endian/Little Endian */
-#define DMA_BUS_MODE_PBL_MASK	0x00003f00	/* Programmable Burst Len */
-#define DMA_BUS_MODE_PBL_SHIFT	8
-#define DMA_BUS_MODE_DSL_MASK	0x0000007c	/* Descriptor Skip Length */
-#define DMA_BUS_MODE_DSL_SHIFT	2	/*   (in DWORDS)      */
+#define DMA_BUS_MODE_PBL_MASK	GENMASK(13, 8)	/* Programmable Burst Len */
+#define DMA_BUS_MODE_DSL_MASK	GENMASK(6, 2)	/* Descriptor Skip Length */
 #define DMA_BUS_MODE_BAR_BUS	0x00000002	/* Bar-Bus Arbitration */
 #define DMA_BUS_MODE_DEFAULT	0x00000000
 

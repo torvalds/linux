@@ -242,7 +242,7 @@ static void dwmac1000_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 
 	if (duplex) {
 		pr_debug("\tduplex mode: PAUSE %d\n", pause_time);
-		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
+		flow |= FIELD_PREP(GMAC_FLOW_CTRL_PT_MASK, pause_time);
 	}
 
 	writel(flow, ioaddr + GMAC_FLOW_CTRL);
@@ -378,8 +378,8 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_TWCSTS)
 		x->mmtl_fifo_ctrl++;
 	if (value & GMAC_DEBUG_TRCSTS_MASK) {
-		u32 trcsts = (value & GMAC_DEBUG_TRCSTS_MASK)
-			     >> GMAC_DEBUG_TRCSTS_SHIFT;
+		u32 trcsts = FIELD_GET(GMAC_DEBUG_TRCSTS_MASK, value);
+
 		if (trcsts == GMAC_DEBUG_TRCSTS_WRITE)
 			x->mtl_tx_fifo_read_ctrl_write++;
 		else if (trcsts == GMAC_DEBUG_TRCSTS_TXW)
@@ -392,8 +392,7 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_TXPAUSED)
 		x->mac_tx_in_pause++;
 	if (value & GMAC_DEBUG_TFCSTS_MASK) {
-		u32 tfcsts = (value & GMAC_DEBUG_TFCSTS_MASK)
-			      >> GMAC_DEBUG_TFCSTS_SHIFT;
+		u32 tfcsts = FIELD_GET(GMAC_DEBUG_TFCSTS_MASK, value);
 
 		if (tfcsts == GMAC_DEBUG_TFCSTS_XFER)
 			x->mac_tx_frame_ctrl_xfer++;
@@ -407,8 +406,7 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_TPESTS)
 		x->mac_gmii_tx_proto_engine++;
 	if (value & GMAC_DEBUG_RXFSTS_MASK) {
-		u32 rxfsts = (value & GMAC_DEBUG_RXFSTS_MASK)
-			     >> GMAC_DEBUG_RRCSTS_SHIFT;
+		u32 rxfsts = FIELD_GET(GMAC_DEBUG_RXFSTS_MASK, value);
 
 		if (rxfsts == GMAC_DEBUG_RXFSTS_FULL)
 			x->mtl_rx_fifo_fill_level_full++;
@@ -420,8 +418,7 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 			x->mtl_rx_fifo_fill_level_empty++;
 	}
 	if (value & GMAC_DEBUG_RRCSTS_MASK) {
-		u32 rrcsts = (value & GMAC_DEBUG_RRCSTS_MASK) >>
-			     GMAC_DEBUG_RRCSTS_SHIFT;
+		u32 rrcsts = FIELD_GET(GMAC_DEBUG_RRCSTS_MASK, value);
 
 		if (rrcsts == GMAC_DEBUG_RRCSTS_FLUSH)
 			x->mtl_rx_fifo_read_ctrl_flush++;
@@ -435,8 +432,8 @@ static void dwmac1000_debug(struct stmmac_priv *priv, void __iomem *ioaddr,
 	if (value & GMAC_DEBUG_RWCSTS)
 		x->mtl_rx_fifo_ctrl_active++;
 	if (value & GMAC_DEBUG_RFCFCSTS_MASK)
-		x->mac_rx_frame_ctrl_fifo = (value & GMAC_DEBUG_RFCFCSTS_MASK)
-					    >> GMAC_DEBUG_RFCFCSTS_SHIFT;
+		x->mac_rx_frame_ctrl_fifo = FIELD_GET(GMAC_DEBUG_RFCFCSTS_MASK,
+						      value);
 	if (value & GMAC_DEBUG_RPESTS)
 		x->mac_gmii_rx_proto_engine++;
 }
@@ -534,7 +531,7 @@ void dwmac1000_timestamp_interrupt(struct stmmac_priv *priv)
 	if (!(priv->plat->flags & STMMAC_FLAG_EXT_SNAPSHOT_EN))
 		return;
 
-	num_snapshot = (ts_status & GMAC3_X_ATSNS) >> GMAC3_X_ATSNS_SHIFT;
+	num_snapshot = FIELD_GET(GMAC3_X_ATSNS, ts_status);
 
 	for (i = 0; i < num_snapshot; i++) {
 		read_lock_irqsave(&priv->ptp_lock, flags);
