@@ -20,9 +20,11 @@
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -42,29 +44,26 @@
 #define MIPI_CTRL00_BUS_IDLE			BIT(2)
 #define MIPI_CTRL00_CLOCK_LANE_DISABLE		BIT(0)
 
-#define OV5647_SW_STANDBY		0x0100
-#define OV5647_SW_RESET			0x0103
-#define OV5647_REG_CHIPID_H		0x300a
-#define OV5647_REG_CHIPID_L		0x300b
-#define OV5640_REG_PAD_OUT		0x300d
-#define OV5647_REG_EXP_HI		0x3500
-#define OV5647_REG_EXP_MID		0x3501
-#define OV5647_REG_EXP_LO		0x3502
-#define OV5647_REG_AEC_AGC		0x3503
-#define OV5647_REG_GAIN_HI		0x350a
-#define OV5647_REG_GAIN_LO		0x350b
-#define OV5647_REG_HTS_HI		0x380c
-#define OV5647_REG_HTS_LO		0x380d
-#define OV5647_REG_VTS_HI		0x380e
-#define OV5647_REG_VTS_LO		0x380f
-#define OV5647_REG_TIMING_TC_V		0x3820
-#define OV5647_REG_TIMING_TC_H		0x3821
-#define OV5647_REG_FRAME_OFF_NUMBER	0x4202
-#define OV5647_REG_MIPI_CTRL00		0x4800
-#define OV5647_REG_MIPI_CTRL14		0x4814
-#define OV5647_REG_AWB			0x5001
-#define OV5647_REG_ISPCTRL3D		0x503d
+#define OV5647_SW_STANDBY		CCI_REG8(0x0100)
+#define OV5647_SW_RESET			CCI_REG8(0x0103)
+#define OV5647_REG_CHIPID		CCI_REG16(0x300a)
+#define OV5640_REG_PAD_OUT		CCI_REG8(0x300d)
+#define OV5647_REG_EXPOSURE		CCI_REG24(0x3500)
+#define OV5647_REG_AEC_AGC		CCI_REG8(0x3503)
+#define OV5647_REG_GAIN			CCI_REG16(0x350a)
+#define OV5647_REG_HTS			CCI_REG16(0x380c)
+#define OV5647_REG_VTS			CCI_REG16(0x380e)
+#define OV5647_REG_TIMING_TC_V		CCI_REG8(0x3820)
+#define OV5647_REG_TIMING_TC_H		CCI_REG8(0x3821)
+#define OV5647_REG_FRAME_OFF_NUMBER	CCI_REG8(0x4202)
+#define OV5647_REG_MIPI_CTRL00		CCI_REG8(0x4800)
+#define OV5647_REG_MIPI_CTRL14		CCI_REG8(0x4814)
+#define OV5647_REG_MIPI_CTRL14_CHANNEL_MASK	GENMASK(7, 6)
+#define OV5647_REG_MIPI_CTRL14_CHANNEL_SHIFT	6
+#define OV5647_REG_AWB			CCI_REG8(0x5001)
+#define OV5647_REG_ISPCTRL3D		CCI_REG8(0x503d)
 
+#define OV5647_CHIP_ID 0x5647
 #define REG_TERM 0xfffe
 #define VAL_TERM 0xfe
 #define REG_DLY  0xffff
@@ -104,11 +103,6 @@ static const s64 ov5647_link_freqs[] = {
 	[FREQ_INDEX_VGA]	= 145833300,
 };
 
-struct regval_list {
-	u16 addr;
-	u8 data;
-};
-
 struct ov5647_mode {
 	struct v4l2_mbus_framefmt	format;
 	struct v4l2_rect		crop;
@@ -116,12 +110,13 @@ struct ov5647_mode {
 	unsigned int			link_freq_index;
 	int				hts;
 	int				vts;
-	const struct regval_list	*reg_list;
+	const struct reg_sequence	*reg_list;
 	unsigned int			num_regs;
 };
 
 struct ov5647 {
 	struct v4l2_subdev		sd;
+	struct regmap			*regmap;
 	struct media_pad		pad;
 	struct mutex			lock;
 	struct clk			*xclk;
@@ -158,19 +153,19 @@ static const u8 ov5647_test_pattern_val[] = {
 	0x81,	/* Random Data */
 };
 
-static const struct regval_list sensor_oe_disable_regs[] = {
+static const struct reg_sequence sensor_oe_disable_regs[] = {
 	{0x3000, 0x00},
 	{0x3001, 0x00},
 	{0x3002, 0x00},
 };
 
-static const struct regval_list sensor_oe_enable_regs[] = {
+static const struct reg_sequence sensor_oe_enable_regs[] = {
 	{0x3000, 0x0f},
 	{0x3001, 0xff},
 	{0x3002, 0xe4},
 };
 
-static struct regval_list ov5647_common_regs[] = {
+static const struct reg_sequence ov5647_common_regs[] = {
 	{0x0100, 0x00},
 	{0x0103, 0x01},
 	{0x3034, 0x1a},
@@ -224,7 +219,7 @@ static struct regval_list ov5647_common_regs[] = {
 	{0x3503, 0x03},
 };
 
-static struct regval_list ov5647_2592x1944_10bpp[] = {
+static const struct reg_sequence ov5647_2592x1944_10bpp[] = {
 	{0x3036, 0x69},
 	{0x3821, 0x02},
 	{0x3820, 0x00},
@@ -260,7 +255,7 @@ static struct regval_list ov5647_2592x1944_10bpp[] = {
 	{0x0100, 0x01},
 };
 
-static struct regval_list ov5647_1080p30_10bpp[] = {
+static const struct reg_sequence ov5647_1080p30_10bpp[] = {
 	{0x3036, 0x69},
 	{0x3821, 0x02},
 	{0x3820, 0x00},
@@ -296,7 +291,7 @@ static struct regval_list ov5647_1080p30_10bpp[] = {
 	{0x0100, 0x01},
 };
 
-static struct regval_list ov5647_2x2binned_10bpp[] = {
+static const struct reg_sequence ov5647_2x2binned_10bpp[] = {
 	{0x3036, 0x69},
 	{0x3821, 0x03},
 	{0x3820, 0x41},
@@ -336,7 +331,7 @@ static struct regval_list ov5647_2x2binned_10bpp[] = {
 	{0x0100, 0x01},
 };
 
-static struct regval_list ov5647_640x480_10bpp[] = {
+static const struct reg_sequence ov5647_640x480_10bpp[] = {
 	{0x3036, 0x46},
 	{0x3821, 0x03},
 	{0x3820, 0x41},
@@ -463,116 +458,36 @@ static const struct ov5647_mode ov5647_modes[] = {
 #define OV5647_DEFAULT_MODE	(&ov5647_modes[3])
 #define OV5647_DEFAULT_FORMAT	(ov5647_modes[3].format)
 
-static int ov5647_write16(struct v4l2_subdev *sd, u16 reg, u16 val)
-{
-	unsigned char data[4] = { reg >> 8, reg & 0xff, val >> 8, val & 0xff};
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	ret = i2c_master_send(client, data, 4);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-			__func__, reg);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int ov5647_write(struct v4l2_subdev *sd, u16 reg, u8 val)
-{
-	unsigned char data[3] = { reg >> 8, reg & 0xff, val};
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret;
-
-	ret = i2c_master_send(client, data, 3);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-				__func__, reg);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int ov5647_read(struct v4l2_subdev *sd, u16 reg, u8 *val)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 buf[2] = { reg >> 8, reg & 0xff };
-	struct i2c_msg msg[2];
-	int ret;
-
-	msg[0].addr = client->addr;
-	msg[0].flags = client->flags;
-	msg[0].buf = buf;
-	msg[0].len = sizeof(buf);
-
-	msg[1].addr = client->addr;
-	msg[1].flags = client->flags | I2C_M_RD;
-	msg[1].buf = buf;
-	msg[1].len = 1;
-
-	ret = i2c_transfer(client->adapter, msg, 2);
-	if (ret != 2) {
-		dev_err(&client->dev, "%s: i2c read error, reg: %x = %d\n",
-			__func__, reg, ret);
-		return ret >= 0 ? -EINVAL : ret;
-	}
-
-	*val = buf[0];
-
-	return 0;
-}
-
-static int ov5647_write_array(struct v4l2_subdev *sd,
-			      const struct regval_list *regs, int array_size)
-{
-	int i, ret;
-
-	for (i = 0; i < array_size; i++) {
-		ret = ov5647_write(sd, regs[i].addr, regs[i].data);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int ov5647_set_virtual_channel(struct v4l2_subdev *sd, int channel)
 {
-	u8 channel_id;
-	int ret;
+	struct ov5647 *sensor = to_sensor(sd);
 
-	ret = ov5647_read(sd, OV5647_REG_MIPI_CTRL14, &channel_id);
-	if (ret < 0)
-		return ret;
-
-	channel_id &= ~(3 << 6);
-
-	return ov5647_write(sd, OV5647_REG_MIPI_CTRL14,
-			    channel_id | (channel << 6));
+	return cci_update_bits(sensor->regmap, OV5647_REG_MIPI_CTRL14,
+			       OV5647_REG_MIPI_CTRL14_CHANNEL_MASK,
+			       channel << OV5647_REG_MIPI_CTRL14_CHANNEL_SHIFT,
+			       NULL);
 }
 
 static int ov5647_set_mode(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5647 *sensor = to_sensor(sd);
-	u8 resetval, rdval;
+	u64 resetval, rdval;
 	int ret;
 
-	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
+	ret = cci_read(sensor->regmap, OV5647_SW_STANDBY, &rdval, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = ov5647_write_array(sd, ov5647_common_regs,
-				 ARRAY_SIZE(ov5647_common_regs));
+	ret = regmap_multi_reg_write(sensor->regmap, ov5647_common_regs,
+				     ARRAY_SIZE(ov5647_common_regs));
 	if (ret < 0) {
 		dev_err(&client->dev, "write sensor common regs error\n");
 		return ret;
 	}
 
-	ret = ov5647_write_array(sd, sensor->mode->reg_list,
-				 sensor->mode->num_regs);
+	ret = regmap_multi_reg_write(sensor->regmap, sensor->mode->reg_list,
+				     sensor->mode->num_regs);
 	if (ret < 0) {
 		dev_err(&client->dev, "write sensor default regs error\n");
 		return ret;
@@ -582,13 +497,13 @@ static int ov5647_set_mode(struct v4l2_subdev *sd)
 	if (ret < 0)
 		return ret;
 
-	ret = ov5647_read(sd, OV5647_SW_STANDBY, &resetval);
+	ret = cci_read(sensor->regmap, OV5647_SW_STANDBY, &resetval, NULL);
 	if (ret < 0)
 		return ret;
 
 	if (!(resetval & 0x01)) {
 		dev_err(&client->dev, "Device was in SW standby");
-		ret = ov5647_write(sd, OV5647_SW_STANDBY, 0x01);
+		ret = cci_write(sensor->regmap, OV5647_SW_STANDBY, 0x01, NULL);
 		if (ret < 0)
 			return ret;
 	}
@@ -618,32 +533,25 @@ static int ov5647_stream_on(struct v4l2_subdev *sd)
 		val |= MIPI_CTRL00_CLOCK_LANE_GATE |
 		       MIPI_CTRL00_LINE_SYNC_ENABLE;
 
-	ret = ov5647_write(sd, OV5647_REG_MIPI_CTRL00, val);
-	if (ret < 0)
-		return ret;
+	cci_write(sensor->regmap, OV5647_REG_MIPI_CTRL00, val, &ret);
+	cci_write(sensor->regmap, OV5647_REG_FRAME_OFF_NUMBER, 0x00, &ret);
+	cci_write(sensor->regmap, OV5640_REG_PAD_OUT, 0x00, &ret);
 
-	ret = ov5647_write(sd, OV5647_REG_FRAME_OFF_NUMBER, 0x00);
-	if (ret < 0)
-		return ret;
-
-	return ov5647_write(sd, OV5640_REG_PAD_OUT, 0x00);
+	return ret;
 }
 
 static int ov5647_stream_off(struct v4l2_subdev *sd)
 {
-	int ret;
+	struct ov5647 *sensor = to_sensor(sd);
+	int ret = 0;
 
-	ret = ov5647_write(sd, OV5647_REG_MIPI_CTRL00,
-			   MIPI_CTRL00_CLOCK_LANE_GATE | MIPI_CTRL00_BUS_IDLE |
-			   MIPI_CTRL00_CLOCK_LANE_DISABLE);
-	if (ret < 0)
-		return ret;
+	cci_write(sensor->regmap, OV5647_REG_MIPI_CTRL00,
+		  MIPI_CTRL00_CLOCK_LANE_GATE | MIPI_CTRL00_BUS_IDLE |
+		  MIPI_CTRL00_CLOCK_LANE_DISABLE, &ret);
+	cci_write(sensor->regmap, OV5647_REG_FRAME_OFF_NUMBER, 0x0f, &ret);
+	cci_write(sensor->regmap, OV5640_REG_PAD_OUT, 0x01, &ret);
 
-	ret = ov5647_write(sd, OV5647_REG_FRAME_OFF_NUMBER, 0x0f);
-	if (ret < 0)
-		return ret;
-
-	return ov5647_write(sd, OV5640_REG_PAD_OUT, 0x01);
+	return ret;
 }
 
 static int ov5647_power_on(struct device *dev)
@@ -673,8 +581,8 @@ static int ov5647_power_on(struct device *dev)
 		goto error_pwdn;
 	}
 
-	ret = ov5647_write_array(&sensor->sd, sensor_oe_enable_regs,
-				 ARRAY_SIZE(sensor_oe_enable_regs));
+	ret = regmap_multi_reg_write(sensor->regmap, sensor_oe_enable_regs,
+				     ARRAY_SIZE(sensor_oe_enable_regs));
 	if (ret < 0) {
 		dev_err(dev, "write sensor_oe_enable_regs error\n");
 		goto error_clk_disable;
@@ -702,23 +610,17 @@ error_reg_disable:
 static int ov5647_power_off(struct device *dev)
 {
 	struct ov5647 *sensor = dev_get_drvdata(dev);
-	u8 rdval;
 	int ret;
 
 	dev_dbg(dev, "OV5647 power off\n");
 
-	ret = ov5647_write_array(&sensor->sd, sensor_oe_disable_regs,
-				 ARRAY_SIZE(sensor_oe_disable_regs));
+	ret = regmap_multi_reg_write(sensor->regmap, sensor_oe_disable_regs,
+				     ARRAY_SIZE(sensor_oe_disable_regs));
 	if (ret < 0)
 		dev_dbg(dev, "disable oe failed\n");
 
 	/* Enter software standby */
-	ret = ov5647_read(&sensor->sd, OV5647_SW_STANDBY, &rdval);
-	if (ret < 0)
-		dev_dbg(dev, "software standby failed\n");
-
-	rdval &= ~0x01;
-	ret = ov5647_write(&sensor->sd, OV5647_SW_STANDBY, rdval);
+	ret = cci_update_bits(sensor->regmap, OV5647_SW_STANDBY, 0x01, 0x00, NULL);
 	if (ret < 0)
 		dev_dbg(dev, "software standby failed\n");
 
@@ -733,10 +635,11 @@ static int ov5647_power_off(struct device *dev)
 static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
 				      struct v4l2_dbg_register *reg)
 {
+	struct ov5647 *sensor = to_sensor(sd);
 	int ret;
-	u8 val;
+	u64 val;
 
-	ret = ov5647_read(sd, reg->reg & 0xff, &val);
+	ret = cci_read(sensor->regmap, reg->reg & 0xff, &val, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -749,7 +652,9 @@ static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
 static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
 				      const struct v4l2_dbg_register *reg)
 {
-	return ov5647_write(sd, reg->reg & 0xff, reg->val & 0xff);
+	struct ov5647 *sensor = to_sensor(sd);
+
+	return cci_write(sensor->regmap, reg->reg & 0xff, reg->val & 0xff, NULL);
 }
 #endif
 
@@ -1004,33 +909,27 @@ static const struct v4l2_subdev_ops ov5647_subdev_ops = {
 
 static int ov5647_detect(struct v4l2_subdev *sd)
 {
+	struct ov5647 *sensor = to_sensor(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 read;
+	u64 read;
 	int ret;
 
-	ret = ov5647_write(sd, OV5647_SW_RESET, 0x01);
+	ret = cci_write(sensor->regmap, OV5647_SW_RESET, 0x01, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = ov5647_read(sd, OV5647_REG_CHIPID_H, &read);
+	ret = cci_read(sensor->regmap, OV5647_REG_CHIPID, &read, NULL);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&client->dev, ret,
+				     "failed to read chip id %x\n",
+				     OV5647_REG_CHIPID);
 
-	if (read != 0x56) {
-		dev_err(&client->dev, "ID High expected 0x56 got %x", read);
+	if (read != OV5647_CHIP_ID) {
+		dev_err(&client->dev, "Chip ID expected 0x5647 got 0x%llx", read);
 		return -ENODEV;
 	}
 
-	ret = ov5647_read(sd, OV5647_REG_CHIPID_L, &read);
-	if (ret < 0)
-		return ret;
-
-	if (read != 0x47) {
-		dev_err(&client->dev, "ID Low expected 0x47 got %x", read);
-		return -ENODEV;
-	}
-
-	return ov5647_write(sd, OV5647_SW_RESET, 0x00);
+	return cci_write(sensor->regmap, OV5647_SW_RESET, 0x00, NULL);
 }
 
 static int ov5647_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
@@ -1052,99 +951,6 @@ static int ov5647_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 static const struct v4l2_subdev_internal_ops ov5647_subdev_internal_ops = {
 	.open = ov5647_open,
 };
-
-static int ov5647_s_auto_white_balance(struct v4l2_subdev *sd, u32 val)
-{
-	return ov5647_write(sd, OV5647_REG_AWB, val ? 1 : 0);
-}
-
-static int ov5647_s_autogain(struct v4l2_subdev *sd, u32 val)
-{
-	int ret;
-	u8 reg;
-
-	/* Non-zero turns on AGC by clearing bit 1.*/
-	ret = ov5647_read(sd, OV5647_REG_AEC_AGC, &reg);
-	if (ret)
-		return ret;
-
-	return ov5647_write(sd, OV5647_REG_AEC_AGC, val ? reg & ~BIT(1)
-							: reg | BIT(1));
-}
-
-static int ov5647_s_exposure_auto(struct v4l2_subdev *sd, u32 val)
-{
-	int ret;
-	u8 reg;
-
-	/*
-	 * Everything except V4L2_EXPOSURE_MANUAL turns on AEC by
-	 * clearing bit 0.
-	 */
-	ret = ov5647_read(sd, OV5647_REG_AEC_AGC, &reg);
-	if (ret)
-		return ret;
-
-	return ov5647_write(sd, OV5647_REG_AEC_AGC,
-			    val == V4L2_EXPOSURE_MANUAL ? reg | BIT(0)
-							: reg & ~BIT(0));
-}
-
-static int ov5647_s_analogue_gain(struct v4l2_subdev *sd, u32 val)
-{
-	int ret;
-
-	/* 10 bits of gain, 2 in the high register. */
-	ret = ov5647_write(sd, OV5647_REG_GAIN_HI, (val >> 8) & 3);
-	if (ret)
-		return ret;
-
-	return ov5647_write(sd, OV5647_REG_GAIN_LO, val & 0xff);
-}
-
-static int ov5647_s_exposure(struct v4l2_subdev *sd, u32 val)
-{
-	int ret;
-
-	/*
-	 * Sensor has 20 bits, but the bottom 4 bits are fractions of a line
-	 * which we leave as zero (and don't receive in "val").
-	 */
-	ret = ov5647_write(sd, OV5647_REG_EXP_HI, (val >> 12) & 0xf);
-	if (ret)
-		return ret;
-
-	ret = ov5647_write(sd, OV5647_REG_EXP_MID, (val >> 4) & 0xff);
-	if (ret)
-		return ret;
-
-	return ov5647_write(sd, OV5647_REG_EXP_LO, (val & 0xf) << 4);
-}
-
-static int ov5647_s_flip(struct v4l2_subdev *sd, u16 reg, u32 ctrl_val)
-{
-	u8 reg_val;
-	int ret;
-
-	/*
-	 * TIMING TC REG20 (Vertical) and REG21 (Horizontal):
-	 * - [2]:	ISP mirror/flip
-	 * - [1]:	Sensor mirror/flip
-	 *
-	 * We only use sensor flip.
-	 *
-	 * Using ISP flip retains the BGGR pattern at the cost of changing the
-	 * pixel array readout. This affects the selection rectangles in ways
-	 * that are not very well documented, and would be tougher to deal with
-	 * for applications compared to reading a different bayer pattern.
-	 */
-	ret = ov5647_read(sd, reg, &reg_val);
-	if (ret)
-		return ret;
-
-	return ov5647_write(sd, reg, ctrl_val ? reg_val | BIT(1)
-					      : reg_val & ~BIT(1));
-}
 
 static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -1179,38 +985,55 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = ov5647_s_auto_white_balance(sd, ctrl->val);
+		ret = cci_write(sensor->regmap, OV5647_REG_AWB,
+				ctrl->val ? 1 : 0, NULL);
 		break;
 	case V4L2_CID_AUTOGAIN:
-		ret = ov5647_s_autogain(sd, ctrl->val);
+		/* Non-zero turns on AGC by clearing bit 1.*/
+		return cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(1),
+				       ctrl->val ? 0 : BIT(1), NULL);
 		break;
 	case V4L2_CID_EXPOSURE_AUTO:
-		ret = ov5647_s_exposure_auto(sd, ctrl->val);
+		/*
+		 * Everything except V4L2_EXPOSURE_MANUAL turns on AEC by
+		 * clearing bit 0.
+		 */
+		return cci_update_bits(sensor->regmap, OV5647_REG_AEC_AGC, BIT(0),
+				       ctrl->val == V4L2_EXPOSURE_MANUAL ? BIT(0) : 0, NULL);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret =  ov5647_s_analogue_gain(sd, ctrl->val);
+		/* 10 bits of gain, 2 in the high register. */
+		return cci_write(sensor->regmap, OV5647_REG_GAIN,
+				 ctrl->val & 0x3ff, NULL);
 		break;
 	case V4L2_CID_EXPOSURE:
-		ret = ov5647_s_exposure(sd, ctrl->val);
+		/*
+		 * Sensor has 20 bits, but the bottom 4 bits are fractions of a line
+		 * which we leave as zero (and don't receive in "val").
+		 */
+		ret = cci_write(sensor->regmap, OV5647_REG_EXPOSURE,
+				ctrl->val << 4, NULL);
 		break;
 	case V4L2_CID_VBLANK:
-		ret = ov5647_write16(sd, OV5647_REG_VTS_HI,
-				     sensor->mode->format.height + ctrl->val);
+		ret = cci_write(sensor->regmap, OV5647_REG_VTS,
+				sensor->mode->format.height + ctrl->val, NULL);
 		break;
 	case V4L2_CID_HBLANK:
-		ret = ov5647_write16(sd, OV5647_REG_HTS_HI,
-				     sensor->mode->format.width + ctrl->val);
+		ret = cci_write(sensor->regmap, OV5647_REG_HTS,
+				sensor->mode->format.width + ctrl->val, &ret);
 		break;
 	case V4L2_CID_TEST_PATTERN:
-		ret = ov5647_write(sd, OV5647_REG_ISPCTRL3D,
-				   ov5647_test_pattern_val[ctrl->val]);
+		ret = cci_write(sensor->regmap, OV5647_REG_ISPCTRL3D,
+				ov5647_test_pattern_val[ctrl->val], NULL);
 		break;
 	case V4L2_CID_HFLIP:
 		/* There's an in-built hflip in the sensor, so account for that here. */
-		ret = ov5647_s_flip(sd, OV5647_REG_TIMING_TC_H, !ctrl->val);
+		ret = cci_update_bits(sensor->regmap, OV5647_REG_TIMING_TC_H, BIT(1),
+				      ctrl->val ? 0 : BIT(1), NULL);
 		break;
 	case V4L2_CID_VFLIP:
-		ret = ov5647_s_flip(sd, OV5647_REG_TIMING_TC_V, ctrl->val);
+		ret = cci_update_bits(sensor->regmap, OV5647_REG_TIMING_TC_V, BIT(1),
+				      ctrl->val ? BIT(1) : 0, NULL);
 		break;
 
 	default:
@@ -1415,6 +1238,13 @@ static int ov5647_probe(struct i2c_client *client)
 	ret = media_entity_pads_init(&sd->entity, 1, &sensor->pad);
 	if (ret < 0)
 		goto ctrl_handler_free;
+
+	sensor->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(sensor->regmap)) {
+		ret = dev_err_probe(dev, PTR_ERR(sensor->regmap),
+				    "Failed to init CCI\n");
+		goto entity_cleanup;
+	}
 
 	ret = ov5647_power_on(dev);
 	if (ret)
