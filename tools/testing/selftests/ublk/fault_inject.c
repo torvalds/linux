@@ -33,6 +33,7 @@ static int ublk_fault_inject_tgt_init(const struct dev_ctx *ctx,
 			.dev_sectors		= dev_size >> 9,
 		},
 	};
+	ublk_set_integrity_params(ctx, &dev->tgt.params);
 
 	dev->private_data = (void *)(unsigned long)(ctx->fault_inject.delay_us * 1000);
 	return 0;
