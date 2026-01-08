@@ -4223,11 +4223,18 @@ int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
 
 int rtw89_mac_preinit(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	int ret;
 
 	ret = rtw89_mac_pwr_on(rtwdev);
 	if (ret)
 		return ret;
+
+	if (mac->mac_func_en) {
+		ret = mac->mac_func_en(rtwdev);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -7292,6 +7299,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.trx_init = trx_init_ax,
 	.preload_init = preload_init_set_ax,
 	.err_imr_ctrl = err_imr_ctrl_ax,
+	.mac_func_en = NULL,
 	.hci_func_en = rtw89_mac_hci_func_en_ax,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_ax,
 	.dle_func_en = dle_func_en_ax,

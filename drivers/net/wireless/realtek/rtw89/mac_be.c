@@ -751,6 +751,37 @@ static int rtw89_fwdl_check_path_ready_be(struct rtw89_dev *rtwdev,
 
 static int dmac_func_en_be(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->chip_id == RTL8922A)
+		return 0;
+
+	rtw89_write32_set(rtwdev, R_BE_DMAC_FUNC_EN,
+			  B_BE_MAC_FUNC_EN | B_BE_DMAC_FUNC_EN |
+			  B_BE_MPDU_PROC_EN | B_BE_WD_RLS_EN |
+			  B_BE_DLE_WDE_EN | B_BE_TXPKT_CTRL_EN |
+			  B_BE_STA_SCH_EN | B_BE_DLE_PLE_EN |
+			  B_BE_PKT_BUF_EN | B_BE_DMAC_TBL_EN |
+			  B_BE_PKT_IN_EN | B_BE_DLE_CPUIO_EN |
+			  B_BE_DISPATCHER_EN | B_BE_BBRPT_EN |
+			  B_BE_MAC_SEC_EN | B_BE_H_AXIDMA_EN |
+			  B_BE_DMAC_MLO_EN | B_BE_PLRLS_EN |
+			  B_BE_P_AXIDMA_EN | B_BE_DLE_DATACPUIO_EN);
+
+	return 0;
+}
+
+static int cmac_share_func_en_be(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->chip_id == RTL8922A)
+		return 0;
+
+	rtw89_write32_set(rtwdev, R_BE_CMAC_SHARE_FUNC_EN,
+			  B_BE_CMAC_SHARE_EN | B_BE_RESPBA_EN |
+			  B_BE_ADDRSRCH_EN | B_BE_BTCOEX_EN);
+
 	return 0;
 }
 
@@ -865,6 +896,10 @@ static int sys_init_be(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
+	ret = cmac_share_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
 	ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_0, true);
 	if (ret)
 		return ret;
@@ -878,6 +913,43 @@ static int sys_init_be(struct rtw89_dev *rtwdev)
 		return ret;
 
 	return ret;
+}
+
+static int mac_func_en_be(struct rtw89_dev *rtwdev)
+{
+	u32 val;
+	int ret;
+
+	ret = dmac_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
+	ret = cmac_share_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
+	val = rtw89_read32(rtwdev, R_BE_FEN_RST_ENABLE);
+	if (val & B_BE_CMAC0_FEN) {
+		ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_0, true);
+		if (ret)
+			return ret;
+
+		ret = cmac_func_en_be(rtwdev, RTW89_MAC_0, true);
+		if (ret)
+			return ret;
+	}
+
+	if (val & B_BE_CMAC1_FEN) {
+		ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_1, true);
+		if (ret)
+			return ret;
+
+		ret = cmac_func_en_be(rtwdev, RTW89_MAC_1, true);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int sta_sch_init_be(struct rtw89_dev *rtwdev)
@@ -2911,6 +2983,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.trx_init = trx_init_be,
 	.preload_init = preload_init_be,
 	.err_imr_ctrl = err_imr_ctrl_be,
+	.mac_func_en = mac_func_en_be,
 	.hci_func_en = rtw89_mac_hci_func_en_be,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_be,
 	.dle_func_en = dle_func_en_be,
