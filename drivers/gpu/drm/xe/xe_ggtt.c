@@ -1185,3 +1185,14 @@ u64 xe_ggtt_read_pte(struct xe_ggtt *ggtt, u64 offset)
 {
 	return ioread64(ggtt->gsm + (offset / XE_PAGE_SIZE));
 }
+
+/**
+ * xe_ggtt_node_addr - Get @node offset in GGTT.
+ * @node: &xe_ggtt_node
+ *
+ * Get the GGTT offset for allocated node.
+ */
+u64 xe_ggtt_node_addr(const struct xe_ggtt_node *node)
+{
+	return node->base.start;
+}
