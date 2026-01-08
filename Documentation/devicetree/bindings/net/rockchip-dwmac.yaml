@@ -85,6 +85,8 @@ properties:
         - clk_mac_refout
         - clk_mac_speed
 
+  dma-coherent: true
+
   clock_in_out:
     description:
       For RGMII, it must be "input", means main clock(125MHz)
