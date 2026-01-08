@@ -173,7 +173,7 @@ static void dwxgmac2_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		tdes3 &= ~XGMAC_TDES3_FD;
 
 	if (csum_flag)
-		tdes3 |= 0x3 << XGMAC_TDES3_CIC_SHIFT;
+		tdes3 |= FIELD_PREP(XGMAC_TDES3_CIC, 0x3);
 	else
 		tdes3 &= ~XGMAC_TDES3_CIC;
 
@@ -206,13 +206,11 @@ static void dwxgmac2_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 	if (len1)
 		p->des2 |= cpu_to_le32(len1 & XGMAC_TDES2_B1L);
 	if (len2)
-		p->des2 |= cpu_to_le32((len2 << XGMAC_TDES2_B2L_SHIFT) &
-				XGMAC_TDES2_B2L);
+		p->des2 |= cpu_to_le32(FIELD_PREP(XGMAC_TDES2_B2L, len2));
 	if (is_fs) {
 		tdes3 |= XGMAC_TDES3_FD | XGMAC_TDES3_TSE;
-		tdes3 |= (tcphdrlen << XGMAC_TDES3_THL_SHIFT) &
-			XGMAC_TDES3_THL;
-		tdes3 |= tcppayloadlen & XGMAC_TDES3_TPL;
+		tdes3 |= FIELD_PREP(XGMAC_TDES3_THL, tcphdrlen);
+		tdes3 |= FIELD_PREP(XGMAC_TDES3_TPL, tcppayloadlen);
 	} else {
 		tdes3 &= ~XGMAC_TDES3_FD;
 	}
@@ -278,7 +276,7 @@ static int dwxgmac2_get_rx_hash(struct dma_desc *p, u32 *hash,
 	u32 ptype;
 
 	if (rdes3 & XGMAC_RDES3_RSV) {
-		ptype = (rdes3 & XGMAC_RDES3_L34T) >> XGMAC_RDES3_L34T_SHIFT;
+		ptype = FIELD_GET(XGMAC_RDES3_L34T, rdes3);
 
 		switch (ptype) {
 		case XGMAC_L34T_IP4TCP:
@@ -313,9 +311,7 @@ static void dwxgmac2_set_sec_addr(struct dma_desc *p, dma_addr_t addr, bool is_v
 
 static void dwxgmac2_set_sarc(struct dma_desc *p, u32 sarc_type)
 {
-	sarc_type <<= XGMAC_TDES3_SAIC_SHIFT;
-
-	p->des3 |= cpu_to_le32(sarc_type & XGMAC_TDES3_SAIC);
+	p->des3 |= cpu_to_le32(FIELD_PREP(XGMAC_TDES3_SAIC, sarc_type));
 }
 
 static void dwxgmac2_set_vlan_tag(struct dma_desc *p, u16 tag, u16 inner_tag,
@@ -328,13 +324,11 @@ static void dwxgmac2_set_vlan_tag(struct dma_desc *p, u16 tag, u16 inner_tag,
 
 	/* Inner VLAN */
 	if (inner_type) {
-		u32 des = inner_tag << XGMAC_TDES2_IVT_SHIFT;
+		u32 des = FIELD_PREP(XGMAC_TDES2_IVT, inner_tag);
 
-		des &= XGMAC_TDES2_IVT;
 		p->des2 = cpu_to_le32(des);
 
-		des = inner_type << XGMAC_TDES3_IVTIR_SHIFT;
-		des &= XGMAC_TDES3_IVTIR;
+		des = FIELD_PREP(XGMAC_TDES3_IVTIR, inner_type);
 		p->des3 = cpu_to_le32(des | XGMAC_TDES3_IVLTV);
 	}
 
@@ -347,8 +341,7 @@ static void dwxgmac2_set_vlan_tag(struct dma_desc *p, u16 tag, u16 inner_tag,
 
 static void dwxgmac2_set_vlan(struct dma_desc *p, u32 type)
 {
-	type <<= XGMAC_TDES2_VTIR_SHIFT;
-	p->des2 |= cpu_to_le32(type & XGMAC_TDES2_VTIR);
+	p->des2 |= cpu_to_le32(FIELD_PREP(XGMAC_TDES2_VTIR, type));
 }
 
 static void dwxgmac2_set_tbs(struct dma_edesc *p, u32 sec, u32 nsec)
