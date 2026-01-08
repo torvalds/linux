@@ -1611,7 +1611,7 @@ err_cleanup_profile:
 	priv->profile->cleanup(priv);
 
 err_destroy_netdev:
-	mlx5e_destroy_netdev(netdev_priv(netdev));
+	mlx5e_destroy_netdev(netdev);
 	return err;
 }
 
@@ -1666,7 +1666,7 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	mlx5e_rep_vnic_reporter_destroy(priv);
 	mlx5e_detach_netdev(priv);
 	priv->profile->cleanup(priv);
-	mlx5e_destroy_netdev(priv);
+	mlx5e_destroy_netdev(netdev);
 free_ppriv:
 	kvfree(ppriv); /* mlx5e_rep_priv */
 }
