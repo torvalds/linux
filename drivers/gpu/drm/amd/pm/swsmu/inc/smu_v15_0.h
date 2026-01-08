@@ -237,8 +237,6 @@ int smu_v15_0_od_edit_dpm_table(struct smu_context *smu,
 				enum PP_OD_DPM_TABLE_COMMAND type,
 				long input[], uint32_t size);
 
-void smu_v15_0_set_smu_mailbox_registers(struct smu_context *smu);
-
 int smu_v15_0_enable_thermal_alert(struct smu_context *smu);
 
 int smu_v15_0_disable_thermal_alert(struct smu_context *smu);
