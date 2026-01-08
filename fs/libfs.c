@@ -1700,24 +1700,6 @@ struct inode *alloc_anon_inode(struct super_block *s)
 EXPORT_SYMBOL(alloc_anon_inode);
 
 /**
- * simple_nosetlease - generic helper for prohibiting leases
- * @filp: file pointer
- * @arg: type of lease to obtain
- * @flp: new lease supplied for insertion
- * @priv: private data for lm_setup operation
- *
- * Generic helper for filesystems that do not wish to allow leases to be set.
- * All arguments are ignored and it just returns -EINVAL.
- */
-int
-simple_nosetlease(struct file *filp, int arg, struct file_lease **flp,
-		  void **priv)
-{
-	return -EINVAL;
-}
-EXPORT_SYMBOL(simple_nosetlease);
-
-/**
  * simple_get_link - generic helper to get the target of "fast" symlinks
  * @dentry: not used here
  * @inode: the symlink inode

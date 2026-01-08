@@ -1709,7 +1709,6 @@ const struct file_operations cifs_dir_ops = {
 	.remap_file_range = cifs_remap_file_range,
 	.llseek = generic_file_llseek,
 	.fsync = cifs_dir_fsync,
-	.setlease = simple_nosetlease,
 };
 
 static void
