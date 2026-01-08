@@ -1403,6 +1403,33 @@ pub trait InPlaceWrite<T> {
     fn write_pin_init<E>(self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E>;
 }
 
+impl<T> InPlaceWrite<T> for &'static mut MaybeUninit<T> {
+    type Initialized = &'static mut T;
+
+    fn write_init<E>(self, init: impl Init<T, E>) -> Result<Self::Initialized, E> {
+        let slot = self.as_mut_ptr();
+
+        // SAFETY: `slot` is a valid pointer to uninitialized memory.
+        unsafe { init.__init(slot)? };
+
+        // SAFETY: The above call initialized the memory.
+        unsafe { Ok(self.assume_init_mut()) }
+    }
+
+    fn write_pin_init<E>(self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E> {
+        let slot = self.as_mut_ptr();
+
+        // SAFETY: `slot` is a valid pointer to uninitialized memory.
+        //
+        // The `'static` borrow guarantees the data will not be
+        // moved/invalidated until it gets dropped (which is never).
+        unsafe { init.__pinned_init(slot)? };
+
+        // SAFETY: The above call initialized the memory.
+        Ok(Pin::static_mut(unsafe { self.assume_init_mut() }))
+    }
+}
+
 /// Trait facilitating pinned destruction.
 ///
 /// Use [`pinned_drop`] to implement this trait safely:
