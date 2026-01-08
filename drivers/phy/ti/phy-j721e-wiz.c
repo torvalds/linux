@@ -940,10 +940,7 @@ static int wiz_clk_div_determine_rate(struct clk_hw *hw,
 {
 	struct wiz_clk_divider *div = to_wiz_clk_div(hw);
 
-	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
-				       div->table, 2, 0x0);
-
-	return 0;
+	return divider_determine_rate(hw, req, div->table, 2, 0x0);
 }
 
 static int wiz_clk_div_set_rate(struct clk_hw *hw, unsigned long rate,
