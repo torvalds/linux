@@ -47,6 +47,12 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: mclk
+
   interrupts:
     maxItems: 1
     description: The CODEC's interrupt output.
@@ -120,6 +126,9 @@ properties:
       - 1 # Scale current by 0.75
       - 2 # Scale current by 1.0
       - 3 # Scale current by 1.5
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
 
 required:
   - compatible
