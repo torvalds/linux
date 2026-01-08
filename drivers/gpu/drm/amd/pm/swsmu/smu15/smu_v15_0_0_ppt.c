@@ -1342,6 +1342,22 @@ static void smu_v15_0_0_set_smu_mailbox_registers(struct smu_context *smu)
 	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_31);
 }
 
+static void smu_v15_0_0_init_msg_ctl(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+
+	ctl->smu = smu;
+	mutex_init(&ctl->lock);
+	ctl->config.msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_30);
+	ctl->config.resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_31);
+	ctl->config.arg_regs[0] = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_32);
+	ctl->config.num_arg_regs = 1;
+	ctl->ops = &smu_msg_v1_ops;
+	ctl->default_timeout = adev->usec_timeout * 20;
+	ctl->message_map = smu_v15_0_0_message_map;
+}
+
 void smu_v15_0_0_set_ppt_funcs(struct smu_context *smu)
 {
 
@@ -1352,4 +1368,5 @@ void smu_v15_0_0_set_ppt_funcs(struct smu_context *smu)
 	smu->is_apu = true;
 
 	smu_v15_0_0_set_smu_mailbox_registers(smu);
+	smu_v15_0_0_init_msg_ctl(smu);
 }
