@@ -91,6 +91,10 @@ class JobserverExec:
             while True:
                 try:
                     slot = os.read(self.reader, 8)
+                    if not slot:
+                        # Clear self.jobs to prevent us from probably writing incorrect file.
+                        self.jobs = b""
+                        raise ValueError("unexpected empty token from jobserver fd, invalid '--jobserver-auth=' setting?")
                     self.jobs += slot
                 except (OSError, IOError) as e:
                     if e.errno == errno.EWOULDBLOCK:
@@ -105,7 +109,8 @@ class JobserverExec:
             # to sit here blocked on our child.
             self.claim = len(self.jobs) + 1
 
-        except (KeyError, IndexError, ValueError, OSError, IOError):
+        except (KeyError, IndexError, ValueError, OSError, IOError) as e:
+            print(f"jobserver: warning: {repr(e)}", file=sys.stderr)
             # Any missing environment strings or bad fds should result in just
             # not being parallel.
             self.claim = None
