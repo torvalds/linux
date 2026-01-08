@@ -46,6 +46,7 @@
 #include "dchubbub.h"
 #include "reg_helper.h"
 #include "dcn10/dcn10_cm_common.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "vm_helper.h"
 #include "dccg.h"
 #include "dc_dmub_srv.h"
@@ -3153,8 +3154,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
 	REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
 
-	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
-	REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+	dcn10_hubbub_global_timer_enable(dc->res_pool->hubbub, true, 2);
 	if (REG(REFCLK_CNTL))
 		REG_WRITE(REFCLK_CNTL, 0);
 	//

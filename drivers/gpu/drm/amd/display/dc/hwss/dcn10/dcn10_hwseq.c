@@ -2678,8 +2678,7 @@ static void mmhub_read_vm_context0_settings(struct dcn10_hubp *hubp1,
 	uint32_t fb_base_value;
 	uint32_t fb_offset_value;
 
-	REG_GET(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, &fb_base_value);
-	REG_GET(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, &fb_offset_value);
+	dcn10_hubbub_read_fb_aperture(hws->ctx->dc->res_pool->hubbub, &fb_base_value, &fb_offset_value);
 
 	REG_GET(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32,
 			PAGE_DIRECTORY_ENTRY_HI32, &vm0->pte_base.high_part);

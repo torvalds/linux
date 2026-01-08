@@ -32,6 +32,7 @@
 #include "dce/dce_hwseq.h"
 #include "clk_mgr.h"
 #include "reg_helper.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "abm.h"
 #include "hubp.h"
 #include "dchubbub.h"

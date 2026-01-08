@@ -36,6 +36,7 @@
 #include "dcn10/dcn10_cm_common.h"
 #include "dcn30/dcn30_cm_common.h"
 #include "reg_helper.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "abm.h"
 #include "clk_mgr.h"
 #include "hubp.h"
