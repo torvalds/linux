@@ -2227,6 +2227,7 @@ static int atcphy_probe_finalize(struct apple_atcphy *atcphy)
 	_atcphy_dwc3_reset_assert(atcphy);
 
 	/* Reset atcphy to clear any state potentially left by the bootloader */
+	atcphy_usb2_power_off(atcphy);
 	atcphy_power_off(atcphy);
 	atcphy_setup_pipehandler(atcphy);
 
