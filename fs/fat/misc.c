@@ -332,28 +332,14 @@ void fat_truncate_time(struct inode *inode, struct timespec64 *now,
 }
 EXPORT_SYMBOL_GPL(fat_truncate_time);
 
-int fat_update_time(struct inode *inode, int flags)
+int fat_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
-	unsigned int fat_flags = 0;
-	int dirty_flags = 0;
-
-	if (inode->i_ino == MSDOS_ROOT_INO)
-		return 0;
-
-	if (flags & S_ATIME)
-		fat_flags |= FAT_UPDATE_ATIME;
-	if (flags & (S_CTIME | S_MTIME))
-		fat_flags |= FAT_UPDATE_CMTIME;
-
-	if (fat_flags) {
-		fat_truncate_time(inode, NULL, flags);
-		if (inode->i_sb->s_flags & SB_LAZYTIME)
-			dirty_flags |= I_DIRTY_TIME;
-		else
-			dirty_flags |= I_DIRTY_SYNC;
+	if (inode->i_ino != MSDOS_ROOT_INO) {
+		fat_truncate_time(inode, NULL, type == FS_UPD_ATIME ?
+				FAT_UPDATE_ATIME : FAT_UPDATE_CMTIME);
+		__mark_inode_dirty(inode, inode_time_dirty_flag(inode));
 	}
-
-	__mark_inode_dirty(inode, dirty_flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fat_update_time);

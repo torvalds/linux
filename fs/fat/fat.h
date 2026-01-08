@@ -472,7 +472,8 @@ extern struct timespec64 fat_truncate_atime(const struct msdos_sb_info *sbi,
 #define FAT_UPDATE_CMTIME	(1u << 1)
 void fat_truncate_time(struct inode *inode, struct timespec64 *now,
 		unsigned int flags);
-extern int fat_update_time(struct inode *inode, int flags);
+int fat_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags);
 extern int fat_sync_bhs(struct buffer_head **bhs, int nr_bhs);
 
 int fat_cache_init(void);

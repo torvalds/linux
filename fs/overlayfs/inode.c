@@ -555,9 +555,10 @@ int ovl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 }
 #endif
 
-int ovl_update_time(struct inode *inode, int flags)
+int ovl_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
-	if (flags & S_ATIME) {
+	if (type == FS_UPD_ATIME) {
 		struct ovl_fs *ofs = OVL_FS(inode->i_sb);
 		struct path upperpath = {
 			.mnt = ovl_upper_mnt(ofs),

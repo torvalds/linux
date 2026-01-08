@@ -6345,16 +6345,19 @@ static int btrfs_dirty_inode(struct btrfs_inode *inode)
  * We need our own ->update_time so that we can return error on ENOSPC for
  * updating the inode in the case of file write and mmap writes.
  */
-static int btrfs_update_time(struct inode *inode, int flags)
+static int btrfs_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	bool dirty;
+	int dirty;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
 
-	dirty = inode_update_timestamps(inode, flags);
-	return dirty ? btrfs_dirty_inode(BTRFS_I(inode)) : 0;
+	dirty = inode_update_time(inode, type, flags);
+	if (dirty <= 0)
+		return dirty;
+	return btrfs_dirty_inode(BTRFS_I(inode));
 }
 
 /*

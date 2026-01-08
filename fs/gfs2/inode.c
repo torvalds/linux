@@ -2242,7 +2242,8 @@ loff_t gfs2_seek_hole(struct file *file, loff_t offset)
 	return vfs_setpos(file, ret, inode->i_sb->s_maxbytes);
 }
 
-static int gfs2_update_time(struct inode *inode, int flags)
+static int gfs2_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_glock *gl = ip->i_gl;
@@ -2257,7 +2258,7 @@ static int gfs2_update_time(struct inode *inode, int flags)
 		if (error)
 			return error;
 	}
-	return generic_update_time(inode, flags);
+	return generic_update_time(inode, type, flags);
 }
 
 static const struct inode_operations gfs2_file_iops = {

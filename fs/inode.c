@@ -2081,78 +2081,84 @@ static bool relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 	return false;
 }
 
-/**
- * inode_update_timestamps - update the timestamps on the inode
- * @inode: inode to be updated
- * @flags: S_* flags that needed to be updated
- *
- * The update_time function is called when an inode's timestamps need to be
- * updated for a read or write operation. This function handles updating the
- * actual timestamps. It's up to the caller to ensure that the inode is marked
- * dirty appropriately.
- *
- * In the case where any of S_MTIME, S_CTIME, or S_VERSION need to be updated,
- * attempt to update all three of them. S_ATIME updates can be handled
- * independently of the rest.
- *
- * Returns a set of S_* flags indicating which values changed.
- */
-int inode_update_timestamps(struct inode *inode, int flags)
+static int inode_update_atime(struct inode *inode)
 {
-	int updated = 0;
-	struct timespec64 now;
+	struct timespec64 atime = inode_get_atime(inode);
+	struct timespec64 now = current_time(inode);
 
-	if (flags & (S_MTIME|S_CTIME|S_VERSION)) {
-		struct timespec64 ctime = inode_get_ctime(inode);
-		struct timespec64 mtime = inode_get_mtime(inode);
+	if (timespec64_equal(&now, &atime))
+		return 0;
 
-		now = inode_set_ctime_current(inode);
-		if (!timespec64_equal(&now, &ctime))
-			updated |= S_CTIME;
-		if (!timespec64_equal(&now, &mtime)) {
-			inode_set_mtime_to_ts(inode, now);
-			updated |= S_MTIME;
-		}
-		if (IS_I_VERSION(inode) && inode_maybe_inc_iversion(inode, updated))
-			updated |= S_VERSION;
-	} else {
-		now = current_time(inode);
-	}
-
-	if (flags & S_ATIME) {
-		struct timespec64 atime = inode_get_atime(inode);
-
-		if (!timespec64_equal(&now, &atime)) {
-			inode_set_atime_to_ts(inode, now);
-			updated |= S_ATIME;
-		}
-	}
-	return updated;
+	inode_set_atime_to_ts(inode, now);
+	return inode_time_dirty_flag(inode);
 }
-EXPORT_SYMBOL(inode_update_timestamps);
+
+static int inode_update_cmtime(struct inode *inode)
+{
+	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 mtime = inode_get_mtime(inode);
+	struct timespec64 now = inode_set_ctime_current(inode);
+	unsigned int dirty = 0;
+	bool mtime_changed;
+
+	mtime_changed = !timespec64_equal(&now, &mtime);
+	if (mtime_changed || !timespec64_equal(&now, &ctime))
+		dirty = inode_time_dirty_flag(inode);
+	if (mtime_changed)
+		inode_set_mtime_to_ts(inode, now);
+
+	if (IS_I_VERSION(inode) && inode_maybe_inc_iversion(inode, !!dirty))
+		dirty |= I_DIRTY_SYNC;
+
+	return dirty;
+}
+
+/**
+ * inode_update_time - update either atime or c/mtime and i_version on the inode
+ * @inode: inode to be updated
+ * @type: timestamp to be updated
+ * @flags: flags for the update
+ *
+ * Update either atime or c/mtime and version in a inode if needed for a file
+ * access or modification.  It is up to the caller to mark the inode dirty
+ * appropriately.
+ *
+ * Returns the positive I_DIRTY_* flags for __mark_inode_dirty() if the inode
+ * needs to be marked dirty, 0 if it did not, or a negative errno if an error
+ * happened.
+ */
+int inode_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
+{
+	switch (type) {
+	case FS_UPD_ATIME:
+		return inode_update_atime(inode);
+	case FS_UPD_CMTIME:
+		return inode_update_cmtime(inode);
+	default:
+		WARN_ON_ONCE(1);
+		return -EIO;
+	}
+}
+EXPORT_SYMBOL(inode_update_time);
 
 /**
  * generic_update_time - update the timestamps on the inode
  * @inode: inode to be updated
- * @flags: S_* flags that needed to be updated
- *
- * The update_time function is called when an inode's timestamps need to be
- * updated for a read or write operation. In the case where any of S_MTIME, S_CTIME,
- * or S_VERSION need to be updated we attempt to update all three of them. S_ATIME
- * updates can be handled done independently of the rest.
+ * @type: timestamp to be updated
+ * @flags: flags for the update
  *
  * Returns a negative error value on error, else 0.
  */
-int generic_update_time(struct inode *inode, int flags)
+int generic_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags)
 {
-	int updated = inode_update_timestamps(inode, flags);
-	int dirty_flags = 0;
+	int dirty;
 
-	if (updated & (S_ATIME|S_MTIME|S_CTIME))
-		dirty_flags = inode->i_sb->s_flags & SB_LAZYTIME ? I_DIRTY_TIME : I_DIRTY_SYNC;
-	if (updated & S_VERSION)
-		dirty_flags |= I_DIRTY_SYNC;
-	__mark_inode_dirty(inode, dirty_flags);
+	dirty = inode_update_time(inode, type, flags);
+	if (dirty <= 0)
+		return dirty;
+	__mark_inode_dirty(inode, dirty);
 	return 0;
 }
 EXPORT_SYMBOL(generic_update_time);
@@ -2225,9 +2231,9 @@ void touch_atime(const struct path *path)
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
 	if (inode->i_op->update_time)
-		inode->i_op->update_time(inode, S_ATIME);
+		inode->i_op->update_time(inode, FS_UPD_ATIME, 0);
 	else
-		generic_update_time(inode, S_ATIME);
+		generic_update_time(inode, FS_UPD_ATIME, 0);
 	mnt_put_write_access(mnt);
 skip_update:
 	sb_end_write(inode->i_sb);
@@ -2354,7 +2360,7 @@ static int file_update_time_flags(struct file *file, unsigned int flags)
 {
 	struct inode *inode = file_inode(file);
 	struct timespec64 now, ts;
-	int sync_mode = 0;
+	bool need_update = false;
 	int ret = 0;
 
 	/* First try to exhaust all avenues to not sync */
@@ -2367,14 +2373,14 @@ static int file_update_time_flags(struct file *file, unsigned int flags)
 
 	ts = inode_get_mtime(inode);
 	if (!timespec64_equal(&ts, &now))
-		sync_mode |= S_MTIME;
+		need_update = true;
 	ts = inode_get_ctime(inode);
 	if (!timespec64_equal(&ts, &now))
-		sync_mode |= S_CTIME;
+		need_update = true;
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
-		sync_mode |= S_VERSION;
+		need_update = true;
 
-	if (!sync_mode)
+	if (!need_update)
 		return 0;
 
 	if (flags & IOCB_NOWAIT)
@@ -2383,9 +2389,9 @@ static int file_update_time_flags(struct file *file, unsigned int flags)
 	if (mnt_get_write_access_file(file))
 		return 0;
 	if (inode->i_op->update_time)
-		ret = inode->i_op->update_time(inode, sync_mode);
+		ret = inode->i_op->update_time(inode, FS_UPD_CMTIME, 0);
 	else
-		ret = generic_update_time(inode, sync_mode);
+		ret = generic_update_time(inode, FS_UPD_CMTIME, 0);
 	mnt_put_write_access_file(file);
 	return ret;
 }

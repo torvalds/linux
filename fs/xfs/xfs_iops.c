@@ -1184,21 +1184,21 @@ xfs_vn_setattr(
 STATIC int
 xfs_vn_update_time(
 	struct inode		*inode,
-	int			flags)
+	enum fs_update_time	type,
+	unsigned int		flags)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	int			log_flags = XFS_ILOG_TIMESTAMP;
 	struct xfs_trans	*tp;
 	int			error;
-	struct timespec64	now;
 
 	trace_xfs_update_time(ip);
 
 	if (inode->i_sb->s_flags & SB_LAZYTIME) {
-		if (!((flags & S_VERSION) &&
-		      inode_maybe_inc_iversion(inode, false)))
-			return generic_update_time(inode, flags);
+		if (type == FS_UPD_ATIME ||
+		    !inode_maybe_inc_iversion(inode, false))
+			return generic_update_time(inode, type, flags);
 
 		/* Capture the iversion update that just occurred */
 		log_flags |= XFS_ILOG_CORE;
@@ -1209,16 +1209,10 @@ xfs_vn_update_time(
 		return error;
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if (flags & (S_CTIME|S_MTIME))
-		now = inode_set_ctime_current(inode);
+	if (type == FS_UPD_ATIME)
+		inode_set_atime_to_ts(inode, current_time(inode));
 	else
-		now = current_time(inode);
-
-	if (flags & S_MTIME)
-		inode_set_mtime_to_ts(inode, now);
-	if (flags & S_ATIME)
-		inode_set_atime_to_ts(inode, now);
-
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 	xfs_trans_log_inode(tp, ip, log_flags);
 	return xfs_trans_commit(tp);

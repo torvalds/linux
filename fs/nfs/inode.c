@@ -649,15 +649,15 @@ static void nfs_set_timestamps_to_ts(struct inode *inode, struct iattr *attr)
 		struct timespec64 ctime = inode_get_ctime(inode);
 		struct timespec64 mtime = inode_get_mtime(inode);
 		struct timespec64 now;
-		int updated = 0;
+		bool updated = false;
 
 		now = inode_set_ctime_current(inode);
 		if (!timespec64_equal(&now, &ctime))
-			updated |= S_CTIME;
+			updated = true;
 
 		inode_set_mtime_to_ts(inode, attr->ia_mtime);
 		if (!timespec64_equal(&now, &mtime))
-			updated |= S_MTIME;
+			updated = true;
 
 		inode_maybe_inc_iversion(inode, updated);
 		cache_flags |= NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME;
@@ -671,13 +671,13 @@ static void nfs_set_timestamps_to_ts(struct inode *inode, struct iattr *attr)
 
 static void nfs_update_atime(struct inode *inode)
 {
-	inode_update_timestamps(inode, S_ATIME);
+	inode_update_time(inode, FS_UPD_ATIME, 0);
 	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_ATIME;
 }
 
 static void nfs_update_mtime(struct inode *inode)
 {
-	inode_update_timestamps(inode, S_MTIME | S_CTIME);
+	inode_update_time(inode, FS_UPD_CMTIME, 0);
 	NFS_I(inode)->cache_validity &=
 		~(NFS_INO_INVALID_CTIME | NFS_INO_INVALID_MTIME);
 }

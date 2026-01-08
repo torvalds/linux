@@ -485,7 +485,8 @@ As of kernel 2.6.22, the following members are defined:
 		int (*setattr) (struct mnt_idmap *, struct dentry *, struct iattr *);
 		int (*getattr) (struct mnt_idmap *, const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
-		void (*update_time)(struct inode *, struct timespec *, int);
+		void (*update_time)(struct inode *inode, enum fs_update_time type,
+				    int flags);
 		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
 		int (*tmpfile) (struct mnt_idmap *, struct inode *, struct file *, umode_t);
