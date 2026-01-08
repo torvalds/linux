@@ -1492,13 +1492,27 @@ static int rtw89_mac_pwr_off_func_for_unplugged(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static void rtw89_mac_update_scoreboard(struct rtw89_dev *rtwdev, u8 val)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 reg;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(chip->btc_sb.n); i++) {
+		reg = chip->btc_sb.n[i].cfg;
+		if (!reg)
+			continue;
+
+		rtw89_write8(rtwdev, reg + 3, val);
+	}
+}
+
 static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_pwr_cfg * const *cfg_seq;
 	int (*cfg_func)(struct rtw89_dev *rtwdev);
-	u32 reg = chip->btc_sb.n[0].cfg;
 	int ret;
 
 	rtw89_mac_power_switch_boot_mode(rtwdev);
@@ -1538,14 +1552,16 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
 		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
-		rtw89_write8(rtwdev, reg + 3, MAC_AX_NOTIFY_TP_MAJOR);
+
+		rtw89_mac_update_scoreboard(rtwdev, MAC_AX_NOTIFY_TP_MAJOR);
 	} else {
 		clear_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		clear_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
-		rtw89_write8(rtwdev, reg + 3, MAC_AX_NOTIFY_PWR_MAJOR);
+
+		rtw89_mac_update_scoreboard(rtwdev, MAC_AX_NOTIFY_PWR_MAJOR);
 		rtw89_set_entity_state(rtwdev, RTW89_PHY_0, false);
 		rtw89_set_entity_state(rtwdev, RTW89_PHY_1, false);
 	}
