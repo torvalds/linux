@@ -754,28 +754,91 @@ static int dmac_func_en_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int cmac_pwr_en_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
+{
+	if (mac_idx > RTW89_MAC_1)
+		return -EINVAL;
+
+	if (mac_idx == RTW89_MAC_0) {
+		if (en == test_bit(RTW89_FLAG_CMAC0_PWR, rtwdev->flags))
+			return 0;
+
+		if (en) {
+			rtw89_write32_set(rtwdev, R_BE_AFE_CTRL1,
+					  B_BE_R_SYM_WLCMAC0_ALL_EN);
+			rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_R_SYM_ISO_CMAC02PP);
+			rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_CMAC0_FEN);
+
+			set_bit(RTW89_FLAG_CMAC0_PWR, rtwdev->flags);
+		} else {
+			rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_CMAC0_FEN);
+			rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_R_SYM_ISO_CMAC02PP);
+			rtw89_write32_clr(rtwdev, R_BE_AFE_CTRL1,
+					  B_BE_R_SYM_WLCMAC0_ALL_EN);
+
+			clear_bit(RTW89_FLAG_CMAC0_PWR, rtwdev->flags);
+		}
+	} else {
+		if (en == test_bit(RTW89_FLAG_CMAC1_PWR, rtwdev->flags))
+			return 0;
+
+		if (en) {
+			rtw89_write32_set(rtwdev, R_BE_AFE_CTRL1,
+					  B_BE_R_SYM_WLCMAC1_ALL_EN);
+			rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_R_SYM_ISO_CMAC12PP);
+			rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_CMAC1_FEN);
+
+			set_bit(RTW89_FLAG_CMAC1_PWR, rtwdev->flags);
+		} else {
+			rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_CMAC1_FEN);
+			rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE,
+					  B_BE_R_SYM_ISO_CMAC12PP);
+			rtw89_write32_clr(rtwdev, R_BE_AFE_CTRL1,
+					  B_BE_R_SYM_WLCMAC1_ALL_EN);
+
+			clear_bit(RTW89_FLAG_CMAC1_PWR, rtwdev->flags);
+		}
+	}
+
+	return 0;
+}
+
 static int cmac_func_en_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 {
+	enum rtw89_flags pwr_flag, func_flag;
 	u32 reg;
 
 	if (mac_idx > RTW89_MAC_1)
 		return -EINVAL;
 
-	if (mac_idx == RTW89_MAC_0)
+	if (mac_idx == RTW89_MAC_0) {
+		pwr_flag = RTW89_FLAG_CMAC0_PWR;
+		func_flag = RTW89_FLAG_CMAC0_FUNC;
+	} else {
+		pwr_flag = RTW89_FLAG_CMAC1_PWR;
+		func_flag = RTW89_FLAG_CMAC1_FUNC;
+	}
+
+	if (!test_bit(pwr_flag, rtwdev->flags)) {
+		rtw89_warn(rtwdev, "CMAC %u power cut did not release\n", mac_idx);
 		return 0;
+	}
 
 	if (en) {
-		rtw89_write32_set(rtwdev, R_BE_AFE_CTRL1, B_BE_AFE_CTRL1_SET);
-		rtw89_write32_clr(rtwdev, R_BE_SYS_ISO_CTRL_EXTEND, B_BE_R_SYM_ISO_CMAC12PP);
-		rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_CMAC1_FEN);
-
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CK_EN, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_BE_CK_EN_SET);
 
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CMAC_FUNC_EN, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_BE_CMAC_FUNC_EN_SET);
 
-		set_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
+		set_bit(func_flag, rtwdev->flags);
 	} else {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CMAC_FUNC_EN, mac_idx);
 		rtw89_write32_clr(rtwdev, reg, B_BE_CMAC_FUNC_EN_SET);
@@ -783,11 +846,7 @@ static int cmac_func_en_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CK_EN, mac_idx);
 		rtw89_write32_clr(rtwdev, reg, B_BE_CK_EN_SET);
 
-		rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_CMAC1_FEN);
-		rtw89_write32_set(rtwdev, R_BE_SYS_ISO_CTRL_EXTEND, B_BE_R_SYM_ISO_CMAC12PP);
-		rtw89_write32_clr(rtwdev, R_BE_AFE_CTRL1, B_BE_AFE_CTRL1_SET);
-
-		clear_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
+		clear_bit(func_flag, rtwdev->flags);
 	}
 
 	return 0;
@@ -803,6 +862,10 @@ static int sys_init_be(struct rtw89_dev *rtwdev)
 	int ret;
 
 	ret = dmac_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
+	ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_0, true);
 	if (ret)
 		return ret;
 
@@ -1814,6 +1877,12 @@ static int band1_enable_be(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
+	ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_1, true);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]CMAC%d pwr en %d\n", RTW89_MAC_1, ret);
+		return ret;
+	}
+
 	ret = cmac_func_en_be(rtwdev, RTW89_MAC_1, true);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]CMAC%d func en %d\n", RTW89_MAC_1, ret);
@@ -1854,6 +1923,12 @@ static int band1_disable_be(struct rtw89_dev *rtwdev)
 	ret = cmac_func_en_be(rtwdev, RTW89_MAC_1, false);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]CMAC%d func dis %d\n", RTW89_MAC_1, ret);
+		return ret;
+	}
+
+	ret = cmac_pwr_en_be(rtwdev, RTW89_MAC_1, false);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]CMAC%d pwr dis %d\n", RTW89_MAC_1, ret);
 		return ret;
 	}
 
