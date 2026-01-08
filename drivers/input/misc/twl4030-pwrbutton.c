@@ -27,7 +27,8 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/twl.h>
 
@@ -132,7 +133,6 @@ static void twl4030_pwrbutton_remove(struct platform_device *pdev)
 	}
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id twl4030_pwrbutton_dt_match_table[] = {
 	{
 		.compatible = "ti,twl4030-pwrbutton",
@@ -145,14 +145,13 @@ static const struct of_device_id twl4030_pwrbutton_dt_match_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, twl4030_pwrbutton_dt_match_table);
-#endif
 
 static struct platform_driver twl4030_pwrbutton_driver = {
 	.probe		= twl4030_pwrbutton_probe,
 	.remove		= twl4030_pwrbutton_remove,
 	.driver		= {
 		.name	= "twl4030_pwrbutton",
-		.of_match_table = of_match_ptr(twl4030_pwrbutton_dt_match_table),
+		.of_match_table = twl4030_pwrbutton_dt_match_table,
 	},
 };
 module_platform_driver(twl4030_pwrbutton_driver);
