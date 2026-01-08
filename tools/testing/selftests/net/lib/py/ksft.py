@@ -153,6 +153,11 @@ def ktap_result(ok, cnt=1, case_name="", comment=""):
     print(res, flush=True)
 
 
+def _ksft_defer_arm(state):
+    """ Allow or disallow the use of defer() """
+    utils.GLOBAL_DEFER_ARMED = state
+
+
 def ksft_flush_defer():
     global KSFT_RESULT
 
@@ -315,6 +320,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
         comment = ""
         cnt_key = ""
 
+        _ksft_defer_arm(True)
         try:
             func(*args)
         except KsftSkipEx as e:
@@ -332,6 +338,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
                 ksft_pr(f"Stopping tests due to {type(e).__name__}.")
             KSFT_RESULT = False
             cnt_key = 'fail'
+        _ksft_defer_arm(False)
 
         try:
             ksft_flush_defer()
