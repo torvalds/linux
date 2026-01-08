@@ -77,7 +77,6 @@ static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
 									 crtc);
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
-	int err;
 
 	/* always disable planes on the CRTC that is being turned off */
 	drm_atomic_helper_disable_planes_on_crtc(old_state, false);
@@ -87,10 +86,7 @@ static void malidp_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	clk_disable_unprepare(hwdev->pxlclk);
 
-	err = pm_runtime_put(crtc->dev->dev);
-	if (err < 0) {
-		DRM_DEBUG_DRIVER("Failed to disable runtime power management: %d\n", err);
-	}
+	pm_runtime_put(crtc->dev->dev);
 }
 
 static const struct gamma_curve_segment {

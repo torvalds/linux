@@ -181,11 +181,8 @@ static void imx8qxp_pc_bridge_atomic_disable(struct drm_bridge *bridge,
 {
 	struct imx8qxp_pc_channel *ch = bridge->driver_private;
 	struct imx8qxp_pc *pc = ch->pc;
-	int ret;
 
-	ret = pm_runtime_put(pc->dev);
-	if (ret < 0)
-		DRM_DEV_ERROR(pc->dev, "failed to put runtime PM: %d\n", ret);
+	pm_runtime_put(pc->dev);
 }
 
 static const u32 imx8qxp_pc_bus_output_fmts[] = {
