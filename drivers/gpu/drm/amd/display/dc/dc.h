@@ -1209,6 +1209,7 @@ struct dc_debug_options {
 	uint32_t custom_psp_footer_size;
 	bool disable_deferred_minimal_transitions;
 	unsigned int num_fast_flips_to_steady_state_override;
+	bool enable_dmu_recovery;
 };
 
 
