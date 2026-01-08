@@ -767,31 +767,6 @@
 #define R_AX_WP_ADDR_H_SEL8_11 0x133C
 #define R_AX_WP_ADDR_H_SEL12_15 0x1340
 
-#define R_BE_HAXI_DMA_STOP1 0xB010
-#define B_BE_STOP_WPDMA BIT(31)
-#define B_BE_STOP_CH14 BIT(14)
-#define B_BE_STOP_CH13 BIT(13)
-#define B_BE_STOP_CH12 BIT(12)
-#define B_BE_STOP_CH11 BIT(11)
-#define B_BE_STOP_CH10 BIT(10)
-#define B_BE_STOP_CH9 BIT(9)
-#define B_BE_STOP_CH8 BIT(8)
-#define B_BE_STOP_CH7 BIT(7)
-#define B_BE_STOP_CH6 BIT(6)
-#define B_BE_STOP_CH5 BIT(5)
-#define B_BE_STOP_CH4 BIT(4)
-#define B_BE_STOP_CH3 BIT(3)
-#define B_BE_STOP_CH2 BIT(2)
-#define B_BE_STOP_CH1 BIT(1)
-#define B_BE_STOP_CH0 BIT(0)
-#define B_BE_TX_STOP1_MASK (B_BE_STOP_CH0 | B_BE_STOP_CH1 | \
-			    B_BE_STOP_CH2 | B_BE_STOP_CH3 | \
-			    B_BE_STOP_CH4 | B_BE_STOP_CH5 | \
-			    B_BE_STOP_CH6 | B_BE_STOP_CH7 | \
-			    B_BE_STOP_CH8 | B_BE_STOP_CH9 | \
-			    B_BE_STOP_CH10 | B_BE_STOP_CH11 | \
-			    B_BE_STOP_CH12)
-
 #define R_BE_CH0_TXBD_NUM_V1 0xB030
 #define R_BE_CH1_TXBD_NUM_V1 0xB032
 #define R_BE_CH2_TXBD_NUM_V1 0xB034

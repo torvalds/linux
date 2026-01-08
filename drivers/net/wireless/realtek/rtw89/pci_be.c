@@ -322,6 +322,7 @@ static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 mask_all;
 	u32 val;
 
@@ -329,6 +330,9 @@ static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool enable)
 		   B_BE_STOP_CH3 | B_BE_STOP_CH4 | B_BE_STOP_CH5 |
 		   B_BE_STOP_CH6 | B_BE_STOP_CH7 | B_BE_STOP_CH8 |
 		   B_BE_STOP_CH9 | B_BE_STOP_CH10 | B_BE_STOP_CH11;
+
+	/* mask out unsupported channels for certains chips */
+	mask_all &= info->dma_stop1.mask;
 
 	val = rtw89_read32(rtwdev, R_BE_HAXI_DMA_STOP1);
 	val |= B_BE_STOP_CH13 | B_BE_STOP_CH14;

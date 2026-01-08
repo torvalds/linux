@@ -365,6 +365,8 @@ static void rtw89_mac_hci_func_en_be(struct rtw89_dev *rtwdev)
 
 static void rtw89_mac_dmac_func_pre_en_be(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 mask;
 	u32 val;
 
 	val = rtw89_read32(rtwdev, R_BE_HAXI_INIT_CFG1);
@@ -388,12 +390,12 @@ static void rtw89_mac_dmac_func_pre_en_be(struct rtw89_dev *rtwdev)
 
 	rtw89_write32(rtwdev, R_BE_HAXI_INIT_CFG1, val);
 
-	rtw89_write32_clr(rtwdev, R_BE_HAXI_DMA_STOP1,
-			  B_BE_STOP_CH0 | B_BE_STOP_CH1 | B_BE_STOP_CH2 |
-			  B_BE_STOP_CH3 | B_BE_STOP_CH4 | B_BE_STOP_CH5 |
-			  B_BE_STOP_CH6 | B_BE_STOP_CH7 | B_BE_STOP_CH8 |
-			  B_BE_STOP_CH9 | B_BE_STOP_CH10 | B_BE_STOP_CH11 |
-			  B_BE_STOP_CH12 | B_BE_STOP_CH13 | B_BE_STOP_CH14);
+	if (chip->chip_id == RTL8922A)
+		mask = B_BE_TX_STOP1_MASK;
+	else
+		mask = B_BE_TX_STOP1_MASK_V1;
+
+	rtw89_write32_clr(rtwdev, R_BE_HAXI_DMA_STOP1, mask);
 
 	rtw89_write32_set(rtwdev, R_BE_DMAC_TABLE_CTRL, B_BE_DMAC_ADDR_MODE);
 }
