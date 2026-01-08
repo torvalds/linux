@@ -103,11 +103,9 @@ static unsigned long ccu_mp_find_best_with_parent_adj(struct clk_hw *hw,
 	return best_rate;
 }
 
-static unsigned long ccu_mp_round_rate(struct ccu_mux_internal *mux,
-				       struct clk_hw *hw,
-				       unsigned long *parent_rate,
-				       unsigned long rate,
-				       void *data)
+static int ccu_mp_determine_rate_helper(struct ccu_mux_internal *mux,
+					struct clk_rate_request *req,
+					void *data)
 {
 	struct ccu_mp *cmp = data;
 	unsigned int max_m, max_p;
@@ -115,7 +113,7 @@ static unsigned long ccu_mp_round_rate(struct ccu_mux_internal *mux,
 	bool shift = true;
 
 	if (cmp->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate *= cmp->fixed_post_div;
+		req->rate *= cmp->fixed_post_div;
 
 	if (cmp->common.features & CCU_FEATURE_DUAL_DIV)
 		shift = false;
@@ -127,17 +125,19 @@ static unsigned long ccu_mp_round_rate(struct ccu_mux_internal *mux,
 		max_p = cmp->p.max ?: 1 << cmp->p.width;
 
 	if (!clk_hw_can_set_rate_parent(&cmp->common.hw)) {
-		rate = ccu_mp_find_best(*parent_rate, rate, max_m, max_p, shift,
-					&m, &p);
+		req->rate = ccu_mp_find_best(req->best_parent_rate, req->rate,
+					     max_m, max_p, shift, &m, &p);
 	} else {
-		rate = ccu_mp_find_best_with_parent_adj(hw, parent_rate, rate,
-							max_m, max_p, shift);
+		req->rate = ccu_mp_find_best_with_parent_adj(req->best_parent_hw,
+							     &req->best_parent_rate,
+							     req->rate, max_m, max_p,
+							     shift);
 	}
 
 	if (cmp->common.features & CCU_FEATURE_FIXED_POSTDIV)
-		rate /= cmp->fixed_post_div;
+		req->rate /= cmp->fixed_post_div;
 
-	return rate;
+	return 0;
 }
 
 static void ccu_mp_disable(struct clk_hw *hw)
@@ -201,7 +201,7 @@ static int ccu_mp_determine_rate(struct clk_hw *hw,
 	struct ccu_mp *cmp = hw_to_ccu_mp(hw);
 
 	return ccu_mux_helper_determine_rate(&cmp->common, &cmp->mux,
-					     req, ccu_mp_round_rate, cmp);
+					     req, ccu_mp_determine_rate_helper, cmp);
 }
 
 static int ccu_mp_set_rate(struct clk_hw *hw, unsigned long rate,
