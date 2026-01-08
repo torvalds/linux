@@ -320,9 +320,6 @@ class NlMsgs:
         yield from self.msgs
 
 
-genl_family_name_to_id = None
-
-
 def _genl_msg(nl_type, nl_flags, genl_cmd, genl_version, seq=None):
     # we prepend length in _genl_msg_finalize()
     if seq is None:
@@ -338,6 +335,8 @@ def _genl_msg_finalize(msg):
 
 # pylint: disable=too-many-nested-blocks
 def _genl_load_families():
+    genl_family_name_to_id = {}
+
     with socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, Netlink.NETLINK_GENERIC) as sock:
         sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_CAP_ACK, 1)
 
@@ -348,18 +347,14 @@ def _genl_load_families():
 
         sock.send(msg, 0)
 
-        global genl_family_name_to_id
-        genl_family_name_to_id = dict()
-
         while True:
             reply = sock.recv(128 * 1024)
             nms = NlMsgs(reply)
             for nl_msg in nms:
                 if nl_msg.error:
-                    print("Netlink error:", nl_msg.error)
-                    return
+                    raise YnlException(f"Netlink error: {nl_msg.error}")
                 if nl_msg.done:
-                    return
+                    return genl_family_name_to_id
 
                 gm = GenlMsg(nl_msg)
                 fam = {}
@@ -439,15 +434,16 @@ class NetlinkProtocol:
 
 
 class GenlProtocol(NetlinkProtocol):
+    genl_family_name_to_id = {}
+
     def __init__(self, family_name):
         super().__init__(family_name, Netlink.NETLINK_GENERIC)
 
-        global genl_family_name_to_id
-        if genl_family_name_to_id is None:
-            _genl_load_families()
+        if not GenlProtocol.genl_family_name_to_id:
+            GenlProtocol.genl_family_name_to_id = _genl_load_families()
 
-        self.genl_family = genl_family_name_to_id[family_name]
-        self.family_id = genl_family_name_to_id[family_name]['id']
+        self.genl_family = GenlProtocol.genl_family_name_to_id[family_name]
+        self.family_id = GenlProtocol.genl_family_name_to_id[family_name]['id']
 
     def message(self, flags, command, version, seq=None):
         nlmsg = self._message(self.family_id, flags, seq)

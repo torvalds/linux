@@ -13,10 +13,6 @@ import os
 import yaml as pyyaml
 
 
-# To be loaded dynamically as needed
-jsonschema = None
-
-
 class SpecException(Exception):
     """Netlink spec exception.
     """
@@ -439,6 +435,10 @@ class SpecFamily(SpecElement):
         mcast_groups  dict of all multicast groups (index by name)
         kernel_family   dict of kernel family attributes
     """
+
+    # To be loaded dynamically as needed
+    jsonschema = None
+
     def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r", encoding='utf-8') as stream:
             prefix = '# SPDX-License-Identifier: '
@@ -463,15 +463,13 @@ class SpecFamily(SpecElement):
         if schema_path is None:
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
         if schema_path:
-            global jsonschema
-
             with open(schema_path, "r", encoding='utf-8') as stream:
                 schema = pyyaml.safe_load(stream)
 
-            if jsonschema is None:
-                jsonschema = importlib.import_module("jsonschema")
+            if SpecFamily.jsonschema is None:
+                SpecFamily.jsonschema = importlib.import_module("jsonschema")
 
-            jsonschema.validate(self.yaml, schema)
+            SpecFamily.jsonschema.validate(self.yaml, schema)
 
         self.attr_sets = collections.OrderedDict()
         self.sub_msgs = collections.OrderedDict()
