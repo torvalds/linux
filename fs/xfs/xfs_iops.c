@@ -1195,16 +1195,22 @@ xfs_vn_update_time(
 
 	trace_xfs_update_time(ip);
 
-	if (flags & IOCB_NOWAIT)
-		return -EAGAIN;
-
 	if (inode->i_sb->s_flags & SB_LAZYTIME) {
-		if (type == FS_UPD_ATIME ||
-		    !inode_maybe_inc_iversion(inode, false))
-			return generic_update_time(inode, type, flags);
+		int dirty;
+
+		dirty = inode_update_time(inode, type, flags);
+		if (dirty <= 0)
+			return dirty;
+		if (dirty == I_DIRTY_TIME) {
+			__mark_inode_dirty(inode, I_DIRTY_TIME);
+			return 0;
+		}
 
 		/* Capture the iversion update that just occurred */
 		log_flags |= XFS_ILOG_CORE;
+	} else {
+		if (flags & IOCB_NOWAIT)
+			return -EAGAIN;
 	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
