@@ -12,27 +12,31 @@
 #include <linux/energy_model.h>
 #include <net/sock.h>
 #include <net/genetlink.h>
-#include <uapi/linux/energy_model.h>
+#include <uapi/linux/dev_energymodel.h>
 
 #include "em_netlink.h"
 #include "em_netlink_autogen.h"
 
-#define EM_A_PD_CPUS_LEN		256
+#define DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN		256
 
 /*************************** Command encoding ********************************/
 static int __em_nl_get_pd_size(struct em_perf_domain *pd, void *data)
 {
-	char cpus_buf[EM_A_PD_CPUS_LEN];
+	char cpus_buf[DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN];
 	int *tot_msg_sz = data;
 	int msg_sz, cpus_sz;
 
 	cpus_sz = snprintf(cpus_buf, sizeof(cpus_buf), "%*pb",
 			   cpumask_pr_args(to_cpumask(pd->cpus)));
 
-	msg_sz = nla_total_size(0) +			/* EM_A_PDS_PD */
-		 nla_total_size(sizeof(u32)) +		/* EM_A_PD_PD_ID */
-		 nla_total_size_64bit(sizeof(u64)) +	/* EM_A_PD_FLAGS */
-		 nla_total_size(cpus_sz);		/* EM_A_PD_CPUS */
+	msg_sz = nla_total_size(0) +
+		 /* DEV_ENERGYMODEL_A_PERF_DOMAINS_PERF_DOMAIN */
+		 nla_total_size(sizeof(u32)) +
+		 /* DEV_ENERGYMODEL_A_PERF_DOMAIN_PERF_DOMAIN_ID */
+		 nla_total_size_64bit(sizeof(u64)) +
+		 /* DEV_ENERGYMODEL_A_PERF_DOMAIN_FLAGS */
+		 nla_total_size(cpus_sz);
+		 /* DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS */
 
 	*tot_msg_sz += nlmsg_total_size(genlmsg_msg_size(msg_sz));
 	return 0;
@@ -40,23 +44,26 @@ static int __em_nl_get_pd_size(struct em_perf_domain *pd, void *data)
 
 static int __em_nl_get_pd(struct em_perf_domain *pd, void *data)
 {
-	char cpus_buf[EM_A_PD_CPUS_LEN];
+	char cpus_buf[DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS_LEN];
 	struct sk_buff *msg = data;
 	struct nlattr *entry;
 
-	entry = nla_nest_start(msg, EM_A_PDS_PD);
+	entry = nla_nest_start(msg,
+			       DEV_ENERGYMODEL_A_PERF_DOMAINS_PERF_DOMAIN);
 	if (!entry)
 		goto out_cancel_nest;
 
-	if (nla_put_u32(msg, EM_A_PD_PD_ID, pd->id))
+	if (nla_put_u32(msg, DEV_ENERGYMODEL_A_PERF_DOMAIN_PERF_DOMAIN_ID,
+			pd->id))
 		goto out_cancel_nest;
 
-	if (nla_put_u64_64bit(msg, EM_A_PD_FLAGS, pd->flags, EM_A_PD_PAD))
+	if (nla_put_u64_64bit(msg, DEV_ENERGYMODEL_A_PERF_DOMAIN_FLAGS,
+			      pd->flags, DEV_ENERGYMODEL_A_PERF_DOMAIN_PAD))
 		goto out_cancel_nest;
 
 	snprintf(cpus_buf, sizeof(cpus_buf), "%*pb",
 		 cpumask_pr_args(to_cpumask(pd->cpus)));
-	if (nla_put_string(msg, EM_A_PD_CPUS, cpus_buf))
+	if (nla_put_string(msg, DEV_ENERGYMODEL_A_PERF_DOMAIN_CPUS, cpus_buf))
 		goto out_cancel_nest;
 
 	nla_nest_end(msg, entry);
@@ -69,7 +76,8 @@ out_cancel_nest:
 	return -EMSGSIZE;
 }
 
-int em_nl_get_pds_doit(struct sk_buff *skb, struct genl_info *info)
+int dev_energymodel_nl_get_perf_domains_doit(struct sk_buff *skb,
+					      struct genl_info *info)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -82,7 +90,7 @@ int em_nl_get_pds_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		return -ENOMEM;
 
-	hdr = genlmsg_put_reply(msg, info, &em_nl_family, 0, cmd);
+	hdr = genlmsg_put_reply(msg, info, &dev_energymodel_nl_family, 0, cmd);
 	if (!hdr)
 		goto out_free_msg;
 
@@ -107,10 +115,10 @@ static struct em_perf_domain *__em_nl_get_pd_table_id(struct nlattr **attrs)
 	struct em_perf_domain *pd;
 	int id;
 
-	if (!attrs[EM_A_PD_TABLE_PD_ID])
+	if (!attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID])
 		return NULL;
 
-	id = nla_get_u32(attrs[EM_A_PD_TABLE_PD_ID]);
+	id = nla_get_u32(attrs[DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID]);
 	pd = em_perf_domain_get_by_id(id);
 	return pd;
 }
@@ -119,25 +127,34 @@ static int __em_nl_get_pd_table_size(const struct em_perf_domain *pd)
 {
 	int id_sz, ps_sz;
 
-	id_sz = nla_total_size(sizeof(u32));		/* EM_A_PD_TABLE_PD_ID */
-	ps_sz = nla_total_size(0) +			/* EM_A_PD_TABLE_PS */
-		nla_total_size_64bit(sizeof(u64)) +	/* EM_A_PS_PERFORMANCE */
-		nla_total_size_64bit(sizeof(u64)) +	/* EM_A_PS_FREQUENCY */
-		nla_total_size_64bit(sizeof(u64)) +	/* EM_A_PS_POWER */
-		nla_total_size_64bit(sizeof(u64)) +	/* EM_A_PS_COST */
-		nla_total_size_64bit(sizeof(u64));	/* EM_A_PS_FLAGS */
+	id_sz = nla_total_size(sizeof(u32));
+		/* DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID */
+	ps_sz = nla_total_size(0) +
+		/* DEV_ENERGYMODEL_A_PERF_TABLE_PERF_STATE */
+		nla_total_size_64bit(sizeof(u64)) +
+		/* DEV_ENERGYMODEL_A_PERF_STATE_PERFORMANCE */
+		nla_total_size_64bit(sizeof(u64)) +
+		/* DEV_ENERGYMODEL_A_PERF_STATE_FREQUENCY */
+		nla_total_size_64bit(sizeof(u64)) +
+		/* DEV_ENERGYMODEL_A_PERF_STATE_POWER */
+		nla_total_size_64bit(sizeof(u64)) +
+		/* DEV_ENERGYMODEL_A_PERF_STATE_COST */
+		nla_total_size_64bit(sizeof(u64));
+		/* DEV_ENERGYMODEL_A_PERF_STATE_FLAGS */
 	ps_sz *= pd->nr_perf_states;
 
 	return nlmsg_total_size(genlmsg_msg_size(id_sz + ps_sz));
 }
 
-static int __em_nl_get_pd_table(struct sk_buff *msg, const struct em_perf_domain *pd)
+static
+int __em_nl_get_pd_table(struct sk_buff *msg, const struct em_perf_domain *pd)
 {
 	struct em_perf_state *table, *ps;
 	struct nlattr *entry;
 	int i;
 
-	if (nla_put_u32(msg, EM_A_PD_TABLE_PD_ID, pd->id))
+	if (nla_put_u32(msg, DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID,
+			pd->id))
 		goto out_err;
 
 	rcu_read_lock();
@@ -146,24 +163,35 @@ static int __em_nl_get_pd_table(struct sk_buff *msg, const struct em_perf_domain
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		ps = &table[i];
 
-		entry = nla_nest_start(msg, EM_A_PD_TABLE_PS);
+		entry = nla_nest_start(msg,
+				       DEV_ENERGYMODEL_A_PERF_TABLE_PERF_STATE);
 		if (!entry)
 			goto out_unlock_ps;
 
-		if (nla_put_u64_64bit(msg, EM_A_PS_PERFORMANCE,
-				      ps->performance, EM_A_PS_PAD))
+		if (nla_put_u64_64bit(msg,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PERFORMANCE,
+				      ps->performance,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PAD))
 			goto out_cancel_ps_nest;
-		if (nla_put_u64_64bit(msg, EM_A_PS_FREQUENCY,
-				      ps->frequency, EM_A_PS_PAD))
+		if (nla_put_u64_64bit(msg,
+				      DEV_ENERGYMODEL_A_PERF_STATE_FREQUENCY,
+				      ps->frequency,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PAD))
 			goto out_cancel_ps_nest;
-		if (nla_put_u64_64bit(msg, EM_A_PS_POWER,
-				      ps->power, EM_A_PS_PAD))
+		if (nla_put_u64_64bit(msg,
+				      DEV_ENERGYMODEL_A_PERF_STATE_POWER,
+				      ps->power,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PAD))
 			goto out_cancel_ps_nest;
-		if (nla_put_u64_64bit(msg, EM_A_PS_COST,
-				      ps->cost, EM_A_PS_PAD))
+		if (nla_put_u64_64bit(msg,
+				      DEV_ENERGYMODEL_A_PERF_STATE_COST,
+				      ps->cost,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PAD))
 			goto out_cancel_ps_nest;
-		if (nla_put_u64_64bit(msg, EM_A_PS_FLAGS,
-				      ps->flags, EM_A_PS_PAD))
+		if (nla_put_u64_64bit(msg,
+				      DEV_ENERGYMODEL_A_PERF_STATE_FLAGS,
+				      ps->flags,
+				      DEV_ENERGYMODEL_A_PERF_STATE_PAD))
 			goto out_cancel_ps_nest;
 
 		nla_nest_end(msg, entry);
@@ -179,7 +207,8 @@ out_err:
 	return -EMSGSIZE;
 }
 
-int em_nl_get_pd_table_doit(struct sk_buff *skb, struct genl_info *info)
+int dev_energymodel_nl_get_perf_table_doit(struct sk_buff *skb,
+					    struct genl_info *info)
 {
 	int cmd = info->genlhdr->cmd;
 	int msg_sz, ret = -EMSGSIZE;
@@ -197,7 +226,7 @@ int em_nl_get_pd_table_doit(struct sk_buff *skb, struct genl_info *info)
 	if (!msg)
 		return -ENOMEM;
 
-	hdr = genlmsg_put_reply(msg, info, &em_nl_family, 0, cmd);
+	hdr = genlmsg_put_reply(msg, info, &dev_energymodel_nl_family, 0, cmd);
 	if (!hdr)
 		goto out_free_msg;
 
@@ -221,7 +250,7 @@ static void __em_notify_pd_table(const struct em_perf_domain *pd, int ntf_type)
 	int msg_sz, ret = -EMSGSIZE;
 	void *hdr;
 
-	if (!genl_has_listeners(&em_nl_family, &init_net, EM_NLGRP_EVENT))
+	if (!genl_has_listeners(&dev_energymodel_nl_family, &init_net, DEV_ENERGYMODEL_NLGRP_EVENT))
 		return;
 
 	msg_sz = __em_nl_get_pd_table_size(pd);
@@ -230,7 +259,7 @@ static void __em_notify_pd_table(const struct em_perf_domain *pd, int ntf_type)
 	if (!msg)
 		return;
 
-	hdr = genlmsg_put(msg, 0, 0, &em_nl_family, 0, ntf_type);
+	hdr = genlmsg_put(msg, 0, 0, &dev_energymodel_nl_family, 0, ntf_type);
 	if (!hdr)
 		goto out_free_msg;
 
@@ -240,28 +269,28 @@ static void __em_notify_pd_table(const struct em_perf_domain *pd, int ntf_type)
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(&em_nl_family, msg, 0, EM_NLGRP_EVENT, GFP_KERNEL);
+	genlmsg_multicast(&dev_energymodel_nl_family, msg, 0,
+			  DEV_ENERGYMODEL_NLGRP_EVENT, GFP_KERNEL);
 
 	return;
 
 out_free_msg:
 	nlmsg_free(msg);
-	return;
 }
 
 void em_notify_pd_created(const struct em_perf_domain *pd)
 {
-	__em_notify_pd_table(pd, EM_CMD_PD_CREATED);
+	__em_notify_pd_table(pd, DEV_ENERGYMODEL_CMD_PERF_DOMAIN_CREATED);
 }
 
 void em_notify_pd_updated(const struct em_perf_domain *pd)
 {
-	__em_notify_pd_table(pd, EM_CMD_PD_UPDATED);
+	__em_notify_pd_table(pd, DEV_ENERGYMODEL_CMD_PERF_DOMAIN_UPDATED);
 }
 
 static int __em_notify_pd_deleted_size(const struct em_perf_domain *pd)
 {
-	int id_sz = nla_total_size(sizeof(u32)); /* EM_A_PD_TABLE_PD_ID */
+	int id_sz = nla_total_size(sizeof(u32)); /* DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID */
 
 	return nlmsg_total_size(genlmsg_msg_size(id_sz));
 }
@@ -272,7 +301,8 @@ void em_notify_pd_deleted(const struct em_perf_domain *pd)
 	void *hdr;
 	int msg_sz;
 
-	if (!genl_has_listeners(&em_nl_family, &init_net, EM_NLGRP_EVENT))
+	if (!genl_has_listeners(&dev_energymodel_nl_family, &init_net,
+				DEV_ENERGYMODEL_NLGRP_EVENT))
 		return;
 
 	msg_sz = __em_notify_pd_deleted_size(pd);
@@ -281,28 +311,29 @@ void em_notify_pd_deleted(const struct em_perf_domain *pd)
 	if (!msg)
 		return;
 
-	hdr = genlmsg_put(msg, 0, 0, &em_nl_family, 0, EM_CMD_PD_DELETED);
+	hdr = genlmsg_put(msg, 0, 0, &dev_energymodel_nl_family, 0,
+			  DEV_ENERGYMODEL_CMD_PERF_DOMAIN_DELETED);
 	if (!hdr)
 		goto out_free_msg;
 
-	if (nla_put_u32(msg, EM_A_PD_TABLE_PD_ID, pd->id)) {
+	if (nla_put_u32(msg, DEV_ENERGYMODEL_A_PERF_TABLE_PERF_DOMAIN_ID,
+			pd->id))
 		goto out_free_msg;
-	}
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(&em_nl_family, msg, 0, EM_NLGRP_EVENT, GFP_KERNEL);
+	genlmsg_multicast(&dev_energymodel_nl_family, msg, 0,
+			  DEV_ENERGYMODEL_NLGRP_EVENT, GFP_KERNEL);
 
 	return;
 
 out_free_msg:
 	nlmsg_free(msg);
-	return;
 }
 
 /**************************** Initialization *********************************/
 static int __init em_netlink_init(void)
 {
-	return genl_register_family(&em_nl_family);
+	return genl_register_family(&dev_energymodel_nl_family);
 }
 postcore_initcall(em_netlink_init);
