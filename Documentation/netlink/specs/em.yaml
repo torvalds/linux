@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
-
+#
+# Copyright (c) 2025 Valve Corporation.
+#
+---
 name: em
 
 doc: |
@@ -104,7 +107,7 @@ operations:
       attribute-set: pd-table
       event:
         attributes:
-            - pd-id
+          - pd-id
       mcgrp: event
 
 mcast-groups:
