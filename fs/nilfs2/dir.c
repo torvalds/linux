@@ -30,6 +30,7 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/filelock.h>
 #include "nilfs.h"
 #include "page.h"
 
@@ -661,5 +662,5 @@ const struct file_operations nilfs_dir_operations = {
 	.compat_ioctl	= nilfs_compat_ioctl,
 #endif	/* CONFIG_COMPAT */
 	.fsync		= nilfs_sync_file,
-
+	.setlease	= generic_setlease,
 };
