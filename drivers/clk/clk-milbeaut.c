@@ -403,10 +403,7 @@ static int m10v_clk_divider_determine_rate(struct clk_hw *hw,
 						 val);
 	}
 
-	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
-				       divider->table, divider->width, divider->flags);
-
-	return 0;
+	return divider_determine_rate(hw, req, divider->table, divider->width, divider->flags);
 }
 
 static int m10v_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
