@@ -15,8 +15,8 @@
 static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p, void __iomem *ioaddr)
 {
-	unsigned int tdes0 = le32_to_cpu(p->des0);
-	unsigned int tdes1 = le32_to_cpu(p->des1);
+	u32 tdes0 = le32_to_cpu(p->des0);
+	u32 tdes1 = le32_to_cpu(p->des1);
 	int ret = tx_done;
 
 	/* Get tx owner first */
@@ -69,8 +69,8 @@ static int ndesc_get_tx_len(struct dma_desc *p)
 static int ndesc_get_rx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p)
 {
+	u32 rdes0 = le32_to_cpu(p->des0);
 	int ret = good_frame;
-	unsigned int rdes0 = le32_to_cpu(p->des0);
 
 	if (unlikely(rdes0 & RDES0_OWN))
 		return dma_own;
@@ -178,7 +178,7 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				  bool csum_flag, int mode, bool tx_own,
 				  bool ls, unsigned int tot_pkt_len)
 {
-	unsigned int tdes1 = le32_to_cpu(p->des1);
+	u32 tdes1 = le32_to_cpu(p->des1);
 
 	if (is_fs)
 		tdes1 |= TDES1_FIRST_SEGMENT;

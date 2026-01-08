@@ -12,7 +12,7 @@
 static int dwxgmac2_get_tx_status(struct stmmac_extra_stats *x,
 				  struct dma_desc *p, void __iomem *ioaddr)
 {
-	unsigned int tdes3 = le32_to_cpu(p->des3);
+	u32 tdes3 = le32_to_cpu(p->des3);
 	int ret = tx_done;
 
 	if (unlikely(tdes3 & XGMAC_TDES3_OWN))
@@ -26,7 +26,7 @@ static int dwxgmac2_get_tx_status(struct stmmac_extra_stats *x,
 static int dwxgmac2_get_rx_status(struct stmmac_extra_stats *x,
 				  struct dma_desc *p)
 {
-	unsigned int rdes3 = le32_to_cpu(p->des3);
+	u32 rdes3 = le32_to_cpu(p->des3);
 
 	if (unlikely(rdes3 & XGMAC_RDES3_OWN))
 		return dma_own;
@@ -114,7 +114,7 @@ static inline void dwxgmac2_get_timestamp(void *desc, u32 ats, u64 *ts)
 static int dwxgmac2_rx_check_timestamp(void *desc)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
-	unsigned int rdes3 = le32_to_cpu(p->des3);
+	u32 rdes3 = le32_to_cpu(p->des3);
 	bool desc_valid, ts_valid;
 
 	dma_rmb();
@@ -135,7 +135,7 @@ static int dwxgmac2_get_rx_timestamp_status(void *desc, void *next_desc,
 					    u32 ats)
 {
 	struct dma_desc *p = (struct dma_desc *)desc;
-	unsigned int rdes3 = le32_to_cpu(p->des3);
+	u32 rdes3 = le32_to_cpu(p->des3);
 	int ret = -EBUSY;
 
 	if (likely(rdes3 & XGMAC_RDES3_CDA))
@@ -162,7 +162,7 @@ static void dwxgmac2_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				     bool csum_flag, int mode, bool tx_own,
 				     bool ls, unsigned int tot_pkt_len)
 {
-	unsigned int tdes3 = le32_to_cpu(p->des3);
+	u32 tdes3 = le32_to_cpu(p->des3);
 
 	p->des2 |= cpu_to_le32(len & XGMAC_TDES2_B1L);
 
@@ -201,7 +201,7 @@ static void dwxgmac2_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 					 bool ls, unsigned int tcphdrlen,
 					 unsigned int tcppayloadlen)
 {
-	unsigned int tdes3 = le32_to_cpu(p->des3);
+	u32 tdes3 = le32_to_cpu(p->des3);
 
 	if (len1)
 		p->des2 |= cpu_to_le32(len1 & XGMAC_TDES2_B1L);
@@ -274,7 +274,7 @@ static void dwxgmac2_clear(struct dma_desc *p)
 static int dwxgmac2_get_rx_hash(struct dma_desc *p, u32 *hash,
 				enum pkt_hash_types *type)
 {
-	unsigned int rdes3 = le32_to_cpu(p->des3);
+	u32 rdes3 = le32_to_cpu(p->des3);
 	u32 ptype;
 
 	if (rdes3 & XGMAC_RDES3_RSV) {
