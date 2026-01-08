@@ -1,21 +1,14 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, 2024-2025 Qualcomm Innovation Center, Inc.
- * All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef ATH12K_HAL_TX_H
 #define ATH12K_HAL_TX_H
 
+#include "../mac.h"
 #include "hal_desc.h"
-#include "core.h"
-
-#define HAL_TX_ADDRX_EN			1
-#define HAL_TX_ADDRY_EN			2
-
-#define HAL_TX_ADDR_SEARCH_DEFAULT	0
-#define HAL_TX_ADDR_SEARCH_INDEX	1
 
 /* TODO: check all these data can be managed with struct ath12k_tx_desc_info for perf */
 struct hal_tx_info {
@@ -188,13 +181,14 @@ struct hal_tx_fes_status_end {
 /* STA mode will have MCAST_PKT_CTRL instead of DSCP_TID_MAP bitfield */
 #define HAL_TX_BANK_CONFIG_DSCP_TIP_MAP_ID	GENMASK(22, 17)
 
-void ath12k_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
-				  struct hal_tcl_data_cmd *tcl_cmd,
-				  struct hal_tx_info *ti);
-void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id);
-int ath12k_hal_reo_cmd_send(struct ath12k_base *ab, struct hal_srng *srng,
-			    enum hal_reo_cmd_type type,
-			    struct ath12k_hal_reo_cmd *cmd);
-void ath12k_hal_tx_configure_bank_register(struct ath12k_base *ab, u32 bank_config,
-					   u8 bank_id);
+void ath12k_wifi7_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id);
+void ath12k_wifi7_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
+					struct hal_tcl_data_cmd *tcl_cmd,
+					struct hal_tx_info *ti);
+int ath12k_wifi7_hal_reo_cmd_send(struct ath12k_base *ab, struct hal_srng *srng,
+				  enum hal_reo_cmd_type type,
+				  struct ath12k_hal_reo_cmd *cmd);
+void ath12k_wifi7_hal_tx_configure_bank_register(struct ath12k_base *ab,
+						 u32 bank_config,
+						 u8 bank_id);
 #endif

@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #ifndef DEBUG_HTT_STATS_H
 #define DEBUG_HTT_STATS_H
+
+#include "dp_htt.h"
 
 #define ATH12K_HTT_STATS_BUF_SIZE		(1024 * 512)
 #define ATH12K_HTT_STATS_COOKIE_LSB		GENMASK_ULL(31, 0)
