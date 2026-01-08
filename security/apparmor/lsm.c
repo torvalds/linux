@@ -1707,6 +1707,51 @@ static int apparmor_inet_conn_request(const struct sock *sk, struct sk_buff *skb
 }
 #endif
 
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_NETWORK_SECMARK)
+static unsigned int apparmor_ip_postroute(void *priv,
+					  struct sk_buff *skb,
+					  const struct nf_hook_state *state)
+{
+	struct aa_sk_ctx *ctx;
+	struct sock *sk;
+	int error;
+
+	if (!skb->secmark)
+		return NF_ACCEPT;
+
+	sk = skb_to_full_sk(skb);
+	if (sk == NULL)
+		return NF_ACCEPT;
+
+	ctx = aa_sock(sk);
+	rcu_read_lock();
+	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_SENDMSG,
+				       AA_MAY_SEND, skb->secmark, sk);
+	rcu_read_unlock();
+	if (!error)
+		return NF_ACCEPT;
+
+	return NF_DROP_ERR(-ECONNREFUSED);
+}
+
+static const struct nf_hook_ops apparmor_nf_ops[] = {
+	{
+		.hook =         apparmor_ip_postroute,
+		.pf =           NFPROTO_IPV4,
+		.hooknum =      NF_INET_POST_ROUTING,
+		.priority =     NF_IP_PRI_SELINUX_FIRST,
+	},
+#if IS_ENABLED(CONFIG_IPV6)
+	{
+		.hook =         apparmor_ip_postroute,
+		.pf =           NFPROTO_IPV6,
+		.hooknum =      NF_INET_POST_ROUTING,
+		.priority =     NF_IP6_PRI_SELINUX_FIRST,
+	},
+#endif
+};
+#endif
+
 /*
  * The cred blob is a pointer to, not an instance of, an aa_label.
  */
@@ -2424,51 +2469,8 @@ static inline int apparmor_init_sysctl(void)
 }
 #endif /* CONFIG_SYSCTL */
 
+
 #if defined(CONFIG_NETFILTER) && defined(CONFIG_NETWORK_SECMARK)
-static unsigned int apparmor_ip_postroute(void *priv,
-					  struct sk_buff *skb,
-					  const struct nf_hook_state *state)
-{
-	struct aa_sk_ctx *ctx;
-	struct sock *sk;
-	int error;
-
-	if (!skb->secmark)
-		return NF_ACCEPT;
-
-	sk = skb_to_full_sk(skb);
-	if (sk == NULL)
-		return NF_ACCEPT;
-
-	ctx = aa_sock(sk);
-	rcu_read_lock();
-	error = apparmor_secmark_check(rcu_dereference(ctx->label), OP_SENDMSG,
-				       AA_MAY_SEND, skb->secmark, sk);
-	rcu_read_unlock();
-	if (!error)
-		return NF_ACCEPT;
-
-	return NF_DROP_ERR(-ECONNREFUSED);
-
-}
-
-static const struct nf_hook_ops apparmor_nf_ops[] = {
-	{
-		.hook =         apparmor_ip_postroute,
-		.pf =           NFPROTO_IPV4,
-		.hooknum =      NF_INET_POST_ROUTING,
-		.priority =     NF_IP_PRI_SELINUX_FIRST,
-	},
-#if IS_ENABLED(CONFIG_IPV6)
-	{
-		.hook =         apparmor_ip_postroute,
-		.pf =           NFPROTO_IPV6,
-		.hooknum =      NF_INET_POST_ROUTING,
-		.priority =     NF_IP6_PRI_SELINUX_FIRST,
-	},
-#endif
-};
-
 static int __net_init apparmor_nf_register(struct net *net)
 {
 	return nf_register_net_hooks(net, apparmor_nf_ops,
