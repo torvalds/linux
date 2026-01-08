@@ -424,7 +424,7 @@ static const struct clk_ops pcf8563_clkout_ops = {
 
 static struct clk *pcf8563_clkout_register_clk(struct pcf8563 *pcf8563)
 {
-	struct device_node *node = pcf8563->rtc->dev.of_node;
+	struct device_node *node = pcf8563->rtc->dev.parent->of_node;
 	struct clk_init_data init;
 	struct clk *clk;
 	int ret;
