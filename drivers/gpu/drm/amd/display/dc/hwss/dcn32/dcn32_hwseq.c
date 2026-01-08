@@ -52,6 +52,7 @@
 #include "link_service.h"
 #include "../dcn20/dcn20_hwseq.h"
 #include "dc_state_priv.h"
+#include "dio/dcn10/dcn10_dio.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -955,7 +956,8 @@ void dcn32_init_hw(struct dc *dc)
 	}
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+	if (dc->res_pool->dio && dc->res_pool->dio->funcs->mem_pwr_ctrl)
+		dc->res_pool->dio->funcs->mem_pwr_ctrl(dc->res_pool->dio, false);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */

@@ -53,6 +53,7 @@
 #include "dcn30/dcn30_vpg.h"
 #include "dce/dce_i2c_hw.h"
 #include "dce/dmub_abm_lcd.h"
+#include "dio/dcn10/dcn10_dio.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -237,12 +238,9 @@ void dcn31_init_hw(struct dc *dc)
 			abms[i]->funcs->abm_init(abms[i], backlight, user_level);
 	}
 
-	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-	// Set i2c to light sleep until engine is setup
-	if (dc->debug.enable_mem_low_power.bits.i2c)
-		REG_UPDATE(DIO_MEM_PWR_CTRL, I2C_LIGHT_SLEEP_FORCE, 1);
+	/* Power on DIO memory (AFMT HDMI) and set I2C to light sleep */
+	if (dc->res_pool->dio && dc->res_pool->dio->funcs->mem_pwr_ctrl)
+		dc->res_pool->dio->funcs->mem_pwr_ctrl(dc->res_pool->dio, dc->debug.enable_mem_low_power.bits.i2c);
 
 	if (hws->funcs.setup_hpo_hw_control)
 		hws->funcs.setup_hpo_hw_control(hws, false);

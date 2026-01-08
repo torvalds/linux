@@ -27,7 +27,7 @@ ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################
 # DCN10
 ###############################################################################
-DIO_DCN10 = dcn10_link_encoder.o dcn10_stream_encoder.o
+DIO_DCN10 = dcn10_link_encoder.o dcn10_stream_encoder.o dcn10_dio.o
 
 AMD_DAL_DIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/dio/dcn10/,$(DIO_DCN10))
 
