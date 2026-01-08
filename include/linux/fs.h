@@ -2024,6 +2024,7 @@ struct inode_operations {
 		      u64 len);
 	int (*update_time)(struct inode *inode, enum fs_update_time type,
 			   unsigned int flags);
+	void (*sync_lazytime)(struct inode *inode);
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
