@@ -2296,6 +2296,7 @@ static int sev_gmem_post_populate(struct kvm *kvm, gfn_t gfn_start, kvm_pfn_t pf
 			void *vaddr = kmap_local_pfn(pfn + i);
 
 			if (copy_from_user(vaddr, src + i * PAGE_SIZE, PAGE_SIZE)) {
+				kunmap_local(vaddr);
 				ret = -EFAULT;
 				goto err;
 			}
