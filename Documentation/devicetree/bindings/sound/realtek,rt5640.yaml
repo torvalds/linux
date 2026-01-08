@@ -130,6 +130,10 @@ properties:
       - 2 # Scale current by 1.0
       - 3 # Scale current by 1.5
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
