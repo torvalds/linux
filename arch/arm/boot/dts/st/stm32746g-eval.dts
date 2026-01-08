@@ -67,7 +67,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led-green {
+		led_green: led-green {
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpiof 10 1>;
@@ -130,6 +130,13 @@
 			linux,code = <KEY_UP>;
 			interrupt-parent = <&stmfx_pinctrl>;
 			interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_green>;
 		};
 	};
 

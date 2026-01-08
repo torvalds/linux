@@ -80,7 +80,7 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led-usr2 {
+		led_usr2: led-usr2 {
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpioj 5 GPIO_ACTIVE_HIGH>;
@@ -103,6 +103,13 @@
 			label = "User";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_usr2>;
 		};
 	};
 

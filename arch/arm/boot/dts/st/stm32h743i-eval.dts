@@ -66,7 +66,7 @@
 
 	led {
 		compatible = "gpio-leds";
-		led-green {
+		led_green: led-green {
 			function = LED_FUNCTION_HEARTBEAT;
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpiof 10 GPIO_ACTIVE_LOW>;
@@ -77,6 +77,13 @@
 		led-red {
 			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpioa 4 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_green>;
 		};
 	};
 
