@@ -41,6 +41,7 @@ struct gpio_shared_ref {
 	struct lock_class_key lock_key;
 	struct auxiliary_device adev;
 	struct gpiod_lookup_table *lookup;
+	bool is_reset_gpio;
 };
 
 /* Represents a single GPIO pin. */
@@ -112,13 +113,16 @@ static int gpio_shared_setup_reset_proxy(struct gpio_shared_entry *entry,
 	struct gpio_shared_ref *ref;
 
 	list_for_each_entry(ref, &entry->refs, list) {
-		if (!ref->fwnode && ref->con_id && strcmp(ref->con_id, "reset") == 0)
+		if (ref->is_reset_gpio)
+			/* Already set-up. */
 			return 0;
 	}
 
 	ref = gpio_shared_make_ref(NULL, "reset", flags);
 	if (!ref)
 		return -ENOMEM;
+
+	ref->is_reset_gpio = true;
 
 	list_add_tail(&ref->list, &entry->refs);
 
@@ -714,12 +718,38 @@ static void __init gpio_shared_teardown(void)
 	}
 }
 
+static bool gpio_shared_entry_is_really_shared(struct gpio_shared_entry *entry)
+{
+	size_t num_nodes = list_count_nodes(&entry->refs);
+	struct gpio_shared_ref *ref;
+
+	if (num_nodes <= 1)
+		return false;
+
+	if (num_nodes > 2)
+		return true;
+
+	/* Exactly two references: */
+	list_for_each_entry(ref, &entry->refs, list) {
+		/*
+		 * Corner-case: the second reference comes from the potential
+		 * reset-gpio instance. However, this pin is not really shared
+		 * as it would have three references in this case. Avoid
+		 * creating unnecessary proxies.
+		 */
+		if (ref->is_reset_gpio)
+			return false;
+	}
+
+	return true;
+}
+
 static void gpio_shared_free_exclusive(void)
 {
 	struct gpio_shared_entry *entry, *epos;
 
 	list_for_each_entry_safe(entry, epos, &gpio_shared_list, list) {
-		if (list_count_nodes(&entry->refs) > 1)
+		if (gpio_shared_entry_is_really_shared(entry))
 			continue;
 
 		gpio_shared_drop_ref(list_first_entry(&entry->refs,
