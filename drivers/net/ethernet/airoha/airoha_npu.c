@@ -519,6 +519,14 @@ static int airoha_npu_wlan_init_memory(struct airoha_npu *npu)
 	if (err)
 		return err;
 
+	if (of_property_match_string(npu->dev->of_node, "memory-region-names",
+				     "ba") >= 0) {
+		cmd = WLAN_FUNC_SET_WAIT_DRAM_BA_NODE_ADDR;
+		err = airoha_npu_wlan_set_reserved_memory(npu, 0, "ba", cmd);
+		if (err)
+			return err;
+	}
+
 	cmd = WLAN_FUNC_SET_WAIT_IS_FORCE_TO_CPU;
 	return airoha_npu_wlan_msg_send(npu, 0, cmd, &val, sizeof(val),
 					GFP_KERNEL);
