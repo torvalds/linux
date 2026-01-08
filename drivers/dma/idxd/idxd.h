@@ -227,6 +227,7 @@ struct idxd_wq {
 	char name[WQ_NAME_SIZE + 1];
 	u64 max_xfer_bytes;
 	u32 max_batch_size;
+	u32 max_sgl_size;
 
 	/* Lock to protect upasid_xa access. */
 	struct mutex uc_lock;
@@ -348,6 +349,7 @@ struct idxd_device {
 
 	u64 max_xfer_bytes;
 	u32 max_batch_size;
+	u32 max_sgl_size;
 	int max_groups;
 	int max_engines;
 	int max_rdbufs;
@@ -690,6 +692,20 @@ static inline void idxd_wq_set_max_batch_size(int idxd_type, struct idxd_wq *wq,
 		wq->max_batch_size = 0;
 	else
 		wq->max_batch_size = max_batch_size;
+}
+
+static bool idxd_sgl_supported(struct idxd_device *idxd)
+{
+	return idxd->data->type == IDXD_TYPE_DSA &&
+	       idxd->hw.version >= DEVICE_VERSION_3 &&
+	       idxd->hw.dsacap0.sgl_formats;
+}
+
+static inline void idxd_wq_set_init_max_sgl_size(struct idxd_device *idxd,
+						 struct idxd_wq *wq)
+{
+	if (idxd_sgl_supported(idxd))
+		wq->max_sgl_size = 1U << idxd->hw.dsacap0.max_sgl_shift;
 }
 
 static inline void idxd_wqcfg_set_max_batch_shift(int idxd_type, union wqcfg *wqcfg,
