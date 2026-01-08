@@ -5,6 +5,7 @@
 
 #include <linux/cred.h>
 #include <linux/file.h>
+#include <linux/filelock.h>
 #include <linux/mount.h>
 #include <linux/xattr.h>
 #include <linux/uio.h>
@@ -647,4 +648,5 @@ const struct file_operations ovl_file_operations = {
 
 	.copy_file_range	= ovl_copy_file_range,
 	.remap_file_range	= ovl_remap_file_range,
+	.setlease		= generic_setlease,
 };
