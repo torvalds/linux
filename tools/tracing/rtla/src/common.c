@@ -40,6 +40,36 @@ static void set_signals(struct common_params *params)
 }
 
 /*
+ * getopt_auto - auto-generates optstring from long_options
+ */
+int getopt_auto(int argc, char **argv, const struct option *long_opts)
+{
+	char opts[256];
+	int n = 0;
+
+	for (int i = 0; long_opts[i].name; i++) {
+		if (long_opts[i].val < 32 || long_opts[i].val > 127)
+			continue;
+
+		if (n + 4 >= sizeof(opts))
+			fatal("optstring buffer overflow");
+
+		opts[n++] = long_opts[i].val;
+
+		if (long_opts[i].has_arg == required_argument)
+			opts[n++] = ':';
+		else if (long_opts[i].has_arg == optional_argument) {
+			opts[n++] = ':';
+			opts[n++] = ':';
+		}
+	}
+
+	opts[n] = '\0';
+
+	return getopt_long(argc, argv, opts, long_opts, NULL);
+}
+
+/*
  * common_parse_options - parse common command line options
  *
  * @argc: argument count
@@ -69,7 +99,7 @@ int common_parse_options(int argc, char **argv, struct common_params *common)
 	};
 
 	opterr = 0;
-	c = getopt_long(argc, argv, "c:C::Dd:e:H:P:", long_options, NULL);
+	c = getopt_auto(argc, argv, long_options);
 	opterr = 1;
 
 	switch (c) {
