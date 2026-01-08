@@ -295,7 +295,7 @@ class SpecStruct(SpecElement):
         yield from self.members
 
     def items(self):
-        return self.members.items()
+        return self.members
 
 
 class SpecSubMessage(SpecElement):
@@ -570,11 +570,10 @@ class SpecFamily(SpecElement):
                 skip |= bool(exclude.match(elem['name']))
             if not skip:
                 op = self.new_operation(elem, req_val, rsp_val)
+                self.msgs[op.name] = op
 
             req_val = req_val_next
             rsp_val = rsp_val_next
-
-            self.msgs[op.name] = op
 
     def find_operation(self, name):
         """
