@@ -249,13 +249,77 @@ static int io_uring_check_cbpf_filter(struct sock_filter *filter,
 	return 0;
 }
 
+void io_bpf_filter_clone(struct io_restriction *dst, struct io_restriction *src)
+{
+	if (!src->bpf_filters)
+		return;
+
+	rcu_read_lock();
+	/*
+	 * If the src filter is going away, just ignore it.
+	 */
+	if (refcount_inc_not_zero(&src->bpf_filters->refs)) {
+		dst->bpf_filters = src->bpf_filters;
+		dst->bpf_filters_cow = true;
+	}
+	rcu_read_unlock();
+}
+
+/*
+ * Allocate a new struct io_bpf_filters. Used when a filter is cloned and
+ * modifications need to be made.
+ */
+static struct io_bpf_filters *io_bpf_filter_cow(struct io_restriction *src)
+{
+	struct io_bpf_filters *filters;
+	struct io_bpf_filter *srcf;
+	int i;
+
+	filters = io_new_bpf_filters();
+	if (IS_ERR(filters))
+		return filters;
+
+	/*
+	 * Iterate filters from src and assign in destination. Grabbing
+	 * a reference is enough, we don't need to duplicate the memory.
+	 * This is safe because filters are only ever appended to the
+	 * front of the list, hence the only memory ever touched inside
+	 * a filter is the refcount.
+	 */
+	rcu_read_lock();
+	for (i = 0; i < IORING_OP_LAST; i++) {
+		srcf = rcu_dereference(src->bpf_filters->filters[i]);
+		if (!srcf) {
+			continue;
+		} else if (srcf == &dummy_filter) {
+			rcu_assign_pointer(filters->filters[i], &dummy_filter);
+			continue;
+		}
+
+		/*
+		 * Getting a ref on the first node is enough, putting the
+		 * filter and iterating nodes to free will stop on the first
+		 * one that doesn't hit zero when dropping.
+		 */
+		if (!refcount_inc_not_zero(&srcf->refs))
+			goto err;
+		rcu_assign_pointer(filters->filters[i], srcf);
+	}
+	rcu_read_unlock();
+	return filters;
+err:
+	rcu_read_unlock();
+	__io_put_bpf_filters(filters);
+	return ERR_PTR(-EBUSY);
+}
+
 #define IO_URING_BPF_FILTER_FLAGS	IO_URING_BPF_FILTER_DENY_REST
 
 int io_register_bpf_filter(struct io_restriction *res,
 			   struct io_uring_bpf __user *arg)
 {
+	struct io_bpf_filters *filters, *old_filters = NULL;
 	struct io_bpf_filter *filter, *old_filter;
-	struct io_bpf_filters *filters;
 	struct io_uring_bpf reg;
 	struct bpf_prog *prog;
 	struct sock_fprog fprog;
@@ -297,6 +361,17 @@ int io_register_bpf_filter(struct io_restriction *res,
 			ret = PTR_ERR(filters);
 			goto err_prog;
 		}
+	} else if (res->bpf_filters_cow) {
+		filters = io_bpf_filter_cow(res);
+		if (IS_ERR(filters)) {
+			ret = PTR_ERR(filters);
+			goto err_prog;
+		}
+		/*
+		 * Stash old filters, we'll put them once we know we'll
+		 * succeed. Until then, res->bpf_filters is left untouched.
+		 */
+		old_filters = res->bpf_filters;
 	}
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL_ACCOUNT);
@@ -306,6 +381,15 @@ int io_register_bpf_filter(struct io_restriction *res,
 	}
 	refcount_set(&filter->refs, 1);
 	filter->prog = prog;
+
+	/*
+	 * Success - install the new filter set now. If we did COW, put
+	 * the old filters as we're replacing them.
+	 */
+	if (old_filters) {
+		__io_put_bpf_filters(old_filters);
+		res->bpf_filters_cow = false;
+	}
 	res->bpf_filters = filters;
 
 	/*

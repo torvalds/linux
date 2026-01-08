@@ -11,6 +11,7 @@
 
 #include "io_uring.h"
 #include "tctx.h"
+#include "bpf_filter.h"
 
 static struct io_wq *io_init_wq_offload(struct io_ring_ctx *ctx,
 					struct task_struct *task)
@@ -65,6 +66,11 @@ void __io_uring_free(struct task_struct *tsk)
 		percpu_counter_destroy(&tctx->inflight);
 		kfree(tctx);
 		tsk->io_uring = NULL;
+	}
+	if (tsk->io_uring_restrict) {
+		io_put_bpf_filters(tsk->io_uring_restrict);
+		kfree(tsk->io_uring_restrict);
+		tsk->io_uring_restrict = NULL;
 	}
 }
 
@@ -356,5 +362,16 @@ int io_ringfd_unregister(struct io_ring_ctx *ctx, void __user *__arg,
 
 int __io_uring_fork(struct task_struct *tsk)
 {
+	struct io_restriction *res, *src = tsk->io_uring_restrict;
+
+	/* Don't leave it dangling on error */
+	tsk->io_uring_restrict = NULL;
+
+	res = kzalloc(sizeof(*res), GFP_KERNEL_ACCOUNT);
+	if (!res)
+		return -ENOMEM;
+
+	tsk->io_uring_restrict = res;
+	io_restriction_clone(res, src);
 	return 0;
 }
