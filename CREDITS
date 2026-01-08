@@ -1398,7 +1398,7 @@ D: SRM environment driver (for Alpha systems)
 P: 1024D/8399E1BB 250D 3BCF 7127 0D8C A444  A961 1DBD 5E75 8399 E1BB
 
 N: Thomas Gleixner
-E: tglx@linutronix.de
+E: tglx@kernel.org
 D: NAND flash hardware support, JFFS2 on NAND flash
 
 N: Jérôme Glisse

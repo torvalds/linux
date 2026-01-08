@@ -118,7 +118,7 @@ def print_c_struct_u8_array_field(name, value):
 def alg_digest_size_const(alg):
     if alg.startswith('blake2'):
         return f'{alg.upper()}_HASH_SIZE'
-    return f'{alg.upper().replace('-', '_')}_DIGEST_SIZE'
+    return f"{alg.upper().replace('-', '_')}_DIGEST_SIZE"
 
 def gen_unkeyed_testvecs(alg):
     print('')

@@ -303,6 +303,14 @@ netdev_max_backlog
 Maximum number of packets, queued on the INPUT side, when the interface
 receives packets faster than kernel can process them.
 
+qdisc_max_burst
+------------------
+
+Maximum number of packets that can be temporarily stored before
+reaching qdisc.
+
+Default: 1000
+
 netdev_rss_key
 --------------
 

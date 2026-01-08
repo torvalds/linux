@@ -2459,7 +2459,7 @@ EXPORT_SYMBOL(scsi_mode_sense);
  *	@retries: number of retries before failing
  *	@sshdr: outpout pointer for decoded sense information.
  *
- *	Returns zero if unsuccessful or an error if TUR failed.  For
+ *	Returns zero if successful or an error if TUR failed.  For
  *	removable media, UNIT_ATTENTION sets ->changed flag.
  **/
 int

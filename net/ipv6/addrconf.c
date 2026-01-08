@@ -3112,11 +3112,11 @@ static int inet6_addr_del(struct net *net, int ifindex, u32 ifa_flags,
 			in6_ifa_hold(ifp);
 			read_unlock_bh(&idev->lock);
 
-			ipv6_del_addr(ifp);
-
 			if (!(ifp->flags & IFA_F_TEMPORARY) &&
 			    (ifp->flags & IFA_F_MANAGETEMPADDR))
 				delete_tempaddrs(idev, ifp);
+
+			ipv6_del_addr(ifp);
 
 			addrconf_verify_rtnl(net);
 			if (ipv6_addr_is_multicast(pfx)) {
