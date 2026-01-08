@@ -158,11 +158,31 @@ static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 	return IRQ_HANDLED;
 }
 
+static void dwc3_imx_pre_set_role(struct dwc3 *dwc, enum usb_role role)
+{
+	if (role == USB_ROLE_HOST)
+		/*
+		 * For xhci host, we need disable dwc core auto
+		 * suspend, because during this auto suspend delay(5s),
+		 * xhci host RUN_STOP is cleared and wakeup is not
+		 * enabled, if device is inserted, xhci host can't
+		 * response the connection.
+		 */
+		pm_runtime_dont_use_autosuspend(dwc->dev);
+	else
+		pm_runtime_use_autosuspend(dwc->dev);
+}
+
+struct dwc3_glue_ops dwc3_imx_glue_ops = {
+	.pre_set_role   = dwc3_imx_pre_set_role,
+};
+
 static int dwc3_imx8mp_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct device_node	*node = dev->of_node;
 	struct dwc3_imx8mp	*dwc3_imx;
+	struct dwc3		*dwc3;
 	struct resource		*res;
 	int			err, irq;
 
@@ -239,6 +259,17 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto depopulate;
 	}
+
+	dwc3 = platform_get_drvdata(dwc3_imx->dwc3_pdev);
+	if (!dwc3) {
+		err = dev_err_probe(dev, -EPROBE_DEFER, "failed to get dwc3 platform data\n");
+		goto depopulate;
+	}
+
+	dwc3->glue_ops = &dwc3_imx_glue_ops;
+
+	if (dwc3->dr_mode == USB_DR_MODE_HOST)
+		pm_runtime_dont_use_autosuspend(dwc3->dev);
 
 	err = devm_request_threaded_irq(dev, irq, NULL, dwc3_imx8mp_interrupt,
 					IRQF_ONESHOT, dev_name(dev), dwc3_imx);
