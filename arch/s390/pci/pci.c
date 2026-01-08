@@ -406,7 +406,9 @@ static int pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
-	return (zdev) ? zpci_cfg_load(zdev, where, val, size) : -ENODEV;
+	if (!zdev || zpci_cfg_load(zdev, where, val, size))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
@@ -414,7 +416,9 @@ static int pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 {
 	struct zpci_dev *zdev = zdev_from_bus(bus, devfn);
 
-	return (zdev) ? zpci_cfg_store(zdev, where, val, size) : -ENODEV;
+	if (!zdev || zpci_cfg_store(zdev, where, val, size))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	return PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops pci_root_ops = {
