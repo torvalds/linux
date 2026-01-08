@@ -89,6 +89,7 @@ static void hfc_get_mix_info_be(struct rtw89_dev *rtwdev)
 	struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
 	struct rtw89_hfc_pub_cfg *pub_cfg = &param->pub_cfg;
 	struct rtw89_hfc_pub_info *info = &param->pub_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 val;
 
 	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_INFO1);
@@ -116,14 +117,23 @@ static void hfc_get_mix_info_be(struct rtw89_dev *rtwdev)
 
 	val = rtw89_read32(rtwdev, R_BE_CH_PAGE_CTRL);
 	prec_cfg->ch011_prec = u32_get_bits(val, B_BE_PREC_PAGE_CH011_V1_MASK);
+	if (chip->chip_id == RTL8922D)
+		prec_cfg->ch011_full_page = u32_get_bits(val, B_BE_FULL_WD_PG_MASK);
 	prec_cfg->h2c_prec = u32_get_bits(val, B_BE_PREC_PAGE_CH12_V1_MASK);
 
 	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_CTRL2);
 	pub_cfg->pub_max = u32_get_bits(val, B_BE_PUBPG_ALL_MASK);
 
 	val = rtw89_read32(rtwdev, R_BE_WP_PAGE_CTRL1);
-	prec_cfg->wp_ch07_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH07_MASK);
-	prec_cfg->wp_ch811_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH811_MASK);
+	if (chip->chip_id == RTL8922D) {
+		prec_cfg->wp_ch07_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH07_V1_MASK);
+		prec_cfg->wp_ch07_full_page = u32_get_bits(val, B_BE_FULL_PAGE_WP_CH07_MASK);
+		prec_cfg->wp_ch811_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH811_V1_MASK);
+		prec_cfg->wp_ch811_full_page = u32_get_bits(val, B_BE_FULL_PAGE_WP_CH811_MASK);
+	} else {
+		prec_cfg->wp_ch07_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH07_MASK);
+		prec_cfg->wp_ch811_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH811_MASK);
+	}
 
 	val = rtw89_read32(rtwdev, R_BE_WP_PAGE_CTRL2);
 	pub_cfg->wp_thrd = u32_get_bits(val, B_BE_WP_THRD_MASK);
@@ -148,17 +158,26 @@ static void hfc_mix_cfg_be(struct rtw89_dev *rtwdev)
 	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
 	const struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
 	const struct rtw89_hfc_pub_cfg *pub_cfg = &param->pub_cfg;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 val;
 
 	val = u32_encode_bits(prec_cfg->ch011_prec, B_BE_PREC_PAGE_CH011_V1_MASK) |
 	      u32_encode_bits(prec_cfg->h2c_prec, B_BE_PREC_PAGE_CH12_V1_MASK);
+	if (chip->chip_id == RTL8922D)
+		val = u32_replace_bits(val, prec_cfg->ch011_full_page, B_BE_FULL_WD_PG_MASK);
 	rtw89_write32(rtwdev, R_BE_CH_PAGE_CTRL, val);
 
 	val = u32_encode_bits(pub_cfg->pub_max, B_BE_PUBPG_ALL_MASK);
 	rtw89_write32(rtwdev, R_BE_PUB_PAGE_CTRL2, val);
 
-	val = u32_encode_bits(prec_cfg->wp_ch07_prec, B_BE_PREC_PAGE_WP_CH07_MASK) |
-	      u32_encode_bits(prec_cfg->wp_ch811_prec, B_BE_PREC_PAGE_WP_CH811_MASK);
+	if (chip->chip_id == RTL8922D)
+		val = u32_encode_bits(prec_cfg->wp_ch07_prec, B_BE_PREC_PAGE_WP_CH07_V1_MASK) |
+		      u32_encode_bits(prec_cfg->wp_ch07_full_page, B_BE_FULL_PAGE_WP_CH07_MASK) |
+		      u32_encode_bits(prec_cfg->wp_ch811_prec, B_BE_PREC_PAGE_WP_CH811_V1_MASK) |
+		      u32_encode_bits(prec_cfg->wp_ch811_full_page, B_BE_FULL_PAGE_WP_CH811_MASK);
+	else
+		val = u32_encode_bits(prec_cfg->wp_ch07_prec, B_BE_PREC_PAGE_WP_CH07_MASK) |
+		      u32_encode_bits(prec_cfg->wp_ch811_prec, B_BE_PREC_PAGE_WP_CH811_MASK);
 	rtw89_write32(rtwdev, R_BE_WP_PAGE_CTRL1, val);
 
 	val = u32_replace_bits(rtw89_read32(rtwdev, R_BE_HCI_FC_CTRL),

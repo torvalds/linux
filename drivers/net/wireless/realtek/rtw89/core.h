@@ -4000,6 +4000,11 @@ struct rtw89_hfc_prec_cfg {
 	u8 h2c_full_cond;
 	u8 wp_ch07_full_cond;
 	u8 wp_ch811_full_cond;
+	/* for WiFi 7 chips after 8922D */
+	u16 ch011_full_page;
+	u16 h2c_full_page;
+	u16 wp_ch07_full_page;
+	u16 wp_ch811_full_page;
 };
 
 struct rtw89_hfc_param {
