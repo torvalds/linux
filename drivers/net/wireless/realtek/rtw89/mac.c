@@ -1862,6 +1862,7 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 	}
 
 	mac->dle_info.rsvd_qt = cfg->rsvd_qt;
+	mac->dle_info.dle_input = cfg->dle_input;
 	mac->dle_info.ple_pg_size = cfg->ple_size->pge_size;
 	mac->dle_info.ple_free_pg = cfg->ple_size->lnk_pge_num;
 	mac->dle_info.qta_mode = mode;

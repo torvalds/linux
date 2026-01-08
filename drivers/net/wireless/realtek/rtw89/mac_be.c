@@ -873,7 +873,10 @@ static int sec_eng_init_be(struct rtw89_dev *rtwdev)
 
 static int txpktctrl_init_be(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_mac_info *mac = &rtwdev->mac;
 	struct rtw89_mac_dle_rsvd_qt_cfg qt_cfg;
+	const struct rtw89_dle_input *dle_input;
+	u32 mpdu_info_b1_ofst;
 	u32 val32;
 	int ret;
 
@@ -884,9 +887,16 @@ static int txpktctrl_init_be(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
+	dle_input = mac->dle_info.dle_input;
+	if (dle_input)
+		mpdu_info_b1_ofst = DIV_ROUND_UP(dle_input->mpdu_info_tbl_b0,
+						 BIT(MPDU_INFO_TBL_FACTOR));
+	else
+		mpdu_info_b1_ofst = MPDU_INFO_B1_OFST;
+
 	val32 = rtw89_read32(rtwdev, R_BE_TXPKTCTL_MPDUINFO_CFG);
 	val32 = u32_replace_bits(val32, qt_cfg.pktid, B_BE_MPDUINFO_PKTID_MASK);
-	val32 = u32_replace_bits(val32, MPDU_INFO_B1_OFST, B_BE_MPDUINFO_B1_BADDR_MASK);
+	val32 = u32_replace_bits(val32, mpdu_info_b1_ofst, B_BE_MPDUINFO_B1_BADDR_MASK);
 	val32 |= B_BE_MPDUINFO_FEN;
 	rtw89_write32(rtwdev, R_BE_TXPKTCTL_MPDUINFO_CFG, val32);
 
