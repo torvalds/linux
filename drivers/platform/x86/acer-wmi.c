@@ -2070,7 +2070,8 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_u64(0x1, ACER_CAP_TURBO_LED);
 
 		/* Set FAN mode to auto */
-		WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_AUTO);
+		if (has_cap(ACER_CAP_TURBO_FAN))
+			WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_AUTO);
 
 		/* Set OC to normal */
 		if (has_cap(ACER_CAP_TURBO_OC)) {
@@ -2084,7 +2085,8 @@ static int acer_toggle_turbo(void)
 		WMID_gaming_set_u64(0x10001, ACER_CAP_TURBO_LED);
 
 		/* Set FAN mode to turbo */
-		WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_TURBO);
+		if (has_cap(ACER_CAP_TURBO_FAN))
+			WMID_gaming_set_fan_mode(ACER_WMID_FAN_MODE_TURBO);
 
 		/* Set OC to turbo mode */
 		if (has_cap(ACER_CAP_TURBO_OC)) {
