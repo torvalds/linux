@@ -3364,6 +3364,19 @@ config PRIME_NUMBERS_KUNIT_TEST
 
 	  If unsure, say N
 
+config GLOB_KUNIT_TEST
+	tristate "Glob matching test" if !KUNIT_ALL_TESTS
+	depends on GLOB
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the glob functions at runtime.
+
+	  This test suite verifies the correctness of glob_match() across various
+	  scenarios, including edge cases.
+
+	  If unsure, say N
+
 endif # RUNTIME_TESTING_MENU
 
 config ARCH_USE_MEMTEST
