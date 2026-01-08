@@ -7,6 +7,7 @@
 #include <linux/compat.h>
 #include <linux/bio.h>
 #include <linux/buffer_head.h>
+#include <linux/filelock.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
@@ -298,6 +299,7 @@ const struct file_operations exfat_dir_operations = {
 	.compat_ioctl = exfat_compat_ioctl,
 #endif
 	.fsync		= exfat_file_fsync,
+	.setlease	= generic_setlease,
 };
 
 int exfat_alloc_new_dir(struct inode *inode, struct exfat_chain *clu)
