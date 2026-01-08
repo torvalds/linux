@@ -19,9 +19,6 @@ description:
   Flash sub nodes describe the memory range and optional per-flash
   properties.
 
-allOf:
-  - $ref: mtd.yaml#
-
 properties:
   compatible:
     const: st,spear600-smi
@@ -42,14 +39,29 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: Functional clock rate of the SMI controller in Hz.
 
-  st,smi-fast-mode:
-    type: boolean
-    description: Indicates that the attached flash supports fast read mode.
+patternProperties:
+  "^flash@.*$":
+    $ref: /schemas/mtd/mtd.yaml#
+
+    properties:
+      reg:
+        maxItems: 1
+
+      st,smi-fast-mode:
+        type: boolean
+        description: Indicates that the attached flash supports fast read mode.
+
+    unevaluatedProperties: false
+
+    required:
+      - reg
 
 required:
   - compatible
   - reg
   - clock-rate
+  - "#address-cells"
+  - "#size-cells"
 
 unevaluatedProperties: false
 
@@ -64,7 +76,7 @@ examples:
         interrupts = <12>;
         clock-rate = <50000000>;  /* 50 MHz */
 
-        flash@f8000000 {
+        flash@fc000000 {
             reg = <0xfc000000 0x1000>;
             st,smi-fast-mode;
         };

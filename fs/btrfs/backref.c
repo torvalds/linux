@@ -1393,6 +1393,13 @@ static int find_parent_nodes(struct btrfs_backref_walk_ctx *ctx,
 		.indirect_missing_keys = PREFTREE_INIT
 	};
 
+	if (unlikely(!root)) {
+		btrfs_err(ctx->fs_info,
+			  "missing extent root for extent at bytenr %llu",
+			  ctx->bytenr);
+		return -EUCLEAN;
+	}
+
 	/* Roots ulist is not needed when using a sharedness check context. */
 	if (sc)
 		ASSERT(ctx->roots == NULL);
@@ -2204,6 +2211,13 @@ int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 	struct btrfs_extent_item *ei;
 	struct btrfs_key key;
 
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for extent at bytenr %llu",
+			  logical);
+		return -EUCLEAN;
+	}
+
 	key.objectid = logical;
 	if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
 		key.type = BTRFS_METADATA_ITEM_KEY;
@@ -2851,6 +2865,13 @@ int btrfs_backref_iter_start(struct btrfs_backref_iter *iter, u64 bytenr)
 	struct btrfs_key key;
 	int ret;
 
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for extent at bytenr %llu",
+			  bytenr);
+		return -EUCLEAN;
+	}
+
 	key.objectid = bytenr;
 	key.type = BTRFS_METADATA_ITEM_KEY;
 	key.offset = (u64)-1;
@@ -2987,6 +3008,13 @@ int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 
 	/* We're at keyed items, there is no inline item, go to the next one */
 	extent_root = btrfs_extent_root(iter->fs_info, iter->bytenr);
+	if (unlikely(!extent_root)) {
+		btrfs_err(iter->fs_info,
+			  "missing extent root for extent at bytenr %llu",
+			  iter->bytenr);
+		return -EUCLEAN;
+	}
+
 	ret = btrfs_next_item(extent_root, iter->path);
 	if (ret)
 		return ret;

@@ -984,6 +984,13 @@ static noinline int replay_one_extent(struct walk_control *wc)
 
 		sums = list_first_entry(&ordered_sums, struct btrfs_ordered_sum, list);
 		csum_root = btrfs_csum_root(fs_info, sums->logical);
+		if (unlikely(!csum_root)) {
+			btrfs_err(fs_info,
+				  "missing csum root for extent at bytenr %llu",
+				  sums->logical);
+			ret = -EUCLEAN;
+		}
+
 		if (!ret) {
 			ret = btrfs_del_csums(trans, csum_root, sums->logical,
 					      sums->len);
@@ -4890,6 +4897,13 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		}
 
 		csum_root = btrfs_csum_root(trans->fs_info, disk_bytenr);
+		if (unlikely(!csum_root)) {
+			btrfs_err(trans->fs_info,
+				  "missing csum root for extent at bytenr %llu",
+				  disk_bytenr);
+			return -EUCLEAN;
+		}
+
 		disk_bytenr += extent_offset;
 		ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 					      disk_bytenr + extent_num_bytes - 1,
@@ -5086,6 +5100,13 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	/* block start is already adjusted for the file extent offset. */
 	block_start = btrfs_extent_map_block_start(em);
 	csum_root = btrfs_csum_root(trans->fs_info, block_start);
+	if (unlikely(!csum_root)) {
+		btrfs_err(trans->fs_info,
+			  "missing csum root for extent at bytenr %llu",
+			  block_start);
+		return -EUCLEAN;
+	}
+
 	ret = btrfs_lookup_csums_list(csum_root, block_start + csum_offset,
 				      block_start + csum_offset + csum_len - 1,
 				      &ordered_sums, false);
