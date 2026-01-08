@@ -398,13 +398,9 @@ static int m10v_clk_divider_determine_rate(struct clk_hw *hw,
 		val = readl(divider->reg) >> divider->shift;
 		val &= clk_div_mask(divider->width);
 
-		req->rate = divider_ro_round_rate(hw, req->rate,
-						  &req->best_parent_rate,
-						  divider->table,
-						  divider->width,
-						  divider->flags, val);
-
-		return 0;
+		return divider_ro_determine_rate(hw, req, divider->table,
+						 divider->width, divider->flags,
+						 val);
 	}
 
 	req->rate = divider_round_rate(hw, req->rate, &req->best_parent_rate,
