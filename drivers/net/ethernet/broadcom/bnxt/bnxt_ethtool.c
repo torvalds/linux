@@ -3216,6 +3216,56 @@ static int bnxt_get_fecparam(struct net_device *dev,
 	return 0;
 }
 
+static const struct ethtool_fec_hist_range bnxt_fec_ranges[] = {
+	{ 0, 0},
+	{ 1, 1},
+	{ 2, 2},
+	{ 3, 3},
+	{ 4, 4},
+	{ 5, 5},
+	{ 6, 6},
+	{ 7, 7},
+	{ 8, 8},
+	{ 9, 9},
+	{ 10, 10},
+	{ 11, 11},
+	{ 12, 12},
+	{ 13, 13},
+	{ 14, 14},
+	{ 15, 15},
+	{ 0, 0},
+};
+
+static void bnxt_hwrm_port_phy_fdrstat(struct bnxt *bp,
+				       struct ethtool_fec_hist *hist)
+{
+	struct ethtool_fec_hist_value *values = hist->values;
+	struct hwrm_port_phy_fdrstat_output *resp;
+	struct hwrm_port_phy_fdrstat_input *req;
+	int rc, i;
+
+	if (!(bp->phy_flags & BNXT_PHY_FL_FDRSTATS))
+		return;
+
+	rc = hwrm_req_init(bp, req, HWRM_PORT_PHY_FDRSTAT);
+	if (rc)
+		return;
+
+	req->port_id = cpu_to_le16(bp->pf.port_id);
+	req->ops = cpu_to_le16(PORT_PHY_FDRSTAT_REQ_OPS_COUNTER);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc) {
+		hist->ranges = bnxt_fec_ranges;
+		for (i = 0; i <= 15; i++) {
+			__le64 sum = resp->accumulated_codewords_err_s[i];
+
+			values[i].sum = le64_to_cpu(sum);
+		}
+	}
+	hwrm_req_drop(bp, req);
+}
+
 static void bnxt_get_fec_stats(struct net_device *dev,
 			       struct ethtool_fec_stats *fec_stats,
 			       struct ethtool_fec_hist *hist)
@@ -3237,6 +3287,7 @@ static void bnxt_get_fec_stats(struct net_device *dev,
 		*(rx + BNXT_RX_STATS_EXT_OFFSET(rx_fec_corrected_blocks));
 	fec_stats->uncorrectable_blocks.total =
 		*(rx + BNXT_RX_STATS_EXT_OFFSET(rx_fec_uncorrectable_blocks));
+	bnxt_hwrm_port_phy_fdrstat(bp, hist);
 }
 
 static u32 bnxt_ethtool_forced_fec_to_fw(struct bnxt_link_info *link_info,
