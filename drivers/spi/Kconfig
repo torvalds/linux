@@ -204,6 +204,16 @@ config SPI_AXI_SPI_ENGINE
 	  It is part of the SPI Engine framework that is used in some Analog Devices
 	  reference designs for FPGAs.
 
+config SPI_AXIADO
+	tristate "Axiado DB-H SPI controller"
+	depends on SPI_MEM
+	help
+	  Enable support for the SPI controller present on Axiado AX3000 SoCs.
+
+	  The implementation supports host-only mode and does not provide target
+	  functionality. It is intended for use cases where the SoC acts as the SPI
+	  host, communicating with peripheral devices such as flash memory.
+
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
 	depends on GPIOLIB
