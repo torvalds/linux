@@ -8,7 +8,7 @@ import time
 import traceback
 from collections import namedtuple
 from .consts import KSFT_MAIN_NAME
-from .utils import global_defer_queue
+from . import utils
 
 KSFT_RESULT = None
 KSFT_RESULT_ALL = True
@@ -157,10 +157,10 @@ def ksft_flush_defer():
     global KSFT_RESULT
 
     i = 0
-    qlen_start = len(global_defer_queue)
-    while global_defer_queue:
+    qlen_start = len(utils.GLOBAL_DEFER_QUEUE)
+    while utils.GLOBAL_DEFER_QUEUE:
         i += 1
-        entry = global_defer_queue.pop()
+        entry = utils.GLOBAL_DEFER_QUEUE.pop()
         try:
             entry.exec_only()
         except Exception:

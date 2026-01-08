@@ -141,7 +141,7 @@ class bkg(cmd):
         return self.process(terminate=terminate, fail=self.check_fail)
 
 
-global_defer_queue = []
+GLOBAL_DEFER_QUEUE = []
 
 
 class defer:
@@ -153,7 +153,7 @@ class defer:
         self.args = args
         self.kwargs = kwargs
 
-        self._queue =  global_defer_queue
+        self._queue = GLOBAL_DEFER_QUEUE
         self._queue.append(self)
 
     def __enter__(self):
