@@ -2589,6 +2589,19 @@ local:
 		params = esr_sys64_to_params(esr);
 
 		/*
+		 * This implements the pseudocode UnimplementedIDRegister()
+		 * helper for the purpose of dealing with FEAT_IDST.
+		 */
+		if (in_feat_id_space(&params)) {
+			if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR2_EL1, IDS, IMP))
+				kvm_inject_sync(vcpu, kvm_vcpu_get_esr(vcpu));
+			else
+				kvm_inject_undefined(vcpu);
+
+			return true;
+		}
+
+		/*
 		 * Check for the IMPDEF range, as per DDI0487 J.a,
 		 * D18.3.2 Reserved encodings for IMPLEMENTATION
 		 * DEFINED registers.
