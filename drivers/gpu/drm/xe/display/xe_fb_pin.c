@@ -206,7 +206,7 @@ static void write_ggtt_rotated_node(struct xe_ggtt *ggtt, struct xe_ggtt_node *n
 	struct fb_rotate_args *args = data;
 	struct xe_bo *bo = args->bo;
 	const struct intel_rotation_info *rot_info = &args->view->rotated;
-	u32 ggtt_ofs = node->base.start;
+	u32 ggtt_ofs = xe_ggtt_node_addr(node);
 
 	for (u32 i = 0; i < ARRAY_SIZE(rot_info->plane); i++)
 		write_ggtt_rotated(ggtt, &ggtt_ofs, pte_flags, write_pte,
@@ -353,7 +353,7 @@ static void __xe_unpin_fb_vma(struct i915_vma *vma)
 	if (vma->dpt)
 		xe_bo_unpin_map_no_vm(vma->dpt);
 	else if (!xe_ggtt_node_allocated(vma->bo->ggtt_node[tile_id]) ||
-		 vma->bo->ggtt_node[tile_id]->base.start != vma->node->base.start)
+		 vma->bo->ggtt_node[tile_id] != vma->node)
 		xe_ggtt_node_remove(vma->node, false);
 
 	ttm_bo_reserve(&vma->bo->ttm, false, false, NULL);
