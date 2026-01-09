@@ -11,6 +11,7 @@
 #include <linux/page_table_check.h>
 #include <linux/rcupdate.h>
 #include <linux/pgalloc_tag.h>
+#include <linux/iommu-debug-pagealloc.h>
 
 /*
  * struct page extension
@@ -88,6 +89,9 @@ static struct page_ext_operations *page_ext_ops[] __initdata = {
 #endif
 #ifdef CONFIG_PAGE_TABLE_CHECK
 	&page_table_check_ops,
+#endif
+#ifdef CONFIG_IOMMU_DEBUG_PAGEALLOC
+	&page_iommu_debug_ops,
 #endif
 };
 
