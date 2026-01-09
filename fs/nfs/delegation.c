@@ -149,7 +149,7 @@ static int nfs4_do_check_delegation(struct inode *inode, fmode_t type,
 int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
 	if (S_ISDIR(inode->i_mode) && !directory_delegations)
-		nfs_inode_evict_delegation(inode);
+		nfs4_inode_set_return_delegation_on_close(inode);
 	return nfs4_do_check_delegation(inode, type, flags, true);
 }
 
