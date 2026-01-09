@@ -250,14 +250,14 @@ static void blk_crypto_dun_to_iv(const u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE],
 
 /*
  * The crypto API fallback's encryption routine.
- * Allocate a bounce bio for encryption, encrypt the input bio using crypto API,
- * and replace *bio_ptr with the bounce bio. May split input bio if it's too
- * large. Returns true on success. Returns false and sets bio->bi_status on
- * error.
+ *
+ * Allocate one or more bios for encryption, encrypt the input bio using the
+ * crypto API, and submit the encrypted bios.  Sets bio->bi_status and
+ * completes the source bio on error
  */
-static bool blk_crypto_fallback_encrypt_bio(struct bio **bio_ptr)
+static void blk_crypto_fallback_encrypt_bio(struct bio *src_bio)
 {
-	struct bio *src_bio, *enc_bio;
+	struct bio *enc_bio;
 	struct bio_crypt_ctx *bc;
 	struct blk_crypto_keyslot *slot;
 	int data_unit_size;
@@ -267,14 +267,12 @@ static bool blk_crypto_fallback_encrypt_bio(struct bio **bio_ptr)
 	struct scatterlist src, dst;
 	union blk_crypto_iv iv;
 	unsigned int i, j;
-	bool ret = false;
 	blk_status_t blk_st;
 
 	/* Split the bio if it's too big for single page bvec */
-	if (!blk_crypto_fallback_split_bio_if_needed(bio_ptr))
-		return false;
+	if (!blk_crypto_fallback_split_bio_if_needed(&src_bio))
+		goto out_endio;
 
-	src_bio = *bio_ptr;
 	bc = src_bio->bi_crypt_context;
 	data_unit_size = bc->bc_key->crypto_cfg.data_unit_size;
 
@@ -282,7 +280,7 @@ static bool blk_crypto_fallback_encrypt_bio(struct bio **bio_ptr)
 	enc_bio = blk_crypto_fallback_clone_bio(src_bio);
 	if (!enc_bio) {
 		src_bio->bi_status = BLK_STS_RESOURCE;
-		return false;
+		goto out_endio;
 	}
 
 	/*
@@ -345,25 +343,23 @@ static bool blk_crypto_fallback_encrypt_bio(struct bio **bio_ptr)
 
 	enc_bio->bi_private = src_bio;
 	enc_bio->bi_end_io = blk_crypto_fallback_encrypt_endio;
-	*bio_ptr = enc_bio;
-	ret = true;
-
-	enc_bio = NULL;
-	goto out_free_ciph_req;
+	skcipher_request_free(ciph_req);
+	blk_crypto_put_keyslot(slot);
+	submit_bio(enc_bio);
+	return;
 
 out_free_bounce_pages:
 	while (i > 0)
 		mempool_free(enc_bio->bi_io_vec[--i].bv_page,
 			     blk_crypto_bounce_page_pool);
-out_free_ciph_req:
 	skcipher_request_free(ciph_req);
 out_release_keyslot:
 	blk_crypto_put_keyslot(slot);
 out_put_enc_bio:
-	if (enc_bio)
-		bio_uninit(enc_bio);
+	bio_uninit(enc_bio);
 	kfree(enc_bio);
-	return ret;
+out_endio:
+	bio_endio(src_bio);
 }
 
 /*
@@ -466,44 +462,44 @@ static void blk_crypto_fallback_decrypt_endio(struct bio *bio)
 
 /**
  * blk_crypto_fallback_bio_prep - Prepare a bio to use fallback en/decryption
+ * @bio: bio to prepare
  *
- * @bio_ptr: pointer to the bio to prepare
+ * If bio is doing a WRITE operation, allocate one or more bios to contain the
+ * encrypted payload and submit them.
  *
- * If bio is doing a WRITE operation, this splits the bio into two parts if it's
- * too big (see blk_crypto_fallback_split_bio_if_needed()). It then allocates a
- * bounce bio for the first part, encrypts it, and updates bio_ptr to point to
- * the bounce bio.
- *
- * For a READ operation, we mark the bio for decryption by using bi_private and
+ * For a READ operation, mark the bio for decryption by using bi_private and
  * bi_end_io.
  *
- * In either case, this function will make the bio look like a regular bio (i.e.
- * as if no encryption context was ever specified) for the purposes of the rest
- * of the stack except for blk-integrity (blk-integrity and blk-crypto are not
- * currently supported together).
+ * In either case, this function will make the submitted bio(s) look like
+ * regular bios (i.e. as if no encryption context was ever specified) for the
+ * purposes of the rest of the stack except for blk-integrity (blk-integrity and
+ * blk-crypto are not currently supported together).
  *
- * Return: true on success. Sets bio->bi_status and returns false on error.
+ * Return: true if @bio should be submitted to the driver by the caller, else
+ * false.  Sets bio->bi_status, calls bio_endio and returns false on error.
  */
-bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
+bool blk_crypto_fallback_bio_prep(struct bio *bio)
 {
-	struct bio *bio = *bio_ptr;
 	struct bio_crypt_ctx *bc = bio->bi_crypt_context;
 	struct bio_fallback_crypt_ctx *f_ctx;
 
 	if (WARN_ON_ONCE(!tfms_inited[bc->bc_key->crypto_cfg.crypto_mode])) {
 		/* User didn't call blk_crypto_start_using_key() first */
-		bio->bi_status = BLK_STS_IOERR;
+		bio_io_error(bio);
 		return false;
 	}
 
 	if (!__blk_crypto_cfg_supported(blk_crypto_fallback_profile,
 					&bc->bc_key->crypto_cfg)) {
 		bio->bi_status = BLK_STS_NOTSUPP;
+		bio_endio(bio);
 		return false;
 	}
 
-	if (bio_data_dir(bio) == WRITE)
-		return blk_crypto_fallback_encrypt_bio(bio_ptr);
+	if (bio_data_dir(bio) == WRITE) {
+		blk_crypto_fallback_encrypt_bio(bio);
+		return false;
+	}
 
 	/*
 	 * bio READ case: Set up a f_ctx in the bio's bi_private and set the

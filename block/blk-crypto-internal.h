@@ -165,11 +165,11 @@ static inline void bio_crypt_do_front_merge(struct request *rq,
 #endif
 }
 
-bool __blk_crypto_bio_prep(struct bio **bio_ptr);
-static inline bool blk_crypto_bio_prep(struct bio **bio_ptr)
+bool __blk_crypto_bio_prep(struct bio *bio);
+static inline bool blk_crypto_bio_prep(struct bio *bio)
 {
-	if (bio_has_crypt_ctx(*bio_ptr))
-		return __blk_crypto_bio_prep(bio_ptr);
+	if (bio_has_crypt_ctx(bio))
+		return __blk_crypto_bio_prep(bio);
 	return true;
 }
 
@@ -215,11 +215,11 @@ static inline int blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
 	return 0;
 }
 
+bool blk_crypto_fallback_bio_prep(struct bio *bio);
+
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK
 
 int blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num);
-
-bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr);
 
 int blk_crypto_fallback_evict_key(const struct blk_crypto_key *key);
 
@@ -230,13 +230,6 @@ blk_crypto_fallback_start_using_mode(enum blk_crypto_mode_num mode_num)
 {
 	pr_warn_once("crypto API fallback is disabled\n");
 	return -ENOPKG;
-}
-
-static inline bool blk_crypto_fallback_bio_prep(struct bio **bio_ptr)
-{
-	pr_warn_once("crypto API fallback disabled; failing request.\n");
-	(*bio_ptr)->bi_status = BLK_STS_NOTSUPP;
-	return false;
 }
 
 static inline int
