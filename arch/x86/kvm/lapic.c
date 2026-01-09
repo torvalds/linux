@@ -760,17 +760,6 @@ static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 	}
 }
 
-void kvm_apic_update_hwapic_isr(struct kvm_vcpu *vcpu)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	if (WARN_ON_ONCE(!lapic_in_kernel(vcpu)) || !apic->apicv_active)
-		return;
-
-	kvm_x86_call(hwapic_isr_update)(vcpu, apic_find_highest_isr(apic));
-}
-EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_apic_update_hwapic_isr);
-
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 {
 	/* This may race with setting of irr in __apic_accept_irq() and
@@ -2783,10 +2772,18 @@ void kvm_apic_update_apicv(struct kvm_vcpu *vcpu)
 	 */
 	apic->irr_pending = true;
 
-	if (apic->apicv_active)
+	/*
+	 * Update SVI when APICv gets enabled, otherwise SVI won't reflect the
+	 * highest bit in vISR and the next accelerated EOI in the guest won't
+	 * be virtualized correctly (the CPU uses SVI to determine which vISR
+	 * vector to clear).
+	 */
+	if (apic->apicv_active) {
 		apic->isr_count = 1;
-	else
+		kvm_x86_call(hwapic_isr_update)(vcpu, apic_find_highest_isr(apic));
+	} else {
 		apic->isr_count = count_vectors(apic->regs + APIC_ISR);
+	}
 
 	apic->highest_isr_cache = -1;
 }
@@ -2914,10 +2911,8 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	vcpu->arch.pv_eoi.msr_val = 0;
 	apic_update_ppr(apic);
-	if (apic->apicv_active) {
+	if (apic->apicv_active)
 		kvm_x86_call(apicv_post_state_restore)(vcpu);
-		kvm_x86_call(hwapic_isr_update)(vcpu, -1);
-	}
 
 	vcpu->arch.apic_arb_prio = 0;
 	vcpu->arch.apic_attention = 0;
@@ -3228,10 +3223,8 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 	__start_apic_timer(apic, APIC_TMCCT);
 	kvm_lapic_set_reg(apic, APIC_TMCCT, 0);
 	kvm_apic_update_apicv(vcpu);
-	if (apic->apicv_active) {
+	if (apic->apicv_active)
 		kvm_x86_call(apicv_post_state_restore)(vcpu);
-		kvm_x86_call(hwapic_isr_update)(vcpu, apic_find_highest_isr(apic));
-	}
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 #ifdef CONFIG_KVM_IOAPIC
