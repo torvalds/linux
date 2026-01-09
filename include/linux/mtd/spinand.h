@@ -703,6 +703,14 @@ struct spinand_device {
 			     unsigned int retry_mode);
 };
 
+struct spi_mem_op spinand_fill_wr_en_op(struct spinand_device *spinand);
+struct spi_mem_op spinand_fill_set_feature_op(struct spinand_device *spinand, u64 reg, const void *valptr);
+struct spi_mem_op spinand_fill_get_feature_op(struct spinand_device *spinand, u64 reg, void *valptr);
+struct spi_mem_op spinand_fill_prog_exec_op(struct spinand_device *spinand, u64 addr);
+
+#define SPINAND_OP(spinand, op_name, ...)			\
+	spinand_fill_ ## op_name ## _op(spinand, ##__VA_ARGS__)
+
 /**
  * mtd_to_spinand() - Get the SPI NAND device attached to an MTD instance
  * @mtd: MTD instance
