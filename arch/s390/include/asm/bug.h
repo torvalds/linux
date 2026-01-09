@@ -104,6 +104,17 @@ do {									\
 #define __WARN_printf(taint, fmt, arg...) \
 	__WARN_print_arg(BUGFLAG_TAINT(taint), fmt, ## arg)
 
+#define WARN_ONCE(cond, format, arg...)					\
+({									\
+	int __ret_warn_on = !!(cond);					\
+									\
+	if (unlikely(__ret_warn_on)) {					\
+		__WARN_print_arg(BUGFLAG_ONCE|BUGFLAG_TAINT(TAINT_WARN),\
+				format, ## arg);			\
+	}								\
+	__ret_warn_on;							\
+})
+
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_FORMAT
 #define HAVE_ARCH_BUG_FORMAT_ARGS
