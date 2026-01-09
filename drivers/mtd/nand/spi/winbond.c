@@ -408,6 +408,7 @@ static int w35n0xjw_vcr_cfg(struct spinand_device *spinand)
 	default:
 		return -EINVAL;
 	}
+
 	ret = w35n0xjw_write_vcr(spinand, W35N01JW_VCR_DUMMY_CLOCK_REG, dummy_cycles);
 	if (ret)
 		return ret;
