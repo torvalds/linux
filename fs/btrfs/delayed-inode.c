@@ -443,7 +443,6 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 {
 	struct btrfs_delayed_node *delayed_node = delayed_item->delayed_node;
 	struct rb_root_cached *root;
-	struct btrfs_delayed_root *delayed_root;
 
 	/* Not inserted, ignore it. */
 	if (RB_EMPTY_NODE(&delayed_item->rb_node))
@@ -451,8 +450,6 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 
 	/* If it's in a rbtree, then we need to have delayed node locked. */
 	lockdep_assert_held(&delayed_node->mutex);
-
-	delayed_root = &delayed_node->root->fs_info->delayed_root;
 
 	if (delayed_item->type == BTRFS_DELAYED_INSERTION_ITEM)
 		root = &delayed_node->ins_root;
@@ -462,8 +459,7 @@ static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
 	rb_erase_cached(&delayed_item->rb_node, root);
 	RB_CLEAR_NODE(&delayed_item->rb_node);
 	delayed_node->count--;
-
-	finish_one_item(delayed_root);
+	finish_one_item(&delayed_node->root->fs_info->delayed_root);
 }
 
 static void btrfs_release_delayed_item(struct btrfs_delayed_item *item)
@@ -980,30 +976,21 @@ static int btrfs_delete_delayed_items(struct btrfs_trans_handle *trans,
 
 static void btrfs_release_delayed_inode(struct btrfs_delayed_node *delayed_node)
 {
-	struct btrfs_delayed_root *delayed_root;
-
 	if (delayed_node &&
 	    test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
 		ASSERT(delayed_node->root);
 		clear_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 		delayed_node->count--;
-
-		delayed_root = &delayed_node->root->fs_info->delayed_root;
-		finish_one_item(delayed_root);
+		finish_one_item(&delayed_node->root->fs_info->delayed_root);
 	}
 }
 
 static void btrfs_release_delayed_iref(struct btrfs_delayed_node *delayed_node)
 {
-
 	if (test_and_clear_bit(BTRFS_DELAYED_NODE_DEL_IREF, &delayed_node->flags)) {
-		struct btrfs_delayed_root *delayed_root;
-
 		ASSERT(delayed_node->root);
 		delayed_node->count--;
-
-		delayed_root = &delayed_node->root->fs_info->delayed_root;
-		finish_one_item(delayed_root);
+		finish_one_item(&delayed_node->root->fs_info->delayed_root);
 	}
 }
 
@@ -1150,7 +1137,6 @@ __btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_root *delayed_root;
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_ref_tracker curr_delayed_node_tracker, prev_delayed_node_tracker;
 	struct btrfs_path *path;
@@ -1168,9 +1154,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	block_rsv = trans->block_rsv;
 	trans->block_rsv = &fs_info->delayed_block_rsv;
 
-	delayed_root = &fs_info->delayed_root;
-
-	curr_node = btrfs_first_delayed_node(delayed_root, &curr_delayed_node_tracker);
+	curr_node = btrfs_first_delayed_node(&fs_info->delayed_root, &curr_delayed_node_tracker);
 	while (curr_node && (!count || nr--)) {
 		ret = __btrfs_commit_inode_delayed_items(trans, path,
 							 curr_node);
