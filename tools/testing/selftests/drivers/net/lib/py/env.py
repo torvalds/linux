@@ -170,6 +170,7 @@ class NetDrvEpEnv(NetDrvEnvBase):
         self.remote_ifname = self.resolve_remote_ifc()
         self.remote_dev = ip("-d link show dev " + self.remote_ifname,
                              host=self.remote, json=True)[0]
+        self.remote_ifindex = self.remote_dev['ifindex']
 
         self._required_cmd = {}
 

@@ -601,8 +601,8 @@ def main() -> None:
         cfg.comm_port = rand_port()
         srv = None
         try:
-            with bkg(responder + f" -p {cfg.comm_port}", host=cfg.remote,
-                     exit_wait=True) as srv:
+            with bkg(responder + f" -p {cfg.comm_port} -i {cfg.remote_ifindex}",
+                     host=cfg.remote, exit_wait=True) as srv:
                 wait_port_listen(cfg.comm_port, host=cfg.remote)
 
                 cfg.comm_sock = socket.create_connection((cfg.remote_addr,
