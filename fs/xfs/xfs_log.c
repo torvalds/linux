@@ -1180,9 +1180,11 @@ xfs_log_cover(
 	int			error = 0;
 	bool			need_covered;
 
-	ASSERT((xlog_cil_empty(mp->m_log) && xlog_iclogs_empty(mp->m_log) &&
-	        !xfs_ail_min_lsn(mp->m_log->l_ailp)) ||
-		xlog_is_shutdown(mp->m_log));
+	if (!xlog_is_shutdown(mp->m_log)) {
+		ASSERT(xlog_cil_empty(mp->m_log));
+		ASSERT(xlog_iclogs_empty(mp->m_log));
+		ASSERT(!xfs_ail_min_lsn(mp->m_log->l_ailp));
+	}
 
 	if (!xfs_log_writable(mp))
 		return 0;
