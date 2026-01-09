@@ -6,4 +6,5 @@ rockchip-vdec-y += \
 		   rkvdec-h264.o \
 		   rkvdec-h264-common.o \
 		   rkvdec-hevc.o \
+		   rkvdec-hevc-common.o \
 		   rkvdec-vp9.o
