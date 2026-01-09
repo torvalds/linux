@@ -22,10 +22,6 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
 
-#define RKVDEC_CAPABILITY_HEVC		BIT(0)
-#define RKVDEC_CAPABILITY_H264		BIT(1)
-#define RKVDEC_CAPABILITY_VP9		BIT(2)
-
 #define RKVDEC_QUIRK_DISABLE_QOS	BIT(0)
 
 struct rkvdec_ctx;
@@ -71,7 +67,8 @@ vb2_to_rkvdec_decoded_buf(struct vb2_buffer *buf)
 
 struct rkvdec_variant {
 	unsigned int num_regs;
-	unsigned int capabilities;
+	const struct rkvdec_coded_fmt_desc *coded_fmts;
+	size_t num_coded_fmts;
 	unsigned int quirks;
 };
 
@@ -110,7 +107,6 @@ struct rkvdec_coded_fmt_desc {
 	unsigned int num_decoded_fmts;
 	const struct rkvdec_decoded_fmt_desc *decoded_fmts;
 	u32 subsystem_flags;
-	unsigned int capability;
 };
 
 struct rkvdec_dev {
