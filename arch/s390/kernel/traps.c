@@ -23,6 +23,7 @@
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
 #include <linux/kmsan.h>
+#include <linux/bug.h>
 #include <asm/asm-extable.h>
 #include <asm/irqflags.h>
 #include <asm/ptrace.h>
@@ -220,11 +221,46 @@ static void space_switch_exception(struct pt_regs *regs)
 	do_trap(regs, SIGILL, ILL_PRVOPC, "space switch event");
 }
 
+#if defined(CONFIG_BUG) && defined(CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS)
+
+void *__warn_args(struct arch_va_list *args, struct pt_regs *regs)
+{
+	struct stack_frame *stack_frame;
+
+	/*
+	 * Generate va_list from pt_regs. See ELF Application Binary Interface
+	 * s390x Supplement documentation for details.
+	 *
+	 * - __overflow_arg_area needs to point to the parameter area, which
+	 *   is right above the standard stack frame (160 bytes)
+	 *
+	 * - __reg_save_area needs to point to a register save area where
+	 *   general registers (%r2 - %r6) can be found at offset 16. Which
+	 *   means that the gprs save area of pt_regs can be used
+	 *
+	 * - __gpr must be set to one, since the first parameter has been
+	 *   processed (pointer to bug_entry)
+	 */
+	stack_frame = (struct stack_frame *)regs->gprs[15];
+	args->__overflow_arg_area = stack_frame + 1;
+	args->__reg_save_area = regs->gprs;
+	args->__gpr = 1;
+	return args;
+}
+
+#endif /* CONFIG_BUG && CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS */
+
 static void monitor_event_exception(struct pt_regs *regs)
 {
+	enum bug_trap_type btt;
+
 	if (user_mode(regs))
 		return;
-	switch (report_bug(regs->psw.addr - (regs->int_code >> 16), regs)) {
+	if (regs->monitor_code == MONCODE_BUG_ARG)
+		btt = report_bug_entry((struct bug_entry *)regs->gprs[2], regs);
+	else
+		btt = report_bug(regs->psw.addr - (regs->int_code >> 16), regs);
+	switch (btt) {
 	case BUG_TRAP_TYPE_NONE:
 		fixup_exception(regs);
 		break;
