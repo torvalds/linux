@@ -44,6 +44,8 @@ static LIST_HEAD(regulator_supply_alias_list);
 static LIST_HEAD(regulator_coupler_list);
 static bool has_full_constraints;
 
+static const struct bus_type regulator_bus;
+
 static struct dentry *debugfs_root;
 
 /*
@@ -5694,17 +5696,6 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 			   &rdev->bypass_count);
 }
 
-static int regulator_register_resolve_supply(struct device *dev, void *data)
-{
-	struct regulator_dev *rdev = dev_to_rdev(dev);
-
-	if (regulator_resolve_supply(rdev))
-		rdev_dbg(rdev, "unable to resolve supply '%s'\n",
-			 rdev->supply_name);
-
-	return 0;
-}
-
 int regulator_coupler_register(struct regulator_coupler *coupler)
 {
 	mutex_lock(&regulator_list_mutex);
@@ -5923,6 +5914,7 @@ regulator_register(struct device *dev,
 	struct regulator_config *config = NULL;
 	static atomic_t regulator_no = ATOMIC_INIT(-1);
 	struct regulator_dev *rdev;
+	bool tried_supply_resolve = false;
 	bool dangling_cfg_gpiod = false;
 	bool dangling_of_gpiod = false;
 	int ret, i;
@@ -6093,6 +6085,7 @@ regulator_register(struct device *dev,
 		else
 			rdev_dbg(rdev, "unable to resolve supply early: %pe\n",
 				 ERR_PTR(ret));
+		tried_supply_resolve = true;
 	}
 	if (ret < 0)
 		goto wash;
@@ -6124,6 +6117,37 @@ regulator_register(struct device *dev,
 	if (ret != 0)
 		goto unset_supplies;
 
+	if (!tried_supply_resolve) {
+		/*
+		 * As an optimisation, try to resolve our supply (if any) now to
+		 * avoid adding the bus device. Errors are not fatal at this
+		 * stage, we'll simply try again later.
+		 */
+		ret = regulator_resolve_supply(rdev);
+		if (ret)
+			rdev_dbg(rdev,
+				 "unable to resolve supply (ignoring): %pe\n",
+				 ERR_PTR(ret));
+	}
+
+	/*
+	 * If we have a supply but couldn't resolve it yet, register a device
+	 * with our bus, so that the bus probe gets called whenever any new
+	 * driver binds, allowing us to retry matching supplies and which then
+	 * triggers (re)probe of consumers if successful.
+	 */
+	if (rdev->supply_name && !rdev->supply) {
+		device_initialize(&rdev->bdev);
+		rdev->bdev.bus = &regulator_bus;
+		rdev->bdev.parent = &rdev->dev;
+		device_set_pm_not_required(&rdev->dev);
+		dev_set_name(&rdev->bdev, "%s.bdev", dev_name(&rdev->dev));
+
+		ret = device_add(&rdev->bdev);
+		if (ret)
+			goto del_cdev_and_bdev;
+	}
+
 	rdev_init_debugfs(rdev);
 
 	/* try to resolve regulators coupling since a new one was registered */
@@ -6131,12 +6155,13 @@ regulator_register(struct device *dev,
 	regulator_resolve_coupling(rdev);
 	mutex_unlock(&regulator_list_mutex);
 
-	/* try to resolve regulators supply since a new one was registered */
-	class_for_each_device(&regulator_class, NULL, NULL,
-			      regulator_register_resolve_supply);
 	kfree(config);
 	return rdev;
 
+del_cdev_and_bdev:
+	if (rdev->bdev.bus == &regulator_bus)
+		put_device(&rdev->bdev);
+	device_del(&rdev->dev);
 unset_supplies:
 	mutex_lock(&regulator_list_mutex);
 	unset_regulator_supplies(rdev);
@@ -6189,6 +6214,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	regulator_ena_gpio_free(rdev);
+	if (rdev->bdev.bus == &regulator_bus)
+		/* only if the device was added in the first place */
+		device_unregister(&rdev->bdev);
 	device_unregister(&rdev->dev);
 
 	mutex_unlock(&regulator_list_mutex);
@@ -6269,6 +6297,45 @@ const struct class regulator_class = {
 	.pm = &regulator_pm_ops,
 #endif
 };
+
+#define bdev_to_rdev(__bdev) container_of_const(__bdev, struct regulator_dev, bdev)
+
+static int regulator_bus_match(struct device *bdev,
+			       const struct device_driver *drv)
+{
+	/* Match always succeeds, we only have one driver */
+	return 1;
+}
+
+static int regulator_bus_probe(struct device *bdev)
+{
+	struct regulator_dev *rdev = bdev_to_rdev(bdev);
+	int ret;
+
+	ret = regulator_resolve_supply(rdev);
+	if (ret)
+		rdev_dbg(rdev,
+			 "unable to resolve supply or constraints '%s': %pe\n",
+			 rdev->supply_name, ERR_PTR(ret));
+	else
+		rdev_dbg(rdev, "resolved supply '%s'\n", rdev->supply_name);
+
+	return ret;
+}
+
+static const struct bus_type regulator_bus = {
+	.name = "regulator",
+	.match = regulator_bus_match,
+	.probe = regulator_bus_probe,
+};
+
+static struct device_driver regulator_bus_driver = {
+	.name = "regulator-bus-drv",
+	.bus = &regulator_bus,
+	.suppress_bind_attrs = true,
+	.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+};
+
 /**
  * regulator_has_full_constraints - the system has fully specified constraints
  *
@@ -6602,7 +6669,17 @@ static int __init regulator_init(void)
 {
 	int ret;
 
+	ret = bus_register(&regulator_bus);
+	if (ret)
+		return ret;
+
 	ret = class_register(&regulator_class);
+	if (ret)
+		goto err_class;
+
+	ret = driver_register(&regulator_bus_driver);
+	if (ret)
+		goto err_driver;
 
 	debugfs_root = debugfs_create_dir("regulator", NULL);
 	if (IS_ERR(debugfs_root))
@@ -6619,6 +6696,12 @@ static int __init regulator_init(void)
 
 	regulator_coupler_register(&generic_regulator_coupler);
 
+	return 0;
+
+err_driver:
+	class_unregister(&regulator_class);
+err_class:
+	bus_unregister(&regulator_bus);
 	return ret;
 }
 
@@ -6679,16 +6762,6 @@ __setup("regulator_ignore_unused", regulator_ignore_unused_setup);
 
 static void regulator_init_complete_work_function(struct work_struct *work)
 {
-	/*
-	 * Regulators may had failed to resolve their input supplies
-	 * when were registered, either because the input supply was
-	 * not registered yet or because its parent device was not
-	 * bound yet. So attempt to resolve the input supplies for
-	 * pending regulators before trying to disable unused ones.
-	 */
-	class_for_each_device(&regulator_class, NULL, NULL,
-			      regulator_register_resolve_supply);
-
 	/*
 	 * For debugging purposes, it may be useful to prevent unused
 	 * regulators from being disabled.

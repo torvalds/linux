@@ -635,6 +635,7 @@ struct regulator_dev {
 	int ref_cnt;
 	struct module *owner;
 	struct device dev;
+	struct device bdev;
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
 	const char *supply_name;
