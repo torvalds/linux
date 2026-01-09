@@ -256,10 +256,12 @@ static void monitor_event_exception(struct pt_regs *regs)
 
 	if (user_mode(regs))
 		return;
-	if (regs->monitor_code == MONCODE_BUG_ARG)
+	if (regs->monitor_code == MONCODE_BUG_ARG) {
+		regs->psw.addr = regs->gprs[14];
 		btt = report_bug_entry((struct bug_entry *)regs->gprs[2], regs);
-	else
+	} else {
 		btt = report_bug(regs->psw.addr - (regs->int_code >> 16), regs);
+	}
 	switch (btt) {
 	case BUG_TRAP_TYPE_NONE:
 		fixup_exception(regs);
