@@ -2468,7 +2468,7 @@ next_folio:
 	ffs = NULL;
 	nrpages = folio_nr_pages(folio);
 
-	for (; nrpages; nrpages--) {
+	for (; nrpages; nrpages--, max_nr_pages--) {
 		sector_t block_nr;
 		/*
 		 * Map blocks using the previous result first.
