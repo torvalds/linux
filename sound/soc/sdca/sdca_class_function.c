@@ -33,6 +33,7 @@ struct class_function_drv {
 	struct sdca_class_drv *core;
 
 	struct sdca_function_data *function;
+	bool suspended;
 };
 
 static void class_function_regmap_lock(void *data)
@@ -417,6 +418,14 @@ static int class_function_runtime_resume(struct device *dev)
 	regcache_mark_dirty(drv->regmap);
 	regcache_cache_only(drv->regmap, false);
 
+	if (drv->suspended) {
+		sdca_irq_enable_early(drv->function, drv->core->irq_info);
+		/* TODO: Add FDL process between early and late IRQs */
+		sdca_irq_enable(drv->function, drv->core->irq_info);
+
+		drv->suspended = false;
+	}
+
 	ret = regcache_sync(drv->regmap);
 	if (ret) {
 		dev_err(drv->dev, "failed to restore register cache: %d\n", ret);
@@ -431,7 +440,49 @@ err:
 	return ret;
 }
 
+static int class_function_suspend(struct device *dev)
+{
+	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
+	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
+	int ret;
+
+	drv->suspended = true;
+
+	/* Ensure runtime resume runs on resume */
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume for suspend: %d\n", ret);
+		return ret;
+	}
+
+	sdca_irq_disable(drv->function, drv->core->irq_info);
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to force suspend: %d\n", ret);
+		return ret;
+	}
+
+	pm_runtime_put_noidle(dev);
+
+	return 0;
+}
+
+static int class_function_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to force resume: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct dev_pm_ops class_function_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(class_function_suspend, class_function_resume)
 	RUNTIME_PM_OPS(class_function_runtime_suspend,
 		       class_function_runtime_resume, NULL)
 };
