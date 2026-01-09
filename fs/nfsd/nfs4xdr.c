@@ -3470,6 +3470,22 @@ static __be32 nfsd4_encode_fattr4_open_arguments(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+
+static __be32 nfsd4_encode_fattr4_acl_trueform(struct xdr_stream *xdr,
+					       const struct nfsd4_fattr_args *args)
+{
+	aclmodel4 trueform = ACL_MODEL_NONE;
+
+	if (IS_POSIXACL(d_inode(args->dentry)))
+		trueform = ACL_MODEL_POSIX_DRAFT;
+	if (!xdrgen_encode_aclmodel4(xdr, trueform))
+		return nfserr_resource;
+	return nfs_ok;
+}
+
+#endif /* CONFIG_NFSD_V4_POSIX_ACLS */
+
 static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 	[FATTR4_SUPPORTED_ATTRS]	= nfsd4_encode_fattr4_supported_attrs,
 	[FATTR4_TYPE]			= nfsd4_encode_fattr4_type,
@@ -3573,6 +3589,16 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 	[FATTR4_TIME_DELEG_ACCESS]	= nfsd4_encode_fattr4__inval,
 	[FATTR4_TIME_DELEG_MODIFY]	= nfsd4_encode_fattr4__inval,
 	[FATTR4_OPEN_ARGUMENTS]		= nfsd4_encode_fattr4_open_arguments,
+
+	/* Reserved */
+	[87]				= nfsd4_encode_fattr4__inval,
+	[88]				= nfsd4_encode_fattr4__inval,
+
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4_acl_trueform,
+#else
+	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4__noop,
+#endif
 };
 
 /*
