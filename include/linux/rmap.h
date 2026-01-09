@@ -92,6 +92,7 @@ struct anon_vma_chain {
 };
 
 enum ttu_flags {
+	TTU_USE_SHARED_ZEROPAGE	= 0x2,	/* for unused pages of large folios */
 	TTU_SPLIT_HUGE_PMD	= 0x4,	/* split huge PMD if any */
 	TTU_IGNORE_MLOCK	= 0x8,	/* ignore mlock */
 	TTU_SYNC		= 0x10,	/* avoid racy checks with PVMW_SYNC */
@@ -933,12 +934,8 @@ int mapping_wrprotect_range(struct address_space *mapping, pgoff_t pgoff,
 int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 		      struct vm_area_struct *vma);
 
-enum rmp_flags {
-	RMP_LOCKED		= 1 << 0,
-	RMP_USE_SHARED_ZEROPAGE	= 1 << 1,
-};
-
-void remove_migration_ptes(struct folio *src, struct folio *dst, int flags);
+void remove_migration_ptes(struct folio *src, struct folio *dst,
+		enum ttu_flags flags);
 
 /*
  * rmap_walk_control: To control rmap traversing for specific needs
