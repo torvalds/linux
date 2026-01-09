@@ -278,6 +278,12 @@ new_bio:
 			bio_iter_iovec(src_bio, src_bio->bi_iter);
 		struct page *enc_page = enc_pages[enc_idx];
 
+		if (!IS_ALIGNED(src_bv.bv_len | src_bv.bv_offset,
+				data_unit_size)) {
+			enc_bio->bi_status = BLK_STS_INVAL;
+			goto out_free_enc_bio;
+		}
+
 		__bio_add_page(enc_bio, enc_page, src_bv.bv_len,
 				src_bv.bv_offset);
 
@@ -296,8 +302,10 @@ new_bio:
 		 */
 		for (i = 0; i < src_bv.bv_len; i += data_unit_size) {
 			blk_crypto_dun_to_iv(curr_dun, &iv);
-			if (crypto_skcipher_encrypt(ciph_req))
+			if (crypto_skcipher_encrypt(ciph_req)) {
+				enc_bio->bi_status = BLK_STS_IOERR;
 				goto out_free_enc_bio;
+			}
 			bio_crypt_dun_increment(curr_dun, 1);
 			src.offset += data_unit_size;
 			dst.offset += data_unit_size;
@@ -334,7 +342,7 @@ out_free_enc_bio:
 	 */
 	for (; enc_idx < nr_enc_pages; enc_idx++)
 		__bio_add_page(enc_bio, enc_pages[enc_idx], PAGE_SIZE, 0);
-	bio_io_error(enc_bio);
+	bio_endio(enc_bio);
 }
 
 /*
@@ -386,6 +394,9 @@ static blk_status_t __blk_crypto_fallback_decrypt_bio(struct bio *bio,
 	/* Decrypt each segment in the bio */
 	__bio_for_each_segment(bv, bio, iter, iter) {
 		struct page *page = bv.bv_page;
+
+		if (!IS_ALIGNED(bv.bv_len | bv.bv_offset, data_unit_size))
+			return BLK_STS_INVAL;
 
 		sg_set_page(&sg, page, data_unit_size, bv.bv_offset);
 
