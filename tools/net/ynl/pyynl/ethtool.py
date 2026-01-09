@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+#
+# pylint: disable=too-many-locals, too-many-branches, too-many-statements
+# pylint: disable=too-many-return-statements
+
+""" YNL ethtool utility """
 
 import argparse
 import pathlib
@@ -8,9 +13,12 @@ import sys
 import re
 import os
 
+# pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
-from lib import YnlFamily
+# pylint: disable=import-error
 from cli import schema_dir, spec_dir
+from lib import YnlFamily
+
 
 def args_to_req(ynl, op_name, args, req):
     """
@@ -48,7 +56,8 @@ def print_field(reply, *desc):
         return
 
     if len(desc) == 0:
-        return print_field(reply, *zip(reply.keys(), reply.keys()))
+        print_field(reply, *zip(reply.keys(), reply.keys()))
+        return
 
     for spec in desc:
         try:
@@ -88,11 +97,12 @@ def doit(ynl, args, op_name):
     args_to_req(ynl, op_name, args.args, req)
     ynl.do(op_name, req)
 
-def dumpit(ynl, args, op_name, extra = {}):
+def dumpit(ynl, args, op_name, extra=None):
     """
     Prepare request header, parse arguments and dumpit (filtering out the
     devices we're not interested in).
     """
+    extra = extra or {}
     reply = ynl.dump(op_name, { 'header': {} } | extra)
     if not reply:
         return {}
@@ -114,9 +124,9 @@ def bits_to_dict(attr):
     """
     ret = {}
     if 'bits' not in attr:
-        return dict()
+        return {}
     if 'bit' not in attr['bits']:
-        return dict()
+        return {}
     for bit in attr['bits']['bit']:
         if bit['name'] == '':
             continue
@@ -126,6 +136,8 @@ def bits_to_dict(attr):
     return ret
 
 def main():
+    """ YNL ethtool utility """
+
     parser = argparse.ArgumentParser(description='ethtool wannabe')
     parser.add_argument('--json', action=argparse.BooleanOptionalAction)
     parser.add_argument('--show-priv-flags', action=argparse.BooleanOptionalAction)
@@ -155,7 +167,7 @@ def main():
     # TODO:                       rss-get
     parser.add_argument('device', metavar='device', type=str)
     parser.add_argument('args', metavar='args', type=str, nargs='*')
-    global args
+
     args = parser.parse_args()
 
     spec = os.path.join(spec_dir(), 'ethtool.yaml')
@@ -169,13 +181,16 @@ def main():
         return
 
     if args.set_eee:
-        return doit(ynl, args, 'eee-set')
+        doit(ynl, args, 'eee-set')
+        return
 
     if args.set_pause:
-        return doit(ynl, args, 'pause-set')
+        doit(ynl, args, 'pause-set')
+        return
 
     if args.set_coalesce:
-        return doit(ynl, args, 'coalesce-set')
+        doit(ynl, args, 'coalesce-set')
+        return
 
     if args.set_features:
         # TODO: parse the bitmask
@@ -183,10 +198,12 @@ def main():
         return
 
     if args.set_channels:
-        return doit(ynl, args, 'channels-set')
+        doit(ynl, args, 'channels-set')
+        return
 
     if args.set_ring:
-        return doit(ynl, args, 'rings-set')
+        doit(ynl, args, 'rings-set')
+        return
 
     if args.show_priv_flags:
         flags = bits_to_dict(dumpit(ynl, args, 'privflags-get')['flags'])
@@ -337,25 +354,25 @@ def main():
         print(f'Time stamping parameters for {args.device}:')
 
         print('Capabilities:')
-        [print(f'\t{v}') for v in bits_to_dict(tsinfo['timestamping'])]
+        _ = [print(f'\t{v}') for v in bits_to_dict(tsinfo['timestamping'])]
 
         print(f'PTP Hardware Clock: {tsinfo.get("phc-index", "none")}')
 
         if 'tx-types' in tsinfo:
             print('Hardware Transmit Timestamp Modes:')
-            [print(f'\t{v}') for v in bits_to_dict(tsinfo['tx-types'])]
+            _ = [print(f'\t{v}') for v in bits_to_dict(tsinfo['tx-types'])]
         else:
             print('Hardware Transmit Timestamp Modes: none')
 
         if 'rx-filters' in tsinfo:
             print('Hardware Receive Filter Modes:')
-            [print(f'\t{v}') for v in bits_to_dict(tsinfo['rx-filters'])]
+            _ = [print(f'\t{v}') for v in bits_to_dict(tsinfo['rx-filters'])]
         else:
             print('Hardware Receive Filter Modes: none')
 
         if 'stats' in tsinfo and tsinfo['stats']:
             print('Statistics:')
-            [print(f'\t{k}: {v}') for k, v in tsinfo['stats'].items()]
+            _ = [print(f'\t{k}: {v}') for k, v in tsinfo['stats'].items()]
 
         return
 

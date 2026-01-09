@@ -109,8 +109,7 @@ class RstFormatters:
                     'fixed-header': 'definition',
                     'nested-attributes': 'attribute-set',
                     'struct': 'definition'}
-        if prefix in mappings:
-            prefix = mappings[prefix]
+        prefix = mappings.get(prefix, prefix)
         return f":ref:`{namespace}-{prefix}-{name}`"
 
     def rst_header(self) -> str:

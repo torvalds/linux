@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
+"""
+YNL cli tool
+"""
+
 import argparse
 import json
 import os
@@ -9,35 +13,45 @@ import pprint
 import sys
 import textwrap
 
+# pylint: disable=no-name-in-module,wrong-import-position
 sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
-from lib import YnlFamily, Netlink, NlError, SpecFamily
+from lib import YnlFamily, Netlink, NlError, SpecFamily, SpecException, YnlException
 
-sys_schema_dir='/usr/share/ynl'
-relative_schema_dir='../../../../Documentation/netlink'
+SYS_SCHEMA_DIR='/usr/share/ynl'
+RELATIVE_SCHEMA_DIR='../../../../Documentation/netlink'
 
 def schema_dir():
+    """
+    Return the effective schema directory, preferring in-tree before
+    system schema directory.
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    schema_dir = os.path.abspath(f"{script_dir}/{relative_schema_dir}")
-    if not os.path.isdir(schema_dir):
-        schema_dir = sys_schema_dir
-    if not os.path.isdir(schema_dir):
-        raise Exception(f"Schema directory {schema_dir} does not exist")
-    return schema_dir
+    schema_dir_ = os.path.abspath(f"{script_dir}/{RELATIVE_SCHEMA_DIR}")
+    if not os.path.isdir(schema_dir_):
+        schema_dir_ = SYS_SCHEMA_DIR
+    if not os.path.isdir(schema_dir_):
+        raise YnlException(f"Schema directory {schema_dir_} does not exist")
+    return schema_dir_
 
 def spec_dir():
-    spec_dir = schema_dir() + '/specs'
-    if not os.path.isdir(spec_dir):
-        raise Exception(f"Spec directory {spec_dir} does not exist")
-    return spec_dir
+    """
+    Return the effective spec directory, relative to the effective
+    schema directory.
+    """
+    spec_dir_ = schema_dir() + '/specs'
+    if not os.path.isdir(spec_dir_):
+        raise YnlException(f"Spec directory {spec_dir_} does not exist")
+    return spec_dir_
 
 
 class YnlEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, bytes):
-            return bytes.hex(obj)
-        if isinstance(obj, set):
-            return list(obj)
-        return json.JSONEncoder.default(self, obj)
+    """A custom encoder for emitting JSON with ynl-specific instance types"""
+    def default(self, o):
+        if isinstance(o, bytes):
+            return bytes.hex(o)
+        if isinstance(o, set):
+            return list(o)
+        return json.JSONEncoder.default(self, o)
 
 
 def print_attr_list(ynl, attr_names, attr_set, indent=2):
@@ -94,7 +108,10 @@ def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
         print_attr_list(ynl, mode_spec['attributes'], attr_set)
 
 
+# pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def main():
+    """YNL cli tool"""
+
     description = """
     YNL CLI utility - a general purpose netlink utility that uses YAML
     specs to drive protocol encoding and decoding.
@@ -172,18 +189,18 @@ def main():
     else:
         spec = args.spec
     if not os.path.isfile(spec):
-        raise Exception(f"Spec file {spec} does not exist")
+        raise YnlException(f"Spec file {spec} does not exist")
 
     if args.validate:
         try:
             SpecFamily(spec, args.schema)
-        except Exception as error:
+        except SpecException as error:
             print(error)
-            exit(1)
+            sys.exit(1)
         return
 
     if args.family: # set behaviour when using installed specs
-        if args.schema is None and spec.startswith(sys_schema_dir):
+        if args.schema is None and spec.startswith(SYS_SCHEMA_DIR):
             args.schema = '' # disable schema validation when installed
         if args.process_unknown is None:
             args.process_unknown = True
@@ -207,7 +224,7 @@ def main():
         op = ynl.msgs.get(args.list_attrs)
         if not op:
             print(f'Operation {args.list_attrs} not found')
-            exit(1)
+            sys.exit(1)
 
         print(f'Operation: {op.name}')
         print(op.yaml['doc'])
@@ -242,7 +259,7 @@ def main():
                 output(msg)
     except NlError as e:
         print(e)
-        exit(1)
+        sys.exit(1)
     except KeyboardInterrupt:
         pass
     except BrokenPipeError:
