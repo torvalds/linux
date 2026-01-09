@@ -2273,9 +2273,20 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	 * under-voltage.
 	 */
 	ret = register_regulator_event_forwarding(rdev);
-	if (ret < 0)
+	if (ret < 0) {
+		struct regulator *supply;
+
 		rdev_warn(rdev, "Failed to register event forwarding: %pe\n",
 			  ERR_PTR(ret));
+
+		supply = rdev->supply;
+		rdev->supply = NULL;
+
+		regulator_unlock_two(rdev, supply->rdev, &ww_ctx);
+
+		regulator_put(supply);
+		goto out;
+	}
 
 	regulator_unlock_two(rdev, r, &ww_ctx);
 
