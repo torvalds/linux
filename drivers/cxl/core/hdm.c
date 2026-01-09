@@ -966,7 +966,7 @@ static int cxl_setup_hdm_decoder_from_dvsec(
 	rc = devm_cxl_dpa_reserve(cxled, *dpa_base, len, 0);
 	if (rc) {
 		dev_err(&port->dev,
-			"decoder%d.%d: Failed to reserve DPA range %#llx - %#llx\n (%d)",
+			"decoder%d.%d: Failed to reserve DPA range %#llx - %#llx: %d\n",
 			port->id, cxld->id, *dpa_base, *dpa_base + len - 1, rc);
 		return rc;
 	}
@@ -1117,7 +1117,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	rc = devm_cxl_dpa_reserve(cxled, *dpa_base + skip, dpa_size, skip);
 	if (rc) {
 		dev_err(&port->dev,
-			"decoder%d.%d: Failed to reserve DPA range %#llx - %#llx\n (%d)",
+			"decoder%d.%d: Failed to reserve DPA range %#llx - %#llx: %d\n",
 			port->id, cxld->id, *dpa_base,
 			*dpa_base + dpa_size + skip - 1, rc);
 		return rc;
