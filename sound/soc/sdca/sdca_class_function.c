@@ -211,6 +211,31 @@ static const struct snd_soc_component_driver class_function_component_drv = {
 	.endianness		= 1,
 };
 
+static int class_function_init_device(struct class_function_drv *drv,
+				      unsigned int status)
+{
+	int ret;
+
+	if (!(status & SDCA_CTL_ENTITY_0_FUNCTION_HAS_BEEN_RESET)) {
+		dev_dbg(drv->dev, "reset function device\n");
+
+		ret = sdca_reset_function(drv->dev, drv->function, drv->regmap);
+		if (ret)
+			return ret;
+	}
+
+	if (status & SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION) {
+		dev_dbg(drv->dev, "write initialisation\n");
+
+		ret = sdca_regmap_write_init(drv->dev, drv->core->dev_regmap,
+					     drv->function);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int class_function_boot(struct class_function_drv *drv)
 {
 	unsigned int reg = SDW_SDCA_CTL(drv->function->desc->adr,
@@ -225,31 +250,9 @@ static int class_function_boot(struct class_function_drv *drv)
 		return ret;
 	}
 
-	if (!(val & SDCA_CTL_ENTITY_0_FUNCTION_HAS_BEEN_RESET)) {
-		dev_dbg(drv->dev, "reset function device\n");
-
-		ret = sdca_reset_function(drv->dev, drv->function, drv->regmap);
-		if (ret)
-			return ret;
-	}
-
-	if (val & SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION) {
-		dev_dbg(drv->dev, "write initialisation\n");
-
-		ret = sdca_regmap_write_init(drv->dev, drv->core->dev_regmap,
-					     drv->function);
-		if (ret)
-			return ret;
-
-		ret = regmap_write(drv->regmap, reg,
-				   SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION);
-		if (ret < 0) {
-			dev_err(drv->dev,
-				"failed to clear function init status: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	ret = class_function_init_device(drv, val);
+	if (ret)
+		return ret;
 
 	/* Start FDL process */
 	ret = sdca_irq_populate_early(drv->dev, drv->regmap, drv->function,
@@ -419,9 +422,34 @@ static int class_function_runtime_resume(struct device *dev)
 	regcache_cache_only(drv->regmap, false);
 
 	if (drv->suspended) {
+		unsigned int reg = SDW_SDCA_CTL(drv->function->desc->adr,
+						SDCA_ENTITY_TYPE_ENTITY_0,
+						SDCA_CTL_ENTITY_0_FUNCTION_STATUS, 0);
+		unsigned int val;
+
+		ret = regmap_read(drv->regmap, reg, &val);
+		if (ret < 0) {
+			dev_err(drv->dev, "failed to read function status: %d\n", ret);
+			goto err;
+		}
+
+		ret = class_function_init_device(drv, val);
+		if (ret)
+			goto err;
+
 		sdca_irq_enable_early(drv->function, drv->core->irq_info);
-		/* TODO: Add FDL process between early and late IRQs */
+
+		ret = sdca_fdl_sync(drv->dev, drv->function, drv->core->irq_info);
+		if (ret)
+			goto err;
+
 		sdca_irq_enable(drv->function, drv->core->irq_info);
+
+		ret = regmap_write(drv->regmap, reg, 0xFF);
+		if (ret < 0) {
+			dev_err(drv->dev, "failed to clear function status: %d\n", ret);
+			goto err;
+		}
 
 		drv->suspended = false;
 	}
