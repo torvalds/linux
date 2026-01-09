@@ -1559,6 +1559,10 @@ static enum rtl_dash_type rtl_get_dash_type(struct rtl8169_private *tp)
 		return RTL_DASH_EP;
 	case RTL_GIGA_MAC_VER_66:
 		return RTL_DASH_25_BP;
+	case RTL_GIGA_MAC_VER_80:
+		return (tp->pci_dev->revision == 0x04)
+			? RTL_DASH_25_BP
+			: RTL_DASH_NONE;
 	default:
 		return RTL_DASH_NONE;
 	}
