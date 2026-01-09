@@ -11,6 +11,17 @@ description: |
   messaging between two Xilinx Zynq UltraScale+ MPSoC IPI agents. Each IPI
   agent owns registers used for notification and buffers for message.
 
+  For Versal devices, there are two types of IPI channels:
+    - Buffered channels: Support message passing and require the "msg"
+    register region to be present on both the host and remote IPI agents.
+    - Buffer-less channels: Support notification only and do not require the
+    "msg" register region. For these channels, the "msg" region should be
+    omitted.
+
+  For message passing, both the host and remote IPI agents must define the "msg"
+  register region. If either agent omits the "msg" region, only notification
+  based communication is possible.
+
                +-------------------------------------+
                | Xilinx ZynqMP IPI Controller        |
                +-------------------------------------+
