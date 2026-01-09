@@ -136,7 +136,6 @@ static void gfx_v12_1_kiq_map_queues(struct amdgpu_ring *kiq_ring,
 			  PACKET3_MAP_QUEUES_PIPE(ring->pipe) |
 			  PACKET3_MAP_QUEUES_ME((me)) |
 			  PACKET3_MAP_QUEUES_QUEUE_TYPE(0) | /*queue_type: normal compute queue */
-			  PACKET3_MAP_QUEUES_ALLOC_FORMAT(0) | /* alloc format: all_on_one_pipe */
 			  PACKET3_MAP_QUEUES_ENGINE_SEL(eng_sel) |
 			  PACKET3_MAP_QUEUES_NUM_QUEUES(1)); /* num_queues: must be 1 */
 	amdgpu_ring_write(kiq_ring, PACKET3_MAP_QUEUES_DOORBELL_OFFSET(ring->doorbell_index));
@@ -245,8 +244,7 @@ static void gfx_v12_1_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 			  /* memory (1) or register (0) */
 			  (WAIT_REG_MEM_MEM_SPACE(mem_space) |
 			   WAIT_REG_MEM_OPERATION(opt) | /* wait */
-			   WAIT_REG_MEM_FUNCTION(3) |  /* equal */
-			   WAIT_REG_MEM_ENGINE(eng_sel)));
+			   WAIT_REG_MEM_FUNCTION(3)));  /* equal */
 
 	if (mem_space)
 		BUG_ON(addr0 & 0x3); /* Dword align */
@@ -3412,11 +3410,10 @@ static void gfx_v12_1_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 
 static void gfx_v12_1_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 {
-	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
 	uint32_t seq = ring->fence_drv.sync_seq;
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
-	gfx_v12_1_wait_reg_mem(ring, usepfp, 1, 0, lower_32_bits(addr),
+	gfx_v12_1_wait_reg_mem(ring, 0, 1, 0, lower_32_bits(addr),
 			       upper_32_bits(addr), seq, 0xffffffff, 4);
 }
 
@@ -3455,8 +3452,7 @@ static void gfx_v12_1_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 
 	/* write fence seq to the "addr" */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(5) | WR_CONFIRM));
+	amdgpu_ring_write(ring, (WRITE_DATA_DST_SEL(5) | WR_CONFIRM));
 	amdgpu_ring_write(ring, lower_32_bits(addr));
 	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, lower_32_bits(seq));
@@ -3464,8 +3460,7 @@ static void gfx_v12_1_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 	if (flags & AMDGPU_FENCE_FLAG_INT) {
 		/* set register to trigger INT */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-		amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-					 WRITE_DATA_DST_SEL(0) | WR_CONFIRM));
+		amdgpu_ring_write(ring, (WRITE_DATA_DST_SEL(0) | WR_CONFIRM));
 		amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regCPC_INT_STATUS));
 		amdgpu_ring_write(ring, 0);
 		amdgpu_ring_write(ring, 0x20000000); /* src_id is 178 */
@@ -3524,9 +3519,7 @@ static void gfx_v12_1_ring_emit_reg_write_reg_wait(struct amdgpu_ring *ring,
 						   uint32_t reg0, uint32_t reg1,
 						   uint32_t ref, uint32_t mask)
 {
-	int usepfp = (ring->funcs->type == AMDGPU_RING_TYPE_GFX);
-
-	gfx_v12_1_wait_reg_mem(ring, usepfp, 0, 1, reg0, reg1,
+	gfx_v12_1_wait_reg_mem(ring, 0, 0, 1, reg0, reg1,
 			       ref, mask, 0x20);
 }
 
