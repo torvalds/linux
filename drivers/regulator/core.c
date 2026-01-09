@@ -98,6 +98,7 @@ struct regulator_event_work {
 	unsigned long event;
 };
 
+static int _regulator_enable(struct regulator *regulator);
 static int _regulator_is_enabled(struct regulator_dev *rdev);
 static int _regulator_disable(struct regulator *regulator);
 static int _regulator_get_error_flags(struct regulator_dev *rdev, unsigned int *flags);
@@ -1432,6 +1433,7 @@ static int handle_notify_limits(struct regulator_dev *rdev,
 /**
  * set_machine_constraints - sets regulator constraints
  * @rdev: regulator source
+ * @is_locked: whether or not this is called with locks held already
  *
  * Allows platform initialisation code to define and constrain
  * regulator circuits e.g. valid voltage/current ranges, etc.  NOTE:
@@ -1441,7 +1443,8 @@ static int handle_notify_limits(struct regulator_dev *rdev,
  *
  * Return: 0 on success or a negative error number on failure.
  */
-static int set_machine_constraints(struct regulator_dev *rdev)
+static int set_machine_constraints(struct regulator_dev *rdev,
+				   bool is_locked)
 {
 	int ret = 0;
 	const struct regulator_ops *ops = rdev->desc->ops;
@@ -1653,7 +1656,9 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 		if (rdev->supply &&
 		    (rdev->constraints->always_on ||
 		     !regulator_is_enabled(rdev->supply))) {
-			ret = regulator_enable(rdev->supply);
+			ret = (is_locked
+			       ? _regulator_enable(rdev->supply)
+			       : regulator_enable(rdev->supply));
 			if (ret < 0) {
 				_regulator_put(rdev->supply);
 				rdev->supply = NULL;
@@ -1779,6 +1784,15 @@ static int register_regulator_event_forwarding(struct regulator_dev *rdev)
 	}
 
 	return 0;
+}
+
+static void unregister_regulator_event_forwarding(struct regulator_dev *rdev)
+{
+	if (!rdev->supply_fwd_nb.notifier_call)
+		return;
+
+	regulator_unregister_notifier(rdev->supply, &rdev->supply_fwd_nb);
+	rdev->supply_fwd_nb.notifier_call = NULL;
 }
 
 /**
@@ -2169,6 +2183,8 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	struct regulator_dev *r;
 	struct device *dev = rdev->dev.parent;
 	struct ww_acquire_ctx ww_ctx;
+	struct regulator *supply;
+	bool do_final_setup;
 	int ret = 0;
 
 	/* No supply to resolve? */
@@ -2176,7 +2192,7 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 		return 0;
 
 	/* Supply already resolved? (fast-path without locking contention) */
-	if (rdev->supply)
+	if (rdev->supply && !rdev->constraints_pending)
 		return 0;
 
 	/* first do a dt based lookup on the node described in the virtual
@@ -2257,45 +2273,114 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 
 	/* Supply just resolved by a concurrent task? */
 	if (rdev->supply) {
-		regulator_unlock_two(rdev, r, &ww_ctx);
-		put_device(&r->dev);
-		goto out;
-	}
+		/* Constraints might still be pending due to concurrency. */
+		bool done = !rdev->constraints_pending;
 
-	ret = set_supply(rdev, r);
-	if (ret < 0) {
+		supply = rdev->supply;
+
 		regulator_unlock_two(rdev, r, &ww_ctx);
 		put_device(&r->dev);
-		goto out;
+
+		/*
+		 * Supply resolved by concurrent task, and constraints set as
+		 * well (or not required): fast path.
+		 */
+		if (done)
+			goto out;
+
+		do_final_setup = false;
+	} else {
+		ret = set_supply(rdev, r);
+		if (ret < 0) {
+			regulator_unlock_two(rdev, r, &ww_ctx);
+			put_device(&r->dev);
+			goto out;
+		}
+
+		supply = rdev->supply;
+
+		/*
+		 * Automatically register for event forwarding from the new
+		 * supply. This creates the downstream propagation link for
+		 * events like under-voltage.
+		 */
+		ret = register_regulator_event_forwarding(rdev);
+		if (ret < 0) {
+			rdev_warn(rdev,
+				  "Failed to register event forwarding: %pe\n",
+				  ERR_PTR(ret));
+
+			goto unset_supply;
+		}
+
+		regulator_unlock_two(rdev, r, &ww_ctx);
+
+		do_final_setup = true;
 	}
 
 	/*
-	 * Automatically register for event forwarding from the new supply.
-	 * This creates the downstream propagation link for events like
-	 * under-voltage.
+	 * Now that we have the supply, we can retry setting the machine
+	 * constraints, if necessary.
 	 */
-	ret = register_regulator_event_forwarding(rdev);
-	if (ret < 0) {
-		struct regulator *supply;
+	regulator_lock_dependent(rdev, &ww_ctx);
+	if (rdev->constraints_pending) {
+		if (!rdev->supply) {
+			/*
+			 * Supply could have been released by another task that
+			 * failed to set the constraints or event forwarding.
+			 */
+			regulator_unlock_dependent(rdev, &ww_ctx);
+			ret = -EPROBE_DEFER;
+			goto out;
+		}
 
-		rdev_warn(rdev, "Failed to register event forwarding: %pe\n",
-			  ERR_PTR(ret));
+		ret = set_machine_constraints(rdev, true);
+		if (ret < 0) {
+			regulator_unlock_dependent(rdev, &ww_ctx);
 
-		supply = rdev->supply;
-		rdev->supply = NULL;
+			rdev_warn(rdev,
+				  "Failed to set machine constraints: %pe\n",
+				  ERR_PTR(ret));
 
-		regulator_unlock_two(rdev, supply->rdev, &ww_ctx);
+			regulator_lock_two(rdev, r, &ww_ctx);
 
-		regulator_put(supply);
-		goto out;
+			if (supply != rdev->supply) {
+				/*
+				 * Supply could have been released by another
+				 * task that got here before us. If it did, it
+				 * will have released 'supply' (i.e. the
+				 * previous rdev->supply) and we shouldn't do
+				 * that again via unset_supply.
+				 */
+				regulator_unlock_two(rdev, r, &ww_ctx);
+				goto out;
+			}
+
+			unregister_regulator_event_forwarding(rdev);
+			rdev->constraints_pending = true;
+			goto unset_supply;
+		}
+		rdev->constraints_pending = false;
 	}
+	regulator_unlock_dependent(rdev, &ww_ctx);
 
-	regulator_unlock_two(rdev, r, &ww_ctx);
+	if (!do_final_setup)
+		goto out;
 
 	/* rdev->supply was created in set_supply() */
-	link_and_create_debugfs(rdev->supply, r, &rdev->dev);
+	link_and_create_debugfs(rdev->supply, rdev->supply->rdev, &rdev->dev);
 
 out:
+	return ret;
+
+unset_supply:
+	lockdep_assert_held_once(&rdev->mutex.base);
+	lockdep_assert_held_once(&r->mutex.base);
+	rdev->supply = NULL;
+	regulator_unlock_two(rdev, supply->rdev, &ww_ctx);
+
+	regulator_put(supply);
+
 	return ret;
 }
 
@@ -6067,7 +6152,7 @@ regulator_register(struct device *dev,
 		dangling_of_gpiod = false;
 	}
 
-	ret = set_machine_constraints(rdev);
+	ret = set_machine_constraints(rdev, false);
 	if (ret == -EPROBE_DEFER) {
 		/* Regulator might be in bypass mode or an always-on or boot-on
 		 * regulator and so needs its supply to set the constraints or
@@ -6081,14 +6166,17 @@ regulator_register(struct device *dev,
 			 rdev->supply_name);
 		ret = regulator_resolve_supply(rdev);
 		if (!ret)
-			ret = set_machine_constraints(rdev);
+			ret = set_machine_constraints(rdev, false);
 		else
 			rdev_dbg(rdev, "unable to resolve supply early: %pe\n",
 				 ERR_PTR(ret));
 		tried_supply_resolve = true;
 	}
-	if (ret < 0)
-		goto wash;
+	if (ret < 0) {
+		if (ret != -EPROBE_DEFER)
+			goto wash;
+		rdev->constraints_pending = true;
+	}
 
 	ret = regulator_init_coupling(rdev);
 	if (ret < 0)
