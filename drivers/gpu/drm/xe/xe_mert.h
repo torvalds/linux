@@ -3,8 +3,8 @@
  * Copyright(c) 2025, Intel Corporation. All rights reserved.
  */
 
-#ifndef __XE_MERT_H__
-#define __XE_MERT_H__
+#ifndef _XE_MERT_H_
+#define _XE_MERT_H_
 
 #include <linux/completion.h>
 #include <linux/spinlock.h>
@@ -29,4 +29,4 @@ void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl);
 static inline void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl) { }
 #endif
 
-#endif /* __XE_MERT_H__ */
+#endif
