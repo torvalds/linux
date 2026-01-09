@@ -341,12 +341,9 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 			err = -EOPNOTSUPP;
 			goto end_setxattr;
 		}
-		err = hfsplus_delete_attr(inode, name);
-		if (err)
-			goto end_setxattr;
-		err = hfsplus_create_attr(inode, name, value, size);
+		err = hfsplus_replace_attr(inode, name, value, size);
 		if (err) {
-			hfs_dbg("unable to store value: err %d\n", err);
+			hfs_dbg("unable to replace xattr: err %d\n", err);
 			goto end_setxattr;
 		}
 	} else {
