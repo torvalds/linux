@@ -30,6 +30,18 @@
 };
 
 /*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Back-left";
+};
+
+&typec1 {
+	label = "USB-C Back-right";
+};
+
+/*
  * Force the bus number assignments so that we can declare some of the
  * on-board devices and properties that are populated by the bootloader
  * (such as MAC addresses).

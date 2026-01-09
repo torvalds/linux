@@ -46,6 +46,18 @@
 	brcm,board-type = "apple,honshu";
 };
 
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Left-back";
+};
+
+&typec1 {
+	label = "USB-C Left-front";
+};
+
 &i2c2 {
 	status = "okay";
 };
