@@ -10,7 +10,6 @@ from argparse import Namespace
 from lark import logger
 from lark.exceptions import VisitError
 
-from generators.constant import XdrConstantGenerator
 from generators.enum import XdrEnumGenerator
 from generators.header_bottom import XdrHeaderBottomGenerator
 from generators.header_top import XdrHeaderTopGenerator
@@ -21,8 +20,7 @@ from generators.struct import XdrStructGenerator
 from generators.union import XdrUnionGenerator
 
 from xdr_ast import transform_parse_tree, _RpcProgram, Specification
-from xdr_ast import _XdrConstant, _XdrEnum, _XdrPointer
-from xdr_ast import _XdrTypedef, _XdrStruct, _XdrUnion
+from xdr_ast import _XdrEnum, _XdrPointer, _XdrTypedef, _XdrStruct, _XdrUnion
 from xdr_parse import xdr_parser, set_xdr_annotate
 from xdr_parse import make_error_handler, XdrParseError
 from xdr_parse import handle_transform_error

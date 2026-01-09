@@ -12,6 +12,7 @@ from lark.exceptions import VisitError
 
 from generators.source_top import XdrSourceTopGenerator
 from generators.enum import XdrEnumGenerator
+from generators.passthru import XdrPassthruGenerator
 from generators.pointer import XdrPointerGenerator
 from generators.program import XdrProgramGenerator
 from generators.typedef import XdrTypedefGenerator
@@ -19,7 +20,7 @@ from generators.struct import XdrStructGenerator
 from generators.union import XdrUnionGenerator
 
 from xdr_ast import transform_parse_tree, _RpcProgram, Specification
-from xdr_ast import _XdrAst, _XdrEnum, _XdrPointer
+from xdr_ast import _XdrAst, _XdrEnum, _XdrPassthru, _XdrPointer
 from xdr_ast import _XdrStruct, _XdrTypedef, _XdrUnion
 
 from xdr_parse import xdr_parser, set_xdr_annotate, set_xdr_enum_validation
@@ -74,22 +75,31 @@ def generate_server_source(filename: str, root: Specification, language: str) ->
     gen.emit_source(filename, root)
 
     for definition in root.definitions:
-        emit_source_decoder(definition.value, language, "server")
+        if isinstance(definition.value, _XdrPassthru):
+            passthru_gen = XdrPassthruGenerator(language, "server")
+            passthru_gen.emit_decoder(definition.value)
+        else:
+            emit_source_decoder(definition.value, language, "server")
     for definition in root.definitions:
-        emit_source_encoder(definition.value, language, "server")
+        if not isinstance(definition.value, _XdrPassthru):
+            emit_source_encoder(definition.value, language, "server")
 
 
 def generate_client_source(filename: str, root: Specification, language: str) -> None:
-    """Generate server-side source code"""
+    """Generate client-side source code"""
 
     gen = XdrSourceTopGenerator(language, "client")
     gen.emit_source(filename, root)
 
-    print("")
     for definition in root.definitions:
-        emit_source_encoder(definition.value, language, "client")
+        if isinstance(definition.value, _XdrPassthru):
+            passthru_gen = XdrPassthruGenerator(language, "client")
+            passthru_gen.emit_decoder(definition.value)
+        else:
+            emit_source_encoder(definition.value, language, "client")
     for definition in root.definitions:
-        emit_source_decoder(definition.value, language, "client")
+        if not isinstance(definition.value, _XdrPassthru):
+            emit_source_decoder(definition.value, language, "client")
 
     # cel: todo: client needs PROC macros
 

@@ -517,6 +517,13 @@ class _Pragma(_XdrAst):
 
 
 @dataclass
+class _XdrPassthru(_XdrAst):
+    """Passthrough line to emit verbatim in output"""
+
+    content: str
+
+
+@dataclass
 class Definition(_XdrAst, ast_utils.WithMeta):
     """Corresponds to 'definition' in the grammar"""
 
@@ -738,14 +745,42 @@ class ParseToAst(Transformer):
                 raise NotImplementedError("Directive not supported")
         return _Pragma()
 
+    def passthru_def(self, children):
+        """Instantiate one _XdrPassthru object"""
+        token = children[0]
+        content = token.value[1:]
+        return _XdrPassthru(content)
+
 
 transformer = ast_utils.create_transformer(this_module, ParseToAst())
 
 
+def _merge_consecutive_passthru(definitions: List[Definition]) -> List[Definition]:
+    """Merge consecutive passthru definitions into single nodes"""
+    result = []
+    i = 0
+    while i < len(definitions):
+        if isinstance(definitions[i].value, _XdrPassthru):
+            lines = [definitions[i].value.content]
+            meta = definitions[i].meta
+            j = i + 1
+            while j < len(definitions) and isinstance(definitions[j].value, _XdrPassthru):
+                lines.append(definitions[j].value.content)
+                j += 1
+            merged = _XdrPassthru("\n".join(lines))
+            result.append(Definition(meta, merged))
+            i = j
+        else:
+            result.append(definitions[i])
+            i += 1
+    return result
+
+
 def transform_parse_tree(parse_tree):
     """Transform productions into an abstract syntax tree"""
-
-    return transformer.transform(parse_tree)
+    ast = transformer.transform(parse_tree)
+    ast.definitions = _merge_consecutive_passthru(ast.definitions)
+    return ast
 
 
 def get_header_name() -> str:
