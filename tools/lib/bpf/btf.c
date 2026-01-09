@@ -899,6 +899,30 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 	return type_id;
 }
 
+static void btf_check_sorted(struct btf *btf)
+{
+	__u32 i, n, named_start_id = 0;
+
+	n = btf__type_cnt(btf);
+	for (i = btf->start_id + 1; i < n; i++) {
+		struct btf_type *ta = btf_type_by_id(btf, i - 1);
+		struct btf_type *tb = btf_type_by_id(btf, i);
+		const char *na = btf__str_by_offset(btf, ta->name_off);
+		const char *nb = btf__str_by_offset(btf, tb->name_off);
+
+		if (strcmp(na, nb) > 0)
+			return;
+
+		if (named_start_id == 0 && na[0] != '\0')
+			named_start_id = i - 1;
+		if (named_start_id == 0 && nb[0] != '\0')
+			named_start_id = i;
+	}
+
+	if (named_start_id)
+		btf->named_start_id = named_start_id;
+}
+
 static __s32 btf_find_type_by_name_bsearch(const struct btf *btf, const char *name,
 					   __s32 start_id)
 {
@@ -1130,6 +1154,7 @@ static struct btf *btf_new(const void *data, __u32 size, struct btf *base_btf, b
 	err = err ?: btf_sanity_check(btf);
 	if (err)
 		goto done;
+	btf_check_sorted(btf);
 
 done:
 	if (err) {
