@@ -912,29 +912,50 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 
 	i = 0;
 	resource_list_for_each_entry(entry, &pp->bridge->windows) {
+		resource_size_t res_size;
+
 		if (resource_type(entry->res) != IORESOURCE_MEM)
 			continue;
 
-		if (pci->num_ob_windows <= ++i)
+		if (pci->num_ob_windows <= i + 1)
 			break;
 
-		atu.index = i;
 		atu.type = PCIE_ATU_TYPE_MEM;
 		atu.parent_bus_addr = entry->res->start - pci->parent_bus_offset;
 		atu.pci_addr = entry->res->start - entry->offset;
 
 		/* Adjust iATU size if MSG TLP region was allocated before */
 		if (pp->msg_res && pp->msg_res->parent == entry->res)
-			atu.size = resource_size(entry->res) -
+			res_size = resource_size(entry->res) -
 					resource_size(pp->msg_res);
 		else
-			atu.size = resource_size(entry->res);
+			res_size = resource_size(entry->res);
 
-		ret = dw_pcie_prog_outbound_atu(pci, &atu);
-		if (ret) {
-			dev_err(pci->dev, "Failed to set MEM range %pr\n",
-				entry->res);
-			return ret;
+		while (res_size > 0) {
+			/*
+			 * Return failure if we run out of windows in the
+			 * middle. Otherwise, we would end up only partially
+			 * mapping a single resource.
+			 */
+			if (pci->num_ob_windows <= ++i) {
+				dev_err(pci->dev, "Exhausted outbound windows for region: %pr\n",
+					entry->res);
+				return -ENOMEM;
+			}
+
+			atu.index = i;
+			atu.size = MIN(pci->region_limit + 1, res_size);
+
+			ret = dw_pcie_prog_outbound_atu(pci, &atu);
+			if (ret) {
+				dev_err(pci->dev, "Failed to set MEM range %pr\n",
+					entry->res);
+				return ret;
+			}
+
+			atu.parent_bus_addr += atu.size;
+			atu.pci_addr += atu.size;
+			res_size -= atu.size;
 		}
 	}
 
@@ -965,20 +986,39 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 
 	i = 0;
 	resource_list_for_each_entry(entry, &pp->bridge->dma_ranges) {
+		resource_size_t res_start, res_size, window_size;
+
 		if (resource_type(entry->res) != IORESOURCE_MEM)
 			continue;
 
 		if (pci->num_ib_windows <= i)
 			break;
 
-		ret = dw_pcie_prog_inbound_atu(pci, i++, PCIE_ATU_TYPE_MEM,
-					       entry->res->start,
-					       entry->res->start - entry->offset,
-					       resource_size(entry->res));
-		if (ret) {
-			dev_err(pci->dev, "Failed to set DMA range %pr\n",
-				entry->res);
-			return ret;
+		res_size = resource_size(entry->res);
+		res_start = entry->res->start;
+		while (res_size > 0) {
+			/*
+			 * Return failure if we run out of windows in the
+			 * middle. Otherwise, we would end up only partially
+			 * mapping a single resource.
+			 */
+			if (pci->num_ib_windows <= i) {
+				dev_err(pci->dev, "Exhausted inbound windows for region: %pr\n",
+					entry->res);
+				return -ENOMEM;
+			}
+
+			window_size = MIN(pci->region_limit + 1, res_size);
+			ret = dw_pcie_prog_inbound_atu(pci, i++, PCIE_ATU_TYPE_MEM, res_start,
+						       res_start - entry->offset, window_size);
+			if (ret) {
+				dev_err(pci->dev, "Failed to set DMA range %pr\n",
+					entry->res);
+				return ret;
+			}
+
+			res_start += window_size;
+			res_size -= window_size;
 		}
 	}
 
