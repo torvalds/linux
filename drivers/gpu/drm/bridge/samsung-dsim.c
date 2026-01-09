@@ -1828,7 +1828,7 @@ static int samsung_dsim_attach(struct drm_bridge *bridge,
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
-	return drm_bridge_attach(encoder, dsi->out_bridge, bridge,
+	return drm_bridge_attach(encoder, dsi->bridge.next_bridge, bridge,
 				 flags);
 }
 
@@ -1886,7 +1886,7 @@ static int samsung_dsim_host_attach(struct mipi_dsi_host *host,
 {
 	struct samsung_dsim *dsi = host_to_dsi(host);
 	const struct samsung_dsim_plat_data *pdata = dsi->plat_data;
-	struct drm_bridge *next_bridge;
+	struct drm_bridge *next_bridge __free(drm_bridge_put) = NULL;
 	struct device *dev = dsi->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *remote;
@@ -1926,10 +1926,14 @@ of_find_panel_or_bridge:
 	panel = of_drm_find_panel(remote);
 	if (!IS_ERR(panel)) {
 		next_bridge = devm_drm_panel_bridge_add(dev, panel);
-		if (IS_ERR(next_bridge))
+		if (IS_ERR(next_bridge)) {
 			ret = PTR_ERR(next_bridge);
+			next_bridge = NULL; // Inhibit the cleanup action on an ERR_PTR
+		} else {
+			drm_bridge_get(next_bridge);
+		}
 	} else {
-		next_bridge = of_drm_find_bridge(remote);
+		next_bridge = of_drm_find_and_get_bridge(remote);
 		if (!next_bridge)
 			ret = -EINVAL;
 	}
@@ -1961,7 +1965,7 @@ of_find_panel_or_bridge:
 	}
 
 	// The next bridge can be used by host_ops->attach
-	dsi->out_bridge = next_bridge;
+	dsi->bridge.next_bridge = drm_bridge_get(next_bridge);
 
 	if (pdata->host_ops && pdata->host_ops->attach) {
 		ret = pdata->host_ops->attach(dsi, device);
@@ -1976,7 +1980,8 @@ of_find_panel_or_bridge:
 	return 0;
 
 err_release_next_bridge:
-	dsi->out_bridge = NULL;
+	drm_bridge_put(dsi->bridge.next_bridge);
+	dsi->bridge.next_bridge = NULL;
 	return ret;
 }
 
@@ -1997,7 +2002,8 @@ static int samsung_dsim_host_detach(struct mipi_dsi_host *host,
 	if (pdata->host_ops && pdata->host_ops->detach)
 		pdata->host_ops->detach(dsi, device);
 
-	dsi->out_bridge = NULL;
+	drm_bridge_put(dsi->bridge.next_bridge);
+	dsi->bridge.next_bridge = NULL;
 
 	samsung_dsim_unregister_te_irq(dsi);
 
