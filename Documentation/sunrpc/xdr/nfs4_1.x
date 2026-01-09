@@ -53,6 +53,11 @@ typedef unsigned int	uint32_t;
  */
 typedef uint32_t	bitmap4<>;
 
+typedef opaque		utf8string<>;
+typedef utf8string	utf8str_cis;
+typedef utf8string	utf8str_cs;
+typedef utf8string	utf8str_mixed;
+
 /*
  * Timeval
  */
@@ -184,3 +189,59 @@ enum open_delegation_type4 {
        OPEN_DELEGATE_READ_ATTRS_DELEG      = 4,
        OPEN_DELEGATE_WRITE_ATTRS_DELEG     = 5
 };
+
+
+/*
+ * The following content was extracted from draft-ietf-nfsv4-posix-acls
+ */
+
+enum aclmodel4 {
+	ACL_MODEL_NFS4		= 1,
+	ACL_MODEL_POSIX_DRAFT	= 2,
+	ACL_MODEL_NONE		= 3
+};
+pragma public aclmodel4;
+
+enum aclscope4 {
+	ACL_SCOPE_FILE_OBJECT	= 1,
+	ACL_SCOPE_FILE_SYSTEM	= 2,
+	ACL_SCOPE_SERVER	= 3
+};
+pragma public aclscope4;
+
+enum posixacetag4 {
+	POSIXACE4_TAG_USER_OBJ	= 1,
+	POSIXACE4_TAG_USER	= 2,
+	POSIXACE4_TAG_GROUP_OBJ	= 3,
+	POSIXACE4_TAG_GROUP	= 4,
+	POSIXACE4_TAG_MASK	= 5,
+	POSIXACE4_TAG_OTHER	= 6
+};
+pragma public posixacetag4;
+
+typedef uint32_t	posixaceperm4;
+pragma public posixaceperm4;
+
+/* Bit definitions for posixaceperm4. */
+const POSIXACE4_PERM_EXECUTE	= 0x00000001;
+const POSIXACE4_PERM_WRITE	= 0x00000002;
+const POSIXACE4_PERM_READ	= 0x00000004;
+
+struct posixace4 {
+	posixacetag4		tag;
+	posixaceperm4		perm;
+	utf8str_mixed		who;
+};
+
+typedef aclmodel4	fattr4_acl_trueform;
+typedef aclscope4	fattr4_acl_trueform_scope;
+typedef posixace4	fattr4_posix_default_acl<>;
+typedef posixace4	fattr4_posix_access_acl<>;
+
+%/*
+% * New for POSIX ACL extension
+% */
+const FATTR4_ACL_TRUEFORM	= 89;
+const FATTR4_ACL_TRUEFORM_SCOPE	= 90;
+const FATTR4_POSIX_DEFAULT_ACL	= 91;
+const FATTR4_POSIX_ACCESS_ACL	= 92;
