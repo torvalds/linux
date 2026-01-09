@@ -99,6 +99,8 @@ do {									\
 	int __flags = (flags) | BUGFLAG_WARNING | BUGFLAG_ARGS;		\
 									\
 	__WARN_trap(__WARN_bug_entry(__flags, format), ## arg);		\
+	/* prevent tail-call optimization */				\
+	asm("");							\
 } while (0)
 
 #define __WARN_printf(taint, fmt, arg...) \
