@@ -259,6 +259,7 @@ struct btf {
 	void *nohdr_data;
 	struct btf_header hdr;
 	u32 nr_types; /* includes VOID for base BTF */
+	u32 named_start_id;
 	u32 types_size;
 	u32 data_size;
 	refcount_t refcnt;
@@ -494,6 +495,11 @@ static bool btf_type_is_modifier(const struct btf_type *t)
 	return false;
 }
 
+static int btf_start_id(const struct btf *btf)
+{
+	return btf->start_id + (btf->base_btf ? 0 : 1);
+}
+
 bool btf_type_is_void(const struct btf_type *t)
 {
 	return t == &btf_void;
@@ -544,21 +550,84 @@ u32 btf_nr_types(const struct btf *btf)
 	return total;
 }
 
-s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
+/*
+ * btf_named_start_id - Get the named starting ID for the BTF
+ * @btf: Pointer to the target BTF object
+ * @own: Flag indicating whether to query only the current BTF (true = current BTF only,
+ *       false = recursively traverse the base BTF chain)
+ *
+ * Return value rules:
+ * 1. For a sorted btf, return its named_start_id
+ * 2. Else for a split BTF, return its start_id
+ * 3. Else for a base BTF, return 1
+ */
+u32 btf_named_start_id(const struct btf *btf, bool own)
+{
+	const struct btf *base_btf = btf;
+
+	while (!own && base_btf->base_btf)
+		base_btf = base_btf->base_btf;
+
+	return base_btf->named_start_id ?: (base_btf->start_id ?: 1);
+}
+
+static s32 btf_find_by_name_kind_bsearch(const struct btf *btf, const char *name)
 {
 	const struct btf_type *t;
 	const char *tname;
-	u32 i, total;
+	s32 l, r, m;
+
+	l = btf_named_start_id(btf, true);
+	r = btf_nr_types(btf) - 1;
+	while (l <= r) {
+		m = l + (r - l) / 2;
+		t = btf_type_by_id(btf, m);
+		tname = btf_name_by_offset(btf, t->name_off);
+		if (strcmp(tname, name) >= 0) {
+			if (l == r)
+				return r;
+			r = m;
+		} else {
+			l = m + 1;
+		}
+	}
+
+	return btf_nr_types(btf);
+}
+
+s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
+{
+	const struct btf *base_btf = btf_base_btf(btf);
+	const struct btf_type *t;
+	const char *tname;
+	s32 id, total;
+
+	if (base_btf) {
+		id = btf_find_by_name_kind(base_btf, name, kind);
+		if (id > 0)
+			return id;
+	}
 
 	total = btf_nr_types(btf);
-	for (i = 1; i < total; i++) {
-		t = btf_type_by_id(btf, i);
-		if (BTF_INFO_KIND(t->info) != kind)
-			continue;
-
-		tname = btf_name_by_offset(btf, t->name_off);
-		if (!strcmp(tname, name))
-			return i;
+	if (btf->named_start_id > 0 && name[0]) {
+		id = btf_find_by_name_kind_bsearch(btf, name);
+		for (; id < total; id++) {
+			t = btf_type_by_id(btf, id);
+			tname = btf_name_by_offset(btf, t->name_off);
+			if (strcmp(tname, name) != 0)
+				return -ENOENT;
+			if (BTF_INFO_KIND(t->info) == kind)
+				return id;
+		}
+	} else {
+		for (id = btf_start_id(btf); id < total; id++) {
+			t = btf_type_by_id(btf, id);
+			if (BTF_INFO_KIND(t->info) != kind)
+				continue;
+			tname = btf_name_by_offset(btf, t->name_off);
+			if (strcmp(tname, name) == 0)
+				return id;
+		}
 	}
 
 	return -ENOENT;
@@ -5791,6 +5860,7 @@ static struct btf *btf_parse(const union bpf_attr *attr, bpfptr_t uattr, u32 uat
 		goto errout;
 	}
 	env->btf = btf;
+	btf->named_start_id = 0;
 
 	data = kvmalloc(attr->btf_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!data) {
@@ -6210,6 +6280,7 @@ static struct btf *btf_parse_base(struct btf_verifier_env *env, const char *name
 	btf->data = data;
 	btf->data_size = data_size;
 	btf->kernel_btf = true;
+	btf->named_start_id = 0;
 	snprintf(btf->name, sizeof(btf->name), "%s", name);
 
 	err = btf_parse_hdr(env);
@@ -6327,6 +6398,7 @@ static struct btf *btf_parse_module(const char *module_name, const void *data,
 	btf->start_id = base_btf->nr_types;
 	btf->start_str_off = base_btf->hdr.str_len;
 	btf->kernel_btf = true;
+	btf->named_start_id = 0;
 	snprintf(btf->name, sizeof(btf->name), "%s", module_name);
 
 	btf->data = kvmemdup(data, data_size, GFP_KERNEL | __GFP_NOWARN);
