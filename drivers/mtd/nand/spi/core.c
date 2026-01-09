@@ -1424,6 +1424,27 @@ static void spinand_init_ssdr_templates(struct spinand_device *spinand)
 	spinand->op_templates = &spinand->ssdr_op_templates;
 }
 
+static int spinand_support_vendor_ops(struct spinand_device *spinand,
+				      const struct spinand_info *info)
+{
+	int i;
+
+	/*
+	 * The vendor ops array is only used in order to verify this chip and all its memory
+	 * operations are supported. If we see patterns emerging, we could ideally name these
+	 * operations and define them at the SPI NAND core level instead.
+	 * For now, this only serves as a sanity check.
+	 */
+	for (i = 0; i < info->vendor_ops->nops; i++) {
+		const struct spi_mem_op *op = &info->vendor_ops->ops[i];
+
+		if (!spi_mem_supports_op(spinand->spimem, op))
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct spi_mem_op *
 spinand_select_op_variant(struct spinand_device *spinand,
 			  const struct spinand_op_variants *variants)
@@ -1490,6 +1511,7 @@ int spinand_match_and_init(struct spinand_device *spinand,
 	u8 *id = spinand->id.data;
 	struct nand_device *nand = spinand_to_nand(spinand);
 	unsigned int i;
+	int ret;
 
 	for (i = 0; i < table_size; i++) {
 		const struct spinand_info *info = &table[i];
@@ -1534,6 +1556,10 @@ int spinand_match_and_init(struct spinand_device *spinand,
 			return -EOPNOTSUPP;
 
 		spinand->ssdr_op_templates.update_cache = op;
+
+		ret = spinand_support_vendor_ops(spinand, info);
+		if (ret)
+			return ret;
 
 		return 0;
 	}
