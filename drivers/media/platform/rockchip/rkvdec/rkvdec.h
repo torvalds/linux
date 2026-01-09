@@ -74,6 +74,7 @@ vb2_to_rkvdec_decoded_buf(struct vb2_buffer *buf)
 struct rkvdec_variant_ops {
 	irqreturn_t (*irq_handler)(struct rkvdec_ctx *ctx);
 	u32 (*colmv_size)(u16 width, u16 height);
+	void (*flatten_matrices)(u8 *output, const u8 *input, int matrices, int row_length);
 };
 
 struct rkvdec_variant {
@@ -193,5 +194,6 @@ extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_hevc_fmt_ops;
 
 /* VDPU383 ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_h264_fmt_ops;
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_hevc_fmt_ops;
 
 #endif /* RKVDEC_H_ */

@@ -547,6 +547,22 @@ static const struct rkvdec_coded_fmt_desc vdpu381_coded_fmts[] = {
 
 static const struct rkvdec_coded_fmt_desc vdpu383_coded_fmts[] = {
 	{
+		.fourcc = V4L2_PIX_FMT_HEVC_SLICE,
+		.frmsize = {
+			.min_width = 64,
+			.max_width = 65472,
+			.step_width = 64,
+			.min_height = 64,
+			.max_height = 65472,
+			.step_height = 16,
+		},
+		.ctrls = &vdpu38x_hevc_ctrls,
+		.ops = &rkvdec_vdpu383_hevc_fmt_ops,
+		.num_decoded_fmts = ARRAY_SIZE(rkvdec_hevc_decoded_fmts),
+		.decoded_fmts = rkvdec_hevc_decoded_fmts,
+		.subsystem_flags = VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF,
+	},
+	{
 		.fourcc = V4L2_PIX_FMT_H264_SLICE,
 		.frmsize = {
 			.min_width = 64,
@@ -1508,6 +1524,78 @@ static irqreturn_t rkvdec_irq_handler(int irq, void *priv)
 	return variant->ops->irq_handler(ctx);
 }
 
+/*
+ * Flip one or more matrices along their main diagonal and flatten them
+ * before writing it to the memory.
+ * Convert:
+ * ABCD         AEIM
+ * EFGH     =>  BFJN     =>     AEIMBFJNCGKODHLP
+ * IJKL         CGKO
+ * MNOP         DHLP
+ */
+static void transpose_and_flatten_matrices(u8 *output, const u8 *input,
+					   int matrices, int row_length)
+{
+	int i, j, row, x_offset, matrix_offset, rot_index, y_offset, matrix_size, new_value;
+
+	matrix_size = row_length * row_length;
+	for (i = 0; i < matrices; i++) {
+		row = 0;
+		x_offset = 0;
+		matrix_offset = i * matrix_size;
+		for (j = 0; j < matrix_size; j++) {
+			y_offset = j - (row * row_length);
+			rot_index = y_offset * row_length + x_offset;
+			new_value = *(input + i * matrix_size + j);
+			output[matrix_offset + rot_index] = new_value;
+			if ((j + 1) % row_length == 0) {
+				row += 1;
+				x_offset += 1;
+			}
+		}
+	}
+}
+
+/*
+ * VDPU383 needs a specific order:
+ * The 8x8 flatten matrix is based on 4x4 blocks.
+ * Each 4x4 block is written separately in order.
+ *
+ * Base data    =>  Transposed    VDPU383 transposed
+ *
+ * ABCDEFGH         AIQYaiqy      AIQYBJRZ
+ * IJKLMNOP         BJRZbjrz      CKS0DLT1
+ * QRSTUVWX         CKS0cks6      aiqybjrz
+ * YZ012345     =>  DLT1dlt7      cks6dlt7
+ * abcdefgh         EMU2emu8      EMU2FNV3
+ * ijklmnop         FNV3fnv9      GOW4HPX5
+ * qrstuvwx         GOW4gow#      emu8fnv9
+ * yz6789#$         HPX5hpx$      gow#hpx$
+ *
+ * As the function reads block of 4x4 it can be used for both 4x4 and 8x8 matrices.
+ *
+ */
+static void vdpu383_flatten_matrices(u8 *output, const u8 *input, int matrices, int row_length)
+{
+	u8 block;
+	int i, j, matrix_offset, matrix_size, new_value, input_idx, line_offset, block_offset;
+
+	matrix_size = row_length * row_length;
+	for (i = 0; i < matrices; i++) {
+		matrix_offset = i * matrix_size;
+		for (j = 0; j < matrix_size; j++) {
+			block = j / 16;
+			line_offset = (j % 16) / 4;
+			block_offset = (block & 1) * 32 + (block & 2) * 2;
+			input_idx = ((j % 4) * row_length) + line_offset + block_offset;
+
+			new_value = *(input + i * matrix_size + input_idx);
+
+			output[matrix_offset + j] = new_value;
+		}
+	}
+}
+
 static void rkvdec_watchdog_func(struct work_struct *work)
 {
 	struct rkvdec_dev *rkvdec;
@@ -1569,6 +1657,7 @@ static int rkvdec_disable_multicore(struct rkvdec_dev *rkvdec)
 static const struct rkvdec_variant_ops rk3399_variant_ops = {
 	.irq_handler = rk3399_irq_handler,
 	.colmv_size = rkvdec_colmv_size,
+	.flatten_matrices = transpose_and_flatten_matrices,
 };
 
 static const struct rkvdec_variant rk3288_rkvdec_variant = {
@@ -1612,6 +1701,7 @@ static const struct rcb_size_info vdpu381_rcb_sizes[] = {
 static const struct rkvdec_variant_ops vdpu381_variant_ops = {
 	.irq_handler = vdpu381_irq_handler,
 	.colmv_size = rkvdec_colmv_size,
+	.flatten_matrices = transpose_and_flatten_matrices,
 };
 
 static const struct rkvdec_variant vdpu381_variant = {
@@ -1638,6 +1728,7 @@ static const struct rcb_size_info vdpu383_rcb_sizes[] = {
 static const struct rkvdec_variant_ops vdpu383_variant_ops = {
 	.irq_handler = vdpu383_irq_handler,
 	.colmv_size = vdpu383_colmv_size,
+	.flatten_matrices = vdpu383_flatten_matrices,
 };
 
 static const struct rkvdec_variant vdpu383_variant = {

@@ -140,56 +140,26 @@ static void set_ref_poc(struct rkvdec_rps_short_term_ref_set *set, int poc, int 
 	}
 }
 
-/*
- * Flip one or more matrices along their main diagonal and flatten them
- * before writing it to the memory.
- * Convert:
- * ABCD         AEIM
- * EFGH     =>  BFJN     =>     AEIMBFJNCGKODHLP
- * IJKL         CGKO
- * MNOP         DHLP
- */
-static void transpose_and_flatten_matrices(u8 *output, const u8 *input,
-					   int matrices, int row_length)
+static void assemble_scalingfactor0(struct rkvdec_ctx *ctx, u8 *output,
+				    const struct v4l2_ctrl_hevc_scaling_matrix *input)
 {
-	int i, j, row, x_offset, matrix_offset, rot_index, y_offset, matrix_size, new_value;
-
-	matrix_size = row_length * row_length;
-	for (i = 0; i < matrices; i++) {
-		row = 0;
-		x_offset = 0;
-		matrix_offset = i * matrix_size;
-		for (j = 0; j < matrix_size; j++) {
-			y_offset = j - (row * row_length);
-			rot_index = y_offset * row_length + x_offset;
-			new_value = *(input + i * matrix_size + j);
-			output[matrix_offset + rot_index] = new_value;
-			if ((j + 1) % row_length == 0) {
-				row += 1;
-				x_offset += 1;
-			}
-		}
-	}
-}
-
-static void assemble_scalingfactor0(u8 *output, const struct v4l2_ctrl_hevc_scaling_matrix *input)
-{
+	const struct rkvdec_variant *variant = ctx->dev->variant;
 	int offset = 0;
 
-	transpose_and_flatten_matrices(output, (const u8 *)input->scaling_list_4x4, 6, 4);
+	variant->ops->flatten_matrices(output, (const u8 *)input->scaling_list_4x4, 6, 4);
 	offset = 6 * 16 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset, (const u8 *)input->scaling_list_8x8, 6, 8);
+	variant->ops->flatten_matrices(output + offset, (const u8 *)input->scaling_list_8x8, 6, 8);
 	offset += 6 * 64 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset,
-				       (const u8 *)input->scaling_list_16x16, 6, 8);
+	variant->ops->flatten_matrices(output + offset, (const u8 *)input->scaling_list_16x16,
+				       6, 8);
 	offset += 6 * 64 * sizeof(u8);
 	/* Add a 128 byte padding with 0s between the two 32x32 matrices */
-	transpose_and_flatten_matrices(output + offset,
-				       (const u8 *)input->scaling_list_32x32, 1, 8);
+	variant->ops->flatten_matrices(output + offset, (const u8 *)input->scaling_list_32x32,
+				       1, 8);
 	offset += 64 * sizeof(u8);
 	memset(output + offset, 0, 128);
 	offset += 128 * sizeof(u8);
-	transpose_and_flatten_matrices(output + offset,
+	variant->ops->flatten_matrices(output + offset,
 				       (const u8 *)input->scaling_list_32x32 + (64 * sizeof(u8)),
 				       1, 8);
 	offset += 64 * sizeof(u8);
@@ -214,16 +184,17 @@ static void assemble_scalingdc(u8 *output, const struct v4l2_ctrl_hevc_scaling_m
 	memcpy(output + 6 * sizeof(u8), list_32x32, 6 * sizeof(u8));
 }
 
-static void translate_scaling_list(struct scaling_factor *output,
+static void translate_scaling_list(struct rkvdec_ctx *ctx, struct scaling_factor *output,
 				   const struct v4l2_ctrl_hevc_scaling_matrix *input)
 {
-	assemble_scalingfactor0(output->scalingfactor0, input);
+	assemble_scalingfactor0(ctx, output->scalingfactor0, input);
 	memcpy(output->scalingfactor1, (const u8 *)input->scaling_list_4x4, 96);
 	assemble_scalingdc(output->scalingdc, input);
 	memset(output->reserved, 0, 4 * sizeof(u8));
 }
 
-void rkvdec_hevc_assemble_hw_scaling_list(struct rkvdec_hevc_run *run,
+void rkvdec_hevc_assemble_hw_scaling_list(struct rkvdec_ctx *ctx,
+					  struct rkvdec_hevc_run *run,
 					  struct scaling_factor *scaling_factor,
 					  struct v4l2_ctrl_hevc_scaling_matrix *cache)
 {
@@ -233,7 +204,7 @@ void rkvdec_hevc_assemble_hw_scaling_list(struct rkvdec_hevc_run *run,
 		    sizeof(struct v4l2_ctrl_hevc_scaling_matrix)))
 		return;
 
-	translate_scaling_list(scaling_factor, scaling);
+	translate_scaling_list(ctx, scaling_factor, scaling);
 
 	memcpy(cache, scaling,
 	       sizeof(struct v4l2_ctrl_hevc_scaling_matrix));

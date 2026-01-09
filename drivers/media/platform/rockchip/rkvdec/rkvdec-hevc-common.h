@@ -95,7 +95,8 @@ void compute_tiles_non_uniform(struct rkvdec_hevc_run *run, u16 log2_min_cb_size
 			       s32 pic_in_cts_height, u16 *column_width, u16 *row_height);
 void rkvdec_hevc_assemble_hw_rps(struct rkvdec_hevc_run *run, struct rkvdec_rps *rps,
 				 struct v4l2_ctrl_hevc_ext_sps_st_rps *st_cache);
-void rkvdec_hevc_assemble_hw_scaling_list(struct rkvdec_hevc_run *run,
+void rkvdec_hevc_assemble_hw_scaling_list(struct rkvdec_ctx *ctx,
+					  struct rkvdec_hevc_run *run,
 					  struct scaling_factor *scaling_factor,
 					  struct v4l2_ctrl_hevc_scaling_matrix *cache);
 struct vb2_buffer *get_ref_buf(struct rkvdec_ctx *ctx,
