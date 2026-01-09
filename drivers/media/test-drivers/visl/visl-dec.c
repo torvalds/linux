@@ -547,6 +547,9 @@ static void visl_trace_ctrls(struct visl_ctx *ctx, struct visl_run *run)
 			trace_v4l2_hevc_dpb_entry(&run->hevc.dpram->dpb[i]);
 
 		trace_v4l2_hevc_pred_weight_table(&run->hevc.spram->pred_weight_table);
+		trace_v4l2_ctrl_hevc_ext_sps_lt_rps(run->hevc.rps_lt);
+		trace_v4l2_ctrl_hevc_ext_sps_st_rps(run->hevc.rps_st);
+
 		break;
 	case VISL_CODEC_AV1:
 		trace_v4l2_ctrl_av1_sequence(run->av1.seq);
@@ -611,6 +614,10 @@ void visl_device_run(void *priv)
 		run.hevc.spram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SLICE_PARAMS);
 		run.hevc.sm = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
 		run.hevc.dpram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
+		run.hevc.rps_lt = visl_find_control_data(ctx,
+							 V4L2_CID_STATELESS_HEVC_EXT_SPS_LT_RPS);
+		run.hevc.rps_st = visl_find_control_data(ctx,
+							 V4L2_CID_STATELESS_HEVC_EXT_SPS_ST_RPS);
 		break;
 	case VISL_CODEC_AV1:
 		run.av1.seq = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_SEQUENCE);
