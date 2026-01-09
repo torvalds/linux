@@ -9,6 +9,7 @@
 #include <linux/iommu-debug-pagealloc.h>
 #include <linux/kernel.h>
 #include <linux/page_ext.h>
+#include <linux/page_owner.h>
 
 #include "iommu-priv.h"
 
@@ -71,6 +72,28 @@ static void iommu_debug_dec_page(phys_addr_t phys)
 static size_t iommu_debug_page_size(struct iommu_domain *domain)
 {
 	return 1UL << __ffs(domain->pgsize_bitmap);
+}
+
+static bool iommu_debug_page_count(const struct page *page)
+{
+	unsigned int ref;
+	struct page_ext *page_ext = page_ext_get(page);
+	struct iommu_debug_metadata *d = get_iommu_data(page_ext);
+
+	ref = atomic_read(&d->ref);
+	page_ext_put(page_ext);
+	return ref != 0;
+}
+
+void __iommu_debug_check_unmapped(const struct page *page, int numpages)
+{
+	while (numpages--) {
+		if (WARN_ON(iommu_debug_page_count(page))) {
+			pr_warn("iommu: Detected page leak!\n");
+			dump_page_owner(page);
+		}
+		page++;
+	}
 }
 
 void __iommu_debug_map(struct iommu_domain *domain, phys_addr_t phys, size_t size)
