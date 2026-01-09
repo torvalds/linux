@@ -560,6 +560,7 @@ struct dc_config {
 	bool enable_dpia_pre_training;
 	bool unify_link_enc_assignment;
 	bool enable_cursor_offload;
+	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
 };

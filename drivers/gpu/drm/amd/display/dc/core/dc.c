@@ -3860,7 +3860,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3880,7 +3880,11 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
 
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3894,6 +3898,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 		}
 	}
@@ -3916,7 +3921,7 @@ static void build_dmub_update_dirty_rect(
 	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
 		return;
 
-	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+	if (!dc->config.frame_update_cmd_version2 && !dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
 		return;
 
 	memset(&cmd, 0x0, sizeof(cmd));
@@ -3935,7 +3940,12 @@ static void build_dmub_update_dirty_rect(
 		/* Do not send in immediate flip mode */
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
-		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+
+		if (dc->config.frame_update_cmd_version2)
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_2;
+		else
+			update_dirty_rect->cmd_version = DMUB_CMD_CURSOR_UPDATE_VERSION_1;
+
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
@@ -3948,6 +3958,7 @@ static void build_dmub_update_dirty_rect(
 				continue;
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
+			update_dirty_rect->otg_inst = pipe_ctx->stream_res.tg->inst;
 			dc_dmub_cmd[*dmub_cmd_count].dmub_cmd = cmd;
 			dc_dmub_cmd[*dmub_cmd_count].wait_type = DM_DMUB_WAIT_TYPE_NO_WAIT;
 			(*dmub_cmd_count)++;
