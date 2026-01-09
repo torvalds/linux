@@ -1411,7 +1411,8 @@ static void spinand_init_ssdr_templates(struct spinand_device *spinand)
 }
 
 static int spinand_support_vendor_ops(struct spinand_device *spinand,
-				      const struct spinand_info *info)
+				      const struct spinand_info *info,
+				      enum spinand_bus_interface iface)
 {
 	int i;
 
@@ -1432,7 +1433,7 @@ static int spinand_support_vendor_ops(struct spinand_device *spinand,
 }
 
 static const struct spi_mem_op *
-spinand_select_op_variant(struct spinand_device *spinand,
+spinand_select_op_variant(struct spinand_device *spinand, enum spinand_bus_interface iface,
 			  const struct spinand_op_variants *variants)
 {
 	struct nand_device *nand = spinand_to_nand(spinand);
@@ -1522,28 +1523,28 @@ int spinand_match_and_init(struct spinand_device *spinand,
 		spinand->read_retries = table[i].read_retries;
 		spinand->set_read_retry = table[i].set_read_retry;
 
-		op = spinand_select_op_variant(spinand,
+		op = spinand_select_op_variant(spinand, SSDR,
 					       info->op_variants.read_cache);
 		if (!op)
 			return -EOPNOTSUPP;
 
 		spinand->ssdr_op_templates.read_cache = op;
 
-		op = spinand_select_op_variant(spinand,
+		op = spinand_select_op_variant(spinand, SSDR,
 					       info->op_variants.write_cache);
 		if (!op)
 			return -EOPNOTSUPP;
 
 		spinand->ssdr_op_templates.write_cache = op;
 
-		op = spinand_select_op_variant(spinand,
+		op = spinand_select_op_variant(spinand, SSDR,
 					       info->op_variants.update_cache);
 		if (!op)
 			return -EOPNOTSUPP;
 
 		spinand->ssdr_op_templates.update_cache = op;
 
-		ret = spinand_support_vendor_ops(spinand, info);
+		ret = spinand_support_vendor_ops(spinand, info, SSDR);
 		if (ret)
 			return ret;
 
