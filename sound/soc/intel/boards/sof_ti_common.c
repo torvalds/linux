@@ -40,9 +40,10 @@ static struct snd_soc_dai_link_component tas2563_dai_link_components[] = {
 static int tas2563_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, tas2563_spk_dapm_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, tas2563_spk_dapm_widgets,
 					ARRAY_SIZE(tas2563_spk_dapm_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add dapm widgets, ret %d\n", ret);
@@ -56,7 +57,7 @@ static int tas2563_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, tas2563_spk_dapm_routes,
+	ret = snd_soc_dapm_add_routes(dapm, tas2563_spk_dapm_routes,
 				      ARRAY_SIZE(tas2563_spk_dapm_routes));
 	if (ret)
 		dev_err(rtd->dev, "unable to add dapm routes, ret %d\n", ret);
