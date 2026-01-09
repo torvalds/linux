@@ -154,6 +154,8 @@ struct rkvdec_ctx {
 	struct rkvdec_rcb_config *rcb_config;
 	u32 colmv_offset;
 	void *priv;
+	u8 has_sps_st_rps: 1;
+	u8 has_sps_lt_rps: 1;
 };
 
 static inline struct rkvdec_ctx *file_to_rkvdec_ctx(struct file *filp)
@@ -187,6 +189,7 @@ extern const struct rkvdec_coded_fmt_ops rkvdec_vp9_fmt_ops;
 
 /* VDPU381 ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_h264_fmt_ops;
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_hevc_fmt_ops;
 
 /* VDPU383 ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_h264_fmt_ops;

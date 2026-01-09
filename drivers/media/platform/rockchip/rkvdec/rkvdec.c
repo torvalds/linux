@@ -153,6 +153,16 @@ static int rkvdec_s_ctrl(struct v4l2_ctrl *ctrl)
 	enum rkvdec_image_fmt image_fmt;
 	struct vb2_queue *vq;
 
+	if (ctrl->id == V4L2_CID_STATELESS_HEVC_EXT_SPS_ST_RPS) {
+		ctx->has_sps_st_rps |= !!(ctrl->has_changed);
+		return 0;
+	}
+
+	if (ctrl->id == V4L2_CID_STATELESS_HEVC_EXT_SPS_LT_RPS) {
+		ctx->has_sps_lt_rps |= !!(ctrl->has_changed);
+		return 0;
+	}
+
 	/* Check if this change requires a capture format reset */
 	if (!desc->ops->get_image_fmt)
 		return 0;
@@ -224,6 +234,62 @@ static const struct rkvdec_ctrl_desc rkvdec_hevc_ctrl_descs[] = {
 static const struct rkvdec_ctrls rkvdec_hevc_ctrls = {
 	.ctrls = rkvdec_hevc_ctrl_descs,
 	.num_ctrls = ARRAY_SIZE(rkvdec_hevc_ctrl_descs),
+};
+
+static const struct rkvdec_ctrl_desc vdpu38x_hevc_ctrl_descs[] = {
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_DECODE_PARAMS,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_SPS,
+		.cfg.ops = &rkvdec_ctrl_ops,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_PPS,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_SCALING_MATRIX,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_DECODE_MODE,
+		.cfg.min = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
+		.cfg.max = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
+		.cfg.def = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_START_CODE,
+		.cfg.min = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
+		.cfg.def = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
+		.cfg.max = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
+	},
+	{
+		.cfg.id = V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
+		.cfg.min = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN,
+		.cfg.max = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10,
+		.cfg.menu_skip_mask =
+			BIT(V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE),
+		.cfg.def = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN,
+	},
+	{
+		.cfg.id = V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+		.cfg.min = V4L2_MPEG_VIDEO_HEVC_LEVEL_1,
+		.cfg.max = V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_EXT_SPS_ST_RPS,
+		.cfg.ops = &rkvdec_ctrl_ops,
+		.cfg.dims = { 65 },
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_HEVC_EXT_SPS_LT_RPS,
+		.cfg.ops = &rkvdec_ctrl_ops,
+		.cfg.dims = { 65 },
+	},
+};
+
+static const struct rkvdec_ctrls vdpu38x_hevc_ctrls = {
+	.ctrls = vdpu38x_hevc_ctrl_descs,
+	.num_ctrls = ARRAY_SIZE(vdpu38x_hevc_ctrl_descs),
 };
 
 static const struct rkvdec_decoded_fmt_desc rkvdec_hevc_decoded_fmts[] = {
@@ -445,6 +511,22 @@ static const struct rkvdec_coded_fmt_desc rk3288_coded_fmts[] = {
 };
 
 static const struct rkvdec_coded_fmt_desc vdpu381_coded_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_HEVC_SLICE,
+		.frmsize = {
+			.min_width = 64,
+			.max_width = 65472,
+			.step_width = 64,
+			.min_height = 64,
+			.max_height = 65472,
+			.step_height = 16,
+		},
+		.ctrls = &vdpu38x_hevc_ctrls,
+		.ops = &rkvdec_vdpu381_hevc_fmt_ops,
+		.num_decoded_fmts = ARRAY_SIZE(rkvdec_hevc_decoded_fmts),
+		.decoded_fmts = rkvdec_hevc_decoded_fmts,
+		.subsystem_flags = VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF,
+	},
 	{
 		.fourcc = V4L2_PIX_FMT_H264_SLICE,
 		.frmsize = {
