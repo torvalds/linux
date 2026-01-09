@@ -52,6 +52,7 @@ int xe_mert_invalidate_lmtt(struct xe_device *xe)
 void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	struct xe_mert *mert = &tile->mert;
 	unsigned long flags;
 	u32 reg_val;
 	u8 err;
@@ -69,13 +70,13 @@ void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl)
 	else if (err)
 		drm_dbg(&xe->drm, "MERT catastrophic error: Unexpected fault (0x%x)\n", err);
 
-	spin_lock_irqsave(&tile->mert.lock, flags);
-	if (tile->mert.tlb_inv_triggered) {
+	spin_lock_irqsave(&mert->lock, flags);
+	if (mert->tlb_inv_triggered) {
 		reg_val = xe_mmio_read32(&tile->mmio, MERT_TLB_INV_DESC_A);
 		if (!(reg_val & MERT_TLB_INV_DESC_A_VALID)) {
-			tile->mert.tlb_inv_triggered = false;
-			complete_all(&tile->mert.tlb_inv_done);
+			mert->tlb_inv_triggered = false;
+			complete_all(&mert->tlb_inv_done);
 		}
 	}
-	spin_unlock_irqrestore(&tile->mert.lock, flags);
+	spin_unlock_irqrestore(&mert->lock, flags);
 }
