@@ -357,7 +357,7 @@ static int add_or_reset_cxl_resource(struct resource *parent, struct resource *r
 	return rc;
 }
 
-static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
+static void cxl_setup_extended_linear_cache(struct cxl_root_decoder *cxlrd)
 {
 	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct range *hpa = &cxld->hpa_range;
@@ -367,12 +367,14 @@ static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
 	struct resource res;
 	int nid, rc;
 
+	/* Explicitly initialize cache size to 0 at the beginning */
+	cxlrd->cache_size = 0;
 	res = DEFINE_RES_MEM(start, size);
 	nid = phys_to_target_node(start);
 
 	rc = hmat_get_extended_linear_cache_size(&res, nid, &cache_size);
 	if (rc)
-		return 0;
+		return;
 
 	/*
 	 * The cache range is expected to be within the CFMWS.
@@ -384,31 +386,10 @@ static int cxl_acpi_set_cache_size(struct cxl_root_decoder *cxlrd)
 		dev_warn(&cxld->dev,
 			 "Extended Linear Cache size %pa != CXL size %pa. No Support!",
 			 &cache_size, &size);
-		return -ENXIO;
+		return;
 	}
 
 	cxlrd->cache_size = cache_size;
-
-	return 0;
-}
-
-static void cxl_setup_extended_linear_cache(struct cxl_root_decoder *cxlrd)
-{
-	int rc;
-
-	rc = cxl_acpi_set_cache_size(cxlrd);
-	if (rc) {
-		/*
-		 * Failing to retrieve extended linear cache region resize does not
-		 * prevent the region from functioning. Only causes cxl list showing
-		 * incorrect region size.
-		 */
-		dev_warn(cxlrd->cxlsd.cxld.dev.parent,
-			 "Extended linear cache retrieval failed rc:%d\n", rc);
-
-		/* Ignoring return code */
-		cxlrd->cache_size = 0;
-	}
 }
 
 DEFINE_FREE(put_cxlrd, struct cxl_root_decoder *,
