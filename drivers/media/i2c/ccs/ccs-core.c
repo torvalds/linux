@@ -3145,11 +3145,9 @@ static const struct v4l2_subdev_internal_ops ccs_internal_src_ops = {
 
 static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 {
-	struct ccs_hwconfig *hwcfg = &sensor->hwcfg;
 	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = V4L2_MBUS_UNKNOWN };
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	unsigned int i;
+	struct fwnode_handle *fwnode = dev_fwnode(dev), *ep;
+	struct ccs_hwconfig *hwcfg = &sensor->hwcfg;
 	int rval;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, 0, 0,
@@ -3176,9 +3174,9 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		break;
 	case V4L2_MBUS_CSI1:
 	case V4L2_MBUS_CCP2:
-		hwcfg->csi_signalling_mode = (bus_cfg.bus.mipi_csi1.strobe) ?
-		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE :
-		SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK;
+		hwcfg->csi_signalling_mode = bus_cfg.bus.mipi_csi1.strobe ?
+			SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_STROBE :
+			SMIAPP_CSI_SIGNALLING_MODE_CCP2_DATA_CLOCK;
 		hwcfg->lanes = 1;
 		break;
 	default:
@@ -3187,11 +3185,7 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		goto out_err;
 	}
 
-	rval = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
-					&hwcfg->ext_clk);
-
-	dev_dbg(dev, "clk %u, mode %u\n", hwcfg->ext_clk,
-		hwcfg->csi_signalling_mode);
+	dev_dbg(dev, "signalling mode: %u\n", hwcfg->csi_signalling_mode);
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_warn(dev, "no link frequencies defined\n");
@@ -3199,23 +3193,22 @@ static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 		goto out_err;
 	}
 
-	hwcfg->op_sys_clock = devm_kcalloc(
-		dev, bus_cfg.nr_of_link_frequencies + 1 /* guardian */,
-		sizeof(*hwcfg->op_sys_clock), GFP_KERNEL);
+	hwcfg->op_sys_clock =
+		devm_kcalloc(dev,
+			     bus_cfg.nr_of_link_frequencies + 1 /* guardian */,
+			     sizeof(*hwcfg->op_sys_clock), GFP_KERNEL);
 	if (!hwcfg->op_sys_clock) {
 		rval = -ENOMEM;
 		goto out_err;
 	}
 
-	for (i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
+	for (unsigned int i = 0; i < bus_cfg.nr_of_link_frequencies; i++) {
 		hwcfg->op_sys_clock[i] = bus_cfg.link_frequencies[i];
 		dev_dbg(dev, "freq %u: %lld\n", i, hwcfg->op_sys_clock[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
-
-	return 0;
+	fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+				 &hwcfg->ext_clk);
 
 out_err:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
