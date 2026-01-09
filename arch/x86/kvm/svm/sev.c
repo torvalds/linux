@@ -53,8 +53,6 @@ module_param_named(sev_es, sev_es_enabled, bool, 0444);
 static bool sev_snp_enabled = true;
 module_param_named(sev_snp, sev_snp_enabled, bool, 0444);
 
-static u64 sev_supported_vmsa_features;
-
 static unsigned int nr_ciphertext_hiding_asids;
 module_param_named(ciphertext_hiding_asids, nr_ciphertext_hiding_asids, uint, 0444);
 
@@ -80,6 +78,8 @@ module_param_named(ciphertext_hiding_asids, nr_ciphertext_hiding_asids, uint, 04
 					 SNP_POLICY_MASK_PAGE_SWAP_DISABLE)
 
 static u64 snp_supported_policy_bits __ro_after_init;
+
+static u64 sev_supported_vmsa_features __ro_after_init;
 
 #define INITIAL_VMSA_GPA 0xFFFFFFFFF000
 
