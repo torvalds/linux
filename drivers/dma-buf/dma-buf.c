@@ -46,12 +46,10 @@
  */
 #define DMA_BUF_TRACE(FUNC, ...)					\
 	do {								\
-		if (FUNC##_enabled()) {					\
+		/* Always expose lock if lockdep is enabled */		\
+		if (IS_ENABLED(CONFIG_LOCKDEP) || FUNC##_enabled()) {	\
 			guard(spinlock)(&dmabuf->name_lock);		\
 			FUNC(__VA_ARGS__);				\
-		} else if (IS_ENABLED(CONFIG_LOCKDEP)) {		\
-			/* Expose this lock when lockdep is enabled */	\
-			guard(spinlock)(&dmabuf->name_lock);		\
 		}							\
 	} while (0)
 
@@ -795,8 +793,7 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 		return -EINVAL;
 
 	fd = FD_ADD(flags, dmabuf->file);
-	if (fd >= 0)
-		DMA_BUF_TRACE(trace_dma_buf_fd, dmabuf, fd);
+	DMA_BUF_TRACE(trace_dma_buf_fd, dmabuf, fd);
 
 	return fd;
 }
