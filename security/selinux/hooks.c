@@ -7158,27 +7158,6 @@ static int selinux_bpf_token_create(struct bpf_token *token, union bpf_attr *att
 }
 #endif
 
-struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
-	.lbs_cred = sizeof(struct cred_security_struct),
-	.lbs_task = sizeof(struct task_security_struct),
-	.lbs_file = sizeof(struct file_security_struct),
-	.lbs_inode = sizeof(struct inode_security_struct),
-	.lbs_ipc = sizeof(struct ipc_security_struct),
-	.lbs_key = sizeof(struct key_security_struct),
-	.lbs_msg_msg = sizeof(struct msg_security_struct),
-#ifdef CONFIG_PERF_EVENTS
-	.lbs_perf_event = sizeof(struct perf_event_security_struct),
-#endif
-	.lbs_sock = sizeof(struct sk_security_struct),
-	.lbs_superblock = sizeof(struct superblock_security_struct),
-	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
-	.lbs_tun_dev = sizeof(struct tun_security_struct),
-	.lbs_ib = sizeof(struct ib_security_struct),
-	.lbs_bpf_map = sizeof(struct bpf_security_struct),
-	.lbs_bpf_prog = sizeof(struct bpf_security_struct),
-	.lbs_bpf_token = sizeof(struct bpf_security_struct),
-};
-
 #ifdef CONFIG_PERF_EVENTS
 static int selinux_perf_event_open(int type)
 {
@@ -7295,6 +7274,27 @@ static int selinux_uring_allowed(void)
 static const struct lsm_id selinux_lsmid = {
 	.name = "selinux",
 	.id = LSM_ID_SELINUX,
+};
+
+struct lsm_blob_sizes selinux_blob_sizes __ro_after_init = {
+	.lbs_cred = sizeof(struct cred_security_struct),
+	.lbs_task = sizeof(struct task_security_struct),
+	.lbs_file = sizeof(struct file_security_struct),
+	.lbs_inode = sizeof(struct inode_security_struct),
+	.lbs_ipc = sizeof(struct ipc_security_struct),
+	.lbs_key = sizeof(struct key_security_struct),
+	.lbs_msg_msg = sizeof(struct msg_security_struct),
+#ifdef CONFIG_PERF_EVENTS
+	.lbs_perf_event = sizeof(struct perf_event_security_struct),
+#endif
+	.lbs_sock = sizeof(struct sk_security_struct),
+	.lbs_superblock = sizeof(struct superblock_security_struct),
+	.lbs_xattr_count = SELINUX_INODE_INIT_XATTRS,
+	.lbs_tun_dev = sizeof(struct tun_security_struct),
+	.lbs_ib = sizeof(struct ib_security_struct),
+	.lbs_bpf_map = sizeof(struct bpf_security_struct),
+	.lbs_bpf_prog = sizeof(struct bpf_security_struct),
+	.lbs_bpf_token = sizeof(struct bpf_security_struct),
 };
 
 /*
