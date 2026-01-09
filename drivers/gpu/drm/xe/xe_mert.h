@@ -13,12 +13,15 @@
 struct xe_device;
 struct xe_tile;
 
+/**
+ * struct xe_mert - MERT related data
+ */
 struct xe_mert {
 	/** @lock: protects the TLB invalidation status */
 	spinlock_t lock;
 	/** @tlb_inv_triggered: indicates if TLB invalidation was triggered */
 	bool tlb_inv_triggered;
-	/** @mert.tlb_inv_done: completion of TLB invalidation */
+	/** @tlb_inv_done: completion of TLB invalidation */
 	struct completion tlb_inv_done;
 };
 
