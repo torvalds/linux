@@ -132,6 +132,11 @@ static inline bool bio_has_crypt_ctx(struct bio *bio)
 	return bio->bi_crypt_context;
 }
 
+static inline struct bio_crypt_ctx *bio_crypt_ctx(struct bio *bio)
+{
+	return bio->bi_crypt_context;
+}
+
 void bio_crypt_set_ctx(struct bio *bio, const struct blk_crypto_key *key,
 		       const u64 dun[BLK_CRYPTO_DUN_ARRAY_SIZE],
 		       gfp_t gfp_mask);
@@ -167,6 +172,11 @@ int blk_crypto_derive_sw_secret(struct block_device *bdev,
 static inline bool bio_has_crypt_ctx(struct bio *bio)
 {
 	return false;
+}
+
+static inline struct bio_crypt_ctx *bio_crypt_ctx(struct bio *bio)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_BLK_INLINE_ENCRYPTION */
