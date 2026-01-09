@@ -1428,12 +1428,17 @@ static struct folio *alloc_gigantic_folio(int order, gfp_t gfp_mask,
 retry:
 	folio = hugetlb_cma_alloc_folio(order, gfp_mask, nid, nodemask);
 	if (!folio) {
+		struct page *page;
+
 		if (hugetlb_cma_exclusive_alloc())
 			return NULL;
 
-		folio = folio_alloc_gigantic(order, gfp_mask, nid, nodemask);
-		if (!folio)
+		page = alloc_contig_frozen_pages(1 << order, gfp_mask, nid, nodemask);
+		if (!page)
 			return NULL;
+
+		set_page_refcounted(page);
+		folio = page_folio(page);
 	}
 
 	if (folio_ref_freeze(folio, 1))
