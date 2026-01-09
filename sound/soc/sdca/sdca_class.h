@@ -28,6 +28,8 @@ struct sdca_class_drv {
 	struct sdca_interrupt_info *irq_info;
 
 	struct mutex regmap_lock;
+	/* Serialise function initialisations */
+	struct mutex init_lock;
 	struct work_struct boot_work;
 	struct completion device_attach;
 

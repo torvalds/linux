@@ -8,6 +8,7 @@
  */
 
 #include <linux/auxiliary_bus.h>
+#include <linux/cleanup.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -244,6 +245,8 @@ static int class_function_boot(struct class_function_drv *drv)
 	unsigned int val;
 	int ret;
 
+	guard(mutex)(&drv->core->init_lock);
+
 	ret = regmap_read(drv->regmap, reg, &val);
 	if (ret < 0) {
 		dev_err(drv->dev, "failed to read function status: %d\n", ret);
@@ -417,6 +420,8 @@ static int class_function_runtime_resume(struct device *dev)
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 	int ret;
+
+	guard(mutex)(&drv->core->init_lock);
 
 	regcache_mark_dirty(drv->regmap);
 	regcache_cache_only(drv->regmap, false);

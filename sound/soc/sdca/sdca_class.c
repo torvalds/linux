@@ -205,6 +205,7 @@ static int class_sdw_probe(struct sdw_slave *sdw, const struct sdw_device_id *id
 	drv->dev = dev;
 	drv->sdw = sdw;
 	mutex_init(&drv->regmap_lock);
+	mutex_init(&drv->init_lock);
 
 	dev_set_drvdata(drv->dev, drv);
 
