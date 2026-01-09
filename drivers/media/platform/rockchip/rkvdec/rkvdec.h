@@ -73,6 +73,7 @@ vb2_to_rkvdec_decoded_buf(struct vb2_buffer *buf)
 
 struct rkvdec_variant_ops {
 	irqreturn_t (*irq_handler)(struct rkvdec_ctx *ctx);
+	u32 (*colmv_size)(u16 width, u16 height);
 };
 
 struct rkvdec_variant {
@@ -133,6 +134,7 @@ struct rkvdec_dev {
 	unsigned int num_clocks;
 	struct clk *axi_clk;
 	void __iomem *regs;
+	void __iomem *link;
 	struct mutex vdev_lock; /* serializes ioctls */
 	struct delayed_work watchdog_work;
 	struct gen_pool *sram_pool;
@@ -185,5 +187,8 @@ extern const struct rkvdec_coded_fmt_ops rkvdec_vp9_fmt_ops;
 
 /* VDPU381 ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_h264_fmt_ops;
+
+/* VDPU383 ops */
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu383_h264_fmt_ops;
 
 #endif /* RKVDEC_H_ */
