@@ -358,6 +358,22 @@ static int dwc3_usb_role_switch_set(struct usb_role_switch *sw, enum usb_role ro
 	guard(mutex)(&appledwc->lock);
 
 	/*
+	 * Skip role switches if appledwc is already in the desired state. The
+	 * USB-C port controller on M2 and M1/M2 Pro/Max/Ultra devices issues
+	 * additional interrupts which results in usb_role_switch_set_role()
+	 * calls with the current role.
+	 * Ignore those calls here to ensure the USB-C port controller and
+	 * appledwc are in a consistent state.
+	 * This matches the behaviour in __dwc3_set_mode().
+	 * Do no handle USB_ROLE_NONE for DWC3_APPLE_NO_CABLE and
+	 * DWC3_APPLE_PROBE_PENDING since that is no-op anyway.
+	 */
+	if (appledwc->state == DWC3_APPLE_HOST && role == USB_ROLE_HOST)
+		return 0;
+	if (appledwc->state == DWC3_APPLE_DEVICE && role == USB_ROLE_DEVICE)
+		return 0;
+
+	/*
 	 * We need to tear all of dwc3 down and re-initialize it every time a cable is
 	 * connected or disconnected or when the mode changes. See the documentation for enum
 	 * dwc3_apple_state for details.
