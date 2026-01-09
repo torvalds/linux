@@ -16,6 +16,7 @@
 / {
 	compatible = "apple,j313", "apple,t8103", "apple,arm-platform";
 	model = "Apple MacBook Air (M1, 2020)";
+	chassis-type = "laptop";
 
 	led-controller {
 		compatible = "pwm-leds";

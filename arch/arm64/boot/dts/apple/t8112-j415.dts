@@ -16,6 +16,7 @@
 / {
 	compatible = "apple,j415", "apple,t8112", "apple,arm-platform";
 	model = "Apple MacBook Air (15-inch, M2, 2023)";
+	chassis-type = "laptop";
 
 	aliases {
 		bluetooth0 = &bluetooth0;

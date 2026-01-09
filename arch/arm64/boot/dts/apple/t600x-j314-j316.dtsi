@@ -12,6 +12,8 @@
 #include <dt-bindings/leds/common.h>
 
 / {
+	chassis-type = "laptop";
+
 	aliases {
 		bluetooth0 = &bluetooth0;
 		serial0 = &serial0;

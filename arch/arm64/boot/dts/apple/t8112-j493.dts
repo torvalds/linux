@@ -16,6 +16,7 @@
 / {
 	compatible = "apple,j493", "apple,t8112", "apple,arm-platform";
 	model = "Apple MacBook Pro (13-inch, M2, 2022)";
+	chassis-type = "laptop";
 
 	/*
 	 * All of those are used by the bootloader to pass calibration
