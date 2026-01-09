@@ -476,7 +476,8 @@ struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 
 void samsung_en_dyn_root_clk_gating(struct device_node *np,
 				struct samsung_clk_provider *ctx,
-				const struct samsung_cmu_info *cmu);
+				const struct samsung_cmu_info *cmu,
+				bool cmu_has_pm);
 
 struct clk_hw *samsung_register_auto_gate(struct device *dev,
 		struct device_node *np, const char *name,

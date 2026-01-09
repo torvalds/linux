@@ -174,7 +174,7 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 		const struct samsung_cmu_info *cmu)
 {
 	struct exynos_arm64_cmu_data *data = dev_get_drvdata(dev);
-	int i;
+	int i, ret;
 
 	data->clk_save = samsung_clk_alloc_reg_dump(cmu->clk_regs,
 						    cmu->nr_clk_regs);
@@ -182,8 +182,22 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 		return -ENOMEM;
 
 	data->nr_clk_save = cmu->nr_clk_regs;
+
+	if (cmu->nr_sysreg_clk_regs) {
+		data->clk_sysreg_save =
+			samsung_clk_alloc_reg_dump(cmu->sysreg_clk_regs,
+						   cmu->nr_sysreg_clk_regs);
+		if (!data->clk_sysreg_save) {
+			ret = -ENOMEM;
+			goto free_clk_save;
+		}
+
+		data->nr_clk_sysreg = cmu->nr_sysreg_clk_regs;
+	}
+
 	data->clk_suspend = cmu->suspend_regs;
 	data->nr_clk_suspend = cmu->nr_suspend_regs;
+
 	data->nr_pclks = of_clk_get_parent_count(dev->of_node);
 	if (!data->nr_pclks)
 		return 0;
@@ -191,23 +205,29 @@ static int __init exynos_arm64_cmu_prepare_pm(struct device *dev,
 	data->pclks = devm_kcalloc(dev, sizeof(struct clk *), data->nr_pclks,
 				   GFP_KERNEL);
 	if (!data->pclks) {
-		kfree(data->clk_save);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_sysreg_save;
 	}
 
 	for (i = 0; i < data->nr_pclks; i++) {
 		struct clk *clk = of_clk_get(dev->of_node, i);
 
 		if (IS_ERR(clk)) {
-			kfree(data->clk_save);
 			while (--i >= 0)
 				clk_put(data->pclks[i]);
-			return PTR_ERR(clk);
+			ret = PTR_ERR(clk);
+			goto free_sysreg_save;
 		}
 		data->pclks[i] = clk;
 	}
 
 	return 0;
+
+free_sysreg_save:
+	kfree(data->clk_sysreg_save);
+free_clk_save:
+	kfree(data->clk_save);
+	return ret;
 }
 
 /**
@@ -305,7 +325,7 @@ int __init exynos_arm64_register_cmu_pm(struct platform_device *pdev,
 	samsung_cmu_register_clocks(data->ctx, cmu, np);
 	samsung_clk_of_add_provider(dev->of_node, data->ctx);
 	/* sysreg DT nodes reference a clock in this CMU */
-	samsung_en_dyn_root_clk_gating(np, data->ctx, cmu);
+	samsung_en_dyn_root_clk_gating(np, data->ctx, cmu, true);
 	pm_runtime_put_sync(dev);
 
 	return 0;

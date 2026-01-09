@@ -496,7 +496,8 @@ void __init samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
 /* Enable Dynamic Root Clock Gating (DRCG) of bus components */
 void samsung_en_dyn_root_clk_gating(struct device_node *np,
 				    struct samsung_clk_provider *ctx,
-				    const struct samsung_cmu_info *cmu)
+				    const struct samsung_cmu_info *cmu,
+				    bool cmu_has_pm)
 {
 	if (!ctx->auto_clock_gate)
 		return;
@@ -513,10 +514,16 @@ void samsung_en_dyn_root_clk_gating(struct device_node *np,
 			regmap_write_bits(ctx->sysreg, ctx->memclk_offset,
 					  MEMCLK_EN, 0x0);
 
-		samsung_clk_extended_sleep_init(NULL, ctx->sysreg,
-						cmu->sysreg_clk_regs,
-						cmu->nr_sysreg_clk_regs,
-						NULL, 0);
+		if (!cmu_has_pm)
+			/*
+			 * When a CMU has PM support, clocks are saved/restored
+			 * via its PM handlers, so only register them with the
+			 * syscore suspend / resume paths if PM is not in use.
+			 */
+			samsung_clk_extended_sleep_init(NULL, ctx->sysreg,
+							cmu->sysreg_clk_regs,
+							cmu->nr_sysreg_clk_regs,
+							NULL, 0);
 	}
 }
 
@@ -548,7 +555,7 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 	samsung_clk_of_add_provider(np, ctx);
 
 	/* sysreg DT nodes reference a clock in this CMU */
-	samsung_en_dyn_root_clk_gating(np, ctx, cmu);
+	samsung_en_dyn_root_clk_gating(np, ctx, cmu, false);
 
 	return ctx;
 }
