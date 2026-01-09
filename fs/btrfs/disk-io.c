@@ -22,6 +22,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "delayed-inode.h"
 #include "bio.h"
 #include "print-tree.h"
 #include "locking.h"
@@ -1217,7 +1218,6 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_free_stripe_hash_table(fs_info);
 	btrfs_free_ref_cache(fs_info);
 	kfree(fs_info->balance_ctl);
-	kfree(fs_info->delayed_root);
 	free_global_roots(fs_info);
 	btrfs_put_root(fs_info->tree_root);
 	btrfs_put_root(fs_info->chunk_root);
@@ -2942,11 +2942,7 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 	if (ret)
 		return ret;
 
-	fs_info->delayed_root = kmalloc(sizeof(struct btrfs_delayed_root),
-					GFP_KERNEL);
-	if (!fs_info->delayed_root)
-		return -ENOMEM;
-	btrfs_init_delayed_root(fs_info->delayed_root);
+	btrfs_init_delayed_root(&fs_info->delayed_root);
 
 	if (sb_rdonly(sb))
 		set_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state);

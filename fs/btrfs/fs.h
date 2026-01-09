@@ -44,7 +44,6 @@ struct btrfs_block_group;
 struct btrfs_root;
 struct btrfs_fs_devices;
 struct btrfs_transaction;
-struct btrfs_delayed_root;
 struct btrfs_balance_control;
 struct btrfs_subpage_info;
 struct btrfs_stripe_hash_table;
@@ -464,6 +463,21 @@ struct btrfs_commit_stats {
 	u64 critical_section_start_time;
 };
 
+struct btrfs_delayed_root {
+	spinlock_t lock;
+	struct list_head node_list;
+	/*
+	 * Used for delayed nodes which is waiting to be dealt with by the
+	 * worker. If the delayed node is inserted into the work queue, we
+	 * drop it from this list.
+	 */
+	struct list_head prepare_list;
+	atomic_t items;		/* for delayed items */
+	atomic_t items_seq;	/* for delayed items */
+	int nodes;		/* for delayed nodes */
+	wait_queue_head_t wait;
+};
+
 struct btrfs_fs_info {
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	unsigned long flags;
@@ -817,7 +831,7 @@ struct btrfs_fs_info {
 	/* Filesystem state */
 	unsigned long fs_state;
 
-	struct btrfs_delayed_root *delayed_root;
+	struct btrfs_delayed_root delayed_root;
 
 	/* Entries are eb->start >> nodesize_bits */
 	struct xarray buffer_tree;
