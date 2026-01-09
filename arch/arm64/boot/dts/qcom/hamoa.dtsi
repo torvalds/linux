@@ -3261,9 +3261,6 @@
 
 			power-domains = <&gcc GCC_PCIE_3_GDSC>;
 
-			phys = <&pcie3_phy>;
-			phy-names = "pciephy";
-
 			eq-presets-8gts = /bits/ 16 <0x5555 0x5555 0x5555 0x5555
 						     0x5555 0x5555 0x5555 0x5555>;
 			eq-presets-16gts = /bits/ 8 <0x55 0x55 0x55 0x55 0x55 0x55 0x55 0x55>;
@@ -3404,11 +3401,13 @@
 				};
 			};
 
-			pcie3_port: pcie@0 {
+			pcie3_port0: pcie@0 {
 				device_type = "pci";
 				compatible = "pciclass,0604";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie3_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
@@ -3538,13 +3537,22 @@
 			power-domains = <&gcc GCC_PCIE_6A_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
-			phys = <&pcie6a_phy>;
-			phy-names = "pciephy";
-
 			eq-presets-8gts = /bits/ 16 <0x5555 0x5555 0x5555 0x5555>;
 			eq-presets-16gts = /bits/ 8 <0x55 0x55 0x55 0x55>;
 
 			status = "disabled";
+
+			pcie6a_port0: pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				phys = <&pcie6a_phy>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		pcie6a_phy: phy@1bfc000 {
@@ -3670,12 +3678,21 @@
 			power-domains = <&gcc GCC_PCIE_5_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
-			phys = <&pcie5_phy>;
-			phy-names = "pciephy";
-
 			eq-presets-8gts = /bits/ 16 <0x5555 0x5555>;
 
 			status = "disabled";
+
+			pcie5_port0: pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				phys = <&pcie5_phy>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		pcie5_phy: phy@1c06000 {
@@ -3800,9 +3817,6 @@
 			power-domains = <&gcc GCC_PCIE_4_GDSC>;
 			required-opps = <&rpmhpd_opp_nom>;
 
-			phys = <&pcie4_phy>;
-			phy-names = "pciephy";
-
 			eq-presets-8gts = /bits/ 16 <0x5555 0x5555>;
 
 			status = "disabled";
@@ -3811,6 +3825,8 @@
 				device_type = "pci";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				bus-range = <0x01 0xff>;
+
+				phys = <&pcie4_phy>;
 
 				#address-cells = <3>;
 				#size-cells = <2>;
