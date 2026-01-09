@@ -3016,6 +3016,7 @@ struct nfsd4_fattr_args {
 #endif
 #ifdef CONFIG_NFSD_V4_POSIX_ACLS
 	struct posix_acl	*dpacl;
+	struct posix_acl	*pacl;
 #endif
 	u32			rdattr_err;
 	bool			contextsupport;
@@ -3585,6 +3586,12 @@ static __be32 nfsd4_encode_fattr4_posix_default_acl(struct xdr_stream *xdr,
 	return nfsd4_encode_posixacl(xdr, args->rqstp, args->dpacl);
 }
 
+static __be32 nfsd4_encode_fattr4_posix_access_acl(struct xdr_stream *xdr,
+						   const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_posixacl(xdr, args->rqstp, args->pacl);
+}
+
 #endif /* CONFIG_NFSD_V4_POSIX_ACLS */
 
 static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
@@ -3699,10 +3706,12 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4_acl_trueform,
 	[FATTR4_ACL_TRUEFORM_SCOPE]	= nfsd4_encode_fattr4_acl_trueform_scope,
 	[FATTR4_POSIX_DEFAULT_ACL]	= nfsd4_encode_fattr4_posix_default_acl,
+	[FATTR4_POSIX_ACCESS_ACL]	= nfsd4_encode_fattr4_posix_access_acl,
 #else
 	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4__noop,
 	[FATTR4_ACL_TRUEFORM_SCOPE]	= nfsd4_encode_fattr4__noop,
 	[FATTR4_POSIX_DEFAULT_ACL]	= nfsd4_encode_fattr4__noop,
+	[FATTR4_POSIX_ACCESS_ACL]	= nfsd4_encode_fattr4__noop,
 #endif
 };
 
@@ -3746,6 +3755,7 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 #endif
 #ifdef CONFIG_NFSD_V4_POSIX_ACLS
 	args.dpacl = NULL;
+	args.pacl = NULL;
 #endif
 
 	/*
@@ -3877,6 +3887,29 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 			}
 		}
 	}
+	if (attrmask[2] & FATTR4_WORD2_POSIX_ACCESS_ACL) {
+		struct inode *inode = d_inode(dentry);
+		struct posix_acl *pacl;
+
+		pacl = get_inode_acl(inode, ACL_TYPE_ACCESS);
+		if (!pacl)
+			pacl = posix_acl_from_mode(inode->i_mode, GFP_KERNEL);
+		if (IS_ERR(pacl)) {
+			switch (PTR_ERR(pacl)) {
+			case -EOPNOTSUPP:
+				attrmask[2] &= ~FATTR4_WORD2_POSIX_ACCESS_ACL;
+				break;
+			case -EINVAL:
+				status = nfserr_attrnotsupp;
+				goto out;
+			default:
+				err = PTR_ERR(pacl);
+				goto out_nfserr;
+			}
+		} else {
+			args.pacl = pacl;
+		}
+	}
 #endif /* CONFIG_NFSD_V4_POSIX_ACLS */
 
 	/* attrmask */
@@ -3905,6 +3938,8 @@ out:
 #ifdef CONFIG_NFSD_V4_POSIX_ACLS
 	if (args.dpacl)
 		posix_acl_release(args.dpacl);
+	if (args.pacl)
+		posix_acl_release(args.pacl);
 #endif /* CONFIG_NFSD_V4_POSIX_ACLS */
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if (args.context.context)
