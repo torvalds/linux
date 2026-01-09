@@ -10,6 +10,8 @@
  */
 
 / {
+	chassis-type = "desktop";
+
 	aliases {
 		bluetooth0 = &bluetooth0;
 		ethernet0 = &ethernet0;

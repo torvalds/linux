@@ -15,6 +15,7 @@
 / {
 	compatible = "apple,j473", "apple,t8112", "apple,arm-platform";
 	model = "Apple Mac mini (M2, 2023)";
+	chassis-type = "desktop";
 
 	aliases {
 		ethernet0 = &ethernet0;
