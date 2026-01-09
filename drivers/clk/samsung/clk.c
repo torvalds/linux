@@ -462,7 +462,7 @@ void __init samsung_cmu_register_clocks(struct samsung_clk_provider *ctx,
 					const struct samsung_cmu_info *cmu,
 					struct device_node *np)
 {
-	if (samsung_is_auto_capable(np) && cmu->auto_clock_gate)
+	if (cmu->auto_clock_gate && samsung_is_auto_capable(np))
 		ctx->auto_clock_gate = cmu->auto_clock_gate;
 
 	ctx->gate_dbg_offset = cmu->gate_dbg_offset;
