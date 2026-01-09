@@ -754,8 +754,13 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 
 	/*
 	 * We may have copied an inline extent into a page of the destination
-	 * range, so wait for writeback to complete before invalidating pages
-	 * from the page cache. This is a rare case.
+	 * range. So flush delalloc and wait for ordered extent completion.
+	 * This is to ensure the invalidation below does not fail, as if for
+	 * example it finds a dirty folio, our folio release callback
+	 * (btrfs_release_folio()) returns false, which makes the invalidation
+	 * return an -EBUSY error. We can't ignore such failures since they
+	 * could come from some range other than the copied inline extent's
+	 * destination range and we have no way to know that.
 	 */
 	ret = btrfs_wait_ordered_range(BTRFS_I(inode), destoff, len);
 	if (ret < 0)
