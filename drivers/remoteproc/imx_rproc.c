@@ -102,6 +102,7 @@ static void imx_rproc_free_mbox(void *data);
 
 /* Forward declarations for platform operations */
 static const struct imx_rproc_plat_ops imx_rproc_ops_sm_lmm;
+static const struct imx_rproc_plat_ops imx_rproc_ops_sm_cpu;
 
 struct imx_rproc {
 	struct device			*dev;
@@ -326,6 +327,21 @@ static int imx_rproc_scu_api_start(struct rproc *rproc)
 	return imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, true, priv->entry);
 }
 
+static int imx_rproc_sm_cpu_start(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+	int ret;
+
+	ret = scmi_imx_cpu_reset_vector_set(dcfg->cpuid, 0, true, false, false);
+	if (ret) {
+		dev_err(priv->dev, "Failed to set reset vector cpuid(%u): %d\n", dcfg->cpuid, ret);
+		return ret;
+	}
+
+	return scmi_imx_cpu_start(dcfg->cpuid, true);
+}
+
 static int imx_rproc_sm_lmm_start(struct rproc *rproc)
 {
 	struct imx_rproc *priv = rproc->priv;
@@ -407,6 +423,14 @@ static int imx_rproc_scu_api_stop(struct rproc *rproc)
 	struct imx_rproc *priv = rproc->priv;
 
 	return imx_sc_pm_cpu_start(priv->ipc_handle, priv->rsrc_id, false, priv->entry);
+}
+
+static int imx_rproc_sm_cpu_stop(struct rproc *rproc)
+{
+	struct imx_rproc *priv = rproc->priv;
+	const struct imx_rproc_dcfg *dcfg = priv->dcfg;
+
+	return scmi_imx_cpu_start(dcfg->cpuid, false);
 }
 
 static int imx_rproc_sm_lmm_stop(struct rproc *rproc)
@@ -1129,8 +1153,9 @@ static int imx_rproc_sm_detect_mode(struct rproc *rproc)
 	 * If no, use Logical Machine API to manage M7.
 	 */
 	if (dcfg->lmid == info.lmid) {
-		dev_err(dev, "CPU Protocol OPS is not supported\n");
-		return -EOPNOTSUPP;
+		priv->ops = &imx_rproc_ops_sm_cpu;
+		dev_info(dev, "Using CPU Protocol OPS\n");
+		return 0;
 	}
 
 	priv->ops = &imx_rproc_ops_sm_lmm;
@@ -1319,6 +1344,12 @@ static const struct imx_rproc_plat_ops imx_rproc_ops_sm_lmm = {
 	.prepare	= imx_rproc_sm_lmm_prepare,
 	.start		= imx_rproc_sm_lmm_start,
 	.stop		= imx_rproc_sm_lmm_stop,
+};
+
+static const struct imx_rproc_plat_ops imx_rproc_ops_sm_cpu = {
+	.detect_mode	= imx_rproc_sm_detect_mode,
+	.start		= imx_rproc_sm_cpu_start,
+	.stop		= imx_rproc_sm_cpu_stop,
 };
 
 static const struct imx_rproc_dcfg imx_rproc_cfg_imx8mn_mmio = {
