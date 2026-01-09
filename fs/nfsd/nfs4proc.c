@@ -2380,6 +2380,11 @@ _nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (verify->ve_attrlen & 3)
 		return nfserr_inval;
 
+	/* The POSIX draft ACLs cannot be tested via (N)VERIFY. */
+	if (verify->ve_bmval[2] & (FATTR4_WORD2_POSIX_DEFAULT_ACL |
+					FATTR4_WORD2_POSIX_ACCESS_ACL))
+		return nfserr_inval;
+
 	/* count in words:
 	 *   bitmap_len(1) + bitmap(2) + attr_len(1) = 4
 	 */
