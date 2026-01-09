@@ -3296,47 +3296,30 @@ static int ccs_probe(struct i2c_client *client)
 		return rval;
 	}
 
-	sensor->ext_clk = devm_clk_get(&client->dev, NULL);
-	if (PTR_ERR(sensor->ext_clk) == -ENOENT) {
-		dev_info(&client->dev, "no clock defined, continuing...\n");
-		sensor->ext_clk = NULL;
-	} else if (IS_ERR(sensor->ext_clk)) {
-		dev_err(&client->dev, "could not get clock (%pe)\n",
-			sensor->ext_clk);
-		return -EPROBE_DEFER;
-	}
+	sensor->ext_clk = devm_v4l2_sensor_clk_get(&client->dev, NULL);
+	if (IS_ERR(sensor->ext_clk))
+		return dev_err_probe(&client->dev, PTR_ERR(sensor->ext_clk),
+				     "could not get clock\n");
 
-	if (sensor->ext_clk) {
-		if (sensor->hwcfg.ext_clk) {
-			unsigned long rate;
+	if (sensor->hwcfg.ext_clk) {
+		unsigned long rate;
 
-			rval = clk_set_rate(sensor->ext_clk,
-					    sensor->hwcfg.ext_clk);
-			if (rval < 0) {
-				dev_err(&client->dev,
-					"unable to set clock freq to %u\n",
-					sensor->hwcfg.ext_clk);
-				return rval;
-			}
+		rval = clk_set_rate(sensor->ext_clk, sensor->hwcfg.ext_clk);
+		if (rval < 0)
+			return dev_err_probe(&client->dev, rval,
+					     "unable to set clock freq to %u\n",
+					     sensor->hwcfg.ext_clk);
 
-			rate = clk_get_rate(sensor->ext_clk);
-			if (rate != sensor->hwcfg.ext_clk) {
-				dev_err(&client->dev,
-					"can't set clock freq, asked for %u but got %lu\n",
-					sensor->hwcfg.ext_clk, rate);
-				return -EINVAL;
-			}
-		} else {
-			sensor->hwcfg.ext_clk = clk_get_rate(sensor->ext_clk);
-			dev_dbg(&client->dev, "obtained clock freq %u\n",
-				sensor->hwcfg.ext_clk);
+		rate = clk_get_rate(sensor->ext_clk);
+		if (rate != sensor->hwcfg.ext_clk) {
+			return dev_err_probe(&client->dev, -EINVAL,
+					     "can't set clock freq, asked for %u but got %lu\n",
+					     sensor->hwcfg.ext_clk, rate);
 		}
-	} else if (sensor->hwcfg.ext_clk) {
-		dev_dbg(&client->dev, "assuming clock freq %u\n",
-			sensor->hwcfg.ext_clk);
 	} else {
-		dev_err(&client->dev, "unable to obtain clock freq\n");
-		return -EINVAL;
+		sensor->hwcfg.ext_clk = clk_get_rate(sensor->ext_clk);
+		dev_dbg(&client->dev, "obtained clock freq %u\n",
+			sensor->hwcfg.ext_clk);
 	}
 
 	if (!sensor->hwcfg.ext_clk) {
