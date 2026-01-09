@@ -43,7 +43,7 @@ static void handle_rpc_func_cmd_i2c_transfer(struct tee_context *ctx,
 	struct i2c_msg msg = { };
 	size_t i;
 	int ret = -EOPNOTSUPP;
-	u8 attr[] = {
+	static const u8 attr[] = {
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT,
 		TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT,
