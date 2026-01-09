@@ -914,6 +914,15 @@ void rkvdec_quirks_disable_qos(struct rkvdec_ctx *ctx)
 	writel(reg, rkvdec->regs + RKVDEC_REG_QOS_CTRL);
 }
 
+void rkvdec_memcpy_toio(void __iomem *dst, void *src, size_t len)
+{
+#ifdef CONFIG_ARM64
+	__iowrite32_copy(dst, src, len / 4);
+#else
+	memcpy_toio(dst, src, len);
+#endif
+}
+
 static void rkvdec_device_run(void *priv)
 {
 	struct rkvdec_ctx *ctx = priv;
@@ -1227,7 +1236,6 @@ static void rkvdec_watchdog_func(struct work_struct *work)
 	if (ctx) {
 		dev_err(rkvdec->dev, "Frame processing timed out!\n");
 		writel(RKVDEC_IRQ_DIS, rkvdec->regs + RKVDEC_REG_INTERRUPT);
-		writel(0, rkvdec->regs + RKVDEC_REG_SYSCTRL);
 		rkvdec_job_finish(ctx, VB2_BUF_STATE_ERROR);
 	}
 }

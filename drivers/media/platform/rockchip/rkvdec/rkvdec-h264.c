@@ -115,6 +115,7 @@ struct rkvdec_h264_run {
 struct rkvdec_h264_ctx {
 	struct rkvdec_aux_buf priv_tbl;
 	struct rkvdec_h264_reflists reflists;
+	struct rkvdec_regs regs;
 };
 
 #define CABAC_ENTRY(ctxidx, idc0_m, idc0_n, idc1_m, idc1_n,		\
@@ -841,45 +842,41 @@ static void assemble_hw_scaling_list(struct rkvdec_ctx *ctx,
 }
 
 /*
- * dpb poc related registers table
+ * Set the ref POC in the correct register.
+ *
+ * The 32 registers are spread across 3 regions, each alternating top and bottom ref POCs:
+ *  - 1: ref 0 to 14 contain top 0 to 7 and bottoms 0 to 6
+ *  - 2: ref 15 to 29 contain top 8 to 14 and bottoms 7 to 14
+ *  - 3: ref 30 and 31 which correspond to top 15 and bottom 15 respectively.
  */
-static const u32 poc_reg_tbl_top_field[16] = {
-	RKVDEC_REG_H264_POC_REFER0(0),
-	RKVDEC_REG_H264_POC_REFER0(2),
-	RKVDEC_REG_H264_POC_REFER0(4),
-	RKVDEC_REG_H264_POC_REFER0(6),
-	RKVDEC_REG_H264_POC_REFER0(8),
-	RKVDEC_REG_H264_POC_REFER0(10),
-	RKVDEC_REG_H264_POC_REFER0(12),
-	RKVDEC_REG_H264_POC_REFER0(14),
-	RKVDEC_REG_H264_POC_REFER1(1),
-	RKVDEC_REG_H264_POC_REFER1(3),
-	RKVDEC_REG_H264_POC_REFER1(5),
-	RKVDEC_REG_H264_POC_REFER1(7),
-	RKVDEC_REG_H264_POC_REFER1(9),
-	RKVDEC_REG_H264_POC_REFER1(11),
-	RKVDEC_REG_H264_POC_REFER1(13),
-	RKVDEC_REG_H264_POC_REFER2(0)
-};
-
-static const u32 poc_reg_tbl_bottom_field[16] = {
-	RKVDEC_REG_H264_POC_REFER0(1),
-	RKVDEC_REG_H264_POC_REFER0(3),
-	RKVDEC_REG_H264_POC_REFER0(5),
-	RKVDEC_REG_H264_POC_REFER0(7),
-	RKVDEC_REG_H264_POC_REFER0(9),
-	RKVDEC_REG_H264_POC_REFER0(11),
-	RKVDEC_REG_H264_POC_REFER0(13),
-	RKVDEC_REG_H264_POC_REFER1(0),
-	RKVDEC_REG_H264_POC_REFER1(2),
-	RKVDEC_REG_H264_POC_REFER1(4),
-	RKVDEC_REG_H264_POC_REFER1(6),
-	RKVDEC_REG_H264_POC_REFER1(8),
-	RKVDEC_REG_H264_POC_REFER1(10),
-	RKVDEC_REG_H264_POC_REFER1(12),
-	RKVDEC_REG_H264_POC_REFER1(14),
-	RKVDEC_REG_H264_POC_REFER2(1)
-};
+static void set_poc_reg(struct rkvdec_regs *regs, uint32_t poc, int id, bool bottom)
+{
+	if (!bottom) {
+		switch (id) {
+		case 0 ... 7:
+			regs->h26x.ref0_14_poc[id * 2] = poc;
+			break;
+		case 8 ... 14:
+			regs->h26x.ref15_29_poc[(id - 8) * 2 + 1] = poc;
+			break;
+		case 15:
+			regs->h26x.ref30_poc = poc;
+			break;
+		}
+	} else {
+		switch (id) {
+		case 0 ... 6:
+			regs->h26x.ref0_14_poc[id * 2 + 1] = poc;
+			break;
+		case 7 ... 14:
+			regs->h26x.ref15_29_poc[(id - 7) * 2] = poc;
+			break;
+		case 15:
+			regs->h26x.ref31_poc = poc;
+			break;
+		}
+	}
+}
 
 static void config_registers(struct rkvdec_ctx *ctx,
 			     struct rkvdec_h264_run *run)
@@ -894,6 +891,7 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	struct vb2_v4l2_buffer *src_buf = run->base.bufs.src;
 	struct vb2_v4l2_buffer *dst_buf = run->base.bufs.dst;
 	const struct v4l2_format *f;
+	struct rkvdec_regs *regs = &h264_ctx->regs;
 	dma_addr_t rlc_addr;
 	dma_addr_t refer_addr;
 	u32 rlc_len;
@@ -903,10 +901,11 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	u32 yuv_virstride = 0;
 	u32 offset;
 	dma_addr_t dst_addr;
-	u32 reg, i;
+	u32 i;
 
-	reg = RKVDEC_MODE(RKVDEC_MODE_H264);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_SYSCTRL);
+	memset(regs, 0, sizeof(*regs));
+
+	regs->common.reg02.dec_mode = RKVDEC_MODE_H264;
 
 	f = &ctx->decoded_fmt;
 	dst_fmt = &f->fmt.pix_mp;
@@ -921,39 +920,35 @@ static void config_registers(struct rkvdec_ctx *ctx,
 	else if (sps->chroma_format_idc == 2)
 		yuv_virstride = 2 * y_virstride;
 
-	reg = RKVDEC_Y_HOR_VIRSTRIDE(hor_virstride / 16) |
-	      RKVDEC_UV_HOR_VIRSTRIDE(hor_virstride / 16) |
-	      RKVDEC_SLICE_NUM_HIGHBIT |
-	      RKVDEC_SLICE_NUM_LOWBITS(0x7ff);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_PICPAR);
+	regs->common.reg03.uv_hor_virstride = hor_virstride / 16;
+	regs->common.reg03.y_hor_virstride = hor_virstride / 16;
+	regs->common.reg03.slice_num_highbit = 1;
+	regs->common.reg03.slice_num_lowbits = 0x7ff;
 
 	/* config rlc base address */
 	rlc_addr = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, 0);
-	writel_relaxed(rlc_addr, rkvdec->regs + RKVDEC_REG_STRM_RLC_BASE);
-	writel_relaxed(rlc_addr, rkvdec->regs + RKVDEC_REG_RLCWRITE_BASE);
+	regs->common.strm_rlc_base = rlc_addr;
+	regs->h26x.rlcwrite_base = rlc_addr;
 
 	rlc_len = vb2_get_plane_payload(&src_buf->vb2_buf, 0);
-	reg = RKVDEC_STRM_LEN(rlc_len);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_STRM_LEN);
+	regs->common.stream_len = rlc_len;
 
 	/* config cabac table */
 	offset = offsetof(struct rkvdec_h264_priv_tbl, cabac_table);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_CABACTBL_PROB_BASE);
+	regs->common.cabactbl_base = priv_start_addr + offset;
 
 	/* config output base address */
 	dst_addr = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
-	writel_relaxed(dst_addr, rkvdec->regs + RKVDEC_REG_DECOUT_BASE);
+	regs->common.decout_base = dst_addr;
 
-	reg = RKVDEC_Y_VIRSTRIDE(y_virstride / 16);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_Y_VIRSTRIDE);
+	regs->common.reg08.y_virstride = y_virstride / 16;
 
-	reg = RKVDEC_YUV_VIRSTRIDE(yuv_virstride / 16);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_YUV_VIRSTRIDE);
+	regs->common.reg09.yuv_virstride = yuv_virstride / 16;
 
 	/* config ref pic address & poc */
 	for (i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
 		struct vb2_buffer *vb_buf = run->ref_buf[i];
+		struct ref_base *base;
 
 		/*
 		 * If a DPB entry is unused or invalid, address of current destination
@@ -963,54 +958,37 @@ static void config_registers(struct rkvdec_ctx *ctx,
 			vb_buf = &dst_buf->vb2_buf;
 		refer_addr = vb2_dma_contig_plane_dma_addr(vb_buf, 0);
 
-		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)
-			refer_addr |= RKVDEC_COLMV_USED_FLAG_REF;
-		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD)
-			refer_addr |= RKVDEC_FIELD_REF;
-
-		if (dpb[i].fields & V4L2_H264_TOP_FIELD_REF)
-			refer_addr |= RKVDEC_TOPFIELD_USED_REF;
-		if (dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF)
-			refer_addr |= RKVDEC_BOTFIELD_USED_REF;
-
-		writel_relaxed(dpb[i].top_field_order_cnt,
-			       rkvdec->regs +  poc_reg_tbl_top_field[i]);
-		writel_relaxed(dpb[i].bottom_field_order_cnt,
-			       rkvdec->regs + poc_reg_tbl_bottom_field[i]);
-
 		if (i < V4L2_H264_NUM_DPB_ENTRIES - 1)
-			writel_relaxed(refer_addr,
-				       rkvdec->regs + RKVDEC_REG_H264_BASE_REFER(i));
+			base = &regs->h26x.ref0_14_base[i];
 		else
-			writel_relaxed(refer_addr,
-				       rkvdec->regs + RKVDEC_REG_H264_BASE_REFER15);
+			base = &regs->h26x.ref15_base;
+
+		base->base_addr = refer_addr >> 4;
+		base->field_ref = !!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD);
+		base->colmv_use_flag_ref = !!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE);
+		base->topfield_used_ref = !!(dpb[i].fields & V4L2_H264_TOP_FIELD_REF);
+		base->botfield_used_ref = !!(dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF);
+
+		set_poc_reg(regs, dpb[i].top_field_order_cnt, i, false);
+		set_poc_reg(regs, dpb[i].bottom_field_order_cnt, i, true);
 	}
 
-	reg = RKVDEC_CUR_POC(dec_params->top_field_order_cnt);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_CUR_POC0);
-
-	reg = RKVDEC_CUR_POC(dec_params->bottom_field_order_cnt);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_CUR_POC1);
+	regs->h26x.cur_poc = dec_params->top_field_order_cnt;
+	regs->h26x.cur_poc1 = dec_params->bottom_field_order_cnt;
 
 	/* config hw pps address */
 	offset = offsetof(struct rkvdec_h264_priv_tbl, param_set);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_PPS_BASE);
+	regs->h26x.pps_base = priv_start_addr + offset;
 
 	/* config hw rps address */
 	offset = offsetof(struct rkvdec_h264_priv_tbl, rps);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_RPS_BASE);
-
-	reg = RKVDEC_AXI_DDR_RDATA(0);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_AXI_DDR_RDATA);
-
-	reg = RKVDEC_AXI_DDR_WDATA(0);
-	writel_relaxed(reg, rkvdec->regs + RKVDEC_REG_AXI_DDR_WDATA);
+	regs->h26x.rps_base = priv_start_addr + offset;
 
 	offset = offsetof(struct rkvdec_h264_priv_tbl, err_info);
-	writel_relaxed(priv_start_addr + offset,
-		       rkvdec->regs + RKVDEC_REG_H264_ERRINFO_BASE);
+	regs->h26x.errorinfo_base = priv_start_addr + offset;
+
+	rkvdec_memcpy_toio(rkvdec->regs, regs,
+			   MIN(sizeof(*regs), sizeof(u32) * rkvdec->variant->num_regs));
 }
 
 #define RKVDEC_H264_MAX_DEPTH_IN_BYTES		2
@@ -1181,8 +1159,6 @@ static int rkvdec_h264_run(struct rkvdec_ctx *ctx)
 
 	schedule_delayed_work(&rkvdec->watchdog_work, msecs_to_jiffies(2000));
 
-	writel(0, rkvdec->regs + RKVDEC_REG_STRMD_ERR_EN);
-	writel(0, rkvdec->regs + RKVDEC_REG_H264_ERR_E);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_LUMA_CACHE_COMMAND);
 	writel(1, rkvdec->regs + RKVDEC_REG_PREF_CHR_CACHE_COMMAND);
 

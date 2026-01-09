@@ -151,6 +151,7 @@ struct rkvdec_aux_buf {
 
 void rkvdec_run_preamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
 void rkvdec_run_postamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
+void rkvdec_memcpy_toio(void __iomem *dst, void *src, size_t len);
 
 void rkvdec_quirks_disable_qos(struct rkvdec_ctx *ctx);
 
