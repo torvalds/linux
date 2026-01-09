@@ -29,6 +29,7 @@
 
 #include "rkvdec.h"
 #include "rkvdec-regs.h"
+#include "rkvdec-vdpu381-regs.h"
 #include "rkvdec-rcb.h"
 
 static bool rkvdec_image_fmt_match(enum rkvdec_image_fmt fmt1,
@@ -90,6 +91,9 @@ static void rkvdec_fill_decoded_pixfmt(struct rkvdec_ctx *ctx,
 {
 	v4l2_fill_pixfmt_mp(pix_mp, pix_mp->pixelformat,
 			    pix_mp->width, pix_mp->height);
+
+	ctx->colmv_offset = pix_mp->plane_fmt[0].sizeimage;
+
 	pix_mp->plane_fmt[0].sizeimage += 128 *
 		DIV_ROUND_UP(pix_mp->width, 16) *
 		DIV_ROUND_UP(pix_mp->height, 16);
@@ -269,6 +273,53 @@ static const struct rkvdec_ctrls rkvdec_h264_ctrls = {
 	.num_ctrls = ARRAY_SIZE(rkvdec_h264_ctrl_descs),
 };
 
+static const struct rkvdec_ctrl_desc vdpu38x_h264_ctrl_descs[] = {
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_DECODE_PARAMS,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_SPS,
+		.cfg.ops = &rkvdec_ctrl_ops,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_PPS,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_SCALING_MATRIX,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_DECODE_MODE,
+		.cfg.min = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
+		.cfg.max = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
+		.cfg.def = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
+	},
+	{
+		.cfg.id = V4L2_CID_STATELESS_H264_START_CODE,
+		.cfg.min = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
+		.cfg.def = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
+		.cfg.max = V4L2_STATELESS_H264_START_CODE_ANNEX_B,
+	},
+	{
+		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_PROFILE,
+		.cfg.min = V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_BASELINE,
+		.cfg.max = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_422_INTRA,
+		.cfg.menu_skip_mask =
+			BIT(V4L2_MPEG_VIDEO_H264_PROFILE_EXTENDED) |
+			BIT(V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_444_PREDICTIVE),
+		.cfg.def = V4L2_MPEG_VIDEO_H264_PROFILE_MAIN,
+	},
+	{
+		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+		.cfg.min = V4L2_MPEG_VIDEO_H264_LEVEL_1_0,
+		.cfg.max = V4L2_MPEG_VIDEO_H264_LEVEL_6_0,
+	},
+};
+
+static const struct rkvdec_ctrls vdpu38x_h264_ctrls = {
+	.ctrls = vdpu38x_h264_ctrl_descs,
+	.num_ctrls = ARRAY_SIZE(vdpu38x_h264_ctrl_descs),
+};
+
 static const struct rkvdec_decoded_fmt_desc rkvdec_h264_decoded_fmts[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_NV12,
@@ -380,6 +431,25 @@ static const struct rkvdec_coded_fmt_desc rk3288_coded_fmts[] = {
 		.num_decoded_fmts = ARRAY_SIZE(rkvdec_hevc_decoded_fmts),
 		.decoded_fmts = rkvdec_hevc_decoded_fmts,
 	}
+};
+
+static const struct rkvdec_coded_fmt_desc vdpu381_coded_fmts[] = {
+	{
+		.fourcc = V4L2_PIX_FMT_H264_SLICE,
+		.frmsize = {
+			.min_width = 64,
+			.max_width =  65520,
+			.step_width = 64,
+			.min_height = 64,
+			.max_height =  65520,
+			.step_height = 16,
+		},
+		.ctrls = &vdpu38x_h264_ctrls,
+		.ops = &rkvdec_vdpu381_h264_fmt_ops,
+		.num_decoded_fmts = ARRAY_SIZE(rkvdec_h264_decoded_fmts),
+		.decoded_fmts = rkvdec_h264_decoded_fmts,
+		.subsystem_flags = VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF,
+	},
 };
 
 static const struct rkvdec_coded_fmt_desc *
@@ -946,6 +1016,20 @@ void rkvdec_memcpy_toio(void __iomem *dst, void *src, size_t len)
 #endif
 }
 
+void rkvdec_schedule_watchdog(struct rkvdec_dev *rkvdec, u32 timeout_threshold)
+{
+	/* Set watchdog at 2 times the hardware timeout threshold */
+	u32 watchdog_time;
+	unsigned long axi_rate = clk_get_rate(rkvdec->axi_clk);
+
+	if (axi_rate)
+		watchdog_time = 2 * div_u64(1000 * (u64)timeout_threshold, axi_rate);
+	else
+		watchdog_time = 2000;
+
+	schedule_delayed_work(&rkvdec->watchdog_work, msecs_to_jiffies(watchdog_time));
+}
+
 static void rkvdec_device_run(void *priv)
 {
 	struct rkvdec_ctx *ctx = priv;
@@ -1245,6 +1329,35 @@ static irqreturn_t rk3399_irq_handler(struct rkvdec_ctx *ctx)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t vdpu381_irq_handler(struct rkvdec_ctx *ctx)
+{
+	struct rkvdec_dev *rkvdec = ctx->dev;
+	enum vb2_buffer_state state;
+	bool need_reset = 0;
+	u32 status;
+
+	status = readl(rkvdec->regs + VDPU381_REG_STA_INT);
+	writel(0, rkvdec->regs + VDPU381_REG_STA_INT);
+
+	if (status & VDPU381_STA_INT_DEC_RDY_STA) {
+		state = VB2_BUF_STATE_DONE;
+	} else {
+		state = VB2_BUF_STATE_ERROR;
+		if (status & (VDPU381_STA_INT_SOFTRESET_RDY |
+			      VDPU381_STA_INT_TIMEOUT |
+			      VDPU381_STA_INT_ERROR))
+			rkvdec_iommu_restore(rkvdec);
+	}
+
+	if (need_reset)
+		rkvdec_iommu_restore(rkvdec);
+
+	if (cancel_delayed_work(&rkvdec->watchdog_work))
+		rkvdec_job_finish(ctx, state);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t rkvdec_irq_handler(int irq, void *priv)
 {
 	struct rkvdec_dev *rkvdec = priv;
@@ -1321,6 +1434,7 @@ static const struct rkvdec_variant rk3288_rkvdec_variant = {
 	.coded_fmts = rk3288_coded_fmts,
 	.num_coded_fmts = ARRAY_SIZE(rk3288_coded_fmts),
 	.ops = &rk3399_variant_ops,
+	.has_single_reg_region = true,
 };
 
 static const struct rkvdec_variant rk3328_rkvdec_variant = {
@@ -1328,6 +1442,7 @@ static const struct rkvdec_variant rk3328_rkvdec_variant = {
 	.coded_fmts = rkvdec_coded_fmts,
 	.num_coded_fmts = ARRAY_SIZE(rkvdec_coded_fmts),
 	.ops = &rk3399_variant_ops,
+	.has_single_reg_region = true,
 	.quirks = RKVDEC_QUIRK_DISABLE_QOS,
 };
 
@@ -1336,6 +1451,32 @@ static const struct rkvdec_variant rk3399_rkvdec_variant = {
 	.coded_fmts = rkvdec_coded_fmts,
 	.num_coded_fmts = ARRAY_SIZE(rkvdec_coded_fmts),
 	.ops = &rk3399_variant_ops,
+	.has_single_reg_region = true,
+};
+
+static const struct rcb_size_info vdpu381_rcb_sizes[] = {
+	{6,	PIC_WIDTH},	// intrar
+	{1,	PIC_WIDTH},	// transdr (Is actually 0.4*pic_width)
+	{1,	PIC_HEIGHT},	// transdc (Is actually 0.1*pic_height)
+	{3,	PIC_WIDTH},	// streamdr
+	{6,	PIC_WIDTH},	// interr
+	{3,	PIC_HEIGHT},	// interc
+	{22,	PIC_WIDTH},	// dblkr
+	{6,	PIC_WIDTH},	// saor
+	{11,	PIC_WIDTH},	// fbcr
+	{67,	PIC_HEIGHT},	// filtc col
+};
+
+static const struct rkvdec_variant_ops vdpu381_variant_ops = {
+	.irq_handler = vdpu381_irq_handler,
+};
+
+static const struct rkvdec_variant vdpu381_variant = {
+	.coded_fmts = vdpu381_coded_fmts,
+	.num_coded_fmts = ARRAY_SIZE(vdpu381_coded_fmts),
+	.rcb_sizes = vdpu381_rcb_sizes,
+	.num_rcb_sizes = ARRAY_SIZE(vdpu381_rcb_sizes),
+	.ops = &vdpu381_variant_ops,
 };
 
 static const struct of_device_id of_rkvdec_match[] = {
@@ -1350,6 +1491,10 @@ static const struct of_device_id of_rkvdec_match[] = {
 	{
 		.compatible = "rockchip,rk3399-vdec",
 		.data = &rk3399_rkvdec_variant,
+	},
+	{
+		.compatible = "rockchip,rk3588-vdec",
+		.data = &vdpu381_variant,
 	},
 	{ /* sentinel */ }
 };
@@ -1384,10 +1529,17 @@ static int rkvdec_probe(struct platform_device *pdev)
 		return ret;
 
 	rkvdec->num_clocks = ret;
+	rkvdec->axi_clk = devm_clk_get(&pdev->dev, "axi");
 
-	rkvdec->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(rkvdec->regs))
-		return PTR_ERR(rkvdec->regs);
+	if (rkvdec->variant->has_single_reg_region) {
+		rkvdec->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rkvdec->regs))
+			return PTR_ERR(rkvdec->regs);
+	} else {
+		rkvdec->regs = devm_platform_ioremap_resource_byname(pdev, "function");
+		if (IS_ERR(rkvdec->regs))
+			return PTR_ERR(rkvdec->regs);
+	}
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {

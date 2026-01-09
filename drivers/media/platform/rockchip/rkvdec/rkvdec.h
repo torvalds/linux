@@ -25,6 +25,10 @@
 
 #define RKVDEC_QUIRK_DISABLE_QOS	BIT(0)
 
+#define RKVDEC_1080P_PIXELS		(1920 * 1088)
+#define RKVDEC_4K_PIXELS		(4096 * 2304)
+#define RKVDEC_8K_PIXELS		(7680 * 4320)
+
 struct rkvdec_ctx;
 struct rkvdec_rcb_config;
 
@@ -78,6 +82,7 @@ struct rkvdec_variant {
 	const struct rcb_size_info *rcb_sizes;
 	size_t num_rcb_sizes;
 	const struct rkvdec_variant_ops *ops;
+	bool has_single_reg_region;
 	unsigned int quirks;
 };
 
@@ -126,6 +131,7 @@ struct rkvdec_dev {
 	struct device *dev;
 	struct clk_bulk_data *clocks;
 	unsigned int num_clocks;
+	struct clk *axi_clk;
 	void __iomem *regs;
 	struct mutex vdev_lock; /* serializes ioctls */
 	struct delayed_work watchdog_work;
@@ -144,6 +150,7 @@ struct rkvdec_ctx {
 	struct rkvdec_dev *dev;
 	enum rkvdec_image_fmt image_fmt;
 	struct rkvdec_rcb_config *rcb_config;
+	u32 colmv_offset;
 	void *priv;
 };
 
@@ -167,11 +174,16 @@ struct rkvdec_aux_buf {
 void rkvdec_run_preamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
 void rkvdec_run_postamble(struct rkvdec_ctx *ctx, struct rkvdec_run *run);
 void rkvdec_memcpy_toio(void __iomem *dst, void *src, size_t len);
+void rkvdec_schedule_watchdog(struct rkvdec_dev *rkvdec, u32 timeout_threshold);
 
 void rkvdec_quirks_disable_qos(struct rkvdec_ctx *ctx);
 
+/* RKVDEC ops */
 extern const struct rkvdec_coded_fmt_ops rkvdec_h264_fmt_ops;
 extern const struct rkvdec_coded_fmt_ops rkvdec_hevc_fmt_ops;
 extern const struct rkvdec_coded_fmt_ops rkvdec_vp9_fmt_ops;
+
+/* VDPU381 ops */
+extern const struct rkvdec_coded_fmt_ops rkvdec_vdpu381_h264_fmt_ops;
 
 #endif /* RKVDEC_H_ */
