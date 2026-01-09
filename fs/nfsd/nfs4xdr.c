@@ -378,10 +378,111 @@ nfsd4_decode_security_label(struct nfsd4_compoundargs *argp,
 	return nfs_ok;
 }
 
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+
+static short nfsd4_posixacetag4_to_tag(posixacetag4 tag)
+{
+	switch (tag) {
+	case POSIXACE4_TAG_USER_OBJ:	return ACL_USER_OBJ;
+	case POSIXACE4_TAG_GROUP_OBJ:	return ACL_GROUP_OBJ;
+	case POSIXACE4_TAG_USER:	return ACL_USER;
+	case POSIXACE4_TAG_GROUP:	return ACL_GROUP;
+	case POSIXACE4_TAG_MASK:	return ACL_MASK;
+	case POSIXACE4_TAG_OTHER:	return ACL_OTHER;
+	}
+	return ACL_OTHER;
+}
+
+static __be32
+nfsd4_decode_posixace4(struct nfsd4_compoundargs *argp,
+		       struct posix_acl_entry *ace)
+{
+	posixaceperm4 perm;
+	__be32 *p, status;
+	posixacetag4 tag;
+	u32 len;
+
+	if (!xdrgen_decode_posixacetag4(argp->xdr, &tag))
+		return nfserr_bad_xdr;
+	ace->e_tag = nfsd4_posixacetag4_to_tag(tag);
+
+	if (!xdrgen_decode_posixaceperm4(argp->xdr, &perm))
+		return nfserr_bad_xdr;
+	if (perm & ~S_IRWXO)
+		return nfserr_bad_xdr;
+	ace->e_perm = perm;
+
+	if (xdr_stream_decode_u32(argp->xdr, &len) < 0)
+		return nfserr_bad_xdr;
+	p = xdr_inline_decode(argp->xdr, len);
+	if (!p)
+		return nfserr_bad_xdr;
+	switch (tag) {
+	case POSIXACE4_TAG_USER:
+		if (len > 0)
+			status = nfsd_map_name_to_uid(argp->rqstp,
+					(char *)p, len, &ace->e_uid);
+		else
+			status = nfserr_bad_xdr;
+		break;
+	case POSIXACE4_TAG_GROUP:
+		if (len > 0)
+			status = nfsd_map_name_to_gid(argp->rqstp,
+					(char *)p, len, &ace->e_gid);
+		else
+			status = nfserr_bad_xdr;
+		break;
+	default:
+		status = nfs_ok;
+	}
+
+	return status;
+}
+
+static noinline __be32
+nfsd4_decode_posixacl(struct nfsd4_compoundargs *argp, struct posix_acl **acl)
+{
+	struct posix_acl_entry *ace;
+	__be32 status;
+	u32 count;
+
+	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
+		return nfserr_bad_xdr;
+
+	*acl = posix_acl_alloc(count, GFP_KERNEL);
+	if (*acl == NULL)
+		return nfserr_resource;
+
+	(*acl)->a_count = count;
+	for (ace = (*acl)->a_entries; ace < (*acl)->a_entries + count; ace++) {
+		status = nfsd4_decode_posixace4(argp, ace);
+		if (status) {
+			posix_acl_release(*acl);
+			*acl = NULL;
+			return status;
+		}
+	}
+
+	/*
+	 * posix_acl_valid() requires the ACEs to be sorted.
+	 * If they are already sorted, sort_pacl_range() will return
+	 * after one pass through the ACEs, since it implements bubble sort.
+	 * Note that a count == 0 is used to delete a POSIX ACL and a count
+	 * of 1 or 2 will always be found invalid by posix_acl_valid().
+	 */
+	if (count >= 3)
+		sort_pacl_range(*acl, 0, count - 1);
+
+	return nfs_ok;
+}
+
+#endif /* CONFIG_NFSD_V4_POSIX_ACLS */
+
 static __be32
 nfsd4_decode_fattr4(struct nfsd4_compoundargs *argp, u32 *bmval, u32 bmlen,
 		    struct iattr *iattr, struct nfs4_acl **acl,
-		    struct xdr_netobj *label, int *umask)
+		    struct xdr_netobj *label, int *umask,
+		    struct posix_acl **dpaclp, struct posix_acl **paclp)
 {
 	unsigned int starting_pos;
 	u32 attrlist4_count;
@@ -544,9 +645,40 @@ nfsd4_decode_fattr4(struct nfsd4_compoundargs *argp, u32 *bmval, u32 bmlen,
 				   ATTR_MTIME | ATTR_MTIME_SET | ATTR_DELEG;
 	}
 
+	*dpaclp = NULL;
+	*paclp = NULL;
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+	if (bmval[2] & FATTR4_WORD2_POSIX_DEFAULT_ACL) {
+		struct posix_acl *dpacl;
+
+		status = nfsd4_decode_posixacl(argp, &dpacl);
+		if (status)
+			return status;
+		*dpaclp = dpacl;
+	}
+	if (bmval[2] & FATTR4_WORD2_POSIX_ACCESS_ACL) {
+		struct posix_acl *pacl;
+
+		status = nfsd4_decode_posixacl(argp, &pacl);
+		if (status) {
+			posix_acl_release(*dpaclp);
+			*dpaclp = NULL;
+			return status;
+		}
+		*paclp = pacl;
+	}
+#endif /* CONFIG_NFSD_V4_POSIX_ACLS */
+
 	/* request sanity: did attrlist4 contain the expected number of words? */
-	if (attrlist4_count != xdr_stream_pos(argp->xdr) - starting_pos)
+	if (attrlist4_count != xdr_stream_pos(argp->xdr) - starting_pos) {
+#ifdef CONFIG_NFSD_V4_POSIX_ACLS
+		posix_acl_release(*dpaclp);
+		posix_acl_release(*paclp);
+		*dpaclp = NULL;
+		*paclp = NULL;
+#endif
 		return nfserr_bad_xdr;
+	}
 
 	return nfs_ok;
 }
@@ -850,7 +982,8 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 	status = nfsd4_decode_fattr4(argp, create->cr_bmval,
 				    ARRAY_SIZE(create->cr_bmval),
 				    &create->cr_iattr, &create->cr_acl,
-				    &create->cr_label, &create->cr_umask);
+				    &create->cr_label, &create->cr_umask,
+				    &create->cr_dpacl, &create->cr_pacl);
 	if (status)
 		return status;
 
@@ -1001,7 +1134,8 @@ nfsd4_decode_createhow4(struct nfsd4_compoundargs *argp, struct nfsd4_open *open
 		status = nfsd4_decode_fattr4(argp, open->op_bmval,
 					     ARRAY_SIZE(open->op_bmval),
 					     &open->op_iattr, &open->op_acl,
-					     &open->op_label, &open->op_umask);
+					     &open->op_label, &open->op_umask,
+					     &open->op_dpacl, &open->op_pacl);
 		if (status)
 			return status;
 		break;
@@ -1019,7 +1153,8 @@ nfsd4_decode_createhow4(struct nfsd4_compoundargs *argp, struct nfsd4_open *open
 		status = nfsd4_decode_fattr4(argp, open->op_bmval,
 					     ARRAY_SIZE(open->op_bmval),
 					     &open->op_iattr, &open->op_acl,
-					     &open->op_label, &open->op_umask);
+					     &open->op_label, &open->op_umask,
+					     &open->op_dpacl, &open->op_pacl);
 		if (status)
 			return status;
 		break;
@@ -1346,7 +1481,8 @@ nfsd4_decode_setattr(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 	return nfsd4_decode_fattr4(argp, setattr->sa_bmval,
 				   ARRAY_SIZE(setattr->sa_bmval),
 				   &setattr->sa_iattr, &setattr->sa_acl,
-				   &setattr->sa_label, NULL);
+				   &setattr->sa_label, NULL, &setattr->sa_dpacl,
+				   &setattr->sa_pacl);
 }
 
 static __be32

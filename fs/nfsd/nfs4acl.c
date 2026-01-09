@@ -369,12 +369,21 @@ pace_gt(struct posix_acl_entry *pace1, struct posix_acl_entry *pace2)
 	return false;
 }
 
-static void
-sort_pacl_range(struct posix_acl *pacl, int start, int end) {
+/**
+ * sort_pacl_range - sort a range of POSIX ACL entries by tag and id
+ * @pacl: POSIX ACL containing entries to sort
+ * @start: starting index of range to sort
+ * @end: ending index of range to sort (inclusive)
+ *
+ * Sorts ACL entries in place so that USER entries are ordered by UID
+ * and GROUP entries are ordered by GID. Required before calling
+ * posix_acl_valid().
+ */
+void sort_pacl_range(struct posix_acl *pacl, int start, int end)
+{
 	int sorted = 0, i;
 
-	/* We just do a bubble sort; easy to do in place, and we're not
-	 * expecting acl's to be long enough to justify anything more. */
+	/* Bubble sort: acceptable here because ACLs are typically short. */
 	while (!sorted) {
 		sorted = 1;
 		for (i = start; i < end; i++) {
