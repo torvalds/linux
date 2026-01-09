@@ -83,7 +83,8 @@ xfs_rtgroup_calc_geometry(
 	xfs_rtbxlen_t		rextents)
 {
 	rtg->rtg_extents = __xfs_rtgroup_extents(mp, rgno, rgcount, rextents);
-	rtg_group(rtg)->xg_block_count = rtg->rtg_extents * mp->m_sb.sb_rextsize;
+	rtg_group(rtg)->xg_block_count =
+		rtg->rtg_extents * mp->m_sb.sb_rextsize;
 	rtg_group(rtg)->xg_min_gbno = xfs_rtgroup_min_block(mp, rgno);
 }
 
