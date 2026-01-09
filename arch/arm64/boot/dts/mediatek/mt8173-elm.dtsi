@@ -206,11 +206,9 @@
 
 &dsi0 {
 	status = "okay";
-	ports {
-		port {
-			dsi0_out: endpoint {
-				remote-endpoint = <&ps8640_in>;
-			};
+	port {
+		dsi0_out: endpoint {
+			remote-endpoint = <&ps8640_in>;
 		};
 	};
 };
