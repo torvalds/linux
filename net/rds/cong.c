@@ -242,7 +242,7 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 			 *    therefore trigger warnings.
 			 * Defer the xmit to rds_send_worker() instead.
 			 */
-			queue_delayed_work(rds_wq, &cp->cp_send_w, 0);
+			queue_delayed_work(cp->cp_wq, &cp->cp_send_w, 0);
 		}
 		rcu_read_unlock();
 	}
