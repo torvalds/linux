@@ -298,6 +298,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 	teid.val = lc->trans_exc_code;
 	regs->int_code = lc->pgm_int_code;
 	regs->int_parm_long = teid.val;
+	regs->monitor_code = lc->monitor_code;
 	/*
 	 * In case of a guest fault, short-circuit the fault handler and return.
 	 * This way the sie64a() function will return 0; fault address and
