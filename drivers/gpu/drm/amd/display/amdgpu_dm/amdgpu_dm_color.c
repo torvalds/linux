@@ -23,6 +23,9 @@
  * Authors: AMD
  *
  */
+
+#include <drm/drm_colorop.h>
+
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"

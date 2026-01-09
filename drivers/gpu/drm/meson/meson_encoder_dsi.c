@@ -25,7 +25,6 @@
 struct meson_encoder_dsi {
 	struct drm_encoder encoder;
 	struct drm_bridge bridge;
-	struct drm_bridge *next_bridge;
 	struct meson_drm *priv;
 };
 
@@ -38,7 +37,7 @@ static int meson_encoder_dsi_attach(struct drm_bridge *bridge,
 {
 	struct meson_encoder_dsi *encoder_dsi = bridge_to_meson_encoder_dsi(bridge);
 
-	return drm_bridge_attach(encoder, encoder_dsi->next_bridge,
+	return drm_bridge_attach(encoder, encoder_dsi->bridge.next_bridge,
 				 &encoder_dsi->bridge, flags);
 }
 
@@ -120,8 +119,8 @@ int meson_encoder_dsi_probe(struct meson_drm *priv)
 		return 0;
 	}
 
-	meson_encoder_dsi->next_bridge = of_drm_find_bridge(remote);
-	if (!meson_encoder_dsi->next_bridge)
+	meson_encoder_dsi->bridge.next_bridge = of_drm_find_and_get_bridge(remote);
+	if (!meson_encoder_dsi->bridge.next_bridge)
 		return dev_err_probe(priv->dev, -EPROBE_DEFER,
 				     "Failed to find DSI transceiver bridge\n");
 

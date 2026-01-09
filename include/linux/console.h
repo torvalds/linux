@@ -79,12 +79,6 @@ enum vc_intensity;
  *		characters. (optional)
  * @con_invert_region: invert a region of length @count on @vc starting at @p.
  *		(optional)
- * @con_debug_enter: prepare the console for the debugger. This includes, but
- *		is not limited to, unblanking the console, loading an
- *		appropriate palette, and allowing debugger generated output.
- *		(optional)
- * @con_debug_leave: restore the console to its pre-debug state as closely as
- *		possible. (optional)
  */
 struct consw {
 	struct module *owner;
@@ -123,8 +117,6 @@ struct consw {
 			enum vc_intensity intensity,
 			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
-	void	(*con_debug_enter)(struct vc_data *vc);
-	void	(*con_debug_leave)(struct vc_data *vc);
 };
 
 extern const struct consw *conswitchp;
