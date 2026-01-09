@@ -12,6 +12,19 @@
 #include "xe_tile.h"
 
 /**
+ * xe_mert_init_early() - Initialize MERT data
+ * @xe: the &xe_device with MERT to init
+ */
+void xe_mert_init_early(struct xe_device *xe)
+{
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	struct xe_mert *mert = &tile->mert;
+
+	spin_lock_init(&mert->lock);
+	init_completion(&mert->tlb_inv_done);
+}
+
+/**
  * xe_mert_invalidate_lmtt() - Invalidate MERT LMTT
  * @xe: the &xe_device with MERT
  *

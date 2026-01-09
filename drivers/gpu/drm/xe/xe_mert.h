@@ -25,6 +25,7 @@ struct xe_mert {
 };
 
 #ifdef CONFIG_PCI_IOV
+void xe_mert_init_early(struct xe_device *xe);
 int xe_mert_invalidate_lmtt(struct xe_device *xe);
 void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl);
 #else
