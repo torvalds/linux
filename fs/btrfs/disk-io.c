@@ -3834,7 +3834,7 @@ static void write_dev_flush(struct btrfs_device *device)
 {
 	struct bio *bio = &device->flush_bio;
 
-	device->last_flush_error = BLK_STS_OK;
+	clear_bit(BTRFS_DEV_STATE_FLUSH_FAILED, &device->dev_state);
 
 	bio_init(bio, device->bdev, NULL, 0,
 		 REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH);
@@ -3859,7 +3859,7 @@ static bool wait_dev_flush(struct btrfs_device *device)
 	wait_for_completion_io(&device->flush_wait);
 
 	if (bio->bi_status) {
-		device->last_flush_error = bio->bi_status;
+		set_bit(BTRFS_DEV_STATE_FLUSH_FAILED, &device->dev_state);
 		btrfs_dev_stat_inc_and_print(device, BTRFS_DEV_STAT_FLUSH_ERRS);
 		return true;
 	}
@@ -3909,7 +3909,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	}
 
 	/*
-	 * Checks last_flush_error of disks in order to determine the device
+	 * Checks flush failure of disks in order to determine the device
 	 * state.
 	 */
 	if (unlikely(errors_wait && !btrfs_check_rw_degradable(info, NULL)))

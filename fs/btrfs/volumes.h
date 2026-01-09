@@ -99,6 +99,7 @@ enum btrfs_raid_types {
 #define BTRFS_DEV_STATE_REPLACE_TGT	(3)
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 #define BTRFS_DEV_STATE_NO_READA	(5)
+#define BTRFS_DEV_STATE_FLUSH_FAILED	(6)
 
 /* Set when the device item is found in chunk tree, used to catch unexpected registered device. */
 #define BTRFS_DEV_STATE_ITEM_FOUND	(7)
@@ -125,13 +126,7 @@ struct btrfs_device {
 
 	struct btrfs_zoned_device_info *zone_info;
 
-	/*
-	 * Device's major-minor number. Must be set even if the device is not
-	 * opened (bdev == NULL), unless the device is missing.
-	 */
-	dev_t devt;
 	unsigned long dev_state;
-	blk_status_t last_flush_error;
 
 #ifdef __BTRFS_NEED_DEVICE_DATA_ORDERED
 	seqcount_t data_seqcount;
@@ -194,6 +189,12 @@ struct btrfs_device {
 	/* Counter to record the change of device stats */
 	atomic_t dev_stats_ccnt;
 	atomic_t dev_stat_values[BTRFS_DEV_STAT_VALUES_MAX];
+
+	/*
+	 * Device's major-minor number. Must be set even if the device is not
+	 * opened (bdev == NULL), unless the device is missing.
+	 */
+	dev_t devt;
 
 	struct extent_io_tree alloc_state;
 

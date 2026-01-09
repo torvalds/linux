@@ -1169,7 +1169,7 @@ static void btrfs_close_one_device(struct btrfs_device *device)
 	 * any transaction and set the error state, guaranteeing no commits of
 	 * unsafe super blocks.
 	 */
-	device->last_flush_error = 0;
+	clear_bit(BTRFS_DEV_STATE_FLUSH_FAILED, &device->dev_state);
 
 	/* Verify the device is back in a pristine state  */
 	WARN_ON(test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state));
@@ -7375,7 +7375,7 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 
 			if (!dev || !dev->bdev ||
 			    test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state) ||
-			    dev->last_flush_error)
+			    test_bit(BTRFS_DEV_STATE_FLUSH_FAILED, &dev->dev_state))
 				missing++;
 			else if (failing_dev && failing_dev == dev)
 				missing++;
