@@ -1382,6 +1382,22 @@ static const struct dmi_system_id power_limits[] = {
 	},
 	{
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "G513QY"),
+		},
+		.driver_data = &(struct power_data) {
+			.ac_data = &(struct power_limits) {
+				/* Advantage Edition Laptop, no PL1 or PL2 limits */
+				.ppt_apu_sppt_min = 15,
+				.ppt_apu_sppt_max = 100,
+				.ppt_platform_sppt_min = 70,
+				.ppt_platform_sppt_max = 190,
+			},
+			.dc_data = NULL,
+			.requires_fan_curve = true,
+		},
+	},
+	{
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "G513R"),
 		},
 		.driver_data = &(struct power_data) {
