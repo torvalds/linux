@@ -465,6 +465,7 @@ struct btrfs_commit_stats {
 
 struct btrfs_delayed_root {
 	spinlock_t lock;
+	int nodes;		/* for delayed nodes */
 	struct list_head node_list;
 	/*
 	 * Used for delayed nodes which is waiting to be dealt with by the
@@ -474,7 +475,6 @@ struct btrfs_delayed_root {
 	struct list_head prepare_list;
 	atomic_t items;		/* for delayed items */
 	atomic_t items_seq;	/* for delayed items */
-	int nodes;		/* for delayed nodes */
 	wait_queue_head_t wait;
 };
 
