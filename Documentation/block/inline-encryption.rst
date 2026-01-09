@@ -206,6 +206,12 @@ it to a bio, given the blk_crypto_key and the data unit number that will be used
 for en/decryption.  Users don't need to worry about freeing the bio_crypt_ctx
 later, as that happens automatically when the bio is freed or reset.
 
+To submit a bio that uses inline encryption, users must call
+``blk_crypto_submit_bio()`` instead of the usual ``submit_bio()``.  This will
+submit the bio to the underlying driver if it supports inline crypto, or else
+call the blk-crypto fallback routines before submitting normal bios to the
+underlying drivers.
+
 Finally, when done using inline encryption with a blk_crypto_key on a
 block_device, users must call ``blk_crypto_evict_key()``.  This ensures that
 the key is evicted from all keyslots it may be programmed into and unlinked from

@@ -3,6 +3,7 @@
  * Copyright (C) 2010 Red Hat, Inc.
  * Copyright (c) 2016-2025 Christoph Hellwig.
  */
+#include <linux/blk-crypto.h>
 #include <linux/fscrypt.h>
 #include <linux/pagemap.h>
 #include <linux/iomap.h>
@@ -74,7 +75,7 @@ static void iomap_dio_submit_bio(const struct iomap_iter *iter,
 		dio->dops->submit_io(iter, bio, pos);
 	} else {
 		WARN_ON_ONCE(iter->iomap.flags & IOMAP_F_ANON_WRITE);
-		submit_bio(bio);
+		blk_crypto_submit_bio(bio);
 	}
 }
 

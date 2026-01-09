@@ -242,25 +242,13 @@ void __blk_crypto_free_request(struct request *rq)
 	rq->crypt_ctx = NULL;
 }
 
-/**
- * __blk_crypto_bio_prep - Prepare bio for inline encryption
- * @bio: bio to prepare
+/*
+ * Process a bio with a crypto context.  Returns true if the caller should
+ * submit the passed in bio, false if the bio is consumed.
  *
- * If the bio crypt context provided for the bio is supported by the underlying
- * device's inline encryption hardware, do nothing.
- *
- * Otherwise, try to perform en/decryption for this bio by falling back to the
- * kernel crypto API.  For encryption this means submitting newly allocated
- * bios for the encrypted payload while keeping back the source bio until they
- * complete, while for reads the decryption happens in-place by a hooked in
- * completion handler.
- *
- * Caller must ensure bio has bio_crypt_ctx.
- *
- * Return: true if @bio should be submitted to the driver by the caller, else
- * false.  Sets bio->bi_status, calls bio_endio and returns false on error.
+ * See the kerneldoc comment for blk_crypto_submit_bio for further details.
  */
-bool __blk_crypto_bio_prep(struct bio *bio)
+bool __blk_crypto_submit_bio(struct bio *bio)
 {
 	const struct blk_crypto_key *bc_key = bio->bi_crypt_context->bc_key;
 	struct block_device *bdev = bio->bi_bdev;
@@ -288,6 +276,7 @@ bool __blk_crypto_bio_prep(struct bio *bio)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(__blk_crypto_submit_bio);
 
 int __blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
 			     gfp_t gfp_mask)

@@ -105,7 +105,7 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 		}
 
 		atomic_inc(&done.pending);
-		submit_bio(bio);
+		blk_crypto_submit_bio(bio);
 	}
 
 	fscrypt_zeroout_range_done(&done);
