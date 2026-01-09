@@ -3484,6 +3484,14 @@ static __be32 nfsd4_encode_fattr4_acl_trueform(struct xdr_stream *xdr,
 	return nfs_ok;
 }
 
+static __be32 nfsd4_encode_fattr4_acl_trueform_scope(struct xdr_stream *xdr,
+						     const struct nfsd4_fattr_args *args)
+{
+	if (!xdrgen_encode_aclscope4(xdr, ACL_SCOPE_FILE_SYSTEM))
+		return nfserr_resource;
+	return nfs_ok;
+}
+
 #endif /* CONFIG_NFSD_V4_POSIX_ACLS */
 
 static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
@@ -3596,8 +3604,10 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 
 #ifdef CONFIG_NFSD_V4_POSIX_ACLS
 	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4_acl_trueform,
+	[FATTR4_ACL_TRUEFORM_SCOPE]	= nfsd4_encode_fattr4_acl_trueform_scope,
 #else
 	[FATTR4_ACL_TRUEFORM]		= nfsd4_encode_fattr4__noop,
+	[FATTR4_ACL_TRUEFORM_SCOPE]	= nfsd4_encode_fattr4__noop,
 #endif
 };
 
