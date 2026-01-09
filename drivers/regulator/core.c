@@ -2282,28 +2282,6 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	/* rdev->supply was created in set_supply() */
 	link_and_create_debugfs(rdev->supply, r, &rdev->dev);
 
-	/*
-	 * In set_machine_constraints() we may have turned this regulator on
-	 * but we couldn't propagate to the supply if it hadn't been resolved
-	 * yet.  Do it now.
-	 */
-	if (rdev->use_count) {
-		ret = regulator_enable(rdev->supply);
-		if (ret < 0) {
-			struct regulator *supply;
-
-			regulator_lock_two(rdev, rdev->supply->rdev, &ww_ctx);
-
-			supply = rdev->supply;
-			rdev->supply = NULL;
-
-			regulator_unlock_two(rdev, supply->rdev, &ww_ctx);
-
-			regulator_put(supply);
-			goto out;
-		}
-	}
-
 out:
 	return ret;
 }
