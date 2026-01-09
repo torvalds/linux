@@ -258,11 +258,12 @@ static void __init test_monitor_call(void)
 	if (!IS_ENABLED(CONFIG_BUG))
 		return;
 	asm_inline volatile(
-		"	mc	0,0\n"
+		"	mc	%[monc](%%r0),0\n"
 		"0:	lhi	%[val],0\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [val] "+d" (val));
+		: [val] "+d" (val)
+		: [monc] "i" (MONCODE_BUG));
 	if (!val)
 		panic("Monitor call doesn't work!\n");
 }

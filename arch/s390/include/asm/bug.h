@@ -3,7 +3,11 @@
 #define _ASM_S390_BUG_H
 
 #include <linux/compiler.h>
+#include <linux/const.h>
 
+#define	MONCODE_BUG	_AC(0, U)
+
+#ifndef __ASSEMBLER__
 #if defined(CONFIG_BUG) && defined(CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS)
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
@@ -24,7 +28,7 @@
 #define __BUG_ASM(cond_str, flags)					\
 do {									\
 	asm_inline volatile("\n"					\
-		"0:	mc	0,0\n"					\
+		"0:	mc	%[monc](%%r0),0\n"			\
 		"	.section __bug_table,\"aw\"\n"			\
 		"1:	.long	0b - .	# bug_entry::bug_addr\n"	\
 		__BUG_ENTRY_VERBOSE("%[frmt]", "%[file]", "%[line]")	\
@@ -32,7 +36,8 @@ do {									\
 		"	.org	1b+%[size]\n"				\
 		"	.previous"					\
 		:							\
-		: [frmt] "i" (WARN_CONDITION_STR(cond_str)),		\
+		: [monc] "i" (MONCODE_BUG),				\
+		  [frmt] "i" (WARN_CONDITION_STR(cond_str)),		\
 		  [file] "i" (__FILE__),				\
 		  [line] "i" (__LINE__),				\
 		  [flgs] "i" (flags),					\
@@ -54,6 +59,7 @@ do {									\
 #define HAVE_ARCH_BUG_FORMAT
 
 #endif /* CONFIG_BUG && CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS */
+#endif /* __ASSEMBLER__ */
 
 #include <asm-generic/bug.h>
 
