@@ -1183,7 +1183,7 @@ static void print_constraints_debug(struct regulator_dev *rdev)
 		count += scnprintf(buf + count, len - count, "standby ");
 
 	if (constraints->pw_budget_mW)
-		count += scnprintf(buf + count, len - count, "%d mW budget",
+		count += scnprintf(buf + count, len - count, "%d mW budget ",
 				   constraints->pw_budget_mW);
 
 	if (!count)
@@ -5697,7 +5697,8 @@ static int regulator_register_resolve_supply(struct device *dev, void *data)
 	struct regulator_dev *rdev = dev_to_rdev(dev);
 
 	if (regulator_resolve_supply(rdev))
-		rdev_dbg(rdev, "unable to resolve supply\n");
+		rdev_dbg(rdev, "unable to resolve supply '%s'\n",
+			 rdev->supply_name);
 
 	return 0;
 }
