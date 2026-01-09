@@ -53,9 +53,6 @@ module_param_named(sev_es, sev_es_enabled, bool, 0444);
 static bool sev_snp_enabled = true;
 module_param_named(sev_snp, sev_snp_enabled, bool, 0444);
 
-/* enable/disable SEV-ES DebugSwap support */
-static bool sev_es_debug_swap_enabled = true;
-module_param_named(debug_swap, sev_es_debug_swap_enabled, bool, 0444);
 static u64 sev_supported_vmsa_features;
 
 static unsigned int nr_ciphertext_hiding_asids;
@@ -3150,12 +3147,10 @@ out:
 	sev_es_enabled = sev_es_supported;
 	sev_snp_enabled = sev_snp_supported;
 
-	if (!sev_es_enabled || !cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP) ||
-	    !cpu_feature_enabled(X86_FEATURE_NO_NESTED_DATA_BP))
-		sev_es_debug_swap_enabled = false;
-
 	sev_supported_vmsa_features = 0;
-	if (sev_es_debug_swap_enabled)
+
+	if (sev_es_enabled && cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP) &&
+	    cpu_feature_enabled(X86_FEATURE_NO_NESTED_DATA_BP))
 		sev_supported_vmsa_features |= SVM_SEV_FEAT_DEBUG_SWAP;
 
 	if (sev_snp_enabled && tsc_khz && cpu_feature_enabled(X86_FEATURE_SNP_SECURE_TSC))
