@@ -729,15 +729,23 @@ amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
 			uint32_t operation)
 {
-	struct dma_fence *clear_fence = dma_fence_get_stub();
-	struct dma_fence *last_update = NULL;
-	int r;
+	struct dma_fence *fence;
+	int r = 0;
+
+	/* Always start from the VM's existing last update fence. */
+	fence = dma_fence_get(vm->last_update);
 
 	if (!amdgpu_vm_ready(vm))
-		return clear_fence;
+		return fence;
 
-	/* First clear freed BOs and get a fence for that work, if any. */
-	r = amdgpu_vm_clear_freed(adev, vm, &clear_fence);
+	/*
+	 * First clean up any freed mappings in the VM.
+	 *
+	 * amdgpu_vm_clear_freed() may replace @fence with a new fence if it
+	 * schedules GPU work. If nothing needs clearing, @fence can remain as
+	 * the original vm->last_update.
+	 */
+	r = amdgpu_vm_clear_freed(adev, vm, &fence);
 	if (r)
 		goto error;
 
@@ -755,35 +763,38 @@ amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 		goto error;
 
 	/*
-	 * Decide which fence represents the "last update" for this VM/BO:
+	 * Decide which fence best represents the last update:
 	 *
-	 * - For MAP/REPLACE we want the PT update fence, which is tracked as
-	 *   either vm->last_update (for always-valid BOs) or bo_va->last_pt_update
-	 *   (for per-BO updates).
+	 * MAP/REPLACE:
+	 *   - For always-valid mappings, use vm->last_update.
+	 *   - Otherwise, export bo_va->last_pt_update.
 	 *
-	 * - For UNMAP/CLEAR we rely on the fence returned by
-	 *   amdgpu_vm_clear_freed(), which already covers the page table work
-	 *   for the removed mappings.
+	 * UNMAP/CLEAR:
+	 *   Keep the fence returned by amdgpu_vm_clear_freed(). If no work was
+	 *   needed, it can remain as vm->last_pt_update.
+	 *
+	 * The VM and BO update fences are always initialized to a valid value.
+	 * vm->last_update and bo_va->last_pt_update always start as valid fences.
+	 * and are never expected to be NULL.
 	 */
 	switch (operation) {
 	case AMDGPU_VA_OP_MAP:
 	case AMDGPU_VA_OP_REPLACE:
-		if (bo_va && bo_va->base.bo) {
-			if (amdgpu_vm_is_bo_always_valid(vm, bo_va->base.bo)) {
-				if (vm->last_update)
-					last_update = dma_fence_get(vm->last_update);
-			} else {
-				if (bo_va->last_pt_update)
-					last_update = dma_fence_get(bo_va->last_pt_update);
-			}
-		}
+		/*
+		 * For MAP/REPLACE, return the page table update fence for the
+		 * mapping we just modified. bo_va is expected to be valid here.
+		 */
+		dma_fence_put(fence);
+
+		if (amdgpu_vm_is_bo_always_valid(vm, bo_va->base.bo))
+			fence = dma_fence_get(vm->last_update);
+		else
+			fence = dma_fence_get(bo_va->last_pt_update);
 		break;
 	case AMDGPU_VA_OP_UNMAP:
 	case AMDGPU_VA_OP_CLEAR:
-		if (clear_fence)
-			last_update = dma_fence_get(clear_fence);
-		break;
 	default:
+		/* keep @fence as returned by amdgpu_vm_clear_freed() */
 		break;
 	}
 
@@ -791,17 +802,7 @@ error:
 	if (r && r != -ERESTARTSYS)
 		DRM_ERROR("Couldn't update BO_VA (%d)\n", r);
 
-	/*
-	 * If we managed to pick a more specific last-update fence, prefer it
-	 * over the generic clear_fence and drop the extra reference to the
-	 * latter.
-	 */
-	if (last_update) {
-		dma_fence_put(clear_fence);
-		return last_update;
-	}
-
-	return clear_fence;
+	return fence;
 }
 
 int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
