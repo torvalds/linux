@@ -232,19 +232,19 @@ static void btrfs_dequeue_delayed_node(struct btrfs_delayed_root *root,
 }
 
 static struct btrfs_delayed_node *btrfs_first_delayed_node(
-			struct btrfs_delayed_root *delayed_root,
+			struct btrfs_fs_info *fs_info,
 			struct btrfs_ref_tracker *tracker)
 {
 	struct btrfs_delayed_node *node;
 
-	spin_lock(&delayed_root->lock);
-	node = list_first_entry_or_null(&delayed_root->node_list,
+	spin_lock(&fs_info->delayed_root.lock);
+	node = list_first_entry_or_null(&fs_info->delayed_root.node_list,
 					struct btrfs_delayed_node, n_list);
 	if (node) {
 		refcount_inc(&node->refs);
 		btrfs_delayed_node_ref_tracker_alloc(node, tracker, GFP_ATOMIC);
 	}
-	spin_unlock(&delayed_root->lock);
+	spin_unlock(&fs_info->delayed_root.lock);
 
 	return node;
 }
@@ -1154,7 +1154,7 @@ static int __btrfs_run_delayed_items(struct btrfs_trans_handle *trans, int nr)
 	block_rsv = trans->block_rsv;
 	trans->block_rsv = &fs_info->delayed_block_rsv;
 
-	curr_node = btrfs_first_delayed_node(&fs_info->delayed_root, &curr_delayed_node_tracker);
+	curr_node = btrfs_first_delayed_node(fs_info, &curr_delayed_node_tracker);
 	while (curr_node && (!count || nr--)) {
 		ret = __btrfs_commit_inode_delayed_items(trans, path,
 							 curr_node);
@@ -1401,7 +1401,7 @@ void btrfs_assert_delayed_root_empty(struct btrfs_fs_info *fs_info)
 	struct btrfs_ref_tracker delayed_node_tracker;
 	struct btrfs_delayed_node *node;
 
-	node = btrfs_first_delayed_node(&fs_info->delayed_root, &delayed_node_tracker);
+	node = btrfs_first_delayed_node(fs_info, &delayed_node_tracker);
 	if (WARN_ON(node)) {
 		btrfs_delayed_node_ref_tracker_free(node,
 						    &delayed_node_tracker);
@@ -2102,8 +2102,7 @@ void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info)
 	struct btrfs_delayed_node *curr_node, *prev_node;
 	struct btrfs_ref_tracker curr_delayed_node_tracker, prev_delayed_node_tracker;
 
-	curr_node = btrfs_first_delayed_node(&fs_info->delayed_root,
-					     &curr_delayed_node_tracker);
+	curr_node = btrfs_first_delayed_node(fs_info, &curr_delayed_node_tracker);
 	while (curr_node) {
 		__btrfs_kill_delayed_node(curr_node);
 
