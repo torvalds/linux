@@ -63,6 +63,7 @@ struct client {
 	u64 bus_reset_closure;
 
 	struct fw_iso_context *iso_context;
+	struct mutex iso_context_mutex;
 	u64 iso_closure;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
@@ -306,6 +307,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&client->phy_receiver_link);
 	INIT_LIST_HEAD(&client->link);
 	kref_init(&client->kref);
+	mutex_init(&client->iso_context_mutex);
 
 	file->private_data = client;
 
@@ -1088,26 +1090,27 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 		context->drop_overflow_headers = true;
 
 	// We only support one context at this time.
-	guard(spinlock_irq)(&client->lock);
-
-	if (client->iso_context != NULL) {
-		fw_iso_context_destroy(context);
-
-		return -EBUSY;
-	}
-	if (!client->buffer_is_mapped) {
-		ret = fw_iso_buffer_map_dma(&client->buffer,
-					    client->device->card,
-					    iso_dma_direction(context));
-		if (ret < 0) {
+	scoped_guard(mutex, &client->iso_context_mutex) {
+		if (client->iso_context != NULL) {
 			fw_iso_context_destroy(context);
 
-			return ret;
+			return -EBUSY;
 		}
-		client->buffer_is_mapped = true;
+		// The DMA mapping operation is available if the buffer is already allocated by
+		// mmap(2) system call. If not, it is delegated to the system call.
+		if (!client->buffer_is_mapped) {
+			ret = fw_iso_buffer_map_dma(&client->buffer, client->device->card,
+						    iso_dma_direction(context));
+			if (ret < 0) {
+				fw_iso_context_destroy(context);
+
+				return ret;
+			}
+			client->buffer_is_mapped = true;
+		}
+		client->iso_closure = a->closure;
+		client->iso_context = context;
 	}
-	client->iso_closure = a->closure;
-	client->iso_context = context;
 
 	a->handle = 0;
 
@@ -1826,7 +1829,9 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 	if (ret < 0)
 		return ret;
 
-	scoped_guard(spinlock_irq, &client->lock) {
+	scoped_guard(mutex, &client->iso_context_mutex) {
+		// The direction of DMA can be determined if the isochronous context is already
+		// allocated. If not, the DMA mapping operation is postponed after the allocation.
 		if (client->iso_context) {
 			ret = fw_iso_buffer_map_dma(&client->buffer, client->device->card,
 						    iso_dma_direction(client->iso_context));
@@ -1879,6 +1884,7 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 
 	if (client->iso_context)
 		fw_iso_context_destroy(client->iso_context);
+	mutex_destroy(&client->iso_context_mutex);
 
 	if (client->buffer.pages)
 		fw_iso_buffer_destroy(&client->buffer, client->device->card);
