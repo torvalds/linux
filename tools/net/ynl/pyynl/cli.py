@@ -120,11 +120,11 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
                     print_attr_list(ynl, nested_names, nested_set, indent + 4)
 
 
-def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
+def print_mode_attrs(ynl, mode, mode_spec, attr_set):
     """Print a given mode (do/dump/event/notify)."""
     mode_title = mode.capitalize()
 
-    if print_request and 'request' in mode_spec and 'attributes' in mode_spec['request']:
+    if 'request' in mode_spec and 'attributes' in mode_spec['request']:
         print(f'\n{mode_title} request attributes:')
         print_attr_list(ynl, mode_spec['request']['attributes'], attr_set)
 
@@ -132,25 +132,28 @@ def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
         print(f'\n{mode_title} reply attributes:')
         print_attr_list(ynl, mode_spec['reply']['attributes'], attr_set)
 
-    if 'attributes' in mode_spec:
-        print(f'\n{mode_title} attributes:')
-        print_attr_list(ynl, mode_spec['attributes'], attr_set)
-
 
 def do_doc(ynl, op):
     """Handle --list-attrs $op, print the attr information to stdout"""
     print(f'Operation: {color(op.name, Colors.BOLD)}')
     print(op.yaml['doc'])
 
-    for mode in ['do', 'dump', 'event']:
+    for mode in ['do', 'dump']:
         if mode in op.yaml:
-            print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set, True)
+            print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set)
+
+    if 'attributes' in op.yaml.get('event', {}):
+        print('\nEvent attributes:')
+        print_attr_list(ynl, op.yaml['event']['attributes'], op.attr_set)
 
     if 'notify' in op.yaml:
         mode_spec = op.yaml['notify']
         ref_spec = ynl.msgs.get(mode_spec).yaml.get('do')
+        if not ref_spec:
+            ref_spec = ynl.msgs.get(mode_spec).yaml.get('dump')
         if ref_spec:
-            print_mode_attrs(ynl, 'notify', ref_spec, op.attr_set, False)
+            print('\nNotification attributes:')
+            print_attr_list(ynl, ref_spec['reply']['attributes'], op.attr_set)
 
     if 'mcgrp' in op.yaml:
         print(f"\nMulticast group: {op.yaml['mcgrp']}")
