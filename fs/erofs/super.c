@@ -655,7 +655,8 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		 */
 		if (erofs_is_fileio_mode(sbi)) {
 			inode = file_inode(sbi->dif0.file);
-			if ((inode->i_sb->s_op == &erofs_sops && !sb->s_bdev) ||
+			if ((inode->i_sb->s_op == &erofs_sops &&
+			     !inode->i_sb->s_bdev) ||
 			    inode->i_sb->s_stack_depth) {
 				erofs_err(sb, "file-backed mounts cannot be applied to stacked fses");
 				return -ENOTBLK;
