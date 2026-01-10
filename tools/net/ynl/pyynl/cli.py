@@ -120,7 +120,7 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
                     print_attr_list(ynl, nested_names, nested_set, indent + 4)
 
 
-def print_mode_attrs(ynl, mode, mode_spec, attr_set):
+def print_mode_attrs(ynl, mode, mode_spec, attr_set, consistent_dd_reply=None):
     """Print a given mode (do/dump/event/notify)."""
     mode_title = mode.capitalize()
 
@@ -129,8 +129,15 @@ def print_mode_attrs(ynl, mode, mode_spec, attr_set):
         print_attr_list(ynl, mode_spec['request']['attributes'], attr_set)
 
     if 'reply' in mode_spec and 'attributes' in mode_spec['reply']:
-        print(f'\n{mode_title} reply attributes:')
-        print_attr_list(ynl, mode_spec['reply']['attributes'], attr_set)
+        if consistent_dd_reply and mode == "do":
+            title = None  # Dump handling will print in combined format
+        elif consistent_dd_reply and mode == "dump":
+            title = 'Do and Dump'
+        else:
+            title = f'{mode_title}'
+        if title:
+            print(f'\n{title} reply attributes:')
+            print_attr_list(ynl, mode_spec['reply']['attributes'], attr_set)
 
 
 def do_doc(ynl, op):
@@ -138,9 +145,15 @@ def do_doc(ynl, op):
     print(f'Operation: {color(op.name, Colors.BOLD)}')
     print(op.yaml['doc'])
 
+    consistent_dd_reply = False
+    if 'do' in op.yaml and 'dump' in op.yaml and 'reply' in op.yaml['do'] and \
+       op.yaml['do']['reply'] == op.yaml['dump'].get('reply'):
+        consistent_dd_reply = True
+
     for mode in ['do', 'dump']:
         if mode in op.yaml:
-            print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set)
+            print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set,
+                             consistent_dd_reply=consistent_dd_reply)
 
     if 'attributes' in op.yaml.get('event', {}):
         print('\nEvent attributes:')
