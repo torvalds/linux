@@ -15,7 +15,13 @@ config SND_SOC_AMD_ACP_COMMON
 
 config SND_SOC_ACPI_AMD_MATCH
 	tristate
+	select SND_SOC_ACPI_AMD_SDCA_QUIRKS
 	select SND_SOC_ACPI if ACPI
+
+config SND_SOC_ACPI_AMD_SDCA_QUIRKS
+	tristate
+	depends on ACPI
+	depends on SND_SOC_SDCA
 
 if SND_SOC_AMD_ACP_COMMON
 
