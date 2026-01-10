@@ -20,6 +20,29 @@ from lib import YnlFamily, Netlink, NlError, SpecFamily, SpecException, YnlExcep
 SYS_SCHEMA_DIR='/usr/share/ynl'
 RELATIVE_SCHEMA_DIR='../../../../Documentation/netlink'
 
+# pylint: disable=too-few-public-methods,too-many-locals
+class Colors:
+    """ANSI color and font modifier codes"""
+    RESET = '\033[0m'
+
+    BOLD = '\033[1m'
+    ITALICS = '\033[3m'
+    UNDERLINE = '\033[4m'
+    INVERT = '\033[7m'
+
+
+def color(text, modifiers):
+    """Add color to text if output is a TTY
+
+    Returns:
+        Colored text if stdout is a TTY, otherwise plain text
+    """
+    if sys.stdout.isatty():
+        # Join the colors if they are a list, if it's a string this a noop
+        modifiers = "".join(modifiers)
+        return f"{modifiers}{text}{Colors.RESET}"
+    return text
+
 def schema_dir():
     """
     Return the effective schema directory, preferring in-tree before
@@ -60,7 +83,7 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
     for attr_name in attr_names:
         if attr_name in attr_set.attrs:
             attr = attr_set.attrs[attr_name]
-            attr_info = f'{prefix}- {attr_name}: {attr.type}'
+            attr_info = f'{prefix}- {color(attr_name, Colors.BOLD)}: {attr.type}'
             if 'enum' in attr.yaml:
                 enum_name = attr.yaml['enum']
                 attr_info += f" (enum: {enum_name})"
@@ -68,7 +91,8 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
                 if enum_name in ynl.consts:
                     const = ynl.consts[enum_name]
                     enum_values = list(const.entries.keys())
-                    attr_info += f"\n{prefix}  {const.type.capitalize()}: {', '.join(enum_values)}"
+                    type_fmted = color(const.type.capitalize(), Colors.ITALICS)
+                    attr_info += f"\n{prefix}  {type_fmted}: {', '.join(enum_values)}"
 
             # Show nested attributes reference and recursively display them
             nested_set_name = None
@@ -226,7 +250,7 @@ def main():
             print(f'Operation {args.list_attrs} not found')
             sys.exit(1)
 
-        print(f'Operation: {op.name}')
+        print(f'Operation: {color(op.name, Colors.BOLD)}')
         print(op.yaml['doc'])
 
         for mode in ['do', 'dump', 'event']:
