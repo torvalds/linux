@@ -16,6 +16,7 @@ properties:
     enum:
       - sprd,sc9860-mailbox
       - sprd,sc9863a-mailbox
+      - sprd,ums9230-mailbox
 
   reg:
     items:
