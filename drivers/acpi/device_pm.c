@@ -1458,6 +1458,15 @@ int acpi_dev_pm_attach(struct device *dev, bool power_on)
 		return 0;
 
 	/*
+	 * Skip devices whose ACPI companions don't support power management and
+	 * don't have a wakeup GPE.
+	 */
+	if (!acpi_device_power_manageable(adev) && !acpi_device_can_wakeup(adev)) {
+		dev_dbg(dev, "No ACPI power management or wakeup GPE\n");
+		return 0;
+	}
+
+	/*
 	 * Only attach the power domain to the first device if the
 	 * companion is shared by multiple. This is to prevent doing power
 	 * management twice.
