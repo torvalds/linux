@@ -281,8 +281,7 @@ static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 	struct cfg80211_bitrate_mask *mask = &rtwsta_link->mask;
 	u8 band = chan->band_type;
 	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
-	u8 he_ltf = mask->control[nl_band].he_ltf;
-	u8 he_gi = mask->control[nl_band].he_gi;
+	u8 ltf, gi;
 
 	*fix_giltf_en = true;
 
@@ -293,22 +292,31 @@ static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 	else
 		*fix_giltf = RTW89_GILTF_2XHE08;
 
-	if (!(rtwsta_link->use_cfg_mask && link_sta->he_cap.has_he))
+	if (!rtwsta_link->use_cfg_mask)
 		return;
 
-	if (he_ltf == 2 && he_gi == 2) {
-		*fix_giltf = RTW89_GILTF_LGI_4XHE32;
-	} else if (he_ltf == 2 && he_gi == 0) {
-		*fix_giltf = RTW89_GILTF_SGI_4XHE08;
-	} else if (he_ltf == 1 && he_gi == 1) {
-		*fix_giltf = RTW89_GILTF_2XHE16;
-	} else if (he_ltf == 1 && he_gi == 0) {
-		*fix_giltf = RTW89_GILTF_2XHE08;
-	} else if (he_ltf == 0 && he_gi == 1) {
-		*fix_giltf = RTW89_GILTF_1XHE16;
-	} else if (he_ltf == 0 && he_gi == 0) {
-		*fix_giltf = RTW89_GILTF_1XHE08;
+	if (link_sta->eht_cap.has_eht) {
+		ltf = mask->control[nl_band].eht_ltf;
+		gi = mask->control[nl_band].eht_gi;
+	} else if (link_sta->he_cap.has_he) {
+		ltf = mask->control[nl_band].he_ltf;
+		gi = mask->control[nl_band].he_gi;
+	} else {
+		return;
 	}
+
+	if (ltf == 2 && gi == 2)
+		*fix_giltf = RTW89_GILTF_LGI_4XHE32;
+	else if (ltf == 2 && gi == 0)
+		*fix_giltf = RTW89_GILTF_SGI_4XHE08;
+	else if (ltf == 1 && gi == 1)
+		*fix_giltf = RTW89_GILTF_2XHE16;
+	else if (ltf == 1 && gi == 0)
+		*fix_giltf = RTW89_GILTF_2XHE08;
+	else if (ltf == 0 && gi == 1)
+		*fix_giltf = RTW89_GILTF_1XHE16;
+	else if (ltf == 0 && gi == 0)
+		*fix_giltf = RTW89_GILTF_1XHE08;
 }
 
 static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
