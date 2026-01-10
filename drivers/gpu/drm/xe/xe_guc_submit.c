@@ -71,10 +71,8 @@ exec_queue_to_guc(struct xe_exec_queue *q)
 #define EXEC_QUEUE_STATE_KILLED			(1 << 7)
 #define EXEC_QUEUE_STATE_WEDGED			(1 << 8)
 #define EXEC_QUEUE_STATE_BANNED			(1 << 9)
-#define EXEC_QUEUE_STATE_CHECK_TIMEOUT		(1 << 10)
-#define EXEC_QUEUE_STATE_PENDING_RESUME		(1 << 11)
-#define EXEC_QUEUE_STATE_PENDING_TDR_EXIT	(1 << 12)
-#define EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND	(1 << 13)
+#define EXEC_QUEUE_STATE_PENDING_RESUME		(1 << 10)
+#define EXEC_QUEUE_STATE_IDLE_SKIP_SUSPEND	(1 << 11)
 
 static bool exec_queue_registered(struct xe_exec_queue *q)
 {
@@ -206,21 +204,6 @@ static void set_exec_queue_wedged(struct xe_exec_queue *q)
 	atomic_or(EXEC_QUEUE_STATE_WEDGED, &q->guc->state);
 }
 
-static bool exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_CHECK_TIMEOUT;
-}
-
-static void set_exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	atomic_or(EXEC_QUEUE_STATE_CHECK_TIMEOUT, &q->guc->state);
-}
-
-static void clear_exec_queue_check_timeout(struct xe_exec_queue *q)
-{
-	atomic_and(~EXEC_QUEUE_STATE_CHECK_TIMEOUT, &q->guc->state);
-}
-
 static bool exec_queue_pending_resume(struct xe_exec_queue *q)
 {
 	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_RESUME;
@@ -234,21 +217,6 @@ static void set_exec_queue_pending_resume(struct xe_exec_queue *q)
 static void clear_exec_queue_pending_resume(struct xe_exec_queue *q)
 {
 	atomic_and(~EXEC_QUEUE_STATE_PENDING_RESUME, &q->guc->state);
-}
-
-static bool exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
-{
-	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_PENDING_TDR_EXIT;
-}
-
-static void set_exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
-{
-	atomic_or(EXEC_QUEUE_STATE_PENDING_TDR_EXIT, &q->guc->state);
-}
-
-static void clear_exec_queue_pending_tdr_exit(struct xe_exec_queue *q)
-{
-	atomic_and(~EXEC_QUEUE_STATE_PENDING_TDR_EXIT, &q->guc->state);
 }
 
 static bool exec_queue_idle_skip_suspend(struct xe_exec_queue *q)
@@ -620,19 +588,19 @@ static void xe_guc_exec_queue_reset_trigger_cleanup(struct xe_exec_queue *q)
 		WRITE_ONCE(group->banned, true);
 
 		set_exec_queue_reset(primary);
-		if (!exec_queue_banned(primary) && !exec_queue_check_timeout(primary))
+		if (!exec_queue_banned(primary))
 			xe_guc_exec_queue_trigger_cleanup(primary);
 
 		mutex_lock(&group->list_lock);
 		list_for_each_entry(eq, &group->list, multi_queue.link) {
 			set_exec_queue_reset(eq);
-			if (!exec_queue_banned(eq) && !exec_queue_check_timeout(eq))
+			if (!exec_queue_banned(eq))
 				xe_guc_exec_queue_trigger_cleanup(eq);
 		}
 		mutex_unlock(&group->list_lock);
 	} else {
 		set_exec_queue_reset(q);
-		if (!exec_queue_banned(q) && !exec_queue_check_timeout(q))
+		if (!exec_queue_banned(q))
 			xe_guc_exec_queue_trigger_cleanup(q);
 	}
 }
@@ -1349,7 +1317,16 @@ static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 		return xe_sched_invalidate_job(job, 2);
 	}
 
-	ctx_timestamp = lower_32_bits(xe_lrc_ctx_timestamp(q->lrc[0]));
+	ctx_timestamp = lower_32_bits(xe_lrc_timestamp(q->lrc[0]));
+	if (ctx_timestamp == job->sample_timestamp) {
+		xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
+			   xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			   q->guc->id);
+
+		return xe_sched_invalidate_job(job, 0);
+	}
+
+	job->sample_timestamp = ctx_timestamp;
 	ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
 
 	/*
@@ -1494,16 +1471,17 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	}
 
 	/*
-	 * XXX: Sampling timeout doesn't work in wedged mode as we have to
-	 * modify scheduling state to read timestamp. We could read the
-	 * timestamp from a register to accumulate current running time but this
-	 * doesn't work for SRIOV. For now assuming timeouts in wedged mode are
-	 * genuine timeouts.
+	 * Check if job is actually timed out, if so restart job execution and TDR
 	 */
+	if (!skip_timeout_check && !check_timeout(q, job))
+		goto rearm;
+
 	if (!exec_queue_killed(q))
 		wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
-	/* Engine state now stable, disable scheduling to check timestamp */
+	set_exec_queue_banned(q);
+
+	/* Kick job / queue off hardware */
 	if (!wedged && (exec_queue_enabled(q) || exec_queue_pending_disable(q))) {
 		int ret;
 
@@ -1525,13 +1503,6 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 			if (!ret || xe_guc_read_stopped(guc))
 				goto trigger_reset;
 
-			/*
-			 * Flag communicates to G2H handler that schedule
-			 * disable originated from a timeout check. The G2H then
-			 * avoid triggering cleanup or deregistering the exec
-			 * queue.
-			 */
-			set_exec_queue_check_timeout(q);
 			disable_scheduling(q, skip_timeout_check);
 		}
 
@@ -1560,20 +1531,10 @@ trigger_reset:
 			xe_devcoredump(q, job,
 				       "Schedule disable failed to respond, guc_id=%d, ret=%d, guc_read=%d",
 				       q->guc->id, ret, xe_guc_read_stopped(guc));
-			set_exec_queue_banned(q);
 			xe_gt_reset_async(q->gt);
 			xe_sched_tdr_queue_imm(sched);
 			goto rearm;
 		}
-	}
-
-	/*
-	 * Check if job is actually timed out, if so restart job execution and TDR
-	 */
-	if (!wedged && !skip_timeout_check && !check_timeout(q, job) &&
-	    !exec_queue_reset(q) && exec_queue_registered(q)) {
-		clear_exec_queue_check_timeout(q);
-		goto sched_enable;
 	}
 
 	if (q->vm && q->vm->xef) {
@@ -1606,13 +1567,10 @@ trigger_reset:
 	if (!wedged && (q->flags & EXEC_QUEUE_FLAG_KERNEL ||
 			(q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q)))) {
 		if (!xe_sched_invalidate_job(job, 2)) {
-			clear_exec_queue_check_timeout(q);
 			xe_gt_reset_async(q->gt);
 			goto rearm;
 		}
 	}
-
-	set_exec_queue_banned(q);
 
 	/* Mark all outstanding jobs as bad, thus completing them */
 	xe_sched_job_set_error(job, err);
@@ -1632,9 +1590,6 @@ trigger_reset:
 	 */
 	return DRM_GPU_SCHED_STAT_NO_HANG;
 
-sched_enable:
-	set_exec_queue_pending_tdr_exit(q);
-	enable_scheduling(q);
 rearm:
 	/*
 	 * XXX: Ideally want to adjust timeout based on current execution time
@@ -2387,8 +2342,7 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 			  q->guc->id);
 	}
 
-	if (pending_enable && !pending_resume &&
-	    !exec_queue_pending_tdr_exit(q)) {
+	if (pending_enable && !pending_resume) {
 		clear_exec_queue_registered(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay REGISTER - guc_id=%d",
 			  q->guc->id);
@@ -2397,7 +2351,6 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 	if (pending_enable) {
 		clear_exec_queue_enabled(q);
 		clear_exec_queue_pending_resume(q);
-		clear_exec_queue_pending_tdr_exit(q);
 		clear_exec_queue_pending_enable(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay ENABLE - guc_id=%d",
 			  q->guc->id);
@@ -2423,7 +2376,6 @@ static void guc_exec_queue_revert_pending_state_change(struct xe_guc *guc,
 		if (!pending_enable)
 			set_exec_queue_enabled(q);
 		clear_exec_queue_pending_disable(q);
-		clear_exec_queue_check_timeout(q);
 		xe_gt_dbg(guc_to_gt(guc), "Replay DISABLE - guc_id=%d",
 			  q->guc->id);
 	}
@@ -2800,13 +2752,10 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 
 		q->guc->resume_time = ktime_get();
 		clear_exec_queue_pending_resume(q);
-		clear_exec_queue_pending_tdr_exit(q);
 		clear_exec_queue_pending_enable(q);
 		smp_wmb();
 		wake_up_all(&guc->ct.wq);
 	} else {
-		bool check_timeout = exec_queue_check_timeout(q);
-
 		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
 		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_disable(q));
 
@@ -2814,11 +2763,11 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 			suspend_fence_signal(q);
 			clear_exec_queue_pending_disable(q);
 		} else {
-			if (exec_queue_banned(q) || check_timeout) {
+			if (exec_queue_banned(q)) {
 				smp_wmb();
 				wake_up_all(&guc->ct.wq);
 			}
-			if (!check_timeout && exec_queue_destroyed(q)) {
+			if (exec_queue_destroyed(q)) {
 				/*
 				 * Make sure to clear the pending_disable only
 				 * after sampling the destroyed state. We want
