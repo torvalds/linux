@@ -92,7 +92,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: The auxiliary bus only ever calls the probe callback with a valid pointer to a
         // `struct auxiliary_device`.
         //
-        // INVARIANT: `adev` is valid for the duration of `probe_callback()`.
+        // INVARIANT: `adev` is valid for the duration of `remove_callback()`.
         let adev = unsafe { &*adev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
