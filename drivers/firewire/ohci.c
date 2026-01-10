@@ -3184,7 +3184,7 @@ static int queue_iso_transmit(struct iso_context *ctx,
 	struct descriptor *d, *last, *pd;
 	struct fw_iso_packet *p;
 	__le32 *header;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	u32 z, header_z, payload_z, irq;
 	u32 payload_index, payload_end_index, next_page_index;
 	int page, end_page, i, length, offset;
@@ -3254,11 +3254,11 @@ static int queue_iso_transmit(struct iso_context *ctx,
 			min(next_page_index, payload_end_index) - payload_index;
 		pd[i].req_count    = cpu_to_le16(length);
 
-		page_bus = page_private(buffer->pages[page]);
-		pd[i].data_address = cpu_to_le32(page_bus + offset);
+		dma_addr_t dma_addr = buffer->dma_addrs[i];
+		pd[i].data_address = cpu_to_le32(dma_addr + offset);
 
 		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
-						 page_bus, offset, length,
+						 dma_addr, offset, length,
 						 DMA_TO_DEVICE);
 
 		payload_index += length;
@@ -3287,7 +3287,7 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 {
 	struct device *device = ctx->context.ohci->card.device;
 	struct descriptor *d, *pd;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	u32 z, header_z, rest;
 	int i, j, length;
 	int page, offset, packet_count, header_size, payload_per_buffer;
@@ -3337,10 +3337,10 @@ static int queue_iso_packet_per_buffer(struct iso_context *ctx,
 			pd->res_count = pd->req_count;
 			pd->transfer_status = 0;
 
-			page_bus = page_private(buffer->pages[page]);
-			pd->data_address = cpu_to_le32(page_bus + offset);
+			dma_addr_t dma_addr = buffer->dma_addrs[page];
+			pd->data_address = cpu_to_le32(dma_addr + offset);
 
-			dma_sync_single_range_for_device(device, page_bus,
+			dma_sync_single_range_for_device(device, dma_addr,
 							 offset, length,
 							 DMA_FROM_DEVICE);
 
@@ -3367,7 +3367,7 @@ static int queue_iso_buffer_fill(struct iso_context *ctx,
 				 unsigned long payload)
 {
 	struct descriptor *d;
-	dma_addr_t d_bus, page_bus;
+	dma_addr_t d_bus;
 	int page, offset, rest, z, i, length;
 
 	page   = payload >> PAGE_SHIFT;
@@ -3400,11 +3400,11 @@ static int queue_iso_buffer_fill(struct iso_context *ctx,
 		d->res_count = d->req_count;
 		d->transfer_status = 0;
 
-		page_bus = page_private(buffer->pages[page]);
-		d->data_address = cpu_to_le32(page_bus + offset);
+		dma_addr_t dma_addr = buffer->dma_addrs[page];
+		d->data_address = cpu_to_le32(dma_addr + offset);
 
 		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
-						 page_bus, offset, length,
+						 dma_addr, offset, length,
 						 DMA_FROM_DEVICE);
 
 		rest -= length;

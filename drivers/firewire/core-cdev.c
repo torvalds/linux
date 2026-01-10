@@ -67,7 +67,6 @@ struct client {
 	u64 iso_closure;
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
-	bool buffer_is_mapped;
 
 	struct list_head phy_receiver_link;
 	u64 phy_receiver_closure;
@@ -1098,7 +1097,7 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 		}
 		// The DMA mapping operation is available if the buffer is already allocated by
 		// mmap(2) system call. If not, it is delegated to the system call.
-		if (!client->buffer_is_mapped) {
+		if (client->buffer.pages && !client->buffer.dma_addrs) {
 			ret = fw_iso_buffer_map_dma(&client->buffer, client->device->card,
 						    iso_dma_direction(context));
 			if (ret < 0) {
@@ -1106,7 +1105,6 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 
 				return ret;
 			}
-			client->buffer_is_mapped = true;
 		}
 		client->iso_closure = a->closure;
 		client->iso_context = context;
@@ -1837,7 +1835,6 @@ static int fw_device_op_mmap(struct file *file, struct vm_area_struct *vma)
 						    iso_dma_direction(client->iso_context));
 			if (ret < 0)
 				goto fail;
-			client->buffer_is_mapped = true;
 		}
 	}
 

@@ -55,25 +55,32 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 			  enum dma_data_direction direction)
 {
-	dma_addr_t address;
+	dma_addr_t *dma_addrs __free(kfree) = kcalloc(buffer->page_count, sizeof(dma_addrs[0]),
+						      GFP_KERNEL);
 	int i;
 
-	buffer->direction = direction;
+	if (!dma_addrs)
+		return -ENOMEM;
 
 	// Retrieve DMA mapping addresses for the pages. They are not contiguous. Maintain the cache
 	// coherency for the pages by hand.
 	for (i = 0; i < buffer->page_count; i++) {
 		// The dma_map_phys() with a physical address per page is available here, instead.
-		address = dma_map_page(card->device, buffer->pages[i],
-				       0, PAGE_SIZE, direction);
-		if (dma_mapping_error(card->device, address))
+		dma_addr_t dma_addr = dma_map_page(card->device, buffer->pages[i], 0, PAGE_SIZE,
+						   direction);
+		if (dma_mapping_error(card->device, dma_addr))
 			break;
 
-		set_page_private(buffer->pages[i], address);
+		dma_addrs[i] = dma_addr;
 	}
-	buffer->page_count_mapped = i;
-	if (i < buffer->page_count)
+	if (i < buffer->page_count) {
+		while (i-- > 0)
+			dma_unmap_page(card->device, dma_addrs[i], PAGE_SIZE, buffer->direction);
 		return -ENOMEM;
+	}
+
+	buffer->direction = direction;
+	buffer->dma_addrs = no_free_ptr(dma_addrs);
 
 	return 0;
 }
@@ -98,13 +105,13 @@ EXPORT_SYMBOL(fw_iso_buffer_init);
 void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 			   struct fw_card *card)
 {
-	int i;
-	dma_addr_t address;
-
-	for (i = 0; i < buffer->page_count_mapped; i++) {
-		address = page_private(buffer->pages[i]);
-		dma_unmap_page(card->device, address,
-			       PAGE_SIZE, buffer->direction);
+	if (buffer->dma_addrs) {
+		for (int i = 0; i < buffer->page_count; ++i) {
+			dma_addr_t dma_addr = buffer->dma_addrs[i];
+			dma_unmap_page(card->device, dma_addr, PAGE_SIZE, buffer->direction);
+		}
+		kfree(buffer->dma_addrs);
+		buffer->dma_addrs = NULL;
 	}
 
 	if (buffer->pages) {
@@ -114,20 +121,15 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 	}
 
 	buffer->page_count = 0;
-	buffer->page_count_mapped = 0;
 }
 EXPORT_SYMBOL(fw_iso_buffer_destroy);
 
 /* Convert DMA address to offset into virtually contiguous buffer. */
 size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed)
 {
-	size_t i;
-	dma_addr_t address;
-	ssize_t offset;
-
-	for (i = 0; i < buffer->page_count; i++) {
-		address = page_private(buffer->pages[i]);
-		offset = (ssize_t)completed - (ssize_t)address;
+	for (int i = 0; i < buffer->page_count; i++) {
+		dma_addr_t dma_addr = buffer->dma_addrs[i];
+		ssize_t offset = (ssize_t)completed - (ssize_t)dma_addr;
 		if (offset > 0 && offset <= PAGE_SIZE)
 			return (i << PAGE_SHIFT) + offset;
 	}
