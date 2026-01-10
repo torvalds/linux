@@ -63,7 +63,7 @@ temp_input_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", temperature);
+	return sysfs_emit(buf, "%d\n", temperature);
 }
 
 static ssize_t
@@ -84,7 +84,7 @@ temp_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%d\n", temperature);
+	return sysfs_emit(buf, "%d\n", temperature);
 }
 
 
