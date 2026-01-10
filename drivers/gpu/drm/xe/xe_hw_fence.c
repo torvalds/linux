@@ -108,22 +108,6 @@ void xe_hw_fence_irq_run(struct xe_hw_fence_irq *irq)
 	irq_work_queue(&irq->work);
 }
 
-void xe_hw_fence_irq_stop(struct xe_hw_fence_irq *irq)
-{
-	spin_lock_irq(&irq->lock);
-	irq->enabled = false;
-	spin_unlock_irq(&irq->lock);
-}
-
-void xe_hw_fence_irq_start(struct xe_hw_fence_irq *irq)
-{
-	spin_lock_irq(&irq->lock);
-	irq->enabled = true;
-	spin_unlock_irq(&irq->lock);
-
-	irq_work_queue(&irq->work);
-}
-
 void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
 			  struct xe_hw_fence_irq *irq, const char *name)
 {

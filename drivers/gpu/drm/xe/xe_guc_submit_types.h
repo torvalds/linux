@@ -61,12 +61,6 @@ struct guc_submit_parallel_scratch {
 	u32 wq[WQ_SIZE / sizeof(u32)];
 };
 
-struct pending_list_snapshot {
-	u32 seqno;
-	bool fence;
-	bool finished;
-};
-
 /**
  * struct xe_guc_submit_exec_queue_snapshot - Snapshot for devcoredump
  */
@@ -147,11 +141,6 @@ struct xe_guc_submit_exec_queue_snapshot {
 		/** @valid: The exec queue is part of a multi queue group */
 		bool valid;
 	} multi_queue;
-
-	/** @pending_list_size: Size of the pending list snapshot array */
-	int pending_list_size;
-	/** @pending_list: snapshot of the pending list info */
-	struct pending_list_snapshot *pending_list;
 };
 
 #endif
