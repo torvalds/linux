@@ -31,22 +31,18 @@
 int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 {
 	struct page **page_array __free(kfree) = kcalloc(page_count, sizeof(page_array[0]), GFP_KERNEL);
-	int i;
 
 	if (!page_array)
 		return -ENOMEM;
 
-	for (i = 0; i < page_count; ++i) {
-		struct page *page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
-
-		if (!page)
-			break;
-		page_array[i] = page;
-	}
-
-	if (i < page_count) {
-		while (i-- > 0)
-			__free_page(page_array[i]);
+	// Retrieve noncontiguous pages. The descriptors for 1394 OHCI isochronous DMA contexts
+	// have a set of address and length per each, while the reason to use pages is the
+	// convenience to map them into virtual address space of user process.
+	unsigned long nr_populated = alloc_pages_bulk(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO,
+						      page_count, page_array);
+	if (nr_populated != page_count) {
+		// Assuming the above call fills page_array sequentially from the beginning.
+		release_pages(page_array, nr_populated);
 		return -ENOMEM;
 	}
 
@@ -64,7 +60,10 @@ int fw_iso_buffer_map_dma(struct fw_iso_buffer *buffer, struct fw_card *card,
 
 	buffer->direction = direction;
 
+	// Retrieve DMA mapping addresses for the pages. They are not contiguous. Maintain the cache
+	// coherency for the pages by hand.
 	for (i = 0; i < buffer->page_count; i++) {
+		// The dma_map_phys() with a physical address per page is available here, instead.
 		address = dma_map_page(card->device, buffer->pages[i],
 				       0, PAGE_SIZE, direction);
 		if (dma_mapping_error(card->device, address))
@@ -109,8 +108,7 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 	}
 
 	if (buffer->pages) {
-		for (int i = 0; i < buffer->page_count; ++i)
-			__free_page(buffer->pages[i]);
+		release_pages(buffer->pages, buffer->page_count);
 		kfree(buffer->pages);
 		buffer->pages = NULL;
 	}
