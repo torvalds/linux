@@ -96,6 +96,7 @@ struct ar_context {
 	struct fw_ohci *ohci;
 	struct page *pages[AR_BUFFERS];
 	void *buffer;
+	dma_addr_t dma_addrs[AR_BUFFERS];
 	struct descriptor *descriptors;
 	dma_addr_t descriptors_bus;
 	void *pointer;
@@ -513,11 +514,6 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	return update_phy_reg(ohci, addr, clear_bits, set_bits);
 }
 
-static inline dma_addr_t ar_buffer_bus(struct ar_context *ctx, unsigned int i)
-{
-	return page_private(ctx->pages[i]);
-}
-
 static void ar_context_link_page(struct ar_context *ctx, unsigned int index)
 {
 	struct descriptor *d;
@@ -544,11 +540,11 @@ static void ar_context_release(struct ar_context *ctx)
 		return;
 
 	for (int i = 0; i < AR_BUFFERS; ++i) {
-		dma_addr_t dma_addr = page_private(ctx->pages[i]);
-
-		dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
-		set_page_private(ctx->pages[i], 0);
+		dma_addr_t dma_addr = ctx->dma_addrs[i];
+		if (dma_addr)
+			dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
 	}
+	memset(ctx->dma_addrs, 0, sizeof(ctx->dma_addrs));
 
 	vunmap(ctx->buffer);
 	ctx->buffer = NULL;
@@ -647,14 +643,12 @@ static void ar_sync_buffers_for_cpu(struct ar_context *ctx,
 
 	i = ar_first_buffer_index(ctx);
 	while (i != end_buffer_index) {
-		dma_sync_single_for_cpu(ctx->ohci->card.device,
-					ar_buffer_bus(ctx, i),
-					PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(ctx->ohci->card.device, ctx->dma_addrs[i], PAGE_SIZE,
+					DMA_FROM_DEVICE);
 		i = ar_next_buffer_index(i);
 	}
 	if (end_buffer_offset > 0)
-		dma_sync_single_for_cpu(ctx->ohci->card.device,
-					ar_buffer_bus(ctx, i),
+		dma_sync_single_for_cpu(ctx->ohci->card.device, ctx->dma_addrs[i],
 					end_buffer_offset, DMA_FROM_DEVICE);
 }
 
@@ -795,9 +789,8 @@ static void ar_recycle_buffers(struct ar_context *ctx, unsigned int end_buffer)
 
 	i = ar_first_buffer_index(ctx);
 	while (i != end_buffer) {
-		dma_sync_single_for_device(ctx->ohci->card.device,
-					   ar_buffer_bus(ctx, i),
-					   PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_device(ctx->ohci->card.device, ctx->dma_addrs[i], PAGE_SIZE,
+					   DMA_FROM_DEVICE);
 		ar_context_link_page(ctx, i);
 		i = ar_next_buffer_index(i);
 	}
@@ -850,6 +843,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 	struct device *dev = ohci->card.device;
 	unsigned int i;
 	struct page *pages[AR_BUFFERS + AR_WRAPAROUND_PAGES];
+	dma_addr_t dma_addrs[AR_BUFFERS];
 	void *vaddr;
 	struct descriptor *d;
 
@@ -885,19 +879,18 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 		dma_addr_t dma_addr = dma_map_page(dev, pages[i], 0, PAGE_SIZE, DMA_FROM_DEVICE);
 		if (dma_mapping_error(dev, dma_addr))
 			break;
-		set_page_private(pages[i], dma_addr);
+		dma_addrs[i] = dma_addr;
 		dma_sync_single_for_device(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
 	}
 	if (i < AR_BUFFERS) {
-		while (i-- > 0) {
-			dma_addr_t dma_addr = page_private(pages[i]);
-			dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
-		}
+		while (i-- > 0)
+			dma_unmap_page(dev, dma_addrs[i], PAGE_SIZE, DMA_FROM_DEVICE);
 		vunmap(vaddr);
 		release_pages(pages, nr_populated);
 		return -ENOMEM;
 	}
 
+	memcpy(ctx->dma_addrs, dma_addrs, sizeof(ctx->dma_addrs));
 	ctx->buffer = vaddr;
 	memcpy(ctx->pages, pages, sizeof(ctx->pages));
 
@@ -910,7 +903,7 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 		d->control        = cpu_to_le16(DESCRIPTOR_INPUT_MORE |
 						DESCRIPTOR_STATUS |
 						DESCRIPTOR_BRANCH_ALWAYS);
-		d->data_address   = cpu_to_le32(ar_buffer_bus(ctx, i));
+		d->data_address   = cpu_to_le32(ctx->dma_addrs[i]);
 		d->branch_address = cpu_to_le32(ctx->descriptors_bus +
 			ar_next_buffer_index(i) * sizeof(struct descriptor));
 	}
