@@ -539,18 +539,22 @@ static void ar_context_link_page(struct ar_context *ctx, unsigned int index)
 static void ar_context_release(struct ar_context *ctx)
 {
 	struct device *dev = ctx->ohci->card.device;
-	unsigned int i;
 
 	if (!ctx->buffer)
 		return;
 
-	vunmap(ctx->buffer);
+	for (int i = 0; i < AR_BUFFERS; ++i) {
+		dma_addr_t dma_addr = page_private(ctx->pages[i]);
 
-	for (i = 0; i < AR_BUFFERS; i++) {
-		if (ctx->pages[i])
-			dma_free_pages(dev, PAGE_SIZE, ctx->pages[i],
-				       ar_buffer_bus(ctx, i), DMA_FROM_DEVICE);
+		dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+		set_page_private(ctx->pages[i], 0);
 	}
+
+	vunmap(ctx->buffer);
+	ctx->buffer = NULL;
+
+	release_pages(ctx->pages, AR_BUFFERS);
+	memset(ctx->pages, 0, sizeof(ctx->pages));
 }
 
 static void ar_context_abort(struct ar_context *ctx, const char *error_msg)
@@ -845,31 +849,57 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 {
 	struct device *dev = ohci->card.device;
 	unsigned int i;
-	dma_addr_t dma_addr;
 	struct page *pages[AR_BUFFERS + AR_WRAPAROUND_PAGES];
+	void *vaddr;
 	struct descriptor *d;
 
 	ctx->regs        = regs;
 	ctx->ohci        = ohci;
 	INIT_WORK(&ctx->work, ohci_ar_context_work);
 
-	for (i = 0; i < AR_BUFFERS; i++) {
-		ctx->pages[i] = dma_alloc_pages(dev, PAGE_SIZE, &dma_addr,
-						DMA_FROM_DEVICE, GFP_KERNEL);
-		if (!ctx->pages[i])
-			goto out_of_memory;
-		set_page_private(ctx->pages[i], dma_addr);
-		dma_sync_single_for_device(dev, dma_addr, PAGE_SIZE,
-					   DMA_FROM_DEVICE);
+	// Retrieve noncontiguous pages. The descriptors for 1394 OHCI AR DMA contexts have a set
+	// of address and length per each. The reason to use pages is to construct contiguous
+	// address range in kernel virtual address space.
+	unsigned long nr_populated = alloc_pages_bulk(GFP_KERNEL | GFP_DMA32, AR_BUFFERS, pages);
+
+	if (nr_populated != AR_BUFFERS) {
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
 	}
 
-	for (i = 0; i < AR_BUFFERS; i++)
-		pages[i]              = ctx->pages[i];
+	// Map the pages into contiguous kernel virtual addresses so that the packet data
+	// across the pages can be referred as being contiguous, especially across the last
+	// and first pages.
 	for (i = 0; i < AR_WRAPAROUND_PAGES; i++)
-		pages[AR_BUFFERS + i] = ctx->pages[i];
-	ctx->buffer = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
-	if (!ctx->buffer)
-		goto out_of_memory;
+		pages[AR_BUFFERS + i] = pages[i];
+	vaddr = vmap(pages, ARRAY_SIZE(pages), VM_MAP, PAGE_KERNEL);
+	if (!vaddr) {
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
+	}
+
+	// Retrieve DMA mapping addresses for the pages. They are not contiguous. Maintain the cache
+	// coherency for the pages by hand.
+	for (i = 0; i < AR_BUFFERS; i++) {
+		// The dma_map_phys() with a physical address per page is available here, instead.
+		dma_addr_t dma_addr = dma_map_page(dev, pages[i], 0, PAGE_SIZE, DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, dma_addr))
+			break;
+		set_page_private(pages[i], dma_addr);
+		dma_sync_single_for_device(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+	}
+	if (i < AR_BUFFERS) {
+		while (i-- > 0) {
+			dma_addr_t dma_addr = page_private(pages[i]);
+			dma_unmap_page(dev, dma_addr, PAGE_SIZE, DMA_FROM_DEVICE);
+		}
+		vunmap(vaddr);
+		release_pages(pages, nr_populated);
+		return -ENOMEM;
+	}
+
+	ctx->buffer = vaddr;
+	memcpy(ctx->pages, pages, sizeof(ctx->pages));
 
 	ctx->descriptors     = ohci->misc_buffer     + descriptors_offset;
 	ctx->descriptors_bus = ohci->misc_buffer_bus + descriptors_offset;
@@ -886,11 +916,6 @@ static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
 	}
 
 	return 0;
-
-out_of_memory:
-	ar_context_release(ctx);
-
-	return -ENOMEM;
 }
 
 static void ar_context_run(struct ar_context *ctx)
