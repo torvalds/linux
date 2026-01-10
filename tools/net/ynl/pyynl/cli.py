@@ -179,7 +179,7 @@ def main():
                      help="List available --do and --dump operations")
     ops.add_argument('--list-msgs', action='store_true',
                      help="List all messages of the family (incl. notifications)")
-    ops.add_argument('--list-attrs', dest='list_attrs', metavar='MSG',
+    ops.add_argument('--list-attrs', '--doc', dest='list_attrs', metavar='MSG',
                      type=str, help='List attributes for a message / operation')
     ops.add_argument('--validate', action='store_true',
                      help="Validate the spec against schema and exit")
