@@ -20,7 +20,6 @@ config FB_LOGO_EXTRA
 
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"
-	default y
 
 config LOGO_LINUX_MONO_FILE
 	string "Monochrome logo .pbm file"
@@ -38,7 +37,6 @@ config LOGO_LINUX_MONO_FILE
 
 config LOGO_LINUX_VGA16
 	bool "Standard 16-color Linux logo"
-	default y
 
 config LOGO_LINUX_VGA16_FILE
 	string "16-color logo .ppm file"
