@@ -3116,6 +3116,7 @@ static int rtw89_mac_setup_phycap_part0(struct rtw89_dev *rtwdev)
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw89_mac_c2h_info c2h_info = {};
 	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 protocol;
 	u8 tx_nss;
 	u8 rx_nss;
 	u8 tx_ant;
@@ -3162,6 +3163,10 @@ static int rtw89_mac_setup_phycap_part0(struct rtw89_dev *rtwdev)
 		    tx_ant, hal->antenna_tx, rx_ant, hal->antenna_rx);
 	rtw89_debug(rtwdev, RTW89_DBG_FW, "TX path diversity=%d\n", hal->tx_path_diversity);
 	rtw89_debug(rtwdev, RTW89_DBG_FW, "Antenna diversity=%d\n", hal->ant_diversity);
+
+	protocol = u32_get_bits(phycap->w1, RTW89_C2HREG_PHYCAP_W1_PROT);
+	if (protocol < RTW89_C2HREG_PHYCAP_W1_PROT_11BE)
+		hal->no_eht = true;
 
 	return 0;
 }

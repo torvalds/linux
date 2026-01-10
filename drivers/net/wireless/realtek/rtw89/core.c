@@ -5395,7 +5395,7 @@ static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
 	u8 val, val_mcs13;
 	int sts = 8;
 
-	if (chip->chip_gen == RTW89_CHIP_AX)
+	if (chip->chip_gen == RTW89_CHIP_AX || hal->no_eht)
 		return;
 
 	if (hal->no_mcs_12_13)
