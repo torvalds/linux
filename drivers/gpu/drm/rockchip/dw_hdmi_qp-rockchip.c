@@ -121,7 +121,7 @@ static void dw_hdmi_qp_rockchip_encoder_enable(struct drm_encoder *encoder)
 	struct drm_crtc *crtc = encoder->crtc;
 
 	/* Unconditionally switch to TMDS as FRL is not yet supported */
-	gpiod_set_value(hdmi->frl_enable_gpio, 0);
+	gpiod_set_value_cansleep(hdmi->frl_enable_gpio, 0);
 
 	if (!crtc || !crtc->state)
 		return;
