@@ -84,6 +84,7 @@ nfs_start_io_write(struct inode *inode)
 		nfs_file_block_o_direct(NFS_I(inode));
 	return err;
 }
+EXPORT_SYMBOL_GPL(nfs_start_io_write);
 
 /**
  * nfs_end_io_write - declare that the buffered write operation is done
@@ -97,6 +98,7 @@ nfs_end_io_write(struct inode *inode)
 {
 	up_write(&inode->i_rwsem);
 }
+EXPORT_SYMBOL_GPL(nfs_end_io_write);
 
 /* Call with exclusively locked inode->i_rwsem */
 static void nfs_block_buffered(struct nfs_inode *nfsi, struct inode *inode)
