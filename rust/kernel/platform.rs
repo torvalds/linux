@@ -103,7 +103,7 @@ impl<T: Driver + 'static> Adapter<T> {
         // SAFETY: The platform bus only ever calls the remove callback with a valid pointer to a
         // `struct platform_device`.
         //
-        // INVARIANT: `pdev` is valid for the duration of `probe_callback()`.
+        // INVARIANT: `pdev` is valid for the duration of `remove_callback()`.
         let pdev = unsafe { &*pdev.cast::<Device<device::CoreInternal>>() };
 
         // SAFETY: `remove_callback` is only ever called after a successful call to
