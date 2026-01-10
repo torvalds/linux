@@ -10,6 +10,7 @@ import json
 import os
 import pathlib
 import pprint
+import shutil
 import sys
 import textwrap
 
@@ -101,7 +102,11 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
                 attr_info += f" -> {nested_set_name}"
 
             if attr.yaml.get('doc'):
-                doc_text = textwrap.indent(attr.yaml['doc'], prefix + '  ')
+                doc_prefix = prefix + ' ' * 4
+                term_width = shutil.get_terminal_size().columns
+                doc_text = textwrap.fill(attr.yaml['doc'], width=term_width,
+                                         initial_indent=doc_prefix,
+                                         subsequent_indent=doc_prefix)
                 attr_info += f"\n{doc_text}"
             print(attr_info)
 
