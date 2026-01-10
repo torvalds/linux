@@ -30,25 +30,28 @@
 
 int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 {
+	struct page **page_array __free(kfree) = kcalloc(page_count, sizeof(page_array[0]), GFP_KERNEL);
 	int i;
 
-	buffer->page_count = 0;
-	buffer->page_count_mapped = 0;
-	buffer->pages = kmalloc_array(page_count, sizeof(buffer->pages[0]),
-				      GFP_KERNEL);
-	if (buffer->pages == NULL)
+	if (!page_array)
 		return -ENOMEM;
 
-	for (i = 0; i < page_count; i++) {
-		buffer->pages[i] = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
-		if (buffer->pages[i] == NULL)
+	for (i = 0; i < page_count; ++i) {
+		struct page *page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
+
+		if (!page)
 			break;
+		page_array[i] = page;
 	}
-	buffer->page_count = i;
+
 	if (i < page_count) {
-		fw_iso_buffer_destroy(buffer, NULL);
+		while (i-- > 0)
+			__free_page(page_array[i]);
 		return -ENOMEM;
 	}
+
+	buffer->page_count = page_count;
+	buffer->pages = no_free_ptr(page_array);
 
 	return 0;
 }
@@ -104,11 +107,14 @@ void fw_iso_buffer_destroy(struct fw_iso_buffer *buffer,
 		dma_unmap_page(card->device, address,
 			       PAGE_SIZE, buffer->direction);
 	}
-	for (i = 0; i < buffer->page_count; i++)
-		__free_page(buffer->pages[i]);
 
-	kfree(buffer->pages);
-	buffer->pages = NULL;
+	if (buffer->pages) {
+		for (int i = 0; i < buffer->page_count; ++i)
+			__free_page(buffer->pages[i]);
+		kfree(buffer->pages);
+		buffer->pages = NULL;
+	}
+
 	buffer->page_count = 0;
 	buffer->page_count_mapped = 0;
 }
