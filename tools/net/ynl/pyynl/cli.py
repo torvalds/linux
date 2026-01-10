@@ -137,6 +137,25 @@ def print_mode_attrs(ynl, mode, mode_spec, attr_set, print_request=True):
         print_attr_list(ynl, mode_spec['attributes'], attr_set)
 
 
+def do_doc(ynl, op):
+    """Handle --list-attrs $op, print the attr information to stdout"""
+    print(f'Operation: {color(op.name, Colors.BOLD)}')
+    print(op.yaml['doc'])
+
+    for mode in ['do', 'dump', 'event']:
+        if mode in op.yaml:
+            print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set, True)
+
+    if 'notify' in op.yaml:
+        mode_spec = op.yaml['notify']
+        ref_spec = ynl.msgs.get(mode_spec).yaml.get('do')
+        if ref_spec:
+            print_mode_attrs(ynl, 'notify', ref_spec, op.attr_set, False)
+
+    if 'mcgrp' in op.yaml:
+        print(f"\nMulticast group: {op.yaml['mcgrp']}")
+
+
 # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 def main():
     """YNL cli tool"""
@@ -286,21 +305,7 @@ def main():
             print(f'Operation {args.list_attrs} not found')
             sys.exit(1)
 
-        print(f'Operation: {color(op.name, Colors.BOLD)}')
-        print(op.yaml['doc'])
-
-        for mode in ['do', 'dump', 'event']:
-            if mode in op.yaml:
-                print_mode_attrs(ynl, mode, op.yaml[mode], op.attr_set, True)
-
-        if 'notify' in op.yaml:
-            mode_spec = op.yaml['notify']
-            ref_spec = ynl.msgs.get(mode_spec).yaml.get('do')
-            if ref_spec:
-                print_mode_attrs(ynl, 'notify', ref_spec, op.attr_set, False)
-
-        if 'mcgrp' in op.yaml:
-            print(f"\nMulticast group: {op.yaml['mcgrp']}")
+        do_doc(ynl, op)
 
     try:
         if args.do:
