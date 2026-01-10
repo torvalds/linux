@@ -2594,8 +2594,8 @@ static void acpi_scan_postponed(void)
 
 static void acpi_scan_claim_resources(struct acpi_device *adev)
 {
-	struct list_head resource_list = LIST_HEAD_INIT(resource_list);
 	struct resource_entry *rentry;
+	LIST_HEAD(resource_list);
 	unsigned int count = 0;
 	const char *regionid;
 
@@ -2651,7 +2651,6 @@ static void acpi_scan_claim_resources(struct acpi_device *adev)
 exit:
 	acpi_dev_free_resource_list(&resource_list);
 }
-
 
 static int __init acpi_reserve_motherboard_resources(void)
 {
