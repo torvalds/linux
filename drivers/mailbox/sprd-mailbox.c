@@ -282,21 +282,19 @@ static int sprd_mbox_startup(struct mbox_chan *chan)
 		/* Select outbox FIFO mode and reset the outbox FIFO status */
 		writel(0x0, priv->outbox_base + SPRD_MBOX_FIFO_RST);
 
-		/* Enable inbox FIFO overflow and delivery interrupt */
-		val = readl(priv->inbox_base + SPRD_MBOX_IRQ_MSK);
-		val &= ~(SPRD_INBOX_FIFO_OVERFLOW_IRQ | SPRD_INBOX_FIFO_DELIVER_IRQ);
+		/* Enable inbox FIFO delivery interrupt */
+		val = SPRD_INBOX_FIFO_IRQ_MASK;
+		val &= ~SPRD_INBOX_FIFO_DELIVER_IRQ;
 		writel(val, priv->inbox_base + SPRD_MBOX_IRQ_MSK);
 
 		/* Enable outbox FIFO not empty interrupt */
-		val = readl(priv->outbox_base + SPRD_MBOX_IRQ_MSK);
+		val = SPRD_OUTBOX_FIFO_IRQ_MASK;
 		val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
 		writel(val, priv->outbox_base + SPRD_MBOX_IRQ_MSK);
 
 		/* Enable supplementary outbox as the fundamental one */
 		if (priv->supp_base) {
 			writel(0x0, priv->supp_base + SPRD_MBOX_FIFO_RST);
-			val = readl(priv->supp_base + SPRD_MBOX_IRQ_MSK);
-			val &= ~SPRD_OUTBOX_FIFO_NOT_EMPTY_IRQ;
 			writel(val, priv->supp_base + SPRD_MBOX_IRQ_MSK);
 		}
 	}
