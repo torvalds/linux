@@ -86,7 +86,7 @@ struct descriptor {
 #define AR_BUFFER_SIZE	(32*1024)
 #define AR_BUFFERS_MIN	DIV_ROUND_UP(AR_BUFFER_SIZE, PAGE_SIZE)
 /* we need at least two pages for proper list management */
-#define AR_BUFFERS	(AR_BUFFERS_MIN >= 2 ? AR_BUFFERS_MIN : 2)
+#define AR_BUFFERS	MAX(2, AR_BUFFERS_MIN)
 
 #define MAX_ASYNC_PAYLOAD	4096
 #define MAX_AR_PACKET_SIZE	(16 + MAX_ASYNC_PAYLOAD + 4)
