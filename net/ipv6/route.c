@@ -3419,11 +3419,8 @@ static int ip6_route_check_nh_onlink(struct net *net,
 
 	err = ip6_nh_lookup_table(net, cfg, gw_addr, tbid, 0, &res);
 	if (!err && !(res.fib6_flags & RTF_REJECT) &&
-	    /* ignore match if it is the default route */
-	    !ipv6_addr_any(&res.f6i->fib6_dst.addr) &&
-	    (res.fib6_type != RTN_UNICAST || dev != res.nh->fib_nh_dev)) {
-		NL_SET_ERR_MSG(extack,
-			       "Nexthop has invalid gateway or device mismatch");
+	    res.fib6_type != RTN_UNICAST) {
+		NL_SET_ERR_MSG(extack, "Nexthop has invalid gateway");
 		err = -EINVAL;
 	}
 
