@@ -5,6 +5,7 @@
 
 #include "mld.h"
 #include "iface.h"
+#include "mlo.h"
 #include "fw/api/mac-cfg.h"
 
 #define IWL_NAN_DISOVERY_BEACON_INTERNVAL_TU 512
@@ -130,15 +131,25 @@ int iwl_mld_start_nan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	IWL_DEBUG_MAC80211(mld, "NAN: start: bands=0x%x\n", conf->bands);
 
-	ret = iwl_mld_add_aux_sta(mld, aux_sta);
+	ret = iwl_mld_update_emlsr_block(mld, true, IWL_MLD_EMLSR_BLOCKED_NAN);
 	if (ret)
 		return ret;
+
+	ret = iwl_mld_add_aux_sta(mld, aux_sta);
+	if (ret)
+		goto unblock_emlsr;
 
 	ret = iwl_mld_nan_config(mld, vif, conf, FW_CTXT_ACTION_ADD);
 	if (ret) {
 		IWL_ERR(mld, "Failed to start NAN. ret=%d\n", ret);
-		iwl_mld_remove_aux_sta(mld, vif);
+		goto remove_aux;
 	}
+	return 0;
+
+remove_aux:
+	iwl_mld_remove_aux_sta(mld, vif);
+unblock_emlsr:
+	iwl_mld_update_emlsr_block(mld, false, IWL_MLD_EMLSR_BLOCKED_NAN);
 
 	return ret;
 }
@@ -190,6 +201,9 @@ int iwl_mld_stop_nan(struct ieee80211_hw *hw,
 	iwl_mld_cancel_notifications_of_object(mld,
 					       IWL_MLD_OBJECT_TYPE_NAN,
 					       0);
+
+	iwl_mld_update_emlsr_block(mld, false, IWL_MLD_EMLSR_BLOCKED_NAN);
+
 	return 0;
 }
 

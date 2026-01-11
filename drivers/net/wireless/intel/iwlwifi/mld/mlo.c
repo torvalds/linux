@@ -12,7 +12,8 @@
 	HOW(ROC)			\
 	HOW(NON_BSS)			\
 	HOW(TMP_NON_BSS)		\
-	HOW(TPT)
+	HOW(TPT)			\
+	HOW(NAN)
 
 static const char *
 iwl_mld_get_emlsr_blocked_string(enum iwl_mld_emlsr_blocked blocked)
@@ -478,8 +479,8 @@ iwl_mld_vif_iter_update_emlsr_block(void *_data, u8 *mac,
 	}
 }
 
-static int iwl_mld_update_emlsr_block(struct iwl_mld *mld, bool block,
-				      enum iwl_mld_emlsr_blocked reason)
+int iwl_mld_update_emlsr_block(struct iwl_mld *mld, bool block,
+			       enum iwl_mld_emlsr_blocked reason)
 {
 	struct iwl_mld_update_emlsr_block_data block_data = {
 		.block = block,
@@ -1209,4 +1210,17 @@ void iwl_mld_stop_ignoring_tpt_updates(struct iwl_mld *mld)
 						IEEE80211_IFACE_ITER_NORMAL,
 						iwl_mld_ignore_tpt_iter,
 						&start);
+}
+
+int iwl_mld_emlsr_check_nan_block(struct iwl_mld *mld, struct ieee80211_vif *vif)
+{
+	if (mld->nan_device_vif &&
+	    ieee80211_vif_nan_started(mld->nan_device_vif))
+		return iwl_mld_block_emlsr_sync(mld, vif,
+						IWL_MLD_EMLSR_BLOCKED_NAN,
+						iwl_mld_get_primary_link(vif));
+
+	iwl_mld_unblock_emlsr(mld, vif, IWL_MLD_EMLSR_BLOCKED_NAN);
+
+	return 0;
 }

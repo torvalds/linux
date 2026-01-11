@@ -1784,6 +1784,9 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 			/* Ensure any block due to a non-BSS link is synced */
 			iwl_mld_emlsr_check_non_bss_block(mld, 0);
 
+			/* Ensure NAN block is synced */
+			iwl_mld_emlsr_check_nan_block(mld, vif);
+
 			/* Block EMLSR until a certain throughput it reached */
 			if (!mld->fw_status.in_hw_restart &&
 			    IWL_MLD_ENTER_EMLSR_TPT_THRESH > 0)
