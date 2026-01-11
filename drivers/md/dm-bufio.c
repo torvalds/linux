@@ -369,8 +369,8 @@ struct dm_buffer {
  *  - IO
  *  - Eviction or cache sizing.
  *
- * cache_get() and cache_put() are threadsafe, you do not need to
- * protect these calls with a surrounding mutex.  All the other
+ * cache_get() and cache_put_and_wake() are threadsafe, you do not need
+ * to protect these calls with a surrounding mutex.  All the other
  * methods are not threadsafe; they do use locking primitives, but
  * only enough to ensure get/put are threadsafe.
  */
@@ -615,24 +615,6 @@ static struct dm_buffer *cache_get(struct dm_buffer_cache *bc, sector_t block)
 	cache_read_unlock(bc, block);
 
 	return b;
-}
-
-/*--------------*/
-
-/*
- * Returns true if the hold count hits zero.
- * threadsafe
- */
-static bool cache_put(struct dm_buffer_cache *bc, struct dm_buffer *b)
-{
-	bool r;
-
-	cache_read_lock(bc, b->block);
-	BUG_ON(!atomic_read(&b->hold_count));
-	r = atomic_dec_and_test(&b->hold_count);
-	cache_read_unlock(bc, b->block);
-
-	return r;
 }
 
 /*--------------*/
@@ -1745,12 +1727,18 @@ static void __check_watermark(struct dm_bufio_client *c,
 
 static void cache_put_and_wake(struct dm_bufio_client *c, struct dm_buffer *b)
 {
+	bool wake;
+
+	cache_read_lock(&c->cache, b->block);
+	BUG_ON(!atomic_read(&b->hold_count));
+	wake = atomic_dec_and_test(&b->hold_count);
+	cache_read_unlock(&c->cache, b->block);
+
 	/*
 	 * Relying on waitqueue_active() is racey, but we sleep
 	 * with schedule_timeout anyway.
 	 */
-	if (cache_put(&c->cache, b) &&
-	    unlikely(waitqueue_active(&c->free_buffer_wait)))
+	if (wake && unlikely(waitqueue_active(&c->free_buffer_wait)))
 		wake_up(&c->free_buffer_wait);
 }
 
