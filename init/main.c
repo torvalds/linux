@@ -162,6 +162,7 @@ static size_t initargs_offs;
 
 static char *execute_command;
 static char *ramdisk_execute_command = "/init";
+static bool __initdata ramdisk_execute_command_set;
 
 /*
  * Used to generate warnings if static_key manipulation functions are used
@@ -623,6 +624,7 @@ static int __init rdinit_setup(char *str)
 	unsigned int i;
 
 	ramdisk_execute_command = str;
+	ramdisk_execute_command_set = true;
 	/* See "auto" comment in init_setup */
 	for (i = 1; i < MAX_INIT_ARGS; i++)
 		argv_init[i] = NULL;
@@ -1699,8 +1701,9 @@ static noinline void __init kernel_init_freeable(void)
 	int ramdisk_command_access;
 	ramdisk_command_access = init_eaccess(ramdisk_execute_command);
 	if (ramdisk_command_access != 0) {
-		pr_warn("check access for rdinit=%s failed: %i, ignoring\n",
-			ramdisk_execute_command, ramdisk_command_access);
+		if (ramdisk_execute_command_set)
+			pr_warn("check access for rdinit=%s failed: %i, ignoring\n",
+				ramdisk_execute_command, ramdisk_command_access);
 		ramdisk_execute_command = NULL;
 		prepare_namespace();
 	}
