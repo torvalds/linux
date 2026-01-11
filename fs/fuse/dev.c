@@ -1011,6 +1011,9 @@ static int fuse_try_move_folio(struct fuse_copy_state *cs, struct folio **foliop
 	folio_clear_uptodate(newfolio);
 	folio_clear_mappedtodisk(newfolio);
 
+	if (folio_test_large(newfolio))
+		goto out_fallback_unlock;
+
 	if (fuse_check_folio(newfolio) != 0)
 		goto out_fallback_unlock;
 
