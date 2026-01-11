@@ -503,18 +503,26 @@ enum bios_source {
 };
 
 /**
- * struct bios_value_u32 - BIOS configuration.
+ * struct iwl_bios_config_hdr - BIOS configuration header
  * @table_source: see &enum bios_source
  * @table_revision: table revision.
  * @reserved: reserved
- * @value: value in bios.
  */
-struct bios_value_u32 {
+struct iwl_bios_config_hdr {
 	u8 table_source;
 	u8 table_revision;
 	u8 reserved[2];
+} __packed; /* BIOS_CONFIG_HDR_API_S_VER_1 */
+
+/**
+ * struct bios_value_u32 - BIOS configuration.
+ * @hdr: bios config header
+ * @value: value in bios.
+ */
+struct bios_value_u32 {
+	struct iwl_bios_config_hdr hdr;
 	__le32 value;
-} __packed; /* BIOS_TABLE_SOURCE_U32_S_VER_1 */
+} __packed; /* BIOS_CONFIG_DATA_U32_API_S_VER_1 */
 
 /**
  * struct iwl_tas_config_cmd - configures the TAS.

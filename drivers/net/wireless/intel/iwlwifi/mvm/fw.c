@@ -1135,8 +1135,9 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		for (u16 i = 0; i < data.block_list_size; i++)
 			cmd_v5.block_list_array[i] =
 				cpu_to_le16(data.block_list_array[i]);
-		cmd_v5.tas_config_info.table_source = data.table_source;
-		cmd_v5.tas_config_info.table_revision = data.table_revision;
+		cmd_v5.tas_config_info.hdr.table_source = data.table_source;
+		cmd_v5.tas_config_info.hdr.table_revision =
+			data.table_revision;
 		cmd_v5.tas_config_info.value = cpu_to_le32(data.tas_selection);
 	} else if (fw_ver == 4) {
 		cmd_size = sizeof(cmd_v2_v4.common) + sizeof(cmd_v2_v4.v4);

@@ -165,8 +165,8 @@ static int iwl_mld_ppag_send_cmd(struct iwl_mld *mld)
 {
 	struct iwl_fw_runtime *fwrt = &mld->fwrt;
 	union iwl_ppag_table_cmd cmd = {
-		.v7.ppag_config_info.table_source = fwrt->ppag_bios_source,
-		.v7.ppag_config_info.table_revision = fwrt->ppag_bios_rev,
+		.v7.ppag_config_info.hdr.table_source = fwrt->ppag_bios_source,
+		.v7.ppag_config_info.hdr.table_revision = fwrt->ppag_bios_rev,
 		.v7.ppag_config_info.value = cpu_to_le32(fwrt->ppag_flags),
 	};
 	int ret;
@@ -389,8 +389,8 @@ void iwl_mld_init_tas(struct iwl_mld *mld)
 	for (u8 i = 0; i < data.block_list_size; i++)
 		cmd.block_list_array[i] =
 			cpu_to_le16(data.block_list_array[i]);
-	cmd.tas_config_info.table_source = data.table_source;
-	cmd.tas_config_info.table_revision = data.table_revision;
+	cmd.tas_config_info.hdr.table_source = data.table_source;
+	cmd.tas_config_info.hdr.table_revision = data.table_revision;
 	cmd.tas_config_info.value = cpu_to_le32(data.tas_selection);
 
 	ret = iwl_mld_send_cmd_pdu(mld, cmd_id, &cmd);
