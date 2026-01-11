@@ -254,9 +254,9 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		data = dm_bufio_get(v->bufio, hash_block, &buf);
 		if (IS_ERR_OR_NULL(data)) {
 			/*
-			 * In tasklet and the hash was not in the bufio cache.
-			 * Return early and resume execution from a work-queue
-			 * to read the hash from disk.
+			 * In softirq and the hash was not in the bufio cache.
+			 * Return early and resume execution from a kworker to
+			 * read the hash from disk.
 			 */
 			return -EAGAIN;
 		}
@@ -303,7 +303,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		else if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 			/*
 			 * Error handling code (FEC included) cannot be run in a
-			 * tasklet since it may sleep, so fallback to work-queue.
+			 * softirq since it may sleep, so fallback to a kworker.
 			 */
 			r = -EAGAIN;
 			goto release_ret_r;
@@ -425,8 +425,8 @@ static int verity_handle_data_hash_mismatch(struct dm_verity *v,
 
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		/*
-		 * Error handling code (FEC included) cannot be run in the
-		 * BH workqueue, so fallback to a standard workqueue.
+		 * Error handling code (FEC included) cannot be run in a
+		 * softirq since it may sleep, so fallback to a kworker.
 		 */
 		return -EAGAIN;
 	}
@@ -519,8 +519,8 @@ static int verity_verify_io(struct dm_verity_io *io)
 
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		/*
-		 * Copy the iterator in case we need to restart
-		 * verification in a work-queue.
+		 * Copy the iterator in case we need to restart verification in
+		 * a kworker.
 		 */
 		iter_copy = io->iter;
 		iter = &iter_copy;
@@ -657,7 +657,7 @@ static void verity_bh_work(struct work_struct *w)
 	io->in_bh = true;
 	err = verity_verify_io(io);
 	if (err == -EAGAIN || err == -ENOMEM) {
-		/* fallback to retrying with work-queue */
+		/* fallback to retrying in a kworker */
 		INIT_WORK(&io->work, verity_work);
 		queue_work(io->v->verify_wq, &io->work);
 		return;
@@ -1644,7 +1644,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * reducing wait times when reading from a dm-verity device.
 	 *
 	 * Also as required for the "try_verify_in_tasklet" feature: WQ_HIGHPRI
-	 * allows verify_wq to preempt softirq since verification in BH workqueue
+	 * allows verify_wq to preempt softirq since verification in softirq
 	 * will fall-back to using it for error handling (or if the bufio cache
 	 * doesn't have required hashes).
 	 */
