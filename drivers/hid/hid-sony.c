@@ -62,8 +62,9 @@
 #define GH_GUITAR_CONTROLLER      BIT(14)
 #define GHL_GUITAR_PS3WIIU        BIT(15)
 #define GHL_GUITAR_PS4            BIT(16)
-#define RB4_GUITAR_PS4            BIT(17)
-#define RB4_GUITAR_PS5            BIT(18)
+#define RB4_GUITAR_PS4_USB        BIT(17)
+#define RB4_GUITAR_PS4_BT         BIT(18)
+#define RB4_GUITAR_PS5            BIT(19)
 
 #define SIXAXIS_CONTROLLER (SIXAXIS_CONTROLLER_USB | SIXAXIS_CONTROLLER_BT)
 #define MOTION_CONTROLLER (MOTION_CONTROLLER_USB | MOTION_CONTROLLER_BT)
@@ -627,7 +628,6 @@ static int gh_guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
 static int rb4_guitar_mapping(struct hid_device *hdev, struct hid_input *hi,
 			  struct hid_field *field, struct hid_usage *usage,
 			  unsigned long **bit, int *max)
-
 {
 	if ((usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON) {
 		unsigned int key = usage->hid & HID_USAGE;
@@ -1041,7 +1041,10 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 	} else if ((sc->quirks & NSG_MRXU_REMOTE) && rd[0] == 0x02) {
 		nsg_mrxu_parse_report(sc, rd, size);
 		return 1;
-	} else if ((sc->quirks & RB4_GUITAR_PS4) && rd[0] == 0x01 && size == 64) {
+	} else if ((sc->quirks & RB4_GUITAR_PS4_USB) && rd[0] == 0x01 && size == 64) {
+		rb4_ps4_guitar_parse_report(sc, rd, size);
+		return 1;
+	} else if ((sc->quirks & RB4_GUITAR_PS4_BT) && rd[0] == 0x01 && size == 78) {
 		rb4_ps4_guitar_parse_report(sc, rd, size);
 		return 1;
 	} else if ((sc->quirks & RB4_GUITAR_PS5) && rd[0] == 0x01 && size == 64) {
@@ -1098,7 +1101,7 @@ static int sony_mapping(struct hid_device *hdev, struct hid_input *hi,
 	if (sc->quirks & GH_GUITAR_CONTROLLER)
 		return gh_guitar_mapping(hdev, hi, field, usage, bit, max);
 
-	if (sc->quirks & RB4_GUITAR_PS4)
+	if (sc->quirks & (RB4_GUITAR_PS4_USB | RB4_GUITAR_PS4_BT))
 		return rb4_guitar_mapping(hdev, hi, field, usage, bit, max);
 
 	if (sc->quirks & RB4_GUITAR_PS5)
@@ -2119,8 +2122,6 @@ static int sony_input_configured(struct hid_device *hdev,
 
 	} else if (sc->quirks & MOTION_CONTROLLER) {
 		sony_init_output_report(sc, motion_send_output_report);
-	} else if (sc->quirks & (RB4_GUITAR_PS4 | RB4_GUITAR_PS5)) {
-		sc->input_dev = hidinput->input;
 	}
 
 	if (sc->quirks & SONY_LED_SUPPORT) {
@@ -2148,6 +2149,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			goto err_close;
 	}
 
+	sc->input_dev = hidinput->input;
 	return 0;
 err_close:
 	hid_hw_close(hdev);
@@ -2378,9 +2380,13 @@ static const struct hid_device_id sony_devices[] = {
 		.driver_data = GHL_GUITAR_PS4 | GH_GUITAR_CONTROLLER },
 	/* Rock Band 4 PS4 guitars */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS4_RIFFMASTER),
-		.driver_data = RB4_GUITAR_PS4 },
+		.driver_data = RB4_GUITAR_PS4_USB },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CRKD, USB_DEVICE_ID_CRKD_PS4_GIBSON_SG),
-		.driver_data = RB4_GUITAR_PS4 },
+		.driver_data = RB4_GUITAR_PS4_USB },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS4_JAGUAR),
+		.driver_data = RB4_GUITAR_PS4_BT },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_MADCATZ, USB_DEVICE_ID_MADCATZ_PS4_STRATOCASTER),
+		.driver_data = RB4_GUITAR_PS4_BT },
 	/* Rock Band 4 PS5 guitars */
 	{ HID_USB_DEVICE(USB_VENDOR_ID_PDP, USB_DEVICE_ID_PDP_PS5_RIFFMASTER),
 		.driver_data = RB4_GUITAR_PS5 },
