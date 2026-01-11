@@ -402,8 +402,9 @@ static int iwl_uefi_uats_parse(struct uefi_cnv_wlan_uats_data *uats_data,
 	if (uats_data->revision != 1)
 		return -EINVAL;
 
-	memcpy(fwrt->uats_table.offset_map, uats_data->offset_map,
-	       sizeof(fwrt->uats_table.offset_map));
+	memcpy(fwrt->uats_table.mcc_to_ap_type_map,
+	       uats_data->mcc_to_ap_type_map,
+	       sizeof(fwrt->uats_table.mcc_to_ap_type_map));
 
 	fwrt->uats_valid = true;
 

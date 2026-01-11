@@ -702,11 +702,11 @@ struct iwl_pnvm_init_complete_ntfy {
 
 /**
  * struct iwl_mcc_allowed_ap_type_cmd - struct for MCC_ALLOWED_AP_TYPE_CMD
- * @offset_map: mapping a mcc to UHB AP type support (UATS) allowed
+ * @mcc_to_ap_type_map: mapping an MCC to 6 GHz AP type support (UATS)
  * @reserved: reserved
  */
 struct iwl_mcc_allowed_ap_type_cmd {
-	u8 offset_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
+	u8 mcc_to_ap_type_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
 	__le16 reserved;
 } __packed; /* MCC_ALLOWED_AP_TYPE_CMD_API_S_VER_1 */
 

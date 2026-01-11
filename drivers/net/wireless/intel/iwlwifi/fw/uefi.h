@@ -60,7 +60,7 @@ struct uefi_cnv_wlan_sgom_data {
 
 struct uefi_cnv_wlan_uats_data {
 	u8 revision;
-	u8 offset_map[IWL_UATS_MAP_SIZE - 1];
+	u8 mcc_to_ap_type_map[IWL_UATS_MAP_SIZE - 1];
 } __packed;
 
 struct uefi_cnv_common_step_data {
