@@ -2313,6 +2313,29 @@ nl80211_send_pmsr_ftm_capa(const struct cfg80211_pmsr_capabilities *cap,
 	if (cap->ftm.non_trigger_based &&
 	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED))
 		return -ENOBUFS;
+	if (cap->ftm.support_6ghz &&
+	    nla_put_flag(msg, NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP,
+			cap->ftm.max_tx_ltf_rep))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP,
+			cap->ftm.max_rx_ltf_rep))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS,
+			cap->ftm.max_tx_sts))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS,
+			cap->ftm.max_rx_sts))
+		return -ENOBUFS;
+	if (cap->ftm.max_total_ltf_tx > 0 &&
+	    nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX,
+			cap->ftm.max_total_ltf_tx))
+		return -ENOBUFS;
+	if (cap->ftm.max_total_ltf_rx > 0 &&
+	    nla_put_u32(msg, NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX,
+			cap->ftm.max_total_ltf_rx))
+		return -ENOBUFS;
 
 	nla_nest_end(msg, ftm);
 	return 0;

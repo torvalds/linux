@@ -5643,6 +5643,17 @@ cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type);
  *	not limited)
  * @ftm.trigger_based: trigger based ranging measurement is supported
  * @ftm.non_trigger_based: non trigger based ranging measurement is supported
+ * @ftm.support_6ghz: supports ranging in 6 GHz band
+ * @ftm.max_tx_ltf_rep: maximum number of TX LTF repetitions supported (0 means
+ *	only one LTF, no repetitions)
+ * @ftm.max_rx_ltf_rep: maximum number of RX LTF repetitions supported (0 means
+ *	only one LTF, no repetitions)
+ * @ftm.max_tx_sts: maximum number of TX STS supported (zero based)
+ * @ftm.max_rx_sts: maximum number of RX STS supported (zero based)
+ * @ftm.max_total_ltf_tx: maximum total number of LTFs that can be transmitted
+ *	(0 means unknown)
+ * @ftm.max_total_ltf_rx: maximum total number of LTFs that can be received
+ *	(0 means unknown)
  */
 struct cfg80211_pmsr_capabilities {
 	unsigned int max_peers;
@@ -5660,7 +5671,14 @@ struct cfg80211_pmsr_capabilities {
 		   request_lci:1,
 		   request_civicloc:1,
 		   trigger_based:1,
-		   non_trigger_based:1;
+		   non_trigger_based:1,
+		   support_6ghz:1;
+		u8 max_tx_ltf_rep;
+		u8 max_rx_ltf_rep;
+		u8 max_tx_sts;
+		u8 max_rx_sts;
+		u8 max_total_ltf_tx;
+		u8 max_total_ltf_rx;
 	} ftm;
 };
 

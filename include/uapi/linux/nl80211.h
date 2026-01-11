@@ -7790,6 +7790,28 @@ enum nl80211_peer_measurement_attrs {
  *	trigger based ranging measurement is supported
  * @NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED: flag attribute indicating
  *	if non-trigger-based ranging measurement is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT: flag attribute indicating if
+ *	ranging on the 6 GHz band is supported
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP: u32 attribute indicating
+ *	the maximum number of LTF repetitions the device can transmit in the
+ *	preamble of the ranging NDP (zero means only one LTF, no repetitions)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP: u32 attribute indicating
+ *	the maximum number of LTF repetitions the device can receive in the
+ *	preamble of the ranging NDP (zero means only one LTF, no repetitions)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS: u32 attribute indicating
+ *	the maximum number of space-time streams supported for ranging NDP TX
+ *	(zero-based)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS: u32 attribute indicating
+ *	the maximum number of space-time streams supported for ranging NDP RX
+ *	(zero-based)
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX: u32 attribute indicating the
+ *	maximum total number of LTFs the device can transmit. The total number
+ *	of LTFs is (number of LTF repetitions) * (number of space-time streams).
+ *	This limits the allowed combinations of LTF repetitions and STS.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX: u32 attribute indicating the
+ *	maximum total number of LTFs the device can receive. The total number
+ *	of LTFs is (number of LTF repetitions) * (number of space-time streams).
+ *	This limits the allowed combinations of LTF repetitions and STS.
  *
  * @NUM_NL80211_PMSR_FTM_CAPA_ATTR: internal
  * @NL80211_PMSR_FTM_CAPA_ATTR_MAX: highest attribute number
@@ -7807,6 +7829,13 @@ enum nl80211_peer_measurement_ftm_capa {
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST,
 	NL80211_PMSR_FTM_CAPA_ATTR_TRIGGER_BASED,
 	NL80211_PMSR_FTM_CAPA_ATTR_NON_TRIGGER_BASED,
+	NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX,
+	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_CAPA_ATTR,
