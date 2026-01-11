@@ -314,6 +314,11 @@
 	status = "okay";
 };
 
+&wdog3 {
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
 &scmi_iomuxc {
 	pinctrl_lpi2c2: lpi2c2grp {
 		fsl,pins = <
