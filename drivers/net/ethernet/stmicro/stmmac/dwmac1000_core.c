@@ -305,8 +305,7 @@ static int dwmac1000_irq_status(struct stmmac_priv *priv,
 	}
 
 	if (intr_status & (PCS_ANE_IRQ | PCS_LINK_IRQ))
-		stmmac_integrated_pcs_irq(ioaddr, GMAC_PCS_BASE, intr_status,
-					  x);
+		stmmac_integrated_pcs_irq(priv, intr_status, x);
 
 	return ret;
 }
