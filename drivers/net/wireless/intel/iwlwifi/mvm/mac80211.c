@@ -2601,7 +2601,7 @@ static void iwl_mvm_cfg_he_sta(struct iwl_mvm *mvm,
 }
 
 void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			   u32 duration_override, unsigned int link_id)
+			   u32 duration_override)
 {
 	u32 duration = IWL_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
 	u32 min_duration = IWL_MVM_TE_SESSION_PROTECTION_MIN_TIME_MS;
@@ -2621,8 +2621,7 @@ void iwl_mvm_protect_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD))
 		iwl_mvm_schedule_session_protection(mvm, vif, 900,
-						    min_duration, false,
-						    link_id);
+						    min_duration, false);
 	else
 		iwl_mvm_protect_session(mvm, vif, duration,
 					min_duration, 500, false);
@@ -2822,7 +2821,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				 * time could be small without us having heard
 				 * a beacon yet.
 				 */
-				iwl_mvm_protect_assoc(mvm, vif, 0, 0);
+				iwl_mvm_protect_assoc(mvm, vif, 0);
 			}
 
 			iwl_mvm_sf_update(mvm, vif, false);
@@ -4152,7 +4151,7 @@ void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 		return;
 
 	guard(mvm)(mvm);
-	iwl_mvm_protect_assoc(mvm, vif, info->duration, info->link_id);
+	iwl_mvm_protect_assoc(mvm, vif, info->duration);
 }
 
 void iwl_mvm_mac_mgd_complete_tx(struct ieee80211_hw *hw,
