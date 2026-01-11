@@ -94,15 +94,64 @@ properties:
       property. Required only if multiple voltages are provided.
     $ref: "#/$defs/protocol-names"
 
+  rx-polarity:
+    description:
+      An array of values indicating whether the differential receiver's
+      polarity is inverted. Each value can be one of
+      PHY_POL_NORMAL (0) which means the negative signal is decoded from the
+      RXN input, and the positive signal from the RXP input;
+      PHY_POL_INVERT (1) which means the negative signal is decoded from the
+      RXP input, and the positive signal from the RXN input;
+      PHY_POL_AUTO (2) which means the receiver performs automatic polarity
+      detection and correction, which is a mandatory part of link training for
+      some protocols (PCIe, USB SS).
+
+      The values are defined in <dt-bindings/phy/phy.h>. If the property is
+      absent, the default value is undefined.
+
+      Note that the RXP and RXN inputs refer to the block that this property is
+      under, and do not necessarily directly translate to external pins.
+
+      If this property contains multiple values for various protocols, the
+      'rx-polarity-names' property must be provided.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 16
+    items:
+      enum: [0, 1, 2]
+
+  rx-polarity-names:
+    $ref: '#/$defs/protocol-names'
+
+  tx-polarity:
+    description:
+      Like 'rx-polarity', except it applies to differential transmitters,
+      and only the values of PHY_POL_NORMAL and PHY_POL_INVERT are possible.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 16
+    items:
+      enum: [0, 1]
+
+  tx-polarity-names:
+    $ref: '#/$defs/protocol-names'
+
 dependencies:
   tx-p2p-microvolt-names: [ tx-p2p-microvolt ]
+  rx-polarity-names: [ rx-polarity ]
+  tx-polarity-names: [ tx-polarity ]
 
 additionalProperties: true
 
 examples:
   - |
+    #include <dt-bindings/phy/phy.h>
+
     phy: phy {
       #phy-cells = <1>;
       tx-p2p-microvolt = <915000>, <1100000>, <1200000>;
       tx-p2p-microvolt-names = "2500base-x", "usb-hs", "usb-ss";
+      rx-polarity = <PHY_POL_AUTO>, <PHY_POL_NORMAL>;
+      rx-polarity-names = "usb-ss", "default";
+      tx-polarity = <PHY_POL_INVERT>;
     };
