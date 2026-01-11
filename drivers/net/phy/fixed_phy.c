@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/idr.h>
 #include <linux/netdevice.h>
 
 #include "swphy.h"
@@ -32,13 +31,13 @@ struct fixed_phy {
 	int (*link_update)(struct net_device *, struct fixed_phy_status *);
 };
 
+static DECLARE_BITMAP(fixed_phy_ids, NUM_FP);
 static struct fixed_phy fmb_fixed_phys[NUM_FP];
 static struct mii_bus *fmb_mii_bus;
-static DEFINE_IDA(phy_fixed_ida);
 
 static struct fixed_phy *fixed_phy_find(int addr)
 {
-	return ida_exists(&phy_fixed_ida, addr) ? fmb_fixed_phys + addr : NULL;
+	return test_bit(addr, fixed_phy_ids) ? fmb_fixed_phys + addr : NULL;
 }
 
 int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
@@ -113,7 +112,20 @@ static void fixed_phy_del(int phy_addr)
 		return;
 
 	memset(fp, 0, sizeof(*fp));
-	ida_free(&phy_fixed_ida, phy_addr);
+	clear_bit(phy_addr, fixed_phy_ids);
+}
+
+static int fixed_phy_get_free_addr(void)
+{
+	int addr;
+
+	do {
+		addr = find_first_zero_bit(fixed_phy_ids, NUM_FP);
+		if (addr == NUM_FP)
+			return -ENOSPC;
+	} while (test_and_set_bit(addr, fixed_phy_ids));
+
+	return addr;
 }
 
 struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
@@ -131,7 +143,7 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 		return ERR_PTR(-EPROBE_DEFER);
 
 	/* Get the next available PHY address, up to NUM_FP */
-	phy_addr = ida_alloc_max(&phy_fixed_ida, NUM_FP - 1, GFP_KERNEL);
+	phy_addr = fixed_phy_get_free_addr();
 	if (phy_addr < 0)
 		return ERR_PTR(phy_addr);
 
@@ -210,8 +222,6 @@ static void __exit fixed_mdio_bus_exit(void)
 {
 	mdiobus_unregister(fmb_mii_bus);
 	mdiobus_free(fmb_mii_bus);
-
-	ida_destroy(&phy_fixed_ida);
 }
 module_exit(fixed_mdio_bus_exit);
 
