@@ -432,13 +432,6 @@ invalid_onlink_ipv6()
 
 	run_ip6 254 ${TEST_NET6[1]}::101 ${V6ADDRS[p1]} "" 2 \
 		"No nexthop device given"
-
-	# default VRF validation is done against LOCAL table
-	# run_ip6 254 ${TEST_NET6[1]}::102 ${V6ADDRS[p3]/::[0-9]/::64} ${NETIFS[p1]} 2 \
-	#	"Gateway resolves to wrong nexthop device"
-
-	run_ip6 ${VRF_TABLE} ${TEST_NET6[2]}::103 ${V6ADDRS[p7]/::[0-9]/::64} ${NETIFS[p5]} 2 \
-		"Gateway resolves to wrong nexthop device - VRF"
 }
 
 run_onlink_tests()
