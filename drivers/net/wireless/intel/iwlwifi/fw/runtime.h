@@ -216,7 +216,7 @@ struct iwl_fw_runtime {
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
 
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) || defined(CONFIG_EFI)
 	u32 dsm_funcs_valid;
 	u32 dsm_values[DSM_FUNC_NUM_FUNCS];
 #endif
