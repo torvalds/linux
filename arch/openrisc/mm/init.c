@@ -39,15 +39,19 @@
 
 int mem_init_done;
 
+void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
+{
+	/*
+	 * We use only ZONE_NORMAL
+	 */
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+}
+
 static void __init zone_sizes_init(void)
 {
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 
-	/*
-	 * We use only ZONE_NORMAL
-	 */
-	max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
-
+	arch_zone_limits_init(max_zone_pfn);
 	free_area_init(max_zone_pfn);
 }
 
