@@ -1165,6 +1165,54 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
 
+static __le32 iwl_mvm_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+{
+	int ret;
+	u32 val;
+	__le32 config_bitmap = 0;
+
+	switch (CSR_HW_RFID_TYPE(fwrt->trans->info.hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_HR1:
+	case IWL_CFG_RF_TYPE_HR2:
+	case IWL_CFG_RF_TYPE_JF1:
+	case IWL_CFG_RF_TYPE_JF2:
+		ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_INDONESIA_5G2,
+				       &val);
+
+		if (!ret && val == DSM_VALUE_INDONESIA_ENABLE)
+			config_bitmap |=
+			    cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+		break;
+	default:
+		break;
+	}
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_DISABLE_SRD, &val);
+	if (!ret) {
+		if (val == DSM_VALUE_SRD_PASSIVE)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+		else if (val == DSM_VALUE_SRD_DISABLE)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	}
+
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT)) {
+		ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_REGULATORY_CONFIG,
+				       &val);
+		/*
+		 * China 2022 enable if the BIOS object does not exist or
+		 * if it is enabled in BIOS.
+		 */
+		if (ret < 0 || val & DSM_MASK_CHINA_22_REG)
+			config_bitmap |=
+				cpu_to_le32(LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK);
+	}
+
+	return config_bitmap;
+}
+
 static size_t iwl_mvm_get_lari_config_cmd_size(u8 cmd_ver)
 {
 	size_t cmd_size;
@@ -1201,7 +1249,7 @@ static int iwl_mvm_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	memset(cmd, 0, sizeof(*cmd));
 	*cmd_size = iwl_mvm_get_lari_config_cmd_size(cmd_ver);
 
-	cmd->config_bitmap = iwl_get_lari_config_bitmap(fwrt);
+	cmd->config_bitmap = iwl_mvm_get_lari_config_bitmap(fwrt);
 
 	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
 	if (!ret) {

@@ -206,11 +206,27 @@ int iwl_mld_init_ppag(struct iwl_mld *mld)
 	return iwl_mld_ppag_send_cmd(mld);
 }
 
+static __le32 iwl_mld_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+{
+	int ret;
+	u32 val;
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_DISABLE_SRD, &val);
+	if (!ret) {
+		if (val == DSM_VALUE_SRD_PASSIVE)
+			return cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
+		else if (val == DSM_VALUE_SRD_DISABLE)
+			return cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
+	}
+
+	return 0;
+}
+
 void iwl_mld_configure_lari(struct iwl_mld *mld)
 {
 	struct iwl_fw_runtime *fwrt = &mld->fwrt;
 	struct iwl_lari_config_change_cmd cmd = {
-		.config_bitmap = iwl_get_lari_config_bitmap(fwrt),
+		.config_bitmap = iwl_mld_get_lari_config_bitmap(fwrt),
 	};
 	bool has_raw_dsm_capa = fw_has_capa(&fwrt->fw->ucode_capa,
 					    IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE);
