@@ -3,6 +3,7 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 
 #include "wl1251.h"
 #include "reg.h"
@@ -149,15 +150,7 @@ int wl1251_acx_fw_version(struct wl1251 *wl, char *buf, size_t len)
 		goto out;
 	}
 
-	/* be careful with the buffer sizes */
-	strncpy(buf, rev->fw_version, min(len, sizeof(rev->fw_version)));
-
-	/*
-	 * if the firmware version string is exactly
-	 * sizeof(rev->fw_version) long or fw_len is less than
-	 * sizeof(rev->fw_version) it won't be null terminated
-	 */
-	buf[min(len, sizeof(rev->fw_version)) - 1] = '\0';
+	strscpy(buf, rev->fw_version, len);
 
 out:
 	kfree(rev);
