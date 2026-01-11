@@ -7992,6 +7992,8 @@ enum nl80211_peer_measurement_ftm_failure_reasons {
  *	9.4.2.22.1) starting with the Measurement Token, with Measurement
  *	Type 11.
  * @NL80211_PMSR_FTM_RESP_ATTR_PAD: ignore, for u64/s64 padding only
+ * @NL80211_PMSR_FTM_RESP_ATTR_BURST_PERIOD: actual burst period used by
+ *	the responder (similar to request, u16)
  *
  * @NUM_NL80211_PMSR_FTM_RESP_ATTR: internal
  * @NL80211_PMSR_FTM_RESP_ATTR_MAX: highest attribute number
@@ -8020,6 +8022,7 @@ enum nl80211_peer_measurement_ftm_resp {
 	NL80211_PMSR_FTM_RESP_ATTR_LCI,
 	NL80211_PMSR_FTM_RESP_ATTR_CIVICLOC,
 	NL80211_PMSR_FTM_RESP_ATTR_PAD,
+	NL80211_PMSR_FTM_RESP_ATTR_BURST_PERIOD,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_RESP_ATTR,

@@ -4192,6 +4192,7 @@ struct cfg80211_ftm_responder_stats {
  * @num_bursts_exp: actual number of bursts exponent negotiated
  * @burst_duration: actual burst duration negotiated
  * @ftms_per_burst: actual FTMs per burst negotiated
+ * @burst_period: actual burst period negotiated in units of 100ms
  * @lci_len: length of LCI information (if present)
  * @civicloc_len: length of civic location information (if present)
  * @lci: LCI data (may be %NULL)
@@ -4233,6 +4234,7 @@ struct cfg80211_pmsr_ftm_result {
 	u8 num_bursts_exp;
 	u8 burst_duration;
 	u8 ftms_per_burst;
+	u16 burst_period;
 	s32 rssi_avg;
 	s32 rssi_spread;
 	struct rate_info tx_rate, rx_rate;

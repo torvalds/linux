@@ -454,6 +454,7 @@ static int nl80211_pmsr_send_ftm_res(struct sk_buff *msg,
 	PUT(u8, NUM_BURSTS_EXP, num_bursts_exp);
 	PUT(u8, BURST_DURATION, burst_duration);
 	PUT(u8, FTMS_PER_BURST, ftms_per_burst);
+	PUT(u16, BURST_PERIOD, burst_period);
 	PUTOPT(s32, RSSI_AVG, rssi_avg);
 	PUTOPT(s32, RSSI_SPREAD, rssi_spread);
 	if (res->ftm.tx_rate_valid &&
