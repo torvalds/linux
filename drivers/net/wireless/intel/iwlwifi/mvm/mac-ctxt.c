@@ -873,7 +873,6 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 				    struct ieee80211_tx_info *info,
 				    struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct ieee80211_supported_band *sband;
 	unsigned long basic = vif->bss_conf.basic_rates;
 	u16 lowest_cck = IWL_RATE_COUNT, lowest_ofdm = IWL_RATE_COUNT;
@@ -882,16 +881,6 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 	u8 band = info->band;
 	u8 rate;
 	u32 i;
-
-	if (link_id == IEEE80211_LINK_UNSPECIFIED && ieee80211_vif_is_mld(vif)) {
-		for (i = 0; i < ARRAY_SIZE(mvmvif->link); i++) {
-			if (!mvmvif->link[i])
-				continue;
-			/* shouldn't do this when >1 link is active */
-			WARN_ON_ONCE(link_id != IEEE80211_LINK_UNSPECIFIED);
-			link_id = i;
-		}
-	}
 
 	if (link_id < IEEE80211_LINK_UNSPECIFIED) {
 		struct ieee80211_bss_conf *link_conf;

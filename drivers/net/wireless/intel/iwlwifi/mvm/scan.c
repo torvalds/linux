@@ -3023,12 +3023,8 @@ static int _iwl_mvm_single_scan_start(struct iwl_mvm *mvm,
 		params.iter_notif = true;
 
 	params.tsf_report_link_id = req->tsf_report_link_id;
-	if (params.tsf_report_link_id < 0) {
-		if (vif->active_links)
-			params.tsf_report_link_id = __ffs(vif->active_links);
-		else
-			params.tsf_report_link_id = 0;
-	}
+	if (params.tsf_report_link_id < 0)
+		params.tsf_report_link_id = 0;
 
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
