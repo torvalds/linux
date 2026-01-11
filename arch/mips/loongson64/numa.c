@@ -162,11 +162,7 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, };
-
 	pagetable_init();
-	arch_zone_limits_init(zones_size);
-	free_area_init(zones_size);
 }
 
 /* All PCI device belongs to logical Node-0 */

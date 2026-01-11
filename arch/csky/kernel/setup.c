@@ -63,7 +63,6 @@ static void __init csky_memblock_init(void)
 {
 	unsigned long lowmem_size = PFN_DOWN(LOWMEM_LIMIT - PHYS_OFFSET_OFFSET);
 	unsigned long sseg_size = PFN_DOWN(SSEG_SIZE - PHYS_OFFSET_OFFSET);
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 	signed long size;
 
 	memblock_reserve(__pa(_start), _end - _start);
@@ -101,9 +100,6 @@ static void __init csky_memblock_init(void)
 	memblock_set_current_limit(PFN_PHYS(max_low_pfn));
 
 	dma_contiguous_reserve(0);
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
 }
 
 void __init setup_arch(char **cmdline_p)

@@ -66,20 +66,8 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 }
 
-/*
- * In order to set up page allocator "nodes",
- * somebody has to call free_area_init() for UMA.
- *
- * In this mode, we only have one pg_data_t
- * structure: contig_mem_data.
- */
 static void __init paging_init(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = {0, };
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);  /*  sets up the zonelists and mem_map  */
-
 	/*
 	 * Set the init_mm descriptors "context" value to point to the
 	 * initial kernel segment table's physical address.

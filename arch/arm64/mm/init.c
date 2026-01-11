@@ -134,7 +134,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 
 static void __init dma_limits_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
 	phys_addr_t __maybe_unused acpi_zone_dma_limit;
 	phys_addr_t __maybe_unused dt_zone_dma_limit;
 	phys_addr_t __maybe_unused dma32_phys_limit =
@@ -160,9 +159,6 @@ static void __init dma_limits_init(void)
 #endif
 	if (!arm64_dma_phys_limit)
 		arm64_dma_phys_limit = PHYS_MASK + 1;
-
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
 }
 
 int pfn_is_map_memory(unsigned long pfn)

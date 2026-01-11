@@ -621,8 +621,6 @@ void __init setup_arch(char **cmdline_p)
 	prefill_possible_map();
 #endif
 
-	paging_init();
-
 #ifdef CONFIG_KASAN
 	kasan_init();
 #endif

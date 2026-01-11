@@ -698,14 +698,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 	max_zone_pfns[ZONE_NORMAL] = PFN_DOWN(memblock_end_of_DRAM());
 }
 
-static void __init parisc_bootmem_free(void)
-{
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
-}
-
 void __init paging_init(void)
 {
 	setup_bootmem();
@@ -716,7 +708,6 @@ void __init paging_init(void)
 	flush_tlb_all_local(NULL);
 
 	sparse_init();
-	parisc_bootmem_free();
 }
 
 static void alloc_btlb(unsigned long start, unsigned long end, int *slot,

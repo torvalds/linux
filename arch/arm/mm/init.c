@@ -118,15 +118,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfn)
 #endif
 }
 
-static void __init zone_sizes_init(unsigned long min, unsigned long max_low,
-	unsigned long max_high)
-{
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
-}
-
 #ifdef CONFIG_HAVE_ARCH_PFN_VALID
 int pfn_valid(unsigned long pfn)
 {
@@ -222,13 +213,6 @@ void __init bootmem_init(void)
 	 * done after the fixed reservations
 	 */
 	sparse_init();
-
-	/*
-	 * Now free the memory - free_area_init needs
-	 * the sparse mem_map arrays initialized by sparse_init()
-	 * for memmap_init_zone(), otherwise all PFNs are invalid.
-	 */
-	zone_sizes_init(min_low_pfn, max_low_pfn, max_pfn);
 }
 
 /*

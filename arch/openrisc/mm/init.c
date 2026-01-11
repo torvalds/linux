@@ -47,14 +47,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 }
 
-static void __init zone_sizes_init(void)
-{
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
-}
-
 extern const char _s_kernel_ro[], _e_kernel_ro[];
 
 /*
@@ -144,8 +136,6 @@ void __init paging_init(void)
 	current_pgd[smp_processor_id()] = init_mm.pgd;
 
 	map_ram();
-
-	zone_sizes_init();
 
 	/* self modifying code ;) */
 	/* Since the old TLB miss handler has been running up until now,

@@ -68,14 +68,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 }
 
-void __init paging_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
-}
-
 void __ref free_initmem(void)
 {
 	free_initmem_default(POISON_FREE_INITMEM);

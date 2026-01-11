@@ -97,14 +97,9 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
 	vmem_map_init();
 	sparse_init();
 	zone_dma_limit = DMA_BIT_MASK(31);
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
 }
 
 void mark_rodata_ro(void)

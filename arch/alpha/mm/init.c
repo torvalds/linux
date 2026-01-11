@@ -220,17 +220,10 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfn)
 }
 
 /*
- * paging_init() sets up the memory map.
+ * paging_init() initializes the kernel's ZERO_PGE.
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = {0, };
-
-	/* Initialize mem_map[].  */
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
-
-	/* Initialize the kernel's ZERO_PGE. */
 	memset(absolute_pointer(ZERO_PGE), 0, PAGE_SIZE);
 }
 

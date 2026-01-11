@@ -2459,17 +2459,6 @@ void __init paging_init(void)
 
 	kernel_physical_mapping_init();
 
-	{
-		unsigned long max_zone_pfns[MAX_NR_ZONES];
-
-		memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-
-		max_zone_pfns[ZONE_NORMAL] = end_pfn;
-
-		arch_zone_limits_init(max_zone_pfns);
-		free_area_init(max_zone_pfns);
-	}
-
 	printk("Booting Linux...\n");
 }
 

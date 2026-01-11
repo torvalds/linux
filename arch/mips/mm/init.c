@@ -417,12 +417,7 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
-
 	pagetable_init();
-
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
 }
 
 #ifdef CONFIG_64BIT

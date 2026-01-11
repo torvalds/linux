@@ -237,7 +237,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = { 0 };
 	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
 	int zone_dma_bits;
@@ -268,9 +267,6 @@ void __init paging_init(void)
 		zone_dma_bits = 31;
 
 	zone_dma_limit = DMA_BIT_MASK(zone_dma_bits);
-
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
 
 	mark_nonram_nosave();
 }

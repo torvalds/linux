@@ -102,8 +102,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfn)
  */
 void __init setup_arch_memory(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
 	setup_initial_init_mm(_text, _etext, _edata, _end);
 
 	/* first page of system - kernel .vector starts here */
@@ -158,9 +156,6 @@ void __init setup_arch_memory(void)
 	arch_pfn_offset = min(min_low_pfn, min_high_pfn);
 	kmap_init();
 #endif /* CONFIG_HIGHMEM */
-
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
 }
 
 void __init arch_mm_preinit(void)

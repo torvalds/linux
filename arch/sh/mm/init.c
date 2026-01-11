@@ -271,7 +271,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long vaddr, end;
 
 	sh_mv.mv_mem_init();
@@ -325,10 +324,6 @@ void __init paging_init(void)
 	page_table_range_init(vaddr, end, swapper_pg_dir);
 
 	kmap_coherent_init();
-
-	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
 }
 
 unsigned int mem_init_done = 0;

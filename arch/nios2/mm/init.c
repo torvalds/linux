@@ -51,14 +51,8 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
  */
 void __init paging_init(void)
 {
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
 	pagetable_init();
 	pgd_current = swapper_pg_dir;
-
-	arch_zone_limits_init(max_zone_pfn);
-	/* pass the memory from the bootmem allocator to the main allocator */
-	free_area_init(max_zone_pfn);
 
 	flush_dcache_range((unsigned long)empty_zero_page,
 			(unsigned long)empty_zero_page + PAGE_SIZE);

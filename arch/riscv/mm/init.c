@@ -87,14 +87,6 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 }
 
-static void __init zone_sizes_init(void)
-{
-	unsigned long max_zone_pfns[MAX_NR_ZONES] = { 0, };
-
-	arch_zone_limits_init(max_zone_pfns);
-	free_area_init(max_zone_pfns);
-}
-
 #if defined(CONFIG_MMU) && defined(CONFIG_DEBUG_VM)
 
 #define LOG2_SZ_1K  ilog2(SZ_1K)
@@ -1443,7 +1435,6 @@ void __init misc_mem_init(void)
 	/* The entire VMEMMAP region has been populated. Flush TLB for this region */
 	local_flush_tlb_kernel_range(VMEMMAP_START, VMEMMAP_END);
 #endif
-	zone_sizes_init();
 	arch_reserve_crashkernel();
 	memblock_dump_all();
 }

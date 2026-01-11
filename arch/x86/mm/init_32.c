@@ -655,7 +655,6 @@ void __init paging_init(void)
 	 */
 	olpc_dt_build_devicetree();
 	sparse_init();
-	zone_sizes_init();
 }
 
 /*

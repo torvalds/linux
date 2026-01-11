@@ -69,22 +69,15 @@ void __init arch_zone_limits_init(unsigned long *max_zone_pfns)
  */
 static void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES];
 	int idx;
 
 	/* Setup fixmaps */
 	for (idx = 0; idx < __end_of_fixed_addresses; idx++)
 		clear_fixmap(idx);
 
-	/* Clean every zones */
-	memset(zones_size, 0, sizeof(zones_size));
-
 #ifdef CONFIG_HIGHMEM
 	highmem_init();
 #endif
-	arch_zone_limits_init(zones_size);
-	/* We don't have holes in memory map */
-	free_area_init(zones_size);
 }
 
 void __init setup_memory(void)

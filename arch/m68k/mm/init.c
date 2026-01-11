@@ -69,13 +69,10 @@ void __init paging_init(void)
 	 * page_alloc get different views of the world.
 	 */
 	unsigned long end_mem = memory_end & PAGE_MASK;
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0, };
 
 	high_memory = (void *) end_mem;
 
 	empty_zero_page = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
-	arch_zone_limits_init(max_zone_pfn);
-	free_area_init(max_zone_pfn);
 }
 
 #endif /* CONFIG_MMU */
