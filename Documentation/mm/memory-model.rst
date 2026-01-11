@@ -97,9 +97,6 @@ sections:
   `mem_section` objects and the number of rows is calculated to fit
   all the memory sections.
 
-The architecture setup code should call sparse_init() to
-initialize the memory sections and the memory maps.
-
 With SPARSEMEM there are two possible ways to convert a PFN to the
 corresponding `struct page` - a "classic sparse" and "sparse
 vmemmap". The selection is made at build time and it is determined by

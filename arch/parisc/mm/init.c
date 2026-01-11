@@ -706,8 +706,6 @@ void __init paging_init(void)
 	fixmap_init();
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);
-
-	sparse_init();
 }
 
 static void alloc_btlb(unsigned long start, unsigned long end, int *slot,

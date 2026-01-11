@@ -614,7 +614,6 @@ static void __init bootcmdline_init(void)
  * kernel but generic memory management system is still entirely uninitialized.
  *
  *  o bootmem_init()
- *  o sparse_init()
  *  o paging_init()
  *  o dma_contiguous_reserve()
  *
@@ -664,16 +663,6 @@ static void __init arch_mem_init(char **cmdline_p)
 
 	mips_parse_crashkernel();
 	device_tree_init();
-
-	/*
-	 * In order to reduce the possibility of kernel panic when failed to
-	 * get IO TLB memory under CONFIG_SWIOTLB, it is better to allocate
-	 * low memory as small as possible before plat_swiotlb_setup(), so
-	 * make sparse_init() using top-down allocation.
-	 */
-	memblock_set_bottom_up(false);
-	sparse_init();
-	memblock_set_bottom_up(true);
 
 	plat_swiotlb_setup();
 

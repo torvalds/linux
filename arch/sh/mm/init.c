@@ -227,8 +227,6 @@ static void __init do_init_bootmem(void)
 	node_set_online(0);
 
 	plat_mem_setup();
-
-	sparse_init();
 }
 
 static void __init early_reserve_mem(void)

@@ -321,12 +321,6 @@ void __init bootmem_init(void)
 #endif
 
 	kvm_hyp_reserve();
-
-	/*
-	 * sparse_init() tries to allocate memory from memblock, so must be
-	 * done after the fixed reservations
-	 */
-	sparse_init();
 	dma_limits_init();
 
 	/*

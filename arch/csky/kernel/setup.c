@@ -123,8 +123,6 @@ void __init setup_arch(char **cmdline_p)
 	setup_smp();
 #endif
 
-	sparse_init();
-
 	fixaddr_init();
 
 #ifdef CONFIG_HIGHMEM

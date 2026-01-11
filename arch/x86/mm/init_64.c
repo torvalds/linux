@@ -833,8 +833,6 @@ void __init initmem_init(void)
 
 void __init paging_init(void)
 {
-	sparse_init();
-
 	/*
 	 * clear the default setting with node 0
 	 * note: don't use nodes_clear here, that is really clearing when
