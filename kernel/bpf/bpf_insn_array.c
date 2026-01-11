@@ -126,7 +126,7 @@ static int insn_array_map_direct_value_addr(const struct bpf_map *map, u64 *imm,
 		return -EINVAL;
 
 	/* from BPF's point of view, this map is a jump table */
-	*imm = (unsigned long)insn_array->ips + off;
+	*imm = (unsigned long)insn_array->ips;
 
 	return 0;
 }
