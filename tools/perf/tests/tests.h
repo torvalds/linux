@@ -240,6 +240,7 @@ DECLARE_WORKLOAD(brstack);
 DECLARE_WORKLOAD(datasym);
 DECLARE_WORKLOAD(landlock);
 DECLARE_WORKLOAD(traploop);
+DECLARE_WORKLOAD(inlineloop);
 
 extern const char *dso_to_test;
 extern const char *test_objdump_path;
