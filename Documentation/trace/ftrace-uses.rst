@@ -253,7 +253,7 @@ If @buf is NULL and reset is set, all functions will be enabled for tracing.
 The @buf can also be a glob expression to enable all functions that
 match a specific pattern.
 
-See Filter Commands in :file:`Documentation/trace/ftrace.rst`.
+See Filter Commands in Documentation/trace/ftrace.rst.
 
 To just trace the schedule function:
 
