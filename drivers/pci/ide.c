@@ -167,7 +167,7 @@ void pci_ide_init(struct pci_dev *pdev)
 	for (u16 i = 0; i < nr_streams; i++) {
 		int pos = __sel_ide_offset(ide_cap, nr_link_ide, i, nr_ide_mem);
 
-		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CAP, &val);
+		pci_read_config_dword(pdev, pos + PCI_IDE_SEL_CTL, &val);
 		if (val & PCI_IDE_SEL_CTL_EN)
 			continue;
 		val &= ~PCI_IDE_SEL_CTL_ID;
