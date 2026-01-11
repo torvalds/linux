@@ -1052,7 +1052,9 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
-	unsigned int n_active = iwl_mld_count_active_links(mld, vif);
+	struct iwl_mld_link *temp_mld_link;
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	u16 final_active_links = 0;
 	int ret;
 
 	lockdep_assert_wiphy(mld->wiphy);
@@ -1060,10 +1062,7 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(!mld_link))
 		return -EINVAL;
 
-	/* if the assigned one was not counted yet, count it now */
 	if (!rcu_access_pointer(mld_link->chan_ctx)) {
-		n_active++;
-
 		/* Track addition of non-BSS link */
 		if (ieee80211_vif_type_p2p(vif) != NL80211_IFTYPE_STATION) {
 			ret = iwl_mld_emlsr_check_non_bss_block(mld, 1);
@@ -1084,17 +1083,25 @@ int iwl_mld_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	rcu_assign_pointer(mld_link->chan_ctx, ctx);
 
-	if (n_active > 1) {
-		struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	/* We cannot rely on vif->active_links at this stage as it contains
+	 * both the removed links and the newly added links.
+	 * Therefore, we create our own bitmap of the final active links,
+	 * which does not include the removed links.
+	 */
+	for_each_mld_vif_valid_link(mld_vif, temp_mld_link) {
+		if (rcu_access_pointer(temp_mld_link->chan_ctx))
+			final_active_links |= BIT(link_id);
+	}
 
+	if (hweight16(final_active_links) > 1) {
 		/* Indicate to mac80211 that EML is enabled */
 		vif->driver_flags |= IEEE80211_VIF_EML_ACTIVE;
 		mld_vif->emlsr.last_entry_ts = jiffies;
 
-		if (vif->active_links & BIT(mld_vif->emlsr.selected_links))
+		if (final_active_links == mld_vif->emlsr.selected_links)
 			mld_vif->emlsr.primary = mld_vif->emlsr.selected_primary;
 		else
-			mld_vif->emlsr.primary = __ffs(vif->active_links);
+			mld_vif->emlsr.primary = __ffs(final_active_links);
 
 		iwl_dbg_tlv_time_point(&mld->fwrt, IWL_FW_INI_TIME_ESR_LINK_UP,
 				       NULL);
