@@ -11,7 +11,6 @@
 #include <linux/types.h>
 
 struct xe_device;
-struct xe_tile;
 
 /**
  * struct xe_mert - MERT related data
@@ -26,7 +25,7 @@ struct xe_mert {
 };
 
 #ifdef CONFIG_PCI_IOV
-int xe_mert_invalidate_lmtt(struct xe_tile *tile);
+int xe_mert_invalidate_lmtt(struct xe_device *xe);
 void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl);
 #else
 static inline void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl) { }

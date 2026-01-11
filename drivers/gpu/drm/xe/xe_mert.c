@@ -12,22 +12,21 @@
 #include "xe_tile.h"
 
 /**
- * xe_mert_invalidate_lmtt - Invalidate MERT LMTT
- * @tile: the &xe_tile
+ * xe_mert_invalidate_lmtt() - Invalidate MERT LMTT
+ * @xe: the &xe_device with MERT
  *
  * Trigger invalidation of the MERT LMTT and wait for completion.
  *
  * Return: 0 on success or -ETIMEDOUT in case of a timeout.
  */
-int xe_mert_invalidate_lmtt(struct xe_tile *tile)
+int xe_mert_invalidate_lmtt(struct xe_device *xe)
 {
-	struct xe_device *xe = tile_to_xe(tile);
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
 	struct xe_mert *mert = &tile->mert;
 	const long timeout = HZ / 4;
 	unsigned long flags;
 
 	xe_assert(xe, xe_device_has_mert(xe));
-	xe_assert(xe, xe_tile_is_root(tile));
 
 	spin_lock_irqsave(&mert->lock, flags);
 	if (!mert->tlb_inv_triggered) {
