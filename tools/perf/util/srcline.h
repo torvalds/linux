@@ -63,4 +63,6 @@ struct symbol *new_inline_sym(struct dso *dso,
 			      struct symbol *base_sym,
 			      const char *funcname);
 
+int addr2line_configure(const char *var, const char *value, void *cb);
+
 #endif /* PERF_SRCLINE_H */

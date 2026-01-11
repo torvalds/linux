@@ -1271,6 +1271,13 @@ parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int
+report_parse_addr2line_config(const struct option *opt __maybe_unused,
+			      const char *arg, int unset __maybe_unused)
+{
+	return addr2line_configure("addr2line.style", arg, NULL);
+}
+
 static int process_attr(const struct perf_tool *tool __maybe_unused,
 			union perf_event *event,
 			struct evlist **pevlist)
@@ -1447,6 +1454,9 @@ int cmd_report(int argc, const char **argv)
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_STRING(0, "addr2line", &addr2line_path, "path",
 		   "addr2line binary to use for line numbers"),
+	OPT_CALLBACK(0, "addr2line-style", NULL, "addr2line style",
+		     "addr2line styles (libdw,llvm,libbfd,addr2line)",
+		     report_parse_addr2line_config),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Symbol demangling. Enabled by default, use --no-demangle to disable."),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
