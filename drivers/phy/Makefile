@@ -3,6 +3,8 @@
 # Makefile for the phy drivers.
 #
 
+obj-$(CONFIG_PHY_COMMON_PROPS)		+= phy-common-props.o
+obj-$(CONFIG_PHY_COMMON_PROPS_TEST)	+= phy-common-props-test.o
 obj-$(CONFIG_GENERIC_PHY)		+= phy-core.o
 obj-$(CONFIG_GENERIC_PHY_MIPI_DPHY)	+= phy-core-mipi-dphy.o
 obj-$(CONFIG_PHY_CAN_TRANSCEIVER)	+= phy-can-transceiver.o
