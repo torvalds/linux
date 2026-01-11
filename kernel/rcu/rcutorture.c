@@ -1749,7 +1749,7 @@ rcu_torture_writer(void *arg)
 					ulo[i] = cur_ops->get_comp_state();
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
-				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+				if (cur_ops->exp_current && !(torture_random(&rand) & 0xff))
 					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
 					gp_snap1 = cur_ops->get_gp_state();
@@ -1771,7 +1771,7 @@ rcu_torture_writer(void *arg)
 					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
-				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+				if (cur_ops->exp_current && !(torture_random(&rand) & 0xff))
 					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					cur_ops->get_gp_state_full(&gp_snap1_full);
