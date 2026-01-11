@@ -21,6 +21,7 @@ $defs:
       'default' is not provided, the system should use manufacturer default value.
     minItems: 1
     maxItems: 16
+    uniqueItems: true
     items:
       enum:
         - default
