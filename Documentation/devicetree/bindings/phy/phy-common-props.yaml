@@ -13,22 +13,12 @@ description:
 maintainers:
   - Marek Behún <kabel@kernel.org>
 
-properties:
-  tx-p2p-microvolt:
+$defs:
+  protocol-names:
     description:
-      Transmit amplitude voltages in microvolts, peak-to-peak. If this property
-      contains multiple values for various PHY modes, the
-      'tx-p2p-microvolt-names' property must be provided and contain
-      corresponding mode names.
-
-  tx-p2p-microvolt-names:
-    description: |
-      Names of the modes corresponding to voltages in the 'tx-p2p-microvolt'
-      property. Required only if multiple voltages are provided.
-
-      If a value of 'default' is provided, the system should use it for any PHY
-      mode that is otherwise not defined here. If 'default' is not provided, the
-      system should use manufacturer default value.
+      Names of the PHY modes. If a value of 'default' is provided, the system
+      should use it for any PHY mode that is otherwise not defined here. If
+      'default' is not provided, the system should use manufacturer default value.
     minItems: 1
     maxItems: 16
     items:
@@ -88,6 +78,20 @@ properties:
         - mipi-dphy
         - mipi-dphy-univ
         - mipi-dphy-v2.5-univ
+
+properties:
+  tx-p2p-microvolt:
+    description:
+      Transmit amplitude voltages in microvolts, peak-to-peak. If this property
+      contains multiple values for various PHY modes, the
+      'tx-p2p-microvolt-names' property must be provided and contain
+      corresponding mode names.
+
+  tx-p2p-microvolt-names:
+    description:
+      Names of the modes corresponding to voltages in the 'tx-p2p-microvolt'
+      property. Required only if multiple voltages are provided.
+    $ref: "#/$defs/protocol-names"
 
 dependencies:
   tx-p2p-microvolt-names: [ tx-p2p-microvolt ]
