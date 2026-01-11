@@ -64,6 +64,22 @@
 		};
 	};
 
+	flexcan1_phy: can-phy0 {
+		compatible = "nxp,tjr1443";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		enable-gpios = <&pcal6416 6 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&pcal6416 5 GPIO_ACTIVE_LOW>;
+	};
+
+	flexcan2_phy: can-phy1 {
+		compatible = "nxp,tjr1443";
+		#phy-cells = <0>;
+		max-bitrate = <8000000>;
+		enable-gpios = <&i2c4_pcal6408 4 GPIO_ACTIVE_HIGH>;
+		standby-gpios = <&i2c4_pcal6408 3 GPIO_ACTIVE_LOW>;
+	};
+
 	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-max-microvolt = <3300000>;
@@ -106,6 +122,21 @@
 		enable-active-high;
 	};
 
+};
+
+/* pin conflict with PDM */
+&flexcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan1>;
+	phys = <&flexcan1_phy>;
+	status = "disabled";
+};
+
+&flexcan2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexcan2>;
+	phys = <&flexcan2_phy>;
+	status = "okay";
 };
 
 &lpi2c2 {
@@ -340,6 +371,20 @@
 };
 
 &scmi_iomuxc {
+	pinctrl_flexcan1: flexcan1grp {
+		fsl,pins = <
+			IMX952_PAD_PDM_CLK__AONMIX_TOP_CAN1_TX			0x39e
+			IMX952_PAD_PDM_BIT_STREAM0__AONMIX_TOP_CAN1_RX		0x39e
+		>;
+	};
+
+	pinctrl_flexcan2: flexcan2grp {
+		fsl,pins = <
+			IMX952_PAD_GPIO_IO25__WAKEUPMIX_TOP_CAN2_TX		0x39e
+			IMX952_PAD_GPIO_IO27__WAKEUPMIX_TOP_CAN2_RX		0x39e
+		>;
+	};
+
 	pinctrl_lpi2c2: lpi2c2grp {
 		fsl,pins = <
 			IMX952_PAD_I2C2_SCL__AONMIX_TOP_LPI2C2_SCL		0x40000b9e
