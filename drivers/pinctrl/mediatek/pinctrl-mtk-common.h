@@ -263,7 +263,6 @@ struct mtk_pinctrl_devdata {
 	unsigned int smt_offset;
 	unsigned int pullen_offset;
 	unsigned int pullsel_offset;
-	unsigned int drv_offset;
 	unsigned int dout_offset;
 	unsigned int din_offset;
 	unsigned int pinmux_offset;
