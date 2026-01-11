@@ -36,16 +36,12 @@
  * huge pages could still be served from those areas.
  */
 #ifdef CONFIG_CMA
-void __init arm64_hugetlb_cma_reserve(void)
+unsigned int arch_hugetlb_cma_order(void)
 {
-	int order;
-
 	if (pud_sect_supported())
-		order = PUD_SHIFT - PAGE_SHIFT;
-	else
-		order = CONT_PMD_SHIFT - PAGE_SHIFT;
+		return PUD_SHIFT - PAGE_SHIFT;
 
-	hugetlb_cma_reserve(order);
+	return CONT_PMD_SHIFT - PAGE_SHIFT;
 }
 #endif /* CONFIG_CMA */
 

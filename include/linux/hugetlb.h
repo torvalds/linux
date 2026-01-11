@@ -281,6 +281,8 @@ void fixup_hugetlb_reservations(struct vm_area_struct *vma);
 void hugetlb_split(struct vm_area_struct *vma, unsigned long addr);
 int hugetlb_vma_lock_alloc(struct vm_area_struct *vma);
 
+unsigned int arch_hugetlb_cma_order(void);
+
 #else /* !CONFIG_HUGETLB_PAGE */
 
 static inline void hugetlb_dup_vma_private(struct vm_area_struct *vma)
@@ -1322,9 +1324,9 @@ static inline spinlock_t *huge_pte_lock(struct hstate *h,
 }
 
 #if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
-extern void __init hugetlb_cma_reserve(int order);
+extern void __init hugetlb_cma_reserve(void);
 #else
-static inline __init void hugetlb_cma_reserve(int order)
+static inline __init void hugetlb_cma_reserve(void)
 {
 }
 #endif

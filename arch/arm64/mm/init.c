@@ -311,15 +311,6 @@ void __init bootmem_init(void)
 
 	arch_numa_init();
 
-	/*
-	 * must be done after arch_numa_init() which calls numa_init() to
-	 * initialize node_online_map that gets used in hugetlb_cma_reserve()
-	 * while allocating required CMA size across online nodes.
-	 */
-#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_CMA)
-	arm64_hugetlb_cma_reserve();
-#endif
-
 	kvm_hyp_reserve();
 	dma_limits_init();
 

@@ -134,11 +134,23 @@ static int __init cmdline_parse_hugetlb_cma_only(char *p)
 
 early_param("hugetlb_cma_only", cmdline_parse_hugetlb_cma_only);
 
-void __init hugetlb_cma_reserve(int order)
+unsigned int __weak arch_hugetlb_cma_order(void)
 {
-	unsigned long size, reserved, per_node;
+	return 0;
+}
+
+void __init hugetlb_cma_reserve(void)
+{
+	unsigned long size, reserved, per_node, order;
 	bool node_specific_cma_alloc = false;
 	int nid;
+
+	if (!hugetlb_cma_size)
+		return;
+
+	order = arch_hugetlb_cma_order();
+	if (!order)
+		return;
 
 	/*
 	 * HugeTLB CMA reservation is required for gigantic
@@ -148,9 +160,6 @@ void __init hugetlb_cma_reserve(int order)
 	 */
 	VM_WARN_ON(order <= MAX_PAGE_ORDER);
 	cma_reserve_called = true;
-
-	if (!hugetlb_cma_size)
-		return;
 
 	hugetlb_bootmem_set_nodes();
 
