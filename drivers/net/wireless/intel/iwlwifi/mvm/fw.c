@@ -1220,7 +1220,8 @@ static size_t iwl_mvm_get_lari_config_cmd_size(u8 cmd_ver)
 
 	switch (cmd_ver) {
 	case 12:
-		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
+		cmd_size = offsetof(struct iwl_lari_config_change_cmd,
+				    oem_11bn_allow_bitmap);
 		break;
 	case 8:
 		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v8);

@@ -28,6 +28,8 @@ static const size_t acpi_dsm_size[DSM_FUNC_NUM_FUNCS] = {
 	[DSM_FUNC_ENERGY_DETECTION_THRESHOLD] =	sizeof(u32),
 	[DSM_FUNC_RFI_CONFIG] =			sizeof(u32),
 	[DSM_FUNC_ENABLE_11BE] =		sizeof(u32),
+	[DSM_FUNC_ENABLE_UNII_9] =		sizeof(u32),
+	[DSM_FUNC_ENABLE_11BN] =		sizeof(u32),
 };
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
@@ -176,6 +178,9 @@ static int iwl_acpi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 		IWL_DEBUG_RADIO(fwrt, "ACPI QUERY FUNC not valid: %d\n", ret);
 		return ret;
 	}
+
+	fwrt->dsm_revision = ACPI_DSM_REV;
+	fwrt->dsm_source = BIOS_SOURCE_ACPI;
 
 	IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
 			(u32)query_func_val);

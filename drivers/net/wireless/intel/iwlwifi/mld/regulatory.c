@@ -281,6 +281,14 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	if (!ret)
 		cmd.oem_11be_allow_bitmap = cpu_to_le32(value);
 
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_11BN, &value);
+	if (!ret)
+		cmd.oem_11bn_allow_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_UNII_9, &value);
+	if (!ret)
+		cmd.oem_unii9_enable = cpu_to_le32(value);
+
 	if (!cmd.config_bitmap &&
 	    !cmd.oem_uhb_allow_bitmap &&
 	    !cmd.oem_11ax_allow_bitmap &&
@@ -289,8 +297,13 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	    !cmd.force_disable_channels_bitmap &&
 	    !cmd.edt_bitmap &&
 	    !cmd.oem_320mhz_allow_bitmap &&
-	    !cmd.oem_11be_allow_bitmap)
+	    !cmd.oem_11be_allow_bitmap &&
+	    !cmd.oem_11bn_allow_bitmap &&
+	    !cmd.oem_unii9_enable)
 		return;
+
+	cmd.bios_hdr.table_source = fwrt->dsm_source;
+	cmd.bios_hdr.table_revision = fwrt->dsm_revision;
 
 	IWL_DEBUG_RADIO(mld,
 			"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
@@ -311,9 +324,28 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	IWL_DEBUG_RADIO(mld,
 			"sending LARI_CONFIG_CHANGE, oem_11be_allow_bitmap=0x%x\n",
 			le32_to_cpu(cmd.oem_11be_allow_bitmap));
+	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, oem_11bn_allow_bitmap=0x%x\n",
+			le32_to_cpu(cmd.oem_11bn_allow_bitmap));
+	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, oem_unii9_enable=0x%x\n",
+			le32_to_cpu(cmd.oem_unii9_enable));
 
-	ret = iwl_mld_send_cmd_pdu(mld, WIDE_ID(REGULATORY_AND_NVM_GROUP,
-						LARI_CONFIG_CHANGE), &cmd);
+	if (iwl_fw_lookup_cmd_ver(mld->fw,
+				  WIDE_ID(REGULATORY_AND_NVM_GROUP,
+					  LARI_CONFIG_CHANGE), 12) == 12) {
+		int cmd_size = offsetof(typeof(cmd), oem_11bn_allow_bitmap);
+
+		ret = iwl_mld_send_cmd_pdu(mld,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE),
+					   &cmd, cmd_size);
+	} else {
+		ret = iwl_mld_send_cmd_pdu(mld,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE),
+					   &cmd);
+	}
 	if (ret)
 		IWL_DEBUG_RADIO(mld,
 				"Failed to send LARI_CONFIG_CHANGE (%d)\n",

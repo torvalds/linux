@@ -658,6 +658,10 @@ struct iwl_lari_config_change_cmd_v8 {
  *	bit0: enable 11be in China(CB/CN).
  *	bit1: enable 11be in South Korea.
  *	bit 2 - 31: reserved.
+ * @oem_11bn_allow_bitmap: Bitmap of 11bn allowed MCCs. The firmware expects to
+ *	get the data from the BIOS.
+ * @oem_unii9_enable: UNII-9 enablement as read from the BIOS
+ * @bios_hdr: bios config header
  */
 struct iwl_lari_config_change_cmd {
 	__le32 config_bitmap;
@@ -669,8 +673,16 @@ struct iwl_lari_config_change_cmd {
 	__le32 edt_bitmap;
 	__le32 oem_320mhz_allow_bitmap;
 	__le32 oem_11be_allow_bitmap;
+	/* since version 13 */
+	__le32 oem_11bn_allow_bitmap;
+	/* since version 13 */
+	__le32 oem_unii9_enable;
+	/* since version 13 */
+	struct iwl_bios_config_hdr bios_hdr;
 } __packed;
-/* LARI_CHANGE_CONF_CMD_S_VER_12 */
+/* LARI_CHANGE_CONF_CMD_S_VER_12
+ * LARI_CHANGE_CONF_CMD_S_VER_13
+ */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
 #define ACTIVATE_5G2_IN_WW_MASK			BIT(4)

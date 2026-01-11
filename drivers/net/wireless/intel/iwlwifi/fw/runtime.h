@@ -141,6 +141,8 @@ struct iwl_txf_iter_data {
  * @timestamp.seq: timestamp marking sequence
  * @timestamp.delay: timestamp marking worker delay
  * @tpc_enabled: TPC enabled
+ * @dsm_source: one of &enum bios_source. UEFI, ACPI or NONE
+ * @dsm_revision: the revision of the DSM table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -215,6 +217,8 @@ struct iwl_fw_runtime {
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
+	enum bios_source dsm_source;
+	u8 dsm_revision;
 
 #if defined(CONFIG_ACPI) || defined(CONFIG_EFI)
 	u32 dsm_funcs_valid;
