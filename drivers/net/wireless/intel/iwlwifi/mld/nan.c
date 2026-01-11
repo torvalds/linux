@@ -55,8 +55,8 @@ static int iwl_mld_nan_config(struct iwl_mld *mld,
 	cmd.master_pref = conf->master_pref;
 
 	if (conf->cluster_id)
-		cmd.cluster_id =
-			cpu_to_le16(*(const u16 *)(conf->cluster_id + 4));
+		memcpy(cmd.cluster_id, conf->cluster_id + 4,
+		       sizeof(cmd.cluster_id));
 
 	cmd.scan_period = conf->scan_period < 255 ? conf->scan_period : 255;
 	cmd.dwell_time =
@@ -215,14 +215,14 @@ void iwl_mld_handle_nan_cluster_notif(struct iwl_mld *mld,
 		ieee80211_vif_to_wdev(mld->nan_device_vif) : NULL;
 	bool new_cluster = !!(notif->flags &
 			      IWL_NAN_CLUSTER_NOTIF_FLAG_NEW_CLUSTER);
-	u8 cluster_id[ETH_ALEN] __aligned(2) = {
-		0x50, 0x6f, 0x9a, 0x01, 0x00, 0x00
+	u8 cluster_id[ETH_ALEN] = {
+		0x50, 0x6f, 0x9a, 0x01,
+		notif->cluster_id[0], notif->cluster_id[1]
 	};
-	u16 id = le16_to_cpu(notif->cluster_id);
 
 	IWL_DEBUG_INFO(mld,
-		       "NAN: cluster event: cluster_id=0x%x, flags=0x%x\n",
-		       id, notif->flags);
+		       "NAN: cluster event: cluster_id=%pM, flags=0x%x\n",
+		       cluster_id, notif->flags);
 
 	if (IWL_FW_CHECK(mld, !wdev, "NAN: cluster event without wdev\n"))
 		return;
@@ -230,8 +230,6 @@ void iwl_mld_handle_nan_cluster_notif(struct iwl_mld *mld,
 	if (IWL_FW_CHECK(mld, !ieee80211_vif_nan_started(mld->nan_device_vif),
 			 "NAN: cluster event without NAN started\n"))
 		return;
-
-	*((u16 *)(cluster_id + 4)) = id;
 
 	cfg80211_nan_cluster_joined(wdev, cluster_id, new_cluster, GFP_KERNEL);
 }

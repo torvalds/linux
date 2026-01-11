@@ -1057,7 +1057,8 @@ enum iwl_nan_flags {
  * @nmi_addr: NAN Management Interface (NMI) address
  * @reserved_for_nmi_addr: reserved
  * @discovery_beacon_interval: discovery beacon interval in TUs
- * @cluster_id: local cluster ID, in case the local device starts a cluster
+ * @cluster_id: lower last two bytes of the cluster ID, in case the local
+ *	device starts a cluster
  * @sta_id: station ID of the NAN station
  * @hb_channel: channel for 5 GHz if the device supports operation on 5 GHz.
  *	Valid values are 44 and 149, which correspond to the 5 GHz channel, and
@@ -1082,7 +1083,7 @@ struct iwl_nan_config_cmd {
 	__le16 reserved_for_nmi_addr;
 	__le32 discovery_beacon_interval;
 
-	__le16 cluster_id;
+	u8 cluster_id[2];
 	u8 sta_id;
 	u8 hb_channel;
 
@@ -1113,12 +1114,12 @@ enum iwl_nan_cluster_notif_flags {
  * struct iwl_nan_cluster_notif - event sent when the device starts or joins a
  *	NAN cluster.
  *
- * @cluster_id: cluster ID
+ * @cluster_id: the last two bytes of the cluster ID
  * @flags: combination of &enum iwl_nan_cluster_notif_flags
  * @reserved: reserved
  */
 struct iwl_nan_cluster_notif {
-	__le16 cluster_id;
+	u8 cluster_id[2];
 	u8 flags;
 	u8 reserved;
 }; /* NAN_JOINED_CLUSTER_NTF_API_S_VER_1 */
