@@ -3502,6 +3502,10 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	    fs_info->generation == btrfs_super_uuid_tree_generation(disk_super))
 		set_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags);
 
+	if (unlikely(btrfs_verify_dev_items(fs_info))) {
+		ret = -EUCLEAN;
+		goto fail_block_groups;
+	}
 	ret = btrfs_verify_dev_extents(fs_info);
 	if (ret) {
 		btrfs_err(fs_info,
