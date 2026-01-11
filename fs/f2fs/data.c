@@ -2448,6 +2448,7 @@ static int f2fs_read_data_large_folio(struct inode *inode,
 	unsigned nrpages;
 	struct f2fs_folio_state *ffs;
 	int ret = 0;
+	bool folio_in_bio;
 
 	if (!IS_IMMUTABLE(inode))
 		return -EOPNOTSUPP;
@@ -2463,6 +2464,7 @@ next_folio:
 	if (!folio)
 		goto out;
 
+	folio_in_bio = false;
 	index = folio->index;
 	offset = 0;
 	ffs = NULL;
@@ -2548,6 +2550,7 @@ submit_and_realloc:
 					offset << PAGE_SHIFT))
 			goto submit_and_realloc;
 
+		folio_in_bio = true;
 		inc_page_count(F2FS_I_SB(inode), F2FS_RD_DATA);
 		f2fs_update_iostat(F2FS_I_SB(inode), NULL, FS_DATA_READ_IO,
 				F2FS_BLKSIZE);
@@ -2557,6 +2560,10 @@ submit_and_realloc:
 	}
 	trace_f2fs_read_folio(folio, DATA);
 	if (rac) {
+		if (!folio_in_bio) {
+			folio_mark_uptodate(folio);
+			folio_unlock(folio);
+		}
 		folio = readahead_folio(rac);
 		goto next_folio;
 	}
