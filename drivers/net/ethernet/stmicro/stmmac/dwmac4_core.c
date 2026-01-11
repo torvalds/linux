@@ -658,7 +658,9 @@ static int dwmac4_irq_status(struct mac_device_info *hw,
 			x->irq_rx_path_exit_lpi_mode_n++;
 	}
 
-	dwmac_pcs_isr(ioaddr, GMAC_PCS_BASE, intr_status, x);
+	if (intr_status & (PCS_ANE_IRQ | PCS_LINK_IRQ))
+		stmmac_integrated_pcs_irq(ioaddr, GMAC_PCS_BASE, intr_status,
+					  x);
 
 	return ret;
 }
