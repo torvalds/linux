@@ -62,6 +62,8 @@ void stmmac_integrated_pcs_irq(struct stmmac_priv *priv, u32 status,
 		x->irq_pcs_link_n++;
 		dev_info(priv->device, "PCS Link %s\n",
 			 val & GMAC_AN_STATUS_LS ? "Up" : "Down");
+
+		phylink_pcs_change(&spcs->pcs, val & GMAC_AN_STATUS_LS);
 	}
 }
 
