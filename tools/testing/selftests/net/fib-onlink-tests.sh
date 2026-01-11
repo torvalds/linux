@@ -72,7 +72,8 @@ declare -A TEST_NET4IN6IN6
 TEST_NET4IN6[1]=10.1.1.254
 TEST_NET4IN6[2]=10.2.1.254
 
-# mcast address
+# mcast addresses
+MCAST4=233.252.0.1
 MCAST6=ff02::1
 
 VRF=lisa
@@ -310,9 +311,13 @@ invalid_onlink_ipv4()
 {
 	run_ip 254 ${TEST_NET4[1]}.11 ${V4ADDRS[p1]} ${NETIFS[p1]} 2 \
 		"Invalid gw - local unicast address"
+	run_ip 254 ${TEST_NET4[1]}.12 ${MCAST4} ${NETIFS[p1]} 2 \
+		"Invalid gw - multicast address"
 
 	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.11 ${V4ADDRS[p5]} ${NETIFS[p5]} 2 \
 		"Invalid gw - local unicast address, VRF"
+	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.12 ${MCAST4} ${NETIFS[p5]} 2 \
+		"Invalid gw - multicast address, VRF"
 
 	run_ip 254 ${TEST_NET4[1]}.101 ${V4ADDRS[p1]} "" 2 "No nexthop device given"
 }
