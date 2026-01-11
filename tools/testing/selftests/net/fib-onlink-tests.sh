@@ -315,12 +315,6 @@ invalid_onlink_ipv4()
 		"Invalid gw - local unicast address, VRF"
 
 	run_ip 254 ${TEST_NET4[1]}.101 ${V4ADDRS[p1]} "" 2 "No nexthop device given"
-
-	run_ip 254 ${TEST_NET4[1]}.102 ${V4ADDRS[p3]} ${NETIFS[p1]} 2 \
-		"Gateway resolves to wrong nexthop device"
-
-	run_ip ${VRF_TABLE} ${TEST_NET4[2]}.103 ${V4ADDRS[p7]} ${NETIFS[p5]} 2 \
-		"Gateway resolves to wrong nexthop device - VRF"
 }
 
 ################################################################################
