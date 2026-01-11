@@ -4312,6 +4312,8 @@ struct cfg80211_pmsr_result {
  *		 EDCA based ranging will be used.
  * @lmr_feedback: negotiate for I2R LMR feedback. Only valid if either
  *		 @trigger_based or @non_trigger_based is set.
+ * @rsta: Operate as the RSTA in the measurement. Only valid if @lmr_feedback
+ *	and either @trigger_based or @non_trigger_based is set.
  * @bss_color: the bss color of the responder. Optional. Set to zero to
  *	indicate the driver should set the BSS color. Only valid if
  *	@non_trigger_based or @trigger_based is set.
@@ -4327,7 +4329,8 @@ struct cfg80211_pmsr_ftm_request_peer {
 	   request_civicloc:1,
 	   trigger_based:1,
 	   non_trigger_based:1,
-	   lmr_feedback:1;
+	   lmr_feedback:1,
+	   rsta:1;
 	u8 num_bursts_exp;
 	u8 burst_duration;
 	u8 ftms_per_burst;
@@ -5658,6 +5661,7 @@ cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type);
  *	(0 means unknown)
  * @ftm.max_total_ltf_rx: maximum total number of LTFs that can be received
  *	(0 means unknown)
+ * @ftm.support_rsta: supports operating as RSTA in PMSR FTM request
  */
 struct cfg80211_pmsr_capabilities {
 	unsigned int max_peers;
@@ -5683,6 +5687,7 @@ struct cfg80211_pmsr_capabilities {
 		u8 max_rx_sts;
 		u8 max_total_ltf_tx;
 		u8 max_total_ltf_rx;
+		u8 support_rsta:1;
 	} ftm;
 };
 

@@ -187,6 +187,21 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 			nla_get_u8(tb[NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR]);
 	}
 
+	out->ftm.rsta = !!tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA];
+	if (out->ftm.rsta && !capa->ftm.support_rsta) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
+				    "FTM: RSTA not supported by device");
+		return -EOPNOTSUPP;
+	}
+
+	if (out->ftm.rsta && !out->ftm.lmr_feedback) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NL80211_PMSR_FTM_REQ_ATTR_RSTA],
+				    "FTM: RSTA set without LMR feedback");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

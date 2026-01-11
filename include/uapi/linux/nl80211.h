@@ -7812,6 +7812,8 @@ enum nl80211_peer_measurement_attrs {
  *	maximum total number of LTFs the device can receive. The total number
  *	of LTFs is (number of LTF repetitions) * (number of space-time streams).
  *	This limits the allowed combinations of LTF repetitions and STS.
+ * @NL80211_PMSR_FTM_CAPA_ATTR_RSTA_SUPPORT: flag attribute indicating the
+ *	device supports operating as the RSTA in PMSR FTM request
  *
  * @NUM_NL80211_PMSR_FTM_CAPA_ATTR: internal
  * @NL80211_PMSR_FTM_CAPA_ATTR_MAX: highest attribute number
@@ -7836,6 +7838,7 @@ enum nl80211_peer_measurement_ftm_capa {
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS,
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX,
 	NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX,
+	NL80211_PMSR_FTM_CAPA_ATTR_RSTA_SUPPORT,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_CAPA_ATTR,
@@ -7888,6 +7891,14 @@ enum nl80211_peer_measurement_ftm_capa {
  * @NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR: optional. The BSS color of the
  *	responder. Only valid if %NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED
  *	or %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED is set.
+ * @NL80211_PMSR_FTM_REQ_ATTR_RSTA: optional. Request to perform the measurement
+ *	as the RSTA (flag). When set, the device is expected to dwell on the
+ *	channel specified in %NL80211_PMSR_PEER_ATTR_CHAN until it receives the
+ *	FTM request from the peer or the timeout specified by
+ *	%NL80211_ATTR_TIMEOUT has expired.
+ *	Only valid if %NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK is set (so the
+ *	RSTA will have the measurement results to report back in the FTM
+ *	response).
  *
  * @NUM_NL80211_PMSR_FTM_REQ_ATTR: internal
  * @NL80211_PMSR_FTM_REQ_ATTR_MAX: highest attribute number
@@ -7908,6 +7919,7 @@ enum nl80211_peer_measurement_ftm_req {
 	NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED,
 	NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK,
 	NL80211_PMSR_FTM_REQ_ATTR_BSS_COLOR,
+	NL80211_PMSR_FTM_REQ_ATTR_RSTA,
 
 	/* keep last */
 	NUM_NL80211_PMSR_FTM_REQ_ATTR,
