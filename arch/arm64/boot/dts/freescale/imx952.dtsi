@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR MIT)
 /*
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #include <dt-bindings/dma/fsl-edma.h>
@@ -50,12 +50,27 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		idle-states {
+			entry-method = "psci";
+
+			cpu_pd_wait: cpu-pd-wait {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010033>;
+				local-timer-stop;
+				entry-latency-us = <1000>;
+				exit-latency-us = <700>;
+				min-residency-us = <2700>;
+				wakeup-latency-us = <1500>;
+			};
+		};
+
 		A55_0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX952_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -73,6 +88,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX952_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -90,6 +106,7 @@
 			reg = <0x200>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX952_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
@@ -107,6 +124,7 @@
 			reg = <0x300>;
 			enable-method = "psci";
 			#cooling-cells = <2>;
+			cpu-idle-states = <&cpu_pd_wait>;
 			power-domains = <&scmi_perf IMX952_PERF_A55>;
 			power-domain-names = "perf";
 			i-cache-size = <32768>;
