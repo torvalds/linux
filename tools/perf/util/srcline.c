@@ -6,6 +6,7 @@
 #include "libbfd.h"
 #include "llvm.h"
 #include "symbol.h"
+#include "libdw.h"
 
 #include <inttypes.h>
 #include <string.h>
@@ -47,6 +48,25 @@ int inline_list__append(struct symbol *symbol, char *srcline, struct inline_node
 		list_add_tail(&ilist->list, &node->val);
 	else
 		list_add(&ilist->list, &node->val);
+
+	return 0;
+}
+
+int inline_list__append_tail(struct symbol *symbol, char *srcline, struct inline_node *node)
+{
+	struct inline_list *ilist;
+
+	ilist = zalloc(sizeof(*ilist));
+	if (ilist == NULL)
+		return -1;
+
+	ilist->symbol = symbol;
+	ilist->srcline = srcline;
+
+	if (callchain_param.order == ORDER_CALLEE)
+		list_add(&ilist->list, &node->val);
+	else
+		list_add_tail(&ilist->list, &node->val);
 
 	return 0;
 }
@@ -119,6 +139,10 @@ static int addr2line(const char *dso_name, u64 addr, char **file, unsigned int *
 		     struct symbol *sym)
 {
 	int ret;
+
+	ret = libdw__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines, node, sym);
+	if (ret > 0)
+		return ret;
 
 	ret = llvm__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines, node, sym);
 	if (ret > 0)

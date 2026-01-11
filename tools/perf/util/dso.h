@@ -268,6 +268,7 @@ DECLARE_RC_STRUCT(dso) {
 	const char	 *short_name;
 	const char	 *long_name;
 	void		 *a2l;
+	void		 *a2l_libdw;
 	char		 *symsrc_filename;
 #if defined(__powerpc__)
 	void		*dwfl;			/* DWARF debug info */
@@ -332,6 +333,16 @@ static inline void *dso__a2l(const struct dso *dso)
 static inline void dso__set_a2l(struct dso *dso, void *val)
 {
 	RC_CHK_ACCESS(dso)->a2l = val;
+}
+
+static inline void *dso__a2l_libdw(const struct dso *dso)
+{
+	return RC_CHK_ACCESS(dso)->a2l_libdw;
+}
+
+static inline void dso__set_a2l_libdw(struct dso *dso, void *val)
+{
+	RC_CHK_ACCESS(dso)->a2l_libdw = val;
 }
 
 static inline unsigned int dso__a2l_fails(const struct dso *dso)
