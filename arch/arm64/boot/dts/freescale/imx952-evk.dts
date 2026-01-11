@@ -9,6 +9,15 @@
 #include <dt-bindings/usb/pd.h>
 #include "imx952.dtsi"
 
+#define FALLING_EDGE		BIT(0)
+#define RISING_EDGE		BIT(1)
+
+#define BRD_SM_CTRL_SD3_WAKE		0x8000U /*!< PCAL6408A-0 */
+#define BRD_SM_CTRL_M2E_WAKE		0x8001U /*!< PCAL6408A-4 */
+#define BRD_SM_CTRL_BT_WAKE		0x8002U /*!< PCAL6408A-5 */
+#define BRD_SM_CTRL_M2M_WAKE		0x8003U /*!< PCAL6408A-6 */
+#define BRD_SM_CTRL_BUTTON		0x8004U /*!< PCAL6408A-7 */
+
 / {
 	model = "NXP i.MX952 EVK board";
 	compatible = "fsl,imx952-evk", "fsl,imx952";
@@ -301,6 +310,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpspi7>;
 	status = "okay";
+};
+
+&scmi_misc {
+	nxp,ctrl-ids = <BRD_SM_CTRL_SD3_WAKE		1
+			BRD_SM_CTRL_M2E_WAKE		1
+			BRD_SM_CTRL_BT_WAKE		1
+			BRD_SM_CTRL_M2M_WAKE		1
+			BRD_SM_CTRL_BUTTON		1>;
 };
 
 &tpm3 {
