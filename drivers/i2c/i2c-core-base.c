@@ -1476,7 +1476,7 @@ static int i2c_setup_host_notify_irq_domain(struct i2c_adapter *adap)
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_HOST_NOTIFY))
 		return 0;
 
-	domain = irq_domain_create_linear(adap->dev.parent->fwnode,
+	domain = irq_domain_create_linear(dev_fwnode(adap->dev.parent),
 					  I2C_ADDR_7BITS_COUNT,
 					  &i2c_host_notify_irq_ops, adap);
 	if (!domain)
