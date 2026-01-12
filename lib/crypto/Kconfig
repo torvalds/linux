@@ -21,6 +21,7 @@ config CRYPTO_LIB_AES_ARCH
 		     RISCV_EFFICIENT_VECTOR_UNALIGNED_ACCESS
 	default y if S390
 	default y if SPARC64
+	default y if X86
 
 config CRYPTO_LIB_AESCFB
 	tristate
