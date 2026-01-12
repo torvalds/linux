@@ -2114,12 +2114,12 @@ void ath12k_wifi7_dp_rx_process_reo_status(struct ath12k_dp *dp)
 {
 	struct ath12k_base *ab = dp->ab;
 	struct ath12k_hal *hal = dp->hal;
-	struct hal_tlv_64_hdr *hdr;
 	struct hal_srng *srng;
 	struct ath12k_dp_rx_reo_cmd *cmd, *tmp;
 	bool found = false;
 	u16 tag;
 	struct hal_reo_status reo_status;
+	void *hdr, *desc;
 
 	srng = &hal->srng_list[dp->reo_status_ring.ring_id];
 
@@ -2130,35 +2130,35 @@ void ath12k_wifi7_dp_rx_process_reo_status(struct ath12k_dp *dp)
 	ath12k_hal_srng_access_begin(ab, srng);
 
 	while ((hdr = ath12k_hal_srng_dst_get_next_entry(ab, srng))) {
-		tag = le64_get_bits(hdr->tl, HAL_SRNG_TLV_HDR_TAG);
+		tag = hal->ops->reo_status_dec_tlv_hdr(hdr, &desc);
 
 		switch (tag) {
 		case HAL_REO_GET_QUEUE_STATS_STATUS:
-			ath12k_wifi7_hal_reo_status_queue_stats(ab, hdr,
+			ath12k_wifi7_hal_reo_status_queue_stats(ab, desc,
 								&reo_status);
 			break;
 		case HAL_REO_FLUSH_QUEUE_STATUS:
-			ath12k_wifi7_hal_reo_flush_queue_status(ab, hdr,
+			ath12k_wifi7_hal_reo_flush_queue_status(ab, desc,
 								&reo_status);
 			break;
 		case HAL_REO_FLUSH_CACHE_STATUS:
-			ath12k_wifi7_hal_reo_flush_cache_status(ab, hdr,
+			ath12k_wifi7_hal_reo_flush_cache_status(ab, desc,
 								&reo_status);
 			break;
 		case HAL_REO_UNBLOCK_CACHE_STATUS:
-			ath12k_wifi7_hal_reo_unblk_cache_status(ab, hdr,
+			ath12k_wifi7_hal_reo_unblk_cache_status(ab, desc,
 								&reo_status);
 			break;
 		case HAL_REO_FLUSH_TIMEOUT_LIST_STATUS:
-			ath12k_wifi7_hal_reo_flush_timeout_list_status(ab, hdr,
+			ath12k_wifi7_hal_reo_flush_timeout_list_status(ab, desc,
 								       &reo_status);
 			break;
 		case HAL_REO_DESCRIPTOR_THRESHOLD_REACHED_STATUS:
-			ath12k_wifi7_hal_reo_desc_thresh_reached_status(ab, hdr,
+			ath12k_wifi7_hal_reo_desc_thresh_reached_status(ab, desc,
 									&reo_status);
 			break;
 		case HAL_REO_UPDATE_RX_REO_QUEUE_STATUS:
-			ath12k_wifi7_hal_reo_update_rx_reo_queue_status(ab, hdr,
+			ath12k_wifi7_hal_reo_update_rx_reo_queue_status(ab, desc,
 									&reo_status);
 			break;
 		default:

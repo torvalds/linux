@@ -834,3 +834,15 @@ void *ath12k_hal_encode_tlv64_hdr(void *tlv, u64 tag, u64 len)
 	return tlv64->value;
 }
 EXPORT_SYMBOL(ath12k_hal_encode_tlv64_hdr);
+
+u16 ath12k_hal_decode_tlv64_hdr(void *tlv, void **desc)
+{
+	struct hal_tlv_64_hdr *tlv64 = tlv;
+	u16 tag;
+
+	tag = le64_get_bits(tlv64->tl, HAL_SRNG_TLV_HDR_TAG);
+	*desc = tlv64->value;
+
+	return tag;
+}
+EXPORT_SYMBOL(ath12k_hal_decode_tlv64_hdr);
