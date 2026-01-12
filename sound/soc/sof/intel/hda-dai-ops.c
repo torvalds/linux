@@ -311,7 +311,7 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 	if (pipe_widget->instance_id < 0)
 		return 0;
 
-	mutex_lock(&ipc4_data->pipeline_state_mutex);
+	guard(mutex)(&ipc4_data->pipeline_state_mutex);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -323,16 +323,16 @@ static int hda_ipc4_pre_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cp
 		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 						  SOF_IPC4_PIPE_PAUSED);
 		if (ret < 0)
-			goto out;
+			return ret;
 
 		pipeline->state = SOF_IPC4_PIPE_PAUSED;
+
 		break;
 	default:
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
 		ret = -EINVAL;
 	}
-out:
-	mutex_unlock(&ipc4_data->pipeline_state_mutex);
+
 	return ret;
 }
 
@@ -388,7 +388,7 @@ static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 	if (pipe_widget->instance_id < 0)
 		return 0;
 
-	mutex_lock(&ipc4_data->pipeline_state_mutex);
+	guard(mutex)(&ipc4_data->pipeline_state_mutex);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -396,14 +396,16 @@ static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 			ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 							  SOF_IPC4_PIPE_PAUSED);
 			if (ret < 0)
-				goto out;
+				return ret;
+
 			pipeline->state = SOF_IPC4_PIPE_PAUSED;
 		}
 
 		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 						  SOF_IPC4_PIPE_RUNNING);
 		if (ret < 0)
-			goto out;
+			return ret;
+
 		pipeline->state = SOF_IPC4_PIPE_RUNNING;
 		swidget->spipe->started_count++;
 		break;
@@ -411,7 +413,8 @@ static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 		ret = sof_ipc4_set_pipeline_state(sdev, pipe_widget->instance_id,
 						  SOF_IPC4_PIPE_RUNNING);
 		if (ret < 0)
-			goto out;
+			return ret;
+
 		pipeline->state = SOF_IPC4_PIPE_RUNNING;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -429,8 +432,7 @@ static int hda_ipc4_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 		ret = -EINVAL;
 		break;
 	}
-out:
-	mutex_unlock(&ipc4_data->pipeline_state_mutex);
+
 	return ret;
 }
 
