@@ -366,27 +366,6 @@ config CRYPTO_AES
 
 	  The AES specifies three key sizes: 128, 192 and 256 bits
 
-config CRYPTO_AES_TI
-	tristate "AES (Advanced Encryption Standard) (fixed time)"
-	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_AES
-	help
-	  AES cipher algorithms (Rijndael)(FIPS-197, ISO/IEC 18033-3)
-
-	  This is a generic implementation of AES that attempts to eliminate
-	  data dependent latencies as much as possible without affecting
-	  performance too much. It is intended for use by the generic CCM
-	  and GCM drivers, and other CTR or CMAC/XCBC based modes that rely
-	  solely on encryption (although decryption is supported as well, but
-	  with a more dramatic performance hit)
-
-	  Instead of using 16 lookup tables of 1 KB each, (8 for encryption and
-	  8 for decryption), this implementation only uses just two S-boxes of
-	  256 bytes each, and attempts to eliminate data dependent latencies by
-	  prefetching the entire table into the cache at the start of each
-	  block. Interrupts are also disabled to avoid races where cachelines
-	  are evicted when the CPU is interrupted to do something else.
-
 config CRYPTO_ANUBIS
 	tristate "Anubis"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
