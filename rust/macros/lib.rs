@@ -131,8 +131,10 @@ use syn::parse_macro_input;
 ///   - `firmware`: array of ASCII string literals of the firmware files of
 ///     the kernel module.
 #[proc_macro]
-pub fn module(ts: TokenStream) -> TokenStream {
-    module::module(ts.into()).into()
+pub fn module(input: TokenStream) -> TokenStream {
+    module::module(parse_macro_input!(input))
+        .unwrap_or_else(|e| e.into_compile_error())
+        .into()
 }
 
 /// Declares or implements a vtable trait.
