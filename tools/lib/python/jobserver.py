@@ -35,6 +35,9 @@ import os
 import subprocess
 import sys
 
+def warn(text, *args):
+    print(f'WARNING: {text}', *args, file = sys.stderr)
+
 class JobserverExec:
     """
     Claim all slots from make using POSIX Jobserver.
@@ -58,64 +61,98 @@ class JobserverExec:
 
         if self.is_open:
             return
-
-        try:
-            # Fetch the make environment options.
-            flags = os.environ["MAKEFLAGS"]
-            # Look for "--jobserver=R,W"
-            # Note that GNU Make has used --jobserver-fds and --jobserver-auth
-            # so this handles all of them.
-            opts = [x for x in flags.split(" ") if x.startswith("--jobserver")]
-
-            # Parse out R,W file descriptor numbers and set them nonblocking.
-            # If the MAKEFLAGS variable contains multiple instances of the
-            # --jobserver-auth= option, the last one is relevant.
-            fds = opts[-1].split("=", 1)[1]
-
-            # Starting with GNU Make 4.4, named pipes are used for reader
-            # and writer.
-            # Example argument: --jobserver-auth=fifo:/tmp/GMfifo8134
-            _, _, path = fds.partition("fifo:")
-
-            if path:
+        self.is_open = True  # We only try once
+        self.claim = None
+        #
+        # Check the make flags for "--jobserver=R,W"
+        # Note that GNU Make has used --jobserver-fds and --jobserver-auth
+        # so this handles all of them.
+        #
+        flags = os.environ.get('MAKEFLAGS', '')
+        opts = [x for x in flags.split(" ") if x.startswith("--jobserver")]
+        if not opts:
+            return
+        #
+        # Separate out the provided file descriptors
+        #
+        split_opt = opts[-1].split('=', 1)
+        if len(split_opt) != 2:
+            warn('unparseable option:', opts[-1])
+            return
+        fds = split_opt[1]
+        #
+        # As of GNU Make 4.4, we'll be looking for a named pipe
+        # identified as fifo:path
+        #
+        if fds.startswith('fifo:'):
+            path = fds[len('fifo:'):]
+            try:
                 self.reader = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
                 self.writer = os.open(path, os.O_WRONLY)
-            else:
-                self.reader, self.writer = [int(x) for x in fds.split(",", 1)]
+            except (OSError, IOError):
+                warn('unable to open jobserver pipe', path)
+                return
+        #
+        # Otherwise look for integer file-descriptor numbers.
+        #
+        else:
+            split_fds = fds.split(',')
+            if len(split_fds) != 2:
+                warn('malformed jobserver file descriptors:', fds)
+                return
+            try:
+                self.reader = int(split_fds[0])
+                self.writer = int(split_fds[1])
+            except ValueError:
+                warn('non-integer jobserver file-descriptors:', fds)
+                return
+            try:
+                #
                 # Open a private copy of reader to avoid setting nonblocking
                 # on an unexpecting process with the same reader fd.
-                self.reader = os.open("/proc/self/fd/%d" % (self.reader),
+                #
+                self.reader = os.open(f"/proc/self/fd/{self.reader}",
                                       os.O_RDONLY | os.O_NONBLOCK)
-
-            # Read out as many jobserver slots as possible
-            while True:
-                try:
-                    slot = os.read(self.reader, 8)
-                    if not slot:
-                        # Clear self.jobs to prevent us from probably writing incorrect file.
-                        self.jobs = b""
-                        raise ValueError("unexpected empty token from jobserver fd, invalid '--jobserver-auth=' setting?")
-                    self.jobs += slot
-                except (OSError, IOError) as e:
-                    if e.errno == errno.EWOULDBLOCK:
-                        # Stop at the end of the jobserver queue.
-                        break
-                    # If something went wrong, give back the jobs.
-                    if self.jobs:
-                        os.write(self.writer, self.jobs)
-                    raise e
-
-            # Add a bump for our caller's reserveration, since we're just going
-            # to sit here blocked on our child.
-            self.claim = len(self.jobs) + 1
-
-        except (KeyError, IndexError, ValueError, OSError, IOError) as e:
-            print(f"jobserver: warning: {repr(e)}", file=sys.stderr)
-            # Any missing environment strings or bad fds should result in just
-            # not being parallel.
-            self.claim = None
-
-        self.is_open = True
+            except (IOError, OSError) as e:
+                warn('Unable to reopen jobserver read-side pipe:', repr(e))
+                return
+        #
+        # OK, we have the channel to the job server; read out as many jobserver
+        # slots as possible.
+        #
+        while True:
+            try:
+                slot = os.read(self.reader, 8)
+                if not slot:
+                    #
+                    # Something went wrong.  Clear self.jobs to avoid writing
+                    # weirdness back to the jobserver and give up.
+                    self.jobs = b""
+                    warn("unexpected empty token from jobserver;"
+                         " possible invalid '--jobserver-auth=' setting")
+                    self.claim = None
+                    return
+            except (OSError, IOError) as e:
+                #
+                # If there is nothing more to read then we are done.
+                #
+                if e.errno == errno.EWOULDBLOCK:
+                    break
+                #
+                # Anything else says that something went weird; give back
+                # the jobs and give up.
+                #
+                if self.jobs:
+                    os.write(self.writer, self.jobs)
+                    self.claim = None
+                    warn('error reading from jobserver pipe', repr(e))
+                    return
+            self.jobs += slot
+        #
+        # Add a bump for our caller's reserveration, since we're just going
+        # to sit here blocked on our child.
+        #
+        self.claim = len(self.jobs) + 1
 
     def close(self):
         """Return all reserved slots to Jobserver"""
