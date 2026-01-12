@@ -234,8 +234,9 @@ pub fn vtable(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// This macro is *not* the same as the C macros `EXPORT_SYMBOL_*`. All Rust symbols are currently
 /// automatically exported with `EXPORT_SYMBOL_GPL`.
 #[proc_macro_attribute]
-pub fn export(attr: TokenStream, ts: TokenStream) -> TokenStream {
-    export::export(attr.into(), ts.into()).into()
+pub fn export(attr: TokenStream, input: TokenStream) -> TokenStream {
+    parse_macro_input!(attr as syn::parse::Nothing);
+    export::export(parse_macro_input!(input)).into()
 }
 
 /// Like [`core::format_args!`], but automatically wraps arguments in [`kernel::fmt::Adapter`].

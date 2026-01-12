@@ -2,7 +2,6 @@
 
 use proc_macro2::{
     token_stream,
-    Ident,
     TokenStream,
     TokenTree, //
 };
@@ -48,23 +47,6 @@ impl AsciiLitStr {
     pub(crate) fn value(&self) -> String {
         self.0.value()
     }
-}
-
-/// Given a function declaration, finds the name of the function.
-pub(crate) fn function_name(input: TokenStream) -> Option<Ident> {
-    let mut input = input.into_iter();
-    while let Some(token) = input.next() {
-        match token {
-            TokenTree::Ident(i) if i == "fn" => {
-                if let Some(TokenTree::Ident(i)) = input.next() {
-                    return Some(i);
-                }
-                return None;
-            }
-            _ => continue,
-        }
-    }
-    None
 }
 
 pub(crate) fn file() -> String {
