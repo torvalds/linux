@@ -4,5 +4,7 @@
  */
 
 #include "../hal.h"
+#include "hal.h"
 
 extern const struct ath12k_hw_regs qcc2072_regs;
+extern const struct hal_ops hal_qcc2072_ops;

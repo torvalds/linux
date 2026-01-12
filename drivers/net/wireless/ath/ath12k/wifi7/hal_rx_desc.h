@@ -1481,10 +1481,27 @@ struct hal_rx_desc_wcn7850 {
 	u8 msdu_payload[];
 };
 
+struct rx_pkt_hdr_tlv_qcc2072 {
+	__le32 tag;
+	__le64 phy_ppdu_id;
+	u8 rx_pkt_hdr[HAL_RX_BE_PKT_HDR_TLV_LEN];
+};
+
+struct hal_rx_desc_qcc2072 {
+	__le32 msdu_end_tag;
+	struct rx_msdu_end_qcn9274 msdu_end;
+	u8 rx_padding0[RX_BE_PADDING0_BYTES];
+	__le32 mpdu_start_tag;
+	struct rx_mpdu_start_qcn9274 mpdu_start;
+	struct rx_pkt_hdr_tlv_qcc2072 pkt_hdr_tlv;
+	u8 msdu_payload[];
+};
+
 struct hal_rx_desc {
 	union {
 		struct hal_rx_desc_qcn9274_compact qcn9274_compact;
 		struct hal_rx_desc_wcn7850 wcn7850;
+		struct hal_rx_desc_qcc2072 qcc2072;
 	} u;
 } __packed;
 

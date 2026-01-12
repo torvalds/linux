@@ -36,4 +36,5 @@ void ath12k_hal_rx_desc_get_dot11_hdr_wcn7850(struct hal_rx_desc *desc,
 void ath12k_hal_extract_rx_desc_data_wcn7850(struct hal_rx_desc_data *rx_desc_data,
 					     struct hal_rx_desc *rx_desc,
 					     struct hal_rx_desc *ldesc);
+int ath12k_hal_srng_create_config_wcn7850(struct ath12k_hal *hal);
 #endif

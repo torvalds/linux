@@ -614,7 +614,7 @@ void ath12k_hal_extract_rx_desc_data_wcn7850(struct hal_rx_desc_data *rx_desc_da
 	rx_desc_data->err_bitmap = ath12k_hal_rx_h_mpdu_err_wcn7850(rx_desc);
 }
 
-static int ath12k_hal_srng_create_config_wcn7850(struct ath12k_hal *hal)
+int ath12k_hal_srng_create_config_wcn7850(struct ath12k_hal *hal)
 {
 	struct hal_srng_config *s;
 
