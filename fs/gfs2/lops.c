@@ -479,13 +479,13 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 }
 
 static struct bio *gfs2_chain_bio(struct bio *prev, unsigned int nr_iovecs,
-				  blk_opf_t opf)
+				  sector_t sector, blk_opf_t opf)
 {
 	struct bio *new;
 
 	new = bio_alloc(prev->bi_bdev, nr_iovecs, opf, GFP_NOIO);
 	bio_clone_blkg_association(new, prev);
-	new->bi_iter.bi_sector = bio_end_sector(prev);
+	new->bi_iter.bi_sector = sector;
 	bio_chain(new, prev);
 	submit_bio(prev);
 	return new;
@@ -548,7 +548,7 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head)
 					unsigned int blocks =
 						(PAGE_SIZE - off) >> bsize_shift;
 
-					bio = gfs2_chain_bio(bio, blocks,
+					bio = gfs2_chain_bio(bio, blocks, sector,
 							     REQ_OP_READ);
 					goto add_block_to_new_bio;
 				}
