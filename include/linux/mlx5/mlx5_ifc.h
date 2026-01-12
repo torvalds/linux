@@ -11009,7 +11009,9 @@ struct mlx5_ifc_qcam_access_reg_cap_mask {
 };
 
 struct mlx5_ifc_qcam_qos_feature_cap_mask {
-	u8         qcam_qos_feature_cap_mask_127_to_1[0x7F];
+	u8         qcam_qos_feature_cap_mask_127_to_5[0x7B];
+	u8         qetcr_qshr_max_bw_val_msb[0x1];
+	u8         qcam_qos_feature_cap_mask_3_to_1[0x3];
 	u8         qpts_trust_both[0x1];
 };
 
@@ -11965,8 +11967,7 @@ struct mlx5_ifc_ets_tcn_config_reg_bits {
 
 	u8         reserved_at_20[0xc];
 	u8         max_bw_units[0x4];
-	u8         reserved_at_30[0x8];
-	u8         max_bw_value[0x8];
+	u8         max_bw_value[0x10];
 };
 
 struct mlx5_ifc_ets_global_config_reg_bits {
