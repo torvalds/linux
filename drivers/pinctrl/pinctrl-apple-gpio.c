@@ -170,6 +170,13 @@ static const struct pinctrl_ops apple_gpio_pinctrl_ops = {
 
 /* Pin multiplexer functions */
 
+static bool apple_gpio_pinmux_func_is_gpio(struct pinctrl_dev *pctldev,
+					   unsigned int selector)
+{
+	/* Function selector 0 is always the GPIO mode */
+	return (selector == 0);
+}
+
 static int apple_gpio_pinmux_set(struct pinctrl_dev *pctldev, unsigned int func,
 				 unsigned int group)
 {
@@ -186,6 +193,7 @@ static const struct pinmux_ops apple_gpio_pinmux_ops = {
 	.get_functions_count = pinmux_generic_get_function_count,
 	.get_function_name = pinmux_generic_get_function_name,
 	.get_function_groups = pinmux_generic_get_function_groups,
+	.function_is_gpio = apple_gpio_pinmux_func_is_gpio,
 	.set_mux = apple_gpio_pinmux_set,
 	.strict = true,
 };
