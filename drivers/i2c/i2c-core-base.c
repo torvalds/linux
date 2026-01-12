@@ -1090,7 +1090,7 @@ struct i2c_client *i2c_find_device_by_fwnode(struct fwnode_handle *fwnode)
 	struct i2c_client *client;
 	struct device *dev;
 
-	if (!fwnode)
+	if (IS_ERR_OR_NULL(fwnode))
 		return NULL;
 
 	dev = bus_find_device_by_fwnode(&i2c_bus_type, fwnode);
@@ -1875,7 +1875,7 @@ struct i2c_adapter *i2c_find_adapter_by_fwnode(struct fwnode_handle *fwnode)
 	struct i2c_adapter *adapter;
 	struct device *dev;
 
-	if (!fwnode)
+	if (IS_ERR_OR_NULL(fwnode))
 		return NULL;
 
 	dev = bus_find_device(&i2c_bus_type, NULL, fwnode,
