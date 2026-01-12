@@ -2214,6 +2214,7 @@ const struct file_operations ceph_dir_fops = {
 	.fsync = ceph_fsync,
 	.lock = ceph_lock,
 	.flock = ceph_flock,
+	.setlease = simple_nosetlease,
 };
 
 const struct file_operations ceph_snapdir_fops = {
@@ -2221,6 +2222,7 @@ const struct file_operations ceph_snapdir_fops = {
 	.llseek = ceph_dir_llseek,
 	.open = ceph_open,
 	.release = ceph_release,
+	.setlease = simple_nosetlease,
 };
 
 const struct inode_operations ceph_dir_iops = {
