@@ -3217,7 +3217,6 @@ extern int always_delete_dentry(const struct dentry *);
 extern struct inode *alloc_anon_inode(struct super_block *);
 struct inode *anon_inode_make_secure_inode(struct super_block *sb, const char *name,
 					   const struct inode *context_inode);
-extern int simple_nosetlease(struct file *, int, struct file_lease **, void **);
 
 extern struct dentry *simple_lookup(struct inode *, struct dentry *, unsigned int flags);
 extern ssize_t generic_read_dir(struct file *, char __user *, size_t, loff_t *);

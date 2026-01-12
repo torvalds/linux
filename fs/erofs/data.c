@@ -5,6 +5,7 @@
  * Copyright (C) 2021, Alibaba Cloud
  */
 #include "internal.h"
+#include <linux/filelock.h>
 #include <linux/sched/mm.h>
 #include <trace/events/erofs.h>
 
@@ -483,4 +484,5 @@ const struct file_operations erofs_file_fops = {
 	.mmap_prepare	= erofs_file_mmap_prepare,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.splice_read	= filemap_splice_read,
+	.setlease	= generic_setlease,
 };

@@ -13,6 +13,7 @@
 #include <linux/mount.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
+#include <linux/filelock.h>
 #include <linux/fsnotify.h>
 #include <linux/security.h>
 #include <linux/falloc.h>
@@ -212,6 +213,7 @@ const struct file_operations fat_file_operations = {
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= fat_fallocate,
+	.setlease	= generic_setlease,
 };
 
 static int fat_cont_expand(struct inode *inode, loff_t size)
