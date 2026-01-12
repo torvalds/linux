@@ -128,18 +128,16 @@ int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 	nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	for (p = cpu_list; *p; ) {
-		if (strtoi(p, &cpu))
-			goto err;
-		if (cpu < 0 || cpu >= nr_cpus)
+		cpu = atoi(p);
+		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
 			goto err;
 
 		while (isdigit(*p))
 			p++;
 		if (*p == '-') {
 			p++;
-			if (strtoi(p, &end_cpu))
-				goto err;
-			if (end_cpu < cpu || end_cpu >= nr_cpus)
+			end_cpu = atoi(p);
+			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
 				goto err;
 			while (isdigit(*p))
 				p++;
