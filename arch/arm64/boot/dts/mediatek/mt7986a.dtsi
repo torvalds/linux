@@ -231,7 +231,7 @@
 		};
 
 		crypto: crypto@10320000 {
-			compatible = "inside-secure,safexcel-eip97";
+			compatible = "mediatek,mt7986-crypto", "inside-secure,safexcel-eip97ies";
 			reg = <0 0x10320000 0 0x40000>;
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
