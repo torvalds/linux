@@ -517,14 +517,18 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	/* Namespaces that hang of nsproxy. */
 	case PIDFD_GET_CGROUP_NAMESPACE:
+#ifdef CONFIG_CGROUPS
 		if (!ns_ref_get(nsp->cgroup_ns))
 			break;
 		ns_common = to_ns_common(nsp->cgroup_ns);
+#endif
 		break;
 	case PIDFD_GET_IPC_NAMESPACE:
+#ifdef CONFIG_IPC_NS
 		if (!ns_ref_get(nsp->ipc_ns))
 			break;
 		ns_common = to_ns_common(nsp->ipc_ns);
+#endif
 		break;
 	case PIDFD_GET_MNT_NAMESPACE:
 		if (!ns_ref_get(nsp->mnt_ns))
@@ -532,32 +536,43 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ns_common = to_ns_common(nsp->mnt_ns);
 		break;
 	case PIDFD_GET_NET_NAMESPACE:
+#ifdef CONFIG_NET_NS
 		if (!ns_ref_get(nsp->net_ns))
 			break;
 		ns_common = to_ns_common(nsp->net_ns);
+#endif
 		break;
 	case PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE:
+#ifdef CONFIG_PID_NS
 		if (!ns_ref_get(nsp->pid_ns_for_children))
 			break;
 		ns_common = to_ns_common(nsp->pid_ns_for_children);
+#endif
 		break;
 	case PIDFD_GET_TIME_NAMESPACE:
+#ifdef CONFIG_TIME_NS
 		if (!ns_ref_get(nsp->time_ns))
 			break;
 		ns_common = to_ns_common(nsp->time_ns);
+#endif
 		break;
 	case PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE:
+#ifdef CONFIG_TIME_NS
 		if (!ns_ref_get(nsp->time_ns_for_children))
 			break;
 		ns_common = to_ns_common(nsp->time_ns_for_children);
+#endif
 		break;
 	case PIDFD_GET_UTS_NAMESPACE:
+#ifdef CONFIG_UTS_NS
 		if (!ns_ref_get(nsp->uts_ns))
 			break;
 		ns_common = to_ns_common(nsp->uts_ns);
+#endif
 		break;
 	/* Namespaces that don't hang of nsproxy. */
 	case PIDFD_GET_USER_NAMESPACE:
+#ifdef CONFIG_USER_NS
 		scoped_guard(rcu) {
 			struct user_namespace *user_ns;
 
@@ -566,8 +581,10 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 			ns_common = to_ns_common(user_ns);
 		}
+#endif
 		break;
 	case PIDFD_GET_PID_NAMESPACE:
+#ifdef CONFIG_PID_NS
 		scoped_guard(rcu) {
 			struct pid_namespace *pid_ns;
 
@@ -576,6 +593,7 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 			ns_common = to_ns_common(pid_ns);
 		}
+#endif
 		break;
 	default:
 		return -ENOIOCTLCMD;

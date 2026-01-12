@@ -3,7 +3,7 @@
  * drivers/uio/uio.c
  *
  * Copyright(C) 2005, Benedikt Spranger <b.spranger@linutronix.de>
- * Copyright(C) 2005, Thomas Gleixner <tglx@linutronix.de>
+ * Copyright(C) 2005, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  * Copyright(C) 2006, Hans J. Koch <hjk@hansjkoch.de>
  * Copyright(C) 2006, Greg Kroah-Hartman <greg@kroah.com>
  *

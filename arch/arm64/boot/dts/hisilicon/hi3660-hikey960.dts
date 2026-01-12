@@ -675,10 +675,7 @@
 	snps,lfps_filter_quirk;
 	snps,dis_u2_susphy_quirk;
 	snps,dis_u3_susphy_quirk;
-	snps,tx_de_emphasis_quirk;
-	snps,tx_de_emphasis = <1>;
 	snps,dis_enblslpm_quirk;
-	snps,gctl-reset-quirk;
 	usb-role-switch;
 	role-switch-default-mode = "host";
 	port {

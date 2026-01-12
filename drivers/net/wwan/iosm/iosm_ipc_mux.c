@@ -456,6 +456,7 @@ void ipc_mux_deinit(struct iosm_mux *ipc_mux)
 	struct sk_buff_head *free_list;
 	union mux_msg mux_msg;
 	struct sk_buff *skb;
+	int i;
 
 	if (!ipc_mux->initialized)
 		return;
@@ -477,6 +478,11 @@ void ipc_mux_deinit(struct iosm_mux *ipc_mux)
 	if (ipc_mux->channel) {
 		ipc_mux->channel->ul_pipe.is_open = false;
 		ipc_mux->channel->dl_pipe.is_open = false;
+	}
+
+	if (ipc_mux->protocol != MUX_LITE) {
+		for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++)
+			kfree(ipc_mux->ul_adb.pp_qlt[i]);
 	}
 
 	kfree(ipc_mux);

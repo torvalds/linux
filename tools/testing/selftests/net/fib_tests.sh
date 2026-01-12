@@ -12,7 +12,7 @@ TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify \
        ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr \
        ipv6_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh fib6_gc_test \
        ipv4_mpath_list ipv6_mpath_list ipv4_mpath_balance ipv6_mpath_balance \
-       fib6_ra_to_static"
+       ipv4_mpath_balance_preferred fib6_ra_to_static"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -2751,6 +2751,73 @@ ipv4_mpath_balance_test()
 	forwarding_cleanup
 }
 
+get_route_dev_src()
+{
+	local pfx="$1"
+	local src="$2"
+	local out
+
+	if out=$($IP -j route get "$pfx" from "$src" | jq -re ".[0].dev"); then
+		echo "$out"
+	fi
+}
+
+ipv4_mpath_preferred()
+{
+	local src_ip=$1
+	local pref_dev=$2
+	local dev routes
+	local route0=0
+	local route1=0
+	local pref_route=0
+	num_routes=254
+
+	for i in $(seq 1 $num_routes) ; do
+		dev=$(get_route_dev_src 172.16.105.$i $src_ip)
+		if [ "$dev" = "$pref_dev" ]; then
+			pref_route=$((pref_route+1))
+		elif [ "$dev" = "veth1" ]; then
+			route0=$((route0+1))
+		elif [ "$dev" = "veth3" ]; then
+			route1=$((route1+1))
+		fi
+	done
+
+	routes=$((route0+route1))
+
+	[ "$VERBOSE" = "1" ] && echo "multipath: routes seen: ($route0,$route1,$pref_route)"
+
+	if [ x"$pref_dev" = x"" ]; then
+		[[ $routes -ge $num_routes ]] && [[ $route0 -gt 0 ]] && [[ $route1 -gt 0 ]]
+	else
+		[[ $pref_route -ge $num_routes ]]
+	fi
+
+}
+
+ipv4_mpath_balance_preferred_test()
+{
+	echo
+	echo "IPv4 multipath load balance preferred route"
+
+	forwarding_setup
+
+	$IP route add 172.16.105.0/24 \
+		nexthop via 172.16.101.2 \
+		nexthop via 172.16.103.2
+
+	ipv4_mpath_preferred 172.16.101.1 veth1
+	log_test $? 0 "IPv4 multipath loadbalance from veth1"
+
+	ipv4_mpath_preferred 172.16.103.1 veth3
+	log_test $? 0 "IPv4 multipath loadbalance from veth3"
+
+	ipv4_mpath_preferred 198.51.100.1
+	log_test $? 0 "IPv4 multipath loadbalance from dummy"
+
+	forwarding_cleanup
+}
+
 ipv6_mpath_balance_test()
 {
 	echo
@@ -2861,6 +2928,7 @@ do
 	ipv6_mpath_list)		ipv6_mpath_list_test;;
 	ipv4_mpath_balance)		ipv4_mpath_balance_test;;
 	ipv6_mpath_balance)		ipv6_mpath_balance_test;;
+	ipv4_mpath_balance_preferred)	ipv4_mpath_balance_preferred_test;;
 	fib6_ra_to_static)		fib6_ra_to_static;;
 
 	help) echo "Test names: $TESTS"; exit 0;;

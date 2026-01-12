@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (C) 2002 Thomas Gleixner (tglx@linutronix.de)
+ *  Copyright (C) 2002 Thomas Gleixner (tglx@kernel.org)
  */
 
 #include <linux/sizes.h>
