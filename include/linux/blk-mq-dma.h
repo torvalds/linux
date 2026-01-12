@@ -28,7 +28,7 @@ struct blk_dma_iter {
 bool blk_rq_dma_map_iter_start(struct request *req, struct device *dma_dev,
 		struct dma_iova_state *state, struct blk_dma_iter *iter);
 bool blk_rq_dma_map_iter_next(struct request *req, struct device *dma_dev,
-		struct dma_iova_state *state, struct blk_dma_iter *iter);
+		struct blk_dma_iter *iter);
 
 /**
  * blk_rq_dma_map_coalesce - were all segments coalesced?
