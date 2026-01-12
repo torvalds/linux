@@ -170,6 +170,16 @@ static const struct ath12k_hw_ops wcn7850_ops = {
 	.is_frame_link_agnostic = ath12k_wifi7_is_frame_link_agnostic_wcn7850,
 };
 
+static const struct ath12k_hw_ops qcc2072_ops = {
+	.get_hw_mac_from_pdev_id = ath12k_wifi7_hw_qcn9274_mac_from_pdev_id,
+	.mac_id_to_pdev_id = ath12k_wifi7_hw_mac_id_to_pdev_id_wcn7850,
+	.mac_id_to_srng_id = ath12k_wifi7_hw_mac_id_to_srng_id_wcn7850,
+	.rxdma_ring_sel_config = ath12k_dp_rxdma_ring_sel_config_qcc2072,
+	.get_ring_selector = ath12k_wifi7_hw_get_ring_selector_wcn7850,
+	.dp_srng_is_tx_comp_ring = ath12k_wifi7_dp_srng_is_comp_ring_wcn7850,
+	.is_frame_link_agnostic = ath12k_wifi7_is_frame_link_agnostic_wcn7850,
+};
+
 #define ATH12K_TX_RING_MASK_0 0x1
 #define ATH12K_TX_RING_MASK_1 0x2
 #define ATH12K_TX_RING_MASK_2 0x4
@@ -673,7 +683,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.qmi_service_ins_id = ATH12K_QMI_WLFW_SERVICE_INS_ID_V01_WCN7850,
 		.internal_sleep_clock = true,
 
-		.hw_ops = &wcn7850_ops,
+		.hw_ops = &qcc2072_ops,
 		.ring_mask = &ath12k_wifi7_hw_ring_mask_wcn7850,
 
 		.host_ce_config = ath12k_wifi7_host_ce_config_wcn7850,
