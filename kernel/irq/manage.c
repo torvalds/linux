@@ -1474,6 +1474,13 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		new->flags |= irqd_get_trigger_type(&desc->irq_data);
 
 	/*
+	 * IRQF_ONESHOT means the interrupt source in the IRQ chip will be
+	 * masked until the threaded handled is done. If there is no thread
+	 * handler then it makes no sense to have IRQF_ONESHOT.
+	 */
+	WARN_ON_ONCE(new->flags & IRQF_ONESHOT && !new->thread_fn);
+
+	/*
 	 * Check whether the interrupt nests into another interrupt
 	 * thread.
 	 */
