@@ -75,6 +75,17 @@ static int __init initramfs_options_setup(char *str)
 
 __setup("initramfs_options=", initramfs_options_setup);
 
+bool nullfs_rootfs = false;
+
+static int __init nullfs_rootfs_setup(char *str)
+{
+	if (*str)
+		return 0;
+	nullfs_rootfs = true;
+	return 1;
+}
+__setup("nullfs_rootfs", nullfs_rootfs_setup);
+
 static u64 event;
 static DEFINE_XARRAY_FLAGS(mnt_id_xa, XA_FLAGS_ALLOC);
 static DEFINE_IDA(mnt_group_ida);
@@ -221,7 +232,7 @@ static int mnt_alloc_id(struct mount *mnt)
 	int res;
 
 	xa_lock(&mnt_id_xa);
-	res = __xa_alloc(&mnt_id_xa, &mnt->mnt_id, mnt, XA_LIMIT(1, INT_MAX), GFP_KERNEL);
+	res = __xa_alloc(&mnt_id_xa, &mnt->mnt_id, mnt, xa_limit_31b, GFP_KERNEL);
 	if (!res)
 		mnt->mnt_id_unique = ++mnt_id_ctr;
 	xa_unlock(&mnt_id_xa);
@@ -4498,36 +4509,8 @@ bool path_is_under(const struct path *path1, const struct path *path2)
 }
 EXPORT_SYMBOL(path_is_under);
 
-/*
- * pivot_root Semantics:
- * Moves the root file system of the current process to the directory put_old,
- * makes new_root as the new root file system of the current process, and sets
- * root/cwd of all processes which had them on the current root to new_root.
- *
- * Restrictions:
- * The new_root and put_old must be directories, and  must not be on the
- * same file  system as the current process root. The put_old  must  be
- * underneath new_root,  i.e. adding a non-zero number of /.. to the string
- * pointed to by put_old must yield the same directory as new_root. No other
- * file system may be mounted on put_old. After all, new_root is a mountpoint.
- *
- * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem.
- * See Documentation/filesystems/ramfs-rootfs-initramfs.rst for alternatives
- * in this situation.
- *
- * Notes:
- *  - we don't move root/cwd if they are not at the root (reason: if something
- *    cared enough to change them, it's probably wrong to force them elsewhere)
- *  - it's okay to pick a root that isn't the root of a file system, e.g.
- *    /nfs/my_root where /nfs is the mount point. It must be a mountpoint,
- *    though, so you may need to say mount --bind /nfs/my_root /nfs/my_root
- *    first.
- */
-SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
-		const char __user *, put_old)
+int path_pivot_root(struct path *new, struct path *old)
 {
-	struct path new __free(path_put) = {};
-	struct path old __free(path_put) = {};
 	struct path root __free(path_put) = {};
 	struct mount *new_mnt, *root_mnt, *old_mnt, *root_parent, *ex_parent;
 	int error;
@@ -4535,28 +4518,18 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!may_mount())
 		return -EPERM;
 
-	error = user_path_at(AT_FDCWD, new_root,
-			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &new);
-	if (error)
-		return error;
-
-	error = user_path_at(AT_FDCWD, put_old,
-			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &old);
-	if (error)
-		return error;
-
-	error = security_sb_pivotroot(&old, &new);
+	error = security_sb_pivotroot(old, new);
 	if (error)
 		return error;
 
 	get_fs_root(current->fs, &root);
 
-	LOCK_MOUNT(old_mp, &old);
+	LOCK_MOUNT(old_mp, old);
 	old_mnt = old_mp.parent;
 	if (IS_ERR(old_mnt))
 		return PTR_ERR(old_mnt);
 
-	new_mnt = real_mount(new.mnt);
+	new_mnt = real_mount(new->mnt);
 	root_mnt = real_mount(root.mnt);
 	ex_parent = new_mnt->mnt_parent;
 	root_parent = root_mnt->mnt_parent;
@@ -4568,7 +4541,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		return -EINVAL;
 	if (new_mnt->mnt.mnt_flags & MNT_LOCKED)
 		return -EINVAL;
-	if (d_unlinked(new.dentry))
+	if (d_unlinked(new->dentry))
 		return -ENOENT;
 	if (new_mnt == root_mnt || old_mnt == root_mnt)
 		return -EBUSY; /* loop, on the same file system  */
@@ -4576,15 +4549,15 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 		return -EINVAL; /* not a mountpoint */
 	if (!mnt_has_parent(root_mnt))
 		return -EINVAL; /* absolute root */
-	if (!path_mounted(&new))
+	if (!path_mounted(new))
 		return -EINVAL; /* not a mountpoint */
 	if (!mnt_has_parent(new_mnt))
 		return -EINVAL; /* absolute root */
 	/* make sure we can reach put_old from new_root */
-	if (!is_path_reachable(old_mnt, old_mp.mp->m_dentry, &new))
+	if (!is_path_reachable(old_mnt, old_mp.mp->m_dentry, new))
 		return -EINVAL;
 	/* make certain new is below the root */
-	if (!is_path_reachable(new_mnt, new.dentry, &root))
+	if (!is_path_reachable(new_mnt, new->dentry, &root))
 		return -EINVAL;
 	lock_mount_hash();
 	umount_mnt(new_mnt);
@@ -4603,8 +4576,54 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	unlock_mount_hash();
 	mnt_notify_add(root_mnt);
 	mnt_notify_add(new_mnt);
-	chroot_fs_refs(&root, &new);
+	chroot_fs_refs(&root, new);
 	return 0;
+}
+
+/*
+ * pivot_root Semantics:
+ * Moves the root file system of the current process to the directory put_old,
+ * makes new_root as the new root file system of the current process, and sets
+ * root/cwd of all processes which had them on the current root to new_root.
+ *
+ * Restrictions:
+ * The new_root and put_old must be directories, and  must not be on the
+ * same file  system as the current process root. The put_old  must  be
+ * underneath new_root,  i.e. adding a non-zero number of /.. to the string
+ * pointed to by put_old must yield the same directory as new_root. No other
+ * file system may be mounted on put_old. After all, new_root is a mountpoint.
+ *
+ * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem
+ * unless the kernel was booted with "nullfs_rootfs". See
+ * Documentation/filesystems/ramfs-rootfs-initramfs.rst for alternatives
+ * in this situation.
+ *
+ * Notes:
+ *  - we don't move root/cwd if they are not at the root (reason: if something
+ *    cared enough to change them, it's probably wrong to force them elsewhere)
+ *  - it's okay to pick a root that isn't the root of a file system, e.g.
+ *    /nfs/my_root where /nfs is the mount point. It must be a mountpoint,
+ *    though, so you may need to say mount --bind /nfs/my_root /nfs/my_root
+ *    first.
+ */
+SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
+		const char __user *, put_old)
+{
+	struct path new __free(path_put) = {};
+	struct path old __free(path_put) = {};
+	int error;
+
+	error = user_path_at(AT_FDCWD, new_root,
+			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &new);
+	if (error)
+		return error;
+
+	error = user_path_at(AT_FDCWD, put_old,
+			     LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &old);
+	if (error)
+		return error;
+
+	return path_pivot_root(&new, &old);
 }
 
 static unsigned int recalc_flags(struct mount_kattr *kattr, struct mount *mnt)
@@ -5969,24 +5988,72 @@ struct mnt_namespace init_mnt_ns = {
 
 static void __init init_mount_tree(void)
 {
-	struct vfsmount *mnt;
-	struct mount *m;
+	struct vfsmount *mnt, *nullfs_mnt;
+	struct mount *mnt_root;
 	struct path root;
+
+	/*
+	 * When nullfs is used, we create two mounts:
+	 *
+	 * (1) nullfs with mount id 1
+	 * (2) mutable rootfs with mount id 2
+	 *
+	 * with (2) mounted on top of (1).
+	 */
+	if (nullfs_rootfs) {
+		nullfs_mnt = vfs_kern_mount(&nullfs_fs_type, 0, "nullfs", NULL);
+		if (IS_ERR(nullfs_mnt))
+			panic("VFS: Failed to create nullfs");
+	}
 
 	mnt = vfs_kern_mount(&rootfs_fs_type, 0, "rootfs", initramfs_options);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
 
-	m = real_mount(mnt);
-	init_mnt_ns.root = m;
-	init_mnt_ns.nr_mounts = 1;
-	mnt_add_to_ns(&init_mnt_ns, m);
+	if (nullfs_rootfs) {
+		VFS_WARN_ON_ONCE(real_mount(nullfs_mnt)->mnt_id != 1);
+		VFS_WARN_ON_ONCE(real_mount(mnt)->mnt_id != 2);
+
+		/* The namespace root is the nullfs mnt. */
+		mnt_root		= real_mount(nullfs_mnt);
+		init_mnt_ns.root	= mnt_root;
+
+		/* Mount mutable rootfs on top of nullfs. */
+		root.mnt		= nullfs_mnt;
+		root.dentry		= nullfs_mnt->mnt_root;
+
+		LOCK_MOUNT_EXACT(mp, &root);
+		if (unlikely(IS_ERR(mp.parent)))
+			panic("VFS: Failed to mount rootfs on nullfs");
+		scoped_guard(mount_writer)
+			attach_mnt(real_mount(mnt), mp.parent, mp.mp);
+
+		pr_info("VFS: Finished mounting rootfs on nullfs\n");
+	} else {
+		VFS_WARN_ON_ONCE(real_mount(mnt)->mnt_id != 1);
+
+		/* The namespace root is the mutable rootfs. */
+		mnt_root		= real_mount(mnt);
+		init_mnt_ns.root	= mnt_root;
+	}
+
+	/*
+	 * We've dropped all locks here but that's fine. Not just are we
+	 * the only task that's running, there's no other mount
+	 * namespace in existence and the initial mount namespace is
+	 * completely empty until we add the mounts we just created.
+	 */
+	for (struct mount *p = mnt_root; p; p = next_mnt(p, mnt_root)) {
+		mnt_add_to_ns(&init_mnt_ns, p);
+		init_mnt_ns.nr_mounts++;
+	}
+
 	init_task.nsproxy->mnt_ns = &init_mnt_ns;
 	get_mnt_ns(&init_mnt_ns);
 
-	root.mnt = mnt;
-	root.dentry = mnt->mnt_root;
-
+	/* The root and pwd always point to the mutable rootfs. */
+	root.mnt	= mnt;
+	root.dentry	= mnt->mnt_root;
 	set_fs_pwd(current->fs, &root);
 	set_fs_root(current->fs, &root);
 
