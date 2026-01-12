@@ -4,7 +4,7 @@
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
  */
 #include <linux/io.h>
-#include <asm/mach-pic32/pic32.h>
+#include <linux/platform_data/pic32.h>
 #include <asm/fw/fw.h>
 #include <asm/setup.h>
 
