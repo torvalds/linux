@@ -21,6 +21,9 @@ obj-$(CONFIG_CRYPTO_LIB_AES) += libaes.o
 libaes-y := aes.o
 ifeq ($(CONFIG_CRYPTO_LIB_AES_ARCH),y)
 CFLAGS_aes.o += -I$(src)/$(SRCARCH)
+
+libaes-$(CONFIG_ARM) += arm/aes-cipher-core.o
+
 endif # CONFIG_CRYPTO_LIB_AES_ARCH
 
 ################################################################################
