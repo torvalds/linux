@@ -34,9 +34,11 @@ properties:
     maxItems: 1
 
   interrupts:
+    minItems: 4
     maxItems: 6
 
   interrupt-names:
+    minItems: 4
     items:
       - const: ring0
       - const: ring1
@@ -73,6 +75,18 @@ allOf:
           minItems: 2
       required:
         - clock-names
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: mediatek,mt7986-crypto
+    then:
+      properties:
+        interrupts:
+          minItems: 6
+        interrupt-names:
+          minItems: 6
 
 additionalProperties: false
 
