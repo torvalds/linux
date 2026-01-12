@@ -130,6 +130,8 @@ struct ath12k_pci {
 	u64 dma_mask;
 	const struct ath12k_pci_device_family_ops *device_family_ops;
 	const struct ath12k_pci_reg_base *reg_base;
+
+	u32 window_reg_addr;
 };
 
 struct ath12k_pci_driver {
