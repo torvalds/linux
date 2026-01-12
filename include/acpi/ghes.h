@@ -30,6 +30,7 @@ struct ghes {
 	};
 	struct device *dev;
 	struct list_head elist;
+	void __iomem *error_status_vaddr;
 };
 
 struct ghes_estatus_node {

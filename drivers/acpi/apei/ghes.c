@@ -1484,7 +1484,21 @@ static LIST_HEAD(ghes_nmi);
 static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
 	static DEFINE_RAW_SPINLOCK(ghes_notify_lock_nmi);
+	bool active_error = false;
 	int ret = NMI_DONE;
+	struct ghes *ghes;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
+		if (ghes->error_status_vaddr && readl(ghes->error_status_vaddr)) {
+			active_error = true;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	if (!active_error)
+		return ret;
 
 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
 		return ret;
@@ -1498,13 +1512,27 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 	return ret;
 }
 
-static void ghes_nmi_add(struct ghes *ghes)
+static int ghes_nmi_add(struct ghes *ghes)
 {
+	struct acpi_hest_generic *g = ghes->generic;
+	u64 paddr;
+	int rc;
+
+	rc = apei_read(&paddr, &g->error_status_address);
+	if (rc)
+		return rc;
+
+	ghes->error_status_vaddr = acpi_os_ioremap(paddr, sizeof(ghes->estatus->block_status));
+	if (!ghes->error_status_vaddr)
+		return -EINVAL;
+
 	mutex_lock(&ghes_list_mutex);
 	if (list_empty(&ghes_nmi))
 		register_nmi_handler(NMI_LOCAL, ghes_notify_nmi, 0, "ghes");
 	list_add_rcu(&ghes->list, &ghes_nmi);
 	mutex_unlock(&ghes_list_mutex);
+
+	return 0;
 }
 
 static void ghes_nmi_remove(struct ghes *ghes)
@@ -1514,6 +1542,10 @@ static void ghes_nmi_remove(struct ghes *ghes)
 	if (list_empty(&ghes_nmi))
 		unregister_nmi_handler(NMI_LOCAL, "ghes");
 	mutex_unlock(&ghes_list_mutex);
+
+	if (ghes->error_status_vaddr)
+		iounmap(ghes->error_status_vaddr);
+
 	/*
 	 * To synchronize with NMI handler, ghes can only be
 	 * freed after NMI handler finishes.
@@ -1521,7 +1553,7 @@ static void ghes_nmi_remove(struct ghes *ghes)
 	synchronize_rcu();
 }
 #else /* CONFIG_HAVE_ACPI_APEI_NMI */
-static inline void ghes_nmi_add(struct ghes *ghes) { }
+static inline int ghes_nmi_add(struct ghes *ghes) { return -EINVAL; }
 static inline void ghes_nmi_remove(struct ghes *ghes) { }
 #endif /* CONFIG_HAVE_ACPI_APEI_NMI */
 
@@ -1689,7 +1721,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		ghes_sea_add(ghes);
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
-		ghes_nmi_add(ghes);
+		rc = ghes_nmi_add(ghes);
+		if (rc)
+			goto err;
 		break;
 	case ACPI_HEST_NOTIFY_SOFTWARE_DELEGATED:
 		rc = apei_sdei_register_ghes(ghes);
