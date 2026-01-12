@@ -830,15 +830,6 @@ struct pptable_funcs {
 	int (*populate_umd_state_clk)(struct smu_context *smu);
 
 	/**
-	 * @print_clk_levels: Print DPM clock levels for a clock domain
-	 *                    to buffer. Star current level.
-	 *
-	 * Used for sysfs interfaces.
-	 * Return: Number of characters written to the buffer
-	 */
-	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
-
-	/**
 	 * @emit_clk_levels: Print DPM clock levels for a clock domain
 	 *                    to buffer using sysfs_emit_at. Star current level.
 	 *
