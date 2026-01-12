@@ -2164,10 +2164,13 @@ static int f2fs_read_single_page(struct inode *inode, struct folio *folio,
 	/*
 	 * Map blocks using the previous result first.
 	 */
-	if ((map->m_flags & F2FS_MAP_MAPPED) &&
-			block_in_file > map->m_lblk &&
+	if (map->m_flags & F2FS_MAP_MAPPED) {
+		if (block_in_file > map->m_lblk &&
 			block_in_file < (map->m_lblk + map->m_len))
+			goto got_it;
+	} else if (block_in_file < *map->m_next_pgofs) {
 		goto got_it;
+	}
 
 	/*
 	 * Then do more f2fs_map_blocks() calls until we are
@@ -2442,7 +2445,7 @@ static int f2fs_read_data_large_folio(struct inode *inode,
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
 	struct f2fs_map_blocks map = {0, };
-	pgoff_t index, offset;
+	pgoff_t index, offset, next_pgofs = 0;
 	unsigned max_nr_pages = rac ? readahead_count(rac) :
 				folio_nr_pages(folio);
 	unsigned nrpages;
@@ -2475,16 +2478,21 @@ next_folio:
 		/*
 		 * Map blocks using the previous result first.
 		 */
-		if ((map.m_flags & F2FS_MAP_MAPPED) &&
-				index > map.m_lblk &&
+		if (map.m_flags & F2FS_MAP_MAPPED) {
+			if (index > map.m_lblk &&
 				index < (map.m_lblk + map.m_len))
+				goto got_it;
+		} else if (index < next_pgofs) {
+			/* hole case */
 			goto got_it;
+		}
 
 		/*
 		 * Then do more f2fs_map_blocks() calls until we are
 		 * done with this page.
 		 */
 		memset(&map, 0, sizeof(map));
+		map.m_next_pgofs = &next_pgofs;
 		map.m_seg_type = NO_CHECK_TYPE;
 		map.m_lblk = index;
 		map.m_len = max_nr_pages;
@@ -2611,6 +2619,7 @@ static int f2fs_mpage_readpages(struct inode *inode,
 	pgoff_t nc_cluster_idx = NULL_CLUSTER;
 	pgoff_t index;
 #endif
+	pgoff_t next_pgofs = 0;
 	unsigned nr_pages = rac ? readahead_count(rac) : 1;
 	struct address_space *mapping = rac ? rac->mapping : folio->mapping;
 	unsigned max_nr_pages = nr_pages;
@@ -2631,7 +2640,7 @@ static int f2fs_mpage_readpages(struct inode *inode,
 	map.m_lblk = 0;
 	map.m_len = 0;
 	map.m_flags = 0;
-	map.m_next_pgofs = NULL;
+	map.m_next_pgofs = &next_pgofs;
 	map.m_next_extent = NULL;
 	map.m_seg_type = NO_CHECK_TYPE;
 	map.m_may_create = false;
