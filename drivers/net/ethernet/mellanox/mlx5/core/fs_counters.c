@@ -449,7 +449,9 @@ static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
 	if (!fc_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &fc_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&fc_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &fc_bulk->fs_bulk))
 		goto fc_bulk_free;
 
 	if (mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id))
@@ -566,7 +568,7 @@ mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
 
 	counter->type = MLX5_FC_TYPE_LOCAL;
 	counter->id = counter_id;
-	fc_bulk->fs_bulk.bulk_len = bulk_size;
+	mlx5_fs_bulk_init(&fc_bulk->fs_bulk, bulk_size);
 	mlx5_fc_bulk_init(fc_bulk, counter_id - offset);
 	counter->bulk = fc_bulk;
 	refcount_set(&counter->fc_local_refcount, 1);
