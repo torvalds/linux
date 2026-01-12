@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro2::{
-    token_stream,
-    TokenStream,
-    TokenTree, //
-};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
     parse::{
@@ -15,14 +11,6 @@ use syn::{
     LitStr,
     Result, //
 };
-
-pub(crate) fn expect_punct(it: &mut token_stream::IntoIter) -> char {
-    if let TokenTree::Punct(punct) = it.next().expect("Reached end of token stream for Punct") {
-        punct.as_char()
-    } else {
-        panic!("Expected Punct");
-    }
-}
 
 /// A string literal that is required to have ASCII value only.
 pub(crate) struct AsciiLitStr(LitStr);
