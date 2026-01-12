@@ -20,10 +20,22 @@
 
 union aes_enckey_arch {
 	u32 rndkeys[AES_MAX_KEYLENGTH_U32];
+#ifdef CONFIG_CRYPTO_LIB_AES_ARCH
+#if defined(CONFIG_PPC) && defined(CONFIG_SPE)
+	/* Used unconditionally (when SPE AES code is enabled in kconfig) */
+	u32 spe_enc_key[AES_MAX_KEYLENGTH_U32] __aligned(8);
+#endif
+#endif /* CONFIG_CRYPTO_LIB_AES_ARCH */
 };
 
 union aes_invkey_arch {
 	u32 inv_rndkeys[AES_MAX_KEYLENGTH_U32];
+#ifdef CONFIG_CRYPTO_LIB_AES_ARCH
+#if defined(CONFIG_PPC) && defined(CONFIG_SPE)
+	/* Used unconditionally (when SPE AES code is enabled in kconfig) */
+	u32 spe_dec_key[AES_MAX_KEYLENGTH_U32] __aligned(8);
+#endif
+#endif /* CONFIG_CRYPTO_LIB_AES_ARCH */
 };
 
 /**
@@ -124,6 +136,25 @@ int aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 #ifdef CONFIG_ARM64
 int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		     unsigned int key_len);
+#elif defined(CONFIG_PPC)
+void ppc_expand_key_128(u32 *key_enc, const u8 *key);
+void ppc_expand_key_192(u32 *key_enc, const u8 *key);
+void ppc_expand_key_256(u32 *key_enc, const u8 *key);
+void ppc_generate_decrypt_key(u32 *key_dec, u32 *key_enc, unsigned int key_len);
+void ppc_encrypt_ecb(u8 *out, const u8 *in, u32 *key_enc, u32 rounds,
+		     u32 bytes);
+void ppc_decrypt_ecb(u8 *out, const u8 *in, u32 *key_dec, u32 rounds,
+		     u32 bytes);
+void ppc_encrypt_cbc(u8 *out, const u8 *in, u32 *key_enc, u32 rounds, u32 bytes,
+		     u8 *iv);
+void ppc_decrypt_cbc(u8 *out, const u8 *in, u32 *key_dec, u32 rounds, u32 bytes,
+		     u8 *iv);
+void ppc_crypt_ctr(u8 *out, const u8 *in, u32 *key_enc, u32 rounds, u32 bytes,
+		   u8 *iv);
+void ppc_encrypt_xts(u8 *out, const u8 *in, u32 *key_enc, u32 rounds, u32 bytes,
+		     u8 *iv, u32 *key_twk);
+void ppc_decrypt_xts(u8 *out, const u8 *in, u32 *key_dec, u32 rounds, u32 bytes,
+		     u8 *iv, u32 *key_twk);
 #endif
 
 /**

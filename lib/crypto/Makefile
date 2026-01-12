@@ -29,6 +29,15 @@ libaes-y += arm64/aes-cipher-core.o
 libaes-$(CONFIG_KERNEL_MODE_NEON) += arm64/aes-ce-core.o
 endif
 
+ifeq ($(CONFIG_PPC),y)
+ifeq ($(CONFIG_SPE),y)
+libaes-y += powerpc/aes-spe-core.o \
+	    powerpc/aes-spe-keys.o \
+	    powerpc/aes-spe-modes.o \
+	    powerpc/aes-tab-4k.o
+endif
+endif # CONFIG_PPC
+
 endif # CONFIG_CRYPTO_LIB_AES_ARCH
 
 ################################################################################

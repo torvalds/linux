@@ -16,6 +16,7 @@ config CRYPTO_LIB_AES_ARCH
 	depends on CRYPTO_LIB_AES && !UML && !KMSAN
 	default y if ARM
 	default y if ARM64
+	default y if PPC && SPE
 
 config CRYPTO_LIB_AESCFB
 	tristate
