@@ -2439,6 +2439,11 @@ struct hal_reo_get_queue_stats_status {
  *		entries into this Ring has looped around the ring.
  */
 
+struct hal_reo_get_queue_stats_status_qcc2072 {
+	__le32 tlv32_padding;
+	struct hal_reo_get_queue_stats_status status;
+} __packed;
+
 #define HAL_REO_STATUS_LOOP_CNT			GENMASK(31, 28)
 
 #define HAL_REO_FLUSH_QUEUE_INFO0_ERR_DETECTED	BIT(0)

@@ -425,7 +425,26 @@ static int ath12k_hal_srng_create_config_qcc2072(struct ath12k_hal *hal)
 	s->entry_size = (sizeof(struct hal_tlv_hdr) +
 			 sizeof(struct hal_reo_get_queue_stats_qcc2072)) >> 2;
 
+	s = &hal->srng_config[HAL_REO_STATUS];
+	s->entry_size = (sizeof(struct hal_tlv_hdr) +
+			 sizeof(struct hal_reo_get_queue_stats_status_qcc2072)) >> 2;
+
 	return 0;
+}
+
+static u16 ath12k_hal_reo_status_dec_tlv_hdr_qcc2072(void *tlv, void **desc)
+{
+	struct hal_reo_get_queue_stats_status_qcc2072 *status_tlv;
+	u16 tag;
+
+	tag = ath12k_hal_decode_tlv32_hdr(tlv, (void **)&status_tlv);
+	/*
+	 * actual desc of REO status entry starts after tlv32_padding,
+	 * see hal_reo_get_queue_stats_status_qcc2072
+	 */
+	*desc = &status_tlv->status;
+
+	return tag;
 }
 
 const struct hal_ops hal_qcc2072_ops = {
@@ -468,7 +487,7 @@ const struct hal_ops hal_qcc2072_ops = {
 	.rx_msdu_list_get = ath12k_wifi7_hal_rx_msdu_list_get,
 	.rx_reo_ent_buf_paddr_get = ath12k_wifi7_hal_rx_reo_ent_buf_paddr_get,
 	.reo_cmd_enc_tlv_hdr = ath12k_hal_encode_tlv32_hdr,
-	.reo_status_dec_tlv_hdr = ath12k_hal_decode_tlv64_hdr,
+	.reo_status_dec_tlv_hdr = ath12k_hal_reo_status_dec_tlv_hdr_qcc2072,
 };
 
 u32 ath12k_hal_rx_desc_get_mpdu_start_offset_qcc2072(void)
