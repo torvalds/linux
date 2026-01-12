@@ -82,9 +82,6 @@ struct crypto_aes_ctx {
 	u32 key_length;
 };
 
-extern const u32 crypto_ft_tab[4][256] ____cacheline_aligned;
-extern const u32 crypto_it_tab[4][256] ____cacheline_aligned;
-
 /*
  * validate key length for AES algorithms
  */
@@ -101,9 +98,6 @@ static inline int aes_check_keylen(size_t keylen)
 
 	return 0;
 }
-
-int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		unsigned int key_len);
 
 /**
  * aes_expandkey - Expands the AES key as described in FIPS-197

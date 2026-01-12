@@ -14,6 +14,14 @@
 EXPORT_SYMBOL_GPL(__aes_arm_encrypt);
 EXPORT_SYMBOL_GPL(__aes_arm_decrypt);
 
+static int aes_arm_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+			  unsigned int key_len)
+{
+	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	return aes_expandkey(ctx, in_key, key_len);
+}
+
 static void aes_arm_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -41,7 +49,7 @@ static struct crypto_alg aes_alg = {
 
 	.cra_cipher.cia_min_keysize	= AES_MIN_KEY_SIZE,
 	.cra_cipher.cia_max_keysize	= AES_MAX_KEY_SIZE,
-	.cra_cipher.cia_setkey		= crypto_aes_set_key,
+	.cra_cipher.cia_setkey		= aes_arm_setkey,
 	.cra_cipher.cia_encrypt		= aes_arm_encrypt,
 	.cra_cipher.cia_decrypt		= aes_arm_decrypt,
 

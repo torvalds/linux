@@ -12,6 +12,14 @@
 asmlinkage void __aes_arm64_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
 asmlinkage void __aes_arm64_decrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
 
+static int aes_arm64_setkey(struct crypto_tfm *tfm, const u8 *in_key,
+			    unsigned int key_len)
+{
+	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	return aes_expandkey(ctx, in_key, key_len);
+}
+
 static void aes_arm64_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -39,7 +47,7 @@ static struct crypto_alg aes_alg = {
 
 	.cra_cipher.cia_min_keysize	= AES_MIN_KEY_SIZE,
 	.cra_cipher.cia_max_keysize	= AES_MAX_KEY_SIZE,
-	.cra_cipher.cia_setkey		= crypto_aes_set_key,
+	.cra_cipher.cia_setkey		= aes_arm64_setkey,
 	.cra_cipher.cia_encrypt		= aes_arm64_encrypt,
 	.cra_cipher.cia_decrypt		= aes_arm64_decrypt
 };
