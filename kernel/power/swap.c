@@ -902,8 +902,11 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			acomp_request_free(data[thr].cr);
-			crypto_free_acomp(data[thr].cc);
+			if (data[thr].cr)
+				acomp_request_free(data[thr].cr);
+
+			if (!IS_ERR_OR_NULL(data[thr].cc))
+				crypto_free_acomp(data[thr].cc);
 		}
 		vfree(data);
 	}
@@ -1499,8 +1502,11 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			acomp_request_free(data[thr].cr);
-			crypto_free_acomp(data[thr].cc);
+			if (data[thr].cr)
+				acomp_request_free(data[thr].cr);
+
+			if (!IS_ERR_OR_NULL(data[thr].cc))
+				crypto_free_acomp(data[thr].cc);
 		}
 		vfree(data);
 	}

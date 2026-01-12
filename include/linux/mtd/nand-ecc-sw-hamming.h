@@ -2,7 +2,7 @@
 /*
  *  Copyright (C) 2000-2010 Steven J. Hill <sjhill@realitydiluted.com>
  *			    David Woodhouse <dwmw2@infradead.org>
- *			    Thomas Gleixner <tglx@linutronix.de>
+ *			    Thomas Gleixner <tglx@kernel.org>
  *
  * This file is the header for the NAND Hamming ECC implementation.
  */

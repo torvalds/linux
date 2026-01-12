@@ -320,6 +320,7 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 		return 0;
 
 	/* now propagate the restriction to all registered users */
+	mutex_lock(&ctx->tctx_lock);
 	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
 		tctx = node->task->io_uring;
 		if (WARN_ON_ONCE(!tctx->io_wq))
@@ -330,6 +331,7 @@ static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
 		/* ignore errors, it always returns zero anyway */
 		(void)io_wq_max_workers(tctx->io_wq, new_count);
 	}
+	mutex_unlock(&ctx->tctx_lock);
 	return 0;
 err:
 	if (sqd) {

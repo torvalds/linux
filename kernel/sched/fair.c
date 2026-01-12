@@ -15,7 +15,7 @@
  *  Author: Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
  *
  *  Scaled math optimizations by Thomas Gleixner
- *  Copyright (C) 2007, Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (C) 2007, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  *
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra

@@ -88,7 +88,8 @@ static int yoga_c630_ucsi_async_control(struct ucsi *ucsi, u64 command)
 
 static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 				       u64 command,
-				       u32 *cci)
+				       u32 *cci,
+				       void *data, size_t size)
 {
 	int ret;
 
@@ -106,8 +107,8 @@ static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 		};
 
 		dev_dbg(ucsi->dev, "faking DP altmode for con1\n");
-		memset(ucsi->message_in, 0, ucsi->message_in_size);
-		memcpy(ucsi->message_in, &alt, min(sizeof(alt), ucsi->message_in_size));
+		memset(data, 0, size);
+		memcpy(data, &alt, min(sizeof(alt), size));
 		*cci = UCSI_CCI_COMMAND_COMPLETE | UCSI_SET_CCI_LENGTH(sizeof(alt));
 		return 0;
 	}
@@ -120,18 +121,18 @@ static int yoga_c630_ucsi_sync_control(struct ucsi *ucsi,
 	if (UCSI_COMMAND(command) == UCSI_GET_ALTERNATE_MODES &&
 	    UCSI_GET_ALTMODE_GET_CONNECTOR_NUMBER(command) == 2) {
 		dev_dbg(ucsi->dev, "ignoring altmodes for con2\n");
-		memset(ucsi->message_in, 0, ucsi->message_in_size);
+		memset(data, 0, size);
 		*cci = UCSI_CCI_COMMAND_COMPLETE;
 		return 0;
 	}
 
-	ret = ucsi_sync_control_common(ucsi, command, cci);
+	ret = ucsi_sync_control_common(ucsi, command, cci, data, size);
 	if (ret < 0)
 		return ret;
 
 	/* UCSI_GET_CURRENT_CAM is off-by-one on all ports */
-	if (UCSI_COMMAND(command) == UCSI_GET_CURRENT_CAM && ucsi->message_in_size > 0)
-		ucsi->message_in[0]--;
+	if (UCSI_COMMAND(command) == UCSI_GET_CURRENT_CAM && data)
+		((u8 *)data)[0]--;
 
 	return ret;
 }

@@ -826,16 +826,15 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		 * When soft_disable is set and enable is set, we want to
 		 * register the tracepoint for the event, but leave the event
 		 * as is. That means, if the event was already enabled, we do
-		 * nothing (but set soft_mode). If the event is disabled, we
-		 * set SOFT_DISABLED before enabling the event tracepoint, so
-		 * it still seems to be disabled.
+		 * nothing. If the event is disabled, we set SOFT_DISABLED
+		 * before enabling the event tracepoint, so it still seems
+		 * to be disabled.
 		 */
 		if (!soft_disable)
 			clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		else {
 			if (atomic_inc_return(&file->sm_ref) > 1)
 				break;
-			soft_mode = true;
 			/* Enable use of trace_buffered_event */
 			trace_buffered_event_enable();
 		}

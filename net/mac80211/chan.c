@@ -90,6 +90,9 @@ next_interface:
 	/* next (or first) interface */
 	iter->sdata = list_prepare_entry(iter->sdata, &local->interfaces, list);
 	list_for_each_entry_continue(iter->sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(iter->sdata))
+			continue;
+
 		/* AP_VLAN has a chanctx pointer but follows AP */
 		if (iter->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			continue;

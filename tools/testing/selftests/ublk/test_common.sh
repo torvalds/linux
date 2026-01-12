@@ -178,8 +178,9 @@ _have_feature()
 _create_ublk_dev() {
 	local dev_id;
 	local cmd=$1
+	local settle=$2
 
-	shift 1
+	shift 2
 
 	if [ ! -c /dev/ublk-control ]; then
 		return ${UBLK_SKIP_CODE}
@@ -194,7 +195,10 @@ _create_ublk_dev() {
 		echo "fail to add ublk dev $*"
 		return 255
 	fi
-	udevadm settle
+
+	if [ "$settle" = "yes" ]; then
+		udevadm settle
+	fi
 
 	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
 		echo "${dev_id}"
@@ -204,14 +208,18 @@ _create_ublk_dev() {
 }
 
 _add_ublk_dev() {
-	_create_ublk_dev "add" "$@"
+	_create_ublk_dev "add" "yes" "$@"
+}
+
+_add_ublk_dev_no_settle() {
+	_create_ublk_dev "add" "no" "$@"
 }
 
 _recover_ublk_dev() {
 	local dev_id
 	local state
 
-	dev_id=$(_create_ublk_dev "recover" "$@")
+	dev_id=$(_create_ublk_dev "recover" "yes" "$@")
 	for ((j=0;j<20;j++)); do
 		state=$(_get_ublk_dev_state "${dev_id}")
 		[ "$state" == "LIVE" ] && break
