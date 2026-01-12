@@ -1286,11 +1286,11 @@ int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
 				 struct smu_dpm_table *dpm_table,
 				 uint32_t cur_clk, char *buf, int *offset)
 {
-	uint32_t min_clk, level_index, count;
-	uint32_t freq_values[3] = { 0 };
+	uint32_t min_clk, max_clk, level_index, count;
+	uint32_t freq_values[3];
+	int size, lvl, i;
 	bool is_fine_grained;
 	bool is_deep_sleep;
-	int size, lvl, i;
 	bool freq_match;
 
 	if (!dpm_table || !buf)
@@ -1301,6 +1301,7 @@ int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
 	count = dpm_table->count;
 	is_fine_grained = dpm_table->flags & SMU_DPM_TABLE_FINE_GRAINED;
 	min_clk = SMU_DPM_TABLE_MIN(dpm_table);
+	max_clk = SMU_DPM_TABLE_MAX(dpm_table);
 
 	/* Deep sleep - current clock < min_clock/2, TBD: cur_clk = 0 as GFXOFF */
 	is_deep_sleep = cur_clk < min_clk / 2;
@@ -1321,22 +1322,22 @@ int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
 					      freq_match ? "*" : "");
 		}
 	} else {
+		count = 2;
 		freq_values[0] = min_clk;
-		freq_values[2] = SMU_DPM_TABLE_MAX(dpm_table);
-		freq_values[1] = cur_clk;
+		freq_values[1] = max_clk;
 
-		lvl = -1;
 		if (!is_deep_sleep) {
-			lvl = 1;
-			if (smu_cmn_freqs_match(cur_clk, freq_values[0]))
+			if (smu_cmn_freqs_match(cur_clk, min_clk)) {
 				lvl = 0;
-			else if (smu_cmn_freqs_match(cur_clk, freq_values[2]))
-				lvl = 2;
-		}
-		count = 3;
-		if (lvl != 1) {
-			count = 2;
-			freq_values[1] = freq_values[2];
+			} else if (smu_cmn_freqs_match(cur_clk, max_clk)) {
+				lvl = 1;
+			} else {
+				/* NOTE: use index '1' to show current clock value */
+				lvl = 1;
+				count = 3;
+				freq_values[1] = cur_clk;
+				freq_values[2] = max_clk;
+			}
 		}
 
 		for (i = 0; i < count; i++) {
