@@ -18,12 +18,34 @@
 #define AES_MAX_KEYLENGTH	(15 * 16)
 #define AES_MAX_KEYLENGTH_U32	(AES_MAX_KEYLENGTH / sizeof(u32))
 
+/*
+ * The POWER8 VSX optimized AES assembly code is borrowed from OpenSSL and
+ * inherits OpenSSL's AES_KEY format, which stores the number of rounds after
+ * the round keys.  That assembly code is difficult to change.  So for
+ * compatibility purposes we reserve space for the extra nrounds field on PPC64.
+ *
+ * Note: when prepared for decryption, the round keys are just the reversed
+ * standard round keys, not the round keys for the Equivalent Inverse Cipher.
+ */
+struct p8_aes_key {
+	u32 rndkeys[AES_MAX_KEYLENGTH_U32];
+	int nrounds;
+};
+
 union aes_enckey_arch {
 	u32 rndkeys[AES_MAX_KEYLENGTH_U32];
 #ifdef CONFIG_CRYPTO_LIB_AES_ARCH
 #if defined(CONFIG_PPC) && defined(CONFIG_SPE)
 	/* Used unconditionally (when SPE AES code is enabled in kconfig) */
 	u32 spe_enc_key[AES_MAX_KEYLENGTH_U32] __aligned(8);
+#elif defined(CONFIG_PPC)
+	/*
+	 * Kernels that include the POWER8 VSX optimized AES code use this field
+	 * when that code is usable at key preparation time.  Otherwise they
+	 * fall back to rndkeys.  In the latter case, p8.nrounds (which doesn't
+	 * overlap rndkeys) is set to 0 to differentiate the two formats.
+	 */
+	struct p8_aes_key p8;
 #endif
 #endif /* CONFIG_CRYPTO_LIB_AES_ARCH */
 };
@@ -34,6 +56,9 @@ union aes_invkey_arch {
 #if defined(CONFIG_PPC) && defined(CONFIG_SPE)
 	/* Used unconditionally (when SPE AES code is enabled in kconfig) */
 	u32 spe_dec_key[AES_MAX_KEYLENGTH_U32] __aligned(8);
+#elif defined(CONFIG_PPC)
+	/* Used conditionally, analogous to aes_enckey_arch::p8 */
+	struct p8_aes_key p8;
 #endif
 #endif /* CONFIG_CRYPTO_LIB_AES_ARCH */
 };
@@ -155,6 +180,22 @@ void ppc_encrypt_xts(u8 *out, const u8 *in, u32 *key_enc, u32 rounds, u32 bytes,
 		     u8 *iv, u32 *key_twk);
 void ppc_decrypt_xts(u8 *out, const u8 *in, u32 *key_dec, u32 rounds, u32 bytes,
 		     u8 *iv, u32 *key_twk);
+int aes_p8_set_encrypt_key(const u8 *userKey, const int bits,
+			   struct p8_aes_key *key);
+int aes_p8_set_decrypt_key(const u8 *userKey, const int bits,
+			   struct p8_aes_key *key);
+void aes_p8_encrypt(const u8 *in, u8 *out, const struct p8_aes_key *key);
+void aes_p8_decrypt(const u8 *in, u8 *out, const struct p8_aes_key *key);
+void aes_p8_cbc_encrypt(const u8 *in, u8 *out, size_t len,
+			const struct p8_aes_key *key, u8 *iv, const int enc);
+void aes_p8_ctr32_encrypt_blocks(const u8 *in, u8 *out, size_t len,
+				 const struct p8_aes_key *key, const u8 *iv);
+void aes_p8_xts_encrypt(const u8 *in, u8 *out, size_t len,
+			const struct p8_aes_key *key1,
+			const struct p8_aes_key *key2, u8 *iv);
+void aes_p8_xts_decrypt(const u8 *in, u8 *out, size_t len,
+			const struct p8_aes_key *key1,
+			const struct p8_aes_key *key2, u8 *iv);
 #endif
 
 /**
