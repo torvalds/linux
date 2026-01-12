@@ -421,6 +421,13 @@ static void mlx5_fc_init(struct mlx5_fc *counter, struct mlx5_fc_bulk *bulk,
 	counter->id = id;
 }
 
+static void mlx5_fc_bulk_init(struct mlx5_fc_bulk *fc_bulk, u32 base_id)
+{
+	fc_bulk->base_id = base_id;
+	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
+	mutex_init(&fc_bulk->hws_data.lock);
+}
+
 u32 mlx5_fc_get_base_id(struct mlx5_fc *counter)
 {
 	return counter->bulk->base_id;
@@ -447,12 +454,11 @@ static struct mlx5_fs_bulk *mlx5_fc_bulk_create(struct mlx5_core_dev *dev,
 
 	if (mlx5_cmd_fc_bulk_alloc(dev, alloc_bitmask, &base_id))
 		goto fs_bulk_cleanup;
-	fc_bulk->base_id = base_id;
+
+	mlx5_fc_bulk_init(fc_bulk, base_id);
 	for (i = 0; i < bulk_len; i++)
 		mlx5_fc_init(&fc_bulk->fcs[i], fc_bulk, base_id + i);
 
-	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
-	mutex_init(&fc_bulk->hws_data.lock);
 	return &fc_bulk->fs_bulk;
 
 fs_bulk_cleanup:
@@ -560,10 +566,8 @@ mlx5_fc_local_create(u32 counter_id, u32 offset, u32 bulk_size)
 
 	counter->type = MLX5_FC_TYPE_LOCAL;
 	counter->id = counter_id;
-	fc_bulk->base_id = counter_id - offset;
 	fc_bulk->fs_bulk.bulk_len = bulk_size;
-	refcount_set(&fc_bulk->hws_data.hws_action_refcount, 0);
-	mutex_init(&fc_bulk->hws_data.lock);
+	mlx5_fc_bulk_init(fc_bulk, counter_id - offset);
 	counter->bulk = fc_bulk;
 	refcount_set(&counter->fc_local_refcount, 1);
 	return counter;
