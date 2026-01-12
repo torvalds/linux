@@ -103,6 +103,10 @@ static int io_register_personality(struct io_ring_ctx *ctx)
 	return id;
 }
 
+/*
+ * Returns number of restrictions parsed and added on success, or < 0 for
+ * an error.
+ */
 static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 					struct io_restriction *restrictions)
 {
@@ -145,9 +149,7 @@ static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 			goto err;
 		}
 	}
-
-	ret = 0;
-
+	ret = nr_args;
 err:
 	kfree(res);
 	return ret;
@@ -168,11 +170,12 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 
 	ret = io_parse_restrictions(arg, nr_args, &ctx->restrictions);
 	/* Reset all restrictions if an error happened */
-	if (ret != 0)
+	if (ret < 0) {
 		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
-	else
-		ctx->restrictions.registered = true;
-	return ret;
+		return ret;
+	}
+	ctx->restrictions.registered = true;
+	return 0;
 }
 
 static int io_register_enable_rings(struct io_ring_ctx *ctx)
