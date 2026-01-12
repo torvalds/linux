@@ -115,9 +115,6 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 
 	adev->mes.adev = adev;
 
-	idr_init(&adev->mes.pasid_idr);
-	idr_init(&adev->mes.gang_id_idr);
-	idr_init(&adev->mes.queue_id_idr);
 	ida_init(&adev->mes.doorbell_ida);
 	spin_lock_init(&adev->mes.queue_id_lock);
 	mutex_init(&adev->mes.mutex_hidden);
@@ -252,9 +249,6 @@ error:
 					      &adev->mes.hung_queue_db_array_cpu_addr[i]);
 	}
 
-	idr_destroy(&adev->mes.pasid_idr);
-	idr_destroy(&adev->mes.gang_id_idr);
-	idr_destroy(&adev->mes.queue_id_idr);
 	ida_destroy(&adev->mes.doorbell_ida);
 	mutex_destroy(&adev->mes.mutex_hidden);
 	return r;
@@ -283,9 +277,6 @@ void amdgpu_mes_fini(struct amdgpu_device *adev)
 
 	amdgpu_mes_doorbell_free(adev);
 
-	idr_destroy(&adev->mes.pasid_idr);
-	idr_destroy(&adev->mes.gang_id_idr);
-	idr_destroy(&adev->mes.queue_id_idr);
 	ida_destroy(&adev->mes.doorbell_ida);
 	mutex_destroy(&adev->mes.mutex_hidden);
 }
