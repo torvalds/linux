@@ -150,6 +150,9 @@
 #define IMX283_REG_PLSTMG02		CCI_REG8(0x36aa)
 #define   IMX283_PLSTMG02_VAL		0x00
 
+#define IMX283_REG_MIPI_CLK		CCI_REG8(0x3a43)
+#define   IMX283_MIPI_CLK_NONCONTINUOUS	BIT(0)
+
 #define IMX283_REG_EBD_X_OUT_SIZE	CCI_REG16_LE(0x3a54)
 
 /* Test pattern generator */
@@ -566,6 +569,7 @@ struct imx283 {
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *vflip;
 
+	bool mipi_clk_noncontinuous;
 	unsigned long link_freq_bitmap;
 
 	u16 hmax;
@@ -989,6 +993,7 @@ static int imx283_set_pad_format(struct v4l2_subdev *sd,
 static int imx283_standby_cancel(struct imx283 *imx283)
 {
 	unsigned int link_freq_idx;
+	u8 mipi_clk;
 	int ret = 0;
 
 	cci_write(imx283->cci, IMX283_REG_STANDBY,
@@ -1007,6 +1012,10 @@ static int imx283_standby_cancel(struct imx283 *imx283)
 
 	/* Enable PLL */
 	cci_write(imx283->cci, IMX283_REG_STBPL, IMX283_STBPL_NORMAL, &ret);
+
+	/* Configure MIPI clock mode */
+	mipi_clk = imx283->mipi_clk_noncontinuous ? IMX283_MIPI_CLK_NONCONTINUOUS : 0;
+	cci_write(imx283->cci, IMX283_REG_MIPI_CLK, mipi_clk, &ret);
 
 	/* Configure the MIPI link speed */
 	link_freq_idx = __ffs(imx283->link_freq_bitmap);
@@ -1430,6 +1439,9 @@ static int imx283_parse_endpoint(struct imx283 *imx283)
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
+
+	imx283->mipi_clk_noncontinuous =
+		bus_cfg.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
 
 	ret = v4l2_link_freq_to_bitmap(imx283->dev, bus_cfg.link_frequencies,
 				       bus_cfg.nr_of_link_frequencies,
