@@ -224,10 +224,10 @@ postcore_initcall(dma_atomic_pool_init);
 static inline struct gen_pool *dma_guess_pool(struct gen_pool *prev, gfp_t gfp)
 {
 	if (prev == NULL) {
-		if (IS_ENABLED(CONFIG_ZONE_DMA32) && (gfp & GFP_DMA32))
-			return atomic_pool_dma32;
-		if (atomic_pool_dma && (gfp & GFP_DMA))
-			return atomic_pool_dma;
+		if (gfp & GFP_DMA)
+			return atomic_pool_dma ?: atomic_pool_dma32 ?: atomic_pool_kernel;
+		if (gfp & GFP_DMA32)
+			return atomic_pool_dma32 ?: atomic_pool_dma ?: atomic_pool_kernel;
 		return atomic_pool_kernel;
 	}
 	if (prev == atomic_pool_kernel)
