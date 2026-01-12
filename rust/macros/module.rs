@@ -26,7 +26,8 @@ use syn::{
     LitStr,
     Path,
     Result,
-    Token, //
+    Token,
+    Type, //
 };
 
 use crate::helpers::*;
@@ -370,7 +371,7 @@ impl Parse for Parameter {
 }
 
 pub(crate) struct ModuleInfo {
-    type_: Ident,
+    type_: Type,
     license: AsciiLitStr,
     name: AsciiLitStr,
     authors: Option<Punctuated<AsciiLitStr, Token![,]>>,
@@ -529,7 +530,6 @@ pub(crate) fn module(info: ModuleInfo) -> Result<TokenStream> {
         // Double nested modules, since then nobody can access the public items inside.
         mod __module_init {
             mod __module_init {
-                use super::super::#type_;
                 use pin_init::PinInit;
 
                 /// The "Rust loadable module" mark.
@@ -541,7 +541,7 @@ pub(crate) fn module(info: ModuleInfo) -> Result<TokenStream> {
                 #[used(compiler)]
                 static __IS_RUST_MODULE: () = ();
 
-                static mut __MOD: ::core::mem::MaybeUninit<#type_> =
+                static mut __MOD: ::core::mem::MaybeUninit<super::super::LocalModule> =
                     ::core::mem::MaybeUninit::uninit();
 
                 // Loadable modules need to export the `{init,cleanup}_module` identifiers.
@@ -628,8 +628,9 @@ pub(crate) fn module(info: ModuleInfo) -> Result<TokenStream> {
                 ///
                 /// This function must only be called once.
                 unsafe fn __init() -> ::kernel::ffi::c_int {
-                    let initer =
-                        <#type_ as ::kernel::InPlaceModule>::init(&super::super::THIS_MODULE);
+                    let initer = <super::super::LocalModule as ::kernel::InPlaceModule>::init(
+                        &super::super::THIS_MODULE
+                    );
                     // SAFETY: No data race, since `__MOD` can only be accessed by this module
                     // and there only `__init` and `__exit` access it. These functions are only
                     // called once and `__exit` cannot be called before or during `__init`.
