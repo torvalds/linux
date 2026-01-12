@@ -780,7 +780,7 @@ DEFINE_AVX_SKCIPHER_ALGS(vaes_avx512, "vaes-avx512", 800);
 /* The common part of the x86_64 AES-GCM key struct */
 struct aes_gcm_key {
 	/* Expanded AES key and the AES key length in bytes */
-	struct crypto_aes_ctx aes_key;
+	struct aes_enckey aes_key;
 
 	/* RFC4106 nonce (used only by the rfc4106 algorithms) */
 	u32 rfc4106_nonce;
@@ -789,11 +789,10 @@ struct aes_gcm_key {
 /* Key struct used by the AES-NI implementations of AES-GCM */
 struct aes_gcm_key_aesni {
 	/*
-	 * Common part of the key.  The assembly code requires 16-byte alignment
-	 * for the round keys; we get this by them being located at the start of
-	 * the struct and the whole struct being 16-byte aligned.
+	 * Common part of the key.  16-byte alignment is required by the
+	 * assembly code.
 	 */
-	struct aes_gcm_key base;
+	struct aes_gcm_key base __aligned(16);
 
 	/*
 	 * Powers of the hash key H^8 through H^1.  These are 128-bit values.
@@ -824,10 +823,9 @@ struct aes_gcm_key_aesni {
 struct aes_gcm_key_vaes_avx2 {
 	/*
 	 * Common part of the key.  The assembly code prefers 16-byte alignment
-	 * for the round keys; we get this by them being located at the start of
-	 * the struct and the whole struct being 32-byte aligned.
+	 * for this.
 	 */
-	struct aes_gcm_key base;
+	struct aes_gcm_key base __aligned(16);
 
 	/*
 	 * Powers of the hash key H^8 through H^1.  These are 128-bit values.
@@ -854,10 +852,9 @@ struct aes_gcm_key_vaes_avx2 {
 struct aes_gcm_key_vaes_avx512 {
 	/*
 	 * Common part of the key.  The assembly code prefers 16-byte alignment
-	 * for the round keys; we get this by them being located at the start of
-	 * the struct and the whole struct being 64-byte aligned.
+	 * for this.
 	 */
-	struct aes_gcm_key base;
+	struct aes_gcm_key base __aligned(16);
 
 	/*
 	 * Powers of the hash key H^16 through H^1.  These are 128-bit values.
@@ -1182,26 +1179,26 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *raw_key,
 	}
 
 	/* The assembly code assumes the following offsets. */
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_aesni, base.aes_key.key_enc) != 0);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_aesni, base.aes_key.key_length) != 480);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_aesni, h_powers) != 496);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_aesni, h_powers_xored) != 624);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_aesni, h_times_x64) != 688);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx2, base.aes_key.key_enc) != 0);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx2, base.aes_key.key_length) != 480);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx2, h_powers) != 512);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx2, h_powers_xored) != 640);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx512, base.aes_key.key_enc) != 0);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx512, base.aes_key.key_length) != 480);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx512, h_powers) != 512);
-	BUILD_BUG_ON(offsetof(struct aes_gcm_key_vaes_avx512, padding) != 768);
+	static_assert(offsetof(struct aes_gcm_key_aesni, base.aes_key.len) == 0);
+	static_assert(offsetof(struct aes_gcm_key_aesni, base.aes_key.k.rndkeys) == 16);
+	static_assert(offsetof(struct aes_gcm_key_aesni, h_powers) == 272);
+	static_assert(offsetof(struct aes_gcm_key_aesni, h_powers_xored) == 400);
+	static_assert(offsetof(struct aes_gcm_key_aesni, h_times_x64) == 464);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx2, base.aes_key.len) == 0);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx2, base.aes_key.k.rndkeys) == 16);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx2, h_powers) == 288);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx2, h_powers_xored) == 416);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx512, base.aes_key.len) == 0);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx512, base.aes_key.k.rndkeys) == 16);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx512, h_powers) == 320);
+	static_assert(offsetof(struct aes_gcm_key_vaes_avx512, padding) == 576);
+
+	err = aes_prepareenckey(&key->aes_key, raw_key, keylen);
+	if (err)
+		return err;
 
 	if (likely(crypto_simd_usable())) {
-		err = aes_check_keylen(keylen);
-		if (err)
-			return err;
 		kernel_fpu_begin();
-		aesni_set_key(&key->aes_key, raw_key, keylen);
 		aes_gcm_precompute(key, flags);
 		kernel_fpu_end();
 	} else {
@@ -1214,10 +1211,6 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *raw_key,
 		be128 h1 = {};
 		be128 h;
 		int i;
-
-		err = aes_expandkey(&key->aes_key, raw_key, keylen);
-		if (err)
-			return err;
 
 		/* Encrypt the all-zeroes block to get the hash key H^1 */
 		aes_encrypt(&key->aes_key, (u8 *)&h1, (u8 *)&h1);
