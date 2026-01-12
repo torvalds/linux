@@ -25,6 +25,7 @@
 #include <net/tcp.h>
 #include <net/vxlan.h>
 #include <net/geneve.h>
+#include <net/netdev_queues.h>
 
 #include "hnae3.h"
 #include "hns3_enet.h"
@@ -2807,14 +2808,12 @@ static int hns3_get_timeout_queue(struct net_device *ndev)
 
 	/* Find the stopped queue the same way the stack does */
 	for (i = 0; i < ndev->num_tx_queues; i++) {
+		unsigned int timedout_ms;
 		struct netdev_queue *q;
-		unsigned long trans_start;
 
 		q = netdev_get_tx_queue(ndev, i);
-		trans_start = READ_ONCE(q->trans_start);
-		if (netif_xmit_stopped(q) &&
-		    time_after(jiffies,
-			       (trans_start + ndev->watchdog_timeo))) {
+		timedout_ms = netif_xmit_timeout_ms(q);
+		if (timedout_ms) {
 #ifdef CONFIG_BQL
 			struct dql *dql = &q->dql;
 
@@ -2823,8 +2822,7 @@ static int hns3_get_timeout_queue(struct net_device *ndev)
 				    dql->adj_limit, dql->num_completed);
 #endif
 			netdev_info(ndev, "queue state: 0x%lx, delta msecs: %u\n",
-				    q->state,
-				    jiffies_to_msecs(jiffies - trans_start));
+				    q->state, timedout_ms);
 			break;
 		}
 	}
