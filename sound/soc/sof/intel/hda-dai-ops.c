@@ -58,7 +58,7 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 		return NULL;
 	}
 
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 	list_for_each_entry(hstream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hext_stream =
 			stream_to_hdac_ext_stream(hstream);
@@ -110,7 +110,6 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 		res->link_locked = 1;
 		res->link_substream = substream;
 	}
-	spin_unlock_irq(&bus->reg_lock);
 
 	return res;
 }
