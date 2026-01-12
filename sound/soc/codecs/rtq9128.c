@@ -352,7 +352,7 @@ static const struct snd_soc_dapm_route rtq9128_dapm_routes[] = {
 static const struct rtq9128_init_reg rtq9128_tka470b_tables[] = {
 	{ 0xA0, 0xEF },
 	{ 0x0D, 0x00 },
-	{ 0x03, 0x05 },
+	{ 0x03, 0x45 },
 	{ 0x05, 0x31 },
 	{ 0x06, 0x23 },
 	{ 0x70, 0x11 },
@@ -367,7 +367,7 @@ static const struct rtq9128_init_reg rtq9128_tka470b_tables[] = {
 
 static const struct rtq9128_init_reg rtq9128_dh_tables[] = {
 	{ 0x0F, 0x00 },
-	{ 0x03, 0x0D },
+	{ 0x03, 0x4D },
 	{ 0xB2, 0xFF },
 	{ 0xB3, 0xFF },
 	{ 0x30, 0x180 },
@@ -378,7 +378,7 @@ static const struct rtq9128_init_reg rtq9128_dh_tables[] = {
 
 static const struct rtq9128_init_reg rtq9128_dl_tables[] = {
 	{ 0x0F, 0x00 },
-	{ 0x03, 0x0D },
+	{ 0x03, 0x4D },
 	{ 0x30, 0x180 },
 	{ 0x8A, 0x55 },
 	{ 0x72, 0x00 },
