@@ -1326,7 +1326,7 @@ xfs_grow_last_rtg(
 		return true;
 	if (mp->m_sb.sb_rgcount == 0)
 		return false;
-	return xfs_rtgroup_extents(mp, mp->m_sb.sb_rgcount - 1) <=
+	return xfs_rtgroup_extents(mp, mp->m_sb.sb_rgcount - 1) <
 			mp->m_sb.sb_rgextents;
 }
 
