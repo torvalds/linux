@@ -339,6 +339,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 			.board_size = 256 * 1024,
 			.cal_offset = 128 * 1024,
 			.m3_loader = ath12k_m3_fw_loader_driver,
+			.download_aux_ucode = false,
 		},
 		.max_radios = 1,
 		.single_pdev_only = false,
@@ -421,6 +422,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 			.board_size = 256 * 1024,
 			.cal_offset = 256 * 1024,
 			.m3_loader = ath12k_m3_fw_loader_driver,
+			.download_aux_ucode = false,
 		},
 
 		.max_radios = 1,
@@ -505,6 +507,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 			.board_size = 256 * 1024,
 			.cal_offset = 128 * 1024,
 			.m3_loader = ath12k_m3_fw_loader_driver,
+			.download_aux_ucode = false,
 		},
 		.max_radios = 2,
 		.single_pdev_only = false,
@@ -586,6 +589,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 			.board_size = 256 * 1024,
 			.cal_offset = 128 * 1024,
 			.m3_loader = ath12k_m3_fw_loader_remoteproc,
+			.download_aux_ucode = false,
 		},
 		.max_radios = 1,
 		.single_pdev_only = false,
@@ -661,6 +665,7 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 			.board_size = 256 * 1024,
 			.cal_offset = 256 * 1024,
 			.m3_loader = ath12k_m3_fw_loader_driver,
+			.download_aux_ucode = true,
 		},
 
 		.max_radios = 1,
@@ -707,7 +712,8 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.wmi_init = ath12k_wifi7_wmi_init_wcn7850,
 
 		.qmi_cnss_feature_bitmap = BIT(CNSS_QDSS_CFG_MISS_V01) |
-					   BIT(CNSS_PCIE_PERST_NO_PULL_V01),
+					   BIT(CNSS_PCIE_PERST_NO_PULL_V01) |
+					   BIT(CNSS_AUX_UC_SUPPORT_V01),
 
 		.rfkill_pin = 0,
 		.rfkill_cfg = 0,
