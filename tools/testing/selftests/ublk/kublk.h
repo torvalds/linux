@@ -83,6 +83,7 @@ struct dev_ctx {
 	__u8 pi_offset;
 	__u8 csum_type;
 	__u8 tag_size;
+	unsigned int	safe_stop:1;
 
 	int _evtfd;
 	int _shmid;
