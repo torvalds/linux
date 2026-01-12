@@ -66,7 +66,7 @@
  * strongly dependent on the core clock frequency of the SMBus
  * Master. Default value is set to 400MHz.
  */
-#define MLXBF_I2C_TYU_PLL_OUT_FREQ  (400 * 1000 * 1000)
+#define MLXBF_I2C_TYU_PLL_OUT_FREQ  (400 * HZ_PER_MHZ)
 /* Reference clock for Bluefield - 156 MHz. */
 #define MLXBF_I2C_PLL_IN_FREQ       156250000ULL
 
