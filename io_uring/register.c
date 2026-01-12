@@ -133,24 +133,31 @@ static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 			if (res[i].register_op >= IORING_REGISTER_LAST)
 				goto err;
 			__set_bit(res[i].register_op, restrictions->register_op);
+			restrictions->reg_registered = true;
 			break;
 		case IORING_RESTRICTION_SQE_OP:
 			if (res[i].sqe_op >= IORING_OP_LAST)
 				goto err;
 			__set_bit(res[i].sqe_op, restrictions->sqe_op);
+			restrictions->op_registered = true;
 			break;
 		case IORING_RESTRICTION_SQE_FLAGS_ALLOWED:
 			restrictions->sqe_flags_allowed = res[i].sqe_flags;
+			restrictions->op_registered = true;
 			break;
 		case IORING_RESTRICTION_SQE_FLAGS_REQUIRED:
 			restrictions->sqe_flags_required = res[i].sqe_flags;
+			restrictions->op_registered = true;
 			break;
 		default:
 			goto err;
 		}
 	}
 	ret = nr_args;
-	restrictions->registered = true;
+	if (!nr_args) {
+		restrictions->op_registered = true;
+		restrictions->reg_registered = true;
+	}
 err:
 	kfree(res);
 	return ret;
@@ -166,7 +173,7 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		return -EBADFD;
 
 	/* We allow only a single restrictions registration */
-	if (ctx->restrictions.registered)
+	if (ctx->restrictions.op_registered || ctx->restrictions.reg_registered)
 		return -EBUSY;
 
 	ret = io_parse_restrictions(arg, nr_args, &ctx->restrictions);
@@ -175,8 +182,10 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
 		return ret;
 	}
-	if (ctx->restrictions.registered)
-		ctx->restricted = 1;
+	if (ctx->restrictions.op_registered)
+		ctx->op_restricted = 1;
+	if (ctx->restrictions.reg_registered)
+		ctx->reg_restricted = 1;
 	return 0;
 }
 
@@ -626,7 +635,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (ctx->submitter_task && ctx->submitter_task != current)
 		return -EEXIST;
 
-	if (ctx->restricted && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
+	if (ctx->reg_restricted && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
 		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;
