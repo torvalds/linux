@@ -50,6 +50,7 @@ OBJECT_FILES_NON_STANDARD_powerpc/aesp8-ppc.o := y
 endif # !CONFIG_SPE
 endif # CONFIG_PPC
 
+libaes-$(CONFIG_RISCV) += riscv/aes-riscv64-zvkned.o
 endif # CONFIG_CRYPTO_LIB_AES_ARCH
 
 ################################################################################

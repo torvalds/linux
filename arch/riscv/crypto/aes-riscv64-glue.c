@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AES using the RISC-V vector crypto extensions.  Includes the bare block
- * cipher and the ECB, CBC, CBC-CTS, CTR, and XTS modes.
+ * AES modes using the RISC-V vector crypto extensions
  *
  * Copyright (C) 2023 VRULL GmbH
  * Author: Heiko Stuebner <heiko.stuebner@vrull.eu>
@@ -15,20 +14,12 @@
 #include <asm/simd.h>
 #include <asm/vector.h>
 #include <crypto/aes.h>
-#include <crypto/internal/cipher.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/xts.h>
 #include <linux/linkage.h>
 #include <linux/module.h>
-
-asmlinkage void aes_encrypt_zvkned(const struct crypto_aes_ctx *key,
-				   const u8 in[AES_BLOCK_SIZE],
-				   u8 out[AES_BLOCK_SIZE]);
-asmlinkage void aes_decrypt_zvkned(const struct crypto_aes_ctx *key,
-				   const u8 in[AES_BLOCK_SIZE],
-				   u8 out[AES_BLOCK_SIZE]);
 
 asmlinkage void aes_ecb_encrypt_zvkned(const struct crypto_aes_ctx *key,
 				       const u8 *in, u8 *out, size_t len);
@@ -86,48 +77,12 @@ static int riscv64_aes_setkey(struct crypto_aes_ctx *ctx,
 	return aes_expandkey(ctx, key, keylen);
 }
 
-static int riscv64_aes_setkey_cipher(struct crypto_tfm *tfm,
-				     const u8 *key, unsigned int keylen)
-{
-	struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	return riscv64_aes_setkey(ctx, key, keylen);
-}
-
 static int riscv64_aes_setkey_skcipher(struct crypto_skcipher *tfm,
 				       const u8 *key, unsigned int keylen)
 {
 	struct crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	return riscv64_aes_setkey(ctx, key, keylen);
-}
-
-/* Bare AES, without a mode of operation */
-
-static void riscv64_aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	const struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	if (crypto_simd_usable()) {
-		kernel_vector_begin();
-		aes_encrypt_zvkned(ctx, src, dst);
-		kernel_vector_end();
-	} else {
-		aes_encrypt(ctx, dst, src);
-	}
-}
-
-static void riscv64_aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
-{
-	const struct crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	if (crypto_simd_usable()) {
-		kernel_vector_begin();
-		aes_decrypt_zvkned(ctx, src, dst);
-		kernel_vector_end();
-	} else {
-		aes_decrypt(ctx, dst, src);
-	}
 }
 
 /* AES-ECB */
@@ -338,7 +293,7 @@ static int riscv64_aes_ctr_crypt(struct skcipher_request *req)
 
 struct riscv64_aes_xts_ctx {
 	struct crypto_aes_ctx ctx1;
-	struct crypto_aes_ctx ctx2;
+	struct aes_enckey tweak_key;
 };
 
 static int riscv64_aes_xts_setkey(struct crypto_skcipher *tfm, const u8 *key,
@@ -348,7 +303,7 @@ static int riscv64_aes_xts_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	return xts_verify_key(tfm, key, keylen) ?:
 	       riscv64_aes_setkey(&ctx->ctx1, key, keylen / 2) ?:
-	       riscv64_aes_setkey(&ctx->ctx2, key + keylen / 2, keylen / 2);
+	       aes_prepareenckey(&ctx->tweak_key, key + keylen / 2, keylen / 2);
 }
 
 static int riscv64_aes_xts_crypt(struct skcipher_request *req, bool enc)
@@ -366,9 +321,7 @@ static int riscv64_aes_xts_crypt(struct skcipher_request *req, bool enc)
 		return -EINVAL;
 
 	/* Encrypt the IV with the tweak key to get the first tweak. */
-	kernel_vector_begin();
-	aes_encrypt_zvkned(&ctx->ctx2, req->iv, req->iv);
-	kernel_vector_end();
+	aes_encrypt(&ctx->tweak_key, req->iv, req->iv);
 
 	err = skcipher_walk_virt(&walk, req, false);
 
@@ -455,23 +408,6 @@ static int riscv64_aes_xts_decrypt(struct skcipher_request *req)
 }
 
 /* Algorithm definitions */
-
-static struct crypto_alg riscv64_zvkned_aes_cipher_alg = {
-	.cra_flags = CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize = AES_BLOCK_SIZE,
-	.cra_ctxsize = sizeof(struct crypto_aes_ctx),
-	.cra_priority = 300,
-	.cra_name = "aes",
-	.cra_driver_name = "aes-riscv64-zvkned",
-	.cra_cipher = {
-		.cia_min_keysize = AES_MIN_KEY_SIZE,
-		.cia_max_keysize = AES_MAX_KEY_SIZE,
-		.cia_setkey = riscv64_aes_setkey_cipher,
-		.cia_encrypt = riscv64_aes_encrypt,
-		.cia_decrypt = riscv64_aes_decrypt,
-	},
-	.cra_module = THIS_MODULE,
-};
 
 static struct skcipher_alg riscv64_zvkned_aes_skcipher_algs[] = {
 	{
@@ -574,15 +510,11 @@ static int __init riscv64_aes_mod_init(void)
 
 	if (riscv_isa_extension_available(NULL, ZVKNED) &&
 	    riscv_vector_vlen() >= 128) {
-		err = crypto_register_alg(&riscv64_zvkned_aes_cipher_alg);
-		if (err)
-			return err;
-
 		err = crypto_register_skciphers(
 			riscv64_zvkned_aes_skcipher_algs,
 			ARRAY_SIZE(riscv64_zvkned_aes_skcipher_algs));
 		if (err)
-			goto unregister_zvkned_cipher_alg;
+			return err;
 
 		if (riscv_isa_extension_available(NULL, ZVKB)) {
 			err = crypto_register_skcipher(
@@ -607,8 +539,6 @@ unregister_zvkned_zvkb_skcipher_alg:
 unregister_zvkned_skcipher_algs:
 	crypto_unregister_skciphers(riscv64_zvkned_aes_skcipher_algs,
 				    ARRAY_SIZE(riscv64_zvkned_aes_skcipher_algs));
-unregister_zvkned_cipher_alg:
-	crypto_unregister_alg(&riscv64_zvkned_aes_cipher_alg);
 	return err;
 }
 
@@ -620,7 +550,6 @@ static void __exit riscv64_aes_mod_exit(void)
 		crypto_unregister_skcipher(&riscv64_zvkned_zvkb_aes_skcipher_alg);
 	crypto_unregister_skciphers(riscv64_zvkned_aes_skcipher_algs,
 				    ARRAY_SIZE(riscv64_zvkned_aes_skcipher_algs));
-	crypto_unregister_alg(&riscv64_zvkned_aes_cipher_alg);
 }
 
 module_init(riscv64_aes_mod_init);
