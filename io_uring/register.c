@@ -150,6 +150,7 @@ static __cold int io_parse_restrictions(void __user *arg, unsigned int nr_args,
 		}
 	}
 	ret = nr_args;
+	restrictions->registered = true;
 err:
 	kfree(res);
 	return ret;
@@ -174,7 +175,6 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
 		return ret;
 	}
-	ctx->restrictions.registered = true;
 	return 0;
 }
 
