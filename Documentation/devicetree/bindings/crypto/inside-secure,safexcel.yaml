@@ -12,6 +12,14 @@ maintainers:
 properties:
   compatible:
     oneOf:
+      - items:
+          - const: marvell,armada-cp110-crypto
+          - const: inside-secure,safexcel-eip197b
+      - items:
+          - enum:
+              - marvell,armada-3700-crypto
+              - mediatek,mt7986-crypto
+          - const: inside-secure,safexcel-eip97ies
       - const: inside-secure,safexcel-eip197b
       - const: inside-secure,safexcel-eip197d
       - const: inside-secure,safexcel-eip97ies
