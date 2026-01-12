@@ -225,9 +225,8 @@ void snd_sof_ipc_free(struct snd_sof_dev *sdev)
 		return;
 
 	/* disable sending of ipc's */
-	mutex_lock(&ipc->tx_mutex);
-	ipc->disable_ipc_tx = true;
-	mutex_unlock(&ipc->tx_mutex);
+	scoped_guard(mutex, &ipc->tx_mutex)
+		ipc->disable_ipc_tx = true;
 
 	if (ipc->ops->exit)
 		ipc->ops->exit(sdev);

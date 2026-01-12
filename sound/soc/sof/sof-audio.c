@@ -121,13 +121,8 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 
 int sof_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	int ret;
-
-	mutex_lock(&swidget->setup_mutex);
-	ret = sof_widget_free_unlocked(sdev, swidget);
-	mutex_unlock(&swidget->setup_mutex);
-
-	return ret;
+	guard(mutex)(&swidget->setup_mutex);
+	return sof_widget_free_unlocked(sdev, swidget);
 }
 EXPORT_SYMBOL(sof_widget_free);
 
@@ -240,13 +235,8 @@ use_count_dec:
 
 int sof_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	int ret;
-
-	mutex_lock(&swidget->setup_mutex);
-	ret = sof_widget_setup_unlocked(sdev, swidget);
-	mutex_unlock(&swidget->setup_mutex);
-
-	return ret;
+	guard(mutex)(&swidget->setup_mutex);
+	return sof_widget_setup_unlocked(sdev, swidget);
 }
 EXPORT_SYMBOL(sof_widget_setup);
 
@@ -377,23 +367,21 @@ static int sof_setup_pipeline_connections(struct snd_sof_dev *sdev,
 		else
 			swidget = sroute->src_widget;
 
-		mutex_lock(&swidget->setup_mutex);
-		if (!swidget->use_count) {
-			mutex_unlock(&swidget->setup_mutex);
-			continue;
-		}
+		scoped_guard(mutex, &swidget->setup_mutex) {
+			if (!swidget->use_count)
+				continue;
 
-		if (tplg_ops && tplg_ops->route_setup) {
-			/*
-			 * this route will get freed when either the source widget or the sink
-			 * widget is freed during hw_free
-			 */
-			ret = tplg_ops->route_setup(sdev, sroute);
-			if (!ret)
-				sroute->setup = true;
+			if (tplg_ops && tplg_ops->route_setup) {
+				/*
+				 * this route will get freed when either the
+				 * source widget or the sink widget is freed
+				 * during hw_free
+				 */
+				ret = tplg_ops->route_setup(sdev, sroute);
+				if (!ret)
+					sroute->setup = true;
+			}
 		}
-
-		mutex_unlock(&swidget->setup_mutex);
 
 		if (ret < 0)
 			return ret;

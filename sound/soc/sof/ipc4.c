@@ -412,7 +412,7 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	}
 
 	/* Serialise IPC TX */
-	mutex_lock(&ipc->tx_mutex);
+	guard(mutex)(&ipc->tx_mutex);
 
 	ret = ipc4_tx_msg_unlocked(ipc, msg_data, msg_bytes, reply_data, reply_bytes);
 
@@ -428,8 +428,6 @@ static int sof_ipc4_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 		if (msg)
 			sof_ipc4_dump_payload(sdev, msg->data_ptr, msg->data_size);
 	}
-
-	mutex_unlock(&ipc->tx_mutex);
 
 	return ret;
 }
@@ -506,7 +504,7 @@ static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 	}
 
 	/* Serialise IPC TX */
-	mutex_lock(&sdev->ipc->tx_mutex);
+	guard(mutex)(&sdev->ipc->tx_mutex);
 
 	do {
 		size_t tx_size, rx_size;
@@ -589,8 +587,6 @@ static int sof_ipc4_set_get_data(struct snd_sof_dev *sdev, void *data,
 out:
 	if (sof_debug_check_flag(SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD))
 		sof_ipc4_dump_payload(sdev, ipc4_msg->data_ptr, ipc4_msg->data_size);
-
-	mutex_unlock(&sdev->ipc->tx_mutex);
 
 	kfree(tx_payload_for_get);
 
