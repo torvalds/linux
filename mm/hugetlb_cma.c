@@ -13,9 +13,9 @@
 #include "hugetlb_cma.h"
 
 
-static struct cma *hugetlb_cma[MAX_NUMNODES];
+static struct cma *hugetlb_cma[MAX_NUMNODES] __ro_after_init;
 static unsigned long hugetlb_cma_size_in_node[MAX_NUMNODES] __initdata;
-static bool hugetlb_cma_only;
+static bool hugetlb_cma_only __ro_after_init;
 static unsigned long hugetlb_cma_size __ro_after_init;
 
 void hugetlb_cma_free_frozen_folio(struct folio *folio)
