@@ -213,7 +213,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown create_bo flags: %d\n", args->flags);
+		drm_dbg(dev, "unknown create_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -236,13 +236,13 @@ int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *gem_obj;
 
 	if (args->flags != 0) {
-		DRM_INFO("unknown mmap_bo flags: %d\n", args->flags);
+		drm_dbg(dev, "unknown mmap_bo flags: %d\n", args->flags);
 		return -EINVAL;
 	}
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		drm_dbg(dev, "Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 
@@ -261,7 +261,7 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
+		drm_dbg(dev, "Failed to look up GEM BO %d\n", args->handle);
 		return -ENOENT;
 	}
 	bo = to_v3d_bo(gem_obj);

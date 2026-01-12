@@ -120,7 +120,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		mutex_unlock(&v3d->reset_lock);
 		return 0;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		drm_dbg(dev, "Unknown parameter %d\n", args->param);
 		return -EINVAL;
 	}
 }
@@ -297,7 +297,7 @@ v3d_idle_sms(struct v3d_dev *v3d)
 
 	if (wait_for((V3D_GET_FIELD(V3D_SMS_READ(V3D_SMS_TEE_CS),
 				    V3D_SMS_STATE) == V3D_SMS_IDLE), 100)) {
-		DRM_ERROR("Failed to power up SMS\n");
+		drm_err(&v3d->drm, "Failed to power up SMS\n");
 	}
 
 	v3d_reset_sms(v3d);
@@ -313,7 +313,7 @@ v3d_power_off_sms(struct v3d_dev *v3d)
 
 	if (wait_for((V3D_GET_FIELD(V3D_SMS_READ(V3D_SMS_TEE_CS),
 				    V3D_SMS_STATE) == V3D_SMS_POWER_OFF_STATE), 100)) {
-		DRM_ERROR("Failed to power off SMS\n");
+		drm_err(&v3d->drm, "Failed to power off SMS\n");
 	}
 }
 
