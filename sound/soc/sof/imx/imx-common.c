@@ -81,14 +81,10 @@ EXPORT_SYMBOL(imx8_dump);
 
 static void imx_handle_reply(struct imx_dsp_ipc *ipc)
 {
-	struct snd_sof_dev *sdev;
-	unsigned long flags;
+	struct snd_sof_dev *sdev = imx_dsp_get_data(ipc);
 
-	sdev = imx_dsp_get_data(ipc);
-
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
+	guard(spinlock_irqsave)(&sdev->ipc_lock);
 	snd_sof_ipc_process_reply(sdev, 0);
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
 }
 
 static void imx_handle_request(struct imx_dsp_ipc *ipc)
