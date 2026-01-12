@@ -552,7 +552,6 @@ static void atcspi_init_controller(struct platform_device *pdev,
 	/* Initialize controller properties */
 	host->bus_num = pdev->id;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_RX_QUAD | SPI_TX_QUAD;
-	host->dev.of_node = pdev->dev.of_node;
 	host->num_chipselect = ATCSPI_MAX_CS_NUM;
 	host->mem_ops = &atcspi_mem_ops;
 	host->max_speed_hz = spi->sclk_rate;

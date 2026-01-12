@@ -1184,7 +1184,6 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	host->auto_runtime_pm = true;
-	host->dev.of_node = dev->of_node;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	host->set_cs = mtk_spi_set_cs;

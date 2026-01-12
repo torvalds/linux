@@ -675,7 +675,6 @@ static int fsl_espi_probe(struct device *dev, struct resource *mem,
 
 	host->mode_bits = SPI_RX_DUAL | SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
 			  SPI_LSB_FIRST | SPI_LOOP;
-	host->dev.of_node = dev->of_node;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 	host->setup = fsl_espi_setup;
 	host->cleanup = fsl_espi_cleanup;

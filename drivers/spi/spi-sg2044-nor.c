@@ -455,7 +455,6 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 		return PTR_ERR(spifmc->io_base);
 
 	ctrl->num_chipselect = 1;
-	ctrl->dev.of_node = pdev->dev.of_node;
 	ctrl->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctrl->auto_runtime_pm = false;
 	ctrl->mem_ops = &sg2044_spifmc_mem_ops;

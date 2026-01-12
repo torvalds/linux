@@ -160,7 +160,6 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = 0;
 	host->num_chipselect = 3;
 	host->mode_bits = SPI_TX_DUAL;

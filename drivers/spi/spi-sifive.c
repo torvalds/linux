@@ -368,7 +368,6 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	}
 
 	/* Define our host */
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = pdev->id;
 	host->num_chipselect = num_cs;
 	host->mode_bits = SPI_CPHA | SPI_CPOL

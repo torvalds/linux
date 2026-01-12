@@ -471,7 +471,6 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &wpcm_fiu_mem_ops;
 	ctrl->num_chipselect = 4;
-	ctrl->dev.of_node = dev->of_node;
 
 	/*
 	 * The FIU doesn't include a clock divider, the clock is entirely

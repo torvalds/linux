@@ -697,7 +697,6 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	host->max_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MIN_CLK_DIVIDER);
 	host->min_speed_hz = DIV_ROUND_UP(clk_rate, SSI_MAX_CLK_DIVIDER);
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = pdev->id;
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 

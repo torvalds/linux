@@ -1157,7 +1157,6 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 		cdns_xspi->sdma_handler = &cdns_xspi_sdma_handle;
 		cdns_xspi->set_interrupts_handler = &cdns_xspi_set_interrupts;
 	}
-	host->dev.of_node = pdev->dev.of_node;
 	host->bus_num = -1;
 
 	platform_set_drvdata(pdev, host);

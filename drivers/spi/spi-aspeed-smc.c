@@ -898,7 +898,6 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	ctlr->setup = aspeed_spi_setup;
 	ctlr->cleanup = aspeed_spi_cleanup;
 	ctlr->num_chipselect = of_get_available_child_count(dev->of_node);
-	ctlr->dev.of_node = dev->of_node;
 
 	aspi->num_cs = ctlr->num_chipselect;
 
