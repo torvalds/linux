@@ -76,10 +76,15 @@ What is rootfs?
 ---------------
 
 Rootfs is a special instance of ramfs (or tmpfs, if that's enabled), which is
-always present in 2.6 systems.  You can't unmount rootfs for approximately the
-same reason you can't kill the init process; rather than having special code
-to check for and handle an empty list, it's smaller and simpler for the kernel
-to just make sure certain lists can't become empty.
+always present in 2.6 systems.  Traditionally, you can't unmount rootfs for
+approximately the same reason you can't kill the init process; rather than
+having special code to check for and handle an empty list, it's smaller and
+simpler for the kernel to just make sure certain lists can't become empty.
+
+However, if the kernel is booted with "nullfs_rootfs", an immutable empty
+filesystem called nullfs is used as the true root, with the mutable rootfs
+(tmpfs/ramfs) mounted on top of it.  This allows pivot_root() and unmounting
+of the initramfs to work normally.
 
 Most systems just mount another filesystem over rootfs and ignore it.  The
 amount of space an empty instance of ramfs takes up is tiny.
@@ -121,16 +126,25 @@ All this differs from the old initrd in several ways:
     program.  See the switch_root utility, below.)
 
   - When switching another root device, initrd would pivot_root and then
-    umount the ramdisk.  But initramfs is rootfs: you can neither pivot_root
-    rootfs, nor unmount it.  Instead delete everything out of rootfs to
-    free up the space (find -xdev / -exec rm '{}' ';'), overmount rootfs
-    with the new root (cd /newmount; mount --move . /; chroot .), attach
-    stdin/stdout/stderr to the new /dev/console, and exec the new init.
+    umount the ramdisk.  Traditionally, initramfs is rootfs: you can neither
+    pivot_root rootfs, nor unmount it.  Instead delete everything out of
+    rootfs to free up the space (find -xdev / -exec rm '{}' ';'), overmount
+    rootfs with the new root (cd /newmount; mount --move . /; chroot .),
+    attach stdin/stdout/stderr to the new /dev/console, and exec the new init.
 
     Since this is a remarkably persnickety process (and involves deleting
     commands before you can run them), the klibc package introduced a helper
     program (utils/run_init.c) to do all this for you.  Most other packages
     (such as busybox) have named this command "switch_root".
+
+    However, if the kernel is booted with "nullfs_rootfs", pivot_root() works
+    normally from the initramfs.  Userspace can simply do::
+
+      chdir(new_root);
+      pivot_root(".", ".");
+      umount2(".", MNT_DETACH);
+
+    This is the preferred method when nullfs_rootfs is enabled.
 
 Populating initramfs:
 ---------------------
