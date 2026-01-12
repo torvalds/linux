@@ -52,6 +52,8 @@
 
 #define   PCODE_THERMAL_INFO			0x25
 #define     READ_THERMAL_LIMITS			0x0
+#define     READ_THERMAL_CONFIG			0x1
+#define     READ_THERMAL_DATA			0x2
 
 #define   PCODE_LATE_BINDING			0x5C
 #define     GET_CAPABILITY_STATUS		0x0
