@@ -1852,10 +1852,10 @@ EXPORT_SYMBOL_GPL(devm_i2c_add_adapter);
 
 static int i2c_dev_or_parent_fwnode_match(struct device *dev, const void *data)
 {
-	if (dev_fwnode(dev) == data)
+	if (device_match_fwnode(dev, data))
 		return 1;
 
-	if (dev->parent && dev_fwnode(dev->parent) == data)
+	if (dev->parent && device_match_fwnode(dev->parent, data))
 		return 1;
 
 	return 0;
