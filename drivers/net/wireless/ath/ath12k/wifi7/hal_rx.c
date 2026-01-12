@@ -890,6 +890,31 @@ void ath12k_wifi7_hal_reo_init_cmd_ring_tlv64(struct ath12k_base *ab,
 	}
 }
 
+void ath12k_wifi7_hal_reo_init_cmd_ring_tlv32(struct ath12k_base *ab,
+					      struct hal_srng *srng)
+{
+	struct hal_reo_get_queue_stats *desc;
+	struct hal_srng_params params;
+	struct hal_tlv_hdr *tlv;
+	int i, cmd_num = 1;
+	int entry_size;
+	u8 *entry;
+
+	memset(&params, 0, sizeof(params));
+
+	entry_size = ath12k_hal_srng_get_entrysize(ab, HAL_REO_CMD);
+	ath12k_hal_srng_get_params(ab, srng, &params);
+	entry = (u8 *)params.ring_base_vaddr;
+
+	for (i = 0; i < params.num_entries; i++) {
+		tlv = (struct hal_tlv_hdr *)entry;
+		desc = (struct hal_reo_get_queue_stats *)tlv->value;
+		desc->cmd.info0 = le32_encode_bits(cmd_num++,
+						   HAL_REO_CMD_HDR_INFO0_CMD_NUMBER);
+		entry += entry_size;
+	}
+}
+
 void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map)
 {
 	struct ath12k_hal *hal = &ab->hal;

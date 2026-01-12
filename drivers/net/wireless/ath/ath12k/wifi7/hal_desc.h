@@ -1049,6 +1049,13 @@ struct hal_reo_get_queue_stats {
  *		Hole_count
  */
 
+struct hal_reo_get_queue_stats_qcc2072 {
+	struct hal_reo_cmd_hdr cmd;
+	__le32 queue_addr_lo;
+	__le32 info0;
+	__le32 rsvd0[6];
+} __packed;
+
 #define HAL_REO_FLUSH_QUEUE_INFO0_DESC_ADDR_HI		GENMASK(7, 0)
 #define HAL_REO_FLUSH_QUEUE_INFO0_BLOCK_DESC_ADDR	BIT(8)
 #define HAL_REO_FLUSH_QUEUE_INFO0_BLOCK_RESRC_IDX	GENMASK(10, 9)
