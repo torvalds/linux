@@ -7153,18 +7153,20 @@ static bool pfn_range_valid_contig(struct zone *z, unsigned long start_pfn,
 				   unsigned long nr_pages, bool skip_hugetlb,
 				   bool *skipped_hugetlb)
 {
-	unsigned long i, end_pfn = start_pfn + nr_pages;
+	unsigned long end_pfn = start_pfn + nr_pages;
 	struct page *page;
 
-	for (i = start_pfn; i < end_pfn; i++) {
-		page = pfn_to_online_page(i);
+	while (start_pfn < end_pfn) {
+		unsigned long step = 1;
+
+		page = pfn_to_online_page(start_pfn);
 		if (!page)
 			return false;
 
 		if (page_zone(page) != z)
 			return false;
 
-		if (PageReserved(page))
+		if (page_is_unmovable(z, page, PB_ISOLATE_MODE_OTHER, &step))
 			return false;
 
 		/*
@@ -7179,9 +7181,6 @@ static bool pfn_range_valid_contig(struct zone *z, unsigned long start_pfn,
 		if (PageHuge(page)) {
 			unsigned int order;
 
-			if (!IS_ENABLED(CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION))
-				return false;
-
 			if (skip_hugetlb) {
 				*skipped_hugetlb = true;
 				return false;
@@ -7192,17 +7191,9 @@ static bool pfn_range_valid_contig(struct zone *z, unsigned long start_pfn,
 			if ((order >= MAX_FOLIO_ORDER) ||
 			    (nr_pages <= (1 << order)))
 				return false;
-
-			/*
-			 * Reaching this point means we've encounted a huge page
-			 * smaller than nr_pages, skip all pfn's for that page.
-			 *
-			 * We can't get here from a tail-PageHuge, as it implies
-			 * we started a scan in the middle of a hugepage larger
-			 * than nr_pages - which the prior check filters for.
-			 */
-			i += (1 << order) - 1;
 		}
+
+		start_pfn += step;
 	}
 	return true;
 }
