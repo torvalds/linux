@@ -1434,6 +1434,71 @@ static int ghes_in_nmi_spool_from_list(struct list_head *rcu_list,
 	return ret;
 }
 
+/**
+ * ghes_has_active_errors - Check if there are active errors in error sources
+ * @ghes_list: List of GHES entries to check for active errors
+ *
+ * This function iterates through all GHES entries in the given list and
+ * checks if any of them has active error status by reading the error
+ * status register.
+ *
+ * Return: true if at least one source has active error, false otherwise.
+ */
+static bool __maybe_unused ghes_has_active_errors(struct list_head *ghes_list)
+{
+	struct ghes *ghes;
+
+	guard(rcu)();
+	list_for_each_entry_rcu(ghes, ghes_list, list) {
+		if (ghes->error_status_vaddr &&
+		    readl(ghes->error_status_vaddr))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * ghes_map_error_status - Map error status address to virtual address
+ * @ghes: pointer to GHES structure
+ *
+ * Reads the error status address from ACPI HEST table and maps it to a virtual
+ * address that can be accessed by the kernel.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int __maybe_unused ghes_map_error_status(struct ghes *ghes)
+{
+	struct acpi_hest_generic *g = ghes->generic;
+	u64 paddr;
+	int rc;
+
+	rc = apei_read(&paddr, &g->error_status_address);
+	if (rc)
+		return rc;
+
+	ghes->error_status_vaddr =
+		acpi_os_ioremap(paddr, sizeof(ghes->estatus->block_status));
+	if (!ghes->error_status_vaddr)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * ghes_unmap_error_status - Unmap error status virtual address
+ * @ghes: pointer to GHES structure
+ *
+ * Unmaps the error status address if it was previously mapped.
+ */
+static void __maybe_unused ghes_unmap_error_status(struct ghes *ghes)
+{
+	if (ghes->error_status_vaddr) {
+		iounmap(ghes->error_status_vaddr);
+		ghes->error_status_vaddr = NULL;
+	}
+}
+
 #ifdef CONFIG_ACPI_APEI_SEA
 static LIST_HEAD(ghes_sea);
 
@@ -1484,20 +1549,9 @@ static LIST_HEAD(ghes_nmi);
 static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 {
 	static DEFINE_RAW_SPINLOCK(ghes_notify_lock_nmi);
-	bool active_error = false;
 	int ret = NMI_DONE;
-	struct ghes *ghes;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(ghes, &ghes_nmi, list) {
-		if (ghes->error_status_vaddr && readl(ghes->error_status_vaddr)) {
-			active_error = true;
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	if (!active_error)
+	if (!ghes_has_active_errors(&ghes_nmi))
 		return ret;
 
 	if (!atomic_add_unless(&ghes_in_nmi, 1, 1))
@@ -1514,17 +1568,11 @@ static int ghes_notify_nmi(unsigned int cmd, struct pt_regs *regs)
 
 static int ghes_nmi_add(struct ghes *ghes)
 {
-	struct acpi_hest_generic *g = ghes->generic;
-	u64 paddr;
 	int rc;
 
-	rc = apei_read(&paddr, &g->error_status_address);
+	rc = ghes_map_error_status(ghes);
 	if (rc)
 		return rc;
-
-	ghes->error_status_vaddr = acpi_os_ioremap(paddr, sizeof(ghes->estatus->block_status));
-	if (!ghes->error_status_vaddr)
-		return -EINVAL;
 
 	mutex_lock(&ghes_list_mutex);
 	if (list_empty(&ghes_nmi))
@@ -1543,8 +1591,7 @@ static void ghes_nmi_remove(struct ghes *ghes)
 		unregister_nmi_handler(NMI_LOCAL, "ghes");
 	mutex_unlock(&ghes_list_mutex);
 
-	if (ghes->error_status_vaddr)
-		iounmap(ghes->error_status_vaddr);
+	ghes_unmap_error_status(ghes);
 
 	/*
 	 * To synchronize with NMI handler, ghes can only be
