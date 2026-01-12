@@ -175,6 +175,8 @@ static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
 		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
 		return ret;
 	}
+	if (ctx->restrictions.registered)
+		ctx->restricted = 1;
 	return 0;
 }
 
@@ -192,9 +194,6 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 		if (wq_has_sleeper(&ctx->poll_wq))
 			io_activate_pollwq(ctx);
 	}
-
-	if (ctx->restrictions.registered)
-		ctx->restricted = 1;
 
 	/* Keep submitter_task store before clearing IORING_SETUP_R_DISABLED */
 	smp_store_release(&ctx->flags, ctx->flags & ~IORING_SETUP_R_DISABLED);
@@ -627,7 +626,7 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	if (ctx->submitter_task && ctx->submitter_task != current)
 		return -EEXIST;
 
-	if (ctx->restricted) {
+	if (ctx->restricted && !(ctx->flags & IORING_SETUP_R_DISABLED)) {
 		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
 		if (!test_bit(opcode, ctx->restrictions.register_op))
 			return -EACCES;
