@@ -92,6 +92,8 @@ const struct ath12k_hw_regs qcc2072_regs = {
 	.umac_ce1_dest_reg_base = 0x01b83000,
 
 	.gcc_gcc_pcie_hot_rst = 0x1e65304,
+
+	.qrtr_node_id = 0x1e03300,
 };
 
 static void ath12k_hal_rx_desc_set_msdu_len_qcc2072(struct hal_rx_desc *desc, u16 len)

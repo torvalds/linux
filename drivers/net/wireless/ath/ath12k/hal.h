@@ -1201,6 +1201,8 @@ struct ath12k_hw_regs {
 	u32 reo_status_ring_base;
 
 	u32 gcc_gcc_pcie_hot_rst;
+
+	u32 qrtr_node_id;
 };
 
 /* HAL context to be used to access SRNG APIs (currently used by data path

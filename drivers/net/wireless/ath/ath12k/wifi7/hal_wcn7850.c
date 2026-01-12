@@ -256,6 +256,8 @@ const struct ath12k_hw_regs wcn7850_regs = {
 	.umac_ce1_dest_reg_base = 0x01b83000,
 
 	.gcc_gcc_pcie_hot_rst = 0x1e40304,
+
+	.qrtr_node_id = 0x1e03164,
 };
 
 static inline
