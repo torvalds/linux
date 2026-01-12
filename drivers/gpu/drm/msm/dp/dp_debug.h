@@ -12,7 +12,7 @@
 #if defined(CONFIG_DEBUG_FS)
 
 /**
- * msm_dp_debug_get() - configure and get the DisplayPlot debug module data
+ * msm_dp_debug_init() - configure and get the DisplayPlot debug module data
  *
  * @dev: device instance of the caller
  * @panel: instance of panel module

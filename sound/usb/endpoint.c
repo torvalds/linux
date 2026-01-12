@@ -1481,15 +1481,15 @@ int snd_usb_endpoint_prepare(struct snd_usb_audio *chip,
 			return err;
 	}
 
+	err = snd_usb_select_mode_quirk(chip, ep->cur_audiofmt);
+	if (err < 0)
+		return err;
+
 	err = snd_usb_init_pitch(chip, ep->cur_audiofmt);
 	if (err < 0)
 		return err;
 
 	err = init_sample_rate(chip, ep);
-	if (err < 0)
-		return err;
-
-	err = snd_usb_select_mode_quirk(chip, ep->cur_audiofmt);
 	if (err < 0)
 		return err;
 

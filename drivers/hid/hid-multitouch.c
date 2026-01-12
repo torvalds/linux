@@ -81,6 +81,7 @@ MODULE_LICENSE("GPL");
 #define MT_INPUTMODE_TOUCHPAD		0x03
 
 #define MT_BUTTONTYPE_CLICKPAD		0
+#define MT_BUTTONTYPE_PRESSUREPAD	1
 
 enum latency_mode {
 	HID_LATENCY_NORMAL = 0,
@@ -179,6 +180,7 @@ struct mt_device {
 	__u8 inputmode_value;	/* InputMode HID feature value */
 	__u8 maxcontacts;
 	bool is_buttonpad;	/* is this device a button pad? */
+	bool is_pressurepad;	/* is this device a pressurepad? */
 	bool is_haptic_touchpad;	/* is this device a haptic touchpad? */
 	bool serial_maybe;	/* need to check for serial protocol */
 
@@ -393,6 +395,7 @@ static const struct mt_class mt_classes[] = {
 	{ .name = MT_CLS_VTL,
 		.quirks = MT_QUIRK_ALWAYS_VALID |
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_STICKY_FINGERS |
 			MT_QUIRK_FORCE_GET_FEATURE,
 	},
 	{ .name = MT_CLS_GOOGLE,
@@ -530,8 +533,14 @@ static void mt_feature_mapping(struct hid_device *hdev,
 		}
 
 		mt_get_feature(hdev, field->report);
-		if (field->value[usage->usage_index] == MT_BUTTONTYPE_CLICKPAD)
+		switch (field->value[usage->usage_index]) {
+		case MT_BUTTONTYPE_CLICKPAD:
 			td->is_buttonpad = true;
+			break;
+		case MT_BUTTONTYPE_PRESSUREPAD:
+			td->is_pressurepad = true;
+			break;
+		}
 
 		break;
 	case 0xff0000c5:
@@ -1393,6 +1402,8 @@ static int mt_touch_input_configured(struct hid_device *hdev,
 
 	if (td->is_buttonpad)
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
+	if (td->is_pressurepad)
+		__set_bit(INPUT_PROP_PRESSUREPAD, input->propbit);
 
 	app->pending_palm_slots = devm_kcalloc(&hi->input->dev,
 					       BITS_TO_LONGS(td->maxcontacts),

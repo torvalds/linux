@@ -195,7 +195,7 @@ static const struct tlmi_cert_guids thinkpad_cert_guid = {
 };
 
 static const struct tlmi_cert_guids thinkcenter_cert_guid = {
-	.thumbprint = NULL,
+	.thumbprint = LENOVO_CERT_THUMBPRINT_GUID, /* Same GUID as TP */
 	.set_bios_setting = LENOVO_TC_SET_BIOS_SETTING_CERT_GUID,
 	.save_bios_setting = LENOVO_TC_SAVE_BIOS_SETTING_CERT_GUID,
 	.cert_to_password = LENOVO_TC_CERT_TO_PASSWORD_GUID,
@@ -707,6 +707,10 @@ static ssize_t cert_thumbprint(char *buf, const char *arg, int count)
 	acpi_status status;
 
 	if (!tlmi_priv.cert_guid->thumbprint)
+		return -EOPNOTSUPP;
+
+	/* Older ThinkCenter BIOS may not have support */
+	if (!wmi_has_guid(tlmi_priv.cert_guid->thumbprint))
 		return -EOPNOTSUPP;
 
 	status = wmi_evaluate_method(tlmi_priv.cert_guid->thumbprint, 0, 0, &input, &output);

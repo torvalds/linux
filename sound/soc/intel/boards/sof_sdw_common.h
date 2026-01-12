@@ -46,11 +46,11 @@ enum {
 #define SOC_SDW_NO_AGGREGATION		BIT(14)
 
 /* BT audio offload: reserve 3 bits for future */
-#define SOF_BT_OFFLOAD_SSP_SHIFT	15
-#define SOF_BT_OFFLOAD_SSP_MASK	(GENMASK(17, 15))
+#define SOF_BT_OFFLOAD_SSP_SHIFT	18
+#define SOF_BT_OFFLOAD_SSP_MASK	(GENMASK(20, 18))
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
-#define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
+#define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(21)
 
 struct intel_mc_ctx {
 	struct sof_hdmi_private hdmi;

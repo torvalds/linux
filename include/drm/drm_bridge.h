@@ -176,32 +176,16 @@ struct drm_bridge_funcs {
 	/**
 	 * @disable:
 	 *
-	 * The @disable callback should disable the bridge.
+	 * This callback should disable the bridge. It is called right before
+	 * the preceding element in the display pipe is disabled. If the
+	 * preceding element is a bridge this means it's called before that
+	 * bridge's @disable vfunc. If the preceding element is a &drm_encoder
+	 * it's called right before the &drm_encoder_helper_funcs.disable,
+	 * &drm_encoder_helper_funcs.prepare or &drm_encoder_helper_funcs.dpms
+	 * hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
-	 *
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called before
-	 * that bridge is disabled via one of:
-	 *
-	 * - &drm_bridge_funcs.disable
-	 * - &drm_bridge_funcs.atomic_disable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called before the encoder is disabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_disable
-	 * - &drm_encoder_helper_funcs.prepare
-	 * - &drm_encoder_helper_funcs.disable
-	 * - &drm_encoder_helper_funcs.dpms
-	 *
-	 * and the CRTC is disabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.prepare
-	 * - &drm_crtc_helper_funcs.atomic_disable
-	 * - &drm_crtc_helper_funcs.disable
-	 * - &drm_crtc_helper_funcs.dpms.
 	 *
 	 * The @disable callback is optional.
 	 *
@@ -215,34 +199,17 @@ struct drm_bridge_funcs {
 	/**
 	 * @post_disable:
 	 *
+	 * This callback should disable the bridge. It is called right after the
+	 * preceding element in the display pipe is disabled. If the preceding
+	 * element is a bridge this means it's called after that bridge's
+	 * @post_disable function. If the preceding element is a &drm_encoder
+	 * it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.disable, &drm_encoder_helper_funcs.prepare
+	 * or &drm_encoder_helper_funcs.dpms hook.
+	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * signals) feeding this bridge is no longer running when the
-	 * @post_disable is called.
-	 *
-	 * This callback should perform all the actions required by the hardware
-	 * after it has stopped receiving signals from the preceding element.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called after
-	 * that bridge is post-disabled (unless marked otherwise by the
-	 * @pre_enable_prev_first flag) via one of:
-	 *
-	 * - &drm_bridge_funcs.post_disable
-	 * - &drm_bridge_funcs.atomic_post_disable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called after the encoder is disabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_disable
-	 * - &drm_encoder_helper_funcs.prepare
-	 * - &drm_encoder_helper_funcs.disable
-	 * - &drm_encoder_helper_funcs.dpms
-	 *
-	 * and the CRTC is disabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.prepare
-	 * - &drm_crtc_helper_funcs.atomic_disable
-	 * - &drm_crtc_helper_funcs.disable
-	 * - &drm_crtc_helper_funcs.dpms
+	 * signals) feeding it is no longer running when this callback is
+	 * called.
 	 *
 	 * The @post_disable callback is optional.
 	 *
@@ -285,30 +252,18 @@ struct drm_bridge_funcs {
 	/**
 	 * @pre_enable:
 	 *
+	 * This callback should enable the bridge. It is called right before
+	 * the preceding element in the display pipe is enabled. If the
+	 * preceding element is a bridge this means it's called before that
+	 * bridge's @pre_enable function. If the preceding element is a
+	 * &drm_encoder it's called right before the encoder's
+	 * &drm_encoder_helper_funcs.enable, &drm_encoder_helper_funcs.commit or
+	 * &drm_encoder_helper_funcs.dpms hook.
+	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when the @pre_enable is called.
-	 *
-	 * This callback should perform all the necessary actions to prepare the
-	 * bridge to accept signals from the preceding element.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called before
-	 * that bridge is pre-enabled (unless marked otherwise by
-	 * @pre_enable_prev_first flag) via one of:
-	 *
-	 * - &drm_bridge_funcs.pre_enable
-	 * - &drm_bridge_funcs.atomic_pre_enable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called before the CRTC is enabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.atomic_enable
-	 * - &drm_crtc_helper_funcs.commit
-	 *
-	 * and the encoder is enabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_enable
-	 * - &drm_encoder_helper_funcs.enable
-	 * - &drm_encoder_helper_funcs.commit
+	 * will not yet be running when this callback is called. The bridge must
+	 * not enable the display link feeding the next bridge in the chain (if
+	 * there is one) when this callback is called.
 	 *
 	 * The @pre_enable callback is optional.
 	 *
@@ -322,30 +277,18 @@ struct drm_bridge_funcs {
 	/**
 	 * @enable:
 	 *
-	 * The @enable callback should enable the bridge.
+	 * This callback should enable the bridge. It is called right after
+	 * the preceding element in the display pipe is enabled. If the
+	 * preceding element is a bridge this means it's called after that
+	 * bridge's @enable function. If the preceding element is a
+	 * &drm_encoder it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.enable, &drm_encoder_helper_funcs.commit or
+	 * &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is running when this callback is called. This
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called after
-	 * that bridge is enabled via one of:
-	 *
-	 * - &drm_bridge_funcs.enable
-	 * - &drm_bridge_funcs.atomic_enable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called after the CRTC is enabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.atomic_enable
-	 * - &drm_crtc_helper_funcs.commit
-	 *
-	 * and the encoder is enabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_enable
-	 * - &drm_encoder_helper_funcs.enable
-	 * - drm_encoder_helper_funcs.commit
 	 *
 	 * The @enable callback is optional.
 	 *
@@ -359,30 +302,17 @@ struct drm_bridge_funcs {
 	/**
 	 * @atomic_pre_enable:
 	 *
+	 * This callback should enable the bridge. It is called right before
+	 * the preceding element in the display pipe is enabled. If the
+	 * preceding element is a bridge this means it's called before that
+	 * bridge's @atomic_pre_enable or @pre_enable function. If the preceding
+	 * element is a &drm_encoder it's called right before the encoder's
+	 * &drm_encoder_helper_funcs.atomic_enable hook.
+	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
-	 * will not yet be running when the @atomic_pre_enable is called.
-	 *
-	 * This callback should perform all the necessary actions to prepare the
-	 * bridge to accept signals from the preceding element.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called before
-	 * that bridge is pre-enabled (unless marked otherwise by
-	 * @pre_enable_prev_first flag) via one of:
-	 *
-	 * - &drm_bridge_funcs.pre_enable
-	 * - &drm_bridge_funcs.atomic_pre_enable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called before the CRTC is enabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.atomic_enable
-	 * - &drm_crtc_helper_funcs.commit
-	 *
-	 * and the encoder is enabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_enable
-	 * - &drm_encoder_helper_funcs.enable
-	 * - &drm_encoder_helper_funcs.commit
+	 * will not yet be running when this callback is called. The bridge must
+	 * not enable the display link feeding the next bridge in the chain (if
+	 * there is one) when this callback is called.
 	 *
 	 * The @atomic_pre_enable callback is optional.
 	 */
@@ -392,30 +322,17 @@ struct drm_bridge_funcs {
 	/**
 	 * @atomic_enable:
 	 *
-	 * The @atomic_enable callback should enable the bridge.
+	 * This callback should enable the bridge. It is called right after
+	 * the preceding element in the display pipe is enabled. If the
+	 * preceding element is a bridge this means it's called after that
+	 * bridge's @atomic_enable or @enable function. If the preceding element
+	 * is a &drm_encoder it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.atomic_enable hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is running when this callback is called. This
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called after
-	 * that bridge is enabled via one of:
-	 *
-	 * - &drm_bridge_funcs.enable
-	 * - &drm_bridge_funcs.atomic_enable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called after the CRTC is enabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.atomic_enable
-	 * - &drm_crtc_helper_funcs.commit
-	 *
-	 * and the encoder is enabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_enable
-	 * - &drm_encoder_helper_funcs.enable
-	 * - drm_encoder_helper_funcs.commit
 	 *
 	 * The @atomic_enable callback is optional.
 	 */
@@ -424,31 +341,15 @@ struct drm_bridge_funcs {
 	/**
 	 * @atomic_disable:
 	 *
-	 * The @atomic_disable callback should disable the bridge.
+	 * This callback should disable the bridge. It is called right before
+	 * the preceding element in the display pipe is disabled. If the
+	 * preceding element is a bridge this means it's called before that
+	 * bridge's @atomic_disable or @disable vfunc. If the preceding element
+	 * is a &drm_encoder it's called right before the
+	 * &drm_encoder_helper_funcs.atomic_disable hook.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called before
-	 * that bridge is disabled via one of:
-	 *
-	 * - &drm_bridge_funcs.disable
-	 * - &drm_bridge_funcs.atomic_disable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called before the encoder is disabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_disable
-	 * - &drm_encoder_helper_funcs.prepare
-	 * - &drm_encoder_helper_funcs.disable
-	 * - &drm_encoder_helper_funcs.dpms
-	 *
-	 * and the CRTC is disabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.prepare
-	 * - &drm_crtc_helper_funcs.atomic_disable
-	 * - &drm_crtc_helper_funcs.disable
-	 * - &drm_crtc_helper_funcs.dpms.
 	 *
 	 * The @atomic_disable callback is optional.
 	 */
@@ -458,34 +359,16 @@ struct drm_bridge_funcs {
 	/**
 	 * @atomic_post_disable:
 	 *
+	 * This callback should disable the bridge. It is called right after the
+	 * preceding element in the display pipe is disabled. If the preceding
+	 * element is a bridge this means it's called after that bridge's
+	 * @atomic_post_disable or @post_disable function. If the preceding
+	 * element is a &drm_encoder it's called right after the encoder's
+	 * &drm_encoder_helper_funcs.atomic_disable hook.
+	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * signals) feeding this bridge is no longer running when the
-	 * @atomic_post_disable is called.
-	 *
-	 * This callback should perform all the actions required by the hardware
-	 * after it has stopped receiving signals from the preceding element.
-	 *
-	 * If the preceding element is a &drm_bridge, then this is called after
-	 * that bridge is post-disabled (unless marked otherwise by the
-	 * @pre_enable_prev_first flag) via one of:
-	 *
-	 * - &drm_bridge_funcs.post_disable
-	 * - &drm_bridge_funcs.atomic_post_disable
-	 *
-	 * If the preceding element of the bridge is a display controller, then
-	 * this callback is called after the encoder is disabled via one of:
-	 *
-	 * - &drm_encoder_helper_funcs.atomic_disable
-	 * - &drm_encoder_helper_funcs.prepare
-	 * - &drm_encoder_helper_funcs.disable
-	 * - &drm_encoder_helper_funcs.dpms
-	 *
-	 * and the CRTC is disabled via one of:
-	 *
-	 * - &drm_crtc_helper_funcs.prepare
-	 * - &drm_crtc_helper_funcs.atomic_disable
-	 * - &drm_crtc_helper_funcs.disable
-	 * - &drm_crtc_helper_funcs.dpms
+	 * signals) feeding it is no longer running when this callback is
+	 * called.
 	 *
 	 * The @atomic_post_disable callback is optional.
 	 */
