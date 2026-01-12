@@ -38,13 +38,8 @@ bool snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 bool snd_sof_pci_update_bits(struct snd_sof_dev *sdev, u32 offset,
 			     u32 mask, u32 value)
 {
-	unsigned long flags;
-	bool change;
-
-	spin_lock_irqsave(&sdev->hw_lock, flags);
-	change = snd_sof_pci_update_bits_unlocked(sdev, offset, mask, value);
-	spin_unlock_irqrestore(&sdev->hw_lock, flags);
-	return change;
+	guard(spinlock_irqsave)(&sdev->hw_lock);
+	return snd_sof_pci_update_bits_unlocked(sdev, offset, mask, value);
 }
 EXPORT_SYMBOL(snd_sof_pci_update_bits);
 
@@ -90,28 +85,16 @@ EXPORT_SYMBOL(snd_sof_dsp_update_bits64_unlocked);
 bool snd_sof_dsp_update_bits(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			     u32 mask, u32 value)
 {
-	unsigned long flags;
-	bool change;
-
-	spin_lock_irqsave(&sdev->hw_lock, flags);
-	change = snd_sof_dsp_update_bits_unlocked(sdev, bar, offset, mask,
-						  value);
-	spin_unlock_irqrestore(&sdev->hw_lock, flags);
-	return change;
+	guard(spinlock_irqsave)(&sdev->hw_lock);
+	return snd_sof_dsp_update_bits_unlocked(sdev, bar, offset, mask, value);
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits);
 
 bool snd_sof_dsp_update_bits64(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			       u64 mask, u64 value)
 {
-	unsigned long flags;
-	bool change;
-
-	spin_lock_irqsave(&sdev->hw_lock, flags);
-	change = snd_sof_dsp_update_bits64_unlocked(sdev, bar, offset, mask,
-						    value);
-	spin_unlock_irqrestore(&sdev->hw_lock, flags);
-	return change;
+	guard(spinlock_irqsave)(&sdev->hw_lock);
+	return snd_sof_dsp_update_bits64_unlocked(sdev, bar, offset, mask, value);
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits64);
 
@@ -134,11 +117,8 @@ void snd_sof_dsp_update_bits_forced_unlocked(struct snd_sof_dev *sdev, u32 bar,
 void snd_sof_dsp_update_bits_forced(struct snd_sof_dev *sdev, u32 bar,
 				    u32 offset, u32 mask, u32 value)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&sdev->hw_lock, flags);
+	guard(spinlock_irqsave)(&sdev->hw_lock);
 	snd_sof_dsp_update_bits_forced_unlocked(sdev, bar, offset, mask, value);
-	spin_unlock_irqrestore(&sdev->hw_lock, flags);
 }
 EXPORT_SYMBOL(snd_sof_dsp_update_bits_forced);
 

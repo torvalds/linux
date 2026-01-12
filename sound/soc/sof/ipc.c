@@ -47,7 +47,7 @@ int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 	 * The spin-lock is needed to protect message objects against other
 	 * atomic contexts.
 	 */
-	spin_lock_irq(&sdev->ipc_lock);
+	guard(spinlock_irq)(&sdev->ipc_lock);
 
 	/* initialise the message */
 	msg = &ipc->msg;
@@ -65,8 +65,6 @@ int sof_ipc_send_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 	/* Next reply that we receive will be related to this message */
 	if (!ret)
 		msg->ipc_complete = false;
-
-	spin_unlock_irq(&sdev->ipc_lock);
 
 	return ret;
 }
