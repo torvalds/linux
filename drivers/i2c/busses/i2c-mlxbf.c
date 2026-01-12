@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/string_choices.h>
+#include <linux/units.h>
 
 /* Defines what functionality is present. */
 #define MLXBF_I2C_FUNC_SMBUS_BLOCK \
@@ -71,8 +72,6 @@
 
 /* Constant used to determine the PLL frequency. */
 #define MLNXBF_I2C_COREPLL_CONST    16384ULL
-
-#define MLXBF_I2C_FREQUENCY_1GHZ  1000000000ULL
 
 /* PLL registers. */
 #define MLXBF_I2C_CORE_PLL_REG1         0x4
@@ -1083,7 +1082,7 @@ static u32 mlxbf_i2c_get_ticks(struct mlxbf_i2c_priv *priv, u64 nanoseconds,
 	 *         Frequency
 	 */
 	frequency = priv->frequency;
-	ticks = div_u64(nanoseconds * frequency, MLXBF_I2C_FREQUENCY_1GHZ);
+	ticks = div_u64(nanoseconds * frequency, HZ_PER_GHZ);
 	/*
 	 * The number of ticks is rounded down and if minimum is equal to 1
 	 * then add one tick.
