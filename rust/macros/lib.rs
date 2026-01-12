@@ -481,6 +481,8 @@ pub fn paste(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
-    kunit::kunit_tests(attr.into(), ts.into()).into()
+pub fn kunit_tests(attr: TokenStream, input: TokenStream) -> TokenStream {
+    kunit::kunit_tests(parse_macro_input!(attr), parse_macro_input!(input))
+        .unwrap_or_else(|e| e.into_compile_error())
+        .into()
 }
