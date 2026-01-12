@@ -883,14 +883,13 @@ static int smu_v15_0_common_get_dpm_level_count(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
-					enum smu_clk_type clk_type, char *buf)
+static int smu_v15_0_0_emit_clk_levels(struct smu_context *smu,
+				       enum smu_clk_type clk_type, char *buf,
+				       int *offset)
 {
-	int i, idx, ret = 0, size = 0;
+	int i, idx, ret = 0, size = *offset;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t min, max;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -915,19 +914,20 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_FCLK:
 		ret = smu_v15_0_0_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
-			break;
+			return ret;
 
 		ret = smu_v15_0_common_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
-			break;
+			return ret;
 
 		for (i = 0; i < count; i++) {
 			idx = (clk_type == SMU_MCLK) ? (count - i - 1) : i;
 			ret = smu_v15_0_common_get_dpm_freq_by_index(smu, clk_type, idx, &value);
 			if (ret)
-				break;
+				return ret;
 
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+					      value,
 					      cur_value == value ? "*" : "");
 		}
 		break;
@@ -935,7 +935,7 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		ret = smu_v15_0_0_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
-			break;
+			return ret;
 		min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
 		max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
 		if (cur_value  == max)
@@ -946,9 +946,10 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 			i = 1;
 		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
 				      i == 0 ? "*" : "");
-		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
-				      i == 1 ? cur_value : 1100, /* UMD PSTATE GFXCLK 1100 */
-				      i == 1 ? "*" : "");
+		size += sysfs_emit_at(
+			buf, size, "1: %uMhz %s\n",
+			i == 1 ? cur_value : 1100, /* UMD PSTATE GFXCLK 1100 */
+			i == 1 ? "*" : "");
 		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
 				      i == 2 ? "*" : "");
 		break;
@@ -956,7 +957,9 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	*offset = size;
+
+	return 0;
 }
 
 static int smu_v15_0_0_set_soft_freq_limited_range(struct smu_context *smu,
@@ -1321,7 +1324,7 @@ static const struct pptable_funcs smu_v15_0_0_ppt_funcs = {
 	.mode2_reset = smu_v15_0_0_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v15_0_common_get_dpm_ultimate_freq,
 	.od_edit_dpm_table = smu_v15_0_od_edit_dpm_table,
-	.print_clk_levels = smu_v15_0_0_print_clk_levels,
+	.emit_clk_levels = smu_v15_0_0_emit_clk_levels,
 	.force_clk_levels = smu_v15_0_0_force_clk_levels,
 	.set_performance_level = smu_v15_0_common_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = smu_v15_0_common_set_fine_grain_gfx_freq_parameters,
