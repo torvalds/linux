@@ -246,6 +246,7 @@ extern void mnt_pin_kill(struct mount *m);
  */
 extern const struct dentry_operations ns_dentry_operations;
 int open_namespace(struct ns_common *ns);
+struct file *open_namespace_file(struct ns_common *ns);
 
 /*
  * fs/stat.c:

@@ -515,6 +515,32 @@ int setup_userns(void)
 	return 0;
 }
 
+int enter_userns(void)
+{
+	int ret;
+	char buf[32];
+	uid_t uid = getuid();
+	gid_t gid = getgid();
+
+	ret = unshare(CLONE_NEWUSER);
+	if (ret)
+		return ret;
+
+	sprintf(buf, "0 %d 1", uid);
+	ret = write_file("/proc/self/uid_map", buf);
+	if (ret)
+		return ret;
+	ret = write_file("/proc/self/setgroups", "deny");
+	if (ret)
+		return ret;
+	sprintf(buf, "0 %d 1", gid);
+	ret = write_file("/proc/self/gid_map", buf);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 /* caps_down - lower all effective caps */
 int caps_down(void)
 {
