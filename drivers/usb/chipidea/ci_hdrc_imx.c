@@ -385,6 +385,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	const struct ci_hdrc_imx_platform_flag *imx_platform_flag;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
+	const char *irq_name;
 
 	imx_platform_flag = of_device_get_match_data(&pdev->dev);
 
@@ -525,10 +526,16 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 
 	data->wakeup_irq = platform_get_irq_optional(pdev, 1);
 	if (data->wakeup_irq > 0) {
+		irq_name = devm_kasprintf(dev, GFP_KERNEL, "%s:wakeup", pdata.name);
+		if (!irq_name) {
+			dev_err_probe(dev, -ENOMEM, "failed to create irq_name\n");
+			goto err_clk;
+		}
+
 		ret = devm_request_threaded_irq(dev, data->wakeup_irq,
 						NULL, ci_wakeup_irq_handler,
 						IRQF_ONESHOT | IRQF_NO_AUTOEN,
-						pdata.name, data);
+						irq_name, data);
 		if (ret)
 			goto err_clk;
 	}
