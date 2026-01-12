@@ -199,7 +199,7 @@ policy_store(struct device *dev, struct device_attribute *attr,
 	char name[THERMAL_NAME_LENGTH];
 	int ret;
 
-	snprintf(name, sizeof(name), "%s", buf);
+	strscpy(name, buf);
 
 	ret = thermal_zone_device_set_policy(tz, name);
 	if (!ret)
