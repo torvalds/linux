@@ -283,7 +283,8 @@ static bool ufshcd_has_pending_tasks(struct ufs_hba *hba)
 
 static bool ufshcd_is_ufs_dev_busy(struct ufs_hba *hba)
 {
-	return scsi_host_busy(hba->host) || ufshcd_has_pending_tasks(hba);
+	return (hba->scsi_host_added && scsi_host_busy(hba->host)) ||
+		ufshcd_has_pending_tasks(hba);
 }
 
 static const struct ufs_dev_quirk ufs_fixups[] = {
@@ -678,7 +679,8 @@ static void ufshcd_print_host_state(struct ufs_hba *hba)
 
 	dev_err(hba->dev, "UFS Host state=%d\n", hba->ufshcd_state);
 	dev_err(hba->dev, "%d outstanding reqs, tasks=0x%lx\n",
-		scsi_host_busy(hba->host), hba->outstanding_tasks);
+		hba->scsi_host_added ? scsi_host_busy(hba->host) : 0,
+		hba->outstanding_tasks);
 	dev_err(hba->dev, "saved_err=0x%x, saved_uic_err=0x%x\n",
 		hba->saved_err, hba->saved_uic_err);
 	dev_err(hba->dev, "Device power mode=%d, UIC link state=%d\n",
