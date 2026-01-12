@@ -2810,23 +2810,62 @@ int isolate_or_dissolve_huge_folio(struct folio *folio, struct list_head *list)
  */
 int replace_free_hugepage_folios(unsigned long start_pfn, unsigned long end_pfn)
 {
-	struct folio *folio;
+	unsigned long nr = 0;
+	struct page *page;
+	struct hstate *h;
+	LIST_HEAD(list);
 	int ret = 0;
 
-	LIST_HEAD(isolate_list);
+	/* Avoid pfn iterations if no free non-gigantic huge pages */
+	for_each_hstate(h) {
+		if (hstate_is_gigantic(h))
+			continue;
+
+		nr += h->free_huge_pages;
+		if (nr)
+			break;
+	}
+
+	if (!nr)
+		return 0;
 
 	while (start_pfn < end_pfn) {
-		folio = pfn_folio(start_pfn);
+		page = pfn_to_page(start_pfn);
+		nr = 1;
 
-		/* Not to disrupt normal path by vainly holding hugetlb_lock */
-		if (folio_test_hugetlb(folio) && !folio_ref_count(folio)) {
-			ret = alloc_and_dissolve_hugetlb_folio(folio, &isolate_list);
-			if (ret)
-				break;
+		if (PageHuge(page) || PageCompound(page)) {
+			struct folio *folio = page_folio(page);
 
-			putback_movable_pages(&isolate_list);
+			nr = folio_nr_pages(folio) - folio_page_idx(folio, page);
+
+			/*
+			 * Don't disrupt normal path by vainly holding
+			 * hugetlb_lock
+			 */
+			if (folio_test_hugetlb(folio) && !folio_ref_count(folio)) {
+				if (order_is_gigantic(folio_order(folio))) {
+					ret = -ENOMEM;
+					break;
+				}
+
+				ret = alloc_and_dissolve_hugetlb_folio(folio, &list);
+				if (ret)
+					break;
+
+				putback_movable_pages(&list);
+			}
+		} else if (PageBuddy(page)) {
+			/*
+			 * Buddy order check without zone lock is unsafe and
+			 * the order is maybe invalid, but race should be
+			 * small, and the worst thing is skipping free hugetlb.
+			 */
+			const unsigned int order = buddy_order_unsafe(page);
+
+			if (order <= MAX_PAGE_ORDER)
+				nr = 1UL << order;
 		}
-		start_pfn++;
+		start_pfn += nr;
 	}
 
 	return ret;
