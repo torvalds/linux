@@ -4,6 +4,7 @@
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/pm.h>
 #include <asm/reboot.h>
 #include <asm/mach-pic32/pic32.h>
