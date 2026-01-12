@@ -1121,6 +1121,8 @@ struct ath12k_hw_hal_params {
 	u32 wbm2sw_cc_enable;
 };
 
+#define ATH12K_HW_REG_UNDEFINED	0xdeadbeaf
+
 struct ath12k_hw_regs {
 	u32 tcl1_ring_id;
 	u32 tcl1_ring_misc;
