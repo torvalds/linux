@@ -5,6 +5,7 @@
 #include <linux/ns_common.h>
 #include <linux/fs_pin.h>
 
+extern struct file_system_type nullfs_fs_type;
 extern struct list_head notify_list;
 
 struct mnt_namespace {
