@@ -74,7 +74,7 @@ pub(crate) fn kunit_tests(test_suite: Ident, mut module: ItemMod) -> Result<Toke
     // static mut TEST_CASES: [::kernel::bindings::kunit_case; 3] = [
     //     ::kernel::kunit::kunit_case(c"foo", kunit_rust_wrapper_foo),
     //     ::kernel::kunit::kunit_case(c"bar", kunit_rust_wrapper_bar),
-    //     ::kernel::kunit::kunit_case_null(),
+    //     ::pin_init::zeroed(),
     // ];
     //
     // ::kernel::kunit_unsafe_test_suite!(kunit_test_suit_name, TEST_CASES);
@@ -159,7 +159,7 @@ pub(crate) fn kunit_tests(test_suite: Ident, mut module: ItemMod) -> Result<Toke
     processed_items.push(parse_quote! {
         static mut TEST_CASES: [::kernel::bindings::kunit_case; #num_tests_plus_1] = [
             #(#test_cases,)*
-            ::kernel::kunit::kunit_case_null(),
+            ::pin_init::zeroed(),
         ];
     });
     processed_items.push(parse_quote! {
