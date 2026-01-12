@@ -116,6 +116,16 @@ static inline int aes_check_keylen(size_t keylen)
 int aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 		  unsigned int key_len);
 
+/*
+ * The following functions are temporarily exported for use by the AES mode
+ * implementations in arch/$(SRCARCH)/crypto/.  These exports will go away when
+ * that code is migrated into lib/crypto/.
+ */
+#ifdef CONFIG_ARM64
+int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
+		     unsigned int key_len);
+#endif
+
 /**
  * aes_preparekey() - Prepare an AES key for encryption and decryption
  * @key: (output) The key structure to initialize
