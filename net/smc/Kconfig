@@ -22,7 +22,7 @@ config SMC_DIAG
 
 config SMC_HS_CTRL_BPF
 	bool "Generic eBPF hook for SMC handshake flow"
-	depends on SMC && BPF_SYSCALL
+	depends on SMC && BPF_JIT && BPF_SYSCALL
 	default y
 	help
 	  SMC_HS_CTRL_BPF enables support to register generic eBPF hook for SMC

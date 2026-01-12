@@ -21,13 +21,13 @@ struct dpu_hw_dsc;
  */
 struct dpu_hw_dsc_ops {
 	/**
-	 * dsc_disable - disable dsc
+	 * @dsc_disable: disable dsc
 	 * @hw_dsc: Pointer to dsc context
 	 */
 	void (*dsc_disable)(struct dpu_hw_dsc *hw_dsc);
 
 	/**
-	 * dsc_config - configures dsc encoder
+	 * @dsc_config: configures dsc encoder
 	 * @hw_dsc: Pointer to dsc context
 	 * @dsc: panel dsc parameters
 	 * @mode: dsc topology mode to be set
@@ -39,13 +39,17 @@ struct dpu_hw_dsc_ops {
 			   u32 initial_lines);
 
 	/**
-	 * dsc_config_thresh - programs panel thresholds
+	 * @dsc_config_thresh: programs panel thresholds
 	 * @hw_dsc: Pointer to dsc context
 	 * @dsc: panel dsc parameters
 	 */
 	void (*dsc_config_thresh)(struct dpu_hw_dsc *hw_dsc,
 				  struct drm_dsc_config *dsc);
 
+	/**
+	 * @dsc_bind_pingpong_blk: binds pixel output from a DSC block
+	 * to a pingpong block
+	 */
 	void (*dsc_bind_pingpong_blk)(struct dpu_hw_dsc *hw_dsc,
 				  enum dpu_pingpong pp);
 };

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Sharp GP2AP002A00F and GP2AP002S00F proximity and ambient light sensors
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   Proximity and ambient light sensor with IR LED for the proximity

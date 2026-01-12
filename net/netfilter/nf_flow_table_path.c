@@ -250,6 +250,9 @@ static void nft_dev_forward_path(const struct nft_pktinfo *pkt,
 	if (nft_dev_fill_forward_path(route, dst, ct, dir, ha, &stack) >= 0)
 		nft_dev_path_info(&stack, &info, ha, &ft->data);
 
+	if (info.outdev)
+		route->tuple[dir].out.ifindex = info.outdev->ifindex;
+
 	if (!info.indev || !nft_flowtable_find_dev(info.indev, ft))
 		return;
 
@@ -269,7 +272,6 @@ static void nft_dev_forward_path(const struct nft_pktinfo *pkt,
 
 	route->tuple[!dir].in.num_encaps = info.num_encaps;
 	route->tuple[!dir].in.ingress_vlans = info.ingress_vlans;
-	route->tuple[dir].out.ifindex = info.outdev->ifindex;
 
 	if (info.xmit_type == FLOW_OFFLOAD_XMIT_DIRECT) {
 		memcpy(route->tuple[dir].out.h_source, info.h_source, ETH_ALEN);

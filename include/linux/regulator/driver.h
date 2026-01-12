@@ -635,6 +635,7 @@ struct regulator_dev {
 	int ref_cnt;
 	struct module *owner;
 	struct device dev;
+	struct device bdev;
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
 	const char *supply_name;
@@ -649,6 +650,7 @@ struct regulator_dev {
 	struct regulator_enable_gpio *ena_pin;
 	unsigned int ena_gpio_state:1;
 
+	unsigned int constraints_pending:1;
 	unsigned int is_switch:1;
 
 	/* time when this regulator was disabled last time */
