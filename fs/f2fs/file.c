@@ -2463,7 +2463,7 @@ int f2fs_do_shutdown(struct f2fs_sb_info *sbi, unsigned int flag,
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		break;
 	case F2FS_GOING_DOWN_METAFLUSH:
-		f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_META_IO);
+		f2fs_sync_meta_pages(sbi, LONG_MAX, FS_META_IO);
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		break;
 	case F2FS_GOING_DOWN_NEED_FSCK:

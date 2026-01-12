@@ -4068,8 +4068,8 @@ int f2fs_ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages,
 			int type, bool sync);
 void f2fs_ra_meta_pages_cond(struct f2fs_sb_info *sbi, pgoff_t index,
 							unsigned int ra_blocks);
-long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
-			long nr_to_write, enum iostat_type io_type);
+long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, long nr_to_write,
+			enum iostat_type io_type);
 void f2fs_add_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void f2fs_remove_ino_entry(struct f2fs_sb_info *sbi, nid_t ino, int type);
 void f2fs_release_ino_entry(struct f2fs_sb_info *sbi, bool all);

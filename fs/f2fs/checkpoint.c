@@ -534,7 +534,7 @@ static int f2fs_write_meta_pages(struct address_space *mapping,
 
 	trace_f2fs_writepages(mapping->host, wbc, META);
 	diff = nr_pages_to_write(sbi, META, wbc);
-	written = f2fs_sync_meta_pages(sbi, META, wbc->nr_to_write, FS_META_IO);
+	written = f2fs_sync_meta_pages(sbi, wbc->nr_to_write, FS_META_IO);
 	f2fs_up_write_trace(&sbi->cp_global_sem, &lc);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - written - diff);
 	return 0;
@@ -545,8 +545,8 @@ skip_write:
 	return 0;
 }
 
-long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, enum page_type type,
-				long nr_to_write, enum iostat_type io_type)
+long f2fs_sync_meta_pages(struct f2fs_sb_info *sbi, long nr_to_write,
+				enum iostat_type io_type)
 {
 	struct address_space *mapping = META_MAPPING(sbi);
 	pgoff_t index = 0, prev = ULONG_MAX;
@@ -607,7 +607,7 @@ continue_unlock:
 	}
 stop:
 	if (nwritten)
-		f2fs_submit_merged_write(sbi, type);
+		f2fs_submit_merged_write(sbi, META);
 
 	blk_finish_plug(&plug);
 
@@ -1450,8 +1450,7 @@ void f2fs_wait_on_all_pages(struct f2fs_sb_info *sbi, int type)
 			break;
 
 		if (type == F2FS_DIRTY_META)
-			f2fs_sync_meta_pages(sbi, META, LONG_MAX,
-							FS_CP_META_IO);
+			f2fs_sync_meta_pages(sbi, LONG_MAX, FS_CP_META_IO);
 		else if (type == F2FS_WB_CP_DATA)
 			f2fs_submit_merged_write(sbi, DATA);
 
@@ -1623,7 +1622,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	int err;
 
 	/* Flush all the NAT/SIT pages */
-	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
+	f2fs_sync_meta_pages(sbi, LONG_MAX, FS_CP_META_IO);
 
 	stat_cp_time(cpc, CP_TIME_SYNC_META);
 
@@ -1722,7 +1721,7 @@ static int do_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	/* Here, we have one bio having CP pack except cp pack 2 page */
-	f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_CP_META_IO);
+	f2fs_sync_meta_pages(sbi, LONG_MAX, FS_CP_META_IO);
 	stat_cp_time(cpc, CP_TIME_SYNC_CP_META);
 
 	/* Wait for all dirty meta pages to be submitted for IO */
