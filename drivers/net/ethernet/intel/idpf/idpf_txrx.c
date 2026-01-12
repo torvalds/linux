@@ -1316,6 +1316,9 @@ static void idpf_txq_group_rel(struct idpf_q_vec_rsrc *rsrc)
 		struct idpf_txq_group *txq_grp = &rsrc->txq_grps[i];
 
 		for (unsigned int j = 0; j < txq_grp->num_txq; j++) {
+			if (!txq_grp->txqs[j])
+				continue;
+
 			if (idpf_queue_has(FLOW_SCH_EN, txq_grp->txqs[j])) {
 				kfree(txq_grp->txqs[j]->refillq);
 				txq_grp->txqs[j]->refillq = NULL;
