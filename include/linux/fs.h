@@ -1717,6 +1717,13 @@ static inline struct timespec64 inode_set_ctime(struct inode *inode,
 
 struct timespec64 simple_inode_init_ts(struct inode *inode);
 
+static inline int inode_time_dirty_flag(struct inode *inode)
+{
+	if (inode->i_sb->s_flags & SB_LAZYTIME)
+		return I_DIRTY_TIME;
+	return I_DIRTY_SYNC;
+}
+
 /*
  * Snapshotting support.
  */
@@ -1983,6 +1990,11 @@ int wrap_directory_iterator(struct file *, struct dir_context *,
 	static int shared_##x(struct file *file , struct dir_context *ctx) \
 	{ return wrap_directory_iterator(file, ctx, x); }
 
+enum fs_update_time {
+	FS_UPD_ATIME,
+	FS_UPD_CMTIME,
+};
+
 struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
 	const char * (*get_link) (struct dentry *, struct inode *, struct delayed_call *);
@@ -2010,7 +2022,9 @@ struct inode_operations {
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
 		      u64 len);
-	int (*update_time)(struct inode *, int);
+	int (*update_time)(struct inode *inode, enum fs_update_time type,
+			   unsigned int flags);
+	void (*sync_lazytime)(struct inode *inode);
 	int (*atomic_open)(struct inode *, struct dentry *,
 			   struct file *, unsigned open_flag,
 			   umode_t create_mode);
@@ -2237,16 +2251,8 @@ static inline void inode_dec_link_count(struct inode *inode)
 	mark_inode_dirty(inode);
 }
 
-enum file_time_flags {
-	S_ATIME = 1,
-	S_MTIME = 2,
-	S_CTIME = 4,
-	S_VERSION = 8,
-};
-
 extern bool atime_needs_update(const struct path *, struct inode *);
 extern void touch_atime(const struct path *);
-int inode_update_time(struct inode *inode, int flags);
 
 static inline void file_accessed(struct file *file)
 {
@@ -2399,8 +2405,10 @@ static inline void super_set_sysfs_name_generic(struct super_block *sb, const ch
 extern void ihold(struct inode * inode);
 extern void iput(struct inode *);
 void iput_not_last(struct inode *);
-int inode_update_timestamps(struct inode *inode, int flags);
-int generic_update_time(struct inode *, int);
+int inode_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags);
+int generic_update_time(struct inode *inode, enum fs_update_time type,
+		unsigned int flags);
 
 /* /sys/fs */
 extern struct kobject *fs_kobj;
