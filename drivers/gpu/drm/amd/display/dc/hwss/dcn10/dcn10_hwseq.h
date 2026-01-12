@@ -217,5 +217,7 @@ void dcn10_update_visual_confirm_color(
 void dcn10_reset_surface_dcc_and_tiling(struct pipe_ctx *pipe_ctx,
 					struct dc_plane_state *plane_state,
 					bool clear_tiling);
+void dcn10_config_stereo_parameters(
+		struct dc_stream_state *stream, struct crtc_stereo_flags *flags);
 
 #endif /* __DC_HWSS_DCN10_H__ */

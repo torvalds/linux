@@ -3474,7 +3474,7 @@ void dcn10_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 					triggers, params->num_frames);
 }
 
-static void dcn10_config_stereo_parameters(
+void dcn10_config_stereo_parameters(
 		struct dc_stream_state *stream, struct crtc_stereo_flags *flags)
 {
 	enum view_3d_format view_format = stream->view_format;
