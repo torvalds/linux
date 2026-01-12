@@ -455,12 +455,7 @@ int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
 		list_for_each_entry(ref, &entry->refs, list) {
 			guard(mutex)(&ref->lock);
 
-			/*
-			 * FIXME: use device_is_compatible() once the reset-gpio
-			 * drivers gains a compatible string which it currently
-			 * does not have.
-			 */
-			if (!ref->fwnode && strstarts(dev_name(consumer), "reset.gpio.")) {
+			if (!ref->fwnode && device_is_compatible(consumer, "reset-gpio")) {
 				if (!gpio_shared_dev_is_reset_gpio(consumer, entry, ref))
 					continue;
 			} else if (!device_match_fwnode(consumer, ref->fwnode)) {
