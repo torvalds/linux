@@ -18,7 +18,7 @@ static inline int crypto_drbg_ctr_df_datalen(u8 statelen, u8 blocklen)
 		statelen + blocklen;  /* temp */
 }
 
-int crypto_drbg_ctr_df(struct crypto_aes_ctx *aes,
+int crypto_drbg_ctr_df(struct aes_enckey *aes,
 		       unsigned char *df_data,
 		       size_t bytes_to_return,
 		       struct list_head *seedlist,

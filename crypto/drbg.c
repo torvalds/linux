@@ -1505,9 +1505,9 @@ static int drbg_kcapi_hash(struct drbg_state *drbg, unsigned char *outval,
 #ifdef CONFIG_CRYPTO_DRBG_CTR
 static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 {
-	struct crypto_aes_ctx *aesctx =	(struct crypto_aes_ctx *)drbg->priv_data;
+	struct aes_enckey *aeskey = drbg->priv_data;
 
-	kfree(aesctx);
+	kfree(aeskey);
 	drbg->priv_data = NULL;
 
 	if (drbg->ctr_handle)
@@ -1526,16 +1526,16 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 
 static int drbg_init_sym_kernel(struct drbg_state *drbg)
 {
-	struct crypto_aes_ctx *aesctx;
+	struct aes_enckey *aeskey;
 	struct crypto_skcipher *sk_tfm;
 	struct skcipher_request *req;
 	unsigned int alignmask;
 	char ctr_name[CRYPTO_MAX_ALG_NAME];
 
-	aesctx = kzalloc(sizeof(*aesctx), GFP_KERNEL);
-	if (!aesctx)
+	aeskey = kzalloc(sizeof(*aeskey), GFP_KERNEL);
+	if (!aeskey)
 		return -ENOMEM;
-	drbg->priv_data = aesctx;
+	drbg->priv_data = aeskey;
 
 	if (snprintf(ctr_name, CRYPTO_MAX_ALG_NAME, "ctr(%s)",
 	    drbg->core->backend_cra_name) >= CRYPTO_MAX_ALG_NAME) {
