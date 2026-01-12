@@ -308,17 +308,8 @@ typedef union {
  *
  * Context: Any context.
  */
-#define aes_encrypt(key, out, in) \
-	_Generic((key), \
-		 struct crypto_aes_ctx *: aes_encrypt_old((const struct crypto_aes_ctx *)(key), (out), (in)), \
-		 const struct crypto_aes_ctx *: aes_encrypt_old((const struct crypto_aes_ctx *)(key), (out), (in)), \
-		 struct aes_enckey *: aes_encrypt_new((const struct aes_enckey *)(key), (out), (in)), \
-		 const struct aes_enckey *: aes_encrypt_new((const struct aes_enckey *)(key), (out), (in)), \
-		 struct aes_key *: aes_encrypt_new((const struct aes_key *)(key), (out), (in)), \
-		 const struct aes_key *: aes_encrypt_new((const struct aes_key *)(key), (out), (in)))
-void aes_encrypt_old(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in);
-void aes_encrypt_new(aes_encrypt_arg key, u8 out[at_least AES_BLOCK_SIZE],
-		     const u8 in[at_least AES_BLOCK_SIZE]);
+void aes_encrypt(aes_encrypt_arg key, u8 out[at_least AES_BLOCK_SIZE],
+		 const u8 in[at_least AES_BLOCK_SIZE]);
 
 /**
  * aes_decrypt() - Decrypt a single AES block
@@ -328,15 +319,8 @@ void aes_encrypt_new(aes_encrypt_arg key, u8 out[at_least AES_BLOCK_SIZE],
  *
  * Context: Any context.
  */
-#define aes_decrypt(key, out, in) \
-	_Generic((key), \
-		 struct crypto_aes_ctx *: aes_decrypt_old((const struct crypto_aes_ctx *)(key), (out), (in)), \
-		 const struct crypto_aes_ctx *: aes_decrypt_old((const struct crypto_aes_ctx *)(key), (out), (in)), \
-		 struct aes_key *: aes_decrypt_new((const struct aes_key *)(key), (out), (in)), \
-		 const struct aes_key *: aes_decrypt_new((const struct aes_key *)(key), (out), (in)))
-void aes_decrypt_old(const struct crypto_aes_ctx *ctx, u8 *out, const u8 *in);
-void aes_decrypt_new(const struct aes_key *key, u8 out[at_least AES_BLOCK_SIZE],
-		     const u8 in[at_least AES_BLOCK_SIZE]);
+void aes_decrypt(const struct aes_key *key, u8 out[at_least AES_BLOCK_SIZE],
+		 const u8 in[at_least AES_BLOCK_SIZE]);
 
 extern const u8 crypto_aes_sbox[];
 extern const u8 crypto_aes_inv_sbox[];
