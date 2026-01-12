@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
+use proc_macro2::TokenStream;
+use quote::quote;
+
 use crate::helpers::function_name;
-use proc_macro::TokenStream;
 
 /// Please see [`crate::export`] for documentation.
 pub(crate) fn export(_attr: TokenStream, ts: TokenStream) -> TokenStream {

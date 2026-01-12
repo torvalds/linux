@@ -4,9 +4,10 @@
 //!
 //! Copyright (c) 2023 José Expósito <jose.exposito89@gmail.com>
 
-use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use std::collections::HashMap;
 use std::fmt::Write;
+
+use proc_macro2::{Delimiter, Group, TokenStream, TokenTree};
 
 pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
     let attr = attr.to_string();
@@ -59,7 +60,7 @@ pub(crate) fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
                 }
                 _ => (),
             },
-            TokenTree::Ident(i) if i.to_string() == "fn" && attributes.contains_key("test") => {
+            TokenTree::Ident(i) if i == "fn" && attributes.contains_key("test") => {
                 if let Some(TokenTree::Ident(test_name)) = body_it.next() {
                     tests.push((test_name, attributes.remove("cfg").unwrap_or_default()))
                 }

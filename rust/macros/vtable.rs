@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{Delimiter, Group, TokenStream, TokenTree};
 use std::collections::HashSet;
 use std::fmt::Write;
+
+use proc_macro2::{Delimiter, Group, TokenStream, TokenTree};
 
 pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     let mut tokens: Vec<_> = ts.into_iter().collect();
@@ -31,7 +32,7 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
     let mut consts = HashSet::new();
     while let Some(token) = body_it.next() {
         match token {
-            TokenTree::Ident(ident) if ident.to_string() == "fn" => {
+            TokenTree::Ident(ident) if ident == "fn" => {
                 let fn_name = match body_it.next() {
                     Some(TokenTree::Ident(ident)) => ident.to_string(),
                     // Possibly we've encountered a fn pointer type instead.
@@ -39,7 +40,7 @@ pub(crate) fn vtable(_attr: TokenStream, ts: TokenStream) -> TokenStream {
                 };
                 functions.push(fn_name);
             }
-            TokenTree::Ident(ident) if ident.to_string() == "const" => {
+            TokenTree::Ident(ident) if ident == "const" => {
                 let const_name = match body_it.next() {
                     Some(TokenTree::Ident(ident)) => ident.to_string(),
                     // Possibly we've encountered an inline const block instead.

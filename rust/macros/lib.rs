@@ -11,8 +11,6 @@
 // to avoid depending on the full `proc_macro_span` on Rust >= 1.88.0.
 #![cfg_attr(not(CONFIG_RUSTC_HAS_SPAN_FILE), feature(proc_macro_span))]
 
-#[macro_use]
-mod quote;
 mod concat_idents;
 mod export;
 mod fmt;
@@ -132,7 +130,7 @@ use proc_macro::TokenStream;
 ///     the kernel module.
 #[proc_macro]
 pub fn module(ts: TokenStream) -> TokenStream {
-    module::module(ts)
+    module::module(ts.into()).into()
 }
 
 /// Declares or implements a vtable trait.
@@ -207,7 +205,7 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// [`kernel::error::VTABLE_DEFAULT_ERROR`]: ../kernel/error/constant.VTABLE_DEFAULT_ERROR.html
 #[proc_macro_attribute]
 pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
-    vtable::vtable(attr, ts)
+    vtable::vtable(attr.into(), ts.into()).into()
 }
 
 /// Export a function so that C code can call it via a header file.
@@ -230,7 +228,7 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 /// automatically exported with `EXPORT_SYMBOL_GPL`.
 #[proc_macro_attribute]
 pub fn export(attr: TokenStream, ts: TokenStream) -> TokenStream {
-    export::export(attr, ts)
+    export::export(attr.into(), ts.into()).into()
 }
 
 /// Like [`core::format_args!`], but automatically wraps arguments in [`kernel::fmt::Adapter`].
@@ -248,7 +246,7 @@ pub fn export(attr: TokenStream, ts: TokenStream) -> TokenStream {
 /// [`pr_info!`]: ../kernel/macro.pr_info.html
 #[proc_macro]
 pub fn fmt(input: TokenStream) -> TokenStream {
-    fmt::fmt(input)
+    fmt::fmt(input.into()).into()
 }
 
 /// Concatenate two identifiers.
@@ -306,7 +304,7 @@ pub fn fmt(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 pub fn concat_idents(ts: TokenStream) -> TokenStream {
-    concat_idents::concat_idents(ts)
+    concat_idents::concat_idents(ts.into()).into()
 }
 
 /// Paste identifiers together.
@@ -444,9 +442,12 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 /// [`paste`]: https://docs.rs/paste/
 #[proc_macro]
 pub fn paste(input: TokenStream) -> TokenStream {
-    let mut tokens = input.into_iter().collect();
+    let mut tokens = proc_macro2::TokenStream::from(input).into_iter().collect();
     paste::expand(&mut tokens);
-    tokens.into_iter().collect()
+    tokens
+        .into_iter()
+        .collect::<proc_macro2::TokenStream>()
+        .into()
 }
 
 /// Registers a KUnit test suite and its test cases using a user-space like syntax.
@@ -473,5 +474,5 @@ pub fn paste(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
-    kunit::kunit_tests(attr, ts)
+    kunit::kunit_tests(attr.into(), ts.into()).into()
 }

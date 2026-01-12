@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{token_stream, Ident, TokenStream, TokenTree};
+use proc_macro2::{token_stream, Ident, TokenStream, TokenTree};
 
 use crate::helpers::expect_punct;
 

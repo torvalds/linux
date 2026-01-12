@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use crate::helpers::*;
-use proc_macro::{token_stream, Delimiter, Literal, TokenStream, TokenTree};
 use std::fmt::Write;
+
+use proc_macro2::{token_stream, Delimiter, Literal, TokenStream, TokenTree};
+
+use crate::helpers::*;
 
 fn expect_string_array(it: &mut token_stream::IntoIter) -> Vec<String> {
     let group = expect_group(it);

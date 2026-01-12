@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-use proc_macro::{token_stream, Group, Ident, TokenStream, TokenTree};
+use proc_macro2::{token_stream, Group, Ident, TokenStream, TokenTree};
 
 pub(crate) fn try_ident(it: &mut token_stream::IntoIter) -> Option<String> {
     if let Some(TokenTree::Ident(ident)) = it.next() {
@@ -86,7 +86,7 @@ pub(crate) fn function_name(input: TokenStream) -> Option<Ident> {
     let mut input = input.into_iter();
     while let Some(token) = input.next() {
         match token {
-            TokenTree::Ident(i) if i.to_string() == "fn" => {
+            TokenTree::Ident(i) if i == "fn" => {
                 if let Some(TokenTree::Ident(i)) = input.next() {
                     return Some(i);
                 }
