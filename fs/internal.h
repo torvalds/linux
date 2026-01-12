@@ -90,6 +90,7 @@ extern bool may_mount(void);
 int path_mount(const char *dev_name, const struct path *path,
 		const char *type_page, unsigned long flags, void *data_page);
 int path_umount(const struct path *path, int flags);
+int path_pivot_root(struct path *new, struct path *old);
 
 int show_path(struct seq_file *m, struct dentry *root);
 

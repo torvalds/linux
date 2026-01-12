@@ -13,6 +13,23 @@
 #include <linux/security.h>
 #include "internal.h"
 
+int __init init_pivot_root(const char *new_root, const char *put_old)
+{
+	struct path new_path __free(path_put) = {};
+	struct path old_path __free(path_put) = {};
+	int ret;
+
+	ret = kern_path(new_root, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &new_path);
+	if (ret)
+		return ret;
+
+	ret = kern_path(put_old, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, &old_path);
+	if (ret)
+		return ret;
+
+	return path_pivot_root(&new_path, &old_path);
+}
+
 int __init init_mount(const char *dev_name, const char *dir_name,
 		const char *type_page, unsigned long flags, void *data_page)
 {
