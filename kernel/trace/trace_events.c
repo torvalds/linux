@@ -1662,6 +1662,18 @@ static void t_stop(struct seq_file *m, void *p)
 	mutex_unlock(&event_mutex);
 }
 
+static int get_call_len(struct trace_event_call *call)
+{
+	int len;
+
+	/* Get the length of "<system>:<event>" */
+	len = strlen(call->class->system) + 1;
+	len += strlen(trace_event_name(call));
+
+	/* Set the index to 32 bytes to separate event from data */
+	return len >= 32 ? 1 : 32 - len;
+}
+
 /**
  * t_show_filters - seq_file callback to display active event filters
  * @m: The seq_file interface for formatted output
@@ -1676,14 +1688,17 @@ static int t_show_filters(struct seq_file *m, void *v)
 	struct trace_event_file *file = v;
 	struct trace_event_call *call = file->event_call;
 	struct event_filter *filter;
+	int len;
 
 	guard(rcu)();
 	filter = rcu_dereference(file->filter);
 	if (!filter || !filter->filter_string)
 		return 0;
 
-	seq_printf(m, "%s:%s\t%s\n", call->class->system,
-		   trace_event_name(call), filter->filter_string);
+	len = get_call_len(call);
+
+	seq_printf(m, "%s:%s%*.s%s\n", call->class->system,
+		   trace_event_name(call), len, "", filter->filter_string);
 
 	return 0;
 }
@@ -1702,6 +1717,7 @@ static int t_show_triggers(struct seq_file *m, void *v)
 	struct trace_event_file *file = v;
 	struct trace_event_call *call = file->event_call;
 	struct event_trigger_data *data;
+	int len;
 
 	/*
 	 * The event_mutex is held by t_start(), protecting the
@@ -1710,9 +1726,11 @@ static int t_show_triggers(struct seq_file *m, void *v)
 	if (list_empty(&file->triggers))
 		return 0;
 
+	len = get_call_len(call);
+
 	list_for_each_entry_rcu(data, &file->triggers, list) {
-		seq_printf(m, "%s:%s\t", call->class->system,
-			   trace_event_name(call));
+		seq_printf(m, "%s:%s%*.s", call->class->system,
+			   trace_event_name(call), len, "");
 
 		data->cmd_ops->print(m, data);
 	}
