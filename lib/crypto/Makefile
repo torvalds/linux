@@ -15,8 +15,15 @@ obj-$(CONFIG_CRYPTO_HASH_INFO)			+= hash_info.o
 obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
 libcryptoutils-y				:= memneq.o utils.o
 
-obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
-libaes-y					:= aes.o
+################################################################################
+
+obj-$(CONFIG_CRYPTO_LIB_AES) += libaes.o
+libaes-y := aes.o
+ifeq ($(CONFIG_CRYPTO_LIB_AES_ARCH),y)
+CFLAGS_aes.o += -I$(src)/$(SRCARCH)
+endif # CONFIG_CRYPTO_LIB_AES_ARCH
+
+################################################################################
 
 obj-$(CONFIG_CRYPTO_LIB_AESCFB)			+= libaescfb.o
 libaescfb-y					:= aescfb.o
