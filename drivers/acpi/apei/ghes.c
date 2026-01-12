@@ -1511,6 +1511,9 @@ int ghes_notify_sea(void)
 	static DEFINE_RAW_SPINLOCK(ghes_notify_lock_sea);
 	int rv;
 
+	if (!ghes_has_active_errors(&ghes_sea))
+		return -ENOENT;
+
 	raw_spin_lock(&ghes_notify_lock_sea);
 	rv = ghes_in_nmi_spool_from_list(&ghes_sea, FIX_APEI_GHES_SEA);
 	raw_spin_unlock(&ghes_notify_lock_sea);
@@ -1518,11 +1521,19 @@ int ghes_notify_sea(void)
 	return rv;
 }
 
-static void ghes_sea_add(struct ghes *ghes)
+static int ghes_sea_add(struct ghes *ghes)
 {
+	int rc;
+
+	rc = ghes_map_error_status(ghes);
+	if (rc)
+		return rc;
+
 	mutex_lock(&ghes_list_mutex);
 	list_add_rcu(&ghes->list, &ghes_sea);
 	mutex_unlock(&ghes_list_mutex);
+
+	return 0;
 }
 
 static void ghes_sea_remove(struct ghes *ghes)
@@ -1530,10 +1541,11 @@ static void ghes_sea_remove(struct ghes *ghes)
 	mutex_lock(&ghes_list_mutex);
 	list_del_rcu(&ghes->list);
 	mutex_unlock(&ghes_list_mutex);
+	ghes_unmap_error_status(ghes);
 	synchronize_rcu();
 }
 #else /* CONFIG_ACPI_APEI_SEA */
-static inline void ghes_sea_add(struct ghes *ghes) { }
+static inline int ghes_sea_add(struct ghes *ghes) { return -EINVAL; }
 static inline void ghes_sea_remove(struct ghes *ghes) { }
 #endif /* CONFIG_ACPI_APEI_SEA */
 
@@ -1765,7 +1777,9 @@ static int ghes_probe(struct platform_device *ghes_dev)
 		break;
 
 	case ACPI_HEST_NOTIFY_SEA:
-		ghes_sea_add(ghes);
+		rc = ghes_sea_add(ghes);
+		if (rc)
+			goto err;
 		break;
 	case ACPI_HEST_NOTIFY_NMI:
 		rc = ghes_nmi_add(ghes);
