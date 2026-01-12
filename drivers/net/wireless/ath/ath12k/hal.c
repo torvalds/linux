@@ -823,3 +823,14 @@ void ath12k_hal_dump_srng_stats(struct ath12k_base *ab)
 				   jiffies_to_msecs(jiffies - srng->timestamp));
 	}
 }
+
+void *ath12k_hal_encode_tlv64_hdr(void *tlv, u64 tag, u64 len)
+{
+	struct hal_tlv_64_hdr *tlv64 = tlv;
+
+	tlv64->tl = le64_encode_bits(tag, HAL_TLV_HDR_TAG) |
+		    le64_encode_bits(len, HAL_TLV_HDR_LEN);
+
+	return tlv64->value;
+}
+EXPORT_SYMBOL(ath12k_hal_encode_tlv64_hdr);
