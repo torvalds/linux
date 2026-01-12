@@ -370,15 +370,6 @@ static inline bool is_in_v2_mode(void)
 	      (cpuset_cgrp_subsys.root->flags & CGRP_ROOT_CPUSET_V2_MODE);
 }
 
-static inline bool cpuset_is_populated(struct cpuset *cs)
-{
-	lockdep_assert_held(&cpuset_mutex);
-
-	/* Cpusets in the process of attaching should be considered as populated */
-	return cgroup_is_populated(cs->css.cgroup) ||
-		cs->attach_in_progress;
-}
-
 /**
  * partition_is_populated - check if partition has tasks
  * @cs: partition root to be checked
@@ -694,20 +685,6 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 		goto out;
 
 	par = parent_cs(cur);
-
-	/*
-	 * Cpusets with tasks - existing or newly being attached - can't
-	 * be changed to have empty cpus_allowed or mems_allowed.
-	 */
-	ret = -ENOSPC;
-	if (cpuset_is_populated(cur)) {
-		if (!cpumask_empty(cur->cpus_allowed) &&
-		    cpumask_empty(trial->cpus_allowed))
-			goto out;
-		if (!nodes_empty(cur->mems_allowed) &&
-		    nodes_empty(trial->mems_allowed))
-			goto out;
-	}
 
 	/*
 	 * We can't shrink if we won't have enough room for SCHED_DEADLINE

@@ -425,6 +425,9 @@ TEST_MATRIX=(
 	# cpuset.cpus can be set to a subset of sibling's cpuset.cpus.exclusive
 	" C1-3:X1-3  .      .    C4-5      .     .      .     C1-2   0 A1:1-3|B1:1-2"
 
+	# cpuset.cpus can become empty with task in it as it inherits parent's effective CPUs
+	" C1-3:S+   C2      .      .       .    T:C     .      .     0 A1:1-3|A2:1-3"
+
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
 	# Failure cases:
