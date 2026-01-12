@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
-*
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
-*
-******************************************************************************/
+ *
+ * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ *
+ ******************************************************************************/
 
 #include <linux/kernel.h>
 #include "odm_precomp.h"
@@ -71,8 +71,8 @@ static bool CheckPositive(
 }
 
 /******************************************************************************
-*                           AGC_TAB.TXT
-******************************************************************************/
+ *                           AGC_TAB.TXT
+ ******************************************************************************/
 
 static u32 Array_MP_8723B_AGC_TAB[] = {
 		0xC78, 0xFD000001,
@@ -242,9 +242,10 @@ void ODM_ReadAndConfig_MP_8723B_AGC_TAB(struct dm_odm_t *pDM_Odm)
 			}
 
 			if (!bMatched) {
-				/*  Condition isn't matched.
-				*   Discard the following (offset, data) pairs.
-				*/
+				/*
+				 *   Condition isn't matched.
+				 *   Discard the following (offset, data) pairs.
+				 */
 				while (v1 < 0x40000000 && i < ArrayLen-2)
 					READ_NEXT_PAIR(v1, v2, i);
 
@@ -268,8 +269,8 @@ void ODM_ReadAndConfig_MP_8723B_AGC_TAB(struct dm_odm_t *pDM_Odm)
 }
 
 /******************************************************************************
-*                           PHY_REG.TXT
-******************************************************************************/
+ *                           PHY_REG.TXT
+ ******************************************************************************/
 
 static u32 Array_MP_8723B_PHY_REG[] = {
 		0x800, 0x80040000,
@@ -501,9 +502,10 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 			}
 
 			if (!bMatched) {
-				/*  Condition isn't matched.
-				*   Discard the following (offset, data) pairs.
-				*/
+				/*
+				 *   Condition isn't matched.
+				 *   Discard the following (offset, data) pairs.
+				 */
 				while (v1 < 0x40000000 && i < ArrayLen-2)
 					READ_NEXT_PAIR(v1, v2, i);
 
@@ -526,8 +528,8 @@ void ODM_ReadAndConfig_MP_8723B_PHY_REG(struct dm_odm_t *pDM_Odm)
 }
 
 /******************************************************************************
-*                           PHY_REG_PG.TXT
-******************************************************************************/
+ *                           PHY_REG_PG.TXT
+ ******************************************************************************/
 
 static u32 Array_MP_8723B_PHY_REG_PG[] = {
 	0, 0x00000e08, 0x0000ff00, 0x00003800,
