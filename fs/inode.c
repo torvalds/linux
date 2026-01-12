@@ -2984,24 +2984,45 @@ umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 EXPORT_SYMBOL(mode_strip_sgid);
 
 #ifdef CONFIG_DEBUG_VFS
-/*
- * Dump an inode.
+/**
+ * dump_inode - dump an inode.
+ * @inode: inode to dump
+ * @reason: reason for dumping
  *
- * TODO: add a proper inode dumping routine, this is a stub to get debug off the
- * ground.
- *
- * TODO: handle getting to fs type with get_kernel_nofault()?
- * See dump_mapping() above.
+ * If inode is an invalid pointer, we don't want to crash accessing it,
+ * so probe everything depending on it carefully with get_kernel_nofault().
  */
 void dump_inode(struct inode *inode, const char *reason)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb;
+	struct file_system_type *s_type;
+	const char *fs_name_ptr;
+	char fs_name[32] = {};
+	umode_t mode;
+	unsigned short opflags;
+	unsigned int flags;
+	unsigned int state;
+	int count;
 
-	pr_warn("%s encountered for inode %px\n"
-		"fs %s mode %ho opflags 0x%hx flags 0x%x state 0x%x count %d\n",
-		reason, inode, sb->s_type->name, inode->i_mode, inode->i_opflags,
-		inode->i_flags, inode_state_read_once(inode), atomic_read(&inode->i_count));
+	if (get_kernel_nofault(sb, &inode->i_sb) ||
+	    get_kernel_nofault(mode, &inode->i_mode) ||
+	    get_kernel_nofault(opflags, &inode->i_opflags) ||
+	    get_kernel_nofault(flags, &inode->i_flags)) {
+		pr_warn("%s: unreadable inode:%px\n", reason, inode);
+		return;
+	}
+
+	state = inode_state_read_once(inode);
+	count = atomic_read(&inode->i_count);
+
+	if (!sb ||
+	    get_kernel_nofault(s_type, &sb->s_type) || !s_type ||
+	    get_kernel_nofault(fs_name_ptr, &s_type->name) || !fs_name_ptr ||
+	    strncpy_from_kernel_nofault(fs_name, fs_name_ptr, sizeof(fs_name) - 1) < 0)
+		strscpy(fs_name, "<unknown, sb unreadable>");
+
+	pr_warn("%s: inode:%px fs:%s mode:%ho opflags:%#x flags:%#x state:%#x count:%d\n",
+		reason, inode, fs_name, mode, opflags, flags, state, count);
 }
-
 EXPORT_SYMBOL(dump_inode);
 #endif
