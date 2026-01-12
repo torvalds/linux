@@ -19,6 +19,7 @@
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 #include <linux/clk.h>
+#include <linux/units.h>
 #include <linux/wait.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
@@ -896,13 +897,12 @@ static void rk3x_i2c_adapt_div(struct rk3x_i2c *i2c, unsigned long clk_rate)
 
 	clk_disable(i2c->pclk);
 
-	t_low_ns = div_u64(((u64)calc.div_low + 1) * 8 * 1000000000, clk_rate);
-	t_high_ns = div_u64(((u64)calc.div_high + 1) * 8 * 1000000000,
-			    clk_rate);
+	t_low_ns = div_u64(8ULL * HZ_PER_GHZ * (calc.div_low + 1), clk_rate);
+	t_high_ns = div_u64(8ULL * HZ_PER_GHZ * (calc.div_high + 1), clk_rate);
 	dev_dbg(i2c->dev,
-		"CLK %lukhz, Req %uns, Act low %lluns high %lluns\n",
-		clk_rate / 1000,
-		1000000000 / t->bus_freq_hz,
+		"CLK %lukHz, Req %luns, Act low %lluns high %lluns\n",
+		clk_rate / HZ_PER_KHZ,
+		HZ_PER_GHZ / t->bus_freq_hz,
 		t_low_ns, t_high_ns);
 }
 
