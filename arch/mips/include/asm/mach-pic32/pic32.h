@@ -6,7 +6,6 @@
 #ifndef _ASM_MACH_PIC32_H
 #define _ASM_MACH_PIC32_H
 
-#include <linux/io.h>
 #include <linux/types.h>
 
 /*
