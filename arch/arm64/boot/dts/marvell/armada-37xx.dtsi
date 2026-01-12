@@ -427,7 +427,8 @@
 			};
 
 			crypto: crypto@90000 {
-				compatible = "inside-secure,safexcel-eip97ies";
+				compatible = "marvell,armada-3700-crypto",
+					     "inside-secure,safexcel-eip97ies";
 				reg = <0x90000 0x20000>;
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
