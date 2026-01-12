@@ -9,6 +9,7 @@
 #include "xe_device.h"
 #include "xe_mert.h"
 #include "xe_mmio.h"
+#include "xe_sriov_printk.h"
 #include "xe_tile.h"
 
 /**
@@ -55,6 +56,37 @@ int xe_mert_invalidate_lmtt(struct xe_device *xe)
 	return 0;
 }
 
+static void mert_handle_cat_error(struct xe_device *xe)
+{
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	u32 reg_val, vfid, code;
+
+	reg_val = xe_mmio_read32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT);
+	if (!reg_val)
+		return;
+	xe_mmio_write32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT, 0);
+
+	vfid = FIELD_GET(CATERR_VFID, reg_val);
+	code = FIELD_GET(CATERR_CODES, reg_val);
+
+	switch (code) {
+	case CATERR_NO_ERROR:
+		break;
+	case CATERR_UNMAPPED_GGTT:
+		xe_sriov_err(xe, "MERT: CAT_ERR: Access to an unmapped GGTT!\n");
+		xe_device_declare_wedged(xe);
+		break;
+	case CATERR_LMTT_FAULT:
+		xe_sriov_dbg(xe, "MERT: CAT_ERR: VF%u LMTT fault!\n", vfid);
+		/* XXX: track/report malicious VF activity */
+		break;
+	default:
+		xe_sriov_err(xe, "MERT: Unexpected CAT_ERR code=%#x!\n", code);
+		xe_device_declare_wedged(xe);
+		break;
+	}
+}
+
 /**
  * xe_mert_irq_handler - Handler for MERT interrupts
  * @xe: the &xe_device
@@ -68,20 +100,11 @@ void xe_mert_irq_handler(struct xe_device *xe, u32 master_ctl)
 	struct xe_mert *mert = &tile->mert;
 	unsigned long flags;
 	u32 reg_val;
-	u8 err;
 
 	if (!(master_ctl & SOC_H2DMEMINT_IRQ))
 		return;
 
-	reg_val = xe_mmio_read32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT);
-	xe_mmio_write32(&tile->mmio, MERT_TLB_CT_INTR_ERR_ID_PORT, 0);
-
-	err = FIELD_GET(MERT_TLB_CT_ERROR_MASK, reg_val);
-	if (err == MERT_TLB_CT_LMTT_FAULT)
-		drm_dbg(&xe->drm, "MERT catastrophic error: LMTT fault (VF%u)\n",
-			FIELD_GET(MERT_TLB_CT_VFID_MASK, reg_val));
-	else if (err)
-		drm_dbg(&xe->drm, "MERT catastrophic error: Unexpected fault (0x%x)\n", err);
+	mert_handle_cat_error(xe);
 
 	spin_lock_irqsave(&mert->lock, flags);
 	if (mert->tlb_inv_triggered) {
