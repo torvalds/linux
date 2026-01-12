@@ -2584,9 +2584,9 @@ Cpuset Interface Files
 	of this file will always be a subset of its parent's
 	"cpuset.cpus.exclusive.effective" if its parent is not the root
 	cgroup.  It will also be a subset of "cpuset.cpus.exclusive"
-	if it is set.  If "cpuset.cpus.exclusive" is not set, it is
-	treated to have an implicit value of "cpuset.cpus" in the
-	formation of local partition.
+	if it is set.  This file should only be non-empty if either
+	"cpuset.cpus.exclusive" is set or when the current cpuset is
+	a valid partition root.
 
   cpuset.cpus.isolated
 	A read-only and root cgroup only multiple values file.
@@ -2618,13 +2618,22 @@ Cpuset Interface Files
 	There are two types of partitions - local and remote.  A local
 	partition is one whose parent cgroup is also a valid partition
 	root.  A remote partition is one whose parent cgroup is not a
-	valid partition root itself.  Writing to "cpuset.cpus.exclusive"
-	is optional for the creation of a local partition as its
-	"cpuset.cpus.exclusive" file will assume an implicit value that
-	is the same as "cpuset.cpus" if it is not set.	Writing the
-	proper "cpuset.cpus.exclusive" values down the cgroup hierarchy
-	before the target partition root is mandatory for the creation
-	of a remote partition.
+	valid partition root itself.
+
+	Writing to "cpuset.cpus.exclusive" is optional for the creation
+	of a local partition as its "cpuset.cpus.exclusive" file will
+	assume an implicit value that is the same as "cpuset.cpus" if it
+	is not set.  Writing the proper "cpuset.cpus.exclusive" values
+	down the cgroup hierarchy before the target partition root is
+	mandatory for the creation of a remote partition.
+
+	Not all the CPUs requested in "cpuset.cpus.exclusive" can be
+	used to form a new partition.  Only those that were present
+	in its parent's "cpuset.cpus.exclusive.effective" control
+	file can be used.  For partitions created without setting
+	"cpuset.cpus.exclusive", exclusive CPUs specified in sibling's
+	"cpuset.cpus.exclusive" or "cpuset.cpus.exclusive.effective"
+	also cannot be used.
 
 	Currently, a remote partition cannot be created under a local
 	partition.  All the ancestors of a remote partition root except
@@ -2632,6 +2641,10 @@ Cpuset Interface Files
 
 	The root cgroup is always a partition root and its state cannot
 	be changed.  All other non-root cgroups start out as "member".
+	Even though the "cpuset.cpus.exclusive*" and "cpuset.cpus"
+	control files are not present in the root cgroup, they are
+	implicitly the same as the "/sys/devices/system/cpu/possible"
+	sysfs file.
 
 	When set to "root", the current cgroup is the root of a new
 	partition or scheduling domain.  The set of exclusive CPUs is
