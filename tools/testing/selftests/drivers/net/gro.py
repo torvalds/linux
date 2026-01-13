@@ -20,7 +20,7 @@ Test cases:
 import os
 from lib.py import ksft_run, ksft_exit, ksft_pr
 from lib.py import NetDrvEpEnv, KsftXfailEx
-from lib.py import cmd, defer, bkg, ip
+from lib.py import bkg, cmd, defer, ethtool, ip
 from lib.py import ksft_variants
 
 
@@ -70,12 +70,38 @@ def _set_mtu_restore(dev, mtu, host):
         defer(ip, f"link set dev {dev['ifname']} mtu {dev['mtu']}", host=host)
 
 
+def _set_ethtool_feat(dev, current, feats, host=None):
+    s2n = {True: "on", False: "off"}
+
+    new = ["-K", dev]
+    old = ["-K", dev]
+    no_change = True
+    for name, state in feats.items():
+        new += [name, s2n[state]]
+        old += [name, s2n[current[name]["active"]]]
+
+        if current[name]["active"] != state:
+            no_change = False
+            if current[name]["fixed"]:
+                raise KsftXfailEx(f"Device does not support {name}")
+    if no_change:
+        return
+
+    ethtool(" ".join(new), host=host)
+    defer(ethtool, " ".join(old), host=host)
+
+
 def _setup(cfg, test_name):
     """ Setup hardware loopback mode for GRO testing. """
 
     if not hasattr(cfg, "bin_remote"):
         cfg.bin_local = cfg.test_dir / "gro"
         cfg.bin_remote = cfg.remote.deploy(cfg.bin_local)
+
+    if not hasattr(cfg, "feat"):
+        cfg.feat = ethtool(f"-k {cfg.ifname}", json=True)[0]
+        cfg.remote_feat = ethtool(f"-k {cfg.remote_ifname}",
+                                  host=cfg.remote, json=True)[0]
 
     # "large" test needs at least 4k MTU
     if test_name == "large":
@@ -88,14 +114,21 @@ def _setup(cfg, test_name):
     _write_defer_restore(cfg, flush_path, "200000", defer_undo=True)
     _write_defer_restore(cfg, irq_path, "10", defer_undo=True)
 
+    _set_ethtool_feat(cfg.ifname, cfg.feat,
+                      {"generic-receive-offload": True,
+                       "rx-gro-hw": False,
+                       "large-receive-offload": False})
+
     try:
         # Disable TSO for local tests
         cfg.require_nsim()  # will raise KsftXfailEx if not running on nsim
 
-        cmd(f"ethtool -K {cfg.ifname} gro on tso off")
-        cmd(f"ethtool -K {cfg.remote_ifname} gro on tso off", host=cfg.remote)
+        _set_ethtool_feat(cfg.remote_ifname, cfg.remote_feat,
+                          {"tcp-segmentation-offload": False},
+                          host=cfg.remote)
     except KsftXfailEx:
         pass
+
 
 def _gro_variants():
     """Generator that yields all combinations of protocol and test types."""
