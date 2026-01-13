@@ -55,8 +55,10 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 	}
 
 	if (!hci->DAT_data) {
+		struct device *dev = hci->master.dev.parent;
+
 		/* use a bitmap for faster free slot search */
-		hci->DAT_data = bitmap_zalloc(hci->DAT_entries, GFP_KERNEL);
+		hci->DAT_data = devm_bitmap_zalloc(dev, hci->DAT_entries, GFP_KERNEL);
 		if (!hci->DAT_data)
 			return -ENOMEM;
 
@@ -68,12 +70,6 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 	}
 
 	return 0;
-}
-
-static void hci_dat_v1_cleanup(struct i3c_hci *hci)
-{
-	bitmap_free(hci->DAT_data);
-	hci->DAT_data = NULL;
 }
 
 static int hci_dat_v1_alloc_entry(struct i3c_hci *hci)
@@ -170,7 +166,6 @@ static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 
 const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.init			= hci_dat_v1_init,
-	.cleanup		= hci_dat_v1_cleanup,
 	.alloc_entry		= hci_dat_v1_alloc_entry,
 	.free_entry		= hci_dat_v1_free_entry,
 	.set_dynamic_addr	= hci_dat_v1_set_dynamic_addr,

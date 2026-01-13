@@ -17,7 +17,6 @@
 
 struct hci_dat_ops {
 	int (*init)(struct i3c_hci *hci);
-	void (*cleanup)(struct i3c_hci *hci);
 	int (*alloc_entry)(struct i3c_hci *hci);
 	void (*free_entry)(struct i3c_hci *hci, unsigned int dat_idx);
 	void (*set_dynamic_addr)(struct i3c_hci *hci, unsigned int dat_idx, u8 addr);
