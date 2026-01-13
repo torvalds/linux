@@ -210,6 +210,71 @@ static void hci_dma_free(void *data)
 	hci->io_data = NULL;
 }
 
+static void hci_dma_init_rh(struct i3c_hci *hci, struct hci_rh_data *rh, int i)
+{
+	u32 regval;
+
+	rh_reg_write(CMD_RING_BASE_LO, lower_32_bits(rh->xfer_dma));
+	rh_reg_write(CMD_RING_BASE_HI, upper_32_bits(rh->xfer_dma));
+	rh_reg_write(RESP_RING_BASE_LO, lower_32_bits(rh->resp_dma));
+	rh_reg_write(RESP_RING_BASE_HI, upper_32_bits(rh->resp_dma));
+
+	regval = FIELD_PREP(CR_RING_SIZE, rh->xfer_entries);
+	rh_reg_write(CR_SETUP, regval);
+
+	rh_reg_write(INTR_STATUS_ENABLE, 0xffffffff);
+	rh_reg_write(INTR_SIGNAL_ENABLE, INTR_IBI_READY |
+					 INTR_TRANSFER_COMPLETION |
+					 INTR_RING_OP |
+					 INTR_TRANSFER_ERR |
+					 INTR_IBI_RING_FULL |
+					 INTR_TRANSFER_ABORT);
+
+	if (i >= IBI_RINGS)
+		goto ring_ready;
+
+	rh_reg_write(IBI_STATUS_RING_BASE_LO, lower_32_bits(rh->ibi_status_dma));
+	rh_reg_write(IBI_STATUS_RING_BASE_HI, upper_32_bits(rh->ibi_status_dma));
+	rh_reg_write(IBI_DATA_RING_BASE_LO, lower_32_bits(rh->ibi_data_dma));
+	rh_reg_write(IBI_DATA_RING_BASE_HI, upper_32_bits(rh->ibi_data_dma));
+
+	regval = FIELD_PREP(IBI_STATUS_RING_SIZE, rh->ibi_status_entries) |
+		 FIELD_PREP(IBI_DATA_CHUNK_SIZE, ilog2(rh->ibi_chunk_sz) - 2) |
+		 FIELD_PREP(IBI_DATA_CHUNK_COUNT, rh->ibi_chunks_total);
+	rh_reg_write(IBI_SETUP, regval);
+
+	regval = rh_reg_read(INTR_SIGNAL_ENABLE);
+	regval |= INTR_IBI_READY;
+	rh_reg_write(INTR_SIGNAL_ENABLE, regval);
+
+ring_ready:
+	/*
+	 * The MIPI I3C HCI specification does not document reset values for
+	 * RING_OPERATION1 fields and some controllers (e.g. Intel controllers)
+	 * do not reset the values, so ensure the ring pointers are set to zero
+	 * here.
+	 */
+	rh_reg_write(RING_OPERATION1, 0);
+
+	rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE);
+	rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE | RING_CTRL_RUN_STOP);
+
+	rh->done_ptr = 0;
+	rh->ibi_chunk_ptr = 0;
+}
+
+static void hci_dma_init_rings(struct i3c_hci *hci)
+{
+	struct hci_rings_data *rings = hci->io_data;
+	u32 regval;
+
+	regval = FIELD_PREP(MAX_HEADER_COUNT, rings->total);
+	rhs_reg_write(CONTROL, regval);
+
+	for (int i = 0; i < rings->total; i++)
+		hci_dma_init_rh(hci, &rings->headers[i], i);
+}
+
 static int hci_dma_init(struct i3c_hci *hci)
 {
 	struct hci_rings_data *rings;
@@ -247,9 +312,6 @@ static int hci_dma_init(struct i3c_hci *hci)
 	rings->total = nr_rings;
 	rings->sysdev = sysdev;
 
-	regval = FIELD_PREP(MAX_HEADER_COUNT, rings->total);
-	rhs_reg_write(CONTROL, regval);
-
 	for (i = 0; i < rings->total; i++) {
 		u32 offset = rhs_reg_read(RHn_OFFSET(i));
 
@@ -284,26 +346,10 @@ static int hci_dma_init(struct i3c_hci *hci)
 		if (!rh->xfer || !rh->resp || !rh->src_xfers)
 			goto err_out;
 
-		rh_reg_write(CMD_RING_BASE_LO, lower_32_bits(rh->xfer_dma));
-		rh_reg_write(CMD_RING_BASE_HI, upper_32_bits(rh->xfer_dma));
-		rh_reg_write(RESP_RING_BASE_LO, lower_32_bits(rh->resp_dma));
-		rh_reg_write(RESP_RING_BASE_HI, upper_32_bits(rh->resp_dma));
-
-		regval = FIELD_PREP(CR_RING_SIZE, rh->xfer_entries);
-		rh_reg_write(CR_SETUP, regval);
-
-		rh_reg_write(INTR_STATUS_ENABLE, 0xffffffff);
-		rh_reg_write(INTR_SIGNAL_ENABLE, INTR_IBI_READY |
-						 INTR_TRANSFER_COMPLETION |
-						 INTR_RING_OP |
-						 INTR_TRANSFER_ERR |
-						 INTR_IBI_RING_FULL |
-						 INTR_TRANSFER_ABORT);
-
 		/* IBIs */
 
 		if (i >= IBI_RINGS)
-			goto ring_ready;
+			continue;
 
 		regval = rh_reg_read(IBI_SETUP);
 		rh->ibi_status_sz = FIELD_GET(IBI_STATUS_STRUCT_SIZE, regval);
@@ -342,45 +388,17 @@ static int hci_dma_init(struct i3c_hci *hci)
 			ret = -ENOMEM;
 			goto err_out;
 		}
-
-		rh_reg_write(IBI_STATUS_RING_BASE_LO, lower_32_bits(rh->ibi_status_dma));
-		rh_reg_write(IBI_STATUS_RING_BASE_HI, upper_32_bits(rh->ibi_status_dma));
-		rh_reg_write(IBI_DATA_RING_BASE_LO, lower_32_bits(rh->ibi_data_dma));
-		rh_reg_write(IBI_DATA_RING_BASE_HI, upper_32_bits(rh->ibi_data_dma));
-
-		regval = FIELD_PREP(IBI_STATUS_RING_SIZE,
-				    rh->ibi_status_entries) |
-			 FIELD_PREP(IBI_DATA_CHUNK_SIZE,
-				    ilog2(rh->ibi_chunk_sz) - 2) |
-			 FIELD_PREP(IBI_DATA_CHUNK_COUNT,
-				    rh->ibi_chunks_total);
-		rh_reg_write(IBI_SETUP, regval);
-
-		regval = rh_reg_read(INTR_SIGNAL_ENABLE);
-		regval |= INTR_IBI_READY;
-		rh_reg_write(INTR_SIGNAL_ENABLE, regval);
-
-ring_ready:
-		/*
-		 * The MIPI I3C HCI specification does not document reset values for
-		 * RING_OPERATION1 fields and some controllers (e.g. Intel controllers)
-		 * do not reset the values, so ensure the ring pointers are set to zero
-		 * here.
-		 */
-		rh_reg_write(RING_OPERATION1, 0);
-
-		rh_reg_write(RING_CONTROL, RING_CTRL_ENABLE |
-					   RING_CTRL_RUN_STOP);
 	}
 
 	ret = devm_add_action(hci->master.dev.parent, hci_dma_free, hci);
 	if (ret)
 		goto err_out;
 
+	hci_dma_init_rings(hci);
+
 	return 0;
 
 err_out:
-	hci_dma_cleanup(hci);
 	hci_dma_free(hci);
 	return ret;
 }
