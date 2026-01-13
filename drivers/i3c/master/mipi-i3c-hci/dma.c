@@ -169,6 +169,22 @@ static void hci_dma_cleanup(struct i3c_hci *hci)
 
 		rh_reg_write(CR_SETUP, 0);
 		rh_reg_write(IBI_SETUP, 0);
+	}
+
+	rhs_reg_write(CONTROL, 0);
+}
+
+static void hci_dma_free(void *data)
+{
+	struct i3c_hci *hci = data;
+	struct hci_rings_data *rings = hci->io_data;
+	struct hci_rh_data *rh;
+
+	if (!rings)
+		return;
+
+	for (int i = 0; i < rings->total; i++) {
+		rh = &rings->headers[i];
 
 		if (rh->xfer)
 			dma_free_coherent(rings->sysdev,
@@ -189,8 +205,6 @@ static void hci_dma_cleanup(struct i3c_hci *hci)
 					 DMA_FROM_DEVICE);
 		kfree(rh->ibi_data);
 	}
-
-	rhs_reg_write(CONTROL, 0);
 
 	kfree(rings);
 	hci->io_data = NULL;
@@ -359,10 +373,15 @@ ring_ready:
 					   RING_CTRL_RUN_STOP);
 	}
 
+	ret = devm_add_action(hci->master.dev.parent, hci_dma_free, hci);
+	if (ret)
+		goto err_out;
+
 	return 0;
 
 err_out:
 	hci_dma_cleanup(hci);
+	hci_dma_free(hci);
 	return ret;
 }
 
