@@ -84,7 +84,17 @@ static __always_inline void __preempt_count_add(int val)
 	 */
 	if (!IS_ENABLED(CONFIG_PROFILE_ALL_BRANCHES)) {
 		if (__builtin_constant_p(val) && (val >= -128) && (val <= 127)) {
-			__atomic_add_const(val, &get_lowcore()->preempt_count);
+			unsigned long lc_preempt;
+
+			lc_preempt = offsetof(struct lowcore, preempt_count);
+			asm_inline(
+				ALTERNATIVE("asi	%[offzero](%%r0),%[val]\n",
+					    "asi	%[offalt](%%r0),%[val]\n",
+					    ALT_FEATURE(MFEATURE_LOWCORE))
+				: "+m" (((struct lowcore *)0)->preempt_count)
+				: [offzero] "i" (lc_preempt), [val] "i" (val),
+				  [offalt] "i" (lc_preempt + LOWCORE_ALT_ADDRESS)
+				: "cc");
 			return;
 		}
 	}
