@@ -132,7 +132,7 @@ static void dwmac100_flow_ctrl(struct mac_device_info *hw, unsigned int duplex,
 	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
 
 	if (duplex)
-		flow |= (pause_time << MAC_FLOW_CTRL_PT_SHIFT);
+		flow |= FIELD_PREP(MAC_FLOW_CTRL_PT_MASK, pause_time);
 	writel(flow, ioaddr + MAC_FLOW_CTRL);
 }
 

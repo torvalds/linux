@@ -234,7 +234,7 @@ void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
-	data |= (STMMAC_CHAN0 << GMAC_HI_DCS_SHIFT);
+	data |= FIELD_PREP(GMAC_HI_DCS, STMMAC_CHAN0);
 	writel(data | GMAC_HI_REG_AE, ioaddr + high);
 	data = (addr[3] << 24) | (addr[2] << 16) | (addr[1] << 8) | addr[0];
 	writel(data, ioaddr + low);

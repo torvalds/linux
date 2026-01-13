@@ -15,8 +15,8 @@
 static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p, void __iomem *ioaddr)
 {
-	unsigned int tdes0 = le32_to_cpu(p->des0);
-	unsigned int tdes1 = le32_to_cpu(p->des1);
+	u32 tdes0 = le32_to_cpu(p->des0);
+	u32 tdes1 = le32_to_cpu(p->des1);
 	int ret = tx_done;
 
 	/* Get tx owner first */
@@ -40,10 +40,8 @@ static int ndesc_get_tx_status(struct stmmac_extra_stats *x,
 		if (unlikely((tdes0 & TDES0_EXCESSIVE_DEFERRAL) ||
 			     (tdes0 & TDES0_EXCESSIVE_COLLISIONS) ||
 			     (tdes0 & TDES0_LATE_COLLISION))) {
-			unsigned int collisions;
-
-			collisions = (tdes0 & TDES0_COLLISION_COUNT_MASK) >> 3;
-			x->tx_collision += collisions;
+			x->tx_collision +=
+				FIELD_GET(TDES0_COLLISION_COUNT_MASK, tdes0);
 		}
 		ret = tx_err;
 	}
@@ -69,8 +67,8 @@ static int ndesc_get_tx_len(struct dma_desc *p)
 static int ndesc_get_rx_status(struct stmmac_extra_stats *x,
 			       struct dma_desc *p)
 {
+	u32 rdes0 = le32_to_cpu(p->des0);
 	int ret = good_frame;
-	unsigned int rdes0 = le32_to_cpu(p->des0);
 
 	if (unlikely(rdes0 & RDES0_OWN))
 		return dma_own;
@@ -178,17 +176,15 @@ static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				  bool csum_flag, int mode, bool tx_own,
 				  bool ls, unsigned int tot_pkt_len)
 {
-	unsigned int tdes1 = le32_to_cpu(p->des1);
+	u32 tdes1 = le32_to_cpu(p->des1);
 
 	if (is_fs)
 		tdes1 |= TDES1_FIRST_SEGMENT;
 	else
 		tdes1 &= ~TDES1_FIRST_SEGMENT;
 
-	if (likely(csum_flag))
-		tdes1 |= (TX_CIC_FULL) << TDES1_CHECKSUM_INSERTION_SHIFT;
-	else
-		tdes1 &= ~(TX_CIC_FULL << TDES1_CHECKSUM_INSERTION_SHIFT);
+	tdes1 = u32_replace_bits(tdes1, csum_flag ? TX_CIC_FULL : 0,
+				 TDES1_CHECKSUM_INSERTION_MASK);
 
 	if (ls)
 		tdes1 |= TDES1_LAST_SEGMENT;
@@ -222,10 +218,7 @@ static int ndesc_get_rx_frame_len(struct dma_desc *p, int rx_coe_type)
 	if (rx_coe_type == STMMAC_RX_COE_TYPE1)
 		csum = 2;
 
-	return (((le32_to_cpu(p->des0) & RDES0_FRAME_LEN_MASK)
-				>> RDES0_FRAME_LEN_SHIFT) -
-		csum);
-
+	return FIELD_GET(RDES0_FRAME_LEN_MASK, le32_to_cpu(p->des0)) - csum;
 }
 
 static void ndesc_enable_tx_timestamp(struct dma_desc *p)
