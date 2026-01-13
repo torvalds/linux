@@ -9,6 +9,7 @@
 
 #include <net/mac80211.h>
 #include "htc.h"
+#include "cmn_defs.h"
 
 /* Naming conventions for structures:
  *
@@ -5151,8 +5152,6 @@ struct wmi_probe_tmpl_cmd {
 	__le32 buf_len;
 } __packed;
 
-#define MAX_RADIOS 2
-
 #define WMI_MLO_CMD_TIMEOUT_HZ (5 * HZ)
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5 * HZ)
 #define WMI_SEND_TIMEOUT_HZ (3 * HZ)
@@ -6323,10 +6322,6 @@ struct ath12k_wmi_rssi_dbm_conv_info_arg {
 	s8 min_nf_dbm;
 };
 
-void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
-			     struct ath12k_wmi_resource_config_arg *config);
-void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
-			     struct ath12k_wmi_resource_config_arg *config);
 int ath12k_wmi_cmd_send(struct ath12k_wmi_pdev *wmi, struct sk_buff *skb,
 			u32 cmd_id);
 struct sk_buff *ath12k_wmi_alloc_skb(struct ath12k_wmi_base *wmi_sc, u32 len);

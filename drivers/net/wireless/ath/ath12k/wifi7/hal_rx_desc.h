@@ -1,17 +1,10 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef ATH12K_RX_DESC_H
 #define ATH12K_RX_DESC_H
-
-enum rx_desc_decap_type {
-	RX_DESC_DECAP_TYPE_RAW,
-	RX_DESC_DECAP_TYPE_NATIVE_WIFI,
-	RX_DESC_DECAP_TYPE_ETHERNET2_DIX,
-	RX_DESC_DECAP_TYPE_8023,
-};
 
 enum rx_desc_decrypt_status_code {
 	RX_DESC_DECRYPT_STATUS_CODE_OK,
@@ -630,40 +623,6 @@ struct rx_mpdu_start_qcn9274_compact {
  *		format to inject packets with arbitrary DA/SA.
  *
  */
-
-enum rx_msdu_start_pkt_type {
-	RX_MSDU_START_PKT_TYPE_11A,
-	RX_MSDU_START_PKT_TYPE_11B,
-	RX_MSDU_START_PKT_TYPE_11N,
-	RX_MSDU_START_PKT_TYPE_11AC,
-	RX_MSDU_START_PKT_TYPE_11AX,
-	RX_MSDU_START_PKT_TYPE_11BA,
-	RX_MSDU_START_PKT_TYPE_11BE,
-};
-
-enum rx_msdu_start_sgi {
-	RX_MSDU_START_SGI_0_8_US,
-	RX_MSDU_START_SGI_0_4_US,
-	RX_MSDU_START_SGI_1_6_US,
-	RX_MSDU_START_SGI_3_2_US,
-};
-
-enum rx_msdu_start_recv_bw {
-	RX_MSDU_START_RECV_BW_20MHZ,
-	RX_MSDU_START_RECV_BW_40MHZ,
-	RX_MSDU_START_RECV_BW_80MHZ,
-	RX_MSDU_START_RECV_BW_160MHZ,
-};
-
-enum rx_msdu_start_reception_type {
-	RX_MSDU_START_RECEPTION_TYPE_SU,
-	RX_MSDU_START_RECEPTION_TYPE_DL_MU_MIMO,
-	RX_MSDU_START_RECEPTION_TYPE_DL_MU_OFDMA,
-	RX_MSDU_START_RECEPTION_TYPE_DL_MU_OFDMA_MIMO,
-	RX_MSDU_START_RECEPTION_TYPE_UL_MU_MIMO,
-	RX_MSDU_START_RECEPTION_TYPE_UL_MU_OFDMA,
-	RX_MSDU_START_RECEPTION_TYPE_UL_MU_OFDMA_MIMO,
-};
 
 #define RX_MSDU_END_64_TLV_SRC_LINK_ID		GENMASK(24, 22)
 
@@ -1495,12 +1454,6 @@ struct rx_msdu_end_qcn9274_compact {
  *
  */
 
-struct hal_rx_desc_qcn9274 {
-	struct rx_msdu_end_qcn9274 msdu_end;
-	struct rx_mpdu_start_qcn9274 mpdu_start;
-	u8 msdu_payload[];
-} __packed;
-
 struct hal_rx_desc_qcn9274_compact {
 	struct rx_msdu_end_qcn9274_compact msdu_end;
 	struct rx_mpdu_start_qcn9274_compact mpdu_start;
@@ -1530,15 +1483,9 @@ struct hal_rx_desc_wcn7850 {
 
 struct hal_rx_desc {
 	union {
-		struct hal_rx_desc_qcn9274 qcn9274;
 		struct hal_rx_desc_qcn9274_compact qcn9274_compact;
 		struct hal_rx_desc_wcn7850 wcn7850;
 	} u;
 } __packed;
-
-#define MAX_USER_POS 8
-#define MAX_MU_GROUP_ID 64
-#define MAX_MU_GROUP_SHOW 16
-#define MAX_MU_GROUP_LENGTH (6 * MAX_MU_GROUP_SHOW)
 
 #endif /* ATH12K_RX_DESC_H */

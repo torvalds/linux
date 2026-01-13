@@ -6272,6 +6272,30 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
 						    struct ieee80211_vif *vif),
 						void *data);
 
+struct ieee80211_vif *
+__ieee80211_iterate_interfaces(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *prev,
+			       u32 iter_flags);
+
+/**
+ * for_each_interface - iterate interfaces under wiphy mutex
+ * @vif: the iterator variable
+ * @hw: the HW to iterate for
+ * @flags: the iteration flags, see &enum ieee80211_interface_iteration_flags
+ */
+#define for_each_interface(vif, hw, flags)				\
+	for (vif = __ieee80211_iterate_interfaces(hw, NULL, flags);	\
+	     vif;							\
+	     vif = __ieee80211_iterate_interfaces(hw, vif, flags))
+
+/**
+ * for_each_active_interface - iterate active interfaces under wiphy mutex
+ * @vif: the iterator variable
+ * @hw: the HW to iterate for
+ */
+#define for_each_active_interface(vif, hw)				\
+	for_each_interface(vif, hw, IEEE80211_IFACE_ITER_ACTIVE)
+
 /**
  * ieee80211_iterate_active_interfaces_mtx - iterate active interfaces
  *
@@ -6284,12 +6308,18 @@ void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
  * @iterator: the iterator function to call, cannot sleep
  * @data: first argument of the iterator function
  */
-void ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
-					     u32 iter_flags,
-					     void (*iterator)(void *data,
-						u8 *mac,
-						struct ieee80211_vif *vif),
-					     void *data);
+static inline void
+ieee80211_iterate_active_interfaces_mtx(struct ieee80211_hw *hw,
+					u32 iter_flags,
+					void (*iterator)(void *data, u8 *mac,
+							 struct ieee80211_vif *vif),
+					void *data)
+{
+	struct ieee80211_vif *vif;
+
+	for_each_interface(vif, hw, iter_flags | IEEE80211_IFACE_ITER_ACTIVE)
+		iterator(data, vif->addr, vif);
+}
 
 /**
  * ieee80211_iterate_stations_atomic - iterate stations
@@ -6308,6 +6338,20 @@ void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
 						struct ieee80211_sta *sta),
 				       void *data);
 
+struct ieee80211_sta *
+__ieee80211_iterate_stations(struct ieee80211_hw *hw,
+			     struct ieee80211_sta *prev);
+
+/**
+ * for_each_station - iterate stations under wiphy mutex
+ * @sta: the iterator variable
+ * @hw: the HW to iterate for
+ */
+#define for_each_station(sta, hw)					\
+	for (sta = __ieee80211_iterate_stations(hw, NULL);		\
+	     sta;							\
+	     sta = __ieee80211_iterate_stations(hw, sta))
+
 /**
  * ieee80211_iterate_stations_mtx - iterate stations
  *
@@ -6320,10 +6364,17 @@ void ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
  * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
-void ieee80211_iterate_stations_mtx(struct ieee80211_hw *hw,
-				    void (*iterator)(void *data,
-						     struct ieee80211_sta *sta),
-				    void *data);
+static inline void
+ieee80211_iterate_stations_mtx(struct ieee80211_hw *hw,
+			       void (*iterator)(void *data,
+						struct ieee80211_sta *sta),
+			       void *data)
+{
+	struct ieee80211_sta *sta;
+
+	for_each_station(sta, hw)
+		iterator(data, sta);
+}
 
 /**
  * ieee80211_queue_work - add work onto the mac80211 workqueue

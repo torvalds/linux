@@ -2442,7 +2442,7 @@ static void reg_leave_invalid_chans(struct wiphy *wiphy)
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
 		if (!reg_wdev_chan_valid(wiphy, wdev))
-			cfg80211_leave(rdev, wdev);
+			cfg80211_leave(rdev, wdev, -1);
 }
 
 static void reg_check_chans_work(struct work_struct *work)

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
-#include "hal_desc.h"
-#include "hal.h"
+#include "../hal.h"
 #include "hal_tx.h"
-#include "hif.h"
+#include "../hif.h"
+#include "hal.h"
 
 #define DSCP_TID_MAP_TBL_ENTRY_SIZE 64
 
@@ -29,9 +29,9 @@ static inline u8 dscp2tid(u8 dscp)
 	return dscp >> 3;
 }
 
-void ath12k_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
-				  struct hal_tcl_data_cmd *tcl_cmd,
-				  struct hal_tx_info *ti)
+void ath12k_wifi7_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
+					struct hal_tcl_data_cmd *tcl_cmd,
+					struct hal_tx_info *ti)
 {
 	tcl_cmd->buf_addr_info.info0 =
 		le32_encode_bits(ti->paddr, BUFFER_ADDR_INFO0_ADDR);
@@ -66,7 +66,7 @@ void ath12k_hal_tx_cmd_desc_setup(struct ath12k_base *ab,
 	tcl_cmd->info5 = 0;
 }
 
-void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
+void ath12k_wifi7_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 {
 	u32 ctrl_reg_val;
 	u32 addr;
@@ -135,11 +135,4 @@ void ath12k_hal_tx_set_dscp_tid_map(struct ath12k_base *ab, int id)
 	ath12k_hif_write32(ab, HAL_SEQ_WCSS_UMAC_TCL_REG +
 			   HAL_TCL1_RING_CMN_CTRL_REG,
 			   ctrl_reg_val);
-}
-
-void ath12k_hal_tx_configure_bank_register(struct ath12k_base *ab, u32 bank_config,
-					   u8 bank_id)
-{
-	ath12k_hif_write32(ab, HAL_TCL_SW_CONFIG_BANK_ADDR + 4 * bank_id,
-			   bank_config);
 }

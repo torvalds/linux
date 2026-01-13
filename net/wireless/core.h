@@ -289,6 +289,7 @@ struct cfg80211_event {
 			u8 td_bitmap_len;
 		} pa;
 	};
+	int link_id;
 };
 
 struct cfg80211_cached_keys {
@@ -537,7 +538,8 @@ void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
 
 void cfg80211_leave(struct cfg80211_registered_device *rdev,
-		    struct wireless_dev *wdev);
+		    struct wireless_dev *wdev,
+		    int link_id);
 
 void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);

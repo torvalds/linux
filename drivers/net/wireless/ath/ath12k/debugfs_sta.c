@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/vmalloc.h>
@@ -11,6 +11,7 @@
 #include "debug.h"
 #include "debugfs_htt_stats.h"
 #include "debugfs.h"
+#include "dp_cmn.h"
 
 static
 u32 ath12k_dbg_sta_dump_rate_stats(u8 *buf, u32 offset, const int size,
@@ -144,40 +145,40 @@ static ssize_t ath12k_dbg_sta_dump_rx_stats(struct file *file,
 	const int size = ATH12K_STA_RX_STATS_BUF_SIZE;
 	struct ath12k_hw *ah = ahsta->ahvif->ah;
 	struct ath12k_rx_peer_stats *rx_stats;
+	struct ath12k_dp_link_peer *link_peer;
 	struct ath12k_link_sta *arsta;
 	u8 link_id = link_sta->link_id;
 	int len = 0, i, ret = 0;
+	struct ath12k_dp *dp;
 	bool he_rates_avail;
 	struct ath12k *ar;
 
-	wiphy_lock(ah->hw->wiphy);
+	guard(wiphy)(ah->hw->wiphy);
 
-	if (!(BIT(link_id) & ahsta->links_map)) {
-		wiphy_unlock(ah->hw->wiphy);
+	if (!(BIT(link_id) & ahsta->links_map))
 		return -ENOENT;
-	}
 
 	arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
-	if (!arsta || !arsta->arvif->ar) {
-		wiphy_unlock(ah->hw->wiphy);
+	if (!arsta || !arsta->arvif->ar)
 		return -ENOENT;
-	}
 
 	ar = arsta->arvif->ar;
 
 	u8 *buf __free(kfree) = kzalloc(size, GFP_KERNEL);
-	if (!buf) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (!buf)
+		return -ENOMEM;
 
-	spin_lock_bh(&ar->ab->base_lock);
+	dp = ath12k_ab_to_dp(ar->ab);
 
-	rx_stats = arsta->rx_stats;
-	if (!rx_stats) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	guard(spinlock_bh)(&dp->dp_lock);
+
+	link_peer = ath12k_dp_link_peer_find_by_addr(dp, arsta->addr);
+	if (!link_peer)
+		return -ENOENT;
+
+	rx_stats = link_peer->peer_stats.rx_stats;
+	if (!rx_stats)
+		return -ENOENT;
 
 	len += scnprintf(buf + len, size - len, "RX peer stats:\n\n");
 	len += scnprintf(buf + len, size - len, "Num of MSDUs: %llu\n",
@@ -237,13 +238,8 @@ static ssize_t ath12k_dbg_sta_dump_rx_stats(struct file *file,
 	len += ath12k_dbg_sta_dump_rate_stats(buf, len, size, he_rates_avail,
 					      &rx_stats->byte_stats);
 
-unlock:
-	spin_unlock_bh(&ar->ab->base_lock);
-
 	if (len)
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-out:
-	wiphy_unlock(ah->hw->wiphy);
 	return ret;
 }
 
@@ -261,10 +257,9 @@ static ssize_t ath12k_dbg_sta_reset_rx_stats(struct file *file,
 	struct ieee80211_link_sta *link_sta = file->private_data;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(link_sta->sta);
 	struct ath12k_hw *ah = ahsta->ahvif->ah;
-	struct ath12k_rx_peer_stats *rx_stats;
-	struct ath12k_link_sta *arsta;
 	u8 link_id = link_sta->link_id;
-	struct ath12k *ar;
+	struct ath12k_link_sta *arsta;
+	struct ath12k_dp *dp;
 	bool reset;
 	int ret;
 
@@ -288,19 +283,9 @@ static ssize_t ath12k_dbg_sta_reset_rx_stats(struct file *file,
 		goto out;
 	}
 
-	ar = arsta->arvif->ar;
+	dp = ath12k_ab_to_dp(arsta->arvif->ar->ab);
 
-	spin_lock_bh(&ar->ab->base_lock);
-
-	rx_stats = arsta->rx_stats;
-	if (!rx_stats) {
-		spin_unlock_bh(&ar->ab->base_lock);
-		ret = -ENOENT;
-		goto out;
-	}
-
-	memset(rx_stats, 0, sizeof(*rx_stats));
-	spin_unlock_bh(&ar->ab->base_lock);
+	ath12k_dp_link_peer_reset_rx_stats(dp, arsta->addr);
 
 	ret = count;
 out:
@@ -335,3 +320,4 @@ void ath12k_debugfs_link_sta_op_add(struct ieee80211_hw *hw,
 				    &fops_reset_rx_stats);
 	}
 }
+EXPORT_SYMBOL(ath12k_debugfs_link_sta_op_add);

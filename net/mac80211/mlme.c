@@ -1548,7 +1548,7 @@ static void ieee80211_assoc_add_rates(struct ieee80211_local *local,
 		 * in the association request (e.g. D-Link DAP 1353 in
 		 * b-only mode)...
 		 */
-		ieee80211_parse_bitrates(width, sband,
+		ieee80211_parse_bitrates(sband,
 					 assoc_data->supp_rates,
 					 assoc_data->supp_rates_len,
 					 &rates);

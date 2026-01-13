@@ -2125,8 +2125,7 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 
 	if (params->supported_rates &&
 	    params->supported_rates_len &&
-	    !ieee80211_parse_bitrates(link->conf->chanreq.oper.width,
-				      sband, params->supported_rates,
+	    !ieee80211_parse_bitrates(sband, params->supported_rates,
 				      params->supported_rates_len,
 				      &link_sta->pub->supp_rates[sband->band]))
 		return -EINVAL;
@@ -2987,8 +2986,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		return -EINVAL;
 
 	if (params->basic_rates) {
-		if (!ieee80211_parse_bitrates(link->conf->chanreq.oper.width,
-					      wiphy->bands[sband->band],
+		if (!ieee80211_parse_bitrates(sband,
 					      params->basic_rates,
 					      params->basic_rates_len,
 					      &link->conf->basic_rates))
@@ -4151,12 +4149,21 @@ static int __ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 static void ieee80211_csa_finalize(struct ieee80211_link_data *link_data)
 {
 	struct ieee80211_sub_if_data *sdata = link_data->sdata;
+	int link_id = -1;
 
 	if (__ieee80211_csa_finalize(link_data)) {
 		sdata_info(sdata, "failed to finalize CSA on link %d, disconnecting\n",
 			   link_data->link_id);
-		cfg80211_stop_iface(sdata->local->hw.wiphy, &sdata->wdev,
-				    GFP_KERNEL);
+		if (sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sdata->vif.type == NL80211_IFTYPE_P2P_GO)
+			/*
+			 * link_id is expected only for AP/P2P_GO type
+			 * currently
+			 */
+			link_id = link_data->link_id;
+
+		cfg80211_stop_link(sdata->local->hw.wiphy, &sdata->wdev,
+				   link_id, GFP_KERNEL);
 	}
 }
 
@@ -4400,7 +4407,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 		goto out;
 
 	/* if reservation is invalid then this will fail */
-	err = ieee80211_check_combinations(sdata, NULL, chanctx->mode, 0, -1);
+	err = ieee80211_check_combinations(sdata, NULL, 0, 0, -1);
 	if (err) {
 		ieee80211_link_unreserve_chanctx(link_data);
 		goto out;
