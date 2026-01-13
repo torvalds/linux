@@ -18,6 +18,7 @@
 #include <linux/platform_data/mipi-i3c-hci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
+#include <linux/pm_runtime.h>
 
 /*
  * There can up to 15 instances, but implementations have at most 2 at this
@@ -208,6 +209,18 @@ static const struct mipi_i3c_hci_pci_info intel_si_2_info = {
 	.instance_count = 1,
 };
 
+static void mipi_i3c_hci_pci_rpm_allow(struct device *dev)
+{
+	pm_runtime_put(dev);
+	pm_runtime_allow(dev);
+}
+
+static void mipi_i3c_hci_pci_rpm_forbid(struct device *dev)
+{
+	pm_runtime_forbid(dev);
+	pm_runtime_get_sync(dev);
+}
+
 struct mipi_i3c_hci_pci_cell_data {
 	struct mipi_i3c_hci_platform_data pdata;
 	struct resource res;
@@ -285,6 +298,8 @@ static int mipi_i3c_hci_pci_probe(struct pci_dev *pci,
 
 	pci_set_drvdata(pci, hci);
 
+	mipi_i3c_hci_pci_rpm_allow(&pci->dev);
+
 	return 0;
 
 err_exit:
@@ -299,6 +314,8 @@ static void mipi_i3c_hci_pci_remove(struct pci_dev *pci)
 
 	if (hci->info->exit)
 		hci->info->exit(hci);
+
+	mipi_i3c_hci_pci_rpm_forbid(&pci->dev);
 
 	mfd_remove_devices(&pci->dev);
 }
