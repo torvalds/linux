@@ -2493,7 +2493,8 @@ static void wakeup_dirtytime_writeback(struct work_struct *w)
 	}
 	rcu_read_unlock();
 	if (dirtytime_expire_interval)
-		schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
+		schedule_delayed_work(&dirtytime_work,
+				      round_jiffies_relative(dirtytime_expire_interval * HZ));
 }
 
 static int dirtytime_interval_handler(const struct ctl_table *table, int write,
@@ -2525,7 +2526,8 @@ static const struct ctl_table vm_fs_writeback_table[] = {
 static int __init start_dirtytime_writeback(void)
 {
 	if (dirtytime_expire_interval)
-		schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
+		schedule_delayed_work(&dirtytime_work,
+				      round_jiffies_relative(dirtytime_expire_interval * HZ));
 	register_sysctl_init("vm", vm_fs_writeback_table);
 	return 0;
 }
