@@ -320,7 +320,7 @@ static struct kunit_case cirrus_scodec_test_cases[] = {
 };
 
 static struct kunit_suite cirrus_scodec_test_suite = {
-	.name = "snd-hda-scodec-cs35l56-test",
+	.name = "snd-hda-cirrus-scodec-test",
 	.init = cirrus_scodec_test_case_init,
 	.test_cases = cirrus_scodec_test_cases,
 };
