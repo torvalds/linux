@@ -34,13 +34,26 @@
 /*	DAT_0_IBI_PAYLOAD		W0_BIT_(12) */
 #define DAT_0_STATIC_ADDRESS		W0_MASK(6, 0)
 
-#define dat_w0_read(i)		readl(hci->DAT_regs + (i) * 8)
-#define dat_w1_read(i)		readl(hci->DAT_regs + (i) * 8 + 4)
-#define dat_w0_write(i, v)	writel(v, hci->DAT_regs + (i) * 8)
-#define dat_w1_write(i, v)	writel(v, hci->DAT_regs + (i) * 8 + 4)
+#define dat_w0_read(i)		hci->DAT[i].w0
+#define dat_w1_read(i)		hci->DAT[i].w1
+#define dat_w0_write(i, v)	hci_dat_w0_write(hci, i, v)
+#define dat_w1_write(i, v)	hci_dat_w1_write(hci, i, v)
+
+static inline void hci_dat_w0_write(struct i3c_hci *hci, int i, u32 v)
+{
+	hci->DAT[i].w0 = v;
+	writel(v, hci->DAT_regs + i * 8);
+}
+
+static inline void hci_dat_w1_write(struct i3c_hci *hci, int i, u32 v)
+{
+	hci->DAT[i].w1 = v;
+	writel(v, hci->DAT_regs + i * 8 + 4);
+}
 
 static int hci_dat_v1_init(struct i3c_hci *hci)
 {
+	struct device *dev = hci->master.dev.parent;
 	unsigned int dat_idx;
 
 	if (!hci->DAT_regs) {
@@ -54,9 +67,13 @@ static int hci_dat_v1_init(struct i3c_hci *hci)
 		return -EOPNOTSUPP;
 	}
 
-	if (!hci->DAT_data) {
-		struct device *dev = hci->master.dev.parent;
+	if (!hci->DAT) {
+		hci->DAT = devm_kcalloc(dev, hci->DAT_entries, hci->DAT_entry_size, GFP_KERNEL);
+		if (!hci->DAT)
+			return -ENOMEM;
+	}
 
+	if (!hci->DAT_data) {
 		/* use a bitmap for faster free slot search */
 		hci->DAT_data = devm_bitmap_zalloc(dev, hci->DAT_entries, GFP_KERNEL);
 		if (!hci->DAT_data)

@@ -31,6 +31,11 @@
 
 struct hci_cmd_ops;
 
+struct dat_words {
+	u32 w0;
+	u32 w1;
+};
+
 /* Our main structure */
 struct i3c_hci {
 	struct i3c_master_controller master;
@@ -51,6 +56,7 @@ struct i3c_hci {
 	unsigned int DAT_entries;
 	unsigned int DAT_entry_size;
 	void *DAT_data;
+	struct dat_words *DAT;
 	unsigned int DCT_entries;
 	unsigned int DCT_entry_size;
 	u8 version_major;
