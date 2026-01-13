@@ -514,7 +514,8 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 	 */
 	spin_lock_irq(&kvm->irqfds.lock);
 
-	if (irqfd->irq_entry.type == KVM_IRQ_ROUTING_MSI) {
+	if (irqfd->irq_entry.type == KVM_IRQ_ROUTING_MSI ||
+	    WARN_ON_ONCE(irqfd->irq_bypass_vcpu)) {
 		ret = kvm_pi_update_irte(irqfd, NULL);
 		if (ret)
 			pr_info("irq bypass consumer (eventfd %p) unregistration fails: %d\n",
