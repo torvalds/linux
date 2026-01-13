@@ -315,7 +315,17 @@ endif
 	$(INSTALL_DATA) lib/cpuidle.h $(DESTDIR)${includedir}/cpuidle.h
 	$(INSTALL_DATA) lib/powercap.h $(DESTDIR)${includedir}/powercap.h
 
-install-tools: $(OUTPUT)cpupower
+# SYSTEMD=false disables installation of the systemd unit file
+SYSTEMD ?=	true
+
+install-systemd:
+	$(INSTALL) -d $(DESTDIR)${unitdir}
+	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${unitdir}/cpupower.service'
+	$(SETPERM_DATA) '$(DESTDIR)${unitdir}/cpupower.service'
+
+INSTALL_SYSTEMD := $(if $(filter true,$(strip $(SYSTEMD))),install-systemd)
+
+install-tools: $(OUTPUT)cpupower $(INSTALL_SYSTEMD)
 	$(INSTALL) -d $(DESTDIR)${bindir}
 	$(INSTALL_PROGRAM) $(OUTPUT)cpupower $(DESTDIR)${bindir}
 	$(INSTALL) -d $(DESTDIR)${bash_completion_dir}
@@ -324,9 +334,6 @@ install-tools: $(OUTPUT)cpupower
 	$(INSTALL_DATA) cpupower-service.conf '$(DESTDIR)${confdir}'
 	$(INSTALL) -d $(DESTDIR)${libexecdir}
 	$(INSTALL_PROGRAM) cpupower.sh '$(DESTDIR)${libexecdir}/cpupower'
-	$(INSTALL) -d $(DESTDIR)${unitdir}
-	sed 's|___CDIR___|${confdir}|; s|___LDIR___|${libexecdir}|' cpupower.service.in > '$(DESTDIR)${unitdir}/cpupower.service'
-	$(SETPERM_DATA) '$(DESTDIR)${unitdir}/cpupower.service'
 
 install-man:
 	$(INSTALL_DATA) -D man/cpupower.1 $(DESTDIR)${mandir}/man1/cpupower.1
@@ -406,4 +413,4 @@ help:
 	@echo  '  uninstall	  - Remove previously installed files from the dir defined by "DESTDIR"'
 	@echo  '                    cmdline or Makefile config block option (default: "")'
 
-.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean help
+.PHONY: all utils libcpupower update-po create-gmo install-lib install-systemd install-tools install-man install-gmo install uninstall clean help
