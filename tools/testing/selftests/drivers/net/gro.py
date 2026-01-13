@@ -142,8 +142,7 @@ def test(cfg, protocol, test_name):
         if rx_proc.ret == 0:
             return
 
-        ksft_pr(rx_proc.stdout.strip().replace('\n', '\n# '))
-        ksft_pr(rx_proc.stderr.strip().replace('\n', '\n# '))
+        ksft_pr(rx_proc)
 
         if test_name == "large" and os.environ.get("KSFT_MACHINE_SLOW"):
             ksft_pr(f"Ignoring {protocol}/{test_name} failure due to slow environment")
