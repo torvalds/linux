@@ -9,11 +9,15 @@
  *	Andrew F. Davis <afd@ti.com>
  */
 
+#include <linux/bits.h>
+#include <linux/device/devres.h>
+#include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
+#include <linux/types.h>
 
 #define SLG7XL45106_GPO_REG	0xDB
 
