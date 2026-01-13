@@ -110,15 +110,12 @@ void memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vc
 	TEST_REQUIRE(kvm_cpu_has_tdp());
 
 	vm_enable_tdp(vm);
+	memstress_setup_ept_mappings(vm);
 	for (vcpu_id = 0; vcpu_id < nr_vcpus; vcpu_id++) {
 		if (kvm_cpu_has(X86_FEATURE_VMX))
 			vcpu_alloc_vmx(vm, &nested_gva);
 		else
 			vcpu_alloc_svm(vm, &nested_gva);
-
-		/* The EPTs are shared across vCPUs, setup the mappings once */
-		if (vcpu_id == 0)
-			memstress_setup_ept_mappings(vm);
 
 		/*
 		 * Override the vCPU to run memstress_l1_guest_code() which will
