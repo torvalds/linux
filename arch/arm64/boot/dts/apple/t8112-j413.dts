@@ -61,6 +61,18 @@
 	};
 };
 
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Left-back";
+};
+
+&typec1 {
+	label = "USB-C Left-front";
+};
+
 &i2c0 {
 	/* MagSafe port */
 	hpm5: usb-pd@3a {
