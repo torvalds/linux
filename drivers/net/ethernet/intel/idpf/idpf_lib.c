@@ -1429,10 +1429,8 @@ static int idpf_set_real_num_queues(struct idpf_vport *vport)
 /**
  * idpf_up_complete - Complete interface up sequence
  * @vport: virtual port structure
- *
- * Returns 0 on success, negative on failure.
  */
-static int idpf_up_complete(struct idpf_vport *vport)
+static void idpf_up_complete(struct idpf_vport *vport)
 {
 	struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
 
@@ -1442,8 +1440,6 @@ static int idpf_up_complete(struct idpf_vport *vport)
 	}
 
 	set_bit(IDPF_VPORT_UP, np->state);
-
-	return 0;
 }
 
 /**
@@ -1584,12 +1580,7 @@ static int idpf_vport_open(struct idpf_vport *vport, bool rtnl)
 		goto disable_vport;
 	}
 
-	err = idpf_up_complete(vport);
-	if (err) {
-		dev_err(&adapter->pdev->dev, "Failed to complete interface up for vport %u: %d\n",
-			vport->vport_id, err);
-		goto disable_vport;
-	}
+	idpf_up_complete(vport);
 
 	if (rtnl)
 		rtnl_unlock();
