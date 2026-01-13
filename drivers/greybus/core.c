@@ -185,13 +185,6 @@ static void greybus_shutdown(struct device *dev)
 	}
 }
 
-const struct bus_type greybus_bus_type = {
-	.name =		"greybus",
-	.match =	greybus_match_device,
-	.uevent =	greybus_uevent,
-	.shutdown =	greybus_shutdown,
-};
-
 static int greybus_probe(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
@@ -252,7 +245,7 @@ static int greybus_probe(struct device *dev)
 	return 0;
 }
 
-static int greybus_remove(struct device *dev)
+static void greybus_remove(struct device *dev)
 {
 	struct greybus_driver *driver = to_greybus_driver(dev->driver);
 	struct gb_bundle *bundle = to_gb_bundle(dev);
@@ -291,9 +284,16 @@ static int greybus_remove(struct device *dev)
 	pm_runtime_set_suspended(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_put_noidle(dev);
-
-	return 0;
 }
+
+const struct bus_type greybus_bus_type = {
+	.name =		"greybus",
+	.match =	greybus_match_device,
+	.uevent =	greybus_uevent,
+	.probe =	greybus_probe,
+	.remove =	greybus_remove,
+	.shutdown =	greybus_shutdown,
+};
 
 int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
 			    const char *mod_name)
@@ -305,8 +305,6 @@ int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
 
 	driver->driver.bus = &greybus_bus_type;
 	driver->driver.name = driver->name;
-	driver->driver.probe = greybus_probe;
-	driver->driver.remove = greybus_remove;
 	driver->driver.owner = owner;
 	driver->driver.mod_name = mod_name;
 
