@@ -113,7 +113,22 @@ static __always_inline void __preempt_count_sub(int val)
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
 {
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+	unsigned long lc_preempt;
+	int cc;
+
+	lc_preempt = offsetof(struct lowcore, preempt_count);
+	asm_inline(
+		ALTERNATIVE("alsi	%[offzero](%%r0),%[val]\n",
+			    "alsi	%[offalt](%%r0),%[val]\n",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: "=@cc" (cc), "+m" (((struct lowcore *)0)->preempt_count)
+		: [offzero] "i" (lc_preempt), [val] "i" (-1),
+		[offalt] "i" (lc_preempt + LOWCORE_ALT_ADDRESS));
+	return (cc == 0) || (cc == 2);
+#else
 	return __atomic_add_const_and_test(-1, &get_lowcore()->preempt_count);
+#endif
 }
 
 /*
