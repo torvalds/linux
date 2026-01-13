@@ -318,6 +318,36 @@ is restarted.
 When the header is matched the device sends a confirmation request
 to the kernel, asking if the guessed location is correct (if a TLS record
 really starts there), and which record sequence number the given header had.
+
+The asynchronous resync process is coordinated on the kernel side using
+struct tls_offload_resync_async, which tracks and manages the resync request.
+
+Helper functions to manage struct tls_offload_resync_async:
+
+``tls_offload_rx_resync_async_request_start()``
+Initializes an asynchronous resync attempt by specifying the sequence range to
+monitor and resetting internal state in the struct.
+
+``tls_offload_rx_resync_async_request_end()``
+Retains the device's guessed TCP sequence number for comparison with current or
+future logged ones. It also clears the RESYNC_REQ_ASYNC flag from the resync
+request, indicating that the device has submitted its guessed sequence number.
+
+``tls_offload_rx_resync_async_request_cancel()``
+Cancels any in-progress resync attempt, clearing the request state.
+
+When the kernel processes an RX segment that begins a new TLS record, it
+examines the current status of the asynchronous resynchronization request.
+
+If the device is still waiting to provide its guessed TCP sequence number
+(the async state), the kernel records the sequence number of this segment so
+that it can later be compared once the device's guess becomes available.
+
+If the device has already submitted its guessed sequence number (the non-async
+state), the kernel now tries to match that guess against the sequence numbers of
+all TLS record headers that have been logged since the resync request
+started.
+
 The kernel confirms the guessed location was correct and tells the device
 the record sequence number. Meanwhile, the device had been parsing
 and counting all records since the just-confirmed one, it adds the number
