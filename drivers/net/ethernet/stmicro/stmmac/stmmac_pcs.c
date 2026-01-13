@@ -45,6 +45,28 @@ static const struct phylink_pcs_ops dwmac_integrated_pcs_ops = {
 	.pcs_config = dwmac_integrated_pcs_config,
 };
 
+void stmmac_integrated_pcs_irq(struct stmmac_priv *priv, u32 status,
+			       struct stmmac_extra_stats *x)
+{
+	struct stmmac_pcs *spcs = priv->integrated_pcs;
+	u32 val = readl(spcs->base + GMAC_AN_STATUS(0));
+
+	if (status & PCS_ANE_IRQ) {
+		x->irq_pcs_ane_n++;
+		if (val & GMAC_AN_STATUS_ANC)
+			dev_info(priv->device,
+				 "PCS ANE process completed\n");
+	}
+
+	if (status & PCS_LINK_IRQ) {
+		x->irq_pcs_link_n++;
+		dev_info(priv->device, "PCS Link %s\n",
+			 val & GMAC_AN_STATUS_LS ? "Up" : "Down");
+
+		phylink_pcs_change(&spcs->pcs, val & GMAC_AN_STATUS_LS);
+	}
+}
+
 int stmmac_integrated_pcs_init(struct stmmac_priv *priv, unsigned int offset,
 			       u32 int_mask)
 {
