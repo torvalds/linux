@@ -508,6 +508,24 @@ bool slab_in_kunit_test(void);
 static inline bool slab_in_kunit_test(void) { return false; }
 #endif
 
+/*
+ * slub is about to manipulate internal object metadata.  This memory lies
+ * outside the range of the allocated object, so accessing it would normally
+ * be reported by kasan as a bounds error.  metadata_access_enable() is used
+ * to tell kasan that these accesses are OK.
+ */
+static inline void metadata_access_enable(void)
+{
+	kasan_disable_current();
+	kmsan_disable_current();
+}
+
+static inline void metadata_access_disable(void)
+{
+	kmsan_enable_current();
+	kasan_enable_current();
+}
+
 #ifdef CONFIG_SLAB_OBJ_EXT
 
 /*
@@ -517,8 +535,22 @@ static inline bool slab_in_kunit_test(void) { return false; }
  *
  * Returns the address of the object extension vector associated with the slab,
  * or zero if no such vector has been associated yet.
- * Do not dereference the return value directly; use slab_obj_ext() to access
- * its elements.
+ * Do not dereference the return value directly; use get/put_slab_obj_exts()
+ * pair and slab_obj_ext() to access individual elements.
+ *
+ * Example usage:
+ *
+ * obj_exts = slab_obj_exts(slab);
+ * if (obj_exts) {
+ *         get_slab_obj_exts(obj_exts);
+ *         obj_ext = slab_obj_ext(slab, obj_exts, obj_to_index(s, slab, obj));
+ *         // do something with obj_ext
+ *         put_slab_obj_exts(obj_exts);
+ * }
+ *
+ * Note that the get/put semantics does not involve reference counting.
+ * Instead, it updates kasan/kmsan depth so that accesses to slabobj_ext
+ * won't be reported as access violations.
  */
 static inline unsigned long slab_obj_exts(struct slab *slab)
 {
@@ -535,6 +567,17 @@ static inline unsigned long slab_obj_exts(struct slab *slab)
 #endif
 
 	return obj_exts & ~OBJEXTS_FLAGS_MASK;
+}
+
+static inline void get_slab_obj_exts(unsigned long obj_exts)
+{
+	VM_WARN_ON_ONCE(!obj_exts);
+	metadata_access_enable();
+}
+
+static inline void put_slab_obj_exts(unsigned long obj_exts)
+{
+	metadata_access_disable();
 }
 
 #ifdef CONFIG_64BIT
@@ -565,14 +608,19 @@ static inline unsigned short slab_get_stride(struct slab *slab)
  * @index: an index of the object
  *
  * Returns a pointer to the object extension associated with the object.
+ * Must be called within a section covered by get/put_slab_obj_exts().
  */
 static inline struct slabobj_ext *slab_obj_ext(struct slab *slab,
 					       unsigned long obj_exts,
 					       unsigned int index)
 {
+	struct slabobj_ext *obj_ext;
+
 	VM_WARN_ON_ONCE(obj_exts != slab_obj_exts(slab));
 
-	return (struct slabobj_ext *)(obj_exts + slab_get_stride(slab) * index);
+	obj_ext = (struct slabobj_ext *)(obj_exts +
+					 slab_get_stride(slab) * index);
+	return kasan_reset_tag(obj_ext);
 }
 
 int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,

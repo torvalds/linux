@@ -2604,10 +2604,16 @@ struct mem_cgroup *mem_cgroup_from_obj_slab(struct slab *slab, void *p)
 	if (!obj_exts)
 		return NULL;
 
+	get_slab_obj_exts(obj_exts);
 	off = obj_to_index(slab->slab_cache, slab, p);
 	obj_ext = slab_obj_ext(slab, obj_exts, off);
-	if (obj_ext->objcg)
-		return obj_cgroup_memcg(obj_ext->objcg);
+	if (obj_ext->objcg) {
+		struct obj_cgroup *objcg = obj_ext->objcg;
+
+		put_slab_obj_exts(obj_exts);
+		return obj_cgroup_memcg(objcg);
+	}
+	put_slab_obj_exts(obj_exts);
 
 	return NULL;
 }
@@ -3219,10 +3225,12 @@ bool __memcg_slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 			return false;
 
 		obj_exts = slab_obj_exts(slab);
+		get_slab_obj_exts(obj_exts);
 		off = obj_to_index(s, slab, p[i]);
 		obj_ext = slab_obj_ext(slab, obj_exts, off);
 		obj_cgroup_get(objcg);
 		obj_ext->objcg = objcg;
+		put_slab_obj_exts(obj_exts);
 	}
 
 	return true;

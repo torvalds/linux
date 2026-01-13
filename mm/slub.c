@@ -973,24 +973,6 @@ static const char *slub_debug_string __ro_after_init;
 static int disable_higher_order_debug;
 
 /*
- * slub is about to manipulate internal object metadata.  This memory lies
- * outside the range of the allocated object, so accessing it would normally
- * be reported by kasan as a bounds error.  metadata_access_enable() is used
- * to tell kasan that these accesses are OK.
- */
-static inline void metadata_access_enable(void)
-{
-	kasan_disable_current();
-	kmsan_disable_current();
-}
-
-static inline void metadata_access_disable(void)
-{
-	kmsan_enable_current();
-	kasan_enable_current();
-}
-
-/*
  * Object debugging
  */
 
@@ -2055,23 +2037,27 @@ static bool freelist_corrupted(struct kmem_cache *s, struct slab *slab,
 
 static inline void mark_objexts_empty(struct slabobj_ext *obj_exts)
 {
-	unsigned long slab_exts;
 	struct slab *obj_exts_slab;
+	unsigned long slab_exts;
 
 	obj_exts_slab = virt_to_slab(obj_exts);
 	slab_exts = slab_obj_exts(obj_exts_slab);
 	if (slab_exts) {
+		get_slab_obj_exts(slab_exts);
 		unsigned int offs = obj_to_index(obj_exts_slab->slab_cache,
 						 obj_exts_slab, obj_exts);
 		struct slabobj_ext *ext = slab_obj_ext(obj_exts_slab,
 						       slab_exts, offs);
 
-		if (unlikely(is_codetag_empty(&ext->ref)))
+		if (unlikely(is_codetag_empty(&ext->ref))) {
+			put_slab_obj_exts(slab_exts);
 			return;
+		}
 
 		/* codetag should be NULL here */
 		WARN_ON(ext->ref.ct);
 		set_codetag_empty(&ext->ref);
+		put_slab_obj_exts(slab_exts);
 	}
 }
 
@@ -2287,30 +2273,28 @@ static inline void free_slab_obj_exts(struct slab *slab)
 
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 
-static inline struct slabobj_ext *
-prepare_slab_obj_ext_hook(struct kmem_cache *s, gfp_t flags, void *p)
+static inline unsigned long
+prepare_slab_obj_exts_hook(struct kmem_cache *s, struct slab *slab,
+			   gfp_t flags, void *p)
 {
-	struct slab *slab;
-	unsigned long obj_exts;
-
-	slab = virt_to_slab(p);
-	obj_exts = slab_obj_exts(slab);
-	if (!obj_exts &&
+	if (!slab_obj_exts(slab) &&
 	    alloc_slab_obj_exts(slab, s, flags, false)) {
 		pr_warn_once("%s, %s: Failed to create slab extension vector!\n",
 			     __func__, s->name);
-		return NULL;
+		return 0;
 	}
 
-	obj_exts = slab_obj_exts(slab);
-	return slab_obj_ext(slab, obj_exts, obj_to_index(s, slab, p));
+	return slab_obj_exts(slab);
 }
+
 
 /* Should be called only if mem_alloc_profiling_enabled() */
 static noinline void
 __alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags)
 {
+	unsigned long obj_exts;
 	struct slabobj_ext *obj_ext;
+	struct slab *slab;
 
 	if (!object)
 		return;
@@ -2321,16 +2305,23 @@ __alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags)
 	if (flags & __GFP_NO_OBJ_EXT)
 		return;
 
-	obj_ext = prepare_slab_obj_ext_hook(s, flags, object);
+	slab = virt_to_slab(object);
+	obj_exts = prepare_slab_obj_exts_hook(s, slab, flags, object);
 	/*
 	 * Currently obj_exts is used only for allocation profiling.
 	 * If other users appear then mem_alloc_profiling_enabled()
 	 * check should be added before alloc_tag_add().
 	 */
-	if (likely(obj_ext))
+	if (obj_exts) {
+		unsigned int obj_idx = obj_to_index(s, slab, object);
+
+		get_slab_obj_exts(obj_exts);
+		obj_ext = slab_obj_ext(slab, obj_exts, obj_idx);
 		alloc_tag_add(&obj_ext->ref, current->alloc_tag, s->size);
-	else
+		put_slab_obj_exts(obj_exts);
+	} else {
 		alloc_tag_set_inaccurate(current->alloc_tag);
+	}
 }
 
 static inline void
@@ -2356,11 +2347,13 @@ __alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p
 	if (!obj_exts)
 		return;
 
+	get_slab_obj_exts(obj_exts);
 	for (i = 0; i < objects; i++) {
 		unsigned int off = obj_to_index(s, slab, p[i]);
 
 		alloc_tag_sub(&slab_obj_ext(slab, obj_exts, off)->ref, s->size);
 	}
+	put_slab_obj_exts(obj_exts);
 }
 
 static inline void
@@ -2427,7 +2420,9 @@ void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p,
 	if (likely(!obj_exts))
 		return;
 
+	get_slab_obj_exts(obj_exts);
 	__memcg_slab_free_hook(s, slab, p, objects, obj_exts);
+	put_slab_obj_exts(obj_exts);
 }
 
 static __fastpath_inline
@@ -2477,10 +2472,14 @@ bool memcg_slab_post_charge(void *p, gfp_t flags)
 	/* Ignore already charged objects. */
 	obj_exts = slab_obj_exts(slab);
 	if (obj_exts) {
+		get_slab_obj_exts(obj_exts);
 		off = obj_to_index(s, slab, p);
 		obj_ext = slab_obj_ext(slab, obj_exts, off);
-		if (unlikely(obj_ext->objcg))
+		if (unlikely(obj_ext->objcg)) {
+			put_slab_obj_exts(obj_exts);
 			return true;
+		}
+		put_slab_obj_exts(obj_exts);
 	}
 
 	return __memcg_slab_post_alloc_hook(s, NULL, flags, 1, &p);
