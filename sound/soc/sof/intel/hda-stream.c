@@ -724,12 +724,12 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 		struct hdac_bus *bus = sof_to_bus(sdev);
 		u32 mask = BIT(hstream->index);
 
-		spin_lock_irq(&bus->reg_lock);
+		guard(spinlock_irq)(&bus->reg_lock);
+
 		/* couple host and link DMA if link DMA channel is idle */
 		if (!hext_stream->link_locked)
 			snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
 						SOF_HDA_REG_PP_PPCTL, mask, 0);
-		spin_unlock_irq(&bus->reg_lock);
 	}
 
 	hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
@@ -747,7 +747,7 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	u32 status;
 
 	/* The function can be called at irq thread, so use spin_lock_irq */
-	spin_lock_irq(&bus->reg_lock);
+	guard(spinlock_irq)(&bus->reg_lock);
 
 	status = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS);
 
@@ -756,8 +756,6 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	/* if Register inaccessible, ignore it.*/
 	if (status != 0xffffffff)
 		ret = true;
-
-	spin_unlock_irq(&bus->reg_lock);
 
 	return ret;
 }
@@ -842,7 +840,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 	 * unsolicited responses from the codec
 	 */
 	for (i = 0, active = true; i < 10 && active; i++) {
-		spin_lock_irq(&bus->reg_lock);
+		guard(spinlock_irq)(&bus->reg_lock);
 
 		status = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS);
 
@@ -853,7 +851,6 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 		if (status & AZX_INT_CTRL_EN) {
 			active |= hda_codec_check_rirb_status(sdev);
 		}
-		spin_unlock_irq(&bus->reg_lock);
 	}
 
 	return IRQ_HANDLED;

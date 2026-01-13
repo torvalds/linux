@@ -287,16 +287,12 @@ static inline int
 snd_sof_dsp_set_power_state(struct snd_sof_dev *sdev,
 			    const struct sof_dsp_power_state *target_state)
 {
-	int ret = 0;
-
-	mutex_lock(&sdev->power_state_access);
+	guard(mutex)(&sdev->power_state_access);
 
 	if (sof_ops(sdev)->set_power_state)
-		ret = sof_ops(sdev)->set_power_state(sdev, target_state);
+		return sof_ops(sdev)->set_power_state(sdev, target_state);
 
-	mutex_unlock(&sdev->power_state_access);
-
-	return ret;
+	return 0;
 }
 
 /* debug */

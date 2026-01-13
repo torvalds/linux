@@ -378,7 +378,7 @@ static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 	}
 
 	/* Serialise IPC TX */
-	mutex_lock(&ipc->tx_mutex);
+	guard(mutex)(&ipc->tx_mutex);
 
 	ret = ipc3_tx_msg_unlocked(ipc, msg_data, msg_bytes, reply_data, reply_bytes);
 
@@ -404,8 +404,6 @@ static int sof_ipc3_tx_msg(struct snd_sof_dev *sdev, void *msg_data, size_t msg_
 			sof_ipc3_dump_payload(sdev, payload, payload_bytes);
 		}
 	}
-
-	mutex_unlock(&ipc->tx_mutex);
 
 	return ret;
 }
@@ -477,7 +475,7 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 	memcpy(cdata_chunk, cdata, hdr_bytes);
 
 	/* Serialise IPC TX */
-	mutex_lock(&sdev->ipc->tx_mutex);
+	guard(mutex)(&ipc->tx_mutex);
 
 	/* copy the payload data in a loop */
 	for (i = 0; i < num_msg; i++) {
@@ -510,8 +508,6 @@ static int sof_ipc3_set_get_data(struct snd_sof_dev *sdev, void *data, size_t da
 		payload += header_bytes;
 		sof_ipc3_dump_payload(sdev, payload, data_bytes - header_bytes);
 	}
-
-	mutex_unlock(&sdev->ipc->tx_mutex);
 
 	kfree(cdata_chunk);
 
