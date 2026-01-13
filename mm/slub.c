@@ -972,6 +972,46 @@ static inline bool obj_exts_in_slab(struct kmem_cache *s, struct slab *slab)
 {
 	return false;
 }
+
+#endif
+
+#if defined(CONFIG_SLAB_OBJ_EXT) && defined(CONFIG_64BIT)
+static bool obj_exts_in_object(struct kmem_cache *s, struct slab *slab)
+{
+	/*
+	 * Note we cannot rely on the SLAB_OBJ_EXT_IN_OBJ flag here and need to
+	 * check the stride. A cache can have SLAB_OBJ_EXT_IN_OBJ set, but
+	 * allocations within_slab_leftover are preferred. And those may be
+	 * possible or not depending on the particular slab's size.
+	 */
+	return obj_exts_in_slab(s, slab) &&
+	       (slab_get_stride(slab) == s->size);
+}
+
+static unsigned int obj_exts_offset_in_object(struct kmem_cache *s)
+{
+	unsigned int offset = get_info_end(s);
+
+	if (kmem_cache_debug_flags(s, SLAB_STORE_USER))
+		offset += sizeof(struct track) * 2;
+
+	if (slub_debug_orig_size(s))
+		offset += sizeof(unsigned long);
+
+	offset += kasan_metadata_size(s, false);
+
+	return offset;
+}
+#else
+static inline bool obj_exts_in_object(struct kmem_cache *s, struct slab *slab)
+{
+	return false;
+}
+
+static inline unsigned int obj_exts_offset_in_object(struct kmem_cache *s)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_SLUB_DEBUG
@@ -1272,6 +1312,9 @@ static void print_trailer(struct kmem_cache *s, struct slab *slab, u8 *p)
 
 	off += kasan_metadata_size(s, false);
 
+	if (obj_exts_in_object(s, slab))
+		off += sizeof(struct slabobj_ext);
+
 	if (off != size_from_object(s))
 		/* Beginning of the filler is the free pointer */
 		print_section(KERN_ERR, "Padding  ", p + off,
@@ -1453,8 +1496,11 @@ skip_bug_print:
  *     between metadata and the next object, independent of alignment.
  *   - Filled with 0x5a (POISON_INUSE) when SLAB_POISON is set.
  * [Final alignment padding]
- *   - Any bytes added by ALIGN(size, s->align) to reach s->size.
- *   - Filled with 0x5a (POISON_INUSE) when SLAB_POISON is set.
+ *   - Bytes added by ALIGN(size, s->align) to reach s->size.
+ *   - When the padding is large enough, it can be used to store
+ *     struct slabobj_ext for accounting metadata (obj_exts_in_object()).
+ *   - The remaining bytes (if any) are filled with 0x5a (POISON_INUSE)
+ *     when SLAB_POISON is set.
  *
  * Notes:
  * - Redzones are filled by init_object() with SLUB_RED_ACTIVE/INACTIVE.
@@ -1485,6 +1531,9 @@ static int check_pad_bytes(struct kmem_cache *s, struct slab *slab, u8 *p)
 
 	off += kasan_metadata_size(s, false);
 
+	if (obj_exts_in_object(s, slab))
+		off += sizeof(struct slabobj_ext);
+
 	if (size_from_object(s) == off)
 		return 1;
 
@@ -1510,7 +1559,7 @@ slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	length = slab_size(slab);
 	end = start + length;
 
-	if (obj_exts_in_slab(s, slab)) {
+	if (obj_exts_in_slab(s, slab) && !obj_exts_in_object(s, slab)) {
 		remainder = length;
 		remainder -= obj_exts_offset_in_slab(s, slab);
 		remainder -= obj_exts_size_in_slab(slab);
@@ -2384,6 +2433,24 @@ static void alloc_slab_obj_exts_early(struct kmem_cache *s, struct slab *slab)
 #endif
 		slab->obj_exts = obj_exts;
 		slab_set_stride(slab, sizeof(struct slabobj_ext));
+	} else if (s->flags & SLAB_OBJ_EXT_IN_OBJ) {
+		unsigned int offset = obj_exts_offset_in_object(s);
+
+		obj_exts = (unsigned long)slab_address(slab);
+		obj_exts += s->red_left_pad;
+		obj_exts += offset;
+
+		get_slab_obj_exts(obj_exts);
+		for_each_object(addr, s, slab_address(slab), slab->objects)
+			memset(kasan_reset_tag(addr) + offset, 0,
+			       sizeof(struct slabobj_ext));
+		put_slab_obj_exts(obj_exts);
+
+#ifdef CONFIG_MEMCG
+		obj_exts |= MEMCG_DATA_OBJEXTS;
+#endif
+		slab->obj_exts = obj_exts;
+		slab_set_stride(slab, s->size);
 	}
 }
 
@@ -7028,8 +7095,10 @@ void kmem_cache_free(struct kmem_cache *s, void *x)
 }
 EXPORT_SYMBOL(kmem_cache_free);
 
-static inline size_t slab_ksize(const struct kmem_cache *s)
+static inline size_t slab_ksize(struct slab *slab)
 {
+	struct kmem_cache *s = slab->slab_cache;
+
 #ifdef CONFIG_SLUB_DEBUG
 	/*
 	 * Debugging requires use of the padding between object
@@ -7042,10 +7111,12 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 		return s->object_size;
 	/*
 	 * If we have the need to store the freelist pointer
-	 * back there or track user information then we can
+	 * or any other metadata back there then we can
 	 * only use the space before that information.
 	 */
 	if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER))
+		return s->inuse;
+	else if (obj_exts_in_object(s, slab))
 		return s->inuse;
 	/*
 	 * Else we can use all the padding etc for the allocation
@@ -7055,8 +7126,8 @@ static inline size_t slab_ksize(const struct kmem_cache *s)
 
 static size_t __ksize(const void *object)
 {
-	const struct page *page;
-	const struct slab *slab;
+	struct page *page;
+	struct slab *slab;
 
 	if (unlikely(object == ZERO_SIZE_PTR))
 		return 0;
@@ -7075,7 +7146,7 @@ static size_t __ksize(const void *object)
 	skip_orig_size_check(slab->slab_cache, object);
 #endif
 
-	return slab_ksize(slab->slab_cache);
+	return slab_ksize(slab);
 }
 
 /**
@@ -8199,6 +8270,7 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
 {
 	slab_flags_t flags = s->flags;
 	unsigned int size = s->object_size;
+	unsigned int aligned_size;
 	unsigned int order;
 
 	/*
@@ -8308,7 +8380,13 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
 	 * offset 0. In order to align the objects we have to simply size
 	 * each object to conform to the alignment.
 	 */
-	size = ALIGN(size, s->align);
+	aligned_size = ALIGN(size, s->align);
+#if defined(CONFIG_SLAB_OBJ_EXT) && defined(CONFIG_64BIT)
+	if (aligned_size - size >= sizeof(struct slabobj_ext))
+		s->flags |= SLAB_OBJ_EXT_IN_OBJ;
+#endif
+	size = aligned_size;
+
 	s->size = size;
 	s->reciprocal_size = reciprocal_value(size);
 	order = calculate_order(size);
