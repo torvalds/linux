@@ -2659,6 +2659,8 @@ int __check_sticky(struct mnt_idmap *idmap, struct inode *dir,
 
 int may_delete_dentry(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *victim, bool isdir);
+int may_create_dentry(struct mnt_idmap *idmap,
+		      struct inode *dir, struct dentry *child);
 
 static inline bool execute_ok(struct inode *inode)
 {

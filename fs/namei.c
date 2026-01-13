@@ -3657,8 +3657,8 @@ EXPORT_SYMBOL(may_delete_dentry);
  *  4. We should have write and exec permissions on dir
  *  5. We can't do it if dir is immutable (done in permission())
  */
-static inline int may_create(struct mnt_idmap *idmap,
-			     struct inode *dir, struct dentry *child)
+int may_create_dentry(struct mnt_idmap *idmap,
+		      struct inode *dir, struct dentry *child)
 {
 	audit_inode_child(dir, child, AUDIT_TYPE_CHILD_CREATE);
 	if (child->d_inode)
@@ -3670,6 +3670,7 @@ static inline int may_create(struct mnt_idmap *idmap,
 
 	return inode_permission(idmap, dir, MAY_WRITE | MAY_EXEC);
 }
+EXPORT_SYMBOL(may_create_dentry);
 
 // p1 != p2, both are on the same filesystem, ->s_vfs_rename_mutex is held
 static struct dentry *lock_two_directories(struct dentry *p1, struct dentry *p2)
@@ -4116,7 +4117,7 @@ int vfs_create(struct mnt_idmap *idmap, struct dentry *dentry, umode_t mode,
 	struct inode *dir = d_inode(dentry->d_parent);
 	int error;
 
-	error = may_create(idmap, dir, dentry);
+	error = may_create_dentry(idmap, dir, dentry);
 	if (error)
 		return error;
 
@@ -4142,7 +4143,7 @@ int vfs_mkobj(struct dentry *dentry, umode_t mode,
 		void *arg)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
-	int error = may_create(&nop_mnt_idmap, dir, dentry);
+	int error = may_create_dentry(&nop_mnt_idmap, dir, dentry);
 	if (error)
 		return error;
 
@@ -4961,7 +4962,7 @@ int vfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	      struct delegated_inode *delegated_inode)
 {
 	bool is_whiteout = S_ISCHR(mode) && dev == WHITEOUT_DEV;
-	int error = may_create(idmap, dir, dentry);
+	int error = may_create_dentry(idmap, dir, dentry);
 
 	if (error)
 		return error;
@@ -5107,7 +5108,7 @@ struct dentry *vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	unsigned max_links = dir->i_sb->s_max_links;
 	struct dentry *de;
 
-	error = may_create(idmap, dir, dentry);
+	error = may_create_dentry(idmap, dir, dentry);
 	if (error)
 		goto err;
 
@@ -5497,7 +5498,7 @@ int vfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 {
 	int error;
 
-	error = may_create(idmap, dir, dentry);
+	error = may_create_dentry(idmap, dir, dentry);
 	if (error)
 		return error;
 
@@ -5605,7 +5606,7 @@ int vfs_link(struct dentry *old_dentry, struct mnt_idmap *idmap,
 	if (!inode)
 		return -ENOENT;
 
-	error = may_create(idmap, dir, new_dentry);
+	error = may_create_dentry(idmap, dir, new_dentry);
 	if (error)
 		return error;
 
@@ -5822,7 +5823,7 @@ int vfs_rename(struct renamedata *rd)
 		return error;
 
 	if (!target) {
-		error = may_create(rd->mnt_idmap, new_dir, new_dentry);
+		error = may_create_dentry(rd->mnt_idmap, new_dir, new_dentry);
 	} else {
 		new_is_dir = d_is_dir(new_dentry);
 
