@@ -466,7 +466,6 @@ static void appletb_kbd_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-#ifdef CONFIG_PM
 static int appletb_kbd_suspend(struct hid_device *hdev, pm_message_t msg)
 {
 	struct appletb_kbd *kbd = hid_get_drvdata(hdev);
@@ -485,7 +484,6 @@ static int appletb_kbd_reset_resume(struct hid_device *hdev)
 
 	return 0;
 }
-#endif
 
 static const struct hid_device_id appletb_kbd_hid_ids[] = {
 	/* MacBook Pro's 2018, 2019, with T2 chip: iBridge Display */
@@ -501,10 +499,8 @@ static struct hid_driver appletb_kbd_hid_driver = {
 	.remove = appletb_kbd_remove,
 	.event = appletb_kbd_hid_event,
 	.input_configured = appletb_kbd_input_configured,
-#ifdef CONFIG_PM
-	.suspend = appletb_kbd_suspend,
-	.reset_resume = appletb_kbd_reset_resume,
-#endif
+	.suspend = pm_ptr(appletb_kbd_suspend),
+	.reset_resume = pm_ptr(appletb_kbd_reset_resume),
 	.driver.dev_groups = appletb_kbd_groups,
 };
 module_hid_driver(appletb_kbd_hid_driver);
