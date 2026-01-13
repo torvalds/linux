@@ -8,7 +8,10 @@
 #include <asm/cmpxchg.h>
 #include <asm/march.h>
 
-/* We use the MSB mostly because its available */
+/*
+ * Use MSB so it is possible to read preempt_count with LLGT which
+ * reads the least significant 31 bits with a single instruction.
+ */
 #define PREEMPT_NEED_RESCHED	0x80000000
 
 /*
@@ -23,7 +26,20 @@
  */
 static __always_inline int preempt_count(void)
 {
-	return READ_ONCE(get_lowcore()->preempt_count) & ~PREEMPT_NEED_RESCHED;
+	unsigned long lc_preempt, count;
+
+	BUILD_BUG_ON(sizeof_field(struct lowcore, preempt_count) != sizeof(int));
+	lc_preempt = offsetof(struct lowcore, preempt_count);
+	/* READ_ONCE(get_lowcore()->preempt_count) & ~PREEMPT_NEED_RESCHED */
+	asm_inline(
+		ALTERNATIVE("llgt	%[count],%[offzero](%%r0)\n",
+			    "llgt	%[count],%[offalt](%%r0)\n",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: [count] "=d" (count)
+		: [offzero] "i" (lc_preempt),
+		  [offalt] "i" (lc_preempt + LOWCORE_ALT_ADDRESS),
+		  "m" (((struct lowcore *)0)->preempt_count));
+	return count;
 }
 
 static __always_inline void preempt_count_set(int pc)
