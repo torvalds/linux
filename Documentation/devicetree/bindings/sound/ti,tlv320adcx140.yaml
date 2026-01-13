@@ -44,6 +44,9 @@ properties:
       External supply of 1.8V. If not defined then the internal regulator is
       enabled instead.
 
+  avdd-supply: true
+  iovdd-supply: true
+
   ti,mic-bias-source:
     description: |
       Indicates the source for MIC Bias.
