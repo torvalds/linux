@@ -203,7 +203,7 @@ struct handle_to_path_ctx {
  * See Documentation/filesystems/nfs/exporting.rst for details on how to use
  * this interface correctly.
  *
- * encode_fh:
+ * @encode_fh:
  *    @encode_fh should store in the file handle fragment @fh (using at most
  *    @max_len bytes) information that can be used by @decode_fh to recover the
  *    file referred to by the &struct dentry @de.  If @flag has CONNECTABLE bit
@@ -215,7 +215,7 @@ struct handle_to_path_ctx {
  *    greater than @max_len*4 bytes). On error @max_len contains the minimum
  *    size(in 4 byte unit) needed to encode the file handle.
  *
- * fh_to_dentry:
+ * @fh_to_dentry:
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
  *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
  *    to the same file that the file handle fragment refers to.  If it cannot,
@@ -227,29 +227,29 @@ struct handle_to_path_ctx {
  *    created with d_alloc_root.  The caller can then find any other extant
  *    dentries by following the d_alias links.
  *
- * fh_to_parent:
+ * @fh_to_parent:
  *    Same as @fh_to_dentry, except that it returns a pointer to the parent
  *    dentry if it was encoded into the filehandle fragment by @encode_fh.
  *
- * get_name:
+ * @get_name:
  *    @get_name should find a name for the given @child in the given @parent
  *    directory.  The name should be stored in the @name (with the
  *    understanding that it is already pointing to a %NAME_MAX + 1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
  *    or error.  @get_name will be called without @parent->i_rwsem held.
  *
- * get_parent:
+ * @get_parent:
  *    @get_parent should find the parent directory for the given @child which
  *    is also a directory.  In the event that it cannot be found, or storage
  *    space cannot be allocated, a %ERR_PTR should be returned.
  *
- * permission:
+ * @permission:
  *    Allow filesystems to specify a custom permission function.
  *
- * open:
+ * @open:
  *    Allow filesystems to specify a custom open function.
  *
- * commit_metadata:
+ * @commit_metadata:
  *    @commit_metadata should commit metadata changes to stable storage.
  *
  * Locking rules:
