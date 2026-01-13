@@ -1780,9 +1780,7 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 		   node->type == BTRFS_SHARED_DATA_REF_KEY) {
 		ret = run_delayed_data_ref(trans, href, node, extent_op,
 					   insert_reserved);
-	} else if (node->type == BTRFS_EXTENT_OWNER_REF_KEY) {
-		ret = 0;
-	} else {
+	} else if (unlikely(node->type != BTRFS_EXTENT_OWNER_REF_KEY)) {
 		ret = -EUCLEAN;
 		btrfs_err(fs_info, "unexpected delayed ref node type: %u", node->type);
 	}
