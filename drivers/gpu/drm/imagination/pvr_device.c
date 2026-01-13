@@ -525,6 +525,77 @@ pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
 }
 EXPORT_SYMBOL_IF_KUNIT(pvr_gpuid_decode_string);
 
+static bool pvr_exp_hw_support;
+module_param_named(exp_hw_support, pvr_exp_hw_support, bool, 0600);
+MODULE_PARM_DESC(exp_hw_support, "Bypass runtime checks for fully supported GPU cores. WARNING: enabling this option may result in a buggy, insecure, or otherwise unusable driver.");
+
+/**
+ * enum pvr_gpu_support_level - The level of support for a gpu_id in the current
+ * version of the driver.
+ *
+ * @PVR_GPU_UNKNOWN: Cores that are unknown to the driver. These may not even exist.
+ * @PVR_GPU_EXPERIMENTAL: Cores that have experimental support.
+ * @PVR_GPU_SUPPORTED: Cores that are supported and maintained.
+ */
+enum pvr_gpu_support_level {
+	PVR_GPU_UNKNOWN,
+	PVR_GPU_EXPERIMENTAL,
+	PVR_GPU_SUPPORTED,
+};
+
+static enum pvr_gpu_support_level
+pvr_gpu_support_level(const struct pvr_gpu_id *gpu_id)
+{
+	switch (pvr_gpu_id_to_packed_bvnc(gpu_id)) {
+	case PVR_PACKED_BVNC(33, 15, 11, 3):
+	case PVR_PACKED_BVNC(36, 53, 104, 796):
+		return PVR_GPU_SUPPORTED;
+
+	case PVR_PACKED_BVNC(36, 52, 104, 182):
+		return PVR_GPU_EXPERIMENTAL;
+
+	default:
+		return PVR_GPU_UNKNOWN;
+	}
+}
+
+static int
+pvr_check_gpu_supported(struct pvr_device *pvr_dev,
+			const struct pvr_gpu_id *gpu_id)
+{
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+
+	switch (pvr_gpu_support_level(gpu_id)) {
+	case PVR_GPU_SUPPORTED:
+		if (pvr_exp_hw_support)
+			drm_info(drm_dev, "Module parameter 'exp_hw_support' was set, but this hardware is fully supported by the current driver.");
+
+		break;
+
+	case PVR_GPU_EXPERIMENTAL:
+		if (!pvr_exp_hw_support) {
+			drm_err(drm_dev, "Unsupported GPU! Set 'exp_hw_support' to bypass this check.");
+			return -ENODEV;
+		}
+
+		drm_warn(drm_dev, "Running on unsupported hardware; you may encounter bugs!");
+		break;
+
+	/* NOTE: This code path may indicate misbehaving hardware. */
+	case PVR_GPU_UNKNOWN:
+	default:
+		if (!pvr_exp_hw_support) {
+			drm_err(drm_dev, "Unknown GPU! Set 'exp_hw_support' to bypass this check.");
+			return -ENODEV;
+		}
+
+		drm_warn(drm_dev, "Running on unknown hardware; expect issues.");
+		break;
+	}
+
+	return 0;
+}
+
 static char *pvr_gpuid_override;
 module_param_named(gpuid, pvr_gpuid_override, charp, 0400);
 MODULE_PARM_DESC(gpuid, "GPU ID (BVNC) to be used instead of the value read from hardware.");
@@ -555,7 +626,7 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return 0;
+	return pvr_check_gpu_supported(pvr_dev, gpu_id);
 }
 
 /**
