@@ -173,10 +173,15 @@ static void mlx5_lag_fib_route_event(struct mlx5_lag *ldev, unsigned long event,
 	}
 
 	/* Handle multipath entry with lower priority value */
-	if (mp->fib.mfi && mp->fib.mfi != fi &&
+	if (mp->fib.mfi &&
 	    (mp->fib.dst != fen_info->dst || mp->fib.dst_len != fen_info->dst_len) &&
-	    fi->fib_priority >= mp->fib.priority)
+	    mp->fib.dst_len <= fen_info->dst_len &&
+	    !(mp->fib.dst_len == fen_info->dst_len &&
+	      fi->fib_priority < mp->fib.priority)) {
+		mlx5_core_dbg(ldev->pf[idx].dev,
+			      "Multipath entry with lower priority was rejected\n");
 		return;
+	}
 
 	nh_dev0 = mlx5_lag_get_next_fib_dev(ldev, fi, NULL);
 	nh_dev1 = mlx5_lag_get_next_fib_dev(ldev, fi, nh_dev0);

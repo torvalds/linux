@@ -190,7 +190,7 @@ static void do_abort_log_replay(struct walk_control *wc, const char *function,
 
 	btrfs_abort_transaction(wc->trans, error);
 
-	if (wc->subvol_path->nodes[0]) {
+	if (wc->subvol_path && wc->subvol_path->nodes[0]) {
 		btrfs_crit(fs_info,
 			   "subvolume (root %llu) leaf currently being processed:",
 			   btrfs_root_id(wc->root));
@@ -6341,10 +6341,8 @@ again:
 			 * and no keys greater than that, so bail out.
 			 */
 			break;
-		} else if ((min_key->type == BTRFS_INODE_REF_KEY ||
-			    min_key->type == BTRFS_INODE_EXTREF_KEY) &&
-			   (inode->generation == trans->transid ||
-			    ctx->logging_conflict_inodes)) {
+		} else if (min_key->type == BTRFS_INODE_REF_KEY ||
+			   min_key->type == BTRFS_INODE_EXTREF_KEY) {
 			u64 other_ino = 0;
 			u64 other_parent = 0;
 
