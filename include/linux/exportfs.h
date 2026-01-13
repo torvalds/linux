@@ -201,7 +201,7 @@ struct handle_to_path_ctx {
  * @commit_metadata: commit metadata changes to stable storage
  *
  * See Documentation/filesystems/nfs/exporting.rst for details on how to use
- * this interface correctly.
+ * this interface correctly and the definition of the flags.
  *
  * @encode_fh:
  *    @encode_fh should store in the file handle fragment @fh (using at most
@@ -251,6 +251,19 @@ struct handle_to_path_ctx {
  *
  * @commit_metadata:
  *    @commit_metadata should commit metadata changes to stable storage.
+ *
+ * @get_uuid:
+ *    Get a filesystem unique signature exposed to clients.
+ *
+ * @map_blocks:
+ *    Map and, if necessary, allocate blocks for a layout.
+ *
+ * @commit_blocks:
+ *    Commit blocks in a layout once the client is done with them.
+ *
+ * @flags:
+ *    Allows the filesystem to communicate to nfsd that it may want to do things
+ *    differently when dealing with it.
  *
  * Locking rules:
  *    get_parent is called with child->d_inode->i_rwsem down
