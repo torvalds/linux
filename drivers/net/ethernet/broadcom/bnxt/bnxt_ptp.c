@@ -882,6 +882,7 @@ void bnxt_tx_ts_cmp(struct bnxt *bp, struct bnxt_napi *bnapi,
 	}
 }
 
+#ifdef CONFIG_X86
 static int bnxt_phc_get_syncdevicetime(ktime_t *device,
 				       struct system_counterval_t *system,
 				       void *ctx)
@@ -924,6 +925,7 @@ static int bnxt_ptp_getcrosststamp(struct ptp_clock_info *ptp_info,
 	return get_device_system_crosststamp(bnxt_phc_get_syncdevicetime,
 					     ptp, NULL, xtstamp);
 }
+#endif /* CONFIG_X86 */
 
 static const struct ptp_clock_info bnxt_ptp_caps = {
 	.owner		= THIS_MODULE,
@@ -1137,9 +1139,11 @@ int bnxt_ptp_init(struct bnxt *bp)
 		if (bnxt_ptp_pps_init(bp))
 			netdev_err(bp->dev, "1pps not initialized, continuing without 1pps support\n");
 	}
+#ifdef CONFIG_X86
 	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PTM) && pcie_ptm_enabled(bp->pdev) &&
 	    boot_cpu_has(X86_FEATURE_ART))
 		ptp->ptp_info.getcrosststamp = bnxt_ptp_getcrosststamp;
+#endif /* CONFIG_X86 */
 
 	ptp->ptp_clock = ptp_clock_register(&ptp->ptp_info, &bp->pdev->dev);
 	if (IS_ERR(ptp->ptp_clock)) {
