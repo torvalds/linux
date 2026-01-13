@@ -639,6 +639,80 @@ static int i3c_hci_set_io_mode(struct i3c_hci *hci, bool dma)
 	return 0;
 }
 
+static int i3c_hci_reset_and_init(struct i3c_hci *hci)
+{
+	u32 regval;
+	int ret;
+
+	ret = i3c_hci_software_reset(hci);
+	if (ret)
+		return -ENXIO;
+
+	/* Disable all interrupts */
+	reg_write(INTR_SIGNAL_ENABLE, 0x0);
+	/*
+	 * Only allow bit 31:10 signal updates because
+	 * Bit 0:9 are reserved in IP version >= 0.8
+	 * Bit 0:5 are defined in IP version < 0.8 but not handled by PIO code
+	 */
+	reg_write(INTR_STATUS_ENABLE, GENMASK(31, 10));
+
+	/* Make sure our data ordering fits the host's */
+	regval = reg_read(HC_CONTROL);
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+		if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
+			regval |= HC_CONTROL_DATA_BIG_ENDIAN;
+			reg_write(HC_CONTROL, regval);
+			regval = reg_read(HC_CONTROL);
+			if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
+				dev_err(&hci->master.dev, "cannot set BE mode\n");
+				return -EOPNOTSUPP;
+			}
+		}
+	} else {
+		if (regval & HC_CONTROL_DATA_BIG_ENDIAN) {
+			regval &= ~HC_CONTROL_DATA_BIG_ENDIAN;
+			reg_write(HC_CONTROL, regval);
+			regval = reg_read(HC_CONTROL);
+			if (regval & HC_CONTROL_DATA_BIG_ENDIAN) {
+				dev_err(&hci->master.dev, "cannot clear BE mode\n");
+				return -EOPNOTSUPP;
+			}
+		}
+	}
+
+	/* Try activating DMA operations first */
+	if (hci->RHS_regs) {
+		ret = i3c_hci_set_io_mode(hci, true);
+		if (!ret) {
+			hci->io = &mipi_i3c_hci_dma;
+			dev_dbg(&hci->master.dev, "Using DMA\n");
+		}
+	}
+
+	/* If no DMA, try PIO */
+	if (!hci->io && hci->PIO_regs) {
+		ret = i3c_hci_set_io_mode(hci, false);
+		if (!ret) {
+			hci->io = &mipi_i3c_hci_pio;
+			dev_dbg(&hci->master.dev, "Using PIO\n");
+		}
+	}
+
+	if (!hci->io) {
+		dev_err(&hci->master.dev, "neither DMA nor PIO can be used\n");
+		ret = ret ?: -EINVAL;
+	}
+	if (ret)
+		return ret;
+
+	/* Configure OD and PP timings for AMD platforms */
+	if (hci->quirks & HCI_QUIRK_OD_PP_TIMING)
+		amd_set_od_pp_timing(hci);
+
+	return 0;
+}
+
 static int i3c_hci_init(struct i3c_hci *hci)
 {
 	bool size_in_dwords;
@@ -708,43 +782,6 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	if (ret)
 		return ret;
 
-	ret = i3c_hci_software_reset(hci);
-	if (ret)
-		return -ENXIO;
-
-	/* Disable all interrupts */
-	reg_write(INTR_SIGNAL_ENABLE, 0x0);
-	/*
-	 * Only allow bit 31:10 signal updates because
-	 * Bit 0:9 are reserved in IP version >= 0.8
-	 * Bit 0:5 are defined in IP version < 0.8 but not handled by PIO code
-	 */
-	reg_write(INTR_STATUS_ENABLE, GENMASK(31, 10));
-
-	/* Make sure our data ordering fits the host's */
-	regval = reg_read(HC_CONTROL);
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
-		if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
-			regval |= HC_CONTROL_DATA_BIG_ENDIAN;
-			reg_write(HC_CONTROL, regval);
-			regval = reg_read(HC_CONTROL);
-			if (!(regval & HC_CONTROL_DATA_BIG_ENDIAN)) {
-				dev_err(&hci->master.dev, "cannot set BE mode\n");
-				return -EOPNOTSUPP;
-			}
-		}
-	} else {
-		if (regval & HC_CONTROL_DATA_BIG_ENDIAN) {
-			regval &= ~HC_CONTROL_DATA_BIG_ENDIAN;
-			reg_write(HC_CONTROL, regval);
-			regval = reg_read(HC_CONTROL);
-			if (regval & HC_CONTROL_DATA_BIG_ENDIAN) {
-				dev_err(&hci->master.dev, "cannot clear BE mode\n");
-				return -EOPNOTSUPP;
-			}
-		}
-	}
-
 	/* Select our command descriptor model */
 	switch (FIELD_GET(HC_CAP_CMD_SIZE, hci->caps)) {
 	case 0:
@@ -762,36 +799,7 @@ static int i3c_hci_init(struct i3c_hci *hci)
 	if (hci->quirks & HCI_QUIRK_PIO_MODE)
 		hci->RHS_regs = NULL;
 
-	/* Try activating DMA operations first */
-	if (hci->RHS_regs) {
-		ret = i3c_hci_set_io_mode(hci, true);
-		if (!ret) {
-			hci->io = &mipi_i3c_hci_dma;
-			dev_dbg(&hci->master.dev, "Using DMA\n");
-		}
-	}
-
-	/* If no DMA, try PIO */
-	if (!hci->io && hci->PIO_regs) {
-		ret = i3c_hci_set_io_mode(hci, false);
-		if (!ret) {
-			hci->io = &mipi_i3c_hci_pio;
-			dev_dbg(&hci->master.dev, "Using PIO\n");
-		}
-	}
-
-	if (!hci->io) {
-		dev_err(&hci->master.dev, "neither DMA nor PIO can be used\n");
-		if (!ret)
-			ret = -EINVAL;
-		return ret;
-	}
-
-	/* Configure OD and PP timings for AMD platforms */
-	if (hci->quirks & HCI_QUIRK_OD_PP_TIMING)
-		amd_set_od_pp_timing(hci);
-
-	return 0;
+	return i3c_hci_reset_and_init(hci);
 }
 
 static int i3c_hci_probe(struct platform_device *pdev)
