@@ -2875,7 +2875,7 @@ static inline block_t __start_sum_addr(struct f2fs_sb_info *sbi)
 }
 
 static inline bool __has_cursum_space(struct f2fs_sb_info *sbi,
-			struct f2fs_journal *journal, int size, int type)
+		struct f2fs_journal *journal, unsigned int size, int type)
 {
 	if (type == NAT_JOURNAL)
 		return size <= MAX_NAT_JENTRIES(sbi, journal);
