@@ -503,9 +503,7 @@ uvc_video_prep_requests(struct uvc_video *video)
 	unsigned int max_req_size, req_size, header_size;
 	unsigned int nreq;
 
-	max_req_size = video->ep->maxpacket
-		 * max_t(unsigned int, video->ep->maxburst, 1)
-		 * (video->ep->mult);
+	max_req_size = video->max_req_size;
 
 	if (!usb_endpoint_xfer_isoc(video->ep->desc)) {
 		video->req_size = max_req_size;
