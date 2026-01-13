@@ -1839,6 +1839,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 			goto out;
 		}
 	}
+	stat_cp_time(cpc, CP_TIME_MERGE_WRITE);
 
 	/*
 	 * update checkpoint pack index
@@ -1855,10 +1856,11 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		f2fs_bug_on(sbi, !f2fs_cp_error(sbi));
 		goto stop;
 	}
+	stat_cp_time(cpc, CP_TIME_FLUSH_NAT);
 
 	f2fs_flush_sit_entries(sbi, cpc);
 
-	stat_cp_time(cpc, CP_TIME_FLUSH_META);
+	stat_cp_time(cpc, CP_TIME_FLUSH_SIT);
 
 	/* save inmem log status */
 	f2fs_save_inmem_curseg(sbi);

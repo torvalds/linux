@@ -319,7 +319,9 @@ enum cp_time {
 	CP_TIME_START,		/* begin */
 	CP_TIME_LOCK,		/* after cp_global_sem */
 	CP_TIME_OP_LOCK,	/* after block_operation */
-	CP_TIME_FLUSH_META,	/* after flush sit/nat */
+	CP_TIME_MERGE_WRITE,	/* after flush DATA/NODE/META */
+	CP_TIME_FLUSH_NAT,	/* after flush nat */
+	CP_TIME_FLUSH_SIT,	/* after flush sit */
 	CP_TIME_SYNC_META,	/* after sync_meta_pages */
 	CP_TIME_SYNC_CP_META,	/* after sync cp meta pages */
 	CP_TIME_WAIT_DIRTY_META,/* after wait on dirty meta */
