@@ -391,20 +391,20 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	int len;
 
 	/* skb content (packets) format :
-	 *                    p0            p1            p2    ......    pm
+	 *                    p1            p2            p3    ......    pn
 	 *                 /      \
 	 *            /                \
 	 *        /                            \
 	 *  /                                        \
-	 * p0b0 p0b1 p0b2 p0b3 ...... p0b(n-4) p0b(n-3)...p0bn
+	 * p1b1 p1b2 p1b3 p1b4 ...... p1b(n-4) p1b(n-3)...p1bn
 	 *
-	 * p0 : packet 0
-	 * p0b0 : packet 0 byte 0
+	 * p1 : packet 1
+	 * p1b1 : packet 1 byte 1
 	 *
-	 * b0: rx status
-	 * b1: packet length (incl crc) low
-	 * b2: packet length (incl crc) high
-	 * b3..n-4: packet data
+	 * b1: rx status
+	 * b2: packet length (incl crc) low
+	 * b3: packet length (incl crc) high
+	 * b4..n-4: packet data
 	 * bn-3..bn: ethernet packet crc
 	 */
 	if (unlikely(skb->len < SR_RX_OVERHEAD)) {
@@ -452,12 +452,12 @@ static struct sk_buff *sr9700_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	/* SR9700 can only send out one ethernet packet at once.
 	 *
-	 * b0 b1 b2 b3 ...... b(n-4) b(n-3)...bn
+	 * b1 b2 b3 b4 ...... b(n-4) b(n-3)...bn
 	 *
-	 * b0: rx status
-	 * b1: packet length (incl crc) low
-	 * b2: packet length (incl crc) high
-	 * b3..n-4: packet data
+	 * b1: rx status
+	 * b2: packet length (incl crc) low
+	 * b3: packet length (incl crc) high
+	 * b4..n-4: packet data
 	 * bn-3..bn: ethernet packet crc
 	 */
 
@@ -488,14 +488,14 @@ static void sr9700_status(struct usbnet *dev, struct urb *urb)
 	u8 *buf;
 
 	/* format:
-	   b0: net status
-	   b1: tx status 1
-	   b2: tx status 2
-	   b3: rx status
-	   b4: rx overflow
-	   b5: rx count
-	   b6: tx count
-	   b7: gpr
+	   b1: net status
+	   b2: tx status 1
+	   b3: tx status 2
+	   b4: rx status
+	   b5: rx overflow
+	   b6: rx count
+	   b7: tx count
+	   b8: gpr
 	*/
 
 	if (urb->actual_length < 8)
