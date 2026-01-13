@@ -9,7 +9,7 @@
 #include "bpf_arena_common.h"
 #include "bpf_misc.h"
 
-#define ARENA_PAGES (1UL<< (32 - 12))
+#define ARENA_PAGES (1UL<< (32 - __builtin_ffs(__PAGE_SIZE) + 1))
 #define GLOBAL_PAGES (16)
 
 struct {
