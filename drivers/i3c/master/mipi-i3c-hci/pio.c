@@ -190,6 +190,18 @@ static void __hci_pio_init(struct i3c_hci *hci, u32 *size_val_ptr)
 	pio->enabled_irqs = STAT_ALL_ERRORS;
 }
 
+static void hci_pio_suspend(struct i3c_hci *hci)
+{
+	pio_reg_write(INTR_SIGNAL_ENABLE, 0);
+
+	i3c_hci_sync_irq_inactive(hci);
+}
+
+static void hci_pio_resume(struct i3c_hci *hci)
+{
+	__hci_pio_init(hci, NULL);
+}
+
 static int hci_pio_init(struct i3c_hci *hci)
 {
 	struct hci_pio_data *pio;
@@ -1059,4 +1071,6 @@ const struct hci_io_ops mipi_i3c_hci_pio = {
 	.request_ibi		= hci_pio_request_ibi,
 	.free_ibi		= hci_pio_free_ibi,
 	.recycle_ibi_slot	= hci_pio_recycle_ibi_slot,
+	.suspend		= hci_pio_suspend,
+	.resume			= hci_pio_resume,
 };
