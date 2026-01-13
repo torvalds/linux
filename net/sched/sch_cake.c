@@ -221,6 +221,7 @@ struct cake_sched_data {
 	struct tcf_block *block;
 	struct cake_tin_data *tins;
 	struct cake_sched_config *config;
+	struct cake_sched_config initial_config;
 
 	struct cake_heap_entry overflow_heap[CAKE_QUEUES * CAKE_MAX_TINS];
 
@@ -2798,8 +2799,6 @@ static void cake_destroy(struct Qdisc *sch)
 	qdisc_watchdog_cancel(&q->watchdog);
 	tcf_block_put(q->block);
 	kvfree(q->tins);
-	if (q->config && !q->config->is_shared)
-		kvfree(q->config);
 }
 
 static void cake_config_init(struct cake_sched_config *q, bool is_shared)
@@ -2822,12 +2821,8 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 		     struct netlink_ext_ack *extack)
 {
 	struct cake_sched_data *qd = qdisc_priv(sch);
-	struct cake_sched_config *q;
+	struct cake_sched_config *q = &qd->initial_config;
 	int i, j, err;
-
-	q = kzalloc(sizeof(*q), GFP_KERNEL);
-	if (!q)
-		return -ENOMEM;
 
 	cake_config_init(q, false);
 
@@ -2842,14 +2837,13 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 
 	if (opt) {
 		err = cake_change(sch, opt, extack);
-
 		if (err)
-			goto err;
+			return err;
 	}
 
 	err = tcf_block_get(&qd->block, &qd->filter_list, sch, extack);
 	if (err)
-		goto err;
+		return err;
 
 	quantum_div[0] = ~0;
 	for (i = 1; i <= CAKE_QUEUES; i++)
@@ -2857,10 +2851,8 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 
 	qd->tins = kvcalloc(CAKE_MAX_TINS, sizeof(struct cake_tin_data),
 			    GFP_KERNEL);
-	if (!qd->tins) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!qd->tins)
+		return -ENOMEM;
 
 	for (i = 0; i < CAKE_MAX_TINS; i++) {
 		struct cake_tin_data *b = qd->tins + i;
@@ -2893,22 +2885,13 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	qd->last_checked_active = 0;
 
 	return 0;
-err:
-	kvfree(qd->config);
-	qd->config = NULL;
-	return err;
 }
 
 static void cake_config_replace(struct Qdisc *sch, struct cake_sched_config *cfg)
 {
 	struct cake_sched_data *qd = qdisc_priv(sch);
-	struct cake_sched_config *q = qd->config;
 
 	qd->config = cfg;
-
-	if (!q->is_shared)
-		kvfree(q);
-
 	cake_reconfigure(sch);
 }
 
