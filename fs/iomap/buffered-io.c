@@ -8,6 +8,7 @@
 #include <linux/writeback.h>
 #include <linux/swap.h>
 #include <linux/migrate.h>
+#include <linux/fserror.h>
 #include "internal.h"
 #include "trace.h"
 
@@ -371,8 +372,11 @@ static int iomap_read_inline_data(const struct iomap_iter *iter,
 	if (folio_test_uptodate(folio))
 		return 0;
 
-	if (WARN_ON_ONCE(size > iomap->length))
+	if (WARN_ON_ONCE(size > iomap->length)) {
+		fserror_report_io(iter->inode, FSERR_BUFFERED_READ,
+				  iomap->offset, size, -EIO, GFP_NOFS);
 		return -EIO;
+	}
 	if (offset > 0)
 		ifs_alloc(iter->inode, folio, iter->flags);
 
@@ -398,6 +402,11 @@ void iomap_finish_folio_read(struct folio *folio, size_t off, size_t len,
 		finished = !ifs->read_bytes_pending;
 		spin_unlock_irqrestore(&ifs->state_lock, flags);
 	}
+
+	if (error)
+		fserror_report_io(folio->mapping->host, FSERR_BUFFERED_READ,
+				  folio_pos(folio) + off, len, error,
+				  GFP_ATOMIC);
 
 	if (finished)
 		folio_end_read(folio, uptodate);
@@ -540,6 +549,10 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 			if (!*bytes_submitted)
 				iomap_read_init(folio);
 			ret = ctx->ops->read_folio_range(iter, ctx, plen);
+			if (ret < 0)
+				fserror_report_io(iter->inode,
+						  FSERR_BUFFERED_READ, pos,
+						  plen, ret, GFP_NOFS);
 			if (ret)
 				return ret;
 			*bytes_submitted += plen;
@@ -815,6 +828,10 @@ static int __iomap_write_begin(const struct iomap_iter *iter,
 			else
 				status = iomap_bio_read_folio_range_sync(iter,
 						folio, block_start, plen);
+			if (status < 0)
+				fserror_report_io(iter->inode,
+						  FSERR_BUFFERED_READ, pos,
+						  len, status, GFP_NOFS);
 			if (status)
 				return status;
 		}
@@ -1805,6 +1822,7 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 	u64 pos = folio_pos(folio);
 	u64 end_pos = pos + folio_size(folio);
 	u64 end_aligned = 0;
+	loff_t orig_pos = pos;
 	size_t bytes_submitted = 0;
 	int error = 0;
 	u32 rlen;
@@ -1848,6 +1866,9 @@ int iomap_writeback_folio(struct iomap_writepage_ctx *wpc, struct folio *folio)
 
 	if (bytes_submitted)
 		wpc->nr_folios++;
+	if (error && pos > orig_pos)
+		fserror_report_io(inode, FSERR_BUFFERED_WRITE, orig_pos, 0,
+				  error, GFP_NOFS);
 
 	/*
 	 * We can have dirty bits set past end of file in page_mkwrite path
