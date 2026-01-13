@@ -15,12 +15,16 @@
 
 #include <linux/acpi.h>
 #include <linux/cleanup.h>
+#include <linux/compiler_attributes.h>
 #include <linux/dmi.h>
+#include <linux/fixp-arith.h>
 #include <linux/hwmon.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
+#include <linux/limits.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -190,7 +194,8 @@ enum hp_wmi_gm_commandtype {
 	HPWMI_SET_GPU_THERMAL_MODES_QUERY	= 0x22,
 	HPWMI_SET_POWER_LIMITS_QUERY		= 0x29,
 	HPWMI_VICTUS_S_FAN_SPEED_GET_QUERY	= 0x2D,
-	HPWMI_FAN_SPEED_SET_QUERY		= 0x2E,
+	HPWMI_VICTUS_S_FAN_SPEED_SET_QUERY	= 0x2E,
+	HPWMI_VICTUS_S_GET_FAN_TABLE_QUERY	= 0x2F,
 };
 
 enum hp_wmi_command {
@@ -347,6 +352,51 @@ static const char * const tablet_chassis_types[] = {
 };
 
 #define DEVICE_MODE_TABLET	0x06
+
+#define CPU_FAN 0
+#define GPU_FAN 1
+
+enum pwm_modes {
+	PWM_MODE_MAX		= 0,
+	PWM_MODE_MANUAL		= 1,
+	PWM_MODE_AUTO		= 2,
+};
+
+struct hp_wmi_hwmon_priv {
+	u8 min_rpm;
+	u8 max_rpm;
+	u8 gpu_delta;
+	u8 mode;
+	u8 pwm;
+};
+
+struct victus_s_fan_table_header {
+	u8 unknown;
+	u8 num_entries;
+} __packed;
+
+struct victus_s_fan_table_entry {
+	u8 cpu_rpm;
+	u8 gpu_rpm;
+	u8 unknown;
+} __packed;
+
+struct victus_s_fan_table {
+	struct victus_s_fan_table_header header;
+	struct victus_s_fan_table_entry entries[];
+} __packed;
+
+static inline u8 rpm_to_pwm(u8 rpm, struct hp_wmi_hwmon_priv *priv)
+{
+	return fixp_linear_interpolate(0, 0, priv->max_rpm, U8_MAX,
+				       clamp_val(rpm, 0, priv->max_rpm));
+}
+
+static inline u8 pwm_to_rpm(u8 pwm, struct hp_wmi_hwmon_priv *priv)
+{
+	return fixp_linear_interpolate(0, 0, U8_MAX, priv->max_rpm,
+				       clamp_val(pwm, 0, U8_MAX));
+}
 
 /* map output size to the corresponding WMI method id */
 static inline int encode_outsize_for_pvsz(int outsize)
@@ -637,18 +687,44 @@ static int hp_wmi_fan_speed_max_set(int enabled)
 	return enabled;
 }
 
-static int hp_wmi_fan_speed_reset(void)
+static int hp_wmi_fan_speed_set(struct hp_wmi_hwmon_priv *priv, u8 speed)
 {
-	u8 fan_speed[2] = { HP_FAN_SPEED_AUTOMATIC, HP_FAN_SPEED_AUTOMATIC };
-	int ret;
+	u8 fan_speed[2];
+	int gpu_speed, ret;
 
-	ret = hp_wmi_perform_query(HPWMI_FAN_SPEED_SET_QUERY, HPWMI_GM,
+	fan_speed[CPU_FAN] = speed;
+	fan_speed[GPU_FAN] = speed;
+
+	/*
+	 * GPU fan speed is always a little higher than CPU fan speed, we fetch
+	 * this delta value from the fan table during hwmon init.
+	 * Exception: Speed is set to HP_FAN_SPEED_AUTOMATIC, to revert to
+	 * automatic mode.
+	 */
+	if (speed != HP_FAN_SPEED_AUTOMATIC) {
+		gpu_speed = speed + priv->gpu_delta;
+		fan_speed[GPU_FAN] = clamp_val(gpu_speed, 0, U8_MAX);
+	}
+
+	ret = hp_wmi_get_fan_count_userdefine_trigger();
+	if (ret < 0)
+		return ret;
+	/* Max fans need to be explicitly disabled */
+	ret = hp_wmi_fan_speed_max_set(0);
+	if (ret < 0)
+		return ret;
+	ret = hp_wmi_perform_query(HPWMI_VICTUS_S_FAN_SPEED_SET_QUERY, HPWMI_GM,
 				   &fan_speed, sizeof(fan_speed), 0);
 
 	return ret;
 }
 
-static int hp_wmi_fan_speed_max_reset(void)
+static int hp_wmi_fan_speed_reset(struct hp_wmi_hwmon_priv *priv)
+{
+	return hp_wmi_fan_speed_set(priv, HP_FAN_SPEED_AUTOMATIC);
+}
+
+static int hp_wmi_fan_speed_max_reset(struct hp_wmi_hwmon_priv *priv)
 {
 	int ret;
 
@@ -657,21 +733,7 @@ static int hp_wmi_fan_speed_max_reset(void)
 		return ret;
 
 	/* Disabling max fan speed on Victus s1xxx laptops needs a 2nd step: */
-	ret = hp_wmi_fan_speed_reset();
-	return ret;
-}
-
-static int hp_wmi_fan_speed_max_get(void)
-{
-	int val = 0, ret;
-
-	ret = hp_wmi_perform_query(HPWMI_FAN_SPEED_MAX_GET_QUERY, HPWMI_GM,
-				   &val, zero_if_sup(val), sizeof(val));
-
-	if (ret)
-		return ret < 0 ? ret : -EINVAL;
-
-	return val;
+	return hp_wmi_fan_speed_reset(priv);
 }
 
 static int __init hp_wmi_bios_2008_later(void)
@@ -2108,12 +2170,45 @@ static struct platform_driver hp_wmi_driver __refdata = {
 	.remove = __exit_p(hp_wmi_bios_remove),
 };
 
+static int hp_wmi_apply_fan_settings(struct hp_wmi_hwmon_priv *priv)
+{
+	int ret;
+
+	switch (priv->mode) {
+	case PWM_MODE_MAX:
+		if (is_victus_s_thermal_profile())
+			hp_wmi_get_fan_count_userdefine_trigger();
+		ret = hp_wmi_fan_speed_max_set(1);
+		return ret;
+	case PWM_MODE_MANUAL:
+		if (!is_victus_s_thermal_profile())
+			return -EOPNOTSUPP;
+		ret = hp_wmi_fan_speed_set(priv, pwm_to_rpm(priv->pwm, priv));
+		return ret;
+	case PWM_MODE_AUTO:
+		if (is_victus_s_thermal_profile()) {
+			hp_wmi_get_fan_count_userdefine_trigger();
+			ret = hp_wmi_fan_speed_max_reset(priv);
+		} else {
+			ret = hp_wmi_fan_speed_max_set(0);
+		}
+		return ret;
+	default:
+		/* shouldn't happen */
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static umode_t hp_wmi_hwmon_is_visible(const void *data,
 				       enum hwmon_sensor_types type,
 				       u32 attr, int channel)
 {
 	switch (type) {
 	case hwmon_pwm:
+		if (attr == hwmon_pwm_input && !is_victus_s_thermal_profile())
+			return 0;
 		return 0644;
 	case hwmon_fan:
 		if (is_victus_s_thermal_profile()) {
@@ -2134,8 +2229,10 @@ static umode_t hp_wmi_hwmon_is_visible(const void *data,
 static int hp_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			     u32 attr, int channel, long *val)
 {
-	int ret;
+	struct hp_wmi_hwmon_priv *priv;
+	int rpm, ret;
 
+	priv = dev_get_drvdata(dev);
 	switch (type) {
 	case hwmon_fan:
 		if (is_victus_s_thermal_profile())
@@ -2147,16 +2244,21 @@ static int hp_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		*val = ret;
 		return 0;
 	case hwmon_pwm:
-		switch (hp_wmi_fan_speed_max_get()) {
-		case 0:
-			/* 0 is automatic fan, which is 2 for hwmon */
-			*val = 2;
+		if (attr == hwmon_pwm_input) {
+			if (!is_victus_s_thermal_profile())
+				return -EOPNOTSUPP;
+
+			rpm = hp_wmi_get_fan_speed_victus_s(channel);
+			if (rpm < 0)
+				return rpm;
+			*val = rpm_to_pwm(rpm / 100, priv);
 			return 0;
-		case 1:
-			/* 1 is max fan, which is 0
-			 * (no fan speed control) for hwmon
-			 */
-			*val = 0;
+		}
+		switch (priv->mode) {
+		case PWM_MODE_MAX:
+		case PWM_MODE_MANUAL:
+		case PWM_MODE_AUTO:
+			*val = priv->mode;
 			return 0;
 		default:
 			/* shouldn't happen */
@@ -2170,23 +2272,46 @@ static int hp_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			      u32 attr, int channel, long val)
 {
+	struct hp_wmi_hwmon_priv *priv;
+	int rpm;
+
+	priv = dev_get_drvdata(dev);
 	switch (type) {
 	case hwmon_pwm:
+		if (attr == hwmon_pwm_input) {
+			if (!is_victus_s_thermal_profile())
+				return -EOPNOTSUPP;
+			/* PWM input is invalid when not in manual mode */
+			if (priv->mode != PWM_MODE_MANUAL)
+				return -EINVAL;
+
+			/* ensure PWM input is within valid fan speeds */
+			rpm = pwm_to_rpm(val, priv);
+			rpm = clamp_val(rpm, priv->min_rpm, priv->max_rpm);
+			priv->pwm = rpm_to_pwm(rpm, priv);
+			return hp_wmi_apply_fan_settings(priv);
+		}
 		switch (val) {
-		case 0:
-			if (is_victus_s_thermal_profile())
-				hp_wmi_get_fan_count_userdefine_trigger();
-			/* 0 is no fan speed control (max), which is 1 for us */
-			return hp_wmi_fan_speed_max_set(1);
-		case 2:
-			/* 2 is automatic speed control, which is 0 for us */
-			if (is_victus_s_thermal_profile()) {
-				hp_wmi_get_fan_count_userdefine_trigger();
-				return hp_wmi_fan_speed_max_reset();
-			} else
-				return hp_wmi_fan_speed_max_set(0);
+		case PWM_MODE_MAX:
+			priv->mode = PWM_MODE_MAX;
+			return hp_wmi_apply_fan_settings(priv);
+		case PWM_MODE_MANUAL:
+			if (!is_victus_s_thermal_profile())
+				return -EOPNOTSUPP;
+			/*
+			 * When switching to manual mode, set fan speed to
+			 * current RPM values to ensure a smooth transition.
+			 */
+			rpm = hp_wmi_get_fan_speed_victus_s(channel);
+			if (rpm < 0)
+				return rpm;
+			priv->pwm = rpm_to_pwm(rpm / 100, priv);
+			priv->mode = PWM_MODE_MANUAL;
+			return hp_wmi_apply_fan_settings(priv);
+		case PWM_MODE_AUTO:
+			priv->mode = PWM_MODE_AUTO;
+			return hp_wmi_apply_fan_settings(priv);
 		default:
-			/* we don't support manual fan speed control */
 			return -EINVAL;
 		}
 	default:
@@ -2196,7 +2321,7 @@ static int hp_wmi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 
 static const struct hwmon_channel_info * const info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_ENABLE),
+	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_ENABLE | HWMON_PWM_INPUT),
 	NULL
 };
 
@@ -2211,18 +2336,64 @@ static const struct hwmon_chip_info chip_info = {
 	.info = info,
 };
 
+static int hp_wmi_setup_fan_settings(struct hp_wmi_hwmon_priv *priv)
+{
+	u8 fan_data[128] = { 0 };
+	struct victus_s_fan_table *fan_table;
+	u8 min_rpm, max_rpm, gpu_delta;
+	int ret;
+
+	/* Default behaviour on hwmon init is automatic mode */
+	priv->mode = PWM_MODE_AUTO;
+
+	/* Bypass all non-Victus S devices */
+	if (!is_victus_s_thermal_profile())
+		return 0;
+
+	ret = hp_wmi_perform_query(HPWMI_VICTUS_S_GET_FAN_TABLE_QUERY,
+				   HPWMI_GM, &fan_data, 4, sizeof(fan_data));
+	if (ret)
+		return ret;
+
+	fan_table = (struct victus_s_fan_table *)fan_data;
+	if (fan_table->header.num_entries == 0 ||
+	    sizeof(struct victus_s_fan_table_header) +
+	    sizeof(struct victus_s_fan_table_entry) * fan_table->header.num_entries > sizeof(fan_data))
+		return -EINVAL;
+
+	min_rpm = fan_table->entries[0].cpu_rpm;
+	max_rpm = fan_table->entries[fan_table->header.num_entries - 1].cpu_rpm;
+	gpu_delta = fan_table->entries[0].gpu_rpm - fan_table->entries[0].cpu_rpm;
+	priv->min_rpm = min_rpm;
+	priv->max_rpm = max_rpm;
+	priv->gpu_delta = gpu_delta;
+
+	return 0;
+}
+
 static int hp_wmi_hwmon_init(void)
 {
 	struct device *dev = &hp_wmi_platform_dev->dev;
+	struct hp_wmi_hwmon_priv *priv;
 	struct device *hwmon;
+	int ret;
 
-	hwmon = devm_hwmon_device_register_with_info(dev, "hp", &hp_wmi_driver,
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	ret = hp_wmi_setup_fan_settings(priv);
+	if (ret)
+		return ret;
+	hwmon = devm_hwmon_device_register_with_info(dev, "hp", priv,
 						     &chip_info, NULL);
 
 	if (IS_ERR(hwmon)) {
 		dev_err(dev, "Could not register hp hwmon device\n");
 		return PTR_ERR(hwmon);
 	}
+
+	hp_wmi_apply_fan_settings(priv);
 
 	return 0;
 }
