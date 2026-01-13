@@ -13,12 +13,12 @@ __bpf_kfunc_start_defs();
 /**
  * bpf_get_root_mem_cgroup - Returns a pointer to the root memory cgroup
  *
- * The function has KF_ACQUIRE semantics, even though the root memory
- * cgroup is never destroyed after being created and doesn't require
- * reference counting. And it's perfectly safe to pass it to
- * bpf_put_mem_cgroup()
- *
- * Return: A pointer to the root memory cgroup.
+ * Return: A pointer to the root memory cgroup. Notably, the pointer to the
+ * returned struct mem_cgroup is trusted by default, so it's perfectably
+ * acceptable to also pass this pointer into other BPF kfuncs (e.g.,
+ * bpf_mem_cgroup_usage()). Additionally, this BPF kfunc does not make use of
+ * KF_ACQUIRE semantics, so there's no requirement for the BPF program to call
+ * bpf_put_mem_cgroup() on the pointer returned by this BPF kfunc.
  */
 __bpf_kfunc struct mem_cgroup *bpf_get_root_mem_cgroup(void)
 {
@@ -162,7 +162,7 @@ __bpf_kfunc void bpf_mem_cgroup_flush_stats(struct mem_cgroup *memcg)
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(bpf_memcontrol_kfuncs)
-BTF_ID_FLAGS(func, bpf_get_root_mem_cgroup, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_get_root_mem_cgroup, KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_get_mem_cgroup, KF_ACQUIRE | KF_RET_NULL | KF_RCU)
 BTF_ID_FLAGS(func, bpf_put_mem_cgroup, KF_RELEASE)
 
