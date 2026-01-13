@@ -7,6 +7,7 @@ use syn::{
         Parse,
         ParseStream, //
     },
+    Attribute,
     Error,
     LitStr,
     Result, //
@@ -52,4 +53,9 @@ pub(crate) fn file() -> String {
     {
         proc_macro::Span::call_site().file()
     }
+}
+
+/// Obtain all `#[cfg]` attributes.
+pub(crate) fn gather_cfg_attrs(attr: &[Attribute]) -> impl Iterator<Item = &Attribute> + '_ {
+    attr.iter().filter(|a| a.path().is_ident("cfg"))
 }

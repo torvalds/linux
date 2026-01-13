@@ -23,7 +23,6 @@ use syn::{
 
 fn handle_trait(mut item: ItemTrait) -> Result<ItemTrait> {
     let mut gen_items = Vec::new();
-    let mut gen_consts = HashSet::new();
 
     gen_items.push(parse_quote! {
          /// A marker to prevent implementors from forgetting to use [`#[vtable]`](vtable)
@@ -38,22 +37,17 @@ fn handle_trait(mut item: ItemTrait) -> Result<ItemTrait> {
                 &format!("HAS_{}", name.to_string().to_uppercase()),
                 name.span(),
             );
-            // Skip if it's declared already -- this can happen if `#[cfg]` is used to selectively
-            // define functions.
-            // FIXME: `#[cfg]` should be copied and propagated to the generated consts.
-            if gen_consts.contains(&gen_const_name) {
-                continue;
-            }
 
             // We don't know on the implementation-site whether a method is required or provided
             // so we have to generate a const for all methods.
+            let cfg_attrs = crate::helpers::gather_cfg_attrs(&fn_item.attrs);
             let comment =
                 format!("Indicates if the `{name}` method is overridden by the implementor.");
             gen_items.push(parse_quote! {
+                #(#cfg_attrs)*
                 #[doc = #comment]
                 const #gen_const_name: bool = false;
             });
-            gen_consts.insert(gen_const_name);
         }
     }
 
@@ -87,10 +81,11 @@ fn handle_impl(mut item: ItemImpl) -> Result<ItemImpl> {
             if defined_consts.contains(&gen_const_name) {
                 continue;
             }
+            let cfg_attrs = crate::helpers::gather_cfg_attrs(&fn_item.attrs);
             gen_items.push(parse_quote! {
+                #(#cfg_attrs)*
                 const #gen_const_name: bool = true;
             });
-            defined_consts.insert(gen_const_name);
         }
     }
 
