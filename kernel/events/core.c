@@ -15066,7 +15066,8 @@ static void perf_event_exit_cpu_context(int cpu)
 	ctx = &cpuctx->ctx;
 
 	mutex_lock(&ctx->mutex);
-	smp_call_function_single(cpu, __perf_event_exit_context, ctx, 1);
+	if (ctx->nr_events)
+		smp_call_function_single(cpu, __perf_event_exit_context, ctx, 1);
 	cpuctx->online = 0;
 	mutex_unlock(&ctx->mutex);
 	mutex_unlock(&pmus_lock);
