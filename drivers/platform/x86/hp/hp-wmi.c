@@ -58,6 +58,66 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45E9-BE91-3D44E2C707E4");
 
 #define zero_if_sup(tmp) (zero_insize_support?0:sizeof(tmp)) // use when zero insize is required
 
+enum hp_thermal_profile_omen_v0 {
+	HP_OMEN_V0_THERMAL_PROFILE_DEFAULT		= 0x00,
+	HP_OMEN_V0_THERMAL_PROFILE_PERFORMANCE		= 0x01,
+	HP_OMEN_V0_THERMAL_PROFILE_COOL			= 0x02,
+};
+
+enum hp_thermal_profile_omen_v1 {
+	HP_OMEN_V1_THERMAL_PROFILE_DEFAULT		= 0x30,
+	HP_OMEN_V1_THERMAL_PROFILE_PERFORMANCE		= 0x31,
+	HP_OMEN_V1_THERMAL_PROFILE_COOL			= 0x50,
+};
+
+enum hp_thermal_profile_omen_flags {
+	HP_OMEN_EC_FLAGS_TURBO				= 0x04,
+	HP_OMEN_EC_FLAGS_NOTIMER			= 0x02,
+	HP_OMEN_EC_FLAGS_JUSTSET			= 0x01,
+};
+
+enum hp_thermal_profile_victus {
+	HP_VICTUS_THERMAL_PROFILE_DEFAULT		= 0x00,
+	HP_VICTUS_THERMAL_PROFILE_PERFORMANCE		= 0x01,
+	HP_VICTUS_THERMAL_PROFILE_QUIET			= 0x03,
+};
+
+enum hp_thermal_profile_victus_s {
+	HP_VICTUS_S_THERMAL_PROFILE_DEFAULT		= 0x00,
+	HP_VICTUS_S_THERMAL_PROFILE_PERFORMANCE		= 0x01,
+};
+
+enum hp_thermal_profile {
+	HP_THERMAL_PROFILE_PERFORMANCE			= 0x00,
+	HP_THERMAL_PROFILE_DEFAULT			= 0x01,
+	HP_THERMAL_PROFILE_COOL				= 0x02,
+	HP_THERMAL_PROFILE_QUIET			= 0x03,
+};
+
+struct thermal_profile_params {
+	u8 performance;
+	u8 balanced;
+	u8 low_power;
+};
+
+static const struct thermal_profile_params victus_s_thermal_params = {
+	.performance	= HP_VICTUS_S_THERMAL_PROFILE_PERFORMANCE,
+	.balanced	= HP_VICTUS_S_THERMAL_PROFILE_DEFAULT,
+	.low_power	= HP_VICTUS_S_THERMAL_PROFILE_DEFAULT,
+};
+
+static const struct thermal_profile_params omen_v1_thermal_params = {
+	.performance	= HP_OMEN_V1_THERMAL_PROFILE_PERFORMANCE,
+	.balanced	= HP_OMEN_V1_THERMAL_PROFILE_DEFAULT,
+	.low_power	= HP_OMEN_V1_THERMAL_PROFILE_DEFAULT,
+};
+
+/*
+ * A generic pointer for the currently-active board's thermal profile
+ * parameters.
+ */
+static struct thermal_profile_params *active_thermal_profile_params;
+
 /* DMI board names of devices that should use the omen specific path for
  * thermal profiles.
  * This was obtained by taking a look in the windows omen command center
@@ -104,11 +164,39 @@ static const char * const victus_thermal_profile_boards[] = {
 };
 
 /* DMI Board names of Victus 16-r and Victus 16-s laptops */
-static const char * const victus_s_thermal_profile_boards[] = {
-	"8BBE", "8BD4", "8BD5",
-	"8C78", "8C99", "8C9C",
-	"8D41",
+static const struct dmi_system_id victus_s_thermal_profile_boards[] __initconst = {
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BBE") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BD4") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8BD5") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8C78") },
+		.driver_data = (void *)&omen_v1_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8C99") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8C9C") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{
+		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8D41") },
+		.driver_data = (void *)&victus_s_thermal_params,
+	},
+	{},
 };
+
+static bool is_victus_s_board;
 
 enum hp_wmi_radio {
 	HPWMI_WIFI	= 0x0,
@@ -229,42 +317,6 @@ enum hp_wireless2_bits {
 	HPWMI_POWER_BIOS	= 0x04,
 	HPWMI_POWER_HARD	= 0x08,
 	HPWMI_POWER_FW_OR_HW	= HPWMI_POWER_BIOS | HPWMI_POWER_HARD,
-};
-
-enum hp_thermal_profile_omen_v0 {
-	HP_OMEN_V0_THERMAL_PROFILE_DEFAULT     = 0x00,
-	HP_OMEN_V0_THERMAL_PROFILE_PERFORMANCE = 0x01,
-	HP_OMEN_V0_THERMAL_PROFILE_COOL        = 0x02,
-};
-
-enum hp_thermal_profile_omen_v1 {
-	HP_OMEN_V1_THERMAL_PROFILE_DEFAULT	= 0x30,
-	HP_OMEN_V1_THERMAL_PROFILE_PERFORMANCE	= 0x31,
-	HP_OMEN_V1_THERMAL_PROFILE_COOL		= 0x50,
-};
-
-enum hp_thermal_profile_omen_flags {
-	HP_OMEN_EC_FLAGS_TURBO		= 0x04,
-	HP_OMEN_EC_FLAGS_NOTIMER	= 0x02,
-	HP_OMEN_EC_FLAGS_JUSTSET	= 0x01,
-};
-
-enum hp_thermal_profile_victus {
-	HP_VICTUS_THERMAL_PROFILE_DEFAULT		= 0x00,
-	HP_VICTUS_THERMAL_PROFILE_PERFORMANCE		= 0x01,
-	HP_VICTUS_THERMAL_PROFILE_QUIET			= 0x03,
-};
-
-enum hp_thermal_profile_victus_s {
-	HP_VICTUS_S_THERMAL_PROFILE_DEFAULT		= 0x00,
-	HP_VICTUS_S_THERMAL_PROFILE_PERFORMANCE		= 0x01,
-};
-
-enum hp_thermal_profile {
-	HP_THERMAL_PROFILE_PERFORMANCE	= 0x00,
-	HP_THERMAL_PROFILE_DEFAULT		= 0x01,
-	HP_THERMAL_PROFILE_COOL			= 0x02,
-	HP_THERMAL_PROFILE_QUIET		= 0x03,
 };
 
 #define IS_HWBLOCKED(x) ((x & HPWMI_POWER_FW_OR_HW) != HPWMI_POWER_FW_OR_HW)
@@ -1651,15 +1703,8 @@ static int platform_profile_victus_set_ec(enum platform_profile_option profile)
 
 static bool is_victus_s_thermal_profile(void)
 {
-	const char *board_name;
-
-	board_name = dmi_get_system_info(DMI_BOARD_NAME);
-	if (!board_name)
-		return false;
-
-	return match_string(victus_s_thermal_profile_boards,
-			    ARRAY_SIZE(victus_s_thermal_profile_boards),
-			    board_name) >= 0;
+	/* Initialised in driver init, hence safe to use here */
+	return is_victus_s_board;
 }
 
 static int victus_s_gpu_thermal_profile_get(bool *ctgp_enable,
@@ -1742,25 +1787,30 @@ static int victus_s_set_cpu_pl1_pl2(u8 pl1, u8 pl2)
 
 static int platform_profile_victus_s_set_ec(enum platform_profile_option profile)
 {
+	struct thermal_profile_params *params;
 	bool gpu_ctgp_enable, gpu_ppab_enable;
 	u8 gpu_dstate; /* Test shows 1 = 100%, 2 = 50%, 3 = 25%, 4 = 12.5% */
 	int err, tp;
 
+	params = active_thermal_profile_params;
+	if (!params)
+		return -ENODEV;
+
 	switch (profile) {
 	case PLATFORM_PROFILE_PERFORMANCE:
-		tp = HP_VICTUS_S_THERMAL_PROFILE_PERFORMANCE;
+		tp = params->performance;
 		gpu_ctgp_enable = true;
 		gpu_ppab_enable = true;
 		gpu_dstate = 1;
 		break;
 	case PLATFORM_PROFILE_BALANCED:
-		tp = HP_VICTUS_S_THERMAL_PROFILE_DEFAULT;
+		tp = params->balanced;
 		gpu_ctgp_enable = false;
 		gpu_ppab_enable = true;
 		gpu_dstate = 1;
 		break;
 	case PLATFORM_PROFILE_LOW_POWER:
-		tp = HP_VICTUS_S_THERMAL_PROFILE_DEFAULT;
+		tp = params->low_power;
 		gpu_ctgp_enable = false;
 		gpu_ppab_enable = false;
 		gpu_dstate = 1;
@@ -2438,6 +2488,26 @@ static int hp_wmi_hwmon_init(void)
 	return 0;
 }
 
+static void __init setup_active_thermal_profile_params(void)
+{
+	const struct dmi_system_id *id;
+
+	/*
+	 * Currently only victus_s devices use the
+	 * active_thermal_profile_params
+	 */
+	id = dmi_first_match(victus_s_thermal_profile_boards);
+	if (id) {
+		/*
+		 * Marking this boolean is required to ensure that
+		 * is_victus_s_thermal_profile() behaves like a valid
+		 * wrapper.
+		 */
+		is_victus_s_board = true;
+		active_thermal_profile_params = id->driver_data;
+	}
+}
+
 static int __init hp_wmi_init(void)
 {
 	int event_capable = wmi_has_guid(HPWMI_EVENT_GUID);
@@ -2465,6 +2535,11 @@ static int __init hp_wmi_init(void)
 			goto err_destroy_input;
 		}
 
+		/*
+		 * Setup active board's thermal profile parameters before
+		 * starting platform driver probe.
+		 */
+		setup_active_thermal_profile_params();
 		err = platform_driver_probe(&hp_wmi_driver, hp_wmi_bios_setup);
 		if (err)
 			goto err_unregister_device;
