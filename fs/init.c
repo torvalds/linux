@@ -202,24 +202,7 @@ int __init init_unlink(const char *pathname)
 
 int __init init_mkdir(const char *pathname, umode_t mode)
 {
-	struct dentry *dentry;
-	struct path path;
-	int error;
-
-	dentry = start_creating_path(AT_FDCWD, pathname, &path,
-				     LOOKUP_DIRECTORY);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	mode = mode_strip_umask(d_inode(path.dentry), mode);
-	error = security_path_mkdir(&path, dentry, mode);
-	if (!error) {
-		dentry = vfs_mkdir(mnt_idmap(path.mnt), path.dentry->d_inode,
-				  dentry, mode, NULL);
-		if (IS_ERR(dentry))
-			error = PTR_ERR(dentry);
-	}
-	end_creating_path(&path, dentry);
-	return error;
+	return do_mkdirat(AT_FDCWD, getname_kernel(pathname), mode);
 }
 
 int __init init_rmdir(const char *pathname)
