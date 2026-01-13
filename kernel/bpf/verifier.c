@@ -14212,26 +14212,38 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			if (is_kfunc_rcu_protected(&meta))
 				regs[BPF_REG_0].type |= MEM_RCU;
 		} else {
-			mark_reg_known_zero(env, regs, BPF_REG_0);
-			regs[BPF_REG_0].btf = desc_btf;
-			regs[BPF_REG_0].type = PTR_TO_BTF_ID;
-			regs[BPF_REG_0].btf_id = ptr_type_id;
+			enum bpf_reg_type type = PTR_TO_BTF_ID;
 
 			if (meta.func_id == special_kfunc_list[KF_bpf_get_kmem_cache])
-				regs[BPF_REG_0].type |= PTR_UNTRUSTED;
-			else if (is_kfunc_rcu_protected(&meta))
-				regs[BPF_REG_0].type |= MEM_RCU;
-
-			if (is_iter_next_kfunc(&meta)) {
-				struct bpf_reg_state *cur_iter;
-
-				cur_iter = get_iter_from_state(env->cur_state, &meta);
-
-				if (cur_iter->type & MEM_RCU) /* KF_RCU_PROTECTED */
-					regs[BPF_REG_0].type |= MEM_RCU;
-				else
-					regs[BPF_REG_0].type |= PTR_TRUSTED;
+				type |= PTR_UNTRUSTED;
+			else if (is_kfunc_rcu_protected(&meta) ||
+				 (is_iter_next_kfunc(&meta) &&
+				  (get_iter_from_state(env->cur_state, &meta)
+					   ->type & MEM_RCU))) {
+				/*
+				 * If the iterator's constructor (the _new
+				 * function e.g., bpf_iter_task_new) has been
+				 * annotated with BPF kfunc flag
+				 * KF_RCU_PROTECTED and was called within a RCU
+				 * read-side critical section, also propagate
+				 * the MEM_RCU flag to the pointer returned from
+				 * the iterator's next function (e.g.,
+				 * bpf_iter_task_next).
+				 */
+				type |= MEM_RCU;
+			} else {
+				/*
+				 * Any PTR_TO_BTF_ID that is returned from a BPF
+				 * kfunc should by default be treated as
+				 * implicitly trusted.
+				 */
+				type |= PTR_TRUSTED;
 			}
+
+			mark_reg_known_zero(env, regs, BPF_REG_0);
+			regs[BPF_REG_0].btf = desc_btf;
+			regs[BPF_REG_0].type = type;
+			regs[BPF_REG_0].btf_id = ptr_type_id;
 		}
 
 		if (is_kfunc_ret_null(&meta)) {
