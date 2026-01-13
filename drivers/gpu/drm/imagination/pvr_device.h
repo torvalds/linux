@@ -39,6 +39,9 @@ struct firmware;
 /* Forward declaration from <linux/pwrseq/consumer.h> */
 struct pwrseq_desc;
 
+#define PVR_GPUID_STRING_MIN_LENGTH 7U
+#define PVR_GPUID_STRING_MAX_LENGTH 32U
+
 /**
  * struct pvr_gpu_id - Hardware GPU ID information for a PowerVR device
  * @b: Branch ID.
@@ -558,7 +561,7 @@ pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
  * Return: The value of the requested register.
  */
 static __always_inline u32
-pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read32(const struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread32(pvr_dev->regs + reg);
 }
@@ -571,7 +574,7 @@ pvr_cr_read32(struct pvr_device *pvr_dev, u32 reg)
  * Return: The value of the requested register.
  */
 static __always_inline u64
-pvr_cr_read64(struct pvr_device *pvr_dev, u32 reg)
+pvr_cr_read64(const struct pvr_device *pvr_dev, u32 reg)
 {
 	return ioread64(pvr_dev->regs + reg);
 }

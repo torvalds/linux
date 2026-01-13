@@ -421,23 +421,21 @@ err_free_filename:
 }
 
 /**
- * pvr_load_gpu_id() - Load a PowerVR device's GPU ID (BVNC) from control registers.
+ * pvr_gpuid_decode_reg() - Decode the GPU ID from GPU register
  *
- * Sets struct pvr_dev.gpu_id.
+ * Sets the b, v, n, c fields of struct pvr_dev.gpu_id.
  *
  * @pvr_dev: Target PowerVR device.
+ * @gpu_id: Output to be updated with the GPU ID.
  */
 static void
-pvr_load_gpu_id(struct pvr_device *pvr_dev)
+pvr_gpuid_decode_reg(const struct pvr_device *pvr_dev, struct pvr_gpu_id *gpu_id)
 {
-	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
-	u64 bvnc;
-
 	/*
 	 * Try reading the BVNC using the newer (cleaner) method first. If the
 	 * B value is zero, fall back to the older method.
 	 */
-	bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
+	u64 bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
 
 	gpu_id->b = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__BRANCH_ID);
 	if (gpu_id->b != 0) {
@@ -454,6 +452,107 @@ pvr_load_gpu_id(struct pvr_device *pvr_dev)
 		gpu_id->n = FIELD_GET(0xFF00, core_id_config);
 		gpu_id->c = FIELD_GET(0x00FF, core_id_config);
 	}
+}
+
+/**
+ * pvr_gpuid_decode_string() - Decode the GPU ID from a module input string
+ *
+ * Sets the b, v, n, c fields of struct pvr_dev.gpu_id.
+ *
+ * @pvr_dev: Target PowerVR device.
+ * @param_bvnc: GPU ID (BVNC) module parameter.
+ * @gpu_id: Output to be updated with the GPU ID.
+ */
+static int
+pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
+			const char *param_bvnc, struct pvr_gpu_id *gpu_id)
+{
+	const struct drm_device *drm_dev = &pvr_dev->base;
+	char str_cpy[PVR_GPUID_STRING_MAX_LENGTH];
+	char *pos, *tkn;
+	int ret, idx = 0;
+	u16 user_bvnc_u16[4];
+	u8 dot_cnt = 0;
+
+	ret = strscpy(str_cpy, param_bvnc);
+
+	/*
+	 * strscpy() should return at least a size 7 for the input to be valid.
+	 * Returns -E2BIG for the case when the string is empty or too long.
+	 */
+	if (ret < PVR_GPUID_STRING_MIN_LENGTH) {
+		drm_info(drm_dev,
+			 "Invalid size of the input GPU ID (BVNC): %s",
+			 str_cpy);
+		return -EINVAL;
+	}
+
+	while (*param_bvnc) {
+		if (*param_bvnc == '.')
+			dot_cnt++;
+		param_bvnc++;
+	}
+
+	if (dot_cnt != 3) {
+		drm_info(drm_dev,
+			 "Invalid format of the input GPU ID (BVNC): %s",
+			 str_cpy);
+		return -EINVAL;
+	}
+
+	pos = str_cpy;
+
+	while ((tkn = strsep(&pos, ".")) != NULL && idx < 4) {
+		/* kstrtou16() will also handle the case of consecutive dots */
+		ret = kstrtou16(tkn, 10, &user_bvnc_u16[idx]);
+		if (ret) {
+			drm_info(drm_dev,
+				 "Invalid format of the input GPU ID (BVNC): %s",
+				 str_cpy);
+			return -EINVAL;
+		}
+		idx++;
+	}
+
+	gpu_id->b = user_bvnc_u16[0];
+	gpu_id->v = user_bvnc_u16[1];
+	gpu_id->n = user_bvnc_u16[2];
+	gpu_id->c = user_bvnc_u16[3];
+
+	return 0;
+}
+
+static char *pvr_gpuid_override;
+module_param_named(gpuid, pvr_gpuid_override, charp, 0400);
+MODULE_PARM_DESC(gpuid, "GPU ID (BVNC) to be used instead of the value read from hardware.");
+
+/**
+ * pvr_load_gpu_id() - Load a PowerVR device's GPU ID (BVNC) from control
+ * registers or input parameter. The input parameter is processed instead
+ * of the GPU register if provided.
+ *
+ * Sets the arch field of struct pvr_dev.gpu_id.
+ *
+ * @pvr_dev: Target PowerVR device.
+ */
+static int
+pvr_load_gpu_id(struct pvr_device *pvr_dev)
+{
+	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
+
+	if (!pvr_gpuid_override || !pvr_gpuid_override[0]) {
+		pvr_gpuid_decode_reg(pvr_dev, gpu_id);
+	} else {
+		drm_warn(from_pvr_device(pvr_dev),
+			 "Using custom GPU ID (BVNC) provided by the user!");
+
+		int err = pvr_gpuid_decode_string(pvr_dev, pvr_gpuid_override,
+						  gpu_id);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 /**
@@ -516,7 +615,9 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 {
 	int err;
 
-	pvr_load_gpu_id(pvr_dev);
+	err = pvr_load_gpu_id(pvr_dev);
+	if (err)
+		return err;
 
 	err = pvr_request_firmware(pvr_dev);
 	if (err)
