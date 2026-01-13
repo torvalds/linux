@@ -60,6 +60,12 @@ properties:
               - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
+      - description: Anbernic RK3568 Handheld Gaming Console
+        items:
+          - enum:
+              - anbernic,rg-ds
+          - const: rockchip,rk3568
+
       - description: Ariaboard Photonicat
         items:
           - const: ariaboard,photonicat
