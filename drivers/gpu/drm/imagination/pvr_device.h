@@ -519,7 +519,7 @@ struct pvr_file {
  * Return: Packed BVNC.
  */
 static __always_inline u64
-pvr_gpu_id_to_packed_bvnc(struct pvr_gpu_id *gpu_id)
+pvr_gpu_id_to_packed_bvnc(const struct pvr_gpu_id *gpu_id)
 {
 	return PVR_PACKED_BVNC(gpu_id->b, gpu_id->v, gpu_id->n, gpu_id->c);
 }
@@ -543,6 +543,11 @@ bool
 pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement);
 bool
 pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
+
+#if IS_ENABLED(CONFIG_KUNIT)
+int pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
+			    const char *param_bvnc, struct pvr_gpu_id *gpu_id);
+#endif
 
 /**
  * PVR_CR_FIELD_GET() - Extract a single field from a PowerVR control register

@@ -31,6 +31,8 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include <kunit/visibility.h>
+
 /* Major number for the supported version of the firmware. */
 #define PVR_FW_VERSION_MAJOR 1
 
@@ -463,7 +465,7 @@ pvr_gpuid_decode_reg(const struct pvr_device *pvr_dev, struct pvr_gpu_id *gpu_id
  * @param_bvnc: GPU ID (BVNC) module parameter.
  * @gpu_id: Output to be updated with the GPU ID.
  */
-static int
+VISIBLE_IF_KUNIT int
 pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
 			const char *param_bvnc, struct pvr_gpu_id *gpu_id)
 {
@@ -521,6 +523,7 @@ pvr_gpuid_decode_string(const struct pvr_device *pvr_dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(pvr_gpuid_decode_string);
 
 static char *pvr_gpuid_override;
 module_param_named(gpuid, pvr_gpuid_override, charp, 0400);
