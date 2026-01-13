@@ -124,7 +124,7 @@ descrittore di file per accesso all'oggetto - non inventatevi nuovi tipi di
 accesso da spazio utente quando il kernel ha già dei meccanismi e una semantica
 ben definita per utilizzare i descrittori di file.
 
-Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` ritorna un nuovo
+Se la vostra nuova chiamata di sistema xyzzy(2) ritorna un nuovo
 descrittore di file, allora l'argomento *flags* dovrebbe includere un valore
 equivalente a ``O_CLOEXEC`` per i nuovi descrittori.  Questo rende possibile,
 nello spazio utente, la chiusura della finestra temporale fra le chiamate a
@@ -140,13 +140,13 @@ della famiglia di :manpage:`poll(2)`. Rendere un descrittore di file pronto
 per la lettura o la scrittura è il tipico modo del kernel per notificare lo
 spazio utente circa un evento associato all'oggetto del kernel.
 
-Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` ha un argomento
+Se la vostra nuova chiamata di sistema xyzzy(2) ha un argomento
 che è il percorso ad un file::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
 
 dovreste anche considerare se non sia più appropriata una versione
-:manpage:`xyzzyat(2)`::
+`xyzzyat(2)`::
 
     int sys_xyzzyat(int dfd, const char __user *path, ..., unsigned int flags);
 
@@ -154,7 +154,7 @@ Questo permette più flessibilità su come lo spazio utente specificherà il fil
 in questione; in particolare, permette allo spazio utente di richiedere la
 funzionalità su un descrittore di file già aperto utilizzando il *flag*
 ``AT_EMPTY_PATH``, in pratica otterremmo gratuitamente l'operazione
-:manpage:`fxyzzy(3)`::
+fxyzzy(3)::
 
  - xyzzyat(AT_FDCWD, path, ..., 0) is equivalent to xyzzy(path,...)
  - xyzzyat(fd, "", ..., AT_EMPTY_PATH) is equivalent to fxyzzy(fd, ...)
@@ -163,12 +163,12 @@ funzionalità su un descrittore di file già aperto utilizzando il *flag*
 man :manpage:`openat(2)`; per un esempio di AT_EMPTY_PATH, leggere la pagina
 man :manpage:`fstatat(2)`).
 
-Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` prevede un parametro
+Se la vostra nuova chiamata di sistema xyzzy(2) prevede un parametro
 per descrivere uno scostamento all'interno di un file, usate ``loff_t`` come
 tipo cosicché scostamenti a 64-bit potranno essere supportati anche su
 architetture a 32-bit.
 
-Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` prevede l'uso di
+Se la vostra nuova chiamata di sistema xyzzy(2) prevede l'uso di
 funzioni riservate, allora dev'essere gestita da un opportuno bit di privilegio
 (verificato con una chiamata a ``capable()``), come descritto nella pagina man
 :manpage:`capabilities(7)`.  Scegliete un bit di privilegio già esistente per
@@ -178,7 +178,7 @@ principio di *capabilities* di separare i poteri di root.  In particolare,
 evitate di aggiungere nuovi usi al fin-troppo-generico privilegio
 ``CAP_SYS_ADMIN``.
 
-Se la vostra nuova chiamata di sistema :manpage:`xyzzy(2)` manipola altri
+Se la vostra nuova chiamata di sistema xyzzy(2) manipola altri
 processi oltre a quello chiamato, allora dovrebbe essere limitata (usando
 la chiamata ``ptrace_may_access()``) di modo che solo un processo chiamante
 con gli stessi permessi del processo in oggetto, o con i necessari privilegi,
@@ -219,7 +219,7 @@ Implementazione di chiamate di sistema generiche
 ------------------------------------------------
 
 Il principale punto d'accesso alla vostra nuova chiamata di sistema
-:manpage:`xyzzy(2)` verrà chiamato ``sys_xyzzy()``; ma, piuttosto che in modo
+`xyzzy(2)` verrà chiamato ``sys_xyzzy()``; ma, piuttosto che in modo
 esplicito, lo aggiungerete tramite la macro ``SYSCALL_DEFINEn``. La 'n'
 indica il numero di argomenti della chiamata di sistema; la macro ha come
 argomento il nome della chiamata di sistema, seguito dalle coppie (tipo, nome)

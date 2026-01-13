@@ -128,7 +128,7 @@ manipulador de ese objeto -- no invente un nuevo tipo de objeto manipulador
 userspace cuando el kernel ya tiene mecanismos y semánticas bien definidas
 para usar los descriptores de archivos.
 
-Si su nueva llamada a sistema :manpage:`xyzzy(2)` retorna un nuevo
+Si su nueva llamada a sistema xyzzy(2) retorna un nuevo
 descriptor de archivo, entonces el argumento flag debe incluir un valor que
 sea equivalente a definir ``O_CLOEXEC`` en el nuevo FD. Esto hace posible
 al userspace acortar la brecha de tiempo entre ``xyzzy()`` y la llamada a
@@ -145,12 +145,12 @@ archivo listo para leer o escribir es la forma normal para que el kernel
 indique al espacio de usuario que un evento ha ocurrido en el
 correspondiente objeto del kernel.
 
-Si su nueva llamada de sistema :manpage:`xyzzy(2)` involucra algún nombre
+Si su nueva llamada de sistema xyzzy(2) involucra algún nombre
 de archivo como argumento::
 
     int sys_xyzzy(const char __user *path, ..., unsigned int flags);
 
-debería considerar también si una versión :manpage:`xyzzyat(2)` es mas
+debería considerar también si una versión xyzzyat(2) es mas
 apropiada::
 
     int sys_xyzzyat(int dfd, const char __user *path, ..., unsigned int flags);
@@ -158,7 +158,7 @@ apropiada::
 Esto permite más flexibilidad en como el userspace especifica el archivo en
 cuestión; en particular esto permite al userspace pedir la funcionalidad a
 un descriptor de archivo ya abierto usando el flag ``AT_EMPTY_PATH``,
-efectivamente dando una operación :manpage:`fxyzzy(3)` gratis::
+efectivamente dando una operación fxyzzy(3) gratis::
 
  - xyzzyat(AT_FDCWD, path, ..., 0) es equivalente a xyzzy(path, ...)
  - xyzzyat(fd, "", ..., AT_EMPTY_PATH) es equivalente a fxyzzy(fd, ...)
@@ -167,12 +167,12 @@ efectivamente dando una operación :manpage:`fxyzzy(3)` gratis::
 revise el man page :manpage:`openat(2)`; para un ejemplo de AT_EMPTY_PATH,
 mire el man page :manpage:`fstatat(2)` manpage.)
 
-Si su nueva llamada de sistema :manpage:`xyzzy(2)` involucra un parámetro
+Si su nueva llamada de sistema xyzzy(2) involucra un parámetro
 describiendo un describiendo un movimiento dentro de un archivo, ponga de
 tipo ``loff_t`` para que movimientos de 64-bit puedan ser soportados
 incluso en arquitecturas de 32-bit.
 
-Si su nueva llamada de sistema  :manpage:`xyzzy` involucra una
+Si su nueva llamada de sistema xyzzy(2) involucra una
 funcionalidad privilegiada, esta necesita ser gobernada por la capability
 bit linux apropiada (revisado con una llamada a ``capable()``), como se
 describe en el man page :manpage:`capabilities(7)`. Elija una parte de
@@ -182,7 +182,7 @@ misma sección, ya que va en contra de los propósitos de las capabilities de
 dividir el poder del usuario root. En particular, evite agregar nuevos usos
 de la capacidad ya demasiado general de la capabilities ``CAP_SYS_ADMIN``.
 
-Si su nueva llamada de sistema :manpage:`xyzzy(2)` manipula un proceso que
+Si su nueva llamada de sistema xyzzy(2) manipula un proceso que
 no es el proceso invocado, este debería ser restringido (usando una llamada
 a ``ptrace_may_access()``) de forma que el único proceso con los mismos
 permisos del proceso objetivo, o con las capacidades (capabilities)
@@ -221,7 +221,7 @@ kernel, debería siempre ser copiado a linux-api@vger.kernel.org.
 Implementation de Llamada de Sistema Generica
 ---------------------------------------------
 
-La entrada principal a su nueva llamada de sistema :manpage:`xyzzy(2)` será
+La entrada principal a su nueva llamada de sistema xyzzy(2) será
 llamada ``sys_xyzzy()``, pero incluya este punto de entrada con la macro
 ``SYSCALL_DEFINEn()`` apropiada en vez de explicitamente. El 'n' indica el
 numero de argumentos de la llamada de sistema, y la macro toma el nombre de
