@@ -2568,7 +2568,7 @@ static void pkvm_hyp_init_ptrauth(void)
 /* Inits Hyp-mode on all online CPUs */
 static int __init init_hyp_mode(void)
 {
-	u32 hyp_va_bits;
+	u32 hyp_va_bits = kvm_hyp_va_bits();
 	int cpu;
 	int err = -ENOMEM;
 
@@ -2582,7 +2582,7 @@ static int __init init_hyp_mode(void)
 	/*
 	 * Allocate Hyp PGD and setup Hyp identity mapping
 	 */
-	err = kvm_mmu_init(&hyp_va_bits);
+	err = kvm_mmu_init(hyp_va_bits);
 	if (err)
 		goto out_err;
 
