@@ -2405,10 +2405,6 @@ int phy_register_fixup_for_id(const char *bus_id,
 int phy_register_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask,
 			       int (*run)(struct phy_device *));
 
-int phy_unregister_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask);
-int phy_unregister_fixup_for_id(const char *bus_id);
-int phy_unregister_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask);
-
 int phy_eee_tx_clock_stop_capable(struct phy_device *phydev);
 int phy_eee_rx_clock_stop(struct phy_device *phydev, bool clk_stop_enable);
 int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable);
