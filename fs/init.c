@@ -145,37 +145,8 @@ int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 
 int __init init_link(const char *oldname, const char *newname)
 {
-	struct dentry *new_dentry;
-	struct path old_path, new_path;
-	struct mnt_idmap *idmap;
-	int error;
-
-	error = kern_path(oldname, 0, &old_path);
-	if (error)
-		return error;
-
-	new_dentry = start_creating_path(AT_FDCWD, newname, &new_path, 0);
-	error = PTR_ERR(new_dentry);
-	if (IS_ERR(new_dentry))
-		goto out;
-
-	error = -EXDEV;
-	if (old_path.mnt != new_path.mnt)
-		goto out_dput;
-	idmap = mnt_idmap(new_path.mnt);
-	error = may_linkat(idmap, &old_path);
-	if (unlikely(error))
-		goto out_dput;
-	error = security_path_link(old_path.dentry, &new_path, new_dentry);
-	if (error)
-		goto out_dput;
-	error = vfs_link(old_path.dentry, idmap, new_path.dentry->d_inode,
-			 new_dentry, NULL);
-out_dput:
-	end_creating_path(&new_path, new_dentry);
-out:
-	path_put(&old_path);
-	return error;
+	return do_linkat(AT_FDCWD, getname_kernel(oldname),
+			 AT_FDCWD, getname_kernel(newname), 0);
 }
 
 int __init init_symlink(const char *oldname, const char *newname)
