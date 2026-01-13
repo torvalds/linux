@@ -1881,28 +1881,18 @@ static int rtl8221b_match_phy_device(struct phy_device *phydev,
 	return phydev->phy_id == RTL_8221B && rtlgen_supports_mmd(phydev);
 }
 
-static int rtl8221b_vb_cg_c22_match_phy_device(struct phy_device *phydev,
-					       const struct phy_driver *phydrv)
+static int rtl8221b_vb_cg_match_phy_device(struct phy_device *phydev,
+					   const struct phy_driver *phydrv)
 {
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VB_CG, false);
+	return rtlgen_is_c45_match(phydev, RTL_8221B_VB_CG, true) ||
+	       rtlgen_is_c45_match(phydev, RTL_8221B_VB_CG, false);
 }
 
-static int rtl8221b_vb_cg_c45_match_phy_device(struct phy_device *phydev,
-					       const struct phy_driver *phydrv)
+static int rtl8221b_vm_cg_match_phy_device(struct phy_device *phydev,
+					   const struct phy_driver *phydrv)
 {
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VB_CG, true);
-}
-
-static int rtl8221b_vm_cg_c22_match_phy_device(struct phy_device *phydev,
-					       const struct phy_driver *phydrv)
-{
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, false);
-}
-
-static int rtl8221b_vm_cg_c45_match_phy_device(struct phy_device *phydev,
-					       const struct phy_driver *phydrv)
-{
-	return rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, true);
+	return rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, true) ||
+	       rtlgen_is_c45_match(phydev, RTL_8221B_VM_CG, false);
 }
 
 static int rtl_internal_nbaset_match_phy_device(struct phy_device *phydev,
@@ -2325,27 +2315,8 @@ static struct phy_driver realtek_drvs[] = {
 		.read_mmd	= rtl822xb_read_mmd,
 		.write_mmd	= rtl822xb_write_mmd,
 	}, {
-		.match_phy_device = rtl8221b_vb_cg_c22_match_phy_device,
-		.name		= "RTL8221B-VB-CG 2.5Gbps PHY (C22)",
-		.config_intr	= rtl8221b_config_intr,
-		.handle_interrupt = rtl8221b_handle_interrupt,
-		.probe		= rtl822x_probe,
-		.get_features	= rtl822x_get_features,
-		.config_aneg	= rtl822x_config_aneg,
-		.config_init	= rtl822xb_config_init,
-		.inband_caps	= rtl822x_inband_caps,
-		.config_inband	= rtl822x_config_inband,
-		.get_rate_matching = rtl822xb_get_rate_matching,
-		.read_status	= rtl822xb_read_status,
-		.suspend	= genphy_suspend,
-		.resume		= rtlgen_resume,
-		.read_page	= rtl821x_read_page,
-		.write_page	= rtl821x_write_page,
-		.read_mmd	= rtl822xb_read_mmd,
-		.write_mmd	= rtl822xb_write_mmd,
-	}, {
-		.match_phy_device = rtl8221b_vb_cg_c45_match_phy_device,
-		.name		= "RTL8221B-VB-CG 2.5Gbps PHY (C45)",
+		.match_phy_device = rtl8221b_vb_cg_match_phy_device,
+		.name		= "RTL8221B-VB-CG 2.5Gbps PHY",
 		.config_intr	= rtl8221b_config_intr,
 		.handle_interrupt = rtl8221b_handle_interrupt,
 		.probe		= rtl822x_probe,
@@ -2358,28 +2329,13 @@ static struct phy_driver realtek_drvs[] = {
 		.read_status	= rtl822xb_c45_read_status,
 		.suspend	= genphy_c45_pma_suspend,
 		.resume		= rtlgen_c45_resume,
-	}, {
-		.match_phy_device = rtl8221b_vm_cg_c22_match_phy_device,
-		.name		= "RTL8221B-VM-CG 2.5Gbps PHY (C22)",
-		.config_intr	= rtl8221b_config_intr,
-		.handle_interrupt = rtl8221b_handle_interrupt,
-		.probe		= rtl822x_probe,
-		.get_features	= rtl822x_get_features,
-		.config_aneg	= rtl822x_config_aneg,
-		.config_init	= rtl822xb_config_init,
-		.inband_caps	= rtl822x_inband_caps,
-		.config_inband	= rtl822x_config_inband,
-		.get_rate_matching = rtl822xb_get_rate_matching,
-		.read_status	= rtl822xb_read_status,
-		.suspend	= genphy_suspend,
-		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.read_mmd	= rtl822xb_read_mmd,
 		.write_mmd	= rtl822xb_write_mmd,
 	}, {
-		.match_phy_device = rtl8221b_vm_cg_c45_match_phy_device,
-		.name		= "RTL8221B-VM-CG 2.5Gbps PHY (C45)",
+		.match_phy_device = rtl8221b_vm_cg_match_phy_device,
+		.name		= "RTL8221B-VM-CG 2.5Gbps PHY",
 		.config_intr	= rtl8221b_config_intr,
 		.handle_interrupt = rtl8221b_handle_interrupt,
 		.probe		= rtl822x_probe,
@@ -2392,6 +2348,10 @@ static struct phy_driver realtek_drvs[] = {
 		.read_status	= rtl822xb_c45_read_status,
 		.suspend	= genphy_c45_pma_suspend,
 		.resume		= rtlgen_c45_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl822xb_read_mmd,
+		.write_mmd	= rtl822xb_write_mmd,
 	}, {
 		.match_phy_device = rtl8251b_c45_match_phy_device,
 		.name		= "RTL8251B 5Gbps PHY",
