@@ -130,8 +130,13 @@ int pvr_fw_trace_init(struct pvr_device *pvr_dev)
 		}
 	}
 
-	/* TODO: Provide control of group mask. */
-	fw_trace->group_mask = 0;
+	/*
+	 * Load the initial group_mask from the init_fw_trace_mask module
+	 * parameter. This allows early tracing before the user can write to
+	 * debugfs. Unlike update_logtype(), we don't set log_type here as that
+	 * is initialised by tracebuf_ctrl_init().
+	 */
+	fw_trace->group_mask = pvr_fw_trace_init_mask;
 
 	fw_trace->tracebuf_ctrl =
 		pvr_fw_object_create_and_map(pvr_dev,
