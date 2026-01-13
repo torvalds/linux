@@ -472,7 +472,7 @@ int hinic3_init_hwdev(struct pci_dev *pdev)
 		goto err_free_hwdev;
 	}
 
-	hwdev->workq = alloc_workqueue(HINIC3_HWDEV_WQ_NAME, WQ_MEM_RECLAIM,
+	hwdev->workq = alloc_workqueue(HINIC3_HWDEV_WQ_NAME, WQ_MEM_RECLAIM | WQ_PERCPU,
 				       HINIC3_WQ_MAX_REQ);
 	if (!hwdev->workq) {
 		dev_err(hwdev->dev, "Failed to alloc hardware workq\n");
