@@ -51,6 +51,7 @@ struct i3c_hci {
 	void *io_data;
 	const struct hci_cmd_ops *cmd;
 	atomic_t next_cmd_tid;
+	bool irq_inactive;
 	u32 caps;
 	unsigned int quirks;
 	unsigned int DAT_entries;
@@ -144,6 +145,7 @@ struct i3c_hci_dev_data {
 #define HCI_QUIRK_PIO_MODE	BIT(2)  /* Set PIO mode for AMD platforms */
 #define HCI_QUIRK_OD_PP_TIMING		BIT(3)  /* Set OD and PP timings for AMD platforms */
 #define HCI_QUIRK_RESP_BUF_THLD		BIT(4)  /* Set resp buf thld to 0 for AMD platforms */
+#define HCI_QUIRK_RPM_ALLOWED		BIT(5)  /* Runtime PM allowed */
 
 /* global functions */
 void mipi_i3c_hci_resume(struct i3c_hci *hci);

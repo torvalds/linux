@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_data/mipi-i3c-hci.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "hci.h"
 #include "ext_caps.h"
@@ -182,6 +183,7 @@ void i3c_hci_sync_irq_inactive(struct i3c_hci *hci)
 	int irq = platform_get_irq(pdev, 0);
 
 	reg_write(INTR_SIGNAL_ENABLE, 0x0);
+	hci->irq_inactive = true;
 	synchronize_irq(irq);
 }
 
@@ -564,6 +566,14 @@ static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
 	irqreturn_t result = IRQ_NONE;
 	u32 val;
 
+	/*
+	 * The IRQ can be shared, so the handler may be called when the IRQ is
+	 * due to a different device. That could happen when runtime suspended,
+	 * so exit immediately if IRQs are not expected for this device.
+	 */
+	if (hci->irq_inactive)
+		return IRQ_NONE;
+
 	val = reg_read(INTR_STATUS);
 	reg_write(INTR_STATUS, val);
 	dev_dbg(&hci->master.dev, "INTR_STATUS %#x", val);
@@ -723,6 +733,55 @@ static int i3c_hci_reset_and_init(struct i3c_hci *hci)
 	return 0;
 }
 
+static int i3c_hci_runtime_suspend(struct device *dev)
+{
+	struct i3c_hci *hci = dev_get_drvdata(dev);
+	int ret;
+
+	ret = i3c_hci_bus_disable(hci);
+	if (ret)
+		return ret;
+
+	hci->io->suspend(hci);
+
+	return 0;
+}
+
+static int i3c_hci_runtime_resume(struct device *dev)
+{
+	struct i3c_hci *hci = dev_get_drvdata(dev);
+	int ret;
+
+	ret = i3c_hci_reset_and_init(hci);
+	if (ret)
+		return -EIO;
+
+	i3c_hci_set_master_dyn_addr(hci);
+
+	mipi_i3c_hci_dat_v1.restore(hci);
+
+	hci->irq_inactive = false;
+
+	hci->io->resume(hci);
+
+	reg_set(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
+
+	return 0;
+}
+
+#define DEFAULT_AUTOSUSPEND_DELAY_MS 1000
+
+static void i3c_hci_rpm_enable(struct device *dev)
+{
+	struct i3c_hci *hci = dev_get_drvdata(dev);
+
+	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+	devm_pm_runtime_set_active_enabled(dev);
+
+	hci->master.rpm_allowed = true;
+}
+
 static int i3c_hci_init(struct i3c_hci *hci)
 {
 	bool size_in_dwords;
@@ -841,6 +900,8 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	hci->master.dev.init_name = dev_name(&pdev->dev);
 
 	hci->quirks = (unsigned long)device_get_match_data(&pdev->dev);
+	if (!hci->quirks && platform_get_device_id(pdev))
+		hci->quirks = platform_get_device_id(pdev)->driver_data;
 
 	ret = i3c_hci_init(hci);
 	if (ret)
@@ -852,12 +913,10 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = i3c_master_register(&hci->master, &pdev->dev,
-				  &i3c_hci_ops, false);
-	if (ret)
-		return ret;
+	if (hci->quirks & HCI_QUIRK_RPM_ALLOWED)
+		i3c_hci_rpm_enable(&pdev->dev);
 
-	return 0;
+	return i3c_master_register(&hci->master, &pdev->dev, &i3c_hci_ops, false);
 }
 
 static void i3c_hci_remove(struct platform_device *pdev)
@@ -880,10 +939,14 @@ static const struct acpi_device_id i3c_hci_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, i3c_hci_acpi_match);
 
 static const struct platform_device_id i3c_hci_driver_ids[] = {
-	{ .name = "intel-lpss-i3c" },
+	{ .name = "intel-lpss-i3c", HCI_QUIRK_RPM_ALLOWED },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, i3c_hci_driver_ids);
+
+static const struct dev_pm_ops i3c_hci_pm_ops = {
+	RUNTIME_PM_OPS(i3c_hci_runtime_suspend, i3c_hci_runtime_resume, NULL)
+};
 
 static struct platform_driver i3c_hci_driver = {
 	.probe = i3c_hci_probe,
@@ -893,6 +956,7 @@ static struct platform_driver i3c_hci_driver = {
 		.name = "mipi-i3c-hci",
 		.of_match_table = of_match_ptr(i3c_hci_of_match),
 		.acpi_match_table = i3c_hci_acpi_match,
+		.pm = pm_ptr(&i3c_hci_pm_ops),
 	},
 };
 module_platform_driver(i3c_hci_driver);
