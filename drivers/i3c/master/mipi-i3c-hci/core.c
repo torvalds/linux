@@ -681,27 +681,31 @@ static int i3c_hci_reset_and_init(struct i3c_hci *hci)
 		}
 	}
 
-	/* Try activating DMA operations first */
-	if (hci->RHS_regs) {
-		ret = i3c_hci_set_io_mode(hci, true);
-		if (!ret) {
-			hci->io = &mipi_i3c_hci_dma;
-			dev_dbg(&hci->master.dev, "Using DMA\n");
+	if (hci->io) {
+		ret = i3c_hci_set_io_mode(hci, hci->io == &mipi_i3c_hci_dma);
+	} else {
+		/* Try activating DMA operations first */
+		if (hci->RHS_regs) {
+			ret = i3c_hci_set_io_mode(hci, true);
+			if (!ret) {
+				hci->io = &mipi_i3c_hci_dma;
+				dev_dbg(&hci->master.dev, "Using DMA\n");
+			}
 		}
-	}
 
-	/* If no DMA, try PIO */
-	if (!hci->io && hci->PIO_regs) {
-		ret = i3c_hci_set_io_mode(hci, false);
-		if (!ret) {
-			hci->io = &mipi_i3c_hci_pio;
-			dev_dbg(&hci->master.dev, "Using PIO\n");
+		/* If no DMA, try PIO */
+		if (!hci->io && hci->PIO_regs) {
+			ret = i3c_hci_set_io_mode(hci, false);
+			if (!ret) {
+				hci->io = &mipi_i3c_hci_pio;
+				dev_dbg(&hci->master.dev, "Using PIO\n");
+			}
 		}
-	}
 
-	if (!hci->io) {
-		dev_err(&hci->master.dev, "neither DMA nor PIO can be used\n");
-		ret = ret ?: -EINVAL;
+		if (!hci->io) {
+			dev_err(&hci->master.dev, "neither DMA nor PIO can be used\n");
+			ret = ret ?: -EINVAL;
+		}
 	}
 	if (ret)
 		return ret;
