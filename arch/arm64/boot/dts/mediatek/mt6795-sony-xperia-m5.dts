@@ -507,7 +507,7 @@
 	 */
 	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 
-	mt6332-led {
+	leds {
 		compatible = "mediatek,mt6332-led";
 		#address-cells = <1>;
 		#size-cells = <0>;
