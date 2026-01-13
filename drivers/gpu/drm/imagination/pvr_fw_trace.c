@@ -14,8 +14,25 @@
 #include <linux/build_bug.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
+#include <linux/moduleparam.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+
+/*
+ * Don't gate this behind CONFIG_DEBUG_FS so that it can be used as an initial
+ * value without further conditional code...
+ */
+static u32 pvr_fw_trace_init_mask;
+
+/*
+ * ...but do only expose the module parameter if debugfs is enabled, since
+ * there's no reason to turn on fw_trace without it.
+ */
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+module_param_named(init_fw_trace_mask, pvr_fw_trace_init_mask, hexint, 0600);
+MODULE_PARM_DESC(init_fw_trace_mask,
+		 "Enable FW trace for the specified groups at device init time");
+#endif
 
 static void
 tracebuf_ctrl_init(void *cpu_ptr, void *priv)
@@ -126,6 +143,8 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
  * @group_mask: New log group mask.
  *
  * Returns:
+ *  * 0 if the provided @group_mask is the same as the current value (this is a
+ *    short-circuit evaluation),
  *  * 0 on success,
  *  * Any error returned by pvr_kccb_send_cmd(), or
  *  * -%EIO if the device is lost.
@@ -137,6 +156,10 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 	struct rogue_fwif_kccb_cmd cmd;
 	int idx;
 	int err;
+
+	/* No change in group_mask => nothing to update. */
+	if (fw_trace->group_mask == group_mask)
+		return 0;
 
 	if (group_mask)
 		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_TRACE | group_mask;
@@ -437,12 +460,24 @@ static const struct file_operations pvr_fw_trace_fops = {
 	.release = fw_trace_release,
 };
 
-void
-pvr_fw_trace_mask_update(struct pvr_device *pvr_dev, u32 old_mask, u32 new_mask)
+static int pvr_fw_trace_mask_get(void *data, u64 *value)
 {
-	if (IS_ENABLED(CONFIG_DEBUG_FS) && old_mask != new_mask)
-		update_logtype(pvr_dev, new_mask);
+	struct pvr_device *pvr_dev = data;
+
+	*value = pvr_dev->fw_dev.fw_trace.group_mask;
+
+	return 0;
 }
+
+static int pvr_fw_trace_mask_set(void *data, u64 value)
+{
+	struct pvr_device *pvr_dev = data;
+
+	return update_logtype(pvr_dev, (u32)value);
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(pvr_fw_trace_mask_fops, pvr_fw_trace_mask_get,
+			 pvr_fw_trace_mask_set, "0x%08llx\n");
 
 void
 pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
@@ -463,4 +498,7 @@ pvr_fw_trace_debugfs_init(struct pvr_device *pvr_dev, struct dentry *dir)
 				    &fw_trace->buffers[thread_nr],
 				    &pvr_fw_trace_fops);
 	}
+
+	debugfs_create_file("trace_mask", 0600, dir, fw_trace,
+			    &pvr_fw_trace_mask_fops);
 }
