@@ -815,19 +815,6 @@ free_pending:
 	return ret;
 }
 
-/* copy of may_create in fs/namei.c() */
-static inline int btrfs_may_create(struct mnt_idmap *idmap,
-				   struct inode *dir, const struct dentry *child)
-{
-	if (d_really_is_positive(child))
-		return -EEXIST;
-	if (IS_DEADDIR(dir))
-		return -ENOENT;
-	if (!fsuidgid_has_mapping(dir->i_sb, idmap))
-		return -EOVERFLOW;
-	return inode_permission(idmap, dir, MAY_WRITE | MAY_EXEC);
-}
-
 /*
  * Create a new subvolume below @parent.  This is largely modeled after
  * sys_mkdirat and vfs_mkdir, but we only do a single component lookup
@@ -849,7 +836,7 @@ static noinline int btrfs_mksubvol(struct dentry *parent,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	ret = btrfs_may_create(idmap, dir, dentry);
+	ret = may_create_dentry(idmap, dir, dentry);
 	if (ret)
 		goto out_dput;
 
