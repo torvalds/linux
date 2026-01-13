@@ -14,6 +14,7 @@
 #define __U_ETHER_CONFIGFS_H
 
 #include <linux/cleanup.h>
+#include <linux/hex.h>
 #include <linux/if_ether.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
