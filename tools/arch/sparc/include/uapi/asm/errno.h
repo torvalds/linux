@@ -48,6 +48,7 @@
 #define	ENOSR		74	/* Out of streams resources */
 #define	ENOMSG		75	/* No message of desired type */
 #define	EBADMSG		76	/* Not a data message */
+#define	EFSBADCRC	EBADMSG	/* Bad CRC detected */
 #define	EIDRM		77	/* Identifier removed */
 #define	EDEADLK		78	/* Resource deadlock would occur */
 #define	ENOLCK		79	/* No record locks available */
@@ -91,6 +92,7 @@
 #define	ENOTUNIQ	115	/* Name not unique on network */
 #define	ERESTART	116	/* Interrupted syscall should be restarted */
 #define	EUCLEAN		117	/* Structure needs cleaning */
+#define	EFSCORRUPTED	EUCLEAN	/* Filesystem is corrupted */
 #define	ENOTNAM		118	/* Not a XENIX named type file */
 #define	ENAVAIL		119	/* No XENIX semaphores available */
 #define	EISNAM		120	/* Is a named type file */

@@ -50,6 +50,7 @@
 #define EDOTDOT		73	/* RFS specific error */
 #define EMULTIHOP	74	/* Multihop attempted */
 #define EBADMSG		77	/* Not a data message */
+#define EFSBADCRC	EBADMSG	/* Bad CRC detected */
 #define ENAMETOOLONG	78	/* File name too long */
 #define EOVERFLOW	79	/* Value too large for defined data type */
 #define ENOTUNIQ	80	/* Name not unique on network */
@@ -88,6 +89,7 @@
 #define EISCONN		133	/* Transport endpoint is already connected */
 #define ENOTCONN	134	/* Transport endpoint is not connected */
 #define EUCLEAN		135	/* Structure needs cleaning */
+#define EFSCORRUPTED	EUCLEAN	/* Filesystem is corrupted */
 #define ENOTNAM		137	/* Not a XENIX named type file */
 #define ENAVAIL		138	/* No XENIX semaphores available */
 #define EISNAM		139	/* Is a named type file */
