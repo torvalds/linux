@@ -20,7 +20,7 @@ use core::ops::Deref;
 ///
 /// # Invariants
 ///
-/// `Bar` always holds an `IoRaw` inststance that holds a valid pointer to the start of the I/O
+/// `Bar` always holds an `IoRaw` instance that holds a valid pointer to the start of the I/O
 /// memory mapped PCI BAR and its size.
 pub struct Bar<const SIZE: usize = 0> {
     pdev: ARef<Device>,
@@ -54,7 +54,7 @@ impl<const SIZE: usize> Bar<SIZE> {
         let ioptr: usize = unsafe { bindings::pci_iomap(pdev.as_raw(), num, 0) } as usize;
         if ioptr == 0 {
             // SAFETY:
-            // `pdev` valid by the invariants of `Device`.
+            // `pdev` is valid by the invariants of `Device`.
             // `num` is checked for validity by a previous call to `Device::resource_len`.
             unsafe { bindings::pci_release_region(pdev.as_raw(), num) };
             return Err(ENOMEM);

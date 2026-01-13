@@ -2255,6 +2255,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 				 BTRFS_DATA_RELOC_TREE_OBJECTID, true);
 	if (IS_ERR(root)) {
 		if (!btrfs_test_opt(fs_info, IGNOREBADROOTS)) {
+			location.objectid = BTRFS_DATA_RELOC_TREE_OBJECTID;
 			ret = PTR_ERR(root);
 			goto out;
 		}

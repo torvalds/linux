@@ -171,7 +171,8 @@ static int change_memory_common(unsigned long addr, int numpages,
 	 */
 	area = find_vm_area((void *)addr);
 	if (!area ||
-	    end > (unsigned long)kasan_reset_tag(area->addr) + area->size ||
+	    ((unsigned long)kasan_reset_tag((void *)end) >
+	     (unsigned long)kasan_reset_tag(area->addr) + area->size) ||
 	    ((area->flags & (VM_ALLOC | VM_ALLOW_HUGE_VMAP)) != VM_ALLOC))
 		return -EINVAL;
 
@@ -184,7 +185,8 @@ static int change_memory_common(unsigned long addr, int numpages,
 	 */
 	if (rodata_full && (pgprot_val(set_mask) == PTE_RDONLY ||
 			    pgprot_val(clear_mask) == PTE_RDONLY)) {
-		unsigned long idx = (start - (unsigned long)kasan_reset_tag(area->addr))
+		unsigned long idx = ((unsigned long)kasan_reset_tag((void *)start) -
+				     (unsigned long)kasan_reset_tag(area->addr))
 				    >> PAGE_SHIFT;
 		for (; numpages; idx++, numpages--) {
 			ret = __change_memory_common((u64)page_address(area->pages[idx]),

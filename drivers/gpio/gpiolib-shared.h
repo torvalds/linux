@@ -16,7 +16,8 @@ struct device;
 
 int gpio_device_setup_shared(struct gpio_device *gdev);
 void gpio_device_teardown_shared(struct gpio_device *gdev);
-int gpio_shared_add_proxy_lookup(struct device *consumer, unsigned long lflags);
+int gpio_shared_add_proxy_lookup(struct device *consumer, const char *con_id,
+				 unsigned long lflags);
 
 #else
 
@@ -28,6 +29,7 @@ static inline int gpio_device_setup_shared(struct gpio_device *gdev)
 static inline void gpio_device_teardown_shared(struct gpio_device *gdev) { }
 
 static inline int gpio_shared_add_proxy_lookup(struct device *consumer,
+					       const char *con_id,
 					       unsigned long lflags)
 {
 	return 0;
