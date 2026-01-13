@@ -180,19 +180,8 @@ out:
 
 int __init init_symlink(const char *oldname, const char *newname)
 {
-	struct dentry *dentry;
-	struct path path;
-	int error;
-
-	dentry = start_creating_path(AT_FDCWD, newname, &path, 0);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	error = security_path_symlink(&path, dentry, oldname);
-	if (!error)
-		error = vfs_symlink(mnt_idmap(path.mnt), path.dentry->d_inode,
-				    dentry, oldname, NULL);
-	end_creating_path(&path, dentry);
-	return error;
+	return do_symlinkat(getname_kernel(oldname), AT_FDCWD,
+			    getname_kernel(newname));
 }
 
 int __init init_unlink(const char *pathname)
