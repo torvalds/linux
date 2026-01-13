@@ -20,7 +20,7 @@ div.sphinxsidebar { font-size: inherit;
 		    overflow-y: auto; }
 /* Tweak document margins and don't force width */
 div.document {
-    margin: 20px 10px 0 10px; 
+    margin: 20px 10px 0 10px;
     width: auto;
 }
 
@@ -150,4 +150,10 @@ div.sphinxsidebar a:hover {
     border-bottom: none;
     text-decoration: underline;
     text-underline-offset: 0.3em;
+}
+
+a.manpage {
+	font-style: normal;
+	font-weight: bold;
+	font-family: "Courier New", Courier, monospace;
 }
