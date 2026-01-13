@@ -331,9 +331,34 @@ struct uvc_buffer *uvc_queue_get_current_buffer(struct uvc_video_queue *queue)
 	return nextbuf;
 }
 
+/*
+ * uvc_queue_buffer_requeue: Requeue a buffer on our internal irqqueue
+ *
+ * Reuse a buffer through our internal queue without the need to 'prepare'.
+ * The buffer will be returned to userspace through the uvc_buffer_queue call if
+ * the device has been disconnected.
+ */
+static void uvc_queue_buffer_requeue(struct uvc_video_queue *queue,
+				     struct uvc_buffer *buf)
+{
+	buf->error = 0;
+	buf->state = UVC_BUF_STATE_QUEUED;
+	buf->bytesused = 0;
+	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, 0);
+
+	uvc_buffer_queue(&buf->buf.vb2_buf);
+}
+
 static void uvc_queue_buffer_complete(struct kref *ref)
 {
 	struct uvc_buffer *buf = container_of(ref, struct uvc_buffer, ref);
+	struct vb2_buffer *vb = &buf->buf.vb2_buf;
+	struct uvc_video_queue *queue = vb2_get_drv_priv(vb->vb2_queue);
+
+	if (buf->error && !uvc_no_drop_param) {
+		uvc_queue_buffer_requeue(queue, buf);
+		return;
+	}
 
 	buf->state = buf->error ? UVC_BUF_STATE_ERROR : UVC_BUF_STATE_DONE;
 	vb2_set_plane_payload(&buf->buf.vb2_buf, 0, buf->bytesused);
