@@ -114,6 +114,12 @@ static inline struct i3c_hci *to_i3c_hci(struct i3c_master_controller *m)
 	return container_of(m, struct i3c_hci, master);
 }
 
+static void i3c_hci_set_master_dyn_addr(struct i3c_hci *hci)
+{
+	reg_write(MASTER_DEVICE_ADDR,
+		  MASTER_DYNAMIC_ADDR(hci->dyn_addr) | MASTER_DYNAMIC_ADDR_VALID);
+}
+
 static int i3c_hci_bus_init(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
@@ -129,10 +135,10 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	ret = i3c_master_get_free_addr(m, 0);
 	if (ret < 0)
 		return ret;
-	reg_write(MASTER_DEVICE_ADDR,
-		  MASTER_DYNAMIC_ADDR(ret) | MASTER_DYNAMIC_ADDR_VALID);
+	hci->dyn_addr = ret;
+	i3c_hci_set_master_dyn_addr(hci);
 	memset(&info, 0, sizeof(info));
-	info.dyn_addr = ret;
+	info.dyn_addr = hci->dyn_addr;
 	ret = i3c_master_set_info(m, &info);
 	if (ret)
 		return ret;

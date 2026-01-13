@@ -62,6 +62,7 @@ struct i3c_hci {
 	u8 version_major;
 	u8 version_minor;
 	u8 revision;
+	u8 dyn_addr;
 	u32 vendor_mipi_id;
 	u32 vendor_version_id;
 	u32 vendor_product_id;
