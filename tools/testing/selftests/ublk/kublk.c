@@ -1054,7 +1054,9 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	}
 	if (ret < 0) {
 		ublk_err("%s: ublk_ctrl_start_dev failed: %d\n", __func__, ret);
-		goto fail;
+		/* stop device so that inflight uring_cmd can be cancelled */
+		ublk_ctrl_stop_dev(dev);
+		goto fail_start;
 	}
 
 	ublk_ctrl_get_info(dev);
@@ -1062,7 +1064,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		ublk_ctrl_dump(dev);
 	else
 		ublk_send_dev_event(ctx, dev, dev->dev_info.dev_id);
-
+fail_start:
 	/* wait until we are terminated */
 	for (i = 0; i < dev->nthreads; i++)
 		pthread_join(tinfo[i].thread, &thread_ret);
