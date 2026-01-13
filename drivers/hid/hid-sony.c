@@ -2179,7 +2179,6 @@ static void sony_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-#ifdef CONFIG_PM
 
 static int sony_suspend(struct hid_device *hdev, pm_message_t message)
 {
@@ -2213,8 +2212,6 @@ static int sony_resume(struct hid_device *hdev)
 
 	return 0;
 }
-
-#endif
 
 static const struct hid_device_id sony_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS3_CONTROLLER),
@@ -2284,12 +2281,9 @@ static struct hid_driver sony_driver = {
 	.remove           = sony_remove,
 	.report_fixup     = sony_report_fixup,
 	.raw_event        = sony_raw_event,
-
-#ifdef CONFIG_PM
-	.suspend          = sony_suspend,
-	.resume	          = sony_resume,
-	.reset_resume     = sony_resume,
-#endif
+	.suspend          = pm_ptr(sony_suspend),
+	.resume	          = pm_ptr(sony_resume),
+	.reset_resume     = pm_ptr(sony_resume),
 };
 
 static int __init sony_init(void)
