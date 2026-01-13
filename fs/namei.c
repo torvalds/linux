@@ -3604,7 +3604,7 @@ EXPORT_SYMBOL(__check_sticky);
  * 11. We don't allow removal of NFS sillyrenamed files; it's handled by
  *     nfs_async_unlink().
  */
-static int may_delete(struct mnt_idmap *idmap, struct inode *dir,
+int may_delete_dentry(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *victim, bool isdir)
 {
 	struct inode *inode = d_backing_inode(victim);
@@ -3646,6 +3646,7 @@ static int may_delete(struct mnt_idmap *idmap, struct inode *dir,
 		return -EBUSY;
 	return 0;
 }
+EXPORT_SYMBOL(may_delete_dentry);
 
 /*	Check whether we can create an object with dentry child in directory
  *  dir.
@@ -5209,7 +5210,7 @@ SYSCALL_DEFINE2(mkdir, const char __user *, pathname, umode_t, mode)
 int vfs_rmdir(struct mnt_idmap *idmap, struct inode *dir,
 	      struct dentry *dentry, struct delegated_inode *delegated_inode)
 {
-	int error = may_delete(idmap, dir, dentry, 1);
+	int error = may_delete_dentry(idmap, dir, dentry, true);
 
 	if (error)
 		return error;
@@ -5344,7 +5345,7 @@ int vfs_unlink(struct mnt_idmap *idmap, struct inode *dir,
 	       struct dentry *dentry, struct delegated_inode *delegated_inode)
 {
 	struct inode *target = dentry->d_inode;
-	int error = may_delete(idmap, dir, dentry, 0);
+	int error = may_delete_dentry(idmap, dir, dentry, false);
 
 	if (error)
 		return error;
@@ -5816,7 +5817,7 @@ int vfs_rename(struct renamedata *rd)
 	if (source == target)
 		return 0;
 
-	error = may_delete(rd->mnt_idmap, old_dir, old_dentry, is_dir);
+	error = may_delete_dentry(rd->mnt_idmap, old_dir, old_dentry, is_dir);
 	if (error)
 		return error;
 
@@ -5826,11 +5827,11 @@ int vfs_rename(struct renamedata *rd)
 		new_is_dir = d_is_dir(new_dentry);
 
 		if (!(flags & RENAME_EXCHANGE))
-			error = may_delete(rd->mnt_idmap, new_dir,
-					   new_dentry, is_dir);
+			error = may_delete_dentry(rd->mnt_idmap, new_dir,
+						  new_dentry, is_dir);
 		else
-			error = may_delete(rd->mnt_idmap, new_dir,
-					   new_dentry, new_is_dir);
+			error = may_delete_dentry(rd->mnt_idmap, new_dir,
+						  new_dentry, new_is_dir);
 	}
 	if (error)
 		return error;
