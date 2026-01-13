@@ -144,6 +144,7 @@
 
 #define RTL822X_VND2_TO_PAGE(reg)		((reg) >> 4)
 #define RTL822X_VND2_TO_PAGE_REG(reg)		(16 + (((reg) & GENMASK(3, 0)) >> 1))
+#define RTL822X_VND2_TO_C22_REG(reg)		(((reg) - 0xa400) / 2)
 #define RTL822X_VND2_C22_REG(reg)		(0xa400 + 2 * (reg))
 
 #define RTL8221B_VND2_INER			0xa4d2
@@ -1265,6 +1266,11 @@ static int rtl822xb_read_mmd(struct phy_device *phydev, int devnum, u16 reg)
 		return mmd_phy_read(phydev->mdio.bus, phydev->mdio.addr,
 				    phydev->is_c45, devnum, reg);
 
+	/* Simplify access to C22-registers addressed inside MDIO_MMD_VEND2 */
+	if (reg >= RTL822X_VND2_C22_REG(0) &&
+	    reg <= RTL822X_VND2_C22_REG(30))
+		return __phy_read(phydev, RTL822X_VND2_TO_C22_REG(reg));
+
 	/* Use paged access for MDIO_MMD_VEND2 over Clause-22 */
 	page = RTL822X_VND2_TO_PAGE(reg);
 	oldpage = __phy_read(phydev, RTL821x_PAGE_SELECT);
@@ -1299,6 +1305,11 @@ static int rtl822xb_write_mmd(struct phy_device *phydev, int devnum, u16 reg,
 	if (devnum != MDIO_MMD_VEND2 || phydev->is_c45)
 		return mmd_phy_write(phydev->mdio.bus, phydev->mdio.addr,
 				     phydev->is_c45, devnum, reg, val);
+
+	/* Simplify access to C22-registers addressed inside MDIO_MMD_VEND2 */
+	if (reg >= RTL822X_VND2_C22_REG(0) &&
+	    reg <= RTL822X_VND2_C22_REG(30))
+		return __phy_write(phydev, RTL822X_VND2_TO_C22_REG(reg), val);
 
 	/* Use paged access for MDIO_MMD_VEND2 over Clause-22 */
 	page = RTL822X_VND2_TO_PAGE(reg);
