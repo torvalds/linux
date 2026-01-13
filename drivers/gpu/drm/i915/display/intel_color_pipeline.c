@@ -39,6 +39,15 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 	/* TODO: handle failures and clean up */
 	prev_op = &colorop->base;
 
+	colorop = intel_colorop_create(INTEL_PLANE_CB_CSC);
+	ret = drm_plane_colorop_ctm_3x4_init(dev, &colorop->base, plane,
+					     DRM_COLOROP_FLAG_ALLOW_BYPASS);
+	if (ret)
+		return ret;
+
+	drm_colorop_set_next_property(prev_op, &colorop->base);
+	prev_op = &colorop->base;
+
 	if (DISPLAY_VER(display) >= 35 &&
 	    intel_color_crtc_has_3dlut(display, pipe) &&
 	    plane->type == DRM_PLANE_TYPE_PRIMARY) {
@@ -54,15 +63,6 @@ int _intel_color_pipeline_plane_init(struct drm_plane *plane, struct drm_prop_en
 
 		prev_op = &colorop->base;
 	}
-
-	colorop = intel_colorop_create(INTEL_PLANE_CB_CSC);
-	ret = drm_plane_colorop_ctm_3x4_init(dev, &colorop->base, plane,
-					     DRM_COLOROP_FLAG_ALLOW_BYPASS);
-	if (ret)
-		return ret;
-
-	drm_colorop_set_next_property(prev_op, &colorop->base);
-	prev_op = &colorop->base;
 
 	colorop = intel_colorop_create(INTEL_PLANE_CB_POST_CSC_LUT);
 	ret = drm_plane_colorop_curve_1d_lut_init(dev, &colorop->base, plane,
