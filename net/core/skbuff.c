@@ -714,7 +714,7 @@ fallback:
 	prefetchw(data + SKB_WITH_OVERHEAD(size));
 
 	skbuff_clear(skb);
-	__build_skb_around(skb, data, size);
+	__finalize_skb_around(skb, data, size);
 	skb->pfmemalloc = pfmemalloc;
 
 	if (flags & SKB_ALLOC_FCLONE) {
