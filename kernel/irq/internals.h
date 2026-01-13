@@ -135,13 +135,13 @@ extern bool irq_can_set_affinity_usr(unsigned int irq);
 
 extern int irq_do_set_affinity(struct irq_data *data,
 			       const struct cpumask *dest, bool force);
+extern void irq_affinity_schedule_notify_work(struct irq_desc *desc);
 
 #ifdef CONFIG_SMP
 extern int irq_setup_affinity(struct irq_desc *desc);
 #else
 static inline int irq_setup_affinity(struct irq_desc *desc) { return 0; }
 #endif
-
 
 #define for_each_action_of_desc(desc, act)			\
 	for (act = desc->action; act; act = act->next)
