@@ -1840,22 +1840,8 @@ static void vmalloc_helpers_tags(struct kunit *test)
 	vfree(ptr);
 }
 
-static void vmalloc_oob(struct kunit *test)
+static void vmalloc_oob_helper(struct kunit *test, char *v_ptr, size_t size)
 {
-	char *v_ptr, *p_ptr;
-	struct page *page;
-	size_t size = PAGE_SIZE / 2 - KASAN_GRANULE_SIZE - 5;
-
-	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_VMALLOC);
-
-	if (!kasan_vmalloc_enabled())
-		kunit_skip(test, "Test requires kasan.vmalloc=on");
-
-	v_ptr = vmalloc(size);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, v_ptr);
-
-	OPTIMIZER_HIDE_VAR(v_ptr);
-
 	/*
 	 * We have to be careful not to hit the guard page in vmalloc tests.
 	 * The MMU will catch that and crash us.
@@ -1873,7 +1859,41 @@ static void vmalloc_oob(struct kunit *test)
 		KUNIT_EXPECT_KASAN_FAIL(test, ((volatile char *)v_ptr)[size]);
 
 	/* An aligned access into the first out-of-bounds granule. */
-	KUNIT_EXPECT_KASAN_FAIL_READ(test, ((volatile char *)v_ptr)[size + 5]);
+	size = round_up(size, KASAN_GRANULE_SIZE);
+	KUNIT_EXPECT_KASAN_FAIL_READ(test, ((volatile char *)v_ptr)[size]);
+}
+
+static void vmalloc_oob(struct kunit *test)
+{
+	char *v_ptr, *p_ptr;
+	struct page *page;
+	size_t size = PAGE_SIZE / 2 - KASAN_GRANULE_SIZE - 5;
+
+	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_VMALLOC);
+
+	if (!kasan_vmalloc_enabled())
+		kunit_skip(test, "Test requires kasan.vmalloc=on");
+
+	v_ptr = vmalloc(size);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, v_ptr);
+
+	OPTIMIZER_HIDE_VAR(v_ptr);
+
+	vmalloc_oob_helper(test, v_ptr, size);
+
+	size -= KASAN_GRANULE_SIZE + 1;
+	v_ptr = vrealloc(v_ptr, size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, v_ptr);
+
+	OPTIMIZER_HIDE_VAR(v_ptr);
+
+	vmalloc_oob_helper(test, v_ptr, size);
+
+	size += 2 * KASAN_GRANULE_SIZE + 2;
+	v_ptr = vrealloc(v_ptr, size, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, v_ptr);
+
+	vmalloc_oob_helper(test, v_ptr, size);
 
 	/* Check that in-bounds accesses to the physical page are valid. */
 	page = vmalloc_to_page(v_ptr);
