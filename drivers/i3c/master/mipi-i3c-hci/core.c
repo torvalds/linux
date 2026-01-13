@@ -613,9 +613,35 @@ static int i3c_hci_software_reset(struct i3c_hci *hci)
 	return 0;
 }
 
+static inline bool is_version_1_1_or_newer(struct i3c_hci *hci)
+{
+	return hci->version_major > 1 || (hci->version_major == 1 && hci->version_minor > 0);
+}
+
+static int i3c_hci_set_io_mode(struct i3c_hci *hci, bool dma)
+{
+	bool pio_mode;
+
+	if (dma)
+		reg_clear(HC_CONTROL, HC_CONTROL_PIO_MODE);
+	else
+		reg_set(HC_CONTROL, HC_CONTROL_PIO_MODE);
+
+	if (!is_version_1_1_or_newer(hci))
+		return 0;
+
+	pio_mode = reg_read(HC_CONTROL) & HC_CONTROL_PIO_MODE;
+	if ((dma && pio_mode) || (!dma && !pio_mode)) {
+		dev_err(&hci->master.dev, "%s mode is stuck\n", pio_mode ? "PIO" : "DMA");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int i3c_hci_init(struct i3c_hci *hci)
 {
-	bool size_in_dwords, mode_selector;
+	bool size_in_dwords;
 	u32 regval, offset;
 	int ret;
 
@@ -732,20 +758,14 @@ static int i3c_hci_init(struct i3c_hci *hci)
 		return -EINVAL;
 	}
 
-	mode_selector = hci->version_major > 1 ||
-				(hci->version_major == 1 && hci->version_minor > 0);
-
 	/* Quirk for HCI_QUIRK_PIO_MODE on AMD platforms */
 	if (hci->quirks & HCI_QUIRK_PIO_MODE)
 		hci->RHS_regs = NULL;
 
 	/* Try activating DMA operations first */
 	if (hci->RHS_regs) {
-		reg_clear(HC_CONTROL, HC_CONTROL_PIO_MODE);
-		if (mode_selector && (reg_read(HC_CONTROL) & HC_CONTROL_PIO_MODE)) {
-			dev_err(&hci->master.dev, "PIO mode is stuck\n");
-			ret = -EIO;
-		} else {
+		ret = i3c_hci_set_io_mode(hci, true);
+		if (!ret) {
 			hci->io = &mipi_i3c_hci_dma;
 			dev_dbg(&hci->master.dev, "Using DMA\n");
 		}
@@ -753,11 +773,8 @@ static int i3c_hci_init(struct i3c_hci *hci)
 
 	/* If no DMA, try PIO */
 	if (!hci->io && hci->PIO_regs) {
-		reg_set(HC_CONTROL, HC_CONTROL_PIO_MODE);
-		if (mode_selector && !(reg_read(HC_CONTROL) & HC_CONTROL_PIO_MODE)) {
-			dev_err(&hci->master.dev, "DMA mode is stuck\n");
-			ret = -EIO;
-		} else {
+		ret = i3c_hci_set_io_mode(hci, false);
+		if (!ret) {
 			hci->io = &mipi_i3c_hci_pio;
 			dev_dbg(&hci->master.dev, "Using PIO\n");
 		}
