@@ -181,6 +181,14 @@ static int hci_dat_v1_get_index(struct i3c_hci *hci, u8 dev_addr)
 	return -ENODEV;
 }
 
+static void hci_dat_v1_restore(struct i3c_hci *hci)
+{
+	for (int i = 0; i < hci->DAT_entries; i++) {
+		writel(hci->DAT[i].w0, hci->DAT_regs + i * 8);
+		writel(hci->DAT[i].w1, hci->DAT_regs + i * 8 + 4);
+	}
+}
+
 const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.init			= hci_dat_v1_init,
 	.alloc_entry		= hci_dat_v1_alloc_entry,
@@ -190,4 +198,5 @@ const struct hci_dat_ops mipi_i3c_hci_dat_v1 = {
 	.set_flags		= hci_dat_v1_set_flags,
 	.clear_flags		= hci_dat_v1_clear_flags,
 	.get_index		= hci_dat_v1_get_index,
+	.restore		= hci_dat_v1_restore,
 };
