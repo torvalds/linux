@@ -115,7 +115,9 @@ out:
 
 static int pca9570_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct pca9570 *gpio;
+	int ret;
 
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
@@ -132,7 +134,9 @@ static int pca9570_probe(struct i2c_client *client)
 	gpio->chip.ngpio = gpio->chip_data->ngpio;
 	gpio->chip.can_sleep = true;
 
-	mutex_init(&gpio->lock);
+	ret = devm_mutex_init(dev, &gpio->lock);
+	if (ret)
+		return ret;
 
 	/* Read the current output level */
 	pca9570_read(gpio, &gpio->out);
