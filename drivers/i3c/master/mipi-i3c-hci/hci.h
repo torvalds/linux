@@ -125,6 +125,8 @@ struct hci_io_ops {
 				struct i3c_ibi_slot *slot);
 	int (*init)(struct i3c_hci *hci);
 	void (*cleanup)(struct i3c_hci *hci);
+	void (*suspend)(struct i3c_hci *hci);
+	void (*resume)(struct i3c_hci *hci);
 };
 
 extern const struct hci_io_ops mipi_i3c_hci_pio;
