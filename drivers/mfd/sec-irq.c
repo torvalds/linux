@@ -268,26 +268,28 @@ static const struct regmap_irq_chip s5m8767_irq_chip = {
 	.ack_base = S5M8767_REG_INT1,
 };
 
-static int s2mpg1x_add_chained_irq_chip(struct device *dev, struct regmap *regmap, int pirq,
-					struct regmap_irq_chip_data *parent,
-					const struct regmap_irq_chip *chip,
-					struct regmap_irq_chip_data **data)
+static struct regmap_irq_chip_data *
+s2mpg1x_add_chained_pmic(struct sec_pmic_dev *sec_pmic, int pirq,
+			 struct regmap_irq_chip_data *parent, const struct regmap_irq_chip *chip)
 {
+	struct device *dev = sec_pmic->dev;
+	struct regmap_irq_chip_data *data;
 	int irq, ret;
 
 	irq = regmap_irq_get_virq(parent, pirq);
 	if (irq < 0)
-		return dev_err_probe(dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n", pirq,
-				     chip->name);
+		return dev_err_ptr_probe(dev, irq, "Failed to get parent vIRQ(%d) for chip %s\n",
+					 pirq, chip->name);
 
-	ret = devm_regmap_add_irq_chip(dev, regmap, irq, IRQF_ONESHOT | IRQF_SHARED, 0, chip, data);
+	ret = devm_regmap_add_irq_chip(dev, sec_pmic->regmap_pmic, irq,
+				       IRQF_ONESHOT | IRQF_SHARED, 0, chip, &data);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to add %s IRQ chip\n", chip->name);
+		return dev_err_ptr_probe(dev, ret, "Failed to add %s IRQ chip\n", chip->name);
 
-	return 0;
+	return data;
 }
 
-static int sec_irq_init_s2mpg1x(struct sec_pmic_dev *sec_pmic)
+static struct regmap_irq_chip_data *sec_irq_init_s2mpg1x(struct sec_pmic_dev *sec_pmic)
 {
 	const struct regmap_irq_chip *irq_chip, *chained_irq_chip;
 	struct regmap_irq_chip_data *irq_data;
@@ -302,27 +304,27 @@ static int sec_irq_init_s2mpg1x(struct sec_pmic_dev *sec_pmic)
 		chained_pirq = S2MPG10_COMMON_IRQ_PMIC;
 		break;
 	default:
-		return dev_err_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
-				     sec_pmic->device_type);
+		return dev_err_ptr_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
+					 sec_pmic->device_type);
 	}
 
 	regmap_common = dev_get_regmap(sec_pmic->dev, "common");
 	if (!regmap_common)
-		return dev_err_probe(sec_pmic->dev, -EINVAL, "No 'common' regmap %d\n",
-				     sec_pmic->device_type);
+		return dev_err_ptr_probe(sec_pmic->dev, -EINVAL, "No 'common' regmap %d\n",
+					 sec_pmic->device_type);
 
 	ret = devm_regmap_add_irq_chip(sec_pmic->dev, regmap_common, sec_pmic->irq, IRQF_ONESHOT, 0,
 				       irq_chip, &irq_data);
 	if (ret)
-		return dev_err_probe(sec_pmic->dev, ret, "Failed to add %s IRQ chip\n",
-				     irq_chip->name);
+		return dev_err_ptr_probe(sec_pmic->dev, ret, "Failed to add %s IRQ chip\n",
+					 irq_chip->name);
 
-	return s2mpg1x_add_chained_irq_chip(sec_pmic->dev, sec_pmic->regmap_pmic, chained_pirq,
-					    irq_data, chained_irq_chip, &sec_pmic->irq_data);
+	return s2mpg1x_add_chained_pmic(sec_pmic, chained_pirq, irq_data, chained_irq_chip);
 }
 
-int sec_irq_init(struct sec_pmic_dev *sec_pmic)
+struct regmap_irq_chip_data *sec_irq_init(struct sec_pmic_dev *sec_pmic)
 {
+	struct regmap_irq_chip_data *sec_irq_chip_data;
 	const struct regmap_irq_chip *sec_irq_chip;
 	int ret;
 
@@ -331,7 +333,7 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		sec_irq_chip = &s5m8767_irq_chip;
 		break;
 	case S2DOS05:
-		return 0;
+		return NULL;
 	case S2MPA01:
 		sec_irq_chip = &s2mps14_irq_chip;
 		break;
@@ -356,30 +358,22 @@ int sec_irq_init(struct sec_pmic_dev *sec_pmic)
 		sec_irq_chip = &s2mpu05_irq_chip;
 		break;
 	default:
-		return dev_err_probe(sec_pmic->dev, -EINVAL,
-				     "Unsupported device type %d\n",
-				     sec_pmic->device_type);
+		return dev_err_ptr_probe(sec_pmic->dev, -EINVAL, "Unsupported device type %d\n",
+					 sec_pmic->device_type);
 	}
 
 	if (!sec_pmic->irq) {
 		dev_warn(sec_pmic->dev,
 			 "No interrupt specified, no interrupts\n");
-		return 0;
+		return NULL;
 	}
 
 	ret = devm_regmap_add_irq_chip(sec_pmic->dev, sec_pmic->regmap_pmic,
 				       sec_pmic->irq, IRQF_ONESHOT,
-				       0, sec_irq_chip, &sec_pmic->irq_data);
+				       0, sec_irq_chip, &sec_irq_chip_data);
 	if (ret)
-		return dev_err_probe(sec_pmic->dev, ret,
-				     "Failed to add %s IRQ chip\n",
-				     sec_irq_chip->name);
+		return dev_err_ptr_probe(sec_pmic->dev, ret, "Failed to add %s IRQ chip\n",
+					 sec_irq_chip->name);
 
-	/*
-	 * The rtc-s5m driver requests S2MPS14_IRQ_RTCA0 also for S2MPS11
-	 * so the interrupt number must be consistent.
-	 */
-	BUILD_BUG_ON(((enum s2mps14_irq)S2MPS11_IRQ_RTCA0) != S2MPS14_IRQ_RTCA0);
-
-	return 0;
+	return sec_irq_chip_data;
 }
