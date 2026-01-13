@@ -140,26 +140,7 @@ int __init init_stat(const char *filename, struct kstat *stat, int flags)
 
 int __init init_mknod(const char *filename, umode_t mode, unsigned int dev)
 {
-	struct dentry *dentry;
-	struct path path;
-	int error;
-
-	if (S_ISFIFO(mode) || S_ISSOCK(mode))
-		dev = 0;
-	else if (!(S_ISBLK(mode) || S_ISCHR(mode)))
-		return -EINVAL;
-
-	dentry = start_creating_path(AT_FDCWD, filename, &path, 0);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-
-	mode = mode_strip_umask(d_inode(path.dentry), mode);
-	error = security_path_mknod(&path, dentry, mode, dev);
-	if (!error)
-		error = vfs_mknod(mnt_idmap(path.mnt), path.dentry->d_inode,
-				  dentry, mode, new_decode_dev(dev), NULL);
-	end_creating_path(&path, dentry);
-	return error;
+	return do_mknodat(AT_FDCWD, getname_kernel(filename), mode, dev);
 }
 
 int __init init_link(const char *oldname, const char *newname)
