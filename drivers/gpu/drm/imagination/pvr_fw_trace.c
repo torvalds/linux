@@ -12,11 +12,34 @@
 #include <drm/drm_print.h>
 
 #include <linux/build_bug.h>
+#include <linux/compiler_attributes.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
 #include <linux/moduleparam.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+
+static int
+validate_group_mask(struct pvr_device *pvr_dev, const u32 group_mask)
+{
+	if (group_mask & ~ROGUE_FWIF_LOG_TYPE_GROUP_MASK) {
+		drm_warn(from_pvr_device(pvr_dev),
+			 "Invalid fw_trace group mask 0x%08x (must be a subset of 0x%08x)",
+			 group_mask, ROGUE_FWIF_LOG_TYPE_GROUP_MASK);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static inline u32
+build_log_type(const u32 group_mask)
+{
+	if (!group_mask)
+		return ROGUE_FWIF_LOG_TYPE_NONE;
+
+	return group_mask | ROGUE_FWIF_LOG_TYPE_TRACE;
+}
 
 /*
  * Don't gate this behind CONFIG_DEBUG_FS so that it can be used as an initial
@@ -29,7 +52,33 @@ static u32 pvr_fw_trace_init_mask;
  * there's no reason to turn on fw_trace without it.
  */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-module_param_named(init_fw_trace_mask, pvr_fw_trace_init_mask, hexint, 0600);
+static int
+pvr_fw_trace_init_mask_set(const char *val, const struct kernel_param *kp)
+{
+	u32 mask = 0;
+	int err;
+
+	err = kstrtouint(val, 0, &mask);
+	if (err)
+		return err;
+
+	err = validate_group_mask(NULL, mask);
+	if (err)
+		return err;
+
+	*(unsigned int *)kp->arg = mask;
+
+	return 0;
+}
+
+const struct kernel_param_ops pvr_fw_trace_init_mask_ops = {
+	.set = pvr_fw_trace_init_mask_set,
+	.get = param_get_hexint,
+};
+
+param_check_hexint(init_fw_trace_mask, &pvr_fw_trace_init_mask);
+module_param_cb(init_fw_trace_mask, &pvr_fw_trace_init_mask_ops, &pvr_fw_trace_init_mask, 0600);
+__MODULE_PARM_TYPE(init_fw_trace_mask, "hexint");
 MODULE_PARM_DESC(init_fw_trace_mask,
 		 "Enable FW trace for the specified groups at device init time");
 #endif
@@ -42,11 +91,7 @@ tracebuf_ctrl_init(void *cpu_ptr, void *priv)
 
 	tracebuf_ctrl->tracebuf_size_in_dwords = ROGUE_FW_TRACE_BUF_DEFAULT_SIZE_IN_DWORDS;
 	tracebuf_ctrl->tracebuf_flags = 0;
-
-	if (fw_trace->group_mask)
-		tracebuf_ctrl->log_type = fw_trace->group_mask | ROGUE_FWIF_LOG_TYPE_TRACE;
-	else
-		tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
+	tracebuf_ctrl->log_type = build_log_type(fw_trace->group_mask);
 
 	for (u32 thread_nr = 0; thread_nr < ARRAY_SIZE(fw_trace->buffers); thread_nr++) {
 		struct rogue_fwif_tracebuf_space *tracebuf_space =
@@ -140,7 +185,7 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 /**
  * update_logtype() - Send KCCB command to trigger FW to update logtype
  * @pvr_dev: Target PowerVR device
- * @group_mask: New log group mask.
+ * @group_mask: New log group mask; must pass validate_group_mask().
  *
  * Returns:
  *  * 0 if the provided @group_mask is the same as the current value (this is a
@@ -153,6 +198,7 @@ static int
 update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 {
 	struct pvr_fw_trace *fw_trace = &pvr_dev->fw_dev.fw_trace;
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
 	struct rogue_fwif_kccb_cmd cmd;
 	int idx;
 	int err;
@@ -161,15 +207,11 @@ update_logtype(struct pvr_device *pvr_dev, u32 group_mask)
 	if (fw_trace->group_mask == group_mask)
 		return 0;
 
-	if (group_mask)
-		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_TRACE | group_mask;
-	else
-		fw_trace->tracebuf_ctrl->log_type = ROGUE_FWIF_LOG_TYPE_NONE;
-
 	fw_trace->group_mask = group_mask;
+	fw_trace->tracebuf_ctrl->log_type = build_log_type(group_mask);
 
 	down_read(&pvr_dev->reset_sem);
-	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx)) {
+	if (!drm_dev_enter(drm_dev, &idx)) {
 		err = -EIO;
 		goto err_up_read;
 	}
@@ -472,8 +514,14 @@ static int pvr_fw_trace_mask_get(void *data, u64 *value)
 static int pvr_fw_trace_mask_set(void *data, u64 value)
 {
 	struct pvr_device *pvr_dev = data;
+	const u32 group_mask = (u32)value;
+	int err;
 
-	return update_logtype(pvr_dev, (u32)value);
+	err = validate_group_mask(pvr_dev, group_mask);
+	if (err)
+		return err;
+
+	return update_logtype(pvr_dev, group_mask);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(pvr_fw_trace_mask_fops, pvr_fw_trace_mask_get,
