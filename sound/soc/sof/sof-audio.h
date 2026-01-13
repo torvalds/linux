@@ -454,6 +454,11 @@ struct snd_sof_widget {
 	/* Scheduling domain (enum sof_comp_domain), unset, Low Latency, or Data Processing */
 	u32 comp_domain;
 
+	/* The values below are added to mod_init pay load if comp_domain indicates DP component */
+	u32 dp_domain_id;	/* DP process userspace domain ID */
+	u32 dp_stack_bytes;	/* DP process stack size requirement in bytes */
+	u32 dp_heap_bytes;	/* DP process heap size requirement in bytes */
+
 	struct snd_soc_dapm_widget *widget;
 	struct list_head list;	/* list in sdev widget list */
 	struct snd_sof_pipeline *spipe;
