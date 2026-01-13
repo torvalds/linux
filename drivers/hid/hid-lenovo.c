@@ -1422,7 +1422,6 @@ err:
 	return ret;
 }
 
-#ifdef CONFIG_PM
 static int lenovo_reset_resume(struct hid_device *hdev)
 {
 	switch (hdev->product) {
@@ -1438,7 +1437,6 @@ static int lenovo_reset_resume(struct hid_device *hdev)
 
 	return 0;
 }
-#endif
 
 static void lenovo_remove_tpkbd(struct hid_device *hdev)
 {
@@ -1570,9 +1568,7 @@ static struct hid_driver lenovo_driver = {
 	.raw_event = lenovo_raw_event,
 	.event = lenovo_event,
 	.report_fixup = lenovo_report_fixup,
-#ifdef CONFIG_PM
-	.reset_resume = lenovo_reset_resume,
-#endif
+	.reset_resume = pm_ptr(lenovo_reset_resume),
 };
 module_hid_driver(lenovo_driver);
 
