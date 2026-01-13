@@ -51,6 +51,9 @@ else:
     dyn_exclude_patterns.append("devicetree/bindings/**.yaml")
     dyn_exclude_patterns.append("core-api/kho/bindings/**.yaml")
 
+# Link to man pages
+manpages_url = 'https://man7.org/linux/man-pages/man{section}/{page}.{section}.html'
+
 # Properly handle directory patterns and LaTeX docs
 # -------------------------------------------------
 
