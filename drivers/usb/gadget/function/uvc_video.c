@@ -838,7 +838,6 @@ int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc)
 	video->interval = 666666;
 
 	/* Initialize the video buffers queue. */
-	uvcg_queue_init(&video->queue, uvc->v4l2_dev.dev->parent,
+	return uvcg_queue_init(&video->queue, uvc->v4l2_dev.dev->parent,
 			V4L2_BUF_TYPE_VIDEO_OUTPUT, &video->mutex);
-	return 0;
 }
