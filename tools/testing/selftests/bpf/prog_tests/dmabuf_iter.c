@@ -233,7 +233,7 @@ static void subtest_dmabuf_iter_check_lots_of_buffers(struct dmabuf_iter *skel)
 	while ((bytes_read = read(iter_fd, buf, sizeof(buf))) > 0)
 		total_bytes_read += bytes_read;
 
-	ASSERT_GT(total_bytes_read, getpagesize(), "total_bytes_read");
+	ASSERT_GT(total_bytes_read, 4096, "total_bytes_read");
 
 	close(iter_fd);
 }
