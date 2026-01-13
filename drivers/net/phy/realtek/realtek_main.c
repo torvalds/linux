@@ -1429,6 +1429,7 @@ static unsigned int rtl822x_inband_caps(struct phy_device *phydev,
 {
 	switch (interface) {
 	case PHY_INTERFACE_MODE_2500BASEX:
+		return LINK_INBAND_DISABLE;
 	case PHY_INTERFACE_MODE_SGMII:
 		return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE;
 	default:
