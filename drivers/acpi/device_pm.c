@@ -1251,7 +1251,7 @@ static int acpi_subsys_resume_early(struct device *dev)
 		return 0;
 
 	if (pm && !pm->resume_early) {
-		dev_dbg(dev, "postponing D0 transition to normal resume stage\n");
+		dev_dbg(dev, "Postponing ACPI PM to normal resume stage\n");
 		return 0;
 	}
 
@@ -1273,7 +1273,7 @@ static int acpi_subsys_resume(struct device *dev)
 	int ret = 0;
 
 	if (!dev_pm_skip_resume(dev) && pm && !pm->resume_early) {
-		dev_dbg(dev, "executing postponed D0 transition\n");
+		dev_dbg(dev, "Applying postponed ACPI PM\n");
 		ret = acpi_dev_resume(dev);
 	}
 
