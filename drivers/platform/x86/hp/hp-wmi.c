@@ -13,23 +13,23 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/acpi.h>
+#include <linux/cleanup.h>
+#include <linux/dmi.h>
+#include <linux/hwmon.h>
 #include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/types.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
-#include <linux/hwmon.h>
-#include <linux/acpi.h>
-#include <linux/mutex.h>
-#include <linux/cleanup.h>
 #include <linux/power_supply.h>
 #include <linux/rfkill.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/dmi.h>
+#include <linux/types.h>
 
 MODULE_AUTHOR("Matthew Garrett <mjg59@srcf.ucam.org>");
 MODULE_DESCRIPTION("HP laptop WMI driver");
