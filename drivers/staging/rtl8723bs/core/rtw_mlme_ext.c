@@ -1181,47 +1181,46 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 		p = pframe + WLAN_HDR_A3_LEN + ie_offset; ie_len = 0;
 		for (;;) {
 			p = rtw_get_ie(p, WLAN_EID_VENDOR_SPECIFIC, &ie_len, pkt_len - WLAN_HDR_A3_LEN - ie_offset);
-			if (p) {
-				if (!memcmp(p+2, WMM_IE, 6)) {
+			if (!p)
+				break;
 
-					pstat->flags |= WLAN_STA_WME;
+			if (!memcmp(p+2, WMM_IE, 6)) {
 
-					pstat->qos_option = 1;
-					pstat->qos_info = *(p+8);
+				pstat->flags |= WLAN_STA_WME;
 
-					pstat->max_sp_len = (pstat->qos_info>>5)&0x3;
+				pstat->qos_option = 1;
+				pstat->qos_info = *(p+8);
 
-					if ((pstat->qos_info&0xf) != 0xf)
-						pstat->has_legacy_ac = true;
+				pstat->max_sp_len = (pstat->qos_info>>5)&0x3;
+
+				if ((pstat->qos_info&0xf) != 0xf)
+					pstat->has_legacy_ac = true;
+				else
+					pstat->has_legacy_ac = false;
+
+				if (pstat->qos_info&0xf) {
+					if (pstat->qos_info&BIT(0))
+						pstat->uapsd_vo = BIT(0)|BIT(1);
 					else
-						pstat->has_legacy_ac = false;
+						pstat->uapsd_vo = 0;
 
-					if (pstat->qos_info&0xf) {
-						if (pstat->qos_info&BIT(0))
-							pstat->uapsd_vo = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_vo = 0;
+					if (pstat->qos_info&BIT(1))
+						pstat->uapsd_vi = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_vi = 0;
 
-						if (pstat->qos_info&BIT(1))
-							pstat->uapsd_vi = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_vi = 0;
+					if (pstat->qos_info&BIT(2))
+						pstat->uapsd_bk = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_bk = 0;
 
-						if (pstat->qos_info&BIT(2))
-							pstat->uapsd_bk = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_bk = 0;
+					if (pstat->qos_info&BIT(3))
+						pstat->uapsd_be = BIT(0)|BIT(1);
+					else
+						pstat->uapsd_be = 0;
 
-						if (pstat->qos_info&BIT(3))
-							pstat->uapsd_be = BIT(0)|BIT(1);
-						else
-							pstat->uapsd_be = 0;
-
-					}
-
-					break;
 				}
-			} else {
+
 				break;
 			}
 			p = p + ie_len + 2;
