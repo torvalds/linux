@@ -117,6 +117,7 @@
 	buck: da9211@68 {
 		compatible = "dlg,da9211";
 		reg = <0x68>;
+		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
 
 		regulators {
 			da9211_vcpu_reg: BUCKA {
@@ -176,6 +177,13 @@
 		pins1 {
 			pinmux = <MT8173_PIN_87_DISP_PWM0__FUNC_DISP_PWM0>;
 			output-low;
+		};
+	};
+
+	i2c1_pins_a: i2c1-pins {
+		pins-da9211 {
+			pinmux = <MT8173_PIN_15_EINT15__FUNC_GPIO15>;
+			bias-pull-up;
 		};
 	};
 
