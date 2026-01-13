@@ -151,13 +151,39 @@ static int i3c_hci_bus_init(struct i3c_master_controller *m)
 	return 0;
 }
 
+/* Bus disable should never fail, so be generous with the timeout */
+#define BUS_DISABLE_TIMEOUT_US (500 * USEC_PER_MSEC)
+
+static int i3c_hci_bus_disable(struct i3c_hci *hci)
+{
+	u32 regval;
+	int ret;
+
+	reg_clear(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
+
+	/* Ensure controller is disabled */
+	ret = readx_poll_timeout(reg_read, HC_CONTROL, regval,
+				 !(regval & HC_CONTROL_BUS_ENABLE), 0, BUS_DISABLE_TIMEOUT_US);
+	if (ret)
+		dev_err(&hci->master.dev, "%s: Failed to disable bus\n", __func__);
+
+	return ret;
+}
+
+void i3c_hci_sync_irq_inactive(struct i3c_hci *hci)
+{
+	struct platform_device *pdev = to_platform_device(hci->master.dev.parent);
+	int irq = platform_get_irq(pdev, 0);
+
+	reg_write(INTR_SIGNAL_ENABLE, 0x0);
+	synchronize_irq(irq);
+}
+
 static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 {
 	struct i3c_hci *hci = to_i3c_hci(m);
-	struct platform_device *pdev = to_platform_device(m->dev.parent);
 
-	reg_clear(HC_CONTROL, HC_CONTROL_BUS_ENABLE);
-	synchronize_irq(platform_get_irq(pdev, 0));
+	i3c_hci_bus_disable(hci);
 	hci->io->cleanup(hci);
 	if (hci->cmd == &mipi_i3c_hci_cmd_v1)
 		mipi_i3c_hci_dat_v1.cleanup(hci);

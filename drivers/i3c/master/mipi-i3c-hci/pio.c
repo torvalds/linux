@@ -211,6 +211,8 @@ static void hci_pio_cleanup(struct i3c_hci *hci)
 
 	pio_reg_write(INTR_SIGNAL_ENABLE, 0x0);
 
+	i3c_hci_sync_irq_inactive(hci);
+
 	if (pio) {
 		dev_dbg(&hci->master.dev, "status = %#x/%#x",
 			pio_reg_read(INTR_STATUS), pio_reg_read(INTR_SIGNAL_ENABLE));
