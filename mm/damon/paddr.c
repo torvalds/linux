@@ -206,9 +206,9 @@ put_folio:
 	return damon_pa_core_addr(applied * PAGE_SIZE, addr_unit);
 }
 
-static inline unsigned long damon_pa_mark_accessed_or_deactivate(
+static inline unsigned long damon_pa_de_activate(
 		struct damon_region *r, unsigned long addr_unit,
-		struct damos *s, bool mark_accessed,
+		struct damos *s, bool activate,
 		unsigned long *sz_filter_passed)
 {
 	phys_addr_t addr, applied = 0;
@@ -227,8 +227,8 @@ static inline unsigned long damon_pa_mark_accessed_or_deactivate(
 		else
 			*sz_filter_passed += folio_size(folio) / addr_unit;
 
-		if (mark_accessed)
-			folio_mark_accessed(folio);
+		if (activate)
+			folio_activate(folio);
 		else
 			folio_deactivate(folio);
 		applied += folio_nr_pages(folio);
@@ -240,20 +240,18 @@ put_folio:
 	return damon_pa_core_addr(applied * PAGE_SIZE, addr_unit);
 }
 
-static unsigned long damon_pa_mark_accessed(struct damon_region *r,
+static unsigned long damon_pa_activate_pages(struct damon_region *r,
 		unsigned long addr_unit, struct damos *s,
 		unsigned long *sz_filter_passed)
 {
-	return damon_pa_mark_accessed_or_deactivate(r, addr_unit, s, true,
-			sz_filter_passed);
+	return damon_pa_de_activate(r, addr_unit, s, true, sz_filter_passed);
 }
 
 static unsigned long damon_pa_deactivate_pages(struct damon_region *r,
 		unsigned long addr_unit, struct damos *s,
 		unsigned long *sz_filter_passed)
 {
-	return damon_pa_mark_accessed_or_deactivate(r, addr_unit, s, false,
-			sz_filter_passed);
+	return damon_pa_de_activate(r, addr_unit, s, false, sz_filter_passed);
 }
 
 static unsigned long damon_pa_migrate(struct damon_region *r,
@@ -327,7 +325,7 @@ static unsigned long damon_pa_apply_scheme(struct damon_ctx *ctx,
 	case DAMOS_PAGEOUT:
 		return damon_pa_pageout(r, aunit, scheme, sz_filter_passed);
 	case DAMOS_LRU_PRIO:
-		return damon_pa_mark_accessed(r, aunit, scheme,
+		return damon_pa_activate_pages(r, aunit, scheme,
 				sz_filter_passed);
 	case DAMOS_LRU_DEPRIO:
 		return damon_pa_deactivate_pages(r, aunit, scheme,
