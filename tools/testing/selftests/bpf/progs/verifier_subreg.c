@@ -738,4 +738,89 @@ __naked void ldx_w_zero_extend_check(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__success __success_unpriv __retval(0)
+__naked void arsh_31_and(void)
+{
+	/* Below is what LLVM generates in cilium's bpf_wiregard.o */
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	w2 = w0;					\
+	w2 s>>= 31;					\
+	w2 &= -134; /* w2 becomes 0 or -134 */		\
+	if w2 s> -1 goto +2;				\
+	/* Branch always taken because w2 = -134 */	\
+	if w2 != -136 goto +1;				\
+	w0 /= 0;					\
+	w0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__success __success_unpriv __retval(0)
+__naked void arsh_63_and(void)
+{
+	/* Copy of arsh_31 with s/w/r/ */
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r2 = r0;					\
+	r2 <<= 32;					\
+	r2 s>>= 63;					\
+	r2 &= -134;					\
+	if r2 s> -1 goto +2;				\
+	/* Branch always taken because w2 = -134 */	\
+	if r2 != -136 goto +1;				\
+	r0 /= 0;					\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__success __success_unpriv __retval(0)
+__naked void arsh_31_or(void)
+{
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	w2 = w0;					\
+	w2 s>>= 31;					\
+	w2 |= 134; /* w2 becomes -1 or 134 */		\
+	if w2 s> -1 goto +2;				\
+	/* Branch always taken because w2 = -1 */	\
+	if w2 == -1 goto +1;				\
+	w0 /= 0;					\
+	w0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("socket")
+__success __success_unpriv __retval(0)
+__naked void arsh_63_or(void)
+{
+	/* Copy of arsh_31 with s/w/r/ */
+	asm volatile ("					\
+	call %[bpf_get_prandom_u32];			\
+	r2 = r0;					\
+	r2 <<= 32;					\
+	r2 s>>= 63;					\
+	r2 |= 134; /* r2 becomes -1 or 134 */		\
+	if r2 s> -1 goto +2;				\
+	/* Branch always taken because w2 = -1 */	\
+	if r2 == -1 goto +1;				\
+	r0 /= 0;					\
+	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
