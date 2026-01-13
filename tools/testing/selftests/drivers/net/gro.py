@@ -9,12 +9,29 @@ binary in different configurations and checking for correct packet
 coalescing behavior.
 
 Test cases:
-  - data: Data packets with same size/headers and correct seq numbers coalesce
+  - data_same: Same size data packets coalesce
+  - data_lrg_sml: Large packet followed by smaller one coalesces
+  - data_sml_lrg: Small packet followed by larger one doesn't coalesce
   - ack: Pure ACK packets do not coalesce
-  - flags: Packets with PSH, SYN, URG, RST flags do not coalesce
-  - tcp: Packets with incorrect checksum, non-consecutive seqno don't coalesce
-  - ip: Packets with different ECN, TTL, TOS, or IP options don't coalesce
-  - large: Packets larger than GRO_MAX_SIZE don't coalesce
+  - flags_psh: Packets with PSH flag don't coalesce
+  - flags_syn: Packets with SYN flag don't coalesce
+  - flags_rst: Packets with RST flag don't coalesce
+  - flags_urg: Packets with URG flag don't coalesce
+  - tcp_csum: Packets with incorrect checksum don't coalesce
+  - tcp_seq: Packets with non-consecutive seqno don't coalesce
+  - tcp_ts: Packets with different timestamp options don't coalesce
+  - tcp_opt: Packets with different TCP options don't coalesce
+  - ip_ecn: Packets with different ECN don't coalesce
+  - ip_tos: Packets with different TOS don't coalesce
+  - ip_ttl: (IPv4) Packets with different TTL don't coalesce
+  - ip_opt: (IPv4) Packets with IP options don't coalesce
+  - ip_frag4: (IPv4) IPv4 fragments don't coalesce
+  - ip_id_df*: (IPv4) IP ID field coalescing tests
+  - ip_frag6: (IPv6) IPv6 fragments don't coalesce
+  - ip_v6ext_same: (IPv6) IPv6 ext header with same payload coalesces
+  - ip_v6ext_diff: (IPv6) IPv6 ext header with different payload doesn't coalesce
+  - large_max: Packets exceeding GRO_MAX_SIZE don't coalesce
+  - large_rem: Large packet remainder handling
 """
 
 import os
@@ -107,8 +124,8 @@ def _setup(cfg, mode, test_name):
         cfg.remote_feat = ethtool(f"-k {cfg.remote_ifname}",
                                   host=cfg.remote, json=True)[0]
 
-    # "large" test needs at least 4k MTU
-    if test_name == "large":
+    # "large_*" tests need at least 4k MTU
+    if test_name.startswith("large_"):
         _set_mtu_restore(cfg.dev, 4096, None)
         _set_mtu_restore(cfg.remote_dev, 4096, cfg.remote)
 
@@ -170,10 +187,40 @@ def _setup(cfg, mode, test_name):
 def _gro_variants():
     """Generator that yields all combinations of protocol and test types."""
 
+    # Tests that work for all protocols
+    common_tests = [
+        "data_same", "data_lrg_sml", "data_sml_lrg",
+        "ack",
+        "flags_psh", "flags_syn", "flags_rst", "flags_urg",
+        "tcp_csum", "tcp_seq", "tcp_ts", "tcp_opt",
+        "ip_ecn", "ip_tos",
+        "large_max", "large_rem",
+    ]
+
+    # Tests specific to IPv4
+    ipv4_tests = [
+        "ip_ttl", "ip_opt", "ip_frag4",
+        "ip_id_df1_inc", "ip_id_df1_fixed",
+        "ip_id_df0_inc", "ip_id_df0_fixed",
+        "ip_id_df1_inc_fixed", "ip_id_df1_fixed_inc",
+    ]
+
+    # Tests specific to IPv6
+    ipv6_tests = [
+        "ip_frag6", "ip_v6ext_same", "ip_v6ext_diff",
+    ]
+
     for mode in ["sw", "hw", "lro"]:
         for protocol in ["ipv4", "ipv6", "ipip"]:
-            for test_name in ["data", "ack", "flags", "tcp", "ip", "large"]:
+            for test_name in common_tests:
                 yield mode, protocol, test_name
+
+            if protocol in ["ipv4", "ipip"]:
+                for test_name in ipv4_tests:
+                    yield mode, protocol, test_name
+            elif protocol == "ipv6":
+                for test_name in ipv6_tests:
+                    yield mode, protocol, test_name
 
 
 @ksft_variants(_gro_variants())
@@ -215,7 +262,7 @@ def test(cfg, mode, protocol, test_name):
 
         ksft_pr(rx_proc)
 
-        if test_name == "large" and os.environ.get("KSFT_MACHINE_SLOW"):
+        if test_name.startswith("large_") and os.environ.get("KSFT_MACHINE_SLOW"):
             ksft_pr(f"Ignoring {protocol}/{test_name} failure due to slow environment")
             return
 
