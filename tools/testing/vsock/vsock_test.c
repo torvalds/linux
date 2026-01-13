@@ -2403,6 +2403,11 @@ static struct test_case test_cases[] = {
 		.run_client = test_stream_accepted_setsockopt_client,
 		.run_server = test_stream_accepted_setsockopt_server,
 	},
+	{
+		.name = "SOCK_STREAM virtio MSG_ZEROCOPY coalescence corruption",
+		.run_client = test_stream_msgzcopy_mangle_client,
+		.run_server = test_stream_msgzcopy_mangle_server,
+	},
 	{},
 };
 
