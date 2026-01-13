@@ -661,33 +661,6 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 
 void kvfree_rcu_cb(struct rcu_head *head);
 
-size_t __ksize(const void *objp);
-
-static inline size_t slab_ksize(const struct kmem_cache *s)
-{
-#ifdef CONFIG_SLUB_DEBUG
-	/*
-	 * Debugging requires use of the padding between object
-	 * and whatever may come after it.
-	 */
-	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
-		return s->object_size;
-#endif
-	if (s->flags & SLAB_KASAN)
-		return s->object_size;
-	/*
-	 * If we have the need to store the freelist pointer
-	 * back there or track user information then we can
-	 * only use the space before that information.
-	 */
-	if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER))
-		return s->inuse;
-	/*
-	 * Else we can use all the padding etc for the allocation
-	 */
-	return s->size;
-}
-
 static inline unsigned int large_kmalloc_order(const struct page *page)
 {
 	return page[1].flags.f & 0xff;

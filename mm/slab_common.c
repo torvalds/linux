@@ -1021,43 +1021,6 @@ void __init create_kmalloc_caches(void)
 						       0, SLAB_NO_MERGE, NULL);
 }
 
-/**
- * __ksize -- Report full size of underlying allocation
- * @object: pointer to the object
- *
- * This should only be used internally to query the true size of allocations.
- * It is not meant to be a way to discover the usable size of an allocation
- * after the fact. Instead, use kmalloc_size_roundup(). Using memory beyond
- * the originally requested allocation size may trigger KASAN, UBSAN_BOUNDS,
- * and/or FORTIFY_SOURCE.
- *
- * Return: size of the actual memory used by @object in bytes
- */
-size_t __ksize(const void *object)
-{
-	const struct page *page;
-	const struct slab *slab;
-
-	if (unlikely(object == ZERO_SIZE_PTR))
-		return 0;
-
-	page = virt_to_page(object);
-
-	if (unlikely(PageLargeKmalloc(page)))
-		return large_kmalloc_size(page);
-
-	slab = page_slab(page);
-	/* Delete this after we're sure there are no users */
-	if (WARN_ON(!slab))
-		return page_size(page);
-
-#ifdef CONFIG_SLUB_DEBUG
-	skip_orig_size_check(slab->slab_cache, object);
-#endif
-
-	return slab_ksize(slab->slab_cache);
-}
-
 gfp_t kmalloc_fix_flags(gfp_t flags)
 {
 	gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
@@ -1272,30 +1235,6 @@ void kfree_sensitive(const void *p)
 	kfree(mem);
 }
 EXPORT_SYMBOL(kfree_sensitive);
-
-size_t ksize(const void *objp)
-{
-	/*
-	 * We need to first check that the pointer to the object is valid.
-	 * The KASAN report printed from ksize() is more useful, then when
-	 * it's printed later when the behaviour could be undefined due to
-	 * a potential use-after-free or double-free.
-	 *
-	 * We use kasan_check_byte(), which is supported for the hardware
-	 * tag-based KASAN mode, unlike kasan_check_read/write().
-	 *
-	 * If the pointed to memory is invalid, we return 0 to avoid users of
-	 * ksize() writing to and potentially corrupting the memory region.
-	 *
-	 * We want to perform the check before __ksize(), to avoid potentially
-	 * crashing in __ksize() due to accessing invalid metadata.
-	 */
-	if (unlikely(ZERO_OR_NULL_PTR(objp)) || !kasan_check_byte(objp))
-		return 0;
-
-	return kfence_ksize(objp) ?: __ksize(objp);
-}
-EXPORT_SYMBOL(ksize);
 
 #ifdef CONFIG_BPF_SYSCALL
 #include <linux/btf.h>
