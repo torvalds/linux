@@ -22,6 +22,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/string.h>
 #include <linux/units.h>
 
 #include <linux/gpio/consumer.h>
@@ -247,6 +248,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 		}
 	}
 
+	memset(data->rx_buf, 0, sizeof(data->rx_buf));
 	ret = data->ops->read(data, MPR_CMD_NOP, MPR_PKT_NOP_LEN);
 	if (ret < 0)
 		return ret;
