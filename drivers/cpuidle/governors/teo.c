@@ -239,6 +239,17 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			cpu_data->state_bins[drv->state_count-1].hits += PULSE;
 			return;
 		}
+		/*
+		 * If intercepts within the tick period range are not frequent
+		 * enough, count this wakeup as a hit, since it is likely that
+		 * the tick has woken up the CPU because an expected intercept
+		 * was not there.  Otherwise, one of the intercepts may have
+		 * been incidentally preceded by the tick wakeup.
+		 */
+		if (3 * cpu_data->tick_intercepts < 2 * total) {
+			cpu_data->state_bins[idx_timer].hits += PULSE;
+			return;
+		}
 	}
 
 	/*
