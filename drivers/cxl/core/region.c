@@ -3483,6 +3483,15 @@ static int match_root_decoder(struct device *dev, const void *data)
 	return range_contains(r1, r2);
 }
 
+static int cxl_root_setup_translation(struct cxl_root *cxl_root,
+				      struct cxl_region_context *ctx)
+{
+	if (!cxl_root->ops.translation_setup_root)
+		return 0;
+
+	return cxl_root->ops.translation_setup_root(cxl_root, ctx);
+}
+
 /*
  * Note, when finished with the device, drop the reference with
  * put_device() or use the put_cxl_root_decoder helper.
@@ -3495,6 +3504,21 @@ get_cxl_root_decoder(struct cxl_endpoint_decoder *cxled,
 	struct cxl_port *port = cxled_to_port(cxled);
 	struct cxl_root *cxl_root __free(put_cxl_root) = find_cxl_root(port);
 	struct device *cxlrd_dev;
+	int rc;
+
+	/*
+	 * Adjust the endpoint's HPA range and interleaving
+	 * configuration to the root decoder’s memory space before
+	 * setting up the root decoder.
+	 */
+	rc = cxl_root_setup_translation(cxl_root, ctx);
+	if (rc) {
+		dev_err(cxlmd->dev.parent,
+			"%s:%s Failed to setup translation for address range %#llx:%#llx\n",
+			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
+			ctx->hpa_range.start, ctx->hpa_range.end);
+		return ERR_PTR(rc);
+	}
 
 	cxlrd_dev = device_find_child(&cxl_root->port.dev, &ctx->hpa_range,
 				      match_root_decoder);
