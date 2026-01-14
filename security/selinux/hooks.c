@@ -1659,7 +1659,6 @@ static int cred_has_capability(const struct cred *cred,
 		break;
 	default:
 		pr_err("SELinux:  out of range capability %d\n", cap);
-		BUG();
 		return -EINVAL;
 	}
 
