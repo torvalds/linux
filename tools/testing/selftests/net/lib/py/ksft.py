@@ -32,8 +32,23 @@ class KsftTerminate(KeyboardInterrupt):
 
 
 def ksft_pr(*objs, **kwargs):
+    """
+    Print logs to stdout.
+
+    Behaves like print() but log lines will be prefixed
+    with # to prevent breaking the TAP output formatting.
+
+    Extra arguments (on top of what print() supports):
+      line_pfx - add extra string before each line
+    """
+    sep = kwargs.pop("sep", " ")
+    pfx = kwargs.pop("line_pfx", "")
+    pfx = "#" + (" " + pfx if pfx else "")
     kwargs["flush"] = True
-    print("#", *objs, **kwargs)
+
+    text = sep.join(str(obj) for obj in objs)
+    prefixed = f"\n{pfx} ".join(text.split('\n'))
+    print(pfx, prefixed, **kwargs)
 
 
 def _fail(*args):
@@ -170,9 +185,7 @@ def ksft_flush_defer():
             entry.exec_only()
         except Exception:
             ksft_pr(f"Exception while handling defer / cleanup (callback {i} of {qlen_start})!")
-            tb = traceback.format_exc()
-            for line in tb.strip().split('\n'):
-                ksft_pr("Defer Exception|", line)
+            ksft_pr(traceback.format_exc(), line_pfx="Defer Exception|")
             KSFT_RESULT = False
 
 
@@ -331,9 +344,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
             cnt_key = 'xfail'
         except BaseException as e:
             stop |= isinstance(e, KeyboardInterrupt)
-            tb = traceback.format_exc()
-            for line in tb.strip().split('\n'):
-                ksft_pr("Exception|", line)
+            ksft_pr(traceback.format_exc(), line_pfx="Exception|")
             if stop:
                 ksft_pr(f"Stopping tests due to {type(e).__name__}.")
             KSFT_RESULT = False
@@ -343,9 +354,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
         try:
             ksft_flush_defer()
         except BaseException as e:
-            tb = traceback.format_exc()
-            for line in tb.strip().split('\n'):
-                ksft_pr("Exception|", line)
+            ksft_pr(traceback.format_exc(), line_pfx="Exception|")
             if isinstance(e, KeyboardInterrupt):
                 ksft_pr()
                 ksft_pr("WARN: defer() interrupted, cleanup may be incomplete.")
