@@ -12,10 +12,7 @@
 #define _MPRLS0025PA_H
 
 #include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/stddef.h>
 #include <linux/types.h>
 
 #include <linux/iio/iio.h>
