@@ -51,6 +51,7 @@ struct hinic3_hwdev {
 	struct hinic3_cmdqs         *cmdqs;
 	struct delayed_work         sync_time_task;
 	struct workqueue_struct     *workq;
+	struct hinic3_msg_pf_to_mgmt *pf_to_mgmt;
 	/* protect channel init and uninit */
 	spinlock_t                  channel_lock;
 	u64                         features[COMM_MAX_FEATURE_QWORD];

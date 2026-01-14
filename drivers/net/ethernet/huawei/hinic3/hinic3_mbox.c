@@ -864,6 +864,19 @@ err_send:
 	return err;
 }
 
+void hinic3_response_mbox_to_mgmt(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
+				  const void *buf_in, u32 in_size, u16 msg_id)
+{
+	struct mbox_msg_info msg_info;
+
+	msg_info.msg_id = (u8)msg_id;
+	msg_info.status = 0;
+
+	send_mbox_msg(hwdev->mbox, mod, cmd, buf_in, in_size,
+		      MBOX_MGMT_FUNC_ID, MBOX_MSG_RESP,
+		      MBOX_MSG_NO_ACK, &msg_info);
+}
+
 int hinic3_send_mbox_to_mgmt_no_ack(struct hinic3_hwdev *hwdev, u8 mod, u16 cmd,
 				    const struct mgmt_msg_params *msg_params)
 {

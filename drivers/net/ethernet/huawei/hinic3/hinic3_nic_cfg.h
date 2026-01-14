@@ -34,6 +34,23 @@ struct hinic3_sq_attr {
 	u64 ci_dma_base;
 };
 
+#define MAG_CMD_PORT_DISABLE    0x0
+#define MAG_CMD_TX_ENABLE       0x1
+#define MAG_CMD_RX_ENABLE       0x2
+/* the physical port is disabled only when all pf of the port are set to down,
+ * if any pf is enabled, the port is enabled
+ */
+struct mag_cmd_set_port_enable {
+	struct mgmt_msg_head head;
+
+	u16                  function_id;
+	u16                  rsvd0;
+
+	/* bitmap bit0:tx_en bit1:rx_en */
+	u8                   state;
+	u8                   rsvd1[3];
+};
+
 int hinic3_get_nic_feature_from_hw(struct hinic3_nic_dev *nic_dev);
 int hinic3_set_nic_feature_to_hw(struct hinic3_nic_dev *nic_dev);
 bool hinic3_test_support(struct hinic3_nic_dev *nic_dev,
@@ -57,6 +74,7 @@ int hinic3_flush_qps_res(struct hinic3_hwdev *hwdev);
 int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev);
 
 int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state);
+int hinic3_set_port_enable(struct hinic3_hwdev *hwdev, bool enable);
 int hinic3_get_link_status(struct hinic3_hwdev *hwdev, bool *link_status_up);
 int hinic3_set_vport_enable(struct hinic3_hwdev *hwdev, u16 func_id,
 			    bool enable);

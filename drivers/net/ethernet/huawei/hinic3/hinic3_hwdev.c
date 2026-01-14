@@ -211,6 +211,36 @@ static int init_ceqs_msix_attr(struct hinic3_hwdev *hwdev)
 	return 0;
 }
 
+static int hinic3_comm_pf_to_mgmt_init(struct hinic3_hwdev *hwdev)
+{
+	int err;
+
+	if (HINIC3_IS_VF(hwdev))
+		return 0;
+
+	err = hinic3_pf_to_mgmt_init(hwdev);
+	if (err)
+		return err;
+
+	set_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state);
+
+	return 0;
+}
+
+static void hinic3_comm_pf_to_mgmt_free(struct hinic3_hwdev *hwdev)
+{
+	if (HINIC3_IS_VF(hwdev))
+		return;
+
+	spin_lock_bh(&hwdev->channel_lock);
+	clear_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state);
+	spin_unlock_bh(&hwdev->channel_lock);
+
+	hinic3_aeq_unregister_cb(hwdev, HINIC3_MSG_FROM_FW);
+
+	hinic3_pf_to_mgmt_free(hwdev);
+}
+
 static int init_basic_mgmt_channel(struct hinic3_hwdev *hwdev)
 {
 	int err;
@@ -412,9 +442,13 @@ static int hinic3_init_comm_ch(struct hinic3_hwdev *hwdev)
 	if (err)
 		return err;
 
-	err = init_basic_attributes(hwdev);
+	err = hinic3_comm_pf_to_mgmt_init(hwdev);
 	if (err)
 		goto err_free_basic_mgmt_ch;
+
+	err = init_basic_attributes(hwdev);
+	if (err)
+		goto err_free_comm_pf_to_mgmt;
 
 	err = init_cmdqs_channel(hwdev);
 	if (err) {
@@ -428,6 +462,8 @@ static int hinic3_init_comm_ch(struct hinic3_hwdev *hwdev)
 
 err_clear_func_svc_used_state:
 	hinic3_set_func_svc_used_state(hwdev, COMM_FUNC_SVC_T_COMM, 0);
+err_free_comm_pf_to_mgmt:
+	hinic3_comm_pf_to_mgmt_free(hwdev);
 err_free_basic_mgmt_ch:
 	free_base_mgmt_channel(hwdev);
 
@@ -439,6 +475,7 @@ static void hinic3_uninit_comm_ch(struct hinic3_hwdev *hwdev)
 	hinic3_set_pf_status(hwdev->hwif, HINIC3_PF_STATUS_INIT);
 	hinic3_free_cmdqs_channel(hwdev);
 	hinic3_set_func_svc_used_state(hwdev, COMM_FUNC_SVC_T_COMM, 0);
+	hinic3_comm_pf_to_mgmt_free(hwdev);
 	free_base_mgmt_channel(hwdev);
 }
 
@@ -581,9 +618,21 @@ void hinic3_free_hwdev(struct hinic3_hwdev *hwdev)
 
 void hinic3_set_api_stop(struct hinic3_hwdev *hwdev)
 {
+	struct hinic3_recv_msg *recv_resp_msg;
 	struct hinic3_mbox *mbox;
 
 	spin_lock_bh(&hwdev->channel_lock);
+	if (HINIC3_IS_PF(hwdev) &&
+	    test_bit(HINIC3_HWDEV_MGMT_INITED, &hwdev->func_state)) {
+		recv_resp_msg = &hwdev->pf_to_mgmt->recv_resp_msg_from_mgmt;
+		spin_lock_bh(&hwdev->pf_to_mgmt->sync_event_lock);
+		if (hwdev->pf_to_mgmt->event_flag == COMM_SEND_EVENT_START) {
+			complete(&recv_resp_msg->recv_done);
+			hwdev->pf_to_mgmt->event_flag = COMM_SEND_EVENT_TIMEOUT;
+		}
+		spin_unlock_bh(&hwdev->pf_to_mgmt->sync_event_lock);
+	}
+
 	if (test_bit(HINIC3_HWDEV_MBOX_INITED, &hwdev->func_state)) {
 		mbox = hwdev->mbox;
 		spin_lock(&mbox->mbox_lock);

@@ -83,6 +83,9 @@ struct hinic3_nic_dev {
 
 	struct hinic3_intr_coal_info    *intr_coalesce;
 
+	/* lock for enable/disable port */
+	struct mutex                    port_state_mutex;
+
 	bool                            link_status_up;
 };
 

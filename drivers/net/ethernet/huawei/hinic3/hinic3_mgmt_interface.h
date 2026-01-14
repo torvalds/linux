@@ -190,6 +190,7 @@ enum l2nic_ucode_cmd {
 
 /* hilink mac group command */
 enum mag_cmd {
+	MAG_CMD_SET_PORT_ENABLE = 6,
 	MAG_CMD_GET_LINK_STATUS = 7,
 };
 

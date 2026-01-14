@@ -39,6 +39,8 @@ enum mgmt_mod_type {
 	/* Configuration module */
 	MGMT_MOD_CFGM   = 7,
 	MGMT_MOD_HILINK = 14,
+	/* hardware max module id */
+	MGMT_MOD_HW_MAX = 20,
 };
 
 static inline void mgmt_msg_params_init_default(struct mgmt_msg_params *msg_params,

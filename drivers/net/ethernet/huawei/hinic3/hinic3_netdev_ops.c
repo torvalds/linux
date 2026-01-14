@@ -327,6 +327,31 @@ static void hinic3_close_channel(struct net_device *netdev)
 	hinic3_free_qp_ctxts(nic_dev);
 }
 
+static int hinic3_maybe_set_port_state(struct net_device *netdev, bool enable)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	int err;
+
+	mutex_lock(&nic_dev->port_state_mutex);
+	err = hinic3_set_port_enable(nic_dev->hwdev, enable);
+	mutex_unlock(&nic_dev->port_state_mutex);
+
+	return err;
+}
+
+static void hinic3_print_link_message(struct net_device *netdev,
+				      bool link_status_up)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+
+	if (nic_dev->link_status_up == link_status_up)
+		return;
+
+	nic_dev->link_status_up = link_status_up;
+
+	netdev_dbg(netdev, "Link is %s\n", str_up_down(link_status_up));
+}
+
 static int hinic3_vport_up(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -341,11 +366,17 @@ static int hinic3_vport_up(struct net_device *netdev)
 		goto err_flush_qps_res;
 	}
 
+	err = hinic3_maybe_set_port_state(netdev, true);
+	if (err) {
+		netdev_err(netdev, "Failed to enable port\n");
+		goto err_disable_vport;
+	}
+
 	err = netif_set_real_num_queues(netdev, nic_dev->q_params.num_qps,
 					nic_dev->q_params.num_qps);
 	if (err) {
 		netdev_err(netdev, "Failed to set real number of queues\n");
-		goto err_flush_qps_res;
+		goto err_disable_vport;
 	}
 	netif_tx_start_all_queues(netdev);
 
@@ -353,8 +384,12 @@ static int hinic3_vport_up(struct net_device *netdev)
 	if (!err && link_status_up)
 		netif_carrier_on(netdev);
 
+	hinic3_print_link_message(netdev, link_status_up);
+
 	return 0;
 
+err_disable_vport:
+	hinic3_set_vport_enable(nic_dev->hwdev, glb_func_id, false);
 err_flush_qps_res:
 	hinic3_flush_qps_res(nic_dev->hwdev);
 	/* wait to guarantee that no packets will be sent to host */

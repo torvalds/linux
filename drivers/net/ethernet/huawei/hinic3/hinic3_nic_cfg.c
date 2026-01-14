@@ -366,6 +366,34 @@ int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev)
 	return pkt_drop.msg_head.status;
 }
 
+int hinic3_set_port_enable(struct hinic3_hwdev *hwdev, bool enable)
+{
+	struct mag_cmd_set_port_enable en_state = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	if (HINIC3_IS_VF(hwdev))
+		return 0;
+
+	en_state.function_id = hinic3_global_func_id(hwdev);
+	en_state.state = enable ? MAG_CMD_TX_ENABLE | MAG_CMD_RX_ENABLE :
+				MAG_CMD_PORT_DISABLE;
+
+	mgmt_msg_params_init_default(&msg_params, &en_state,
+				     sizeof(en_state));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_HILINK,
+				       MAG_CMD_SET_PORT_ENABLE, &msg_params);
+
+	if (err || en_state.head.status) {
+		dev_err(hwdev->dev, "Failed to set port state, err: %d, status: 0x%x\n",
+			err, en_state.head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 int hinic3_sync_dcb_state(struct hinic3_hwdev *hwdev, u8 op_code, u8 state)
 {
 	struct l2nic_cmd_set_dcb_state dcb_state = {};
