@@ -575,8 +575,8 @@ void evsel__uniquify_counter(struct evsel *counter);
 	((((src) >> (pos)) & ((1ull << (size)) - 1)) << (63 - ((pos) + (size) - 1)))
 
 u64 evsel__bitfield_swap_branch_flags(u64 value);
-void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
-				const char *config_name, u64 val);
+void evsel__set_config_if_unset(struct evsel *evsel, const char *config_name,
+				u64 val);
 
 bool evsel__is_offcpu_event(struct evsel *evsel);
 

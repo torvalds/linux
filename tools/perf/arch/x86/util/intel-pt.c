@@ -664,8 +664,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		return 0;
 
 	if (opts->auxtrace_sample_mode)
-		evsel__set_config_if_unset(intel_pt_pmu, intel_pt_evsel,
-					   "psb_period", 0);
+		evsel__set_config_if_unset(intel_pt_evsel, "psb_period", 0);
 
 	err = intel_pt_validate_config(intel_pt_pmu, intel_pt_evsel);
 	if (err)

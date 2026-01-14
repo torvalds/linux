@@ -1382,8 +1382,8 @@ bool evsel__is_aux_event(const struct evsel *evsel)
  * something to true, pass 1 for val rather than a pre shifted value.
  */
 #define field_prep(_mask, _val) (((_val) << (ffsll(_mask) - 1)) & (_mask))
-void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
-				const char *config_name, u64 val)
+void evsel__set_config_if_unset(struct evsel *evsel, const char *config_name,
+				u64 val)
 {
 	u64 user_bits = 0, bits;
 	struct evsel_config_term *term = evsel__get_config_term(evsel, CFG_CHG);
@@ -1391,7 +1391,7 @@ void evsel__set_config_if_unset(struct perf_pmu *pmu, struct evsel *evsel,
 	if (term)
 		user_bits = term->val.cfg_chg;
 
-	bits = perf_pmu__format_bits(pmu, config_name);
+	bits = perf_pmu__format_bits(evsel->pmu, config_name);
 
 	/* Do nothing if the user changed the value */
 	if (bits & user_bits)

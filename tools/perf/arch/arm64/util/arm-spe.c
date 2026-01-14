@@ -274,7 +274,7 @@ static void arm_spe_setup_evsel(struct evsel *evsel, struct perf_cpu_map *cpus)
 	 */
 	if (!perf_cpu_map__is_any_cpu_or_is_empty(cpus)) {
 		evsel__set_sample_bit(evsel, CPU);
-		evsel__set_config_if_unset(evsel->pmu, evsel, "ts_enable", 1);
+		evsel__set_config_if_unset(evsel, "ts_enable", 1);
 	}
 
 	/*
