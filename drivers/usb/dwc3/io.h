@@ -16,9 +16,10 @@
 #include "debug.h"
 #include "core.h"
 
-static inline u32 dwc3_readl(void __iomem *base, u32 offset)
+static inline u32 dwc3_readl(struct dwc3 *dwc, u32 offset)
 {
 	u32 value;
+	void __iomem *base = dwc->regs;
 
 	/*
 	 * We requested the mem region starting from the Globals address
@@ -37,8 +38,10 @@ static inline u32 dwc3_readl(void __iomem *base, u32 offset)
 	return value;
 }
 
-static inline void dwc3_writel(void __iomem *base, u32 offset, u32 value)
+static inline void dwc3_writel(struct dwc3 *dwc, u32 offset, u32 value)
 {
+	void __iomem *base = dwc->regs;
+
 	/*
 	 * We requested the mem region starting from the Globals address
 	 * space, see dwc3_probe in core.c.
