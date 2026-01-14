@@ -157,13 +157,10 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 				*clu += clu_offset;
 		}
 	} else if (ei->type == TYPE_FILE) {
-		unsigned int fclus = 0;
 		int err = exfat_get_cluster(inode, clu_offset,
-				&fclus, clu, &last_clu, 1);
+				clu, &last_clu);
 		if (err)
 			return -EIO;
-
-		clu_offset -= fclus;
 	} else {
 		/* hint information */
 		if (clu_offset > 0 && ei->hint_bmap.off != EXFAT_EOF_CLUSTER &&
