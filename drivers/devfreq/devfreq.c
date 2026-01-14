@@ -146,10 +146,9 @@ void devfreq_get_freq_range(struct devfreq *devfreq,
 					     DEV_PM_QOS_MIN_FREQUENCY);
 	qos_max_freq = dev_pm_qos_read_value(devfreq->dev.parent,
 					     DEV_PM_QOS_MAX_FREQUENCY);
-	*min_freq = max(*min_freq, (unsigned long)HZ_PER_KHZ * qos_min_freq);
+	*min_freq = max(*min_freq, HZ_PER_KHZ * qos_min_freq);
 	if (qos_max_freq != PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE)
-		*max_freq = min(*max_freq,
-				(unsigned long)HZ_PER_KHZ * qos_max_freq);
+		*max_freq = min(*max_freq, HZ_PER_KHZ * qos_max_freq);
 
 	/* Apply constraints from OPP interface */
 	*max_freq = clamp(*max_freq, devfreq->scaling_min_freq, devfreq->scaling_max_freq);
