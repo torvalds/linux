@@ -19,34 +19,15 @@
 
 #include "mprls0025pa.h"
 
-struct mpr_spi_buf {
-	u8 tx[MPR_MEASUREMENT_RD_SIZE] __aligned(IIO_DMA_MINALIGN);
-};
-
-static int mpr_spi_init(struct device *dev)
-{
-	struct spi_device *spi = to_spi_device(dev);
-	struct mpr_spi_buf *buf;
-
-	buf = devm_kzalloc(dev, sizeof(*buf), GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	spi_set_drvdata(spi, buf);
-
-	return 0;
-}
-
 static int mpr_spi_xfer(struct mpr_data *data, const u8 cmd, const u8 pkt_len)
 {
 	struct spi_device *spi = to_spi_device(data->dev);
-	struct mpr_spi_buf *buf = spi_get_drvdata(spi);
 	struct spi_transfer xfers[2] = { };
 
 	if (pkt_len > MPR_MEASUREMENT_RD_SIZE)
 		return -EOVERFLOW;
 
-	buf->tx[0] = cmd;
+	data->tx_buf[0] = cmd;
 
 	/*
 	 * Dummy transfer with no data, just cause a 2.5us+ delay between the CS assert
@@ -55,7 +36,7 @@ static int mpr_spi_xfer(struct mpr_data *data, const u8 cmd, const u8 pkt_len)
 	xfers[0].delay.value = 2500;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
-	xfers[1].tx_buf = buf->tx;
+	xfers[1].tx_buf = data->tx_buf;
 	xfers[1].rx_buf = data->rx_buf;
 	xfers[1].len = pkt_len;
 
@@ -63,7 +44,6 @@ static int mpr_spi_xfer(struct mpr_data *data, const u8 cmd, const u8 pkt_len)
 }
 
 static const struct mpr_ops mpr_spi_ops = {
-	.init = mpr_spi_init,
 	.read = mpr_spi_xfer,
 	.write = mpr_spi_xfer,
 };

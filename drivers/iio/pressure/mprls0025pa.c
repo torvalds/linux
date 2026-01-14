@@ -363,10 +363,6 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 		return dev_err_probe(dev, ret,
 				     "can't get and enable vdd supply\n");
 
-	ret = data->ops->init(data->dev);
-	if (ret)
-		return ret;
-
 	ret = device_property_read_u32(dev,
 				       "honeywell,transfer-function", &func);
 	if (ret)
