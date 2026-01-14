@@ -187,6 +187,13 @@ struct amd_nb {
 	 (1ULL << PERF_REG_X86_R14)   | \
 	 (1ULL << PERF_REG_X86_R15))
 
+/* user space rdpmc control values */
+enum {
+	X86_USER_RDPMC_NEVER_ENABLE		= 0,
+	X86_USER_RDPMC_CONDITIONAL_ENABLE	= 1,
+	X86_USER_RDPMC_ALWAYS_ENABLE		= 2,
+};
+
 /*
  * Per register state.
  */

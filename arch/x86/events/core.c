@@ -2163,7 +2163,8 @@ static int __init init_hw_perf_events(void)
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 
-	x86_pmu.attr_rdpmc = 1; /* enable userspace RDPMC usage by default */
+	/* enable userspace RDPMC usage by default */
+	x86_pmu.attr_rdpmc = X86_USER_RDPMC_CONDITIONAL_ENABLE;
 
 	for (quirk = x86_pmu.quirks; quirk; quirk = quirk->next)
 		quirk->func();
@@ -2643,12 +2644,12 @@ static ssize_t set_attr_rdpmc(struct device *cdev,
 		 */
 		if (val == 0)
 			static_branch_inc(&rdpmc_never_available_key);
-		else if (x86_pmu.attr_rdpmc == 0)
+		else if (x86_pmu.attr_rdpmc == X86_USER_RDPMC_NEVER_ENABLE)
 			static_branch_dec(&rdpmc_never_available_key);
 
 		if (val == 2)
 			static_branch_inc(&rdpmc_always_available_key);
-		else if (x86_pmu.attr_rdpmc == 2)
+		else if (x86_pmu.attr_rdpmc == X86_USER_RDPMC_ALWAYS_ENABLE)
 			static_branch_dec(&rdpmc_always_available_key);
 
 		on_each_cpu(cr4_update_pce, NULL, 1);
