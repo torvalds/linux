@@ -1296,12 +1296,13 @@ static int io_uring_hybrid_poll(struct io_kiocb *req,
 				struct io_comp_batch *iob, unsigned int poll_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	u64 runtime, sleep_time;
+	u64 runtime, sleep_time, iopoll_start;
 	int ret;
 
+	iopoll_start = READ_ONCE(req->iopoll_start);
 	sleep_time = io_hybrid_iopoll_delay(ctx, req);
 	ret = io_uring_classic_poll(req, iob, poll_flags);
-	runtime = ktime_get_ns() - req->iopoll_start - sleep_time;
+	runtime = ktime_get_ns() - iopoll_start - sleep_time;
 
 	/*
 	 * Use minimum sleep time if we're polling devices with different

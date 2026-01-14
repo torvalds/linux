@@ -713,13 +713,10 @@ struct io_kiocb {
 	atomic_t			refs;
 	bool				cancel_seq_set;
 
-	/*
-	 * IOPOLL doesn't use task_work, so use the ->iopoll_node list
-	 * entry to manage pending iopoll requests.
-	 */
 	union {
 		struct io_task_work	io_task_work;
-		struct list_head	iopoll_node;
+		/* For IOPOLL setup queues, with hybrid polling */
+		u64                     iopoll_start;
 	};
 
 	union {
@@ -728,8 +725,8 @@ struct io_kiocb {
 		 * poll
 		 */
 		struct hlist_node	hash_node;
-		/* For IOPOLL setup queues, with hybrid polling */
-		u64                     iopoll_start;
+		/* IOPOLL completion handling */
+		struct list_head	iopoll_node;
 		/* for private io_kiocb freeing */
 		struct rcu_head		rcu_head;
 	};
