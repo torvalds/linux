@@ -38,7 +38,7 @@ config ABP2030PA_SPI
 	depends on SPI_MASTER
 	select ABP2030PA
 	help
-	  Say Y here to build I2C bus support for the Honeywell ABP2
+	  Say Y here to build SPI bus support for the Honeywell ABP2
 	  series pressure and temperature digital sensor.
 
 	  To compile this driver as a module, choose M here: the module
