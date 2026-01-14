@@ -550,6 +550,7 @@ operations:
         request:
           attributes:
             - id
+            - mode
             - phase-offset-monitor
             - phase-offset-avg-factor
     -

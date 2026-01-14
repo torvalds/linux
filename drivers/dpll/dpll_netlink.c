@@ -854,6 +854,45 @@ int dpll_pin_change_ntf(struct dpll_pin *pin)
 EXPORT_SYMBOL_GPL(dpll_pin_change_ntf);
 
 static int
+dpll_mode_set(struct dpll_device *dpll, struct nlattr *a,
+	      struct netlink_ext_ack *extack)
+{
+	const struct dpll_device_ops *ops = dpll_device_ops(dpll);
+	DECLARE_BITMAP(modes, DPLL_MODE_MAX + 1) = { 0 };
+	enum dpll_mode mode = nla_get_u32(a), old_mode;
+	int ret;
+
+	if (!(ops->mode_set && ops->supported_modes_get)) {
+		NL_SET_ERR_MSG_ATTR(extack, a,
+				    "dpll device does not support mode switch");
+		return -EOPNOTSUPP;
+	}
+
+	ret = ops->mode_get(dpll, dpll_priv(dpll), &old_mode, extack);
+	if (ret) {
+		NL_SET_ERR_MSG(extack, "unable to get current mode");
+		return ret;
+	}
+
+	if (mode == old_mode)
+		return 0;
+
+	ret = ops->supported_modes_get(dpll, dpll_priv(dpll), modes, extack);
+	if (ret) {
+		NL_SET_ERR_MSG(extack, "unable to get supported modes");
+		return ret;
+	}
+
+	if (!test_bit(mode, modes)) {
+		NL_SET_ERR_MSG(extack,
+			       "dpll device does not support requested mode");
+		return -EINVAL;
+	}
+
+	return ops->mode_set(dpll, dpll_priv(dpll), mode, extack);
+}
+
+static int
 dpll_phase_offset_monitor_set(struct dpll_device *dpll, struct nlattr *a,
 			      struct netlink_ext_ack *extack)
 {
@@ -1808,6 +1847,11 @@ dpll_set_from_nlattr(struct dpll_device *dpll, struct genl_info *info)
 	nla_for_each_attr(a, genlmsg_data(info->genlhdr),
 			  genlmsg_len(info->genlhdr), rem) {
 		switch (nla_type(a)) {
+		case DPLL_A_MODE:
+			ret = dpll_mode_set(dpll, a, info->extack);
+			if (ret)
+				return ret;
+			break;
 		case DPLL_A_PHASE_OFFSET_MONITOR:
 			ret = dpll_phase_offset_monitor_set(dpll, a,
 							    info->extack);
