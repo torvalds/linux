@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/string.h>
+#include <linux/time.h>
 #include <linux/units.h>
 
 #include <linux/gpio/consumer.h>
@@ -41,10 +42,6 @@
 /* bits in status byte */
 #define MPR_ST_POWER  BIT(6) /* device is powered */
 #define MPR_ST_BUSY   BIT(5) /* device is busy */
-#define MPR_ST_MEMORY BIT(2) /* integrity test passed */
-#define MPR_ST_MATH   BIT(0) /* internal math saturation */
-
-#define MPR_ST_ERR_FLAG  (MPR_ST_BUSY | MPR_ST_MEMORY | MPR_ST_MATH)
 
 /*
  * support _RAW sysfs interface:
@@ -206,8 +203,7 @@ static void mpr_reset(struct mpr_data *data)
 static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 {
 	struct device *dev = data->dev;
-	int ret, i;
-	int nloops = 10;
+	int ret;
 
 	reinit_completion(&data->completion);
 
@@ -224,29 +220,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 			return -ETIMEDOUT;
 		}
 	} else {
-		/* wait until status indicates data is ready */
-		for (i = 0; i < nloops; i++) {
-			/*
-			 * datasheet only says to wait at least 5 ms for the
-			 * data but leave the maximum response time open
-			 * --> let's try it nloops (10) times which seems to be
-			 *     quite long
-			 */
-			usleep_range(5000, 10000);
-			ret = data->ops->read(data, MPR_CMD_NOP, 1);
-			if (ret < 0) {
-				dev_err(dev,
-					"error while reading, status: %d\n",
-					ret);
-				return ret;
-			}
-			if (!(data->rx_buf[0] & MPR_ST_ERR_FLAG))
-				break;
-		}
-		if (i == nloops) {
-			dev_err(dev, "timeout while reading\n");
-			return -ETIMEDOUT;
-		}
+		fsleep(5 * USEC_PER_MSEC);
 	}
 
 	memset(data->rx_buf, 0, sizeof(data->rx_buf));
