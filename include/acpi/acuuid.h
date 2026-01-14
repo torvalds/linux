@@ -71,4 +71,5 @@
 #define UUID_USB4_CAPABILITIES          "23a0d13a-26ab-486c-9c5f-0ffa525a575a"
 #define UUID_1ST_FUNCTION_ID            "893f00a6-660c-494e-bcfd-3043f4fb67c0"
 #define UUID_2ND_FUNCTION_ID            "107ededd-d381-4fd7-8da9-08e9a6c79644"
+#define UUID_FAN_TRIP_POINTS            "a7611840-99fe-41ae-a488-35c75926c8eb"
 #endif				/* __ACUUID_H__ */
