@@ -416,6 +416,7 @@ struct rtw89_ccx_regs {
 	u32 ifs_clm_ofdm_fa_mask;
 	u32 ifs_clm_cck_fa_mask;
 	u32 ifs_his_addr;
+	u32 ifs_his_addr2;
 	u32 ifs_t4_his_mask;
 	u32 ifs_t3_his_mask;
 	u32 ifs_t2_his_mask;
