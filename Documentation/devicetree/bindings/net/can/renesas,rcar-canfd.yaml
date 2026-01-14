@@ -122,6 +122,11 @@ properties:
 
   resets: true
 
+  reset-names:
+    items:
+      - const: rstp_n
+      - const: rstc_n
+
   renesas,no-can-fd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -195,13 +200,6 @@ allOf:
           minItems: 2
           maxItems: 2
 
-        reset-names:
-          minItems: 2
-          maxItems: 2
-
-      required:
-        - reset-names
-
   - if:
       properties:
         compatible:
@@ -238,13 +236,6 @@ allOf:
         resets:
           minItems: 2
           maxItems: 2
-
-        reset-names:
-          minItems: 2
-          maxItems: 2
-
-      required:
-        - reset-names
 
   - if:
       properties:
@@ -298,6 +289,20 @@ allOf:
     then:
       properties:
         renesas,no-can-fd: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,r9a09g047-canfd
+              - renesas,rzg2l-canfd
+    then:
+      required:
+        - reset-names
+    else:
+      properties:
+        reset-names: false
 
 unevaluatedProperties: false
 
