@@ -31,6 +31,7 @@
 #define ACPI_SIG_CDAT           "CDAT"	/* Coherent Device Attribute Table */
 #define ACPI_SIG_ERDT           "ERDT"	/* Enhanced Resource Director Technology */
 #define ACPI_SIG_IORT           "IORT"	/* IO Remapping Table */
+#define ACPI_SIG_IOVT           "IOVT"	/* I/O Virtualization Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
 #define ACPI_SIG_KEYP           "KEYP"	/* Key Programming Interface for IDE */
 #define ACPI_SIG_LPIT           "LPIT"	/* Low Power Idle Table */
@@ -857,6 +858,73 @@ struct acpi_iort_rmr_desc {
 	u64 base_address;
 	u64 length;
 	u32 reserved;
+};
+
+/*******************************************************************************
+ *
+ * IOVT - I/O Virtualization Table
+ *
+ * Conforms to "LoongArch I/O Virtualization Table",
+ *        Version 0.1, October 2024
+ *
+ ******************************************************************************/
+
+struct acpi_table_iovt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u16 iommu_count;
+	u16 iommu_offset;
+	u8 reserved[8];
+};
+
+/* IOVT subtable header */
+
+struct acpi_iovt_header {
+	u16 type;
+	u16 length;
+};
+
+/* Values for Type field above */
+
+enum acpi_iovt_iommu_type {
+	ACPI_IOVT_IOMMU_V1 = 0x00,
+	ACPI_IOVT_IOMMU_RESERVED = 0x01	/* 1 and greater are reserved */
+};
+
+/* IOVT subtables */
+
+struct acpi_iovt_iommu {
+	struct acpi_iovt_header header;
+	u32 flags;
+	u16 segment;
+	u16 phy_width;		/* Physical Address Width */
+	u16 virt_width;		/* Virtual Address Width */
+	u16 max_page_level;
+	u64 page_size;
+	u32 device_id;
+	u64 base_address;
+	u32 address_space_size;
+	u8 interrupt_type;
+	u8 reserved[3];
+	u32 gsi_number;
+	u32 proximity_domain;
+	u32 max_device_num;
+	u32 device_entry_num;
+	u32 device_entry_offset;
+};
+
+struct acpi_iovt_device_entry {
+	u8 type;
+	u8 length;
+	u8 flags;
+	u8 reserved[3];
+	u16 device_id;
+};
+
+enum acpi_iovt_device_entry_type {
+	ACPI_IOVT_DEVICE_ENTRY_SINGLE = 0x00,
+	ACPI_IOVT_DEVICE_ENTRY_START = 0x01,
+	ACPI_IOVT_DEVICE_ENTRY_END = 0x02,
+	ACPI_IOVT_DEVICE_ENTRY_RESERVED = 0x03	/* 3 and greater are reserved */
 };
 
 /*******************************************************************************
