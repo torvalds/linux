@@ -29,7 +29,7 @@ shift
 __cleanup() {
 	rm -f "$TMP"
 }
-trap __cleanup EXIT
+trap __cleanup EXIT HUP INT QUIT TERM
 
 # Function names in warnings are wrapped in backticks under UTF-8 locales.
 # Run the commands with LANG=C so that grep output will not change.
