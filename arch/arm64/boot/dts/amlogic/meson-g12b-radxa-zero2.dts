@@ -381,6 +381,10 @@
 	status = "okay";
 };
 
+&npu {
+	status = "okay";
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vddao_1v8>;
