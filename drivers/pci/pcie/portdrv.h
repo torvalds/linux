@@ -123,4 +123,13 @@ static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
 struct device *pcie_port_find_device(struct pci_dev *dev, u32 service);
+
+struct aer_err_info;
+
+#ifdef CONFIG_PCIEAER_CXL
+bool is_aer_internal_error(struct aer_err_info *info);
+#else
+static inline bool is_aer_internal_error(struct aer_err_info *info) { return false; }
+#endif /* CONFIG_PCIEAER_CXL */
+
 #endif /* _PORTDRV_H_ */

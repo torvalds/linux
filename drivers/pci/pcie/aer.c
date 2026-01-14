@@ -1171,7 +1171,7 @@ static bool is_cxl_mem_dev(struct pci_dev *dev)
 	return true;
 }
 
-static bool is_internal_error(struct aer_err_info *info)
+bool is_aer_internal_error(struct aer_err_info *info)
 {
 	if (info->severity == AER_CORRECTABLE)
 		return info->status & PCI_ERR_COR_INTERNAL;
@@ -1216,7 +1216,7 @@ static void cxl_rch_handle_error(struct pci_dev *dev, struct aer_err_info *info)
 	 * device driver.
 	 */
 	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_EC &&
-	    is_internal_error(info))
+	    is_aer_internal_error(info))
 		pcie_walk_rcec(dev, cxl_rch_handle_error_iter, info);
 }
 
