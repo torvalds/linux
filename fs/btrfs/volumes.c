@@ -8026,7 +8026,7 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info)
 	if (!path)
 		return -ENOMEM;
 
-	path->reada = READA_FORWARD;
+	path->reada = READA_FORWARD_ALWAYS;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
