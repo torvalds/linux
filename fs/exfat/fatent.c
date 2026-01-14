@@ -484,6 +484,7 @@ int exfat_count_num_clusters(struct super_block *sb,
 	unsigned int i, count;
 	unsigned int clu;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+	struct buffer_head *bh = NULL;
 
 	if (!p_chain->dir || p_chain->dir == EXFAT_EOF_CLUSTER) {
 		*ret_count = 0;
@@ -499,12 +500,13 @@ int exfat_count_num_clusters(struct super_block *sb,
 	count = 0;
 	for (i = EXFAT_FIRST_CLUSTER; i < sbi->num_clusters; i++) {
 		count++;
-		if (exfat_ent_get(sb, clu, &clu, NULL))
+		if (exfat_ent_get(sb, clu, &clu, &bh))
 			return -EIO;
 		if (clu == EXFAT_EOF_CLUSTER)
 			break;
 	}
 
+	brelse(bh);
 	*ret_count = count;
 
 	/*
