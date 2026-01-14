@@ -29,6 +29,9 @@
 #define HINIC3_DEFAULT_TXRX_MSIX_COALESC_TIMER_CFG  25
 #define HINIC3_DEFAULT_TXRX_MSIX_RESEND_TIMER_CFG   7
 
+#define HINIC3_RX_PENDING_LIMIT_LOW   2
+#define HINIC3_RX_PENDING_LIMIT_HIGH  8
+
 static void init_intr_coal_param(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -38,9 +41,16 @@ static void init_intr_coal_param(struct net_device *netdev)
 	for (i = 0; i < nic_dev->max_qps; i++) {
 		info = &nic_dev->intr_coalesce[i];
 		info->pending_limit = HINIC3_DEFAULT_TXRX_MSIX_PENDING_LIMIT;
-		info->coalesce_timer_cfg = HINIC3_DEFAULT_TXRX_MSIX_COALESC_TIMER_CFG;
-		info->resend_timer_cfg = HINIC3_DEFAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+		info->coalesce_timer_cfg =
+			HINIC3_DEFAULT_TXRX_MSIX_COALESC_TIMER_CFG;
+		info->resend_timer_cfg =
+			HINIC3_DEFAULT_TXRX_MSIX_RESEND_TIMER_CFG;
+
+		info->rx_pending_limit_high = HINIC3_RX_PENDING_LIMIT_HIGH;
+		info->rx_pending_limit_low = HINIC3_RX_PENDING_LIMIT_LOW;
 	}
+
+	nic_dev->adaptive_rx_coal = 1;
 }
 
 static int hinic3_init_intr_coalesce(struct net_device *netdev)

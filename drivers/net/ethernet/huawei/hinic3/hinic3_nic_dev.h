@@ -49,6 +49,7 @@ struct hinic3_irq_cfg {
 	cpumask_t          affinity_mask;
 	struct hinic3_txq  *txq;
 	struct hinic3_rxq  *rxq;
+	u16                total_events;
 };
 
 struct hinic3_dyna_txrxq_params {
@@ -65,6 +66,9 @@ struct hinic3_intr_coal_info {
 	u8 pending_limit;
 	u8 coalesce_timer_cfg;
 	u8 resend_timer_cfg;
+
+	u8  rx_pending_limit_low;
+	u8  rx_pending_limit_high;
 };
 
 struct hinic3_nic_dev {
@@ -93,6 +97,7 @@ struct hinic3_nic_dev {
 	struct msix_entry               *qps_msix_entries;
 
 	struct hinic3_intr_coal_info    *intr_coalesce;
+	u32                             adaptive_rx_coal;
 
 	struct workqueue_struct         *workq;
 	struct delayed_work             periodic_work;

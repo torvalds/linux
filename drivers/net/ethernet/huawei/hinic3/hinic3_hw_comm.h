@@ -23,6 +23,8 @@ struct hinic3_interrupt_info {
 
 int hinic3_set_interrupt_cfg_direct(struct hinic3_hwdev *hwdev,
 				    const struct hinic3_interrupt_info *info);
+int hinic3_set_interrupt_cfg(struct hinic3_hwdev *hwdev,
+			     struct hinic3_interrupt_info info);
 int hinic3_func_reset(struct hinic3_hwdev *hwdev, u16 func_id, u64 reset_flag);
 
 int hinic3_get_comm_features(struct hinic3_hwdev *hwdev, u64 *s_feature,

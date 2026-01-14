@@ -200,7 +200,7 @@ static int init_ceqs_msix_attr(struct hinic3_hwdev *hwdev)
 	for (q_id = 0; q_id < ceqs->num_ceqs; q_id++) {
 		eq = &ceqs->ceq[q_id];
 		info.msix_index = eq->msix_entry_idx;
-		err = hinic3_set_interrupt_cfg_direct(hwdev, &info);
+		err = hinic3_set_interrupt_cfg(hwdev, info);
 		if (err) {
 			dev_err(hwdev->dev, "Set msix attr for ceq %u failed\n",
 				q_id);

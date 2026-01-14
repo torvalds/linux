@@ -5,6 +5,7 @@
 #define _HINIC3_RX_H_
 
 #include <linux/bitfield.h>
+#include <linux/dim.h>
 #include <linux/netdevice.h>
 
 #define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_MASK           GENMASK(4, 0)
@@ -95,6 +96,11 @@ struct hinic3_rxq {
 	struct device          *dev; /* device for DMA mapping */
 
 	dma_addr_t             cqe_start_paddr;
+
+	struct dim             dim;
+
+	u8                     last_coalesc_timer_cfg;
+	u8                     last_pending_limit;
 } ____cacheline_aligned;
 
 struct hinic3_dyna_rxq_res {
