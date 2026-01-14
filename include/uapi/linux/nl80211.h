@@ -2973,6 +2973,9 @@ enum nl80211_commands {
  *	primary channel is 2 MHz wide, and the control channel designates
  *	the 1 MHz primary subchannel within that 2 MHz primary.
  *
+ * @NL80211_ATTR_EPP_PEER: A flag attribute to indicate if the peer is an EPP
+ *	STA. Used with %NL80211_CMD_NEW_STA and %NL80211_CMD_ADD_LINK_STA
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3540,6 +3543,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_NAN_CAPABILITIES,
 
 	NL80211_ATTR_S1G_PRIMARY_2MHZ,
+
+	NL80211_ATTR_EPP_PEER,
 
 	/* add attributes here, update the policy in nl80211.c */
 
