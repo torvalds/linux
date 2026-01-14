@@ -1,0 +1,157 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/phy-common-props.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common PHY and network PCS properties
+
+description:
+  Common PHY and network PCS properties, such as peak-to-peak transmit
+  amplitude.
+
+maintainers:
+  - Marek Behún <kabel@kernel.org>
+
+$defs:
+  protocol-names:
+    description:
+      Names of the PHY modes. If a value of 'default' is provided, the system
+      should use it for any PHY mode that is otherwise not defined here. If
+      'default' is not provided, the system should use manufacturer default value.
+    minItems: 1
+    maxItems: 16
+    uniqueItems: true
+    items:
+      enum:
+        - default
+
+        # ethernet modes
+        - sgmii
+        - qsgmii
+        - xgmii
+        - 1000base-x
+        - 2500base-x
+        - 5gbase-r
+        - rxaui
+        - xaui
+        - 10gbase-kr
+        - usxgmii
+        - 10gbase-r
+        - 25gbase-r
+
+        # PCIe modes
+        - pcie
+        - pcie1
+        - pcie2
+        - pcie3
+        - pcie4
+        - pcie5
+        - pcie6
+
+        # USB modes
+        - usb
+        - usb-ls
+        - usb-fs
+        - usb-hs
+        - usb-ss
+        - usb-ss+
+        - usb-4
+
+        # storage modes
+        - sata
+        - ufs-hs
+        - ufs-hs-a
+        - ufs-hs-b
+
+        # display modes
+        - lvds
+        - dp
+        - dp-rbr
+        - dp-hbr
+        - dp-hbr2
+        - dp-hbr3
+        - dp-uhbr-10
+        - dp-uhbr-13.5
+        - dp-uhbr-20
+
+        # camera modes
+        - mipi-dphy
+        - mipi-dphy-univ
+        - mipi-dphy-v2.5-univ
+
+properties:
+  tx-p2p-microvolt:
+    description:
+      Transmit amplitude voltages in microvolts, peak-to-peak. If this property
+      contains multiple values for various PHY modes, the
+      'tx-p2p-microvolt-names' property must be provided and contain
+      corresponding mode names.
+
+  tx-p2p-microvolt-names:
+    description:
+      Names of the modes corresponding to voltages in the 'tx-p2p-microvolt'
+      property. Required only if multiple voltages are provided.
+    $ref: "#/$defs/protocol-names"
+
+  rx-polarity:
+    description:
+      An array of values indicating whether the differential receiver's
+      polarity is inverted. Each value can be one of
+      PHY_POL_NORMAL (0) which means the negative signal is decoded from the
+      RXN input, and the positive signal from the RXP input;
+      PHY_POL_INVERT (1) which means the negative signal is decoded from the
+      RXP input, and the positive signal from the RXN input;
+      PHY_POL_AUTO (2) which means the receiver performs automatic polarity
+      detection and correction, which is a mandatory part of link training for
+      some protocols (PCIe, USB SS).
+
+      The values are defined in <dt-bindings/phy/phy.h>. If the property is
+      absent, the default value is undefined.
+
+      Note that the RXP and RXN inputs refer to the block that this property is
+      under, and do not necessarily directly translate to external pins.
+
+      If this property contains multiple values for various protocols, the
+      'rx-polarity-names' property must be provided.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 16
+    items:
+      enum: [0, 1, 2]
+
+  rx-polarity-names:
+    $ref: '#/$defs/protocol-names'
+
+  tx-polarity:
+    description:
+      Like 'rx-polarity', except it applies to differential transmitters,
+      and only the values of PHY_POL_NORMAL and PHY_POL_INVERT are possible.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 16
+    items:
+      enum: [0, 1]
+
+  tx-polarity-names:
+    $ref: '#/$defs/protocol-names'
+
+dependencies:
+  tx-p2p-microvolt-names: [ tx-p2p-microvolt ]
+  rx-polarity-names: [ rx-polarity ]
+  tx-polarity-names: [ tx-polarity ]
+
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/phy/phy.h>
+
+    phy: phy {
+      #phy-cells = <1>;
+      tx-p2p-microvolt = <915000>, <1100000>, <1200000>;
+      tx-p2p-microvolt-names = "2500base-x", "usb-hs", "usb-ss";
+      rx-polarity = <PHY_POL_AUTO>, <PHY_POL_NORMAL>;
+      rx-polarity-names = "usb-ss", "default";
+      tx-polarity = <PHY_POL_INVERT>;
+    };
