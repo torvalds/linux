@@ -1112,6 +1112,8 @@ static void rtw89_phy_set_txpwr_limit_ru_be(struct rtw89_dev *rtwdev,
 
 const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.cr_base = 0x20000,
+	.physt_bmp_start = R_PHY_STS_BITMAP_ADDR_START,
+	.physt_bmp_eht = R_PHY_STS_BITMAP_EHT,
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
@@ -1130,6 +1132,8 @@ EXPORT_SYMBOL(rtw89_phy_gen_be);
 
 const struct rtw89_phy_gen_def rtw89_phy_gen_be_v1 = {
 	.cr_base = 0x0,
+	.physt_bmp_start = R_PHY_STS_BITMAP_ADDR_START_BE4,
+	.physt_bmp_eht = R_PHY_STS_BITMAP_EHT_BE4,
 	.ccx = &rtw89_ccx_regs_be_v1,
 	.physts = &rtw89_physts_regs_be_v1,
 	.cfo = &rtw89_cfo_regs_be_v1,

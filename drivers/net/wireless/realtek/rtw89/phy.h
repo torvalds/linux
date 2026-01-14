@@ -531,6 +531,8 @@ struct rtw89_phy_rfk_log_fmt {
 
 struct rtw89_phy_gen_def {
 	u32 cr_base;
+	u32 physt_bmp_start;
+	u32 physt_bmp_eht;
 	const struct rtw89_ccx_regs *ccx;
 	const struct rtw89_physts_regs *physts;
 	const struct rtw89_cfo_regs *cfo;
