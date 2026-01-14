@@ -15,7 +15,7 @@ use core::mem::MaybeUninit;
 /// # Safety
 ///
 /// Implementers must ensure that `Self` is layout-compatible with [`RawDeviceId::RawType`];
-/// i.e. it's safe to transmute to `RawDeviceId`.
+/// i.e. it's safe to transmute to `RawType`.
 ///
 /// This requirement is needed so `IdArray::new` can convert `Self` to `RawType` when building
 /// the ID table.

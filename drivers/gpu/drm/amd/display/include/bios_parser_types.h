@@ -136,7 +136,7 @@ struct bp_crtc_source_select {
 	enum engine_id engine_id;
 	enum controller_id controller_id;
 	enum signal_type sink_signal;
-	uint8_t bit_depth;
+	enum dc_color_depth color_depth;
 };
 
 struct bp_transmitter_control {

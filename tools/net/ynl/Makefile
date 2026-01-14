@@ -51,7 +51,6 @@ install: libynl.a lib/*.h
 	@echo -e "\tINSTALL pyynl"
 	@pip install --prefix=$(DESTDIR)$(prefix) .
 	@make -C generated install
-	@make -C tests install
 
 run_tests:
 	@$(MAKE) -C tests run_tests
