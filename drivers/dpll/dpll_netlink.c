@@ -128,18 +128,29 @@ dpll_msg_add_mode_supported(struct sk_buff *msg, struct dpll_device *dpll,
 			    struct netlink_ext_ack *extack)
 {
 	const struct dpll_device_ops *ops = dpll_device_ops(dpll);
+	DECLARE_BITMAP(modes, DPLL_MODE_MAX + 1) = { 0 };
 	enum dpll_mode mode;
 	int ret;
 
-	/* No mode change is supported now, so the only supported mode is the
-	 * one obtained by mode_get().
-	 */
+	if (ops->supported_modes_get) {
+		ret = ops->supported_modes_get(dpll, dpll_priv(dpll), modes,
+					       extack);
+		if (ret)
+			return ret;
+	} else {
+		/* If the supported modes are not reported by the driver, the
+		 * only supported mode is the one obtained by mode_get().
+		 */
+		ret = ops->mode_get(dpll, dpll_priv(dpll), &mode, extack);
+		if (ret)
+			return ret;
 
-	ret = ops->mode_get(dpll, dpll_priv(dpll), &mode, extack);
-	if (ret)
-		return ret;
-	if (nla_put_u32(msg, DPLL_A_MODE_SUPPORTED, mode))
-		return -EMSGSIZE;
+		__set_bit(mode, modes);
+	}
+
+	for_each_set_bit(mode, modes, DPLL_MODE_MAX + 1)
+		if (nla_put_u32(msg, DPLL_A_MODE_SUPPORTED, mode))
+			return -EMSGSIZE;
 
 	return 0;
 }
