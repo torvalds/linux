@@ -3272,7 +3272,7 @@ static int queue_iso_transmit(struct iso_context *ctx,
 			min(next_page_index, payload_end_index) - payload_index;
 		pd[i].req_count    = cpu_to_le16(length);
 
-		dma_addr_t dma_addr = buffer->dma_addrs[i];
+		dma_addr_t dma_addr = buffer->dma_addrs[page];
 		pd[i].data_address = cpu_to_le32(dma_addr + offset);
 
 		dma_sync_single_range_for_device(ctx->context.ohci->card.device,
