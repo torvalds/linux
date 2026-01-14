@@ -58,6 +58,14 @@
 	};
 };
 
+&display_subsystem {
+	status = "okay";
+};
+
+&hdmi {
+	status = "okay";
+};
+
 &i2c_lvds_blc {
 	eeprom: eeprom@50 {
 		compatible = "atmel,24c01";
@@ -99,6 +107,14 @@
 &uart1 {
 	/* alternate function of GPIO5/6 */
 	status = "disabled";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
 };
 
 &pinctrl {

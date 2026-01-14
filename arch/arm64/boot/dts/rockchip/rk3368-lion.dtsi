@@ -164,6 +164,11 @@
 	status = "okay";
 };
 
+&hdmi {
+	avdd-0v9-supply = <&vdd10_video>;
+	avdd-1v8-supply = <&vcc18_video>;
+};
+
 &i2c0 {
 	status = "okay";
 
