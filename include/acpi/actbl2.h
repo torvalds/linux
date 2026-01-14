@@ -2953,6 +2953,15 @@ struct acpi_pptt_cache {
 /* 1: Cache Type Structure for PPTT version 3 */
 
 struct acpi_pptt_cache_v1 {
+	struct acpi_subtable_header header;
+	u16 reserved;
+	u32 flags;
+	u32 next_level_of_cache;
+	u32 size;
+	u32 number_of_sets;
+	u8 associativity;
+	u8 attributes;
+	u16 line_size;
 	u32 cache_id;
 };
 
