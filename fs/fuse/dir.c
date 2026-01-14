@@ -187,8 +187,8 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 			node = rb_first(&dentry_hash[i].tree);
 		}
 		spin_unlock(&dentry_hash[i].lock);
-		shrink_dentry_list(&dispose);
 	}
+	shrink_dentry_list(&dispose);
 
 	if (inval_wq)
 		schedule_delayed_work(&dentry_tree_work,
