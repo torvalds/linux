@@ -26,7 +26,7 @@ enum pci_ide_partner_select {
 /**
  * struct pci_ide_partner - Per port pair Selective IDE Stream settings
  * @rid_start: Partner Port Requester ID range start
- * @rid_end: Partner Port Requester ID range end
+ * @rid_end: Partner Port Requester ID range end (inclusive)
  * @stream_index: Selective IDE Stream Register Block selection
  * @mem_assoc: PCI bus memory address association for targeting peer partner
  * @pref_assoc: PCI bus prefetchable memory address association for
