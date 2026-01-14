@@ -53,10 +53,12 @@ void ena_devlink_disable_phc_param(struct devlink *devlink)
 {
 	union devlink_param_value value;
 
+	devl_lock(devlink);
 	value.vbool = false;
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
 					value);
+	devl_unlock(devlink);
 }
 
 static void ena_devlink_port_register(struct devlink *devlink)
@@ -145,10 +147,12 @@ static int ena_devlink_configure_params(struct devlink *devlink)
 		return rc;
 	}
 
+	devl_lock(devlink);
 	value.vbool = ena_phc_is_enabled(adapter);
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_ENABLE_PHC,
 					value);
+	devl_unlock(devlink);
 
 	return 0;
 }
