@@ -35,6 +35,12 @@ int __c_kernel_clock_getres(clockid_t clock_id, struct old_timespec32 *res,
 {
 	return __cvdso_clock_getres_time32_data(vd, clock_id, res);
 }
+
+int __c_kernel_clock_getres_time64(clockid_t clock_id, struct __kernel_timespec *res,
+				   const struct vdso_time_data *vd)
+{
+	return __cvdso_clock_getres_data(vd, clock_id, res);
+}
 #endif
 
 int __c_kernel_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz,

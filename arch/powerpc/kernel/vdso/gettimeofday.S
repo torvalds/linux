@@ -103,6 +103,18 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 	cvdso_call __c_kernel_clock_getres
 V_FUNCTION_END(__kernel_clock_getres)
 
+/*
+ * Exact prototype of clock_getres_time64()
+ *
+ * int __kernel_clock_getres(clockid_t clock_id, struct __timespec64 *res);
+ *
+ */
+#ifndef __powerpc64__
+V_FUNCTION_BEGIN(__kernel_clock_getres_time64)
+	cvdso_call __c_kernel_clock_getres_time64
+V_FUNCTION_END(__kernel_clock_getres_time64)
+#endif
+
 
 /*
  * Exact prototype of time()
