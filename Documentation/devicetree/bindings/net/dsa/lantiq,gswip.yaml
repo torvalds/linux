@@ -106,6 +106,28 @@ patternProperties:
         unevaluatedProperties: false
 
         properties:
+          maxlinear,slew-rate-txc:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1]
+            description: |
+              RMII/RGMII TX Clock Slew Rate:
+
+                0: Normal
+                1: Slow
+
+              If not present, the configuration made by the switch bootloader is
+              preserved.
+          maxlinear,slew-rate-txd:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            enum: [0, 1]
+            description: |
+              RMII/RGMII TX Non-Clock PAD Slew Rate:
+
+                0: Normal
+                1: Slow
+
+              If not present, the configuration made by the switch bootloader is
+              preserved.
           maxlinear,rmii-refclk-out:
             type: boolean
             description:
