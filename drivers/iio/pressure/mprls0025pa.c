@@ -238,7 +238,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 					ret);
 				return ret;
 			}
-			if (!(data->buffer[0] & MPR_ST_ERR_FLAG))
+			if (!(data->rx_buf[0] & MPR_ST_ERR_FLAG))
 				break;
 		}
 		if (i == nloops) {
@@ -251,15 +251,15 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 	if (ret < 0)
 		return ret;
 
-	if (data->buffer[0] & MPR_ST_ERR_FLAG) {
+	if (data->rx_buf[0] & MPR_ST_ERR_FLAG) {
 		dev_err(data->dev,
-			"unexpected status byte %02x\n", data->buffer[0]);
+			"unexpected status byte %02x\n", data->rx_buf[0]);
 		return -ETIMEDOUT;
 	}
 
-	*press = get_unaligned_be24(&data->buffer[1]);
+	*press = get_unaligned_be24(&data->rx_buf[1]);
 
-	dev_dbg(dev, "received: %*ph cnt: %d\n", ret, data->buffer, *press);
+	dev_dbg(dev, "received: %*ph cnt: %d\n", ret, data->rx_buf, *press);
 
 	return 0;
 }

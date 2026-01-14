@@ -56,7 +56,7 @@ static int mpr_spi_xfer(struct mpr_data *data, const u8 cmd, const u8 pkt_len)
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	xfers[1].tx_buf = buf->tx;
-	xfers[1].rx_buf = data->buffer;
+	xfers[1].rx_buf = data->rx_buf;
 	xfers[1].len = pkt_len;
 
 	return spi_sync_transfer(spi, xfers, ARRAY_SIZE(xfers));
