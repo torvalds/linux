@@ -545,6 +545,8 @@ struct mlx5e_icosq {
 	u32                        sqn;
 	u16                        reserved_room;
 	unsigned long              state;
+	/* icosq can be accessed from any CPU - the spinlock protects it. */
+	spinlock_t                 lock;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 
 	/* control path */
@@ -777,8 +779,6 @@ struct mlx5e_channel {
 
 	/* Async ICOSQ */
 	struct mlx5e_icosq         async_icosq;
-	/* async_icosq can be accessed from any CPU - the spinlock protects it. */
-	spinlock_t                 async_icosq_lock;
 
 	/* data path - accessed per napi poll */
 	const struct cpumask	  *aff_mask;

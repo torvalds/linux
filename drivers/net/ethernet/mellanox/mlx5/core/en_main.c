@@ -2075,6 +2075,8 @@ static int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params
 	if (err)
 		goto err_free_icosq;
 
+	spin_lock_init(&sq->lock);
+
 	if (param->is_tls) {
 		sq->ktls_resync = mlx5e_ktls_rx_resync_create_resp_list();
 		if (IS_ERR(sq->ktls_resync)) {
@@ -2630,8 +2632,6 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_rx_cq;
 
-	spin_lock_init(&c->async_icosq_lock);
-
 	err = mlx5e_open_icosq(c, params, &cparam->async_icosq, &c->async_icosq,
 			       mlx5e_async_icosq_err_cqe_work);
 	if (err)
@@ -2750,9 +2750,11 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 
 void mlx5e_trigger_napi_icosq(struct mlx5e_channel *c)
 {
-	spin_lock_bh(&c->async_icosq_lock);
-	mlx5e_trigger_irq(&c->async_icosq);
-	spin_unlock_bh(&c->async_icosq_lock);
+	struct mlx5e_icosq *async_icosq = &c->async_icosq;
+
+	spin_lock_bh(&async_icosq->lock);
+	mlx5e_trigger_irq(async_icosq);
+	spin_unlock_bh(&async_icosq->lock);
 }
 
 void mlx5e_trigger_napi_sched(struct napi_struct *napi)
