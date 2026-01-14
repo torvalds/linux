@@ -165,7 +165,7 @@ TEST_F(vfio_dma_mapping_test, dma_map_unmap)
 	 * IOMMUFD compatibility-mode does not support huge mappings when
 	 * using VFIO_TYPE1_IOMMU.
 	 */
-	if (!strcmp(variant->iommu_mode, "iommufd_compat_type1"))
+	if (!strcmp(variant->iommu_mode, MODE_IOMMUFD_COMPAT_TYPE1))
 		mapping_size = SZ_4K;
 
 	ASSERT_EQ(0, rc);

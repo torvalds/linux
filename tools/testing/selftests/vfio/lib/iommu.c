@@ -20,32 +20,32 @@
 #include "../../../kselftest.h"
 #include <libvfio.h>
 
-const char *default_iommu_mode = "iommufd";
+const char *default_iommu_mode = MODE_IOMMUFD;
 
 /* Reminder: Keep in sync with FIXTURE_VARIANT_ADD_ALL_IOMMU_MODES(). */
 static const struct iommu_mode iommu_modes[] = {
 	{
-		.name = "vfio_type1_iommu",
+		.name = MODE_VFIO_TYPE1_IOMMU,
 		.container_path = "/dev/vfio/vfio",
 		.iommu_type = VFIO_TYPE1_IOMMU,
 	},
 	{
-		.name = "vfio_type1v2_iommu",
+		.name = MODE_VFIO_TYPE1V2_IOMMU,
 		.container_path = "/dev/vfio/vfio",
 		.iommu_type = VFIO_TYPE1v2_IOMMU,
 	},
 	{
-		.name = "iommufd_compat_type1",
+		.name = MODE_IOMMUFD_COMPAT_TYPE1,
 		.container_path = "/dev/iommu",
 		.iommu_type = VFIO_TYPE1_IOMMU,
 	},
 	{
-		.name = "iommufd_compat_type1v2",
+		.name = MODE_IOMMUFD_COMPAT_TYPE1V2,
 		.container_path = "/dev/iommu",
 		.iommu_type = VFIO_TYPE1v2_IOMMU,
 	},
 	{
-		.name = "iommufd",
+		.name = MODE_IOMMUFD,
 	},
 };
 
