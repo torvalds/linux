@@ -19,7 +19,8 @@ static void hinic3_net_dim(struct hinic3_nic_dev *nic_dev,
 	struct hinic3_rxq *rxq = irq_cfg->rxq;
 	struct dim_sample sample = {};
 
-	if (!nic_dev->adaptive_rx_coal)
+	if (!test_bit(HINIC3_INTF_UP, &nic_dev->flags) ||
+	    !nic_dev->adaptive_rx_coal)
 		return;
 
 	dim_update_sample(irq_cfg->total_events, rxq->rxq_stats.packets,
