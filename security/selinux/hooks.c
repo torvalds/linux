@@ -7260,7 +7260,7 @@ static int selinux_bpf_token_capable(const struct bpf_token *token, int cap)
 		sclass = initns ? SECCLASS_CAPABILITY : SECCLASS_CAP_USERNS;
 		break;
 	case 1:
-		sclass = initns ? SECCLASS_CAPABILITY : SECCLASS_CAP2_USERNS;
+		sclass = initns ? SECCLASS_CAPABILITY2 : SECCLASS_CAP2_USERNS;
 		break;
 	default:
 		pr_err("SELinux:  out of range capability %d\n", cap);
