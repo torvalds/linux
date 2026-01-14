@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  kernel/cpuset.c
  *
@@ -16,10 +17,6 @@
  *  2006 Rework by Paul Menage to use generic cgroups
  *  2008 Rework of the scheduler domains and CPU hotplug handling
  *       by Max Krasnyansky
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  */
 #include "cpuset-internal.h"
 
