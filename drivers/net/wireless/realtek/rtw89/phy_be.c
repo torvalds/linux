@@ -443,14 +443,23 @@ void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
 static void rtw89_phy_bb_wrap_tpu_set_all(struct rtw89_dev *rtwdev,
 					  enum rtw89_mac_idx mac_idx)
 {
-	u32 addr;
+	u32 addr, t;
 
-	for (addr = R_BE_PWR_BY_RATE; addr <= R_BE_PWR_BY_RATE_END; addr += 4)
-		rtw89_write32(rtwdev, addr, 0);
-	for (addr = R_BE_PWR_RULMT_START; addr <= R_BE_PWR_RULMT_END; addr += 4)
-		rtw89_write32(rtwdev, addr, 0);
-	for (addr = R_BE_PWR_RATE_OFST_CTRL; addr <= R_BE_PWR_RATE_OFST_END; addr += 4)
-		rtw89_write32(rtwdev, addr, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FTM_SS, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_BY_RATE_DBW_ON, 0x3);
+
+	for (addr = R_BE_PWR_BY_RATE; addr <= R_BE_PWR_BY_RATE_END; addr += 4) {
+		t = rtw89_mac_reg_by_idx(rtwdev, addr, mac_idx);
+		rtw89_write32(rtwdev, t, 0);
+	}
+	for (addr = R_BE_PWR_RULMT_START; addr <= R_BE_PWR_RULMT_END; addr += 4) {
+		t = rtw89_mac_reg_by_idx(rtwdev, addr, mac_idx);
+		rtw89_write32(rtwdev, t, 0);
+	}
+	for (addr = R_BE_PWR_RATE_OFST_CTRL; addr <= R_BE_PWR_RATE_OFST_END; addr += 4) {
+		t = rtw89_mac_reg_by_idx(rtwdev, addr, mac_idx);
+		rtw89_write32(rtwdev, t, 0);
+	}
 
 	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_REF_CTRL, mac_idx);
 	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_LMT_DB, 0);
