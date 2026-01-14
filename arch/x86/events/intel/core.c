@@ -3128,6 +3128,8 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 		bits |= INTEL_FIXED_0_USER;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
 		bits |= INTEL_FIXED_0_KERNEL;
+	if (hwc->config & ARCH_PERFMON_EVENTSEL_RDPMC_USER_DISABLE)
+		bits |= INTEL_FIXED_0_RDPMC_USER_DISABLE;
 
 	/*
 	 * ANY bit is supported in v3 and up
@@ -3263,6 +3265,27 @@ static void intel_pmu_enable_event_ext(struct perf_event *event)
 		__intel_pmu_update_event_ext(hwc->idx, ext);
 }
 
+static void intel_pmu_update_rdpmc_user_disable(struct perf_event *event)
+{
+	if (!x86_pmu_has_rdpmc_user_disable(event->pmu))
+		return;
+
+	/*
+	 * Counter scope's user-space rdpmc is disabled by default
+	 * except two cases.
+	 * a. rdpmc = 2 (user space rdpmc enabled unconditionally)
+	 * b. rdpmc = 1 and the event is not a system-wide event.
+	 *    The count of non-system-wide events would be cleared when
+	 *    context switches, so no count data is leaked.
+	 */
+	if (x86_pmu.attr_rdpmc == X86_USER_RDPMC_ALWAYS_ENABLE ||
+	    (x86_pmu.attr_rdpmc == X86_USER_RDPMC_CONDITIONAL_ENABLE &&
+	     event->ctx->task))
+		event->hw.config &= ~ARCH_PERFMON_EVENTSEL_RDPMC_USER_DISABLE;
+	else
+		event->hw.config |= ARCH_PERFMON_EVENTSEL_RDPMC_USER_DISABLE;
+}
+
 DEFINE_STATIC_CALL_NULL(intel_pmu_enable_event_ext, intel_pmu_enable_event_ext);
 
 static void intel_pmu_enable_event(struct perf_event *event)
@@ -3270,6 +3293,8 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	u64 enable_mask = ARCH_PERFMON_EVENTSEL_ENABLE;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+
+	intel_pmu_update_rdpmc_user_disable(event);
 
 	if (unlikely(event->attr.precise_ip))
 		static_call(x86_pmu_pebs_enable)(event);
@@ -5869,6 +5894,8 @@ static void update_pmu_cap(struct pmu *pmu)
 		hybrid(pmu, config_mask) |= ARCH_PERFMON_EVENTSEL_UMASK2;
 	if (ebx_0.split.eq)
 		hybrid(pmu, config_mask) |= ARCH_PERFMON_EVENTSEL_EQ;
+	if (ebx_0.split.rdpmc_user_disable)
+		hybrid(pmu, config_mask) |= ARCH_PERFMON_EVENTSEL_RDPMC_USER_DISABLE;
 
 	if (eax_0.split.cntr_subleaf) {
 		cpuid_count(ARCH_PERFMON_EXT_LEAF, ARCH_PERFMON_NUM_COUNTER_LEAF,

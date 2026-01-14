@@ -2616,6 +2616,27 @@ static ssize_t get_attr_rdpmc(struct device *cdev,
 	return snprintf(buf, 40, "%d\n", x86_pmu.attr_rdpmc);
 }
 
+/*
+ * Behaviors of rdpmc value:
+ * - rdpmc = 0
+ *    global user space rdpmc and counter level's user space rdpmc of all
+ *    counters are both disabled.
+ * - rdpmc = 1
+ *    global user space rdpmc is enabled in mmap enabled time window and
+ *    counter level's user space rdpmc is enabled for only non system-wide
+ *    events. Counter level's user space rdpmc of system-wide events is
+ *    still disabled by default. This won't introduce counter data leak for
+ *    non system-wide events since their count data would be cleared when
+ *    context switches.
+ * - rdpmc = 2
+ *    global user space rdpmc and counter level's user space rdpmc of all
+ *    counters are enabled unconditionally.
+ *
+ * Suppose the rdpmc value won't be changed frequently, don't dynamically
+ * reschedule events to make the new rpdmc value take effect on active perf
+ * events immediately, the new rdpmc value would only impact the new
+ * activated perf events. This makes code simpler and cleaner.
+ */
 static ssize_t set_attr_rdpmc(struct device *cdev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
