@@ -2001,6 +2001,11 @@ struct acpi_tpr_instance {
 	struct acpi_tpr_array tpr_array[];
 };
 
+struct acpi_tpr_aux_sr {
+	u32 srl_cnt;
+	//ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[];
+};
+
 /*******************************************************************************
  * TPRn_BASE
  *
