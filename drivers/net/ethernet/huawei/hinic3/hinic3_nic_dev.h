@@ -7,6 +7,7 @@
 #include <linux/netdevice.h>
 
 #include "hinic3_hw_cfg.h"
+#include "hinic3_hwdev.h"
 #include "hinic3_mgmt_interface.h"
 
 enum hinic3_flags {
@@ -98,6 +99,7 @@ struct hinic3_nic_dev {
 };
 
 void hinic3_set_netdev_ops(struct net_device *netdev);
+int hinic3_set_hw_features(struct net_device *netdev);
 int hinic3_qps_irq_init(struct net_device *netdev);
 void hinic3_qps_irq_uninit(struct net_device *netdev);
 

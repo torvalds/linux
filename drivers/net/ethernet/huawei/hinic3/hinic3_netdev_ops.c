@@ -12,6 +12,9 @@
 #include "hinic3_rx.h"
 #include "hinic3_tx.h"
 
+#define HINIC3_LRO_DEFAULT_COAL_PKT_SIZE  32
+#define HINIC3_LRO_DEFAULT_TIME_LIMIT     16
+
 /* try to modify the number of irq to the target number,
  * and return the actual number of irq.
  */
@@ -476,6 +479,162 @@ static int hinic3_close(struct net_device *netdev)
 	return 0;
 }
 
+#define SET_FEATURES_OP_STR(op)  ((op) ? "Enable" : "Disable")
+
+static int hinic3_set_feature_rx_csum(struct net_device *netdev,
+				      netdev_features_t wanted_features,
+				      netdev_features_t features,
+				      netdev_features_t *failed_features)
+{
+	netdev_features_t changed = wanted_features ^ features;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+
+	if (changed & NETIF_F_RXCSUM)
+		dev_dbg(hwdev->dev, "%s rx csum success\n",
+			SET_FEATURES_OP_STR(wanted_features & NETIF_F_RXCSUM));
+
+	return 0;
+}
+
+static int hinic3_set_feature_tso(struct net_device *netdev,
+				  netdev_features_t wanted_features,
+				  netdev_features_t features,
+				  netdev_features_t *failed_features)
+{
+	netdev_features_t changed = wanted_features ^ features;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+
+	if (changed & NETIF_F_TSO)
+		dev_dbg(hwdev->dev, "%s tso success\n",
+			SET_FEATURES_OP_STR(wanted_features & NETIF_F_TSO));
+
+	return 0;
+}
+
+static int hinic3_set_feature_lro(struct net_device *netdev,
+				  netdev_features_t wanted_features,
+				  netdev_features_t features,
+				  netdev_features_t *failed_features)
+{
+	netdev_features_t changed = wanted_features ^ features;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+	bool en = !!(wanted_features & NETIF_F_LRO);
+	int err;
+
+	if (!(changed & NETIF_F_LRO))
+		return 0;
+
+	err = hinic3_set_rx_lro_state(hwdev, en,
+				      HINIC3_LRO_DEFAULT_TIME_LIMIT,
+				      HINIC3_LRO_DEFAULT_COAL_PKT_SIZE);
+	if (err) {
+		dev_err(hwdev->dev, "%s lro failed\n", SET_FEATURES_OP_STR(en));
+		*failed_features |= NETIF_F_LRO;
+	}
+
+	return err;
+}
+
+static int hinic3_set_feature_rx_cvlan(struct net_device *netdev,
+				       netdev_features_t wanted_features,
+				       netdev_features_t features,
+				       netdev_features_t *failed_features)
+{
+	bool en = !!(wanted_features & NETIF_F_HW_VLAN_CTAG_RX);
+	netdev_features_t changed = wanted_features ^ features;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+	int err;
+
+	if (!(changed & NETIF_F_HW_VLAN_CTAG_RX))
+		return 0;
+
+	err = hinic3_set_rx_vlan_offload(hwdev, en);
+	if (err) {
+		dev_err(hwdev->dev, "%s rx vlan offload failed\n",
+			SET_FEATURES_OP_STR(en));
+		*failed_features |= NETIF_F_HW_VLAN_CTAG_RX;
+	}
+
+	return err;
+}
+
+static int hinic3_set_feature_vlan_filter(struct net_device *netdev,
+					  netdev_features_t wanted_features,
+					  netdev_features_t features,
+					  netdev_features_t *failed_features)
+{
+	bool en = !!(wanted_features & NETIF_F_HW_VLAN_CTAG_FILTER);
+	netdev_features_t changed = wanted_features ^ features;
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+	int err;
+
+	if (!(changed & NETIF_F_HW_VLAN_CTAG_FILTER))
+		return 0;
+
+	err = hinic3_set_vlan_filter(hwdev, en);
+	if (err) {
+		dev_err(hwdev->dev, "%s rx vlan filter failed\n",
+			SET_FEATURES_OP_STR(en));
+		*failed_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+	}
+
+	return err;
+}
+
+static int hinic3_set_features(struct net_device *netdev,
+			       netdev_features_t curr,
+			       netdev_features_t wanted)
+{
+	netdev_features_t failed = 0;
+	int err;
+
+	err = hinic3_set_feature_rx_csum(netdev, wanted, curr, &failed) |
+	      hinic3_set_feature_tso(netdev, wanted, curr, &failed) |
+	      hinic3_set_feature_lro(netdev, wanted, curr, &failed) |
+	      hinic3_set_feature_rx_cvlan(netdev, wanted, curr, &failed) |
+	      hinic3_set_feature_vlan_filter(netdev, wanted, curr, &failed);
+	if (err) {
+		netdev->features = wanted ^ failed;
+		return err;
+	}
+
+	return 0;
+}
+
+static int hinic3_ndo_set_features(struct net_device *netdev,
+				   netdev_features_t features)
+{
+	return hinic3_set_features(netdev, netdev->features, features);
+}
+
+static netdev_features_t hinic3_fix_features(struct net_device *netdev,
+					     netdev_features_t features)
+{
+	netdev_features_t features_tmp = features;
+
+	/* If Rx checksum is disabled, then LRO should also be disabled */
+	if (!(features_tmp & NETIF_F_RXCSUM))
+		features_tmp &= ~NETIF_F_LRO;
+
+	return features_tmp;
+}
+
+int hinic3_set_hw_features(struct net_device *netdev)
+{
+	netdev_features_t wanted, curr;
+
+	wanted = netdev->features;
+	/* fake current features so all wanted are enabled */
+	curr = ~wanted;
+
+	return hinic3_set_features(netdev, curr, wanted);
+}
+
 static int hinic3_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	int err;
@@ -595,6 +754,8 @@ static void hinic3_get_stats64(struct net_device *netdev,
 static const struct net_device_ops hinic3_netdev_ops = {
 	.ndo_open             = hinic3_open,
 	.ndo_stop             = hinic3_close,
+	.ndo_set_features     = hinic3_ndo_set_features,
+	.ndo_fix_features     = hinic3_fix_features,
 	.ndo_change_mtu       = hinic3_change_mtu,
 	.ndo_set_mac_address  = hinic3_set_mac_addr,
 	.ndo_tx_timeout       = hinic3_tx_timeout,

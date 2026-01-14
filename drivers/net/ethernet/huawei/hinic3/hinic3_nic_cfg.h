@@ -57,6 +57,11 @@ bool hinic3_test_support(struct hinic3_nic_dev *nic_dev,
 			 enum hinic3_nic_feature_cap feature_bits);
 void hinic3_update_nic_feature(struct hinic3_nic_dev *nic_dev, u64 feature_cap);
 
+int hinic3_set_rx_lro_state(struct hinic3_hwdev *hwdev, u8 lro_en,
+			    u32 lro_timer, u8 lro_max_pkt_len);
+int hinic3_set_rx_vlan_offload(struct hinic3_hwdev *hwdev, u8 en);
+int hinic3_set_vlan_filter(struct hinic3_hwdev *hwdev, u32 vlan_filter_ctrl);
+
 int hinic3_init_function_table(struct hinic3_nic_dev *nic_dev);
 int hinic3_set_port_mtu(struct net_device *netdev, u16 new_mtu);
 
