@@ -202,7 +202,7 @@ static int post_rx_param_wqes(struct mlx5e_channel *c,
 	int err;
 
 	err = 0;
-	sq = &c->async_icosq;
+	sq = c->async_icosq;
 	spin_lock_bh(&sq->lock);
 
 	cseg = post_static_params(sq, priv_rx);
@@ -344,7 +344,7 @@ static void resync_handle_work(struct work_struct *work)
 	}
 
 	c = resync->priv->channels.c[priv_rx->rxq];
-	sq = &c->async_icosq;
+	sq = c->async_icosq;
 
 	if (resync_post_get_progress_params(sq, priv_rx)) {
 		priv_rx->rq_stats->tls_resync_req_skip++;
@@ -371,7 +371,7 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 	struct mlx5e_icosq *sq;
 	bool trigger_poll;
 
-	sq = &c->async_icosq;
+	sq = c->async_icosq;
 	ktls_resync = sq->ktls_resync;
 	trigger_poll = false;
 
@@ -753,7 +753,7 @@ bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
 	LIST_HEAD(local_list);
 	int i, j;
 
-	sq = &c->async_icosq;
+	sq = c->async_icosq;
 
 	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &sq->state)))
 		return false;

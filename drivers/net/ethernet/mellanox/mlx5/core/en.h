@@ -782,7 +782,7 @@ struct mlx5e_channel {
 	struct mlx5e_xdpsq         xsksq;
 
 	/* Async ICOSQ */
-	struct mlx5e_icosq         async_icosq;
+	struct mlx5e_icosq        *async_icosq;
 
 	/* data path - accessed per napi poll */
 	const struct cpumask	  *aff_mask;
