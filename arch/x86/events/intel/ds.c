@@ -1293,6 +1293,17 @@ struct event_constraint intel_grt_pebs_event_constraints[] = {
 	EVENT_CONSTRAINT_END
 };
 
+struct event_constraint intel_arw_pebs_event_constraints[] = {
+	/* Allow all events as PEBS with no flags */
+	INTEL_HYBRID_LAT_CONSTRAINT(0x5d0, 0xff),
+	INTEL_HYBRID_LAT_CONSTRAINT(0x6d0, 0xff),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x01d4, 0x1),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x02d4, 0x2),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x04d4, 0x4),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x08d4, 0x8),
+	EVENT_CONSTRAINT_END
+};
+
 struct event_constraint intel_nehalem_pebs_event_constraints[] = {
 	INTEL_PLD_CONSTRAINT(0x100b, 0xf),      /* MEM_INST_RETIRED.* */
 	INTEL_FLAGS_EVENT_CONSTRAINT(0x0f, 0xf),    /* MEM_UNCORE_RETIRED.* */
