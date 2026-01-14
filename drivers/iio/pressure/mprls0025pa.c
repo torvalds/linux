@@ -198,9 +198,10 @@ static void mpr_reset(struct mpr_data *data)
  *
  * Context: The function can sleep and data->lock should be held when calling it
  * Return:
- * * 0		- OK, the pressure value could be read
- * * -ETIMEDOUT	- Timeout while waiting for the EOC interrupt or busy flag is
- *		  still set after nloops attempts of reading
+ * * 0          - OK, the pressure value could be read
+ * * -EBUSY     - Sensor does not have a new conversion ready
+ * * -ETIMEDOUT - Timeout while waiting for the EOC interrupt
+ * * -EIO       - Invalid status byte received from sensor
  */
 static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 {
@@ -253,10 +254,25 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 	if (ret < 0)
 		return ret;
 
-	if (data->rx_buf[0] & MPR_ST_ERR_FLAG) {
+	/*
+	 * Status byte flags
+	 *  bit7 SANITY_CHK   - must always be 0
+	 *  bit6 MPR_ST_POWER - 1 if device is powered
+	 *  bit5 MPR_ST_BUSY  - 1 if device has no new conversion ready
+	 *  bit4 SANITY_CHK   - must always be 0
+	 *  bit3 SANITY_CHK   - must always be 0
+	 *  bit2 MEMORY_ERR   - 1 if integrity test has failed
+	 *  bit1 SANITY_CHK   - must always be 0
+	 *  bit0 MATH_ERR     - 1 during internal math saturation error
+	 */
+
+	if (data->rx_buf[0] == (MPR_ST_POWER | MPR_ST_BUSY))
+		return -EBUSY;
+
+	if (data->rx_buf[0] != MPR_ST_POWER) {
 		dev_err(data->dev,
-			"unexpected status byte %02x\n", data->rx_buf[0]);
-		return -ETIMEDOUT;
+			"unexpected status byte 0x%02x\n", data->rx_buf[0]);
+		return -EIO;
 	}
 
 	*press = get_unaligned_be24(&data->rx_buf[1]);
