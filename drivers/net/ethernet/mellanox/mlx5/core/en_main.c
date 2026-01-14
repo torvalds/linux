@@ -2750,11 +2750,16 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 
 void mlx5e_trigger_napi_icosq(struct mlx5e_channel *c)
 {
-	struct mlx5e_icosq *async_icosq = &c->async_icosq;
+	bool locked;
 
-	spin_lock_bh(&async_icosq->lock);
-	mlx5e_trigger_irq(async_icosq);
-	spin_unlock_bh(&async_icosq->lock);
+	if (!test_and_set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state))
+		synchronize_net();
+
+	locked = mlx5e_icosq_sync_lock(&c->icosq);
+	mlx5e_trigger_irq(&c->icosq);
+	mlx5e_icosq_sync_unlock(&c->icosq, locked);
+
+	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state);
 }
 
 void mlx5e_trigger_napi_sched(struct napi_struct *napi)

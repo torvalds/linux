@@ -388,6 +388,7 @@ enum {
 	MLX5E_SQ_STATE_DIM,
 	MLX5E_SQ_STATE_PENDING_XSK_TX,
 	MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
+	MLX5E_SQ_STATE_LOCK_NEEDED,
 	MLX5E_NUM_SQ_STATES, /* Must be kept last */
 };
 
@@ -545,7 +546,10 @@ struct mlx5e_icosq {
 	u32                        sqn;
 	u16                        reserved_room;
 	unsigned long              state;
-	/* icosq can be accessed from any CPU - the spinlock protects it. */
+	/* icosq can be accessed from any CPU and from different contexts
+	 * (NAPI softirq or process/workqueue). Always use spin_lock_bh for
+	 * simplicity and correctness across all contexts.
+	 */
 	spinlock_t                 lock;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 
@@ -800,6 +804,21 @@ struct mlx5e_channel {
 	struct dim_cq_moder        rx_cq_moder;
 	struct dim_cq_moder        tx_cq_moder;
 };
+
+static inline bool mlx5e_icosq_sync_lock(struct mlx5e_icosq *sq)
+{
+	if (likely(!test_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &sq->state)))
+		return false;
+
+	spin_lock_bh(&sq->lock);
+	return true;
+}
+
+static inline void mlx5e_icosq_sync_unlock(struct mlx5e_icosq *sq, bool locked)
+{
+	if (unlikely(locked))
+		spin_unlock_bh(&sq->lock);
+}
 
 struct mlx5e_ptp;
 
