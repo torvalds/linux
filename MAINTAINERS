@@ -14880,6 +14880,7 @@ LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Sathya Prakash <sathya.prakash@broadcom.com>
 M:	Sreekanth Reddy <sreekanth.reddy@broadcom.com>
 M:	Suganath Prabu Subramani <suganath-prabu.subramani@broadcom.com>
+M:	Ranjan Kumar <ranjan.kumar@broadcom.com>
 L:	MPT-FusionLinux.pdl@broadcom.com
 L:	linux-scsi@vger.kernel.org
 S:	Supported
