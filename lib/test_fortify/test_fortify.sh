@@ -17,7 +17,7 @@ WANT="__${FILE%%-*}"
 # Argument 2: Where to write the build log.
 OUT="$1"
 shift
-TMP="${OUT}.tmp"
+TMP="${OUT%/*}/.${OUT##*/}.tmp"
 
 # Argument 3: Path to "nm" tool.
 NM="$1"
