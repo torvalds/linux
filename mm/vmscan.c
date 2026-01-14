@@ -1046,12 +1046,11 @@ static unsigned int demote_folio_list(struct list_head *demote_folios,
 	if (nodes_empty(allowed_mask))
 		return 0;
 
-	target_nid = next_demotion_node(pgdat->node_id);
+	target_nid = next_demotion_node(pgdat->node_id, &allowed_mask);
 	if (target_nid == NUMA_NO_NODE)
 		/* No lower-tier nodes or nodes were hot-unplugged. */
 		return 0;
-	if (!node_isset(target_nid, allowed_mask))
-		target_nid = node_random(&allowed_mask);
+
 	mtc.nid = target_nid;
 
 	/* Demotion ignores all cpuset and mempolicy settings */
