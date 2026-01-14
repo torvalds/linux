@@ -2003,7 +2003,9 @@ struct acpi_tpr_instance {
 
 struct acpi_tpr_aux_sr {
 	u32 srl_cnt;
-	/* ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[]; */
+	/*
+	 * ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[];
+	 */
 };
 
 /*
@@ -2020,13 +2022,13 @@ struct acpi_tprn_base_reg {
 	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
 	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_base_rw:44;	/* Minimal TPRn_Base resolution is 1MB.
-				 *  Applied to the incoming address, to determine if
-				 *  an access fall within the TPRn defined region.
-				 *  Width is determined by a bus width which can be
-				 *  obtained via CPUID function 0x80000008.
+	u64 tpr_base_rw:44;	/*
+				 * Minimal TPRn_Base resolution is 1MB.
+				 * Applied to the incoming address, to determine if
+				 * an access fall within the TPRn defined region.
+				 * Width is determined by a bus width which can be
+				 * obtained via CPUID function 0x80000008.
 				 */
-	/* u64 unused : 1;   */
 };
 
 /*
@@ -2043,12 +2045,11 @@ struct acpi_tprn_limit_reg {
 	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
 	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_limit_rw:44;	/* Minimal TPRn_Limit resolution is 1MB.
-				 *  These bits define TPR limit address.
-				 *  Width is determined by a bus width.
+	u64 tpr_limit_rw:44;	/*
+				 * Minimal TPRn_Limit resolution is 1MB.
+				 * These bits define TPR limit address.
+				 * Width is determined by a bus width.
 				 */
-
-	/* u64 unused : 1; */
 };
 
 /*
@@ -2062,11 +2063,11 @@ struct acpi_tprn_limit_reg {
 struct acpi_tpr_serialize_request {
 	u64 sr_register;
 	/*
-	 *  BIT 1 - Status of serialization request (RO)
-	 *          0 == register idle, 1 == serialization in progress
-	 *  BIT 2 - Control field to initiate serialization (RW)
-	 *          0 == normal, 1 == initialize serialization
-	 *  (self-clear to allow multiple serialization requests)
+	 * BIT 1 - Status of serialization request (RO)
+	 *         0 == register idle, 1 == serialization in progress
+	 * BIT 2 - Control field to initiate serialization (RW)
+	 *         0 == normal, 1 == initialize serialization
+	 * (self-clear to allow multiple serialization requests)
 	 */
 };
 
