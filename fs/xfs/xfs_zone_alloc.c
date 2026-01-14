@@ -981,42 +981,42 @@ struct xfs_init_zones {
 	uint64_t		reclaimable;
 };
 
+/*
+ * For sequential write required zones, we restart writing at the hardware write
+ * pointer returned by xfs_zone_validate().
+ *
+ * For conventional zones or conventional devices we have to query the rmap to
+ * find the highest recorded block and set the write pointer to the block after
+ * that.  In case of a power loss this misses blocks where the data I/O has
+ * completed but not recorded in the rmap yet, and it also rewrites blocks if
+ * the most recently written ones got deleted again before unmount, but this is
+ * the best we can do without hardware support.
+ */
+static xfs_rgblock_t
+xfs_rmap_estimate_write_pointer(
+	struct xfs_rtgroup	*rtg)
+{
+	xfs_rgblock_t		highest_rgbno;
+
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	highest_rgbno = xfs_rtrmap_highest_rgbno(rtg);
+	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
+
+	if (highest_rgbno == NULLRGBLOCK)
+		return 0;
+	return highest_rgbno + 1;
+}
+
 static int
 xfs_init_zone(
 	struct xfs_init_zones	*iz,
 	struct xfs_rtgroup	*rtg,
-	struct blk_zone		*zone)
+	xfs_rgblock_t		write_pointer)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
-	xfs_rgblock_t		write_pointer, highest_rgbno;
 	int			error;
-
-	if (zone && !xfs_zone_validate(zone, rtg, &write_pointer))
-		return -EFSCORRUPTED;
-
-	/*
-	 * For sequential write required zones we retrieved the hardware write
-	 * pointer above.
-	 *
-	 * For conventional zones or conventional devices we don't have that
-	 * luxury.  Instead query the rmap to find the highest recorded block
-	 * and set the write pointer to the block after that.  In case of a
-	 * power loss this misses blocks where the data I/O has completed but
-	 * not recorded in the rmap yet, and it also rewrites blocks if the most
-	 * recently written ones got deleted again before unmount, but this is
-	 * the best we can do without hardware support.
-	 */
-	if (!zone || zone->cond == BLK_ZONE_COND_NOT_WP) {
-		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
-		highest_rgbno = xfs_rtrmap_highest_rgbno(rtg);
-		if (highest_rgbno == NULLRGBLOCK)
-			write_pointer = 0;
-		else
-			write_pointer = highest_rgbno + 1;
-		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
-	}
 
 	/*
 	 * If there are no used blocks, but the zone is not in empty state yet
@@ -1066,6 +1066,7 @@ xfs_get_zone_info_cb(
 	struct xfs_mount	*mp = iz->mp;
 	xfs_fsblock_t		zsbno = xfs_daddr_to_rtb(mp, zone->start);
 	xfs_rgnumber_t		rgno;
+	xfs_rgblock_t		write_pointer;
 	struct xfs_rtgroup	*rtg;
 	int			error;
 
@@ -1080,7 +1081,13 @@ xfs_get_zone_info_cb(
 		xfs_warn(mp, "realtime group not found for zone %u.", rgno);
 		return -EFSCORRUPTED;
 	}
-	error = xfs_init_zone(iz, rtg, zone);
+	if (!xfs_zone_validate(zone, rtg, &write_pointer)) {
+		xfs_rtgroup_rele(rtg);
+		return -EFSCORRUPTED;
+	}
+	if (zone->cond == BLK_ZONE_COND_NOT_WP)
+		write_pointer = xfs_rmap_estimate_write_pointer(rtg);
+	error = xfs_init_zone(iz, rtg, write_pointer);
 	xfs_rtgroup_rele(rtg);
 	return error;
 }
@@ -1290,7 +1297,8 @@ xfs_mount_zones(
 		struct xfs_rtgroup	*rtg = NULL;
 
 		while ((rtg = xfs_rtgroup_next(mp, rtg))) {
-			error = xfs_init_zone(&iz, rtg, NULL);
+			error = xfs_init_zone(&iz, rtg,
+					xfs_rmap_estimate_write_pointer(rtg));
 			if (error) {
 				xfs_rtgroup_rele(rtg);
 				goto out_free_zone_info;
