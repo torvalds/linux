@@ -5,14 +5,21 @@
 #include <linux/iopoll.h>
 
 #include "hinic3_hw_cfg.h"
+#include "hinic3_hw_comm.h"
 #include "hinic3_hwdev.h"
+#include "hinic3_hwif.h"
 #include "hinic3_lld.h"
 #include "hinic3_mgmt.h"
 #include "hinic3_pci_id_tbl.h"
 
 #define HINIC3_VF_PCI_CFG_REG_BAR  0
+#define HINIC3_PF_PCI_CFG_REG_BAR  1
 #define HINIC3_PCI_INTR_REG_BAR    2
+/* Only PF has mgmt bar */
+#define HINIC3_PCI_MGMT_REG_BAR    3
 #define HINIC3_PCI_DB_BAR          4
+
+#define HINIC3_IS_VF_DEV(pdev)     ((pdev)->device == PCI_DEV_ID_HINIC3_VF)
 
 #define HINIC3_EVENT_POLL_SLEEP_US   1000
 #define HINIC3_EVENT_POLL_TIMEOUT_US 10000000
@@ -181,8 +188,12 @@ void hinic3_adev_event_unregister(struct auxiliary_device *adev)
 static int hinic3_mapping_bar(struct pci_dev *pdev,
 			      struct hinic3_pcidev *pci_adapter)
 {
-	pci_adapter->cfg_reg_base = pci_ioremap_bar(pdev,
-						    HINIC3_VF_PCI_CFG_REG_BAR);
+	int cfg_bar;
+
+	cfg_bar = HINIC3_IS_VF_DEV(pdev) ?
+			HINIC3_VF_PCI_CFG_REG_BAR : HINIC3_PF_PCI_CFG_REG_BAR;
+
+	pci_adapter->cfg_reg_base = pci_ioremap_bar(pdev, cfg_bar);
 	if (!pci_adapter->cfg_reg_base) {
 		dev_err(&pdev->dev, "Failed to map configuration regs\n");
 		return -ENOMEM;
@@ -195,16 +206,28 @@ static int hinic3_mapping_bar(struct pci_dev *pdev,
 		goto err_unmap_cfg_reg_base;
 	}
 
+	if (!HINIC3_IS_VF_DEV(pdev)) {
+		pci_adapter->mgmt_reg_base =
+			pci_ioremap_bar(pdev, HINIC3_PCI_MGMT_REG_BAR);
+		if (!pci_adapter->mgmt_reg_base) {
+			dev_err(&pdev->dev, "Failed to map mgmt regs\n");
+			goto err_unmap_intr_reg_base;
+		}
+	}
+
 	pci_adapter->db_base_phy = pci_resource_start(pdev, HINIC3_PCI_DB_BAR);
 	pci_adapter->db_dwqe_len = pci_resource_len(pdev, HINIC3_PCI_DB_BAR);
 	pci_adapter->db_base = pci_ioremap_bar(pdev, HINIC3_PCI_DB_BAR);
 	if (!pci_adapter->db_base) {
 		dev_err(&pdev->dev, "Failed to map doorbell regs\n");
-		goto err_unmap_intr_reg_base;
+		goto err_unmap_mgmt_reg_base;
 	}
 
 	return 0;
 
+err_unmap_mgmt_reg_base:
+	if (!HINIC3_IS_VF_DEV(pdev))
+		iounmap(pci_adapter->mgmt_reg_base);
 err_unmap_intr_reg_base:
 	iounmap(pci_adapter->intr_reg_base);
 
@@ -217,6 +240,8 @@ err_unmap_cfg_reg_base:
 static void hinic3_unmapping_bar(struct hinic3_pcidev *pci_adapter)
 {
 	iounmap(pci_adapter->db_base);
+	if (!HINIC3_IS_VF_DEV(pci_adapter->pdev))
+		iounmap(pci_adapter->mgmt_reg_base);
 	iounmap(pci_adapter->intr_reg_base);
 	iounmap(pci_adapter->cfg_reg_base);
 }
@@ -295,6 +320,9 @@ static int hinic3_func_init(struct pci_dev *pdev,
 		return err;
 	}
 
+	if (HINIC3_IS_PF(pci_adapter->hwdev))
+		hinic3_sync_time_to_fw(pci_adapter->hwdev);
+
 	err = hinic3_attach_aux_devices(pci_adapter->hwdev);
 	if (err)
 		goto err_free_hwdev;
@@ -311,6 +339,8 @@ static void hinic3_func_uninit(struct pci_dev *pdev)
 {
 	struct hinic3_pcidev *pci_adapter = pci_get_drvdata(pdev);
 
+	/* disable mgmt reporting before flushing mgmt work-queue. */
+	hinic3_set_pf_status(pci_adapter->hwdev->hwif, HINIC3_PF_STATUS_INIT);
 	hinic3_flush_mgmt_workq(pci_adapter->hwdev);
 	hinic3_detach_aux_devices(pci_adapter->hwdev);
 	hinic3_free_hwdev(pci_adapter->hwdev);
@@ -319,6 +349,7 @@ static void hinic3_func_uninit(struct pci_dev *pdev)
 static int hinic3_probe_func(struct hinic3_pcidev *pci_adapter)
 {
 	struct pci_dev *pdev = pci_adapter->pdev;
+	struct comm_cmd_bdf_info bdf_info = {};
 	int err;
 
 	err = hinic3_mapping_bar(pdev, pci_adapter);
@@ -331,8 +362,24 @@ static int hinic3_probe_func(struct hinic3_pcidev *pci_adapter)
 	if (err)
 		goto err_unmap_bar;
 
+	if (HINIC3_IS_PF(pci_adapter->hwdev)) {
+		bdf_info.function_idx =
+			hinic3_global_func_id(pci_adapter->hwdev);
+		bdf_info.bus = pdev->bus->number;
+		bdf_info.device = PCI_SLOT(pdev->devfn);
+		bdf_info.function =  PCI_FUNC(pdev->devfn);
+
+		err = hinic3_set_bdf_ctxt(pci_adapter->hwdev, &bdf_info);
+		if (err) {
+			dev_err(&pdev->dev, "Failed to set BDF info to fw\n");
+			goto err_uninit_func;
+		}
+	}
+
 	return 0;
 
+err_uninit_func:
+	hinic3_func_uninit(pdev);
 err_unmap_bar:
 	hinic3_unmapping_bar(pci_adapter);
 

@@ -163,6 +163,7 @@ enum l2nic_cmd {
 	L2NIC_CMD_SET_SQ_CI_ATTR      = 8,
 	L2NIC_CMD_CLEAR_QP_RESOURCE   = 11,
 	L2NIC_CMD_FEATURE_NEGO        = 15,
+	L2NIC_CMD_GET_MAC             = 20,
 	L2NIC_CMD_SET_MAC             = 21,
 	L2NIC_CMD_DEL_MAC             = 22,
 	L2NIC_CMD_UPDATE_MAC          = 23,

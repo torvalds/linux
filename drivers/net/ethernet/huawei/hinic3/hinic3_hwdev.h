@@ -28,6 +28,7 @@ struct hinic3_pcidev {
 
 	void __iomem         *cfg_reg_base;
 	void __iomem         *intr_reg_base;
+	void __iomem         *mgmt_reg_base;
 	void __iomem         *db_base;
 	u64                  db_dwqe_len;
 	u64                  db_base_phy;
@@ -48,6 +49,7 @@ struct hinic3_hwdev {
 	struct hinic3_ceqs          *ceqs;
 	struct hinic3_mbox          *mbox;
 	struct hinic3_cmdqs         *cmdqs;
+	struct delayed_work         sync_time_task;
 	struct workqueue_struct     *workq;
 	/* protect channel init and uninit */
 	spinlock_t                  channel_lock;

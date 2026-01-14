@@ -16,6 +16,8 @@ struct hinic3_nic_dev;
 #define HINIC3_MAX_JUMBO_FRAME_SIZE  9600
 
 #define HINIC3_VLAN_ID_MASK          0x7FFF
+#define HINIC3_PF_SET_VF_ALREADY     0x4
+#define HINIC3_MGMT_STATUS_EXIST     0x6
 
 enum hinic3_nic_event_type {
 	HINIC3_NIC_EVENT_LINK_DOWN = 0,
@@ -41,6 +43,7 @@ void hinic3_update_nic_feature(struct hinic3_nic_dev *nic_dev, u64 feature_cap);
 int hinic3_init_function_table(struct hinic3_nic_dev *nic_dev);
 int hinic3_set_port_mtu(struct net_device *netdev, u16 new_mtu);
 
+int hinic3_get_default_mac(struct hinic3_hwdev *hwdev, u8 *mac_addr);
 int hinic3_set_mac(struct hinic3_hwdev *hwdev, const u8 *mac_addr, u16 vlan_id,
 		   u16 func_id);
 int hinic3_del_mac(struct hinic3_hwdev *hwdev, const u8 *mac_addr, u16 vlan_id,

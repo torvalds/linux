@@ -130,6 +130,7 @@ static int hinic3_sw_init(struct net_device *netdev)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic3_hwdev *hwdev = nic_dev->hwdev;
+	u8 mac_addr[ETH_ALEN];
 	int err;
 
 	nic_dev->q_params.sq_depth = HINIC3_SQ_DEPTH;
@@ -137,16 +138,29 @@ static int hinic3_sw_init(struct net_device *netdev)
 
 	hinic3_try_to_enable_rss(netdev);
 
-	/* VF driver always uses random MAC address. During VM migration to a
-	 * new device, the new device should learn the VMs old MAC rather than
-	 * provide its own MAC. The product design assumes that every VF is
-	 * suspectable to migration so the device avoids offering MAC address
-	 * to VFs.
-	 */
-	eth_hw_addr_random(netdev);
+	if (HINIC3_IS_VF(hwdev)) {
+		/* VF driver always uses random MAC address. During VM migration
+		 * to a new device, the new device should learn the VMs old MAC
+		 * rather than provide its own MAC. The product design assumes
+		 * that every VF is susceptible to migration so the device
+		 * avoids offering MAC address to VFs.
+		 */
+		eth_hw_addr_random(netdev);
+	} else {
+		err = hinic3_get_default_mac(hwdev, mac_addr);
+		if (err) {
+			dev_err(hwdev->dev, "Failed to get MAC address\n");
+			goto err_clear_rss_config;
+		}
+		eth_hw_addr_set(netdev, mac_addr);
+	}
+
 	err = hinic3_set_mac(hwdev, netdev->dev_addr, 0,
 			     hinic3_global_func_id(hwdev));
-	if (err) {
+	/* Failure to set MAC is not a fatal error for VF since its MAC may have
+	 * already been set by PF
+	 */
+	if (err && err != -EADDRINUSE) {
 		dev_err(hwdev->dev, "Failed to set default MAC\n");
 		goto err_clear_rss_config;
 	}
