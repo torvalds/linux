@@ -1033,6 +1033,13 @@ xfs_init_zone(
 		return -EFSCORRUPTED;
 	}
 
+	if (used > write_pointer) {
+		xfs_warn(mp,
+"zone %u has used counter (0x%x) larger than write pointer (0x%x).",
+			 rtg_rgno(rtg), used, write_pointer);
+		return -EFSCORRUPTED;
+	}
+
 	if (write_pointer == 0 && used != 0) {
 		xfs_warn(mp, "empty zone %u has non-zero used counter (0x%x).",
 			rtg_rgno(rtg), used);
