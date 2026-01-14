@@ -1998,14 +1998,10 @@ struct acpi_tpr_array {
 struct acpi_tpr_instance {
 	u32 flags;
 	u32 tpr_cnt;
-	struct acpi_tpr_array tpr_array[];
 };
 
 struct acpi_tpr_aux_sr {
 	u32 srl_cnt;
-	/*
-	 * ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[];
-	 */
 };
 
 /*
@@ -2022,13 +2018,14 @@ struct acpi_tprn_base_reg {
 	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
 	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_base_rw:44;	/*
-				 * Minimal TPRn_Base resolution is 1MB.
-				 * Applied to the incoming address, to determine if
-				 * an access fall within the TPRn defined region.
-				 * Width is determined by a bus width which can be
-				 * obtained via CPUID function 0x80000008.
-				 */
+	u64 tpr_base_rw:44;
+	/*
+	 * Minimal TPRn_Base resolution is 1MB.
+	 * Applied to the incoming address, to determine if
+	 * an access fall within the TPRn defined region.
+	 * Width is determined by a bus width which can be
+	 * obtained via CPUID function 0x80000008.
+	 */
 };
 
 /*
@@ -2045,11 +2042,12 @@ struct acpi_tprn_limit_reg {
 	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
 	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_limit_rw:44;	/*
-				 * Minimal TPRn_Limit resolution is 1MB.
-				 * These bits define TPR limit address.
-				 * Width is determined by a bus width.
-				 */
+	u64 tpr_limit_rw:44;
+	/*
+	 * Minimal TPRn_Limit resolution is 1MB.
+	 * These bits define TPR limit address.
+	 * Width is determined by a bus width.
+	 */
 };
 
 /*
