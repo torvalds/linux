@@ -92,7 +92,7 @@ static unsigned int exfat_cache_lookup(struct inode *inode,
 	spin_lock(&ei->cache_lru_lock);
 	list_for_each_entry(p, &ei->cache_lru, cache_list) {
 		/* Find the cache of "fclus" or nearest cache. */
-		if (p->fcluster <= fclus && hit->fcluster < p->fcluster) {
+		if (p->fcluster <= fclus && hit->fcluster <= p->fcluster) {
 			hit = p;
 			if (hit->fcluster + hit->nr_contig < fclus) {
 				offset = hit->nr_contig;
@@ -259,7 +259,7 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 	if (cluster == 0 || *dclus == EXFAT_EOF_CLUSTER)
 		return 0;
 
-	cache_init(&cid, EXFAT_EOF_CLUSTER, EXFAT_EOF_CLUSTER);
+	cache_init(&cid, fclus, *dclus);
 	exfat_cache_lookup(inode, cluster, &cid, &fclus, dclus);
 
 	if (fclus == cluster)
