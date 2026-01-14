@@ -455,7 +455,8 @@ void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
 	const struct rtw89_bb_wrap_regs *bb_wrap = phy->bb_wrap;
-	u32 macid_idx, cr, base_macid_lmt, max_macid = 32;
+	u32 max_macid = rtwdev->chip->support_macid_num;
+	u32 macid_idx, cr, base_macid_lmt;
 
 	base_macid_lmt = bb_wrap->pwr_macid_lmt;
 
@@ -470,8 +471,9 @@ void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
 	const struct rtw89_bb_wrap_regs *bb_wrap = phy->bb_wrap;
+	u32 max_macid = rtwdev->chip->support_macid_num;
 	u32 cr = bb_wrap->pwr_macid_path;
-	int i, max_macid = 32;
+	int i;
 
 	for (i = 0; i < max_macid; i++, cr += 4)
 		rtw89_write_bb_wrap_flush(rtwdev, cr, 0);
