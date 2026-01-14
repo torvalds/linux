@@ -11,6 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 #include "aw88261.h"
 #include "aw88395/aw88395_data_type.h"
@@ -1189,6 +1190,10 @@ static int aw88261_init(struct aw88261 *aw88261, struct i2c_client *i2c, struct 
 	struct aw_device *aw_dev;
 	unsigned int chip_id;
 	int ret;
+
+	ret = devm_regulator_get_enable(&i2c->dev, "dvdd");
+	if (ret)
+		return dev_err_probe(&i2c->dev, ret, "Failed to enable dvdd supply\n");
 
 	/* read chip id */
 	ret = regmap_read(regmap, AW88261_ID_REG, &chip_id);
