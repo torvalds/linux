@@ -738,7 +738,8 @@ struct aer_err_info {
 	unsigned int multi_error_valid:1;
 
 	unsigned int first_error:5;
-	unsigned int __pad2:2;
+	unsigned int __pad2:1;
+	unsigned int is_cxl:1;
 	unsigned int tlp_header_valid:1;
 
 	unsigned int status;		/* COR/UNCOR Error Status */
@@ -748,6 +749,11 @@ struct aer_err_info {
 
 int aer_get_device_error_info(struct aer_err_info *info, int i);
 void aer_print_error(struct aer_err_info *info, int i);
+
+static inline const char *aer_err_bus(struct aer_err_info *info)
+{
+	return info->is_cxl ? "CXL" : "PCIe";
+}
 
 int pcie_read_tlp_log(struct pci_dev *dev, int where, int where2,
 		      unsigned int tlp_len, bool flit,
