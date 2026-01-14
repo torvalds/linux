@@ -44,14 +44,6 @@ properties:
       - realtek,rt5640
       - realtek,rt5639
 
-  clocks:
-    items:
-      - description: phandle and clock specifier for codec MCLK.
-
-  clock-names:
-    items:
-      - const: mclk
-
   reg:
     maxItems: 1
 
