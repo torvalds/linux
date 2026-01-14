@@ -1595,6 +1595,7 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 {
 	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
 	unsigned int val, hsp_int_status, hsp_pwr_ctrl;
+	static const char * const clk_ids[] = {"axi"};
 	struct of_phandle_args args;
 	struct eic7700_priv *priv;
 	struct regmap *hsp_regmap;
@@ -1611,6 +1612,11 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 		dev_err(dev, "failed to reset\n");
 		return ret;
 	}
+
+	ret = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
+					    ARRAY_SIZE(clk_ids), clk_ids);
+	if (ret)
+		return ret;
 
 	ret = of_parse_phandle_with_fixed_args(dev->of_node, "eswin,hsp-sp-csr", 2, 0, &args);
 	if (ret) {
