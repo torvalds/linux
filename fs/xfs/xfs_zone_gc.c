@@ -50,23 +50,11 @@
  */
 
 /*
- * Size of each GC scratch pad.  This is also the upper bound for each
- * GC I/O, which helps to keep latency down.
+ * Size of each GC scratch allocation, and the number of buffers.
  */
-#define XFS_GC_CHUNK_SIZE	SZ_1M
-
-/*
- * Scratchpad data to read GCed data into.
- *
- * The offset member tracks where the next allocation starts, and freed tracks
- * the amount of space that is not used anymore.
- */
-#define XFS_ZONE_GC_NR_SCRATCH	2
-struct xfs_zone_scratch {
-	struct folio			*folio;
-	unsigned int			offset;
-	unsigned int			freed;
-};
+#define XFS_GC_BUF_SIZE		SZ_1M
+#define XFS_GC_NR_BUFS		2
+static_assert(XFS_GC_NR_BUFS < BIO_MAX_VECS);
 
 /*
  * Chunk that is read and written for each GC operation.
@@ -141,10 +129,14 @@ struct xfs_zone_gc_data {
 	struct bio_set			bio_set;
 
 	/*
-	 * Scratchpad used, and index to indicated which one is used.
+	 * Scratchpad to buffer GC data, organized as a ring buffer over
+	 * discontiguous folios.  scratch_head is where the buffer is filled,
+	 * and scratch_tail tracks the buffer space freed.
 	 */
-	struct xfs_zone_scratch		scratch[XFS_ZONE_GC_NR_SCRATCH];
-	unsigned int			scratch_idx;
+	struct folio			*scratch_folios[XFS_GC_NR_BUFS];
+	unsigned int			scratch_size;
+	unsigned int			scratch_head;
+	unsigned int			scratch_tail;
 
 	/*
 	 * List of bios currently being read, written and reset.
@@ -210,20 +202,16 @@ xfs_zone_gc_data_alloc(
 	if (!data->iter.recs)
 		goto out_free_data;
 
-	/*
-	 * We actually only need a single bio_vec.  It would be nice to have
-	 * a flag that only allocates the inline bvecs and not the separate
-	 * bvec pool.
-	 */
 	if (bioset_init(&data->bio_set, 16, offsetof(struct xfs_gc_bio, bio),
 			BIOSET_NEED_BVECS))
 		goto out_free_recs;
-	for (i = 0; i < XFS_ZONE_GC_NR_SCRATCH; i++) {
-		data->scratch[i].folio =
-			folio_alloc(GFP_KERNEL, get_order(XFS_GC_CHUNK_SIZE));
-		if (!data->scratch[i].folio)
+	for (i = 0; i < XFS_GC_NR_BUFS; i++) {
+		data->scratch_folios[i] =
+			folio_alloc(GFP_KERNEL, get_order(XFS_GC_BUF_SIZE));
+		if (!data->scratch_folios[i])
 			goto out_free_scratch;
 	}
+	data->scratch_size = XFS_GC_BUF_SIZE * XFS_GC_NR_BUFS;
 	INIT_LIST_HEAD(&data->reading);
 	INIT_LIST_HEAD(&data->writing);
 	INIT_LIST_HEAD(&data->resetting);
@@ -232,7 +220,7 @@ xfs_zone_gc_data_alloc(
 
 out_free_scratch:
 	while (--i >= 0)
-		folio_put(data->scratch[i].folio);
+		folio_put(data->scratch_folios[i]);
 	bioset_exit(&data->bio_set);
 out_free_recs:
 	kfree(data->iter.recs);
@@ -247,8 +235,8 @@ xfs_zone_gc_data_free(
 {
 	int			i;
 
-	for (i = 0; i < XFS_ZONE_GC_NR_SCRATCH; i++)
-		folio_put(data->scratch[i].folio);
+	for (i = 0; i < XFS_GC_NR_BUFS; i++)
+		folio_put(data->scratch_folios[i]);
 	bioset_exit(&data->bio_set);
 	kfree(data->iter.recs);
 	kfree(data);
@@ -590,7 +578,12 @@ static unsigned int
 xfs_zone_gc_scratch_available(
 	struct xfs_zone_gc_data	*data)
 {
-	return XFS_GC_CHUNK_SIZE - data->scratch[data->scratch_idx].offset;
+	if (!data->scratch_tail)
+		return data->scratch_size - data->scratch_head;
+
+	if (!data->scratch_head)
+		return data->scratch_tail;
+	return (data->scratch_size - data->scratch_head) + data->scratch_tail;
 }
 
 static bool
@@ -664,6 +657,28 @@ xfs_zone_gc_alloc_blocks(
 	return oz;
 }
 
+static void
+xfs_zone_gc_add_data(
+	struct xfs_gc_bio	*chunk)
+{
+	struct xfs_zone_gc_data	*data = chunk->data;
+	unsigned int		len = chunk->len;
+	unsigned int		off = data->scratch_head;
+
+	do {
+		unsigned int	this_off = off % XFS_GC_BUF_SIZE;
+		unsigned int	this_len = min(len, XFS_GC_BUF_SIZE - this_off);
+
+		bio_add_folio_nofail(&chunk->bio,
+				data->scratch_folios[off / XFS_GC_BUF_SIZE],
+				this_len, this_off);
+		len -= this_len;
+		off += this_len;
+		if (off == data->scratch_size)
+			off = 0;
+	} while (len);
+}
+
 static bool
 xfs_zone_gc_start_chunk(
 	struct xfs_zone_gc_data	*data)
@@ -677,6 +692,7 @@ xfs_zone_gc_start_chunk(
 	struct xfs_inode	*ip;
 	struct bio		*bio;
 	xfs_daddr_t		daddr;
+	unsigned int		len;
 	bool			is_seq;
 
 	if (xfs_is_shutdown(mp))
@@ -691,17 +707,19 @@ xfs_zone_gc_start_chunk(
 		return false;
 	}
 
-	bio = bio_alloc_bioset(bdev, 1, REQ_OP_READ, GFP_NOFS, &data->bio_set);
+	len = XFS_FSB_TO_B(mp, irec.rm_blockcount);
+	bio = bio_alloc_bioset(bdev,
+			min(howmany(len, XFS_GC_BUF_SIZE) + 1, XFS_GC_NR_BUFS),
+			REQ_OP_READ, GFP_NOFS, &data->bio_set);
 
 	chunk = container_of(bio, struct xfs_gc_bio, bio);
 	chunk->ip = ip;
 	chunk->offset = XFS_FSB_TO_B(mp, irec.rm_offset);
-	chunk->len = XFS_FSB_TO_B(mp, irec.rm_blockcount);
+	chunk->len = len;
 	chunk->old_startblock =
 		xfs_rgbno_to_rtb(iter->victim_rtg, irec.rm_startblock);
 	chunk->new_daddr = daddr;
 	chunk->is_seq = is_seq;
-	chunk->scratch = &data->scratch[data->scratch_idx];
 	chunk->data = data;
 	chunk->oz = oz;
 	chunk->victim_rtg = iter->victim_rtg;
@@ -710,13 +728,9 @@ xfs_zone_gc_start_chunk(
 
 	bio->bi_iter.bi_sector = xfs_rtb_to_daddr(mp, chunk->old_startblock);
 	bio->bi_end_io = xfs_zone_gc_end_io;
-	bio_add_folio_nofail(bio, chunk->scratch->folio, chunk->len,
-			chunk->scratch->offset);
-	chunk->scratch->offset += chunk->len;
-	if (chunk->scratch->offset == XFS_GC_CHUNK_SIZE) {
-		data->scratch_idx =
-			(data->scratch_idx + 1) % XFS_ZONE_GC_NR_SCRATCH;
-	}
+	xfs_zone_gc_add_data(chunk);
+	data->scratch_head = (data->scratch_head + len) % data->scratch_size;
+
 	WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 	list_add_tail(&chunk->entry, &data->reading);
 	xfs_zone_gc_iter_advance(iter, irec.rm_blockcount);
@@ -834,6 +848,7 @@ xfs_zone_gc_finish_chunk(
 	struct xfs_gc_bio	*chunk)
 {
 	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+	struct xfs_zone_gc_data	*data = chunk->data;
 	struct xfs_inode	*ip = chunk->ip;
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error;
@@ -845,11 +860,8 @@ xfs_zone_gc_finish_chunk(
 		return;
 	}
 
-	chunk->scratch->freed += chunk->len;
-	if (chunk->scratch->freed == chunk->scratch->offset) {
-		chunk->scratch->offset = 0;
-		chunk->scratch->freed = 0;
-	}
+	data->scratch_tail =
+		(data->scratch_tail + chunk->len) % data->scratch_size;
 
 	/*
 	 * Cycle through the iolock and wait for direct I/O and layouts to
