@@ -124,7 +124,7 @@ void exfat_sync_inode(struct inode *inode)
  * *clu = (~0), if it's unable to allocate a new cluster
  */
 static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
-		unsigned int *clu, int create)
+		unsigned int *clu, unsigned int *count, int create)
 {
 	int ret;
 	unsigned int last_clu;
@@ -147,20 +147,23 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 
 	*clu = last_clu = ei->start_clu;
 
-	if (ei->flags == ALLOC_NO_FAT_CHAIN) {
-		if (clu_offset > 0 && *clu != EXFAT_EOF_CLUSTER) {
-			last_clu += clu_offset - 1;
-
-			if (clu_offset == num_clusters)
-				*clu = EXFAT_EOF_CLUSTER;
-			else
-				*clu += clu_offset;
+	if (*clu == EXFAT_EOF_CLUSTER) {
+		*count = 0;
+	} else if (ei->flags == ALLOC_NO_FAT_CHAIN) {
+		last_clu += num_clusters - 1;
+		if (clu_offset < num_clusters) {
+			*clu += clu_offset;
+			*count = min(num_clusters - clu_offset, *count);
+		} else {
+			*clu = EXFAT_EOF_CLUSTER;
+			*count = 0;
 		}
 	} else {
 		int err = exfat_get_cluster(inode, clu_offset,
 				clu, &last_clu);
 		if (err)
 			return -EIO;
+		*count = (*clu == EXFAT_EOF_CLUSTER) ? 0 : 1;
 	}
 
 	if (*clu == EXFAT_EOF_CLUSTER) {
@@ -232,7 +235,7 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 				num_to_be_allocated--;
 			}
 		}
-
+		*count = 1;
 	}
 
 	/* hint information */
@@ -251,7 +254,7 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 	int err = 0;
 	unsigned long mapped_blocks = 0;
-	unsigned int cluster, sec_offset;
+	unsigned int cluster, sec_offset, count;
 	sector_t last_block;
 	sector_t phys = 0;
 	sector_t valid_blks;
@@ -264,8 +267,9 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 		goto done;
 
 	/* Is this block already allocated? */
+	count = EXFAT_B_TO_CLU_ROUND_UP(bh_result->b_size, sbi);
 	err = exfat_map_cluster(inode, iblock >> sbi->sect_per_clus_bits,
-			&cluster, create);
+			&cluster, &count, create);
 	if (err) {
 		if (err != -ENOSPC)
 			exfat_fs_error_ratelimit(sb,
@@ -281,7 +285,7 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 	sec_offset = iblock & (sbi->sect_per_clus - 1);
 
 	phys = exfat_cluster_to_sector(sbi, cluster) + sec_offset;
-	mapped_blocks = sbi->sect_per_clus - sec_offset;
+	mapped_blocks = ((unsigned long)count << sbi->sect_per_clus_bits) - sec_offset;
 	max_blocks = min(mapped_blocks, max_blocks);
 
 	map_bh(bh_result, sb, phys);
