@@ -559,6 +559,7 @@ struct rtw89_phy_gen_def {
 
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_ax;
 extern const struct rtw89_phy_gen_def rtw89_phy_gen_be;
+extern const struct rtw89_phy_gen_def rtw89_phy_gen_be_v1;
 
 static inline void rtw89_phy_write8(struct rtw89_dev *rtwdev,
 				    u32 addr, u8 data)
