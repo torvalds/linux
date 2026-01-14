@@ -12,6 +12,10 @@ maintainers:
 properties:
   compatible:
     oneOf:
+      - enum:
+          - renesas,r9a09g047-canfd        # RZ/G3E
+          - renesas,r9a09g077-canfd        # RZ/T2H
+
       - items:
           - enum:
               - renesas,r8a774a1-canfd     # RZ/G2M
@@ -42,13 +46,15 @@ properties:
               - renesas,r9a07g054-canfd    # RZ/V2L
           - const: renesas,rzg2l-canfd     # RZ/G2L family
 
-      - const: renesas,r9a09g047-canfd     # RZ/G3E
-
       - items:
           - enum:
               - renesas,r9a09g056-canfd     # RZ/V2N
               - renesas,r9a09g057-canfd     # RZ/V2H(P)
           - const: renesas,r9a09g047-canfd
+
+      - items:
+          - const: renesas,r9a09g087-canfd  # RZ/N2H
+          - const: renesas,r9a09g077-canfd
 
   reg:
     maxItems: 1
@@ -179,7 +185,6 @@ required:
   - clocks
   - clock-names
   - power-domains
-  - resets
   - assigned-clocks
   - assigned-clock-rates
   - channel0
@@ -247,7 +252,21 @@ allOf:
       properties:
         compatible:
           contains:
+            const: renesas,r9a09g077-canfd
+    then:
+      properties:
+        interrupts:
+          maxItems: 8
+
+        interrupt-names:
+          maxItems: 8
+
+  - if:
+      properties:
+        compatible:
+          contains:
             enum:
+              - renesas,r9a09g077-canfd
               - renesas,rcar-gen3-canfd
               - renesas,rzg2l-canfd
     then:
@@ -300,13 +319,34 @@ allOf:
       properties:
         compatible:
           contains:
+            const: renesas,r9a09g077-canfd
+    then:
+      properties:
+        resets: false
+        reset-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
             enum:
               - renesas,r9a09g047-canfd
               - renesas,rzg2l-canfd
     then:
       required:
+        - resets
         - reset-names
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rcar-gen3-canfd
+              - renesas,rcar-gen4-canfd
+    then:
+      required:
+        - resets
       properties:
         reset-names: false
 
