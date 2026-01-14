@@ -1317,9 +1317,14 @@ static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 
 	ctx_timestamp = lower_32_bits(xe_lrc_timestamp(q->lrc[0]));
 	if (ctx_timestamp == job->sample_timestamp) {
-		xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
-			   xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
-			   q->guc->id);
+		if (IS_SRIOV_VF(gt_to_xe(gt)))
+			xe_gt_notice(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
+				     xe_sched_job_seqno(job),
+				     xe_sched_job_lrc_seqno(job), q->guc->id);
+		else
+			xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, timestamp stuck",
+				   xe_sched_job_seqno(job),
+				   xe_sched_job_lrc_seqno(job), q->guc->id);
 
 		return xe_sched_invalidate_job(job, 0);
 	}
