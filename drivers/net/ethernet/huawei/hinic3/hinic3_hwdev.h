@@ -17,6 +17,15 @@ enum hinic3_event_service_type {
 	HINIC3_EVENT_SRV_NIC  = 1
 };
 
+enum hinic3_fault_err_level {
+	HINIC3_FAULT_LEVEL_SERIOUS_FLR = 3,
+};
+
+enum hinic3_fault_source_type {
+	HINIC3_FAULT_SRC_HW_PHY_FAULT = 9,
+	HINIC3_FAULT_SRC_TX_TIMEOUT   = 22,
+};
+
 #define HINIC3_SRV_EVENT_TYPE(svc, type)    (((svc) << 16) | (type))
 
 /* driver-specific data of pci_dev */

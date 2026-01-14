@@ -108,6 +108,22 @@ static void hinic3_free_txrxqs(struct net_device *netdev)
 	hinic3_free_txqs(netdev);
 }
 
+static void hinic3_periodic_work_handler(struct work_struct *work)
+{
+	struct delayed_work *delay = to_delayed_work(work);
+	struct hinic3_nic_dev *nic_dev;
+
+	nic_dev = container_of(delay, struct hinic3_nic_dev, periodic_work);
+	if (test_and_clear_bit(HINIC3_EVENT_WORK_TX_TIMEOUT,
+			       &nic_dev->event_flag))
+		dev_info(nic_dev->hwdev->dev,
+			 "Fault event report, src: %u, level: %u\n",
+			 HINIC3_FAULT_SRC_TX_TIMEOUT,
+			 HINIC3_FAULT_LEVEL_SERIOUS_FLR);
+
+	queue_delayed_work(nic_dev->workq, &nic_dev->periodic_work, HZ);
+}
+
 static int hinic3_init_nic_dev(struct net_device *netdev,
 			       struct hinic3_hwdev *hwdev)
 {
@@ -122,6 +138,15 @@ static int hinic3_init_nic_dev(struct net_device *netdev,
 	nic_dev->rx_buf_len = HINIC3_RX_BUF_LEN;
 	nic_dev->lro_replenish_thld = HINIC3_LRO_REPLENISH_THLD;
 	nic_dev->nic_svc_cap = hwdev->cfg_mgmt->cap.nic_svc_cap;
+
+	nic_dev->workq = create_singlethread_workqueue(HINIC3_NIC_DEV_WQ_NAME);
+	if (!nic_dev->workq) {
+		dev_err(hwdev->dev, "Failed to initialize nic workqueue\n");
+		return -ENOMEM;
+	}
+
+	INIT_DELAYED_WORK(&nic_dev->periodic_work,
+			  hinic3_periodic_work_handler);
 
 	return 0;
 }
@@ -276,6 +301,11 @@ static void hinic3_nic_event(struct auxiliary_device *adev,
 	}
 }
 
+static void hinic3_free_nic_dev(struct hinic3_nic_dev *nic_dev)
+{
+	destroy_workqueue(nic_dev->workq);
+}
+
 static int hinic3_nic_probe(struct auxiliary_device *adev,
 			    const struct auxiliary_device_id *id)
 {
@@ -316,7 +346,7 @@ static int hinic3_nic_probe(struct auxiliary_device *adev,
 
 	err = hinic3_init_nic_io(nic_dev);
 	if (err)
-		goto err_free_netdev;
+		goto err_free_nic_dev;
 
 	err = hinic3_sw_init(netdev);
 	if (err)
@@ -329,6 +359,7 @@ static int hinic3_nic_probe(struct auxiliary_device *adev,
 	if (err)
 		goto err_uninit_sw;
 
+	queue_delayed_work(nic_dev->workq, &nic_dev->periodic_work, HZ);
 	netif_carrier_off(netdev);
 
 	err = register_netdev(netdev);
@@ -338,6 +369,7 @@ static int hinic3_nic_probe(struct auxiliary_device *adev,
 	return 0;
 
 err_uninit_nic_feature:
+	disable_delayed_work_sync(&nic_dev->periodic_work);
 	hinic3_update_nic_feature(nic_dev, 0);
 	hinic3_set_nic_feature_to_hw(nic_dev);
 
@@ -346,7 +378,8 @@ err_uninit_sw:
 
 err_free_nic_io:
 	hinic3_free_nic_io(nic_dev);
-
+err_free_nic_dev:
+	hinic3_free_nic_dev(nic_dev);
 err_free_netdev:
 	free_netdev(netdev);
 
@@ -367,6 +400,9 @@ static void hinic3_nic_remove(struct auxiliary_device *adev)
 
 	netdev = nic_dev->netdev;
 	unregister_netdev(netdev);
+
+	disable_delayed_work_sync(&nic_dev->periodic_work);
+	hinic3_free_nic_dev(nic_dev);
 
 	hinic3_update_nic_feature(nic_dev, 0);
 	hinic3_set_nic_feature_to_hw(nic_dev);

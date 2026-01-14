@@ -13,6 +13,10 @@ enum hinic3_flags {
 	HINIC3_RSS_ENABLE,
 };
 
+enum hinic3_event_work_flags {
+	HINIC3_EVENT_WORK_TX_TIMEOUT,
+};
+
 enum hinic3_rss_hash_type {
 	HINIC3_RSS_HASH_ENGINE_TYPE_XOR  = 0,
 	HINIC3_RSS_HASH_ENGINE_TYPE_TOEP = 1,
@@ -83,9 +87,13 @@ struct hinic3_nic_dev {
 
 	struct hinic3_intr_coal_info    *intr_coalesce;
 
+	struct workqueue_struct         *workq;
+	struct delayed_work             periodic_work;
 	/* lock for enable/disable port */
 	struct mutex                    port_state_mutex;
 
+	/* flag bits defined by hinic3_event_work_flags */
+	unsigned long                   event_flag;
 	bool                            link_status_up;
 };
 

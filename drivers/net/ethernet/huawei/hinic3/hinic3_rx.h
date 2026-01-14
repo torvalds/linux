@@ -25,6 +25,20 @@
 #define RQ_CQE_STATUS_GET(val, member) \
 	FIELD_GET(RQ_CQE_STATUS_##member##_MASK, val)
 
+struct hinic3_rxq_stats {
+	u64                   packets;
+	u64                   bytes;
+	u64                   errors;
+	u64                   csum_errors;
+	u64                   other_errors;
+	u64                   dropped;
+	u64                   rx_buf_empty;
+	u64                   alloc_skb_err;
+	u64                   alloc_rx_buf_err;
+	u64                   restore_drop_sge;
+	struct u64_stats_sync syncp;
+};
+
 /* RX Completion information that is provided by HW for a specific RX WQE */
 struct hinic3_rq_cqe {
 	__le32 status;
@@ -59,6 +73,7 @@ struct hinic3_rxq {
 	u16                     buf_len;
 	u32                     buf_len_shift;
 
+	struct hinic3_rxq_stats rxq_stats;
 	u32                     cons_idx;
 	u32                     delta;
 
