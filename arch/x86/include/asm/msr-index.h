@@ -263,6 +263,11 @@
 #define MSR_SNOOP_RSP_0			0x00001328
 #define MSR_SNOOP_RSP_1			0x00001329
 
+#define MSR_OMR_0			0x000003e0
+#define MSR_OMR_1			0x000003e1
+#define MSR_OMR_2			0x000003e2
+#define MSR_OMR_3			0x000003e3
+
 #define MSR_LBR_SELECT			0x000001c8
 #define MSR_LBR_TOS			0x000001c9
 

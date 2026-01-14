@@ -45,6 +45,10 @@ enum extra_reg_type {
 	EXTRA_REG_FE		= 4,  /* fe_* */
 	EXTRA_REG_SNOOP_0	= 5,  /* snoop response 0 */
 	EXTRA_REG_SNOOP_1	= 6,  /* snoop response 1 */
+	EXTRA_REG_OMR_0		= 7,  /* OMR 0 */
+	EXTRA_REG_OMR_1		= 8,  /* OMR 1 */
+	EXTRA_REG_OMR_2		= 9,  /* OMR 2 */
+	EXTRA_REG_OMR_3		= 10,  /* OMR 3 */
 
 	EXTRA_REG_MAX		      /* number of entries needed */
 };
@@ -1099,6 +1103,7 @@ do {									\
 #define PMU_FL_RETIRE_LATENCY	0x200 /* Support Retire Latency in PEBS */
 #define PMU_FL_BR_CNTR		0x400 /* Support branch counter logging */
 #define PMU_FL_DYN_CONSTRAINT	0x800 /* Needs dynamic constraint */
+#define PMU_FL_HAS_OMR		0x1000 /* has 4 equivalent OMR regs */
 
 #define EVENT_VAR(_id)  event_attr_##_id
 #define EVENT_PTR(_id) &event_attr_##_id.attr.attr
