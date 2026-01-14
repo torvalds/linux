@@ -674,11 +674,12 @@
 				clock-names = "core",
 					      "clkin0",
 					      "clkin1";
-				assigned-clocks = <&clkc_periphs CLKID_SD_EMMC_SEL2>;
-				assigned-clock-parents = <&xtal>;
 				resets = <&reset RESET_SD_EMMC_A>;
 				power-domains = <&pwrc PWRC_SD_EMMC_ID>;
 				status = "disabled";
+
+				assigned-clocks = <&clkc_periphs CLKID_SD_EMMC>;
+				assigned-clock-rates = <24000000>;
 			};
 		};
 
