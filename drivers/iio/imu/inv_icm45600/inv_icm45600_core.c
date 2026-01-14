@@ -960,16 +960,17 @@ int inv_icm45600_temp_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	/*
 	 * T°C = (temp / 128) + 25
-	 * Tm°C = 1000 * ((temp * 100 / 12800) + 25)
-	 * scale: 100000 / 13248 = 7.8125
-	 * offset: 25000
+	 * Tm°C = ((temp + 25 * 128) / 128)) * 1000
+	 * Tm°C = (temp + 3200) * (1000 / 128)
+	 * scale: 1000 / 128 = 7.8125
+	 * offset: 3200
 	 */
 	case IIO_CHAN_INFO_SCALE:
 		*val = 7;
 		*val2 = 812500;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25000;
+		*val = 3200;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
