@@ -1739,6 +1739,7 @@ static const struct sdhci_ops sdhci_dwcmshc_eic7700_ops = {
 	.set_uhs_signaling = sdhci_eic7700_set_uhs_wrapper,
 	.set_power = sdhci_set_power_and_bus_voltage,
 	.irq = dwcmshc_cqe_irq_handler,
+	.adma_write_desc = dwcmshc_adma_write_desc,
 	.platform_execute_tuning = sdhci_eic7700_executing_tuning,
 };
 
