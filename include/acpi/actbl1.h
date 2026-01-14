@@ -2005,28 +2005,57 @@ struct acpi_tpr_aux_sr {
 };
 
 /*
- * TPRn_BASE
+ * TPRn_BASE (ACPI_TPRN_BASE_REG)
  *
  * Specifies the start address of TPRn region. TPR region address and size must
  * be with 1MB resolution. These bits are compared with the result of the
  * TPRn_LIMIT[63:20] * applied to the incoming address, to determine if an
  * access fall within the TPRn defined region.
+ *
+ * Minimal TPRn_Base resolution is 1MB.
+ * Applied to the incoming address, to determine if
+ * an access fall within the TPRn defined region.
+ * Width is determined by a bus width which can be
+ * obtained via CPUID function 0x80000008.
  */
 
-struct acpi_tprn_base_reg {
-	u64 reserved0:3;
-	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
-	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
-	u64 reserved1:15;
-	u64 tpr_base_rw:44;
-	/*
-	 * Minimal TPRn_Base resolution is 1MB.
-	 * Applied to the incoming address, to determine if
-	 * an access fall within the TPRn defined region.
-	 * Width is determined by a bus width which can be
-	 * obtained via CPUID function 0x80000008.
-	 */
-};
+typedef u64 ACPI_TPRN_BASE_REG;
+
+/* TPRn_BASE Register Bit Masks */
+
+/* Bit 3 - RW: access: 1 == RO, 0 == RW register (for TPR must be RW) */
+#define ACPI_TPRN_BASE_RW_SHIFT        3
+#define ACPI_TPRN_BASE_RW_MASK         ((u64) 1 << ACPI_TPRN_BASE_RW_SHIFT)
+
+/*
+ * Bit 4 - Enable: 0 – TPRn address range enabled;
+ *                 1 – TPRn address range disabled.
+ */
+#define ACPI_TPRN_BASE_ENABLE_SHIFT    4
+#define ACPI_TPRN_BASE_ENABLE_MASK     ((u64) 1 << ACPI_TPRN_BASE_ENABLE_SHIFT)
+
+/* Bits 63:20 - tpr_base_rw */
+#define ACPI_TPRN_BASE_ADDR_SHIFT      20
+#define ACPI_TPRN_BASE_ADDR_MASK       ((u64) 0xFFFFFFFFFFF << \
+			 ACPI_TPRN_BASE_ADDR_SHIFT)
+
+/* TPRn_BASE Register Bit Handlers*/
+#define GET_TPRN_BASE_RW(reg)     (((u64) reg & ACPI_TPRN_BASE_RW_MASK) >>  \
+					  ACPI_TPRN_BASE_RW_SHIFT)
+#define GET_TPRN_BASE_ENABLE(reg) (((u64) reg & ACPI_TPRN_BASE_ENABLE_MASK) \
+							 >> ACPI_TPRN_BASE_ENABLE_SHIFT)
+#define GET_TPRN_BASE_ADDR(reg)   (((u64) reg & ACPI_TPRN_BASE_ADDR_MASK)   \
+								   >> ACPI_TPRN_BASE_ADDR_SHIFT)
+
+#define SET_TPRN_BASE_RW(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,     \
+										ACPI_TPRN_BASE_RW_SHIFT,       \
+										ACPI_TPRN_BASE_RW_MASK, val);
+#define SET_TPRN_BASE_ENABLE(reg, val) ACPI_REGISTER_INSERT_VALUE(reg, \
+										ACPI_TPRN_BASE_ENABLE_SHIFT,   \
+										ACPI_TPRN_BASE_ENABLE_MASK, val);
+#define SET_TPRN_BASE_ADDR(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,   \
+										ACPI_TPRN_BASE_ADDR_SHIFT,     \
+										ACPI_TPRN_BASE_ADDR_MASK, val);
 
 /*
  * TPRn_LIMIT
@@ -2035,20 +2064,36 @@ struct acpi_tprn_base_reg {
  * to prohibit certain system agents from accessing memory. When an agent
  * sends a request upstream, whether snooped or not, a TPR prevents that
  * transaction from changing the state of memory.
+ *
+ * Minimal TPRn_Limit resolution is 1MB.
+ * Width is determined by a bus width
  */
 
-struct acpi_tprn_limit_reg {
-	u64 reserved0:3;
-	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
-	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
-	u64 reserved1:15;
-	u64 tpr_limit_rw:44;
-	/*
-	 * Minimal TPRn_Limit resolution is 1MB.
-	 * These bits define TPR limit address.
-	 * Width is determined by a bus width.
-	 */
-};
+typedef u64 ACPI_TPRN_LIMIT_REG;
+
+/* TPRn_LIMIT Register Bit Masks */
+
+/* Bit 3 - RW: access: 1 == RO, 0 == RW register (for TPR must be RW) */
+#define ACPI_TPRN_LIMIT_RW_SHIFT   3
+#define ACPI_TPRN_LIMIT_RW_MASK    ((u64) 1 << ACPI_TPRN_LIMIT_RW_SHIFT)
+
+/* Bits 63:20 - tpr_limit_rw */
+#define ACPI_TPRN_LIMIT_ADDR_SHIFT 20
+#define ACPI_TPRN_LIMIT_ADDR_MASK  ((u64) 0xFFFFFFFFFFF << \
+								   ACPI_TPRN_LIMIT_ADDR_SHIFT)
+
+/* TPRn_LIMIT Register Bit Handlers*/
+#define GET_TPRN_LIMIT_RW(reg)    (((u64) reg & ACPI_TPRN_LIMIT_RW_MASK)    \
+								   >> ACPI_TPRN_LIMIT_RW_SHIFT)
+#define GET_TPRN_LIMIT_ADDR(reg)  (((u64) reg & ACPI_TPRN_LIMIT_ADDR_MASK)  \
+								   >> ACPI_TPRN_LIMIT_ADDR_SHIFT)
+
+#define SET_TPRN_LIMIT_RW(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,            \
+										ACPI_TPRN_LIMIT_RW_SHIFT,              \
+										ACPI_TPRN_LIMIT_RW_MASK, val);
+#define SET_TPRN_LIMIT_ADDR(reg, val) ACPI_REGISTER_INSERT_VALUE(reg,          \
+										ACPI_TPRN_LIMIT_ADDR_SHIFT,            \
+										ACPI_TPRN_LIMIT_ADDR_MASK, val);
 
 /*
  * SERIALIZE_REQUEST
