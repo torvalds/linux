@@ -106,7 +106,6 @@ static void sd_config_write_same(struct scsi_disk *sdkp,
 		struct queue_limits *lim);
 static void  sd_revalidate_disk(struct gendisk *);
 static void sd_unlock_native_capacity(struct gendisk *disk);
-static void scsi_disk_release(struct device *cdev);
 
 static DEFINE_IDA(sd_index_ida);
 
@@ -750,6 +749,17 @@ static struct attribute *sd_disk_attrs[] = {
 	NULL,
 };
 ATTRIBUTE_GROUPS(sd_disk);
+
+static void scsi_disk_release(struct device *dev)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	ida_free(&sd_index_ida, sdkp->index);
+	put_device(&sdkp->device->sdev_gendev);
+	free_opal_dev(sdkp->opal_dev);
+
+	kfree(sdkp);
+}
 
 static struct class sd_disk_class = {
 	.name		= "scsi_disk",
@@ -4082,17 +4092,6 @@ static int sd_probe(struct scsi_device *sdp)
  out:
 	scsi_autopm_put_device(sdp);
 	return error;
-}
-
-static void scsi_disk_release(struct device *dev)
-{
-	struct scsi_disk *sdkp = to_scsi_disk(dev);
-
-	ida_free(&sd_index_ida, sdkp->index);
-	put_device(&sdkp->device->sdev_gendev);
-	free_opal_dev(sdkp->opal_dev);
-
-	kfree(sdkp);
 }
 
 static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
