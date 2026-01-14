@@ -177,9 +177,11 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 				fd->dentry->d_flags |= DCACHE_OP_DELETE;
 				spin_unlock(&fd->dentry->d_lock);
 				d_dispose_if_unused(fd->dentry, &dispose);
-				spin_unlock(&dentry_hash[i].lock);
-				cond_resched();
-				spin_lock(&dentry_hash[i].lock);
+				if (need_resched()) {
+					spin_unlock(&dentry_hash[i].lock);
+					cond_resched();
+					spin_lock(&dentry_hash[i].lock);
+				}
 			} else
 				break;
 			node = rb_first(&dentry_hash[i].tree);
