@@ -414,6 +414,42 @@ static void rtw89_phy_preinit_rf_nctl_be_v1(struct rtw89_dev *rtwdev)
 	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST_C1_BE4, B_IQK_DPK_PRST, 0x1);
 }
 
+static u32 rtw89_phy_bb_wrap_flush_addr(struct rtw89_dev *rtwdev, u32 addr)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (!test_bit(RTW89_FLAG_RUNNING, rtwdev->flags))
+		return 0;
+
+	if (rtwdev->chip->chip_id == RTL8922D && hal->cid == RTL8922D_CID7025) {
+		if (addr >= R_BE_PWR_MACID_PATH_BASE_V1 &&
+		    addr <= R_BE_PWR_MACID_PATH_BASE_V1 + 0xFF)
+			return addr + 0x800;
+
+		if (addr >= R_BE_PWR_MACID_LMT_BASE_V1 &&
+		    addr <= R_BE_PWR_MACID_LMT_BASE_V1 + 0xFF)
+			return addr - 0x800;
+	}
+
+	return 0;
+}
+
+static
+void rtw89_write_bb_wrap_flush(struct rtw89_dev *rtwdev, u32 addr, u32 data)
+{
+	/* To write registers of pwr_macid_lmt and pwr_macid_path with flush */
+	u32 flush_addr;
+	u32 val32;
+
+	flush_addr = rtw89_phy_bb_wrap_flush_addr(rtwdev, addr);
+	if (flush_addr) {
+		val32 = rtw89_read32(rtwdev, flush_addr);
+		rtw89_write32(rtwdev, flush_addr, val32);
+	}
+
+	rtw89_write32(rtwdev, addr, data);
+}
+
 static
 void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 {
@@ -425,7 +461,7 @@ void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 
 	for (macid_idx = 0; macid_idx < 4 * max_macid; macid_idx += 4) {
 		cr = base_macid_lmt + macid_idx;
-		rtw89_write32(rtwdev, cr, 0x03007F7F);
+		rtw89_write_bb_wrap_flush(rtwdev, cr, 0x03007F7F);
 	}
 }
 
@@ -438,7 +474,7 @@ void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
 	int i, max_macid = 32;
 
 	for (i = 0; i < max_macid; i++, cr += 4)
-		rtw89_write32(rtwdev, cr, 0x03C86000);
+		rtw89_write_bb_wrap_flush(rtwdev, cr, 0x03C86000);
 }
 
 static void rtw89_phy_bb_wrap_tpu_set_all(struct rtw89_dev *rtwdev,
