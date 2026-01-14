@@ -431,6 +431,47 @@ __naked void subprog1(void)
 		::: __clobber_all);
 }
 
+#if defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)
+
+SEC("socket")
+__log_level(2)
+__msg("2: .1........ (07) r1 += 8")
+__msg("3: .1........ (79) r2 = *(u64 *)(r1 +0)")
+__msg("4: ..2....... (b7) r3 = 1")
+__msg("5: ..23...... (b7) r4 = 2")
+__msg("6: ..234..... (0d) gotox r2")
+__msg("7: ...3...... (bf) r0 = r3")
+__msg("8: 0......... (95) exit")
+__msg("9: ....4..... (bf) r0 = r4")
+__msg("10: 0......... (95) exit")
+__naked
+void gotox(void)
+{
+	asm volatile (
+	".pushsection .jumptables,\"\",@progbits;"
+"jt0_%=: .quad l0_%= - socket;"
+	".quad l1_%= - socket;"
+	".size jt0_%=, 16;"
+	".global jt0_%=;"
+	".popsection;"
+
+	"r1 = jt0_%= ll;"
+	"r1 += 8;"
+	"r2 = *(u64 *)(r1 + 0);"
+	"r3 = 1;"
+	"r4 = 2;"
+	".8byte %[gotox_r2];"
+"l0_%=:  r0 = r3;"
+	"exit;"
+"l1_%=:  r0 = r4;"
+	"exit;"
+	:
+	: __imm_insn(gotox_r2, BPF_RAW_INSN(BPF_JMP | BPF_JA | BPF_X, BPF_REG_2, BPF_REG_0, 0, 0))
+	: __clobber_all);
+}
+
+#endif /* __TARGET_ARCH_x86 || __TARGET_ARCH_arm64 */
+
 /* to retain debug info for BTF generation */
 void kfunc_root(void)
 {
