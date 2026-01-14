@@ -238,8 +238,6 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 		unsigned int *last_dclus, int allow_eof)
 {
 	struct super_block *sb = inode->i_sb;
-	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	unsigned int limit = sbi->num_clusters;
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 	struct exfat_cache_id cid;
 	unsigned int content;
@@ -279,14 +277,6 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 		return 0;
 
 	while (*fclus < cluster) {
-		/* prevent the infinite loop of cluster chain */
-		if (*fclus > limit) {
-			exfat_fs_error(sb,
-				"detected the cluster chain loop (i_pos %u)",
-				(*fclus));
-			return -EIO;
-		}
-
 		if (exfat_ent_get(sb, *dclus, &content, NULL))
 			return -EIO;
 
