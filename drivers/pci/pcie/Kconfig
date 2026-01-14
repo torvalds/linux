@@ -49,15 +49,6 @@ config PCIEAER_INJECT
 	  gotten from:
 	     https://github.com/intel/aer-inject.git
 
-config PCIEAER_CXL
-	bool "PCI Express CXL RAS support"
-	default y
-	depends on PCIEAER && CXL_PCI
-	help
-	  Enables CXL error handling.
-
-	  If unsure, say Y.
-
 #
 # PCI Express ECRC
 #

@@ -235,6 +235,6 @@ config CXL_MCE
 
 config CXL_RAS
 	def_bool y
-	depends on ACPI_APEI_GHES && PCIEAER && CXL_PCI
+	depends on ACPI_APEI_GHES && PCIEAER && CXL_BUS
 
 endif
