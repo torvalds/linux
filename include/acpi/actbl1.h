@@ -47,6 +47,7 @@
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
 #define ACPI_SIG_IBFT           "IBFT"	/* iSCSI Boot Firmware Table */
 #define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
+#define ACPI_SIG_DTPR           "DTPR"	/* TXT DMA Protection Ranges reporting table */
 
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"	/* PCC Shared Memory Region */
@@ -1971,6 +1972,91 @@ struct acpi_ibft_target {
 	u16 reverse_chap_name_offset;
 	u16 reverse_chap_secret_length;
 	u16 reverse_chap_secret_offset;
+};
+
+/*******************************************************************************
+ *
+ * DTPR - DMA TPR Reporting
+ *        Version 1
+ *
+ * Conforms to "Intel® Trusted Execution Technology (Intel® TXT) DMA Protection
+ *              Ranges",
+ * Revision 0.73, August 2021
+ *
+ ******************************************************************************/
+
+struct acpi_table_dtpr {
+	struct acpi_table_header header;
+	u32 flags;		// 36
+};
+
+struct acpi_tpr_array {
+	u64 base;
+};
+
+struct acpi_dtpr_instance {
+	u32 flags;
+	u32 tpr_cnt;
+	struct acpi_tpr_array tpr_array[];
+};
+
+/*******************************************************************************
+ * TPRn_BASE
+ *
+ * Specifies the start address of TPRn region. TPR region address and size must
+ * be with 1MB resolution. These bits are compared with the result of the
+ * TPRn_LIMIT[63:20] * applied to the incoming address, to determine if an
+ * access fall within the TPRn defined region.
+*******************************************************************************/
+struct acpi_dtprn_base_reg {
+	u64 reserved0:3;
+	u64 rw:1;		// access: 1 == RO, 0 == RW (for TPR must be RW)
+	u64 enable:1;		// 0 == range enabled, 1 == range disabled
+	u64 reserved1:15;
+	u64 tpr_base_rw:44;	// minimal TPrn_base resolution is 1MB.
+	// applied to the incoming address, to determine if an
+	// access fall within the TPrn defined region.
+	// width is determined by a bus width which can be
+	// obtainedvia CPUID function 0x80000008.
+	//u64 unused : 1;
+};
+
+/*******************************************************************************
+ * TPRn_LIMIT
+ *
+ * This register defines an isolated region of memory that can be enabled
+ * to prohibit certain system agents from accessing memory. When an agent
+ * sends a request upstream, whether snooped or not, a TPR prevents that
+ * transaction from changing the state of memory.
+*******************************************************************************/
+
+struct acpi_dtprn_limit_reg {
+	u64 reserved0:3;
+	u64 rw:1;		// access: 1 == RO, 0 == RW (for TPR must be RW)
+	u64 enable:1;		// 0 == range enabled, 1 == range disabled
+	u64 reserved1:15;
+	u64 tpr_limit_rw:44;	// minimal TPrn_limit resolution is 1MB.
+	// these bits define TPR limit address.
+	// width is determined by a bus width.
+
+	//u64 unused : 1;
+};
+
+/*******************************************************************************
+ * SERIALIZE_REQUEST
+ *
+ * This register is used to request serialization of non-coherent DMA
+ * transactions. OS shall  issue it before changing of TPR settings
+ * (base / size).
+*******************************************************************************/
+
+struct acpi_tpr_serialize_request {
+	u64 sts:1;		// status of serialization request (RO)
+	// 0 == register idle, 1 == serialization in progress
+	u64 ctrl:1;		// control field to initiate serialization (RW)
+	// 0 == normal, 1 == initialize serialization
+	// (self-clear to allow multiple serialization requests)
+	u64 unused:62;
 };
 
 /* Reset to default packing */
