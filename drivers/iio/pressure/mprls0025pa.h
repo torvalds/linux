@@ -25,9 +25,6 @@
 
 struct device;
 
-struct iio_chan_spec;
-struct iio_dev;
-
 struct mpr_data;
 struct mpr_ops;
 
