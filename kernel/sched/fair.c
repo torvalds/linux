@@ -613,7 +613,7 @@ static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
  *
  *   \Sum lag_i = 0
  *   \Sum w_i * (V - v_i) = 0
- *   \Sum w_i * V - w_i * v_i = 0
+ *   \Sum (w_i * V - w_i * v_i) = 0
  *
  * From which we can solve an expression for V in v_i (which we have in
  * se->vruntime):
@@ -648,7 +648,7 @@ static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
  *              \Sum w_i := cfs_rq->sum_weight
  *
  * Since zero_vruntime closely tracks the per-task service, these
- * deltas: (v_i - v), will be in the order of the maximal (virtual) lag
+ * deltas: (v_i - v0), will be in the order of the maximal (virtual) lag
  * induced in the system due to quantisation.
  *
  * Also, we use scale_load_down() to reduce the size.
