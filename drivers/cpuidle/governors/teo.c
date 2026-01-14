@@ -388,6 +388,15 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 			while (min_idx < idx &&
 			       drv->states[min_idx].target_residency_ns < TICK_NSEC)
 				min_idx++;
+
+			/*
+			 * Avoid selecting a state with a lower index, but with
+			 * the same target residency as the current candidate
+			 * one.
+			 */
+			if (drv->states[min_idx].target_residency_ns ==
+					drv->states[idx].target_residency_ns)
+				goto constraint;
 		}
 
 		/*
@@ -410,6 +419,7 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		}
 	}
 
+constraint:
 	/*
 	 * If there is a latency constraint, it may be necessary to select an
 	 * idle state shallower than the current candidate one.
