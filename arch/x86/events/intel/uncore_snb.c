@@ -2005,11 +2005,11 @@ static struct intel_uncore_type *nvl_msr_uncores[] = {
 void nvl_uncore_cpu_init(void)
 {
 	mtl_uncore_cbox.num_boxes = 12;
-	mtl_uncore_cbox.perf_ctr = NVL_UNC_CBOX_PER_CTR0,
-	mtl_uncore_cbox.event_ctl = NVL_UNC_CBOX_PERFEVTSEL0,
+	mtl_uncore_cbox.perf_ctr = NVL_UNC_CBOX_PER_CTR0;
+	mtl_uncore_cbox.event_ctl = NVL_UNC_CBOX_PERFEVTSEL0;
 
-	ptl_uncore_santa.perf_ctr = NVL_UNC_SANTA_CTR0,
-	ptl_uncore_santa.event_ctl = NVL_UNC_SANTA_CTRL0,
+	ptl_uncore_santa.perf_ctr = NVL_UNC_SANTA_CTR0;
+	ptl_uncore_santa.event_ctl = NVL_UNC_SANTA_CTRL0;
 
 	mtl_uncore_cncu.box_ctl = NVL_UNC_CNCU_BOX_CTL;
 	mtl_uncore_cncu.fixed_ctr = NVL_UNC_CNCU_FIXED_CTR;
