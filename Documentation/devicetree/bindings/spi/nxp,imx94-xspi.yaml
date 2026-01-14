@@ -15,6 +15,10 @@ properties:
     oneOf:
       - enum:
           - nxp,imx94-xspi
+      - items:
+          - enum:
+              - nxp,imx952-xspi
+          - const: nxp,imx94-xspi
 
   reg:
     items:
