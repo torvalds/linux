@@ -1990,6 +1990,15 @@ static int preload_init_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 	return 0;
 }
 
+static void clr_aon_intr_be(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hci.type != RTW89_HCI_TYPE_PCIE)
+		return;
+
+	rtw89_write32_clr(rtwdev, R_BE_FWS0IMR, B_BE_FS_GPIOA_INT_EN);
+	rtw89_write32_set(rtwdev, R_BE_FWS0ISR, B_BE_FS_GPIOA_INT);
+}
+
 static int dbcc_bb_ctrl_be(struct rtw89_dev *rtwdev, bool bb1_en)
 {
 	u32 set = B_BE_FEN_BB1PLAT_RSTB | B_BE_FEN_BB1_IP_RSTN;
@@ -3179,6 +3188,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.sys_init = sys_init_be,
 	.trx_init = trx_init_be,
 	.preload_init = preload_init_be,
+	.clr_aon_intr = clr_aon_intr_be,
 	.err_imr_ctrl = err_imr_ctrl_be,
 	.mac_func_en = mac_func_en_be,
 	.hci_func_en = rtw89_mac_hci_func_en_be,

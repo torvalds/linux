@@ -1554,6 +1554,7 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 
 		rtw89_mac_update_scoreboard(rtwdev, MAC_AX_NOTIFY_TP_MAJOR);
+		rtw89_mac_clr_aon_intr(rtwdev);
 	} else {
 		clear_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		clear_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
@@ -7303,6 +7304,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.sys_init = sys_init_ax,
 	.trx_init = trx_init_ax,
 	.preload_init = preload_init_set_ax,
+	.clr_aon_intr = NULL,
 	.err_imr_ctrl = err_imr_ctrl_ax,
 	.mac_func_en = NULL,
 	.hci_func_en = rtw89_mac_hci_func_en_ax,

@@ -1039,6 +1039,7 @@ struct rtw89_mac_gen_def {
 	int (*trx_init)(struct rtw89_dev *rtwdev);
 	int (*preload_init)(struct rtw89_dev *rtwdev, u8 mac_idx,
 			    enum rtw89_qta_mode mode);
+	void (*clr_aon_intr)(struct rtw89_dev *rtwdev);
 	void (*err_imr_ctrl)(struct rtw89_dev *rtwdev, bool en);
 	int (*mac_func_en)(struct rtw89_dev *rtwdev);
 	void (*hci_func_en)(struct rtw89_dev *rtwdev);
@@ -1249,6 +1250,14 @@ int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 
 	return mac->check_mac_en(rtwdev, band, sel);
+}
+
+static inline void rtw89_mac_clr_aon_intr(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (mac->clr_aon_intr)
+		mac->clr_aon_intr(rtwdev);
 }
 
 int rtw89_mac_write_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 val);
