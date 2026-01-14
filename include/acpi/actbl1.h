@@ -2057,12 +2057,12 @@ struct acpi_tprn_limit_reg {
 *******************************************************************************/
 
 struct acpi_tpr_serialize_request {
-	u64 sts:1;		// status of serialization request (RO)
-	// 0 == register idle, 1 == serialization in progress
-	u64 ctrl:1;		// control field to initiate serialization (RW)
-	// 0 == normal, 1 == initialize serialization
+	u64 sr_register;
+	// BIT 1 - status of serialization request (RO)
+	//         0 == register idle, 1 == serialization in progress
+	// BIT 2 - control field to initiate serialization (RW)
+	//         0 == normal, 1 == initialize serialization
 	// (self-clear to allow multiple serialization requests)
-	u64 unused:62;
 };
 
 /* Reset to default packing */
