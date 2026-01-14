@@ -10,6 +10,9 @@
 #include "hinic3_nic_dev.h"
 #include "hinic3_nic_io.h"
 
+#define MGMT_MSG_CMD_OP_ADD  1
+#define MGMT_MSG_CMD_OP_DEL  0
+
 static int hinic3_feature_nego(struct hinic3_hwdev *hwdev, u8 opcode,
 			       u64 *s_feature, u16 size)
 {
@@ -494,6 +497,44 @@ int hinic3_force_drop_tx_pkt(struct hinic3_hwdev *hwdev)
 	}
 
 	return pkt_drop.msg_head.status;
+}
+
+static int hinic3_config_vlan(struct hinic3_hwdev *hwdev,
+			      u8 opcode, u16 vlan_id, u16 func_id)
+{
+	struct l2nic_cmd_vlan_config vlan_info = {};
+	struct mgmt_msg_params msg_params = {};
+	int err;
+
+	vlan_info.opcode = opcode;
+	vlan_info.func_id = func_id;
+	vlan_info.vlan_id = vlan_id;
+
+	mgmt_msg_params_init_default(&msg_params, &vlan_info,
+				     sizeof(vlan_info));
+
+	err = hinic3_send_mbox_to_mgmt(hwdev, MGMT_MOD_L2NIC,
+				       L2NIC_CMD_CFG_FUNC_VLAN, &msg_params);
+
+	if (err || vlan_info.msg_head.status) {
+		dev_err(hwdev->dev,
+			"Failed to %s vlan, err: %d, status: 0x%x\n",
+			opcode == MGMT_MSG_CMD_OP_ADD ? "add" : "delete",
+			err, vlan_info.msg_head.status);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int hinic3_add_vlan(struct hinic3_hwdev *hwdev, u16 vlan_id, u16 func_id)
+{
+	return hinic3_config_vlan(hwdev, MGMT_MSG_CMD_OP_ADD, vlan_id, func_id);
+}
+
+int hinic3_del_vlan(struct hinic3_hwdev *hwdev, u16 vlan_id, u16 func_id)
+{
+	return hinic3_config_vlan(hwdev, MGMT_MSG_CMD_OP_DEL, vlan_id, func_id);
 }
 
 int hinic3_set_port_enable(struct hinic3_hwdev *hwdev, bool enable)

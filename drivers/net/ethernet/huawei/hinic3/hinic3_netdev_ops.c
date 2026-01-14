@@ -17,6 +17,12 @@
 #define HINIC3_LRO_DEFAULT_COAL_PKT_SIZE  32
 #define HINIC3_LRO_DEFAULT_TIME_LIMIT     16
 
+#define VLAN_BITMAP_BITS_SIZE(nic_dev)    (sizeof(*(nic_dev)->vlan_bitmap) * 8)
+#define VID_LINE(nic_dev, vid)  \
+	((vid) / VLAN_BITMAP_BITS_SIZE(nic_dev))
+#define VID_COL(nic_dev, vid)  \
+	((vid) & (VLAN_BITMAP_BITS_SIZE(nic_dev) - 1))
+
 /* try to modify the number of irq to the target number,
  * and return the actual number of irq.
  */
@@ -688,6 +694,59 @@ static int hinic3_set_mac_addr(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static int hinic3_vlan_rx_add_vid(struct net_device *netdev,
+				  __be16 proto, u16 vid)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	unsigned long *vlan_bitmap = nic_dev->vlan_bitmap;
+	u32 column, row;
+	u16 func_id;
+	int err;
+
+	column = VID_COL(nic_dev, vid);
+	row = VID_LINE(nic_dev, vid);
+
+	func_id = hinic3_global_func_id(nic_dev->hwdev);
+
+	err = hinic3_add_vlan(nic_dev->hwdev, vid, func_id);
+	if (err) {
+		netdev_err(netdev, "Failed to add vlan %u\n", vid);
+		goto out;
+	}
+
+	set_bit(column, &vlan_bitmap[row]);
+	netdev_dbg(netdev, "Add vlan %u\n", vid);
+
+out:
+	return err;
+}
+
+static int hinic3_vlan_rx_kill_vid(struct net_device *netdev,
+				   __be16 proto, u16 vid)
+{
+	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
+	unsigned long *vlan_bitmap = nic_dev->vlan_bitmap;
+	u32 column, row;
+	u16 func_id;
+	int err;
+
+	column  = VID_COL(nic_dev, vid);
+	row = VID_LINE(nic_dev, vid);
+
+	func_id = hinic3_global_func_id(nic_dev->hwdev);
+	err = hinic3_del_vlan(nic_dev->hwdev, vid, func_id);
+	if (err) {
+		netdev_err(netdev, "Failed to delete vlan %u\n", vid);
+		goto out;
+	}
+
+	clear_bit(column, &vlan_bitmap[row]);
+	netdev_dbg(netdev, "Remove vlan %u\n", vid);
+
+out:
+	return err;
+}
+
 static void hinic3_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct hinic3_nic_dev *nic_dev = netdev_priv(netdev);
@@ -771,6 +830,9 @@ static const struct net_device_ops hinic3_netdev_ops = {
 	.ndo_features_check   = hinic3_features_check,
 	.ndo_change_mtu       = hinic3_change_mtu,
 	.ndo_set_mac_address  = hinic3_set_mac_addr,
+	.ndo_validate_addr    = eth_validate_addr,
+	.ndo_vlan_rx_add_vid  = hinic3_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = hinic3_vlan_rx_kill_vid,
 	.ndo_tx_timeout       = hinic3_tx_timeout,
 	.ndo_get_stats64      = hinic3_get_stats64,
 	.ndo_start_xmit       = hinic3_xmit_frame,

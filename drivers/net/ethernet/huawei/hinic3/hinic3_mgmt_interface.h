@@ -56,6 +56,15 @@ struct l2nic_cmd_update_mac {
 	u8                   new_mac[ETH_ALEN];
 };
 
+struct l2nic_cmd_vlan_config {
+	struct mgmt_msg_head msg_head;
+	u16                  func_id;
+	u8                   opcode;
+	u8                   rsvd1;
+	u16                  vlan_id;
+	u16                  rsvd2;
+};
+
 struct l2nic_cmd_vlan_offload {
 	struct mgmt_msg_head msg_head;
 	u16                  func_id;
@@ -205,6 +214,7 @@ enum l2nic_cmd {
 	L2NIC_CMD_SET_MAC             = 21,
 	L2NIC_CMD_DEL_MAC             = 22,
 	L2NIC_CMD_UPDATE_MAC          = 23,
+	L2NIC_CMD_CFG_FUNC_VLAN       = 25,
 	L2NIC_CMD_SET_VLAN_FILTER_EN  = 26,
 	L2NIC_CMD_SET_RX_VLAN_OFFLOAD = 27,
 	L2NIC_CMD_CFG_RSS             = 60,

@@ -137,11 +137,17 @@ static int hinic3_init_nic_dev(struct net_device *netdev,
 
 	nic_dev->rx_buf_len = HINIC3_RX_BUF_LEN;
 	nic_dev->lro_replenish_thld = HINIC3_LRO_REPLENISH_THLD;
+	nic_dev->vlan_bitmap = kzalloc(HINIC3_VLAN_BITMAP_SIZE(nic_dev),
+				       GFP_KERNEL);
+	if (!nic_dev->vlan_bitmap)
+		return -ENOMEM;
+
 	nic_dev->nic_svc_cap = hwdev->cfg_mgmt->cap.nic_svc_cap;
 
 	nic_dev->workq = create_singlethread_workqueue(HINIC3_NIC_DEV_WQ_NAME);
 	if (!nic_dev->workq) {
 		dev_err(hwdev->dev, "Failed to initialize nic workqueue\n");
+		kfree(nic_dev->vlan_bitmap);
 		return -ENOMEM;
 	}
 
@@ -335,6 +341,7 @@ static void hinic3_nic_event(struct auxiliary_device *adev,
 static void hinic3_free_nic_dev(struct hinic3_nic_dev *nic_dev)
 {
 	destroy_workqueue(nic_dev->workq);
+	kfree(nic_dev->vlan_bitmap);
 }
 
 static int hinic3_nic_probe(struct auxiliary_device *adev,
