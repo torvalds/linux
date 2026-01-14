@@ -3,6 +3,7 @@
  * MPRLS0025PA - Honeywell MicroPressure pressure sensor series driver
  *
  * Copyright (c) Andreas Klinger <ak@it-klinger.de>
+ * Copyright (c) 2023-2025 Petre Rodan <petre.rodan@subdimension.ro>
  *
  * Data sheet:
  *  https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/micropressure-mpr-series/documents/sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
