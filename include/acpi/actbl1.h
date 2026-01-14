@@ -1987,7 +1987,7 @@ struct acpi_ibft_target {
 
 struct acpi_table_dtpr {
 	struct acpi_table_header header;
-	u32 flags;		// 36
+	u32 flags;		/* 36 */
 	u32 ins_cnt;
 };
 
@@ -2003,66 +2003,71 @@ struct acpi_tpr_instance {
 
 struct acpi_tpr_aux_sr {
 	u32 srl_cnt;
-	//ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[];
+	/* ACPI_TPR_SERIALIZE_REQUEST tpr_sr_arr[]; */
 };
 
-/*******************************************************************************
+/*
  * TPRn_BASE
  *
  * Specifies the start address of TPRn region. TPR region address and size must
  * be with 1MB resolution. These bits are compared with the result of the
  * TPRn_LIMIT[63:20] * applied to the incoming address, to determine if an
  * access fall within the TPRn defined region.
-*******************************************************************************/
+ */
+
 struct acpi_tprn_base_reg {
 	u64 reserved0:3;
-	u64 rw:1;		// access: 1 == RO, 0 == RW (for TPR must be RW)
-	u64 enable:1;		// 0 == range enabled, 1 == range disabled
+	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
+	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_base_rw:44;	// minimal TPrn_base resolution is 1MB.
-	// applied to the incoming address, to determine if an
-	// access fall within the TPrn defined region.
-	// width is determined by a bus width which can be
-	// obtainedvia CPUID function 0x80000008.
-	//u64 unused : 1;
+	u64 tpr_base_rw:44;	/* Minimal TPRn_Base resolution is 1MB.
+				 *  Applied to the incoming address, to determine if
+				 *  an access fall within the TPRn defined region.
+				 *  Width is determined by a bus width which can be
+				 *  obtained via CPUID function 0x80000008.
+				 */
+	/* u64 unused : 1;   */
 };
 
-/*******************************************************************************
+/*
  * TPRn_LIMIT
  *
  * This register defines an isolated region of memory that can be enabled
  * to prohibit certain system agents from accessing memory. When an agent
  * sends a request upstream, whether snooped or not, a TPR prevents that
  * transaction from changing the state of memory.
-*******************************************************************************/
+ */
 
 struct acpi_tprn_limit_reg {
 	u64 reserved0:3;
-	u64 rw:1;		// access: 1 == RO, 0 == RW (for TPR must be RW)
-	u64 enable:1;		// 0 == range enabled, 1 == range disabled
+	u64 rw:1;		/* access: 1 == RO, 0 == RW (for TPR must be RW) */
+	u64 enable:1;		/* 0 == range enabled, 1 == range disabled */
 	u64 reserved1:15;
-	u64 tpr_limit_rw:44;	// minimal TPrn_limit resolution is 1MB.
-	// these bits define TPR limit address.
-	// width is determined by a bus width.
+	u64 tpr_limit_rw:44;	/* Minimal TPRn_Limit resolution is 1MB.
+				 *  These bits define TPR limit address.
+				 *  Width is determined by a bus width.
+				 */
 
-	//u64 unused : 1;
+	/* u64 unused : 1; */
 };
 
-/*******************************************************************************
+/*
  * SERIALIZE_REQUEST
  *
  * This register is used to request serialization of non-coherent DMA
  * transactions. OS shall  issue it before changing of TPR settings
  * (base / size).
-*******************************************************************************/
+ */
 
 struct acpi_tpr_serialize_request {
 	u64 sr_register;
-	// BIT 1 - status of serialization request (RO)
-	//         0 == register idle, 1 == serialization in progress
-	// BIT 2 - control field to initiate serialization (RW)
-	//         0 == normal, 1 == initialize serialization
-	// (self-clear to allow multiple serialization requests)
+	/*
+	 *  BIT 1 - Status of serialization request (RO)
+	 *          0 == register idle, 1 == serialization in progress
+	 *  BIT 2 - Control field to initiate serialization (RW)
+	 *          0 == normal, 1 == initialize serialization
+	 *  (self-clear to allow multiple serialization requests)
+	 */
 };
 
 /* Reset to default packing */
