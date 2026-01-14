@@ -8,6 +8,7 @@
  */
 
 #include <linux/auxiliary_bus.h>
+#include <linux/cleanup.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/pm.h>
@@ -33,6 +34,7 @@ struct class_function_drv {
 	struct sdca_class_drv *core;
 
 	struct sdca_function_data *function;
+	bool suspended;
 };
 
 static void class_function_regmap_lock(void *data)
@@ -210,6 +212,31 @@ static const struct snd_soc_component_driver class_function_component_drv = {
 	.endianness		= 1,
 };
 
+static int class_function_init_device(struct class_function_drv *drv,
+				      unsigned int status)
+{
+	int ret;
+
+	if (!(status & SDCA_CTL_ENTITY_0_FUNCTION_HAS_BEEN_RESET)) {
+		dev_dbg(drv->dev, "reset function device\n");
+
+		ret = sdca_reset_function(drv->dev, drv->function, drv->regmap);
+		if (ret)
+			return ret;
+	}
+
+	if (status & SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION) {
+		dev_dbg(drv->dev, "write initialisation\n");
+
+		ret = sdca_regmap_write_init(drv->dev, drv->core->dev_regmap,
+					     drv->function);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int class_function_boot(struct class_function_drv *drv)
 {
 	unsigned int reg = SDW_SDCA_CTL(drv->function->desc->adr,
@@ -218,37 +245,17 @@ static int class_function_boot(struct class_function_drv *drv)
 	unsigned int val;
 	int ret;
 
+	guard(mutex)(&drv->core->init_lock);
+
 	ret = regmap_read(drv->regmap, reg, &val);
 	if (ret < 0) {
 		dev_err(drv->dev, "failed to read function status: %d\n", ret);
 		return ret;
 	}
 
-	if (!(val & SDCA_CTL_ENTITY_0_FUNCTION_HAS_BEEN_RESET)) {
-		dev_dbg(drv->dev, "reset function device\n");
-
-		ret = sdca_reset_function(drv->dev, drv->function, drv->regmap);
-		if (ret)
-			return ret;
-	}
-
-	if (val & SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION) {
-		dev_dbg(drv->dev, "write initialisation\n");
-
-		ret = sdca_regmap_write_init(drv->dev, drv->core->dev_regmap,
-					     drv->function);
-		if (ret)
-			return ret;
-
-		ret = regmap_write(drv->regmap, reg,
-				   SDCA_CTL_ENTITY_0_FUNCTION_NEEDS_INITIALIZATION);
-		if (ret < 0) {
-			dev_err(drv->dev,
-				"failed to clear function init status: %d\n",
-				ret);
-			return ret;
-		}
-	}
+	ret = class_function_init_device(drv, val);
+	if (ret)
+		return ret;
 
 	/* Start FDL process */
 	ret = sdca_irq_populate_early(drv->dev, drv->regmap, drv->function,
@@ -414,8 +421,43 @@ static int class_function_runtime_resume(struct device *dev)
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 	int ret;
 
+	guard(mutex)(&drv->core->init_lock);
+
 	regcache_mark_dirty(drv->regmap);
 	regcache_cache_only(drv->regmap, false);
+
+	if (drv->suspended) {
+		unsigned int reg = SDW_SDCA_CTL(drv->function->desc->adr,
+						SDCA_ENTITY_TYPE_ENTITY_0,
+						SDCA_CTL_ENTITY_0_FUNCTION_STATUS, 0);
+		unsigned int val;
+
+		ret = regmap_read(drv->regmap, reg, &val);
+		if (ret < 0) {
+			dev_err(drv->dev, "failed to read function status: %d\n", ret);
+			goto err;
+		}
+
+		ret = class_function_init_device(drv, val);
+		if (ret)
+			goto err;
+
+		sdca_irq_enable_early(drv->function, drv->core->irq_info);
+
+		ret = sdca_fdl_sync(drv->dev, drv->function, drv->core->irq_info);
+		if (ret)
+			goto err;
+
+		sdca_irq_enable(drv->function, drv->core->irq_info);
+
+		ret = regmap_write(drv->regmap, reg, 0xFF);
+		if (ret < 0) {
+			dev_err(drv->dev, "failed to clear function status: %d\n", ret);
+			goto err;
+		}
+
+		drv->suspended = false;
+	}
 
 	ret = regcache_sync(drv->regmap);
 	if (ret) {
@@ -431,7 +473,49 @@ err:
 	return ret;
 }
 
+static int class_function_suspend(struct device *dev)
+{
+	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
+	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
+	int ret;
+
+	drv->suspended = true;
+
+	/* Ensure runtime resume runs on resume */
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret) {
+		dev_err(dev, "failed to resume for suspend: %d\n", ret);
+		return ret;
+	}
+
+	sdca_irq_disable(drv->function, drv->core->irq_info);
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret) {
+		dev_err(dev, "failed to force suspend: %d\n", ret);
+		return ret;
+	}
+
+	pm_runtime_put_noidle(dev);
+
+	return 0;
+}
+
+static int class_function_resume(struct device *dev)
+{
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret) {
+		dev_err(dev, "failed to force resume: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static const struct dev_pm_ops class_function_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(class_function_suspend, class_function_resume)
 	RUNTIME_PM_OPS(class_function_runtime_suspend,
 		       class_function_runtime_resume, NULL)
 };
