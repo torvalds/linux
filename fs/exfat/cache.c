@@ -260,18 +260,7 @@ int exfat_get_cluster(struct inode *inode, unsigned int cluster,
 		return 0;
 
 	cache_init(&cid, EXFAT_EOF_CLUSTER, EXFAT_EOF_CLUSTER);
-
-	if (exfat_cache_lookup(inode, cluster, &cid, fclus, dclus) ==
-			EXFAT_EOF_CLUSTER) {
-		/*
-		 * dummy, always not contiguous
-		 * This is reinitialized by cache_init(), later.
-		 */
-		WARN_ON(cid.id != EXFAT_CACHE_VALID ||
-			cid.fcluster != EXFAT_EOF_CLUSTER ||
-			cid.dcluster != EXFAT_EOF_CLUSTER ||
-			cid.nr_contig != 0);
-	}
+	exfat_cache_lookup(inode, cluster, &cid, fclus, dclus);
 
 	if (*fclus == cluster)
 		return 0;
