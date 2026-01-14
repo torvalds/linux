@@ -2357,6 +2357,28 @@ int kfd_numa_node_to_apic_id(int numa_node_id)
 	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
 }
 
+/* kfd_gpu_node_num - Return kfd gpu node number at system */
+uint32_t kfd_gpu_node_num(void)
+{
+	struct kfd_node *dev;
+	u8 gpu_num  = 0;
+	u8 id  = 0;
+
+	while (kfd_topology_enum_kfd_devices(id, &dev) == 0) {
+		if (!dev || kfd_devcgroup_check_permission(dev)) {
+			/* Skip non GPU devices and devices to which the
+			 * current process have no access to
+			 */
+			id++;
+			continue;
+		}
+		id++;
+		gpu_num++;
+	}
+
+	return gpu_num;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 int kfd_debugfs_hqds_by_device(struct seq_file *m, void *data)

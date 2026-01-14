@@ -973,6 +973,9 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 	}
 
 	kfree(kfd);
+
+	/* after remove a kfd device unlock kfd driver */
+	kgd2kfd_unlock_kfd(NULL);
 }
 
 int kgd2kfd_pre_reset(struct kfd_dev *kfd,
@@ -1557,10 +1560,14 @@ out:
 	return r;
 }
 
+/* unlock a kfd dev or kfd driver */
 void kgd2kfd_unlock_kfd(struct kfd_dev *kfd)
 {
 	mutex_lock(&kfd_processes_mutex);
-	--kfd->kfd_dev_lock;
+	if (kfd)
+		--kfd->kfd_dev_lock;
+	else
+		--kfd_locked;
 	mutex_unlock(&kfd_processes_mutex);
 }
 
@@ -1727,6 +1734,73 @@ bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entr
 		kfd_unref_process(p);
 	}
 	return false;
+}
+
+/* check if there is kfd process still uses adev */
+static bool kgd2kfd_check_device_idle(struct amdgpu_device *adev)
+{
+	struct kfd_process *p;
+	struct hlist_node *p_temp;
+	unsigned int temp;
+	struct kfd_node *dev;
+
+	mutex_lock(&kfd_processes_mutex);
+
+	if (hash_empty(kfd_processes_table)) {
+		mutex_unlock(&kfd_processes_mutex);
+		return true;
+	}
+
+	/* check if there is device still use adev */
+	hash_for_each_safe(kfd_processes_table, temp, p_temp, p, kfd_processes) {
+		for (int i = 0; i < p->n_pdds; i++) {
+			dev = p->pdds[i]->dev;
+			if (dev->adev == adev) {
+				mutex_unlock(&kfd_processes_mutex);
+				return false;
+			}
+		}
+	}
+
+	mutex_unlock(&kfd_processes_mutex);
+
+	return true;
+}
+
+/** kgd2kfd_teardown_processes - gracefully tear down existing
+ *  kfd processes that use adev
+ *
+ * @adev: amdgpu_device where kfd processes run on and will be
+ *  teardown
+ *
+ */
+void kgd2kfd_teardown_processes(struct amdgpu_device *adev)
+{
+	struct hlist_node *p_temp;
+	struct kfd_process *p;
+	struct kfd_node *dev;
+	unsigned int temp;
+
+	mutex_lock(&kfd_processes_mutex);
+
+	if (hash_empty(kfd_processes_table)) {
+		mutex_unlock(&kfd_processes_mutex);
+		return;
+	}
+
+	hash_for_each_safe(kfd_processes_table, temp, p_temp, p, kfd_processes) {
+		for (int i = 0; i < p->n_pdds; i++) {
+			dev = p->pdds[i]->dev;
+			if (dev->adev == adev)
+				kfd_signal_process_terminate_event(p);
+		}
+	}
+
+	mutex_unlock(&kfd_processes_mutex);
+
+	/* wait all kfd processes use adev terminate */
+	while (!kgd2kfd_check_device_idle(adev))
+		cond_resched();
 }
 
 #if defined(CONFIG_DEBUG_FS)

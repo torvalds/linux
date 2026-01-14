@@ -248,6 +248,11 @@ void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 		kgd2kfd_interrupt(adev->kfd.dev, ih_ring_entry);
 }
 
+void amdgpu_amdkfd_teardown_processes(struct amdgpu_device *adev)
+{
+	kgd2kfd_teardown_processes(adev);
+}
+
 void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool suspend_proc)
 {
 	if (adev->kfd.dev) {
