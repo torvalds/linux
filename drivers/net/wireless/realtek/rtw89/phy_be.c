@@ -461,7 +461,7 @@ void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 
 	for (macid_idx = 0; macid_idx < 4 * max_macid; macid_idx += 4) {
 		cr = base_macid_lmt + macid_idx;
-		rtw89_write_bb_wrap_flush(rtwdev, cr, 0x03007F7F);
+		rtw89_write_bb_wrap_flush(rtwdev, cr, 0);
 	}
 }
 
@@ -474,7 +474,7 @@ void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
 	int i, max_macid = 32;
 
 	for (i = 0; i < max_macid; i++, cr += 4)
-		rtw89_write_bb_wrap_flush(rtwdev, cr, 0x03C86000);
+		rtw89_write_bb_wrap_flush(rtwdev, cr, 0);
 }
 
 static void rtw89_phy_bb_wrap_tpu_set_all(struct rtw89_dev *rtwdev,
@@ -902,13 +902,13 @@ static void rtw89_phy_bb_wrap_ul_pwr(struct rtw89_dev *rtwdev)
 static void __rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx mac_idx)
 {
-	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_tx_path_by_macid_init(rtwdev);
-	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
-	rtw89_phy_bb_wrap_force_cr_init(rtwdev, mac_idx);
-	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
 	rtw89_phy_bb_wrap_tx_rfsi_ctrl_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_force_cr_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
 	rtw89_phy_bb_wrap_ul_pwr(rtwdev);
 }
 
