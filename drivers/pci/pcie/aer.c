@@ -1166,13 +1166,6 @@ static bool is_cxl_mem_dev(struct pci_dev *dev)
 	return true;
 }
 
-static bool cxl_error_is_native(struct pci_dev *dev)
-{
-	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
-
-	return (pcie_ports_native || host->native_aer);
-}
-
 static bool is_internal_error(struct aer_err_info *info)
 {
 	if (info->severity == AER_CORRECTABLE)
@@ -1186,7 +1179,7 @@ static int cxl_rch_handle_error_iter(struct pci_dev *dev, void *data)
 	struct aer_err_info *info = (struct aer_err_info *)data;
 	const struct pci_error_handlers *err_handler;
 
-	if (!is_cxl_mem_dev(dev) || !cxl_error_is_native(dev))
+	if (!is_cxl_mem_dev(dev) || !pcie_aer_is_native(dev))
 		return 0;
 
 	/* Protect dev->driver */
@@ -1227,7 +1220,7 @@ static int handles_cxl_error_iter(struct pci_dev *dev, void *data)
 	bool *handles_cxl = data;
 
 	if (!*handles_cxl)
-		*handles_cxl = is_cxl_mem_dev(dev) && cxl_error_is_native(dev);
+		*handles_cxl = is_cxl_mem_dev(dev) && pcie_aer_is_native(dev);
 
 	/* Non-zero terminates iteration */
 	return *handles_cxl;
