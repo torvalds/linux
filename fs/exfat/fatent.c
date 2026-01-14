@@ -36,18 +36,23 @@ static int exfat_mirror_bh(struct super_block *sb, sector_t sec,
 }
 
 static int __exfat_ent_get(struct super_block *sb, unsigned int loc,
-		unsigned int *content)
+		unsigned int *content, struct buffer_head **last)
 {
 	unsigned int off;
 	sector_t sec;
-	struct buffer_head *bh;
+	struct buffer_head *bh = last ? *last : NULL;
 
 	sec = FAT_ENT_OFFSET_SECTOR(sb, loc);
 	off = FAT_ENT_OFFSET_BYTE_IN_SECTOR(sb, loc);
 
-	bh = sb_bread(sb, sec);
-	if (!bh)
-		return -EIO;
+	if (!bh || bh->b_blocknr != sec || !buffer_uptodate(bh)) {
+		brelse(bh);
+		bh = sb_bread(sb, sec);
+		if (last)
+			*last = bh;
+		if (unlikely(!bh))
+			return -EIO;
+	}
 
 	*content = le32_to_cpu(*(__le32 *)(&bh->b_data[off]));
 
@@ -55,7 +60,8 @@ static int __exfat_ent_get(struct super_block *sb, unsigned int loc,
 	if (*content > EXFAT_BAD_CLUSTER)
 		*content = EXFAT_EOF_CLUSTER;
 
-	brelse(bh);
+	if (!last)
+		brelse(bh);
 	return 0;
 }
 
@@ -95,7 +101,7 @@ int exfat_ent_get(struct super_block *sb, unsigned int loc,
 		return -EIO;
 	}
 
-	err = __exfat_ent_get(sb, loc, content);
+	err = __exfat_ent_get(sb, loc, content, NULL);
 	if (err) {
 		exfat_fs_error_ratelimit(sb,
 			"failed to access to FAT (entry 0x%08x, err:%d)",
