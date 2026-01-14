@@ -1199,6 +1199,16 @@ int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 			return ret;
 	}
 
+	/*
+	 * Some SoCs do not support reading the LTSSM register after
+	 * PME_Turn_Off broadcast. For those SoCs, skip waiting for L2/L3 Ready
+	 * state and wait 10ms as recommended in PCIe spec r6.0, sec 5.3.3.2.1.
+	 */
+	if (pci->pp.skip_l23_ready) {
+		mdelay(PCIE_PME_TO_L2_TIMEOUT_US/1000);
+		goto stop_link;
+	}
+
 	ret = read_poll_timeout(dw_pcie_get_ltssm, val,
 				val == DW_PCIE_LTSSM_L2_IDLE ||
 				val <= DW_PCIE_LTSSM_DETECT_WAIT,
