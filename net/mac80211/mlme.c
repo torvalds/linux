@@ -8964,6 +8964,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 		}
 
+		if (ifmgd->auth_data &&
+		    ifmgd->auth_data->algorithm == WLAN_AUTH_EPPKE)
+			new_sta->sta.epp_peer = true;
+
 		new_sta->sta.mlo = mlo;
 	}
 

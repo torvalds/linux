@@ -680,10 +680,18 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		 * association has completed, this rejects that attempt
 		 * so it will set the key again after association.
 		 *
+		 * With (re)association frame encryption enabled, cfg80211
+		 * may deliver keys to mac80211 before the station has
+		 * associated. In that case, accept the key if the station
+		 * is an Enhanced Privacy Protection (EPP) peer.
+		 * If (re)association frame encryption support is not present,
+		 * cfg80211 will not allow key installation in non‑AP STA mode.
+		 *
 		 * TODO: accept the key if we have a station entry and
-		 *       add it to the device after the station.
+		 *	 add it to the device after the station associates.
 		 */
-		if (!sta || !test_sta_flag(sta, WLAN_STA_ASSOC)) {
+		if (!sta || (!sta->sta.epp_peer &&
+			     !test_sta_flag(sta, WLAN_STA_ASSOC))) {
 			ieee80211_key_free_unused(key);
 			return -ENOENT;
 		}
@@ -2197,6 +2205,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
+
+	if (params->epp_peer)
+		sta->sta.epp_peer = true;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		/*
