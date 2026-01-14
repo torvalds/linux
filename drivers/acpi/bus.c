@@ -1013,30 +1013,24 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
-static const void *acpi_of_device_get_match_data(const struct device *dev)
-{
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	const struct of_device_id *match = NULL;
-
-	if (!acpi_of_match_device(adev, dev->driver->of_match_table, &match))
-		return NULL;
-
-	return match->data;
-}
-
 const void *acpi_device_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *acpi_ids = dev->driver->acpi_match_table;
-	const struct acpi_device_id *match;
+	const struct of_device_id *of_ids = dev->driver->of_match_table;
+	const struct acpi_device *adev = acpi_companion_match(dev);
+	const struct acpi_device_id *acpi_id = NULL;
+	const struct of_device_id *of_id = NULL;
 
-	if (!acpi_ids)
-		return acpi_of_device_get_match_data(dev);
-
-	match = acpi_match_device(acpi_ids, dev);
-	if (!match)
+	if (!__acpi_match_device(adev, acpi_ids, of_ids, &acpi_id, &of_id))
 		return NULL;
 
-	return (const void *)match->driver_data;
+	if (acpi_id)
+		return (const void *)acpi_id->driver_data;
+
+	if (of_id)
+		return of_id->data;
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(acpi_device_get_match_data);
 
