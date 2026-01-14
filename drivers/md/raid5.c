@@ -6084,13 +6084,13 @@ static sector_t raid5_bio_lowest_chunk_sector(struct r5conf *conf,
 static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 {
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	bool on_wq;
 	struct r5conf *conf = mddev->private;
-	sector_t logical_sector;
-	struct stripe_request_ctx ctx = {};
 	const int rw = bio_data_dir(bi);
+	struct stripe_request_ctx *ctx;
+	sector_t logical_sector;
 	enum stripe_result res;
 	int s, stripe_cnt;
+	bool on_wq;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
 		int ret = log_handle_flush_request(conf, bi);
@@ -6102,11 +6102,6 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 				return true;
 		}
 		/* ret == -EAGAIN, fallback */
-		/*
-		 * if r5l_handle_flush_request() didn't clear REQ_PREFLUSH,
-		 * we need to flush journal device
-		 */
-		ctx.do_flush = bi->bi_opf & REQ_PREFLUSH;
 	}
 
 	md_write_start(mddev, bi);
@@ -6129,16 +6124,25 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 
 	logical_sector = bi->bi_iter.bi_sector & ~((sector_t)RAID5_STRIPE_SECTORS(conf)-1);
-	ctx.first_sector = logical_sector;
-	ctx.last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
 
-	stripe_cnt = DIV_ROUND_UP_SECTOR_T(ctx.last_sector - logical_sector,
+	ctx = mempool_alloc(conf->ctx_pool, GFP_NOIO);
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->first_sector = logical_sector;
+	ctx->last_sector = bio_end_sector(bi);
+	/*
+	 * if r5l_handle_flush_request() didn't clear REQ_PREFLUSH,
+	 * we need to flush journal device
+	 */
+	if (unlikely(bi->bi_opf & REQ_PREFLUSH))
+		ctx->do_flush = true;
+
+	stripe_cnt = DIV_ROUND_UP_SECTOR_T(ctx->last_sector - logical_sector,
 					   RAID5_STRIPE_SECTORS(conf));
-	bitmap_set(ctx.sectors_to_do, 0, stripe_cnt);
+	bitmap_set(ctx->sectors_to_do, 0, stripe_cnt);
 
 	pr_debug("raid456: %s, logical %llu to %llu\n", __func__,
-		 bi->bi_iter.bi_sector, ctx.last_sector);
+		 bi->bi_iter.bi_sector, ctx->last_sector);
 
 	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
 	if ((bi->bi_opf & REQ_NOWAIT) &&
@@ -6146,6 +6150,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		bio_wouldblock_error(bi);
 		if (rw == WRITE)
 			md_write_end(mddev);
+		mempool_free(ctx, conf->ctx_pool);
 		return true;
 	}
 	md_account_bio(mddev, &bi);
@@ -6164,10 +6169,10 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		add_wait_queue(&conf->wait_for_reshape, &wait);
 		on_wq = true;
 	}
-	s = (logical_sector - ctx.first_sector) >> RAID5_STRIPE_SHIFT(conf);
+	s = (logical_sector - ctx->first_sector) >> RAID5_STRIPE_SHIFT(conf);
 
 	while (1) {
-		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
+		res = make_stripe_request(mddev, conf, ctx, logical_sector,
 					  bi);
 		if (res == STRIPE_FAIL || res == STRIPE_WAIT_RESHAPE)
 			break;
@@ -6184,9 +6189,9 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			 * raid5_activate_delayed() from making progress
 			 * and thus deadlocking.
 			 */
-			if (ctx.batch_last) {
-				raid5_release_stripe(ctx.batch_last);
-				ctx.batch_last = NULL;
+			if (ctx->batch_last) {
+				raid5_release_stripe(ctx->batch_last);
+				ctx->batch_last = NULL;
 			}
 
 			wait_woken(&wait, TASK_UNINTERRUPTIBLE,
@@ -6194,21 +6199,23 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			continue;
 		}
 
-		s = find_next_bit_wrap(ctx.sectors_to_do, stripe_cnt, s);
+		s = find_next_bit_wrap(ctx->sectors_to_do, stripe_cnt, s);
 		if (s == stripe_cnt)
 			break;
 
-		logical_sector = ctx.first_sector +
+		logical_sector = ctx->first_sector +
 			(s << RAID5_STRIPE_SHIFT(conf));
 	}
 	if (unlikely(on_wq))
 		remove_wait_queue(&conf->wait_for_reshape, &wait);
 
-	if (ctx.batch_last)
-		raid5_release_stripe(ctx.batch_last);
+	if (ctx->batch_last)
+		raid5_release_stripe(ctx->batch_last);
 
 	if (rw == WRITE)
 		md_write_end(mddev);
+
+	mempool_free(ctx, conf->ctx_pool);
 	if (res == STRIPE_WAIT_RESHAPE) {
 		md_free_cloned_bio(bi);
 		return false;
@@ -7378,6 +7385,9 @@ static void free_conf(struct r5conf *conf)
 	bioset_exit(&conf->bio_split);
 	kfree(conf->stripe_hashtbl);
 	kfree(conf->pending_data);
+
+	mempool_destroy(conf->ctx_pool);
+
 	kfree(conf);
 }
 
@@ -8059,6 +8069,13 @@ static int raid5_run(struct mddev *mddev)
 		ret = raid5_set_limits(mddev);
 		if (ret)
 			goto abort;
+	}
+
+	conf->ctx_pool = mempool_create_kmalloc_pool(NR_RAID_BIOS,
+					sizeof(struct stripe_request_ctx));
+	if (!conf->ctx_pool) {
+		ret = -ENOMEM;
+		goto abort;
 	}
 
 	ret = log_init(conf, journal_dev, raid5_has_ppl(conf));

@@ -22,6 +22,10 @@
 #include <trace/events/block.h>
 
 #define MaxSector (~(sector_t)0)
+/*
+ * Number of guaranteed raid bios in case of extreme VM load:
+ */
+#define	NR_RAID_BIOS 256
 
 enum md_submodule_type {
 	MD_PERSONALITY = 0,

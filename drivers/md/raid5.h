@@ -690,6 +690,8 @@ struct r5conf {
 	struct list_head	pending_list;
 	int			pending_data_cnt;
 	struct r5pending_data	*next_pending_data;
+
+	mempool_t		*ctx_pool;
 };
 
 #if PAGE_SIZE == DEFAULT_STRIPE_SIZE
