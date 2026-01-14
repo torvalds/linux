@@ -153,7 +153,7 @@ static int cxl_mem_probe(struct device *dev)
 	}
 
 	if (cxl_pmem_size(cxlds) && IS_ENABLED(CONFIG_CXL_PMEM)) {
-		rc = devm_cxl_add_nvdimm(parent_port, cxlmd);
+		rc = devm_cxl_add_nvdimm(dev, parent_port, cxlmd);
 		if (rc) {
 			if (rc == -ENODEV)
 				dev_info(dev, "PMEM disabled by platform\n");
