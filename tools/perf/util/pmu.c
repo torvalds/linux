@@ -1349,7 +1349,7 @@ struct perf_pmu_format *pmu_find_format(const struct list_head *formats,
 	return NULL;
 }
 
-__u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name)
+__u64 perf_pmu__format_bits(const struct perf_pmu *pmu, const char *name)
 {
 	struct perf_pmu_format *format = pmu_find_format(&pmu->format, name);
 	__u64 bits = 0;
@@ -1364,7 +1364,7 @@ __u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name)
 	return bits;
 }
 
-int perf_pmu__format_type(struct perf_pmu *pmu, const char *name)
+int perf_pmu__format_type(const struct perf_pmu *pmu, const char *name)
 {
 	struct perf_pmu_format *format = pmu_find_format(&pmu->format, name);
 
