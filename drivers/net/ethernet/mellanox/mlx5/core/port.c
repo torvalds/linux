@@ -1203,6 +1203,30 @@ u32 mlx5_port_info2linkmodes(struct mlx5_core_dev *mdev,
 	return link_modes;
 }
 
+int mlx5_port_oper_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
+{
+	const struct mlx5_link_info *table;
+	struct mlx5_port_eth_proto eproto;
+	u32 oper_speed = 0;
+	u32 max_size;
+	bool ext;
+	int err;
+	int i;
+
+	ext = mlx5_ptys_ext_supported(mdev);
+	err = mlx5_port_query_eth_proto(mdev, 1, ext, &eproto);
+	if (err)
+		return err;
+
+	mlx5e_port_get_link_mode_info_arr(mdev, &table, &max_size, false);
+	for (i = 0; i < max_size; ++i)
+		if (eproto.oper & MLX5E_PROT_MASK(i))
+			oper_speed = max(oper_speed, table[i].speed);
+
+	*speed = oper_speed;
+	return 0;
+}
+
 int mlx5_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
 	const struct mlx5_link_info *table;
