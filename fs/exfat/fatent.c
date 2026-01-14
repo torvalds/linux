@@ -88,49 +88,58 @@ int exfat_ent_set(struct super_block *sb, unsigned int loc,
 	return 0;
 }
 
+/*
+ * Caller must release the buffer_head if no error return.
+ */
 int exfat_ent_get(struct super_block *sb, unsigned int loc,
-		unsigned int *content)
+		unsigned int *content, struct buffer_head **last)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	int err;
 
 	if (!is_valid_cluster(sbi, loc)) {
 		exfat_fs_error_ratelimit(sb,
 			"invalid access to FAT (entry 0x%08x)",
 			loc);
-		return -EIO;
+		goto err;
 	}
 
-	err = __exfat_ent_get(sb, loc, content, NULL);
-	if (err) {
+	if (unlikely(__exfat_ent_get(sb, loc, content, last))) {
 		exfat_fs_error_ratelimit(sb,
-			"failed to access to FAT (entry 0x%08x, err:%d)",
-			loc, err);
-		return err;
+			"failed to access to FAT (entry 0x%08x)",
+			loc);
+		goto err;
 	}
 
-	if (*content == EXFAT_FREE_CLUSTER) {
+	if (unlikely(*content == EXFAT_FREE_CLUSTER)) {
 		exfat_fs_error_ratelimit(sb,
 			"invalid access to FAT free cluster (entry 0x%08x)",
 			loc);
-		return -EIO;
+		goto err;
 	}
 
-	if (*content == EXFAT_BAD_CLUSTER) {
+	if (unlikely(*content == EXFAT_BAD_CLUSTER)) {
 		exfat_fs_error_ratelimit(sb,
 			"invalid access to FAT bad cluster (entry 0x%08x)",
 			loc);
-		return -EIO;
+		goto err;
 	}
 
 	if (*content != EXFAT_EOF_CLUSTER && !is_valid_cluster(sbi, *content)) {
 		exfat_fs_error_ratelimit(sb,
 			"invalid access to FAT (entry 0x%08x) bogus content (0x%08x)",
 			loc, *content);
-		return -EIO;
+		goto err;
 	}
 
 	return 0;
+err:
+	if (last) {
+		brelse(*last);
+
+		/* Avoid double release */
+		*last = NULL;
+	}
+	return -EIO;
 }
 
 int exfat_chain_cont_cluster(struct super_block *sb, unsigned int chain,
@@ -299,7 +308,7 @@ int exfat_find_last_cluster(struct super_block *sb, struct exfat_chain *p_chain,
 	do {
 		count++;
 		clu = next;
-		if (exfat_ent_get(sb, clu, &next))
+		if (exfat_ent_get(sb, clu, &next, NULL))
 			return -EIO;
 	} while (next != EXFAT_EOF_CLUSTER && count <= p_chain->size);
 
@@ -490,7 +499,7 @@ int exfat_count_num_clusters(struct super_block *sb,
 	count = 0;
 	for (i = EXFAT_FIRST_CLUSTER; i < sbi->num_clusters; i++) {
 		count++;
-		if (exfat_ent_get(sb, clu, &clu))
+		if (exfat_ent_get(sb, clu, &clu, NULL))
 			return -EIO;
 		if (clu == EXFAT_EOF_CLUSTER)
 			break;
