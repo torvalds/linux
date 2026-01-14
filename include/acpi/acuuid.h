@@ -37,6 +37,11 @@
 #define UUID_DEVICE_LABELING            "e5c937d0-3553-4d7a-9117-ea4d19c3434d"
 #define UUID_PHYSICAL_PRESENCE          "3dddfaa6-361b-4eb4-a424-8d10089d1653"
 
+/* TPM */
+#define UUID_HARDWARE_INFORMATION       "cf8e16a5-c1e8-4e25-b712-4f54a96702c8"
+#define UUID_START_METHOD               "6bbf6cab-5463-4714-b7cd-f0203c0368d4"
+#define UUID_MEMORY_CLEAR               "376054ed-cc13-4675-901c-4756d7f2d45d"
+
 /* NVDIMM - NFIT table */
 
 #define UUID_NFIT_DIMM                  "4309ac30-0d11-11e4-9191-0800200c9a66"
