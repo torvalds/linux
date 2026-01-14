@@ -34,41 +34,6 @@
  * ready to send in the write queue.
  */
 
-/* Snapshot the current delivery information in the skb, to generate
- * a rate sample later when the skb is (s)acked in tcp_rate_skb_delivered().
- */
-void tcp_rate_skb_sent(struct sock *sk, struct sk_buff *skb)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	 /* In general we need to start delivery rate samples from the
-	  * time we received the most recent ACK, to ensure we include
-	  * the full time the network needs to deliver all in-flight
-	  * packets. If there are no packets in flight yet, then we
-	  * know that any ACKs after now indicate that the network was
-	  * able to deliver those packets completely in the sampling
-	  * interval between now and the next ACK.
-	  *
-	  * Note that we use packets_out instead of tcp_packets_in_flight(tp)
-	  * because the latter is a guess based on RTO and loss-marking
-	  * heuristics. We don't want spurious RTOs or loss markings to cause
-	  * a spuriously small time interval, causing a spuriously high
-	  * bandwidth estimate.
-	  */
-	if (!tp->packets_out) {
-		u64 tstamp_us = tcp_skb_timestamp_us(skb);
-
-		tp->first_tx_mstamp  = tstamp_us;
-		tp->delivered_mstamp = tstamp_us;
-	}
-
-	TCP_SKB_CB(skb)->tx.first_tx_mstamp	= tp->first_tx_mstamp;
-	TCP_SKB_CB(skb)->tx.delivered_mstamp	= tp->delivered_mstamp;
-	TCP_SKB_CB(skb)->tx.delivered		= tp->delivered;
-	TCP_SKB_CB(skb)->tx.delivered_ce	= tp->delivered_ce;
-	TCP_SKB_CB(skb)->tx.is_app_limited	= tp->app_limited ? 1 : 0;
-}
-
 /* When an skb is sacked or acked, we fill in the rate sample with the (prior)
  * delivery information when the skb was last transmitted.
  *
