@@ -1666,6 +1666,8 @@ u64 arl_h_latency_data(struct perf_event *event, u64 status);
 
 u64 pnc_latency_data(struct perf_event *event, u64 status);
 
+u64 nvl_latency_data(struct perf_event *event, u64 status);
+
 extern struct event_constraint intel_core2_pebs_event_constraints[];
 
 extern struct event_constraint intel_atom_pebs_event_constraints[];

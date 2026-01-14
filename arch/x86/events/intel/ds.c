@@ -96,6 +96,18 @@ union intel_x86_pebs_dse {
 		unsigned int pnc_fb_full:1;
 		unsigned int ld_reserved8:16;
 	};
+	struct {
+		unsigned int arw_dse:8;
+		unsigned int arw_l2_miss:1;
+		unsigned int arw_xq_promotion:1;
+		unsigned int arw_reissue:1;
+		unsigned int arw_stlb_miss:1;
+		unsigned int arw_locked:1;
+		unsigned int arw_data_blk:1;
+		unsigned int arw_addr_blk:1;
+		unsigned int arw_fb_full:1;
+		unsigned int ld_reserved9:16;
+	};
 };
 
 
@@ -272,6 +284,29 @@ static u64 pnc_pebs_l2_hit_data_source[PNC_PEBS_DATA_SOURCE_MAX] = {
 	0,							/* 0x0d: Reserved */
 	0,							/* 0x0e: Reserved */
 	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),	/* 0x0f: uncached */
+};
+
+/* Version for Arctic Wolf and later */
+
+/* L2 hit */
+#define ARW_PEBS_DATA_SOURCE_MAX	16
+static u64 arw_pebs_l2_hit_data_source[ARW_PEBS_DATA_SOURCE_MAX] = {
+	P(OP, LOAD) | P(LVL, NA) | LEVEL(NA) | P(SNOOP, NA),	/* 0x00: non-cache access */
+	OP_LH | P(LVL, L1)  | LEVEL(L1) | P(SNOOP, NONE),	/* 0x01: L1 hit */
+	OP_LH | P(LVL, LFB) | LEVEL(LFB) | P(SNOOP, NONE),	/* 0x02: WCB Hit */
+	OP_LH | P(LVL, L2)  | LEVEL(L2) | P(SNOOP, NONE),	/* 0x03: L2 Hit Clean */
+	OP_LH | P(LVL, L2)  | LEVEL(L2) | P(SNOOP, HIT),	/* 0x04: L2 Hit Snoop HIT */
+	OP_LH | P(LVL, L2)  | LEVEL(L2) | P(SNOOP, HITM),	/* 0x05: L2 Hit Snoop Hit Modified */
+	OP_LH | P(LVL, UNC) | LEVEL(NA) | P(SNOOP, NONE),	/* 0x06: uncached */
+	0,							/* 0x07: Reserved */
+	0,							/* 0x08: Reserved */
+	0,							/* 0x09: Reserved */
+	0,							/* 0x0a: Reserved */
+	0,							/* 0x0b: Reserved */
+	0,							/* 0x0c: Reserved */
+	0,							/* 0x0d: Reserved */
+	0,							/* 0x0e: Reserved */
+	0,							/* 0x0f: Reserved */
 };
 
 /* L2 miss */
@@ -458,6 +493,44 @@ u64 cmt_latency_data(struct perf_event *event, u64 status)
 				  dse.mtl_fwd_blk);
 }
 
+static u64 arw_latency_data(struct perf_event *event, u64 status)
+{
+	union intel_x86_pebs_dse dse;
+	union perf_mem_data_src src;
+	u64 val;
+
+	dse.val = status;
+
+	if (!dse.arw_l2_miss)
+		val = arw_pebs_l2_hit_data_source[dse.arw_dse & 0xf];
+	else
+		val = parse_omr_data_source(dse.arw_dse);
+
+	if (!val)
+		val = P(OP, LOAD) | LEVEL(NA) | P(SNOOP, NA);
+
+	if (dse.arw_stlb_miss)
+		val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	if (dse.arw_locked)
+		val |= P(LOCK, LOCKED);
+
+	if (dse.arw_data_blk)
+		val |= P(BLK, DATA);
+	if (dse.arw_addr_blk)
+		val |= P(BLK, ADDR);
+	if (!dse.arw_data_blk && !dse.arw_addr_blk)
+		val |= P(BLK, NA);
+
+	src.val = val;
+	if (event->hw.flags & PERF_X86_EVENT_PEBS_ST_HSW)
+		src.mem_op = P(OP, STORE);
+
+	return src.val;
+}
+
 static u64 lnc_latency_data(struct perf_event *event, u64 status)
 {
 	union intel_x86_pebs_dse dse;
@@ -549,6 +622,16 @@ u64 pnc_latency_data(struct perf_event *event, u64 status)
 		src.mem_op = P(OP, STORE);
 
 	return src.val;
+}
+
+u64 nvl_latency_data(struct perf_event *event, u64 status)
+{
+	struct x86_hybrid_pmu *pmu = hybrid_pmu(event->pmu);
+
+	if (pmu->pmu_type == hybrid_small)
+		return arw_latency_data(event, status);
+
+	return pnc_latency_data(event, status);
 }
 
 static u64 load_latency_data(struct perf_event *event, u64 status)
