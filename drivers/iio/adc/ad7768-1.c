@@ -742,6 +742,19 @@ static int ad7768_get_filter_type_attr(struct iio_dev *dev,
 	return ad7768_filter_regval_to_type[FIELD_GET(mask, mode)];
 }
 
+static int ad7768_update_dec_rate(struct iio_dev *dev, unsigned int dec_rate)
+{
+	struct ad7768_state *st = iio_priv(dev);
+	int ret;
+
+	ret = ad7768_configure_dig_fil(dev, st->filter_type, dec_rate);
+	if (ret)
+		return ret;
+
+	/* Update sampling frequency */
+	return ad7768_set_freq(st, st->samp_freq);
+}
+
 static const struct iio_enum ad7768_filter_type_iio_enum = {
 	.items = ad7768_filter_enum,
 	.num_items = ARRAY_SIZE(ad7768_filter_enum),
@@ -867,42 +880,31 @@ static int ad7768_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
-static int __ad7768_write_raw(struct iio_dev *indio_dev,
-			      struct iio_chan_spec const *chan,
-			      int val, int val2, long info)
+static int ad7768_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long info)
 {
 	struct ad7768_state *st = iio_priv(indio_dev);
 	int ret;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		return ad7768_set_freq(st, val);
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
+		ret = ad7768_set_freq(st, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		ret = ad7768_configure_dig_fil(indio_dev, st->filter_type, val);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-		/* Update sampling frequency */
-		return ad7768_set_freq(st, st->samp_freq);
+		ret = ad7768_update_dec_rate(indio_dev, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
-}
-
-static int ad7768_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long info)
-{
-	int ret;
-
-	if (!iio_device_claim_direct(indio_dev))
-		return -EBUSY;
-
-	ret = __ad7768_write_raw(indio_dev, chan, val, val2, info);
-	iio_device_release_direct(indio_dev);
-
-	return ret;
 }
 
 static int ad7768_read_label(struct iio_dev *indio_dev,
