@@ -210,7 +210,7 @@ extern struct paravirt_patch_template pv_ops;
  */
 #define PARAVIRT_CALL					\
 	ANNOTATE_RETPOLINE_SAFE "\n\t"			\
-	"call *%[paravirt_opptr];"
+	"call *%[paravirt_opptr]"
 
 /*
  * These macros are intended to wrap calls through one of the paravirt
