@@ -169,21 +169,21 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 		node = rb_first(&dentry_hash[i].tree);
 		while (node) {
 			fd = rb_entry(node, struct fuse_dentry, node);
-			if (time_after64(get_jiffies_64(), fd->time)) {
-				rb_erase(&fd->node, &dentry_hash[i].tree);
-				RB_CLEAR_NODE(&fd->node);
-				spin_lock(&fd->dentry->d_lock);
-				/* If dentry is still referenced, let next dput release it */
-				fd->dentry->d_flags |= DCACHE_OP_DELETE;
-				spin_unlock(&fd->dentry->d_lock);
-				d_dispose_if_unused(fd->dentry, &dispose);
-				if (need_resched()) {
-					spin_unlock(&dentry_hash[i].lock);
-					cond_resched();
-					spin_lock(&dentry_hash[i].lock);
-				}
-			} else
+			if (!time_before64(fd->time, get_jiffies_64()))
 				break;
+
+			rb_erase(&fd->node, &dentry_hash[i].tree);
+			RB_CLEAR_NODE(&fd->node);
+			spin_lock(&fd->dentry->d_lock);
+			/* If dentry is still referenced, let next dput release it */
+			fd->dentry->d_flags |= DCACHE_OP_DELETE;
+			spin_unlock(&fd->dentry->d_lock);
+			d_dispose_if_unused(fd->dentry, &dispose);
+			if (need_resched()) {
+				spin_unlock(&dentry_hash[i].lock);
+				cond_resched();
+				spin_lock(&dentry_hash[i].lock);
+			}
 			node = rb_first(&dentry_hash[i].tree);
 		}
 		spin_unlock(&dentry_hash[i].lock);
