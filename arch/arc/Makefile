@@ -9,7 +9,7 @@ ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := $(call cc-cross-prefix, arc-linux- arceb-linux- arc-linux-gnu-)
 endif
 
-cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
+cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -mswape -D__linux__
 
 tune-mcpu-def-$(CONFIG_ISA_ARCOMPACT)	:= -mcpu=arc700
 tune-mcpu-def-$(CONFIG_ISA_ARCV2)	:= -mcpu=hs38
@@ -41,7 +41,6 @@ endif
 cflags-y				+= -fsection-anchors
 
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
-cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 
 ifdef CONFIG_ISA_ARCV2
 
