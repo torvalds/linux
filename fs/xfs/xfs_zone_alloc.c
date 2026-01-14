@@ -977,13 +977,15 @@ xfs_free_open_zones(
 
 struct xfs_init_zones {
 	struct xfs_mount	*mp;
+	uint32_t		zone_size;
+	uint32_t		zone_capacity;
 	uint64_t		available;
 	uint64_t		reclaimable;
 };
 
 /*
  * For sequential write required zones, we restart writing at the hardware write
- * pointer returned by xfs_zone_validate().
+ * pointer returned by xfs_validate_blk_zone().
  *
  * For conventional zones or conventional devices we have to query the rmap to
  * find the highest recorded block and set the write pointer to the block after
@@ -1017,6 +1019,25 @@ xfs_init_zone(
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
 	int			error;
+
+	if (write_pointer > rtg->rtg_extents) {
+		xfs_warn(mp, "zone %u has invalid write pointer (0x%x).",
+			 rtg_rgno(rtg), write_pointer);
+		return -EFSCORRUPTED;
+	}
+
+	if (used > rtg->rtg_extents) {
+		xfs_warn(mp,
+"zone %u has used counter (0x%x) larger than zone capacity (0x%llx).",
+			 rtg_rgno(rtg), used, rtg->rtg_extents);
+		return -EFSCORRUPTED;
+	}
+
+	if (write_pointer == 0 && used != 0) {
+		xfs_warn(mp, "empty zone %u has non-zero used counter (0x%x).",
+			rtg_rgno(rtg), used);
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * If there are no used blocks, but the zone is not in empty state yet
@@ -1081,7 +1102,8 @@ xfs_get_zone_info_cb(
 		xfs_warn(mp, "realtime group not found for zone %u.", rgno);
 		return -EFSCORRUPTED;
 	}
-	if (!xfs_zone_validate(zone, rtg, &write_pointer)) {
+	if (!xfs_validate_blk_zone(mp, zone, idx, iz->zone_size,
+			iz->zone_capacity, &write_pointer)) {
 		xfs_rtgroup_rele(rtg);
 		return -EFSCORRUPTED;
 	}
@@ -1227,6 +1249,8 @@ xfs_mount_zones(
 {
 	struct xfs_init_zones	iz = {
 		.mp		= mp,
+		.zone_capacity	= mp->m_groups[XG_TYPE_RTG].blocks,
+		.zone_size	= xfs_rtgroup_raw_size(mp),
 	};
 	struct xfs_buftarg	*bt = mp->m_rtdev_targp;
 	xfs_extlen_t		zone_blocks = mp->m_groups[XG_TYPE_RTG].blocks;
