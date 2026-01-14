@@ -217,7 +217,7 @@ enum futex_access {
 
 extern int get_futex_key(u32 __user *uaddr, unsigned int flags, union futex_key *key,
 			 enum futex_access rw);
-extern void futex_q_lockptr_lock(struct futex_q *q);
+extern void futex_q_lockptr_lock(struct futex_q *q) __acquires(q->lock_ptr);
 extern struct hrtimer_sleeper *
 futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 		  int flags, u64 range_ns);
@@ -311,9 +311,11 @@ extern int futex_unqueue(struct futex_q *q);
 static inline void futex_queue(struct futex_q *q, struct futex_hash_bucket *hb,
 			       struct task_struct *task)
 	__releases(&hb->lock)
+	__releases(q->lock_ptr)
 {
 	__futex_queue(q, hb, task);
 	spin_unlock(&hb->lock);
+	__release(q->lock_ptr);
 }
 
 extern void futex_unqueue_pi(struct futex_q *q);
@@ -358,9 +360,12 @@ static inline int futex_hb_waiters_pending(struct futex_hash_bucket *hb)
 #endif
 }
 
-extern void futex_q_lock(struct futex_q *q, struct futex_hash_bucket *hb);
-extern void futex_q_unlock(struct futex_hash_bucket *hb);
+extern void futex_q_lock(struct futex_q *q, struct futex_hash_bucket *hb)
+	__acquires(&hb->lock)
+	__acquires(q->lock_ptr);
 
+extern void futex_q_unlock(struct futex_hash_bucket *hb)
+	__releases(&hb->lock);
 
 extern int futex_lock_pi_atomic(u32 __user *uaddr, struct futex_hash_bucket *hb,
 				union futex_key *key,
@@ -379,6 +384,9 @@ extern int fixup_pi_owner(u32 __user *uaddr, struct futex_q *q, int locked);
  */
 static inline void
 double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+	__acquires(&hb1->lock)
+	__acquires(&hb2->lock)
+	__no_context_analysis
 {
 	if (hb1 > hb2)
 		swap(hb1, hb2);
@@ -390,6 +398,9 @@ double_lock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
 
 static inline void
 double_unlock_hb(struct futex_hash_bucket *hb1, struct futex_hash_bucket *hb2)
+	__releases(&hb1->lock)
+	__releases(&hb2->lock)
+	__no_context_analysis
 {
 	spin_unlock(&hb1->lock);
 	if (hb1 != hb2)
