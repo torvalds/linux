@@ -160,6 +160,16 @@ static const struct rtw89_cfo_regs rtw89_cfo_regs_be_v1 = {
 	.valid_0_mask = B_DCFO_OPT_EN_BE,
 };
 
+static const struct rtw89_bb_wrap_regs rtw89_bb_wrap_regs_be = {
+	.pwr_macid_lmt = R_BE_PWR_MACID_LMT_BASE,
+	.pwr_macid_path = R_BE_PWR_MACID_PATH_BASE,
+};
+
+static const struct rtw89_bb_wrap_regs rtw89_bb_wrap_regs_be_v1 = {
+	.pwr_macid_lmt = R_BE_PWR_MACID_LMT_BASE_V1,
+	.pwr_macid_path = R_BE_PWR_MACID_PATH_BASE_V1,
+};
+
 static u32 rtw89_phy0_phy1_offset_be(struct rtw89_dev *rtwdev, u32 addr)
 {
 	u32 phy_page = addr >> 8;
@@ -406,9 +416,11 @@ static void rtw89_phy_preinit_rf_nctl_be_v1(struct rtw89_dev *rtwdev)
 static
 void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const struct rtw89_bb_wrap_regs *bb_wrap = phy->bb_wrap;
 	u32 macid_idx, cr, base_macid_lmt, max_macid = 32;
 
-	base_macid_lmt = R_BE_PWR_MACID_LMT_BASE;
+	base_macid_lmt = bb_wrap->pwr_macid_lmt;
 
 	for (macid_idx = 0; macid_idx < 4 * max_macid; macid_idx += 4) {
 		cr = base_macid_lmt + macid_idx;
@@ -419,8 +431,10 @@ void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
 static
 void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const struct rtw89_bb_wrap_regs *bb_wrap = phy->bb_wrap;
+	u32 cr = bb_wrap->pwr_macid_path;
 	int i, max_macid = 32;
-	u32 cr = R_BE_PWR_MACID_PATH_BASE;
 
 	for (i = 0; i < max_macid; i++, cr += 4)
 		rtw89_write32(rtwdev, cr, 0x03C86000);
@@ -1119,6 +1133,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
+	.bb_wrap = &rtw89_bb_wrap_regs_be,
 	.phy0_phy1_offset = rtw89_phy0_phy1_offset_be,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
@@ -1139,6 +1154,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be_v1 = {
 	.ccx = &rtw89_ccx_regs_be_v1,
 	.physts = &rtw89_physts_regs_be_v1,
 	.cfo = &rtw89_cfo_regs_be_v1,
+	.bb_wrap = &rtw89_bb_wrap_regs_be_v1,
 	.phy0_phy1_offset = rtw89_phy0_phy1_offset_be_v1,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be_v1,

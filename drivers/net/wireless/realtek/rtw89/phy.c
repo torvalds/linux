@@ -8237,6 +8237,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.ccx = &rtw89_ccx_regs_ax,
 	.physts = &rtw89_physts_regs_ax,
 	.cfo = &rtw89_cfo_regs_ax,
+	.bb_wrap = NULL,
 	.phy0_phy1_offset = rtw89_phy0_phy1_offset_ax,
 	.config_bb_gain = rtw89_phy_config_bb_gain_ax,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_ax,
