@@ -5,6 +5,7 @@
  * Copyright 2012-2020 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
@@ -72,6 +73,7 @@
 #define AN877_ADC_OUTPUT_MODE_OFFSET_BINARY	0x0
 #define AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT	0x1
 #define AN877_ADC_OUTPUT_MODE_GRAY_CODE		0x2
+#define AN877_ADC_OUTPUT_MODE_MASK		GENMASK(1, 0)
 
 /* AN877_ADC_REG_OUTPUT_PHASE */
 #define AN877_ADC_OUTPUT_EVEN_ODD_MODE_EN	0x20
@@ -85,7 +87,7 @@
  */
 
 #define CHIPID_AD9211			0x06
-#define AD9211_DEF_OUTPUT_MODE		0x00
+#define AD9211_DEF_OUTPUT_MODE		0x01
 #define AD9211_REG_VREF_MASK		GENMASK(4, 0)
 
 /*
@@ -93,7 +95,7 @@
  */
 
 #define CHIPID_AD9265			0x64
-#define AD9265_DEF_OUTPUT_MODE		0x40
+#define AD9265_DEF_OUTPUT_MODE		0x41
 #define AD9265_REG_VREF_MASK		0xC0
 
 /*
@@ -101,7 +103,7 @@
  */
 
 #define CHIPID_AD9434			0x6A
-#define AD9434_DEF_OUTPUT_MODE		0x00
+#define AD9434_DEF_OUTPUT_MODE		0x01
 #define AD9434_REG_VREF_MASK		0xC0
 
 /*
@@ -109,7 +111,7 @@
  */
 
 #define CHIPID_AD9467			0x50
-#define AD9467_DEF_OUTPUT_MODE		0x08
+#define AD9467_DEF_OUTPUT_MODE		0x09
 #define AD9467_REG_VREF_MASK		0x0F
 
 /*
@@ -117,6 +119,7 @@
  */
 
 #define CHIPID_AD9643			0x82
+#define AD9643_DEF_OUTPUT_MODE		0x01
 #define AD9643_REG_VREF_MASK		0x1F
 
 /*
@@ -124,6 +127,7 @@
  */
 
 #define CHIPID_AD9652                   0xC1
+#define AD9652_DEF_OUTPUT_MODE		0x01
 #define AD9652_REG_VREF_MASK            0xC0
 
 /*
@@ -131,6 +135,7 @@
  */
 
 #define CHIPID_AD9649			0x6F
+#define AD9649_DEF_OUTPUT_MODE		0x01
 #define AD9649_TEST_POINTS		8
 
 #define AD9647_MAX_TEST_POINTS		32
@@ -461,6 +466,7 @@ static const struct ad9467_chip_info ad9643_chip_tbl = {
 	.test_mask = BIT(AN877_ADC_TESTMODE_RAMP) |
 		GENMASK(AN877_ADC_TESTMODE_MIXED_BIT_FREQUENCY, AN877_ADC_TESTMODE_OFF),
 	.test_mask_len = AN877_ADC_TESTMODE_RAMP + 1,
+	.default_output_mode = AD9643_DEF_OUTPUT_MODE,
 	.vref_mask = AD9643_REG_VREF_MASK,
 	.has_dco = true,
 	.has_dco_invert = true,
@@ -479,6 +485,7 @@ static const struct ad9467_chip_info ad9649_chip_tbl = {
 	.test_mask = GENMASK(AN877_ADC_TESTMODE_MIXED_BIT_FREQUENCY,
 			     AN877_ADC_TESTMODE_OFF),
 	.test_mask_len = AN877_ADC_TESTMODE_MIXED_BIT_FREQUENCY + 1,
+	.default_output_mode = AD9649_DEF_OUTPUT_MODE,
 	.has_dco = true,
 	.has_dco_invert = true,
 	.dco_en = AN877_ADC_DCO_DELAY_ENABLE,
@@ -496,6 +503,7 @@ static const struct ad9467_chip_info ad9652_chip_tbl = {
 	.test_mask = GENMASK(AN877_ADC_TESTMODE_ONE_ZERO_TOGGLE,
 			     AN877_ADC_TESTMODE_OFF),
 	.test_mask_len = AN877_ADC_TESTMODE_ONE_ZERO_TOGGLE + 1,
+	.default_output_mode = AD9652_DEF_OUTPUT_MODE,
 	.vref_mask = AD9652_REG_VREF_MASK,
 	.has_dco = true,
 };
@@ -671,10 +679,14 @@ static int ad9467_backend_testmode_off(struct ad9467_state *st,
 
 static int ad9647_calibrate_prepare(struct ad9467_state *st)
 {
+	unsigned int cmode;
 	unsigned int c;
 	int ret;
 
-	ret = ad9467_outputmode_set(st, st->info->default_output_mode);
+	cmode = st->info->default_output_mode;
+	FIELD_MODIFY(AN877_ADC_OUTPUT_MODE_MASK, &cmode,
+		     AN877_ADC_OUTPUT_MODE_OFFSET_BINARY);
+	ret = ad9467_outputmode_set(st, cmode);
 	if (ret)
 		return ret;
 
@@ -778,7 +790,7 @@ static int ad9647_calibrate_stop(struct ad9467_state *st)
 			return ret;
 	}
 
-	mode = st->info->default_output_mode | AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
+	mode = st->info->default_output_mode;
 	return ad9467_outputmode_set(st, mode);
 }
 
@@ -1174,12 +1186,17 @@ static ssize_t ad9467_chan_test_mode_write(struct file *file,
 		if (ret)
 			return ret;
 
-		out_mode = st->info->default_output_mode | AN877_ADC_OUTPUT_MODE_TWOS_COMPLEMENT;
+		out_mode = st->info->default_output_mode;
 		ret = ad9467_outputmode_set(st, out_mode);
 		if (ret)
 			return ret;
 	} else {
-		ret = ad9467_outputmode_set(st, st->info->default_output_mode);
+		unsigned int cmode;
+
+		cmode = st->info->default_output_mode;
+		FIELD_MODIFY(AN877_ADC_OUTPUT_MODE_MASK, &cmode,
+			     AN877_ADC_OUTPUT_MODE_OFFSET_BINARY);
+		ret = ad9467_outputmode_set(st, cmode);
 		if (ret)
 			return ret;
 
