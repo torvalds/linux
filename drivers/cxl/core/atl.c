@@ -154,6 +154,24 @@ static int cxl_prm_setup_root(struct cxl_root *cxl_root, void *data)
 		return -ENXIO;
 	}
 
+	/*
+	 * The current kernel implementation does not support endpoint
+	 * setup with Normalized Addressing. It only translates an
+	 * endpoint's DPA to the SPA range of the host bridge.
+	 * Therefore, the endpoint address range cannot be determined,
+	 * making a non-auto setup impossible. If a decoder requires
+	 * address translation, reprogramming should be disabled and
+	 * the decoder locked.
+	 *
+	 * The BIOS, however, provides all the necessary address
+	 * translation data, which the kernel can use to reconfigure
+	 * endpoint decoders with normalized addresses. Locking the
+	 * decoders in the BIOS would prevent a capable kernel (or
+	 * other operating systems) from shutting down auto-generated
+	 * regions and managing resources dynamically.
+	 */
+	cxld->flags |= CXL_DECODER_F_LOCK;
+
 	ctx->hpa_range = hpa_range;
 	ctx->interleave_ways = ways;
 	ctx->interleave_granularity = gran;
