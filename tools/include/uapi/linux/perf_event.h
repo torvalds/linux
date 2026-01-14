@@ -1330,14 +1330,16 @@ union perf_mem_data_src {
 			mem_snoopx  :  2, /* Snoop mode, ext */
 			mem_blk     :  3, /* Access blocked */
 			mem_hops    :  3, /* Hop level */
-			mem_rsvd    : 18;
+			mem_region  :  5, /* cache/memory regions */
+			mem_rsvd    : 13;
 	};
 };
 #elif defined(__BIG_ENDIAN_BITFIELD)
 union perf_mem_data_src {
 	__u64 val;
 	struct {
-		__u64	mem_rsvd    : 18,
+		__u64	mem_rsvd    : 13,
+			mem_region  :  5, /* cache/memory regions */
 			mem_hops    :  3, /* Hop level */
 			mem_blk     :  3, /* Access blocked */
 			mem_snoopx  :  2, /* Snoop mode, ext */
@@ -1394,7 +1396,7 @@ union perf_mem_data_src {
 #define PERF_MEM_LVLNUM_L4			0x0004 /* L4 */
 #define PERF_MEM_LVLNUM_L2_MHB			0x0005 /* L2 Miss Handling Buffer */
 #define PERF_MEM_LVLNUM_MSC			0x0006 /* Memory-side Cache */
-/* 0x007 available */
+#define PERF_MEM_LVLNUM_L0			0x0007   /* L0 */
 #define PERF_MEM_LVLNUM_UNC			0x0008 /* Uncached */
 #define PERF_MEM_LVLNUM_CXL			0x0009 /* CXL */
 #define PERF_MEM_LVLNUM_IO			0x000a /* I/O */
@@ -1446,6 +1448,25 @@ union perf_mem_data_src {
 #define PERF_MEM_HOPS_3				0x0004 /* Remote board */
 /* 5-7 available */
 #define PERF_MEM_HOPS_SHIFT			43
+
+/* Cache/Memory region */
+#define PERF_MEM_REGION_NA		0x0  /* Invalid */
+#define PERF_MEM_REGION_RSVD		0x01 /* Reserved */
+#define PERF_MEM_REGION_L_SHARE		0x02 /* Local CA shared cache */
+#define PERF_MEM_REGION_L_NON_SHARE	0x03 /* Local CA non-shared cache */
+#define PERF_MEM_REGION_O_IO		0x04 /* Other CA IO agent */
+#define PERF_MEM_REGION_O_SHARE		0x05 /* Other CA shared cache */
+#define PERF_MEM_REGION_O_NON_SHARE	0x06 /* Other CA non-shared cache */
+#define PERF_MEM_REGION_MMIO		0x07 /* MMIO */
+#define PERF_MEM_REGION_MEM0		0x08 /* Memory region 0 */
+#define PERF_MEM_REGION_MEM1		0x09 /* Memory region 1 */
+#define PERF_MEM_REGION_MEM2		0x0a /* Memory region 2 */
+#define PERF_MEM_REGION_MEM3		0x0b /* Memory region 3 */
+#define PERF_MEM_REGION_MEM4		0x0c /* Memory region 4 */
+#define PERF_MEM_REGION_MEM5		0x0d /* Memory region 5 */
+#define PERF_MEM_REGION_MEM6		0x0e /* Memory region 6 */
+#define PERF_MEM_REGION_MEM7		0x0f /* Memory region 7 */
+#define PERF_MEM_REGION_SHIFT		46
 
 #define PERF_MEM_S(a, s) \
 	(((__u64)PERF_MEM_##a##_##s) << PERF_MEM_##a##_SHIFT)
