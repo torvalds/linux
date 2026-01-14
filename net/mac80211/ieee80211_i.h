@@ -430,7 +430,7 @@ struct ieee80211_mgd_auth_data {
 
 	u8 ap_addr[ETH_ALEN] __aligned(2);
 
-	u16 sae_trans, sae_status;
+	u16 trans, status;
 	size_t data_len;
 	u8 data[];
 };
