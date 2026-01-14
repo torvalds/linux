@@ -1678,7 +1678,9 @@ static int nl80211_key_allowed(struct wireless_dev *wdev)
 		return -ENOLINK;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
-		if (wdev->connected)
+		if (wdev->connected ||
+		    (wiphy_ext_feature_isset(wdev->wiphy,
+					     NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION)))
 			return 0;
 		return -ENOLINK;
 	case NL80211_IFTYPE_NAN:
