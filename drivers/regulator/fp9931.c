@@ -391,6 +391,7 @@ static const struct regulator_desc regulators[] = {
 	{
 		.name = "v3p3",
 		.of_match = of_match_ptr("v3p3"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id = 0,
 		.ops = &fp9931_v3p3ops,
 		.type = REGULATOR_VOLTAGE,
@@ -403,6 +404,7 @@ static const struct regulator_desc regulators[] = {
 	{
 		.name = "vposneg",
 		.of_match = of_match_ptr("vposneg"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id = 1,
 		.ops = &fp9931_vposneg_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -415,6 +417,7 @@ static const struct regulator_desc regulators[] = {
 	{
 		.name = "vcom",
 		.of_match = of_match_ptr("vcom"),
+		.regulators_node = of_match_ptr("regulators"),
 		.id = 2,
 		.ops = &fp9931_vcom_ops,
 		.type = REGULATOR_VOLTAGE,

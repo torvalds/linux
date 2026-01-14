@@ -497,6 +497,8 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
 		  sfp_fixup_nokia),
 
+	SFP_QUIRK_F("BIDB", "X-ONU-SFPP", sfp_fixup_potron),
+
 	// FLYPRO SFP-10GT-CS-30M uses Rollball protocol to talk to the PHY.
 	SFP_QUIRK_F("FLYPRO", "SFP-10GT-CS-30M", sfp_fixup_rollball),
 
@@ -763,7 +765,7 @@ static int sfp_smbus_byte_write(struct sfp *sfp, bool a2, u8 dev_addr,
 		dev_addr++;
 	}
 
-	return 0;
+	return data - (u8 *)buf;
 }
 
 static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)

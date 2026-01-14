@@ -101,17 +101,6 @@ SYM_FUNC_END(__kuep_unlock)
 .endm
 #endif
 
-.macro	clr_ri trash
-#ifndef CONFIG_BOOKE
-#ifdef CONFIG_PPC_8xx
-	mtspr   SPRN_NRI, \trash
-#else
-	li	\trash, MSR_KERNEL & ~MSR_RI
-	mtmsr	\trash
-#endif
-#endif
-.endm
-
 	.globl	transfer_to_syscall
 transfer_to_syscall:
 	stw	r3, ORIG_GPR3(r1)
@@ -160,7 +149,6 @@ ret_from_syscall:
 	cmpwi	r3,0
 	REST_GPR(3, r1)
 syscall_exit_finish:
-	clr_ri	r4
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
 
@@ -237,7 +225,6 @@ fast_exception_return:
 	/* Clear the exception marker on the stack to avoid confusing stacktrace */
 	li	r10, 0
 	stw	r10, 8(r11)
-	clr_ri	r10
 	mtspr	SPRN_SRR1,r9
 	mtspr	SPRN_SRR0,r12
 	REST_GPR(9, r11)
@@ -270,7 +257,6 @@ interrupt_return:
 .Lfast_user_interrupt_return:
 	lwz	r11,_NIP(r1)
 	lwz	r12,_MSR(r1)
-	clr_ri	r4
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
 
@@ -313,7 +299,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	cmpwi	cr1,r3,0
 	lwz	r11,_NIP(r1)
 	lwz	r12,_MSR(r1)
-	clr_ri	r4
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r12
 

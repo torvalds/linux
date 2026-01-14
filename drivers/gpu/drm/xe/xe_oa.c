@@ -1105,11 +1105,12 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 			oag_buf_size_select(stream) |
 			oag_configure_mmio_trigger(stream, true));
 
-	xe_mmio_write32(mmio, __oa_regs(stream)->oa_ctx_ctrl, stream->periodic ?
-			(OAG_OAGLBCTXCTRL_COUNTER_RESUME |
+	xe_mmio_write32(mmio, __oa_regs(stream)->oa_ctx_ctrl,
+			OAG_OAGLBCTXCTRL_COUNTER_RESUME |
+			(stream->periodic ?
 			 OAG_OAGLBCTXCTRL_TIMER_ENABLE |
 			 REG_FIELD_PREP(OAG_OAGLBCTXCTRL_TIMER_PERIOD_MASK,
-					stream->period_exponent)) : 0);
+					 stream->period_exponent) : 0));
 
 	/*
 	 * Initialize Super Queue Internal Cnt Register
@@ -1254,6 +1255,9 @@ static int xe_oa_set_no_preempt(struct xe_oa *oa, u64 value,
 static int xe_oa_set_prop_num_syncs(struct xe_oa *oa, u64 value,
 				    struct xe_oa_open_param *param)
 {
+	if (XE_IOCTL_DBG(oa->xe, value > DRM_XE_MAX_SYNCS))
+		return -EINVAL;
+
 	param->num_syncs = value;
 	return 0;
 }
@@ -1343,7 +1347,7 @@ static int xe_oa_user_ext_set_property(struct xe_oa *oa, enum xe_oa_user_extn_fr
 		     ARRAY_SIZE(xe_oa_set_property_funcs_config));
 
 	if (XE_IOCTL_DBG(oa->xe, ext.property >= ARRAY_SIZE(xe_oa_set_property_funcs_open)) ||
-	    XE_IOCTL_DBG(oa->xe, ext.pad))
+	    XE_IOCTL_DBG(oa->xe, !ext.property) || XE_IOCTL_DBG(oa->xe, ext.pad))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(xe_oa_set_property_funcs_open));

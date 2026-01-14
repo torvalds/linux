@@ -5,6 +5,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/inet_diag.h>
 #include <linux/netlink.h>
+#include <linux/compiler.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <linux/tcp.h>
@@ -87,7 +88,7 @@ enum {
 
 #define rta_getattr(type, value)		(*(type *)RTA_DATA(value))
 
-static void die_perror(const char *msg)
+static void __noreturn die_perror(const char *msg)
 {
 	perror(msg);
 	exit(1);

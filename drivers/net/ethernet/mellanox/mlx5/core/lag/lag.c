@@ -1413,6 +1413,7 @@ static int __mlx5_lag_dev_add_mdev(struct mlx5_core_dev *dev)
 static void mlx5_lag_unregister_hca_devcom_comp(struct mlx5_core_dev *dev)
 {
 	mlx5_devcom_unregister_component(dev->priv.hca_devcom_comp);
+	dev->priv.hca_devcom_comp = NULL;
 }
 
 static int mlx5_lag_register_hca_devcom_comp(struct mlx5_core_dev *dev)

@@ -171,6 +171,8 @@
  * @reg_dac_txdata: TX FIFO offset for DMA config.
  * @has_reset: SoC needs reset deasserted.
  * @val_fctl_ftx: TX FIFO flush bitmask.
+ * @mclk_multiplier: ratio of internal MCLK divider
+ * @tx_clk_name: name of TX module clock if split clock design
  */
 struct sun4i_spdif_quirks {
 	unsigned int reg_dac_txdata;

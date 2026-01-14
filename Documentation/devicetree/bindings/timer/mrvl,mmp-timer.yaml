@@ -8,7 +8,7 @@ title: Marvell MMP Timer
 
 maintainers:
   - Daniel Lezcano <daniel.lezcano@linaro.org>
-  - Thomas Gleixner <tglx@linutronix.de>
+  - Thomas Gleixner <tglx@kernel.org>
   - Rob Herring <robh@kernel.org>
 
 properties:
