@@ -4,6 +4,7 @@
  */
 #include <linux/export.h>
 #include <linux/phy.h>
+#include <linux/phy_port.h>
 #include <linux/of.h>
 
 #include "phylib.h"
@@ -208,7 +209,12 @@ EXPORT_SYMBOL_GPL(phy_interface_num_ports);
 
 static void __set_phy_supported(struct phy_device *phydev, u32 max_speed)
 {
+	struct phy_port *port;
+
 	phy_caps_linkmode_max_speed(max_speed, phydev->supported);
+
+	phy_for_each_port(phydev, port)
+		phy_caps_linkmode_max_speed(max_speed, port->supported);
 }
 
 /**

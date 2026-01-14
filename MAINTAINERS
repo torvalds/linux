@@ -9395,9 +9395,11 @@ R:	Russell King <linux@armlinux.org.uk>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-net-phydev
+F:	Documentation/devicetree/bindings/net/ethernet-connector.yaml
 F:	Documentation/devicetree/bindings/net/ethernet-phy.yaml
 F:	Documentation/devicetree/bindings/net/mdio*
 F:	Documentation/devicetree/bindings/net/qca,ar803x.yaml
+F:	Documentation/networking/phy-port.rst
 F:	Documentation/networking/phy.rst
 F:	drivers/net/mdio/
 F:	drivers/net/mdio/acpi_mdio.c
@@ -18216,6 +18218,14 @@ F:	Documentation/networking/phy-link-topology.rst
 F:	drivers/net/phy/phy_link_topology.c
 F:	include/linux/phy_link_topology.h
 F:	net/ethtool/phy.c
+
+NETWORKING [ETHTOOL PHY PORT]
+M:	Maxime Chevallier <maxime.chevallier@bootlin.com>
+F:	Documentation/devicetree/bindings/net/ethernet-connector.yaml
+F:	Documentation/networking/phy-port.rst
+F:	drivers/net/phy/phy_port.c
+F:	include/linux/phy_port.h
+K:	struct\s+phy_port|phy_port_
 
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
