@@ -169,8 +169,11 @@ static int cxl_prm_setup_root(struct cxl_root *cxl_root, void *data)
 	 * decoders in the BIOS would prevent a capable kernel (or
 	 * other operating systems) from shutting down auto-generated
 	 * regions and managing resources dynamically.
+	 *
+	 * Indicate that Normalized Addressing is enabled.
 	 */
 	cxld->flags |= CXL_DECODER_F_LOCK;
+	cxld->flags |= CXL_DECODER_F_NORMALIZED_ADDRESSING;
 
 	ctx->hpa_range = hpa_range;
 	ctx->interleave_ways = ways;

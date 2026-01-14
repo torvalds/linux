@@ -1097,14 +1097,16 @@ static int cxl_rr_assign_decoder(struct cxl_port *port, struct cxl_region *cxlr,
 	return 0;
 }
 
-static void cxl_region_set_lock(struct cxl_region *cxlr,
-				struct cxl_decoder *cxld)
+static void cxl_region_setup_flags(struct cxl_region *cxlr,
+				   struct cxl_decoder *cxld)
 {
-	if (!test_bit(CXL_DECODER_F_LOCK, &cxld->flags))
-		return;
+	if (test_bit(CXL_DECODER_F_LOCK, &cxld->flags)) {
+		set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
+		clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+	}
 
-	set_bit(CXL_REGION_F_LOCK, &cxlr->flags);
-	clear_bit(CXL_REGION_F_NEEDS_RESET, &cxlr->flags);
+	if (test_bit(CXL_DECODER_F_NORMALIZED_ADDRESSING, &cxld->flags))
+		set_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags);
 }
 
 /**
@@ -1218,7 +1220,7 @@ static int cxl_port_attach_region(struct cxl_port *port,
 		}
 	}
 
-	cxl_region_set_lock(cxlr, cxld);
+	cxl_region_setup_flags(cxlr, cxld);
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -2493,7 +2495,7 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	device_set_pm_not_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;
-	cxl_region_set_lock(cxlr, &cxlrd->cxlsd.cxld);
+	cxl_region_setup_flags(cxlr, &cxlrd->cxlsd.cxld);
 
 	return cxlr;
 }
@@ -3131,6 +3133,13 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	u16 eig = 0;
 	u8 eiw = 0;
 	int pos;
+
+	/*
+	 * Conversion between SPA and DPA is not supported in
+	 * Normalized Address mode.
+	 */
+	if (test_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags))
+		return ULLONG_MAX;
 
 	for (int i = 0; i < p->nr_targets; i++) {
 		if (cxlmd == cxled_to_memdev(p->targets[i])) {
@@ -3921,6 +3930,14 @@ static int cxl_region_setup_poison(struct cxl_region *cxlr)
 	struct device *dev = &cxlr->dev;
 	struct cxl_region_params *p = &cxlr->params;
 	struct dentry *dentry;
+
+	/*
+	 * Do not enable poison injection in Normalized Address mode.
+	 * Conversion between SPA and DPA is required for this, but it is
+	 * not supported in this mode.
+	 */
+	if (test_bit(CXL_REGION_F_NORMALIZED_ADDRESSING, &cxlr->flags))
+		return 0;
 
 	/* Create poison attributes if all memdevs support the capabilities */
 	for (int i = 0; i < p->nr_targets; i++) {

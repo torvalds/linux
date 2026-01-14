@@ -332,7 +332,7 @@ int cxl_dport_map_rcd_linkcap(struct pci_dev *pdev, struct cxl_dport *dport);
 #define CXL_DECODER_F_TYPE3 BIT(3)
 #define CXL_DECODER_F_LOCK  BIT(4)
 #define CXL_DECODER_F_ENABLE    BIT(5)
-#define CXL_DECODER_F_MASK  GENMASK(5, 0)
+#define CXL_DECODER_F_NORMALIZED_ADDRESSING BIT(6)
 
 enum cxl_decoder_type {
 	CXL_DECODER_DEVMEM = 2,
@@ -524,6 +524,13 @@ enum cxl_partition_mode {
  * set.
  */
 #define CXL_REGION_F_LOCK 2
+
+/*
+ * Indicate Normalized Addressing. Use it to disable SPA conversion if
+ * HPA != SPA and an address translation callback handler does not
+ * exist. Flag is needed by AMD Zen5 platforms.
+ */
+#define CXL_REGION_F_NORMALIZED_ADDRESSING 3
 
 /**
  * struct cxl_region - CXL region
