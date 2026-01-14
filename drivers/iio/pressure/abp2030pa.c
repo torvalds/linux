@@ -523,7 +523,7 @@ int abp2_common_probe(struct device *dev, const struct abp2_ops *ops, int irq)
 		ret = devm_request_irq(dev, irq, abp2_eoc_handler, IRQF_ONESHOT,
 				       dev_name(dev), data);
 		if (ret)
-			return dev_err_probe(dev, ret, "request irq %d failed\n", data->irq);
+			return ret;
 	}
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
