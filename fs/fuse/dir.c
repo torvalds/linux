@@ -172,8 +172,8 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 			if (time_after64(get_jiffies_64(), fd->time)) {
 				rb_erase(&fd->node, &dentry_hash[i].tree);
 				RB_CLEAR_NODE(&fd->node);
-				spin_unlock(&dentry_hash[i].lock);
 				d_dispose_if_unused(fd->dentry, &dispose);
+				spin_unlock(&dentry_hash[i].lock);
 				cond_resched();
 				spin_lock(&dentry_hash[i].lock);
 			} else
@@ -479,18 +479,12 @@ static int fuse_dentry_init(struct dentry *dentry)
 	return 0;
 }
 
-static void fuse_dentry_prune(struct dentry *dentry)
+static void fuse_dentry_release(struct dentry *dentry)
 {
 	struct fuse_dentry *fd = dentry->d_fsdata;
 
 	if (!RB_EMPTY_NODE(&fd->node))
 		fuse_dentry_tree_del_node(dentry);
-}
-
-static void fuse_dentry_release(struct dentry *dentry)
-{
-	struct fuse_dentry *fd = dentry->d_fsdata;
-
 	kfree_rcu(fd, rcu);
 }
 
@@ -527,7 +521,6 @@ const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
 	.d_init		= fuse_dentry_init,
-	.d_prune	= fuse_dentry_prune,
 	.d_release	= fuse_dentry_release,
 	.d_automount	= fuse_dentry_automount,
 };
