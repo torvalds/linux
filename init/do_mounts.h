@@ -15,7 +15,6 @@
 void  mount_root_generic(char *name, char *pretty_name, int flags);
 void  mount_root(char *root_device_name);
 extern int root_mountflags;
-extern bool nullfs_rootfs;
 
 static inline __init int create_dev(char *name, dev_t dev)
 {

@@ -493,21 +493,15 @@ void __init prepare_namespace(void)
 out:
 	devtmpfs_mount();
 
-	if (nullfs_rootfs) {
-		if (init_pivot_root(".", ".")) {
-			pr_err("VFS: Failed to pivot into new rootfs\n");
-			return;
-		}
-		if (init_umount(".", MNT_DETACH)) {
-			pr_err("VFS: Failed to unmount old rootfs\n");
-			return;
-		}
-		pr_info("VFS: Pivoted into new rootfs\n");
+	if (init_pivot_root(".", ".")) {
+		pr_err("VFS: Failed to pivot into new rootfs\n");
 		return;
 	}
-
-	init_mount(".", "/", NULL, MS_MOVE, NULL);
-	init_chroot(".");
+	if (init_umount(".", MNT_DETACH)) {
+		pr_err("VFS: Failed to unmount old rootfs\n");
+		return;
+	}
+	pr_info("VFS: Pivoted into new rootfs\n");
 }
 
 static bool is_tmpfs;

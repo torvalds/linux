@@ -75,17 +75,6 @@ static int __init initramfs_options_setup(char *str)
 
 __setup("initramfs_options=", initramfs_options_setup);
 
-bool nullfs_rootfs = false;
-
-static int __init nullfs_rootfs_setup(char *str)
-{
-	if (*str)
-		return 0;
-	nullfs_rootfs = true;
-	return 1;
-}
-__setup("nullfs_rootfs", nullfs_rootfs_setup);
-
 static u64 event;
 static DEFINE_XARRAY_FLAGS(mnt_id_xa, XA_FLAGS_ALLOC);
 static DEFINE_IDA(mnt_group_ida);
@@ -4593,10 +4582,9 @@ int path_pivot_root(struct path *new, struct path *old)
  * pointed to by put_old must yield the same directory as new_root. No other
  * file system may be mounted on put_old. After all, new_root is a mountpoint.
  *
- * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem
- * unless the kernel was booted with "nullfs_rootfs". See
- * Documentation/filesystems/ramfs-rootfs-initramfs.rst for alternatives
- * in this situation.
+ * The immutable nullfs filesystem is mounted as the true root of the VFS
+ * hierarchy. The mutable rootfs (tmpfs/ramfs) is layered on top of this,
+ * allowing pivot_root() to work normally from initramfs.
  *
  * Notes:
  *  - we don't move root/cwd if they are not at the root (reason: if something
@@ -5993,49 +5981,39 @@ static void __init init_mount_tree(void)
 	struct path root;
 
 	/*
-	 * When nullfs is used, we create two mounts:
+	 * We create two mounts:
 	 *
 	 * (1) nullfs with mount id 1
 	 * (2) mutable rootfs with mount id 2
 	 *
 	 * with (2) mounted on top of (1).
 	 */
-	if (nullfs_rootfs) {
-		nullfs_mnt = vfs_kern_mount(&nullfs_fs_type, 0, "nullfs", NULL);
-		if (IS_ERR(nullfs_mnt))
-			panic("VFS: Failed to create nullfs");
-	}
+	nullfs_mnt = vfs_kern_mount(&nullfs_fs_type, 0, "nullfs", NULL);
+	if (IS_ERR(nullfs_mnt))
+		panic("VFS: Failed to create nullfs");
 
 	mnt = vfs_kern_mount(&rootfs_fs_type, 0, "rootfs", initramfs_options);
 	if (IS_ERR(mnt))
 		panic("Can't create rootfs");
 
-	if (nullfs_rootfs) {
-		VFS_WARN_ON_ONCE(real_mount(nullfs_mnt)->mnt_id != 1);
-		VFS_WARN_ON_ONCE(real_mount(mnt)->mnt_id != 2);
+	VFS_WARN_ON_ONCE(real_mount(nullfs_mnt)->mnt_id != 1);
+	VFS_WARN_ON_ONCE(real_mount(mnt)->mnt_id != 2);
 
-		/* The namespace root is the nullfs mnt. */
-		mnt_root		= real_mount(nullfs_mnt);
-		init_mnt_ns.root	= mnt_root;
+	/* The namespace root is the nullfs mnt. */
+	mnt_root		= real_mount(nullfs_mnt);
+	init_mnt_ns.root	= mnt_root;
 
-		/* Mount mutable rootfs on top of nullfs. */
-		root.mnt		= nullfs_mnt;
-		root.dentry		= nullfs_mnt->mnt_root;
+	/* Mount mutable rootfs on top of nullfs. */
+	root.mnt		= nullfs_mnt;
+	root.dentry		= nullfs_mnt->mnt_root;
 
-		LOCK_MOUNT_EXACT(mp, &root);
-		if (unlikely(IS_ERR(mp.parent)))
-			panic("VFS: Failed to mount rootfs on nullfs");
-		scoped_guard(mount_writer)
-			attach_mnt(real_mount(mnt), mp.parent, mp.mp);
+	LOCK_MOUNT_EXACT(mp, &root);
+	if (unlikely(IS_ERR(mp.parent)))
+		panic("VFS: Failed to mount rootfs on nullfs");
+	scoped_guard(mount_writer)
+		attach_mnt(real_mount(mnt), mp.parent, mp.mp);
 
-		pr_info("VFS: Finished mounting rootfs on nullfs\n");
-	} else {
-		VFS_WARN_ON_ONCE(real_mount(mnt)->mnt_id != 1);
-
-		/* The namespace root is the mutable rootfs. */
-		mnt_root		= real_mount(mnt);
-		init_mnt_ns.root	= mnt_root;
-	}
+	pr_info("VFS: Finished mounting rootfs on nullfs\n");
 
 	/*
 	 * We've dropped all locks here but that's fine. Not just are we
