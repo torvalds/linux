@@ -640,7 +640,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 			}
 
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -688,7 +688,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize passthru */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 			pthru = scb->pthru;
@@ -730,7 +730,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 			mbox = (mbox_t *)scb->raw_mbox;
@@ -870,7 +870,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 
 			/* Allocate a SCB and initialize mailbox */
 			if(!(scb = mega_allocate_scb(adapter, cmd))) {
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -898,7 +898,7 @@ mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
 	else {
 		/* Allocate a SCB and initialize passthru */
 		if(!(scb = mega_allocate_scb(adapter, cmd))) {
-			*busy = 1;
+			*busy = SCSI_MLQUEUE_HOST_BUSY;
 			return NULL;
 		}
 
