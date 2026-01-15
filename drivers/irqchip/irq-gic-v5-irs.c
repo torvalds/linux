@@ -545,15 +545,13 @@ int gicv5_irs_register_cpu(int cpuid)
 
 static void __init gicv5_irs_init_bases(struct gicv5_irs_chip_data *irs_data,
 					void __iomem *irs_base,
-					struct fwnode_handle *handle)
+					bool noncoherent)
 {
-	struct device_node *np = to_of_node(handle);
 	u32 cr0, cr1;
 
-	irs_data->fwnode = handle;
 	irs_data->irs_base = irs_base;
 
-	if (of_property_read_bool(np, "dma-noncoherent")) {
+	if (noncoherent) {
 		/*
 		 * A non-coherent IRS implies that some cache levels cannot be
 		 * used coherently by the cores and GIC. Our only option is to mark
@@ -678,49 +676,13 @@ static void irs_setup_pri_bits(u32 idr1)
 	}
 }
 
-static int __init gicv5_irs_init(struct device_node *node)
+static int __init gicv5_irs_init(struct gicv5_irs_chip_data *irs_data)
 {
-	struct gicv5_irs_chip_data *irs_data;
-	void __iomem *irs_base;
-	u32 idr, spi_count;
-	u8 iaffid_bits;
-	int ret;
+	u32 spi_count, idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR2);
 
-	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
-	if (!irs_data)
-		return -ENOMEM;
-
-	raw_spin_lock_init(&irs_data->spi_config_lock);
-
-	ret = of_property_match_string(node, "reg-names", "ns-config");
-	if (ret < 0) {
-		pr_err("%pOF: ns-config reg-name not present\n", node);
-		goto out_err;
-	}
-
-	irs_base = of_io_request_and_map(node, ret, of_node_full_name(node));
-	if (IS_ERR(irs_base)) {
-		pr_err("%pOF: unable to map GICv5 IRS registers\n", node);
-		ret = PTR_ERR(irs_base);
-		goto out_err;
-	}
-
-	gicv5_irs_init_bases(irs_data, irs_base, &node->fwnode);
-
-	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
-	iaffid_bits = FIELD_GET(GICV5_IRS_IDR1_IAFFID_BITS, idr) + 1;
-
-	ret = gicv5_irs_of_init_affinity(node, irs_data, iaffid_bits);
-	if (ret) {
-		pr_err("Failed to parse CPU IAFFIDs from the device tree!\n");
-		goto out_iomem;
-	}
-
-	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR2);
 	if (WARN(!FIELD_GET(GICV5_IRS_IDR2_LPI, idr),
 		 "LPI support not available - no IPIs, can't proceed\n")) {
-		ret = -ENODEV;
-		goto out_iomem;
+		return -ENODEV;
 	}
 
 	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR7);
@@ -728,14 +690,6 @@ static int __init gicv5_irs_init(struct device_node *node)
 
 	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR6);
 	irs_data->spi_range = FIELD_GET(GICV5_IRS_IDR6_SPI_IRS_RANGE, idr);
-
-	if (irs_data->spi_range) {
-		pr_info("%s detected SPI range [%u-%u]\n",
-						of_node_full_name(node),
-						irs_data->spi_min,
-						irs_data->spi_min +
-						irs_data->spi_range - 1);
-	}
 
 	/*
 	 * Do the global setting only on the first IRS.
@@ -760,6 +714,60 @@ static int __init gicv5_irs_init(struct device_node *node)
 	list_add_tail(&irs_data->entry, &irs_nodes);
 
 	return 0;
+}
+
+static int __init gicv5_irs_of_init(struct device_node *node)
+{
+	struct gicv5_irs_chip_data *irs_data;
+	void __iomem *irs_base;
+	u8 iaffid_bits;
+	u32 idr;
+	int ret;
+
+	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	if (!irs_data)
+		return -ENOMEM;
+
+	raw_spin_lock_init(&irs_data->spi_config_lock);
+
+	ret = of_property_match_string(node, "reg-names", "ns-config");
+	if (ret < 0) {
+		pr_err("%pOF: ns-config reg-name not present\n", node);
+		goto out_err;
+	}
+
+	irs_base = of_io_request_and_map(node, ret, of_node_full_name(node));
+	if (IS_ERR(irs_base)) {
+		pr_err("%pOF: unable to map GICv5 IRS registers\n", node);
+		ret = PTR_ERR(irs_base);
+		goto out_err;
+	}
+
+	irs_data->fwnode = of_fwnode_handle(node);
+	gicv5_irs_init_bases(irs_data, irs_base, of_property_read_bool(node, "dma-noncoherent"));
+
+	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
+	iaffid_bits = FIELD_GET(GICV5_IRS_IDR1_IAFFID_BITS, idr) + 1;
+
+	ret = gicv5_irs_of_init_affinity(node, irs_data, iaffid_bits);
+	if (ret) {
+		pr_err("Failed to parse CPU IAFFIDs from the device tree!\n");
+		goto out_iomem;
+	}
+
+	ret = gicv5_irs_init(irs_data);
+	if (ret)
+		goto out_iomem;
+
+	if (irs_data->spi_range) {
+		pr_info("%s detected SPI range [%u-%u]\n",
+						of_node_full_name(node),
+						irs_data->spi_min,
+						irs_data->spi_min +
+						irs_data->spi_range - 1);
+	}
+
+	return ret;
 
 out_iomem:
 	iounmap(irs_base);
@@ -818,7 +826,7 @@ int __init gicv5_irs_of_probe(struct device_node *parent)
 		if (!of_device_is_compatible(np, "arm,gic-v5-irs"))
 			continue;
 
-		ret = gicv5_irs_init(np);
+		ret = gicv5_irs_of_init(np);
 		if (ret)
 			pr_err("Failed to init IRS %s\n", np->full_name);
 	}
