@@ -417,17 +417,7 @@ static int adxl380_read_chn(struct adxl380_state *st, u8 addr)
 
 static int adxl380_get_odr(struct adxl380_state *st, int *odr)
 {
-	int ret;
-	unsigned int trig_cfg, odr_idx;
-
-	ret = regmap_read(st->regmap, ADXL380_TRIG_CFG_REG, &trig_cfg);
-	if (ret)
-		return ret;
-
-	odr_idx = (FIELD_GET(ADXL380_TRIG_CFG_SINC_RATE_MSK, trig_cfg) << 1) |
-		  (FIELD_GET(ADXL380_TRIG_CFG_DEC_2X_MSK, trig_cfg) & 1);
-
-	*odr = st->chip_info->samp_freq_tbl[odr_idx];
+	*odr = st->chip_info->samp_freq_tbl[st->odr];
 
 	return 0;
 }
@@ -500,6 +490,7 @@ static int adxl380_set_odr(struct adxl380_state *st, u8 odr)
 	if (ret)
 		return ret;
 
+	st->odr = odr;
 	ret = adxl380_set_measure_en(st, true);
 	if (ret)
 		return ret;
