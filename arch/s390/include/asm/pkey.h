@@ -21,7 +21,8 @@
  * @param keylen size of the key blob in bytes
  * @param protkey pointer to buffer receiving the protected key
  * @param xflags additional execution flags (see PKEY_XFLAG_* definitions below)
- *	  As of now the only supported flag is PKEY_XFLAG_NOMEMALLOC.
+ *	  As of now the only supported flags are PKEY_XFLAG_NOMEMALLOC
+ *	  and PKEY_XFLAG_NOCLEARKEY.
  * @return 0 on success, negative errno value on failure
  */
 int pkey_key2protkey(const u8 *key, u32 keylen,
@@ -37,5 +38,10 @@ int pkey_key2protkey(const u8 *key, u32 keylen,
  * also the CRYPTO_ALG_ALLOCATES_MEMORY flag in crypto.h.
  */
 #define PKEY_XFLAG_NOMEMALLOC 0x0001
+
+/*
+ * Do not accept a clear key token as source for a protected key.
+ */
+#define PKEY_XFLAG_NOCLEARKEY 0x0002
 
 #endif /* _KAPI_PKEY_H */
