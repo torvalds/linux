@@ -171,6 +171,34 @@
 	};
 };
 
+&adc2 {
+	status = "okay";
+
+	channel@0 {
+		reg = <0x0>;
+	};
+
+	channel@1 {
+		reg = <0x1>;
+	};
+
+	channel@2 {
+		reg = <0x2>;
+	};
+
+	channel@3 {
+		reg = <0x3>;
+	};
+
+	channel@4 {
+		reg = <0x4>;
+	};
+
+	channel@5 {
+		reg = <0x5>;
+	};
+};
+
 &canfd {
 	pinctrl-0 = <&can0_pins>;
 	pinctrl-names = "default";
@@ -310,30 +338,3 @@
 	};
 };
 
-&adc2 {
-	status = "okay";
-
-	channel@0 {
-		reg = <0x0>;
-	};
-
-	channel@1 {
-		reg = <0x1>;
-	};
-
-	channel@2 {
-		reg = <0x2>;
-	};
-
-	channel@3 {
-		reg = <0x3>;
-	};
-
-	channel@4 {
-		reg = <0x4>;
-	};
-
-	channel@5 {
-		reg = <0x5>;
-	};
-};
