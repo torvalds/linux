@@ -198,6 +198,18 @@ error:
 	return irqret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static bool no_pm_in_progress(struct device *dev)
+{
+	return completion_done(&dev->power.completion);
+}
+#else
+static bool no_pm_in_progress(struct device *dev)
+{
+	return true;
+}
+#endif
+
 static irqreturn_t fdl_owner_handler(int irq, void *data)
 {
 	struct sdca_interrupt *interrupt = data;
@@ -209,7 +221,7 @@ static irqreturn_t fdl_owner_handler(int irq, void *data)
 	 * FDL has to run from the system resume handler, at which point
 	 * we can't wait for the pm runtime.
 	 */
-	if (completion_done(&dev->power.completion)) {
+	if (no_pm_in_progress(dev)) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0) {
 			dev_err(dev, "failed to resume for fdl: %d\n", ret);
@@ -223,7 +235,7 @@ static irqreturn_t fdl_owner_handler(int irq, void *data)
 
 	irqret = IRQ_HANDLED;
 error:
-	if (completion_done(&dev->power.completion))
+	if (no_pm_in_progress(dev))
 		pm_runtime_put(dev);
 	return irqret;
 }
