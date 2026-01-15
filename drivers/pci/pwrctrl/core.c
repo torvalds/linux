@@ -65,6 +65,7 @@ void pci_pwrctrl_init(struct pci_pwrctrl *pwrctrl, struct device *dev)
 {
 	pwrctrl->dev = dev;
 	INIT_WORK(&pwrctrl->work, rescan_work_func);
+	dev_set_drvdata(dev, pwrctrl);
 }
 EXPORT_SYMBOL_GPL(pci_pwrctrl_init);
 
@@ -151,6 +152,135 @@ int devm_pci_pwrctrl_device_set_ready(struct device *dev,
 					pwrctrl);
 }
 EXPORT_SYMBOL_GPL(devm_pci_pwrctrl_device_set_ready);
+
+static int __pci_pwrctrl_power_off_device(struct device *dev)
+{
+	struct pci_pwrctrl *pwrctrl = dev_get_drvdata(dev);
+
+	if (!pwrctrl)
+		return 0;
+
+	return pwrctrl->power_off(pwrctrl);
+}
+
+static void pci_pwrctrl_power_off_device(struct device_node *np)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	for_each_available_child_of_node_scoped(np, child)
+		pci_pwrctrl_power_off_device(child);
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev)
+		return;
+
+	if (device_is_bound(&pdev->dev)) {
+		ret = __pci_pwrctrl_power_off_device(&pdev->dev);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to power off device: %d", ret);
+	}
+
+	platform_device_put(pdev);
+}
+
+/**
+ * pci_pwrctrl_power_off_devices - Power off pwrctrl devices
+ *
+ * @parent: PCI host controller device
+ *
+ * Recursively traverse all pwrctrl devices for the devicetree hierarchy
+ * below the specified PCI host controller and power them off in a depth
+ * first manner.
+ */
+void pci_pwrctrl_power_off_devices(struct device *parent)
+{
+	struct device_node *np = parent->of_node;
+
+	for_each_available_child_of_node_scoped(np, child)
+		pci_pwrctrl_power_off_device(child);
+}
+EXPORT_SYMBOL_GPL(pci_pwrctrl_power_off_devices);
+
+static int __pci_pwrctrl_power_on_device(struct device *dev)
+{
+	struct pci_pwrctrl *pwrctrl = dev_get_drvdata(dev);
+
+	if (!pwrctrl)
+		return 0;
+
+	return pwrctrl->power_on(pwrctrl);
+}
+
+/*
+ * Power on the devices in a depth first manner. Before powering on the device,
+ * make sure its driver is bound.
+ */
+static int pci_pwrctrl_power_on_device(struct device_node *np)
+{
+	struct platform_device *pdev;
+	int ret;
+
+	for_each_available_child_of_node_scoped(np, child) {
+		ret = pci_pwrctrl_power_on_device(child);
+		if (ret)
+			return ret;
+	}
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev)
+		return 0;
+
+	if (device_is_bound(&pdev->dev)) {
+		ret = __pci_pwrctrl_power_on_device(&pdev->dev);
+	} else {
+		/* FIXME: Use blocking wait instead of probe deferral */
+		dev_dbg(&pdev->dev, "driver is not bound\n");
+		ret = -EPROBE_DEFER;
+	}
+
+	platform_device_put(pdev);
+
+	return ret;
+}
+
+/**
+ * pci_pwrctrl_power_on_devices - Power on pwrctrl devices
+ *
+ * @parent: PCI host controller device
+ *
+ * Recursively traverse all pwrctrl devices for the devicetree hierarchy
+ * below the specified PCI host controller and power them on in a depth
+ * first manner. On error, all powered on devices will be powered off.
+ *
+ * Return: 0 on success, -EPROBE_DEFER if any pwrctrl driver is not bound, an
+ * appropriate error code otherwise.
+ */
+int pci_pwrctrl_power_on_devices(struct device *parent)
+{
+	struct device_node *np = parent->of_node;
+	struct device_node *child = NULL;
+	int ret;
+
+	for_each_available_child_of_node(np, child) {
+		ret = pci_pwrctrl_power_on_device(child);
+		if (ret)
+			goto err_power_off;
+	}
+
+	return 0;
+
+err_power_off:
+	for_each_available_child_of_node_scoped(np, tmp) {
+		if (tmp == child)
+			break;
+		pci_pwrctrl_power_off_device(tmp);
+	}
+	of_node_put(child);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_pwrctrl_power_on_devices);
 
 static int pci_pwrctrl_create_device(struct device_node *np,
 				     struct device *parent)
