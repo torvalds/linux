@@ -1516,7 +1516,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 
 			if (!(scb = megaraid_alloc_scb(adapter, scp))) {
 				scp->result = (DID_ERROR << 16);
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -1599,7 +1599,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 			/* Allocate a SCB and initialize passthru */
 			if (!(scb = megaraid_alloc_scb(adapter, scp))) {
 				scp->result = (DID_ERROR << 16);
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -1644,7 +1644,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 			 */
 			if (!(scb = megaraid_alloc_scb(adapter, scp))) {
 				scp->result = (DID_ERROR << 16);
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 			ccb			= (mbox_ccb_t *)scb->ccb;
@@ -1740,7 +1740,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 			 */
 			if (!(scb = megaraid_alloc_scb(adapter, scp))) {
 				scp->result = (DID_ERROR << 16);
-				*busy = 1;
+				*busy = SCSI_MLQUEUE_HOST_BUSY;
 				return NULL;
 			}
 
@@ -1808,7 +1808,7 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 		// Allocate a SCB and initialize passthru
 		if (!(scb = megaraid_alloc_scb(adapter, scp))) {
 			scp->result = (DID_ERROR << 16);
-			*busy = 1;
+			*busy = SCSI_MLQUEUE_HOST_BUSY;
 			return NULL;
 		}
 
