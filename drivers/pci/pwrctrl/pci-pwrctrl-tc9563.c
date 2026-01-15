@@ -459,12 +459,13 @@ static void tc9563_pwrctrl_power_off(struct tc9563_pwrctrl_ctx *ctx)
 
 static int tc9563_pwrctrl_bring_up(struct tc9563_pwrctrl_ctx *ctx)
 {
+	struct device *dev = ctx->pwrctrl.dev;
 	struct tc9563_pwrctrl_cfg *cfg;
 	int ret, i;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0)
-		return dev_err_probe(ctx->pwrctrl.dev, ret, "cannot enable regulators\n");
+		return dev_err_probe(dev, ret, "cannot enable regulators\n");
 
 	gpiod_set_value(ctx->reset_gpio, 0);
 
@@ -478,37 +479,37 @@ static int tc9563_pwrctrl_bring_up(struct tc9563_pwrctrl_ctx *ctx)
 		cfg = &ctx->cfg[i];
 		ret = tc9563_pwrctrl_disable_port(ctx, i);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Disabling port failed\n");
+			dev_err(dev, "Disabling port failed\n");
 			goto power_off;
 		}
 
 		ret = tc9563_pwrctrl_set_l0s_l1_entry_delay(ctx, i, false, cfg->l0s_delay);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Setting L0s entry delay failed\n");
+			dev_err(dev, "Setting L0s entry delay failed\n");
 			goto power_off;
 		}
 
 		ret = tc9563_pwrctrl_set_l0s_l1_entry_delay(ctx, i, true, cfg->l1_delay);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Setting L1 entry delay failed\n");
+			dev_err(dev, "Setting L1 entry delay failed\n");
 			goto power_off;
 		}
 
 		ret = tc9563_pwrctrl_set_tx_amplitude(ctx, i);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Setting Tx amplitude failed\n");
+			dev_err(dev, "Setting Tx amplitude failed\n");
 			goto power_off;
 		}
 
 		ret = tc9563_pwrctrl_set_nfts(ctx, i);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Setting N_FTS failed\n");
+			dev_err(dev, "Setting N_FTS failed\n");
 			goto power_off;
 		}
 
 		ret = tc9563_pwrctrl_disable_dfe(ctx, i);
 		if (ret) {
-			dev_err(ctx->pwrctrl.dev, "Disabling DFE failed\n");
+			dev_err(dev, "Disabling DFE failed\n");
 			goto power_off;
 		}
 	}
@@ -525,6 +526,7 @@ power_off:
 static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 {
 	struct pci_host_bridge *bridge = to_pci_host_bridge(pdev->dev.parent);
+	struct device_node *node = pdev->dev.of_node;
 	struct pci_bus *bus = bridge->bus;
 	struct device *dev = &pdev->dev;
 	enum tc9563_pwrctrl_ports port;
@@ -536,7 +538,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "i2c-parent", 1, &addr);
+	ret = of_property_read_u32_index(node, "i2c-parent", 1, &addr);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read i2c-parent property\n");
 
@@ -572,7 +574,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	pci_pwrctrl_init(&ctx->pwrctrl, dev);
 
 	port = TC9563_USP;
-	ret = tc9563_pwrctrl_parse_device_dt(ctx, pdev->dev.of_node, port);
+	ret = tc9563_pwrctrl_parse_device_dt(ctx, node, port);
 	if (ret) {
 		dev_err(dev, "failed to parse device tree properties: %d\n", ret);
 		goto remove_i2c;
@@ -583,7 +585,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	 * The first node represents DSP1, the second node represents DSP2,
 	 * and so on.
 	 */
-	for_each_child_of_node_scoped(pdev->dev.of_node, child) {
+	for_each_child_of_node_scoped(node, child) {
 		port++;
 		ret = tc9563_pwrctrl_parse_device_dt(ctx, child, port);
 		if (ret)
