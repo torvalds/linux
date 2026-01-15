@@ -365,7 +365,7 @@ static ssize_t initstate_show(struct device *dev, struct device_attribute *attr,
 	u32 val;
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	val = init_done(zram);
 
 	return sysfs_emit(buf, "%u\n", val);
@@ -391,7 +391,7 @@ static ssize_t mem_limit_store(struct device *dev,
 	if (buf == tmp) /* no chars parsed, invalid input */
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
 
 	return len;
@@ -409,7 +409,7 @@ static ssize_t mem_used_max_store(struct device *dev,
 	if (err || val != 0)
 		return -EINVAL;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	if (init_done(zram)) {
 		atomic_long_set(&zram->stats.max_used_pages,
 				zs_get_total_pages(zram->mem_pool));
@@ -477,7 +477,7 @@ static ssize_t idle_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 	}
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	if (!init_done(zram))
 		return -EINVAL;
 
@@ -539,7 +539,7 @@ static ssize_t bd_stat_show(struct device *dev, struct device_attribute *attr,
 	struct zram *zram = dev_to_zram(dev);
 	ssize_t ret;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	ret = sysfs_emit(buf,
 			 "%8llu %8llu %8llu\n",
 			 FOUR_K((u64)atomic64_read(&zram->stats.bd_count)),
@@ -559,7 +559,7 @@ static ssize_t writeback_compressed_store(struct device *dev,
 	if (kstrtobool(buf, &val))
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (init_done(zram)) {
 		return -EBUSY;
 	}
@@ -576,7 +576,7 @@ static ssize_t writeback_compressed_show(struct device *dev,
 	bool val;
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	val = zram->wb_compressed;
 
 	return sysfs_emit(buf, "%d\n", val);
@@ -592,7 +592,7 @@ static ssize_t writeback_limit_enable_store(struct device *dev,
 	if (kstrtoull(buf, 10, &val))
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	zram->wb_limit_enable = val;
 
 	return len;
@@ -605,7 +605,7 @@ static ssize_t writeback_limit_enable_show(struct device *dev,
 	bool val;
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	val = zram->wb_limit_enable;
 
 	return sysfs_emit(buf, "%d\n", val);
@@ -631,7 +631,7 @@ static ssize_t writeback_limit_store(struct device *dev,
 	 */
 	val = rounddown(val, PAGE_SIZE / 4096);
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	zram->bd_wb_limit = val;
 
 	return len;
@@ -643,7 +643,7 @@ static ssize_t writeback_limit_show(struct device *dev,
 	u64 val;
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	val = zram->bd_wb_limit;
 
 	return sysfs_emit(buf, "%llu\n", val);
@@ -662,7 +662,7 @@ static ssize_t writeback_batch_size_store(struct device *dev,
 	if (!val)
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	zram->wb_batch_size = val;
 
 	return len;
@@ -675,7 +675,7 @@ static ssize_t writeback_batch_size_show(struct device *dev,
 	u32 val;
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	val = zram->wb_batch_size;
 
 	return sysfs_emit(buf, "%u\n", val);
@@ -703,7 +703,7 @@ static ssize_t backing_dev_show(struct device *dev,
 	char *p;
 	ssize_t ret;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	file = zram->backing_dev;
 	if (!file) {
 		memcpy(buf, "none\n", 5);
@@ -737,7 +737,7 @@ static ssize_t backing_dev_store(struct device *dev,
 	if (!file_name)
 		return -ENOMEM;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (init_done(zram)) {
 		pr_info("Can't setup backing device for initialized device\n");
 		err = -EBUSY;
@@ -901,7 +901,7 @@ release_wb_ctl:
 
 static void zram_account_writeback_rollback(struct zram *zram)
 {
-	lockdep_assert_held_write(&zram->init_lock);
+	lockdep_assert_held_write(&zram->dev_lock);
 
 	if (zram->wb_limit_enable)
 		zram->bd_wb_limit +=  1UL << (PAGE_SHIFT - 12);
@@ -909,7 +909,7 @@ static void zram_account_writeback_rollback(struct zram *zram)
 
 static void zram_account_writeback_submit(struct zram *zram)
 {
-	lockdep_assert_held_write(&zram->init_lock);
+	lockdep_assert_held_write(&zram->dev_lock);
 
 	if (zram->wb_limit_enable && zram->bd_wb_limit > 0)
 		zram->bd_wb_limit -=  1UL << (PAGE_SHIFT - 12);
@@ -1263,7 +1263,7 @@ static ssize_t writeback_store(struct device *dev,
 	ssize_t ret = len;
 	int err, mode = 0;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (!init_done(zram))
 		return -EINVAL;
 
@@ -1565,7 +1565,7 @@ static ssize_t read_block_state(struct file *file, char __user *buf,
 	if (!kbuf)
 		return -ENOMEM;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	if (!init_done(zram)) {
 		kvfree(kbuf);
 		return -EINVAL;
@@ -1666,7 +1666,7 @@ static int __comp_algorithm_store(struct zram *zram, u32 prio, const char *buf)
 		return -EINVAL;
 	}
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (init_done(zram)) {
 		kfree(compressor);
 		pr_info("Can't change algorithm for initialized device\n");
@@ -1794,7 +1794,7 @@ static ssize_t comp_algorithm_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 	ssize_t sz;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	sz = zcomp_available_show(zram->comp_algs[ZRAM_PRIMARY_COMP], buf, 0);
 	return sz;
 }
@@ -1820,7 +1820,7 @@ static ssize_t recomp_algorithm_show(struct device *dev,
 	ssize_t sz = 0;
 	u32 prio;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	for (prio = ZRAM_SECONDARY_COMP; prio < ZRAM_MAX_COMPS; prio++) {
 		if (!zram->comp_algs[prio])
 			continue;
@@ -1878,7 +1878,7 @@ static ssize_t compact_store(struct device *dev, struct device_attribute *attr,
 {
 	struct zram *zram = dev_to_zram(dev);
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	if (!init_done(zram))
 		return -EINVAL;
 
@@ -1893,7 +1893,7 @@ static ssize_t io_stat_show(struct device *dev, struct device_attribute *attr,
 	struct zram *zram = dev_to_zram(dev);
 	ssize_t ret;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	ret = sysfs_emit(buf,
 			"%8llu %8llu 0 %8llu\n",
 			(u64)atomic64_read(&zram->stats.failed_reads),
@@ -1914,7 +1914,7 @@ static ssize_t mm_stat_show(struct device *dev, struct device_attribute *attr,
 
 	memset(&pool_stats, 0x00, sizeof(struct zs_pool_stats));
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	if (init_done(zram)) {
 		mem_used = zs_get_total_pages(zram->mem_pool);
 		zs_pool_stats(zram->mem_pool, &pool_stats);
@@ -1945,7 +1945,7 @@ static ssize_t debug_stat_show(struct device *dev,
 	struct zram *zram = dev_to_zram(dev);
 	ssize_t ret;
 
-	guard(rwsem_read)(&zram->init_lock);
+	guard(rwsem_read)(&zram->dev_lock);
 	ret = sysfs_emit(buf,
 			"version: %d\n0 %8llu\n",
 			version,
@@ -2611,7 +2611,7 @@ static ssize_t recompress_store(struct device *dev,
 	if (threshold >= huge_class_size)
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (!init_done(zram))
 		return -EINVAL;
 
@@ -2863,7 +2863,7 @@ static void zram_destroy_comps(struct zram *zram)
 
 static void zram_reset_device(struct zram *zram)
 {
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 
 	zram->limit_pages = 0;
 
@@ -2893,7 +2893,7 @@ static ssize_t disksize_store(struct device *dev, struct device_attribute *attr,
 	if (!disksize)
 		return -EINVAL;
 
-	guard(rwsem_write)(&zram->init_lock);
+	guard(rwsem_write)(&zram->dev_lock);
 	if (init_done(zram)) {
 		pr_info("Cannot change disksize for initialized device\n");
 		return -EBUSY;
@@ -3088,7 +3088,7 @@ static int zram_add(void)
 		goto out_free_dev;
 	device_id = ret;
 
-	init_rwsem(&zram->init_lock);
+	init_rwsem(&zram->dev_lock);
 #ifdef CONFIG_ZRAM_WRITEBACK
 	zram->wb_batch_size = 32;
 	zram->wb_compressed = false;
