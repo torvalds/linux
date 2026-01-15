@@ -315,11 +315,7 @@ static irqreturn_t dw_hdmi_qp_rk3588_hardirq(int irq, void *dev_id)
 static irqreturn_t dw_hdmi_qp_rk3588_irq(int irq, void *dev_id)
 {
 	struct rockchip_hdmi_qp *hdmi = dev_id;
-	u32 intr_stat, val;
-
-	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
-	if (!intr_stat)
-		return IRQ_NONE;
+	u32 val;
 
 	if (hdmi->port_id)
 		val = FIELD_PREP_WM16(RK3588_HDMI1_HPD_INT_CLR, 1);
