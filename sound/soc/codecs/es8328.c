@@ -461,6 +461,7 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
+	int ret;
 	int i;
 	int reg;
 	int wl;
@@ -494,9 +495,12 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 		es8328->mclkdiv2 = 0;
 	}
 
-	snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-			ES8328_MASTERMODE_MCLKDIV2,
-			es8328->mclkdiv2 ? ES8328_MASTERMODE_MCLKDIV2 : 0);
+	ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+					    ES8328_MASTERMODE_MCLKDIV2,
+					    es8328->mclkdiv2 ?
+					    ES8328_MASTERMODE_MCLKDIV2 : 0);
+	if (ret < 0)
+		return ret;
 
 	switch (params_width(params)) {
 	case 16:
@@ -519,18 +523,26 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
-				ES8328_DACCONTROL1_DACWL_MASK,
-				wl << ES8328_DACCONTROL1_DACWL_SHIFT);
+		ret = snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
+						    ES8328_DACCONTROL1_DACWL_MASK,
+						    wl << ES8328_DACCONTROL1_DACWL_SHIFT);
+		if (ret < 0)
+			return ret;
 
 		es8328->playback_fs = params_rate(params);
 		es8328_set_deemph(component);
-	} else
-		snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
-				ES8328_ADCCONTROL4_ADCWL_MASK,
-				wl << ES8328_ADCCONTROL4_ADCWL_SHIFT);
+	} else {
+		ret = snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
+						    ES8328_ADCCONTROL4_ADCWL_MASK,
+						    wl << ES8328_ADCCONTROL4_ADCWL_SHIFT);
+		if (ret < 0)
+			return ret;
+	}
 
-	return snd_soc_component_update_bits(component, reg, ES8328_RATEMASK, ratio);
+	ret = snd_soc_component_update_bits(component, reg, ES8328_RATEMASK, ratio);
+	if (ret < 0)
+		return ret;
+	return 0;
 }
 
 static int es8328_set_sysclk(struct snd_soc_dai *codec_dai,
