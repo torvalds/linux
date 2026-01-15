@@ -121,7 +121,9 @@ mlx5_fs_hws_pr_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 	if (!pr_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &pr_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&pr_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &pr_bulk->fs_bulk))
 		goto free_pr_bulk;
 
 	for (i = 0; i < bulk_len; i++) {
@@ -275,7 +277,9 @@ mlx5_fs_hws_mh_bulk_create(struct mlx5_core_dev *dev, void *pool_ctx)
 	if (!mh_bulk)
 		return NULL;
 
-	if (mlx5_fs_bulk_init(dev, &mh_bulk->fs_bulk, bulk_len))
+	mlx5_fs_bulk_init(&mh_bulk->fs_bulk, bulk_len);
+
+	if (mlx5_fs_bulk_bitmap_alloc(dev, &mh_bulk->fs_bulk))
 		goto free_mh_bulk;
 
 	for (int i = 0; i < bulk_len; i++) {
