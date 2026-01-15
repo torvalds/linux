@@ -1671,7 +1671,7 @@ fbnic_get_module_eeprom_by_page(struct net_device *netdev,
 		goto exit_free;
 	}
 
-	if (!wait_for_completion_timeout(&fw_cmpl->done, 2 * HZ)) {
+	if (!fbnic_mbx_wait_for_cmpl(fw_cmpl)) {
 		err = -ETIMEDOUT;
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Timed out waiting for firmware response");
