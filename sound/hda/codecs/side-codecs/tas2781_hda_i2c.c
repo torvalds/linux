@@ -2,7 +2,7 @@
 //
 // TAS2781 HDA I2C driver
 //
-// Copyright 2023 - 2025 Texas Instruments, Inc.
+// Copyright 2023 - 2026 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 // Current maintainer: Baojun Xu <baojun.xu@ti.com>
@@ -570,6 +570,9 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	switch (subid) {
 	case 0x1028:
 		tas_hda->catlog_id = DELL;
+		break;
+	case 0x103C:
+		tas_hda->catlog_id = HP;
 		break;
 	default:
 		tas_hda->catlog_id = LENOVO;
