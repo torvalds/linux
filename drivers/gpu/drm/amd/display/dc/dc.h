@@ -1210,6 +1210,7 @@ struct dc_debug_options {
 	bool disable_deferred_minimal_transitions;
 	unsigned int num_fast_flips_to_steady_state_override;
 	bool enable_dmu_recovery;
+	unsigned int force_vmin_threshold;
 };
 
 
