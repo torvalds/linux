@@ -1445,6 +1445,8 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 	struct nfs4_state *state;
 	bool found = false;
 
+	if (!S_ISREG(inode->i_mode))
+		goto out;
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		state = ctx->state;
@@ -1466,7 +1468,7 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 			found = true;
 	}
 	rcu_read_unlock();
-
+out:
 	nfs_inode_find_delegation_state_and_recover(inode, stateid);
 	if (found)
 		nfs4_schedule_state_manager(clp);
@@ -1478,6 +1480,8 @@ static void nfs4_state_mark_open_context_bad(struct nfs4_state *state, int err)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *ctx;
 
+	if (!S_ISREG(inode->i_mode))
+		return;
 	rcu_read_lock();
 	list_for_each_entry_rcu(ctx, &nfsi->open_files, list) {
 		if (ctx->state != state)
