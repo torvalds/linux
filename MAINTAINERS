@@ -7686,6 +7686,7 @@ M:	Danilo Krummrich <dakr@kernel.org>
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/core-api/kobject.rst
+F:	Documentation/driver-api/driver-model/
 F:	drivers/base/
 F:	fs/debugfs/
 F:	fs/sysfs/
