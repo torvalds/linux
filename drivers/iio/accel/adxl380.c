@@ -232,14 +232,35 @@ bool adxl380_readable_noinc_reg(struct device *dev, unsigned int reg)
 }
 EXPORT_SYMBOL_NS_GPL(adxl380_readable_noinc_reg, "IIO_ADXL380");
 
+static int adxl380_act_inact_enabled(struct adxl380_state *st, bool *enabled)
+{
+	unsigned int act_inact_ctl;
+	int ret;
+
+	if (!st->chip_info->has_low_power) {
+		*enabled = false;
+		return 0;
+	}
+
+	ret = regmap_read(st->regmap, ADXL380_ACT_INACT_CTL_REG, &act_inact_ctl);
+	if (ret)
+		return ret;
+
+	*enabled = FIELD_GET(ADXL380_ACT_EN_MSK, act_inact_ctl) ||
+		   FIELD_GET(ADXL380_INACT_EN_MSK, act_inact_ctl);
+
+	return 0;
+}
+
 static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 {
 	int ret;
-	unsigned int act_inact_ctl;
 	u8 op_mode = ADXL380_OP_MODE_STANDBY;
 
 	if (en) {
-		ret = regmap_read(st->regmap, ADXL380_ACT_INACT_CTL_REG, &act_inact_ctl);
+		bool act_inact_enabled;
+
+		ret = adxl380_act_inact_enabled(st, &act_inact_enabled);
 		if (ret)
 			return ret;
 
@@ -248,9 +269,7 @@ static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 		 * mode and for devices that support low power modes. Otherwise
 		 * go straight to measure mode (same bits as ADXL380_OP_MODE_HP).
 		 */
-		if (st->chip_info->has_low_power &&
-		    (FIELD_GET(ADXL380_ACT_EN_MSK, act_inact_ctl) ||
-		     FIELD_GET(ADXL380_INACT_EN_MSK, act_inact_ctl)))
+		if (act_inact_enabled)
 			op_mode = ADXL380_OP_MODE_VLP;
 		else
 			op_mode = ADXL380_OP_MODE_HP;
