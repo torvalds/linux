@@ -76,6 +76,8 @@ static void set_dte_entry(struct amd_iommu *iommu,
 			  struct iommu_dev_data *dev_data,
 			  phys_addr_t top_paddr, unsigned int top_level);
 
+static int device_flush_dte(struct iommu_dev_data *dev_data);
+
 static void amd_iommu_change_top(struct pt_iommu *iommu_table,
 				 phys_addr_t top_paddr, unsigned int top_level);
 
@@ -85,6 +87,10 @@ static struct iommu_dev_data *find_dev_data(struct amd_iommu *iommu, u16 devid);
 static bool amd_iommu_enforce_cache_coherency(struct iommu_domain *domain);
 static int amd_iommu_set_dirty_tracking(struct iommu_domain *domain,
 					bool enable);
+
+static void clone_aliases(struct amd_iommu *iommu, struct device *dev);
+
+static int iommu_completion_wait(struct amd_iommu *iommu);
 
 /****************************************************************************
  *
@@ -201,6 +207,16 @@ static void update_dte256(struct amd_iommu *iommu, struct iommu_dev_data *dev_da
 	}
 
 	spin_unlock_irqrestore(&dev_data->dte_lock, flags);
+}
+
+void amd_iommu_update_dte(struct amd_iommu *iommu,
+			     struct iommu_dev_data *dev_data,
+			     struct dev_table_entry *new)
+{
+	update_dte256(iommu, dev_data, new);
+	clone_aliases(iommu, dev_data->dev);
+	device_flush_dte(dev_data);
+	iommu_completion_wait(iommu);
 }
 
 static void get_dte256(struct amd_iommu *iommu, struct iommu_dev_data *dev_data,
@@ -2127,7 +2143,7 @@ static void set_dte_entry(struct amd_iommu *iommu,
 
 	set_dte_gcr3_table(iommu, dev_data, &new);
 
-	update_dte256(iommu, dev_data, &new);
+	amd_iommu_update_dte(iommu, dev_data, &new);
 
 	/*
 	 * A kdump kernel might be replacing a domain ID that was copied from
@@ -2147,7 +2163,7 @@ static void clear_dte_entry(struct amd_iommu *iommu, struct iommu_dev_data *dev_
 	struct dev_table_entry new = {};
 
 	amd_iommu_make_clear_dte(dev_data, &new);
-	update_dte256(iommu, dev_data, &new);
+	amd_iommu_update_dte(iommu, dev_data, &new);
 }
 
 /* Update and flush DTE for the given device */
@@ -2159,10 +2175,6 @@ static void dev_update_dte(struct iommu_dev_data *dev_data, bool set)
 		set_dte_entry(iommu, dev_data, 0, 0);
 	else
 		clear_dte_entry(iommu, dev_data);
-
-	clone_aliases(iommu, dev_data->dev);
-	device_flush_dte(dev_data);
-	iommu_completion_wait(iommu);
 }
 
 /*
