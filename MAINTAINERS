@@ -22942,6 +22942,14 @@ F:	rust/kernel/init.rs
 F:	rust/pin-init/
 K:	\bpin-init\b|pin_init\b|PinInit
 
+RUST [RUST-ANALYZER]
+M:	Tamir Duberstein <tamird@kernel.org>
+R:	Jesung Yang <y.j3ms.n@gmail.com>
+L:	rust-for-linux@vger.kernel.org
+S:	Maintained
+T:	git https://github.com/Rust-for-Linux/linux.git rust-analyzer-next
+F:	scripts/generate_rust_analyzer.py
+
 RXRPC SOCKETS (AF_RXRPC)
 M:	David Howells <dhowells@redhat.com>
 M:	Marc Dionne <marc.dionne@auristor.com>
