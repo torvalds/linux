@@ -101,11 +101,6 @@ static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pwrseq->pwrseq),
 				     "Failed to get the power sequencer\n");
 
-	ret = pwrseq_pwrctrl_power_on(&pwrseq->pwrctrl);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to power-on the device\n");
-
 	ret = devm_add_action_or_reset(dev, devm_pwrseq_pwrctrl_power_off,
 				       pwrseq);
 	if (ret)

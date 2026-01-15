@@ -83,8 +83,6 @@ static int slot_pwrctrl_probe(struct platform_device *pdev)
 				     "Failed to enable slot clock\n");
 	}
 
-	slot_pwrctrl_power_on(&slot->pwrctrl);
-
 	slot->pwrctrl.power_on = slot_pwrctrl_power_on;
 	slot->pwrctrl.power_off = slot_pwrctrl_power_off;
 

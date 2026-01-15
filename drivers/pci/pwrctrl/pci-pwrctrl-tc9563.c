@@ -533,9 +533,7 @@ power_off:
 
 static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 {
-	struct pci_host_bridge *bridge = to_pci_host_bridge(pdev->dev.parent);
 	struct device_node *node = pdev->dev.of_node;
-	struct pci_bus *bus = bridge->bus;
 	struct device *dev = &pdev->dev;
 	enum tc9563_pwrctrl_ports port;
 	struct tc9563_pwrctrl *tc9563;
@@ -614,30 +612,12 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 		goto remove_i2c;
 	}
 
-	if (bridge->ops->assert_perst) {
-		ret = bridge->ops->assert_perst(bus, true);
-		if (ret)
-			goto remove_i2c;
-	}
-
-	ret = tc9563_pwrctrl_power_on(&tc9563->pwrctrl);
-	if (ret)
-		goto remove_i2c;
-
-	if (bridge->ops->assert_perst) {
-		ret = bridge->ops->assert_perst(bus, false);
-		if (ret)
-			goto power_off;
-	}
-
 	tc9563->pwrctrl.power_on = tc9563_pwrctrl_power_on;
 	tc9563->pwrctrl.power_off = tc9563_pwrctrl_power_off;
 
 	ret = devm_pci_pwrctrl_device_set_ready(dev, &tc9563->pwrctrl);
 	if (ret)
 		goto power_off;
-
-	platform_set_drvdata(pdev, tc9563);
 
 	return 0;
 
@@ -651,7 +631,9 @@ remove_i2c:
 
 static void tc9563_pwrctrl_remove(struct platform_device *pdev)
 {
-	struct tc9563_pwrctrl *tc9563 = platform_get_drvdata(pdev);
+	struct pci_pwrctrl *pwrctrl = dev_get_drvdata(&pdev->dev);
+	struct tc9563_pwrctrl *tc9563 = container_of(pwrctrl,
+					struct tc9563_pwrctrl, pwrctrl);
 
 	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 	i2c_unregister_device(tc9563->client);

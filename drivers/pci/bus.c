@@ -344,7 +344,6 @@ void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 void pci_bus_add_device(struct pci_dev *dev)
 {
 	struct device_node *dn = dev->dev.of_node;
-	struct platform_device *pdev;
 
 	/*
 	 * Can not put in pci_device_add yet because resources
@@ -360,24 +359,6 @@ void pci_bus_add_device(struct pci_dev *dev)
 
 	/* Save config space for error recoverability */
 	pci_save_state(dev);
-
-	/*
-	 * If the PCI device is associated with a pwrctrl device with a
-	 * power supply, create a device link between the PCI device and
-	 * pwrctrl device.  This ensures that pwrctrl drivers are probed
-	 * before PCI client drivers.
-	 */
-	pdev = of_find_device_by_node(dn);
-	if (pdev) {
-		if (of_pci_supply_present(dn)) {
-			if (!device_link_add(&dev->dev, &pdev->dev,
-					     DL_FLAG_AUTOREMOVE_CONSUMER)) {
-				pci_err(dev, "failed to add device link to power control device %s\n",
-					pdev->name);
-			}
-		}
-		put_device(&pdev->dev);
-	}
 
 	if (!dn || of_device_is_available(dn))
 		pci_dev_allow_binding(dev);
