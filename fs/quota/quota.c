@@ -899,6 +899,7 @@ retry:
 		sb_start_write(sb);
 		sb_end_write(sb);
 		put_super(sb);
+		cond_resched();
 		goto retry;
 	}
 	return sb;
