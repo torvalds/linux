@@ -18424,9 +18424,11 @@ M:	Jakub Kicinski <kuba@kernel.org>
 M:	Sabrina Dubroca <sd@queasysnail.net>
 L:	netdev@vger.kernel.org
 S:	Maintained
+F:	Documentation/networking/tls*
 F:	include/net/tls.h
 F:	include/uapi/linux/tls.h
-F:	net/tls/*
+F:	net/tls/
+F:	tools/testing/selftests/net/tls.c
 
 NETWORKING [SOCKETS]
 M:	Eric Dumazet <edumazet@google.com>
