@@ -1775,8 +1775,8 @@ csio_scsi_cbfn(struct csio_hw *hw, struct csio_ioreq *req)
  *	- Kicks off the SCSI state machine for this IO.
  *	- Returns busy status on error.
  */
-static int
-csio_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmnd)
+static enum scsi_qc_status csio_queuecommand(struct Scsi_Host *host,
+					     struct scsi_cmnd *cmnd)
 {
 	struct csio_lnode *ln = shost_priv(host);
 	struct csio_hw *hw = csio_lnode_to_hw(ln);

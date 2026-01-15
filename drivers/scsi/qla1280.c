@@ -406,9 +406,11 @@ static int qla1280_device_reset(struct scsi_qla_host *, int, int);
 static int qla1280_abort_command(struct scsi_qla_host *, struct srb *, int);
 static int qla1280_abort_isp(struct scsi_qla_host *);
 #ifdef QLA_64BIT_PTR
-static int qla1280_64bit_start_scsi(struct scsi_qla_host *, struct srb *);
+static enum scsi_qc_status qla1280_64bit_start_scsi(struct scsi_qla_host *,
+						    struct srb *);
 #else
-static int qla1280_32bit_start_scsi(struct scsi_qla_host *, struct srb *);
+static enum scsi_qc_status qla1280_32bit_start_scsi(struct scsi_qla_host *,
+						    struct srb *);
 #endif
 static void qla1280_nv_write(struct scsi_qla_host *, uint16_t);
 static void qla1280_poll(struct scsi_qla_host *);
@@ -682,12 +684,12 @@ qla1280_info(struct Scsi_Host *host)
  * handling).   Unfortunately, it sometimes calls the scheduler in interrupt
  * context which is a big NO! NO!.
  **************************************************************************/
-static int qla1280_queuecommand_lck(struct scsi_cmnd *cmd)
+static enum scsi_qc_status qla1280_queuecommand_lck(struct scsi_cmnd *cmd)
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_qla_host *ha = (struct scsi_qla_host *)host->hostdata;
 	struct srb *sp = scsi_cmd_priv(cmd);
-	int status;
+	enum scsi_qc_status status;
 
 	sp->cmd = cmd;
 	sp->flags = 0;
@@ -2730,7 +2732,7 @@ qla1280_marker(struct scsi_qla_host *ha, int bus, int id, int lun, u8 type)
  *      0 = success, was able to issue command.
  */
 #ifdef QLA_64BIT_PTR
-static int
+static enum scsi_qc_status
 qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 {
 	struct device_reg __iomem *reg = ha->iobase;
@@ -2738,7 +2740,7 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	cmd_a64_entry_t *pkt;
 	__le32 *dword_ptr;
 	dma_addr_t dma_handle;
-	int status = 0;
+	enum scsi_qc_status status = 0;
 	int cnt;
 	int req_cnt;
 	int seg_cnt;
@@ -2984,14 +2986,14 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
  * Returns:
  *      0 = success, was able to issue command.
  */
-static int
+static enum scsi_qc_status
 qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 {
 	struct device_reg __iomem *reg = ha->iobase;
 	struct scsi_cmnd *cmd = sp->cmd;
 	struct cmd_entry *pkt;
 	__le32 *dword_ptr;
-	int status = 0;
+	enum scsi_qc_status status = 0;
 	int cnt;
 	int req_cnt;
 	int seg_cnt;

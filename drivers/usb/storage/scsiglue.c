@@ -357,7 +357,7 @@ static int target_alloc(struct scsi_target *starget)
 
 /* queue a command */
 /* This is always called with scsi_lock(host) held */
-static int queuecommand_lck(struct scsi_cmnd *srb)
+static enum scsi_qc_status queuecommand_lck(struct scsi_cmnd *srb)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct us_data *us = host_to_us(srb->device->host);

@@ -5422,8 +5422,8 @@ _scsih_eedp_error_handling(struct scsi_cmnd *scmd, u16 ioc_status)
  * SCSI_MLQUEUE_DEVICE_BUSY if the device queue is full, or
  * SCSI_MLQUEUE_HOST_BUSY if the entire host queue is full
  */
-static int
-scsih_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *scmd)
+static enum scsi_qc_status scsih_qcmd(struct Scsi_Host *shost,
+				      struct scsi_cmnd *scmd)
 {
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
 	struct MPT3SAS_DEVICE *sas_device_priv_data;

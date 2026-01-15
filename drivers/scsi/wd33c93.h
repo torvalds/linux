@@ -332,7 +332,8 @@ static inline struct scsi_pointer *WD33C93_scsi_pointer(struct scsi_cmnd *cmd)
 void wd33c93_init (struct Scsi_Host *instance, const wd33c93_regs regs,
          dma_setup_t setup, dma_stop_t stop, int clock_freq);
 int wd33c93_abort (struct scsi_cmnd *cmd);
-int wd33c93_queuecommand (struct Scsi_Host *h, struct scsi_cmnd *cmd);
+enum scsi_qc_status wd33c93_queuecommand(struct Scsi_Host *h,
+					 struct scsi_cmnd *cmd);
 void wd33c93_intr (struct Scsi_Host *instance);
 int wd33c93_show_info(struct seq_file *, struct Scsi_Host *);
 int wd33c93_write_info(struct Scsi_Host *, char *, int);

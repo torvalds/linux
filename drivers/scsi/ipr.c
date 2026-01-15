@@ -6242,8 +6242,8 @@ static void ipr_scsi_done(struct ipr_cmnd *ipr_cmd)
  *	SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	SCSI_MLQUEUE_HOST_BUSY if host is busy
  **/
-static int ipr_queuecommand(struct Scsi_Host *shost,
-			    struct scsi_cmnd *scsi_cmd)
+static enum scsi_qc_status ipr_queuecommand(struct Scsi_Host *shost,
+					    struct scsi_cmnd *scsi_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;

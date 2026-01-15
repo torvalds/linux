@@ -1150,7 +1150,8 @@ extern int ata_scsi_ioctl(struct scsi_device *dev, unsigned int cmd,
 #else
 #define ATA_SCSI_COMPAT_IOCTL /* empty */
 #endif
-extern int ata_scsi_queuecmd(struct Scsi_Host *h, struct scsi_cmnd *cmd);
+extern enum scsi_qc_status ata_scsi_queuecmd(struct Scsi_Host *h,
+					     struct scsi_cmnd *cmd);
 #if IS_REACHABLE(CONFIG_ATA)
 bool ata_scsi_dma_need_drain(struct request *rq);
 #else

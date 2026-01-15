@@ -165,7 +165,8 @@ out_done:
  * ->queuecommand can be and usually is called from interrupt context, so
  * defer the actual submission to a workqueue.
  */
-static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
+static enum scsi_qc_status tcm_loop_queuecommand(struct Scsi_Host *sh,
+						 struct scsi_cmnd *sc)
 {
 	struct tcm_loop_cmd *tl_cmd = scsi_cmd_priv(sc);
 

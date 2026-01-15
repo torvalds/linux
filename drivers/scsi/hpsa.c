@@ -276,7 +276,8 @@ static void hpsa_free_cmd_pool(struct ctlr_info *h);
 #define VPD_PAGE (1 << 8)
 #define HPSA_SIMPLE_ERROR_BITS 0x03
 
-static int hpsa_scsi_queue_command(struct Scsi_Host *h, struct scsi_cmnd *cmd);
+static enum scsi_qc_status hpsa_scsi_queue_command(struct Scsi_Host *h,
+						   struct scsi_cmnd *cmd);
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
@@ -5667,7 +5668,8 @@ static void hpsa_command_resubmit_worker(struct work_struct *work)
 }
 
 /* Running in struct Scsi_Host->host_lock less mode */
-static int hpsa_scsi_queue_command(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
+static enum scsi_qc_status hpsa_scsi_queue_command(struct Scsi_Host *sh,
+						   struct scsi_cmnd *cmd)
 {
 	struct ctlr_info *h;
 	struct hpsa_scsi_dev_t *dev;

@@ -2148,7 +2148,8 @@ static void srp_handle_qp_err(struct ib_cq *cq, struct ib_wc *wc,
 	target->qp_in_error = true;
 }
 
-static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
+static enum scsi_qc_status srp_queuecommand(struct Scsi_Host *shost,
+					    struct scsi_cmnd *scmnd)
 {
 	struct request *rq = scsi_cmd_to_rq(scmnd);
 	struct srp_target_port *target = host_to_target(shost);

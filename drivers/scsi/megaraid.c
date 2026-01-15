@@ -372,11 +372,11 @@ mega_runpendq(adapter_t *adapter)
  *
  * The command queuing entry point for the mid-layer.
  */
-static int megaraid_queue_lck(struct scsi_cmnd *scmd)
+static enum scsi_qc_status megaraid_queue_lck(struct scsi_cmnd *scmd)
 {
 	adapter_t	*adapter;
 	scb_t	*scb;
-	int	busy=0;
+	enum scsi_qc_status busy = 0;
 	unsigned long flags;
 
 	adapter = (adapter_t *)scmd->device->host->hostdata;
@@ -518,7 +518,8 @@ mega_get_ldrv_num(adapter_t *adapter, struct scsi_cmnd *cmd, int channel)
  * boot settings.
  */
 static scb_t *
-mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd, int *busy)
+mega_build_cmd(adapter_t *adapter, struct scsi_cmnd *cmd,
+	       enum scsi_qc_status *busy)
 {
 	mega_passthru	*pthru;
 	scb_t	*scb;

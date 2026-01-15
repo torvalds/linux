@@ -3242,14 +3242,14 @@ static int pmcraid_build_ioadl(
  *	  SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	  SCSI_MLQUEUE_HOST_BUSY if host is busy
  */
-static int pmcraid_queuecommand_lck(struct scsi_cmnd *scsi_cmd)
+static enum scsi_qc_status pmcraid_queuecommand_lck(struct scsi_cmnd *scsi_cmd)
 {
 	struct pmcraid_instance *pinstance;
 	struct pmcraid_resource_entry *res;
 	struct pmcraid_ioarcb *ioarcb;
+	enum scsi_qc_status rc = 0;
 	struct pmcraid_cmd *cmd;
 	u32 fw_version;
-	int rc = 0;
 
 	pinstance =
 		(struct pmcraid_instance *)scsi_cmd->device->host->hostdata;
