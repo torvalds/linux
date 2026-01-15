@@ -162,6 +162,7 @@ static int rapl_msr_write_raw(int cpu, struct reg_action *ra)
 
 /* List of verified CPUs. */
 static const struct x86_cpu_id pl4_support_ids[] = {
+	X86_MATCH_VFM(INTEL_ICELAKE_L, NULL),
 	X86_MATCH_VFM(INTEL_TIGERLAKE_L, NULL),
 	X86_MATCH_VFM(INTEL_ALDERLAKE, NULL),
 	X86_MATCH_VFM(INTEL_ALDERLAKE_L, NULL),
