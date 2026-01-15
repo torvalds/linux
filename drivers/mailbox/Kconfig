@@ -396,7 +396,7 @@ config RISCV_SBI_MPXY_MBOX
 	  Mailbox driver implementation for RISC-V SBI Message Proxy (MPXY)
 	  extension. This mailbox driver is used to send messages to the
 	  remote processor through the SBI implementation (M-mode firmware
-	  or HS-mode hypervisor). Say Y here if you want to have this support.
-	  If unsure say N.
+	  or HS-mode hypervisor). Say Y here, unless you are sure you do not
+	  need this.
 
 endif
