@@ -85,8 +85,7 @@
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x10000000>;
-			alignment = <0x2000>;
+			size = <0x00 0x10000000>;
 			linux,cma-default;
 		};
 
