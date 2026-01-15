@@ -118,9 +118,10 @@ static void init_vmcs_shadow_fields(void)
 			continue;
 
 		/*
-		 * PML and the preemption timer can be emulated, but the
-		 * processor cannot vmwrite to fields that don't exist
-		 * on bare metal.
+		 * KVM emulates PML and the VMX preemption timer irrespective
+		 * of hardware support, but shadowing their related VMCS fields
+		 * requires hardware support as the CPU will reject VMWRITEs to
+		 * fields that don't exist.
 		 */
 		switch (field) {
 		case GUEST_PML_INDEX:
@@ -129,10 +130,6 @@ static void init_vmcs_shadow_fields(void)
 			break;
 		case VMX_PREEMPTION_TIMER_VALUE:
 			if (!cpu_has_vmx_preemption_timer())
-				continue;
-			break;
-		case GUEST_INTR_STATUS:
-			if (!cpu_has_vmx_apicv())
 				continue;
 			break;
 		default:
