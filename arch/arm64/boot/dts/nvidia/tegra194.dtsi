@@ -97,7 +97,6 @@
 				     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 			nvidia,axi2apb = <&axi2apb>;
 			nvidia,apbmisc = <&apbmisc>;
-			status = "okay";
 		};
 
 		axi2apb: axi2apb@2390000 {
@@ -108,13 +107,11 @@
 			      <0x0 0x23c0000 0x0 0x1000>,
 			      <0x0 0x23d0000 0x0 0x1000>,
 			      <0x0 0x23e0000 0x0 0x1000>;
-			status = "okay";
 		};
 
 		pinmux: pinmux@2430000 {
 			compatible = "nvidia,tegra194-pinmux";
 			reg = <0x0 0x2430000 0x0 0x17000>;
-			status = "okay";
 
 			pex_clkreq_c5_bi_dir_state: pinmux-pex-clkreq-c5-bi-dir {
 				clkreq {
@@ -208,7 +205,6 @@
 			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
 			dma-coherent;
 			dma-channel-mask = <0xfffffffe>;
-			status = "okay";
 		};
 
 		aconnect@2900000 {
@@ -737,7 +733,6 @@
 				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-			status = "okay";
 		};
 
 		uarta: serial@3100000 {
@@ -1359,7 +1354,6 @@
 			nvidia,int-threshold = <1>;
 			nvidia,slices = <11>;
 			#timestamp-cells = <1>;
-			status = "okay";
 		};
 
 		hsp_top0: hsp@3c00000 {
@@ -1547,7 +1541,6 @@
 				     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
 			nvidia,axi2apb = <&axi2apb>;
 			nvidia,apbmisc = <&apbmisc>;
-			status = "okay";
 		};
 
 		rce-noc@be00000 {
@@ -1557,7 +1550,6 @@
 				     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
 			nvidia,axi2apb = <&axi2apb>;
 			nvidia,apbmisc = <&apbmisc>;
-			status = "okay";
 		};
 
 		hsp_aon: hsp@c150000 {
@@ -1582,7 +1574,6 @@
 			nvidia,int-threshold = <1>;
 			nvidia,slices = <3>;
 			#timestamp-cells = <1>;
-			status = "okay";
 		};
 
 		gen2_i2c: i2c@c240000 {
@@ -1668,8 +1659,6 @@
 		pinmux_aon: pinmux@c300000 {
 			compatible = "nvidia,tegra194-pinmux-aon";
 			reg = <0x0 0xc300000 0x0 0x4000>;
-
-			status = "okay";
 		};
 
 		pwm4: pwm@c340000 {
@@ -1722,7 +1711,6 @@
 			interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 			nvidia,apbmisc = <&apbmisc>;
-			status = "okay";
 		};
 
 		bpmp-noc@d600000 {
@@ -1732,7 +1720,6 @@
 				     <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 			nvidia,axi2apb = <&axi2apb>;
 			nvidia,apbmisc = <&apbmisc>;
-			status = "okay";
 		};
 
 		iommu@10000000 {
@@ -1886,7 +1873,6 @@
 			#iommu-cells = <1>;
 
 			nvidia,memory-controller = <&mc>;
-			status = "okay";
 		};
 
 		host1x@13e00000 {
@@ -3106,7 +3092,6 @@
 
 	psci {
 		compatible = "arm,psci-1.0";
-		status = "okay";
 		method = "smc";
 	};
 
