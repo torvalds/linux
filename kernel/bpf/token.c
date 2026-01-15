@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf.h>
 #include <linux/vmalloc.h>
 #include <linux/file.h>
