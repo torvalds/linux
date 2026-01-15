@@ -939,13 +939,13 @@ static int aha152x_internal_queue(struct scsi_cmnd *SCpnt,
 	if (acp->phase & (resetting | check_condition)) {
 		if (!SCpnt->host_scribble || SCSEM(SCpnt) || SCNEXT(SCpnt)) {
 			scmd_printk(KERN_ERR, SCpnt, "cannot reuse command\n");
-			return FAILED;
+			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	} else {
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
 		if(!SCpnt->host_scribble) {
 			scmd_printk(KERN_ERR, SCpnt, "allocation failed\n");
-			return FAILED;
+			return SCSI_MLQUEUE_HOST_BUSY;
 		}
 	}
 
