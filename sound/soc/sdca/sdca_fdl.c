@@ -487,7 +487,7 @@ int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	struct device *dev = interrupt->dev;
 	struct fdl_state *fdl_state;
 
-	fdl_state = devm_kzalloc(dev, sizeof(struct fdl_state), GFP_KERNEL);
+	fdl_state = devm_kzalloc(dev, sizeof(*fdl_state), GFP_KERNEL);
 	if (!fdl_state)
 		return -ENOMEM;
 

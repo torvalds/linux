@@ -952,7 +952,7 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	}
 
 	control->values = devm_kcalloc(dev, hweight64(control->cn_list),
-				       sizeof(int), GFP_KERNEL);
+				       sizeof(*control->values), GFP_KERNEL);
 	if (!control->values)
 		return -ENOMEM;
 
@@ -2048,7 +2048,7 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 	fwnode_property_read_u32_array(function_node, "mipi-sdca-file-set-id-list",
 				       filesets_list, num_sets);
 
-	sets = devm_kcalloc(dev, num_sets, sizeof(struct sdca_fdl_set), GFP_KERNEL);
+	sets = devm_kcalloc(dev, num_sets, sizeof(*sets), GFP_KERNEL);
 	if (!sets)
 		return -ENOMEM;
 
@@ -2074,7 +2074,7 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 		dev_dbg(dev, "fileset: %#x\n", filesets_list[i]);
 
 		files = devm_kcalloc(dev, num_entries / mult_fileset,
-				     sizeof(struct sdca_fdl_file), GFP_KERNEL);
+				     sizeof(*files), GFP_KERNEL);
 		if (!files)
 			return -ENOMEM;
 
