@@ -12,6 +12,7 @@
 #define PMF_H
 
 #include <linux/acpi.h>
+#include <linux/amd-pmf-io.h>
 #include <linux/circ_buf.h>
 #include <linux/input.h>
 #include <linux/mutex_types.h>
@@ -440,6 +441,7 @@ struct amd_pmf_dev {
 	bool cb_flag;			     /* To handle first custom BIOS input */
 	struct pmf_cbi_ring_buffer cbi_buf;
 	struct mutex cbi_mutex;		     /* Protects ring buffer access */
+	struct mutex metrics_mutex;
 };
 
 struct apmf_sps_prop_granular_v2 {
