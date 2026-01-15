@@ -48,6 +48,8 @@ const char *phy_speed_to_str(int speed)
 		return "50Gbps";
 	case SPEED_56000:
 		return "56Gbps";
+	case SPEED_80000:
+		return "80Gbps";
 	case SPEED_100000:
 		return "100Gbps";
 	case SPEED_200000:
