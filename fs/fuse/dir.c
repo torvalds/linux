@@ -32,9 +32,9 @@ struct dentry_bucket {
 	spinlock_t lock;
 };
 
-#define HASH_BITS	5
-#define HASH_SIZE	(1 << HASH_BITS)
-static struct dentry_bucket dentry_hash[HASH_SIZE];
+#define FUSE_HASH_BITS	5
+#define FUSE_HASH_SIZE	(1 << FUSE_HASH_BITS)
+static struct dentry_bucket dentry_hash[FUSE_HASH_SIZE];
 struct delayed_work dentry_tree_work;
 
 /* Minimum invalidation work queue frequency */
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(inval_wq,
 
 static inline struct dentry_bucket *get_dentry_bucket(struct dentry *dentry)
 {
-	int i = hash_ptr(dentry, HASH_BITS);
+	int i = hash_ptr(dentry, FUSE_HASH_BITS);
 
 	return &dentry_hash[i];
 }
@@ -164,7 +164,7 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 	struct rb_node *node;
 	int i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < FUSE_HASH_SIZE; i++) {
 		spin_lock(&dentry_hash[i].lock);
 		node = rb_first(&dentry_hash[i].tree);
 		while (node) {
@@ -213,7 +213,7 @@ void fuse_dentry_tree_init(void)
 {
 	int i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < FUSE_HASH_SIZE; i++) {
 		spin_lock_init(&dentry_hash[i].lock);
 		dentry_hash[i].tree = RB_ROOT;
 	}
@@ -227,7 +227,7 @@ void fuse_dentry_tree_cleanup(void)
 	inval_wq = 0;
 	cancel_delayed_work_sync(&dentry_tree_work);
 
-	for (i = 0; i < HASH_SIZE; i++)
+	for (i = 0; i < FUSE_HASH_SIZE; i++)
 		WARN_ON_ONCE(!RB_EMPTY_ROOT(&dentry_hash[i].tree));
 }
 
