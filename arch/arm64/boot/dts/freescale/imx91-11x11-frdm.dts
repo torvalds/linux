@@ -39,7 +39,7 @@
 		compatible = "nxp,tja1051";
 		#phy-cells = <0>;
 		max-bitrate = <5000000>;
-		enable-gpios = <&pcal6524 23 GPIO_ACTIVE_LOW>;
+		silent-gpios = <&pcal6524 23 GPIO_ACTIVE_HIGH>;
 	};
 
 	gpio-keys {
