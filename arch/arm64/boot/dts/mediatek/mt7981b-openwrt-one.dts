@@ -90,6 +90,8 @@
 };
 
 &eth {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "okay";
 
 	/* WAN interface */
