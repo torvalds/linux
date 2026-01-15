@@ -18,16 +18,12 @@ description:
 
 properties:
   compatible:
-    oneOf:
-      - enum:
-          - brcm,bcm6345-gpio
-          - ni,169445-nand-gpio
-          - wd,mbl-gpio # Western Digital MyBook Live memory-mapped GPIO controller
-          - intel,ixp4xx-expansion-bus-mmio-gpio
-      - items:
-          - enum:
-              - opencores,gpio
-          - const: brcm,bcm6345-gpio
+    enum:
+      - brcm,bcm6345-gpio
+      - intel,ixp4xx-expansion-bus-mmio-gpio
+      - ni,169445-nand-gpio
+      - opencores,gpio
+      - wd,mbl-gpio # Western Digital MyBook Live memory-mapped GPIO controller
 
   big-endian: true
 
