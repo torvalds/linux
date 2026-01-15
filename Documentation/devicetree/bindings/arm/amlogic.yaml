@@ -245,6 +245,14 @@ properties:
         items:
           - enum:
               - amlogic,aq222
+          - const: amlogic,s805x2
+          - const: amlogic,s4
+
+      - description: Boards with the Amlogic Meson S4 S905Y4 SoC
+        items:
+          - enum:
+              - khadas,vim1s
+          - const: amlogic,s905y4
           - const: amlogic,s4
 
       - description: Boards with the Amlogic S6 S905X5 SoC
