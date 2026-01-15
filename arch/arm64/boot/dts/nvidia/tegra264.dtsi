@@ -3777,7 +3777,6 @@
 			compatible = "arm,armv8";
 			device_type = "cpu";
 			reg = <0x00000>;
-			status = "okay";
 
 			enable-method = "psci";
 
@@ -3793,7 +3792,6 @@
 			compatible = "arm,armv8";
 			device_type = "cpu";
 			reg = <0x10000>;
-			status = "okay";
 
 			enable-method = "psci";
 
@@ -3831,12 +3829,10 @@
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
-		status = "okay";
 	};
 
 	psci {
 		compatible = "arm,psci-1.0";
-		status = "okay";
 		method = "smc";
 	};
 
@@ -3863,6 +3859,5 @@
 			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_PPI 12 IRQ_TYPE_LEVEL_LOW>;
-		status = "okay";
 	};
 };
