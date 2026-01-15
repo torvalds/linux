@@ -47,6 +47,7 @@
 				 <&clk IMX8MP_SYS_PLL2_100M>,
 				 <&clk IMX8MP_SYS_PLL2_50M>;
 	assigned-clock-rates = <266000000>, <100000000>, <50000000>;
+	nvmem-cells = <&eth_mac1>;
 	phy-handle = <&ethphy0>;
 	phy-mode = "rmii";
 	pinctrl-0 = <&pinctrl_eqos>;
@@ -73,6 +74,10 @@
 			smsc,disable-energy-detect;
 		};
 	};
+};
+
+&fec {
+	nvmem-cells = <&eth_mac2>;
 };
 
 &gpio1 {

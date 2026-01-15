@@ -200,7 +200,7 @@ static int dpu_crtc_get_lm_crc(struct drm_crtc *crtc,
 		struct dpu_crtc_state *crtc_state)
 {
 	struct dpu_crtc_mixer *m;
-	u32 crcs[CRTC_QUAD_MIXERS];
+	u32 crcs[CRTC_DUAL_MIXERS];
 
 	int rc = 0;
 	int i;
@@ -1328,7 +1328,6 @@ static struct msm_display_topology dpu_crtc_get_topology(
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct msm_display_topology topology = {0};
 	struct drm_encoder *drm_enc;
-	u32 num_rt_intf;
 
 	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask)
 		dpu_encoder_update_topology(drm_enc, &topology, crtc_state->state,
@@ -1342,14 +1341,11 @@ static struct msm_display_topology dpu_crtc_get_topology(
 	 * Dual display
 	 * 2 LM, 2 INTF ( Split display using 2 interfaces)
 	 *
-	 * If DSC is enabled, try to use 4:4:2 topology if there is enough
-	 * resource. Otherwise, use 2:2:2 topology.
-	 *
 	 * Single display
 	 * 1 LM, 1 INTF
 	 * 2 LM, 1 INTF (stream merge to support high resolution interfaces)
 	 *
-	 * If DSC is enabled, use 2:2:1 topology
+	 * If DSC is enabled, use 2 LMs for 2:2:1 topology
 	 *
 	 * Add dspps to the reservation requirements if ctm is requested
 	 *
@@ -1361,23 +1357,14 @@ static struct msm_display_topology dpu_crtc_get_topology(
 	 * (mode->hdisplay > MAX_HDISPLAY_SPLIT) check.
 	 */
 
-	num_rt_intf = topology.num_intf;
-	if (topology.cwb_enabled)
-		num_rt_intf--;
-
-	if (topology.num_dsc) {
-		if (dpu_kms->catalog->dsc_count >= num_rt_intf * 2)
-			topology.num_dsc = num_rt_intf * 2;
-		else
-			topology.num_dsc = num_rt_intf;
-		topology.num_lm = topology.num_dsc;
-	} else if (num_rt_intf == 2) {
+	if (topology.num_intf == 2 && !topology.cwb_enabled)
 		topology.num_lm = 2;
-	} else if (dpu_kms->catalog->caps->has_3d_merge) {
+	else if (topology.num_dsc == 2)
+		topology.num_lm = 2;
+	else if (dpu_kms->catalog->caps->has_3d_merge)
 		topology.num_lm = (mode->hdisplay > MAX_HDISPLAY_SPLIT) ? 2 : 1;
-	} else {
+	else
 		topology.num_lm = 1;
-	}
 
 	if (crtc_state->ctm)
 		topology.num_dspp = topology.num_lm;
@@ -1618,17 +1605,6 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	}
 
 	return 0;
-}
-
-/**
- * dpu_crtc_get_num_lm - Get mixer number in this CRTC pipeline
- * @state: Pointer to drm crtc state object
- */
-unsigned int dpu_crtc_get_num_lm(const struct drm_crtc_state *state)
-{
-	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
-
-	return cstate->num_mixers;
 }
 
 #ifdef CONFIG_DEBUG_FS

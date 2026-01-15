@@ -95,26 +95,26 @@ Memory Layout
 The traditional memory map for the kernel loader, used for Image or
 zImage kernels, typically looks like::
 
-  		|  			 |
+		|  			 |
   0A0000	+------------------------+
-  		|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
+		|  Reserved for BIOS	 |	Do not use.  Reserved for BIOS EBDA.
   09A000	+------------------------+
-  		|  Command line		 |
-  		|  Stack/heap		 |	For use by the kernel real-mode code.
+		|  Command line		 |
+		|  Stack/heap		 |	For use by the kernel real-mode code.
   098000	+------------------------+
-  		|  Kernel setup		 |	The kernel real-mode code.
+		|  Kernel setup		 |	The kernel real-mode code.
   090200	+------------------------+
-  		|  Kernel boot sector	 |	The kernel legacy boot sector.
+		|  Kernel boot sector	 |	The kernel legacy boot sector.
   090000	+------------------------+
-  		|  Protected-mode kernel |	The bulk of the kernel image.
+		|  Protected-mode kernel |	The bulk of the kernel image.
   010000	+------------------------+
-  		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
+		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
   001000	+------------------------+
-  		|  Reserved for MBR/BIOS |
+		|  Reserved for MBR/BIOS |
   000800	+------------------------+
-  		|  Typically used by MBR |
+		|  Typically used by MBR |
   000600	+------------------------+
-  		|  BIOS use only	 |
+		|  BIOS use only	 |
   000000	+------------------------+
 
 When using bzImage, the protected-mode kernel was relocated to
@@ -142,27 +142,27 @@ above the 0x9A000 point; too many BIOSes will break above that point.
 For a modern bzImage kernel with boot protocol version >= 2.02, a
 memory layout like the following is suggested::
 
-  		~  			 ~
-  		|  Protected-mode kernel |
+		~  			 ~
+		|  Protected-mode kernel |
   100000	+------------------------+
-  		|  I/O memory hole	 |
+		|  I/O memory hole	 |
   0A0000	+------------------------+
-  		|  Reserved for BIOS	 |	Leave as much as possible unused
-  		~  			 ~
-  		|  Command line		 |	(Can also be below the X+10000 mark)
+		|  Reserved for BIOS	 |	Leave as much as possible unused
+		~  			 ~
+		|  Command line		 |	(Can also be below the X+10000 mark)
   X+10000	+------------------------+
-  		|  Stack/heap		 |	For use by the kernel real-mode code.
+		|  Stack/heap		 |	For use by the kernel real-mode code.
   X+08000	+------------------------+
-  		|  Kernel setup		 |	The kernel real-mode code.
-  		|  Kernel boot sector	 |	The kernel legacy boot sector.
+		|  Kernel setup		 |	The kernel real-mode code.
+		|  Kernel boot sector	 |	The kernel legacy boot sector.
   X		+------------------------+
-  		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
+		|  Boot loader		 |	<- Boot sector entry point 0000:7C00
   001000	+------------------------+
-  		|  Reserved for MBR/BIOS |
+		|  Reserved for MBR/BIOS |
   000800	+------------------------+
-  		|  Typically used by MBR |
+		|  Typically used by MBR |
   000600	+------------------------+
-  		|  BIOS use only	 |
+		|  BIOS use only	 |
   000000	+------------------------+
 
   ... where the address X is as low as the design of the boot loader permits.
@@ -433,7 +433,7 @@ Protocol:	2.00+
 
   Assigned boot loader IDs:
 
-	== =======================================
+	==== =======================================
 	0x0  LILO
 	     (0x00 reserved for pre-2.00 bootloader)
 	0x1  Loadlin
@@ -456,7 +456,7 @@ Protocol:	2.00+
 	     <http://sebastian-plotz.blogspot.de>
 	0x12 OVMF UEFI virtualization stack
 	0x13 barebox
-	== =======================================
+	==== =======================================
 
   Please contact <hpa@zytor.com> if you need a bootloader ID value assigned.
 
@@ -809,12 +809,12 @@ Protocol:	2.09+
   as follow::
 
    struct setup_data {
-   	__u64 next;
-   	__u32 type;
-   	__u32 len;
-   	__u8 data[];
+	__u64 next;
+	__u32 type;
+	__u32 len;
+	__u8 data[];
    }
-   
+
   Where, the next is a 64-bit physical pointer to the next node of
   linked list, the next field of the last node is 0; the type is used
   to identify the contents of data; the len is the length of data
@@ -835,10 +835,10 @@ Protocol:	2.09+
   protocol 2.15::
 
    struct setup_indirect {
-   	__u32 type;
-   	__u32 reserved;		/* Reserved, must be set to zero. */
-   	__u64 len;
-   	__u64 addr;
+	__u32 type;
+	__u32 reserved;		/* Reserved, must be set to zero. */
+	__u64 len;
+	__u64 addr;
    };
 
   The type member is a SETUP_INDIRECT | SETUP_* type. However, it cannot be
@@ -850,15 +850,15 @@ Protocol:	2.09+
   In this case setup_data and setup_indirect will look like this::
 
    struct setup_data {
-   	.next = 0,	/* or <addr_of_next_setup_data_struct> */
-   	.type = SETUP_INDIRECT,
-   	.len = sizeof(setup_indirect),
-   	.data[sizeof(setup_indirect)] = (struct setup_indirect) {
-   		.type = SETUP_INDIRECT | SETUP_E820_EXT,
-   		.reserved = 0,
-   		.len = <len_of_SETUP_E820_EXT_data>,
-   		.addr = <addr_of_SETUP_E820_EXT_data>,
-   	},
+	.next = 0,	/* or <addr_of_next_setup_data_struct> */
+	.type = SETUP_INDIRECT,
+	.len = sizeof(setup_indirect),
+	.data[sizeof(setup_indirect)] = (struct setup_indirect) {
+		.type = SETUP_INDIRECT | SETUP_E820_EXT,
+		.reserved = 0,
+		.len = <len_of_SETUP_E820_EXT_data>,
+		.addr = <addr_of_SETUP_E820_EXT_data>,
+	},
    }
 
 .. note::
@@ -897,11 +897,11 @@ Offset/size:	0x260/4
   The kernel runtime start address is determined by the following algorithm::
 
    if (relocatable_kernel) {
-    	if (load_address < pref_address)
-    		load_address = pref_address;
-    	runtime_start = align_up(load_address, kernel_alignment);
+	if (load_address < pref_address)
+		load_address = pref_address;
+	runtime_start = align_up(load_address, kernel_alignment);
    } else {
-    	runtime_start = pref_address;
+	runtime_start = pref_address;
    }
 
 Hence the necessary memory window location and size can be estimated by
@@ -975,22 +975,22 @@ after kernel_info_var_len_data label. Each chunk of variable size data has to
 be prefixed with header/magic and its size, e.g.::
 
   kernel_info:
-  	.ascii  "LToP"		/* Header, Linux top (structure). */
-  	.long   kernel_info_var_len_data - kernel_info
-  	.long   kernel_info_end - kernel_info
-  	.long   0x01234567	/* Some fixed size data for the bootloaders. */
+	.ascii  "LToP"		/* Header, Linux top (structure). */
+	.long   kernel_info_var_len_data - kernel_info
+	.long   kernel_info_end - kernel_info
+	.long   0x01234567	/* Some fixed size data for the bootloaders. */
   kernel_info_var_len_data:
   example_struct:		/* Some variable size data for the bootloaders. */
-  	.ascii  "0123"		/* Header/Magic. */
-  	.long   example_struct_end - example_struct
-  	.ascii  "Struct"
-  	.long   0x89012345
+	.ascii  "0123"		/* Header/Magic. */
+	.long   example_struct_end - example_struct
+	.ascii  "Struct"
+	.long   0x89012345
   example_struct_end:
   example_strings:		/* Some variable size data for the bootloaders. */
-  	.ascii  "ABCD"		/* Header/Magic. */
-  	.long   example_strings_end - example_strings
-  	.asciz  "String_0"
-  	.asciz  "String_1"
+	.ascii  "ABCD"		/* Header/Magic. */
+	.long   example_strings_end - example_strings
+	.asciz  "String_0"
+	.asciz  "String_1"
   example_strings_end:
   kernel_info_end:
 
@@ -1132,53 +1132,53 @@ Such a boot loader should enter the following fields in the header::
   unsigned long base_ptr;	/* base address for real-mode segment */
 
   if (setup_sects == 0)
-  	setup_sects = 4;
+	setup_sects = 4;
 
   if (protocol >= 0x0200) {
-  	type_of_loader = <type code>;
-  	if (loading_initrd) {
-  		ramdisk_image = <initrd_address>;
-  		ramdisk_size = <initrd_size>;
-  	}
+	type_of_loader = <type code>;
+	if (loading_initrd) {
+		ramdisk_image = <initrd_address>;
+		ramdisk_size = <initrd_size>;
+	}
 
-  	if (protocol >= 0x0202 && loadflags & 0x01)
-  		heap_end = 0xe000;
-  	else
-  		heap_end = 0x9800;
+	if (protocol >= 0x0202 && loadflags & 0x01)
+		heap_end = 0xe000;
+	else
+		heap_end = 0x9800;
 
-  	if (protocol >= 0x0201) {
-  		heap_end_ptr = heap_end - 0x200;
-  		loadflags |= 0x80;		/* CAN_USE_HEAP */
-  	}
+	if (protocol >= 0x0201) {
+		heap_end_ptr = heap_end - 0x200;
+		loadflags |= 0x80;		/* CAN_USE_HEAP */
+	}
 
-  	if (protocol >= 0x0202) {
-  		cmd_line_ptr = base_ptr + heap_end;
-  		strcpy(cmd_line_ptr, cmdline);
-  	} else {
-  		cmd_line_magic	= 0xA33F;
-  		cmd_line_offset = heap_end;
-  		setup_move_size = heap_end + strlen(cmdline) + 1;
-  		strcpy(base_ptr + cmd_line_offset, cmdline);
-  	}
+	if (protocol >= 0x0202) {
+		cmd_line_ptr = base_ptr + heap_end;
+		strcpy(cmd_line_ptr, cmdline);
+	} else {
+		cmd_line_magic	= 0xA33F;
+		cmd_line_offset = heap_end;
+		setup_move_size = heap_end + strlen(cmdline) + 1;
+		strcpy(base_ptr + cmd_line_offset, cmdline);
+	}
   } else {
-  	/* Very old kernel */
+	/* Very old kernel */
 
-  	heap_end = 0x9800;
+	heap_end = 0x9800;
 
-  	cmd_line_magic	= 0xA33F;
-  	cmd_line_offset = heap_end;
+	cmd_line_magic	= 0xA33F;
+	cmd_line_offset = heap_end;
 
-  	/* A very old kernel MUST have its real-mode code loaded at 0x90000 */
-  	if (base_ptr != 0x90000) {
-  		/* Copy the real-mode kernel */
-  		memcpy(0x90000, base_ptr, (setup_sects + 1) * 512);
-  		base_ptr = 0x90000;		 /* Relocated */
-  	}
+	/* A very old kernel MUST have its real-mode code loaded at 0x90000 */
+	if (base_ptr != 0x90000) {
+		/* Copy the real-mode kernel */
+		memcpy(0x90000, base_ptr, (setup_sects + 1) * 512);
+		base_ptr = 0x90000;		 /* Relocated */
+	}
 
-  	strcpy(0x90000 + cmd_line_offset, cmdline);
+	strcpy(0x90000 + cmd_line_offset, cmdline);
 
-  	/* It is recommended to clear memory up to the 32K mark */
-  	memset(0x90000 + (setup_sects + 1) * 512, 0, (64 - (setup_sects + 1)) * 512);
+	/* It is recommended to clear memory up to the 32K mark */
+	memset(0x90000 + (setup_sects + 1) * 512, 0, (64 - (setup_sects + 1)) * 512);
   }
 
 

@@ -371,6 +371,7 @@ struct software_node_ref_args {
 (const struct software_node_ref_args) {				\
 	.swnode = _Generic(_ref_,				\
 			   const struct software_node *: _ref_,	\
+			   struct software_node *: _ref_,	\
 			   default: NULL),			\
 	.fwnode = _Generic(_ref_,				\
 			   struct fwnode_handle *: _ref_,	\

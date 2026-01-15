@@ -25,6 +25,10 @@ properties:
     items:
       - const: pci1de4,1
 
+  reg:
+    maxItems: 1
+    description: The PCI Bus-Device-Function address.
+
   '#interrupt-cells':
     const: 2
     description: |
@@ -101,6 +105,7 @@ unevaluatedProperties: false
 
 required:
   - compatible
+  - reg
   - '#interrupt-cells'
   - interrupt-controller
   - pci-ep-bus@1
@@ -111,8 +116,9 @@ examples:
         #address-cells = <3>;
         #size-cells = <2>;
 
-        rp1@0,0 {
+        dev@0,0 {
             compatible = "pci1de4,1";
+            reg = <0x10000 0x0 0x0 0x0 0x0>;
             ranges = <0x01 0x00 0x00000000  0x82010000 0x00 0x00  0x00 0x400000>;
             #address-cells = <3>;
             #size-cells = <2>;

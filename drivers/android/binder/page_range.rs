@@ -727,8 +727,5 @@ unsafe extern "C" fn rust_shrink_free_page(
     drop(mm);
     drop(page);
 
-    // SAFETY: We just unlocked the lru lock, but it should be locked when we return.
-    unsafe { bindings::spin_lock(&raw mut (*lru).lock) };
-
     LRU_REMOVED_ENTRY
 }

@@ -202,6 +202,23 @@ static void kexec_prepare_cpus_wait(int wait_state)
 	mb();
 }
 
+
+/*
+ * The add_cpu() call in wake_offline_cpus() can fail as cpu_bootable()
+ * returns false for CPUs that fail the cpu_smt_thread_allowed() check
+ * or non primary threads if SMT is disabled. Re-enable SMT and set the
+ * number of SMT threads to threads per core.
+ */
+static void kexec_smt_reenable(void)
+{
+#if defined(CONFIG_SMP) && defined(CONFIG_HOTPLUG_SMT)
+	lock_device_hotplug();
+	cpu_smt_num_threads = threads_per_core;
+	cpu_smt_control = CPU_SMT_ENABLED;
+	unlock_device_hotplug();
+#endif
+}
+
 /*
  * We need to make sure each present CPU is online.  The next kernel will scan
  * the device tree and assume primary threads are online and query secondary
@@ -215,6 +232,8 @@ static void kexec_prepare_cpus_wait(int wait_state)
 static void wake_offline_cpus(void)
 {
 	int cpu = 0;
+
+	kexec_smt_reenable();
 
 	for_each_present_cpu(cpu) {
 		if (!cpu_online(cpu)) {
