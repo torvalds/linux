@@ -1096,13 +1096,20 @@ enum ethtool_module_fw_flash_status {
  * struct ethtool_gstrings - string set for data tagging
  * @cmd: Command number = %ETHTOOL_GSTRINGS
  * @string_set: String set ID; one of &enum ethtool_stringset
- * @len: On return, the number of strings in the string set
+ * @len: Number of strings in the string set
  * @data: Buffer for strings.  Each string is null-padded to a size of
  *	%ETH_GSTRING_LEN.
  *
  * Users must use %ETHTOOL_GSSET_INFO to find the number of strings in
  * the string set.  They must allocate a buffer of the appropriate
  * size immediately following this structure.
+ *
+ * Setting @len on input is optional (though preferred), but must be zeroed
+ * otherwise.
+ * When set, @len will return the requested count if it matches the actual
+ * count; otherwise, it will be zero.
+ * This prevents issues when the number of strings is different than the
+ * userspace allocation.
  */
 struct ethtool_gstrings {
 	__u32	cmd;
@@ -1179,13 +1186,20 @@ struct ethtool_test {
 /**
  * struct ethtool_stats - device-specific statistics
  * @cmd: Command number = %ETHTOOL_GSTATS
- * @n_stats: On return, the number of statistics
+ * @n_stats: Number of statistics
  * @data: Array of statistics
  *
  * Users must use %ETHTOOL_GSSET_INFO or %ETHTOOL_GDRVINFO to find the
  * number of statistics that will be returned.  They must allocate a
  * buffer of the appropriate size (8 * number of statistics)
  * immediately following this structure.
+ *
+ * Setting @n_stats on input is optional (though preferred), but must be zeroed
+ * otherwise.
+ * When set, @n_stats will return the requested count if it matches the actual
+ * count; otherwise, it will be zero.
+ * This prevents issues when the number of stats is different than the
+ * userspace allocation.
  */
 struct ethtool_stats {
 	__u32	cmd;
