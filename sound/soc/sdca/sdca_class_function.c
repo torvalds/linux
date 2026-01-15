@@ -377,6 +377,8 @@ static int class_function_probe(struct auxiliary_device *auxdev,
 	if (ret)
 		return ret;
 
+	dev_pm_set_driver_flags(dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+
 	pm_runtime_set_autosuspend_delay(dev, 200);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_active(dev);
