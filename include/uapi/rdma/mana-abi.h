@@ -17,6 +17,9 @@
 #define MANA_IB_UVERBS_ABI_VERSION 1
 
 enum mana_ib_create_cq_flags {
+	/* Reserved for backward compatibility. Legacy
+	 * kernel versions use it to create CQs in RNIC
+	 */
 	MANA_IB_CREATE_RNIC_CQ	= 1 << 0,
 };
 
