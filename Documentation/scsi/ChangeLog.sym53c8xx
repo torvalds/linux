@@ -2,9 +2,9 @@ Sat May 12 12:00 2001 Gerard Roudier (groudier@club-internet.fr)
 	* version sym53c8xx-1.7.3c
 	- Ensure LEDC bit in GPCNTL is cleared when reading the NVRAM.
 	  Fix sent by Stig Telfer <stig@api-networks.com>.
-	- Backport from SYM-2 the work-around that allows to support 
-	  hardwares that fail PCI parity checking.
-	- Check that we received at least 8 bytes of INQUIRY response 
+	- Backport from SYM-2 the work-around that allows to support
+	  hardware that fails PCI parity checking.
+	- Check that we received at least 8 bytes of INQUIRY response
 	  for byte 7, that contains device capabilities, to be valid.
 	- Define scsi_set_pci_device() as nil for kernel < 2.4.4.
 	- + A couple of minor changes.
