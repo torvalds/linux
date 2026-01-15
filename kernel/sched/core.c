@@ -4950,7 +4950,7 @@ struct balance_callback *splice_balance_callbacks(struct rq *rq)
 	return __splice_balance_callbacks(rq, true);
 }
 
-static void __balance_callbacks(struct rq *rq, struct rq_flags *rf)
+void __balance_callbacks(struct rq *rq, struct rq_flags *rf)
 {
 	if (rf)
 		rq_unpin_lock(rq, rf);
@@ -9126,6 +9126,8 @@ void sched_move_task(struct task_struct *tsk, bool for_autogroup)
 
 	if (resched)
 		resched_curr(rq);
+
+	__balance_callbacks(rq, &rq_guard.rf);
 }
 
 static struct cgroup_subsys_state *
