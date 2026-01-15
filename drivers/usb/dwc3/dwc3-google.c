@@ -228,10 +228,8 @@ static int dwc3_google_request_irq(struct dwc3_google *google, struct platform_d
 	int irq;
 
 	irq = platform_get_irq_byname(pdev, irq_name);
-	if (irq < 0) {
-		dev_err(google->dev, "invalid irq name %s\n", irq_name);
+	if (irq < 0)
 		return irq;
-	}
 
 	irq_set_status_flags(irq, IRQ_NOAUTOEN);
 	ret = devm_request_threaded_irq(google->dev, irq, NULL,
