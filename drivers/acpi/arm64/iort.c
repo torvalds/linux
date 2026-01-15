@@ -595,45 +595,45 @@ u32 iort_msi_map_id(struct device *dev, u32 input_id)
 }
 
 /**
- * iort_pmsi_get_dev_id() - Get the device id for a device
+ * iort_msi_xlate() - Map a MSI input ID for a device
  * @dev: The device for which the mapping is to be done.
- * @dev_id: The device ID found.
+ * @input_id: The device input ID.
+ * @fwnode: Pointer to store the fwnode.
  *
- * Returns: 0 for successful find a dev id, -ENODEV on error
+ * Returns: mapped MSI ID on success, input ID otherwise
+ *	    On success, the fwnode pointer is initialized to the MSI
+ *	    controller fwnode handle.
  */
-int iort_pmsi_get_dev_id(struct device *dev, u32 *dev_id)
+u32 iort_msi_xlate(struct device *dev, u32 input_id, struct fwnode_handle **fwnode)
 {
-	int i, index;
+	struct acpi_iort_its_group *its;
 	struct acpi_iort_node *node;
+	u32 dev_id;
 
 	node = iort_find_dev_node(dev);
 	if (!node)
-		return -ENODEV;
+		return input_id;
 
-	index = iort_get_id_mapping_index(node);
-	/* if there is a valid index, go get the dev_id directly */
-	if (index >= 0) {
-		if (iort_node_get_id(node, dev_id, index))
-			return 0;
-	} else {
-		for (i = 0; i < node->mapping_count; i++) {
-			if (iort_node_map_platform_id(node, dev_id,
-						      IORT_MSI_TYPE, i))
-				return 0;
-		}
-	}
+	node = iort_node_map_id(node, input_id, &dev_id, IORT_MSI_TYPE);
+	if (!node)
+		return input_id;
 
-	return -ENODEV;
+	/* Move to ITS specific data */
+	its = (struct acpi_iort_its_group *)node->node_data;
+
+	*fwnode = iort_find_domain_token(its->identifiers[0]);
+
+	return dev_id;
 }
 
-static int __maybe_unused iort_find_its_base(u32 its_id, phys_addr_t *base)
+int iort_its_translate_pa(struct fwnode_handle *node, phys_addr_t *base)
 {
 	struct iort_its_msi_chip *its_msi_chip;
 	int ret = -ENODEV;
 
 	spin_lock(&iort_msi_chip_lock);
 	list_for_each_entry(its_msi_chip, &iort_msi_chip_list, list) {
-		if (its_msi_chip->translation_id == its_id) {
+		if (its_msi_chip->fw_node == node) {
 			*base = its_msi_chip->base_addr;
 			ret = 0;
 			break;
@@ -642,6 +642,62 @@ static int __maybe_unused iort_find_its_base(u32 its_id, phys_addr_t *base)
 	spin_unlock(&iort_msi_chip_lock);
 
 	return ret;
+}
+
+static int __maybe_unused iort_find_its_base(u32 its_id, phys_addr_t *base)
+{
+	struct fwnode_handle *fwnode = iort_find_domain_token(its_id);
+
+	if (!fwnode)
+		return -ENODEV;
+
+	return iort_its_translate_pa(fwnode, base);
+}
+
+/**
+ * iort_pmsi_get_msi_info() - Get the device id and translate frame PA for a device
+ * @dev: The device for which the mapping is to be done.
+ * @dev_id: The device ID found.
+ * @pa: optional pointer to store translate frame address.
+ *
+ * Returns: 0 for successful devid and pa retrieval, -ENODEV on error
+ */
+int iort_pmsi_get_msi_info(struct device *dev, u32 *dev_id, phys_addr_t *pa)
+{
+	struct acpi_iort_node *node, *parent = NULL;
+	struct acpi_iort_its_group *its;
+	int i, index;
+
+	node = iort_find_dev_node(dev);
+	if (!node)
+		return -ENODEV;
+
+	index = iort_get_id_mapping_index(node);
+	/* if there is a valid index, go get the dev_id directly */
+	if (index >= 0) {
+		parent = iort_node_get_id(node, dev_id, index);
+	} else {
+		for (i = 0; i < node->mapping_count; i++) {
+			parent = iort_node_map_platform_id(node, dev_id,
+						      IORT_MSI_TYPE, i);
+			if (parent)
+				break;
+		}
+	}
+
+	if (!parent)
+		return -ENODEV;
+
+	if (pa) {
+		int ret;
+
+		its = (struct acpi_iort_its_group *)node->node_data;
+		ret = iort_find_its_base(its->identifiers[0], pa);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**

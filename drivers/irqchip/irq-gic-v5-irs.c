@@ -814,8 +814,11 @@ void __init gicv5_irs_its_probe(void)
 {
 	struct gicv5_irs_chip_data *irs_data;
 
-	list_for_each_entry(irs_data, &irs_nodes, entry)
-		gicv5_its_of_probe(to_of_node(irs_data->fwnode));
+	if (acpi_disabled)
+		list_for_each_entry(irs_data, &irs_nodes, entry)
+			gicv5_its_of_probe(to_of_node(irs_data->fwnode));
+	else
+		gicv5_its_acpi_probe();
 }
 
 int __init gicv5_irs_of_probe(struct device_node *parent)

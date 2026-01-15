@@ -401,6 +401,8 @@ u32 pci_msi_map_rid_ctlr_node(struct irq_domain *domain, struct pci_dev *pdev,
 		rid = of_msi_xlate(&pdev->dev, &msi_ctlr_node, rid);
 		if (msi_ctlr_node)
 			*node = of_fwnode_handle(msi_ctlr_node);
+	} else {
+		rid = iort_msi_xlate(&pdev->dev, rid, node);
 	}
 
 	return rid;
