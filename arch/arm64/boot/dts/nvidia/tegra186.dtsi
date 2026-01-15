@@ -120,7 +120,6 @@
 		iommus = <&smmu TEGRA186_SID_GPCDMA_0>;
 		dma-coherent;
 		dma-channel-mask = <0xfffffffe>;
-		status = "okay";
 	};
 
 	aconnect@2900000 {
@@ -608,7 +607,6 @@
 			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		status = "okay";
 	};
 
 	uarta: serial@3100000 {
