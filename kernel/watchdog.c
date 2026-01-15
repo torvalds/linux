@@ -71,7 +71,7 @@ unsigned int __read_mostly hardlockup_panic =
  * hard lockup is detected, it could be task, memory, lock etc.
  * Refer include/linux/sys_info.h for detailed bit definition.
  */
-static unsigned long hardlockup_si_mask;
+unsigned long hardlockup_si_mask;
 
 #ifdef CONFIG_SYSFS
 
