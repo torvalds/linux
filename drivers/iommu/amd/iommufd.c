@@ -29,3 +29,19 @@ void *amd_iommufd_hw_info(struct device *dev, u32 *length, u32 *type)
 
 	return hwinfo;
 }
+
+size_t amd_iommufd_get_viommu_size(struct device *dev, enum iommu_viommu_type viommu_type)
+{
+	return VIOMMU_STRUCT_SIZE(struct amd_iommu_viommu, core);
+}
+
+int amd_iommufd_viommu_init(struct iommufd_viommu *viommu, struct iommu_domain *parent,
+			    const struct iommu_user_data *user_data)
+{
+	struct protection_domain *pdom = to_pdomain(parent);
+	struct amd_iommu_viommu *aviommu = container_of(viommu, struct amd_iommu_viommu, core);
+
+	aviommu->parent = pdom;
+
+	return 0;
+}

@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/iommufd.h>
 #include <linux/irqreturn.h>
 #include <linux/generic_pt/iommu.h>
 
@@ -493,6 +494,11 @@ struct pdom_dev_data {
 struct pdom_iommu_info {
 	struct amd_iommu *iommu; /* IOMMUs attach to protection domain */
 	u32 refcnt;	/* Count of attached dev/pasid per domain/IOMMU */
+};
+
+struct amd_iommu_viommu {
+	struct iommufd_viommu core;
+	struct protection_domain *parent; /* nest parent domain for this viommu */
 };
 
 /*
