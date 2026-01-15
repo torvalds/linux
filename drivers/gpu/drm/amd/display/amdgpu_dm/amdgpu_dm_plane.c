@@ -1911,7 +1911,8 @@ int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 		drm_plane_create_zpos_immutable_property(plane, 255);
 	}
 
-	if (plane->type == DRM_PLANE_TYPE_PRIMARY &&
+	if ((plane->type == DRM_PLANE_TYPE_PRIMARY ||
+	     plane->type == DRM_PLANE_TYPE_OVERLAY) &&
 	    plane_cap &&
 	    (plane_cap->pixel_format_support.nv12 ||
 	     plane_cap->pixel_format_support.p010)) {
