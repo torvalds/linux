@@ -266,10 +266,12 @@ static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 
 		/*
 		 * Activity/Inactivity detection available only in VLP/ULP
-		 * mode and for devices that support low power modes. Otherwise
-		 * go straight to measure mode (same bits as ADXL380_OP_MODE_HP).
+		 * mode and for devices that support low power modes.
 		 */
 		if (act_inact_enabled)
+			st->odr = ADXL380_ODR_VLP;
+
+		if (st->odr == ADXL380_ODR_VLP)
 			op_mode = ADXL380_OP_MODE_VLP;
 		else
 			op_mode = ADXL380_OP_MODE_HP;
@@ -497,17 +499,22 @@ static int adxl380_set_odr(struct adxl380_state *st, u8 odr)
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(st->regmap, ADXL380_TRIG_CFG_REG,
-				 ADXL380_TRIG_CFG_DEC_2X_MSK,
-				 FIELD_PREP(ADXL380_TRIG_CFG_DEC_2X_MSK, odr & 1));
-	if (ret)
-		return ret;
+	if (odr >= ADXL380_ODR_DSM) {
+		u8 mul = odr - ADXL380_ODR_DSM;
+		u8 field;
 
-	ret = regmap_update_bits(st->regmap, ADXL380_TRIG_CFG_REG,
-				 ADXL380_TRIG_CFG_SINC_RATE_MSK,
-				 FIELD_PREP(ADXL380_TRIG_CFG_SINC_RATE_MSK, odr >> 1));
-	if (ret)
-		return ret;
+		field = FIELD_PREP(ADXL380_TRIG_CFG_DEC_2X_MSK, mul & 1);
+		ret = regmap_update_bits(st->regmap, ADXL380_TRIG_CFG_REG,
+					 ADXL380_TRIG_CFG_DEC_2X_MSK, field);
+		if (ret)
+			return ret;
+
+		field = FIELD_PREP(ADXL380_TRIG_CFG_SINC_RATE_MSK, mul >> 1);
+		ret = regmap_update_bits(st->regmap, ADXL380_TRIG_CFG_REG,
+					 ADXL380_TRIG_CFG_SINC_RATE_MSK, field);
+		if (ret)
+			return ret;
+	}
 
 	st->odr = odr;
 	ret = adxl380_set_measure_en(st, true);
@@ -1148,6 +1155,32 @@ static const struct iio_buffer_setup_ops adxl380_buffer_ops = {
 	.predisable = adxl380_buffer_predisable,
 };
 
+static int adxl380_samp_freq_avail(struct adxl380_state *st, const int **vals,
+				   int *length)
+{
+	bool act_inact_enabled;
+	int ret;
+
+	if (!st->chip_info->has_low_power) {
+		*vals = st->chip_info->samp_freq_tbl + ADXL380_ODR_DSM;
+		*length = ADXL380_ODR_MAX - ADXL380_ODR_DSM;
+		return 0;
+	}
+
+	ret = adxl380_act_inact_enabled(st, &act_inact_enabled);
+	if (ret)
+		return 0;
+
+	/*
+	 * Motion detection is only functional in low-power mode, and this
+	 * affects the available sampling frequencies.
+	 */
+	*vals = st->chip_info->samp_freq_tbl;
+	*length = act_inact_enabled ? ADXL380_ODR_DSM : ADXL380_ODR_MAX;
+
+	return 0;
+}
+
 static int adxl380_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
 			    int *val, int *val2, long info)
@@ -1228,6 +1261,7 @@ static int adxl380_read_avail(struct iio_dev *indio_dev,
 			      long mask)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
+	int ret;
 
 	if (chan->type != IIO_ACCEL)
 		return -EINVAL;
@@ -1239,9 +1273,11 @@ static int adxl380_read_avail(struct iio_dev *indio_dev,
 		*length = ARRAY_SIZE(st->chip_info->scale_tbl) * 2;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		*vals = (const int *)st->chip_info->samp_freq_tbl;
+		ret = adxl380_samp_freq_avail(st, vals, length);
+		if (ret)
+			return ret;
+
 		*type = IIO_VAL_INT;
-		*length = ARRAY_SIZE(st->chip_info->samp_freq_tbl);
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
 		*vals = (const int *)st->lpf_tbl;
@@ -1264,12 +1300,16 @@ static int adxl380_write_raw(struct iio_dev *indio_dev,
 			     int val, int val2, long info)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
-	int odr_index, lpf_index, hpf_index, range_index;
+	const int *freq_vals;
+	int odr_index, lpf_index, hpf_index, range_index, freq_count, ret;
 
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		odr_index = adxl380_find_match_1d_tbl(st->chip_info->samp_freq_tbl,
-						      ARRAY_SIZE(st->chip_info->samp_freq_tbl),
+		ret = adxl380_samp_freq_avail(st, &freq_vals, &freq_count);
+		if (ret)
+			return ret;
+
+		odr_index = adxl380_find_match_1d_tbl(freq_vals, freq_count,
 						      val);
 		return adxl380_set_odr(st, odr_index);
 	case IIO_CHAN_INFO_CALIBBIAS:
@@ -1631,7 +1671,7 @@ const struct adxl380_chip_info adxl318_chip_info = {
 		[ADXL380_OP_MODE_8G_RANGE] = { 0, 2615434 },
 		[ADXL380_OP_MODE_16G_RANGE] = { 0, 5229886 },
 	},
-	.samp_freq_tbl = { 8000, 16000, 32000 },
+	.samp_freq_tbl = { 0, 8000, 16000, 32000 },
 	/*
 	 * The datasheet defines an intercept of 550 LSB at 25 degC
 	 * and a sensitivity of 10.2 LSB/C.
@@ -1649,7 +1689,7 @@ const struct adxl380_chip_info adxl319_chip_info = {
 		[ADXL382_OP_MODE_30G_RANGE] = { 0, 9806650 },
 		[ADXL382_OP_MODE_60G_RANGE] = { 0, 19613300 },
 	},
-	.samp_freq_tbl = { 16000, 32000, 64000 },
+	.samp_freq_tbl = { 0, 16000, 32000, 64000 },
 	/*
 	 * The datasheet defines an intercept of 550 LSB at 25 degC
 	 * and a sensitivity of 10.2 LSB/C.
@@ -1667,7 +1707,7 @@ const struct adxl380_chip_info adxl380_chip_info = {
 		[ADXL380_OP_MODE_8G_RANGE] = { 0, 2615434 },
 		[ADXL380_OP_MODE_16G_RANGE] = { 0, 5229886 },
 	},
-	.samp_freq_tbl = { 8000, 16000, 32000 },
+	.samp_freq_tbl = { 1000, 8000, 16000, 32000 },
 	/*
 	 * The datasheet defines an intercept of 470 LSB at 25 degC
 	 * and a sensitivity of 10.2 LSB/C.
@@ -1687,7 +1727,7 @@ const struct adxl380_chip_info adxl382_chip_info = {
 		[ADXL382_OP_MODE_30G_RANGE] = { 0, 9806650 },
 		[ADXL382_OP_MODE_60G_RANGE] = { 0, 19613300 },
 	},
-	.samp_freq_tbl = { 16000, 32000, 64000 },
+	.samp_freq_tbl = { 1000, 16000, 32000, 64000 },
 	/*
 	 * The datasheet defines an intercept of 570 LSB at 25 degC
 	 * and a sensitivity of 10.2 LSB/C.
@@ -1926,6 +1966,7 @@ int adxl380_probe(struct device *dev, struct regmap *regmap,
 	st->dev = dev;
 	st->regmap = regmap;
 	st->chip_info = chip_info;
+	st->odr = ADXL380_ODR_DSM;
 
 	mutex_init(&st->lock);
 
