@@ -98,6 +98,7 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         srctree / "rust" / "quote" / "lib.rs",
         ["core", "alloc", "std", "proc_macro", "proc_macro2"],
         cfg=crates_cfgs["quote"],
+        edition="2018",
     )
 
     append_crate(
