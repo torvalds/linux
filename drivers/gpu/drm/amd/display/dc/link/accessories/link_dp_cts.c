@@ -70,7 +70,6 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 	struct dc_state *state = link->dc->current_state;
 	struct dc_stream_update stream_update = { 0 };
 	bool dpms_off = false;
-	bool needs_divider_update = false;
 	bool was_hpo_acquired = resource_is_hpo_acquired(link->dc->current_state);
 	bool is_hpo_acquired;
 	uint8_t count;
@@ -79,9 +78,6 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 	struct dc_stream_state *streams_on_link[MAX_PIPES];
 	int num_streams_on_link = 0;
 	struct dc *dc = (struct dc *)link->dc;
-
-	needs_divider_update = (link->dc->link_srv->dp_get_encoding_format(link_setting) !=
-	link->dc->link_srv->dp_get_encoding_format((const struct dc_link_settings *) &link->cur_link_settings));
 
 	udelay(100);
 
@@ -99,7 +95,7 @@ static void dp_retrain_link_dp_test(struct dc_link *link,
 		pipes[i]->stream_res.tg->funcs->disable_crtc(pipes[i]->stream_res.tg);
 	}
 
-	if (needs_divider_update && link->dc->res_pool->funcs->update_dc_state_for_encoder_switch) {
+	if (link->dc->res_pool->funcs->update_dc_state_for_encoder_switch) {
 		link->dc->res_pool->funcs->update_dc_state_for_encoder_switch(link,
 				link_setting, count,
 				*pipes, &audio_output[0]);

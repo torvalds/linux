@@ -237,8 +237,13 @@ static int amdgpu_check_address_validity(struct amdgpu_device *adev,
 	    (address >= RAS_UMC_INJECT_ADDR_LIMIT))
 		return -EFAULT;
 
-	count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
+	if (amdgpu_uniras_enabled(adev))
+		count = amdgpu_ras_mgr_lookup_bad_pages_in_a_row(adev, address,
+			page_pfns, ARRAY_SIZE(page_pfns));
+	else
+		count = amdgpu_umc_lookup_bad_pages_in_a_row(adev,
 				address, page_pfns, ARRAY_SIZE(page_pfns));
+
 	if (count <= 0)
 		return -EPERM;
 
@@ -1917,8 +1922,6 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 
 	for (i = 0; i < bps_count; i++) {
 		address = ((uint64_t)bps[i].bp) << AMDGPU_GPU_PAGE_SHIFT;
-		if (amdgpu_ras_check_critical_address(adev, address))
-			continue;
 
 		bps[i].size = AMDGPU_GPU_PAGE_SIZE;
 
@@ -1929,6 +1932,10 @@ static ssize_t amdgpu_ras_sysfs_badpages_read(struct file *f,
 		else if (status == -ENOENT)
 			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 		else
+			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED;
+
+		if ((bps[i].flags != AMDGPU_RAS_RETIRE_PAGE_RESERVED) &&
+		    amdgpu_ras_check_critical_address(adev, address))
 			bps[i].flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED;
 
 		s += scnprintf(&buf[s], element_size + 1,
@@ -3076,16 +3083,16 @@ static int __amdgpu_ras_restore_bad_pages(struct amdgpu_device *adev,
 	struct ras_err_handler_data *data = con->eh_data;
 
 	for (j = 0; j < count; j++) {
+		if (!data->space_left &&
+		    amdgpu_ras_realloc_eh_data_space(adev, data, 256)) {
+			return -ENOMEM;
+		}
+
 		if (amdgpu_ras_check_bad_page_unlock(con,
 			bps[j].retired_page << AMDGPU_GPU_PAGE_SHIFT)) {
 			data->count++;
 			data->space_left--;
 			continue;
-		}
-
-		if (!data->space_left &&
-		    amdgpu_ras_realloc_eh_data_space(adev, data, 256)) {
-			return -ENOMEM;
 		}
 
 		amdgpu_ras_reserve_page(adev, bps[j].retired_page);
@@ -3249,8 +3256,6 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 						/* deal with retire_unit records a time */
 						ret = __amdgpu_ras_convert_rec_array_from_rom(adev,
 										&bps[i], &err_data, nps);
-						if (ret)
-							con->bad_page_num -= adev->umc.retire_unit;
 						i += (adev->umc.retire_unit - 1);
 					} else {
 						break;
@@ -3263,8 +3268,6 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		for (; i < pages; i++) {
 			ret = __amdgpu_ras_convert_rec_from_rom(adev,
 				&bps[i], &err_data, nps);
-			if (ret)
-				con->bad_page_num -= adev->umc.retire_unit;
 		}
 
 		con->eh_data->count_saved = con->eh_data->count;
@@ -4421,10 +4424,10 @@ static int amdgpu_persistent_edc_harvesting(struct amdgpu_device *adev,
 		return 0;
 
 	if (amdgpu_ras_query_error_status(adev, &info) != 0)
-		DRM_WARN("RAS init harvest failure");
+		drm_warn(adev_to_drm(adev), "RAS init query failure");
 
 	if (amdgpu_ras_reset_error_status(adev, ras_block->block) != 0)
-		DRM_WARN("RAS init harvest reset failure");
+		drm_warn(adev_to_drm(adev), "RAS init harvest reset failure");
 
 	return 0;
 }

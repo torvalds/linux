@@ -120,7 +120,6 @@ void dcn35_link_encoder_setup(
 void dcn35_link_encoder_init(struct link_encoder *enc)
 {
 	enc31_hw_init(enc);
-	dcn35_link_encoder_set_fgcg(enc, enc->ctx->dc->debug.enable_fine_grain_clock_gating.bits.dio);
 }
 
 void dcn35_link_encoder_set_fgcg(struct link_encoder *enc, bool enable)
@@ -162,6 +161,8 @@ static const struct link_encoder_funcs dcn35_link_enc_funcs = {
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
 	.enable_dpia_output = dcn35_link_encoder_enable_dpia_output,
 	.disable_dpia_output = dcn35_link_encoder_disable_dpia_output,
+	.get_hpd_state = dcn10_get_hpd_state,
+	.program_hpd_filter = dcn10_program_hpd_filter,
 };
 
 void dcn35_link_encoder_construct(
@@ -183,6 +184,7 @@ void dcn35_link_encoder_construct(
 	enc10->base.ctx = init_data->ctx;
 	enc10->base.id = init_data->encoder;
 
+	enc10->base.hpd_gpio = init_data->hpd_gpio;
 	enc10->base.hpd_source = init_data->hpd_source;
 	enc10->base.connector = init_data->connector;
 

@@ -29,7 +29,7 @@
 
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
-bool set_default_brightness_aux(struct dc_link *link);
+bool set_default_brightness(struct dc_link *link);
 bool is_smartmux_suported(struct dc_link *link);
 void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 int edp_get_backlight_level(const struct dc_link *link);
@@ -75,6 +75,11 @@ void edp_add_delay_for_T9(struct dc_link *link);
 bool edp_receiver_ready_T9(struct dc_link *link);
 bool edp_receiver_ready_T7(struct dc_link *link);
 bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+bool edp_pr_enable(struct dc_link *link, bool enable);
+bool edp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_context);
+bool edp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data);
+bool edp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
+bool edp_pr_get_state(const struct dc_link *link, uint64_t *state);
 void edp_set_panel_power(struct dc_link *link, bool powerOn);
 void edp_set_panel_assr(struct dc_link *link, struct pipe_ctx *pipe_ctx,
 		enum dp_panel_mode *panel_mode, bool enable);

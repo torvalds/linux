@@ -152,12 +152,6 @@ MODULE_FIRMWARE(FIRMWARE_DCN_36_DMUB);
 #define FIRMWARE_DCN_401_DMUB "amdgpu/dcn_4_0_1_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
 
-/* Number of bytes in PSP header for firmware. */
-#define PSP_HEADER_BYTES 0x100
-
-/* Number of bytes in PSP footer for firmware. */
-#define PSP_FOOTER_BYTES 0x100
-
 /**
  * DOC: overview
  *
@@ -1298,15 +1292,14 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	fw_inst_const = dmub_fw->data +
 			le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-			PSP_HEADER_BYTES;
+			PSP_HEADER_BYTES_256;
 
 	fw_bss_data = dmub_fw->data +
 		      le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
 		      le32_to_cpu(hdr->inst_const_bytes);
 
 	/* Copy firmware and bios info into FB memory. */
-	fw_inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
-			     PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
+	fw_inst_const_size = adev->dm.fw_inst_size;
 
 	fw_bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
 
@@ -1343,8 +1336,8 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 
 	/* Initialize hardware. */
 	memset(&hw_params, 0, sizeof(hw_params));
-	hw_params.fb_base = adev->gmc.fb_start;
-	hw_params.fb_offset = adev->vm_manager.vram_base_offset;
+	hw_params.soc_fb_info.fb_base = adev->gmc.fb_start;
+	hw_params.soc_fb_info.fb_offset = adev->vm_manager.vram_base_offset;
 
 	/* backdoor load firmware and trigger dmub running */
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP)
@@ -2105,7 +2098,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		drm_err(adev_to_drm(adev),
 		"failed to initialize freesync_module.\n");
 	} else
-		drm_dbg_driver(adev_to_drm(adev), "amdgpu: freesync_module init done %p.\n",
+		drm_dbg_driver(adev_to_drm(adev), "freesync_module init done %p.\n",
 				adev->dm.freesync_module);
 
 	amdgpu_dm_init_color_mod();
@@ -2127,7 +2120,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		if (!adev->dm.hdcp_workqueue)
 			drm_err(adev_to_drm(adev), "failed to initialize hdcp_workqueue.\n");
 		else
-			drm_dbg_driver(adev_to_drm(adev), "amdgpu: hdcp_workqueue init done %p.\n", adev->dm.hdcp_workqueue);
+			drm_dbg_driver(adev_to_drm(adev),
+				       "hdcp_workqueue init done %p.\n",
+				       adev->dm.hdcp_workqueue);
 
 		dc_init_callbacks(adev->dm.dc, &init_params);
 	}
@@ -2437,9 +2432,11 @@ static void amdgpu_dm_dmub_reg_write(void *ctx, uint32_t address,
 static int dm_dmub_sw_init(struct amdgpu_device *adev)
 {
 	struct dmub_srv_create_params create_params;
+	struct dmub_srv_fw_meta_info_params fw_meta_info_params;
 	struct dmub_srv_region_params region_params;
 	struct dmub_srv_region_info region_info;
 	struct dmub_srv_memory_params memory_params;
+	struct dmub_fw_meta_info fw_info;
 	struct dmub_srv_fb_info *fb_info;
 	struct dmub_srv *dmub_srv;
 	const struct dmcub_firmware_header_v1_0 *hdr;
@@ -2547,22 +2544,37 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/* Extract the FW meta info. */
+	memset(&fw_meta_info_params, 0, sizeof(fw_meta_info_params));
+
+	fw_meta_info_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
+					      PSP_HEADER_BYTES_256;
+	fw_meta_info_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	fw_meta_info_params.fw_inst_const = adev->dm.dmub_fw->data +
+					    le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+					    PSP_HEADER_BYTES_256;
+	fw_meta_info_params.fw_bss_data = region_params.bss_data_size ? adev->dm.dmub_fw->data +
+					  le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
+					  le32_to_cpu(hdr->inst_const_bytes) : NULL;
+	fw_meta_info_params.custom_psp_footer_size = 0;
+
+	status = dmub_srv_get_fw_meta_info_from_raw_fw(&fw_meta_info_params, &fw_info);
+	if (status != DMUB_STATUS_OK) {
+		/* Skip returning early, just log the error. */
+		drm_err(adev_to_drm(adev), "Error getting DMUB FW meta info: %d\n", status);
+		// return -EINVAL;
+	}
+
 	/* Calculate the size of all the regions for the DMUB service. */
 	memset(&region_params, 0, sizeof(region_params));
 
-	region_params.inst_const_size = le32_to_cpu(hdr->inst_const_bytes) -
-					PSP_HEADER_BYTES - PSP_FOOTER_BYTES;
-	region_params.bss_data_size = le32_to_cpu(hdr->bss_data_bytes);
+	region_params.inst_const_size = fw_meta_info_params.inst_const_size;
+	region_params.bss_data_size = fw_meta_info_params.bss_data_size;
 	region_params.vbios_size = adev->bios_size;
-	region_params.fw_bss_data = region_params.bss_data_size ?
-		adev->dm.dmub_fw->data +
-		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-		le32_to_cpu(hdr->inst_const_bytes) : NULL;
-	region_params.fw_inst_const =
-		adev->dm.dmub_fw->data +
-		le32_to_cpu(hdr->header.ucode_array_offset_bytes) +
-		PSP_HEADER_BYTES;
+	region_params.fw_bss_data = fw_meta_info_params.fw_bss_data;
+	region_params.fw_inst_const = fw_meta_info_params.fw_inst_const;
 	region_params.window_memory_type = window_memory_type;
+	region_params.fw_info = (status == DMUB_STATUS_OK) ? &fw_info : NULL;
 
 	status = dmub_srv_calc_region_info(dmub_srv, &region_params,
 					   &region_info);
@@ -2609,6 +2621,7 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	}
 
 	adev->dm.bb_from_dmub = dm_dmub_get_vbios_bounding_box(adev);
+	adev->dm.fw_inst_size = fw_meta_info_params.inst_const_size;
 
 	return 0;
 }
@@ -7417,7 +7430,7 @@ amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force)
 	 *
 	 * Only allow to poll such a connector again when forcing.
 	 */
-	if (!force && link->local_sink && link->type == dc_connection_dac_load)
+	if (!force && link->local_sink && link->type == dc_connection_analog_load)
 		return connector->status;
 
 	mutex_lock(&aconnector->hpd_lock);

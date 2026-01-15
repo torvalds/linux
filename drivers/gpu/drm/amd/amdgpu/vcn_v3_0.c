@@ -1907,6 +1907,7 @@ static int vcn_v3_0_dec_msg(struct amdgpu_cs_parser *p, struct amdgpu_job *job,
 			    uint64_t addr)
 {
 	struct ttm_operation_ctx ctx = { false, false };
+	struct amdgpu_device *adev = p->adev;
 	struct amdgpu_bo_va_mapping *map;
 	uint32_t *msg, num_buffers;
 	struct amdgpu_bo *bo;

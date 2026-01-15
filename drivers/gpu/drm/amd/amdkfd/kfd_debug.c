@@ -371,8 +371,10 @@ int kfd_dbg_set_mes_debug_mode(struct kfd_process_device *pdd, bool sq_trap_en)
 		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
 	}
 
-	return amdgpu_mes_set_shader_debugger(pdd->dev->adev, pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
-						pdd->watch_points, flags, sq_trap_en);
+	return amdgpu_mes_set_shader_debugger(pdd->dev->adev,
+					pdd->proc_ctx_gpu_addr, spi_dbg_cntl,
+					pdd->watch_points, flags, sq_trap_en,
+					ffs(pdd->dev->xcc_mask) - 1);
 }
 
 #define KFD_DEBUGGER_INVALID_WATCH_POINT_ID -1
@@ -519,6 +521,7 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 		struct kfd_topology_device *topo_dev =
 				kfd_topology_device_by_id(target->pdds[i]->dev->id);
 		uint32_t caps = topo_dev->node_props.capability;
+		uint32_t caps2 = topo_dev->node_props.capability2;
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED) &&
 			(*flags & KFD_DBG_TRAP_FLAG_SINGLE_MEM_OP)) {
@@ -528,6 +531,12 @@ int kfd_dbg_trap_set_flags(struct kfd_process *target, uint32_t *flags)
 
 		if (!(caps & HSA_CAP_TRAP_DEBUG_PRECISE_ALU_OPERATIONS_SUPPORTED) &&
 		    (*flags & KFD_DBG_TRAP_FLAG_SINGLE_ALU_OP)) {
+			*flags = prev_flags;
+			return -EACCES;
+		}
+
+		if (!(caps2 & HSA_CAP2_TRAP_DEBUG_LDS_OUT_OF_ADDR_RANGE_SUPPORTED) &&
+		    (*flags & KFD_DBG_TRAP_FLAG_LDS_OUT_OF_ADDR_RANGE)) {
 			*flags = prev_flags;
 			return -EACCES;
 		}

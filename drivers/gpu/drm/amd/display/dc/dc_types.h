@@ -275,6 +275,7 @@ enum dc_timing_source {
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
 	TIMING_SOURCE_HDMI_VIC,
+	TIMING_SOURCE_CEA_VIC,
 
 	/* implicitly specified by display device, still safe but less important*/
 	TIMING_SOURCE_DEFAULT,
@@ -354,7 +355,7 @@ enum dc_connection_type {
 	dc_connection_single,
 	dc_connection_mst_branch,
 	dc_connection_sst_branch,
-	dc_connection_dac_load
+	dc_connection_analog_load
 };
 
 struct dc_csc_adjustments {
@@ -1078,6 +1079,7 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_STATIC,
 	PR_COASTING_TYPE_FULL_SCREEN_VIDEO,
 	PR_COASTING_TYPE_TEST_HARNESS,
+	PR_COASTING_TYPE_VIDEO_CONFERENCING_V2,
 	PR_COASTING_TYPE_NUM,
 };
 
@@ -1134,6 +1136,17 @@ union replay_low_refresh_rate_enable_options {
 	unsigned int raw;
 };
 
+union replay_optimization {
+	struct {
+		//BIT[0-3]: Replay Teams Optimization
+		unsigned int TEAMS_OPTIMIZATION_VER_1           :1;
+		unsigned int TEAMS_OPTIMIZATION_VER_2           :1;
+		unsigned int RESERVED_2_3                       :2;
+	} bits;
+
+	unsigned int raw;
+};
+
 struct replay_config {
 	/* Replay version */
 	enum dc_replay_version replay_version;
@@ -1171,6 +1184,10 @@ struct replay_config {
 	enum dc_alpm_mode alpm_mode;
 	/* Replay full screen only */
 	bool os_request_force_ffu;
+	/* Replay optimization */
+	union replay_optimization replay_optimization;
+	/* Replay sub feature Frame Skipping is supported */
+	bool frame_skip_supported;
 };
 
 /* Replay feature flags*/

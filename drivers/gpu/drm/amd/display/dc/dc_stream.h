@@ -315,6 +315,8 @@ struct dc_stream_state {
 	struct luminance_data lumin_data;
 	bool scaler_sharpener_update;
 	bool sharpening_required;
+
+	struct dc_update_scratch_space *update_scratch;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -389,6 +391,33 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *surface_updates, int surface_count,
 		struct dc_stream_state *dc_stream,
 		struct dc_stream_update *stream_update);
+
+struct dc_update_scratch_space;
+
+size_t dc_update_scratch_space_size(void);
+
+struct dc_update_scratch_space *dc_update_planes_and_stream_init(
+		struct dc *dc,
+		struct dc_surface_update *surface_updates,
+		int surface_count,
+		struct dc_stream_state *dc_stream,
+		struct dc_stream_update *stream_update
+);
+
+// Locked, false is failed
+bool dc_update_planes_and_stream_prepare(
+		struct dc_update_scratch_space *scratch
+);
+
+// Unlocked
+void dc_update_planes_and_stream_execute(
+		const struct dc_update_scratch_space *scratch
+);
+
+// Locked, true if call again
+bool dc_update_planes_and_stream_cleanup(
+		struct dc_update_scratch_space *scratch
+);
 
 /*
  * Set up surface attributes and associate to a stream
@@ -597,7 +626,7 @@ struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 void dc_dmub_update_dirty_rect(struct dc *dc,
 			       int surface_count,
 			       struct dc_stream_state *stream,
-			       struct dc_surface_update *srf_updates,
+			       const struct dc_surface_update *srf_updates,
 			       struct dc_state *context);
 
 bool dc_stream_is_cursor_limit_pending(struct dc *dc, struct dc_stream_state *stream);

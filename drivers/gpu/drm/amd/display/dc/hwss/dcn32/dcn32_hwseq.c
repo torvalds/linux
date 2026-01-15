@@ -82,6 +82,9 @@ void dcn32_dsc_pg_control(
 	if (!dc->debug.enable_double_buffered_dsc_pg_support)
 		return;
 
+	if (dc->debug.ignore_pg)
+		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -166,6 +169,9 @@ void dcn32_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool p
 	uint32_t pwr_status = power_on ? 0 : 2;
 
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
+		return;
+
+	if (hws->ctx->dc->debug.ignore_pg)
 		return;
 
 	if (REG(DOMAIN0_PG_CONFIG) == 0)
@@ -1061,7 +1067,7 @@ void dcn32_update_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		dsc_cfg.dc_dsc_cfg = stream->timing.dsc_cfg;
 		ASSERT(dsc_cfg.dc_dsc_cfg.num_slices_h % opp_cnt == 0);
 		dsc_cfg.dc_dsc_cfg.num_slices_h /= opp_cnt;
-		dsc_cfg.dsc_padding = pipe_ctx->dsc_padding_params.dsc_hactive_padding;
+		dsc_cfg.dsc_padding = 0;
 
 		if (should_use_dto_dscclk)
 			dccg->funcs->set_dto_dscclk(dccg, dsc->inst, dsc_cfg.dc_dsc_cfg.num_slices_h);

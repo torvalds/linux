@@ -37,9 +37,9 @@ static int amdgpu_benchmark_do_move(struct amdgpu_device *adev, unsigned size,
 
 	stime = ktime_get();
 	for (i = 0; i < n; i++) {
-		struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-		r = amdgpu_copy_buffer(ring, saddr, daddr, size, NULL, &fence,
-				       false, false, 0);
+		r = amdgpu_copy_buffer(adev, &adev->mman.default_entity,
+				       saddr, daddr, size, NULL, &fence,
+				       false, 0);
 		if (r)
 			goto exit_do_move;
 		r = dma_fence_wait(fence, false);
@@ -66,7 +66,7 @@ static void amdgpu_benchmark_log_results(struct amdgpu_device *adev,
 
 	throughput = div64_s64(throughput, time_ms);
 
-	dev_info(adev->dev, "amdgpu: %s %u bo moves of %u kB from"
+	dev_info(adev->dev, " %s %u bo moves of %u kB from"
 		 " %d to %d in %lld ms, throughput: %lld Mb/s or %lld MB/s\n",
 		 kind, n, size >> 10, sdomain, ddomain, time_ms,
 		 throughput * 8, throughput);

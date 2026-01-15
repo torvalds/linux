@@ -46,6 +46,7 @@
 #include "smu_v13_0_7_ppt.h"
 #include "smu_v14_0_0_ppt.h"
 #include "smu_v14_0_2_ppt.h"
+#include "smu_v15_0_0_ppt.h"
 #include "amd_pcie.h"
 
 /*
@@ -795,6 +796,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 3):
 		smu_v14_0_2_set_ppt_funcs(smu);
+		break;
+	case IP_VERSION(15, 0, 0):
+		smu_v15_0_0_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
@@ -2806,6 +2810,14 @@ const struct amdgpu_ip_block_version smu_v14_0_ip_block = {
 	.funcs = &smu_ip_funcs,
 };
 
+const struct amdgpu_ip_block_version smu_v15_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 15,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
+};
+
 const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle)
 {
 	struct smu_context *smu = (struct smu_context *)handle;
@@ -3014,19 +3026,6 @@ static int smu_set_power_limit(void *handle, uint32_t limit_type, uint32_t limit
 	return 0;
 }
 
-static int smu_print_smuclk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf)
-{
-	int ret = 0;
-
-	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-		return -EOPNOTSUPP;
-
-	if (smu->ppt_funcs->print_clk_levels)
-		ret = smu->ppt_funcs->print_clk_levels(smu, clk_type, buf);
-
-	return ret;
-}
-
 static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 {
 	enum smu_clk_type clk_type;
@@ -3089,20 +3088,6 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 	}
 
 	return clk_type;
-}
-
-static int smu_print_ppclk_levels(void *handle,
-				  enum pp_clock_type type,
-				  char *buf)
-{
-	struct smu_context *smu = handle;
-	enum smu_clk_type clk_type;
-
-	clk_type = smu_convert_to_smuclk(type);
-	if (clk_type == SMU_CLK_COUNT)
-		return -EINVAL;
-
-	return smu_print_smuclk_levels(smu, clk_type, buf);
 }
 
 static int smu_emit_ppclk_levels(void *handle, enum pp_clock_type type, char *buf, int *offset)
@@ -3686,12 +3671,23 @@ static int smu_get_dpm_clock_table(void *handle,
 static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 {
 	struct smu_context *smu = handle;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_driver_table *driver_tables = smu_table->driver_tables;
+	struct smu_driver_table *gpu_metrics_table;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
 	if (!smu->ppt_funcs->get_gpu_metrics)
 		return -EOPNOTSUPP;
+
+	gpu_metrics_table = &driver_tables[SMU_DRIVER_TABLE_GPU_METRICS];
+
+	/* If cached table is valid, return it */
+	if (smu_driver_table_is_valid(gpu_metrics_table)) {
+		*table = gpu_metrics_table->cache.buffer;
+		return gpu_metrics_table->cache.size;
+	}
 
 	return smu->ppt_funcs->get_gpu_metrics(smu, table);
 }
@@ -3880,8 +3876,9 @@ static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type 
 {
 	struct smu_context *smu = handle;
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
-	enum smu_table_id table_id;
+	struct smu_driver_table *driver_tables = smu_table->driver_tables;
+	enum smu_driver_table_id table_id;
+	struct smu_driver_table *temp_table;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
@@ -3891,17 +3888,18 @@ static ssize_t smu_sys_get_temp_metrics(void *handle, enum smu_temp_metric_type 
 
 	table_id = smu_metrics_get_temp_table_id(type);
 
-	if (table_id == SMU_TABLE_COUNT)
+	if (table_id == SMU_DRIVER_TABLE_COUNT)
 		return -EINVAL;
 
-	/* If the request is to get size alone, return the cached table size */
-	if (!table && tables[table_id].cache.size)
-		return tables[table_id].cache.size;
+	temp_table = &driver_tables[table_id];
 
-	if (smu_table_cache_is_valid(&tables[table_id])) {
-		memcpy(table, tables[table_id].cache.buffer,
-		       tables[table_id].cache.size);
-		return tables[table_id].cache.size;
+	/* If the request is to get size alone, return the cached table size */
+	if (!table && temp_table->cache.size)
+		return temp_table->cache.size;
+
+	if (smu_driver_table_is_valid(temp_table)) {
+		memcpy(table, temp_table->cache.buffer, temp_table->cache.size);
+		return temp_table->cache.size;
 	}
 
 	return smu->smu_temp.temp_funcs->get_temp_metrics(smu, type, table);
@@ -3941,7 +3939,6 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_fan_speed_pwm   = smu_set_fan_speed_pwm,
 	.get_fan_speed_pwm   = smu_get_fan_speed_pwm,
 	.force_clock_level       = smu_force_ppclk_levels,
-	.print_clock_levels      = smu_print_ppclk_levels,
 	.emit_clock_levels       = smu_emit_ppclk_levels,
 	.force_performance_level = smu_force_performance_level,
 	.read_sensor             = smu_read_sensor,

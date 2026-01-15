@@ -74,9 +74,6 @@
 	FEATURE_DPM_FCLK_MASK | \
 	FEATURE_DPM_XGMI_MASK)
 
-/* possible frequency drift (1Mhz) */
-#define EPSILON				1
-
 #define smnPCIE_ESM_CTRL			0x111003D0
 
 #define mmCG_FDO_CTRL0_ARCT			0x8B
@@ -251,6 +248,7 @@ static int arcturus_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
+	int ret;
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_PPTABLE, sizeof(PPTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -273,11 +271,12 @@ static int arcturus_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_3);
-	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
-	if (!smu_table->gpu_metrics_table) {
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPU_METRICS,
+				    sizeof(struct gpu_metrics_v1_3),
+				    SMU_GPU_METRICS_CACHE_INTERVAL);
+	if (ret) {
 		kfree(smu_table->metrics_table);
-		return -ENOMEM;
+		return ret;
 	}
 
 	return 0;
@@ -362,79 +361,75 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 {
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	PPTable_t *driver_ppt = smu->smu_table.driver_pptable;
-	struct smu_11_0_dpm_table *dpm_table = NULL;
+	struct smu_dpm_table *dpm_table = NULL;
 	int ret = 0;
 
 	/* socclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.soc_table;
+	dpm_table->clk_type = SMU_SOCCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_SOCCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_SOCCLK].SnapToDiscrete;
+		if (!driver_ppt->DpmDescriptor[PPCLK_SOCCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.socclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* gfxclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.gfx_table;
+	dpm_table->clk_type = SMU_GFXCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_GFXCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_GFXCLK].SnapToDiscrete;
+		if (!driver_ppt->DpmDescriptor[PPCLK_GFXCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.gfxclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* memclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.uclk_table;
+	dpm_table->clk_type = SMU_UCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_UCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_UCLK].SnapToDiscrete;
+		if (!driver_ppt->DpmDescriptor[PPCLK_UCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.uclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* fclk dpm table setup */
 	dpm_table = &dpm_context->dpm_tables.fclk_table;
+	dpm_table->clk_type = SMU_FCLK;
 	if (smu_cmn_feature_is_enabled(smu, SMU_FEATURE_DPM_FCLK_BIT)) {
 		ret = smu_v11_0_set_single_dpm_table(smu,
 						     SMU_FCLK,
 						     dpm_table);
 		if (ret)
 			return ret;
-		dpm_table->is_fine_grained =
-			!driver_ppt->DpmDescriptor[PPCLK_FCLK].SnapToDiscrete;
+		if (!driver_ppt->DpmDescriptor[PPCLK_FCLK].SnapToDiscrete)
+			dpm_table->flags |= SMU_DPM_TABLE_FINE_GRAINED;
 	} else {
 		dpm_table->count = 1;
 		dpm_table->dpm_levels[0].value = smu->smu_table.boot_values.fclk / 100;
 		dpm_table->dpm_levels[0].enabled = true;
-		dpm_table->min = dpm_table->dpm_levels[0].value;
-		dpm_table->max = dpm_table->dpm_levels[0].value;
 	}
 
 	/* XGMI PLPD is supported by 54.23.0 and onwards */
@@ -572,23 +567,20 @@ static int arcturus_populate_umd_state_clk(struct smu_context *smu)
 {
 	struct smu_11_0_dpm_context *dpm_context =
 				smu->smu_dpm.dpm_context;
-	struct smu_11_0_dpm_table *gfx_table =
-				&dpm_context->dpm_tables.gfx_table;
-	struct smu_11_0_dpm_table *mem_table =
-				&dpm_context->dpm_tables.uclk_table;
-	struct smu_11_0_dpm_table *soc_table =
-				&dpm_context->dpm_tables.soc_table;
+	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
+	struct smu_dpm_table *mem_table = &dpm_context->dpm_tables.uclk_table;
+	struct smu_dpm_table *soc_table = &dpm_context->dpm_tables.soc_table;
 	struct smu_umd_pstate_table *pstate_table =
 				&smu->pstate_table;
 
-	pstate_table->gfxclk_pstate.min = gfx_table->min;
-	pstate_table->gfxclk_pstate.peak = gfx_table->max;
+	pstate_table->gfxclk_pstate.min = SMU_DPM_TABLE_MIN(gfx_table);
+	pstate_table->gfxclk_pstate.peak = SMU_DPM_TABLE_MAX(gfx_table);
 
-	pstate_table->uclk_pstate.min = mem_table->min;
-	pstate_table->uclk_pstate.peak = mem_table->max;
+	pstate_table->uclk_pstate.min = SMU_DPM_TABLE_MIN(mem_table);
+	pstate_table->uclk_pstate.peak = SMU_DPM_TABLE_MAX(mem_table);
 
-	pstate_table->socclk_pstate.min = soc_table->min;
-	pstate_table->socclk_pstate.peak = soc_table->max;
+	pstate_table->socclk_pstate.min = SMU_DPM_TABLE_MIN(soc_table);
+	pstate_table->socclk_pstate.peak = SMU_DPM_TABLE_MAX(soc_table);
 
 	if (gfx_table->count > ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL &&
 	    mem_table->count > ARCTURUS_UMD_PSTATE_MCLK_LEVEL &&
@@ -609,29 +601,6 @@ static int arcturus_populate_umd_state_clk(struct smu_context *smu)
 	}
 
 	return 0;
-}
-
-static void arcturus_get_clk_table(struct smu_context *smu,
-				   struct pp_clock_levels_with_latency *clocks,
-				   struct smu_11_0_dpm_table *dpm_table)
-{
-	uint32_t i;
-
-	clocks->num_levels = min_t(uint32_t,
-				   dpm_table->count,
-				   (uint32_t)PP_MAX_CLOCK_LEVELS);
-
-	for (i = 0; i < clocks->num_levels; i++) {
-		clocks->data[i].clocks_in_khz =
-			dpm_table->dpm_levels[i].value * 1000;
-		clocks->data[i].latency_in_us = 0;
-	}
-}
-
-static int arcturus_freqs_in_same_level(int32_t frequency1,
-					int32_t frequency2)
-{
-	return (abs(frequency1 - frequency2) <= EPSILON);
 }
 
 static int arcturus_get_smu_metrics_data(struct smu_context *smu,
@@ -800,23 +769,18 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 static int arcturus_emit_clk_levels(struct smu_context *smu,
 				    enum smu_clk_type type, char *buf, int *offset)
 {
-	int ret = 0;
-	struct pp_clock_levels_with_latency clocks;
-	struct smu_11_0_dpm_table *single_dpm_table;
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-	struct smu_11_0_dpm_context *dpm_context = NULL;
+	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
+	struct smu_dpm_table *single_dpm_table;
+	struct smu_pcie_table *pcie_table;
 	uint32_t gen_speed, lane_width;
-	uint32_t i, cur_value = 0;
-	bool freq_match;
-	unsigned int clock_mhz;
+	uint32_t cur_value = 0;
+	int ret = 0;
 	static const char attempt_string[] = "Attempt to get current";
 
 	if (amdgpu_ras_intr_triggered()) {
 		*offset += sysfs_emit_at(buf, *offset, "unavailable\n");
 		return -EBUSY;
 	}
-
-	dpm_context = smu_dpm->dpm_context;
 
 	switch (type) {
 	case SMU_SCLK:
@@ -825,10 +789,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s gfx clk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.gfx_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_MCLK:
@@ -837,10 +802,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s mclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.uclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_SOCCLK:
@@ -849,10 +815,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s socclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.soc_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_FCLK:
@@ -861,10 +828,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s fclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.fclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_VCLK:
@@ -873,10 +841,11 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s vclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.vclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_DCLK:
@@ -885,56 +854,27 @@ static int arcturus_emit_clk_levels(struct smu_context *smu,
 			dev_err(smu->adev->dev, "%s dclk Failed!", attempt_string);
 			return ret;
 		}
-
 		single_dpm_table = &(dpm_context->dpm_tables.dclk_table);
-		arcturus_get_clk_table(smu, &clocks, single_dpm_table);
-
+		ret = smu_cmn_print_dpm_clk_levels(smu, single_dpm_table,
+						   cur_value, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SMU_PCIE:
 		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
 		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	switch (type) {
-	case SMU_SCLK:
-	case SMU_MCLK:
-	case SMU_SOCCLK:
-	case SMU_FCLK:
-	case SMU_VCLK:
-	case SMU_DCLK:
-		/*
-		 * For DPM disabled case, there will be only one clock level.
-		 * And it's safe to assume that is always the current clock.
-		 */
-		for (i = 0; i < clocks.num_levels; i++) {
-			clock_mhz = clocks.data[i].clocks_in_khz / 1000;
-			freq_match = arcturus_freqs_in_same_level(clock_mhz, cur_value);
-			freq_match |= (clocks.num_levels == 1);
-
-			*offset += sysfs_emit_at(buf, *offset, "%d: %uMhz %s\n",
-				i, clock_mhz,
-				freq_match ? "*" : "");
-		}
-		break;
-
-	case SMU_PCIE:
-		*offset += sysfs_emit_at(buf, *offset, "0: %s %s %dMhz *\n",
-				(gen_speed == 0) ? "2.5GT/s," :
-				(gen_speed == 1) ? "5.0GT/s," :
-				(gen_speed == 2) ? "8.0GT/s," :
-				(gen_speed == 3) ? "16.0GT/s," : "",
-				(lane_width == 1) ? "x1" :
-				(lane_width == 2) ? "x2" :
-				(lane_width == 3) ? "x4" :
-				(lane_width == 4) ? "x8" :
-				(lane_width == 5) ? "x12" :
-				(lane_width == 6) ? "x16" : "",
-				smu->smu_table.boot_values.lclk / 100);
+		pcie_table = &(dpm_context->dpm_tables.pcie_table);
+		/* Populate with current state - arcturus only has boot level lclk */
+		pcie_table->lclk_levels = 1;
+		pcie_table->pcie_gen[0] = gen_speed;
+		pcie_table->pcie_lane[0] = lane_width;
+		pcie_table->lclk_freq[0] =
+			smu->smu_table.boot_values.lclk / 100;
+		ret = smu_cmn_print_pcie_levels(smu, pcie_table, gen_speed,
+						lane_width, buf, offset);
+		if (ret < 0)
+			return ret;
 		break;
 
 	default:
@@ -1003,7 +943,7 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 			enum smu_clk_type type, uint32_t mask)
 {
 	struct smu_11_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
-	struct smu_11_0_dpm_table *single_dpm_table = NULL;
+	struct smu_dpm_table *single_dpm_table = NULL;
 	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
 
@@ -1874,9 +1814,9 @@ static uint16_t arcturus_get_current_pcie_link_speed(struct smu_context *smu)
 static ssize_t arcturus_get_gpu_metrics(struct smu_context *smu,
 					void **table)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
 	struct gpu_metrics_v1_3 *gpu_metrics =
-		(struct gpu_metrics_v1_3 *)smu_table->gpu_metrics_table;
+		(struct gpu_metrics_v1_3 *)smu_driver_table_ptr(
+			smu, SMU_DRIVER_TABLE_GPU_METRICS);
 	SmuMetrics_t metrics;
 	int ret = 0;
 
@@ -1929,6 +1869,8 @@ static ssize_t arcturus_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	*table = (void *)gpu_metrics;
+
+	smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
 	return sizeof(struct gpu_metrics_v1_3);
 }

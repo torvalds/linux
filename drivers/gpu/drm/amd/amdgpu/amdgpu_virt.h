@@ -47,6 +47,15 @@
 #define AMDGPU_RLCG_SCRATCH1_ADDRESS_MASK	0xFFFFF
 #define AMDGPU_RLCG_SCRATCH1_ERROR_MASK	0xF000000
 
+#define AMDGPU_RLCG_VFI_CMD__WR 0x0
+#define AMDGPU_RLCG_VFI_CMD__RD 0x1
+
+#define AMDGPU_RLCG_VFI_STAT__BUSY     0x0
+#define AMDGPU_RLCG_VFI_STAT__DONE     0x1
+#define AMDGPU_RLCG_VFI_STAT__INV_CMD  0x2
+#define AMDGPU_RLCG_VFI_STAT__INV_ADDR 0x3
+#define AMDGPU_RLCG_VFI_STAT__ERR      0xFF
+
 /* all asic after AI use this offset */
 #define mmRCC_IOV_FUNC_IDENTIFIER 0xDE5
 /* tonga/fiji use this offset */
@@ -105,6 +114,8 @@ struct amdgpu_virt_ops {
 	int (*req_ras_cper_dump)(struct amdgpu_device *adev, u64 vf_rptr);
 	int (*req_bad_pages)(struct amdgpu_device *adev);
 	int (*req_ras_chk_criti)(struct amdgpu_device *adev, u64 addr);
+	int (*req_remote_ras_cmd)(struct amdgpu_device *adev,
+			u32 param1, u32 param2, u32 param3);
 };
 
 /*
@@ -483,4 +494,6 @@ bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
 void amdgpu_virt_request_bad_pages(struct amdgpu_device *adev);
 int amdgpu_virt_check_vf_critical_region(struct amdgpu_device *adev, u64 addr, bool *hit);
+int amdgpu_virt_send_remote_ras_cmd(struct amdgpu_device *adev,
+		uint64_t buf, uint32_t buf_len);
 #endif

@@ -2053,6 +2053,7 @@ static int vcn_v1_0_validate_bo(struct amdgpu_cs_parser *parser,
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
+	struct amdgpu_device *adev = parser->adev;
 	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;

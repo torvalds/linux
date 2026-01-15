@@ -14,8 +14,8 @@ static bool spl_build_custom_float(struct spl_fixed31_32 value,
 	uint32_t exp_offset = (1 << (format->exponenta_bits - 1)) - 1;
 
 	const struct spl_fixed31_32 mantissa_constant_plus_max_fraction =
-		spl_fixpt_from_fraction((1LL << (format->mantissa_bits + 1)) - 1,
-				       1LL << format->mantissa_bits);
+		SPL_NAMESPACE(spl_fixpt_from_fraction((1LL << (format->mantissa_bits + 1)) - 1,
+				       1LL << format->mantissa_bits));
 
 	struct spl_fixed31_32 mantiss;
 
@@ -134,9 +134,10 @@ static bool spl_setup_custom_float(const struct spl_custom_float_format *format,
 	return true;
 }
 
-bool spl_convert_to_custom_float_format(struct spl_fixed31_32 value,
-				    const struct spl_custom_float_format *format,
-				    uint32_t *result)
+bool SPL_NAMESPACE(spl_convert_to_custom_float_format(
+	struct spl_fixed31_32 value,
+	const struct spl_custom_float_format *format,
+	uint32_t *result))
 {
 	uint32_t mantissa;
 	uint32_t exponenta;

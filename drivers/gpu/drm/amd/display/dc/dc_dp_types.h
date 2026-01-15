@@ -1296,6 +1296,7 @@ struct dpcd_caps {
 	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
 	uint8_t mso_cap_sst_links_supported;
 	uint8_t dp_edp_general_cap_2;
+	uint16_t drr_granularity;
 };
 
 union dpcd_sink_ext_caps {

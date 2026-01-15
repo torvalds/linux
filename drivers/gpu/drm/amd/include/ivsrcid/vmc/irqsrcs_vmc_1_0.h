@@ -28,10 +28,12 @@
 
 
 #define VMC_1_0__SRCID__VM_FAULT                            0
+#define VMC_1_0__SRCID__VM_RETRY                            1
 #define VMC_1_0__SRCID__VM_CONTEXT0_ALL                     256
 #define VMC_1_0__SRCID__VM_CONTEXT1_ALL                     257
 
 #define UTCL2_1_0__SRCID__FAULT                             0       /* UTC L2 has encountered a fault or retry scenario */
+#define UTCL2_1_0__SRCID__RETRY                             1       /* UTC L2 has encountered a retry scenario (GFX12.1) */
 
 
 #endif /* __IRQSRCS_VMC_1_0_H__ */

@@ -41,6 +41,9 @@
 
 #define AMDGPU_XCP_OPS_KFD	(1 << 0)
 
+#define XCP_INST_MASK(num_inst, xcp_id)		\
+	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
+
 struct amdgpu_fpriv;
 
 enum AMDGPU_XCP_IP_BLOCK {

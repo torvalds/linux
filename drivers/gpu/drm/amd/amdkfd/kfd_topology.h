@@ -201,4 +201,10 @@ struct kfd_topology_device *kfd_create_topology_device(
 		struct list_head *device_list);
 void kfd_release_topology_device_list(struct list_head *device_list);
 
+#if IS_ENABLED(CONFIG_HSA_AMD)
+void kfd_update_svm_support_properties(struct amdgpu_device *adev);
+#else
+static inline void kfd_update_svm_support_properties(struct amdgpu_device *adev) {}
+#endif
+
 #endif /* __KFD_TOPOLOGY_H__ */

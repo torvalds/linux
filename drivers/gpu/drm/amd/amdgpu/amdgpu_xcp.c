@@ -540,6 +540,7 @@ static void amdgpu_set_xcp_id(struct amdgpu_device *adev,
 	case AMDGPU_HW_IP_GFX:
 	case AMDGPU_RING_TYPE_COMPUTE:
 	case AMDGPU_RING_TYPE_KIQ:
+	case AMDGPU_RING_TYPE_MES:
 		ip_blk = AMDGPU_XCP_GFX;
 		break;
 	case AMDGPU_RING_TYPE_SDMA:

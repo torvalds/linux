@@ -92,7 +92,7 @@ void amdgpu_driver_unload_kms(struct drm_device *dev)
 		return;
 
 	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_UNLOAD))
-		DRM_WARN("smart shift update failed\n");
+		drm_warn(dev, "smart shift update failed\n");
 
 	amdgpu_acpi_fini(adev);
 	amdgpu_device_fini_hw(adev);
@@ -105,7 +105,7 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 	mutex_lock(&mgpu_info.mutex);
 
 	if (mgpu_info.num_gpu >= MAX_GPU_INSTANCE) {
-		DRM_ERROR("Cannot register more gpu instance\n");
+		drm_err(adev_to_drm(adev), "Cannot register more gpu instance\n");
 		mutex_unlock(&mgpu_info.mutex);
 		return;
 	}
@@ -162,7 +162,7 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 
 	if (amdgpu_acpi_smart_shift_update(adev, AMDGPU_SS_DRV_LOAD))
-		DRM_WARN("smart shift update failed\n");
+		drm_warn(dev, "smart shift update failed\n");
 
 out:
 	if (r)
@@ -200,6 +200,9 @@ static enum amd_ip_block_type
 	case AMDGPU_HW_IP_VCN_JPEG:
 		type = (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_JPEG)) ?
 				   AMD_IP_BLOCK_TYPE_JPEG : AMD_IP_BLOCK_TYPE_VCN;
+		break;
+	case AMDGPU_HW_IP_VPE:
+		type = AMD_IP_BLOCK_TYPE_VPE;
 		break;
 	default:
 		type = AMD_IP_BLOCK_TYPE_NUM;
@@ -385,6 +388,42 @@ static int amdgpu_userq_metadata_info_gfx(struct amdgpu_device *adev,
 		meta->shadow_alignment = shadow.shadow_alignment;
 		meta->csa_size = shadow.csa_size;
 		meta->csa_alignment = shadow.csa_alignment;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int amdgpu_userq_metadata_info_compute(struct amdgpu_device *adev,
+					      struct drm_amdgpu_info *info,
+					      struct drm_amdgpu_info_uq_metadata_compute *meta)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (adev->gfx.funcs->get_gfx_shadow_info) {
+		struct amdgpu_gfx_shadow_info shadow = {};
+
+		adev->gfx.funcs->get_gfx_shadow_info(adev, &shadow, true);
+		meta->eop_size = shadow.eop_size;
+		meta->eop_alignment = shadow.eop_alignment;
+		ret = 0;
+	}
+
+	return ret;
+}
+
+static int amdgpu_userq_metadata_info_sdma(struct amdgpu_device *adev,
+					   struct drm_amdgpu_info *info,
+					   struct drm_amdgpu_info_uq_metadata_sdma *meta)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (adev->sdma.get_csa_info) {
+		struct amdgpu_sdma_csa_info csa = {};
+
+		adev->sdma.get_csa_info(adev, &csa);
+		meta->csa_size = csa.size;
+		meta->csa_alignment = csa.alignment;
 		ret = 0;
 	}
 
@@ -720,6 +759,9 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			break;
 		case AMD_IP_BLOCK_TYPE_UVD:
 			count = adev->uvd.num_uvd_inst;
+			break;
+		case AMD_IP_BLOCK_TYPE_VPE:
+			count = adev->vpe.num_instances;
 			break;
 		/* For all other IP block types not listed in the switch statement
 		 * the ip status is valid here and the instance count is one.
@@ -1363,6 +1405,22 @@ out:
 			ret = copy_to_user(out, &meta_info,
 						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
 			return 0;
+		case AMDGPU_HW_IP_COMPUTE:
+			ret = amdgpu_userq_metadata_info_compute(adev, info, &meta_info.compute);
+			if (ret)
+				return ret;
+
+			ret = copy_to_user(out, &meta_info,
+						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
+			return 0;
+		case AMDGPU_HW_IP_DMA:
+			ret = amdgpu_userq_metadata_info_sdma(adev, info, &meta_info.sdma);
+			if (ret)
+				return ret;
+
+			ret = copy_to_user(out, &meta_info,
+						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
+			return 0;
 		default:
 			return -EINVAL;
 		}
@@ -1450,7 +1508,9 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	r = amdgpu_userq_mgr_init(&fpriv->userq_mgr, file_priv, adev);
 	if (r)
-		DRM_WARN("Can't setup usermode queues, use legacy workload submission only\n");
+		drm_warn(adev_to_drm(adev),
+			 "Failed to init usermode queue manager (%d), use legacy workload submission only\n",
+			 r);
 
 	r = amdgpu_eviction_fence_init(&fpriv->evf_mgr);
 	if (r)

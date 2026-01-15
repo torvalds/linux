@@ -42,6 +42,10 @@ enum vsc_packet_revision {
 	vsc_packet_rev4 = 4,
 	//05h = 3D stereo + PSR/PSR2 + Y-coordinate + Pixel Encoding/Colorimetry Format
 	vsc_packet_rev5 = 5,
+	//06h = 3D stereo + PR + Y-coordinate
+	vsc_packet_rev6 = 6,
+	//07h = 3D stereo + PR + Y-coordinate + Pixel Encoding/Colorimetry Format
+	vsc_packet_rev7 = 7,
 };
 
 #define HDMI_INFOFRAME_TYPE_VENDOR 0x81
@@ -130,6 +134,163 @@ enum ColorimetryYCCDP {
 	ColorimetryYCC_DP_ITU2020YCbCr  = 7,
 };
 
+/* Helper function to set VSC packet colorimetry data */
+void set_vsc_packet_colorimetry_data(
+		const struct dc_stream_state *stream,
+		struct dc_info_packet *info_packet,
+		enum dc_color_space cs,
+		enum color_transfer_func tf)
+{
+	/* Set VSC SDP fields for pixel encoding and colorimetry format from DP 1.3 specs
+	 * Data Bytes DB 18~16
+	 * Bits 3:0 (Colorimetry Format)        |  Bits 7:4 (Pixel Encoding)
+	 * ----------------------------------------------------------------------------------------------------
+	 * 0x0 = sRGB                           |  0 = RGB
+	 * 0x1 = RGB Wide Gamut Fixed Point
+	 * 0x2 = RGB Wide Gamut Floating Point
+	 * 0x3 = AdobeRGB
+	 * 0x4 = DCI-P3
+	 * 0x5 = CustomColorProfile
+	 * (others reserved)
+	 * ----------------------------------------------------------------------------------------------------
+	 * 0x0 = ITU-R BT.601                   |  1 = YCbCr444
+	 * 0x1 = ITU-R BT.709
+	 * 0x2 = xvYCC601
+	 * 0x3 = xvYCC709
+	 * 0x4 = sYCC601
+	 * 0x5 = AdobeYCC601
+	 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
+	 * 0x7 = ITU-R BT.2020 Y'C'bC'r
+	 * (others reserved)
+	 * ----------------------------------------------------------------------------------------------------
+	 * 0x0 = ITU-R BT.601                   |  2 = YCbCr422
+	 * 0x1 = ITU-R BT.709
+	 * 0x2 = xvYCC601
+	 * 0x3 = xvYCC709
+	 * 0x4 = sYCC601
+	 * 0x5 = AdobeYCC601
+	 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
+	 * 0x7 = ITU-R BT.2020 Y'C'bC'r
+	 * (others reserved)
+	 * ----------------------------------------------------------------------------------------------------
+	 * 0x0 = ITU-R BT.601                   |  3 = YCbCr420
+	 * 0x1 = ITU-R BT.709
+	 * 0x2 = xvYCC601
+	 * 0x3 = xvYCC709
+	 * 0x4 = sYCC601
+	 * 0x5 = AdobeYCC601
+	 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
+	 * 0x7 = ITU-R BT.2020 Y'C'bC'r
+	 * (others reserved)
+	 * ----------------------------------------------------------------------------------------------------
+	 * 0x0 =DICOM Part14 Grayscale          |  4 = Yonly
+	 * Display Function
+	 * (others reserved)
+	 */
+	unsigned int pixelEncoding = 0;
+	unsigned int colorimetryFormat = 0;
+
+	/* Set Pixel Encoding */
+	switch (stream->timing.pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+		pixelEncoding = 0x0;  /* RGB = 0h */
+		break;
+	case PIXEL_ENCODING_YCBCR444:
+		pixelEncoding = 0x1;  /* YCbCr444 = 1h */
+		break;
+	case PIXEL_ENCODING_YCBCR422:
+		pixelEncoding = 0x2;  /* YCbCr422 = 2h */
+		break;
+	case PIXEL_ENCODING_YCBCR420:
+		pixelEncoding = 0x3;  /* YCbCr420 = 3h */
+		break;
+	default:
+		pixelEncoding = 0x0;  /* default RGB = 0h */
+		break;
+	}
+
+	/* Set Colorimetry format based on pixel encoding */
+	switch (stream->timing.pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+		if ((cs == COLOR_SPACE_SRGB) ||
+				(cs == COLOR_SPACE_SRGB_LIMITED))
+			colorimetryFormat = ColorimetryRGB_DP_sRGB;
+		else if (cs == COLOR_SPACE_ADOBERGB)
+			colorimetryFormat = ColorimetryRGB_DP_AdobeRGB;
+		else if ((cs == COLOR_SPACE_2020_RGB_FULLRANGE) ||
+				(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+			colorimetryFormat = ColorimetryRGB_DP_ITU_R_BT2020RGB;
+		break;
+
+	case PIXEL_ENCODING_YCBCR444:
+	case PIXEL_ENCODING_YCBCR422:
+	case PIXEL_ENCODING_YCBCR420:
+		/* Note: xvYCC probably not supported correctly here on DP since colorspace translation
+		 * loses distinction between BT601 vs xvYCC601 in translation
+		 */
+		if (cs == COLOR_SPACE_YCBCR601)
+			colorimetryFormat = ColorimetryYCC_DP_ITU601;
+		else if (cs == COLOR_SPACE_YCBCR709)
+			colorimetryFormat = ColorimetryYCC_DP_ITU709;
+		else if (cs == COLOR_SPACE_ADOBERGB)
+			colorimetryFormat = ColorimetryYCC_DP_AdobeYCC;
+		else if (cs == COLOR_SPACE_2020_YCBCR_LIMITED)
+			colorimetryFormat = ColorimetryYCC_DP_ITU2020YCbCr;
+
+		if (cs == COLOR_SPACE_2020_YCBCR_LIMITED && tf == TRANSFER_FUNC_GAMMA_22)
+			colorimetryFormat = ColorimetryYCC_DP_ITU709;
+		break;
+
+	default:
+		colorimetryFormat = ColorimetryRGB_DP_sRGB;
+		break;
+	}
+
+	info_packet->sb[16] = (pixelEncoding << 4) | colorimetryFormat;
+
+	/* Set color depth */
+	switch (stream->timing.display_color_depth) {
+	case COLOR_DEPTH_666:
+		/* NOTE: This is actually not valid for YCbCr pixel encoding to have 6 bpc
+		 *       as of DP1.4 spec, but value of 0 probably reserved here for potential future use.
+		 */
+		info_packet->sb[17] = 0;
+		break;
+	case COLOR_DEPTH_888:
+		info_packet->sb[17] = 1;
+		break;
+	case COLOR_DEPTH_101010:
+		info_packet->sb[17] = 2;
+		break;
+	case COLOR_DEPTH_121212:
+		info_packet->sb[17] = 3;
+		break;
+	/*case COLOR_DEPTH_141414: -- NO SUCH FORMAT IN DP SPEC */
+	case COLOR_DEPTH_161616:
+		info_packet->sb[17] = 4;
+		break;
+	default:
+		info_packet->sb[17] = 0;
+		break;
+	}
+
+	/* all YCbCr are always limited range */
+	if ((cs == COLOR_SPACE_SRGB_LIMITED) ||
+			(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE) ||
+			(pixelEncoding != 0x0)) {
+		info_packet->sb[17] |= 0x80; /* DB17 bit 7 set to 1 for CEA timing. */
+	}
+
+	/* Content Type (Bits 2:0)
+	 *  0 = Not defined.
+	 *  1 = Graphics.
+	 *  2 = Photo.
+	 *  3 = Video.
+	 *  4 = Game.
+	 */
+	info_packet->sb[18] = 0;
+}
+
 void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		struct dc_info_packet *info_packet,
 		enum dc_color_space cs,
@@ -137,8 +298,6 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 {
 	unsigned int vsc_packet_revision = vsc_packet_undefined;
 	unsigned int i;
-	unsigned int pixelEncoding = 0;
-	unsigned int colorimetryFormat = 0;
 	bool stereo3dSupport = false;
 
 	if (stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE && stream->view_format != VIEW_3D_FORMAT_NONE) {
@@ -158,11 +317,37 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	if (stream->use_vsc_sdp_for_colorimetry)
 		vsc_packet_revision = vsc_packet_rev5;
 
+	/* Check for Panel Replay (highest priority) */
+	if (stream->link->replay_settings.config.replay_version == DC_VESA_PANEL_REPLAY)
+		vsc_packet_revision = stream->use_vsc_sdp_for_colorimetry ? vsc_packet_rev7 : vsc_packet_rev6;
+
 	/* VSC packet not needed based on the features
 	 * supported by this DP display
 	 */
 	if (vsc_packet_revision == vsc_packet_undefined)
 		return;
+
+	if (vsc_packet_revision == vsc_packet_rev6) {
+		/* Secondary-data Packet ID = 0*/
+		info_packet->hb0 = 0x00;
+		/* 07h - Packet Type Value indicating Video
+		 * Stream Configuration packet
+		 */
+		info_packet->hb1 = 0x07;
+		/* 06h = VSC SDP supporting 3D stereo + PR
+		 */
+		info_packet->hb2 = 0x06;
+		/* 0Eh = VSC SDP supporting 3D stereo + PR
+		 * (HB2 = 06h), with Y-coordinate of first scan
+		 * line of the SU region
+		 */
+		info_packet->hb3 = 0x10;
+
+		for (i = 0; i < 28; i++)
+			info_packet->sb[i] = 0;
+
+		info_packet->valid = true;
+	}
 
 	if (vsc_packet_revision == vsc_packet_rev4) {
 		/* Secondary-data Packet ID = 0*/
@@ -292,152 +477,22 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 
 		info_packet->valid = true;
 
-		/* Set VSC SDP fields for pixel encoding and colorimetry format from DP 1.3 specs
-		 * Data Bytes DB 18~16
-		 * Bits 3:0 (Colorimetry Format)        |  Bits 7:4 (Pixel Encoding)
-		 * ----------------------------------------------------------------------------------------------------
-		 * 0x0 = sRGB                           |  0 = RGB
-		 * 0x1 = RGB Wide Gamut Fixed Point
-		 * 0x2 = RGB Wide Gamut Floating Point
-		 * 0x3 = AdobeRGB
-		 * 0x4 = DCI-P3
-		 * 0x5 = CustomColorProfile
-		 * (others reserved)
-		 * ----------------------------------------------------------------------------------------------------
-		 * 0x0 = ITU-R BT.601                   |  1 = YCbCr444
-		 * 0x1 = ITU-R BT.709
-		 * 0x2 = xvYCC601
-		 * 0x3 = xvYCC709
-		 * 0x4 = sYCC601
-		 * 0x5 = AdobeYCC601
-		 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
-		 * 0x7 = ITU-R BT.2020 Y'C'bC'r
-		 * (others reserved)
-		 * ----------------------------------------------------------------------------------------------------
-		 * 0x0 = ITU-R BT.601                   |  2 = YCbCr422
-		 * 0x1 = ITU-R BT.709
-		 * 0x2 = xvYCC601
-		 * 0x3 = xvYCC709
-		 * 0x4 = sYCC601
-		 * 0x5 = AdobeYCC601
-		 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
-		 * 0x7 = ITU-R BT.2020 Y'C'bC'r
-		 * (others reserved)
-		 * ----------------------------------------------------------------------------------------------------
-		 * 0x0 = ITU-R BT.601                   |  3 = YCbCr420
-		 * 0x1 = ITU-R BT.709
-		 * 0x2 = xvYCC601
-		 * 0x3 = xvYCC709
-		 * 0x4 = sYCC601
-		 * 0x5 = AdobeYCC601
-		 * 0x6 = ITU-R BT.2020 Y'cC'bcC'rc
-		 * 0x7 = ITU-R BT.2020 Y'C'bC'r
-		 * (others reserved)
-		 * ----------------------------------------------------------------------------------------------------
-		 * 0x0 =DICOM Part14 Grayscale          |  4 = Yonly
-		 * Display Function
-		 * (others reserved)
-		 */
+		set_vsc_packet_colorimetry_data(stream, info_packet, cs, tf);
+	}
 
-		/* Set Pixel Encoding */
-		switch (stream->timing.pixel_encoding) {
-		case PIXEL_ENCODING_RGB:
-			pixelEncoding = 0x0;  /* RGB = 0h */
-			break;
-		case PIXEL_ENCODING_YCBCR444:
-			pixelEncoding = 0x1;  /* YCbCr444 = 1h */
-			break;
-		case PIXEL_ENCODING_YCBCR422:
-			pixelEncoding = 0x2;  /* YCbCr422 = 2h */
-			break;
-		case PIXEL_ENCODING_YCBCR420:
-			pixelEncoding = 0x3;  /* YCbCr420 = 3h */
-			break;
-		default:
-			pixelEncoding = 0x0;  /* default RGB = 0h */
-			break;
-		}
+	if (vsc_packet_revision == vsc_packet_rev7) {
+		/* Secondary-data Packet ID = 0 */
+		info_packet->hb0 = 0x00;
+		/* 07h - Packet Type Value indicating Video Stream Configuration packet */
+		info_packet->hb1 = 0x07;
+		/* 07h = VSC SDP supporting 3D stereo, PR, and Pixel Encoding/Colorimetry Format indication. */
+		info_packet->hb2 = 0x07;
+		/* 13h = VSC SDP supporting 3D stereo, + PR, + Pixel Encoding/Colorimetry Format indication (HB2 = 07h). */
+		info_packet->hb3 = 0x13;
 
-		/* Set Colorimetry format based on pixel encoding */
-		switch (stream->timing.pixel_encoding) {
-		case PIXEL_ENCODING_RGB:
-			if ((cs == COLOR_SPACE_SRGB) ||
-					(cs == COLOR_SPACE_SRGB_LIMITED))
-				colorimetryFormat = ColorimetryRGB_DP_sRGB;
-			else if (cs == COLOR_SPACE_ADOBERGB)
-				colorimetryFormat = ColorimetryRGB_DP_AdobeRGB;
-			else if ((cs == COLOR_SPACE_2020_RGB_FULLRANGE) ||
-					(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
-				colorimetryFormat = ColorimetryRGB_DP_ITU_R_BT2020RGB;
-			break;
+		info_packet->valid = true;
 
-		case PIXEL_ENCODING_YCBCR444:
-		case PIXEL_ENCODING_YCBCR422:
-		case PIXEL_ENCODING_YCBCR420:
-			/* Note: xvYCC probably not supported correctly here on DP since colorspace translation
-			 * loses distinction between BT601 vs xvYCC601 in translation
-			 */
-			if (cs == COLOR_SPACE_YCBCR601)
-				colorimetryFormat = ColorimetryYCC_DP_ITU601;
-			else if (cs == COLOR_SPACE_YCBCR709)
-				colorimetryFormat = ColorimetryYCC_DP_ITU709;
-			else if (cs == COLOR_SPACE_ADOBERGB)
-				colorimetryFormat = ColorimetryYCC_DP_AdobeYCC;
-			else if (cs == COLOR_SPACE_2020_YCBCR_LIMITED)
-				colorimetryFormat = ColorimetryYCC_DP_ITU2020YCbCr;
-
-			if (cs == COLOR_SPACE_2020_YCBCR_LIMITED && tf == TRANSFER_FUNC_GAMMA_22)
-				colorimetryFormat = ColorimetryYCC_DP_ITU709;
-			break;
-
-		default:
-			colorimetryFormat = ColorimetryRGB_DP_sRGB;
-			break;
-		}
-
-		info_packet->sb[16] = (pixelEncoding << 4) | colorimetryFormat;
-
-		/* Set color depth */
-		switch (stream->timing.display_color_depth) {
-		case COLOR_DEPTH_666:
-			/* NOTE: This is actually not valid for YCbCr pixel encoding to have 6 bpc
-			 *       as of DP1.4 spec, but value of 0 probably reserved here for potential future use.
-			 */
-			info_packet->sb[17] = 0;
-			break;
-		case COLOR_DEPTH_888:
-			info_packet->sb[17] = 1;
-			break;
-		case COLOR_DEPTH_101010:
-			info_packet->sb[17] = 2;
-			break;
-		case COLOR_DEPTH_121212:
-			info_packet->sb[17] = 3;
-			break;
-		/*case COLOR_DEPTH_141414: -- NO SUCH FORMAT IN DP SPEC */
-		case COLOR_DEPTH_161616:
-			info_packet->sb[17] = 4;
-			break;
-		default:
-			info_packet->sb[17] = 0;
-			break;
-		}
-
-		/* all YCbCr are always limited range */
-		if ((cs == COLOR_SPACE_SRGB_LIMITED) ||
-				(cs == COLOR_SPACE_2020_RGB_LIMITEDRANGE) ||
-				(pixelEncoding != 0x0)) {
-			info_packet->sb[17] |= 0x80; /* DB17 bit 7 set to 1 for CEA timing. */
-		}
-
-		/* Content Type (Bits 2:0)
-		 *  0 = Not defined.
-		 *  1 = Graphics.
-		 *  2 = Photo.
-		 *  3 = Video.
-		 *  4 = Game.
-		 */
-		info_packet->sb[18] = 0;
+		set_vsc_packet_colorimetry_data(stream, info_packet, cs, tf);
 	}
 }
 
@@ -537,7 +592,11 @@ void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 		break;
 	case FREESYNC_TYPE_PCON_IN_WHITELIST:
 	case ADAPTIVE_SYNC_TYPE_EDP:
-		mod_build_adaptive_sync_infopacket_v1(info_packet);
+		if (stream && stream->link->replay_settings.config.replay_supported &&
+			stream->link->replay_settings.config.replay_version == DC_VESA_PANEL_REPLAY)
+			mod_build_adaptive_sync_infopacket_v2(stream, param, info_packet);
+		else
+			mod_build_adaptive_sync_infopacket_v1(info_packet);
 		break;
 	case ADAPTIVE_SYNC_TYPE_NONE:
 	case FREESYNC_TYPE_PCON_NOT_IN_WHITELIST:
@@ -567,13 +626,15 @@ void mod_build_adaptive_sync_infopacket_v2(const struct dc_stream_state *stream,
 	info_packet->hb2 = AS_SDP_VER_2;
 	info_packet->hb3 = AS_DP_SDP_LENGTH;
 
-	//Payload
-	info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
-	info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
-	info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
-	//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
-	info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
-	info_packet->sb[5] = param->increase.frame_duration_hex;
-	info_packet->sb[6] = param->decrease.frame_duration_hex;
+	if (param) {
+		//Payload
+		info_packet->sb[0] = param->supportMode; //1: AVT; 0: FAVT
+		info_packet->sb[1] = (stream->timing.v_total & 0x00FF);
+		info_packet->sb[2] = (stream->timing.v_total & 0xFF00) >> 8;
+		//info_packet->sb[3] = 0x00; Target RR, not use fot AVT
+		info_packet->sb[4] = (param->increase.support << 6 | param->decrease.support << 7);
+		info_packet->sb[5] = param->increase.frame_duration_hex;
+		info_packet->sb[6] = param->decrease.frame_duration_hex;
+	}
 }
 

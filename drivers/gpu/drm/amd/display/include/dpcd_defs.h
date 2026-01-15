@@ -188,6 +188,7 @@ enum dpcd_psr_sink_states {
 #define DP_SOURCE_BACKLIGHT_CURRENT_PEAK        0x326
 #define DP_SOURCE_BACKLIGHT_CONTROL             0x32E
 #define DP_SOURCE_BACKLIGHT_ENABLE              0x32F
+#define DP_SINK_DRR_GRANULARITY                 0x33B
 #define DP_SOURCE_MINIMUM_HBLANK_SUPPORTED      0x340
 #define DP_SINK_PR_REPLAY_STATUS                0x378
 #define DP_SINK_PR_PIXEL_DEVIATION_PER_LINE     0x379

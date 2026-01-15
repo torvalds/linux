@@ -23,6 +23,7 @@ RAS_MGR_FILES = amdgpu_ras_sys.o  \
 		amdgpu_ras_eeprom_i2c.o \
 		amdgpu_ras_mp1_v13_0.o \
 		amdgpu_ras_cmd.o \
+		amdgpu_virt_ras_cmd.o \
 		amdgpu_ras_process.o \
 		amdgpu_ras_nbio_v7_9.o
 

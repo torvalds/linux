@@ -1950,6 +1950,7 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	double Ttrip;
 	double Turg;
 	bool setup_for_tdlut;
+	bool use_max_lsw;
 	unsigned int tdlut_pte_bytes_per_frame;
 	unsigned int tdlut_bytes_per_frame;
 	double tdlut_opt_time;

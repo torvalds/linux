@@ -163,4 +163,7 @@ int ras_umc_get_badpage_record(struct ras_core_context *ras_core, uint32_t index
 bool ras_umc_check_retired_addr(struct ras_core_context *ras_core, uint64_t addr);
 int ras_umc_translate_soc_pa_and_bank(struct ras_core_context *ras_core,
 			uint64_t *soc_pa, struct umc_bank_addr *bank_addr, bool bank_to_pa);
+int ras_umc_convert_record_to_nps_pages(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record, uint32_t nps,
+		uint64_t *page_pfn, uint32_t max_pages);
 #endif

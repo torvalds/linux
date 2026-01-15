@@ -9,7 +9,7 @@
 
 #define NUM_PHASES_COEFF 33
 
-void convert_filter_s1_10_to_s1_12(const uint16_t *s1_10_filter,
-	uint16_t *s1_12_filter, int num_taps);
+void SPL_NAMESPACE(convert_filter_s1_10_to_s1_12(const uint16_t *s1_10_filter,
+	uint16_t *s1_12_filter, int num_taps));
 
 #endif /* __DC_SPL_FILTERS_H__ */

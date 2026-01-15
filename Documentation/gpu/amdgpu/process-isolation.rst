@@ -1,3 +1,4 @@
+.. _amdgpu-process-isolation:
 .. SPDX-License-Identifier: GPL-2.0
 
 =========================

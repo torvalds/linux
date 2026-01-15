@@ -172,6 +172,8 @@ struct psp_funcs {
 	bool (*is_reload_needed)(struct psp_context *psp);
 	int (*reg_program_no_ring)(struct psp_context *psp, uint32_t val,
 				   enum psp_reg_prog_id id);
+	int (*get_fw_type)(struct amdgpu_firmware_info *ucode,
+			enum psp_gfx_fw_type *type);
 };
 
 struct ta_funcs {
@@ -524,6 +526,10 @@ struct amdgpu_psp_funcs {
 	((psp)->funcs->reg_program_no_ring ? \
 	(psp)->funcs->reg_program_no_ring((psp), val, id) : -EINVAL)
 
+#define psp_get_fw_type(psp, ucode, type) \
+	((psp)->funcs->get_fw_type ? \
+	(psp)->funcs->get_fw_type(ucode, type):amdgpu_psp_get_fw_type(ucode, type))
+
 extern const struct amd_ip_funcs psp_ip_funcs;
 
 extern const struct amdgpu_ip_block_version psp_v3_1_ip_block;
@@ -534,6 +540,8 @@ extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v13_0_ip_block;
 extern const struct amdgpu_ip_block_version psp_v13_0_4_ip_block;
 extern const struct amdgpu_ip_block_version psp_v14_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v15_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v15_0_8_ip_block;
 
 int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 		 uint32_t field_val, uint32_t mask, uint32_t flags);
@@ -621,6 +629,8 @@ bool amdgpu_psp_tos_reload_needed(struct amdgpu_device *adev);
 int amdgpu_psp_reg_program_no_ring(struct psp_context *psp, uint32_t val,
 				   enum psp_reg_prog_id id);
 void amdgpu_psp_debugfs_init(struct amdgpu_device *adev);
+int amdgpu_psp_get_fw_type(struct amdgpu_firmware_info *ucode,
+			   enum psp_gfx_fw_type *type);
 
 
 #endif

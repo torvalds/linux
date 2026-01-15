@@ -27,6 +27,7 @@ enum amdgpu_pkg_type {
 	AMDGPU_PKG_TYPE_APU = 2,
 	AMDGPU_PKG_TYPE_CEM = 3,
 	AMDGPU_PKG_TYPE_OAM = 4,
+	AMDGPU_PKG_TYPE_BB  = 5,
 	AMDGPU_PKG_TYPE_UNKNOWN,
 };
 
@@ -44,6 +45,8 @@ struct amdgpu_smuio_funcs {
 	u32 (*get_socket_id)(struct amdgpu_device *adev);
 	enum amdgpu_pkg_type (*get_pkg_type)(struct amdgpu_device *adev);
 	bool (*is_host_gpu_xgmi_supported)(struct amdgpu_device *adev);
+	bool (*is_connected_with_ethernet_switch)(struct amdgpu_device *adev);
+	bool (*is_custom_hbm_supported)(struct amdgpu_device *adev);
 	u64 (*get_gpu_clock_counter)(struct amdgpu_device *adev);
 };
 

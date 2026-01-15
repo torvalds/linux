@@ -77,6 +77,7 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(NPM_METRICS),
 	SMU_CAP(RAS_EEPROM),
 	SMU_CAP(FAST_PPT),
+	SMU_CAP(SYSTEM_POWER_METRICS),
 	SMU_CAP(ALL),
 };
 
@@ -107,6 +108,9 @@ void smu_v13_0_12_tables_fini(struct smu_context *smu);
 int smu_v13_0_12_get_npm_data(struct smu_context *smu,
 			      enum amd_pp_sensors sensor,
 			      uint32_t *value);
+int smu_v13_0_12_get_system_power(struct smu_context *smu,
+				  enum amd_pp_sensors sensor,
+				  uint32_t *value);
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
 extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 extern const struct smu_temp_funcs smu_v13_0_12_temp_funcs;

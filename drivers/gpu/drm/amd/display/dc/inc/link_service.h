@@ -114,9 +114,6 @@ struct link_service {
 			struct dc_sink_init_data *init_data);
 	void (*remove_remote_sink)(struct dc_link *link, struct dc_sink *sink);
 	bool (*get_hpd_state)(struct dc_link *link);
-	struct gpio *(*get_hpd_gpio)(struct dc_bios *dcb,
-			struct graphics_object_id link_id,
-			struct gpio_service *gpio_service);
 	void (*enable_hpd)(const struct dc_link *link);
 	void (*disable_hpd)(const struct dc_link *link);
 	void (*enable_hpd_filter)(struct dc_link *link, bool enable);
@@ -307,6 +304,10 @@ struct link_service {
 	bool (*edp_receiver_ready_T9)(struct dc_link *link);
 	bool (*edp_receiver_ready_T7)(struct dc_link *link);
 	bool (*edp_power_alpm_dpcd_enable)(struct dc_link *link, bool enable);
+	bool (*edp_pr_enable)(struct dc_link *link, bool enable);
+	bool (*edp_pr_update_state)(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data);
+	bool (*edp_pr_set_general_cmd)(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data);
+	bool (*edp_pr_get_state)(const struct dc_link *link, uint64_t *state);
 	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
 
 

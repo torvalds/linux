@@ -279,6 +279,7 @@ static void nbio_v7_11_init_registers(struct amdgpu_device *adev)
 	case IP_VERSION(7, 11, 1):
 	case IP_VERSION(7, 11, 2):
 	case IP_VERSION(7, 11, 3):
+	case IP_VERSION(7, 11, 4):
 		data = RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF5_STRAP4) & ~BIT(23);
 		WREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF5_STRAP4, data);
 		break;

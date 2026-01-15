@@ -53,4 +53,13 @@ static inline int64_t spl_div64_s64(int64_t dividend, int64_t divisor)
 #define spl_min(a, b)    (((a) < (b)) ? (a):(b))
 #endif
 
+/* SPL namespace macros */
+#ifndef SPL_PFX_
+#define SPL_PFX_
+#endif
+
+#define SPL_EXPAND2(a, b)         a##b
+#define SPL_EXPAND(a, b)          SPL_EXPAND2(a, b)
+#define SPL_NAMESPACE(symbol)     SPL_EXPAND(SPL_PFX_, symbol)
+
 #endif /* _SPL_OS_TYPES_H_ */

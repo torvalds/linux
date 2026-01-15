@@ -77,6 +77,37 @@ VCN (Video Core Next)
     decode.  It's exposed to userspace for user mode drivers (VA-API,
     OpenMAX, etc.)
 
+It is important to note that these blocks can interact with each other. The
+picture below illustrates some of the components and their interconnection:
+
+.. kernel-figure:: amd_overview_block.svg
+
+In the diagram, memory-related blocks are shown in green. Notice that specific
+IPs have a green square that represents a small hardware block named 'hub',
+which is responsible for interfacing with memory. All memory hubs are connected
+in the UMCs, which in turn are connected to memory blocks. As a note,
+pre-vega devices have a dedicated block for the Graphic Memory Controller
+(GMC), which was replaced by UMC and hubs in new architectures. In the driver
+code, you can identify this component by looking for the suffix hub, for
+example: gfxhub, dchub, mmhub, vmhub, etc. Keep in mind that the component's
+interaction with the memory block may vary across architectures. For example,
+on Navi and newer, GC and SDMA are both attached to GCHUB; on pre-Navi, SDMA
+goes through MMHUB; VCN, JPEG, and VPE go through MMHUB; DCN goes through
+DCHUB.
+
+There is some protection for certain memory elements, and the PSP plays an
+essential role in this area. When a specific firmware is loaded into memory,
+the PSP takes steps to ensure it has a valid signature. It also stores firmware
+images in a protected memory area named Trusted Memory Area (TMR), so the OS or
+driver can't corrupt them at runtime. Another use of PSP is to support Trusted
+Applications (TA), which are basically small applications that run on the
+trusted processor and handles a trusted operation (e.g., HDCP). PSP is also
+used for encrypted memory for content protection via Trusted Memory Zone (TMZ).
+
+Another critical IP is the SMU. It handles reset distribution, as well as
+clock, thermal, and power management for all IPs on the SoC. SMU also helps to
+balance performance and power consumption.
+
 .. _pipes-and-queues-description:
 
 GFX, Compute, and SDMA Overall Behavior

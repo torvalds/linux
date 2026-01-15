@@ -728,7 +728,6 @@ void dce110_edp_wait_for_hpd_ready(
 {
 	struct dc_context *ctx = link->ctx;
 	struct graphics_object_id connector = link->link_enc->connector;
-	struct gpio *hpd;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
 	uint32_t timeout = power_up ?
@@ -752,31 +751,16 @@ void dce110_edp_wait_for_hpd_ready(
 	 * we need to wait until SENSE bit is high/low.
 	 */
 
-	/* obtain HPD */
-	/* TODO what to do with this? */
-	hpd = ctx->dc->link_srv->get_hpd_gpio(ctx->dc_bios, connector, ctx->gpio_service);
-
-	if (!hpd) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
 	if (link->panel_config.pps.extra_t3_ms > 0) {
 		int extra_t3_in_ms = link->panel_config.pps.extra_t3_ms;
 
 		msleep(extra_t3_in_ms);
 	}
 
-	dal_gpio_open(hpd, GPIO_MODE_INTERRUPT);
-
 	/* wait until timeout or panel detected */
 
 	do {
-		uint32_t detected = 0;
-
-		dal_gpio_get_value(hpd, &detected);
-
-		if (!(detected ^ power_up)) {
+		if (!(link->dc->link_srv->get_hpd_state(link) ^ power_up)) {
 			edp_hpd_high = true;
 			break;
 		}
@@ -785,10 +769,6 @@ void dce110_edp_wait_for_hpd_ready(
 
 		time_elapsed += HPD_CHECK_INTERVAL;
 	} while (time_elapsed < timeout);
-
-	dal_gpio_close(hpd);
-
-	dal_gpio_destroy_irq(&hpd);
 
 	/* ensure that the panel is detected */
 	if (!edp_hpd_high)
@@ -1610,38 +1590,12 @@ dce110_select_crtc_source(struct pipe_ctx *pipe_ctx)
 	struct dc_bios *bios = link->ctx->dc_bios;
 	struct bp_crtc_source_select crtc_source_select = {0};
 	enum engine_id engine_id = link->link_enc->preferred_engine;
-	uint8_t bit_depth;
 
 	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
 		engine_id = link->link_enc->analog_engine;
 
-	switch (pipe_ctx->stream->timing.display_color_depth) {
-	case COLOR_DEPTH_UNDEFINED:
-		bit_depth = 0;
-		break;
-	case COLOR_DEPTH_666:
-		bit_depth = 6;
-		break;
-	default:
-	case COLOR_DEPTH_888:
-		bit_depth = 8;
-		break;
-	case COLOR_DEPTH_101010:
-		bit_depth = 10;
-		break;
-	case COLOR_DEPTH_121212:
-		bit_depth = 12;
-		break;
-	case COLOR_DEPTH_141414:
-		bit_depth = 14;
-		break;
-	case COLOR_DEPTH_161616:
-		bit_depth = 16;
-		break;
-	}
-
 	crtc_source_select.controller_id = CONTROLLER_ID_D0 + pipe_ctx->stream_res.tg->inst;
-	crtc_source_select.bit_depth = bit_depth;
+	crtc_source_select.color_depth = pipe_ctx->stream->timing.display_color_depth;
 	crtc_source_select.engine_id = engine_id;
 	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
 
@@ -1866,6 +1820,9 @@ static void disable_vga_and_power_gate_all_controllers(
 	struct timing_generator *tg;
 	struct dc_context *ctx = dc->ctx;
 
+	if (dc->caps.ips_support)
+		return;
+
 	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		tg = dc->res_pool->timing_generators[i];
 
@@ -1942,13 +1899,16 @@ static void clean_up_dsc_blocks(struct dc *dc)
 			/* disable DSC in OPTC */
 			if (i < dc->res_pool->timing_generator_count) {
 				tg = dc->res_pool->timing_generators[i];
-				tg->funcs->set_dsc_config(tg, OPTC_DSC_DISABLED, 0, 0);
+				if (tg->funcs->set_dsc_config)
+					tg->funcs->set_dsc_config(tg, OPTC_DSC_DISABLED, 0, 0);
 			}
 			/* disable DSC in stream encoder */
 			if (i < dc->res_pool->stream_enc_count) {
 				se = dc->res_pool->stream_enc[i];
-				se->funcs->dp_set_dsc_config(se, OPTC_DSC_DISABLED, 0, 0);
-				se->funcs->dp_set_dsc_pps_info_packet(se, false, NULL, true);
+				if (se->funcs->dp_set_dsc_config)
+					se->funcs->dp_set_dsc_config(se, OPTC_DSC_DISABLED, 0, 0);
+				if (se->funcs->dp_set_dsc_pps_info_packet)
+					se->funcs->dp_set_dsc_pps_info_packet(se, false, NULL, true);
 			}
 			/* disable DSC block */
 			if (dccg->funcs->set_ref_dscclk)

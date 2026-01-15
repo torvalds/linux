@@ -50,6 +50,11 @@ static const uint8_t DP_VGA_LVDS_CONVERTER_ID_2[] = "sivarT";
 /* Nutmeg */
 static const uint8_t DP_VGA_LVDS_CONVERTER_ID_3[] = "dnomlA";
 
+static const unsigned int pwr_default_min_brightness_millinits = 1000;
+static const unsigned int pwr_default_sdr_brightness_millinits = 270000;
+static const unsigned int pwr_default_min_backlight_pwm = 0xC0C;
+static const unsigned int pwr_default_max_backlight_pwm = 0xFFFF;
+
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
@@ -91,11 +96,10 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 	}
 
 	link->panel_mode = panel_mode;
-	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
-		 "eDP panel mode enabled: %d \n",
-		 link->link_index,
-		 link->dpcd_caps.panel_mode_edp,
-		 panel_mode_edp);
+	DC_LOG_DETECTION_DP_CAPS("%d eDP panel mode supported: %d, enabled: %d\n",
+				 link->link_index,
+				 link->dpcd_caps.panel_mode_edp,
+				 panel_mode_edp);
 }
 
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
@@ -309,7 +313,7 @@ static bool read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millin
 	return true;
 }
 
-bool set_default_brightness_aux(struct dc_link *link)
+bool set_default_brightness(struct dc_link *link)
 {
 	uint32_t default_backlight;
 
@@ -320,8 +324,23 @@ bool set_default_brightness_aux(struct dc_link *link)
 		if (default_backlight < 1000 || default_backlight > 5000000)
 			default_backlight = 150000;
 
-		return edp_set_backlight_level_nits(link, true,
-				default_backlight, 0);
+		if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
+			link->dc->caps.dmub_caps.aux_backlight_support) {
+			struct set_backlight_level_params backlight_level_params = { 0 };
+
+			backlight_level_params.aux_inst =  link->ddc->ddc_pin->hw_info.ddc_channel;
+			backlight_level_params.control_type = BACKLIGHT_CONTROL_VESA_AUX;
+			backlight_level_params.backlight_pwm_u16_16 = default_backlight;
+			backlight_level_params.transition_time_in_ms = 0;
+			// filled in the driver BL default values
+			backlight_level_params.min_luminance = pwr_default_min_brightness_millinits;
+			backlight_level_params.max_luminance = pwr_default_sdr_brightness_millinits;
+			backlight_level_params.min_backlight_pwm = pwr_default_min_backlight_pwm;
+			backlight_level_params.max_backlight_pwm = pwr_default_max_backlight_pwm;
+			return edp_set_backlight_level(link, &backlight_level_params);
+		} else
+			return edp_set_backlight_level_nits(link, true,
+					default_backlight, 0);
 	}
 	return false;
 }
@@ -1049,8 +1068,7 @@ static bool edp_setup_panel_replay(struct dc_link *link, const struct dc_stream_
 
 	replay_context.line_time_in_ns = lineTimeInNs;
 
-	link->replay_settings.replay_feature_enabled =
-			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
+	link->replay_settings.replay_feature_enabled = edp_pr_copy_settings(link, &replay_context);
 
 	if (link->replay_settings.replay_feature_enabled) {
 		pr_config_1.bits.PANEL_REPLAY_ENABLE = 1;
@@ -1301,6 +1319,157 @@ bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
 			return false;
 	} else
 		return false;
+
+	return true;
+}
+
+bool edp_pr_enable(struct dc_link *link, bool enable)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	if (link->replay_settings.replay_allow_active != enable) {
+		//for sending PR enable commands to DMUB
+		memset(&cmd, 0, sizeof(cmd));
+
+		cmd.pr_enable.header.type = DMUB_CMD__PR;
+		cmd.pr_enable.header.sub_type = DMUB_CMD__PR_ENABLE;
+		cmd.pr_enable.header.payload_bytes = sizeof(struct dmub_cmd_pr_enable_data);
+		cmd.pr_enable.data.panel_inst = panel_inst;
+		cmd.pr_enable.data.enable = enable ? 1 : 0;
+
+		dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+		link->replay_settings.replay_allow_active = enable;
+	}
+	return true;
+}
+
+bool edp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_context)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+	struct pipe_ctx *pipe_ctx = NULL;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	for (unsigned int i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link->connector_signal == SIGNAL_TYPE_EDP) {
+			pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+			//TODO: refactor for multi edp support
+			break;
+		}
+	}
+
+	if (!pipe_ctx)
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_copy_settings.header.type = DMUB_CMD__PR;
+	cmd.pr_copy_settings.header.sub_type = DMUB_CMD__PR_COPY_SETTINGS;
+	cmd.pr_copy_settings.header.payload_bytes = sizeof(struct dmub_cmd_pr_copy_settings_data);
+	cmd.pr_copy_settings.data.panel_inst = panel_inst;
+	// HW inst
+	cmd.pr_copy_settings.data.aux_inst = replay_context->aux_inst;
+	cmd.pr_copy_settings.data.digbe_inst = replay_context->digbe_inst;
+	cmd.pr_copy_settings.data.digfe_inst = replay_context->digfe_inst;
+	if (pipe_ctx->plane_res.dpp)
+		cmd.pr_copy_settings.data.dpp_inst = pipe_ctx->plane_res.dpp->inst;
+	else
+		cmd.pr_copy_settings.data.dpp_inst = 0;
+	if (pipe_ctx->stream_res.tg)
+		cmd.pr_copy_settings.data.otg_inst = pipe_ctx->stream_res.tg->inst;
+	else
+		cmd.pr_copy_settings.data.otg_inst = 0;
+
+	cmd.pr_copy_settings.data.dpphy_inst = link->link_enc->transmitter;
+
+	cmd.pr_copy_settings.data.line_time_in_ns = replay_context->line_time_in_ns;
+	cmd.pr_copy_settings.data.flags.bitfields.fec_enable_status = (link->fec_state == dc_link_fec_enabled);
+	cmd.pr_copy_settings.data.flags.bitfields.dsc_enable_status = (pipe_ctx->stream->timing.flags.DSC == 1);
+	cmd.pr_copy_settings.data.debug.u32All = link->replay_settings.config.debug_flags;
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_data *update_state_data)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_update_state.header.type = DMUB_CMD__PR;
+	cmd.pr_update_state.header.sub_type = DMUB_CMD__PR_UPDATE_STATE;
+	cmd.pr_update_state.header.payload_bytes = sizeof(struct dmub_cmd_pr_update_state_data);
+	cmd.pr_update_state.data.panel_inst = panel_inst;
+
+	memcpy(&cmd.pr_update_state.data, update_state_data, sizeof(struct dmub_cmd_pr_update_state_data));
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_data *general_cmd_data)
+{
+	struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	union dmub_rb_cmd cmd;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.pr_general_cmd.header.type = DMUB_CMD__PR;
+	cmd.pr_general_cmd.header.sub_type = DMUB_CMD__PR_GENERAL_CMD;
+	cmd.pr_general_cmd.header.payload_bytes = sizeof(struct dmub_cmd_pr_general_cmd_data);
+	cmd.pr_general_cmd.data.panel_inst = panel_inst;
+
+	memcpy(&cmd.pr_general_cmd.data, general_cmd_data, sizeof(struct dmub_cmd_pr_general_cmd_data));
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	return true;
+}
+
+bool edp_pr_get_state(const struct dc_link *link, uint64_t *state)
+{
+	const struct dc  *dc = link->ctx->dc;
+	unsigned int panel_inst = 0;
+	uint32_t retry_count = 0;
+	uint32_t replay_state = 0;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	do {
+		// Send gpint command and wait for ack
+		if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__GET_REPLAY_STATE, panel_inst,
+					       &replay_state, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
+			// Return invalid state when GPINT times out
+			replay_state = PR_STATE_INVALID;
+		}
+		/* Copy 32-bit result into 64-bit output */
+		*state = replay_state;
+	} while (++retry_count <= 1000 && *state == PR_STATE_INVALID);
+
+	// Assert if max retry hit
+	if (retry_count >= 1000 && *state == PR_STATE_INVALID) {
+		ASSERT(0);
+		/* To-do: Add retry fail log */
+	}
 
 	return true;
 }

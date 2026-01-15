@@ -407,6 +407,7 @@ struct dml2_plane_parameters {
 		unsigned int hostvm_min_page_size_kbytes;
 
 		enum dml2_svp_mode_override legacy_svp_config; //TODO remove in favor of svp_config
+		bool use_max_lsw;
 
 		struct {
 			// HW specific overrides, there's almost no reason to mess with these
