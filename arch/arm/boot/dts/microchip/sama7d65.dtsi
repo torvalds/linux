@@ -527,7 +527,7 @@
 				interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 37>;
 				#address-cells = <1>;
-				#size-cells = <1>;
+				#size-cells = <0>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(12)>,
 				       <&dma0 AT91_XDMAC_DT_PERID(11)>;
 				dma-names = "tx", "rx";
@@ -676,7 +676,7 @@
 		flx9: flexcom@e2820000 {
 			compatible = "microchip,sama7d65-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2820000 0x200>;
-			ranges = <0x0 0xe281c000 0x800>;
+			ranges = <0x0 0xe2820000 0x800>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 43>;
 			#address-cells = <1>;
 			#size-cells = <1>;
