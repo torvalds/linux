@@ -103,7 +103,7 @@ bool xsk_uses_need_wakeup(struct xsk_buff_pool *pool)
 }
 EXPORT_SYMBOL(xsk_uses_need_wakeup);
 
-struct xsk_buff_pool *xsk_get_pool_from_qid(struct net_device *dev,
+struct xsk_buff_pool *xsk_get_pool_from_qid(const struct net_device *dev,
 					    u16 queue_id)
 {
 	if (queue_id < dev->real_num_rx_queues)
