@@ -7,10 +7,9 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "xe_assert.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gt.h"
-#include "xe_hw_fence.h"
 #include "xe_sa.h"
 #include "xe_sched_job.h"
 #include "xe_vm_types.h"

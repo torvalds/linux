@@ -19,7 +19,7 @@
 #include "regs/xe_regs.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
-#include "xe_gt.h"
+#include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"

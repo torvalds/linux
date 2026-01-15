@@ -12,7 +12,6 @@
 #include "xe_configfs.h"
 #include "xe_gt.h"
 #include "xe_gt_topology.h"
-#include "xe_macros.h"
 #include "xe_reg_sr.h"
 #include "xe_sriov.h"
 

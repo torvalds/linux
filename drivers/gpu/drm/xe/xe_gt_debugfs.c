@@ -22,7 +22,6 @@
 #include "xe_guc_hwconfig.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
-#include "xe_macros.h"
 #include "xe_mocs.h"
 #include "xe_pat.h"
 #include "xe_pm.h"

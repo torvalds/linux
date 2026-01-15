@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Intel Corporation.
  */
 
+#include <drm/drm_print.h>
 #include <linux/array_size.h>
 #include <linux/container_of.h>
 #include <linux/device.h>
@@ -26,11 +27,10 @@
 #include "regs/xe_i2c_regs.h"
 #include "regs/xe_irq_regs.h"
 
-#include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"
-#include "xe_platform_types.h"
+#include "xe_sriov.h"
 #include "xe_survivability_mode.h"
 
 /**

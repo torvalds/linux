@@ -18,6 +18,7 @@
 #include "tests/xe_test.h"
 
 #include "xe_bo_evict.h"
+#include "xe_gt.h"
 #include "xe_pci.h"
 #include "xe_pm.h"
 

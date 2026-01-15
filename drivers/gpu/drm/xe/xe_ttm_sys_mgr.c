@@ -13,7 +13,6 @@
 #include <drm/ttm/ttm_tt.h>
 
 #include "xe_bo.h"
-#include "xe_gt.h"
 
 struct xe_ttm_sys_node {
 	struct ttm_buffer_object *tbo;

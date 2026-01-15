@@ -6,7 +6,6 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
-#include "xe_gt.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_sriov_printk.h"

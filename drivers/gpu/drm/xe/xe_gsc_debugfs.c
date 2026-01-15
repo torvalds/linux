@@ -7,11 +7,10 @@
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_gt_types.h"
 #include "xe_gsc.h"
-#include "xe_macros.h"
 #include "xe_pm.h"
 
 static struct xe_gt *

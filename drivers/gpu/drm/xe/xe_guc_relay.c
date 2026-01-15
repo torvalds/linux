@@ -17,8 +17,7 @@
 #include "abi/guc_relay_communication_abi.h"
 
 #include "xe_assert.h"
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_device_types.h"
 #include "xe_gt_sriov_printk.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_guc.h"

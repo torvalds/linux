@@ -33,7 +33,6 @@
 #include "xe_preempt_fence.h"
 #include "xe_pt.h"
 #include "xe_pxp.h"
-#include "xe_res_cursor.h"
 #include "xe_sriov_vf.h"
 #include "xe_svm.h"
 #include "xe_sync.h"

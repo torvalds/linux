@@ -12,7 +12,6 @@
 
 #include "xe_bo.h"
 #include "xe_device.h"
-#include "xe_gt.h"
 #include "xe_res_cursor.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_vram_types.h"

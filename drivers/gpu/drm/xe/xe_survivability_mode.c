@@ -12,7 +12,6 @@
 
 #include "xe_configfs.h"
 #include "xe_device.h"
-#include "xe_gt.h"
 #include "xe_heci_gsc.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"

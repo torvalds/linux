@@ -24,7 +24,6 @@
 #include "xe_gt.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
-#include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_pci_rebar.h"

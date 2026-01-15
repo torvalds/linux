@@ -13,16 +13,13 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
-#include "regs/xe_engine_regs.h"
-#include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
-#include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_types.h"
 #include "xe_hw_engine_types.h"
-#include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_rtp_types.h"
 

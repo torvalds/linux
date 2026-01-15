@@ -5,13 +5,10 @@
 
 #include <drm/drm_managed.h>
 
-#include "abi/guc_actions_abi.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_force_wake.h"
-#include "xe_gt.h"
-#include "xe_gt_printk.h"
 #include "xe_gt_stats.h"
-#include "xe_guc.h"
+#include "xe_gt_types.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_tlb_inval.h"
 #include "xe_mmio.h"

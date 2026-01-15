@@ -5,10 +5,11 @@
 
 #include "xe_step.h"
 
+#include <drm/drm_print.h>
 #include <kunit/visibility.h>
 #include <linux/bitfield.h>
 
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_platform_types.h"
 
 /*

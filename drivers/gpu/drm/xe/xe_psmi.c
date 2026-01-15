@@ -6,7 +6,7 @@
 #include <linux/debugfs.h>
 
 #include "xe_bo.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_configfs.h"
 #include "xe_psmi.h"
 

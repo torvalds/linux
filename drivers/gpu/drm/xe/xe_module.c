@@ -10,7 +10,7 @@
 
 #include <drm/drm_module.h>
 
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_drv.h"
 #include "xe_configfs.h"
 #include "xe_hw_fence.h"

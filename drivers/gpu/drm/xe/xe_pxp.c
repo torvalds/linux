@@ -15,7 +15,6 @@
 #include "xe_force_wake.h"
 #include "xe_guc_submit.h"
 #include "xe_gsc_proxy.h"
-#include "xe_gt.h"
 #include "xe_gt_types.h"
 #include "xe_huc.h"
 #include "xe_mmio.h"

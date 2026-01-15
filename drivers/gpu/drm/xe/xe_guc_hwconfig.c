@@ -10,8 +10,8 @@
 
 #include "abi/guc_actions_abi.h"
 #include "xe_bo.h"
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_device_types.h"
+#include "xe_gt_types.h"
 #include "xe_guc.h"
 #include "xe_map.h"
 

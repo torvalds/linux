@@ -16,7 +16,6 @@
 #include "xe_sriov_pf_migration.h"
 #include "xe_sriov_pf_provision.h"
 #include "xe_sriov_pf_service.h"
-#include "xe_sriov_printk.h"
 #include "xe_tile_sriov_pf_debugfs.h"
 
 /*

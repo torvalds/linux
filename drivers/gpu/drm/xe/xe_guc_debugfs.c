@@ -8,13 +8,12 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_managed.h>
 
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_device_types.h"
+#include "xe_gt_types.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
-#include "xe_macros.h"
 #include "xe_pm.h"
 
 /*

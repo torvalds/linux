@@ -7,8 +7,8 @@
 
 #include <drm/drm_print.h>
 
-#include "xe_gt.h"
 #include "xe_gt_stats.h"
+#include "xe_gt_types.h"
 
 /**
  * xe_gt_stats_incr - Increments the specified stats counter

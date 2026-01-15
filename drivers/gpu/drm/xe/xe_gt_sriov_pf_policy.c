@@ -7,7 +7,6 @@
 
 #include "abi/guc_actions_sriov_abi.h"
 
-#include "xe_bo.h"
 #include "xe_gt.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_policy.h"

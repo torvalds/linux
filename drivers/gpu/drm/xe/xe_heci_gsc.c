@@ -11,7 +11,6 @@
 #include <drm/drm_print.h>
 
 #include "xe_device_types.h"
-#include "xe_drv.h"
 #include "xe_heci_gsc.h"
 #include "regs/xe_gsc_regs.h"
 #include "xe_platform_types.h"

@@ -7,7 +7,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_gt.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_pm.h"

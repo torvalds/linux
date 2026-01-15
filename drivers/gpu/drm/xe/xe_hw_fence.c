@@ -8,9 +8,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 
-#include "xe_bo.h"
-#include "xe_device.h"
-#include "xe_gt.h"
+#include "xe_device_types.h"
 #include "xe_hw_engine.h"
 #include "xe_macros.h"
 #include "xe_map.h"

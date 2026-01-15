@@ -13,13 +13,11 @@
 #include <generated/xe_wa_oob.h>
 
 #include "instructions/xe_alu_commands.h"
-#include "instructions/xe_gfxpipe_commands.h"
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_bb.h"
-#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_eu_stall.h"
 #include "xe_exec_queue.h"

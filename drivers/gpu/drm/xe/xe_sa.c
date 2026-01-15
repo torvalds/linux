@@ -10,7 +10,7 @@
 #include <drm/drm_managed.h>
 
 #include "xe_bo.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_map.h"
 
 static void xe_sa_bo_manager_fini(struct drm_device *drm, void *arg)

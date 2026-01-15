@@ -6,7 +6,7 @@
 #include <drm/drm_managed.h>
 
 #include "xe_assert.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_exec_queue.h"
 #include "xe_gt.h"
 #include "xe_gt_stats.h"
