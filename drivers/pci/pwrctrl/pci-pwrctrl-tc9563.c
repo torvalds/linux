@@ -450,15 +450,22 @@ static int tc9563_pwrctrl_parse_device_dt(struct tc9563_pwrctrl *tc9563,
 	return 0;
 }
 
-static void tc9563_pwrctrl_power_off(struct tc9563_pwrctrl *tc9563)
+static int tc9563_pwrctrl_power_off(struct pci_pwrctrl *pwrctrl)
 {
+	struct tc9563_pwrctrl *tc9563 = container_of(pwrctrl,
+					    struct tc9563_pwrctrl, pwrctrl);
+
 	gpiod_set_value(tc9563->reset_gpio, 1);
 
 	regulator_bulk_disable(ARRAY_SIZE(tc9563->supplies), tc9563->supplies);
+
+	return 0;
 }
 
-static int tc9563_pwrctrl_bring_up(struct tc9563_pwrctrl *tc9563)
+static int tc9563_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
 {
+	struct tc9563_pwrctrl *tc9563 = container_of(pwrctrl,
+					    struct tc9563_pwrctrl, pwrctrl);
 	struct device *dev = tc9563->pwrctrl.dev;
 	struct tc9563_pwrctrl_cfg *cfg;
 	int ret, i;
@@ -520,7 +527,7 @@ static int tc9563_pwrctrl_bring_up(struct tc9563_pwrctrl *tc9563)
 		return 0;
 
 power_off:
-	tc9563_pwrctrl_power_off(tc9563);
+	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 	return ret;
 }
 
@@ -613,7 +620,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 			goto remove_i2c;
 	}
 
-	ret = tc9563_pwrctrl_bring_up(tc9563);
+	ret = tc9563_pwrctrl_power_on(&tc9563->pwrctrl);
 	if (ret)
 		goto remove_i2c;
 
@@ -622,6 +629,9 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 		if (ret)
 			goto power_off;
 	}
+
+	tc9563->pwrctrl.power_on = tc9563_pwrctrl_power_on;
+	tc9563->pwrctrl.power_off = tc9563_pwrctrl_power_off;
 
 	ret = devm_pci_pwrctrl_device_set_ready(dev, &tc9563->pwrctrl);
 	if (ret)
@@ -632,7 +642,7 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 	return 0;
 
 power_off:
-	tc9563_pwrctrl_power_off(tc9563);
+	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 remove_i2c:
 	i2c_unregister_device(tc9563->client);
 	put_device(&tc9563->adapter->dev);
@@ -643,7 +653,7 @@ static void tc9563_pwrctrl_remove(struct platform_device *pdev)
 {
 	struct tc9563_pwrctrl *tc9563 = platform_get_drvdata(pdev);
 
-	tc9563_pwrctrl_power_off(tc9563);
+	tc9563_pwrctrl_power_off(&tc9563->pwrctrl);
 	i2c_unregister_device(tc9563->client);
 	put_device(&tc9563->adapter->dev);
 }
