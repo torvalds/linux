@@ -385,7 +385,7 @@ static inline short get_vmcs12_field_offset(unsigned long field)
 	if (field >> 15)
 		return -ENOENT;
 
-	index = ROL16(field, 6);
+	index = ENC_TO_VMCS12_IDX(field);
 	if (index >= nr_vmcs12_fields)
 		return -ENOENT;
 

@@ -12,6 +12,7 @@
 #include "capabilities.h"
 
 #define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
+#define ENC_TO_VMCS12_IDX(enc) ROL16(enc, 6)
 
 struct vmcs_hdr {
 	u32 revision_id:31;
