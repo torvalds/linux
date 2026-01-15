@@ -569,6 +569,7 @@ static bool kvm_vcpu_should_clear_twi(struct kvm_vcpu *vcpu)
 		return kvm_wfi_trap_policy == KVM_WFX_NOTRAP;
 
 	return single_task_running() &&
+	       vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3 &&
 	       (atomic_read(&vcpu->arch.vgic_cpu.vgic_v3.its_vpe.vlpi_count) ||
 		vcpu->kvm->arch.vgic.nassgireq);
 }
