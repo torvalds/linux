@@ -516,6 +516,7 @@ static LIST_HEAD(freeing_list);
 
 static void kprobe_optimizer(struct work_struct *work);
 static DECLARE_DELAYED_WORK(optimizing_work, kprobe_optimizer);
+static void optimize_kprobe(struct kprobe *p);
 #define OPTIMIZE_DELAY 5
 
 /*
@@ -593,6 +594,17 @@ static void do_free_cleaned_kprobes(void)
 			 */
 			continue;
 		}
+
+		/*
+		 * The aggregator was holding back another probe while it sat on the
+		 * unoptimizing/freeing lists.  Now that the aggregator has been fully
+		 * reverted we can safely retry the optimization of that sibling.
+		 */
+
+		struct kprobe *_p = get_optimized_kprobe(op->kp.addr);
+		if (unlikely(_p))
+			optimize_kprobe(_p);
+
 		free_aggr_kprobe(&op->kp);
 	}
 }
@@ -1002,12 +1014,6 @@ static void __disarm_kprobe(struct kprobe *p, bool reopt)
 		if (unlikely(_p) && reopt)
 			optimize_kprobe(_p);
 	}
-	/*
-	 * TODO: Since unoptimization and real disarming will be done by
-	 * the worker thread, we can not check whether another probe are
-	 * unoptimized because of this probe here. It should be re-optimized
-	 * by the worker thread.
-	 */
 }
 
 #else /* !CONFIG_OPTPROBES */
