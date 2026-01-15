@@ -63,4 +63,14 @@ void netdev_rx_queue_lease(struct netdev_rx_queue *rxq_dst,
 			   struct netdev_rx_queue *rxq_src);
 void netdev_rx_queue_unlease(struct netdev_rx_queue *rxq_dst,
 			     struct netdev_rx_queue *rxq_src);
+bool netif_rx_queue_lease_get_owner(struct net_device **dev, unsigned int *rxq);
+
+enum netif_lease_dir {
+	NETIF_VIRT_TO_PHYS,
+	NETIF_PHYS_TO_VIRT,
+};
+
+struct netdev_rx_queue *
+__netif_get_rx_queue_lease(struct net_device **dev, unsigned int *rxq,
+			   enum netif_lease_dir dir);
 #endif /* _LINUX_NETDEV_RX_QUEUE_H */
