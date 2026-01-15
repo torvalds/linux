@@ -5,14 +5,13 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
-#include <kunit/platform_device.h>
 #include <kunit/resource.h>
 #include <kunit/test.h>
 #include <linux/device.h>
+#include <linux/device/devres.h>
 #include <linux/device/faux.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 
 #include "cirrus_scodec.h"
 
@@ -29,7 +28,7 @@ struct cirrus_scodec_test_gpio {
 
 struct cirrus_scodec_test_priv {
 	struct faux_device *amp_dev;
-	struct platform_device *gpio_pdev;
+	struct faux_device *gpio_dev;
 	struct cirrus_scodec_test_gpio *gpio_priv;
 };
 
@@ -92,59 +91,57 @@ static const struct gpio_chip cirrus_scodec_test_gpio_chip = {
 	.ngpio			= 32,
 };
 
-static int cirrus_scodec_test_gpio_probe(struct platform_device *pdev)
+/* software_node referencing the gpio driver */
+static const struct software_node cirrus_scodec_test_gpio_swnode = {
+	.name = "cirrus_scodec_test_gpio",
+};
+
+static int cirrus_scodec_test_gpio_probe(struct faux_device *fdev)
 {
 	struct cirrus_scodec_test_gpio *gpio_priv;
 	int ret;
 
-	gpio_priv = devm_kzalloc(&pdev->dev, sizeof(*gpio_priv), GFP_KERNEL);
+	gpio_priv = devm_kzalloc(&fdev->dev, sizeof(*gpio_priv), GFP_KERNEL);
 	if (!gpio_priv)
 		return -ENOMEM;
 
+	ret = device_add_software_node(&fdev->dev, &cirrus_scodec_test_gpio_swnode);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&fdev->dev, device_remove_software_node_wrapper,
+				       &fdev->dev);
+	if (ret)
+		return ret;
+
 	/* GPIO core modifies our struct gpio_chip so use a copy */
 	gpio_priv->chip = cirrus_scodec_test_gpio_chip;
-	gpio_priv->chip.parent = &pdev->dev;
-	ret = devm_gpiochip_add_data(&pdev->dev, &gpio_priv->chip, gpio_priv);
+	gpio_priv->chip.parent = &fdev->dev;
+	ret = devm_gpiochip_add_data(&fdev->dev, &gpio_priv->chip, gpio_priv);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to add gpiochip\n");
+		return dev_err_probe(&fdev->dev, ret, "Failed to add gpiochip\n");
 
-	dev_set_drvdata(&pdev->dev, gpio_priv);
+	dev_set_drvdata(&fdev->dev, gpio_priv);
 
 	return 0;
 }
 
-static struct platform_driver cirrus_scodec_test_gpio_driver = {
-	.driver.name	= "cirrus_scodec_test_gpio_drv",
-	.driver.owner	= THIS_MODULE,
+static const struct faux_device_ops cirrus_scodec_test_gpio_driver_ops = {
 	.probe		= cirrus_scodec_test_gpio_probe,
-};
-
-/* software_node referencing the gpio driver */
-static const struct software_node cirrus_scodec_test_gpio_swnode = {
-	.name = "cirrus_scodec_test_gpio",
 };
 
 static void cirrus_scodec_test_create_gpio(struct kunit *test)
 {
 	struct cirrus_scodec_test_priv *priv = test->priv;
 
-	KUNIT_ASSERT_EQ(test, 0,
-			kunit_platform_driver_register(test, &cirrus_scodec_test_gpio_driver));
-
-	priv->gpio_pdev = kunit_platform_device_alloc(test,
-						      cirrus_scodec_test_gpio_driver.driver.name,
-						      PLATFORM_DEVID_NONE);
-	KUNIT_ASSERT_NOT_NULL(test, priv->gpio_pdev);
-
-	KUNIT_ASSERT_EQ(test, 0, device_add_software_node(&priv->gpio_pdev->dev,
-							  &cirrus_scodec_test_gpio_swnode));
+	priv->gpio_dev = faux_device_create("cirrus_scodec_test_gpio_drv", NULL,
+					    &cirrus_scodec_test_gpio_driver_ops);
+	KUNIT_ASSERT_NOT_NULL(test, priv->gpio_dev);
 	KUNIT_ASSERT_EQ(test, 0, kunit_add_action_or_reset(test,
-							   device_remove_software_node_wrapper,
-							   &priv->gpio_pdev->dev));
+							   faux_device_destroy_wrapper,
+							   priv->gpio_dev));
 
-	KUNIT_ASSERT_EQ(test, 0, kunit_platform_device_add(test, priv->gpio_pdev));
-
-	priv->gpio_priv = dev_get_drvdata(&priv->gpio_pdev->dev);
+	priv->gpio_priv = dev_get_drvdata(&priv->gpio_dev->dev);
 	KUNIT_ASSERT_NOT_NULL(test, priv->gpio_priv);
 }
 
