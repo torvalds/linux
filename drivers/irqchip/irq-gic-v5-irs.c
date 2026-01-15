@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt)	"GICv5 IRS: " fmt
 
+#include <linux/acpi.h>
 #include <linux/kmemleak.h>
 #include <linux/log2.h>
 #include <linux/of.h>
@@ -833,3 +834,130 @@ int __init gicv5_irs_of_probe(struct device_node *parent)
 
 	return list_empty(&irs_nodes) ? -ENODEV : 0;
 }
+
+#ifdef CONFIG_ACPI
+
+#define ACPI_GICV5_IRS_MEM_SIZE (SZ_64K)
+static struct gicv5_irs_chip_data *current_irs_data __initdata;
+static int current_irsid __initdata = -1;
+static u8 current_iaffid_bits __initdata;
+
+static int __init gic_acpi_parse_iaffid(union acpi_subtable_headers *header,
+					const unsigned long end)
+{
+	struct acpi_madt_generic_interrupt *gicc = (struct acpi_madt_generic_interrupt *)header;
+	int cpu;
+
+	if (!(gicc->flags & (ACPI_MADT_ENABLED | ACPI_MADT_GICC_ONLINE_CAPABLE)))
+		return 0;
+
+	if (gicc->irs_id != current_irsid)
+		return 0;
+
+	cpu = get_logical_index(gicc->arm_mpidr);
+
+	if (gicc->iaffid & ~GENMASK(current_iaffid_bits - 1, 0)) {
+		pr_warn("CPU %d iaffid 0x%x exceeds IRS iaffid bits\n", cpu, gicc->iaffid);
+		return 0;
+	}
+
+	/* Bind the IAFFID and the CPU */
+	per_cpu(cpu_iaffid, cpu).iaffid = gicc->iaffid;
+	per_cpu(cpu_iaffid, cpu).valid = true;
+	pr_debug("Processed IAFFID %u for CPU%d", per_cpu(cpu_iaffid, cpu).iaffid, cpu);
+
+	/* We also know that the CPU is connected to this IRS */
+	per_cpu(per_cpu_irs_data, cpu) = current_irs_data;
+
+	return 0;
+}
+
+static int __init gicv5_irs_acpi_init_affinity(u32 irsid, struct gicv5_irs_chip_data *irs_data)
+{
+	u32 idr;
+
+	current_irsid = irsid;
+	current_irs_data = irs_data;
+
+	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
+	current_iaffid_bits = FIELD_GET(GICV5_IRS_IDR1_IAFFID_BITS, idr) + 1;
+
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GENERIC_INTERRUPT, gic_acpi_parse_iaffid, 0);
+
+	return 0;
+}
+
+static struct resource * __init gic_request_region(resource_size_t base, resource_size_t size,
+						   const char *name)
+{
+	struct resource *r = request_mem_region(base, size, name);
+
+	if (!r)
+		pr_warn_once(FW_BUG "%s region %pa has overlapping address\n", name, &base);
+
+	return r;
+}
+
+static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
+					  const unsigned long end)
+{
+	struct acpi_madt_gicv5_irs *irs = (struct acpi_madt_gicv5_irs *)header;
+	struct gicv5_irs_chip_data *irs_data;
+	void __iomem *irs_base;
+	struct resource *r;
+	int ret;
+
+	/* Per-IRS data structure */
+	irs_data = kzalloc(sizeof(*irs_data), GFP_KERNEL);
+	if (!irs_data)
+		return -ENOMEM;
+
+	/* This spinlock is used for SPI config changes */
+	raw_spin_lock_init(&irs_data->spi_config_lock);
+
+	r = gic_request_region(irs->config_base_address, ACPI_GICV5_IRS_MEM_SIZE, "GICv5 IRS");
+	if (!r) {
+		ret = -EBUSY;
+		goto out_free;
+	}
+
+	irs_base = ioremap(irs->config_base_address, ACPI_GICV5_IRS_MEM_SIZE);
+	if (!irs_base) {
+		pr_err("Unable to map GIC IRS registers\n");
+		ret = -ENOMEM;
+		goto out_release;
+	}
+
+	gicv5_irs_init_bases(irs_data, irs_base, irs->flags & ACPI_MADT_IRS_NON_COHERENT);
+
+	gicv5_irs_acpi_init_affinity(irs->irs_id, irs_data);
+
+	ret = gicv5_irs_init(irs_data);
+	if (ret)
+		goto out_map;
+
+	if (irs_data->spi_range) {
+		pr_info("%s @%llx detected SPI range [%u-%u]\n", "IRS", irs->config_base_address,
+									irs_data->spi_min,
+									irs_data->spi_min +
+									irs_data->spi_range - 1);
+	}
+
+	return 0;
+
+out_map:
+	iounmap(irs_base);
+out_release:
+	release_mem_region(r->start, resource_size(r));
+out_free:
+	kfree(irs_data);
+	return ret;
+}
+
+int __init gicv5_irs_acpi_probe(void)
+{
+	acpi_table_parse_madt(ACPI_MADT_TYPE_GICV5_IRS, gic_acpi_parse_madt_irs, 0);
+
+	return list_empty(&irs_nodes) ? -ENODEV : 0;
+}
+#endif
