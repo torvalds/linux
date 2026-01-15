@@ -5137,7 +5137,7 @@ static void mlx5e_tx_timeout_work(struct work_struct *work)
 			netdev_get_tx_queue(netdev, i);
 		struct mlx5e_txqsq *sq = priv->txq2sq[i];
 
-		if (!netif_xmit_stopped(dev_queue))
+		if (!netif_xmit_timeout_ms(dev_queue))
 			continue;
 
 		if (mlx5e_reporter_tx_timeout(sq))
