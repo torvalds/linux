@@ -602,7 +602,7 @@ static int rzv2h_cpg_pll_set_rate(struct pll_clk *pll_clk,
 					val, !(val & CPG_PLL_MON_LOCK),
 					100, 2000);
 	if (ret) {
-		dev_err(priv->dev, "Failed to put PLLDSI into standby mode");
+		dev_err(priv->dev, "Failed to put PLLDSI into standby mode\n");
 		return ret;
 	}
 
@@ -630,7 +630,7 @@ static int rzv2h_cpg_pll_set_rate(struct pll_clk *pll_clk,
 					val, (val & CPG_PLL_MON_LOCK),
 					100, 2000);
 	if (ret) {
-		dev_err(priv->dev, "Failed to put PLLDSI into normal mode");
+		dev_err(priv->dev, "Failed to put PLLDSI into normal mode\n");
 		return ret;
 	}
 
@@ -1013,7 +1013,7 @@ static struct clk
 	}
 
 	if (IS_ERR(clk))
-		dev_err(dev, "Cannot get %s clock %u: %ld", type, clkidx,
+		dev_err(dev, "Cannot get %s clock %u: %ld\n", type, clkidx,
 			PTR_ERR(clk));
 	else
 		dev_dbg(dev, "clock (%u, %u) is %pC at %lu Hz\n",
