@@ -57,7 +57,8 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu)
 int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 		    struct posix_acl *acl, int type)
 {
-	int ret, size = 0;
+	int ret;
+	size_t size = 0;
 	const char *name;
 	char AUTO_KFREE(value);
 
@@ -77,20 +78,15 @@ int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
 	if (acl) {
 		unsigned int nofs_flag;
 
-		size = posix_acl_xattr_size(acl->a_count);
 		/*
 		 * We're holding a transaction handle, so use a NOFS memory
 		 * allocation context to avoid deadlock if reclaim happens.
 		 */
 		nofs_flag = memalloc_nofs_save();
-		value = kmalloc(size, GFP_KERNEL);
+		value = posix_acl_to_xattr(&init_user_ns, acl, &size, GFP_KERNEL);
 		memalloc_nofs_restore(nofs_flag);
 		if (!value)
 			return -ENOMEM;
-
-		ret = posix_acl_to_xattr(&init_user_ns, acl, value, size);
-		if (ret < 0)
-			return ret;
 	}
 
 	if (trans)
