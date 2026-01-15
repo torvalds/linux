@@ -183,6 +183,78 @@ out_err:
 	return ERR_PTR(ret);
 }
 
+static void set_dte_nested(struct amd_iommu *iommu, struct iommu_domain *dom,
+			   struct iommu_dev_data *dev_data, struct dev_table_entry *new)
+{
+	struct protection_domain *parent;
+	struct nested_domain *ndom = to_ndomain(dom);
+	struct iommu_hwpt_amd_guest *gdte = &ndom->gdte;
+	struct pt_iommu_amdv1_hw_info pt_info;
+
+	/*
+	 * The nest parent domain is attached during the call to the
+	 * struct iommu_ops.viommu_init(), which will be stored as part
+	 * of the struct amd_iommu_viommu.parent.
+	 */
+	if (WARN_ON(!ndom->viommu || !ndom->viommu->parent))
+		return;
+
+	parent = ndom->viommu->parent;
+	amd_iommu_make_clear_dte(dev_data, new);
+
+	/* Retrieve the current pagetable info via the IOMMU PT API. */
+	pt_iommu_amdv1_hw_info(&parent->amdv1, &pt_info);
+
+	/*
+	 * Use domain ID from nested domain to program DTE.
+	 * See amd_iommu_alloc_domain_nested().
+	 */
+	amd_iommu_set_dte_v1(dev_data, parent, ndom->gdom_info->hdom_id,
+			     &pt_info, new);
+
+	/* GV is required for nested page table */
+	new->data[0] |= DTE_FLAG_GV;
+
+	/* Guest PPR */
+	new->data[0] |= gdte->dte[0] & DTE_FLAG_PPR;
+
+	/* Guest translation stuff */
+	new->data[0] |= gdte->dte[0] & (DTE_GLX | DTE_FLAG_GIOV);
+
+	/* GCR3 table */
+	new->data[0] |= gdte->dte[0] & DTE_GCR3_14_12;
+	new->data[1] |= gdte->dte[1] & (DTE_GCR3_30_15 | DTE_GCR3_51_31);
+
+	/* Guest paging mode */
+	new->data[2] |= gdte->dte[2] & DTE_GPT_LEVEL_MASK;
+}
+
+static int nested_attach_device(struct iommu_domain *dom, struct device *dev,
+				struct iommu_domain *old)
+{
+	struct dev_table_entry new = {0};
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+	int ret = 0;
+
+	/*
+	 * Needs to make sure PASID is not enabled
+	 * for this attach path.
+	 */
+	if (WARN_ON(dev_data->pasid_enabled))
+		return -EINVAL;
+
+	mutex_lock(&dev_data->mutex);
+
+	set_dte_nested(iommu, dom, dev_data, &new);
+
+	amd_iommu_update_dte(iommu, dev_data, &new);
+
+	mutex_unlock(&dev_data->mutex);
+
+	return ret;
+}
+
 static void nested_domain_free(struct iommu_domain *dom)
 {
 	struct guest_domain_mapping_info *curr;
@@ -217,5 +289,6 @@ static void nested_domain_free(struct iommu_domain *dom)
 }
 
 static const struct iommu_domain_ops nested_domain_ops = {
+	.attach_dev = nested_attach_device,
 	.free = nested_domain_free,
 };
