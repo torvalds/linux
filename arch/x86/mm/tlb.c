@@ -401,6 +401,7 @@ static void use_global_asid(struct mm_struct *mm)
 	mm_assign_global_asid(mm, asid);
 }
 
+#ifdef CONFIG_BROADCAST_TLB_FLUSH
 void mm_free_global_asid(struct mm_struct *mm)
 {
 	if (!cpu_feature_enabled(X86_FEATURE_INVLPGB))
@@ -412,13 +413,12 @@ void mm_free_global_asid(struct mm_struct *mm)
 	guard(raw_spinlock_irqsave)(&global_asid_lock);
 
 	/* The global ASID can be re-used only after flush at wrap-around. */
-#ifdef CONFIG_BROADCAST_TLB_FLUSH
 	__set_bit(mm->context.global_asid, global_asid_freed);
 
 	mm->context.global_asid = 0;
 	global_asid_available++;
-#endif
 }
+#endif
 
 /*
  * Is the mm transitioning from a CPU-local ASID to a global ASID?
