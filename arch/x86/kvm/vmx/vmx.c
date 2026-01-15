@@ -8700,8 +8700,6 @@ __init int vmx_hardware_setup(void)
 	 * can hide/show features based on kvm_cpu_cap_has().
 	 */
 	if (nested) {
-		nested_vmx_setup_ctls_msrs(&vmcs_config, vmx_capability.ept);
-
 		r = nested_vmx_hardware_setup(kvm_vmx_exit_handlers);
 		if (r)
 			return r;
