@@ -332,7 +332,6 @@ static int cpuhp_topology_online(unsigned int cpu)
 	 * may use different source of the freq scale.
 	 */
 	if (!freq_counters_valid(cpu)) {
-		pr_warn("CPU[%u] doesn't support AMU counters\n", cpu);
 		topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH,
 						 policy->related_cpus);
 		cpumask_andnot(amu_fie_cpus, amu_fie_cpus, policy->related_cpus);
