@@ -19,6 +19,7 @@ properties:
           - enum:
               - qcom,dsi-phy-7nm
               - qcom,dsi-phy-7nm-8150
+              - qcom,kaanapali-dsi-phy-3nm
               - qcom,sa8775p-dsi-phy-5nm
               - qcom,sar2130p-dsi-phy-5nm
               - qcom,sc7280-dsi-phy-7nm
