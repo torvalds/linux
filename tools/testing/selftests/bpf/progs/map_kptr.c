@@ -487,6 +487,24 @@ int test_map_kptr_ref3(struct __sk_buff *ctx)
 	return 0;
 }
 
+int num_of_refs;
+
+SEC("syscall")
+int count_ref(void *ctx)
+{
+	struct prog_test_ref_kfunc *p;
+	unsigned long arg = 0;
+
+	p = bpf_kfunc_call_test_acquire(&arg);
+	if (!p)
+		return 1;
+
+	num_of_refs = p->cnt.refs.counter;
+
+	bpf_kfunc_call_test_release(p);
+	return 0;
+}
+
 SEC("syscall")
 int test_ls_map_kptr_ref1(void *ctx)
 {
