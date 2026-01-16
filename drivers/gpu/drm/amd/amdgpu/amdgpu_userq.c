@@ -885,11 +885,27 @@ static int amdgpu_userq_input_args_validate(struct drm_device *dev,
 	return 0;
 }
 
+bool amdgpu_userq_enabled(struct drm_device *dev)
+{
+	struct amdgpu_device *adev = drm_to_adev(dev);
+	int i;
+
+	for (i = 0; i < AMDGPU_HW_IP_NUM; i++) {
+		if (adev->userq_funcs[i])
+			return true;
+	}
+
+	return false;
+}
+
 int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *filp)
 {
 	union drm_amdgpu_userq *args = data;
 	int r;
+
+	if (!amdgpu_userq_enabled(dev))
+		return -ENOTSUPP;
 
 	if (amdgpu_userq_input_args_validate(dev, args, filp) < 0)
 		return -EINVAL;

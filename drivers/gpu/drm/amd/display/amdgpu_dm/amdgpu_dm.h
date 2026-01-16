@@ -59,7 +59,10 @@
 
 #define AMDGPU_HDR_MULT_DEFAULT (0x100000000LL)
 
-#define AMDGPU_DM_HDMI_HPD_DEBOUNCE_MS 1500
+/*
+ * Maximum HDMI HPD debounce delay in milliseconds
+ */
+#define AMDGPU_DM_MAX_HDMI_HPD_DEBOUNCE_MS 5000
 /*
 #include "include/amdgpu_dal_power_if.h"
 #include "amdgpu_dm_irq.h"
