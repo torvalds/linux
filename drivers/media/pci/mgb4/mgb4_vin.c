@@ -50,6 +50,11 @@ static const struct i2c_board_info gmsl3_deser_info[] = {
 	{I2C_BOARD_INFO("deserializer2", 0x2A)},
 };
 
+static const struct i2c_board_info gmsl3c_deser_info[] = {
+	{I2C_BOARD_INFO("deserializer1", 0x6A)},
+	{I2C_BOARD_INFO("deserializer2", 0x6C)},
+};
+
 static const struct i2c_board_info gmsl1_deser_info[] = {
 	{I2C_BOARD_INFO("deserializer1", 0x2C)},
 	{I2C_BOARD_INFO("deserializer2", 0x6C)},
@@ -65,6 +70,13 @@ static const struct mgb4_i2c_kv gmsl3_i2c[] = {
 	{0x1CE, 0x0E, 0x0E}, {0x11, 0x05, 0x00}, {0x05, 0xC0, 0x40},
 	{0x307, 0x0F, 0x00}, {0xA0, 0x03, 0x00}, {0x3E0, 0x07, 0x07},
 	{0x308, 0x01, 0x01}, {0x10, 0x20, 0x20}, {0x300, 0x40, 0x40}
+};
+
+static const struct mgb4_i2c_kv gmsl3c_i2c[] = {
+	{0x01, 0x03, 0x02}, {0x300, 0x0C, 0x08}, {0x03, 0xC0, 0x00},
+	{0x1CE, 0x0E, 0x0E}, {0x11, 0x05, 0x05}, {0x05, 0xC0, 0x40},
+	{0x307, 0x0F, 0x00}, {0xA0, 0x03, 0x00}, {0x3E0, 0x07, 0x00},
+	{0x308, 0x01, 0x00}, {0x10, 0x20, 0x20}, {0x300, 0x40, 0x40}
 };
 
 static const struct mgb4_i2c_kv gmsl1_i2c[] = {
@@ -812,10 +824,17 @@ static int deser_init(struct mgb4_vin_dev *vindev, int id)
 	struct device *dev = &vindev->mgbdev->pdev->dev;
 
 	if (MGB4_IS_GMSL3(vindev->mgbdev)) {
-		info = &gmsl3_deser_info[id];
-		addr_size = 16;
-		values = gmsl3_i2c;
-		count = ARRAY_SIZE(gmsl3_i2c);
+		if (MGB4_IS_GMSL3C(vindev->mgbdev)) {
+			info = &gmsl3c_deser_info[id];
+			addr_size = 16;
+			values = gmsl3c_i2c;
+			count = ARRAY_SIZE(gmsl3c_i2c);
+		} else {
+			info = &gmsl3_deser_info[id];
+			addr_size = 16;
+			values = gmsl3_i2c;
+			count = ARRAY_SIZE(gmsl3_i2c);
+		}
 	} else if (MGB4_IS_FPDL3(vindev->mgbdev)) {
 		info = &fpdl3_deser_info[id];
 		addr_size = 8;
