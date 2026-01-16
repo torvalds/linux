@@ -886,7 +886,7 @@ static int fluke_generic_attach(struct gpib_board *board)
 	board->status = 0;
 
 	retval = fluke_allocate_private(board);
-	if (retval < 0)
+	if (retval)
 		return retval;
 	e_priv = board->private_data;
 	nec_priv = &e_priv->nec7210_priv;
