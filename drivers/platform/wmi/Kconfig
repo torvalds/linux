@@ -31,4 +31,6 @@ config ACPI_WMI_LEGACY_DEVICE_NAMES
 	  userspace applications but will cause the registration of WMI devices with
 	  the same GUID to fail in some corner cases.
 
+source "drivers/platform/wmi/tests/Kconfig"
+
 endif # ACPI_WMI

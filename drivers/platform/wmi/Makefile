@@ -6,3 +6,6 @@
 
 wmi-y			:= core.o marshalling.o
 obj-$(CONFIG_ACPI_WMI)	+= wmi.o
+
+# Unit tests
+obj-y			+= tests/
