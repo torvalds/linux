@@ -16846,8 +16846,8 @@ static void collect_linked_regs(struct bpf_verifier_state *vstate, u32 id,
 /* For all R in linked_regs, copy known_reg range into R
  * if R->id == known_reg->id.
  */
-static void sync_linked_regs(struct bpf_verifier_state *vstate, struct bpf_reg_state *known_reg,
-			     struct linked_regs *linked_regs)
+static void sync_linked_regs(struct bpf_verifier_env *env, struct bpf_verifier_state *vstate,
+			     struct bpf_reg_state *known_reg, struct linked_regs *linked_regs)
 {
 	struct bpf_reg_state fake_reg;
 	struct bpf_reg_state *reg;
@@ -16890,6 +16890,10 @@ static void sync_linked_regs(struct bpf_verifier_state *vstate, struct bpf_reg_s
 			scalar_min_max_add(reg, &fake_reg);
 			reg->var_off = tnum_add(reg->var_off, fake_reg.var_off);
 		}
+		if (e->is_reg)
+			mark_reg_scratched(env, e->regno);
+		else
+			mark_stack_slot_scratched(env, e->spi);
 	}
 }
 
@@ -17076,13 +17080,15 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	if (BPF_SRC(insn->code) == BPF_X &&
 	    src_reg->type == SCALAR_VALUE && src_reg->id &&
 	    !WARN_ON_ONCE(src_reg->id != other_branch_regs[insn->src_reg].id)) {
-		sync_linked_regs(this_branch, src_reg, &linked_regs);
-		sync_linked_regs(other_branch, &other_branch_regs[insn->src_reg], &linked_regs);
+		sync_linked_regs(env, this_branch, src_reg, &linked_regs);
+		sync_linked_regs(env, other_branch, &other_branch_regs[insn->src_reg],
+				 &linked_regs);
 	}
 	if (dst_reg->type == SCALAR_VALUE && dst_reg->id &&
 	    !WARN_ON_ONCE(dst_reg->id != other_branch_regs[insn->dst_reg].id)) {
-		sync_linked_regs(this_branch, dst_reg, &linked_regs);
-		sync_linked_regs(other_branch, &other_branch_regs[insn->dst_reg], &linked_regs);
+		sync_linked_regs(env, this_branch, dst_reg, &linked_regs);
+		sync_linked_regs(env, other_branch, &other_branch_regs[insn->dst_reg],
+				 &linked_regs);
 	}
 
 	/* if one pointer register is compared to another pointer
