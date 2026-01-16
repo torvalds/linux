@@ -2577,17 +2577,14 @@ err_out:
 		folio_end_read(folio, !ret);
 		return ret;
 	}
-
+out:
+	f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
 	if (ret) {
-		f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
-
 		/* Wait bios and clear uptodate. */
 		folio_lock(folio);
 		folio_clear_uptodate(folio);
 		folio_unlock(folio);
 	}
-out:
-	f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
 	return ret;
 }
 
