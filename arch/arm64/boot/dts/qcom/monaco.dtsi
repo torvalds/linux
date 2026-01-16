@@ -4740,10 +4740,20 @@
 			interconnect-names = "sdhc-ddr",
 					     "cpu-sdhc";
 
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc1_state_on>;
+			pinctrl-1 = <&sdc1_state_off>;
+
 			qcom,dll-config = <0x000f64ee>;
 			qcom,ddr-config = <0x80040868>;
+			bus-width = <8>;
 			supports-cqe;
 			dma-coherent;
+
+			mmc-ddr-1_8v;
+			mmc-hs200-1_8v;
+			mmc-hs400-1_8v;
+			mmc-hs400-enhanced-strobe;
 
 			status = "disabled";
 
