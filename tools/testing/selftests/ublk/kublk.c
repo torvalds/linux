@@ -455,6 +455,7 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned long long extra_flags,
 	int cmd_buf_size, io_buf_size, integrity_size;
 	unsigned long off;
 
+	pthread_spin_init(&q->lock, PTHREAD_PROCESS_PRIVATE);
 	q->tgt_ops = dev->tgt.ops;
 	q->flags = 0;
 	q->q_depth = depth;
@@ -521,7 +522,7 @@ static int ublk_thread_init(struct ublk_thread *t, unsigned long long extra_flag
 
 	/* FETCH_IO_CMDS is multishot, so increase cq depth for BATCH_IO */
 	if (ublk_dev_batch_io(dev))
-		cq_depth += dev->dev_info.queue_depth;
+		cq_depth += dev->dev_info.queue_depth * 2;
 
 	ret = ublk_setup_ring(&t->ring, ring_depth, cq_depth,
 			IORING_SETUP_COOP_TASKRUN |
@@ -957,6 +958,7 @@ struct ublk_thread_info {
 	sem_t 			*ready;
 	cpu_set_t 		*affinity;
 	unsigned long long	extra_flags;
+	unsigned char		(*q_thread_map)[UBLK_MAX_QUEUES];
 };
 
 static void ublk_thread_set_sched_affinity(const struct ublk_thread_info *info)
@@ -970,14 +972,18 @@ static void ublk_batch_setup_queues(struct ublk_thread *t)
 {
 	int i;
 
-	/* setup all queues in the 1st thread */
 	for (i = 0; i < t->dev->dev_info.nr_hw_queues; i++) {
 		struct ublk_queue *q = &t->dev->q[i];
 		int ret;
 
+		/*
+		 * Only prepare io commands in the mapped thread context,
+		 * otherwise io command buffer index may not work as expected
+		 */
+		if (t->q_map[i] == 0)
+			continue;
+
 		ret = ublk_batch_queue_prep_io_cmds(t, q);
-		ublk_assert(ret == 0);
-		ret = ublk_process_io(t);
 		ublk_assert(ret >= 0);
 	}
 }
@@ -990,6 +996,10 @@ static __attribute__((noinline)) int __ublk_io_handler_fn(struct ublk_thread_inf
 	};
 	int dev_id = info->dev->dev_info.dev_id;
 	int ret;
+
+	/* Copy per-thread queue mapping into thread-local variable */
+	if (info->q_thread_map)
+		memcpy(t.q_map, info->q_thread_map[info->idx], sizeof(t.q_map));
 
 	ret = ublk_thread_init(&t, info->extra_flags);
 	if (ret) {
@@ -1006,12 +1016,8 @@ static __attribute__((noinline)) int __ublk_io_handler_fn(struct ublk_thread_inf
 		/* submit all io commands to ublk driver */
 		ublk_submit_fetch_commands(&t);
 	} else {
-		struct ublk_queue *q = &t.dev->q[t.idx];
-
-		/* prepare all io commands in the 1st thread context */
-		if (!t.idx)
-			ublk_batch_setup_queues(&t);
-		ublk_batch_start_fetch(&t, q);
+		ublk_batch_setup_queues(&t);
+		ublk_batch_start_fetch(&t);
 	}
 
 	do {
@@ -1085,6 +1091,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	struct ublk_thread_info *tinfo;
 	unsigned long long extra_flags = 0;
 	cpu_set_t *affinity_buf;
+	unsigned char (*q_thread_map)[UBLK_MAX_QUEUES] = NULL;
 	void *thread_ret;
 	sem_t ready;
 	int ret, i;
@@ -1103,6 +1110,16 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	ret = ublk_ctrl_get_affinity(dev, &affinity_buf);
 	if (ret)
 		return ret;
+
+	if (ublk_dev_batch_io(dev)) {
+		q_thread_map = calloc(dev->nthreads, sizeof(*q_thread_map));
+		if (!q_thread_map) {
+			ret = -ENOMEM;
+			goto fail;
+		}
+		ublk_batch_setup_map(q_thread_map, dev->nthreads,
+				     dinfo->nr_hw_queues);
+	}
 
 	if (ctx->auto_zc_fallback)
 		extra_flags = UBLKS_Q_AUTO_BUF_REG_FALLBACK;
@@ -1127,6 +1144,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		tinfo[i].idx = i;
 		tinfo[i].ready = &ready;
 		tinfo[i].extra_flags = extra_flags;
+		tinfo[i].q_thread_map = q_thread_map;
 
 		/*
 		 * If threads are not tied 1:1 to queues, setting thread
@@ -1146,6 +1164,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	for (i = 0; i < dev->nthreads; i++)
 		sem_wait(&ready);
 	free(affinity_buf);
+	free(q_thread_map);
 
 	/* everything is fine now, start us */
 	if (ctx->recovery)
@@ -1314,7 +1333,8 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 		goto fail;
 	}
 
-	if (nthreads != nr_queues && !ctx->per_io_tasks) {
+	if (nthreads != nr_queues && (!ctx->per_io_tasks &&
+				!(ctx->flags & UBLK_F_BATCH_IO))) {
 		ublk_err("%s: threads %u must be same as queues %u if "
 			"not using per_io_tasks\n",
 			__func__, nthreads, nr_queues);
@@ -1937,6 +1957,13 @@ int main(int argc, char *argv[])
 		   ctx.csum_type != LBMD_PI_CSUM_NONE ||
 		   ctx.tag_size) {
 		ublk_err("integrity parameters require metadata_size\n");
+		return -EINVAL;
+	}
+
+	if ((ctx.flags & UBLK_F_AUTO_BUF_REG) &&
+			(ctx.flags & UBLK_F_BATCH_IO) &&
+			(ctx.nthreads > ctx.nr_hw_queues)) {
+		ublk_err("too many threads for F_AUTO_BUF_REG & F_BATCH_IO\n");
 		return -EINVAL;
 	}
 

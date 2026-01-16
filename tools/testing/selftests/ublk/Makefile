@@ -26,6 +26,8 @@ TEST_PROGS += test_generic_15.sh
 TEST_PROGS += test_generic_16.sh
 
 TEST_PROGS += test_batch_01.sh
+TEST_PROGS += test_batch_02.sh
+TEST_PROGS += test_batch_03.sh
 
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh
