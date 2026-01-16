@@ -444,7 +444,6 @@ EXPORT_SYMBOL_GPL(ufshcd_mcq_config_esi);
 
 int ufshcd_mcq_init(struct ufs_hba *hba)
 {
-	struct Scsi_Host *host = hba->host;
 	struct ufs_hw_queue *hwq;
 	int ret, i;
 
@@ -478,7 +477,6 @@ int ufshcd_mcq_init(struct ufs_hba *hba)
 		mutex_init(&hwq->sq_mutex);
 	}
 
-	host->host_tagset = 1;
 	return 0;
 }
 
