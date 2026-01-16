@@ -2314,6 +2314,8 @@ struct mpi3_device0_sas_sata_format {
 	u8         attached_phy_identifier;
 	u8         max_port_connections;
 	u8         zone_group;
+	u8         reserved10[3];
+	u8         negotiated_link_rate;
 };
 
 #define MPI3_DEVICE0_SASSATA_FLAGS_WRITE_SAME_UNMAP_NCQ (0x0400)
