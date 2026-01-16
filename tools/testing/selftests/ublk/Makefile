@@ -25,6 +25,8 @@ TEST_PROGS += test_generic_14.sh
 TEST_PROGS += test_generic_15.sh
 TEST_PROGS += test_generic_16.sh
 
+TEST_PROGS += test_batch_01.sh
+
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh
 TEST_PROGS += test_null_03.sh
@@ -51,6 +53,8 @@ TEST_PROGS += test_stress_04.sh
 TEST_PROGS += test_stress_05.sh
 TEST_PROGS += test_stress_06.sh
 TEST_PROGS += test_stress_07.sh
+TEST_PROGS += test_stress_08.sh
+TEST_PROGS += test_stress_09.sh
 
 TEST_FILES := settings
 
