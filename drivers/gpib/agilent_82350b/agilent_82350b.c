@@ -599,8 +599,9 @@ static int agilent_82350b_generic_attach(struct gpib_board *board,
 
 	board->status = 0;
 
-	if (agilent_82350b_allocate_private(board))
-		return -ENOMEM;
+	retval = agilent_82350b_allocate_private(board);
+	if (retval)
+		return retval;
 	a_priv = board->private_data;
 	a_priv->using_fifos = use_fifos;
 	tms_priv = &a_priv->tms9914_priv;
