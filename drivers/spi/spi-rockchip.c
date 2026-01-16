@@ -805,8 +805,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_put_ctlr;
 
-	ret = devm_request_threaded_irq(&pdev->dev, ret, rockchip_spi_isr, NULL,
-					IRQF_ONESHOT, dev_name(&pdev->dev), ctlr);
+	ret = devm_request_irq(&pdev->dev, ret, rockchip_spi_isr, 0,
+			       dev_name(&pdev->dev), ctlr);
 	if (ret)
 		goto err_put_ctlr;
 
