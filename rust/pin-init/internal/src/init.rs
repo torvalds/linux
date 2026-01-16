@@ -414,17 +414,12 @@ fn make_field_check(
             #[allow(unreachable_code, clippy::diverging_sub_expression, unused_assignments)]
             // SAFETY: this code is never executed.
             let _ = || unsafe {
-                let mut zeroed = ::core::mem::zeroed();
-                // We have to use type inference here to make zeroed have the correct type. This
-                // does not get executed, so it has no effect.
-                ::core::ptr::write(slot, zeroed);
-                zeroed = ::core::mem::zeroed();
                 ::core::ptr::write(slot, #path {
                     #(
                         #(#field_attrs)*
                         #field_name: ::core::panic!(),
                     )*
-                    ..zeroed
+                    ..::core::mem::zeroed()
                 })
             };
         },
