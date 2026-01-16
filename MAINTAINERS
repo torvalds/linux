@@ -9304,12 +9304,12 @@ M:	Lukasz Luba <lukasz.luba@arm.com>
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
-F:	kernel/power/energy_model.c
-F:	include/linux/energy_model.h
+F:	Documentation/netlink/specs/dev-energymodel.yaml
 F:	Documentation/power/energy-model.rst
-F:	Documentation/netlink/specs/em.yaml
-F:	include/uapi/linux/energy_model.h
+F:	include/linux/energy_model.h
+F:	include/uapi/linux/dev_energymodel.h
 F:	kernel/power/em_netlink*.*
+F:	kernel/power/energy_model.c
 
 EPAPR HYPERVISOR BYTE CHANNEL DEVICE DRIVER
 M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
