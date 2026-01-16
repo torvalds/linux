@@ -825,7 +825,7 @@ static void ublk_handle_uring_cmd(struct ublk_thread *t,
 	}
 
 	if (cqe->res == UBLK_IO_RES_OK) {
-		assert(tag < q->q_depth);
+		ublk_assert(tag < q->q_depth);
 
 		if (ublk_queue_use_user_copy(q))
 			ublk_user_copy(io, UBLK_IO_OP_WRITE);
