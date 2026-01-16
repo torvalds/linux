@@ -5475,8 +5475,10 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (retval < 0)
 		goto id_alloc_failed;
 	mrioc->id = (u8)retval;
-	sprintf(mrioc->driver_name, "%s", MPI3MR_DRIVER_NAME);
-	sprintf(mrioc->name, "%s%d", mrioc->driver_name, mrioc->id);
+	strscpy(mrioc->driver_name, MPI3MR_DRIVER_NAME,
+	    sizeof(mrioc->driver_name));
+	scnprintf(mrioc->name, sizeof(mrioc->name),
+	    "%s%u", mrioc->driver_name, mrioc->id);
 	INIT_LIST_HEAD(&mrioc->list);
 	spin_lock(&mrioc_list_lock);
 	list_add_tail(&mrioc->list, &mrioc_list);

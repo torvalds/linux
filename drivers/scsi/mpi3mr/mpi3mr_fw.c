@@ -776,8 +776,8 @@ static inline int mpi3mr_request_irq(struct mpi3mr_ioc *mrioc, u16 index)
 	intr_info->msix_index = index;
 	intr_info->op_reply_q = NULL;
 
-	snprintf(intr_info->name, MPI3MR_NAME_LENGTH, "%s%d-msix%d",
-	    mrioc->driver_name, mrioc->id, index);
+	scnprintf(intr_info->name, MPI3MR_NAME_LENGTH,
+	    "%.32s%d-msix%u", mrioc->driver_name, mrioc->id, index);
 
 #ifndef CONFIG_PREEMPT_RT
 	retval = request_threaded_irq(pci_irq_vector(pdev, index), mpi3mr_isr,
@@ -1789,7 +1789,7 @@ static int mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type,
 	scratch_pad0 = ((MPI3MR_RESET_REASON_OSTYPE_LINUX <<
 	    MPI3MR_RESET_REASON_OSTYPE_SHIFT) | (mrioc->facts.ioc_num <<
 	    MPI3MR_RESET_REASON_IOCNUM_SHIFT) | reset_reason);
-	writel(reset_reason, &mrioc->sysif_regs->scratchpad[0]);
+	writel(scratch_pad0, &mrioc->sysif_regs->scratchpad[0]);
 	if (reset_type == MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT)
 		mpi3mr_set_diagsave(mrioc);
 	writel(host_diagnostic | reset_type,
