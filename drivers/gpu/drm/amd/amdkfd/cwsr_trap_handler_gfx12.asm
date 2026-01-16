@@ -547,7 +547,7 @@ L_SAVE_HWREG:
 	s_or_b32	s_save_state_priv, s_save_state_priv, s_save_tmp
 
 	write_hwreg_to_v2(s_save_pc_lo)
-	s_andn2_b32	s_save_tmp, s_save_pc_hi, S_SAVE_PC_HI_FIRST_WAVE_MASK
+	s_and_b32       s_save_tmp, s_save_pc_hi, ADDRESS_HI32_MASK
 	write_hwreg_to_v2(s_save_tmp)
 	write_hwreg_to_v2(s_save_exec_lo)
 #if WAVE32_ONLY
