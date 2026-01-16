@@ -1327,6 +1327,7 @@ end
 function restore_sched_mode(s_tmp)
 	s_bfe_u32	s_tmp, ttmp11, (TTMP11_SCHED_MODE_SHIFT | (TTMP11_SCHED_MODE_SIZE << 0x10))
 	s_setreg_b32	hwreg(HW_REG_WAVE_SCHED_MODE), s_tmp
+end
 
 function restore_barrier_signal_count(barrier_id)
 	// extract the saved signal count from s_restore_tmp
