@@ -1975,16 +1975,22 @@ static blk_status_t ublk_prep_req(struct ublk_queue *ubq, struct request *rq,
 	return BLK_STS_OK;
 }
 
-static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
-		const struct blk_mq_queue_data *bd)
+/*
+ * Common helper for queue_rq that handles request preparation and
+ * cancellation checks. Returns status and sets should_queue to indicate
+ * whether the caller should proceed with queuing the request.
+ */
+static inline blk_status_t __ublk_queue_rq_common(struct ublk_queue *ubq,
+						   struct request *rq,
+						   bool *should_queue)
 {
-	struct ublk_queue *ubq = hctx->driver_data;
-	struct request *rq = bd->rq;
 	blk_status_t res;
 
 	res = ublk_prep_req(ubq, rq, false);
-	if (res != BLK_STS_OK)
+	if (res != BLK_STS_OK) {
+		*should_queue = false;
 		return res;
+	}
 
 	/*
 	 * ->canceling has to be handled after ->force_abort and ->fail_io
@@ -1992,14 +1998,44 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	 * of recovery, and cause hang when deleting disk
 	 */
 	if (unlikely(ubq->canceling)) {
+		*should_queue = false;
 		__ublk_abort_rq(ubq, rq);
 		return BLK_STS_OK;
 	}
 
-	if (ublk_support_batch_io(ubq))
-		ublk_batch_queue_cmd(ubq, rq, bd->last);
-	else
-		ublk_queue_cmd(ubq, rq);
+	*should_queue = true;
+	return BLK_STS_OK;
+}
+
+static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct ublk_queue *ubq = hctx->driver_data;
+	struct request *rq = bd->rq;
+	bool should_queue;
+	blk_status_t res;
+
+	res = __ublk_queue_rq_common(ubq, rq, &should_queue);
+	if (!should_queue)
+		return res;
+
+	ublk_queue_cmd(ubq, rq);
+	return BLK_STS_OK;
+}
+
+static blk_status_t ublk_batch_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct ublk_queue *ubq = hctx->driver_data;
+	struct request *rq = bd->rq;
+	bool should_queue;
+	blk_status_t res;
+
+	res = __ublk_queue_rq_common(ubq, rq, &should_queue);
+	if (!should_queue)
+		return res;
+
+	ublk_batch_queue_cmd(ubq, rq, bd->last);
 	return BLK_STS_OK;
 }
 
@@ -2122,7 +2158,7 @@ static const struct blk_mq_ops ublk_mq_ops = {
 
 static const struct blk_mq_ops ublk_batch_mq_ops = {
 	.commit_rqs	= ublk_commit_rqs,
-	.queue_rq       = ublk_queue_rq,
+	.queue_rq       = ublk_batch_queue_rq,
 	.queue_rqs      = ublk_batch_queue_rqs,
 	.init_hctx	= ublk_init_hctx,
 	.timeout	= ublk_timeout,
