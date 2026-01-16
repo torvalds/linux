@@ -2006,9 +2006,8 @@ static int ccs_pre_streamon(struct v4l2_subdev *subdev, u32 flags)
 		}
 	}
 
-	mutex_lock(&sensor->mutex);
-	rval = ccs_pm_get_init(sensor);
-	mutex_unlock(&sensor->mutex);
+	scoped_guard(mutex, &sensor->mutex)
+		rval = ccs_pm_get_init(sensor);
 	if (rval)
 		return rval;
 
@@ -3045,7 +3044,7 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 		v4l2_subdev_state_get_crop(sd_state, pad);
 	bool is_active = !sd->active_state || sd->active_state == sd_state;
 
-	mutex_lock(&sensor->mutex);
+	guard(mutex)(&sensor->mutex);
 
 	ccs_get_native_size(ssd, crop);
 
@@ -3054,11 +3053,8 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 	fmt->code = sensor->internal_csi_format->code;
 	fmt->field = V4L2_FIELD_NONE;
 
-	if (ssd == sensor->pixel_array) {
-		mutex_unlock(&sensor->mutex);
-
+	if (ssd == sensor->pixel_array)
 		return 0;
-	}
 
 	fmt = v4l2_subdev_state_get_format(sd_state, CCS_PAD_SRC);
 	fmt->code = ssd == sensor->src ?
@@ -3066,8 +3062,6 @@ static int ccs_init_state(struct v4l2_subdev *sd,
 	fmt->field = V4L2_FIELD_NONE;
 
 	ccs_propagate(sd, sd_state, is_active, V4L2_SEL_TGT_CROP);
-
-	mutex_unlock(&sensor->mutex);
 
 	return 0;
 }
@@ -3553,9 +3547,8 @@ static int ccs_probe(struct i2c_client *client)
 		goto out_cleanup;
 	}
 
-	mutex_lock(&sensor->mutex);
-	rval = ccs_pll_blanking_update(sensor);
-	mutex_unlock(&sensor->mutex);
+	scoped_guard(mutex, &sensor->mutex)
+		rval = ccs_pll_blanking_update(sensor);
 	if (rval) {
 		dev_err(&client->dev, "update mode failed\n");
 		goto out_cleanup;
