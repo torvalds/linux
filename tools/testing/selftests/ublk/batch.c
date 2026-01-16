@@ -174,7 +174,7 @@ static void ublk_init_batch_cmd(struct ublk_thread *t, __u16 q_id,
 	cmd->elem_bytes = elem_bytes;
 	cmd->nr_elem	= nr_elem;
 
-	user_data = build_user_data(buf_idx, _IOC_NR(op), 0, q_id, 0);
+	user_data = build_user_data(buf_idx, _IOC_NR(op), nr_elem, q_id, 0);
 	io_uring_sqe_set_data64(sqe, user_data);
 
 	t->cmd_inflight += 1;
@@ -244,9 +244,11 @@ static void ublk_batch_compl_commit_cmd(struct ublk_thread *t,
 
 	if (op == _IOC_NR(UBLK_U_IO_PREP_IO_CMDS))
 		ublk_assert(cqe->res == 0);
-	else if (op == _IOC_NR(UBLK_U_IO_COMMIT_IO_CMDS))
-		;//assert(cqe->res == t->commit_buf_size);
-	else
+	else if (op == _IOC_NR(UBLK_U_IO_COMMIT_IO_CMDS)) {
+		int nr_elem = user_data_to_tgt_data(cqe->user_data);
+
+		ublk_assert(cqe->res == t->commit_buf_elem_size * nr_elem);
+	} else
 		ublk_assert(0);
 
 	ublk_free_commit_buf(t, buf_idx);
@@ -263,4 +265,68 @@ void ublk_batch_compl_cmd(struct ublk_thread *t,
 		ublk_batch_compl_commit_cmd(t, cqe, op);
 		return;
 	}
+}
+
+void ublk_batch_commit_io_cmds(struct ublk_thread *t)
+{
+	struct io_uring_sqe *sqe;
+	unsigned short buf_idx;
+	unsigned short nr_elem = t->commit.done;
+
+	/* nothing to commit */
+	if (!nr_elem) {
+		ublk_free_commit_buf(t, t->commit.buf_idx);
+		return;
+	}
+
+	ublk_io_alloc_sqes(t, &sqe, 1);
+	buf_idx = t->commit.buf_idx;
+	sqe->addr = (__u64)t->commit.elem;
+	sqe->len = nr_elem * t->commit_buf_elem_size;
+
+	/* commit isn't per-queue command */
+	ublk_init_batch_cmd(t, t->commit.q_id, sqe, UBLK_U_IO_COMMIT_IO_CMDS,
+			t->commit_buf_elem_size, nr_elem, buf_idx);
+	ublk_setup_commit_sqe(t, sqe, buf_idx);
+}
+
+static void ublk_batch_init_commit(struct ublk_thread *t,
+				   unsigned short buf_idx)
+{
+	/* so far only support 1:1 queue/thread mapping */
+	t->commit.q_id = t->idx;
+	t->commit.buf_idx = buf_idx;
+	t->commit.elem = ublk_get_commit_buf(t, buf_idx);
+	t->commit.done = 0;
+	t->commit.count = t->commit_buf_size /
+		t->commit_buf_elem_size;
+}
+
+void ublk_batch_prep_commit(struct ublk_thread *t)
+{
+	unsigned short buf_idx = ublk_alloc_commit_buf(t);
+
+	ublk_assert(buf_idx != UBLKS_T_COMMIT_BUF_INV_IDX);
+	ublk_batch_init_commit(t, buf_idx);
+}
+
+void ublk_batch_complete_io(struct ublk_thread *t, struct ublk_queue *q,
+			    unsigned tag, int res)
+{
+	struct batch_commit_buf *cb = &t->commit;
+	struct ublk_batch_elem *elem = (struct ublk_batch_elem *)(cb->elem +
+			cb->done * t->commit_buf_elem_size);
+	struct ublk_io *io = &q->ios[tag];
+
+	ublk_assert(q->q_id == t->commit.q_id);
+
+	elem->tag = tag;
+	elem->buf_index = ublk_batch_io_buf_idx(t, q, tag);
+	elem->result = res;
+
+	if (!ublk_queue_no_buf(q))
+		elem->buf_addr	= (__u64) (uintptr_t) io->buf_addr;
+
+	cb->done += 1;
+	ublk_assert(cb->done <= cb->count);
 }
