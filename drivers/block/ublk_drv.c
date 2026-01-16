@@ -44,6 +44,7 @@
 #include <linux/task_work.h>
 #include <linux/namei.h>
 #include <linux/kref.h>
+#include <linux/kfifo.h>
 #include <linux/blk-integrity.h>
 #include <uapi/linux/fs.h>
 #include <uapi/linux/ublk_cmd.h>
@@ -223,6 +224,24 @@ struct ublk_queue {
 	bool fail_io; /* copy of dev->state == UBLK_S_DEV_FAIL_IO */
 	spinlock_t		cancel_lock;
 	struct ublk_device *dev;
+
+	/*
+	 * For supporting UBLK_F_BATCH_IO only.
+	 *
+	 * Inflight ublk request tag is saved in this fifo
+	 *
+	 * There are multiple writer from ublk_queue_rq() or ublk_queue_rqs(),
+	 * so lock is required for storing request tag to fifo
+	 *
+	 * Make sure just one reader for fetching request from task work
+	 * function to ublk server, so no need to grab the lock in reader
+	 * side.
+	 */
+	struct {
+		DECLARE_KFIFO_PTR(evts_fifo, unsigned short);
+		spinlock_t evts_lock;
+	}____cacheline_aligned_in_smp;
+
 	struct ublk_io ios[] __counted_by(q_depth);
 };
 
@@ -289,6 +308,26 @@ static inline void ublk_io_lock(struct ublk_io *io)
 static inline void ublk_io_unlock(struct ublk_io *io)
 {
 	spin_unlock(&io->lock);
+}
+
+/* Initialize the event queue */
+static inline int ublk_io_evts_init(struct ublk_queue *q, unsigned int size,
+				    int numa_node)
+{
+	spin_lock_init(&q->evts_lock);
+	return kfifo_alloc_node(&q->evts_fifo, size, GFP_KERNEL, numa_node);
+}
+
+/* Check if event queue is empty */
+static inline bool ublk_io_evts_empty(const struct ublk_queue *q)
+{
+	return kfifo_is_empty(&q->evts_fifo);
+}
+
+static inline void ublk_io_evts_deinit(struct ublk_queue *q)
+{
+	WARN_ON_ONCE(!kfifo_is_empty(&q->evts_fifo));
+	kfifo_free(&q->evts_fifo);
 }
 
 static inline struct ublksrv_io_desc *
@@ -3183,13 +3222,9 @@ static const struct file_operations ublk_ch_batch_io_fops = {
 	.mmap = ublk_ch_mmap,
 };
 
-static void ublk_deinit_queue(struct ublk_device *ub, int q_id)
+static void __ublk_deinit_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 {
-	struct ublk_queue *ubq = ub->queues[q_id];
 	int size, i;
-
-	if (!ubq)
-		return;
 
 	size = ublk_queue_cmd_buf_size(ub);
 
@@ -3204,7 +3239,20 @@ static void ublk_deinit_queue(struct ublk_device *ub, int q_id)
 	if (ubq->io_cmd_buf)
 		free_pages((unsigned long)ubq->io_cmd_buf, get_order(size));
 
+	if (ublk_dev_support_batch_io(ub))
+		ublk_io_evts_deinit(ubq);
+
 	kvfree(ubq);
+}
+
+static void ublk_deinit_queue(struct ublk_device *ub, int q_id)
+{
+	struct ublk_queue *ubq = ub->queues[q_id];
+
+	if (!ubq)
+		return;
+
+	__ublk_deinit_queue(ub, ubq);
 	ub->queues[q_id] = NULL;
 }
 
@@ -3228,7 +3276,7 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 	struct ublk_queue *ubq;
 	struct page *page;
 	int numa_node;
-	int size, i;
+	int size, i, ret;
 
 	/* Determine NUMA node based on queue's CPU affinity */
 	numa_node = ublk_get_queue_numa_node(ub, q_id);
@@ -3256,9 +3304,18 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 	for (i = 0; i < ubq->q_depth; i++)
 		spin_lock_init(&ubq->ios[i].lock);
 
+	if (ublk_dev_support_batch_io(ub)) {
+		ret = ublk_io_evts_init(ubq, ubq->q_depth, numa_node);
+		if (ret)
+			goto fail;
+	}
 	ub->queues[q_id] = ubq;
 	ubq->dev = ub;
+
 	return 0;
+fail:
+	__ublk_deinit_queue(ub, ubq);
+	return ret;
 }
 
 static void ublk_deinit_queues(struct ublk_device *ub)
