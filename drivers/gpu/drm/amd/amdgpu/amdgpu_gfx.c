@@ -1298,7 +1298,8 @@ failed_undo:
 failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_hdp_flush:
-	dev_err(adev->dev, "failed to flush HDP via KIQ\n");
+	if (!amdgpu_in_reset(adev))
+		dev_err(adev->dev, "failed to flush HDP via KIQ\n");
 	return r < 0 ? r : -EIO;
 }
 
