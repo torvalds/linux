@@ -675,11 +675,13 @@ static int ines_generic_attach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
 
-	if (ines_allocate_private(board))
-		return -ENOMEM;
+	retval = ines_allocate_private(board);
+	if (retval)
+		return retval;
 	ines_priv = board->private_data;
 	nec_priv = &ines_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_ioport_read_byte;
