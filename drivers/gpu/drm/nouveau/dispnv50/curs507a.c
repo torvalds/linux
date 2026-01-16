@@ -84,6 +84,7 @@ curs507a_prepare(struct nv50_wndw *wndw, struct nv50_head_atom *asyh,
 		asyh->curs.handle = handle;
 		asyh->curs.offset = offset;
 		asyh->set.curs = asyh->curs.visible;
+		nv50_atom(asyh->state.state)->lock_core = true;
 	}
 }
 
