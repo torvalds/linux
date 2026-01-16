@@ -12,6 +12,7 @@
 
 use proc_macro::TokenStream;
 
+mod diagnostics;
 mod helpers;
 mod pin_data;
 mod pinned_drop;
