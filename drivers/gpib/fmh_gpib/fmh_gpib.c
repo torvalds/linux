@@ -1250,11 +1250,10 @@ static int fmh_gpib_allocate_private(struct gpib_board *board)
 {
 	struct fmh_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct fmh_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct fmh_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct fmh_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	priv->dma_buffer_size = 0x800;
 	priv->dma_buffer = kmalloc(priv->dma_buffer_size, GFP_KERNEL);
