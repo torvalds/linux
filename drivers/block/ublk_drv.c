@@ -79,7 +79,8 @@
 		| UBLK_F_PER_IO_DAEMON \
 		| UBLK_F_BUF_REG_OFF_DAEMON \
 		| (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) ? UBLK_F_INTEGRITY : 0) \
-		| UBLK_F_SAFE_STOP_DEV)
+		| UBLK_F_SAFE_STOP_DEV \
+		| UBLK_F_BATCH_IO)
 
 #define UBLK_F_ALL_RECOVERY_FLAGS (UBLK_F_USER_RECOVERY \
 		| UBLK_F_USER_RECOVERY_REISSUE \
@@ -340,12 +341,12 @@ static void ublk_batch_dispatch(struct ublk_queue *ubq,
 
 static inline bool ublk_dev_support_batch_io(const struct ublk_device *ub)
 {
-	return false;
+	return ub->dev_info.flags & UBLK_F_BATCH_IO;
 }
 
 static inline bool ublk_support_batch_io(const struct ublk_queue *ubq)
 {
-	return false;
+	return ubq->flags & UBLK_F_BATCH_IO;
 }
 
 static inline void ublk_io_lock(struct ublk_io *io)
@@ -3573,8 +3574,10 @@ static int ublk_check_batch_cmd_flags(const struct ublk_batch_io *uc)
 
 static int ublk_check_batch_cmd(const struct ublk_batch_io_data *data)
 {
-
 	const struct ublk_batch_io *uc = &data->header;
+
+	if (uc->q_id >= data->ub->dev_info.nr_hw_queues)
+		return -EINVAL;
 
 	if (uc->nr_elem > data->ub->dev_info.queue_depth)
 		return -E2BIG;
@@ -3655,6 +3658,9 @@ static int ublk_validate_batch_fetch_cmd(struct ublk_batch_io_data *data)
 {
 	const struct ublk_batch_io *uc = &data->header;
 
+	if (uc->q_id >= data->ub->dev_info.nr_hw_queues)
+		return -EINVAL;
+
 	if (!(data->cmd->flags & IORING_URING_CMD_MULTISHOT))
 		return -EINVAL;
 
@@ -3665,6 +3671,35 @@ static int ublk_validate_batch_fetch_cmd(struct ublk_batch_io_data *data)
 		return -EINVAL;
 
 	return 0;
+}
+
+static int ublk_handle_non_batch_cmd(struct io_uring_cmd *cmd,
+				     unsigned int issue_flags)
+{
+	const struct ublksrv_io_cmd *ub_cmd = io_uring_sqe_cmd(cmd->sqe);
+	struct ublk_device *ub = cmd->file->private_data;
+	unsigned tag = READ_ONCE(ub_cmd->tag);
+	unsigned q_id = READ_ONCE(ub_cmd->q_id);
+	unsigned index = READ_ONCE(ub_cmd->addr);
+	struct ublk_queue *ubq;
+	struct ublk_io *io;
+
+	if (cmd->cmd_op == UBLK_U_IO_UNREGISTER_IO_BUF)
+		return ublk_unregister_io_buf(cmd, ub, index, issue_flags);
+
+	if (q_id >= ub->dev_info.nr_hw_queues)
+		return -EINVAL;
+
+	if (tag >= ub->dev_info.queue_depth)
+		return -EINVAL;
+
+	if (cmd->cmd_op != UBLK_U_IO_REGISTER_IO_BUF)
+		return -EOPNOTSUPP;
+
+	ubq = ublk_get_queue(ub, q_id);
+	io = &ubq->ios[tag];
+	return ublk_register_io_buf(cmd, ub, q_id, tag, io, index,
+			issue_flags);
 }
 
 static int ublk_ch_batch_io_uring_cmd(struct io_uring_cmd *cmd,
@@ -3691,9 +3726,6 @@ static int ublk_ch_batch_io_uring_cmd(struct io_uring_cmd *cmd,
 		return 0;
 	}
 
-	if (data.header.q_id >= ub->dev_info.nr_hw_queues)
-		goto out;
-
 	switch (cmd_op) {
 	case UBLK_U_IO_PREP_IO_CMDS:
 		ret = ublk_check_batch_cmd(&data);
@@ -3714,7 +3746,8 @@ static int ublk_ch_batch_io_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_handle_batch_fetch_cmd(&data);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		ret = ublk_handle_non_batch_cmd(cmd, issue_flags);
+		break;
 	}
 out:
 	return ret;
@@ -4437,6 +4470,10 @@ static int ublk_ctrl_add_dev(const struct ublksrv_ctrl_cmd *header)
 		UBLK_F_BUF_REG_OFF_DAEMON |
 		UBLK_F_SAFE_STOP_DEV;
 
+	/* So far, UBLK_F_PER_IO_DAEMON won't be exposed for BATCH_IO */
+	if (ublk_dev_support_batch_io(ub))
+		ub->dev_info.flags &= ~UBLK_F_PER_IO_DAEMON;
+
 	/* GET_DATA isn't needed any more with USER_COPY or ZERO COPY */
 	if (ub->dev_info.flags & (UBLK_F_USER_COPY | UBLK_F_SUPPORT_ZERO_COPY |
 				UBLK_F_AUTO_BUF_REG))
@@ -4819,6 +4856,13 @@ static int ublk_wait_for_idle_io(struct ublk_device *ub,
 {
 	unsigned int elapsed = 0;
 	int ret;
+
+	/*
+	 * For UBLK_F_BATCH_IO ublk server can get notified with existing
+	 * or new fetch command, so needn't wait any more
+	 */
+	if (ublk_dev_support_batch_io(ub))
+		return 0;
 
 	while (elapsed < timeout_ms && !signal_pending(current)) {
 		unsigned int queues_cancelable = 0;
