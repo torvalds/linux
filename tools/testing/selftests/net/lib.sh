@@ -280,7 +280,8 @@ tc_rule_stats_get()
 	local selector=${1:-.packets}; shift
 
 	tc -j -s filter show dev $dev $dir pref $pref \
-	    | jq ".[1].options.actions[].stats$selector"
+	    | jq ".[] | select(.options.actions) |
+		  .options.actions[].stats$selector"
 }
 
 tc_rule_handle_stats_get()

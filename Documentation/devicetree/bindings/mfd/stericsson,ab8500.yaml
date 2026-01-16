@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ST-Ericsson Analog Baseband AB8500 and AB8505
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description:
   the AB8500 "Analog Baseband" is the mixed-signals integrated circuit

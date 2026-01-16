@@ -2455,24 +2455,21 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	}
 
 	for (i = 0; i < NUM_LINK_LEVELS; i++) {
-		if (pptable->PcieGenSpeed[i] > pcie_gen_cap ||
-			pptable->PcieLaneCount[i] > pcie_width_cap) {
-			dpm_context->dpm_tables.pcie_table.pcie_gen[i] =
-									pptable->PcieGenSpeed[i] > pcie_gen_cap ?
-									pcie_gen_cap : pptable->PcieGenSpeed[i];
-			dpm_context->dpm_tables.pcie_table.pcie_lane[i] =
-									pptable->PcieLaneCount[i] > pcie_width_cap ?
-									pcie_width_cap : pptable->PcieLaneCount[i];
-			smu_pcie_arg = i << 16;
-			smu_pcie_arg |= pcie_gen_cap << 8;
-			smu_pcie_arg |= pcie_width_cap;
-			ret = smu_cmn_send_smc_msg_with_param(smu,
-							SMU_MSG_OverridePcieParameters,
-							smu_pcie_arg,
-							NULL);
-			if (ret)
-				break;
-		}
+		dpm_context->dpm_tables.pcie_table.pcie_gen[i] =
+			pptable->PcieGenSpeed[i] > pcie_gen_cap ?
+			pcie_gen_cap : pptable->PcieGenSpeed[i];
+		dpm_context->dpm_tables.pcie_table.pcie_lane[i] =
+			pptable->PcieLaneCount[i] > pcie_width_cap ?
+			pcie_width_cap : pptable->PcieLaneCount[i];
+		smu_pcie_arg = i << 16;
+		smu_pcie_arg |= dpm_context->dpm_tables.pcie_table.pcie_gen[i] << 8;
+		smu_pcie_arg |= dpm_context->dpm_tables.pcie_table.pcie_lane[i];
+		ret = smu_cmn_send_smc_msg_with_param(smu,
+						      SMU_MSG_OverridePcieParameters,
+						      smu_pcie_arg,
+						      NULL);
+		if (ret)
+			return ret;
 	}
 
 	return ret;

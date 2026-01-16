@@ -3721,7 +3721,7 @@ static int blk_mq_hctx_notify_offline(unsigned int cpu, struct hlist_node *node)
 			struct blk_mq_hw_ctx, cpuhp_online);
 	int ret = 0;
 
-	if (blk_mq_hctx_has_online_cpu(hctx, cpu))
+	if (!hctx->nr_ctx || blk_mq_hctx_has_online_cpu(hctx, cpu))
 		return 0;
 
 	/*
@@ -4553,8 +4553,7 @@ static void __blk_mq_realloc_hw_ctxs(struct blk_mq_tag_set *set,
 		 * Make sure reading the old queue_hw_ctx from other
 		 * context concurrently won't trigger uaf.
 		 */
-		synchronize_rcu_expedited();
-		kfree(hctxs);
+		kfree_rcu_mightsleep(hctxs);
 		hctxs = new_hctxs;
 	}
 

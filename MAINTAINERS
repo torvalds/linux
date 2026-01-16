@@ -1283,6 +1283,7 @@ F:	include/uapi/drm/amdxdna_accel.h
 
 AMD XGBE DRIVER
 M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
+M:	Raju Rangoju <Raju.Rangoju@amd.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	arch/arm64/boot/dts/amd/amd-seattle-xgbe*.dtsi
@@ -2011,7 +2012,7 @@ ARM AND ARM64 SoC SUB-ARCHITECTURES (COMMON PARTS)
 M:	Arnd Bergmann <arnd@arndb.de>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-M:	Linus Walleij <linus.walleij@linaro.org>
+M:	Linus Walleij <linusw@kernel.org>
 R:	Drew Fustini <fustini@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	soc@lists.linux.dev
@@ -2158,7 +2159,7 @@ M:	Alice Ryhl <aliceryhl@google.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 W:	https://rust-for-linux.com/tyr-gpu-driver
-W	https://drm.pages.freedesktop.org/maintainer-tools/drm-rust.html
+W:	https://drm.pages.freedesktop.org/maintainer-tools/drm-rust.html
 B:	https://gitlab.freedesktop.org/panfrost/linux/-/issues
 T:	git https://gitlab.freedesktop.org/drm/rust/kernel.git
 F:	Documentation/devicetree/bindings/gpu/arm,mali-valhall-csf.yaml
@@ -5801,7 +5802,8 @@ F:	drivers/power/supply/cw2015_battery.c
 
 CEPH COMMON CODE (LIBCEPH)
 M:	Ilya Dryomov <idryomov@gmail.com>
-M:	Xiubo Li <xiubli@redhat.com>
+M:	Alex Markuze <amarkuze@redhat.com>
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
@@ -5812,8 +5814,9 @@ F:	include/linux/crush/
 F:	net/ceph/
 
 CEPH DISTRIBUTED FILE SYSTEM CLIENT (CEPH)
-M:	Xiubo Li <xiubli@redhat.com>
 M:	Ilya Dryomov <idryomov@gmail.com>
+M:	Alex Markuze <amarkuze@redhat.com>
+M:	Viacheslav Dubeyko <slava@dubeyko.com>
 L:	ceph-devel@vger.kernel.org
 S:	Supported
 W:	http://ceph.com/
@@ -6172,7 +6175,7 @@ F:	include/linux/clk.h
 
 CLOCKSOURCE, CLOCKEVENT DRIVERS
 M:	Daniel Lezcano <daniel.lezcano@linaro.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
@@ -6532,13 +6535,13 @@ F:	rust/kernel/cpufreq.rs
 F:	tools/testing/selftests/cpufreq/
 
 CPU FREQUENCY DRIVERS - VIRTUAL MACHINE CPUFREQ
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 F:	drivers/cpufreq/virtual-cpufreq.c
 
 CPU HOTPLUG
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Peter Zijlstra <peterz@infradead.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -6705,6 +6708,7 @@ S:	Maintained
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/linux.git libcrypto-next
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ebiggers/linux.git libcrypto-fixes
 F:	lib/crypto/
+F:	scripts/crypto/
 
 CRYPTO SPEED TEST COMPARE
 M:	Wang Jinchao <wangjinchao@xfusion.com>
@@ -6965,7 +6969,7 @@ F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
 DEBUGOBJECTS:
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/debugobjects
@@ -7170,7 +7174,7 @@ F:	drivers/base/devcoredump.c
 F:	include/linux/devcoredump.h
 
 DEVICE DEPENDENCY HELPER SCRIPT
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	scripts/dev-needs.sh
@@ -8067,7 +8071,7 @@ W:	https://rust-for-linux.com/nova-gpu-driver
 Q:	https://patchwork.freedesktop.org/project/nouveau/
 B:	https://gitlab.freedesktop.org/drm/nova/-/issues
 C:	irc://irc.oftc.net/nouveau
-T:	git https://gitlab.freedesktop.org/drm/nova.git nova-next
+T:	git https://gitlab.freedesktop.org/drm/rust/kernel.git drm-rust-next
 F:	Documentation/gpu/nova/
 F:	drivers/gpu/nova-core/
 
@@ -8079,7 +8083,7 @@ W:	https://rust-for-linux.com/nova-gpu-driver
 Q:	https://patchwork.freedesktop.org/project/nouveau/
 B:	https://gitlab.freedesktop.org/drm/nova/-/issues
 C:	irc://irc.oftc.net/nouveau
-T:	git https://gitlab.freedesktop.org/drm/nova.git nova-next
+T:	git https://gitlab.freedesktop.org/drm/rust/kernel.git drm-rust-next
 F:	Documentation/gpu/nova/
 F:	drivers/gpu/drm/nova/
 F:	include/uapi/drm/nova_drm.h
@@ -8357,6 +8361,7 @@ X:	drivers/gpu/drm/msm/
 X:	drivers/gpu/drm/nova/
 X:	drivers/gpu/drm/radeon/
 X:	drivers/gpu/drm/tegra/
+X:	drivers/gpu/drm/tyr/
 X:	drivers/gpu/drm/xe/
 
 DRM DRIVERS AND COMMON INFRASTRUCTURE [RUST]
@@ -10367,7 +10372,7 @@ F:	include/uapi/linux/fuse.h
 F:	tools/testing/selftests/filesystems/fuse/
 
 FUTEX SUBSYSTEM
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Ingo Molnar <mingo@redhat.com>
 R:	Peter Zijlstra <peterz@infradead.org>
 R:	Darren Hart <dvhart@infradead.org>
@@ -10511,7 +10516,7 @@ F:	drivers/base/arch_topology.c
 F:	include/linux/arch_topology.h
 
 GENERIC ENTRY CODE
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Andy Lutomirski <luto@kernel.org>
 L:	linux-kernel@vger.kernel.org
@@ -10624,7 +10629,7 @@ F:	drivers/uio/uio_pci_generic.c
 
 GENERIC VDSO LIBRARY
 M:	Andy Lutomirski <luto@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Vincenzo Frascino <vincenzo.frascino@arm.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -11237,7 +11242,7 @@ F:	drivers/hid/hid-logitech-hidpp.c
 HIGH-RESOLUTION TIMERS, TIMER WHEEL, CLOCKEVENTS
 M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
@@ -11260,7 +11265,7 @@ R:	Boqun Feng <boqun.feng@gmail.com>
 R:	FUJITA Tomonori <fujita.tomonori@gmail.com>
 R:	Frederic Weisbecker <frederic@kernel.org>
 R:	Lyude Paul <lyude@redhat.com>
-R:	Thomas Gleixner <tglx@linutronix.de>
+R:	Thomas Gleixner <tglx@kernel.org>
 R:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 R:	John Stultz <jstultz@google.com>
 R:	Stephen Boyd <sboyd@kernel.org>
@@ -13330,7 +13335,7 @@ F:	Documentation/devicetree/bindings/sound/irondevice,*
 F:	sound/soc/codecs/sma*
 
 IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	Documentation/core-api/irq/irq-domain.rst
@@ -13340,7 +13345,7 @@ F:	kernel/irq/irqdomain.c
 F:	kernel/irq/msi.c
 
 IRQ SUBSYSTEM
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
@@ -13353,7 +13358,7 @@ F:	kernel/irq/
 F:	lib/group_cpus.c
 
 IRQCHIP DRIVERS
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
@@ -13959,6 +13964,7 @@ S:	Maintained
 F:	Documentation/admin-guide/mm/kho.rst
 F:	Documentation/core-api/kho/*
 F:	include/linux/kexec_handover.h
+F:	include/linux/kho/
 F:	kernel/liveupdate/kexec_handover*
 F:	lib/test_kho.c
 F:	tools/testing/selftests/kho/
@@ -14446,7 +14452,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm.git mm-nonmm-unstab
 F:	lib/*
 
 LICENSES and SPDX stuff
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-spdx@vger.kernel.org
 S:	Maintained
@@ -14637,6 +14643,7 @@ S:	Maintained
 F:	Documentation/core-api/liveupdate.rst
 F:	Documentation/mm/memfd_preservation.rst
 F:	Documentation/userspace-api/liveupdate.rst
+F:	include/linux/kho/abi/
 F:	include/linux/liveupdate.h
 F:	include/linux/liveupdate/
 F:	include/uapi/linux/liveupdate.h
@@ -16426,6 +16433,7 @@ MEMORY HOT(UN)PLUG
 M:	David Hildenbrand <david@kernel.org>
 M:	Oscar Salvador <osalvador@suse.de>
 L:	linux-mm@kvack.org
+L:	linux-cxl@vger.kernel.org
 S:	Maintained
 F:	Documentation/admin-guide/mm/memory-hotplug.rst
 F:	Documentation/core-api/memory-hotplug.rst
@@ -16751,6 +16759,7 @@ F:	tools/testing/selftests/mm/transhuge-stress.c
 
 MEMORY MANAGEMENT - USERFAULTFD
 M:	Andrew Morton <akpm@linux-foundation.org>
+M:	Mike Rapoport <rppt@kernel.org>
 R:	Peter Xu <peterx@redhat.com>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -18028,7 +18037,6 @@ F:	drivers/net/ethernet/neterion/
 
 NETFILTER
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
-M:	Jozsef Kadlecsik <kadlec@netfilter.org>
 M:	Florian Westphal <fw@strlen.de>
 R:	Phil Sutter <phil@nwl.cc>
 L:	netfilter-devel@vger.kernel.org
@@ -18280,7 +18288,7 @@ X:	net/wireless/
 X:	tools/testing/selftests/net/can/
 
 NETWORKING [IOAM]
-M:	Justin Iurman <justin.iurman@uliege.be>
+M:	Justin Iurman <justin.iurman@gmail.com>
 S:	Maintained
 F:	Documentation/networking/ioam6*
 F:	include/linux/ioam6*
@@ -18569,7 +18577,7 @@ NOHZ, DYNTICKS SUPPORT
 M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Ingo Molnar <mingo@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/nohz
@@ -19544,7 +19552,7 @@ F:	include/linux/oa_tc6.h
 
 OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Rob Herring <robh@kernel.org>
-M:	Saravana Kannan <saravanak@google.com>
+M:	Saravana Kannan <saravanak@kernel.org>
 L:	devicetree@vger.kernel.org
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/devicetree/list/
@@ -20754,7 +20762,7 @@ F:	drivers/platform/x86/portwell-ec.c
 POSIX CLOCKS and TIMERS
 M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
@@ -21346,7 +21354,7 @@ F:	Documentation/devicetree/bindings/net/qcom,bam-dmux.yaml
 F:	drivers/net/wwan/qcom_bam_dmux.c
 
 QUALCOMM BLUETOOTH DRIVER
-M:	Bartosz Golaszewski <brgl@bgdev.pl>
+M:	Bartosz Golaszewski <brgl@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	drivers/bluetooth/btqca.[ch]
@@ -24572,7 +24580,7 @@ F:	drivers/tty/vcc.c
 F:	include/linux/sunserialcore.h
 
 SPARSE CHECKER
-M:	"Luc Van Oostenryck" <luc.vanoostenryck@gmail.com>
+M:	Chris Li <sparse@chrisli.org>
 L:	linux-sparse@vger.kernel.org
 S:	Maintained
 W:	https://sparse.docs.kernel.org/
@@ -26265,7 +26273,7 @@ F:	drivers/net/wireless/ti/
 
 TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
 M:	John Stultz <jstultz@google.com>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 R:	Stephen Boyd <sboyd@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -26464,6 +26472,7 @@ L:	linux-trace-kernel@vger.kernel.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-trace-kernel/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
+F:	Documentation/core-api/tracepoint.rst
 F:	Documentation/trace/*
 F:	fs/tracefs/
 F:	include/linux/trace*.h
@@ -27920,6 +27929,7 @@ F:	drivers/regulator/
 F:	rust/kernel/regulator.rs
 F:	include/dt-bindings/regulator/
 F:	include/linux/regulator/
+F:	include/uapi/regulator/
 K:	regulator_get_optional
 
 VOLTAGE AND CURRENT REGULATOR IRQ HELPERS
@@ -28194,7 +28204,7 @@ F:	net/lapb/
 F:	net/x25/
 
 X86 ARCHITECTURE (32-BIT AND 64-BIT)
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Ingo Molnar <mingo@redhat.com>
 M:	Borislav Petkov <bp@alien8.de>
 M:	Dave Hansen <dave.hansen@linux.intel.com>
@@ -28210,7 +28220,7 @@ F:	tools/testing/selftests/x86
 
 X86 CPUID DATABASE
 M:	Borislav Petkov <bp@alien8.de>
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	x86@kernel.org
 R:	Ahmed S. Darwish <darwi@linutronix.de>
 L:	x86-cpuid@lists.linux.dev
@@ -28226,7 +28236,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/asm
 F:	arch/x86/entry/
 
 X86 HARDWARE VULNERABILITIES
-M:	Thomas Gleixner <tglx@linutronix.de>
+M:	Thomas Gleixner <tglx@kernel.org>
 M:	Borislav Petkov <bp@alien8.de>
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Josh Poimboeuf <jpoimboe@kernel.org>

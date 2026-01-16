@@ -258,7 +258,7 @@ static bool cpu_has_entrysign(void)
 	if (fam == 0x1a) {
 		if (model <= 0x2f ||
 		    (0x40 <= model && model <= 0x4f) ||
-		    (0x60 <= model && model <= 0x6f))
+		    (0x60 <= model && model <= 0x7f))
 			return true;
 	}
 

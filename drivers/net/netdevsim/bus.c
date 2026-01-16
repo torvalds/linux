@@ -332,6 +332,11 @@ static ssize_t link_device_store(const struct bus_type *bus, const char *buf, si
 	rcu_assign_pointer(nsim_a->peer, nsim_b);
 	rcu_assign_pointer(nsim_b->peer, nsim_a);
 
+	if (netif_running(dev_a) && netif_running(dev_b)) {
+		netif_carrier_on(dev_a);
+		netif_carrier_on(dev_b);
+	}
+
 out_err:
 	put_net(ns_b);
 	put_net(ns_a);
@@ -380,6 +385,9 @@ static ssize_t unlink_device_store(const struct bus_type *bus, const char *buf, 
 	peer = rtnl_dereference(nsim->peer);
 	if (!peer)
 		goto out_put_netns;
+
+	netif_carrier_off(dev);
+	netif_carrier_off(peer->netdev);
 
 	err = 0;
 	RCU_INIT_POINTER(nsim->peer, NULL);

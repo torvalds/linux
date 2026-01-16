@@ -12,7 +12,7 @@ description: The Zinitix BT4xx and BT5xx series of touchscreen controllers
 
 maintainers:
   - Michael Srba <Michael.Srba@seznam.cz>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 allOf:
   - $ref: touchscreen.yaml#

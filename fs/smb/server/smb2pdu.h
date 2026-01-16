@@ -383,15 +383,6 @@ int smb2_ioctl(struct ksmbd_work *work);
 int smb2_oplock_break(struct ksmbd_work *work);
 int smb2_notify(struct ksmbd_work *ksmbd_work);
 
-/*
- * Get the body of the smb2 message excluding the 4 byte rfc1002 headers
- * from request/response buffer.
- */
-static inline void *smb2_get_msg(void *buf)
-{
-	return buf + 4;
-}
-
 #define POSIX_TYPE_FILE		0
 #define POSIX_TYPE_DIR		1
 #define POSIX_TYPE_SYMLINK	2

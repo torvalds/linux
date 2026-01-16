@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Kinetic Technologies KTD253 and KTD259 one-wire backlight
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   The Kinetic Technologies KTD253 and KTD259 are white LED backlights

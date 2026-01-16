@@ -29,7 +29,7 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch doublecreate"
+BUGS="flush_remove_add reload net_port_proto_match avx2_mismatch doublecreate insert_overlap"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
@@ -410,6 +410,18 @@ perf_duration	0
 
 TYPE_doublecreate="
 display		cannot create same element twice
+type_spec	ipv4_addr . ipv4_addr
+chain_spec	ip saddr . ip daddr
+dst		addr4
+proto		icmp
+
+race_repeat	0
+
+perf_duration	0
+"
+
+TYPE_insert_overlap="
+display		reject overlapping range on add
 type_spec	ipv4_addr . ipv4_addr
 chain_spec	ip saddr . ip daddr
 dst		addr4
@@ -1950,6 +1962,37 @@ EOF
 		err "Could not flush and re-create element in one transaction"
 		return 1
 	fi
+
+	return 0
+}
+
+add_fail()
+{
+	if nft add element inet filter test "$1" 2>/dev/null ; then
+		err "Returned success for add ${1} given set:"
+		err "$(nft -a list set inet filter test )"
+		return 1
+	fi
+
+	return 0
+}
+
+test_bug_insert_overlap()
+{
+	local elements="1.2.3.4 . 1.2.4.1"
+
+	setup veth send_"${proto}" set || return ${ksft_skip}
+
+	add "{ $elements }" || return 1
+
+	elements="1.2.3.0-1.2.3.4 . 1.2.4.1"
+	add_fail "{ $elements }" || return 1
+
+	elements="1.2.3.0-1.2.3.4 . 1.2.4.2"
+	add "{ $elements }" || return 1
+
+	elements="1.2.3.4 . 1.2.4.1-1.2.4.2"
+	add_fail "{ $elements }" || return 1
 
 	return 0
 }

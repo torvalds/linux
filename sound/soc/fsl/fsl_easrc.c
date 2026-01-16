@@ -1577,6 +1577,9 @@ static const struct snd_soc_component_driver fsl_easrc_component = {
 	.controls		= fsl_easrc_snd_controls,
 	.num_controls		= ARRAY_SIZE(fsl_easrc_snd_controls),
 	.legacy_dai_naming	= 1,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_prefix		= "easrc",
+#endif
 };
 
 static const struct reg_default fsl_easrc_reg_defaults[] = {

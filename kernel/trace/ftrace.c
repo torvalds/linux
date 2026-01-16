@@ -4518,8 +4518,11 @@ static int t_show(struct seq_file *m, void *v)
 			unsigned long direct;
 
 			direct = ftrace_find_rec_direct(rec->ip);
-			if (direct)
-				seq_printf(m, "\n\tdirect-->%pS", (void *)direct);
+			if (direct) {
+				seq_printf(m, "\n\tdirect%s-->%pS",
+					   ftrace_is_jmp(direct) ? "(jmp)" : "",
+					   (void *)ftrace_jmp_get(direct));
+			}
 		}
 	}
 

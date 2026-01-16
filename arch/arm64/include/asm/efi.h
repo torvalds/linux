@@ -45,7 +45,7 @@ void arch_efi_call_virt_teardown(void);
  * switching to the EFI runtime stack.
  */
 #define current_in_efi()						\
-	(!preemptible() && efi_rt_stack_top != NULL &&			\
+	(efi_rt_stack_top != NULL &&					\
 	 on_task_stack(current, READ_ONCE(efi_rt_stack_top[-1]), 1))
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
