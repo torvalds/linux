@@ -1382,6 +1382,8 @@ static int omap8250_select_wakeup_pinctrl(struct device *dev,
 	if (!device_may_wakeup(dev))
 		return 0;
 
+	device_set_out_band_wakeup(dev);
+
 	return pinctrl_select_state(priv->pinctrl, priv->pinctrl_wakeup);
 }
 
