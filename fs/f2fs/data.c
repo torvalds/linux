@@ -1474,7 +1474,6 @@ static void f2fs_map_lock(struct f2fs_sb_info *sbi,
 				struct f2fs_lock_context *lc,
 				int flag)
 {
-	f2fs_down_read(&sbi->cp_enable_rwsem);
 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
 		f2fs_down_read_trace(&sbi->node_change, lc);
 	else
@@ -1489,7 +1488,6 @@ static void f2fs_map_unlock(struct f2fs_sb_info *sbi,
 		f2fs_up_read_trace(&sbi->node_change, lc);
 	else
 		f2fs_unlock_op(sbi, lc);
-	f2fs_up_read(&sbi->cp_enable_rwsem);
 }
 
 int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
