@@ -2453,11 +2453,11 @@ static int f2fs_read_data_large_folio(struct inode *inode,
 	int ret = 0;
 	bool folio_in_bio;
 
-	if (!IS_IMMUTABLE(inode))
+	if (!IS_IMMUTABLE(inode) || f2fs_compressed_file(inode)) {
+		if (folio)
+			folio_unlock(folio);
 		return -EOPNOTSUPP;
-
-	if (f2fs_compressed_file(inode))
-		return -EOPNOTSUPP;
+	}
 
 	map.m_seg_type = NO_CHECK_TYPE;
 
@@ -2565,17 +2565,15 @@ submit_and_realloc:
 		last_block_in_bio = block_nr;
 	}
 	trace_f2fs_read_folio(folio, DATA);
+err_out:
+	if (!folio_in_bio) {
+		folio_end_read(folio, !ret);
+		if (ret)
+			return ret;
+	}
 	if (rac) {
-		if (!folio_in_bio)
-			folio_end_read(folio, true);
 		folio = readahead_folio(rac);
 		goto next_folio;
-	}
-err_out:
-	/* Nothing was submitted. */
-	if (!bio) {
-		folio_end_read(folio, !ret);
-		return ret;
 	}
 out:
 	f2fs_submit_read_bio(F2FS_I_SB(inode), bio, DATA);
