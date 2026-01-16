@@ -21,6 +21,10 @@ static int mpi3mr_check_op_admin_proc(struct mpi3mr_ioc *mrioc);
 static int poll_queues;
 module_param(poll_queues, int, 0444);
 MODULE_PARM_DESC(poll_queues, "Number of queues for io_uring poll mode. (Range 1 - 126)");
+static bool threaded_isr_poll = true;
+module_param(threaded_isr_poll, bool, 0444);
+MODULE_PARM_DESC(threaded_isr_poll,
+			"Enablement of IRQ polling thread (default=true)");
 
 #if defined(writeq) && defined(CONFIG_64BIT)
 static inline void mpi3mr_writeq(__u64 b, void __iomem *addr,
@@ -595,7 +599,8 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 		 * Exit completion loop to avoid CPU lockup
 		 * Ensure remaining completion happens from threaded ISR.
 		 */
-		if (num_op_reply > mrioc->max_host_ios) {
+		if ((num_op_reply > mrioc->max_host_ios) &&
+			(threaded_isr_poll == true)) {
 			op_reply_q->enable_irq_poll = true;
 			break;
 		}
@@ -692,7 +697,7 @@ static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 	 * If more IOs are expected, schedule IRQ polling thread.
 	 * Otherwise exit from ISR.
 	 */
-	if (!intr_info->op_reply_q)
+	if ((threaded_isr_poll == false) || !intr_info->op_reply_q)
 		return ret;
 
 	if (!intr_info->op_reply_q->enable_irq_poll ||
