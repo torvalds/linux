@@ -723,7 +723,14 @@ fallback:
 
 		fclones = container_of(skb, struct sk_buff_fclones, skb1);
 
-		skb->fclone = SKB_FCLONE_ORIG;
+		/* skb->fclone is a 2bits field.
+		 * Replace expensive RMW (skb->fclone = SKB_FCLONE_ORIG)
+		 * with a single OR.
+		 */
+		BUILD_BUG_ON(SKB_FCLONE_UNAVAILABLE != 0);
+		DEBUG_NET_WARN_ON_ONCE(skb->fclone != SKB_FCLONE_UNAVAILABLE);
+		skb->fclone |= SKB_FCLONE_ORIG;
+
 		refcount_set(&fclones->fclone_ref, 1);
 	}
 
