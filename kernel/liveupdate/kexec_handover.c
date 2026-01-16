@@ -219,7 +219,8 @@ static int __kho_preserve_order(struct kho_mem_track *track, unsigned long pfn,
 static struct page *kho_restore_page(phys_addr_t phys, bool is_folio)
 {
 	struct page *page = pfn_to_online_page(PHYS_PFN(phys));
-	unsigned int nr_pages, ref_cnt;
+	unsigned long nr_pages;
+	unsigned int ref_cnt;
 	union kho_page_info info;
 
 	if (!page)
@@ -246,7 +247,7 @@ static struct page *kho_restore_page(phys_addr_t phys, bool is_folio)
 	 * count of 1
 	 */
 	ref_cnt = is_folio ? 0 : 1;
-	for (unsigned int i = 1; i < nr_pages; i++)
+	for (unsigned long i = 1; i < nr_pages; i++)
 		set_page_count(page + i, ref_cnt);
 
 	if (is_folio && info.order)
@@ -288,7 +289,7 @@ EXPORT_SYMBOL_GPL(kho_restore_folio);
  *
  * Return: 0 on success, error code on failure
  */
-struct page *kho_restore_pages(phys_addr_t phys, unsigned int nr_pages)
+struct page *kho_restore_pages(phys_addr_t phys, unsigned long nr_pages)
 {
 	const unsigned long start_pfn = PHYS_PFN(phys);
 	const unsigned long end_pfn = start_pfn + nr_pages;
@@ -837,7 +838,7 @@ EXPORT_SYMBOL_GPL(kho_unpreserve_folio);
  *
  * Return: 0 on success, error code on failure
  */
-int kho_preserve_pages(struct page *page, unsigned int nr_pages)
+int kho_preserve_pages(struct page *page, unsigned long nr_pages)
 {
 	struct kho_mem_track *track = &kho_out.track;
 	const unsigned long start_pfn = page_to_pfn(page);
@@ -881,7 +882,7 @@ EXPORT_SYMBOL_GPL(kho_preserve_pages);
  * kho_preserve_pages() call. Unpreserving arbitrary sub-ranges of larger
  * preserved blocks is not supported.
  */
-void kho_unpreserve_pages(struct page *page, unsigned int nr_pages)
+void kho_unpreserve_pages(struct page *page, unsigned long nr_pages)
 {
 	struct kho_mem_track *track = &kho_out.track;
 	const unsigned long start_pfn = page_to_pfn(page);
