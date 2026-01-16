@@ -30,6 +30,17 @@ static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 	/* clear residual, anything from pdu_size and below */
 	memset((void *) bctx + offsetof(struct io_uring_bpf_ctx, pdu_size), 0,
 		sizeof(*bctx) - offsetof(struct io_uring_bpf_ctx, pdu_size));
+
+	/*
+	 * Opcodes can provide a handler fo populating more data into bctx,
+	 * for filters to use.
+	 */
+	switch (req->opcode) {
+	case IORING_OP_SOCKET:
+		bctx->pdu_size = sizeof(bctx->socket);
+		io_socket_bpf_populate(bctx, req);
+		break;
+	}
 }
 
 /*

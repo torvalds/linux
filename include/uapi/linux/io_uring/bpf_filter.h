@@ -16,6 +16,13 @@ struct io_uring_bpf_ctx {
 	__u8	sqe_flags;
 	__u8	pdu_size;	/* size of aux data for filter */
 	__u8	pad[5];
+	union {
+		struct {
+			__u32	family;
+			__u32	type;
+			__u32	protocol;
+		} socket;
+	};
 };
 
 enum {
