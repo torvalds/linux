@@ -777,12 +777,14 @@ static int csi2_probe(struct platform_device *pdev)
 	if (!csi2->base)
 		return -ENOMEM;
 
-	mutex_init(&csi2->lock);
+	ret = devm_mutex_init(&pdev->dev, &csi2->lock);
+	if (ret)
+		return ret;
 
 	ret = clk_prepare_enable(csi2->pllref_clk);
 	if (ret) {
 		v4l2_err(&csi2->sd, "failed to enable pllref_clk\n");
-		goto rmmutex;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(csi2->dphy_clk);
@@ -805,8 +807,6 @@ clean_notifier:
 	clk_disable_unprepare(csi2->dphy_clk);
 pllref_off:
 	clk_disable_unprepare(csi2->pllref_clk);
-rmmutex:
-	mutex_destroy(&csi2->lock);
 	return ret;
 }
 
@@ -820,7 +820,6 @@ static void csi2_remove(struct platform_device *pdev)
 	v4l2_async_unregister_subdev(sd);
 	clk_disable_unprepare(csi2->dphy_clk);
 	clk_disable_unprepare(csi2->pllref_clk);
-	mutex_destroy(&csi2->lock);
 	media_entity_cleanup(&sd->entity);
 }
 
