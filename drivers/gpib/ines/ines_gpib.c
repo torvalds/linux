@@ -657,11 +657,10 @@ static int ines_allocate_private(struct gpib_board *board)
 {
 	struct ines_priv *priv;
 
-	board->private_data = kmalloc(sizeof(struct ines_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct ines_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -1;
 	priv = board->private_data;
-	memset(priv, 0, sizeof(struct ines_priv));
 	init_nec7210_private(&priv->nec7210_priv);
 	return 0;
 }
