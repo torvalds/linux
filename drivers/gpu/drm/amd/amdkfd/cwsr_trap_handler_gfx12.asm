@@ -1355,8 +1355,8 @@ function fixup_vgpr_bank_selection
 	// ttmp[0:1]: {7b'0} PC[56:0]
 	// ttmp2, 3, 10, 13, 14, 15: free
 	s_load_b64	[ttmp14, ttmp15], [ttmp0, ttmp1], 0 scope:SCOPE_CU	// Load the 2 instruction DW we are returning to
+	s_wait_kmcnt	0
 	s_load_b64	[ttmp2, ttmp3], [ttmp0, ttmp1], 8 scope:SCOPE_CU	// Load the next 2 instruction DW, just in case
-	s_wait_kmcnt	1
 	s_and_b32	ttmp10, ttmp14, 0x80000000				// Check bit 31 in the first DWORD
 										// SCC set if ttmp10 is != 0, i.e. if bit 31 == 1
 	s_cbranch_scc1	L_FIXUP_NOT_VOP12C					// If bit 31 is 1, we are not VOP1, VOP2, or VOP3C
