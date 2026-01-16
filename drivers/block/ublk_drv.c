@@ -136,6 +136,7 @@ struct ublk_batch_io_data {
 	struct io_uring_cmd *cmd;
 	struct ublk_batch_io header;
 	unsigned int issue_flags;
+	struct io_comp_batch *iob;
 };
 
 /*
@@ -691,7 +692,7 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 #endif
 
 static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
-				      bool need_map);
+				      bool need_map, struct io_comp_batch *iob);
 
 static dev_t ublk_chr_devt;
 static const struct class ublk_chr_class = {
@@ -1001,7 +1002,7 @@ static inline void ublk_put_req_ref(struct ublk_io *io, struct request *req)
 		return;
 
 	/* ublk_need_map_io() and ublk_need_req_ref() are mutually exclusive */
-	__ublk_complete_rq(req, io, false);
+	__ublk_complete_rq(req, io, false, NULL);
 }
 
 static inline bool ublk_sub_req_ref(struct ublk_io *io)
@@ -1388,7 +1389,7 @@ static void ublk_end_request(struct request *req, blk_status_t error)
 
 /* todo: handle partial completion */
 static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
-				      bool need_map)
+				      bool need_map, struct io_comp_batch *iob)
 {
 	unsigned int unmapped_bytes;
 	blk_status_t res = BLK_STS_OK;
@@ -1442,8 +1443,11 @@ static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
 	local_bh_enable();
 	if (requeue)
 		blk_mq_requeue_request(req, true);
-	else if (likely(!blk_should_fake_timeout(req->q)))
+	else if (likely(!blk_should_fake_timeout(req->q))) {
+		if (blk_mq_add_to_batch(req, iob, false, blk_mq_end_request_batch))
+			return;
 		__blk_mq_end_request(req, BLK_STS_OK);
+	}
 
 	return;
 exit:
@@ -2478,7 +2482,7 @@ static void __ublk_fail_req(struct ublk_device *ub, struct ublk_io *io,
 		blk_mq_requeue_request(req, false);
 	else {
 		io->res = -EIO;
-		__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub));
+		__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub), NULL);
 	}
 }
 
@@ -3214,7 +3218,7 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 		if (req_op(req) == REQ_OP_ZONE_APPEND)
 			req->__sector = addr;
 		if (compl)
-			__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub));
+			__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub), NULL);
 
 		if (ret)
 			goto out;
@@ -3533,11 +3537,11 @@ static int ublk_batch_commit_io(struct ublk_queue *ubq,
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
 		req->__sector = ublk_batch_zone_lba(uc, elem);
 	if (compl)
-		__ublk_complete_rq(req, io, ublk_dev_need_map_io(data->ub));
+		__ublk_complete_rq(req, io, ublk_dev_need_map_io(data->ub), data->iob);
 	return 0;
 }
 
-static int ublk_handle_batch_commit_cmd(const struct ublk_batch_io_data *data)
+static int ublk_handle_batch_commit_cmd(struct ublk_batch_io_data *data)
 {
 	const struct ublk_batch_io *uc = &data->header;
 	struct io_uring_cmd *cmd = data->cmd;
@@ -3546,9 +3550,14 @@ static int ublk_handle_batch_commit_cmd(const struct ublk_batch_io_data *data)
 		.total = uc->nr_elem * uc->elem_bytes,
 		.elem_bytes = uc->elem_bytes,
 	};
+	DEFINE_IO_COMP_BATCH(iob);
 	int ret;
 
+	data->iob = &iob;
 	ret = ublk_walk_cmd_buf(&iter, data, ublk_batch_commit_io);
+
+	if (iob.complete)
+		iob.complete(&iob);
 
 	return iter.done == 0 ? ret : iter.done;
 }
