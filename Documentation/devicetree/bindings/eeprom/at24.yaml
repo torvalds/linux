@@ -142,6 +142,7 @@ properties:
           - enum:
               - giantec,gt24p128e
               - giantec,gt24p128f
+              - puya,p24c128f
               - renesas,r1ex24128
               - samsung,s524ad0xd1
           - const: atmel,24c128
