@@ -2234,7 +2234,7 @@ static int ni_usb_attach(struct gpib_board *board, const struct gpib_board_confi
 
 	mutex_lock(&ni_usb_hotplug_lock);
 	retval = ni_usb_allocate_private(board);
-	if (retval < 0)		{
+	if (retval) {
 		mutex_unlock(&ni_usb_hotplug_lock);
 		return retval;
 	}
