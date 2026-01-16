@@ -23,9 +23,9 @@ $(obj)/%.lds : KBUILD_CPPFLAGS += $(CPPFLAGS_VDSO_LDS)
 #
 flags-remove-y += \
 	-D__KERNEL__ -mcmodel=kernel -mregparm=3 \
-	-fno-pic -fno-PIC -fno-pie fno-PIE \
+	-fno-pic -fno-PIC -fno-pie -fno-PIE \
 	-mfentry -pg \
-	$(RANDSTRUCT_CFLAGS) $(GCC_PLUGIN_CFLAGS) $(KSTACK_ERASE_CFLAGS) \
+	$(RANDSTRUCT_CFLAGS) $(GCC_PLUGINS_CFLAGS) $(KSTACK_ERASE_CFLAGS) \
 	$(RETPOLINE_CFLAGS) $(CC_FLAGS_LTO) $(CC_FLAGS_CFI) \
 	$(PADDING_CFLAGS)
 
