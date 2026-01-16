@@ -256,10 +256,12 @@ static int pc2_generic_attach(struct gpib_board *board, const struct gpib_board_
 {
 	struct pc2_priv *pc2_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
-	if (allocate_private(board))
-		return -ENOMEM;
+	retval = allocate_private(board);
+	if (retval)
+		return retval;
 	pc2_priv = board->private_data;
 	nec_priv = &pc2_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_ioport_read_byte;
