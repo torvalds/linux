@@ -49,7 +49,7 @@ static int __check_free_space_extents(struct btrfs_trans_handle *trans,
 	if (flags & BTRFS_FREE_SPACE_USING_BITMAPS) {
 		if (path->slots[0] != 0)
 			goto invalid;
-		end = cache->start + cache->length;
+		end = btrfs_block_group_end(cache);
 		i = 0;
 		while (++path->slots[0] < btrfs_header_nritems(path->nodes[0])) {
 			btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
@@ -216,7 +216,7 @@ static int test_remove_end(struct btrfs_trans_handle *trans,
 	int ret;
 
 	ret = __btrfs_remove_from_free_space_tree(trans, cache, path,
-				    cache->start + cache->length - alignment,
+				    btrfs_block_group_end(cache) - alignment,
 				    alignment);
 	if (ret) {
 		test_err("could not remove free space");

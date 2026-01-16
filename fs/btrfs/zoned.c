@@ -1231,6 +1231,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	struct btrfs_key found_key;
+	const u64 bg_end = btrfs_block_group_end(cache);
 	int ret;
 	u64 length;
 
@@ -1253,7 +1254,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 	if (!path)
 		return -ENOMEM;
 
-	key.objectid = cache->start + cache->length;
+	key.objectid = bg_end;
 	key.type = 0;
 	key.offset = 0;
 
@@ -1282,7 +1283,7 @@ static int calculate_alloc_pointer(struct btrfs_block_group *cache,
 		length = fs_info->nodesize;
 
 	if (unlikely(!(found_key.objectid >= cache->start &&
-		       found_key.objectid + length <= cache->start + cache->length))) {
+		       found_key.objectid + length <= bg_end))) {
 		return -EUCLEAN;
 	}
 	*offset_ret = found_key.objectid + length - cache->start;
@@ -2028,7 +2029,7 @@ int btrfs_check_meta_write_pointer(struct btrfs_fs_info *fs_info,
 
 	if (block_group) {
 		if (block_group->start > eb->start ||
-		    block_group->start + block_group->length <= eb->start) {
+		    btrfs_block_group_end(block_group) <= eb->start) {
 			btrfs_put_block_group(block_group);
 			block_group = NULL;
 			ctx->zoned_bg = NULL;
@@ -2248,7 +2249,7 @@ out_unlock:
 static void wait_eb_writebacks(struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	const u64 end = block_group->start + block_group->length;
+	const u64 end = btrfs_block_group_end(block_group);
 	struct extent_buffer *eb;
 	unsigned long index, start = (block_group->start >> fs_info->nodesize_bits);
 

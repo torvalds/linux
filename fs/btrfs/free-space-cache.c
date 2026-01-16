@@ -1201,6 +1201,7 @@ static noinline_for_stack int write_pinned_extent_entries(
 			    int *entries)
 {
 	u64 start, extent_start, extent_end, len;
+	const u64 block_group_end = btrfs_block_group_end(block_group);
 	struct extent_io_tree *unpin = NULL;
 	int ret;
 
@@ -1215,19 +1216,18 @@ static noinline_for_stack int write_pinned_extent_entries(
 
 	start = block_group->start;
 
-	while (start < block_group->start + block_group->length) {
+	while (start < block_group_end) {
 		if (!btrfs_find_first_extent_bit(unpin, start,
 						 &extent_start, &extent_end,
 						 EXTENT_DIRTY, NULL))
 			return 0;
 
 		/* This pinned extent is out of our range */
-		if (extent_start >= block_group->start + block_group->length)
+		if (extent_start >= block_group_end)
 			return 0;
 
 		extent_start = max(extent_start, start);
-		extent_end = min(block_group->start + block_group->length,
-				 extent_end + 1);
+		extent_end = min(block_group_end, extent_end + 1);
 		len = extent_end - extent_start;
 
 		*entries += 1;
