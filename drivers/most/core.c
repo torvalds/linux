@@ -1282,11 +1282,16 @@ int most_register_interface(struct most_interface *iface)
 	int id;
 	struct most_channel *c;
 
-	if (!iface || !iface->enqueue || !iface->configure ||
-	    !iface->poison_channel || (iface->num_channels > MAX_CHANNELS))
+	if (!iface)
 		return -EINVAL;
 
 	device_initialize(iface->dev);
+
+	if (!iface->enqueue || !iface->configure || !iface->poison_channel ||
+	    (iface->num_channels > MAX_CHANNELS)) {
+		put_device(iface->dev);
+		return -EINVAL;
+	}
 
 	id = ida_alloc(&mdev_id, GFP_KERNEL);
 	if (id < 0) {
