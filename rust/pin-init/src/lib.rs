@@ -146,7 +146,7 @@
 //!
 //! impl DriverData {
 //!     fn new() -> impl PinInit<Self, Error> {
-//!         try_pin_init!(Self {
+//!         pin_init!(Self {
 //!             status <- CMutex::new(0),
 //!             buffer: Box::init(pin_init::init_zeroed())?,
 //!         }? Error)
@@ -528,7 +528,7 @@ macro_rules! stack_pin_init {
 ///     x: u32,
 /// }
 ///
-/// stack_try_pin_init!(let foo: Foo = try_pin_init!(Foo {
+/// stack_try_pin_init!(let foo: Foo = pin_init!(Foo {
 ///     a <- CMutex::new(42),
 ///     b: Box::try_new(Bar {
 ///         x: 64,
@@ -555,7 +555,7 @@ macro_rules! stack_pin_init {
 ///     x: u32,
 /// }
 ///
-/// stack_try_pin_init!(let foo: Foo =? try_pin_init!(Foo {
+/// stack_try_pin_init!(let foo: Foo =? pin_init!(Foo {
 ///     a <- CMutex::new(42),
 ///     b: Box::try_new(Bar {
 ///         x: 64,
@@ -584,10 +584,10 @@ macro_rules! stack_try_pin_init {
     };
 }
 
-/// Construct an in-place, pinned initializer for `struct`s.
+/// Construct an in-place, fallible pinned initializer for `struct`s.
 ///
-/// This macro defaults the error to [`Infallible`]. If you need a different error, then use
-/// [`try_pin_init!`].
+/// The error type defaults to [`Infallible`]; if you need a different one, write `? Error` at the
+/// end, after the struct initializer.
 ///
 /// The syntax is almost identical to that of a normal `struct` initializer:
 ///
@@ -783,54 +783,10 @@ macro_rules! pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
     };
-}
-
-/// Construct an in-place, fallible pinned initializer for `struct`s.
-///
-/// If the initialization can complete without error (or [`Infallible`]), then use [`pin_init!`].
-///
-/// You can use the `?` operator or use `return Err(err)` inside the initializer to stop
-/// initialization and return the error.
-///
-/// IMPORTANT: if you have `unsafe` code inside of the initializer you have to ensure that when
-/// initialization fails, the memory can be safely deallocated without any further modifications.
-///
-/// The syntax is identical to [`pin_init!`] with the following exception: you must append `? $type`
-/// after the `struct` initializer to specify the error type you want to use.
-///
-/// # Examples
-///
-/// ```rust
-/// # #![feature(allocator_api)]
-/// # #[path = "../examples/error.rs"] mod error; use error::Error;
-/// use pin_init::{pin_data, try_pin_init, PinInit, InPlaceInit, init_zeroed};
-///
-/// #[pin_data]
-/// struct BigBuf {
-///     big: Box<[u8; 1024 * 1024 * 1024]>,
-///     small: [u8; 1024 * 1024],
-///     ptr: *mut u8,
-/// }
-///
-/// impl BigBuf {
-///     fn new() -> impl PinInit<Self, Error> {
-///         try_pin_init!(Self {
-///             big: Box::init(init_zeroed())?,
-///             small: [0; 1024 * 1024],
-///             ptr: core::ptr::null_mut(),
-///         }? Error)
-///     }
-/// }
-/// # let _ = Box::pin_init(BigBuf::new());
-/// ```
-// For a detailed example of how this macro works, see the module documentation of the hidden
-// module `macros` inside of `macros.rs`.
-#[macro_export]
-macro_rules! try_pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -847,10 +803,10 @@ macro_rules! try_pin_init {
     }
 }
 
-/// Construct an in-place initializer for `struct`s.
+/// Construct an in-place, fallible initializer for `struct`s.
 ///
-/// This macro defaults the error to [`Infallible`]. If you need a different error, then use
-/// [`try_init!`].
+/// This macro defaults the error to [`Infallible`]; if you need a different one, write `? Error`
+/// at the end, after the struct initializer.
 ///
 /// The syntax is identical to [`pin_init!`] and its safety caveats also apply:
 /// - `unsafe` code must guarantee either full initialization or return an error and allow
@@ -890,52 +846,10 @@ macro_rules! init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::try_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
-    }
-}
-
-/// Construct an in-place fallible initializer for `struct`s.
-///
-/// If the initialization can complete without error (or [`Infallible`]), then use
-/// [`init!`].
-///
-/// The syntax is identical to [`try_pin_init!`]. You need to specify a custom error
-/// via `? $type` after the `struct` initializer.
-/// The safety caveats from [`try_pin_init!`] also apply:
-/// - `unsafe` code must guarantee either full initialization or return an error and allow
-///   deallocation of the memory.
-/// - the fields are initialized in the order given in the initializer.
-/// - no references to fields are allowed to be created inside of the initializer.
-///
-/// # Examples
-///
-/// ```rust
-/// # #![feature(allocator_api)]
-/// # use core::alloc::AllocError;
-/// # use pin_init::InPlaceInit;
-/// use pin_init::{try_init, Init, init_zeroed};
-///
-/// struct BigBuf {
-///     big: Box<[u8; 1024 * 1024 * 1024]>,
-///     small: [u8; 1024 * 1024],
-/// }
-///
-/// impl BigBuf {
-///     fn new() -> impl Init<Self, AllocError> {
-///         try_init!(Self {
-///             big: Box::init(init_zeroed())?,
-///             small: [0; 1024 * 1024],
-///         }? AllocError)
-///     }
-/// }
-/// # let _ = Box::init(BigBuf::new());
-/// ```
-// For a detailed example of how this macro works, see the module documentation of the hidden
-// module `macros` inside of `macros.rs`.
-#[macro_export]
-macro_rules! try_init {
+    };
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -1410,14 +1324,14 @@ where
 /// fn init_foo() -> impl PinInit<Foo, Error> {
 ///     pin_init_scope(|| {
 ///         let bar = lookup_bar()?;
-///         Ok(try_pin_init!(Foo { a: bar.a.into(), b: bar.b }? Error))
+///         Ok(pin_init!(Foo { a: bar.a.into(), b: bar.b }? Error))
 ///     })
 /// }
 /// ```
 ///
 /// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
 /// initializer itself will fail with that error. If it returned `Ok`, then it will run the
-/// initializer returned by the [`try_pin_init!`] invocation.
+/// initializer returned by the [`pin_init!`] invocation.
 pub fn pin_init_scope<T, E, F, I>(make_init: F) -> impl PinInit<T, E>
 where
     F: FnOnce() -> Result<I, E>,
@@ -1453,14 +1367,14 @@ where
 /// fn init_foo() -> impl Init<Foo, Error> {
 ///     init_scope(|| {
 ///         let bar = lookup_bar()?;
-///         Ok(try_init!(Foo { a: bar.a.into(), b: bar.b }? Error))
+///         Ok(init!(Foo { a: bar.a.into(), b: bar.b }? Error))
 ///     })
 /// }
 /// ```
 ///
 /// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
 /// initializer itself will fail with that error. If it returned `Ok`, then it will run the
-/// initializer returned by the [`try_init!`] invocation.
+/// initializer returned by the [`init!`] invocation.
 pub fn init_scope<T, E, F, I>(make_init: F) -> impl Init<T, E>
 where
     F: FnOnce() -> Result<I, E>,
