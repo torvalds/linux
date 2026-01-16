@@ -3314,6 +3314,48 @@ struct dpa_result {
 	u64 dpa;
 };
 
+static int unaligned_region_offset_to_dpa_result(struct cxl_region *cxlr,
+						 u64 offset,
+						 struct dpa_result *result)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct cxl_region_params *p = &cxlr->params;
+	u64 interleave_width, interleave_index;
+	u64 gran, gran_offset, dpa_offset;
+	u64 hpa = p->res->start + offset;
+
+	/*
+	 * Unaligned addresses are not algebraically invertible. Calculate
+	 * a dpa_offset independent of the target device and then enumerate
+	 * and test that dpa_offset against each candidate endpoint decoder.
+	 */
+	gran = cxld->interleave_granularity;
+	interleave_width = gran * cxld->interleave_ways;
+	interleave_index = div64_u64(offset, interleave_width);
+	gran_offset = div64_u64_rem(offset, gran, NULL);
+
+	dpa_offset = interleave_index * gran + gran_offset;
+
+	for (int i = 0; i < p->nr_targets; i++) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		int pos = cxled->pos;
+		u64 test_hpa;
+
+		test_hpa = unaligned_dpa_to_hpa(cxld, p, pos, dpa_offset);
+		if (test_hpa == hpa) {
+			result->cxlmd = cxled_to_memdev(cxled);
+			result->dpa =
+				cxl_dpa_resource_start(cxled) + dpa_offset;
+			return 0;
+		}
+	}
+	dev_err(&cxlr->dev,
+		"failed to resolve HPA %#llx in unaligned MOD3 region\n", hpa);
+
+	return -ENXIO;
+}
+
 static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 				       struct dpa_result *result)
 {
@@ -3342,6 +3384,10 @@ static int region_offset_to_dpa_result(struct cxl_region *cxlr, u64 offset,
 	} else {
 		hpa_offset = offset;
 	}
+
+	if (region_is_unaligned_mod3(cxlr))
+		return unaligned_region_offset_to_dpa_result(cxlr, offset,
+							     result);
 
 	pos = cxl_calculate_position(hpa_offset, eiw, eig);
 	if (pos < 0 || pos >= p->nr_targets) {
