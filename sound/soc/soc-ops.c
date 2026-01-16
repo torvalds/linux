@@ -543,11 +543,11 @@ int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
 			ucontrol->value.bytes.data[0] &= ~params->mask;
 			break;
 		case 2:
-			((u16 *)(&ucontrol->value.bytes.data))[0]
+			((__be16 *)(&ucontrol->value.bytes.data))[0]
 				&= cpu_to_be16(~params->mask);
 			break;
 		case 4:
-			((u32 *)(&ucontrol->value.bytes.data))[0]
+			((__be32 *)(&ucontrol->value.bytes.data))[0]
 				&= cpu_to_be32(~params->mask);
 			break;
 		default:

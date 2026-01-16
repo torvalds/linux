@@ -70,6 +70,9 @@ properties:
   "#sound-dai-cells":
     const: 0
 
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+
 required:
   - compatible
   - reg
