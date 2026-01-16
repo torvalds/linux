@@ -843,11 +843,10 @@ static int tnt4882_allocate_private(struct gpib_board *board)
 {
 	struct tnt4882_priv *tnt_priv;
 
-	board->private_data = kmalloc(sizeof(struct tnt4882_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct tnt4882_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -1;
 	tnt_priv = board->private_data;
-	memset(tnt_priv, 0, sizeof(struct tnt4882_priv));
 	init_nec7210_private(&tnt_priv->nec7210_priv);
 	return 0;
 }
