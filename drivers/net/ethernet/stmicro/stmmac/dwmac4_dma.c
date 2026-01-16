@@ -52,7 +52,7 @@ static void dwmac4_dma_init_rx_chan(struct stmmac_priv *priv,
 	u32 rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
 	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(dwmac4_addrs, chan));
-	value = value | FIELD_PREP(DMA_BUS_MODE_RPBL_MASK, rxpbl);
+	value = value | FIELD_PREP(DMA_CHAN_RX_CTRL_RXPBL_MASK, rxpbl);
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(dwmac4_addrs, chan));
 
 	if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT) && likely(dma_cfg->eame))
@@ -73,7 +73,7 @@ static void dwmac4_dma_init_tx_chan(struct stmmac_priv *priv,
 	u32 txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(dwmac4_addrs, chan));
-	value = value | FIELD_PREP(DMA_BUS_MODE_PBL, txpbl);
+	value = value | FIELD_PREP(DMA_CHAN_TX_CTRL_TXPBL_MASK, txpbl);
 
 	/* Enable OSP to get best performance */
 	value |= DMA_CONTROL_OSP;
@@ -98,7 +98,7 @@ static void dwmac4_dma_init_channel(struct stmmac_priv *priv,
 	/* common channel control register config */
 	value = readl(ioaddr + DMA_CHAN_CONTROL(dwmac4_addrs, chan));
 	if (dma_cfg->pblx8)
-		value = value | DMA_BUS_MODE_PBL;
+		value = value | DMA_CHAN_CTRL_PBLX8;
 	writel(value, ioaddr + DMA_CHAN_CONTROL(dwmac4_addrs, chan));
 
 	/* Mask interrupts by writing to CSR7 */
@@ -116,7 +116,7 @@ static void dwmac410_dma_init_channel(struct stmmac_priv *priv,
 	/* common channel control register config */
 	value = readl(ioaddr + DMA_CHAN_CONTROL(dwmac4_addrs, chan));
 	if (dma_cfg->pblx8)
-		value = value | DMA_BUS_MODE_PBL;
+		value = value | DMA_CHAN_CTRL_PBLX8;
 
 	writel(value, ioaddr + DMA_CHAN_CONTROL(dwmac4_addrs, chan));
 

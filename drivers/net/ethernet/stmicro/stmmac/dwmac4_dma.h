@@ -24,8 +24,6 @@
 
 #define DMA_SYS_BUS_MODE		0x00001004
 
-#define DMA_BUS_MODE_PBL		BIT(16)
-#define DMA_BUS_MODE_RPBL_MASK		GENMASK(21, 16)
 #define DMA_BUS_MODE_MB			BIT(14)
 #define DMA_BUS_MODE_FB			BIT(0)
 
@@ -68,19 +66,22 @@ static inline u32 dma_chanx_base_addr(const struct dwmac4_addrs *addrs,
 
 #define DMA_CHAN_CONTROL(addrs, x)	dma_chanx_base_addr(addrs, x)
 
+#define DMA_CHAN_CTRL_PBLX8		BIT(16)
 #define DMA_CONTROL_SPH			BIT(24)
 
 #define DMA_CHAN_TX_CONTROL(addrs, x)	(dma_chanx_base_addr(addrs, x) + 0x4)
 
 #define DMA_CONTROL_EDSE		BIT(28)
+#define DMA_CHAN_TX_CTRL_TXPBL_MASK	GENMASK(21, 16)
 #define DMA_CONTROL_TSE			BIT(12)
 #define DMA_CONTROL_OSP			BIT(4)
 #define DMA_CONTROL_ST			BIT(0)
 
 #define DMA_CHAN_RX_CONTROL(addrs, x)	(dma_chanx_base_addr(addrs, x) + 0x8)
 
-#define DMA_CONTROL_SR			BIT(0)
+#define DMA_CHAN_RX_CTRL_RXPBL_MASK	GENMASK(21, 16)
 #define DMA_RBSZ_MASK			GENMASK(14, 1)
+#define DMA_CONTROL_SR			BIT(0)
 
 #define DMA_CHAN_TX_BASE_ADDR_HI(addrs, x)	(dma_chanx_base_addr(addrs, x) + 0x10)
 #define DMA_CHAN_TX_BASE_ADDR(addrs, x)	(dma_chanx_base_addr(addrs, x) + 0x14)
