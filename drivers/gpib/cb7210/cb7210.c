@@ -875,11 +875,13 @@ static int cb7210_generic_attach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
 
-	if (cb7210_allocate_private(board))
-		return -ENOMEM;
+	retval = cb7210_allocate_private(board);
+	if (retval)
+		return retval;
 	cb_priv = board->private_data;
 	nec_priv = &cb_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_locking_ioport_read_byte;
