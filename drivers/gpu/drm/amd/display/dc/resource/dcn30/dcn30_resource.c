@@ -1641,6 +1641,8 @@ noinline bool dcn30_internal_validate_bw(
 	if (!pipes)
 		return false;
 
+	dcn20_merge_pipes_for_validate(dc, context);
+
 	context->bw_ctx.dml.vba.maxMpcComb = 0;
 	context->bw_ctx.dml.vba.VoltageLevel = 0;
 	context->bw_ctx.dml.vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vactive;
