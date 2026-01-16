@@ -52,11 +52,27 @@ static const struct pwrseq_pwrctrl_pdata pwrseq_pwrctrl_qcom_wcn_pdata = {
 	.validate_device = pwrseq_pwrctrl_qcm_wcn_validate_device,
 };
 
+static int pwrseq_pwrctrl_power_on(struct pci_pwrctrl *pwrctrl)
+{
+	struct pwrseq_pwrctrl *pwrseq = container_of(pwrctrl,
+					   struct pwrseq_pwrctrl, pwrctrl);
+
+	return pwrseq_power_on(pwrseq->pwrseq);
+}
+
+static int pwrseq_pwrctrl_power_off(struct pci_pwrctrl *pwrctrl)
+{
+	struct pwrseq_pwrctrl *pwrseq = container_of(pwrctrl,
+					   struct pwrseq_pwrctrl, pwrctrl);
+
+	return pwrseq_power_off(pwrseq->pwrseq);
+}
+
 static void devm_pwrseq_pwrctrl_power_off(void *data)
 {
-	struct pwrseq_desc *pwrseq = data;
+	struct pwrseq_pwrctrl *pwrseq = data;
 
-	pwrseq_power_off(pwrseq);
+	pwrseq_pwrctrl_power_off(&pwrseq->pwrctrl);
 }
 
 static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
@@ -85,13 +101,13 @@ static int pwrseq_pwrctrl_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pwrseq->pwrseq),
 				     "Failed to get the power sequencer\n");
 
-	ret = pwrseq_power_on(pwrseq->pwrseq);
+	ret = pwrseq_pwrctrl_power_on(&pwrseq->pwrctrl);
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "Failed to power-on the device\n");
 
 	ret = devm_add_action_or_reset(dev, devm_pwrseq_pwrctrl_power_off,
-				       pwrseq->pwrseq);
+				       pwrseq);
 	if (ret)
 		return ret;
 
