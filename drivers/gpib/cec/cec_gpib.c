@@ -238,11 +238,13 @@ static int cec_generic_attach(struct gpib_board *board)
 {
 	struct cec_priv *cec_priv;
 	struct nec7210_priv *nec_priv;
+	int retval;
 
 	board->status = 0;
 
-	if (cec_allocate_private(board))
-		return -ENOMEM;
+	retval = cec_allocate_private(board);
+	if (retval)
+		return retval;
 	cec_priv = board->private_data;
 	nec_priv = &cec_priv->nec7210_priv;
 	nec_priv->read_byte = nec7210_ioport_read_byte;
