@@ -8,7 +8,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
@@ -24,9 +23,9 @@ static ssize_t bmof_read(struct file *filp, struct kobject *kobj, const struct b
 			 char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
-	union acpi_object *obj = dev_get_drvdata(dev);
+	struct wmi_buffer *buffer = dev_get_drvdata(dev);
 
-	return memory_read_from_buffer(buf, count, &off, obj->buffer.pointer, obj->buffer.length);
+	return memory_read_from_buffer(buf, count, &off, buffer->data, buffer->length);
 }
 
 static const BIN_ATTR_ADMIN_RO(bmof, 0);
@@ -39,9 +38,9 @@ static const struct bin_attribute * const bmof_attrs[] = {
 static size_t bmof_bin_size(struct kobject *kobj, const struct bin_attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
-	union acpi_object *obj = dev_get_drvdata(dev);
+	struct wmi_buffer *buffer = dev_get_drvdata(dev);
 
-	return obj->buffer.length;
+	return buffer->length;
 }
 
 static const struct attribute_group bmof_group = {
@@ -56,30 +55,27 @@ static const struct attribute_group *bmof_groups[] = {
 
 static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 {
-	union acpi_object *obj;
+	struct wmi_buffer *buffer;
+	int ret;
 
-	obj = wmidev_block_query(wdev, 0);
-	if (!obj) {
-		dev_err(&wdev->dev, "failed to read Binary MOF\n");
-		return -EIO;
-	}
+	buffer = devm_kzalloc(&wdev->dev, sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Binary MOF is not a buffer\n");
-		kfree(obj);
-		return -EIO;
-	}
+	ret = wmidev_query_block(wdev, 0, buffer);
+	if (ret < 0)
+		return ret;
 
-	dev_set_drvdata(&wdev->dev, obj);
+	dev_set_drvdata(&wdev->dev, buffer);
 
 	return 0;
 }
 
 static void wmi_bmof_remove(struct wmi_device *wdev)
 {
-	union acpi_object *obj = dev_get_drvdata(&wdev->dev);
+	struct wmi_buffer *buffer = dev_get_drvdata(&wdev->dev);
 
-	kfree(obj);
+	kfree(buffer->data);
 }
 
 static const struct wmi_device_id wmi_bmof_id_table[] = {
