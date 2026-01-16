@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-#[cfg(not(kernel))]
-use proc_macro2 as proc_macro;
-
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree};
+use quote::quote;
 
 pub(crate) fn pinned_drop(_args: TokenStream, input: TokenStream) -> TokenStream {
     let mut toks = input.into_iter().collect::<Vec<_>>();
     assert!(!toks.is_empty());
     // Ensure that we have an `impl` item.
-    assert!(matches!(&toks[0], TokenTree::Ident(i) if i.to_string() == "impl"));
+    assert!(matches!(&toks[0], TokenTree::Ident(i) if i == "impl"));
     // Ensure that we are implementing `PinnedDrop`.
     let mut nesting: usize = 0;
     let mut pinned_drop_idx = None;
@@ -27,7 +25,7 @@ pub(crate) fn pinned_drop(_args: TokenStream, input: TokenStream) -> TokenStream
         if i >= 1 && nesting == 0 {
             // Found the end of the generics, this should be `PinnedDrop`.
             assert!(
-                matches!(tt, TokenTree::Ident(i) if i.to_string() == "PinnedDrop"),
+                matches!(tt, TokenTree::Ident(i) if i == "PinnedDrop"),
                 "expected 'PinnedDrop', found: '{tt:?}'"
             );
             pinned_drop_idx = Some(i);

@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#[cfg(not(kernel))]
-use proc_macro2 as proc_macro;
-
 use crate::helpers::{parse_generics, Generics};
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree};
+use quote::quote;
 
 pub(crate) fn parse_zeroable_derive_input(
     input: TokenStream,

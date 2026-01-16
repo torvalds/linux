@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-#[cfg(not(kernel))]
-use proc_macro2 as proc_macro;
-
 use crate::helpers::{parse_generics, Generics};
-use proc_macro::{Group, Punct, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Group, Punct, Spacing, TokenStream, TokenTree};
+use quote::quote;
 
 pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
     // This proc-macro only does some pre-parsing and then delegates the actual parsing to
@@ -28,7 +26,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
     // The name of the struct with ty_generics.
     let struct_name = rest
         .iter()
-        .skip_while(|tt| !matches!(tt, TokenTree::Ident(i) if i.to_string() == "struct"))
+        .skip_while(|tt| !matches!(tt, TokenTree::Ident(i) if i == "struct"))
         .nth(1)
         .and_then(|tt| match tt {
             TokenTree::Ident(_) => {
@@ -65,7 +63,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
         .into_iter()
         .flat_map(|tt| {
             // We ignore top level `struct` tokens, since they would emit a compile error.
-            if matches!(&tt, TokenTree::Ident(i) if i.to_string() == "struct") {
+            if matches!(&tt, TokenTree::Ident(i) if i == "struct") {
                 vec![tt]
             } else {
                 replace_self_and_deny_type_defs(&struct_name, tt, &mut errs)
@@ -98,11 +96,7 @@ fn replace_self_and_deny_type_defs(
 ) -> Vec<TokenTree> {
     match tt {
         TokenTree::Ident(ref i)
-            if i.to_string() == "enum"
-                || i.to_string() == "trait"
-                || i.to_string() == "struct"
-                || i.to_string() == "union"
-                || i.to_string() == "impl" =>
+            if i == "enum" || i == "trait" || i == "struct" || i == "union" || i == "impl" =>
         {
             errs.extend(
                 format!(
@@ -119,7 +113,7 @@ fn replace_self_and_deny_type_defs(
             );
             vec![tt]
         }
-        TokenTree::Ident(i) if i.to_string() == "Self" => struct_name.clone(),
+        TokenTree::Ident(i) if i == "Self" => struct_name.clone(),
         TokenTree::Literal(_) | TokenTree::Punct(_) | TokenTree::Ident(_) => vec![tt],
         TokenTree::Group(g) => vec![TokenTree::Group(Group::new(
             g.delimiter(),

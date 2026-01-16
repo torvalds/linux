@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-#[cfg(not(kernel))]
-use proc_macro2 as proc_macro;
-
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro2::{TokenStream, TokenTree};
 
 /// Parsed generics.
 ///
@@ -101,7 +98,7 @@ pub(crate) fn parse_generics(input: TokenStream) -> (Generics, Vec<TokenTree>) {
                     1 => {
                         // Here depending on the token, it might be a generic variable name.
                         match tt.clone() {
-                            TokenTree::Ident(i) if at_start && i.to_string() == "const" => {
+                            TokenTree::Ident(i) if at_start && i == "const" => {
                                 let Some(name) = toks.next() else {
                                     // Parsing error.
                                     break;
