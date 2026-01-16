@@ -519,6 +519,10 @@ static int ublk_thread_init(struct ublk_thread *t, unsigned long long extra_flag
 	int ring_depth = dev->tgt.sq_depth, cq_depth = dev->tgt.cq_depth;
 	int ret;
 
+	/* FETCH_IO_CMDS is multishot, so increase cq depth for BATCH_IO */
+	if (ublk_dev_batch_io(dev))
+		cq_depth += dev->dev_info.queue_depth;
+
 	ret = ublk_setup_ring(&t->ring, ring_depth, cq_depth,
 			IORING_SETUP_COOP_TASKRUN |
 			IORING_SETUP_SINGLE_ISSUER |
@@ -878,7 +882,7 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 	unsigned q_id = user_data_to_q_id(cqe->user_data);
 	unsigned cmd_op = user_data_to_op(cqe->user_data);
 
-	if (cqe->res < 0 && cqe->res != -ENODEV)
+	if (cqe->res < 0 && cqe->res != -ENODEV && cqe->res != -ENOBUFS)
 		ublk_err("%s: res %d userdata %llx thread state %x\n", __func__,
 				cqe->res, cqe->user_data, t->state);
 
@@ -1001,9 +1005,13 @@ static __attribute__((noinline)) int __ublk_io_handler_fn(struct ublk_thread_inf
 	if (!ublk_thread_batch_io(&t)) {
 		/* submit all io commands to ublk driver */
 		ublk_submit_fetch_commands(&t);
-	} else if (!t.idx) {
+	} else {
+		struct ublk_queue *q = &t.dev->q[t.idx];
+
 		/* prepare all io commands in the 1st thread context */
-		ublk_batch_setup_queues(&t);
+		if (!t.idx)
+			ublk_batch_setup_queues(&t);
+		ublk_batch_start_fetch(&t, q);
 	}
 
 	do {

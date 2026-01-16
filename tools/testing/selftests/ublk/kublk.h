@@ -198,6 +198,13 @@ struct batch_commit_buf {
 	unsigned short count;
 };
 
+struct batch_fetch_buf {
+	struct io_uring_buf_ring *br;
+	void *fetch_buf;
+	unsigned int fetch_buf_size;
+	unsigned int fetch_buf_off;
+};
+
 struct ublk_thread {
 	struct ublk_dev *dev;
 	unsigned idx;
@@ -224,6 +231,9 @@ struct ublk_thread {
 #define UBLKS_T_COMMIT_BUF_INV_IDX  ((unsigned short)-1)
 	struct allocator commit_buf_alloc;
 	struct batch_commit_buf commit;
+	/* FETCH_IO_CMDS buffer */
+#define UBLKS_T_NR_FETCH_BUF 	2
+	struct batch_fetch_buf fetch[UBLKS_T_NR_FETCH_BUF];
 
 	struct io_uring ring;
 };
@@ -515,6 +525,9 @@ static inline unsigned short ublk_batch_io_buf_idx(
 
 /* Queue UBLK_U_IO_PREP_IO_CMDS for a specific queue with batch elements */
 int ublk_batch_queue_prep_io_cmds(struct ublk_thread *t, struct ublk_queue *q);
+/* Start fetching I/O commands using multishot UBLK_U_IO_FETCH_IO_CMDS */
+void ublk_batch_start_fetch(struct ublk_thread *t,
+			    struct ublk_queue *q);
 /* Handle completion of batch I/O commands (prep/commit) */
 void ublk_batch_compl_cmd(struct ublk_thread *t,
 			  const struct io_uring_cqe *cqe);
