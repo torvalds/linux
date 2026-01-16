@@ -2470,13 +2470,32 @@ static int ublk_ch_mmap(struct file *filp, struct vm_area_struct *vma)
 static void __ublk_fail_req(struct ublk_device *ub, struct ublk_io *io,
 		struct request *req)
 {
-	WARN_ON_ONCE(io->flags & UBLK_IO_FLAG_ACTIVE);
+	WARN_ON_ONCE(!ublk_dev_support_batch_io(ub) &&
+			io->flags & UBLK_IO_FLAG_ACTIVE);
 
 	if (ublk_nosrv_should_reissue_outstanding(ub))
 		blk_mq_requeue_request(req, false);
 	else {
 		io->res = -EIO;
 		__ublk_complete_rq(req, io, ublk_dev_need_map_io(ub));
+	}
+}
+
+/*
+ * Request tag may just be filled to event kfifo, not get chance to
+ * dispatch, abort these requests too
+ */
+static void ublk_abort_batch_queue(struct ublk_device *ub,
+				   struct ublk_queue *ubq)
+{
+	unsigned short tag;
+
+	while (kfifo_out(&ubq->evts_fifo, &tag, 1)) {
+		struct request *req = blk_mq_tag_to_rq(
+				ub->tag_set.tags[ubq->q_id], tag);
+
+		if (!WARN_ON_ONCE(!req || !blk_mq_request_started(req)))
+			__ublk_fail_req(ub, &ubq->ios[tag], req);
 	}
 }
 
@@ -2498,6 +2517,9 @@ static void ublk_abort_queue(struct ublk_device *ub, struct ublk_queue *ubq)
 		if (io->flags & UBLK_IO_FLAG_OWNED_BY_SRV)
 			__ublk_fail_req(ub, io, io->req);
 	}
+
+	if (ublk_support_batch_io(ubq))
+		ublk_abort_batch_queue(ub, ubq);
 }
 
 static void ublk_start_cancel(struct ublk_device *ub)
