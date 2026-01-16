@@ -30,7 +30,12 @@
 
 #ifndef _GVT_DMABUF_H_
 #define _GVT_DMABUF_H_
-#include <linux/vfio.h>
+
+#include <linux/kref.h>
+#include <linux/types.h>
+
+struct intel_vgpu;
+struct intel_vgpu_dmabuf_obj;
 
 struct intel_vgpu_fb_info {
 	__u64 start;

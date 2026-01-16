@@ -2671,14 +2671,17 @@ static int intel_c20pll_calc_state(const struct intel_crtc_state *crtc_state,
 	hw_state->cx0pll.use_c10 = false;
 	hw_state->cx0pll.lane_count = crtc_state->lane_count;
 
-	/* try computed C20 HDMI tables before using consolidated tables */
-	if (!is_dp)
-		/* TODO: Update SSC state for HDMI as well */
-		err = intel_c20_compute_hdmi_tmds_pll(crtc_state, &hw_state->cx0pll.c20);
-
+	/*
+	 * Try the ideal C20 HDMI tables before computing them, since the calculated
+	 * values, although correct, may not be optimal.
+	 */
 	if (err)
 		err = intel_c20pll_calc_state_from_table(crtc_state, encoder,
 							 &hw_state->cx0pll);
+
+	/* TODO: Update SSC state for HDMI as well */
+	if (!is_dp && err)
+		err = intel_c20_compute_hdmi_tmds_pll(crtc_state, &hw_state->cx0pll.c20);
 
 	if (err)
 		return err;

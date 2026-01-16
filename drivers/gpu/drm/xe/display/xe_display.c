@@ -37,6 +37,7 @@
 #include "skl_watermark.h"
 #include "xe_display_rpm.h"
 #include "xe_hdcp_gsc.h"
+#include "xe_initial_plane.h"
 #include "xe_module.h"
 #include "xe_panic.h"
 #include "xe_stolen.h"
@@ -538,6 +539,7 @@ static const struct intel_display_irq_interface xe_display_irq_interface = {
 
 static const struct intel_display_parent_interface parent = {
 	.hdcp = &xe_display_hdcp_interface,
+	.initial_plane = &xe_display_initial_plane_interface,
 	.irq = &xe_display_irq_interface,
 	.panic = &xe_display_panic_interface,
 	.rpm = &xe_display_rpm_interface,

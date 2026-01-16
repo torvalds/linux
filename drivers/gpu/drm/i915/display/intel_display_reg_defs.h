@@ -8,8 +8,6 @@
 
 #include "i915_reg_defs.h"
 
-#define DISPLAY_MMIO_BASE(dev_priv)	(DISPLAY_INFO(dev_priv)->mmio_offset)
-
 #define VLV_DISPLAY_BASE		0x180000
 
 /*
@@ -36,14 +34,9 @@
  * Device info offset array based helpers for groups of registers with unevenly
  * spaced base offsets.
  */
-#define _MMIO_PIPE2(display, pipe, reg)		_MMIO(DISPLAY_INFO(display)->pipe_offsets[(pipe)] - \
-						      DISPLAY_INFO(display)->pipe_offsets[PIPE_A] + \
-						      DISPLAY_MMIO_BASE(display) + (reg))
-#define _MMIO_TRANS2(display, tran, reg)	_MMIO(DISPLAY_INFO(display)->trans_offsets[(tran)] - \
-						      DISPLAY_INFO(display)->trans_offsets[TRANSCODER_A] + \
-						      DISPLAY_MMIO_BASE(display) + (reg))
-#define _MMIO_CURSOR2(display, pipe, reg)	_MMIO(DISPLAY_INFO(display)->cursor_offsets[(pipe)] - \
-						      DISPLAY_INFO(display)->cursor_offsets[PIPE_A] + \
-						      DISPLAY_MMIO_BASE(display) + (reg))
+
+#define _MMIO_PIPE2(display, pipe, reg)		_MMIO(INTEL_DISPLAY_DEVICE_PIPE_OFFSET((display), (pipe)) + (reg))
+#define _MMIO_TRANS2(display, trans, reg)	_MMIO(INTEL_DISPLAY_DEVICE_TRANS_OFFSET((display), (trans)) + (reg))
+#define _MMIO_CURSOR2(display, pipe, reg)	_MMIO(INTEL_DISPLAY_DEVICE_CURSOR_OFFSET((display), (pipe)) + (reg))
 
 #endif /* __INTEL_DISPLAY_REG_DEFS_H__ */

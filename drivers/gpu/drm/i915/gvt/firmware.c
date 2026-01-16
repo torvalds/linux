@@ -28,12 +28,12 @@
  *
  */
 
-#include <linux/firmware.h>
 #include <linux/crc32.h>
+#include <linux/firmware.h>
 #include <linux/vmalloc.h>
 
-#include "i915_drv.h"
 #include "gvt.h"
+#include "i915_drv.h"
 #include "i915_pvinfo.h"
 
 #define FIRMWARE_VERSION (0x0)

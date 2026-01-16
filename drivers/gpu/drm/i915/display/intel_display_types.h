@@ -1385,6 +1385,13 @@ struct intel_crtc_state {
 		u8 pipeline_full;
 		u16 flipline, vmin, vmax, guardband;
 		u32 vsync_end, vsync_start;
+		struct {
+			bool enable;
+			u16 vmin, vmax;
+			u16 guardband, slope;
+			u16 max_increase, max_decrease;
+			u16 vblank_target;
+		} dc_balance;
 	} vrr;
 
 	/* Content Match Refresh Rate state */
@@ -1524,6 +1531,10 @@ struct intel_crtc {
 		enum transcoder cpu_transcoder;
 		struct intel_link_m_n m_n, m2_n2;
 	} drrs;
+
+	struct {
+		u64 flip_count;
+	} dc_balance;
 
 	int scanline_offset;
 

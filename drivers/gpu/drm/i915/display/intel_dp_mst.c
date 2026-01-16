@@ -463,57 +463,21 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	int num_bpc;
-	u8 dsc_bpc[3] = {};
-	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
-	int min_compressed_bpp_x16, max_compressed_bpp_x16;
-	int bpp_step_x16;
 
-	max_bpp = limits->pipe.max_bpp;
-	min_bpp = limits->pipe.min_bpp;
-
-	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd,
-						       dsc_bpc);
-
-	drm_dbg_kms(display->drm, "DSC Source supported min bpp %d max bpp %d\n",
-		    min_bpp, max_bpp);
-
-	sink_min_bpp = min_array(dsc_bpc, num_bpc) * 3;
-	sink_max_bpp = max_array(dsc_bpc, num_bpc) * 3;
-
-	drm_dbg_kms(display->drm, "DSC Sink supported min bpp %d max bpp %d\n",
-		    sink_min_bpp, sink_max_bpp);
-
-	if (min_bpp < sink_min_bpp)
-		min_bpp = sink_min_bpp;
-
-	if (max_bpp > sink_max_bpp)
-		max_bpp = sink_max_bpp;
-
-	crtc_state->pipe_bpp = max_bpp;
-
-	min_compressed_bpp_x16 = limits->link.min_bpp_x16;
-	max_compressed_bpp_x16 = limits->link.max_bpp_x16;
+	crtc_state->pipe_bpp = limits->pipe.max_bpp;
 
 	drm_dbg_kms(display->drm,
 		    "DSC Sink supported compressed min bpp " FXP_Q4_FMT " compressed max bpp " FXP_Q4_FMT "\n",
-		    FXP_Q4_ARGS(min_compressed_bpp_x16), FXP_Q4_ARGS(max_compressed_bpp_x16));
-
-	bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
-
-	max_compressed_bpp_x16 = min(max_compressed_bpp_x16, fxp_q4_from_int(crtc_state->pipe_bpp) - bpp_step_x16);
-
-	drm_WARN_ON(display->drm, !is_power_of_2(bpp_step_x16));
-	min_compressed_bpp_x16 = round_up(min_compressed_bpp_x16, bpp_step_x16);
-	max_compressed_bpp_x16 = round_down(max_compressed_bpp_x16, bpp_step_x16);
+		    FXP_Q4_ARGS(limits->link.min_bpp_x16), FXP_Q4_ARGS(limits->link.max_bpp_x16));
 
 	crtc_state->lane_count = limits->max_lane_count;
 	crtc_state->port_clock = limits->max_rate;
 
 	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state, conn_state,
-					      min_compressed_bpp_x16,
-					      max_compressed_bpp_x16,
-					      bpp_step_x16, true);
+					      limits->link.min_bpp_x16,
+					      limits->link.max_bpp_x16,
+					      intel_dp_dsc_bpp_step_x16(connector),
+					      true);
 }
 
 static int mode_hblank_period_ns(const struct drm_display_mode *mode)
@@ -1462,8 +1426,6 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		DRM_DP_BW_OVERHEAD_MST | DRM_DP_BW_OVERHEAD_SSC_REF_CLK;
 	int ret;
 	bool dsc = false;
-	u16 dsc_max_compressed_bpp = 0;
-	u8 dsc_slice_count = 0;
 	int target_clock = mode->clock;
 	int num_joined_pipes;
 
@@ -1522,31 +1484,22 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		return 0;
 	}
 
-	if (intel_dp_has_dsc(connector)) {
+	if (intel_dp_has_dsc(connector) && drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
 		/*
 		 * TBD pass the connector BPC,
 		 * for now U8_MAX so that max BPC on that platform would be picked
 		 */
 		int pipe_bpp = intel_dp_dsc_compute_max_bpp(connector, U8_MAX);
 
-		if (drm_dp_sink_supports_fec(connector->dp.fec_capability)) {
-			dsc_max_compressed_bpp =
-				intel_dp_dsc_get_max_compressed_bpp(display,
-								    max_link_clock,
-								    max_lanes,
-								    target_clock,
-								    mode->hdisplay,
-								    num_joined_pipes,
-								    INTEL_OUTPUT_FORMAT_RGB,
-								    pipe_bpp, 64);
-			dsc_slice_count =
-				intel_dp_dsc_get_slice_count(connector,
-							     target_clock,
-							     mode->hdisplay,
-							     num_joined_pipes);
-		}
+		if (!drm_dp_is_uhbr_rate(max_link_clock))
+			bw_overhead_flags |= DRM_DP_BW_OVERHEAD_FEC;
 
-		dsc = dsc_max_compressed_bpp && dsc_slice_count;
+		dsc = intel_dp_mode_valid_with_dsc(connector,
+						   max_link_clock, max_lanes,
+						   target_clock, mode->hdisplay,
+						   num_joined_pipes,
+						   INTEL_OUTPUT_FORMAT_RGB, pipe_bpp,
+						   bw_overhead_flags);
 	}
 
 	if (intel_dp_joiner_needs_dsc(display, num_joined_pipes) && !dsc) {
