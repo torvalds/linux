@@ -85,7 +85,7 @@ static int devtmpfs_get_tree(struct fs_context *fc)
 }
 
 /* Ops are filled in during init depending on underlying shmem or ramfs type */
-struct fs_context_operations devtmpfs_context_ops = {};
+static struct fs_context_operations devtmpfs_context_ops = {};
 
 /* Call the underlying initialization and set to our ops */
 static int devtmpfs_init_fs_context(struct fs_context *fc)
