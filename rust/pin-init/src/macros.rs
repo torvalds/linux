@@ -503,34 +503,6 @@ pub use ::macros::paste;
 #[cfg(not(kernel))]
 pub use ::paste::paste;
 
-/// Creates a `unsafe impl<...> PinnedDrop for $type` block.
-///
-/// See [`PinnedDrop`] for more information.
-///
-/// [`PinnedDrop`]: crate::PinnedDrop
-#[doc(hidden)]
-#[macro_export]
-macro_rules! __pinned_drop {
-    (
-        @impl_sig($($impl_sig:tt)*),
-        @impl_body(
-            $(#[$($attr:tt)*])*
-            fn drop($($sig:tt)*) {
-                $($inner:tt)*
-            }
-        ),
-    ) => {
-        // SAFETY: TODO.
-        unsafe $($impl_sig)* {
-            // Inherit all attributes and the type/ident tokens for the signature.
-            $(#[$($attr)*])*
-            fn drop($($sig)*, _: $crate::__internal::OnlyCallFromDrop) {
-                $($inner)*
-            }
-        }
-    }
-}
-
 /// This macro first parses the struct definition such that it separates pinned and not pinned
 /// fields. Afterwards it declares the struct and implement the `PinData` trait safely.
 #[doc(hidden)]
