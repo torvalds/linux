@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
+#include <linux/lockdep.h>
 #include <linux/msi.h>
 #include <linux/of.h>
 #include <linux/pci.h>
@@ -4622,13 +4623,15 @@ bool pcie_wait_for_link(struct pci_dev *pdev, bool active)
  * spec says 100 ms, but firmware can lower it and we allow drivers to
  * increase it as well.
  *
- * Called with @pci_bus_sem locked for reading.
+ * Context: Called with @pci_bus_sem locked for reading.
  */
 static int pci_bus_max_d3cold_delay(const struct pci_bus *bus)
 {
 	const struct pci_dev *pdev;
 	int min_delay = 100;
 	int max_delay = 0;
+
+	lockdep_assert_held(&pci_bus_sem);
 
 	list_for_each_entry(pdev, &bus->devices, bus_list) {
 		if (pdev->d3cold_delay < min_delay)
