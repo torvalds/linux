@@ -414,14 +414,15 @@ int xe_gsc_init(struct xe_gsc *gsc)
 	}
 
 	/*
-	 * Some platforms can have GuC but not GSC. That would cause
-	 * xe_uc_fw_init(gsc) to return a "not supported" failure code and abort
-	 * all firmware loading. So check for GSC being enabled before
-	 * propagating the failure back up. That way the higher level will keep
-	 * going and load GuC as appropriate.
+	 * Starting from BMG the GSC is no longer needed for MC6 entry, so the
+	 * only missing features if the FW is lacking would be the content
+	 * protection ones. This is acceptable, so we allow the driver load to
+	 * continue if the GSC FW is missing.
 	 */
 	ret = xe_uc_fw_init(&gsc->fw);
 	if (!xe_uc_fw_is_enabled(&gsc->fw))
+		return 0;
+	else if (gt_to_xe(gt)->info.platform >= XE_BATTLEMAGE && !xe_uc_fw_is_available(&gsc->fw))
 		return 0;
 	else if (ret)
 		goto out;
@@ -614,7 +615,7 @@ void xe_gsc_print_info(struct xe_gsc *gsc, struct drm_printer *p)
 
 	drm_printf(p, "\tfound security version %u\n", gsc->security_version);
 
-	if (!xe_uc_fw_is_enabled(&gsc->fw))
+	if (!xe_uc_fw_is_available(&gsc->fw))
 		return;
 
 	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FW_GSC);

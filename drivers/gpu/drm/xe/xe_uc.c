@@ -8,7 +8,6 @@
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gsc.h"
-#include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
@@ -17,7 +16,6 @@
 #include "xe_guc_engine_activity.h"
 #include "xe_huc.h"
 #include "xe_sriov.h"
-#include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
 static struct xe_gt *

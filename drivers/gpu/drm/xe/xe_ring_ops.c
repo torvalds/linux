@@ -11,11 +11,9 @@
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
-#include "regs/xe_lrc_layout.h"
 #include "xe_exec_queue.h"
-#include "xe_gt.h"
+#include "xe_gt_types.h"
 #include "xe_lrc.h"
-#include "xe_macros.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
 #include "xe_vm_types.h"
@@ -235,12 +233,25 @@ static u32 get_ppgtt_flag(struct xe_sched_job *job)
 	return 0;
 }
 
-static int emit_copy_timestamp(struct xe_lrc *lrc, u32 *dw, int i)
+static int emit_copy_timestamp(struct xe_device *xe, struct xe_lrc *lrc,
+			       u32 *dw, int i)
 {
 	dw[i++] = MI_STORE_REGISTER_MEM | MI_SRM_USE_GGTT | MI_SRM_ADD_CS_OFFSET;
 	dw[i++] = RING_CTX_TIMESTAMP(0).addr;
 	dw[i++] = xe_lrc_ctx_job_timestamp_ggtt_addr(lrc);
 	dw[i++] = 0;
+
+	/*
+	 * Ensure CTX timestamp >= Job timestamp during VF sampling to avoid
+	 * arithmetic wraparound in TDR.
+	 */
+	if (IS_SRIOV_VF(xe)) {
+		dw[i++] = MI_STORE_REGISTER_MEM | MI_SRM_USE_GGTT |
+			MI_SRM_ADD_CS_OFFSET;
+		dw[i++] = RING_CTX_TIMESTAMP(0).addr;
+		dw[i++] = xe_lrc_ctx_timestamp_ggtt_addr(lrc);
+		dw[i++] = 0;
+	}
 
 	return i;
 }
@@ -255,7 +266,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 
 	*head = lrc->ring.tail;
 
-	i = emit_copy_timestamp(lrc, dw, i);
+	i = emit_copy_timestamp(gt_to_xe(gt), lrc, dw, i);
 
 	if (job->ring_ops_flush_tlb) {
 		dw[i++] = preparser_disable(true);
@@ -310,7 +321,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	*head = lrc->ring.tail;
 
-	i = emit_copy_timestamp(lrc, dw, i);
+	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	dw[i++] = preparser_disable(true);
 
@@ -364,7 +375,7 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 
 	*head = lrc->ring.tail;
 
-	i = emit_copy_timestamp(lrc, dw, i);
+	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	dw[i++] = preparser_disable(true);
 	if (lacks_render)
@@ -406,12 +417,14 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 				     struct xe_lrc *lrc, u32 *head,
 				     u32 seqno)
 {
+	struct xe_gt *gt = job->q->gt;
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 saddr = xe_lrc_start_seqno_ggtt_addr(lrc);
 	u32 dw[MAX_JOB_SIZE_DW], i = 0;
 
 	*head = lrc->ring.tail;
 
-	i = emit_copy_timestamp(lrc, dw, i);
+	i = emit_copy_timestamp(xe, lrc, dw, i);
 
 	i = emit_store_imm_ggtt(saddr, seqno, dw, i);
 

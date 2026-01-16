@@ -33,12 +33,12 @@ void xe_sched_add_msg_head(struct xe_gpu_scheduler *sched,
 
 static inline void xe_sched_msg_lock(struct xe_gpu_scheduler *sched)
 {
-	spin_lock(&sched->base.job_list_lock);
+	spin_lock(&sched->msg_lock);
 }
 
 static inline void xe_sched_msg_unlock(struct xe_gpu_scheduler *sched)
 {
-	spin_unlock(&sched->base.job_list_lock);
+	spin_unlock(&sched->msg_lock);
 }
 
 static inline void xe_sched_stop(struct xe_gpu_scheduler *sched)
@@ -56,12 +56,9 @@ static inline void xe_sched_resubmit_jobs(struct xe_gpu_scheduler *sched)
 	struct drm_sched_job *s_job;
 	bool restore_replay = false;
 
-	list_for_each_entry(s_job, &sched->base.pending_list, list) {
-		struct drm_sched_fence *s_fence = s_job->s_fence;
-		struct dma_fence *hw_fence = s_fence->parent;
-
+	drm_sched_for_each_pending_job(s_job, &sched->base, NULL) {
 		restore_replay |= to_xe_sched_job(s_job)->restore_replay;
-		if (restore_replay || (hw_fence && !dma_fence_is_signaled(hw_fence)))
+		if (restore_replay || !drm_sched_job_is_signaled(s_job))
 			sched->base.ops->run_job(s_job);
 	}
 }
@@ -70,14 +67,6 @@ static inline bool
 xe_sched_invalidate_job(struct xe_sched_job *job, int threshold)
 {
 	return drm_sched_invalidate_job(&job->drm, threshold);
-}
-
-static inline void xe_sched_add_pending_job(struct xe_gpu_scheduler *sched,
-					    struct xe_sched_job *job)
-{
-	spin_lock(&sched->base.job_list_lock);
-	list_add(&job->drm.list, &sched->base.pending_list);
-	spin_unlock(&sched->base.job_list_lock);
 }
 
 /**
@@ -89,21 +78,13 @@ static inline void xe_sched_add_pending_job(struct xe_gpu_scheduler *sched,
 static inline
 struct xe_sched_job *xe_sched_first_pending_job(struct xe_gpu_scheduler *sched)
 {
-	struct xe_sched_job *job, *r_job = NULL;
+	struct drm_sched_job *job;
 
-	spin_lock(&sched->base.job_list_lock);
-	list_for_each_entry(job, &sched->base.pending_list, drm.list) {
-		struct drm_sched_fence *s_fence = job->drm.s_fence;
-		struct dma_fence *hw_fence = s_fence->parent;
+	drm_sched_for_each_pending_job(job, &sched->base, NULL)
+		if (!drm_sched_job_is_signaled(job))
+			return to_xe_sched_job(job);
 
-		if (hw_fence && !dma_fence_is_signaled(hw_fence)) {
-			r_job = job;
-			break;
-		}
-	}
-	spin_unlock(&sched->base.job_list_lock);
-
-	return r_job;
+	return NULL;
 }
 
 static inline int

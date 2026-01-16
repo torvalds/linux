@@ -8,7 +8,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_debugfs.h>
 
-#include "xe_bo.h"
 #include "xe_debugfs.h"
 #include "xe_device.h"
 #include "xe_gt.h"

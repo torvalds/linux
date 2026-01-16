@@ -12,7 +12,6 @@
 
 #include "xe_device.h"
 #include "xe_device_types.h"
-#include "xe_drv.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
 #include "xe_pm.h"

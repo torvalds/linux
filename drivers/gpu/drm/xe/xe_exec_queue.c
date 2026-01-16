@@ -21,13 +21,11 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_hw_engine_group.h"
-#include "xe_hw_fence.h"
 #include "xe_irq.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_migrate.h"
 #include "xe_pm.h"
-#include "xe_ring_ops_types.h"
 #include "xe_trace.h"
 #include "xe_vm.h"
 #include "xe_pxp.h"
@@ -84,9 +82,8 @@
  * group is destroyed. The secondary queues hold a reference to the primary
  * queue thus preventing the group from being destroyed when user destroys
  * the primary queue. Once the primary queue is destroyed, secondary queues
- * can't be added to the queue group, but they can continue to submit the
- * jobs if the DRM_XE_MULTI_GROUP_KEEP_ACTIVE flag is set during the multi
- * queue group creation.
+ * can't be added to the queue group and new job submissions on existing
+ * secondary queues are not allowed.
  *
  * The queues of a multi queue group can set their priority within the group
  * through the DRM_XE_EXEC_QUEUE_SET_PROPERTY_MULTI_QUEUE_PRIORITY property.
@@ -467,26 +464,6 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 }
 ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
 
-static void xe_exec_queue_group_kill(struct kref *ref)
-{
-	struct xe_exec_queue_group *group = container_of(ref, struct xe_exec_queue_group,
-							 kill_refcount);
-	xe_exec_queue_kill(group->primary);
-}
-
-static inline void xe_exec_queue_group_kill_get(struct xe_exec_queue_group *group)
-{
-	kref_get(&group->kill_refcount);
-}
-
-void xe_exec_queue_group_kill_put(struct xe_exec_queue_group *group)
-{
-	if (!group)
-		return;
-
-	kref_put(&group->kill_refcount, xe_exec_queue_group_kill);
-}
-
 void xe_exec_queue_destroy(struct kref *ref)
 {
 	struct xe_exec_queue *q = container_of(ref, struct xe_exec_queue, refcount);
@@ -716,7 +693,6 @@ static int xe_exec_queue_group_init(struct xe_device *xe, struct xe_exec_queue *
 	group->primary = q;
 	group->cgp_bo = bo;
 	INIT_LIST_HEAD(&group->list);
-	kref_init(&group->kill_refcount);
 	xa_init_flags(&group->xa, XA_FLAGS_ALLOC1);
 	mutex_init(&group->list_lock);
 	q->multi_queue.group = group;
@@ -792,11 +768,6 @@ static int xe_exec_queue_group_add(struct xe_device *xe, struct xe_exec_queue *q
 
 	q->multi_queue.pos = pos;
 
-	if (group->primary->multi_queue.keep_active) {
-		xe_exec_queue_group_kill_get(group);
-		q->multi_queue.keep_active = true;
-	}
-
 	return 0;
 }
 
@@ -810,11 +781,6 @@ static void xe_exec_queue_group_delete(struct xe_device *xe, struct xe_exec_queu
 	lrc = xa_erase(&group->xa, q->multi_queue.pos);
 	xe_assert(xe, lrc);
 	xe_lrc_put(lrc);
-
-	if (q->multi_queue.keep_active) {
-		xe_exec_queue_group_kill_put(group);
-		q->multi_queue.keep_active = false;
-	}
 }
 
 static int exec_queue_set_multi_group(struct xe_device *xe, struct xe_exec_queue *q,
@@ -836,24 +802,12 @@ static int exec_queue_set_multi_group(struct xe_device *xe, struct xe_exec_queue
 		return -EINVAL;
 
 	if (value & DRM_XE_MULTI_GROUP_CREATE) {
-		if (XE_IOCTL_DBG(xe, value & ~(DRM_XE_MULTI_GROUP_CREATE |
-					       DRM_XE_MULTI_GROUP_KEEP_ACTIVE)))
-			return -EINVAL;
-
-		/*
-		 * KEEP_ACTIVE is not supported in preempt fence mode as in that mode,
-		 * VM_DESTROY ioctl expects all exec queues of that VM are already killed.
-		 */
-		if (XE_IOCTL_DBG(xe, (value & DRM_XE_MULTI_GROUP_KEEP_ACTIVE) &&
-				 xe_vm_in_preempt_fence_mode(q->vm)))
+		if (XE_IOCTL_DBG(xe, value & ~DRM_XE_MULTI_GROUP_CREATE))
 			return -EINVAL;
 
 		q->multi_queue.valid = true;
 		q->multi_queue.is_primary = true;
 		q->multi_queue.pos = 0;
-		if (value & DRM_XE_MULTI_GROUP_KEEP_ACTIVE)
-			q->multi_queue.keep_active = true;
-
 		return 0;
 	}
 
@@ -1419,11 +1373,6 @@ void xe_exec_queue_kill(struct xe_exec_queue *q)
 
 	q->ops->kill(q);
 	xe_vm_remove_compute_exec_queue(q->vm, q);
-
-	if (!xe_exec_queue_is_multi_queue_primary(q) && q->multi_queue.keep_active) {
-		xe_exec_queue_group_kill_put(q->multi_queue.group);
-		q->multi_queue.keep_active = false;
-	}
 }
 
 int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
@@ -1450,10 +1399,7 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 	if (q->vm && q->hwe->hw_engine_group)
 		xe_hw_engine_group_del_exec_queue(q->hwe->hw_engine_group, q);
 
-	if (xe_exec_queue_is_multi_queue_primary(q))
-		xe_exec_queue_group_kill_put(q->multi_queue.group);
-	else
-		xe_exec_queue_kill(q);
+	xe_exec_queue_kill(q);
 
 	trace_xe_exec_queue_close(q);
 	xe_exec_queue_put(q);

@@ -6,7 +6,6 @@
 #include "xe_mocs.h"
 
 #include "regs/xe_gt_regs.h"
-#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_force_wake.h"
@@ -17,7 +16,6 @@
 #include "xe_platform_types.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
-#include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define mocs_dbg xe_gt_dbg

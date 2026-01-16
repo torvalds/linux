@@ -8,7 +8,7 @@
 
 #include <uapi/drm/i915_drm.h>
 
-#include "xe_ggtt_types.h"
+#include "xe_ggtt.h"
 
 #include <linux/refcount.h>
 
@@ -30,7 +30,7 @@ struct i915_vma {
 
 static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
 {
-	return vma->node->base.start;
+	return xe_ggtt_node_addr(vma->node);
 }
 
 #endif

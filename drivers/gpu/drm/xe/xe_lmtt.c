@@ -289,7 +289,7 @@ void xe_lmtt_invalidate_hw(struct xe_lmtt *lmtt)
 				  ERR_PTR(err));
 
 	if (xe_device_has_mert(xe) && xe_tile_is_root(tile)) {
-		err = xe_mert_invalidate_lmtt(tile);
+		err = xe_mert_invalidate_lmtt(xe);
 		if (err)
 			xe_tile_sriov_err(tile, "MERT LMTT invalidation failed (%pe)",
 					  ERR_PTR(err));

@@ -33,7 +33,6 @@
 #include "xe_preempt_fence.h"
 #include "xe_pt.h"
 #include "xe_pxp.h"
-#include "xe_res_cursor.h"
 #include "xe_sriov_vf.h"
 #include "xe_svm.h"
 #include "xe_sync.h"
@@ -2209,7 +2208,7 @@ static void print_op(struct xe_device *xe, struct drm_gpuva_op *op)
 		       (ULL)xe_vma_start(vma), (ULL)xe_vma_size(vma));
 		break;
 	default:
-		drm_warn(&xe->drm, "NOT POSSIBLE");
+		drm_warn(&xe->drm, "NOT POSSIBLE\n");
 	}
 }
 #else
@@ -2312,7 +2311,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_vma_ops *vops,
 		xe_bo_unlock(bo);
 		break;
 	default:
-		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 		ops = ERR_PTR(-EINVAL);
 	}
 	if (IS_ERR(ops))
@@ -2584,7 +2583,7 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 		op->flags |= XE_VMA_OP_COMMITTED;
 		break;
 	default:
-		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 	}
 
 	return err;
@@ -2783,7 +2782,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct drm_gpuva_ops *ops,
 
 			break;
 		default:
-			drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+			drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 		}
 
 		err = xe_vma_op_commit(vm, op);
@@ -2845,7 +2844,7 @@ static void xe_vma_op_unwind(struct xe_vm *vm, struct xe_vma_op *op,
 		/* Nothing to do */
 		break;
 	default:
-		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 	}
 }
 
@@ -3029,7 +3028,7 @@ static int op_lock_and_prep(struct drm_exec *exec, struct xe_vm *vm,
 		break;
 	}
 	default:
-		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 	}
 
 	return err;
@@ -3268,7 +3267,7 @@ static void op_add_ufence(struct xe_vm *vm, struct xe_vma_op *op,
 		vma_add_ufence(gpuva_to_vma(op->base.prefetch.va), ufence);
 		break;
 	default:
-		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
+		drm_warn(&vm->xe->drm, "NOT POSSIBLE\n");
 	}
 }
 
@@ -3405,6 +3404,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe, struct xe_vm *vm,
 			DRM_XE_VM_BIND_FLAG_CPU_ADDR_MIRROR;
 		u16 pat_index = (*bind_ops)[i].pat_index;
 		u16 coh_mode;
+		bool comp_en;
 
 		if (XE_IOCTL_DBG(xe, is_cpu_addr_mirror &&
 				 (!xe_vm_in_fault_mode(vm) ||
@@ -3421,6 +3421,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe, struct xe_vm *vm,
 		pat_index = array_index_nospec(pat_index, xe->pat.n_entries);
 		(*bind_ops)[i].pat_index = pat_index;
 		coh_mode = xe_pat_index_get_coh_mode(xe, pat_index);
+		comp_en = xe_pat_index_get_comp_en(xe, pat_index);
 		if (XE_IOCTL_DBG(xe, !coh_mode)) { /* hw reserved */
 			err = -EINVAL;
 			goto free_bind_ops;
@@ -3450,6 +3451,8 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe, struct xe_vm *vm,
 		    XE_IOCTL_DBG(xe, obj &&
 				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
 		    XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE &&
+				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
+		    XE_IOCTL_DBG(xe, comp_en &&
 				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
 		    XE_IOCTL_DBG(xe, op == DRM_XE_VM_BIND_OP_MAP_USERPTR &&
 				 !IS_ENABLED(CONFIG_DRM_GPUSVM)) ||
@@ -3529,6 +3532,7 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 					u16 pat_index, u32 op, u32 bind_flags)
 {
 	u16 coh_mode;
+	bool comp_en;
 
 	if (XE_IOCTL_DBG(xe, (bo->flags & XE_BO_FLAG_NO_COMPRESSION) &&
 			 xe_pat_index_get_comp_en(xe, pat_index)))
@@ -3573,6 +3577,14 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 		 */
 		return -EINVAL;
 	}
+
+	/*
+	 * Ensures that imported buffer objects (dma-bufs) are not mapped
+	 * with a PAT index that enables compression.
+	 */
+	comp_en = xe_pat_index_get_comp_en(xe, pat_index);
+	if (XE_IOCTL_DBG(xe, bo->ttm.base.import_attach && comp_en))
+		return -EINVAL;
 
 	/* If a BO is protected it can only be mapped if the key is still valid */
 	if ((bind_flags & DRM_XE_VM_BIND_FLAG_CHECK_PXP) && xe_bo_is_protected(bo) &&

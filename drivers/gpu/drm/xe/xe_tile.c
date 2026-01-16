@@ -9,9 +9,8 @@
 #include <drm/drm_pagemap_util.h>
 
 #include "xe_bo.h"
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_ggtt.h"
-#include "xe_gt.h"
 #include "xe_memirq.h"
 #include "xe_migrate.h"
 #include "xe_pcode.h"

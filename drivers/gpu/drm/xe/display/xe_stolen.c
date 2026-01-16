@@ -78,7 +78,7 @@ static u64 xe_stolen_node_address(const struct intel_stolen_node *node)
 
 static u64 xe_stolen_node_size(const struct intel_stolen_node *node)
 {
-	return node->bo->ttm.base.size;
+	return xe_bo_size(node->bo);
 }
 
 static struct intel_stolen_node *xe_stolen_node_alloc(struct drm_device *drm)

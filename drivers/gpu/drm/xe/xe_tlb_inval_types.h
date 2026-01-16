@@ -109,6 +109,8 @@ struct xe_tlb_inval {
 	struct workqueue_struct *job_wq;
 	/** @tlb_inval.lock: protects TLB invalidation fences */
 	spinlock_t lock;
+	/** @timeout_wq: schedules TLB invalidation fence timeouts */
+	struct workqueue_struct *timeout_wq;
 };
 
 /**

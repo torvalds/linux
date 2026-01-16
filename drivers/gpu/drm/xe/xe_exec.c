@@ -11,7 +11,6 @@
 #include <uapi/drm/xe_drm.h>
 #include <linux/delay.h>
 
-#include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
 #include "xe_hw_engine_group.h"

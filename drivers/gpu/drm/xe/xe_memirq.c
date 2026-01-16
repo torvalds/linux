@@ -7,7 +7,6 @@
 
 #include "regs/xe_guc_regs.h"
 #include "regs/xe_irq_regs.h"
-#include "regs/xe_regs.h"
 
 #include "xe_assert.h"
 #include "xe_bo.h"
@@ -16,7 +15,6 @@
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
-#include "xe_map.h"
 #include "xe_memirq.h"
 #include "xe_tile_printk.h"
 

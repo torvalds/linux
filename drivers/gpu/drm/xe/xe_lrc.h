@@ -145,7 +145,6 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot);
 
 u32 xe_lrc_ctx_timestamp_ggtt_addr(struct xe_lrc *lrc);
 u32 xe_lrc_ctx_timestamp_udw_ggtt_addr(struct xe_lrc *lrc);
-u64 xe_lrc_ctx_timestamp(struct xe_lrc *lrc);
 u32 xe_lrc_ctx_job_timestamp_ggtt_addr(struct xe_lrc *lrc);
 u32 xe_lrc_ctx_job_timestamp(struct xe_lrc *lrc);
 int xe_lrc_setup_wa_bb_with_scratch(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
@@ -164,5 +163,7 @@ int xe_lrc_setup_wa_bb_with_scratch(struct xe_lrc *lrc, struct xe_hw_engine *hwe
  * Returns the current LRC timestamp
  */
 u64 xe_lrc_update_timestamp(struct xe_lrc *lrc, u64 *old_ts);
+
+u64 xe_lrc_timestamp(struct xe_lrc *lrc);
 
 #endif

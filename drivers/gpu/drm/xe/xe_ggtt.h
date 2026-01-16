@@ -23,15 +23,18 @@ int xe_ggtt_node_insert_balloon_locked(struct xe_ggtt_node *node,
 				       u64 start, u64 size);
 void xe_ggtt_node_remove_balloon_locked(struct xe_ggtt_node *node);
 void xe_ggtt_shift_nodes_locked(struct xe_ggtt *ggtt, s64 shift);
+u64 xe_ggtt_start(struct xe_ggtt *ggtt);
+u64 xe_ggtt_size(struct xe_ggtt *ggtt);
 
 int xe_ggtt_node_insert(struct xe_ggtt_node *node, u32 size, u32 align);
-int xe_ggtt_node_insert_locked(struct xe_ggtt_node *node,
-			       u32 size, u32 align, u32 mm_flags);
+struct xe_ggtt_node *
+xe_ggtt_node_insert_transform(struct xe_ggtt *ggtt,
+			      struct xe_bo *bo, u64 pte,
+			      u64 size, u32 align,
+			      xe_ggtt_transform_cb transform, void *arg);
 void xe_ggtt_node_remove(struct xe_ggtt_node *node, bool invalidate);
 bool xe_ggtt_node_allocated(const struct xe_ggtt_node *node);
 size_t xe_ggtt_node_pt_size(const struct xe_ggtt_node *node);
-void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_ggtt_node *node,
-		    struct xe_bo *bo, u16 pat_index);
 void xe_ggtt_map_bo_unlocked(struct xe_ggtt *ggtt, struct xe_bo *bo);
 int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo, struct drm_exec *exec);
 int xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
@@ -57,5 +60,8 @@ void xe_ggtt_might_lock(struct xe_ggtt *ggtt);
 
 u64 xe_ggtt_encode_pte_flags(struct xe_ggtt *ggtt, struct xe_bo *bo, u16 pat_index);
 u64 xe_ggtt_read_pte(struct xe_ggtt *ggtt, u64 offset);
+
+u64 xe_ggtt_node_addr(const struct xe_ggtt_node *node);
+u64 xe_ggtt_node_size(const struct xe_ggtt_node *node);
 
 #endif

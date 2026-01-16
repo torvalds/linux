@@ -5,20 +5,19 @@
 
 #include <drm/drm_managed.h>
 
-#include "abi/guc_actions_sriov_abi.h"
 #include "abi/guc_relay_actions_abi.h"
 
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
-#include "regs/xe_regs.h"
 
+#include "xe_assert.h"
 #include "xe_mmio.h"
 #include "xe_gt_sriov_printk.h"
-#include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_service.h"
 #include "xe_gt_sriov_pf_service_types.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_hxg_helpers.h"
+#include "xe_sriov.h"
 #include "xe_sriov_pf_service.h"
 
 static const struct xe_reg tgl_runtime_regs[] = {

@@ -6,7 +6,7 @@
 #include <drm/drm_managed.h>
 
 #include <regs/xe_gt_regs.h>
-#include "xe_device.h"
+#include "xe_device_types.h"
 #include "xe_gt.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle.h"

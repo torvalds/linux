@@ -12,7 +12,6 @@
 
 #include "xe_configfs.h"
 #include "xe_device.h"
-#include "xe_gt.h"
 #include "xe_heci_gsc.h"
 #include "xe_i2c.h"
 #include "xe_mmio.h"
@@ -321,7 +320,7 @@ static int enable_boot_survivability_mode(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	/* Make sure xe_heci_gsc_init() knows about survivability mode */
+	/* Make sure xe_heci_gsc_init() and xe_i2c_probe() are aware of survivability */
 	survivability->mode = true;
 
 	xe_heci_gsc_init(xe);

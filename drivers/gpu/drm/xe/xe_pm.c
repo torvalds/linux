@@ -260,10 +260,19 @@ int xe_pm_resume(struct xe_device *xe)
 
 	xe_irq_resume(xe);
 
-	for_each_gt(gt, xe, id)
-		xe_gt_resume(gt);
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_resume(gt);
+		if (err)
+			break;
+	}
 
+	/*
+	 * Try to bring up display before bailing from GT resume failure,
+	 * so we don't leave the user clueless with a blank screen.
+	 */
 	xe_display_pm_resume(xe);
+	if (err)
+		goto err;
 
 	err = xe_bo_restore_late(xe);
 	if (err)
@@ -656,10 +665,19 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 
 	xe_irq_resume(xe);
 
-	for_each_gt(gt, xe, id)
-		xe->d3cold.allowed ? xe_gt_resume(gt) : xe_gt_runtime_resume(gt);
+	for_each_gt(gt, xe, id) {
+		err = xe->d3cold.allowed ? xe_gt_resume(gt) : xe_gt_runtime_resume(gt);
+		if (err)
+			break;
+	}
 
+	/*
+	 * Try to bring up display before bailing from GT resume failure,
+	 * so we don't leave the user clueless with a blank screen.
+	 */
 	xe_display_pm_runtime_resume(xe);
+	if (err)
+		goto out;
 
 	if (xe->d3cold.allowed) {
 		err = xe_bo_restore_late(xe);

@@ -6,7 +6,6 @@
 #include <linux/cleanup.h>
 #include <drm/drm_managed.h>
 
-#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_gt_printk.h"
 #include "xe_guc.h"

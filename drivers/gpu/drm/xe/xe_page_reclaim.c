@@ -10,14 +10,11 @@
 
 #include "xe_page_reclaim.h"
 
-#include "regs/xe_gt_regs.h"
-#include "xe_assert.h"
+#include "xe_gt_stats.h"
 #include "xe_macros.h"
-#include "xe_mmio.h"
 #include "xe_pat.h"
 #include "xe_sa.h"
 #include "xe_tlb_inval_types.h"
-#include "xe_vm.h"
 
 /**
  * xe_page_reclaim_skip() - Decide whether PRL should be skipped for a VMA
@@ -108,7 +105,6 @@ void xe_page_reclaim_list_invalidate(struct xe_page_reclaim_list *prl)
  */
 void xe_page_reclaim_list_init(struct xe_page_reclaim_list *prl)
 {
-	// xe_page_reclaim_list_invalidate(prl);
 	prl->entries = NULL;
 	prl->num_entries = 0;
 }

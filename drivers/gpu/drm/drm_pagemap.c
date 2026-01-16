@@ -480,8 +480,18 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		.start		= start,
 		.end		= end,
 		.pgmap_owner	= pagemap->owner,
-		.flags		= MIGRATE_VMA_SELECT_SYSTEM | MIGRATE_VMA_SELECT_DEVICE_COHERENT |
-		MIGRATE_VMA_SELECT_DEVICE_PRIVATE,
+		/*
+		 * FIXME: MIGRATE_VMA_SELECT_DEVICE_PRIVATE intermittently
+		 * causes 'xe_exec_system_allocator --r *race*no*' to trigger aa
+		 * engine reset and a hard hang due to getting stuck on a folio
+		 * lock. This should work and needs to be root-caused. The only
+		 * downside of not selecting MIGRATE_VMA_SELECT_DEVICE_PRIVATE
+		 * is that device-to-device migrations won’t work; instead,
+		 * memory will bounce through system memory. This path should be
+		 * rare and only occur when the madvise attributes of memory are
+		 * changed or atomics are being used.
+		 */
+		.flags		= MIGRATE_VMA_SELECT_SYSTEM | MIGRATE_VMA_SELECT_DEVICE_COHERENT,
 	};
 	unsigned long i, npages = npages_in_range(start, end);
 	unsigned long own_pages = 0, migrated_pages = 0;
@@ -582,7 +592,7 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 
 	err = ops->populate_devmem_pfn(devmem_allocation, npages, migrate.dst);
 	if (err)
-		goto err_finalize;
+		goto err_aborted_migration;
 
 	own_pages = 0;
 
@@ -621,8 +631,10 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 		err = drm_pagemap_migrate_range(devmem_allocation, migrate.src, migrate.dst,
 						pages, pagemap_addr, &last, &cur,
 						mdetails);
-		if (err)
+		if (err) {
+			npages = i + 1;
 			goto err_finalize;
+		}
 	}
 	cur.start = npages;
 	cur.ops = NULL; /* Force migration */
@@ -646,7 +658,7 @@ err_finalize:
 err_aborted_migration:
 	migrate_vma_pages(&migrate);
 
-	for (i = 0; i < npages;) {
+	for (i = 0; !err && i < npages;) {
 		struct page *page = migrate_pfn_to_page(migrate.src[i]);
 		unsigned long nr_pages = page ? NR_PAGES(folio_order(page_folio(page))) : 1;
 

@@ -988,6 +988,8 @@ bool xe_svm_range_validate(struct xe_vm *vm,
 	ret = (range->tile_present & ~range->tile_invalidated & tile_mask) == tile_mask;
 	if (dpagemap)
 		ret = ret && xe_svm_range_has_pagemap_locked(range, dpagemap);
+	else
+		ret = ret && !range->base.pages.dpagemap;
 
 	xe_svm_notifier_unlock(vm);
 
