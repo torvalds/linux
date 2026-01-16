@@ -57,41 +57,23 @@ struct mgmt_mbox_chann_info {
 static int aie2_check_protocol(struct amdxdna_dev_hdl *ndev, u32 fw_major, u32 fw_minor)
 {
 	const struct aie2_fw_feature_tbl *feature;
-	struct amdxdna_dev *xdna = ndev->xdna;
+	bool found = false;
 
-	/*
-	 * The driver supported mailbox behavior is defined by
-	 * ndev->priv->protocol_major and protocol_minor.
-	 *
-	 * When protocol_major and fw_major are different, it means driver
-	 * and firmware are incompatible.
-	 */
-	if (ndev->priv->protocol_major != fw_major) {
-		XDNA_ERR(xdna, "Incompatible firmware protocol major %d minor %d",
-			 fw_major, fw_minor);
-		return -EINVAL;
-	}
-
-	/*
-	 * When protocol_minor is greater then fw_minor, that means driver
-	 * relies on operation the installed firmware does not support.
-	 */
-	if (ndev->priv->protocol_minor > fw_minor) {
-		XDNA_ERR(xdna, "Firmware minor version smaller than supported");
-		return -EINVAL;
-	}
-
-	for (feature = ndev->priv->fw_feature_tbl; feature && feature->min_minor;
-	     feature++) {
+	for (feature = ndev->priv->fw_feature_tbl; feature->major; feature++) {
+		if (feature->major != fw_major)
+			continue;
 		if (fw_minor < feature->min_minor)
 			continue;
 		if (feature->max_minor > 0 && fw_minor > feature->max_minor)
 			continue;
 
-		set_bit(feature->feature, &ndev->feature_mask);
+		ndev->feature_mask |= feature->features;
+
+		/* firmware version matches one of the driver support entry */
+		found = true;
 	}
 
-	return 0;
+	return found ? 0 : -EOPNOTSUPP;
 }
 
 static void aie2_dump_chann_info_debug(struct amdxdna_dev_hdl *ndev)

@@ -6,6 +6,7 @@
 #include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/bits.h>
 #include <linux/sizes.h>
 
 #include "aie2_pci.h"
@@ -88,16 +89,16 @@ const struct dpm_clk_freq npu4_dpm_clk_table[] = {
 };
 
 const struct aie2_fw_feature_tbl npu4_fw_feature_table[] = {
-	{ .feature = AIE2_NPU_COMMAND, .min_minor = 15 },
-	{ .feature = AIE2_PREEMPT, .min_minor = 12 },
-	{ .feature = AIE2_TEMPORAL_ONLY, .min_minor = 12 },
+	{ .major = 6, .min_minor = 12 },
+	{ .features = BIT_U64(AIE2_NPU_COMMAND), .major = 6, .min_minor = 15 },
+	{ .features = BIT_U64(AIE2_PREEMPT), .major = 6, .min_minor = 12 },
+	{ .features = BIT_U64(AIE2_TEMPORAL_ONLY), .major = 6, .min_minor = 12 },
+	{ .features = GENMASK_ULL(AIE2_TEMPORAL_ONLY, AIE2_NPU_COMMAND), .major = 7 },
 	{ 0 }
 };
 
 static const struct amdxdna_dev_priv npu4_dev_priv = {
 	.fw_path        = "amdnpu/17f0_10/npu.sbin",
-	.protocol_major = 0x6,
-	.protocol_minor = 12,
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
 	.fw_feature_tbl = npu4_fw_feature_table,

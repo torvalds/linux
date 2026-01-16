@@ -757,6 +757,7 @@ EXPORT_SYMBOL(drm_property_replace_blob);
  * @dev: DRM device
  * @blob: a pointer to the member blob to be replaced
  * @blob_id: the id of the new blob to replace with
+ * @max_size: the maximum size of the blob property for variable-size blobs
  * @expected_size: expected size of the blob property
  * @expected_elem_size: expected size of an element in the blob property
  * @replaced: if the blob was in fact replaced
@@ -771,6 +772,7 @@ EXPORT_SYMBOL(drm_property_replace_blob);
 int drm_property_replace_blob_from_id(struct drm_device *dev,
 					 struct drm_property_blob **blob,
 					 uint64_t blob_id,
+					 ssize_t max_size,
 					 ssize_t expected_size,
 					 ssize_t expected_elem_size,
 					 bool *replaced)
@@ -782,6 +784,15 @@ int drm_property_replace_blob_from_id(struct drm_device *dev,
 		if (new_blob == NULL) {
 			drm_dbg_atomic(dev,
 				       "cannot find blob ID %llu\n", blob_id);
+			return -EINVAL;
+		}
+
+		if (max_size > 0 &&
+		    new_blob->length > max_size) {
+			drm_dbg_atomic(dev,
+				       "[BLOB:%d] length %zu greater than max %zu\n",
+				       new_blob->base.id, new_blob->length, max_size);
+			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
 

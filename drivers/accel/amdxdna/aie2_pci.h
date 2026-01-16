@@ -237,7 +237,8 @@ enum aie2_fw_feature {
 };
 
 struct aie2_fw_feature_tbl {
-	enum aie2_fw_feature feature;
+	u64 features;
+	u32 major;
 	u32 max_minor;
 	u32 min_minor;
 };
@@ -246,8 +247,6 @@ struct aie2_fw_feature_tbl {
 
 struct amdxdna_dev_priv {
 	const char			*fw_path;
-	u64				protocol_major;
-	u64				protocol_minor;
 	const struct rt_config		*rt_config;
 	const struct dpm_clk_freq	*dpm_clk_tbl;
 	const struct aie2_fw_feature_tbl *fw_feature_tbl;
@@ -336,6 +335,11 @@ int aie2_sync_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
 		 int (*notify_cb)(void *, void __iomem *, size_t));
 int aie2_config_debug_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
 			 int (*notify_cb)(void *, void __iomem *, size_t));
+void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
+			    dma_addr_t *dma_addr);
+#define aie2_free_msg_buffer(ndev, size, buff_addr, dma_addr)		\
+	dma_free_noncoherent((ndev)->xdna->ddev.dev, size, buff_addr,	\
+			     dma_addr, DMA_FROM_DEVICE)
 
 /* aie2_hwctx.c */
 int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);

@@ -587,12 +587,12 @@ out:
 static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 				       u64 addr)
 {
-	int ret, i;
+	int ret;
 	struct panfrost_gem_mapping *bomapping;
 	struct panfrost_gem_object *bo;
 	struct address_space *mapping;
 	struct drm_gem_object *obj;
-	pgoff_t page_offset;
+	pgoff_t page_offset, nr_pages;
 	struct sg_table *sgt;
 	struct page **pages;
 
@@ -613,6 +613,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	addr &= ~((u64)SZ_2M - 1);
 	page_offset = addr >> PAGE_SHIFT;
 	page_offset -= bomapping->mmnode.start;
+	nr_pages = bo->base.base.size >> PAGE_SHIFT;
 
 	obj = &bo->base.base;
 
@@ -626,8 +627,7 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 			goto err_unlock;
 		}
 
-		pages = kvmalloc_array(bo->base.base.size >> PAGE_SHIFT,
-				       sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
+		pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL | __GFP_ZERO);
 		if (!pages) {
 			kvfree(bo->sgts);
 			bo->sgts = NULL;
@@ -649,20 +649,30 @@ static int panfrost_mmu_map_fault_addr(struct panfrost_device *pfdev, int as,
 	mapping = bo->base.base.filp->f_mapping;
 	mapping_set_unevictable(mapping);
 
-	for (i = page_offset; i < page_offset + NUM_FAULT_PAGES; i++) {
-		/* Can happen if the last fault only partially filled this
-		 * section of the pages array before failing. In that case
-		 * we skip already filled pages.
-		 */
-		if (pages[i])
-			continue;
+	for (pgoff_t pg = page_offset; pg < page_offset + NUM_FAULT_PAGES;) {
+		bool already_owned = false;
+		struct folio *folio;
 
-		pages[i] = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(pages[i])) {
-			ret = PTR_ERR(pages[i]);
-			pages[i] = NULL;
+		folio = shmem_read_folio(mapping, pg);
+		if (IS_ERR(folio)) {
+			ret = PTR_ERR(folio);
 			goto err_unlock;
 		}
+
+		pg &= ~(folio_nr_pages(folio) - 1);
+		for (u32 i = 0; i < folio_nr_pages(folio) && pg < nr_pages; i++) {
+			if (pages[pg])
+				already_owned = true;
+
+			pages[pg++] = folio_page(folio, i);
+		}
+
+		/* We always fill the page array at a folio granularity so
+		 * there's no valid reason for a folio range to be partially
+		 * populated.
+		 */
+		if (drm_WARN_ON(&pfdev->base, already_owned))
+			folio_put(folio);
 	}
 
 	ret = sg_alloc_table_from_pages(sgt, pages + page_offset,

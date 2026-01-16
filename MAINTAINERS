@@ -8780,6 +8780,17 @@ T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
 F:	drivers/gpu/drm/ttm/
 F:	include/drm/ttm/
 
+DRM BUDDY ALLOCATOR
+M:	Matthew Auld <matthew.auld@intel.com>
+M:	Arun Pravin <arunpravin.paneerselvam@amd.com>
+R:	Christian Koenig <christian.koenig@amd.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	drivers/gpu/drm/drm_buddy.c
+F:	drivers/gpu/drm/tests/drm_buddy_test.c
+F:	include/drm/drm_buddy.h
+
 DRM AUTOMATED TESTING
 M:	Helen Koike <helen.fornazier@gmail.com>
 M:	Vignesh Raman <vignesh.raman@collabora.com>
