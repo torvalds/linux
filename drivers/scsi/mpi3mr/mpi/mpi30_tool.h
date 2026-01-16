@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *  Copyright 2016-2024 Broadcom Inc. All rights reserved.
+ *  Copyright 2016-2026 Broadcom Inc. All rights reserved.
  */
 #ifndef MPI30_TOOL_H
 #define MPI30_TOOL_H     1
@@ -8,6 +8,10 @@
 #define MPI3_DIAG_BUFFER_TYPE_TRACE	(0x01)
 #define MPI3_DIAG_BUFFER_TYPE_FW	(0x02)
 #define MPI3_DIAG_BUFFER_ACTION_RELEASE	(0x01)
+#define MPI3_DIAG_BUFFER_ACTION_PAUSE	(0x02)
+#define MPI3_DIAG_BUFFER_ACTION_RESUME	(0x03)
+#define MPI3_DIAG_BUFFER_ACTION_CLEAR	(0x04)
+
 
 #define MPI3_DIAG_BUFFER_POST_MSGFLAGS_SEGMENTED	(0x01)
 struct mpi3_diag_buffer_post_request {
