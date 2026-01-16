@@ -2566,19 +2566,15 @@ submit_and_realloc:
 	}
 	trace_f2fs_read_folio(folio, DATA);
 	if (rac) {
-		if (!folio_in_bio) {
-			folio_mark_uptodate(folio);
-			folio_unlock(folio);
-		}
+		if (!folio_in_bio)
+			folio_end_read(folio, true);
 		folio = readahead_folio(rac);
 		goto next_folio;
 	}
 err_out:
 	/* Nothing was submitted. */
 	if (!bio) {
-		if (!ret)
-			folio_mark_uptodate(folio);
-		folio_unlock(folio);
+		folio_end_read(folio, !ret);
 		return ret;
 	}
 
