@@ -396,10 +396,9 @@ const struct device_type fsl_mc_bus_dpdmai_type = {
 };
 EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdmai_type);
 
-const struct device_type fsl_mc_bus_dpdbg_type = {
+static const struct device_type fsl_mc_bus_dpdbg_type = {
 	.name = "fsl_mc_bus_dpdbg"
 };
-EXPORT_SYMBOL_GPL(fsl_mc_bus_dpdbg_type);
 
 static const struct device_type *fsl_mc_get_device_type(const char *type)
 {
