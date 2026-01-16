@@ -1659,11 +1659,10 @@ static int ni_usb_allocate_private(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv;
 
-	board->private_data = kmalloc(sizeof(struct ni_usb_priv), GFP_KERNEL);
+	board->private_data = kzalloc(sizeof(struct ni_usb_priv), GFP_KERNEL);
 	if (!board->private_data)
 		return -ENOMEM;
 	ni_priv = board->private_data;
-	memset(ni_priv, 0, sizeof(struct ni_usb_priv));
 	mutex_init(&ni_priv->bulk_transfer_lock);
 	mutex_init(&ni_priv->control_transfer_lock);
 	mutex_init(&ni_priv->interrupt_transfer_lock);
