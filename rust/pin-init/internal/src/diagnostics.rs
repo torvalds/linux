@@ -9,14 +9,12 @@ pub(crate) struct DiagCtxt(TokenStream);
 pub(crate) struct ErrorGuaranteed(());
 
 impl DiagCtxt {
-    #[expect(dead_code)]
     pub(crate) fn error(&mut self, span: impl Spanned, msg: impl Display) -> ErrorGuaranteed {
         let error = Error::new(span.span(), msg);
         self.0.extend(error.into_compile_error());
         ErrorGuaranteed(())
     }
 
-    #[expect(dead_code)]
     pub(crate) fn with(
         fun: impl FnOnce(&mut DiagCtxt) -> Result<TokenStream, ErrorGuaranteed>,
     ) -> TokenStream {

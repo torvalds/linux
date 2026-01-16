@@ -11,6 +11,9 @@
 #![allow(missing_docs)]
 
 use proc_macro::TokenStream;
+use syn::parse_macro_input;
+
+use crate::diagnostics::DiagCtxt;
 
 mod diagnostics;
 mod helpers;
@@ -30,10 +33,12 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(Zeroable)]
 pub fn derive_zeroable(input: TokenStream) -> TokenStream {
-    zeroable::derive(input.into()).into()
+    let input = parse_macro_input!(input);
+    DiagCtxt::with(|dcx| zeroable::derive(input, dcx)).into()
 }
 
 #[proc_macro_derive(MaybeZeroable)]
 pub fn maybe_derive_zeroable(input: TokenStream) -> TokenStream {
-    zeroable::maybe_derive(input.into()).into()
+    let input = parse_macro_input!(input);
+    DiagCtxt::with(|dcx| zeroable::maybe_derive(input, dcx)).into()
 }
