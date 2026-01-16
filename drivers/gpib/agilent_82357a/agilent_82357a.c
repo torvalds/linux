@@ -1316,7 +1316,7 @@ static int agilent_82357a_attach(struct gpib_board *board, const struct gpib_boa
 		return -ERESTARTSYS;
 
 	retval = agilent_82357a_allocate_private(board);
-	if (retval < 0) {
+	if (retval) {
 		mutex_unlock(&agilent_82357a_hotplug_lock);
 		return retval;
 	}
