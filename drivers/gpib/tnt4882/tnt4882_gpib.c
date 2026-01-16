@@ -915,8 +915,9 @@ static int ni_pci_attach(struct gpib_board *board, const struct gpib_board_confi
 
 	board->status = 0;
 
-	if (tnt4882_allocate_private(board))
-		return -ENOMEM;
+	retval = tnt4882_allocate_private(board);
+	if (retval)
+		return retval;
 	tnt_priv = board->private_data;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = TNT4882;
@@ -1038,8 +1039,9 @@ static int ni_isa_attach_common(struct gpib_board *board, const struct gpib_boar
 
 	board->status = 0;
 
-	if (tnt4882_allocate_private(board))
-		return -ENOMEM;
+	retval = tnt4882_allocate_private(board);
+	if (retval)
+		return retval;
 	tnt_priv = board->private_data;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = chipset;
@@ -1724,8 +1726,9 @@ static int ni_pcmcia_attach(struct gpib_board *board, const struct gpib_board_co
 
 	board->status = 0;
 
-	if (tnt4882_allocate_private(board))
-		return -ENOMEM;
+	retval = tnt4882_allocate_private(board);
+	if (retval)
+		return retval;
 
 	tnt_priv = board->private_data;
 	nec_priv = &tnt_priv->nec7210_priv;
