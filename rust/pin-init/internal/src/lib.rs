@@ -16,6 +16,7 @@ use syn::parse_macro_input;
 use crate::diagnostics::DiagCtxt;
 
 mod diagnostics;
+mod init;
 mod pin_data;
 mod pinned_drop;
 mod zeroable;
@@ -44,4 +45,16 @@ pub fn derive_zeroable(input: TokenStream) -> TokenStream {
 pub fn maybe_derive_zeroable(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input);
     DiagCtxt::with(|dcx| zeroable::maybe_derive(input, dcx)).into()
+}
+#[proc_macro]
+pub fn init(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input);
+    DiagCtxt::with(|dcx| init::expand(input, Some("::core::convert::Infallible"), false, dcx))
+        .into()
+}
+
+#[proc_macro]
+pub fn pin_init(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input);
+    DiagCtxt::with(|dcx| init::expand(input, Some("::core::convert::Infallible"), true, dcx)).into()
 }
