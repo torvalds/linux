@@ -1814,6 +1814,11 @@ void dcn20_merge_pipes_for_validate(
 	}
 }
 
+static bool is_dual_plane(enum surface_pixel_format format)
+{
+	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
+}
+
 int dcn20_validate_apply_pipe_split_flags(
 		struct dc *dc,
 		struct dc_state *context,
@@ -1898,8 +1903,15 @@ int dcn20_validate_apply_pipe_split_flags(
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		int pipe_plane = v->pipe_plane[pipe_idx];
-		bool split4mpc = context->stream_count == 1 && plane_count == 1
-				&& dc->config.enable_4to1MPC && dc->res_pool->pipe_count >= 4;
+		bool split4mpc = false;
+
+		if (context->stream_count == 1 && plane_count == 1
+		    && dc->config.allow_4to1MPC && dc->res_pool->pipe_count >= 4
+		    && !dc->debug.disable_z9_mpc
+		    && pipe->plane_state && is_dual_plane(pipe->plane_state->format)
+		    && pipe->plane_state->src_rect.width <= 1920
+		    && pipe->plane_state->src_rect.height <= 1080)
+				split4mpc = true;
 
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;

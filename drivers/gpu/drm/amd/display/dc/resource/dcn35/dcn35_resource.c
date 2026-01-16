@@ -1827,6 +1827,9 @@ static bool dcn35_resource_construct(
 	clk_src_regs_init(3, D),
 	clk_src_regs_init(4, E);
 
+	/* Enable 4to1MPC by default */
+	dc->config.allow_4to1MPC = true;
+
 #undef REG_STRUCT
 #define REG_STRUCT abm_regs
 	abm_regs_init(0),
