@@ -266,11 +266,22 @@ static int tcf_mirred_to_dev(struct sk_buff *skb, struct tcf_mirred *m,
 		goto err_cant_do;
 	}
 
+	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
+
+	at_ingress = skb_at_tc_ingress(skb);
+	if (dev == skb->dev && want_ingress == at_ingress) {
+		pr_notice_once("tc mirred: Loop (%s:%s --> %s:%s)\n",
+			       netdev_name(skb->dev),
+			       at_ingress ? "ingress" : "egress",
+			       netdev_name(dev),
+			       want_ingress ? "ingress" : "egress");
+		goto err_cant_do;
+	}
+
 	/* we could easily avoid the clone only if called by ingress and clsact;
 	 * since we can't easily detect the clsact caller, skip clone only for
 	 * ingress - that covers the TC S/W datapath.
 	 */
-	at_ingress = skb_at_tc_ingress(skb);
 	dont_clone = skb_at_tc_ingress(skb) && is_redirect &&
 		tcf_mirred_can_reinsert(retval);
 	if (!dont_clone) {
@@ -278,8 +289,6 @@ static int tcf_mirred_to_dev(struct sk_buff *skb, struct tcf_mirred *m,
 		if (!skb_to_send)
 			goto err_cant_do;
 	}
-
-	want_ingress = tcf_mirred_act_wants_ingress(m_eaction);
 
 	/* All mirred/redirected skbs should clear previous ct info */
 	nf_reset_ct(skb_to_send);

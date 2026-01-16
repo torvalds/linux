@@ -270,7 +270,11 @@ fi
 
 if [ "$COCCI" = "" ] ; then
     for f in `find $srctree/scripts/coccinelle/ -name '*.cocci' -type f | sort`; do
-	coccinelle $f
+        if grep -q "virtual[[:space:]]\+$MODE" "$f"; then
+                coccinelle $f
+        else
+                echo "warning: Skipping $f as it does not match mode '$MODE'"
+        fi
     done
 else
     coccinelle $COCCI

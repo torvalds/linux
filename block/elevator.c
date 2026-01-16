@@ -633,14 +633,10 @@ static int elevator_change_done(struct request_queue *q,
 			.et = ctx->old->et,
 			.data = ctx->old->elevator_data
 		};
-		bool enable_wbt = test_bit(ELEVATOR_FLAG_ENABLE_WBT_ON_EXIT,
-				&ctx->old->flags);
 
 		elv_unregister_queue(q, ctx->old);
 		blk_mq_free_sched_res(&res, ctx->old->type, q->tag_set);
 		kobject_put(&ctx->old->kobj);
-		if (enable_wbt)
-			wbt_enable_default(q->disk);
 	}
 	if (ctx->new) {
 		ret = elv_register_queue(q, ctx->new, !ctx->no_uevent);

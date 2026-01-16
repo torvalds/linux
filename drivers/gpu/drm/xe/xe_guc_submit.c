@@ -717,26 +717,46 @@ static bool vf_recovery(struct xe_guc *guc)
 	return xe_gt_recovery_pending(guc_to_gt(guc));
 }
 
+static inline void relaxed_ms_sleep(unsigned int delay_ms)
+{
+	unsigned long min_us, max_us;
+
+	if (!delay_ms)
+		return;
+
+	if (delay_ms > 20) {
+		msleep(delay_ms);
+		return;
+	}
+
+	min_us = mul_u32_u32(delay_ms, 1000);
+	max_us = min_us + 500;
+
+	usleep_range(min_us, max_us);
+}
+
 static int wq_wait_for_space(struct xe_exec_queue *q, u32 wqi_size)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct iosys_map map = xe_lrc_parallel_map(q->lrc[0]);
-	unsigned int sleep_period_ms = 1;
+	unsigned int sleep_period_ms = 1, sleep_total_ms = 0;
 
 #define AVAILABLE_SPACE \
 	CIRC_SPACE(q->guc->wqi_tail, q->guc->wqi_head, WQ_SIZE)
 	if (wqi_size > AVAILABLE_SPACE && !vf_recovery(guc)) {
 try_again:
 		q->guc->wqi_head = parallel_read(xe, map, wq_desc.head);
-		if (wqi_size > AVAILABLE_SPACE) {
-			if (sleep_period_ms == 1024) {
+		if (wqi_size > AVAILABLE_SPACE && !vf_recovery(guc)) {
+			if (sleep_total_ms > 2000) {
 				xe_gt_reset_async(q->gt);
 				return -ENODEV;
 			}
 
 			msleep(sleep_period_ms);
-			sleep_period_ms <<= 1;
+			sleep_total_ms += sleep_period_ms;
+			if (sleep_period_ms < 64)
+				sleep_period_ms <<= 1;
 			goto try_again;
 		}
 	}
@@ -1585,7 +1605,7 @@ static void __guc_exec_queue_process_msg_suspend(struct xe_sched_msg *msg)
 				since_resume_ms;
 
 			if (wait_ms > 0 && q->guc->resume_time)
-				msleep(wait_ms);
+				relaxed_ms_sleep(wait_ms);
 
 			set_exec_queue_suspended(q);
 			disable_scheduling(q, false);
@@ -2253,10 +2273,11 @@ static void guc_exec_queue_unpause_prepare(struct xe_guc *guc,
 					   struct xe_exec_queue *q)
 {
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
-	struct xe_sched_job *job = NULL;
+	struct xe_sched_job *job = NULL, *__job;
 	bool restore_replay = false;
 
-	list_for_each_entry(job, &sched->base.pending_list, drm.list) {
+	list_for_each_entry(__job, &sched->base.pending_list, drm.list) {
+		job = __job;
 		restore_replay |= job->restore_replay;
 		if (restore_replay) {
 			xe_gt_dbg(guc_to_gt(guc), "Replay JOB - guc_id=%d, seqno=%d",

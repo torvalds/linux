@@ -8,7 +8,7 @@ title: Faraday FTTMR010 timer
 
 maintainers:
   - Joel Stanley <joel@jms.id.au>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description:
   This timer is a generic IP block from Faraday Technology, embedded in the

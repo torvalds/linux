@@ -444,9 +444,6 @@ static void gswip_remove(struct platform_device *pdev)
 	if (!priv)
 		return;
 
-	/* disable the switch */
-	gswip_disable_switch(priv);
-
 	dsa_unregister_switch(priv->ds);
 
 	for (i = 0; i < priv->num_gphy_fw; i++)

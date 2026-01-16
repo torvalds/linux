@@ -144,10 +144,15 @@ struct amdgpu_fence {
 	struct amdgpu_ring		*ring;
 	ktime_t				start_timestamp;
 
-	/* wptr for the fence for resets */
+	/* wptr for the total submission for resets */
 	u64				wptr;
 	/* fence context for resets */
 	u64				context;
+	/* has this fence been reemitted */
+	unsigned int			reemitted;
+	/* wptr for the fence for the submission */
+	u64				fence_wptr_start;
+	u64				fence_wptr_end;
 };
 
 extern const struct drm_sched_backend_ops amdgpu_sched_ops;
