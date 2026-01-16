@@ -4970,6 +4970,7 @@ static void pci_dev_save_and_disable(struct pci_dev *dev)
 	 * races with ->remove() by the device lock, which must be held by
 	 * the caller.
 	 */
+	device_lock_assert(&dev->dev);
 	if (err_handler && err_handler->reset_prepare)
 		err_handler->reset_prepare(dev);
 	else if (dev->driver)
@@ -5040,7 +5041,9 @@ const struct pci_reset_fn_method pci_reset_fn_methods[] = {
  * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
  * etc.
  *
- * Returns 0 if the device function was successfully reset or negative if the
+ * Context: The caller must hold the device lock.
+ *
+ * Return: 0 if the device function was successfully reset or negative if the
  * device doesn't support resetting a single function.
  */
 int __pci_reset_function_locked(struct pci_dev *dev)
@@ -5049,6 +5052,7 @@ int __pci_reset_function_locked(struct pci_dev *dev)
 	const struct pci_reset_fn_method *method;
 
 	might_sleep();
+	device_lock_assert(&dev->dev);
 
 	/*
 	 * A reset method returns -ENOTTY if it doesn't support this device and
@@ -5171,12 +5175,16 @@ EXPORT_SYMBOL_GPL(pci_reset_function);
  * over the reset.  It also differs from pci_reset_function() in that it
  * requires the PCI device lock to be held.
  *
- * Returns 0 if the device function was successfully reset or negative if the
+ * Context: The caller must hold the device lock.
+ *
+ * Return: 0 if the device function was successfully reset or negative if the
  * device doesn't support resetting a single function.
  */
 int pci_reset_function_locked(struct pci_dev *dev)
 {
 	int rc;
+
+	device_lock_assert(&dev->dev);
 
 	if (!pci_reset_supported(dev))
 		return -ENOTTY;
