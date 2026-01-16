@@ -21,6 +21,60 @@
 #define round_up(val, rnd) \
 	(((val) + ((rnd) - 1)) & ~((rnd) - 1))
 
+/* small sized & per-thread allocator */
+struct allocator {
+	unsigned int size;
+	cpu_set_t *set;
+};
+
+static inline int allocator_init(struct allocator *a, unsigned size)
+{
+	a->set = CPU_ALLOC(size);
+	a->size = size;
+
+	if (a->set)
+		return 0;
+	return -ENOMEM;
+}
+
+static inline void allocator_deinit(struct allocator *a)
+{
+	CPU_FREE(a->set);
+	a->set = NULL;
+	a->size = 0;
+}
+
+static inline int allocator_get(struct allocator *a)
+{
+	int i;
+
+	for (i = 0; i < a->size; i += 1) {
+		size_t set_size = CPU_ALLOC_SIZE(a->size);
+
+		if (!CPU_ISSET_S(i, set_size, a->set)) {
+			CPU_SET_S(i, set_size, a->set);
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static inline void allocator_put(struct allocator *a, int i)
+{
+	size_t set_size = CPU_ALLOC_SIZE(a->size);
+
+	if (i >= 0 && i < a->size)
+		CPU_CLR_S(i, set_size, a->set);
+}
+
+static inline int allocator_get_val(struct allocator *a, int i)
+{
+	size_t set_size = CPU_ALLOC_SIZE(a->size);
+
+	return CPU_ISSET_S(i, set_size, a->set);
+}
+
 static inline unsigned int ilog2(unsigned int x)
 {
 	if (x == 0)
