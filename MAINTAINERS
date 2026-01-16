@@ -22925,6 +22925,7 @@ F:	rust/kernel/num/
 
 RUST [PIN-INIT]
 M:	Benno Lossin <lossin@kernel.org>
+M:	Gary Guo <gary@garyguo.net>
 L:	rust-for-linux@vger.kernel.org
 S:	Maintained
 W:	https://rust-for-linux.com/pin-init
