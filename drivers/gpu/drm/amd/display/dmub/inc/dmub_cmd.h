@@ -139,6 +139,33 @@
  */
 #define DMUB_CMD_PSR_CONTROL_VERSION_1 0x1
 
+/**
+ *
+ * dirty rect cmd version legacy
+ */
+#define DMUB_CMD_DIRTY_RECTS_VERSION_UNKNOWN 0x0
+/**
+ * dirty rect cmd version with multi edp support
+ */
+#define DMUB_CMD_DIRTY_RECTS_VERSION_1 0x1
+/**
+ * dirty rect cmd version with external monitor support
+ */
+#define DMUB_CMD_DIRTY_RECTS_VERSION_2 0x2
+
+/**
+ *
+ * Cursor update cmd version legacy
+ */
+#define DMUB_CMD_CURSOR_UPDATE_VERSION_UNKNOWN 0x0
+/**
+ * Cursor update cmd version with multi edp support
+ */
+#define DMUB_CMD_CURSOR_UPDATE_VERSION_1 0x1
+/**
+ * Cursor update cmd version with external monitor support
+ */
+#define DMUB_CMD_CURSOR_UPDATE_VERSION_2 0x2
 
 /**
  * ABM control version legacy
@@ -3929,7 +3956,7 @@ struct dmub_cmd_update_dirty_rect_data {
 	 */
 	union dmub_psr_su_debug_flags debug_flags;
 	/**
-	 * OTG HW instance.
+	 * Pipe index.
 	 */
 	uint8_t pipe_idx;
 	/**
@@ -3937,7 +3964,7 @@ struct dmub_cmd_update_dirty_rect_data {
 	 */
 	uint8_t dirty_rect_count;
 	/**
-	 * PSR control version.
+	 * dirty rects cmd version.
 	 */
 	uint8_t cmd_version;
 	/**
@@ -3946,6 +3973,14 @@ struct dmub_cmd_update_dirty_rect_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
+	/**
+	 * OTG HW instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * Padding for 4 byte alignment
+	 */
+	uint8_t padding[3];
 };
 
 /**
@@ -4071,11 +4106,11 @@ struct dmub_cmd_update_cursor_payload0 {
 	 */
 	uint8_t enable;
 	/**
-	 * OTG HW instance.
+	 * Pipe index.
 	 */
 	uint8_t pipe_idx;
 	/**
-	 * PSR control version.
+	 * Cursor update cmd version.
 	 */
 	uint8_t cmd_version;
 	/**
@@ -4089,6 +4124,14 @@ struct dmub_cmd_update_cursor_payload0 {
 	 * Registers contains Hubp & Dpp modules
 	 */
 	struct dmub_cursor_position_cfg position_cfg;
+	/**
+	 * OTG HW instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * Padding for 4 byte alignment
+	 */
+	uint8_t padding[3];
 };
 
 struct dmub_cmd_update_cursor_payload1 {
@@ -6629,9 +6672,9 @@ struct dmub_cmd_pr_copy_settings_data {
 	 */
 	uint8_t su_y_granularity;
 	/**
-	 * @pad: Align structure to 4 byte boundary.
+	 * @main_link_activity_option: Indicates main link activity option selected
 	 */
-	uint8_t pad;
+	uint8_t main_link_activity_option;
 };
 
 /**
