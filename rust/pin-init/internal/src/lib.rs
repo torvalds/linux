@@ -16,14 +16,15 @@ use syn::parse_macro_input;
 use crate::diagnostics::DiagCtxt;
 
 mod diagnostics;
-mod helpers;
 mod pin_data;
 mod pinned_drop;
 mod zeroable;
 
 #[proc_macro_attribute]
-pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
-    pin_data::pin_data(inner.into(), item.into()).into()
+pub fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
+    let args = parse_macro_input!(args);
+    let input = parse_macro_input!(input);
+    DiagCtxt::with(|dcx| pin_data::pin_data(args, input, dcx)).into()
 }
 
 #[proc_macro_attribute]
