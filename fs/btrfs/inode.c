@@ -7161,7 +7161,7 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	read_unlock(&em_tree->lock);
 
 	if (em) {
-		if (em->start > start || em->start + em->len <= start)
+		if (em->start > start || btrfs_extent_map_end(em) <= start)
 			btrfs_free_extent_map(em);
 		else if (em->disk_bytenr == EXTENT_MAP_INLINE && folio)
 			btrfs_free_extent_map(em);

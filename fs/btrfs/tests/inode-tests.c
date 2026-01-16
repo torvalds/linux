@@ -313,7 +313,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	 * unless we have a page for it to write into.  Maybe we should change
 	 * this?
 	 */
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -335,7 +335,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* Regular extent */
@@ -362,7 +362,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* The next 3 are split extents */
@@ -391,7 +391,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	}
 	disk_bytenr = btrfs_extent_map_block_start(em);
 	orig_start = em->start;
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -413,7 +413,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -446,7 +446,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 disk_bytenr, btrfs_extent_map_block_start(em));
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* Prealloc extent */
@@ -474,7 +474,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* The next 3 are a half written prealloc extent */
@@ -504,7 +504,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	}
 	disk_bytenr = btrfs_extent_map_block_start(em);
 	orig_start = em->start;
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -536,7 +536,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 disk_bytenr + em->offset, btrfs_extent_map_block_start(em));
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -569,7 +569,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 disk_bytenr + em->offset, btrfs_extent_map_block_start(em));
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* Now for the compressed extent */
@@ -602,7 +602,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 BTRFS_COMPRESS_ZLIB, btrfs_extent_map_compression(em));
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* Split compressed extent */
@@ -637,7 +637,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 	}
 	disk_bytenr = btrfs_extent_map_block_start(em);
 	orig_start = em->start;
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -663,7 +663,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);
@@ -697,7 +697,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 BTRFS_COMPRESS_ZLIB, btrfs_extent_map_compression(em));
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	/* A hole between regular extents but no hole extent */
@@ -724,7 +724,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, SZ_4M);
@@ -756,7 +756,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("wrong offset, want 0, have %llu", em->offset);
 		goto out;
 	}
-	offset = em->start + em->len;
+	offset = btrfs_extent_map_end(em);
 	btrfs_free_extent_map(em);
 
 	em = btrfs_get_extent(BTRFS_I(inode), NULL, offset, sectorsize);

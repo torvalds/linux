@@ -519,7 +519,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			folio_put(folio);
 			break;
 		}
-		add_size = min(em->start + em->len, page_end + 1) - cur;
+		add_size = min(btrfs_extent_map_end(em), page_end + 1) - cur;
 		btrfs_free_extent_map(em);
 		btrfs_unlock_extent(tree, cur, page_end, NULL);
 

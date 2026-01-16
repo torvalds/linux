@@ -2195,10 +2195,11 @@ static int find_first_non_hole(struct btrfs_inode *inode, u64 *start, u64 *len)
 
 	/* Hole or vacuum extent(only exists in no-hole mode) */
 	if (em->disk_bytenr == EXTENT_MAP_HOLE) {
+		const u64 em_end = btrfs_extent_map_end(em);
+
 		ret = 1;
-		*len = em->start + em->len > *start + *len ?
-		       0 : *start + *len - em->start - em->len;
-		*start = em->start + em->len;
+		*len = (em_end > *start + *len) ? 0 : (*start + *len - em_end);
+		*start = em_end;
 	}
 	btrfs_free_extent_map(em);
 	return ret;
@@ -2947,7 +2948,7 @@ static int btrfs_zero_range(struct inode *inode,
 	 * new prealloc extent, so that we get a larger contiguous disk extent.
 	 */
 	if (em->start <= alloc_start && (em->flags & EXTENT_FLAG_PREALLOC)) {
-		const u64 em_end = em->start + em->len;
+		const u64 em_end = btrfs_extent_map_end(em);
 
 		if (em_end >= offset + len) {
 			/*

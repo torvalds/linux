@@ -5160,7 +5160,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	if (ctx->logged_before) {
 		drop_args.path = path;
 		drop_args.start = em->start;
-		drop_args.end = em->start + em->len;
+		drop_args.end = btrfs_extent_map_end(em);
 		drop_args.replace_extent = true;
 		drop_args.extent_item_size = sizeof(fi);
 		ret = btrfs_drop_extents(trans, log, inode, &drop_args);
