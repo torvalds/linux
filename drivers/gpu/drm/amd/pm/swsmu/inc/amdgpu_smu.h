@@ -472,6 +472,11 @@ struct smu_power_context {
 };
 
 #define SMU_FEATURE_MAX	(64)
+
+struct smu_feature_bits {
+	DECLARE_BITMAP(bits, SMU_FEATURE_MAX);
+};
+
 struct smu_feature {
 	uint32_t feature_num;
 	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
@@ -1974,4 +1979,80 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 
 void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id);
 bool smu_feature_cap_test(struct smu_context *smu, enum smu_feature_cap_id fea_id);
+
+static inline bool smu_feature_bits_is_set(const struct smu_feature_bits *bits,
+					   unsigned int bit)
+{
+	if (bit >= SMU_FEATURE_MAX)
+		return false;
+
+	return test_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_set_bit(struct smu_feature_bits *bits,
+					    unsigned int bit)
+{
+	if (bit < SMU_FEATURE_MAX)
+		__set_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_clear_bit(struct smu_feature_bits *bits,
+					      unsigned int bit)
+{
+	if (bit < SMU_FEATURE_MAX)
+		__clear_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_clearall(struct smu_feature_bits *bits)
+{
+	bitmap_zero(bits->bits, SMU_FEATURE_MAX);
+}
+
+static inline void smu_feature_bits_fill(struct smu_feature_bits *bits)
+{
+	bitmap_fill(bits->bits, SMU_FEATURE_MAX);
+}
+
+static inline bool
+smu_feature_bits_test_mask(const struct smu_feature_bits *bits,
+			   const unsigned long *mask)
+{
+	return bitmap_intersects(bits->bits, mask, SMU_FEATURE_MAX);
+}
+
+static inline void smu_feature_bits_from_arr32(struct smu_feature_bits *bits,
+					       const uint32_t *arr,
+					       unsigned int nbits)
+{
+	bitmap_from_arr32(bits->bits, arr, nbits);
+}
+
+static inline void
+smu_feature_bits_to_arr32(const struct smu_feature_bits *bits, uint32_t *arr,
+			  unsigned int nbits)
+{
+	bitmap_to_arr32(arr, bits->bits, nbits);
+}
+
+static inline bool smu_feature_bits_empty(const struct smu_feature_bits *bits,
+					  unsigned int nbits)
+{
+	return bitmap_empty(bits->bits, nbits);
+}
+
+static inline void smu_feature_bits_copy(struct smu_feature_bits *dst,
+					 const unsigned long *src,
+					 unsigned int nbits)
+{
+	bitmap_copy(dst->bits, src, nbits);
+}
+
+static inline void smu_feature_bits_or(struct smu_feature_bits *dst,
+				       const struct smu_feature_bits *src1,
+				       const unsigned long *src2,
+				       unsigned int nbits)
+{
+	bitmap_or(dst->bits, src1->bits, src2, nbits);
+}
+
 #endif
