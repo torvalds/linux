@@ -51,6 +51,7 @@
 #define PHY_CTRL5_PCS_TX_SWING_FULL_MASK	GENMASK(6, 0)
 
 #define PHY_CTRL6			0x18
+#define PHY_CTRL6_RXTERM_OVERRIDE_SEL	BIT(29)
 #define PHY_CTRL6_ALT_CLK_EN		BIT(1)
 #define PHY_CTRL6_ALT_CLK_SEL		BIT(0)
 
@@ -630,6 +631,7 @@ static int imx8mp_usb_phy_init(struct phy *phy)
 static int imx8mq_phy_power_on(struct phy *phy)
 {
 	struct imx8mq_usb_phy *imx_phy = phy_get_drvdata(phy);
+	u32 value;
 	int ret;
 
 	ret = regulator_enable(imx_phy->vbus);
@@ -646,12 +648,23 @@ static int imx8mq_phy_power_on(struct phy *phy)
 		return ret;
 	}
 
-	return ret;
+	/* Disable rx term override */
+	value = readl(imx_phy->base + PHY_CTRL6);
+	value &= ~PHY_CTRL6_RXTERM_OVERRIDE_SEL;
+	writel(value, imx_phy->base + PHY_CTRL6);
+
+	return 0;
 }
 
 static int imx8mq_phy_power_off(struct phy *phy)
 {
 	struct imx8mq_usb_phy *imx_phy = phy_get_drvdata(phy);
+	u32 value;
+
+	/* Override rx term to be 0 */
+	value = readl(imx_phy->base + PHY_CTRL6);
+	value |= PHY_CTRL6_RXTERM_OVERRIDE_SEL;
+	writel(value, imx_phy->base + PHY_CTRL6);
 
 	clk_disable_unprepare(imx_phy->alt_clk);
 	clk_disable_unprepare(imx_phy->clk);
