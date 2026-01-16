@@ -380,6 +380,13 @@ virtual address where the kernel image is mapped and confuses
 gdb which resolves addresses of kernel symbols from the symbol table
 of vmlinux.
 
+Kernel parameter: ``rodata``
+----------------------------
+
+``CONFIG_STRICT_KERNEL_RWX`` is turned on by default and is not
+visible to menuconfig on some architectures (arm64 for example),
+you can pass ``rodata=off`` to the kernel in this case.
+
 Using kdb
 =========
 
