@@ -165,6 +165,7 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 	{ PCI_DEVICE_DATA(INTEL, NPK_ADL_P,	&intel_th_2x) },   /* Alder Lake-P */
 	{ PCI_DEVICE_DATA(INTEL, NPK_ADL_M,	&intel_th_2x) },   /* Alder Lake-M */
 	{ PCI_DEVICE_DATA(INTEL, NPK_APL,	NULL) },	   /* Apollo Lake */
+	{ PCI_DEVICE_DATA(INTEL, NPK_NVL_PCH,	&intel_th_2x) },   /* Nova Lake-PCH */
 	{ PCI_DEVICE_DATA(INTEL, NPK_ARL,	&intel_th_2x) },   /* Arrow Lake */
 	{ PCI_DEVICE_DATA(INTEL, NPK_RPL_S,	&intel_th_2x) },   /* Raptor Lake-S */
 	{ PCI_DEVICE_DATA(INTEL, NPK_ADL,	&intel_th_2x) },   /* Alder Lake */
@@ -184,6 +185,9 @@ static const struct pci_device_id intel_th_pci_id_table[] = {
 	{ PCI_DEVICE_DATA(INTEL, NPK_RPL_S_CPU,	&intel_th_2x) },   /* Raptor Lake-S CPU */
 	{ PCI_DEVICE_DATA(INTEL, NPK_LNL,	&intel_th_2x) },   /* Lunar Lake */
 	{ PCI_DEVICE_DATA(INTEL, NPK_MTL_S_CPU,	&intel_th_2x) },   /* Meteor Lake-S CPU */
+	{ PCI_DEVICE_DATA(INTEL, NPK_NVL_P,	&intel_th_2x) },   /* Nova Lake-P */
+	{ PCI_DEVICE_DATA(INTEL, NPK_NVL_H,	&intel_th_2x) },   /* Nova Lake-H */
+	{ PCI_DEVICE_DATA(INTEL, NPK_NVL_S,	&intel_th_2x) },   /* Nova Lake-S */
 	{ PCI_DEVICE_DATA(INTEL, NPK_PTL_H,	&intel_th_2x) },   /* Panther Lake-H */
 	{ PCI_DEVICE_DATA(INTEL, NPK_PTL_PU,	&intel_th_2x) },   /* Panther Lake-P/U */
 	{ }
