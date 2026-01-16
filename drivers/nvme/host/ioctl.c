@@ -410,7 +410,8 @@ static void nvme_uring_task_cb(struct io_tw_req tw_req, io_tw_token_t tw)
 }
 
 static enum rq_end_io_ret nvme_uring_cmd_end_io(struct request *req,
-						blk_status_t err)
+						blk_status_t err,
+						const struct io_comp_batch *iob)
 {
 	struct io_uring_cmd *ioucmd = req->end_io_data;
 	struct nvme_uring_cmd_pdu *pdu = nvme_uring_cmd_pdu(ioucmd);

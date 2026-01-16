@@ -1615,7 +1615,8 @@ static int adapter_delete_sq(struct nvme_dev *dev, u16 sqid)
 	return adapter_delete_queue(dev, nvme_admin_delete_sq, sqid);
 }
 
-static enum rq_end_io_ret abort_endio(struct request *req, blk_status_t error)
+static enum rq_end_io_ret abort_endio(struct request *req, blk_status_t error,
+				      const struct io_comp_batch *iob)
 {
 	struct nvme_queue *nvmeq = req->mq_hctx->driver_data;
 
@@ -2858,7 +2859,8 @@ out_unlock:
 }
 
 static enum rq_end_io_ret nvme_del_queue_end(struct request *req,
-					     blk_status_t error)
+					     blk_status_t error,
+					     const struct io_comp_batch *iob)
 {
 	struct nvme_queue *nvmeq = req->end_io_data;
 
@@ -2868,14 +2870,15 @@ static enum rq_end_io_ret nvme_del_queue_end(struct request *req,
 }
 
 static enum rq_end_io_ret nvme_del_cq_end(struct request *req,
-					  blk_status_t error)
+					  blk_status_t error,
+					  const struct io_comp_batch *iob)
 {
 	struct nvme_queue *nvmeq = req->end_io_data;
 
 	if (error)
 		set_bit(NVMEQ_DELETE_ERROR, &nvmeq->flags);
 
-	return nvme_del_queue_end(req, error);
+	return nvme_del_queue_end(req, error, iob);
 }
 
 static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
