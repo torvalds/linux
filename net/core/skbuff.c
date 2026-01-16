@@ -583,6 +583,16 @@ struct sk_buff *napi_build_skb(void *data, unsigned int frag_size)
 }
 EXPORT_SYMBOL(napi_build_skb);
 
+static void *kmalloc_pfmemalloc(size_t obj_size, gfp_t flags, int node)
+{
+	if (!gfp_pfmemalloc_allowed(flags))
+		return NULL;
+	if (!obj_size)
+		return kmem_cache_alloc_node(net_hotdata.skb_small_head_cache,
+					     flags, node);
+	return kmalloc_node_track_caller(obj_size, flags, node);
+}
+
 /*
  * kmalloc_reserve is a wrapper around kmalloc_node_track_caller that tells
  * the caller if emergency pfmemalloc reserves are being used. If it is and
@@ -591,9 +601,8 @@ EXPORT_SYMBOL(napi_build_skb);
  * memory is free
  */
 static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
-			     bool *pfmemalloc)
+			     struct sk_buff *skb)
 {
-	bool ret_pfmemalloc = false;
 	size_t obj_size;
 	void *obj;
 
@@ -604,12 +613,12 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 				flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
 				node);
 		*size = SKB_SMALL_HEAD_CACHE_SIZE;
-		if (obj || !(gfp_pfmemalloc_allowed(flags)))
+		if (likely(obj))
 			goto out;
 		/* Try again but now we are using pfmemalloc reserves */
-		ret_pfmemalloc = true;
-		obj = kmem_cache_alloc_node(net_hotdata.skb_small_head_cache, flags, node);
-		goto out;
+		if (skb)
+			skb->pfmemalloc = true;
+		return kmalloc_pfmemalloc(0, flags, node);
 	}
 
 	obj_size = kmalloc_size_roundup(obj_size);
@@ -625,17 +634,14 @@ static void *kmalloc_reserve(unsigned int *size, gfp_t flags, int node,
 	obj = kmalloc_node_track_caller(obj_size,
 					flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
 					node);
-	if (obj || !(gfp_pfmemalloc_allowed(flags)))
+	if (likely(obj))
 		goto out;
 
 	/* Try again but now we are using pfmemalloc reserves */
-	ret_pfmemalloc = true;
-	obj = kmalloc_node_track_caller(obj_size, flags, node);
-
+	if (skb)
+		skb->pfmemalloc = true;
+	obj = kmalloc_pfmemalloc(obj_size, flags, node);
 out:
-	if (pfmemalloc)
-		*pfmemalloc = ret_pfmemalloc;
-
 	return obj;
 }
 
@@ -667,7 +673,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 {
 	struct sk_buff *skb = NULL;
 	struct kmem_cache *cache;
-	bool pfmemalloc;
 	u8 *data;
 
 	if (sk_memalloc_socks() && (flags & SKB_ALLOC_RX))
@@ -697,25 +702,21 @@ fallback:
 		if (unlikely(!skb))
 			return NULL;
 	}
-	prefetchw(skb);
+	skbuff_clear(skb);
 
 	/* We do our best to align skb_shared_info on a separate cache
 	 * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
 	 * aligned memory blocks, unless SLUB/SLAB debug is enabled.
 	 * Both skb->head and skb_shared_info are cache line aligned.
 	 */
-	data = kmalloc_reserve(&size, gfp_mask, node, &pfmemalloc);
+	data = kmalloc_reserve(&size, gfp_mask, node, skb);
 	if (unlikely(!data))
 		goto nodata;
 	/* kmalloc_size_roundup() might give us more room than requested.
 	 * Put skb_shared_info exactly at the end of allocated zone,
 	 * to allow max possible filling before reallocation.
 	 */
-	prefetchw(data + SKB_WITH_OVERHEAD(size));
-
-	skbuff_clear(skb);
 	__finalize_skb_around(skb, data, size);
-	skb->pfmemalloc = pfmemalloc;
 
 	if (flags & SKB_ALLOC_FCLONE) {
 		struct sk_buff_fclones *fclones;
