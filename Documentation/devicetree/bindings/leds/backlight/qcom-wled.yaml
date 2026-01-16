@@ -243,7 +243,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: qcom,pmi8994-wled
+            enum:
+              - qcom,pmi8950-wled
+              - qcom,pmi8994-wled
 
     then:
       properties:
