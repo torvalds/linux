@@ -62,6 +62,11 @@ struct wmi_string {
 	__le16 chars[];
 } __packed;
 
+ssize_t wmi_string_to_utf8s(const struct wmi_string *str, u8 *dst, size_t length);
+
+ssize_t wmi_string_from_utf8s(struct wmi_string *str, size_t max_chars, const u8 *src,
+			      size_t src_length);
+
 int wmidev_invoke_method(struct wmi_device *wdev, u8 instance, u32 method_id,
 			 const struct wmi_buffer *in, struct wmi_buffer *out);
 

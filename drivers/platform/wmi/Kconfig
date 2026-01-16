@@ -6,6 +6,7 @@
 menuconfig ACPI_WMI
 	tristate "ACPI-WMI support"
 	depends on ACPI && X86
+	select NLS
 	help
 	  This option enables support for the ACPI-WMI driver core.
 
