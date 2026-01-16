@@ -440,10 +440,16 @@ static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)
 	addr[1] = 0;
 }
 
+static inline unsigned short ublk_batch_io_buf_idx(
+		const struct ublk_thread *t, const struct ublk_queue *q,
+		unsigned tag);
+
 static inline unsigned short ublk_io_buf_idx(const struct ublk_thread *t,
 					     const struct ublk_queue *q,
 					     unsigned tag)
 {
+	if (ublk_queue_batch_io(q))
+		return ublk_batch_io_buf_idx(t, q, tag);
 	return q->ios[tag].buf_index;
 }
 
@@ -511,6 +517,22 @@ static inline int ublk_queue_no_buf(const struct ublk_queue *q)
 	return ublk_queue_use_zc(q) || ublk_queue_use_auto_zc(q);
 }
 
+/*
+ * Each IO's buffer index has to be calculated by this helper for
+ * UBLKS_T_BATCH_IO
+ */
+static inline unsigned short ublk_batch_io_buf_idx(
+		const struct ublk_thread *t, const struct ublk_queue *q,
+		unsigned tag)
+{
+	return tag;
+}
+
+/* Queue UBLK_U_IO_PREP_IO_CMDS for a specific queue with batch elements */
+int ublk_batch_queue_prep_io_cmds(struct ublk_thread *t, struct ublk_queue *q);
+/* Handle completion of batch I/O commands (prep/commit) */
+void ublk_batch_compl_cmd(struct ublk_thread *t,
+			  const struct io_uring_cqe *cqe);
 /* Initialize batch I/O state and calculate buffer parameters */
 void ublk_batch_prepare(struct ublk_thread *t);
 /* Allocate and register commit buffers for batch operations */

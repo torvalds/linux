@@ -840,6 +840,8 @@ static void ublk_handle_uring_cmd(struct ublk_thread *t,
 	unsigned tag = user_data_to_tag(cqe->user_data);
 	struct ublk_io *io = &q->ios[tag];
 
+	t->cmd_inflight--;
+
 	if (!fetch) {
 		t->state |= UBLKS_T_STOPPING;
 		io->flags &= ~UBLKS_IO_NEED_FETCH_RQ;
@@ -874,28 +876,30 @@ static void ublk_handle_cqe(struct ublk_thread *t,
 {
 	struct ublk_dev *dev = t->dev;
 	unsigned q_id = user_data_to_q_id(cqe->user_data);
-	struct ublk_queue *q = &dev->q[q_id];
 	unsigned cmd_op = user_data_to_op(cqe->user_data);
 
 	if (cqe->res < 0 && cqe->res != -ENODEV)
-		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
-				cqe->res, cqe->user_data, q->flags);
+		ublk_err("%s: res %d userdata %llx thread state %x\n", __func__,
+				cqe->res, cqe->user_data, t->state);
 
-	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
-			__func__, cqe->res, q->q_id, user_data_to_tag(cqe->user_data),
-			cmd_op, is_target_io(cqe->user_data),
+	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (thread %d qid %d tag %u cmd_op %x "
+			"data %lx target %d/%d) stopping %d\n",
+			__func__, cqe->res, t->idx, q_id,
+			user_data_to_tag(cqe->user_data),
+			cmd_op, cqe->user_data, is_target_io(cqe->user_data),
 			user_data_to_tgt_data(cqe->user_data),
 			(t->state & UBLKS_T_STOPPING));
 
 	/* Don't retrieve io in case of target io */
 	if (is_target_io(cqe->user_data)) {
-		ublksrv_handle_tgt_cqe(t, q, cqe);
+		ublksrv_handle_tgt_cqe(t, &dev->q[q_id], cqe);
 		return;
 	}
 
-	t->cmd_inflight--;
-
-	ublk_handle_uring_cmd(t, q, cqe);
+	if (ublk_thread_batch_io(t))
+		ublk_batch_compl_cmd(t, cqe);
+	else
+		ublk_handle_uring_cmd(t, &dev->q[q_id], cqe);
 }
 
 static int ublk_reap_events_uring(struct ublk_thread *t)
@@ -952,6 +956,22 @@ static void ublk_thread_set_sched_affinity(const struct ublk_thread_info *info)
 				info->dev->dev_info.dev_id, info->idx);
 }
 
+static void ublk_batch_setup_queues(struct ublk_thread *t)
+{
+	int i;
+
+	/* setup all queues in the 1st thread */
+	for (i = 0; i < t->dev->dev_info.nr_hw_queues; i++) {
+		struct ublk_queue *q = &t->dev->q[i];
+		int ret;
+
+		ret = ublk_batch_queue_prep_io_cmds(t, q);
+		ublk_assert(ret == 0);
+		ret = ublk_process_io(t);
+		ublk_assert(ret >= 0);
+	}
+}
+
 static __attribute__((noinline)) int __ublk_io_handler_fn(struct ublk_thread_info *info)
 {
 	struct ublk_thread t = {
@@ -972,8 +992,14 @@ static __attribute__((noinline)) int __ublk_io_handler_fn(struct ublk_thread_inf
 	ublk_dbg(UBLK_DBG_THREAD, "tid %d: ublk dev %d thread %u started\n",
 			gettid(), dev_id, t.idx);
 
-	/* submit all io commands to ublk driver */
-	ublk_submit_fetch_commands(&t);
+	if (!ublk_thread_batch_io(&t)) {
+		/* submit all io commands to ublk driver */
+		ublk_submit_fetch_commands(&t);
+	} else if (!t.idx) {
+		/* prepare all io commands in the 1st thread context */
+		ublk_batch_setup_queues(&t);
+	}
+
 	do {
 		if (ublk_process_io(&t) < 0)
 			break;
