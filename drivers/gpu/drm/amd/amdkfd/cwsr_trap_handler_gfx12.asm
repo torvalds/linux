@@ -35,6 +35,7 @@
 #define HAVE_BANKED_VGPRS (ASIC_FAMILY == CHIP_GC_12_0_3)
 #define NUM_NAMED_BARRIERS (ASIC_FAMILY == CHIP_GC_12_0_3 ? 0x10 : 0)
 #define HAVE_CLUSTER_BARRIER (ASIC_FAMILY == CHIP_GC_12_0_3)
+#define CLUSTER_BARRIER_SERIALIZE_WORKAROUND (ASIC_FAMILY == CHIP_GC_12_0_3)
 
 #define SINGLE_STEP_MISSED_WORKAROUND 1	//workaround for lost TRAP_AFTER_INST exception when SAVECTX raised
 #define HAVE_VALU_SGPR_HAZARD (ASIC_FAMILY == CHIP_GFX12)
@@ -104,6 +105,7 @@ var SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT		= 0
 var SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE		= 2
 
 var BARRIER_STATE_SIGNAL_OFFSET			= 16
+var BARRIER_STATE_SIGNAL_SIZE			= 7
 var BARRIER_STATE_MEMBER_OFFSET			= 4
 var BARRIER_STATE_MEMBER_SIZE			= 7
 var BARRIER_STATE_VALID_OFFSET			= 0
@@ -519,9 +521,11 @@ L_SAVE_HWREG:
 	v_mov_b32	v2, 0x0							//Set of SGPRs for TCP store
 	s_mov_b32	m0, 0x0							//Next lane of v2 to write to
 
+	write_hwreg_to_v2(s_save_m0)
+
 	// Ensure no further changes to barrier or LDS state.
 	// STATE_PRIV.*BARRIER_COMPLETE may change up to this point.
-	wait_trap_barriers(s_save_tmp)
+	wait_trap_barriers(s_save_tmp, s_save_m0, 1)
 
 	// Re-read final state of *BARRIER_COMPLETE fields for save.
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_STATE_PRIV)
@@ -529,7 +533,6 @@ L_SAVE_HWREG:
 	s_andn2_b32	s_save_state_priv, s_save_state_priv, SQ_WAVE_STATE_PRIV_ALL_BARRIER_COMPLETE_MASK
 	s_or_b32	s_save_state_priv, s_save_state_priv, s_save_tmp
 
-	write_hwreg_to_v2(s_save_m0)
 	write_hwreg_to_v2(s_save_pc_lo)
 	s_andn2_b32	s_save_tmp, s_save_pc_hi, S_SAVE_PC_HI_FIRST_WAVE_MASK
 	write_hwreg_to_v2(s_save_tmp)
@@ -1197,7 +1200,7 @@ L_SKIP_CLUSTER_BARRIER_RESTORE:
 
 	// Make barrier and LDS state visible to all waves in the group/cluster.
 	// STATE_PRIV.*BARRIER_COMPLETE may change after this point.
-	wait_trap_barriers(s_restore_tmp)
+	wait_trap_barriers(s_restore_tmp, 0, 0)
 
 #if HAVE_CLUSTER_BARRIER
 	// SCC is changed by wait_trap_barriers, restore it separately.
@@ -1210,7 +1213,7 @@ L_SKIP_CLUSTER_BARRIER_RESTORE:
 L_END_PGM:
 	// Make sure that no wave of the group/cluster can exit the trap handler
 	// before the group/cluster barrier state is saved.
-	wait_trap_barriers(s_restore_tmp)
+	wait_trap_barriers(s_restore_tmp, 0, 0)
 
 	s_endpgm_saved
 end
@@ -1300,11 +1303,11 @@ function restore_xnack_state_priv(s_tmp)
 end
 #endif
 
-function wait_trap_barriers(s_tmp)
+function wait_trap_barriers(s_tmp1, s_tmp2, serialize_wa)
 #if HAVE_CLUSTER_BARRIER
 	// If not in a WG then wave cannot use s_barrier_signal_isfirst.
-	s_getreg_b32	s_tmp, hwreg(HW_REG_WAVE_STATUS)
-	s_bitcmp0_b32	s_tmp, SQ_WAVE_STATUS_IN_WG_SHIFT
+	s_getreg_b32	s_tmp1, hwreg(HW_REG_WAVE_STATUS)
+	s_bitcmp0_b32	s_tmp1, SQ_WAVE_STATUS_IN_WG_SHIFT
 	s_cbranch_scc1	L_TRAP_CLUSTER_BARRIER_SIGNAL
 
 	s_barrier_signal_isfirst	-2
@@ -1318,6 +1321,25 @@ L_TRAP_CLUSTER_BARRIER_SIGNAL:
 
 L_SKIP_TRAP_CLUSTER_BARRIER_SIGNAL:
 	s_barrier_wait	-4
+
+#if CLUSTER_BARRIER_SERIALIZE_WORKAROUND
+if serialize_wa
+	// Trap cluster barrier may complete with a user cluster barrier in-flight.
+	// This is indicated if user cluster member count and signal count are equal.
+L_WAIT_USER_CLUSTER_BARRIER_COMPLETE:
+	s_sendmsg_rtn_b32	s_tmp1, sendmsg(MSG_RTN_GET_CLUSTER_BARRIER_STATE)
+	s_wait_kmcnt	0
+	s_bitcmp0_b32	s_tmp1, BARRIER_STATE_VALID_OFFSET
+	s_cbranch_scc1	L_NOT_IN_CLUSTER
+
+	s_bfe_u32	s_tmp2, s_tmp1, (BARRIER_STATE_MEMBER_OFFSET | (BARRIER_STATE_MEMBER_SIZE << 0x10))
+	s_bfe_u32	s_tmp1, s_tmp1, (BARRIER_STATE_SIGNAL_OFFSET | (BARRIER_STATE_SIGNAL_SIZE << 0x10))
+	s_cmp_eq_u32	s_tmp1, s_tmp2
+	s_cbranch_scc1	L_WAIT_USER_CLUSTER_BARRIER_COMPLETE
+end
+L_NOT_IN_CLUSTER:
+#endif
+
 #else
 	s_barrier_signal	-2
 	s_barrier_wait	-2
