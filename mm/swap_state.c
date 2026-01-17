@@ -283,7 +283,7 @@ void __swap_cache_replace_folio(struct swap_cluster_info *ci,
 }
 
 /**
- * swap_cache_clear_shadow - Clears a set of shadows in the swap cache.
+ * __swap_cache_clear_shadow - Clears a set of shadows in the swap cache.
  * @entry: The starting index entry.
  * @nr_ents: How many slots need to be cleared.
  *
