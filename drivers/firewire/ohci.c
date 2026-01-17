@@ -2958,6 +2958,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 				int type, int channel, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
+	void *header __free(free_page) = NULL;
 	struct iso_context *ctx;
 	descriptor_callback_t callback;
 	u64 *channels;
@@ -3015,8 +3016,8 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 
 	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
 		ctx->sc.header_length = 0;
-		ctx->sc.header = (void *) __get_free_page(GFP_KERNEL);
-		if (!ctx->sc.header) {
+		header = (void *) __get_free_page(GFP_KERNEL);
+		if (!header) {
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -3024,21 +3025,17 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 
 	ret = context_init(&ctx->context, ohci, regs, callback);
 	if (ret < 0)
-		goto out_with_header;
+		goto out;
 	fw_iso_context_init_work(&ctx->base, ohci_isoc_context_work);
 
-	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		ctx->sc.header = no_free_ptr(header);
+	} else {
 		set_multichannel_mask(ohci, 0);
 		ctx->mc.completed = 0;
 	}
 
 	return &ctx->base;
-
- out_with_header:
-	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
-		free_page((unsigned long)ctx->sc.header);
-		ctx->sc.header = NULL;
-	}
  out:
 	scoped_guard(spinlock_irq, &ohci->lock) {
 		switch (type) {
