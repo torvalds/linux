@@ -115,9 +115,12 @@ struct dml2_dram_params {
 	unsigned int channel_width_bytes;
 	unsigned int channel_count;
 	unsigned int transactions_per_clock;
+	bool alt_clock_bw_conversion;
 };
 
+#define ENABLE_WCK
 struct dml2_soc_state_table {
+	struct dml2_clk_table wck_ratio;
 	struct dml2_clk_table uclk;
 	struct dml2_clk_table fclk;
 	struct dml2_clk_table dcfclk;
