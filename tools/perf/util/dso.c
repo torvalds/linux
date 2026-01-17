@@ -1236,17 +1236,28 @@ uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 	try_to_open_dso(dso, machine);
 	fd = dso__data(dso)->fd;
 	if (fd >= 0) {
-		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
-		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
-		if (dso__needs_swap(dso) == DSO_SWAP__UNSET) {
-			unsigned char eidata;
+		unsigned char e_ident[EI_NIDENT];
 
-			if (pread(fd, &eidata, sizeof(eidata), EI_DATA) == sizeof(eidata))
-				dso__swap_init(dso, eidata);
+		_Static_assert(offsetof(Elf32_Ehdr, e_ident) == 0, "Unexpected offset");
+		_Static_assert(offsetof(Elf64_Ehdr, e_ident) == 0, "Unexpected offset");
+		if (pread(fd, &e_ident, sizeof(e_ident), 0) == sizeof(e_ident) &&
+		    memcmp(e_ident, ELFMAG, SELFMAG) == 0 &&
+		    e_ident[EI_CLASS] > ELFCLASSNONE && e_ident[EI_CLASS] < ELFCLASSNUM &&
+		    e_ident[EI_DATA] > ELFDATANONE && e_ident[EI_DATA] < ELFDATANUM &&
+		    e_ident[EI_VERSION] == EV_CURRENT) {
+			_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
+			_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
+
+			if (dso__needs_swap(dso) == DSO_SWAP__UNSET)
+				dso__swap_init(dso, e_ident[EI_DATA]);
+
+			if (dso__needs_swap(dso) != DSO_SWAP__UNSET &&
+			    pread(fd, &e_machine, sizeof(e_machine), 18) == sizeof(e_machine) &&
+			    e_machine < EM_NUM)
+				e_machine = DSO__SWAP(dso, uint16_t, e_machine);
+			else
+				e_machine = EM_NONE;
 		}
-		if (dso__needs_swap(dso) != DSO_SWAP__UNSET &&
-		    pread(fd, &e_machine, sizeof(e_machine), 18) == sizeof(e_machine))
-			e_machine = DSO__SWAP(dso, uint16_t, e_machine);
 	}
 	mutex_unlock(dso__data_open_lock());
 	return e_machine;
