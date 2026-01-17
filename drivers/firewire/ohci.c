@@ -2958,7 +2958,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 				int type, int channel, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	void *header __free(free_page) = NULL;
+	void *header __free(kvfree) = NULL;
 	struct iso_context *ctx;
 	descriptor_callback_t callback;
 	u64 *channels;
@@ -3016,7 +3016,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 
 	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
 		ctx->sc.header_length = 0;
-		header = (void *) __get_free_page(GFP_KERNEL);
+		header = kvmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!header) {
 			ret = -ENOMEM;
 			goto out;
@@ -3137,7 +3137,7 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 	context_release(&ctx->context);
 
 	if (base->type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
-		free_page((unsigned long)ctx->sc.header);
+		kvfree(ctx->sc.header);
 		ctx->sc.header = NULL;
 	}
 
