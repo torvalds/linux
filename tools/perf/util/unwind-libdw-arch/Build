@@ -1,1 +1,0 @@
-perf-util-y += unwind-libdw-s390.o

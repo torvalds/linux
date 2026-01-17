@@ -226,7 +226,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	return true;
 }
 
-static bool libdw_set_initial_registers_generic(Dwfl_Thread *thread, void *arg)
+static bool libdw_set_initial_registers(Dwfl_Thread *thread, void *arg)
 {
 	struct unwind_info *ui = arg;
 	struct regs_dump *user_regs = perf_sample__user_regs(ui->sample);
@@ -279,28 +279,11 @@ static bool libdw_set_initial_registers_generic(Dwfl_Thread *thread, void *arg)
 	return ret;
 }
 
-#define DEFINE_DWFL_THREAD_CALLBACKS(arch)                           \
-static const Dwfl_Thread_Callbacks callbacks_##arch = {              \
-	.next_thread           = next_thread,                        \
-	.memory_read           = memory_read,                        \
-	.set_initial_registers = libdw_set_initial_registers_##arch, \
-}
-
-static const Dwfl_Thread_Callbacks callbacks_generic = {
+static const Dwfl_Thread_Callbacks callbacks = {
 	.next_thread           = next_thread,
 	.memory_read           = memory_read,
-	.set_initial_registers = libdw_set_initial_registers_generic,
+	.set_initial_registers = libdw_set_initial_registers,
 };
-
-DEFINE_DWFL_THREAD_CALLBACKS(s390);
-
-static const Dwfl_Thread_Callbacks *get_thread_callbacks(const char *arch)
-{
-	if (!strcmp(arch, "s390"))
-		return &callbacks_s390;
-
-	return &callbacks_generic;
-}
 
 static int
 frame_callback(Dwfl_Frame *state, void *arg)
@@ -349,10 +332,8 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.e_machine	= e_machine,
 		.best_effort    = best_effort
 	};
-	const char *arch = perf_env__arch(machine->env);
 	Dwarf_Word ip;
 	int err = -EINVAL, i;
-	const Dwfl_Thread_Callbacks *callbacks;
 
 	if (!data->user_regs || !data->user_regs->regs)
 		return -EINVAL;
@@ -375,11 +356,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	callbacks = get_thread_callbacks(arch);
-	if (!callbacks)
-		goto out;
-
-	err = !dwfl_attach_state(ui->dwfl, /*elf=*/NULL, thread__tid(thread), callbacks, ui);
+	err = !dwfl_attach_state(ui->dwfl, /*elf=*/NULL, thread__tid(thread), &callbacks, ui);
 	if (err)
 		goto out;
 
