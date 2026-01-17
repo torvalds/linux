@@ -58,14 +58,15 @@ static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
  * __io_uring_run_bpf_filters() returns 0 on success, allow running the
  * request, and -EACCES when a request is denied.
  */
-int __io_uring_run_bpf_filters(struct io_restriction *res, struct io_kiocb *req)
+int __io_uring_run_bpf_filters(struct io_bpf_filter __rcu **filters,
+			       struct io_kiocb *req)
 {
 	struct io_bpf_filter *filter;
 	struct io_uring_bpf_ctx bpf_ctx;
 	int ret;
 
 	/* Fast check for existence of filters outside of RCU */
-	if (!rcu_access_pointer(res->bpf_filters->filters[req->opcode]))
+	if (!rcu_access_pointer(filters[req->opcode]))
 		return 0;
 
 	/*
@@ -73,7 +74,7 @@ int __io_uring_run_bpf_filters(struct io_restriction *res, struct io_kiocb *req)
 	 * of what we expect, io_init_req() does this.
 	 */
 	guard(rcu)();
-	filter = rcu_dereference(res->bpf_filters->filters[req->opcode]);
+	filter = rcu_dereference(filters[req->opcode]);
 	if (!filter)
 		return 0;
 	else if (filter == &dummy_filter)

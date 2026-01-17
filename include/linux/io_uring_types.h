@@ -287,6 +287,8 @@ struct io_ring_ctx {
 
 		struct task_struct	*submitter_task;
 		struct io_rings		*rings;
+		/* cache of ->restrictions.bpf_filters->filters */
+		struct io_bpf_filter __rcu	**bpf_filters;
 		struct percpu_ref	refs;
 
 		clockid_t		clockid;

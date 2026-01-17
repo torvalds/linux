@@ -837,6 +837,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (nr_args != 1)
 			break;
 		ret = io_register_bpf_filter(&ctx->restrictions, arg);
+		if (!ret)
+			WRITE_ONCE(ctx->bpf_filters,
+				   ctx->restrictions.bpf_filters->filters);
 		break;
 	default:
 		ret = -EINVAL;
