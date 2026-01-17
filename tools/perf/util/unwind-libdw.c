@@ -339,7 +339,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (!callbacks)
 		goto out;
 
-	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread__tid(thread), callbacks, ui);
+	err = !dwfl_attach_state(ui->dwfl, /*elf=*/NULL, thread__tid(thread), callbacks, ui);
 	if (err)
 		goto out;
 
