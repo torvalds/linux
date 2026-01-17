@@ -100,8 +100,8 @@ struct fw_card_driver {
 	void (*write_csr)(struct fw_card *card, int csr_offset, u32 value);
 
 	struct fw_iso_context *
-	(*allocate_iso_context)(struct fw_card *card,
-				int type, int channel, size_t header_size);
+	(*allocate_iso_context)(struct fw_card *card, int type, int channel, size_t header_size,
+				size_t header_storage_size);
 	void (*free_iso_context)(struct fw_iso_context *ctx);
 
 	int (*start_iso)(struct fw_iso_context *ctx,
@@ -178,7 +178,7 @@ static inline struct fw_iso_context *fw_iso_mc_context_create(struct fw_card *ca
 {
 	union fw_iso_callback cb = { .mc = callback };
 
-	return __fw_iso_context_create(card, FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL, 0, 0, 0, cb,
+	return __fw_iso_context_create(card, FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL, 0, 0, 0, 0, cb,
 				       callback_data);
 }
 

@@ -138,12 +138,13 @@ size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed)
 }
 
 struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, int channel,
-		int speed, size_t header_size, union fw_iso_callback callback, void *callback_data)
+		int speed, size_t header_size, size_t header_storage_size,
+		union fw_iso_callback callback, void *callback_data)
 {
 	struct fw_iso_context *ctx;
 
-	ctx = card->driver->allocate_iso_context(card,
-						 type, channel, header_size);
+	ctx = card->driver->allocate_iso_context(card, type, channel, header_size,
+						 header_storage_size);
 	if (IS_ERR(ctx))
 		return ctx;
 
@@ -153,6 +154,7 @@ struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, i
 	ctx->speed = speed;
 	ctx->flags = 0;
 	ctx->header_size = header_size;
+	ctx->header_storage_size = header_storage_size;
 	ctx->callback = callback;
 	ctx->callback_data = callback_data;
 

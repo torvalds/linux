@@ -704,8 +704,8 @@ static int dummy_enable_phys_dma(struct fw_card *card,
 	return -ENODEV;
 }
 
-static struct fw_iso_context *dummy_allocate_iso_context(struct fw_card *card,
-				int type, int channel, size_t header_size)
+static struct fw_iso_context *dummy_allocate_iso_context(struct fw_card *card, int type,
+		int channel, size_t header_size, size_t header_storage_size)
 {
 	return ERR_PTR(-ENODEV);
 }

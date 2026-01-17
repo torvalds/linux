@@ -2755,7 +2755,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
 	u32 *ctx_hdr;
 
-	if (ctx->sc.header_length + ctx->base.header_size > PAGE_SIZE) {
+	if (ctx->sc.header_length + ctx->base.header_size > ctx->base.header_storage_size) {
 		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
@@ -2924,7 +2924,7 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	if (ctx->sc.header_length + 4 > PAGE_SIZE) {
+	if (ctx->sc.header_length + 4 > ctx->base.header_storage_size) {
 		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return 1;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
@@ -2954,8 +2954,8 @@ static void set_multichannel_mask(struct fw_ohci *ohci, u64 channels)
 	ohci->mc_channels = channels;
 }
 
-static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
-				int type, int channel, size_t header_size)
+static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card, int type, int channel,
+		size_t header_size, size_t header_storage_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	void *header __free(kvfree) = NULL;
@@ -3016,7 +3016,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 
 	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
 		ctx->sc.header_length = 0;
-		header = kvmalloc(PAGE_SIZE, GFP_KERNEL);
+		header = kvmalloc(header_storage_size, GFP_KERNEL);
 		if (!header) {
 			ret = -ENOMEM;
 			goto out;

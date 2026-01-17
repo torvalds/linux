@@ -558,12 +558,14 @@ struct fw_iso_context {
 	int speed;
 	int flags;
 	size_t header_size;
+	size_t header_storage_size;
 	union fw_iso_callback callback;
 	void *callback_data;
 };
 
 struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, int channel,
-		int speed, size_t header_size, union fw_iso_callback callback, void *callback_data);
+		int speed, size_t header_size, size_t header_storage_size,
+		union fw_iso_callback callback, void *callback_data);
 int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels);
 int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
@@ -578,7 +580,8 @@ static inline struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 {
 	union fw_iso_callback cb = { .sc = callback };
 
-	return __fw_iso_context_create(card, type, channel, speed, header_size, cb, callback_data);
+	return __fw_iso_context_create(card, type, channel, speed, header_size, PAGE_SIZE, cb,
+				       callback_data);
 }
 
 /**
