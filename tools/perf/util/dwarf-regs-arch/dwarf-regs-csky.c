@@ -2,11 +2,12 @@
 // Copyright (C) 2019 Hangzhou C-SKY Microsystems co.,ltd.
 // Mapping of DWARF debug register numbers into register names.
 
+#include <errno.h>
 #include <stddef.h>
 #include <dwarf-regs.h>
 
 #define CSKY_ABIV2_MAX_REGS 73
-const char *csky_dwarf_regs_table_abiv2[CSKY_ABIV2_MAX_REGS] = {
+static const char * const csky_dwarf_regs_table_abiv2[CSKY_ABIV2_MAX_REGS] = {
 	/* r0 ~ r8 */
 	"%a0", "%a1", "%a2", "%a3", "%regs0", "%regs1", "%regs2", "%regs3",
 	/* r9 ~ r15 */
@@ -27,7 +28,7 @@ const char *csky_dwarf_regs_table_abiv2[CSKY_ABIV2_MAX_REGS] = {
 };
 
 #define CSKY_ABIV1_MAX_REGS 57
-const char *csky_dwarf_regs_table_abiv1[CSKY_ABIV1_MAX_REGS] = {
+static const char * const csky_dwarf_regs_table_abiv1[CSKY_ABIV1_MAX_REGS] = {
 	/* r0 ~ r8 */
 	"%sp", "%regs9", "%a0", "%a1", "%a2", "%a3", "%regs0", "%regs1",
 	/* r9 ~ r15 */
@@ -41,10 +42,27 @@ const char *csky_dwarf_regs_table_abiv1[CSKY_ABIV1_MAX_REGS] = {
 	"%epc",
 };
 
-const char *get_csky_regstr(unsigned int n, unsigned int flags)
+const char *__get_csky_regstr(unsigned int n, unsigned int flags)
 {
 	if (flags & EF_CSKY_ABIV2)
 		return (n < CSKY_ABIV2_MAX_REGS) ? csky_dwarf_regs_table_abiv2[n] : NULL;
 
 	return (n < CSKY_ABIV1_MAX_REGS) ? csky_dwarf_regs_table_abiv1[n] : NULL;
+}
+
+static int __get_dwarf_regnum(const char *const *regstr, size_t num_regstr, const char *name)
+{
+	for (size_t i = 0; i < num_regstr; i++) {
+		if (regstr[i] && !strcmp(regstr[i], name))
+			return i;
+	}
+	return -ENOENT;
+}
+
+int __get_csky_regnum(const char *name, unsigned int flags)
+{
+	if (flags & EF_CSKY_ABIV2)
+		return __get_dwarf_regnum(csky_dwarf_regs_table_abiv2, CSKY_ABIV2_MAX_REGS, name);
+
+	return __get_dwarf_regnum(csky_dwarf_regs_table_abiv1, CSKY_ABIV1_MAX_REGS, name);
 }

@@ -89,8 +89,6 @@
 #define DWARF_REG_FB  0xd3affb /* random number */
 
 #ifdef HAVE_LIBDW_SUPPORT
-const char *get_csky_regstr(unsigned int n, unsigned int flags);
-
 /**
  * get_dwarf_regstr() - Returns ftrace register string from DWARF regnum.
  * @n: DWARF register number.
@@ -98,6 +96,9 @@ const char *get_csky_regstr(unsigned int n, unsigned int flags);
  * @flags: ELF flags for things like ABI differences.
  */
 const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int flags);
+
+const char *__get_csky_regstr(unsigned int n, unsigned int flags);
+int __get_csky_regnum(const char *name, unsigned int flags);
 
 int __get_dwarf_regnum_i386(const char *name);
 int __get_dwarf_regnum_x86_64(const char *name);

@@ -27,11 +27,11 @@
 #include "../arch/mips/include/dwarf-regs-table.h"
 #include "../arch/loongarch/include/dwarf-regs-table.h"
 
-#define __get_dwarf_regstr(tbl, n) (((n) < ARRAY_SIZE(tbl)) ? (tbl)[(n)] : NULL)
-
 /* Return architecture dependent register string (for kprobe-tracer) */
 const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int flags)
 {
+	#define __get_dwarf_regstr(tbl, n) (((n) < ARRAY_SIZE(tbl)) ? (tbl)[(n)] : NULL)
+
 	if (machine == EM_NONE) {
 		/* Generic arch - use host arch */
 		machine = EM_HOST;
@@ -46,7 +46,7 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int 
 	case EM_AARCH64:
 		return __get_dwarf_regstr(aarch64_regstr_tbl, n);
 	case EM_CSKY:
-		return get_csky_regstr(n, flags);
+		return __get_csky_regstr(n, flags);
 	case EM_SH:
 		return __get_dwarf_regstr(sh_regstr_tbl, n);
 	case EM_S390:
@@ -69,14 +69,27 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int 
 		pr_err("ELF MACHINE %x is not supported.\n", machine);
 	}
 	return NULL;
+
+	#undef __get_dwarf_regstr
+}
+
+static int __get_dwarf_regnum(const char *const *regstr, size_t num_regstr, const char *name)
+{
+	for (size_t i = 0; i < num_regstr; i++) {
+		if (regstr[i] && !strcmp(regstr[i], name))
+			return i;
+	}
+	return -ENOENT;
 }
 
 /* Return DWARF register number from architecture register name */
-int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags __maybe_unused)
+int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags)
 {
 	char *regname = strdup(name);
 	int reg = -1;
 	char *p;
+
+	#define _get_dwarf_regnum(tbl, name) __get_dwarf_regnum(tbl, ARRAY_SIZE(tbl), name)
 
 	if (regname == NULL)
 		return -EINVAL;
@@ -97,11 +110,48 @@ int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags 
 	case EM_386:
 		reg = __get_dwarf_regnum_i386(name);
 		break;
+	case EM_ARM:
+		reg = _get_dwarf_regnum(arm_regstr_tbl, name);
+		break;
+	case EM_AARCH64:
+		reg = _get_dwarf_regnum(aarch64_regstr_tbl, name);
+		break;
+	case EM_CSKY:
+		reg = __get_csky_regnum(name, flags);
+		break;
+	case EM_SH:
+		reg = _get_dwarf_regnum(sh_regstr_tbl, name);
+		break;
+	case EM_S390:
+		reg = _get_dwarf_regnum(s390_regstr_tbl, name);
+		break;
+	case EM_PPC:
+	case EM_PPC64:
+		reg = _get_dwarf_regnum(powerpc_regstr_tbl, name);
+		break;
+	case EM_RISCV:
+		reg = _get_dwarf_regnum(riscv_regstr_tbl, name);
+		break;
+	case EM_SPARC:
+	case EM_SPARCV9:
+		reg = _get_dwarf_regnum(sparc_regstr_tbl, name);
+		break;
+	case EM_XTENSA:
+		reg = _get_dwarf_regnum(xtensa_regstr_tbl, name);
+		break;
+	case EM_MIPS:
+		reg = _get_dwarf_regnum(mips_regstr_tbl, name);
+		break;
+	case EM_LOONGARCH:
+		reg = _get_dwarf_regnum(loongarch_regstr_tbl, name);
+		break;
 	default:
 		pr_err("ELF MACHINE %x is not supported.\n", machine);
 	}
 	free(regname);
 	return reg;
+
+	#undef _get_dwarf_regnum
 }
 
 static int get_libdw_frame_nregs(unsigned int machine, unsigned int flags __maybe_unused)
