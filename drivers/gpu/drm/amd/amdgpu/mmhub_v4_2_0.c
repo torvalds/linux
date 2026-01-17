@@ -131,7 +131,7 @@ static void mmhub_v4_2_0_setup_vm_pt_regs(struct amdgpu_device *adev,
 static void mmhub_v4_2_0_mid_init_gart_aperture_regs(struct amdgpu_device *adev,
 						     uint32_t mid_mask)
 {
-	uint64_t pt_base = amdgpu_gmc_pd_addr(adev->gart.bo);
+	uint64_t pt_base;
 	int i;
 
 	if (adev->gmc.pdb0_bo)
@@ -190,41 +190,74 @@ static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *ade
 		return;
 
 	for_each_inst(i, mid_mask) {
-		/* Program the AGP BAR */
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BASE_LO32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BASE_HI32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BOT_LO32,
-			     lower_32_bits(adev->gmc.agp_start >> 24));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BOT_HI32,
-			     upper_32_bits(adev->gmc.agp_start >> 24));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_TOP_LO32,
-			     lower_32_bits(adev->gmc.agp_end >> 24));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_TOP_HI32,
-			     upper_32_bits(adev->gmc.agp_end >> 24));
+		if (adev->gmc.pdb0_bo) {
+			/* Disable agp and system aperture
+			 * when vmid0 page table is enabled */
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_FB_LOCATION_TOP_LO32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_FB_LOCATION_TOP_HI32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_FB_LOCATION_BASE_LO32,
+				     0xFFFFFFFF);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_FB_LOCATION_BASE_HI32, 1);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_TOP_LO32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_TOP_HI32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BOT_LO32,
+				     0xFFFFFFFF);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BOT_HI32, 1);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
+				     0xFFFFFFFF);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
+				     0x7F);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32, 0);
+		} else {
+			/* Program the AGP BAR */
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BASE_LO32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BASE_HI32, 0);
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BOT_LO32,
+				     lower_32_bits(adev->gmc.agp_start >> 24));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_BOT_HI32,
+				     upper_32_bits(adev->gmc.agp_start >> 24));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_TOP_LO32,
+				     lower_32_bits(adev->gmc.agp_end >> 24));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_AGP_TOP_HI32,
+				     upper_32_bits(adev->gmc.agp_end >> 24));
 
-		/* Program the system aperture low logical page number. */
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
-			     lower_32_bits(min(adev->gmc.fb_start,
-					       adev->gmc.agp_start) >> 18));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
-			     upper_32_bits(min(adev->gmc.fb_start,
-					       adev->gmc.agp_start) >> 18));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32,
-			     lower_32_bits(max(adev->gmc.fb_end,
-					       adev->gmc.agp_end) >> 18));
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32,
-			     upper_32_bits(max(adev->gmc.fb_end,
-					       adev->gmc.agp_end) >> 18));
+			/* Program the system aperture low logical page number. */
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
+				     lower_32_bits(min(adev->gmc.fb_start,
+						   adev->gmc.agp_start) >> 18));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
+				     upper_32_bits(min(adev->gmc.fb_start,
+						   adev->gmc.agp_start) >> 18));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32,
+				     lower_32_bits(max(adev->gmc.fb_end,
+						   adev->gmc.agp_end) >> 18));
+			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
+				     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32,
+				     upper_32_bits(max(adev->gmc.fb_end,
+						   adev->gmc.agp_end) >> 18));
+		}
 
 		/* Set default page address. */
 		value = amdgpu_gmc_vram_mc2pa(adev, adev->mem_scratch.gpu_addr);
@@ -251,38 +284,6 @@ static void mmhub_v4_2_0_mid_init_system_aperture_regs(struct amdgpu_device *ade
 				    ENABLE_RETRY_FAULT_INTERRUPT, 0x1);
 		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
 			     regMMVM_L2_PROTECTION_FAULT_CNTL2, tmp);
-	}
-
-	/* In the case squeezing vram into GART aperture, we don't use
-	 * FB aperture and AGP aperture. Disable them.
-	 */
-	if (adev->gmc.pdb0_bo) {
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_FB_LOCATION_TOP_LO32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_FB_LOCATION_TOP_HI32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_FB_LOCATION_BASE_LO32, 0xFFFFFFFF);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_FB_LOCATION_BASE_HI32, 1);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_TOP_LO32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_TOP_HI32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BOT_LO32, 0xFFFFFFFF);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_AGP_BOT_HI32, 1);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
-			     0xFFFFFFFF);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
-			     0x7F);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32, 0);
-		WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
-			     regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32, 0);
 	}
 }
 
