@@ -72,6 +72,45 @@ static const char *mmhub_client_ids_v4_2_0[][2] = {
 	[23][1] = "VCN1",
 };
 
+static int mmhub_v4_2_0_get_xgmi_info(struct amdgpu_device *adev)
+{
+	u32 max_num_physical_nodes;
+	u32 max_physical_node_id;
+	u32 xgmi_lfb_cntl;
+	u32 max_region;
+	u64 seg_size;
+
+	/* limit this callback to A + A configuration only */
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		return 0;
+
+	xgmi_lfb_cntl = RREG32_SOC15(MMHUB, GET_INST(MMHUB, 0),
+				     regMMMC_VM_XGMI_LFB_CNTL);
+	seg_size = REG_GET_FIELD(
+		RREG32_SOC15(MMHUB, GET_INST(MMHUB, 0), regMMMC_VM_XGMI_LFB_SIZE),
+		MMMC_VM_XGMI_LFB_SIZE, PF_LFB_SIZE) << 24;
+	max_region =
+		REG_GET_FIELD(xgmi_lfb_cntl, MMMC_VM_XGMI_LFB_CNTL, PF_MAX_REGION);
+
+	max_num_physical_nodes   = 4;
+	max_physical_node_id     = 3;
+
+	adev->gmc.xgmi.num_physical_nodes = max_region + 1;
+
+	if (adev->gmc.xgmi.num_physical_nodes > max_num_physical_nodes)
+		return -EINVAL;
+
+	adev->gmc.xgmi.physical_node_id =
+		REG_GET_FIELD(xgmi_lfb_cntl, MMMC_VM_XGMI_LFB_CNTL, PF_LFB_REGION);
+
+	if (adev->gmc.xgmi.physical_node_id > max_physical_node_id)
+		return -EINVAL;
+
+	adev->gmc.xgmi.node_segment_size = seg_size;
+
+	return 0;
+}
+
 static u64 mmhub_v4_2_0_get_fb_location(struct amdgpu_device *adev)
 {
 	u64 base;
@@ -884,6 +923,7 @@ const struct amdgpu_mmhub_funcs mmhub_v4_2_0_funcs = {
 	.set_fault_enable_default = mmhub_v4_2_0_set_fault_enable_default,
 	.set_clockgating = mmhub_v4_2_0_set_clockgating,
 	.get_clockgating = mmhub_v4_2_0_get_clockgating,
+	.get_xgmi_info = mmhub_v4_2_0_get_xgmi_info,
 };
 
 static int mmhub_v4_2_0_xcp_resume(void *handle, uint32_t inst_mask)
