@@ -119,11 +119,14 @@ class SphinxBuilder:
 
         return path
 
-    def check_rust(self):
+    def check_rust(self, sphinxdirs):
         """
         Checks if Rust is enabled
         """
         config = os.path.join(self.srctree, ".config")
+
+        if not {'.', 'rust'}.intersection(sphinxdirs):
+            return False
 
         if not os.path.isfile(config):
             return False
@@ -691,7 +694,7 @@ class SphinxBuilder:
 
             args.extend(["-D", f"latex_elements.papersize={paper}paper"])
 
-        rustdoc = self.check_rust()
+        rustdoc = self.check_rust(sphinxdirs_list)
         if rustdoc:
             args.extend(["-t", "rustdoc"])
 
