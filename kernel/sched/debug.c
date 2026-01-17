@@ -172,18 +172,12 @@ static const struct file_operations sched_feat_fops = {
 static ssize_t sched_scaling_write(struct file *filp, const char __user *ubuf,
 				   size_t cnt, loff_t *ppos)
 {
-	char buf[16];
 	unsigned int scaling;
+	int ret;
 
-	if (cnt > 15)
-		cnt = 15;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-	buf[cnt] = '\0';
-
-	if (kstrtouint(buf, 10, &scaling))
-		return -EINVAL;
+	ret = kstrtouint_from_user(ubuf, cnt, 10, &scaling);
+	if (ret)
+		return ret;
 
 	if (scaling >= SCHED_TUNABLESCALING_END)
 		return -EINVAL;
