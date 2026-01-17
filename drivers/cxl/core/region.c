@@ -3324,6 +3324,7 @@ static int unaligned_region_offset_to_dpa_result(struct cxl_region *cxlr,
 	u64 interleave_width, interleave_index;
 	u64 gran, gran_offset, dpa_offset;
 	u64 hpa = p->res->start + offset;
+	u64 tmp = offset;
 
 	/*
 	 * Unaligned addresses are not algebraically invertible. Calculate
@@ -3333,7 +3334,7 @@ static int unaligned_region_offset_to_dpa_result(struct cxl_region *cxlr,
 	gran = cxld->interleave_granularity;
 	interleave_width = gran * cxld->interleave_ways;
 	interleave_index = div64_u64(offset, interleave_width);
-	gran_offset = div64_u64_rem(offset, gran, NULL);
+	gran_offset = do_div(tmp, gran);
 
 	dpa_offset = interleave_index * gran + gran_offset;
 
