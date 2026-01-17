@@ -146,71 +146,15 @@ static void gfxhub_v12_1_xcc_init_system_aperture_regs(struct amdgpu_device *ade
 	uint32_t tmp;
 	int i;
 
+	/*TODO: revisit whether the SRIOV guest access to theseregisters
+	 * is blocked by security policy or not */
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	for_each_inst(i, xcc_mask) {
-		/* Program the AGP BAR */
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_BASE_LO32, 0);
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_BASE_HI32, 0);
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_BOT_LO32,
-				 lower_32_bits(adev->gmc.agp_start >> 24));
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_BOT_HI32,
-				 upper_32_bits(adev->gmc.agp_start >> 24));
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_TOP_LO32,
-				 lower_32_bits(adev->gmc.agp_end >> 24));
-		WREG32_SOC15_RLC(GC, GET_INST(GC, i),
-				 regGCMC_VM_AGP_TOP_HI32,
-				 upper_32_bits(adev->gmc.agp_end >> 24));
-
-		if (!amdgpu_sriov_vf(adev)) {
-			/* Program the system aperture low logical page number. */
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
-				     lower_32_bits(min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
-				     upper_32_bits(min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32,
-				     lower_32_bits(max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32,
-				     upper_32_bits(max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18));
-
-			/* Set default page address. */
-			value = amdgpu_gmc_vram_mc2pa(adev, adev->mem_scratch.gpu_addr);
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
-				     (u32)(value >> 12));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
-				     (u32)(value >> 44));
-
-			/* Program "protection fault". */
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
-				     (u32)(adev->dummy_page_addr >> 12));
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
-				     (u32)((u64)adev->dummy_page_addr >> 44));
-
-			tmp = RREG32_SOC15(GC, GET_INST(GC, i),
-					   regGCVM_L2_PROTECTION_FAULT_CNTL2);
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL2,
-					    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
-			tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL2,
-					    ENABLE_RETRY_FAULT_INTERRUPT, 0x1);
-			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCVM_L2_PROTECTION_FAULT_CNTL2, tmp);
-		}
-
-		/* In the case squeezing vram into GART aperture, we don't use
-		 * FB aperture and AGP aperture. Disable them.
-		 */
 		if (adev->gmc.pdb0_bo) {
+			/* Disable agp and system aperture
+			 * when vmid0 page table is enabled */
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCMC_VM_FB_LOCATION_TOP_LO32, 0);
 			WREG32_SOC15(GC, GET_INST(GC, i),
@@ -225,7 +169,8 @@ static void gfxhub_v12_1_xcc_init_system_aperture_regs(struct amdgpu_device *ade
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCMC_VM_AGP_TOP_HI32, 0);
 			WREG32_SOC15(GC, GET_INST(GC, i),
-				     regGCMC_VM_AGP_BOT_LO32, 0xFFFFFFFF);
+				     regGCMC_VM_AGP_BOT_LO32,
+				     0xFFFFFFFF);
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCMC_VM_AGP_BOT_HI32, 1);
 			WREG32_SOC15(GC, GET_INST(GC, i),
@@ -238,7 +183,69 @@ static void gfxhub_v12_1_xcc_init_system_aperture_regs(struct amdgpu_device *ade
 				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32, 0);
 			WREG32_SOC15(GC, GET_INST(GC, i),
 				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32, 0);
+		} else {
+			/* Program the AGP BAR */
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_BASE_LO32, 0);
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_BASE_HI32, 0);
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_BOT_LO32,
+					 lower_32_bits(adev->gmc.agp_start >> 24));
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_BOT_HI32,
+					 upper_32_bits(adev->gmc.agp_start >> 24));
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_TOP_LO32,
+					 lower_32_bits(adev->gmc.agp_end >> 24));
+			WREG32_SOC15_RLC(GC, GET_INST(GC, i),
+					 regGCMC_VM_AGP_TOP_HI32,
+					 upper_32_bits(adev->gmc.agp_end >> 24));
+
+			/* Program the system aperture low logical page number. */
+			WREG32_SOC15(GC, GET_INST(GC, i),
+				     regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR_LO32,
+				     lower_32_bits(min(adev->gmc.fb_start,
+						   adev->gmc.agp_start) >> 18));
+			WREG32_SOC15(GC, GET_INST(GC, i),
+				     regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR_HI32,
+				     upper_32_bits(min(adev->gmc.fb_start,
+						   adev->gmc.agp_start) >> 18));
+			WREG32_SOC15(GC, GET_INST(GC, i),
+				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_LO32,
+				     lower_32_bits(max(adev->gmc.fb_end,
+						   adev->gmc.agp_end) >> 18));
+			WREG32_SOC15(GC, GET_INST(GC, i),
+				     regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR_HI32,
+				     upper_32_bits(max(adev->gmc.fb_end,
+						   adev->gmc.agp_end) >> 18));
 		}
+
+		/* Set default page address. */
+		value = amdgpu_gmc_vram_mc2pa(adev, adev->mem_scratch.gpu_addr);
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB,
+			     (u32)(value >> 12));
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB,
+			     (u32)(value >> 44));
+
+		/* Program "protection fault". */
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
+			     (u32)(adev->dummy_page_addr >> 12));
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGCVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
+			     (u32)((u64)adev->dummy_page_addr >> 44));
+
+		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
+				   regGCVM_L2_PROTECTION_FAULT_CNTL2);
+		tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL2,
+				    ACTIVE_PAGE_MIGRATION_PTE_READ_RETRY, 1);
+		tmp = REG_SET_FIELD(tmp, GCVM_L2_PROTECTION_FAULT_CNTL2,
+				    ENABLE_RETRY_FAULT_INTERRUPT, 0x1);
+		WREG32_SOC15(GC, GET_INST(GC, i),
+			     regGCVM_L2_PROTECTION_FAULT_CNTL2, tmp);
 	}
 }
 
