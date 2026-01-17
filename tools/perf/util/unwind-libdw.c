@@ -6,6 +6,7 @@
 #include <errno.h>
 #include "debug.h"
 #include "dso.h"
+#include <dwarf-regs.h>
 #include "unwind.h"
 #include "unwind-libdw.h"
 #include "machine.h"
@@ -225,6 +226,59 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 	return true;
 }
 
+static bool libdw_set_initial_registers_generic(Dwfl_Thread *thread, void *arg)
+{
+	struct unwind_info *ui = arg;
+	struct regs_dump *user_regs = perf_sample__user_regs(ui->sample);
+	Dwarf_Word *dwarf_regs;
+	int max_dwarf_reg = 0;
+	bool ret;
+	uint16_t e_machine = ui->e_machine;
+	int e_flags = 0;
+	uint64_t ip_perf_reg = perf_arch_reg_ip(e_machine);
+	Dwarf_Word val = 0;
+
+
+	/*
+	 * For every possible perf register in the bitmap determine the dwarf
+	 * register and use to compute the max.
+	 */
+	for (int perf_reg = 0; perf_reg < 64; perf_reg++) {
+		if (user_regs->mask & (1ULL << perf_reg)) {
+			int dwarf_reg =
+				get_dwarf_regnum_for_perf_regnum(perf_reg, e_machine,
+								 e_flags,
+								 /*only_libdw_supported=*/true);
+			if (dwarf_reg > max_dwarf_reg)
+				max_dwarf_reg = dwarf_reg;
+		}
+	}
+
+	dwarf_regs = calloc(max_dwarf_reg + 1, sizeof(*dwarf_regs));
+	if (!dwarf_regs)
+		return false;
+
+	for (int perf_reg = 0; perf_reg < 64; perf_reg++) {
+		if (user_regs->mask & (1ULL << perf_reg)) {
+			int dwarf_reg =
+				get_dwarf_regnum_for_perf_regnum(perf_reg, e_machine,
+								 e_flags,
+								 /*only_libdw_supported=*/true);
+			if (dwarf_reg >= 0) {
+				val = 0;
+				if (perf_reg_value(&val, user_regs, perf_reg) == 0)
+					dwarf_regs[dwarf_reg] = val;
+			}
+		}
+	}
+	if (perf_reg_value(&val, user_regs, ip_perf_reg) == 0)
+		dwfl_thread_state_register_pc(thread, val);
+
+	ret = dwfl_thread_state_registers(thread, 0, max_dwarf_reg + 1, dwarf_regs);
+	free(dwarf_regs);
+	return ret;
+}
+
 #define DEFINE_DWFL_THREAD_CALLBACKS(arch)                           \
 static const Dwfl_Thread_Callbacks callbacks_##arch = {              \
 	.next_thread           = next_thread,                        \
@@ -232,7 +286,12 @@ static const Dwfl_Thread_Callbacks callbacks_##arch = {              \
 	.set_initial_registers = libdw_set_initial_registers_##arch, \
 }
 
-DEFINE_DWFL_THREAD_CALLBACKS(x86);
+static const Dwfl_Thread_Callbacks callbacks_generic = {
+	.next_thread           = next_thread,
+	.memory_read           = memory_read,
+	.set_initial_registers = libdw_set_initial_registers_generic,
+};
+
 DEFINE_DWFL_THREAD_CALLBACKS(arm);
 DEFINE_DWFL_THREAD_CALLBACKS(arm64);
 DEFINE_DWFL_THREAD_CALLBACKS(csky);
@@ -257,12 +316,8 @@ static const Dwfl_Thread_Callbacks *get_thread_callbacks(const char *arch)
 		return &callbacks_riscv;
 	else if (!strcmp(arch, "s390"))
 		return &callbacks_s390;
-	else if (!strcmp(arch, "x86"))
-		return &callbacks_x86;
 
-	pr_err("Fail to get thread callbacks for arch %s, returns NULL\n",
-	       arch);
-	return NULL;
+	return &callbacks_generic;
 }
 
 static int
@@ -301,6 +356,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			bool best_effort)
 {
 	struct machine *machine = maps__machine(thread__maps(thread));
+	uint16_t e_machine = thread__e_machine(thread, machine);
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
@@ -308,9 +364,9 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,
+		.e_machine	= e_machine,
 		.best_effort    = best_effort
 	};
-	uint16_t e_machine = thread__e_machine(thread, machine);
 	const char *arch = perf_env__arch(machine->env);
 	Dwarf_Word ip;
 	int err = -EINVAL, i;

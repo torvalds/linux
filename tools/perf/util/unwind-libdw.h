@@ -9,7 +9,6 @@ struct machine;
 struct perf_sample;
 struct thread;
 
-bool libdw_set_initial_registers_x86(Dwfl_Thread *thread, void *arg);
 bool libdw_set_initial_registers_arm(Dwfl_Thread *thread, void *arg);
 bool libdw_set_initial_registers_arm64(Dwfl_Thread *thread, void *arg);
 bool libdw_set_initial_registers_csky(Dwfl_Thread *thread, void *arg);
@@ -28,6 +27,7 @@ struct unwind_info {
 	void			*arg;
 	int			max_stack;
 	int			idx;
+	uint16_t		e_machine;
 	bool			best_effort;
 	struct unwind_entry	entries[];
 };

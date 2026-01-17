@@ -10,6 +10,7 @@
 #include <string.h> /* for strcmp */
 #include <linux/kernel.h> /* for ARRAY_SIZE */
 #include <dwarf-regs.h>
+#include "../../../arch/x86/include/uapi/asm/perf_regs.h"
 
 struct dwarf_regs_idx {
 	const char *name;
@@ -162,4 +163,98 @@ int __get_dwarf_regnum_i386(const char *name)
 int __get_dwarf_regnum_x86_64(const char *name)
 {
 	return get_regnum(x86_64_regidx_table, ARRAY_SIZE(x86_64_regidx_table), name);
+}
+
+int __get_dwarf_regnum_for_perf_regnum_i386(int perf_regnum)
+{
+	static const int dwarf_i386_regnums[] = {
+		[PERF_REG_X86_AX] = 0,
+		[PERF_REG_X86_BX] = 3,
+		[PERF_REG_X86_CX] = 1,
+		[PERF_REG_X86_DX] = 2,
+		[PERF_REG_X86_SI] = 6,
+		[PERF_REG_X86_DI] = 7,
+		[PERF_REG_X86_BP] = 5,
+		[PERF_REG_X86_SP] = 4,
+		[PERF_REG_X86_IP] = 8,
+		[PERF_REG_X86_FLAGS] = 9,
+		[PERF_REG_X86_CS] = 41,
+		[PERF_REG_X86_SS] = 42,
+		[PERF_REG_X86_DS] = 43,
+		[PERF_REG_X86_ES] = 40,
+		[PERF_REG_X86_FS] = 44,
+		[PERF_REG_X86_GS] = 45,
+		[PERF_REG_X86_XMM0] = 21,
+		[PERF_REG_X86_XMM1] = 22,
+		[PERF_REG_X86_XMM2] = 23,
+		[PERF_REG_X86_XMM3] = 24,
+		[PERF_REG_X86_XMM4] = 25,
+		[PERF_REG_X86_XMM5] = 26,
+		[PERF_REG_X86_XMM6] = 27,
+		[PERF_REG_X86_XMM7] = 28,
+	};
+
+	if (perf_regnum == 0)
+		return 0;
+
+	if (perf_regnum <  0 || perf_regnum > (int)ARRAY_SIZE(dwarf_i386_regnums) ||
+	    dwarf_i386_regnums[perf_regnum] == 0)
+		return -ENOENT;
+
+	return dwarf_i386_regnums[perf_regnum];
+}
+
+int __get_dwarf_regnum_for_perf_regnum_x86_64(int perf_regnum)
+{
+	static const int dwarf_x86_64_regnums[] = {
+		[PERF_REG_X86_AX] = 0,
+		[PERF_REG_X86_BX] = 3,
+		[PERF_REG_X86_CX] = 2,
+		[PERF_REG_X86_DX] = 1,
+		[PERF_REG_X86_SI] = 4,
+		[PERF_REG_X86_DI] = 5,
+		[PERF_REG_X86_BP] = 6,
+		[PERF_REG_X86_SP] = 7,
+		[PERF_REG_X86_IP] = 16,
+		[PERF_REG_X86_FLAGS] = 49,
+		[PERF_REG_X86_CS] = 51,
+		[PERF_REG_X86_SS] = 52,
+		[PERF_REG_X86_DS] = 53,
+		[PERF_REG_X86_ES] = 50,
+		[PERF_REG_X86_FS] = 54,
+		[PERF_REG_X86_GS] = 55,
+		[PERF_REG_X86_R8] = 8,
+		[PERF_REG_X86_R9] = 9,
+		[PERF_REG_X86_R10] = 10,
+		[PERF_REG_X86_R11] = 11,
+		[PERF_REG_X86_R12] = 12,
+		[PERF_REG_X86_R13] = 13,
+		[PERF_REG_X86_R14] = 14,
+		[PERF_REG_X86_R15] = 15,
+		[PERF_REG_X86_XMM0] = 17,
+		[PERF_REG_X86_XMM1] = 18,
+		[PERF_REG_X86_XMM2] = 19,
+		[PERF_REG_X86_XMM3] = 20,
+		[PERF_REG_X86_XMM4] = 21,
+		[PERF_REG_X86_XMM5] = 22,
+		[PERF_REG_X86_XMM6] = 23,
+		[PERF_REG_X86_XMM7] = 24,
+		[PERF_REG_X86_XMM8] = 25,
+		[PERF_REG_X86_XMM9] = 26,
+		[PERF_REG_X86_XMM10] = 27,
+		[PERF_REG_X86_XMM11] = 28,
+		[PERF_REG_X86_XMM12] = 29,
+		[PERF_REG_X86_XMM13] = 30,
+		[PERF_REG_X86_XMM14] = 31,
+		[PERF_REG_X86_XMM15] = 32,
+	};
+
+	if (perf_regnum == 0)
+		return 0;
+
+	if (perf_regnum <  0 || perf_regnum > (int)ARRAY_SIZE(dwarf_x86_64_regnums) ||
+	    dwarf_x86_64_regnums[perf_regnum] == 0)
+		return -ENOENT;
+
+	return dwarf_x86_64_regnums[perf_regnum];
 }

@@ -1,4 +1,3 @@
-perf-util-y += unwind-libdw-x86.o
 perf-util-y += unwind-libdw-arm.o
 perf-util-y += unwind-libdw-arm64.o
 perf-util-y += unwind-libdw-csky.o

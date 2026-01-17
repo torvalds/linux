@@ -103,3 +103,58 @@ int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags 
 	free(regname);
 	return reg;
 }
+
+static int get_libdw_frame_nregs(unsigned int machine, unsigned int flags __maybe_unused)
+{
+	switch (machine) {
+	case EM_X86_64:
+		return 17;
+	case EM_386:
+		return 9;
+	case EM_ARM:
+		return 16;
+	case EM_AARCH64:
+		return 97;
+	case EM_CSKY:
+		return 38;
+	case EM_S390:
+		return 32;
+	case EM_PPC:
+	case EM_PPC64:
+		return 145;
+	case EM_RISCV:
+		return 66;
+	case EM_SPARC:
+	case EM_SPARCV9:
+		return 103;
+	case EM_LOONGARCH:
+		return 74;
+	default:
+		return 0;
+	}
+}
+
+int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine,
+				     unsigned int flags, bool only_libdw_supported)
+{
+	int reg;
+
+	switch (machine) {
+	case EM_X86_64:
+		reg = __get_dwarf_regnum_for_perf_regnum_x86_64(perf_regnum);
+		break;
+	case EM_386:
+		reg = __get_dwarf_regnum_for_perf_regnum_i386(perf_regnum);
+		break;
+	default:
+		pr_err("ELF MACHINE %x is not supported.\n", machine);
+		return -ENOENT;
+	}
+	if (reg >= 0 && only_libdw_supported) {
+		int nregs = get_libdw_frame_nregs(machine, flags);
+
+		if (reg >= nregs)
+			reg = -ENOENT;
+	}
+	return reg;
+}
