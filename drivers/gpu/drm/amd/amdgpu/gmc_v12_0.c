@@ -691,12 +691,15 @@ static void gmc_v12_0_vram_gtt_location(struct amdgpu_device *adev,
 
 	base = adev->mmhub.funcs->get_fb_location(adev);
 
-	amdgpu_gmc_set_agp_default(adev, mc);
-	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
-	amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_LOW);
-	if (!amdgpu_sriov_vf(adev) && (amdgpu_agp == 1))
-		amdgpu_gmc_agp_location(adev, mc);
-
+	if (amdgpu_gmc_is_pdb0_enabled(adev)) {
+		amdgpu_gmc_sysvm_location(adev, mc);
+	} else {
+		amdgpu_gmc_set_agp_default(adev, mc);
+		amdgpu_gmc_vram_location(adev, &adev->gmc, base);
+		amdgpu_gmc_gart_location(adev, mc, AMDGPU_GART_PLACEMENT_LOW);
+		if (!amdgpu_sriov_vf(adev) && (amdgpu_agp == 1))
+			amdgpu_gmc_agp_location(adev, mc);
+	}
 	/* base offset of vram pages */
 	if (amdgpu_sriov_vf(adev))
 		adev->vm_manager.vram_base_offset = 0;
