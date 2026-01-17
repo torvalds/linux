@@ -5438,9 +5438,9 @@ static const struct macb_config default_gem_config = {
 
 static int macb_probe(struct platform_device *pdev)
 {
-	const struct macb_config *macb_config = &default_gem_config;
-	struct device_node *np = pdev->dev.of_node;
 	struct clk *pclk, *hclk = NULL, *tx_clk = NULL, *rx_clk = NULL;
+	struct device_node *np = pdev->dev.of_node;
+	const struct macb_config *macb_config;
 	struct clk *tsu_clk = NULL;
 	phy_interface_t interface;
 	struct net_device *dev;
@@ -5456,13 +5456,9 @@ static int macb_probe(struct platform_device *pdev)
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
-	if (np) {
-		const struct of_device_id *match;
-
-		match = of_match_node(macb_dt_ids, np);
-		if (match && match->data)
-			macb_config = match->data;
-	}
+	macb_config = of_device_get_match_data(&pdev->dev);
+	if (!macb_config)
+		macb_config = &default_gem_config;
 
 	err = macb_config->clk_init(pdev, &pclk, &hclk, &tx_clk, &rx_clk, &tsu_clk);
 	if (err)
