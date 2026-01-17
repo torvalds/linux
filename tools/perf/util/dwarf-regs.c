@@ -196,6 +196,12 @@ int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine,
 	case EM_386:
 		reg = __get_dwarf_regnum_for_perf_regnum_i386(perf_regnum);
 		break;
+	case EM_ARM:
+		reg = __get_dwarf_regnum_for_perf_regnum_arm(perf_regnum);
+		break;
+	case EM_AARCH64:
+		reg = __get_dwarf_regnum_for_perf_regnum_arm64(perf_regnum);
+		break;
 	default:
 		pr_err("ELF MACHINE %x is not supported.\n", machine);
 		return -ENOENT;
