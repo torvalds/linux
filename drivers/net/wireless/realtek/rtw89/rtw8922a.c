@@ -2838,6 +2838,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.cfg_txrx_path		= rtw8922a_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= NULL,
 	.digital_pwr_comp	= rtw8922a_digital_pwr_comp,
+	.calc_rx_gain_normal	= NULL,
 	.pwr_on_func		= rtw8922a_pwr_on_func,
 	.pwr_off_func		= rtw8922a_pwr_off_func,
 	.query_rxdesc		= rtw89_core_query_rxdesc_v2,

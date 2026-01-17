@@ -23,6 +23,7 @@ struct rtw89_efuse_block_cfg;
 struct rtw89_h2c_rf_tssi;
 struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
+struct rtw89_phy_calc_efuse_gain;
 struct rtw89_debugfs;
 struct rtw89_regd_data;
 struct rtw89_wow_cam_info;
@@ -3822,6 +3823,11 @@ struct rtw89_chip_ops {
 				       s8 pw_ofst, enum rtw89_mac_idx mac_idx);
 	void (*digital_pwr_comp)(struct rtw89_dev *rtwdev,
 				 enum rtw89_phy_idx phy_idx);
+	void (*calc_rx_gain_normal)(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_rf_path path,
+				    enum rtw89_phy_idx phy_idx,
+				    struct rtw89_phy_calc_efuse_gain *calc);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
@@ -5887,6 +5893,12 @@ struct rtw89_phy_efuse_gain {
 	s8 comp[RF_PATH_MAX][RTW89_SUBBAND_NR]; /* S(8, 0) */
 };
 
+struct rtw89_phy_calc_efuse_gain {
+	s8 cck_mean_gain_bias;
+	s8 cck_rpl_ofst;
+	s8 rssi_ofst;
+};
+
 #define RTW89_MAX_PATTERN_NUM             18
 #define RTW89_MAX_PATTERN_MASK_SIZE       4
 #define RTW89_MAX_PATTERN_SIZE            128
@@ -7339,6 +7351,19 @@ static inline void rtw89_chip_digital_pwr_comp(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->digital_pwr_comp)
 		chip->ops->digital_pwr_comp(rtwdev, phy_idx);
+}
+
+static inline
+void rtw89_chip_calc_rx_gain_normal(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_rf_path path,
+				    enum rtw89_phy_idx phy_idx,
+				    struct rtw89_phy_calc_efuse_gain *calc)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->calc_rx_gain_normal)
+		chip->ops->calc_rx_gain_normal(rtwdev, chan, path, phy_idx, calc);
 }
 
 static inline void rtw89_load_txpwr_table(struct rtw89_dev *rtwdev,
