@@ -292,7 +292,6 @@ static const Dwfl_Thread_Callbacks callbacks_generic = {
 	.set_initial_registers = libdw_set_initial_registers_generic,
 };
 
-DEFINE_DWFL_THREAD_CALLBACKS(csky);
 DEFINE_DWFL_THREAD_CALLBACKS(loongarch);
 DEFINE_DWFL_THREAD_CALLBACKS(powerpc);
 DEFINE_DWFL_THREAD_CALLBACKS(riscv);
@@ -300,9 +299,7 @@ DEFINE_DWFL_THREAD_CALLBACKS(s390);
 
 static const Dwfl_Thread_Callbacks *get_thread_callbacks(const char *arch)
 {
-	if (!strcmp(arch, "csky"))
-		return &callbacks_csky;
-	else if (!strcmp(arch, "loongarch"))
+	if (!strcmp(arch, "loongarch"))
 		return &callbacks_loongarch;
 	else if (!strcmp(arch, "powerpc"))
 		return &callbacks_powerpc;

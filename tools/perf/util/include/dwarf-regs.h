@@ -108,6 +108,8 @@ int __get_dwarf_regnum_for_perf_regnum_x86_64(int perf_regnum);
 int __get_dwarf_regnum_for_perf_regnum_arm(int perf_regnum);
 int __get_dwarf_regnum_for_perf_regnum_arm64(int perf_regnum);
 
+int __get_dwarf_regnum_for_perf_regnum_csky(int perf_regnum, unsigned int flags);
+
 /*
  * get_dwarf_regnum - Returns DWARF regnum from register name
  * name: architecture register name
