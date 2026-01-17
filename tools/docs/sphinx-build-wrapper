@@ -123,12 +123,10 @@ class SphinxBuilder:
         """
         Checks if Rust is enabled
         """
-        self.rustdoc = False
-
         config = os.path.join(self.srctree, ".config")
 
         if not os.path.isfile(config):
-            return
+            return False
 
         re_rust = re.compile(r"CONFIG_RUST=(m|y)")
 
@@ -136,11 +134,13 @@ class SphinxBuilder:
             with open(config, "r", encoding="utf-8") as fp:
                 for line in fp:
                     if re_rust.match(line):
-                        self.rustdoc = True
-                        return
+                        return True
 
         except OSError as e:
             print(f"Failed to open {config}", file=sys.stderr)
+            return False
+
+        return False
 
     def get_sphinx_extra_opts(self, n_jobs):
         """
@@ -258,8 +258,6 @@ class SphinxBuilder:
         self.env = os.environ.copy()
 
         self.get_sphinx_extra_opts(n_jobs)
-
-        self.check_rust()
 
         #
         # If venv command line argument is specified, run Sphinx from venv
@@ -680,7 +678,8 @@ class SphinxBuilder:
 
             args.extend(["-D", f"latex_elements.papersize={paper}paper"])
 
-        if self.rustdoc:
+        rustdoc = self.check_rust()
+        if rustdoc:
             args.extend(["-t", "rustdoc"])
 
         if not sphinxdirs:
@@ -768,7 +767,7 @@ class SphinxBuilder:
         elif target == "infodocs":
             self.handle_info(output_dirs)
 
-        if self.rustdoc and target in ["htmldocs", "epubdocs"]:
+        if rustdoc and target in ["htmldocs", "epubdocs"]:
             print("Building rust docs")
             if "MAKE" in self.env:
                 cmd = [self.env["MAKE"]]
