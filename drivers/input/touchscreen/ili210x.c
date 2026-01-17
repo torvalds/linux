@@ -942,15 +942,11 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	chip = device_get_match_data(dev);
 	if (!chip && id)
 		chip = (const struct ili2xxx_chip *)id->driver_data;
-	if (!chip) {
-		dev_err(&client->dev, "unknown device model\n");
-		return -ENODEV;
-	}
+	if (!chip)
+		return dev_err_probe(&client->dev, -ENODEV, "unknown device model\n");
 
-	if (client->irq <= 0) {
-		dev_err(dev, "No IRQ!\n");
-		return -EINVAL;
-	}
+	if (client->irq <= 0)
+		return dev_err_probe(dev, -EINVAL, "No IRQ!\n");
 
 	reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(reset_gpio))
@@ -998,28 +994,21 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 
 	error = input_mt_init_slots(input, priv->chip->max_touches,
 				    INPUT_MT_DIRECT);
-	if (error) {
-		dev_err(dev, "Unable to set up slots, err: %d\n", error);
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "Unable to set up slots\n");
 
 	error = devm_request_threaded_irq(dev, client->irq, NULL, ili210x_irq,
 					  IRQF_ONESHOT, client->name, priv);
-	if (error) {
-		dev_err(dev, "Unable to request touchscreen IRQ, err: %d\n",
-			error);
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "Unable to request touchscreen IRQ\n");
 
 	error = devm_add_action_or_reset(dev, ili210x_stop, priv);
 	if (error)
 		return error;
 
 	error = input_register_device(priv->input);
-	if (error) {
-		dev_err(dev, "Cannot register input device, err: %d\n", error);
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "Cannot register input device\n");
 
 	return 0;
 }
