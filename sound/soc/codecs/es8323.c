@@ -576,8 +576,6 @@ static int es8323_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_soc_component_write_field(component, ES8323_DACCONTROL1,
 				      ES8323_DACCONTROL1_DACWL, wl_mode);
 
-	snd_soc_component_write(component, ES8323_DACPOWER, 0x3c);
-
 	return 0;
 }
 
@@ -659,7 +657,6 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 
 		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xf0);
 		usleep_range(18000, 20000);
-		snd_soc_component_write(component, ES8323_DACPOWER, 0x3c);
 		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7c);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
@@ -679,7 +676,6 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 	case SND_SOC_BIAS_OFF:
 		clk_disable_unprepare(es8323->mclk);
 		snd_soc_component_write(component, ES8323_ADCPOWER, 0xff);
-		snd_soc_component_write(component, ES8323_DACPOWER, 0xC0);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xff);
