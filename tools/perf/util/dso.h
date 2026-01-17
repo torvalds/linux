@@ -268,11 +268,8 @@ DECLARE_RC_STRUCT(dso) {
 	const char	 *short_name;
 	const char	 *long_name;
 	void		 *a2l;
-	void		 *a2l_libdw;
+	void		 *libdw;
 	char		 *symsrc_filename;
-#if defined(__powerpc__)
-	void		*dwfl;			/* DWARF debug info */
-#endif
 	struct nsinfo	*nsinfo;
 	struct auxtrace_cache *auxtrace_cache;
 	union { /* Tool specific area */
@@ -335,15 +332,25 @@ static inline void dso__set_a2l(struct dso *dso, void *val)
 	RC_CHK_ACCESS(dso)->a2l = val;
 }
 
-static inline void *dso__a2l_libdw(const struct dso *dso)
+static inline void *dso__libdw(const struct dso *dso)
 {
-	return RC_CHK_ACCESS(dso)->a2l_libdw;
+	return RC_CHK_ACCESS(dso)->libdw;
 }
 
-static inline void dso__set_a2l_libdw(struct dso *dso, void *val)
+static inline void dso__set_libdw(struct dso *dso, void *val)
 {
-	RC_CHK_ACCESS(dso)->a2l_libdw = val;
+	RC_CHK_ACCESS(dso)->libdw = val;
 }
+
+struct Dwfl;
+#ifdef HAVE_LIBDW_SUPPORT
+struct Dwfl *dso__libdw_dwfl(struct dso *dso);
+#else
+static inline struct Dwfl *dso__libdw_dwfl(struct dso *dso __maybe_unused)
+{
+	return NULL;
+}
+#endif
 
 static inline unsigned int dso__a2l_fails(const struct dso *dso)
 {

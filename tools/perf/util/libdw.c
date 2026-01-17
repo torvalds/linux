@@ -8,14 +8,62 @@
 #include <unistd.h>
 #include <elfutils/libdwfl.h>
 
-void dso__free_a2l_libdw(struct dso *dso)
+static const Dwfl_Callbacks offline_callbacks = {
+	.find_debuginfo = dwfl_standard_find_debuginfo,
+	.section_address = dwfl_offline_section_address,
+	.find_elf = dwfl_build_id_find_elf,
+};
+
+void dso__free_libdw(struct dso *dso)
 {
-	Dwfl *dwfl = dso__a2l_libdw(dso);
+	Dwfl *dwfl = dso__libdw(dso);
 
 	if (dwfl) {
 		dwfl_end(dwfl);
-		dso__set_a2l_libdw(dso, NULL);
+		dso__set_libdw(dso, NULL);
 	}
+}
+
+struct Dwfl *dso__libdw_dwfl(struct dso *dso)
+{
+	Dwfl *dwfl = dso__libdw(dso);
+	const char *dso_name;
+	Dwfl_Module *mod;
+	int fd;
+
+	if (dwfl)
+		return dwfl;
+
+	dso_name = dso__long_name(dso);
+	/*
+	 * Initialize Dwfl session.
+	 * We need to open the DSO file to report it to libdw.
+	 */
+	fd = open(dso_name, O_RDONLY);
+	if (fd < 0)
+		return NULL;
+
+	dwfl = dwfl_begin(&offline_callbacks);
+	if (!dwfl) {
+		close(fd);
+		return NULL;
+	}
+
+	/*
+	 * If the report is successful, the file descriptor fd is consumed
+	 * and closed by the Dwfl. If not, it is not closed.
+	 */
+	mod = dwfl_report_offline(dwfl, dso_name, dso_name, fd);
+	if (!mod) {
+		dwfl_end(dwfl);
+		close(fd);
+		return NULL;
+	}
+
+	dwfl_report_end(dwfl, /*removed=*/NULL, /*arg=*/NULL);
+	dso__set_libdw(dso, dwfl);
+
+	return dwfl;
 }
 
 struct libdw_a2l_cb_args {
@@ -63,58 +111,21 @@ static int libdw_a2l_cb(Dwarf_Die *die, void *_args)
 	return 0;
 }
 
-int libdw__addr2line(const char *dso_name, u64 addr,
-		     char **file, unsigned int *line_nr,
+int libdw__addr2line(u64 addr, char **file, unsigned int *line_nr,
 		     struct dso *dso, bool unwind_inlines,
 		     struct inline_node *node, struct symbol *sym)
 {
-	static const Dwfl_Callbacks offline_callbacks = {
-		.find_debuginfo = dwfl_standard_find_debuginfo,
-		.section_address = dwfl_offline_section_address,
-		.find_elf = dwfl_build_id_find_elf,
-	};
-	Dwfl *dwfl = dso__a2l_libdw(dso);
+	Dwfl *dwfl = dso__libdw_dwfl(dso);
 	Dwfl_Module *mod;
 	Dwfl_Line *dwline;
 	Dwarf_Addr bias;
 	const char *src;
 	int lineno = 0;
 
-	if (!dwfl) {
-		/*
-		 * Initialize Dwfl session.
-		 * We need to open the DSO file to report it to libdw.
-		 */
-		int fd;
+	if (!dwfl)
+		return 0;
 
-		fd = open(dso_name, O_RDONLY);
-		if (fd < 0)
-			return 0;
-
-		dwfl = dwfl_begin(&offline_callbacks);
-		if (!dwfl) {
-			close(fd);
-			return 0;
-		}
-
-		/*
-		 * If the report is successful, the file descriptor fd is consumed
-		 * and closed by the Dwfl. If not, it is not closed.
-		 */
-		mod = dwfl_report_offline(dwfl, dso_name, dso_name, fd);
-		if (!mod) {
-			dwfl_end(dwfl);
-			close(fd);
-			return 0;
-		}
-
-		dwfl_report_end(dwfl, /*removed=*/NULL, /*arg=*/NULL);
-		dso__set_a2l_libdw(dso, dwfl);
-	} else {
-		/* Dwfl session already initialized, get module for address. */
-		mod = dwfl_addrmodule(dwfl, addr);
-	}
-
+	mod = dwfl_addrmodule(dwfl, addr);
 	if (!mod)
 		return 0;
 

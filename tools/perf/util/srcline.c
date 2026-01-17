@@ -161,7 +161,7 @@ static int addr2line(const char *dso_name, u64 addr, char **file, unsigned int *
 	for (size_t i = 0; i < ARRAY_SIZE(symbol_conf.addr2line_style); i++) {
 		switch (symbol_conf.addr2line_style[i]) {
 		case A2L_STYLE_LIBDW:
-			ret = libdw__addr2line(dso_name, addr, file, line_nr, dso, unwind_inlines,
+			ret = libdw__addr2line(addr, file, line_nr, dso, unwind_inlines,
 					       node, sym);
 			break;
 		case A2L_STYLE_LLVM:
