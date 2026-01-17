@@ -670,6 +670,19 @@ class SphinxBuilder:
         if kerneldoc.startswith(self.srctree):
             kerneldoc = os.path.relpath(kerneldoc, self.srctree)
 
+        if not sphinxdirs:
+            sphinxdirs = os.environ.get("SPHINXDIRS", ".")
+
+        #
+        # sphinxdirs can be a list or a whitespace-separated string
+        #
+        sphinxdirs_list = []
+        for sphinxdir in sphinxdirs:
+            if isinstance(sphinxdir, list):
+                sphinxdirs_list += sphinxdir
+            else:
+                sphinxdirs_list += sphinxdir.split()
+
         args = [ "-b", builder, "-c", docs_dir ]
 
         if builder == "latex":
@@ -682,9 +695,6 @@ class SphinxBuilder:
         if rustdoc:
             args.extend(["-t", "rustdoc"])
 
-        if not sphinxdirs:
-            sphinxdirs = os.environ.get("SPHINXDIRS", ".")
-
         #
         # The sphinx-build tool has a bug: internally, it tries to set
         # locale with locale.setlocale(locale.LC_ALL, ''). This causes a
@@ -694,16 +704,6 @@ class SphinxBuilder:
             locale.setlocale(locale.LC_ALL, '')
         except locale.Error:
             self.env["LC_ALL"] = "C"
-
-        #
-        # sphinxdirs can be a list or a whitespace-separated string
-        #
-        sphinxdirs_list = []
-        for sphinxdir in sphinxdirs:
-            if isinstance(sphinxdir, list):
-                sphinxdirs_list += sphinxdir
-            else:
-                sphinxdirs_list += sphinxdir.split()
 
         #
         # Step 1:  Build each directory in separate.
