@@ -126,6 +126,13 @@ int apple_rtkit_wake(struct apple_rtkit *rtk);
 int apple_rtkit_shutdown(struct apple_rtkit *rtk);
 
 /*
+ * Put the co-processor into the lowest power state. Note that it usually
+ * is not possible to recover from this state without a full SoC reset.
+ */
+
+int apple_rtkit_poweroff(struct apple_rtkit *rtk);
+
+/*
  * Put the co-processor into idle mode
  */
 int apple_rtkit_idle(struct apple_rtkit *rtk);
