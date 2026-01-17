@@ -29,9 +29,10 @@ properties:
     enum:
       - google,gs101-cmu-top
       - google,gs101-cmu-apm
-      - google,gs101-cmu-misc
+      - google,gs101-cmu-dpu
       - google,gs101-cmu-hsi0
       - google,gs101-cmu-hsi2
+      - google,gs101-cmu-misc
       - google,gs101-cmu-peric0
       - google,gs101-cmu-peric1
 
@@ -76,6 +77,24 @@ allOf:
         clock-names:
           items:
             - const: oscclk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: google,gs101-cmu-dpu
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (24.576 MHz)
+            - description: DPU bus clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
 
   - if:
       properties:
