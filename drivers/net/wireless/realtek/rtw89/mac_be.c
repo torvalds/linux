@@ -1328,6 +1328,9 @@ static int nav_ctrl_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_SPECIAL_TX_SETTING, mac_idx);
 	rtw89_write32_clr(rtwdev, reg, B_BE_BMC_NAV_PROTECT);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_0, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_WMAC_MBA_DUR_FORCE);
+
 	return 0;
 }
 
