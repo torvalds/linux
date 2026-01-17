@@ -1352,6 +1352,7 @@ static int spatial_reuse_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 static int tmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 reg;
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TB_PPDU_CTRL, mac_idx);
@@ -1363,7 +1364,7 @@ static int tmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rtw89_write32_mask(rtwdev, reg, B_BE_EHT_HE_PPDU_2XLTF_ZLD_USTIMER_MASK, 0xe);
 	}
 
-	if (chip->chip_id == RTL8922D) {
+	if (chip->chip_id == RTL8922D && hal->cid != RTL8922D_CID7090) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_COMMON_PHYINTF_CTRL_0, mac_idx);
 		rtw89_write32_clr(rtwdev, reg, CLEAR_DTOP_DIS);
 	}
