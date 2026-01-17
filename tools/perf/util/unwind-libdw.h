@@ -2,15 +2,17 @@
 #ifndef __PERF_UNWIND_LIBDW_H
 #define __PERF_UNWIND_LIBDW_H
 
-#include <elfutils/libdwfl.h>
+#include <stdint.h>
 #include "unwind.h"
 
 struct machine;
 struct perf_sample;
 struct thread;
 
+#ifdef HAVE_LIBDW_SUPPORT
+
 struct unwind_info {
-	Dwfl			*dwfl;
+	void			*dwfl;
 	struct perf_sample      *sample;
 	struct machine          *machine;
 	struct thread           *thread;
@@ -22,5 +24,8 @@ struct unwind_info {
 	bool			best_effort;
 	struct unwind_entry	entries[];
 };
+
+void libdw__invalidate_dwfl(struct maps *maps, void *dwfl);
+#endif
 
 #endif /* __PERF_UNWIND_LIBDW_H */
