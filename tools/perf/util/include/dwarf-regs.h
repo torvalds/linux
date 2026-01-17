@@ -101,10 +101,6 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int 
 
 int get_x86_regnum(const char *name);
 
-#if !defined(__x86_64__) && !defined(__i386__)
-int get_arch_regnum(const char *name);
-#endif
-
 /*
  * get_dwarf_regnum - Returns DWARF regnum from register name
  * name: architecture register name
