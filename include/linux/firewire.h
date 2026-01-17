@@ -558,9 +558,8 @@ struct fw_iso_context {
 	void *callback_data;
 };
 
-struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
-		int type, int channel, int speed, size_t header_size,
-		fw_iso_callback_t callback, void *callback_data);
+struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, int channel,
+		int speed, size_t header_size, union fw_iso_callback callback, void *callback_data);
 int fw_iso_context_set_channels(struct fw_iso_context *ctx, u64 *channels);
 int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 struct fw_iso_packet *packet,
@@ -568,6 +567,15 @@ int fw_iso_context_queue(struct fw_iso_context *ctx,
 			 unsigned long payload);
 void fw_iso_context_queue_flush(struct fw_iso_context *ctx);
 int fw_iso_context_flush_completions(struct fw_iso_context *ctx);
+
+static inline struct fw_iso_context *fw_iso_context_create(struct fw_card *card, int type,
+		int channel, int speed, size_t header_size, fw_iso_callback_t callback,
+		void *callback_data)
+{
+	union fw_iso_callback cb = { .sc = callback };
+
+	return __fw_iso_context_create(card, type, channel, speed, header_size, cb, callback_data);
+}
 
 /**
  * fw_iso_context_schedule_flush_completions() - schedule work item to process isochronous context.

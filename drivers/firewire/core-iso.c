@@ -137,9 +137,8 @@ size_t fw_iso_buffer_lookup(struct fw_iso_buffer *buffer, dma_addr_t completed)
 	return 0;
 }
 
-struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
-		int type, int channel, int speed, size_t header_size,
-		fw_iso_callback_t callback, void *callback_data)
+struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, int channel,
+		int speed, size_t header_size, union fw_iso_callback callback, void *callback_data)
 {
 	struct fw_iso_context *ctx;
 
@@ -153,7 +152,7 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 	ctx->channel = channel;
 	ctx->speed = speed;
 	ctx->header_size = header_size;
-	ctx->callback.sc = callback;
+	ctx->callback = callback;
 	ctx->callback_data = callback_data;
 
 	trace_isoc_outbound_allocate(ctx, channel, speed);
@@ -162,7 +161,7 @@ struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 
 	return ctx;
 }
-EXPORT_SYMBOL(fw_iso_context_create);
+EXPORT_SYMBOL(__fw_iso_context_create);
 
 void fw_iso_context_destroy(struct fw_iso_context *ctx)
 {

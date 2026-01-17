@@ -173,6 +173,15 @@ static inline void fw_iso_context_init_work(struct fw_iso_context *ctx, work_fun
 	INIT_WORK(&ctx->work, func);
 }
 
+static inline struct fw_iso_context *fw_iso_mc_context_create(struct fw_card *card,
+		fw_iso_mc_callback_t callback, void *callback_data)
+{
+	union fw_iso_callback cb = { .mc = callback };
+
+	return __fw_iso_context_create(card, FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL, 0, 0, 0, cb,
+				       callback_data);
+}
+
 
 /* -topology */
 
