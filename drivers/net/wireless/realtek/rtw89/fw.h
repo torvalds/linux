@@ -3829,6 +3829,26 @@ struct rtw89_c2h_ra_rpt {
 #define RTW89_C2H_RA_RPT_W3_MD_SEL_B2 BIT(15)
 #define RTW89_C2H_RA_RPT_W3_BW_B2 BIT(16)
 
+struct rtw89_c2h_lps_rpt {
+	struct rtw89_c2h_hdr hdr;
+	u8 type;
+	u8 cnt_bbcr;
+	u8 cnt_bbmcucr;
+	u8 cnt_rfcr;
+	u8 data[];
+	/*
+	 * The layout of data:
+	 *   u8 info[][4], size = total_len - size of below fields
+	 *   __le16 bbcr_addr[], size = cnt_bbcr
+	 *   __le32 bbcr_data[], size = cnt_bbcr
+	 *   __le16 bbmcucr_addr[], size = cnt_bbmcucr
+	 *   __le32 bbmcucr_data[], size = cnt_bbmcucr
+	 *   __le16 rfcr_addr[],   size = cnt_rfcr
+	 *   __le32 rfcr_data_a[], size = cnt_rfcr
+	 *   __le32 rfcr_data_b[], size = cnt_rfcr
+	 */
+} __packed;
+
 struct rtw89_c2h_fw_scan_rpt {
 	struct rtw89_c2h_hdr hdr;
 	u8 phy_idx;
