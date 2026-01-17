@@ -717,7 +717,7 @@ out:
 	return 0;
 }
 
-static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask, const char *arch,
+static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask, uint16_t e_machine,
 				     FILE *fp)
 {
 	unsigned i = 0, r;
@@ -730,7 +730,7 @@ static int perf_sample__fprintf_regs(struct regs_dump *regs, uint64_t mask, cons
 
 	for_each_set_bit(r, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs->regs[i++];
-		printed += fprintf(fp, "%5s:0x%"PRIx64" ", perf_reg_name(r, arch), val);
+		printed += fprintf(fp, "%5s:0x%"PRIx64" ", perf_reg_name(r, e_machine), val);
 	}
 
 	return printed;
@@ -787,23 +787,23 @@ tod_scnprintf(struct perf_script *script, char *buf, int buflen,
 }
 
 static int perf_sample__fprintf_iregs(struct perf_sample *sample,
-				      struct perf_event_attr *attr, const char *arch, FILE *fp)
+				      struct perf_event_attr *attr, uint16_t e_machine, FILE *fp)
 {
 	if (!sample->intr_regs)
 		return 0;
 
 	return perf_sample__fprintf_regs(perf_sample__intr_regs(sample),
-					 attr->sample_regs_intr, arch, fp);
+					 attr->sample_regs_intr, e_machine, fp);
 }
 
 static int perf_sample__fprintf_uregs(struct perf_sample *sample,
-				      struct perf_event_attr *attr, const char *arch, FILE *fp)
+				      struct perf_event_attr *attr, uint16_t e_machine, FILE *fp)
 {
 	if (!sample->user_regs)
 		return 0;
 
 	return perf_sample__fprintf_regs(perf_sample__user_regs(sample),
-					 attr->sample_regs_user, arch, fp);
+					 attr->sample_regs_user, e_machine, fp);
 }
 
 static int perf_sample__fprintf_start(struct perf_script *script,
@@ -2418,7 +2418,6 @@ static void process_event(struct perf_script *script,
 	struct evsel_script *es = evsel->priv;
 	FILE *fp = es->fp;
 	char str[PAGE_SIZE_NAME_LEN];
-	const char *arch = perf_env__arch(machine->env);
 
 	if (output[type].fields == 0)
 		return;
@@ -2506,10 +2505,10 @@ static void process_event(struct perf_script *script,
 	}
 
 	if (PRINT_FIELD(IREGS))
-		perf_sample__fprintf_iregs(sample, attr, arch, fp);
+		perf_sample__fprintf_iregs(sample, attr, thread__e_machine(thread, machine), fp);
 
 	if (PRINT_FIELD(UREGS))
-		perf_sample__fprintf_uregs(sample, attr, arch, fp);
+		perf_sample__fprintf_uregs(sample, attr, thread__e_machine(thread, machine), fp);
 
 	if (PRINT_FIELD(BRSTACK))
 		perf_sample__fprintf_brstack(sample, thread, evsel, fp);

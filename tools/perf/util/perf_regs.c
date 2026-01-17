@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <elf.h>
 #include <errno.h>
 #include <string.h>
+#include "dwarf-regs.h"
 #include "perf_regs.h"
 #include "util/sample.h"
 #include "debug.h"
@@ -30,30 +32,48 @@ const struct sample_reg * __weak arch__sample_reg_masks(void)
 	return sample_reg_masks;
 }
 
-const char *perf_reg_name(int id, const char *arch)
+const char *perf_reg_name(int id, uint16_t e_machine)
 {
 	const char *reg_name = NULL;
 
-	if (!strcmp(arch, "csky"))
-		reg_name = __perf_reg_name_csky(id);
-	else if (!strcmp(arch, "loongarch"))
-		reg_name = __perf_reg_name_loongarch(id);
-	else if (!strcmp(arch, "mips"))
-		reg_name = __perf_reg_name_mips(id);
-	else if (!strcmp(arch, "powerpc"))
-		reg_name = __perf_reg_name_powerpc(id);
-	else if (!strcmp(arch, "riscv"))
-		reg_name = __perf_reg_name_riscv(id);
-	else if (!strcmp(arch, "s390"))
-		reg_name = __perf_reg_name_s390(id);
-	else if (!strcmp(arch, "x86"))
-		reg_name = __perf_reg_name_x86(id);
-	else if (!strcmp(arch, "arm"))
+	switch (e_machine) {
+	case EM_ARM:
 		reg_name = __perf_reg_name_arm(id);
-	else if (!strcmp(arch, "arm64"))
+		break;
+	case EM_AARCH64:
 		reg_name = __perf_reg_name_arm64(id);
+		break;
+	case EM_CSKY:
+		reg_name = __perf_reg_name_csky(id);
+		break;
+	case EM_LOONGARCH:
+		reg_name = __perf_reg_name_loongarch(id);
+		break;
+	case EM_MIPS:
+		reg_name = __perf_reg_name_mips(id);
+		break;
+	case EM_PPC:
+	case EM_PPC64:
+		reg_name = __perf_reg_name_powerpc(id);
+		break;
+	case EM_RISCV:
+		reg_name = __perf_reg_name_riscv(id);
+		break;
+	case EM_S390:
+		reg_name = __perf_reg_name_s390(id);
+		break;
+	case EM_386:
+	case EM_X86_64:
+		reg_name = __perf_reg_name_x86(id);
+		break;
+	default:
+		break;
+	}
+	if (reg_name)
+		return reg_name;
 
-	return reg_name ?: "unknown";
+	pr_debug("Failed to find register %d for ELF machine type %u\n", id, e_machine);
+	return "unknown";
 }
 
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id)
@@ -83,52 +103,60 @@ out:
 	return 0;
 }
 
-uint64_t perf_arch_reg_ip(const char *arch)
+uint64_t perf_arch_reg_ip(uint16_t e_machine)
 {
-	if (!strcmp(arch, "arm"))
+	switch (e_machine) {
+	case EM_ARM:
 		return __perf_reg_ip_arm();
-	else if (!strcmp(arch, "arm64"))
+	case EM_AARCH64:
 		return __perf_reg_ip_arm64();
-	else if (!strcmp(arch, "csky"))
+	case EM_CSKY:
 		return __perf_reg_ip_csky();
-	else if (!strcmp(arch, "loongarch"))
+	case EM_LOONGARCH:
 		return __perf_reg_ip_loongarch();
-	else if (!strcmp(arch, "mips"))
+	case EM_MIPS:
 		return __perf_reg_ip_mips();
-	else if (!strcmp(arch, "powerpc"))
+	case EM_PPC:
+	case EM_PPC64:
 		return __perf_reg_ip_powerpc();
-	else if (!strcmp(arch, "riscv"))
+	case EM_RISCV:
 		return __perf_reg_ip_riscv();
-	else if (!strcmp(arch, "s390"))
+	case EM_S390:
 		return __perf_reg_ip_s390();
-	else if (!strcmp(arch, "x86"))
+	case EM_386:
+	case EM_X86_64:
 		return __perf_reg_ip_x86();
-
-	pr_err("Fail to find IP register for arch %s, returns 0\n", arch);
-	return 0;
+	default:
+		pr_err("Failed to find IP register for ELF machine type %u\n", e_machine);
+		return 0;
+	}
 }
 
-uint64_t perf_arch_reg_sp(const char *arch)
+uint64_t perf_arch_reg_sp(uint16_t e_machine)
 {
-	if (!strcmp(arch, "arm"))
+	switch (e_machine) {
+	case EM_ARM:
 		return __perf_reg_sp_arm();
-	else if (!strcmp(arch, "arm64"))
+	case EM_AARCH64:
 		return __perf_reg_sp_arm64();
-	else if (!strcmp(arch, "csky"))
+	case EM_CSKY:
 		return __perf_reg_sp_csky();
-	else if (!strcmp(arch, "loongarch"))
+	case EM_LOONGARCH:
 		return __perf_reg_sp_loongarch();
-	else if (!strcmp(arch, "mips"))
+	case EM_MIPS:
 		return __perf_reg_sp_mips();
-	else if (!strcmp(arch, "powerpc"))
+	case EM_PPC:
+	case EM_PPC64:
 		return __perf_reg_sp_powerpc();
-	else if (!strcmp(arch, "riscv"))
+	case EM_RISCV:
 		return __perf_reg_sp_riscv();
-	else if (!strcmp(arch, "s390"))
+	case EM_S390:
 		return __perf_reg_sp_s390();
-	else if (!strcmp(arch, "x86"))
+	case EM_386:
+	case EM_X86_64:
 		return __perf_reg_sp_x86();
-
-	pr_err("Fail to find SP register for arch %s, returns 0\n", arch);
-	return 0;
+	default:
+		pr_err("Failed to find SP register for ELF machine type %u\n", e_machine);
+		return 0;
+	}
 }

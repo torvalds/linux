@@ -34,6 +34,7 @@
 #include "callchain.h"
 #include "cgroup.h"
 #include "counts.h"
+#include "dwarf-regs.h"
 #include "event.h"
 #include "evsel.h"
 #include "time-utils.h"
@@ -1007,6 +1008,13 @@ int evsel__group_desc(struct evsel *evsel, char *buf, size_t size)
 	return ret;
 }
 
+static uint16_t evsel__e_machine(struct evsel *evsel)
+{
+	struct perf_session *session = evsel__session(evsel);
+
+	return session ? perf_session__e_machine(session) : EM_HOST;
+}
+
 static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
 				      struct callchain_param *param)
 {
@@ -1042,13 +1050,13 @@ static void __evsel__config_callchain(struct evsel *evsel, struct record_opts *o
 
 	if (param->record_mode == CALLCHAIN_DWARF) {
 		if (!function) {
-			const char *arch = perf_env__arch(evsel__env(evsel));
+			uint16_t e_machine = evsel__e_machine(evsel);
 
 			evsel__set_sample_bit(evsel, REGS_USER);
 			evsel__set_sample_bit(evsel, STACK_USER);
 			if (opts->sample_user_regs &&
-			    DWARF_MINIMAL_REGS(arch) != arch__user_reg_mask()) {
-				attr->sample_regs_user |= DWARF_MINIMAL_REGS(arch);
+			    DWARF_MINIMAL_REGS(e_machine) != arch__user_reg_mask()) {
+				attr->sample_regs_user |= DWARF_MINIMAL_REGS(e_machine);
 				pr_warning("WARNING: The use of --call-graph=dwarf may require all the user registers, "
 					   "specifying a subset with --user-regs may render DWARF unwinding unreliable, "
 					   "so the minimal registers set (IP, SP) is explicitly forced.\n");

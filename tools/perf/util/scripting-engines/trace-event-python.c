@@ -50,6 +50,7 @@
 #include "../thread-stack.h"
 #include "../trace-event.h"
 #include "../call-path.h"
+#include "dwarf-regs.h"
 #include "map.h"
 #include "symbol.h"
 #include "thread_map.h"
@@ -713,7 +714,7 @@ static void set_sample_datasrc_in_dict(PyObject *dict,
 			_PyUnicode_FromString(decode));
 }
 
-static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, char *bf, int size)
+static void regs_map(struct regs_dump *regs, uint64_t mask, uint16_t e_machine, char *bf, int size)
 {
 	unsigned int i = 0, r;
 	int printed = 0;
@@ -731,7 +732,7 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 
 		printed += scnprintf(bf + printed, size - printed,
 				     "%5s:0x%" PRIx64 " ",
-				     perf_reg_name(r, arch), val);
+				     perf_reg_name(r, e_machine), val);
 	}
 }
 
@@ -739,10 +740,10 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 
 static int set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
-			     struct evsel *evsel)
+			     struct evsel *evsel,
+			     uint16_t e_machine)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	const char *arch = perf_env__arch(evsel__env(evsel));
 
 	int size = (__sw_hweight64(attr->sample_regs_intr) * MAX_REG_SIZE) + 1;
 	char *bf = NULL;
@@ -752,7 +753,7 @@ static int set_regs_in_dict(PyObject *dict,
 		if (!bf)
 			return -1;
 
-		regs_map(sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
+		regs_map(sample->intr_regs, attr->sample_regs_intr, e_machine, bf, size);
 
 		pydict_set_item_string_decref(dict, "iregs",
 					_PyUnicode_FromString(bf));
@@ -764,7 +765,7 @@ static int set_regs_in_dict(PyObject *dict,
 			if (!bf)
 				return -1;
 		}
-		regs_map(sample->user_regs, attr->sample_regs_user, arch, bf, size);
+		regs_map(sample->user_regs, attr->sample_regs_user, e_machine, bf, size);
 
 		pydict_set_item_string_decref(dict, "uregs",
 					_PyUnicode_FromString(bf));
@@ -834,6 +835,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 					 PyObject *callchain)
 {
 	PyObject *dict, *dict_sample, *brstack, *brstacksym;
+	struct machine *machine;
+	uint16_t e_machine = EM_HOST;
 
 	dict = PyDict_New();
 	if (!dict)
@@ -920,7 +923,11 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			PyLong_FromUnsignedLongLong(sample->cyc_cnt));
 	}
 
-	if (set_regs_in_dict(dict, sample, evsel))
+	if (al->thread) {
+		machine = maps__machine(thread__maps(al->thread));
+		e_machine = thread__e_machine(al->thread, machine);
+	}
+	if (set_regs_in_dict(dict, sample, evsel, e_machine))
 		Py_FatalError("Failed to setting regs in dict");
 
 	return dict;

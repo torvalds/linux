@@ -572,7 +572,6 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 		      int __write, void *arg)
 {
 	struct unwind_info *ui = arg;
-	const char *arch = perf_env__arch(ui->machine->env);
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
@@ -585,7 +584,7 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	}
 
 	ret = perf_reg_value(&start, perf_sample__user_regs(ui->sample),
-			     perf_arch_reg_sp(arch));
+			     perf_arch_reg_sp(thread__e_machine(ui->thread, ui->machine)));
 	if (ret)
 		return ret;
 
@@ -734,7 +733,7 @@ static void _unwind__finish_access(struct maps *maps)
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 		       void *arg, int max_stack)
 {
-	const char *arch = perf_env__arch(ui->machine->env);
+	uint16_t e_machine = thread__e_machine(ui->thread, ui->machine);
 	u64 val;
 	unw_word_t ips[max_stack];
 	unw_addr_space_t addr_space;
@@ -742,7 +741,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	int ret, i = 0;
 
 	ret = perf_reg_value(&val, perf_sample__user_regs(ui->sample),
-			     perf_arch_reg_ip(arch));
+			     perf_arch_reg_ip(e_machine));
 	if (ret)
 		return ret;
 

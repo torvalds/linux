@@ -187,7 +187,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 			void *arg)
 {
 	struct unwind_info *ui = arg;
-	const char *arch = perf_env__arch(ui->machine->env);
+	uint16_t e_machine = thread__e_machine(ui->thread, ui->machine);
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
@@ -197,7 +197,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 		return false;
 
 	ret = perf_reg_value(&start, ui->sample->user_regs,
-			     perf_arch_reg_sp(arch));
+			     perf_arch_reg_sp(e_machine));
 	if (ret)
 		return false;
 
@@ -300,16 +300,18 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 			int max_stack,
 			bool best_effort)
 {
+	struct machine *machine = maps__machine(thread__maps(thread));
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
-		.machine	= maps__machine((thread__maps(thread))),
+		.machine	= machine,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,
 		.best_effort    = best_effort
 	};
-	const char *arch = perf_env__arch(ui_buf.machine->env);
+	uint16_t e_machine = thread__e_machine(thread, machine);
+	const char *arch = perf_env__arch(machine->env);
 	Dwarf_Word ip;
 	int err = -EINVAL, i;
 	const Dwfl_Thread_Callbacks *callbacks;
@@ -327,7 +329,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (!ui->dwfl)
 		goto out;
 
-	err = perf_reg_value(&ip, data->user_regs, perf_arch_reg_ip(arch));
+	err = perf_reg_value(&ip, data->user_regs, perf_arch_reg_ip(e_machine));
 	if (err)
 		goto out;
 
