@@ -584,6 +584,16 @@ static inline struct fw_iso_context *fw_iso_context_create(struct fw_card *card,
 				       callback_data);
 }
 
+static inline struct fw_iso_context *fw_iso_context_create_with_header_storage_size(
+		struct fw_card *card, int type, int channel, int speed, size_t header_size,
+		size_t header_storage_size, fw_iso_callback_t callback, void *callback_data)
+{
+	union fw_iso_callback cb = { .sc = callback };
+
+	return __fw_iso_context_create(card, type, channel, speed, header_size, header_storage_size,
+				       cb, callback_data);
+}
+
 /**
  * fw_iso_context_schedule_flush_completions() - schedule work item to process isochronous context.
  * @ctx: the isochronous context
