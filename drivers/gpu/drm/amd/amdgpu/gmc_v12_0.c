@@ -736,8 +736,12 @@ static int gmc_v12_0_mc_init(struct amdgpu_device *adev)
 	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
-	if ((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) {
-		adev->gmc.aper_base = adev->mmhub.funcs->get_mc_fb_offset(adev);
+	if (((adev->flags & AMD_IS_APU) && !amdgpu_passthrough(adev)) ||
+	    (adev->gmc.xgmi.connected_to_cpu)) {
+		adev->gmc.aper_base =
+			adev->mmhub.funcs->get_mc_fb_offset(adev) +
+			adev->gmc.xgmi.physical_node_id *
+			adev->gmc.xgmi.node_segment_size;
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
 #endif
