@@ -765,6 +765,14 @@ static int gmc_v12_0_gart_init(struct amdgpu_device *adev)
 		return 0;
 	}
 
+	if (amdgpu_gmc_is_pdb0_enabled(adev)) {
+		adev->gmc.vmid0_page_table_depth = 1;
+		adev->gmc.vmid0_page_table_block_size = 12;
+	} else {
+		adev->gmc.vmid0_page_table_depth = 0;
+		adev->gmc.vmid0_page_table_block_size = 0;
+	}
+
 	/* Initialize common gart structure */
 	r = amdgpu_gart_init(adev);
 	if (r)
