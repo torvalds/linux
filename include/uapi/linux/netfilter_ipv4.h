@@ -7,11 +7,10 @@
 
 
 #include <linux/netfilter.h>
+#include <linux/typelimits.h>
 
 /* only for userspace compatibility */
 #ifndef __KERNEL__
-
-#include <limits.h> /* for INT_MIN, INT_MAX */
 
 /* IP Hooks */
 /* After promisc drops, checksum checks. */
@@ -28,7 +27,7 @@
 #endif /* ! __KERNEL__ */
 
 enum nf_ip_hook_priorities {
-	NF_IP_PRI_FIRST = INT_MIN,
+	NF_IP_PRI_FIRST = __KERNEL_INT_MIN,
 	NF_IP_PRI_RAW_BEFORE_DEFRAG = -450,
 	NF_IP_PRI_CONNTRACK_DEFRAG = -400,
 	NF_IP_PRI_RAW = -300,
@@ -41,8 +40,8 @@ enum nf_ip_hook_priorities {
 	NF_IP_PRI_NAT_SRC = 100,
 	NF_IP_PRI_SELINUX_LAST = 225,
 	NF_IP_PRI_CONNTRACK_HELPER = 300,
-	NF_IP_PRI_CONNTRACK_CONFIRM = INT_MAX,
-	NF_IP_PRI_LAST = INT_MAX,
+	NF_IP_PRI_CONNTRACK_CONFIRM = __KERNEL_INT_MAX,
+	NF_IP_PRI_LAST = __KERNEL_INT_MAX,
 };
 
 /* Arguments for setsockopt SOL_IP: */

@@ -15,12 +15,9 @@
 #define _UAPI_LINUX_ETHTOOL_H
 
 #include <linux/const.h>
+#include <linux/typelimits.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
-
-#ifndef __KERNEL__
-#include <limits.h> /* for INT_MAX */
-#endif
 
 /* All structures exposed to userland should be defined such that they
  * have the same layout for 32-bit and 64-bit userland.
@@ -2216,7 +2213,7 @@ enum ethtool_link_mode_bit_indices {
 
 static inline int ethtool_validate_speed(__u32 speed)
 {
-	return speed <= INT_MAX || speed == (__u32)SPEED_UNKNOWN;
+	return speed <= __KERNEL_INT_MAX || speed == (__u32)SPEED_UNKNOWN;
 }
 
 /* Duplex, half or full. */
