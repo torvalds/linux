@@ -92,9 +92,10 @@ int get_dwarf_regnum(const char *name, unsigned int machine, unsigned int flags 
 	}
 	switch (machine) {
 	case EM_X86_64:
-		fallthrough;
+		reg = __get_dwarf_regnum_x86_64(name);
+		break;
 	case EM_386:
-		reg = get_x86_regnum(regname);
+		reg = __get_dwarf_regnum_i386(name);
 		break;
 	default:
 		pr_err("ELF MACHINE %x is not supported.\n", machine);

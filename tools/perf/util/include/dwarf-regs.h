@@ -99,7 +99,8 @@ const char *get_csky_regstr(unsigned int n, unsigned int flags);
  */
 const char *get_dwarf_regstr(unsigned int n, unsigned int machine, unsigned int flags);
 
-int get_x86_regnum(const char *name);
+int __get_dwarf_regnum_i386(const char *name);
+int __get_dwarf_regnum_x86_64(const char *name);
 
 /*
  * get_dwarf_regnum - Returns DWARF regnum from register name
