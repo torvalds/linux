@@ -3878,9 +3878,21 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_gmc_noretry_set(adev);
 	/* Need to get xgmi info early to decide the reset behavior*/
 	if (adev->gmc.xgmi.supported) {
-		r = adev->gfxhub.funcs->get_xgmi_info(adev);
-		if (r)
-			return r;
+		if (adev->gfxhub.funcs &&
+		    adev->gfxhub.funcs->get_xgmi_info) {
+			r = adev->gfxhub.funcs->get_xgmi_info(adev);
+			if (r)
+				return r;
+		}
+	}
+
+	if (adev->gmc.xgmi.connected_to_cpu) {
+		if (adev->mmhub.funcs &&
+		    adev->mmhub.funcs->get_xgmi_info) {
+			r = adev->mmhub.funcs->get_xgmi_info(adev);
+			if (r)
+				return r;
+		}
 	}
 
 	/* enable PCIE atomic ops */
