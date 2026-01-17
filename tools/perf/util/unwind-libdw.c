@@ -292,14 +292,11 @@ static const Dwfl_Thread_Callbacks callbacks_generic = {
 	.set_initial_registers = libdw_set_initial_registers_generic,
 };
 
-DEFINE_DWFL_THREAD_CALLBACKS(riscv);
 DEFINE_DWFL_THREAD_CALLBACKS(s390);
 
 static const Dwfl_Thread_Callbacks *get_thread_callbacks(const char *arch)
 {
-	if (!strcmp(arch, "riscv"))
-		return &callbacks_riscv;
-	else if (!strcmp(arch, "s390"))
+	if (!strcmp(arch, "s390"))
 		return &callbacks_s390;
 
 	return &callbacks_generic;

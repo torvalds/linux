@@ -209,6 +209,9 @@ int get_dwarf_regnum_for_perf_regnum(int perf_regnum, unsigned int machine,
 	case EM_PPC64:
 		reg = __get_dwarf_regnum_for_perf_regnum_powerpc(perf_regnum);
 		break;
+	case EM_RISCV:
+		reg = __get_dwarf_regnum_for_perf_regnum_riscv(perf_regnum);
+		break;
 	case EM_LOONGARCH:
 		reg = __get_dwarf_regnum_for_perf_regnum_loongarch(perf_regnum);
 		break;
