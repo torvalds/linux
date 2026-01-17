@@ -168,14 +168,18 @@ struct at_context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
-	void *header;
-	size_t header_length;
 	unsigned long flushing_completions;
 	u32 mc_buffer_bus;
 	u16 mc_completed;
-	u16 last_timestamp;
 	u8 sync;
 	u8 tags;
+	union {
+		struct {
+			u16 last_timestamp;
+			size_t header_length;
+			void *header;
+		} sc;
+	};
 };
 
 #define CONFIG_ROM_SIZE		(CSR_CONFIG_ROM_END - CSR_CONFIG_ROM)
@@ -2735,29 +2739,28 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 
 static void flush_iso_completions(struct iso_context *ctx, enum fw_iso_context_completions_cause cause)
 {
-	trace_isoc_inbound_single_completions(&ctx->base, ctx->last_timestamp, cause, ctx->header,
-					      ctx->header_length);
-	trace_isoc_outbound_completions(&ctx->base, ctx->last_timestamp, cause, ctx->header,
-					ctx->header_length);
+	trace_isoc_inbound_single_completions(&ctx->base, ctx->sc.last_timestamp, cause,
+					      ctx->sc.header, ctx->sc.header_length);
+	trace_isoc_outbound_completions(&ctx->base, ctx->sc.last_timestamp, cause, ctx->sc.header,
+					ctx->sc.header_length);
 
-	ctx->base.callback.sc(&ctx->base, ctx->last_timestamp,
-			      ctx->header_length, ctx->header,
-			      ctx->base.callback_data);
-	ctx->header_length = 0;
+	ctx->base.callback.sc(&ctx->base, ctx->sc.last_timestamp, ctx->sc.header_length,
+			      ctx->sc.header, ctx->base.callback_data);
+	ctx->sc.header_length = 0;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
 	u32 *ctx_hdr;
 
-	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE) {
+	if (ctx->sc.header_length + ctx->base.header_size > PAGE_SIZE) {
 		if (ctx->base.drop_overflow_headers)
 			return;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}
 
-	ctx_hdr = ctx->header + ctx->header_length;
-	ctx->last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
+	ctx_hdr = ctx->sc.header + ctx->sc.header_length;
+	ctx->sc.last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
 
 	/*
 	 * The two iso header quadlets are byteswapped to little
@@ -2770,7 +2773,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 		ctx_hdr[1] = swab32(dma_hdr[0]); /* timestamp */
 	if (ctx->base.header_size > 8)
 		memcpy(&ctx_hdr[2], &dma_hdr[2], ctx->base.header_size - 8);
-	ctx->header_length += ctx->base.header_size;
+	ctx->sc.header_length += ctx->base.header_size;
 }
 
 static int handle_ir_packet_per_buffer(struct context *context,
@@ -2920,18 +2923,18 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	if (ctx->header_length + 4 > PAGE_SIZE) {
+	if (ctx->sc.header_length + 4 > PAGE_SIZE) {
 		if (ctx->base.drop_overflow_headers)
 			return 1;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}
 
-	ctx_hdr = ctx->header + ctx->header_length;
-	ctx->last_timestamp = le16_to_cpu(last->res_count);
+	ctx_hdr = ctx->sc.header + ctx->sc.header_length;
+	ctx->sc.last_timestamp = le16_to_cpu(last->res_count);
 	/* Present this value as big-endian to match the receive code */
 	*ctx_hdr = cpu_to_be32((le16_to_cpu(pd->transfer_status) << 16) |
 			       le16_to_cpu(pd->res_count));
-	ctx->header_length += 4;
+	ctx->sc.header_length += 4;
 
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_INTERRUPT);
@@ -3008,12 +3011,16 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	}
 
 	memset(ctx, 0, sizeof(*ctx));
-	ctx->header_length = 0;
-	ctx->header = (void *) __get_free_page(GFP_KERNEL);
-	if (ctx->header == NULL) {
-		ret = -ENOMEM;
-		goto out;
+
+	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		ctx->sc.header_length = 0;
+		ctx->sc.header = (void *) __get_free_page(GFP_KERNEL);
+		if (!ctx->sc.header) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
+
 	ret = context_init(&ctx->context, ohci, regs, callback);
 	if (ret < 0)
 		goto out_with_header;
@@ -3027,7 +3034,10 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	return &ctx->base;
 
  out_with_header:
-	free_page((unsigned long)ctx->header);
+	if (type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		free_page((unsigned long)ctx->sc.header);
+		ctx->sc.header = NULL;
+	}
  out:
 	scoped_guard(spinlock_irq, &ohci->lock) {
 		switch (type) {
@@ -3127,7 +3137,11 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 
 	ohci_stop_iso(base);
 	context_release(&ctx->context);
-	free_page((unsigned long)ctx->header);
+
+	if (base->type != FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
+		free_page((unsigned long)ctx->sc.header);
+		ctx->sc.header = NULL;
+	}
 
 	guard(spinlock_irqsave)(&ohci->lock);
 
@@ -3475,7 +3489,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 		switch (base->type) {
 		case FW_ISO_CONTEXT_TRANSMIT:
 		case FW_ISO_CONTEXT_RECEIVE:
-			if (ctx->header_length != 0)
+			if (ctx->sc.header_length != 0)
 				flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH);
 			break;
 		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
