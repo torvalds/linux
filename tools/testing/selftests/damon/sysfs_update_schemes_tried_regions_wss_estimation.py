@@ -53,7 +53,11 @@ def pass_wss_estimation(sz_region):
             print('the error rate is not acceptable (> %f)' %
                     acceptable_error_rate)
             print('samples are as below')
-            print('\n'.join(['%d' % wss for wss in wss_collected]))
+            for idx, wss in enumerate(wss_collected):
+                if idx < len(wss_collected) - 1 and \
+                        wss_collected[idx + 1] == wss:
+                    continue
+                print('%d/%d: %d' % (idx, len(wss_collected), wss))
             return False
     return True
 
