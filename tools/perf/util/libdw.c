@@ -42,16 +42,24 @@ static int libdw_a2l_cb(Dwarf_Die *die, void *_args)
 		call_srcline = srcline_from_fileline(call_fname, die_get_call_lineno(die));
 
 	list_for_each_entry(ilist, &args->node->val, list) {
+		if (args->leaf_srcline == ilist->srcline)
+			args->leaf_srcline_used = false;
+		else if (ilist->srcline != srcline__unknown)
+			free(ilist->srcline);
 		ilist->srcline =  call_srcline;
 		call_srcline = NULL;
 		break;
 	}
-	if (call_srcline && call_fname)
+	if (call_srcline && call_srcline != srcline__unknown)
 		free(call_srcline);
 
 	/* Add this symbol to the chain as the leaf. */
-	inline_list__append_tail(inline_sym, args->leaf_srcline, args->node);
-	args->leaf_srcline_used = true;
+	if (!args->leaf_srcline_used) {
+		inline_list__append_tail(inline_sym, args->leaf_srcline, args->node);
+		args->leaf_srcline_used = true;
+	} else {
+		inline_list__append_tail(inline_sym, strdup(args->leaf_srcline), args->node);
+	}
 	return 0;
 }
 
