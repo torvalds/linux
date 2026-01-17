@@ -9,8 +9,6 @@ struct machine;
 struct perf_sample;
 struct thread;
 
-bool libdw_set_initial_registers_mips(Dwfl_Thread *thread, void *arg);
-
 struct unwind_info {
 	Dwfl			*dwfl;
 	struct perf_sample      *sample;
