@@ -636,6 +636,10 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
+	if (adev->smuio.funcs &&
+	    adev->smuio.funcs->is_host_gpu_xgmi_supported)
+		adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
+
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 1, 0):
 		gmc_v12_1_set_gmc_funcs(adev);
