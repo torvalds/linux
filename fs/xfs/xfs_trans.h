@@ -280,13 +280,4 @@ xfs_trans_clear_context(
 	memalloc_nofs_restore(tp->t_pflags);
 }
 
-static inline void
-xfs_trans_switch_context(
-	struct xfs_trans	*old_tp,
-	struct xfs_trans	*new_tp)
-{
-	new_tp->t_pflags = old_tp->t_pflags;
-	old_tp->t_pflags = 0;
-}
-
 #endif	/* __XFS_TRANS_H__ */
