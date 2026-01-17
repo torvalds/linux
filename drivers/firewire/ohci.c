@@ -169,8 +169,6 @@ struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
 	unsigned long flushing_completions;
-	u32 mc_buffer_bus;
-	u16 mc_completed;
 	u8 sync;
 	u8 tags;
 	union {
@@ -179,6 +177,10 @@ struct iso_context {
 			size_t header_length;
 			void *header;
 		} sc;
+		struct {
+			u32 buffer_bus;
+			u16 completed;
+		} mc;
 	};
 };
 
@@ -2826,8 +2828,8 @@ static int handle_ir_buffer_fill(struct context *context,
 	buffer_dma = le32_to_cpu(last->data_address);
 
 	if (completed > 0) {
-		ctx->mc_buffer_bus = buffer_dma;
-		ctx->mc_completed = completed;
+		ctx->mc.buffer_bus = buffer_dma;
+		ctx->mc.completed = completed;
 	}
 
 	if (res_count != 0)
@@ -2846,7 +2848,7 @@ static int handle_ir_buffer_fill(struct context *context,
 		ctx->base.callback.mc(&ctx->base,
 				      buffer_dma + completed,
 				      ctx->base.callback_data);
-		ctx->mc_completed = 0;
+		ctx->mc.completed = 0;
 	}
 
 	return 1;
@@ -2855,17 +2857,16 @@ static int handle_ir_buffer_fill(struct context *context,
 static void flush_ir_buffer_fill(struct iso_context *ctx)
 {
 	dma_sync_single_range_for_cpu(ctx->context.ohci->card.device,
-				      ctx->mc_buffer_bus & PAGE_MASK,
-				      ctx->mc_buffer_bus & ~PAGE_MASK,
-				      ctx->mc_completed, DMA_FROM_DEVICE);
+				      ctx->mc.buffer_bus & PAGE_MASK,
+				      ctx->mc.buffer_bus & ~PAGE_MASK,
+				      ctx->mc.completed, DMA_FROM_DEVICE);
 
-	trace_isoc_inbound_multiple_completions(&ctx->base, ctx->mc_completed,
+	trace_isoc_inbound_multiple_completions(&ctx->base, ctx->mc.completed,
 						FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH);
 
-	ctx->base.callback.mc(&ctx->base,
-			      ctx->mc_buffer_bus + ctx->mc_completed,
+	ctx->base.callback.mc(&ctx->base, ctx->mc.buffer_bus + ctx->mc.completed,
 			      ctx->base.callback_data);
-	ctx->mc_completed = 0;
+	ctx->mc.completed = 0;
 }
 
 static inline void sync_it_packet_for_cpu(struct context *context,
@@ -3028,7 +3029,7 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 
 	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
 		set_multichannel_mask(ohci, 0);
-		ctx->mc_completed = 0;
+		ctx->mc.completed = 0;
 	}
 
 	return &ctx->base;
@@ -3493,7 +3494,7 @@ static int ohci_flush_iso_completions(struct fw_iso_context *base)
 				flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_FLUSH);
 			break;
 		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
-			if (ctx->mc_completed != 0)
+			if (ctx->mc.completed != 0)
 				flush_ir_buffer_fill(ctx);
 			break;
 		default:
