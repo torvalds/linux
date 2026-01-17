@@ -596,19 +596,9 @@ EXPORT_SYMBOL_GPL(hisi_qm_wait_mb_ready);
 /* 128 bit should be written to hardware at one time to trigger a mailbox */
 static void qm_mb_write(struct hisi_qm *qm, const void *src)
 {
+#if IS_ENABLED(CONFIG_ARM64)
 	void __iomem *fun_base = qm->io_base + QM_MB_CMD_SEND_BASE;
-
-#if IS_ENABLED(CONFIG_ARM64)
-	unsigned long tmp0 = 0, tmp1 = 0;
-#endif
-
-	if (!IS_ENABLED(CONFIG_ARM64)) {
-		memcpy_toio(fun_base, src, 16);
-		dma_wmb();
-		return;
-	}
-
-#if IS_ENABLED(CONFIG_ARM64)
+	unsigned long tmp0, tmp1;
 	/*
 	 * The dmb oshst instruction ensures that the data in the
 	 * mailbox is written before it is sent to the hardware.
