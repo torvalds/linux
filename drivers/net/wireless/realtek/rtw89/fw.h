@@ -2017,6 +2017,66 @@ struct rtw89_h2c_lps_ml_cmn_info {
 	u8 dup_bcn_ofst[RTW89_PHY_NUM];
 } __packed;
 
+#define BB_RX_GAIN_TB_RSSI_COMP_NUM 3
+#define BB_RX_GAIN_CCK_RPL_BIAS_COMP_NUM 2
+#define BB_GT2_GS_IDX_NUM 11
+#define BB_GT2_WB_GIDX_ELNA_NUM 16
+#define BB_GT2_G_ELNA_NUM 2
+
+enum rtw89_bb_link_rx_gain_table_type {
+	RTW89_BB_PS_LINK_RX_GAIN_TAB_BCN_PATH_A = 0x00,
+	RTW89_BB_PS_LINK_RX_GAIN_TAB_BCN_PATH_B = 0x01,
+	RTW89_BB_PS_LINK_RX_GAIN_TAB_NOR_PATH_A = 0x02,
+	RTW89_BB_PS_LINK_RX_GAIN_TAB_NOR_PATH_B = 0x03,
+	RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX,
+};
+
+enum rtw89_bb_ps_link_buf_id {
+	RTW89_BB_PS_LINK_BUF_0 = 0x00,
+	RTW89_BB_PS_LINK_BUF_1 = 0x01,
+	RTW89_BB_PS_LINK_BUF_2 = 0x02,
+	RTW89_BB_PS_LINK_BUF_MAX,
+};
+
+struct rtw89_bb_link_info_rx_gain {
+	u8 gain_ofst[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX];
+	__le16 rpl_bias_comp[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX];
+	u8 tb_rssi_m_bias_comp[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX]
+			      [BB_RX_GAIN_TB_RSSI_COMP_NUM];
+	u8 cck_gain_ofst[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX];
+	u8 cck_rpl_bias_comp[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX]
+			    [BB_RX_GAIN_CCK_RPL_BIAS_COMP_NUM];
+	u8 gain_err_lna[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][LNA_GAIN_NUM];
+	__le16 gain_err_tia[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][TIA_GAIN_NUM];
+	u8 op1db_lna[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][LNA_GAIN_NUM];
+	u8 op1db_tia[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][TIA_LNA_OP1DB_NUM];
+	struct {
+		u8 _20M[RTW89_BW20_SC_20M];
+		u8 _40M[RTW89_BW20_SC_40M];
+		u8 _80M[RTW89_BW20_SC_80M];
+		u8 _160M[RTW89_BW20_SC_160M];
+	} rpl_bias_comp_bw[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX];
+	u8 wb_gs[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][BB_GT2_GS_IDX_NUM];
+	u8 bypass_lna[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][LNA_GAIN_NUM];
+	u8 wb_lna_tia[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][BB_GT2_WB_GIDX_ELNA_NUM];
+	u8 wb_g_elna[RTW89_BB_PS_LINK_RX_GAIN_TAB_MAX][BB_GT2_G_ELNA_NUM];
+} __packed;
+
+struct rtw89_h2c_lps_ml_cmn_info_v1 {
+	u8 fmt_id;
+	u8 rfe_type;
+	u8 rssi_main;
+	u8 rsvd0;
+	__le32 mlo_dbcc_mode;
+	u8 link_id[RTW89_BB_PS_LINK_BUF_MAX];
+	u8 central_ch[RTW89_BB_PS_LINK_BUF_MAX];
+	u8 pri_ch[RTW89_BB_PS_LINK_BUF_MAX];
+	u8 bw[RTW89_BB_PS_LINK_BUF_MAX];
+	u8 band[RTW89_BB_PS_LINK_BUF_MAX];
+	u8 dup_bcn_ofst[RTW89_BB_PS_LINK_BUF_MAX];
+	struct rtw89_bb_link_info_rx_gain rx_gain[RTW89_BB_PS_LINK_BUF_MAX];
+} __packed;
+
 struct rtw89_h2c_trig_cpu_except {
 	__le32 w0;
 } __packed;
@@ -5204,6 +5264,11 @@ int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_lps_ml_cmn_info(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif);
+void rtw89_bb_lps_cmn_info_rx_gain_fill(struct rtw89_dev *rtwdev,
+					struct rtw89_bb_link_info_rx_gain *h2c_gain,
+					const struct rtw89_chan *chan, u8 phy_idx);
+int rtw89_fw_h2c_lps_ml_cmn_info_v1(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_fwips(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       bool enable);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(struct rtw89_dev *rtwdev, u32 len);
