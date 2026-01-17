@@ -783,7 +783,14 @@ static int gmc_v12_0_gart_init(struct amdgpu_device *adev)
 				    AMDGPU_PTE_EXECUTABLE |
 				    AMDGPU_PTE_IS_PTE;
 
-	return amdgpu_gart_table_vram_alloc(adev);
+	r = amdgpu_gart_table_vram_alloc(adev);
+	if (r)
+		return r;
+
+	if (amdgpu_gmc_is_pdb0_enabled(adev))
+		r = amdgpu_gmc_pdb0_alloc(adev);
+
+	return r;
 }
 
 static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
@@ -955,6 +962,7 @@ static int gmc_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	amdgpu_vm_manager_fini(adev);
 	gmc_v12_0_gart_fini(adev);
 	amdgpu_gem_force_release(adev);
+	amdgpu_bo_free_kernel(&adev->gmc.pdb0_bo, NULL, &adev->gmc.ptr_pdb0);
 	amdgpu_bo_fini(adev);
 
 	return 0;
@@ -973,6 +981,9 @@ static int gmc_v12_0_gart_enable(struct amdgpu_device *adev)
 {
 	int r;
 	bool value;
+
+	if (adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_gmc_init_pdb0(adev);
 
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
@@ -995,6 +1006,7 @@ static int gmc_v12_0_gart_enable(struct amdgpu_device *adev)
 
 	drm_info(adev_to_drm(adev), "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
+		 (adev->gmc.pdb0_bo) ? (unsigned long long)amdgpu_bo_gpu_offset(adev->gmc.pdb0_bo) :
 		 (unsigned long long)amdgpu_bo_gpu_offset(adev->gart.bo));
 
 	return 0;
