@@ -352,23 +352,6 @@ class SphinxBuilder:
             except (OSError, IOError) as e:
                 print(f"Warning: Failed to copy CSS: {e}", file=sys.stderr)
 
-        if self.rustdoc:
-            print("Building rust docs")
-            if "MAKE" in self.env:
-                cmd = [self.env["MAKE"]]
-            else:
-                cmd = ["make", "LLVM=1"]
-
-            cmd += [ "rustdoc"]
-            if self.verbose:
-                print(" ".join(cmd))
-
-            try:
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError as e:
-                print(f"Ignored errors when building rustdoc: {e}. Is RUST enabled?",
-                      file=sys.stderr)
-
     def build_pdf_file(self, latex_cmd, from_dir, path):
         """Builds a single pdf file using latex_cmd"""
         try:
@@ -784,6 +767,23 @@ class SphinxBuilder:
             self.handle_pdf(output_dirs, deny_vf)
         elif target == "infodocs":
             self.handle_info(output_dirs)
+
+        if self.rustdoc and target in ["htmldocs", "epubdocs"]:
+            print("Building rust docs")
+            if "MAKE" in self.env:
+                cmd = [self.env["MAKE"]]
+            else:
+                cmd = ["make", "LLVM=1"]
+
+            cmd += [ "rustdoc"]
+            if self.verbose:
+                print(" ".join(cmd))
+
+            try:
+                subprocess.run(cmd, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"Ignored errors when building rustdoc: {e}. Is RUST enabled?",
+                      file=sys.stderr)
 
 def jobs_type(value):
     """
