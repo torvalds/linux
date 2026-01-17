@@ -21,8 +21,28 @@ trap_cleanup() {
 }
 trap trap_cleanup EXIT TERM INT
 
-test_inlinedloop() {
-    echo "Inline unwinding verification test"
+test_fp() {
+    echo "Inline unwinding fp verification test"
+    # Record data. Currently only dwarf callchains support inlined functions.
+    perf record --call-graph fp -e task-clock:u -o "${perf_data}" -- perf test -w inlineloop 1
+
+    # Check output with inline (default) and srcline
+    perf script -i "${perf_data}" --fields +srcline > "${perf_script_txt}"
+
+    # Expect the leaf and middle functions to occur on lines in the 20s, with
+    # the non-inlined parent function on a line in the 30s.
+    if grep -q "inlineloop.c:2. (inlined)" "${perf_script_txt}" &&
+       grep -q "inlineloop.c:3.$" "${perf_script_txt}"
+    then
+        echo "Inline unwinding fp verification test [Success]"
+    else
+        echo "Inline unwinding fp verification test [Failed missing inlined functions]"
+        err=1
+    fi
+}
+
+test_dwarf() {
+    echo "Inline unwinding dwarf verification test"
     # Record data. Currently only dwarf callchains support inlined functions.
     perf record --call-graph dwarf -e task-clock:u -o "${perf_data}" -- perf test -w inlineloop 1
 
@@ -34,14 +54,15 @@ test_inlinedloop() {
     if grep -q "inlineloop.c:2. (inlined)" "${perf_script_txt}" &&
        grep -q "inlineloop.c:3.$" "${perf_script_txt}"
     then
-        echo "Inline unwinding verification test [Success]"
+        echo "Inline unwinding dwarf verification test [Success]"
     else
-        echo "Inline unwinding verification test [Failed missing inlined functions]"
+        echo "Inline unwinding dwarf verification test [Failed missing inlined functions]"
         err=1
     fi
 }
 
-test_inlinedloop
+test_fp
+test_dwarf
 
 cleanup
 exit $err
