@@ -23,6 +23,7 @@ properties:
           - loongson,ls1b-rtc
           - loongson,ls1c-rtc
           - loongson,ls7a-rtc
+          - loongson,ls2k0300-rtc
           - loongson,ls2k1000-rtc
       - items:
           - enum:
@@ -48,6 +49,7 @@ if:
       contains:
         enum:
           - loongson,ls1c-rtc
+          - loongson,ls2k0300-rtc
 
 then:
   properties:
