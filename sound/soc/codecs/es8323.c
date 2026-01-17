@@ -212,19 +212,29 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("RINPUT1"),
 	SND_SOC_DAPM_INPUT("RINPUT2"),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias", SND_SOC_NOPM, 3, 1),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", ES8323_ADCPOWER,
+			    ES8323_ADCPOWER_PDNMICB_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias Gen", ES8323_ADCPOWER,
+			    ES8323_ADCPOWER_PDNADCBIS_OFF, 1, NULL, 0),
 
 	/* Muxes */
-	SND_SOC_DAPM_MUX("Left PGA Mux", SND_SOC_NOPM, 0, 0, &es8323_left_dac_mux_controls),
-	SND_SOC_DAPM_MUX("Right PGA Mux", SND_SOC_NOPM, 0, 0, &es8323_right_dac_mux_controls),
+	SND_SOC_DAPM_MUX("Left PGA Mux", ES8323_ADCPOWER,
+			 ES8323_ADCPOWER_PDNAINL_OFF, 1, &es8323_left_dac_mux_controls),
+	SND_SOC_DAPM_MUX("Right PGA Mux", ES8323_ADCPOWER,
+			 ES8323_ADCPOWER_PDNAINR_OFF, 1, &es8323_right_dac_mux_controls),
+
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0, &es8323_diffmux_controls),
+
 	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0, &es8323_mono_adc_mux_controls),
 	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0, &es8323_mono_adc_mux_controls),
+
 	SND_SOC_DAPM_MUX("Left Line Mux", SND_SOC_NOPM, 0, 0, &es8323_left_line_controls),
 	SND_SOC_DAPM_MUX("Right Line Mux", SND_SOC_NOPM, 0, 0, &es8323_right_line_controls),
 
-	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", SND_SOC_NOPM, 4, 1),
-	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", SND_SOC_NOPM, 5, 1),
+	SND_SOC_DAPM_ADC("Right ADC", "Right Capture",
+			 ES8323_ADCPOWER, ES8323_ADCPOWER_PDNADCR_OFF, 1),
+	SND_SOC_DAPM_ADC("Left ADC", "Left Capture",
+			 ES8323_ADCPOWER, ES8323_ADCPOWER_PDNADCL_OFF, 1),
 	SND_SOC_DAPM_DAC("Right DAC", "Right Playback",
 			 ES8323_DACPOWER, ES8323_DACPOWER_PDNDACR_OFF, 1),
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback",
@@ -237,8 +247,6 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 			   &es8323_right_mixer_controls[0],
 			   ARRAY_SIZE(es8323_right_mixer_controls)),
 
-	SND_SOC_DAPM_PGA("Right ADC Power", SND_SOC_NOPM, 6, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("Left ADC Power", SND_SOC_NOPM, 7, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Right Out 2", ES8323_DACPOWER, ES8323_DACPOWER_ROUT2_OFF, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Left Out 2", ES8323_DACPOWER, ES8323_DACPOWER_LOUT2_OFF, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Right Out 1", ES8323_DACPOWER, ES8323_DACPOWER_ROUT1_OFF, 0, NULL, 0),
@@ -268,18 +276,16 @@ static const struct snd_soc_dapm_route es8323_dapm_routes[] = {
 	{"Differential Mux", "Line 2", "LINPUT2"},
 	{"Differential Mux", "Line 2", "RINPUT2"},
 
-	{"Left ADC Mux", "Stereo", "Right PGA Mux"},
 	{"Left ADC Mux", "Stereo", "Left PGA Mux"},
 	{"Left ADC Mux", "Mono (Left)", "Left PGA Mux"},
 
-	{"Right ADC Mux", "Stereo", "Left PGA Mux"},
 	{"Right ADC Mux", "Stereo", "Right PGA Mux"},
 	{"Right ADC Mux", "Mono (Right)", "Right PGA Mux"},
 
-	{"Left ADC Power", NULL, "Left ADC Mux"},
-	{"Right ADC Power", NULL, "Right ADC Mux"},
-	{"Left ADC", NULL, "Left ADC Power"},
-	{"Right ADC", NULL, "Right ADC Power"},
+	{"Left ADC", NULL, "Left ADC Mux"},
+	{"Right ADC", NULL, "Right ADC Mux"},
+
+	{ "Mic Bias", NULL, "Mic Bias Gen" },
 
 	{"Left Line Mux", "Line 1L", "LINPUT1"},
 	{"Left Line Mux", "Line 2L", "LINPUT2"},
@@ -661,8 +667,9 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0x09);
 		snd_soc_component_write(component, ES8323_ADCCONTROL14, 0x00);
+		snd_soc_component_update_bits(component, ES8323_ADCPOWER,
+					      ES8323_ADCPOWER_PDNADCBIS, 0);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
@@ -671,11 +678,9 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0x59);
 		break;
 	case SND_SOC_BIAS_OFF:
 		clk_disable_unprepare(es8323->mclk);
-		snd_soc_component_write(component, ES8323_ADCPOWER, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xff);
