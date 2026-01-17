@@ -2756,7 +2756,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 	u32 *ctx_hdr;
 
 	if (ctx->sc.header_length + ctx->base.header_size > PAGE_SIZE) {
-		if (ctx->base.drop_overflow_headers)
+		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}
@@ -2925,7 +2925,7 @@ static int handle_it_packet(struct context *context,
 	sync_it_packet_for_cpu(context, d);
 
 	if (ctx->sc.header_length + 4 > PAGE_SIZE) {
-		if (ctx->base.drop_overflow_headers)
+		if (ctx->base.flags & FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS)
 			return 1;
 		flush_iso_completions(ctx, FW_ISO_CONTEXT_COMPLETIONS_CAUSE_HEADER_OVERFLOW);
 	}

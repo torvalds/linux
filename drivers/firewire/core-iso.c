@@ -151,6 +151,7 @@ struct fw_iso_context *__fw_iso_context_create(struct fw_card *card, int type, i
 	ctx->type = type;
 	ctx->channel = channel;
 	ctx->speed = speed;
+	ctx->flags = 0;
 	ctx->header_size = header_size;
 	ctx->callback = callback;
 	ctx->callback_data = callback_data;

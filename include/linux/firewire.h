@@ -546,13 +546,17 @@ union fw_iso_callback {
 	fw_iso_mc_callback_t mc;
 };
 
+enum fw_iso_context_flag {
+	FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS = BIT(0),
+};
+
 struct fw_iso_context {
 	struct fw_card *card;
 	struct work_struct work;
 	int type;
 	int channel;
 	int speed;
-	bool drop_overflow_headers;
+	int flags;
 	size_t header_size;
 	union fw_iso_callback callback;
 	void *callback_data;

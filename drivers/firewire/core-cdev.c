@@ -1064,7 +1064,7 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	if (IS_ERR(context))
 		return PTR_ERR(context);
 	if (client->version < FW_CDEV_VERSION_AUTO_FLUSH_ISO_OVERFLOW)
-		context->drop_overflow_headers = true;
+		context->flags |= FW_ISO_CONTEXT_FLAG_DROP_OVERFLOW_HEADERS;
 
 	// We only support one context at this time.
 	scoped_guard(mutex, &client->iso_context_mutex) {
