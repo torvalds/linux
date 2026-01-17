@@ -2859,8 +2859,6 @@ done:
 			damon_destroy_region(r, t);
 	}
 
-	if (ctx->ops.cleanup)
-		ctx->ops.cleanup(ctx);
 	kfree(ctx->regions_score_histogram);
 	kdamond_call(ctx, true);
 
