@@ -217,6 +217,23 @@ static const struct snd_soc_dapm_widget es8323_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Mic Bias Gen", ES8323_ADCPOWER,
 			    ES8323_ADCPOWER_PDNADCBIS_OFF, 1, NULL, 0),
 
+	SND_SOC_DAPM_SUPPLY("DAC STM", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACSTM_RESET, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC STM", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCSTM_RESET, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC DIG", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACDIG_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC DIG", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCDIG_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC DLL", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACDLL_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC DLL", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCDLL_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("ADC Vref", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_ADCVREF_OFF, 1, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC Vref", ES8323_CHIPPOWER,
+			    ES8323_CHIPPOWER_DACVREF_OFF, 1, NULL, 0),
+
 	/* Muxes */
 	SND_SOC_DAPM_MUX("Left PGA Mux", ES8323_ADCPOWER,
 			 ES8323_ADCPOWER_PDNAINL_OFF, 1, &es8323_left_dac_mux_controls),
@@ -286,6 +303,20 @@ static const struct snd_soc_dapm_route es8323_dapm_routes[] = {
 	{"Right ADC", NULL, "Right ADC Mux"},
 
 	{ "Mic Bias", NULL, "Mic Bias Gen" },
+
+	{ "ADC DIG", NULL, "ADC STM" },
+	{ "ADC DIG", NULL, "ADC Vref" },
+	{ "ADC DIG", NULL, "ADC DLL" },
+
+	{ "Left ADC", NULL, "ADC DIG" },
+	{ "Right ADC", NULL, "ADC DIG" },
+
+	{ "DAC DIG", NULL, "DAC STM" },
+	{ "DAC DIG", NULL, "DAC Vref" },
+	{ "DAC DIG", NULL, "DAC DLL" },
+
+	{ "Left DAC", NULL, "DAC DIG" },
+	{ "Right DAC", NULL, "DAC DIG" },
 
 	{"Left Line Mux", "Line 1L", "LINPUT1"},
 	{"Left Line Mux", "Line 2L", "LINPUT2"},
@@ -644,7 +675,7 @@ static int es8323_probe(struct snd_soc_component *component)
 	}
 
 	snd_soc_component_write(component, ES8323_CONTROL2, 0x60);
-	snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
+	snd_soc_component_write(component, ES8323_DACCONTROL21, 0x80);
 
 	return 0;
 }
@@ -657,34 +688,23 @@ static int es8323_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		break;
+	case SND_SOC_BIAS_PREPARE:
 		ret = clk_prepare_enable(es8323->mclk);
 		if (ret)
 			return ret;
 
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xf0);
-		usleep_range(18000, 20000);
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7c);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
-		snd_soc_component_write(component, ES8323_ADCCONTROL14, 0x00);
 		snd_soc_component_update_bits(component, ES8323_ADCPOWER,
 					      ES8323_ADCPOWER_PDNADCBIS, 0);
 		break;
-	case SND_SOC_BIAS_PREPARE:
-		break;
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7c);
-		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0x00);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0x00);
 		break;
 	case SND_SOC_BIAS_OFF:
-		clk_disable_unprepare(es8323->mclk);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW1, 0xff);
 		snd_soc_component_write(component, ES8323_CHIPLOPOW2, 0xff);
-		snd_soc_component_write(component, ES8323_CHIPPOWER, 0xff);
-		snd_soc_component_write(component, ES8323_ANAVOLMANAG, 0x7b);
+		clk_disable_unprepare(es8323->mclk);
 		break;
 	}
 
