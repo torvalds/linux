@@ -551,6 +551,86 @@ struct cmn2asic_mapping {
 	int	map_to;
 };
 
+#define SMU_MSG_MAX_ARGS 4
+
+/* Message flags for smu_msg_args */
+#define SMU_MSG_FLAG_ASYNC	BIT(0) /* Async send - skip post-poll */
+#define SMU_MSG_FLAG_LOCK_HELD	BIT(1) /* Caller holds ctl->lock */
+
+/* smu_msg_ctl flags */
+#define SMU_MSG_CTL_DEBUG_MAILBOX	BIT(0) /* Debug mailbox supported */
+
+struct smu_msg_ctl;
+/**
+ * struct smu_msg_config - IP-level register configuration
+ * @msg_reg: Message register offset
+ * @resp_reg: Response register offset
+ * @arg_regs: Argument register offsets (up to SMU_MSG_MAX_ARGS)
+ * @num_arg_regs: Number of argument registers available
+ * @debug_msg_reg: Debug message register offset
+ * @debug_resp_reg: Debug response register offset
+ * @debug_param_reg: Debug parameter register offset
+ */
+struct smu_msg_config {
+	u32 msg_reg;
+	u32 resp_reg;
+	u32 arg_regs[SMU_MSG_MAX_ARGS];
+	int num_arg_regs;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
+	u32 debug_param_reg;
+};
+
+/**
+ * struct smu_msg_args - Per-call message arguments
+ * @msg: Common message type (enum smu_message_type)
+ * @args: Input arguments
+ * @num_args: Number of input arguments
+ * @out_args: Output arguments (filled after successful send)
+ * @num_out_args: Number of output arguments to read
+ * @flags: Message flags (SMU_MSG_FLAG_*)
+ * @timeout: Per-message timeout in us (0 = use default)
+ */
+struct smu_msg_args {
+	enum smu_message_type msg;
+	u32 args[SMU_MSG_MAX_ARGS];
+	int num_args;
+	u32 out_args[SMU_MSG_MAX_ARGS];
+	int num_out_args;
+	u32 flags;
+	u32 timeout;
+};
+
+/**
+ * struct smu_msg_ops - IP-level protocol operations
+ * @send_msg: send message protocol
+ * @wait_response: wait for response (for split send/wait cases)
+ * @decode_response: Convert response register value to errno
+ * @send_debug_msg: send debug message
+ */
+struct smu_msg_ops {
+	int (*send_msg)(struct smu_msg_ctl *ctl, struct smu_msg_args *args);
+	int (*wait_response)(struct smu_msg_ctl *ctl, u32 timeout_us);
+	int (*decode_response)(u32 resp);
+	int (*send_debug_msg)(struct smu_msg_ctl *ctl, u32 msg, u32 param);
+};
+
+/**
+ * struct smu_msg_ctl - Per-device message control block
+ * This is a standalone control block that encapsulates everything
+ * needed for SMU messaging. The ops->send_msg implements the complete
+ * protocol including all filtering and error handling.
+ */
+struct smu_msg_ctl {
+	struct smu_context *smu;
+	struct mutex lock;
+	struct smu_msg_config config;
+	const struct smu_msg_ops *ops;
+	const struct cmn2asic_msg_mapping *message_map;
+	u32 default_timeout;
+	u32 flags;
+};
+
 struct stb_context {
 	uint32_t stb_buf_size;
 	bool enabled;
@@ -587,13 +667,11 @@ struct smu_context {
 	struct amdgpu_irq_src		irq_source;
 
 	const struct pptable_funcs	*ppt_funcs;
-	const struct cmn2asic_msg_mapping	*message_map;
 	const struct cmn2asic_mapping	*clock_map;
 	const struct cmn2asic_mapping	*feature_map;
 	const struct cmn2asic_mapping	*table_map;
 	const struct cmn2asic_mapping	*pwr_src_map;
 	const struct cmn2asic_mapping	*workload_map;
-	struct mutex			message_lock;
 	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;
@@ -677,20 +755,15 @@ struct smu_context {
 
 	struct firmware pptable_firmware;
 
-	u32 param_reg;
-	u32 msg_reg;
-	u32 resp_reg;
-
-	u32 debug_param_reg;
-	u32 debug_msg_reg;
-	u32 debug_resp_reg;
-
 	struct delayed_work		swctf_delayed_work;
 
 	/* data structures for wbrf feature support */
 	bool				wbrf_supported;
 	struct notifier_block		wbrf_notifier;
 	struct delayed_work		wbrf_delayed_work;
+
+	/* SMU message control block */
+	struct smu_msg_ctl msg_ctl;
 };
 
 struct i2c_adapter;
@@ -755,15 +828,6 @@ struct pptable_funcs {
 	 *                          defaults.
 	 */
 	int (*populate_umd_state_clk)(struct smu_context *smu);
-
-	/**
-	 * @print_clk_levels: Print DPM clock levels for a clock domain
-	 *                    to buffer. Star current level.
-	 *
-	 * Used for sysfs interfaces.
-	 * Return: Number of characters written to the buffer
-	 */
-	int (*print_clk_levels)(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
 
 	/**
 	 * @emit_clk_levels: Print DPM clock levels for a clock domain
@@ -1121,24 +1185,6 @@ struct pptable_funcs {
 	 * @system_features_control: Enable/disable all SMU features.
 	 */
 	int (*system_features_control)(struct smu_context *smu, bool en);
-
-	/**
-	 * @send_smc_msg_with_param: Send a message with a parameter to the SMU.
-	 * &msg: Type of message.
-	 * &param: Message parameter.
-	 * &read_arg: SMU response (optional).
-	 */
-	int (*send_smc_msg_with_param)(struct smu_context *smu,
-				       enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
-
-	/**
-	 * @send_smc_msg: Send a message to the SMU.
-	 * &msg: Type of message.
-	 * &read_arg: SMU response (optional).
-	 */
-	int (*send_smc_msg)(struct smu_context *smu,
-			    enum smu_message_type msg,
-			    uint32_t *read_arg);
 
 	/**
 	 * @init_display_count: Notify the SMU of the number of display

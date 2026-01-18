@@ -1104,8 +1104,6 @@ static const struct pptable_funcs smu_v13_0_5_ppt_funcs = {
 	.fini_smc_tables = smu_v13_0_5_fini_smc_tables,
 	.get_vbios_bootup_values = smu_v13_0_get_vbios_bootup_values,
 	.system_features_control = smu_v13_0_5_system_features_control,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = smu_v13_0_5_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = smu_v13_0_5_dpm_set_jpeg_enable,
 	.set_default_dpm_table = smu_v13_0_5_set_default_dpm_tables,
@@ -1126,17 +1124,28 @@ static const struct pptable_funcs smu_v13_0_5_ppt_funcs = {
 	.set_fine_grain_gfx_freq_parameters = smu_v13_0_5_set_fine_grain_gfx_freq_parameters,
 };
 
-void smu_v13_0_5_set_ppt_funcs(struct smu_context *smu)
+static void smu_v13_0_5_init_msg_ctl(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 
+	ctl->smu = smu;
+	mutex_init(&ctl->lock);
+	ctl->config.msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_2);
+	ctl->config.resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_33);
+	ctl->config.arg_regs[0] = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_34);
+	ctl->config.num_arg_regs = 1;
+	ctl->ops = &smu_msg_v1_ops;
+	ctl->default_timeout = adev->usec_timeout * 20;
+	ctl->message_map = smu_v13_0_5_message_map;
+}
+
+void smu_v13_0_5_set_ppt_funcs(struct smu_context *smu)
+{
 	smu->ppt_funcs = &smu_v13_0_5_ppt_funcs;
-	smu->message_map = smu_v13_0_5_message_map;
 	smu->feature_map = smu_v13_0_5_feature_mask_map;
 	smu->table_map = smu_v13_0_5_table_map;
 	smu->is_apu = true;
 	smu->smc_driver_if_version = SMU13_0_5_DRIVER_IF_VERSION;
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_34);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_2);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_C2PMSG_33);
+	smu_v13_0_5_init_msg_ctl(smu);
 }

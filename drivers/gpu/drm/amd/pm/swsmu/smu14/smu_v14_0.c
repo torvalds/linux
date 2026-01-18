@@ -1834,17 +1834,21 @@ int smu_v14_0_baco_exit(struct smu_context *smu)
 
 int smu_v14_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 {
-	uint16_t index;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 	struct amdgpu_device *adev = smu->adev;
+	int ret;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableGfxImu,
 						       ENABLE_IMU_ARG_GFXOFF_ENABLE, NULL);
 	}
 
-	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
-					       SMU_MSG_EnableGfxImu);
-	return smu_cmn_send_msg_without_waiting(smu, index, ENABLE_IMU_ARG_GFXOFF_ENABLE);
+	mutex_lock(&ctl->lock);
+	ret = smu_msg_send_async_locked(ctl, SMU_MSG_EnableGfxImu,
+					ENABLE_IMU_ARG_GFXOFF_ENABLE);
+	mutex_unlock(&ctl->lock);
+
+	return ret;
 }
 
 int smu_v14_0_set_default_dpm_tables(struct smu_context *smu)

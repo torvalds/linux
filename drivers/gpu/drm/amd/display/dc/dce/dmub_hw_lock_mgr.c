@@ -69,7 +69,7 @@ bool dmub_hw_lock_mgr_does_link_require_lock(const struct dc *dc, const struct d
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
 		return true;
 
-	if (link->replay_settings.replay_feature_enabled)
+	if (link->replay_settings.replay_feature_enabled && dc_is_embedded_signal(link->connector_signal))
 		return true;
 
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_1) {

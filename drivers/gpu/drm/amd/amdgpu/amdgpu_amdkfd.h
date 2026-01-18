@@ -158,6 +158,7 @@ struct amdkfd_process_info {
 
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
+void amdgpu_amdkfd_teardown_processes(struct amdgpu_device *adev);
 
 void amdgpu_amdkfd_suspend(struct amdgpu_device *adev, bool suspend_proc);
 int amdgpu_amdkfd_resume(struct amdgpu_device *adev, bool resume_proc);
@@ -240,10 +241,10 @@ int amdgpu_amdkfd_bo_validate_and_fence(struct amdgpu_bo *bo,
 }
 #endif
 /* Shared API */
-int amdgpu_amdkfd_alloc_gtt_mem(struct amdgpu_device *adev, size_t size,
-				void **mem_obj, uint64_t *gpu_addr,
+int amdgpu_amdkfd_alloc_kernel_mem(struct amdgpu_device *adev, size_t size,
+				u32 domain, void **mem_obj, uint64_t *gpu_addr,
 				void **cpu_ptr, bool mqd_gfx9);
-void amdgpu_amdkfd_free_gtt_mem(struct amdgpu_device *adev, void **mem_obj);
+void amdgpu_amdkfd_free_kernel_mem(struct amdgpu_device *adev, void **mem_obj);
 int amdgpu_amdkfd_alloc_gws(struct amdgpu_device *adev, size_t size,
 				void **mem_obj);
 void amdgpu_amdkfd_free_gws(struct amdgpu_device *adev, void *mem_obj);
@@ -438,6 +439,8 @@ int kgd2kfd_stop_sched_all_nodes(struct kfd_dev *kfd);
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
 bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
 			       bool retry_fault);
+void kgd2kfd_lock_kfd(void);
+void kgd2kfd_teardown_processes(struct amdgpu_device *adev);
 
 #else
 static inline int kgd2kfd_init(void)
@@ -548,6 +551,14 @@ static inline bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct 
 				      bool retry_fault)
 {
 	return false;
+}
+
+static inline void kgd2kfd_lock_kfd(void)
+{
+}
+
+static inline void kgd2kfd_teardown_processes(struct amdgpu_device *adev)
+{
 }
 
 #endif

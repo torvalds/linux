@@ -1091,7 +1091,10 @@ union dmub_fw_boot_options {
 		uint32_t lower_hbr3_phy_ssc: 1; /**< 1 to lower hbr3 phy ssc to 0.125 percent */
 		uint32_t override_hbr3_pll_vco: 1; /**< 1 to override the hbr3 pll vco to 0 */
 		uint32_t disable_dpia_bw_allocation: 1; /**< 1 to disable the USB4 DPIA BW allocation */
-		uint32_t reserved : 4; /**< reserved */
+		uint32_t bootcrc_en_at_preos: 1; /**< 1 to run the boot time crc during warm/cold boot*/
+		uint32_t bootcrc_en_at_S0i3: 1; /**< 1 to run the boot time crc during S0i3 boot*/
+		uint32_t bootcrc_boot_mode: 1; /**< 1 for S0i3 resume and 0 for Warm/cold boot*/
+		uint32_t reserved : 1; /**< reserved */
 	} bits; /**< boot bits */
 	uint32_t all; /**< 32-bit access to bits */
 };
@@ -2638,7 +2641,7 @@ union dmub_fams2_global_feature_config {
 		uint32_t enable_visual_confirm: 1;
 		uint32_t allow_delay_check_mode: 2;
 		uint32_t legacy_method_no_fams2 : 1;
-		uint32_t reserved: 23;
+		uint32_t reserved : 23;
 	} bits;
 	uint32_t all;
 };
@@ -4335,10 +4338,6 @@ enum dmub_cmd_replay_type {
 	 */
 	DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP = 8,
 	/**
-	 * Set version
-	 */
-	DMUB_CMD__REPLAY_SET_VERSION = 9,
-	/**
 	 * Set Replay General command.
 	 */
 	DMUB_CMD__REPLAY_SET_GENERAL_CMD = 16,
@@ -4379,6 +4378,7 @@ enum dmub_cmd_replay_general_subtype {
 	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
 	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 	REPLAY_GENERAL_CMD_VIDEO_CONFERENCING,
+	REPLAY_GENERAL_CMD_SET_CONTINUOUSLY_RESYNC,
 };
 
 struct dmub_alpm_auxless_data {
@@ -4503,40 +4503,6 @@ enum replay_version {
 	 * Replay not supported.
 	 */
 	REPLAY_VERSION_UNSUPPORTED		= 0xFF,
-};
-
-/**
- * Data passed from driver to FW in a DMUB_CMD___SET_REPLAY_VERSION command.
- */
-struct dmub_cmd_replay_set_version_data {
-	/**
-	 * Panel Instance.
-	 * Panel instance to identify which psr_state to use
-	 * Currently the support is only for 0 or 1
-	 */
-	uint8_t panel_inst;
-	/**
-	 * Replay version that FW should implement.
-	 */
-	enum replay_version version;
-	/**
-	 * Explicit padding to 4 byte boundary.
-	 */
-	uint8_t pad[3];
-};
-
-/**
- * Definition of a DMUB_CMD__REPLAY_SET_VERSION command.
- */
-struct dmub_rb_cmd_replay_set_version {
-	/**
-	 * Command header.
-	 */
-	struct dmub_cmd_header header;
-	/**
-	 * Data passed from driver to FW in a DMUB_CMD__REPLAY_SET_VERSION command.
-	 */
-	struct dmub_cmd_replay_set_version_data replay_set_version_data;
 };
 
 /**
@@ -4929,10 +4895,6 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command data.
 	 */
 	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data disabled_adaptive_sync_sdp_data;
-	/**
-	 * Definition of DMUB_CMD__REPLAY_SET_VERSION command data.
-	 */
-	struct dmub_cmd_replay_set_version_data version_data;
 	/**
 	 * Definition of DMUB_CMD__REPLAY_SET_GENERAL_CMD command data.
 	 */
@@ -7020,10 +6982,6 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__IDLE_OPT_SET_DC_POWER_STATE command.
 	 */
 	struct dmub_rb_cmd_idle_opt_set_dc_power_state idle_opt_set_dc_power_state;
-	/**
-	 * Definition of a DMUB_CMD__REPLAY_SET_VERSION command.
-	 */
-	struct dmub_rb_cmd_replay_set_version replay_set_version;
 	/*
 	 * Definition of a DMUB_CMD__REPLAY_COPY_SETTINGS command.
 	 */

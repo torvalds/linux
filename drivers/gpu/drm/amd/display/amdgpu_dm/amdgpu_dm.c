@@ -1137,7 +1137,7 @@ static int amdgpu_dm_audio_component_get_eld(struct device *kdev, int port,
 
 	mutex_unlock(&adev->dm.audio_lock);
 
-	DRM_DEBUG_KMS("Get ELD : idx=%d ret=%d en=%d\n", port, ret, *enabled);
+	drm_dbg_kms(adev_to_drm(adev), "Get ELD : idx=%d ret=%d en=%d\n", port, ret, *enabled);
 
 	return ret;
 }
@@ -1231,7 +1231,7 @@ static  void amdgpu_dm_audio_eld_notify(struct amdgpu_device *adev, int pin)
 	struct drm_audio_component *acomp = adev->dm.audio_component;
 
 	if (acomp && acomp->audio_ops && acomp->audio_ops->pin_eld_notify) {
-		DRM_DEBUG_KMS("Notify ELD: %d\n", pin);
+		drm_dbg_kms(adev_to_drm(adev), "Notify ELD: %d\n", pin);
 
 		acomp->audio_ops->pin_eld_notify(acomp->audio_ops->audio_ptr,
 						 pin, -1);
@@ -2377,7 +2377,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	}
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
-		DRM_DEBUG_KMS("dm: DMCU firmware not supported on direct or SMU loading\n");
+		drm_dbg_kms(adev_to_drm(adev), "dm: DMCU firmware not supported on direct or SMU loading\n");
 		return 0;
 	}
 
@@ -2385,7 +2385,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 				 "%s", fw_name_dmcu);
 	if (r == -ENODEV) {
 		/* DMCU firmware is not necessary, so don't raise a fuss if it's missing */
-		DRM_DEBUG_KMS("dm: DMCU firmware not found\n");
+		drm_dbg_kms(adev_to_drm(adev), "dm: DMCU firmware not found\n");
 		adev->dm.fw_dmcu = NULL;
 		return 0;
 	}
@@ -2409,7 +2409,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 
 	adev->dm.dmcu_fw_version = le32_to_cpu(hdr->header.ucode_version);
 
-	DRM_DEBUG_KMS("PSP loading DMCU firmware\n");
+	drm_dbg_kms(adev_to_drm(adev), "PSP loading DMCU firmware\n");
 
 	return 0;
 }
@@ -4157,7 +4157,7 @@ static void schedule_hpd_rx_offload_work(struct amdgpu_device *adev, struct hpd_
 	offload_work->adev = adev;
 
 	queue_work(offload_wq->wq, &offload_work->work);
-	DRM_DEBUG_KMS("queue work to handle hpd_rx offload work");
+	drm_dbg_kms(adev_to_drm(adev), "queue work to handle hpd_rx offload work");
 }
 
 static void handle_hpd_rx_irq(void *param)
@@ -4986,7 +4986,7 @@ static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 		    caps->min_input_signal < 0 ||
 		    spread > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
 		    spread < AMDGPU_DM_MIN_SPREAD) {
-			DRM_DEBUG_KMS("DM: Invalid backlight caps: min=%d, max=%d\n",
+			drm_dbg_kms(adev_to_drm(dm->adev), "DM: Invalid backlight caps: min=%d, max=%d\n",
 				      caps->min_input_signal, caps->max_input_signal);
 			caps->caps_valid = false;
 		}
@@ -5279,6 +5279,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	struct amdgpu_dm_backlight_caps *caps;
 	char bl_name[16];
 	int min, max;
+	int real_brightness;
+	int init_brightness;
 
 	if (aconnector->bl_idx == -1)
 		return;
@@ -5303,6 +5305,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	} else
 		props.brightness = props.max_brightness = MAX_BACKLIGHT_LEVEL;
 
+	init_brightness = props.brightness;
+
 	if (caps->data_points && !(amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE)) {
 		drm_info(drm, "Using custom brightness curve\n");
 		props.scale = BACKLIGHT_SCALE_NON_LINEAR;
@@ -5321,8 +5325,20 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	if (IS_ERR(dm->backlight_dev[aconnector->bl_idx])) {
 		drm_err(drm, "DM: Backlight registration failed!\n");
 		dm->backlight_dev[aconnector->bl_idx] = NULL;
-	} else
+	} else {
+		/*
+		 * dm->brightness[x] can be inconsistent just after startup until
+		 * ops.get_brightness is called.
+		 */
+		real_brightness =
+			amdgpu_dm_backlight_ops.get_brightness(dm->backlight_dev[aconnector->bl_idx]);
+
+		if (real_brightness != init_brightness) {
+			dm->actual_brightness[aconnector->bl_idx] = real_brightness;
+			dm->brightness[aconnector->bl_idx] = real_brightness;
+		}
 		drm_dbg_driver(drm, "DM: Registered Backlight device: %s\n", bl_name);
+	}
 }
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
@@ -5515,7 +5531,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		}
 		break;
 	default:
-		DRM_DEBUG_KMS("Unsupported DCN IP version for outbox: 0x%X\n",
+		drm_dbg_kms(adev_to_drm(adev), "Unsupported DCN IP version for outbox: 0x%X\n",
 			      amdgpu_ip_version(adev, DCE_HWIP, 0));
 	}
 
@@ -5639,7 +5655,8 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 
 				if (psr_feature_enabled) {
 					amdgpu_dm_set_psr_caps(link);
-					drm_info(adev_to_drm(adev), "PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
+					drm_info(adev_to_drm(adev), "%s: PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
+						 aconnector->base.name,
 						 link->psr_settings.psr_feature_enabled,
 						 link->psr_settings.psr_version,
 						 link->dpcd_caps.psr_info.psr_version,
@@ -6417,7 +6434,8 @@ ffu:
 			   &flip_addrs->dirty_rect_count, true);
 }
 
-static void update_stream_scaling_settings(const struct drm_display_mode *mode,
+static void update_stream_scaling_settings(struct drm_device *dev,
+					   const struct drm_display_mode *mode,
 					   const struct dm_connector_state *dm_state,
 					   struct dc_stream_state *stream)
 {
@@ -6467,8 +6485,8 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 	stream->src = src;
 	stream->dst = dst;
 
-	DRM_DEBUG_KMS("Destination Rectangle x:%d  y:%d  width:%d  height:%d\n",
-		      dst.x, dst.y, dst.width, dst.height);
+	drm_dbg_kms(dev, "Destination Rectangle x:%d  y:%d  width:%d  height:%d\n",
+		    dst.x, dst.y, dst.width, dst.height);
 
 }
 
@@ -7356,7 +7374,7 @@ create_stream_for_sink(struct drm_connector *connector,
 		apply_dsc_policy_for_stream(aconnector, sink, stream, &dsc_caps);
 #endif
 
-	update_stream_scaling_settings(&mode, dm_state, stream);
+	update_stream_scaling_settings(dev, &mode, dm_state, stream);
 
 	fill_audio_info(
 		&stream->audio_info,
@@ -8091,7 +8109,7 @@ create_validate_stream_for_sink(struct drm_connector *connector,
 			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
-			DRM_DEBUG_KMS("Pruned mode %d x %d (clk %d) %s %s -- %s\n",
+			drm_dbg_kms(connector->dev, "Pruned mode %d x %d (clk %d) %s %s -- %s\n",
 				      drm_mode->hdisplay,
 				      drm_mode->vdisplay,
 				      drm_mode->clock,
@@ -8443,7 +8461,7 @@ static int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		drm_dp_atomic_find_time_slots(state, mst_mgr, mst_port,
 					      dm_new_connector_state->pbn);
 	if (dm_new_connector_state->vcpi_slots < 0) {
-		DRM_DEBUG_ATOMIC("failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
+		drm_dbg_atomic(connector->dev, "failed finding vcpi slots: %d\n", (int)dm_new_connector_state->vcpi_slots);
 		return dm_new_connector_state->vcpi_slots;
 	}
 	return 0;
@@ -8943,9 +8961,18 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 	mutex_init(&aconnector->hpd_lock);
 	mutex_init(&aconnector->handle_mst_msg_ready);
 
-	aconnector->hdmi_hpd_debounce_delay_ms = AMDGPU_DM_HDMI_HPD_DEBOUNCE_MS;
-	INIT_DELAYED_WORK(&aconnector->hdmi_hpd_debounce_work, hdmi_hpd_debounce_work);
-	aconnector->hdmi_prev_sink = NULL;
+	/*
+	 * If HDMI HPD debounce delay is set, use the minimum between selected
+	 * value and AMDGPU_DM_MAX_HDMI_HPD_DEBOUNCE_MS
+	 */
+	if (amdgpu_hdmi_hpd_debounce_delay_ms) {
+		aconnector->hdmi_hpd_debounce_delay_ms = min(amdgpu_hdmi_hpd_debounce_delay_ms,
+							     AMDGPU_DM_MAX_HDMI_HPD_DEBOUNCE_MS);
+		INIT_DELAYED_WORK(&aconnector->hdmi_hpd_debounce_work, hdmi_hpd_debounce_work);
+		aconnector->hdmi_prev_sink = NULL;
+	} else {
+		aconnector->hdmi_hpd_debounce_delay_ms = 0;
+	}
 
 	/*
 	 * configure support HPD hot plug connector_>polled default value is 0
@@ -9627,7 +9654,7 @@ static void update_freesync_state_on_stream(
 	new_stream->allow_freesync = mod_freesync_get_freesync_enabled(&vrr_params);
 
 	if (new_crtc_state->freesync_vrr_info_changed)
-		DRM_DEBUG_KMS("VRR packet update: crtc=%u enabled=%d state=%d",
+		drm_dbg_kms(adev_to_drm(adev), "VRR packet update: crtc=%u enabled=%d state=%d",
 			      new_crtc_state->base.crtc->base.id,
 			      (int)new_crtc_state->base.vrr_enabled,
 			      (int)vrr_params.state);
@@ -10893,7 +10920,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		stream_update.stream = dm_new_crtc_state->stream;
 		if (scaling_changed) {
-			update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
+			update_stream_scaling_settings(dev, &dm_new_con_state->base.crtc->mode,
 					dm_new_con_state, dm_new_crtc_state->stream);
 
 			stream_update.src = dm_new_crtc_state->stream->src;
@@ -11573,7 +11600,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 
 			dc_stream_retain(new_stream);
 
-			DRM_DEBUG_ATOMIC("Enabling DRM crtc: %d\n",
+			drm_dbg_atomic(adev_to_drm(adev), "Enabling DRM crtc: %d\n",
 					 crtc->base.id);
 
 			if (dc_state_add_stream(
@@ -11612,7 +11639,7 @@ skip_modeset:
 	/* Scaling or underscan settings */
 	if (is_scaling_state_different(dm_old_conn_state, dm_new_conn_state) ||
 				drm_atomic_crtc_needs_modeset(new_crtc_state))
-		update_stream_scaling_settings(
+		update_stream_scaling_settings(adev_to_drm(adev),
 			&new_crtc_state->mode, dm_new_conn_state, dm_new_crtc_state->stream);
 
 	/* ABM settings */
@@ -11803,14 +11830,14 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 
 	if (fb->width > new_acrtc->max_cursor_width ||
 	    fb->height > new_acrtc->max_cursor_height) {
-		DRM_DEBUG_ATOMIC("Bad cursor FB size %dx%d\n",
+		drm_dbg_atomic(adev_to_drm(adev), "Bad cursor FB size %dx%d\n",
 				 new_plane_state->fb->width,
 				 new_plane_state->fb->height);
 		return -EINVAL;
 	}
 	if (new_plane_state->src_w != fb->width << 16 ||
 	    new_plane_state->src_h != fb->height << 16) {
-		DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
+		drm_dbg_atomic(adev_to_drm(adev), "Cropping not supported for cursor plane\n");
 		return -EINVAL;
 	}
 
@@ -11818,7 +11845,7 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 	pitch = fb->pitches[0] / fb->format->cpp[0];
 
 	if (fb->width != pitch) {
-		DRM_DEBUG_ATOMIC("Cursor FB width %d doesn't match pitch %d",
+		drm_dbg_atomic(adev_to_drm(adev), "Cursor FB width %d doesn't match pitch %d",
 				 fb->width, pitch);
 		return -EINVAL;
 	}
@@ -11830,7 +11857,7 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 		/* FB pitch is supported by cursor plane */
 		break;
 	default:
-		DRM_DEBUG_ATOMIC("Bad cursor FB pitch %d px\n", pitch);
+		drm_dbg_atomic(adev_to_drm(adev), "Bad cursor FB pitch %d px\n", pitch);
 		return -EINVAL;
 	}
 
@@ -11848,7 +11875,7 @@ static int dm_check_cursor_fb(struct amdgpu_crtc *new_acrtc,
 				 AMDGPU_TILING_GET(afb->tiling_flags, MICRO_TILE_MODE) == 0;
 		}
 		if (!linear) {
-			DRM_DEBUG_ATOMIC("Cursor FB not linear");
+			drm_dbg_atomic(adev_to_drm(adev), "Cursor FB not linear");
 			return -EINVAL;
 		}
 	}
@@ -11875,7 +11902,7 @@ static int dm_check_native_cursor_state(struct drm_crtc *new_plane_crtc,
 	new_acrtc = to_amdgpu_crtc(new_plane_crtc);
 
 	if (new_plane_state->src_x != 0 || new_plane_state->src_y != 0) {
-		DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
+		drm_dbg_atomic(new_plane_crtc->dev, "Cropping not supported for cursor plane\n");
 		return -EINVAL;
 	}
 
@@ -11974,7 +12001,7 @@ static int dm_update_plane_state(struct dc *dc,
 		if (!dm_old_crtc_state->stream)
 			return 0;
 
-		DRM_DEBUG_ATOMIC("Disabling DRM plane: %d on DRM crtc %d\n",
+		drm_dbg_atomic(old_plane_crtc->dev, "Disabling DRM plane: %d on DRM crtc %d\n",
 				plane->base.id, old_plane_crtc->base.id);
 
 		ret = dm_atomic_get_state(state, &dm_state);
@@ -12027,7 +12054,7 @@ static int dm_update_plane_state(struct dc *dc,
 			goto out;
 		}
 
-		DRM_DEBUG_ATOMIC("Enabling DRM plane: %d on DRM crtc %d\n",
+		drm_dbg_atomic(new_plane_crtc->dev, "Enabling DRM plane: %d on DRM crtc %d\n",
 				 plane->base.id, new_plane_crtc->base.id);
 
 		ret = fill_dc_plane_attributes(
@@ -13119,7 +13146,7 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 				amd_vsdb->version == HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3) {
 			vsdb_info->replay_mode = (amd_vsdb->feature_caps & AMD_VSDB_VERSION_3_FEATURECAP_REPLAYMODE) ? true : false;
 			vsdb_info->amd_vsdb_version = HDMI_AMD_VENDOR_SPECIFIC_DATA_BLOCK_VERSION_3;
-			DRM_DEBUG_KMS("Panel supports Replay Mode: %d\n", vsdb_info->replay_mode);
+			drm_dbg_kms(aconnector->base.dev, "Panel supports Replay Mode: %d\n", vsdb_info->replay_mode);
 
 			return true;
 		}

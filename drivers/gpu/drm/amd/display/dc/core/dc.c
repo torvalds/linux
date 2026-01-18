@@ -7246,6 +7246,14 @@ static bool update_planes_and_stream_prepare_v3_intermediate_seamless(
 	);
 }
 
+static void transition_countdown_init(struct dc *dc)
+{
+	dc->check_config.transition_countdown_to_steady_state =
+			dc->debug.num_fast_flips_to_steady_state_override ?
+			dc->debug.num_fast_flips_to_steady_state_override :
+			NUM_FAST_FLIPS_TO_STEADY_STATE;
+}
+
 static bool update_planes_and_stream_prepare_v3(
 		struct dc_update_scratch_space *scratch
 )
@@ -7305,7 +7313,15 @@ static bool update_planes_and_stream_prepare_v3(
 	);
 	if (seamless) {
 		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+		if (scratch->dc->check_config.deferred_transition_state)
+			/* reset countdown as steady state not reached */
+			transition_countdown_init(scratch->dc);
 		return true;
+	}
+
+	if (!scratch->dc->debug.disable_deferred_minimal_transitions) {
+		scratch->dc->check_config.deferred_transition_state = true;
+		transition_countdown_init(scratch->dc);
 	}
 
 	scratch->intermediate_context = create_minimal_transition_state(
@@ -7351,7 +7367,8 @@ static bool update_planes_and_stream_prepare_v3(
 static void update_planes_and_stream_execute_v3_commit(
 		const struct dc_update_scratch_space *scratch,
 		bool intermediate_update,
-		bool intermediate_context
+		bool intermediate_context,
+		bool use_stream_update
 )
 {
 	commit_planes_for_stream(
@@ -7359,7 +7376,7 @@ static void update_planes_and_stream_execute_v3_commit(
 			intermediate_update ? scratch->intermediate_updates : scratch->surface_updates,
 			intermediate_update ? scratch->intermediate_count : scratch->surface_count,
 			scratch->stream,
-			intermediate_context ? NULL : scratch->stream_update,
+			use_stream_update ? scratch->stream_update : NULL,
 			intermediate_context ? UPDATE_TYPE_FULL : scratch->update_type,
 			// `dc->current_state` only used in `NO_NEW_CONTEXT`, where it is equal to `new_context`
 			intermediate_context ? scratch->intermediate_context : scratch->new_context
@@ -7385,28 +7402,22 @@ static void update_planes_and_stream_execute_v3(
 
 	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
 	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
-		update_planes_and_stream_execute_v3_commit(scratch, false, false);
+		update_planes_and_stream_execute_v3_commit(scratch, false, false, true);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
-		update_planes_and_stream_execute_v3_commit(scratch, false, true);
+		update_planes_and_stream_execute_v3_commit(scratch, false, true,
+				scratch->dc->check_config.deferred_transition_state);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
-		update_planes_and_stream_execute_v3_commit(scratch, true, true);
+		update_planes_and_stream_execute_v3_commit(scratch, true, true, false);
 		break;
 
 	case UPDATE_V3_FLOW_INVALID:
 	default:
 		ASSERT(false);
 	}
-}
-
-static void update_planes_and_stream_cleanup_v3_new_context(
-		struct dc_update_scratch_space *scratch
-)
-{
-	swap_and_release_current_context(scratch->dc, scratch->new_context, scratch->stream);
 }
 
 static void update_planes_and_stream_cleanup_v3_release_minimal(
@@ -7439,17 +7450,23 @@ static bool update_planes_and_stream_cleanup_v3(
 	switch (scratch->flow) {
 	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FAST:
 	case UPDATE_V3_FLOW_NO_NEW_CONTEXT_CONTEXT_FULL:
-		// No cleanup required
+		if (scratch->dc->check_config.transition_countdown_to_steady_state)
+			scratch->dc->check_config.transition_countdown_to_steady_state--;
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS:
-		update_planes_and_stream_cleanup_v3_new_context(scratch);
+		swap_and_release_current_context(scratch->dc, scratch->new_context, scratch->stream);
 		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_NEW:
 		update_planes_and_stream_cleanup_v3_intermediate(scratch, false);
-		scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
-		return true;
+		if (scratch->dc->check_config.deferred_transition_state) {
+			dc_state_release(scratch->new_context);
+		} else {
+			scratch->flow = UPDATE_V3_FLOW_NEW_CONTEXT_SEAMLESS;
+			return true;
+		}
+		break;
 
 	case UPDATE_V3_FLOW_NEW_CONTEXT_MINIMAL_CURRENT:
 		update_planes_and_stream_cleanup_v3_intermediate(scratch, true);

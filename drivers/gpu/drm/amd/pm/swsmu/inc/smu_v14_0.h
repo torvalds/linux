@@ -215,10 +215,8 @@ int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
 					uint32_t pptable_id);
 
 int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
-				enum PP_OD_DPM_TABLE_COMMAND type,
-				long input[], uint32_t size);
-
-void smu_v14_0_set_smu_mailbox_registers(struct smu_context *smu);
+			enum PP_OD_DPM_TABLE_COMMAND type,
+			long input[], uint32_t size);
 
 int smu_v14_0_enable_thermal_alert(struct smu_context *smu);
 

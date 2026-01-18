@@ -949,6 +949,12 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 	 */
 	mutex_lock(&kfd_processes_mutex);
 
+	if (kfd_gpu_node_num() <= 0) {
+		pr_warn("no gpu node! Cannot create KFD process");
+		process = ERR_PTR(-EINVAL);
+		goto out;
+	}
+
 	if (kfd_is_locked(NULL)) {
 		pr_debug("KFD is locked! Cannot create process");
 		process = ERR_PTR(-EINVAL);
@@ -1131,7 +1137,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		if (pdd->dev->kfd->shared_resources.enable_mes &&
 			pdd->proc_ctx_cpu_ptr)
-			amdgpu_amdkfd_free_gtt_mem(pdd->dev->adev,
+			amdgpu_amdkfd_free_kernel_mem(pdd->dev->adev,
 						   &pdd->proc_ctx_bo);
 		/*
 		 * before destroying pdd, make sure to report availability
@@ -1235,7 +1241,6 @@ static void kfd_process_wq_release(struct work_struct *work)
 	else
 		ida_destroy(&p->id_table);
 
-	kfd_process_remove_sysfs(p);
 	kfd_debugfs_remove_process(p);
 
 	kfd_process_kunmap_signal_bo(p);
@@ -1250,6 +1255,11 @@ static void kfd_process_wq_release(struct work_struct *work)
 	mutex_destroy(&p->mutex);
 
 	put_task_struct(p->lead_thread);
+
+	/* the last step is removing process entries under /sys
+	 * to indicate the process has been terminated.
+	 */
+	kfd_process_remove_sysfs(p);
 
 	kfree(p);
 }

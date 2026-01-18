@@ -46,6 +46,7 @@
 #include "protocols/link_dp_capability.h"
 #include "protocols/link_dp_training.h"
 #include "protocols/link_edp_panel_control.h"
+#include "protocols/link_dp_panel_replay.h"
 #include "protocols/link_dp_dpia_bw.h"
 
 #include "dm_helpers.h"
@@ -2061,7 +2062,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		skip_video_pattern = false;
 
 	if (stream->sink_patches.oled_optimize_display_on)
-		set_default_brightness(link);
+		set_default_brightness_aux(link);
 
 	if (perform_link_training_with_retries(link_settings,
 					       skip_video_pattern,
@@ -2087,7 +2088,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1) {
 		if (!stream->sink_patches.oled_optimize_display_on) {
-			set_default_brightness(link);
+			set_default_brightness_aux(link);
 			if (link->dpcd_sink_ext_caps.bits.oled == 1)
 				msleep(bl_oled_enable_delay);
 			edp_backlight_enable_aux(link, true);
@@ -2528,6 +2529,9 @@ void link_set_dpms_on(
 		    dc_is_virtual_signal(pipe_ctx->stream->signal))
 			link_set_dsc_enable(pipe_ctx, true);
 	}
+
+	if (link->replay_settings.config.replay_supported && !dc_is_embedded_signal(link->connector_signal))
+		dp_setup_replay(link, stream);
 
 	status = enable_link(state, pipe_ctx);
 

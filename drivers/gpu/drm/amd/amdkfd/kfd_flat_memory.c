@@ -342,7 +342,7 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 
 static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 {
-	if (pdd->dev->adev->vm_manager.root_level == AMDGPU_VM_PDB3)
+	if (KFD_GC_VERSION(pdd->dev) >= IP_VERSION(12, 1, 0))
 		pdd->lds_base = pdd->dev->adev->gmc.shared_aperture_start;
 	else
 		pdd->lds_base = MAKE_LDS_APP_BASE_V9();
@@ -352,7 +352,7 @@ static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 	pdd->gpuvm_limit =
 		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
 
-	if (pdd->dev->adev->vm_manager.root_level == AMDGPU_VM_PDB3)
+	if (KFD_GC_VERSION(pdd->dev) >= IP_VERSION(12, 1, 0))
 		pdd->scratch_base = pdd->dev->adev->gmc.private_aperture_start;
 	else
 		pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();

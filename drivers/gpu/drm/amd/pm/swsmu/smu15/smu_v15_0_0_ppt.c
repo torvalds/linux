@@ -883,14 +883,13 @@ static int smu_v15_0_common_get_dpm_level_count(struct smu_context *smu,
 	return 0;
 }
 
-static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
-					enum smu_clk_type clk_type, char *buf)
+static int smu_v15_0_0_emit_clk_levels(struct smu_context *smu,
+				       enum smu_clk_type clk_type, char *buf,
+				       int *offset)
 {
-	int i, idx, ret = 0, size = 0;
+	int i, idx, ret = 0, size = *offset;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t min, max;
-
-	smu_cmn_get_sysfs_buf(&buf, &size);
 
 	switch (clk_type) {
 	case SMU_OD_SCLK:
@@ -915,19 +914,20 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_FCLK:
 		ret = smu_v15_0_0_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
-			break;
+			return ret;
 
 		ret = smu_v15_0_common_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
-			break;
+			return ret;
 
 		for (i = 0; i < count; i++) {
 			idx = (clk_type == SMU_MCLK) ? (count - i - 1) : i;
 			ret = smu_v15_0_common_get_dpm_freq_by_index(smu, clk_type, idx, &value);
 			if (ret)
-				break;
+				return ret;
 
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
+			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i,
+					      value,
 					      cur_value == value ? "*" : "");
 		}
 		break;
@@ -935,7 +935,7 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		ret = smu_v15_0_0_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
-			break;
+			return ret;
 		min = (smu->gfx_actual_hard_min_freq > 0) ? smu->gfx_actual_hard_min_freq : smu->gfx_default_hard_min_freq;
 		max = (smu->gfx_actual_soft_max_freq > 0) ? smu->gfx_actual_soft_max_freq : smu->gfx_default_soft_max_freq;
 		if (cur_value  == max)
@@ -946,9 +946,10 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 			i = 1;
 		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
 				      i == 0 ? "*" : "");
-		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
-				      i == 1 ? cur_value : 1100, /* UMD PSTATE GFXCLK 1100 */
-				      i == 1 ? "*" : "");
+		size += sysfs_emit_at(
+			buf, size, "1: %uMhz %s\n",
+			i == 1 ? cur_value : 1100, /* UMD PSTATE GFXCLK 1100 */
+			i == 1 ? "*" : "");
 		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
 				      i == 2 ? "*" : "");
 		break;
@@ -956,7 +957,9 @@ static int smu_v15_0_0_print_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	*offset = size;
+
+	return 0;
 }
 
 static int smu_v15_0_0_set_soft_freq_limited_range(struct smu_context *smu,
@@ -1307,8 +1310,6 @@ static const struct pptable_funcs smu_v15_0_0_ppt_funcs = {
 	.fini_smc_tables = smu_v15_0_0_fini_smc_tables,
 	.get_vbios_bootup_values = smu_v15_0_get_vbios_bootup_values,
 	.system_features_control = smu_v15_0_0_system_features_control,
-	.send_smc_msg_with_param = smu_cmn_send_smc_msg_with_param,
-	.send_smc_msg = smu_cmn_send_smc_msg,
 	.dpm_set_vcn_enable = smu_v15_0_set_vcn_enable,
 	.dpm_set_jpeg_enable = smu_v15_0_set_jpeg_enable,
 	.set_default_dpm_table = smu_v15_0_set_default_dpm_tables,
@@ -1323,7 +1324,7 @@ static const struct pptable_funcs smu_v15_0_0_ppt_funcs = {
 	.mode2_reset = smu_v15_0_0_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v15_0_common_get_dpm_ultimate_freq,
 	.od_edit_dpm_table = smu_v15_0_od_edit_dpm_table,
-	.print_clk_levels = smu_v15_0_0_print_clk_levels,
+	.emit_clk_levels = smu_v15_0_0_emit_clk_levels,
 	.force_clk_levels = smu_v15_0_0_force_clk_levels,
 	.set_performance_level = smu_v15_0_common_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = smu_v15_0_common_set_fine_grain_gfx_freq_parameters,
@@ -1333,23 +1334,28 @@ static const struct pptable_funcs smu_v15_0_0_ppt_funcs = {
 	.get_dpm_clock_table = smu_v15_0_common_get_dpm_table,
 };
 
-static void smu_v15_0_0_set_smu_mailbox_registers(struct smu_context *smu)
+static void smu_v15_0_0_init_msg_ctl(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
 
-	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_32);
-	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_30);
-	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_31);
+	ctl->smu = smu;
+	mutex_init(&ctl->lock);
+	ctl->config.msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_30);
+	ctl->config.resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_31);
+	ctl->config.arg_regs[0] = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_32);
+	ctl->config.num_arg_regs = 1;
+	ctl->ops = &smu_msg_v1_ops;
+	ctl->default_timeout = adev->usec_timeout * 20;
+	ctl->message_map = smu_v15_0_0_message_map;
 }
 
 void smu_v15_0_0_set_ppt_funcs(struct smu_context *smu)
 {
-
 	smu->ppt_funcs = &smu_v15_0_0_ppt_funcs;
-	smu->message_map = smu_v15_0_0_message_map;
 	smu->feature_map = smu_v15_0_0_feature_mask_map;
 	smu->table_map = smu_v15_0_0_table_map;
 	smu->is_apu = true;
 
-	smu_v15_0_0_set_smu_mailbox_registers(smu);
+	smu_v15_0_0_init_msg_ctl(smu);
 }

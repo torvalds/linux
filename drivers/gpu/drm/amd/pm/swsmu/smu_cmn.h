@@ -25,6 +25,12 @@
 
 #include "amdgpu_smu.h"
 
+extern const struct smu_msg_ops smu_msg_v1_ops;
+
+int smu_msg_wait_response(struct smu_msg_ctl *ctl, u32 timeout_us);
+int smu_msg_send_async_locked(struct smu_msg_ctl *ctl,
+			      enum smu_message_type msg, u32 param);
+
 #if defined(SWSMU_CODE_LAYER_L2) || defined(SWSMU_CODE_LAYER_L3) || defined(SWSMU_CODE_LAYER_L4)
 
 #define FDO_PWM_MODE_STATIC  1
@@ -104,9 +110,6 @@ static inline int pcie_gen_to_speed(uint32_t gen)
 	return ((gen == 0) ? link_speed[0] : link_speed[gen - 1]);
 }
 
-int smu_cmn_send_msg_without_waiting(struct smu_context *smu,
-				     uint16_t msg_index,
-				     uint32_t param);
 int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    enum smu_message_type msg,
 				    uint32_t param,
@@ -183,19 +186,6 @@ int smu_cmn_get_combo_pptable(struct smu_context *smu);
 
 int smu_cmn_set_mp1_state(struct smu_context *smu,
 			  enum pp_mp1_state mp1_state);
-
-/*
- * Helper function to make sysfs_emit_at() happy. Align buf to
- * the current page boundary and record the offset.
- */
-static inline void smu_cmn_get_sysfs_buf(char **buf, int *offset)
-{
-	if (!*buf || !offset)
-		return;
-
-	*offset = offset_in_page(*buf);
-	*buf -= *offset;
-}
 
 bool smu_cmn_is_audio_func_enabled(struct amdgpu_device *adev);
 void smu_cmn_generic_soc_policy_desc(struct smu_dpm_policy *policy);

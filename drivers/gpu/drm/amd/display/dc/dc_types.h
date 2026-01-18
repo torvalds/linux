@@ -1101,7 +1101,6 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
-	Replay_Set_Version,
 	Replay_Set_General_Cmd,
 };
 
@@ -1224,6 +1223,8 @@ struct replay_settings {
 	uint32_t replay_desync_error_fail_count;
 	/* The frame skip number dal send to DMUB */
 	uint16_t frame_skip_number;
+	/* Current Panel Replay event */
+	uint32_t replay_events;
 };
 
 /* To split out "global" and "per-panel" config settings.
