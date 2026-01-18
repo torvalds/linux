@@ -475,6 +475,7 @@ static void kvm_pch_pic_destroy(struct kvm_device *dev)
 	/* unregister pch pic device and free it's memory */
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &s->device);
 	kfree(s);
+	kfree(dev);
 }
 
 static struct kvm_device_ops kvm_pch_pic_dev_ops = {

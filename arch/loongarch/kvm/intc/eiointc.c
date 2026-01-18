@@ -679,6 +679,7 @@ static void kvm_eiointc_destroy(struct kvm_device *dev)
 	kvm_io_bus_unregister_dev(kvm, KVM_IOCSR_BUS, &eiointc->device);
 	kvm_io_bus_unregister_dev(kvm, KVM_IOCSR_BUS, &eiointc->device_vext);
 	kfree(eiointc);
+	kfree(dev);
 }
 
 static struct kvm_device_ops kvm_eiointc_dev_ops = {
