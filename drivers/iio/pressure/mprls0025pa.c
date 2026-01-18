@@ -413,8 +413,7 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 		ret = devm_request_irq(dev, data->irq, mpr_eoc_handler, 0,
 				       dev_name(dev), data);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					  "request irq %d failed\n", data->irq);
+			return ret;
 	}
 
 	data->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
