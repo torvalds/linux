@@ -105,7 +105,7 @@ static int sdw_drv_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = ida_alloc_max(&slave->bus->slave_ida, SDW_FW_MAX_DEVICES, GFP_KERNEL);
+	ret = ida_alloc_max(&slave->bus->slave_ida, SDW_FW_MAX_DEVICES - 1, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(dev, "Failed to allocated ID: %d\n", ret);
 		return ret;
