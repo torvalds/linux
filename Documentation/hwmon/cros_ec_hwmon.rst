@@ -35,6 +35,9 @@ Fan target speed
 Temperature readings
     Always supported.
 
+Temperature thresholds
+    If supported by the EC.
+
 PWM fan control
     If the EC also supports setting fan PWM values and fan mode.
 
