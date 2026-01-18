@@ -86,6 +86,20 @@ static int cros_ec_hwmon_read_pwm_enable(struct cros_ec_device *cros_ec, u8 inde
 	return 0;
 }
 
+static int cros_ec_hwmon_read_fan_target(struct cros_ec_device *cros_ec, u16 *speed)
+{
+	struct ec_response_pwm_get_fan_rpm resp;
+	int ret;
+
+	ret = cros_ec_cmd(cros_ec, 0, EC_CMD_PWM_GET_FAN_TARGET_RPM,
+			  NULL, 0, &resp, sizeof(resp));
+	if (ret < 0)
+		return ret;
+
+	*speed = resp.rpm;
+	return 0;
+}
+
 static int cros_ec_hwmon_read_temp(struct cros_ec_device *cros_ec, u8 index, u8 *temp)
 {
 	unsigned int offset;
@@ -143,6 +157,11 @@ static int cros_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = cros_ec_hwmon_read_fan_speed(priv->cros_ec, channel, &speed);
 			if (ret == 0)
 				*val = cros_ec_hwmon_is_error_fan(speed);
+
+		} else if (attr == hwmon_fan_target) {
+			ret = cros_ec_hwmon_read_fan_target(priv->cros_ec, &speed);
+			if (ret == 0)
+				*val = speed;
 		}
 	} else if (type == hwmon_pwm) {
 		if (attr == hwmon_pwm_enable) {
@@ -259,8 +278,13 @@ static umode_t cros_ec_hwmon_is_visible(const void *data, enum hwmon_sensor_type
 					u32 attr, int channel)
 {
 	const struct cros_ec_hwmon_priv *priv = data;
+	u16 speed;
 
 	if (type == hwmon_fan) {
+		if (attr == hwmon_fan_target &&
+		    cros_ec_hwmon_read_fan_target(priv->cros_ec, &speed) == -EOPNOTSUPP)
+			return 0;
+
 		if (priv->usable_fans & BIT(channel))
 			return 0444;
 	} else if (type == hwmon_pwm) {
@@ -277,7 +301,7 @@ static umode_t cros_ec_hwmon_is_visible(const void *data, enum hwmon_sensor_type
 static const struct hwmon_channel_info * const cros_ec_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_FAULT,
+			   HWMON_F_INPUT | HWMON_F_FAULT | HWMON_F_TARGET,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT),

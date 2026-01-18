@@ -29,6 +29,9 @@ Supported features
 Fan readings
     Always supported.
 
+Fan target speed
+    If supported by the EC.
+
 Temperature readings
     Always supported.
 
