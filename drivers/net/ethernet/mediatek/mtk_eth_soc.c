@@ -4625,18 +4625,20 @@ static void mtk_get_ethtool_stats(struct net_device *dev,
 	} while (u64_stats_fetch_retry(&hwstats->syncp, start));
 }
 
+static u32 mtk_get_rx_ring_count(struct net_device *dev)
+{
+	if (dev->hw_features & NETIF_F_LRO)
+		return MTK_MAX_RX_RING_NUM;
+
+	return 0;
+}
+
 static int mtk_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			 u32 *rule_locs)
 {
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		if (dev->hw_features & NETIF_F_LRO) {
-			cmd->data = MTK_MAX_RX_RING_NUM;
-			ret = 0;
-		}
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		if (dev->hw_features & NETIF_F_LRO) {
 			struct mtk_mac *mac = netdev_priv(dev);
@@ -4741,6 +4743,7 @@ static const struct ethtool_ops mtk_ethtool_ops = {
 	.set_pauseparam		= mtk_set_pauseparam,
 	.get_rxnfc		= mtk_get_rxnfc,
 	.set_rxnfc		= mtk_set_rxnfc,
+	.get_rx_ring_count	= mtk_get_rx_ring_count,
 	.get_eee		= mtk_get_eee,
 	.set_eee		= mtk_set_eee,
 };

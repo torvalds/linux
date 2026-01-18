@@ -835,27 +835,11 @@ static int ena_set_rxfh_fields(struct net_device *netdev,
 	return ena_com_fill_hash_ctrl(ena_dev, proto, hash_fields);
 }
 
-static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
-			 u32 *rules)
+static u32 ena_get_rx_ring_count(struct net_device *netdev)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	int rc = 0;
 
-	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = adapter->num_io_queues;
-		rc = 0;
-		break;
-	case ETHTOOL_GRXCLSRLCNT:
-	case ETHTOOL_GRXCLSRULE:
-	case ETHTOOL_GRXCLSRLALL:
-	default:
-		netif_err(adapter, drv, netdev,
-			  "Command parameter %d is not supported\n", info->cmd);
-		rc = -EOPNOTSUPP;
-	}
-
-	return rc;
+	return adapter->num_io_queues;
 }
 
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
@@ -1096,7 +1080,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_sset_count         = ena_get_sset_count,
 	.get_strings		= ena_get_ethtool_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,
-	.get_rxnfc		= ena_get_rxnfc,
+	.get_rx_ring_count	= ena_get_rx_ring_count,
 	.get_rxfh_indir_size    = ena_get_rxfh_indir_size,
 	.get_rxfh_key_size	= ena_get_rxfh_key_size,
 	.get_rxfh		= ena_get_rxfh,

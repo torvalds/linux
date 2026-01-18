@@ -417,20 +417,11 @@ static int xgbe_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-static int xgbe_get_rxnfc(struct net_device *netdev,
-			  struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
+static u32 xgbe_get_rx_ring_count(struct net_device *netdev)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
 
-	switch (rxnfc->cmd) {
-	case ETHTOOL_GRXRINGS:
-		rxnfc->data = pdata->rx_ring_count;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
+	return pdata->rx_ring_count;
 }
 
 static u32 xgbe_get_rxfh_key_size(struct net_device *netdev)
@@ -757,7 +748,7 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_strings = xgbe_get_strings,
 	.get_ethtool_stats = xgbe_get_ethtool_stats,
 	.get_sset_count = xgbe_get_sset_count,
-	.get_rxnfc = xgbe_get_rxnfc,
+	.get_rx_ring_count = xgbe_get_rx_ring_count,
 	.get_rxfh_key_size = xgbe_get_rxfh_key_size,
 	.get_rxfh_indir_size = xgbe_get_rxfh_indir_size,
 	.get_rxfh = xgbe_get_rxfh,

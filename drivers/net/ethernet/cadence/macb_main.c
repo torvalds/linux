@@ -3850,6 +3850,13 @@ static int gem_get_all_flow_entries(struct net_device *netdev,
 	return 0;
 }
 
+static u32 gem_get_rx_ring_count(struct net_device *netdev)
+{
+	struct macb *bp = netdev_priv(netdev);
+
+	return bp->num_queues;
+}
+
 static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		u32 *rule_locs)
 {
@@ -3857,9 +3864,6 @@ static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	int ret = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = bp->num_queues;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->rx_fs_list.count;
 		break;
@@ -3941,6 +3945,7 @@ static const struct ethtool_ops gem_ethtool_ops = {
 	.set_ringparam		= macb_set_ringparam,
 	.get_rxnfc			= gem_get_rxnfc,
 	.set_rxnfc			= gem_set_rxnfc,
+	.get_rx_ring_count		= gem_get_rx_ring_count,
 };
 
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
