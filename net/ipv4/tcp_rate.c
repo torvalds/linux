@@ -34,50 +34,6 @@
  * ready to send in the write queue.
  */
 
-/* When an skb is sacked or acked, we fill in the rate sample with the (prior)
- * delivery information when the skb was last transmitted.
- *
- * If an ACK (s)acks multiple skbs (e.g., stretched-acks), this function is
- * called multiple times. We favor the information from the most recently
- * sent skb, i.e., the skb with the most recently sent time and the highest
- * sequence.
- */
-void tcp_rate_skb_delivered(struct sock *sk, struct sk_buff *skb,
-			    struct rate_sample *rs)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
-	u64 tx_tstamp;
-
-	if (!scb->tx.delivered_mstamp)
-		return;
-
-	tx_tstamp = tcp_skb_timestamp_us(skb);
-	if (!rs->prior_delivered ||
-	    tcp_skb_sent_after(tx_tstamp, tp->first_tx_mstamp,
-			       scb->end_seq, rs->last_end_seq)) {
-		rs->prior_delivered_ce  = scb->tx.delivered_ce;
-		rs->prior_delivered  = scb->tx.delivered;
-		rs->prior_mstamp     = scb->tx.delivered_mstamp;
-		rs->is_app_limited   = scb->tx.is_app_limited;
-		rs->is_retrans	     = scb->sacked & TCPCB_RETRANS;
-		rs->last_end_seq     = scb->end_seq;
-
-		/* Record send time of most recently ACKed packet: */
-		tp->first_tx_mstamp  = tx_tstamp;
-		/* Find the duration of the "send phase" of this window: */
-		rs->interval_us = tcp_stamp_us_delta(tp->first_tx_mstamp,
-						     scb->tx.first_tx_mstamp);
-
-	}
-	/* Mark off the skb delivered once it's sacked to avoid being
-	 * used again when it's cumulatively acked. For acked packets
-	 * we don't need to reset since it'll be freed soon.
-	 */
-	if (scb->sacked & TCPCB_SACKED_ACKED)
-		scb->tx.delivered_mstamp = 0;
-}
-
 /* Update the connection delivery information and generate a rate sample. */
 void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 		  bool is_sack_reneg, struct rate_sample *rs)
