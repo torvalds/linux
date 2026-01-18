@@ -12309,10 +12309,9 @@ static int dm_crtc_get_cursor_mode(struct amdgpu_device *adev,
 
 	/* Overlay cursor not supported on HW before DCN
 	 * DCN401 does not have the cursor-on-scaled-plane or cursor-on-yuv-plane restrictions
-	 * as previous DCN generations, so enable native mode on DCN401 in addition to DCE
+	 * as previous DCN generations, so enable native mode on DCN401
 	 */
-	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0 ||
-	    amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
+	if (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1)) {
 		*cursor_mode = DM_CURSOR_NATIVE_MODE;
 		return 0;
 	}
@@ -12632,6 +12631,12 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		 * need to be added for DC to not disable a plane by mistake
 		 */
 		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE) {
+			if (amdgpu_ip_version(adev, DCE_HWIP, 0) == 0) {
+				drm_dbg(dev, "Overlay cursor not supported on DCE\n");
+				ret = -EINVAL;
+				goto fail;
+			}
+
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto fail;
