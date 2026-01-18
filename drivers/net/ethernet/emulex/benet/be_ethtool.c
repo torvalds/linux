@@ -142,7 +142,7 @@ static const struct be_ethtool_stat et_rx_stats[] = {
 	 * to HW.
 	 */
 	{DRVSTAT_RX_INFO(rx_post_fail)},
-	/* Recevied packets dropped due to skb allocation failure */
+	/* Received packets dropped due to skb allocation failure */
 	{DRVSTAT_RX_INFO(rx_drops_no_skbs)},
 	/* Received packets dropped due to lack of available fetched buffers
 	 * posted by the driver.
@@ -189,7 +189,7 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	{DRVSTAT_TX_INFO(tx_bytes)},
 	{DRVSTAT_TX_INFO(tx_pkts)},
 	{DRVSTAT_TX_INFO(tx_vxlan_offload_pkts)},
-	/* Number of skbs queued for trasmission by the driver */
+	/* Number of skbs queued for transmission by the driver */
 	{DRVSTAT_TX_INFO(tx_reqs)},
 	/* Number of times the TX queue was stopped due to lack
 	 * of spaces in the TXQ.
@@ -1222,7 +1222,7 @@ static void be_get_channels(struct net_device *netdev,
 	ch->tx_count = adapter->num_tx_qs - ch->combined_count;
 
 	ch->max_combined = be_max_qp_irqs(adapter);
-	/* The user must create atleast one combined channel */
+	/* The user must create at least one combined channel */
 	ch->max_rx = be_max_rx_irqs(adapter) - 1;
 	ch->max_tx = be_max_tx_irqs(adapter) - 1;
 }
