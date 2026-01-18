@@ -1477,20 +1477,8 @@ static int set_huge_pmd(struct vm_area_struct *vma, unsigned long addr,
 	return SCAN_SUCCEED;
 }
 
-/**
- * collapse_pte_mapped_thp - Try to collapse a pte-mapped THP for mm at
- * address haddr.
- *
- * @mm: process address space where collapse happens
- * @addr: THP collapse address
- * @install_pmd: If a huge PMD should be installed
- *
- * This function checks whether all the PTEs in the PMD are pointing to the
- * right THP. If so, retract the page table so the THP can refault in with
- * as pmd-mapped. Possibly install a huge PMD mapping the THP.
- */
-int collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
-			    bool install_pmd)
+static int try_collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
+		bool install_pmd)
 {
 	int nr_mapped_ptes = 0, result = SCAN_FAIL;
 	unsigned int nr_batch_ptes;
@@ -1709,6 +1697,24 @@ drop_folio:
 	folio_unlock(folio);
 	folio_put(folio);
 	return result;
+}
+
+/**
+ * collapse_pte_mapped_thp - Try to collapse a pte-mapped THP for mm at
+ * address haddr.
+ *
+ * @mm: process address space where collapse happens
+ * @addr: THP collapse address
+ * @install_pmd: If a huge PMD should be installed
+ *
+ * This function checks whether all the PTEs in the PMD are pointing to the
+ * right THP. If so, retract the page table so the THP can refault in with
+ * as pmd-mapped. Possibly install a huge PMD mapping the THP.
+ */
+void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
+		bool install_pmd)
+{
+	try_collapse_pte_mapped_thp(mm, addr, install_pmd);
 }
 
 /* Can we retract page tables for this file-backed VMA? */
@@ -2227,7 +2233,7 @@ immap_locked:
 
 	/*
 	 * Remove pte page tables, so we can re-fault the page as huge.
-	 * If MADV_COLLAPSE, adjust result to call collapse_pte_mapped_thp().
+	 * If MADV_COLLAPSE, adjust result to call try_collapse_pte_mapped_thp().
 	 */
 	retract_page_tables(mapping, start);
 	if (cc && !cc->is_khugepaged)
@@ -2479,7 +2485,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 					mmap_read_lock(mm);
 					if (hpage_collapse_test_exit_or_disable(mm))
 						goto breakouterloop;
-					*result = collapse_pte_mapped_thp(mm,
+					*result = try_collapse_pte_mapped_thp(mm,
 						khugepaged_scan.address, false);
 					if (*result == SCAN_PMD_MAPPED)
 						*result = SCAN_SUCCEED;
@@ -2844,7 +2850,7 @@ handle_result:
 		case SCAN_PTE_MAPPED_HUGEPAGE:
 			BUG_ON(mmap_locked);
 			mmap_read_lock(mm);
-			result = collapse_pte_mapped_thp(mm, addr, true);
+			result = try_collapse_pte_mapped_thp(mm, addr, true);
 			mmap_read_unlock(mm);
 			goto handle_result;
 		/* Whitelisted set of results where continuing OK */
