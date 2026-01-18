@@ -817,6 +817,8 @@ available.  Please refer to the ABI :ref:`doc <sysfs_interface>` for details of
 the interfaces.
 
 
+.. _damon_modules_special_purpose:
+
 Special-Purpose Access-aware Kernel Modules
 -------------------------------------------
 
