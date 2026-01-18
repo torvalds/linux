@@ -152,8 +152,8 @@ static inline void unindent(int *unused) { indent--; }
 	if (unlikely(insn->sym && insn->sym->pfunc &&			\
 		     insn->sym->pfunc->debug_checksum)) {		\
 		char *insn_off = offstr(insn->sec, insn->offset);	\
-		__dbg("checksum: %s %s %016lx",				\
-		      func->name, insn_off, checksum);			\
+		__dbg("checksum: %s %s %016llx",			\
+		      func->name, insn_off, (unsigned long long)checksum);\
 		free(insn_off);						\
 	}								\
 })
