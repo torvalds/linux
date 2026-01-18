@@ -359,7 +359,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 {
 	struct anon_vma_chain *avc;
 	struct anon_vma *anon_vma;
-	int error;
+	int rc;
 
 	/* Don't bother if the parent process has no anon_vma here. */
 	if (!pvma->anon_vma)
@@ -368,27 +368,35 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	/* Drop inherited anon_vma, we'll reuse existing or allocate new. */
 	vma->anon_vma = NULL;
 
+	anon_vma = anon_vma_alloc();
+	if (!anon_vma)
+		return -ENOMEM;
+	avc = anon_vma_chain_alloc(GFP_KERNEL);
+	if (!avc) {
+		put_anon_vma(anon_vma);
+		return -ENOMEM;
+	}
+
 	/*
 	 * First, attach the new VMA to the parent VMA's anon_vmas,
 	 * so rmap can find non-COWed pages in child processes.
 	 */
-	error = anon_vma_clone(vma, pvma);
-	if (error)
-		return error;
+	rc = anon_vma_clone(vma, pvma);
+	/* An error arose or an existing anon_vma was reused, all done then. */
+	if (rc || vma->anon_vma) {
+		put_anon_vma(anon_vma);
+		anon_vma_chain_free(avc);
+		return rc;
+	}
 
-	/* An existing anon_vma has been reused, all done then. */
-	if (vma->anon_vma)
-		return 0;
+	/*
+	 * OK no reuse, so add our own anon_vma.
+	 *
+	 * Since it is not linked anywhere we can safely manipulate anon_vma
+	 * fields without a lock.
+	 */
 
-	/* Then add our own anon_vma. */
-	anon_vma = anon_vma_alloc();
-	if (!anon_vma)
-		goto out_error;
-	anon_vma->num_active_vmas++;
-	avc = anon_vma_chain_alloc(GFP_KERNEL);
-	if (!avc)
-		goto out_error_free_anon_vma;
-
+	anon_vma->num_active_vmas = 1;
 	/*
 	 * The root anon_vma's rwsem is the lock actually used when we
 	 * lock any of the anon_vmas in this anon_vma tree.
@@ -409,12 +417,6 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	anon_vma_unlock_write(anon_vma);
 
 	return 0;
-
- out_error_free_anon_vma:
-	put_anon_vma(anon_vma);
- out_error:
-	unlink_anon_vmas(vma);
-	return -ENOMEM;
 }
 
 /*
