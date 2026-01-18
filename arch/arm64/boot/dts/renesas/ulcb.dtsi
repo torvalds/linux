@@ -47,6 +47,12 @@
 		clock-frequency = <12288000>;
 	};
 
+	pcie_usb_refclk: clk-x24 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
 	hdmi0-out {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -231,6 +237,13 @@
 	status = "okay";
 
 	clock-frequency = <400000>;
+
+	pcie_usb_clk: clk@68 {
+		compatible = "renesas,9fgv0841";
+		reg = <0x68>;
+		clocks = <&pcie_usb_refclk>;
+		#clock-cells = <1>;
+	};
 
 	versaclock5: clock-generator@6a {
 		compatible = "idt,5p49v5925";
