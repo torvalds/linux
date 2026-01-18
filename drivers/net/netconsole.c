@@ -39,6 +39,7 @@
 #include <linux/u64_stats_sync.h>
 #include <linux/utsname.h>
 #include <linux/rtnetlink.h>
+#include <linux/workqueue.h>
 
 MODULE_AUTHOR("Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
@@ -84,6 +85,8 @@ static LIST_HEAD(target_cleanup_list);
 static DEFINE_SPINLOCK(target_list_lock);
 /* This needs to be a mutex because netpoll_cleanup might sleep */
 static DEFINE_MUTEX(target_cleanup_list_lock);
+
+static struct workqueue_struct *netconsole_wq;
 
 /*
  * Console driver for netconsoles.  Register only consoles that have
@@ -138,10 +141,14 @@ enum target_state {
  * @stats:	Packet send stats for the target. Used for debugging.
  * @state:	State of the target.
  *		Visible from userspace (read-write).
- *		We maintain a strict 1:1 correspondence between this and
- *		whether the corresponding netpoll is active or inactive.
+ *		From a userspace perspective, the target is either enabled or
+ *		disabled. Internally, although both STATE_DISABLED and
+ *		STATE_DEACTIVATED correspond to inactive targets, the latter is
+ *		due to automatic interface state changes and will try
+ *		recover automatically, if the interface comes back
+ *		online.
  *		Also, other parameters of a target may be modified at
- *		runtime only when it is disabled (state == STATE_DISABLED).
+ *		runtime only when it is disabled (state != STATE_ENABLED).
  * @extended:	Denotes whether console is extended or not.
  * @release:	Denotes whether kernel release version should be prepended
  *		to the message. Depends on extended console.
@@ -155,6 +162,7 @@ enum target_state {
  *		local_mac	(read-only)
  *		remote_mac	(read-write)
  * @buf:	The buffer used to send the full msg to the network stack
+ * @resume_wq:	Workqueue to resume deactivated target
  */
 struct netconsole_target {
 	struct list_head	list;
@@ -177,6 +185,7 @@ struct netconsole_target {
 	struct netpoll		np;
 	/* protected by target_list_lock */
 	char			buf[MAX_PRINT_CHUNK];
+	struct work_struct	resume_wq;
 };
 
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
@@ -267,6 +276,70 @@ static bool bound_by_mac(struct netconsole_target *nt)
 	return is_valid_ether_addr(nt->np.dev_mac);
 }
 
+/* Attempts to resume logging to a deactivated target. */
+static void resume_target(struct netconsole_target *nt)
+{
+	if (netpoll_setup(&nt->np)) {
+		/* netpoll fails setup once, do not try again. */
+		nt->state = STATE_DISABLED;
+		return;
+	}
+
+	nt->state = STATE_ENABLED;
+	pr_info("network logging resumed on interface %s\n", nt->np.dev_name);
+}
+
+/* Checks if a deactivated target matches a device. */
+static bool deactivated_target_match(struct netconsole_target *nt,
+				     struct net_device *ndev)
+{
+	if (nt->state != STATE_DEACTIVATED)
+		return false;
+
+	if (bound_by_mac(nt))
+		return !memcmp(nt->np.dev_mac, ndev->dev_addr, ETH_ALEN);
+	return !strncmp(nt->np.dev_name, ndev->name, IFNAMSIZ);
+}
+
+/* Process work scheduled for target resume. */
+static void process_resume_target(struct work_struct *work)
+{
+	struct netconsole_target *nt;
+	unsigned long flags;
+
+	nt = container_of(work, struct netconsole_target, resume_wq);
+
+	dynamic_netconsole_mutex_lock();
+
+	spin_lock_irqsave(&target_list_lock, flags);
+	/* Check if target is still deactivated as it may have been disabled
+	 * while resume was being scheduled.
+	 */
+	if (nt->state != STATE_DEACTIVATED) {
+		spin_unlock_irqrestore(&target_list_lock, flags);
+		goto out_unlock;
+	}
+
+	/* resume_target is IRQ unsafe, remove target from
+	 * target_list in order to resume it with IRQ enabled.
+	 */
+	list_del_init(&nt->list);
+	spin_unlock_irqrestore(&target_list_lock, flags);
+
+	resume_target(nt);
+
+	/* At this point the target is either enabled or disabled and
+	 * was cleaned up before getting deactivated. Either way, add it
+	 * back to target list.
+	 */
+	spin_lock_irqsave(&target_list_lock, flags);
+	list_add(&nt->list, &target_list);
+	spin_unlock_irqrestore(&target_list_lock, flags);
+
+out_unlock:
+	dynamic_netconsole_mutex_unlock();
+}
+
 /* Allocate and initialize with defaults.
  * Note that these targets get their config_item fields zeroed-out.
  */
@@ -289,6 +362,7 @@ static struct netconsole_target *alloc_and_init(void)
 	nt->np.remote_port = 6666;
 	eth_broadcast_addr(nt->np.remote_mac);
 	nt->state = STATE_DISABLED;
+	INIT_WORK(&nt->resume_wq, process_resume_target);
 
 	return nt;
 }
@@ -1353,12 +1427,28 @@ static struct config_group *make_netconsole_target(struct config_group *group,
 static void drop_netconsole_target(struct config_group *group,
 				   struct config_item *item)
 {
-	unsigned long flags;
 	struct netconsole_target *nt = to_target(item);
+	unsigned long flags;
+
+	dynamic_netconsole_mutex_lock();
 
 	spin_lock_irqsave(&target_list_lock, flags);
+	/* Disable deactivated target to prevent races between resume attempt
+	 * and target removal.
+	 */
+	if (nt->state == STATE_DEACTIVATED)
+		nt->state = STATE_DISABLED;
 	list_del(&nt->list);
 	spin_unlock_irqrestore(&target_list_lock, flags);
+
+	dynamic_netconsole_mutex_unlock();
+
+	/* Now that the target has been marked disabled no further work
+	 * can be scheduled. Existing work will skip as targets are not
+	 * deactivated anymore. Cancel any scheduled resume and wait for
+	 * completion.
+	 */
+	cancel_work_sync(&nt->resume_wq);
 
 	/*
 	 * The target may have never been enabled, or was manually disabled
@@ -1461,13 +1551,14 @@ out:
 static int netconsole_netdev_event(struct notifier_block *this,
 				   unsigned long event, void *ptr)
 {
-	unsigned long flags;
-	struct netconsole_target *nt, *tmp;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netconsole_target *nt, *tmp;
 	bool stopped = false;
+	unsigned long flags;
 
 	if (!(event == NETDEV_CHANGENAME || event == NETDEV_UNREGISTER ||
-	      event == NETDEV_RELEASE || event == NETDEV_JOIN))
+	      event == NETDEV_RELEASE || event == NETDEV_JOIN ||
+	      event == NETDEV_REGISTER))
 		goto done;
 
 	mutex_lock(&target_cleanup_list_lock);
@@ -1496,6 +1587,13 @@ static int netconsole_netdev_event(struct notifier_block *this,
 				stopped = true;
 			}
 		}
+		if ((event == NETDEV_REGISTER || event == NETDEV_CHANGENAME) &&
+		    deactivated_target_match(nt, dev))
+			/* Schedule resume on a workqueue as it will attempt
+			 * to UP the device, which can't be done as part of this
+			 * notifier.
+			 */
+			queue_work(netconsole_wq, &nt->resume_wq);
 		netconsole_target_put(nt);
 	}
 	spin_unlock_irqrestore(&target_list_lock, flags);
@@ -1964,6 +2062,7 @@ fail:
 /* Cleanup netpoll for given target (from boot/module param) and free it */
 static void free_param_target(struct netconsole_target *nt)
 {
+	cancel_work_sync(&nt->resume_wq);
 	netpoll_cleanup(&nt->np);
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 	kfree(nt->userdata);
@@ -2018,6 +2117,12 @@ static int __init init_netconsole(void)
 		}
 	}
 
+	netconsole_wq = alloc_workqueue("netconsole", WQ_UNBOUND, 0);
+	if (!netconsole_wq) {
+		err = -ENOMEM;
+		goto fail;
+	}
+
 	err = register_netdevice_notifier(&netconsole_netdev_notifier);
 	if (err)
 		goto fail;
@@ -2040,6 +2145,8 @@ undonotifier:
 fail:
 	pr_err("cleaning up\n");
 
+	if (netconsole_wq)
+		flush_workqueue(netconsole_wq);
 	/*
 	 * Remove all targets and destroy them (only targets created
 	 * from the boot/module option exist here). Skipping the list
@@ -2049,6 +2156,9 @@ fail:
 		list_del(&nt->list);
 		free_param_target(nt);
 	}
+
+	if (netconsole_wq)
+		destroy_workqueue(netconsole_wq);
 
 	return err;
 }
@@ -2063,6 +2173,7 @@ static void __exit cleanup_netconsole(void)
 		unregister_console(&netconsole);
 	dynamic_netconsole_exit();
 	unregister_netdevice_notifier(&netconsole_netdev_notifier);
+	flush_workqueue(netconsole_wq);
 
 	/*
 	 * Targets created via configfs pin references on our module
@@ -2076,6 +2187,8 @@ static void __exit cleanup_netconsole(void)
 		list_del(&nt->list);
 		free_param_target(nt);
 	}
+
+	destroy_workqueue(netconsole_wq);
 }
 
 /*
