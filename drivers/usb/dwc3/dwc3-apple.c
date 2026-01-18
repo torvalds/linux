@@ -218,24 +218,30 @@ static int dwc3_apple_core_init(struct dwc3_apple *appledwc)
 	return ret;
 }
 
-static void dwc3_apple_phy_set_mode(struct dwc3_apple *appledwc, enum phy_mode mode)
-{
-	lockdep_assert_held(&appledwc->lock);
-
-	/*
-	 * This platform requires SUSPHY to be enabled here already in order to properly configure
-	 * the PHY and switch dwc3's PIPE interface to USB3 PHY.
-	 */
-	dwc3_enable_susphy(&appledwc->dwc, true);
-	phy_set_mode(appledwc->dwc.usb2_generic_phy[0], mode);
-	phy_set_mode(appledwc->dwc.usb3_generic_phy[0], mode);
-}
-
 static int dwc3_apple_init(struct dwc3_apple *appledwc, enum dwc3_apple_state state)
 {
 	int ret, ret_reset;
 
 	lockdep_assert_held(&appledwc->lock);
+
+	/*
+	 * The USB2 PHY on this platform must be configured for host or device mode while it is
+	 * still powered off and before dwc3 tries to access it. Otherwise, the new configuration
+	 * will sometimes only take affect after the *next* time dwc3 is brought up which causes
+	 * the connected device to just not work.
+	 * The USB3 PHY must be configured later after dwc3 has already been initialized.
+	 */
+	switch (state) {
+	case DWC3_APPLE_HOST:
+		phy_set_mode(appledwc->dwc.usb2_generic_phy[0], PHY_MODE_USB_HOST);
+		break;
+	case DWC3_APPLE_DEVICE:
+		phy_set_mode(appledwc->dwc.usb2_generic_phy[0], PHY_MODE_USB_DEVICE);
+		break;
+	default:
+		/* Unreachable unless there's a bug in this driver */
+		return -EINVAL;
+	}
 
 	ret = reset_control_deassert(appledwc->reset);
 	if (ret) {
@@ -257,7 +263,13 @@ static int dwc3_apple_init(struct dwc3_apple *appledwc, enum dwc3_apple_state st
 	case DWC3_APPLE_HOST:
 		appledwc->dwc.dr_mode = USB_DR_MODE_HOST;
 		dwc3_apple_set_ptrcap(appledwc, DWC3_GCTL_PRTCAP_HOST);
-		dwc3_apple_phy_set_mode(appledwc, PHY_MODE_USB_HOST);
+		/*
+		 * This platform requires SUSPHY to be enabled here already in order to properly
+		 * configure the PHY and switch dwc3's PIPE interface to USB3 PHY. The USB2 PHY
+		 * has already been configured to the correct mode earlier.
+		 */
+		dwc3_enable_susphy(&appledwc->dwc, true);
+		phy_set_mode(appledwc->dwc.usb3_generic_phy[0], PHY_MODE_USB_HOST);
 		ret = dwc3_host_init(&appledwc->dwc);
 		if (ret) {
 			dev_err(appledwc->dev, "Failed to initialize host, ret=%d\n", ret);
@@ -268,7 +280,13 @@ static int dwc3_apple_init(struct dwc3_apple *appledwc, enum dwc3_apple_state st
 	case DWC3_APPLE_DEVICE:
 		appledwc->dwc.dr_mode = USB_DR_MODE_PERIPHERAL;
 		dwc3_apple_set_ptrcap(appledwc, DWC3_GCTL_PRTCAP_DEVICE);
-		dwc3_apple_phy_set_mode(appledwc, PHY_MODE_USB_DEVICE);
+		/*
+		 * This platform requires SUSPHY to be enabled here already in order to properly
+		 * configure the PHY and switch dwc3's PIPE interface to USB3 PHY. The USB2 PHY
+		 * has already been configured to the correct mode earlier.
+		 */
+		dwc3_enable_susphy(&appledwc->dwc, true);
+		phy_set_mode(appledwc->dwc.usb3_generic_phy[0], PHY_MODE_USB_DEVICE);
 		ret = dwc3_gadget_init(&appledwc->dwc);
 		if (ret) {
 			dev_err(appledwc->dev, "Failed to initialize gadget, ret=%d\n", ret);
@@ -338,6 +356,22 @@ static int dwc3_usb_role_switch_set(struct usb_role_switch *sw, enum usb_role ro
 	int ret;
 
 	guard(mutex)(&appledwc->lock);
+
+	/*
+	 * Skip role switches if appledwc is already in the desired state. The
+	 * USB-C port controller on M2 and M1/M2 Pro/Max/Ultra devices issues
+	 * additional interrupts which results in usb_role_switch_set_role()
+	 * calls with the current role.
+	 * Ignore those calls here to ensure the USB-C port controller and
+	 * appledwc are in a consistent state.
+	 * This matches the behaviour in __dwc3_set_mode().
+	 * Do no handle USB_ROLE_NONE for DWC3_APPLE_NO_CABLE and
+	 * DWC3_APPLE_PROBE_PENDING since that is no-op anyway.
+	 */
+	if (appledwc->state == DWC3_APPLE_HOST && role == USB_ROLE_HOST)
+		return 0;
+	if (appledwc->state == DWC3_APPLE_DEVICE && role == USB_ROLE_DEVICE)
+		return 0;
 
 	/*
 	 * We need to tear all of dwc3 down and re-initialize it every time a cable is
