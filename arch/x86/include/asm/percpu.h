@@ -137,12 +137,12 @@
 
 #define __raw_cpu_read(size, qual, pcp)					\
 ({									\
-	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp));		\
+	*(qual __my_cpu_type(pcp) * __force)__my_cpu_ptr(&(pcp));	\
 })
 
-#define __raw_cpu_write(size, qual, pcp, val)				\
-do {									\
-	*(qual __my_cpu_type(pcp) *)__my_cpu_ptr(&(pcp)) = (val);	\
+#define __raw_cpu_write(size, qual, pcp, val)					\
+do {										\
+	*(qual __my_cpu_type(pcp) * __force)__my_cpu_ptr(&(pcp)) = (val);	\
 } while (0)
 
 #define __raw_cpu_read_const(pcp)	__raw_cpu_read(, , pcp)
