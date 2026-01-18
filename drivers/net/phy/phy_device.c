@@ -49,9 +49,6 @@ MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
 
-#define	PHY_ANY_ID	"MATCH ANY PHY"
-#define	PHY_ANY_UID	0xffffffff
-
 struct phy_fixup {
 	struct list_head list;
 	char bus_id[MII_BUS_ID_SIZE + 3];
@@ -432,11 +429,10 @@ static SIMPLE_DEV_PM_OPS(mdio_bus_phy_pm_ops, mdio_bus_phy_suspend,
 
 /**
  * phy_register_fixup - creates a new phy_fixup and adds it to the list
- * @bus_id: A string which matches phydev->mdio.dev.bus_id (or PHY_ANY_ID)
+ * @bus_id: A string which matches phydev->mdio.dev.bus_id (or NULL)
  * @phy_uid: Used to match against phydev->phy_id (the UID of the PHY)
- *	It can also be PHY_ANY_UID
  * @phy_uid_mask: Applied to phydev->phy_id and fixup->phy_uid before
- *	comparison
+ *	comparison (or 0 to disable id-based matching)
  * @run: The actual code to be run when a matching PHY is found
  */
 static int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
@@ -447,7 +443,8 @@ static int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 	if (!fixup)
 		return -ENOMEM;
 
-	strscpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
+	if (bus_id)
+		strscpy(fixup->bus_id, bus_id, sizeof(fixup->bus_id));
 	fixup->phy_uid = phy_uid;
 	fixup->phy_uid_mask = phy_uid_mask;
 	fixup->run = run;
@@ -463,7 +460,7 @@ static int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 int phy_register_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask,
 			       int (*run)(struct phy_device *))
 {
-	return phy_register_fixup(PHY_ANY_ID, phy_uid, phy_uid_mask, run);
+	return phy_register_fixup(NULL, phy_uid, phy_uid_mask, run);
 }
 EXPORT_SYMBOL(phy_register_fixup_for_uid);
 
@@ -471,25 +468,20 @@ EXPORT_SYMBOL(phy_register_fixup_for_uid);
 int phy_register_fixup_for_id(const char *bus_id,
 			      int (*run)(struct phy_device *))
 {
-	return phy_register_fixup(bus_id, PHY_ANY_UID, 0xffffffff, run);
+	return phy_register_fixup(bus_id, 0, 0, run);
 }
 EXPORT_SYMBOL(phy_register_fixup_for_id);
 
-/* Returns 1 if fixup matches phydev in bus_id and phy_uid.
- * Fixups can be set to match any in one or more fields.
- */
-static int phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
+static bool phy_needs_fixup(struct phy_device *phydev, struct phy_fixup *fixup)
 {
-	if (strcmp(fixup->bus_id, phydev_name(phydev)) != 0)
-		if (strcmp(fixup->bus_id, PHY_ANY_ID) != 0)
-			return 0;
+	if (!strcmp(fixup->bus_id, phydev_name(phydev)))
+		return true;
 
-	if (!phy_id_compare(phydev->phy_id, fixup->phy_uid,
-			    fixup->phy_uid_mask))
-		if (fixup->phy_uid != PHY_ANY_UID)
-			return 0;
+	if (fixup->phy_uid_mask &&
+	    phy_id_compare(phydev->phy_id, fixup->phy_uid, fixup->phy_uid_mask))
+		return true;
 
-	return 1;
+	return false;
 }
 
 /* Runs any matching fixups for this phydev */
