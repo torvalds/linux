@@ -213,6 +213,16 @@ static void netconsole_target_put(struct netconsole_target *nt)
 		config_group_put(&nt->group);
 }
 
+static void dynamic_netconsole_mutex_lock(void)
+{
+	mutex_lock(&dynamic_netconsole_mutex);
+}
+
+static void dynamic_netconsole_mutex_unlock(void)
+{
+	mutex_unlock(&dynamic_netconsole_mutex);
+}
+
 #else	/* !CONFIG_NETCONSOLE_DYNAMIC */
 
 static int __init dynamic_netconsole_init(void)
@@ -240,6 +250,15 @@ static void populate_configfs_item(struct netconsole_target *nt,
 				   int cmdline_count)
 {
 }
+
+static void dynamic_netconsole_mutex_lock(void)
+{
+}
+
+static void dynamic_netconsole_mutex_unlock(void)
+{
+}
+
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
 
 /* Check if the target was bound by mac address. */
@@ -495,9 +514,9 @@ static ssize_t sysdata_cpu_nr_enabled_show(struct config_item *item, char *buf)
 	struct netconsole_target *nt = to_target(item->ci_parent);
 	bool cpu_nr_enabled;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	cpu_nr_enabled = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 
 	return sysfs_emit(buf, "%d\n", cpu_nr_enabled);
 }
@@ -509,9 +528,9 @@ static ssize_t sysdata_taskname_enabled_show(struct config_item *item,
 	struct netconsole_target *nt = to_target(item->ci_parent);
 	bool taskname_enabled;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	taskname_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 
 	return sysfs_emit(buf, "%d\n", taskname_enabled);
 }
@@ -522,9 +541,9 @@ static ssize_t sysdata_release_enabled_show(struct config_item *item,
 	struct netconsole_target *nt = to_target(item->ci_parent);
 	bool release_enabled;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	release_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 
 	return sysfs_emit(buf, "%d\n", release_enabled);
 }
@@ -562,9 +581,9 @@ static ssize_t sysdata_msgid_enabled_show(struct config_item *item,
 	struct netconsole_target *nt = to_target(item->ci_parent);
 	bool msgid_enabled;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	msgid_enabled = !!(nt->sysdata_fields & SYSDATA_MSGID);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 
 	return sysfs_emit(buf, "%d\n", msgid_enabled);
 }
@@ -584,7 +603,7 @@ static ssize_t enabled_store(struct config_item *item,
 	unsigned long flags;
 	ssize_t ret;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	ret = kstrtobool(buf, &enabled);
 	if (ret)
 		goto out_unlock;
@@ -660,7 +679,7 @@ static ssize_t enabled_store(struct config_item *item,
 	/* Deferred cleanup */
 	netconsole_process_cleanups();
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -671,7 +690,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 	bool release;
 	ssize_t ret;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -687,7 +706,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -698,7 +717,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 	bool extended;
 	ssize_t ret;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED)  {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -713,7 +732,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 	nt->extended = extended;
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -722,18 +741,18 @@ static ssize_t dev_name_store(struct config_item *item, const char *buf,
 {
 	struct netconsole_target *nt = to_target(item);
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
-		mutex_unlock(&dynamic_netconsole_mutex);
+		dynamic_netconsole_mutex_unlock();
 		return -EINVAL;
 	}
 
 	strscpy(nt->np.dev_name, buf, IFNAMSIZ);
 	trim_newline(nt->np.dev_name, IFNAMSIZ);
 
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return strnlen(buf, count);
 }
 
@@ -743,7 +762,7 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 	struct netconsole_target *nt = to_target(item);
 	ssize_t ret = -EINVAL;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -755,7 +774,7 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -765,7 +784,7 @@ static ssize_t remote_port_store(struct config_item *item,
 	struct netconsole_target *nt = to_target(item);
 	ssize_t ret = -EINVAL;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -777,7 +796,7 @@ static ssize_t remote_port_store(struct config_item *item,
 		goto out_unlock;
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -788,7 +807,7 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 	ssize_t ret = -EINVAL;
 	int ipv6;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -802,7 +821,7 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -813,7 +832,7 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 	ssize_t ret = -EINVAL;
 	int ipv6;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -827,7 +846,7 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -848,7 +867,7 @@ static ssize_t remote_mac_store(struct config_item *item, const char *buf,
 	u8 remote_mac[ETH_ALEN];
 	ssize_t ret = -EINVAL;
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	if (nt->state == STATE_ENABLED) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
 		       config_item_name(&nt->group.cg_item));
@@ -863,7 +882,7 @@ static ssize_t remote_mac_store(struct config_item *item, const char *buf,
 
 	ret = strnlen(buf, count);
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	return ret;
 }
 
@@ -984,7 +1003,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 		return -EMSGSIZE;
 
 	mutex_lock(&netconsole_subsys.su_mutex);
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 
 	ret = strscpy(udm->value, buf, sizeof(udm->value));
 	if (ret < 0)
@@ -998,7 +1017,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	ret = count;
 out_unlock:
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
@@ -1026,7 +1045,7 @@ static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&netconsole_subsys.su_mutex);
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	curr = !!(nt->sysdata_fields & SYSDATA_MSGID);
 	if (msgid_enabled == curr)
 		goto unlock_ok;
@@ -1038,7 +1057,7 @@ static ssize_t sysdata_msgid_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
@@ -1055,7 +1074,7 @@ static ssize_t sysdata_release_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&netconsole_subsys.su_mutex);
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	curr = !!(nt->sysdata_fields & SYSDATA_RELEASE);
 	if (release_enabled == curr)
 		goto unlock_ok;
@@ -1067,7 +1086,7 @@ static ssize_t sysdata_release_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
@@ -1084,7 +1103,7 @@ static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&netconsole_subsys.su_mutex);
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	curr = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
 	if (taskname_enabled == curr)
 		goto unlock_ok;
@@ -1096,7 +1115,7 @@ static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
@@ -1114,7 +1133,7 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&netconsole_subsys.su_mutex);
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	curr = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
 	if (cpu_nr_enabled == curr)
 		/* no change requested */
@@ -1130,7 +1149,7 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 
 unlock_ok:
 	ret = strnlen(buf, count);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 	mutex_unlock(&netconsole_subsys.su_mutex);
 	return ret;
 }
@@ -1192,10 +1211,10 @@ static void userdatum_drop(struct config_group *group, struct config_item *item)
 	ud = to_userdata(&group->cg_item);
 	nt = userdata_to_target(ud);
 
-	mutex_lock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_lock();
 	update_userdata(nt);
 	config_item_put(item);
-	mutex_unlock(&dynamic_netconsole_mutex);
+	dynamic_netconsole_mutex_unlock();
 }
 
 static struct configfs_attribute *userdata_attrs[] = {
