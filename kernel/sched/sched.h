@@ -1364,6 +1364,28 @@ static inline u32 sched_rng(void)
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
 #define raw_rq()		raw_cpu_ptr(&runqueues)
 
+static inline bool idle_rq(struct rq *rq)
+{
+	return rq->curr == rq->idle && !rq->nr_running && !rq->ttwu_pending;
+}
+
+/**
+ * available_idle_cpu - is a given CPU idle for enqueuing work.
+ * @cpu: the CPU in question.
+ *
+ * Return: 1 if the CPU is currently idle. 0 otherwise.
+ */
+static inline bool available_idle_cpu(int cpu)
+{
+	if (!idle_rq(cpu_rq(cpu)))
+		return 0;
+
+	if (vcpu_is_preempted(cpu))
+		return 0;
+
+	return 1;
+}
+
 #ifdef CONFIG_SCHED_PROXY_EXEC
 static inline void rq_set_donor(struct rq *rq, struct task_struct *t)
 {
@@ -2366,7 +2388,8 @@ extern const u32		sched_prio_to_wmult[40];
  *                should preserve as much state as possible.
  *
  * MOVE - paired with SAVE/RESTORE, explicitly does not preserve the location
- *        in the runqueue.
+ *        in the runqueue. IOW the priority is allowed to change. Callers
+ *        must expect to deal with balance callbacks.
  *
  * NOCLOCK - skip the update_rq_clock() (avoids double updates)
  *
@@ -3947,6 +3970,8 @@ extern void enqueue_task(struct rq *rq, struct task_struct *p, int flags);
 extern bool dequeue_task(struct rq *rq, struct task_struct *p, int flags);
 
 extern struct balance_callback *splice_balance_callbacks(struct rq *rq);
+
+extern void __balance_callbacks(struct rq *rq, struct rq_flags *rf);
 extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
 
 /*
