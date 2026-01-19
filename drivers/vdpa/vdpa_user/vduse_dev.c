@@ -52,6 +52,15 @@
 
 #define IRQ_UNBOUND -1
 
+/*
+ * VDUSE instance have not asked the vduse API version, so assume 0.
+ *
+ * Old devices may not ask for the device version and assume it is 0.  Keep
+ * this value for these.  From the moment the VDUSE instance ask for the
+ * version, convert to the latests supported one and continue regular flow
+ */
+#define VDUSE_API_VERSION_NOT_ASKED U64_MAX
+
 struct vduse_virtqueue {
 	u16 index;
 	u16 num_max;
@@ -2153,6 +2162,8 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 	mutex_lock(&vduse_lock);
 	switch (cmd) {
 	case VDUSE_GET_API_VERSION:
+		if (control->api_version == VDUSE_API_VERSION_NOT_ASKED)
+			control->api_version = VDUSE_API_VERSION_1;
 		ret = put_user(control->api_version, (u64 __user *)argp);
 		break;
 	case VDUSE_SET_API_VERSION: {
@@ -2163,7 +2174,7 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 			break;
 
 		ret = -EINVAL;
-		if (api_version > VDUSE_API_VERSION)
+		if (api_version > VDUSE_API_VERSION_1)
 			break;
 
 		ret = 0;
@@ -2180,6 +2191,8 @@ static long vduse_ioctl(struct file *file, unsigned int cmd,
 			break;
 
 		ret = -EINVAL;
+		if (control->api_version == VDUSE_API_VERSION_NOT_ASKED)
+			control->api_version = VDUSE_API_VERSION;
 		if (!vduse_validate_config(&config, control->api_version))
 			break;
 
@@ -2230,7 +2243,7 @@ static int vduse_open(struct inode *inode, struct file *file)
 	if (!control)
 		return -ENOMEM;
 
-	control->api_version = VDUSE_API_VERSION;
+	control->api_version = VDUSE_API_VERSION_NOT_ASKED;
 	file->private_data = control;
 
 	return 0;
