@@ -358,12 +358,14 @@ struct ocelot_pinctrl {
 	const struct ocelot_pincfg_data *pincfg_data;
 	struct ocelot_pmx_func func[FUNC_MAX];
 	u8 stride;
+	u8 altm_stride;
 	struct workqueue_struct *wq;
 };
 
 struct ocelot_match_data {
 	struct pinctrl_desc desc;
 	struct ocelot_pincfg_data pincfg_data;
+	unsigned int n_alt_modes;
 };
 
 struct ocelot_irq_work {
@@ -1362,7 +1364,7 @@ static int ocelot_pin_function_idx(struct ocelot_pinctrl *info,
 	return -1;
 }
 
-#define REG_ALT(msb, info, p) (OCELOT_GPIO_ALT0 * (info)->stride + 4 * ((msb) + ((info)->stride * ((p) / 32))))
+#define REG_ALT(msb, info, p) (OCELOT_GPIO_ALT0 * (info)->stride + 4 * ((msb) + ((info)->altm_stride * ((p) / 32))))
 
 static int ocelot_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int selector, unsigned int group)
@@ -2294,6 +2296,9 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 	reset_control_reset(reset);
 
 	info->stride = 1 + (info->desc->npins - 1) / 32;
+	info->altm_stride = info->stride;
+	if (data->n_alt_modes)
+		info->altm_stride = fls(data->n_alt_modes);
 
 	regmap_config.max_register = OCELOT_GPIO_SD_MAP * info->stride + 15 * 4;
 
