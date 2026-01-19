@@ -566,16 +566,14 @@ static irqreturn_t rz_ssi_interrupt(int irq, void *data)
 		return IRQ_HANDLED; /* Left over TX/RX interrupt */
 
 	if (irq == ssi->irq_int) { /* error or idle */
-		bool is_stopped = false;
+		bool is_stopped = !!(ssisr & (SSISR_RUIRQ | SSISR_ROIRQ |
+					      SSISR_TUIRQ | SSISR_TOIRQ));
 		int i, count;
 
 		if (rz_ssi_is_dma_enabled(ssi))
 			count = 4;
 		else
 			count = 1;
-
-		if (ssisr & (SSISR_RUIRQ | SSISR_ROIRQ | SSISR_TUIRQ | SSISR_TOIRQ))
-			is_stopped = true;
 
 		if (ssi->capture.substream && is_stopped) {
 			if (ssisr & SSISR_RUIRQ)
