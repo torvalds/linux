@@ -794,7 +794,8 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	}
 
 	if (!ret)
-		smu_feature_bits_from_arr32(feature_mask, features, 64);
+		smu_feature_bits_from_arr32(feature_mask, features,
+					    SMU_FEATURE_NUM_DEFAULT);
 
 	return ret;
 }
@@ -909,7 +910,8 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
 			"No", "Feature", "Bit", "State");
 
-	for (feature_index = 0; feature_index < SMU_FEATURE_MAX; feature_index++) {
+	for (feature_index = 0; feature_index < smu->smu_feature.feature_num;
+	     feature_index++) {
 		if (sort_feature[feature_index] < 0)
 			continue;
 

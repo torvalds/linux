@@ -762,7 +762,7 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu)
 	uint32_t feature_mask[2];
 
 	if (smu_feature_list_is_empty(smu, SMU_FEATURE_LIST_ALLOWED) ||
-	    feature->feature_num < 64)
+	    feature->feature_num < SMU_FEATURE_NUM_DEFAULT)
 		return -EINVAL;
 
 	smu_feature_list_to_arr32(smu, SMU_FEATURE_LIST_ALLOWED, feature_mask);

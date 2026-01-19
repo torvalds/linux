@@ -471,7 +471,8 @@ struct smu_power_context {
 	struct smu_power_gate power_gate;
 };
 
-#define SMU_FEATURE_MAX	(64)
+#define SMU_FEATURE_NUM_DEFAULT (64)
+#define SMU_FEATURE_MAX (128)
 
 struct smu_feature_bits {
 	DECLARE_BITMAP(bits, SMU_FEATURE_MAX);
