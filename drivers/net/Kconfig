@@ -516,8 +516,6 @@ source "drivers/net/ethernet/Kconfig"
 
 source "drivers/net/fddi/Kconfig"
 
-source "drivers/net/hippi/Kconfig"
-
 source "drivers/net/ipa/Kconfig"
 
 source "drivers/net/phy/Kconfig"
