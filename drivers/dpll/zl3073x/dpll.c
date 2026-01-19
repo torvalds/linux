@@ -100,6 +100,20 @@ zl3073x_dpll_pin_direction_get(const struct dpll_pin *dpll_pin, void *pin_priv,
 	return 0;
 }
 
+static struct zl3073x_dpll_pin *
+zl3073x_dpll_pin_get_by_ref(struct zl3073x_dpll *zldpll, u8 ref_id)
+{
+	struct zl3073x_dpll_pin *pin;
+
+	list_for_each_entry(pin, &zldpll->pins, list) {
+		if (zl3073x_dpll_is_input_pin(pin) &&
+		    zl3073x_input_pin_ref_get(pin->id) == ref_id)
+			return pin;
+	}
+
+	return NULL;
+}
+
 static int
 zl3073x_dpll_input_pin_esync_get(const struct dpll_pin *dpll_pin,
 				 void *pin_priv,
@@ -1138,6 +1152,26 @@ zl3073x_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 }
 
 static int
+zl3073x_dpll_supported_modes_get(const struct dpll_device *dpll,
+				 void *dpll_priv, unsigned long *modes,
+				 struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll *zldpll = dpll_priv;
+
+	/* We support switching between automatic and manual mode, except in
+	 * a case where the DPLL channel is configured to run in NCO mode.
+	 * In this case, report only the manual mode to which the NCO is mapped
+	 * as the only supported one.
+	 */
+	if (zldpll->refsel_mode != ZL_DPLL_MODE_REFSEL_MODE_NCO)
+		__set_bit(DPLL_MODE_AUTOMATIC, modes);
+
+	__set_bit(DPLL_MODE_MANUAL, modes);
+
+	return 0;
+}
+
+static int
 zl3073x_dpll_mode_get(const struct dpll_device *dpll, void *dpll_priv,
 		      enum dpll_mode *mode, struct netlink_ext_ack *extack)
 {
@@ -1218,6 +1252,82 @@ zl3073x_dpll_phase_offset_avg_factor_set(const struct dpll_device *dpll,
 }
 
 static int
+zl3073x_dpll_mode_set(const struct dpll_device *dpll, void *dpll_priv,
+		      enum dpll_mode mode, struct netlink_ext_ack *extack)
+{
+	struct zl3073x_dpll *zldpll = dpll_priv;
+	u8 hw_mode, mode_refsel, ref;
+	int rc;
+
+	rc = zl3073x_dpll_selected_ref_get(zldpll, &ref);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack, "failed to get selected reference");
+		return rc;
+	}
+
+	if (mode == DPLL_MODE_MANUAL) {
+		/* We are switching from automatic to manual mode:
+		 * - if we have a valid reference selected during auto mode then
+		 *   we will switch to forced reference lock mode and use this
+		 *   reference for selection
+		 * - if NO valid reference is selected, we will switch to forced
+		 *   holdover mode or freerun mode, depending on the current
+		 *   lock status
+		 */
+		if (ZL3073X_DPLL_REF_IS_VALID(ref))
+			hw_mode = ZL_DPLL_MODE_REFSEL_MODE_REFLOCK;
+		else if (zldpll->lock_status == DPLL_LOCK_STATUS_UNLOCKED)
+			hw_mode = ZL_DPLL_MODE_REFSEL_MODE_FREERUN;
+		else
+			hw_mode = ZL_DPLL_MODE_REFSEL_MODE_HOLDOVER;
+	} else {
+		/* We are switching from manual to automatic mode:
+		 * - if there is a valid reference selected then ensure that
+		 *   it is selectable after switch to automatic mode
+		 * - switch to automatic mode
+		 */
+		struct zl3073x_dpll_pin *pin;
+
+		pin = zl3073x_dpll_pin_get_by_ref(zldpll, ref);
+		if (pin && !pin->selectable) {
+			/* Restore pin priority in HW */
+			rc = zl3073x_dpll_ref_prio_set(pin, pin->prio);
+			if (rc) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "failed to restore pin priority");
+				return rc;
+			}
+
+			pin->selectable = true;
+		}
+
+		hw_mode = ZL_DPLL_MODE_REFSEL_MODE_AUTO;
+	}
+
+	/* Build mode_refsel value */
+	mode_refsel = FIELD_PREP(ZL_DPLL_MODE_REFSEL_MODE, hw_mode);
+
+	if (ZL3073X_DPLL_REF_IS_VALID(ref))
+		mode_refsel |= FIELD_PREP(ZL_DPLL_MODE_REFSEL_REF, ref);
+
+	/* Update dpll_mode_refsel register */
+	rc = zl3073x_write_u8(zldpll->dev, ZL_REG_DPLL_MODE_REFSEL(zldpll->id),
+			      mode_refsel);
+	if (rc) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "failed to set reference selection mode");
+		return rc;
+	}
+
+	zldpll->refsel_mode = hw_mode;
+
+	if (ZL3073X_DPLL_REF_IS_VALID(ref))
+		zldpll->forced_ref = ref;
+
+	return 0;
+}
+
+static int
 zl3073x_dpll_phase_offset_monitor_get(const struct dpll_device *dpll,
 				      void *dpll_priv,
 				      enum dpll_feature_state *state,
@@ -1276,10 +1386,12 @@ static const struct dpll_pin_ops zl3073x_dpll_output_pin_ops = {
 static const struct dpll_device_ops zl3073x_dpll_device_ops = {
 	.lock_status_get = zl3073x_dpll_lock_status_get,
 	.mode_get = zl3073x_dpll_mode_get,
+	.mode_set = zl3073x_dpll_mode_set,
 	.phase_offset_avg_factor_get = zl3073x_dpll_phase_offset_avg_factor_get,
 	.phase_offset_avg_factor_set = zl3073x_dpll_phase_offset_avg_factor_set,
 	.phase_offset_monitor_get = zl3073x_dpll_phase_offset_monitor_get,
 	.phase_offset_monitor_set = zl3073x_dpll_phase_offset_monitor_set,
+	.supported_modes_get = zl3073x_dpll_supported_modes_get,
 };
 
 /**
