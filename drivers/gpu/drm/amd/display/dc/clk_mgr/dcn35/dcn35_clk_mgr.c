@@ -186,7 +186,7 @@ static int dcn35_get_active_display_cnt_wa(
 
 	return display_count;
 }
-static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
+void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context,
 		bool safe_to_lower, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
