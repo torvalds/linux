@@ -2075,6 +2075,8 @@ static int mlx5e_open_icosq(struct mlx5e_channel *c, struct mlx5e_params *params
 	if (err)
 		goto err_free_icosq;
 
+	spin_lock_init(&sq->lock);
+
 	if (param->is_tls) {
 		sq->ktls_resync = mlx5e_ktls_rx_resync_create_resp_list();
 		if (IS_ERR(sq->ktls_resync)) {
@@ -2587,9 +2589,51 @@ static int mlx5e_open_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *param
 	return mlx5e_open_rq(params, rq_params, NULL, cpu_to_node(c->cpu), q_counter, &c->rq);
 }
 
+static struct mlx5e_icosq *
+mlx5e_open_async_icosq(struct mlx5e_channel *c,
+		       struct mlx5e_params *params,
+		       struct mlx5e_channel_param *cparam,
+		       struct mlx5e_create_cq_param *ccp)
+{
+	struct dim_cq_moder icocq_moder = {0, 0};
+	struct mlx5e_icosq *async_icosq;
+	int err;
+
+	async_icosq = kvzalloc_node(sizeof(*async_icosq), GFP_KERNEL,
+				    cpu_to_node(c->cpu));
+	if (!async_icosq)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx5e_open_cq(c->mdev, icocq_moder, &cparam->async_icosq.cqp, ccp,
+			    &async_icosq->cq);
+	if (err)
+		goto err_free_async_icosq;
+
+	err = mlx5e_open_icosq(c, params, &cparam->async_icosq, async_icosq,
+			       mlx5e_async_icosq_err_cqe_work);
+	if (err)
+		goto err_close_async_icosq_cq;
+
+	return async_icosq;
+
+err_close_async_icosq_cq:
+	mlx5e_close_cq(&async_icosq->cq);
+err_free_async_icosq:
+	kvfree(async_icosq);
+	return ERR_PTR(err);
+}
+
+static void mlx5e_close_async_icosq(struct mlx5e_icosq *async_icosq)
+{
+	mlx5e_close_icosq(async_icosq);
+	mlx5e_close_cq(&async_icosq->cq);
+	kvfree(async_icosq);
+}
+
 static int mlx5e_open_queues(struct mlx5e_channel *c,
 			     struct mlx5e_params *params,
-			     struct mlx5e_channel_param *cparam)
+			     struct mlx5e_channel_param *cparam,
+			     bool async_icosq_needed)
 {
 	const struct net_device_ops *netdev_ops = c->netdev->netdev_ops;
 	struct dim_cq_moder icocq_moder = {0, 0};
@@ -2598,15 +2642,10 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 
 	mlx5e_build_create_cq_param(&ccp, c);
 
-	err = mlx5e_open_cq(c->mdev, icocq_moder, &cparam->async_icosq.cqp, &ccp,
-			    &c->async_icosq.cq);
-	if (err)
-		return err;
-
 	err = mlx5e_open_cq(c->mdev, icocq_moder, &cparam->icosq.cqp, &ccp,
 			    &c->icosq.cq);
 	if (err)
-		goto err_close_async_icosq_cq;
+		return err;
 
 	err = mlx5e_open_tx_cqs(c, params, &ccp, cparam);
 	if (err)
@@ -2630,12 +2669,14 @@ static int mlx5e_open_queues(struct mlx5e_channel *c,
 	if (err)
 		goto err_close_rx_cq;
 
-	spin_lock_init(&c->async_icosq_lock);
-
-	err = mlx5e_open_icosq(c, params, &cparam->async_icosq, &c->async_icosq,
-			       mlx5e_async_icosq_err_cqe_work);
-	if (err)
-		goto err_close_rq_xdpsq_cq;
+	if (async_icosq_needed) {
+		c->async_icosq = mlx5e_open_async_icosq(c, params, cparam,
+							&ccp);
+		if (IS_ERR(c->async_icosq)) {
+			err = PTR_ERR(c->async_icosq);
+			goto err_close_rq_xdpsq_cq;
+		}
+	}
 
 	mutex_init(&c->icosq_recovery_lock);
 
@@ -2671,7 +2712,8 @@ err_close_icosq:
 	mlx5e_close_icosq(&c->icosq);
 
 err_close_async_icosq:
-	mlx5e_close_icosq(&c->async_icosq);
+	if (c->async_icosq)
+		mlx5e_close_async_icosq(c->async_icosq);
 
 err_close_rq_xdpsq_cq:
 	if (c->xdp)
@@ -2690,9 +2732,6 @@ err_close_tx_cqs:
 err_close_icosq_cq:
 	mlx5e_close_cq(&c->icosq.cq);
 
-err_close_async_icosq_cq:
-	mlx5e_close_cq(&c->async_icosq.cq);
-
 	return err;
 }
 
@@ -2706,7 +2745,8 @@ static void mlx5e_close_queues(struct mlx5e_channel *c)
 	mlx5e_close_sqs(c);
 	mlx5e_close_icosq(&c->icosq);
 	mutex_destroy(&c->icosq_recovery_lock);
-	mlx5e_close_icosq(&c->async_icosq);
+	if (c->async_icosq)
+		mlx5e_close_async_icosq(c->async_icosq);
 	if (c->xdp)
 		mlx5e_close_cq(&c->rq_xdpsq.cq);
 	mlx5e_close_cq(&c->rq.cq);
@@ -2714,7 +2754,6 @@ static void mlx5e_close_queues(struct mlx5e_channel *c)
 		mlx5e_close_xdpredirect_sq(c->xdpsq);
 	mlx5e_close_tx_cqs(c);
 	mlx5e_close_cq(&c->icosq.cq);
-	mlx5e_close_cq(&c->async_icosq.cq);
 }
 
 static u8 mlx5e_enumerate_lag_port(struct mlx5_core_dev *mdev, int ix)
@@ -2750,9 +2789,16 @@ static int mlx5e_channel_stats_alloc(struct mlx5e_priv *priv, int ix, int cpu)
 
 void mlx5e_trigger_napi_icosq(struct mlx5e_channel *c)
 {
-	spin_lock_bh(&c->async_icosq_lock);
-	mlx5e_trigger_irq(&c->async_icosq);
-	spin_unlock_bh(&c->async_icosq_lock);
+	bool locked;
+
+	if (!test_and_set_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state))
+		synchronize_net();
+
+	locked = mlx5e_icosq_sync_lock(&c->icosq);
+	mlx5e_trigger_irq(&c->icosq);
+	mlx5e_icosq_sync_unlock(&c->icosq, locked);
+
+	clear_bit(MLX5E_SQ_STATE_LOCK_NEEDED, &c->icosq.state);
 }
 
 void mlx5e_trigger_napi_sched(struct napi_struct *napi)
@@ -2785,6 +2831,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	struct mlx5e_channel_param *cparam;
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_xsk_param xsk;
+	bool async_icosq_needed;
 	struct mlx5e_channel *c;
 	unsigned int irq;
 	int vec_ix;
@@ -2834,7 +2881,8 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	netif_napi_add_config_locked(netdev, &c->napi, mlx5e_napi_poll, ix);
 	netif_napi_set_irq_locked(&c->napi, irq);
 
-	err = mlx5e_open_queues(c, params, cparam);
+	async_icosq_needed = !!xsk_pool || priv->ktls_rx_was_enabled;
+	err = mlx5e_open_queues(c, params, cparam, async_icosq_needed);
 	if (unlikely(err))
 		goto err_napi_del;
 
@@ -2872,7 +2920,8 @@ static void mlx5e_activate_channel(struct mlx5e_channel *c)
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_activate_txqsq(&c->sq[tc]);
 	mlx5e_activate_icosq(&c->icosq);
-	mlx5e_activate_icosq(&c->async_icosq);
+	if (c->async_icosq)
+		mlx5e_activate_icosq(c->async_icosq);
 
 	if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
 		mlx5e_activate_xsk(c);
@@ -2893,7 +2942,8 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 	else
 		mlx5e_deactivate_rq(&c->rq);
 
-	mlx5e_deactivate_icosq(&c->async_icosq);
+	if (c->async_icosq)
+		mlx5e_deactivate_icosq(c->async_icosq);
 	mlx5e_deactivate_icosq(&c->icosq);
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_deactivate_txqsq(&c->sq[tc]);
