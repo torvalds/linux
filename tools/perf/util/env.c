@@ -216,6 +216,34 @@ static void perf_env__purge_bpf(struct perf_env *env __maybe_unused)
 }
 #endif // HAVE_LIBBPF_SUPPORT
 
+void free_cpu_domain_info(struct cpu_domain_map **cd_map, u32 schedstat_version, u32 nr)
+{
+	if (!cd_map)
+		return;
+
+	for (u32 i = 0; i < nr; i++) {
+		if (!cd_map[i])
+			continue;
+
+		for (u32 j = 0; j < cd_map[i]->nr_domains; j++) {
+			struct domain_info *d_info = cd_map[i]->domains[j];
+
+			if (!d_info)
+				continue;
+
+			if (schedstat_version >= 17)
+				zfree(&d_info->dname);
+
+			zfree(&d_info->cpumask);
+			zfree(&d_info->cpulist);
+			zfree(&d_info);
+		}
+		zfree(&cd_map[i]->domains);
+		zfree(&cd_map[i]);
+	}
+	zfree(&cd_map);
+}
+
 void perf_env__exit(struct perf_env *env)
 {
 	int i, j;
@@ -265,6 +293,7 @@ void perf_env__exit(struct perf_env *env)
 		zfree(&env->pmu_caps[i].pmu_name);
 	}
 	zfree(&env->pmu_caps);
+	free_cpu_domain_info(env->cpu_domain, env->schedstat_version, env->nr_cpus_avail);
 }
 
 void perf_env__init(struct perf_env *env)
