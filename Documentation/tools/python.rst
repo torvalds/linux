@@ -8,5 +8,6 @@ Python libraries
    :maxdepth: 4
 
    jobserver
+   feat
    kdoc
    kabi
