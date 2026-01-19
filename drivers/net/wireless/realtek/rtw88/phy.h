@@ -146,6 +146,8 @@ static inline int rtw_check_supported_rfe(struct rtw_dev *rtwdev)
 }
 
 void rtw_phy_dig_write(struct rtw_dev *rtwdev, u8 igi);
+void rtw_phy_dig_reset(struct rtw_dev *rtwdev);
+void rtw_phy_dig_set_max_coverage(struct rtw_dev *rtwdev);
 
 struct rtw_power_params {
 	u8 pwr_base;

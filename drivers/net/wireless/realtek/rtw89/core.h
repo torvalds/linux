@@ -25,6 +25,7 @@ struct rtw89_fw_txpwr_track_cfg;
 struct rtw89_phy_rfk_log_fmt;
 struct rtw89_debugfs;
 struct rtw89_regd_data;
+struct rtw89_wow_cam_info;
 
 extern const struct ieee80211_ops rtw89_ops;
 
@@ -156,6 +157,17 @@ enum rtw89_core_chip_id {
 	RTL8851B,
 	RTL8922A,
 	RTL8922D,
+};
+
+enum rtw89_core_chip_cid {
+	RTL8922D_CID7025 = 0x74,
+	RTL8922D_CID7090 = 0x79,
+};
+
+enum rtw89_core_chip_aid {
+	RTL8922D_AID1348 = 0x1348,
+	RTL8922D_AID7060 = 0x7060,
+	RTL8922D_AID7102 = 0x7102,
 };
 
 enum rtw89_chip_gen {
@@ -1125,6 +1137,15 @@ struct rtw89_rxdesc_short_v2 {
 	__le32 dword5;
 } __packed;
 
+struct rtw89_rxdesc_short_v3 {
+	__le32 dword0;
+	__le32 dword1;
+	__le32 dword2;
+	__le32 dword3;
+	__le32 dword4;
+	__le32 dword5;
+} __packed;
+
 struct rtw89_rxdesc_long {
 	__le32 dword0;
 	__le32 dword1;
@@ -1137,6 +1158,19 @@ struct rtw89_rxdesc_long {
 } __packed;
 
 struct rtw89_rxdesc_long_v2 {
+	__le32 dword0;
+	__le32 dword1;
+	__le32 dword2;
+	__le32 dword3;
+	__le32 dword4;
+	__le32 dword5;
+	__le32 dword6;
+	__le32 dword7;
+	__le32 dword8;
+	__le32 dword9;
+} __packed;
+
+struct rtw89_rxdesc_long_v3 {
 	__le32 dword0;
 	__le32 dword1;
 	__le32 dword2;
@@ -1211,6 +1245,8 @@ struct rtw89_core_tx_request {
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_sta_link *rtwsta_link;
 	struct rtw89_tx_desc_info desc_info;
+
+	bool with_wait;
 };
 
 struct rtw89_txq {
@@ -3404,9 +3440,6 @@ struct rtw89_ra_info {
 #define RTW89_PPDU_MAC_RX_CNT_SIZE 96
 #define RTW89_PPDU_MAC_RX_CNT_SIZE_V1 128
 
-#define RTW89_MAX_RX_AGG_NUM 64
-#define RTW89_MAX_TX_AGG_NUM 128
-
 struct rtw89_ampdu_params {
 	u16 agg_num;
 	bool amsdu;
@@ -3833,6 +3866,8 @@ struct rtw89_chip_ops {
 			  struct rtw89_vif_link *rtwvif_link,
 			  struct rtw89_sta_link *rtwsta_link,
 			  bool valid, struct ieee80211_ampdu_params *params);
+	int (*h2c_wow_cam_update)(struct rtw89_dev *rtwdev,
+				  struct rtw89_wow_cam_info *cam_info);
 
 	void (*btc_set_rfe)(struct rtw89_dev *rtwdev);
 	void (*btc_init_cfg)(struct rtw89_dev *rtwdev);
@@ -3965,6 +4000,11 @@ struct rtw89_hfc_prec_cfg {
 	u8 h2c_full_cond;
 	u8 wp_ch07_full_cond;
 	u8 wp_ch811_full_cond;
+	/* for WiFi 7 chips after 8922D */
+	u16 ch011_full_page;
+	u16 h2c_full_page;
+	u16 wp_ch07_full_page;
+	u16 wp_ch811_full_page;
 };
 
 struct rtw89_hfc_param {
@@ -3989,13 +4029,14 @@ struct rtw89_dle_size {
 	u16 pge_size;
 	u16 lnk_pge_num;
 	u16 unlnk_pge_num;
-	/* for WiFi 7 chips below */
+	/* for WiFi 7 chips below (suffix v1) */
 	u32 srt_ofst;
 };
 
 struct rtw89_wde_quota {
 	u16 hif;
 	u16 wcpu;
+	/* unused dcpu isn't listed */
 	u16 pkt_in;
 	u16 cpu_io;
 };
@@ -4013,8 +4054,10 @@ struct rtw89_ple_quota {
 	u16 wd_rel;
 	u16 cpu_io;
 	u16 tx_rpt;
-	/* for WiFi 7 chips below */
+	/* for WiFi 7 chips below (suffix v1) */
 	u16 h2d;
+	/* for WiFi 7 chips after 8922D (suffix v2) */
+	u16 snrpt;
 };
 
 struct rtw89_rsvd_quota {
@@ -4035,6 +4078,17 @@ struct rtw89_dle_rsvd_size {
 	u32 size;
 };
 
+struct rtw89_dle_input {
+	u32 tx_ampdu_num_b0;
+	u32 tx_ampdu_num_b1;
+	u32 tx_amsdu_size; /* unit: KB */
+	u32 h2c_max_size;
+	u32 rx_amsdu_size; /* unit: KB */
+	u32 c2h_max_size;
+	u32 mpdu_info_tbl_b0;
+	u32 mpdu_info_tbl_b1;
+};
+
 struct rtw89_dle_mem {
 	enum rtw89_qta_mode mode;
 	const struct rtw89_dle_size *wde_size;
@@ -4047,6 +4101,8 @@ struct rtw89_dle_mem {
 	const struct rtw89_rsvd_quota *rsvd_qt;
 	const struct rtw89_dle_rsvd_size *rsvd0_size;
 	const struct rtw89_dle_rsvd_size *rsvd1_size;
+	/* for WiFi 7 chips after 8922D */
+	const struct rtw89_dle_input *dle_input;
 };
 
 struct rtw89_reg_def {
@@ -4325,6 +4381,13 @@ struct rtw89_rfkill_regs {
 	struct rtw89_reg3_def mode;
 };
 
+struct rtw89_sb_regs {
+	struct {
+		u32 cfg;
+		u32 get;
+	} n[2];
+};
+
 struct rtw89_dig_regs {
 	u32 seg0_pd_reg;
 	u32 pd_lower_bound_mask;
@@ -4424,6 +4487,10 @@ struct rtw89_chip_info {
 	bool small_fifo_size;
 	u32 dle_scc_rsvd_size;
 	u16 max_amsdu_limit;
+	u16 max_vht_mpdu_cap;
+	u16 max_eht_mpdu_cap;
+	u16 max_tx_agg_num;
+	u16 max_rx_agg_num;
 	bool dis_2g_40m_ul_ofdma;
 	u32 rsvd_ple_ofst;
 	const struct rtw89_hfc_param_ini *hfc_param_ini[RTW89_HCI_TYPE_NUM];
@@ -4538,10 +4605,12 @@ struct rtw89_chip_info {
 	u32 bss_clr_map_reg;
 	const struct rtw89_rfkill_regs *rfkill_init;
 	struct rtw89_reg_def rfkill_get;
+	struct rtw89_sb_regs btc_sb;
 	u32 dma_ch_mask;
 	const struct rtw89_edcca_regs *edcca_regs;
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const struct rtw89_xtal_info *xtal_info;
+	unsigned long default_quirks; /* bitmap of rtw89_quirks */
 };
 
 struct rtw89_chip_variant {
@@ -4572,6 +4641,7 @@ enum rtw89_hcifc_mode {
 
 struct rtw89_dle_info {
 	const struct rtw89_rsvd_quota *rsvd_qt;
+	const struct rtw89_dle_input *dle_input;
 	enum rtw89_qta_mode qta_mode;
 	u16 ple_pg_size;
 	u16 ple_free_pg;
@@ -4664,8 +4734,17 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_MACID_PAUSE_SLEEP,
 	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V0,
 	RTW89_FW_FEATURE_WOW_REASON_V1,
-	RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V0,
-	RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V1,
+	RTW89_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V0,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V1,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V2,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V3,
+	),
+	RTW89_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY_MCC,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_MCC_V0,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_MCC_V1,
+			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_MCC_V2,
+	),
 	RTW89_FW_FEATURE_RFK_RXDCK_V0,
 	RTW89_FW_FEATURE_RFK_IQK_V0,
 	RTW89_FW_FEATURE_NO_WOW_CPU_IO_RX,
@@ -4680,6 +4759,10 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_LPS_DACK_BY_C2H_REG,
 	RTW89_FW_FEATURE_BEACON_TRACKING,
 	RTW89_FW_FEATURE_ADDR_CAM_V0,
+	RTW89_FW_FEATURE_SER_L1_BY_EVENT,
+	RTW89_FW_FEATURE_SIM_SER_L0L1_BY_HALT_H2C,
+
+	NUM_OF_RTW89_FW_FEATURES,
 };
 
 struct rtw89_fw_suit {
@@ -4771,20 +4854,28 @@ struct rtw89_fw_info {
 	struct rtw89_fw_suit bbmcu0;
 	struct rtw89_fw_suit bbmcu1;
 	struct rtw89_fw_log log;
-	u32 feature_map;
 	struct rtw89_fw_elm_info elm_info;
 	struct rtw89_fw_secure sec;
+
+	DECLARE_BITMAP(feature_map, NUM_OF_RTW89_FW_FEATURES);
 };
 
 #define RTW89_CHK_FW_FEATURE(_feat, _fw) \
-	(!!((_fw)->feature_map & BIT(RTW89_FW_FEATURE_ ## _feat)))
+	test_bit(RTW89_FW_FEATURE_ ## _feat, (_fw)->feature_map)
 
 #define RTW89_CHK_FW_FEATURE_GROUP(_grp, _fw) \
-	(!!((_fw)->feature_map & GENMASK(RTW89_FW_FEATURE_ ## _grp ## _MAX, \
-					 RTW89_FW_FEATURE_ ## _grp ## _MIN)))
+({ \
+	unsigned int bit = find_next_bit((_fw)->feature_map, \
+					 NUM_OF_RTW89_FW_FEATURES, \
+					 RTW89_FW_FEATURE_ ## _grp ## _MIN); \
+	bit <= RTW89_FW_FEATURE_ ## _grp ## _MAX; \
+})
 
 #define RTW89_SET_FW_FEATURE(_fw_feature, _fw) \
-	((_fw)->feature_map |= BIT(_fw_feature))
+	set_bit(_fw_feature, (_fw)->feature_map)
+
+#define RTW89_CLR_FW_FEATURE(_fw_feature, _fw) \
+	clear_bit(_fw_feature, (_fw)->feature_map)
 
 struct rtw89_cam_info {
 	DECLARE_BITMAP(addr_cam_map, RTW89_MAX_ADDR_CAM_NUM);
@@ -5026,7 +5117,9 @@ enum rtw89_dm_type {
 struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
+	u8 cid; /* enum rtw89_core_chip_cid */
 	u8 acv;
+	u16 aid; /* enum rtw89_core_chip_aid */
 	u32 antenna_tx;
 	u32 antenna_rx;
 	u8 tx_nss;
@@ -5037,6 +5130,7 @@ struct rtw89_hal {
 	bool support_cckpd;
 	bool support_igi;
 	bool no_mcs_12_13;
+	bool no_eht;
 
 	atomic_t roc_chanctx_idx;
 	u8 roc_link_index;
@@ -5050,6 +5144,8 @@ struct rtw89_hal {
 	bool entity_pause;
 	enum rtw89_entity_mode entity_mode;
 	struct rtw89_entity_mgnt entity_mgnt;
+
+	enum rtw89_phy_idx entity_force_hw;
 
 	u32 disabled_dm_bitmap; /* bitmap of enum rtw89_dm_type */
 
@@ -5065,6 +5161,8 @@ enum rtw89_flags {
 	RTW89_FLAG_DMAC_FUNC,
 	RTW89_FLAG_CMAC0_FUNC,
 	RTW89_FLAG_CMAC1_FUNC,
+	RTW89_FLAG_CMAC0_PWR,
+	RTW89_FLAG_CMAC1_PWR,
 	RTW89_FLAG_FW_RDY,
 	RTW89_FLAG_RUNNING,
 	RTW89_FLAG_PROBE_DONE,
@@ -5095,13 +5193,15 @@ enum rtw89_quirks {
 };
 
 enum rtw89_custid {
-	RTW89_CUSTID_NONE,
-	RTW89_CUSTID_ACER,
-	RTW89_CUSTID_AMD,
-	RTW89_CUSTID_ASUS,
-	RTW89_CUSTID_DELL,
-	RTW89_CUSTID_HP,
-	RTW89_CUSTID_LENOVO,
+	RTW89_CUSTID_NONE = 0,
+	RTW89_CUSTID_HP = 1,
+	RTW89_CUSTID_ASUS = 2,
+	RTW89_CUSTID_ACER = 3,
+	RTW89_CUSTID_LENOVO = 4,
+	RTW89_CUSTID_NEC = 5,
+	RTW89_CUSTID_AMD = 6,
+	RTW89_CUSTID_FUJITSU = 7,
+	RTW89_CUSTID_DELL = 8,
 };
 
 enum rtw89_pkt_drop_sel {
@@ -5216,6 +5316,7 @@ struct rtw89_rfk_mcc_info_data {
 	u8 ch[RTW89_RFK_CHS_NR];
 	u8 band[RTW89_RFK_CHS_NR];
 	u8 bw[RTW89_RFK_CHS_NR];
+	u32 rf18[RTW89_RFK_CHS_NR];
 	u8 table_idx;
 };
 
@@ -5793,7 +5894,7 @@ struct rtw89_phy_efuse_gain {
 struct rtw89_wow_cam_info {
 	bool r_w;
 	u8 idx;
-	u32 mask[RTW89_MAX_PATTERN_MASK_SIZE];
+	__le32 mask[RTW89_MAX_PATTERN_MASK_SIZE];
 	u16 crc;
 	bool negative_pattern_match;
 	bool skip_mac_hdr;
@@ -7100,15 +7201,6 @@ static inline void rtw89_chip_rfk_init_late(struct rtw89_dev *rtwdev)
 		chip->ops->rfk_init_late(rtwdev);
 }
 
-static inline void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
-					  struct rtw89_vif_link *rtwvif_link)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	if (chip->ops->rfk_channel)
-		chip->ops->rfk_channel(rtwdev, rtwvif_link);
-}
-
 static inline void rtw89_chip_rfk_band_changed(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy_idx,
 					       const struct rtw89_chan *chan)
@@ -7558,6 +7650,9 @@ void rtw89_core_fill_txdesc_v1(struct rtw89_dev *rtwdev,
 void rtw89_core_fill_txdesc_v2(struct rtw89_dev *rtwdev,
 			       struct rtw89_tx_desc_info *desc_info,
 			       void *txdesc);
+void rtw89_core_fill_txdesc_v3(struct rtw89_dev *rtwdev,
+			       struct rtw89_tx_desc_info *desc_info,
+			       void *txdesc);
 void rtw89_core_fill_txdesc_fwcmd_v1(struct rtw89_dev *rtwdev,
 				     struct rtw89_tx_desc_info *desc_info,
 				     void *txdesc);
@@ -7574,6 +7669,9 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 			     struct rtw89_rx_desc_info *desc_info,
 			     u8 *data, u32 data_offset);
 void rtw89_core_query_rxdesc_v2(struct rtw89_dev *rtwdev,
+				struct rtw89_rx_desc_info *desc_info,
+				u8 *data, u32 data_offset);
+void rtw89_core_query_rxdesc_v3(struct rtw89_dev *rtwdev,
 				struct rtw89_rx_desc_info *desc_info,
 				u8 *data, u32 data_offset);
 void rtw89_core_napi_start(struct rtw89_dev *rtwdev);
@@ -7622,6 +7720,8 @@ struct rtw89_sta_link *rtw89_sta_set_link(struct rtw89_sta *rtwsta,
 					  unsigned int link_id);
 void rtw89_sta_unset_link(struct rtw89_sta *rtwsta, unsigned int link_id);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
+void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
+			    struct rtw89_vif_link *rtwvif_link);
 const struct rtw89_6ghz_span *
 rtw89_get_6ghz_span(struct rtw89_dev *rtwdev, u32 center_freq);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);

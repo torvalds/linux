@@ -628,24 +628,36 @@ static int rtw8922a_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
 	rtw8922a_efuse_parsing_tssi(rtwdev, map);
 	rtw8922a_efuse_parsing_gain_offset(rtwdev, map);
 
-	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
-
 	return 0;
 }
 
 static int rtw8922a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 			       enum rtw89_efuse_block block)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	int ret;
+
 	switch (block) {
 	case RTW89_EFUSE_BLOCK_HCI_DIG_PCIE_SDIO:
-		return rtw8922a_read_efuse_pci_sdio(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_pci_sdio(rtwdev, log_map);
+		break;
 	case RTW89_EFUSE_BLOCK_HCI_DIG_USB:
-		return rtw8922a_read_efuse_usb(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_usb(rtwdev, log_map);
+		break;
 	case RTW89_EFUSE_BLOCK_RF:
-		return rtw8922a_read_efuse_rf(rtwdev, log_map);
+		ret = rtw8922a_read_efuse_rf(rtwdev, log_map);
+		break;
 	default:
-		return 0;
+		ret = 0;
+		break;
 	}
+
+	if (!ret && is_zero_ether_addr(efuse->addr)) {
+		rtw89_info(rtwdev, "efuse mac address is zero, using random mac\n");
+		eth_random_addr(efuse->addr);
+	}
+
+	return ret;
 }
 
 #define THM_TRIM_POSITIVE_MASK BIT(6)
@@ -2847,6 +2859,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.h2c_default_dmac_tbl	= rtw89_fw_h2c_default_dmac_tbl_v2,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon_be,
 	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam_v1,
+	.h2c_wow_cam_update	= rtw89_fw_h2c_wow_cam_update,
 
 	.btc_set_rfe		= rtw8922a_btc_set_rfe,
 	.btc_init_cfg		= rtw8922a_btc_init_cfg,
@@ -2875,6 +2888,10 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,
 	.max_amsdu_limit	= 8000,
+	.max_vht_mpdu_cap	= IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454,
+	.max_eht_mpdu_cap	= IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991,
+	.max_tx_agg_num		= 128,
+	.max_rx_agg_num		= 64,
 	.dis_2g_40m_ul_ofdma	= false,
 	.rsvd_ple_ofst		= 0x8f800,
 	.hfc_param_ini		= {rtw8922a_hfc_param_ini_pcie, NULL, NULL},
@@ -2988,12 +3005,14 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
 	.rfkill_init		= &rtw8922a_rfkill_regs,
 	.rfkill_get		= {R_BE_GPIO_EXT_CTRL, B_BE_GPIO_IN_9},
+	.btc_sb			= {{{R_BE_SCOREBOARD, R_BE_SCOREBOARD},}},
 	.dma_ch_mask		= 0,
 	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8922a,
 #endif
 	.xtal_info		= NULL,
+	.default_quirks		= 0,
 };
 EXPORT_SYMBOL(rtw8922a_chip_info);
 
