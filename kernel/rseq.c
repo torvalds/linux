@@ -424,7 +424,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 		return 0;
 	}
 
-	if (unlikely(flags))
+	if (unlikely(flags & ~(RSEQ_FLAG_SLICE_EXT_DEFAULT_ON)))
 		return -EINVAL;
 
 	if (current->rseq.usrptr) {
@@ -459,8 +459,12 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 
-	if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION))
+	if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION)) {
 		rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE;
+		if (rseq_slice_extension_enabled() &&
+		    (flags & RSEQ_FLAG_SLICE_EXT_DEFAULT_ON))
+			rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_ENABLED;
+	}
 
 	scoped_user_write_access(rseq, efault) {
 		/*
@@ -487,6 +491,10 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 	current->rseq.usrptr = rseq;
 	current->rseq.len = rseq_len;
 	current->rseq.sig = sig;
+
+#ifdef CONFIG_RSEQ_SLICE_EXTENSION
+	current->rseq.slice.state.enabled = !!(rseqfl & RSEQ_CS_FLAG_SLICE_EXT_ENABLED);
+#endif
 
 	/*
 	 * If rseq was previously inactive, and has just been

@@ -19,7 +19,8 @@ enum rseq_cpu_id_state {
 };
 
 enum rseq_flags {
-	RSEQ_FLAG_UNREGISTER = (1 << 0),
+	RSEQ_FLAG_UNREGISTER			= (1 << 0),
+	RSEQ_FLAG_SLICE_EXT_DEFAULT_ON		= (1 << 1),
 };
 
 enum rseq_cs_flags_bit {
