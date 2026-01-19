@@ -22,6 +22,11 @@ struct io_uring_bpf_ctx {
 			__u32	type;
 			__u32	protocol;
 		} socket;
+		struct {
+			__u64	flags;
+			__u64	mode;
+			__u64	resolve;
+		} open;
 	};
 };
 

@@ -12,6 +12,7 @@
 #include "io_uring.h"
 #include "bpf_filter.h"
 #include "net.h"
+#include "openclose.h"
 
 struct io_bpf_filter {
 	struct bpf_prog		*prog;
@@ -39,6 +40,11 @@ static void io_uring_populate_bpf_ctx(struct io_uring_bpf_ctx *bctx,
 	case IORING_OP_SOCKET:
 		bctx->pdu_size = sizeof(bctx->socket);
 		io_socket_bpf_populate(bctx, req);
+		break;
+	case IORING_OP_OPENAT:
+	case IORING_OP_OPENAT2:
+		bctx->pdu_size = sizeof(bctx->open);
+		io_openat_bpf_populate(bctx, req);
 		break;
 	}
 }
