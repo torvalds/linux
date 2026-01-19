@@ -83,6 +83,8 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_FINISHED_INIT]		= "FINISHED_INIT",
 	[PERF_RECORD_COMPRESSED2]		= "COMPRESSED2",
 	[PERF_RECORD_BPF_METADATA]		= "BPF_METADATA",
+	[PERF_RECORD_SCHEDSTAT_CPU]		= "SCHEDSTAT_CPU",
+	[PERF_RECORD_SCHEDSTAT_DOMAIN]		= "SCHEDSTAT_DOMAIN",
 };
 
 const char *perf_event__name(unsigned int id)
@@ -569,6 +571,44 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	ret += binary__fprintf(tp->bytes + tp->old_len, tp->new_len, 16,
 			       text_poke_printer, &old, fp);
 	return ret;
+}
+
+size_t perf_event__fprintf_schedstat_cpu(union perf_event *event, FILE *fp)
+{
+	struct perf_record_schedstat_cpu *cs = &event->schedstat_cpu;
+	size_t size = fprintf(fp, "\ncpu%u ", cs->cpu);
+	__u16 version = cs->version;
+
+#define CPU_FIELD(_type, _name, _desc, _format, _is_pct, _pct_of, _ver)		\
+	size += fprintf(fp, "%" PRIu64 " ", (uint64_t)cs->_ver._name)
+
+	if (version == 15) {
+#include <perf/schedstat-v15.h>
+		return size;
+	}
+#undef CPU_FIELD
+
+	return fprintf(fp, "Unsupported /proc/schedstat version %d.\n",
+		       event->schedstat_cpu.version);
+}
+
+size_t perf_event__fprintf_schedstat_domain(union perf_event *event, FILE *fp)
+{
+	struct perf_record_schedstat_domain *ds = &event->schedstat_domain;
+	__u16 version = ds->version;
+	size_t size = fprintf(fp, "\ndomain%u ", ds->domain);
+
+#define DOMAIN_FIELD(_type, _name, _desc, _format, _is_jiffies, _ver)		\
+	size += fprintf(fp, "%" PRIu64 " ", (uint64_t)ds->_ver._name)
+
+	if (version == 15) {
+#include <perf/schedstat-v15.h>
+		return size;
+	}
+#undef DOMAIN_FIELD
+
+	return fprintf(fp, "Unsupported /proc/schedstat version %d.\n",
+		       event->schedstat_domain.version);
 }
 
 size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FILE *fp)
