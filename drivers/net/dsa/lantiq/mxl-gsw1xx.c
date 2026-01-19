@@ -559,6 +559,43 @@ static struct phylink_pcs *gsw1xx_phylink_mac_select_pcs(struct phylink_config *
 	}
 }
 
+static int gsw1xx_rmii_slew_rate(const struct device_node *np, struct gsw1xx_priv *priv,
+				 const char *prop, u16 mask)
+{
+	u32 rate;
+	int ret;
+
+	ret = of_property_read_u32(np, prop, &rate);
+	/* Optional property */
+	if (ret == -EINVAL)
+		return 0;
+	if (ret < 0 || rate > 1) {
+		dev_err(&priv->mdio_dev->dev, "Invalid %s value\n", prop);
+		return (ret < 0) ? ret : -EINVAL;
+	}
+
+	return regmap_update_bits(priv->shell, GSW1XX_SHELL_RGMII_SLEW_CFG, mask, mask * rate);
+}
+
+static int gsw1xx_port_setup(struct dsa_switch *ds, int port)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct device_node *np = dp->dn;
+	struct gsw1xx_priv *gsw1xx_priv;
+	struct gswip_priv *gswip_priv;
+
+	if (dp->index != GSW1XX_MII_PORT)
+		return 0;
+
+	gswip_priv = ds->priv;
+	gsw1xx_priv = container_of(gswip_priv, struct gsw1xx_priv, gswip);
+
+	return gsw1xx_rmii_slew_rate(np, gsw1xx_priv,
+				     "maxlinear,slew-rate-txc", RGMII_SLEW_CFG_DRV_TXC) ?:
+	       gsw1xx_rmii_slew_rate(np, gsw1xx_priv,
+				     "maxlinear,slew-rate-txd", RGMII_SLEW_CFG_DRV_TXD);
+}
+
 static struct regmap *gsw1xx_regmap_init(struct gsw1xx_priv *priv,
 					 const char *name,
 					 unsigned int reg_base,
@@ -707,6 +744,7 @@ static const struct gswip_hw_info gsw12x_data = {
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
@@ -720,6 +758,7 @@ static const struct gswip_hw_info gsw140_data = {
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
@@ -732,6 +771,7 @@ static const struct gswip_hw_info gsw141_data = {
 	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= gsw1xx_phylink_get_caps,
+	.port_setup		= gsw1xx_port_setup,
 	.pce_microcode		= &gsw1xx_pce_microcode,
 	.pce_microcode_size	= ARRAY_SIZE(gsw1xx_pce_microcode),
 	.tag_protocol		= DSA_TAG_PROTO_MXL_GSW1XX,
