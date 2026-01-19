@@ -30,6 +30,9 @@ img.logo {
     margin-bottom: 20px;
 }
 
+/* The default is to use -1em, wich makes it override text */
+li { text-indent: 0em; }
+
 /*
  * Parameters for the display of function prototypes and such included
  * from C source files.
