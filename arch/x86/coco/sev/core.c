@@ -989,7 +989,7 @@ u64 savic_ghcb_msr_read(u32 reg)
 	ghcb = __sev_get_ghcb(&state);
 	vc_ghcb_invalidate(ghcb);
 
-	res = sev_es_ghcb_handle_msr(ghcb, &ctxt, false);
+	res = __vc_handle_msr(ghcb, &ctxt, false);
 	if (res != ES_OK) {
 		pr_err("Secure AVIC MSR (0x%llx) read returned error (%d)\n", msr, res);
 		/* MSR read failures are treated as fatal errors */
@@ -1019,7 +1019,7 @@ void savic_ghcb_msr_write(u32 reg, u64 value)
 	ghcb = __sev_get_ghcb(&state);
 	vc_ghcb_invalidate(ghcb);
 
-	res = sev_es_ghcb_handle_msr(ghcb, &ctxt, true);
+	res = __vc_handle_msr(ghcb, &ctxt, true);
 	if (res != ES_OK) {
 		pr_err("Secure AVIC MSR (0x%llx) write returned error (%d)\n", msr, res);
 		/* MSR writes should never fail. Any failure is fatal error for SNP guest */
