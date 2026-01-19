@@ -2398,7 +2398,7 @@ config SENSORS_TMP108
 	select REGMAP_I3C if I3C
 	help
 	  If you say yes here you get support for Texas Instruments TMP108
-	  sensor chips and NXP P3T1085.
+	  sensor chips, NXP temperature sensors P3T1035, P3T1085 and P3T2030.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called tmp108.
