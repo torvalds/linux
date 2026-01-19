@@ -3,7 +3,6 @@
 
 /dts-v1/;
 
-#include "mpfs.dtsi"
 #include "mpfs-icicle-kit-fabric.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
