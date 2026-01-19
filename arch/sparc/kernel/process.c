@@ -12,6 +12,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/signal.h>
+#include <linux/syscalls.h>
 
 #include "kernel.h"
 
@@ -117,4 +118,17 @@ asmlinkage long sparc_clone(struct pt_regs *regs)
 		regs->u_regs[UREG_I1] = orig_i1;
 
 	return ret;
+}
+
+asmlinkage long sparc_clone3(struct pt_regs *regs)
+{
+	unsigned long sz;
+	struct clone_args __user *cl_args;
+
+	synchronize_user_stack();
+
+	cl_args = (struct clone_args __user *)regs->u_regs[UREG_I0];
+	sz = regs->u_regs[UREG_I1];
+
+	return sys_clone3(cl_args, sz);
 }
