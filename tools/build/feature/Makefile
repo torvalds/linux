@@ -50,6 +50,7 @@ FILES=                                          \
          test-timerfd.bin                       \
          test-libbabeltrace.bin                 \
          test-libcapstone.bin			\
+         test-libcheck.bin			\
          test-compile-32.bin                    \
          test-compile-x32.bin                   \
          test-zlib.bin                          \
@@ -306,6 +307,9 @@ $(OUTPUT)test-libbabeltrace.bin:
 
 $(OUTPUT)test-libcapstone.bin:
 	$(BUILD) # -lcapstone provided by $(FEATURE_CHECK_LDFLAGS-libcapstone)
+
+$(OUTPUT)test-libcheck.bin:
+	$(BUILD) # -lcheck is provided by $(FEATURE_CHECK_LDFLAGS-libcheck)
 
 $(OUTPUT)test-compile-32.bin:
 	$(CC) -m32 -Wall -Werror -o $@ test-compile.c
