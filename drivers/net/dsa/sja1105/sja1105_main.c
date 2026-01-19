@@ -1260,7 +1260,9 @@ static int sja1105_set_port_speed(struct sja1105_private *priv, int port,
 				  int speed_mbps)
 {
 	struct sja1105_mac_config_entry *mac;
+	struct device *dev = priv->ds->dev;
 	u64 speed;
+	int rc;
 
 	/* On P/Q/R/S, one can read from the device via the MAC reconfiguration
 	 * tables. On E/T, MAC reconfig tables are not readable, only writable.
@@ -1304,26 +1306,6 @@ static int sja1105_set_port_speed(struct sja1105_private *priv, int port,
 	 * we want auto during upload phase).
 	 */
 	mac[port].speed = speed;
-
-	return 0;
-}
-
-/* Write the MAC Configuration Table entry and, if necessary, the CGU settings,
- * after a link speedchange for this port.
- */
-static int sja1105_set_port_config(struct sja1105_private *priv, int port)
-{
-	struct sja1105_mac_config_entry *mac;
-	struct device *dev = priv->ds->dev;
-	int rc;
-
-	/* On P/Q/R/S, one can read from the device via the MAC reconfiguration
-	 * tables. On E/T, MAC reconfig tables are not readable, only writable.
-	 * We have to *know* what the MAC looks like.  For the sake of keeping
-	 * the code common, we'll use the static configuration tables as a
-	 * reasonable approximation for both E/T and P/Q/R/S.
-	 */
-	mac = priv->static_config.tables[BLK_IDX_MAC_CONFIG].entries;
 
 	/* Write to the dynamic reconfiguration tables */
 	rc = sja1105_dynamic_config_write(priv, BLK_IDX_MAC_CONFIG, port,
@@ -1380,9 +1362,7 @@ static void sja1105_mac_link_up(struct phylink_config *config,
 	struct sja1105_private *priv = dp->ds->priv;
 	int port = dp->index;
 
-	if (!sja1105_set_port_speed(priv, port, speed))
-		sja1105_set_port_config(priv, port);
-
+	sja1105_set_port_speed(priv, port, speed);
 	sja1105_inhibit_tx(priv, BIT(port), false);
 }
 
