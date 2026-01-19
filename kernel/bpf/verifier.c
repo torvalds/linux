@@ -2349,6 +2349,18 @@ static void __mark_reg32_unbounded(struct bpf_reg_state *reg)
 	reg->u32_max_value = U32_MAX;
 }
 
+static void reset_reg64_and_tnum(struct bpf_reg_state *reg)
+{
+	__mark_reg64_unbounded(reg);
+	reg->var_off = tnum_unknown;
+}
+
+static void reset_reg32_and_tnum(struct bpf_reg_state *reg)
+{
+	__mark_reg32_unbounded(reg);
+	reg->var_off = tnum_unknown;
+}
+
 static void __update_reg32_bounds(struct bpf_reg_state *reg)
 {
 	struct tnum var32_off = tnum_subreg(reg->var_off);
@@ -15159,6 +15171,252 @@ static void scalar_min_max_mul(struct bpf_reg_state *dst_reg,
 	}
 }
 
+static void scalar32_min_max_udiv(struct bpf_reg_state *dst_reg,
+				  struct bpf_reg_state *src_reg)
+{
+	u32 *dst_umin = &dst_reg->u32_min_value;
+	u32 *dst_umax = &dst_reg->u32_max_value;
+	u32 src_val = src_reg->u32_min_value; /* non-zero, const divisor */
+
+	*dst_umin = *dst_umin / src_val;
+	*dst_umax = *dst_umax / src_val;
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->s32_min_value = S32_MIN;
+	dst_reg->s32_max_value = S32_MAX;
+	reset_reg64_and_tnum(dst_reg);
+}
+
+static void scalar_min_max_udiv(struct bpf_reg_state *dst_reg,
+				struct bpf_reg_state *src_reg)
+{
+	u64 *dst_umin = &dst_reg->umin_value;
+	u64 *dst_umax = &dst_reg->umax_value;
+	u64 src_val = src_reg->umin_value; /* non-zero, const divisor */
+
+	*dst_umin = div64_u64(*dst_umin, src_val);
+	*dst_umax = div64_u64(*dst_umax, src_val);
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->smin_value = S64_MIN;
+	dst_reg->smax_value = S64_MAX;
+	reset_reg32_and_tnum(dst_reg);
+}
+
+static void scalar32_min_max_sdiv(struct bpf_reg_state *dst_reg,
+				  struct bpf_reg_state *src_reg)
+{
+	s32 *dst_smin = &dst_reg->s32_min_value;
+	s32 *dst_smax = &dst_reg->s32_max_value;
+	s32 src_val = src_reg->s32_min_value; /* non-zero, const divisor */
+	s32 res1, res2;
+
+	/* BPF div specification: S32_MIN / -1 = S32_MIN */
+	if (*dst_smin == S32_MIN && src_val == -1) {
+		/*
+		 * If the dividend range contains more than just S32_MIN,
+		 * we cannot precisely track the result, so it becomes unbounded.
+		 * e.g., [S32_MIN, S32_MIN+10]/(-1),
+		 *     = {S32_MIN} U [-(S32_MIN+10), -(S32_MIN+1)]
+		 *     = {S32_MIN} U [S32_MAX-9, S32_MAX] = [S32_MIN, S32_MAX]
+		 * Otherwise (if dividend is exactly S32_MIN), result remains S32_MIN.
+		 */
+		if (*dst_smax != S32_MIN) {
+			*dst_smin = S32_MIN;
+			*dst_smax = S32_MAX;
+		}
+		goto reset;
+	}
+
+	res1 = *dst_smin / src_val;
+	res2 = *dst_smax / src_val;
+	*dst_smin = min(res1, res2);
+	*dst_smax = max(res1, res2);
+
+reset:
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->u32_min_value = 0;
+	dst_reg->u32_max_value = U32_MAX;
+	reset_reg64_and_tnum(dst_reg);
+}
+
+static void scalar_min_max_sdiv(struct bpf_reg_state *dst_reg,
+				struct bpf_reg_state *src_reg)
+{
+	s64 *dst_smin = &dst_reg->smin_value;
+	s64 *dst_smax = &dst_reg->smax_value;
+	s64 src_val = src_reg->smin_value; /* non-zero, const divisor */
+	s64 res1, res2;
+
+	/* BPF div specification: S64_MIN / -1 = S64_MIN */
+	if (*dst_smin == S64_MIN && src_val == -1) {
+		/*
+		 * If the dividend range contains more than just S64_MIN,
+		 * we cannot precisely track the result, so it becomes unbounded.
+		 * e.g., [S64_MIN, S64_MIN+10]/(-1),
+		 *     = {S64_MIN} U [-(S64_MIN+10), -(S64_MIN+1)]
+		 *     = {S64_MIN} U [S64_MAX-9, S64_MAX] = [S64_MIN, S64_MAX]
+		 * Otherwise (if dividend is exactly S64_MIN), result remains S64_MIN.
+		 */
+		if (*dst_smax != S64_MIN) {
+			*dst_smin = S64_MIN;
+			*dst_smax = S64_MAX;
+		}
+		goto reset;
+	}
+
+	res1 = div64_s64(*dst_smin, src_val);
+	res2 = div64_s64(*dst_smax, src_val);
+	*dst_smin = min(res1, res2);
+	*dst_smax = max(res1, res2);
+
+reset:
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->umin_value = 0;
+	dst_reg->umax_value = U64_MAX;
+	reset_reg32_and_tnum(dst_reg);
+}
+
+static void scalar32_min_max_umod(struct bpf_reg_state *dst_reg,
+				  struct bpf_reg_state *src_reg)
+{
+	u32 *dst_umin = &dst_reg->u32_min_value;
+	u32 *dst_umax = &dst_reg->u32_max_value;
+	u32 src_val = src_reg->u32_min_value; /* non-zero, const divisor */
+	u32 res_max = src_val - 1;
+
+	/*
+	 * If dst_umax <= res_max, the result remains unchanged.
+	 * e.g., [2, 5] % 10 = [2, 5].
+	 */
+	if (*dst_umax <= res_max)
+		return;
+
+	*dst_umin = 0;
+	*dst_umax = min(*dst_umax, res_max);
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->s32_min_value = S32_MIN;
+	dst_reg->s32_max_value = S32_MAX;
+	reset_reg64_and_tnum(dst_reg);
+}
+
+static void scalar_min_max_umod(struct bpf_reg_state *dst_reg,
+				struct bpf_reg_state *src_reg)
+{
+	u64 *dst_umin = &dst_reg->umin_value;
+	u64 *dst_umax = &dst_reg->umax_value;
+	u64 src_val = src_reg->umin_value; /* non-zero, const divisor */
+	u64 res_max = src_val - 1;
+
+	/*
+	 * If dst_umax <= res_max, the result remains unchanged.
+	 * e.g., [2, 5] % 10 = [2, 5].
+	 */
+	if (*dst_umax <= res_max)
+		return;
+
+	*dst_umin = 0;
+	*dst_umax = min(*dst_umax, res_max);
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->smin_value = S64_MIN;
+	dst_reg->smax_value = S64_MAX;
+	reset_reg32_and_tnum(dst_reg);
+}
+
+static void scalar32_min_max_smod(struct bpf_reg_state *dst_reg,
+				  struct bpf_reg_state *src_reg)
+{
+	s32 *dst_smin = &dst_reg->s32_min_value;
+	s32 *dst_smax = &dst_reg->s32_max_value;
+	s32 src_val = src_reg->s32_min_value; /* non-zero, const divisor */
+
+	/*
+	 * Safe absolute value calculation:
+	 * If src_val == S32_MIN (-2147483648), src_abs becomes 2147483648.
+	 * Here use unsigned integer to avoid overflow.
+	 */
+	u32 src_abs = (src_val > 0) ? (u32)src_val : -(u32)src_val;
+
+	/*
+	 * Calculate the maximum possible absolute value of the result.
+	 * Even if src_abs is 2147483648 (S32_MIN), subtracting 1 gives
+	 * 2147483647 (S32_MAX), which fits perfectly in s32.
+	 */
+	s32 res_max_abs = src_abs - 1;
+
+	/*
+	 * If the dividend is already within the result range,
+	 * the result remains unchanged. e.g., [-2, 5] % 10 = [-2, 5].
+	 */
+	if (*dst_smin >= -res_max_abs && *dst_smax <= res_max_abs)
+		return;
+
+	/* General case: result has the same sign as the dividend. */
+	if (*dst_smin >= 0) {
+		*dst_smin = 0;
+		*dst_smax = min(*dst_smax, res_max_abs);
+	} else if (*dst_smax <= 0) {
+		*dst_smax = 0;
+		*dst_smin = max(*dst_smin, -res_max_abs);
+	} else {
+		*dst_smin = -res_max_abs;
+		*dst_smax = res_max_abs;
+	}
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->u32_min_value = 0;
+	dst_reg->u32_max_value = U32_MAX;
+	reset_reg64_and_tnum(dst_reg);
+}
+
+static void scalar_min_max_smod(struct bpf_reg_state *dst_reg,
+				struct bpf_reg_state *src_reg)
+{
+	s64 *dst_smin = &dst_reg->smin_value;
+	s64 *dst_smax = &dst_reg->smax_value;
+	s64 src_val = src_reg->smin_value; /* non-zero, const divisor */
+
+	/*
+	 * Safe absolute value calculation:
+	 * If src_val == S64_MIN (-2^63), src_abs becomes 2^63.
+	 * Here use unsigned integer to avoid overflow.
+	 */
+	u64 src_abs = (src_val > 0) ? (u64)src_val : -(u64)src_val;
+
+	/*
+	 * Calculate the maximum possible absolute value of the result.
+	 * Even if src_abs is 2^63 (S64_MIN), subtracting 1 gives
+	 * 2^63 - 1 (S64_MAX), which fits perfectly in s64.
+	 */
+	s64 res_max_abs = src_abs - 1;
+
+	/*
+	 * If the dividend is already within the result range,
+	 * the result remains unchanged. e.g., [-2, 5] % 10 = [-2, 5].
+	 */
+	if (*dst_smin >= -res_max_abs && *dst_smax <= res_max_abs)
+		return;
+
+	/* General case: result has the same sign as the dividend. */
+	if (*dst_smin >= 0) {
+		*dst_smin = 0;
+		*dst_smax = min(*dst_smax, res_max_abs);
+	} else if (*dst_smax <= 0) {
+		*dst_smax = 0;
+		*dst_smin = max(*dst_smin, -res_max_abs);
+	} else {
+		*dst_smin = -res_max_abs;
+		*dst_smax = res_max_abs;
+	}
+
+	/* Reset other ranges/tnum to unbounded/unknown. */
+	dst_reg->umin_value = 0;
+	dst_reg->umax_value = U64_MAX;
+	reset_reg32_and_tnum(dst_reg);
+}
+
 static void scalar32_min_max_and(struct bpf_reg_state *dst_reg,
 				 struct bpf_reg_state *src_reg)
 {
@@ -15564,6 +15822,14 @@ static bool is_safe_to_compute_dst_reg_range(struct bpf_insn *insn,
 	case BPF_MUL:
 		return true;
 
+	/*
+	 * Division and modulo operators range is only safe to compute when the
+	 * divisor is a constant.
+	 */
+	case BPF_DIV:
+	case BPF_MOD:
+		return src_is_const;
+
 	/* Shift operators range is only computable if shift dimension operand
 	 * is a constant. Shifts greater than 31 or 63 are undefined. This
 	 * includes shifts by a negative number.
@@ -15616,6 +15882,7 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 				      struct bpf_reg_state src_reg)
 {
 	u8 opcode = BPF_OP(insn->code);
+	s16 off = insn->off;
 	bool alu32 = (BPF_CLASS(insn->code) != BPF_ALU64);
 	int ret;
 
@@ -15666,6 +15933,38 @@ static int adjust_scalar_min_max_vals(struct bpf_verifier_env *env,
 		dst_reg->var_off = tnum_mul(dst_reg->var_off, src_reg.var_off);
 		scalar32_min_max_mul(dst_reg, &src_reg);
 		scalar_min_max_mul(dst_reg, &src_reg);
+		break;
+	case BPF_DIV:
+		/* BPF div specification: x / 0 = 0 */
+		if ((alu32 && src_reg.u32_min_value == 0) || (!alu32 && src_reg.umin_value == 0)) {
+			___mark_reg_known(dst_reg, 0);
+			break;
+		}
+		if (alu32)
+			if (off == 1)
+				scalar32_min_max_sdiv(dst_reg, &src_reg);
+			else
+				scalar32_min_max_udiv(dst_reg, &src_reg);
+		else
+			if (off == 1)
+				scalar_min_max_sdiv(dst_reg, &src_reg);
+			else
+				scalar_min_max_udiv(dst_reg, &src_reg);
+		break;
+	case BPF_MOD:
+		/* BPF mod specification: x % 0 = x */
+		if ((alu32 && src_reg.u32_min_value == 0) || (!alu32 && src_reg.umin_value == 0))
+			break;
+		if (alu32)
+			if (off == 1)
+				scalar32_min_max_smod(dst_reg, &src_reg);
+			else
+				scalar32_min_max_umod(dst_reg, &src_reg);
+		else
+			if (off == 1)
+				scalar_min_max_smod(dst_reg, &src_reg);
+			else
+				scalar_min_max_umod(dst_reg, &src_reg);
 		break;
 	case BPF_AND:
 		if (tnum_is_const(src_reg.var_off)) {
