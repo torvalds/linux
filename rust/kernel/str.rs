@@ -844,7 +844,10 @@ impl CString {
         f.write_str("\0")?;
 
         // SAFETY: The number of bytes that can be written to `f` is bounded by `size`, which is
-        // `buf`'s capacity. The contents of the buffer have been initialised by writes to `f`.
+        // `buf`'s capacity. The `Formatter` is created with `size` as its limit, and the `?`
+        // operators on `write_fmt` and `write_str` above ensure that if writing exceeds this
+        // limit, an error is returned early. The contents of the buffer have been initialised
+        // by writes to `f`.
         unsafe { buf.inc_len(f.bytes_written()) };
 
         // Check that there are no `NUL` bytes before the end.
