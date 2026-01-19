@@ -264,14 +264,9 @@ static const uint8_t smu_v14_0_2_throttler_map[] = {
 	[THROTTLER_FIT_BIT]		= (SMU_THROTTLER_FIT_BIT),
 };
 
-static int
-smu_v14_0_2_get_allowed_feature_mask(struct smu_context *smu,
-				  uint32_t *feature_mask, uint32_t num)
+static int smu_v14_0_2_init_allowed_features(struct smu_context *smu)
 {
-	if (num > 2)
-		return -EINVAL;
-
-	memset(feature_mask, 0xff, sizeof(uint32_t) * num);
+	smu_feature_list_set_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
 	return 0;
 }
@@ -2757,7 +2752,7 @@ static int smu_v14_0_2_set_power_limit(struct smu_context *smu,
 }
 
 static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
-	.get_allowed_feature_mask = smu_v14_0_2_get_allowed_feature_mask,
+	.init_allowed_features = smu_v14_0_2_init_allowed_features,
 	.set_default_dpm_table = smu_v14_0_2_set_default_dpm_table,
 	.i2c_init = smu_v14_0_2_i2c_control_init,
 	.i2c_fini = smu_v14_0_2_i2c_control_fini,

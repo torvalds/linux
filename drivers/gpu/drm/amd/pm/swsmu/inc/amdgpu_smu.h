@@ -812,11 +812,10 @@ struct pptable_funcs {
 	int (*run_btc)(struct smu_context *smu);
 
 	/**
-	 * @get_allowed_feature_mask: Get allowed feature mask.
-	 * &feature_mask: Array to store feature mask.
-	 * &num: Elements in &feature_mask.
+	 * @init_allowed_features: Initialize allowed features bitmap.
+	 * Directly sets allowed features using smu_feature wrapper functions.
 	 */
-	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*init_allowed_features)(struct smu_context *smu);
 
 	/**
 	 * @get_current_power_state: Get the current power state.
@@ -2052,14 +2051,6 @@ static inline void smu_feature_bits_copy(struct smu_feature_bits *dst,
 	bitmap_copy(dst->bits, src, nbits);
 }
 
-static inline void smu_feature_bits_or(struct smu_feature_bits *dst,
-				       const struct smu_feature_bits *src1,
-				       const unsigned long *src2,
-				       unsigned int nbits)
-{
-	bitmap_or(dst->bits, src1->bits, src2, nbits);
-}
-
 static inline struct smu_feature_bits *
 __smu_feature_get_list(struct smu_context *smu, enum smu_feature_list list)
 {
@@ -2126,15 +2117,6 @@ static inline void smu_feature_list_set_bits(struct smu_context *smu,
 {
 	smu_feature_bits_copy(__smu_feature_get_list(smu, dst_list), src,
 			      smu->smu_feature.feature_num);
-}
-
-static inline void smu_feature_list_add_bits(struct smu_context *smu,
-					     enum smu_feature_list list,
-					     const unsigned long *src)
-{
-	struct smu_feature_bits *bits = __smu_feature_get_list(smu, list);
-
-	smu_feature_bits_or(bits, bits, src, smu->smu_feature.feature_num);
 }
 
 static inline void smu_feature_list_to_arr32(struct smu_context *smu,

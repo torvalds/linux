@@ -691,11 +691,8 @@ static int smu_sys_set_pp_table(void *handle,
 	return ret;
 }
 
-static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
+static int smu_init_driver_allowed_feature_mask(struct smu_context *smu)
 {
-	uint32_t allowed_feature_mask[SMU_FEATURE_MAX/32];
-	int ret = 0;
-
 	/*
 	 * With SCPM enabled, the allowed featuremasks setting(via
 	 * PPSMC_MSG_SetAllowedFeaturesMaskLow/High) is not permitted.
@@ -710,15 +707,7 @@ static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 
 	smu_feature_list_clear_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
-	ret = smu_get_allowed_feature_mask(smu, allowed_feature_mask,
-					     SMU_FEATURE_MAX/32);
-	if (ret)
-		return ret;
-
-	smu_feature_list_add_bits(smu, SMU_FEATURE_LIST_ALLOWED,
-				  (unsigned long *)allowed_feature_mask);
-
-	return ret;
+	return smu_init_allowed_features(smu);
 }
 
 static int smu_set_funcs(struct amdgpu_device *adev)
@@ -1949,7 +1938,7 @@ static int smu_hw_init(struct amdgpu_ip_block *ip_block)
 	if (!smu->pm_enabled)
 		return 0;
 
-	ret = smu_get_driver_allowed_feature_mask(smu);
+	ret = smu_init_driver_allowed_feature_mask(smu);
 	if (ret)
 		return ret;
 

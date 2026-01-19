@@ -742,15 +742,9 @@ static int smu_v13_0_6_fini_smc_tables(struct smu_context *smu)
 	return smu_v13_0_fini_smc_tables(smu);
 }
 
-static int smu_v13_0_6_get_allowed_feature_mask(struct smu_context *smu,
-						uint32_t *feature_mask,
-						uint32_t num)
+static int smu_v13_0_6_init_allowed_features(struct smu_context *smu)
 {
-	if (num > 2)
-		return -EINVAL;
-
-	/* pptable will handle the features to enable */
-	memset(feature_mask, 0xFF, sizeof(uint32_t) * num);
+	smu_feature_list_set_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
 	return 0;
 }
@@ -3836,7 +3830,7 @@ static int smu_v13_0_6_get_ras_smu_drv(struct smu_context *smu, const struct ras
 
 static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	/* init dpm */
-	.get_allowed_feature_mask = smu_v13_0_6_get_allowed_feature_mask,
+	.init_allowed_features = smu_v13_0_6_init_allowed_features,
 	/* dpm/clk tables */
 	.set_default_dpm_table = smu_v13_0_6_set_default_dpm_table,
 	.populate_umd_state_clk = smu_v13_0_6_populate_umd_state_clk,
