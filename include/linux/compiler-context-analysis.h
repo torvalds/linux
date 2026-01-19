@@ -32,13 +32,8 @@
 /*
  * The "assert_capability" attribute is a bit confusingly named. It does not
  * generate a check. Instead, it tells the analysis to *assume* the capability
- * is held. This is used for:
- *
- * 1. Augmenting runtime assertions, that can then help with patterns beyond the
- *    compiler's static reasoning abilities.
- *
- * 2. Initialization of context locks, so we can access guarded variables right
- *    after initialization (nothing else should access the same object yet).
+ * is held. This is used for augmenting runtime assertions, that can then help
+ * with patterns beyond the compiler's static reasoning abilities.
  */
 # define __assumes_ctx_lock(...)		__attribute__((assert_capability(__VA_ARGS__)))
 # define __assumes_shared_ctx_lock(...)	__attribute__((assert_shared_capability(__VA_ARGS__)))

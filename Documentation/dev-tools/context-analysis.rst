@@ -83,9 +83,33 @@ Currently the following synchronization primitives are supported:
 `bit_spinlock`, RCU, SRCU (`srcu_struct`), `rw_semaphore`, `local_lock_t`,
 `ww_mutex`.
 
-For context locks with an initialization function (e.g., `spin_lock_init()`),
-calling this function before initializing any guarded members or globals
-prevents the compiler from issuing warnings about unguarded initialization.
+To initialize variables guarded by a context lock with an initialization
+function (``type_init(&lock)``), prefer using ``guard(type_init)(&lock)`` or
+``scoped_guard(type_init, &lock) { ... }`` to initialize such guarded members
+or globals in the enclosing scope. This initializes the context lock and treats
+the context as active within the initialization scope (initialization implies
+exclusive access to the underlying object).
+
+For example::
+
+    struct my_data {
+            spinlock_t lock;
+            int counter __guarded_by(&lock);
+    };
+
+    void init_my_data(struct my_data *d)
+    {
+            ...
+            guard(spinlock_init)(&d->lock);
+            d->counter = 0;
+            ...
+    }
+
+Alternatively, initializing guarded variables can be done with context analysis
+disabled, preferably in the smallest possible scope (due to lack of any other
+checking): either with a ``context_unsafe(var = init)`` expression, or by
+marking small initialization functions with the ``__context_unsafe(init)``
+attribute.
 
 Lockdep assertions, such as `lockdep_assert_held()`, inform the compiler's
 context analysis that the associated synchronization primitive is held after
