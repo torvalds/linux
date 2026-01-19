@@ -582,10 +582,6 @@ pdf_documents = [
     ("kernel-documentation", "Kernel", "Kernel", "J. Random Bozo"),
 ]
 
-# kernel-doc extension configuration for running Sphinx directly (e.g. by Read
-# the Docs). In a normal build, these are supplied from the Makefile via command
-# line arguments.
-kerneldoc_bin = "../tools/docs/kernel-doc"  # Not used now
 kerneldoc_srctree = ".."
 
 def setup(app):

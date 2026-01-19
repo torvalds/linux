@@ -47,6 +47,10 @@ sys.path.insert(0, os.path.join(srctree, "tools/lib/python"))
 from kdoc.kdoc_files import KernelFiles
 from kdoc.kdoc_output import RestFormat
 
+# Used when verbose is active to show how to reproduce kernel-doc
+# issues via command line
+kerneldoc_bin = "tools/docs/kernel-doc"
+
 __version__  = '1.0'
 kfiles = None
 logger = logging.getLogger(__name__)
@@ -95,7 +99,7 @@ class KernelDocDirective(Directive):
     def handle_args(self):
 
         env = self.state.document.settings.env
-        cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
+        cmd = [kerneldoc_bin, '-rst', '-enable-lineno']
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
 
@@ -257,7 +261,6 @@ def setup_kfiles(app):
 
 
 def setup(app):
-    app.add_config_value('kerneldoc_bin', None, 'env')
     app.add_config_value('kerneldoc_srctree', None, 'env')
     app.add_config_value('kerneldoc_verbosity', 1, 'env')
 
