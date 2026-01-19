@@ -166,6 +166,20 @@ This option is kept just for backward-compatibility, but it does nothing,
 neither here nor at the original Perl script.
 """
 
+EPILOG = """
+The return value is:
+
+- 0: success or Python version is not compatible with
+kernel-doc.  If -Werror is not used, it will also
+return 0 if there are issues at kernel-doc markups;
+
+- 1: an abnormal condition happened;
+
+- 2: argparse issued an error;
+
+- 3: When -Werror is used, it means that one or more unfiltered parse
+     warnings happened.
+"""
 
 class MsgFormatter(logging.Formatter):
     """Helper class to format warnings in a similar way to kernel-doc.pl."""
@@ -178,21 +192,10 @@ def main():
     """
     Main program.
 
-    By default, the return value is:
-
-    - 0: success or Python version is not compatible with
-      kernel-doc.  If -Werror is not used, it will also
-      return 0 if there are issues at kernel-doc markups;
-
-    - 1: an abnormal condition happened;
-
-    - 2: argparse issued an error;
-
-    - 3: -Werror is used, and one or more unfiltered parse warnings happened.
     """
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,
-                                     description=DESC)
+                                     description=DESC, epilog=EPILOG)
 
     #
     # Normal arguments
