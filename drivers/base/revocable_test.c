@@ -137,3 +137,6 @@ static struct kunit_suite revocable_test_suite = {
 };
 
 kunit_test_suite(revocable_test_suite);
+
+MODULE_DESCRIPTION("KUnit tests for the revocable API");
+MODULE_LICENSE("GPL");
