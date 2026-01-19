@@ -60,11 +60,13 @@ static struct gfx_user_settings {
 
 static uint32_t cyan_skillfish_sclk_default;
 
-#define FEATURE_MASK(feature) (1ULL << feature)
-#define SMC_DPM_FEATURE ( \
-	FEATURE_MASK(FEATURE_FCLK_DPM_BIT)	|	\
-	FEATURE_MASK(FEATURE_SOC_DPM_BIT)	|	\
-	FEATURE_MASK(FEATURE_GFX_DPM_BIT))
+static const struct smu_feature_bits cyan_skillfish_dpm_features = {
+	.bits = {
+		SMU_FEATURE_BIT_INIT(FEATURE_FCLK_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_SOC_DPM_BIT),
+		SMU_FEATURE_BIT_INIT(FEATURE_GFX_DPM_BIT)
+	}
+};
 
 static struct cmn2asic_msg_mapping cyan_skillfish_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			0),
@@ -362,6 +364,7 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 	uint64_t feature_enabled;
+	uint32_t feature_mask[2];
 
 	/* we need to re-init after suspend so return false */
 	if (adev->in_suspend)
@@ -378,7 +381,8 @@ static bool cyan_skillfish_is_dpm_running(struct smu_context *smu)
 		cyan_skillfish_get_smu_metrics_data(smu, METRICS_CURR_GFXCLK,
 			&cyan_skillfish_sclk_default);
 
-	return !!(feature_enabled & SMC_DPM_FEATURE);
+	smu_feature_bits_to_arr32(&cyan_skillfish_dpm_features, feature_mask, 64);
+	return !!(feature_enabled & *(uint64_t *)feature_mask);
 }
 
 static ssize_t cyan_skillfish_get_gpu_metrics(struct smu_context *smu,

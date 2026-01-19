@@ -477,6 +477,23 @@ struct smu_feature_bits {
 	DECLARE_BITMAP(bits, SMU_FEATURE_MAX);
 };
 
+/*
+ * Helpers for initializing smu_feature_bits statically.
+ * Use SMU_FEATURE_BIT_INIT() which automatically handles array indexing:
+ *   static const struct smu_feature_bits example = {
+ *       .bits = {
+ *           SMU_FEATURE_BIT_INIT(5),
+ *           SMU_FEATURE_BIT_INIT(10),
+ *           SMU_FEATURE_BIT_INIT(65),
+ *           SMU_FEATURE_BIT_INIT(100)
+ *       }
+ *   };
+ */
+#define SMU_FEATURE_BITS_ELEM(bit) ((bit) / BITS_PER_LONG)
+#define SMU_FEATURE_BITS_POS(bit) ((bit) % BITS_PER_LONG)
+#define SMU_FEATURE_BIT_INIT(bit) \
+	[SMU_FEATURE_BITS_ELEM(bit)] = (1UL << SMU_FEATURE_BITS_POS(bit))
+
 enum smu_feature_list {
 	SMU_FEATURE_LIST_SUPPORTED,
 	SMU_FEATURE_LIST_ALLOWED,
