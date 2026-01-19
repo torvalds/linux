@@ -236,6 +236,8 @@ static void test_percpu_map_op_cpu_flag(struct bpf_map *map, void *keys, size_t 
 		err = bpf_map_update_batch(map_fd, keys, values, &count, &batch_opts);
 		if (!ASSERT_OK(err, "bpf_map_update_batch all_cpus"))
 			goto out;
+		if (!ASSERT_EQ(count, entries, "bpf_map_update_batch count"))
+			goto out;
 
 		/* update values on specified CPU */
 		for (i = 0; i < entries; i++)
@@ -246,6 +248,8 @@ static void test_percpu_map_op_cpu_flag(struct bpf_map *map, void *keys, size_t 
 		err = bpf_map_update_batch(map_fd, keys, values, &count, &batch_opts);
 		if (!ASSERT_OK(err, "bpf_map_update_batch specified cpu"))
 			goto out;
+		if (!ASSERT_EQ(count, entries, "bpf_map_update_batch count"))
+			goto out;
 
 		/* lookup values on specified CPU */
 		batch = 0;
@@ -253,6 +257,8 @@ static void test_percpu_map_op_cpu_flag(struct bpf_map *map, void *keys, size_t 
 		memset(values, 0, entries * value_sz);
 		err = bpf_map_lookup_batch(map_fd, NULL, &batch, keys, values, &count, &batch_opts);
 		if (!ASSERT_TRUE(!err || err == -ENOENT, "bpf_map_lookup_batch specified cpu"))
+			goto out;
+		if (!ASSERT_EQ(count, entries, "bpf_map_lookup_batch count"))
 			goto out;
 
 		for (i = 0; i < entries; i++)
@@ -268,6 +274,8 @@ static void test_percpu_map_op_cpu_flag(struct bpf_map *map, void *keys, size_t 
 		err = bpf_map_lookup_batch(map_fd, NULL, &batch, keys, values_percpu, &count,
 					   &batch_opts);
 		if (!ASSERT_TRUE(!err || err == -ENOENT, "bpf_map_lookup_batch all_cpus"))
+			goto out;
+		if (!ASSERT_EQ(count, entries, "bpf_map_lookup_batch count"))
 			goto out;
 
 		for (i = 0; i < entries; i++) {
@@ -287,7 +295,6 @@ out:
 	free(values);
 }
 
-
 static void test_percpu_map_cpu_flag(enum bpf_map_type map_type)
 {
 	struct percpu_alloc_array *skel;
@@ -300,7 +307,7 @@ static void test_percpu_map_cpu_flag(enum bpf_map_type map_type)
 	if (!ASSERT_GT(nr_cpus, 0, "libbpf_num_possible_cpus"))
 		return;
 
-	max_entries = nr_cpus + 1;
+	max_entries = nr_cpus * 2;
 	keys = calloc(max_entries, key_sz);
 	if (!ASSERT_OK_PTR(keys, "calloc keys"))
 		return;
@@ -322,7 +329,7 @@ static void test_percpu_map_cpu_flag(enum bpf_map_type map_type)
 	if (!ASSERT_OK(err, "test_percpu_alloc__load"))
 		goto out;
 
-	test_percpu_map_op_cpu_flag(map, keys, key_sz, max_entries - 1, nr_cpus, true);
+	test_percpu_map_op_cpu_flag(map, keys, key_sz, nr_cpus, nr_cpus, true);
 out:
 	percpu_alloc_array__destroy(skel);
 	free(keys);
