@@ -2779,7 +2779,7 @@ retry_conn_state:
 	ret = drm_property_replace_blob_from_id(drm,
 						&new_conn_state->hdr_output_metadata,
 						hdr_blob->base.id,
-						sizeof(struct hdr_output_metadata), -1,
+						-1, sizeof(struct hdr_output_metadata), -1,
 						&replaced);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_EQ(test, replaced, true);
