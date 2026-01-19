@@ -198,6 +198,58 @@ arm_cs_etm_basic_test() {
 	arm_cs_report "CoreSight basic testing with '$*'" $err
 }
 
+arm_cs_etm_test_cpu_list() {
+	echo "Testing sparse CPU list: $1"
+	perf record -o ${perfdata} -e cs_etm//u -C $1 \
+		-- taskset --cpu-list $1 true > /dev/null 2>&1
+	perf_script_branch_samples true
+	err=$?
+	arm_cs_report "CoreSight sparse CPUs with '$*'" $err
+}
+
+arm_cs_etm_sparse_cpus_test() {
+	# Iterate for every ETM device
+	cpus=()
+	for dev in /sys/bus/event_source/devices/cs_etm/cpu*; do
+		# Canonicalize the path
+		dev=`readlink -f $dev`
+
+		# Find the ETM device belonging to which CPU
+		cpus+=("$(cat $dev/cpu)")
+	done
+
+	mapfile -t cpus < <(printf '%s\n' "${cpus[@]}" | sort -n)
+	total=${#cpus[@]}
+
+	# Need more than 1 to test
+	if [ $total -le 1 ]; then
+		return 0
+	fi
+
+	half=$((total / 2))
+
+	# First half
+	first_half=$(IFS=,; echo "${cpus[*]:0:$half}")
+	arm_cs_etm_test_cpu_list $first_half
+
+	# Second half
+	second_half=$(IFS=,; echo "${cpus[*]:$half}")
+	arm_cs_etm_test_cpu_list $second_half
+
+	# Odd list is the same as halves unless >= 4 CPUs
+	if [ $total -lt 4 ]; then
+		return 0
+	fi
+
+	# Odd indices
+	odd_cpus=()
+	for ((i=1; i<total; i+=2)); do
+		odd_cpus+=("${cpus[$i]}")
+	done
+	odd_list=$(IFS=,; echo "${odd_cpus[*]}")
+	arm_cs_etm_test_cpu_list $odd_list
+}
+
 arm_cs_etm_traverse_path_test
 arm_cs_etm_system_wide_test
 arm_cs_etm_snapshot_test
@@ -210,5 +262,7 @@ arm_cs_etm_basic_test -e cs_etm/timestamp=0/ -a
 arm_cs_etm_basic_test -e cs_etm/timestamp=1/ -a
 arm_cs_etm_basic_test -e cs_etm/timestamp=0/
 arm_cs_etm_basic_test -e cs_etm/timestamp=1/
+
+arm_cs_etm_sparse_cpus_test
 
 exit $glb_err
