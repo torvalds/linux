@@ -274,6 +274,7 @@ patternProperties:
           suspend. This property is now deprecated, instead setting voltage
           for suspend mode via the API which regulator driver provides is
           recommended.
+        deprecated: true
 
       regulator-changeable-in-suspend:
         description: whether the default voltage and the regulator on/off
