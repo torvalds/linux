@@ -843,7 +843,7 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		for (i = 0; i < num_transfer; i++) {
 			ret = strm->transfer(ssi, strm);
 			if (ret)
-				goto done;
+				return ret;
 		}
 
 		ret = rz_ssi_start(ssi, strm);
@@ -859,7 +859,6 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 	}
 
-done:
 	return ret;
 }
 
