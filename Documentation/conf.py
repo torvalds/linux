@@ -33,7 +33,7 @@ else:
     include_patterns = ["**.rst"]
 
 # Location of Documentation/ directory
-doctree = os.path.abspath(".")
+kern_doc_dir = os.path.abspath(".")
 
 # Exclude of patterns that don't contain directory names, in glob format.
 exclude_patterns = []
@@ -73,7 +73,7 @@ def config_init(app, config):
     # setup include_patterns dynamically
     if has_include_patterns:
         for p in dyn_include_patterns:
-            full = os.path.join(doctree, p)
+            full = os.path.join(kern_doc_dir, p)
 
             rel_path = os.path.relpath(full, start=app.srcdir)
             if rel_path.startswith("../"):
@@ -83,7 +83,7 @@ def config_init(app, config):
 
     # setup exclude_patterns dynamically
     for p in dyn_exclude_patterns:
-        full = os.path.join(doctree, p)
+        full = os.path.join(kern_doc_dir, p)
 
         rel_path = os.path.relpath(full, start=app.srcdir)
         if rel_path.startswith("../"):
@@ -95,7 +95,7 @@ def config_init(app, config):
     # of the app.srcdir. Add them here
 
     # Handle the case where SPHINXDIRS is used
-    if not os.path.samefile(doctree, app.srcdir):
+    if not os.path.samefile(kern_doc_dir, app.srcdir):
         # Add a tag to mark that the build is actually a subproject
         tags.add("subproject")
 
