@@ -542,12 +542,6 @@ struct test_ww_mutex_data {
 	int counter __guarded_by(&mtx);
 };
 
-static void __used test_ww_mutex_init(struct test_ww_mutex_data *d)
-{
-	ww_mutex_init(&d->mtx, &ww_class);
-	d->counter = 0;
-}
-
 static void __used test_ww_mutex_lock_noctx(struct test_ww_mutex_data *d)
 {
 	if (!ww_mutex_lock(&d->mtx, NULL)) {
