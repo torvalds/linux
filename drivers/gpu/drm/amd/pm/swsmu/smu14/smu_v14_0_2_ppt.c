@@ -268,49 +268,10 @@ static int
 smu_v14_0_2_get_allowed_feature_mask(struct smu_context *smu,
 				  uint32_t *feature_mask, uint32_t num)
 {
-	struct amdgpu_device *adev = smu->adev;
-	/*u32 smu_version;*/
-
 	if (num > 2)
 		return -EINVAL;
 
 	memset(feature_mask, 0xff, sizeof(uint32_t) * num);
-
-	if (adev->pm.pp_feature & PP_SCLK_DPM_MASK) {
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_DPM_GFXCLK_BIT);
-		*(uint64_t *)feature_mask |= FEATURE_MASK(FEATURE_GFX_IMU_BIT);
-	}
-#if 0
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_ATHUB) ||
-	    !(adev->pg_flags & AMD_PG_SUPPORT_MMHUB))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_ATHUB_MMHUB_PG_BIT);
-
-	if (!(adev->pm.pp_feature & PP_SOCCLK_DPM_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_SOCCLK_BIT);
-
-	/* PMFW 78.58 contains a critical fix for gfxoff feature */
-	smu_cmn_get_smc_version(smu, NULL, &smu_version);
-	if ((smu_version < 0x004e3a00) ||
-	     !(adev->pm.pp_feature & PP_GFXOFF_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFXOFF_BIT);
-
-	if (!(adev->pm.pp_feature & PP_MCLK_DPM_MASK)) {
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_UCLK_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VMEMP_SCALING_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_VDDIO_MEM_SCALING_BIT);
-	}
-
-	if (!(adev->pm.pp_feature & PP_SCLK_DEEP_SLEEP_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_GFXCLK_BIT);
-
-	if (!(adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DPM_LINK_BIT);
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_DS_LCLK_BIT);
-	}
-
-	if (!(adev->pm.pp_feature & PP_ULV_MASK))
-		*(uint64_t *)feature_mask &= ~FEATURE_MASK(FEATURE_GFX_ULV_BIT);
-#endif
 
 	return 0;
 }
