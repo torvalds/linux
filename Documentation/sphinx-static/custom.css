@@ -44,6 +44,15 @@ dt.sig-object { font-size: larger; }
 div.kernelindent { margin-left: 2em; margin-right: 4em; }
 
 /*
+ * Parameters for the display of function prototypes and such included
+ * from Python source files.
+ */
+dl.py { margin-top: 2em; background-color: #ecf0f3; }
+dl.py.class { margin-left: 2em; text-indent: -2em; padding-left: 2em; }
+dl.py.method, dl.py.attribute { margin-left: 2em; text-indent: -2em; }
+dl.py li, pre { text-indent: 0em; padding-left: 0 !important; }
+
+/*
  * Tweaks for our local TOC
  */
 div.kerneltoc li.toctree-l1 { font-size: smaller;
