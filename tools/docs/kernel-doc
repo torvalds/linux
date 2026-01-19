@@ -182,7 +182,10 @@ return 0 if there are issues at kernel-doc markups;
 """
 
 class MsgFormatter(logging.Formatter):
-    """Helper class to format warnings in a similar way to kernel-doc.pl."""
+    """
+    Helper class to capitalize errors and warnings, the same way
+    the venerable (now retired) kernel-doc.pl used to do.
+    """
 
     def format(self, record):
         record.levelname = record.levelname.capitalize()
