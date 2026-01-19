@@ -81,6 +81,7 @@ struct mtk_pcs_lynxi {
 	phy_interface_t		interface;
 	struct			phylink_pcs pcs;
 	u32			flags;
+	struct fwnode_handle	*fwnode;
 };
 
 static struct mtk_pcs_lynxi *pcs_to_mtk_pcs_lynxi(struct phylink_pcs *pcs)
@@ -168,7 +169,7 @@ static int mtk_pcs_lynxi_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 		regmap_set_bits(mpcs->regmap, SGMSYS_RESERVED_0,
 				SGMII_SW_RESET);
 
-		if (mpcs->flags & MTK_SGMII_FLAG_PN_SWAP)
+		if (fwnode_property_read_bool(mpcs->fwnode, "mediatek,pnswap"))
 			regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_WRAP_CTRL,
 					   SGMII_PN_SWAP_MASK,
 					   SGMII_PN_SWAP_TX_RX);
@@ -268,8 +269,8 @@ static const struct phylink_pcs_ops mtk_pcs_lynxi_ops = {
 };
 
 struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
-					 struct regmap *regmap, u32 ana_rgc3,
-					 u32 flags)
+					 struct fwnode_handle *fwnode,
+					 struct regmap *regmap, u32 ana_rgc3)
 {
 	struct mtk_pcs_lynxi *mpcs;
 	u32 id, ver;
@@ -303,10 +304,10 @@ struct phylink_pcs *mtk_pcs_lynxi_create(struct device *dev,
 
 	mpcs->ana_rgc3 = ana_rgc3;
 	mpcs->regmap = regmap;
-	mpcs->flags = flags;
 	mpcs->pcs.ops = &mtk_pcs_lynxi_ops;
 	mpcs->pcs.poll = true;
 	mpcs->interface = PHY_INTERFACE_MODE_NA;
+	mpcs->fwnode = fwnode_handle_get(fwnode);
 
 	__set_bit(PHY_INTERFACE_MODE_SGMII, mpcs->pcs.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_1000BASEX, mpcs->pcs.supported_interfaces);
@@ -318,10 +319,14 @@ EXPORT_SYMBOL(mtk_pcs_lynxi_create);
 
 void mtk_pcs_lynxi_destroy(struct phylink_pcs *pcs)
 {
+	struct mtk_pcs_lynxi *mpcs;
+
 	if (!pcs)
 		return;
 
-	kfree(pcs_to_mtk_pcs_lynxi(pcs));
+	mpcs = pcs_to_mtk_pcs_lynxi(pcs);
+	fwnode_handle_put(mpcs->fwnode);
+	kfree(mpcs);
 }
 EXPORT_SYMBOL(mtk_pcs_lynxi_destroy);
 
