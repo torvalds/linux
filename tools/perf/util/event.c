@@ -588,6 +588,9 @@ size_t perf_event__fprintf_schedstat_cpu(union perf_event *event, FILE *fp)
 	} else if (version == 16) {
 #include <perf/schedstat-v16.h>
 		return size;
+	} else if (version == 17) {
+#include <perf/schedstat-v17.h>
+		return size;
 	}
 #undef CPU_FIELD
 
@@ -609,6 +612,9 @@ size_t perf_event__fprintf_schedstat_domain(union perf_event *event, FILE *fp)
 		return size;
 	} else if (version == 16) {
 #include <perf/schedstat-v16.h>
+		return size;
+	} else if (version == 17) {
+#include <perf/schedstat-v17.h>
 		return size;
 	}
 #undef DOMAIN_FIELD
