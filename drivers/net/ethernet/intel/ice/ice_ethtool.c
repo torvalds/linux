@@ -3388,7 +3388,6 @@ process_link:
 				 */
 				rx_rings[i].next_to_use = 0;
 				rx_rings[i].next_to_clean = 0;
-				rx_rings[i].next_to_alloc = 0;
 				*vsi->rx_rings[i] = rx_rings[i];
 			}
 			kfree(rx_rings);

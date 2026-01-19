@@ -574,7 +574,6 @@ rx_skip_free:
 		     PAGE_SIZE);
 	memset(rx_ring->desc, 0, size);
 
-	rx_ring->next_to_alloc = 0;
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 }

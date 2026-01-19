@@ -267,34 +267,49 @@ struct ice_tstamp_ring {
 } ____cacheline_internodealigned_in_smp;
 
 struct ice_rx_ring {
-	/* CL1 - 1st cacheline starts here */
+	__cacheline_group_begin_aligned(read_mostly);
 	void *desc;			/* Descriptor ring memory */
 	struct page_pool *pp;
 	struct net_device *netdev;	/* netdev ring maps to */
-	struct ice_vsi *vsi;		/* Backreference to associated VSI */
 	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
 	u8 __iomem *tail;
-	u16 q_index;			/* Queue number of ring */
-
-	u16 count;			/* Number of descriptors */
-	u16 reg_idx;			/* HW register index of the ring */
-	u16 next_to_alloc;
 
 	union {
 		struct libeth_fqe *rx_fqes;
 		struct xdp_buff **xdp_buf;
 	};
 
-	/* CL2 - 2nd cacheline starts here */
-	struct libeth_fqe *hdr_fqes;
-	struct page_pool *hdr_pp;
+	u16 count;			/* Number of descriptors */
+	u8 ptp_rx;
 
+	u8 flags;
+#define ICE_RX_FLAGS_CRC_STRIP_DIS	BIT(2)
+#define ICE_RX_FLAGS_MULTIDEV		BIT(3)
+#define ICE_RX_FLAGS_RING_GCS		BIT(4)
+
+	u32 truesize;
+
+	struct page_pool *hdr_pp;
+	struct libeth_fqe *hdr_fqes;
+
+	struct bpf_prog *xdp_prog;
+	struct ice_tx_ring *xdp_ring;
+	struct xsk_buff_pool *xsk_pool;
+
+	/* stats structs */
+	struct ice_ring_stats *ring_stats;
+	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
+
+	u32 hdr_truesize;
+
+	struct xdp_rxq_info xdp_rxq;
+	__cacheline_group_end_aligned(read_mostly);
+
+	__cacheline_group_begin_aligned(read_write);
 	union {
 		struct libeth_xdp_buff_stash xdp;
 		struct libeth_xdp_buff *xsk;
 	};
-
-	/* CL3 - 3rd cacheline starts here */
 	union {
 		struct ice_pkt_ctx pkt_ctx;
 		struct {
@@ -302,75 +317,78 @@ struct ice_rx_ring {
 			__be16 vlan_proto;
 		};
 	};
-	struct bpf_prog *xdp_prog;
 
 	/* used in interrupt processing */
 	u16 next_to_use;
 	u16 next_to_clean;
+	__cacheline_group_end_aligned(read_write);
 
-	u32 hdr_truesize;
-	u32 truesize;
-
-	/* stats structs */
-	struct ice_ring_stats *ring_stats;
-
+	__cacheline_group_begin_aligned(cold);
 	struct rcu_head rcu;		/* to avoid race on free */
-	/* CL4 - 4th cacheline starts here */
+	struct ice_vsi *vsi;		/* Backreference to associated VSI */
 	struct ice_channel *ch;
-	struct ice_tx_ring *xdp_ring;
-	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
-	struct xsk_buff_pool *xsk_pool;
+
+	dma_addr_t dma;			/* physical address of ring */
+	u16 q_index;			/* Queue number of ring */
+	u16 reg_idx;			/* HW register index of the ring */
+	u8 dcb_tc;			/* Traffic class of ring */
+
 	u16 rx_hdr_len;
 	u16 rx_buf_len;
-	dma_addr_t dma;			/* physical address of ring */
-	u8 dcb_tc;			/* Traffic class of ring */
-	u8 ptp_rx;
-#define ICE_RX_FLAGS_CRC_STRIP_DIS	BIT(2)
-#define ICE_RX_FLAGS_MULTIDEV		BIT(3)
-#define ICE_RX_FLAGS_RING_GCS		BIT(4)
-	u8 flags;
-	/* CL5 - 5th cacheline starts here */
-	struct xdp_rxq_info xdp_rxq;
+	__cacheline_group_end_aligned(cold);
 } ____cacheline_internodealigned_in_smp;
 
 struct ice_tx_ring {
-	/* CL1 - 1st cacheline starts here */
-	struct ice_tx_ring *next;	/* pointer to next ring in q_vector */
+	__cacheline_group_begin_aligned(read_mostly);
 	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	u8 __iomem *tail;
 	struct ice_tx_buf *tx_buf;
+
 	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
 	struct net_device *netdev;	/* netdev ring maps to */
 	struct ice_vsi *vsi;		/* Backreference to associated VSI */
-	/* CL2 - 2nd cacheline starts here */
-	dma_addr_t dma;			/* physical address of ring */
-	struct xsk_buff_pool *xsk_pool;
-	u16 next_to_use;
-	u16 next_to_clean;
-	u16 q_handle;			/* Queue handle per TC */
-	u16 reg_idx;			/* HW register index of the ring */
+
 	u16 count;			/* Number of descriptors */
 	u16 q_index;			/* Queue number of ring */
-	u16 xdp_tx_active;
-	/* stats structs */
-	struct ice_ring_stats *ring_stats;
-	/* CL3 - 3rd cacheline starts here */
-	struct rcu_head rcu;		/* to avoid race on free */
-	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
-	struct ice_channel *ch;
-	struct ice_ptp_tx *tx_tstamps;
-	spinlock_t tx_lock;
-	u32 txq_teid;			/* Added Tx queue TEID */
-	/* CL4 - 4th cacheline starts here */
-	struct ice_tstamp_ring *tstamp_ring;
+
+	u8 flags;
 #define ICE_TX_FLAGS_RING_XDP		BIT(0)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG1	BIT(1)
 #define ICE_TX_FLAGS_RING_VLAN_L2TAG2	BIT(2)
 #define ICE_TX_FLAGS_TXTIME		BIT(3)
-	u8 flags;
+
+	struct xsk_buff_pool *xsk_pool;
+
+	/* stats structs */
+	struct ice_ring_stats *ring_stats;
+	struct ice_tx_ring *next;	/* pointer to next ring in q_vector */
+
+	struct ice_tstamp_ring *tstamp_ring;
+	struct ice_ptp_tx *tx_tstamps;
+	__cacheline_group_end_aligned(read_mostly);
+
+	__cacheline_group_begin_aligned(read_write);
+	u16 next_to_use;
+	u16 next_to_clean;
+
+	u16 xdp_tx_active;
+	spinlock_t tx_lock;
+	__cacheline_group_end_aligned(read_write);
+
+	__cacheline_group_begin_aligned(cold);
+	struct rcu_head rcu;		/* to avoid race on free */
+	DECLARE_BITMAP(xps_state, ICE_TX_NBITS);	/* XPS Config State */
+	struct ice_channel *ch;
+
+	dma_addr_t dma;			/* physical address of ring */
+	u16 q_handle;			/* Queue handle per TC */
+	u16 reg_idx;			/* HW register index of the ring */
 	u8 dcb_tc;			/* Traffic class of ring */
+
 	u16 quanta_prof_id;
+	u32 txq_teid;			/* Added Tx queue TEID */
+	__cacheline_group_end_aligned(cold);
 } ____cacheline_internodealigned_in_smp;
 
 static inline bool ice_ring_ch_enabled(struct ice_tx_ring *ring)
