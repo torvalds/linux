@@ -114,8 +114,7 @@ static int qepic_probe(struct platform_device *pdev)
 	if (!data->host)
 		return -ENODEV;
 
-	irq_set_handler_data(irq, data);
-	irq_set_chained_handler(irq, qepic_cascade);
+	irq_set_chained_handler_and_data(irq, qepic_cascade, data);
 
 	return 0;
 }
