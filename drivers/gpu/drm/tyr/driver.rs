@@ -75,7 +75,7 @@ fn issue_soft_reset(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
         dev_err!(dev, "GPU reset failed with errno\n");
         dev_err!(
             dev,
-            "GPU_INT_RAWSTAT is {}\n",
+            "GPU_IRQ_RAWSTAT is {}\n",
             regs::GPU_IRQ_RAWSTAT.read(dev, iomem)?
         );
 
