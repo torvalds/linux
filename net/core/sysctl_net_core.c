@@ -430,6 +430,13 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
+		.procname	= "qdisc_max_burst",
+		.data		= &net_hotdata.qdisc_max_burst,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
 		.procname	= "netdev_rss_key",
 		.data		= &netdev_rss_key,
 		.maxlen		= sizeof(int),

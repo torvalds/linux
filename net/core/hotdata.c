@@ -17,6 +17,7 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 
 	.tstamp_prequeue = 1,
 	.max_backlog = 1000,
+	.qdisc_max_burst = 1000,
 	.dev_tx_weight = 64,
 	.dev_rx_weight = 64,
 	.sysctl_max_skb_frags = MAX_SKB_FRAGS,

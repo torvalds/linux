@@ -41,8 +41,6 @@ static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
 	adf_error_notifier(accel_dev);
 	adf_pf2vf_notify_fatal_error(accel_dev);
 	adf_dev_restarting_notify(accel_dev);
-	adf_pf2vf_notify_restarting(accel_dev);
-	adf_pf2vf_wait_for_restarting_complete(accel_dev);
 	pci_clear_master(pdev);
 	adf_dev_down(accel_dev);
 

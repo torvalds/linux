@@ -6,6 +6,7 @@
  * Copyright (c) 2007, MontaVista Software, Inc. <source@mvista.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/gpio/driver.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -109,6 +110,22 @@ davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
 	return __davinci_direction(chip, offset, true, value);
 }
 
+static int davinci_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	struct davinci_gpio_controller *d = gpiochip_get_data(chip);
+	struct davinci_gpio_regs __iomem *g;
+	u32 mask = __gpio_mask(offset), val;
+	int bank = offset / 32;
+
+	g = d->regs[bank];
+
+	guard(spinlock_irqsave)(&d->lock);
+
+	val = readl_relaxed(&g->dir);
+
+	return (val & mask) ? GPIO_LINE_DIRECTION_IN : GPIO_LINE_DIRECTION_OUT;
+}
+
 /*
  * Read the pin's value (works even if it's set up as output);
  * returns zero/nonzero.
@@ -203,6 +220,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	chips->chip.get = davinci_gpio_get;
 	chips->chip.direction_output = davinci_direction_out;
 	chips->chip.set = davinci_gpio_set;
+	chips->chip.get_direction = davinci_get_direction;
 
 	chips->chip.ngpio = ngpio;
 	chips->chip.base = -1;
