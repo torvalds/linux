@@ -1243,6 +1243,51 @@ static void vduse_vq_update_effective_cpu(struct vduse_virtqueue *vq)
 	vq->irq_effective_cpu = curr_cpu;
 }
 
+static int vduse_dev_iotlb_entry(struct vduse_dev *dev,
+				 struct vduse_iotlb_entry *entry,
+				 struct file **f, uint64_t *capability)
+{
+	int r = -EINVAL;
+	struct vhost_iotlb_map *map;
+
+	if (entry->start > entry->last)
+		return -EINVAL;
+
+	mutex_lock(&dev->domain_lock);
+	if (!dev->domain)
+		goto out;
+
+	spin_lock(&dev->domain->iotlb_lock);
+	map = vhost_iotlb_itree_first(dev->domain->iotlb, entry->start,
+				      entry->last);
+	if (map) {
+		if (f) {
+			const struct vdpa_map_file *map_file;
+
+			map_file = (struct vdpa_map_file *)map->opaque;
+			entry->offset = map_file->offset;
+			*f = get_file(map_file->file);
+		}
+		entry->start = map->start;
+		entry->last = map->last;
+		entry->perm = map->perm;
+		if (capability) {
+			*capability = 0;
+
+			if (dev->domain->bounce_map && map->start == 0 &&
+			    map->last == dev->domain->bounce_size - 1)
+				*capability |= VDUSE_IOVA_CAP_UMEM;
+		}
+
+		r = 0;
+	}
+	spin_unlock(&dev->domain->iotlb_lock);
+
+out:
+	mutex_unlock(&dev->domain_lock);
+	return r;
+}
+
 static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -1256,36 +1301,16 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case VDUSE_IOTLB_GET_FD: {
 		struct vduse_iotlb_entry entry;
-		struct vhost_iotlb_map *map;
-		struct vdpa_map_file *map_file;
 		struct file *f = NULL;
 
 		ret = -EFAULT;
 		if (copy_from_user(&entry, argp, sizeof(entry)))
 			break;
 
-		ret = -EINVAL;
-		if (entry.start > entry.last)
+		ret = vduse_dev_iotlb_entry(dev, &entry, &f, NULL);
+		if (ret)
 			break;
 
-		mutex_lock(&dev->domain_lock);
-		if (!dev->domain) {
-			mutex_unlock(&dev->domain_lock);
-			break;
-		}
-		spin_lock(&dev->domain->iotlb_lock);
-		map = vhost_iotlb_itree_first(dev->domain->iotlb,
-					      entry.start, entry.last);
-		if (map) {
-			map_file = (struct vdpa_map_file *)map->opaque;
-			f = get_file(map_file->file);
-			entry.offset = map_file->offset;
-			entry.start = map->start;
-			entry.last = map->last;
-			entry.perm = map->perm;
-		}
-		spin_unlock(&dev->domain->iotlb_lock);
-		mutex_unlock(&dev->domain_lock);
 		ret = -EINVAL;
 		if (!f)
 			break;
@@ -1475,40 +1500,25 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 	}
 	case VDUSE_IOTLB_GET_INFO: {
 		struct vduse_iova_info info;
-		struct vhost_iotlb_map *map;
+		struct vduse_iotlb_entry entry;
 
 		ret = -EFAULT;
 		if (copy_from_user(&info, argp, sizeof(info)))
-			break;
-
-		ret = -EINVAL;
-		if (info.start > info.last)
 			break;
 
 		if (!is_mem_zero((const char *)info.reserved,
 				 sizeof(info.reserved)))
 			break;
 
-		mutex_lock(&dev->domain_lock);
-		if (!dev->domain) {
-			mutex_unlock(&dev->domain_lock);
+		entry.start = info.start;
+		entry.last = info.last;
+		ret = vduse_dev_iotlb_entry(dev, &entry, NULL,
+					    &info.capability);
+		if (ret < 0)
 			break;
-		}
-		spin_lock(&dev->domain->iotlb_lock);
-		map = vhost_iotlb_itree_first(dev->domain->iotlb,
-					      info.start, info.last);
-		if (map) {
-			info.start = map->start;
-			info.last = map->last;
-			info.capability = 0;
-			if (dev->domain->bounce_map && map->start == 0 &&
-			    map->last == dev->domain->bounce_size - 1)
-				info.capability |= VDUSE_IOVA_CAP_UMEM;
-		}
-		spin_unlock(&dev->domain->iotlb_lock);
-		mutex_unlock(&dev->domain_lock);
-		if (!map)
-			break;
+
+		info.start = entry.start;
+		info.last = entry.last;
 
 		ret = -EFAULT;
 		if (copy_to_user(argp, &info, sizeof(info)))
