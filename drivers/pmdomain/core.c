@@ -3809,15 +3809,24 @@ static int idle_states_desc_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	seq_puts(s, "State  Name\n");
+	seq_puts(s, "State  Latency(us)  Residency(us)  Name\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
 		struct genpd_power_state *state = &genpd->states[i];
+		u64 latency, residency;
 		char state_name[7];
 
+		latency = state->power_off_latency_ns +
+			state->power_on_latency_ns;
+		do_div(latency, NSEC_PER_USEC);
+
+		residency = state->residency_ns;
+		do_div(residency, NSEC_PER_USEC);
+
 		snprintf(state_name, ARRAY_SIZE(state_name), "S%-5d", i);
-		seq_printf(s, "%-6s %s\n",
-			   state_name, state->name ?: "N/A");
+		seq_printf(s, "%-6s %-12llu %-14llu %s\n",
+			   state_name, latency, residency,
+			   state->name ?: "N/A");
 	}
 
 	genpd_unlock(genpd);
