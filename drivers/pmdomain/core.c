@@ -3772,11 +3772,11 @@ static int idle_states_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	seq_puts(s, "State          Time Spent(ms) Usage      Rejected   Above      Below\n");
+	seq_puts(s, "State  Time(ms)       Usage      Rejected   Above      Below\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
 		struct genpd_power_state *state = &genpd->states[i];
-		char state_name[15];
+		char state_name[7];
 
 		idle_time += state->idle_time;
 
@@ -3788,14 +3788,36 @@ static int idle_states_show(struct seq_file *s, void *data)
 			}
 		}
 
-		if (!state->name)
-			snprintf(state_name, ARRAY_SIZE(state_name), "S%-13d", i);
-
+		snprintf(state_name, ARRAY_SIZE(state_name), "S%-5d", i);
 		do_div(idle_time, NSEC_PER_MSEC);
-		seq_printf(s, "%-14s %-14llu %-10llu %-10llu %-10llu %llu\n",
-			   state->name ?: state_name, idle_time,
-			   state->usage, state->rejected, state->above,
-			   state->below);
+		seq_printf(s, "%-6s %-14llu %-10llu %-10llu %-10llu %llu\n",
+			   state_name, idle_time, state->usage, state->rejected,
+			   state->above, state->below);
+	}
+
+	genpd_unlock(genpd);
+	return ret;
+}
+
+static int idle_states_desc_show(struct seq_file *s, void *data)
+{
+	struct generic_pm_domain *genpd = s->private;
+	unsigned int i;
+	int ret = 0;
+
+	ret = genpd_lock_interruptible(genpd);
+	if (ret)
+		return -ERESTARTSYS;
+
+	seq_puts(s, "State  Name\n");
+
+	for (i = 0; i < genpd->state_count; i++) {
+		struct genpd_power_state *state = &genpd->states[i];
+		char state_name[7];
+
+		snprintf(state_name, ARRAY_SIZE(state_name), "S%-5d", i);
+		seq_printf(s, "%-6s %s\n",
+			   state_name, state->name ?: "N/A");
 	}
 
 	genpd_unlock(genpd);
@@ -3891,6 +3913,7 @@ DEFINE_SHOW_ATTRIBUTE(summary);
 DEFINE_SHOW_ATTRIBUTE(status);
 DEFINE_SHOW_ATTRIBUTE(sub_domains);
 DEFINE_SHOW_ATTRIBUTE(idle_states);
+DEFINE_SHOW_ATTRIBUTE(idle_states_desc);
 DEFINE_SHOW_ATTRIBUTE(active_time);
 DEFINE_SHOW_ATTRIBUTE(total_idle_time);
 DEFINE_SHOW_ATTRIBUTE(devices);
@@ -3911,6 +3934,8 @@ static void genpd_debug_add(struct generic_pm_domain *genpd)
 			    d, genpd, &sub_domains_fops);
 	debugfs_create_file("idle_states", 0444,
 			    d, genpd, &idle_states_fops);
+	debugfs_create_file("idle_states_desc", 0444,
+			    d, genpd, &idle_states_desc_fops);
 	debugfs_create_file("active_time", 0444,
 			    d, genpd, &active_time_fops);
 	debugfs_create_file("total_idle_time", 0444,
