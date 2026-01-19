@@ -35,4 +35,6 @@ DEBUG_HELP = """
 16 - enable debug for what to regex conversion
 32 - enable debug for symbol regex subgroups
 64 - enable debug for sysfs graph tree variable
+128 - enable debug of search groups
+256 - enable displaying refrence tree graphs for undefined symbols.
 """
