@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+UNIT_TESTS := $(OUTPUT)unit_tests
+UNIT_TESTS_IN := $(UNIT_TESTS)-in.o
+
+$(UNIT_TESTS): $(UNIT_TESTS_IN)
+	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $@ $^ -lcheck
+
+$(UNIT_TESTS_IN):
+	make $(build)=unit_tests
+
+unit-tests: FORCE
+	$(Q)if [ "$(feature-libcheck)" = "1" ]; then \
+		$(MAKE) $(UNIT_TESTS) && $(UNIT_TESTS); \
+	else \
+		echo "libcheck is missing, skipping unit tests. Please install check-devel/check"; \
+	fi

@@ -33,12 +33,14 @@ DOCSRC		:= ../../../Documentation/tools/rtla/
 FEATURE_TESTS	:= libtraceevent
 FEATURE_TESTS	+= libtracefs
 FEATURE_TESTS	+= libcpupower
+FEATURE_TESTS	+= libcheck
 FEATURE_TESTS	+= libbpf
 FEATURE_TESTS	+= clang-bpf-co-re
 FEATURE_TESTS	+= bpftool-skeletons
 FEATURE_DISPLAY	:= libtraceevent
 FEATURE_DISPLAY	+= libtracefs
 FEATURE_DISPLAY	+= libcpupower
+FEATURE_DISPLAY	+= libcheck
 FEATURE_DISPLAY	+= libbpf
 FEATURE_DISPLAY	+= clang-bpf-co-re
 FEATURE_DISPLAY	+= bpftool-skeletons
@@ -47,6 +49,7 @@ all: $(RTLA)
 
 include $(srctree)/tools/build/Makefile.include
 include Makefile.rtla
+include tests/unit/Makefile.unit
 
 # check for dependencies only on required targets
 NON_CONFIG_TARGETS := clean install tarball doc doc_clean doc_install
@@ -109,6 +112,8 @@ clean: doc_clean fixdep-clean
 	$(Q)rm -f rtla rtla-static fixdep FEATURE-DUMP rtla-*
 	$(Q)rm -rf feature
 	$(Q)rm -f src/timerlat.bpf.o src/timerlat.skel.h example/timerlat_bpf_action.o
+	$(Q)rm -f $(UNIT_TESTS)
+
 check: $(RTLA) tests/bpf/bpf_action_map.o
 	RTLA=$(RTLA) BPFTOOL=$(SYSTEM_BPFTOOL) prove -o -f -v tests/
 examples: example/timerlat_bpf_action.o
