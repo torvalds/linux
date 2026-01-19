@@ -12,6 +12,7 @@ more additions are needed here:
 
    rtla/index
    rv/index
+   python
 
 .. only::  subproject and html
 
