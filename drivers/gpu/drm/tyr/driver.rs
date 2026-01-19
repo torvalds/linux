@@ -8,6 +8,7 @@ use kernel::device::Device;
 use kernel::devres::Devres;
 use kernel::drm;
 use kernel::drm::ioctl;
+use kernel::io::poll;
 use kernel::new_mutex;
 use kernel::of;
 use kernel::platform;
@@ -67,20 +68,13 @@ unsafe impl Sync for TyrData {}
 fn issue_soft_reset(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
     regs::GPU_CMD.write(dev, iomem, regs::GPU_CMD_SOFT_RESET)?;
 
-    // TODO: We cannot poll, as there is no support in Rust currently, so we
-    // sleep. Change this when read_poll_timeout() is implemented in Rust.
-    kernel::time::delay::fsleep(time::Delta::from_millis(100));
-
-    if regs::GPU_IRQ_RAWSTAT.read(dev, iomem)? & regs::GPU_IRQ_RAWSTAT_RESET_COMPLETED == 0 {
-        dev_err!(dev, "GPU reset failed with errno\n");
-        dev_err!(
-            dev,
-            "GPU_IRQ_RAWSTAT is {}\n",
-            regs::GPU_IRQ_RAWSTAT.read(dev, iomem)?
-        );
-
-        return Err(EIO);
-    }
+    poll::read_poll_timeout(
+        || regs::GPU_IRQ_RAWSTAT.read(dev, iomem),
+        |status| *status & regs::GPU_IRQ_RAWSTAT_RESET_COMPLETED != 0,
+        time::Delta::from_millis(1),
+        time::Delta::from_millis(100),
+    )
+    .inspect_err(|_| dev_err!(dev, "GPU reset failed."))?;
 
     Ok(())
 }

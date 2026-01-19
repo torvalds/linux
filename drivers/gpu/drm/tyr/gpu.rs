@@ -6,9 +6,10 @@ use kernel::bits::genmask_u32;
 use kernel::device::Bound;
 use kernel::device::Device;
 use kernel::devres::Devres;
+use kernel::io::poll;
 use kernel::platform;
 use kernel::prelude::*;
-use kernel::time;
+use kernel::time::Delta;
 use kernel::transmute::AsBytes;
 use kernel::uapi;
 
@@ -204,14 +205,13 @@ impl From<u32> for GpuId {
 pub(crate) fn l2_power_on(dev: &Device<Bound>, iomem: &Devres<IoMem>) -> Result {
     regs::L2_PWRON_LO.write(dev, iomem, 1)?;
 
-    // TODO: We cannot poll, as there is no support in Rust currently, so we
-    // sleep. Change this when read_poll_timeout() is implemented in Rust.
-    kernel::time::delay::fsleep(time::Delta::from_millis(100));
-
-    if regs::L2_READY_LO.read(dev, iomem)? != 1 {
-        dev_err!(dev, "Failed to power on the GPU\n");
-        return Err(EIO);
-    }
+    poll::read_poll_timeout(
+        || regs::L2_READY_LO.read(dev, iomem),
+        |status| *status == 1,
+        Delta::from_millis(1),
+        Delta::from_millis(100),
+    )
+    .inspect_err(|_| dev_err!(dev, "Failed to power on the GPU."))?;
 
     Ok(())
 }
