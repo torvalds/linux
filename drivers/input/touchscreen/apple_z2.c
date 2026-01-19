@@ -21,6 +21,7 @@
 #define APPLE_Z2_TOUCH_STARTED           3
 #define APPLE_Z2_TOUCH_MOVED             4
 #define APPLE_Z2_CMD_READ_INTERRUPT_DATA 0xEB
+#define APPLE_Z2_REPLY_INTERRUPT_DATA    0xE1
 #define APPLE_Z2_HBPP_CMD_BLOB           0x3001
 #define APPLE_Z2_FW_MAGIC                0x5746325A
 #define LOAD_COMMAND_INIT_PAYLOAD        0
@@ -141,6 +142,9 @@ static int apple_z2_read_packet(struct apple_z2 *z2)
 	error = spi_sync_transfer(z2->spidev, &xfer, 1);
 	if (error)
 		return error;
+
+	if (z2->rx_buf[0] != APPLE_Z2_REPLY_INTERRUPT_DATA)
+		return 0;
 
 	pkt_len = (get_unaligned_le16(z2->rx_buf + 1) + 8) & 0xfffffffc;
 

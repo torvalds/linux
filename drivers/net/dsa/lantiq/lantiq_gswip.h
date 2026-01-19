@@ -294,8 +294,6 @@ struct gswip_priv {
 	u16 version;
 };
 
-void gswip_disable_switch(struct gswip_priv *priv);
-
 int gswip_probe_common(struct gswip_priv *priv, u32 version);
 
 #endif /* __LANTIQ_GSWIP_H */

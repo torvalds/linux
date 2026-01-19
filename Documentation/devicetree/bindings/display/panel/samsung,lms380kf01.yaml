@@ -11,7 +11,7 @@ description: The LMS380KF01 is a 480x800 DPI display panel from Samsung Mobile
   used with internal or external backlight control.
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 allOf:
   - $ref: panel-common.yaml#

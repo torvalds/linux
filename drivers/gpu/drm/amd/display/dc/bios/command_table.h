@@ -57,12 +57,12 @@ struct cmd_tbl {
 		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*dac1_encoder_control)(
 		struct bios_parser *bp,
-		bool enable,
+		enum bp_encoder_control_action action,
 		uint32_t pixel_clock,
 		uint8_t dac_standard);
 	enum bp_result (*dac2_encoder_control)(
 		struct bios_parser *bp,
-		bool enable,
+		enum bp_encoder_control_action action,
 		uint32_t pixel_clock,
 		uint8_t dac_standard);
 	enum bp_result (*dac1_output_control)(

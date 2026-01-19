@@ -214,7 +214,7 @@ int xe_svm_init(struct xe_vm *vm)
 {
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
 	return drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM (simple)", &vm->xe->drm,
-			       NULL, NULL, 0, 0, 0, NULL, NULL, 0);
+			       NULL, 0, 0, 0, NULL, NULL, 0);
 #else
 	return 0;
 #endif

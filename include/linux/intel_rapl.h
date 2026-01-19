@@ -214,10 +214,14 @@ void rapl_remove_package(struct rapl_package *rp);
 
 #ifdef CONFIG_PERF_EVENTS
 int rapl_package_add_pmu(struct rapl_package *rp);
+int rapl_package_add_pmu_locked(struct rapl_package *rp);
 void rapl_package_remove_pmu(struct rapl_package *rp);
+void rapl_package_remove_pmu_locked(struct rapl_package *rp);
 #else
 static inline int rapl_package_add_pmu(struct rapl_package *rp) { return 0; }
+static inline int rapl_package_add_pmu_locked(struct rapl_package *rp) { return 0; }
 static inline void rapl_package_remove_pmu(struct rapl_package *rp) { }
+static inline void rapl_package_remove_pmu_locked(struct rapl_package *rp) { }
 #endif
 
 #endif /* __INTEL_RAPL_H__ */

@@ -6539,6 +6539,8 @@ static void defer_free(struct kmem_cache *s, void *head)
 
 	guard(preempt)();
 
+	head = kasan_reset_tag(head);
+
 	df = this_cpu_ptr(&defer_free_objects);
 	if (llist_add(head + s->offset, &df->objects))
 		irq_work_queue(&df->work);

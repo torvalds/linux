@@ -1241,6 +1241,38 @@ xfs_falloc_insert_range(
 }
 
 /*
+ * For various operations we need to zero up to one block at each end of
+ * the affected range.  For zoned file systems this will require a space
+ * allocation, for which we need a reservation ahead of time.
+ */
+#define XFS_ZONED_ZERO_EDGE_SPACE_RES		2
+
+/*
+ * Zero range implements a full zeroing mechanism but is only used in limited
+ * situations. It is more efficient to allocate unwritten extents than to
+ * perform zeroing here, so use an errortag to randomly force zeroing on DEBUG
+ * kernels for added test coverage.
+ *
+ * On zoned file systems, the error is already injected by
+ * xfs_file_zoned_fallocate, which then reserves the additional space needed.
+ * We only check for this extra space reservation here.
+ */
+static inline bool
+xfs_falloc_force_zero(
+	struct xfs_inode		*ip,
+	struct xfs_zone_alloc_ctx	*ac)
+{
+	if (xfs_is_zoned_inode(ip)) {
+		if (ac->reserved_blocks > XFS_ZONED_ZERO_EDGE_SPACE_RES) {
+			ASSERT(IS_ENABLED(CONFIG_XFS_DEBUG));
+			return true;
+		}
+		return false;
+	}
+	return XFS_TEST_ERROR(ip->i_mount, XFS_ERRTAG_FORCE_ZERO_RANGE);
+}
+
+/*
  * Punch a hole and prealloc the range.  We use a hole punch rather than
  * unwritten extent conversion for two reasons:
  *
@@ -1268,14 +1300,7 @@ xfs_falloc_zero_range(
 	if (error)
 		return error;
 
-	/*
-	 * Zero range implements a full zeroing mechanism but is only used in
-	 * limited situations. It is more efficient to allocate unwritten
-	 * extents than to perform zeroing here, so use an errortag to randomly
-	 * force zeroing on DEBUG kernels for added test coverage.
-	 */
-	if (XFS_TEST_ERROR(ip->i_mount,
-			   XFS_ERRTAG_FORCE_ZERO_RANGE)) {
+	if (xfs_falloc_force_zero(ip, ac)) {
 		error = xfs_zero_range(ip, offset, len, ac, NULL);
 	} else {
 		error = xfs_free_file_space(ip, offset, len, ac);
@@ -1423,13 +1448,26 @@ xfs_file_zoned_fallocate(
 {
 	struct xfs_zone_alloc_ctx ac = { };
 	struct xfs_inode	*ip = XFS_I(file_inode(file));
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_filblks_t		count_fsb;
 	int			error;
 
-	error = xfs_zoned_space_reserve(ip->i_mount, 2, XFS_ZR_RESERVED, &ac);
+	/*
+	 * If full zeroing is forced by the error injection knob, we need a
+	 * space reservation that covers the entire range.  See the comment in
+	 * xfs_zoned_write_space_reserve for the rationale for the calculation.
+	 * Otherwise just reserve space for the two boundary blocks.
+	 */
+	count_fsb = XFS_ZONED_ZERO_EDGE_SPACE_RES;
+	if ((mode & FALLOC_FL_MODE_MASK) == FALLOC_FL_ZERO_RANGE &&
+	    XFS_TEST_ERROR(mp, XFS_ERRTAG_FORCE_ZERO_RANGE))
+		count_fsb += XFS_B_TO_FSB(mp, len) + 1;
+
+	error = xfs_zoned_space_reserve(mp, count_fsb, XFS_ZR_RESERVED, &ac);
 	if (error)
 		return error;
 	error = __xfs_file_fallocate(file, mode, offset, len, &ac);
-	xfs_zoned_space_unreserve(ip->i_mount, &ac);
+	xfs_zoned_space_unreserve(mp, &ac);
 	return error;
 }
 

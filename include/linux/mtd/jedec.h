@@ -2,7 +2,7 @@
 /*
  * Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
  *			 Steven J. Hill <sjhill@realitydiluted.com>
- *			 Thomas Gleixner <tglx@linutronix.de>
+ *			 Thomas Gleixner <tglx@kernel.org>
  *
  * Contains all JEDEC related definitions
  */

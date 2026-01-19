@@ -155,10 +155,25 @@ struct kvm_cpuid2 *vcpu_alloc_cpuid(struct kvm_vm *vm, vm_vaddr_t *p_gva, struct
 static void set_cpuid_after_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *ent;
+	struct kvm_sregs sregs;
 	int rc;
 	u32 eax, ebx, x;
 
 	/* Setting unmodified CPUID is allowed */
+	rc = __vcpu_set_cpuid(vcpu);
+	TEST_ASSERT(!rc, "Setting unmodified CPUID after KVM_RUN failed: %d", rc);
+
+	/*
+	 * Toggle CR4 bits that affect dynamic CPUID feature flags to verify
+	 * setting unmodified CPUID succeeds with runtime CPUID updates.
+	 */
+	vcpu_sregs_get(vcpu, &sregs);
+	if (kvm_cpu_has(X86_FEATURE_XSAVE))
+		sregs.cr4 ^= X86_CR4_OSXSAVE;
+	if (kvm_cpu_has(X86_FEATURE_PKU))
+		sregs.cr4 ^= X86_CR4_PKE;
+	vcpu_sregs_set(vcpu, &sregs);
+
 	rc = __vcpu_set_cpuid(vcpu);
 	TEST_ASSERT(!rc, "Setting unmodified CPUID after KVM_RUN failed: %d", rc);
 

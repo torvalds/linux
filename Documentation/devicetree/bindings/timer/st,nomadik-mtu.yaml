@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ST Microelectronics Nomadik Multi-Timer Unit MTU Timer
 
 maintainers:
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: This timer is found in the ST Microelectronics Nomadik
   SoCs STn8800, STn8810 and STn8815 as well as in ST-Ericsson DB8500.

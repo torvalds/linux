@@ -8,7 +8,7 @@ title: Atmel maXTouch touchscreen/touchpad
 
 maintainers:
   - Nick Dyer <nick@shmanahar.org>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description: |
   Atmel maXTouch touchscreen or touchpads such as the mXT244

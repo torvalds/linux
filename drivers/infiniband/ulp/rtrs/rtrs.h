@@ -24,8 +24,8 @@ struct rtrs_srv_op;
 
 /**
  * enum rtrs_clt_link_ev - Events about connectivity state of a client
- * @RTRS_CLT_LINK_EV_RECONNECTED	Client was reconnected.
- * @RTRS_CLT_LINK_EV_DISCONNECTED	Client was disconnected.
+ * @RTRS_CLT_LINK_EV_RECONNECTED:	Client was reconnected.
+ * @RTRS_CLT_LINK_EV_DISCONNECTED:	Client was disconnected.
  */
 enum rtrs_clt_link_ev {
 	RTRS_CLT_LINK_EV_RECONNECTED,
@@ -33,7 +33,9 @@ enum rtrs_clt_link_ev {
 };
 
 /**
- * Source and destination address of a path to be established
+ * struct rtrs_addr - Source and destination address of a path to be established
+ * @src:	source address
+ * @dst:	destination address
  */
 struct rtrs_addr {
 	struct sockaddr_storage *src;
@@ -41,7 +43,7 @@ struct rtrs_addr {
 };
 
 /**
- * rtrs_clt_ops - it holds the link event callback and private pointer.
+ * struct rtrs_clt_ops - it holds the link event callback and private pointer.
  * @priv: User supplied private data.
  * @link_ev: Event notification callback function for connection state changes
  *	@priv: User supplied data that was passed to rtrs_clt_open()
@@ -67,10 +69,10 @@ enum wait_type {
 };
 
 /**
- * enum rtrs_clt_con_type() type of ib connection to use with a given
+ * enum rtrs_clt_con_type - type of ib connection to use with a given
  * rtrs_permit
- * @ADMIN_CON - use connection reserved for "service" messages
- * @IO_CON - use a connection reserved for IO
+ * @RTRS_ADMIN_CON: use connection reserved for "service" messages
+ * @RTRS_IO_CON: use a connection reserved for IO
  */
 enum rtrs_clt_con_type {
 	RTRS_ADMIN_CON,
@@ -85,7 +87,7 @@ void rtrs_clt_put_permit(struct rtrs_clt_sess *sess,
 			 struct rtrs_permit *permit);
 
 /**
- * rtrs_clt_req_ops - it holds the request confirmation callback
+ * struct rtrs_clt_req_ops - it holds the request confirmation callback
  * and a private pointer.
  * @priv: User supplied private data.
  * @conf_fn:	callback function to be called as confirmation
@@ -105,7 +107,11 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 int rtrs_clt_rdma_cq_direct(struct rtrs_clt_sess *clt, unsigned int index);
 
 /**
- * rtrs_attrs - RTRS session attributes
+ * struct rtrs_attrs - RTRS session attributes
+ * @queue_depth:	queue_depth saved from rtrs_clt_sess message
+ * @max_io_size:	max_io_size from rtrs_clt_sess message, capped to
+ *			  @max_segments * %SZ_4K
+ * @max_segments:	max_segments saved from rtrs_clt_sess message
  */
 struct rtrs_attrs {
 	u32		queue_depth;

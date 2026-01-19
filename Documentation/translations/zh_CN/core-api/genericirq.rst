@@ -404,6 +404,6 @@ kernel/irq/chip.c
 
 感谢以下人士对本文档作出的贡献：
 
-1. Thomas Gleixner tglx@linutronix.de
+1. Thomas Gleixner tglx@kernel.org
 
 2. Ingo Molnar mingo@elte.hu
