@@ -1569,7 +1569,7 @@ int amdgpu_dpm_get_power_limit(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!pp_funcs->get_power_limit)
-		return -ENODATA;
+		return -EOPNOTSUPP;
 
 	mutex_lock(&adev->pm.mutex);
 	ret = pp_funcs->get_power_limit(adev->powerplay.pp_handle,
