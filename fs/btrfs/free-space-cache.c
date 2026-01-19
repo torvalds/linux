@@ -1080,7 +1080,7 @@ int write_cache_extent_entries(struct btrfs_io_ctl *io_ctl,
 	struct btrfs_trim_range *trim_entry;
 
 	/* Get the cluster for this block_group if it exists */
-	if (block_group && !list_empty(&block_group->cluster_list)) {
+	if (!list_empty(&block_group->cluster_list)) {
 		cluster = list_first_entry(&block_group->cluster_list,
 					   struct btrfs_free_cluster, block_group_list);
 	}
@@ -1203,9 +1203,6 @@ static noinline_for_stack int write_pinned_extent_entries(
 	u64 start, extent_start, extent_end, len;
 	struct extent_io_tree *unpin = NULL;
 	int ret;
-
-	if (!block_group)
-		return 0;
 
 	/*
 	 * We want to add any pinned extents to our free space cache
@@ -1394,7 +1391,7 @@ static int __btrfs_write_out_cache(struct inode *inode,
 	if (ret)
 		return ret;
 
-	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA)) {
+	if (block_group->flags & BTRFS_BLOCK_GROUP_DATA) {
 		down_write(&block_group->data_rwsem);
 		spin_lock(&block_group->lock);
 		if (block_group->delalloc_bytes) {
@@ -1466,7 +1463,7 @@ static int __btrfs_write_out_cache(struct inode *inode,
 			goto out_nospc;
 	}
 
-	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA))
+	if (block_group->flags & BTRFS_BLOCK_GROUP_DATA)
 		up_write(&block_group->data_rwsem);
 	/*
 	 * Release the pages and unlock the extent, we will flush
@@ -1501,7 +1498,7 @@ out_nospc:
 	cleanup_write_cache_enospc(inode, io_ctl, &cached_state);
 
 out_unlock:
-	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA))
+	if (block_group->flags & BTRFS_BLOCK_GROUP_DATA)
 		up_write(&block_group->data_rwsem);
 
 out:
