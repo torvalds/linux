@@ -112,9 +112,6 @@ static int mali_c55_isp_start(struct mali_c55 *mali_c55,
 			      const struct v4l2_subdev_state *state)
 {
 	struct mali_c55_context *ctx = mali_c55_get_active_context(mali_c55);
-	const struct mali_c55_isp_format_info *cfg;
-	const struct v4l2_mbus_framefmt *format;
-	const struct v4l2_rect *crop;
 	u32 val;
 	int ret;
 
@@ -122,35 +119,11 @@ static int mali_c55_isp_start(struct mali_c55 *mali_c55,
 			     MALI_C55_REG_MCU_CONFIG_WRITE_MASK,
 			     MALI_C55_REG_MCU_CONFIG_WRITE_PING);
 
-	/* Apply input windowing */
-	crop = v4l2_subdev_state_get_crop(state, MALI_C55_ISP_PAD_SINK_VIDEO);
-	format = v4l2_subdev_state_get_format(state,
-					      MALI_C55_ISP_PAD_SINK_VIDEO);
-	cfg = mali_c55_isp_get_mbus_config_by_code(format->code);
-
-	mali_c55_write(mali_c55, MALI_C55_REG_HC_START,
-		       MALI_C55_HC_START(crop->left));
-	mali_c55_write(mali_c55, MALI_C55_REG_HC_SIZE,
-		       MALI_C55_HC_SIZE(crop->width));
-	mali_c55_write(mali_c55, MALI_C55_REG_VC_START_SIZE,
-		       MALI_C55_VC_START(crop->top) |
-		       MALI_C55_VC_SIZE(crop->height));
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BASE_ADDR,
-				 MALI_C55_REG_ACTIVE_WIDTH_MASK, format->width);
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BASE_ADDR,
-				 MALI_C55_REG_ACTIVE_HEIGHT_MASK,
-				 format->height << 16);
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_BAYER_ORDER,
-				 MALI_C55_BAYER_ORDER_MASK, cfg->order);
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_INPUT_WIDTH,
-				 MALI_C55_INPUT_WIDTH_MASK,
-				 MALI_C55_INPUT_WIDTH_20BIT);
-
-	mali_c55_ctx_update_bits(mali_c55, MALI_C55_REG_ISP_RAW_BYPASS,
-				 MALI_C55_ISP_RAW_BYPASS_BYPASS_MASK,
-				 cfg->bypass ? MALI_C55_ISP_RAW_BYPASS_BYPASS_MASK :
-					     0x00);
-
+	/*
+	 * Apply default ISP configuration and the apply configurations from
+	 * the first available parameters buffer.
+	 */
+	mali_c55_params_init_isp_config(mali_c55, state);
 	mali_c55_params_write_config(mali_c55);
 	ret = mali_c55_config_write(ctx, MALI_C55_CONFIG_PING, true);
 	if (ret) {
