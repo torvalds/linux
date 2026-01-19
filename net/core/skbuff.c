@@ -1507,9 +1507,20 @@ void napi_skb_free_stolen_head(struct sk_buff *skb)
 	napi_skb_cache_put(skb);
 }
 
+/**
+ * napi_consume_skb() - consume skb in NAPI context, try to feed skb cache
+ * @skb: buffer to free
+ * @budget: NAPI budget
+ *
+ * Non-zero @budget must come from the @budget argument passed by the core
+ * to a NAPI poll function. Note that core may pass budget of 0 to NAPI poll
+ * for example when polling for netpoll / netconsole.
+ *
+ * Passing @budget of 0 is safe from any context, it turns this function
+ * into dev_consume_skb_any().
+ */
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
-	/* Zero budget indicate non-NAPI context called us, like netpoll */
 	if (unlikely(!budget || !skb)) {
 		dev_consume_skb_any(skb);
 		return;
