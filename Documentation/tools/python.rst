@@ -8,3 +8,4 @@ Python libraries
    :maxdepth: 4
 
    kdoc
+   kabi
