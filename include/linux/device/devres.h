@@ -26,10 +26,6 @@ __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid, const
 #define devres_alloc_node(release, size, gfp, nid) \
 	__devres_alloc_node(release, size, gfp, nid, #release)
 
-void devres_for_each_res(struct device *dev, dr_release_t release,
-			 dr_match_t match, void *match_data,
-			 void (*fn)(struct device *, void *, void *),
-			 void *data);
 void devres_free(void *res);
 void devres_add(struct device *dev, void *res);
 void *devres_find(struct device *dev, dr_release_t release, dr_match_t match, void *match_data);
