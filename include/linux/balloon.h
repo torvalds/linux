@@ -22,9 +22,9 @@
  *
  * As the page isolation scanning step a compaction thread does is a lockless
  * procedure (from a page standpoint), it might bring some racy situations while
- * performing balloon page compaction. In order to sort out these racy scenarios
- * and safely perform balloon's page compaction and migration we must, always,
- * ensure following these simple rules:
+ * performing balloon page migration. In order to sort out these racy scenarios
+ * and safely perform balloon's page migration we must, always, ensure following
+ * these simple rules:
  *
  *   i. Inflation/deflation must set/clear page->private under the
  *      balloon_pages_lock
@@ -45,10 +45,10 @@
 
 /*
  * Balloon device information descriptor.
- * This struct is used to allow the common balloon compaction interface
+ * This struct is used to allow the common balloon page migration interface
  * procedures to find the proper balloon device holding memory pages they'll
- * have to cope for page compaction / migration, as well as it serves the
- * balloon driver as a page book-keeper for its registered balloon devices.
+ * have to cope for page migration, as well as it serves the balloon driver as
+ * a page book-keeper for its registered balloon devices.
  */
 struct balloon_dev_info {
 	unsigned long isolated_pages;	/* # of isolated pages for migration */
