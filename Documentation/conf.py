@@ -19,6 +19,10 @@ kern_doc_dir = os.path.dirname(os.path.abspath(__file__))
 # Add location of Sphinx extensions
 sys.path.insert(0, os.path.join(kern_doc_dir, "sphinx"))
 
+# Allow sphinx.ext.autodoc to document files at tools and scripts
+sys.path.append(os.path.join(kern_doc_dir, "..", "tools"))
+sys.path.append(os.path.join(kern_doc_dir, "..", "scripts"))
+
 # Minimal supported version
 needs_sphinx = "3.4.3"
 
@@ -152,6 +156,7 @@ extensions = [
     "maintainers_include",
     "parser_yaml",
     "rstFlatTable",
+    "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.ifconfig",
     "translations",
