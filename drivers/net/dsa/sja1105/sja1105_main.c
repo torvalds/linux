@@ -2280,14 +2280,12 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 {
 	struct ptp_system_timestamp ptp_sts_before;
 	struct ptp_system_timestamp ptp_sts_after;
-	u16 bmcr[SJA1105_MAX_NUM_PORTS] = {0};
-	u64 mac_speed[SJA1105_MAX_NUM_PORTS];
 	struct sja1105_mac_config_entry *mac;
 	struct dsa_switch *ds = priv->ds;
+	struct dsa_port *dp;
 	s64 t1, t2, t3, t4;
-	s64 t12, t34;
-	int rc, i;
-	s64 now;
+	s64 t12, t34, now;
+	int rc;
 
 	mutex_lock(&priv->fdb_lock);
 	mutex_lock(&priv->mgmt_lock);
@@ -2299,13 +2297,9 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 	 * switch wants to see in the static config in order to allow us to
 	 * change it through the dynamic interface later.
 	 */
-	for (i = 0; i < ds->num_ports; i++) {
-		mac_speed[i] = mac[i].speed;
-		mac[i].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
-
-		if (priv->pcs[i])
-			bmcr[i] = mdiobus_c45_read(priv->mdio_pcs, i,
-						   MDIO_MMD_VEND2, MDIO_CTRL1);
+	dsa_switch_for_each_available_port(dp, ds) {
+		phylink_replay_link_begin(dp->pl);
+		mac[dp->index].speed = priv->info->port_speed[SJA1105_SPEED_AUTO];
 	}
 
 	/* No PTP operations can run right now */
@@ -2359,44 +2353,8 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 			goto out;
 	}
 
-	for (i = 0; i < ds->num_ports; i++) {
-		struct phylink_pcs *pcs = priv->pcs[i];
-		unsigned int neg_mode;
-
-		mac[i].speed = mac_speed[i];
-		rc = sja1105_set_port_config(priv, i);
-		if (rc < 0)
-			goto out;
-
-		if (!pcs)
-			continue;
-
-		if (bmcr[i] & BMCR_ANENABLE)
-			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
-		else
-			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
-
-		rc = pcs->ops->pcs_config(pcs, neg_mode, priv->phy_mode[i],
-					  NULL, true);
-		if (rc < 0)
-			goto out;
-
-		if (neg_mode == PHYLINK_PCS_NEG_OUTBAND) {
-			int speed = SPEED_UNKNOWN;
-
-			if (priv->phy_mode[i] == PHY_INTERFACE_MODE_2500BASEX)
-				speed = SPEED_2500;
-			else if (bmcr[i] & BMCR_SPEED1000)
-				speed = SPEED_1000;
-			else if (bmcr[i] & BMCR_SPEED100)
-				speed = SPEED_100;
-			else
-				speed = SPEED_10;
-
-			pcs->ops->pcs_link_up(pcs, neg_mode, priv->phy_mode[i],
-					      speed, DUPLEX_FULL);
-		}
-	}
+	dsa_switch_for_each_available_port(dp, ds)
+		phylink_replay_link_end(dp->pl);
 
 	rc = sja1105_reload_cbs(priv);
 	if (rc < 0)
