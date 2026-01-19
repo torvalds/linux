@@ -1830,16 +1830,18 @@ static bool pte_table_reclaim_possible(unsigned long start, unsigned long end,
 	return details && details->reclaim_pt && (end - start >= PMD_SIZE);
 }
 
-static bool zap_empty_pte_table(struct mm_struct *mm, pmd_t *pmd, pmd_t *pmdval)
+static bool zap_empty_pte_table(struct mm_struct *mm, pmd_t *pmd,
+		spinlock_t *ptl, pmd_t *pmdval)
 {
 	spinlock_t *pml = pmd_lockptr(mm, pmd);
 
-	if (!spin_trylock(pml))
+	if (ptl != pml && !spin_trylock(pml))
 		return false;
 
 	*pmdval = pmdp_get(pmd);
 	pmd_clear(pmd);
-	spin_unlock(pml);
+	if (ptl != pml)
+		spin_unlock(pml);
 	return true;
 }
 
@@ -1931,7 +1933,7 @@ retry:
 	 * from being repopulated by another thread.
 	 */
 	if (can_reclaim_pt && direct_reclaim && addr == end)
-		direct_reclaim = zap_empty_pte_table(mm, pmd, &pmdval);
+		direct_reclaim = zap_empty_pte_table(mm, pmd, ptl, &pmdval);
 
 	add_mm_rss_vec(mm, rss);
 	lazy_mmu_mode_disable();
