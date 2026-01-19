@@ -765,7 +765,7 @@ static int sfp_smbus_byte_write(struct sfp *sfp, bool a2, u8 dev_addr,
 		dev_addr++;
 	}
 
-	return 0;
+	return data - (u8 *)buf;
 }
 
 static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)

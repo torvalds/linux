@@ -336,7 +336,7 @@ static void query_dp_dual_mode_adaptor(
 
 	/* Assume we have no valid DP passive dongle connected */
 	*dongle = DISPLAY_DONGLE_NONE;
-	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
+	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
 	if (!i2c_read(
@@ -392,6 +392,8 @@ static void query_dp_dual_mode_adaptor(
 
 		}
 	}
+	if (is_valid_hdmi_signature)
+		sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK;
 
 	if (is_type2_dongle) {
 		uint32_t max_tmds_clk =
@@ -932,7 +934,7 @@ static bool link_detect_dac_load_detect(struct dc_link *link)
 	struct link_encoder *link_enc = link->link_enc;
 	enum engine_id engine_id = link_enc->preferred_engine;
 	enum dal_device_type device_type = DEVICE_TYPE_CRT;
-	enum bp_result bp_result;
+	enum bp_result bp_result = BP_RESULT_UNSUPPORTED;
 	uint32_t enum_id;
 
 	switch (engine_id) {
@@ -946,7 +948,9 @@ static bool link_detect_dac_load_detect(struct dc_link *link)
 		break;
 	}
 
-	bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
+	if (bios->funcs->dac_load_detection)
+		bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
+
 	return bp_result == BP_RESULT_OK;
 }
 

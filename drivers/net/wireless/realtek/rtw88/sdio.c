@@ -144,8 +144,10 @@ static u32 rtw_sdio_to_io_address(struct rtw_dev *rtwdev, u32 addr,
 
 static bool rtw_sdio_use_direct_io(struct rtw_dev *rtwdev, u32 addr)
 {
+	bool might_indirect_under_power_off = rtwdev->chip->id == RTW_CHIP_TYPE_8822C;
+
 	if (!test_bit(RTW_FLAG_POWERON, rtwdev->flags) &&
-	    !rtw_sdio_is_bus_addr(addr))
+	    !rtw_sdio_is_bus_addr(addr) && might_indirect_under_power_off)
 		return false;
 
 	return !rtw_sdio_is_sdio30_supported(rtwdev) ||

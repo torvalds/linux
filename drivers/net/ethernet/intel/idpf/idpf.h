@@ -284,8 +284,7 @@ struct idpf_port_stats {
 
 struct idpf_fsteer_fltr {
 	struct list_head list;
-	u32 loc;
-	u32 q_index;
+	struct ethtool_rx_flow_spec fs;
 };
 
 /**
@@ -424,14 +423,12 @@ enum idpf_user_flags {
  * @rss_key: RSS hash key
  * @rss_lut_size: Size of RSS lookup table
  * @rss_lut: RSS lookup table
- * @cached_lut: Used to restore previously init RSS lut
  */
 struct idpf_rss_data {
 	u16 rss_key_size;
 	u8 *rss_key;
 	u16 rss_lut_size;
 	u32 *rss_lut;
-	u32 *cached_lut;
 };
 
 /**
@@ -558,6 +555,7 @@ struct idpf_vector_lifo {
  * @max_q: Maximum possible queues
  * @req_qs_chunks: Queue chunk data for requested queues
  * @mac_filter_list_lock: Lock to protect mac filters
+ * @flow_steer_list_lock: Lock to protect fsteer filters
  * @flags: See enum idpf_vport_config_flags
  */
 struct idpf_vport_config {
@@ -565,6 +563,7 @@ struct idpf_vport_config {
 	struct idpf_vport_max_q max_q;
 	struct virtchnl2_add_queues *req_qs_chunks;
 	spinlock_t mac_filter_list_lock;
+	spinlock_t flow_steer_list_lock;
 	DECLARE_BITMAP(flags, IDPF_VPORT_CONFIG_FLAGS_NBITS);
 };
 

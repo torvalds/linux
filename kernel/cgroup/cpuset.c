@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  kernel/cpuset.c
  *
@@ -16,10 +17,6 @@
  *  2006 Rework by Paul Menage to use generic cgroups
  *  2008 Rework of the scheduler domains and CPU hotplug handling
  *       by Max Krasnyansky
- *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  */
 #include "cpuset-internal.h"
 
@@ -1668,7 +1665,14 @@ static int remote_partition_enable(struct cpuset *cs, int new_prs,
 static void remote_partition_disable(struct cpuset *cs, struct tmpmasks *tmp)
 {
 	WARN_ON_ONCE(!is_remote_partition(cs));
-	WARN_ON_ONCE(!cpumask_subset(cs->effective_xcpus, subpartitions_cpus));
+	/*
+	 * When a CPU is offlined, top_cpuset may end up with no available CPUs,
+	 * which should clear subpartitions_cpus. We should not emit a warning for this
+	 * scenario: the hierarchy is updated from top to bottom, so subpartitions_cpus
+	 * may already be cleared when disabling the partition.
+	 */
+	WARN_ON_ONCE(!cpumask_subset(cs->effective_xcpus, subpartitions_cpus) &&
+		     !cpumask_empty(subpartitions_cpus));
 
 	spin_lock_irq(&callback_lock);
 	cs->remote_partition = false;
@@ -3976,8 +3980,9 @@ retry:
 	if (remote || (is_partition_valid(cs) && is_partition_valid(parent)))
 		compute_partition_effective_cpumask(cs, &new_cpus);
 
-	if (remote && cpumask_empty(&new_cpus) &&
-	    partition_is_populated(cs, NULL)) {
+	if (remote && (cpumask_empty(subpartitions_cpus) ||
+			(cpumask_empty(&new_cpus) &&
+			 partition_is_populated(cs, NULL)))) {
 		cs->prs_err = PERR_HOTPLUG;
 		remote_partition_disable(cs, tmp);
 		compute_effective_cpumask(&new_cpus, cs, parent);
@@ -3990,9 +3995,12 @@ retry:
 	 * 1) empty effective cpus but not valid empty partition.
 	 * 2) parent is invalid or doesn't grant any cpus to child
 	 *    partitions.
+	 * 3) subpartitions_cpus is empty.
 	 */
-	if (is_local_partition(cs) && (!is_partition_valid(parent) ||
-				tasks_nocpu_error(parent, cs, &new_cpus)))
+	if (is_local_partition(cs) &&
+	    (!is_partition_valid(parent) ||
+	     tasks_nocpu_error(parent, cs, &new_cpus) ||
+	     cpumask_empty(subpartitions_cpus)))
 		partcmd = partcmd_invalidate;
 	/*
 	 * On the other hand, an invalid partition root may be transitioned

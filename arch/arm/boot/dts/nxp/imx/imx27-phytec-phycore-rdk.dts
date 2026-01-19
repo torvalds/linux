@@ -248,14 +248,14 @@
 		linux,default-trigger = "nand-disk";
 	};
 
-	ledg3: led@10 {
-		reg = <10>;
+	ledg3: led@a {
+		reg = <0xa>;
 		label = "system:green3:live";
 		linux,default-trigger = "heartbeat";
 	};
 
-	ledb3: led@11 {
-		reg = <11>;
+	ledb3: led@b {
+		reg = <0xb>;
 		label = "system:blue3:cpu";
 		linux,default-trigger = "cpu0";
 	};
