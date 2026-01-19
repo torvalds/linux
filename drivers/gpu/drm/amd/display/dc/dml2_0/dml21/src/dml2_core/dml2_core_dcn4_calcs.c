@@ -7080,7 +7080,7 @@ static void calculate_excess_vactive_bandwidth_required(
 static double uclk_khz_to_dram_bw_mbps(unsigned long uclk_khz, const struct dml2_dram_params *dram_config, const struct dml2_mcg_dram_bw_to_min_clk_table *dram_bw_table)
 {
 	double bw_mbps = 0;
-	int i;
+	unsigned int i;
 
 	if (!dram_config->alt_clock_bw_conversion)
 		bw_mbps = ((double)uclk_khz * dram_config->channel_count * dram_config->channel_width_bytes * dram_config->transactions_per_clock) / 1000.0;
@@ -7091,7 +7091,7 @@ static double uclk_khz_to_dram_bw_mbps(unsigned long uclk_khz, const struct dml2
 				break;
 			}
 
-	ASSERT(bw_mbps > 0);
+	DML_ASSERT(bw_mbps > 0);
 
 	return bw_mbps;
 }
