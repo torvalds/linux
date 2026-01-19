@@ -677,7 +677,6 @@ int smu_cmn_to_asic_specific_index(struct smu_context *smu,
 int smu_cmn_feature_is_supported(struct smu_context *smu,
 				 enum smu_feature_mask mask)
 {
-	struct smu_feature *feature = &smu->smu_feature;
 	int feature_id;
 
 	feature_id = smu_cmn_to_asic_specific_index(smu,
@@ -686,9 +685,8 @@ int smu_cmn_feature_is_supported(struct smu_context *smu,
 	if (feature_id < 0)
 		return 0;
 
-	WARN_ON(feature_id > feature->feature_num);
-
-	return test_bit(feature_id, feature->supported);
+	return smu_feature_list_is_set(smu, SMU_FEATURE_LIST_SUPPORTED,
+				       feature_id);
 }
 
 static int __smu_get_enabled_features(struct smu_context *smu,

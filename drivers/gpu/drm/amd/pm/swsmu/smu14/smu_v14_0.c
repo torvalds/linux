@@ -746,11 +746,11 @@ int smu_v14_0_set_allowed_mask(struct smu_context *smu)
 	int ret = 0;
 	uint32_t feature_mask[2];
 
-	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) ||
+	if (smu_feature_list_is_empty(smu, SMU_FEATURE_LIST_ALLOWED) ||
 	    feature->feature_num < 64)
 		return -EINVAL;
 
-	bitmap_to_arr32(feature_mask, feature->allowed, 64);
+	smu_feature_list_to_arr32(smu, SMU_FEATURE_LIST_ALLOWED, feature_mask);
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
 					      feature_mask[1], NULL);
