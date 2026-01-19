@@ -589,15 +589,14 @@ static int smu_v14_0_2_set_default_dpm_table(struct smu_context *smu)
 static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
-	uint32_t feature_mask[2];
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	smu_feature_bits_to_arr32(&smu_v14_0_2_dpm_features, feature_mask, 64);
-	return !!(feature_enabled & *(uint64_t *)feature_mask);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v14_0_2_dpm_features.bits);
 }
 
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)

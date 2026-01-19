@@ -1527,15 +1527,14 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 static bool arcturus_is_dpm_running(struct smu_context *smu)
 {
 	int ret = 0;
-	uint64_t feature_enabled;
-	uint32_t feature_mask[2];
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
 
-	smu_feature_bits_to_arr32(&arcturus_dpm_features, feature_mask, 64);
-	return !!(feature_enabled & *(uint64_t *)feature_mask);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  arcturus_dpm_features.bits);
 }
 
 static int arcturus_dpm_set_vcn_enable(struct smu_context *smu,

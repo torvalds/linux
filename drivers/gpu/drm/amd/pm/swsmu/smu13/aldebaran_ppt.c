@@ -1398,14 +1398,13 @@ static int aldebaran_usr_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_
 static bool aldebaran_is_dpm_running(struct smu_context *smu)
 {
 	int ret;
-	uint64_t feature_enabled;
-	uint32_t feature_mask[2];
+	struct smu_feature_bits feature_enabled;
 
 	ret = smu_cmn_get_enabled_mask(smu, &feature_enabled);
 	if (ret)
 		return false;
-	smu_feature_bits_to_arr32(&aldebaran_dpm_features, feature_mask, 64);
-	return !!(feature_enabled & *(uint64_t *)feature_mask);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  aldebaran_dpm_features.bits);
 }
 
 static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,

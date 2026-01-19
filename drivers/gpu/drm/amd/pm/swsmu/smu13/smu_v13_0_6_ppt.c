@@ -2272,14 +2272,14 @@ static int smu_v13_0_6_usr_edit_dpm_table(struct smu_context *smu,
 }
 
 static int smu_v13_0_6_get_enabled_mask(struct smu_context *smu,
-					uint64_t *feature_mask)
+					struct smu_feature_bits *feature_mask)
 {
 	int ret;
 
 	ret = smu_cmn_get_enabled_mask(smu, feature_mask);
 
 	if (ret == -EIO && !smu_v13_0_6_cap_supported(smu, SMU_CAP(DPM))) {
-		*feature_mask = 0;
+		smu_feature_bits_clearall(feature_mask);
 		ret = 0;
 	}
 
@@ -2289,8 +2289,7 @@ static int smu_v13_0_6_get_enabled_mask(struct smu_context *smu,
 static bool smu_v13_0_6_is_dpm_running(struct smu_context *smu)
 {
 	int ret;
-	uint64_t feature_enabled;
-	uint32_t feature_mask[2];
+	struct smu_feature_bits feature_enabled;
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 12))
 		return smu_v13_0_12_is_dpm_running(smu);
@@ -2300,8 +2299,8 @@ static bool smu_v13_0_6_is_dpm_running(struct smu_context *smu)
 	if (ret)
 		return false;
 
-	smu_feature_bits_to_arr32(&smu_v13_0_6_dpm_features, feature_mask, 64);
-	return !!(feature_enabled & *(uint64_t *)feature_mask);
+	return smu_feature_bits_test_mask(&feature_enabled,
+					  smu_v13_0_6_dpm_features.bits);
 }
 
 static int smu_v13_0_6_request_i2c_xfer(struct smu_context *smu,

@@ -1434,11 +1434,11 @@ static int renoir_gfx_state_change_set(struct smu_context *smu, uint32_t state)
 }
 
 static int renoir_get_enabled_mask(struct smu_context *smu,
-				   uint64_t *feature_mask)
+				   struct smu_feature_bits *feature_mask)
 {
 	if (!feature_mask)
 		return -EINVAL;
-	memset(feature_mask, 0xff, sizeof(*feature_mask));
+	smu_feature_bits_fill(feature_mask);
 
 	return 0;
 }

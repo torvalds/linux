@@ -1229,7 +1229,8 @@ struct pptable_funcs {
 	 *                    on the SMU.
 	 * &feature_mask: Enabled feature mask.
 	 */
-	int (*get_enabled_mask)(struct smu_context *smu, uint64_t *feature_mask);
+	int (*get_enabled_mask)(struct smu_context *smu,
+				struct smu_feature_bits *feature_mask);
 
 	/**
 	 * @feature_is_enabled: Test if a feature is enabled.
@@ -2059,6 +2060,12 @@ static inline bool smu_feature_bits_empty(const struct smu_feature_bits *bits,
 					  unsigned int nbits)
 {
 	return bitmap_empty(bits->bits, nbits);
+}
+
+static inline bool smu_feature_bits_full(const struct smu_feature_bits *bits,
+					 unsigned int nbits)
+{
+	return bitmap_full(bits->bits, nbits);
 }
 
 static inline void smu_feature_bits_copy(struct smu_feature_bits *dst,
