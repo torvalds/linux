@@ -134,21 +134,6 @@ A `num` core kernel module is being designed to provide these operations.
 | Complexity: Intermediate
 | Contact: Alexandre Courbot
 
-IRQ abstractions
-----------------
-
-Rust abstractions for IRQ handling.
-
-There is active ongoing work from Daniel Almeida [1] for the "core" abstractions
-to request IRQs.
-
-Besides optional review and testing work, the required ``pci::Device`` code
-around those core abstractions needs to be worked out.
-
-| Complexity: Intermediate
-| Link: https://lore.kernel.org/lkml/20250122163932.46697-1-daniel.almeida@collabora.com/ [1]
-| Contact: Daniel Almeida
-
 Page abstraction for foreign pages
 ----------------------------------
 
@@ -161,17 +146,6 @@ There is active onging work from Abdiel Janulgue [1] and Lina [2].
 | Link: https://lore.kernel.org/linux-mm/20241119112408.779243-1-abdiel.janulgue@gmail.com/ [1]
 | Link: https://lore.kernel.org/rust-for-linux/20250202-rust-page-v1-0-e3170d7fe55e@asahilina.net/ [2]
 
-Scatterlist / sg_table abstractions
------------------------------------
-
-Rust abstractions for scatterlist / sg_table.
-
-There is preceding work from Abdiel Janulgue, which hasn't made it to the
-mailing list yet.
-
-| Complexity: Intermediate
-| Contact: Abdiel Janulgue
-
 PCI MISC APIs
 -------------
 
@@ -179,22 +153,6 @@ Extend the existing PCI device / driver abstractions by SR-IOV, config space,
 capability, MSI API abstractions.
 
 | Complexity: Beginner
-
-XArray bindings [XARR]
-----------------------
-
-We need bindings for `xa_alloc`/`xa_alloc_cyclic` in order to generate the
-auxiliary device IDs.
-
-| Complexity: Intermediate
-
-Debugfs abstractions
---------------------
-
-Rust abstraction for debugfs APIs.
-
-| Reference: Export GSP log buffers
-| Complexity: Intermediate
 
 GPU (general)
 =============
