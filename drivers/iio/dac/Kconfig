@@ -482,6 +482,19 @@ config MAX517
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
 
+config MAX22007
+	tristate "Analog Devices MAX22007 DAC Driver"
+	depends on SPI
+	select REGMAP_SPI
+	select CRC8
+	help
+	  Say Y here if you want to build a driver for Analog Devices MAX22007.
+
+	  MAX22007 is a quad-channel, 12-bit, voltage-output digital to
+	  analog converter (DAC) with SPI interface.
+
+	  If compiled as a module, it will be called max22007.
+
 config MAX5522
 	tristate "Maxim MAX5522 DAC driver"
 	depends on SPI_MASTER
