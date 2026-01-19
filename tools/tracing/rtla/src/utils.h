@@ -62,8 +62,15 @@ struct sched_attr {
 };
 #endif /* SCHED_ATTR_SIZE_VER0 */
 
+enum stack_format {
+	STACK_FORMAT_TRUNCATE,
+	STACK_FORMAT_SKIP,
+	STACK_FORMAT_FULL
+};
+
 int parse_prio(char *arg, struct sched_attr *sched_param);
 int parse_cpu_set(char *cpu_list, cpu_set_t *set);
+int parse_stack_format(char *arg);
 int __set_sched_attr(int pid, struct sched_attr *attr);
 int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr);
 int set_comm_cgroup(const char *comm_prefix, const char *cgroup);

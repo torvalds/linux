@@ -28,6 +28,7 @@ struct timerlat_params {
 	int			deepest_idle_state;
 	enum timerlat_tracing_mode mode;
 	const char		*bpf_action_program;
+	enum stack_format	stack_format;
 };
 
 #define to_timerlat_params(ptr) container_of(ptr, struct timerlat_params, common)

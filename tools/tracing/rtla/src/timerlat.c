@@ -134,7 +134,7 @@ int timerlat_enable(struct osnoise_tool *tool)
 		if (!tool->aa)
 			return -1;
 
-		retval = timerlat_aa_init(tool->aa, params->dump_tasks);
+		retval = timerlat_aa_init(tool->aa, params->dump_tasks, params->stack_format);
 		if (retval) {
 			err_msg("Failed to enable the auto analysis instance\n");
 			return retval;

@@ -165,6 +165,24 @@ err:
 }
 
 /*
+ * parse_stack_format - parse the stack format
+ *
+ * Return: the stack format on success, -1 otherwise.
+ */
+int parse_stack_format(char *arg)
+{
+	if (!strcmp(arg, "truncate"))
+		return STACK_FORMAT_TRUNCATE;
+	if (!strcmp(arg, "skip"))
+		return STACK_FORMAT_SKIP;
+	if (!strcmp(arg, "full"))
+		return STACK_FORMAT_FULL;
+
+	debug_msg("Error parsing the stack format %s\n", arg);
+	return -1;
+}
+
+/*
  * parse_duration - parse duration with s/m/h/d suffix converting it to seconds
  */
 long parse_seconds_duration(char *val)

@@ -518,6 +518,7 @@ static void timerlat_top_usage(void)
 		"	     --on-threshold <action>: define action to be executed at latency threshold, multiple are allowed",
 		"	     --on-end: define action to be executed at measurement end, multiple are allowed",
 		"	     --bpf-action <program>: load and execute BPF program when latency threshold is exceeded",
+		"	     --stack-format <format>: set the stack format (truncate, skip, full)",
 		NULL,
 	};
 
@@ -556,6 +557,9 @@ static struct common_params
 	/* default to BPF mode */
 	params->mode = TRACING_MODE_BPF;
 
+	/* default to truncate stack format */
+	params->stack_format = STACK_FORMAT_TRUNCATE;
+
 	while (1) {
 		static struct option long_options[] = {
 			{"auto",		required_argument,	0, 'a'},
@@ -582,6 +586,7 @@ static struct common_params
 			{"on-threshold",	required_argument,	0, '9'},
 			{"on-end",		required_argument,	0, '\1'},
 			{"bpf-action",		required_argument,	0, '\2'},
+			{"stack-format",	required_argument,	0, '\3'},
 			{0, 0, 0, 0}
 		};
 
@@ -714,6 +719,11 @@ static struct common_params
 			break;
 		case '\2':
 			params->bpf_action_program = optarg;
+			break;
+		case '\3':
+			params->stack_format = parse_stack_format(optarg);
+			if (params->stack_format == -1)
+				fatal("Invalid --stack-format option");
 			break;
 		default:
 			fatal("Invalid option");

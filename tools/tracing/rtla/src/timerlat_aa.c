@@ -104,6 +104,7 @@ struct timerlat_aa_data {
 struct timerlat_aa_context {
 	int nr_cpus;
 	int dump_tasks;
+	enum stack_format stack_format;
 
 	/* per CPU data */
 	struct timerlat_aa_data *taa_data;
@@ -481,23 +482,43 @@ static int timerlat_aa_stack_handler(struct trace_seq *s, struct tep_record *rec
 {
 	struct timerlat_aa_context *taa_ctx = timerlat_aa_get_ctx();
 	struct timerlat_aa_data *taa_data = timerlat_aa_get_data(taa_ctx, record->cpu);
+	enum stack_format stack_format = taa_ctx->stack_format;
 	unsigned long *caller;
 	const char *function;
-	int val, i;
+	int val;
+	unsigned long long i;
 
 	trace_seq_reset(taa_data->stack_seq);
 
 	trace_seq_printf(taa_data->stack_seq, "    Blocking thread stack trace\n");
 	caller = tep_get_field_raw(s, event, "caller", record, &val, 1);
+
 	if (caller) {
-		for (i = 0; ; i++) {
+		unsigned long long size;
+		unsigned long long max_entries;
+
+		if (tep_get_field_val(s, event, "size", record, &size, 1) == 0)
+			max_entries = size < 64 ? size : 64;
+		else
+			max_entries = 64;
+
+		for (i = 0; i < max_entries; i++) {
 			function = tep_find_function(taa_ctx->tool->trace.tep, caller[i]);
-			if (!function)
-				break;
-			trace_seq_printf(taa_data->stack_seq, " %.*s -> %s\n",
-					 14, spaces, function);
+			if (!function) {
+				if (stack_format == STACK_FORMAT_TRUNCATE)
+					break;
+				else if (stack_format == STACK_FORMAT_SKIP)
+					continue;
+				else if (stack_format == STACK_FORMAT_FULL)
+					trace_seq_printf(taa_data->stack_seq, " %.*s -> 0x%lx\n",
+						     14, spaces, caller[i]);
+			} else {
+				trace_seq_printf(taa_data->stack_seq, " %.*s -> %s\n",
+						 14, spaces, function);
+			}
 		}
 	}
+
 	return 0;
 }
 
@@ -1020,7 +1041,7 @@ out_ctx:
  *
  * Returns 0 on success, -1 otherwise.
  */
-int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
+int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks, enum stack_format stack_format)
 {
 	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 	struct timerlat_aa_context *taa_ctx;
@@ -1035,6 +1056,7 @@ int timerlat_aa_init(struct osnoise_tool *tool, int dump_tasks)
 	taa_ctx->nr_cpus = nr_cpus;
 	taa_ctx->tool = tool;
 	taa_ctx->dump_tasks = dump_tasks;
+	taa_ctx->stack_format = stack_format;
 
 	taa_ctx->taa_data = calloc(nr_cpus, sizeof(*taa_ctx->taa_data));
 	if (!taa_ctx->taa_data)
