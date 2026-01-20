@@ -5,7 +5,19 @@
 #ifndef _LENOVO_WMI_CAPDATA_H_
 #define _LENOVO_WMI_CAPDATA_H_
 
+#include <linux/bits.h>
 #include <linux/types.h>
+
+#define LWMI_SUPP_VALID		BIT(0)
+#define LWMI_SUPP_MAY_GET	(LWMI_SUPP_VALID | BIT(1))
+#define LWMI_SUPP_MAY_SET	(LWMI_SUPP_VALID | BIT(2))
+
+#define LWMI_ATTR_DEV_ID_MASK	GENMASK(31, 24)
+#define LWMI_ATTR_FEAT_ID_MASK	GENMASK(23, 16)
+#define LWMI_ATTR_MODE_ID_MASK	GENMASK(15, 8)
+#define LWMI_ATTR_TYPE_ID_MASK	GENMASK(7, 0)
+
+#define LWMI_DEVICE_ID_FAN	0x04
 
 struct component_match;
 struct device;
@@ -32,9 +44,17 @@ struct capdata_fan {
 	u32 max_rpm;
 };
 
+typedef void (*cd_list_cb_t)(struct device *master_dev, struct cd_list *cd_list);
+
 struct lwmi_cd_binder {
 	struct cd_list *cd00_list;
 	struct cd_list *cd01_list;
+	/*
+	 * May be called during or after the bind callback.
+	 * Will be called with NULL if capdata_fan does not exist.
+	 * The pointer is only valid in the callback; never keep it for later use!
+	 */
+	cd_list_cb_t cd_fan_list_cb;
 };
 
 void lwmi_cd_match_add_all(struct device *master, struct component_match **matchptr);

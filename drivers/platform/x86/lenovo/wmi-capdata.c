@@ -27,6 +27,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/bug.h>
 #include <linux/cleanup.h>
 #include <linux/component.h>
@@ -55,10 +56,17 @@
 #define ACPI_AC_CLASS "ac_adapter"
 #define ACPI_AC_NOTIFY_STATUS 0x80
 
+#define LWMI_FEATURE_ID_FAN_TEST 0x05
+
+#define LWMI_ATTR_ID_FAN_TEST							\
+	(FIELD_PREP(LWMI_ATTR_DEV_ID_MASK, LWMI_DEVICE_ID_FAN) |		\
+	 FIELD_PREP(LWMI_ATTR_FEAT_ID_MASK, LWMI_FEATURE_ID_FAN_TEST))
+
 enum lwmi_cd_type {
 	LENOVO_CAPABILITY_DATA_00,
 	LENOVO_CAPABILITY_DATA_01,
 	LENOVO_FAN_TEST_DATA,
+	CD_TYPE_NONE = -1,
 };
 
 #define LWMI_CD_TABLE_ITEM(_type)		\
@@ -80,6 +88,20 @@ struct lwmi_cd_priv {
 	struct notifier_block acpi_nb; /* ACPI events */
 	struct wmi_device *wdev;
 	struct cd_list *list;
+
+	/*
+	 * A capdata device may be a component master of another capdata device.
+	 * E.g., lenovo-wmi-other <-> capdata00 <-> capdata_fan
+	 *       |- master            |- component
+	 *                            |- sub-master
+	 *                                          |- sub-component
+	 */
+	struct lwmi_cd_sub_master_priv {
+		struct device *master_dev;
+		cd_list_cb_t master_cb;
+		struct cd_list *sub_component_list; /* ERR_PTR(-ENODEV) implies no sub-component. */
+		bool registered;                    /* Has the sub-master been registered? */
+	} *sub_master;
 };
 
 struct cd_list {
@@ -143,6 +165,72 @@ void lwmi_cd_match_add_all(struct device *master, struct component_match **match
 EXPORT_SYMBOL_NS_GPL(lwmi_cd_match_add_all, "LENOVO_WMI_CAPDATA");
 
 /**
+ * lwmi_cd_call_master_cb() - Call the master callback for the sub-component.
+ * @priv: Pointer to the capability data private data.
+ *
+ * Call the master callback and pass the sub-component list to it if the
+ * dependency chain (master <-> sub-master <-> sub-component) is complete.
+ */
+static void lwmi_cd_call_master_cb(struct lwmi_cd_priv *priv)
+{
+	struct cd_list *sub_component_list = priv->sub_master->sub_component_list;
+
+	/*
+	 * Call the callback only if the dependency chain is ready:
+	 * - Binding between master and sub-master: fills master_dev and master_cb
+	 * - Binding between sub-master and sub-component: fills sub_component_list
+	 *
+	 * If a binding has been unbound before the other binding is bound, the
+	 * corresponding members filled by the former are guaranteed to be cleared.
+	 *
+	 * This function is only called in bind callbacks, and the component
+	 * framework guarantees bind/unbind callbacks may never execute
+	 * simultaneously, which implies that it's impossible to have a race
+	 * condition.
+	 *
+	 * Hence, this check is sufficient to ensure that the callback is called
+	 * at most once and with the correct state, without relying on a specific
+	 * sequence of binding establishment.
+	 */
+	if (!sub_component_list ||
+	    !priv->sub_master->master_dev ||
+	    !priv->sub_master->master_cb)
+		return;
+
+	if (PTR_ERR(sub_component_list) == -ENODEV)
+		sub_component_list = NULL;
+	else if (WARN_ON(IS_ERR(sub_component_list)))
+		return;
+
+	priv->sub_master->master_cb(priv->sub_master->master_dev,
+				    sub_component_list);
+
+	/*
+	 * Userspace may unbind a device from its driver and bind it again
+	 * through sysfs. Let's call this operation "reprobe" to distinguish it
+	 * from component "rebind".
+	 *
+	 * When reprobing capdata00/01 or the master device, the master device
+	 * is unbound from us with appropriate cleanup before we bind to it and
+	 * call master_cb. Everything is fine in this case.
+	 *
+	 * When reprobing capdata_fan, the master device has never been unbound
+	 * from us (hence no cleanup is done)[1], but we call master_cb the
+	 * second time. To solve this issue, we clear master_cb and master_dev
+	 * so we won't call master_cb twice while a binding is still complete.
+	 *
+	 * Note that we can't clear sub_component_list, otherwise reprobing
+	 * capdata01 or the master device causes master_cb to be never called
+	 * after we rebind to the master device.
+	 *
+	 * [1]: The master device does not need capdata_fan in run time, so
+	 * losing capdata_fan will not break the binding to the master device.
+	 */
+	priv->sub_master->master_cb = NULL;
+	priv->sub_master->master_dev = NULL;
+}
+
+/**
  * lwmi_cd_component_bind() - Bind component to master device.
  * @cd_dev: Pointer to the lenovo-wmi-capdata driver parent device.
  * @om_dev: Pointer to the lenovo-wmi-other driver parent device.
@@ -151,6 +239,8 @@ EXPORT_SYMBOL_NS_GPL(lwmi_cd_match_add_all, "LENOVO_WMI_CAPDATA");
  * On lenovo-wmi-other's master bind, provide a pointer to the local capdata
  * list. This is used to call lwmi_cd*_get_data to look up attribute data
  * from the lenovo-wmi-other driver.
+ *
+ * If cd_dev is a sub-master, try to call the master callback.
  *
  * Return: 0
  */
@@ -163,6 +253,11 @@ static int lwmi_cd_component_bind(struct device *cd_dev,
 	switch (priv->list->type) {
 	case LENOVO_CAPABILITY_DATA_00:
 		binder->cd00_list = priv->list;
+
+		priv->sub_master->master_dev = om_dev;
+		priv->sub_master->master_cb = binder->cd_fan_list_cb;
+		lwmi_cd_call_master_cb(priv);
+
 		break;
 	case LENOVO_CAPABILITY_DATA_01:
 		binder->cd01_list = priv->list;
@@ -174,8 +269,168 @@ static int lwmi_cd_component_bind(struct device *cd_dev,
 	return 0;
 }
 
+/**
+ * lwmi_cd_component_unbind() - Unbind component to master device.
+ * @cd_dev: Pointer to the lenovo-wmi-capdata driver parent device.
+ * @om_dev: Pointer to the lenovo-wmi-other driver parent device.
+ * @data: Unused.
+ *
+ * If cd_dev is a sub-master, clear the collected data from the master device to
+ * prevent the binding establishment between the sub-master and the sub-
+ * component (if it's about to happen) from calling the master callback.
+ */
+static void lwmi_cd_component_unbind(struct device *cd_dev,
+				     struct device *om_dev, void *data)
+{
+	struct lwmi_cd_priv *priv = dev_get_drvdata(cd_dev);
+
+	switch (priv->list->type) {
+	case LENOVO_CAPABILITY_DATA_00:
+		priv->sub_master->master_dev = NULL;
+		priv->sub_master->master_cb = NULL;
+		return;
+	default:
+		return;
+	}
+}
+
 static const struct component_ops lwmi_cd_component_ops = {
 	.bind = lwmi_cd_component_bind,
+	.unbind = lwmi_cd_component_unbind,
+};
+
+/**
+ * lwmi_cd_sub_master_bind() - Bind sub-component of sub-master device
+ * @dev: The sub-master capdata basic device.
+ *
+ * Call component_bind_all to bind the sub-component device to the sub-master
+ * device. On success, collect the pointer to the sub-component list and try
+ * to call the master callback.
+ *
+ * Return: 0 on success, or an error code.
+ */
+static int lwmi_cd_sub_master_bind(struct device *dev)
+{
+	struct lwmi_cd_priv *priv = dev_get_drvdata(dev);
+	struct cd_list *sub_component_list;
+	int ret;
+
+	ret = component_bind_all(dev, &sub_component_list);
+	if (ret)
+		return ret;
+
+	priv->sub_master->sub_component_list = sub_component_list;
+	lwmi_cd_call_master_cb(priv);
+
+	return 0;
+}
+
+/**
+ * lwmi_cd_sub_master_unbind() - Unbind sub-component of sub-master device
+ * @dev: The sub-master capdata basic device
+ *
+ * Clear the collected pointer to the sub-component list to prevent the binding
+ * establishment between the sub-master and the sub-component (if it's about to
+ * happen) from calling the master callback. Then, call component_unbind_all to
+ * unbind the sub-component device from the sub-master device.
+ */
+static void lwmi_cd_sub_master_unbind(struct device *dev)
+{
+	struct lwmi_cd_priv *priv = dev_get_drvdata(dev);
+
+	priv->sub_master->sub_component_list = NULL;
+
+	component_unbind_all(dev, NULL);
+}
+
+static const struct component_master_ops lwmi_cd_sub_master_ops = {
+	.bind = lwmi_cd_sub_master_bind,
+	.unbind = lwmi_cd_sub_master_unbind,
+};
+
+/**
+ * lwmi_cd_sub_master_add() - Register a sub-master with its sub-component
+ * @priv: Pointer to the sub-master capdata device private data.
+ * @sub_component_type: Type of the sub-component.
+ *
+ * Match the sub-component type and register the current capdata device as a
+ * sub-master. If the given sub-component type is CD_TYPE_NONE, mark the sub-
+ * component as non-existent without registering sub-master.
+ *
+ * Return: 0 on success, or an error code.
+ */
+static int lwmi_cd_sub_master_add(struct lwmi_cd_priv *priv,
+				  enum lwmi_cd_type sub_component_type)
+{
+	struct component_match *master_match = NULL;
+	int ret;
+
+	priv->sub_master = devm_kzalloc(&priv->wdev->dev, sizeof(*priv->sub_master), GFP_KERNEL);
+	if (!priv->sub_master)
+		return -ENOMEM;
+
+	if (sub_component_type == CD_TYPE_NONE) {
+		/* The master callback will be called with NULL on bind. */
+		priv->sub_master->sub_component_list = ERR_PTR(-ENODEV);
+		priv->sub_master->registered = false;
+		return 0;
+	}
+
+	/*
+	 * lwmi_cd_match() needs a pointer to enum lwmi_cd_type, but on-stack
+	 * data cannot be used here. Steal one from lwmi_cd_table.
+	 */
+	component_match_add(&priv->wdev->dev, &master_match, lwmi_cd_match,
+			    (void *)&lwmi_cd_table[sub_component_type].type);
+	if (IS_ERR(master_match))
+		return PTR_ERR(master_match);
+
+	ret = component_master_add_with_match(&priv->wdev->dev, &lwmi_cd_sub_master_ops,
+					      master_match);
+	if (ret)
+		return ret;
+
+	priv->sub_master->registered = true;
+	return 0;
+}
+
+/**
+ * lwmi_cd_sub_master_del() - Unregister a sub-master if it's registered
+ * @priv: Pointer to the sub-master capdata device private data.
+ */
+static void lwmi_cd_sub_master_del(struct lwmi_cd_priv *priv)
+{
+	if (!priv->sub_master->registered)
+		return;
+
+	component_master_del(&priv->wdev->dev, &lwmi_cd_sub_master_ops);
+	priv->sub_master->registered = false;
+}
+
+/**
+ * lwmi_cd_sub_component_bind() - Bind sub-component to sub-master device.
+ * @sc_dev: Pointer to the sub-component capdata parent device.
+ * @sm_dev: Pointer to the sub-master capdata parent device.
+ * @data: Pointer used to return the capability data list pointer.
+ *
+ * On sub-master's bind, provide a pointer to the local capdata list.
+ * This is used by the sub-master to call the master callback.
+ *
+ * Return: 0
+ */
+static int lwmi_cd_sub_component_bind(struct device *sc_dev,
+				      struct device *sm_dev, void *data)
+{
+	struct lwmi_cd_priv *priv = dev_get_drvdata(sc_dev);
+	struct cd_list **listp = data;
+
+	*listp = priv->list;
+
+	return 0;
+}
+
+static const struct component_ops lwmi_cd_sub_component_ops = {
+	.bind = lwmi_cd_sub_component_bind,
 };
 
 /*
@@ -471,9 +726,28 @@ static int lwmi_cd_probe(struct wmi_device *wdev, const void *context)
 		goto out;
 
 	switch (info->type) {
-	case LENOVO_CAPABILITY_DATA_00:
+	case LENOVO_CAPABILITY_DATA_00: {
+		enum lwmi_cd_type sub_component_type = LENOVO_FAN_TEST_DATA;
+		struct capdata00 capdata00;
+
+		ret = lwmi_cd00_get_data(priv->list, LWMI_ATTR_ID_FAN_TEST, &capdata00);
+		if (ret || !(capdata00.supported & LWMI_SUPP_VALID)) {
+			dev_dbg(&wdev->dev, "capdata00 declares no fan test support\n");
+			sub_component_type = CD_TYPE_NONE;
+		}
+
+		/* Sub-master (capdata00) <-> sub-component (capdata_fan) */
+		ret = lwmi_cd_sub_master_add(priv, sub_component_type);
+		if (ret)
+			goto out;
+
+		/* Master (lenovo-wmi-other) <-> sub-master (capdata00) */
 		ret = component_add(&wdev->dev, &lwmi_cd_component_ops);
+		if (ret)
+			lwmi_cd_sub_master_del(priv);
+
 		goto out;
+	}
 	case LENOVO_CAPABILITY_DATA_01:
 		priv->acpi_nb.notifier_call = lwmi_cd01_notifier_call;
 
@@ -489,6 +763,7 @@ static int lwmi_cd_probe(struct wmi_device *wdev, const void *context)
 		ret = component_add(&wdev->dev, &lwmi_cd_component_ops);
 		goto out;
 	case LENOVO_FAN_TEST_DATA:
+		ret = component_add(&wdev->dev, &lwmi_cd_sub_component_ops);
 		goto out;
 	default:
 		return -EINVAL;
@@ -510,10 +785,13 @@ static void lwmi_cd_remove(struct wmi_device *wdev)
 
 	switch (priv->list->type) {
 	case LENOVO_CAPABILITY_DATA_00:
+		lwmi_cd_sub_master_del(priv);
+		fallthrough;
 	case LENOVO_CAPABILITY_DATA_01:
 		component_del(&wdev->dev, &lwmi_cd_component_ops);
 		break;
 	case LENOVO_FAN_TEST_DATA:
+		component_del(&wdev->dev, &lwmi_cd_sub_component_ops);
 		break;
 	default:
 		WARN_ON(1);
