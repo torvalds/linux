@@ -19000,18 +19000,21 @@ static bool check_ids(u32 old_id, u32 cur_id, struct bpf_idmap *idmap)
 	if (old_id == 0) /* cur_id == 0 as well */
 		return true;
 
-	for (i = 0; i < BPF_ID_MAP_SIZE; i++) {
-		if (!map[i].old) {
-			/* Reached an empty slot; haven't seen this id before */
-			map[i].old = old_id;
-			map[i].cur = cur_id;
-			return true;
-		}
+	for (i = 0; i < idmap->cnt; i++) {
 		if (map[i].old == old_id)
 			return map[i].cur == cur_id;
 		if (map[i].cur == cur_id)
 			return false;
 	}
+
+	/* Reached the end of known mappings; haven't seen this id before */
+	if (idmap->cnt < BPF_ID_MAP_SIZE) {
+		map[idmap->cnt].old = old_id;
+		map[idmap->cnt].cur = cur_id;
+		idmap->cnt++;
+		return true;
+	}
+
 	/* We ran out of idmap slots, which should be impossible */
 	WARN_ON_ONCE(1);
 	return false;
@@ -19520,8 +19523,10 @@ static bool func_states_equal(struct bpf_verifier_env *env, struct bpf_func_stat
 
 static void reset_idmap_scratch(struct bpf_verifier_env *env)
 {
-	env->idmap_scratch.tmp_id_gen = env->id_gen;
-	memset(&env->idmap_scratch.map, 0, sizeof(env->idmap_scratch.map));
+	struct bpf_idmap *idmap = &env->idmap_scratch;
+
+	idmap->tmp_id_gen = env->id_gen;
+	idmap->cnt = 0;
 }
 
 static bool states_equal(struct bpf_verifier_env *env,
