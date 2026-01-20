@@ -398,30 +398,40 @@ static int at25_fram_to_chip(struct device *dev, struct spi_eeprom *chip)
 				id[i] = id[j];
 				id[j] = tmp;
 			}
-		if (id[6] != 0xc2) {
-			dev_err(dev, "Error: no Cypress FRAM with device ID (manufacturer ID bank 7: %02x)\n", id[6]);
+
+		if (id[6] == 0xc2) {
+			switch (id[7]) {
+			case 0x21 ... 0x26:
+				chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
+				break;
+			case 0x2a ... 0x30:
+				/* CY15B102QN ... CY15B116QN */
+				chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
+				break;
+			default:
+				dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
+				return -ENODEV;
+			}
+		} else if (id[2] == 0x82 && id[3] == 0x06) {
+			switch (id[1]) {
+			case 0x51 ... 0x54:
+				/* CY15B102QSN ... CY15B204QSN */
+				chip->byte_len = BIT(((id[0] >> 3) & 0x1F) + 9);
+				break;
+			default:
+				dev_err(dev, "Error: unsupported product id %02x\n", id[1]);
+				return -ENODEV;
+			}
+		} else {
+			dev_err(dev, "Error: unrecognized JEDEC ID format: %*ph\n",
+				FM25_ID_LEN, id);
 			return -ENODEV;
 		}
 
-		switch (id[7]) {
-		case 0x21 ... 0x26:
-			chip->byte_len = BIT(id[7] - 0x21 + 4) * 1024;
-			break;
-		case 0x2a ... 0x30:
-			/* CY15B102QN ... CY15B116QN */
-			chip->byte_len = BIT(((id[7] >> 1) & 0xf) + 13);
-			break;
-		default:
-			dev_err(dev, "Error: unsupported size (id %02x)\n", id[7]);
-			return -ENODEV;
-		}
-
-		if (id[8]) {
-			fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
-			/* Swap byte order */
-			for (i = 0; i < FM25_SN_LEN; i++)
-				at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
-		}
+		fm25_aux_read(at25, sernum, FM25_RDSN, FM25_SN_LEN);
+		/* Swap byte order */
+		for (i = 0; i < FM25_SN_LEN; i++)
+			at25->sernum[i] = sernum[FM25_SN_LEN - 1 - i];
 	}
 
 	if (chip->byte_len > 64 * 1024)
