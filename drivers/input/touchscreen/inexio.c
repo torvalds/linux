@@ -123,7 +123,7 @@ static int inexio_connect(struct serio *serio, struct serio_driver *drv)
 
 	pinexio->serio = serio;
 	pinexio->dev = input_dev;
-	snprintf(pinexio->phys, sizeof(pinexio->phys), "%s/input0", serio->phys);
+	scnprintf(pinexio->phys, sizeof(pinexio->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "iNexio Serial TouchScreen";
 	input_dev->phys = pinexio->phys;
