@@ -5,6 +5,7 @@
 #define _HINIC3_RX_H_
 
 #include <linux/bitfield.h>
+#include <linux/dim.h>
 #include <linux/netdevice.h>
 
 #define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_MASK           GENMASK(4, 0)
@@ -24,6 +25,20 @@
 #define RQ_CQE_STATUS_RXDONE_MASK    BIT(31)
 #define RQ_CQE_STATUS_GET(val, member) \
 	FIELD_GET(RQ_CQE_STATUS_##member##_MASK, val)
+
+struct hinic3_rxq_stats {
+	u64                   packets;
+	u64                   bytes;
+	u64                   errors;
+	u64                   csum_errors;
+	u64                   other_errors;
+	u64                   dropped;
+	u64                   rx_buf_empty;
+	u64                   alloc_skb_err;
+	u64                   alloc_rx_buf_err;
+	u64                   restore_drop_sge;
+	struct u64_stats_sync syncp;
+};
 
 /* RX Completion information that is provided by HW for a specific RX WQE */
 struct hinic3_rq_cqe {
@@ -59,6 +74,7 @@ struct hinic3_rxq {
 	u16                     buf_len;
 	u32                     buf_len_shift;
 
+	struct hinic3_rxq_stats rxq_stats;
 	u32                     cons_idx;
 	u32                     delta;
 
@@ -80,6 +96,11 @@ struct hinic3_rxq {
 	struct device          *dev; /* device for DMA mapping */
 
 	dma_addr_t             cqe_start_paddr;
+
+	struct dim             dim;
+
+	u8                     last_coalesc_timer_cfg;
+	u8                     last_pending_limit;
 } ____cacheline_aligned;
 
 struct hinic3_dyna_rxq_res {
