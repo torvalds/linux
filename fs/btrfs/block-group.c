@@ -579,24 +579,24 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
  * @index:        the integral step through the block group to grab from
  * @max_index:    the granularity of the sampling
  * @key:          return value parameter for the item we find
+ * @path:         path to use for searching in the extent tree
  *
  * Pre-conditions on indices:
  * 0 <= index <= max_index
  * 0 < max_index
  *
- * Returns: 0 on success, 1 if the search didn't yield a useful item, negative
- * error code on error.
+ * Returns: 0 on success, 1 if the search didn't yield a useful item.
  */
 static int sample_block_group_extent_item(struct btrfs_caching_control *caching_ctl,
 					  struct btrfs_block_group *block_group,
 					  int index, int max_index,
-					  struct btrfs_key *found_key)
+					  struct btrfs_key *found_key,
+					  struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *extent_root;
 	u64 search_offset;
 	const u64 search_end = btrfs_block_group_end(block_group);
-	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key search_key;
 	int ret = 0;
 
@@ -606,16 +606,8 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 	lockdep_assert_held(&caching_ctl->mutex);
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
 	extent_root = btrfs_extent_root(fs_info, max_t(u64, block_group->start,
 						       BTRFS_SUPER_INFO_OFFSET));
-
-	path->skip_locking = true;
-	path->search_commit_root = true;
-	path->reada = READA_FORWARD;
 
 	search_offset = index * div_u64(block_group->length, max_index);
 	search_key.objectid = block_group->start + search_offset;
@@ -679,23 +671,37 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 static void load_block_group_size_class(struct btrfs_caching_control *caching_ctl,
 					struct btrfs_block_group *block_group)
 {
+	BTRFS_PATH_AUTO_RELEASE(path);
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_key key;
 	int i;
 	u64 min_size = block_group->length;
 	enum btrfs_block_group_size_class size_class = BTRFS_BG_SZ_NONE;
 
+	/*
+	 * Since we run in workqueue context, we allocate the path on stack to
+	 * avoid memory allocation failure, as the stack in a work queue task
+	 * is not deep.
+	 */
+	ASSERT(current_work() == &caching_ctl->work.normal_work);
+
 	if (!btrfs_block_group_should_use_size_class(block_group))
 		return;
+
+	path.skip_locking = true;
+	path.search_commit_root = true;
+	path.reada = READA_FORWARD;
 
 	lockdep_assert_held(&caching_ctl->mutex);
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 	for (i = 0; i < 5; ++i) {
 		int ret;
 
-		ret = sample_block_group_extent_item(caching_ctl, block_group, i, 5, &key);
+		ret = sample_block_group_extent_item(caching_ctl, block_group,
+						     i, 5, &key, &path);
 		if (ret < 0)
 			return;
+		btrfs_release_path(&path);
 		if (ret > 0)
 			continue;
 		min_size = min_t(u64, min_size, key.offset);
