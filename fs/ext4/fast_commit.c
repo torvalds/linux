@@ -13,6 +13,7 @@
 #include "mballoc.h"
 
 #include <linux/lockdep.h>
+#include <linux/wait_bit.h>
 /*
  * Ext4 Fast Commits
  * -----------------
@@ -215,7 +216,6 @@ void ext4_fc_init_inode(struct inode *inode)
 	ext4_clear_inode_state(inode, EXT4_STATE_FC_COMMITTING);
 	INIT_LIST_HEAD(&ei->i_fc_list);
 	INIT_LIST_HEAD(&ei->i_fc_dilist);
-	init_waitqueue_head(&ei->i_fc_wait);
 }
 
 static bool ext4_fc_disabled(struct super_block *sb)
