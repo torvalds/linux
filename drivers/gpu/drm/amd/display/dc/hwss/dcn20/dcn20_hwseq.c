@@ -3140,7 +3140,8 @@ void dcn20_fpga_init_hw(struct dc *dc)
 
 	dcn10_hubbub_global_timer_enable(dc->res_pool->hubbub, true, 2);
 
-	hws->funcs.dccg_init(hws);
+	if (hws->funcs.dccg_init)
+		hws->funcs.dccg_init(hws);
 
 	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->refclk_setup)
 		dc->res_pool->dccg->funcs->refclk_setup(dc->res_pool->dccg);
