@@ -96,7 +96,7 @@ int wq_non_sleepable_prog(void *ctx)
 
 	if (bpf_wq_init(&val->w, &wq_map, 0) != 0)
 		return 0;
-	if (bpf_wq_set_callback_impl(&val->w, wq_cb, 0, NULL) != 0)
+	if (bpf_wq_set_callback(&val->w, wq_cb, 0) != 0)
 		return 0;
 	return 0;
 }
@@ -114,7 +114,7 @@ int wq_sleepable_prog(void *ctx)
 
 	if (bpf_wq_init(&val->w, &wq_map, 0) != 0)
 		return 0;
-	if (bpf_wq_set_callback_impl(&val->w, wq_cb, 0, NULL) != 0)
+	if (bpf_wq_set_callback(&val->w, wq_cb, 0) != 0)
 		return 0;
 	return 0;
 }
