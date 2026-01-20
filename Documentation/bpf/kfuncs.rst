@@ -232,23 +232,6 @@ Or::
                 ...
         }
 
-2.3.6 __prog Annotation
----------------------------
-This annotation is used to indicate that the argument needs to be fixed up to
-the bpf_prog_aux of the caller BPF program. Any value passed into this argument
-is ignored, and rewritten by the verifier.
-
-An example is given below::
-
-        __bpf_kfunc int bpf_wq_set_callback_impl(struct bpf_wq *wq,
-                                                 int (callback_fn)(void *map, int *key, void *value),
-                                                 unsigned int flags,
-                                                 void *aux__prog)
-         {
-                struct bpf_prog_aux *aux = aux__prog;
-                ...
-         }
-
 .. _BPF_kfunc_nodef:
 
 2.4 Using an existing kernel function
@@ -380,6 +363,38 @@ prevent it from being added in the first place. As described in
 encouraged to make their use-cases known as early as possible, and participate
 in upstream discussions regarding whether to keep, change, deprecate, or remove
 those kfuncs if and when such discussions occur.
+
+2.5.9 KF_IMPLICIT_ARGS flag
+------------------------------------
+
+The KF_IMPLICIT_ARGS flag is used to indicate that the BPF signature
+of the kfunc is different from it's kernel signature, and the values
+for implicit arguments are provided at load time by the verifier.
+
+Only arguments of specific types are implicit.
+Currently only ``struct bpf_prog_aux *`` type is supported.
+
+A kfunc with KF_IMPLICIT_ARGS flag therefore has two types in BTF: one
+function matching the kernel declaration (with _impl suffix in the
+name by convention), and another matching the intended BPF API.
+
+Verifier only allows calls to the non-_impl version of a kfunc, that
+uses a signature without the implicit arguments.
+
+Example declaration:
+
+.. code-block:: c
+
+	__bpf_kfunc int bpf_task_work_schedule_signal(struct task_struct *task, struct bpf_task_work *tw,
+						      void *map__map, bpf_task_work_callback_t callback,
+						      struct bpf_prog_aux *aux) { ... }
+
+Example usage in BPF program:
+
+.. code-block:: c
+
+	/* note that the last argument is omitted */
+        bpf_task_work_schedule_signal(task, &work->tw, &arrmap, task_work_callback);
 
 2.6 Registering the kfuncs
 --------------------------
