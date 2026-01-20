@@ -575,7 +575,7 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
 /*
  * Get an arbitrary extent item index / max_index through the block group
  *
- * @block_group   the block group to sample from
+ * @caching_ctl   the caching control containing the block group to sample from
  * @index:        the integral step through the block group to grab from
  * @max_index:    the granularity of the sampling
  * @key:          return value parameter for the item we find
@@ -588,11 +588,11 @@ int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
  * Returns: 0 on success, 1 if the search didn't yield a useful item.
  */
 static int sample_block_group_extent_item(struct btrfs_caching_control *caching_ctl,
-					  struct btrfs_block_group *block_group,
 					  int index, int max_index,
 					  struct btrfs_key *found_key,
 					  struct btrfs_path *path)
 {
+	struct btrfs_block_group *block_group = caching_ctl->block_group;
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_root *extent_root;
 	u64 search_offset;
@@ -668,10 +668,10 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
  * No errors are returned since failing to determine the size class is not a
  * critical error, size classes are just an optimization.
  */
-static void load_block_group_size_class(struct btrfs_caching_control *caching_ctl,
-					struct btrfs_block_group *block_group)
+static void load_block_group_size_class(struct btrfs_caching_control *caching_ctl)
 {
 	BTRFS_PATH_AUTO_RELEASE(path);
+	struct btrfs_block_group *block_group = caching_ctl->block_group;
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_key key;
 	int i;
@@ -697,8 +697,7 @@ static void load_block_group_size_class(struct btrfs_caching_control *caching_ct
 	for (i = 0; i < 5; ++i) {
 		int ret;
 
-		ret = sample_block_group_extent_item(caching_ctl, block_group,
-						     i, 5, &key, &path);
+		ret = sample_block_group_extent_item(caching_ctl, i, 5, &key, &path);
 		if (ret < 0)
 			return;
 		btrfs_release_path(&path);
@@ -868,7 +867,7 @@ static noinline void caching_thread(struct btrfs_work *work)
 	mutex_lock(&caching_ctl->mutex);
 	down_read(&fs_info->commit_root_sem);
 
-	load_block_group_size_class(caching_ctl, block_group);
+	load_block_group_size_class(caching_ctl);
 	if (btrfs_test_opt(fs_info, SPACE_CACHE)) {
 		ret = load_free_space_cache(block_group);
 		if (ret == 1) {
