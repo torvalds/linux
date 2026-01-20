@@ -9830,6 +9830,7 @@ M:	Russ Weight <russ.weight@linux.dev>
 M:	Danilo Krummrich <dakr@kernel.org>
 L:	driver-core@lists.linux.dev
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/driver-core/driver-core.git
 F:	Documentation/firmware_class/
 F:	drivers/base/firmware_loader/
 F:	rust/kernel/firmware.rs
