@@ -58,12 +58,12 @@ def generate_crates(
     core_edition: str,
 ) -> List[Crate]:
     # Generate the configuration list.
-    cfg = []
+    generated_cfg = []
     with open(objtree / "include" / "generated" / "rustc_cfg") as fd:
         for line in fd:
             line = line.replace("--cfg=", "")
             line = line.replace("\n", "")
-            cfg.append(line)
+            generated_cfg.append(line)
 
     # Now fill the crates list.
     crates: List[Crate] = []
@@ -276,7 +276,7 @@ def generate_crates(
             display_name,
             srctree / "rust"/ display_name / "lib.rs",
             deps,
-            cfg=cfg,
+            cfg=generated_cfg,
             is_workspace_member=True,
             edition=None,
         )
@@ -341,7 +341,7 @@ def generate_crates(
                 name,
                 path,
                 [core, kernel, pin_init],
-                cfg=cfg,
+                cfg=generated_cfg,
             )
 
     return crates
