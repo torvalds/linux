@@ -119,8 +119,6 @@ struct cppc_perf_caps {
 	u32 lowest_nonlinear_perf;
 	u32 lowest_freq;
 	u32 nominal_freq;
-	u32 energy_perf;
-	bool auto_sel;
 };
 
 struct cppc_perf_ctrls {
@@ -128,6 +126,7 @@ struct cppc_perf_ctrls {
 	u32 min_perf;
 	u32 desired_perf;
 	u32 energy_perf;
+	bool auto_sel;
 };
 
 struct cppc_perf_fb_ctrs {
