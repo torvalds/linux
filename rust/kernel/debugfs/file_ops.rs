@@ -135,8 +135,7 @@ impl<T: Writer + Sync> ReadFile<T> for T {
             llseek: Some(bindings::seq_lseek),
             release: Some(bindings::single_release),
             open: Some(writer_open::<Self>),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
         // SAFETY: `operations` is all stock `seq_file` implementations except for `writer_open`.
         // `open`'s only requirement beyond what is provided to all open functions is that the
@@ -188,8 +187,7 @@ impl<T: Writer + Reader + Sync> ReadWriteFile<T> for T {
             write: Some(write::<T>),
             llseek: Some(bindings::seq_lseek),
             release: Some(bindings::single_release),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
         // SAFETY: `operations` is all stock `seq_file` implementations except for `writer_open`
         // and `write`.
@@ -244,8 +242,7 @@ impl<T: Reader + Sync> WriteFile<T> for T {
             open: Some(write_only_open),
             write: Some(write_only_write::<T>),
             llseek: Some(bindings::noop_llseek),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
         // SAFETY:
         // * `write_only_open` populates the file private data with the inode private data
@@ -297,8 +294,7 @@ impl<T: BinaryWriter + Sync> BinaryReadFile<T> for T {
             read: Some(blob_read::<T>),
             llseek: Some(bindings::default_llseek),
             open: Some(bindings::simple_open),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
 
         // SAFETY:
@@ -352,8 +348,7 @@ impl<T: BinaryReader + Sync> BinaryWriteFile<T> for T {
             write: Some(blob_write::<T>),
             llseek: Some(bindings::default_llseek),
             open: Some(bindings::simple_open),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
 
         // SAFETY:
@@ -378,8 +373,7 @@ impl<T: BinaryWriter + BinaryReader + Sync> BinaryReadWriteFile<T> for T {
             write: Some(blob_write::<T>),
             llseek: Some(bindings::default_llseek),
             open: Some(bindings::simple_open),
-            // SAFETY: `file_operations` supports zeroes in all fields.
-            ..unsafe { core::mem::zeroed() }
+            ..pin_init::zeroed()
         };
 
         // SAFETY:
