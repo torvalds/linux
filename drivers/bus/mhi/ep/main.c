@@ -1596,7 +1596,7 @@ void mhi_ep_unregister_controller(struct mhi_ep_cntrl *mhi_cntrl)
 }
 EXPORT_SYMBOL_GPL(mhi_ep_unregister_controller);
 
-static int mhi_ep_driver_probe(struct device *dev)
+static int mhi_ep_probe(struct device *dev)
 {
 	struct mhi_ep_device *mhi_dev = to_mhi_ep_device(dev);
 	struct mhi_ep_driver *mhi_drv = to_mhi_ep_driver(dev->driver);
@@ -1609,7 +1609,7 @@ static int mhi_ep_driver_probe(struct device *dev)
 	return mhi_drv->probe(mhi_dev, mhi_dev->id);
 }
 
-static int mhi_ep_driver_remove(struct device *dev)
+static void mhi_ep_remove(struct device *dev)
 {
 	struct mhi_ep_device *mhi_dev = to_mhi_ep_device(dev);
 	struct mhi_ep_driver *mhi_drv = to_mhi_ep_driver(dev->driver);
@@ -1619,7 +1619,7 @@ static int mhi_ep_driver_remove(struct device *dev)
 
 	/* Skip if it is a controller device */
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)
-		return 0;
+		return;
 
 	/* Disconnect the channels associated with the driver */
 	for (dir = 0; dir < 2; dir++) {
@@ -1643,8 +1643,6 @@ static int mhi_ep_driver_remove(struct device *dev)
 
 	/* Remove the client driver now */
 	mhi_drv->remove(mhi_dev);
-
-	return 0;
 }
 
 int __mhi_ep_driver_register(struct mhi_ep_driver *mhi_drv, struct module *owner)
@@ -1660,8 +1658,6 @@ int __mhi_ep_driver_register(struct mhi_ep_driver *mhi_drv, struct module *owner
 
 	driver->bus = &mhi_ep_bus_type;
 	driver->owner = owner;
-	driver->probe = mhi_ep_driver_probe;
-	driver->remove = mhi_ep_driver_remove;
 
 	return driver_register(driver);
 }
@@ -1708,6 +1704,8 @@ const struct bus_type mhi_ep_bus_type = {
 	.dev_name = "mhi_ep",
 	.match = mhi_ep_match,
 	.uevent = mhi_ep_uevent,
+	.probe = mhi_ep_probe,
+	.remove = mhi_ep_remove,
 };
 
 static int __init mhi_ep_init(void)
