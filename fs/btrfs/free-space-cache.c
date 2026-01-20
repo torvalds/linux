@@ -1372,9 +1372,9 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 static int __btrfs_write_out_cache(struct inode *inode,
 				   struct btrfs_free_space_ctl *ctl,
 				   struct btrfs_block_group *block_group,
-				   struct btrfs_io_ctl *io_ctl,
 				   struct btrfs_trans_handle *trans)
 {
+	struct btrfs_io_ctl *io_ctl = &block_group->io_ctl;
 	struct extent_state *cached_state = NULL;
 	LIST_HEAD(bitmap_list);
 	int entries = 0;
@@ -1534,8 +1534,7 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 	if (IS_ERR(inode))
 		return 0;
 
-	ret = __btrfs_write_out_cache(inode, ctl, block_group,
-				      &block_group->io_ctl, trans);
+	ret = __btrfs_write_out_cache(inode, ctl, block_group, trans);
 	if (ret) {
 		btrfs_debug(fs_info,
 	  "failed to write free space cache for block group %llu error %d",
