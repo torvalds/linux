@@ -2176,7 +2176,7 @@ static bool fuse_folios_need_send(struct fuse_conn *fc, loff_t pos,
 	WARN_ON(!ap->num_folios);
 
 	/* Reached max pages */
-	if ((bytes + PAGE_SIZE - 1) >> PAGE_SHIFT > fc->max_pages)
+	if (DIV_ROUND_UP(bytes, PAGE_SIZE) > fc->max_pages)
 		return true;
 
 	if (bytes > max_bytes)

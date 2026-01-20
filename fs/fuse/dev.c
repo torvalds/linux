@@ -1884,7 +1884,7 @@ static int fuse_retrieve(struct fuse_mount *fm, struct inode *inode,
 	else if (num > file_size - pos)
 		num = file_size - pos;
 
-	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	num_pages = DIV_ROUND_UP(num + offset, PAGE_SIZE);
 	num_pages = min(num_pages, fc->max_pages);
 	num = min(num, num_pages << PAGE_SHIFT);
 
