@@ -392,11 +392,9 @@ static void i2c_dw_write_timings(struct dw_i2c_dev *dev)
 	regmap_write(dev->map, DW_IC_FS_SCL_HCNT, dev->fs_hcnt);
 	regmap_write(dev->map, DW_IC_FS_SCL_LCNT, dev->fs_lcnt);
 
-	/* Write high speed timing parameters if supported */
-	if (dev->hs_hcnt && dev->hs_lcnt) {
-		regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
-		regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
-	}
+	/* Write high speed timing parameters */
+	regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
+	regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
 }
 
 /**
