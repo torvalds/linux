@@ -119,8 +119,8 @@ static int dynapro_connect(struct serio *serio, struct serio_driver *drv)
 
 	pdynapro->serio = serio;
 	pdynapro->dev = input_dev;
-	snprintf(pdynapro->phys, sizeof(pdynapro->phys),
-		 "%s/input0", serio->phys);
+	scnprintf(pdynapro->phys, sizeof(pdynapro->phys),
+		  "%s/input0", serio->phys);
 
 	input_dev->name = "Dynapro Serial TouchScreen";
 	input_dev->phys = pdynapro->phys;
