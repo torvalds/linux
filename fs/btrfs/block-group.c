@@ -4755,6 +4755,7 @@ int btrfs_use_block_group_size_class(struct btrfs_block_group *bg,
 				     enum btrfs_block_group_size_class size_class,
 				     bool force_wrong_size_class)
 {
+	lockdep_assert_held(&bg->lock);
 	ASSERT(size_class != BTRFS_BG_SZ_NONE);
 
 	/* The new allocation is in the right size class, do nothing */
