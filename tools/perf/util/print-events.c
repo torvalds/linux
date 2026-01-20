@@ -86,7 +86,7 @@ void print_sdt_events(const struct print_callbacks *print_cb, void *print_state)
 
 	strlist__for_each_entry(sdt_name, sdtlist) {
 		bool show_detail = false;
-		char *bid = strchr(sdt_name->s, '@');
+		char *bid = (char *)strchr(sdt_name->s, '@');
 		char *evt_name = NULL;
 
 		if (bid)
