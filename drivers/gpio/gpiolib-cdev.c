@@ -2549,6 +2549,7 @@ static int lineinfo_changed_notify(struct notifier_block *nb,
 	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx) {
 		pr_err("Failed to allocate memory for line info notification\n");
+		fput(fp);
 		return NOTIFY_DONE;
 	}
 
