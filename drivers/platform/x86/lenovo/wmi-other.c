@@ -34,7 +34,7 @@
 #include <linux/types.h>
 #include <linux/wmi.h>
 
-#include "wmi-capdata01.h"
+#include "wmi-capdata.h"
 #include "wmi-events.h"
 #include "wmi-gamezone.h"
 #include "wmi-helpers.h"
@@ -74,7 +74,10 @@ enum attribute_property {
 
 struct lwmi_om_priv {
 	struct component_master_ops *ops;
-	struct cd01_list *cd01_list; /* only valid after capdata01 bind */
+
+	/* only valid after capdata bind */
+	struct cd_list *cd01_list;
+
 	struct device *fw_attr_dev;
 	struct kset *fw_attr_kset;
 	struct notifier_block nb;
@@ -576,7 +579,7 @@ static void lwmi_om_fw_attr_remove(struct lwmi_om_priv *priv)
 static int lwmi_om_master_bind(struct device *dev)
 {
 	struct lwmi_om_priv *priv = dev_get_drvdata(dev);
-	struct cd01_list *tmp_list;
+	struct cd_list *tmp_list;
 	int ret;
 
 	ret = component_bind_all(dev, &tmp_list);
@@ -657,7 +660,7 @@ static struct wmi_driver lwmi_other_driver = {
 
 module_wmi_driver(lwmi_other_driver);
 
-MODULE_IMPORT_NS("LENOVO_WMI_CD01");
+MODULE_IMPORT_NS("LENOVO_WMI_CAPDATA");
 MODULE_IMPORT_NS("LENOVO_WMI_HELPERS");
 MODULE_DEVICE_TABLE(wmi, lwmi_other_id_table);
 MODULE_AUTHOR("Derek J. Clark <derekjohn.clark@gmail.com>");

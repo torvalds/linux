@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Lenovo Capability Data 01 WMI Data Block driver.
+ * Lenovo Capability Data WMI Data Block driver.
  *
- * Lenovo Capability Data 01 provides information on tunable attributes used by
- * the "Other Mode" WMI interface. The data includes if the attribute is
- * supported by the hardware, the default_value, max_value, min_value, and step
- * increment. Each attribute has multiple pages, one for each of the thermal
- * modes managed by the Gamezone interface.
+ * Lenovo Capability Data provides information on tunable attributes used by
+ * the "Other Mode" WMI interface.
+ *
+ * Capability Data 01 includes if the attribute is supported by the hardware,
+ * and the default_value, max_value, min_value, and step increment. Each
+ * attribute has multiple pages, one for each of the thermal modes managed by
+ * the Gamezone interface.
  *
  * Copyright (C) 2025 Derek J. Clark <derekjohn.clark@gmail.com>
+ *   - Initial implementation (formerly named lenovo-wmi-capdata01)
  */
 
 #include <linux/acpi.h>
@@ -26,55 +29,55 @@
 #include <linux/types.h>
 #include <linux/wmi.h>
 
-#include "wmi-capdata01.h"
+#include "wmi-capdata.h"
 
 #define LENOVO_CAPABILITY_DATA_01_GUID "7A8F5407-CB67-4D6E-B547-39B3BE018154"
 
 #define ACPI_AC_CLASS "ac_adapter"
 #define ACPI_AC_NOTIFY_STATUS 0x80
 
-struct lwmi_cd01_priv {
+struct lwmi_cd_priv {
 	struct notifier_block acpi_nb; /* ACPI events */
 	struct wmi_device *wdev;
-	struct cd01_list *list;
+	struct cd_list *list;
 };
 
-struct cd01_list {
+struct cd_list {
 	struct mutex list_mutex; /* list R/W mutex */
 	u8 count;
 	struct capdata01 data[];
 };
 
 /**
- * lwmi_cd01_component_bind() - Bind component to master device.
- * @cd01_dev: Pointer to the lenovo-wmi-capdata01 driver parent device.
+ * lwmi_cd_component_bind() - Bind component to master device.
+ * @cd_dev: Pointer to the lenovo-wmi-capdata driver parent device.
  * @om_dev: Pointer to the lenovo-wmi-other driver parent device.
- * @data: capdata01_list object pointer used to return the capability data.
+ * @data: cd_list object pointer used to return the capability data.
  *
- * On lenovo-wmi-other's master bind, provide a pointer to the local capdata01
- * list. This is used to call lwmi_cd01_get_data to look up attribute data
+ * On lenovo-wmi-other's master bind, provide a pointer to the local capdata
+ * list. This is used to call lwmi_cd*_get_data to look up attribute data
  * from the lenovo-wmi-other driver.
  *
  * Return: 0
  */
-static int lwmi_cd01_component_bind(struct device *cd01_dev,
-				    struct device *om_dev, void *data)
+static int lwmi_cd_component_bind(struct device *cd_dev,
+				  struct device *om_dev, void *data)
 {
-	struct lwmi_cd01_priv *priv = dev_get_drvdata(cd01_dev);
-	struct cd01_list **cd01_list = data;
+	struct lwmi_cd_priv *priv = dev_get_drvdata(cd_dev);
+	struct cd_list **cd_list = data;
 
-	*cd01_list = priv->list;
+	*cd_list = priv->list;
 
 	return 0;
 }
 
-static const struct component_ops lwmi_cd01_component_ops = {
-	.bind = lwmi_cd01_component_bind,
+static const struct component_ops lwmi_cd_component_ops = {
+	.bind = lwmi_cd_component_bind,
 };
 
 /**
  * lwmi_cd01_get_data - Get the data of the specified attribute
- * @list: The lenovo-wmi-capdata01 pointer to its cd01_list struct.
+ * @list: The lenovo-wmi-capdata pointer to its cd_list struct.
  * @attribute_id: The capdata attribute ID to be found.
  * @output: Pointer to a capdata01 struct to return the data.
  *
@@ -83,7 +86,7 @@ static const struct component_ops lwmi_cd01_component_ops = {
  *
  * Return: 0 on success, or -EINVAL.
  */
-int lwmi_cd01_get_data(struct cd01_list *list, u32 attribute_id, struct capdata01 *output)
+int lwmi_cd01_get_data(struct cd_list *list, u32 attribute_id, struct capdata01 *output)
 {
 	u8 idx;
 
@@ -97,17 +100,17 @@ int lwmi_cd01_get_data(struct cd01_list *list, u32 attribute_id, struct capdata0
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(lwmi_cd01_get_data, "LENOVO_WMI_CD01");
+EXPORT_SYMBOL_NS_GPL(lwmi_cd01_get_data, "LENOVO_WMI_CAPDATA");
 
 /**
- * lwmi_cd01_cache() - Cache all WMI data block information
- * @priv: lenovo-wmi-capdata01 driver data.
+ * lwmi_cd_cache() - Cache all WMI data block information
+ * @priv: lenovo-wmi-capdata driver data.
  *
  * Loop through each WMI data block and cache the data.
  *
  * Return: 0 on success, or an error.
  */
-static int lwmi_cd01_cache(struct lwmi_cd01_priv *priv)
+static int lwmi_cd_cache(struct lwmi_cd_priv *priv)
 {
 	int idx;
 
@@ -131,17 +134,17 @@ static int lwmi_cd01_cache(struct lwmi_cd01_priv *priv)
 }
 
 /**
- * lwmi_cd01_alloc() - Allocate a cd01_list struct in drvdata
- * @priv: lenovo-wmi-capdata01 driver data.
+ * lwmi_cd_alloc() - Allocate a cd_list struct in drvdata
+ * @priv: lenovo-wmi-capdata driver data.
  *
- * Allocate a cd01_list struct large enough to contain data from all WMI data
+ * Allocate a cd_list struct large enough to contain data from all WMI data
  * blocks provided by the interface.
  *
  * Return: 0 on success, or an error.
  */
-static int lwmi_cd01_alloc(struct lwmi_cd01_priv *priv)
+static int lwmi_cd_alloc(struct lwmi_cd_priv *priv)
 {
-	struct cd01_list *list;
+	struct cd_list *list;
 	size_t list_size;
 	int count, ret;
 
@@ -163,28 +166,28 @@ static int lwmi_cd01_alloc(struct lwmi_cd01_priv *priv)
 }
 
 /**
- * lwmi_cd01_setup() - Cache all WMI data block information
- * @priv: lenovo-wmi-capdata01 driver data.
+ * lwmi_cd_setup() - Cache all WMI data block information
+ * @priv: lenovo-wmi-capdata driver data.
  *
- * Allocate a cd01_list struct large enough to contain data from all WMI data
+ * Allocate a cd_list struct large enough to contain data from all WMI data
  * blocks provided by the interface. Then loop through each data block and
  * cache the data.
  *
  * Return: 0 on success, or an error code.
  */
-static int lwmi_cd01_setup(struct lwmi_cd01_priv *priv)
+static int lwmi_cd_setup(struct lwmi_cd_priv *priv)
 {
 	int ret;
 
-	ret = lwmi_cd01_alloc(priv);
+	ret = lwmi_cd_alloc(priv);
 	if (ret)
 		return ret;
 
-	return lwmi_cd01_cache(priv);
+	return lwmi_cd_cache(priv);
 }
 
 /**
- * lwmi_cd01_notifier_call() - Call method for lenovo-wmi-capdata01 driver notifier.
+ * lwmi_cd01_notifier_call() - Call method for cd01 notifier.
  * block call chain.
  * @nb: The notifier_block registered to lenovo-wmi-events driver.
  * @action: Unused.
@@ -199,17 +202,17 @@ static int lwmi_cd01_notifier_call(struct notifier_block *nb, unsigned long acti
 				   void *data)
 {
 	struct acpi_bus_event *event = data;
-	struct lwmi_cd01_priv *priv;
+	struct lwmi_cd_priv *priv;
 	int ret;
 
 	if (strcmp(event->device_class, ACPI_AC_CLASS) != 0)
 		return NOTIFY_DONE;
 
-	priv = container_of(nb, struct lwmi_cd01_priv, acpi_nb);
+	priv = container_of(nb, struct lwmi_cd_priv, acpi_nb);
 
 	switch (event->type) {
 	case ACPI_AC_NOTIFY_STATUS:
-		ret = lwmi_cd01_cache(priv);
+		ret = lwmi_cd_cache(priv);
 		if (ret)
 			return NOTIFY_BAD;
 
@@ -230,10 +233,9 @@ static void lwmi_cd01_unregister(void *data)
 	unregister_acpi_notifier(acpi_nb);
 }
 
-static int lwmi_cd01_probe(struct wmi_device *wdev, const void *context)
-
+static int lwmi_cd_probe(struct wmi_device *wdev, const void *context)
 {
-	struct lwmi_cd01_priv *priv;
+	struct lwmi_cd_priv *priv;
 	int ret;
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -243,7 +245,7 @@ static int lwmi_cd01_probe(struct wmi_device *wdev, const void *context)
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
 
-	ret = lwmi_cd01_setup(priv);
+	ret = lwmi_cd_setup(priv);
 	if (ret)
 		return ret;
 
@@ -257,27 +259,27 @@ static int lwmi_cd01_probe(struct wmi_device *wdev, const void *context)
 	if (ret)
 		return ret;
 
-	return component_add(&wdev->dev, &lwmi_cd01_component_ops);
+	return component_add(&wdev->dev, &lwmi_cd_component_ops);
 }
 
-static void lwmi_cd01_remove(struct wmi_device *wdev)
+static void lwmi_cd_remove(struct wmi_device *wdev)
 {
-	component_del(&wdev->dev, &lwmi_cd01_component_ops);
+	component_del(&wdev->dev, &lwmi_cd_component_ops);
 }
 
-static const struct wmi_device_id lwmi_cd01_id_table[] = {
+static const struct wmi_device_id lwmi_cd_id_table[] = {
 	{ LENOVO_CAPABILITY_DATA_01_GUID, NULL },
 	{}
 };
 
-static struct wmi_driver lwmi_cd01_driver = {
+static struct wmi_driver lwmi_cd_driver = {
 	.driver = {
-		.name = "lenovo_wmi_cd01",
+		.name = "lenovo_wmi_capdata",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.id_table = lwmi_cd01_id_table,
-	.probe = lwmi_cd01_probe,
-	.remove = lwmi_cd01_remove,
+	.id_table = lwmi_cd_id_table,
+	.probe = lwmi_cd_probe,
+	.remove = lwmi_cd_remove,
 	.no_singleton = true,
 };
 
@@ -290,13 +292,13 @@ static struct wmi_driver lwmi_cd01_driver = {
  */
 int lwmi_cd01_match(struct device *dev, void *data)
 {
-	return dev->driver == &lwmi_cd01_driver.driver;
+	return dev->driver == &lwmi_cd_driver.driver;
 }
-EXPORT_SYMBOL_NS_GPL(lwmi_cd01_match, "LENOVO_WMI_CD01");
+EXPORT_SYMBOL_NS_GPL(lwmi_cd01_match, "LENOVO_WMI_CAPDATA");
 
-module_wmi_driver(lwmi_cd01_driver);
+module_wmi_driver(lwmi_cd_driver);
 
-MODULE_DEVICE_TABLE(wmi, lwmi_cd01_id_table);
+MODULE_DEVICE_TABLE(wmi, lwmi_cd_id_table);
 MODULE_AUTHOR("Derek J. Clark <derekjohn.clark@gmail.com>");
-MODULE_DESCRIPTION("Lenovo Capability Data 01 WMI Driver");
+MODULE_DESCRIPTION("Lenovo Capability Data WMI Driver");
 MODULE_LICENSE("GPL");
