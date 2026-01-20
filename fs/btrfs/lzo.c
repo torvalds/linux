@@ -484,7 +484,7 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	size_t in_len;
 	size_t out_len;
 	size_t max_segment_len = workspace_buf_length(fs_info);
-	int ret = 0;
+	int ret;
 
 	if (unlikely(srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2))
 		return -EUCLEAN;
@@ -495,10 +495,8 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	data_in += LZO_LEN;
 
 	in_len = read_compress_length(data_in);
-	if (unlikely(in_len != srclen - LZO_LEN * 2)) {
-		ret = -EUCLEAN;
-		goto out;
-	}
+	if (unlikely(in_len != srclen - LZO_LEN * 2))
+		return -EUCLEAN;
 	data_in += LZO_LEN;
 
 	out_len = sectorsize;
@@ -510,19 +508,18 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		"lzo decompression failed, error %d root %llu inode %llu offset %llu",
 			  ret, btrfs_root_id(inode->root), btrfs_ino(inode),
 			  folio_pos(dest_folio));
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	ASSERT(out_len <= sectorsize);
 	memcpy_to_folio(dest_folio, dest_pgoff, workspace->buf, out_len);
 	/* Early end, considered as an error. */
 	if (unlikely(out_len < destlen)) {
-		ret = -EIO;
 		folio_zero_range(dest_folio, dest_pgoff + out_len, destlen - out_len);
+		return -EIO;
 	}
-out:
-	return ret;
+
+	return 0;
 }
 
 const struct btrfs_compress_levels  btrfs_lzo_compress = {
