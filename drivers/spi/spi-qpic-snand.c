@@ -1583,7 +1583,6 @@ static int qcom_spi_probe(struct platform_device *pdev)
 	ctlr->num_chipselect = QPIC_QSPI_NUM_CS;
 	ctlr->mem_ops = &qcom_spi_mem_ops;
 	ctlr->mem_caps = &qcom_spi_mem_caps;
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_TX_DUAL | SPI_RX_DUAL |
 			    SPI_TX_QUAD | SPI_RX_QUAD;
 

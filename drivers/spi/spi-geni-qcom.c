@@ -1057,7 +1057,6 @@ static int spi_geni_probe(struct platform_device *pdev)
 	}
 
 	spi->bus_num = -1;
-	spi->dev.of_node = dev->of_node;
 	spi->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LOOP | SPI_CS_HIGH;
 	spi->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	spi->num_chipselect = 4;

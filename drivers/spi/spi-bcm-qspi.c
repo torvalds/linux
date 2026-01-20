@@ -1529,7 +1529,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	host->transfer_one = bcm_qspi_transfer_one;
 	host->mem_ops = &bcm_qspi_mem_ops;
 	host->cleanup = bcm_qspi_cleanup;
-	host->dev.of_node = dev->of_node;
 	host->num_chipselect = NUM_CHIPSELECT;
 	host->use_gpio_descriptors = true;
 

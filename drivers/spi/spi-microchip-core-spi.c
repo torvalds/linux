@@ -360,7 +360,6 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	host->transfer_one = mchp_corespi_transfer_one;
 	host->set_cs = mchp_corespi_set_cs;
-	host->dev.of_node = dev->of_node;
 
 	ret = of_property_read_u32(dev->of_node, "fifo-depth", &spi->fifo_depth);
 	if (ret)

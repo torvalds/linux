@@ -860,7 +860,6 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	ctrl->use_gpio_descriptors = true;
 	ctrl->transfer_one_message = stm32_qspi_transfer_one_message;
 	ctrl->num_chipselect = STM32_QSPI_MAX_NORCHIP;
-	ctrl->dev.of_node = dev->of_node;
 
 	pm_runtime_set_autosuspend_delay(dev, STM32_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);

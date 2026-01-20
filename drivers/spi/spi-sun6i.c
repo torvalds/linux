@@ -673,7 +673,6 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST |
 			  sspi->cfg->mode_bits;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = pdev->dev.of_node;
 	host->auto_runtime_pm = true;
 	host->max_transfer_size = sun6i_spi_max_transfer_size;
 

@@ -1290,7 +1290,6 @@ static int nxp_xspi_probe(struct platform_device *pdev)
 	ctlr->num_chipselect = NXP_XSPI_MAX_CHIPSELECT;
 	ctlr->mem_ops = &nxp_xspi_mem_ops;
 	ctlr->mem_caps = &nxp_xspi_mem_caps;
-	ctlr->dev.of_node = dev->of_node;
 
 	return devm_spi_register_controller(dev, ctlr);
 }

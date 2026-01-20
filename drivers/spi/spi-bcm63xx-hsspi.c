@@ -822,7 +822,6 @@ static int bcm63xx_hsspi_probe(struct platform_device *pdev)
 	init_completion(&bs->done);
 
 	host->mem_ops = &bcm63xx_hsspi_mem_ops;
-	host->dev.of_node = dev->of_node;
 	if (!dev->of_node)
 		host->bus_num = HSSPI_BUS_NUM;
 

@@ -2368,7 +2368,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
-	controller->dev.of_node = pdev->dev.of_node;
 	ret = spi_register_controller(controller);
 	if (ret) {
 		dev_err_probe(&pdev->dev, ret, "register controller failed\n");

@@ -351,7 +351,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (fwnode) {
-		device_set_node(&host->dev, fwnode);
 		host->use_gpio_descriptors = true;
 	} else {
 		status = spi_gpio_probe_pdata(pdev, host);

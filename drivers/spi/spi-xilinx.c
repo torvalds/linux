@@ -447,7 +447,6 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 
 	host->bus_num = pdev->id;
 	host->num_chipselect = num_cs;
-	host->dev.of_node = pdev->dev.of_node;
 
 	/*
 	 * Detect endianess on the IP via loop bit in CR. Detection

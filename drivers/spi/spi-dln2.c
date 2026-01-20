@@ -682,14 +682,11 @@ static int dln2_spi_probe(struct platform_device *pdev)
 	struct spi_controller *host;
 	struct dln2_spi *dln2;
 	struct dln2_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device *dev = &pdev->dev;
 	int ret;
 
 	host = spi_alloc_host(&pdev->dev, sizeof(*dln2));
 	if (!host)
 		return -ENOMEM;
-
-	device_set_node(&host->dev, dev_fwnode(dev));
 
 	platform_set_drvdata(pdev, host);
 

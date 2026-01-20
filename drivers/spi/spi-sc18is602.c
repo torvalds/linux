@@ -251,8 +251,6 @@ static int sc18is602_probe(struct i2c_client *client)
 	if (!host)
 		return -ENOMEM;
 
-	device_set_node(&host->dev, dev_fwnode(dev));
-
 	hw = spi_controller_get_devdata(host);
 
 	/* assert reset and then release */

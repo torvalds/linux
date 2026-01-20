@@ -430,7 +430,6 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	host->transfer = mpc52xx_spi_transfer;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
-	host->dev.of_node = op->dev.of_node;
 
 	platform_set_drvdata(op, host);
 

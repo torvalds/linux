@@ -780,7 +780,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 	if (status < 0)
 		goto out_rel_pm;
 
-	host->dev.of_node = pdev->dev.of_node;
 	status = spi_register_controller(host);
 	if (status < 0)
 		goto out_rel_pm;

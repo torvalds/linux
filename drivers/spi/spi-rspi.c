@@ -1338,7 +1338,6 @@ static int rspi_probe(struct platform_device *pdev)
 	ctlr->min_speed_hz = DIV_ROUND_UP(clksrc, ops->max_div);
 	ctlr->max_speed_hz = DIV_ROUND_UP(clksrc, ops->min_div);
 	ctlr->flags = ops->flags;
-	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->use_gpio_descriptors = true;
 	ctlr->max_native_cs = rspi->ops->num_hw_ss;
 

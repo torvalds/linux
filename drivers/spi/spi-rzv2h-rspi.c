@@ -797,8 +797,6 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 		controller->dma_rx = NULL;
 	}
 
-	device_set_node(&controller->dev, dev_fwnode(dev));
-
 	ret = devm_spi_register_controller(dev, controller);
 	if (ret)
 		dev_err(dev, "register controller failed\n");

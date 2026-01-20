@@ -942,7 +942,6 @@ static int stm32_ospi_probe(struct platform_device *pdev)
 	ctrl->use_gpio_descriptors = true;
 	ctrl->transfer_one_message = stm32_ospi_transfer_one_message;
 	ctrl->num_chipselect = STM32_OSPI_MAX_NORCHIP;
-	ctrl->dev.of_node = dev->of_node;
 
 	pm_runtime_enable(ospi->dev);
 	pm_runtime_set_autosuspend_delay(ospi->dev, STM32_AUTOSUSPEND_DELAY);

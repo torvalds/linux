@@ -3072,6 +3072,9 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 	else
 		ctlr->dev.class = &spi_controller_class;
 	ctlr->dev.parent = dev;
+
+	device_set_node(&ctlr->dev, dev_fwnode(dev));
+
 	pm_suspend_ignore_children(&ctlr->dev, true);
 	spi_controller_set_devdata(ctlr, (void *)ctlr + ctlr_size);
 

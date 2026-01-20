@@ -2464,7 +2464,6 @@ static int stm32_spi_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	ctrl->dev.of_node = pdev->dev.of_node;
 	ctrl->auto_runtime_pm = true;
 	ctrl->bus_num = pdev->id;
 	ctrl->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST |

@@ -344,8 +344,6 @@ static int virtio_spi_probe(struct virtio_device *vdev)
 	priv->vdev = vdev;
 	vdev->priv = priv;
 
-	device_set_node(&ctrl->dev, dev_fwnode(&vdev->dev));
-
 	dev_set_drvdata(&vdev->dev, ctrl);
 
 	virtio_spi_read_config(vdev);
