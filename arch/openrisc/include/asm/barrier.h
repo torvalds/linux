@@ -4,6 +4,8 @@
 
 #define mb() asm volatile ("l.msync" ::: "memory")
 
+#define nop() asm volatile ("l.nop")
+
 #include <asm-generic/barrier.h>
 
 #endif /* __ASM_BARRIER_H */
