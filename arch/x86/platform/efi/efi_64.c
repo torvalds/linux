@@ -55,6 +55,7 @@
  */
 static u64 efi_va = EFI_VA_START;
 static struct mm_struct *efi_prev_mm;
+static unsigned long efi_cr4_lass;
 
 /*
  * We need our own copy of the higher levels of the page tables
@@ -443,16 +444,50 @@ static void efi_leave_mm(void)
 	unuse_temporary_mm(efi_prev_mm);
 }
 
+/*
+ * Toggle LASS to allow EFI to access any 1:1 mapped region in the lower
+ * half.
+ *
+ * Disable LASS only after switching to EFI-mm, as userspace is not
+ * mapped in it. Similar to EFI-mm, these rely on preemption being
+ * disabled and the calls being serialized.
+ */
+
+static void efi_disable_lass(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_LASS))
+		return;
+
+	lockdep_assert_preemption_disabled();
+
+	/* Save current CR4.LASS state */
+	efi_cr4_lass = cr4_read_shadow() & X86_CR4_LASS;
+	cr4_clear_bits(efi_cr4_lass);
+}
+
+static void efi_enable_lass(void)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_LASS))
+		return;
+
+	lockdep_assert_preemption_disabled();
+
+	/* Reprogram CR4.LASS only if it was set earlier */
+	cr4_set_bits(efi_cr4_lass);
+}
+
 void arch_efi_call_virt_setup(void)
 {
 	efi_sync_low_kernel_mappings();
 	efi_fpu_begin();
 	firmware_restrict_branch_speculation_start();
 	efi_enter_mm();
+	efi_disable_lass();
 }
 
 void arch_efi_call_virt_teardown(void)
 {
+	efi_enable_lass();
 	efi_leave_mm();
 	firmware_restrict_branch_speculation_end();
 	efi_fpu_end();
