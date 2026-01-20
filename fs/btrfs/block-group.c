@@ -673,27 +673,29 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
  * 3, we can either read every file extent, or admit that this is best effort
  * anyway and try to stay fast.
  *
- * Returns: 0 on success, negative error code on error.
+ * No errors are returned since failing to determine the size class is not a
+ * critical error, size classes are just an optimization.
  */
-static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl,
-				       struct btrfs_block_group *block_group)
+static void load_block_group_size_class(struct btrfs_caching_control *caching_ctl,
+					struct btrfs_block_group *block_group)
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct btrfs_key key;
 	int i;
 	u64 min_size = block_group->length;
 	enum btrfs_block_group_size_class size_class = BTRFS_BG_SZ_NONE;
-	int ret;
 
 	if (!btrfs_block_group_should_use_size_class(block_group))
-		return 0;
+		return;
 
 	lockdep_assert_held(&caching_ctl->mutex);
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 	for (i = 0; i < 5; ++i) {
+		int ret;
+
 		ret = sample_block_group_extent_item(caching_ctl, block_group, i, 5, &key);
 		if (ret < 0)
-			goto out;
+			return;
 		if (ret > 0)
 			continue;
 		min_size = min_t(u64, min_size, key.offset);
@@ -704,8 +706,6 @@ static int load_block_group_size_class(struct btrfs_caching_control *caching_ctl
 		block_group->size_class = size_class;
 		spin_unlock(&block_group->lock);
 	}
-out:
-	return ret;
 }
 
 static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
