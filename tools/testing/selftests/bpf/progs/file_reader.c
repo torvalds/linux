@@ -77,7 +77,7 @@ int on_open_validate_file_read(void *c)
 		err = 1;
 		return 0;
 	}
-	bpf_task_work_schedule_signal_impl(task, &work->tw, &arrmap, task_work_callback, NULL);
+	bpf_task_work_schedule_signal(task, &work->tw, &arrmap, task_work_callback);
 	return 0;
 }
 
