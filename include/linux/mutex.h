@@ -183,7 +183,7 @@ static inline int __must_check __devm_mutex_init(struct device *dev, struct mute
  */
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 extern void mutex_lock_nested(struct mutex *lock, unsigned int subclass) __acquires(lock);
-extern void _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest_lock);
+extern void _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest_lock) __acquires(lock);
 extern int __must_check mutex_lock_interruptible_nested(struct mutex *lock,
 					unsigned int subclass) __cond_acquires(0, lock);
 extern int __must_check _mutex_lock_killable(struct mutex *lock,

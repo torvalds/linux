@@ -7,12 +7,14 @@
 
 static inline struct mutex_waiter *
 __ww_waiter_first(struct mutex *lock)
+	__must_hold(&lock->wait_lock)
 {
 	return lock->first_waiter;
 }
 
 static inline struct mutex_waiter *
 __ww_waiter_next(struct mutex *lock, struct mutex_waiter *w)
+	__must_hold(&lock->wait_lock)
 {
 	w = list_next_entry(w, list);
 	if (lock->first_waiter == w)
@@ -23,6 +25,7 @@ __ww_waiter_next(struct mutex *lock, struct mutex_waiter *w)
 
 static inline struct mutex_waiter *
 __ww_waiter_prev(struct mutex *lock, struct mutex_waiter *w)
+	__must_hold(&lock->wait_lock)
 {
 	w = list_prev_entry(w, list);
 	if (lock->first_waiter == w)
@@ -33,6 +36,7 @@ __ww_waiter_prev(struct mutex *lock, struct mutex_waiter *w)
 
 static inline struct mutex_waiter *
 __ww_waiter_last(struct mutex *lock)
+	__must_hold(&lock->wait_lock)
 {
 	struct mutex_waiter *w = lock->first_waiter;
 
@@ -43,6 +47,7 @@ __ww_waiter_last(struct mutex *lock)
 
 static inline void
 __ww_waiter_add(struct mutex *lock, struct mutex_waiter *waiter, struct mutex_waiter *pos)
+	__must_hold(&lock->wait_lock)
 {
 	__mutex_add_waiter(lock, waiter, pos);
 }
@@ -60,16 +65,19 @@ __ww_mutex_has_waiters(struct mutex *lock)
 }
 
 static inline void lock_wait_lock(struct mutex *lock, unsigned long *flags)
+	__acquires(&lock->wait_lock)
 {
 	raw_spin_lock_irqsave(&lock->wait_lock, *flags);
 }
 
 static inline void unlock_wait_lock(struct mutex *lock, unsigned long *flags)
+	__releases(&lock->wait_lock)
 {
 	raw_spin_unlock_irqrestore(&lock->wait_lock, *flags);
 }
 
 static inline void lockdep_assert_wait_lock_held(struct mutex *lock)
+	__must_hold(&lock->wait_lock)
 {
 	lockdep_assert_held(&lock->wait_lock);
 }
@@ -296,6 +304,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 			     struct ww_acquire_ctx *ww_ctx,
 			     struct ww_acquire_ctx *hold_ctx,
 			     struct wake_q_head *wake_q)
+	__must_hold(&lock->wait_lock)
 {
 	struct task_struct *owner = __ww_mutex_owner(lock);
 
@@ -360,6 +369,7 @@ static bool __ww_mutex_wound(struct MUTEX *lock,
 static void
 __ww_mutex_check_waiters(struct MUTEX *lock, struct ww_acquire_ctx *ww_ctx,
 			 struct wake_q_head *wake_q)
+	__must_hold(&lock->wait_lock)
 {
 	struct MUTEX_WAITER *cur;
 
@@ -453,6 +463,7 @@ __ww_mutex_kill(struct MUTEX *lock, struct ww_acquire_ctx *ww_ctx)
 static inline int
 __ww_mutex_check_kill(struct MUTEX *lock, struct MUTEX_WAITER *waiter,
 		      struct ww_acquire_ctx *ctx)
+	__must_hold(&lock->wait_lock)
 {
 	struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
 	struct ww_acquire_ctx *hold_ctx = READ_ONCE(ww->ctx);
@@ -503,6 +514,7 @@ __ww_mutex_add_waiter(struct MUTEX_WAITER *waiter,
 		      struct MUTEX *lock,
 		      struct ww_acquire_ctx *ww_ctx,
 		      struct wake_q_head *wake_q)
+	__must_hold(&lock->wait_lock)
 {
 	struct MUTEX_WAITER *cur, *pos = NULL;
 	bool is_wait_die;

@@ -3,6 +3,8 @@
 # and is generally not a function of system call inputs.
 KCOV_INSTRUMENT		:= n
 
+CONTEXT_ANALYSIS_mutex.o := y
+
 obj-y += mutex.o semaphore.o rwsem.o percpu-rwsem.o
 
 # Avoid recursion lockdep -> sanitizer -> ... -> lockdep & improve performance.
