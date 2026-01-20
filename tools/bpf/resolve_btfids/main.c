@@ -563,19 +563,6 @@ static int load_btf(struct object *obj)
 	obj->base_btf = base_btf;
 	obj->btf = btf;
 
-	if (obj->base_btf && obj->distill_base) {
-		err = btf__distill_base(obj->btf, &base_btf, &btf);
-		if (err) {
-			pr_err("FAILED to distill base BTF: %s\n", strerror(errno));
-			goto out_err;
-		}
-
-		btf__free(obj->base_btf);
-		btf__free(obj->btf);
-		obj->base_btf = base_btf;
-		obj->btf = btf;
-	}
-
 	return 0;
 
 out_err:
@@ -911,6 +898,41 @@ out:
 	return err;
 }
 
+static int finalize_btf(struct object *obj)
+{
+	struct btf *base_btf = obj->base_btf, *btf = obj->btf;
+	int err;
+
+	if (obj->base_btf && obj->distill_base) {
+		err = btf__distill_base(obj->btf, &base_btf, &btf);
+		if (err) {
+			pr_err("FAILED to distill base BTF: %s\n", strerror(errno));
+			goto out_err;
+		}
+
+		btf__free(obj->base_btf);
+		btf__free(obj->btf);
+		obj->base_btf = base_btf;
+		obj->btf = btf;
+	}
+
+	err = sort_btf_by_name(obj->btf);
+	if (err) {
+		pr_err("FAILED to sort BTF: %s\n", strerror(errno));
+		goto out_err;
+	}
+
+	return 0;
+
+out_err:
+	btf__free(base_btf);
+	btf__free(btf);
+	obj->base_btf = NULL;
+	obj->btf = NULL;
+
+	return err;
+}
+
 static inline int make_out_path(char *buf, u32 buf_sz, const char *in_path, const char *suffix)
 {
 	int len = snprintf(buf, buf_sz, "%s%s", in_path, suffix);
@@ -1054,6 +1076,7 @@ int main(int argc, const char **argv)
 	};
 	const char *btfids_path = NULL;
 	bool fatal_warnings = false;
+	bool resolve_btfids = true;
 	char out_path[PATH_MAX];
 
 	struct option btfid_options[] = {
@@ -1083,12 +1106,6 @@ int main(int argc, const char **argv)
 	if (btfids_path)
 		return patch_btfids(btfids_path, obj.path);
 
-	if (load_btf(&obj))
-		goto out;
-
-	if (sort_btf_by_name(obj.btf))
-		goto out;
-
 	if (elf_collect(&obj))
 		goto out;
 
@@ -1099,11 +1116,21 @@ int main(int argc, const char **argv)
 	if (obj.efile.idlist_shndx == -1 ||
 	    obj.efile.symbols_shndx == -1) {
 		pr_debug("Cannot find .BTF_ids or symbols sections, skip symbols resolution\n");
-		goto dump_btf;
+		resolve_btfids = false;
 	}
 
-	if (symbols_collect(&obj))
+	if (resolve_btfids)
+		if (symbols_collect(&obj))
+			goto out;
+
+	if (load_btf(&obj))
 		goto out;
+
+	if (finalize_btf(&obj))
+		goto out;
+
+	if (!resolve_btfids)
+		goto dump_btf;
 
 	if (symbols_resolve(&obj))
 		goto out;
