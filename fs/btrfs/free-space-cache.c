@@ -1162,7 +1162,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	if (ret < 0) {
 		btrfs_clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, inode->i_size - 1,
 				       EXTENT_DELALLOC, NULL);
-		goto fail;
+		return ret;
 	}
 	leaf = path->nodes[0];
 	if (ret > 0) {
@@ -1176,7 +1176,7 @@ update_cache_item(struct btrfs_trans_handle *trans,
 					       inode->i_size - 1, EXTENT_DELALLOC,
 					       NULL);
 			btrfs_release_path(path);
-			goto fail;
+			return -ENOENT;
 		}
 	}
 
@@ -1189,9 +1189,6 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	return 0;
-
-fail:
-	return -1;
 }
 
 static noinline_for_stack int write_pinned_extent_entries(
@@ -2017,7 +2014,7 @@ find_free_space(struct btrfs_free_space_ctl *ctl, u64 *offset, u64 *bytes,
 	int ret;
 
 	if (!ctl->free_space_offset.rb_node)
-		goto out;
+		return NULL;
 again:
 	if (use_bytes_index) {
 		node = rb_first_cached(&ctl->free_space_bytes);
@@ -2025,7 +2022,7 @@ again:
 		entry = tree_search_offset(ctl, offset_to_bitmap(ctl, *offset),
 					   0, 1);
 		if (!entry)
-			goto out;
+			return NULL;
 		node = &entry->offset_index;
 	}
 
@@ -2109,7 +2106,7 @@ again:
 		*bytes = entry->bytes - align_off;
 		return entry;
 	}
-out:
+
 	return NULL;
 }
 
@@ -2894,7 +2891,7 @@ again:
 						     old_end - (offset + bytes),
 						     info->trim_state);
 			WARN_ON(ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -2906,7 +2903,7 @@ again:
 out_lock:
 	btrfs_discard_update_discardable(block_group);
 	spin_unlock(&ctl->tree_lock);
-out:
+
 	return ret;
 }
 
@@ -4006,7 +4003,7 @@ static int trim_bitmaps(struct btrfs_block_group *block_group,
 		if (async && *total_trimmed) {
 			spin_unlock(&ctl->tree_lock);
 			mutex_unlock(&ctl->cache_writeout_mutex);
-			goto out;
+			return ret;
 		}
 
 		bytes = min(bytes, end - start);
@@ -4067,7 +4064,6 @@ next:
 	if (offset >= end)
 		block_group->discard_cursor = end;
 
-out:
 	return ret;
 }
 
@@ -4160,20 +4156,20 @@ static int cleanup_free_space_cache_v1(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_group *block_group;
 	struct rb_node *node;
-	int ret = 0;
 
 	btrfs_info(fs_info, "cleaning free space cache v1");
 
 	node = rb_first_cached(&fs_info->block_group_cache_tree);
 	while (node) {
+		int ret;
+
 		block_group = rb_entry(node, struct btrfs_block_group, cache_node);
 		ret = btrfs_remove_free_space_inode(trans, NULL, block_group);
 		if (ret)
-			goto out;
+			return ret;
 		node = rb_next(node);
 	}
-out:
-	return ret;
+	return 0;
 }
 
 int btrfs_set_free_space_cache_v1_active(struct btrfs_fs_info *fs_info, bool active)
