@@ -1613,10 +1613,8 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 	int ret = 0;
 	int ret2;
 
-	if (!fs_info->quota_root) {
-		ret = -ENOTCONN;
-		goto out;
-	}
+	if (!fs_info->quota_root)
+		return -ENOTCONN;
 
 	member = find_qgroup_rb(fs_info, src);
 	parent = find_qgroup_rb(fs_info, dst);
@@ -1638,12 +1636,10 @@ static int __del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
 delete_item:
 	ret = del_qgroup_relation_item(trans, src, dst);
 	if (ret < 0 && ret != -ENOENT)
-		goto out;
+		return ret;
 	ret2 = del_qgroup_relation_item(trans, dst, src);
-	if (ret2 < 0 && ret2 != -ENOENT) {
-		ret = ret2;
-		goto out;
-	}
+	if (ret2 < 0 && ret2 != -ENOENT)
+		return ret2;
 
 	/* At least one deletion succeeded, return 0 */
 	if (!ret || !ret2)
@@ -1657,7 +1653,7 @@ delete_item:
 		squota_check_parent_usage(fs_info, parent);
 		spin_unlock(&fs_info->qgroup_lock);
 	}
-out:
+
 	return ret;
 }
 
@@ -2490,13 +2486,11 @@ static int qgroup_trace_new_subtree_blocks(struct btrfs_trans_handle* trans,
 
 		/* This node is old, no need to trace */
 		if (child_gen < last_snapshot)
-			goto out;
+			return ret;
 
 		eb = btrfs_read_node_slot(eb, parent_slot);
-		if (IS_ERR(eb)) {
-			ret = PTR_ERR(eb);
-			goto out;
-		}
+		if (IS_ERR(eb))
+			return PTR_ERR(eb);
 
 		dst_path->nodes[cur_level] = eb;
 		dst_path->slots[cur_level] = 0;
@@ -2541,7 +2535,7 @@ cleanup:
 		dst_path->slots[cur_level] = 0;
 		dst_path->locks[cur_level] = 0;
 	}
-out:
+
 	return ret;
 }
 
