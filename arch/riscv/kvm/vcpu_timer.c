@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <clocksource/timer-riscv.h>
 #include <asm/delay.h>
+#include <asm/kvm_isa.h>
 #include <asm/kvm_nacl.h>
 #include <asm/kvm_vcpu_timer.h>
 

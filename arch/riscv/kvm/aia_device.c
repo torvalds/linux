@@ -11,7 +11,7 @@
 #include <linux/irqchip/riscv-imsic.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
-#include <linux/cpufeature.h>
+#include <asm/kvm_isa.h>
 
 static int aia_create(struct kvm_device *dev, u32 type)
 {

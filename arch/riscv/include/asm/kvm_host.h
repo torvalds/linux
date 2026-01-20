@@ -311,10 +311,6 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 
 void __kvm_riscv_switch_to(struct kvm_vcpu_arch *vcpu_arch);
 
-int __kvm_riscv_isa_check_host(unsigned long kvm_ext, unsigned long *guest_ext);
-#define kvm_riscv_isa_check_host(ext)	\
-	__kvm_riscv_isa_check_host(KVM_RISCV_ISA_EXT_##ext, NULL)
-
 void kvm_riscv_vcpu_setup_isa(struct kvm_vcpu *vcpu);
 unsigned long kvm_riscv_vcpu_num_regs(struct kvm_vcpu *vcpu);
 int kvm_riscv_vcpu_copy_reg_indices(struct kvm_vcpu *vcpu,

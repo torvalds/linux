@@ -13,6 +13,7 @@
 #include <linux/nospec.h>
 #include <linux/uaccess.h>
 #include <asm/cpufeature.h>
+#include <asm/kvm_isa.h>
 
 #ifdef CONFIG_FPU
 void kvm_riscv_vcpu_fp_reset(struct kvm_vcpu *vcpu)
