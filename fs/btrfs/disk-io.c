@@ -370,22 +370,19 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 		btrfs_err_rl(fs_info,
 			"bad tree block start, mirror %u want %llu have %llu",
 			     eb->read_mirror, eb->start, found_start);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	if (unlikely(check_tree_block_fsid(eb))) {
 		btrfs_err_rl(fs_info, "bad fsid on logical %llu mirror %u",
 			     eb->start, eb->read_mirror);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	found_level = btrfs_header_level(eb);
 	if (unlikely(found_level >= BTRFS_MAX_LEVEL)) {
 		btrfs_err(fs_info,
 			"bad tree block level, mirror %u level %d on logical %llu",
 			eb->read_mirror, btrfs_header_level(eb), eb->start);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	csum_tree_block(eb, result);
@@ -400,18 +397,15 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 			      BTRFS_CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb),
 			      ignore_csum ? ", ignored" : "");
-		if (unlikely(!ignore_csum)) {
-			ret = -EUCLEAN;
-			goto out;
-		}
+		if (unlikely(!ignore_csum))
+			return -EUCLEAN;
 	}
 
 	if (unlikely(found_level != check->level)) {
 		btrfs_err(fs_info,
 		"level verify failed on logical %llu mirror %u wanted %u found %u",
 			  eb->start, eb->read_mirror, check->level, found_level);
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	if (unlikely(check->transid &&
 		     btrfs_header_generation(eb) != check->transid)) {
@@ -419,8 +413,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 "parent transid verify failed on logical %llu mirror %u wanted %llu found %llu",
 				eb->start, eb->read_mirror, check->transid,
 				btrfs_header_generation(eb));
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 	if (check->has_first_key) {
 		const struct btrfs_key *expect_key = &check->first_key;
@@ -438,14 +431,13 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 				  expect_key->type, expect_key->offset,
 				  found_key.objectid, found_key.type,
 				  found_key.offset);
-			ret = -EUCLEAN;
-			goto out;
+			return -EUCLEAN;
 		}
 	}
 	if (check->owner_root) {
 		ret = btrfs_check_eb_owner(eb, check->owner_root);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/* If this is a leaf block and it is corrupt, just return -EIO. */
@@ -459,7 +451,6 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 		btrfs_err(fs_info,
 		"read time tree block corruption detected on logical %llu mirror %u",
 			  eb->start, eb->read_mirror);
-out:
 	return ret;
 }
 
@@ -3071,7 +3062,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 		if (ret) {
 			btrfs_warn(fs_info,
 				   "failed to rebuild free space tree: %d", ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -3082,7 +3073,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 		if (ret) {
 			btrfs_warn(fs_info,
 				   "failed to disable free space tree: %d", ret);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -3093,7 +3084,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	ret = btrfs_delete_orphan_free_space_entries(fs_info);
 	if (ret < 0) {
 		btrfs_err(fs_info, "failed to delete orphan free space tree entries: %d", ret);
-		goto out;
+		return ret;
 	}
 	/*
 	 * btrfs_find_orphan_roots() is responsible for finding all the dead
@@ -3108,17 +3099,17 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	 */
 	ret = btrfs_find_orphan_roots(fs_info);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = btrfs_cleanup_fs_roots(fs_info);
 	if (ret)
-		goto out;
+		return ret;
 
 	down_read(&fs_info->cleanup_work_sem);
 	if ((ret = btrfs_orphan_cleanup(fs_info->fs_root)) ||
 	    (ret = btrfs_orphan_cleanup(fs_info->tree_root))) {
 		up_read(&fs_info->cleanup_work_sem);
-		goto out;
+		return ret;
 	}
 	up_read(&fs_info->cleanup_work_sem);
 
@@ -3127,7 +3118,7 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	mutex_unlock(&fs_info->cleaner_mutex);
 	if (ret < 0) {
 		btrfs_warn(fs_info, "failed to recover relocation: %d", ret);
-		goto out;
+		return ret;
 	}
 
 	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE) &&
@@ -3137,24 +3128,24 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 		if (ret) {
 			btrfs_warn(fs_info,
 				"failed to create free space tree: %d", ret);
-			goto out;
+			return ret;
 		}
 	}
 
 	if (cache_opt != btrfs_free_space_cache_v1_active(fs_info)) {
 		ret = btrfs_set_free_space_cache_v1_active(fs_info, cache_opt);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	ret = btrfs_resume_balance_async(fs_info);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = btrfs_resume_dev_replace_async(fs_info);
 	if (ret) {
 		btrfs_warn(fs_info, "failed to resume dev_replace");
-		goto out;
+		return ret;
 	}
 
 	btrfs_qgroup_rescan_resume(fs_info);
@@ -3165,12 +3156,11 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 		if (ret) {
 			btrfs_warn(fs_info,
 				   "failed to create the UUID tree %d", ret);
-			goto out;
+			return ret;
 		}
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
