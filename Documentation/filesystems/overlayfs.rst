@@ -753,9 +753,9 @@ Note: the mount options index=off,nfs_export=on are conflicting for a
 read-write mount and will result in an error.
 
 Note: the mount option uuid=off can be used to replace UUID of the underlying
-filesystem in file handles with null, and effectively disable UUID checks. This
+filesystem in file handles with null, in order to relax the UUID checks. This
 can be useful in case the underlying disk is copied and the UUID of this copy
-is changed. This is only applicable if all lower/upper/work directories are on
+is changed. This is only applicable if all lower directories are on
 the same filesystem, otherwise it will fallback to normal behaviour.
 
 
@@ -769,7 +769,7 @@ controlled by the "uuid" mount option, which supports these values:
     UUID of overlayfs is null. fsid is taken from upper most filesystem.
 - "off":
     UUID of overlayfs is null. fsid is taken from upper most filesystem.
-    UUID of underlying layers is ignored.
+    UUID of underlying layers is ignored and null used instead.
 - "on":
     UUID of overlayfs is generated and used to report a unique fsid.
     UUID is stored in xattr "trusted.overlay.uuid", making overlayfs fsid
