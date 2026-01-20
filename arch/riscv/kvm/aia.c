@@ -185,6 +185,8 @@ int kvm_riscv_vcpu_aia_get_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 	unsigned long regs_max = sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long);
 
+	if (!riscv_isa_extension_available(vcpu->arch.isa, SSAIA))
+		return -ENOENT;
 	if (reg_num >= regs_max)
 		return -ENOENT;
 
@@ -204,6 +206,8 @@ int kvm_riscv_vcpu_aia_set_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 	unsigned long regs_max = sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long);
 
+	if (!riscv_isa_extension_available(vcpu->arch.isa, SSAIA))
+		return -ENOENT;
 	if (reg_num >= regs_max)
 		return -ENOENT;
 
