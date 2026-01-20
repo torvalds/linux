@@ -1394,28 +1394,13 @@ static int is_sdca_endpoint_present(struct device *dev,
 	const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[adr_index];
 	const struct snd_soc_acpi_endpoint *adr_end;
 	const struct asoc_sdw_dai_info *dai_info;
-	struct snd_soc_dai_link_component *dlc;
-	struct snd_soc_dai *codec_dai;
 	struct sdw_slave *slave;
 	struct device *sdw_dev;
 	const char *sdw_codec_name;
 	int ret, i;
 
-	dlc = kzalloc(sizeof(*dlc), GFP_KERNEL);
-	if (!dlc)
-		return -ENOMEM;
-
 	adr_end = &adr_dev->endpoints[end_index];
 	dai_info = &codec_info->dais[adr_end->num];
-
-	dlc->dai_name = dai_info->dai_name;
-	codec_dai = snd_soc_find_dai_with_mutex(dlc);
-	if (!codec_dai) {
-		dev_warn(dev, "codec dai %s not registered yet\n", dlc->dai_name);
-		kfree(dlc);
-		return -EPROBE_DEFER;
-	}
-	kfree(dlc);
 
 	sdw_codec_name = _asoc_sdw_get_codec_name(dev, adr_link, adr_index);
 	if (!sdw_codec_name)
