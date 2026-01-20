@@ -1471,7 +1471,7 @@ static const struct bpf_func_proto bpf_timer_start_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, timer)
+BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, async)
 {
 	struct bpf_hrtimer *t, *cur_t;
 	bool inc = false;
@@ -1479,13 +1479,12 @@ BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, timer)
 
 	if (in_nmi())
 		return -EOPNOTSUPP;
-	rcu_read_lock();
-	__bpf_spin_lock_irqsave(&timer->lock);
-	t = timer->timer;
-	if (!t) {
-		ret = -EINVAL;
-		goto out;
-	}
+
+	guard(rcu)();
+
+	t = READ_ONCE(async->timer);
+	if (!t)
+		return -EINVAL;
 
 	cur_t = this_cpu_read(hrtimer_running);
 	if (cur_t == t) {
@@ -1493,8 +1492,7 @@ BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, timer)
 		 * its own timer the hrtimer_cancel() will deadlock
 		 * since it waits for callback_fn to finish.
 		 */
-		ret = -EDEADLK;
-		goto out;
+		return -EDEADLK;
 	}
 
 	/* Only account in-flight cancellations when invoked from a timer
@@ -1517,20 +1515,17 @@ BPF_CALL_1(bpf_timer_cancel, struct bpf_async_kern *, timer)
 		 * cancelling and waiting for it synchronously, since it might
 		 * do the same. Bail!
 		 */
-		ret = -EDEADLK;
-		goto out;
+		atomic_dec(&t->cancelling);
+		return -EDEADLK;
 	}
 drop:
 	bpf_async_update_prog_callback(&t->cb, NULL, NULL);
-out:
-	__bpf_spin_unlock_irqrestore(&timer->lock);
 	/* Cancel the timer and wait for associated callback to finish
 	 * if it was running.
 	 */
-	ret = ret ?: hrtimer_cancel(&t->timer);
+	ret = hrtimer_cancel(&t->timer);
 	if (inc)
 		atomic_dec(&t->cancelling);
-	rcu_read_unlock();
 	return ret;
 }
 
