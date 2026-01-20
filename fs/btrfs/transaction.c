@@ -950,7 +950,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 
 	if (transid) {
 		if (transid <= btrfs_get_last_trans_committed(fs_info))
-			goto out;
+			return 0;
 
 		/* find specified transaction */
 		spin_lock(&fs_info->trans_lock);
@@ -975,7 +975,7 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 		if (!cur_trans) {
 			if (transid > btrfs_get_last_trans_committed(fs_info))
 				ret = -EINVAL;
-			goto out;
+			return ret;
 		}
 	} else {
 		/* find newest transaction that is committing | committed */
@@ -991,14 +991,15 @@ int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid)
 			}
 		}
 		spin_unlock(&fs_info->trans_lock);
+		/* Nothing committing or committed. */
 		if (!cur_trans)
-			goto out;  /* nothing committing|committed */
+			return ret;
 	}
 
 	wait_for_commit(cur_trans, TRANS_STATE_COMPLETED);
 	ret = cur_trans->aborted;
 	btrfs_put_transaction(cur_trans);
-out:
+
 	return ret;
 }
 
