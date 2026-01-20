@@ -396,6 +396,19 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 	.fileattr_set	= hfsplus_fileattr_set,
 };
 
+const struct inode_operations hfsplus_symlink_inode_operations = {
+	.get_link	= page_get_link,
+	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
+	.listxattr	= hfsplus_listxattr,
+};
+
+const struct inode_operations hfsplus_special_inode_operations = {
+	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
+	.listxattr	= hfsplus_listxattr,
+};
+
 static const struct file_operations hfsplus_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read_iter	= generic_file_read_iter,
@@ -455,12 +468,17 @@ struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 		hip->clump_blocks = sbi->data_clump_blocks;
 	} else if (S_ISLNK(inode->i_mode)) {
 		sbi->file_count++;
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &hfsplus_symlink_inode_operations;
 		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &hfsplus_aops;
 		hip->clump_blocks = 1;
+	} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
+		   S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
+		sbi->file_count++;
+		inode->i_op = &hfsplus_special_inode_operations;
 	} else
 		sbi->file_count++;
+
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 	hfsplus_mark_mdb_dirty(sb);
@@ -591,10 +609,11 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			inode->i_fop = &hfsplus_file_operations;
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else if (S_ISLNK(inode->i_mode)) {
-			inode->i_op = &page_symlink_inode_operations;
+			inode->i_op = &hfsplus_symlink_inode_operations;
 			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &hfsplus_aops;
 		} else {
+			inode->i_op = &hfsplus_special_inode_operations;
 			init_special_inode(inode, inode->i_mode,
 					   be32_to_cpu(file->permissions.dev));
 		}

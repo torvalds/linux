@@ -258,6 +258,15 @@ end_attr_file_creation:
 	return err;
 }
 
+static inline
+bool is_xattr_operation_supported(struct inode *inode)
+{
+	if (HFSPLUS_IS_RSRC(inode))
+		return false;
+
+	return true;
+}
+
 int __hfsplus_setxattr(struct inode *inode, const char *name,
 			const void *value, size_t size, int flags)
 {
@@ -268,9 +277,11 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 	u16 folder_finderinfo_len = sizeof(DInfo) + sizeof(DXInfo);
 	u16 file_finderinfo_len = sizeof(FInfo) + sizeof(FXInfo);
 
-	if ((!S_ISREG(inode->i_mode) &&
-			!S_ISDIR(inode->i_mode)) ||
-				HFSPLUS_IS_RSRC(inode))
+	hfs_dbg("ino %lu, name %s, value %p, size %zu\n",
+		inode->i_ino, name ? name : NULL,
+		value, size);
+
+	if (!is_xattr_operation_supported(inode))
 		return -EOPNOTSUPP;
 
 	if (value == NULL)
@@ -390,6 +401,7 @@ int __hfsplus_setxattr(struct inode *inode, const char *name,
 
 end_setxattr:
 	hfs_find_exit(&cat_fd);
+	hfs_dbg("finished: res %d\n", err);
 	return err;
 }
 
@@ -514,9 +526,7 @@ ssize_t __hfsplus_getxattr(struct inode *inode, const char *name,
 	u16 record_length = 0;
 	ssize_t res;
 
-	if ((!S_ISREG(inode->i_mode) &&
-			!S_ISDIR(inode->i_mode)) ||
-				HFSPLUS_IS_RSRC(inode))
+	if (!is_xattr_operation_supported(inode))
 		return -EOPNOTSUPP;
 
 	if (!strcmp_xattr_finder_info(name))
@@ -709,9 +719,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 	hfs_dbg("ino %lu\n", inode->i_ino);
 
-	if ((!S_ISREG(inode->i_mode) &&
-			!S_ISDIR(inode->i_mode)) ||
-				HFSPLUS_IS_RSRC(inode))
+	if (!is_xattr_operation_supported(inode))
 		return -EOPNOTSUPP;
 
 	res = hfsplus_listxattr_finder_info(dentry, buffer, size);
@@ -737,8 +745,7 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	err = hfsplus_find_attr(inode->i_sb, inode->i_ino, NULL, &fd);
 	if (err) {
 		if (err == -ENOENT) {
-			if (res == 0)
-				res = -ENODATA;
+			res = 0;
 			goto end_listxattr;
 		} else {
 			res = err;
