@@ -22,4 +22,15 @@ config RESET_SPACEMIT_K1
 	  unit (CCU) driver to provide reset control functionality
 	  for various peripherals and subsystems in the SoC.
 
+config RESET_SPACEMIT_K3
+	tristate "Support for SpacemiT K3 SoC"
+	depends on SPACEMIT_K3_CCU
+	select RESET_SPACEMIT_COMMON
+	default SPACEMIT_K3_CCU
+	help
+	  Support for reset controller in SpacemiT K3 SoC.
+	  This driver works with the SpacemiT K3 clock controller
+	  unit (CCU) driver to provide reset control functionality
+	  for various peripherals and subsystems in the SoC.
+
 endmenu
