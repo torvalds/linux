@@ -237,8 +237,7 @@ struct snd_soc_component {
 	 * the driver will be marked as BROKEN when these fields are removed.
 	 */
 
-	/* Don't use these, use snd_soc_component_get_dapm() */
-	struct snd_soc_dapm_context dapm;
+	struct snd_soc_dapm_context *dapm;
 
 	/* machine specific init */
 	int (*init)(struct snd_soc_component *component);
@@ -268,7 +267,7 @@ struct snd_soc_component {
 static inline struct snd_soc_dapm_context *snd_soc_component_to_dapm(
 	struct snd_soc_component *component)
 {
-	return &component->dapm;
+	return component->dapm;
 }
 
 /**

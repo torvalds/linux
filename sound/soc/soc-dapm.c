@@ -165,6 +165,11 @@ static void pop_dbg(struct device *dev, u32 pop_time, const char *fmt, ...)
 	kfree(buf);
 }
 
+struct snd_soc_dapm_context *snd_soc_dapm_alloc(struct device *dev)
+{
+	return devm_kzalloc(dev, sizeof(struct snd_soc_dapm_context), GFP_KERNEL);
+}
+
 struct device *snd_soc_dapm_to_dev(struct snd_soc_dapm_context *dapm)
 {
 	if (dapm->component)
@@ -1076,7 +1081,7 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 	if (ret != 0)
 		goto out;
 
-	if (dapm != &card->dapm)
+	if (dapm != card->dapm)
 		ret = snd_soc_dapm_force_bias_level(dapm, level);
 
 	if (ret != 0)
