@@ -1783,7 +1783,11 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 	if (size - sizeof(outarg) != outarg.size)
 		return -EINVAL;
 
+	if (outarg.offset >= MAX_LFS_FILESIZE)
+		return -EINVAL;
+
 	nodeid = outarg.nodeid;
+	num = min(outarg.size, MAX_LFS_FILESIZE - outarg.offset);
 
 	down_read(&fc->killsb);
 
@@ -1796,13 +1800,12 @@ static int fuse_notify_store(struct fuse_conn *fc, unsigned int size,
 	index = outarg.offset >> PAGE_SHIFT;
 	offset = outarg.offset & ~PAGE_MASK;
 	file_size = i_size_read(inode);
-	end = outarg.offset + outarg.size;
+	end = outarg.offset + num;
 	if (end > file_size) {
 		file_size = end;
-		fuse_write_update_attr(inode, file_size, outarg.size);
+		fuse_write_update_attr(inode, file_size, num);
 	}
 
-	num = outarg.size;
 	while (num) {
 		struct folio *folio;
 		unsigned int folio_offset;
@@ -1882,7 +1885,7 @@ static int fuse_retrieve(struct fuse_mount *fm, struct inode *inode,
 	num = min(outarg->size, fc->max_write);
 	if (outarg->offset > file_size)
 		num = 0;
-	else if (outarg->offset + num > file_size)
+	else if (num > file_size - outarg->offset)
 		num = file_size - outarg->offset;
 
 	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -1963,6 +1966,9 @@ static int fuse_notify_retrieve(struct fuse_conn *fc, unsigned int size,
 		return err;
 
 	fuse_copy_finish(cs);
+
+	if (outarg.offset >= MAX_LFS_FILESIZE)
+		return -EINVAL;
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
