@@ -99,6 +99,74 @@ static void irdma_puda_ce_handler(struct irdma_pci_f *rf,
 }
 
 /**
+ * irdma_process_normal_ceqe - Handle a CEQE for a normal CQ.
+ * @rf: RDMA PCI function.
+ * @dev: iWARP device.
+ * @cq_idx: CQ ID. Must be in table bounds.
+ *
+ * Context: Atomic (CEQ lock must be held)
+ */
+static void irdma_process_normal_ceqe(struct irdma_pci_f *rf,
+				      struct irdma_sc_dev *dev, u32 cq_idx)
+{
+	/* cq_idx bounds validated in irdma_sc_process_ceq. */
+	struct irdma_cq *icq = READ_ONCE(rf->cq_table[cq_idx]);
+	struct irdma_sc_cq *cq;
+
+	if (unlikely(!icq)) {
+		/* Should not happen since CEQ is scrubbed upon CQ delete. */
+		ibdev_warn_ratelimited(to_ibdev(dev), "Stale CEQE for CQ %u",
+				       cq_idx);
+		return;
+	}
+
+	cq = &icq->sc_cq;
+
+	if (unlikely(cq->cq_type != IRDMA_CQ_TYPE_IWARP)) {
+		ibdev_warn_ratelimited(to_ibdev(dev), "Unexpected CQ type %u",
+				       cq->cq_type);
+		return;
+	}
+
+	writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+	irdma_iwarp_ce_handler(cq);
+}
+
+/**
+ * irdma_process_reserved_ceqe - Handle a CEQE for a reserved CQ.
+ * @rf: RDMA PCI function.
+ * @dev: iWARP device.
+ * @cq_idx: CQ ID.
+ *
+ * Context: Atomic
+ */
+static void irdma_process_reserved_ceqe(struct irdma_pci_f *rf,
+					struct irdma_sc_dev *dev, u32 cq_idx)
+{
+	struct irdma_sc_cq *cq;
+
+	if (cq_idx == IRDMA_RSVD_CQ_ID_CQP) {
+		cq = &rf->ccq.sc_cq;
+		/* CQP CQ lifetime > CEQ. */
+		writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+		queue_work(rf->cqp_cmpl_wq, &rf->cqp_cmpl_work);
+	} else if (cq_idx == IRDMA_RSVD_CQ_ID_ILQ ||
+		   cq_idx == IRDMA_RSVD_CQ_ID_IEQ) {
+		scoped_guard(spinlock_irqsave, &dev->puda_cq_lock) {
+			cq = (cq_idx == IRDMA_RSVD_CQ_ID_ILQ) ?
+				dev->ilq_cq : dev->ieq_cq;
+			if (!cq) {
+				ibdev_warn_ratelimited(to_ibdev(dev),
+						       "Stale ILQ/IEQ CEQE");
+				return;
+			}
+			writel(cq->cq_uk.cq_id, cq->cq_uk.cq_ack_db);
+			irdma_puda_ce_handler(rf, cq);
+		}
+	}
+}
+
+/**
  * irdma_process_ceq - handle ceq for completions
  * @rf: RDMA PCI function
  * @ceq: ceq having cq for completion
@@ -107,28 +175,28 @@ static void irdma_process_ceq(struct irdma_pci_f *rf, struct irdma_ceq *ceq)
 {
 	struct irdma_sc_dev *dev = &rf->sc_dev;
 	struct irdma_sc_ceq *sc_ceq;
-	struct irdma_sc_cq *cq;
 	unsigned long flags;
+	u32 cq_idx;
 
 	sc_ceq = &ceq->sc_ceq;
 	do {
 		spin_lock_irqsave(&ceq->ce_lock, flags);
-		cq = irdma_sc_process_ceq(dev, sc_ceq);
-		if (!cq) {
+
+		if (!irdma_sc_process_ceq(dev, sc_ceq, &cq_idx)) {
 			spin_unlock_irqrestore(&ceq->ce_lock, flags);
 			break;
 		}
 
-		if (cq->cq_type == IRDMA_CQ_TYPE_IWARP)
-			irdma_iwarp_ce_handler(cq);
+		/* Normal CQs must be handled while holding CEQ lock. */
+		if (likely(cq_idx > IRDMA_RSVD_CQ_ID_IEQ)) {
+			irdma_process_normal_ceqe(rf, dev, cq_idx);
+			spin_unlock_irqrestore(&ceq->ce_lock, flags);
+			continue;
+		}
 
 		spin_unlock_irqrestore(&ceq->ce_lock, flags);
 
-		if (cq->cq_type == IRDMA_CQ_TYPE_CQP)
-			queue_work(rf->cqp_cmpl_wq, &rf->cqp_cmpl_work);
-		else if (cq->cq_type == IRDMA_CQ_TYPE_ILQ ||
-			 cq->cq_type == IRDMA_CQ_TYPE_IEQ)
-			irdma_puda_ce_handler(rf, cq);
+		irdma_process_reserved_ceqe(rf, dev, cq_idx);
 	} while (1);
 }
 

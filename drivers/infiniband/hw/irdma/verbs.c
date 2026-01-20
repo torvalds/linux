@@ -2669,8 +2669,11 @@ static int irdma_create_cq(struct ib_cq *ibcq,
 			goto cq_destroy;
 		}
 	}
-	rf->cq_table[cq_num] = iwcq;
+
 	init_completion(&iwcq->free_cq);
+
+	/* Populate table entry after CQ is fully created. */
+	smp_store_release(&rf->cq_table[cq_num], iwcq);
 
 	return 0;
 cq_destroy:

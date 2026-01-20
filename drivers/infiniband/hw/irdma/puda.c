@@ -809,6 +809,13 @@ error:
 		dma_free_coherent(dev->hw->device, rsrc->cqmem.size,
 				  rsrc->cqmem.va, rsrc->cqmem.pa);
 		rsrc->cqmem.va = NULL;
+	} else {
+		scoped_guard(spinlock_irqsave, &dev->puda_cq_lock) {
+			if (rsrc->type == IRDMA_PUDA_RSRC_TYPE_ILQ)
+				dev->ilq_cq = cq;
+			else
+				dev->ieq_cq = cq;
+		}
 	}
 
 	return ret;
@@ -855,6 +862,13 @@ static void irdma_puda_free_cq(struct irdma_puda_rsrc *rsrc)
 	int ret;
 	struct irdma_ccq_cqe_info compl_info;
 	struct irdma_sc_dev *dev = rsrc->dev;
+
+	scoped_guard(spinlock_irqsave, &dev->puda_cq_lock) {
+		if (rsrc->type == IRDMA_PUDA_RSRC_TYPE_ILQ)
+			dev->ilq_cq = NULL;
+		else
+			dev->ieq_cq = NULL;
+	}
 
 	if (rsrc->dev->ceq_valid) {
 		irdma_cqp_cq_destroy_cmd(dev, &rsrc->cq);

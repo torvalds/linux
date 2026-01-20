@@ -829,7 +829,8 @@ void irdma_cq_rem_ref(struct ib_cq *ibcq)
 		return;
 	}
 
-	iwdev->rf->cq_table[iwcq->cq_num] = NULL;
+	/* May be asynchronously sampled by CEQ ISR without holding tbl lock. */
+	WRITE_ONCE(iwdev->rf->cq_table[iwcq->cq_num], NULL);
 	spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
 	complete(&iwcq->free_cq);
 }
