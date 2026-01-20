@@ -21,6 +21,7 @@
 #include <linux/utsname.h>
 #include <net/net_namespace.h>
 #include <linux/coredump.h>
+#include <linux/rhashtable.h>
 #include <linux/xattr.h>
 
 #include "internal.h"
@@ -55,7 +56,14 @@ struct pidfs_attr {
 	__u32 coredump_signal;
 };
 
-static struct rb_root pidfs_ino_tree = RB_ROOT;
+static struct rhashtable pidfs_ino_ht;
+
+static const struct rhashtable_params pidfs_ino_ht_params = {
+	.key_offset		= offsetof(struct pid, ino),
+	.key_len		= sizeof(u64),
+	.head_offset		= offsetof(struct pid, pidfs_hash),
+	.automatic_shrinking	= true,
+};
 
 #if BITS_PER_LONG == 32
 static inline unsigned long pidfs_ino(u64 ino)
@@ -84,21 +92,11 @@ static inline u32 pidfs_gen(u64 ino)
 }
 #endif
 
-static int pidfs_ino_cmp(struct rb_node *a, const struct rb_node *b)
-{
-	struct pid *pid_a = rb_entry(a, struct pid, pidfs_node);
-	struct pid *pid_b = rb_entry(b, struct pid, pidfs_node);
-	u64 pid_ino_a = pid_a->ino;
-	u64 pid_ino_b = pid_b->ino;
-
-	if (pid_ino_a < pid_ino_b)
-		return -1;
-	if (pid_ino_a > pid_ino_b)
-		return 1;
-	return 0;
-}
-
-void pidfs_add_pid(struct pid *pid)
+/*
+ * Allocate inode number and initialize pidfs fields.
+ * Called with pidmap_lock held.
+ */
+void pidfs_prepare_pid(struct pid *pid)
 {
 	static u64 pidfs_ino_nr = 2;
 
@@ -131,20 +129,22 @@ void pidfs_add_pid(struct pid *pid)
 		pidfs_ino_nr += 2;
 
 	pid->ino = pidfs_ino_nr;
+	pid->pidfs_hash.next = NULL;
 	pid->stashed = NULL;
 	pid->attr = NULL;
 	pidfs_ino_nr++;
+}
 
-	write_seqcount_begin(&pidmap_lock_seq);
-	rb_find_add_rcu(&pid->pidfs_node, &pidfs_ino_tree, pidfs_ino_cmp);
-	write_seqcount_end(&pidmap_lock_seq);
+int pidfs_add_pid(struct pid *pid)
+{
+	return rhashtable_insert_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+				      pidfs_ino_ht_params);
 }
 
 void pidfs_remove_pid(struct pid *pid)
 {
-	write_seqcount_begin(&pidmap_lock_seq);
-	rb_erase(&pid->pidfs_node, &pidfs_ino_tree);
-	write_seqcount_end(&pidmap_lock_seq);
+	rhashtable_remove_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+			       pidfs_ino_ht_params);
 }
 
 void pidfs_free_pid(struct pid *pid)
@@ -773,42 +773,24 @@ static int pidfs_encode_fh(struct inode *inode, u32 *fh, int *max_len,
 	return FILEID_KERNFS;
 }
 
-static int pidfs_ino_find(const void *key, const struct rb_node *node)
-{
-	const u64 pid_ino = *(u64 *)key;
-	const struct pid *pid = rb_entry(node, struct pid, pidfs_node);
-
-	if (pid_ino < pid->ino)
-		return -1;
-	if (pid_ino > pid->ino)
-		return 1;
-	return 0;
-}
-
 /* Find a struct pid based on the inode number. */
 static struct pid *pidfs_ino_get_pid(u64 ino)
 {
 	struct pid *pid;
-	struct rb_node *node;
-	unsigned int seq;
+	struct pidfs_attr *attr;
 
 	guard(rcu)();
-	do {
-		seq = read_seqcount_begin(&pidmap_lock_seq);
-		node = rb_find_rcu(&ino, &pidfs_ino_tree, pidfs_ino_find);
-		if (node)
-			break;
-	} while (read_seqcount_retry(&pidmap_lock_seq, seq));
-
-	if (!node)
+	pid = rhashtable_lookup(&pidfs_ino_ht, &ino, pidfs_ino_ht_params);
+	if (!pid)
 		return NULL;
-
-	pid = rb_entry(node, struct pid, pidfs_node);
-
+	attr = READ_ONCE(pid->attr);
+	if (IS_ERR_OR_NULL(attr))
+		return NULL;
+	if (test_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask))
+		return NULL;
 	/* Within our pid namespace hierarchy? */
 	if (pid_vnr(pid) == 0)
 		return NULL;
-
 	return get_pid(pid);
 }
 
@@ -1086,6 +1068,9 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 
 void __init pidfs_init(void)
 {
+	if (rhashtable_init(&pidfs_ino_ht, &pidfs_ino_ht_params))
+		panic("Failed to initialize pidfs hashtable");
+
 	pidfs_attr_cachep = kmem_cache_create("pidfs_attr_cache", sizeof(struct pidfs_attr), 0,
 					 (SLAB_HWCACHE_ALIGN | SLAB_RECLAIM_ACCOUNT |
 					  SLAB_ACCOUNT | SLAB_PANIC), NULL);

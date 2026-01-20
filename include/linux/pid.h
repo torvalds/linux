@@ -6,6 +6,7 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/refcount.h>
+#include <linux/rhashtable-types.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 
@@ -60,7 +61,7 @@ struct pid {
 	spinlock_t lock;
 	struct {
 		u64 ino;
-		struct rb_node pidfs_node;
+		struct rhash_head pidfs_hash;
 		struct dentry *stashed;
 		struct pidfs_attr *attr;
 	};
@@ -73,7 +74,6 @@ struct pid {
 	struct upid numbers[];
 };
 
-extern seqcount_spinlock_t pidmap_lock_seq;
 extern struct pid init_struct_pid;
 
 struct file;
