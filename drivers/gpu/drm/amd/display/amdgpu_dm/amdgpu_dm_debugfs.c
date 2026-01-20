@@ -46,6 +46,7 @@
 #include "amdgpu_dm_psr.h"
 #endif
 
+#define MULTIPLIER_TO_LR 270000
 struct dmub_debugfs_trace_header {
 	uint32_t entry_count;
 	uint32_t reserved[3];
@@ -3507,6 +3508,10 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	uint8_t param_nums = 0;
 	long param[2];
 	bool valid_input = true;
+	uint8_t supported_link_rates[16] = {0};
+	uint32_t entry = 0;
+	uint32_t link_rate_in_khz = 0;
+	uint8_t dpcd_rev = 0;
 
 	if (size == 0)
 		return -EINVAL;
@@ -3551,6 +3556,20 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 		return size;
 	}
 
+	if (!dm_helpers_dp_read_dpcd(link->ctx, link, DP_SUPPORTED_LINK_RATES,
+		supported_link_rates, sizeof(supported_link_rates)))
+		return -EINVAL;
+
+	dpcd_rev = link->dpcd_caps.dpcd_rev.raw;
+	if (dpcd_rev < DP_DPCD_REV_13 ||
+		(supported_link_rates[entry + 1] == 0 && supported_link_rates[entry] == 0)) {
+		return size;
+	}
+
+	entry = param[1] * 2;
+	link_rate_in_khz = (supported_link_rates[entry + 1] * 0x100 +
+						supported_link_rates[entry]) * 200;
+
 	/* save user force lane_count, link_rate to preferred settings
 	 * spread spectrum will not be changed
 	 */
@@ -3558,7 +3577,7 @@ static ssize_t edp_ilr_write(struct file *f, const char __user *buf,
 	prefer_link_settings.lane_count = param[0];
 	prefer_link_settings.use_link_rate_set = true;
 	prefer_link_settings.link_rate_set = param[1];
-	prefer_link_settings.link_rate = link->dpcd_caps.edp_supported_link_rates[param[1]];
+	prefer_link_settings.link_rate = link_rate_in_khz / MULTIPLIER_TO_LR;
 
 	mutex_lock(&adev->dm.dc_lock);
 	dc_link_set_preferred_training_settings(dc, &prefer_link_settings,
