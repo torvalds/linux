@@ -338,18 +338,23 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct btrfs_fs_info *fs_info = cb_to_fs_info(cb);
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct folio_iter fi;
 	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	int ret = 0, ret2;
 	int wbits = MAX_WBITS;
 	char *data_in;
 	size_t total_out = 0;
-	unsigned long folio_in_index = 0;
 	size_t srclen = cb->compressed_len;
-	unsigned long total_folios_in = DIV_ROUND_UP(srclen, min_folio_size);
 	unsigned long buf_start;
-	struct folio **folios_in = cb->compressed_folios;
 
-	data_in = kmap_local_folio(folios_in[folio_in_index], 0);
+	bio_first_folio(&fi, &cb->bbio.bio, 0);
+
+	/* We must have at least one folio here, that has the correct size. */
+	if (unlikely(!fi.folio))
+		return -EINVAL;
+	ASSERT(folio_size(fi.folio) == min_folio_size);
+
+	data_in = kmap_local_folio(fi.folio, 0);
 	workspace->strm.next_in = data_in;
 	workspace->strm.avail_in = min_t(size_t, srclen, min_folio_size);
 	workspace->strm.total_in = 0;
@@ -404,12 +409,13 @@ int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		if (workspace->strm.avail_in == 0) {
 			unsigned long tmp;
 			kunmap_local(data_in);
-			folio_in_index++;
-			if (folio_in_index >= total_folios_in) {
+			bio_next_folio(&fi, &cb->bbio.bio);
+			if (!fi.folio) {
 				data_in = NULL;
 				break;
 			}
-			data_in = kmap_local_folio(folios_in[folio_in_index], 0);
+			ASSERT(folio_size(fi.folio) == min_folio_size);
+			data_in = kmap_local_folio(fi.folio, 0);
 			workspace->strm.next_in = data_in;
 			tmp = srclen - workspace->strm.total_in;
 			workspace->strm.avail_in = min(tmp, min_folio_size);
