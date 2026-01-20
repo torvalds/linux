@@ -31,7 +31,7 @@ __noinline static int timer_cb(void *map, int *key, struct bpf_timer *timer)
 	struct st_ops_args args = {};
 
 	recur++;
-	timer_test_1_ret = bpf_kfunc_multi_st_ops_test_1_impl(&args, NULL);
+	timer_test_1_ret = bpf_kfunc_multi_st_ops_test_1_assoc(&args);
 	recur--;
 
 	timer_cb_run++;
@@ -64,7 +64,7 @@ int syscall_prog(void *ctx)
 	struct st_ops_args args = {};
 	int ret;
 
-	ret = bpf_kfunc_multi_st_ops_test_1_impl(&args, NULL);
+	ret = bpf_kfunc_multi_st_ops_test_1_assoc(&args);
 	if (ret != MAP_MAGIC)
 		test_err++;
 

@@ -23,7 +23,7 @@ int BPF_PROG(test_1_a, struct st_ops_args *args)
 
 	if (!recur) {
 		recur++;
-		ret = bpf_kfunc_multi_st_ops_test_1_impl(args, NULL);
+		ret = bpf_kfunc_multi_st_ops_test_1_assoc(args);
 		if (ret != -1)
 			test_err_a++;
 		recur--;
@@ -40,7 +40,7 @@ int syscall_prog_a(void *ctx)
 	struct st_ops_args args = {};
 	int ret;
 
-	ret = bpf_kfunc_multi_st_ops_test_1_impl(&args, NULL);
+	ret = bpf_kfunc_multi_st_ops_test_1_assoc(&args);
 	if (ret != MAP_A_MAGIC)
 		test_err_a++;
 
@@ -62,7 +62,7 @@ int syscall_prog_b(void *ctx)
 	struct st_ops_args args = {};
 	int ret;
 
-	ret = bpf_kfunc_multi_st_ops_test_1_impl(&args, NULL);
+	ret = bpf_kfunc_multi_st_ops_test_1_assoc(&args);
 	if (ret != MAP_A_MAGIC)
 		test_err_b++;
 
