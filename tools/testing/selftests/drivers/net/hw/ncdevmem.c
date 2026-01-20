@@ -48,6 +48,7 @@
 #include <errno.h>
 #define __iovec_defined
 #include <fcntl.h>
+#include <limits.h>
 #include <malloc.h>
 #include <error.h>
 #include <poll.h>
