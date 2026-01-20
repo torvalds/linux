@@ -9,9 +9,9 @@ config PINCTRL_PIC64GX
 	  This selects the pinctrl driver for gpio2 on pic64gx.
 
 config PINCTRL_POLARFIRE_SOC
-	bool "Polarfire SoC pinctrl driver"
+	bool "Polarfire SoC pinctrl drivers"
 	depends on ARCH_MICROCHIP || COMPILE_TEST
 	depends on OF
-	select GENERIC_PINCONF
+	select GENERIC_PINCTRL
 	help
-	  This selects the pinctrl driver for Microchip Polarfire SoC.
+	  This selects the pinctrl drivers for Microchip Polarfire SoC.
