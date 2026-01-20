@@ -49,7 +49,7 @@ do
 		then
 			if test -f "$i/qemu-retval" && test "`cat $i/qemu-retval`" -eq 137
 			then
-				echo QEMU killed
+				echo "Summary: Potential hang (QEMU killed)"
 			fi
 			configcheck.sh $i/.config $i/ConfigFragment > $i/ConfigFragment.diags 2>&1
 			if grep -q '^CONFIG_KCSAN=y$' $i/ConfigFragment.input
