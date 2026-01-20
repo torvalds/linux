@@ -27,7 +27,9 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw_type.h>
+#if IS_ENABLED(CONFIG_PCI)
 #include <linux/pci.h>
+#endif
 #include <sound/sdw.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -1106,21 +1108,33 @@ static const struct dev_pm_ops tas2783_sdca_pm = {
 	RUNTIME_PM_OPS(tas2783_sdca_dev_suspend, tas2783_sdca_dev_resume, NULL)
 };
 
-static struct pci_dev *tas_get_pci_dev(struct sdw_slave *peripheral)
+static void tas_generate_fw_name(struct sdw_slave *slave, char *name, size_t size)
 {
-	struct device *dev = &peripheral->dev;
+	struct sdw_bus *bus = slave->bus;
+	u8 unique_id = slave->id.unique_id;
+	bool pci_found = false;
+#if IS_ENABLED(CONFIG_PCI)
+	struct device *dev = &slave->dev;
+	struct pci_dev *pci = NULL;
 
-	for (; dev; dev = dev->parent)
-		if (dev->bus == &pci_bus_type)
-			return to_pci_dev(dev);
+	for (; dev; dev = dev->parent) {
+		if (dev->bus == &pci_bus_type) {
+			pci = to_pci_dev(dev);
+			scnprintf(name, size, "%04X-%1X-%1X.bin",
+				  pci->subsystem_device, bus->link_id, unique_id);
+			pci_found = true;
+			break;
+		}
+	}
+#endif
 
-	return NULL;
+	if (!pci_found)
+		scnprintf(name, size, "tas2783-%1X-%1X.bin",
+			  bus->link_id, unique_id);
 }
 
 static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 {
-	struct pci_dev *pci;
-	struct sdw_bus *bus;
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
 	s32 ret;
 	u8 unique_id = tas_dev->sdw_peripheral->id.unique_id;
@@ -1128,13 +1142,6 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 	if (tas_dev->hw_init)
 		return 0;
 
-	pci = tas_get_pci_dev(slave);
-	if (!pci) {
-		dev_err(dev, "pci device id can't be read");
-		return -EINVAL;
-	}
-
-	bus = slave->bus;
 	tas_dev->fw_dl_task_done = false;
 	tas_dev->fw_dl_success = false;
 
@@ -1145,10 +1152,8 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 	}
 	usleep_range(2000, 2200);
 
-	/* subsystem_id-link_id-unique_id */
-	scnprintf(tas_dev->rca_binaryname, sizeof(tas_dev->rca_binaryname),
-		  "%04X-%1X-%1X.bin", pci->subsystem_device, bus->link_id,
-		  unique_id);
+	tas_generate_fw_name(slave, tas_dev->rca_binaryname,
+			     sizeof(tas_dev->rca_binaryname));
 
 	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      tas_dev->rca_binaryname, tas_dev->dev,
