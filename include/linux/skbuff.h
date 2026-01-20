@@ -4763,7 +4763,7 @@ static inline void __skb_decr_checksum_unnecessary(struct sk_buff *skb)
 	}
 }
 
-static inline void __skb_incr_checksum_unnecessary(struct sk_buff *skb)
+static __always_inline void __skb_incr_checksum_unnecessary(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (skb->csum_level < SKB_MAX_CSUM_LEVEL)
