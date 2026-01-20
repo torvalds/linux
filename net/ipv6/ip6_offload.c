@@ -19,6 +19,7 @@
 #include <net/gso.h>
 
 #include "ip6_offload.h"
+#include "tcpv6_offload.c"
 
 /* All GRO functions are always builtin, except UDP over ipv6, which lays in
  * ipv6 module, as it depends on UDPv6 lookup function, so we need special care
@@ -29,13 +30,6 @@
 #else
 #define INDIRECT_CALL_L4(f, f2, f1, ...) INDIRECT_CALL_1(f, f2, __VA_ARGS__)
 #endif
-
-#define indirect_call_gro_receive_l4(f2, f1, cb, head, skb)	\
-({								\
-	unlikely(gro_recursion_inc_test(skb)) ?			\
-		NAPI_GRO_CB(skb)->flush |= 1, NULL :		\
-		INDIRECT_CALL_L4(cb, f2, f1, head, skb);	\
-})
 
 static int ipv6_gro_pull_exthdrs(struct sk_buff *skb, int off, int proto)
 {
@@ -298,9 +292,19 @@ not_same_flow:
 
 	skb_gro_postpull_rcsum(skb, iph, nlen);
 
-	pp = indirect_call_gro_receive_l4(tcp6_gro_receive, udp6_gro_receive,
-					 ops->callbacks.gro_receive, head, skb);
+	if (unlikely(gro_recursion_inc_test(skb))) {
+		flush = 1;
+		goto out;
+	}
 
+	if (likely(proto == IPPROTO_TCP))
+		pp = tcp6_gro_receive(head, skb);
+#if IS_BUILTIN(CONFIG_IPV6)
+	else if (likely(proto == IPPROTO_UDP))
+		pp = udp6_gro_receive(head, skb);
+#endif
+	else
+		pp = ops->callbacks.gro_receive(head, skb);
 out:
 	skb_gro_flush_final(skb, pp, flush);
 

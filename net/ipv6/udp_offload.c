@@ -132,7 +132,6 @@ static struct sock *udp6_gro_lookup_skb(struct sk_buff *skb, __be16 sport,
 				 sdif, net->ipv4.udp_table, NULL);
 }
 
-INDIRECT_CALLABLE_SCOPE
 struct sk_buff *udp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);

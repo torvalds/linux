@@ -405,8 +405,7 @@ INDIRECT_CALLABLE_DECLARE(struct sk_buff *udp4_gro_receive(struct list_head *,
 							   struct sk_buff *));
 INDIRECT_CALLABLE_DECLARE(int udp4_gro_complete(struct sk_buff *, int));
 
-INDIRECT_CALLABLE_DECLARE(struct sk_buff *udp6_gro_receive(struct list_head *,
-							   struct sk_buff *));
+struct sk_buff *udp6_gro_receive(struct list_head *, struct sk_buff *);
 INDIRECT_CALLABLE_DECLARE(int udp6_gro_complete(struct sk_buff *, int));
 
 #define indirect_call_gro_receive_inet(cb, f2, f1, head, skb)	\
