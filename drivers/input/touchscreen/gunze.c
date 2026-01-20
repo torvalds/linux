@@ -106,7 +106,7 @@ static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 
 	gunze->serio = serio;
 	gunze->dev = input_dev;
-	snprintf(gunze->phys, sizeof(serio->phys), "%s/input0", serio->phys);
+	scnprintf(gunze->phys, sizeof(serio->phys), "%s/input0", serio->phys);
 
 	input_dev->name = "Gunze AHL-51S TouchScreen";
 	input_dev->phys = gunze->phys;
