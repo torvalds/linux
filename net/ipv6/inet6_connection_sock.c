@@ -29,7 +29,7 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 				      const struct request_sock *req,
 				      u8 proto)
 {
-	struct inet_request_sock *ireq = inet_rsk(req);
+	const struct inet_request_sock *ireq = inet_rsk(req);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_addr *final_p, final;
 	struct dst_entry *dst;

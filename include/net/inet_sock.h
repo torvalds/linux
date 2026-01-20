@@ -100,10 +100,7 @@ struct inet_request_sock {
 	};
 };
 
-static inline struct inet_request_sock *inet_rsk(const struct request_sock *sk)
-{
-	return (struct inet_request_sock *)sk;
-}
+#define inet_rsk(ptr) container_of_const(ptr, struct inet_request_sock, req)
 
 static inline u32 inet_request_mark(const struct sock *sk, struct sk_buff *skb)
 {
