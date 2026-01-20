@@ -90,6 +90,7 @@ ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 EXPORT_SYMBOL(ww_mutex_lock_interruptible);
 
 void __sched ww_mutex_unlock(struct ww_mutex *lock)
+	__no_context_analysis
 {
 	struct rt_mutex *rtm = &lock->base;
 

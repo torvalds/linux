@@ -24,6 +24,7 @@ src:*include/linux/mutex*.h=emit
 src:*include/linux/rcupdate.h=emit
 src:*include/linux/refcount.h=emit
 src:*include/linux/rhashtable.h=emit
+src:*include/linux/rtmutex*.h=emit
 src:*include/linux/rwlock*.h=emit
 src:*include/linux/rwsem.h=emit
 src:*include/linux/sched*=emit

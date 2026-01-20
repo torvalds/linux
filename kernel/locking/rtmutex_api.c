@@ -526,6 +526,7 @@ static __always_inline int __mutex_lock_common(struct mutex *lock,
 					       unsigned int subclass,
 					       struct lockdep_map *nest_lock,
 					       unsigned long ip)
+	__acquires(lock) __no_context_analysis
 {
 	int ret;
 
@@ -647,6 +648,7 @@ EXPORT_SYMBOL(mutex_trylock);
 #endif /* !CONFIG_DEBUG_LOCK_ALLOC */
 
 void __sched mutex_unlock(struct mutex *lock)
+	__releases(lock) __no_context_analysis
 {
 	mutex_release(&lock->dep_map, _RET_IP_);
 	__rt_mutex_unlock(&lock->rtmutex);
