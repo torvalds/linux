@@ -787,7 +787,8 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 			return -EIO;
 		}
 
-		dev_info(pci->dev, "Phy link never came up\n");
+		dev_err(pci->dev, "Link failed to come up. LTSSM: %s\n",
+			dw_pcie_ltssm_status_string(ltssm));
 		return -ETIMEDOUT;
 	}
 
