@@ -13677,6 +13677,7 @@ F:	scripts/clang-tools/
 F:	scripts/container
 F:	scripts/dummy-tools/
 F:	scripts/include/
+F:	scripts/install.sh
 F:	scripts/mk*
 F:	scripts/mod/
 F:	scripts/package/
