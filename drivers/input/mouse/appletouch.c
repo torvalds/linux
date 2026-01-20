@@ -200,7 +200,6 @@ struct atp {
 	u8			*data;		/* transferred data */
 	struct input_dev	*input;		/* input dev */
 	const struct atp_info	*info;		/* touchpad model */
-	bool			open;
 	bool			valid;		/* are the samples valid? */
 	bool			size_detect_done;
 	bool			overflow_warned;
@@ -800,7 +799,6 @@ static int atp_open(struct input_dev *input)
 	if (usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
-	dev->open = true;
 	return 0;
 }
 
@@ -810,7 +808,6 @@ static void atp_close(struct input_dev *input)
 
 	usb_kill_urb(dev->urb);
 	cancel_work_sync(&dev->work);
-	dev->open = false;
 }
 
 static int atp_handle_geyser(struct atp *dev)
@@ -963,7 +960,8 @@ static int atp_recover(struct atp *dev)
 	if (error)
 		return error;
 
-	if (dev->open && usb_submit_urb(dev->urb, GFP_KERNEL))
+	guard(mutex)(&dev->input->mutex);
+	if (input_device_enabled(dev->input) && usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
 	return 0;
@@ -981,7 +979,8 @@ static int atp_resume(struct usb_interface *iface)
 {
 	struct atp *dev = usb_get_intfdata(iface);
 
-	if (dev->open && usb_submit_urb(dev->urb, GFP_KERNEL))
+	guard(mutex)(&dev->input->mutex);
+	if (input_device_enabled(dev->input) && usb_submit_urb(dev->urb, GFP_KERNEL))
 		return -EIO;
 
 	return 0;
