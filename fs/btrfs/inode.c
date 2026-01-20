@@ -507,7 +507,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
 					      datasize);
 		if (ret)
-			goto fail;
+			return ret;
 	}
 	leaf = path->nodes[0];
 	ei = btrfs_item_ptr(leaf, path->slots[0],
@@ -546,7 +546,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_inode_set_file_extent_range(inode, 0,
 					ALIGN(size, root->fs_info->sectorsize));
 	if (ret)
-		goto fail;
+		return ret;
 
 	/*
 	 * We're an inline extent, so nobody can extend the file past i_size
@@ -562,8 +562,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	}
 	inode->disk_i_size = i_size;
 
-fail:
-	return ret;
+	return 0;
 }
 
 static bool can_cow_file_range_inline(struct btrfs_inode *inode,
@@ -3037,7 +3036,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	drop_args.extent_item_size = sizeof(*stack_fi);
 	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (!drop_args.extent_inserted) {
 		ins.objectid = btrfs_ino(inode);
@@ -3047,7 +3046,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_empty_item(trans, root, path, &ins,
 					      sizeof(*stack_fi));
 		if (ret)
-			goto out;
+			return ret;
 	}
 	leaf = path->nodes[0];
 	btrfs_set_stack_file_extent_generation(stack_fi, trans->transid);
@@ -3082,13 +3081,11 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_inode_set_file_extent_range(inode, file_pos, ram_bytes);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = btrfs_alloc_reserved_file_extent(trans, root, btrfs_ino(inode),
-					       file_pos - offset,
-					       qgroup_reserved, &ins);
-out:
-	return ret;
+	return btrfs_alloc_reserved_file_extent(trans, root, btrfs_ino(inode),
+						file_pos - offset,
+						qgroup_reserved, &ins);
 }
 
 static void btrfs_release_delalloc_bytes(struct btrfs_fs_info *fs_info,
