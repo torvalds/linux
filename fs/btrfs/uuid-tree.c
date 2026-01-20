@@ -207,15 +207,11 @@ static int btrfs_uuid_iter_rem(struct btrfs_root *uuid_root, u8 *uuid, u8 type,
 
 	/* 1 - for the uuid item */
 	trans = btrfs_start_transaction(uuid_root, 1);
-	if (IS_ERR(trans)) {
-		ret = PTR_ERR(trans);
-		goto out;
-	}
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
 	ret = btrfs_uuid_tree_remove(trans, uuid, type, subid);
 	btrfs_end_transaction(trans);
-
-out:
 	return ret;
 }
 
@@ -235,14 +231,14 @@ static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
 
 	if (type != BTRFS_UUID_KEY_SUBVOL &&
 	    type != BTRFS_UUID_KEY_RECEIVED_SUBVOL)
-		goto out;
+		return 0;
 
 	subvol_root = btrfs_get_fs_root(fs_info, subvolid, true);
 	if (IS_ERR(subvol_root)) {
 		ret = PTR_ERR(subvol_root);
 		if (ret == -ENOENT)
-			ret = 1;
-		goto out;
+			return 1;
+		return ret;
 	}
 
 	switch (type) {
@@ -257,7 +253,7 @@ static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
 		break;
 	}
 	btrfs_put_root(subvol_root);
-out:
+
 	return ret;
 }
 
