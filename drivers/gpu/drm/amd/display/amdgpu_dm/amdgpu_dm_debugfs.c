@@ -302,8 +302,11 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	switch (param[1]) {
 	case LINK_RATE_LOW:
+	case LINK_RATE_RATE_2:
+	case LINK_RATE_RATE_3:
 	case LINK_RATE_HIGH:
 	case LINK_RATE_RBR2:
+	case LINK_RATE_RATE_6:
 	case LINK_RATE_HIGH2:
 	case LINK_RATE_HIGH3:
 	case LINK_RATE_UHBR10:
