@@ -705,16 +705,6 @@ int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm, co
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm, const char *pin);
 void snd_soc_dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
-/*
- * Marks the specified pin as being not connected, disabling it along
- * any parent or child widgets.  At present this is identical to
- * snd_soc_dapm_disable_pin[_unlocked]() but in future it will be extended to do
- * additional things such as disabling controls which only affect
- * paths through the pin.
- */
-#define snd_soc_dapm_nc_pin		snd_soc_dapm_disable_pin
-#define snd_soc_dapm_nc_pin_unlocked	snd_soc_dapm_disable_pin_unlocked
-
 /* dapm path query */
 int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
 	struct snd_soc_dapm_widget_list **list,
@@ -729,15 +719,6 @@ unsigned int snd_soc_dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol
 int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
 enum snd_soc_bias_level snd_soc_dapm_get_bias_level(struct snd_soc_dapm_context *dapm);
 void snd_soc_dapm_init_bias_level(struct snd_soc_dapm_context *dapm, enum snd_soc_bias_level level);
-
-// REMOVE ME !!
-#define snd_soc_component_force_bias_level(c, l)	snd_soc_dapm_force_bias_level(&(c)->dapm, l)
-#define snd_soc_component_get_bias_level(c)		snd_soc_dapm_get_bias_level(&(c)->dapm)
-#define snd_soc_component_init_bias_level(c, l)		snd_soc_dapm_init_bias_level(&(c)->dapm, l)
-#define snd_soc_dapm_kcontrol_widget			snd_soc_dapm_kcontrol_to_widget
-#define snd_soc_dapm_kcontrol_dapm			snd_soc_dapm_kcontrol_to_dapm
-#define dapm_kcontrol_get_value				snd_soc_dapm_kcontrol_get_value
-#define snd_soc_dapm_kcontrol_component			snd_soc_dapm_kcontrol_to_component
 
 #define for_each_dapm_widgets(list, i, widget)				\
 	for ((i) = 0;							\
