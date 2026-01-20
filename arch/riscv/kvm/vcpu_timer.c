@@ -253,7 +253,7 @@ int kvm_riscv_vcpu_timer_init(struct kvm_vcpu *vcpu)
 	t->next_set = false;
 
 	/* Enable sstc for every vcpu if available in hardware */
-	if (riscv_isa_extension_available(NULL, SSTC)) {
+	if (!kvm_riscv_isa_check_host(SSTC)) {
 		t->sstc_enabled = true;
 		hrtimer_setup(&t->hrt, kvm_riscv_vcpu_vstimer_expired, CLOCK_MONOTONIC,
 			      HRTIMER_MODE_REL);
