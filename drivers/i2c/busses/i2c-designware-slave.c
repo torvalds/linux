@@ -21,48 +21,6 @@
 
 #include "i2c-designware-core.h"
 
-static void i2c_dw_configure_fifo_slave(struct dw_i2c_dev *dev)
-{
-	/* Configure Tx/Rx FIFO threshold levels. */
-	regmap_write(dev->map, DW_IC_TX_TL, 0);
-	regmap_write(dev->map, DW_IC_RX_TL, 0);
-
-	/* Configure the I2C slave. */
-	regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
-	regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
-}
-
-/**
- * i2c_dw_init_slave() - Initialize the DesignWare i2c slave hardware
- * @dev: device private data
- *
- * This function configures and enables the I2C in slave mode.
- * This function is called during I2C init function, and in case of timeout at
- * run time.
- *
- * Return: 0 on success, or negative errno otherwise.
- */
-static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
-{
-	int ret;
-
-	ret = i2c_dw_acquire_lock(dev);
-	if (ret)
-		return ret;
-
-	/* Disable the adapter. */
-	__i2c_dw_disable(dev);
-
-	/* Write SDA hold time if supported */
-	if (dev->sda_hold_time)
-		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
-
-	i2c_dw_configure_fifo_slave(dev);
-	i2c_dw_release_lock(dev);
-
-	return 0;
-}
-
 int i2c_dw_reg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
@@ -231,8 +189,6 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 {
 	if (dev->flags & ACCESS_POLLING)
 		return -EOPNOTSUPP;
-
-	dev->init = i2c_dw_init_slave;
 
 	return 0;
 }

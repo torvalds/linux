@@ -359,6 +359,83 @@ static inline u32 i2c_dw_acpi_round_bus_speed(struct device *device) { return 0;
 
 #endif	/* CONFIG_ACPI */
 
+static void i2c_dw_configure_mode(struct dw_i2c_dev *dev)
+{
+	switch (dev->mode) {
+	case DW_IC_MASTER:
+		regmap_write(dev->map, DW_IC_TX_TL, dev->tx_fifo_depth / 2);
+		regmap_write(dev->map, DW_IC_RX_TL, 0);
+		regmap_write(dev->map, DW_IC_CON, dev->master_cfg);
+		break;
+	case DW_IC_SLAVE:
+		regmap_write(dev->map, DW_IC_TX_TL, 0);
+		regmap_write(dev->map, DW_IC_RX_TL, 0);
+		regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
+		regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
+		break;
+	default:
+		return;
+	}
+}
+
+static void i2c_dw_write_timings(struct dw_i2c_dev *dev)
+{
+	/* Write standard speed timing parameters */
+	regmap_write(dev->map, DW_IC_SS_SCL_HCNT, dev->ss_hcnt);
+	regmap_write(dev->map, DW_IC_SS_SCL_LCNT, dev->ss_lcnt);
+
+	/* Write fast mode/fast mode plus timing parameters */
+	regmap_write(dev->map, DW_IC_FS_SCL_HCNT, dev->fs_hcnt);
+	regmap_write(dev->map, DW_IC_FS_SCL_LCNT, dev->fs_lcnt);
+
+	/* Write high speed timing parameters if supported */
+	if (dev->hs_hcnt && dev->hs_lcnt) {
+		regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
+		regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
+	}
+}
+
+/**
+ * i2c_dw_init() - Initialize the DesignWare I2C hardware
+ * @dev: device private data
+ *
+ * This functions configures and enables the DesigWare I2C hardware.
+ *
+ * Return: 0 on success, or negative errno otherwise.
+ */
+int i2c_dw_init(struct dw_i2c_dev *dev)
+{
+	int ret;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	/* Disable the adapter */
+	__i2c_dw_disable(dev);
+
+	/*
+	 * Mask SMBus interrupts to block storms from broken
+	 * firmware that leaves IC_SMBUS=1; the handler never
+	 * services them.
+	 */
+	regmap_write(dev->map, DW_IC_SMBUS_INTR_MASK, 0);
+
+	if (dev->mode == DW_IC_MASTER)
+		i2c_dw_write_timings(dev);
+
+	/* Write SDA hold time if supported */
+	if (dev->sda_hold_time)
+		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
+
+	i2c_dw_configure_mode(dev);
+
+	i2c_dw_release_lock(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_init);
+
 static void i2c_dw_adjust_bus_speed(struct dw_i2c_dev *dev)
 {
 	u32 acpi_speed = i2c_dw_acpi_round_bus_speed(dev->dev);
@@ -801,7 +878,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = dev->init(dev);
+	ret = i2c_dw_init(dev);
 	if (ret)
 		return ret;
 
@@ -894,7 +971,7 @@ static int i2c_dw_runtime_resume(struct device *device)
 	if (!dev->shared_with_punit)
 		i2c_dw_prepare_clk(dev, true);
 
-	dev->init(dev);
+	i2c_dw_init(dev);
 
 	return 0;
 }
