@@ -254,6 +254,22 @@ __bpf_kfunc int *bpf_kfunc_ret_rcu_test_nostruct(int rdonly_buf_size)
 	return NULL;
 }
 
+static struct prog_test_member trusted_ptr;
+
+__bpf_kfunc struct prog_test_member *bpf_kfunc_get_default_trusted_ptr_test(void)
+{
+	return &trusted_ptr;
+}
+
+__bpf_kfunc void bpf_kfunc_put_default_trusted_ptr_test(struct prog_test_member *trusted_ptr)
+{
+	/*
+	 * This BPF kfunc doesn't actually have any put/KF_ACQUIRE
+	 * semantics. We're simply wanting to simulate a BPF kfunc that takes a
+	 * struct prog_test_member pointer as an argument.
+	 */
+}
+
 __bpf_kfunc struct bpf_testmod_ctx *
 bpf_testmod_ctx_create(int *err)
 {
@@ -709,6 +725,8 @@ BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_1)
 BTF_ID_FLAGS(func, bpf_testmod_ops3_call_test_2)
+BTF_ID_FLAGS(func, bpf_kfunc_get_default_trusted_ptr_test);
+BTF_ID_FLAGS(func, bpf_kfunc_put_default_trusted_ptr_test);
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
 
 BTF_ID_LIST(bpf_testmod_dtor_ids)
