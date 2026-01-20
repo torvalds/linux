@@ -180,12 +180,7 @@ static inline bool rz_ssi_stream_is_play(struct snd_pcm_substream *substream)
 static inline struct rz_ssi_stream *
 rz_ssi_stream_get(struct rz_ssi_priv *ssi, struct snd_pcm_substream *substream)
 {
-	struct rz_ssi_stream *stream = &ssi->playback;
-
-	if (substream->stream != SNDRV_PCM_STREAM_PLAYBACK)
-		stream = &ssi->capture;
-
-	return stream;
+	return (ssi->playback.substream == substream) ? &ssi->playback : &ssi->capture;
 }
 
 static inline bool rz_ssi_is_dma_enabled(struct rz_ssi_priv *ssi)
@@ -609,16 +604,14 @@ static irqreturn_t rz_ssi_interrupt(int irq, void *data)
 		return IRQ_HANDLED; /* Left over TX/RX interrupt */
 
 	if (irq == ssi->irq_int) { /* error or idle */
-		bool is_stopped = false;
+		bool is_stopped = !!(ssisr & (SSISR_RUIRQ | SSISR_ROIRQ |
+					      SSISR_TUIRQ | SSISR_TOIRQ));
 		int i, count;
 
 		if (rz_ssi_is_dma_enabled(ssi))
 			count = 4;
 		else
 			count = 1;
-
-		if (ssisr & (SSISR_RUIRQ | SSISR_ROIRQ | SSISR_TUIRQ | SSISR_TOIRQ))
-			is_stopped = true;
 
 		if (ssi->capture.substream && is_stopped) {
 			if (ssisr & SSISR_RUIRQ)
@@ -888,7 +881,7 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		for (i = 0; i < num_transfer; i++) {
 			ret = strm->transfer(ssi, strm);
 			if (ret)
-				goto done;
+				return ret;
 		}
 
 		ret = rz_ssi_start(ssi, strm);
@@ -904,7 +897,6 @@ static int rz_ssi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 	}
 
-done:
 	return ret;
 }
 
@@ -1195,7 +1187,7 @@ static int rz_ssi_probe(struct platform_device *pdev)
 		goto err_release_dma_chs;
 	}
 
-	ret = devm_request_irq(dev, ssi->irq_int, &rz_ssi_interrupt,
+	ret = devm_request_irq(dev, ssi->irq_int, rz_ssi_interrupt,
 			       0, dev_name(dev), ssi);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "irq request error (int_req)\n");
@@ -1212,7 +1204,7 @@ static int rz_ssi_probe(struct platform_device *pdev)
 				return ssi->irq_rt;
 
 			ret = devm_request_irq(dev, ssi->irq_rt,
-					       &rz_ssi_interrupt, 0,
+					       rz_ssi_interrupt, 0,
 					       dev_name(dev), ssi);
 			if (ret < 0)
 				return dev_err_probe(dev, ret,
@@ -1225,14 +1217,14 @@ static int rz_ssi_probe(struct platform_device *pdev)
 				return ssi->irq_rx;
 
 			ret = devm_request_irq(dev, ssi->irq_tx,
-					       &rz_ssi_interrupt, 0,
+					       rz_ssi_interrupt, 0,
 					       dev_name(dev), ssi);
 			if (ret < 0)
 				return dev_err_probe(dev, ret,
 						"irq request error (dma_tx)\n");
 
 			ret = devm_request_irq(dev, ssi->irq_rx,
-					       &rz_ssi_interrupt, 0,
+					       rz_ssi_interrupt, 0,
 					       dev_name(dev), ssi);
 			if (ret < 0)
 				return dev_err_probe(dev, ret,

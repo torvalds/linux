@@ -48,8 +48,8 @@ properties:
     enum: [1, 2]
     default: 2
     description:
-      Number of lanes available per direction.  Note that it is assume same
-      number of lanes is used both directions at once.
+      Number of lanes available per direction.  Note that it is assumed that
+      the same number of lanes are used in both directions at once.
 
   vdd-hba-supply:
     description:

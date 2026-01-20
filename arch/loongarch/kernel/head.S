@@ -126,14 +126,6 @@ SYM_CODE_START(smpboot_entry)
 	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
 #endif
-	/* Enable PG */
-	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
-	csrwr		t0, LOONGARCH_CSR_CRMD
-	li.w		t0, 0x04		# PLV=0, PIE=1, PWE=0
-	csrwr		t0, LOONGARCH_CSR_PRMD
-	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
-	csrwr		t0, LOONGARCH_CSR_EUEN
-
 	la.pcrel	t0, cpuboot_data
 	ld.d		sp, t0, CPU_BOOT_STACK
 	ld.d		tp, t0, CPU_BOOT_TINFO

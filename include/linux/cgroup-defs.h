@@ -626,7 +626,13 @@ struct cgroup {
 #endif
 
 	/* All ancestors including self */
-	struct cgroup *ancestors[];
+	union {
+		DECLARE_FLEX_ARRAY(struct cgroup *, ancestors);
+		struct {
+			struct cgroup *_root_ancestor;
+			DECLARE_FLEX_ARRAY(struct cgroup *, _low_ancestors);
+		};
+	};
 };
 
 /*
@@ -647,16 +653,6 @@ struct cgroup_root {
 	struct list_head root_list;
 	struct rcu_head rcu;	/* Must be near the top */
 
-	/*
-	 * The root cgroup. The containing cgroup_root will be destroyed on its
-	 * release. cgrp->ancestors[0] will be used overflowing into the
-	 * following field. cgrp_ancestor_storage must immediately follow.
-	 */
-	struct cgroup cgrp;
-
-	/* must follow cgrp for cgrp->ancestors[0], see above */
-	struct cgroup *cgrp_ancestor_storage;
-
 	/* Number of cgroups in the hierarchy, used only for /proc/cgroups */
 	atomic_t nr_cgrps;
 
@@ -668,6 +664,13 @@ struct cgroup_root {
 
 	/* The name for this hierarchy - may be empty */
 	char name[MAX_CGROUP_ROOT_NAMELEN];
+
+	/*
+	 * The root cgroup. The containing cgroup_root will be destroyed on its
+	 * release. This must be embedded last due to flexible array at the end
+	 * of struct cgroup.
+	 */
+	struct cgroup cgrp;
 };
 
 /*
