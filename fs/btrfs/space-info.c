@@ -329,7 +329,7 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 	struct btrfs_super_block *disk_super;
 	u64 features;
 	u64 flags;
-	int mixed = 0;
+	bool mixed = false;
 	int ret;
 
 	disk_super = fs_info->super_copy;
@@ -338,28 +338,28 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 
 	features = btrfs_super_incompat_flags(disk_super);
 	if (features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS)
-		mixed = 1;
+		mixed = true;
 
 	flags = BTRFS_BLOCK_GROUP_SYSTEM;
 	ret = create_space_info(fs_info, flags);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (mixed) {
 		flags = BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA;
 		ret = create_space_info(fs_info, flags);
 		if (ret)
-			goto out;
+			return ret;
 	} else {
 		flags = BTRFS_BLOCK_GROUP_METADATA;
 		ret = create_space_info(fs_info, flags);
 		if (ret)
-			goto out;
+			return ret;
 
 		flags = BTRFS_BLOCK_GROUP_DATA;
 		ret = create_space_info(fs_info, flags);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	if (features & BTRFS_FEATURE_INCOMPAT_REMAP_TREE) {
@@ -367,7 +367,6 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info)
 		ret = create_space_info(fs_info, flags);
 	}
 
-out:
 	return ret;
 }
 
