@@ -70,6 +70,7 @@ const char *f2fs_fault_name[FAULT_MAX] = {
 	[FAULT_ATOMIC_TIMEOUT]		= "atomic timeout",
 	[FAULT_VMALLOC]			= "vmalloc",
 	[FAULT_LOCK_TIMEOUT]		= "lock timeout",
+	[FAULT_SKIP_WRITE]		= "skip write",
 };
 
 int f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned long rate,

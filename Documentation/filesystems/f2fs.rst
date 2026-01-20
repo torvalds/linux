@@ -218,6 +218,7 @@ fault_type=%d		 Support configuring fault injection type, should be
 			     FAULT_ATOMIC_TIMEOUT             0x00400000 (1000ms)
 			     FAULT_VMALLOC                    0x00800000
 			     FAULT_LOCK_TIMEOUT               0x01000000 (1000ms)
+			     FAULT_SKIP_WRITE                 0x02000000
 			     ===========================      ==========
 mode=%s			 Control block allocation mode which supports "adaptive"
 			 and "lfs". In "lfs" mode, there should be no random

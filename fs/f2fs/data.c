@@ -2921,6 +2921,10 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 		goto got_it;
 	}
 
+	if (is_sbi_flag_set(fio->sbi, SBI_ENABLE_CHECKPOINT) &&
+		time_to_inject(fio->sbi, FAULT_SKIP_WRITE))
+		return -EINVAL;
+
 	/* Deadlock due to between page->lock and f2fs_lock_op */
 	if (fio->need_lock == LOCK_REQ && !f2fs_trylock_op(fio->sbi, &lc))
 		return -EAGAIN;
