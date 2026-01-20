@@ -21103,6 +21103,10 @@ S:	Maintained
 F:	rust/helpers/pwm.c
 F:	rust/kernel/pwm.rs
 
+PWM SUBSYSTEM DRIVERS [RUST]
+R:	Michal Wilczynski <m.wilczynski@samsung.com>
+F:	drivers/pwm/*.rs
+
 PXA GPIO DRIVER
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	linux-gpio@vger.kernel.org
