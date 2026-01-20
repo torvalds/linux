@@ -1176,7 +1176,7 @@ static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
-		if (ext_error_code != 0 && ext_error_code != 9)
+		if (ext_error_code != 0 && ext_error_code != 1 && ext_error_code != 9)
 			count = 0ULL;
 
 		bank->aca_err_type = ACA_ERROR_TYPE_UE;
