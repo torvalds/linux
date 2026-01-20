@@ -9,11 +9,21 @@
 #include <linux/bpf_mprog.h>
 #include <linux/indirect_call_wrapper.h>
 
+#include <net/netdev_lock.h>
+#include <net/netdev_queues.h>
+#include <net/netdev_rx_queue.h>
+#include <net/xdp_sock_drv.h>
 #include <net/netkit.h>
 #include <net/dst.h>
 #include <net/tcx.h>
 
-#define DRV_NAME "netkit"
+#define NETKIT_DRV_NAME	"netkit"
+
+#define NETKIT_NUM_RX_QUEUES_MAX  1024
+#define NETKIT_NUM_TX_QUEUES_MAX  1
+
+#define NETKIT_NUM_RX_QUEUES_REAL 1
+#define NETKIT_NUM_TX_QUEUES_REAL 1
 
 struct netkit {
 	__cacheline_group_begin(netkit_fastpath);
@@ -26,6 +36,7 @@ struct netkit {
 
 	__cacheline_group_begin(netkit_slowpath);
 	enum netkit_mode mode;
+	enum netkit_pairing pair;
 	bool primary;
 	u32 headroom;
 	__cacheline_group_end(netkit_slowpath);
@@ -35,6 +46,8 @@ struct netkit_link {
 	struct bpf_link link;
 	struct net_device *dev;
 };
+
+static struct rtnl_link_ops netkit_link_ops;
 
 static __always_inline int
 netkit_run(const struct bpf_mprog_entry *entry, struct sk_buff *skb,
@@ -135,6 +148,10 @@ static int netkit_open(struct net_device *dev)
 	struct netkit *nk = netkit_priv(dev);
 	struct net_device *peer = rtnl_dereference(nk->peer);
 
+	if (nk->pair == NETKIT_DEVICE_SINGLE) {
+		netif_carrier_on(dev);
+		return 0;
+	}
 	if (!peer)
 		return -ENOTCONN;
 	if (peer->flags & IFF_UP) {
@@ -219,9 +236,86 @@ static void netkit_get_stats(struct net_device *dev,
 	stats->tx_dropped = DEV_STATS_READ(dev, tx_dropped);
 }
 
+static bool netkit_xsk_supported_at_phys(const struct net_device *dev)
+{
+	if (!dev->netdev_ops->ndo_bpf ||
+	    !dev->netdev_ops->ndo_xdp_xmit ||
+	    !dev->netdev_ops->ndo_xsk_wakeup)
+		return false;
+	if ((dev->xdp_features & NETDEV_XDP_ACT_XSK) != NETDEV_XDP_ACT_XSK)
+		return false;
+	return true;
+}
+
+static int netkit_xsk(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct netkit *nk = netkit_priv(dev);
+	struct netdev_bpf xdp_lower;
+	struct netdev_rx_queue *rxq;
+	struct net_device *phys;
+	int ret = -EBUSY;
+
+	switch (xdp->command) {
+	case XDP_SETUP_XSK_POOL:
+		if (nk->pair == NETKIT_DEVICE_PAIR)
+			return -EOPNOTSUPP;
+		if (xdp->xsk.queue_id >= dev->real_num_rx_queues)
+			return -EINVAL;
+
+		rxq = __netif_get_rx_queue(dev, xdp->xsk.queue_id);
+		if (!rxq->lease)
+			return -EOPNOTSUPP;
+
+		phys = rxq->lease->dev;
+		if (!netkit_xsk_supported_at_phys(phys))
+			return -EOPNOTSUPP;
+
+		memcpy(&xdp_lower, xdp, sizeof(xdp_lower));
+		xdp_lower.xsk.queue_id = get_netdev_rx_queue_index(rxq->lease);
+		break;
+	case XDP_SETUP_PROG:
+		return -EPERM;
+	default:
+		return -EINVAL;
+	}
+
+	netdev_lock(phys);
+	if (!dev_get_min_mp_channel_count(phys))
+		ret = phys->netdev_ops->ndo_bpf(phys, &xdp_lower);
+	netdev_unlock(phys);
+	return ret;
+}
+
+static int netkit_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
+{
+	struct netdev_rx_queue *rxq;
+	struct net_device *phys;
+
+	if (queue_id >= dev->real_num_rx_queues)
+		return -EINVAL;
+
+	rxq = __netif_get_rx_queue(dev, queue_id);
+	if (!rxq->lease)
+		return -EOPNOTSUPP;
+
+	phys = rxq->lease->dev;
+	if (!netkit_xsk_supported_at_phys(phys))
+		return -EOPNOTSUPP;
+
+	return phys->netdev_ops->ndo_xsk_wakeup(phys,
+			get_netdev_rx_queue_index(rxq->lease), flags);
+}
+
+static int netkit_init(struct net_device *dev)
+{
+	netdev_lockdep_set_classes(dev);
+	return 0;
+}
+
 static void netkit_uninit(struct net_device *dev);
 
 static const struct net_device_ops netkit_netdev_ops = {
+	.ndo_init		= netkit_init,
 	.ndo_open		= netkit_open,
 	.ndo_stop		= netkit_close,
 	.ndo_start_xmit		= netkit_xmit,
@@ -232,18 +326,94 @@ static const struct net_device_ops netkit_netdev_ops = {
 	.ndo_get_peer_dev	= netkit_peer_dev,
 	.ndo_get_stats64	= netkit_get_stats,
 	.ndo_uninit		= netkit_uninit,
+	.ndo_bpf		= netkit_xsk,
+	.ndo_xsk_wakeup		= netkit_xsk_wakeup,
 	.ndo_features_check	= passthru_features_check,
 };
 
 static void netkit_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
 {
-	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, NETKIT_DRV_NAME, sizeof(info->driver));
 }
 
 static const struct ethtool_ops netkit_ethtool_ops = {
 	.get_drvinfo		= netkit_get_drvinfo,
 };
+
+static int netkit_queue_create(struct net_device *dev)
+{
+	struct netkit *nk = netkit_priv(dev);
+	u32 rxq_count_old, rxq_count_new;
+	int err;
+
+	rxq_count_old = dev->real_num_rx_queues;
+	rxq_count_new = rxq_count_old + 1;
+
+	/* Only allow to lease a queue in single device mode or to
+	 * lease against the peer device which then ends up in the
+	 * target netns.
+	 */
+	if (nk->pair == NETKIT_DEVICE_PAIR && nk->primary)
+		return -EOPNOTSUPP;
+
+	if (netif_running(dev))
+		netif_carrier_off(dev);
+	err = netif_set_real_num_rx_queues(dev, rxq_count_new);
+	if (netif_running(dev))
+		netif_carrier_on(dev);
+
+	return err ? : rxq_count_old;
+}
+
+static const struct netdev_queue_mgmt_ops netkit_queue_mgmt_ops = {
+	.ndo_queue_create	= netkit_queue_create,
+};
+
+static struct net_device *netkit_alloc(struct nlattr *tb[],
+				       const char *ifname,
+				       unsigned char name_assign_type,
+				       unsigned int num_tx_queues,
+				       unsigned int num_rx_queues)
+{
+	const struct rtnl_link_ops *ops = &netkit_link_ops;
+	struct net_device *dev;
+
+	if (num_tx_queues > NETKIT_NUM_TX_QUEUES_MAX ||
+	    num_rx_queues > NETKIT_NUM_RX_QUEUES_MAX)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	dev = alloc_netdev_mqs(ops->priv_size, ifname,
+			       name_assign_type, ops->setup,
+			       num_tx_queues, num_rx_queues);
+	if (dev) {
+		dev->real_num_tx_queues = NETKIT_NUM_TX_QUEUES_REAL;
+		dev->real_num_rx_queues = NETKIT_NUM_RX_QUEUES_REAL;
+	}
+	return dev;
+}
+
+static void netkit_queue_unlease(struct net_device *dev)
+{
+	struct netdev_rx_queue *rxq, *rxq_lease;
+	struct net_device *dev_lease;
+	int i;
+
+	if (dev->real_num_rx_queues == 1)
+		return;
+
+	netdev_lock(dev);
+	for (i = 1; i < dev->real_num_rx_queues; i++) {
+		rxq = __netif_get_rx_queue(dev, i);
+		rxq_lease = rxq->lease;
+		dev_lease = rxq_lease->dev;
+
+		netdev_lock(dev_lease);
+		netdev_rx_queue_unlease(rxq, rxq_lease);
+		netdev_unlock(dev_lease);
+	}
+	netdev_unlock(dev);
+}
 
 static void netkit_setup(struct net_device *dev)
 {
@@ -275,18 +445,20 @@ static void netkit_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_DISABLE_NETPOLL;
 	dev->lltx = true;
 
-	dev->ethtool_ops = &netkit_ethtool_ops;
-	dev->netdev_ops  = &netkit_netdev_ops;
+	dev->netdev_ops     = &netkit_netdev_ops;
+	dev->ethtool_ops    = &netkit_ethtool_ops;
+	dev->queue_mgmt_ops = &netkit_queue_mgmt_ops;
 
 	dev->features |= netkit_features;
 	dev->hw_features = netkit_features;
 	dev->hw_enc_features = netkit_features;
 	dev->mpls_features = NETIF_F_HW_CSUM | NETIF_F_GSO_SOFTWARE;
 	dev->vlan_features = dev->features & ~netkit_features_hw_vlan;
-
 	dev->needs_free_netdev = true;
 
 	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
+
+	xdp_set_features_flag(dev, NETDEV_XDP_ACT_XSK);
 }
 
 static struct net *netkit_get_link_net(const struct net_device *dev)
@@ -325,8 +497,6 @@ static int netkit_validate(struct nlattr *tb[], struct nlattr *data[],
 	return 0;
 }
 
-static struct rtnl_link_ops netkit_link_ops;
-
 static int netkit_new_link(struct net_device *dev,
 			   struct rtnl_newlink_params *params,
 			   struct netlink_ext_ack *extack)
@@ -335,6 +505,7 @@ static int netkit_new_link(struct net_device *dev,
 	enum netkit_scrub scrub_prim = NETKIT_SCRUB_DEFAULT;
 	enum netkit_scrub scrub_peer = NETKIT_SCRUB_DEFAULT;
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp, *attr;
+	enum netkit_pairing pair = NETKIT_DEVICE_PAIR;
 	enum netkit_action policy_prim = NETKIT_PASS;
 	enum netkit_action policy_peer = NETKIT_PASS;
 	struct nlattr **data = params->data;
@@ -343,7 +514,8 @@ static int netkit_new_link(struct net_device *dev,
 	struct nlattr **tb = params->tb;
 	u16 headroom = 0, tailroom = 0;
 	struct ifinfomsg *ifmp = NULL;
-	struct net_device *peer;
+	struct net_device *peer = NULL;
+	bool seen_peer = false;
 	char ifname[IFNAMSIZ];
 	struct netkit *nk;
 	int err;
@@ -380,6 +552,12 @@ static int netkit_new_link(struct net_device *dev,
 			headroom = nla_get_u16(data[IFLA_NETKIT_HEADROOM]);
 		if (data[IFLA_NETKIT_TAILROOM])
 			tailroom = nla_get_u16(data[IFLA_NETKIT_TAILROOM]);
+		if (data[IFLA_NETKIT_PAIRING])
+			pair = nla_get_u32(data[IFLA_NETKIT_PAIRING]);
+
+		seen_peer = data[IFLA_NETKIT_PEER_INFO] ||
+			    data[IFLA_NETKIT_PEER_SCRUB] ||
+			    data[IFLA_NETKIT_PEER_POLICY];
 	}
 
 	if (ifmp && tbp[IFLA_IFNAME]) {
@@ -392,45 +570,46 @@ static int netkit_new_link(struct net_device *dev,
 	if (mode != NETKIT_L2 &&
 	    (tb[IFLA_ADDRESS] || tbp[IFLA_ADDRESS]))
 		return -EOPNOTSUPP;
+	if (pair == NETKIT_DEVICE_SINGLE &&
+	    (tb != tbp || seen_peer || policy_prim != NETKIT_PASS))
+		return -EOPNOTSUPP;
 
-	peer = rtnl_create_link(peer_net, ifname, ifname_assign_type,
-				&netkit_link_ops, tbp, extack);
-	if (IS_ERR(peer))
-		return PTR_ERR(peer);
+	if (pair == NETKIT_DEVICE_PAIR) {
+		peer = rtnl_create_link(peer_net, ifname, ifname_assign_type,
+					&netkit_link_ops, tbp, extack);
+		if (IS_ERR(peer))
+			return PTR_ERR(peer);
 
-	netif_inherit_tso_max(peer, dev);
-	if (headroom) {
-		peer->needed_headroom = headroom;
-		dev->needed_headroom = headroom;
+		netif_inherit_tso_max(peer, dev);
+		if (headroom)
+			peer->needed_headroom = headroom;
+		if (tailroom)
+			peer->needed_tailroom = tailroom;
+		if (mode == NETKIT_L2 && !(ifmp && tbp[IFLA_ADDRESS]))
+			eth_hw_addr_random(peer);
+		if (ifmp && dev->ifindex)
+			peer->ifindex = ifmp->ifi_index;
+
+		nk = netkit_priv(peer);
+		nk->primary = false;
+		nk->policy = policy_peer;
+		nk->scrub = scrub_peer;
+		nk->mode = mode;
+		nk->pair = pair;
+		nk->headroom = headroom;
+		bpf_mprog_bundle_init(&nk->bundle);
+
+		err = register_netdevice(peer);
+		if (err < 0)
+			goto err_register_peer;
+		netif_carrier_off(peer);
+		if (mode == NETKIT_L2)
+			dev_change_flags(peer, peer->flags & ~IFF_NOARP, NULL);
+
+		err = rtnl_configure_link(peer, NULL, 0, NULL);
+		if (err < 0)
+			goto err_configure_peer;
 	}
-	if (tailroom) {
-		peer->needed_tailroom = tailroom;
-		dev->needed_tailroom = tailroom;
-	}
-
-	if (mode == NETKIT_L2 && !(ifmp && tbp[IFLA_ADDRESS]))
-		eth_hw_addr_random(peer);
-	if (ifmp && dev->ifindex)
-		peer->ifindex = ifmp->ifi_index;
-
-	nk = netkit_priv(peer);
-	nk->primary = false;
-	nk->policy = policy_peer;
-	nk->scrub = scrub_peer;
-	nk->mode = mode;
-	nk->headroom = headroom;
-	bpf_mprog_bundle_init(&nk->bundle);
-
-	err = register_netdevice(peer);
-	if (err < 0)
-		goto err_register_peer;
-	netif_carrier_off(peer);
-	if (mode == NETKIT_L2)
-		dev_change_flags(peer, peer->flags & ~IFF_NOARP, NULL);
-
-	err = rtnl_configure_link(peer, NULL, 0, NULL);
-	if (err < 0)
-		goto err_configure_peer;
 
 	if (mode == NETKIT_L2 && !tb[IFLA_ADDRESS])
 		eth_hw_addr_random(dev);
@@ -438,12 +617,17 @@ static int netkit_new_link(struct net_device *dev,
 		nla_strscpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
 	else
 		strscpy(dev->name, "nk%d", IFNAMSIZ);
+	if (headroom)
+		dev->needed_headroom = headroom;
+	if (tailroom)
+		dev->needed_tailroom = tailroom;
 
 	nk = netkit_priv(dev);
 	nk->primary = true;
 	nk->policy = policy_prim;
 	nk->scrub = scrub_prim;
 	nk->mode = mode;
+	nk->pair = pair;
 	nk->headroom = headroom;
 	bpf_mprog_bundle_init(&nk->bundle);
 
@@ -455,10 +639,12 @@ static int netkit_new_link(struct net_device *dev,
 		dev_change_flags(dev, dev->flags & ~IFF_NOARP, NULL);
 
 	rcu_assign_pointer(netkit_priv(dev)->peer, peer);
-	rcu_assign_pointer(netkit_priv(peer)->peer, dev);
+	if (peer)
+		rcu_assign_pointer(netkit_priv(peer)->peer, dev);
 	return 0;
 err_configure_peer:
-	unregister_netdevice(peer);
+	if (peer)
+		unregister_netdevice(peer);
 	return err;
 err_register_peer:
 	free_netdev(peer);
@@ -518,6 +704,8 @@ static struct net_device *netkit_dev_fetch(struct net *net, u32 ifindex, u32 whi
 	nk = netkit_priv(dev);
 	if (!nk->primary)
 		return ERR_PTR(-EACCES);
+	if (nk->pair == NETKIT_DEVICE_SINGLE)
+		return ERR_PTR(-EOPNOTSUPP);
 	if (which == BPF_NETKIT_PEER) {
 		dev = rcu_dereference_rtnl(nk->peer);
 		if (!dev)
@@ -844,6 +1032,7 @@ static void netkit_release_all(struct net_device *dev)
 static void netkit_uninit(struct net_device *dev)
 {
 	netkit_release_all(dev);
+	netkit_queue_unlease(dev);
 }
 
 static void netkit_del_link(struct net_device *dev, struct list_head *head)
@@ -879,6 +1068,7 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 		{ IFLA_NETKIT_PEER_INFO,  "peer info" },
 		{ IFLA_NETKIT_HEADROOM,   "headroom" },
 		{ IFLA_NETKIT_TAILROOM,   "tailroom" },
+		{ IFLA_NETKIT_PAIRING,    "pairing" },
 	};
 
 	if (!nk->primary) {
@@ -898,9 +1088,11 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 	}
 
 	if (data[IFLA_NETKIT_POLICY]) {
+		err = -EOPNOTSUPP;
 		attr = data[IFLA_NETKIT_POLICY];
 		policy = nla_get_u32(attr);
-		err = netkit_check_policy(policy, attr, extack);
+		if (nk->pair == NETKIT_DEVICE_PAIR)
+			err = netkit_check_policy(policy, attr, extack);
 		if (err)
 			return err;
 		WRITE_ONCE(nk->policy, policy);
@@ -921,6 +1113,48 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 	return 0;
 }
 
+static void netkit_check_lease_unregister(struct net_device *dev)
+{
+	LIST_HEAD(list_kill);
+	u32 q_idx;
+
+	if (READ_ONCE(dev->reg_state) != NETREG_UNREGISTERING ||
+	    !dev->dev.parent)
+		return;
+
+	netdev_lock_ops(dev);
+	for (q_idx = 0; q_idx < dev->real_num_rx_queues; q_idx++) {
+		struct net_device *tmp = dev;
+		u32 tmp_q_idx = q_idx;
+
+		if (netif_rx_queue_lease_get_owner(&tmp, &tmp_q_idx)) {
+			if (tmp->netdev_ops != &netkit_netdev_ops)
+				continue;
+			/* A single phys device can have multiple queues leased
+			 * to one netkit device. We can only queue that netkit
+			 * device once to the list_kill. Queues of that phys
+			 * device can be leased with different individual netkit
+			 * devices, hence we batch via list_kill.
+			 */
+			if (unregister_netdevice_queued(tmp))
+				continue;
+			netkit_del_link(tmp, &list_kill);
+		}
+	}
+	netdev_unlock_ops(dev);
+	unregister_netdevice_many(&list_kill);
+}
+
+static int netkit_notifier(struct notifier_block *this,
+			   unsigned long event, void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+
+	if (event == NETDEV_UNREGISTER)
+		netkit_check_lease_unregister(dev);
+	return NOTIFY_DONE;
+}
+
 static size_t netkit_get_size(const struct net_device *dev)
 {
 	return nla_total_size(sizeof(u32)) + /* IFLA_NETKIT_POLICY */
@@ -931,6 +1165,7 @@ static size_t netkit_get_size(const struct net_device *dev)
 	       nla_total_size(sizeof(u8))  + /* IFLA_NETKIT_PRIMARY */
 	       nla_total_size(sizeof(u16)) + /* IFLA_NETKIT_HEADROOM */
 	       nla_total_size(sizeof(u16)) + /* IFLA_NETKIT_TAILROOM */
+	       nla_total_size(sizeof(u32)) + /* IFLA_NETKIT_PAIRING */
 	       0;
 }
 
@@ -950,6 +1185,8 @@ static int netkit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u16(skb, IFLA_NETKIT_HEADROOM, dev->needed_headroom))
 		return -EMSGSIZE;
 	if (nla_put_u16(skb, IFLA_NETKIT_TAILROOM, dev->needed_tailroom))
+		return -EMSGSIZE;
+	if (nla_put_u32(skb, IFLA_NETKIT_PAIRING, nk->pair))
 		return -EMSGSIZE;
 
 	if (peer) {
@@ -972,13 +1209,15 @@ static const struct nla_policy netkit_policy[IFLA_NETKIT_MAX + 1] = {
 	[IFLA_NETKIT_TAILROOM]		= { .type = NLA_U16 },
 	[IFLA_NETKIT_SCRUB]		= NLA_POLICY_MAX(NLA_U32, NETKIT_SCRUB_DEFAULT),
 	[IFLA_NETKIT_PEER_SCRUB]	= NLA_POLICY_MAX(NLA_U32, NETKIT_SCRUB_DEFAULT),
+	[IFLA_NETKIT_PAIRING]		= NLA_POLICY_MAX(NLA_U32, NETKIT_DEVICE_SINGLE),
 	[IFLA_NETKIT_PRIMARY]		= { .type = NLA_REJECT,
 					    .reject_message = "Primary attribute is read-only" },
 };
 
 static struct rtnl_link_ops netkit_link_ops = {
-	.kind		= DRV_NAME,
+	.kind		= NETKIT_DRV_NAME,
 	.priv_size	= sizeof(struct netkit),
+	.alloc		= netkit_alloc,
 	.setup		= netkit_setup,
 	.newlink	= netkit_new_link,
 	.dellink	= netkit_del_link,
@@ -992,26 +1231,39 @@ static struct rtnl_link_ops netkit_link_ops = {
 	.maxtype	= IFLA_NETKIT_MAX,
 };
 
-static __init int netkit_init(void)
+static struct notifier_block netkit_netdev_notifier = {
+	.notifier_call	= netkit_notifier,
+};
+
+static __init int netkit_mod_init(void)
 {
+	int ret;
+
 	BUILD_BUG_ON((int)NETKIT_NEXT != (int)TCX_NEXT ||
 		     (int)NETKIT_PASS != (int)TCX_PASS ||
 		     (int)NETKIT_DROP != (int)TCX_DROP ||
 		     (int)NETKIT_REDIRECT != (int)TCX_REDIRECT);
 
-	return rtnl_link_register(&netkit_link_ops);
+	ret = rtnl_link_register(&netkit_link_ops);
+	if (ret)
+		return ret;
+	ret = register_netdevice_notifier(&netkit_netdev_notifier);
+	if (ret)
+		rtnl_link_unregister(&netkit_link_ops);
+	return ret;
 }
 
-static __exit void netkit_exit(void)
+static __exit void netkit_mod_exit(void)
 {
+	unregister_netdevice_notifier(&netkit_netdev_notifier);
 	rtnl_link_unregister(&netkit_link_ops);
 }
 
-module_init(netkit_init);
-module_exit(netkit_exit);
+module_init(netkit_mod_init);
+module_exit(netkit_mod_exit);
 
 MODULE_DESCRIPTION("BPF-programmable network device");
 MODULE_AUTHOR("Daniel Borkmann <daniel@iogearbox.net>");
 MODULE_AUTHOR("Nikolay Aleksandrov <razor@blackwall.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_RTNL_LINK(DRV_NAME);
+MODULE_ALIAS_RTNL_LINK(NETKIT_DRV_NAME);
