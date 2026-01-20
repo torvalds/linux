@@ -359,21 +359,25 @@ static inline u32 i2c_dw_acpi_round_bus_speed(struct device *device) { return 0;
 
 #endif	/* CONFIG_ACPI */
 
-static void i2c_dw_configure_mode(struct dw_i2c_dev *dev)
+static void i2c_dw_configure_mode(struct dw_i2c_dev *dev, int mode)
 {
-	switch (dev->mode) {
+	switch (mode) {
 	case DW_IC_MASTER:
 		regmap_write(dev->map, DW_IC_TX_TL, dev->tx_fifo_depth / 2);
 		regmap_write(dev->map, DW_IC_RX_TL, 0);
 		regmap_write(dev->map, DW_IC_CON, dev->master_cfg);
 		break;
 	case DW_IC_SLAVE:
+		dev->status = 0;
 		regmap_write(dev->map, DW_IC_TX_TL, 0);
 		regmap_write(dev->map, DW_IC_RX_TL, 0);
 		regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
+		regmap_write(dev->map, DW_IC_SAR, dev->slave->addr);
 		regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
+		__i2c_dw_enable(dev);
 		break;
 	default:
+		WARN(1, "Invalid mode %d\n", mode);
 		return;
 	}
 }
@@ -393,6 +397,31 @@ static void i2c_dw_write_timings(struct dw_i2c_dev *dev)
 		regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
 		regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
 	}
+}
+
+/**
+ * i2c_dw_set_mode() - Select the controller mode of operation - master or slave
+ * @dev: device private data
+ * @mode: I2C mode of operation
+ *
+ * Configures the controller to operate in @mode. This function needs to be
+ * called when ever a mode swap is required.
+ *
+ * Setting the slave mode does not have an effect before a slave device is
+ * registered. So before the slave device is registered, the controller is kept
+ * in master mode regardless of @mode.
+ *
+ * The controller must be disabled before this function is called.
+ */
+void i2c_dw_set_mode(struct dw_i2c_dev *dev, int mode)
+{
+	if (mode == DW_IC_SLAVE && !dev->slave)
+		mode = DW_IC_MASTER;
+	if (dev->mode == mode)
+		return;
+
+	i2c_dw_configure_mode(dev, mode);
+	dev->mode = mode;
 }
 
 /**
@@ -421,14 +450,13 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	 */
 	regmap_write(dev->map, DW_IC_SMBUS_INTR_MASK, 0);
 
-	if (dev->mode == DW_IC_MASTER)
-		i2c_dw_write_timings(dev);
+	i2c_dw_write_timings(dev);
 
 	/* Write SDA hold time if supported */
 	if (dev->sda_hold_time)
 		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
 
-	i2c_dw_configure_mode(dev);
+	i2c_dw_configure_mode(dev, dev->mode);
 
 	i2c_dw_release_lock(dev);
 
@@ -864,17 +892,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
-	switch (dev->mode) {
-	case DW_IC_SLAVE:
-		ret = i2c_dw_probe_slave(dev);
-		break;
-	case DW_IC_MASTER:
-		ret = i2c_dw_probe_master(dev);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
+	ret = i2c_dw_probe_master(dev);
 	if (ret)
 		return ret;
 

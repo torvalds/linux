@@ -24,24 +24,25 @@
 int i2c_dw_reg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
+	int ret;
 
+	if (!i2c_check_functionality(slave->adapter, I2C_FUNC_SLAVE))
+		return -EOPNOTSUPP;
 	if (dev->slave)
 		return -EBUSY;
 	if (slave->flags & I2C_CLIENT_TEN)
 		return -EAFNOSUPPORT;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
 	pm_runtime_get_sync(dev->dev);
-
-	/*
-	 * Set slave address in the IC_SAR register,
-	 * the address to which the DW_apb_i2c responds.
-	 */
 	__i2c_dw_disable_nowait(dev);
-	regmap_write(dev->map, DW_IC_SAR, slave->addr);
 	dev->slave = slave;
+	i2c_dw_set_mode(dev, DW_IC_SLAVE);
 
-	__i2c_dw_enable(dev);
-
-	dev->status = 0;
+	i2c_dw_release_lock(dev);
 
 	return 0;
 }
@@ -54,6 +55,7 @@ int i2c_dw_unreg_slave(struct i2c_client *slave)
 	i2c_dw_disable(dev);
 	synchronize_irq(dev->irq);
 	dev->slave = NULL;
+	i2c_dw_set_mode(dev, DW_IC_MASTER);
 	pm_runtime_put_sync_suspend(dev->dev);
 
 	return 0;
@@ -176,22 +178,15 @@ irqreturn_t i2c_dw_isr_slave(struct dw_i2c_dev *dev)
 
 void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 {
-	dev->functionality = I2C_FUNC_SLAVE;
+	if (dev->flags & ACCESS_POLLING)
+		return;
+
+	dev->functionality |= I2C_FUNC_SLAVE;
 
 	dev->slave_cfg = DW_IC_CON_RX_FIFO_FULL_HLD_CTRL |
 			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
-
-	dev->mode = DW_IC_SLAVE;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_configure_slave);
-
-int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
-{
-	if (dev->flags & ACCESS_POLLING)
-		return -EOPNOTSUPP;
-
-	return 0;
-}
 
 MODULE_AUTHOR("Luis Oliveira <lolivei@synopsys.com>");
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus slave adapter");
