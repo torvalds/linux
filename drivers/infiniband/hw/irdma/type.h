@@ -239,6 +239,18 @@ enum irdma_queue_type {
 	IRDMA_QUEUE_TYPE_SRQ,
 };
 
+enum irdma_rsvd_cq_id {
+	IRDMA_RSVD_CQ_ID_CQP,
+	IRDMA_RSVD_CQ_ID_ILQ,
+	IRDMA_RSVD_CQ_ID_IEQ,
+};
+
+enum irdma_rsvd_qp_id {
+	IRDMA_RSVD_QP_ID_0,
+	IRDMA_RSVD_QP_ID_GSI_ILQ,
+	IRDMA_RSVD_QP_ID_IEQ,
+};
+
 struct irdma_sc_dev;
 struct irdma_vsi_pestat;
 
