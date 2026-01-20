@@ -82,6 +82,7 @@ properties:
               - renesas,scif-r9a07g043      # RZ/G2UL and RZ/Five
               - renesas,scif-r9a07g054      # RZ/V2L
               - renesas,scif-r9a08g045      # RZ/G3S
+              - renesas,scif-r9a08g046      # RZ/G3L
           - const: renesas,scif-r9a07g044   # RZ/G2{L,LC} fallback
 
       - items:
