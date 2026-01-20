@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/irqreturn.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
@@ -344,20 +345,18 @@ struct i2c_dw_semaphore_callbacks {
 	int	(*probe)(struct dw_i2c_dev *dev);
 };
 
-int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
 		    u32 tSYMBOL, u32 tf, int offset);
 u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
 		    u32 tLOW, u32 tf, int offset);
-int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev);
 u32 i2c_dw_clk_rate(struct dw_i2c_dev *dev);
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare);
 int i2c_dw_acquire_lock(struct dw_i2c_dev *dev);
 void i2c_dw_release_lock(struct dw_i2c_dev *dev);
 int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev);
 int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev);
-int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev);
 u32 i2c_dw_func(struct i2c_adapter *adap);
+irqreturn_t i2c_dw_isr_master(struct dw_i2c_dev *dev);
 
 extern const struct dev_pm_ops i2c_dw_dev_pm_ops;
 
@@ -397,12 +396,18 @@ void i2c_dw_disable(struct dw_i2c_dev *dev);
 extern void i2c_dw_configure_master(struct dw_i2c_dev *dev);
 extern int i2c_dw_probe_master(struct dw_i2c_dev *dev);
 
+int i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
+
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 extern void i2c_dw_configure_slave(struct dw_i2c_dev *dev);
 extern int i2c_dw_probe_slave(struct dw_i2c_dev *dev);
+irqreturn_t i2c_dw_isr_slave(struct dw_i2c_dev *dev);
+int i2c_dw_reg_slave(struct i2c_client *client);
+int i2c_dw_unreg_slave(struct i2c_client *client);
 #else
 static inline void i2c_dw_configure_slave(struct dw_i2c_dev *dev) { }
 static inline int i2c_dw_probe_slave(struct dw_i2c_dev *dev) { return -EINVAL; }
+static inline irqreturn_t i2c_dw_isr_slave(struct dw_i2c_dev *dev) { return IRQ_NONE; }
 #endif
 
 static inline void i2c_dw_configure(struct dw_i2c_dev *dev)

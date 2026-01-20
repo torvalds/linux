@@ -63,7 +63,7 @@ static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 	return 0;
 }
 
-static int i2c_dw_reg_slave(struct i2c_client *slave)
+int i2c_dw_reg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 
@@ -88,7 +88,7 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 	return 0;
 }
 
-static int i2c_dw_unreg_slave(struct i2c_client *slave)
+int i2c_dw_unreg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 
@@ -152,9 +152,8 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
  * Interrupt service routine. This gets called whenever an I2C slave interrupt
  * occurs.
  */
-static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
+irqreturn_t i2c_dw_isr_slave(struct dw_i2c_dev *dev)
 {
-	struct dw_i2c_dev *dev = dev_id;
 	unsigned int raw_stat, stat, enabled, tmp;
 	u8 val = 0, slave_activity;
 
@@ -217,12 +216,6 @@ static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct i2c_algorithm i2c_dw_algo = {
-	.functionality = i2c_dw_func,
-	.reg_slave = i2c_dw_reg_slave,
-	.unreg_slave = i2c_dw_unreg_slave,
-};
-
 void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 {
 	dev->functionality = I2C_FUNC_SLAVE;
@@ -236,46 +229,12 @@ EXPORT_SYMBOL_GPL(i2c_dw_configure_slave);
 
 int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 {
-	struct i2c_adapter *adap = &dev->adapter;
-	int ret;
+	if (dev->flags & ACCESS_POLLING)
+		return -EOPNOTSUPP;
 
 	dev->init = i2c_dw_init_slave;
 
-	ret = i2c_dw_init_regmap(dev);
-	if (ret)
-		return ret;
-
-	ret = i2c_dw_set_sda_hold(dev);
-	if (ret)
-		return ret;
-
-	ret = i2c_dw_set_fifo_size(dev);
-	if (ret)
-		return ret;
-
-	ret = dev->init(dev);
-	if (ret)
-		return ret;
-
-	snprintf(adap->name, sizeof(adap->name),
-		 "Synopsys DesignWare I2C Slave adapter");
-	adap->retries = 3;
-	adap->algo = &i2c_dw_algo;
-	adap->dev.parent = dev->dev;
-	i2c_set_adapdata(adap, dev);
-
-	ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr_slave,
-			       IRQF_SHARED, dev_name(dev->dev), dev);
-	if (ret)
-		return dev_err_probe(dev->dev, ret,
-				     "failure requesting IRQ %i: %d\n",
-				     dev->irq, ret);
-
-	ret = i2c_add_numbered_adapter(adap);
-	if (ret)
-		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-
-	return ret;
+	return 0;
 }
 
 MODULE_AUTHOR("Luis Oliveira <lolivei@synopsys.com>");

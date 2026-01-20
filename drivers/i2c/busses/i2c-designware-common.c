@@ -136,7 +136,7 @@ static int dw_reg_write_word(void *context, unsigned int reg, unsigned int val)
  *
  * Return: 0 on success, or negative errno otherwise.
  */
-int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
+static int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 {
 	struct regmap_config map_cfg = {
 		.reg_bits = 32,
@@ -458,7 +458,7 @@ u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
 	return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tLOW + tf), MICRO) - 1 + offset;
 }
 
-int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
+static int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 {
 	unsigned int reg;
 	int ret;
@@ -675,7 +675,7 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 	return -EIO;
 }
 
-int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
+static int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)
 {
 	u32 tx_fifo_depth, rx_fifo_depth;
 	unsigned int param;
@@ -744,19 +744,113 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_disable);
 
+static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+{
+	struct dw_i2c_dev *dev = dev_id;
+
+	if (dev->mode == DW_IC_SLAVE)
+		return i2c_dw_isr_slave(dev);
+
+	return i2c_dw_isr_master(dev);
+}
+
+static const struct i2c_algorithm i2c_dw_algo = {
+	.xfer = i2c_dw_xfer,
+	.functionality = i2c_dw_func,
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	.reg_slave = i2c_dw_reg_slave,
+	.unreg_slave = i2c_dw_unreg_slave,
+#endif
+};
+
+static const struct i2c_adapter_quirks i2c_dw_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
+
 int i2c_dw_probe(struct dw_i2c_dev *dev)
 {
+	struct i2c_adapter *adap = &dev->adapter;
+	unsigned long irq_flags;
+	int ret;
+
 	device_set_node(&dev->adapter.dev, dev_fwnode(dev->dev));
+
+	ret = i2c_dw_init_regmap(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_sda_hold(dev);
+	if (ret)
+		return ret;
+
+	ret = i2c_dw_set_fifo_size(dev);
+	if (ret)
+		return ret;
 
 	switch (dev->mode) {
 	case DW_IC_SLAVE:
-		return i2c_dw_probe_slave(dev);
+		ret = i2c_dw_probe_slave(dev);
+		break;
 	case DW_IC_MASTER:
-		return i2c_dw_probe_master(dev);
+		ret = i2c_dw_probe_master(dev);
+		break;
 	default:
-		dev_err(dev->dev, "Wrong operation mode: %d\n", dev->mode);
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+	if (ret)
+		return ret;
+
+	ret = dev->init(dev);
+	if (ret)
+		return ret;
+
+	if (!adap->name[0])
+		strscpy(adap->name, "Synopsys DesignWare I2C adapter");
+
+	adap->retries = 3;
+	adap->algo = &i2c_dw_algo;
+	adap->quirks = &i2c_dw_quirks;
+	adap->dev.parent = dev->dev;
+	i2c_set_adapdata(adap, dev);
+
+	/*
+	 * REVISIT: The mode check may not be necessary.
+	 * For now keeping the flags as they were originally.
+	 */
+	if (dev->mode == DW_IC_SLAVE)
+		irq_flags = IRQF_SHARED;
+	else if (dev->flags & ACCESS_NO_IRQ_SUSPEND)
+		irq_flags = IRQF_NO_SUSPEND;
+	else
+		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		return ret;
+
+	__i2c_dw_write_intr_mask(dev, 0);
+	i2c_dw_release_lock(dev);
+
+	if (!(dev->flags & ACCESS_POLLING)) {
+		ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr,
+				       irq_flags, dev_name(dev->dev), dev);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Increment PM usage count during adapter registration in order to
+	 * avoid possible spurious runtime suspend when adapter device is
+	 * registered to the device core and immediate resume in case bus has
+	 * registered I2C slaves that do I2C transfers in their probe.
+	 */
+	ACQUIRE(pm_runtime_noresume, pm)(dev->dev);
+	ret = ACQUIRE_ERR(pm_runtime_noresume, &pm);
+	if (ret)
+		return ret;
+
+	return i2c_add_numbered_adapter(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_dw_probe);
 
