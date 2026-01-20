@@ -5190,7 +5190,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 	}
 
 	while (1) {
-		if ((sep = strchr(s, ',')) != NULL)
+		if ((sep = strchr((char *)s, ',')) != NULL)
 			*sep = '\0';
 
 		list = 0;
