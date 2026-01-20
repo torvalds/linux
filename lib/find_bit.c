@@ -71,7 +71,7 @@ out:										\
 
 #define FIND_NTH_BIT(FETCH, size, num)						\
 ({										\
-	unsigned long sz = (size), nr = (num), idx, w, tmp;			\
+	unsigned long sz = (size), nr = (num), idx, w, tmp = 0;			\
 										\
 	for (idx = 0; (idx + 1) * BITS_PER_LONG <= sz; idx++) {			\
 		if (idx * BITS_PER_LONG + nr >= sz)				\
