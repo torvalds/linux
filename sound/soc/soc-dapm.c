@@ -40,6 +40,27 @@
 
 #include <trace/events/asoc.h>
 
+/* DAPM context */
+struct snd_soc_dapm_context {
+	enum snd_soc_bias_level bias_level;
+
+	bool idle_bias;				/* Use BIAS_OFF instead of STANDBY when false */
+
+	struct snd_soc_component *component;	/* parent component */
+	struct snd_soc_card *card;		/* parent card */
+
+	/* used during DAPM updates */
+	enum snd_soc_bias_level target_bias_level;
+	struct list_head list;
+
+	struct snd_soc_dapm_widget *wcache_sink;
+	struct snd_soc_dapm_widget *wcache_source;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_dapm;
+#endif
+};
+
 #define DAPM_UPDATE_STAT(widget, val) widget->dapm->card->dapm_stats.val++;
 
 #define SND_SOC_DAPM_DIR_REVERSE(x) ((x == SND_SOC_DAPM_DIR_IN) ? \

@@ -20,6 +20,7 @@ struct regulator;
 struct soc_enum;
 struct snd_pcm_substream;
 struct snd_soc_pcm_runtime;
+struct snd_soc_dapm_context;
 
 /* widget has no PM register bit */
 #define SND_SOC_NOPM	-1
@@ -577,27 +578,6 @@ struct snd_soc_dapm_update {
 	int mask2;
 	int val2;
 	bool has_second_set;
-};
-
-/* DAPM context */
-struct snd_soc_dapm_context {
-	enum snd_soc_bias_level bias_level;
-
-	bool idle_bias;				/* Use BIAS_OFF instead of STANDBY when false */
-
-	struct snd_soc_component *component;	/* parent component */
-	struct snd_soc_card *card;		/* parent card */
-
-	/* used during DAPM updates */
-	enum snd_soc_bias_level target_bias_level;
-	struct list_head list;
-
-	struct snd_soc_dapm_widget *wcache_sink;
-	struct snd_soc_dapm_widget *wcache_source;
-
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs_dapm;
-#endif
 };
 
 /* A list of widgets associated with an object, typically a snd_kcontrol */
