@@ -23,6 +23,7 @@
 #include <linux/coredump.h>
 #include <linux/rhashtable.h>
 #include <linux/xattr.h>
+#include <linux/cookie.h>
 
 #include "internal.h"
 #include "mount.h"
@@ -65,7 +66,39 @@ static const struct rhashtable_params pidfs_ino_ht_params = {
 	.automatic_shrinking	= true,
 };
 
+/*
+ * inode number handling
+ *
+ * On 64 bit nothing special happens. The 64bit number assigned
+ * to struct pid is the inode number.
+ *
+ * On 32 bit the 64 bit number assigned to struct pid is split
+ * into two 32 bit numbers. The lower 32 bits are used as the
+ * inode number and the upper 32 bits are used as the inode
+ * generation number.
+ *
+ * On 32 bit pidfs_ino() will return the lower 32 bit. When
+ * pidfs_ino() returns zero a wrap around happened. When a
+ * wraparound happens the 64 bit number will be incremented by 1
+ * so inode numbering starts at 1 again.
+ *
+ * On 64 bit comparing two pidfds is as simple as comparing
+ * inode numbers.
+ *
+ * When a wraparound happens on 32 bit multiple pidfds with the
+ * same inode number are likely to exist (This isn't a problem
+ * since before pidfs pidfds used the anonymous inode meaning
+ * all pidfds had the same inode number.). Userspace can
+ * reconstruct the 64 bit identifier by retrieving both the
+ * inode number and the inode generation number to compare or
+ * use file handles.
+ */
+
 #if BITS_PER_LONG == 32
+
+DEFINE_SPINLOCK(pidfs_ino_lock);
+static u64 pidfs_ino_nr = 1;
+
 static inline unsigned long pidfs_ino(u64 ino)
 {
 	return lower_32_bits(ino);
@@ -75,6 +108,18 @@ static inline unsigned long pidfs_ino(u64 ino)
 static inline u32 pidfs_gen(u64 ino)
 {
 	return upper_32_bits(ino);
+}
+
+static inline u64 pidfs_alloc_ino(void)
+{
+	u64 ino;
+
+	spin_lock(&pidfs_ino_lock);
+	if (pidfs_ino(pidfs_ino_nr) == 0)
+		pidfs_ino_nr++;
+	ino = pidfs_ino_nr++;
+	spin_unlock(&pidfs_ino_lock);
+	return ino;
 }
 
 #else
@@ -90,61 +135,47 @@ static inline u32 pidfs_gen(u64 ino)
 {
 	return 0;
 }
+
+DEFINE_COOKIE(pidfs_ino_cookie);
+
+static u64 pidfs_alloc_ino(void)
+{
+	u64 ino;
+
+	preempt_disable();
+	ino = gen_cookie_next(&pidfs_ino_cookie);
+	preempt_enable();
+
+	VFS_WARN_ON_ONCE(ino < 1);
+	return ino;
+}
+
 #endif
 
-/*
- * Allocate inode number and initialize pidfs fields.
- * Called with pidmap_lock held.
- */
 void pidfs_prepare_pid(struct pid *pid)
 {
-	static u64 pidfs_ino_nr = 2;
-
-	/*
-	 * On 64 bit nothing special happens. The 64bit number assigned
-	 * to struct pid is the inode number.
-	 *
-	 * On 32 bit the 64 bit number assigned to struct pid is split
-	 * into two 32 bit numbers. The lower 32 bits are used as the
-	 * inode number and the upper 32 bits are used as the inode
-	 * generation number.
-	 *
-	 * On 32 bit pidfs_ino() will return the lower 32 bit. When
-	 * pidfs_ino() returns zero a wrap around happened. When a
-	 * wraparound happens the 64 bit number will be incremented by 2
-	 * so inode numbering starts at 2 again.
-	 *
-	 * On 64 bit comparing two pidfds is as simple as comparing
-	 * inode numbers.
-	 *
-	 * When a wraparound happens on 32 bit multiple pidfds with the
-	 * same inode number are likely to exist (This isn't a problem
-	 * since before pidfs pidfds used the anonymous inode meaning
-	 * all pidfds had the same inode number.). Userspace can
-	 * reconstruct the 64 bit identifier by retrieving both the
-	 * inode number and the inode generation number to compare or
-	 * use file handles.
-	 */
-	if (pidfs_ino(pidfs_ino_nr) == 0)
-		pidfs_ino_nr += 2;
-
-	pid->ino = pidfs_ino_nr;
-	pid->pidfs_hash.next = NULL;
 	pid->stashed = NULL;
 	pid->attr = NULL;
-	pidfs_ino_nr++;
+	pid->ino = 0;
 }
 
 int pidfs_add_pid(struct pid *pid)
 {
-	return rhashtable_insert_fast(&pidfs_ino_ht, &pid->pidfs_hash,
-				      pidfs_ino_ht_params);
+	int ret;
+
+	pid->ino = pidfs_alloc_ino();
+	ret = rhashtable_insert_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+				     pidfs_ino_ht_params);
+	if (unlikely(ret))
+		pid->ino = 0;
+	return ret;
 }
 
 void pidfs_remove_pid(struct pid *pid)
 {
-	rhashtable_remove_fast(&pidfs_ino_ht, &pid->pidfs_hash,
-			       pidfs_ino_ht_params);
+	if (likely(pid->ino))
+		rhashtable_remove_fast(&pidfs_ino_ht, &pid->pidfs_hash,
+				       pidfs_ino_ht_params);
 }
 
 void pidfs_free_pid(struct pid *pid)
