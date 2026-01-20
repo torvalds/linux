@@ -34,6 +34,7 @@
 	link->ctx->logger
 
 #define DP_SINK_PR_ENABLE_AND_CONFIGURATION		0x37B
+#define DP_SINK_ENABLE_FRAME_SKIPPING_MODE_SHIFT	(5)
 
 static unsigned int dp_pr_calc_num_static_frames(unsigned int vsync_rate_hz)
 {
@@ -89,6 +90,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	union panel_replay_enable_and_configuration_2 pr_config_2 = { 0 };
 
 	union dpcd_alpm_configuration alpm_config;
+	uint8_t data = 0;
 
 	replay_context.controllerId = CONTROLLER_ID_UNDEFINED;
 
@@ -186,6 +188,14 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 			DP_RECEIVER_ALPM_CONFIG,
 			&alpm_config.raw,
 			sizeof(alpm_config.raw));
+
+		//Enable frame skipping
+		if (link->replay_settings.config.frame_skip_supported)
+			data = data | (1 << DP_SINK_ENABLE_FRAME_SKIPPING_MODE_SHIFT);
+
+		dm_helpers_dp_write_dpcd(link->ctx, link,
+			DP_SINK_PR_ENABLE_AND_CONFIGURATION,
+			(uint8_t *)&(data), sizeof(uint8_t));
 	}
 
 	return true;
