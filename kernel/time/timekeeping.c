@@ -2735,7 +2735,7 @@ static int __do_adjtimex(struct tk_data *tkd, struct __kernel_timex *txc,
 		timekeeping_update_from_shadow(tkd, TK_CLOCK_WAS_SET);
 		result->clock_set = true;
 	} else {
-		tk_update_leap_state_all(&tk_core);
+		tk_update_leap_state_all(tkd);
 	}
 
 	/* Update the multiplier immediately if frequency was set directly */
