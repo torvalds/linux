@@ -506,7 +506,7 @@ static bool skip_throttle_noprogress(pg_data_t *pgdat)
 	 * If kswapd is disabled, reschedule if necessary but do not
 	 * throttle as the system is likely near OOM.
 	 */
-	if (atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES)
+	if (kswapd_test_hopeless(pgdat))
 		return true;
 
 	/*
@@ -6437,7 +6437,7 @@ static bool allow_direct_reclaim(pg_data_t *pgdat)
 	int i;
 	bool wmark_ok;
 
-	if (atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES)
+	if (kswapd_test_hopeless(pgdat))
 		return true;
 
 	for_each_managed_zone_pgdat(zone, pgdat, i, ZONE_NORMAL) {
@@ -6846,7 +6846,7 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order,
 		wake_up_all(&pgdat->pfmemalloc_wait);
 
 	/* Hopeless node, leave it to direct reclaim */
-	if (atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES)
+	if (kswapd_test_hopeless(pgdat))
 		return true;
 
 	if (pgdat_balanced(pgdat, order, highest_zoneidx)) {
@@ -7111,8 +7111,11 @@ restart:
 	 * watermark_high at this point. We need to avoid increasing the
 	 * failure count to prevent the kswapd thread from stopping.
 	 */
-	if (!sc.nr_reclaimed && !boosted)
-		atomic_inc(&pgdat->kswapd_failures);
+	if (!sc.nr_reclaimed && !boosted) {
+		int fail_cnt = atomic_inc_return(&pgdat->kswapd_failures);
+		/* kswapd context, low overhead to trace every failure */
+		trace_mm_vmscan_kswapd_reclaim_fail(pgdat->node_id, fail_cnt);
+	}
 
 out:
 	clear_reclaim_active(pgdat, highest_zoneidx);
@@ -7371,7 +7374,7 @@ void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
 		return;
 
 	/* Hopeless node, leave it to direct reclaim if possible */
-	if (atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES ||
+	if (kswapd_test_hopeless(pgdat) ||
 	    (pgdat_balanced(pgdat, order, highest_zoneidx) &&
 	     !pgdat_watermark_boosted(pgdat, highest_zoneidx))) {
 		/*
@@ -7391,9 +7394,11 @@ void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
 	wake_up_interruptible(&pgdat->kswapd_wait);
 }
 
-static void kswapd_clear_hopeless(pg_data_t *pgdat)
+void kswapd_clear_hopeless(pg_data_t *pgdat, enum kswapd_clear_hopeless_reason reason)
 {
-	atomic_set(&pgdat->kswapd_failures, 0);
+	/* Only trace actual resets, not redundant zero-to-zero */
+	if (atomic_xchg(&pgdat->kswapd_failures, 0))
+		trace_mm_vmscan_kswapd_clear_hopeless(pgdat->node_id, reason);
 }
 
 /*
@@ -7406,7 +7411,13 @@ void kswapd_try_clear_hopeless(struct pglist_data *pgdat,
 			       unsigned int order, int highest_zoneidx)
 {
 	if (pgdat_balanced(pgdat, order, highest_zoneidx))
-		kswapd_clear_hopeless(pgdat);
+		kswapd_clear_hopeless(pgdat, current_is_kswapd() ?
+			KSWAPD_CLEAR_HOPELESS_KSWAPD : KSWAPD_CLEAR_HOPELESS_DIRECT);
+}
+
+bool kswapd_test_hopeless(pg_data_t *pgdat)
+{
+	return atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES;
 }
 
 #ifdef CONFIG_HIBERNATION

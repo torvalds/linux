@@ -2945,9 +2945,9 @@ static bool free_frozen_page_commit(struct zone *zone,
 		 * 'hopeless node' to stay in that state for a while.  Let
 		 * kswapd work again by resetting kswapd_failures.
 		 */
-		if (atomic_read(&pgdat->kswapd_failures) >= MAX_RECLAIM_RETRIES &&
+		if (kswapd_test_hopeless(pgdat) &&
 		    next_memory_node(pgdat->node_id) < MAX_NUMNODES)
-			atomic_set(&pgdat->kswapd_failures, 0);
+			kswapd_clear_hopeless(pgdat, KSWAPD_CLEAR_HOPELESS_PCP);
 	}
 	return ret;
 }

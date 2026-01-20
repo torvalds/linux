@@ -955,7 +955,7 @@ static ssize_t demotion_enabled_store(struct kobject *kobj,
 		struct pglist_data *pgdat;
 
 		for_each_online_pgdat(pgdat)
-			atomic_set(&pgdat->kswapd_failures, 0);
+			kswapd_clear_hopeless(pgdat, KSWAPD_CLEAR_HOPELESS_OTHER);
 	}
 
 	return count;
