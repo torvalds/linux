@@ -246,7 +246,7 @@ class SphinxBuilder:
         #
         self.sphinxbuild = os.environ.get("SPHINXBUILD", "sphinx-build")
         self.kerneldoc = self.get_path(os.environ.get("KERNELDOC",
-                                                      "scripts/kernel-doc.py"))
+                                                      "tools/docs/kernel-doc"))
         self.builddir = self.get_path(builddir, use_cwd=True, abs_path=True)
 
         #
@@ -750,7 +750,6 @@ class SphinxBuilder:
 
             build_args = args + [
                 "-d", doctree_dir,
-                "-D", f"kerneldoc_bin={kerneldoc}",
                 "-D", f"version={self.kernelversion}",
                 "-D", f"release={self.kernelrelease}",
                 "-D", f"kerneldoc_srctree={self.srctree}",
