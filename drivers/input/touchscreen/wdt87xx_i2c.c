@@ -1026,10 +1026,8 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 	int error;
 
 	input = devm_input_allocate_device(dev);
-	if (!input) {
-		dev_err(dev, "failed to allocate input device\n");
+	if (!input)
 		return -ENOMEM;
-	}
 	wdt->input = input;
 
 	input->name = "WDT87xx Touchscreen";
@@ -1053,10 +1051,8 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 			    INPUT_MT_DIRECT | INPUT_MT_DROP_UNUSED);
 
 	error = input_register_device(input);
-	if (error) {
-		dev_err(dev, "failed to register input device: %d\n", error);
-		return error;
-	}
+	if (error)
+		return dev_err_probe(dev, error, "failed to register input device\n");
 
 	return 0;
 }
@@ -1096,10 +1092,8 @@ static int wdt87xx_ts_probe(struct i2c_client *client)
 					  NULL, wdt87xx_ts_interrupt,
 					  IRQF_ONESHOT,
 					  client->name, wdt);
-	if (error) {
-		dev_err(&client->dev, "request irq failed: %d\n", error);
+	if (error)
 		return error;
-	}
 
 	return 0;
 }
