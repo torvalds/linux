@@ -164,7 +164,7 @@ flush:
 	return NULL;
 }
 
-INDIRECT_CALLABLE_SCOPE int udp6_gro_complete(struct sk_buff *skb, int nhoff)
+int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const u16 offset = NAPI_GRO_CB(skb)->network_offsets[skb->encapsulation];
 	const struct ipv6hdr *ipv6h = (struct ipv6hdr *)(skb->data + offset);
