@@ -1696,7 +1696,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 				     logical_len);
 	/* Either error or not found. */
 	if (ret)
-		goto out;
+		return ret;
 	get_extent_info(extent_path, &extent_start, &extent_len, &extent_flags,
 			&extent_gen);
 	if (extent_flags & BTRFS_EXTENT_FLAG_TREE_BLOCK)
@@ -1729,7 +1729,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 		ret = find_first_extent_item(extent_root, extent_path, cur_logical,
 					     stripe_end - cur_logical + 1);
 		if (ret < 0)
-			goto out;
+			return ret;
 		if (ret > 0) {
 			ret = 0;
 			break;
@@ -1763,7 +1763,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 						stripe->logical, stripe_end,
 						stripe->csums, &csum_bitmap);
 		if (ret < 0)
-			goto out;
+			return ret;
 		if (ret > 0)
 			ret = 0;
 
@@ -1773,7 +1773,7 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 		}
 	}
 	set_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state);
-out:
+
 	return ret;
 }
 
