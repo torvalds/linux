@@ -503,7 +503,7 @@ impl workqueue::WorkItem for Process {
 impl Process {
     fn new(ctx: Arc<Context>, cred: ARef<Credential>) -> Result<Arc<Self>> {
         let current = kernel::current!();
-        let list_process = ListArc::pin_init::<Error>(
+        let process = Arc::pin_init::<Error>(
             try_pin_init!(Process {
                 ctx,
                 cred,
@@ -519,8 +519,7 @@ impl Process {
             GFP_KERNEL,
         )?;
 
-        let process = list_process.clone_arc();
-        process.ctx.register_process(list_process);
+        process.ctx.register_process(process.clone())?;
 
         Ok(process)
     }
