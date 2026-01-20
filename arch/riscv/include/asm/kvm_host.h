@@ -18,6 +18,7 @@
 #include <asm/ptrace.h>
 #include <asm/kvm_tlb.h>
 #include <asm/kvm_vmid.h>
+#include <asm/kvm_vcpu_config.h>
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_insn.h>
 #include <asm/kvm_vcpu_sbi.h>
@@ -46,18 +47,6 @@
 #define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(6)
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLBS_RANGE
-
-#define KVM_HEDELEG_DEFAULT		(BIT(EXC_INST_MISALIGNED) | \
-					 BIT(EXC_INST_ILLEGAL)     | \
-					 BIT(EXC_BREAKPOINT)      | \
-					 BIT(EXC_SYSCALL)         | \
-					 BIT(EXC_INST_PAGE_FAULT) | \
-					 BIT(EXC_LOAD_PAGE_FAULT) | \
-					 BIT(EXC_STORE_PAGE_FAULT))
-
-#define KVM_HIDELEG_DEFAULT		(BIT(IRQ_VS_SOFT)  | \
-					 BIT(IRQ_VS_TIMER) | \
-					 BIT(IRQ_VS_EXT))
 
 #define KVM_DIRTY_LOG_MANUAL_CAPS	(KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE | \
 					 KVM_DIRTY_LOG_INITIALLY_SET)
@@ -165,13 +154,6 @@ struct kvm_vcpu_csr {
 	unsigned long vsatp;
 	unsigned long scounteren;
 	unsigned long senvcfg;
-};
-
-struct kvm_vcpu_config {
-	u64 henvcfg;
-	u64 hstateen0;
-	unsigned long hedeleg;
-	unsigned long hideleg;
 };
 
 struct kvm_vcpu_smstateen_csr {

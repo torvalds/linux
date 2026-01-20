@@ -21,6 +21,7 @@ kvm-y += mmu.o
 kvm-y += nacl.o
 kvm-y += tlb.o
 kvm-y += vcpu.o
+kvm-y += vcpu_config.o
 kvm-y += vcpu_exit.o
 kvm-y += vcpu_fp.o
 kvm-y += vcpu_insn.o

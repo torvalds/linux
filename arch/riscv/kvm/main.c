@@ -41,8 +41,8 @@ int kvm_arch_enable_virtualization_cpu(void)
 	if (rc)
 		return rc;
 
-	csr_write(CSR_HEDELEG, KVM_HEDELEG_DEFAULT);
-	csr_write(CSR_HIDELEG, KVM_HIDELEG_DEFAULT);
+	csr_write(CSR_HEDELEG, 0);
+	csr_write(CSR_HIDELEG, 0);
 
 	/* VS should access only the time counter directly. Everything else should trap */
 	csr_write(CSR_HCOUNTEREN, 0x02);

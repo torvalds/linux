@@ -135,10 +135,11 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/* Mark this VCPU never ran */
 	vcpu->arch.ran_atleast_once = false;
 
-	vcpu->arch.cfg.hedeleg = KVM_HEDELEG_DEFAULT;
-	vcpu->arch.cfg.hideleg = KVM_HIDELEG_DEFAULT;
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
 	bitmap_zero(vcpu->arch.isa, RISCV_ISA_EXT_MAX);
+
+	/* Setup VCPU config */
+	kvm_riscv_vcpu_config_init(vcpu);
 
 	/* Setup ISA features available to VCPU */
 	kvm_riscv_vcpu_setup_isa(vcpu);
@@ -532,59 +533,18 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	if (dbg->control & KVM_GUESTDBG_ENABLE) {
+	if (dbg->control & KVM_GUESTDBG_ENABLE)
 		vcpu->guest_debug = dbg->control;
-		vcpu->arch.cfg.hedeleg &= ~BIT(EXC_BREAKPOINT);
-	} else {
+	else
 		vcpu->guest_debug = 0;
-		vcpu->arch.cfg.hedeleg |= BIT(EXC_BREAKPOINT);
-	}
-
-	vcpu->arch.csr_dirty = true;
 
 	return 0;
-}
-
-static void kvm_riscv_vcpu_setup_config(struct kvm_vcpu *vcpu)
-{
-	const unsigned long *isa = vcpu->arch.isa;
-	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
-
-	if (riscv_isa_extension_available(isa, SVPBMT))
-		cfg->henvcfg |= ENVCFG_PBMTE;
-
-	if (riscv_isa_extension_available(isa, SSTC))
-		cfg->henvcfg |= ENVCFG_STCE;
-
-	if (riscv_isa_extension_available(isa, ZICBOM))
-		cfg->henvcfg |= (ENVCFG_CBIE | ENVCFG_CBCFE);
-
-	if (riscv_isa_extension_available(isa, ZICBOZ))
-		cfg->henvcfg |= ENVCFG_CBZE;
-
-	if (riscv_isa_extension_available(isa, SVADU) &&
-	    !riscv_isa_extension_available(isa, SVADE))
-		cfg->henvcfg |= ENVCFG_ADUE;
-
-	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN)) {
-		cfg->hstateen0 |= SMSTATEEN0_HSENVCFG;
-		if (riscv_isa_extension_available(isa, SSAIA))
-			cfg->hstateen0 |= SMSTATEEN0_AIA_IMSIC |
-					  SMSTATEEN0_AIA |
-					  SMSTATEEN0_AIA_ISEL;
-		if (riscv_isa_extension_available(isa, SMSTATEEN))
-			cfg->hstateen0 |= SMSTATEEN0_SSTATEEN0;
-	}
-
-	if (vcpu->guest_debug)
-		cfg->hedeleg &= ~BIT(EXC_BREAKPOINT);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	void *nsh;
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
-	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
 
 	/*
 	 * If VCPU is being reloaded on the same physical CPU and no
@@ -601,6 +561,14 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		goto csr_restore_done;
 
 	vcpu->arch.csr_dirty = false;
+
+	/*
+	 * Load VCPU config CSRs before other CSRs because
+	 * the read/write behaviour of certain CSRs change
+	 * based on VCPU config CSRs.
+	 */
+	kvm_riscv_vcpu_config_load(vcpu);
+
 	if (kvm_riscv_nacl_sync_csr_available()) {
 		nsh = nacl_shmem();
 		nacl_csr_write(nsh, CSR_VSSTATUS, csr->vsstatus);
@@ -610,18 +578,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		nacl_csr_write(nsh, CSR_VSEPC, csr->vsepc);
 		nacl_csr_write(nsh, CSR_VSCAUSE, csr->vscause);
 		nacl_csr_write(nsh, CSR_VSTVAL, csr->vstval);
-		nacl_csr_write(nsh, CSR_HEDELEG, cfg->hedeleg);
-		nacl_csr_write(nsh, CSR_HIDELEG, cfg->hideleg);
 		nacl_csr_write(nsh, CSR_HVIP, csr->hvip);
 		nacl_csr_write(nsh, CSR_VSATP, csr->vsatp);
-		nacl_csr_write(nsh, CSR_HENVCFG, cfg->henvcfg);
-		if (IS_ENABLED(CONFIG_32BIT))
-			nacl_csr_write(nsh, CSR_HENVCFGH, cfg->henvcfg >> 32);
-		if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN)) {
-			nacl_csr_write(nsh, CSR_HSTATEEN0, cfg->hstateen0);
-			if (IS_ENABLED(CONFIG_32BIT))
-				nacl_csr_write(nsh, CSR_HSTATEEN0H, cfg->hstateen0 >> 32);
-		}
 	} else {
 		csr_write(CSR_VSSTATUS, csr->vsstatus);
 		csr_write(CSR_VSIE, csr->vsie);
@@ -630,18 +588,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		csr_write(CSR_VSEPC, csr->vsepc);
 		csr_write(CSR_VSCAUSE, csr->vscause);
 		csr_write(CSR_VSTVAL, csr->vstval);
-		csr_write(CSR_HEDELEG, cfg->hedeleg);
-		csr_write(CSR_HIDELEG, cfg->hideleg);
 		csr_write(CSR_HVIP, csr->hvip);
 		csr_write(CSR_VSATP, csr->vsatp);
-		csr_write(CSR_HENVCFG, cfg->henvcfg);
-		if (IS_ENABLED(CONFIG_32BIT))
-			csr_write(CSR_HENVCFGH, cfg->henvcfg >> 32);
-		if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN)) {
-			csr_write(CSR_HSTATEEN0, cfg->hstateen0);
-			if (IS_ENABLED(CONFIG_32BIT))
-				csr_write(CSR_HSTATEEN0H, cfg->hstateen0 >> 32);
-		}
 	}
 
 	kvm_riscv_mmu_update_hgatp(vcpu);
@@ -891,7 +839,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 
 	if (!vcpu->arch.ran_atleast_once)
-		kvm_riscv_vcpu_setup_config(vcpu);
+		kvm_riscv_vcpu_config_ran_once(vcpu);
 
 	/* Mark this VCPU ran at least once */
 	vcpu->arch.ran_atleast_once = true;
