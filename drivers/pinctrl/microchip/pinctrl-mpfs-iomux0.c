@@ -15,10 +15,10 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include "core.h"
-#include "pinctrl-utils.h"
-#include "pinconf.h"
-#include "pinmux.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
+#include "../pinconf.h"
+#include "../pinmux.h"
 
 #define MPFS_IOMUX0_REG 0x200
 
