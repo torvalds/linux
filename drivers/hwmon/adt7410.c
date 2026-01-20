@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
@@ -90,14 +91,24 @@ static int adt7410_i2c_probe(struct i2c_client *client)
 static const struct i2c_device_id adt7410_ids[] = {
 	{ "adt7410" },
 	{ "adt7420" },
+	{ "adt7422" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);
+
+static const struct of_device_id adt7410_of_match[] = {
+	{ .compatible = "adi,adt7410" },
+	{ .compatible = "adi,adt7420" },
+	{ .compatible = "adi,adt7422" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adt7410_of_match);
 
 static struct i2c_driver adt7410_driver = {
 	.driver = {
 		.name	= "adt7410",
 		.pm	= pm_sleep_ptr(&adt7x10_dev_pm_ops),
+		.of_match_table = adt7410_of_match,
 	},
 	.probe		= adt7410_i2c_probe,
 	.id_table	= adt7410_ids,

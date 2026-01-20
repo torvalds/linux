@@ -8,7 +8,7 @@
 #ifndef __ASM_MMU_CONTEXT_H
 #define __ASM_MMU_CONTEXT_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/compiler.h>
 #include <linux/sched.h>
@@ -62,28 +62,20 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
 }
 
 /*
- * TCR.T0SZ value to use when the ID map is active.
- */
-#define idmap_t0sz	TCR_T0SZ(IDMAP_VA_BITS)
-
-/*
  * Ensure TCR.T0SZ is set to the provided value.
  */
 static inline void __cpu_set_tcr_t0sz(unsigned long t0sz)
 {
 	unsigned long tcr = read_sysreg(tcr_el1);
 
-	if ((tcr & TCR_T0SZ_MASK) == t0sz)
+	if ((tcr & TCR_EL1_T0SZ_MASK) == t0sz)
 		return;
 
-	tcr &= ~TCR_T0SZ_MASK;
+	tcr &= ~TCR_EL1_T0SZ_MASK;
 	tcr |= t0sz;
 	write_sysreg(tcr, tcr_el1);
 	isb();
 }
-
-#define cpu_set_default_tcr_t0sz()	__cpu_set_tcr_t0sz(TCR_T0SZ(vabits_actual))
-#define cpu_set_idmap_tcr_t0sz()	__cpu_set_tcr_t0sz(idmap_t0sz)
 
 /*
  * Remove the idmap from TTBR0_EL1 and install the pgd of the active mm.
@@ -103,7 +95,7 @@ static inline void cpu_uninstall_idmap(void)
 
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
-	cpu_set_default_tcr_t0sz();
+	__cpu_set_tcr_t0sz(TCR_T0SZ(vabits_actual));
 
 	if (mm != &init_mm && !system_uses_ttbr0_pan())
 		cpu_switch_mm(mm->pgd, mm);
@@ -113,7 +105,7 @@ static inline void cpu_install_idmap(void)
 {
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
-	cpu_set_idmap_tcr_t0sz();
+	__cpu_set_tcr_t0sz(TCR_T0SZ(IDMAP_VA_BITS));
 
 	cpu_switch_mm(lm_alias(idmap_pg_dir), &init_mm);
 }
@@ -330,6 +322,6 @@ static inline void deactivate_mm(struct task_struct *tsk,
 
 #include <asm-generic/mmu_context.h>
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* !__ASM_MMU_CONTEXT_H */

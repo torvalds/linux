@@ -19,7 +19,7 @@
 #include "pasid.h"
 
 static int intel_nested_attach_dev(struct iommu_domain *domain,
-				   struct device *dev)
+				   struct device *dev, struct iommu_domain *old)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
@@ -28,11 +28,6 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	int ret = 0;
 
 	device_block_translation(dev);
-
-	if (iommu->agaw < dmar_domain->s2_domain->agaw) {
-		dev_err_ratelimited(dev, "Adjusted guest address width not compatible\n");
-		return -ENODEV;
-	}
 
 	/*
 	 * Stage-1 domain cannot work alone, it is nested on a s2_domain.

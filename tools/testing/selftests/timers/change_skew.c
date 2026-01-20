@@ -28,7 +28,7 @@
 #include <sys/time.h>
 #include <sys/timex.h>
 #include <time.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int change_skew_test(int ppm)
 {

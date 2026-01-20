@@ -142,7 +142,7 @@ static int sst_slot_enum_info(struct snd_kcontrol *kcontrol,
 
 	if (uinfo->value.enumerated.item > e->max - 1)
 		uinfo->value.enumerated.item = e->max - 1;
-	strcpy(uinfo->value.enumerated.name,
+	strscpy(uinfo->value.enumerated.name,
 		e->texts[uinfo->value.enumerated.item]);
 
 	return 0;
@@ -218,7 +218,7 @@ static int sst_check_and_send_slot_map(struct sst_data *drv, struct snd_kcontrol
 static int sst_slot_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *c = snd_kcontrol_chip(kcontrol);
 	struct sst_data *drv = snd_soc_component_get_drvdata(c);
 	struct sst_enum *e = (void *)kcontrol->private_value;
 	int i, ret = 0;
@@ -349,7 +349,7 @@ static int sst_algo_control_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct sst_data *drv = snd_soc_component_get_drvdata(cmpnt);
 	struct sst_algo_control *bc = (void *)kcontrol->private_value;
 
@@ -470,7 +470,7 @@ static int sst_gain_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct sst_data *drv = snd_soc_component_get_drvdata(cmpnt);
 	struct sst_gain_mixer_control *mc = (void *)kcontrol->private_value;
 	struct sst_gain_value *gv = mc->gain_val;
@@ -637,7 +637,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 	 * inputs as an IPC to the DSP.
 	 */
 	for (i = 0; i < w->num_kcontrols; i++) {
-		if (dapm_kcontrol_get_value(w->kcontrols[i])) {
+		if (snd_soc_dapm_kcontrol_get_value(w->kcontrols[i])) {
 			mc = (struct soc_mixer_control *)(w->kcontrols[i])->private_value;
 			val |= 1 << mc->shift;
 		}
@@ -1530,8 +1530,7 @@ static int sst_map_modules_to_pipe(struct snd_soc_component *component)
 int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 {
 	int i, ret = 0;
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct sst_data *drv = snd_soc_component_get_drvdata(component);
 	unsigned int gains = ARRAY_SIZE(sst_gain_controls)/3;
 
@@ -1544,7 +1543,7 @@ int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 			ARRAY_SIZE(sst_dapm_widgets));
 	snd_soc_dapm_add_routes(dapm, intercon,
 			ARRAY_SIZE(intercon));
-	snd_soc_dapm_new_widgets(dapm->card);
+	snd_soc_dapm_new_widgets(component->card);
 
 	for (i = 0; i < gains; i++) {
 		sst_gains[i].mute = SST_GAIN_MUTE_DEFAULT;

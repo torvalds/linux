@@ -148,7 +148,6 @@ typedef struct {
 
 struct vm_area_struct;
 struct page;
-struct sockaddr;
 struct msghdr;
 struct module;
 struct sk_buff;
@@ -163,10 +162,10 @@ struct proto_ops {
 	struct module	*owner;
 	int		(*release)   (struct socket *sock);
 	int		(*bind)	     (struct socket *sock,
-				      struct sockaddr *myaddr,
+				      struct sockaddr_unsized *myaddr,
 				      int sockaddr_len);
 	int		(*connect)   (struct socket *sock,
-				      struct sockaddr *vaddr,
+				      struct sockaddr_unsized *vaddr,
 				      int sockaddr_len, int flags);
 	int		(*socketpair)(struct socket *sock1,
 				      struct socket *sock2);
@@ -345,10 +344,10 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg, struct kvec *vec,
 		   size_t num, size_t len, int flags);
 
-int kernel_bind(struct socket *sock, struct sockaddr *addr, int addrlen);
+int kernel_bind(struct socket *sock, struct sockaddr_unsized *addr, int addrlen);
 int kernel_listen(struct socket *sock, int backlog);
 int kernel_accept(struct socket *sock, struct socket **newsock, int flags);
-int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
+int kernel_connect(struct socket *sock, struct sockaddr_unsized *addr, int addrlen,
 		   int flags);
 int kernel_getsockname(struct socket *sock, struct sockaddr *addr);
 int kernel_getpeername(struct socket *sock, struct sockaddr *addr);

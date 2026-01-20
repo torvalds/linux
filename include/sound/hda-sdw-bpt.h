@@ -30,6 +30,8 @@ int hda_sdw_bpt_wait(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
 int hda_sdw_bpt_close(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
 		      struct snd_dma_buffer *dmab_tx_bdl, struct hdac_ext_stream *bpt_rx_stream,
 		      struct snd_dma_buffer *dmab_rx_bdl);
+
+unsigned int hda_sdw_bpt_get_buf_size_alignment(unsigned int dma_bandwidth);
 #else
 static inline int hda_sdw_bpt_open(struct device *dev, int link_id,
 				   struct hdac_ext_stream **bpt_tx_stream,
@@ -63,6 +65,11 @@ static inline int hda_sdw_bpt_close(struct device *dev, struct hdac_ext_stream *
 {
 	WARN_ONCE(1, "SoundWire BPT is disabled");
 	return -EOPNOTSUPP;
+}
+
+static inline unsigned int hda_sdw_bpt_get_buf_size_alignment(unsigned int dma_bandwidth)
+{
+	return 0;
 }
 #endif
 

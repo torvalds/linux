@@ -1002,7 +1002,9 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return 0;
 
 drop:
+	u64_stats_update_begin(&tx->statss);
 	tx->dropped_pkt++;
+	u64_stats_update_end(&tx->statss);
 	dev_kfree_skb_any(skb);
 	return 0;
 }
@@ -1324,7 +1326,11 @@ static void remove_miss_completions(struct gve_priv *priv,
 		/* This indicates the packet was dropped. */
 		dev_kfree_skb_any(pending_packet->skb);
 		pending_packet->skb = NULL;
+
+		u64_stats_update_begin(&tx->statss);
 		tx->dropped_pkt++;
+		u64_stats_update_end(&tx->statss);
+
 		net_err_ratelimited("%s: No reinjection completion was received for: %d.\n",
 				    priv->dev->name,
 				    (int)(pending_packet - tx->dqo.pending_packets));

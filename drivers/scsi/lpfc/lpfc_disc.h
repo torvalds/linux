@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -208,6 +208,7 @@ enum lpfc_nlp_flag {
 					   NPR list */
 	NLP_RM_DFLT_RPI    = 26,        /* need to remove leftover dflt RPI */
 	NLP_NODEV_REMOVE   = 27,        /* Defer removal till discovery ends */
+	NLP_FLOGI_DFR_ACC  = 28,        /* FLOGI LS_ACC was Deferred */
 	NLP_SC_REQ         = 29,        /* Target requires authentication */
 	NLP_FIRSTBURST     = 30,        /* Target supports FirstBurst */
 	NLP_RPI_REGISTERED = 31         /* nlp_rpi is valid */

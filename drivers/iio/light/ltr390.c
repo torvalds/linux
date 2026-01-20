@@ -160,16 +160,16 @@ static int ltr390_register_read(struct ltr390_data *data, u8 register_address)
 {
 	struct device *dev = &data->client->dev;
 	int ret;
-	u8 recieve_buffer[3];
+	u8 receive_buffer[3];
 
-	ret = regmap_bulk_read(data->regmap, register_address, recieve_buffer,
-			       sizeof(recieve_buffer));
+	ret = regmap_bulk_read(data->regmap, register_address, receive_buffer,
+			       sizeof(receive_buffer));
 	if (ret) {
 		dev_err(dev, "failed to read measurement data");
 		return ret;
 	}
 
-	return get_unaligned_le24(recieve_buffer);
+	return get_unaligned_le24(receive_buffer);
 }
 
 static int ltr390_set_mode(struct ltr390_data *data, enum ltr390_mode mode)

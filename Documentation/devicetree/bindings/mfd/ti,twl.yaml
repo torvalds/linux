@@ -55,6 +55,15 @@ allOf:
 
         gpadc: false
 
+        pwrbutton:
+          properties:
+            compatible:
+              const: ti,twl4030-pwrbutton
+            interrupts:
+              items:
+                - items:
+                    const: 8
+
         usb-comparator: false
 
   - if:
@@ -95,7 +104,14 @@ allOf:
             compatible:
               const: ti,twl6030-gpadc
 
-        pwrbutton: false
+        pwrbutton:
+          properties:
+            compatible:
+              const: ti,twl6030-pwrbutton
+            interrupts:
+              items:
+                - items:
+                    const: 0
 
         madc: false
 
@@ -146,7 +162,14 @@ allOf:
             compatible:
               const: ti,twl6032-gpadc
 
-        pwrbutton: false
+        pwrbutton:
+          properties:
+            compatible:
+              const: ti,twl6030-pwrbutton
+            interrupts:
+              items:
+                - items:
+                    const: 0
 
         madc: false
 
@@ -226,11 +249,11 @@ properties:
 
     properties:
       compatible:
-        const: ti,twl4030-pwrbutton
+        enum:
+          - ti,twl4030-pwrbutton
+          - ti,twl6030-pwrbutton
       interrupts:
-        items:
-          - items:
-              const: 8
+        maxItems: 1
 
   watchdog:
     type: object
@@ -400,7 +423,7 @@ properties:
       - '#pwm-cells'
 
 patternProperties:
-  "^regulator-":
+  '^regulator-':
     type: object
     unevaluatedProperties: false
     $ref: /schemas/regulator/regulator.yaml
@@ -429,7 +452,7 @@ required:
   - reg
   - interrupts
   - interrupt-controller
-  - "#interrupt-cells"
+  - '#interrupt-cells'
 
 examples:
   - |
@@ -457,6 +480,11 @@ examples:
           compatible = "ti,twl6030-gpadc";
           interrupts = <6>;
           #io-channel-cells = <1>;
+        };
+
+        pwrbutton {
+          compatible = "ti,twl6030-pwrbutton";
+          interrupts = <0>;
         };
 
         rtc {

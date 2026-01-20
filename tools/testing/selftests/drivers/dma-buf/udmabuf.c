@@ -16,7 +16,7 @@
 #include <sys/mman.h>
 #include <linux/memfd.h>
 #include <linux/udmabuf.h>
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define TEST_PREFIX	"drivers/dma-buf/udmabuf"
 #define NUM_PAGES       4

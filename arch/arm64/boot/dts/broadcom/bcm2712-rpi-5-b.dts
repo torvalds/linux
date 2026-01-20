@@ -18,11 +18,21 @@
 
 #include "bcm2712-rpi-5-b-ovl-rp1.dts"
 
+/ {
+	aliases {
+		ethernet0 = &rp1_eth;
+	};
+};
+
 &pcie2 {
 	#include "rp1-nexus.dtsi"
 };
 
 &rp1_eth {
+	assigned-clocks = <&rp1_clocks RP1_CLK_ETH_TSU>,
+			  <&rp1_clocks RP1_CLK_ETH>;
+	assigned-clock-rates = <50000000>,
+			       <125000000>;
 	status = "okay";
 	phy-mode = "rgmii-id";
 	phy-handle = <&phy1>;

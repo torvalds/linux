@@ -19,7 +19,17 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "tsx: " fmt
 
-enum tsx_ctrl_states tsx_ctrl_state __ro_after_init = TSX_CTRL_NOT_SUPPORTED;
+enum tsx_ctrl_states {
+	TSX_CTRL_AUTO,
+	TSX_CTRL_ENABLE,
+	TSX_CTRL_DISABLE,
+	TSX_CTRL_RTM_ALWAYS_ABORT,
+	TSX_CTRL_NOT_SUPPORTED,
+};
+
+static enum tsx_ctrl_states tsx_ctrl_state __ro_after_init =
+	IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_AUTO) ? TSX_CTRL_AUTO   :
+	IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_OFF) ? TSX_CTRL_DISABLE : TSX_CTRL_ENABLE;
 
 static void tsx_disable(void)
 {
@@ -156,11 +166,28 @@ static void tsx_dev_mode_disable(void)
 	}
 }
 
+static int __init tsx_parse_cmdline(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strcmp(str, "on")) {
+		tsx_ctrl_state = TSX_CTRL_ENABLE;
+	} else if (!strcmp(str, "off")) {
+		tsx_ctrl_state = TSX_CTRL_DISABLE;
+	} else if (!strcmp(str, "auto")) {
+		tsx_ctrl_state = TSX_CTRL_AUTO;
+	} else {
+		tsx_ctrl_state = TSX_CTRL_DISABLE;
+		pr_err("invalid option, defaulting to off\n");
+	}
+
+	return 0;
+}
+early_param("tsx", tsx_parse_cmdline);
+
 void __init tsx_init(void)
 {
-	char arg[5] = {};
-	int ret;
-
 	tsx_dev_mode_disable();
 
 	/*
@@ -194,27 +221,8 @@ void __init tsx_init(void)
 		return;
 	}
 
-	ret = cmdline_find_option(boot_command_line, "tsx", arg, sizeof(arg));
-	if (ret >= 0) {
-		if (!strcmp(arg, "on")) {
-			tsx_ctrl_state = TSX_CTRL_ENABLE;
-		} else if (!strcmp(arg, "off")) {
-			tsx_ctrl_state = TSX_CTRL_DISABLE;
-		} else if (!strcmp(arg, "auto")) {
-			tsx_ctrl_state = x86_get_tsx_auto_mode();
-		} else {
-			tsx_ctrl_state = TSX_CTRL_DISABLE;
-			pr_err("invalid option, defaulting to off\n");
-		}
-	} else {
-		/* tsx= not provided */
-		if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_AUTO))
-			tsx_ctrl_state = x86_get_tsx_auto_mode();
-		else if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_OFF))
-			tsx_ctrl_state = TSX_CTRL_DISABLE;
-		else
-			tsx_ctrl_state = TSX_CTRL_ENABLE;
-	}
+	if (tsx_ctrl_state == TSX_CTRL_AUTO)
+		tsx_ctrl_state = x86_get_tsx_auto_mode();
 
 	if (tsx_ctrl_state == TSX_CTRL_DISABLE) {
 		tsx_disable();

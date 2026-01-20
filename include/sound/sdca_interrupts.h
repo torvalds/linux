@@ -23,18 +23,23 @@ struct sdca_function_data;
 /**
  * struct sdca_interrupt - contains information about a single SDCA interrupt
  * @name: The name of the interrupt.
+ * @dev: Pointer to the Function device.
+ * @device_regmap: Pointer to the IRQ regmap.
+ * @function_regmap: Pointer to the SDCA Function regmap.
  * @component: Pointer to the ASoC component owns the interrupt.
  * @function: Pointer to the Function that the interrupt is associated with.
  * @entity: Pointer to the Entity that the interrupt is associated with.
  * @control: Pointer to the Control that the interrupt is associated with.
  * @priv: Pointer to private data for use by the handler.
- * @externally_requested: Internal flag used to check if a client driver has
- * already requested the interrupt, for custom handling, allowing the core to
- * skip handling this interrupt.
+ * @irq: IRQ number allocated to this interrupt, also used internally to track
+ * the IRQ being assigned.
  */
 struct sdca_interrupt {
 	const char *name;
 
+	struct device *dev;
+	struct regmap *device_regmap;
+	struct regmap *function_regmap;
 	struct snd_soc_component *component;
 	struct sdca_function_data *function;
 	struct sdca_entity *entity;
@@ -42,7 +47,7 @@ struct sdca_interrupt {
 
 	void *priv;
 
-	bool externally_requested;
+	int irq;
 };
 
 /**
@@ -64,11 +69,15 @@ struct sdca_interrupt_info {
 int sdca_irq_request(struct device *dev, struct sdca_interrupt_info *interrupt_info,
 		     int sdca_irq, const char *name, irq_handler_t handler,
 		     void *data);
-int sdca_irq_data_populate(struct snd_soc_component *component,
+int sdca_irq_data_populate(struct device *dev, struct regmap *function_regmap,
+			   struct snd_soc_component *component,
 			   struct sdca_function_data *function,
 			   struct sdca_entity *entity,
 			   struct sdca_control *control,
 			   struct sdca_interrupt *interrupt);
+int sdca_irq_populate_early(struct device *dev, struct regmap *function_regmap,
+			    struct sdca_function_data *function,
+			    struct sdca_interrupt_info *info);
 int sdca_irq_populate(struct sdca_function_data *function,
 		      struct snd_soc_component *component,
 		      struct sdca_interrupt_info *info);

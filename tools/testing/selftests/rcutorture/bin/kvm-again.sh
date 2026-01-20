@@ -31,7 +31,7 @@ fi
 if ! cp "$oldrun/scenarios" $T/scenarios.oldrun
 then
 	# Later on, can reconstitute this from console.log files.
-	echo Prior run batches file does not exist: $oldrun/batches
+	echo Prior run scenarios file does not exist: $oldrun/scenarios
 	exit 1
 fi
 
@@ -68,7 +68,7 @@ usage () {
 	echo "       --datestamp string"
 	echo "       --dryrun"
 	echo "       --duration minutes | <seconds>s | <hours>h | <days>d"
-	echo "       --link hard|soft|copy"
+	echo "       --link hard|soft|copy|inplace|inplace-force"
 	echo "       --remote"
 	echo "       --rundir /new/res/path"
 	echo "Command line: $scriptname $args"
@@ -121,7 +121,7 @@ do
 		shift
 		;;
 	--link)
-		checkarg --link "hard|soft|copy" "$#" "$2" 'hard\|soft\|copy' '^--'
+		checkarg --link "hard|soft|copy|inplace|inplace-force" "$#" "$2" 'hard\|soft\|copy\|inplace\|inplace-force' '^--'
 		case "$2" in
 		copy)
 			arg_link="cp -R"
@@ -131,6 +131,14 @@ do
 			;;
 		soft)
 			arg_link="cp -Rs"
+			;;
+		inplace)
+			arg_link="inplace"
+			rundir="$oldrun"
+			;;
+		inplace-force)
+			arg_link="inplace-force"
+			rundir="$oldrun"
 			;;
 		esac
 		shift
@@ -172,21 +180,37 @@ fi
 
 echo ---- Re-run results directory: $rundir
 
-# Copy old run directory tree over and adjust.
-mkdir -p "`dirname "$rundir"`"
-if ! $arg_link "$oldrun" "$rundir"
+if test "$oldrun" != "$rundir"
 then
-	echo "Cannot copy from $oldrun to $rundir."
-	usage
+	# Copy old run directory tree over and adjust.
+	mkdir -p "`dirname "$rundir"`"
+	if ! $arg_link "$oldrun" "$rundir"
+	then
+		echo "Cannot copy from $oldrun to $rundir."
+		usage
+	fi
+	rm -f "$rundir"/*/{console.log,console.log.diags,qemu_pid,qemu-pid,qemu-retval,Warnings,kvm-test-1-run.sh.out,kvm-test-1-run-qemu.sh.out,vmlinux} "$rundir"/log
+	touch "$rundir/log"
+	echo $scriptname $args | tee -a "$rundir/log"
+	echo $oldrun > "$rundir/re-run"
+	if ! test -d "$rundir/../../bin"
+	then
+		$arg_link "$oldrun/../../bin" "$rundir/../.."
+	fi
+else
+	# Check for a run having already happened.
+	find "$rundir" -name console.log -print > $T/oldrun-console.log
+	if test -s $T/oldrun-console.log
+	then
+		echo Run already took place in $rundir
+		if test "$arg_link" = inplace
+		then
+			usage
+		fi
+	fi
 fi
-rm -f "$rundir"/*/{console.log,console.log.diags,qemu_pid,qemu-pid,qemu-retval,Warnings,kvm-test-1-run.sh.out,kvm-test-1-run-qemu.sh.out,vmlinux} "$rundir"/log
-touch "$rundir/log"
-echo $scriptname $args | tee -a "$rundir/log"
-echo $oldrun > "$rundir/re-run"
-if ! test -d "$rundir/../../bin"
-then
-	$arg_link "$oldrun/../../bin" "$rundir/../.."
-fi
+
+# Find runs to be done based on their qemu-cmd files.
 for i in $rundir/*/qemu-cmd
 do
 	cp "$i" $T

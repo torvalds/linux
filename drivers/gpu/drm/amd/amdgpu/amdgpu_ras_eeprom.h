@@ -82,6 +82,7 @@ struct amdgpu_ras_eeprom_control {
 	/* Number of records in the table.
 	 */
 	u32 ras_num_recs;
+	u32 ras_num_recs_old;
 
 	/* the bad page number is ras_num_recs or
 	 * ras_num_recs * umc.retire_unit
@@ -162,6 +163,35 @@ void amdgpu_ras_debugfs_set_ret_size(struct amdgpu_ras_eeprom_control *control);
 int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control);
 
 void amdgpu_ras_eeprom_check_and_recover(struct amdgpu_device *adev);
+
+bool amdgpu_ras_smu_eeprom_supported(struct amdgpu_device *adev);
+
+int amdgpu_ras_smu_get_table_version(struct amdgpu_device *adev,
+							uint32_t *table_version);
+
+int amdgpu_ras_smu_get_badpage_count(struct amdgpu_device *adev,
+								uint32_t *count, uint32_t timeout);
+
+int amdgpu_ras_smu_get_badpage_mca_addr(struct amdgpu_device *adev,
+								uint16_t index, uint64_t *mca_addr);
+
+int amdgpu_ras_smu_set_timestamp(struct amdgpu_device *adev,
+										uint64_t timestamp);
+
+int amdgpu_ras_smu_get_timestamp(struct amdgpu_device *adev,
+							uint16_t index, uint64_t *timestamp);
+
+int amdgpu_ras_smu_get_badpage_ipid(struct amdgpu_device *adev,
+								uint16_t index, uint64_t *ipid);
+
+int amdgpu_ras_smu_erase_ras_table(struct amdgpu_device *adev,
+									uint32_t *result);
+
+int amdgpu_ras_eeprom_read_idx(struct amdgpu_ras_eeprom_control *control,
+			struct eeprom_table_record *record, u32 rec_idx,
+			const u32 num);
+
+int amdgpu_ras_eeprom_update_record_num(struct amdgpu_ras_eeprom_control *control);
 
 extern const struct file_operations amdgpu_ras_debugfs_eeprom_size_ops;
 extern const struct file_operations amdgpu_ras_debugfs_eeprom_table_ops;

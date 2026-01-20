@@ -342,7 +342,7 @@ static void sdma_v5_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio.hdp_flush_reg;
 
 	if (ring->me > 1) {
-		amdgpu_asic_flush_hdp(adev, ring);
+		amdgpu_hdp_flush(adev, ring);
 	} else {
 		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0 << ring->me;
 
@@ -1348,12 +1348,14 @@ static int sdma_v5_2_sw_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(5, 2, 3):
 	case IP_VERSION(5, 2, 4):
 		if ((adev->sdma.instance[0].fw_version >= 76) &&
-		    !amdgpu_sriov_vf(adev))
+		    !amdgpu_sriov_vf(adev) &&
+		    !adev->debug_disable_gpu_ring_reset)
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	case IP_VERSION(5, 2, 5):
 		if ((adev->sdma.instance[0].fw_version >= 34) &&
-		    !amdgpu_sriov_vf(adev))
+		    !amdgpu_sriov_vf(adev) &&
+		    !adev->debug_disable_gpu_ring_reset)
 			adev->sdma.supported_reset |= AMDGPU_RESET_TYPE_PER_QUEUE;
 		break;
 	default:

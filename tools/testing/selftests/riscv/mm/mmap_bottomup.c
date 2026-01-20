@@ -2,7 +2,7 @@
 #include <sys/mman.h>
 #include <mmap_test.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 TEST(infinite_rlimit)
 {

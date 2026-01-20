@@ -80,6 +80,11 @@ extern struct cpu_topology cpu_topology[NR_CPUS];
 #define topology_sibling_cpumask(cpu)	(&cpu_topology[cpu].thread_sibling)
 #define topology_cluster_cpumask(cpu)	(&cpu_topology[cpu].cluster_sibling)
 #define topology_llc_cpumask(cpu)	(&cpu_topology[cpu].llc_sibling)
+
+#ifndef arch_cpu_is_threaded
+#define arch_cpu_is_threaded()	(0)
+#endif
+
 void init_cpu_topology(void);
 void store_cpu_topology(unsigned int cpuid);
 const struct cpumask *cpu_coregroup_mask(int cpu);
@@ -89,6 +94,21 @@ void remove_cpu_topology(unsigned int cpuid);
 void reset_cpu_topology(void);
 int parse_acpi_topology(void);
 void freq_inv_set_max_ratio(int cpu, u64 max_rate);
-#endif
+
+/*
+ * Architectures like ARM64 don't have reliable architectural way to get SMT
+ * information and depend on the firmware (ACPI/OF) report. Non-SMT core won't
+ * initialize thread_id so we can use this to detect the SMT implementation.
+ */
+static inline bool topology_core_has_smt(int cpu)
+{
+	return cpu_topology[cpu].thread_id != -1;
+}
+
+#else
+
+static inline bool topology_core_has_smt(int cpu) { return false; }
+
+#endif /* CONFIG_GENERIC_ARCH_TOPOLOGY */
 
 #endif /* _LINUX_ARCH_TOPOLOGY_H_ */

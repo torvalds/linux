@@ -20,7 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
-#include <linux/platform_data/bcmgenet.h>
 #include <linux/platform_data/mdio-bcm-unimac.h>
 
 #include "bcmgenet.h"
@@ -436,23 +435,6 @@ static struct device_node *bcmgenet_mii_of_find_mdio(struct bcmgenet_priv *priv)
 	return priv->mdio_dn;
 }
 
-static void bcmgenet_mii_pdata_init(struct bcmgenet_priv *priv,
-				    struct unimac_mdio_pdata *ppd)
-{
-	struct device *kdev = &priv->pdev->dev;
-	struct bcmgenet_platform_data *pd = kdev->platform_data;
-
-	if (pd->phy_interface != PHY_INTERFACE_MODE_MOCA && pd->mdio_enabled) {
-		/*
-		 * Internal or external PHY with MDIO access
-		 */
-		if (pd->phy_address >= 0 && pd->phy_address < PHY_MAX_ADDR)
-			ppd->phy_mask = 1 << pd->phy_address;
-		else
-			ppd->phy_mask = 0;
-	}
-}
-
 static int bcmgenet_mii_wait(void *wait_func_data)
 {
 	struct bcmgenet_priv *priv = wait_func_data;
@@ -467,7 +449,6 @@ static int bcmgenet_mii_wait(void *wait_func_data)
 static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 {
 	struct platform_device *pdev = priv->pdev;
-	struct bcmgenet_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *dn = pdev->dev.of_node;
 	struct unimac_mdio_pdata ppd;
 	struct platform_device *ppdev;
@@ -511,8 +492,6 @@ static int bcmgenet_mii_register(struct bcmgenet_priv *priv)
 	ppdev->dev.parent = &pdev->dev;
 	if (dn)
 		ppdev->dev.of_node = bcmgenet_mii_of_find_mdio(priv);
-	else if (pdata)
-		bcmgenet_mii_pdata_init(priv, &ppd);
 	else
 		ppd.phy_mask = ~0;
 
@@ -594,58 +573,6 @@ static int bcmgenet_mii_of_init(struct bcmgenet_priv *priv)
 	return 0;
 }
 
-static int bcmgenet_mii_pd_init(struct bcmgenet_priv *priv)
-{
-	struct device *kdev = &priv->pdev->dev;
-	struct bcmgenet_platform_data *pd = kdev->platform_data;
-	char phy_name[MII_BUS_ID_SIZE + 3];
-	char mdio_bus_id[MII_BUS_ID_SIZE];
-	struct phy_device *phydev;
-
-	snprintf(mdio_bus_id, MII_BUS_ID_SIZE, "%s-%d",
-		 UNIMAC_MDIO_DRV_NAME, priv->pdev->id);
-
-	if (pd->phy_interface != PHY_INTERFACE_MODE_MOCA && pd->mdio_enabled) {
-		snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT,
-			 mdio_bus_id, pd->phy_address);
-
-		/*
-		 * Internal or external PHY with MDIO access
-		 */
-		phydev = phy_attach(priv->dev, phy_name, pd->phy_interface);
-		if (IS_ERR(phydev)) {
-			dev_err(kdev, "failed to register PHY device\n");
-			return PTR_ERR(phydev);
-		}
-	} else {
-		/*
-		 * MoCA port or no MDIO access.
-		 * Use fixed PHY to represent the link layer.
-		 */
-		struct fixed_phy_status fphy_status = {
-			.link = 1,
-			.speed = pd->phy_speed,
-			.duplex = pd->phy_duplex,
-			.pause = 0,
-			.asym_pause = 0,
-		};
-
-		phydev = fixed_phy_register(&fphy_status, NULL);
-		if (IS_ERR(phydev)) {
-			dev_err(kdev, "failed to register fixed PHY device\n");
-			return PTR_ERR(phydev);
-		}
-
-		/* Make sure we initialize MoCA PHYs with a link down */
-		phydev->link = 0;
-
-	}
-
-	priv->phy_interface = pd->phy_interface;
-
-	return 0;
-}
-
 static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 {
 	struct device *kdev = &priv->pdev->dev;
@@ -656,7 +583,7 @@ static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 	else if (has_acpi_companion(kdev))
 		return bcmgenet_phy_interface_init(priv);
 	else
-		return bcmgenet_mii_pd_init(priv);
+		return -EINVAL;
 }
 
 int bcmgenet_mii_init(struct net_device *dev)

@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_print.h>
 
 #include "display/intel_display.h"
 #include "gem/i915_gem_ioctls.h"
@@ -193,8 +194,8 @@ i915_gem_dumb_create(struct drm_file *file,
 	args->pitch = ALIGN(args->width * cpp, 64);
 
 	/* align stride to page size so that we can remap */
-	if (args->pitch > intel_plane_fb_max_stride(dev, format,
-						    DRM_FORMAT_MOD_LINEAR))
+	if (args->pitch > intel_dumb_fb_max_stride(dev, format,
+						   DRM_FORMAT_MOD_LINEAR))
 		args->pitch = ALIGN(args->pitch, 4096);
 
 	if (args->pitch < args->width)

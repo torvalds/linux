@@ -427,8 +427,7 @@ static SOC_ENUM_SINGLE_DECL(rt1015_boost_mode_enum, 0, 0,
 static int rt1015_boost_mode_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
@@ -440,8 +439,7 @@ static int rt1015_boost_mode_get(struct snd_kcontrol *kcontrol,
 static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 	int boost_mode = ucontrol->value.integer.value[0];
@@ -481,8 +479,7 @@ static int rt1015_boost_mode_put(struct snd_kcontrol *kcontrol,
 static int rt1015_bypass_boost_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
@@ -494,9 +491,10 @@ static int rt1015_bypass_boost_get(struct snd_kcontrol *kcontrol,
 static void rt1015_calibrate(struct rt1015_priv *rt1015)
 {
 	struct snd_soc_component *component = rt1015->component;
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct regmap *regmap = rt1015->regmap;
 
-	snd_soc_dapm_mutex_lock(&component->dapm);
+	snd_soc_dapm_mutex_lock(dapm);
 	regcache_cache_bypass(regmap, true);
 
 	regmap_write(regmap, RT1015_CLK_DET, 0x0000);
@@ -518,14 +516,13 @@ static void rt1015_calibrate(struct rt1015_priv *rt1015)
 	regcache_cache_bypass(regmap, false);
 	regcache_mark_dirty(regmap);
 	regcache_sync(regmap);
-	snd_soc_dapm_mutex_unlock(&component->dapm);
+	snd_soc_dapm_mutex_unlock(dapm);
 }
 
 static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 

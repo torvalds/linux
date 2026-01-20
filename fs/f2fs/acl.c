@@ -9,6 +9,7 @@
  *
  * Copyright (C) 2001-2003 Andreas Gruenbacher, <agruen@suse.de>
  */
+#include <linux/fs_struct.h>
 #include <linux/f2fs_fs.h>
 #include "f2fs.h"
 #include "xattr.h"

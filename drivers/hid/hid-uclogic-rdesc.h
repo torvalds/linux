@@ -214,4 +214,12 @@ extern const size_t uclogic_rdesc_ugee_g5_frame_size;
 extern const __u8 uclogic_rdesc_xppen_artist_22r_pro_frame_arr[];
 extern const size_t uclogic_rdesc_xppen_artist_22r_pro_frame_size;
 
+/* Fixed report descriptor for XP-Pen Arist 24 Pro frame */
+extern const __u8 uclogic_rdesc_xppen_artist_24_pro_pen_template_arr[];
+extern const size_t uclogic_rdesc_xppen_artist_24_pro_pen_template_size;
+
+/* Fixed report descriptor for XP-Pen Arist 24 Pro frame */
+extern const __u8 uclogic_rdesc_xppen_artist_24_pro_frame_arr[];
+extern const size_t uclogic_rdesc_xppen_artist_24_pro_frame_size;
+
 #endif /* _HID_UCLOGIC_RDESC_H */

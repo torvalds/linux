@@ -57,6 +57,7 @@ void gic_irq_set_pending(unsigned int intid);
 void gic_irq_clear_pending(unsigned int intid);
 bool gic_irq_get_pending(unsigned int intid);
 void gic_irq_set_config(unsigned int intid, bool is_edge);
+void gic_irq_set_group(unsigned int intid, bool group);
 
 void gic_rdist_enable_lpis(vm_paddr_t cfg_table, size_t cfg_table_size,
 			   vm_paddr_t pend_table);

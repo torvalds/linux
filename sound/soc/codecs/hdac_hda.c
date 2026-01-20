@@ -405,8 +405,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 {
 	struct hdac_hda_priv *hda_pvt =
 			snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(component);
 	struct hdac_device *hdev = &hda_pvt->codec->core;
 	struct hda_codec *hcodec = hda_pvt->codec;
 	struct hda_codec_driver *driver = hda_codec_to_driver(hcodec);
@@ -470,7 +468,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	 */
 	pm_runtime_get_noresume(&hdev->dev);
 
-	hcodec->bus->card = dapm->card->snd_card;
+	hcodec->bus->card = component->card->snd_card;
 
 	ret = snd_hda_codec_set_name(hcodec, hcodec->preset->name);
 	if (ret < 0) {

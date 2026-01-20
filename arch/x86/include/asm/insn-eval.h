@@ -44,4 +44,6 @@ enum insn_mmio_type {
 
 enum insn_mmio_type insn_decode_mmio(struct insn *insn, int *bytes);
 
+bool insn_is_nop(struct insn *insn);
+
 #endif /* _ASM_X86_INSN_EVAL_H */

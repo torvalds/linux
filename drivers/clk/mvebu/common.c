@@ -215,20 +215,24 @@ static struct clk *clk_gating_get_src(
 	return ERR_PTR(-ENODEV);
 }
 
-static int mvebu_clk_gating_suspend(void)
+static int mvebu_clk_gating_suspend(void *data)
 {
 	ctrl->saved_reg = readl(ctrl->base);
 	return 0;
 }
 
-static void mvebu_clk_gating_resume(void)
+static void mvebu_clk_gating_resume(void *data)
 {
 	writel(ctrl->saved_reg, ctrl->base);
 }
 
-static struct syscore_ops clk_gate_syscore_ops = {
+static const struct syscore_ops clk_gate_syscore_ops = {
 	.suspend = mvebu_clk_gating_suspend,
 	.resume = mvebu_clk_gating_resume,
+};
+
+static struct syscore clk_gate_syscore = {
+	.ops = &clk_gate_syscore_ops,
 };
 
 void __init mvebu_clk_gating_setup(struct device_node *np,
@@ -284,7 +288,7 @@ void __init mvebu_clk_gating_setup(struct device_node *np,
 
 	of_clk_add_provider(np, clk_gating_get_src, ctrl);
 
-	register_syscore_ops(&clk_gate_syscore_ops);
+	register_syscore(&clk_gate_syscore);
 
 	return;
 gates_out:

@@ -39,7 +39,6 @@ foreach my $file (@files) {
 		$lineno++;
 		&check_include();
 		&check_asm_types();
-		&check_sizetypes();
 		&check_declarations();
 		# Dropped for now. Too much noise &check_config();
 	}
@@ -100,68 +99,6 @@ sub check_asm_types
 		$linux_asm_types = 1;
 		printf STDERR "$filename:$lineno: " .
 		"include of <linux/types.h> is preferred over <asm/types.h>\n";
-		$ret = 1;
-	}
-}
-
-my $linux_types;
-my %import_stack = ();
-sub check_include_typesh
-{
-	my $path = $_[0];
-	my $import_path;
-
-	my $fh;
-	my @file_paths = ($path, $dir . "/" .  $path, dirname($filename) . "/" . $path);
-	for my $possible ( @file_paths ) {
-	    if (not $import_stack{$possible} and open($fh, '<', $possible)) {
-		$import_path = $possible;
-		$import_stack{$import_path} = 1;
-		last;
-	    }
-	}
-	if (eof $fh) {
-	    return;
-	}
-
-	my $line;
-	while ($line = <$fh>) {
-		if ($line =~ m/^\s*#\s*include\s+<linux\/types.h>/) {
-			$linux_types = 1;
-			last;
-		}
-		if (my $included = ($line =~ /^\s*#\s*include\s+[<"](\S+)[>"]/)[0]) {
-			check_include_typesh($included);
-		}
-	}
-	close $fh;
-	delete $import_stack{$import_path};
-}
-
-sub check_sizetypes
-{
-	if ($filename =~ /types.h|int-l64.h|int-ll64.h/o) {
-		return;
-	}
-	if ($lineno == 1) {
-		$linux_types = 0;
-	} elsif ($linux_types >= 1) {
-		return;
-	}
-	if ($line =~ m/^\s*#\s*include\s+<linux\/types.h>/) {
-		$linux_types = 1;
-		return;
-	}
-	if (my $included = ($line =~ /^\s*#\s*include\s+[<"](\S+)[>"]/)[0]) {
-		check_include_typesh($included);
-	}
-	# strip single-line comments, as types may be referenced within them
-	$line =~ s@/\*.*?\*/@@;
-	if ($line =~ m/__[us](8|16|32|64)\b/) {
-		printf STDERR "$filename:$lineno: " .
-		              "found __[us]{8,16,32,64} type " .
-		              "without #include <linux/types.h>\n";
-		$linux_types = 2;
 		$ret = 1;
 	}
 }

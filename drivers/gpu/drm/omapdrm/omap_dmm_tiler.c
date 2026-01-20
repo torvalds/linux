@@ -26,6 +26,8 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 
+#include <drm/drm_print.h>
+
 #include "omap_dmm_tiler.h"
 #include "omap_dmm_priv.h"
 

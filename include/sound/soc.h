@@ -319,6 +319,13 @@ struct platform_device;
 #define SOC_VALUE_ENUM_EXT(xname, xenum, xhandler_get, xhandler_put) \
 	SOC_ENUM_EXT(xname, xenum, xhandler_get, xhandler_put)
 
+#define SOC_ENUM_EXT_ACC(xname, xenum, xhandler_get, xhandler_put, xaccess) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = xaccess, \
+	.info = snd_soc_info_enum_double, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long)&xenum }
+
 #define SND_SOC_BYTES(xname, xbase, xregs)		      \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
 	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
@@ -327,6 +334,13 @@ struct platform_device;
 		{.base = xbase, .num_regs = xregs }) }
 #define SND_SOC_BYTES_E(xname, xbase, xregs, xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_bytes_info, .get = xhandler_get, \
+	.put = xhandler_put, .private_value = \
+		((unsigned long)&(struct soc_bytes) \
+		{.base = xbase, .num_regs = xregs }) }
+#define SND_SOC_BYTES_E_ACC(xname, xbase, xregs, xhandler_get, xhandler_put, xaccess) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = xaccess, \
 	.info = snd_soc_bytes_info, .get = xhandler_get, \
 	.put = xhandler_put, .private_value = \
 		((unsigned long)&(struct soc_bytes) \
@@ -1225,6 +1239,7 @@ struct soc_mixer_control {
 	unsigned int sign_bit;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
+	unsigned int sdca_q78:1;
 #ifdef CONFIG_SND_SOC_TOPOLOGY
 	struct snd_soc_dobj dobj;
 #endif
@@ -1303,22 +1318,6 @@ static inline unsigned int snd_soc_enum_item_to_val(const struct soc_enum *e,
 		return item;
 
 	return e->values[item];
-}
-
-/**
- * snd_soc_kcontrol_component() - Returns the component that registered the
- *  control
- * @kcontrol: The control for which to get the component
- *
- * Note: This function will work correctly if the control has been registered
- * for a component. With snd_soc_add_codec_controls() or via table based
- * setup for either a CODEC or component driver. Otherwise the behavior is
- * undefined.
- */
-static inline struct snd_soc_component *snd_soc_kcontrol_component(
-	struct snd_kcontrol *kcontrol)
-{
-	return snd_kcontrol_chip(kcontrol);
 }
 
 int snd_soc_util_init(void);
@@ -1482,22 +1481,22 @@ static inline void _snd_soc_dapm_mutex_assert_held_c(struct snd_soc_card *card)
 
 static inline void _snd_soc_dapm_mutex_lock_root_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_lock_root_c(dapm->card);
+	_snd_soc_dapm_mutex_lock_root_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_lock_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_lock_c(dapm->card);
+	_snd_soc_dapm_mutex_lock_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_unlock_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_unlock_c(dapm->card);
+	_snd_soc_dapm_mutex_unlock_c(snd_soc_dapm_to_card(dapm));
 }
 
 static inline void _snd_soc_dapm_mutex_assert_held_d(struct snd_soc_dapm_context *dapm)
 {
-	_snd_soc_dapm_mutex_assert_held_c(dapm->card);
+	_snd_soc_dapm_mutex_assert_held_c(snd_soc_dapm_to_card(dapm));
 }
 
 #define snd_soc_dapm_mutex_lock_root(x) _Generic((x),			\

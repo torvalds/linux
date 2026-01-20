@@ -453,10 +453,6 @@ struct amdgpu_vm_manager {
 	unsigned int				first_kfd_vmid;
 	bool					concurrent_flush;
 
-	/* Handling of VM fences */
-	u64					fence_context;
-	unsigned				seqno[AMDGPU_MAX_RINGS];
-
 	uint64_t				max_pfn;
 	uint32_t				num_level;
 	uint32_t				block_size;

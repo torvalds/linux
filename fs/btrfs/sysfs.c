@@ -10,6 +10,7 @@
 #include <linux/completion.h>
 #include <linux/bug.h>
 #include <linux/list.h>
+#include <linux/string_choices.h>
 #include <crypto/hash.h>
 #include "messages.h"
 #include "ctree.h"
@@ -25,6 +26,7 @@
 #include "misc.h"
 #include "fs.h"
 #include "accessors.h"
+#include "zoned.h"
 
 /*
  * Structure name                       Path
@@ -1187,6 +1189,56 @@ static ssize_t btrfs_commit_stats_store(struct kobject *kobj,
 }
 BTRFS_ATTR_RW(, commit_stats, btrfs_commit_stats_show, btrfs_commit_stats_store);
 
+static ssize_t btrfs_zoned_stats_show(struct kobject *kobj,
+				      struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	struct btrfs_block_group *bg;
+	size_t ret = 0;
+
+
+	if (!btrfs_is_zoned(fs_info))
+		return ret;
+
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	ret += sysfs_emit_at(buf, ret, "active block-groups: %zu\n",
+			     list_count_nodes(&fs_info->zone_active_bgs));
+	spin_unlock(&fs_info->zone_active_bgs_lock);
+
+	mutex_lock(&fs_info->reclaim_bgs_lock);
+	spin_lock(&fs_info->unused_bgs_lock);
+	ret += sysfs_emit_at(buf, ret, "\treclaimable: %zu\n",
+			     list_count_nodes(&fs_info->reclaim_bgs));
+	ret += sysfs_emit_at(buf, ret, "\tunused: %zu\n",
+			     list_count_nodes(&fs_info->unused_bgs));
+	spin_unlock(&fs_info->unused_bgs_lock);
+	mutex_unlock(&fs_info->reclaim_bgs_lock);
+
+	ret += sysfs_emit_at(buf, ret, "\tneed reclaim: %s\n",
+			     str_true_false(btrfs_zoned_should_reclaim(fs_info)));
+
+	if (fs_info->data_reloc_bg)
+		ret += sysfs_emit_at(buf, ret,
+				     "data relocation block-group: %llu\n",
+				     fs_info->data_reloc_bg);
+	if (fs_info->treelog_bg)
+		ret += sysfs_emit_at(buf, ret,
+				     "tree-log block-group: %llu\n",
+				     fs_info->treelog_bg);
+
+	spin_lock(&fs_info->zone_active_bgs_lock);
+	ret += sysfs_emit_at(buf, ret, "active zones:\n");
+	list_for_each_entry(bg, &fs_info->zone_active_bgs, active_bg_list) {
+		ret += sysfs_emit_at(buf, ret,
+				     "\tstart: %llu, wp: %llu used: %llu, reserved: %llu, unusable: %llu\n",
+				     bg->start, bg->alloc_offset, bg->used,
+				     bg->reserved, bg->zone_unusable);
+	}
+	spin_unlock(&fs_info->zone_active_bgs_lock);
+	return ret;
+}
+BTRFS_ATTR(, zoned_stats, btrfs_zoned_stats_show);
+
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
@@ -1599,6 +1651,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
 	BTRFS_ATTR_PTR(, commit_stats),
 	BTRFS_ATTR_PTR(, temp_fsid),
+	BTRFS_ATTR_PTR(, zoned_stats),
 #ifdef CONFIG_BTRFS_EXPERIMENTAL
 	BTRFS_ATTR_PTR(, offload_csum),
 #endif
@@ -1981,13 +2034,12 @@ static const char *alloc_name(struct btrfs_space_info *space_info)
  * Create a sysfs entry for a space info type at path
  * /sys/fs/btrfs/UUID/allocation/TYPE
  */
-int btrfs_sysfs_add_space_info_type(struct btrfs_fs_info *fs_info,
-				    struct btrfs_space_info *space_info)
+int btrfs_sysfs_add_space_info_type(struct btrfs_space_info *space_info)
 {
 	int ret;
 
 	ret = kobject_init_and_add(&space_info->kobj, &space_info_ktype,
-				   fs_info->space_info_kobj, "%s",
+				   space_info->fs_info->space_info_kobj, "%s",
 				   alloc_name(space_info));
 	if (ret) {
 		kobject_put(&space_info->kobj);

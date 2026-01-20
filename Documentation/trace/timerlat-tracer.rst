@@ -43,12 +43,12 @@ It is possible to follow the trace by reading the trace file::
            <...>-868     [001] ....    54.030347: #2     context thread timer_latency      4351 ns
 
 
-The tracer creates a per-cpu kernel thread with real-time priority that
-prints two lines at every activation. The first is the *timer latency*
-observed at the *hardirq* context before the activation of the thread.
-The second is the *timer latency* observed by the thread. The ACTIVATION
-ID field serves to relate the *irq* execution to its respective *thread*
-execution.
+The tracer creates a per-cpu kernel thread with real-time priority
+SCHED_FIFO:95 that prints two lines at every activation. The first is
+the *timer latency* observed at the *hardirq* context before the activation
+of the thread. The second is the *timer latency* observed by the thread.
+The ACTIVATION ID field serves to relate the *irq* execution to its
+respective *thread* execution.
 
 The *irq*/*thread* splitting is important to clarify in which context
 the unexpected high value is coming from. The *irq* context can be

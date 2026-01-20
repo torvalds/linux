@@ -12,7 +12,7 @@
 #include <sys/prctl.h>
 #include <asm/sigcontext.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 #include "rdvl.h"
 
 int main(int argc, char **argv)

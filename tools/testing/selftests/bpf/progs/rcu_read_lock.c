@@ -278,6 +278,46 @@ out:
 	return 0;
 }
 
+SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+int nested_rcu_region_unbalanced_1(void *ctx)
+{
+	struct task_struct *task, *real_parent;
+
+	/* nested rcu read lock regions */
+	task = bpf_get_current_task_btf();
+	bpf_rcu_read_lock();
+	bpf_rcu_read_lock();
+	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
+	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
+	bpf_rcu_read_unlock();
+	bpf_rcu_read_unlock();
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_nanosleep")
+int nested_rcu_region_unbalanced_2(void *ctx)
+{
+	struct task_struct *task, *real_parent;
+
+	/* nested rcu read lock regions */
+	task = bpf_get_current_task_btf();
+	bpf_rcu_read_lock();
+	bpf_rcu_read_lock();
+	bpf_rcu_read_lock();
+	real_parent = task->real_parent;
+	if (!real_parent)
+		goto out;
+	(void)bpf_task_storage_get(&map_a, real_parent, 0, 0);
+out:
+	bpf_rcu_read_unlock();
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
 SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 int task_trusted_non_rcuptr(void *ctx)
 {

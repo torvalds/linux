@@ -684,9 +684,10 @@ static int mt8188_dptx_codec_init(struct snd_soc_pcm_runtime *rtd)
 static int mt8188_dumb_amp_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret = 0;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8188_dumb_spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8188_dumb_spk_widgets,
 					ARRAY_SIZE(mt8188_dumb_spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add Dumb Speaker dapm, ret %d\n", ret);
@@ -737,10 +738,11 @@ static const struct snd_soc_ops mt8188_max98390_ops = {
 static int mt8188_max98390_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
 	/* add regular speakers dapm route */
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8188_dual_spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8188_dual_spk_widgets,
 					ARRAY_SIZE(mt8188_dual_spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add Left/Right Speaker widget, ret %d\n", ret);
@@ -758,7 +760,7 @@ static int mt8188_max98390_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return 0;
 
 	/* add widgets/controls/dapm for rear speakers */
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8188_rear_spk_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8188_rear_spk_widgets,
 					ARRAY_SIZE(mt8188_rear_spk_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add Rear Speaker widget, ret %d\n", ret);
@@ -779,13 +781,14 @@ static int mt8188_max98390_codec_init(struct snd_soc_pcm_runtime *rtd)
 static int mt8188_headset_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct mtk_soc_card_data *soc_card_data = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_jack *jack = &soc_card_data->card_data->jacks[MT8188_JACK_HEADSET];
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 	struct mtk_platform_card_data *card_data = soc_card_data->card_data;
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, mt8188_nau8825_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, mt8188_nau8825_widgets,
 					ARRAY_SIZE(mt8188_nau8825_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "unable to add nau8825 card widget, ret %d\n", ret);
@@ -815,14 +818,14 @@ static int mt8188_headset_codec_init(struct snd_soc_pcm_runtime *rtd)
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOLUMEUP);
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEDOWN);
-		snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);			
+		snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 	} else {
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 		snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
-		snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);	
+		snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
 	}
-	
+
 	ret = snd_soc_component_set_jack(component, jack, NULL);
 
 	if (ret) {

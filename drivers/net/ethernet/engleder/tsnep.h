@@ -176,7 +176,7 @@ struct tsnep_adapter {
 	struct tsnep_gcl gcl[2];
 	int next_gcl;
 
-	struct hwtstamp_config hwtstamp_config;
+	struct kernel_hwtstamp_config hwtstamp_config;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
 	/* ptp clock lock */
@@ -203,7 +203,11 @@ extern const struct ethtool_ops tsnep_ethtool_ops;
 
 int tsnep_ptp_init(struct tsnep_adapter *adapter);
 void tsnep_ptp_cleanup(struct tsnep_adapter *adapter);
-int tsnep_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd);
+int tsnep_ptp_hwtstamp_get(struct net_device *netdev,
+			   struct kernel_hwtstamp_config *config);
+int tsnep_ptp_hwtstamp_set(struct net_device *netdev,
+			   struct kernel_hwtstamp_config *config,
+			   struct netlink_ext_ack *extack);
 
 int tsnep_tc_init(struct tsnep_adapter *adapter);
 void tsnep_tc_cleanup(struct tsnep_adapter *adapter);

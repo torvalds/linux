@@ -2287,9 +2287,10 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 		enum mlx5_flow_namespace_type ns_type,
 		struct mlx5e_post_act *post_act)
 {
+	u8 mapping_id[MLX5_SW_IMAGE_GUID_MAX_BYTES];
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct mlx5_core_dev *dev;
-	u64 mapping_id;
+	u8 id_len;
 	int err;
 
 	dev = priv->mdev;
@@ -2301,16 +2302,18 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	if (!ct_priv)
 		goto err_alloc;
 
-	mapping_id = mlx5_query_nic_system_image_guid(dev);
+	mlx5_query_nic_sw_system_image_guid(dev, mapping_id, &id_len);
 
-	ct_priv->zone_mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_ZONE,
+	ct_priv->zone_mapping = mapping_create_for_id(mapping_id, id_len,
+						      MAPPING_TYPE_ZONE,
 						      sizeof(u16), 0, true);
 	if (IS_ERR(ct_priv->zone_mapping)) {
 		err = PTR_ERR(ct_priv->zone_mapping);
 		goto err_mapping_zone;
 	}
 
-	ct_priv->labels_mapping = mapping_create_for_id(mapping_id, MAPPING_TYPE_LABELS,
+	ct_priv->labels_mapping = mapping_create_for_id(mapping_id, id_len,
+							MAPPING_TYPE_LABELS,
 							sizeof(u32) * 4, 0, true);
 	if (IS_ERR(ct_priv->labels_mapping)) {
 		err = PTR_ERR(ct_priv->labels_mapping);

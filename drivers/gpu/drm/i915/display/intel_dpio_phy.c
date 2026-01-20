@@ -24,13 +24,13 @@
 #include <drm/drm_print.h>
 
 #include "bxt_dpio_phy_regs.h"
-#include "i915_utils.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_power_well.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
 #include "vlv_dpio_phy_regs.h"
@@ -390,7 +390,7 @@ static u32 bxt_get_grc(struct intel_display *display, enum dpio_phy phy)
 static void bxt_phy_wait_grc_done(struct intel_display *display,
 				  enum dpio_phy phy)
 {
-	if (intel_de_wait_for_set(display, BXT_PORT_REF_DW3(phy), GRC_DONE, 10))
+	if (intel_de_wait_for_set_ms(display, BXT_PORT_REF_DW3(phy), GRC_DONE, 10))
 		drm_err(display->drm, "timeout waiting for PHY%d GRC\n", phy);
 }
 
@@ -427,7 +427,7 @@ static void _bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy)
 	 * The flag should get set in 100us according to the HW team, but
 	 * use 1ms due to occasional timeouts observed with that.
 	 */
-	if (intel_de_wait_fw(display, BXT_PORT_CL1CM_DW0(phy),
+	if (intel_de_wait_ms(display, BXT_PORT_CL1CM_DW0(phy),
 			     PHY_RESERVED | PHY_POWER_GOOD, PHY_POWER_GOOD, 1, NULL))
 		drm_err(display->drm, "timeout during PHY%d power on\n",
 			phy);
@@ -1173,6 +1173,7 @@ void vlv_wait_port_ready(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	u32 port_mask;
 	i915_reg_t dpll_reg;
+	u32 val;
 
 	switch (encoder->port) {
 	default:
@@ -1193,10 +1194,9 @@ void vlv_wait_port_ready(struct intel_encoder *encoder,
 		break;
 	}
 
-	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+	if (intel_de_wait_ms(display, dpll_reg, port_mask, expected_mask, 1000, &val))
 		drm_WARN(display->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 encoder->base.base.id, encoder->base.name,
-			 intel_de_read(display, dpll_reg) & port_mask,
-			 expected_mask);
+			 val & port_mask, expected_mask);
 }

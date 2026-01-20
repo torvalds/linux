@@ -3251,7 +3251,6 @@ static void cdns3_gadget_exit(struct cdns *cdns)
 	priv_dev = cdns->gadget_dev;
 
 
-	pm_runtime_mark_last_busy(cdns->dev);
 	pm_runtime_put_autosuspend(cdns->dev);
 
 	usb_del_gadget(&priv_dev->gadget);

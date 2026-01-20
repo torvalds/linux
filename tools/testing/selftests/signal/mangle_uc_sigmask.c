@@ -39,7 +39,7 @@
 #include <signal.h>
 #include <ucontext.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 void handler_verify_ucontext(int signo, siginfo_t *info, void *uc)
 {

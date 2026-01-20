@@ -14,12 +14,11 @@
 
 static struct sk_buff *trailer_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	u8 *trailer;
 
 	trailer = skb_put(skb, 4);
 	trailer[0] = 0x80;
-	trailer[1] = 1 << dp->index;
+	trailer[1] = dsa_xmit_port_mask(skb, dev);
 	trailer[2] = 0x10;
 	trailer[3] = 0x00;
 

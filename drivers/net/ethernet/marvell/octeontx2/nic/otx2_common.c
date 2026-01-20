@@ -1369,6 +1369,13 @@ void otx2_aura_pool_free(struct otx2_nic *pfvf)
 int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 		   int pool_id, int numptrs)
 {
+	return pfvf->hw_ops->aura_aq_init(pfvf, aura_id, pool_id,
+					  numptrs);
+}
+
+int otx2_aura_aq_init(struct otx2_nic *pfvf, int aura_id,
+		      int pool_id, int numptrs)
+{
 	struct npa_aq_enq_req *aq;
 	struct otx2_pool *pool;
 	int err;
@@ -1446,6 +1453,13 @@ int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 		   int stack_pages, int numptrs, int buf_size, int type)
 {
+	return pfvf->hw_ops->pool_aq_init(pfvf, pool_id, stack_pages, numptrs,
+					  buf_size, type);
+}
+
+int otx2_pool_aq_init(struct otx2_nic *pfvf, u16 pool_id,
+		      int stack_pages, int numptrs, int buf_size, int type)
+{
 	struct page_pool_params pp_params = { 0 };
 	struct xsk_buff_pool *xsk_pool;
 	struct npa_aq_enq_req *aq;
@@ -1516,10 +1530,8 @@ int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 		pool->xdp_cnt = numptrs;
 		pool->xdp = devm_kcalloc(pfvf->dev,
 					 numptrs, sizeof(struct xdp_buff *), GFP_KERNEL);
-		if (IS_ERR(pool->xdp)) {
-			netdev_err(pfvf->netdev, "Creation of xsk pool failed\n");
-			return PTR_ERR(pool->xdp);
-		}
+		if (!pool->xdp)
+			return -ENOMEM;
 	}
 
 	return 0;

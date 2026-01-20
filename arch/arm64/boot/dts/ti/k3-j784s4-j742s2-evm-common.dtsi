@@ -270,8 +270,8 @@
 
 	main_i2c0_pins_default: main-i2c0-default-pins {
 		pinctrl-single,pins = <
-			J784S4_IOPAD(0x0e0, PIN_INPUT_PULLUP, 0) /* (AN36) I2C0_SCL */
-			J784S4_IOPAD(0x0e4, PIN_INPUT_PULLUP, 0) /* (AP37) I2C0_SDA */
+			J784S4_IOPAD(0x0e0, PIN_INPUT, 0) /* (AN36) I2C0_SCL */
+			J784S4_IOPAD(0x0e4, PIN_INPUT, 0) /* (AP37) I2C0_SDA */
 		>;
 	};
 
@@ -920,7 +920,7 @@
 
 &mcu_cpsw_port1 {
 	status = "okay";
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&mcu_phy0>;
 };
 
@@ -944,7 +944,7 @@
 };
 
 &main_cpsw1_port1 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&main_cpsw1_phy0>;
 	status = "okay";
 };
@@ -970,6 +970,7 @@
 &serdes_refclk {
 	status = "okay";
 	clock-frequency = <100000000>;
+	bootph-all;
 };
 
 &dss {
@@ -984,6 +985,14 @@
 				 <&k3_clks 218 22>;
 };
 
+&pcie1_ctrl {
+	bootph-all;
+};
+
+&serdes_ln_ctrl {
+	bootph-all;
+};
+
 &serdes0 {
 	status = "okay";
 
@@ -993,6 +1002,7 @@
 		#phy-cells = <0>;
 		cdns,phy-type = <PHY_TYPE_PCIE>;
 		resets = <&serdes_wiz0 1>, <&serdes_wiz0 2>;
+		bootph-all;
 	};
 
 	serdes0_usb_link: phy@3 {

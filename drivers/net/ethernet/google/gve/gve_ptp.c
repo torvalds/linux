@@ -26,6 +26,19 @@ int gve_clock_nic_ts_read(struct gve_priv *priv)
 	return 0;
 }
 
+static int gve_ptp_gettimex64(struct ptp_clock_info *info,
+			      struct timespec64 *ts,
+			      struct ptp_system_timestamp *sts)
+{
+	return -EOPNOTSUPP;
+}
+
+static int gve_ptp_settime64(struct ptp_clock_info *info,
+			     const struct timespec64 *ts)
+{
+	return -EOPNOTSUPP;
+}
+
 static long gve_ptp_do_aux_work(struct ptp_clock_info *info)
 {
 	const struct gve_ptp *ptp = container_of(info, struct gve_ptp, info);
@@ -47,6 +60,8 @@ out:
 static const struct ptp_clock_info gve_ptp_caps = {
 	.owner          = THIS_MODULE,
 	.name		= "gve clock",
+	.gettimex64	= gve_ptp_gettimex64,
+	.settime64	= gve_ptp_settime64,
 	.do_aux_work	= gve_ptp_do_aux_work,
 };
 
@@ -118,9 +133,21 @@ int gve_init_clock(struct gve_priv *priv)
 		err = -ENOMEM;
 		goto release_ptp;
 	}
+	err = gve_clock_nic_ts_read(priv);
+	if (err) {
+		dev_err(&priv->pdev->dev, "failed to read NIC clock %d\n", err);
+		goto release_nic_ts_report;
+	}
+	ptp_schedule_worker(priv->ptp->clock,
+			    msecs_to_jiffies(GVE_NIC_TS_SYNC_INTERVAL_MS));
 
 	return 0;
 
+release_nic_ts_report:
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(struct gve_nic_ts_report),
+			  priv->nic_ts_report, priv->nic_ts_report_bus);
+	priv->nic_ts_report = NULL;
 release_ptp:
 	gve_ptp_release(priv);
 	return err;

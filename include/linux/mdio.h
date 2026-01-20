@@ -689,16 +689,7 @@ struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr);
  * init/exit. Each module may only use this macro once, and calling it
  * replaces module_init() and module_exit().
  */
-#define mdio_module_driver(_mdio_driver)				\
-static int __init mdio_module_init(void)				\
-{									\
-	return mdio_driver_register(&_mdio_driver);			\
-}									\
-module_init(mdio_module_init);						\
-static void __exit mdio_module_exit(void)				\
-{									\
-	mdio_driver_unregister(&_mdio_driver);				\
-}									\
-module_exit(mdio_module_exit)
+#define mdio_module_driver(_mdio_driver) \
+	module_driver(_mdio_driver, mdio_driver_register, mdio_driver_unregister)
 
 #endif /* __LINUX_MDIO_H__ */

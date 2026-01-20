@@ -12,6 +12,7 @@
 
 #include <drm/drm_dumb_buffers.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 #include <drm/drm_vma_manager.h>
 
 #include "omap_drv.h"

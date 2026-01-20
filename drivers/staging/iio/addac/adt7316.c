@@ -216,7 +216,7 @@ static ssize_t adt7316_show_enabled(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n", !!(chip->config1 & ADT7316_EN));
+	return sysfs_emit(buf, "%d\n", !!(chip->config1 & ADT7316_EN));
 }
 
 static ssize_t _adt7316_store_enabled(struct adt7316_chip_info *chip,
@@ -274,7 +274,7 @@ static ssize_t adt7316_show_select_ex_temp(struct device *dev,
 	if ((chip->id & ID_FAMILY_MASK) != ID_ADT75XX)
 		return -EPERM;
 
-	return sprintf(buf, "%d\n", !!(chip->config1 & ADT7516_SEL_EX_TEMP));
+	return sysfs_emit(buf, "%d\n", !!(chip->config1 & ADT7516_SEL_EX_TEMP));
 }
 
 static ssize_t adt7316_store_select_ex_temp(struct device *dev,
@@ -316,9 +316,9 @@ static ssize_t adt7316_show_mode(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
 	if (chip->config2 & ADT7316_AD_SINGLE_CH_MODE)
-		return sprintf(buf, "single_channel\n");
+		return sysfs_emit(buf, "single_channel\n");
 
-	return sprintf(buf, "round_robin\n");
+	return sysfs_emit(buf, "round_robin\n");
 }
 
 static ssize_t adt7316_store_mode(struct device *dev,
@@ -353,7 +353,7 @@ static ssize_t adt7316_show_all_modes(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	return sprintf(buf, "single_channel\nround_robin\n");
+	return sysfs_emit(buf, "single_channel\nround_robin\n");
 }
 
 static IIO_DEVICE_ATTR(all_modes, 0444, adt7316_show_all_modes, NULL, 0);
@@ -370,29 +370,29 @@ static ssize_t adt7316_show_ad_channel(struct device *dev,
 
 	switch (chip->config2 & ADT7516_AD_SINGLE_CH_MASK) {
 	case ADT7316_AD_SINGLE_CH_VDD:
-		return sprintf(buf, "0 - VDD\n");
+		return sysfs_emit(buf, "0 - VDD\n");
 	case ADT7316_AD_SINGLE_CH_IN:
-		return sprintf(buf, "1 - Internal Temperature\n");
+		return sysfs_emit(buf, "1 - Internal Temperature\n");
 	case ADT7316_AD_SINGLE_CH_EX:
 		if (((chip->id & ID_FAMILY_MASK) == ID_ADT75XX) &&
 		    (chip->config1 & ADT7516_SEL_AIN1_2_EX_TEMP_MASK) == 0)
-			return sprintf(buf, "2 - AIN1\n");
+			return sysfs_emit(buf, "2 - AIN1\n");
 
-		return sprintf(buf, "2 - External Temperature\n");
+		return sysfs_emit(buf, "2 - External Temperature\n");
 	case ADT7516_AD_SINGLE_CH_AIN2:
 		if ((chip->config1 & ADT7516_SEL_AIN1_2_EX_TEMP_MASK) == 0)
-			return sprintf(buf, "3 - AIN2\n");
+			return sysfs_emit(buf, "3 - AIN2\n");
 
-		return sprintf(buf, "N/A\n");
+		return sysfs_emit(buf, "N/A\n");
 	case ADT7516_AD_SINGLE_CH_AIN3:
 		if (chip->config1 & ADT7516_SEL_AIN3)
-			return sprintf(buf, "4 - AIN3\n");
+			return sysfs_emit(buf, "4 - AIN3\n");
 
-		return sprintf(buf, "N/A\n");
+		return sysfs_emit(buf, "N/A\n");
 	case ADT7516_AD_SINGLE_CH_AIN4:
-		return sprintf(buf, "5 - AIN4\n");
+		return sysfs_emit(buf, "5 - AIN4\n");
 	default:
-		return sprintf(buf, "N/A\n");
+		return sysfs_emit(buf, "N/A\n");
 	}
 }
 
@@ -453,10 +453,10 @@ static ssize_t adt7316_show_all_ad_channels(struct device *dev,
 		return -EPERM;
 
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return sprintf(buf, "0 - VDD\n1 - Internal Temperature\n"
+		return sysfs_emit(buf, "0 - VDD\n1 - Internal Temperature\n"
 				"2 - External Temperature or AIN1\n"
 				"3 - AIN2\n4 - AIN3\n5 - AIN4\n");
-	return sprintf(buf, "0 - VDD\n1 - Internal Temperature\n"
+	return sysfs_emit(buf, "0 - VDD\n1 - Internal Temperature\n"
 			"2 - External Temperature\n");
 }
 
@@ -470,7 +470,7 @@ static ssize_t adt7316_show_disable_averaging(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->config2 & ADT7316_DISABLE_AVERAGING));
 }
 
@@ -509,7 +509,7 @@ static ssize_t adt7316_show_enable_smbus_timeout(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->config2 & ADT7316_EN_SMBUS_TIMEOUT));
 }
 
@@ -548,7 +548,7 @@ static ssize_t adt7316_show_powerdown(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n", !!(chip->config1 & ADT7316_PD));
+	return sysfs_emit(buf, "%d\n", !!(chip->config1 & ADT7316_PD));
 }
 
 static ssize_t adt7316_store_powerdown(struct device *dev,
@@ -586,7 +586,7 @@ static ssize_t adt7316_show_fast_ad_clock(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n", !!(chip->config3 & ADT7316_ADCLK_22_5));
+	return sysfs_emit(buf, "%d\n", !!(chip->config3 & ADT7316_ADCLK_22_5));
 }
 
 static ssize_t adt7316_store_fast_ad_clock(struct device *dev,
@@ -626,10 +626,10 @@ static ssize_t adt7316_show_da_high_resolution(struct device *dev,
 
 	if (chip->config3 & ADT7316_DA_HIGH_RESOLUTION) {
 		if (chip->id != ID_ADT7318 && chip->id != ID_ADT7519)
-			return sprintf(buf, "1 (10 bits)\n");
+			return sysfs_emit(buf, "1 (10 bits)\n");
 	}
 
-	return sprintf(buf, "0 (8 bits)\n");
+	return sysfs_emit(buf, "0 (8 bits)\n");
 }
 
 static ssize_t adt7316_store_da_high_resolution(struct device *dev,
@@ -673,7 +673,7 @@ static ssize_t adt7316_show_AIN_internal_Vref(struct device *dev,
 	if ((chip->id & ID_FAMILY_MASK) != ID_ADT75XX)
 		return -EPERM;
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->config3 & ADT7516_AIN_IN_VREF));
 }
 
@@ -716,7 +716,7 @@ static ssize_t adt7316_show_enable_prop_DACA(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->config3 & ADT7316_EN_IN_TEMP_PROP_DACA));
 }
 
@@ -755,7 +755,7 @@ static ssize_t adt7316_show_enable_prop_DACB(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->config3 & ADT7316_EN_EX_TEMP_PROP_DACB));
 }
 
@@ -794,7 +794,7 @@ static ssize_t adt7316_show_DAC_2Vref_ch_mask(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "0x%x\n",
+	return sysfs_emit(buf, "0x%x\n",
 		chip->dac_config & ADT7316_DA_2VREF_CH_MASK);
 }
 
@@ -838,20 +838,20 @@ static ssize_t adt7316_show_DAC_update_mode(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
 	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC))
-		return sprintf(buf, "manual\n");
+		return sysfs_emit(buf, "manual\n");
 
 	switch (chip->dac_config & ADT7316_DA_EN_MODE_MASK) {
 	case ADT7316_DA_EN_MODE_SINGLE:
-		return sprintf(buf,
+		return sysfs_emit(buf,
 			"0 - auto at any MSB DAC writing\n");
 	case ADT7316_DA_EN_MODE_AB_CD:
-		return sprintf(buf,
+		return sysfs_emit(buf,
 			"1 - auto at MSB DAC AB and CD writing\n");
 	case ADT7316_DA_EN_MODE_ABCD:
-		return sprintf(buf,
+		return sysfs_emit(buf,
 			"2 - auto at MSB DAC ABCD writing\n");
 	default: /* ADT7316_DA_EN_MODE_LDAC */
-		return sprintf(buf, "3 - manual\n");
+		return sysfs_emit(buf, "3 - manual\n");
 	}
 }
 
@@ -898,11 +898,11 @@ static ssize_t adt7316_show_all_DAC_update_modes(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
 	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC)
-		return sprintf(buf, "0 - auto at any MSB DAC writing\n"
+		return sysfs_emit(buf, "0 - auto at any MSB DAC writing\n"
 				"1 - auto at MSB DAC AB and CD writing\n"
 				"2 - auto at MSB DAC ABCD writing\n"
 				"3 - manual\n");
-	return sprintf(buf, "manual\n");
+	return sysfs_emit(buf, "manual\n");
 }
 
 static IIO_DEVICE_ATTR(all_DAC_update_modes, 0444,
@@ -955,7 +955,7 @@ static ssize_t adt7316_show_DA_AB_Vref_bypass(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->dac_config & ADT7316_VREF_BYPASS_DAC_AB));
 }
 
@@ -994,7 +994,7 @@ static ssize_t adt7316_show_DA_CD_Vref_bypass(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		!!(chip->dac_config & ADT7316_VREF_BYPASS_DAC_CD));
 }
 
@@ -1034,10 +1034,10 @@ static ssize_t adt7316_show_DAC_internal_Vref(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return sprintf(buf, "0x%x\n",
+		return sysfs_emit(buf, "0x%x\n",
 			(chip->ldac_config & ADT7516_DAC_IN_VREF_MASK) >>
 			ADT7516_DAC_IN_VREF_OFFSET);
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		       !!(chip->ldac_config & ADT7316_DAC_IN_VREF));
 }
 
@@ -1128,7 +1128,7 @@ static ssize_t adt7316_show_ad(struct adt7316_chip_info *chip,
 
 		data = msb << ADT7316_T_VALUE_FLOAT_OFFSET;
 		data |= (lsb & ADT7316_LSB_VDD_MASK) >> ADT7316_LSB_VDD_OFFSET;
-		return sprintf(buf, "%d\n", data);
+		return sysfs_emit(buf, "%d\n", data);
 	default: /* ex_temp and ain */
 		ret = chip->bus.read(chip->bus.client,
 			ADT7316_LSB_EX_TEMP_AIN, &lsb);
@@ -1146,7 +1146,7 @@ static ssize_t adt7316_show_ad(struct adt7316_chip_info *chip,
 			(ADT7316_MSB_EX_TEMP - ADT7316_AD_MSB_DATA_BASE))));
 
 		if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-			return sprintf(buf, "%d\n", data);
+			return sysfs_emit(buf, "%d\n", data);
 
 		break;
 	}
@@ -1157,7 +1157,7 @@ static ssize_t adt7316_show_ad(struct adt7316_chip_info *chip,
 		sign = '-';
 	}
 
-	return sprintf(buf, "%c%d.%.2d\n", sign,
+	return sysfs_emit(buf, "%c%d.%.2d\n", sign,
 		(data >> ADT7316_T_VALUE_FLOAT_OFFSET),
 		(data & ADT7316_T_VALUE_FLOAT_MASK) * 25);
 }
@@ -1247,7 +1247,7 @@ static ssize_t adt7316_show_temp_offset(struct adt7316_chip_info *chip,
 	if (val & 0x80)
 		data -= 256;
 
-	return sprintf(buf, "%d\n", data);
+	return sysfs_emit(buf, "%d\n", data);
 }
 
 static ssize_t adt7316_store_temp_offset(struct adt7316_chip_info *chip,
@@ -1415,7 +1415,7 @@ static ssize_t adt7316_show_DAC(struct adt7316_chip_info *chip,
 		data = lsb >> ADT7316_DA_10_BIT_LSB_SHIFT;
 	data |= msb << offset;
 
-	return sprintf(buf, "%d\n", data);
+	return sysfs_emit(buf, "%d\n", data);
 }
 
 static ssize_t adt7316_store_DAC(struct adt7316_chip_info *chip,
@@ -1568,7 +1568,7 @@ static ssize_t adt7316_show_device_id(struct device *dev,
 	if (ret)
 		return -EIO;
 
-	return sprintf(buf, "%d\n", id);
+	return sysfs_emit(buf, "%d\n", id);
 }
 
 static IIO_DEVICE_ATTR(device_id, 0444, adt7316_show_device_id, NULL, 0);
@@ -1586,7 +1586,7 @@ static ssize_t adt7316_show_manufactorer_id(struct device *dev,
 	if (ret)
 		return -EIO;
 
-	return sprintf(buf, "%d\n", id);
+	return sysfs_emit(buf, "%d\n", id);
 }
 
 static IIO_DEVICE_ATTR(manufactorer_id, 0444,
@@ -1605,7 +1605,7 @@ static ssize_t adt7316_show_device_rev(struct device *dev,
 	if (ret)
 		return -EIO;
 
-	return sprintf(buf, "%d\n", rev);
+	return sysfs_emit(buf, "%d\n", rev);
 }
 
 static IIO_DEVICE_ATTR(device_rev, 0444, adt7316_show_device_rev, NULL, 0);
@@ -1624,9 +1624,9 @@ static ssize_t adt7316_show_bus_type(struct device *dev,
 		return -EIO;
 
 	if (stat)
-		return sprintf(buf, "spi\n");
+		return sysfs_emit(buf, "spi\n");
 
-	return sprintf(buf, "i2c\n");
+	return sysfs_emit(buf, "i2c\n");
 }
 
 static IIO_DEVICE_ATTR(bus_type, 0444, adt7316_show_bus_type, NULL, 0);
@@ -1836,7 +1836,7 @@ static ssize_t adt7316_show_int_mask(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "0x%x\n", chip->int_mask);
+	return sysfs_emit(buf, "0x%x\n", chip->int_mask);
 }
 
 /*
@@ -1910,7 +1910,7 @@ static inline ssize_t adt7316_show_ad_bound(struct device *dev,
 			data -= 256;
 	}
 
-	return sprintf(buf, "%d\n", data);
+	return sysfs_emit(buf, "%d\n", data);
 }
 
 static inline ssize_t adt7316_set_ad_bound(struct device *dev,
@@ -1961,7 +1961,7 @@ static ssize_t adt7316_show_int_enabled(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	return sprintf(buf, "%d\n", !!(chip->config1 & ADT7316_INT_EN));
+	return sysfs_emit(buf, "%d\n", !!(chip->config1 & ADT7316_INT_EN));
 }
 
 static ssize_t adt7316_set_int_enabled(struct device *dev,

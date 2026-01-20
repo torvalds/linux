@@ -324,7 +324,6 @@ struct ds1685_rtc_platform_data {
 #define RTC_SQW_2HZ		0x0f	/*  0    1   1   1   1  */
 #define RTC_SQW_0HZ		0x00	/*  0    0   0   0   0  */
 #define RTC_SQW_32768HZ		32768	/*  1    -   -   -   -  */
-#define RTC_MAX_USER_FREQ	8192
 
 
 /*

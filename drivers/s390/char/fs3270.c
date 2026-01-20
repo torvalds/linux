@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/compat.h>
 #include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -330,10 +329,7 @@ static long fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	fp = filp->private_data;
 	if (!fp)
 		return -ENODEV;
-	if (is_compat_task())
-		argp = compat_ptr(arg);
-	else
-		argp = (char __user *)arg;
+	argp = (char __user *)arg;
 	rc = 0;
 	mutex_lock(&fs3270_mutex);
 	switch (cmd) {
@@ -512,7 +508,6 @@ static const struct file_operations fs3270_fops = {
 	.read		 = fs3270_read,		/* read */
 	.write		 = fs3270_write,	/* write */
 	.unlocked_ioctl	 = fs3270_ioctl,	/* ioctl */
-	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.open		 = fs3270_open,		/* open */
 	.release	 = fs3270_close,	/* release */
 };

@@ -475,6 +475,7 @@ static int dualpi2_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			 * (3) Enqueue fragment & set ts in dualpi2_enqueue_skb
 			 */
 			qdisc_skb_cb(nskb)->pkt_len = nskb->len;
+			qdisc_skb_cb(nskb)->pkt_segs = 1;
 			dualpi2_skb_cb(nskb)->classified =
 				dualpi2_skb_cb(skb)->classified;
 			dualpi2_skb_cb(nskb)->ect = dualpi2_skb_cb(skb)->ect;

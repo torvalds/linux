@@ -9,7 +9,6 @@
 #include <linux/iommu.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
@@ -83,8 +82,7 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 			 phys_addr_t *mem_phys, size_t *mem_size)
 {
 	const struct firmware *mdt;
-	struct reserved_mem *rmem;
-	struct device_node *node;
+	struct resource res;
 	struct device *dev;
 	ssize_t fw_size;
 	void *mem_va;
@@ -94,15 +92,8 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 	*mem_size = 0;
 
 	dev = core->dev;
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(dev, "no memory-region specified\n");
-		return -EINVAL;
-	}
-
-	rmem = of_reserved_mem_lookup(node);
-	of_node_put(node);
-	if (!rmem) {
+	ret = of_reserved_mem_region_to_resource(dev->of_node, 0, &res);
+	if (ret) {
 		dev_err(dev, "failed to lookup reserved memory-region\n");
 		return -EINVAL;
 	}
@@ -117,8 +108,8 @@ static int venus_load_fw(struct venus_core *core, const char *fwname,
 		goto err_release_fw;
 	}
 
-	*mem_phys = rmem->base;
-	*mem_size = rmem->size;
+	*mem_phys = res.start;
+	*mem_size = resource_size(&res);
 
 	if (*mem_size < fw_size || fw_size > VENUS_FW_MEM_SIZE) {
 		ret = -EINVAL;

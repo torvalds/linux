@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-SEC("lsm/file_alloc_security")
+SEC("lsm/file_permission")
 __description("lsm bpf prog with -4095~0 retval. test 1")
 __success
 __naked int errno_zero_retval_test1(void *ctx)
@@ -15,7 +15,7 @@ __naked int errno_zero_retval_test1(void *ctx)
 	::: __clobber_all);
 }
 
-SEC("lsm/file_alloc_security")
+SEC("lsm/file_permission")
 __description("lsm bpf prog with -4095~0 retval. test 2")
 __success
 __naked int errno_zero_retval_test2(void *ctx)

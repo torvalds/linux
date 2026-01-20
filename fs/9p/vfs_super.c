@@ -19,6 +19,7 @@
 #include <linux/statfs.h>
 #include <linux/magic.h>
 #include <linux/fscache.h>
+#include <linux/fs_context.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -30,32 +31,10 @@
 
 static const struct super_operations v9fs_super_ops, v9fs_super_ops_dotl;
 
-/**
- * v9fs_set_super - set the superblock
- * @s: super block
- * @data: file system specific data
- *
- */
-
-static int v9fs_set_super(struct super_block *s, void *data)
-{
-	s->s_fs_info = data;
-	return set_anon_super(s, data);
-}
-
-/**
- * v9fs_fill_super - populate superblock with info
- * @sb: superblock
- * @v9ses: session information
- * @flags: flags propagated from v9fs_mount()
- *
- */
-
-static int
-v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
-		int flags)
+static int v9fs_fill_super(struct super_block *sb)
 {
 	int ret;
+	struct v9fs_session_info *v9ses = v9ses = sb->s_fs_info;
 
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize_bits = fls(v9ses->maxdata - 1);
@@ -95,16 +74,12 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 }
 
 /**
- * v9fs_mount - mount a superblock
- * @fs_type: file system type
- * @flags: mount flags
- * @dev_name: device name that was mounted
- * @data: mount options
+ * v9fs_get_tree - create the mountable root and superblock
+ * @fc: the filesystem context
  *
  */
 
-static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
-		       const char *dev_name, void *data)
+static int v9fs_get_tree(struct fs_context *fc)
 {
 	struct super_block *sb = NULL;
 	struct inode *inode = NULL;
@@ -117,20 +92,21 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
-	fid = v9fs_session_init(v9ses, dev_name, data);
+	fid = v9fs_session_init(v9ses, fc);
 	if (IS_ERR(fid)) {
 		retval = PTR_ERR(fid);
 		goto free_session;
 	}
 
-	sb = sget(fs_type, NULL, v9fs_set_super, flags, v9ses);
+	fc->s_fs_info = v9ses;
+	sb = sget_fc(fc, NULL, set_anon_super_fc);
 	if (IS_ERR(sb)) {
 		retval = PTR_ERR(sb);
 		goto clunk_fid;
 	}
-	retval = v9fs_fill_super(sb, v9ses, flags);
+	retval = v9fs_fill_super(sb);
 	if (retval)
 		goto release_sb;
 
@@ -159,14 +135,15 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	v9fs_fid_add(root, &fid);
 
 	p9_debug(P9_DEBUG_VFS, " simple set mount, return 0\n");
-	return dget(sb->s_root);
+	fc->root = dget(sb->s_root);
+	return 0;
 
 clunk_fid:
 	p9_fid_put(fid);
 	v9fs_session_close(v9ses);
 free_session:
 	kfree(v9ses);
-	return ERR_PTR(retval);
+	return retval;
 
 release_sb:
 	/*
@@ -177,7 +154,7 @@ release_sb:
 	 */
 	p9_fid_put(fid);
 	deactivate_locked_super(sb);
-	return ERR_PTR(retval);
+	return retval;
 }
 
 /**
@@ -303,11 +280,86 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.write_inode = v9fs_write_inode_dotl,
 };
 
+static void v9fs_free_fc(struct fs_context *fc)
+{
+	struct v9fs_context *ctx = fc->fs_private;
+
+	if (!ctx)
+		return;
+
+	/* These should be NULL by now but guard against leaks */
+	kfree(ctx->session_opts.uname);
+	kfree(ctx->session_opts.aname);
+#ifdef CONFIG_9P_FSCACHE
+	kfree(ctx->session_opts.cachetag);
+#endif
+	if (ctx->client_opts.trans_mod)
+		v9fs_put_trans(ctx->client_opts.trans_mod);
+	kfree(ctx);
+}
+
+static const struct fs_context_operations v9fs_context_ops = {
+	.parse_param	= v9fs_parse_param,
+	.get_tree	= v9fs_get_tree,
+	.free		= v9fs_free_fc,
+};
+
+static int v9fs_init_fs_context(struct fs_context *fc)
+{
+	struct v9fs_context	*ctx;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	/* initialize core options */
+	ctx->session_opts.afid = ~0;
+	ctx->session_opts.cache = CACHE_NONE;
+	ctx->session_opts.session_lock_timeout = P9_LOCK_TIMEOUT;
+	ctx->session_opts.uname = kstrdup(V9FS_DEFUSER, GFP_KERNEL);
+	if (!ctx->session_opts.uname)
+		goto error;
+
+	ctx->session_opts.aname = kstrdup(V9FS_DEFANAME, GFP_KERNEL);
+	if (!ctx->session_opts.aname)
+		goto error;
+
+	ctx->session_opts.uid = INVALID_UID;
+	ctx->session_opts.dfltuid = V9FS_DEFUID;
+	ctx->session_opts.dfltgid = V9FS_DEFGID;
+
+	/* initialize client options */
+	ctx->client_opts.proto_version = p9_proto_2000L;
+	ctx->client_opts.msize = DEFAULT_MSIZE;
+
+	/* initialize fd transport options */
+	ctx->fd_opts.port = P9_FD_PORT;
+	ctx->fd_opts.rfd = ~0;
+	ctx->fd_opts.wfd = ~0;
+	ctx->fd_opts.privport = false;
+
+	/* initialize rdma transport options */
+	ctx->rdma_opts.port = P9_RDMA_PORT;
+	ctx->rdma_opts.sq_depth = P9_RDMA_SQ_DEPTH;
+	ctx->rdma_opts.rq_depth = P9_RDMA_RQ_DEPTH;
+	ctx->rdma_opts.timeout = P9_RDMA_TIMEOUT;
+	ctx->rdma_opts.privport = false;
+
+	fc->ops = &v9fs_context_ops;
+	fc->fs_private = ctx;
+
+	return 0;
+error:
+	fc->need_free = 1;
+	return -ENOMEM;
+}
+
 struct file_system_type v9fs_fs_type = {
 	.name = "9p",
-	.mount = v9fs_mount,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
 	.fs_flags = FS_RENAME_DOES_D_MOVE,
+	.init_fs_context = v9fs_init_fs_context,
+	.parameters = v9fs_param_spec,
 };
 MODULE_ALIAS_FS("9p");

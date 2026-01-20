@@ -24,8 +24,7 @@ void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 	xe_bo_put(bo);
 }
 
-int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
-				 struct drm_gem_object *obj,
+int intel_fb_bo_framebuffer_init(struct drm_gem_object *obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);

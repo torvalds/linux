@@ -848,7 +848,7 @@ static int ads131e08_probe(struct spi_device *spi)
 	ret = devm_iio_trigger_register(&spi->dev, st->trig);
 	if (ret) {
 		dev_err(&spi->dev, "failed to register IIO trigger\n");
-		return -ENOMEM;
+		return ret;
 	}
 
 	indio_dev->trig = iio_trigger_get(st->trig);

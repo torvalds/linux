@@ -117,16 +117,17 @@ SYSCALL_DEFINE0(sync)
 static void do_sync_work(struct work_struct *work)
 {
 	int nowait = 0;
+	int wait = 1;
 
 	/*
 	 * Sync twice to reduce the possibility we skipped some inodes / pages
 	 * because they were temporarily locked
 	 */
-	iterate_supers(sync_inodes_one_sb, &nowait);
+	iterate_supers(sync_inodes_one_sb, NULL);
 	iterate_supers(sync_fs_one_sb, &nowait);
 	sync_bdevs(false);
-	iterate_supers(sync_inodes_one_sb, &nowait);
-	iterate_supers(sync_fs_one_sb, &nowait);
+	iterate_supers(sync_inodes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &wait);
 	sync_bdevs(false);
 	printk("Emergency Sync complete\n");
 	kfree(work);
@@ -182,7 +183,7 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 
 	if (!file->f_op->fsync)
 		return -EINVAL;
-	if (!datasync && (inode->i_state & I_DIRTY_TIME))
+	if (!datasync && (inode_state_read_once(inode) & I_DIRTY_TIME))
 		mark_inode_dirty_sync(inode);
 	return file->f_op->fsync(file, start, end, datasync);
 }
@@ -280,14 +281,12 @@ int sync_file_range(struct file *file, loff_t offset, loff_t nbytes,
 	}
 
 	if (flags & SYNC_FILE_RANGE_WRITE) {
-		int sync_mode = WB_SYNC_NONE;
-
 		if ((flags & SYNC_FILE_RANGE_WRITE_AND_WAIT) ==
 			     SYNC_FILE_RANGE_WRITE_AND_WAIT)
-			sync_mode = WB_SYNC_ALL;
-
-		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
-						 sync_mode);
+			ret = filemap_fdatawrite_range(mapping, offset,
+					endbyte);
+		else
+			ret = filemap_flush_range(mapping, offset, endbyte);
 		if (ret < 0)
 			goto out;
 	}

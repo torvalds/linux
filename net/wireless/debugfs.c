@@ -29,6 +29,24 @@ static const struct file_operations name## _ops = {			\
 	.llseek = generic_file_llseek,					\
 }
 
+#define DEBUGFS_RADIO_READONLY_FILE(name, buflen, fmt, value...)	\
+static ssize_t name## _read(struct file *file, char __user *userbuf,	\
+			    size_t count, loff_t *ppos)			\
+{									\
+	struct wiphy_radio_cfg *radio_cfg = file->private_data;		\
+	char buf[buflen];						\
+	int res;							\
+									\
+	res = scnprintf(buf, buflen, fmt "\n", ##value);		\
+	return simple_read_from_buffer(userbuf, count, ppos, buf, res);	\
+}									\
+									\
+static const struct file_operations name## _ops = {			\
+	.read = name## _read,						\
+	.open = simple_open,						\
+	.llseek = generic_file_llseek,					\
+}
+
 DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
 		      wiphy->rts_threshold);
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
@@ -37,6 +55,9 @@ DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
 		      wiphy->retry_short);
 DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
 		      wiphy->retry_long);
+
+DEBUGFS_RADIO_READONLY_FILE(radio_rts_threshold, 20, "%d",
+			    radio_cfg->rts_threshold);
 
 static int ht_print_chan(struct ieee80211_channel *chan,
 			 char *buf, int buf_size, int offset)
@@ -100,15 +121,27 @@ static const struct file_operations ht40allow_map_ops = {
 #define DEBUGFS_ADD(name)						\
 	debugfs_create_file(#name, 0444, phyd, &rdev->wiphy, &name## _ops)
 
+#define DEBUGFS_RADIO_ADD(name, radio_idx)				\
+	debugfs_create_file(#name, 0444, radiod,			\
+			    &rdev->wiphy.radio_cfg[radio_idx],		\
+			    &name## _ops)
+
 void cfg80211_debugfs_rdev_add(struct cfg80211_registered_device *rdev)
 {
 	struct dentry *phyd = rdev->wiphy.debugfsdir;
+	struct dentry *radiod;
+	u8 i;
 
 	DEBUGFS_ADD(rts_threshold);
 	DEBUGFS_ADD(fragmentation_threshold);
 	DEBUGFS_ADD(short_retry_limit);
 	DEBUGFS_ADD(long_retry_limit);
 	DEBUGFS_ADD(ht40allow_map);
+
+	for (i = 0; i < rdev->wiphy.n_radio; i++) {
+		radiod = rdev->wiphy.radio_cfg[i].radio_debugfsdir;
+		DEBUGFS_RADIO_ADD(radio_rts_threshold, i);
+	}
 }
 
 struct debugfs_read_work {

@@ -548,8 +548,8 @@ irqreturn_t sja1000_interrupt(int irq, void *dev_id)
 	if (priv->read_reg(priv, SJA1000_IER) == IRQ_OFF)
 		goto out;
 
-	while ((isrc = priv->read_reg(priv, SJA1000_IR)) &&
-	       (n < SJA1000_MAX_IRQ)) {
+	while ((n < SJA1000_MAX_IRQ) &&
+	       (isrc = priv->read_reg(priv, SJA1000_IR))) {
 
 		status = priv->read_reg(priv, SJA1000_SR);
 		/* check for absent controller due to hw unplug */
@@ -697,7 +697,6 @@ static const struct net_device_ops sja1000_netdev_ops = {
 	.ndo_open	= sja1000_open,
 	.ndo_stop	= sja1000_close,
 	.ndo_start_xmit	= sja1000_start_xmit,
-	.ndo_change_mtu	= can_change_mtu,
 };
 
 static const struct ethtool_ops sja1000_ethtool_ops = {

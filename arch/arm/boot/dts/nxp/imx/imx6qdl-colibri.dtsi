@@ -589,7 +589,7 @@
 			st,touch-det-delay = <5>;
 		};
 
-		stmpe_adc: stmpe_adc {
+		stmpe_adc: adc {
 			compatible = "st,stmpe-adc";
 			/* forbid to use ADC channels 3-0 (touch) */
 			st,norequest-mask = <0x0F>;

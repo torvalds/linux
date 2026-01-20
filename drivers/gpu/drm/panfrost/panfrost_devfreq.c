@@ -8,6 +8,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 
+#include <drm/drm_print.h>
+
 #include "panfrost_device.h"
 #include "panfrost_devfreq.h"
 

@@ -32,27 +32,39 @@
 
 static int pcode_mailbox_status(struct xe_tile *tile)
 {
+	const char *err_str;
+	int err_decode;
 	u32 err;
-	static const struct pcode_err_decode err_decode[] = {
-		[PCODE_ILLEGAL_CMD] = {-ENXIO, "Illegal Command"},
-		[PCODE_TIMEOUT] = {-ETIMEDOUT, "Timed out"},
-		[PCODE_ILLEGAL_DATA] = {-EINVAL, "Illegal Data"},
-		[PCODE_ILLEGAL_SUBCOMMAND] = {-ENXIO, "Illegal Subcommand"},
-		[PCODE_LOCKED] = {-EBUSY, "PCODE Locked"},
-		[PCODE_GT_RATIO_OUT_OF_RANGE] = {-EOVERFLOW,
-			"GT ratio out of range"},
-		[PCODE_REJECTED] = {-EACCES, "PCODE Rejected"},
-		[PCODE_ERROR_MASK] = {-EPROTO, "Unknown"},
-	};
+
+#define CASE_ERR(_err, _err_decode, _err_str)	\
+	case _err:				\
+		err_decode = _err_decode;	\
+		err_str = _err_str;		\
+		break
 
 	err = xe_mmio_read32(&tile->mmio, PCODE_MAILBOX) & PCODE_ERROR_MASK;
+	switch (err) {
+	CASE_ERR(PCODE_ILLEGAL_CMD,           -ENXIO,     "Illegal Command");
+	CASE_ERR(PCODE_TIMEOUT,               -ETIMEDOUT, "Timed out");
+	CASE_ERR(PCODE_ILLEGAL_DATA,          -EINVAL,    "Illegal Data");
+	CASE_ERR(PCODE_ILLEGAL_SUBCOMMAND,    -ENXIO,     "Illegal Subcommand");
+	CASE_ERR(PCODE_LOCKED,                -EBUSY,     "PCODE Locked");
+	CASE_ERR(PCODE_GT_RATIO_OUT_OF_RANGE, -EOVERFLOW, "GT ratio out of range");
+	CASE_ERR(PCODE_REJECTED,              -EACCES,    "PCODE Rejected");
+	default:
+		err_decode = -EPROTO;
+		err_str = "Unknown";
+	}
+
 	if (err) {
-		drm_err(&tile_to_xe(tile)->drm, "PCODE Mailbox failed: %d %s", err,
-			err_decode[err].str ?: "Unknown");
-		return err_decode[err].errno ?: -EPROTO;
+		drm_err(&tile_to_xe(tile)->drm, "PCODE Mailbox failed: %d %s",
+			err_decode, err_str);
+
+		return err_decode;
 	}
 
 	return 0;
+#undef CASE_ERR
 }
 
 static int __pcode_mailbox_rw(struct xe_tile *tile, u32 mbox, u32 *data0, u32 *data1,

@@ -8,7 +8,7 @@ title: Qualcomm SA8775p PCI Express Root Complex
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description:
   Qualcomm SA8775p SoC PCIe root complex controller is based on the Synopsys
@@ -78,6 +78,9 @@ properties:
 required:
   - interconnects
   - interconnect-names
+  - power-domains
+  - resets
+  - reset-names
 
 allOf:
   - $ref: qcom,pcie-common.yaml#

@@ -10,8 +10,7 @@
 #define SCAN_STATUS							\
 	EM( SCAN_FAIL,			"failed")			\
 	EM( SCAN_SUCCEED,		"succeeded")			\
-	EM( SCAN_PMD_NULL,		"pmd_null")			\
-	EM( SCAN_PMD_NONE,		"pmd_none")			\
+	EM( SCAN_NO_PTE_TABLE,		"no_pte_table")			\
 	EM( SCAN_PMD_MAPPED,		"page_pmd_mapped")		\
 	EM( SCAN_EXCEED_NONE_PTE,	"exceed_none_pte")		\
 	EM( SCAN_EXCEED_SWAP_PTE,	"exceed_swap_pte")		\

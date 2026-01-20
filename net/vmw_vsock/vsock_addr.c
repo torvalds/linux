@@ -57,7 +57,7 @@ bool vsock_addr_equals_addr(const struct sockaddr_vm *addr,
 }
 EXPORT_SYMBOL_GPL(vsock_addr_equals_addr);
 
-int vsock_addr_cast(const struct sockaddr *addr,
+int vsock_addr_cast(const struct sockaddr_unsized *addr,
 		    size_t len, struct sockaddr_vm **out_addr)
 {
 	if (len < sizeof(**out_addr))

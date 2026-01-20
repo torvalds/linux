@@ -21,7 +21,7 @@
 
 #include "vdso_config.h"
 #include "vdso_call.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static const char **name;
 

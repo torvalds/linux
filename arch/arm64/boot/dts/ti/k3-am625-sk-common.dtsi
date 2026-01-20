@@ -212,11 +212,11 @@
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_rgmii1_pins_default>, <&main_rgmii2_pins_default>;
+	status = "okay";
 };
 
 &cpsw_port2 {
-	/* PCB provides an internal delay of 2ns */
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy1>;
 };
 

@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "common.h"
 
 static struct lsm_ctx *next_ctx(struct lsm_ctx *ctxp)

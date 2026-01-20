@@ -26,6 +26,23 @@ config MTK_SCPSYS_PM_DOMAINS
 	  Control Processor System (SCPSYS) has several power management related
 	  tasks in the system.
 
+config MTK_MFG_PM_DOMAIN
+	bool "MediaTek MFlexGraphics power domain"
+	default ARCH_MEDIATEK
+	depends on PM
+	depends on OF
+	depends on COMMON_CLK
+	select MAILBOX
+	select PM_GENERIC_DOMAINS
+	imply MTK_GPUEB_MBOX
+	help
+	  Say y or m here to enable the power domains driver for MediaTek
+	  MFlexGraphics. This driver allows for power and frequency control of
+	  GPUs on MediaTek SoCs such as the MT8196 or MT6991.
+
+	  This driver is required for the Mali GPU to work at all on MT8196 and
+	  MT6991.
+
 config AIROHA_CPU_PM_DOMAIN
 	tristate "Airoha CPU power domain"
 	default ARCH_AIROHA

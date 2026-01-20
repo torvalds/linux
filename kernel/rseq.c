@@ -8,98 +8,7 @@
  * Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
  */
 
-#include <linux/sched.h>
-#include <linux/uaccess.h>
-#include <linux/syscalls.h>
-#include <linux/rseq.h>
-#include <linux/types.h>
-#include <linux/ratelimit.h>
-#include <asm/ptrace.h>
-
-#define CREATE_TRACE_POINTS
-#include <trace/events/rseq.h>
-
-/* The original rseq structure size (including padding) is 32 bytes. */
-#define ORIG_RSEQ_SIZE		32
-
-#define RSEQ_CS_NO_RESTART_FLAGS (RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL | \
-				  RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE)
-
-#ifdef CONFIG_DEBUG_RSEQ
-static struct rseq *rseq_kernel_fields(struct task_struct *t)
-{
-	return (struct rseq *) t->rseq_fields;
-}
-
-static int rseq_validate_ro_fields(struct task_struct *t)
-{
-	static DEFINE_RATELIMIT_STATE(_rs,
-				      DEFAULT_RATELIMIT_INTERVAL,
-				      DEFAULT_RATELIMIT_BURST);
-	u32 cpu_id_start, cpu_id, node_id, mm_cid;
-	struct rseq __user *rseq = t->rseq;
-
-	/*
-	 * Validate fields which are required to be read-only by
-	 * user-space.
-	 */
-	if (!user_read_access_begin(rseq, t->rseq_len))
-		goto efault;
-	unsafe_get_user(cpu_id_start, &rseq->cpu_id_start, efault_end);
-	unsafe_get_user(cpu_id, &rseq->cpu_id, efault_end);
-	unsafe_get_user(node_id, &rseq->node_id, efault_end);
-	unsafe_get_user(mm_cid, &rseq->mm_cid, efault_end);
-	user_read_access_end();
-
-	if ((cpu_id_start != rseq_kernel_fields(t)->cpu_id_start ||
-	    cpu_id != rseq_kernel_fields(t)->cpu_id ||
-	    node_id != rseq_kernel_fields(t)->node_id ||
-	    mm_cid != rseq_kernel_fields(t)->mm_cid) && __ratelimit(&_rs)) {
-
-		pr_warn("Detected rseq corruption for pid: %d, name: %s\n"
-			"\tcpu_id_start: %u ?= %u\n"
-			"\tcpu_id:       %u ?= %u\n"
-			"\tnode_id:      %u ?= %u\n"
-			"\tmm_cid:       %u ?= %u\n",
-			t->pid, t->comm,
-			cpu_id_start, rseq_kernel_fields(t)->cpu_id_start,
-			cpu_id, rseq_kernel_fields(t)->cpu_id,
-			node_id, rseq_kernel_fields(t)->node_id,
-			mm_cid, rseq_kernel_fields(t)->mm_cid);
-	}
-
-	/* For now, only print a console warning on mismatch. */
-	return 0;
-
-efault_end:
-	user_read_access_end();
-efault:
-	return -EFAULT;
-}
-
 /*
- * Update an rseq field and its in-kernel copy in lock-step to keep a coherent
- * state.
- */
-#define rseq_unsafe_put_user(t, value, field, error_label)		\
-	do {								\
-		unsafe_put_user(value, &t->rseq->field, error_label);	\
-		rseq_kernel_fields(t)->field = value;			\
-	} while (0)
-
-#else
-static int rseq_validate_ro_fields(struct task_struct *t)
-{
-	return 0;
-}
-
-#define rseq_unsafe_put_user(t, value, field, error_label)		\
-	unsafe_put_user(value, &t->rseq->field, error_label)
-#endif
-
-/*
- *
  * Restartable sequences are a lightweight interface that allows
  * user-level code to be executed atomically relative to scheduler
  * preemption and signal delivery. Typically used for implementing
@@ -158,356 +67,356 @@ static int rseq_validate_ro_fields(struct task_struct *t)
  *   F1. <failure>
  */
 
-static int rseq_update_cpu_node_id(struct task_struct *t)
+/* Required to select the proper per_cpu ops for rseq_stats_inc() */
+#define RSEQ_BUILD_SLOW_PATH
+
+#include <linux/debugfs.h>
+#include <linux/ratelimit.h>
+#include <linux/rseq_entry.h>
+#include <linux/sched.h>
+#include <linux/syscalls.h>
+#include <linux/uaccess.h>
+#include <linux/types.h>
+#include <asm/ptrace.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/rseq.h>
+
+DEFINE_STATIC_KEY_MAYBE(CONFIG_RSEQ_DEBUG_DEFAULT_ENABLE, rseq_debug_enabled);
+
+static inline void rseq_control_debug(bool on)
 {
-	struct rseq __user *rseq = t->rseq;
-	u32 cpu_id = raw_smp_processor_id();
-	u32 node_id = cpu_to_node(cpu_id);
-	u32 mm_cid = task_mm_cid(t);
+	if (on)
+		static_branch_enable(&rseq_debug_enabled);
+	else
+		static_branch_disable(&rseq_debug_enabled);
+}
 
-	/*
-	 * Validate read-only rseq fields.
-	 */
-	if (rseq_validate_ro_fields(t))
-		goto efault;
-	WARN_ON_ONCE((int) mm_cid < 0);
-	if (!user_write_access_begin(rseq, t->rseq_len))
-		goto efault;
+static int __init rseq_setup_debug(char *str)
+{
+	bool on;
 
-	rseq_unsafe_put_user(t, cpu_id, cpu_id_start, efault_end);
-	rseq_unsafe_put_user(t, cpu_id, cpu_id, efault_end);
-	rseq_unsafe_put_user(t, node_id, node_id, efault_end);
-	rseq_unsafe_put_user(t, mm_cid, mm_cid, efault_end);
+	if (kstrtobool(str, &on))
+		return -EINVAL;
+	rseq_control_debug(on);
+	return 1;
+}
+__setup("rseq_debug=", rseq_setup_debug);
 
-	/*
-	 * Additional feature fields added after ORIG_RSEQ_SIZE
-	 * need to be conditionally updated only if
-	 * t->rseq_len != ORIG_RSEQ_SIZE.
-	 */
-	user_write_access_end();
+#ifdef CONFIG_TRACEPOINTS
+/*
+ * Out of line, so the actual update functions can be in a header to be
+ * inlined into the exit to user code.
+ */
+void __rseq_trace_update(struct task_struct *t)
+{
 	trace_rseq_update(t);
-	return 0;
-
-efault_end:
-	user_write_access_end();
-efault:
-	return -EFAULT;
 }
 
-static int rseq_reset_rseq_cpu_node_id(struct task_struct *t)
+void __rseq_trace_ip_fixup(unsigned long ip, unsigned long start_ip,
+			   unsigned long offset, unsigned long abort_ip)
 {
-	struct rseq __user *rseq = t->rseq;
-	u32 cpu_id_start = 0, cpu_id = RSEQ_CPU_ID_UNINITIALIZED, node_id = 0,
-	    mm_cid = 0;
+	trace_rseq_ip_fixup(ip, start_ip, offset, abort_ip);
+}
+#endif /* CONFIG_TRACEPOINTS */
 
-	/*
-	 * Validate read-only rseq fields.
-	 */
-	if (rseq_validate_ro_fields(t))
-		goto efault;
+#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_RSEQ_STATS
+DEFINE_PER_CPU(struct rseq_stats, rseq_stats);
 
-	if (!user_write_access_begin(rseq, t->rseq_len))
-		goto efault;
+static int rseq_stats_show(struct seq_file *m, void *p)
+{
+	struct rseq_stats stats = { };
+	unsigned int cpu;
 
-	/*
-	 * Reset all fields to their initial state.
-	 *
-	 * All fields have an initial state of 0 except cpu_id which is set to
-	 * RSEQ_CPU_ID_UNINITIALIZED, so that any user coming in after
-	 * unregistration can figure out that rseq needs to be registered
-	 * again.
-	 */
-	rseq_unsafe_put_user(t, cpu_id_start, cpu_id_start, efault_end);
-	rseq_unsafe_put_user(t, cpu_id, cpu_id, efault_end);
-	rseq_unsafe_put_user(t, node_id, node_id, efault_end);
-	rseq_unsafe_put_user(t, mm_cid, mm_cid, efault_end);
+	for_each_possible_cpu(cpu) {
+		stats.exit	+= data_race(per_cpu(rseq_stats.exit, cpu));
+		stats.signal	+= data_race(per_cpu(rseq_stats.signal, cpu));
+		stats.slowpath	+= data_race(per_cpu(rseq_stats.slowpath, cpu));
+		stats.fastpath	+= data_race(per_cpu(rseq_stats.fastpath, cpu));
+		stats.ids	+= data_race(per_cpu(rseq_stats.ids, cpu));
+		stats.cs	+= data_race(per_cpu(rseq_stats.cs, cpu));
+		stats.clear	+= data_race(per_cpu(rseq_stats.clear, cpu));
+		stats.fixup	+= data_race(per_cpu(rseq_stats.fixup, cpu));
+	}
 
-	/*
-	 * Additional feature fields added after ORIG_RSEQ_SIZE
-	 * need to be conditionally reset only if
-	 * t->rseq_len != ORIG_RSEQ_SIZE.
-	 */
-	user_write_access_end();
+	seq_printf(m, "exit:   %16lu\n", stats.exit);
+	seq_printf(m, "signal: %16lu\n", stats.signal);
+	seq_printf(m, "slowp:  %16lu\n", stats.slowpath);
+	seq_printf(m, "fastp:  %16lu\n", stats.fastpath);
+	seq_printf(m, "ids:    %16lu\n", stats.ids);
+	seq_printf(m, "cs:     %16lu\n", stats.cs);
+	seq_printf(m, "clear:  %16lu\n", stats.clear);
+	seq_printf(m, "fixup:  %16lu\n", stats.fixup);
 	return 0;
-
-efault_end:
-	user_write_access_end();
-efault:
-	return -EFAULT;
 }
 
-/*
- * Get the user-space pointer value stored in the 'rseq_cs' field.
- */
-static int rseq_get_rseq_cs_ptr_val(struct rseq __user *rseq, u64 *rseq_cs)
+static int rseq_stats_open(struct inode *inode, struct file *file)
 {
-	if (!rseq_cs)
-		return -EFAULT;
+	return single_open(file, rseq_stats_show, inode->i_private);
+}
 
-#ifdef CONFIG_64BIT
-	if (get_user(*rseq_cs, &rseq->rseq_cs))
-		return -EFAULT;
+static const struct file_operations stat_ops = {
+	.open		= rseq_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init rseq_stats_init(struct dentry *root_dir)
+{
+	debugfs_create_file("stats", 0444, root_dir, NULL, &stat_ops);
+	return 0;
+}
 #else
-	if (copy_from_user(rseq_cs, &rseq->rseq_cs, sizeof(*rseq_cs)))
-		return -EFAULT;
-#endif
+static inline void rseq_stats_init(struct dentry *root_dir) { }
+#endif /* CONFIG_RSEQ_STATS */
 
+static int rseq_debug_show(struct seq_file *m, void *p)
+{
+	bool on = static_branch_unlikely(&rseq_debug_enabled);
+
+	seq_printf(m, "%d\n", on);
 	return 0;
 }
 
-/*
- * If the rseq_cs field of 'struct rseq' contains a valid pointer to
- * user-space, copy 'struct rseq_cs' from user-space and validate its fields.
- */
-static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
+static ssize_t rseq_debug_write(struct file *file, const char __user *ubuf,
+			    size_t count, loff_t *ppos)
 {
-	struct rseq_cs __user *urseq_cs;
-	u64 ptr;
-	u32 __user *usig;
-	u32 sig;
-	int ret;
+	bool on;
 
-	ret = rseq_get_rseq_cs_ptr_val(t->rseq, &ptr);
-	if (ret)
-		return ret;
-
-	/* If the rseq_cs pointer is NULL, return a cleared struct rseq_cs. */
-	if (!ptr) {
-		memset(rseq_cs, 0, sizeof(*rseq_cs));
-		return 0;
-	}
-	/* Check that the pointer value fits in the user-space process space. */
-	if (ptr >= TASK_SIZE)
-		return -EINVAL;
-	urseq_cs = (struct rseq_cs __user *)(unsigned long)ptr;
-	if (copy_from_user(rseq_cs, urseq_cs, sizeof(*rseq_cs)))
-		return -EFAULT;
-
-	if (rseq_cs->start_ip >= TASK_SIZE ||
-	    rseq_cs->start_ip + rseq_cs->post_commit_offset >= TASK_SIZE ||
-	    rseq_cs->abort_ip >= TASK_SIZE ||
-	    rseq_cs->version > 0)
-		return -EINVAL;
-	/* Check for overflow. */
-	if (rseq_cs->start_ip + rseq_cs->post_commit_offset < rseq_cs->start_ip)
-		return -EINVAL;
-	/* Ensure that abort_ip is not in the critical section. */
-	if (rseq_cs->abort_ip - rseq_cs->start_ip < rseq_cs->post_commit_offset)
+	if (kstrtobool_from_user(ubuf, count, &on))
 		return -EINVAL;
 
-	usig = (u32 __user *)(unsigned long)(rseq_cs->abort_ip - sizeof(u32));
-	ret = get_user(sig, usig);
-	if (ret)
-		return ret;
+	rseq_control_debug(on);
+	return count;
+}
 
-	if (current->rseq_sig != sig) {
-		printk_ratelimited(KERN_WARNING
-			"Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x (pid=%d, addr=%p).\n",
-			sig, current->rseq_sig, current->pid, usig);
-		return -EINVAL;
-	}
+static int rseq_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rseq_debug_show, inode->i_private);
+}
+
+static const struct file_operations debug_ops = {
+	.open		= rseq_debug_open,
+	.read		= seq_read,
+	.write		= rseq_debug_write,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init rseq_debugfs_init(void)
+{
+	struct dentry *root_dir = debugfs_create_dir("rseq", NULL);
+
+	debugfs_create_file("debug", 0644, root_dir, NULL, &debug_ops);
+	rseq_stats_init(root_dir);
 	return 0;
 }
+__initcall(rseq_debugfs_init);
+#endif /* CONFIG_DEBUG_FS */
 
-static bool rseq_warn_flags(const char *str, u32 flags)
+static bool rseq_set_ids(struct task_struct *t, struct rseq_ids *ids, u32 node_id)
 {
-	u32 test_flags;
-
-	if (!flags)
-		return false;
-	test_flags = flags & RSEQ_CS_NO_RESTART_FLAGS;
-	if (test_flags)
-		pr_warn_once("Deprecated flags (%u) in %s ABI structure", test_flags, str);
-	test_flags = flags & ~RSEQ_CS_NO_RESTART_FLAGS;
-	if (test_flags)
-		pr_warn_once("Unknown flags (%u) in %s ABI structure", test_flags, str);
-	return true;
+	return rseq_set_ids_get_csaddr(t, ids, node_id, NULL);
 }
 
-static int rseq_need_restart(struct task_struct *t, u32 cs_flags)
+static bool rseq_handle_cs(struct task_struct *t, struct pt_regs *regs)
 {
-	u32 flags, event_mask;
-	int ret;
+	struct rseq __user *urseq = t->rseq.usrptr;
+	u64 csaddr;
 
-	if (rseq_warn_flags("rseq_cs", cs_flags))
-		return -EINVAL;
-
-	/* Get thread flags. */
-	ret = get_user(flags, &t->rseq->flags);
-	if (ret)
-		return ret;
-
-	if (rseq_warn_flags("rseq", flags))
-		return -EINVAL;
-
-	/*
-	 * Load and clear event mask atomically with respect to
-	 * scheduler preemption and membarrier IPIs.
-	 */
-	scoped_guard(RSEQ_EVENT_GUARD) {
-		event_mask = t->rseq_event_mask;
-		t->rseq_event_mask = 0;
-	}
-
-	return !!event_mask;
+	scoped_user_read_access(urseq, efault)
+		unsafe_get_user(csaddr, &urseq->rseq_cs, efault);
+	if (likely(!csaddr))
+		return true;
+	return rseq_update_user_cs(t, regs, csaddr);
+efault:
+	return false;
 }
 
-static int clear_rseq_cs(struct rseq __user *rseq)
+static void rseq_slowpath_update_usr(struct pt_regs *regs)
 {
 	/*
-	 * The rseq_cs field is set to NULL on preemption or signal
-	 * delivery on top of rseq assembly block, as well as on top
-	 * of code outside of the rseq assembly block. This performs
-	 * a lazy clear of the rseq_cs field.
-	 *
-	 * Set rseq_cs to NULL.
+	 * Preserve rseq state and user_irq state. The generic entry code
+	 * clears user_irq on the way out, the non-generic entry
+	 * architectures are not having user_irq.
 	 */
-#ifdef CONFIG_64BIT
-	return put_user(0UL, &rseq->rseq_cs);
-#else
-	if (clear_user(&rseq->rseq_cs, sizeof(rseq->rseq_cs)))
-		return -EFAULT;
-	return 0;
-#endif
-}
-
-/*
- * Unsigned comparison will be true when ip >= start_ip, and when
- * ip < start_ip + post_commit_offset.
- */
-static bool in_rseq_cs(unsigned long ip, struct rseq_cs *rseq_cs)
-{
-	return ip - rseq_cs->start_ip < rseq_cs->post_commit_offset;
-}
-
-static int rseq_ip_fixup(struct pt_regs *regs)
-{
-	unsigned long ip = instruction_pointer(regs);
+	const struct rseq_event evt_mask = { .has_rseq = true, .user_irq = true, };
 	struct task_struct *t = current;
-	struct rseq_cs rseq_cs;
-	int ret;
-
-	ret = rseq_get_rseq_cs(t, &rseq_cs);
-	if (ret)
-		return ret;
-
-	/*
-	 * Handle potentially not being within a critical section.
-	 * If not nested over a rseq critical section, restart is useless.
-	 * Clear the rseq_cs pointer and return.
-	 */
-	if (!in_rseq_cs(ip, &rseq_cs))
-		return clear_rseq_cs(t->rseq);
-	ret = rseq_need_restart(t, rseq_cs.flags);
-	if (ret <= 0)
-		return ret;
-	ret = clear_rseq_cs(t->rseq);
-	if (ret)
-		return ret;
-	trace_rseq_ip_fixup(ip, rseq_cs.start_ip, rseq_cs.post_commit_offset,
-			    rseq_cs.abort_ip);
-	instruction_pointer_set(regs, (unsigned long)rseq_cs.abort_ip);
-	return 0;
-}
-
-/*
- * This resume handler must always be executed between any of:
- * - preemption,
- * - signal delivery,
- * and return to user-space.
- *
- * This is how we can ensure that the entire rseq critical section
- * will issue the commit instruction only if executed atomically with
- * respect to other threads scheduled on the same CPU, and with respect
- * to signal handlers.
- */
-void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
-{
-	struct task_struct *t = current;
-	int ret, sig;
+	struct rseq_ids ids;
+	u32 node_id;
+	bool event;
 
 	if (unlikely(t->flags & PF_EXITING))
 		return;
 
-	/*
-	 * regs is NULL if and only if the caller is in a syscall path.  Skip
-	 * fixup and leave rseq_cs as is so that rseq_sycall() will detect and
-	 * kill a misbehaving userspace on debug kernels.
-	 */
-	if (regs) {
-		ret = rseq_ip_fixup(regs);
-		if (unlikely(ret < 0))
-			goto error;
-	}
-	if (unlikely(rseq_update_cpu_node_id(t)))
-		goto error;
-	return;
+	rseq_stat_inc(rseq_stats.slowpath);
 
-error:
-	sig = ksig ? ksig->sig : 0;
-	force_sigsegv(sig);
+	/*
+	 * Read and clear the event pending bit first. If the task
+	 * was not preempted or migrated or a signal is on the way,
+	 * there is no point in doing any of the heavy lifting here
+	 * on production kernels. In that case TIF_NOTIFY_RESUME
+	 * was raised by some other functionality.
+	 *
+	 * This is correct because the read/clear operation is
+	 * guarded against scheduler preemption, which makes it CPU
+	 * local atomic. If the task is preempted right after
+	 * re-enabling preemption then TIF_NOTIFY_RESUME is set
+	 * again and this function is invoked another time _before_
+	 * the task is able to return to user mode.
+	 *
+	 * On a debug kernel, invoke the fixup code unconditionally
+	 * with the result handed in to allow the detection of
+	 * inconsistencies.
+	 */
+	scoped_guard(irq) {
+		event = t->rseq.event.sched_switch;
+		t->rseq.event.all &= evt_mask.all;
+		ids.cpu_id = task_cpu(t);
+		ids.mm_cid = task_mm_cid(t);
+	}
+
+	if (!event)
+		return;
+
+	node_id = cpu_to_node(ids.cpu_id);
+
+	if (unlikely(!rseq_update_usr(t, regs, &ids, node_id))) {
+		/*
+		 * Clear the errors just in case this might survive magically, but
+		 * leave the rest intact.
+		 */
+		t->rseq.event.error = 0;
+		force_sig(SIGSEGV);
+	}
 }
 
-#ifdef CONFIG_DEBUG_RSEQ
+void __rseq_handle_slowpath(struct pt_regs *regs)
+{
+	/*
+	 * If invoked from hypervisors before entering the guest via
+	 * resume_user_mode_work(), then @regs is a NULL pointer.
+	 *
+	 * resume_user_mode_work() clears TIF_NOTIFY_RESUME and re-raises
+	 * it before returning from the ioctl() to user space when
+	 * rseq_event.sched_switch is set.
+	 *
+	 * So it's safe to ignore here instead of pointlessly updating it
+	 * in the vcpu_run() loop.
+	 */
+	if (!regs)
+		return;
+
+	rseq_slowpath_update_usr(regs);
+}
+
+void __rseq_signal_deliver(int sig, struct pt_regs *regs)
+{
+	rseq_stat_inc(rseq_stats.signal);
+	/*
+	 * Don't update IDs, they are handled on exit to user if
+	 * necessary. The important thing is to abort a critical section of
+	 * the interrupted context as after this point the instruction
+	 * pointer in @regs points to the signal handler.
+	 */
+	if (unlikely(!rseq_handle_cs(current, regs))) {
+		/*
+		 * Clear the errors just in case this might survive
+		 * magically, but leave the rest intact.
+		 */
+		current->rseq.event.error = 0;
+		force_sigsegv(sig);
+	}
+}
 
 /*
  * Terminate the process if a syscall is issued within a restartable
  * sequence.
  */
-void rseq_syscall(struct pt_regs *regs)
+void __rseq_debug_syscall_return(struct pt_regs *regs)
 {
-	unsigned long ip = instruction_pointer(regs);
 	struct task_struct *t = current;
-	struct rseq_cs rseq_cs;
+	u64 csaddr;
 
-	if (!t->rseq)
+	if (!t->rseq.event.has_rseq)
 		return;
-	if (rseq_get_rseq_cs(t, &rseq_cs) || in_rseq_cs(ip, &rseq_cs))
-		force_sig(SIGSEGV);
+	if (get_user(csaddr, &t->rseq.usrptr->rseq_cs))
+		goto fail;
+	if (likely(!csaddr))
+		return;
+	if (unlikely(csaddr >= TASK_SIZE))
+		goto fail;
+	if (rseq_debug_update_user_cs(t, regs, csaddr))
+		return;
+fail:
+	force_sig(SIGSEGV);
 }
 
+#ifdef CONFIG_DEBUG_RSEQ
+/* Kept around to keep GENERIC_ENTRY=n architectures supported. */
+void rseq_syscall(struct pt_regs *regs)
+{
+	__rseq_debug_syscall_return(regs);
+}
 #endif
+
+static bool rseq_reset_ids(void)
+{
+	struct rseq_ids ids = {
+		.cpu_id		= RSEQ_CPU_ID_UNINITIALIZED,
+		.mm_cid		= 0,
+	};
+
+	/*
+	 * If this fails, terminate it because this leaves the kernel in
+	 * stupid state as exit to user space will try to fixup the ids
+	 * again.
+	 */
+	if (rseq_set_ids(current, &ids, 0))
+		return true;
+
+	force_sig(SIGSEGV);
+	return false;
+}
+
+/* The original rseq structure size (including padding) is 32 bytes. */
+#define ORIG_RSEQ_SIZE		32
 
 /*
  * sys_rseq - setup restartable sequences for caller thread.
  */
-SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
-		int, flags, u32, sig)
+SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
 {
-	int ret;
-	u64 rseq_cs;
-
 	if (flags & RSEQ_FLAG_UNREGISTER) {
 		if (flags & ~RSEQ_FLAG_UNREGISTER)
 			return -EINVAL;
 		/* Unregister rseq for current thread. */
-		if (current->rseq != rseq || !current->rseq)
+		if (current->rseq.usrptr != rseq || !current->rseq.usrptr)
 			return -EINVAL;
-		if (rseq_len != current->rseq_len)
+		if (rseq_len != current->rseq.len)
 			return -EINVAL;
-		if (current->rseq_sig != sig)
+		if (current->rseq.sig != sig)
 			return -EPERM;
-		ret = rseq_reset_rseq_cpu_node_id(current);
-		if (ret)
-			return ret;
-		current->rseq = NULL;
-		current->rseq_sig = 0;
-		current->rseq_len = 0;
+		if (!rseq_reset_ids())
+			return -EFAULT;
+		rseq_reset(current);
 		return 0;
 	}
 
 	if (unlikely(flags))
 		return -EINVAL;
 
-	if (current->rseq) {
+	if (current->rseq.usrptr) {
 		/*
 		 * If rseq is already registered, check whether
 		 * the provided address differs from the prior
 		 * one.
 		 */
-		if (current->rseq != rseq || rseq_len != current->rseq_len)
+		if (current->rseq.usrptr != rseq || rseq_len != current->rseq.len)
 			return -EINVAL;
-		if (current->rseq_sig != sig)
+		if (current->rseq.sig != sig)
 			return -EPERM;
 		/* Already registered. */
 		return -EBUSY;
@@ -531,43 +440,39 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 
-	/*
-	 * If the rseq_cs pointer is non-NULL on registration, clear it to
-	 * avoid a potential segfault on return to user-space. The proper thing
-	 * to do would have been to fail the registration but this would break
-	 * older libcs that reuse the rseq area for new threads without
-	 * clearing the fields.
-	 */
-	if (rseq_get_rseq_cs_ptr_val(rseq, &rseq_cs))
-	        return -EFAULT;
-	if (rseq_cs && clear_rseq_cs(rseq))
-		return -EFAULT;
+	scoped_user_write_access(rseq, efault) {
+		/*
+		 * If the rseq_cs pointer is non-NULL on registration, clear it to
+		 * avoid a potential segfault on return to user-space. The proper thing
+		 * to do would have been to fail the registration but this would break
+		 * older libcs that reuse the rseq area for new threads without
+		 * clearing the fields. Don't bother reading it, just reset it.
+		 */
+		unsafe_put_user(0UL, &rseq->rseq_cs, efault);
+		/* Initialize IDs in user space */
+		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id_start, efault);
+		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id, efault);
+		unsafe_put_user(0U, &rseq->node_id, efault);
+		unsafe_put_user(0U, &rseq->mm_cid, efault);
+	}
 
-#ifdef CONFIG_DEBUG_RSEQ
-	/*
-	 * Initialize the in-kernel rseq fields copy for validation of
-	 * read-only fields.
-	 */
-	if (get_user(rseq_kernel_fields(current)->cpu_id_start, &rseq->cpu_id_start) ||
-	    get_user(rseq_kernel_fields(current)->cpu_id, &rseq->cpu_id) ||
-	    get_user(rseq_kernel_fields(current)->node_id, &rseq->node_id) ||
-	    get_user(rseq_kernel_fields(current)->mm_cid, &rseq->mm_cid))
-		return -EFAULT;
-#endif
 	/*
 	 * Activate the registration by setting the rseq area address, length
 	 * and signature in the task struct.
 	 */
-	current->rseq = rseq;
-	current->rseq_len = rseq_len;
-	current->rseq_sig = sig;
+	current->rseq.usrptr = rseq;
+	current->rseq.len = rseq_len;
+	current->rseq.sig = sig;
 
 	/*
 	 * If rseq was previously inactive, and has just been
 	 * registered, ensure the cpu_id_start and cpu_id fields
 	 * are updated before returning to user-space.
 	 */
-	rseq_set_notify_resume(current);
-
+	current->rseq.event.has_rseq = true;
+	rseq_force_update();
 	return 0;
+
+efault:
+	return -EFAULT;
 }

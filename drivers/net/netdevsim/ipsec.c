@@ -277,6 +277,7 @@ void nsim_ipsec_init(struct netdevsim *ns)
 				 NETIF_F_GSO_ESP)
 
 	ns->netdev->features |= NSIM_ESP_FEATURES;
+	ns->netdev->hw_features |= NSIM_ESP_FEATURES;
 	ns->netdev->hw_enc_features |= NSIM_ESP_FEATURES;
 
 	ns->ipsec.pfile = debugfs_create_file("ipsec", 0400,

@@ -80,7 +80,7 @@ struct fbnic_tlv_index {
 	enum fbnic_tlv_type	type;
 };
 
-#define TLV_MAX_DATA			(PAGE_SIZE - 512)
+#define TLV_MAX_DATA			((PAGE_SIZE - 512) & 0xFFFF)
 #define FBNIC_TLV_ATTR_ID_UNKNOWN	USHRT_MAX
 #define FBNIC_TLV_ATTR_STRING(id, len)	{ id, len, FBNIC_TLV_STRING }
 #define FBNIC_TLV_ATTR_FLAG(id)		{ id, 0, FBNIC_TLV_FLAG }

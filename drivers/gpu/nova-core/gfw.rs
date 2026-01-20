@@ -18,13 +18,16 @@
 //!
 //! Note that the devinit sequence also needs to run during suspend/resume.
 
-use kernel::bindings;
-use kernel::prelude::*;
-use kernel::time::Delta;
+use kernel::{
+    io::poll::read_poll_timeout,
+    prelude::*,
+    time::Delta, //
+};
 
-use crate::driver::Bar0;
-use crate::regs;
-use crate::util;
+use crate::{
+    driver::Bar0,
+    regs, //
+};
 
 /// Wait for the `GFW` (GPU firmware) boot completion signal (`GFW_BOOT`), or a 4 seconds timeout.
 ///
@@ -50,22 +53,19 @@ pub(crate) fn wait_gfw_boot_completion(bar: &Bar0) -> Result {
     //
     // TIMEOUT: arbitrarily large value. GFW starts running immediately after the GPU is put out of
     // reset, and should complete in less time than that.
-    util::wait_on(Delta::from_secs(4), || {
-        // Check that FWSEC has lowered its protection level before reading the GFW_BOOT status.
-        let gfw_booted = regs::NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK::read(bar)
-            .read_protection_level0()
-            && regs::NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT::read(bar).completed();
-
-        if gfw_booted {
-            Some(())
-        } else {
-            // TODO[DLAY]: replace with [1] once it merges.
-            // [1] https://lore.kernel.org/rust-for-linux/20250423192857.199712-6-fujita.tomonori@gmail.com/
-            //
-            // SAFETY: `msleep()` is safe to call with any parameter.
-            unsafe { bindings::msleep(1) };
-
-            None
-        }
-    })
+    read_poll_timeout(
+        || {
+            Ok(
+                // Check that FWSEC has lowered its protection level before reading the GFW_BOOT
+                // status.
+                regs::NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_PRIV_LEVEL_MASK::read(bar)
+                    .read_protection_level0()
+                    && regs::NV_PGC6_AON_SECURE_SCRATCH_GROUP_05_0_GFW_BOOT::read(bar).completed(),
+            )
+        },
+        |&gfw_booted| gfw_booted,
+        Delta::from_millis(1),
+        Delta::from_secs(4),
+    )
+    .map(|_| ())
 }

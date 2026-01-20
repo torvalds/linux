@@ -440,7 +440,7 @@ static int j1939_sk_sanity_check(struct sockaddr_can *addr, int len)
 	return 0;
 }
 
-static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
+static int j1939_sk_bind(struct socket *sock, struct sockaddr_unsized *uaddr, int len)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;
 	struct j1939_sock *jsk = j1939_sk(sock->sk);
@@ -535,7 +535,7 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 	return ret;
 }
 
-static int j1939_sk_connect(struct socket *sock, struct sockaddr *uaddr,
+static int j1939_sk_connect(struct socket *sock, struct sockaddr_unsized *uaddr,
 			    int len, int flags)
 {
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;

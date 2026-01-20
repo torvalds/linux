@@ -14,7 +14,6 @@ description:
   Vybrid SoC's but is only really useful in dual core configurations (VF6xx
   which comes with a Cortex-A5/Cortex-M4 combination).
 
-
 maintainers:
   - Frank Li <Frank.Li@nxp.com>
 

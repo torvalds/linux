@@ -66,8 +66,7 @@ static void log_quirks(struct device *dev)
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
-	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct snd_soc_card *card = dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct snd_soc_dai *codec_dai;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret;
@@ -250,6 +249,7 @@ static const struct dmi_system_id cht_rt5645_quirk_table[] = {
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(runtime, 0)->component;
 	int jack_type;
@@ -275,19 +275,19 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	if (cht_rt5645_quirk & CHT_RT5645_SSP2_AIF2) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					cht_rt5645_ssp2_aif2_map,
 					ARRAY_SIZE(cht_rt5645_ssp2_aif2_map));
 	} else if (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF1) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					cht_rt5645_ssp0_aif1_map,
 					ARRAY_SIZE(cht_rt5645_ssp0_aif1_map));
 	} else if (cht_rt5645_quirk & CHT_RT5645_SSP0_AIF2) {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					cht_rt5645_ssp0_aif2_map,
 					ARRAY_SIZE(cht_rt5645_ssp0_aif2_map));
 	} else {
-		ret = snd_soc_dapm_add_routes(&card->dapm,
+		ret = snd_soc_dapm_add_routes(dapm,
 					cht_rt5645_ssp2_aif1_map,
 					ARRAY_SIZE(cht_rt5645_ssp2_aif1_map));
 	}

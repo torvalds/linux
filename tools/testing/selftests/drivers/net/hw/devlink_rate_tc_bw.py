@@ -21,21 +21,21 @@ Test Cases:
 ----------
 1. test_no_tc_mapping_bandwidth:
    - Verifies that without TC mapping, bandwidth is NOT distributed according to
-     the configured 80/20 split between TC4 and TC3
-   - This test should fail if bandwidth matches the 80/20 split without TC
+     the configured 20/80 split between TC3 and TC4
+   - This test should fail if bandwidth matches the 20/80 split without TC
      mapping
-   - Expected: Bandwidth should NOT be distributed as 80/20
+   - Expected: Bandwidth should NOT be distributed as 20/80
 
 2. test_tc_mapping_bandwidth:
    - Configures TC mapping using mqprio qdisc
    - Verifies that with TC mapping, bandwidth IS distributed according to the
-     configured 80/20 split between TC3 and TC4
-   - Expected: Bandwidth should be distributed as 80/20
+     configured 20/80 split between TC3 and TC4
+   - Expected: Bandwidth should be distributed as 20/80
 
 Bandwidth Distribution:
 ----------------------
-- TC3 (VLAN 101): Configured for 80% of total bandwidth
-- TC4 (VLAN 102): Configured for 20% of total bandwidth
+- TC3 (VLAN 101): Configured for 20% of total bandwidth
+- TC4 (VLAN 102): Configured for 80% of total bandwidth
 - Total bandwidth: 1Gbps
 - Tolerance: +-12%
 
@@ -64,43 +64,40 @@ from lib.py import KsftSkipEx, KsftFailEx, KsftXfailEx
 from lib.py import NetDrvEpEnv, DevlinkFamily
 from lib.py import NlError
 from lib.py import cmd, defer, ethtool, ip
+from lib.py import Iperf3Runner
 
 
 class BandwidthValidator:
     """
-    Validates bandwidth totals and per-TC shares against expected values
-    with a tolerance.
+    Validates total bandwidth and individual shares with tolerance
+    relative to the overall total.
     """
 
-    def __init__(self):
+    def __init__(self, shares):
         self.tolerance_percent = 12
-        self.expected_total_gbps = 1.0
-        self.total_min_expected = self.min_expected(self.expected_total_gbps)
-        self.total_max_expected = self.max_expected(self.expected_total_gbps)
-        self.tc_expected_percent = {
-            3: 20.0,
-            4: 80.0,
-        }
+        self.expected_total = sum(shares.values())
+        self.bounds = {}
+
+        for name, exp in shares.items():
+            self.bounds[name] = (self.min_expected(exp), self.max_expected(exp))
 
     def min_expected(self, value):
         """Calculates the minimum acceptable value based on tolerance."""
-        return value - (value * self.tolerance_percent / 100)
+        return value - (self.expected_total * self.tolerance_percent / 100)
 
     def max_expected(self, value):
         """Calculates the maximum acceptable value based on tolerance."""
-        return value + (value * self.tolerance_percent / 100)
+        return value + (self.expected_total * self.tolerance_percent / 100)
 
-    def bound(self, expected, value):
-        """Returns True if value is within expected tolerance."""
-        return self.min_expected(expected) <= value <= self.max_expected(expected)
-
-    def tc_bandwidth_bound(self, value, tc_ix):
+    def bound(self, values):
         """
-        Returns True if the given bandwidth value is within tolerance
-        for the TC's expected bandwidth.
+        Return True if all given values fall within tolerance.
         """
-        expected = self.tc_expected_percent[tc_ix]
-        return self.bound(expected, value)
+        for name, value in values.items():
+            low, high = self.bounds[name]
+            if not low <= value <= high:
+                return False
+        return True
 
 
 def setup_vf(cfg, set_tc_mapping=True):
@@ -116,8 +113,8 @@ def setup_vf(cfg, set_tc_mapping=True):
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable switchdev mode on {cfg.pci}") from exc
     try:
-        cmd(f"echo 1 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs")
-        defer(cmd, f"echo 0 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs")
+        cmd(f"echo 1 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
+        defer(cmd, f"echo 0 > /sys/class/net/{cfg.ifname}/device/sriov_numvfs", shell=True)
     except Exception as exc:
         raise KsftSkipEx(f"Failed to enable SR-IOV on {cfg.ifname}") from exc
 
@@ -139,8 +136,8 @@ def setup_vlans_on_vf(vf_ifc):
     Sets up two VLAN interfaces on the given VF, each mapped to a different TC.
     """
     vlan_configs = [
-        {"vlan_id": 101, "tc": 3, "ip": "198.51.100.2"},
-        {"vlan_id": 102, "tc": 4, "ip": "198.51.100.10"},
+        {"vlan_id": 101, "tc": 3, "ip": "198.51.100.1"},
+        {"vlan_id": 102, "tc": 4, "ip": "198.51.100.9"},
     ]
 
     for config in vlan_configs:
@@ -224,13 +221,13 @@ def setup_devlink_rate(cfg):
         raise KsftFailEx(f"rate_set failed on VF port {port_index}") from exc
 
 
-def setup_remote_server(cfg):
+def setup_remote_vlans(cfg):
     """
-    Sets up VLAN interfaces and starts iperf3 servers on the remote side.
+    Sets up VLAN interfaces on the remote side.
     """
     remote_dev = cfg.remote_ifname
     vlan_ids = [101, 102]
-    remote_ips = ["198.51.100.1", "198.51.100.9"]
+    remote_ips = ["198.51.100.2", "198.51.100.10"]
 
     for vlan_id, ip_addr in zip(vlan_ids, remote_ips):
         vlan_dev = f"{remote_dev}.{vlan_id}"
@@ -238,14 +235,13 @@ def setup_remote_server(cfg):
             f"type vlan id {vlan_id}", host=cfg.remote)
         cmd(f"ip addr add {ip_addr}/29 dev {vlan_dev}", host=cfg.remote)
         cmd(f"ip link set dev {vlan_dev} up", host=cfg.remote)
-        cmd(f"iperf3 -s -1 -B {ip_addr}",background=True, host=cfg.remote)
         defer(cmd, f"ip link del {vlan_dev}", host=cfg.remote)
 
 
 def setup_test_environment(cfg, set_tc_mapping=True):
     """
     Sets up the complete test environment including VF creation, VLANs,
-    bridge configuration, devlink rate setup, and the remote server.
+    bridge configuration and devlink rate setup.
     """
     vf_ifc = setup_vf(cfg, set_tc_mapping)
     ksft_pr(f"Created VF interface: {vf_ifc}")
@@ -256,51 +252,39 @@ def setup_test_environment(cfg, set_tc_mapping=True):
     setup_bridge(cfg)
 
     setup_devlink_rate(cfg)
-    setup_remote_server(cfg)
-    time.sleep(2)
+    setup_remote_vlans(cfg)
 
 
-def run_iperf_client(server_ip, local_ip, barrier, min_expected_gbps=0.1):
+def measure_bandwidth(cfg, server_ip, client_ip, barrier):
     """
-    Runs a single iperf3 client instance, binding to the given local IP.
-    Waits on a barrier to synchronize with other threads.
+    Synchronizes with peers and runs an iperf3-based bandwidth measurement
+    between the given endpoints. Returns average Gbps.
     """
+    runner = Iperf3Runner(cfg, server_ip=server_ip, client_ip=client_ip)
     try:
         barrier.wait(timeout=10)
     except Exception as exc:
         raise KsftFailEx("iperf3 barrier wait timed") from exc
 
-    iperf_cmd = ["iperf3", "-c", server_ip, "-B", local_ip, "-J"]
-    result = subprocess.run(iperf_cmd, capture_output=True, text=True,
-                            check=True)
-
     try:
-        output = json.loads(result.stdout)
-        bits_per_second = output["end"]["sum_received"]["bits_per_second"]
-        gbps = bits_per_second / 1e9
-        if gbps < min_expected_gbps:
-            ksft_pr(
-                f"iperf3 bandwidth too low: {gbps:.2f} Gbps "
-                f"(expected ≥ {min_expected_gbps} Gbps)"
-            )
-            return None
-        return gbps
-    except json.JSONDecodeError as exc:
-        ksft_pr(f"Failed to parse iperf3 JSON output: {exc}")
-        return None
+        bw_gbps = runner.measure_bandwidth(reverse=True)
+    except Exception as exc:
+        raise KsftFailEx("iperf3 bandwidth measurement failed") from exc
+
+    return bw_gbps
 
 
-def run_bandwidth_test():
+def run_bandwidth_test(cfg):
     """
-    Launches iperf3 client threads for each VLAN/TC pair and collects results.
+    Runs parallel bandwidth measurements for each VLAN/TC pair and collects results.
     """
-    def _run_iperf_client_thread(server_ip, local_ip, results, barrier, tc_ix):
-        results[tc_ix] = run_iperf_client(server_ip, local_ip, barrier)
+    def _run_measure_bandwidth_thread(local_ip, remote_ip, results, barrier, tc_ix):
+        results[tc_ix] = measure_bandwidth(cfg, local_ip, remote_ip, barrier)
 
     vf_vlan_data = [
         # (local_ip, remote_ip, TC)
-        ("198.51.100.2",  "198.51.100.1", 3),
-        ("198.51.100.10", "198.51.100.9", 4),
+        ("198.51.100.1",  "198.51.100.2", 3),
+        ("198.51.100.9", "198.51.100.10", 4),
     ]
 
     results = {}
@@ -309,8 +293,8 @@ def run_bandwidth_test():
 
     for local_ip, remote_ip, tc_ix in vf_vlan_data:
         thread = threading.Thread(
-            target=_run_iperf_client_thread,
-            args=(remote_ip, local_ip, results, start_barrier, tc_ix)
+            target=_run_measure_bandwidth_thread,
+            args=(local_ip, remote_ip, results, start_barrier, tc_ix)
         )
         thread.start()
         threads.append(thread)
@@ -320,9 +304,10 @@ def run_bandwidth_test():
 
     for tc_ix, tc_bw in results.items():
         if tc_bw is None:
-            raise KsftFailEx("iperf3 client failed; cannot evaluate bandwidth")
+            raise KsftFailEx("iperf3 failed; cannot evaluate bandwidth")
 
     return results
+
 
 def calculate_bandwidth_percentages(results):
     """
@@ -364,59 +349,48 @@ def verify_total_bandwidth(bw_data, validator):
     """
     total = bw_data['total_bw']
 
-    if validator.bound(validator.expected_total_gbps, total):
+    if validator.bound({"total": total}):
         return
 
-    if total < validator.total_min_expected:
+    low, high = validator.bounds["total"]
+
+    if total < low:
         raise KsftSkipEx(
             f"Total bandwidth {total:.2f} Gbps < minimum "
-            f"{validator.total_min_expected:.2f} Gbps; "
-            f"parent tx_max ({validator.expected_total_gbps:.1f} G) "
+            f"{low:.2f} Gbps; "
+            f"parent tx_max ({validator.expected_total:.1f} G) "
             f"not reached, cannot validate share"
         )
 
     raise KsftFailEx(
         f"Total bandwidth {total:.2f} Gbps exceeds allowed ceiling "
-        f"{validator.total_max_expected:.2f} Gbps "
-        f"(VF tx_max set to {validator.expected_total_gbps:.1f} G)"
+        f"{high:.2f} Gbps "
+        f"(VF tx_max set to {validator.expected_total:.1f} G)"
     )
-
-
-def check_bandwidth_distribution(bw_data, validator):
-    """
-    Checks whether the measured TC3 and TC4 bandwidth percentages
-    fall within their expected tolerance ranges.
-
-    Returns:
-        bool: True if both TC3 and TC4 percentages are within bounds.
-    """
-    tc3_valid = validator.tc_bandwidth_bound(bw_data['tc3_percentage'], 3)
-    tc4_valid = validator.tc_bandwidth_bound(bw_data['tc4_percentage'], 4)
-
-    return tc3_valid and tc4_valid
 
 
 def run_bandwidth_distribution_test(cfg, set_tc_mapping):
     """
-    Runs parallel iperf3 tests for both TCs and collects results.
+    Runs parallel bandwidth measurements for both TCs and collects results.
     """
     setup_test_environment(cfg, set_tc_mapping)
-    bandwidths = run_bandwidth_test()
+    bandwidths = run_bandwidth_test(cfg)
     bw_data = calculate_bandwidth_percentages(bandwidths)
     test_name = "with TC mapping" if set_tc_mapping else "without TC mapping"
     print_bandwidth_results(bw_data, test_name)
 
-    verify_total_bandwidth(bw_data, cfg.bw_validator)
+    verify_total_bandwidth(bw_data, cfg.traffic_bw_validator)
 
-    return check_bandwidth_distribution(bw_data, cfg.bw_validator)
+    return cfg.tc_bw_validator.bound({"tc3": bw_data['tc3_percentage'],
+                                     "tc4": bw_data['tc4_percentage']})
 
 
 def test_no_tc_mapping_bandwidth(cfg):
     """
-    Verifies that bandwidth is not split 80/20 without traffic class mapping.
+    Verifies that bandwidth is not split 20/80 without traffic class mapping.
     """
-    pass_bw_msg = "Bandwidth is NOT distributed as 80/20 without TC mapping"
-    fail_bw_msg = "Bandwidth matched 80/20 split without TC mapping"
+    pass_bw_msg = "Bandwidth is NOT distributed as 20/80 without TC mapping"
+    fail_bw_msg = "Bandwidth matched 20/80 split without TC mapping"
     is_mlx5 = "driver: mlx5" in ethtool(f"-i {cfg.ifname}").stdout
 
     if run_bandwidth_distribution_test(cfg, set_tc_mapping=False):
@@ -430,13 +404,13 @@ def test_no_tc_mapping_bandwidth(cfg):
 
 def test_tc_mapping_bandwidth(cfg):
     """
-    Verifies that bandwidth is correctly split 80/20 between TC3 and TC4
+    Verifies that bandwidth is correctly split 20/80 between TC3 and TC4
     when traffic class mapping is set.
     """
     if run_bandwidth_distribution_test(cfg, set_tc_mapping=True):
-        ksft_pr("Bandwidth is distributed as 80/20 with TC mapping")
+        ksft_pr("Bandwidth is distributed as 20/80 with TC mapping")
     else:
-        raise KsftFailEx("Bandwidth did not match 80/20 split with TC mapping")
+        raise KsftFailEx("Bandwidth did not match 20/80 split with TC mapping")
 
 
 def main() -> None:
@@ -451,9 +425,9 @@ def main() -> None:
         )
         if not cfg.pci:
             raise KsftSkipEx("Could not get PCI address of the interface")
-        cfg.require_cmd("iperf3", local=True, remote=True)
 
-        cfg.bw_validator = BandwidthValidator()
+        cfg.traffic_bw_validator = BandwidthValidator({"total": 1})
+        cfg.tc_bw_validator = BandwidthValidator({"tc3": 20, "tc4": 80})
 
         cases = [test_no_tc_mapping_bandwidth, test_tc_mapping_bandwidth]
 

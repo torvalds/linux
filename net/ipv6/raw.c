@@ -214,7 +214,8 @@ bool raw6_local_deliver(struct sk_buff *skb, int nexthdr)
 }
 
 /* This cleans up af_inet6 a bit. -DaveM */
-static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+static int rawv6_bind(struct sock *sk, struct sockaddr_unsized *uaddr,
+		      int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);

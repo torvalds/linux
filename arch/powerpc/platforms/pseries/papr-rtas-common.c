@@ -205,35 +205,18 @@ long papr_rtas_setup_file_interface(struct papr_rtas_sequence *seq,
 				char *name)
 {
 	const struct papr_rtas_blob *blob;
-	struct file *file;
-	long ret;
 	int fd;
 
 	blob = papr_rtas_retrieve(seq);
 	if (IS_ERR(blob))
 		return PTR_ERR(blob);
 
-	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		ret = fd;
-		goto free_blob;
-	}
-
-	file = anon_inode_getfile_fmode(name, fops, (void *)blob,
-			O_RDONLY, FMODE_LSEEK | FMODE_PREAD);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
-		goto put_fd;
-	}
-
-	fd_install(fd, file);
+	fd = FD_ADD(O_RDONLY | O_CLOEXEC,
+		   anon_inode_getfile_fmode(name, fops, (void *)blob, O_RDONLY,
+					    FMODE_LSEEK | FMODE_PREAD));
+	if (fd < 0)
+		papr_rtas_blob_free(blob);
 	return fd;
-
-put_fd:
-	put_unused_fd(fd);
-free_blob:
-	papr_rtas_blob_free(blob);
-	return ret;
 }
 
 /*

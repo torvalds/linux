@@ -3,6 +3,7 @@
 # Makefile for the HISILICON BMC GE network device drivers.
 #
 
+ccflags-y += -I$(src)
 obj-$(CONFIG_HIBMCGE) += hibmcge.o
 
 hibmcge-objs = hbg_main.o hbg_hw.o hbg_mdio.o hbg_irq.o hbg_txrx.o hbg_ethtool.o \

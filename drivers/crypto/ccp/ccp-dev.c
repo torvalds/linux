@@ -507,7 +507,7 @@ int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 {
 	struct ccp_device *ccp = container_of(rng, struct ccp_device, hwrng);
 	u32 trng_value;
-	int len = min_t(int, sizeof(trng_value), max);
+	int len = min(sizeof(trng_value), max);
 
 	/* Locking is provided by the caller so we can update device
 	 * hwrng-related fields safely

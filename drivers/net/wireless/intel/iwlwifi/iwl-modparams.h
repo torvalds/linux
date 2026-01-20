@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022, 2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2022, 2024-2025 Intel Corporation
  */
 #ifndef __iwl_modparams_h__
 #define __iwl_modparams_h__
@@ -42,7 +42,7 @@ enum iwl_uapsd_disable {
 };
 
 /**
- * struct iwl_mod_params
+ * struct iwl_mod_params - module parameters for iwlwifi
  *
  * Holds the module parameters
  *

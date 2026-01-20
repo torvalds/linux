@@ -5,8 +5,7 @@
  * Authors: Carsten Otte, Stefan Weinhuber, Gerald Schaefer
  */
 
-#define KMSG_COMPONENT "dcssblk"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "dcssblk: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -674,8 +673,8 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	rc = dcssblk_assign_free_minor(dev_info);
 	if (rc)
 		goto release_gd;
-	sprintf(dev_info->gd->disk_name, "dcssblk%d",
-		dev_info->gd->first_minor);
+	scnprintf(dev_info->gd->disk_name, sizeof(dev_info->gd->disk_name),
+		  "dcssblk%d", dev_info->gd->first_minor);
 	list_add_tail(&dev_info->lh, &dcssblk_devices);
 
 	if (!try_module_get(THIS_MODULE)) {

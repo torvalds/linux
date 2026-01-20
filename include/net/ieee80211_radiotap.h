@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017		Intel Deutschland GmbH
- * Copyright (c) 2018-2019, 2021-2022 Intel Corporation
+ * Copyright (c) 2018-2019, 2021-2022, 2025 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -201,6 +201,24 @@ enum ieee80211_radiotap_vht_coding {
 	IEEE80211_RADIOTAP_CODING_LDPC_USER2 = 0x04,
 	IEEE80211_RADIOTAP_CODING_LDPC_USER3 = 0x08,
 };
+
+enum ieee80211_radiotap_vht_bandwidth {
+	/* Note: more values are defined but can't really be used */
+	IEEE80211_RADIOTAP_VHT_BW_20		= 0,
+	IEEE80211_RADIOTAP_VHT_BW_40		= 1,
+	IEEE80211_RADIOTAP_VHT_BW_80		= 4,
+	IEEE80211_RADIOTAP_VHT_BW_160		= 11,
+};
+
+struct ieee80211_radiotap_vht {
+	__le16 known;
+	u8 flags;
+	u8 bandwidth;
+	u8 mcs_nss[4];
+	u8 coding;
+	u8 group_id;
+	__le16 partial_aid;
+} __packed;
 
 /* for IEEE80211_RADIOTAP_TIMESTAMP */
 enum ieee80211_radiotap_timestamp_unit_spos {

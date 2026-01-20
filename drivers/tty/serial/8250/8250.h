@@ -98,15 +98,6 @@ struct serial8250_config {
 
 extern unsigned int nr_uarts;
 
-#ifdef CONFIG_SERIAL_8250_SHARE_IRQ
-#define SERIAL8250_SHARE_IRQS 1
-#else
-#define SERIAL8250_SHARE_IRQS 0
-#endif
-
-extern unsigned int share_irqs;
-extern unsigned int skip_txen_test;
-
 #define SERIAL8250_PORT_FLAGS(_base, _irq, _flags)		\
 	{							\
 		.iobase		= _base,			\
@@ -322,13 +313,13 @@ static inline void serial8250_pnp_exit(void) { }
 #endif
 
 #ifdef CONFIG_SERIAL_8250_RSA
-void univ8250_rsa_support(struct uart_ops *ops);
+void univ8250_rsa_support(struct uart_ops *ops, const struct uart_ops *core_ops);
 void rsa_enable(struct uart_8250_port *up);
 void rsa_disable(struct uart_8250_port *up);
 void rsa_autoconfig(struct uart_8250_port *up);
 void rsa_reset(struct uart_8250_port *up);
 #else
-static inline void univ8250_rsa_support(struct uart_ops *ops) { }
+static inline void univ8250_rsa_support(struct uart_ops *ops, const struct uart_ops *core_ops) { }
 static inline void rsa_enable(struct uart_8250_port *up) {}
 static inline void rsa_disable(struct uart_8250_port *up) {}
 static inline void rsa_autoconfig(struct uart_8250_port *up) {}

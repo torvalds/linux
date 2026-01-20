@@ -279,7 +279,16 @@
 	__SMU_DUMMY_MAP(ResetSDMA), \
 	__SMU_DUMMY_MAP(ResetVCN), \
 	__SMU_DUMMY_MAP(GetStaticMetricsTable), \
-	__SMU_DUMMY_MAP(GetSystemMetricsTable),
+	__SMU_DUMMY_MAP(GetSystemMetricsTable), \
+	__SMU_DUMMY_MAP(GetRASTableVersion), \
+	__SMU_DUMMY_MAP(GetBadPageCount), \
+	__SMU_DUMMY_MAP(GetBadPageMcaAddr), \
+	__SMU_DUMMY_MAP(SetTimestamp), \
+	__SMU_DUMMY_MAP(GetTimestamp), \
+	__SMU_DUMMY_MAP(GetBadPageIpid), \
+	__SMU_DUMMY_MAP(EraseRasTable),  \
+	__SMU_DUMMY_MAP(SetFastPptLimit), \
+	__SMU_DUMMY_MAP(GetFastPptLimit),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -458,7 +467,8 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(GFX_EDC_XVMIN),				\
        __SMU_DUMMY_MAP(GFX_DIDT_XVMIN),				\
        __SMU_DUMMY_MAP(FAN_ABNORMAL),				\
-       __SMU_DUMMY_MAP(PIT),
+       __SMU_DUMMY_MAP(PIT),				\
+       __SMU_DUMMY_MAP(HROM_EN),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(feature)	SMU_FEATURE_##feature##_BIT

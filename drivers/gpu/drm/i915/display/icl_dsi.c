@@ -35,7 +35,6 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
@@ -48,6 +47,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
+#include "intel_display_utils.h"
 #include "intel_dsi.h"
 #include "intel_dsi_vbt.h"
 #include "intel_panel.h"
@@ -148,9 +148,9 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		dsi_trans = dsi_port_to_transcoder(port);
 
-		ret = intel_de_wait_custom(display, DSI_LP_MSG(dsi_trans),
-					   LPTX_IN_PROGRESS, 0,
-					   20, 0, NULL);
+		ret = intel_de_wait_for_clear_us(display,
+						 DSI_LP_MSG(dsi_trans),
+						 LPTX_IN_PROGRESS, 20);
 		if (ret)
 			drm_err(display->drm, "LPTX bit not cleared\n");
 	}
@@ -534,9 +534,8 @@ static void gen11_dsi_enable_ddi_buffer(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), 0, DDI_BUF_CTL_ENABLE);
 
-		ret = intel_de_wait_custom(display, DDI_BUF_CTL(port),
-					   DDI_BUF_IS_IDLE, 0,
-					   500, 0, NULL);
+		ret = intel_de_wait_for_clear_us(display, DDI_BUF_CTL(port),
+						 DDI_BUF_IS_IDLE, 500);
 		if (ret)
 			drm_err(display->drm, "DDI port:%c buffer idle\n",
 				port_name(port));
@@ -857,9 +856,9 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 
 		dsi_trans = dsi_port_to_transcoder(port);
 
-		ret = intel_de_wait_custom(display, DSI_TRANS_FUNC_CONF(dsi_trans),
-					   LINK_READY, LINK_READY,
-					   2500, 0, NULL);
+		ret = intel_de_wait_for_set_us(display,
+					       DSI_TRANS_FUNC_CONF(dsi_trans),
+					       LINK_READY, 2500);
 		if (ret)
 			drm_err(display->drm, "DSI link not ready\n");
 	}
@@ -1048,8 +1047,8 @@ static void gen11_dsi_enable_transcoder(struct intel_encoder *encoder)
 			     TRANSCONF_ENABLE);
 
 		/* wait for transcoder to be enabled */
-		if (intel_de_wait_for_set(display, TRANSCONF(display, dsi_trans),
-					  TRANSCONF_STATE_ENABLE, 10))
+		if (intel_de_wait_for_set_ms(display, TRANSCONF(display, dsi_trans),
+					     TRANSCONF_STATE_ENABLE, 10))
 			drm_err(display->drm,
 				"DSI transcoder not enabled\n");
 	}
@@ -1317,8 +1316,8 @@ static void gen11_dsi_disable_transcoder(struct intel_encoder *encoder)
 			     TRANSCONF_ENABLE, 0);
 
 		/* wait for transcoder to be disabled */
-		if (intel_de_wait_for_clear(display, TRANSCONF(display, dsi_trans),
-					    TRANSCONF_STATE_ENABLE, 50))
+		if (intel_de_wait_for_clear_ms(display, TRANSCONF(display, dsi_trans),
+					       TRANSCONF_STATE_ENABLE, 50))
 			drm_err(display->drm,
 				"DSI trancoder not disabled\n");
 	}
@@ -1358,9 +1357,8 @@ static void gen11_dsi_deconfigure_trancoder(struct intel_encoder *encoder)
 		tmp &= ~LINK_ULPS_TYPE_LP11;
 		intel_de_write(display, DSI_LP_MSG(dsi_trans), tmp);
 
-		ret = intel_de_wait_custom(display, DSI_LP_MSG(dsi_trans),
-					   LINK_IN_ULPS, LINK_IN_ULPS,
-					   10, 0, NULL);
+		ret = intel_de_wait_for_set_us(display, DSI_LP_MSG(dsi_trans),
+					       LINK_IN_ULPS, 10);
 		if (ret)
 			drm_err(display->drm, "DSI link not in ULPS\n");
 	}
@@ -1395,9 +1393,8 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		intel_de_rmw(display, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
-		ret = intel_de_wait_custom(display, DDI_BUF_CTL(port),
-					   DDI_BUF_IS_IDLE, DDI_BUF_IS_IDLE,
-					   8, 0, NULL);
+		ret = intel_de_wait_for_set_us(display, DDI_BUF_CTL(port),
+					       DDI_BUF_IS_IDLE, 8);
 
 		if (ret)
 			drm_err(display->drm,
@@ -1655,7 +1652,7 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	crtc_state->dsc.compression_enable = true;
+	intel_dsc_enable_on_crtc(crtc_state);
 
 	return 0;
 }

@@ -1516,7 +1516,11 @@ static const struct i915_power_well_desc xelpdp_power_wells_main[] = {
 		.ops = &hsw_power_well_ops,
 		.irq_pipe_mask = BIT(PIPE_D),
 		.has_fuses = true,
-	}, {
+	},
+};
+
+static const struct i915_power_well_desc xelpdp_power_wells_aux[] = {
+	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("AUX_A", &icl_pwdoms_aux_a, .xelpdp.aux_ch = AUX_CH_A),
 			I915_PW("AUX_B", &icl_pwdoms_aux_b, .xelpdp.aux_ch = AUX_CH_B),
@@ -1534,6 +1538,7 @@ static const struct i915_power_well_desc_list xelpdp_power_wells[] = {
 	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
 	I915_PW_DESCRIPTORS(xelpd_power_wells_dc_off),
 	I915_PW_DESCRIPTORS(xelpdp_power_wells_main),
+	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 };
 
 I915_DECL_PW_DOMAINS(xe2lpd_pwdoms_pica_tc,
@@ -1584,6 +1589,7 @@ static const struct i915_power_well_desc_list xe2lpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(xelpdp_power_wells_main),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 };
 
 /*
@@ -1677,16 +1683,6 @@ static const struct i915_power_well_desc xe3lpd_power_wells_main[] = {
 		.ops = &hsw_power_well_ops,
 		.irq_pipe_mask = BIT(PIPE_D),
 		.has_fuses = true,
-	}, {
-		.instances = &I915_PW_INSTANCES(
-			I915_PW("AUX_A", &icl_pwdoms_aux_a, .xelpdp.aux_ch = AUX_CH_A),
-			I915_PW("AUX_B", &icl_pwdoms_aux_b, .xelpdp.aux_ch = AUX_CH_B),
-			I915_PW("AUX_TC1", &xelpdp_pwdoms_aux_tc1, .xelpdp.aux_ch = AUX_CH_USBC1),
-			I915_PW("AUX_TC2", &xelpdp_pwdoms_aux_tc2, .xelpdp.aux_ch = AUX_CH_USBC2),
-			I915_PW("AUX_TC3", &xelpdp_pwdoms_aux_tc3, .xelpdp.aux_ch = AUX_CH_USBC3),
-			I915_PW("AUX_TC4", &xelpdp_pwdoms_aux_tc4, .xelpdp.aux_ch = AUX_CH_USBC4),
-		),
-		.ops = &xelpdp_aux_power_well_ops,
 	},
 };
 
@@ -1715,6 +1711,7 @@ static const struct i915_power_well_desc_list xe3lpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_main),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(xelpdp_power_wells_aux),
 };
 
 static const struct i915_power_well_desc wcl_power_wells_main[] = {
@@ -1751,7 +1748,11 @@ static const struct i915_power_well_desc wcl_power_wells_main[] = {
 		.ops = &hsw_power_well_ops,
 		.irq_pipe_mask = BIT(PIPE_C),
 		.has_fuses = true,
-	}, {
+	},
+};
+
+static const struct i915_power_well_desc wcl_power_wells_aux[] = {
+	{
 		.instances = &I915_PW_INSTANCES(
 			I915_PW("AUX_A", &icl_pwdoms_aux_a, .xelpdp.aux_ch = AUX_CH_A),
 			I915_PW("AUX_B", &icl_pwdoms_aux_b, .xelpdp.aux_ch = AUX_CH_B),
@@ -1768,6 +1769,7 @@ static const struct i915_power_well_desc_list wcl_power_wells[] = {
 	I915_PW_DESCRIPTORS(xe3lpd_power_wells_dcoff),
 	I915_PW_DESCRIPTORS(wcl_power_wells_main),
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+	I915_PW_DESCRIPTORS(wcl_power_wells_aux),
 };
 
 static void init_power_well_domains(const struct i915_power_well_instance *inst,

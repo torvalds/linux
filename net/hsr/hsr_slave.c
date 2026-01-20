@@ -207,13 +207,13 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	port->type = type;
 	ether_addr_copy(port->original_macaddress, dev->dev_addr);
 
+	list_add_tail_rcu(&port->port_list, &hsr->ports);
+
 	if (type != HSR_PT_MASTER) {
 		res = hsr_portdev_setup(hsr, dev, port, extack);
 		if (res)
 			goto fail_dev_setup;
 	}
-
-	list_add_tail_rcu(&port->port_list, &hsr->ports);
 
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 	netdev_update_features(master->dev);
@@ -222,7 +222,8 @@ int hsr_add_port(struct hsr_priv *hsr, struct net_device *dev,
 	return 0;
 
 fail_dev_setup:
-	kfree(port);
+	list_del_rcu(&port->port_list);
+	kfree_rcu(port, rcu);
 	return res;
 }
 

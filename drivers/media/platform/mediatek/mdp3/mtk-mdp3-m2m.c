@@ -51,7 +51,7 @@ static void mdp_m2m_process_done(void *priv, int vb_state)
 	ctx->curr_param.frame_no = ctx->frame_count[MDP_M2M_SRC];
 	src_vbuf->sequence = ctx->frame_count[MDP_M2M_SRC]++;
 	dst_vbuf->sequence = ctx->frame_count[MDP_M2M_DST]++;
-	v4l2_m2m_buf_copy_metadata(src_vbuf, dst_vbuf, true);
+	v4l2_m2m_buf_copy_metadata(src_vbuf, dst_vbuf);
 
 	v4l2_m2m_buf_done(src_vbuf, vb_state);
 	v4l2_m2m_buf_done(dst_vbuf, vb_state);

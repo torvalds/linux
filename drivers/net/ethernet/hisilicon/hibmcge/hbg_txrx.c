@@ -7,6 +7,9 @@
 #include "hbg_reg.h"
 #include "hbg_txrx.h"
 
+#define CREATE_TRACE_POINTS
+#include "hbg_trace.h"
+
 #define netdev_get_tx_ring(netdev) \
 			(&(((struct hbg_priv *)netdev_priv(netdev))->tx_ring))
 
@@ -27,6 +30,11 @@
 #define hbg_queue_move_next(p, ring) ({ \
 	typeof(ring) _ring = (ring); \
 	_ring->p = hbg_queue_next_prt(_ring->p, _ring); })
+
+#define hbg_get_page_order(ring) ({ \
+	typeof(ring) _ring = (ring); \
+	get_order(hbg_spec_max_frame_len(_ring->priv, _ring->dir)); })
+#define hbg_get_page_size(ring) (PAGE_SIZE << hbg_get_page_order((ring)))
 
 #define HBG_TX_STOP_THRS	2
 #define HBG_TX_START_THRS	(2 * HBG_TX_STOP_THRS)
@@ -60,6 +68,43 @@ static void hbg_dma_unmap(struct hbg_buffer *buffer)
 	dma_unmap_single(&priv->pdev->dev, buffer->skb_dma, buffer->skb_len,
 			 buffer_to_dma_dir(buffer));
 	buffer->skb_dma = 0;
+}
+
+static void hbg_buffer_free_page(struct hbg_buffer *buffer)
+{
+	struct hbg_ring *ring = buffer->ring;
+
+	if (unlikely(!buffer->page))
+		return;
+
+	page_pool_put_full_page(ring->page_pool, buffer->page, false);
+
+	buffer->page = NULL;
+	buffer->page_dma = 0;
+	buffer->page_addr = NULL;
+	buffer->page_size = 0;
+	buffer->page_offset = 0;
+}
+
+static int hbg_buffer_alloc_page(struct hbg_buffer *buffer)
+{
+	struct hbg_ring *ring = buffer->ring;
+	u32 len = hbg_get_page_size(ring);
+	u32 offset;
+
+	if (unlikely(!ring->page_pool))
+		return 0;
+
+	buffer->page = page_pool_dev_alloc_frag(ring->page_pool, &offset, len);
+	if (unlikely(!buffer->page))
+		return -ENOMEM;
+
+	buffer->page_dma = page_pool_get_dma_addr(buffer->page) + offset;
+	buffer->page_addr = page_address(buffer->page) + offset;
+	buffer->page_size = len;
+	buffer->page_offset = offset;
+
+	return 0;
 }
 
 static void hbg_init_tx_desc(struct hbg_buffer *buffer,
@@ -135,24 +180,14 @@ static void hbg_buffer_free_skb(struct hbg_buffer *buffer)
 	buffer->skb = NULL;
 }
 
-static int hbg_buffer_alloc_skb(struct hbg_buffer *buffer)
-{
-	u32 len = hbg_spec_max_frame_len(buffer->priv, buffer->dir);
-	struct hbg_priv *priv = buffer->priv;
-
-	buffer->skb = netdev_alloc_skb(priv->netdev, len);
-	if (unlikely(!buffer->skb))
-		return -ENOMEM;
-
-	buffer->skb_len = len;
-	memset(buffer->skb->data, 0, HBG_PACKET_HEAD_SIZE);
-	return 0;
-}
-
 static void hbg_buffer_free(struct hbg_buffer *buffer)
 {
-	hbg_dma_unmap(buffer);
-	hbg_buffer_free_skb(buffer);
+	if (buffer->skb) {
+		hbg_dma_unmap(buffer);
+		return hbg_buffer_free_skb(buffer);
+	}
+
+	hbg_buffer_free_page(buffer);
 }
 
 static int hbg_napi_tx_recycle(struct napi_struct *napi, int budget)
@@ -374,23 +409,42 @@ static int hbg_rx_fill_one_buffer(struct hbg_priv *priv)
 	struct hbg_buffer *buffer;
 	int ret;
 
-	if (hbg_queue_is_full(ring->ntc, ring->ntu, ring))
+	if (hbg_queue_is_full(ring->ntc, ring->ntu, ring) ||
+	    hbg_fifo_is_full(priv, ring->dir))
 		return 0;
 
 	buffer = &ring->queue[ring->ntu];
-	ret = hbg_buffer_alloc_skb(buffer);
+	ret = hbg_buffer_alloc_page(buffer);
 	if (unlikely(ret))
 		return ret;
 
-	ret = hbg_dma_map(buffer);
-	if (unlikely(ret)) {
-		hbg_buffer_free_skb(buffer);
-		return ret;
-	}
+	memset(buffer->page_addr, 0, HBG_PACKET_HEAD_SIZE);
+	dma_sync_single_for_device(&priv->pdev->dev, buffer->page_dma,
+				   HBG_PACKET_HEAD_SIZE, DMA_TO_DEVICE);
 
-	hbg_hw_fill_buffer(priv, buffer->skb_dma);
+	hbg_hw_fill_buffer(priv, buffer->page_dma);
 	hbg_queue_move_next(ntu, ring);
 	return 0;
+}
+
+static int hbg_rx_fill_buffers(struct hbg_priv *priv)
+{
+	u32 remained = hbg_hw_get_fifo_used_num(priv, HBG_DIR_RX);
+	u32 max_count = priv->dev_specs.rx_fifo_num;
+	u32 refill_count;
+	int ret;
+
+	if (unlikely(remained >= max_count))
+		return 0;
+
+	refill_count = max_count - remained;
+	while (refill_count--) {
+		ret = hbg_rx_fill_one_buffer(priv);
+		if (unlikely(ret))
+			break;
+	}
+
+	return ret;
 }
 
 static bool hbg_sync_data_from_hw(struct hbg_priv *priv,
@@ -401,11 +455,27 @@ static bool hbg_sync_data_from_hw(struct hbg_priv *priv,
 	/* make sure HW write desc complete */
 	dma_rmb();
 
-	dma_sync_single_for_cpu(&priv->pdev->dev, buffer->skb_dma,
-				buffer->skb_len, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(&priv->pdev->dev, buffer->page_dma,
+				buffer->page_size, DMA_FROM_DEVICE);
 
-	rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
+	rx_desc = (struct hbg_rx_desc *)buffer->page_addr;
 	return FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2) != 0;
+}
+
+static int hbg_build_skb(struct hbg_priv *priv,
+			 struct hbg_buffer *buffer, u32 pkt_len)
+{
+	net_prefetch(buffer->page_addr);
+
+	buffer->skb = napi_build_skb(buffer->page_addr, buffer->page_size);
+	if (unlikely(!buffer->skb))
+		return -ENOMEM;
+	skb_mark_for_recycle(buffer->skb);
+
+	/* page will be freed together with the skb */
+	buffer->page = NULL;
+
+	return 0;
 }
 
 static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
@@ -417,33 +487,39 @@ static int hbg_napi_rx_poll(struct napi_struct *napi, int budget)
 	u32 packet_done = 0;
 	u32 pkt_len;
 
+	hbg_rx_fill_buffers(priv);
 	while (packet_done < budget) {
 		if (unlikely(hbg_queue_is_empty(ring->ntc, ring->ntu, ring)))
 			break;
 
 		buffer = &ring->queue[ring->ntc];
-		if (unlikely(!buffer->skb))
+		if (unlikely(!buffer->page))
 			goto next_buffer;
 
 		if (unlikely(!hbg_sync_data_from_hw(priv, buffer)))
 			break;
-		rx_desc = (struct hbg_rx_desc *)buffer->skb->data;
+		rx_desc = (struct hbg_rx_desc *)buffer->page_addr;
 		pkt_len = FIELD_GET(HBG_RX_DESC_W2_PKT_LEN_M, rx_desc->word2);
+		trace_hbg_rx_desc(priv, ring->ntc, rx_desc);
 
-		if (unlikely(!hbg_rx_pkt_check(priv, rx_desc, buffer->skb))) {
-			hbg_buffer_free(buffer);
+		if (unlikely(hbg_build_skb(priv, buffer, pkt_len))) {
+			hbg_buffer_free_page(buffer);
 			goto next_buffer;
 		}
 
-		hbg_dma_unmap(buffer);
+		if (unlikely(!hbg_rx_pkt_check(priv, rx_desc, buffer->skb))) {
+			hbg_buffer_free_skb(buffer);
+			goto next_buffer;
+		}
+
 		skb_reserve(buffer->skb, HBG_PACKET_HEAD_SIZE + NET_IP_ALIGN);
 		skb_put(buffer->skb, pkt_len);
 		buffer->skb->protocol = eth_type_trans(buffer->skb,
 						       priv->netdev);
-
 		dev_sw_netstats_rx_add(priv->netdev, pkt_len);
 		napi_gro_receive(napi, buffer->skb);
 		buffer->skb = NULL;
+		buffer->page = NULL;
 
 next_buffer:
 		hbg_rx_fill_one_buffer(priv);
@@ -456,6 +532,42 @@ next_buffer:
 		hbg_hw_irq_enable(priv, HBG_INT_MSK_RX_B, true);
 
 	return packet_done;
+}
+
+static void hbg_ring_page_pool_destory(struct hbg_ring *ring)
+{
+	if (!ring->page_pool)
+		return;
+
+	page_pool_destroy(ring->page_pool);
+	ring->page_pool = NULL;
+}
+
+static int hbg_ring_page_pool_init(struct hbg_priv *priv, struct hbg_ring *ring)
+{
+	u32 buf_size = hbg_spec_max_frame_len(priv, ring->dir);
+	struct page_pool_params pp_params = {
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.order = hbg_get_page_order(ring),
+		.pool_size = ring->len * buf_size / hbg_get_page_size(ring),
+		.nid = dev_to_node(&priv->pdev->dev),
+		.dev = &priv->pdev->dev,
+		.napi = &ring->napi,
+		.dma_dir = DMA_FROM_DEVICE,
+		.offset = 0,
+		.max_len = hbg_get_page_size(ring),
+	};
+	int ret = 0;
+
+	ring->page_pool = page_pool_create(&pp_params);
+	if (IS_ERR(ring->page_pool)) {
+		ret = PTR_ERR(ring->page_pool);
+		dev_err(&priv->pdev->dev,
+			"failed to create page pool, ret = %d\n", ret);
+		ring->page_pool = NULL;
+	}
+
+	return ret;
 }
 
 static void hbg_ring_uninit(struct hbg_ring *ring)
@@ -476,6 +588,7 @@ static void hbg_ring_uninit(struct hbg_ring *ring)
 		buffer->priv = NULL;
 	}
 
+	hbg_ring_page_pool_destory(ring);
 	dma_free_coherent(&ring->priv->pdev->dev,
 			  ring->len * sizeof(*ring->queue),
 			  ring->queue, ring->queue_dma);
@@ -491,8 +604,19 @@ static int hbg_ring_init(struct hbg_priv *priv, struct hbg_ring *ring,
 {
 	struct hbg_buffer *buffer;
 	u32 i, len;
+	int ret;
 
 	len = hbg_get_spec_fifo_max_num(priv, dir) + 1;
+	/* To improve receiving performance under high-stress scenarios,
+	 * in the `hbg_napi_rx_poll()`, we first use the other half of
+	 * the buffer to receive packets from the hardware via the
+	 * `hbg_rx_fill_buffers()`, and then process the packets in the
+	 * original half of the buffer to avoid packet loss caused by
+	 * hardware overflow as much as possible.
+	 */
+	if (dir == HBG_DIR_RX)
+		len += hbg_get_spec_fifo_max_num(priv, dir);
+
 	ring->queue = dma_alloc_coherent(&priv->pdev->dev,
 					 len * sizeof(*ring->queue),
 					 &ring->queue_dma, GFP_KERNEL);
@@ -514,10 +638,22 @@ static int hbg_ring_init(struct hbg_priv *priv, struct hbg_ring *ring,
 	ring->ntu = 0;
 	ring->len = len;
 
-	if (dir == HBG_DIR_TX)
+	if (dir == HBG_DIR_TX) {
 		netif_napi_add_tx(priv->netdev, &ring->napi, napi_poll);
-	else
+	} else {
 		netif_napi_add(priv->netdev, &ring->napi, napi_poll);
+
+		ret = hbg_ring_page_pool_init(priv, ring);
+		if (ret) {
+			netif_napi_del(&ring->napi);
+			dma_free_coherent(&ring->priv->pdev->dev,
+					  ring->len * sizeof(*ring->queue),
+					  ring->queue, ring->queue_dma);
+			ring->queue = NULL;
+			ring->len = 0;
+			return ret;
+		}
+	}
 
 	napi_enable(&ring->napi);
 	return 0;
@@ -541,21 +677,16 @@ static int hbg_tx_ring_init(struct hbg_priv *priv)
 static int hbg_rx_ring_init(struct hbg_priv *priv)
 {
 	int ret;
-	u32 i;
 
 	ret = hbg_ring_init(priv, &priv->rx_ring, hbg_napi_rx_poll, HBG_DIR_RX);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < priv->rx_ring.len - 1; i++) {
-		ret = hbg_rx_fill_one_buffer(priv);
-		if (ret) {
-			hbg_ring_uninit(&priv->rx_ring);
-			return ret;
-		}
-	}
+	ret = hbg_rx_fill_buffers(priv);
+	if (ret)
+		hbg_ring_uninit(&priv->rx_ring);
 
-	return 0;
+	return ret;
 }
 
 int hbg_txrx_init(struct hbg_priv *priv)

@@ -33,6 +33,7 @@
 #ifndef _HNS_ROCE_DEVICE_H
 #define _HNS_ROCE_DEVICE_H
 
+#include <linux/pci.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/hns-abi.h>
 #include "hns_roce_debugfs.h"
@@ -153,6 +154,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SDI_MODE		= BIT(14),
 	HNS_ROCE_CAP_FLAG_STASH			= BIT(17),
 	HNS_ROCE_CAP_FLAG_CQE_INLINE		= BIT(19),
+	HNS_ROCE_CAP_FLAG_BOND                  = BIT(21),
 	HNS_ROCE_CAP_FLAG_SRQ_RECORD_DB         = BIT(22),
 };
 
@@ -177,6 +179,7 @@ enum hns_roce_instance_state {
 	HNS_ROCE_STATE_INIT,
 	HNS_ROCE_STATE_INITED,
 	HNS_ROCE_STATE_UNINIT,
+	HNS_ROCE_STATE_BOND_UNINIT,
 };
 
 enum {
@@ -217,6 +220,7 @@ struct hns_roce_ucontext {
 	struct mutex		page_mutex;
 	struct hns_user_mmap_entry *db_mmap_entry;
 	u32			config;
+	u8 cq_bank_id;
 };
 
 struct hns_roce_pd {
@@ -495,6 +499,7 @@ struct hns_roce_cq_table {
 	struct hns_roce_hem_table	table;
 	struct hns_roce_bank bank[HNS_ROCE_CQ_BANK_NUM];
 	struct mutex			bank_mutex;
+	u32 ctx_num[HNS_ROCE_CQ_BANK_NUM];
 };
 
 struct hns_roce_srq_table {
@@ -1165,6 +1170,17 @@ static inline u8 get_tclass(const struct ib_global_route *grh)
 	       grh->traffic_class >> DSCP_SHIFT : grh->traffic_class;
 }
 
+static inline struct net_device *get_hr_netdev(struct hns_roce_dev *hr_dev,
+					       u8 port)
+{
+	return hr_dev->iboe.netdevs[port];
+}
+
+static inline u8 get_hr_bus_num(struct hns_roce_dev *hr_dev)
+{
+	return hr_dev->pci_dev->bus->number;
+}
+
 void hns_roce_init_uar_table(struct hns_roce_dev *dev);
 int hns_roce_uar_alloc(struct hns_roce_dev *dev, struct hns_roce_uar *uar);
 
@@ -1291,7 +1307,7 @@ void hns_roce_flush_cqe(struct hns_roce_dev *hr_dev, u32 qpn);
 void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
 void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
-void hns_roce_exit(struct hns_roce_dev *hr_dev);
+void hns_roce_exit(struct hns_roce_dev *hr_dev, bool bond_cleanup);
 int hns_roce_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ib_cq);
 int hns_roce_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp);
@@ -1305,5 +1321,7 @@ hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 				size_t length,
 				enum hns_roce_mmap_type mmap_type);
 bool check_sl_valid(struct hns_roce_dev *hr_dev, u8 sl);
+void hns_roce_put_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx);
+void hns_roce_get_cq_bankid_for_uctx(struct hns_roce_ucontext *uctx);
 
 #endif /* _HNS_ROCE_DEVICE_H */

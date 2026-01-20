@@ -1,9 +1,11 @@
 config DRM_NOVA
 	tristate "Nova DRM driver"
+	depends on 64BIT
 	depends on DRM=y
 	depends on PCI
 	depends on RUST
 	select AUXILIARY_BUS
+	select NOVA_CORE
 	default n
 	help
 	  Choose this if you want to build the Nova DRM driver for Nvidia

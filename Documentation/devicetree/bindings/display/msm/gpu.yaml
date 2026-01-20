@@ -133,7 +133,6 @@ properties:
       For GMU attached devices a phandle to the GMU device that will
       control the power for the GPU.
 
-
 required:
   - compatible
   - reg

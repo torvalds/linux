@@ -1305,6 +1305,11 @@ static int metadata_from_nlattrs(struct net *net, struct sw_flow_match *match,
 	return 0;
 }
 
+/*
+ * Constructs NSH header 'nh' from attributes of OVS_ACTION_ATTR_PUSH_NSH,
+ * where 'nh' points to a memory block of 'size' bytes.  It's assumed that
+ * attributes were previously validated with validate_push_nsh().
+ */
 int nsh_hdr_from_nlattr(const struct nlattr *attr,
 			struct nshhdr *nh, size_t size)
 {
@@ -1314,8 +1319,6 @@ int nsh_hdr_from_nlattr(const struct nlattr *attr,
 	u8 ttl = 0;
 	int mdlen = 0;
 
-	/* validate_nsh has check this, so we needn't do duplicate check here
-	 */
 	if (size < NSH_BASE_HDR_LEN)
 		return -ENOBUFS;
 
@@ -1355,46 +1358,6 @@ int nsh_hdr_from_nlattr(const struct nlattr *attr,
 	/* nsh header length  = NSH_BASE_HDR_LEN + mdlen */
 	nh->ver_flags_ttl_len = 0;
 	nsh_set_flags_ttl_len(nh, flags, ttl, NSH_BASE_HDR_LEN + mdlen);
-
-	return 0;
-}
-
-int nsh_key_from_nlattr(const struct nlattr *attr,
-			struct ovs_key_nsh *nsh, struct ovs_key_nsh *nsh_mask)
-{
-	struct nlattr *a;
-	int rem;
-
-	/* validate_nsh has check this, so we needn't do duplicate check here
-	 */
-	nla_for_each_nested(a, attr, rem) {
-		int type = nla_type(a);
-
-		switch (type) {
-		case OVS_NSH_KEY_ATTR_BASE: {
-			const struct ovs_nsh_key_base *base = nla_data(a);
-			const struct ovs_nsh_key_base *base_mask = base + 1;
-
-			nsh->base = *base;
-			nsh_mask->base = *base_mask;
-			break;
-		}
-		case OVS_NSH_KEY_ATTR_MD1: {
-			const struct ovs_nsh_key_md1 *md1 = nla_data(a);
-			const struct ovs_nsh_key_md1 *md1_mask = md1 + 1;
-
-			memcpy(nsh->context, md1->context, sizeof(*md1));
-			memcpy(nsh_mask->context, md1_mask->context,
-			       sizeof(*md1_mask));
-			break;
-		}
-		case OVS_NSH_KEY_ATTR_MD2:
-			/* Not supported yet */
-			return -ENOTSUPP;
-		default:
-			return -EINVAL;
-		}
-	}
 
 	return 0;
 }
@@ -2839,17 +2802,13 @@ static int validate_and_copy_set_tun(const struct nlattr *attr,
 	return err;
 }
 
-static bool validate_nsh(const struct nlattr *attr, bool is_mask,
-			 bool is_push_nsh, bool log)
+static bool validate_push_nsh(const struct nlattr *attr, bool log)
 {
 	struct sw_flow_match match;
 	struct sw_flow_key key;
-	int ret = 0;
 
 	ovs_match_init(&match, &key, true, NULL);
-	ret = nsh_key_put_from_nlattr(attr, &match, is_mask,
-				      is_push_nsh, log);
-	return !ret;
+	return !nsh_key_put_from_nlattr(attr, &match, false, true, log);
 }
 
 /* Return false if there are any non-masked bits set.
@@ -2995,13 +2954,6 @@ static int validate_set(const struct nlattr *a,
 		    flow_key->ip.proto != IPPROTO_SCTP)
 			return -EINVAL;
 
-		break;
-
-	case OVS_KEY_ATTR_NSH:
-		if (eth_type != htons(ETH_P_NSH))
-			return -EINVAL;
-		if (!validate_nsh(nla_data(a), masked, false, log))
-			return -EINVAL;
 		break;
 
 	default:
@@ -3437,7 +3389,7 @@ static int __ovs_nla_copy_actions(struct net *net, const struct nlattr *attr,
 					return -EINVAL;
 			}
 			mac_proto = MAC_PROTO_NONE;
-			if (!validate_nsh(nla_data(a), false, true, true))
+			if (!validate_push_nsh(nla_data(a), log))
 				return -EINVAL;
 			break;
 

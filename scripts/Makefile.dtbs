@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+all-dtb := $(dtb-y) $(dtb-)
+
 # If CONFIG_OF_ALL_DTBS is enabled, all DT blobs are built
 dtb-$(CONFIG_OF_ALL_DTBS) += $(dtb-)
 
@@ -9,6 +11,13 @@ multi-dtb-y := $(call multi-search, $(dtb-y), .dtb, -dtbs)
 real-dtb-y := $(call real-search, $(dtb-y), .dtb, -dtbs)
 # Base DTB that overlay is applied onto
 base-dtb-y := $(filter %.dtb, $(call real-search, $(multi-dtb-y), .dtb, -dtbs))
+
+# Ensure that any .dtbo is applied to at least one base .dtb. Otherwise, it
+# does not get validated.
+applied-dtbo := $(filter %.dtbo, \
+	$(call real-search, $(call multi-search, $(all-dtb), .dtb, -dtbs), .dtb, -dtbs))
+unapplied-dtbo := $(filter-out $(applied-dtbo),$(filter %.dtbo, $(dtb-y)))
+$(if $(unapplied-dtbo), $(warning .dtbo is not applied to any base: $(unapplied-dtbo)))
 
 dtb-y           := $(addprefix $(obj)/, $(dtb-y))
 multi-dtb-y     := $(addprefix $(obj)/, $(multi-dtb-y))

@@ -223,8 +223,6 @@ void C2HPacketHandler_8723B(struct adapter *padapter, u8 *pbuffer, u16 length);
 
 void SetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val);
 void GetHwReg8723B(struct adapter *padapter, u8 variable, u8 *val);
-u8 SetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable,
-		     void *pval);
 u8 GetHalDefVar8723B(struct adapter *padapter, enum hal_def_variable variable,
 		     void *pval);
 

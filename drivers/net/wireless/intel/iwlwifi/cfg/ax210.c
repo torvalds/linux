@@ -33,7 +33,6 @@ static const struct iwl_family_base_params iwl_ax210_base = {
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
 	.apmg_not_supported = true,
 	.mac_addr_from_csr = 0x380,
-	.min_umac_error_event_table = 0x400000,
 	.d3_debug_data_base_addr = 0x401000,
 	.d3_debug_data_length = 60 * 1024,
 	.mon_smem_regs = {

@@ -186,7 +186,7 @@ static int thead_dwmac_enable_clk(struct plat_stmmacenet_data *plat)
 	return 0;
 }
 
-static int thead_dwmac_init(struct platform_device *pdev, void *priv)
+static int thead_dwmac_init(struct device *dev, void *priv)
 {
 	struct thead_dwmac *dwmac = priv;
 	unsigned int reg;

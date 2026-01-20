@@ -1062,7 +1062,7 @@ static int cs43130_pcm_ch_put(struct snd_kcontrol *kcontrol,
 {
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs43130_private *cs43130 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 

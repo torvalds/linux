@@ -2,6 +2,7 @@
 /* Do not edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/devlink.yaml */
 /* YNL-GEN kernel header */
+/* To regenerate run: tools/net/ynl/ynl-regen.sh */
 
 #ifndef _LINUX_DEVLINK_GEN_H
 #define _LINUX_DEVLINK_GEN_H

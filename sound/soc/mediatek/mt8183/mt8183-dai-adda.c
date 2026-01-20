@@ -113,7 +113,7 @@ static const struct soc_enum mt8183_adda_enum[] = {
 static int mt8183_adda_dmic_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8183_afe_private *afe_priv = afe->platform_priv;
 
@@ -125,7 +125,7 @@ static int mt8183_adda_dmic_get(struct snd_kcontrol *kcontrol,
 static int mt8183_adda_dmic_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *cmpnt = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *cmpnt = snd_kcontrol_chip(kcontrol);
 	struct mtk_base_afe *afe = snd_soc_component_get_drvdata(cmpnt);
 	struct mt8183_afe_private *afe_priv = afe->platform_priv;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;

@@ -39,6 +39,9 @@ properties:
               - amlogic,a4-gpio-ao-intc
               - amlogic,a5-gpio-intc
               - amlogic,c3-gpio-intc
+              - amlogic,s6-gpio-intc
+              - amlogic,s7-gpio-intc
+              - amlogic,s7d-gpio-intc
               - amlogic,t7-gpio-intc
           - const: amlogic,meson-gpio-intc
 

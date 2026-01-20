@@ -10,8 +10,7 @@
  *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
  */
 
-#define KMSG_COMPONENT "zcrypt"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zcrypt: " fmt
 
 #include <linux/module.h>
 #include <linux/slab.h>

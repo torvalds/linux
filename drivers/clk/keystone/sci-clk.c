@@ -496,8 +496,8 @@ static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 static int _cmp_sci_clk_list(void *priv, const struct list_head *a,
 			     const struct list_head *b)
 {
-	struct sci_clk *ca = container_of(a, struct sci_clk, node);
-	struct sci_clk *cb = container_of(b, struct sci_clk, node);
+	const struct sci_clk *ca = container_of(a, struct sci_clk, node);
+	const struct sci_clk *cb = container_of(b, struct sci_clk, node);
 
 	return _cmp_sci_clk(ca, &cb);
 }

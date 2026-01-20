@@ -876,7 +876,7 @@ static void nau8824_eject_jack(struct nau8824 *nau8824)
 		NAU8824_JD_SLEEP_MODE, NAU8824_JD_SLEEP_MODE);
 
 	/* Close clock for jack type detection at manual mode */
-	if (dapm->bias_level < SND_SOC_BIAS_PREPARE)
+	if (snd_soc_dapm_get_bias_level(dapm) < SND_SOC_BIAS_PREPARE)
 		nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
 }
 
@@ -931,7 +931,7 @@ static void nau8824_setup_auto_irq(struct nau8824 *nau8824)
 	regmap_update_bits(regmap, NAU8824_REG_INTERRUPT_SETTING,
 		NAU8824_IRQ_EJECT_DIS, 0);
 	/* Enable internal VCO needed for interruptions */
-	if (nau8824->dapm->bias_level < SND_SOC_BIAS_PREPARE)
+	if (snd_soc_dapm_get_bias_level(nau8824->dapm) < SND_SOC_BIAS_PREPARE)
 		nau8824_config_sysclk(nau8824, NAU8824_CLK_INTERNAL, 0);
 	regmap_update_bits(regmap, NAU8824_REG_ENA_CTRL,
 		NAU8824_JD_SLEEP_MODE, 0);
@@ -1498,7 +1498,7 @@ static int nau8824_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(nau8824->dapm) == SND_SOC_BIAS_OFF) {
 			/* Setup codec configuration after resume */
 			nau8824_resume_setup(nau8824);
 		}
@@ -1519,7 +1519,7 @@ static int nau8824_set_bias_level(struct snd_soc_component *component,
 static int nau8824_component_probe(struct snd_soc_component *component)
 {
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	nau8824->dapm = dapm;
 
@@ -1532,7 +1532,7 @@ static int __maybe_unused nau8824_suspend(struct snd_soc_component *component)
 
 	if (nau8824->irq) {
 		disable_irq(nau8824->irq);
-		snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+		snd_soc_dapm_force_bias_level(nau8824->dapm, SND_SOC_BIAS_OFF);
 	}
 	regcache_cache_only(nau8824->regmap, true);
 	regcache_mark_dirty(nau8824->regmap);

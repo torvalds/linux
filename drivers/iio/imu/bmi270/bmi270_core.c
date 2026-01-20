@@ -31,6 +31,8 @@
 
 #define BMI270_INT_STATUS_0_REG				0x1c
 #define BMI270_INT_STATUS_0_STEP_CNT_MSK		BIT(1)
+#define BMI270_INT_STATUS_0_NOMOTION_MSK		BIT(5)
+#define BMI270_INT_STATUS_0_MOTION_MSK			BIT(6)
 
 #define BMI270_INT_STATUS_1_REG				0x1d
 #define BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK		GENMASK(7, 6)
@@ -81,6 +83,8 @@
 #define BMI270_INT1_MAP_FEAT_REG			0x56
 #define BMI270_INT2_MAP_FEAT_REG			0x57
 #define BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK		BIT(1)
+#define BMI270_INT_MAP_FEAT_NOMOTION_MSK		BIT(5)
+#define BMI270_INT_MAP_FEAT_ANYMOTION_MSK		BIT(6)
 
 #define BMI270_INT_MAP_DATA_REG				0x58
 #define BMI270_INT_MAP_DATA_DRDY_INT1_MSK		BIT(2)
@@ -106,6 +110,25 @@
 #define BMI270_STEP_SC26_RST_CNT_MSK			BIT(10)
 #define BMI270_STEP_SC26_EN_CNT_MSK			BIT(12)
 
+#define BMI270_FEAT_MOTION_DURATION_MSK			GENMASK(12, 0)
+#define BMI270_FEAT_MOTION_X_EN_MSK			BIT(13)
+#define BMI270_FEAT_MOTION_Y_EN_MSK			BIT(14)
+#define BMI270_FEAT_MOTION_Z_EN_MSK			BIT(15)
+#define BMI270_FEAT_MOTION_XYZ_EN_MSK			GENMASK(15, 13)
+#define BMI270_FEAT_MOTION_THRESHOLD_MSK		GENMASK(10, 0)
+#define BMI270_FEAT_MOTION_OUT_CONF_MSK			GENMASK(14, 11)
+#define BMI270_FEAT_MOTION_ENABLE_MSK			BIT(15)
+
+#define BMI270_MOTION_XYZ_MSK				GENMASK(2, 0)
+
+/* See pages 92 and 93 of the datasheet */
+#define BMI270_MOTION_THRES_FULL_SCALE			GENMASK(10, 0)
+#define BMI270_MOTION_DURAT_SCALE			50
+#define BMI270_MOTION_DURAT_MAX				162
+
+/* 9.81 * 1000000 m/s^2 */
+#define BMI270_G_MICRO_M_S_2				9810000
+
 /* See datasheet section 4.6.14, Temperature Sensor */
 #define BMI270_TEMP_OFFSET				11776
 #define BMI270_TEMP_SCALE				1953125
@@ -113,6 +136,11 @@
 /* See page 90 of datasheet. The step counter "holds implicitly a 20x factor" */
 #define BMI270_STEP_COUNTER_FACTOR			20
 #define BMI270_STEP_COUNTER_MAX				20460
+
+#define BMI270_INT_MICRO_TO_RAW(val, val2, scale) \
+	((val) * (scale) + ((val2) * (scale)) / MEGA)
+#define BMI270_RAW_TO_MICRO(raw, scale) \
+	((((raw) % (scale)) * MEGA) / scale)
 
 #define BMI260_INIT_DATA_FILE "bmi260-init-data.fw"
 #define BMI270_INIT_DATA_FILE "bmi270-init-data.fw"
@@ -309,6 +337,13 @@ static const struct  bmi270_odr_item bmi270_odr_table[] = {
 };
 
 enum bmi270_feature_reg_id {
+	/* Page 1 registers */
+	BMI270_ANYMO1_REG,
+	BMI270_ANYMO2_REG,
+	/* Page 2 registers */
+	BMI270_NOMO1_REG,
+	BMI270_NOMO2_REG,
+	/* Page 6 registers */
 	BMI270_SC_26_REG,
 };
 
@@ -318,6 +353,22 @@ struct bmi270_feature_reg {
 };
 
 static const struct bmi270_feature_reg bmi270_feature_regs[] = {
+	[BMI270_ANYMO1_REG] = {
+		.page = 1,
+		.addr = 0x3c,
+	},
+	[BMI270_ANYMO2_REG] = {
+		.page = 1,
+		.addr = 0x3e,
+	},
+	[BMI270_NOMO1_REG] = {
+		.page = 2,
+		.addr = 0x30,
+	},
+	[BMI270_NOMO2_REG] = {
+		.page = 2,
+		.addr = 0x32,
+	},
 	[BMI270_SC_26_REG] = {
 		.page = 6,
 		.addr = 0x32,
@@ -439,6 +490,121 @@ static int bmi270_step_wtrmrk_en(struct bmi270_data *data, bool state)
 					     state));
 }
 
+static int bmi270_motion_reg(enum iio_event_type type, enum iio_event_info info)
+{
+	switch (info) {
+	case IIO_EV_INFO_PERIOD:
+		switch (type) {
+		case IIO_EV_TYPE_MAG_ADAPTIVE:
+			return BMI270_ANYMO1_REG;
+		case IIO_EV_TYPE_ROC:
+			return BMI270_NOMO1_REG;
+		default:
+			return -EINVAL;
+		}
+	case IIO_EV_INFO_VALUE:
+		switch (type) {
+		case IIO_EV_TYPE_MAG_ADAPTIVE:
+			return BMI270_ANYMO2_REG;
+		case IIO_EV_TYPE_ROC:
+			return BMI270_NOMO2_REG;
+		default:
+			return -EINVAL;
+		}
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bmi270_anymotion_event_en(struct bmi270_data *data,
+				     struct iio_chan_spec const *chan,
+				     bool state)
+{
+	u16 axis_msk, axis_field_val, regval;
+	int ret, irq_reg;
+	bool axis_en;
+
+	irq_reg = bmi270_int_map_reg(data->irq_pin);
+	if (irq_reg < 0)
+		return irq_reg;
+
+	guard(mutex)(&data->mutex);
+
+	ret = bmi270_read_feature_reg(data, BMI270_ANYMO1_REG, &regval);
+	if (ret)
+		return ret;
+
+	switch (chan->channel2) {
+	case IIO_MOD_X:
+		axis_msk = BMI270_FEAT_MOTION_X_EN_MSK;
+		axis_field_val = FIELD_PREP(BMI270_FEAT_MOTION_X_EN_MSK, state);
+		axis_en = FIELD_GET(BMI270_FEAT_MOTION_Y_EN_MSK, regval) |
+			  FIELD_GET(BMI270_FEAT_MOTION_Z_EN_MSK, regval);
+		break;
+	case IIO_MOD_Y:
+		axis_msk = BMI270_FEAT_MOTION_Y_EN_MSK;
+		axis_field_val = FIELD_PREP(BMI270_FEAT_MOTION_Y_EN_MSK, state);
+		axis_en = FIELD_GET(BMI270_FEAT_MOTION_X_EN_MSK, regval) |
+			  FIELD_GET(BMI270_FEAT_MOTION_Z_EN_MSK, regval);
+		break;
+	case IIO_MOD_Z:
+		axis_msk = BMI270_FEAT_MOTION_Z_EN_MSK;
+		axis_field_val = FIELD_PREP(BMI270_FEAT_MOTION_Z_EN_MSK, state);
+		axis_en = FIELD_GET(BMI270_FEAT_MOTION_X_EN_MSK, regval) |
+			  FIELD_GET(BMI270_FEAT_MOTION_Y_EN_MSK, regval);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = bmi270_update_feature_reg(data, BMI270_ANYMO1_REG, axis_msk,
+					axis_field_val);
+	if (ret)
+		return ret;
+
+	ret = bmi270_update_feature_reg(data, BMI270_ANYMO2_REG,
+					BMI270_FEAT_MOTION_ENABLE_MSK,
+					FIELD_PREP(BMI270_FEAT_MOTION_ENABLE_MSK,
+						   state || axis_en));
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(data->regmap, irq_reg,
+				  BMI270_INT_MAP_FEAT_ANYMOTION_MSK,
+				  FIELD_PREP(BMI270_INT_MAP_FEAT_ANYMOTION_MSK,
+					     state || axis_en));
+}
+
+static int bmi270_nomotion_event_en(struct bmi270_data *data, bool state)
+{
+	int ret, irq_reg;
+
+	irq_reg = bmi270_int_map_reg(data->irq_pin);
+	if (irq_reg < 0)
+		return irq_reg;
+
+	guard(mutex)(&data->mutex);
+
+	ret = bmi270_update_feature_reg(data, BMI270_NOMO1_REG,
+					BMI270_FEAT_MOTION_XYZ_EN_MSK,
+					FIELD_PREP(BMI270_FEAT_MOTION_XYZ_EN_MSK,
+						   state ? BMI270_MOTION_XYZ_MSK : 0));
+	if (ret)
+		return ret;
+
+	ret = bmi270_update_feature_reg(data, BMI270_NOMO2_REG,
+					BMI270_FEAT_MOTION_ENABLE_MSK,
+					FIELD_PREP(BMI270_FEAT_MOTION_ENABLE_MSK,
+						   state));
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(data->regmap, irq_reg,
+				  BMI270_INT_MAP_FEAT_NOMOTION_MSK,
+				  FIELD_PREP(BMI270_INT_MAP_FEAT_NOMOTION_MSK,
+					     state));
+}
+
 static int bmi270_set_scale(struct bmi270_data *data, int chan_type, int uscale)
 {
 	int i;
@@ -478,8 +644,6 @@ static int bmi270_get_scale(struct bmi270_data *data, int chan_type, int *scale,
 	int ret;
 	unsigned int val;
 	struct bmi270_scale_item bmi270_scale_item;
-
-	guard(mutex)(&data->mutex);
 
 	switch (chan_type) {
 	case IIO_ACCEL:
@@ -613,6 +777,20 @@ static irqreturn_t bmi270_irq_thread_handler(int irq, void *private)
 
 	if (FIELD_GET(BMI270_INT_STATUS_1_ACC_GYR_DRDY_MSK, status1))
 		iio_trigger_poll_nested(data->trig);
+
+	if (FIELD_GET(BMI270_INT_STATUS_0_MOTION_MSK, status0))
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+							     IIO_MOD_X_OR_Y_OR_Z,
+							     IIO_EV_TYPE_MAG_ADAPTIVE,
+							     IIO_EV_DIR_RISING),
+			       timestamp);
+
+	if (FIELD_GET(BMI270_INT_STATUS_0_NOMOTION_MSK, status0))
+		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
+							     IIO_MOD_X_AND_Y_AND_Z,
+							     IIO_EV_TYPE_ROC,
+							     IIO_EV_DIR_RISING),
+			       timestamp);
 
 	if (FIELD_GET(BMI270_INT_STATUS_0_STEP_CNT_MSK, status0))
 		iio_push_event(indio_dev, IIO_UNMOD_EVENT_CODE(IIO_STEPS, 0,
@@ -827,6 +1005,39 @@ static int bmi270_read_avail(struct iio_dev *indio_dev,
 	}
 }
 
+static ssize_t in_accel_value_available_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct bmi270_data *data = iio_priv(indio_dev);
+	int ret, scale, uscale;
+	unsigned int step, max;
+
+	ret = bmi270_get_scale(data, IIO_ACCEL, &scale, &uscale);
+	if (ret)
+		return ret;
+
+	max = BMI270_G_MICRO_M_S_2 / uscale;
+	step = max / BMI270_MOTION_THRES_FULL_SCALE;
+
+	return sysfs_emit(buf, "[0 %u %u]\n", step, max);
+}
+
+static IIO_DEVICE_ATTR_RO(in_accel_value_available, 0);
+
+static IIO_CONST_ATTR(in_accel_period_available, "[0.0 0.02 162.0]");
+
+static struct attribute *bmi270_event_attributes[] = {
+	&iio_dev_attr_in_accel_value_available.dev_attr.attr,
+	&iio_const_attr_in_accel_period_available.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group bmi270_event_attribute_group = {
+	.attrs = bmi270_event_attributes,
+};
+
 static int bmi270_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
@@ -835,6 +1046,10 @@ static int bmi270_write_event_config(struct iio_dev *indio_dev,
 	struct bmi270_data *data = iio_priv(indio_dev);
 
 	switch (type) {
+	case IIO_EV_TYPE_MAG_ADAPTIVE:
+		return bmi270_anymotion_event_en(data, chan, state);
+	case IIO_EV_TYPE_ROC:
+		return bmi270_nomotion_event_en(data, state);
 	case IIO_EV_TYPE_CHANGE:
 		return bmi270_step_wtrmrk_en(data, state);
 	default:
@@ -848,21 +1063,55 @@ static int bmi270_read_event_config(struct iio_dev *indio_dev,
 				    enum iio_event_direction dir)
 {
 	struct bmi270_data *data = iio_priv(indio_dev);
+	bool feat_en, axis_en;
 	int ret, reg, regval;
+	u16 motion_reg;
 
 	guard(mutex)(&data->mutex);
 
+	reg = bmi270_int_map_reg(data->irq_pin);
+	if (reg < 0)
+		return reg;
+
+	ret = regmap_read(data->regmap, reg, &regval);
+	if (ret)
+		return ret;
+
 	switch (chan->type) {
 	case IIO_STEPS:
-		reg = bmi270_int_map_reg(data->irq_pin);
-		if (reg)
-			return reg;
+		return !!FIELD_GET(BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK, regval);
+	case IIO_ACCEL:
+		switch (type) {
+		case IIO_EV_TYPE_ROC:
+			return !!FIELD_GET(BMI270_INT_MAP_FEAT_NOMOTION_MSK, regval);
+		case IIO_EV_TYPE_MAG_ADAPTIVE:
+			ret = bmi270_read_feature_reg(data, BMI270_ANYMO1_REG,
+						      &motion_reg);
+			if (ret)
+				return ret;
 
-		ret = regmap_read(data->regmap, reg, &regval);
-		if (ret)
-			return ret;
-		return FIELD_GET(BMI270_INT_MAP_FEAT_STEP_CNT_WTRMRK_MSK,
-				 regval) ? 1 : 0;
+			feat_en = FIELD_GET(BMI270_INT_MAP_FEAT_ANYMOTION_MSK,
+					    regval);
+			switch (chan->channel2) {
+			case IIO_MOD_X:
+				axis_en = FIELD_GET(BMI270_FEAT_MOTION_X_EN_MSK,
+						    motion_reg);
+				break;
+			case IIO_MOD_Y:
+				axis_en = FIELD_GET(BMI270_FEAT_MOTION_Y_EN_MSK,
+						    motion_reg);
+				break;
+			case IIO_MOD_Z:
+				axis_en = FIELD_GET(BMI270_FEAT_MOTION_Z_EN_MSK,
+						    motion_reg);
+				break;
+			default:
+				return -EINVAL;
+			}
+			return axis_en && feat_en;
+		default:
+			return -EINVAL;
+		}
 	default:
 		return -EINVAL;
 	}
@@ -876,20 +1125,50 @@ static int bmi270_write_event_value(struct iio_dev *indio_dev,
 				    int val, int val2)
 {
 	struct bmi270_data *data = iio_priv(indio_dev);
-	unsigned int raw;
+	unsigned int raw, mask, regval;
+	int ret, reg, scale, uscale;
+	u64 tmp;
 
 	guard(mutex)(&data->mutex);
 
-	switch (type) {
-	case IIO_EV_TYPE_CHANGE:
+	if (type == IIO_EV_TYPE_CHANGE) {
 		if (!in_range(val, 0, BMI270_STEP_COUNTER_MAX + 1))
 			return -EINVAL;
 
 		raw = val / BMI270_STEP_COUNTER_FACTOR;
-		return bmi270_update_feature_reg(data, BMI270_SC_26_REG,
-						 BMI270_STEP_SC26_WTRMRK_MSK,
-						 FIELD_PREP(BMI270_STEP_SC26_WTRMRK_MSK,
-							    raw));
+		mask = BMI270_STEP_SC26_WTRMRK_MSK;
+		regval = FIELD_PREP(BMI270_STEP_SC26_WTRMRK_MSK, raw);
+		return bmi270_update_feature_reg(data, BMI270_SC_26_REG, mask,
+						 regval);
+	}
+
+	reg = bmi270_motion_reg(type, info);
+	if (reg < 0)
+		return reg;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		ret = bmi270_get_scale(data, IIO_ACCEL, &scale, &uscale);
+		if (ret)
+			return ret;
+
+		if (!in_range(val, 0, (BMI270_G_MICRO_M_S_2 / uscale) + 1))
+			return -EINVAL;
+
+		tmp = (u64)val * BMI270_MOTION_THRES_FULL_SCALE * uscale;
+		raw = DIV_ROUND_CLOSEST_ULL(tmp, BMI270_G_MICRO_M_S_2);
+		mask = BMI270_FEAT_MOTION_THRESHOLD_MSK;
+		regval = FIELD_PREP(BMI270_FEAT_MOTION_THRESHOLD_MSK, raw);
+		return bmi270_update_feature_reg(data, reg, mask, regval);
+	case IIO_EV_INFO_PERIOD:
+		if (!in_range(val, 0, BMI270_MOTION_DURAT_MAX + 1))
+			return -EINVAL;
+
+		raw = BMI270_INT_MICRO_TO_RAW(val, val2,
+					      BMI270_MOTION_DURAT_SCALE);
+		mask = BMI270_FEAT_MOTION_DURATION_MSK;
+		regval = FIELD_PREP(BMI270_FEAT_MOTION_DURATION_MSK, raw);
+		return bmi270_update_feature_reg(data, reg, mask, regval);
 	default:
 		return -EINVAL;
 	}
@@ -903,14 +1182,14 @@ static int bmi270_read_event_value(struct iio_dev *indio_dev,
 				   int *val, int *val2)
 {
 	struct bmi270_data *data = iio_priv(indio_dev);
+	int ret, reg, scale, uscale;
 	unsigned int raw;
 	u16 regval;
-	int ret;
+	u64 tmp;
 
 	guard(mutex)(&data->mutex);
 
-	switch (type) {
-	case IIO_EV_TYPE_CHANGE:
+	if (type == IIO_EV_TYPE_CHANGE) {
 		ret = bmi270_read_feature_reg(data, BMI270_SC_26_REG, &regval);
 		if (ret)
 			return ret;
@@ -918,6 +1197,36 @@ static int bmi270_read_event_value(struct iio_dev *indio_dev,
 		raw = FIELD_GET(BMI270_STEP_SC26_WTRMRK_MSK, regval);
 		*val = raw * BMI270_STEP_COUNTER_FACTOR;
 		return IIO_VAL_INT;
+	}
+
+	reg = bmi270_motion_reg(type, info);
+	if (reg < 0)
+		return reg;
+
+	switch (info) {
+	case IIO_EV_INFO_VALUE:
+		ret = bmi270_read_feature_reg(data, reg, &regval);
+		if (ret)
+			return ret;
+
+		ret = bmi270_get_scale(data, IIO_ACCEL, &scale, &uscale);
+		if (ret)
+			return ret;
+
+		raw = FIELD_GET(BMI270_FEAT_MOTION_THRESHOLD_MSK, regval);
+		tmp = (u64)raw * BMI270_G_MICRO_M_S_2;
+		*val = DIV_ROUND_CLOSEST_ULL(tmp,
+					     BMI270_MOTION_THRES_FULL_SCALE * uscale);
+		return IIO_VAL_INT;
+	case IIO_EV_INFO_PERIOD:
+		ret = bmi270_read_feature_reg(data, reg, &regval);
+		if (ret)
+			return ret;
+
+		raw = FIELD_GET(BMI270_FEAT_MOTION_DURATION_MSK, regval);
+		*val = raw / BMI270_MOTION_DURAT_SCALE;
+		*val2 = BMI270_RAW_TO_MICRO(raw, BMI270_MOTION_DURAT_SCALE);
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -929,6 +1238,20 @@ static const struct iio_event_spec bmi270_step_wtrmrk_event = {
 	.mask_shared_by_type = BIT(IIO_EV_INFO_ENABLE) | BIT(IIO_EV_INFO_VALUE),
 };
 
+static const struct iio_event_spec bmi270_anymotion_event = {
+	.type = IIO_EV_TYPE_MAG_ADAPTIVE,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+	.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_PERIOD),
+};
+
+static const struct iio_event_spec bmi270_nomotion_event = {
+	.type = IIO_EV_TYPE_ROC,
+	.dir = IIO_EV_DIR_RISING,
+	.mask_separate = BIT(IIO_EV_INFO_ENABLE),
+	.mask_shared_by_type = BIT(IIO_EV_INFO_VALUE) | BIT(IIO_EV_INFO_PERIOD),
+};
+
 static const struct iio_info bmi270_info = {
 	.read_raw = bmi270_read_raw,
 	.write_raw = bmi270_write_raw,
@@ -937,6 +1260,7 @@ static const struct iio_info bmi270_info = {
 	.read_event_config = bmi270_read_event_config,
 	.write_event_value = bmi270_write_event_value,
 	.read_event_value = bmi270_read_event_value,
+	.event_attrs = &bmi270_event_attribute_group,
 };
 
 #define BMI270_ACCEL_CHANNEL(_axis) {				\
@@ -956,6 +1280,8 @@ static const struct iio_info bmi270_info = {
 		.storagebits = 16,				\
 		.endianness = IIO_LE,				\
 	},	                                                \
+	.event_spec = &bmi270_anymotion_event,			\
+	.num_event_specs = 1,					\
 }
 
 #define BMI270_ANG_VEL_CHANNEL(_axis) {				\
@@ -1000,6 +1326,14 @@ static const struct iio_chan_spec bmi270_channels[] = {
 		.num_event_specs = 1,
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(BMI270_SCAN_TIMESTAMP),
+	{
+		.type = IIO_ACCEL,
+		.modified = 1,
+		.channel2 = IIO_MOD_X_AND_Y_AND_Z,
+		.scan_index = -1, /* Fake channel */
+		.event_spec = &bmi270_nomotion_event,
+		.num_event_specs = 1,
+	},
 };
 
 static int bmi270_int_pin_config(struct bmi270_data *data,
@@ -1106,6 +1440,13 @@ static int bmi270_trigger_probe(struct bmi270_data *data,
 	if (ret)
 		return dev_err_probe(data->dev, ret,
 				     "Trigger registration failed\n");
+
+	/* Disable axes for motion events */
+	ret = bmi270_update_feature_reg(data, BMI270_ANYMO1_REG,
+					BMI270_FEAT_MOTION_XYZ_EN_MSK,
+					FIELD_PREP(BMI270_FEAT_MOTION_XYZ_EN_MSK, 0));
+	if (ret)
+		return ret;
 
 	data->irq_pin = irq_pin;
 

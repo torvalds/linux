@@ -67,10 +67,12 @@ static const struct amdxdna_dev_priv npu5_dev_priv = {
 	.protocol_minor = 12,
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
+	.fw_feature_tbl = npu4_fw_feature_table,
 	.col_align	= COL_ALIGN_NATURE,
 	.mbox_dev_addr  = NPU5_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
 	.sram_dev_addr  = NPU5_SRAM_BAR_BASE,
+	.hwctx_limit    = 16,
 	.sram_offs      = {
 		DEFINE_BAR_OFFSET(MBOX_CHANN_OFF, NPU5_SRAM, MPNPU_SRAM_X2I_MAILBOX_0),
 		DEFINE_BAR_OFFSET(FW_ALIVE_OFF,   NPU5_SRAM, MPNPU_SRAM_X2I_MAILBOX_15),

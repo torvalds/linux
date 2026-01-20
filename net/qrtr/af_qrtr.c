@@ -824,7 +824,7 @@ static int qrtr_autobind(struct socket *sock)
 }
 
 /* Bind socket to specified sockaddr. */
-static int qrtr_bind(struct socket *sock, struct sockaddr *saddr, int len)
+static int qrtr_bind(struct socket *sock, struct sockaddr_unsized *saddr, int len)
 {
 	DECLARE_SOCKADDR(struct sockaddr_qrtr *, addr, saddr);
 	struct qrtr_sock *ipc = qrtr_sk(sock->sk);
@@ -1084,7 +1084,7 @@ out:
 	return rc;
 }
 
-static int qrtr_connect(struct socket *sock, struct sockaddr *saddr,
+static int qrtr_connect(struct socket *sock, struct sockaddr_unsized *saddr,
 			int len, int flags)
 {
 	DECLARE_SOCKADDR(struct sockaddr_qrtr *, addr, saddr);

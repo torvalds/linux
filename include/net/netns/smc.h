@@ -17,6 +17,9 @@ struct netns_smc {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header		*smc_hdr;
 #endif
+#if IS_ENABLED(CONFIG_SMC_HS_CTRL_BPF)
+	struct smc_hs_ctrl __rcu	*hs_ctrl;
+#endif /* CONFIG_SMC_HS_CTRL_BPF */
 	unsigned int			sysctl_autocorking_size;
 	unsigned int			sysctl_smcr_buf_type;
 	int				sysctl_smcr_testlink_time;
@@ -24,5 +27,7 @@ struct netns_smc {
 	int				sysctl_rmem;
 	int				sysctl_max_links_per_lgr;
 	int				sysctl_max_conns_per_lgr;
+	unsigned int			sysctl_smcr_max_send_wr;
+	unsigned int			sysctl_smcr_max_recv_wr;
 };
 #endif

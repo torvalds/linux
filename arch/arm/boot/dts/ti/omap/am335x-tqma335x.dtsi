@@ -1,0 +1,270 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2014-2025 TQ-Systems GmbH <linux@ew.tq-group.com>, D-82229 Seefeld, Germany.
+ * Authors: Gregor Herburger, Matthias Schiffer
+ *
+ * Based on:
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "am33xx.dtsi"
+
+/ {
+	compatible = "tq,tqma3359", "ti,am33xx";
+
+	aliases {
+		mmc0 = &mmc2;
+		mmc1 = &mmc1;
+		/delete-property/ mmc2;
+		rtc0 = &tps;
+		rtc1 = &ds1339;
+		rtc2 = &rtc;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>; /* 256 MB */
+	};
+
+	/* SOM input voltage */
+	vcc3v3in: regulator-vcc3v3in {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3IN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+
+	/*
+	 * Regulator is enabled by PMIC power sequence. The supplied voltage
+	 * rail is also usable on baseboard.
+	 */
+	vddshv: regulator-vddshv {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDSHV";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		vin-supply = <&vcc3v3in>;
+	};
+};
+
+&am33xx_pinmux {
+	i2c0_pins: i2c0-pins {
+		pinctrl-single,pins = <
+			/* i2c0_sda.i2c0_sda */
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SDA, PIN_INPUT_PULLUP, MUX_MODE0)
+			/* i2c0_scl.i2c0_scl */
+			AM33XX_PADCONF(AM335X_PIN_I2C0_SCL, PIN_INPUT_PULLUP, MUX_MODE0)
+		>;
+	};
+
+	mmc2_pins: mmc2-pins {
+		pinctrl-single,pins = <
+			/* gpmc_ad0.mmc1_dat0 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD0, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad1.mmc1_dat1 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD1, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad2.mmc1_dat2 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD2, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad3.mmc1_dat3 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD3, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad4.mmc1_dat4 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD4, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad5.mmc1_dat5 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD5, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad6.mmc1_dat6 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD6, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_ad7.mmc1_dat7 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD7, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE1)
+			/* gpmc_csn1.mmc1_clk */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN1, PIN_INPUT_PULLUP, MUX_MODE2)
+			/* gpmc_csn2.mmc1_cmd */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_CSN2, SLEWCTRL_SLOW | PIN_INPUT_PULLUP, MUX_MODE2)
+		>;
+	};
+
+	spi0_pins: spi0-pins {
+		pinctrl-single,pins = <
+			/* spi0_sclk.spi0_sclk */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_SCLK, PIN_INPUT, MUX_MODE0)
+			/* spi0_d0.spi0_d0 */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D0, PIN_INPUT_PULLDOWN, MUX_MODE0)
+			/* spi0_d1.spi0_d1 */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_D1, PIN_OUTPUT, MUX_MODE0)
+			/* spi0_cs0.spi0_cs0 */
+			AM33XX_PADCONF(AM335X_PIN_SPI0_CS0, PIN_OUTPUT, MUX_MODE0)
+		>;
+	};
+};
+
+&cpu {
+	cpu0-supply = <&vdd1_reg>;
+};
+
+&elm {
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	/* optional, not on TQMa335xL */
+	jc42_1: temperature-sensor@1f {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
+		reg = <0x1f>;
+	};
+
+	tps: pmic@2d {
+		reg = <0x2d>;
+		ti,en-ck32k-xtal;
+		/* Filled in by tps65910.dtsi */
+	};
+
+	/* optional, not on TQMa335xL */
+	eeprom: eeprom@50 {
+		compatible = "st,24c64", "atmel,24c64";
+		reg = <0x50>;
+		pagesize = <32>;
+		vcc-supply = <&vddshv>;
+	};
+
+	/* optional, not on TQMa335xL */
+	se97btp: eeprom@57 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		reg = <0x57>;
+		pagesize = <16>;
+		vcc-supply = <&vddshv>;
+	};
+
+	/* optional, not on TQMa335xL */
+	ds1339: rtc@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+	};
+};
+
+#include "../../tps65910.dtsi"
+
+&mmc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	bus-width = <8>;
+	no-1-8-v;
+	no-sd;
+	no-sdio;
+	vmmc-supply = <&vddshv>;
+	non-removable;
+	status = "okay";
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&tps {
+	vcc1-supply = <&vcc3v3in>;
+	vcc2-supply = <&vcc3v3in>;
+	vcc3-supply = <&vcc3v3in>;
+	vcc4-supply = <&vcc3v3in>;
+	vcc5-supply = <&vcc3v3in>;
+	vcc6-supply = <&vcc3v3in>;
+	vcc7-supply = <&vcc3v3in>;
+	vccio-supply = <&vcc3v3in>;
+};
+
+/* TPS outputs */
+&vrtc_reg {
+	regulator-always-on;
+};
+
+&vio_reg {
+	regulator-always-on;
+};
+
+&vdd1_reg {
+	regulator-name = "vdd_mpu";
+	regulator-min-microvolt = <600000>;
+	regulator-max-microvolt = <1500000>;
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&vdd2_reg {
+	regulator-name = "vdd_core";
+	regulator-min-microvolt = <600000>;
+	regulator-max-microvolt = <1500000>;
+	regulator-boot-on;
+	regulator-always-on;
+};
+
+&vdd3_reg {
+	regulator-always-on;
+};
+
+&vdig1_reg {
+	regulator-always-on;
+};
+
+&vdig2_reg {
+	regulator-always-on;
+};
+
+&vpll_reg {
+	regulator-always-on;
+};
+
+&vdac_reg {
+	regulator-always-on;
+};
+
+&vaux1_reg {
+	regulator-always-on;
+};
+
+&vaux2_reg {
+	regulator-always-on;
+};
+
+&vaux33_reg {
+	regulator-always-on;
+};
+
+&vmmc_reg {
+	regulator-always-on;
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <24000000>;
+		vcc-supply = <&vddshv>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+	};
+};
+
+&usb0_phy {
+	vcc-supply = <&vaux1_reg>;
+};
+
+&usb1_phy {
+	vcc-supply = <&vaux1_reg>;
+};
+
+&wkup_m3_ipc {
+	firmware-name = "am335x-evm-scale-data.bin";
+};

@@ -12,13 +12,13 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_cursor.h"
 #include "intel_cursor_regs.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
@@ -182,8 +182,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 
 static unsigned int
 i845_cursor_max_stride(struct intel_plane *plane,
-		       u32 pixel_format, u64 modifier,
-		       unsigned int rotation)
+		       const struct drm_format_info *info,
+		       u64 modifier, unsigned int rotation)
 {
 	return 2048;
 }
@@ -343,8 +343,8 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 
 static unsigned int
 i9xx_cursor_max_stride(struct intel_plane *plane,
-		       u32 pixel_format, u64 modifier,
-		       unsigned int rotation)
+		       const struct drm_format_info *info,
+		       u64 modifier, unsigned int rotation)
 {
 	return plane->base.dev->mode_config.cursor_width * 4;
 }
@@ -662,7 +662,7 @@ static void i9xx_cursor_update_arm(struct intel_dsb *dsb,
 		cntl = plane_state->ctl |
 			i9xx_cursor_ctl_crtc(crtc_state);
 
-		if (width != height)
+		if (DISPLAY_VER(display) < 14 && width != height)
 			fbc_ctl = CUR_FBC_EN | CUR_FBC_HEIGHT(height - 1);
 
 		base = plane_state->surf;
@@ -1091,4 +1091,24 @@ fail:
 	intel_plane_free(cursor);
 
 	return ERR_PTR(ret);
+}
+
+void intel_cursor_mode_config_init(struct intel_display *display)
+{
+	struct drm_mode_config *mode_config = &display->drm->mode_config;
+
+	if (display->platform.i845g) {
+		mode_config->cursor_width = 64;
+		mode_config->cursor_height = 1023;
+	} else if (display->platform.i865g) {
+		mode_config->cursor_width = 512;
+		mode_config->cursor_height = 1023;
+	} else if (display->platform.i830 || display->platform.i85x ||
+		   display->platform.i915g || display->platform.i915gm) {
+		mode_config->cursor_width = 64;
+		mode_config->cursor_height = 64;
+	} else {
+		mode_config->cursor_width = 256;
+		mode_config->cursor_height = 256;
+	}
 }

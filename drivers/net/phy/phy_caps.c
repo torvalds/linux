@@ -25,6 +25,7 @@ static struct link_capabilities link_caps[__LINK_CAPA_MAX] __ro_after_init = {
 	{ SPEED_200000, DUPLEX_FULL, {0} }, /* LINK_CAPA_200000FD */
 	{ SPEED_400000, DUPLEX_FULL, {0} }, /* LINK_CAPA_400000FD */
 	{ SPEED_800000, DUPLEX_FULL, {0} }, /* LINK_CAPA_800000FD */
+	{ SPEED_1600000, DUPLEX_FULL, {0} }, /* LINK_CAPA_1600000FD */
 };
 
 static int speed_duplex_to_capa(int speed, unsigned int duplex)
@@ -52,6 +53,7 @@ static int speed_duplex_to_capa(int speed, unsigned int duplex)
 	case SPEED_200000: return LINK_CAPA_200000FD;
 	case SPEED_400000: return LINK_CAPA_400000FD;
 	case SPEED_800000: return LINK_CAPA_800000FD;
+	case SPEED_1600000: return LINK_CAPA_1600000FD;
 	}
 
 	return -EINVAL;

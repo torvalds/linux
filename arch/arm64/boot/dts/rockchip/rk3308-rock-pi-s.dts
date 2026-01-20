@@ -35,7 +35,6 @@
 			function = LED_FUNCTION_POWER;
 			gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
 			label = "rockpis:green:power";
-			linux,default-trigger = "default-on";
 		};
 
 		blue-led {

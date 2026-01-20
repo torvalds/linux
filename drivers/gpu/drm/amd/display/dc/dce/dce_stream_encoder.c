@@ -1568,7 +1568,7 @@ void dce110_stream_encoder_construct(
 	enc110->se_mask = se_mask;
 }
 
-static const struct stream_encoder_funcs dce110_an_str_enc_funcs = {0};
+static const struct stream_encoder_funcs dce110_an_str_enc_funcs = {};
 
 void dce110_analog_stream_encoder_construct(
 	struct dce110_stream_encoder *enc110,

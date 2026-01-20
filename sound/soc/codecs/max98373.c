@@ -174,12 +174,13 @@ static int max98373_feedback_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct max98373_priv *max98373 = snd_soc_component_get_drvdata(component);
 	int i;
 
-	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+	if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 		/*
 		 * Register values will be cached before suspend. The cached value
 		 * will be a valid value and userspace will happy with that.

@@ -33,6 +33,9 @@ properties:
       - mediatek,mt8188-power-controller
       - mediatek,mt8192-power-controller
       - mediatek,mt8195-power-controller
+      - mediatek,mt8196-hwv-hfrp-power-controller
+      - mediatek,mt8196-hwv-scp-power-controller
+      - mediatek,mt8196-power-controller
       - mediatek,mt8365-power-controller
 
   '#power-domain-cells':
@@ -157,6 +160,7 @@ allOf:
           contains:
             enum:
               - mediatek,mt8183-power-controller
+              - mediatek,mt8196-power-controller
     then:
       properties:
         access-controllers:

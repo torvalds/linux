@@ -187,10 +187,10 @@ allOf:
             enum:
               - qcom,msm8916-apcs-kpss-global
     then:
-      $ref: "#/$defs/msm8916-apcs-clock-controller"
+      $ref: '#/$defs/msm8916-apcs-clock-controller'
       properties:
         clock-controller:
-          $ref: "#/$defs/msm8916-apcs-clock-controller"
+          $ref: '#/$defs/msm8916-apcs-clock-controller'
 
   - if:
       properties:
@@ -199,10 +199,10 @@ allOf:
             enum:
               - qcom,msm8939-apcs-kpss-global
     then:
-      $ref: "#/$defs/msm8939-apcs-clock-controller"
+      $ref: '#/$defs/msm8939-apcs-clock-controller'
       properties:
         clock-controller:
-          $ref: "#/$defs/msm8939-apcs-clock-controller"
+          $ref: '#/$defs/msm8939-apcs-clock-controller'
 
   - if:
       properties:
@@ -211,10 +211,10 @@ allOf:
             enum:
               - qcom,sdx55-apcs-gcc
     then:
-      $ref: "#/$defs/sdx55-apcs-clock-controller"
+      $ref: '#/$defs/sdx55-apcs-clock-controller'
       properties:
         clock-controller:
-          $ref: "#/$defs/sdx55-apcs-clock-controller"
+          $ref: '#/$defs/sdx55-apcs-clock-controller'
 
   - if:
       properties:
@@ -223,10 +223,10 @@ allOf:
             enum:
               - qcom,ipq6018-apcs-apps-global
     then:
-      $ref: "#/$defs/ipq6018-apcs-clock-controller"
+      $ref: '#/$defs/ipq6018-apcs-clock-controller'
       properties:
         clock-controller:
-          $ref: "#/$defs/ipq6018-apcs-clock-controller"
+          $ref: '#/$defs/ipq6018-apcs-clock-controller'
 
   - if:
       properties:

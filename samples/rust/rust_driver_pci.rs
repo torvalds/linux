@@ -65,35 +65,34 @@ impl pci::Driver for SampleDriver {
 
     const ID_TABLE: pci::IdTable<Self::IdInfo> = &PCI_TABLE;
 
-    fn probe(pdev: &pci::Device<Core>, info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
-        let vendor = pdev.vendor_id();
-        dev_dbg!(
-            pdev.as_ref(),
-            "Probe Rust PCI driver sample (PCI ID: {}, 0x{:x}).\n",
-            vendor,
-            pdev.device_id()
-        );
+    fn probe(pdev: &pci::Device<Core>, info: &Self::IdInfo) -> impl PinInit<Self, Error> {
+        pin_init::pin_init_scope(move || {
+            let vendor = pdev.vendor_id();
+            dev_dbg!(
+                pdev.as_ref(),
+                "Probe Rust PCI driver sample (PCI ID: {}, 0x{:x}).\n",
+                vendor,
+                pdev.device_id()
+            );
 
-        pdev.enable_device_mem()?;
-        pdev.set_master();
+            pdev.enable_device_mem()?;
+            pdev.set_master();
 
-        let drvdata = KBox::pin_init(
-            try_pin_init!(Self {
+            Ok(try_pin_init!(Self {
                 bar <- pdev.iomap_region_sized::<{ Regs::END }>(0, c_str!("rust_driver_pci")),
-                pdev: pdev.into(),
                 index: *info,
-            }),
-            GFP_KERNEL,
-        )?;
+                _: {
+                    let bar = bar.access(pdev.as_ref())?;
 
-        let bar = drvdata.bar.access(pdev.as_ref())?;
-        dev_info!(
-            pdev.as_ref(),
-            "pci-testdev data-match count: {}\n",
-            Self::testdev(info, bar)?
-        );
-
-        Ok(drvdata)
+                    dev_info!(
+                        pdev.as_ref(),
+                        "pci-testdev data-match count: {}\n",
+                        Self::testdev(info, bar)?
+                    );
+                },
+                pdev: pdev.into(),
+            }))
+        })
     }
 
     fn unbind(pdev: &pci::Device<Core>, this: Pin<&Self>) {

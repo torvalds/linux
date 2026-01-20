@@ -152,7 +152,7 @@ struct core_plane_support_info {
 	int active_latency_hiding_us;
 	int mall_svp_size_requirement_ways;
 	int nominal_vblank_pstate_latency_hiding_us;
-	unsigned int dram_change_vactive_det_fill_delay_us;
+	int vactive_det_fill_delay_us[dml2_pstate_type_count];
 };
 
 struct core_stream_support_info {
@@ -209,6 +209,7 @@ struct dml2_core_mode_support_result {
 
 		unsigned int uclk_pstate_supported;
 		unsigned int fclk_pstate_supported;
+		struct dml2_core_internal_watermarks watermarks;
 	} global;
 
 	struct {
@@ -257,8 +258,8 @@ struct dml2_implicit_svp_meta {
 
 struct dml2_pstate_per_method_common_meta {
 	/* generic params */
-	unsigned int allow_start_otg_vline;
-	unsigned int allow_end_otg_vline;
+	int allow_start_otg_vline;
+	int allow_end_otg_vline;
 	/* scheduling params */
 	double allow_time_us;
 	double disallow_time_us;
@@ -268,39 +269,44 @@ struct dml2_pstate_per_method_common_meta {
 struct dml2_pstate_meta {
 	bool valid;
 	double otg_vline_time_us;
-	unsigned int scheduling_delay_otg_vlines;
-	unsigned int vertical_interrupt_ack_delay_otg_vlines;
-	unsigned int allow_to_target_delay_otg_vlines;
-	unsigned int contention_delay_otg_vlines;
-	unsigned int min_allow_width_otg_vlines;
-	unsigned int nom_vtotal;
-	unsigned int vblank_start;
+	int scheduling_delay_otg_vlines;
+	int vertical_interrupt_ack_delay_otg_vlines;
+	int allow_to_target_delay_otg_vlines;
+	int contention_delay_otg_vlines;
+	int min_allow_width_otg_vlines;
+	int nom_vtotal;
+	int vblank_start;
 	double nom_refresh_rate_hz;
 	double nom_frame_time_us;
-	unsigned int max_vtotal;
+	int max_vtotal;
 	double min_refresh_rate_hz;
 	double max_frame_time_us;
-	unsigned int blackout_otg_vlines;
+	int blackout_otg_vlines;
+	int max_allow_delay_otg_vlines;
+	double nom_vblank_time_us;
 	struct {
 		double max_vactive_det_fill_delay_us;
-		unsigned int max_vactive_det_fill_delay_otg_vlines;
+		double vactive_latency_hiding_us;
+		double reserved_vblank_required_us;
+		int max_vactive_det_fill_delay_otg_vlines;
+		int reserved_blank_required_vlines;
 		struct dml2_pstate_per_method_common_meta common;
 	} method_vactive;
 	struct {
 		struct dml2_pstate_per_method_common_meta common;
 	} method_vblank;
 	struct {
-		unsigned int programming_delay_otg_vlines;
-		unsigned int df_throttle_delay_otg_vlines;
-		unsigned int prefetch_to_mall_delay_otg_vlines;
+		int programming_delay_otg_vlines;
+		int df_throttle_delay_otg_vlines;
+		int prefetch_to_mall_delay_otg_vlines;
 		unsigned long phantom_vactive;
 		unsigned long phantom_vfp;
 		unsigned long phantom_vtotal;
 		struct dml2_pstate_per_method_common_meta common;
 	} method_subvp;
 	struct {
-		unsigned int programming_delay_otg_vlines;
-		unsigned int stretched_vtotal;
+		int programming_delay_otg_vlines;
+		int stretched_vtotal;
 		struct dml2_pstate_per_method_common_meta common;
 	} method_drr;
 };

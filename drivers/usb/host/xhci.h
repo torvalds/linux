@@ -34,8 +34,16 @@
 
 /* Max number of USB devices for any host controller - limit in section 6.1 */
 #define MAX_HC_SLOTS		256
-/* Section 5.3.3 - MaxPorts */
+/*
+ * Max Number of Ports. xHCI specification section 5.3.3
+ * Valid values are in the range of 1 to 255.
+ */
 #define MAX_HC_PORTS		127
+/*
+ * Max number of Interrupter Register Sets. xHCI specification section 5.3.3
+ * Valid values are in the range of 1 to 1024.
+ */
+#define MAX_HC_INTRS		128
 
 /*
  * xHCI register interface.
@@ -66,13 +74,19 @@ struct xhci_cap_regs {
 	/* Reserved up to (CAPLENGTH - 0x1C) */
 };
 
-/* Number of registers per port */
-#define	NUM_PORT_REGS	4
-
-#define PORTSC		0
-#define PORTPMSC	1
-#define PORTLI		2
-#define PORTHLPMC	3
+/*
+ * struct xhci_port_regs - Host Controller USB Port Register Set. xHCI spec 5.4.8
+ * @portsc:	Port Status and Control
+ * @portpmsc:	Port Power Management Status and Control
+ * @portli:	Port Link Info
+ * @porthlmpc:	Port Hardware LPM Control
+ */
+struct xhci_port_regs {
+	__le32	portsc;
+	__le32	portpmsc;
+	__le32	portli;
+	__le32	porthlmpc;
+};
 
 /**
  * struct xhci_op_regs - xHCI Host Controller Operational Registers.
@@ -85,16 +99,7 @@ struct xhci_cap_regs {
  * @cmd_ring:		CRP - 64-bit Command Ring Pointer
  * @dcbaa_ptr:		DCBAAP - 64-bit Device Context Base Address Array Pointer
  * @config_reg:		CONFIG - Configure Register
- * @port_status_base:	PORTSCn - base address for Port Status and Control
- * 			Each port has a Port Status and Control register,
- * 			followed by a Port Power Management Status and Control
- * 			register, a Port Link Info register, and a reserved
- * 			register.
- * @port_power_base:	PORTPMSCn - base address for
- * 			Port Power Management Status and Control
- * @port_link_base:	PORTLIn - base address for Port Link Info (current
- * 			Link PM state and control) for USB 2.1 and USB 3.0
- * 			devices.
+ * @port_regs:		Port Register Sets, from 1 to MaxPorts (defined by HCSPARAMS1).
  */
 struct xhci_op_regs {
 	__le32	command;
@@ -110,13 +115,7 @@ struct xhci_op_regs {
 	__le32	config_reg;
 	/* rsvd: offset 0x3C-3FF */
 	__le32	reserved4[241];
-	/* port 1 registers, which serve as a base address for other ports */
-	__le32	port_status_base;
-	__le32	port_power_base;
-	__le32	port_link_base;
-	__le32	reserved5;
-	/* registers for ports 2-255 */
-	__le32	reserved6[NUM_PORT_REGS*254];
+	struct xhci_port_regs port_regs[];
 };
 
 /* USBCMD - USB command - command bitmasks */
@@ -284,7 +283,7 @@ struct xhci_intr_reg {
 struct xhci_run_regs {
 	__le32			microframe_index;
 	__le32			rsvd[7];
-	struct xhci_intr_reg	ir_set[128];
+	struct xhci_intr_reg	ir_set[1024];
 };
 
 /**
@@ -800,7 +799,6 @@ struct xhci_device_context_array {
 	/* private xHCD pointers */
 	dma_addr_t	dma;
 };
-/* TODO: write function to set the 64-bit device DMA address */
 /*
  * TODO: change this to be dynamically sized at HC mem init time since the HC
  * might not be able to handle the maximum number of devices possible.
@@ -1474,7 +1472,7 @@ struct xhci_port_cap {
 };
 
 struct xhci_port {
-	__le32 __iomem		*addr;
+	struct xhci_port_regs __iomem	*port_reg;
 	int			hw_portnum;
 	int			hcd_portnum;
 	struct xhci_hub		*rhub;
@@ -1510,7 +1508,6 @@ struct xhci_hcd {
 	struct xhci_doorbell_array __iomem *dba;
 
 	/* Cached register copies of read-only HC data */
-	__u32		hcs_params1;
 	__u32		hcs_params2;
 	__u32		hcs_params3;
 	__u32		hcc_params;
@@ -1521,6 +1518,8 @@ struct xhci_hcd {
 	/* packed release number */
 	u16		hci_version;
 	u16		max_interrupters;
+	u8		max_slots;
+	u8		max_ports;
 	/* imod_interval in ns (I * 250ns) */
 	u32		imod_interval;
 	u32		page_size;
@@ -1961,6 +1960,8 @@ void xhci_update_erst_dequeue(struct xhci_hcd *xhci,
 void xhci_add_interrupter(struct xhci_hcd *xhci, unsigned int intr_num);
 int xhci_usb_endpoint_maxp(struct usb_device *udev,
 			   struct usb_host_endpoint *host_ep);
+void xhci_portsc_writel(struct xhci_port *port, u32 val);
+u32 xhci_portsc_readl(struct xhci_port *port);
 
 /* xHCI roothub code */
 void xhci_set_link_state(struct xhci_hcd *xhci, struct xhci_port *port,
@@ -2399,25 +2400,48 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 	if (portsc == ~(u32)0)
 		return str;
 
-	ret += sprintf(str + ret, "%s %s %s Link:%s PortSpeed:%d ",
-		      portsc & PORT_POWER	? "Powered" : "Powered-off",
-		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
-		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc),
-		      DEV_PORT_SPEED(portsc));
+	ret += sprintf(str + ret, "Speed=%d ", DEV_PORT_SPEED(portsc));
+	ret += sprintf(str + ret, "Link=%s ", xhci_portsc_link_state_string(portsc));
 
+	/* RO/ROS: Read-only */
+	if (portsc & PORT_CONNECT)
+		ret += sprintf(str + ret, "CCS ");
 	if (portsc & PORT_OC)
-		ret += sprintf(str + ret, "OverCurrent ");
-	if (portsc & PORT_RESET)
-		ret += sprintf(str + ret, "In-Reset ");
+		ret += sprintf(str + ret, "OCA "); /* No set for USB2 ports */
+	if (portsc & PORT_CAS)
+		ret += sprintf(str + ret, "CAS ");
+	if (portsc & PORT_DEV_REMOVE)
+		ret += sprintf(str + ret, "DR ");
 
-	ret += sprintf(str + ret, "Change: ");
+	/* RWS; writing 1 sets the bit, writing 0 clears the bit. */
+	if (portsc & PORT_POWER)
+		ret += sprintf(str + ret, "PP ");
+	if (portsc & PORT_WKCONN_E)
+		ret += sprintf(str + ret, "WCE ");
+	if (portsc & PORT_WKDISC_E)
+		ret += sprintf(str + ret, "WDE ");
+	if (portsc & PORT_WKOC_E)
+		ret += sprintf(str + ret, "WOE ");
+
+	/* RW; writing 1 sets the bit, writing 0 clears the bit */
+	if (portsc & PORT_LINK_STROBE)
+		ret += sprintf(str + ret, "LWS "); /* LWS 0 write is ignored */
+
+	/* RW1S; writing 1 sets the bit, writing 0 has no effect */
+	if (portsc & PORT_RESET)
+		ret += sprintf(str + ret, "PR ");
+	if (portsc & PORT_WR)
+		ret += sprintf(str + ret, "WPR "); /* RsvdZ for USB2 ports */
+
+	/* RW1CS; writing 1 clears the bit, writing 0 has no effect. */
+	if (portsc & PORT_PE)
+		ret += sprintf(str + ret, "PED ");
 	if (portsc & PORT_CSC)
 		ret += sprintf(str + ret, "CSC ");
 	if (portsc & PORT_PEC)
-		ret += sprintf(str + ret, "PEC ");
+		ret += sprintf(str + ret, "PEC "); /* No set for USB3 ports */
 	if (portsc & PORT_WRC)
-		ret += sprintf(str + ret, "WRC ");
+		ret += sprintf(str + ret, "WRC "); /* RsvdZ for USB2 ports */
 	if (portsc & PORT_OCC)
 		ret += sprintf(str + ret, "OCC ");
 	if (portsc & PORT_RC)
@@ -2425,17 +2449,7 @@ static inline const char *xhci_decode_portsc(char *str, u32 portsc)
 	if (portsc & PORT_PLC)
 		ret += sprintf(str + ret, "PLC ");
 	if (portsc & PORT_CEC)
-		ret += sprintf(str + ret, "CEC ");
-	if (portsc & PORT_CAS)
-		ret += sprintf(str + ret, "CAS ");
-
-	ret += sprintf(str + ret, "Wake: ");
-	if (portsc & PORT_WKCONN_E)
-		ret += sprintf(str + ret, "WCE ");
-	if (portsc & PORT_WKDISC_E)
-		ret += sprintf(str + ret, "WDE ");
-	if (portsc & PORT_WKOC_E)
-		ret += sprintf(str + ret, "WOE ");
+		ret += sprintf(str + ret, "CEC "); /* RsvdZ for USB2 ports */
 
 	return str;
 }

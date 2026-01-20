@@ -20,7 +20,7 @@ SEC("kprobe.multi/__netif_receive_skb_core*")
 int bpf_prog1(struct pt_regs *ctx)
 {
 	/* attaches to kprobe __netif_receive_skb_core,
-	 * looks for packets on loobpack device and prints them
+	 * looks for packets on loopback device and prints them
 	 * (wildcard is used for avoiding symbol mismatch due to optimization)
 	 */
 	char devname[IFNAMSIZ];

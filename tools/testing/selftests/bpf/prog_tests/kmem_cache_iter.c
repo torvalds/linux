@@ -57,7 +57,8 @@ static void subtest_kmem_cache_iter_check_slabinfo(struct kmem_cache_iter *skel)
 		if (!ASSERT_OK(ret, "kmem_cache_lookup"))
 			break;
 
-		ASSERT_STREQ(r.name, name, "kmem_cache_name");
+		ASSERT_STRNEQ(r.name, name, sizeof(r.name) - 1,
+			      "kmem_cache_name");
 		ASSERT_EQ(r.obj_size, objsize, "kmem_cache_objsize");
 
 		seen++;

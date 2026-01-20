@@ -1295,6 +1295,25 @@ cfg80211_start_background_radar_detection(struct cfg80211_registered_device *rde
 	return 0;
 }
 
+void cfg80211_stop_radar_detection(struct wireless_dev *wdev)
+{
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	int link_id;
+
+	for_each_valid_link(wdev, link_id) {
+		struct cfg80211_chan_def chandef;
+
+		if (!wdev->links[link_id].cac_started)
+			continue;
+
+		chandef = *wdev_chandef(wdev, link_id);
+		rdev_end_cac(rdev, wdev->netdev, link_id);
+		nl80211_radar_notify(rdev, &chandef, NL80211_RADAR_CAC_ABORTED,
+				     wdev->netdev, GFP_KERNEL);
+	}
+}
+
 void cfg80211_stop_background_radar_detection(struct wireless_dev *wdev)
 {
 	struct wiphy *wiphy = wdev->wiphy;

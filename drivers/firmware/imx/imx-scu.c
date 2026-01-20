@@ -73,9 +73,9 @@ static int imx_sc_linux_errmap[IMX_SC_ERR_LAST] = {
 	-EACCES, /* IMX_SC_ERR_NOACCESS */
 	-EACCES, /* IMX_SC_ERR_LOCKED */
 	-ERANGE, /* IMX_SC_ERR_UNAVAILABLE */
-	-EEXIST, /* IMX_SC_ERR_NOTFOUND */
-	-EPERM,	 /* IMX_SC_ERR_NOPOWER */
-	-EPIPE,	 /* IMX_SC_ERR_IPC */
+	-ENOENT, /* IMX_SC_ERR_NOTFOUND */
+	-ENODEV, /* IMX_SC_ERR_NOPOWER */
+	-ECOMM,	 /* IMX_SC_ERR_IPC */
 	-EBUSY,	 /* IMX_SC_ERR_BUSY */
 	-EIO,	 /* IMX_SC_ERR_FAIL */
 };
@@ -324,7 +324,9 @@ static int imx_scu_probe(struct platform_device *pdev)
 	}
 
 	sc_ipc->dev = dev;
-	mutex_init(&sc_ipc->lock);
+	ret = devm_mutex_init(dev, &sc_ipc->lock);
+	if (ret)
+		return ret;
 	init_completion(&sc_ipc->done);
 
 	imx_sc_ipc_handle = sc_ipc;
@@ -352,6 +354,7 @@ static struct platform_driver imx_scu_driver = {
 	.driver = {
 		.name = "imx-scu",
 		.of_match_table = imx_scu_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx_scu_probe,
 };

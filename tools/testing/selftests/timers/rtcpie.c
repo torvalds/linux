@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 /*
  * This expects the new RTC class driver framework, working with

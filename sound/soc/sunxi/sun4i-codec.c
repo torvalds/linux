@@ -1663,7 +1663,8 @@ static struct snd_soc_dai_link *sun4i_codec_create_link(struct device *dev,
 static int sun4i_codec_spk_event(struct snd_soc_dapm_widget *w,
 				 struct snd_kcontrol *k, int event)
 {
-	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(w->dapm->card);
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
+	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(card);
 
 	gpiod_set_value_cansleep(scodec->gpio_pa,
 				 !!SND_SOC_DAPM_EVENT_ON(event));

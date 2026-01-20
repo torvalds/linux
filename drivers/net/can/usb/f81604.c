@@ -1052,7 +1052,6 @@ static const struct net_device_ops f81604_netdev_ops = {
 	.ndo_open = f81604_open,
 	.ndo_stop = f81604_close,
 	.ndo_start_xmit = f81604_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct can_bittiming_const f81604_bittiming_const = {

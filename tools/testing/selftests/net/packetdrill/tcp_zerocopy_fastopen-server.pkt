@@ -4,6 +4,8 @@
 // send data with MSG_FASTOPEN | MSG_ZEROCOPY and verify that the
 // kernel returns the notification ID.
 
+--send_omit_free	// do not reuse send buffers with zerocopy
+
 `./defaults.sh
  ./set_sysctls.py /proc/sys/net/ipv4/tcp_fastopen=0x207`
 

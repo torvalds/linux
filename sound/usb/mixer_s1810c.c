@@ -178,7 +178,7 @@ snd_sc1810c_get_status_field(struct usb_device *dev,
 
 	pkt_out.fields[SC1810C_STATE_F1_IDX] = SC1810C_SET_STATE_F1;
 	pkt_out.fields[SC1810C_STATE_F2_IDX] = SC1810C_SET_STATE_F2;
-	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0),
+	ret = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0),
 			      SC1810C_SET_STATE_REQ,
 			      SC1810C_SET_STATE_REQTYPE,
 			      (*seqnum), 0, &pkt_out, sizeof(pkt_out));
@@ -597,15 +597,6 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 	if (!list_empty(&chip->mixer_list))
 		return 0;
 
-	dev_info(&dev->dev,
-		 "Presonus Studio 1810c, device_setup: %u\n", chip->setup);
-	if (chip->setup == 1)
-		dev_info(&dev->dev, "(8out/18in @ 48kHz)\n");
-	else if (chip->setup == 2)
-		dev_info(&dev->dev, "(6out/8in @ 192kHz)\n");
-	else
-		dev_info(&dev->dev, "(8out/14in @ 96kHz)\n");
-
 	ret = snd_s1810c_init_mixer_maps(chip);
 	if (ret < 0)
 		return ret;
@@ -634,16 +625,28 @@ int snd_sc1810_init_mixer(struct usb_mixer_interface *mixer)
 	if (ret < 0)
 		return ret;
 
-	// The 1824c has a Mono Main switch instead of a
-	// A/B select switch.
-	if (mixer->chip->usb_id == USB_ID(0x194f, 0x010d)) {
-		ret = snd_s1810c_switch_init(mixer, &snd_s1824c_mono_sw);
-		if (ret < 0)
-			return ret;
-	} else if (mixer->chip->usb_id == USB_ID(0x194f, 0x010c)) {
+	switch (chip->usb_id) {
+	case USB_ID(0x194f, 0x010c): /* Presonus Studio 1810c */
+		dev_info(&dev->dev,
+			 "Presonus Studio 1810c, device_setup: %u\n", chip->setup);
+		if (chip->setup == 1)
+			dev_info(&dev->dev, "(8out/18in @ 48kHz)\n");
+		else if (chip->setup == 2)
+			dev_info(&dev->dev, "(6out/8in @ 192kHz)\n");
+		else
+			dev_info(&dev->dev, "(8out/14in @ 96kHz)\n");
+
 		ret = snd_s1810c_switch_init(mixer, &snd_s1810c_ab_sw);
 		if (ret < 0)
 			return ret;
+
+		break;
+	case USB_ID(0x194f, 0x010d): /* Presonus Studio 1824c */
+		ret = snd_s1810c_switch_init(mixer, &snd_s1824c_mono_sw);
+		if (ret < 0)
+			return ret;
+
+		break;
 	}
 
 	return ret;

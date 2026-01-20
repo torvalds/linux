@@ -14,6 +14,45 @@ struct bio_integrity_alloc {
 	struct bio_vec			bvecs[];
 };
 
+static mempool_t integrity_buf_pool;
+
+void bio_integrity_alloc_buf(struct bio *bio, bool zero_buffer)
+{
+	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_payload *bip = bio_integrity(bio);
+	unsigned int len = bio_integrity_bytes(bi, bio_sectors(bio));
+	gfp_t gfp = GFP_NOIO | (zero_buffer ? __GFP_ZERO : 0);
+	void *buf;
+
+	buf = kmalloc(len, (gfp & ~__GFP_DIRECT_RECLAIM) |
+			__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN);
+	if (unlikely(!buf)) {
+		struct page *page;
+
+		page = mempool_alloc(&integrity_buf_pool, GFP_NOFS);
+		if (zero_buffer)
+			memset(page_address(page), 0, len);
+		bvec_set_page(&bip->bip_vec[0], page, len, 0);
+		bip->bip_flags |= BIP_MEMPOOL;
+	} else {
+		bvec_set_page(&bip->bip_vec[0], virt_to_page(buf), len,
+				offset_in_page(buf));
+	}
+
+	bip->bip_vcnt = 1;
+	bip->bip_iter.bi_size = len;
+}
+
+void bio_integrity_free_buf(struct bio_integrity_payload *bip)
+{
+	struct bio_vec *bv = &bip->bip_vec[0];
+
+	if (bip->bip_flags & BIP_MEMPOOL)
+		mempool_free(bv->bv_page, &integrity_buf_pool);
+	else
+		kfree(bvec_virt(bv));
+}
+
 /**
  * bio_integrity_free - Free bio integrity payload
  * @bio:	bio containing bip to be freed
@@ -438,3 +477,12 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 
 	return 0;
 }
+
+static int __init bio_integrity_initfn(void)
+{
+	if (mempool_init_page_pool(&integrity_buf_pool, BIO_POOL_SIZE,
+			get_order(BLK_INTEGRITY_MAX_SIZE)))
+		panic("bio: can't create integrity buf pool\n");
+	return 0;
+}
+subsys_initcall(bio_integrity_initfn);

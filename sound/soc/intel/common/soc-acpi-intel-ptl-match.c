@@ -227,39 +227,36 @@ static const struct snd_soc_acpi_endpoint cs42l43_amp_spkagg_endpoints[] = {
 	},
 };
 
-static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
-	{ /* Jack Playback Endpoint */
-		.num = 0,
-		.aggregated = 0,
-		.group_position = 0,
-		.group_id = 0,
-	},
-	{ /* DMIC Capture Endpoint */
-		.num = 1,
-		.aggregated = 0,
-		.group_position = 0,
-		.group_id = 0,
-	},
-	{ /* Jack Capture Endpoint */
-		.num = 2,
-		.aggregated = 0,
-		.group_position = 0,
-		.group_id = 0,
-	},
-	{ /* Speaker Playback Endpoint */
-		.num = 3,
-		.aggregated = 0,
-		.group_position = 0,
-		.group_id = 0,
-	},
-};
-
 static const struct snd_soc_acpi_adr_device cs42l43_2_adr[] = {
 	{
 		.adr = 0x00023001fa424301ull,
 		.num_endpoints = ARRAY_SIZE(cs42l43_amp_spkagg_endpoints),
 		.endpoints = cs42l43_amp_spkagg_endpoints,
 		.name_prefix = "cs42l43"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs42l43_3_agg_adr[] = {
+	{
+		.adr = 0x00033001FA424301ull,
+		.num_endpoints = ARRAY_SIZE(cs42l43_amp_spkagg_endpoints),
+		.endpoints = cs42l43_amp_spkagg_endpoints,
+		.name_prefix = "cs42l43"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_2_lr_adr[] = {
+	{
+		.adr = 0x00023001fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00023101fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "AMP2"
 	}
 };
 
@@ -302,15 +299,6 @@ static const struct snd_soc_acpi_adr_device cs35l56_3_3amp_adr[] = {
 		.num_endpoints = 1,
 		.endpoints = &spk_6_endpoint,
 		.name_prefix = "AMP6"
-	}
-};
-
-static const struct snd_soc_acpi_adr_device cs42l43_3_adr[] = {
-	{
-		.adr = 0x00033001FA424301ull,
-		.num_endpoints = ARRAY_SIZE(cs42l43_endpoints),
-		.endpoints = cs42l43_endpoints,
-		.name_prefix = "cs42l43"
 	}
 };
 
@@ -458,6 +446,15 @@ static const struct snd_soc_acpi_adr_device rt1320_2_group2_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt1320_2_group2_l_adr[] = {
+	{
+		.adr = 0x000230025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "rt1320-1"
+	}
+};
+
 static const struct snd_soc_acpi_adr_device rt1320_3_group2_adr[] = {
 	{
 		.adr = 0x000330025D132001ull,
@@ -465,6 +462,20 @@ static const struct snd_soc_acpi_adr_device rt1320_3_group2_adr[] = {
 		.endpoints = &spk_r_endpoint,
 		.name_prefix = "rt1320-2"
 	}
+};
+
+static const struct snd_soc_acpi_link_adr ptl_cs42l43_agg_l3_cs35l56_l2[] = {
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(cs42l43_3_agg_adr),
+		.adr_d = cs42l43_3_agg_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(cs35l56_2_lr_adr),
+		.adr_d = cs35l56_2_lr_adr,
+	},
+	{}
 };
 
 static const struct snd_soc_acpi_link_adr ptl_cs42l43_l2_cs35l56x6_l13[] = {
@@ -482,15 +493,6 @@ static const struct snd_soc_acpi_link_adr ptl_cs42l43_l2_cs35l56x6_l13[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(cs35l56_3_3amp_adr),
 		.adr_d = cs35l56_3_3amp_adr,
-	},
-	{}
-};
-
-static const struct snd_soc_acpi_link_adr ptl_cs42l43_l3[] = {
-	{
-		.mask = BIT(3),
-		.num_adr = ARRAY_SIZE(cs42l43_3_adr),
-		.adr_d = cs42l43_3_adr,
 	},
 	{}
 };
@@ -527,6 +529,25 @@ static const struct snd_soc_acpi_link_adr ptl_rt722_l3[] = {
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(rt722_3_single_adr),
 		.adr_d = rt722_3_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr ptl_rt722_l0_rt1320_l23[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt722_0_single_adr),
+		.adr_d = rt722_0_single_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt1320_2_group2_l_adr),
+		.adr_d = rt1320_2_group2_l_adr,
+	},
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(rt1320_3_group2_adr),
+		.adr_d = rt1320_3_group2_adr,
 	},
 	{}
 };
@@ -670,6 +691,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-ptl-cs42l43-l2-cs35l56x6-l13.tplg",
 	},
 	{
+		.link_mask = BIT(0) | BIT(2) | BIT(3),
+		.links = ptl_rt722_l0_rt1320_l23,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt722-l0-rt1320-l23.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
 		.link_mask = BIT(1) | BIT(2),
 		.links = ptl_sdw_rt712_vb_l2_rt1320_l1,
 		.drv_name = "sof_sdw",
@@ -684,6 +712,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
 		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l2.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
+	},
+	{
+		.link_mask = BIT(2) | BIT(3),
+		.links = ptl_cs42l43_agg_l3_cs35l56_l2,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-cs42l43-agg-l3-cs35l56-l2.tplg",
 	},
 	{
 		.link_mask = BIT(0),
@@ -710,13 +744,6 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.links = ptl_rt722_l1,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt722.tplg",
-		.get_function_tplg_files = sof_sdw_get_tplg_files,
-	},
-	{
-		.link_mask = BIT(3),
-		.links = ptl_cs42l43_l3,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-ptl-cs42l43-l3.tplg",
 		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{

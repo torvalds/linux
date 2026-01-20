@@ -341,13 +341,6 @@ static u32 esw_qos_calculate_min_rate_divider(struct mlx5_eswitch *esw,
 	if (max_guarantee)
 		return max_t(u32, max_guarantee / fw_max_bw_share, 1);
 
-	/* If nodes max min_rate divider is 0 but their parent has bw_share
-	 * configured, then set bw_share for nodes to minimal value.
-	 */
-
-	if (parent && parent->bw_share)
-		return 1;
-
 	/* If the node nodes has min_rate configured, a divider of 0 sets all
 	 * nodes' bw_share to 0, effectively disabling min guarantees.
 	 */

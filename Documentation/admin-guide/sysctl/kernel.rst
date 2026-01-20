@@ -397,13 +397,14 @@ a hung task is detected.
 hung_task_panic
 ===============
 
-Controls the kernel's behavior when a hung task is detected.
+When set to a non-zero value, a kernel panic will be triggered if the
+number of hung tasks found during a single scan reaches this value.
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
-= =================================================
+= =======================================================
 0 Continue operation. This is the default behavior.
-1 Panic immediately.
-= =================================================
+N Panic when N hung tasks are found during a single scan.
+= =======================================================
 
 
 hung_task_check_count
@@ -421,6 +422,11 @@ the system boot.
 
 This file shows up if ``CONFIG_DETECT_HUNG_TASK`` is enabled.
 
+hung_task_sys_info
+==================
+A comma separated list of extra system information to be dumped when
+hung task is detected, for example, "tasks,mem,timers,locks,...".
+Refer 'panic_sys_info' section below for more details.
 
 hung_task_timeout_secs
 ======================
@@ -515,6 +521,15 @@ default), only processes with the CAP_SYS_ADMIN capability may create
 io_uring instances.
 
 
+kernel_sys_info
+===============
+A comma separated list of extra system information to be dumped when
+soft/hard lockup is detected, for example, "tasks,mem,timers,locks,...".
+Refer 'panic_sys_info' section below for more details.
+
+It serves as the default kernel control knob, which will take effect
+when a kernel module calls sys_info() with parameter==0.
+
 kexec_load_disabled
 ===================
 
@@ -576,6 +591,11 @@ if leaking kernel pointer values to unprivileged users is a concern.
 When ``kptr_restrict`` is set to 2, kernel pointers printed using
 %pK will be replaced with 0s regardless of privileges.
 
+softlockup_sys_info & hardlockup_sys_info
+=========================================
+A comma separated list of extra system information to be dumped when
+soft/hard lockup is detected, for example, "tasks,mem,timers,locks,...".
+Refer 'panic_sys_info' section below for more details.
 
 modprobe
 ========
@@ -910,8 +930,8 @@ to 'panic_print'. Possible values are:
 =============   ===================================================
 tasks           print all tasks info
 mem             print system memory info
-timer           print timers info
-lock            print locks info if CONFIG_LOCKDEP is on
+timers          print timers info
+locks           print locks info if CONFIG_LOCKDEP is on
 ftrace          print ftrace buffer
 all_bt          print all CPUs backtrace (if available in the arch)
 blocked_tasks   print only tasks in uninterruptible (blocked) state

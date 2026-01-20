@@ -76,7 +76,7 @@ Don't use commas to avoid using braces:
 	if (condition)
 		do_this(), do_that();
 
-Always uses braces for multiple statements:
+Always use braces for multiple statements:
 
 .. code-block:: c
 

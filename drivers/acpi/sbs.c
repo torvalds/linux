@@ -487,7 +487,7 @@ static int acpi_battery_read(struct acpi_battery *battery)
 		if (result)
 			return result;
 
-		battery->present = state & (1 << battery->id);
+		battery->present = !!(state & (1 << battery->id));
 		if (!battery->present)
 			return 0;
 

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2021 Intel Corporation */
 
-#include <linux/mutex.h>
 #include <linux/types.h>
 
 #ifndef __PECI_HWMON_COMMON_H
@@ -13,12 +12,10 @@
  * struct peci_sensor_state - PECI state information
  * @valid: flag to indicate the sensor value is valid
  * @last_updated: time of the last update in jiffies
- * @lock: mutex to protect sensor access
  */
 struct peci_sensor_state {
 	bool valid;
 	unsigned long last_updated;
-	struct mutex lock; /* protect sensor access */
 };
 
 /**

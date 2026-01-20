@@ -23,6 +23,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_vblank.h>
@@ -49,6 +50,10 @@ MODULE_PARM_DESC(enable_writeback, "Enable/Disable writeback connector support")
 static bool enable_overlay;
 module_param_named(enable_overlay, enable_overlay, bool, 0444);
 MODULE_PARM_DESC(enable_overlay, "Enable/Disable overlay support");
+
+static bool enable_plane_pipeline;
+module_param_named(enable_plane_pipeline, enable_plane_pipeline, bool, 0444);
+MODULE_PARM_DESC(enable_plane_pipeline, "Enable/Disable plane pipeline support");
 
 static bool create_default_dev = true;
 module_param_named(create_default_dev, create_default_dev, bool, 0444);
@@ -226,7 +231,8 @@ static int __init vkms_init(void)
 	if (!create_default_dev)
 		return 0;
 
-	config = vkms_config_default_create(enable_cursor, enable_writeback, enable_overlay);
+	config = vkms_config_default_create(enable_cursor, enable_writeback,
+					    enable_overlay, enable_plane_pipeline);
 	if (IS_ERR(config))
 		return PTR_ERR(config);
 
@@ -252,6 +258,7 @@ void vkms_destroy(struct vkms_config *config)
 
 	fdev = config->dev->faux_dev;
 
+	drm_colorop_pipeline_destroy(&config->dev->drm);
 	drm_dev_unregister(&config->dev->drm);
 	drm_atomic_helper_shutdown(&config->dev->drm);
 	devres_release_group(&fdev->dev, NULL);

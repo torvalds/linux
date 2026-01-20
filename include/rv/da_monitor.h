@@ -16,34 +16,19 @@
 #include <linux/bug.h>
 #include <linux/sched.h>
 
-#ifdef CONFIG_RV_REACTORS
-
-#define DECLARE_RV_REACTING_HELPERS(name, type)							\
-static void cond_react_##name(type curr_state, type event)					\
-{												\
-	if (!rv_reacting_on() || !rv_##name.react)						\
-		return;										\
-	rv_##name.react("rv: monitor %s does not allow event %s on state %s\n",			\
-			#name,									\
-			model_get_event_name_##name(event),					\
-			model_get_state_name_##name(curr_state));				\
-}
-
-#else /* CONFIG_RV_REACTOR */
-
-#define DECLARE_RV_REACTING_HELPERS(name, type)							\
-static void cond_react_##name(type curr_state, type event)					\
-{												\
-	return;											\
-}
-#endif
-
 /*
  * Generic helpers for all types of deterministic automata monitors.
  */
 #define DECLARE_DA_MON_GENERIC_HELPERS(name, type)						\
 												\
-DECLARE_RV_REACTING_HELPERS(name, type)								\
+static void react_##name(type curr_state, type event)						\
+{												\
+	rv_react(&rv_##name,									\
+		 "rv: monitor %s does not allow event %s on state %s\n",			\
+		 #name,										\
+		 model_get_event_name_##name(event),						\
+		 model_get_state_name_##name(curr_state));					\
+}												\
 												\
 /*												\
  * da_monitor_reset_##name - reset a monitor and setting it to init state			\
@@ -126,7 +111,7 @@ da_event_##name(struct da_monitor *da_mon, enum events_##name event)				\
 	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {					\
 		next_state = model_get_next_state_##name(curr_state, event);			\
 		if (next_state == INVALID_STATE) {						\
-			cond_react_##name(curr_state, event);					\
+			react_##name(curr_state, event);					\
 			trace_error_##name(model_get_state_name_##name(curr_state),		\
 					   model_get_event_name_##name(event));			\
 			return false;								\
@@ -165,7 +150,7 @@ static inline bool da_event_##name(struct da_monitor *da_mon, struct task_struct
 	for (int i = 0; i < MAX_DA_RETRY_RACING_EVENTS; i++) {					\
 		next_state = model_get_next_state_##name(curr_state, event);			\
 		if (next_state == INVALID_STATE) {						\
-			cond_react_##name(curr_state, event);					\
+			react_##name(curr_state, event);					\
 			trace_error_##name(tsk->pid,						\
 					   model_get_state_name_##name(curr_state),		\
 					   model_get_event_name_##name(event));			\

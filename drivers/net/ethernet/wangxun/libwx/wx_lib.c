@@ -235,7 +235,7 @@ static struct sk_buff *wx_build_skb(struct wx_ring *rx_ring,
 {
 	unsigned int size = le16_to_cpu(rx_desc->wb.upper.length);
 #if (PAGE_SIZE < 8192)
-	unsigned int truesize = WX_RX_BUFSZ;
+	unsigned int truesize = wx_rx_pg_size(rx_ring) / 2;
 #else
 	unsigned int truesize = ALIGN(size, L1_CACHE_BYTES);
 #endif
@@ -341,7 +341,7 @@ void wx_alloc_rx_buffers(struct wx_ring *rx_ring, u16 cleaned_count)
 		/* sync the buffer for use by the device */
 		dma_sync_single_range_for_device(rx_ring->dev, bi->dma,
 						 bi->page_offset,
-						 WX_RX_BUFSZ,
+						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
 
 		rx_desc->read.pkt_addr =
@@ -404,6 +404,7 @@ static bool wx_is_non_eop(struct wx_ring *rx_ring,
 			  union wx_rx_desc *rx_desc,
 			  struct sk_buff *skb)
 {
+	struct wx *wx = rx_ring->q_vector->wx;
 	u32 ntc = rx_ring->next_to_clean + 1;
 
 	/* fetch, update, and store next to clean */
@@ -411,6 +412,24 @@ static bool wx_is_non_eop(struct wx_ring *rx_ring,
 	rx_ring->next_to_clean = ntc;
 
 	prefetch(WX_RX_DESC(rx_ring, ntc));
+
+	/* update RSC append count if present */
+	if (test_bit(WX_FLAG_RSC_ENABLED, wx->flags)) {
+		__le32 rsc_enabled = rx_desc->wb.lower.lo_dword.data &
+				     cpu_to_le32(WX_RXD_RSCCNT_MASK);
+
+		if (unlikely(rsc_enabled)) {
+			u32 rsc_cnt = le32_to_cpu(rsc_enabled);
+
+			rsc_cnt >>= WX_RXD_RSCCNT_SHIFT;
+			WX_CB(skb)->append_cnt += rsc_cnt - 1;
+
+			/* update ntc based on RSC value */
+			ntc = le32_to_cpu(rx_desc->wb.upper.status_error);
+			ntc &= WX_RXD_NEXTP_MASK;
+			ntc >>= WX_RXD_NEXTP_SHIFT;
+		}
+	}
 
 	/* if we are the last buffer then there is nothing else to do */
 	if (likely(wx_test_staterr(rx_desc, WX_RXD_STAT_EOP)))
@@ -582,6 +601,33 @@ static void wx_rx_vlan(struct wx_ring *ring, union wx_rx_desc *rx_desc,
 	}
 }
 
+static void wx_set_rsc_gso_size(struct wx_ring *ring,
+				struct sk_buff *skb)
+{
+	u16 hdr_len = skb_headlen(skb);
+
+	/* set gso_size to avoid messing up TCP MSS */
+	skb_shinfo(skb)->gso_size = DIV_ROUND_UP((skb->len - hdr_len),
+						 WX_CB(skb)->append_cnt);
+	skb_shinfo(skb)->gso_type = SKB_GSO_TCPV4;
+}
+
+static void wx_update_rsc_stats(struct wx_ring *rx_ring,
+				struct sk_buff *skb)
+{
+	/* if append_cnt is 0 then frame is not RSC */
+	if (!WX_CB(skb)->append_cnt)
+		return;
+
+	rx_ring->rx_stats.rsc_count += WX_CB(skb)->append_cnt;
+	rx_ring->rx_stats.rsc_flush++;
+
+	wx_set_rsc_gso_size(rx_ring, skb);
+
+	/* gso_size is computed using append_cnt so always clear it last */
+	WX_CB(skb)->append_cnt = 0;
+}
+
 /**
  * wx_process_skb_fields - Populate skb header fields from Rx descriptor
  * @rx_ring: rx descriptor ring packet is being transacted on
@@ -597,6 +643,9 @@ static void wx_process_skb_fields(struct wx_ring *rx_ring,
 				  struct sk_buff *skb)
 {
 	struct wx *wx = netdev_priv(rx_ring->netdev);
+
+	if (test_bit(WX_FLAG_RSC_CAPABLE, wx->flags))
+		wx_update_rsc_stats(rx_ring, skb);
 
 	wx_rx_hash(rx_ring, rx_desc, skb);
 	wx_rx_checksum(rx_ring, rx_desc, skb);
@@ -735,9 +784,22 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
-		if (!(eop_desc->wb.status & cpu_to_le32(WX_TXD_STAT_DD)))
+		if (tx_ring->headwb_mem) {
+			u32 head = *tx_ring->headwb_mem;
+
+			if (head == tx_ring->next_to_clean)
+				break;
+			else if (head > tx_ring->next_to_clean &&
+				 !(tx_buffer->next_eop >= tx_ring->next_to_clean &&
+				   tx_buffer->next_eop < head))
+				break;
+			else if (!(tx_buffer->next_eop >= tx_ring->next_to_clean ||
+				   tx_buffer->next_eop < head))
+				break;
+		} else if (!(eop_desc->wb.status & cpu_to_le32(WX_TXD_STAT_DD))) {
+			/* if DD is not set pending work has not been completed */
 			break;
+		}
 
 		/* clear next_to_watch to prevent false hangs */
 		tx_buffer->next_to_watch = NULL;
@@ -1074,6 +1136,10 @@ static int wx_tx_map(struct wx_ring *tx_ring,
 
 	/* set next_to_watch value indicating a packet is present */
 	first->next_to_watch = tx_desc;
+
+	/* set next_eop for amlite tx head wb */
+	if (tx_ring->headwb_mem)
+		first->next_eop = i;
 
 	i++;
 	if (i == tx_ring->count)
@@ -2532,7 +2598,7 @@ static void wx_clean_rx_ring(struct wx_ring *rx_ring)
 		dma_sync_single_range_for_cpu(rx_ring->dev,
 					      rx_buffer->dma,
 					      rx_buffer->page_offset,
-					      WX_RX_BUFSZ,
+					      rx_ring->rx_buf_len,
 					      DMA_FROM_DEVICE);
 
 		/* free resources associated with mapping */
@@ -2683,6 +2749,16 @@ void wx_clean_all_tx_rings(struct wx *wx)
 }
 EXPORT_SYMBOL(wx_clean_all_tx_rings);
 
+static void wx_free_headwb_resources(struct wx_ring *tx_ring)
+{
+	if (!tx_ring->headwb_mem)
+		return;
+
+	dma_free_coherent(tx_ring->dev, sizeof(u32),
+			  tx_ring->headwb_mem, tx_ring->headwb_dma);
+	tx_ring->headwb_mem = NULL;
+}
+
 /**
  * wx_free_tx_resources - Free Tx Resources per Queue
  * @tx_ring: Tx descriptor ring for a specific queue
@@ -2702,6 +2778,8 @@ static void wx_free_tx_resources(struct wx_ring *tx_ring)
 	dma_free_coherent(tx_ring->dev, tx_ring->size,
 			  tx_ring->desc, tx_ring->dma);
 	tx_ring->desc = NULL;
+
+	wx_free_headwb_resources(tx_ring);
 }
 
 /**
@@ -2731,13 +2809,14 @@ static int wx_alloc_page_pool(struct wx_ring *rx_ring)
 
 	struct page_pool_params pp_params = {
 		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
-		.order = 0,
-		.pool_size = rx_ring->count,
+		.order = wx_rx_pg_order(rx_ring),
+		.pool_size = rx_ring->count * rx_ring->rx_buf_len /
+			     wx_rx_pg_size(rx_ring),
 		.nid = dev_to_node(rx_ring->dev),
 		.dev = rx_ring->dev,
 		.dma_dir = DMA_FROM_DEVICE,
 		.offset = 0,
-		.max_len = PAGE_SIZE,
+		.max_len = wx_rx_pg_size(rx_ring),
 	};
 
 	rx_ring->page_pool = page_pool_create(&pp_params);
@@ -2840,6 +2919,24 @@ err_setup_rx:
 	return err;
 }
 
+static void wx_setup_headwb_resources(struct wx_ring *tx_ring)
+{
+	struct wx *wx = netdev_priv(tx_ring->netdev);
+
+	if (!test_bit(WX_FLAG_TXHEAD_WB_ENABLED, wx->flags))
+		return;
+
+	if (!tx_ring->q_vector)
+		return;
+
+	tx_ring->headwb_mem = dma_alloc_coherent(tx_ring->dev,
+						 sizeof(u32),
+						 &tx_ring->headwb_dma,
+						 GFP_KERNEL);
+	if (!tx_ring->headwb_mem)
+		dev_info(tx_ring->dev, "Allocate headwb memory failed, disable it\n");
+}
+
 /**
  * wx_setup_tx_resources - allocate Tx resources (Descriptors)
  * @tx_ring: tx descriptor ring (for a specific queue) to setup
@@ -2879,6 +2976,8 @@ static int wx_setup_tx_resources(struct wx_ring *tx_ring)
 
 	if (!tx_ring->desc)
 		goto err;
+
+	wx_setup_headwb_resources(tx_ring);
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
@@ -3026,8 +3125,25 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 	else if (changed & (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_CTAG_FILTER))
 		wx_set_rx_mode(netdev);
 
+	if (test_bit(WX_FLAG_RSC_CAPABLE, wx->flags)) {
+		if (!(features & NETIF_F_LRO)) {
+			if (test_bit(WX_FLAG_RSC_ENABLED, wx->flags))
+				need_reset = true;
+			clear_bit(WX_FLAG_RSC_ENABLED, wx->flags);
+		} else if (!(test_bit(WX_FLAG_RSC_ENABLED, wx->flags))) {
+			if (wx->rx_itr_setting == 1 ||
+			    wx->rx_itr_setting > WX_MIN_RSC_ITR) {
+				set_bit(WX_FLAG_RSC_ENABLED, wx->flags);
+				need_reset = true;
+			} else if (changed & NETIF_F_LRO) {
+				dev_info(&wx->pdev->dev,
+					 "rx-usecs set too low, disable RSC\n");
+			}
+		}
+	}
+
 	if (!(test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags)))
-		return 0;
+		goto out;
 
 	/* Check if Flow Director n-tuple support was enabled or disabled.  If
 	 * the state changed, we need to reset.
@@ -3053,6 +3169,7 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 		break;
 	}
 
+out:
 	if (need_reset && wx->do_reset)
 		wx->do_reset(netdev);
 
@@ -3101,6 +3218,14 @@ netdev_features_t wx_fix_features(struct net_device *netdev,
 			wx_err(wx, "802.1Q and 802.1ad VLAN filtering must be either both on or both off.");
 		}
 	}
+
+	/* If Rx checksum is disabled, then RSC/LRO should also be disabled */
+	if (!(features & NETIF_F_RXCSUM))
+		features &= ~NETIF_F_LRO;
+
+	/* Turn off LRO if not RSC capable */
+	if (!test_bit(WX_FLAG_RSC_CAPABLE, wx->flags))
+		features &= ~NETIF_F_LRO;
 
 	return features;
 }

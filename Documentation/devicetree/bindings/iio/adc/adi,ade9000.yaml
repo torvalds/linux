@@ -57,7 +57,6 @@ properties:
     description: External clock source when not using crystal
     maxItems: 1
 
-
   "#clock-cells":
     description:
       ADE9000 can provide clock output via CLKOUT pin with external buffer.

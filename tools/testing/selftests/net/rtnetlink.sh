@@ -8,6 +8,7 @@ ALL_TESTS="
 	kci_test_polrouting
 	kci_test_route_get
 	kci_test_addrlft
+	kci_test_addrlft_route_cleanup
 	kci_test_promote_secondaries
 	kci_test_tc
 	kci_test_gre
@@ -321,6 +322,25 @@ kci_test_addrlft()
 	fi
 
 	end_test "PASS: preferred_lft addresses have expired"
+}
+
+kci_test_addrlft_route_cleanup()
+{
+	local ret=0
+	local test_addr="2001:db8:99::1/64"
+	local test_prefix="2001:db8:99::/64"
+
+	run_cmd ip -6 addr add $test_addr dev "$devdummy" valid_lft 300 preferred_lft 300
+	run_cmd_grep "$test_prefix proto kernel" ip -6 route show dev "$devdummy"
+	run_cmd ip -6 addr del $test_addr dev "$devdummy"
+	run_cmd_grep_fail "$test_prefix" ip -6 route show dev "$devdummy"
+
+	if [ $ret -ne 0 ]; then
+		end_test "FAIL: route not cleaned up when address with valid_lft deleted"
+		return 1
+	fi
+
+	end_test "PASS: route cleaned up when address with valid_lft deleted"
 }
 
 kci_test_promote_secondaries()

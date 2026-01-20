@@ -73,7 +73,7 @@ static int rawsock_release(struct socket *sock)
 	return 0;
 }
 
-static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
+static int rawsock_connect(struct socket *sock, struct sockaddr_unsized *_addr,
 			   int len, int flags)
 {
 	struct sock *sk = sock->sk;

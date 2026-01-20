@@ -582,6 +582,185 @@ relookup_failed:
 	return ERR_PTR(err);
 }
 
+struct icmp_ext_iio_addr4_subobj {
+	__be16 afi;
+	__be16 reserved;
+	__be32 addr4;
+};
+
+static unsigned int icmp_ext_iio_len(void)
+{
+	return sizeof(struct icmp_extobj_hdr) +
+		/* ifIndex */
+		sizeof(__be32) +
+		/* Interface Address Sub-Object */
+		sizeof(struct icmp_ext_iio_addr4_subobj) +
+		/* Interface Name Sub-Object. Length must be a multiple of 4
+		 * bytes.
+		 */
+		ALIGN(sizeof(struct icmp_ext_iio_name_subobj), 4) +
+		/* MTU */
+		sizeof(__be32);
+}
+
+static unsigned int icmp_ext_max_len(u8 ext_objs)
+{
+	unsigned int ext_max_len;
+
+	ext_max_len = sizeof(struct icmp_ext_hdr);
+
+	if (ext_objs & BIT(ICMP_ERR_EXT_IIO_IIF))
+		ext_max_len += icmp_ext_iio_len();
+
+	return ext_max_len;
+}
+
+static __be32 icmp_ext_iio_addr4_find(const struct net_device *dev)
+{
+	struct in_device *in_dev;
+	struct in_ifaddr *ifa;
+
+	in_dev = __in_dev_get_rcu(dev);
+	if (!in_dev)
+		return 0;
+
+	/* It is unclear from RFC 5837 which IP address should be chosen, but
+	 * it makes sense to choose a global unicast address.
+	 */
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
+		if (READ_ONCE(ifa->ifa_flags) & IFA_F_SECONDARY)
+			continue;
+		if (ifa->ifa_scope != RT_SCOPE_UNIVERSE ||
+		    ipv4_is_multicast(ifa->ifa_address))
+			continue;
+		return ifa->ifa_address;
+	}
+
+	return 0;
+}
+
+static void icmp_ext_iio_iif_append(struct net *net, struct sk_buff *skb,
+				    int iif)
+{
+	struct icmp_ext_iio_name_subobj *name_subobj;
+	struct icmp_extobj_hdr *objh;
+	struct net_device *dev;
+	__be32 data;
+
+	if (!iif)
+		return;
+
+	/* Add the fields in the order specified by RFC 5837. */
+	objh = skb_put(skb, sizeof(*objh));
+	objh->class_num = ICMP_EXT_OBJ_CLASS_IIO;
+	objh->class_type = ICMP_EXT_CTYPE_IIO_ROLE(ICMP_EXT_CTYPE_IIO_ROLE_IIF);
+
+	data = htonl(iif);
+	skb_put_data(skb, &data, sizeof(__be32));
+	objh->class_type |= ICMP_EXT_CTYPE_IIO_IFINDEX;
+
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, iif);
+	if (!dev)
+		goto out;
+
+	data = icmp_ext_iio_addr4_find(dev);
+	if (data) {
+		struct icmp_ext_iio_addr4_subobj *addr4_subobj;
+
+		addr4_subobj = skb_put_zero(skb, sizeof(*addr4_subobj));
+		addr4_subobj->afi = htons(ICMP_AFI_IP);
+		addr4_subobj->addr4 = data;
+		objh->class_type |= ICMP_EXT_CTYPE_IIO_IPADDR;
+	}
+
+	name_subobj = skb_put_zero(skb, ALIGN(sizeof(*name_subobj), 4));
+	name_subobj->len = ALIGN(sizeof(*name_subobj), 4);
+	netdev_copy_name(dev, name_subobj->name);
+	objh->class_type |= ICMP_EXT_CTYPE_IIO_NAME;
+
+	data = htonl(READ_ONCE(dev->mtu));
+	skb_put_data(skb, &data, sizeof(__be32));
+	objh->class_type |= ICMP_EXT_CTYPE_IIO_MTU;
+
+out:
+	rcu_read_unlock();
+	objh->length = htons(skb_tail_pointer(skb) - (unsigned char *)objh);
+}
+
+static void icmp_ext_objs_append(struct net *net, struct sk_buff *skb,
+				 u8 ext_objs, int iif)
+{
+	if (ext_objs & BIT(ICMP_ERR_EXT_IIO_IIF))
+		icmp_ext_iio_iif_append(net, skb, iif);
+}
+
+static struct sk_buff *
+icmp_ext_append(struct net *net, struct sk_buff *skb_in, struct icmphdr *icmph,
+		unsigned int room, int iif)
+{
+	unsigned int payload_len, ext_max_len, ext_len;
+	struct icmp_ext_hdr *ext_hdr;
+	struct sk_buff *skb;
+	u8 ext_objs;
+	int nhoff;
+
+	switch (icmph->type) {
+	case ICMP_DEST_UNREACH:
+	case ICMP_TIME_EXCEEDED:
+	case ICMP_PARAMETERPROB:
+		break;
+	default:
+		return NULL;
+	}
+
+	ext_objs = READ_ONCE(net->ipv4.sysctl_icmp_errors_extension_mask);
+	if (!ext_objs)
+		return NULL;
+
+	ext_max_len = icmp_ext_max_len(ext_objs);
+	if (ICMP_EXT_ORIG_DGRAM_MIN_LEN + ext_max_len > room)
+		return NULL;
+
+	skb = skb_clone(skb_in, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	nhoff = skb_network_offset(skb);
+	payload_len = min(skb->len - nhoff, ICMP_EXT_ORIG_DGRAM_MIN_LEN);
+
+	if (!pskb_network_may_pull(skb, payload_len))
+		goto free_skb;
+
+	if (pskb_trim(skb, nhoff + ICMP_EXT_ORIG_DGRAM_MIN_LEN) ||
+	    __skb_put_padto(skb, nhoff + ICMP_EXT_ORIG_DGRAM_MIN_LEN, false))
+		goto free_skb;
+
+	if (pskb_expand_head(skb, 0, ext_max_len, GFP_ATOMIC))
+		goto free_skb;
+
+	ext_hdr = skb_put_zero(skb, sizeof(*ext_hdr));
+	ext_hdr->version = ICMP_EXT_VERSION_2;
+
+	icmp_ext_objs_append(net, skb, ext_objs, iif);
+
+	/* Do not send an empty extension structure. */
+	ext_len = skb_tail_pointer(skb) - (unsigned char *)ext_hdr;
+	if (ext_len == sizeof(*ext_hdr))
+		goto free_skb;
+
+	ext_hdr->checksum = ip_compute_csum(ext_hdr, ext_len);
+	/* The length of the original datagram in 32-bit words (RFC 4884). */
+	icmph->un.reserved[1] = ICMP_EXT_ORIG_DGRAM_MIN_LEN / sizeof(u32);
+
+	return skb;
+
+free_skb:
+	consume_skb(skb);
+	return NULL;
+}
+
 /*
  *	Send an ICMP message in response to a situation
  *
@@ -601,6 +780,7 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	struct icmp_bxm icmp_param;
 	struct rtable *rt = skb_rtable(skb_in);
 	bool apply_ratelimit = false;
+	struct sk_buff *ext_skb;
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
 	__be32 saddr;
@@ -770,7 +950,12 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	if (room <= (int)sizeof(struct iphdr))
 		goto ende;
 
-	icmp_param.data_len = skb_in->len - icmp_param.offset;
+	ext_skb = icmp_ext_append(net, skb_in, &icmp_param.data.icmph, room,
+				  parm->iif);
+	if (ext_skb)
+		icmp_param.skb = ext_skb;
+
+	icmp_param.data_len = icmp_param.skb->len - icmp_param.offset;
 	if (icmp_param.data_len > room)
 		icmp_param.data_len = room;
 	icmp_param.head_len = sizeof(struct icmphdr);
@@ -785,6 +970,9 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	trace_icmp_send(skb_in, type, code);
 
 	icmp_push_reply(sk, &icmp_param, &fl4, &ipc, &rt);
+
+	if (ext_skb)
+		consume_skb(ext_skb);
 ende:
 	ip_rt_put(rt);
 out_unlock:
@@ -1502,6 +1690,7 @@ static int __net_init icmp_sk_init(struct net *net)
 	net->ipv4.sysctl_icmp_ratelimit = 1 * HZ;
 	net->ipv4.sysctl_icmp_ratemask = 0x1818;
 	net->ipv4.sysctl_icmp_errors_use_inbound_ifaddr = 0;
+	net->ipv4.sysctl_icmp_errors_extension_mask = 0;
 	net->ipv4.sysctl_icmp_msgs_per_sec = 1000;
 	net->ipv4.sysctl_icmp_msgs_burst = 50;
 

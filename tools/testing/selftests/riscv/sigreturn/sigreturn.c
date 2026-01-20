@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <ucontext.h>
 #include <linux/ptrace.h>
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define RISCV_V_MAGIC		0x53465457
 #define DEFAULT_VALUE		2

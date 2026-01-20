@@ -524,9 +524,6 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	card->num_links = SOF_PROBES_NUM_DAI_LINKS;
 	card->dai_link = links;
 
-	/* set idle_bias_off to prevent the core from resuming the card->dev */
-	card->dapm.idle_bias = false;
-
 	snd_soc_card_set_drvdata(card, cdev);
 
 	ret = devm_snd_soc_register_card(dev, card);
@@ -536,6 +533,14 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 		dev_err(dev, "Probes card register failed %d\n", ret);
 		return ret;
 	}
+
+	/*
+	 * set idle_bias_off to prevent the core from resuming the card->dev
+	 * call it after snd_soc_register_card()
+	 */
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
+
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	/* enable runtime PM */
 	pm_runtime_set_autosuspend_delay(dev, SOF_PROBES_SUSPEND_DELAY_MS);

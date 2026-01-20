@@ -16,7 +16,7 @@
 #include <asm/sigcontext.h>
 #include <asm/unistd.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #include "syscall-abi.h"
 

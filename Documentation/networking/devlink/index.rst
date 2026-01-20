@@ -99,5 +99,6 @@ parameters, info versions, and other features it supports.
    prestera
    qed
    sfc
+   stmmac
    ti-cpsw-switch
    zl3073x

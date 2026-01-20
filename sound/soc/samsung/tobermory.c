@@ -24,12 +24,12 @@ static int tobermory_set_bias_level(struct snd_soc_card *card,
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
-	if (dapm->dev != codec_dai->dev)
+	if (snd_soc_dapm_to_dev(dapm) != codec_dai->dev)
 		return 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY) {
 			ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
 						  WM8962_FLL_MCLK, 32768,
 						  sample_rate * 512);
@@ -67,7 +67,7 @@ static int tobermory_set_bias_level_post(struct snd_soc_card *card,
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
-	if (dapm->dev != codec_dai->dev)
+	if (snd_soc_dapm_to_dev(dapm) != codec_dai->dev)
 		return 0;
 
 	switch (level) {

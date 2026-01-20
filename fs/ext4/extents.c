@@ -333,7 +333,7 @@ ext4_force_split_extent_at(handle_t *handle, struct inode *inode,
 			   int nofail)
 {
 	int unwritten = ext4_ext_is_unwritten(path[path->p_depth].p_ext);
-	int flags = EXT4_EX_NOCACHE | EXT4_GET_BLOCKS_PRE_IO;
+	int flags = EXT4_EX_NOCACHE | EXT4_GET_BLOCKS_SPLIT_NOMERGE;
 
 	if (nofail)
 		flags |= EXT4_GET_BLOCKS_METADATA_NOFAIL | EXT4_EX_NOFAIL;
@@ -2002,7 +2002,7 @@ ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	}
 
 	/* try to insert block into found extent and return */
-	if (ex && !(gb_flags & EXT4_GET_BLOCKS_PRE_IO)) {
+	if (ex && !(gb_flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE)) {
 
 		/*
 		 * Try to see whether we should rather test the extent on
@@ -2181,7 +2181,7 @@ has_space:
 
 merge:
 	/* try to merge extents */
-	if (!(gb_flags & EXT4_GET_BLOCKS_PRE_IO))
+	if (!(gb_flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE))
 		ext4_ext_try_to_merge(handle, inode, path, nearex);
 
 	/* time to correct all indexes above */
@@ -2213,7 +2213,7 @@ static int ext4_fill_es_cache_info(struct inode *inode,
 	while (block <= end) {
 		next = 0;
 		flags = 0;
-		if (!ext4_es_lookup_extent(inode, block, &next, &es))
+		if (!ext4_es_lookup_extent(inode, block, &next, &es, NULL))
 			break;
 		if (ext4_es_is_unwritten(&es))
 			flags |= FIEMAP_EXTENT_UNWRITTEN;
@@ -3224,7 +3224,7 @@ static struct ext4_ext_path *ext4_split_extent_at(handle_t *handle,
 		else
 			ext4_ext_mark_initialized(ex);
 
-		if (!(flags & EXT4_GET_BLOCKS_PRE_IO))
+		if (!(flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE))
 			ext4_ext_try_to_merge(handle, inode, path, ex);
 
 		err = ext4_ext_dirty(handle, inode, path + path->p_depth);
@@ -3368,7 +3368,7 @@ static struct ext4_ext_path *ext4_split_extent(handle_t *handle,
 
 	if (map->m_lblk + map->m_len < ee_block + ee_len) {
 		split_flag1 = split_flag & EXT4_EXT_MAY_ZEROOUT;
-		flags1 = flags | EXT4_GET_BLOCKS_PRE_IO;
+		flags1 = flags | EXT4_GET_BLOCKS_SPLIT_NOMERGE;
 		if (unwritten)
 			split_flag1 |= EXT4_EXT_MARK_UNWRIT1 |
 				       EXT4_EXT_MARK_UNWRIT2;
@@ -3721,10 +3721,6 @@ static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 			>> inode->i_sb->s_blocksize_bits;
 	if (eof_block < map->m_lblk + map->m_len)
 		eof_block = map->m_lblk + map->m_len;
-	/*
-	 * It is safe to convert extent to initialized via explicit
-	 * zeroout only if extent is fully inside i_size or new_size.
-	 */
 	depth = ext_depth(inode);
 	ex = path[depth].p_ext;
 	ee_block = le32_to_cpu(ex->ee_block);
@@ -3735,11 +3731,15 @@ static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 		split_flag |= EXT4_EXT_DATA_VALID1;
 	/* Convert to initialized */
 	} else if (flags & EXT4_GET_BLOCKS_CONVERT) {
+		/*
+		 * It is safe to convert extent to initialized via explicit
+		 * zeroout only if extent is fully inside i_size or new_size.
+		 */
 		split_flag |= ee_block + ee_len <= eof_block ?
 			      EXT4_EXT_MAY_ZEROOUT : 0;
 		split_flag |= (EXT4_EXT_MARK_UNWRIT2 | EXT4_EXT_DATA_VALID2);
 	}
-	flags |= EXT4_GET_BLOCKS_PRE_IO;
+	flags |= EXT4_GET_BLOCKS_SPLIT_NOMERGE;
 	return ext4_split_extent(handle, inode, path, map, split_flag, flags,
 				 allocated);
 }
@@ -3911,7 +3911,7 @@ ext4_ext_handle_unwritten_extents(handle_t *handle, struct inode *inode,
 						*allocated, newblock);
 
 	/* get_block() before submitting IO, split the extent */
-	if (flags & EXT4_GET_BLOCKS_PRE_IO) {
+	if (flags & EXT4_GET_BLOCKS_SPLIT_NOMERGE) {
 		path = ext4_split_convert_extents(handle, inode, map, path,
 				flags | EXT4_GET_BLOCKS_CONVERT, allocated);
 		if (IS_ERR(path))
@@ -4562,7 +4562,7 @@ retry:
 		 * allow a full retry cycle for any remaining allocations
 		 */
 		retries = 0;
-		epos = (loff_t)(map.m_lblk + ret) << blkbits;
+		epos = EXT4_LBLK_TO_B(inode, map.m_lblk + ret);
 		inode_set_ctime_current(inode);
 		if (new_size) {
 			if (epos > new_size)
@@ -5618,7 +5618,7 @@ static int ext4_insert_range(struct file *file, loff_t offset, loff_t len)
 			path = ext4_split_extent_at(handle, inode, path,
 					start_lblk, split_flag,
 					EXT4_EX_NOCACHE |
-					EXT4_GET_BLOCKS_PRE_IO |
+					EXT4_GET_BLOCKS_SPLIT_NOMERGE |
 					EXT4_GET_BLOCKS_METADATA_NOFAIL);
 		}
 

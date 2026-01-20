@@ -25,7 +25,11 @@ allOf:
 
 properties:
   compatible:
-    const: st,vd55g1
+    enum:
+      - st,vd55g1
+      - st,vd65g4
+    description:
+      VD55G1 is the monochrome variant, while VD65G4 is the color one.
 
   reg:
     maxItems: 1

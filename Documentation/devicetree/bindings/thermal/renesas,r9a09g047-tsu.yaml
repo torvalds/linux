@@ -16,7 +16,11 @@ description:
 
 properties:
   compatible:
-    const: renesas,r9a09g047-tsu
+    oneOf:
+      - const: renesas,r9a09g047-tsu # RZ/G3E
+      - items:
+          - const: renesas,r9a09g057-tsu # RZ/V2H
+          - const: renesas,r9a09g047-tsu # RZ/G3E
 
   reg:
     maxItems: 1

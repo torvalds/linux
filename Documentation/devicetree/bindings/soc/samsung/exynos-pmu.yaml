@@ -55,6 +55,7 @@ properties:
               - samsung,exynos2200-pmu
               - samsung,exynos7870-pmu
               - samsung,exynos7885-pmu
+              - samsung,exynos8890-pmu
               - samsung,exynos8895-pmu
               - samsung,exynos9810-pmu
               - samsung,exynos990-pmu
@@ -172,6 +173,7 @@ allOf:
               - samsung,exynos5250-pmu
               - samsung,exynos5420-pmu
               - samsung,exynos5433-pmu
+              - samsung,exynos7870-pmu
     then:
       properties:
         mipi-phy: true

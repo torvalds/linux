@@ -168,7 +168,10 @@ int sample__fprintf_callchain(struct perf_sample *sample, int left_alignment,
 				node_al.addr = addr;
 				node_al.map  = map__get(map);
 
-				if (print_symoffset) {
+				if (sample->deferred_callchain &&
+				    sample->deferred_cookie == node->ip) {
+					printed += fprintf(fp, "(cookie)");
+				} else if (print_symoffset) {
 					printed += __symbol__fprintf_symname_offs(sym, &node_al,
 										  print_unknown_as_addr,
 										  true, fp);

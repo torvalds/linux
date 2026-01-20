@@ -21,6 +21,9 @@
 #![feature(inline_const)]
 #![feature(pointer_is_aligned)]
 //
+// Stable since Rust 1.80.0.
+#![feature(slice_flatten)]
+//
 // Stable since Rust 1.81.0.
 #![feature(lint_reasons)]
 //
@@ -94,6 +97,8 @@ pub mod faux;
 pub mod firmware;
 pub mod fmt;
 pub mod fs;
+#[cfg(CONFIG_I2C = "y")]
+pub mod i2c;
 pub mod id_pool;
 pub mod init;
 pub mod io;
@@ -107,8 +112,10 @@ pub mod list;
 pub mod maple_tree;
 pub mod miscdevice;
 pub mod mm;
+pub mod module_param;
 #[cfg(CONFIG_NET)]
 pub mod net;
+pub mod num;
 pub mod of;
 #[cfg(CONFIG_PM_OPP)]
 pub mod opp;
@@ -121,6 +128,8 @@ pub mod prelude;
 pub mod print;
 pub mod processor;
 pub mod ptr;
+#[cfg(CONFIG_RUST_PWM_ABSTRACTIONS)]
+pub mod pwm;
 pub mod rbtree;
 pub mod regulator;
 pub mod revocable;
@@ -128,6 +137,7 @@ pub mod scatterlist;
 pub mod security;
 pub mod seq_file;
 pub mod sizes;
+pub mod slice;
 mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
@@ -139,6 +149,8 @@ pub mod tracepoint;
 pub mod transmute;
 pub mod types;
 pub mod uaccess;
+#[cfg(CONFIG_USB = "y")]
+pub mod usb;
 pub mod workqueue;
 pub mod xarray;
 

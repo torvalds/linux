@@ -66,7 +66,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 
 	BUILD_BUG_ON(sizeof(*payload) != sizeof(prep->payload.data));
 
-	if (datalen <= 0 || datalen > 1024 * 1024 || !prep->data)
+	if (datalen == 0 || datalen > 1024 * 1024 || !prep->data)
 		return -EINVAL;
 
 	/* Set an arbitrary quota */

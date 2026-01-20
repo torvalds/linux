@@ -30,6 +30,13 @@ static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
  */
 static bool userspace_control;
 
+/*
+ * Whether or not the lightbar supports the manual suspend commands.
+ * The Pixel 2013 (Link) does not while all other devices with a
+ * lightbar do.
+ */
+static bool has_manual_suspend;
+
 static ssize_t interval_msec_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -550,7 +557,7 @@ static int cros_ec_lightbar_probe(struct platform_device *pd)
 		return -ENODEV;
 
 	/* Take control of the lightbar from the EC. */
-	lb_manual_suspend_ctrl(ec_dev, 1);
+	has_manual_suspend = (lb_manual_suspend_ctrl(ec_dev, 1) != -EINVAL);
 
 	ret = sysfs_create_group(&ec_dev->class_dev.kobj,
 				 &cros_ec_lightbar_attr_group);
@@ -569,14 +576,15 @@ static void cros_ec_lightbar_remove(struct platform_device *pd)
 			   &cros_ec_lightbar_attr_group);
 
 	/* Let the EC take over the lightbar again. */
-	lb_manual_suspend_ctrl(ec_dev, 0);
+	if (has_manual_suspend)
+		lb_manual_suspend_ctrl(ec_dev, 0);
 }
 
 static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
-	if (userspace_control)
+	if (userspace_control || !has_manual_suspend)
 		return 0;
 
 	return lb_send_empty_cmd(ec_dev, LIGHTBAR_CMD_RESUME);
@@ -586,7 +594,7 @@ static int __maybe_unused cros_ec_lightbar_suspend(struct device *dev)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
 
-	if (userspace_control)
+	if (userspace_control || !has_manual_suspend)
 		return 0;
 
 	return lb_send_empty_cmd(ec_dev, LIGHTBAR_CMD_SUSPEND);

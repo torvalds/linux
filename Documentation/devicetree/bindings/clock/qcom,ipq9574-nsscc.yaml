@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/qcom,ipq9574-nsscc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Networking Sub System Clock & Reset Controller on IPQ9574
+title: Qualcomm Networking Sub System Clock & Reset Controller on IPQ9574 and IPQ5424
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
@@ -12,21 +12,29 @@ maintainers:
 
 description: |
   Qualcomm networking sub system clock control module provides the clocks,
-  resets on IPQ9574
+  resets on IPQ9574 and IPQ5424
 
-  See also::
+  See also:
+    include/dt-bindings/clock/qcom,ipq5424-nsscc.h
     include/dt-bindings/clock/qcom,ipq9574-nsscc.h
+    include/dt-bindings/reset/qcom,ipq5424-nsscc.h
     include/dt-bindings/reset/qcom,ipq9574-nsscc.h
 
 properties:
   compatible:
-    const: qcom,ipq9574-nsscc
+    enum:
+      - qcom,ipq5424-nsscc
+      - qcom,ipq9574-nsscc
 
   clocks:
     items:
       - description: Board XO source
-      - description: CMN_PLL NSS 1200MHz (Bias PLL cc) clock source
-      - description: CMN_PLL PPE 353MHz (Bias PLL ubi nc) clock source
+      - description: CMN_PLL NSS (Bias PLL cc) clock source. This clock rate
+          can vary for different IPQ SoCs. For example, it is 1200 MHz on the
+          IPQ9574 and 300 MHz on the IPQ5424.
+      - description: CMN_PLL PPE (Bias PLL ubi nc) clock source. The clock
+          rate can vary for different IPQ SoCs. For example, it is 353 MHz
+          on the IPQ9574 and 375 MHz on the IPQ5424.
       - description: GCC GPLL0 OUT AUX clock source
       - description: Uniphy0 NSS Rx clock source
       - description: Uniphy0 NSS Tx clock source
@@ -42,8 +50,12 @@ properties:
   clock-names:
     items:
       - const: xo
-      - const: nss_1200
-      - const: ppe_353
+      - enum:
+          - nss_1200
+          - nss
+      - enum:
+          - ppe_353
+          - ppe
       - const: gpll0_out
       - const: uniphy0_rx
       - const: uniphy0_tx
@@ -60,6 +72,40 @@ required:
 
 allOf:
   - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          const: qcom,ipq9574-nsscc
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: xo
+            - const: nss_1200
+            - const: ppe_353
+            - const: gpll0_out
+            - const: uniphy0_rx
+            - const: uniphy0_tx
+            - const: uniphy1_rx
+            - const: uniphy1_tx
+            - const: uniphy2_rx
+            - const: uniphy2_tx
+            - const: bus
+    else:
+      properties:
+        clock-names:
+          items:
+            - const: xo
+            - const: nss
+            - const: ppe
+            - const: gpll0_out
+            - const: uniphy0_rx
+            - const: uniphy0_tx
+            - const: uniphy1_rx
+            - const: uniphy1_tx
+            - const: uniphy2_rx
+            - const: uniphy2_tx
+            - const: bus
 
 unevaluatedProperties: false
 
@@ -94,5 +140,6 @@ examples:
                     "bus";
       #clock-cells = <1>;
       #reset-cells = <1>;
+      #interconnect-cells = <1>;
     };
 ...

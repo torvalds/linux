@@ -813,37 +813,21 @@ static void usbhs_remove(struct platform_device *pdev)
 
 	flush_delayed_work(&priv->notify_hotplug_work);
 
-	/* power off */
-	if (!usbhs_get_dparam(priv, runtime_pwctrl))
-		usbhsc_power_ctrl(priv, 0);
-
-	pm_runtime_disable(&pdev->dev);
-
 	usbhs_platform_call(priv, hardware_exit, pdev);
-	usbhsc_clk_put(priv);
 	reset_control_assert(priv->rsts);
 	usbhs_mod_remove(priv);
 	usbhs_fifo_remove(priv);
 	usbhs_pipe_remove(priv);
-}
 
-static int usbhsc_suspend(struct device *dev)
-{
-	struct usbhs_priv *priv = dev_get_drvdata(dev);
-	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
-
-	if (mod) {
-		usbhs_mod_call(priv, stop, priv);
-		usbhs_mod_change(priv, -1);
-	}
-
-	if (mod || !usbhs_get_dparam(priv, runtime_pwctrl))
+	/* power off */
+	if (!usbhs_get_dparam(priv, runtime_pwctrl))
 		usbhsc_power_ctrl(priv, 0);
 
-	return 0;
+	usbhsc_clk_put(priv);
+	pm_runtime_disable(&pdev->dev);
 }
 
-static int usbhsc_resume(struct device *dev)
+static void usbhsc_restore(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
@@ -856,6 +840,39 @@ static int usbhsc_resume(struct device *dev)
 	usbhs_platform_call(priv, phy_reset, pdev);
 
 	usbhsc_schedule_notify_hotplug(pdev);
+}
+
+static int usbhsc_suspend(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
+	int ret;
+
+	if (mod) {
+		usbhs_mod_call(priv, stop, priv);
+		usbhs_mod_change(priv, -1);
+	}
+
+	if (mod || !usbhs_get_dparam(priv, runtime_pwctrl))
+		usbhsc_power_ctrl(priv, 0);
+
+	ret = reset_control_assert(priv->rsts);
+	if (ret)
+		usbhsc_restore(dev);
+
+	return ret;
+}
+
+static int usbhsc_resume(struct device *dev)
+{
+	struct usbhs_priv *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = reset_control_deassert(priv->rsts);
+	if (ret)
+		return ret;
+
+	usbhsc_restore(dev);
 
 	return 0;
 }

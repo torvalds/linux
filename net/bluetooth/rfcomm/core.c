@@ -781,7 +781,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	addr.l2_psm    = 0;
 	addr.l2_cid    = 0;
 	addr.l2_bdaddr_type = BDADDR_BREDR;
-	*err = kernel_bind(sock, (struct sockaddr *) &addr, sizeof(addr));
+	*err = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
 	if (*err < 0)
 		goto failed;
 
@@ -808,7 +808,7 @@ static struct rfcomm_session *rfcomm_session_create(bdaddr_t *src,
 	addr.l2_psm    = cpu_to_le16(L2CAP_PSM_RFCOMM);
 	addr.l2_cid    = 0;
 	addr.l2_bdaddr_type = BDADDR_BREDR;
-	*err = kernel_connect(sock, (struct sockaddr *) &addr, sizeof(addr), O_NONBLOCK);
+	*err = kernel_connect(sock, (struct sockaddr_unsized *)&addr, sizeof(addr), O_NONBLOCK);
 	if (*err == 0 || *err == -EINPROGRESS)
 		return s;
 
@@ -2068,7 +2068,7 @@ static int rfcomm_add_listener(bdaddr_t *ba)
 	addr.l2_psm    = cpu_to_le16(L2CAP_PSM_RFCOMM);
 	addr.l2_cid    = 0;
 	addr.l2_bdaddr_type = BDADDR_BREDR;
-	err = kernel_bind(sock, (struct sockaddr *) &addr, sizeof(addr));
+	err = kernel_bind(sock, (struct sockaddr_unsized *)&addr, sizeof(addr));
 	if (err < 0) {
 		BT_ERR("Bind failed %d", err);
 		goto failed;

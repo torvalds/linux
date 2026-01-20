@@ -7,8 +7,7 @@
  * Copyright IBM Corp. 2002, 2004
  */
 
-#define KMSG_COMPONENT "extmem"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "extmem: " fmt
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -598,14 +597,16 @@ segment_save(char *name)
 		goto out;
 	}
 
-	sprintf(cmd1, "DEFSEG %s", name);
+	snprintf(cmd1, sizeof(cmd1), "DEFSEG %s", name);
 	for (i=0; i<seg->segcnt; i++) {
-		sprintf(cmd1+strlen(cmd1), " %lX-%lX %s",
-			seg->range[i].start >> PAGE_SHIFT,
-			seg->range[i].end >> PAGE_SHIFT,
-			segtype_string[seg->range[i].start & 0xff]);
+		size_t len = strlen(cmd1);
+
+		snprintf(cmd1 + len, sizeof(cmd1) - len, " %lX-%lX %s",
+			 seg->range[i].start >> PAGE_SHIFT,
+			 seg->range[i].end >> PAGE_SHIFT,
+			 segtype_string[seg->range[i].start & 0xff]);
 	}
-	sprintf(cmd2, "SAVESEG %s", name);
+	snprintf(cmd2, sizeof(cmd2), "SAVESEG %s", name);
 	response = 0;
 	cpcmd(cmd1, NULL, 0, &response);
 	if (response) {

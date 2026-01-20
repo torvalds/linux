@@ -139,13 +139,9 @@ static struct clk_fixed_factor camcc_pll1_out_even = {
 /* 1920MHz configuration */
 static const struct alpha_pll_config camcc_pll2_config = {
 	.l = 0x64,
-	.post_div_val = 0x3 << 8,
-	.post_div_mask = 0x3 << 8,
-	.early_output_mask = BIT(3),
-	.aux_output_mask = BIT(1),
-	.main_output_mask = BIT(0),
 	.config_ctl_hi_val = 0x400003d6,
 	.config_ctl_val = 0x20000954,
+	.user_ctl_val = 0x0000030b,
 };
 
 static struct clk_alpha_pll camcc_pll2 = {
@@ -1846,6 +1842,7 @@ static struct gdsc camcc_bps_gdsc = {
 		.name = "camcc_bps_gdsc",
 	},
 	.flags = HW_CTRL | POLL_CFG_GDSCR,
+	.parent = &camcc_titan_top_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
@@ -1875,6 +1872,7 @@ static struct gdsc camcc_ipe_0_gdsc = {
 		.name = "camcc_ipe_0_gdsc",
 	},
 	.flags = HW_CTRL | POLL_CFG_GDSCR,
+	.parent = &camcc_titan_top_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
@@ -1884,6 +1882,7 @@ static struct gdsc camcc_ipe_1_gdsc = {
 		.name = "camcc_ipe_1_gdsc",
 	},
 	.flags = HW_CTRL | POLL_CFG_GDSCR,
+	.parent = &camcc_titan_top_gdsc.pd,
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
@@ -1896,7 +1895,7 @@ static struct gdsc camcc_titan_top_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
-struct clk_hw *camcc_sm7150_hws[] = {
+static struct clk_hw *camcc_sm7150_hws[] = {
 	[CAMCC_PLL0_OUT_EVEN] = &camcc_pll0_out_even.hw,
 	[CAMCC_PLL0_OUT_ODD] = &camcc_pll0_out_odd.hw,
 	[CAMCC_PLL1_OUT_EVEN] = &camcc_pll1_out_even.hw,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -202,17 +202,13 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt,
 				  const struct cfg80211_chan_def *chandef,
-				  const struct cfg80211_chan_def *ap,
 				  u8 chains_static, u8 chains_dynamic,
 				  u32 action)
 {
 	int ret;
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1);
 
-	if (ver < 5 || !ap || !ap->chan)
-		ap = NULL;
-
-	if (ver >= 3 && ver <= 6) {
+	if (ver >= 3 && ver <= 4) {
 		struct iwl_phy_context_cmd cmd = {};
 
 		/* Set the command header fields */
@@ -222,14 +218,6 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 		iwl_mvm_phy_ctxt_cmd_data(mvm, ctxt, &cmd, chandef,
 					  chains_static,
 					  chains_dynamic);
-
-		if (ap) {
-			cmd.sbb_bandwidth = iwl_mvm_get_channel_width(ap);
-			cmd.sbb_ctrl_channel_loc = iwl_mvm_get_ctrl_pos(ap);
-		}
-
-		if (ver == 6)
-			cmd.puncture_mask = cpu_to_le16(chandef->punctured);
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
 					   0, sizeof(cmd), &cmd);
@@ -284,7 +272,7 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	ctxt->center_freq1 = chandef->center_freq1;
 
-	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, ap,
+	ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				     chains_static, chains_dynamic,
 				     FW_CTXT_ACTION_ADD);
 
@@ -342,7 +330,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 		int ret;
 
 		/* ... remove it here ...*/
-		ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, NULL,
+		ret = iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 					     chains_static, chains_dynamic,
 					     FW_CTXT_ACTION_REMOVE);
 		if (ret)
@@ -356,7 +344,7 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 	ctxt->width = chandef->width;
 	ctxt->center_freq1 = chandef->center_freq1;
 
-	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef, ap,
+	return iwl_mvm_phy_ctxt_apply(mvm, ctxt, chandef,
 				      chains_static, chains_dynamic,
 				      action);
 }
@@ -376,7 +364,7 @@ void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 
 	cfg80211_chandef_create(&chandef, ctxt->channel, NL80211_CHAN_NO_HT);
 
-	iwl_mvm_phy_ctxt_apply(mvm, ctxt, &chandef, NULL, 1, 1,
+	iwl_mvm_phy_ctxt_apply(mvm, ctxt, &chandef, 1, 1,
 			       FW_CTXT_ACTION_REMOVE);
 }
 

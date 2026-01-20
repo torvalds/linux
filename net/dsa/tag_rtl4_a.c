@@ -57,7 +57,7 @@ static struct sk_buff *rtl4a_tag_xmit(struct sk_buff *skb,
 
 	out = (RTL4_A_PROTOCOL_RTL8366RB << RTL4_A_PROTOCOL_SHIFT);
 	/* The lower bits indicate the port number */
-	out |= BIT(dp->index);
+	out |= dsa_xmit_port_mask(skb, dev);
 
 	p = (__be16 *)(tag + 2);
 	*p = htons(out);

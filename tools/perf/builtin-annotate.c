@@ -313,7 +313,8 @@ out_put:
 	return ret;
 }
 
-static int process_feature_event(struct perf_session *session,
+static int process_feature_event(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
 				 union perf_event *event)
 {
 	if (event->feat.feat_id < HEADER_LAST_FEATURE)
@@ -519,7 +520,7 @@ find_next:
 			/* skip missing symbols */
 			nd = rb_next(nd);
 		} else if (use_browser == 1) {
-			key = hist_entry__tui_annotate(he, evsel, NULL);
+			key = hist_entry__tui_annotate(he, evsel, NULL, NO_ADDR);
 
 			switch (key) {
 			case -1:

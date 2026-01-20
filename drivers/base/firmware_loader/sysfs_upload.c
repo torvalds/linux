@@ -100,8 +100,10 @@ static ssize_t cancel_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&fwlp->lock);
-	if (fwlp->progress == FW_UPLOAD_PROG_IDLE)
-		ret = -ENODEV;
+	if (fwlp->progress == FW_UPLOAD_PROG_IDLE) {
+		mutex_unlock(&fwlp->lock);
+		return -ENODEV;
+	}
 
 	fwlp->ops->cancel(fwlp->fw_upload);
 	mutex_unlock(&fwlp->lock);

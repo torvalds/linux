@@ -21,12 +21,12 @@
 #include "xe_devcoredump.h"
 #include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_gt_pagefault.h"
 #include "xe_gt_printk.h"
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_monitor.h"
 #include "xe_guc.h"
 #include "xe_guc_log.h"
+#include "xe_guc_pagefault.h"
 #include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
 #include "xe_guc_tlb_inval.h"
@@ -199,6 +199,9 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_ct *ct = arg;
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+	cancel_work_sync(&ct->dead.worker);
+#endif
 	ct_exit_safe_mode(ct);
 	destroy_workqueue(ct->g2h_wq);
 	xa_destroy(&ct->fence_lookup);
@@ -222,6 +225,12 @@ int xe_guc_ct_init_noalloc(struct xe_guc_ct *ct)
 
 	xe_gt_assert(gt, !(guc_ct_size() % PAGE_SIZE));
 
+	err = drmm_mutex_init(&xe->drm, &ct->lock);
+	if (err)
+		return err;
+
+	primelockdep(ct);
+
 	ct->g2h_wq = alloc_ordered_workqueue("xe-g2h-wq", WQ_MEM_RECLAIM);
 	if (!ct->g2h_wq)
 		return -ENOMEM;
@@ -233,15 +242,12 @@ int xe_guc_ct_init_noalloc(struct xe_guc_ct *ct)
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 	spin_lock_init(&ct->dead.lock);
 	INIT_WORK(&ct->dead.worker, ct_dead_worker_func);
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG_GUC)
+	stack_depot_init();
+#endif
 #endif
 	init_waitqueue_head(&ct->wq);
 	init_waitqueue_head(&ct->g2h_fence_wq);
-
-	err = drmm_mutex_init(&xe->drm, &ct->lock);
-	if (err)
-		return err;
-
-	primelockdep(ct);
 
 	err = drmm_add_action_or_reset(&xe->drm, guc_ct_fini, ct);
 	if (err)
@@ -1544,10 +1550,6 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		break;
 	case XE_GUC_ACTION_TLB_INVALIDATION_DONE:
 		ret = xe_guc_tlb_inval_done_handler(guc, payload, adj_len);
-		break;
-	case XE_GUC_ACTION_ACCESS_COUNTER_NOTIFY:
-		ret = xe_guc_access_counter_notify_handler(guc, payload,
-							   adj_len);
 		break;
 	case XE_GUC_ACTION_GUC2PF_RELAY_FROM_VF:
 		ret = xe_guc_relay_process_guc2pf(&guc->relay, hxg, hxg_len);

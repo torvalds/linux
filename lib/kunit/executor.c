@@ -45,9 +45,11 @@ bool kunit_autorun(void)
 	return autorun_param;
 }
 
-static char *filter_glob_param;
-static char *filter_param;
-static char *filter_action_param;
+#define PARAM_FROM_CONFIG(config) (config[0] ? config : NULL)
+
+static char *filter_glob_param = PARAM_FROM_CONFIG(CONFIG_KUNIT_DEFAULT_FILTER_GLOB);
+static char *filter_param = PARAM_FROM_CONFIG(CONFIG_KUNIT_DEFAULT_FILTER);
+static char *filter_action_param = PARAM_FROM_CONFIG(CONFIG_KUNIT_DEFAULT_FILTER_ACTION);
 
 module_param_named(filter_glob, filter_glob_param, charp, 0600);
 MODULE_PARM_DESC(filter_glob,

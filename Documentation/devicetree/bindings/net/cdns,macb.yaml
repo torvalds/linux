@@ -38,7 +38,10 @@ properties:
               - cdns,sam9x60-macb     # Microchip sam9x60 SoC
               - microchip,mpfs-macb   # Microchip PolarFire SoC
           - const: cdns,macb          # Generic
-
+      - items:
+          - const: microchip,pic64gx-macb # Microchip PIC64GX SoC
+          - const: microchip,mpfs-macb    # Microchip PolarFire SoC
+          - const: cdns,macb              # Generic
       - items:
           - enum:
               - atmel,sama5d3-macb    # 10/100Mbit IP on Atmel sama5d3 SoCs
@@ -47,18 +50,19 @@ properties:
           - const: cdns,macb          # Generic
 
       - enum:
-          - atmel,sama5d29-gem        # GEM XL IP (10/100) on Atmel sama5d29 SoCs
           - atmel,sama5d2-gem         # GEM IP (10/100) on Atmel sama5d2 SoCs
+          - atmel,sama5d29-gem        # GEM XL IP (10/100) on Atmel sama5d29 SoCs
           - atmel,sama5d3-gem         # Gigabit IP on Atmel sama5d3 SoCs
           - atmel,sama5d4-gem         # GEM IP (10/100) on Atmel sama5d4 SoCs
-          - cdns,np4-macb             # NP4 SoC devices
-          - microchip,sama7g5-emac    # Microchip SAMA7G5 ethernet interface
-          - microchip,sama7g5-gem     # Microchip SAMA7G5 gigabit ethernet interface
-          - raspberrypi,rp1-gem       # Raspberry Pi RP1 gigabit ethernet interface
-          - sifive,fu540-c000-gem     # SiFive FU540-C000 SoC
           - cdns,emac                 # Generic
           - cdns,gem                  # Generic
           - cdns,macb                 # Generic
+          - cdns,np4-macb             # NP4 SoC devices
+          - microchip,sama7g5-emac    # Microchip SAMA7G5 ethernet interface
+          - microchip,sama7g5-gem     # Microchip SAMA7G5 gigabit ethernet interface
+          - mobileye,eyeq5-gem        # Mobileye EyeQ5 SoCs
+          - raspberrypi,rp1-gem       # Raspberry Pi RP1 gigabit ethernet interface
+          - sifive,fu540-c000-gem     # SiFive FU540-C000 SoC
 
       - items:
           - enum:
@@ -182,6 +186,15 @@ allOf:
       properties:
         reg:
           maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mobileye,eyeq5-gem
+    then:
+      required:
+        - phys
 
 unevaluatedProperties: false
 

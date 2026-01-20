@@ -14,10 +14,9 @@
 #include <asm/tape390.h>
 
 /*
- * Biggest block size to handle. Currently 64K because we only build
- * channel programs without data chaining.
+ * Biggest block size of 256K to handle.
  */
-#define MAX_BLOCKSIZE   65535
+#define MAX_BLOCKSIZE	262144
 
 /*
  * The CCW commands for the Tape type of command.
@@ -97,10 +96,10 @@
 #define SENSE_TAPE_POSITIONING		0x01
 
 /* discipline functions */
-struct tape_request *tape_std_read_block(struct tape_device *, size_t);
+struct tape_request *tape_std_read_block(struct tape_device *);
 void tape_std_read_backward(struct tape_device *device,
 			    struct tape_request *request);
-struct tape_request *tape_std_write_block(struct tape_device *, size_t);
+struct tape_request *tape_std_write_block(struct tape_device *);
 
 /* Some non-mtop commands. */
 int tape_std_assign(struct tape_device *);

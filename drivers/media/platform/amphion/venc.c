@@ -223,8 +223,6 @@ static int venc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 
 	q = v4l2_m2m_get_vq(inst->fh.m2m_ctx, f->type);
-	if (!q)
-		return -EINVAL;
 	if (vb2_is_busy(q))
 		return -EBUSY;
 
@@ -790,7 +788,7 @@ static int venc_get_one_encoded_frame(struct vpu_inst *inst,
 
 	src_buf = vpu_find_buf_by_sequence(inst, inst->out_format.type, frame->info.frame_id);
 	if (src_buf) {
-		v4l2_m2m_buf_copy_metadata(src_buf, vbuf, true);
+		v4l2_m2m_buf_copy_metadata(src_buf, vbuf);
 		vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);
 		v4l2_m2m_src_buf_remove_by_buf(inst->fh.m2m_ctx, src_buf);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);

@@ -57,6 +57,9 @@ struct readdir_cd {
 	__be32			err;	/* 0, nfserr, or nfserr_eof */
 };
 
+/* Maximum number of operations per session compound */
+#define NFSD_MAX_OPS_PER_COMPOUND	200
+
 struct nfsd_genl_rqstp {
 	struct sockaddr		rq_daddr;
 	struct sockaddr		rq_saddr;
@@ -157,6 +160,7 @@ enum {
 	/* Any new NFSD_IO enum value must be added at the end */
 	NFSD_IO_BUFFERED,
 	NFSD_IO_DONTCACHE,
+	NFSD_IO_DIRECT,
 };
 
 extern u64 nfsd_io_cache_read __read_mostly;
@@ -394,14 +398,13 @@ enum {
 #define	NFSD_CB_GETATTR_TIMEOUT		NFSD_DELEGRETURN_TIMEOUT
 
 /*
- * The following attributes are currently not supported by the NFSv4 server:
+ * The following attributes are not implemented by NFSD:
  *    ARCHIVE       (deprecated anyway)
  *    HIDDEN        (unlikely to be supported any time soon)
  *    MIMETYPE      (unlikely to be supported any time soon)
  *    QUOTA_*       (will be supported in a forthcoming patch)
  *    SYSTEM        (unlikely to be supported any time soon)
  *    TIME_BACKUP   (unlikely to be supported any time soon)
- *    TIME_CREATE   (unlikely to be supported any time soon)
  */
 #define NFSD4_SUPPORTED_ATTRS_WORD0                                                         \
 (FATTR4_WORD0_SUPPORTED_ATTRS   | FATTR4_WORD0_TYPE         | FATTR4_WORD0_FH_EXPIRE_TYPE   \
@@ -455,6 +458,7 @@ enum {
 #define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
 	FATTR4_WORD2_MODE_UMASK | \
+	FATTR4_WORD2_CLONE_BLKSIZE | \
 	NFSD4_2_SECURITY_ATTRS | \
 	FATTR4_WORD2_XATTR_SUPPORT | \
 	FATTR4_WORD2_TIME_DELEG_ACCESS | \

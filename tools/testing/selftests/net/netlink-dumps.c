@@ -18,7 +18,7 @@
 #include <linux/mqueue.h>
 #include <linux/rtnetlink.h>
 
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #include <ynl.h>
 
@@ -143,6 +143,7 @@ TEST(dump_extack)
 	EXPECT_EQ(n, -1);
 	EXPECT_EQ(errno, ENOBUFS);
 
+	ret = NO_CTRL;
 	for (i = 0; i < cnt; i++) {
 		struct ext_ack ea = {};
 

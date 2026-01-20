@@ -264,5 +264,5 @@ Configure RMS voltage event thresholds (requires interrupts):
 8. IIO Interfacing Tools
 ========================
 
-See ``Documentation/iio/iio_tools.rst`` for the description of the available IIO
+See Documentation/iio/iio_tools.rst for the description of the available IIO
 interfacing tools.

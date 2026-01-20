@@ -459,7 +459,7 @@ static int tas2562_dac_event(struct snd_soc_dapm_widget *w,
 static int tas2562_volume_control_get(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = tas2562->volume_lvl;
@@ -469,7 +469,7 @@ static int tas2562_volume_control_get(struct snd_kcontrol *kcontrol,
 static int tas2562_volume_control_put(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct tas2562_data *tas2562 = snd_soc_component_get_drvdata(component);
 	int ret;
 	u32 reg_val;

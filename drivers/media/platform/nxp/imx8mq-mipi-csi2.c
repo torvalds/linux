@@ -418,8 +418,8 @@ static int imx8mq_mipi_csi_calc_hs_settle(struct csi_state *state,
 
 	src_pad = media_entity_remote_source_pad_unique(&sd_state->sd->entity);
 	if (IS_ERR(src_pad)) {
-		dev_err(state->dev, "can't get source pad of %s (%ld)\n",
-			sd_state->sd->name, PTR_ERR(src_pad));
+		dev_err(state->dev, "can't get source pad of %s (%pe)\n",
+			sd_state->sd->name, src_pad);
 		return PTR_ERR(src_pad);
 	}
 
@@ -1114,4 +1114,3 @@ module_platform_driver(imx8mq_mipi_csi_driver);
 MODULE_DESCRIPTION("i.MX8MQ MIPI CSI-2 receiver driver");
 MODULE_AUTHOR("Martin Kepplinger <martin.kepplinger@puri.sm>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:imx8mq-mipi-csi2");

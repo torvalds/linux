@@ -263,14 +263,15 @@ def procfs_downup_hammer(cfg) -> None:
     Reading stats via procfs only holds the RCU lock, drivers often try
     to sleep when reading the stats, or don't protect against races.
     """
-    # Max out the queues, we'll flip between max and 1
+    # Set a large number of queues,
+    # we'll flip between min(max_queues, 64) and 1
     channels = ethnl.channels_get({'header': {'dev-index': cfg.ifindex}})
     if channels['combined-count'] == 0:
         rx_type = 'rx'
     else:
         rx_type = 'combined'
     cur_queue_cnt = channels[f'{rx_type}-count']
-    max_queue_cnt = channels[f'{rx_type}-max']
+    max_queue_cnt = min(channels[f'{rx_type}-max'], 64)
 
     cmd(f"ethtool -L {cfg.ifname} {rx_type} {max_queue_cnt}")
     defer(cmd, f"ethtool -L {cfg.ifname} {rx_type} {cur_queue_cnt}")

@@ -15,8 +15,6 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 
-#ifdef __KERNEL__
-
 int dns_resolve_name(const char *dom, const char *name,
 		     size_t namelen, struct sockaddr *ip_addr);
 
@@ -35,7 +33,5 @@ static inline int dns_resolve_unc(const char *dom, const char *unc,
 
 	return dns_resolve_name(dom, name, namelen, ip_addr);
 }
-
-#endif /* KERNEL */
 
 #endif /* _DNS_RESOLVE_H */

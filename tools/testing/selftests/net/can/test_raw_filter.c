@@ -19,7 +19,7 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define ID 0x123
 

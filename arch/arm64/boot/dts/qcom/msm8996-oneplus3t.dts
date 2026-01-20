@@ -28,10 +28,10 @@
 
 &gpu {
 	status = "okay";
+};
 
-	zap-shader {
-		firmware-name = "qcom/msm8996/oneplus3t/a530_zap.mbn";
-	};
+&gpu_zap_shader {
+	firmware-name = "qcom/msm8996/oneplus3t/a530_zap.mbn";
 };
 
 &mss_pil {

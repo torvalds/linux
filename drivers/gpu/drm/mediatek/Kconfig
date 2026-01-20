@@ -30,9 +30,30 @@ config DRM_MEDIATEK_DP
 	help
 	  DRM/KMS Display Port driver for MediaTek SoCs.
 
+config DRM_MEDIATEK_HDMI_COMMON
+	tristate
+	depends on DRM_MEDIATEK
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
+	select SND_SOC_HDMI_CODEC if SND_SOC
+	help
+	  MediaTek SoC HDMI common library
+
 config DRM_MEDIATEK_HDMI
 	tristate "DRM HDMI Support for Mediatek SoCs"
 	depends on DRM_MEDIATEK
-	select SND_SOC_HDMI_CODEC if SND_SOC
+	select DRM_MEDIATEK_HDMI_COMMON
 	help
 	  DRM/KMS HDMI driver for Mediatek SoCs
+
+config DRM_MEDIATEK_HDMI_V2
+	tristate "DRM HDMI v2 IP support for MediaTek SoCs"
+	depends on DRM_MEDIATEK
+	select DRM_MEDIATEK_HDMI_COMMON
+	help
+	  Say yes here to enable support for the HDMIv2 IP and related
+	  DDCv2 as found in the MediaTek MT8195, MT8188 SoCs and other
+	  variants.
+	  This driver can also be built as a module. If so, the HDMIv2
+	  module will be called "mtk_hdmi_v2", and the DDCv2 module
+	  will be called "mtk_hdmi_ddc_v2".

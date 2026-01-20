@@ -15,7 +15,7 @@
 
 #include "statmount.h"
 #include "../utils.h"
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 #define NSID_PASS 0
 #define NSID_FAIL 1

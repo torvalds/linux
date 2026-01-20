@@ -4,18 +4,23 @@
 $id: http://devicetree.org/schemas/interrupt-controller/thead,c900-aclint-mswi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sophgo sg2042 CLINT Machine-level Software Interrupt Device
+title: ACLINT Machine-level Software Interrupt Device
 
 maintainers:
   - Inochi Amaoto <inochiama@outlook.com>
 
 properties:
   compatible:
-    items:
-      - enum:
-          - sophgo,sg2042-aclint-mswi
-          - sophgo,sg2044-aclint-mswi
-      - const: thead,c900-aclint-mswi
+    oneOf:
+      - items:
+          - enum:
+              - sophgo,sg2042-aclint-mswi
+              - sophgo,sg2044-aclint-mswi
+          - const: thead,c900-aclint-mswi
+      - items:
+          - enum:
+              - anlogic,dr1v90-aclint-mswi
+          - const: nuclei,ux900-aclint-mswi
 
   reg:
     maxItems: 1

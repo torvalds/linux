@@ -528,16 +528,15 @@ static const struct pmc_reg_map ptl_pcdp_reg_map = {
 	.s0ix_blocker_offset = LNL_S0IX_BLOCKER_OFFSET,
 	.num_s0ix_blocker = PTL_NUM_S0IX_BLOCKER,
 	.blocker_req_offset = PTL_BLK_REQ_OFFSET,
+	.lpm_req_guid = PCDP_LPM_REQ_GUID,
 };
 
 static struct pmc_info ptl_pmc_info_list[] = {
 	{
-		.guid	= PCDP_LPM_REQ_GUID,
 		.devid	= PMC_DEVID_PTL_PCDH,
 		.map	= &ptl_pcdp_reg_map,
 	},
 	{
-		.guid   = PCDP_LPM_REQ_GUID,
 		.devid  = PMC_DEVID_PTL_PCDP,
 		.map    = &ptl_pcdp_reg_map,
 	},

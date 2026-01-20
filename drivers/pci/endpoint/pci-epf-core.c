@@ -208,6 +208,48 @@ void pci_epf_remove_vepf(struct pci_epf *epf_pf, struct pci_epf *epf_vf)
 }
 EXPORT_SYMBOL_GPL(pci_epf_remove_vepf);
 
+static int pci_epf_get_required_bar_size(struct pci_epf *epf, size_t *bar_size,
+				size_t *aligned_mem_size,
+				enum pci_barno bar,
+				const struct pci_epc_features *epc_features,
+				enum pci_epc_interface_type type)
+{
+	u64 bar_fixed_size = epc_features->bar[bar].fixed_size;
+	size_t align = epc_features->align;
+	size_t size = *bar_size;
+
+	if (size < 128)
+		size = 128;
+
+	/* According to PCIe base spec, min size for a resizable BAR is 1 MB. */
+	if (epc_features->bar[bar].type == BAR_RESIZABLE && size < SZ_1M)
+		size = SZ_1M;
+
+	if (epc_features->bar[bar].type == BAR_FIXED && bar_fixed_size) {
+		if (size > bar_fixed_size) {
+			dev_err(&epf->dev,
+				"requested BAR size is larger than fixed size\n");
+			return -ENOMEM;
+		}
+		size = bar_fixed_size;
+	} else {
+		/* BAR size must be power of two */
+		size = roundup_pow_of_two(size);
+	}
+
+	*bar_size = size;
+
+	/*
+	 * The EPC's BAR start address must meet alignment requirements. In most
+	 * cases, the alignment will match the BAR size. However, differences
+	 * can occur—for example, when the fixed BAR size (e.g., 128 bytes) is
+	 * smaller than the required alignment (e.g., 4 KB).
+	 */
+	*aligned_mem_size = align ? ALIGN(size, align) : size;
+
+	return 0;
+}
+
 /**
  * pci_epf_free_space() - free the allocated PCI EPF register space
  * @epf: the EPF device from whom to free the memory
@@ -236,13 +278,13 @@ void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 	}
 
 	dev = epc->dev.parent;
-	dma_free_coherent(dev, epf_bar[bar].aligned_size, addr,
+	dma_free_coherent(dev, epf_bar[bar].mem_size, addr,
 			  epf_bar[bar].phys_addr);
 
 	epf_bar[bar].phys_addr = 0;
 	epf_bar[bar].addr = NULL;
 	epf_bar[bar].size = 0;
-	epf_bar[bar].aligned_size = 0;
+	epf_bar[bar].mem_size = 0;
 	epf_bar[bar].barno = 0;
 	epf_bar[bar].flags = 0;
 }
@@ -264,40 +306,16 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 			  const struct pci_epc_features *epc_features,
 			  enum pci_epc_interface_type type)
 {
-	u64 bar_fixed_size = epc_features->bar[bar].fixed_size;
-	size_t aligned_size, align = epc_features->align;
 	struct pci_epf_bar *epf_bar;
 	dma_addr_t phys_addr;
 	struct pci_epc *epc;
 	struct device *dev;
+	size_t mem_size;
 	void *space;
 
-	if (size < 128)
-		size = 128;
-
-	/* According to PCIe base spec, min size for a resizable BAR is 1 MB. */
-	if (epc_features->bar[bar].type == BAR_RESIZABLE && size < SZ_1M)
-		size = SZ_1M;
-
-	if (epc_features->bar[bar].type == BAR_FIXED && bar_fixed_size) {
-		if (size > bar_fixed_size) {
-			dev_err(&epf->dev,
-				"requested BAR size is larger than fixed size\n");
-			return NULL;
-		}
-		size = bar_fixed_size;
-	} else {
-		/* BAR size must be power of two */
-		size = roundup_pow_of_two(size);
-	}
-
-	/*
-	 * Allocate enough memory to accommodate the iATU alignment
-	 * requirement.  In most cases, this will be the same as .size but
-	 * it might be different if, for example, the fixed size of a BAR
-	 * is smaller than align.
-	 */
-	aligned_size = align ? ALIGN(size, align) : size;
+	if (pci_epf_get_required_bar_size(epf, &size, &mem_size, bar,
+					  epc_features, type))
+		return NULL;
 
 	if (type == PRIMARY_INTERFACE) {
 		epc = epf->epc;
@@ -308,7 +326,7 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 	}
 
 	dev = epc->dev.parent;
-	space = dma_alloc_coherent(dev, aligned_size, &phys_addr, GFP_KERNEL);
+	space = dma_alloc_coherent(dev, mem_size, &phys_addr, GFP_KERNEL);
 	if (!space) {
 		dev_err(dev, "failed to allocate mem space\n");
 		return NULL;
@@ -317,7 +335,7 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 	epf_bar[bar].phys_addr = phys_addr;
 	epf_bar[bar].addr = space;
 	epf_bar[bar].size = size;
-	epf_bar[bar].aligned_size = aligned_size;
+	epf_bar[bar].mem_size = mem_size;
 	epf_bar[bar].barno = bar;
 	if (upper_32_bits(size) || epc_features->bar[bar].only_64bit)
 		epf_bar[bar].flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
@@ -327,6 +345,83 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 	return space;
 }
 EXPORT_SYMBOL_GPL(pci_epf_alloc_space);
+
+/**
+ * pci_epf_assign_bar_space() - Assign PCI EPF BAR space
+ * @epf: EPF device to assign the BAR memory
+ * @size: Size of the memory that has to be assigned
+ * @bar: BAR number for which the memory is assigned
+ * @epc_features: Features provided by the EPC specific to this EPF
+ * @type: Identifies if the assignment is for primary EPC or secondary EPC
+ * @bar_addr: Address to be assigned for the @bar
+ *
+ * Invoke to assign memory for the PCI EPF BAR.
+ * Flag PCI_BASE_ADDRESS_MEM_TYPE_64 will automatically get set if the BAR
+ * can only be a 64-bit BAR, or if the requested size is larger than 2 GB.
+ */
+int pci_epf_assign_bar_space(struct pci_epf *epf, size_t size,
+			     enum pci_barno bar,
+			     const struct pci_epc_features *epc_features,
+			     enum pci_epc_interface_type type,
+			     dma_addr_t bar_addr)
+{
+	size_t bar_size, aligned_mem_size;
+	struct pci_epf_bar *epf_bar;
+	dma_addr_t limit;
+	int pos;
+
+	if (!size)
+		return -EINVAL;
+
+	limit = bar_addr + size - 1;
+
+	/*
+	 *  Bits:		15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0
+	 *  bar_addr:		U  U  U  U  U  U  0 X X X X X X X X X
+	 *  limit:		U  U  U  U  U  U  1 X X X X X X X X X
+	 *
+	 *  bar_addr^limit	0  0  0  0  0  0  1 X X X X X X X X X
+	 *
+	 *  U: unchanged address bits in range [bar_addr, limit]
+	 *  X: bit 0 or 1
+	 *
+	 *  (bar_addr^limit) & BIT_ULL(pos) will find the first set bit from MSB
+	 *  (pos). And value of (2 ^ pos) should be able to cover the BAR range.
+	 */
+	for (pos = 8 * sizeof(dma_addr_t) - 1; pos > 0; pos--)
+		if ((limit ^ bar_addr) & BIT_ULL(pos))
+			break;
+
+	if (pos == 8 * sizeof(dma_addr_t) - 1)
+		return -EINVAL;
+
+	bar_size = BIT_ULL(pos + 1);
+	if (pci_epf_get_required_bar_size(epf, &bar_size, &aligned_mem_size,
+					  bar, epc_features, type))
+		return -ENOMEM;
+
+	if (type == PRIMARY_INTERFACE)
+		epf_bar = epf->bar;
+	else
+		epf_bar = epf->sec_epc_bar;
+
+	epf_bar[bar].phys_addr = ALIGN_DOWN(bar_addr, aligned_mem_size);
+
+	if (epf_bar[bar].phys_addr + bar_size < limit)
+		return -ENOMEM;
+
+	epf_bar[bar].addr = NULL;
+	epf_bar[bar].size = bar_size;
+	epf_bar[bar].mem_size = aligned_mem_size;
+	epf_bar[bar].barno = bar;
+	if (upper_32_bits(size) || epc_features->bar[bar].only_64bit)
+		epf_bar[bar].flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+	else
+		epf_bar[bar].flags |= PCI_BASE_ADDRESS_MEM_TYPE_32;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_epf_assign_bar_space);
 
 static void pci_epf_remove_cfs(struct pci_epf_driver *driver)
 {

@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/arch-stackprotector.h>
 #include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
 #include <asm/machine.h>
@@ -293,6 +294,11 @@ void parse_boot_command_line(void)
 			if (!rc && !enabled)
 				cmma_flag = 0;
 		}
+
+#ifdef CONFIG_STACKPROTECTOR
+		if (!strcmp(param, "debug_stackprotector"))
+			stack_protector_debug = 1;
+#endif
 
 #if IS_ENABLED(CONFIG_KVM)
 		if (!strcmp(param, "prot_virt")) {

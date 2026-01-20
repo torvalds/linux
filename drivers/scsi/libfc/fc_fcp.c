@@ -503,7 +503,7 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 		host_bcode = FC_ERROR;
 		goto err;
 	}
-	if (offset + len > fsp->data_len) {
+	if (size_add(offset, len) > fsp->data_len) {
 		/* this should never happen */
 		if ((fr_flags(fp) & FCPHF_CRC_UNCHECKED) &&
 		    fc_frame_crc_check(fp))

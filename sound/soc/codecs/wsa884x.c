@@ -1587,7 +1587,7 @@ static const struct sdw_slave_ops wsa884x_slave_ops = {
 static int wsa884x_dev_mode_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wsa884x->dev_mode;
@@ -1598,7 +1598,7 @@ static int wsa884x_dev_mode_get(struct snd_kcontrol *kcontrol,
 static int wsa884x_dev_mode_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 
 	if (wsa884x->dev_mode == ucontrol->value.enumerated.item[0])
@@ -1612,7 +1612,7 @@ static int wsa884x_dev_mode_put(struct snd_kcontrol *kcontrol,
 static int wsa884x_get_swr_port(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(comp);
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
 	int portidx = mixer->reg;
@@ -1625,7 +1625,7 @@ static int wsa884x_get_swr_port(struct snd_kcontrol *kcontrol,
 static int wsa884x_set_swr_port(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *comp = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(comp);
 	struct soc_mixer_control *mixer = (struct soc_mixer_control *)kcontrol->private_value;
 	int portidx = mixer->reg;

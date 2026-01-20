@@ -730,7 +730,9 @@ unmap_drop:
 		gve_tx_unmap_buf(tx->dev, &tx->info[idx & tx->mask]);
 	}
 drop:
+	u64_stats_update_begin(&tx->statss);
 	tx->dropped_pkt++;
+	u64_stats_update_end(&tx->statss);
 	return 0;
 }
 

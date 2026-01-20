@@ -94,6 +94,7 @@ LIBBPF_API struct btf *btf__new_empty(void);
  * @brief **btf__new_empty_split()** creates an unpopulated BTF object from an
  * ELF BTF section except with a base BTF on top of which split BTF should be
  * based
+ * @param base_btf base BTF object
  * @return new BTF object instance which has to be eventually freed with
  * **btf__free()**
  *
@@ -115,6 +116,10 @@ LIBBPF_API struct btf *btf__new_empty_split(struct btf *base_btf);
  * When that split BTF is loaded against a (possibly changed) base, this
  * distilled base BTF will help update references to that (possibly changed)
  * base BTF.
+ * @param src_btf source split BTF object
+ * @param new_base_btf pointer to where the new base BTF object pointer will be stored
+ * @param new_split_btf pointer to where the new split BTF object pointer will be stored
+ * @return 0 on success; negative error code, otherwise
  *
  * Both the new split and its associated new base BTF must be freed by
  * the caller.
@@ -264,6 +269,9 @@ LIBBPF_API int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts);
  * to base BTF kinds, and verify those references are compatible with
  * *base_btf*; if they are, *btf* is adjusted such that is re-parented to
  * *base_btf* and type ids and strings are adjusted to accommodate this.
+ * @param btf split BTF object to relocate
+ * @param base_btf base BTF object
+ * @return 0 on success; negative error code, otherwise
  *
  * If successful, 0 is returned and **btf** now has **base_btf** as its
  * base.

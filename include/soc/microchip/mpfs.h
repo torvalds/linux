@@ -14,6 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 
 struct mpfs_sys_controller;
 
@@ -44,7 +45,7 @@ struct mtd_info *mpfs_sys_controller_get_flash(struct mpfs_sys_controller *mpfs_
 
 #if IS_ENABLED(CONFIG_MCHP_CLK_MPFS)
 #if IS_ENABLED(CONFIG_RESET_POLARFIRE_SOC)
-int mpfs_reset_controller_register(struct device *clk_dev, void __iomem *base);
+int mpfs_reset_controller_register(struct device *clk_dev, struct regmap *map);
 #else
 static inline int mpfs_reset_controller_register(struct device *clk_dev, void __iomem *base) { return 0; }
 #endif /* if IS_ENABLED(CONFIG_RESET_POLARFIRE_SOC) */

@@ -24,16 +24,17 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_irq.h"
-#include "i915_utils.h"
 #include "intel_connector.h"
-#include "intel_display_power.h"
 #include "intel_display_core.h"
+#include "intel_display_power.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"

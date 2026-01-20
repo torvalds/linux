@@ -157,7 +157,8 @@ examples:
 
         panel@0 {
             reg = <0>;
-            compatible = "raspberrypi,dsi-7inch";
+            compatible = "raspberrypi,dsi-7inch", "ilitek,ili9881c";
+            power-supply = <&vcc_lcd_reg>;
 
             port {
                 panel_in: endpoint {

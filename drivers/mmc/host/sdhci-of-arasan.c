@@ -1991,7 +1991,7 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	ret = mmc_of_parse(host->mmc);
 	if (ret) {
-		ret = dev_err_probe(dev, ret, "parsing dt failed.\n");
+		dev_err_probe(dev, ret, "parsing dt failed.\n");
 		goto unreg_clk;
 	}
 

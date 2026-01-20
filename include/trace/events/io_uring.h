@@ -133,15 +133,15 @@ TRACE_EVENT(io_uring_file_get,
  * io_uring_queue_async_work - called before submitting a new async work
  *
  * @req:	pointer to a submitted request
- * @rw:		type of workqueue, hashed or normal
+ * @hashed:	whether async work is hashed
  *
  * Allows to trace asynchronous work submission.
  */
 TRACE_EVENT(io_uring_queue_async_work,
 
-	TP_PROTO(struct io_kiocb *req, int rw),
+	TP_PROTO(struct io_kiocb *req, bool hashed),
 
-	TP_ARGS(req, rw),
+	TP_ARGS(req, hashed),
 
 	TP_STRUCT__entry (
 		__field(  void *,			ctx		)
@@ -150,7 +150,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__field(  u8,				opcode		)
 		__field(  unsigned long long,		flags		)
 		__field(  struct io_wq_work *,		work		)
-		__field(  int,				rw		)
+		__field(  bool,				hashed		)
 
 		__string( op_str, io_uring_get_opcode(req->opcode)	)
 	),
@@ -162,7 +162,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->flags		= (__force unsigned long long) req->flags;
 		__entry->opcode		= req->opcode;
 		__entry->work		= &req->work;
-		__entry->rw		= rw;
+		__entry->hashed		= hashed;
 
 		__assign_str(op_str);
 	),
@@ -170,7 +170,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%llx, %s queue, work %p",
 		__entry->ctx, __entry->req, __entry->user_data,
 		__get_str(op_str), __entry->flags,
-		__entry->rw ? "hashed" : "normal", __entry->work)
+		__entry->hashed ? "hashed" : "normal", __entry->work)
 );
 
 /**

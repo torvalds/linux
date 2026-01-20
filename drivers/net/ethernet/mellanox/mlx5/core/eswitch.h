@@ -264,6 +264,9 @@ struct mlx5_eswitch_fdb {
 
 		struct offloads_fdb {
 			struct mlx5_flow_namespace *ns;
+			struct mlx5_flow_table *drop_root;
+			struct mlx5_flow_handle *drop_root_rule;
+			struct mlx5_fc *drop_root_fc;
 			struct mlx5_flow_table *tc_miss_table;
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
@@ -392,6 +395,7 @@ struct mlx5_eswitch {
 	struct mlx5_esw_offload offloads;
 	u32 last_vport_idx;
 	int                     mode;
+	bool                    offloads_inactive;
 	u16                     manager_vport;
 	u16                     first_host_vport;
 	u8			num_peers;
@@ -399,7 +403,6 @@ struct mlx5_eswitch {
 	struct {
 		u32             large_group_num;
 	}  params;
-	struct blocking_notifier_head n_head;
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
 	u16 enabled_ipsec_vf_count;
@@ -634,6 +637,8 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev);
 
 void mlx5_esw_adjacent_vhcas_setup(struct mlx5_eswitch *esw);
 void mlx5_esw_adjacent_vhcas_cleanup(struct mlx5_eswitch *esw);
+int mlx5_esw_adj_vport_modify(struct mlx5_core_dev *dev, u16 vport,
+			      bool connect);
 
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
@@ -858,8 +863,10 @@ struct mlx5_esw_event_info {
 	u16 new_mode;
 };
 
-int mlx5_esw_event_notifier_register(struct mlx5_eswitch *esw, struct notifier_block *n);
-void mlx5_esw_event_notifier_unregister(struct mlx5_eswitch *esw, struct notifier_block *n);
+int mlx5_esw_event_notifier_register(struct mlx5_core_dev *dev,
+				     struct notifier_block *n);
+void mlx5_esw_event_notifier_unregister(struct mlx5_core_dev *dev,
+					struct notifier_block *n);
 
 bool mlx5_esw_hold(struct mlx5_core_dev *dev);
 void mlx5_esw_release(struct mlx5_core_dev *dev);

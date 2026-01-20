@@ -76,7 +76,7 @@ void md5_update(struct md5_ctx *ctx, const u8 *data, size_t len);
  *
  * Context: Any context.
  */
-void md5_final(struct md5_ctx *ctx, u8 out[MD5_DIGEST_SIZE]);
+void md5_final(struct md5_ctx *ctx, u8 out[at_least MD5_DIGEST_SIZE]);
 
 /**
  * md5() - Compute MD5 message digest in one shot
@@ -86,7 +86,7 @@ void md5_final(struct md5_ctx *ctx, u8 out[MD5_DIGEST_SIZE]);
  *
  * Context: Any context.
  */
-void md5(const u8 *data, size_t len, u8 out[MD5_DIGEST_SIZE]);
+void md5(const u8 *data, size_t len, u8 out[at_least MD5_DIGEST_SIZE]);
 
 /**
  * struct hmac_md5_key - Prepared key for HMAC-MD5
@@ -173,7 +173,7 @@ static inline void hmac_md5_update(struct hmac_md5_ctx *ctx,
  *
  * Context: Any context.
  */
-void hmac_md5_final(struct hmac_md5_ctx *ctx, u8 out[MD5_DIGEST_SIZE]);
+void hmac_md5_final(struct hmac_md5_ctx *ctx, u8 out[at_least MD5_DIGEST_SIZE]);
 
 /**
  * hmac_md5() - Compute HMAC-MD5 in one shot, using a prepared key
@@ -187,7 +187,8 @@ void hmac_md5_final(struct hmac_md5_ctx *ctx, u8 out[MD5_DIGEST_SIZE]);
  * Context: Any context.
  */
 void hmac_md5(const struct hmac_md5_key *key,
-	      const u8 *data, size_t data_len, u8 out[MD5_DIGEST_SIZE]);
+	      const u8 *data, size_t data_len,
+	      u8 out[at_least MD5_DIGEST_SIZE]);
 
 /**
  * hmac_md5_usingrawkey() - Compute HMAC-MD5 in one shot, using a raw key
@@ -204,6 +205,6 @@ void hmac_md5(const struct hmac_md5_key *key,
  */
 void hmac_md5_usingrawkey(const u8 *raw_key, size_t raw_key_len,
 			  const u8 *data, size_t data_len,
-			  u8 out[MD5_DIGEST_SIZE]);
+			  u8 out[at_least MD5_DIGEST_SIZE]);
 
 #endif /* _CRYPTO_MD5_H */

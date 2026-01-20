@@ -448,7 +448,7 @@ LIBBPF_API int bpf_program__pin(struct bpf_program *prog, const char *path);
 
 /**
  * @brief **bpf_program__unpin()** unpins the BPF program from a file
- * in the BPFFS specified by a path. This decrements the programs
+ * in the BPFFS specified by a path. This decrements program's in-kernel
  * reference count.
  *
  * The file pinning the BPF program can also be unlinked by a different
@@ -481,14 +481,12 @@ LIBBPF_API int bpf_link__pin(struct bpf_link *link, const char *path);
 
 /**
  * @brief **bpf_link__unpin()** unpins the BPF link from a file
- * in the BPFFS specified by a path. This decrements the links
- * reference count.
+ * in the BPFFS. This decrements link's in-kernel reference count.
  *
  * The file pinning the BPF link can also be unlinked by a different
  * process in which case this function will return an error.
  *
- * @param prog BPF program to unpin
- * @param path file path to the pin in a BPF file system
+ * @param link BPF link to unpin
  * @return 0, on success; negative error code, otherwise
  */
 LIBBPF_API int bpf_link__unpin(struct bpf_link *link);
@@ -995,8 +993,13 @@ LIBBPF_API __u32 bpf_program__line_info_cnt(const struct bpf_program *prog);
  *   - fentry/fexit/fmod_ret;
  *   - lsm;
  *   - freplace.
- * @param prog BPF program to set the attach type for
- * @param type attach type to set the BPF map to have
+ * @param prog BPF program to configure; must be not yet loaded.
+ * @param attach_prog_fd FD of target BPF program (for freplace/extension).
+ * If >0 and func name omitted, defers BTF ID resolution.
+ * @param attach_func_name Target function name. Used either with
+ * attach_prog_fd to find destination BTF type ID in that BPF program, or
+ * alone (no attach_prog_fd) to resolve kernel (vmlinux/module) BTF ID.
+ * Must be provided if attach_prog_fd is 0.
  * @return error code; or 0 if no error occurred.
  */
 LIBBPF_API int
@@ -1098,6 +1101,7 @@ LIBBPF_API __u32 bpf_map__value_size(const struct bpf_map *map);
 /**
  * @brief **bpf_map__set_value_size()** sets map value size.
  * @param map the BPF map instance
+ * @param size the new value size
  * @return 0, on success; negative error, otherwise
  *
  * There is a special case for maps with associated memory-mapped regions, like
@@ -1202,7 +1206,7 @@ LIBBPF_API struct bpf_map *bpf_map__inner_map(struct bpf_map *map);
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
- * @flags extra flags passed to kernel for this operation
+ * @param flags extra flags passed to kernel for this operation
  * @return 0, on success; negative error, otherwise
  *
  * **bpf_map__lookup_elem()** is high-level equivalent of
@@ -1226,7 +1230,7 @@ LIBBPF_API int bpf_map__lookup_elem(const struct bpf_map *map,
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
- * @flags extra flags passed to kernel for this operation
+ * @param flags extra flags passed to kernel for this operation
  * @return 0, on success; negative error, otherwise
  *
  * **bpf_map__update_elem()** is high-level equivalent of
@@ -1242,7 +1246,7 @@ LIBBPF_API int bpf_map__update_elem(const struct bpf_map *map,
  * @param map BPF map to delete element from
  * @param key pointer to memory containing bytes of the key
  * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
- * @flags extra flags passed to kernel for this operation
+ * @param flags extra flags passed to kernel for this operation
  * @return 0, on success; negative error, otherwise
  *
  * **bpf_map__delete_elem()** is high-level equivalent of
@@ -1265,7 +1269,7 @@ LIBBPF_API int bpf_map__delete_elem(const struct bpf_map *map,
  * per-CPU values value size has to be aligned up to closest 8 bytes for
  * alignment reasons, so expected size is: `round_up(value_size, 8)
  * * libbpf_num_possible_cpus()`.
- * @flags extra flags passed to kernel for this operation
+ * @param flags extra flags passed to kernel for this operation
  * @return 0, on success; negative error, otherwise
  *
  * **bpf_map__lookup_and_delete_elem()** is high-level equivalent of
@@ -1637,6 +1641,7 @@ struct perf_buffer_opts {
  * @param sample_cb function called on each received data record
  * @param lost_cb function called when record loss has occurred
  * @param ctx user-provided extra context passed into *sample_cb* and *lost_cb*
+ * @param opts optional parameters for the perf buffer, can be null
  * @return a new instance of struct perf_buffer on success, NULL on error with
  * *errno* containing an error code
  */

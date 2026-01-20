@@ -201,7 +201,7 @@ const char *vm_guest_mode_string(uint32_t i)
 		[VM_MODE_P40V48_4K]	= "PA-bits:40,  VA-bits:48,  4K pages",
 		[VM_MODE_P40V48_16K]	= "PA-bits:40,  VA-bits:48, 16K pages",
 		[VM_MODE_P40V48_64K]	= "PA-bits:40,  VA-bits:48, 64K pages",
-		[VM_MODE_PXXV48_4K]	= "PA-bits:ANY, VA-bits:48,  4K pages",
+		[VM_MODE_PXXVYY_4K]	= "PA-bits:ANY, VA-bits:48 or 57, 4K pages",
 		[VM_MODE_P47V64_4K]	= "PA-bits:47,  VA-bits:64,  4K pages",
 		[VM_MODE_P44V64_4K]	= "PA-bits:44,  VA-bits:64,  4K pages",
 		[VM_MODE_P36V48_4K]	= "PA-bits:36,  VA-bits:48,  4K pages",
@@ -228,7 +228,7 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 	[VM_MODE_P40V48_4K]	= { 40, 48,  0x1000, 12 },
 	[VM_MODE_P40V48_16K]	= { 40, 48,  0x4000, 14 },
 	[VM_MODE_P40V48_64K]	= { 40, 48, 0x10000, 16 },
-	[VM_MODE_PXXV48_4K]	= {  0,  0,  0x1000, 12 },
+	[VM_MODE_PXXVYY_4K]	= {  0,  0,  0x1000, 12 },
 	[VM_MODE_P47V64_4K]	= { 47, 64,  0x1000, 12 },
 	[VM_MODE_P44V64_4K]	= { 44, 64,  0x1000, 12 },
 	[VM_MODE_P36V48_4K]	= { 36, 48,  0x1000, 12 },
@@ -310,24 +310,26 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 	case VM_MODE_P36V47_16K:
 		vm->pgtable_levels = 3;
 		break;
-	case VM_MODE_PXXV48_4K:
+	case VM_MODE_PXXVYY_4K:
 #ifdef __x86_64__
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
 		kvm_init_vm_address_properties(vm);
-		/*
-		 * Ignore KVM support for 5-level paging (vm->va_bits == 57),
-		 * it doesn't take effect unless a CR4.LA57 is set, which it
-		 * isn't for this mode (48-bit virtual address space).
-		 */
-		TEST_ASSERT(vm->va_bits == 48 || vm->va_bits == 57,
-			    "Linear address width (%d bits) not supported",
-			    vm->va_bits);
+
 		pr_debug("Guest physical address width detected: %d\n",
 			 vm->pa_bits);
-		vm->pgtable_levels = 4;
-		vm->va_bits = 48;
+		pr_debug("Guest virtual address width detected: %d\n",
+			 vm->va_bits);
+
+		if (vm->va_bits == 57) {
+			vm->pgtable_levels = 5;
+		} else {
+			TEST_ASSERT(vm->va_bits == 48,
+				    "Unexpected guest virtual address width: %d",
+				    vm->va_bits);
+			vm->pgtable_levels = 4;
+		}
 #else
-		TEST_FAIL("VM_MODE_PXXV48_4K not supported on non-x86 platforms");
+		TEST_FAIL("VM_MODE_PXXVYY_4K not supported on non-x86 platforms");
 #endif
 		break;
 	case VM_MODE_P47V64_4K:
@@ -704,8 +706,6 @@ userspace_mem_region_find(struct kvm_vm *vm, uint64_t start, uint64_t end)
 
 static void kvm_stats_release(struct kvm_binary_stats *stats)
 {
-	int ret;
-
 	if (stats->fd < 0)
 		return;
 
@@ -714,8 +714,7 @@ static void kvm_stats_release(struct kvm_binary_stats *stats)
 		stats->desc = NULL;
 	}
 
-	ret = close(stats->fd);
-	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
+	kvm_close(stats->fd);
 	stats->fd = -1;
 }
 
@@ -738,8 +737,6 @@ __weak void vcpu_arch_free(struct kvm_vcpu *vcpu)
  */
 static void vm_vcpu_rm(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 {
-	int ret;
-
 	if (vcpu->dirty_gfns) {
 		kvm_munmap(vcpu->dirty_gfns, vm->dirty_ring_size);
 		vcpu->dirty_gfns = NULL;
@@ -747,9 +744,7 @@ static void vm_vcpu_rm(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 
 	kvm_munmap(vcpu->run, vcpu_mmap_sz());
 
-	ret = close(vcpu->fd);
-	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
-
+	kvm_close(vcpu->fd);
 	kvm_stats_release(&vcpu->stats);
 
 	list_del(&vcpu->list);
@@ -761,16 +756,12 @@ static void vm_vcpu_rm(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 void kvm_vm_release(struct kvm_vm *vmp)
 {
 	struct kvm_vcpu *vcpu, *tmp;
-	int ret;
 
 	list_for_each_entry_safe(vcpu, tmp, &vmp->vcpus, list)
 		vm_vcpu_rm(vmp, vcpu);
 
-	ret = close(vmp->fd);
-	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
-
-	ret = close(vmp->kvm_fd);
-	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
+	kvm_close(vmp->fd);
+	kvm_close(vmp->kvm_fd);
 
 	/* Free cached stats metadata and close FD */
 	kvm_stats_release(&vmp->stats);
@@ -828,7 +819,7 @@ void kvm_vm_free(struct kvm_vm *vmp)
 int kvm_memfd_alloc(size_t size, bool hugepages)
 {
 	int memfd_flags = MFD_CLOEXEC;
-	int fd, r;
+	int fd;
 
 	if (hugepages)
 		memfd_flags |= MFD_HUGETLB;
@@ -836,11 +827,8 @@ int kvm_memfd_alloc(size_t size, bool hugepages)
 	fd = memfd_create("kvm_selftest", memfd_flags);
 	TEST_ASSERT(fd != -1, __KVM_SYSCALL_ERROR("memfd_create()", fd));
 
-	r = ftruncate(fd, size);
-	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("ftruncate()", r));
-
-	r = fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, size);
-	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
+	kvm_ftruncate(fd, size);
+	kvm_fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, 0, size);
 
 	return fd;
 }
@@ -957,8 +945,8 @@ void vm_set_user_memory_region2(struct kvm_vm *vm, uint32_t slot, uint32_t flags
 
 /* FIXME: This thing needs to be ripped apart and rewritten. */
 void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
-		uint64_t guest_paddr, uint32_t slot, uint64_t npages,
-		uint32_t flags, int guest_memfd, uint64_t guest_memfd_offset)
+		uint64_t gpa, uint32_t slot, uint64_t npages, uint32_t flags,
+		int guest_memfd, uint64_t guest_memfd_offset)
 {
 	int ret;
 	struct userspace_mem_region *region;
@@ -972,30 +960,29 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 		"Number of guest pages is not compatible with the host. "
 		"Try npages=%d", vm_adjust_num_guest_pages(vm->mode, npages));
 
-	TEST_ASSERT((guest_paddr % vm->page_size) == 0, "Guest physical "
+	TEST_ASSERT((gpa % vm->page_size) == 0, "Guest physical "
 		"address not on a page boundary.\n"
-		"  guest_paddr: 0x%lx vm->page_size: 0x%x",
-		guest_paddr, vm->page_size);
-	TEST_ASSERT((((guest_paddr >> vm->page_shift) + npages) - 1)
+		"  gpa: 0x%lx vm->page_size: 0x%x",
+		gpa, vm->page_size);
+	TEST_ASSERT((((gpa >> vm->page_shift) + npages) - 1)
 		<= vm->max_gfn, "Physical range beyond maximum "
 		"supported physical address,\n"
-		"  guest_paddr: 0x%lx npages: 0x%lx\n"
+		"  gpa: 0x%lx npages: 0x%lx\n"
 		"  vm->max_gfn: 0x%lx vm->page_size: 0x%x",
-		guest_paddr, npages, vm->max_gfn, vm->page_size);
+		gpa, npages, vm->max_gfn, vm->page_size);
 
 	/*
 	 * Confirm a mem region with an overlapping address doesn't
 	 * already exist.
 	 */
 	region = (struct userspace_mem_region *) userspace_mem_region_find(
-		vm, guest_paddr, (guest_paddr + npages * vm->page_size) - 1);
+		vm, gpa, (gpa + npages * vm->page_size) - 1);
 	if (region != NULL)
 		TEST_FAIL("overlapping userspace_mem_region already "
 			"exists\n"
-			"  requested guest_paddr: 0x%lx npages: 0x%lx "
-			"page_size: 0x%x\n"
-			"  existing guest_paddr: 0x%lx size: 0x%lx",
-			guest_paddr, npages, vm->page_size,
+			"  requested gpa: 0x%lx npages: 0x%lx page_size: 0x%x\n"
+			"  existing gpa: 0x%lx size: 0x%lx",
+			gpa, npages, vm->page_size,
 			(uint64_t) region->region.guest_phys_addr,
 			(uint64_t) region->region.memory_size);
 
@@ -1009,8 +996,7 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 			"already exists.\n"
 			"  requested slot: %u paddr: 0x%lx npages: 0x%lx\n"
 			"  existing slot: %u paddr: 0x%lx size: 0x%lx",
-			slot, guest_paddr, npages,
-			region->region.slot,
+			slot, gpa, npages, region->region.slot,
 			(uint64_t) region->region.guest_phys_addr,
 			(uint64_t) region->region.memory_size);
 	}
@@ -1036,7 +1022,7 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 	if (src_type == VM_MEM_SRC_ANONYMOUS_THP)
 		alignment = max(backing_src_pagesz, alignment);
 
-	TEST_ASSERT_EQ(guest_paddr, align_up(guest_paddr, backing_src_pagesz));
+	TEST_ASSERT_EQ(gpa, align_up(gpa, backing_src_pagesz));
 
 	/* Add enough memory to align up if necessary */
 	if (alignment > 1)
@@ -1084,8 +1070,7 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 			 * needing to track if the fd is owned by the framework
 			 * or by the caller.
 			 */
-			guest_memfd = dup(guest_memfd);
-			TEST_ASSERT(guest_memfd >= 0, __KVM_SYSCALL_ERROR("dup()", guest_memfd));
+			guest_memfd = kvm_dup(guest_memfd);
 		}
 
 		region->region.guest_memfd = guest_memfd;
@@ -1097,20 +1082,18 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 	region->unused_phy_pages = sparsebit_alloc();
 	if (vm_arch_has_protected_memory(vm))
 		region->protected_phy_pages = sparsebit_alloc();
-	sparsebit_set_num(region->unused_phy_pages,
-		guest_paddr >> vm->page_shift, npages);
+	sparsebit_set_num(region->unused_phy_pages, gpa >> vm->page_shift, npages);
 	region->region.slot = slot;
 	region->region.flags = flags;
-	region->region.guest_phys_addr = guest_paddr;
+	region->region.guest_phys_addr = gpa;
 	region->region.memory_size = npages * vm->page_size;
 	region->region.userspace_addr = (uintptr_t) region->host_mem;
 	ret = __vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION2 IOCTL failed,\n"
 		"  rc: %i errno: %i\n"
 		"  slot: %u flags: 0x%x\n"
-		"  guest_phys_addr: 0x%lx size: 0x%lx guest_memfd: %d",
-		ret, errno, slot, flags,
-		guest_paddr, (uint64_t) region->region.memory_size,
+		"  guest_phys_addr: 0x%lx size: 0x%llx guest_memfd: %d",
+		ret, errno, slot, flags, gpa, region->region.memory_size,
 		region->region.guest_memfd);
 
 	/* Add to quick lookup data structures */
@@ -1132,10 +1115,10 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 
 void vm_userspace_mem_region_add(struct kvm_vm *vm,
 				 enum vm_mem_backing_src_type src_type,
-				 uint64_t guest_paddr, uint32_t slot,
-				 uint64_t npages, uint32_t flags)
+				 uint64_t gpa, uint32_t slot, uint64_t npages,
+				 uint32_t flags)
 {
-	vm_mem_add(vm, src_type, guest_paddr, slot, npages, flags, -1, 0);
+	vm_mem_add(vm, src_type, gpa, slot, npages, flags, -1, 0);
 }
 
 /*
@@ -1199,6 +1182,16 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION2 IOCTL failed,\n"
 		"  rc: %i errno: %i slot: %u flags: 0x%x",
 		ret, errno, slot, flags);
+}
+
+void vm_mem_region_reload(struct kvm_vm *vm, uint32_t slot)
+{
+	struct userspace_mem_region *region = memslot2region(vm, slot);
+	struct kvm_userspace_memory_region2 tmp = region->region;
+
+	tmp.memory_size = 0;
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &tmp);
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
 }
 
 /*
@@ -1456,8 +1449,6 @@ static vm_vaddr_t ____vm_vaddr_alloc(struct kvm_vm *vm, size_t sz,
 		pages--, vaddr += vm->page_size, paddr += vm->page_size) {
 
 		virt_pg_map(vm, vaddr, paddr);
-
-		sparsebit_set(vm->vpages_mapped, vaddr >> vm->page_shift);
 	}
 
 	return vaddr_start;
@@ -1571,7 +1562,6 @@ void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 	while (npages--) {
 		virt_pg_map(vm, vaddr, paddr);
-		sparsebit_set(vm->vpages_mapped, vaddr >> vm->page_shift);
 
 		vaddr += page_size;
 		paddr += page_size;
@@ -2025,6 +2015,7 @@ static struct exit_reason {
 	KVM_EXIT_STRING(NOTIFY),
 	KVM_EXIT_STRING(LOONGARCH_IOCSR),
 	KVM_EXIT_STRING(MEMORY_FAULT),
+	KVM_EXIT_STRING(ARM_SEA),
 };
 
 /*
@@ -2305,10 +2296,34 @@ __weak void kvm_selftest_arch_init(void)
 {
 }
 
+static void report_unexpected_signal(int signum)
+{
+#define KVM_CASE_SIGNUM(sig)					\
+	case sig: TEST_FAIL("Unexpected " #sig " (%d)\n", signum)
+
+	switch (signum) {
+	KVM_CASE_SIGNUM(SIGBUS);
+	KVM_CASE_SIGNUM(SIGSEGV);
+	KVM_CASE_SIGNUM(SIGILL);
+	KVM_CASE_SIGNUM(SIGFPE);
+	default:
+		TEST_FAIL("Unexpected signal %d\n", signum);
+	}
+}
+
 void __attribute((constructor)) kvm_selftest_init(void)
 {
+	struct sigaction sig_sa = {
+		.sa_handler = report_unexpected_signal,
+	};
+
 	/* Tell stdout not to buffer its content. */
 	setbuf(stdout, NULL);
+
+	sigaction(SIGBUS, &sig_sa, NULL);
+	sigaction(SIGSEGV, &sig_sa, NULL);
+	sigaction(SIGILL, &sig_sa, NULL);
+	sigaction(SIGFPE, &sig_sa, NULL);
 
 	guest_random_seed = last_guest_seed = random();
 	pr_info("Random seed: 0x%x\n", guest_random_seed);

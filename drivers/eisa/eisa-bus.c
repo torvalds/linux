@@ -135,7 +135,7 @@ static int eisa_bus_uevent(const struct device *dev, struct kobj_uevent_env *env
 	return 0;
 }
 
-struct bus_type eisa_bus_type = {
+const struct bus_type eisa_bus_type = {
 	.name  = "eisa",
 	.match = eisa_bus_match,
 	.uevent = eisa_bus_uevent,

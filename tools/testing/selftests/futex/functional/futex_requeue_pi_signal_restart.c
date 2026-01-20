@@ -27,7 +27,7 @@
 
 #include "atomic.h"
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define DELAY_US 100
 

@@ -46,7 +46,7 @@
 #define COMPAT_HWCAP2_SB	(1 << 5)
 #define COMPAT_HWCAP2_SSBS	(1 << 6)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/log2.h>
 
 /*

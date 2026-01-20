@@ -110,6 +110,8 @@
 #include <linux/interrupt.h>
 #include <linux/string_helpers.h>
 
+#include <drm/drm_print.h>
+
 #include "gen8_engine_cs.h"
 #include "i915_drv.h"
 #include "i915_list_util.h"

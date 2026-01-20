@@ -96,6 +96,9 @@ static int si_ih_irq_init(struct amdgpu_device *adev)
 	pci_set_master(adev->pdev);
 	si_ih_enable_interrupts(adev);
 
+	if (adev->irq.ih_soft.ring_size)
+		adev->irq.ih_soft.enabled = true;
+
 	return 0;
 }
 
@@ -112,6 +115,9 @@ static u32 si_ih_get_wptr(struct amdgpu_device *adev,
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
 
+	if (ih == &adev->irq.ih_soft)
+		goto out;
+
 	if (wptr & IH_RB_WPTR__RB_OVERFLOW_MASK) {
 		wptr &= ~IH_RB_WPTR__RB_OVERFLOW_MASK;
 		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -127,6 +133,8 @@ static u32 si_ih_get_wptr(struct amdgpu_device *adev,
 		tmp &= ~IH_RB_CNTL__WPTR_OVERFLOW_CLEAR_MASK;
 		WREG32(IH_RB_CNTL, tmp);
 	}
+
+out:
 	return (wptr & ih->ptr_mask);
 }
 
@@ -172,6 +180,10 @@ static int si_ih_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, false);
+	if (r)
+		return r;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, IH_SW_RING_SIZE, true);
 	if (r)
 		return r;
 

@@ -7,7 +7,7 @@
 #include <sys/prctl.h>
 #include <sys/auxv.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 19)
 # define HAVE_GETAUXVAL

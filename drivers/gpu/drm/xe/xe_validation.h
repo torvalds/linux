@@ -166,10 +166,10 @@ xe_validation_device_init(struct xe_validation_device *val)
  */
 DEFINE_CLASS(xe_validation, struct xe_validation_ctx *,
 	     if (_T) xe_validation_ctx_fini(_T);,
-	     ({_ret = xe_validation_ctx_init(_ctx, _val, _exec, _flags);
-	       _ret ? NULL : _ctx; }),
+	     ({*_ret = xe_validation_ctx_init(_ctx, _val, _exec, _flags);
+	       *_ret ? NULL : _ctx; }),
 	     struct xe_validation_ctx *_ctx, struct xe_validation_device *_val,
-	     struct drm_exec *_exec, const struct xe_val_flags _flags, int _ret);
+	     struct drm_exec *_exec, const struct xe_val_flags _flags, int *_ret);
 static inline void *class_xe_validation_lock_ptr(class_xe_validation_t *_T)
 {return *_T; }
 #define class_xe_validation_is_conditional true
@@ -186,7 +186,7 @@ static inline void *class_xe_validation_lock_ptr(class_xe_validation_t *_T)
  * exhaustive eviction.
  */
 #define xe_validation_guard(_ctx, _val, _exec, _flags, _ret)		\
-	scoped_guard(xe_validation, _ctx, _val, _exec, _flags, _ret) \
+	scoped_guard(xe_validation, _ctx, _val, _exec, _flags, &_ret) \
 	drm_exec_until_all_locked(_exec)
 
 #endif

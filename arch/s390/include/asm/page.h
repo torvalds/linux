@@ -166,6 +166,8 @@ static inline int page_reset_referenced(unsigned long addr)
 	return CC_TRANSFORM(cc);
 }
 
+int split_pud_page(pud_t *pudp, unsigned long addr);
+
 /* Bits int the storage key */
 #define _PAGE_CHANGED		0x02	/* HW changed bit		*/
 #define _PAGE_REFERENCED	0x04	/* HW referenced bit		*/

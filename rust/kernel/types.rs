@@ -289,7 +289,6 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 /// # Examples
 ///
 /// ```
-/// # #![expect(unreachable_pub, clippy::disallowed_names)]
 /// use kernel::types::Opaque;
 /// # // Emulate a C struct binding which is from C, maybe uninitialized or not, only the C side
 /// # // knows.

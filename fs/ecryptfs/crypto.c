@@ -9,7 +9,6 @@
  *   		Michael C. Thompson <mcthomps@us.ibm.com>
  */
 
-#include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -48,32 +47,6 @@ void ecryptfs_from_hex(char *dst, char *src, int dst_size)
 	}
 }
 
-/**
- * ecryptfs_calculate_md5 - calculates the md5 of @src
- * @dst: Pointer to 16 bytes of allocated memory
- * @crypt_stat: Pointer to crypt_stat struct for the current inode
- * @src: Data to be md5'd
- * @len: Length of @src
- *
- * Uses the allocated crypto context that crypt_stat references to
- * generate the MD5 sum of the contents of src.
- */
-static int ecryptfs_calculate_md5(char *dst,
-				  struct ecryptfs_crypt_stat *crypt_stat,
-				  char *src, int len)
-{
-	int rc = crypto_shash_tfm_digest(crypt_stat->hash_tfm, src, len, dst);
-
-	if (rc) {
-		printk(KERN_ERR
-		       "%s: Error computing crypto hash; rc = [%d]\n",
-		       __func__, rc);
-		goto out;
-	}
-out:
-	return rc;
-}
-
 static int ecryptfs_crypto_api_algify_cipher_name(char **algified_name,
 						  char *cipher_name,
 						  char *chaining_modifier)
@@ -104,13 +77,10 @@ out:
  *
  * Generate the initialization vector from the given root IV and page
  * offset.
- *
- * Returns zero on success; non-zero on error.
  */
-int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
-		       loff_t offset)
+void ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
+			loff_t offset)
 {
-	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
 	char src[ECRYPTFS_MAX_IV_BYTES + 16];
 
@@ -129,20 +99,12 @@ int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 		ecryptfs_printk(KERN_DEBUG, "source:\n");
 		ecryptfs_dump_hex(src, (crypt_stat->iv_bytes + 16));
 	}
-	rc = ecryptfs_calculate_md5(dst, crypt_stat, src,
-				    (crypt_stat->iv_bytes + 16));
-	if (rc) {
-		ecryptfs_printk(KERN_WARNING, "Error attempting to compute "
-				"MD5 while generating IV for a page\n");
-		goto out;
-	}
+	md5(src, crypt_stat->iv_bytes + 16, dst);
 	memcpy(iv, dst, crypt_stat->iv_bytes);
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(KERN_DEBUG, "derived iv:\n");
 		ecryptfs_dump_hex(iv, crypt_stat->iv_bytes);
 	}
-out:
-	return rc;
 }
 
 /**
@@ -151,29 +113,14 @@ out:
  *
  * Initialize the crypt_stat structure.
  */
-int ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
+void ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 {
-	struct crypto_shash *tfm;
-	int rc;
-
-	tfm = crypto_alloc_shash(ECRYPTFS_DEFAULT_HASH, 0, 0);
-	if (IS_ERR(tfm)) {
-		rc = PTR_ERR(tfm);
-		ecryptfs_printk(KERN_ERR, "Error attempting to "
-				"allocate crypto context; rc = [%d]\n",
-				rc);
-		return rc;
-	}
-
 	memset((void *)crypt_stat, 0, sizeof(struct ecryptfs_crypt_stat));
 	INIT_LIST_HEAD(&crypt_stat->keysig_list);
 	mutex_init(&crypt_stat->keysig_list_mutex);
 	mutex_init(&crypt_stat->cs_mutex);
 	mutex_init(&crypt_stat->cs_tfm_mutex);
-	crypt_stat->hash_tfm = tfm;
 	crypt_stat->flags |= ECRYPTFS_STRUCT_INITIALIZED;
-
-	return 0;
 }
 
 /**
@@ -187,7 +134,6 @@ void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat)
 	struct ecryptfs_key_sig *key_sig, *key_sig_tmp;
 
 	crypto_free_skcipher(crypt_stat->tfm);
-	crypto_free_shash(crypt_stat->hash_tfm);
 	list_for_each_entry_safe(key_sig, key_sig_tmp,
 				 &crypt_stat->keysig_list, crypt_stat_list) {
 		list_del(&key_sig->crypt_stat_list);
@@ -361,14 +307,7 @@ static int crypt_extent(struct ecryptfs_crypt_stat *crypt_stat,
 	int rc;
 
 	extent_base = (((loff_t)page_index) * (PAGE_SIZE / extent_size));
-	rc = ecryptfs_derive_iv(extent_iv, crypt_stat,
-				(extent_base + extent_offset));
-	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error attempting to derive IV for "
-			"extent [0x%.16llx]; rc = [%d]\n",
-			(unsigned long long)(extent_base + extent_offset), rc);
-		goto out;
-	}
+	ecryptfs_derive_iv(extent_iv, crypt_stat, extent_base + extent_offset);
 
 	sg_init_table(&src_sg, 1);
 	sg_init_table(&dst_sg, 1);
@@ -609,31 +548,20 @@ void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat)
  */
 int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 {
-	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
 
 	BUG_ON(crypt_stat->iv_bytes > MD5_DIGEST_SIZE);
 	BUG_ON(crypt_stat->iv_bytes <= 0);
 	if (!(crypt_stat->flags & ECRYPTFS_KEY_VALID)) {
-		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING, "Session key not valid; "
 				"cannot generate root IV\n");
-		goto out;
-	}
-	rc = ecryptfs_calculate_md5(dst, crypt_stat, crypt_stat->key,
-				    crypt_stat->key_size);
-	if (rc) {
-		ecryptfs_printk(KERN_WARNING, "Error attempting to compute "
-				"MD5 while generating root IV\n");
-		goto out;
-	}
-	memcpy(crypt_stat->root_iv, dst, crypt_stat->iv_bytes);
-out:
-	if (rc) {
 		memset(crypt_stat->root_iv, 0, crypt_stat->iv_bytes);
 		crypt_stat->flags |= ECRYPTFS_SECURITY_WARNING;
+		return -EINVAL;
 	}
-	return rc;
+	md5(crypt_stat->key, crypt_stat->key_size, dst);
+	memcpy(crypt_stat->root_iv, dst, crypt_stat->iv_bytes);
+	return 0;
 }
 
 static void ecryptfs_generate_new_key(struct ecryptfs_crypt_stat *crypt_stat)

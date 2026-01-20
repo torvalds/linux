@@ -2121,6 +2121,19 @@ void typec_set_data_role(struct typec_port *port, enum typec_data_role role)
 EXPORT_SYMBOL_GPL(typec_set_data_role);
 
 /**
+ * typec_get_data_role - Get port data role
+ * @port: The USB Type-C Port to query
+ *
+ * This routine is used by the altmode drivers to determine if the port is the
+ * DFP before issuing Enter Mode
+ */
+enum typec_data_role typec_get_data_role(struct typec_port *port)
+{
+	return port->data_role;
+}
+EXPORT_SYMBOL_GPL(typec_get_data_role);
+
+/**
  * typec_set_pwr_role - Report power role change
  * @port: The USB Type-C Port where the role was changed
  * @role: The new data role

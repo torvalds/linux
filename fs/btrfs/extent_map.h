@@ -8,8 +8,7 @@
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/refcount.h>
-#include "misc.h"
-#include "compression.h"
+#include "fs.h"
 
 struct btrfs_inode;
 struct btrfs_fs_info;

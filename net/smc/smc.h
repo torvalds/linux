@@ -42,9 +42,9 @@ void smc_unhash_sk(struct sock *sk);
 void smc_release_cb(struct sock *sk);
 
 int smc_release(struct socket *sock);
-int smc_bind(struct socket *sock, struct sockaddr *uaddr,
+int smc_bind(struct socket *sock, struct sockaddr_unsized *uaddr,
 	     int addr_len);
-int smc_connect(struct socket *sock, struct sockaddr *addr,
+int smc_connect(struct socket *sock, struct sockaddr_unsized *addr,
 		int alen, int flags);
 int smc_accept(struct socket *sock, struct socket *new_sock,
 	       struct proto_accept_arg *arg);

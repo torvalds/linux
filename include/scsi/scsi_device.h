@@ -179,6 +179,12 @@ struct scsi_device {
 	unsigned manage_shutdown:1;
 
 	/*
+	 * If true, let the high-level device driver (sd) manage the device
+	 * power state for system restart (reboot) operations.
+	 */
+	unsigned manage_restart:1;
+
+	/*
 	 * If set and if the device is runtime suspended, ask the high-level
 	 * device driver (sd) to force a runtime resume of the device.
 	 */
@@ -252,8 +258,8 @@ struct scsi_device {
 	unsigned int queue_stopped;	/* request queue is quiesced */
 	bool offline_already;		/* Device offline message logged */
 
-	unsigned int ua_new_media_ctr;	/* Counter for New Media UNIT ATTENTIONs */
-	unsigned int ua_por_ctr;	/* Counter for Power On / Reset UAs */
+	atomic_t ua_new_media_ctr;	/* Counter for New Media UNIT ATTENTIONs */
+	atomic_t ua_por_ctr;		/* Counter for Power On / Reset UAs */
 
 	atomic_t disk_events_disable_depth; /* disable depth for disk events */
 
@@ -313,8 +319,8 @@ sdev_prefix_printk(const char *, const struct scsi_device *, const char *,
 #define sdev_printk(l, sdev, fmt, a...)				\
 	sdev_prefix_printk(l, sdev, NULL, fmt, ##a)
 
-__printf(3, 4) void
-scmd_printk(const char *, const struct scsi_cmnd *, const char *, ...);
+__printf(3, 4) void scmd_printk(const char *, struct scsi_cmnd *, const char *,
+				...);
 
 #define scmd_dbg(scmd, fmt, a...)					\
 	do {								\
@@ -558,6 +564,10 @@ int scsi_execute_cmd(struct scsi_device *sdev, const unsigned char *cmd,
 		     const struct scsi_exec_args *args);
 void scsi_failures_reset_retries(struct scsi_failures *failures);
 
+struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
+					enum dma_data_direction data_direction,
+					blk_mq_req_flags_t flags);
+void scsi_put_internal_cmd(struct scsi_cmnd *scmd);
 extern void sdev_disable_disk_events(struct scsi_device *sdev);
 extern void sdev_enable_disk_events(struct scsi_device *sdev);
 extern int scsi_vpd_lun_id(struct scsi_device *, char *, size_t);
@@ -588,6 +598,22 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
 
 #define scmd_id(scmd) sdev_id((scmd)->device)
 #define scmd_channel(scmd) sdev_channel((scmd)->device)
+
+/**
+ * scsi_device_is_pseudo_dev() - Whether a device is a pseudo SCSI device.
+ * @sdev: SCSI device to examine
+ *
+ * A pseudo SCSI device can be used to allocate SCSI commands but does not show
+ * up in sysfs. Additionally, the logical unit information in *@sdev is made up.
+ *
+ * This function tests the LUN number instead of comparing @sdev with
+ * @sdev->host->pseudo_sdev because this function may be called before
+ * @sdev->host->pseudo_sdev has been initialized.
+ */
+static inline bool scsi_device_is_pseudo_dev(struct scsi_device *sdev)
+{
+	return sdev->lun == U64_MAX;
+}
 
 /*
  * checks for positions of the SCSI state machine
@@ -693,10 +719,8 @@ static inline int scsi_device_busy(struct scsi_device *sdev)
 }
 
 /* Macros to access the UNIT ATTENTION counters */
-#define scsi_get_ua_new_media_ctr(sdev) \
-	((const unsigned int)(sdev->ua_new_media_ctr))
-#define scsi_get_ua_por_ctr(sdev) \
-	((const unsigned int)(sdev->ua_por_ctr))
+#define scsi_get_ua_new_media_ctr(sdev)	atomic_read(&sdev->ua_new_media_ctr)
+#define scsi_get_ua_por_ctr(sdev)	atomic_read(&sdev->ua_por_ctr)
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \
 	MODULE_ALIAS("scsi:t-" __stringify(type) "*")

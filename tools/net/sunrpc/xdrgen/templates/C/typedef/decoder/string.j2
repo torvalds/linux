@@ -14,4 +14,4 @@ xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ classifier }}{{ name }} *ptr
 	/* (variable-length string) */
 {% endif %}
 	return xdrgen_decode_string(xdr, ptr, {{ maxsize }});
-};
+}

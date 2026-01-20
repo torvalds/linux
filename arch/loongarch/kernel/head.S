@@ -43,36 +43,29 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 
 SYM_CODE_START(kernel_entry)			# kernel entry point
 
-	/* Config direct window and set PG */
-	SETUP_DMWINS	t0
+	SETUP_TWINS
+	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
-
-	/* Enable PG */
-	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
-	csrwr		t0, LOONGARCH_CSR_CRMD
-	li.w		t0, 0x04		# PLV=0, PIE=1, PWE=0
-	csrwr		t0, LOONGARCH_CSR_PRMD
-	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
-	csrwr		t0, LOONGARCH_CSR_EUEN
+	SETUP_DMWINS	t0
 
 	la.pcrel	t0, __bss_start		# clear .bss
-	st.d		zero, t0, 0
+	LONG_S		zero, t0, 0
 	la.pcrel	t1, __bss_stop - LONGSIZE
 1:
-	addi.d		t0, t0, LONGSIZE
-	st.d		zero, t0, 0
+	PTR_ADDI	t0, t0, LONGSIZE
+	LONG_S		zero, t0, 0
 	bne		t0, t1, 1b
 
 	la.pcrel	t0, fw_arg0
-	st.d		a0, t0, 0		# firmware arguments
+	PTR_S		a0, t0, 0		# firmware arguments
 	la.pcrel	t0, fw_arg1
-	st.d		a1, t0, 0
+	PTR_S		a1, t0, 0
 	la.pcrel	t0, fw_arg2
-	st.d		a2, t0, 0
+	PTR_S		a2, t0, 0
 
 #ifdef CONFIG_PAGE_SIZE_4KB
-	li.d		t0, 0
-	li.d		t1, CSR_STFILL
+	LONG_LI		t0, 0
+	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
 #endif
 	/* KSave3 used for percpu base, initialized as 0 */
@@ -98,7 +91,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	/* Jump to the new kernel: new_pc = current_pc + random_offset */
 	pcaddi		t0, 0
-	add.d		t0, t0, a0
+	PTR_ADD		t0, t0, a0
 	jirl		zero, t0, 0xc
 #endif /* CONFIG_RANDOMIZE_BASE */
 
@@ -121,12 +114,14 @@ SYM_CODE_END(kernel_entry)
  */
 SYM_CODE_START(smpboot_entry)
 
-	SETUP_DMWINS	t0
+	SETUP_TWINS
+	SETUP_MODES	t0
 	JUMP_VIRT_ADDR	t0, t1
+	SETUP_DMWINS	t0
 
 #ifdef CONFIG_PAGE_SIZE_4KB
-	li.d		t0, 0
-	li.d		t1, CSR_STFILL
+	LONG_LI		t0, 0
+	LONG_LI		t1, CSR_STFILL
 	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
 #endif
 	/* Enable PG */

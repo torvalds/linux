@@ -320,9 +320,9 @@ static bool gic_hwirq_is_mapped(struct mpm_gic_map *maps, int cnt, u32 hwirq)
 	return false;
 }
 
-static int qcom_mpm_init(struct device_node *np, struct device_node *parent)
+static int qcom_mpm_probe(struct platform_device *pdev, struct device_node *parent)
 {
-	struct platform_device *pdev = of_find_device_by_node(np);
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct irq_domain *parent_domain;
 	struct generic_pm_domain *genpd;
@@ -478,7 +478,7 @@ remove_genpd:
 }
 
 IRQCHIP_PLATFORM_DRIVER_BEGIN(qcom_mpm)
-IRQCHIP_MATCH("qcom,mpm", qcom_mpm_init)
+IRQCHIP_MATCH("qcom,mpm", qcom_mpm_probe)
 IRQCHIP_PLATFORM_DRIVER_END(qcom_mpm)
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. MSM Power Manager");
 MODULE_LICENSE("GPL v2");

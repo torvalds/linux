@@ -127,7 +127,8 @@ struct dc_ti_battery_chip {
 static int dc_ti_battery_get_voltage_and_current_now(struct power_supply *psy, int *volt, int *curr)
 {
 	struct dc_ti_battery_chip *chip = power_supply_get_drvdata(psy);
-	s64 cnt_start_usec, now_usec, sleep_usec;
+	ktime_t ktime;
+	s64 sleep_usec;
 	unsigned int reg_val;
 	s32 acc, smpl_ctr;
 	int ret;
@@ -141,16 +142,17 @@ static int dc_ti_battery_get_voltage_and_current_now(struct power_supply *psy, i
 	if (ret)
 		goto out_err;
 
-	cnt_start_usec = ktime_get_ns() / NSEC_PER_USEC;
+	ktime = ktime_get();
 
 	/* Read Vbat, convert IIO mV to power-supply ųV */
 	ret = iio_read_channel_processed_scale(chip->vbat_channel, volt, 1000);
 	if (ret < 0)
 		goto out_err;
 
+	ktime = ktime_sub(ktime_get(), ktime);
+
 	/* Sleep at least 3 sample-times + slack to get 3+ CC samples */
-	now_usec = ktime_get_ns() / NSEC_PER_USEC;
-	sleep_usec = 3 * SMPL_INTVL_US + SLEEP_SLACK_US - (now_usec - cnt_start_usec);
+	sleep_usec = 3 * SMPL_INTVL_US + SLEEP_SLACK_US - ktime_to_us(ktime);
 	if (sleep_usec > 0 && sleep_usec < 1000000)
 		usleep_range(sleep_usec, sleep_usec + SLEEP_SLACK_US);
 

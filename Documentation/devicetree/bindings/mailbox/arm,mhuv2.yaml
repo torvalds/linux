@@ -127,7 +127,6 @@ properties:
         - minimum: 0
           maximum: 124
 
-
   '#mbox-cells':
     description: |
       It is always set to 2. The first argument in the consumers 'mboxes'

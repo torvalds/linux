@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _v4l2-pix-fmt-ipu3-sbggr10:
 .. _v4l2-pix-fmt-ipu3-sgbrg10:

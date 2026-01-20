@@ -2052,8 +2052,14 @@ EXPORT_SYMBOL(sdw_clear_slave_status);
 
 int sdw_bpt_send_async(struct sdw_bus *bus, struct sdw_slave *slave, struct sdw_bpt_msg *msg)
 {
-	if (msg->len > SDW_BPT_MSG_MAX_BYTES) {
-		dev_err(bus->dev, "Invalid BPT message length %d\n", msg->len);
+	int len = 0;
+	int i;
+
+	for (i = 0; i < msg->sections; i++)
+		len += msg->sec[i].len;
+
+	if (len > SDW_BPT_MSG_MAX_BYTES) {
+		dev_err(bus->dev, "Invalid BPT message length %d\n", len);
 		return -EINVAL;
 	}
 

@@ -804,7 +804,8 @@ static int mlx5e_xfrm_add_state(struct net_device *dev,
 		goto err_xfrm;
 	}
 
-	if (mlx5_eswitch_block_mode(priv->mdev))
+	err = mlx5_eswitch_block_mode(priv->mdev);
+	if (err)
 		goto unblock_ipsec;
 
 	if (x->props.mode == XFRM_MODE_TUNNEL &&

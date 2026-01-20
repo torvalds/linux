@@ -9,12 +9,17 @@
 #include <asm/apic.h>
 #include <asm/boot.h>
 #include <asm/desc.h>
+#include <asm/fpu/api.h>
+#include <asm/fpu/types.h>
 #include <asm/i8259.h>
 #include <asm/mshyperv.h>
 #include <asm/msr.h>
 #include <asm/realmode.h>
 #include <asm/reboot.h>
+#include <asm/smap.h>
+#include <linux/export.h>
 #include <../kernel/smpboot.h>
+#include "../../kernel/fpu/legacy.h"
 
 extern struct boot_params boot_params;
 static struct real_mode_header hv_vtl_real_mode_header;
@@ -249,3 +254,28 @@ int __init hv_vtl_early_init(void)
 
 	return 0;
 }
+
+DEFINE_STATIC_CALL_NULL(__mshv_vtl_return_hypercall, void (*)(void));
+
+void mshv_vtl_return_call_init(u64 vtl_return_offset)
+{
+	static_call_update(__mshv_vtl_return_hypercall,
+			   (void *)((u8 *)hv_hypercall_pg + vtl_return_offset));
+}
+EXPORT_SYMBOL(mshv_vtl_return_call_init);
+
+void mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0)
+{
+	struct hv_vp_assist_page *hvp;
+
+	hvp = hv_vp_assist_page[smp_processor_id()];
+	hvp->vtl_ret_x64rax = vtl0->rax;
+	hvp->vtl_ret_x64rcx = vtl0->rcx;
+
+	kernel_fpu_begin_mask(0);
+	fxrstor(&vtl0->fx_state);
+	__mshv_vtl_return_call(vtl0);
+	fxsave(&vtl0->fx_state);
+	kernel_fpu_end();
+}
+EXPORT_SYMBOL(mshv_vtl_return_call);

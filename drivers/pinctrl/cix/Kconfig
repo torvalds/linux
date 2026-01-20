@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_SKY1_BASE
+	tristate
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP
+
+config PINCTRL_SKY1
+	tristate "Cix Sky1 pinctrl driver"
+	depends on ARCH_CIX || COMPILE_TEST
+	depends on HAS_IOMEM
+	select PINCTRL_SKY1_BASE
+	help
+	  Say Y here to enable the sky1 pinctrl driver

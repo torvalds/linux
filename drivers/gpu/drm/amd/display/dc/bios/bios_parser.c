@@ -805,7 +805,7 @@ static enum bp_result bios_parser_dac_load_detection(
 
 	if (bp_params.device_id == ATOM_DEVICE_CRT1_SUPPORT)
 		device_id_mask = ATOM_S0_CRT1_MASK;
-	else if (bp_params.device_id == ATOM_DEVICE_CRT1_SUPPORT)
+	else if (bp_params.device_id == ATOM_DEVICE_CRT2_SUPPORT)
 		device_id_mask = ATOM_S0_CRT2_MASK;
 	else
 		return BP_RESULT_UNSUPPORTED;

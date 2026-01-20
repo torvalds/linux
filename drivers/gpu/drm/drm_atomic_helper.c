@@ -1831,10 +1831,12 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	}
 
 	for_each_old_crtc_in_state(state, crtc, old_crtc_state, i) {
+		wait_queue_head_t *queue = drm_crtc_vblank_waitqueue(crtc);
+
 		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
-		ret = wait_event_timeout(dev->vblank[i].queue,
+		ret = wait_event_timeout(*queue,
 					 state->crtcs[i].last_vblank_count !=
 						drm_crtc_vblank_count(crtc),
 					 msecs_to_jiffies(100));
@@ -3182,6 +3184,8 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct drm_colorop *colorop;
+	struct drm_colorop_state *old_colorop_state, *new_colorop_state;
 	struct drm_crtc_commit *commit;
 	struct drm_private_obj *obj;
 	struct drm_private_state *old_obj_state, *new_obj_state;
@@ -3257,6 +3261,16 @@ int drm_atomic_helper_swap_state(struct drm_atomic_state *state,
 
 			new_crtc_state->commit->event = NULL;
 		}
+	}
+
+	for_each_oldnew_colorop_in_state(state, colorop, old_colorop_state, new_colorop_state, i) {
+		WARN_ON(colorop->state != old_colorop_state);
+
+		old_colorop_state->state = state;
+		new_colorop_state->state = NULL;
+
+		state->colorops[i].state = old_colorop_state;
+		colorop->state = new_colorop_state;
 	}
 
 	drm_panic_lock(state->dev, flags);

@@ -29,6 +29,7 @@
 #include "amdgpu_ras_process.h"
 
 #define RAS_MGR_RETIRE_PAGE_INTERVAL  100
+#define RAS_EVENT_PROCESS_TIMEOUT  1200
 
 static void ras_process_retire_page_dwork(struct work_struct *work)
 {
@@ -57,6 +58,9 @@ int amdgpu_ras_process_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
+	ras_mgr->is_paused = false;
+	init_completion(&ras_mgr->ras_event_done);
+
 	INIT_DELAYED_WORK(&ras_mgr->retire_page_dwork, ras_process_retire_page_dwork);
 
 	return 0;
@@ -66,6 +70,7 @@ int amdgpu_ras_process_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
+	ras_mgr->is_paused = false;
 	/* Save all cached bad pages to eeprom */
 	flush_delayed_work(&ras_mgr->retire_page_dwork);
 	cancel_delayed_work_sync(&ras_mgr->retire_page_dwork);
@@ -123,4 +128,63 @@ int amdgpu_ras_process_handle_consumption_interrupt(struct amdgpu_device *adev, 
 	req.seqno = seqno;
 
 	return ras_process_add_interrupt_req(ras_mgr->ras_core, &req, false);
+}
+
+int amdgpu_ras_process_begin(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	if (ras_mgr->is_paused)
+		return -EAGAIN;
+
+	reinit_completion(&ras_mgr->ras_event_done);
+	return 0;
+}
+
+int amdgpu_ras_process_end(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	complete(&ras_mgr->ras_event_done);
+	return 0;
+}
+
+int amdgpu_ras_process_pre_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	long rc;
+
+	if (!ras_mgr || !ras_mgr->ras_core)
+		return -EINVAL;
+
+	if (!ras_mgr->ras_core->is_initialized)
+		return -EPERM;
+
+	ras_mgr->is_paused = true;
+
+	/* Wait for RAS event processing to complete */
+	rc = wait_for_completion_interruptible_timeout(&ras_mgr->ras_event_done,
+			msecs_to_jiffies(RAS_EVENT_PROCESS_TIMEOUT));
+	if (rc <= 0)
+		RAS_DEV_WARN(adev, "Waiting for ras process to complete %s\n",
+			 rc ? "interrupted" : "timeout");
+
+	flush_delayed_work(&ras_mgr->retire_page_dwork);
+	return 0;
+}
+
+int amdgpu_ras_process_post_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	if (!ras_mgr || !ras_mgr->ras_core)
+		return -EINVAL;
+
+	if (!ras_mgr->ras_core->is_initialized)
+		return -EPERM;
+
+	ras_mgr->is_paused = false;
+
+	schedule_delayed_work(&ras_mgr->retire_page_dwork, 0);
+	return 0;
 }

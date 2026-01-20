@@ -572,7 +572,7 @@ void visl_device_run(void *priv)
 	if (src_req)
 		v4l2_ctrl_request_setup(src_req, &ctx->hdl);
 
-	v4l2_m2m_buf_copy_metadata(run.src, run.dst, true);
+	v4l2_m2m_buf_copy_metadata(run.src, run.dst);
 	run.dst->sequence = ctx->q_data[V4L2_M2M_DST].sequence++;
 	run.src->sequence = ctx->q_data[V4L2_M2M_SRC].sequence++;
 	run.dst->field = ctx->decoded_fmt.fmt.pix.field;

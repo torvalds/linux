@@ -68,23 +68,14 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define DMA_AXI_OSR_MAX		0xf
 #define DMA_AXI_MAX_OSR_LIMIT ((DMA_AXI_OSR_MAX << DMA_AXI_WR_OSR_LMT_SHIFT) | \
 			       (DMA_AXI_OSR_MAX << DMA_AXI_RD_OSR_LMT_SHIFT))
-#define	DMA_AXI_1KBBE		BIT(13)
-#define DMA_AXI_AAL		BIT(12)
-#define DMA_AXI_BLEN256		BIT(7)
-#define DMA_AXI_BLEN128		BIT(6)
-#define DMA_AXI_BLEN64		BIT(5)
-#define DMA_AXI_BLEN32		BIT(4)
-#define DMA_AXI_BLEN16		BIT(3)
-#define DMA_AXI_BLEN8		BIT(2)
-#define DMA_AXI_BLEN4		BIT(1)
 #define DMA_BURST_LEN_DEFAULT	(DMA_AXI_BLEN256 | DMA_AXI_BLEN128 | \
 				 DMA_AXI_BLEN64 | DMA_AXI_BLEN32 | \
 				 DMA_AXI_BLEN16 | DMA_AXI_BLEN8 | \
 				 DMA_AXI_BLEN4)
 
-#define DMA_AXI_UNDEF		BIT(0)
+#define	DMA_AXI_1KBBE		BIT(13)
 
-#define DMA_AXI_BURST_LEN_MASK	0x000000FE
+#define DMA_AXI_UNDEF		BIT(0)
 
 #define DMA_CUR_TX_BUF_ADDR	0x00001050	/* Current Host Tx Buffer */
 #define DMA_CUR_RX_BUF_ADDR	0x00001054	/* Current Host Rx Buffer */
@@ -178,6 +169,7 @@ static inline u32 dma_chan_base_addr(u32 base, u32 chan)
 #define NUM_DWMAC4_DMA_REGS	27
 
 void dwmac_enable_dma_transmission(void __iomem *ioaddr, u32 chan);
+void dwmac_enable_dma_reception(void __iomem *ioaddr, u32 chan);
 void dwmac_enable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,
 			  u32 chan, bool rx, bool tx);
 void dwmac_disable_dma_irq(struct stmmac_priv *priv, void __iomem *ioaddr,

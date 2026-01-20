@@ -604,6 +604,11 @@ static int exfat_find_location(struct super_block *sb, struct exfat_chain *p_dir
 	if (ret)
 		return ret;
 
+	if (!exfat_test_bitmap(sb, clu)) {
+		exfat_err(sb, "failed to test cluster bit(%u)", clu);
+		return -EIO;
+	}
+
 	/* byte offset in cluster */
 	off = EXFAT_CLU_OFFSET(off, sbi);
 

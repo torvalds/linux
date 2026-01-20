@@ -4,7 +4,7 @@
 
 CFLAGS += -Wall -O2 $(KHDR_INCLUDES)
 
-LOCAL_HDRS += common.h
+LOCAL_HDRS += $(wildcard *.h)
 
 src_test := $(wildcard *_test.c)
 

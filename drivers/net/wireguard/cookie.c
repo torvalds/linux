@@ -33,7 +33,7 @@ static void precompute_key(u8 key[NOISE_SYMMETRIC_KEY_LEN],
 			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN],
 			   const u8 label[COOKIE_KEY_LABEL_LEN])
 {
-	struct blake2s_state blake;
+	struct blake2s_ctx blake;
 
 	blake2s_init(&blake, NOISE_SYMMETRIC_KEY_LEN);
 	blake2s_update(&blake, label, COOKIE_KEY_LABEL_LEN);
@@ -77,7 +77,7 @@ static void compute_mac1(u8 mac1[COOKIE_LEN], const void *message, size_t len,
 {
 	len = len - sizeof(struct message_macs) +
 	      offsetof(struct message_macs, mac1);
-	blake2s(mac1, message, key, COOKIE_LEN, len, NOISE_SYMMETRIC_KEY_LEN);
+	blake2s(key, NOISE_SYMMETRIC_KEY_LEN, message, len, mac1, COOKIE_LEN);
 }
 
 static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len,
@@ -85,13 +85,13 @@ static void compute_mac2(u8 mac2[COOKIE_LEN], const void *message, size_t len,
 {
 	len = len - sizeof(struct message_macs) +
 	      offsetof(struct message_macs, mac2);
-	blake2s(mac2, message, cookie, COOKIE_LEN, len, COOKIE_LEN);
+	blake2s(cookie, COOKIE_LEN, message, len, mac2, COOKIE_LEN);
 }
 
 static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb,
 			struct cookie_checker *checker)
 {
-	struct blake2s_state state;
+	struct blake2s_ctx blake;
 
 	if (wg_birthdate_has_expired(checker->secret_birthdate,
 				     COOKIE_SECRET_MAX_AGE)) {
@@ -103,15 +103,15 @@ static void make_cookie(u8 cookie[COOKIE_LEN], struct sk_buff *skb,
 
 	down_read(&checker->secret_lock);
 
-	blake2s_init_key(&state, COOKIE_LEN, checker->secret, NOISE_HASH_LEN);
+	blake2s_init_key(&blake, COOKIE_LEN, checker->secret, NOISE_HASH_LEN);
 	if (skb->protocol == htons(ETH_P_IP))
-		blake2s_update(&state, (u8 *)&ip_hdr(skb)->saddr,
+		blake2s_update(&blake, (u8 *)&ip_hdr(skb)->saddr,
 			       sizeof(struct in_addr));
 	else if (skb->protocol == htons(ETH_P_IPV6))
-		blake2s_update(&state, (u8 *)&ipv6_hdr(skb)->saddr,
+		blake2s_update(&blake, (u8 *)&ipv6_hdr(skb)->saddr,
 			       sizeof(struct in6_addr));
-	blake2s_update(&state, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
-	blake2s_final(&state, cookie);
+	blake2s_update(&blake, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
+	blake2s_final(&blake, cookie);
 
 	up_read(&checker->secret_lock);
 }

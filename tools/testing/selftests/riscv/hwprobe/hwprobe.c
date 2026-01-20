@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include "hwprobe.h"
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 int main(int argc, char **argv)
 {

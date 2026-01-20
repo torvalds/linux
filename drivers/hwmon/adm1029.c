@@ -171,14 +171,17 @@ fan_show(struct device *dev, struct device_attribute *devattr, char *buf)
 	struct adm1029_data *data = adm1029_update_device(dev);
 	u16 val;
 
+	mutex_lock(&data->update_lock);
 	if (data->fan[attr->index] == 0 ||
 	    (data->fan_div[attr->index] & 0xC0) == 0 ||
 	    data->fan[attr->index] == 255) {
+		mutex_unlock(&data->update_lock);
 		return sprintf(buf, "0\n");
 	}
 
 	val = 1880 * 120 / DIV_FROM_REG(data->fan_div[attr->index])
 	    / data->fan[attr->index];
+	mutex_unlock(&data->update_lock);
 	return sprintf(buf, "%d\n", val);
 }
 

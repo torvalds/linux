@@ -8,7 +8,7 @@ title: Qualcomm PCI Express Root Complex Common Properties
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 properties:
   reg:

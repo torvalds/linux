@@ -280,7 +280,7 @@ static const DECLARE_TLV_DB_RANGE(mic_gain_tlv,
 static int pdmic_get_mic_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	unsigned int dgain_val, scale_val;
 	int i;
 
@@ -304,7 +304,7 @@ static int pdmic_put_mic_volsw(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	int max = mc->max;
 	unsigned int val;
 	int ret;

@@ -55,6 +55,13 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	reg_usbh1_vbus: regulator-usbhubreset {
 		compatible = "regulator-fixed";
 		regulator-name = "usbh1_vbus";
@@ -81,6 +88,7 @@
 
 	panel {
 		compatible = "sharp,lq101k1ly04";
+		power-supply = <&reg_3v3>;
 
 		port {
 			panel_in: endpoint {
@@ -124,7 +132,7 @@
 	pinctrl-0 = <&pinctrl_ecspi5 &pinctrl_ecspi5cs>;
 	status = "okay";
 
-	eeprom: m95m02@1 {
+	eeprom: eeprom@1 {
 		compatible = "st,m95m02", "atmel,at25";
 		size = <262144>;
 		pagesize = <256>;
@@ -134,7 +142,7 @@
 	};
 
 	pb_rtc: rtc@3 {
-		compatible = "nxp,rtc-pcf2123";
+		compatible = "nxp,pcf2123";
 		spi-max-frequency = <2450000>;
 		spi-cs-high;
 		reg = <3>;

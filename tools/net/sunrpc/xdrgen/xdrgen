@@ -10,7 +10,12 @@ __license__ = "GPL-2.0 only"
 __version__ = "0.2"
 
 import sys
+from pathlib import Path
 import argparse
+
+_XDRGEN_DIR = Path(__file__).resolve().parent
+if str(_XDRGEN_DIR) not in sys.path:
+    sys.path.insert(0, str(_XDRGEN_DIR))
 
 from subcmds import definitions
 from subcmds import declarations

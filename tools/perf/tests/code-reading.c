@@ -43,7 +43,7 @@
 struct tested_section {
 	struct rb_node rb_node;
 	u64 addr;
-	char path[PATH_MAX];
+	char *path;
 };
 
 static bool tested_code_insert_or_exists(const char *path, u64 addr,
@@ -79,7 +79,11 @@ static bool tested_code_insert_or_exists(const char *path, u64 addr,
 		return true;
 
 	data->addr = addr;
-	strlcpy(data->path, path, sizeof(data->path));
+	data->path = strdup(path);
+	if (!data->path) {
+		free(data);
+		return true;
+	}
 	rb_link_node(&data->rb_node, parent, node);
 	rb_insert_color(&data->rb_node, tested_sections);
 	return false;
@@ -94,6 +98,7 @@ static void tested_sections__free(struct rb_root *root)
 						     rb_node);
 
 		rb_erase(node, root);
+		free(ts->path);
 		free(ts);
 	}
 }
@@ -699,7 +704,7 @@ static int do_test_code_reading(bool try_kcore)
 	struct map *map;
 	bool have_vmlinux, have_kcore;
 	struct dso *dso;
-	const char *events[] = { "cycles", "cycles:u", "cpu-clock", "cpu-clock:u", NULL };
+	const char *events[] = { "cpu-cycles", "cpu-cycles:u", "cpu-clock", "cpu-clock:u", NULL };
 	int evidx = 0;
 	struct perf_env host_env;
 

@@ -142,7 +142,7 @@ static int es8328_set_deemph(struct snd_soc_component *component)
 static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = es8328->deemph;
@@ -152,7 +152,7 @@ static int es8328_get_deemph(struct snd_kcontrol *kcontrol,
 static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 	unsigned int deemph = ucontrol->value.integer.value[0];
 	int ret;
@@ -643,6 +643,8 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int es8328_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -658,7 +660,7 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			snd_soc_component_update_bits(component, ES8328_CONTROL1,
 					ES8328_CONTROL1_VMIDSEL_MASK |
 					ES8328_CONTROL1_ENREF,

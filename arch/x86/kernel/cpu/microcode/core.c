@@ -136,7 +136,7 @@ bool __init microcode_loader_disabled(void)
 	return dis_ucode_ldr;
 }
 
-static void early_parse_cmdline(void)
+static void __init early_parse_cmdline(void)
 {
 	char cmd_buf[64] = {};
 	char *s, *p = cmd_buf;
@@ -589,6 +589,17 @@ static int load_late_stop_cpus(bool is_safe)
 		pr_err("You should switch to early loading, if possible.\n");
 	}
 
+	/*
+	 * Pre-load the microcode image into a staging device. This
+	 * process is preemptible and does not require stopping CPUs.
+	 * Successful staging simplifies the subsequent late-loading
+	 * process, reducing rendezvous time.
+	 *
+	 * Even if the transfer fails, the update will proceed as usual.
+	 */
+	if (microcode_ops->use_staging)
+		microcode_ops->stage_microcode();
+
 	atomic_set(&late_cpus_in, num_online_cpus());
 	atomic_set(&offline_in_nmi, 0);
 	loops_per_usec = loops_per_jiffy / (TICK_NSEC / 1000);
@@ -812,8 +823,17 @@ void microcode_bsp_resume(void)
 		reload_early_microcode(cpu);
 }
 
-static struct syscore_ops mc_syscore_ops = {
-	.resume	= microcode_bsp_resume,
+static void microcode_bsp_syscore_resume(void *data)
+{
+	microcode_bsp_resume();
+}
+
+static const struct syscore_ops mc_syscore_ops = {
+	.resume	= microcode_bsp_syscore_resume,
+};
+
+static struct syscore mc_syscore = {
+	.ops = &mc_syscore_ops,
 };
 
 static int mc_cpu_online(unsigned int cpu)
@@ -892,7 +912,7 @@ static int __init microcode_init(void)
 		}
 	}
 
-	register_syscore_ops(&mc_syscore_ops);
+	register_syscore(&mc_syscore);
 	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
 			  mc_cpu_online, mc_cpu_down_prep);
 

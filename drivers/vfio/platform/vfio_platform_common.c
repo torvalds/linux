@@ -272,6 +272,24 @@ err_irq:
 }
 EXPORT_SYMBOL_GPL(vfio_platform_open_device);
 
+int vfio_platform_ioctl_get_region_info(struct vfio_device *core_vdev,
+					struct vfio_region_info *info,
+					struct vfio_info_cap *caps)
+{
+	struct vfio_platform_device *vdev =
+		container_of(core_vdev, struct vfio_platform_device, vdev);
+
+	if (info->index >= vdev->num_regions)
+		return -EINVAL;
+
+	/* map offset to the physical address  */
+	info->offset = VFIO_PLATFORM_INDEX_TO_OFFSET(info->index);
+	info->size = vdev->regions[info->index].size;
+	info->flags = vdev->regions[info->index].flags;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vfio_platform_ioctl_get_region_info);
+
 long vfio_platform_ioctl(struct vfio_device *core_vdev,
 			 unsigned int cmd, unsigned long arg)
 {
@@ -296,28 +314,6 @@ long vfio_platform_ioctl(struct vfio_device *core_vdev,
 		info.flags = vdev->flags;
 		info.num_regions = vdev->num_regions;
 		info.num_irqs = vdev->num_irqs;
-
-		return copy_to_user((void __user *)arg, &info, minsz) ?
-			-EFAULT : 0;
-
-	} else if (cmd == VFIO_DEVICE_GET_REGION_INFO) {
-		struct vfio_region_info info;
-
-		minsz = offsetofend(struct vfio_region_info, offset);
-
-		if (copy_from_user(&info, (void __user *)arg, minsz))
-			return -EFAULT;
-
-		if (info.argsz < minsz)
-			return -EINVAL;
-
-		if (info.index >= vdev->num_regions)
-			return -EINVAL;
-
-		/* map offset to the physical address  */
-		info.offset = VFIO_PLATFORM_INDEX_TO_OFFSET(info.index);
-		info.size = vdev->regions[info.index].size;
-		info.flags = vdev->regions[info.index].flags;
 
 		return copy_to_user((void __user *)arg, &info, minsz) ?
 			-EFAULT : 0;

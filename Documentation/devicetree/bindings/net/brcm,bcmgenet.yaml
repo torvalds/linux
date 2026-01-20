@@ -31,7 +31,6 @@ properties:
       - description: RX and TX rings interrupt line
       - description: Wake-on-LAN interrupt line
 
-
   clocks:
     minItems: 1
     items:

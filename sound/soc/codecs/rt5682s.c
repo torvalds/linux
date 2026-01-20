@@ -841,7 +841,7 @@ static void rt5682s_jack_detect_handler(struct work_struct *work)
 		return;
 	}
 
-	dapm = snd_soc_component_get_dapm(rt5682s->component);
+	dapm = snd_soc_component_to_dapm(rt5682s->component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	mutex_lock(&rt5682s->calibrate_mutex);
@@ -2485,6 +2485,7 @@ static int rt5682s_set_bias_level(struct snd_soc_component *component,
 		enum snd_soc_bias_level level)
 {
 	struct rt5682s_priv *rt5682s = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
@@ -2492,7 +2493,7 @@ static int rt5682s_set_bias_level(struct snd_soc_component *component,
 			RT5682S_PWR_LDO, RT5682S_PWR_LDO);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF)
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF)
 			regmap_update_bits(rt5682s->regmap, RT5682S_PWR_DIG_1,
 				RT5682S_DIG_GATE_CTRL, RT5682S_DIG_GATE_CTRL);
 		break;

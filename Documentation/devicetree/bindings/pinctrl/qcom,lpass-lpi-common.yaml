@@ -9,7 +9,7 @@ title: Qualcomm SoC LPASS LPI TLMM Common Properties
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description:
   Common properties for the Top Level Mode Multiplexer pin controllers in the

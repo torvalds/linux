@@ -674,7 +674,7 @@ struct port_info {
 	struct cxgb_fcoe fcoe;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
 	bool rxtstamp;  /* Enable TS */
-	struct hwtstamp_config tstamp_config;
+	struct kernel_hwtstamp_config tstamp_config;
 	bool ptp_enable;
 	struct sched_table *sched_tbl;
 	u32 eth_flags;

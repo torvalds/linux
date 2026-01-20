@@ -6,8 +6,7 @@
  *    Author(s): Gerald Schaefer <gerald.schaefer@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "hugetlb"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "hugetlb: " fmt
 
 #include <linux/cpufeature.h>
 #include <linux/mm.h>

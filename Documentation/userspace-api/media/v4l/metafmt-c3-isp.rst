@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: (GPL-2.0-only OR MIT)
+.. c:namespace:: V4L
 
 .. _v4l2-meta-fmt-c3isp-stats:
 .. _v4l2-meta-fmt-c3isp-params:

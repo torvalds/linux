@@ -477,7 +477,7 @@ static int device_process(struct vim2m_ctx *ctx,
 
 	out_vb->sequence = q_data_out->sequence++;
 	in_vb->sequence = q_data_in->sequence++;
-	v4l2_m2m_buf_copy_metadata(in_vb, out_vb, true);
+	v4l2_m2m_buf_copy_metadata(in_vb, out_vb);
 
 	if (ctx->mode & MEM2MEM_VFLIP) {
 		start = height - 1;
@@ -724,13 +724,8 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 
 static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 {
-	struct vb2_queue *vq;
 	struct vim2m_q_data *q_data;
 	int ret;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	if (!q_data)
@@ -752,13 +747,8 @@ static int vidioc_g_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 
 static int vidioc_g_fmt_mplane(struct vim2m_ctx *ctx, struct v4l2_format *f)
 {
-	struct vb2_queue *vq;
 	struct vim2m_q_data *q_data;
 	int ret;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	if (!q_data)
@@ -971,8 +961,6 @@ static int vidioc_s_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
 	u32 height = (is_mplane) ? f->fmt.pix_mp.height : f->fmt.pix.height;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	if (!q_data)

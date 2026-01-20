@@ -5,7 +5,6 @@
 enum ufs_trace_str_t {
 	UFS_CMD_SEND,
 	UFS_CMD_COMP,
-	UFS_DEV_COMP,
 	UFS_QUERY_SEND,
 	UFS_QUERY_COMP,
 	UFS_QUERY_ERR,

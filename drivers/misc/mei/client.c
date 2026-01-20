@@ -709,7 +709,6 @@ void mei_host_client_init(struct mei_device *dev)
 
 	schedule_work(&dev->bus_rescan_work);
 
-	pm_runtime_mark_last_busy(dev->parent);
 	dev_dbg(&dev->dev, "rpm: autosuspend\n");
 	pm_request_autosuspend(dev->parent);
 }
@@ -991,7 +990,6 @@ int mei_cl_disconnect(struct mei_cl *cl)
 	rets = __mei_cl_disconnect(cl);
 
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 
 	return rets;
@@ -1167,7 +1165,6 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	rets = cl->status;
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 
 	mei_io_cb_free(cb);
@@ -1554,7 +1551,6 @@ int mei_cl_notify_request(struct mei_cl *cl,
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 
 	mei_io_cb_free(cb);
@@ -1702,7 +1698,6 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 nortpm:
 	if (rets)
@@ -2092,7 +2087,6 @@ out:
 	rets = buf_len;
 err:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 free:
 	mei_io_cb_free(cb);
@@ -2116,12 +2110,10 @@ void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 	case MEI_FOP_WRITE:
 		mei_tx_cb_dequeue(cb);
 		cl->writing_state = MEI_WRITE_COMPLETE;
-		if (waitqueue_active(&cl->tx_wait)) {
+		if (waitqueue_active(&cl->tx_wait))
 			wake_up_interruptible(&cl->tx_wait);
-		} else {
-			pm_runtime_mark_last_busy(dev->parent);
+		else
 			pm_request_autosuspend(dev->parent);
-		}
 		break;
 
 	case MEI_FOP_READ:
@@ -2366,7 +2358,6 @@ out:
 		mei_cl_dma_free(cl);
 
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 
 	mei_io_cb_free(cb);
@@ -2444,7 +2435,6 @@ int mei_cl_dma_unmap(struct mei_cl *cl, const struct file *fp)
 		mei_cl_dma_free(cl);
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
-	pm_runtime_mark_last_busy(dev->parent);
 	pm_runtime_put_autosuspend(dev->parent);
 
 	mei_io_cb_free(cb);

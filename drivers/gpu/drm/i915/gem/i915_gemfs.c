@@ -7,6 +7,8 @@
 #include <linux/mount.h>
 #include <linux/fs_context.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_gemfs.h"
 #include "i915_utils.h"

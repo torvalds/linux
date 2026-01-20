@@ -45,7 +45,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		cpu@0 {
+		cpu: cpu@0 {
 			compatible = "arm,cortex-a8";
 			enable-method = "ti,am3352";
 			device_type = "cpu";
@@ -338,7 +338,6 @@
 
 			mmc3: mmc@0 {
 				compatible = "ti,am335-sdhci";
-				ti,needs-special-reset;
 				interrupts = <29>;
 				reg = <0x0 0x1000>;
 				status = "disabled";

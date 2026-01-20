@@ -370,6 +370,8 @@ struct acp63_dev_data {
 	u32 addr;
 	u32 reg_range;
 	u32 acp_rev;
+	u32 subsystem_vendor;
+	u32 subsystem_device;
 	u32 acp_sw_pad_keeper_en;
 	u32 acp_pad_pulldown_ctrl;
 	u16 acp63_sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];

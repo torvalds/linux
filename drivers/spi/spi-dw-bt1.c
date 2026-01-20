@@ -288,7 +288,7 @@ static int dw_spi_bt1_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = dw_spi_add_host(&pdev->dev, dws);
+	ret = dw_spi_add_controller(&pdev->dev, dws);
 	if (ret) {
 		pm_runtime_disable(&pdev->dev);
 		return ret;
@@ -303,7 +303,7 @@ static void dw_spi_bt1_remove(struct platform_device *pdev)
 {
 	struct dw_spi_bt1 *dwsbt1 = platform_get_drvdata(pdev);
 
-	dw_spi_remove_host(&dwsbt1->dws);
+	dw_spi_remove_controller(&dwsbt1->dws);
 
 	pm_runtime_disable(&pdev->dev);
 }

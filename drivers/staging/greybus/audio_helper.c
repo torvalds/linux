@@ -115,12 +115,13 @@ int gbaudio_dapm_free_controls(struct snd_soc_dapm_context *dapm,
 {
 	int i;
 	struct snd_soc_dapm_widget *w, *tmp_w;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(dapm);
 
-	mutex_lock(&dapm->card->dapm_mutex);
+	mutex_lock(&card->dapm_mutex);
 	for (i = 0; i < num; i++) {
 		/* below logic can be optimized to identify widget pointer */
 		w = NULL;
-		list_for_each_entry(tmp_w, &dapm->card->widgets, list) {
+		list_for_each_entry(tmp_w, &card->widgets, list) {
 			if (tmp_w->dapm == dapm &&
 			    !strcmp(tmp_w->name, widget->name)) {
 				w = tmp_w;
@@ -128,7 +129,7 @@ int gbaudio_dapm_free_controls(struct snd_soc_dapm_context *dapm,
 			}
 		}
 		if (!w) {
-			dev_err(dapm->dev, "%s: widget not found\n",
+			dev_err(card->dev, "%s: widget not found\n",
 				widget->name);
 			widget++;
 			continue;
@@ -136,7 +137,7 @@ int gbaudio_dapm_free_controls(struct snd_soc_dapm_context *dapm,
 		widget++;
 		gbaudio_dapm_free_widget(w);
 	}
-	mutex_unlock(&dapm->card->dapm_mutex);
+	mutex_unlock(&card->dapm_mutex);
 	return 0;
 }
 

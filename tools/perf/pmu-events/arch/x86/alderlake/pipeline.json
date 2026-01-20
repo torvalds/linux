@@ -32,8 +32,9 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Counts the number of active floating point and integer dividers per cycle.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5",
+        "Deprecated": "1",
         "EventCode": "0xcd",
         "EventName": "ARITH.DIV_OCCUPANCY",
         "SampleAfterValue": "1000003",
@@ -41,8 +42,9 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of floating point and integer divider uops executed per cycle.",
+        "BriefDescription": "This event is deprecated.",
         "Counter": "0,1,2,3,4,5",
+        "Deprecated": "1",
         "EventCode": "0xcd",
         "EventName": "ARITH.DIV_UOPS",
         "SampleAfterValue": "1000003",

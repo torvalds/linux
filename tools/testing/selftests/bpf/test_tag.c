@@ -116,7 +116,7 @@ static void tag_from_alg(int insns, uint8_t *tag, uint32_t len)
 	static const struct sockaddr_alg alg = {
 		.salg_family	= AF_ALG,
 		.salg_type	= "hash",
-		.salg_name	= "sha1",
+		.salg_name	= "sha256",
 	};
 	int fd_base, fd_alg, ret;
 	ssize_t size;

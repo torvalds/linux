@@ -7,7 +7,6 @@
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#include <linux/compat.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/string.h>
@@ -116,10 +115,7 @@ static long hypfs_sprp_ioctl(struct file *file, unsigned int cmd,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
-	if (is_compat_task())
-		argp = compat_ptr(arg);
-	else
-		argp = (void __user *) arg;
+	argp = (void __user *)arg;
 	switch (cmd) {
 	case HYPFS_DIAG304:
 		return __hypfs_sprp_ioctl(argp);

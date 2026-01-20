@@ -431,7 +431,7 @@ static bool rt5670_readable_register(struct device *dev, unsigned int reg)
 static int rt5670_headset_detect(struct snd_soc_component *component, int jack_insert)
 {
 	int val;
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (jack_insert) {
@@ -652,7 +652,7 @@ static void rt5670_update_ad_da_mixer_dac1_m_bits(struct rt5670_priv *rt5670)
 static int rt5670_dac1_playback_switch_get(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = rt5670->dac1_playback_switch_l;
@@ -664,7 +664,7 @@ static int rt5670_dac1_playback_switch_get(struct snd_kcontrol *kcontrol,
 static int rt5670_dac1_playback_switch_put(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	if (rt5670->dac1_playback_switch_l == ucontrol->value.integer.value[0] &&
@@ -966,7 +966,7 @@ static int rt5670_put_dac1_mix_dac1_switch(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_value *ucontrol)
 {
 	struct soc_mixer_control *mc = (struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -1153,25 +1153,29 @@ static SOC_ENUM_SINGLE_DECL(rt5670_dac1r_enum, RT5670_AD_DA_MIXER,
 static const struct snd_kcontrol_new rt5670_dac1r_mux =
 	SOC_DAPM_ENUM("DAC1 R source", rt5670_dac1r_enum);
 
-/*DAC2 L/R source*/ /* MX-1B [6:4] [2:0] */
-/* TODO Use SOC_VALUE_ENUM_SINGLE_DECL */
-static const char * const rt5670_dac12_src[] = {
-	"IF1 DAC", "IF2 DAC", "IF3 DAC", "TxDC DAC",
-	"Bass", "VAD_ADC", "IF4 DAC"
-};
+/* DAC2 L source*/ /* MX-1B [6:4] */
+static const char *const rt5670_dac12_src[] = {
+	"IF1 DAC", "IF2 DAC", "TxDC DAC", "VAD_ADC"
+}; /* VAD_ADC or TxDP_ADC_R */
 
-static SOC_ENUM_SINGLE_DECL(rt5670_dac2l_enum, RT5670_DAC_CTRL,
-	RT5670_DAC2_L_SEL_SFT, rt5670_dac12_src);
+static const unsigned int rt5670_dac12_values[] = { 0, 1, 3, 5 };
+
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5670_dac2l_enum, RT5670_DAC_CTRL,
+				  RT5670_DAC2_L_SEL_SFT, RT5670_DAC2_L_SEL_MASK,
+				  rt5670_dac12_src, rt5670_dac12_values);
 
 static const struct snd_kcontrol_new rt5670_dac_l2_mux =
 	SOC_DAPM_ENUM("DAC2 L source", rt5670_dac2l_enum);
 
-static const char * const rt5670_dacr2_src[] = {
-	"IF1 DAC", "IF2 DAC", "IF3 DAC", "TxDC DAC", "TxDP ADC", "IF4 DAC"
-};
+/*DAC2 R source*/ /* MX-1B [2:0] */
+static const char *const rt5670_dacr2_src[] = { "IF1 DAC", "IF2 DAC",
+						"TxDC DAC", "TxDP ADC" };
 
-static SOC_ENUM_SINGLE_DECL(rt5670_dac2r_enum, RT5670_DAC_CTRL,
-	RT5670_DAC2_R_SEL_SFT, rt5670_dacr2_src);
+static const unsigned int rt5670_dacr2_values[] = { 0, 1, 3, 4 };
+
+static SOC_VALUE_ENUM_SINGLE_DECL(rt5670_dac2r_enum, RT5670_DAC_CTRL,
+				  RT5670_DAC2_R_SEL_SFT, RT5670_DAC2_R_SEL_MASK,
+				  rt5670_dacr2_src, rt5670_dacr2_values);
 
 static const struct snd_kcontrol_new rt5670_dac_r2_mux =
 	SOC_DAPM_ENUM("DAC2 R source", rt5670_dac2r_enum);
@@ -2666,10 +2670,11 @@ static int rt5670_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+		if (SND_SOC_BIAS_STANDBY == snd_soc_dapm_get_bias_level(dapm)) {
 			snd_soc_component_update_bits(component, RT5670_PWR_ANLG1,
 				RT5670_PWR_VREF1 | RT5670_PWR_MB |
 				RT5670_PWR_BG | RT5670_PWR_VREF2,
@@ -2719,7 +2724,7 @@ static int rt5670_set_bias_level(struct snd_soc_component *component,
 
 static int rt5670_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5670_priv *rt5670 = snd_soc_component_get_drvdata(component);
 
 	switch (snd_soc_component_read(component, RT5670_RESET) & RT5670_ID_MASK) {

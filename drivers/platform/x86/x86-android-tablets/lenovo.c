@@ -543,7 +543,7 @@ static int __init lenovo_yoga_tab2_830_1050_init_codec(void)
 
 	ret = device_add_software_node(codec_dev, &lenovo_yoga_tab2_830_1050_wm5102);
 	if (ret) {
-		ret = dev_err_probe(codec_dev, ret, "adding software node\n");
+		dev_err_probe(codec_dev, ret, "adding software node\n");
 		goto err_put_pinctrl;
 	}
 

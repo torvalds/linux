@@ -18,7 +18,7 @@
 
 #include "futextest.h"
 #include "futex2test.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define WAKE_WAIT_US 10000
 #define NR_FUTEXES 30
@@ -86,6 +86,8 @@ TEST(shared_waitv)
 		int shm_id = shmget(IPC_PRIVATE, 4096, IPC_CREAT | 0666);
 
 		if (shm_id < 0) {
+			if (errno == ENOSYS)
+				ksft_exit_skip("shmget syscall not supported\n");
 			perror("shmget");
 			exit(1);
 		}

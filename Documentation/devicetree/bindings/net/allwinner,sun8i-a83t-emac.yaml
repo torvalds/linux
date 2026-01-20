@@ -201,7 +201,6 @@ allOf:
                     - clocks
                     - resets
 
-
             mdio@2:
               $ref: mdio.yaml#
               unevaluatedProperties: false
@@ -250,7 +249,6 @@ allOf:
         clock-names:
           maxItems: 1
         power-domains: false
-
 
 unevaluatedProperties: false
 

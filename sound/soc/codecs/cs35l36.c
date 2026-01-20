@@ -455,8 +455,7 @@ static SOC_ENUM_SINGLE_DECL(pcm_sft_ramp, CS35L36_AMP_DIG_VOL_CTRL, 0,
 static int cs35l36_ldm_sel_get(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l36_private *cs35l36 =
 			snd_soc_component_get_drvdata(component);
 
@@ -468,8 +467,7 @@ static int cs35l36_ldm_sel_get(struct snd_kcontrol *kcontrol,
 static int cs35l36_ldm_sel_put(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct cs35l36_private *cs35l36 =
 			snd_soc_component_get_drvdata(component);
 	int val = (ucontrol->value.integer.value[0]) ? CS35L36_NG_AMP_EN_MASK :

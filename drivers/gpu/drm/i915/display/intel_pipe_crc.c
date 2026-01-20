@@ -28,6 +28,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "intel_atomic.h"

@@ -673,6 +673,16 @@ tcp_moderate_rcvbuf - BOOLEAN
 
 	Default: 1 (enabled)
 
+tcp_rcvbuf_low_rtt - INTEGER
+	rcvbuf autotuning can over estimate final socket rcvbuf, which
+	can lead to cache trashing for high throughput flows.
+
+	For small RTT flows (below tcp_rcvbuf_low_rtt usecs), we can relax
+	rcvbuf growth: Few additional ms to reach the final (and smaller)
+	rcvbuf is a good tradeoff.
+
+	Default : 1000 (1 ms)
+
 tcp_mtu_probing - INTEGER
 	Controls TCP Packetization-Layer Path MTU Discovery.  Takes three
 	values:
@@ -854,9 +864,18 @@ tcp_sack - BOOLEAN
 
 	Default: 1 (enabled)
 
+tcp_comp_sack_rtt_percent - INTEGER
+	Percentage of SRTT used for the compressed SACK feature.
+	See tcp_comp_sack_nr, tcp_comp_sack_delay_ns, tcp_comp_sack_slack_ns.
+
+	Possible values : 1 - 1000
+
+	Default : 33 %
+
 tcp_comp_sack_delay_ns - LONG INTEGER
-	TCP tries to reduce number of SACK sent, using a timer
-	based on 5% of SRTT, capped by this sysctl, in nano seconds.
+	TCP tries to reduce number of SACK sent, using a timer based
+	on tcp_comp_sack_rtt_percent of SRTT, capped by this sysctl
+	in nano seconds.
 	The default is 1ms, based on TSO autosizing period.
 
 	Default : 1,000,000 ns (1 ms)
@@ -866,8 +885,9 @@ tcp_comp_sack_slack_ns - LONG INTEGER
 	timer used by SACK compression. This gives extra time
 	for small RTT flows, and reduces system overhead by allowing
 	opportunistic reduction of timer interrupts.
+	Too big values might reduce goodput.
 
-	Default : 100,000 ns (100 us)
+	Default : 10,000 ns (10 us)
 
 tcp_comp_sack_nr - INTEGER
 	Max number of SACK that can be compressed.
@@ -1795,6 +1815,23 @@ icmp_errors_use_inbound_ifaddr - BOOLEAN
 	- 1 (enabled)
 
 	Default: 0 (disabled)
+
+icmp_errors_extension_mask - UNSIGNED INTEGER
+	Bitmask of ICMP extensions to append to ICMPv4 error messages
+	("Destination Unreachable", "Time Exceeded" and "Parameter Problem").
+	The original datagram is trimmed / padded to 128 bytes in order to be
+	compatible with applications that do not comply with RFC 4884.
+
+	Possible extensions are:
+
+	==== ==============================================================
+	0x01 Incoming IP interface information according to RFC 5837.
+	     Extension will include the index, IPv4 address (if present),
+	     name and MTU of the IP interface that received the datagram
+	     which elicited the ICMP error.
+	==== ==============================================================
+
+	Default: 0x00 (no extensions)
 
 igmp_max_memberships - INTEGER
 	Change the maximum number of multicast groups we can subscribe to.
@@ -3261,6 +3298,23 @@ error_anycast_as_unicast - BOOLEAN
 	- 1 (enabled)
 
 	Default: 0 (disabled)
+
+errors_extension_mask - UNSIGNED INTEGER
+	Bitmask of ICMP extensions to append to ICMPv6 error messages
+	("Destination Unreachable" and "Time Exceeded"). The original datagram
+	is trimmed / padded to 128 bytes in order to be compatible with
+	applications that do not comply with RFC 4884.
+
+	Possible extensions are:
+
+	==== ==============================================================
+	0x01 Incoming IP interface information according to RFC 5837.
+	     Extension will include the index, IPv6 address (if present),
+	     name and MTU of the IP interface that received the datagram
+	     which elicited the ICMP error.
+	==== ==============================================================
+
+	Default: 0x00 (no extensions)
 
 xfrm6_gc_thresh - INTEGER
 	(Obsolete since linux-4.14)

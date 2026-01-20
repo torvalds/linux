@@ -458,6 +458,7 @@ static void set_cpu_en(struct rtw89_dev *rtwdev, bool include_bb)
 
 static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 val32;
 	int ret;
 
@@ -479,6 +480,7 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 
 	rtw89_write32(rtwdev, R_BE_UDM1, 0);
 	rtw89_write32(rtwdev, R_BE_UDM2, 0);
+	rtw89_write32(rtwdev, R_BE_BOOT_DBG, 0x0);
 	rtw89_write32(rtwdev, R_BE_HALT_H2C, 0);
 	rtw89_write32(rtwdev, R_BE_HALT_C2H, 0);
 	rtw89_write32(rtwdev, R_BE_HALT_H2C_CTRL, 0);
@@ -493,6 +495,11 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 			  B_BE_WDT_WAKE_PCIE_EN | B_BE_WDT_WAKE_USB_EN);
 	rtw89_write32_clr(rtwdev, R_BE_WCPU_FW_CTRL,
 			  B_BE_WDT_PLT_RST_EN | B_BE_WCPU_ROM_CUT_GET);
+	rtw89_write32(rtwdev, R_BE_SECURE_BOOT_MALLOC_INFO, 0);
+	rtw89_write32_clr(rtwdev, R_BE_GPIO_MUXCFG, B_BE_BOOT_MODE);
+
+	if (chip->chip_id != RTL8922A)
+		rtw89_write32_set(rtwdev, R_BE_WCPU_FW_CTRL, B_BE_HOST_EXIST);
 
 	rtw89_write16_mask(rtwdev, R_BE_BOOT_REASON, B_BE_BOOT_REASON_MASK, boot_reason);
 	rtw89_write32_clr(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_WCPU_EN);
@@ -2020,7 +2027,7 @@ int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enab
 	}
 
 	rtw89_write32_mask(rtwdev, R_BE_HW_PPDU_STATUS, B_BE_FWD_PPDU_STAT_MASK, 3);
-	rtw89_write32(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN | B_BE_PPDU_MAC_INFO |
+	rtw89_write32(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN |
 				   B_BE_APP_RX_CNT_RPT | B_BE_APP_PLCP_HDR_RPT |
 				   B_BE_PPDU_STAT_RPT_CRC32 | B_BE_PPDU_STAT_RPT_DMA);
 

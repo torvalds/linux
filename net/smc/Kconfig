@@ -19,3 +19,13 @@ config SMC_DIAG
 	  smcss.
 
 	  if unsure, say Y.
+
+config SMC_HS_CTRL_BPF
+	bool "Generic eBPF hook for SMC handshake flow"
+	depends on SMC && BPF_SYSCALL
+	default y
+	help
+	  SMC_HS_CTRL_BPF enables support to register generic eBPF hook for SMC
+	  handshake flow, which offer much greater flexibility in modifying the behavior
+	  of the SMC protocol stack compared to a complete kernel-based approach. Select
+	  this option if you want filtring the handshake process via eBPF programs.

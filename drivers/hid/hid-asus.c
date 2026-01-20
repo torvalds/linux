@@ -27,6 +27,7 @@
 #include <linux/hid.h>
 #include <linux/module.h>
 #include <linux/platform_data/x86/asus-wmi.h>
+#include <linux/platform_data/x86/asus-wmi-leds-ids.h>
 #include <linux/input/mt.h>
 #include <linux/usb.h> /* For to_usb_interface for T100 touchpad intf check */
 #include <linux/power_supply.h>

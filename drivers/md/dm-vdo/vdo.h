@@ -279,8 +279,10 @@ static inline bool vdo_uses_bio_ack_queue(struct vdo *vdo)
 
 /**
  * typedef vdo_filter_fn - Method type for vdo matching methods.
+ * @vdo: The vdo to match.
+ * @context: A parameter for the filter to use.
  *
- * A filter function returns false if the vdo doesn't match.
+ * Return: True if the vdo matches the filter criteria, false if it doesn't.
  */
 typedef bool (*vdo_filter_fn)(struct vdo *vdo, const void *context);
 

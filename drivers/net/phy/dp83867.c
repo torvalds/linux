@@ -738,6 +738,12 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
+	/* Although the DP83867 reports EEE capability through the
+	 * MDIO_PCS_EEE_ABLE and MDIO_AN_EEE_ADV registers, the feature
+	 * is not actually implemented in hardware.
+	 */
+	phy_disable_eee(phydev);
+
 	if (phy_interface_is_rgmii(phydev) ||
 	    phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 		val = phy_read(phydev, MII_DP83867_PHYCTRL);
@@ -931,15 +937,15 @@ static void dp83867_link_change_notify(struct phy_device *phydev)
 	 * whenever there is a link change.
 	 */
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		int val = 0;
+		int val;
 
-		val = phy_clear_bits(phydev, DP83867_CFG2,
+		val = phy_modify_changed(phydev, DP83867_CFG2,
+					 DP83867_SGMII_AUTONEG_EN, 0);
+
+		/* Keep the in-band setting made by dp83867_config_inband() */
+		if (val != 0)
+			phy_set_bits(phydev, DP83867_CFG2,
 				     DP83867_SGMII_AUTONEG_EN);
-		if (val < 0)
-			return;
-
-		phy_set_bits(phydev, DP83867_CFG2,
-			     DP83867_SGMII_AUTONEG_EN);
 	}
 }
 
@@ -1110,6 +1116,25 @@ static int dp83867_led_polarity_set(struct phy_device *phydev, int index,
 			  DP83867_LED_POLARITY(index), polarity);
 }
 
+static unsigned int dp83867_inband_caps(struct phy_device *phydev,
+					phy_interface_t interface)
+{
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		return LINK_INBAND_ENABLE | LINK_INBAND_DISABLE;
+
+	return 0;
+}
+
+static int dp83867_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	int val = 0;
+
+	if (modes == LINK_INBAND_ENABLE)
+		val = DP83867_SGMII_AUTONEG_EN;
+
+	return phy_modify(phydev, DP83867_CFG2, DP83867_SGMII_AUTONEG_EN, val);
+}
+
 static struct phy_driver dp83867_driver[] = {
 	{
 		.phy_id		= DP83867_PHY_ID,
@@ -1143,6 +1168,9 @@ static struct phy_driver dp83867_driver[] = {
 		.led_hw_control_set = dp83867_led_hw_control_set,
 		.led_hw_control_get = dp83867_led_hw_control_get,
 		.led_polarity_set = dp83867_led_polarity_set,
+
+		.inband_caps	= dp83867_inband_caps,
+		.config_inband	= dp83867_config_inband,
 	},
 };
 module_phy_driver(dp83867_driver);

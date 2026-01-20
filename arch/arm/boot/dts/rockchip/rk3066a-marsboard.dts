@@ -96,10 +96,17 @@
 	clock-frequency = <400000>;
 
 	tps: tps@2d {
+		compatible = "ti,tps65910";
 		reg = <0x2d>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
 
 		interrupt-parent = <&gpio6>;
 		interrupts = <RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		vcc1-supply = <&vsys>;
 		vcc2-supply = <&vsys>;
@@ -111,17 +118,17 @@
 		vccio-supply = <&vsys>;
 
 		regulators {
-			vcc_rtc: regulator@0 {
+			vcc_rtc: vrtc {
 				regulator-name = "vcc_rtc";
 				regulator-always-on;
 			};
 
-			vcc_io: regulator@1 {
+			vcc_io: vio {
 				regulator-name = "vcc_io";
 				regulator-always-on;
 			};
 
-			vdd_arm: regulator@2 {
+			vdd_arm: vdd1 {
 				regulator-name = "vdd_arm";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
@@ -129,7 +136,7 @@
 				regulator-always-on;
 			};
 
-			vcc_ddr: regulator@3 {
+			vcc_ddr: vdd2 {
 				regulator-name = "vcc_ddr";
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
@@ -137,50 +144,47 @@
 				regulator-always-on;
 			};
 
-			vcc18_cif: regulator@5 {
+			vcc18_cif: vdig1 {
 				regulator-name = "vcc18_cif";
 				regulator-always-on;
 			};
 
-			vdd_11: regulator@6 {
+			vdd_11: vdig2 {
 				regulator-name = "vdd_11";
 				regulator-always-on;
 			};
 
-			vcc_25: regulator@7 {
+			vcc_25: vpll {
 				regulator-name = "vcc_25";
 				regulator-always-on;
 			};
 
-			vcc_18: regulator@8 {
+			vcc_18: vdac {
 				regulator-name = "vcc_18";
 				regulator-always-on;
 			};
 
-			vcc25_hdmi: regulator@9 {
+			vcc25_hdmi: vaux1 {
 				regulator-name = "vcc25_hdmi";
 				regulator-always-on;
 			};
 
-			vcca_33: regulator@10 {
+			vcca_33: vaux2 {
 				regulator-name = "vcca_33";
 				regulator-always-on;
 			};
 
-			vcc_rmii: regulator@11 {
+			vcc_rmii: vaux33 {
 				regulator-name = "vcc_rmii";
 			};
 
-			vcc28_cif: regulator@12 {
+			vcc28_cif: vmmc {
 				regulator-name = "vcc28_cif";
 				regulator-always-on;
 			};
 		};
 	};
 };
-
-/* must be included after &tps gets defined */
-#include "../tps65910.dtsi"
 
 &emac {
 	phy = <&phy0>;

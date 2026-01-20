@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/brcm,ns2-pinmux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom Northstar2 IOMUX Controller
+
+maintainers:
+  - Ray Jui <rjui@broadcom.com>
+  - Scott Branden <sbranden@broadcom.com>
+
+properties:
+  compatible:
+    const: brcm,ns2-pinmux
+
+  reg:
+    maxItems: 3
+
+additionalProperties:
+  description: Pin group node properties
+  type: object
+  allOf:
+    - $ref: /schemas/pinctrl/pincfg-node.yaml#
+    - $ref: /schemas/pinctrl/pinmux-node.yaml#
+  additionalProperties: false
+
+  properties:
+    function:
+      description: The mux function to select
+      $ref: /schemas/types.yaml#/definitions/string
+
+    groups:
+      items:
+        enum: [
+          nand_grp, nor_data_grp, nor_adv_grp, nor_addr_0_3_grp,
+          nor_addr_4_5_grp, nor_addr_6_7_grp, nor_addr_8_9_grp,
+          nor_addr_10_11_grp, nor_addr_12_15_grp, gpio_0_1_grp, gpio_2_5_grp,
+          gpio_6_7_grp, gpio_8_9_grp, gpio_10_11_grp, gpio_12_13_grp,
+          gpio_14_17_grp, gpio_18_19_grp, gpio_20_21_grp, gpio_22_23_grp,
+          gpio_24_25_grp, gpio_26_27_grp, gpio_28_29_grp, gpio_30_31_grp,
+          pcie_ab1_clk_wak_grp, pcie_a3_clk_wak_grp, pcie_b3_clk_wak_grp,
+          pcie_b2_clk_wak_grp, pcie_a2_clk_wak_grp, uart0_modem_grp,
+          uart0_rts_cts_grp, uart0_in_out_grp, uart1_ext_clk_grp,
+          uart1_dcd_dsr_grp, uart1_ri_dtr_grp, uart1_rts_cts_grp,
+          uart1_in_out_grp, uart2_rts_cts_grp, pwm_0_grp, pwm_1_grp, pwm_2_grp,
+          pwm_3_grp
+        ]
+
+    pins:
+      items:
+        enum: [
+          qspi_wp, qspi_hold, qspi_cs, qspi_sck, uart3_sin, uart3_sout,
+          qspi_mosi, qspi_miso, spi0_fss, spi0_rxd, spi0_txd, spi0_sck,
+          spi1_fss, spi1_rxd, spi1_txd, spi1_sck, sdio0_data7, sdio0_emmc_rst,
+          sdio0_led_on, sdio0_wp, sdio0_data3, sdio0_data4, sdio0_data5,
+          sdio0_data6, sdio0_cmd, sdio0_data0, sdio0_data1, sdio0_data2,
+          sdio1_led_on, sdio1_wp, sdio0_cd_l, sdio0_clk, sdio1_data5,
+          sdio1_data6, sdio1_data7, sdio1_emmc_rst, sdio1_data1, sdio1_data2,
+          sdio1_data3, sdio1_data4, sdio1_cd_l, sdio1_clk, sdio1_cmd,
+          sdio1_data0, ext_mdio_0, ext_mdc_0, usb3_p1_vbus_ppc,
+          usb3_p1_overcurrent, usb3_p0_vbus_ppc, usb3_p0_overcurrent,
+          usb2_presence_indication, usb2_vbus_present, usb2_vbus_ppc,
+          usb2_overcurrent, sata_led1, sata_led0
+        ]
+
+    bias-disable: true
+    bias-pull-down: true
+    bias-pull-up: true
+    drive-strength: true
+    slew-rate: true
+    input-enable: true
+    input-disable: true
+
+  oneOf:
+    - required:
+        - groups
+        - function
+    - required:
+        - pins
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    pinctrl@6501d130 {
+        compatible = "brcm,ns2-pinmux";
+        reg = <0x6501d130 0x08>,
+              <0x660a0028 0x04>,
+              <0x660009b0 0x40>;
+
+        /* Select nand function */
+        nand-sel {
+            function = "nand";
+            groups = "nand_grp";
+        };
+
+        /* Pull up the uart3 rx pin */
+        uart3-rx {
+            pins = "uart3_sin";
+            bias-pull-up;
+        };
+
+        /* Set the drive strength of sdio d4 pin */
+        sdio0-d4 {
+            pins = "sdio0_data4";
+            drive-strength = <8>;
+        };
+    };

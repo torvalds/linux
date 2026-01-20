@@ -74,15 +74,12 @@ static int sg2042_pcie_probe(struct platform_device *pdev)
 static void sg2042_pcie_remove(struct platform_device *pdev)
 {
 	struct cdns_pcie *pcie = platform_get_drvdata(pdev);
-	struct device *dev = &pdev->dev;
 	struct cdns_pcie_rc *rc;
 
 	rc = container_of(pcie, struct cdns_pcie_rc, pcie);
 	cdns_pcie_host_disable(rc);
 
 	cdns_pcie_disable_phy(pcie);
-
-	pm_runtime_disable(dev);
 }
 
 static int sg2042_pcie_suspend_noirq(struct device *dev)

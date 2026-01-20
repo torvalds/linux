@@ -1091,7 +1091,7 @@ int vfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	int acl_type;
 	int error;
 	struct inode *inode = d_inode(dentry);
-	struct inode *delegated_inode = NULL;
+	struct delegated_inode delegated_inode = { };
 
 	acl_type = posix_acl_type(acl_name);
 	if (acl_type < 0)
@@ -1141,7 +1141,7 @@ retry_deleg:
 out_inode_unlock:
 	inode_unlock(inode);
 
-	if (delegated_inode) {
+	if (is_delegated(&delegated_inode)) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
@@ -1212,7 +1212,7 @@ int vfs_remove_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	int acl_type;
 	int error;
 	struct inode *inode = d_inode(dentry);
-	struct inode *delegated_inode = NULL;
+	struct delegated_inode delegated_inode = { };
 
 	acl_type = posix_acl_type(acl_name);
 	if (acl_type < 0)
@@ -1249,7 +1249,7 @@ retry_deleg:
 out_inode_unlock:
 	inode_unlock(inode);
 
-	if (delegated_inode) {
+	if (is_delegated(&delegated_inode)) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;

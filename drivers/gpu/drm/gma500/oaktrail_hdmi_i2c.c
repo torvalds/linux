@@ -30,6 +30,9 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+
+#include <drm/drm_print.h>
+
 #include "psb_drv.h"
 
 #define HDMI_READ(reg)		readl(hdmi_dev->regs + (reg))

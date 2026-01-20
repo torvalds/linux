@@ -186,6 +186,7 @@ struct regcache_ops {
 	enum regcache_type type;
 	int (*init)(struct regmap *map);
 	int (*exit)(struct regmap *map);
+	int (*populate)(struct regmap *map);
 #ifdef CONFIG_DEBUG_FS
 	void (*debugfs_init)(struct regmap *map);
 #endif
@@ -288,6 +289,7 @@ enum regmap_endian regmap_get_val_endian(struct device *dev,
 					 const struct regmap_bus *bus,
 					 const struct regmap_config *config);
 
+extern struct regcache_ops regcache_flat_sparse_ops;
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_maple_ops;
 extern struct regcache_ops regcache_flat_ops;

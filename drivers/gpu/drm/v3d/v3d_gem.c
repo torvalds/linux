@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"

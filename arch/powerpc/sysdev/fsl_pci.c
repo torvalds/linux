@@ -1258,7 +1258,7 @@ static void fsl_pci_syscore_do_suspend(struct pci_controller *hose)
 	send_pme_turnoff_message(hose);
 }
 
-static int fsl_pci_syscore_suspend(void)
+static int fsl_pci_syscore_suspend(void *data)
 {
 	struct pci_controller *hose, *tmp;
 
@@ -1291,7 +1291,7 @@ static void fsl_pci_syscore_do_resume(struct pci_controller *hose)
 	setup_pci_atmu(hose);
 }
 
-static void fsl_pci_syscore_resume(void)
+static void fsl_pci_syscore_resume(void *data)
 {
 	struct pci_controller *hose, *tmp;
 
@@ -1299,9 +1299,13 @@ static void fsl_pci_syscore_resume(void)
 		fsl_pci_syscore_do_resume(hose);
 }
 
-static struct syscore_ops pci_syscore_pm_ops = {
+static const struct syscore_ops pci_syscore_pm_ops = {
 	.suspend = fsl_pci_syscore_suspend,
 	.resume = fsl_pci_syscore_resume,
+};
+
+static struct syscore pci_syscore_pm = {
+	.ops = &pci_syscore_pm_ops,
 };
 #endif
 
@@ -1359,7 +1363,7 @@ static struct platform_driver fsl_pci_driver = {
 static int __init fsl_pci_init(void)
 {
 #ifdef CONFIG_PM_SLEEP
-	register_syscore_ops(&pci_syscore_pm_ops);
+	register_syscore(&pci_syscore_pm);
 #endif
 	return platform_driver_register(&fsl_pci_driver);
 }

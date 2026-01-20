@@ -20,12 +20,16 @@ properties:
               - aspeed,ast2400-uhci
               - aspeed,ast2500-uhci
               - aspeed,ast2600-uhci
+              - aspeed,ast2700-uhci
           - const: generic-uhci
 
   reg:
     maxItems: 1
 
   interrupts:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
   '#ports':
@@ -49,6 +53,15 @@ allOf:
     then:
       required:
         - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: aspeed,ast2700-uhci
+    then:
+      required:
+        - resets
 
 unevaluatedProperties: false
 

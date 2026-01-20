@@ -24,10 +24,13 @@ The optional ``FILE_RULES`` contains a set of rules like:
     replace define V4L2_EVENT_MD_FL_HAVE_FRAME_SEQ :c:type:`v4l2_event_motion_det`
 """
 
-import argparse
+import argparse, sys
+import os.path
 
-from lib.parse_data_structs import ParseDataStructs
-from lib.enrich_formatter import EnrichFormatter
+src_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, os.path.join(src_dir, '../lib/python'))
+from kdoc.parse_data_structs import ParseDataStructs
+from kdoc.enrich_formatter import EnrichFormatter
 
 def main():
     """Main function"""
@@ -47,10 +50,7 @@ def main():
     args = parser.parse_args()
 
     parser = ParseDataStructs(debug=args.debug)
-    parser.parse_file(args.file_in)
-
-    if args.file_rules:
-        parser.process_exceptions(args.file_rules)
+    parser.parse_file(args.file_in, args.file_rules)
 
     parser.debug_print()
     parser.write_output(args.file_in, args.file_out, args.toc)

@@ -147,14 +147,7 @@ bool sdca_regmap_volatile(struct sdca_function_data *function, unsigned int reg)
 	if (!control)
 		return false;
 
-	switch (control->mode) {
-	case SDCA_ACCESS_MODE_RO:
-	case SDCA_ACCESS_MODE_RW1S:
-	case SDCA_ACCESS_MODE_RW1C:
-		return true;
-	default:
-		return false;
-	}
+	return control->is_volatile;
 }
 EXPORT_SYMBOL_NS(sdca_regmap_volatile, "SND_SOC_SDCA");
 
@@ -282,6 +275,49 @@ int sdca_regmap_populate_constants(struct device *dev,
 }
 EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 
+static int populate_control_defaults(struct device *dev, struct regmap *regmap,
+				     struct sdca_function_data *function,
+				     struct sdca_entity *entity,
+				     struct sdca_control *control)
+{
+	int i, ret;
+	int cn;
+
+	if (control->mode == SDCA_ACCESS_MODE_DC)
+		return 0;
+
+	if (control->layers & SDCA_ACCESS_LAYER_DEVICE)
+		return 0;
+
+	i = 0;
+	for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+			 BITS_PER_TYPE(control->cn_list)) {
+		unsigned int reg, val;
+
+		reg = SDW_SDCA_CTL(function->desc->adr, entity->id, control->sel, cn);
+
+		if (control->has_default || control->has_fixed) {
+			ret = regmap_write(regmap, reg, control->values[i]);
+			if (ret) {
+				dev_err(dev, "Failed to write default %#x: %d\n",
+					reg, ret);
+				return ret;
+			}
+
+			i++;
+		} else if (!control->is_volatile) {
+			ret = regmap_read(regmap, reg, &val);
+			if (ret) {
+				dev_err(dev, "Failed to read initial %#x: %d\n",
+					reg, ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /**
  * sdca_regmap_write_defaults - write out DisCo defaults to device
  * @dev: Pointer to the device.
@@ -290,14 +326,17 @@ EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
  *
  * This function will write out to the hardware all the DisCo default and
  * fixed value controls. This will cause them to be populated into the cache,
- * and subsequent handling can be done through a cache sync.
+ * and subsequent handling can be done through a cache sync. It will also
+ * read any non-volatile registers that don't have defaults/fixed values to
+ * populate those into the cache, this ensures they are available for reads
+ * even when the device is runtime suspended.
  *
  * Return: Returns zero on success, and a negative error code on failure.
  */
 int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 			       struct sdca_function_data *function)
 {
-	int i, j, k;
+	int i, j;
 	int ret;
 
 	for (i = 0; i < function->num_entities; i++) {
@@ -305,31 +344,30 @@ int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
 
 		for (j = 0; j < entity->num_controls; j++) {
 			struct sdca_control *control = &entity->controls[j];
-			int cn;
 
-			if (control->mode == SDCA_ACCESS_MODE_DC)
-				continue;
-
-			if (!control->has_default && !control->has_fixed)
-				continue;
-
-			k = 0;
-			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
-					 BITS_PER_TYPE(control->cn_list)) {
-				unsigned int reg;
-
-				reg = SDW_SDCA_CTL(function->desc->adr, entity->id,
-						   control->sel, cn);
-
-				ret = regmap_write(regmap, reg, control->values[k]);
-				if (ret)
-					return ret;
-
-				k++;
-			}
+			ret = populate_control_defaults(dev, regmap, function,
+							entity, control);
+			if (ret)
+				return ret;
 		}
 	}
 
 	return 0;
 }
 EXPORT_SYMBOL_NS(sdca_regmap_write_defaults, "SND_SOC_SDCA");
+
+int sdca_regmap_write_init(struct device *dev, struct regmap *regmap,
+			   struct sdca_function_data *function)
+{
+	struct sdca_init_write *init = function->init_table;
+	int ret, i;
+
+	for (i = 0; i < function->num_init_table; i++) {
+		ret = regmap_write(regmap, init[i].addr, init[i].val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sdca_regmap_write_init, "SND_SOC_SDCA");

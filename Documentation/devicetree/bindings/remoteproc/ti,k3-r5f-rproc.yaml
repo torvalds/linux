@@ -79,7 +79,6 @@ properties:
       It should be set as 3 (Single-Core mode) which is also the default if
       omitted.
 
-
 # R5F Processor Child Nodes:
 # ==========================
 
@@ -166,7 +165,6 @@ patternProperties:
                          vring buffers
           - description: region reserved for firmware image sections
         additionalItems: true
-
 
 # Optional properties:
 # --------------------

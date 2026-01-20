@@ -389,6 +389,7 @@ struct rcu_torture_ops {
 	void (*deferred_free)(struct rcu_torture *p);
 	void (*sync)(void);
 	void (*exp_sync)(void);
+	void (*exp_current)(void);
 	unsigned long (*get_gp_state_exp)(void);
 	unsigned long (*start_gp_poll_exp)(void);
 	void (*start_gp_poll_exp_full)(struct rcu_gp_oldstate *rgosp);
@@ -691,9 +692,28 @@ static struct rcu_torture_ops rcu_busted_ops = {
  */
 
 DEFINE_STATIC_SRCU(srcu_ctl);
+DEFINE_STATIC_SRCU_FAST(srcu_ctlf);
+DEFINE_STATIC_SRCU_FAST_UPDOWN(srcu_ctlfud);
 static struct srcu_struct srcu_ctld;
 static struct srcu_struct *srcu_ctlp = &srcu_ctl;
 static struct rcu_torture_ops srcud_ops;
+
+static void srcu_torture_init(void)
+{
+	rcu_sync_torture_init();
+	if (!reader_flavor || (reader_flavor & SRCU_READ_FLAVOR_NORMAL))
+		VERBOSE_TOROUT_STRING("srcu_torture_init normal SRCU");
+	if (reader_flavor & SRCU_READ_FLAVOR_NMI)
+		VERBOSE_TOROUT_STRING("srcu_torture_init NMI-safe SRCU");
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST) {
+		srcu_ctlp = &srcu_ctlf;
+		VERBOSE_TOROUT_STRING("srcu_torture_init fast SRCU");
+	}
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
+		srcu_ctlp = &srcu_ctlfud;
+		VERBOSE_TOROUT_STRING("srcu_torture_init fast-up/down SRCU");
+	}
+}
 
 static void srcu_get_gp_data(int *flags, unsigned long *gp_seq)
 {
@@ -720,6 +740,12 @@ static int srcu_torture_read_lock(void)
 	}
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST) {
 		scp = srcu_read_lock_fast(srcu_ctlp);
+		idx = __srcu_ptr_to_ctr(srcu_ctlp, scp);
+		WARN_ON_ONCE(idx & ~0x1);
+		ret += idx << 2;
+	}
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
 		idx = __srcu_ptr_to_ctr(srcu_ctlp, scp);
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx << 3;
@@ -749,8 +775,11 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 static void srcu_torture_read_unlock(int idx)
 {
 	WARN_ON_ONCE((reader_flavor && (idx & ~reader_flavor)) || (!reader_flavor && (idx & ~0x1)));
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
+		srcu_read_unlock_fast_updown(srcu_ctlp,
+					     __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
 	if (reader_flavor & SRCU_READ_FLAVOR_FAST)
-		srcu_read_unlock_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
+		srcu_read_unlock_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x4) >> 2));
 	if (reader_flavor & SRCU_READ_FLAVOR_NMI)
 		srcu_read_unlock_nmisafe(srcu_ctlp, (idx & 0x2) >> 1);
 	if ((reader_flavor & SRCU_READ_FLAVOR_NORMAL) || !(reader_flavor & SRCU_READ_FLAVOR_ALL))
@@ -784,7 +813,7 @@ static int srcu_torture_down_read(void)
 		WARN_ON_ONCE(idx & ~0x1);
 		return idx;
 	}
-	if (reader_flavor & SRCU_READ_FLAVOR_FAST) {
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
 		scp = srcu_down_read_fast(srcu_ctlp);
 		idx = __srcu_ptr_to_ctr(srcu_ctlp, scp);
 		WARN_ON_ONCE(idx & ~0x1);
@@ -797,7 +826,7 @@ static int srcu_torture_down_read(void)
 static void srcu_torture_up_read(int idx)
 {
 	WARN_ON_ONCE((reader_flavor && (idx & ~reader_flavor)) || (!reader_flavor && (idx & ~0x1)));
-	if (reader_flavor & SRCU_READ_FLAVOR_FAST)
+	if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN)
 		srcu_up_read_fast(srcu_ctlp, __srcu_ctr_to_ptr(srcu_ctlp, (idx & 0x8) >> 3));
 	else if ((reader_flavor & SRCU_READ_FLAVOR_NORMAL) ||
 		 !(reader_flavor & SRCU_READ_FLAVOR_ALL))
@@ -857,9 +886,14 @@ static void srcu_torture_synchronize_expedited(void)
 	synchronize_srcu_expedited(srcu_ctlp);
 }
 
+static void srcu_torture_expedite_current(void)
+{
+	srcu_expedite_current(srcu_ctlp);
+}
+
 static struct rcu_torture_ops srcu_ops = {
 	.ttype		= SRCU_FLAVOR,
-	.init		= rcu_sync_torture_init,
+	.init		= srcu_torture_init,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
 	.readunlock	= srcu_torture_read_unlock,
@@ -871,6 +905,7 @@ static struct rcu_torture_ops srcu_ops = {
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
 	.exp_sync	= srcu_torture_synchronize_expedited,
+	.exp_current	= srcu_torture_expedite_current,
 	.same_gp_state	= same_state_synchronize_srcu,
 	.get_comp_state = get_completed_synchronize_srcu,
 	.get_gp_state	= srcu_torture_get_gp_state,
@@ -886,14 +921,28 @@ static struct rcu_torture_ops srcu_ops = {
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
 	.debug_objects	= 1,
 	.have_up_down	= IS_ENABLED(CONFIG_TINY_SRCU)
-				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST,
+				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST_UPDOWN,
 	.name		= "srcu"
 };
 
-static void srcu_torture_init(void)
+static void srcud_torture_init(void)
 {
 	rcu_sync_torture_init();
-	WARN_ON(init_srcu_struct(&srcu_ctld));
+	if (!reader_flavor || (reader_flavor & SRCU_READ_FLAVOR_NORMAL)) {
+		WARN_ON(init_srcu_struct(&srcu_ctld));
+		VERBOSE_TOROUT_STRING("srcud_torture_init normal SRCU");
+	} else if (reader_flavor & SRCU_READ_FLAVOR_NMI) {
+		WARN_ON(init_srcu_struct(&srcu_ctld));
+		VERBOSE_TOROUT_STRING("srcud_torture_init NMI-safe SRCU");
+	} else if (reader_flavor & SRCU_READ_FLAVOR_FAST) {
+		WARN_ON(init_srcu_struct_fast(&srcu_ctld));
+		VERBOSE_TOROUT_STRING("srcud_torture_init fast SRCU");
+	} else if (reader_flavor & SRCU_READ_FLAVOR_FAST_UPDOWN) {
+		WARN_ON(init_srcu_struct_fast_updown(&srcu_ctld));
+		VERBOSE_TOROUT_STRING("srcud_torture_init fast-up/down SRCU");
+	} else {
+		WARN_ON(init_srcu_struct(&srcu_ctld));
+	}
 	srcu_ctlp = &srcu_ctld;
 }
 
@@ -906,7 +955,7 @@ static void srcu_torture_cleanup(void)
 /* As above, but dynamically allocated. */
 static struct rcu_torture_ops srcud_ops = {
 	.ttype		= SRCU_FLAVOR,
-	.init		= srcu_torture_init,
+	.init		= srcud_torture_init,
 	.cleanup	= srcu_torture_cleanup,
 	.readlock	= srcu_torture_read_lock,
 	.read_delay	= srcu_read_delay,
@@ -919,6 +968,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
 	.exp_sync	= srcu_torture_synchronize_expedited,
+	.exp_current	= srcu_torture_expedite_current,
 	.same_gp_state	= same_state_synchronize_srcu,
 	.get_comp_state = get_completed_synchronize_srcu,
 	.get_gp_state	= srcu_torture_get_gp_state,
@@ -934,7 +984,7 @@ static struct rcu_torture_ops srcud_ops = {
 	.no_pi_lock	= IS_ENABLED(CONFIG_TINY_SRCU),
 	.debug_objects	= 1,
 	.have_up_down	= IS_ENABLED(CONFIG_TINY_SRCU)
-				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST,
+				? 0 : SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_FAST_UPDOWN,
 	.name		= "srcud"
 };
 
@@ -1700,6 +1750,8 @@ rcu_torture_writer(void *arg)
 					ulo[i] = cur_ops->get_comp_state();
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
+				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
 					gp_snap1 = cur_ops->get_gp_state();
 					for (i = 0; i < ulo_size; i++)
@@ -1720,6 +1772,8 @@ rcu_torture_writer(void *arg)
 					cur_ops->get_comp_state_full(&rgo[i]);
 				cur_ops->start_gp_poll_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_FULL;
+				if (cur_ops->exp_current && !torture_random(&rand) % 0xff)
+					cur_ops->exp_current();
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full)) {
 					cur_ops->get_gp_state_full(&gp_snap1_full);
 					for (i = 0; i < rgo_size; i++)
@@ -2384,10 +2438,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	newstate = rcutorture_extend_mask(rtors.readstate, trsp);
 	WARN_ON_ONCE(newstate & RCUTORTURE_RDR_UPDOWN);
 	rcutorture_one_extend(&rtors.readstate, newstate, trsp, rtors.rtrsp++);
-	if (!rcu_torture_one_read_start(&rtors, trsp, myid)) {
-		rcutorture_one_extend(&rtors.readstate, 0, trsp, rtors.rtrsp);
+	if (!rcu_torture_one_read_start(&rtors, trsp, myid))
 		return false;
-	}
 	rtors.rtrsp = rcutorture_loop_extend(&rtors.readstate, trsp, rtors.rtrsp);
 	rcu_torture_one_read_end(&rtors, trsp);
 	return true;

@@ -68,6 +68,7 @@ static void test_sha256_finup_2x(struct kunit *test)
 	rand_bytes(data1_buf, max_data_len);
 	rand_bytes(data2_buf, max_data_len);
 	rand_bytes(salt, sizeof(salt));
+	memset(ctx, 0, sizeof(*ctx));
 
 	for (size_t i = 0; i < 500; i++) {
 		size_t salt_len = rand_length(sizeof(salt));

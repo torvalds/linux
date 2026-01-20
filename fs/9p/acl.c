@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/fs_struct.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <linux/slab.h>

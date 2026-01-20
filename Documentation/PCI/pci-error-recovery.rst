@@ -326,6 +326,21 @@ be recovered, there is nothing more that can be done;  the platform
 will typically report a "permanent failure" in such a case.  The
 device will be considered "dead" in this case.
 
+Drivers typically need to call pci_restore_state() after reset to
+re-initialize the device's config space registers and thereby
+bring it from D0\ :sub:`uninitialized` into D0\ :sub:`active` state
+(PCIe r7.0 sec 5.3.1.1).  The PCI core invokes pci_save_state()
+on enumeration after initializing config space to ensure that a
+saved state is available for subsequent error recovery.
+Drivers which modify config space on probe may need to invoke
+pci_save_state() afterwards to record those changes for later
+error recovery.  When going into system suspend, pci_save_state()
+is called for every PCI device and that state will be restored
+not only on resume, but also on any subsequent error recovery.
+In the unlikely event that the saved state recorded on suspend
+is unsuitable for error recovery, drivers should call
+pci_save_state() on resume.
+
 Drivers for multi-function cards will need to coordinate among
 themselves as to which driver instance will perform any "one-shot"
 or global device initialization. For example, the Symbios sym53cxx2

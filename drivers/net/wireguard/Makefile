@@ -13,5 +13,5 @@ wireguard-y += peerlookup.o
 wireguard-y += allowedips.o
 wireguard-y += ratelimiter.o
 wireguard-y += cookie.o
-wireguard-y += netlink.o
+wireguard-y += netlink.o generated/netlink.o
 obj-$(CONFIG_WIREGUARD) := wireguard.o

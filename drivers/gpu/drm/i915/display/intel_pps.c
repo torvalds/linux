@@ -10,11 +10,12 @@
 
 #include "g4x_dp.h"
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_de.h"
+#include "intel_display_jiffies.h"
 #include "intel_display_power_well.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"

@@ -2334,10 +2334,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 			else
 				usage_dur = max_t(u64, now.now - ioc->period_at, 1);
 
-			usage = clamp_t(u32,
-				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE,
-						   usage_dur),
-				1, WEIGHT_ONE);
+			usage = clamp(DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE, usage_dur),
+				      1, WEIGHT_ONE);
 
 			/*
 			 * Already donating or accumulated enough to start.

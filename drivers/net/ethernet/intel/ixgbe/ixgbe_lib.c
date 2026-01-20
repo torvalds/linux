@@ -318,7 +318,7 @@ static int ixgbe_xdp_queues(struct ixgbe_adapter *adapter)
  * ixgbe_set_dcb_sriov_queues: Allocate queues for SR-IOV devices w/ DCB
  * @adapter: board private structure to initialize
  *
- * When SR-IOV (Single Root IO Virtualiztion) is enabled, allocate queues
+ * When SR-IOV (Single Root IO Virtualization) is enabled, allocate queues
  * and VM pools where appropriate.  Also assign queues based on DCB
  * priorities and map accordingly..
  *
@@ -492,7 +492,7 @@ static bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
  * ixgbe_set_sriov_queues - Allocate queues for SR-IOV devices
  * @adapter: board private structure to initialize
  *
- * When SR-IOV (Single Root IO Virtualiztion) is enabled, allocate queues
+ * When SR-IOV (Single Root IO Virtualization) is enabled, allocate queues
  * and VM pools where appropriate.  If RSS is available, then also try and
  * enable RSS and map accordingly.
  *

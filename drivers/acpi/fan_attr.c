@@ -55,7 +55,7 @@ static ssize_t show_fan_speed(struct device *dev, struct device_attribute *attr,
 	struct acpi_fan_fst fst;
 	int status;
 
-	status = acpi_fan_get_fst(acpi_dev, &fst);
+	status = acpi_fan_get_fst(acpi_dev->handle, &fst);
 	if (status)
 		return status;
 

@@ -68,30 +68,43 @@ The options available for the add command can be listed by reading the
 In more details, the options that can be used with the "add" command are as
 follows.
 
-================   ===========================================================
-id                 Device number (the X in /dev/zloopX).
-                   Default: automatically assigned.
-capacity_mb        Device total capacity in MiB. This is always rounded up to
-                   the nearest higher multiple of the zone size.
-                   Default: 16384 MiB (16 GiB).
-zone_size_mb       Device zone size in MiB. Default: 256 MiB.
-zone_capacity_mb   Device zone capacity (must always be equal to or lower than
-                   the zone size. Default: zone size.
-conv_zones         Total number of conventioanl zones starting from sector 0.
-                   Default: 8.
-base_dir           Path to the base directory where to create the directory
-                   containing the zone files of the device.
-                   Default=/var/local/zloop.
-                   The device directory containing the zone files is always
-                   named with the device ID. E.g. the default zone file
-                   directory for /dev/zloop0 is /var/local/zloop/0.
-nr_queues          Number of I/O queues of the zoned block device. This value is
-                   always capped by the number of online CPUs
-                   Default: 1
-queue_depth        Maximum I/O queue depth per I/O queue.
-                   Default: 64
-buffered_io        Do buffered IOs instead of direct IOs (default: false)
-================   ===========================================================
+===================   =========================================================
+id                    Device number (the X in /dev/zloopX).
+                      Default: automatically assigned.
+capacity_mb           Device total capacity in MiB. This is always rounded up
+                      to the nearest higher multiple of the zone size.
+                      Default: 16384 MiB (16 GiB).
+zone_size_mb          Device zone size in MiB. Default: 256 MiB.
+zone_capacity_mb      Device zone capacity (must always be equal to or lower
+                      than the zone size. Default: zone size.
+conv_zones            Total number of conventioanl zones starting from
+                      sector 0
+                      Default: 8
+base_dir              Path to the base directory where to create the directory
+                      containing the zone files of the device.
+                      Default=/var/local/zloop.
+                      The device directory containing the zone files is always
+                      named with the device ID. E.g. the default zone file
+                      directory for /dev/zloop0 is /var/local/zloop/0.
+nr_queues             Number of I/O queues of the zoned block device. This
+                      value is always capped by the number of online CPUs
+                      Default: 1
+queue_depth           Maximum I/O queue depth per I/O queue.
+                      Default: 64
+buffered_io           Do buffered IOs instead of direct IOs (default: false)
+zone_append           Enable or disable a zloop device native zone append
+                      support.
+                      Default: 1 (enabled).
+                      If native zone append support is disabled, the block layer
+                      will emulate this operation using regular write
+                      operations.
+ordered_zone_append   Enable zloop mitigation of zone append reordering.
+                      Default: disabled.
+                      This is useful for testing file systems file data mapping
+                      (extents), as when enabled, this can significantly reduce
+                      the number of data extents needed to for a file data
+                      mapping.
+===================   =========================================================
 
 3) Deleting a Zoned Device
 --------------------------

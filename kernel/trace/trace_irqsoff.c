@@ -63,7 +63,7 @@ irq_trace(void)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static int irqsoff_display_graph(struct trace_array *tr, int set);
-# define is_graph(tr) ((tr)->trace_flags & TRACE_ITER_DISPLAY_GRAPH)
+# define is_graph(tr) ((tr)->trace_flags & TRACE_ITER(DISPLAY_GRAPH))
 #else
 static inline int irqsoff_display_graph(struct trace_array *tr, int set)
 {
@@ -485,8 +485,8 @@ static int register_irqsoff_function(struct trace_array *tr, int graph, int set)
 {
 	int ret;
 
-	/* 'set' is set if TRACE_ITER_FUNCTION is about to be set */
-	if (function_enabled || (!set && !(tr->trace_flags & TRACE_ITER_FUNCTION)))
+	/* 'set' is set if TRACE_ITER(FUNCTION) is about to be set */
+	if (function_enabled || (!set && !(tr->trace_flags & TRACE_ITER(FUNCTION))))
 		return 0;
 
 	if (graph)
@@ -515,7 +515,7 @@ static void unregister_irqsoff_function(struct trace_array *tr, int graph)
 
 static int irqsoff_function_set(struct trace_array *tr, u32 mask, int set)
 {
-	if (!(mask & TRACE_ITER_FUNCTION))
+	if (!(mask & TRACE_ITER(FUNCTION)))
 		return 0;
 
 	if (set)
@@ -536,7 +536,7 @@ static inline int irqsoff_function_set(struct trace_array *tr, u32 mask, int set
 }
 #endif /* CONFIG_FUNCTION_TRACER */
 
-static int irqsoff_flag_changed(struct trace_array *tr, u32 mask, int set)
+static int irqsoff_flag_changed(struct trace_array *tr, u64 mask, int set)
 {
 	struct tracer *tracer = tr->current_trace;
 
@@ -544,7 +544,7 @@ static int irqsoff_flag_changed(struct trace_array *tr, u32 mask, int set)
 		return 0;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	if (mask & TRACE_ITER_DISPLAY_GRAPH)
+	if (mask & TRACE_ITER(DISPLAY_GRAPH))
 		return irqsoff_display_graph(tr, set);
 #endif
 
@@ -582,10 +582,10 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 	save_flags = tr->trace_flags;
 
 	/* non overwrite screws up the latency tracers */
-	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
-	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
+	set_tracer_flag(tr, TRACE_ITER(OVERWRITE), 1);
+	set_tracer_flag(tr, TRACE_ITER(LATENCY_FMT), 1);
 	/* without pause, we will produce garbage if another latency occurs */
-	set_tracer_flag(tr, TRACE_ITER_PAUSE_ON_TRACE, 1);
+	set_tracer_flag(tr, TRACE_ITER(PAUSE_ON_TRACE), 1);
 
 	tr->max_latency = 0;
 	irqsoff_trace = tr;
@@ -605,15 +605,15 @@ static int __irqsoff_tracer_init(struct trace_array *tr)
 
 static void __irqsoff_tracer_reset(struct trace_array *tr)
 {
-	int lat_flag = save_flags & TRACE_ITER_LATENCY_FMT;
-	int overwrite_flag = save_flags & TRACE_ITER_OVERWRITE;
-	int pause_flag = save_flags & TRACE_ITER_PAUSE_ON_TRACE;
+	int lat_flag = save_flags & TRACE_ITER(LATENCY_FMT);
+	int overwrite_flag = save_flags & TRACE_ITER(OVERWRITE);
+	int pause_flag = save_flags & TRACE_ITER(PAUSE_ON_TRACE);
 
 	stop_irqsoff_tracer(tr, is_graph(tr));
 
-	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, lat_flag);
-	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, overwrite_flag);
-	set_tracer_flag(tr, TRACE_ITER_PAUSE_ON_TRACE, pause_flag);
+	set_tracer_flag(tr, TRACE_ITER(LATENCY_FMT), lat_flag);
+	set_tracer_flag(tr, TRACE_ITER(OVERWRITE), overwrite_flag);
+	set_tracer_flag(tr, TRACE_ITER(PAUSE_ON_TRACE), pause_flag);
 	ftrace_reset_array_ops(tr);
 
 	irqsoff_busy = false;

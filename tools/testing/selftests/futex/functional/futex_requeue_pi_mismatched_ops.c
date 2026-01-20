@@ -25,7 +25,7 @@
 #include <time.h>
 
 #include "futextest.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 futex_t f1 = FUTEX_INITIALIZER;
 futex_t f2 = FUTEX_INITIALIZER;

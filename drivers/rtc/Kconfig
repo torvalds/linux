@@ -409,12 +409,21 @@ config RTC_DRV_MAX77686
 config RTC_DRV_SPACEMIT_P1
 	tristate "SpacemiT P1 RTC"
 	depends on ARCH_SPACEMIT || COMPILE_TEST
-	select MFD_SPACEMIT_P1
-	default ARCH_SPACEMIT
+	depends on MFD_SPACEMIT_P1
+	default MFD_SPACEMIT_P1
 	help
 	  Enable support for the RTC function in the SpacemiT P1 PMIC.
 	  This driver can also be built as a module, which will be called
 	  "spacemit-p1-rtc".
+
+config RTC_DRV_NVIDIA_VRS10
+	tristate "NVIDIA VRS10 RTC device"
+	help
+	  If you say yes here you will get support for the battery backed RTC device
+	  of NVIDIA VRS (Voltage Regulator Specification). The RTC is connected via
+	  I2C interface and supports alarm functionality.
+	  This driver can also be built as a module. If so, the module will be called
+	  rtc-nvidia-vrs10.
 
 config RTC_DRV_NCT3018Y
 	tristate "Nuvoton NCT3018Y"
@@ -1062,6 +1071,21 @@ config RTC_DRV_ALPHA
 	help
 	  Direct support for the real-time clock found on every Alpha
 	  system, specifically MC146818 compatibles.  If in doubt, say Y.
+
+config RTC_DRV_ATCRTC100
+	tristate "Andes ATCRTC100"
+	depends on ARCH_ANDES || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  If you say yes here you will get support for the Andes ATCRTC100
+	  RTC driver.
+
+	  This driver provides support for the Andes ATCRTC100 real-time clock
+	  device. It allows setting and retrieving the time and date, as well
+	  as setting alarms.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called rtc-atcrtc100.
 
 config RTC_DRV_DS1216
 	tristate "Dallas DS1216"
@@ -1749,7 +1773,7 @@ config RTC_DRV_MC13XXX
 	tristate "Freescale MC13xxx RTC"
 	help
 	  This enables support for the RTCs found on Freescale's PMICs
-	  MC13783 and MC13892.
+	  MC13783, MC13892 and MC34708.
 
 config RTC_DRV_MPC5121
 	tristate "Freescale MPC5121 built-in RTC"
@@ -2073,6 +2097,17 @@ config RTC_DRV_WILCO_EC
 
 	  This can also be built as a module. If so, the module will
 	  be named "rtc_wilco_ec".
+
+config RTC_DRV_MACSMC
+	tristate "Apple Mac System Management Controller RTC"
+	depends on MFD_MACSMC
+	help
+	  If you say yes here you get support for RTC functions
+	  inside Apple SPMI PMUs accessed through the SoC's
+	  System Management Controller
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rtc-macsmc.
 
 config RTC_DRV_MSC313
 	tristate "MStar MSC313 RTC"

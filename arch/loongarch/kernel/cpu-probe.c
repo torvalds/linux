@@ -106,7 +106,11 @@ EXPORT_SYMBOL(vm_map_base);
 
 static void cpu_probe_addrbits(struct cpuinfo_loongarch *c)
 {
-#ifdef __NEED_ADDRBITS_PROBE
+#ifdef CONFIG_32BIT
+	c->pabits = cpu_pabits;
+	c->vabits = cpu_vabits;
+	vm_map_base = KVRANGE;
+#else
 	c->pabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_PABITS) >> 4;
 	c->vabits = (read_cpucfg(LOONGARCH_CPUCFG1) & CPUCFG1_VABITS) >> 12;
 	vm_map_base = 0UL - (1UL << c->vabits);
@@ -157,6 +161,8 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_TLB;
 	if (config & CPUCFG1_IOCSR)
 		c->options |= LOONGARCH_CPU_IOCSR;
+	if (config & CPUCFG1_MSGINT)
+		c->options |= LOONGARCH_CPU_MSGINT;
 	if (config & CPUCFG1_UAL) {
 		c->options |= LOONGARCH_CPU_UAL;
 		elf_hwcap |= HWCAP_LOONGARCH_UAL;
@@ -275,7 +281,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 	uint32_t config;
 	uint64_t *vendor = (void *)(&cpu_full_name[VENDOR_OFFSET]);
 	uint64_t *cpuname = (void *)(&cpu_full_name[CPUNAME_OFFSET]);
-	const char *core_name = "Unknown";
+	const char *core_name = id_to_core_name(c->processor_id);
 
 	switch (BIT(fls(c->isa_level) - 1)) {
 	case LOONGARCH_CPU_ISA_LA32R:
@@ -289,34 +295,29 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		break;
 	}
 
-	switch (c->processor_id & PRID_SERIES_MASK) {
-	case PRID_SERIES_LA132:
-		core_name = "LA132";
-		break;
-	case PRID_SERIES_LA264:
-		core_name = "LA264";
-		break;
-	case PRID_SERIES_LA364:
-		core_name = "LA364";
-		break;
-	case PRID_SERIES_LA464:
-		core_name = "LA464";
-		break;
-	case PRID_SERIES_LA664:
-		core_name = "LA664";
-		break;
-	}
-
 	pr_info("%s Processor probed (%s Core)\n", __cpu_family[cpu], core_name);
 
-	if (!cpu_has_iocsr)
+	if (!cpu_has_iocsr) {
+		__cpu_full_name[cpu] = "Unknown";
 		return;
+	}
 
-	if (!__cpu_full_name[cpu])
-		__cpu_full_name[cpu] = cpu_full_name;
-
+#ifdef CONFIG_64BIT
 	*vendor = iocsr_read64(LOONGARCH_IOCSR_VENDOR);
 	*cpuname = iocsr_read64(LOONGARCH_IOCSR_CPUNAME);
+#else
+	*vendor = iocsr_read32(LOONGARCH_IOCSR_VENDOR) |
+		(u64)iocsr_read32(LOONGARCH_IOCSR_VENDOR + 4) << 32;
+	*cpuname = iocsr_read32(LOONGARCH_IOCSR_CPUNAME) |
+		(u64)iocsr_read32(LOONGARCH_IOCSR_CPUNAME + 4) << 32;
+#endif
+
+	if (!__cpu_full_name[cpu]) {
+		if (((char *)vendor)[0] == 0)
+			__cpu_full_name[cpu] = "Unknown";
+		else
+			__cpu_full_name[cpu] = cpu_full_name;
+	}
 
 	config = iocsr_read32(LOONGARCH_IOCSR_FEATURES);
 	if (config & IOCSRF_CSRIPI)
@@ -331,6 +332,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 		c->options |= LOONGARCH_CPU_EIODECODE;
 	if (config & IOCSRF_AVEC)
 		c->options |= LOONGARCH_CPU_AVECINT;
+	if (config & IOCSRF_REDIRECT)
+		c->options |= LOONGARCH_CPU_REDIRECTINT;
 	if (config & IOCSRF_VM)
 		c->options |= LOONGARCH_CPU_HYPERVISOR;
 }

@@ -38,7 +38,6 @@ TEST_PROGS := \
 	fq_band_pktlimit.sh \
 	gre_gso.sh \
 	gre_ipv6_lladdr.sh \
-	gro.sh \
 	icmp.sh \
 	icmp_redirect.sh \
 	io_uring_zerocopy_tx.sh \
@@ -121,8 +120,6 @@ TEST_PROGS := \
 # end of TEST_PROGS
 
 TEST_PROGS_EXTENDED := \
-	toeplitz.sh \
-	toeplitz_client.sh \
 	xfrm_policy_add_speed.sh \
 # end of TEST_PROGS_EXTENDED
 
@@ -130,7 +127,6 @@ TEST_GEN_FILES := \
 	bind_bhash \
 	cmsg_sender \
 	fin_ack_lat \
-	gro \
 	hwtstamp_config \
 	io_uring_zerocopy_tx \
 	ioam6_parser \
@@ -159,7 +155,6 @@ TEST_GEN_FILES := \
 	tcp_mmap \
 	tfo \
 	timestamping \
-	toeplitz \
 	txring_overwrite \
 	txtimestamp \
 	udpgso \
@@ -193,8 +188,6 @@ TEST_FILES := \
 	in_netns.sh \
 	lib.sh \
 	settings \
-	setup_loopback.sh \
-	setup_veth.sh \
 # end of TEST_FILES
 
 # YNL files, must be before "include ..lib.mk"

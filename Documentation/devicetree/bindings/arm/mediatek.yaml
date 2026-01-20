@@ -38,6 +38,7 @@ properties:
           - const: mediatek,mt6580
       - items:
           - enum:
+              - alcatel,yarisxl
               - prestigio,pmt5008-3g
           - const: mediatek,mt6582
       - items:
@@ -112,6 +113,12 @@ properties:
       - items:
           - const: bananapi,bpi-r4-2g5
           - const: bananapi,bpi-r4
+          - const: mediatek,mt7988a
+      - items:
+          - enum:
+              - bananapi,bpi-r4-pro-4e
+              - bananapi,bpi-r4-pro-8x
+          - const: bananapi,bpi-r4-pro
           - const: mediatek,mt7988a
       - items:
           - enum:
@@ -445,6 +452,7 @@ properties:
           - enum:
               - kontron,3-5-sbc-i1200
               - mediatek,mt8395-evk
+              - mediatek,mt8395-evk-ufs
               - radxa,nio-12l
           - const: mediatek,mt8395
           - const: mediatek,mt8195

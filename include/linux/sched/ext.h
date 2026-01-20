@@ -17,7 +17,18 @@
 enum scx_public_consts {
 	SCX_OPS_NAME_LEN	= 128,
 
+	/*
+	 * %SCX_SLICE_DFL is used to refill slices when the BPF scheduler misses
+	 * to set the slice for a task that is selected for execution.
+	 * %SCX_EV_REFILL_SLICE_DFL counts the number of times the default slice
+	 * refill has been triggered.
+	 *
+	 * %SCX_SLICE_BYPASS is used as the slice for all tasks in the bypass
+	 * mode. As making forward progress for all tasks is the main goal of
+	 * the bypass mode, a shorter slice is used.
+	 */
 	SCX_SLICE_DFL		= 20 * 1000000,	/* 20ms */
+	SCX_SLICE_BYPASS	=  5 * 1000000, /*  5ms */
 	SCX_SLICE_INF		= U64_MAX,	/* infinite, implies nohz */
 };
 
@@ -46,6 +57,7 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_INVALID		= SCX_DSQ_FLAG_BUILTIN | 0,
 	SCX_DSQ_GLOBAL		= SCX_DSQ_FLAG_BUILTIN | 1,
 	SCX_DSQ_LOCAL		= SCX_DSQ_FLAG_BUILTIN | 2,
+	SCX_DSQ_BYPASS		= SCX_DSQ_FLAG_BUILTIN | 3,
 	SCX_DSQ_LOCAL_ON	= SCX_DSQ_FLAG_BUILTIN | SCX_DSQ_FLAG_LOCAL_ON,
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };
@@ -58,6 +70,7 @@ enum scx_dsq_id_flags {
  */
 struct scx_dispatch_q {
 	raw_spinlock_t		lock;
+	struct task_struct __rcu *first_task; /* lockless peek at head */
 	struct list_head	list;	/* tasks in dispatch order */
 	struct rb_root		priq;	/* used to order by p->scx.dsq_vtime */
 	u32			nr;
@@ -136,6 +149,13 @@ struct scx_dsq_list_node {
 	u32			priv;		/* can be used by iter cursor */
 };
 
+#define INIT_DSQ_LIST_CURSOR(__node, __flags, __priv)				\
+	(struct scx_dsq_list_node) {						\
+		.node = LIST_HEAD_INIT((__node).node),				\
+		.flags = SCX_DSQ_LNODE_ITER_CURSOR | (__flags),			\
+		.priv = (__priv),						\
+	}
+
 /*
  * The following is embedded in task_struct and contains all fields necessary
  * for a task to be scheduled by SCX.
@@ -207,16 +227,18 @@ struct sched_ext_entity {
 	struct list_head	tasks_node;
 };
 
-void sched_ext_free(struct task_struct *p);
+void sched_ext_dead(struct task_struct *p);
 void print_scx_info(const char *log_lvl, struct task_struct *p);
 void scx_softlockup(u32 dur_s);
+bool scx_hardlockup(int cpu);
 bool scx_rcu_cpu_stall(void);
 
 #else	/* !CONFIG_SCHED_CLASS_EXT */
 
-static inline void sched_ext_free(struct task_struct *p) {}
+static inline void sched_ext_dead(struct task_struct *p) {}
 static inline void print_scx_info(const char *log_lvl, struct task_struct *p) {}
 static inline void scx_softlockup(u32 dur_s) {}
+static inline bool scx_hardlockup(int cpu) { return false; }
 static inline bool scx_rcu_cpu_stall(void) { return false; }
 
 #endif	/* CONFIG_SCHED_CLASS_EXT */
@@ -228,6 +250,7 @@ struct scx_task_group {
 	u64			bw_period_us;
 	u64			bw_quota_us;
 	u64			bw_burst_us;
+	bool			idle;
 #endif
 };
 

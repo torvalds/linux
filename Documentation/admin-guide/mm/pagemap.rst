@@ -115,7 +115,8 @@ Short descriptions to the page flags
     A free memory block managed by the buddy system allocator.
     The buddy system organizes free memory in blocks of various orders.
     An order N block has 2^N physically contiguous pages, with the BUDDY flag
-    set for and _only_ for the first page.
+    set for all pages.
+    Before 4.6 only the first page of the block had the flag set.
 15 - COMPOUND_HEAD
     A compound page with order N consists of 2^N physically contiguous pages.
     A compound page with order 2 takes the form of "HTTT", where H donates its

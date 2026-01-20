@@ -130,7 +130,7 @@ static inline bool is_vma_writer_only(int refcnt)
 	 * a detached vma happens only in vma_mark_detached() and is a rare
 	 * case, therefore most of the time there will be no unnecessary wakeup.
 	 */
-	return refcnt & VMA_LOCK_OFFSET && refcnt <= VMA_LOCK_OFFSET + 1;
+	return (refcnt & VMA_LOCK_OFFSET) && refcnt <= VMA_LOCK_OFFSET + 1;
 }
 
 static inline void vma_refcount_put(struct vm_area_struct *vma)
@@ -183,7 +183,7 @@ static inline void vma_end_read(struct vm_area_struct *vma)
 }
 
 /* WARNING! Can only be used if mmap_lock is expected to be write-locked */
-static bool __is_vma_write_locked(struct vm_area_struct *vma, unsigned int *mm_lock_seq)
+static inline bool __is_vma_write_locked(struct vm_area_struct *vma, unsigned int *mm_lock_seq)
 {
 	mmap_assert_write_locked(vma->vm_mm);
 
@@ -195,7 +195,8 @@ static bool __is_vma_write_locked(struct vm_area_struct *vma, unsigned int *mm_l
 	return (vma->vm_lock_seq == *mm_lock_seq);
 }
 
-void __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq);
+int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
+		int state);
 
 /*
  * Begin writing to a VMA.
@@ -209,7 +210,30 @@ static inline void vma_start_write(struct vm_area_struct *vma)
 	if (__is_vma_write_locked(vma, &mm_lock_seq))
 		return;
 
-	__vma_start_write(vma, mm_lock_seq);
+	__vma_start_write(vma, mm_lock_seq, TASK_UNINTERRUPTIBLE);
+}
+
+/**
+ * vma_start_write_killable - Begin writing to a VMA.
+ * @vma: The VMA we are going to modify.
+ *
+ * Exclude concurrent readers under the per-VMA lock until the currently
+ * write-locked mmap_lock is dropped or downgraded.
+ *
+ * Context: May sleep while waiting for readers to drop the vma read lock.
+ * Caller must already hold the mmap_lock for write.
+ *
+ * Return: 0 for a successful acquisition.  -EINTR if a fatal signal was
+ * received.
+ */
+static inline __must_check
+int vma_start_write_killable(struct vm_area_struct *vma)
+{
+	unsigned int mm_lock_seq;
+
+	if (__is_vma_write_locked(vma, &mm_lock_seq))
+		return 0;
+	return __vma_start_write(vma, mm_lock_seq, TASK_KILLABLE);
 }
 
 static inline void vma_assert_write_locked(struct vm_area_struct *vma)
@@ -281,11 +305,10 @@ static inline bool mmap_lock_speculate_retry(struct mm_struct *mm, unsigned int 
 	return true;
 }
 static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt) {}
-static inline struct vm_area_struct *vma_start_read(struct mm_struct *mm,
-						    struct vm_area_struct *vma)
-		{ return NULL; }
 static inline void vma_end_read(struct vm_area_struct *vma) {}
 static inline void vma_start_write(struct vm_area_struct *vma) {}
+static inline __must_check
+int vma_start_write_killable(struct vm_area_struct *vma) { return 0; }
 static inline void vma_assert_write_locked(struct vm_area_struct *vma)
 		{ mmap_assert_write_locked(vma->vm_mm); }
 static inline void vma_assert_attached(struct vm_area_struct *vma) {}

@@ -78,7 +78,6 @@ int dns_query(struct net *net,
 {
 	struct key *rkey;
 	struct user_key_payload *upayload;
-	const struct cred *saved_cred;
 	size_t typelen, desclen;
 	char *desc, *cp;
 	int ret, len;
@@ -124,9 +123,8 @@ int dns_query(struct net *net,
 	/* make the upcall, using special credentials to prevent the use of
 	 * add_key() to preinstall malicious redirections
 	 */
-	saved_cred = override_creds(dns_resolver_cache);
-	rkey = request_key_net(&key_type_dns_resolver, desc, net, options);
-	revert_creds(saved_cred);
+	scoped_with_creds(dns_resolver_cache)
+		rkey = request_key_net(&key_type_dns_resolver, desc, net, options);
 	kfree(desc);
 	if (IS_ERR(rkey)) {
 		ret = PTR_ERR(rkey);

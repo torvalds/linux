@@ -29,6 +29,7 @@ struct test_args {
 	bool level_sensitive; /* 1 is level, 0 is edge */
 	int kvm_max_routes; /* output of KVM_CAP_IRQ_ROUTING */
 	bool kvm_supports_irqfd; /* output of KVM_CAP_IRQFD */
+	uint32_t shared_data;
 };
 
 /*
@@ -205,7 +206,7 @@ static void kvm_inject_call(kvm_inject_cmd cmd, uint32_t first_intid,
 do { 										\
 	uint32_t _intid;							\
 	_intid = gic_get_and_ack_irq();						\
-	GUEST_ASSERT(_intid == 0 || _intid == IAR_SPURIOUS);			\
+	GUEST_ASSERT(_intid == IAR_SPURIOUS);					\
 } while (0)
 
 #define CAT_HELPER(a, b) a ## b
@@ -359,8 +360,9 @@ static uint32_t wait_for_and_activate_irq(void)
  * interrupts for the whole test.
  */
 static void test_inject_preemption(struct test_args *args,
-		uint32_t first_intid, int num,
-		kvm_inject_cmd cmd)
+				   uint32_t first_intid, int num,
+				   const unsigned long *exclude,
+				   kvm_inject_cmd cmd)
 {
 	uint32_t intid, prio, step = KVM_PRIO_STEPS;
 	int i;
@@ -379,6 +381,10 @@ static void test_inject_preemption(struct test_args *args,
 	for (i = 0; i < num; i++) {
 		uint32_t tmp;
 		intid = i + first_intid;
+
+		if (exclude && test_bit(i, exclude))
+			continue;
+
 		KVM_INJECT(cmd, intid);
 		/* Each successive IRQ will preempt the previous one. */
 		tmp = wait_for_and_activate_irq();
@@ -390,15 +396,33 @@ static void test_inject_preemption(struct test_args *args,
 	/* finish handling the IRQs starting with the highest priority one. */
 	for (i = 0; i < num; i++) {
 		intid = num - i - 1 + first_intid;
+
+		if (exclude && test_bit(intid - first_intid, exclude))
+			continue;
+
 		gic_set_eoi(intid);
-		if (args->eoi_split)
-			gic_set_dir(intid);
+	}
+
+	if (args->eoi_split) {
+		for (i = 0; i < num; i++) {
+			intid = i + first_intid;
+
+			if (exclude && test_bit(i, exclude))
+				continue;
+
+			if (args->eoi_split)
+				gic_set_dir(intid);
+		}
 	}
 
 	local_irq_enable();
 
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (exclude && test_bit(i, exclude))
+			continue;
+
 		GUEST_ASSERT(!gic_irq_get_active(i + first_intid));
+	}
 	GUEST_ASSERT_EQ(gic_read_ap1r0(), 0);
 	GUEST_ASSERT_IAR_EMPTY();
 
@@ -436,33 +460,32 @@ static void test_injection_failure(struct test_args *args,
 
 static void test_preemption(struct test_args *args, struct kvm_inject_desc *f)
 {
-	/*
-	 * Test up to 4 levels of preemption. The reason is that KVM doesn't
-	 * currently implement the ability to have more than the number-of-LRs
-	 * number of concurrently active IRQs. The number of LRs implemented is
-	 * IMPLEMENTATION DEFINED, however, it seems that most implement 4.
-	 */
+	/* Timer PPIs cannot be injected from userspace */
+	static const unsigned long ppi_exclude = (BIT(27 - MIN_PPI) |
+						  BIT(30 - MIN_PPI) |
+						  BIT(28 - MIN_PPI) |
+						  BIT(26 - MIN_PPI));
+
 	if (f->sgi)
-		test_inject_preemption(args, MIN_SGI, 4, f->cmd);
+		test_inject_preemption(args, MIN_SGI, 16, NULL, f->cmd);
 
 	if (f->ppi)
-		test_inject_preemption(args, MIN_PPI, 4, f->cmd);
+		test_inject_preemption(args, MIN_PPI, 16, &ppi_exclude, f->cmd);
 
 	if (f->spi)
-		test_inject_preemption(args, MIN_SPI, 4, f->cmd);
+		test_inject_preemption(args, MIN_SPI, 31, NULL, f->cmd);
 }
 
 static void test_restore_active(struct test_args *args, struct kvm_inject_desc *f)
 {
-	/* Test up to 4 active IRQs. Same reason as in test_preemption. */
 	if (f->sgi)
-		guest_restore_active(args, MIN_SGI, 4, f->cmd);
+		guest_restore_active(args, MIN_SGI, 16, f->cmd);
 
 	if (f->ppi)
-		guest_restore_active(args, MIN_PPI, 4, f->cmd);
+		guest_restore_active(args, MIN_PPI, 16, f->cmd);
 
 	if (f->spi)
-		guest_restore_active(args, MIN_SPI, 4, f->cmd);
+		guest_restore_active(args, MIN_SPI, 31, f->cmd);
 }
 
 static void guest_code(struct test_args *args)
@@ -473,11 +496,11 @@ static void guest_code(struct test_args *args)
 
 	gic_init(GIC_V3, 1);
 
-	for (i = 0; i < nr_irqs; i++)
-		gic_irq_enable(i);
-
 	for (i = MIN_SPI; i < nr_irqs; i++)
 		gic_irq_set_config(i, !level_sensitive);
+
+	for (i = 0; i < nr_irqs; i++)
+		gic_irq_enable(i);
 
 	gic_set_eoi_split(args->eoi_split);
 
@@ -636,7 +659,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 	}
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++)
-		close(fd[f]);
+		kvm_close(fd[f]);
 }
 
 /* handles the valid case: intid=0xffffffff num=1 */
@@ -779,6 +802,221 @@ done:
 	kvm_vm_free(vm);
 }
 
+static void guest_code_asym_dir(struct test_args *args, int cpuid)
+{
+	gic_init(GIC_V3, 2);
+
+	gic_set_eoi_split(1);
+	gic_set_priority_mask(CPU_PRIO_MASK);
+
+	if (cpuid == 0) {
+		uint32_t intid;
+
+		local_irq_disable();
+
+		gic_set_priority(MIN_PPI, IRQ_DEFAULT_PRIO);
+		gic_irq_enable(MIN_SPI);
+		gic_irq_set_pending(MIN_SPI);
+
+		intid = wait_for_and_activate_irq();
+		GUEST_ASSERT_EQ(intid, MIN_SPI);
+
+		gic_set_eoi(intid);
+		isb();
+
+		WRITE_ONCE(args->shared_data, MIN_SPI);
+		dsb(ishst);
+
+		do {
+			dsb(ishld);
+		} while (READ_ONCE(args->shared_data) == MIN_SPI);
+		GUEST_ASSERT(!gic_irq_get_active(MIN_SPI));
+	} else {
+		do {
+			dsb(ishld);
+		} while (READ_ONCE(args->shared_data) != MIN_SPI);
+
+		gic_set_dir(MIN_SPI);
+		isb();
+
+		WRITE_ONCE(args->shared_data, 0);
+		dsb(ishst);
+	}
+
+	GUEST_DONE();
+}
+
+static void guest_code_group_en(struct test_args *args, int cpuid)
+{
+	uint32_t intid;
+
+	gic_init(GIC_V3, 2);
+
+	gic_set_eoi_split(0);
+	gic_set_priority_mask(CPU_PRIO_MASK);
+	/* SGI0 is G0, which is disabled */
+	gic_irq_set_group(0, 0);
+
+	/* Configure all SGIs with decreasing priority */
+	for (intid = 0; intid < MIN_PPI; intid++) {
+		gic_set_priority(intid, (intid + 1) * 8);
+		gic_irq_enable(intid);
+		gic_irq_set_pending(intid);
+	}
+
+	/* Ack and EOI all G1 interrupts */
+	for (int i = 1; i < MIN_PPI; i++) {
+		intid = wait_for_and_activate_irq();
+
+		GUEST_ASSERT(intid < MIN_PPI);
+		gic_set_eoi(intid);
+		isb();
+	}
+
+	/*
+	 * Check that SGI0 is still pending, inactive, and that we cannot
+	 * ack anything.
+	 */
+	GUEST_ASSERT(gic_irq_get_pending(0));
+	GUEST_ASSERT(!gic_irq_get_active(0));
+	GUEST_ASSERT_IAR_EMPTY();
+	GUEST_ASSERT(read_sysreg_s(SYS_ICC_IAR0_EL1) == IAR_SPURIOUS);
+
+	/* Open the G0 gates, and verify we can ack SGI0 */
+	write_sysreg_s(1, SYS_ICC_IGRPEN0_EL1);
+	isb();
+
+	do {
+		intid = read_sysreg_s(SYS_ICC_IAR0_EL1);
+	} while (intid == IAR_SPURIOUS);
+
+	GUEST_ASSERT(intid == 0);
+	GUEST_DONE();
+}
+
+static void guest_code_timer_spi(struct test_args *args, int cpuid)
+{
+	uint32_t intid;
+	u64 val;
+
+	gic_init(GIC_V3, 2);
+
+	gic_set_eoi_split(1);
+	gic_set_priority_mask(CPU_PRIO_MASK);
+
+	/* Add a pending SPI so that KVM starts trapping DIR */
+	gic_set_priority(MIN_SPI + cpuid, IRQ_DEFAULT_PRIO);
+	gic_irq_set_pending(MIN_SPI + cpuid);
+
+	/* Configure the timer with a higher priority, make it pending */
+	gic_set_priority(27, IRQ_DEFAULT_PRIO - 8);
+
+	isb();
+	val = read_sysreg(cntvct_el0);
+	write_sysreg(val, cntv_cval_el0);
+	write_sysreg(1, cntv_ctl_el0);
+	isb();
+
+	GUEST_ASSERT(gic_irq_get_pending(27));
+
+	/* Enable both interrupts */
+	gic_irq_enable(MIN_SPI + cpuid);
+	gic_irq_enable(27);
+
+	/* The timer must fire */
+	intid = wait_for_and_activate_irq();
+	GUEST_ASSERT(intid == 27);
+
+	/* Check that we can deassert it */
+	write_sysreg(0, cntv_ctl_el0);
+	isb();
+
+	GUEST_ASSERT(!gic_irq_get_pending(27));
+
+	/*
+	 * Priority drop, deactivation -- we expect that the host
+	 * deactivation will have been effective
+	 */
+	gic_set_eoi(27);
+	gic_set_dir(27);
+
+	GUEST_ASSERT(!gic_irq_get_active(27));
+
+	/* Do it one more time */
+	isb();
+	val = read_sysreg(cntvct_el0);
+	write_sysreg(val, cntv_cval_el0);
+	write_sysreg(1, cntv_ctl_el0);
+	isb();
+
+	GUEST_ASSERT(gic_irq_get_pending(27));
+
+	/* The timer must fire again */
+	intid = wait_for_and_activate_irq();
+	GUEST_ASSERT(intid == 27);
+
+	GUEST_DONE();
+}
+
+static void *test_vcpu_run(void *arg)
+{
+	struct kvm_vcpu *vcpu = arg;
+	struct ucall uc;
+
+	while (1) {
+		vcpu_run(vcpu);
+
+		switch (get_ucall(vcpu, &uc)) {
+		case UCALL_ABORT:
+			REPORT_GUEST_ASSERT(uc);
+			break;
+		case UCALL_DONE:
+			return NULL;
+		default:
+			TEST_FAIL("Unknown ucall %lu", uc.cmd);
+		}
+	}
+
+	return NULL;
+}
+
+static void test_vgic_two_cpus(void *gcode)
+{
+	pthread_t thr[2];
+	struct kvm_vcpu *vcpus[2];
+	struct test_args args = {};
+	struct kvm_vm *vm;
+	vm_vaddr_t args_gva;
+	int gic_fd, ret;
+
+	vm = vm_create_with_vcpus(2, gcode, vcpus);
+
+	vm_init_descriptor_tables(vm);
+	vcpu_init_descriptor_tables(vcpus[0]);
+	vcpu_init_descriptor_tables(vcpus[1]);
+
+	/* Setup the guest args page (so it gets the args). */
+	args_gva = vm_vaddr_alloc_page(vm);
+	memcpy(addr_gva2hva(vm, args_gva), &args, sizeof(args));
+	vcpu_args_set(vcpus[0], 2, args_gva, 0);
+	vcpu_args_set(vcpus[1], 2, args_gva, 1);
+
+	gic_fd = vgic_v3_setup(vm, 2, 64);
+
+	ret = pthread_create(&thr[0], NULL, test_vcpu_run, vcpus[0]);
+	if (ret)
+		TEST_FAIL("Can't create thread for vcpu 0 (%d)\n", ret);
+	ret = pthread_create(&thr[1], NULL, test_vcpu_run, vcpus[1]);
+	if (ret)
+		TEST_FAIL("Can't create thread for vcpu 1 (%d)\n", ret);
+
+	pthread_join(thr[0], NULL);
+	pthread_join(thr[1], NULL);
+
+	close(gic_fd);
+	kvm_vm_free(vm);
+}
+
 static void help(const char *name)
 {
 	printf(
@@ -835,6 +1073,9 @@ int main(int argc, char **argv)
 		test_vgic(nr_irqs, false /* level */, true /* eoi_split */);
 		test_vgic(nr_irqs, true /* level */, false /* eoi_split */);
 		test_vgic(nr_irqs, true /* level */, true /* eoi_split */);
+		test_vgic_two_cpus(guest_code_asym_dir);
+		test_vgic_two_cpus(guest_code_group_en);
+		test_vgic_two_cpus(guest_code_timer_spi);
 	} else {
 		test_vgic(nr_irqs, level_sensitive, eoi_split);
 	}

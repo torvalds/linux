@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #include "pidfd.h"
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../filesystems/wrappers.h"
 
 FIXTURE(pidfd_bind_mount) {

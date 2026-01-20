@@ -19,6 +19,7 @@
 	.non_shared_ant = ANT_B,					\
 	.vht_mu_mimo_supported = true,					\
 	.uhb_supported = true,						\
+	.eht_supported = true,						\
 	.num_rbds = IWL_NUM_RBDS_EHT,					\
 	.nvm_ver = IWL_FM_NVM_VERSION,					\
 	.nvm_type = IWL_NVM_EXT

@@ -3,7 +3,6 @@
 #include <linux/compiler.h>
 #include <linux/bits.h>
 #include <string.h>
-#include <cpuid.h>
 #include <sched.h>
 
 #include "intel-pt-decoder/intel-pt-pkt-decoder.h"
@@ -11,6 +10,7 @@
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
+#include "../util/cpuid.h"
 #include "cpumap.h"
 
 /**
@@ -363,7 +363,7 @@ static int get_pt_caps(int cpu, struct pt_caps *caps)
 	memset(caps, 0, sizeof(*caps));
 
 	for (i = 0; i < INTEL_PT_SUBLEAF_CNT; i++) {
-		__get_cpuid_count(20, i, &r.eax, &r.ebx, &r.ecx, &r.edx);
+		cpuid(20, i, &r.eax, &r.ebx, &r.ecx, &r.edx);
 		pr_debug("CPU %d CPUID leaf 20 subleaf %d\n", cpu, i);
 		pr_debug("eax = 0x%08x\n", r.eax);
 		pr_debug("ebx = 0x%08x\n", r.ebx);
@@ -380,7 +380,7 @@ static bool is_hybrid(void)
 	unsigned int eax, ebx, ecx, edx = 0;
 	bool result;
 
-	__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx);
+	cpuid(7, 0, &eax, &ebx, &ecx, &edx);
 	result = edx & BIT(15);
 	pr_debug("Is %shybrid : CPUID leaf 7 subleaf 0 edx %#x (bit-15 indicates hybrid)\n",
 		 result ? "" : "not ", edx);

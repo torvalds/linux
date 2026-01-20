@@ -194,7 +194,7 @@ attribute-sets:
       -
         name: dst
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: lladdr
         type: binary

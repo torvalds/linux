@@ -19,6 +19,7 @@ struct swsusp_info {
 } __aligned(PAGE_SIZE);
 
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_HIBERNATION)
+extern int pm_sleep_fs_sync(void);
 extern bool filesystem_freeze_enabled;
 #endif
 

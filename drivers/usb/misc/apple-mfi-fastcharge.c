@@ -134,7 +134,6 @@ static int apple_mfi_fc_set_property(struct power_supply *psy,
 		ret = -EINVAL;
 	}
 
-	pm_runtime_mark_last_busy(&mfi->udev->dev);
 	pm_runtime_put_autosuspend(&mfi->udev->dev);
 
 	return ret;

@@ -561,10 +561,14 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 		return ptp_mask_en_single(pccontext->private_clkdata, argptr);
 
 	case PTP_SYS_OFFSET_PRECISE_CYCLES:
+		if (!ptp->has_cycles)
+			return -EOPNOTSUPP;
 		return ptp_sys_offset_precise(ptp, argptr,
 					      ptp->info->getcrosscycles);
 
 	case PTP_SYS_OFFSET_EXTENDED_CYCLES:
+		if (!ptp->has_cycles)
+			return -EOPNOTSUPP;
 		return ptp_sys_offset_extended(ptp, argptr,
 					       ptp->info->getcyclesx64);
 	default:

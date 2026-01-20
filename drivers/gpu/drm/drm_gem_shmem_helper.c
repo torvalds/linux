@@ -559,7 +559,7 @@ int drm_gem_shmem_dumb_create(struct drm_file *file, struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_mode_size_dumb(dev, args, SZ_8, 0);
+	ret = drm_mode_size_dumb(dev, args, 0, 0);
 	if (ret)
 		return ret;
 

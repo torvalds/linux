@@ -9,7 +9,7 @@
 > [!NOTE]
 > 
 > This crate was originally named [`pinned-init`], but the migration to
-> `pin-init` is not yet complete. The `legcay` branch contains the current
+> `pin-init` is not yet complete. The `legacy` branch contains the current
 > version of the `pinned-init` crate & the `main` branch already incorporates
 > the rename to `pin-init`.
 >

@@ -3,7 +3,10 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_drv.h"
+#include "i915_jiffies.h"
 #include "i915_request.h"
 
 #include "intel_context.h"

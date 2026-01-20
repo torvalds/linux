@@ -98,6 +98,46 @@ void bnge_hwrm_req_alloc_flags(struct bnge_dev *bd, void *req, gfp_t gfp)
 		ctx->gfp = gfp;
 }
 
+int bnge_hwrm_req_replace(struct bnge_dev *bd, void *req, void *new_req,
+			  u32 len)
+{
+	struct bnge_hwrm_ctx *ctx = __hwrm_ctx_get(bd, req);
+	struct input *internal_req = req;
+	u16 req_type;
+
+	if (!ctx)
+		return -EINVAL;
+
+	if (len > BNGE_HWRM_CTX_OFFSET)
+		return -E2BIG;
+
+	/* free any existing slices */
+	ctx->allocated = BNGE_HWRM_DMA_SIZE - BNGE_HWRM_CTX_OFFSET;
+	if (ctx->slice_addr) {
+		dma_free_coherent(bd->dev, ctx->slice_size,
+				  ctx->slice_addr, ctx->slice_handle);
+		ctx->slice_addr = NULL;
+	}
+	ctx->gfp = GFP_KERNEL;
+
+	if ((bd->fw_cap & BNGE_FW_CAP_SHORT_CMD) || len > BNGE_HWRM_MAX_REQ_LEN) {
+		memcpy(internal_req, new_req, len);
+	} else {
+		internal_req->req_type = ((struct input *)new_req)->req_type;
+		ctx->req = new_req;
+	}
+
+	ctx->req_len = len;
+	ctx->req->resp_addr = cpu_to_le64(ctx->dma_handle +
+					  BNGE_HWRM_RESP_OFFSET);
+
+	/* update sentinel for potentially new request type */
+	req_type = le16_to_cpu(internal_req->req_type);
+	ctx->sentinel = bnge_cal_sentinel(ctx, req_type);
+
+	return 0;
+}
+
 void bnge_hwrm_req_flags(struct bnge_dev *bd, void *req,
 			 enum bnge_hwrm_ctx_flags flags)
 {

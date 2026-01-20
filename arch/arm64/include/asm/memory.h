@@ -207,7 +207,7 @@
  */
 #define TRAMP_SWAPPER_OFFSET	(2 * PAGE_SIZE)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
@@ -392,7 +392,6 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
  *  virt_to_page(x)	convert a _valid_ virtual address to struct page *
  *  virt_addr_valid(x)	indicates whether a virtual address is valid
  */
-#define ARCH_PFN_OFFSET		((unsigned long)PHYS_PFN_OFFSET)
 
 #if defined(CONFIG_DEBUG_VIRTUAL)
 #define page_to_virt(x)	({						\
@@ -422,7 +421,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 })
 
 void dump_mem_limit(void);
-#endif /* !ASSEMBLY */
+#endif /* !__ASSEMBLER__ */
 
 /*
  * Given that the GIC architecture permits ITS implementations that can only be

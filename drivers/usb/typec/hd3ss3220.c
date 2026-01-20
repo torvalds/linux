@@ -15,6 +15,9 @@
 #include <linux/usb/typec.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
+#include <linux/of_graph.h>
 
 #define HD3SS3220_REG_CN_STAT		0x08
 #define HD3SS3220_REG_CN_STAT_CTRL	0x09
@@ -54,6 +57,11 @@ struct hd3ss3220 {
 	struct delayed_work output_poll_work;
 	enum usb_role role_state;
 	bool poll;
+
+	struct gpio_desc *id_gpiod;
+	int id_irq;
+
+	struct regulator *vbus;
 };
 
 static int hd3ss3220_set_power_opmode(struct hd3ss3220 *hd3ss3220, int power_opmode)
@@ -319,13 +327,33 @@ static const struct regmap_config config = {
 	.max_register = 0x0A,
 };
 
+static irqreturn_t hd3ss3220_id_isr(int irq, void *dev_id)
+{
+	struct hd3ss3220 *hd3ss3220 = dev_id;
+	int ret;
+	int id;
+
+	id = gpiod_get_value_cansleep(hd3ss3220->id_gpiod);
+	if (!id)
+		ret = regulator_enable(hd3ss3220->vbus);
+	else
+		ret = regulator_disable(hd3ss3220->vbus);
+
+	if (ret)
+		dev_err(hd3ss3220->dev,
+			"vbus regulator %s failed: %d\n", id ? "disable" : "enable", ret);
+
+	return IRQ_HANDLED;
+}
+
 static int hd3ss3220_probe(struct i2c_client *client)
 {
 	struct typec_capability typec_cap = { };
-	struct hd3ss3220 *hd3ss3220;
 	struct fwnode_handle *connector, *ep;
-	int ret;
+	struct hd3ss3220 *hd3ss3220;
+	struct regulator *vbus;
 	unsigned int data;
+	int ret;
 
 	hd3ss3220 = devm_kzalloc(&client->dev, sizeof(struct hd3ss3220),
 				 GFP_KERNEL);
@@ -357,6 +385,49 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	if (IS_ERR(hd3ss3220->role_sw)) {
 		ret = PTR_ERR(hd3ss3220->role_sw);
 		goto err_put_fwnode;
+	}
+
+	vbus = devm_of_regulator_get_optional(hd3ss3220->dev,
+					      to_of_node(connector),
+					      "vbus");
+	if (IS_ERR(vbus) && vbus != ERR_PTR(-ENODEV)) {
+		ret = PTR_ERR(vbus);
+		dev_err(hd3ss3220->dev, "failed to get vbus: %d", ret);
+		goto err_put_fwnode;
+	}
+
+	hd3ss3220->vbus = (vbus == ERR_PTR(-ENODEV) ? NULL : vbus);
+
+	if (hd3ss3220->vbus) {
+		hd3ss3220->id_gpiod = devm_gpiod_get_optional(hd3ss3220->dev,
+							      "id",
+							      GPIOD_IN);
+		if (IS_ERR(hd3ss3220->id_gpiod)) {
+			ret = PTR_ERR(hd3ss3220->id_gpiod);
+			goto err_put_fwnode;
+		}
+	}
+
+	if (hd3ss3220->id_gpiod) {
+		hd3ss3220->id_irq = gpiod_to_irq(hd3ss3220->id_gpiod);
+		if (hd3ss3220->id_irq < 0) {
+			ret = hd3ss3220->id_irq;
+			dev_err(hd3ss3220->dev,
+				"failed to get ID gpio: %d\n",
+				hd3ss3220->id_irq);
+			goto err_put_fwnode;
+		}
+
+		ret = devm_request_threaded_irq(hd3ss3220->dev,
+						hd3ss3220->id_irq, NULL,
+						hd3ss3220_id_isr,
+						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+						dev_name(hd3ss3220->dev), hd3ss3220);
+		if (ret < 0) {
+			dev_err(hd3ss3220->dev, "failed to get ID irq: %d\n", ret);
+			goto err_put_fwnode;
+		}
 	}
 
 	typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;

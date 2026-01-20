@@ -130,11 +130,9 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	}
 
 	/* attempt a per ring reset */
-	if (unlikely(adev->debug_disable_gpu_ring_reset)) {
-		dev_err(adev->dev, "Ring reset disabled by debug mask\n");
-	} else if (amdgpu_gpu_recovery &&
-		   amdgpu_ring_is_reset_type_supported(ring, AMDGPU_RESET_TYPE_PER_QUEUE) &&
-		   ring->funcs->reset) {
+	if (amdgpu_gpu_recovery &&
+	    amdgpu_ring_is_reset_type_supported(ring, AMDGPU_RESET_TYPE_PER_QUEUE) &&
+	    ring->funcs->reset) {
 		dev_err(adev->dev, "Starting %s ring reset\n",
 			s_job->sched->name);
 		r = amdgpu_ring_reset(ring, job->vmid, job->hw_fence);
@@ -226,6 +224,7 @@ err_fence:
 	kfree((*job)->hw_fence);
 err_job:
 	kfree(*job);
+	*job = NULL;
 
 	return r;
 }
@@ -247,7 +246,10 @@ int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
 	if (r) {
 		if (entity)
 			drm_sched_job_cleanup(&(*job)->base);
+		kfree((*job)->hw_vm_fence);
+		kfree((*job)->hw_fence);
 		kfree(*job);
+		*job = NULL;
 	}
 
 	return r;
@@ -295,6 +297,15 @@ static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
 
 	amdgpu_sync_free(&job->explicit_sync);
 
+	if (job->hw_fence->base.ops)
+		dma_fence_put(&job->hw_fence->base);
+	else
+		kfree(job->hw_fence);
+	if (job->hw_vm_fence->base.ops)
+		dma_fence_put(&job->hw_vm_fence->base);
+	else
+		kfree(job->hw_vm_fence);
+
 	kfree(job);
 }
 
@@ -323,6 +334,15 @@ void amdgpu_job_free(struct amdgpu_job *job)
 	amdgpu_sync_free(&job->explicit_sync);
 	if (job->gang_submit != &job->base.s_fence->scheduled)
 		dma_fence_put(job->gang_submit);
+
+	if (job->hw_fence->base.ops)
+		dma_fence_put(&job->hw_fence->base);
+	else
+		kfree(job->hw_fence);
+	if (job->hw_vm_fence->base.ops)
+		dma_fence_put(&job->hw_vm_fence->base);
+	else
+		kfree(job->hw_vm_fence);
 
 	kfree(job);
 }

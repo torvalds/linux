@@ -11,7 +11,8 @@ TESTS="unregister down carrier nexthop suppress ipv6_notify ipv4_notify \
        ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics \
        ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr \
        ipv6_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh fib6_gc_test \
-       ipv4_mpath_list ipv6_mpath_list ipv4_mpath_balance ipv6_mpath_balance"
+       ipv4_mpath_list ipv6_mpath_list ipv4_mpath_balance ipv6_mpath_balance \
+       fib6_ra_to_static"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -1476,6 +1477,68 @@ ipv6_route_metrics_test()
 	route_cleanup
 }
 
+fib6_ra_to_static()
+{
+	setup
+
+	echo
+	echo "Fib6 route promotion from RA-learned to static test"
+	set -e
+
+	# ra6 is required for the test. (ipv6toolkit)
+	if [ ! -x "$(command -v ra6)" ]; then
+	    echo "SKIP: ra6 not found."
+	    set +e
+	    cleanup &> /dev/null
+	    return
+	fi
+
+	# Create a pair of veth devices to send a RA message from one
+	# device to another.
+	$IP link add veth1 type veth peer name veth2
+	$IP link set dev veth1 up
+	$IP link set dev veth2 up
+	$IP -6 address add 2001:10::1/64 dev veth1 nodad
+	$IP -6 address add 2001:10::2/64 dev veth2 nodad
+
+	# Make veth1 ready to receive RA messages.
+	$NS_EXEC sysctl -wq net.ipv6.conf.veth1.accept_ra=2
+
+	# Send a RA message with a prefix from veth2.
+	$NS_EXEC ra6 -i veth2 -d 2001:10::1 -P 2001:12::/64\#LA\#120\#60
+
+	# Wait for the RA message.
+	sleep 1
+
+	# systemd may mess up the test. Make sure that
+	# systemd-networkd.service and systemd-networkd.socket are stopped.
+	check_rt_num_clean 2 $($IP -6 route list|grep expires|wc -l) || return
+
+	# Configure static address on the same prefix
+	$IP -6 address add 2001:12::dead/64 dev veth1 nodad
+
+	# On-link route won't expire anymore, default route still owned by RA
+	check_rt_num 1 $($IP -6 route list |grep expires|wc -l)
+
+	# Send a second RA message with a prefix from veth2.
+	$NS_EXEC ra6 -i veth2 -d 2001:10::1 -P 2001:12::/64\#LA\#120\#60
+	sleep 1
+
+	# Expire is not back, on-link route is still static
+	check_rt_num 1 $($IP -6 route list |grep expires|wc -l)
+
+	$IP -6 address del 2001:12::dead/64 dev veth1 nodad
+
+	# Expire is back, on-link route is now owned by RA again
+	check_rt_num 2 $($IP -6 route list |grep expires|wc -l)
+
+	log_test $ret 0 "ipv6 promote RA route to static"
+
+	set +e
+
+	cleanup &> /dev/null
+}
+
 # add route for a prefix, flushing any existing routes first
 # expected to be the first step of a test
 add_route()
@@ -2798,6 +2861,7 @@ do
 	ipv6_mpath_list)		ipv6_mpath_list_test;;
 	ipv4_mpath_balance)		ipv4_mpath_balance_test;;
 	ipv6_mpath_balance)		ipv6_mpath_balance_test;;
+	fib6_ra_to_static)		fib6_ra_to_static;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

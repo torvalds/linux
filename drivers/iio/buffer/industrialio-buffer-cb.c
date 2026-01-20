@@ -13,6 +13,7 @@
 
 struct iio_cb_buffer {
 	struct iio_buffer buffer;
+	/* Must be safe to call from any context (e.g. must not sleep). */
 	int (*cb)(const void *data, void *private);
 	void *private;
 	struct iio_channel *channels;

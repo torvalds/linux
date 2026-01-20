@@ -37,24 +37,14 @@ do { \
 
 
 void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
-			    const char *function, char *file, unsigned int line,
-			    bool delayed);
+			    const char *function, char *file, unsigned int line);
 
 #define gfs2_assert_withdraw(sdp, assertion) \
 	({ \
 		bool _bool = (assertion); \
 		if (unlikely(!_bool)) \
 			gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__, false); \
-		!_bool; \
-	})
-
-#define gfs2_assert_withdraw_delayed(sdp, assertion) \
-	({ \
-		bool _bool = (assertion); \
-		if (unlikely(!_bool)) \
-			gfs2_assert_withdraw_i((sdp), #assertion, \
-					__func__, __FILE__, __LINE__, true); \
+					__func__, __FILE__, __LINE__); \
 		!_bool; \
 	})
 
@@ -161,14 +151,10 @@ gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__)
 
 
 void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-			const char *function, char *file, unsigned int line,
-			bool withdraw);
-
-#define gfs2_io_error_bh_wd(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, true)
+			const char *function, char *file, unsigned int line);
 
 #define gfs2_io_error_bh(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false)
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__)
 
 
 extern struct kmem_cache *gfs2_glock_cachep;
@@ -193,38 +179,12 @@ static inline unsigned int gfs2_tune_get_i(struct gfs2_tune *gt,
 }
 
 /**
- * gfs2_withdraw_delayed - withdraw as soon as possible without deadlocks
+ * gfs2_withdrawn - test whether the file system is withdrawn
  * @sdp: the superblock
  */
-static inline void gfs2_withdraw_delayed(struct gfs2_sbd *sdp)
+static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
 {
-	set_bit(SDF_WITHDRAWING, &sdp->sd_flags);
-}
-
-/**
- * gfs2_withdrawing_or_withdrawn - test whether the file system is withdrawing
- *                                 or withdrawn
- * @sdp: the superblock
- */
-static inline bool gfs2_withdrawing_or_withdrawn(struct gfs2_sbd *sdp)
-{
-	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
-			test_bit(SDF_WITHDRAWING, &sdp->sd_flags));
-}
-
-/**
- * gfs2_withdrawing - check if a withdraw is pending
- * @sdp: the superblock
- */
-static inline bool gfs2_withdrawing(struct gfs2_sbd *sdp)
-{
-	return unlikely(test_bit(SDF_WITHDRAWING, &sdp->sd_flags) &&
-			!test_bit(SDF_WITHDRAWN, &sdp->sd_flags));
-}
-
-static inline bool gfs2_withdraw_in_prog(struct gfs2_sbd *sdp)
-{
-	return unlikely(test_bit(SDF_WITHDRAW_IN_PROG, &sdp->sd_flags));
+	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags));
 }
 
 #define gfs2_tune_get(sdp, field) \
@@ -232,6 +192,8 @@ gfs2_tune_get_i(&(sdp)->sd_tune, &(sdp)->sd_tune.field)
 
 __printf(2, 3)
 void gfs2_lm(struct gfs2_sbd *sdp, const char *fmt, ...);
+
+void gfs2_withdraw_func(struct work_struct *work);
 void gfs2_withdraw(struct gfs2_sbd *sdp);
 
 #endif /* __UTIL_DOT_H__ */

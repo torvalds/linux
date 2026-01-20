@@ -4,8 +4,8 @@
 #include <asm/types.h>
 
 /**
- * hweightN - returns the hamming weight of a N-bit word
- * @x: the word to weigh
+ * DOC: __sw_hweightN - returns the hamming weight of a N-bit word
+ * @w: the word to weigh
  *
  * The Hamming Weight of a number is the total number of bits set in it.
  */

@@ -9,7 +9,7 @@
 #include <asm/cputype.h>
 #include <asm/mte-def.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -259,6 +259,6 @@ static inline int mte_enable_kernel_store_only(void)
 
 #endif /* CONFIG_ARM64_MTE */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_MTE_KASAN_H  */

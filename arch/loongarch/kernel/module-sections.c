@@ -93,6 +93,7 @@ static void count_max_entries(Elf_Rela *relas, int num,
 			(*plts)++;
 			break;
 		case R_LARCH_GOT_PC_HI20:
+		case R_LARCH_GOT_PCADD_HI20:
 			(*gots)++;
 			break;
 		default:

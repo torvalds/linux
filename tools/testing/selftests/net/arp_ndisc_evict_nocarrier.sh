@@ -75,7 +75,7 @@ setup_v4() {
     ip neigh get $V4_ADDR1 dev veth0 >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         cleanup_v4
-        echo "failed"
+        echo "failed; is the system using MACAddressPolicy=persistent ?"
         exit 1
     fi
 

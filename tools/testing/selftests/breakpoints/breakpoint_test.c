@@ -18,7 +18,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define COUNT_ISN_BPS	4
 #define COUNT_WPS	4

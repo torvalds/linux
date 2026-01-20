@@ -28,14 +28,16 @@
 static struct macb_dma_desc_ptp *macb_ptp_desc(struct macb *bp,
 					       struct macb_dma_desc *desc)
 {
-	if (bp->hw_dma_cap == HW_DMA_CAP_PTP)
-		return (struct macb_dma_desc_ptp *)
-				((u8 *)desc + sizeof(struct macb_dma_desc));
-	if (bp->hw_dma_cap == HW_DMA_CAP_64B_PTP)
+	if (!macb_dma_ptp(bp))
+		return NULL;
+
+	if (macb_dma64(bp))
 		return (struct macb_dma_desc_ptp *)
 				((u8 *)desc + sizeof(struct macb_dma_desc)
 				+ sizeof(struct macb_dma_desc_64));
-	return NULL;
+	else
+		return (struct macb_dma_desc_ptp *)
+				((u8 *)desc + sizeof(struct macb_dma_desc));
 }
 
 static int gem_tsu_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts,
@@ -380,7 +382,7 @@ int gem_get_hwtst(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 
 	*tstamp_config = bp->tstamp_config;
-	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
+	if (!macb_dma_ptp(bp))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -407,7 +409,7 @@ int gem_set_hwtst(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	u32 regval;
 
-	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
+	if (!macb_dma_ptp(bp))
 		return -EOPNOTSUPP;
 
 	switch (tstamp_config->tx_type) {

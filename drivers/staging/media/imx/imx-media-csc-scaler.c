@@ -99,7 +99,7 @@ static void ipu_ic_pp_complete(struct ipu_image_convert_run *run, void *_ctx)
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, true);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	src_buf->sequence = ctx->sequence++;
 	dst_buf->sequence = src_buf->sequence;

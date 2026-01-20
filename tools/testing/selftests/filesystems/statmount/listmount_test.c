@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 #include "statmount.h"
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #ifndef LISTMOUNT_REVERSE
 #define LISTMOUNT_REVERSE    (1 << 0) /* List later mounts first */

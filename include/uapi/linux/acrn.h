@@ -418,26 +418,32 @@ struct acrn_pcidev {
 };
 
 /**
- * struct acrn_mmiodev - Info for assigning or de-assigning a MMIO device
- * @name:			Name of the MMIO device.
- * @res[].user_vm_pa:		Physical address of User VM of the MMIO region
- *				for the MMIO device.
- * @res[].service_vm_pa:	Physical address of Service VM of the MMIO
- *				region for the MMIO device.
- * @res[].size:			Size of the MMIO region for the MMIO device.
- * @res[].mem_type:		Memory type of the MMIO region for the MMIO
- *				device.
+ * struct acrn_mmio_dev_res - MMIO device resource description
+ * @user_vm_pa:		Physical address of User VM of the MMIO region
+ *			for the MMIO device.
+ * @service_vm_pa:	Physical address of Service VM of the MMIO
+ *			region for the MMIO device.
+ * @size:		Size of the MMIO region for the MMIO device.
+ * @mem_type:		Memory type of the MMIO region for the MMIO
+ *			device.
+ */
+struct acrn_mmio_dev_res {
+	__u64	user_vm_pa;
+	__u64	service_vm_pa;
+	__u64	size;
+	__u64	mem_type;
+};
+
+/**
+ * struct acrn_mmiodev - Info for assigning or de-assigning an MMIO device
+ * @name:	Name of the MMIO device.
+ * @res:	Array of MMIO device descriptions
  *
  * This structure will be passed to hypervisor directly.
  */
 struct acrn_mmiodev {
 	__u8	name[8];
-	struct {
-		__u64	user_vm_pa;
-		__u64	service_vm_pa;
-		__u64	size;
-		__u64	mem_type;
-	} res[ACRN_MMIODEV_RES_NUM];
+	struct acrn_mmio_dev_res res[ACRN_MMIODEV_RES_NUM];
 };
 
 /**

@@ -18,7 +18,7 @@
 #include <sys/prctl.h>
 #include <sys/stat.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static int nerrs;
 static pid_t mpid;	/*  main() pid is used to avoid duplicate test counts */

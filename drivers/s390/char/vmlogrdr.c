@@ -11,8 +11,7 @@
  *
  */
 
-#define KMSG_COMPONENT "vmlogrdr"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "vmlogrdr: " fmt
 
 #include <linux/module.h>
 #include <linux/init.h>

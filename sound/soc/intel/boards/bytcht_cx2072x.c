@@ -70,6 +70,7 @@ static const struct acpi_gpio_mapping byt_cht_cx2072x_acpi_gpios[] = {
 static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct snd_soc_component *codec = snd_soc_rtd_to_codec(rtd, 0)->component;
 	int ret;
 
@@ -77,7 +78,7 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 					   byt_cht_cx2072x_acpi_gpios))
 		dev_warn(rtd->dev, "Unable to add GPIO mapping table\n");
 
-	card->dapm.idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	/* set the default PLL rate, the clock is handled by the codec driver */
 	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(rtd, 0), CX2072X_MCLK_EXTERNAL_PLL,

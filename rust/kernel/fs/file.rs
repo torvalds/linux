@@ -17,6 +17,11 @@ use crate::{
 };
 use core::ptr;
 
+/// Primitive type representing the offset within a [`File`].
+///
+/// Type alias for `bindings::loff_t`.
+pub type Offset = bindings::loff_t;
+
 /// Flags associated with a [`File`].
 pub mod flags {
     /// File is opened in append mode.

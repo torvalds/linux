@@ -7,6 +7,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
+#include <net/page_pool/helpers.h>
 #include "hbg_reg.h"
 
 #define HBG_STATUS_DISABLE		0x0
@@ -17,6 +18,7 @@
 #define HBG_PCU_CACHE_LINE_SIZE		32
 #define HBG_TX_TIMEOUT_BUF_LEN		1024
 #define HBG_RX_DESCR			0x01
+#define HBG_NO_PHY			0xFF
 
 #define HBG_PACKET_HEAD_SIZE	((HBG_RX_SKIP1 + HBG_RX_SKIP2 + \
 				  HBG_RX_DESCR) * HBG_PCU_CACHE_LINE_SIZE)
@@ -54,6 +56,12 @@ struct hbg_buffer {
 	dma_addr_t skb_dma;
 	u32 skb_len;
 
+	struct page *page;
+	void *page_addr;
+	dma_addr_t page_dma;
+	u32 page_size;
+	u32 page_offset;
+
 	enum hbg_dir dir;
 	struct hbg_ring *ring;
 	struct hbg_priv *priv;
@@ -77,6 +85,7 @@ struct hbg_ring {
 	struct hbg_priv *priv;
 	struct napi_struct napi;
 	char *tout_log_buf; /* tx timeout log buffer */
+	struct page_pool *page_pool; /* only for rx */
 };
 
 enum hbg_hw_event_type {

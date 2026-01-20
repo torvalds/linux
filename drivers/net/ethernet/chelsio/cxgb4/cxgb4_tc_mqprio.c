@@ -330,7 +330,7 @@ static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
 	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
-	struct sched_class *e;
+	struct ch_sched_class *e;
 	int ret;
 	u8 i;
 

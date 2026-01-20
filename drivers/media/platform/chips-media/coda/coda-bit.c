@@ -1685,7 +1685,7 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 		dst_buf->flags |= V4L2_BUF_FLAG_PFRAME;
 	dst_buf->flags |= src_buf->flags & V4L2_BUF_FLAG_LAST;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 

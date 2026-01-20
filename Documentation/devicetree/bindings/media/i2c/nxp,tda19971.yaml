@@ -1,0 +1,162 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/nxp,tda19971.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP TDA1997x HDMI receiver
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description: |
+  The TDA19971/73 are HDMI video receivers.
+
+  The TDA19971 Video port output pins can be used as follows:
+   - RGB 8bit per color (24 bits total): R[11:4] B[11:4] G[11:4]
+   - YUV444 8bit per color (24 bits total): Y[11:4] Cr[11:4] Cb[11:4]
+   - YUV422 semi-planar 8bit per component (16 bits total): Y[11:4] CbCr[11:4]
+   - YUV422 semi-planar 10bit per component (20 bits total): Y[11:2] CbCr[11:2]
+   - YUV422 semi-planar 12bit per component (24 bits total): - Y[11:0] CbCr[11:0]
+   - YUV422 BT656 8bit per component (8 bits total): YCbCr[11:4] (2-cycles)
+   - YUV422 BT656 10bit per component (10 bits total): YCbCr[11:2] (2-cycles)
+   - YUV422 BT656 12bit per component (12 bits total): YCbCr[11:0] (2-cycles)
+
+  The TDA19973 Video port output pins can be used as follows:
+   - RGB 12bit per color (36 bits total): R[11:0] B[11:0] G[11:0]
+   - YUV444 12bit per color (36 bits total): Y[11:0] Cb[11:0] Cr[11:0]
+   - YUV422 semi-planar 12bit per component (24 bits total): Y[11:0] CbCr[11:0]
+   - YUV422 BT656 12bit per component (12 bits total): YCbCr[11:0] (2-cycles)
+
+  The Video port output pins are mapped via 4-bit 'pin groups' allowing
+  for a variety of connection possibilities including swapping pin order within
+  pin groups. The video_portcfg device-tree property consists of register mapping
+  pairs which map a chip-specific VP output register to a 4-bit pin group. If
+  the pin group needs to be bit-swapped you can use the *_S pin-group defines.
+
+properties:
+  compatible:
+    enum:
+      - nxp,tda19971
+      - nxp,tda19973
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  DOVDD-supply: true
+
+  DVDD-supply: true
+
+  AVDD-supply: true
+
+  '#sound-dai-cells':
+    const: 0
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+  nxp,vidout-portcfg:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 4
+    items:
+      items:
+        - description: Video Port control registers index.
+          maximum: 8
+          minimum: 0
+        - description: pin(pinswapped) groups
+
+    description:
+      array of pairs mapping VP output pins to pin groups.
+
+  nxp,audout-format:
+    enum:
+      - i2s
+      - spdif
+
+  nxp,audout-width:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [8, 16, 24, 32]
+    description:
+      width of audio output data bus.
+
+  nxp,audout-layout:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+    description:
+      data layout (0=AP0 used, 1=AP0/AP1/AP2/AP3 used).
+
+  nxp,audout-mclk-fs:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Multiplication factor between stream rate and codec mclk.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - DOVDD-supply
+  - AVDD-supply
+  - DVDD-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/media/tda1997x.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hdmi-receiver@48 {
+            compatible = "nxp,tda19971";
+            reg = <0x48>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_tda1997x>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+            DOVDD-supply = <&reg_3p3v>;
+            AVDD-supply = <&reg_1p8v>;
+            DVDD-supply = <&reg_1p8v>;
+            /* audio */
+            #sound-dai-cells = <0>;
+            nxp,audout-format = "i2s";
+            nxp,audout-layout = <0>;
+            nxp,audout-width = <16>;
+            nxp,audout-mclk-fs = <128>;
+            /*
+             * The 8bpp YUV422 semi-planar mode outputs CbCr[11:4]
+             * and Y[11:4] across 16bits in the same pixclk cycle.
+             */
+            nxp,vidout-portcfg =
+                /* Y[11:8]<->VP[15:12]<->CSI_DATA[19:16] */
+                < TDA1997X_VP24_V15_12 TDA1997X_G_Y_11_8 >,
+                /* Y[7:4]<->VP[11:08]<->CSI_DATA[15:12] */
+                < TDA1997X_VP24_V11_08 TDA1997X_G_Y_7_4 >,
+                /* CbCc[11:8]<->VP[07:04]<->CSI_DATA[11:8] */
+                < TDA1997X_VP24_V07_04 TDA1997X_R_CR_CBCR_11_8 >,
+                /* CbCr[7:4]<->VP[03:00]<->CSI_DATA[7:4] */
+                < TDA1997X_VP24_V03_00 TDA1997X_R_CR_CBCR_7_4 >;
+
+            port {
+                endpoint {
+                    remote-endpoint = <&ipu1_csi0_mux_from_parallel_sensor>;
+                    bus-width = <16>;
+                    hsync-active = <1>;
+                    vsync-active = <1>;
+                    data-active = <1>;
+                };
+            };
+        };
+    };

@@ -306,15 +306,12 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 				 const char *type, void *data,
 				 size_t data_size, struct idmap *idmap)
 {
-	const struct cred *saved_cred;
 	struct key *rkey;
 	const struct user_key_payload *payload;
 	ssize_t ret;
 
-	saved_cred = override_creds(id_resolver_cache);
-	rkey = nfs_idmap_request_key(name, namelen, type, idmap);
-	revert_creds(saved_cred);
-
+	scoped_with_creds(id_resolver_cache)
+		rkey = nfs_idmap_request_key(name, namelen, type, idmap);
 	if (IS_ERR(rkey)) {
 		ret = PTR_ERR(rkey);
 		goto out;

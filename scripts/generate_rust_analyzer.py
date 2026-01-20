@@ -15,7 +15,7 @@ def args_crates_cfgs(cfgs):
     crates_cfgs = {}
     for cfg in cfgs:
         crate, vals = cfg.split("=", 1)
-        crates_cfgs[crate] = vals.replace("--cfg", "").split()
+        crates_cfgs[crate] = vals.split()
 
     return crates_cfgs
 
@@ -87,9 +87,30 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     )
 
     append_crate(
+        "proc_macro2",
+        srctree / "rust" / "proc-macro2" / "lib.rs",
+        ["core", "alloc", "std", "proc_macro"],
+        cfg=crates_cfgs["proc_macro2"],
+    )
+
+    append_crate(
+        "quote",
+        srctree / "rust" / "quote" / "lib.rs",
+        ["alloc", "proc_macro", "proc_macro2"],
+        cfg=crates_cfgs["quote"],
+    )
+
+    append_crate(
+        "syn",
+        srctree / "rust" / "syn" / "lib.rs",
+        ["proc_macro", "proc_macro2", "quote"],
+        cfg=crates_cfgs["syn"],
+    )
+
+    append_crate(
         "macros",
         srctree / "rust" / "macros" / "lib.rs",
-        ["std", "proc_macro"],
+        ["std", "proc_macro", "proc_macro2", "quote", "syn"],
         is_proc_macro=True,
     )
 

@@ -352,7 +352,6 @@ fault:
 
 #define sev_printk(fmt, ...)		printk(fmt, ##__VA_ARGS__)
 #define error(v)
-#define has_cpuflag(f)			boot_cpu_has(f)
 
 #include "vc-shared.c"
 

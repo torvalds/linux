@@ -19,7 +19,7 @@
 #include <linux/kcmp.h>
 
 #include "pidfd.h"
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 /*
  * UNKNOWN_FD is an fd number that should never exist in the child, as it is

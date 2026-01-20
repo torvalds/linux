@@ -54,7 +54,7 @@ static int mlx5_query_mtrc_caps(struct mlx5_fw_tracer *tracer)
 
 	if (!MLX5_GET(mtrc_cap, out, trace_to_memory)) {
 		mlx5_core_dbg(dev, "FWTracer: Device does not support logging traces to memory\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	tracer->trc_ver = MLX5_GET(mtrc_cap, out, trc_ver);

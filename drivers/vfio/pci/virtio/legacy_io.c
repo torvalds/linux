@@ -281,41 +281,19 @@ ssize_t virtiovf_pci_core_write(struct vfio_device *core_vdev, const char __user
 }
 
 int virtiovf_pci_ioctl_get_region_info(struct vfio_device *core_vdev,
-				       unsigned int cmd, unsigned long arg)
+				       struct vfio_region_info *info,
+				       struct vfio_info_cap *caps)
 {
 	struct virtiovf_pci_core_device *virtvdev = container_of(
 		core_vdev, struct virtiovf_pci_core_device, core_device.vdev);
-	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
-	void __user *uarg = (void __user *)arg;
-	struct vfio_region_info info = {};
 
-	if (copy_from_user(&info, uarg, minsz))
-		return -EFAULT;
+	if (info->index != VFIO_PCI_BAR0_REGION_INDEX)
+		return vfio_pci_ioctl_get_region_info(core_vdev, info, caps);
 
-	if (info.argsz < minsz)
-		return -EINVAL;
-
-	switch (info.index) {
-	case VFIO_PCI_BAR0_REGION_INDEX:
-		info.offset = VFIO_PCI_INDEX_TO_OFFSET(info.index);
-		info.size = virtvdev->bar0_virtual_buf_size;
-		info.flags = VFIO_REGION_INFO_FLAG_READ |
-			     VFIO_REGION_INFO_FLAG_WRITE;
-		return copy_to_user(uarg, &info, minsz) ? -EFAULT : 0;
-	default:
-		return vfio_pci_core_ioctl(core_vdev, cmd, arg);
-	}
-}
-
-long virtiovf_vfio_pci_core_ioctl(struct vfio_device *core_vdev, unsigned int cmd,
-				  unsigned long arg)
-{
-	switch (cmd) {
-	case VFIO_DEVICE_GET_REGION_INFO:
-		return virtiovf_pci_ioctl_get_region_info(core_vdev, cmd, arg);
-	default:
-		return vfio_pci_core_ioctl(core_vdev, cmd, arg);
-	}
+	info->offset = VFIO_PCI_INDEX_TO_OFFSET(info->index);
+	info->size = virtvdev->bar0_virtual_buf_size;
+	info->flags = VFIO_REGION_INFO_FLAG_READ | VFIO_REGION_INFO_FLAG_WRITE;
+	return 0;
 }
 
 static int virtiovf_set_notify_addr(struct virtiovf_pci_core_device *virtvdev)

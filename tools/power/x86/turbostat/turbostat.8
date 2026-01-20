@@ -101,7 +101,7 @@ The column name "all" can be used to enable all disabled-by-default built-in cou
 .PP
 \fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.
 .PP
-\fB--show CATEGORY --hide CATEGORY\fP  Show and hide also accept a single CATEGORY of columns: "all", "topology", "idle", "frequency", "power", "cpuidle", "hwidle", "swidle", "other".  "idle" (enabled by default), includes "hwidle" and "pct_idle".  "cpuidle" (default disabled) includes cpuidle software invocation counters.  "swidle" includes "cpuidle" plus "pct_idle".  "hwidle" includes only hardware based idle residency counters.  Older versions of turbostat used the term "sysfs" for what is now "swidle".
+\fB--show CATEGORY --hide CATEGORY\fP  Show and hide also accept a comma-separated-list of CATEGORIES of columns: "all", "topology", "idle", "frequency", "power", "cpuidle", "hwidle", "swidle", "cache", "llc", "other".  "idle" (enabled by default), includes "hwidle" and "pct_idle".  "cpuidle" (default disabled) includes cpuidle software invocation counters.  "swidle" includes "cpuidle" plus "pct_idle".  "hwidle" includes only hardware based idle residency counters.  Older versions of turbostat used the term "sysfs" for what is now "swidle".
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP
@@ -158,6 +158,10 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBIRQ\fP The number of interrupts serviced by that CPU during the measurement interval.  The system total line is the sum of interrupts serviced across all CPUs.  turbostat parses /proc/interrupts to generate this summary.
 .PP
 \fBSMI\fP The number of System Management Interrupts  serviced CPU during the measurement interval.  While this counter is actually per-CPU, SMI are triggered on all processors, so the number should be the same for all CPUs.
+.PP
+\fBLLCkRPS\fP Last Level Cache Thousands of References Per Second.  For CPUs with an L3 LLC, this is the number of references that CPU made to the L3 (and the number of misses that CPU made to it's L2).  For CPUs with an L2 LLC, this is the number of references to the L2 (and the number of misses to the CPU's L1).  The system summary row shows the sum for all CPUs.  In both cases, the value displayed is the actual value divided by 1000 in the interest of usually fitting into 8 columns.
+.PP
+\fBLLC%hit\fP Last Level Cache Hit Rate %.  Hit Rate Percent = 100.0 * (References - Misses)/References.  The system summary row shows the weighted average for all CPUs (100.0 * (Sum_References - Sum_Misses)/Sum_References).
 .PP
 \fBC1, C2, C3...\fP The number times Linux requested the C1, C2, C3 idle state during the measurement interval.  The system summary line shows the sum for all CPUs.  These are C-state names as exported in /sys/devices/system/cpu/cpu*/cpuidle/state*/name.  While their names are generic, their attributes are processor specific. They the system description section of output shows what MWAIT sub-states they are mapped to on each system.  These counters are in the "cpuidle" group, which is disabled, by default.
 .PP
@@ -410,25 +414,24 @@ CPU     pCPU%c1 CPU%c1
 .fi
 
 .SH ADD PERF COUNTER EXAMPLE #2 (using virtual cpu device)
-Here we run on hybrid, Raptor Lake platform.
-We limit turbostat to show output for just cpu0 (pcore) and cpu12 (ecore).
+Here we run on hybrid, Meteor Lake platform.
+We limit turbostat to show output for just cpu0 (pcore) and cpu4 (ecore).
 We add a counter showing number of L3 cache misses, using virtual "cpu" device,
 labeling it with the column header, "VCMISS".
 We add a counter showing number of L3 cache misses, using virtual "cpu_core" device,
-labeling it with the column header, "PCMISS". This will fail on ecore cpu12.
+labeling it with the column header, "PCMISS". This will fail on ecore cpu4.
 We add a counter showing number of L3 cache misses, using virtual "cpu_atom" device,
 labeling it with the column header, "ECMISS". This will fail on pcore cpu0.
 We display it only once, after the conclusion of 0.1 second sleep.
 .nf
-sudo ./turbostat --quiet --cpu 0,12 --show CPU --add perf/cpu/cache-misses,cpu,delta,raw,VCMISS --add perf/cpu_core/cache-misses,cpu,delta,raw,PCMISS --add perf/cpu_atom/cache-misses,cpu,delta,raw,ECMISS sleep .1
+sudo ./turbostat --quiet --cpu 0,4 --show CPU --add perf/cpu/cache-misses,cpu,delta,VCMISS --add perf/cpu_core/cache-misses,cpu,delta,PCMISS --add perf/cpu_atom/cache-misses,cpu,delta,ECMISS sleep 5
 turbostat: added_perf_counters_init_: perf/cpu_atom/cache-misses: failed to open counter on cpu0
-turbostat: added_perf_counters_init_: perf/cpu_core/cache-misses: failed to open counter on cpu12
-0.104630 sec
-CPU                 ECMISS                  PCMISS                  VCMISS
--       0x0000000000000000      0x0000000000000000      0x0000000000000000
-0       0x0000000000000000      0x0000000000007951      0x0000000000007796
-12      0x000000000001137a      0x0000000000000000      0x0000000000011392
-
+turbostat: added_perf_counters_init_: perf/cpu_core/cache-misses: failed to open counter on cpu4
+5.001207 sec
+CPU	ECMISS		PCMISS		VCMISS
+-	41586506	46291219	87877749
+4	83173012	0		83173040
+0	0		92582439	92582458
 .fi
 
 .SH ADD PMT COUNTER EXAMPLE

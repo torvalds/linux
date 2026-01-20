@@ -30,7 +30,6 @@ description: |
   * https://www.analog.com/en/products/adaq4380-4.html
   * https://www.analog.com/en/products/adaq4381-4.html
 
-
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:

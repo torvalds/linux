@@ -51,6 +51,7 @@ void put_cpu_vector_context(void);
 void riscv_v_thread_free(struct task_struct *tsk);
 void __init riscv_v_setup_ctx_cache(void);
 void riscv_v_thread_alloc(struct task_struct *tsk);
+void __init update_regset_vector_info(unsigned long size);
 
 static inline u32 riscv_v_flags(void)
 {

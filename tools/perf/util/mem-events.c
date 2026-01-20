@@ -303,12 +303,15 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr, char **eve
 	}
 
 	if (cpu_map) {
-		if (!perf_cpu_map__equal(cpu_map, cpu_map__online())) {
+		struct perf_cpu_map *online = cpu_map__online();
+
+		if (!perf_cpu_map__equal(cpu_map, online)) {
 			char buf[200];
 
 			cpu_map__snprint(cpu_map, buf, sizeof(buf));
 			pr_warning("Memory events are enabled on a subset of CPUs: %s\n", buf);
 		}
+		perf_cpu_map__put(online);
 		perf_cpu_map__put(cpu_map);
 	}
 

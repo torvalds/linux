@@ -15,7 +15,9 @@
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
 #include "xe_sriov_pf_helpers.h"
+#include "xe_sriov_pf_migration.h"
 #include "xe_sriov_pf_service.h"
+#include "xe_sriov_pf_sysfs.h"
 #include "xe_sriov_printk.h"
 
 static unsigned int wanted_max_vfs(struct xe_device *xe)
@@ -101,6 +103,12 @@ int xe_sriov_pf_init_early(struct xe_device *xe)
 	if (err)
 		return err;
 
+	err = xe_sriov_pf_migration_init(xe);
+	if (err)
+		return err;
+
+	xe_guard_init(&xe->sriov.pf.guard_vfs_enabling, "vfs_enabling");
+
 	xe_sriov_pf_service_init(xe);
 
 	return 0;
@@ -127,6 +135,10 @@ int xe_sriov_pf_init_late(struct xe_device *xe)
 		if (err)
 			return err;
 	}
+
+	err = xe_sriov_pf_sysfs_init(xe);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -155,6 +167,101 @@ int xe_sriov_pf_wait_ready(struct xe_device *xe)
 	}
 
 	return 0;
+}
+
+/**
+ * xe_sriov_pf_arm_guard() - Arm the guard for exclusive/lockdown mode.
+ * @xe: the PF &xe_device
+ * @guard: the &xe_guard to arm
+ * @lockdown: arm for lockdown(true) or exclusive(false) mode
+ * @who: the address of the new owner, or NULL if it's a caller
+ *
+ * This function can only be called on PF.
+ *
+ * It is a simple wrapper for xe_guard_arm() with additional debug
+ * messages.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_arm_guard(struct xe_device *xe, struct xe_guard *guard,
+			  bool lockdown, void *who)
+{
+	void *new_owner = who ?: __builtin_return_address(0);
+	int err;
+
+	err = xe_guard_arm(guard, lockdown, new_owner);
+	if (err) {
+		xe_sriov_dbg(xe, "%s/%s mode denied (%pe) last owner %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     ERR_PTR(err), guard->owner);
+		return err;
+	}
+
+	xe_sriov_dbg_verbose(xe, "%s/%s by %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     new_owner);
+	return 0;
+}
+
+/**
+ * xe_sriov_pf_disarm_guard() - Disarm the guard.
+ * @xe: the PF &xe_device
+ * @guard: the &xe_guard to disarm
+ * @lockdown: disarm from lockdown(true) or exclusive(false) mode
+ * @who: the address of the indirect owner, or NULL if it's a caller
+ *
+ * This function can only be called on PF.
+ *
+ * It is a simple wrapper for xe_guard_disarm() with additional debug
+ * messages and xe_assert() to easily catch any illegal calls.
+ */
+void xe_sriov_pf_disarm_guard(struct xe_device *xe, struct xe_guard *guard,
+			      bool lockdown, void *who)
+{
+	bool disarmed;
+
+	xe_sriov_dbg_verbose(xe, "%s/%s by %ps\n",
+			     guard->name, xe_guard_mode_str(lockdown),
+			     who ?: __builtin_return_address(0));
+
+	disarmed = xe_guard_disarm(guard, lockdown);
+	xe_assert_msg(xe, disarmed, "%s/%s not armed? last owner %ps",
+		      guard->name, xe_guard_mode_str(lockdown), guard->owner);
+}
+
+/**
+ * xe_sriov_pf_lockdown() - Lockdown the PF to prevent VFs enabling.
+ * @xe: the PF &xe_device
+ *
+ * This function can only be called on PF.
+ *
+ * Once the PF is locked down, it will not enable VFs.
+ * If VFs are already enabled, the -EBUSY will be returned.
+ * To allow the PF enable VFs again call xe_sriov_pf_end_lockdown().
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_lockdown(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	return xe_sriov_pf_arm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, true,
+				     __builtin_return_address(0));
+}
+
+/**
+ * xe_sriov_pf_end_lockdown() - Allow the PF to enable VFs again.
+ * @xe: the PF &xe_device
+ *
+ * This function can only be called on PF.
+ * See xe_sriov_pf_lockdown() for details.
+ */
+void xe_sriov_pf_end_lockdown(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	xe_sriov_pf_disarm_guard(xe, &xe->sriov.pf.guard_vfs_enabling, true,
+				 __builtin_return_address(0));
 }
 
 /**

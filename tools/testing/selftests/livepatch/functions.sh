@@ -10,7 +10,11 @@ SYSFS_KERNEL_DIR="/sys/kernel"
 SYSFS_KLP_DIR="$SYSFS_KERNEL_DIR/livepatch"
 SYSFS_DEBUG_DIR="$SYSFS_KERNEL_DIR/debug"
 SYSFS_KPROBES_DIR="$SYSFS_DEBUG_DIR/kprobes"
-SYSFS_TRACING_DIR="$SYSFS_DEBUG_DIR/tracing"
+if [[ -e /sys/kernel/tracing/trace ]]; then
+	SYSFS_TRACING_DIR="$SYSFS_KERNEL_DIR/tracing"
+else
+	SYSFS_TRACING_DIR="$SYSFS_DEBUG_DIR/tracing"
+fi
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4

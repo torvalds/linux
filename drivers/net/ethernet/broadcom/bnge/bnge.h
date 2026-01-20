@@ -11,6 +11,7 @@
 #include <linux/bnxt/hsi.h>
 #include "bnge_rmem.h"
 #include "bnge_resc.h"
+#include "bnge_auxr.h"
 
 #define DRV_VER_MAJ	1
 #define DRV_VER_MIN	15
@@ -20,6 +21,12 @@ extern char bnge_driver_name[];
 
 enum board_idx {
 	BCM57708,
+};
+
+struct bnge_auxr_priv {
+	struct auxiliary_device aux_dev;
+	struct bnge_auxr_dev *auxr_dev;
+	int id;
 };
 
 struct bnge_pf_info {
@@ -197,6 +204,9 @@ struct bnge_dev {
 
 	struct bnge_irq		*irq_tbl;
 	u16			irqs_acquired;
+
+	struct bnge_auxr_priv	*aux_priv;
+	struct bnge_auxr_dev	*auxr_dev;
 };
 
 static inline bool bnge_is_roce_en(struct bnge_dev *bd)

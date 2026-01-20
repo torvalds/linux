@@ -2335,20 +2335,6 @@ static int ionic_stop(struct net_device *netdev)
 	return 0;
 }
 
-static int ionic_eth_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
-{
-	struct ionic_lif *lif = netdev_priv(netdev);
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return ionic_lif_hwstamp_set(lif, ifr);
-	case SIOCGHWTSTAMP:
-		return ionic_lif_hwstamp_get(lif, ifr);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static int ionic_get_vf_config(struct net_device *netdev,
 			       int vf, struct ifla_vf_info *ivf)
 {
@@ -2812,7 +2798,6 @@ static int ionic_xdp(struct net_device *netdev, struct netdev_bpf *bpf)
 static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_open               = ionic_open,
 	.ndo_stop               = ionic_stop,
-	.ndo_eth_ioctl		= ionic_eth_ioctl,
 	.ndo_start_xmit		= ionic_start_xmit,
 	.ndo_bpf		= ionic_xdp,
 	.ndo_xdp_xmit		= ionic_xdp_xmit,
@@ -2833,6 +2818,8 @@ static const struct net_device_ops ionic_netdev_ops = {
 	.ndo_get_vf_config	= ionic_get_vf_config,
 	.ndo_set_vf_link_state	= ionic_set_vf_link_state,
 	.ndo_get_vf_stats       = ionic_get_vf_stats,
+	.ndo_hwtstamp_get	= ionic_hwstamp_get,
+	.ndo_hwtstamp_set	= ionic_hwstamp_set,
 };
 
 static int ionic_cmb_reconfig(struct ionic_lif *lif,

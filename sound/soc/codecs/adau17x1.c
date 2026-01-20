@@ -185,8 +185,8 @@ static const struct snd_soc_dapm_route adau17x1_dapm_pll_route = {
 static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct adau *adau = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct snd_soc_dapm_update update = {};
@@ -230,7 +230,7 @@ static int adau17x1_dsp_mux_enum_put(struct snd_kcontrol *kcontrol,
 static int adau17x1_dsp_mux_enum_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	struct adau *adau = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int stream = e->shift_l;
@@ -383,7 +383,7 @@ static int adau17x1_set_dai_pll(struct snd_soc_dai *dai, int pll_id,
 static int adau17x1_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(dai->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(dai->component);
 	struct adau *adau = snd_soc_component_get_drvdata(dai->component);
 	bool is_pll;
 	bool was_pll;
@@ -881,7 +881,7 @@ static int adau17x1_setup_firmware(struct snd_soc_component *component,
 	int ret;
 	int dspsr, dsp_run;
 	struct adau *adau = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	/* Check if sample rate is the same as before. If it is there is no
 	 * point in performing the below steps as the call to
@@ -922,7 +922,7 @@ err:
 
 int adau17x1_add_widgets(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct adau *adau = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -958,7 +958,7 @@ EXPORT_SYMBOL_GPL(adau17x1_add_widgets);
 
 int adau17x1_add_routes(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct adau *adau = snd_soc_component_get_drvdata(component);
 	int ret;
 

@@ -914,8 +914,8 @@ void *user_ptr;
 char expected_str[384];
 __u32 test_len[7] = {0/* placeholder */, 0, 1, 2, 255, 256, 257};
 
-typedef int (*bpf_read_dynptr_fn_t)(struct bpf_dynptr *dptr, u32 off,
-				    u32 size, const void *unsafe_ptr);
+typedef int (*bpf_read_dynptr_fn_t)(struct bpf_dynptr *dptr, u64 off,
+				    u64 size, const void *unsafe_ptr);
 
 /* Returns the offset just before the end of the maximum sized xdp fragment.
  * Any write larger than 32 bytes will be split between 2 fragments.
@@ -1106,16 +1106,16 @@ int test_copy_from_user_str_dynptr(void *ctx)
 	return 0;
 }
 
-static int bpf_copy_data_from_user_task(struct bpf_dynptr *dptr, u32 off,
-					u32 size, const void *unsafe_ptr)
+static int bpf_copy_data_from_user_task(struct bpf_dynptr *dptr, u64 off,
+					u64 size, const void *unsafe_ptr)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 
 	return bpf_copy_from_user_task_dynptr(dptr, off, size, unsafe_ptr, task);
 }
 
-static int bpf_copy_data_from_user_task_str(struct bpf_dynptr *dptr, u32 off,
-					    u32 size, const void *unsafe_ptr)
+static int bpf_copy_data_from_user_task_str(struct bpf_dynptr *dptr, u64 off,
+					    u64 size, const void *unsafe_ptr)
 {
 	struct task_struct *task = bpf_get_current_task_btf();
 

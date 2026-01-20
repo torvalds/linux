@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/dlg,da9052.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog DA9052/53 Power Management Integrated Circuit (PMIC)
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - dlg,da9053-aa
+          - dlg,da9053-ab
+          - dlg,da9053-bb
+          - dlg,da9053-bc
+          - dlg,da9052
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  dlg,tsi-as-adc:
+    type: boolean
+    description:
+      if set the X+, X-, Y+, Y- touchscreen input lines are used as general
+      purpose analogue input.
+
+  tsiref-supply:
+    description: The reference voltage for the TSIREF pin.
+
+  regulators:
+    type: object
+    additionalProperties: false
+
+    patternProperties:
+      "^(ldo([1-9]|10)|buck[1-4])$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@48 {
+            compatible = "dlg,da9053-aa";
+            reg = <0x48>;
+
+            regulators {
+                buck1 {
+                    regulator-min-microvolt = <500000>;
+                    regulator-max-microvolt = <2075000>;
+                };
+
+                buck2 {
+                    regulator-min-microvolt = <500000>;
+                    regulator-max-microvolt = <2075000>;
+                };
+
+                buck3 {
+                    regulator-min-microvolt = <925000>;
+                    regulator-max-microvolt = <2500000>;
+                };
+
+                buck4 {
+                    regulator-min-microvolt = <925000>;
+                    regulator-max-microvolt = <2500000>;
+                };
+            };
+        };
+    };

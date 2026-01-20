@@ -327,8 +327,6 @@ out:
  */
 void ubifs_pad(const struct ubifs_info *c, void *buf, int pad)
 {
-	uint32_t crc;
-
 	ubifs_assert(c, pad >= 0);
 
 	if (pad >= UBIFS_PAD_NODE_SZ) {
@@ -343,8 +341,7 @@ void ubifs_pad(const struct ubifs_info *c, void *buf, int pad)
 		ch->len = cpu_to_le32(UBIFS_PAD_NODE_SZ);
 		pad -= UBIFS_PAD_NODE_SZ;
 		pad_node->pad_len = cpu_to_le32(pad);
-		crc = crc32(UBIFS_CRC32_INIT, buf + 8, UBIFS_PAD_NODE_SZ - 8);
-		ch->crc = cpu_to_le32(crc);
+		ubifs_crc_node(buf, UBIFS_PAD_NODE_SZ);
 		memset(buf + UBIFS_PAD_NODE_SZ, 0, pad);
 	} else if (pad > 0)
 		/* Too little space, padding node won't fit */
@@ -395,7 +392,7 @@ void ubifs_init_node(struct ubifs_info *c, void *node, int len, int pad)
 	}
 }
 
-void ubifs_crc_node(struct ubifs_info *c, void *node, int len)
+void ubifs_crc_node(void *node, int len)
 {
 	struct ubifs_ch *ch = node;
 	uint32_t crc;
@@ -432,7 +429,7 @@ int ubifs_prepare_node_hmac(struct ubifs_info *c, void *node, int len,
 			return err;
 	}
 
-	ubifs_crc_node(c, node, len);
+	ubifs_crc_node(node, len);
 
 	return 0;
 }
@@ -469,7 +466,6 @@ void ubifs_prepare_node(struct ubifs_info *c, void *node, int len, int pad)
  */
 void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last)
 {
-	uint32_t crc;
 	struct ubifs_ch *ch = node;
 	unsigned long long sqnum = next_sqnum(c);
 
@@ -483,8 +479,7 @@ void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last)
 		ch->group_type = UBIFS_IN_NODE_GROUP;
 	ch->sqnum = cpu_to_le64(sqnum);
 	ch->padding[0] = ch->padding[1] = 0;
-	crc = crc32(UBIFS_CRC32_INIT, node + 8, len - 8);
-	ch->crc = cpu_to_le32(crc);
+	ubifs_crc_node(node, len);
 }
 
 /**

@@ -1107,8 +1107,9 @@ static void do_isync(void *info __maybe_unused)
  * execute isync (or some CSI) so that they don't go back into the
  * trampoline again.
  */
-int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
-		       void *old_addr, void *new_addr)
+int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type old_t,
+		       enum bpf_text_poke_type new_t, void *old_addr,
+		       void *new_addr)
 {
 	unsigned long bpf_func, bpf_func_end, size, offset;
 	ppc_inst_t old_inst, new_inst;
@@ -1119,7 +1120,6 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 		return -EOPNOTSUPP;
 
 	bpf_func = (unsigned long)ip;
-	branch_flags = poke_type == BPF_MOD_CALL ? BRANCH_SET_LINK : 0;
 
 	/* We currently only support poking bpf programs */
 	if (!__bpf_address_lookup(bpf_func, &size, &offset, name)) {
@@ -1132,7 +1132,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 	 * an unconditional branch instruction at im->ip_after_call
 	 */
 	if (offset) {
-		if (poke_type != BPF_MOD_JUMP) {
+		if (old_t == BPF_MOD_CALL || new_t == BPF_MOD_CALL) {
 			pr_err("%s (0x%lx): calls are not supported in bpf prog body\n", __func__,
 			       bpf_func);
 			return -EOPNOTSUPP;
@@ -1166,6 +1166,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 	}
 
 	old_inst = ppc_inst(PPC_RAW_NOP());
+	branch_flags = old_t == BPF_MOD_CALL ? BRANCH_SET_LINK : 0;
 	if (old_addr) {
 		if (is_offset_in_branch_range(ip - old_addr))
 			create_branch(&old_inst, ip, (unsigned long)old_addr, branch_flags);
@@ -1174,6 +1175,7 @@ int bpf_arch_text_poke(void *ip, enum bpf_text_poke_type poke_type,
 				      branch_flags);
 	}
 	new_inst = ppc_inst(PPC_RAW_NOP());
+	branch_flags = new_t == BPF_MOD_CALL ? BRANCH_SET_LINK : 0;
 	if (new_addr) {
 		if (is_offset_in_branch_range(ip - new_addr))
 			create_branch(&new_inst, ip, (unsigned long)new_addr, branch_flags);

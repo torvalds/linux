@@ -853,6 +853,7 @@ static int wm8978_mute(struct snd_soc_dai *dai, int mute, int direction)
 static int wm8978_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	u16 power1 = snd_soc_component_read(component, WM8978_POWER_MANAGEMENT_1) & ~3;
 
 	switch (level) {
@@ -865,7 +866,7 @@ static int wm8978_set_bias_level(struct snd_soc_component *component,
 		/* bit 3: enable bias, bit 2: enable I/O tie off buffer */
 		power1 |= 0xc;
 
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
 			snd_soc_component_write(component, WM8978_POWER_MANAGEMENT_1,
 				      power1 | 0x3);
@@ -924,8 +925,9 @@ static struct snd_soc_dai_driver wm8978_dai = {
 static int wm8978_suspend(struct snd_soc_component *component)
 {
 	struct wm8978_priv *wm8978 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 	/* Also switch PLL off */
 	snd_soc_component_write(component, WM8978_POWER_MANAGEMENT_1, 0);
 
@@ -937,11 +939,12 @@ static int wm8978_suspend(struct snd_soc_component *component)
 static int wm8978_resume(struct snd_soc_component *component)
 {
 	struct wm8978_priv *wm8978 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	/* Sync reg_cache with the hardware */
 	regcache_sync(wm8978->regmap);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	if (wm8978->f_pllout)
 		/* Switch PLL on */

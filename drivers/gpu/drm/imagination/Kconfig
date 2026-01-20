@@ -7,6 +7,7 @@ config DRM_POWERVR
 	depends on DRM
 	depends on MMU
 	depends on PM
+	depends on POWER_SEQUENCING || !POWER_SEQUENCING
 	select DRM_EXEC
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_SCHED

@@ -4,7 +4,7 @@
  * Definitions to support CAAM descriptor instruction generation
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
- * Copyright 2018 NXP
+ * Copyright 2018, 2025 NXP
  */
 
 #ifndef DESC_H
@@ -162,6 +162,7 @@
  * Enhanced Encryption of Key
  */
 #define KEY_EKT			0x00100000
+#define KEY_EKT_OFFSET		20
 
 /*
  * Encrypted with Trusted Key
@@ -403,6 +404,7 @@
 #define FIFOST_TYPE_PKHA_N	 (0x08 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_A	 (0x0c << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_B	 (0x0d << FIFOST_TYPE_SHIFT)
+#define FIFOST_TYPE_KEY_CCM_JKEK (0x14 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_AF_SBOX_JKEK (0x20 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_AF_SBOX_TKEK (0x21 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_E_JKEK	 (0x22 << FIFOST_TYPE_SHIFT)
@@ -1000,6 +1002,11 @@
 #define OP_PCL_TLS12_AES_256_CBC_SHA256		 0xff66
 #define OP_PCL_TLS12_AES_256_CBC_SHA384		 0xff63
 #define OP_PCL_TLS12_AES_256_CBC_SHA512		 0xff65
+
+/* Blob protocol protinfo bits */
+
+#define OP_PCL_BLOB_BLACK                        0x0004
+#define OP_PCL_BLOB_EKT                          0x0100
 
 /* For DTLS - OP_PCLID_DTLS */
 

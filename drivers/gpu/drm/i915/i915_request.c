@@ -31,6 +31,8 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
 
+#include <drm/drm_print.h>
+
 #include "gem/i915_gem_context.h"
 #include "gt/intel_breadcrumbs.h"
 #include "gt/intel_context.h"

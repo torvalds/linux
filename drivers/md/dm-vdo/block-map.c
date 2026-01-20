@@ -174,6 +174,7 @@ static inline struct vdo_page_completion *page_completion_from_waiter(struct vdo
 
 /**
  * initialize_info() - Initialize all page info structures and put them on the free list.
+ * @cache: The page cache.
  *
  * Return: VDO_SUCCESS or an error.
  */
@@ -209,6 +210,7 @@ static int initialize_info(struct vdo_page_cache *cache)
 /**
  * allocate_cache_components() - Allocate components of the cache which require their own
  *                               allocation.
+ * @cache: The page cache.
  *
  * The caller is responsible for all clean up on errors.
  *
@@ -238,6 +240,8 @@ static int __must_check allocate_cache_components(struct vdo_page_cache *cache)
 /**
  * assert_on_cache_thread() - Assert that a function has been called on the VDO page cache's
  *                            thread.
+ * @cache: The page cache.
+ * @function_name: The funtion name to report if the assertion fails.
  */
 static inline void assert_on_cache_thread(struct vdo_page_cache *cache,
 					  const char *function_name)
@@ -271,6 +275,7 @@ static void report_cache_pressure(struct vdo_page_cache *cache)
 
 /**
  * get_page_state_name() - Return the name of a page state.
+ * @state: The page state to describe.
  *
  * If the page state is invalid a static string is returned and the invalid state is logged.
  *
@@ -342,6 +347,8 @@ static void update_lru(struct page_info *info)
 /**
  * set_info_state() - Set the state of a page_info and put it on the right list, adjusting
  *                    counters.
+ * @info: The page info to update.
+ * @new_state: The new state to set.
  */
 static void set_info_state(struct page_info *info, enum vdo_page_buffer_state new_state)
 {
@@ -416,6 +423,7 @@ static int reset_page_info(struct page_info *info)
 
 /**
  * find_free_page() - Find a free page.
+ * @cache: The page cache.
  *
  * Return: A pointer to the page info structure (if found), NULL otherwise.
  */
@@ -433,6 +441,7 @@ static struct page_info * __must_check find_free_page(struct vdo_page_cache *cac
 
 /**
  * find_page() - Find the page info (if any) associated with a given pbn.
+ * @cache: The page cache.
  * @pbn: The absolute physical block number of the page.
  *
  * Return: The page info for the page if available, or NULL if not.
@@ -449,6 +458,7 @@ static struct page_info * __must_check find_page(struct vdo_page_cache *cache,
 
 /**
  * select_lru_page() - Determine which page is least recently used.
+ * @cache: The page cache.
  *
  * Picks the least recently used from among the non-busy entries at the front of each of the lru
  * list. Since whenever we mark a page busy we also put it to the end of the list it is unlikely
@@ -523,6 +533,8 @@ static void complete_waiter_with_page(struct vdo_waiter *waiter, void *page_info
 
 /**
  * distribute_page_over_waitq() - Complete a waitq of VDO page completions with a page result.
+ * @info: The loaded page info.
+ * @waitq: The list of waiting data_vios.
  *
  * Upon completion the waitq will be empty.
  *
@@ -548,7 +560,9 @@ static unsigned int distribute_page_over_waitq(struct page_info *info,
 
 /**
  * set_persistent_error() - Set a persistent error which all requests will receive in the future.
+ * @cache: The page cache.
  * @context: A string describing what triggered the error.
+ * @result: The error result to set on the cache.
  *
  * Once triggered, all enqueued completions will get this error. Any future requests will result in
  * this error as well.
@@ -581,6 +595,7 @@ static void set_persistent_error(struct vdo_page_cache *cache, const char *conte
 /**
  * validate_completed_page() - Check that a page completion which is being freed to the cache
  *                             referred to a valid page and is in a valid state.
+ * @completion: The page completion to check.
  * @writable: Whether a writable page is required.
  *
  * Return: VDO_SUCCESS if the page was valid, otherwise as error
@@ -758,6 +773,8 @@ static void load_cache_page_endio(struct bio *bio)
 
 /**
  * launch_page_load() - Begin the process of loading a page.
+ * @info: The page info to launch.
+ * @pbn: The absolute physical block number of the page to load.
  *
  * Return: VDO_SUCCESS or an error code.
  */
@@ -836,6 +853,7 @@ static void save_pages(struct vdo_page_cache *cache)
 
 /**
  * schedule_page_save() - Add a page to the outgoing list of pages waiting to be saved.
+ * @info: The page info to save.
  *
  * Once in the list, a page may not be used until it has been written out.
  */
@@ -854,6 +872,7 @@ static void schedule_page_save(struct page_info *info)
 /**
  * launch_page_save() - Add a page to outgoing pages waiting to be saved, and then start saving
  * pages if another save is not in progress.
+ * @info: The page info to save.
  */
 static void launch_page_save(struct page_info *info)
 {
@@ -864,6 +883,7 @@ static void launch_page_save(struct page_info *info)
 /**
  * completion_needs_page() - Determine whether a given vdo_page_completion (as a waiter) is
  *                           requesting a given page number.
+ * @waiter: The page completion waiter to check.
  * @context: A pointer to the pbn of the desired page.
  *
  * Implements waiter_match_fn.
@@ -880,6 +900,7 @@ static bool completion_needs_page(struct vdo_waiter *waiter, void *context)
 /**
  * allocate_free_page() - Allocate a free page to the first completion in the waiting queue, and
  *                        any other completions that match it in page number.
+ * @info: The page info to allocate a page for.
  */
 static void allocate_free_page(struct page_info *info)
 {
@@ -925,6 +946,7 @@ static void allocate_free_page(struct page_info *info)
 
 /**
  * discard_a_page() - Begin the process of discarding a page.
+ * @cache: The page cache.
  *
  * If no page is discardable, increments a count of deferred frees so that the next release of a
  * page which is no longer busy will kick off another discard cycle. This is an indication that the
@@ -955,10 +977,6 @@ static void discard_a_page(struct vdo_page_cache *cache)
 	launch_page_save(info);
 }
 
-/**
- * discard_page_for_completion() - Helper used to trigger a discard so that the completion can get
- *                                 a different page.
- */
 static void discard_page_for_completion(struct vdo_page_completion *vdo_page_comp)
 {
 	struct vdo_page_cache *cache = vdo_page_comp->cache;
@@ -1132,6 +1150,7 @@ static void write_pages(struct vdo_completion *flush_completion)
 
 /**
  * vdo_release_page_completion() - Release a VDO Page Completion.
+ * @completion: The page completion to release.
  *
  * The page referenced by this completion (if any) will no longer be held busy by this completion.
  * If a page becomes discardable and there are completions awaiting free pages then a new round of
@@ -1172,10 +1191,6 @@ void vdo_release_page_completion(struct vdo_completion *completion)
 	}
 }
 
-/**
- * load_page_for_completion() - Helper function to load a page as described by a VDO Page
- *                              Completion.
- */
 static void load_page_for_completion(struct page_info *info,
 				     struct vdo_page_completion *vdo_page_comp)
 {
@@ -1319,6 +1334,7 @@ int vdo_get_cached_page(struct vdo_completion *completion,
 
 /**
  * vdo_invalidate_page_cache() - Invalidate all entries in the VDO page cache.
+ * @cache: The page cache.
  *
  * There must not be any dirty pages in the cache.
  *
@@ -1345,6 +1361,10 @@ int vdo_invalidate_page_cache(struct vdo_page_cache *cache)
 
 /**
  * get_tree_page_by_index() - Get the tree page for a given height and page index.
+ * @forest: The block map forest.
+ * @root_index: The root index of the tree to search.
+ * @height: The height in the tree.
+ * @page_index: The page index.
  *
  * Return: The requested page.
  */
@@ -2211,6 +2231,7 @@ static void allocate_block_map_page(struct block_map_zone *zone,
 /**
  * vdo_find_block_map_slot() - Find the block map slot in which the block map entry for a data_vio
  *                             resides and cache that result in the data_vio.
+ * @data_vio: The data vio.
  *
  * All ancestors in the tree will be allocated or loaded, as needed.
  */
@@ -2435,6 +2456,7 @@ static void deforest(struct forest *forest, size_t first_page_segment)
 /**
  * make_forest() - Make a collection of trees for a block_map, expanding the existing forest if
  *                 there is one.
+ * @map: The block map.
  * @entries: The number of entries the block map will hold.
  *
  * Return: VDO_SUCCESS or an error.
@@ -2476,6 +2498,7 @@ static int make_forest(struct block_map *map, block_count_t entries)
 
 /**
  * replace_forest() - Replace a block_map's forest with the already-prepared larger forest.
+ * @map: The block map.
  */
 static void replace_forest(struct block_map *map)
 {
@@ -2492,6 +2515,7 @@ static void replace_forest(struct block_map *map)
 /**
  * finish_cursor() - Finish the traversal of a single tree. If it was the last cursor, finish the
  *                   traversal.
+ * @cursor: The cursor to complete.
  */
 static void finish_cursor(struct cursor *cursor)
 {
@@ -2549,6 +2573,7 @@ static void traversal_endio(struct bio *bio)
 
 /**
  * traverse() - Traverse a single block map tree.
+ * @cursor: A cursor tracking traversal progress.
  *
  * This is the recursive heart of the traversal process.
  */
@@ -2619,6 +2644,7 @@ static void traverse(struct cursor *cursor)
 /**
  * launch_cursor() - Start traversing a single block map tree now that the cursor has a VIO with
  *                   which to load pages.
+ * @waiter: The parent of the cursor to launch.
  * @context: The pooled_vio just acquired.
  *
  * Implements waiter_callback_fn.
@@ -2636,6 +2662,8 @@ static void launch_cursor(struct vdo_waiter *waiter, void *context)
 
 /**
  * compute_boundary() - Compute the number of pages used at each level of the given root's tree.
+ * @map: The block map.
+ * @root_index: The tree root index.
  *
  * Return: The list of page counts as a boundary structure.
  */
@@ -2668,6 +2696,7 @@ static struct boundary compute_boundary(struct block_map *map, root_count_t root
 
 /**
  * vdo_traverse_forest() - Walk the entire forest of a block map.
+ * @map: The block map.
  * @callback: A function to call with the pbn of each allocated node in the forest.
  * @completion: The completion to notify on each traversed PBN, and when traversal completes.
  */
@@ -2707,6 +2736,9 @@ void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
 
 /**
  * initialize_block_map_zone() - Initialize the per-zone portions of the block map.
+ * @map: The block map.
+ * @zone_number: The zone to initialize.
+ * @cache_size: The total block map cache size.
  * @maximum_age: The number of journal blocks before a dirtied page is considered old and must be
  *               written out.
  */
@@ -3091,6 +3123,7 @@ static void fetch_mapping_page(struct data_vio *data_vio, bool modifiable,
 
 /**
  * clear_mapped_location() - Clear a data_vio's mapped block location, setting it to be unmapped.
+ * @data_vio: The data vio.
  *
  * This indicates the block map entry for the logical block is either unmapped or corrupted.
  */
@@ -3104,6 +3137,8 @@ static void clear_mapped_location(struct data_vio *data_vio)
 /**
  * set_mapped_location() - Decode and validate a block map entry, and set the mapped location of a
  *                         data_vio.
+ * @data_vio: The data vio.
+ * @entry: The new mapped entry to set.
  *
  * Return: VDO_SUCCESS or VDO_BAD_MAPPING if the map entry is invalid or an error code for any
  *         other failure

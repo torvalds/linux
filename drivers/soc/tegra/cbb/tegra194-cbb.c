@@ -1836,7 +1836,7 @@ print_errlog1_2(struct seq_file *file, struct tegra194_cbb *cbb,
 }
 
 /*
- * Print transcation type, error code and description from ErrLog0 for all
+ * Print transaction type, error code and description from ErrLog0 for all
  * errors. For NOC target errors, all relevant error info is printed using
  * ErrLog0 only. But additional information is printed for errors from
  * APB targets because for them:

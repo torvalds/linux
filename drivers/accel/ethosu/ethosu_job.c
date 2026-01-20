@@ -12,6 +12,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_print.h>
 #include <drm/ethosu_accel.h>
 
 #include "ethosu_device.h"

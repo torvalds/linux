@@ -18,9 +18,12 @@ struct xe_sync_entry {
 	struct drm_syncobj *syncobj;
 	struct dma_fence *fence;
 	struct dma_fence_chain *chain_fence;
+	struct dma_fence_chain *ufence_chain_fence;
+	struct drm_syncobj *ufence_syncobj;
 	struct xe_user_fence *ufence;
 	u64 addr;
 	u64 timeline_value;
+	u64 ufence_timeline_value;
 	u32 type;
 	u32 flags;
 };

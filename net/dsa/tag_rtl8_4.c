@@ -103,7 +103,6 @@
 static void rtl8_4_write_tag(struct sk_buff *skb, struct net_device *dev,
 			     void *tag)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	__be16 tag16[RTL8_4_TAG_LEN / 2];
 
 	/* Set Realtek EtherType */
@@ -116,7 +115,7 @@ static void rtl8_4_write_tag(struct sk_buff *skb, struct net_device *dev,
 	tag16[2] = htons(FIELD_PREP(RTL8_4_LEARN_DIS, 1));
 
 	/* Zero ALLOW; set RX (CPU->switch) forwarding port mask */
-	tag16[3] = htons(FIELD_PREP(RTL8_4_RX, BIT(dp->index)));
+	tag16[3] = htons(FIELD_PREP(RTL8_4_RX, dsa_xmit_port_mask(skb, dev)));
 
 	memcpy(tag, tag16, RTL8_4_TAG_LEN);
 }

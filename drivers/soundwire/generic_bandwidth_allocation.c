@@ -124,6 +124,9 @@ static void sdw_compute_dp0_port_params(struct sdw_bus *bus)
 	struct sdw_master_runtime *m_rt;
 
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
+		/* DP0 is for BPT only */
+		if (m_rt->stream->type != SDW_STREAM_BPT)
+			continue;
 		sdw_compute_dp0_master_ports(m_rt);
 		sdw_compute_dp0_slave_ports(m_rt);
 	}

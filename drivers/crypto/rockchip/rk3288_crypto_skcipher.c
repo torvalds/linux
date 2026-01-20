@@ -321,8 +321,7 @@ static int rk_cipher_run(struct crypto_engine *engine, void *async_req)
 	algt->stat_req++;
 	rkc->nreq++;
 
-	ivsize = crypto_skcipher_ivsize(tfm);
-	if (areq->iv && crypto_skcipher_ivsize(tfm) > 0) {
+	if (areq->iv && ivsize > 0) {
 		if (rctx->mode & RK_CRYPTO_DEC) {
 			offset = areq->cryptlen - ivsize;
 			scatterwalk_map_and_copy(rctx->backup_iv, areq->src,

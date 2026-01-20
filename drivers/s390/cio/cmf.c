@@ -10,8 +10,7 @@
  * original idea from Natarajan Krishnaswami <nkrishna@us.ibm.com>
  */
 
-#define KMSG_COMPONENT "cio"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cio: " fmt
 
 #include <linux/memblock.h>
 #include <linux/device.h>

@@ -193,6 +193,10 @@ static __always_inline struct pt_regs *ftrace_get_regs(struct ftrace_regs *fregs
 #if !defined(CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS) || \
 	defined(CONFIG_HAVE_FTRACE_REGS_HAVING_PT_REGS)
 
+#ifndef arch_ftrace_partial_regs
+#define arch_ftrace_partial_regs(regs) do {} while (0)
+#endif
+
 static __always_inline struct pt_regs *
 ftrace_partial_regs(struct ftrace_regs *fregs, struct pt_regs *regs)
 {
@@ -202,7 +206,11 @@ ftrace_partial_regs(struct ftrace_regs *fregs, struct pt_regs *regs)
 	 * Since arch_ftrace_get_regs() will check some members and may return
 	 * NULL, we can not use it.
 	 */
-	return &arch_ftrace_regs(fregs)->regs;
+	regs = &arch_ftrace_regs(fregs)->regs;
+
+	/* Allow arch specific updates to regs. */
+	arch_ftrace_partial_regs(regs);
+	return regs;
 }
 
 #endif /* !CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS || CONFIG_HAVE_FTRACE_REGS_HAVING_PT_REGS */
@@ -351,6 +359,7 @@ enum {
 	FTRACE_OPS_FL_DIRECT			= BIT(17),
 	FTRACE_OPS_FL_SUBOP			= BIT(18),
 	FTRACE_OPS_FL_GRAPH			= BIT(19),
+	FTRACE_OPS_FL_JMP			= BIT(20),
 };
 
 #ifndef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
@@ -568,6 +577,38 @@ static inline int modify_ftrace_direct_nolock(struct ftrace_ops *ops, unsigned l
 static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs,
 						 unsigned long addr) { }
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_JMP
+static inline bool ftrace_is_jmp(unsigned long addr)
+{
+	return addr & 1;
+}
+
+static inline unsigned long ftrace_jmp_set(unsigned long addr)
+{
+	return addr | 1UL;
+}
+
+static inline unsigned long ftrace_jmp_get(unsigned long addr)
+{
+	return addr & ~1UL;
+}
+#else
+static inline bool ftrace_is_jmp(unsigned long addr)
+{
+	return false;
+}
+
+static inline unsigned long ftrace_jmp_set(unsigned long addr)
+{
+	return addr;
+}
+
+static inline unsigned long ftrace_jmp_get(unsigned long addr)
+{
+	return addr;
+}
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_JMP */
 
 #ifdef CONFIG_STACK_TRACER
 
@@ -1126,17 +1167,14 @@ static inline void ftrace_init(void) { }
  */
 struct ftrace_graph_ent {
 	unsigned long func; /* Current function */
-	int depth;
+	unsigned long depth;
 } __packed;
 
 /*
  * Structure that defines an entry function trace with retaddr.
- * It's already packed but the attribute "packed" is needed
- * to remove extra padding at the end.
  */
 struct fgraph_retaddr_ent {
-	unsigned long func; /* Current function */
-	int depth;
+	struct ftrace_graph_ent ent;
 	unsigned long retaddr;  /* Return address */
 } __packed;
 

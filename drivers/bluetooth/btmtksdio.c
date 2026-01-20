@@ -615,7 +615,6 @@ static void btmtksdio_txrx_work(struct work_struct *work)
 
 	sdio_release_host(bdev->func);
 
-	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
 }
 
@@ -1270,6 +1269,12 @@ static void btmtksdio_reset(struct hci_dev *hdev)
 
 	sdio_claim_host(bdev->func);
 
+	/* set drv_pmctrl if BT is closed before doing reset */
+	if (!test_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state)) {
+		sdio_enable_func(bdev->func);
+		btmtksdio_drv_pmctrl(bdev);
+	}
+
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
 	skb_queue_purge(&bdev->txq);
 	cancel_work_sync(&bdev->txrx_work);
@@ -1283,6 +1288,12 @@ static void btmtksdio_reset(struct hci_dev *hdev)
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to reset (%d)", err);
 		goto err;
+	}
+
+	/* set fw_pmctrl back if BT is closed after doing reset */
+	if (!test_bit(BTMTKSDIO_FUNC_ENABLED, &bdev->tx_state)) {
+		btmtksdio_fw_pmctrl(bdev);
+		sdio_disable_func(bdev->func);
 	}
 
 	clear_bit(BTMTKSDIO_PATCH_ENABLED, &bdev->tx_state);

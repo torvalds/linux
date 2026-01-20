@@ -84,7 +84,6 @@ enum iwl_vendor_auth_akm_mode {
  *
  * @NUM_IWL_MVM_VENDOR_ATTR: number of vendor attributes
  * @MAX_IWL_MVM_VENDOR_ATTR: highest vendor attribute number
-
  */
 enum iwl_mvm_vendor_attr {
 	__IWL_MVM_VENDOR_ATTR_INVALID				= 0x00,

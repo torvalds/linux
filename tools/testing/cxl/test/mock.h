@@ -19,12 +19,14 @@ struct cxl_mock_ops {
 	bool (*is_mock_bus)(struct pci_bus *bus);
 	bool (*is_mock_port)(struct device *dev);
 	bool (*is_mock_dev)(struct device *dev);
-	int (*devm_cxl_port_enumerate_dports)(struct cxl_port *port);
 	int (*devm_cxl_switch_port_decoders_setup)(struct cxl_port *port);
 	int (*devm_cxl_endpoint_decoders_setup)(struct cxl_port *port);
 	void (*cxl_endpoint_parse_cdat)(struct cxl_port *port);
 	struct cxl_dport *(*devm_cxl_add_dport_by_dev)(struct cxl_port *port,
 						       struct device *dport_dev);
+	int (*hmat_get_extended_linear_cache_size)(struct resource *backing_res,
+						   int nid,
+						   resource_size_t *cache_size);
 };
 
 void register_cxl_mock_ops(struct cxl_mock_ops *ops);

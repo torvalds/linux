@@ -10,6 +10,7 @@
 #include "../libwx/wx_lib.h"
 #include "txgbe_type.h"
 #include "txgbe_fdir.h"
+#include "txgbe_aml.h"
 #include "txgbe_ethtool.h"
 
 int txgbe_get_link_ksettings(struct net_device *netdev,
@@ -19,9 +20,6 @@ int txgbe_get_link_ksettings(struct net_device *netdev,
 	struct txgbe *txgbe = wx->priv;
 	int err;
 
-	if (wx->mac.type == wx_mac_aml40)
-		return -EOPNOTSUPP;
-
 	err = wx_get_link_ksettings(netdev, cmd);
 	if (err)
 		return err;
@@ -30,8 +28,9 @@ int txgbe_get_link_ksettings(struct net_device *netdev,
 		return 0;
 
 	cmd->base.port = txgbe->link_port;
-	cmd->base.autoneg = AUTONEG_DISABLE;
-	linkmode_copy(cmd->link_modes.supported, txgbe->sfp_support);
+	cmd->base.autoneg = phylink_test(txgbe->advertising, Autoneg) ?
+			    AUTONEG_ENABLE : AUTONEG_DISABLE;
+	linkmode_copy(cmd->link_modes.supported, txgbe->link_support);
 	linkmode_copy(cmd->link_modes.advertising, txgbe->advertising);
 
 	return 0;
@@ -536,6 +535,34 @@ static int txgbe_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return ret;
 }
 
+static int
+txgbe_get_module_eeprom_by_page(struct net_device *netdev,
+				const struct ethtool_module_eeprom *page_data,
+				struct netlink_ext_ack *extack)
+{
+	struct wx *wx = netdev_priv(netdev);
+	struct txgbe_hic_i2c_read buffer;
+	int err;
+
+	if (!test_bit(WX_FLAG_SWFW_RING, wx->flags))
+		return -EOPNOTSUPP;
+
+	buffer.length = cpu_to_be32(page_data->length);
+	buffer.offset = cpu_to_be32(page_data->offset);
+	buffer.page = page_data->page;
+	buffer.bank = page_data->bank;
+	buffer.i2c_address = page_data->i2c_address;
+
+	err = txgbe_read_eeprom_hostif(wx, &buffer, page_data->length,
+				       page_data->data);
+	if (err) {
+		wx_err(wx, "Failed to read module EEPROM\n");
+		return err;
+	}
+
+	return page_data->length;
+}
+
 static const struct ethtool_ops txgbe_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ |
@@ -570,6 +597,7 @@ static const struct ethtool_ops txgbe_ethtool_ops = {
 	.set_msglevel		= wx_set_msglevel,
 	.get_ts_info		= wx_get_ts_info,
 	.get_ts_stats		= wx_get_ptp_stats,
+	.get_module_eeprom_by_page	= txgbe_get_module_eeprom_by_page,
 };
 
 void txgbe_set_ethtool_ops(struct net_device *netdev)

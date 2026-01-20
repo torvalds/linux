@@ -500,6 +500,16 @@ config REGULATOR_ISL6271A
 	help
 	  This driver supports ISL6271A voltage regulator chip.
 
+config REGULATOR_FP9931
+	tristate "FitiPower FP9931/JD9930 EPD regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports the FP9931/JD9930 voltage regulator chip
+	  which is used to provide power to Electronic Paper Displays
+	  so it is found in E-Book readers.
+	  If HWWON is enabled, it also provides temperature measurement.
+
 config REGULATOR_LM363X
 	tristate "TI LM363X voltage regulators"
 	depends on MFD_TI_LMU
@@ -881,6 +891,16 @@ config REGULATOR_MT6315
 	  This driver supports the control of different power rails of device
 	  through regulator interface.
 
+config REGULATOR_MT6316
+	tristate "MT6316 SPMI PMIC regulator driver"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  Say Y here to enable support for 2+2, 3+1 and 4 phase regulators
+	  found in the MediaTek MT6316 BP, CP, DP, HP, VP and TP SPMI PMICs.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
+
 config REGULATOR_MT6323
 	tristate "MediaTek MT6323 PMIC"
 	depends on MFD_MT6397
@@ -943,6 +963,16 @@ config REGULATOR_MT6360
 	  This is support MT6360 PMIC/LDO part include
 	  2-channel buck with Thermal Shutdown and Overload Protection
 	  6-channel High PSRR and Low Dropout LDO.
+
+config REGULATOR_MT6363
+	tristate "MT6363 SPMI PMIC regulator driver"
+	depends on SPMI
+	select REGMAP_SPMI
+	help
+	  Say Y here to enable support for regulators found in the MediaTek
+	  MT6363 SPMI PMIC.
+	  This driver supports the control of different power rails of device
+	  through regulator interface.
 
 config REGULATOR_MT6370
 	tristate "MT6370 SubPMIC Regulator"
@@ -1086,6 +1116,15 @@ config REGULATOR_PV88090
 	  Say y here to support the voltage regulators and convertors
 	  on PV88090
 
+config REGULATOR_PF1550
+	tristate "NXP PF1550 regulator"
+	depends on MFD_PF1550
+	help
+	  Say y here to select this option to enable the regulators on
+	  the PF1550 PMICs.
+	  This driver controls the PF1550 regulators via I2C bus.
+	  The regulators include three bucks and three ldos.
+
 config REGULATOR_PWM
 	tristate "PWM voltage regulator"
 	depends on PWM
@@ -1181,6 +1220,7 @@ config REGULATOR_RAA215300
 
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 	tristate "Raspberry Pi 7-inch touchscreen panel ATTINY regulator"
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on I2C
 	depends on OF_GPIO
@@ -1192,6 +1232,7 @@ config REGULATOR_RASPBERRYPI_TOUCHSCREEN_ATTINY
 
 config REGULATOR_RASPBERRYPI_TOUCHSCREEN_V2
 	tristate "Raspberry Pi 7-inch touchscreen panel V2 regulator"
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on GPIOLIB
 	depends on I2C && OF
 	select GPIO_REGMAP

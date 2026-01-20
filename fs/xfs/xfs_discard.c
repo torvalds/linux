@@ -726,8 +726,10 @@ xfs_trim_rtgroup_extents(
 			break;
 		}
 
-		if (!tr.queued)
+		if (!tr.queued) {
+			kfree(tr.extents);
 			break;
+		}
 
 		/*
 		 * We hand the extent list to the discard function here so the

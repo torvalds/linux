@@ -172,11 +172,13 @@ void vfio_device_put_registration(struct vfio_device *device)
 	if (refcount_dec_and_test(&device->refcount))
 		complete(&device->comp);
 }
+EXPORT_SYMBOL_GPL(vfio_device_put_registration);
 
 bool vfio_device_try_get_registration(struct vfio_device *device)
 {
 	return refcount_inc_not_zero(&device->refcount);
 }
+EXPORT_SYMBOL_GPL(vfio_device_try_get_registration);
 
 /*
  * VFIO driver API
@@ -1259,6 +1261,51 @@ static int vfio_ioctl_device_feature(struct vfio_device *device,
 	}
 }
 
+static long vfio_get_region_info(struct vfio_device *device,
+				 struct vfio_region_info __user *arg)
+{
+	unsigned long minsz = offsetofend(struct vfio_region_info, offset);
+	struct vfio_region_info info = {};
+	struct vfio_info_cap caps = {};
+	int ret;
+
+	if (unlikely(!device->ops->get_region_info_caps))
+		return -EINVAL;
+
+	if (copy_from_user(&info, arg, minsz))
+		return -EFAULT;
+	if (info.argsz < minsz)
+		return -EINVAL;
+
+	ret = device->ops->get_region_info_caps(device, &info, &caps);
+	if (ret)
+		goto out_free;
+
+	if (caps.size) {
+		info.flags |= VFIO_REGION_INFO_FLAG_CAPS;
+		if (info.argsz < sizeof(info) + caps.size) {
+			info.argsz = sizeof(info) + caps.size;
+			info.cap_offset = 0;
+		} else {
+			vfio_info_cap_shift(&caps, sizeof(info));
+			if (copy_to_user(arg + 1, caps.buf, caps.size)) {
+				ret = -EFAULT;
+				goto out_free;
+			}
+			info.cap_offset = sizeof(info);
+		}
+	}
+
+	if (copy_to_user(arg, &info, minsz)){
+		ret = -EFAULT;
+		goto out_free;
+	}
+
+out_free:
+	kfree(caps.buf);
+	return ret;
+}
+
 static long vfio_device_fops_unl_ioctl(struct file *filep,
 				       unsigned int cmd, unsigned long arg)
 {
@@ -1294,6 +1341,10 @@ static long vfio_device_fops_unl_ioctl(struct file *filep,
 	switch (cmd) {
 	case VFIO_DEVICE_FEATURE:
 		ret = vfio_ioctl_device_feature(device, uptr);
+		break;
+
+	case VFIO_DEVICE_GET_REGION_INFO:
+		ret = vfio_get_region_info(device, uptr);
 		break;
 
 	default:

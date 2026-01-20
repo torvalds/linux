@@ -315,9 +315,9 @@ int __init hv_common_init(void)
 	int i;
 	union hv_hypervisor_version_info version;
 
-	/* Get information about the Hyper-V host version */
+	/* Get information about the Microsoft Hypervisor version */
 	if (!hv_get_hypervisor_version(&version))
-		pr_info("Hyper-V: Host Build %d.%d.%d.%d-%d-%d\n",
+		pr_info("Hyper-V: Hypervisor Build %d.%d.%d.%d-%d-%d\n",
 			version.major_version, version.minor_version,
 			version.build_number, version.service_number,
 			version.service_pack, version.service_branch);
@@ -487,7 +487,7 @@ int hv_common_cpu_init(unsigned int cpu)
 	 * online and then taken offline
 	 */
 	if (!*inputarg) {
-		mem = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
+		mem = kmalloc_array(pgcount, HV_HYP_PAGE_SIZE, flags);
 		if (!mem)
 			return -ENOMEM;
 
@@ -715,6 +715,27 @@ u64 __weak hv_tdx_hypercall(u64 control, u64 param1, u64 param2)
 	return HV_STATUS_INVALID_PARAMETER;
 }
 EXPORT_SYMBOL_GPL(hv_tdx_hypercall);
+
+void __weak hv_enable_coco_interrupt(unsigned int cpu, unsigned int vector, bool set)
+{
+}
+EXPORT_SYMBOL_GPL(hv_enable_coco_interrupt);
+
+void __weak hv_para_set_sint_proxy(bool enable)
+{
+}
+EXPORT_SYMBOL_GPL(hv_para_set_sint_proxy);
+
+u64 __weak hv_para_get_synic_register(unsigned int reg)
+{
+	return ~0ULL;
+}
+EXPORT_SYMBOL_GPL(hv_para_get_synic_register);
+
+void __weak hv_para_set_synic_register(unsigned int reg, u64 val)
+{
+}
+EXPORT_SYMBOL_GPL(hv_para_set_synic_register);
 
 void hv_identify_partition_type(void)
 {

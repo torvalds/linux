@@ -9,6 +9,7 @@
 
 #include <drm/drm.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_print.h>
 
 #include "cdv_device.h"
 #include "gma_device.h"

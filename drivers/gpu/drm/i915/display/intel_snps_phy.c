@@ -7,12 +7,12 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_utils.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_snps_hdmi_pll.h"
 #include "intel_snps_phy.h"
 #include "intel_snps_phy_regs.h"
@@ -42,8 +42,8 @@ void intel_snps_phy_wait_for_calibration(struct intel_display *display)
 		 * which phy was affected and skip setup of the corresponding
 		 * output later.
 		 */
-		if (intel_de_wait_for_clear(display, DG2_PHY_MISC(phy),
-					    DG2_PHY_DP_TX_ACK_MASK, 25))
+		if (intel_de_wait_for_clear_ms(display, DG2_PHY_MISC(phy),
+					       DG2_PHY_DP_TX_ACK_MASK, 25))
 			display->snps.phy_failed_calibration |= BIT(phy);
 	}
 }
@@ -1863,7 +1863,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * is locked at new settings. This register bit is sampling PHY
 	 * dp_mpllb_state interface signal.
 	 */
-	if (intel_de_wait_for_set(display, enable_reg, PLL_LOCK, 5))
+	if (intel_de_wait_for_set_ms(display, enable_reg, PLL_LOCK, 5))
 		drm_dbg_kms(display->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*
@@ -1903,7 +1903,7 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY acknowledgment
 	 * (dp_txX_ack) that the new transmitter setting request is completed.
 	 */
-	if (intel_de_wait_for_clear(display, enable_reg, PLL_LOCK, 5))
+	if (intel_de_wait_for_clear_ms(display, enable_reg, PLL_LOCK, 5))
 		drm_err(display->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*

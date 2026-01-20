@@ -115,7 +115,7 @@
 
 // Execute one round of BLAKE2s by updating the state matrix v[0..15].  v[0..9]
 // are in r0..r9.  The stack pointer points to 8 bytes of scratch space for
-// spilling v[8..9], then to v[9..15], then to the message block.  r10-r12 and
+// spilling v[8..9], then to v[10..15], then to the message block.  r10-r12 and
 // r14 are free to use.  The macro arguments s0-s15 give the order in which the
 // message words are used in this round.
 //
@@ -170,10 +170,10 @@
 .endm
 
 //
-// void blake2s_compress(struct blake2s_state *state,
-//			 const u8 *block, size_t nblocks, u32 inc);
+// void blake2s_compress(struct blake2s_ctx *ctx,
+//			 const u8 *data, size_t nblocks, u32 inc);
 //
-// Only the first three fields of struct blake2s_state are used:
+// Only the first three fields of struct blake2s_ctx are used:
 //	u32 h[8];	(inout)
 //	u32 t[2];	(inout)
 //	u32 f[2];	(in)
@@ -183,8 +183,8 @@ ENTRY(blake2s_compress)
 	push		{r0-r2,r4-r11,lr}	// keep this an even number
 
 .Lnext_block:
-	// r0 is 'state'
-	// r1 is 'block'
+	// r0 is 'ctx'
+	// r1 is 'data'
 	// r3 is 'inc'
 
 	// Load and increment the counter t[0..1].
@@ -209,18 +209,18 @@ ENTRY(blake2s_compress)
 .Lcopy_block_done:
 	str		r1, [sp, #68]		// Update message pointer
 
-	// Calculate v[8..15].  Push v[9..15] onto the stack, and leave space
+	// Calculate v[8..15].  Push v[10..15] onto the stack, and leave space
 	// for spilling v[8..9].  Leave v[8..9] in r8-r9.
-	mov		r14, r0			// r14 = state
+	mov		r14, r0			// r14 = ctx
 	adr		r12, .Lblake2s_IV
 	ldmia		r12!, {r8-r9}		// load IV[0..1]
 	__ldrd		r0, r1, r14, 40		// load f[0..1]
-	ldm		r12, {r2-r7}		// load IV[3..7]
+	ldm		r12, {r2-r7}		// load IV[2..7]
 	eor		r4, r4, r10		// v[12] = IV[4] ^ t[0]
 	eor		r5, r5, r11		// v[13] = IV[5] ^ t[1]
 	eor		r6, r6, r0		// v[14] = IV[6] ^ f[0]
 	eor		r7, r7, r1		// v[15] = IV[7] ^ f[1]
-	push		{r2-r7}			// push v[9..15]
+	push		{r2-r7}			// push v[10..15]
 	sub		sp, sp, #8		// leave space for v[8..9]
 
 	// Load h[0..7] == v[0..7].
@@ -275,7 +275,7 @@ ENTRY(blake2s_compress)
 	// Advance to the next block, if there is one.  Note that if there are
 	// multiple blocks, then 'inc' (the counter increment amount) must be
 	// 64.  So we can simply set it to 64 without re-loading it.
-	ldm		sp, {r0, r1, r2}	// load (state, block, nblocks)
+	ldm		sp, {r0, r1, r2}	// load (ctx, data, nblocks)
 	mov		r3, #64			// set 'inc'
 	subs		r2, r2, #1		// nblocks--
 	str		r2, [sp, #8]

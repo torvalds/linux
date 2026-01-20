@@ -35,7 +35,6 @@
 #include <drm/drm_privacy_screen_consumer.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "intel_alpm.h"
 #include "intel_audio.h"
@@ -53,6 +52,7 @@
 #include "intel_display_power.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dp.h"
@@ -72,6 +72,7 @@
 #include "intel_hotplug.h"
 #include "intel_hti.h"
 #include "intel_lspcon.h"
+#include "intel_lt_phy.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_modeset_lock.h"
 #include "intel_panel.h"
@@ -209,8 +210,8 @@ void intel_wait_ddi_buf_idle(struct intel_display *display, enum port port)
 	}
 
 	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
-	if (intel_de_wait_for_set(display, intel_ddi_buf_status_reg(display, port),
-				  DDI_BUF_IS_IDLE, 10))
+	if (intel_de_wait_for_set_ms(display, intel_ddi_buf_status_reg(display, port),
+				     DDI_BUF_IS_IDLE, 10))
 		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get idle\n",
 			port_name(port));
 }
@@ -234,8 +235,8 @@ static void intel_wait_ddi_buf_active(struct intel_encoder *encoder)
 	}
 
 	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
-	if (intel_de_wait_for_clear(display, intel_ddi_buf_status_reg(display, port),
-				    DDI_BUF_IS_IDLE, 10))
+	if (intel_de_wait_for_clear_ms(display, intel_ddi_buf_status_reg(display, port),
+				       DDI_BUF_IS_IDLE, 10))
 		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get active\n",
 			port_name(port));
 }
@@ -1466,10 +1467,15 @@ static int translate_signal_level(struct intel_dp *intel_dp,
 				  u8 signal_levels)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	const u8 *signal_array;
+	size_t array_size;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(index_to_dp_signal_levels); i++) {
-		if (index_to_dp_signal_levels[i] == signal_levels)
+	signal_array = index_to_dp_signal_levels;
+	array_size = ARRAY_SIZE(index_to_dp_signal_levels);
+
+	for (i = 0; i < array_size; i++) {
+		if (signal_array[i] == signal_levels)
 			return i;
 	}
 
@@ -2301,8 +2307,8 @@ void intel_ddi_wait_for_act_sent(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 
-	if (intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_ACT_SENT, 1))
+	if (intel_de_wait_for_set_ms(display, dp_tp_status_reg(encoder, crtc_state),
+				     DP_TP_STATUS_ACT_SENT, 1))
 		drm_err(display->drm, "Timed out waiting for ACT sent\n");
 }
 
@@ -2377,11 +2383,11 @@ int intel_ddi_wait_for_fec_status(struct intel_encoder *encoder,
 		return 0;
 
 	if (enabled)
-		ret = intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
-					    DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
+		ret = intel_de_wait_for_set_ms(display, dp_tp_status_reg(encoder, crtc_state),
+					       DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 	else
-		ret = intel_de_wait_for_clear(display, dp_tp_status_reg(encoder, crtc_state),
-					      DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
+		ret = intel_de_wait_for_clear_ms(display, dp_tp_status_reg(encoder, crtc_state),
+						 DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 
 	if (ret) {
 		drm_err(display->drm,
@@ -2571,9 +2577,7 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 
 	intel_de_rmw(display, reg, 0, set_bits);
 
-	ret = intel_de_wait_custom(display, reg,
-				   wait_bits, wait_bits,
-				   100, 0, NULL);
+	ret = intel_de_wait_for_set_us(display, reg, wait_bits, 100);
 	if (ret) {
 		drm_err(display->drm, "Timeout waiting for D2D Link enable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
@@ -3073,9 +3077,7 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 
 	intel_de_rmw(display, reg, clr_bits, 0);
 
-	ret = intel_de_wait_custom(display, reg,
-				   wait_bits, 0,
-				   100, 0, NULL);
+	ret = intel_de_wait_for_clear_us(display, reg, wait_bits, 100);
 	if (ret)
 		drm_err(display->drm, "Timeout waiting for D2D Link disable for DDI/PORT_BUF_CTL %c\n",
 			port_name(port));
@@ -3862,9 +3864,9 @@ static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp,
 	if (port == PORT_A && DISPLAY_VER(display) < 12)
 		return;
 
-	if (intel_de_wait_for_set(display,
-				  dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_IDLE_DONE, 2))
+	if (intel_de_wait_for_set_ms(display,
+				     dp_tp_status_reg(encoder, crtc_state),
+				     DP_TP_STATUS_IDLE_DONE, 2))
 		drm_err(display->drm,
 			"Timed out waiting for DP idle patterns\n");
 }
@@ -4240,6 +4242,19 @@ void intel_ddi_get_clock(struct intel_encoder *encoder,
 						     &crtc_state->dpll_hw_state);
 }
 
+static void xe3plpd_ddi_get_config(struct intel_encoder *encoder,
+				   struct intel_crtc_state *crtc_state)
+{
+	intel_lt_phy_pll_readout_hw_state(encoder, crtc_state, &crtc_state->dpll_hw_state.ltpll);
+
+	if (crtc_state->dpll_hw_state.ltpll.tbt_mode)
+		crtc_state->port_clock = intel_mtl_tbt_calc_port_clock(encoder);
+	else
+		crtc_state->port_clock =
+			intel_lt_phy_calc_port_clock(encoder, crtc_state);
+	intel_ddi_get_config(encoder, crtc_state);
+}
+
 static void mtl_ddi_get_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state)
 {
@@ -4559,6 +4574,13 @@ static int intel_ddi_compute_config_late(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	struct drm_connector *connector = conn_state->connector;
 	u8 port_sync_transcoders = 0;
+	int ret = 0;
+
+	if (intel_crtc_has_dp_encoder(crtc_state))
+		ret = intel_dp_compute_config_late(encoder, crtc_state, conn_state);
+
+	if (ret)
+		return ret;
 
 	drm_dbg_kms(display->drm, "[ENCODER:%d:%s] [CRTC:%d:%s]\n",
 		    encoder->base.base.id, encoder->base.name,
@@ -5224,7 +5246,12 @@ void intel_ddi_init(struct intel_display *display,
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
 
-	if (DISPLAY_VER(display) >= 14) {
+	if (HAS_LT_PHY(display)) {
+		encoder->enable_clock = intel_xe3plpd_pll_enable;
+		encoder->disable_clock = intel_xe3plpd_pll_disable;
+		encoder->port_pll_type = intel_mtl_port_pll_type;
+		encoder->get_config = xe3plpd_ddi_get_config;
+	} else if (DISPLAY_VER(display) >= 14) {
 		encoder->enable_clock = intel_mtl_pll_enable;
 		encoder->disable_clock = intel_mtl_pll_disable;
 		encoder->port_pll_type = intel_mtl_port_pll_type;
@@ -5289,7 +5316,9 @@ void intel_ddi_init(struct intel_display *display,
 		encoder->get_config = hsw_ddi_get_config;
 	}
 
-	if (DISPLAY_VER(display) >= 14) {
+	if (HAS_LT_PHY(display)) {
+		encoder->set_signal_levels = intel_lt_phy_set_signal_levels;
+	} else if (DISPLAY_VER(display) >= 14) {
 		encoder->set_signal_levels = intel_cx0_phy_set_signal_levels;
 	} else if (display->platform.dg2) {
 		encoder->set_signal_levels = intel_snps_phy_set_signal_levels;

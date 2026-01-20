@@ -941,6 +941,12 @@ enum dc_psr_version {
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
 };
 
+enum dc_replay_version {
+	DC_FREESYNC_REPLAY = 0,
+	DC_VESA_PANEL_REPLAY = 1,
+	DC_REPLAY_VERSION_UNSUPPORTED = 0XFF,
+};
+
 /* Possible values of display_endpoint_id.endpoint */
 enum display_endpoint_type {
 	DISPLAY_ENDPOINT_PHY = 0, /* Physical connector. */
@@ -1093,6 +1099,7 @@ enum replay_FW_Message_type {
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
 	Replay_Disabled_Adaptive_Sync_SDP,
+	Replay_Set_Version,
 	Replay_Set_General_Cmd,
 };
 
@@ -1128,6 +1135,8 @@ union replay_low_refresh_rate_enable_options {
 };
 
 struct replay_config {
+	/* Replay version */
+	enum dc_replay_version replay_version;
 	/* Replay feature is supported */
 	bool replay_supported;
 	/* Replay caps support DPCD & EDID caps*/
@@ -1184,6 +1193,10 @@ struct replay_settings {
 	uint32_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Defer Update Coasting vtotal table */
 	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Skip frame number table */
+	uint32_t frame_skip_number_table[PR_COASTING_TYPE_NUM];
+	/* Defer skip frame number table */
+	uint32_t defer_frame_skip_number_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	uint32_t link_off_frame_count;
 	/* Replay pseudo vtotal for low refresh rate*/
@@ -1192,6 +1205,8 @@ struct replay_settings {
 	uint16_t last_pseudo_vtotal;
 	/* Replay desync error */
 	uint32_t replay_desync_error_fail_count;
+	/* The frame skip number dal send to DMUB */
+	uint16_t frame_skip_number;
 };
 
 /* To split out "global" and "per-panel" config settings.

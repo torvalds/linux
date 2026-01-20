@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define FORK(exec)				\
 do {						\

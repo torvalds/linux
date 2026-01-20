@@ -42,7 +42,7 @@ ccw_device_msg_control_check(struct ccw_device *cdev, struct irb *irb)
 		      cdev->private->dev_id.devno, sch->schid.ssid,
 		      sch->schid.sch_no,
 		      scsw_dstat(&irb->scsw), scsw_cstat(&irb->scsw));
-	sprintf(dbf_text, "chk%x", sch->schid.sch_no);
+	scnprintf(dbf_text, sizeof(dbf_text), "chk%x", sch->schid.sch_no);
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, irb, sizeof(struct irb));
 }

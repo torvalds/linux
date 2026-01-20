@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
  */
@@ -93,9 +93,9 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 {
 	int i;
 
-	seq_printf(file, "%10s:", str);
+	seq_printf(file, "%16s:", str);
 	for (i = 0; i < len; i++)
-		seq_printf(file, " %2d", val[i]);
+		seq_printf(file, " %4d", val[i]);
 	seq_puts(file, "\n");
 }
 EXPORT_SYMBOL_GPL(mt76_seq_puts_array);

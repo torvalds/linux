@@ -51,16 +51,17 @@ static const struct snd_soc_dapm_route dmic_routes[] = {
 static int dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, dmic_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, dmic_widgets,
 					ARRAY_SIZE(dmic_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add dmic widgets, ret %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, dmic_routes,
+	ret = snd_soc_dapm_add_routes(dapm, dmic_routes,
 				      ARRAY_SIZE(dmic_routes));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add dmic routes, ret %d\n", ret);
@@ -111,16 +112,17 @@ static const struct snd_soc_dapm_route hda_routes[] = {
 static int hda_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, hda_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, hda_widgets,
 					ARRAY_SIZE(hda_widgets));
 	if (ret) {
 		dev_err(rtd->dev, "fail to add hda widgets, ret %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, hda_routes,
+	ret = snd_soc_dapm_add_routes(dapm, hda_routes,
 				      ARRAY_SIZE(hda_routes));
 	if (ret)
 		dev_err(rtd->dev, "fail to add hda routes, ret %d\n", ret);

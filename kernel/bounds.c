@@ -6,6 +6,7 @@
  */
 
 #define __GENERATING_BOUNDS_H
+#define COMPILE_OFFSETS
 /* Include headers that define the enum constants of interest */
 #include <linux/page-flags.h>
 #include <linux/mmzone.h>

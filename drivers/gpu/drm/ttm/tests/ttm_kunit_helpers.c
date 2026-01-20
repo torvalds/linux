@@ -117,8 +117,7 @@ static void bad_evict_flags(struct ttm_buffer_object *bo,
 
 static int ttm_device_kunit_init_with_funcs(struct ttm_test_devices *priv,
 					    struct ttm_device *ttm,
-					    bool use_dma_alloc,
-					    bool use_dma32,
+					    unsigned int alloc_flags,
 					    struct ttm_device_funcs *funcs)
 {
 	struct drm_device *drm = priv->drm;
@@ -127,7 +126,7 @@ static int ttm_device_kunit_init_with_funcs(struct ttm_test_devices *priv,
 	err = ttm_device_init(ttm, funcs, drm->dev,
 			      drm->anon_inode->i_mapping,
 			      drm->vma_offset_manager,
-			      use_dma_alloc, use_dma32);
+			      alloc_flags);
 
 	return err;
 }
@@ -143,11 +142,10 @@ EXPORT_SYMBOL_GPL(ttm_dev_funcs);
 
 int ttm_device_kunit_init(struct ttm_test_devices *priv,
 			  struct ttm_device *ttm,
-			  bool use_dma_alloc,
-			  bool use_dma32)
+			  unsigned int alloc_flags)
 {
-	return ttm_device_kunit_init_with_funcs(priv, ttm, use_dma_alloc,
-						use_dma32, &ttm_dev_funcs);
+	return ttm_device_kunit_init_with_funcs(priv, ttm, alloc_flags,
+						&ttm_dev_funcs);
 }
 EXPORT_SYMBOL_GPL(ttm_device_kunit_init);
 
@@ -161,12 +159,10 @@ struct ttm_device_funcs ttm_dev_funcs_bad_evict = {
 EXPORT_SYMBOL_GPL(ttm_dev_funcs_bad_evict);
 
 int ttm_device_kunit_init_bad_evict(struct ttm_test_devices *priv,
-				    struct ttm_device *ttm,
-				    bool use_dma_alloc,
-				    bool use_dma32)
+				    struct ttm_device *ttm)
 {
-	return ttm_device_kunit_init_with_funcs(priv, ttm, use_dma_alloc,
-						use_dma32, &ttm_dev_funcs_bad_evict);
+	return ttm_device_kunit_init_with_funcs(priv, ttm, 0,
+						&ttm_dev_funcs_bad_evict);
 }
 EXPORT_SYMBOL_GPL(ttm_device_kunit_init_bad_evict);
 
@@ -252,7 +248,7 @@ struct ttm_test_devices *ttm_test_devices_all(struct kunit *test)
 	ttm_dev = kunit_kzalloc(test, sizeof(*ttm_dev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ttm_dev);
 
-	err = ttm_device_kunit_init(devs, ttm_dev, false, false);
+	err = ttm_device_kunit_init(devs, ttm_dev, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	devs->ttm_dev = ttm_dev;

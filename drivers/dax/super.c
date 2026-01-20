@@ -433,7 +433,7 @@ static struct dax_device *dax_dev_get(dev_t devt)
 		return NULL;
 
 	dax_dev = to_dax_dev(inode);
-	if (inode->i_state & I_NEW) {
+	if (inode_state_read_once(inode) & I_NEW) {
 		set_bit(DAXDEV_ALIVE, &dax_dev->flags);
 		inode->i_cdev = &dax_dev->cdev;
 		inode->i_mode = S_IFCHR;

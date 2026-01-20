@@ -190,8 +190,8 @@ xlog_bwrite(
  */
 STATIC void
 xlog_header_check_dump(
-	xfs_mount_t		*mp,
-	xlog_rec_header_t	*head)
+	struct xfs_mount		*mp,
+	struct xlog_rec_header		*head)
 {
 	xfs_debug(mp, "%s:  SB : uuid = %pU, fmt = %d",
 		__func__, &mp->m_sb.sb_uuid, XLOG_FMT);
@@ -207,8 +207,8 @@ xlog_header_check_dump(
  */
 STATIC int
 xlog_header_check_recover(
-	xfs_mount_t		*mp,
-	xlog_rec_header_t	*head)
+	struct xfs_mount	*mp,
+	struct xlog_rec_header	*head)
 {
 	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
@@ -238,8 +238,8 @@ xlog_header_check_recover(
  */
 STATIC int
 xlog_header_check_mount(
-	xfs_mount_t		*mp,
-	xlog_rec_header_t	*head)
+	struct xfs_mount	*mp,
+	struct xlog_rec_header	*head)
 {
 	ASSERT(head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM));
 
@@ -400,7 +400,7 @@ xlog_find_verify_log_record(
 	xfs_daddr_t		i;
 	char			*buffer;
 	char			*offset = NULL;
-	xlog_rec_header_t	*head = NULL;
+	struct xlog_rec_header	*head = NULL;
 	int			error = 0;
 	int			smallmem = 0;
 	int			num_blks = *last_blk - start_blk;
@@ -437,7 +437,7 @@ xlog_find_verify_log_record(
 				goto out;
 		}
 
-		head = (xlog_rec_header_t *)offset;
+		head = (struct xlog_rec_header *)offset;
 
 		if (head->h_magicno == cpu_to_be32(XLOG_HEADER_MAGIC_NUM))
 			break;
@@ -1237,7 +1237,7 @@ xlog_find_tail(
 	xfs_daddr_t		*head_blk,
 	xfs_daddr_t		*tail_blk)
 {
-	xlog_rec_header_t	*rhead;
+	struct xlog_rec_header	*rhead;
 	char			*offset = NULL;
 	char			*buffer;
 	int			error;
@@ -1487,7 +1487,7 @@ xlog_add_record(
 	int			tail_cycle,
 	int			tail_block)
 {
-	xlog_rec_header_t	*recp = (xlog_rec_header_t *)buf;
+	struct xlog_rec_header	*recp = (struct xlog_rec_header *)buf;
 
 	memset(buf, 0, BBSIZE);
 	recp->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
@@ -2863,22 +2863,11 @@ xlog_unpack_data(
 	char			*dp,
 	struct xlog		*log)
 {
-	int			i, j, k;
+	int			i;
 
-	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)) &&
-		  i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
-		*(__be32 *)dp = *(__be32 *)&rhead->h_cycle_data[i];
+	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)); i++) {
+		*(__be32 *)dp = *xlog_cycle_data(rhead, i);
 		dp += BBSIZE;
-	}
-
-	if (xfs_has_logv2(log->l_mp)) {
-		xlog_in_core_2_t *xhdr = (xlog_in_core_2_t *)rhead;
-		for ( ; i < BTOBB(be32_to_cpu(rhead->h_len)); i++) {
-			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-			*(__be32 *)dp = xhdr[j].hic_xheader.xh_cycle_data[k];
-			dp += BBSIZE;
-		}
 	}
 }
 
@@ -3008,7 +2997,7 @@ xlog_do_recovery_pass(
 	int			pass,
 	xfs_daddr_t		*first_bad)	/* out: first bad log rec */
 {
-	xlog_rec_header_t	*rhead;
+	struct xlog_rec_header	*rhead;
 	xfs_daddr_t		blk_no, rblk_no;
 	xfs_daddr_t		rhead_blk;
 	char			*offset;
@@ -3045,7 +3034,7 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err1;
 
-		rhead = (xlog_rec_header_t *)offset;
+		rhead = (struct xlog_rec_header *)offset;
 
 		/*
 		 * xfsprogs has a bug where record length is based on lsunit but
@@ -3152,7 +3141,7 @@ xlog_do_recovery_pass(
 				if (error)
 					goto bread_err2;
 			}
-			rhead = (xlog_rec_header_t *)offset;
+			rhead = (struct xlog_rec_header *)offset;
 			error = xlog_valid_rec_header(log, rhead,
 					split_hblks ? blk_no : 0, h_size);
 			if (error)
@@ -3234,7 +3223,7 @@ xlog_do_recovery_pass(
 		if (error)
 			goto bread_err2;
 
-		rhead = (xlog_rec_header_t *)offset;
+		rhead = (struct xlog_rec_header *)offset;
 		error = xlog_valid_rec_header(log, rhead, blk_no, h_size);
 		if (error)
 			goto bread_err2;

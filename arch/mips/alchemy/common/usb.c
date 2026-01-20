@@ -580,20 +580,24 @@ static void alchemy_usb_pm(int susp)
 	}
 }
 
-static int alchemy_usb_suspend(void)
+static int alchemy_usb_suspend(void *data)
 {
 	alchemy_usb_pm(1);
 	return 0;
 }
 
-static void alchemy_usb_resume(void)
+static void alchemy_usb_resume(void *data)
 {
 	alchemy_usb_pm(0);
 }
 
-static struct syscore_ops alchemy_usb_pm_ops = {
+static const struct syscore_ops alchemy_usb_pm_syscore_ops = {
 	.suspend	= alchemy_usb_suspend,
 	.resume		= alchemy_usb_resume,
+};
+
+static struct syscore alchemy_usb_pm_syscore = {
+	.ops = &alchemy_usb_pm_syscore_ops,
 };
 
 static int __init alchemy_usb_init(void)
@@ -620,7 +624,7 @@ static int __init alchemy_usb_init(void)
 	}
 
 	if (!ret)
-		register_syscore_ops(&alchemy_usb_pm_ops);
+		register_syscore(&alchemy_usb_pm_syscore);
 
 	return ret;
 }

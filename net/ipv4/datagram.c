@@ -16,7 +16,7 @@
 #include <net/tcp_states.h>
 #include <net/sock_reuseport.h>
 
-int __ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int __ip4_datagram_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct sockaddr_in *usin = (struct sockaddr_in *) uaddr;
@@ -84,7 +84,7 @@ out:
 }
 EXPORT_SYMBOL(__ip4_datagram_connect);
 
-int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int ip4_datagram_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int addr_len)
 {
 	int res;
 

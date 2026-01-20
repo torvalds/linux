@@ -779,7 +779,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct inode *inode = NULL, *ti;
 	afs_dataversion_t data_version = READ_ONCE(dvnode->status.data_version);
-	bool supports_ibulk;
+	bool supports_ibulk, isnew;
 	long ret;
 	int i;
 
@@ -850,7 +850,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry)
 			 * callback counters.
 			 */
 			ti = ilookup5_nowait(dir->i_sb, vp->fid.vnode,
-					     afs_ilookup5_test_by_fid, &vp->fid);
+					     afs_ilookup5_test_by_fid, &vp->fid, &isnew);
 			if (!IS_ERR_OR_NULL(ti)) {
 				vnode = AFS_FS_I(ti);
 				vp->dv_before = vnode->status.data_version;

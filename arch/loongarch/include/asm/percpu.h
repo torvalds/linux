@@ -13,7 +13,7 @@
  * the loading address of main kernel image, but far from where the modules are
  * loaded. Tell the compiler this fact when using explicit relocs.
  */
-#if defined(MODULE) && defined(CONFIG_AS_HAS_EXPLICIT_RELOCS)
+#if defined(MODULE) && defined(CONFIG_AS_HAS_EXPLICIT_RELOCS) && defined(CONFIG_64BIT)
 # if __has_attribute(model)
 #  define PER_CPU_ATTRIBUTES __attribute__((model("extreme")))
 # else
@@ -27,7 +27,7 @@ register unsigned long __my_cpu_offset __asm__("$r21");
 static inline void set_my_cpu_offset(unsigned long off)
 {
 	__my_cpu_offset = off;
-	csr_write64(off, PERCPU_BASE_KS);
+	csr_write(off, PERCPU_BASE_KS);
 }
 
 #define __my_cpu_offset					\
@@ -35,6 +35,8 @@ static inline void set_my_cpu_offset(unsigned long off)
 	__asm__ __volatile__("":"+r"(__my_cpu_offset));	\
 	__my_cpu_offset;				\
 })
+
+#ifdef CONFIG_CPU_HAS_AMO
 
 #define PERCPU_OP(op, asm_op, c_op)					\
 static __always_inline unsigned long __percpu_##op(void *ptr,		\
@@ -68,25 +70,9 @@ PERCPU_OP(and, and, &)
 PERCPU_OP(or, or, |)
 #undef PERCPU_OP
 
-static __always_inline unsigned long __percpu_xchg(void *ptr, unsigned long val, int size)
-{
-	switch (size) {
-	case 1:
-	case 2:
-		return __xchg_small((volatile void *)ptr, val, size);
+#endif
 
-	case 4:
-		return __xchg_asm("amswap.w", (volatile u32 *)ptr, (u32)val);
-
-	case 8:
-		return __xchg_asm("amswap.d", (volatile u64 *)ptr, (u64)val);
-
-	default:
-		BUILD_BUG();
-	}
-
-	return 0;
-}
+#ifdef CONFIG_64BIT
 
 #define __pcpu_op_1(op)		op ".b "
 #define __pcpu_op_2(op)		op ".h "
@@ -115,6 +101,10 @@ do {									\
 		: "memory");						\
 } while (0)
 
+#endif
+
+#define __percpu_xchg __arch_xchg
+
 /* this_cpu_cmpxchg */
 #define _protect_cmpxchg_local(pcp, o, n)			\
 ({								\
@@ -135,6 +125,8 @@ do {									\
 	__retval;						\
 })
 
+#ifdef CONFIG_CPU_HAS_AMO
+
 #define _percpu_add(pcp, val) \
 	_pcp_protect(__percpu_add, pcp, val)
 
@@ -145,9 +137,6 @@ do {									\
 
 #define _percpu_or(pcp, val) \
 	_pcp_protect(__percpu_or, pcp, val)
-
-#define _percpu_xchg(pcp, val) ((typeof(pcp)) \
-	_pcp_protect(__percpu_xchg, pcp, (unsigned long)(val)))
 
 #define this_cpu_add_4(pcp, val) _percpu_add(pcp, val)
 #define this_cpu_add_8(pcp, val) _percpu_add(pcp, val)
@@ -161,6 +150,10 @@ do {									\
 #define this_cpu_or_4(pcp, val) _percpu_or(pcp, val)
 #define this_cpu_or_8(pcp, val) _percpu_or(pcp, val)
 
+#endif
+
+#ifdef CONFIG_64BIT
+
 #define this_cpu_read_1(pcp) _percpu_read(1, pcp)
 #define this_cpu_read_2(pcp) _percpu_read(2, pcp)
 #define this_cpu_read_4(pcp) _percpu_read(4, pcp)
@@ -170,6 +163,11 @@ do {									\
 #define this_cpu_write_2(pcp, val) _percpu_write(2, pcp, val)
 #define this_cpu_write_4(pcp, val) _percpu_write(4, pcp, val)
 #define this_cpu_write_8(pcp, val) _percpu_write(8, pcp, val)
+
+#endif
+
+#define _percpu_xchg(pcp, val) ((typeof(pcp)) \
+	_pcp_protect(__percpu_xchg, pcp, (unsigned long)(val)))
 
 #define this_cpu_xchg_1(pcp, val) _percpu_xchg(pcp, val)
 #define this_cpu_xchg_2(pcp, val) _percpu_xchg(pcp, val)

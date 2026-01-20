@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+/* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #ifndef __MT7915_MCU_H
@@ -429,10 +429,16 @@ enum {
 
 enum {
 	TX_POWER_LIMIT_ENABLE,
+	TX_POWER_LIMIT_PATH_ENABLE = 0x3,
 	TX_POWER_LIMIT_TABLE = 0x4,
 	TX_POWER_LIMIT_INFO = 0x7,
 	TX_POWER_LIMIT_FRAME = 0x11,
 	TX_POWER_LIMIT_FRAME_MIN = 0x12,
+};
+
+enum {
+	TX_POWER_INFO_PATH = 1,
+	TX_POWER_INFO_RATE,
 };
 
 enum {

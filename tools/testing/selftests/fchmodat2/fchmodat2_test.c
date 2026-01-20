@@ -7,7 +7,7 @@
 #include <syscall.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int sys_fchmodat2(int dfd, const char *filename, mode_t mode, int flags)
 {

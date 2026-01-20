@@ -29,10 +29,6 @@ struct norm_to_sys_param_buf {
 	void *out_buf;
 } __packed;
 
-static const guid_t norm_to_sys_guid = GUID_INIT(0xE7180659, 0xA65D, 0x451D,
-						 0x92, 0xCD, 0x2B, 0x56, 0xF1,
-						 0x2B, 0xEB, 0xA6);
-
 unsigned long prm_umc_norm_to_sys_addr(u8 socket_id, u64 bank_id, unsigned long addr)
 {
 	struct norm_to_sys_param_buf p_buf;

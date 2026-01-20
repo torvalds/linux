@@ -790,7 +790,7 @@ err:
 }
 
 /**
- * cache_flush - Flush all ksets to persist any pending cache data
+ * pcache_cache_flush - Flush all ksets to persist any pending cache data
  * @cache: Pointer to the cache structure
  *
  * This function iterates through all ksets associated with the provided `cache`
@@ -802,7 +802,7 @@ err:
  * the respective error code, preventing the flush operation from proceeding to
  * subsequent ksets.
  */
-int cache_flush(struct pcache_cache *cache)
+int pcache_cache_flush(struct pcache_cache *cache)
 {
 	struct pcache_cache_kset *kset;
 	int ret;
@@ -827,7 +827,7 @@ int pcache_cache_handle_req(struct pcache_cache *cache, struct pcache_request *p
 	struct bio *bio = pcache_req->bio;
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH))
-		return cache_flush(cache);
+		return pcache_cache_flush(cache);
 
 	if (bio_data_dir(bio) == READ)
 		return cache_read(cache, pcache_req);

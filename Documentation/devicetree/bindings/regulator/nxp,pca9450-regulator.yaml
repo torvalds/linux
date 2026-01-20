@@ -41,6 +41,21 @@ properties:
   interrupts:
     maxItems: 1
 
+  inl1-supply:
+    description: Regulator supply for the INL1 pin group, powering LDOx
+
+  inb13-supply:
+    description:
+      Regulator supply for the INB13 pin group, powering BUCK1 and BUCK3.
+
+  inb26-supply:
+    description:
+      Regulator supply for the INB26 pin group, powering BUCK2 and BUCK6.
+
+  inb45-supply:
+    description:
+      Regulator supply for the INB45 pin group, powering BUCK4 and BUCK5.
+
   regulators:
     type: object
     description: |
@@ -123,6 +138,30 @@ properties:
     description:
       When WDOG_B signal is asserted a warm reset will be done instead of cold
       reset.
+
+  nxp,pmic-on-req-on-debounce-us:
+    enum: [ 120, 20000, 100000, 750000 ]
+    description: Debounce time for PMIC_ON_REQ high.
+
+  nxp,pmic-on-req-off-debounce-us:
+    enum: [ 120, 2000 ]
+    description: Debounce time for PMIC_ON_REQ is asserted low
+
+  nxp,power-on-step-ms:
+    enum: [ 1, 2, 4, 8]
+    description: Time step configuration during power on sequence
+
+  nxp,power-down-step-ms:
+    enum: [ 2, 4, 8, 16 ]
+    description: Time step configuration during power down sequence
+
+  nxp,restart-ms:
+    enum: [ 250, 500 ]
+    description: Time to stay off regulators during Cold reset
+
+  npx,pmic-rst-b-debounce-ms:
+    enum: [ 10, 50, 100, 500, 1000, 2000, 4000, 8000 ]
+    description: PMIC_RST_B debounce time
 
 required:
   - compatible

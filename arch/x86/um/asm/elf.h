@@ -68,35 +68,7 @@
 	pr_reg[16] = PT_REGS_SS(regs);		\
 } while (0);
 
-extern char * elf_aux_platform;
-#define ELF_PLATFORM (elf_aux_platform)
-
-extern unsigned long vsyscall_ehdr;
-extern unsigned long vsyscall_end;
-extern unsigned long __kernel_vsyscall;
-
-/*
- * This is the range that is readable by user mode, and things
- * acting like user mode such as get_user_pages.
- */
-#define FIXADDR_USER_START      vsyscall_ehdr
-#define FIXADDR_USER_END        vsyscall_end
-
-
-/*
- * Architecture-neutral AT_ values in 0-17, leave some room
- * for more of them, start the x86-specific ones at 32.
- */
-#define AT_SYSINFO		32
-#define AT_SYSINFO_EHDR		33
-
-#define ARCH_DLINFO						\
-do {								\
-	if ( vsyscall_ehdr ) {					\
-		NEW_AUX_ENT(AT_SYSINFO,	__kernel_vsyscall);	\
-		NEW_AUX_ENT(AT_SYSINFO_EHDR, vsyscall_ehdr);	\
-	}							\
-} while (0)
+#define ELF_PLATFORM_FALLBACK "i586"
 
 #else
 
@@ -177,11 +149,7 @@ do {								\
 	(pr_reg)[25] = 0;					\
 	(pr_reg)[26] = 0;
 
-#define ELF_PLATFORM "x86_64"
-
-/* No user-accessible fixmap addresses, i.e. vsyscall */
-#define FIXADDR_USER_START      0
-#define FIXADDR_USER_END        0
+#define ELF_PLATFORM_FALLBACK "x86_64"
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 struct linux_binprm;
@@ -209,6 +177,9 @@ struct task_struct;
 
 extern long elf_aux_hwcap;
 #define ELF_HWCAP (elf_aux_hwcap)
+
+extern char *elf_aux_platform;
+#define ELF_PLATFORM (elf_aux_platform ?: ELF_PLATFORM_FALLBACK)
 
 #define SET_PERSONALITY(ex) do {} while(0)
 

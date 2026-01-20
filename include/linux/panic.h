@@ -86,7 +86,6 @@ static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 struct taint_flag {
 	char c_true;		/* character printed when tainted */
 	char c_false;		/* character printed when not tainted */
-	bool module;		/* also show as a per-module taint flag */
 	const char *desc;	/* verbose description of the set taint flag */
 };
 

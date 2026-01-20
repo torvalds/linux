@@ -26,7 +26,7 @@
 #include <errno.h>
 #include <signal.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static volatile uint8_t var[96] __attribute__((__aligned__(32)));
 

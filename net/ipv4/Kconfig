@@ -760,9 +760,7 @@ config TCP_AO
 
 config TCP_MD5SIG
 	bool "TCP: MD5 Signature Option support (RFC2385)"
-	select CRYPTO
-	select CRYPTO_MD5
-	select TCP_SIGPOOL
+	select CRYPTO_LIB_MD5
 	help
 	  RFC2385 specifies a method of giving MD5 protection to TCP sessions.
 	  Its main (only?) use is to protect BGP sessions between core routers

@@ -145,6 +145,7 @@
 	panel {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds>;
+		power-supply = <&reg_3p3v>;
 
 		port {
 			panel_in: endpoint {
@@ -324,8 +325,6 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x1b0b0  /*pcie power*/

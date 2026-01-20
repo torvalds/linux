@@ -29,9 +29,12 @@ MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
  * 0.1: Support getting all hardware contexts by DRM_IOCTL_AMDXDNA_GET_ARRAY
  * 0.2: Support getting last error hardware error
  * 0.3: Support firmware debug buffer
+ * 0.4: Support getting resource information
+ * 0.5: Support getting telemetry data
+ * 0.6: Support preemption
  */
 #define AMDXDNA_DRIVER_MAJOR		0
-#define AMDXDNA_DRIVER_MINOR		3
+#define AMDXDNA_DRIVER_MINOR		6
 
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the

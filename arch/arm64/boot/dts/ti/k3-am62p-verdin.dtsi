@@ -813,7 +813,7 @@
 /* Verdin ETH_1 (On-module PHY) */
 &cpsw_port1 {
 	phy-handle = <&som_eth_phy>;
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	status = "disabled";
 };
 

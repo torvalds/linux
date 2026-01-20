@@ -940,7 +940,7 @@ xlog_cil_set_ctx_write_state(
 	struct xlog_in_core	*iclog)
 {
 	struct xfs_cil		*cil = ctx->cil;
-	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header->h_lsn);
 
 	ASSERT(!ctx->commit_lsn);
 	if (!ctx->start_lsn) {
@@ -1458,9 +1458,9 @@ xlog_cil_push_work(
 	 */
 	spin_lock(&log->l_icloglock);
 	if (ctx->start_lsn != ctx->commit_lsn) {
-		xfs_lsn_t	plsn;
+		xfs_lsn_t	plsn = be64_to_cpu(
+			ctx->commit_iclog->ic_prev->ic_header->h_lsn);
 
-		plsn = be64_to_cpu(ctx->commit_iclog->ic_prev->ic_header.h_lsn);
 		if (plsn && XFS_LSN_CMP(plsn, ctx->commit_lsn) < 0) {
 			/*
 			 * Waiting on ic_force_wait orders the completion of

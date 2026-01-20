@@ -13,6 +13,8 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/intel/display_member.h>
+#include <drm/intel/display_parent_interface.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "soc/intel_dram.h"
@@ -33,7 +35,11 @@
 #include "intel_hotplug.h"
 #include "intel_opregion.h"
 #include "skl_watermark.h"
+#include "xe_display_rpm.h"
 #include "xe_module.h"
+
+/* Ensure drm and display members are placed properly. */
+INTEL_DISPLAY_MEMBER_STATIC_ASSERT(struct xe_device, drm, display);
 
 /* Xe device functions */
 
@@ -510,6 +516,10 @@ static void display_device_remove(struct drm_device *dev, void *arg)
 	intel_display_device_remove(display);
 }
 
+static const struct intel_display_parent_interface parent = {
+	.rpm = &xe_display_rpm_interface,
+};
+
 /**
  * xe_display_probe - probe display and create display struct
  * @xe: XE device instance
@@ -530,7 +540,7 @@ int xe_display_probe(struct xe_device *xe)
 	if (!xe->info.probe_display)
 		goto no_display;
 
-	display = intel_display_device_probe(pdev);
+	display = intel_display_device_probe(pdev, &parent);
 	if (IS_ERR(display))
 		return PTR_ERR(display);
 

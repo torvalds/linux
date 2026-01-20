@@ -33,7 +33,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
@@ -43,6 +42,7 @@
 #include "intel_display_driver.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
 #include "intel_dp_link_training.h"
@@ -293,12 +293,22 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		mst_stream_update_slots(crtc_state, mst_state);
 	}
 
-	if (dsc) {
-		if (!intel_dp_supports_fec(intel_dp, connector, crtc_state))
-			return -EINVAL;
-
-		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
-	}
+	/*
+	 * NOTE: The following must reset crtc_state->fec_enable for UHBR/DSC
+	 * after it was set by intel_dp_dsc_compute_config() ->
+	 * intel_dp_needs_8b10b_fec().
+	 */
+	crtc_state->fec_enable = intel_dp_needs_8b10b_fec(crtc_state, dsc);
+	/*
+	 * If FEC gets enabled only because of another compressed stream, FEC
+	 * may not be supported for this uncompressed stream on the whole link
+	 * path until the sink DPRX. In this case a downstream branch device
+	 * will disable FEC for the uncompressed stream as expected and so the
+	 * FEC support doesn't need to be checked for this uncompressed stream.
+	 */
+	if (crtc_state->fec_enable && dsc &&
+	    !intel_dp_supports_fec(intel_dp, connector, crtc_state))
+		return -EINVAL;
 
 	max_dpt_bpp_x16 = fxp_q4_from_int(intel_dp_mst_max_dpt_bpp(crtc_state, dsc));
 	if (max_dpt_bpp_x16 && max_bpp_x16 > max_dpt_bpp_x16) {
@@ -811,14 +821,14 @@ static u8 get_pipes_downstream_of_mst_port(struct intel_atomic_state *state,
 	return mask;
 }
 
-static int intel_dp_mst_check_fec_change(struct intel_atomic_state *state,
+static int intel_dp_mst_check_dsc_change(struct intel_atomic_state *state,
 					 struct drm_dp_mst_topology_mgr *mst_mgr,
 					 struct intel_link_bw_limits *limits)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 	u8 mst_pipe_mask;
-	u8 fec_pipe_mask = 0;
+	u8 dsc_pipe_mask = 0;
 	int ret;
 
 	mst_pipe_mask = get_pipes_downstream_of_mst_port(state, mst_mgr, NULL);
@@ -831,16 +841,16 @@ static int intel_dp_mst_check_fec_change(struct intel_atomic_state *state,
 		if (drm_WARN_ON(display->drm, !crtc_state))
 			return -EINVAL;
 
-		if (crtc_state->fec_enable)
-			fec_pipe_mask |= BIT(crtc->pipe);
+		if (intel_dsc_enabled_on_link(crtc_state))
+			dsc_pipe_mask |= BIT(crtc->pipe);
 	}
 
-	if (!fec_pipe_mask || mst_pipe_mask == fec_pipe_mask)
+	if (!dsc_pipe_mask || mst_pipe_mask == dsc_pipe_mask)
 		return 0;
 
-	limits->force_fec_pipes |= mst_pipe_mask;
+	limits->link_dsc_pipes |= mst_pipe_mask;
 
-	ret = intel_modeset_pipes_in_mask_early(state, "MST FEC",
+	ret = intel_modeset_pipes_in_mask_early(state, "MST DSC",
 						mst_pipe_mask);
 
 	return ret ? : -EAGAIN;
@@ -894,7 +904,7 @@ int intel_dp_mst_atomic_check_link(struct intel_atomic_state *state,
 	int i;
 
 	for_each_new_mst_mgr_in_state(&state->base, mgr, mst_state, i) {
-		ret = intel_dp_mst_check_fec_change(state, mgr, limits);
+		ret = intel_dp_mst_check_dsc_change(state, mgr, limits);
 		if (ret)
 			return ret;
 
@@ -1658,6 +1668,7 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 					      struct intel_connector *connector)
 {
 	u8 dpcd_caps[DP_RECEIVER_CAP_SIZE];
+	struct drm_dp_desc desc;
 
 	if (!connector->dp.dsc_decompression_aux)
 		return;
@@ -1665,7 +1676,13 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 	if (drm_dp_read_dpcd_caps(connector->dp.dsc_decompression_aux, dpcd_caps) < 0)
 		return;
 
-	intel_dp_get_dsc_sink_cap(dpcd_caps[DP_DPCD_REV], connector);
+	if (drm_dp_read_desc(connector->dp.dsc_decompression_aux, &desc,
+			     drm_dp_is_branch(dpcd_caps)) < 0)
+		return;
+
+	intel_dp_get_dsc_sink_cap(dpcd_caps[DP_DPCD_REV],
+				  &desc, drm_dp_is_branch(dpcd_caps),
+				  connector);
 }
 
 static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *connector)

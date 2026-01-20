@@ -119,9 +119,9 @@ static bool post_one_notification(struct watch_queue *wqueue,
 	offset = note % WATCH_QUEUE_NOTES_PER_PAGE * WATCH_QUEUE_NOTE_SIZE;
 	get_page(page);
 	len = n->info & WATCH_INFO_LENGTH;
-	p = kmap_atomic(page);
+	p = kmap_local_page(page);
 	memcpy(p + offset, n, len);
-	kunmap_atomic(p);
+	kunmap_local(p);
 
 	buf = pipe_buf(pipe, head);
 	buf->page = page;

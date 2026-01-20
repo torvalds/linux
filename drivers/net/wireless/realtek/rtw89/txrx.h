@@ -127,6 +127,8 @@ static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
 #define RTW89_TXWD_INFO0_MULTIPORT_ID GENMASK(6, 4)
 
 /* TX WD INFO DWORD 1 */
+#define RTW89_TXWD_INFO1_DATA_TXCNT_LMT_SEL BIT(31)
+#define RTW89_TXWD_INFO1_DATA_TXCNT_LMT GENMASK(30, 25)
 #define RTW89_TXWD_INFO1_DATA_RTY_LOWEST_RATE GENMASK(24, 16)
 #define RTW89_TXWD_INFO1_A_CTRL_BSR BIT(14)
 #define RTW89_TXWD_INFO1_MAX_AGGNUM GENMASK(7, 0)
@@ -139,10 +141,12 @@ static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
 #define RTW89_TXWD_INFO2_SEC_CAM_IDX GENMASK(7, 0)
 
 /* TX WD INFO DWORD 3 */
+#define RTW89_TXWD_INFO3_SPE_RPT BIT(10)
 
 /* TX WD INFO DWORD 4 */
-#define RTW89_TXWD_INFO4_RTS_EN BIT(27)
 #define RTW89_TXWD_INFO4_HW_RTS_EN BIT(31)
+#define RTW89_TXWD_INFO4_RTS_EN BIT(27)
+#define RTW89_TXWD_INFO4_SW_DEFINE GENMASK(3, 0)
 
 /* TX WD INFO DWORD 5 */
 
@@ -417,6 +421,7 @@ struct rtw89_rxinfo_user {
 #define RTW89_RXINFO_USER_MGMT BIT(3)
 #define RTW89_RXINFO_USER_BCN BIT(4)
 #define RTW89_RXINFO_USER_MACID GENMASK(15, 8)
+#define RTW89_RXINFO_USER_MACID_V1 GENMASK(31, 20)
 
 struct rtw89_rxinfo {
 	__le32 w0;

@@ -1825,6 +1825,31 @@ static int ipoib_ioctl(struct net_device *dev, struct ifreq *ifr,
 	return priv->rn_ops->ndo_eth_ioctl(dev, ifr, cmd);
 }
 
+static int ipoib_hwtstamp_get(struct net_device *dev,
+			      struct kernel_hwtstamp_config *config)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	if (!priv->rn_ops->ndo_hwtstamp_get)
+		/* legacy */
+		return dev_eth_ioctl(dev, config->ifr, SIOCGHWTSTAMP);
+
+	return priv->rn_ops->ndo_hwtstamp_get(dev, config);
+}
+
+static int ipoib_hwtstamp_set(struct net_device *dev,
+			      struct kernel_hwtstamp_config *config,
+			      struct netlink_ext_ack *extack)
+{
+	struct ipoib_dev_priv *priv = ipoib_priv(dev);
+
+	if (!priv->rn_ops->ndo_hwtstamp_set)
+		/* legacy */
+		return dev_eth_ioctl(dev, config->ifr, SIOCSHWTSTAMP);
+
+	return priv->rn_ops->ndo_hwtstamp_set(dev, config, extack);
+}
+
 static int ipoib_dev_init(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
@@ -2149,6 +2174,8 @@ static const struct net_device_ops ipoib_netdev_ops_pf = {
 	.ndo_set_mac_address	 = ipoib_set_mac,
 	.ndo_get_stats64	 = ipoib_get_stats,
 	.ndo_eth_ioctl		 = ipoib_ioctl,
+	.ndo_hwtstamp_get	 = ipoib_hwtstamp_get,
+	.ndo_hwtstamp_set	 = ipoib_hwtstamp_set,
 };
 
 static const struct net_device_ops ipoib_netdev_ops_vf = {
@@ -2164,6 +2191,8 @@ static const struct net_device_ops ipoib_netdev_ops_vf = {
 	.ndo_get_iflink		 = ipoib_get_iflink,
 	.ndo_get_stats64	 = ipoib_get_stats,
 	.ndo_eth_ioctl		 = ipoib_ioctl,
+	.ndo_hwtstamp_get	 = ipoib_hwtstamp_get,
+	.ndo_hwtstamp_set	 = ipoib_hwtstamp_set,
 };
 
 static const struct net_device_ops ipoib_netdev_default_pf = {

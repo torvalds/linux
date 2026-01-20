@@ -89,8 +89,8 @@ enum AW88395_DEV_DSP_CFG {
 };
 
 enum {
-	AW88395_DSP_16_DATA = 0,
-	AW88395_DSP_32_DATA = 1,
+	AW_DSP_16_DATA = 0,
+	AW_DSP_32_DATA = 1,
 };
 
 enum {
@@ -210,5 +210,9 @@ int aw88395_dev_get_profile_count(struct aw_device *aw_dev);
 int aw88395_dev_load_acf_check(struct aw_device *aw_dev, struct aw_container *aw_cfg);
 int aw88395_dev_cfg_load(struct aw_device *aw_dev, struct aw_container *aw_cfg);
 void aw88395_dev_mute(struct aw_device *aw_dev, bool is_mute);
+int aw_dev_dsp_write(struct aw_device *aw_dev,
+		unsigned short dsp_addr, unsigned int dsp_data, unsigned char data_type);
+int aw_dev_dsp_read(struct aw_device *aw_dev,
+		unsigned short dsp_addr, unsigned int *dsp_data, unsigned char data_type);
 
 #endif

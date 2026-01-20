@@ -710,7 +710,14 @@ static int threaded_migrate(struct intel_migrate *migrate,
 		thread[i].tsk = tsk;
 	}
 
-	msleep(10 * n_cpus); /* start all threads before we kthread_stop() */
+	/*
+	 * Start all threads before we kthread_stop().
+	 * In CHV / BXT+VTD environments, where VMA pinning is committed
+	 * asynchronously, empirically determined 100ms delay is needed
+	 * to avoid stopping threads that may still wait for completion of
+	 * intel_ggtt_bind_vma and fail with -ERESTARTSYS when interrupted.
+	 */
+	msleep((intel_vm_no_concurrent_access_wa(migrate->context->vm->i915) ? 100 : 10) * n_cpus);
 
 	for (i = 0; i < n_cpus; ++i) {
 		struct task_struct *tsk = thread[i].tsk;

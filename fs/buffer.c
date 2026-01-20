@@ -611,9 +611,9 @@ int generic_buffers_fsync_noflush(struct file *file, loff_t start, loff_t end,
 		return err;
 
 	ret = sync_mapping_buffers(inode->i_mapping);
-	if (!(inode->i_state & I_DIRTY_ALL))
+	if (!(inode_state_read_once(inode) & I_DIRTY_ALL))
 		goto out;
-	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC))
+	if (datasync && !(inode_state_read_once(inode) & I_DIRTY_DATASYNC))
 		goto out;
 
 	err = sync_inode_metadata(inode, 1);
@@ -2732,7 +2732,7 @@ int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
 	loff_t i_size = i_size_read(inode);
 
 	/* Is the folio fully inside i_size? */
-	if (folio_pos(folio) + folio_size(folio) <= i_size)
+	if (folio_next_pos(folio) <= i_size)
 		return __block_write_full_folio(inode, folio, get_block, wbc);
 
 	/* Is the folio fully outside i_size? (truncate in progress) */

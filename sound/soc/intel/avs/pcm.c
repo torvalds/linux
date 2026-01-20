@@ -651,6 +651,7 @@ static void avs_dai_fe_shutdown(struct snd_pcm_substream *substream, struct snd_
 
 	data = snd_soc_dai_get_dma_data(dai, substream);
 
+	disable_work_sync(&data->period_elapsed_work);
 	snd_hdac_ext_stream_release(data->host_stream, HDAC_EXT_STREAM_TYPE_HOST);
 	avs_dai_shutdown(substream, dai);
 }
@@ -754,6 +755,8 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	data = snd_soc_dai_get_dma_data(dai, substream);
 	host_stream = data->host_stream;
 
+	if (runtime->state == SNDRV_PCM_STATE_XRUN)
+		hdac_stream(host_stream)->prepared = false;
 	if (hdac_stream(host_stream)->prepared)
 		return 0;
 
@@ -1621,7 +1624,7 @@ static int avs_component_hda_probe(struct snd_soc_component *component)
 		return -ENOMEM;
 
 	cname = dev_name(&codec->core.dev);
-	dapm = snd_soc_component_get_dapm(component);
+	dapm = snd_soc_component_to_dapm(component);
 	pcm = list_first_entry(&codec->pcm_list_head, struct hda_pcm, list);
 
 	for (i = 0; i < pcm_count; i++, pcm = list_next_entry(pcm, list)) {

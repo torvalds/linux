@@ -10,6 +10,7 @@
 
 #include <drm/armada_drm.h>
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 
 #include "armada_drm.h"
 #include "armada_gem.h"

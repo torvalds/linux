@@ -7,8 +7,11 @@
 void txgbe_gpio_init_aml(struct wx *wx);
 irqreturn_t txgbe_gpio_irq_handler_aml(int irq, void *data);
 int txgbe_test_hostif(struct wx *wx);
+int txgbe_read_eeprom_hostif(struct wx *wx,
+			     struct txgbe_hic_i2c_read *buffer,
+			     u32 length, u8 *data);
 int txgbe_set_phy_link(struct wx *wx);
-int txgbe_identify_sfp(struct wx *wx);
+int txgbe_identify_module(struct wx *wx);
 void txgbe_setup_link(struct wx *wx);
 int txgbe_phylink_init_aml(struct txgbe *txgbe);
 

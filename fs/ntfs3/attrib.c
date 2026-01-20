@@ -1457,7 +1457,6 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 		pgoff_t index = vbo[i] >> PAGE_SHIFT;
 
 		if (index != folio->index) {
-			struct page *page = &folio->page;
 			u64 from = vbo[i] & ~(u64)(PAGE_SIZE - 1);
 			u64 to = min(from + PAGE_SIZE, wof_size);
 
@@ -1467,8 +1466,7 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 			if (err)
 				goto out1;
 
-			err = ntfs_bio_pages(sbi, run, &page, 1, from,
-					     to - from, REQ_OP_READ);
+			err = ntfs_read_run(sbi, run, addr, from, to - from);
 			if (err) {
 				folio->index = -1;
 				goto out1;
@@ -1862,7 +1860,7 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	struct ATTRIB *attr = NULL, *attr_b;
 	struct ATTR_LIST_ENTRY *le, *le_b;
 	struct mft_inode *mi, *mi_b;
-	CLST svcn, evcn1, len, dealloc, alen;
+	CLST svcn, evcn1, len, dealloc, alen, done;
 	CLST vcn, end;
 	u64 valid_size, data_size, alloc_size, total_size;
 	u32 mask;
@@ -1925,6 +1923,7 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	len = bytes >> sbi->cluster_bits;
 	end = vcn + len;
 	dealloc = 0;
+	done = 0;
 
 	svcn = le64_to_cpu(attr_b->nres.svcn);
 	evcn1 = le64_to_cpu(attr_b->nres.evcn) + 1;
@@ -1933,23 +1932,28 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		attr = attr_b;
 		le = le_b;
 		mi = mi_b;
-	} else if (!le_b) {
+		goto check_seg;
+	}
+
+	if (!le_b) {
 		err = -EINVAL;
 		goto out;
-	} else {
-		le = le_b;
-		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
-				    &mi);
-		if (!attr) {
-			err = -EINVAL;
-			goto out;
-		}
+	}
 
-		svcn = le64_to_cpu(attr->nres.svcn);
-		evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
+	le = le_b;
+	attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn, &mi);
+	if (!attr) {
+		err = -EINVAL;
+		goto out;
 	}
 
 	for (;;) {
+		CLST vcn1, eat, next_svcn;
+
+		svcn = le64_to_cpu(attr->nres.svcn);
+		evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
+
+check_seg:
 		if (svcn >= end) {
 			/* Shift VCN- */
 			attr->nres.svcn = cpu_to_le64(svcn - len);
@@ -1959,22 +1963,25 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 				ni->attr_list.dirty = true;
 			}
 			mi->dirty = true;
-		} else if (svcn < vcn || end < evcn1) {
-			CLST vcn1, eat, next_svcn;
+			goto next_attr;
+		}
 
+		run_truncate(run, 0);
+		err = attr_load_runs(attr, ni, run, &svcn);
+		if (err)
+			goto out;
+
+		vcn1 = vcn + done; /* original vcn in attr/run. */
+		eat = min(end, evcn1) - vcn1;
+
+		err = run_deallocate_ex(sbi, run, vcn1, eat, &dealloc, true);
+		if (err)
+			goto out;
+
+		if (svcn + eat < evcn1) {
 			/* Collapse a part of this attribute segment. */
-			err = attr_load_runs(attr, ni, run, &svcn);
-			if (err)
-				goto out;
-			vcn1 = max(vcn, svcn);
-			eat = min(end, evcn1) - vcn1;
 
-			err = run_deallocate_ex(sbi, run, vcn1, eat, &dealloc,
-						true);
-			if (err)
-				goto out;
-
-			if (!run_collapse_range(run, vcn1, eat)) {
+			if (!run_collapse_range(run, vcn1, eat, done)) {
 				err = -ENOMEM;
 				goto out;
 			}
@@ -1982,7 +1989,7 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 			if (svcn >= vcn) {
 				/* Shift VCN */
 				attr->nres.svcn = cpu_to_le64(vcn);
-				if (le) {
+				if (le && attr->nres.svcn != le->vcn) {
 					le->vcn = attr->nres.svcn;
 					ni->attr_list.dirty = true;
 				}
@@ -1993,7 +2000,7 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 				goto out;
 
 			next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
-			if (next_svcn + eat < evcn1) {
+			if (next_svcn + eat + done < evcn1) {
 				err = ni_insert_nonresident(
 					ni, ATTR_DATA, NULL, 0, run, next_svcn,
 					evcn1 - eat - next_svcn, a_flags, &attr,
@@ -2007,18 +2014,9 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 			/* Free all allocated memory. */
 			run_truncate(run, 0);
+			done += eat;
 		} else {
 			u16 le_sz;
-			u16 roff = le16_to_cpu(attr->nres.run_off);
-
-			if (roff > le32_to_cpu(attr->size)) {
-				err = -EINVAL;
-				goto out;
-			}
-
-			run_unpack_ex(RUN_DEALLOCATE, sbi, ni->mi.rno, svcn,
-				      evcn1 - 1, svcn, Add2Ptr(attr, roff),
-				      le32_to_cpu(attr->size) - roff);
 
 			/* Delete this attribute segment. */
 			mi_remove_attr(NULL, mi, attr);
@@ -2031,6 +2029,7 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 				goto out;
 			}
 
+			done += evcn1 - svcn;
 			if (evcn1 >= alen)
 				break;
 
@@ -2048,11 +2047,12 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 					err = -EINVAL;
 					goto out;
 				}
-				goto next_attr;
+				continue;
 			}
 			le = (struct ATTR_LIST_ENTRY *)((u8 *)le - le_sz);
 		}
 
+next_attr:
 		if (evcn1 >= alen)
 			break;
 
@@ -2061,10 +2061,6 @@ int attr_collapse_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 			err = -EINVAL;
 			goto out;
 		}
-
-next_attr:
-		svcn = le64_to_cpu(attr->nres.svcn);
-		evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
 	}
 
 	if (!attr_b) {
@@ -2554,7 +2550,7 @@ undo_insert_range:
 	if (attr_load_runs(attr, ni, run, NULL))
 		goto bad_inode;
 
-	if (!run_collapse_range(run, vcn, len))
+	if (!run_collapse_range(run, vcn, len, 0))
 		goto bad_inode;
 
 	if (mi_pack_runs(mi, attr, run, evcn1 + len - svcn))

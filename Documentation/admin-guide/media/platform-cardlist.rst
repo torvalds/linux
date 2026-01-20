@@ -18,8 +18,6 @@ am437x-vpfe        TI AM437x VPFE
 aspeed-video       Aspeed AST2400 and AST2500
 atmel-isc          ATMEL Image Sensor Controller (ISC)
 atmel-isi          ATMEL Image Sensor Interface (ISI)
-c8sectpfe          SDR platform devices
-c8sectpfe          SDR platform devices
 cafe_ccic          Marvell 88ALP01 (Cafe) CMOS Camera Controller
 cdns-csi2rx        Cadence MIPI-CSI2 RX Controller
 cdns-csi2tx        Cadence MIPI-CSI2 TX Controller

@@ -235,8 +235,8 @@ static int __init pxa25x_init(void)
 
 		pxa25x_init_pm();
 
-		register_syscore_ops(&pxa_irq_syscore_ops);
-		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
+		register_syscore(&pxa_irq_syscore);
+		register_syscore(&pxa2xx_mfp_syscore);
 
 		if (!of_have_populated_dt()) {
 			software_node_register(&pxa2xx_gpiochip_node);

@@ -667,6 +667,8 @@ Buffer Flags
 	exposure of the frame has begun. This is only valid for the
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE`` buffer type.
 
+.. c:enum:: v4l2_memory
+
 .. raw:: latex
 
     \normalsize

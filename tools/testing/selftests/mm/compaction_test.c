@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MAP_SIZE_MB	100
 #define MAP_SIZE	(MAP_SIZE_MB * 1024 * 1024)

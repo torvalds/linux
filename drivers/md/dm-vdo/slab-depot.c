@@ -40,7 +40,7 @@ static const bool NORMAL_OPERATION = true;
 
 /**
  * get_lock() - Get the lock object for a slab journal block by sequence number.
- * @journal: vdo_slab journal to retrieve from.
+ * @journal: The vdo_slab journal to retrieve from.
  * @sequence_number: Sequence number of the block.
  *
  * Return: The lock object for the given sequence number.
@@ -110,7 +110,7 @@ static void initialize_journal_state(struct slab_journal *journal)
  * block_is_full() - Check whether a journal block is full.
  * @journal: The slab journal for the block.
  *
- * Return: true if the tail block is full.
+ * Return: True if the tail block is full.
  */
 static bool __must_check block_is_full(struct slab_journal *journal)
 {
@@ -127,10 +127,11 @@ static void release_journal_locks(struct vdo_waiter *waiter, void *context);
 
 /**
  * is_slab_journal_blank() - Check whether a slab's journal is blank.
+ * @slab: The slab to check.
  *
  * A slab journal is blank if it has never had any entries recorded in it.
  *
- * Return: true if the slab's journal has never been modified.
+ * Return: True if the slab's journal has never been modified.
  */
 static bool is_slab_journal_blank(const struct vdo_slab *slab)
 {
@@ -227,6 +228,7 @@ static u8 __must_check compute_fullness_hint(struct slab_depot *depot,
 
 /**
  * check_summary_drain_complete() - Check whether an allocators summary has finished draining.
+ * @allocator: The allocator to check.
  */
 static void check_summary_drain_complete(struct block_allocator *allocator)
 {
@@ -349,7 +351,7 @@ static void launch_write(struct slab_summary_block *block)
 
 /**
  * update_slab_summary_entry() - Update the entry for a slab.
- * @slab: The slab whose entry is to be updated
+ * @slab: The slab whose entry is to be updated.
  * @waiter: The waiter that is updating the summary.
  * @tail_block_offset: The offset of the slab journal's tail block.
  * @load_ref_counts: Whether the reference counts must be loaded from disk on the vdo load.
@@ -654,6 +656,7 @@ static void update_tail_block_location(struct slab_journal *journal)
 
 /**
  * reopen_slab_journal() - Reopen a slab's journal by emptying it and then adding pending entries.
+ * @slab: The slab to reopen.
  */
 static void reopen_slab_journal(struct vdo_slab *slab)
 {
@@ -839,8 +842,6 @@ static void commit_tail(struct slab_journal *journal)
  * @sbn: The slab block number of the entry to encode.
  * @operation: The type of the entry.
  * @increment: True if this is an increment.
- *
- * Exposed for unit tests.
  */
 static void encode_slab_journal_entry(struct slab_journal_block_header *tail_header,
 				      slab_journal_payload *payload,
@@ -951,7 +952,7 @@ static inline block_count_t journal_length(const struct slab_journal *journal)
  * @parent: The completion to notify when there is space to add the entry if the entry could not be
  *          added immediately.
  *
- * Return: true if the entry was added immediately.
+ * Return: True if the entry was added immediately.
  */
 bool vdo_attempt_replay_into_slab(struct vdo_slab *slab, physical_block_number_t pbn,
 				  enum journal_operation operation, bool increment,
@@ -1003,7 +1004,7 @@ bool vdo_attempt_replay_into_slab(struct vdo_slab *slab, physical_block_number_t
  * requires_reaping() - Check whether the journal must be reaped before adding new entries.
  * @journal: The journal to check.
  *
- * Return: true if the journal must be reaped.
+ * Return: True if the journal must be reaped.
  */
 static bool requires_reaping(const struct slab_journal *journal)
 {
@@ -1275,6 +1276,8 @@ static void dirty_block(struct reference_block *block)
 
 /**
  * get_reference_block() - Get the reference block that covers the given block index.
+ * @slab: The slab containing the references.
+ * @index: The index of the physical block.
  */
 static struct reference_block * __must_check get_reference_block(struct vdo_slab *slab,
 								 slab_block_number index)
@@ -1379,7 +1382,8 @@ static void prioritize_slab(struct vdo_slab *slab)
 
 /**
  * adjust_free_block_count() - Adjust the free block count and (if needed) reprioritize the slab.
- * @incremented: true if the free block count went up.
+ * @slab: The slab.
+ * @incremented: True if the free block count went up.
  */
 static void adjust_free_block_count(struct vdo_slab *slab, bool incremented)
 {
@@ -1885,6 +1889,7 @@ static void add_entries(struct slab_journal *journal)
 /**
  * reset_search_cursor() - Reset the free block search back to the first reference counter in the
  *                         first reference block of a slab.
+ * @slab: The slab.
  */
 static void reset_search_cursor(struct vdo_slab *slab)
 {
@@ -1892,17 +1897,17 @@ static void reset_search_cursor(struct vdo_slab *slab)
 
 	cursor->block = cursor->first_block;
 	cursor->index = 0;
-	/* Unit tests have slabs with only one reference block (and it's a runt). */
 	cursor->end_index = min_t(u32, COUNTS_PER_BLOCK, slab->block_count);
 }
 
 /**
  * advance_search_cursor() - Advance the search cursor to the start of the next reference block in
- *                           a slab,
+ *                           a slab.
+ * @slab: The slab.
  *
  * Wraps around to the first reference block if the current block is the last reference block.
  *
- * Return: true unless the cursor was at the last reference block.
+ * Return: True unless the cursor was at the last reference block.
  */
 static bool advance_search_cursor(struct vdo_slab *slab)
 {
@@ -1933,6 +1938,9 @@ static bool advance_search_cursor(struct vdo_slab *slab)
 
 /**
  * vdo_adjust_reference_count_for_rebuild() - Adjust the reference count of a block during rebuild.
+ * @depot: The slab depot.
+ * @pbn: The physical block number to adjust.
+ * @operation: The type opf operation.
  *
  * Return: VDO_SUCCESS or an error.
  */
@@ -2038,9 +2046,7 @@ static inline slab_block_number find_zero_byte_in_word(const u8 *word_ptr,
  * @slab: The slab counters to scan.
  * @index_ptr: A pointer to hold the array index of the free block.
  *
- * Exposed for unit testing.
- *
- * Return: true if a free block was found in the specified range.
+ * Return: True if a free block was found in the specified range.
  */
 static bool find_free_block(const struct vdo_slab *slab, slab_block_number *index_ptr)
 {
@@ -2097,7 +2103,7 @@ static bool find_free_block(const struct vdo_slab *slab, slab_block_number *inde
  * @slab: The slab to search.
  * @free_index_ptr: A pointer to receive the array index of the zero reference count.
  *
- * Return: true if an unreferenced counter was found.
+ * Return: True if an unreferenced counter was found.
  */
 static bool search_current_reference_block(const struct vdo_slab *slab,
 					   slab_block_number *free_index_ptr)
@@ -2116,7 +2122,7 @@ static bool search_current_reference_block(const struct vdo_slab *slab,
  * counter index saved in the search cursor and searching up to the end of the last reference
  * block. The search does not wrap.
  *
- * Return: true if an unreferenced counter was found.
+ * Return: True if an unreferenced counter was found.
  */
 static bool search_reference_blocks(struct vdo_slab *slab,
 				    slab_block_number *free_index_ptr)
@@ -2136,6 +2142,8 @@ static bool search_reference_blocks(struct vdo_slab *slab,
 
 /**
  * make_provisional_reference() - Do the bookkeeping for making a provisional reference.
+ * @slab: The slab.
+ * @block_number: The index for the physical block to reference.
  */
 static void make_provisional_reference(struct vdo_slab *slab,
 				       slab_block_number block_number)
@@ -2155,6 +2163,7 @@ static void make_provisional_reference(struct vdo_slab *slab,
 
 /**
  * dirty_all_reference_blocks() - Mark all reference count blocks in a slab as dirty.
+ * @slab: The slab.
  */
 static void dirty_all_reference_blocks(struct vdo_slab *slab)
 {
@@ -2173,10 +2182,10 @@ static inline bool journal_points_equal(struct journal_point first,
 
 /**
  * match_bytes() - Check an 8-byte word for bytes matching the value specified
- * @input: A word to examine the bytes of
- * @match: The byte value sought
+ * @input: A word to examine the bytes of.
+ * @match: The byte value sought.
  *
- * Return: 1 in each byte when the corresponding input byte matched, 0 otherwise
+ * Return: 1 in each byte when the corresponding input byte matched, 0 otherwise.
  */
 static inline u64 match_bytes(u64 input, u8 match)
 {
@@ -2191,12 +2200,12 @@ static inline u64 match_bytes(u64 input, u8 match)
 
 /**
  * count_valid_references() - Process a newly loaded refcount array
- * @counters: the array of counters from a metadata block
+ * @counters: The array of counters from a metadata block.
  *
- * Scan a 8-byte-aligned array of counters, fixing up any "provisional" values that weren't
- * cleaned up at shutdown, changing them internally to "empty".
+ * Scan an 8-byte-aligned array of counters, fixing up any provisional values that
+ * weren't cleaned up at shutdown, changing them internally to zero.
  *
- * Return: the number of blocks that are referenced (counters not "empty")
+ * Return: The number of blocks with a non-zero reference count.
  */
 static unsigned int count_valid_references(vdo_refcount_t *counters)
 {
@@ -2351,6 +2360,7 @@ static void load_reference_block_group(struct vdo_waiter *waiter, void *context)
 /**
  * load_reference_blocks() - Load a slab's reference blocks from the underlying storage into a
  *                           pre-allocated reference counter.
+ * @slab: The slab.
  */
 static void load_reference_blocks(struct vdo_slab *slab)
 {
@@ -2375,6 +2385,7 @@ static void load_reference_blocks(struct vdo_slab *slab)
 
 /**
  * drain_slab() - Drain all reference count I/O.
+ * @slab: The slab.
  *
  * Depending upon the type of drain being performed (as recorded in the ref_count's vdo_slab), the
  * reference blocks may be loaded from disk or dirty reference blocks may be written out.
@@ -2564,6 +2575,7 @@ static void read_slab_journal_tail(struct vdo_waiter *waiter, void *context)
 
 /**
  * load_slab_journal() - Load a slab's journal by reading the journal's tail.
+ * @slab: The slab.
  */
 static void load_slab_journal(struct vdo_slab *slab)
 {
@@ -2663,11 +2675,7 @@ static void queue_slab(struct vdo_slab *slab)
 	prioritize_slab(slab);
 }
 
-/**
- * initiate_slab_action() - Initiate a slab action.
- *
- * Implements vdo_admin_initiator_fn.
- */
+/** Implements vdo_admin_initiator_fn. */
 static void initiate_slab_action(struct admin_state *state)
 {
 	struct vdo_slab *slab = container_of(state, struct vdo_slab, state);
@@ -2720,7 +2728,7 @@ static struct vdo_slab *get_next_slab(struct slab_scrubber *scrubber)
  * has_slabs_to_scrub() - Check whether a scrubber has slabs to scrub.
  * @scrubber: The scrubber to check.
  *
- * Return: true if the scrubber has slabs to scrub.
+ * Return: True if the scrubber has slabs to scrub.
  */
 static inline bool __must_check has_slabs_to_scrub(struct slab_scrubber *scrubber)
 {
@@ -2741,6 +2749,7 @@ static void uninitialize_scrubber_vio(struct slab_scrubber *scrubber)
  * finish_scrubbing() - Stop scrubbing, either because there are no more slabs to scrub or because
  *                      there's been an error.
  * @scrubber: The scrubber.
+ * @result: The result of the scrubbing operation.
  */
 static void finish_scrubbing(struct slab_scrubber *scrubber, int result)
 {
@@ -3132,11 +3141,13 @@ static struct vdo_slab *next_slab(struct slab_iterator *iterator)
 
 /**
  * abort_waiter() - Abort vios waiting to make journal entries when read-only.
+ * @waiter: A waiting data_vio.
+ * @context: Not used.
  *
  * This callback is invoked on all vios waiting to make slab journal entries after the VDO has gone
  * into read-only mode. Implements waiter_callback_fn.
  */
-static void abort_waiter(struct vdo_waiter *waiter, void *context __always_unused)
+static void abort_waiter(struct vdo_waiter *waiter, void __always_unused *context)
 {
 	struct reference_updater *updater =
 		container_of(waiter, struct reference_updater, waiter);
@@ -3536,7 +3547,7 @@ static void initiate_load(struct admin_state *state)
 /**
  * vdo_notify_slab_journals_are_recovered() - Inform a block allocator that its slab journals have
  *                                            been recovered from the recovery journal.
- * @completion The allocator completion
+ * @completion: The allocator completion.
  */
 void vdo_notify_slab_journals_are_recovered(struct vdo_completion *completion)
 {
@@ -3775,7 +3786,7 @@ static int initialize_slab_journal(struct vdo_slab *slab)
  *               in the slab.
  * @allocator: The block allocator to which the slab belongs.
  * @slab_number: The slab number of the slab.
- * @is_new: true if this slab is being allocated as part of a resize.
+ * @is_new: True if this slab is being allocated as part of a resize.
  * @slab_ptr: A pointer to receive the new slab.
  *
  * Return: VDO_SUCCESS or an error code.
@@ -3894,11 +3905,7 @@ void vdo_abandon_new_slabs(struct slab_depot *depot)
 	vdo_free(vdo_forget(depot->new_slabs));
 }
 
-/**
- * get_allocator_thread_id() - Get the ID of the thread on which a given allocator operates.
- *
- * Implements vdo_zone_thread_getter_fn.
- */
+/** Implements vdo_zone_thread_getter_fn. */
 static thread_id_t get_allocator_thread_id(void *context, zone_count_t zone_number)
 {
 	return ((struct slab_depot *) context)->allocators[zone_number].thread_id;
@@ -3911,7 +3918,7 @@ static thread_id_t get_allocator_thread_id(void *context, zone_count_t zone_numb
  * @recovery_lock: The sequence number of the recovery journal block whose locks should be
  *                 released.
  *
- * Return: true if the journal does hold a lock on the specified block (which it will release).
+ * Return: True if the journal released a lock on the specified block.
  */
 static bool __must_check release_recovery_journal_lock(struct slab_journal *journal,
 						       sequence_number_t recovery_lock)
@@ -3955,6 +3962,8 @@ static void release_tail_block_locks(void *context, zone_count_t zone_number,
 
 /**
  * prepare_for_tail_block_commit() - Prepare to commit oldest tail blocks.
+ * @context: The slab depot.
+ * @parent: The parent operation.
  *
  * Implements vdo_action_preamble_fn.
  */
@@ -3968,6 +3977,7 @@ static void prepare_for_tail_block_commit(void *context, struct vdo_completion *
 
 /**
  * schedule_tail_block_commit() - Schedule a tail block commit if necessary.
+ * @context: The slab depot.
  *
  * This method should not be called directly. Rather, call vdo_schedule_default_action() on the
  * depot's action manager.
@@ -4361,6 +4371,7 @@ struct slab_depot_state_2_0 vdo_record_slab_depot(const struct slab_depot *depot
 
 /**
  * vdo_allocate_reference_counters() - Allocate the reference counters for all slabs in the depot.
+ * @depot: The slab depot.
  *
  * Context: This method may be called only before entering normal operation from the load thread.
  *
@@ -4615,7 +4626,9 @@ static void load_summary_endio(struct bio *bio)
 }
 
 /**
- * load_slab_summary() - The preamble of a load operation.
+ * load_slab_summary() - Load the slab summary before the slab data.
+ * @context: The slab depot.
+ * @parent: The load operation.
  *
  * Implements vdo_action_preamble_fn.
  */
@@ -4731,7 +4744,7 @@ void vdo_update_slab_depot_size(struct slab_depot *depot)
  * vdo_prepare_to_grow_slab_depot() - Allocate new memory needed for a resize of a slab depot to
  *                                    the given size.
  * @depot: The depot to prepare to resize.
- * @partition: The new depot partition
+ * @partition: The new depot partition.
  *
  * Return: VDO_SUCCESS or an error.
  */
@@ -4781,6 +4794,7 @@ int vdo_prepare_to_grow_slab_depot(struct slab_depot *depot,
 /**
  * finish_registration() - Finish registering new slabs now that all of the allocators have
  *                         received their new slabs.
+ * @context: The slab depot.
  *
  * Implements vdo_action_conclusion_fn.
  */

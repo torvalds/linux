@@ -330,9 +330,9 @@ static void *calc_location(struct strobe_value_loc *loc, void *tls_base)
 	}
 	bpf_probe_read_user(&tls_ptr, sizeof(void *), dtv);
 	/* if pointer has (void *)-1 value, then TLS wasn't initialized yet */
-	return tls_ptr && tls_ptr != (void *)-1
-		? tls_ptr + tls_index.offset
-		: NULL;
+	if (!tls_ptr || tls_ptr == (void *)-1)
+		return NULL;
+	return tls_ptr + tls_index.offset;
 }
 
 #ifdef SUBPROGS

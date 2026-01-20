@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2023 MediaTek Inc. */
 
 #include <linux/kernel.h>
@@ -8,6 +8,7 @@
 #include "mt7925.h"
 #include "mac.h"
 #include "mcu.h"
+#include "regd.h"
 #include "../dma.h"
 
 static const struct pci_device_id mt7925_pci_device_table[] = {
@@ -584,7 +585,7 @@ static int _mt7925_pci_resume(struct device *device, bool restore)
 	if (!pm->ds_enable)
 		mt7925_mcu_set_deep_sleep(dev, false);
 
-	mt7925_regd_update(dev);
+	mt7925_mcu_regd_update(dev, mdev->alpha2, dev->country_ie_env);
 failed:
 	pm->suspended = false;
 

@@ -22,7 +22,6 @@ description: |
                  ___                     ________
   chip select#      |___________________|
 
-
 maintainers:
   - Maxime Ripard <mripard@kernel.org>
 

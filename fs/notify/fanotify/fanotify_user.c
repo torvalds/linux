@@ -1597,16 +1597,20 @@ static struct hlist_head *fanotify_alloc_merge_hash(void)
 	return hash;
 }
 
+DEFINE_CLASS(fsnotify_group,
+	     struct fsnotify_group *,
+	     if (!IS_ERR_OR_NULL(_T)) fsnotify_destroy_group(_T),
+	     fsnotify_alloc_group(ops, flags),
+	     const struct fsnotify_ops *ops, int flags)
+
 /* fanotify syscalls */
 SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
 	struct user_namespace *user_ns = current_user_ns();
-	struct fsnotify_group *group;
 	int f_flags, fd;
 	unsigned int fid_mode = flags & FANOTIFY_FID_BITS;
 	unsigned int class = flags & FANOTIFY_CLASS_BITS;
 	unsigned int internal_flags = 0;
-	struct file *file;
 
 	pr_debug("%s: flags=%x event_f_flags=%x\n",
 		 __func__, flags, event_f_flags);
@@ -1690,36 +1694,29 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	if (flags & FAN_NONBLOCK)
 		f_flags |= O_NONBLOCK;
 
-	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
-	group = fsnotify_alloc_group(&fanotify_fsnotify_ops,
+	CLASS(fsnotify_group, group)(&fanotify_fsnotify_ops,
 				     FSNOTIFY_GROUP_USER);
-	if (IS_ERR(group)) {
+	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
+	if (IS_ERR(group))
 		return PTR_ERR(group);
-	}
 
 	/* Enforce groups limits per user in all containing user ns */
 	group->fanotify_data.ucounts = inc_ucount(user_ns, current_euid(),
 						  UCOUNT_FANOTIFY_GROUPS);
-	if (!group->fanotify_data.ucounts) {
-		fd = -EMFILE;
-		goto out_destroy_group;
-	}
+	if (!group->fanotify_data.ucounts)
+		return -EMFILE;
 
 	group->fanotify_data.flags = flags | internal_flags;
 	group->memcg = get_mem_cgroup_from_mm(current->mm);
 	group->user_ns = get_user_ns(user_ns);
 
 	group->fanotify_data.merge_hash = fanotify_alloc_merge_hash();
-	if (!group->fanotify_data.merge_hash) {
-		fd = -ENOMEM;
-		goto out_destroy_group;
-	}
+	if (!group->fanotify_data.merge_hash)
+		return -ENOMEM;
 
 	group->overflow_event = fanotify_alloc_overflow_event();
-	if (unlikely(!group->overflow_event)) {
-		fd = -ENOMEM;
-		goto out_destroy_group;
-	}
+	if (unlikely(!group->overflow_event))
+		return -ENOMEM;
 
 	if (force_o_largefile())
 		event_f_flags |= O_LARGEFILE;
@@ -1738,8 +1735,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 		group->priority = FSNOTIFY_PRIO_PRE_CONTENT;
 		break;
 	default:
-		fd = -EINVAL;
-		goto out_destroy_group;
+		return -EINVAL;
 	}
 
 	BUILD_BUG_ON(!(FANOTIFY_ADMIN_INIT_FLAGS & FAN_UNLIMITED_QUEUE));
@@ -1750,27 +1746,15 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	}
 
 	if (flags & FAN_ENABLE_AUDIT) {
-		fd = -EPERM;
 		if (!capable(CAP_AUDIT_WRITE))
-			goto out_destroy_group;
+			return -EPERM;
 	}
 
-	fd = get_unused_fd_flags(f_flags);
-	if (fd < 0)
-		goto out_destroy_group;
-
-	file = anon_inode_getfile_fmode("[fanotify]", &fanotify_fops, group,
-					f_flags, FMODE_NONOTIFY);
-	if (IS_ERR(file)) {
-		put_unused_fd(fd);
-		fd = PTR_ERR(file);
-		goto out_destroy_group;
-	}
-	fd_install(fd, file);
-	return fd;
-
-out_destroy_group:
-	fsnotify_destroy_group(group);
+	fd = FD_ADD(f_flags,
+		    anon_inode_getfile_fmode("[fanotify]", &fanotify_fops,
+					     group, f_flags, FMODE_NONOTIFY));
+	if (fd >= 0)
+		retain_and_null_ptr(group);
 	return fd;
 }
 

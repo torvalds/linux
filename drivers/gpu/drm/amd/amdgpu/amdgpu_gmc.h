@@ -86,6 +86,11 @@ enum amdgpu_memory_partition {
 
 #define AMDGPU_MAX_MEM_RANGES 8
 
+#define AMDGPU_GMC9_FAULT_SOURCE_DATA_RETRY 0x80
+#define AMDGPU_GMC9_FAULT_SOURCE_DATA_READ  0x40
+#define AMDGPU_GMC9_FAULT_SOURCE_DATA_WRITE 0x20
+#define AMDGPU_GMC9_FAULT_SOURCE_DATA_EXE   0x10
+
 /*
  * GMC page fault information
  */

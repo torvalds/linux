@@ -1,0 +1,107 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Basic tests on writing to trace_marker_raw
+# requires: trace_marker_raw
+# flags: instance
+
+is_little_endian() {
+	if lscpu | grep -q 'Little Endian'; then
+		echo 1;
+	else
+		echo 0;
+	fi
+}
+
+little=`is_little_endian`
+
+make_str() {
+	id=$1
+	cnt=$2
+
+	if [ $little -eq 1 ]; then
+		val=`printf "\\%03o\\%03o\\%03o\\%03o" \
+			$(($id & 0xff)) \
+			$((($id >> 8) & 0xff)) \
+			$((($id >> 16) & 0xff)) \
+			$((($id >> 24) & 0xff))`
+	else
+		val=`printf "\\%03o\\%03o\\%03o\\%03o" \
+			$((($id >> 24) & 0xff)) \
+			$((($id >> 16) & 0xff)) \
+			$((($id >> 8) & 0xff)) \
+			$(($id & 0xff))`
+	fi
+
+	data=`printf -- 'X%.0s' $(seq $cnt)`
+
+	printf "${val}${data}"
+}
+
+write_buffer() {
+	id=$1
+	size=$2
+
+	# write the string into the raw marker
+	make_str $id $size > trace_marker_raw
+}
+
+
+test_multiple_writes() {
+
+	# Write a bunch of data where the id is the count of
+	# data to write
+	for i in `seq 1 10` `seq 101 110` `seq 1001 1010`; do
+		write_buffer $i $i
+	done
+
+	# add a little buffer
+	echo stop > trace_marker
+
+	# Check to make sure the number of entries is the id (rounded up by 4)
+	awk '/.*: # [0-9a-f]* / {
+			print;
+			cnt = -1;
+			for (i = 0; i < NF; i++) {
+				# The counter is after the "#" marker
+				if ( $i == "#" ) {
+					i++;
+					cnt = strtonum("0x" $i);
+					num = NF - (i + 1);
+					# The number of items is always rounded up by 4
+					cnt2 = int((cnt + 3) / 4) * 4;
+					if (cnt2 != num) {
+						exit 1;
+					}
+					break;
+				}
+			}
+		}
+	// { if (NR > 30) { exit 0; } } ' trace_pipe;
+}
+
+
+get_buffer_data_size() {
+	sed -ne 's/^.*data.*size:\([0-9][0-9]*\).*/\1/p' events/header_page
+}
+
+test_buffer() {
+
+	# The id must be four bytes, test that 3 bytes fails a write
+	if echo -n abc > ./trace_marker_raw ; then
+		echo "Too small of write expected to fail but did not"
+		exit_fail
+	fi
+
+	size=`get_buffer_data_size`
+	echo size = $size
+
+	# Now add a little more than what it can handle
+
+	if write_buffer 0xdeadbeef $size ; then
+		echo "Too big of write expected to fail but did not"
+		exit_fail
+	fi
+}
+
+test_buffer
+test_multiple_writes

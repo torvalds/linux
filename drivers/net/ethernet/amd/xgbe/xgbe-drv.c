@@ -367,10 +367,11 @@ static irqreturn_t xgbe_ecc_isr(int irq, void *data)
 static void xgbe_isr_bh_work(struct work_struct *work)
 {
 	struct xgbe_prv_data *pdata = from_work(pdata, work, dev_bh_work);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_channel *channel;
-	unsigned int dma_isr, dma_ch_isr;
 	unsigned int mac_isr, mac_tssr, mac_mdioisr;
+	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	bool per_ch_irq, ti, ri, rbu, fbe;
+	unsigned int dma_isr, dma_ch_isr;
+	struct xgbe_channel *channel;
 	unsigned int i;
 
 	/* The DMA interrupt status register also reports MAC and MTL
@@ -384,43 +385,73 @@ static void xgbe_isr_bh_work(struct work_struct *work)
 	netif_dbg(pdata, intr, pdata->netdev, "DMA_ISR=%#010x\n", dma_isr);
 
 	for (i = 0; i < pdata->channel_count; i++) {
+		bool schedule_napi = false;
+		struct napi_struct *napi;
+
 		if (!(dma_isr & (1 << i)))
 			continue;
 
 		channel = pdata->channel[i];
 
 		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
+
+		/* Precompute flags once */
+		ti  = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI);
+		ri  = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI);
+		rbu = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU);
+		fbe = !!XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE);
+
 		netif_dbg(pdata, intr, pdata->netdev, "DMA_CH%u_ISR=%#010x\n",
 			  i, dma_ch_isr);
 
-		/* The TI or RI interrupt bits may still be set even if using
-		 * per channel DMA interrupts. Check to be sure those are not
-		 * enabled before using the private data napi structure.
-		 */
-		if (!pdata->per_channel_irq &&
-		    (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, TI) ||
-		     XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RI))) {
-			if (napi_schedule_prep(&pdata->napi)) {
-				/* Disable Tx and Rx interrupts */
-				xgbe_disable_rx_tx_ints(pdata);
+		per_ch_irq = pdata->per_channel_irq;
 
-				/* Turn on polling */
-				__napi_schedule(&pdata->napi);
+		/*
+		 * Decide which NAPI to use and whether to schedule:
+		 * - When not using per-channel IRQs: schedule on global NAPI
+		 *   if TI or RI are set.
+		 * - RBU should also trigger NAPI (either per-channel or global)
+		 *   to allow refill.
+		 */
+		if (!per_ch_irq && (ti || ri))
+			schedule_napi = true;
+
+		if (rbu) {
+			schedule_napi = true;
+			pdata->ext_stats.rx_buffer_unavailable++;
+		}
+
+		napi = per_ch_irq ? &channel->napi : &pdata->napi;
+
+		if (schedule_napi && napi_schedule_prep(napi)) {
+			/* Disable interrupts appropriately before polling */
+			if (per_ch_irq) {
+				if (pdata->channel_irq_mode)
+					xgbe_disable_rx_tx_int(pdata, channel);
+				else
+					disable_irq_nosync(channel->dma_irq);
+			} else {
+				xgbe_disable_rx_tx_ints(pdata);
 			}
+
+			/* Turn on polling */
+			__napi_schedule(napi);
 		} else {
-			/* Don't clear Rx/Tx status if doing per channel DMA
-			 * interrupts, these will be cleared by the ISR for
-			 * per channel DMA interrupts.
+			/*
+			 * Don't clear Rx/Tx status if doing per-channel DMA
+			 * interrupts; those bits will be serviced/cleared by
+			 * the per-channel ISR/NAPI. In non-per-channel mode
+			 * when we're not scheduling NAPI here, ensure we don't
+			 * accidentally clear TI/RI in HW: zero them in the
+			 * local copy so that the eventual write-back does not
+			 * clear TI/RI.
 			 */
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, TI, 0);
 			XGMAC_SET_BITS(dma_ch_isr, DMA_CH_SR, RI, 0);
 		}
 
-		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, RBU))
-			pdata->ext_stats.rx_buffer_unavailable++;
-
 		/* Restart the device on a Fatal Bus Error */
-		if (XGMAC_GET_BITS(dma_ch_isr, DMA_CH_SR, FBE))
+		if (fbe)
 			schedule_work(&pdata->restart_work);
 
 		/* Clear interrupt signals */
@@ -1259,6 +1290,11 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	udp_tunnel_nic_reset_ntf(netdev);
 
+	/* Reset the phy settings */
+	ret = xgbe_phy_reset(pdata);
+	if (ret)
+		goto err_txrx;
+
 	netif_tx_start_all_queues(netdev);
 
 	xgbe_start_timers(pdata);
@@ -1267,6 +1303,10 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	clear_bit(XGBE_STOPPED, &pdata->dev_state);
 
 	return 0;
+
+err_txrx:
+	hw_if->disable_rx(pdata);
+	hw_if->disable_tx(pdata);
 
 err_irqs:
 	xgbe_free_irqs(pdata);
@@ -1574,11 +1614,6 @@ static int xgbe_open(struct net_device *netdev)
 		goto err_dev_wq;
 	}
 
-	/* Reset the phy settings */
-	ret = xgbe_phy_reset(pdata);
-	if (ret)
-		goto err_an_wq;
-
 	/* Enable the clocks */
 	ret = clk_prepare_enable(pdata->sysclk);
 	if (ret) {
@@ -1752,27 +1787,6 @@ static int xgbe_set_mac_address(struct net_device *netdev, void *addr)
 	DBGPR("<--xgbe_set_mac_address\n");
 
 	return 0;
-}
-
-static int xgbe_ioctl(struct net_device *netdev, struct ifreq *ifreq, int cmd)
-{
-	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	int ret;
-
-	switch (cmd) {
-	case SIOCGHWTSTAMP:
-		ret = xgbe_get_hwtstamp_settings(pdata, ifreq);
-		break;
-
-	case SIOCSHWTSTAMP:
-		ret = xgbe_set_hwtstamp_settings(pdata, ifreq);
-		break;
-
-	default:
-		ret = -EOPNOTSUPP;
-	}
-
-	return ret;
 }
 
 static int xgbe_change_mtu(struct net_device *netdev, int mtu)
@@ -2020,7 +2034,6 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_set_rx_mode	= xgbe_set_rx_mode,
 	.ndo_set_mac_address	= xgbe_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_eth_ioctl		= xgbe_ioctl,
 	.ndo_change_mtu		= xgbe_change_mtu,
 	.ndo_tx_timeout		= xgbe_tx_timeout,
 	.ndo_get_stats64	= xgbe_get_stats64,
@@ -2033,6 +2046,8 @@ static const struct net_device_ops xgbe_netdev_ops = {
 	.ndo_fix_features	= xgbe_fix_features,
 	.ndo_set_features	= xgbe_set_features,
 	.ndo_features_check	= xgbe_features_check,
+	.ndo_hwtstamp_get	= xgbe_get_hwtstamp_settings,
+	.ndo_hwtstamp_set	= xgbe_set_hwtstamp_settings,
 };
 
 const struct net_device_ops *xgbe_get_netdev_ops(void)

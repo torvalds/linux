@@ -15,6 +15,11 @@ properties:
   compatible:
     oneOf:
 
+      - description: 100ASK DshanPi A1 board
+        items:
+          - const: 100ask,dshanpi-a1
+          - const: rockchip,rk3576
+
       - description: 96boards RK3399 Ficus (ROCK960 Enterprise Edition)
         items:
           - const: vamrs,ficus
@@ -24,6 +29,12 @@ properties:
         items:
           - const: vamrs,rock960
           - const: rockchip,rk3399
+
+      - description: 9Tripod X3568 series board
+        items:
+          - enum:
+              - 9tripod,x3568-v4
+          - const: rockchip,rk3568
 
       - description: Amarula Vyasa RK3288
         items:
@@ -78,13 +89,17 @@ properties:
 
       - description: Asus Tinker board
         items:
-          - const: asus,rk3288-tinker
+          - enum:
+              - asus,rk3288-tinker
+              - asus,rk3288-tinker-s
           - const: rockchip,rk3288
 
-      - description: Asus Tinker board S
+      - description: Asus Tinker Board 3/3S
         items:
-          - const: asus,rk3288-tinker-s
-          - const: rockchip,rk3288
+          - enum:
+              - asus,rk3566-tinker-board-3
+              - asus,rk3566-tinker-board-3s
+          - const: rockchip,rk3566
 
       - description: Beelink A1
         items:
@@ -329,6 +344,11 @@ properties:
               - friendlyarm,nanopi-r6c
               - friendlyarm,nanopi-r6s
           - const: rockchip,rk3588s
+
+      - description: FriendlyElec NanoPi R76S
+        items:
+          - const: friendlyarm,nanopi-r76s
+          - const: rockchip,rk3576
 
       - description: FriendlyElec NanoPi Zero2
         items:
@@ -748,6 +768,11 @@ properties:
           - const: lckfb,tspi-rk3566
           - const: rockchip,rk3566
 
+      - description: LinkEase EasePi R1
+        items:
+          - const: linkease,easepi-r1
+          - const: rockchip,rk3568
+
       - description: Luckfox Core3576 Module based boards
         items:
           - enum:
@@ -868,9 +893,11 @@ properties:
           - const: prt,mecsbc
           - const: rockchip,rk3568
 
-      - description: QNAP TS-433-4G 4-Bay NAS
+      - description: QNAP TS-x33 NAS devices
         items:
-          - const: qnap,ts433
+          - enum:
+              - qnap,ts233
+              - qnap,ts433
           - const: rockchip,rk3568
 
       - description: Radxa Compute Module 3 (CM3)

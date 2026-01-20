@@ -40,6 +40,7 @@
 #include <net/tcp.h>
 #include <net/tcp_ecn.h>
 #include <net/mptcp.h>
+#include <net/smc.h>
 #include <net/proto_memory.h>
 #include <net/psp.h>
 
@@ -802,34 +803,36 @@ static void tcp_options_write(struct tcphdr *th, struct tcp_sock *tp,
 	mptcp_options_write(th, ptr, tp, opts);
 }
 
-static void smc_set_option(const struct tcp_sock *tp,
+static void smc_set_option(struct tcp_sock *tp,
 			   struct tcp_out_options *opts,
 			   unsigned int *remaining)
 {
 #if IS_ENABLED(CONFIG_SMC)
-	if (static_branch_unlikely(&tcp_have_smc)) {
-		if (tp->syn_smc) {
-			if (*remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
-				opts->options |= OPTION_SMC;
-				*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
-			}
+	if (static_branch_unlikely(&tcp_have_smc) && tp->syn_smc) {
+		tp->syn_smc = !!smc_call_hsbpf(1, tp, syn_option);
+		/* re-check syn_smc */
+		if (tp->syn_smc &&
+		    *remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
+			opts->options |= OPTION_SMC;
+			*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
 		}
 	}
 #endif
 }
 
 static void smc_set_option_cond(const struct tcp_sock *tp,
-				const struct inet_request_sock *ireq,
+				struct inet_request_sock *ireq,
 				struct tcp_out_options *opts,
 				unsigned int *remaining)
 {
 #if IS_ENABLED(CONFIG_SMC)
-	if (static_branch_unlikely(&tcp_have_smc)) {
-		if (tp->syn_smc && ireq->smc_ok) {
-			if (*remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
-				opts->options |= OPTION_SMC;
-				*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
-			}
+	if (static_branch_unlikely(&tcp_have_smc) && tp->syn_smc && ireq->smc_ok) {
+		ireq->smc_ok = !!smc_call_hsbpf(1, tp, synack_option, ireq);
+		/* re-check smc_ok */
+		if (ireq->smc_ok &&
+		    *remaining >= TCPOLEN_EXP_SMC_BASE_ALIGNED) {
+			opts->options |= OPTION_SMC;
+			*remaining -= TCPOLEN_EXP_SMC_BASE_ALIGNED;
 		}
 	}
 #endif
@@ -3743,12 +3746,17 @@ void sk_forced_mem_schedule(struct sock *sk, int size)
 	delta = size - sk->sk_forward_alloc;
 	if (delta <= 0)
 		return;
+
 	amt = sk_mem_pages(delta);
 	sk_forward_alloc_add(sk, amt << PAGE_SHIFT);
-	sk_memory_allocated_add(sk, amt);
 
 	if (mem_cgroup_sk_enabled(sk))
 		mem_cgroup_sk_charge(sk, amt, gfp_memcg_charge() | __GFP_NOFAIL);
+
+	if (sk->sk_bypass_prot_mem)
+		return;
+
+	sk_memory_allocated_add(sk, amt);
 }
 
 /* Send a FIN. The caller locks the socket for us.

@@ -332,6 +332,38 @@ int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int min_tx_rate,
 	return rc;
 }
 
+static int bnxt_set_vf_link_admin_state(struct bnxt *bp, int vf_id)
+{
+	struct hwrm_func_cfg_input *req;
+	struct bnxt_vf_info *vf;
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN))
+		return 0;
+
+	vf = &bp->pf.vf[vf_id];
+
+	rc = bnxt_hwrm_func_cfg_short_req_init(bp, &req);
+	if (rc)
+		return rc;
+
+	req->fid = cpu_to_le16(vf->fw_fid);
+	switch (vf->flags & (BNXT_VF_LINK_FORCED | BNXT_VF_LINK_UP)) {
+	case BNXT_VF_LINK_FORCED:
+		req->options =
+			FUNC_CFG_REQ_OPTIONS_LINK_ADMIN_STATE_FORCED_DOWN;
+		break;
+	case (BNXT_VF_LINK_FORCED | BNXT_VF_LINK_UP):
+		req->options = FUNC_CFG_REQ_OPTIONS_LINK_ADMIN_STATE_FORCED_UP;
+		break;
+	default:
+		req->options = FUNC_CFG_REQ_OPTIONS_LINK_ADMIN_STATE_AUTO;
+		break;
+	}
+	req->enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_ADMIN_LINK_STATE);
+	return hwrm_req_send(bp, req);
+}
+
 int bnxt_set_vf_link_state(struct net_device *dev, int vf_id, int link)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -357,10 +389,11 @@ int bnxt_set_vf_link_state(struct net_device *dev, int vf_id, int link)
 		break;
 	default:
 		netdev_err(bp->dev, "Invalid link option\n");
-		rc = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	if (vf->flags & (BNXT_VF_LINK_UP | BNXT_VF_LINK_FORCED))
+	if (bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN)
+		rc = bnxt_set_vf_link_admin_state(bp, vf_id);
+	else if (vf->flags & (BNXT_VF_LINK_UP | BNXT_VF_LINK_FORCED))
 		rc = bnxt_hwrm_fwd_async_event_cmpl(bp, vf,
 			ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
 	return rc;
@@ -666,15 +699,21 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs, bool reset)
 
 	hwrm_req_hold(bp, req);
 	for (i = 0; i < num_vfs; i++) {
+		struct bnxt_vf_info *vf = &pf->vf[i];
+
+		vf->fw_fid = pf->first_vf_id + i;
+		rc = bnxt_set_vf_link_admin_state(bp, i);
+		if (rc)
+			break;
+
 		if (reset)
 			__bnxt_set_vf_params(bp, i);
 
-		req->vf_id = cpu_to_le16(pf->first_vf_id + i);
+		req->vf_id = cpu_to_le16(vf->fw_fid);
 		rc = hwrm_req_send(bp, req);
 		if (rc)
 			break;
 		pf->active_vfs = i + 1;
-		pf->vf[i].fw_fid = pf->first_vf_id + i;
 	}
 
 	if (pf->active_vfs) {
@@ -740,6 +779,12 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 				   FUNC_CFG_REQ_ENABLES_NUM_L2_CTXS |
 				   FUNC_CFG_REQ_ENABLES_NUM_VNICS |
 				   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS);
+
+	if (bp->fw_cap & BNXT_FW_CAP_LINK_ADMIN) {
+		req->options = FUNC_CFG_REQ_OPTIONS_LINK_ADMIN_STATE_AUTO;
+		req->enables |=
+			cpu_to_le32(FUNC_CFG_REQ_ENABLES_ADMIN_LINK_STATE);
+	}
 
 	mtu = bp->dev->mtu + VLAN_ETH_HLEN;
 	req->mru = cpu_to_le16(mtu);

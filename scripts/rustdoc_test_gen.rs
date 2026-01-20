@@ -208,6 +208,7 @@ pub extern "C" fn {kunit_name}(__kunit_test: *mut ::kernel::bindings::kunit) {{
     #[allow(unused)]
     static __DOCTEST_ANCHOR: i32 = ::core::line!() as i32 + {body_offset} + 1;
     {{
+        #![allow(unreachable_pub, clippy::disallowed_names)]
         {body}
         main();
     }}

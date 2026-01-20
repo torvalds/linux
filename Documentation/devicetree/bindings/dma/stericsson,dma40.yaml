@@ -120,7 +120,6 @@ properties:
           - description: LCPA memory base, deprecated, use eSRAM pool instead
         deprecated: true
 
-
   reg-names:
     oneOf:
       - items:

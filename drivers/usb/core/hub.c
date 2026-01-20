@@ -28,6 +28,7 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/quirks.h>
 #include <linux/workqueue.h>
+#include <linux/minmax.h>
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/pm_qos.h>
@@ -40,6 +41,7 @@
 #include "hub.h"
 #include "phy.h"
 #include "otg_productlist.h"
+#include "trace.h"
 
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define USB_VENDOR_SMSC				0x0424
@@ -277,10 +279,7 @@ static void usb_set_lpm_pel(struct usb_device *udev,
 	 * device and the parent hub into U0.  The exit latency is the bigger of
 	 * the device exit latency or the hub exit latency.
 	 */
-	if (udev_exit_latency > hub_exit_latency)
-		first_link_pel = udev_exit_latency * 1000;
-	else
-		first_link_pel = hub_exit_latency * 1000;
+	first_link_pel = max(udev_exit_latency, hub_exit_latency) * 1000;
 
 	/*
 	 * When the hub starts to receive the LFPS, there is a slight delay for
@@ -294,10 +293,7 @@ static void usb_set_lpm_pel(struct usb_device *udev,
 	 * According to figure C-7 in the USB 3.0 spec, the PEL for this device
 	 * is the greater of the two exit latencies.
 	 */
-	if (first_link_pel > hub_pel)
-		udev_lpm_params->pel = first_link_pel;
-	else
-		udev_lpm_params->pel = hub_pel;
+	udev_lpm_params->pel = max(first_link_pel, hub_pel);
 }
 
 /*
@@ -2147,6 +2143,21 @@ static void update_port_device_state(struct usb_device *udev)
 	}
 }
 
+static void update_usb_device_state(struct usb_device *udev,
+				    enum usb_device_state new_state)
+{
+	if (udev->state == USB_STATE_SUSPENDED &&
+	    new_state != USB_STATE_SUSPENDED)
+		udev->active_duration -= jiffies;
+	else if (new_state == USB_STATE_SUSPENDED &&
+		 udev->state != USB_STATE_SUSPENDED)
+		udev->active_duration += jiffies;
+
+	udev->state = new_state;
+	update_port_device_state(udev);
+	trace_usb_set_device_state(udev);
+}
+
 static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 {
 	struct usb_hub *hub = usb_hub_to_struct_hub(udev);
@@ -2156,10 +2167,7 @@ static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 		if (hub->ports[i]->child)
 			recursively_mark_NOTATTACHED(hub->ports[i]->child);
 	}
-	if (udev->state == USB_STATE_SUSPENDED)
-		udev->active_duration -= jiffies;
-	udev->state = USB_STATE_NOTATTACHED;
-	update_port_device_state(udev);
+	update_usb_device_state(udev, USB_STATE_NOTATTACHED);
 }
 
 /**
@@ -2209,14 +2217,7 @@ void usb_set_device_state(struct usb_device *udev,
 			else
 				wakeup = 0;
 		}
-		if (udev->state == USB_STATE_SUSPENDED &&
-			new_state != USB_STATE_SUSPENDED)
-			udev->active_duration -= jiffies;
-		else if (new_state == USB_STATE_SUSPENDED &&
-				udev->state != USB_STATE_SUSPENDED)
-			udev->active_duration += jiffies;
-		udev->state = new_state;
-		update_port_device_state(udev);
+		update_usb_device_state(udev, new_state);
 	} else
 		recursively_mark_NOTATTACHED(udev);
 	spin_unlock_irqrestore(&device_state_lock, flags);
@@ -6077,7 +6078,7 @@ int usb_hub_init(void)
 	 * device was gone before the EHCI controller had handed its port
 	 * over to the companion full-speed controller.
 	 */
-	hub_wq = alloc_workqueue("usb_hub_wq", WQ_FREEZABLE, 0);
+	hub_wq = alloc_workqueue("usb_hub_wq", WQ_FREEZABLE | WQ_PERCPU, 0);
 	if (hub_wq)
 		return 0;
 

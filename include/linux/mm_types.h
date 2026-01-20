@@ -20,6 +20,7 @@
 #include <linux/seqlock.h>
 #include <linux/percpu_counter.h>
 #include <linux/types.h>
+#include <linux/rseq_types.h>
 #include <linux/bitmap.h>
 
 #include <asm/mmu.h>
@@ -284,6 +285,31 @@ static __always_inline unsigned long encoded_nr_pages(struct encoded_page *page)
 typedef struct {
 	unsigned long val;
 } swp_entry_t;
+
+/**
+ * typedef softleaf_t - Describes a page table software leaf entry, abstracted
+ * from its architecture-specific encoding.
+ *
+ * Page table leaf entries are those which do not reference any descendent page
+ * tables but rather either reference a data page, are an empty (or 'none'
+ * entry), or contain a non-present entry.
+ *
+ * If referencing another page table or a data page then the page table entry is
+ * pertinent to hardware - that is it tells the hardware how to decode the page
+ * table entry.
+ *
+ * Otherwise it is a software-defined leaf page table entry, which this type
+ * describes. See leafops.h and specifically @softleaf_type for a list of all
+ * possible kinds of software leaf entry.
+ *
+ * A softleaf_t entry is abstracted from the hardware page table entry, so is
+ * not architecture-specific.
+ *
+ * NOTE: While we transition from the confusing swp_entry_t type used for this
+ *       purpose, we simply alias this type. This will be removed once the
+ *       transition is complete.
+ */
+typedef swp_entry_t softleaf_t;
 
 #if defined(CONFIG_MEMCG) || defined(CONFIG_SLAB_OBJ_EXT)
 /* We have some extra room after the refcount in tail pages. */
@@ -773,6 +799,65 @@ struct pfnmap_track_ctx {
 };
 #endif
 
+/* What action should be taken after an .mmap_prepare call is complete? */
+enum mmap_action_type {
+	MMAP_NOTHING,		/* Mapping is complete, no further action. */
+	MMAP_REMAP_PFN,		/* Remap PFN range. */
+	MMAP_IO_REMAP_PFN,	/* I/O remap PFN range. */
+};
+
+/*
+ * Describes an action an mmap_prepare hook can instruct to be taken to complete
+ * the mapping of a VMA. Specified in vm_area_desc.
+ */
+struct mmap_action {
+	union {
+		/* Remap range. */
+		struct {
+			unsigned long start;
+			unsigned long start_pfn;
+			unsigned long size;
+			pgprot_t pgprot;
+		} remap;
+	};
+	enum mmap_action_type type;
+
+	/*
+	 * If specified, this hook is invoked after the selected action has been
+	 * successfully completed. Note that the VMA write lock still held.
+	 *
+	 * The absolute minimum ought to be done here.
+	 *
+	 * Returns 0 on success, or an error code.
+	 */
+	int (*success_hook)(const struct vm_area_struct *vma);
+
+	/*
+	 * If specified, this hook is invoked when an error occurred when
+	 * attempting the selection action.
+	 *
+	 * The hook can return an error code in order to filter the error, but
+	 * it is not valid to clear the error here.
+	 */
+	int (*error_hook)(int err);
+
+	/*
+	 * This should be set in rare instances where the operation required
+	 * that the rmap should not be able to access the VMA until
+	 * completely set up.
+	 */
+	bool hide_from_rmap_until_complete :1;
+};
+
+/*
+ * Opaque type representing current VMA (vm_area_struct) flag state. Must be
+ * accessed via vma_flags_xxx() helper functions.
+ */
+#define NUM_VMA_FLAG_BITS BITS_PER_LONG
+typedef struct {
+	DECLARE_BITMAP(__vma_flags, NUM_VMA_FLAG_BITS);
+} __private vma_flags_t;
+
 /*
  * Describes a VMA that is about to be mmap()'ed. Drivers may choose to
  * manipulate mutable fields which will cause those fields to be updated in the
@@ -790,12 +875,18 @@ struct vm_area_desc {
 	/* Mutable fields. Populated with initial state. */
 	pgoff_t pgoff;
 	struct file *vm_file;
-	vm_flags_t vm_flags;
+	union {
+		vm_flags_t vm_flags;
+		vma_flags_t vma_flags;
+	};
 	pgprot_t page_prot;
 
 	/* Write-only fields. */
 	const struct vm_operations_struct *vm_ops;
 	void *private_data;
+
+	/* Take further action? */
+	struct mmap_action action;
 };
 
 /*
@@ -832,10 +923,12 @@ struct vm_area_struct {
 	/*
 	 * Flags, see mm.h.
 	 * To modify use vm_flags_{init|reset|set|clear|mod} functions.
+	 * Preferably, use vma_flags_xxx() functions.
 	 */
 	union {
+		/* Temporary while VMA flags are being converted. */
 		const vm_flags_t vm_flags;
-		vm_flags_t __private __vm_flags;
+		vma_flags_t flags;
 	};
 
 #ifdef CONFIG_PER_VMA_LOCK
@@ -916,18 +1009,56 @@ struct vm_area_struct {
 #endif
 } __randomize_layout;
 
+/* Clears all bits in the VMA flags bitmap, non-atomically. */
+static inline void vma_flags_clear_all(vma_flags_t *flags)
+{
+	bitmap_zero(ACCESS_PRIVATE(flags, __vma_flags), NUM_VMA_FLAG_BITS);
+}
+
+/*
+ * Copy value to the first system word of VMA flags, non-atomically.
+ *
+ * IMPORTANT: This does not overwrite bytes past the first system word. The
+ * caller must account for this.
+ */
+static inline void vma_flags_overwrite_word(vma_flags_t *flags, unsigned long value)
+{
+	*ACCESS_PRIVATE(flags, __vma_flags) = value;
+}
+
+/*
+ * Copy value to the first system word of VMA flags ONCE, non-atomically.
+ *
+ * IMPORTANT: This does not overwrite bytes past the first system word. The
+ * caller must account for this.
+ */
+static inline void vma_flags_overwrite_word_once(vma_flags_t *flags, unsigned long value)
+{
+	unsigned long *bitmap = ACCESS_PRIVATE(flags, __vma_flags);
+
+	WRITE_ONCE(*bitmap, value);
+}
+
+/* Update the first system word of VMA flags setting bits, non-atomically. */
+static inline void vma_flags_set_word(vma_flags_t *flags, unsigned long value)
+{
+	unsigned long *bitmap = ACCESS_PRIVATE(flags, __vma_flags);
+
+	*bitmap |= value;
+}
+
+/* Update the first system word of VMA flags clearing bits, non-atomically. */
+static inline void vma_flags_clear_word(vma_flags_t *flags, unsigned long value)
+{
+	unsigned long *bitmap = ACCESS_PRIVATE(flags, __vma_flags);
+
+	*bitmap &= ~value;
+}
+
 #ifdef CONFIG_NUMA
 #define vma_policy(vma) ((vma)->vm_policy)
 #else
 #define vma_policy(vma) NULL
-#endif
-
-#ifdef CONFIG_SCHED_MM_CID
-struct mm_cid {
-	u64 time;
-	int cid;
-	int recent_cid;
-};
 #endif
 
 /*
@@ -991,44 +1122,9 @@ struct mm_struct {
 		 */
 		atomic_t mm_users;
 
-#ifdef CONFIG_SCHED_MM_CID
-		/**
-		 * @pcpu_cid: Per-cpu current cid.
-		 *
-		 * Keep track of the currently allocated mm_cid for each cpu.
-		 * The per-cpu mm_cid values are serialized by their respective
-		 * runqueue locks.
-		 */
-		struct mm_cid __percpu *pcpu_cid;
-		/*
-		 * @mm_cid_next_scan: Next mm_cid scan (in jiffies).
-		 *
-		 * When the next mm_cid scan is due (in jiffies).
-		 */
-		unsigned long mm_cid_next_scan;
-		/**
-		 * @nr_cpus_allowed: Number of CPUs allowed for mm.
-		 *
-		 * Number of CPUs allowed in the union of all mm's
-		 * threads allowed CPUs.
-		 */
-		unsigned int nr_cpus_allowed;
-		/**
-		 * @max_nr_cid: Maximum number of allowed concurrency
-		 *              IDs allocated.
-		 *
-		 * Track the highest number of allowed concurrency IDs
-		 * allocated for the mm.
-		 */
-		atomic_t max_nr_cid;
-		/**
-		 * @cpus_allowed_lock: Lock protecting mm cpus_allowed.
-		 *
-		 * Provide mutual exclusion for mm cpus_allowed and
-		 * mm nr_cpus_allowed updates.
-		 */
-		raw_spinlock_t cpus_allowed_lock;
-#endif
+		/* MM CID related storage */
+		struct mm_mm_cid mm_cid;
+
 #ifdef CONFIG_MMU
 		atomic_long_t pgtables_bytes;	/* size of all page tables */
 #endif
@@ -1236,15 +1332,13 @@ struct mm_struct {
 	unsigned long cpu_bitmap[];
 };
 
-/* Set the first system word of mm flags, non-atomically. */
-static inline void __mm_flags_set_word(struct mm_struct *mm, unsigned long value)
+/* Copy value to the first system word of mm flags, non-atomically. */
+static inline void __mm_flags_overwrite_word(struct mm_struct *mm, unsigned long value)
 {
-	unsigned long *bitmap = ACCESS_PRIVATE(&mm->flags, __mm_flags);
-
-	bitmap_copy(bitmap, &value, BITS_PER_LONG);
+	*ACCESS_PRIVATE(&mm->flags, __mm_flags) = value;
 }
 
-/* Obtain a read-only view of the bitmap. */
+/* Obtain a read-only view of the mm flags bitmap. */
 static inline const unsigned long *__mm_flags_get_bitmap(const struct mm_struct *mm)
 {
 	return (const unsigned long *)ACCESS_PRIVATE(&mm->flags, __mm_flags);
@@ -1253,9 +1347,7 @@ static inline const unsigned long *__mm_flags_get_bitmap(const struct mm_struct 
 /* Read the first system word of mm flags, non-atomically. */
 static inline unsigned long __mm_flags_get_word(const struct mm_struct *mm)
 {
-	const unsigned long *bitmap = __mm_flags_get_bitmap(mm);
-
-	return bitmap_read(bitmap, 0, BITS_PER_LONG);
+	return *__mm_flags_get_bitmap(mm);
 }
 
 /*
@@ -1370,37 +1462,6 @@ static inline void vma_iter_init(struct vma_iterator *vmi,
 }
 
 #ifdef CONFIG_SCHED_MM_CID
-
-enum mm_cid_state {
-	MM_CID_UNSET = -1U,		/* Unset state has lazy_put flag set. */
-	MM_CID_LAZY_PUT = (1U << 31),
-};
-
-static inline bool mm_cid_is_unset(int cid)
-{
-	return cid == MM_CID_UNSET;
-}
-
-static inline bool mm_cid_is_lazy_put(int cid)
-{
-	return !mm_cid_is_unset(cid) && (cid & MM_CID_LAZY_PUT);
-}
-
-static inline bool mm_cid_is_valid(int cid)
-{
-	return !(cid & MM_CID_LAZY_PUT);
-}
-
-static inline int mm_cid_set_lazy_put(int cid)
-{
-	return cid | MM_CID_LAZY_PUT;
-}
-
-static inline int mm_cid_clear_lazy_put(int cid)
-{
-	return cid & ~MM_CID_LAZY_PUT;
-}
-
 /*
  * mm_cpus_allowed: Union of all mm's threads allowed CPUs.
  */
@@ -1415,37 +1476,21 @@ static inline cpumask_t *mm_cpus_allowed(struct mm_struct *mm)
 }
 
 /* Accessor for struct mm_struct's cidmask. */
-static inline cpumask_t *mm_cidmask(struct mm_struct *mm)
+static inline unsigned long *mm_cidmask(struct mm_struct *mm)
 {
 	unsigned long cid_bitmap = (unsigned long)mm_cpus_allowed(mm);
 
 	/* Skip mm_cpus_allowed */
 	cid_bitmap += cpumask_size();
-	return (struct cpumask *)cid_bitmap;
+	return (unsigned long *)cid_bitmap;
 }
 
-static inline void mm_init_cid(struct mm_struct *mm, struct task_struct *p)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		struct mm_cid *pcpu_cid = per_cpu_ptr(mm->pcpu_cid, i);
-
-		pcpu_cid->cid = MM_CID_UNSET;
-		pcpu_cid->recent_cid = MM_CID_UNSET;
-		pcpu_cid->time = 0;
-	}
-	mm->nr_cpus_allowed = p->nr_cpus_allowed;
-	atomic_set(&mm->max_nr_cid, 0);
-	raw_spin_lock_init(&mm->cpus_allowed_lock);
-	cpumask_copy(mm_cpus_allowed(mm), &p->cpus_mask);
-	cpumask_clear(mm_cidmask(mm));
-}
+void mm_init_cid(struct mm_struct *mm, struct task_struct *p);
 
 static inline int mm_alloc_cid_noprof(struct mm_struct *mm, struct task_struct *p)
 {
-	mm->pcpu_cid = alloc_percpu_noprof(struct mm_cid);
-	if (!mm->pcpu_cid)
+	mm->mm_cid.pcpu = alloc_percpu_noprof(struct mm_cid_pcpu);
+	if (!mm->mm_cid.pcpu)
 		return -ENOMEM;
 	mm_init_cid(mm, p);
 	return 0;
@@ -1454,37 +1499,24 @@ static inline int mm_alloc_cid_noprof(struct mm_struct *mm, struct task_struct *
 
 static inline void mm_destroy_cid(struct mm_struct *mm)
 {
-	free_percpu(mm->pcpu_cid);
-	mm->pcpu_cid = NULL;
+	free_percpu(mm->mm_cid.pcpu);
+	mm->mm_cid.pcpu = NULL;
 }
 
 static inline unsigned int mm_cid_size(void)
 {
-	return 2 * cpumask_size();	/* mm_cpus_allowed(), mm_cidmask(). */
+	/* mm_cpus_allowed(), mm_cidmask(). */
+	return cpumask_size() + bitmap_size(num_possible_cpus());
 }
 
-static inline void mm_set_cpus_allowed(struct mm_struct *mm, const struct cpumask *cpumask)
-{
-	struct cpumask *mm_allowed = mm_cpus_allowed(mm);
-
-	if (!mm)
-		return;
-	/* The mm_cpus_allowed is the union of each thread allowed CPUs masks. */
-	raw_spin_lock(&mm->cpus_allowed_lock);
-	cpumask_or(mm_allowed, mm_allowed, cpumask);
-	WRITE_ONCE(mm->nr_cpus_allowed, cpumask_weight(mm_allowed));
-	raw_spin_unlock(&mm->cpus_allowed_lock);
-}
 #else /* CONFIG_SCHED_MM_CID */
 static inline void mm_init_cid(struct mm_struct *mm, struct task_struct *p) { }
 static inline int mm_alloc_cid(struct mm_struct *mm, struct task_struct *p) { return 0; }
 static inline void mm_destroy_cid(struct mm_struct *mm) { }
-
 static inline unsigned int mm_cid_size(void)
 {
 	return 0;
 }
-static inline void mm_set_cpus_allowed(struct mm_struct *mm, const struct cpumask *cpumask) { }
 #endif /* CONFIG_SCHED_MM_CID */
 
 struct mmu_gather;

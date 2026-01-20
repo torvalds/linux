@@ -401,9 +401,6 @@ struct altera_tse_private {
 	/* MAC address space */
 	struct altera_tse_mac __iomem *mac_dev;
 
-	/* TSE Revision */
-	u32	revision;
-
 	/* mSGDMA Rx Dispatcher address space */
 	void __iomem *rx_dma_csr;
 	void __iomem *rx_dma_desc;

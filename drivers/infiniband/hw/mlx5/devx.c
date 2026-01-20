@@ -1225,6 +1225,11 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 			 MLX5_GET(create_flow_table_in,  in, other_vport));
 		MLX5_SET(destroy_flow_table_in, din, vport_number,
 			 MLX5_GET(create_flow_table_in,  in, vport_number));
+		MLX5_SET(destroy_flow_table_in, din, other_eswitch,
+			 MLX5_GET(create_flow_table_in,  in, other_eswitch));
+		MLX5_SET(destroy_flow_table_in, din, eswitch_owner_vhca_id,
+			 MLX5_GET(create_flow_table_in, in,
+				  eswitch_owner_vhca_id));
 		MLX5_SET(destroy_flow_table_in, din, table_type,
 			 MLX5_GET(create_flow_table_in,  in, table_type));
 		MLX5_SET(destroy_flow_table_in, din, table_id, *obj_id);
@@ -1237,6 +1242,11 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 			 MLX5_GET(create_flow_group_in, in, other_vport));
 		MLX5_SET(destroy_flow_group_in, din, vport_number,
 			 MLX5_GET(create_flow_group_in, in, vport_number));
+		MLX5_SET(destroy_flow_group_in, din, other_eswitch,
+			 MLX5_GET(create_flow_group_in, in, other_eswitch));
+		MLX5_SET(destroy_flow_group_in, din, eswitch_owner_vhca_id,
+			 MLX5_GET(create_flow_group_in, in,
+				  eswitch_owner_vhca_id));
 		MLX5_SET(destroy_flow_group_in, din, table_type,
 			 MLX5_GET(create_flow_group_in, in, table_type));
 		MLX5_SET(destroy_flow_group_in, din, table_id,
@@ -1251,6 +1261,10 @@ static void devx_obj_build_destroy_cmd(void *in, void *out, void *din,
 			 MLX5_GET(set_fte_in,  in, other_vport));
 		MLX5_SET(delete_fte_in, din, vport_number,
 			 MLX5_GET(set_fte_in, in, vport_number));
+		MLX5_SET(delete_fte_in, din, other_eswitch,
+			 MLX5_GET(set_fte_in,  in, other_eswitch));
+		MLX5_SET(delete_fte_in, din, eswitch_owner_vhca_id,
+			 MLX5_GET(set_fte_in, in, eswitch_owner_vhca_id));
 		MLX5_SET(delete_fte_in, din, table_type,
 			 MLX5_GET(set_fte_in, in, table_type));
 		MLX5_SET(delete_fte_in, din, table_id,

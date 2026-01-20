@@ -10,6 +10,7 @@
 #define CS35L56_H
 
 #include <linux/completion.h>
+#include <linux/container_of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/workqueue.h>
@@ -53,6 +54,11 @@ struct cs35l56_private {
 	u8 sdw_link_num;
 	u8 sdw_unique_id;
 };
+
+static inline struct cs35l56_private *cs35l56_private_from_base(struct cs35l56_base *cs35l56_base)
+{
+	return container_of(cs35l56_base, struct cs35l56_private, base);
+}
 
 extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;
 

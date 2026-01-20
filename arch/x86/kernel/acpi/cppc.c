@@ -196,7 +196,7 @@ int amd_detect_prefcore(bool *detected)
 		break;
 	}
 
-	for_each_present_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		u32 tmp;
 		int ret;
 

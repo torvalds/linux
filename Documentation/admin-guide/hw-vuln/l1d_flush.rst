@@ -31,7 +31,7 @@ specifically opt into the feature to enable it.
 Mitigation
 ----------
 
-When PR_SET_L1D_FLUSH is enabled for a task a flush of the L1D cache is
+When PR_SPEC_L1D_FLUSH is enabled for a task a flush of the L1D cache is
 performed when the task is scheduled out and the incoming task belongs to a
 different process and therefore to a different address space.
 

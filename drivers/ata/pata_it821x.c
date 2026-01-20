@@ -75,6 +75,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -632,9 +633,9 @@ static void it821x_display_disk(struct ata_port *ap, int n, u8 *buf)
 		cbl = "";
 
 	if (mode)
-		snprintf(mbuf, 8, "%5s%d", mtype, mode - 1);
+		snprintf(mbuf, sizeof(mbuf), "%5s%d", mtype, mode - 1);
 	else
-		strcpy(mbuf, "PIO");
+		strscpy(mbuf, "PIO");
 	if (buf[52] == 4)
 		ata_port_info(ap, "%d: %-6s %-8s          %s %s\n",
 				n, mbuf, types[buf[52]], id, cbl);

@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 register definitions
  *
- * Copyright (C) 2017-2024 Microchip Technology Inc.
+ * Copyright (C) 2017-2025 Microchip Technology Inc.
  */
 
 #ifndef __KSZ9477_REGS_H
@@ -397,7 +397,6 @@
 
 #define ALU_RESV_MCAST_INDEX_M		(BIT(6) - 1)
 #define ALU_STAT_START			BIT(7)
-#define ALU_RESV_MCAST_ADDR		BIT(1)
 
 #define REG_SW_ALU_VAL_A		0x0420
 

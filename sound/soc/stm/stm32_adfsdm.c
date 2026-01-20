@@ -180,7 +180,7 @@ static int stm32_afsdm_pcm_cb(const void *data, size_t size, void *private)
 		src_size >>= 1;
 	cur_size = src_size;
 
-	dev_dbg(rtd->dev, "%s: buff_add :%pK, pos = %d, size = %zu\n",
+	dev_dbg(rtd->dev, "%s: buff_add :%p, pos = %d, size = %zu\n",
 		__func__, &pcm_buff[priv->pos], priv->pos, src_size);
 
 	if ((priv->pos + src_size) > buff_size) {

@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# description: Check available monitors
+
+for monitor_dir in monitors/*; do
+    monitor=$(basename "$monitor_dir")
+
+    grep -q "^$monitor$" available_monitors
+    grep -q . "$monitor_dir"/desc
+
+    for nested_dir in "$monitor_dir"/*; do
+        [ -d "$nested_dir" ] || continue
+        nested=$(basename "$nested_dir")
+
+        grep -q "^$monitor:$nested$" available_monitors
+		grep -q . "$nested_dir"/desc
+    done
+done

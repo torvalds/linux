@@ -31,6 +31,7 @@ static const struct ras_nbio_ip_func *ras_nbio_get_ip_funcs(
 {
 	switch (ip_version) {
 	case IP_VERSION(7, 9, 0):
+	case IP_VERSION(7, 9, 1):
 		return &ras_nbio_v7_9;
 	default:
 		RAS_DEV_ERR(ras_core->dev,

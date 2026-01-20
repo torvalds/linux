@@ -46,7 +46,7 @@
 
 #include "psock_lib.h"
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #ifndef bug_on
 # define bug_on(cond)		assert(!(cond))

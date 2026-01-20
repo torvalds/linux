@@ -325,6 +325,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
 	const struct firmware *fw = NULL;
 	u8 buf[8];
@@ -332,7 +333,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.integer.value[0] == rt5514->dsp_enabled)
 		return 0;
 
-	if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+	if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 		rt5514->dsp_enabled = ucontrol->value.integer.value[0];
 
 		if (rt5514->dsp_enabled) {
@@ -1050,11 +1051,12 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(rt5514->mclk);
 		} else {
 			ret = clk_prepare_enable(rt5514->mclk);
@@ -1064,7 +1066,7 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			/*
 			 * If the DSP is enabled in start of recording, the DSP
 			 * should be disabled, and sync back to normal recording

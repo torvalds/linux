@@ -32,6 +32,9 @@ nlmsvc_share_file(struct nlm_host *host, struct nlm_file *file,
 	struct xdr_netobj	*oh = &argp->lock.oh;
 	u8			*ohdata;
 
+	if (nlmsvc_file_cannot_lock(file))
+		return nlm_lck_denied_nolocks;
+
 	for (share = file->f_shares; share; share = share->s_next) {
 		if (share->s_host == host && nlm_cmp_owner(share, oh))
 			goto update;
@@ -71,6 +74,9 @@ nlmsvc_unshare_file(struct nlm_host *host, struct nlm_file *file,
 {
 	struct nlm_share	*share, **shpp;
 	struct xdr_netobj	*oh = &argp->lock.oh;
+
+	if (nlmsvc_file_cannot_lock(file))
+		return nlm_lck_denied_nolocks;
 
 	for (shpp = &file->f_shares; (share = *shpp) != NULL;
 					shpp = &share->s_next) {

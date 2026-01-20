@@ -14,7 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 unsigned long page_size;
 char *page_buffer;

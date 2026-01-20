@@ -24,7 +24,7 @@
 #include <time.h>
 #include <include/vdso/time64.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MILLION			1000000
 

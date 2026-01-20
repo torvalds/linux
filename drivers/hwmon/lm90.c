@@ -108,7 +108,6 @@
 #include <linux/hwmon.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -735,7 +734,6 @@ struct lm90_data {
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[3];
 	struct hwmon_chip_info chip;
-	struct mutex update_lock;
 	struct delayed_work alert_work;
 	struct work_struct report_work;
 	bool valid;		/* true if register values are valid */
@@ -1226,9 +1224,9 @@ static int lm90_update_alarms(struct lm90_data *data, bool force)
 {
 	int err;
 
-	mutex_lock(&data->update_lock);
+	hwmon_lock(data->hwmon_dev);
 	err = lm90_update_alarms_locked(data, force);
-	mutex_unlock(&data->update_lock);
+	hwmon_unlock(data->hwmon_dev);
 
 	return err;
 }
@@ -1519,9 +1517,7 @@ static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 	int err;
 	u16 bit;
 
-	mutex_lock(&data->update_lock);
 	err = lm90_update_device(dev);
-	mutex_unlock(&data->update_lock);
 	if (err)
 		return err;
 
@@ -1590,11 +1586,9 @@ static int lm90_temp_write(struct device *dev, u32 attr, int channel, long val)
 	struct lm90_data *data = dev_get_drvdata(dev);
 	int err;
 
-	mutex_lock(&data->update_lock);
-
 	err = lm90_update_device(dev);
 	if (err)
-		goto error;
+		return err;
 
 	switch (attr) {
 	case hwmon_temp_min:
@@ -1624,9 +1618,6 @@ static int lm90_temp_write(struct device *dev, u32 attr, int channel, long val)
 		err = -EOPNOTSUPP;
 		break;
 	}
-error:
-	mutex_unlock(&data->update_lock);
-
 	return err;
 }
 
@@ -1662,9 +1653,7 @@ static int lm90_chip_read(struct device *dev, u32 attr, int channel, long *val)
 	struct lm90_data *data = dev_get_drvdata(dev);
 	int err;
 
-	mutex_lock(&data->update_lock);
 	err = lm90_update_device(dev);
-	mutex_unlock(&data->update_lock);
 	if (err)
 		return err;
 
@@ -1710,11 +1699,9 @@ static int lm90_chip_write(struct device *dev, u32 attr, int channel, long val)
 	struct i2c_client *client = data->client;
 	int err;
 
-	mutex_lock(&data->update_lock);
-
 	err = lm90_update_device(dev);
 	if (err)
-		goto error;
+		return err;
 
 	switch (attr) {
 	case hwmon_chip_update_interval:
@@ -1728,9 +1715,6 @@ static int lm90_chip_write(struct device *dev, u32 attr, int channel, long val)
 		err = -EOPNOTSUPP;
 		break;
 	}
-error:
-	mutex_unlock(&data->update_lock);
-
 	return err;
 }
 
@@ -2793,7 +2777,6 @@ static int lm90_probe(struct i2c_client *client)
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
-	mutex_init(&data->update_lock);
 	INIT_DELAYED_WORK(&data->alert_work, lm90_alert_work);
 	INIT_WORK(&data->report_work, lm90_report_alarms);
 

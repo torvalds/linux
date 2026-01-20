@@ -24,7 +24,6 @@ description:
   iommu/iommu.txt and iommu/arm,smmu.yaml for more information about SMMU
   bindings.
 
-
   - |
     --------             ---------
     |      |             |       |

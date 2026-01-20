@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  * Copyright (C) 2013-2014, 2018-2019 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
@@ -52,7 +52,7 @@ struct iwl_bt_coex_cmd {
 } __packed; /* BT_COEX_CMD_API_S_VER_6 */
 
 /**
- * struct iwl_bt_coex_reduced_txp_update_cmd
+ * struct iwl_bt_coex_reduced_txp_update_cmd - reduced TX power command
  * @reduced_txp: bit BT_REDUCED_TX_POWER_BIT to enable / disable, rest of the
  *	bits are the sta_id (value)
  */

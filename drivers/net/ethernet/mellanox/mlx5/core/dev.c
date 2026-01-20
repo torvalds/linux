@@ -564,10 +564,14 @@ int mlx5_rescan_drivers_locked(struct mlx5_core_dev *dev)
 
 bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev)
 {
-	u64 fsystem_guid, psystem_guid;
+	u8 fsystem_guid[MLX5_SW_IMAGE_GUID_MAX_BYTES];
+	u8 psystem_guid[MLX5_SW_IMAGE_GUID_MAX_BYTES];
+	u8 flen;
+	u8 plen;
 
-	fsystem_guid = mlx5_query_nic_system_image_guid(dev);
-	psystem_guid = mlx5_query_nic_system_image_guid(peer_dev);
+	mlx5_query_nic_sw_system_image_guid(dev, fsystem_guid, &flen);
+	mlx5_query_nic_sw_system_image_guid(peer_dev, psystem_guid, &plen);
 
-	return (fsystem_guid && psystem_guid && fsystem_guid == psystem_guid);
+	return plen && flen && flen == plen &&
+		!memcmp(fsystem_guid, psystem_guid, flen);
 }

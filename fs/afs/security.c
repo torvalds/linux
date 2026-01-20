@@ -16,6 +16,31 @@
 
 static DEFINE_HASHTABLE(afs_permits_cache, 10);
 static DEFINE_SPINLOCK(afs_permits_lock);
+static DEFINE_MUTEX(afs_key_lock);
+
+/*
+ * Allocate a key to use as a placeholder for anonymous user security.
+ */
+static int afs_alloc_anon_key(struct afs_cell *cell)
+{
+	struct key *key;
+
+	mutex_lock(&afs_key_lock);
+	key = cell->anonymous_key;
+	if (!key) {
+		key = rxrpc_get_null_key(cell->key_desc);
+		if (!IS_ERR(key))
+			cell->anonymous_key = key;
+	}
+	mutex_unlock(&afs_key_lock);
+
+	if (IS_ERR(key))
+		return PTR_ERR(key);
+
+	_debug("anon key %p{%x}",
+	       cell->anonymous_key, key_serial(cell->anonymous_key));
+	return 0;
+}
 
 /*
  * get a key
@@ -23,16 +48,23 @@ static DEFINE_SPINLOCK(afs_permits_lock);
 struct key *afs_request_key(struct afs_cell *cell)
 {
 	struct key *key;
+	int ret;
 
-	_enter("{%x}", key_serial(cell->anonymous_key));
+	_enter("{%s}", cell->key_desc);
 
-	_debug("key %s", cell->anonymous_key->description);
-	key = request_key_net(&key_type_rxrpc, cell->anonymous_key->description,
+	_debug("key %s", cell->key_desc);
+	key = request_key_net(&key_type_rxrpc, cell->key_desc,
 			      cell->net->net, NULL);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) != -ENOKEY) {
 			_leave(" = %ld", PTR_ERR(key));
 			return key;
+		}
+
+		if (!cell->anonymous_key) {
+			ret = afs_alloc_anon_key(cell);
+			if (ret < 0)
+				return ERR_PTR(ret);
 		}
 
 		/* act as anonymous user */
@@ -52,11 +84,10 @@ struct key *afs_request_key_rcu(struct afs_cell *cell)
 {
 	struct key *key;
 
-	_enter("{%x}", key_serial(cell->anonymous_key));
+	_enter("{%s}", cell->key_desc);
 
-	_debug("key %s", cell->anonymous_key->description);
-	key = request_key_net_rcu(&key_type_rxrpc,
-				  cell->anonymous_key->description,
+	_debug("key %s", cell->key_desc);
+	key = request_key_net_rcu(&key_type_rxrpc, cell->key_desc,
 				  cell->net->net);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) != -ENOKEY) {
@@ -65,6 +96,8 @@ struct key *afs_request_key_rcu(struct afs_cell *cell)
 		}
 
 		/* act as anonymous user */
+		if (!cell->anonymous_key)
+			return NULL; /* Need to allocate */
 		_leave(" = {%x} [anon]", key_serial(cell->anonymous_key));
 		return key_get(cell->anonymous_key);
 	} else {
@@ -408,7 +441,7 @@ int afs_permission(struct mnt_idmap *idmap, struct inode *inode,
 
 	if (mask & MAY_NOT_BLOCK) {
 		key = afs_request_key_rcu(vnode->volume->cell);
-		if (IS_ERR(key))
+		if (IS_ERR_OR_NULL(key))
 			return -ECHILD;
 
 		ret = -ECHILD;

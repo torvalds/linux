@@ -25,6 +25,7 @@ struct gic_common_ops {
 	void (*gic_irq_clear_pending)(uint32_t intid);
 	bool (*gic_irq_get_pending)(uint32_t intid);
 	void (*gic_irq_set_config)(uint32_t intid, bool is_edge);
+	void (*gic_irq_set_group)(uint32_t intid, bool group);
 };
 
 extern const struct gic_common_ops gicv3_ops;

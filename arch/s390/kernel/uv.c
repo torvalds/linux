@@ -4,8 +4,7 @@
  *
  * Copyright IBM Corp. 2019, 2024
  */
-#define KMSG_COMPONENT "prot_virt"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "prot_virt: " fmt
 
 #include <linux/export.h>
 #include <linux/kernel.h>

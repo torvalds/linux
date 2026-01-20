@@ -211,10 +211,11 @@
 &cpsw3g {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_rgmii1_pins_default>;
+	status = "okay";
 };
 
 &cpsw_port1 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy1>;
 	bootph-all;
 };

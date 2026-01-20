@@ -974,9 +974,8 @@ static int ivtv_g_input(struct file *file, void *fh, unsigned int *i)
 	return 0;
 }
 
-int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
+int ivtv_do_s_input(struct ivtv *itv, unsigned int inp)
 {
-	struct ivtv *itv = file2id(file)->itv;
 	v4l2_std_id std;
 	int i;
 
@@ -1015,6 +1014,11 @@ int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
 	ivtv_unmute(itv);
 
 	return 0;
+}
+
+static int ivtv_s_input(struct file *file, void *fh, unsigned int inp)
+{
+	return ivtv_do_s_input(file2id(file)->itv, inp);
 }
 
 static int ivtv_g_output(struct file *file, void *fh, unsigned int *i)
@@ -1065,10 +1069,9 @@ static int ivtv_g_frequency(struct file *file, void *fh, struct v4l2_frequency *
 	return 0;
 }
 
-int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *vf)
+int ivtv_do_s_frequency(struct ivtv_stream *s, const struct v4l2_frequency *vf)
 {
-	struct ivtv *itv = file2id(file)->itv;
-	struct ivtv_stream *s = &itv->streams[file2id(file)->type];
+	struct ivtv *itv = s->itv;
 
 	if (s->vdev.vfl_dir)
 		return -ENOTTY;
@@ -1080,6 +1083,15 @@ int ivtv_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *v
 	ivtv_call_all(itv, tuner, s_frequency, vf);
 	ivtv_unmute(itv);
 	return 0;
+}
+
+static int ivtv_s_frequency(struct file *file, void *fh,
+			    const struct v4l2_frequency *vf)
+{
+	struct ivtv_open_id *id = file2id(file);
+	struct ivtv *itv = id->itv;
+
+	return ivtv_do_s_frequency(&itv->streams[id->type], vf);
 }
 
 static int ivtv_g_std(struct file *file, void *fh, v4l2_std_id *std)

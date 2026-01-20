@@ -783,7 +783,6 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
 int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 			   int count, struct drm_gem_object ***objs_out)
 {
-	struct drm_device *dev = filp->minor->dev;
 	struct drm_gem_object **objs;
 	u32 *handles;
 	int ret;
@@ -798,20 +797,11 @@ int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 
 	*objs_out = objs;
 
-	handles = kvmalloc_array(count, sizeof(u32), GFP_KERNEL);
-	if (!handles) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	if (copy_from_user(handles, bo_handles, count * sizeof(u32))) {
-		ret = -EFAULT;
-		drm_dbg_core(dev, "Failed to copy in GEM handles\n");
-		goto out;
-	}
+	handles = vmemdup_array_user(bo_handles, count, sizeof(u32));
+	if (IS_ERR(handles))
+		return PTR_ERR(handles);
 
 	ret = objects_lookup(filp, handles, count, objs);
-out:
 	kvfree(handles);
 	return ret;
 

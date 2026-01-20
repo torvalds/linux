@@ -55,7 +55,7 @@ void autofs_kill_sb(struct super_block *sb)
 	}
 
 	pr_debug("shutting down\n");
-	kill_litter_super(sb);
+	kill_anon_super(sb);
 	if (sbi)
 		kfree_rcu(sbi, rcu);
 }
@@ -251,6 +251,7 @@ static struct autofs_sb_info *autofs_alloc_sbi(void)
 	sbi->min_proto = AUTOFS_MIN_PROTO_VERSION;
 	sbi->max_proto = AUTOFS_MAX_PROTO_VERSION;
 	sbi->pipefd = -1;
+	sbi->mnt_ns_id = to_ns_common(current->nsproxy->mnt_ns)->ns_id;
 
 	set_autofs_type_indirect(&sbi->type);
 	mutex_init(&sbi->wq_mutex);

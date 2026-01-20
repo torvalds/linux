@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define NR_CHUNKS	100
 #define MSG_LEN		256

@@ -32,15 +32,15 @@
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 
 #include "soc/intel_rom.h"
 
-#include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_display.h"
 #include "intel_display_core.h"
 #include "intel_display_rpm.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_gmbus.h"
 
 #define _INTEL_BIOS_PRIVATE
@@ -3144,7 +3144,6 @@ err_free_rom:
 static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display,
 						   size_t *sizep)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct vbt_header *vbt = NULL;
 
 	vbt = firmware_get_vbt(display, sizep);
@@ -3158,11 +3157,11 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 	 */
 	if (!vbt && display->platform.dgfx)
 		with_intel_display_rpm(display)
-			vbt = oprom_get_vbt(display, intel_rom_spi(i915), sizep, "SPI flash");
+			vbt = oprom_get_vbt(display, intel_rom_spi(display->drm), sizep, "SPI flash");
 
 	if (!vbt)
 		with_intel_display_rpm(display)
-			vbt = oprom_get_vbt(display, intel_rom_pci(i915), sizep, "PCI ROM");
+			vbt = oprom_get_vbt(display, intel_rom_pci(display->drm), sizep, "PCI ROM");
 
 	return vbt;
 }

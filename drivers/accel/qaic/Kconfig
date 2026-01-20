@@ -9,6 +9,7 @@ config DRM_ACCEL_QAIC
 	depends on PCI && HAS_IOMEM
 	depends on MHI_BUS
 	select CRC32
+	select WANT_DEV_COREDUMP
 	help
 	  Enables driver for Qualcomm's Cloud AI accelerator PCIe cards that are
 	  designed to accelerate Deep Learning inference workloads.

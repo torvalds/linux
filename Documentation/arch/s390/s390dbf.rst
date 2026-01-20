@@ -243,9 +243,8 @@ Examples:
 
 Changing the size of debug areas
 ------------------------------------
-It is possible the change the size of debug areas through piping
-the number of pages to the debugfs file "pages". The resize request will
-also flush the debug areas.
+To resize a debug area, write the desired page count to the "pages" file.
+Existing data is preserved if it fits; otherwise, oldest entries are dropped.
 
 Example:
 

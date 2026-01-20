@@ -4,6 +4,6 @@
 
 #include <linux/io_uring_types.h>
 
-int io_query(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args);
+int io_query(void __user *arg, unsigned nr_args);
 
 #endif

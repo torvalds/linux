@@ -151,7 +151,7 @@ static int pch_lpc_disabled(struct pch_lpc *priv)
 			(readl(priv->base + LPC_INT_STS) == 0xffffffff);
 }
 
-static int pch_lpc_suspend(void)
+static int pch_lpc_suspend(void *data)
 {
 	pch_lpc_priv->saved_reg_ctl = readl(pch_lpc_priv->base + LPC_INT_CTL);
 	pch_lpc_priv->saved_reg_ena = readl(pch_lpc_priv->base + LPC_INT_ENA);
@@ -159,16 +159,20 @@ static int pch_lpc_suspend(void)
 	return 0;
 }
 
-static void pch_lpc_resume(void)
+static void pch_lpc_resume(void *data)
 {
 	writel(pch_lpc_priv->saved_reg_ctl, pch_lpc_priv->base + LPC_INT_CTL);
 	writel(pch_lpc_priv->saved_reg_ena, pch_lpc_priv->base + LPC_INT_ENA);
 	writel(pch_lpc_priv->saved_reg_pol, pch_lpc_priv->base + LPC_INT_POL);
 }
 
-static struct syscore_ops pch_lpc_syscore_ops = {
+static const struct syscore_ops pch_lpc_syscore_ops = {
 	.suspend = pch_lpc_suspend,
 	.resume = pch_lpc_resume,
+};
+
+static struct syscore pch_lpc_syscore = {
+	.ops = &pch_lpc_syscore_ops,
 };
 
 int __init pch_lpc_acpi_init(struct irq_domain *parent,
@@ -222,7 +226,7 @@ int __init pch_lpc_acpi_init(struct irq_domain *parent,
 
 	pch_lpc_priv = priv;
 	pch_lpc_handle = irq_handle;
-	register_syscore_ops(&pch_lpc_syscore_ops);
+	register_syscore(&pch_lpc_syscore);
 
 	return 0;
 

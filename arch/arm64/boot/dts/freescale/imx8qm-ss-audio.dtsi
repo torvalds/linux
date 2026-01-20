@@ -327,7 +327,8 @@
 		     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>, /* sai2 */
 		     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>, /* sai3 */
 		     <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>, /* sai4 */
-		     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>; /* sai5 */
+		     <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>, /* sai5 */
+		     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
 	power-domains = <&pd IMX_SC_R_DMA_2_CH0>,
 			<&pd IMX_SC_R_DMA_2_CH1>,
 			<&pd IMX_SC_R_DMA_2_CH2>,
@@ -365,7 +366,8 @@
 		     <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>, /* no used */
 		     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>, /* sai6 */
 		     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
-		     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>; /* sai7 */
+		     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>, /* sai7 */
+		     <GIC_SPI 371 IRQ_TYPE_LEVEL_HIGH>;
 	power-domains = <&pd IMX_SC_R_DMA_3_CH0>,
 			<&pd IMX_SC_R_DMA_3_CH1>,
 			<&pd IMX_SC_R_DMA_3_CH2>,

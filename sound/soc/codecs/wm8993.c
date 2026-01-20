@@ -973,6 +973,7 @@ static int wm8993_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8993_priv *wm8993 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	wm_hubs_set_bias_level(component, level);
@@ -988,7 +989,7 @@ static int wm8993_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8993->supplies),
 						    wm8993->supplies);
 			if (ret != 0)
@@ -1482,7 +1483,7 @@ static struct snd_soc_dai_driver wm8993_dai = {
 static int wm8993_probe(struct snd_soc_component *component)
 {
 	struct wm8993_priv *wm8993 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	wm8993->hubs_data.hp_startup_mode = 1;
 	wm8993->hubs_data.dcs_codes_l = -2;
@@ -1536,7 +1537,7 @@ static int wm8993_probe(struct snd_soc_component *component)
 	 * VMID as an output and can disable it.
 	 */
 	if (wm8993->pdata.lineout1_diff && wm8993->pdata.lineout2_diff)
-		dapm->idle_bias = false;
+		snd_soc_dapm_set_idle_bias(dapm, false);
 
 	return 0;
 
@@ -1546,6 +1547,7 @@ static int wm8993_probe(struct snd_soc_component *component)
 static int wm8993_suspend(struct snd_soc_component *component)
 {
 	struct wm8993_priv *wm8993 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int fll_fout = wm8993->fll_fout;
 	int fll_fref  = wm8993->fll_fref;
 	int ret;
@@ -1560,7 +1562,7 @@ static int wm8993_suspend(struct snd_soc_component *component)
 	wm8993->fll_fout = fll_fout;
 	wm8993->fll_fref = fll_fref;
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1568,9 +1570,10 @@ static int wm8993_suspend(struct snd_soc_component *component)
 static int wm8993_resume(struct snd_soc_component *component)
 {
 	struct wm8993_priv *wm8993 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_STANDBY);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
 	if (wm8993->fll_fout) {

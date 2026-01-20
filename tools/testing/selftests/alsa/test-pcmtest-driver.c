@@ -7,7 +7,7 @@
  */
 #include <string.h>
 #include <alsa/asoundlib.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define CH_NUM 4
 

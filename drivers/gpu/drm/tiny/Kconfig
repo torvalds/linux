@@ -85,6 +85,7 @@ config DRM_PANEL_MIPI_DBI
 config DRM_PIXPAPER
         tristate "DRM support for PIXPAPER display panels"
         depends on DRM && SPI
+        depends on MMU
         select DRM_CLIENT_SELECTION
         select DRM_GEM_SHMEM_HELPER
         select DRM_KMS_HELPER

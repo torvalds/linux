@@ -332,10 +332,9 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 				       struct i3c_ccc_cmd *cmd)
 {
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	struct adi_i3c_cmd *ccmd;
 
-	xfer = adi_i3c_master_alloc_xfer(master, 1);
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, 1);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -365,19 +364,18 @@ static int adi_i3c_master_send_ccc_cmd(struct i3c_master_controller *m,
 	return 0;
 }
 
-static int adi_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
-				     struct i3c_priv_xfer *xfers,
-				     int nxfers)
+static int adi_i3c_master_i3c_xfers(struct i3c_dev_desc *dev,
+				    struct i3c_xfer *xfers,
+				    int nxfers, enum i3c_xfer_mode mode)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	int i, ret;
 
 	if (!nxfers)
 		return 0;
 
-	xfer = adi_i3c_master_alloc_xfer(master, nxfers);
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -777,7 +775,6 @@ static int adi_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 {
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct adi_i3c_master *master = to_adi_i3c_master(m);
-	struct adi_i3c_xfer *xfer __free(kfree) = NULL;
 	int i;
 
 	if (!nxfers)
@@ -786,7 +783,8 @@ static int adi_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		if (xfers[i].flags & I2C_M_TEN)
 			return -EOPNOTSUPP;
 	}
-	xfer = adi_i3c_master_alloc_xfer(master, nxfers);
+
+	struct adi_i3c_xfer *xfer __free(kfree) = adi_i3c_master_alloc_xfer(master, nxfers);
 	if (!xfer)
 		return -ENOMEM;
 
@@ -919,7 +917,7 @@ static const struct i3c_master_controller_ops adi_i3c_master_ops = {
 	.do_daa = adi_i3c_master_do_daa,
 	.supports_ccc_cmd = adi_i3c_master_supports_ccc_cmd,
 	.send_ccc_cmd = adi_i3c_master_send_ccc_cmd,
-	.priv_xfers = adi_i3c_master_priv_xfers,
+	.i3c_xfers = adi_i3c_master_i3c_xfers,
 	.i2c_xfers = adi_i3c_master_i2c_xfers,
 	.request_ibi = adi_i3c_master_request_ibi,
 	.enable_ibi = adi_i3c_master_enable_ibi,

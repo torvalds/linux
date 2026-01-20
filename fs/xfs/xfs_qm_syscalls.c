@@ -303,13 +303,12 @@ xfs_qm_scall_setqlim(
 	}
 
 	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
-	xfs_dqunlock(dqp);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_setqlim, 0, 0, 0, &tp);
 	if (error)
 		goto out_rele;
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 	xfs_trans_dqjoin(tp, dqp);
 
 	/*
@@ -459,6 +458,7 @@ xfs_qm_scall_getquota(
 	 * If everything's NULL, this dquot doesn't quite exist as far as
 	 * our utility programs are concerned.
 	 */
+	mutex_lock(&dqp->q_qlock);
 	if (XFS_IS_DQUOT_UNINITIALIZED(dqp)) {
 		error = -ENOENT;
 		goto out_put;
@@ -467,7 +467,8 @@ xfs_qm_scall_getquota(
 	xfs_qm_scall_getquota_fill_qc(mp, type, dqp, dst);
 
 out_put:
-	xfs_qm_dqput(dqp);
+	mutex_unlock(&dqp->q_qlock);
+	xfs_qm_dqrele(dqp);
 	return error;
 }
 
@@ -497,7 +498,8 @@ xfs_qm_scall_getquota_next(
 	*id = dqp->q_id;
 
 	xfs_qm_scall_getquota_fill_qc(mp, type, dqp, dst);
+	mutex_unlock(&dqp->q_qlock);
 
-	xfs_qm_dqput(dqp);
+	xfs_qm_dqrele(dqp);
 	return error;
 }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2023 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
@@ -8,6 +8,7 @@
 #include <linux/ctype.h>
 #include <net/ipv6.h>
 #include "mt7925.h"
+#include "regd.h"
 #include "mcu.h"
 #include "mac.h"
 
@@ -138,10 +139,14 @@ mt7925_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 	}
 
 	if (band == NL80211_BAND_6GHZ) {
+		struct ieee80211_supported_band *sband =
+			&phy->mt76->sband_5g.sband;
+		struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
+
 		u16 cap = IEEE80211_HE_6GHZ_CAP_TX_ANTPAT_CONS |
 			  IEEE80211_HE_6GHZ_CAP_RX_ANTPAT_CONS;
 
-		cap |= u16_encode_bits(IEEE80211_HT_MPDU_DENSITY_0_5,
+		cap |= u16_encode_bits(ht_cap->ampdu_density,
 				       IEEE80211_HE_6GHZ_CAP_MIN_MPDU_START) |
 		       u16_encode_bits(IEEE80211_VHT_MAX_AMPDU_1024K,
 				       IEEE80211_HE_6GHZ_CAP_MAX_AMPDU_LEN_EXP) |
@@ -430,6 +435,9 @@ mt7925_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+	if (phy->chip_cap & MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN)
+		vif->driver_flags |= IEEE80211_VIF_SUPPORTS_CQM_RSSI;
+
 out:
 	mt792x_mutex_release(dev);
 
@@ -1312,20 +1320,6 @@ void mt7925_mlo_pm_work(struct work_struct *work)
 					    mt7925_mlo_pm_iter, dev);
 }
 
-static bool is_valid_alpha2(const char *alpha2)
-{
-	if (!alpha2)
-		return false;
-
-	if (alpha2[0] == '0' && alpha2[1] == '0')
-		return true;
-
-	if (isalpha(alpha2[0]) && isalpha(alpha2[1]))
-		return true;
-
-	return false;
-}
-
 void mt7925_scan_work(struct work_struct *work)
 {
 	struct mt792x_phy *phy;
@@ -1334,7 +1328,6 @@ void mt7925_scan_work(struct work_struct *work)
 						scan_work.work);
 
 	while (true) {
-		struct mt76_dev *mdev = &phy->dev->mt76;
 		struct sk_buff *skb;
 		struct tlv *tlv;
 		int tlv_len;
@@ -1365,15 +1358,7 @@ void mt7925_scan_work(struct work_struct *work)
 			case UNI_EVENT_SCAN_DONE_CHNLINFO:
 				evt = (struct mt7925_mcu_scan_chinfo_event *)tlv->data;
 
-				if (!is_valid_alpha2(evt->alpha2))
-					break;
-
-				mt7925_regd_be_ctrl(phy->dev, evt->alpha2);
-
-				if (mdev->alpha2[0] != '0' && mdev->alpha2[1] != '0')
-					break;
-
-				mt7925_mcu_set_clc(phy->dev, evt->alpha2, ENVIRON_INDOOR);
+				mt7925_regd_change(phy, evt->alpha2);
 
 				break;
 			case UNI_EVENT_SCAN_DONE_NLO:
@@ -1957,6 +1942,9 @@ static void mt7925_link_info_changed(struct ieee80211_hw *hw,
 	if (changed & IEEE80211_CHANCTX_CHANGE_PUNCTURING)
 		mt7925_mcu_set_eht_pp(mvif->phy->mt76, &mconf->mt76,
 				      link_conf, NULL);
+
+	if (changed & BSS_CHANGED_CQM)
+		mt7925_mcu_set_rssimonitor(dev, vif);
 
 	mt792x_mutex_release(dev);
 }

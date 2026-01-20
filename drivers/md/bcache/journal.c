@@ -275,8 +275,7 @@ bsearch:
 			 * ja->cur_idx
 			 */
 			ja->cur_idx = i;
-			ja->last_idx = ja->discard_idx = (i + 1) %
-				ca->sb.njournal_buckets;
+			ja->last_idx = (i + 1) % ca->sb.njournal_buckets;
 
 		}
 
@@ -336,16 +335,6 @@ void bch_journal_mark(struct cache_set *c, struct list_head *list)
 	}
 }
 
-static bool is_discard_enabled(struct cache_set *s)
-{
-	struct cache *ca = s->cache;
-
-	if (ca->discard)
-		return true;
-
-	return false;
-}
-
 int bch_journal_replay(struct cache_set *s, struct list_head *list)
 {
 	int ret = 0, keys = 0, entries = 0;
@@ -360,15 +349,10 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 		BUG_ON(i->pin && atomic_read(i->pin) != 1);
 
 		if (n != i->j.seq) {
-			if (n == start && is_discard_enabled(s))
-				pr_info("journal entries %llu-%llu may be discarded! (replaying %llu-%llu)\n",
-					n, i->j.seq - 1, start, end);
-			else {
-				pr_err("journal entries %llu-%llu missing! (replaying %llu-%llu)\n",
-					n, i->j.seq - 1, start, end);
-				ret = -EIO;
-				goto err;
-			}
+			pr_err("journal entries %llu-%llu missing! (replaying %llu-%llu)\n",
+				n, i->j.seq - 1, start, end);
+			ret = -EIO;
+			goto err;
 		}
 
 		for (k = i->j.start;
@@ -568,65 +552,6 @@ out:
 
 #define last_seq(j)	((j)->seq - fifo_used(&(j)->pin) + 1)
 
-static void journal_discard_endio(struct bio *bio)
-{
-	struct journal_device *ja =
-		container_of(bio, struct journal_device, discard_bio);
-	struct cache *ca = container_of(ja, struct cache, journal);
-
-	atomic_set(&ja->discard_in_flight, DISCARD_DONE);
-
-	closure_wake_up(&ca->set->journal.wait);
-	closure_put(&ca->set->cl);
-}
-
-static void journal_discard_work(struct work_struct *work)
-{
-	struct journal_device *ja =
-		container_of(work, struct journal_device, discard_work);
-
-	submit_bio(&ja->discard_bio);
-}
-
-static void do_journal_discard(struct cache *ca)
-{
-	struct journal_device *ja = &ca->journal;
-	struct bio *bio = &ja->discard_bio;
-
-	if (!ca->discard) {
-		ja->discard_idx = ja->last_idx;
-		return;
-	}
-
-	switch (atomic_read(&ja->discard_in_flight)) {
-	case DISCARD_IN_FLIGHT:
-		return;
-
-	case DISCARD_DONE:
-		ja->discard_idx = (ja->discard_idx + 1) %
-			ca->sb.njournal_buckets;
-
-		atomic_set(&ja->discard_in_flight, DISCARD_READY);
-		fallthrough;
-
-	case DISCARD_READY:
-		if (ja->discard_idx == ja->last_idx)
-			return;
-
-		atomic_set(&ja->discard_in_flight, DISCARD_IN_FLIGHT);
-
-		bio_init_inline(bio, ca->bdev, 1, REQ_OP_DISCARD);
-		bio->bi_iter.bi_sector	= bucket_to_sector(ca->set,
-						ca->sb.d[ja->discard_idx]);
-		bio->bi_iter.bi_size	= bucket_bytes(ca);
-		bio->bi_end_io		= journal_discard_endio;
-
-		closure_get(&ca->set->cl);
-		INIT_WORK(&ja->discard_work, journal_discard_work);
-		queue_work(bch_journal_wq, &ja->discard_work);
-	}
-}
-
 static unsigned int free_journal_buckets(struct cache_set *c)
 {
 	struct journal *j = &c->journal;
@@ -635,10 +560,10 @@ static unsigned int free_journal_buckets(struct cache_set *c)
 	unsigned int n;
 
 	/* In case njournal_buckets is not power of 2 */
-	if (ja->cur_idx >= ja->discard_idx)
-		n = ca->sb.njournal_buckets +  ja->discard_idx - ja->cur_idx;
+	if (ja->cur_idx >= ja->last_idx)
+		n = ca->sb.njournal_buckets + ja->last_idx - ja->cur_idx;
 	else
-		n = ja->discard_idx - ja->cur_idx;
+		n = ja->last_idx - ja->cur_idx;
 
 	if (n > (1 + j->do_reserve))
 		return n - (1 + j->do_reserve);
@@ -667,8 +592,6 @@ static void journal_reclaim(struct cache_set *c)
 	       ja->seq[ja->last_idx] < last_seq)
 		ja->last_idx = (ja->last_idx + 1) %
 			ca->sb.njournal_buckets;
-
-	do_journal_discard(ca);
 
 	if (c->journal.blocks_free)
 		goto out;

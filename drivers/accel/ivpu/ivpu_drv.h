@@ -79,6 +79,7 @@
 #define IVPU_DBG_KREF	 BIT(11)
 #define IVPU_DBG_RPM	 BIT(12)
 #define IVPU_DBG_MMU_MAP BIT(13)
+#define IVPU_DBG_IOCTL   BIT(14)
 
 #define ivpu_err(vdev, fmt, ...) \
 	drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)

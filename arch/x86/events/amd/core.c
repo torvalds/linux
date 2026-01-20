@@ -2,6 +2,7 @@
 #include <linux/perf_event.h>
 #include <linux/jump_label.h>
 #include <linux/export.h>
+#include <linux/kvm_types.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -763,7 +764,12 @@ static void amd_pmu_enable_all(int added)
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 
-		amd_pmu_enable_event(cpuc->events[idx]);
+		/*
+		 * FIXME: cpuc->events[idx] can become NULL in a subtle race
+		 * condition with NMI->throttle->x86_pmu_stop().
+		 */
+		if (cpuc->events[idx])
+			amd_pmu_enable_event(cpuc->events[idx]);
 	}
 }
 
@@ -1569,7 +1575,7 @@ void amd_pmu_enable_virt(void)
 	/* Reload all events */
 	amd_pmu_reload_virt();
 }
-EXPORT_SYMBOL_GPL(amd_pmu_enable_virt);
+EXPORT_SYMBOL_FOR_KVM(amd_pmu_enable_virt);
 
 void amd_pmu_disable_virt(void)
 {
@@ -1586,4 +1592,4 @@ void amd_pmu_disable_virt(void)
 	/* Reload all events */
 	amd_pmu_reload_virt();
 }
-EXPORT_SYMBOL_GPL(amd_pmu_disable_virt);
+EXPORT_SYMBOL_FOR_KVM(amd_pmu_disable_virt);

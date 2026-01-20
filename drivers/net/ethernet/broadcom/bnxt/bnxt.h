@@ -131,6 +131,7 @@ struct rx_bd {
 	 #define RX_BD_TYPE_48B_BD_SIZE				 (2 << 4)
 	 #define RX_BD_TYPE_64B_BD_SIZE				 (3 << 4)
 	#define RX_BD_FLAGS_SOP					(1 << 6)
+	#define RX_BD_FLAGS_AGG_EOP				(1 << 6)
 	#define RX_BD_FLAGS_EOP					(1 << 7)
 	#define RX_BD_FLAGS_BUFFERS				(3 << 8)
 	 #define RX_BD_FLAGS_1_BUFFER_PACKET			 (0 << 8)
@@ -2149,7 +2150,7 @@ struct bnxt_bs_trace_info {
 static inline void bnxt_bs_trace_check_wrap(struct bnxt_bs_trace_info *bs_trace,
 					    u32 offset)
 {
-	if (!bs_trace->wrapped &&
+	if (!bs_trace->wrapped && bs_trace->magic_byte &&
 	    *bs_trace->magic_byte != BNXT_TRACE_BUF_MAGIC_BYTE)
 		bs_trace->wrapped = 1;
 	bs_trace->last_offset = offset;
@@ -2424,6 +2425,7 @@ struct bnxt {
 	u8			tc_to_qidx[BNXT_MAX_QUEUE];
 	u8			q_ids[BNXT_MAX_QUEUE];
 	u8			max_q;
+	u8			cos0_cos1_shared;
 	u8			num_tc;
 
 	u16			max_pfcwd_tmo_ms;
@@ -2482,6 +2484,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED	BIT_ULL(6)
 	#define BNXT_FW_CAP_KONG_MB_CHNL		BIT_ULL(7)
 	#define BNXT_FW_CAP_ROCE_VF_DYN_ALLOC_SUPPORT	BIT_ULL(8)
+	#define BNXT_FW_CAP_LINK_ADMIN			BIT_ULL(9)
 	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		BIT_ULL(10)
 	#define BNXT_FW_CAP_TRUSTED_VF			BIT_ULL(11)
 	#define BNXT_FW_CAP_ERROR_RECOVERY		BIT_ULL(13)
@@ -2941,6 +2944,7 @@ void bnxt_report_link(struct bnxt *bp);
 int bnxt_update_link(struct bnxt *bp, bool chng_link_state);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
+void bnxt_clear_reservations(struct bnxt *bp, bool fw_reset);
 int bnxt_cancel_reservations(struct bnxt *bp, bool fw_reset);
 int bnxt_hwrm_alloc_wol_fltr(struct bnxt *bp);
 int bnxt_hwrm_free_wol_fltr(struct bnxt *bp);

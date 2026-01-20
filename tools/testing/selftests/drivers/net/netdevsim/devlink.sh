@@ -3,7 +3,8 @@
 
 lib_dir=$(dirname $0)/../../../net/forwarding
 
-ALL_TESTS="fw_flash_test params_test regions_test reload_test \
+ALL_TESTS="fw_flash_test params_test  \
+	   params_default_test regions_test reload_test \
 	   netns_reload_test resource_test dev_info_test \
 	   empty_reporter_test dummy_reporter_test rate_test"
 NUM_NETIFS=0
@@ -78,17 +79,28 @@ fw_flash_test()
 param_get()
 {
 	local name=$1
+	local attr=${2:-value}
+	local cmode=${3:-driverinit}
 
 	cmd_jq "devlink dev param show $DL_HANDLE name $name -j" \
-	       '.[][][].values[] | select(.cmode == "driverinit").value'
+	       '.[][][].values[] | select(.cmode == "'"$cmode"'").'"$attr"
 }
 
 param_set()
 {
 	local name=$1
 	local value=$2
+	local cmode=${3:-driverinit}
 
-	devlink dev param set $DL_HANDLE name $name cmode driverinit value $value
+	devlink dev param set $DL_HANDLE name $name cmode $cmode value $value
+}
+
+param_set_default()
+{
+	local name=$1
+	local cmode=${2:-driverinit}
+
+	devlink dev param set $DL_HANDLE name $name default cmode $cmode
 }
 
 check_value()
@@ -97,12 +109,18 @@ check_value()
 	local phase_name=$2
 	local expected_param_value=$3
 	local expected_debugfs_value=$4
+	local cmode=${5:-driverinit}
 	local value
+	local attr="value"
 
-	value=$(param_get $name)
-	check_err $? "Failed to get $name param value"
+	if [[ "$phase_name" == *"default"* ]]; then
+		attr="default"
+	fi
+
+	value=$(param_get $name $attr $cmode)
+	check_err $? "Failed to get $name param $attr"
 	[ "$value" == "$expected_param_value" ]
-	check_err $? "Unexpected $phase_name $name param value"
+	check_err $? "Unexpected $phase_name $name param $attr"
 	value=$(<$DEBUGFS_DIR/$name)
 	check_err $? "Failed to get $name debugfs value"
 	[ "$value" == "$expected_debugfs_value" ]
@@ -133,6 +151,92 @@ params_test()
 	check_value test1 post-reload false N
 
 	log_test "params test"
+}
+
+value_to_debugfs()
+{
+	local value=$1
+
+	case "$value" in
+		true)
+			echo "Y"
+			;;
+		false)
+			echo "N"
+			;;
+		*)
+			echo "$value"
+			;;
+	esac
+}
+
+test_default()
+{
+	local param_name=$1
+	local new_value=$2
+	local expected_default=$3
+	local cmode=${4:-driverinit}
+	local default_debugfs
+	local new_debugfs
+	local expected_debugfs
+
+	default_debugfs=$(value_to_debugfs $expected_default)
+	new_debugfs=$(value_to_debugfs $new_value)
+
+	expected_debugfs=$default_debugfs
+	check_value $param_name initial-default $expected_default $expected_debugfs $cmode
+
+	param_set $param_name $new_value $cmode
+	check_err $? "Failed to set $param_name to $new_value"
+
+	expected_debugfs=$([ "$cmode" == "runtime" ] && echo "$new_debugfs" || echo "$default_debugfs")
+	check_value $param_name post-set $new_value $expected_debugfs $cmode
+
+	devlink dev reload $DL_HANDLE
+	check_err $? "Failed to reload device"
+
+	expected_debugfs=$new_debugfs
+	check_value $param_name post-reload-new-value $new_value $expected_debugfs $cmode
+
+	param_set_default $param_name $cmode
+	check_err $? "Failed to set $param_name to default"
+
+	expected_debugfs=$([ "$cmode" == "runtime" ] && echo "$default_debugfs" || echo "$new_debugfs")
+	check_value $param_name post-set-default $expected_default $expected_debugfs $cmode
+
+	devlink dev reload $DL_HANDLE
+	check_err $? "Failed to reload device"
+
+	expected_debugfs=$default_debugfs
+	check_value $param_name post-reload-default $expected_default $expected_debugfs $cmode
+}
+
+params_default_test()
+{
+	RET=0
+
+	if ! devlink dev param help 2>&1 | grep -q "value VALUE | default"; then
+		echo "SKIP: devlink cli missing default feature"
+		return
+	fi
+
+	# Remove side effects of previous tests. Use plain param_set, because
+	# param_set_default is a feature under test here.
+	param_set max_macs 32 driverinit
+	check_err $? "Failed to reset max_macs to default value"
+	param_set test1 true driverinit
+	check_err $? "Failed to reset test1 to default value"
+	param_set test2 1234 runtime
+	check_err $? "Failed to reset test2 to default value"
+
+	devlink dev reload $DL_HANDLE
+	check_err $? "Failed to reload device for clean state"
+
+	test_default max_macs 16 32 driverinit
+	test_default test1 false true driverinit
+	test_default test2 100 1234 runtime
+
+	log_test "params default test"
 }
 
 check_region_size()

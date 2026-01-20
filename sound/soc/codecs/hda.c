@@ -96,7 +96,7 @@ static int hda_codec_register_dais(struct hda_codec *codec, struct snd_soc_compo
 	if (ret < 0)
 		return ret;
 
-	dapm = snd_soc_component_get_dapm(component);
+	dapm = snd_soc_component_to_dapm(component);
 
 	list_for_each_entry(pcm, &codec->pcm_list_head, list) {
 		struct snd_soc_dai *dai;

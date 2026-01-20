@@ -786,6 +786,7 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = mtl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_1_0,
+	.platform = "mtl",
 };
 
 const struct sof_intel_dsp_desc arl_s_chip_info = {
@@ -814,4 +815,5 @@ const struct sof_intel_dsp_desc arl_s_chip_info = {
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = mtl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_1_0,
+	.platform = "arl",
 };

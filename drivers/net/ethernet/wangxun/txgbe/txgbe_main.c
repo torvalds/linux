@@ -89,21 +89,21 @@ static int txgbe_enumerate_functions(struct wx *wx)
 	return physfns;
 }
 
-static void txgbe_sfp_detection_subtask(struct wx *wx)
+static void txgbe_module_detection_subtask(struct wx *wx)
 {
 	int err;
 
-	if (!test_bit(WX_FLAG_NEED_SFP_RESET, wx->flags))
+	if (!test_bit(WX_FLAG_NEED_MODULE_RESET, wx->flags))
 		return;
 
-	/* wait for SFP module ready */
+	/* wait for SFF module ready */
 	msleep(200);
 
-	err = txgbe_identify_sfp(wx);
+	err = txgbe_identify_module(wx);
 	if (err)
 		return;
 
-	clear_bit(WX_FLAG_NEED_SFP_RESET, wx->flags);
+	clear_bit(WX_FLAG_NEED_MODULE_RESET, wx->flags);
 }
 
 static void txgbe_link_config_subtask(struct wx *wx)
@@ -128,7 +128,7 @@ static void txgbe_service_task(struct work_struct *work)
 {
 	struct wx *wx = container_of(work, struct wx, service_task);
 
-	txgbe_sfp_detection_subtask(wx);
+	txgbe_module_detection_subtask(wx);
 	txgbe_link_config_subtask(wx);
 
 	wx_service_event_complete(wx);
@@ -144,7 +144,6 @@ static void txgbe_init_service(struct wx *wx)
 static void txgbe_up_complete(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
-	u32 reg;
 
 	wx_control_hw(wx, true);
 	wx_configure_vectors(wx);
@@ -155,12 +154,8 @@ static void txgbe_up_complete(struct wx *wx)
 
 	switch (wx->mac.type) {
 	case wx_mac_aml40:
-		reg = rd32(wx, TXGBE_AML_MAC_TX_CFG);
-		reg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;
-		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_40G;
-		wr32(wx, WX_MAC_TX_CFG, reg);
-		txgbe_enable_sec_tx_path(wx);
-		netif_carrier_on(wx->netdev);
+		txgbe_setup_link(wx);
+		phylink_start(wx->phylink);
 		break;
 	case wx_mac_aml:
 		/* Enable TX laser */
@@ -276,7 +271,7 @@ void txgbe_down(struct wx *wx)
 
 	switch (wx->mac.type) {
 	case wx_mac_aml40:
-		netif_carrier_off(wx->netdev);
+		phylink_stop(wx->phylink);
 		break;
 	case wx_mac_aml:
 		phylink_stop(wx->phylink);
@@ -398,6 +393,7 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->configure_fdir = txgbe_configure_fdir;
 
 	set_bit(WX_FLAG_RSC_CAPABLE, wx->flags);
+	set_bit(WX_FLAG_RSC_ENABLED, wx->flags);
 	set_bit(WX_FLAG_MULTI_64_FUNC, wx->flags);
 
 	/* enable itr by default in dynamic mode */
@@ -423,6 +419,8 @@ static int txgbe_sw_init(struct wx *wx)
 		break;
 	case wx_mac_aml:
 	case wx_mac_aml40:
+		set_bit(WX_FLAG_RX_MERGE_ENABLED, wx->flags);
+		set_bit(WX_FLAG_TXHEAD_WB_ENABLED, wx->flags);
 		set_bit(WX_FLAG_SWFW_RING, wx->flags);
 		wx->swfw_index = 0;
 		break;
@@ -801,6 +799,8 @@ static int txgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_HIGHDMA;
 	netdev->hw_features |= NETIF_F_GRO;
 	netdev->features |= NETIF_F_GRO;
+	netdev->hw_features |= NETIF_F_LRO;
+	netdev->features |= NETIF_F_LRO;
 	netdev->features |= NETIF_F_RX_UDP_TUNNEL_PORT;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;

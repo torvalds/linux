@@ -19,7 +19,7 @@ typedef struct {
 #include <sys/syscall.h>
 #include <sys/fanotify.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 #include "../statmount/statmount.h"
 #include "../utils.h"
 

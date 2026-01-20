@@ -27,7 +27,7 @@ struct landlock_hierarchy;
  */
 struct landlock_layer {
 	/**
-	 * @level: Position of this layer in the layer stack.
+	 * @level: Position of this layer in the layer stack.  Starts from 1.
 	 */
 	u16 level;
 	/**

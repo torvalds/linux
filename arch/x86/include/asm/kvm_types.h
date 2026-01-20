@@ -10,6 +10,11 @@
 #define KVM_SUB_MODULES kvm-intel
 #else
 #undef KVM_SUB_MODULES
+/*
+ * Don't export symbols for KVM without vendor modules, as kvm.ko is built iff
+ * at least one vendor module is enabled.
+ */
+#define EXPORT_SYMBOL_FOR_KVM(symbol)
 #endif
 
 #define KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE 40

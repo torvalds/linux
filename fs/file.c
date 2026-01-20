@@ -641,6 +641,34 @@ void put_unused_fd(unsigned int fd)
 
 EXPORT_SYMBOL(put_unused_fd);
 
+/*
+ * Install a file pointer in the fd array while it is being resized.
+ *
+ * We need to make sure our update to the array does not get lost as the resizing
+ * thread can be copying the content as we modify it.
+ *
+ * We have two ways to do it:
+ * - go off CPU waiting for resize_in_progress to clear
+ * - take the spin lock
+ *
+ * The latter is trivial to implement and saves us from having to might_sleep()
+ * for debugging purposes.
+ *
+ * This is moved out of line from fd_install() to convince gcc to optimize that
+ * routine better.
+ */
+static void noinline fd_install_slowpath(unsigned int fd, struct file *file)
+{
+	struct files_struct *files = current->files;
+	struct fdtable *fdt;
+
+	spin_lock(&files->file_lock);
+	fdt = files_fdtable(files);
+	VFS_BUG_ON(rcu_access_pointer(fdt->fd[fd]) != NULL);
+	rcu_assign_pointer(fdt->fd[fd], file);
+	spin_unlock(&files->file_lock);
+}
+
 /**
  * fd_install - install a file pointer in the fd array
  * @fd: file descriptor to install the file in
@@ -658,14 +686,9 @@ void fd_install(unsigned int fd, struct file *file)
 		return;
 
 	rcu_read_lock_sched();
-
 	if (unlikely(files->resize_in_progress)) {
 		rcu_read_unlock_sched();
-		spin_lock(&files->file_lock);
-		fdt = files_fdtable(files);
-		VFS_BUG_ON(rcu_access_pointer(fdt->fd[fd]) != NULL);
-		rcu_assign_pointer(fdt->fd[fd], file);
-		spin_unlock(&files->file_lock);
+		fd_install_slowpath(fd, file);
 		return;
 	}
 	/* coupled with smp_wmb() in expand_fdtable() */
@@ -1357,28 +1380,25 @@ out_unlock:
  */
 int receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 {
-	int new_fd;
 	int error;
 
 	error = security_file_receive(file);
 	if (error)
 		return error;
 
-	new_fd = get_unused_fd_flags(o_flags);
-	if (new_fd < 0)
-		return new_fd;
+	FD_PREPARE(fdf, o_flags, file);
+	if (fdf.err)
+		return fdf.err;
+	get_file(file);
 
 	if (ufd) {
-		error = put_user(new_fd, ufd);
-		if (error) {
-			put_unused_fd(new_fd);
+		error = put_user(fd_prepare_fd(fdf), ufd);
+		if (error)
 			return error;
-		}
 	}
 
-	fd_install(new_fd, get_file(file));
-	__receive_sock(file);
-	return new_fd;
+	__receive_sock(fd_prepare_file(fdf));
+	return fd_publish(fdf);
 }
 EXPORT_SYMBOL_GPL(receive_fd);
 

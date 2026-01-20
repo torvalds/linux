@@ -505,7 +505,7 @@ static int rt1318_dac_event(struct snd_soc_dapm_widget *w,
 static int rt1318_dvol_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1318_priv *rt1318 = snd_soc_component_get_drvdata(component);
 
 	rt1318->rt1318_dvol = ucontrol->value.integer.value[0];
@@ -528,7 +528,7 @@ static int rt1318_dvol_put(struct snd_kcontrol *kcontrol,
 static int rt1318_dvol_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt1318_priv *rt1318 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = rt1318->rt1318_dvol;

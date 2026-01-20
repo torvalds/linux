@@ -6,35 +6,23 @@
 #ifndef _XE_GT_SRIOV_PF_MIGRATION_TYPES_H_
 #define _XE_GT_SRIOV_PF_MIGRATION_TYPES_H_
 
-#include <linux/mutex.h>
-#include <linux/types.h>
+#include <linux/ptr_ring.h>
 
 /**
- * struct xe_gt_sriov_state_snapshot - GT-level per-VF state snapshot data.
+ * struct xe_gt_sriov_migration_data - GT-level per-VF migration data.
  *
  * Used by the PF driver to maintain per-VF migration data.
  */
-struct xe_gt_sriov_state_snapshot {
-	/** @guc: GuC VF state snapshot */
+struct xe_gt_sriov_migration_data {
+	/** @ring: queue containing VF save / restore migration data */
+	struct ptr_ring ring;
+	/** @save: structure for currently processed save migration data */
 	struct {
-		/** @guc.buff: buffer with the VF state */
-		u32 *buff;
-		/** @guc.size: size of the buffer (must be dwords aligned) */
-		u32 size;
-	} guc;
-};
-
-/**
- * struct xe_gt_sriov_pf_migration - GT-level data.
- *
- * Used by the PF driver to maintain non-VF specific per-GT data.
- */
-struct xe_gt_sriov_pf_migration {
-	/** @supported: indicates whether the feature is supported */
-	bool supported;
-
-	/** @snapshot_lock: protects all VFs snapshots */
-	struct mutex snapshot_lock;
+		/** @save.data_remaining: bitmap of migration types that need to be saved */
+		unsigned long data_remaining;
+		/** @save.vram_offset: last saved offset within VRAM, used for chunked VRAM save */
+		loff_t vram_offset;
+	} save;
 };
 
 #endif

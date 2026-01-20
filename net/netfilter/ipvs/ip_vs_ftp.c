@@ -16,8 +16,7 @@
  * Author:	Wouter Gadeyne
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>

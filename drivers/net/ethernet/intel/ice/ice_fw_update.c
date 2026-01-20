@@ -534,7 +534,7 @@ ice_erase_nvm_module(struct ice_pf *pf, u16 module, const char *component,
 	}
 
 	if (completion_retval) {
-		dev_err(dev, "Firmware failed to erase %s (module 0x02%x), aq_err %s\n",
+		dev_err(dev, "Firmware failed to erase %s (module 0x%02x), aq_err %s\n",
 			component, module,
 			libie_aq_str((enum libie_aq_err)completion_retval));
 		NL_SET_ERR_MSG_MOD(extack, "Firmware failed to erase flash");

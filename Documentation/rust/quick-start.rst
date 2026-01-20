@@ -39,8 +39,8 @@ of the box, e.g.::
 Debian
 ******
 
-Debian Testing and Debian Unstable (Sid), outside of the freeze period, provide
-recent Rust releases and thus they should generally work out of the box, e.g.::
+Debian 13 (Trixie), as well as Testing and Debian Unstable (Sid) provide recent
+Rust releases and thus they should generally work out of the box, e.g.::
 
 	apt install rustc rust-src bindgen rustfmt rust-clippy
 

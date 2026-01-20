@@ -14,8 +14,7 @@
  * Derived from "crypto/aes_generic.c"
  */
 
-#define KMSG_COMPONENT "aes_s390"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "aes_s390: " fmt
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>

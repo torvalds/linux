@@ -1,0 +1,24 @@
+menuconfig ARM64_MPAM_DRIVER
+	bool "MPAM driver"
+	depends on ARM64 && ARM64_MPAM && EXPERT
+	help
+	  Memory System Resource Partitioning and Monitoring (MPAM) driver for
+	  System IP, e.g. caches and memory controllers.
+
+if ARM64_MPAM_DRIVER
+
+config ARM64_MPAM_DRIVER_DEBUG
+	bool "Enable debug messages from the MPAM driver"
+	help
+	  Say yes here to enable debug messages from the MPAM driver.
+
+config MPAM_KUNIT_TEST
+	bool "KUnit tests for MPAM driver " if !KUNIT_ALL_TESTS
+	depends on KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to run tests in the MPAM driver.
+
+	  If unsure, say N.
+
+endif

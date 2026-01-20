@@ -9,7 +9,11 @@
 	.macro	__EFI_PE_HEADER
 	.long	IMAGE_NT_SIGNATURE
 .Lcoff_header:
+#ifdef CONFIG_32BIT
+	.short	IMAGE_FILE_MACHINE_LOONGARCH32		/* Machine */
+#else
 	.short	IMAGE_FILE_MACHINE_LOONGARCH64		/* Machine */
+#endif
 	.short	.Lsection_count				/* NumberOfSections */
 	.long	0 					/* TimeDateStamp */
 	.long	0					/* PointerToSymbolTable */

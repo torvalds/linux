@@ -939,10 +939,10 @@ static struct mlx5_flow_group *alloc_insert_flow_group(struct mlx5_flow_table *f
 	return fg;
 }
 
-static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport,
-						enum fs_flow_table_type table_type,
-						enum fs_flow_table_op_mod op_mod,
-						u32 flags)
+static struct mlx5_flow_table *
+alloc_flow_table(struct mlx5_flow_table_attr *ft_attr, u16 vport,
+		 enum fs_flow_table_type table_type,
+		 enum fs_flow_table_op_mod op_mod)
 {
 	struct mlx5_flow_table *ft;
 	int ret;
@@ -957,12 +957,13 @@ static struct mlx5_flow_table *alloc_flow_table(int level, u16 vport,
 		return ERR_PTR(ret);
 	}
 
-	ft->level = level;
+	ft->level = ft_attr->level;
 	ft->node.type = FS_TYPE_FLOW_TABLE;
 	ft->op_mod = op_mod;
 	ft->type = table_type;
 	ft->vport = vport;
-	ft->flags = flags;
+	ft->esw_owner_vhca_id = ft_attr->esw_owner_vhca_id;
+	ft->flags = ft_attr->flags;
 	INIT_LIST_HEAD(&ft->fwd_rules);
 	mutex_init(&ft->lock);
 
@@ -1370,10 +1371,7 @@ static struct mlx5_flow_table *__mlx5_create_flow_table(struct mlx5_flow_namespa
 	/* The level is related to the
 	 * priority level range.
 	 */
-	ft = alloc_flow_table(ft_attr->level,
-			      vport,
-			      root->table_type,
-			      op_mod, ft_attr->flags);
+	ft = alloc_flow_table(ft_attr, vport, root->table_type, op_mod);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto unlock_root;
@@ -3310,6 +3308,62 @@ err:
 	return ret;
 }
 
+static bool mlx5_fs_ns_is_empty(struct mlx5_flow_namespace *ns)
+{
+	struct fs_prio *iter_prio;
+
+	fs_for_each_prio(iter_prio, ns) {
+		if (iter_prio->num_ft)
+			return false;
+	}
+
+	return true;
+}
+
+int mlx5_fs_set_root_dev(struct mlx5_core_dev *dev,
+			 struct mlx5_core_dev *new_dev,
+			 enum fs_flow_table_type table_type)
+{
+	struct mlx5_flow_root_namespace	**root;
+	int total_vports;
+	int i;
+
+	switch (table_type) {
+	case FS_FT_RDMA_TRANSPORT_TX:
+		root = dev->priv.steering->rdma_transport_tx_root_ns;
+		total_vports = dev->priv.steering->rdma_transport_tx_vports;
+		break;
+	case FS_FT_RDMA_TRANSPORT_RX:
+		root = dev->priv.steering->rdma_transport_rx_root_ns;
+		total_vports = dev->priv.steering->rdma_transport_rx_vports;
+		break;
+	default:
+		WARN_ON_ONCE(true);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < total_vports; i++) {
+		mutex_lock(&root[i]->chain_lock);
+		if (!mlx5_fs_ns_is_empty(&root[i]->ns)) {
+			mutex_unlock(&root[i]->chain_lock);
+			goto err;
+		}
+		root[i]->dev = new_dev;
+		mutex_unlock(&root[i]->chain_lock);
+	}
+	return 0;
+err:
+	while (i--) {
+		mutex_lock(&root[i]->chain_lock);
+		root[i]->dev = dev;
+		mutex_unlock(&root[i]->chain_lock);
+	}
+	/* If you hit this error try destroying all flow tables and try again */
+	mlx5_core_err(dev, "Failed to set root device for RDMA TRANSPORT\n");
+	return -EINVAL;
+}
+EXPORT_SYMBOL(mlx5_fs_set_root_dev);
+
 static int init_rdma_transport_rx_root_ns(struct mlx5_flow_steering *steering)
 {
 	struct mlx5_core_dev *dev = steering->dev;
@@ -3519,6 +3573,11 @@ static int init_fdb_root_ns(struct mlx5_flow_steering *steering)
 	steering->fdb_root_ns = create_root_ns(steering, FS_FT_FDB);
 	if (!steering->fdb_root_ns)
 		return -ENOMEM;
+
+	maj_prio = fs_create_prio(&steering->fdb_root_ns->ns, FDB_DROP_ROOT, 1);
+	err = PTR_ERR_OR_ZERO(maj_prio);
+	if (err)
+		goto out_err;
 
 	err = create_fdb_bypass(steering);
 	if (err)
@@ -3774,7 +3833,8 @@ static int mlx5_fs_mode_set(struct devlink *devlink, u32 id,
 }
 
 static int mlx5_fs_mode_get(struct devlink *devlink, u32 id,
-			    struct devlink_param_gset_ctx *ctx)
+			    struct devlink_param_gset_ctx *ctx,
+			    struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 

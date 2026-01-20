@@ -39,7 +39,7 @@ asmlinkage void mul_Xsig_Xsig(Xsig *dest, const Xsig *mult);
 asmlinkage void shr_Xsig(Xsig *, const int n);
 asmlinkage int round_Xsig(Xsig *);
 asmlinkage int norm_Xsig(Xsig *);
-asmlinkage void div_Xsig(Xsig *x1, const Xsig *x2, const Xsig *dest);
+asmlinkage void div_Xsig(Xsig *x1, const Xsig *x2, Xsig *dest);
 
 /* Macro to extract the most significant 32 bits from a long long */
 #define LL_MSW(x)     (((unsigned long *)&x)[1])

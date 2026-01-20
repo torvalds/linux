@@ -46,6 +46,7 @@ properties:
               - aspeed,ast2400-ehci
               - aspeed,ast2500-ehci
               - aspeed,ast2600-ehci
+              - aspeed,ast2700-ehci
               - brcm,bcm3384-ehci
               - brcm,bcm63268-ehci
               - brcm,bcm6328-ehci

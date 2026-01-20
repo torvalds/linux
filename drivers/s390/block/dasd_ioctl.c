@@ -11,7 +11,6 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/compat.h>
 #include <linux/export.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -616,10 +615,7 @@ int dasd_ioctl(struct block_device *bdev, blk_mode_t mode,
 	void __user *argp;
 	int rc;
 
-	if (is_compat_task())
-		argp = compat_ptr(arg);
-	else
-		argp = (void __user *)arg;
+	argp = (void __user *)arg;
 
 	if ((_IOC_DIR(cmd) != _IOC_NONE) && !arg)
 		return -EINVAL;

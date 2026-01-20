@@ -177,8 +177,9 @@ u64 snd_soc_dai_get_fmt(const struct snd_soc_dai *dai, int priority)
 	if (max < until)
 		until = max;
 
-	for (i = 0; i < until; i++)
-		fmt |= ops->auto_selectable_formats[i];
+	if (ops && ops->auto_selectable_formats)
+		for (i = 0; i < until; i++)
+			fmt |= ops->auto_selectable_formats[i];
 
 	return fmt;
 }

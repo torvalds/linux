@@ -562,7 +562,7 @@ static int ssm2602_resume(struct snd_soc_component *component)
 
 static int ssm2602_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct ssm2602_priv *ssm2602 = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -587,7 +587,7 @@ static int ssm2602_component_probe(struct snd_soc_component *component)
 
 static int ssm2604_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	int ret;
 
 	ret = snd_soc_dapm_new_controls(dapm, ssm2604_dapm_widgets,

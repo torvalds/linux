@@ -2,13 +2,14 @@
 /*
  * Copyright (C) 2015 Pengutronix, Steffen Trumtrar <kernel@pengutronix.de>
  * Copyright (C) 2021 Pengutronix, Ahmad Fatoum <kernel@pengutronix.de>
- * Copyright 2024 NXP
+ * Copyright 2024-2025 NXP
  */
 
 #define pr_fmt(fmt) "caam blob_gen: " fmt
 
 #include <linux/bitfield.h>
 #include <linux/device.h>
+#include <keys/trusted-type.h>
 #include <soc/fsl/caam-blob.h>
 
 #include "compat.h"
@@ -60,18 +61,27 @@ static void caam_blob_job_done(struct device *dev, u32 *desc, u32 err, void *con
 	complete(&res->completion);
 }
 
+static u32 check_caam_state(struct device *jrdev)
+{
+	const struct caam_drv_private *ctrlpriv;
+
+	ctrlpriv = dev_get_drvdata(jrdev->parent);
+	return FIELD_GET(CSTA_MOO, rd_reg32(&ctrlpriv->jr[0]->perfmon.status));
+}
+
 int caam_process_blob(struct caam_blob_priv *priv,
 		      struct caam_blob_info *info, bool encap)
 {
-	const struct caam_drv_private *ctrlpriv;
 	struct caam_blob_job_result testres;
 	struct device *jrdev = &priv->jrdev;
 	dma_addr_t dma_in, dma_out;
 	int op = OP_PCLID_BLOB;
+	int hwbk_caam_ovhd = 0;
 	size_t output_len;
 	u32 *desc;
 	u32 moo;
 	int ret;
+	int len;
 
 	if (info->key_mod_len > CAAM_BLOB_KEYMOD_LENGTH)
 		return -EINVAL;
@@ -82,14 +92,29 @@ int caam_process_blob(struct caam_blob_priv *priv,
 	} else {
 		op |= OP_TYPE_DECAP_PROTOCOL;
 		output_len = info->input_len - CAAM_BLOB_OVERHEAD;
+		info->output_len = output_len;
+	}
+
+	if (encap && info->pkey_info.is_pkey) {
+		op |= OP_PCL_BLOB_BLACK;
+		if (info->pkey_info.key_enc_algo == CAAM_ENC_ALGO_CCM) {
+			op |= OP_PCL_BLOB_EKT;
+			hwbk_caam_ovhd = CAAM_CCM_OVERHEAD;
+		}
+		if ((info->input_len + hwbk_caam_ovhd) > MAX_KEY_SIZE)
+			return -EINVAL;
+
+		len = info->input_len + hwbk_caam_ovhd;
+	} else {
+		len = info->input_len;
 	}
 
 	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
-	dma_in = dma_map_single(jrdev, info->input, info->input_len,
-				DMA_TO_DEVICE);
+	dma_in = dma_map_single(jrdev, info->input, len,
+				encap ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE);
 	if (dma_mapping_error(jrdev, dma_in)) {
 		dev_err(jrdev, "unable to map input DMA buffer\n");
 		ret = -ENOMEM;
@@ -104,8 +129,7 @@ int caam_process_blob(struct caam_blob_priv *priv,
 		goto out_unmap_in;
 	}
 
-	ctrlpriv = dev_get_drvdata(jrdev->parent);
-	moo = FIELD_GET(CSTA_MOO, rd_reg32(&ctrlpriv->jr[0]->perfmon.status));
+	moo = check_caam_state(jrdev);
 	if (moo != CSTA_MOO_SECURE && moo != CSTA_MOO_TRUSTED)
 		dev_warn(jrdev,
 			 "using insecure test key, enable HAB to use unique device key!\n");
@@ -117,18 +141,48 @@ int caam_process_blob(struct caam_blob_priv *priv,
 	 * Class 1 Context DWords 0+1+2+3. The random BK is stored in the
 	 * Class 1 Key Register. Operation Mode is set to AES-CCM.
 	 */
-
 	init_job_desc(desc, 0);
+
+	if (encap && info->pkey_info.is_pkey) {
+		/*!1. key command used to load class 1 key register
+		 *    from input plain key.
+		 */
+		append_key(desc, dma_in, info->input_len,
+				CLASS_1 | KEY_DEST_CLASS_REG);
+		/*!2. Fifostore to store protected key from class 1 key register. */
+		if (info->pkey_info.key_enc_algo == CAAM_ENC_ALGO_CCM) {
+			append_fifo_store(desc, dma_in, info->input_len,
+					  LDST_CLASS_1_CCB |
+					  FIFOST_TYPE_KEY_CCM_JKEK);
+		} else {
+			append_fifo_store(desc, dma_in, info->input_len,
+					  LDST_CLASS_1_CCB |
+					  FIFOST_TYPE_KEY_KEK);
+		}
+		/*
+		 * JUMP_OFFSET specifies the offset of the JUMP target from
+		 * the JUMP command's address in the descriptor buffer.
+		 */
+		append_jump(desc, JUMP_COND_NOP | BIT(0) << JUMP_OFFSET_SHIFT);
+	}
+
+	/*!3. Load class 2 key with key modifier. */
 	append_key_as_imm(desc, info->key_mod, info->key_mod_len,
-			  info->key_mod_len, CLASS_2 | KEY_DEST_CLASS_REG);
-	append_seq_in_ptr_intlen(desc, dma_in, info->input_len, 0);
-	append_seq_out_ptr_intlen(desc, dma_out, output_len, 0);
+			info->key_mod_len, CLASS_2 | KEY_DEST_CLASS_REG);
+
+	/*!4. SEQ IN PTR Command. */
+	append_seq_in_ptr(desc, dma_in, info->input_len, 0);
+
+	/*!5. SEQ OUT PTR Command. */
+	append_seq_out_ptr(desc, dma_out, output_len, 0);
+
+	/*!6. Blob encapsulation/decapsulation PROTOCOL Command. */
 	append_operation(desc, op);
 
-	print_hex_dump_debug("data@"__stringify(__LINE__)": ",
+	print_hex_dump_debug("data@" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 1, info->input,
-			     info->input_len, false);
-	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     len, false);
+	print_hex_dump_debug("jobdesc@" __stringify(__LINE__)": ",
 			     DUMP_PREFIX_ADDRESS, 16, 1, desc,
 			     desc_bytes(desc), false);
 
@@ -139,7 +193,7 @@ int caam_process_blob(struct caam_blob_priv *priv,
 	if (ret == -EINPROGRESS) {
 		wait_for_completion(&testres.completion);
 		ret = testres.err;
-		print_hex_dump_debug("output@"__stringify(__LINE__)": ",
+		print_hex_dump_debug("output@" __stringify(__LINE__)": ",
 				     DUMP_PREFIX_ADDRESS, 16, 1, info->output,
 				     output_len, false);
 	}
@@ -149,10 +203,10 @@ int caam_process_blob(struct caam_blob_priv *priv,
 
 	dma_unmap_single(jrdev, dma_out, output_len, DMA_FROM_DEVICE);
 out_unmap_in:
-	dma_unmap_single(jrdev, dma_in, info->input_len, DMA_TO_DEVICE);
+	dma_unmap_single(jrdev, dma_in, len,
+			 encap ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE);
 out_free:
 	kfree(desc);
-
 	return ret;
 }
 EXPORT_SYMBOL(caam_process_blob);

@@ -23,6 +23,25 @@
 #define DW9719_CTRL_STEPS	16
 #define DW9719_CTRL_DELAY_US	1000
 
+#define DW9718S_PD			CCI_REG8(0)
+
+#define DW9718S_CONTROL			CCI_REG8(1)
+#define DW9718S_CONTROL_SW_LINEAR	BIT(0)
+#define DW9718S_CONTROL_SAC_SHIFT	1
+#define DW9718S_CONTROL_SAC_MASK	0x7
+#define DW9718S_CONTROL_OCP_DISABLE	BIT(4)
+#define DW9718S_CONTROL_UVLO_DISABLE	BIT(5)
+#define DW9718S_DEFAULT_SAC		4
+
+#define DW9718S_VCM_CURRENT		CCI_REG16(2)
+
+#define DW9718S_SW			CCI_REG8(4)
+#define DW9718S_SW_VCM_FREQ_MASK	0xF
+#define DW9718S_DEFAULT_VCM_FREQ	0
+
+#define DW9718S_SACT			CCI_REG8(5)
+#define DW9718S_SACT_PERIOD_8_8MS	0x19
+
 #define DW9719_INFO			CCI_REG8(0)
 #define DW9719_ID			0xF1
 #define DW9761_ID			0xF4
@@ -49,12 +68,17 @@
 #define DW9761_VCM_PRELOAD		CCI_REG8(8)
 #define DW9761_DEFAULT_VCM_PRELOAD	0x73
 
+#define DW9800K_DEFAULT_SAC		1
+#define DW9800K_MODE_SAC_SHIFT		6
+#define DW9800K_DEFAULT_VCM_FREQ		0x10
 
 #define to_dw9719_device(x) container_of(x, struct dw9719_device, sd)
 
 enum dw9719_model {
+	DW9718S,
 	DW9719,
 	DW9761,
+	DW9800K,
 };
 
 struct dw9719_device {
@@ -75,26 +99,55 @@ struct dw9719_device {
 
 static int dw9719_power_down(struct dw9719_device *dw9719)
 {
+	u32 reg_pwr = dw9719->model == DW9718S ? DW9718S_PD : DW9719_CONTROL;
+
+	/*
+	 * Worth engaging the internal SHUTDOWN mode especially due to the
+	 * regulator being potentially shared with other devices.
+	 */
+	if (cci_write(dw9719->regmap, reg_pwr, DW9719_SHUTDOWN, NULL))
+		dev_err(dw9719->dev, "Error writing to power register\n");
 	return regulator_disable(dw9719->regulator);
 }
 
 static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 {
+	u32 reg_pwr = dw9719->model == DW9718S ? DW9718S_PD : DW9719_CONTROL;
 	u64 val;
 	int ret;
+	int err;
 
 	ret = regulator_enable(dw9719->regulator);
 	if (ret)
 		return ret;
 
-	/* Jiggle SCL pin to wake up device */
-	cci_write(dw9719->regmap, DW9719_CONTROL, DW9719_SHUTDOWN, &ret);
-	fsleep(100);
-	cci_write(dw9719->regmap, DW9719_CONTROL, DW9719_STANDBY, &ret);
-	/* Need 100us to transit from SHUTDOWN to STANDBY */
-	fsleep(100);
+	/*
+	 * Need 100us to transition from SHUTDOWN to STANDBY.
+	 * Jiggle the SCL pin to wake up the device (even when the regulator is
+	 * shared) and wait double the time to be sure, as 100us is not enough
+	 * at least on the DW9718S as found on the motorola-nora smartphone,
+	 * then retry the write.
+	 */
+	cci_write(dw9719->regmap, reg_pwr, DW9719_STANDBY, NULL);
+	/* the jiggle is expected to fail, don't even log that as error */
+	fsleep(200);
+	cci_write(dw9719->regmap, reg_pwr, DW9719_STANDBY, &ret);
 
 	if (detect) {
+		/* These models do not have an INFO register */
+		switch (dw9719->model) {
+		case DW9718S:
+			dw9719->sac_mode = DW9718S_DEFAULT_SAC;
+			dw9719->vcm_freq = DW9718S_DEFAULT_VCM_FREQ;
+			goto props;
+		case DW9800K:
+			dw9719->sac_mode = DW9800K_DEFAULT_SAC;
+			dw9719->vcm_freq = DW9800K_DEFAULT_VCM_FREQ;
+			goto props;
+		default:
+			break;
+		}
+
 		ret = cci_read(dw9719->regmap, DW9719_INFO, &val, NULL);
 		if (ret < 0)
 			return ret;
@@ -118,23 +171,52 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 			return -ENXIO;
 		}
 
+props:
 		/* Optional indication of SAC mode select */
 		device_property_read_u32(dw9719->dev, "dongwoon,sac-mode",
 					 &dw9719->sac_mode);
 
 		/* Optional indication of VCM frequency */
-		device_property_read_u32(dw9719->dev, "dongwoon,vcm-freq",
+		err = device_property_read_u32(dw9719->dev, "dongwoon,vcm-freq",
+					       &dw9719->vcm_freq);
+		if (err == 0)
+			dev_warn(dw9719->dev, "dongwoon,vcm-freq property is deprecated, please use dongwoon,vcm-prescale\n");
+
+		/* Optional indication of VCM prescale */
+		device_property_read_u32(dw9719->dev, "dongwoon,vcm-prescale",
 					 &dw9719->vcm_freq);
 	}
 
-	cci_write(dw9719->regmap, DW9719_CONTROL, DW9719_ENABLE_RINGING, &ret);
-	cci_write(dw9719->regmap, DW9719_MODE, dw9719->mode_low_bits |
-			  (dw9719->sac_mode << DW9719_MODE_SAC_SHIFT), &ret);
-	cci_write(dw9719->regmap, DW9719_VCM_FREQ, dw9719->vcm_freq, &ret);
-
-	if (dw9719->model == DW9761)
+	switch (dw9719->model) {
+	case DW9800K:
+		cci_write(dw9719->regmap, DW9719_CONTROL, DW9719_ENABLE_RINGING, &ret);
+		cci_write(dw9719->regmap, DW9719_MODE,
+			  dw9719->sac_mode << DW9800K_MODE_SAC_SHIFT, &ret);
+		cci_write(dw9719->regmap, DW9719_VCM_FREQ, dw9719->vcm_freq, &ret);
+		break;
+	case DW9718S:
+		/* Datasheet says [OCP/UVLO] should be disabled below 2.5V */
+		dw9719->sac_mode &= DW9718S_CONTROL_SAC_MASK;
+		cci_write(dw9719->regmap, DW9718S_CONTROL,
+			  DW9718S_CONTROL_SW_LINEAR |
+			  (dw9719->sac_mode << DW9718S_CONTROL_SAC_SHIFT) |
+			  DW9718S_CONTROL_OCP_DISABLE |
+			  DW9718S_CONTROL_UVLO_DISABLE, &ret);
+		cci_write(dw9719->regmap, DW9718S_SACT,
+			  DW9718S_SACT_PERIOD_8_8MS, &ret);
+		cci_write(dw9719->regmap, DW9718S_SW,
+			  dw9719->vcm_freq & DW9718S_SW_VCM_FREQ_MASK, &ret);
+		break;
+	case DW9761:
 		cci_write(dw9719->regmap, DW9761_VCM_PRELOAD,
 			  DW9761_DEFAULT_VCM_PRELOAD, &ret);
+		fallthrough;
+	case DW9719:
+		cci_write(dw9719->regmap, DW9719_CONTROL, DW9719_ENABLE_RINGING, &ret);
+		cci_write(dw9719->regmap, DW9719_MODE, dw9719->mode_low_bits |
+				  (dw9719->sac_mode << DW9719_MODE_SAC_SHIFT), &ret);
+		cci_write(dw9719->regmap, DW9719_VCM_FREQ, dw9719->vcm_freq, &ret);
+	}
 
 	if (ret)
 		dw9719_power_down(dw9719);
@@ -144,7 +226,9 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
 
 static int dw9719_t_focus_abs(struct dw9719_device *dw9719, s32 value)
 {
-	return cci_write(dw9719->regmap, DW9719_VCM_CURRENT, value, NULL);
+	u32 reg = dw9719->model == DW9718S ? DW9718S_VCM_CURRENT
+					   : DW9719_VCM_CURRENT;
+	return cci_write(dw9719->regmap, reg, value, NULL);
 }
 
 static int dw9719_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -229,7 +313,7 @@ static int dw9719_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int dw9719_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	pm_runtime_put(sd->dev);
+	pm_runtime_put_autosuspend(sd->dev);
 
 	return 0;
 }
@@ -274,6 +358,8 @@ static int dw9719_probe(struct i2c_client *client)
 	dw9719 = devm_kzalloc(&client->dev, sizeof(*dw9719), GFP_KERNEL);
 	if (!dw9719)
 		return -ENOMEM;
+
+	dw9719->model = (enum dw9719_model)(uintptr_t)i2c_get_match_data(client);
 
 	dw9719->regmap = devm_cci_regmap_init_i2c(client, 8);
 	if (IS_ERR(dw9719->regmap))
@@ -353,12 +439,14 @@ static void dw9719_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 }
 
-static const struct i2c_device_id dw9719_id_table[] = {
-	{ "dw9719" },
-	{ "dw9761" },
+static const struct of_device_id dw9719_of_table[] = {
+	{ .compatible = "dongwoon,dw9718s", .data = (const void *)DW9718S },
+	{ .compatible = "dongwoon,dw9719", .data = (const void *)DW9719 },
+	{ .compatible = "dongwoon,dw9761", .data = (const void *)DW9761 },
+	{ .compatible = "dongwoon,dw9800k", .data = (const void *)DW9800K },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, dw9719_id_table);
+MODULE_DEVICE_TABLE(of, dw9719_of_table);
 
 static DEFINE_RUNTIME_DEV_PM_OPS(dw9719_pm_ops, dw9719_suspend, dw9719_resume,
 				 NULL);
@@ -367,10 +455,10 @@ static struct i2c_driver dw9719_i2c_driver = {
 	.driver = {
 		.name = "dw9719",
 		.pm = pm_sleep_ptr(&dw9719_pm_ops),
+		.of_match_table = dw9719_of_table,
 	},
 	.probe = dw9719_probe,
 	.remove = dw9719_remove,
-	.id_table = dw9719_id_table,
 };
 module_i2c_driver(dw9719_i2c_driver);
 

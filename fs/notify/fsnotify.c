@@ -52,7 +52,7 @@ static void fsnotify_unmount_inodes(struct super_block *sb)
 		 * the inode cannot have any associated watches.
 		 */
 		spin_lock(&inode->i_lock);
-		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW)) {
+		if (inode_state_read(inode) & (I_FREEING | I_WILL_FREE | I_NEW)) {
 			spin_unlock(&inode->i_lock);
 			continue;
 		}

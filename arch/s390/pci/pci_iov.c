@@ -7,8 +7,7 @@
  *
  */
 
-#define KMSG_COMPONENT "zpci"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zpci: " fmt
 
 #include <linux/kernel.h>
 #include <linux/pci.h>

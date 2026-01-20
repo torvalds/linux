@@ -326,7 +326,6 @@ static irqreturn_t bcm_host_wake(int irq, void *data)
 	bt_dev_dbg(bdev, "Host wake IRQ");
 
 	pm_runtime_get(bdev->dev);
-	pm_runtime_mark_last_busy(bdev->dev);
 	pm_runtime_put_autosuspend(bdev->dev);
 
 	return IRQ_HANDLED;
@@ -698,7 +697,7 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	bcm->rx_skb = h4_recv_buf(hu->hdev, bcm->rx_skb, data, count,
+	bcm->rx_skb = h4_recv_buf(hu, bcm->rx_skb, data, count,
 				  bcm_recv_pkts, ARRAY_SIZE(bcm_recv_pkts));
 	if (IS_ERR(bcm->rx_skb)) {
 		int err = PTR_ERR(bcm->rx_skb);
@@ -710,7 +709,6 @@ static int bcm_recv(struct hci_uart *hu, const void *data, int count)
 		mutex_lock(&bcm_device_lock);
 		if (bcm->dev && bcm_device_exists(bcm->dev)) {
 			pm_runtime_get(bcm->dev->dev);
-			pm_runtime_mark_last_busy(bcm->dev->dev);
 			pm_runtime_put_autosuspend(bcm->dev->dev);
 		}
 		mutex_unlock(&bcm_device_lock);
@@ -748,10 +746,8 @@ static struct sk_buff *bcm_dequeue(struct hci_uart *hu)
 
 	skb = skb_dequeue(&bcm->txq);
 
-	if (bdev) {
-		pm_runtime_mark_last_busy(bdev->dev);
+	if (bdev)
 		pm_runtime_put_autosuspend(bdev->dev);
-	}
 
 	mutex_unlock(&bcm_device_lock);
 

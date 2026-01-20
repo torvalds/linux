@@ -5,8 +5,7 @@
  * Author(s): Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "sclp_cmd"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "sclp_cmd: " fmt
 
 #include <linux/completion.h>
 #include <linux/err.h>

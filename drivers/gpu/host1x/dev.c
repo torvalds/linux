@@ -71,6 +71,15 @@ u32 host1x_sync_readl(struct host1x *host1x, u32 r)
 	return readl(sync_regs + r);
 }
 
+#ifdef CONFIG_64BIT
+u64 host1x_sync_readq(struct host1x *host1x, u32 r)
+{
+	void __iomem *sync_regs = host1x->regs + host1x->info->sync_offset;
+
+	return readq(sync_regs + r);
+}
+#endif
+
 void host1x_ch_writel(struct host1x_channel *ch, u32 v, u32 r)
 {
 	writel(v, ch->regs + r);

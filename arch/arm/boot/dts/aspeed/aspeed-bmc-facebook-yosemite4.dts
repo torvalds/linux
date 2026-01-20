@@ -49,6 +49,20 @@
 		reg = <0x80000000 0x80000000>;
 	};
 
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		ramoops@b8dfa000 {
+			compatible = "ramoops";
+			reg = <0xb8dfa000 0x6000>;
+			record-size = <0x2000>;
+			console-size = <0x2000>;
+			pmsg-size = <0x2000>;
+			max-reason = <1>;
+		};
+	};
+
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,

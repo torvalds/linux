@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-3-Clause-Clear
 config MT7915E
 	tristate "MediaTek MT7915E (PCIe) support"
 	select MT76_CONNAC_LIB

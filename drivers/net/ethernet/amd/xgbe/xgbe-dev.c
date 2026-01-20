@@ -211,6 +211,7 @@ static void xgbe_config_sph_mode(struct xgbe_prv_data *pdata)
 	}
 
 	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, HDSMS, XGBE_SPH_HDSMS_SIZE);
+	pdata->sph = true;
 }
 
 static void xgbe_disable_sph_mode(struct xgbe_prv_data *pdata)
@@ -223,6 +224,7 @@ static void xgbe_disable_sph_mode(struct xgbe_prv_data *pdata)
 
 		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, SPH, 0);
 	}
+	pdata->sph = false;
 }
 
 static int xgbe_write_rss_reg(struct xgbe_prv_data *pdata, unsigned int type,
@@ -3577,4 +3579,21 @@ void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *hw_if)
 	hw_if->disable_sph = xgbe_disable_sph_mode;
 
 	DBGPR("<--xgbe_init_function_ptrs\n");
+}
+
+int xgbe_enable_mac_loopback(struct xgbe_prv_data *pdata)
+{
+	/* Enable MAC loopback mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, LM, 1);
+
+	/* Wait for loopback to stabilize */
+	usleep_range(10, 15);
+
+	return 0;
+}
+
+void xgbe_disable_mac_loopback(struct xgbe_prv_data *pdata)
+{
+	/* Disable MAC loopback mode */
+	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, LM, 0);
 }

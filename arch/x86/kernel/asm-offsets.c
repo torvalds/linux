@@ -124,4 +124,7 @@ static void __used common(void)
 	OFFSET(ARIA_CTX_rounds, aria_ctx, rounds);
 #endif
 
+	BLANK();
+	DEFINE(ALT_INSTR_SIZE,	sizeof(struct alt_instr));
+	DEFINE(EXTABLE_SIZE,	sizeof(struct exception_table_entry));
 }

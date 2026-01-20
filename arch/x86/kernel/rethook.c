@@ -25,7 +25,7 @@ asm(
 	".type arch_rethook_trampoline, @function\n"
 	"arch_rethook_trampoline:\n"
 #ifdef CONFIG_X86_64
-	ANNOTATE_NOENDBR	/* This is only jumped from ret instruction */
+	ANNOTATE_NOENDBR "\n"	/* This is only jumped from ret instruction */
 	/* Push a fake return address to tell the unwinder it's a rethook. */
 	"	pushq $arch_rethook_trampoline\n"
 	UNWIND_HINT_FUNC

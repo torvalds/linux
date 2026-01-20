@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0
+.. c:namespace:: V4L
 
 .. _v4l2-meta-fmt-rpi-fe-cfg:
 

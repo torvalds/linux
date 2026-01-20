@@ -277,12 +277,6 @@ handle_line() {
 		fi
 	done
 
-	if [[ ${words[$last]} =~ ^[0-9a-f]+\] ]]; then
-		words[$last-1]="${words[$last-1]} ${words[$last]}"
-		unset words[$last] spaces[$last]
-		last=$(( $last - 1 ))
-	fi
-
 	# Extract info after the symbol if present. E.g.:
 	# func_name+0x54/0x80 (P)
 	#                     ^^^
@@ -291,6 +285,14 @@ handle_line() {
 	local info_str=""
 	if [[ ${words[$last]} =~ \([A-Z]*\) ]]; then
 		info_str=${words[$last]}
+		unset words[$last] spaces[$last]
+		last=$(( $last - 1 ))
+	fi
+
+	# Join module name with its build id if present, as these were
+	# split during tokenization (e.g. "[module" and "modbuildid]").
+	if [[ ${words[$last]} =~ ^[0-9a-f]+\] ]]; then
+		words[$last-1]="${words[$last-1]} ${words[$last]}"
 		unset words[$last] spaces[$last]
 		last=$(( $last - 1 ))
 	fi

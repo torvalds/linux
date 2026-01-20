@@ -590,7 +590,7 @@ static struct snd_soc_dai_driver es8316_dai = {
 static void es8316_enable_micbias_for_mic_gnd_short_detect(
 	struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "Bias");
@@ -605,7 +605,7 @@ static void es8316_enable_micbias_for_mic_gnd_short_detect(
 static void es8316_disable_micbias_for_mic_gnd_short_detect(
 	struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	snd_soc_dapm_disable_pin_unlocked(dapm, "Mic Bias");

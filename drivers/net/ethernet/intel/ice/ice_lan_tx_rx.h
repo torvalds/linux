@@ -342,6 +342,9 @@ enum ice_flg64_bits {
 /* for ice_32byte_rx_flex_desc.pkt_length member */
 #define ICE_RX_FLX_DESC_PKT_LEN_M	(0x3FFF) /* 14-bits */
 
+/* ice_32byte_rx_flex_desc::hdr_len_sph_flex_flags1 */
+#define ICE_RX_FLEX_DESC_HDR_LEN_M	GENMASK(10, 0)
+
 enum ice_rx_flex_desc_status_error_0_bits {
 	/* Note: These are predefined bit offsets */
 	ICE_RX_FLEX_DESC_STATUS0_DD_S = 0,

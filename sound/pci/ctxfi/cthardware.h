@@ -38,6 +38,7 @@ enum CTCARDS {
 	CTHENDRIX,
 	CTSB0880,
 	CTSB1270,
+	CTOK0010,
 	CT20K2_UNKNOWN,
 	NUM_CTCARDS		/* This should always be the last */
 };
@@ -62,6 +63,7 @@ struct card_conf {
 struct capabilities {
 	unsigned int digit_io_switch:1;
 	unsigned int dedicated_mic:1;
+	unsigned int dedicated_rca:1;
 	unsigned int output_switch:1;
 	unsigned int mic_source_switch:1;
 };
@@ -167,7 +169,7 @@ struct hw {
 	int (*daio_mgr_dsb_dai)(void *blk, unsigned int idx);
 	int (*daio_mgr_enb_dao)(void *blk, unsigned int idx);
 	int (*daio_mgr_dsb_dao)(void *blk, unsigned int idx);
-	int (*daio_mgr_dao_init)(void *blk, unsigned int idx,
+	int (*daio_mgr_dao_init)(struct hw *hw, void *blk, unsigned int idx,
 						unsigned int conf);
 	int (*daio_mgr_set_imaparc)(void *blk, unsigned int slot);
 	int (*daio_mgr_set_imapnxt)(void *blk, unsigned int next);

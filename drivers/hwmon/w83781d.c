@@ -1850,10 +1850,12 @@ w83781d_isa_found(unsigned short address)
 		}
 	}
 
-#define REALLY_SLOW_IO
 	/*
 	 * We need the timeouts for at least some W83781D-like
 	 * chips. But only if we read 'undefined' registers.
+	 * There used to be a "#define REALLY_SLOW_IO" to enforce that, but
+	 * this has been without any effect since more than a decade, so it
+	 * has been dropped.
 	 */
 	val = inb_p(address + 1);
 	if (inb_p(address + 2) != val
@@ -1862,7 +1864,6 @@ w83781d_isa_found(unsigned short address)
 		pr_debug("Detection failed at step %d\n", 1);
 		goto release;
 	}
-#undef REALLY_SLOW_IO
 
 	/*
 	 * We should be able to change the 7 LSB of the address port. The

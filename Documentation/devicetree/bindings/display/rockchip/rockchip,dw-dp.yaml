@@ -125,7 +125,6 @@ examples:
         power-domains = <&power RK3588_PD_VO0>;
         #sound-dai-cells = <0>;
 
-
         ports {
           #address-cells = <1>;
           #size-cells = <0>;

@@ -94,7 +94,7 @@
 			gpio-controller;
 		};
 
-		wdt@4,800 {
+		watchdog@4,800 {
 			compatible = "ge,imp3a-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x800 0x8>;
@@ -103,7 +103,7 @@
 		};
 
 		/* Second watchdog available, driver currently supports one.
-		wdt@4,808 {
+		watchdog@4,808 {
 			compatible = "gef,imp3a-fpga-wdt", "gef,fpga-wdt-1.00",
 				"gef,fpga-wdt";
 			reg = <0x4 0x808 0x8>;

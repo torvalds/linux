@@ -18,7 +18,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/platform_data/ltc4245.h>
 
@@ -51,7 +50,6 @@ enum ltc4245_cmd {
 struct ltc4245_data {
 	struct i2c_client *client;
 
-	struct mutex update_lock;
 	bool valid;
 	unsigned long last_updated; /* in jiffies */
 
@@ -132,10 +130,7 @@ static struct ltc4245_data *ltc4245_update_device(struct device *dev)
 	s32 val;
 	int i;
 
-	mutex_lock(&data->update_lock);
-
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-
 		/* Read control registers -- 0x00 to 0x07 */
 		for (i = 0; i < ARRAY_SIZE(data->cregs); i++) {
 			val = i2c_smbus_read_byte_data(client, i);
@@ -160,8 +155,6 @@ static struct ltc4245_data *ltc4245_update_device(struct device *dev)
 		data->last_updated = jiffies;
 		data->valid = true;
 	}
-
-	mutex_unlock(&data->update_lock);
 
 	return data;
 }
@@ -454,7 +447,6 @@ static int ltc4245_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	mutex_init(&data->update_lock);
 	data->use_extra_gpios = ltc4245_use_extra_gpios(client);
 
 	/* Initialize the LTC4245 chip */

@@ -459,6 +459,18 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 	struct_size((type *)NULL, member, count)
 
 /**
+ * struct_offset() - Calculate the offset of a member within a struct
+ * @p: Pointer to the struct
+ * @member: Name of the member to get the offset of
+ *
+ * Calculates the offset of a particular @member of the structure pointed
+ * to by @p.
+ *
+ * Return: number of bytes to the location of @member.
+ */
+#define struct_offset(p, member) (offsetof(typeof(*(p)), member))
+
+/**
  * __DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
  * Enables caller macro to pass arbitrary trailing expressions
  *

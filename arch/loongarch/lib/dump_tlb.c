@@ -20,9 +20,9 @@ void dump_tlb_regs(void)
 
 	pr_info("Index    : 0x%0x\n", read_csr_tlbidx());
 	pr_info("PageSize : 0x%0x\n", read_csr_pagesize());
-	pr_info("EntryHi  : 0x%0*lx\n", field, read_csr_entryhi());
-	pr_info("EntryLo0 : 0x%0*lx\n", field, read_csr_entrylo0());
-	pr_info("EntryLo1 : 0x%0*lx\n", field, read_csr_entrylo1());
+	pr_info("EntryHi  : 0x%0*lx\n", field, (unsigned long)read_csr_entryhi());
+	pr_info("EntryLo0 : 0x%0*lx\n", field, (unsigned long)read_csr_entrylo0());
+	pr_info("EntryLo1 : 0x%0*lx\n", field, (unsigned long)read_csr_entrylo1());
 }
 
 static void dump_tlb(int first, int last)
@@ -73,12 +73,16 @@ static void dump_tlb(int first, int last)
 			vwidth, (entryhi & ~0x1fffUL), asidwidth, asid & asidmask);
 
 		/* NR/NX are in awkward places, so mask them off separately */
+#ifdef CONFIG_64BIT
 		pa = entrylo0 & ~(ENTRYLO_NR | ENTRYLO_NX);
+#endif
 		pa = pa & PAGE_MASK;
 		pr_cont("\n\t[");
+#ifdef CONFIG_64BIT
 		pr_cont("nr=%d nx=%d ",
 			(entrylo0 & ENTRYLO_NR) ? 1 : 0,
 			(entrylo0 & ENTRYLO_NX) ? 1 : 0);
+#endif
 		pr_cont("pa=0x%0*llx c=%d d=%d v=%d g=%d plv=%lld] [",
 			pwidth, pa, c0,
 			(entrylo0 & ENTRYLO_D) ? 1 : 0,
@@ -86,11 +90,15 @@ static void dump_tlb(int first, int last)
 			(entrylo0 & ENTRYLO_G) ? 1 : 0,
 			(entrylo0 & ENTRYLO_PLV) >> ENTRYLO_PLV_SHIFT);
 		/* NR/NX are in awkward places, so mask them off separately */
+#ifdef CONFIG_64BIT
 		pa = entrylo1 & ~(ENTRYLO_NR | ENTRYLO_NX);
+#endif
 		pa = pa & PAGE_MASK;
+#ifdef CONFIG_64BIT
 		pr_cont("nr=%d nx=%d ",
 			(entrylo1 & ENTRYLO_NR) ? 1 : 0,
 			(entrylo1 & ENTRYLO_NX) ? 1 : 0);
+#endif
 		pr_cont("pa=0x%0*llx c=%d d=%d v=%d g=%d plv=%lld]\n",
 			pwidth, pa, c1,
 			(entrylo1 & ENTRYLO_D) ? 1 : 0,

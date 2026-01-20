@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <linux/futex.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/prctl.h>
@@ -188,4 +190,22 @@ void init_new_thread_signals(void)
 void os_set_pdeathsig(void)
 {
 	prctl(PR_SET_PDEATHSIG, SIGKILL);
+}
+
+int os_futex_wait(void *uaddr, unsigned int val)
+{
+	int r;
+
+	CATCH_EINTR(r = syscall(__NR_futex, uaddr, FUTEX_WAIT, val,
+				NULL, NULL, 0));
+	return r < 0 ? -errno : r;
+}
+
+int os_futex_wake(void *uaddr)
+{
+	int r;
+
+	CATCH_EINTR(r = syscall(__NR_futex, uaddr, FUTEX_WAKE, INT_MAX,
+				NULL, NULL, 0));
+	return r < 0 ? -errno : r;
 }

@@ -544,8 +544,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	bool retry_fault = !!(entry->src_data[1] & 0x80);
-	bool write_fault = !!(entry->src_data[1] & 0x20);
+	bool retry_fault = !!(entry->src_data[1] &
+			      AMDGPU_GMC9_FAULT_SOURCE_DATA_RETRY);
+	bool write_fault = !!(entry->src_data[1] &
+			      AMDGPU_GMC9_FAULT_SOURCE_DATA_WRITE);
 	uint32_t status = 0, cid = 0, rw = 0, fed = 0;
 	struct amdgpu_task_info *task_info;
 	struct amdgpu_vmhub *hub;

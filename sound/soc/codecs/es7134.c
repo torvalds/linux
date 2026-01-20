@@ -104,7 +104,7 @@ static int es7134_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static int es7134_component_probe(struct snd_soc_component *c)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(c);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(c);
 	struct es7134_data *priv = snd_soc_component_get_drvdata(c);
 	const struct es7134_chip *chip = priv->chip;
 	int ret;

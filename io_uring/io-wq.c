@@ -805,11 +805,12 @@ static inline bool io_should_retry_thread(struct io_worker *worker, long err)
 	 */
 	if (fatal_signal_pending(current))
 		return false;
-	if (worker->init_retries++ >= WORKER_INIT_LIMIT)
-		return false;
 
+	worker->init_retries++;
 	switch (err) {
 	case -EAGAIN:
+		return worker->init_retries <= WORKER_INIT_LIMIT;
+	/* Analogous to a fork() syscall, always retry on a restartable error */
 	case -ERESTARTSYS:
 	case -ERESTARTNOINTR:
 	case -ERESTARTNOHAND:

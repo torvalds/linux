@@ -374,9 +374,10 @@ static struct platform_driver nxp_pit_driver = {
 	.driver = {
 		.name = "nxp-pit",
 		.of_match_table = pit_timer_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = pit_timer_probe,
 };
-module_platform_driver(nxp_pit_driver);
+builtin_platform_driver(nxp_pit_driver);
 
 TIMER_OF_DECLARE(vf610, "fsl,vf610-pit", pit_timer_init);

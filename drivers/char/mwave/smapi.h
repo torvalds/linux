@@ -49,7 +49,7 @@
 #ifndef _LINUX_SMAPI_H
 #define _LINUX_SMAPI_H
 
-typedef struct {
+struct smapi_dsp_settings {
 	int bDSPPresent;
 	int bDSPEnabled;
 	int bModemEnabled;
@@ -65,10 +65,10 @@ typedef struct {
 	unsigned short usSndblstIRQ;
 	unsigned short usSndblstDMA;
 	unsigned short usSndblstBaseIO;
-} SMAPI_DSP_SETTINGS;
+};
 
 int smapi_init(void);
-int smapi_query_DSP_cfg(SMAPI_DSP_SETTINGS * pSettings);
+int smapi_query_DSP_cfg(struct smapi_dsp_settings *pSettings);
 int smapi_set_DSP_cfg(void);
 int smapi_set_DSP_power_state(bool bOn);
 

@@ -710,7 +710,7 @@ int tipc_sk_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 	return res;
 }
 
-static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
+static int tipc_bind(struct socket *sock, struct sockaddr_unsized *skaddr, int alen)
 {
 	struct tipc_uaddr *ua = (struct tipc_uaddr *)skaddr;
 	u32 atype = ua->addrtype;
@@ -726,7 +726,7 @@ static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 			return -EACCES;
 		}
 	}
-	return tipc_sk_bind(sock, skaddr, alen);
+	return tipc_sk_bind(sock, (struct sockaddr *)skaddr, alen);
 }
 
 /**
@@ -2565,7 +2565,7 @@ static bool tipc_sockaddr_is_sane(struct sockaddr_tipc *addr)
  *
  * Return: 0 on success, errno otherwise
  */
-static int tipc_connect(struct socket *sock, struct sockaddr *dest,
+static int tipc_connect(struct socket *sock, struct sockaddr_unsized *dest,
 			int destlen, int flags)
 {
 	struct sock *sk = sock->sk;
@@ -3031,10 +3031,8 @@ static void tipc_sk_remove(struct tipc_sock *tsk)
 	struct sock *sk = &tsk->sk;
 	struct tipc_net *tn = net_generic(sock_net(sk), tipc_net_id);
 
-	if (!rhashtable_remove_fast(&tn->sk_rht, &tsk->node, tsk_rht_params)) {
-		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
+	if (!rhashtable_remove_fast(&tn->sk_rht, &tsk->node, tsk_rht_params))
 		__sock_put(sk);
-	}
 }
 
 static const struct rhashtable_params tsk_rht_params = {

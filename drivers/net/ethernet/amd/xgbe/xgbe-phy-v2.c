@@ -668,7 +668,7 @@ static int xgbe_phy_mii_read_c45(struct mii_bus *mii, int addr, int devad,
 	else if (phy_data->conn_type & XGBE_CONN_TYPE_MDIO)
 		ret = xgbe_phy_mdio_mii_read_c45(pdata, addr, devad, reg);
 	else
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 
 	xgbe_phy_put_comm_ownership(pdata);
 
@@ -989,6 +989,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 		return ret;
 	}
 	phy_data->phydev = phydev;
+	phy_data->phydev->mac_managed_pm = true;
 
 	xgbe_phy_external_phy_quirks(pdata);
 

@@ -2830,6 +2830,8 @@ OF_EARLYCON_DECLARE(exynos4210, "samsung,exynos4210-uart",
 			s5pv210_early_console_setup);
 OF_EARLYCON_DECLARE(artpec8, "axis,artpec8-uart",
 			s5pv210_early_console_setup);
+OF_EARLYCON_DECLARE(exynos850, "samsung,exynos850-uart",
+			s5pv210_early_console_setup);
 
 static int __init gs101_early_console_setup(struct earlycon_device *device,
 					    const char *opt)

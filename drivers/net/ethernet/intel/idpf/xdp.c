@@ -418,7 +418,7 @@ static int idpf_xdp_setup_prog(struct idpf_vport *vport,
 	if (test_bit(IDPF_REMOVE_IN_PROG, vport->adapter->flags) ||
 	    !test_bit(IDPF_VPORT_REG_NETDEV, cfg->flags) ||
 	    !!vport->xdp_prog == !!prog) {
-		if (np->state == __IDPF_VPORT_UP)
+		if (test_bit(IDPF_VPORT_UP, np->state))
 			idpf_xdp_copy_prog_to_rqs(vport, prog);
 
 		old = xchg(&vport->xdp_prog, prog);

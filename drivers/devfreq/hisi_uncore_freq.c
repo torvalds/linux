@@ -9,6 +9,7 @@
 #include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/devfreq.h>
+#include <linux/devfreq-governor.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/errno.h>
@@ -25,8 +26,6 @@
 #include <linux/topology.h>
 #include <linux/units.h>
 #include <acpi/pcc.h>
-
-#include "governor.h"
 
 struct hisi_uncore_pcc_data {
 	u16 status;
@@ -265,9 +264,10 @@ static int hisi_uncore_target(struct device *dev, unsigned long *freq,
 		dev_err(dev, "Failed to get opp for freq %lu hz\n", *freq);
 		return PTR_ERR(opp);
 	}
-	dev_pm_opp_put(opp);
 
 	data = (u32)(dev_pm_opp_get_freq(opp) / HZ_PER_MHZ);
+
+	dev_pm_opp_put(opp);
 
 	return hisi_uncore_cmd_send(uncore, HUCF_PCC_CMD_SET_FREQ, &data);
 }

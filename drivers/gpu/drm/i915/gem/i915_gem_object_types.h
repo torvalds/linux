@@ -574,7 +574,7 @@ struct drm_i915_gem_object {
 	 */
 	u16 write_domain;
 
-	struct intel_frontbuffer __rcu *frontbuffer;
+	struct i915_frontbuffer __rcu *frontbuffer;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	unsigned int tiling_and_stride;

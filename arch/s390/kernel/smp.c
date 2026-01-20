@@ -15,8 +15,7 @@
  * operates on physical cpu numbers needs to go into smp.c.
  */
 
-#define KMSG_COMPONENT "cpu"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cpu: " fmt
 
 #include <linux/cpufeature.h>
 #include <linux/workqueue.h>
@@ -281,6 +280,9 @@ static void pcpu_attach_task(int cpu, struct task_struct *tsk)
 	lc->hardirq_timer = tsk->thread.hardirq_timer;
 	lc->softirq_timer = tsk->thread.softirq_timer;
 	lc->steal_timer = 0;
+#ifdef CONFIG_STACKPROTECTOR
+	lc->stack_canary = tsk->stack_canary;
+#endif
 }
 
 static void pcpu_start_fn(int cpu, void (*func)(void *), void *data)
@@ -305,9 +307,9 @@ static void __pcpu_delegate(pcpu_delegate_fn *func, void *data)
 	func(data);	/* should not return */
 }
 
-static void pcpu_delegate(struct pcpu *pcpu, int cpu,
-			  pcpu_delegate_fn *func,
-			  void *data, unsigned long stack)
+static void __noreturn pcpu_delegate(struct pcpu *pcpu, int cpu,
+				     pcpu_delegate_fn *func,
+				     void *data, unsigned long stack)
 {
 	struct lowcore *lc, *abs_lc;
 	unsigned int source_cpu;
@@ -370,7 +372,7 @@ static int pcpu_set_smt(unsigned int mtid)
 /*
  * Call function on the ipl CPU.
  */
-void smp_call_ipl_cpu(void (*func)(void *), void *data)
+void __noreturn smp_call_ipl_cpu(void (*func)(void *), void *data)
 {
 	struct lowcore *lc = lowcore_ptr[0];
 
@@ -697,6 +699,7 @@ static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 				continue;
 			info->core[info->configured].core_id =
 				address >> smp_cpu_mt_shift;
+			info->core[info->configured].type = boot_core_type;
 			info->configured++;
 		}
 		info->combined = info->configured;

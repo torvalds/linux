@@ -1537,7 +1537,7 @@ static void mxc_jpeg_device_run(void *priv)
 	src_buf->sequence = q_data_out->sequence++;
 	dst_buf->sequence = q_data_cap->sequence++;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, true);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	jpeg_src_buf = vb2_to_mxc_buf(&src_buf->vb2_buf);
 	if (q_data_cap->fmt->mem_planes != dst_buf->vb2_buf.num_planes) {
@@ -2491,8 +2491,6 @@ static int mxc_jpeg_s_fmt(struct mxc_jpeg_ctx *ctx,
 	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	if (vb2_is_busy(vq)) {
 		v4l2_err(&jpeg->v4l2_dev, "queue busy\n");
@@ -2528,8 +2526,6 @@ static int mxc_jpeg_s_fmt_vid_out(struct file *file, void *priv,
 		return 0;
 
 	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, cap_type);
-	if (!dst_vq)
-		return -EINVAL;
 
 	if (vb2_is_busy(dst_vq))
 		return 0;

@@ -32,6 +32,7 @@ static void hbg_irq_handle_rx_buf_val(struct hbg_priv *priv,
 				      const struct hbg_irq_info *irq_info)
 {
 	priv->stats.rx_fifo_less_empty_thrsld_cnt++;
+	hbg_hw_irq_enable(priv, irq_info->mask, true);
 }
 
 #define HBG_IRQ_I(name, handle) \

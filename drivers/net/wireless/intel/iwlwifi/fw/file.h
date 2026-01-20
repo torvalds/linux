@@ -222,7 +222,10 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
  * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
  * @IWL_UCODE_TLV_API_ADAPTIVE_DWELL: support for adaptive dwell in scanning
+ * @IWL_UCODE_TLV_API_OCE: support for OCE
+ * @IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE: new beacon template
  * @IWL_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
+ * @IWL_UCODE_TLV_API_WOWLAN_KEY_MATERIAL: WoWLAN key material support
  * @IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY: Quota command includes a field
  *	indicating low latency direction.
  * @IWL_UCODE_TLV_API_DEPRECATE_TTAK: RX status flag TTAK ok (bit 7) is
@@ -245,6 +248,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
  * @IWL_UCODE_TLV_API_MBSSID_HE: This ucode supports v2 of
  *	STA_CONTEXT_DOT11AX_API_S
+ * @IWL_UCODE_TLV_API_WOWLAN_TCP_SYN_WAKE: WoWLAN TCP-SYN wake support
  * @IWL_UCODE_TLV_API_FTM_RTT_ACCURACY: version 7 of the range response API
  *	is supported by FW, this indicates the RTT confidence value
  * @IWL_UCODE_TLV_API_SAR_TABLE_VER: This ucode supports different sar
@@ -253,6 +257,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	SCAN_CONFIG_DB_CMD_API_S.
  * @IWL_UCODE_TLV_API_ADWELL_HB_DEF_N_AP: support for setting adaptive dwell
  *	number of APs in the 5 GHz band
+ * @IWL_UCODE_TLV_API_SCAN_EXT_CHAN_VER: extended channel config in scan
  * @IWL_UCODE_TLV_API_BAND_IN_RX_DATA: FW reports band number in RX notification
  * @IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX: Firmware offloaded the station disable tx
  *	logic.
@@ -352,16 +357,24 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT: the firmware supports setting
  *	stabilization latency for SoCs.
  * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
+ * @IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT: binding CDB support
+ * @IWL_UCODE_TLV_CAPA_CDB_SUPPORT: CDB support
+ * @IWL_UCODE_TLV_CAPA_D0I3_END_FIRST: D0I3 end command comes first
  * @IWL_UCODE_TLV_CAPA_TLC_OFFLOAD: firmware implements rate scaling algorithm
  * @IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA: firmware implements quota related
  * @IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2: firmware implements Coex Schema 2
- * IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD: firmware supports CSA command
+ * @IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD: firmware supports CSA command
  * @IWL_UCODE_TLV_CAPA_ULTRA_HB_CHANNELS: firmware supports ultra high band
  *	(6 GHz).
  * @IWL_UCODE_TLV_CAPA_CS_MODIFY: firmware supports modify action CSA command
+ * @IWL_UCODE_TLV_CAPA_SET_LTR_GEN2: LTR gen2 support
+ * @IWL_UCODE_TLV_CAPA_TAS_CFG: TAS configuration support
+ * @IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD: session protection command
+ * @IWL_UCODE_TLV_CAPA_SET_PPAG: PPAG support
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
+ * @IWL_UCODE_TLV_CAPA_MULTI_QUEUE_RX_SUPPORT: MQ RX support
  * @IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD: the firmware supports CSA
  *	countdown offloading. Beacon notifications are not sent to the host.
  *	The fw also offloads TBTT alignment.
@@ -383,23 +396,46 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	command size (command version 4) that supports toggling ACK TX
  *	power reduction.
  * @IWL_UCODE_TLV_CAPA_D3_DEBUG: supports debug recording during D3
+ * @IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT: LED command support
  * @IWL_UCODE_TLV_CAPA_MCC_UPDATE_11AX_SUPPORT: MCC response support 11ax
  *	capability.
  * @IWL_UCODE_TLV_CAPA_CSI_REPORTING: firmware is capable of being configured
  *	to report the CSI information with (certain) RX frames
+ * @IWL_UCODE_TLV_CAPA_DBG_SUSPEND_RESUME_CMD_SUPP: suspend/resume command
+ * @IWL_UCODE_TLV_CAPA_DBG_BUF_ALLOC_CMD_SUPP: support for DBGC
+ *	buffer allocation command
  * @IWL_UCODE_TLV_CAPA_FTM_CALIBRATED: has FTM calibrated and thus supports both
  *	initiator and responder
  * @IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA: supports (de)activating UNII-4
  *	for US/CA/WW from BIOS
+ * @IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT: supports PSC channels
+ * @IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT: BIGTK support
  * @IWL_UCODE_TLV_CAPA_PROTECTED_TWT: Supports protection of TWT action frames
  * @IWL_UCODE_TLV_CAPA_FW_RESET_HANDSHAKE: Supports the firmware handshake in
  *	reset flow
  * @IWL_UCODE_TLV_CAPA_PASSIVE_6GHZ_SCAN: Support for passive scan on 6GHz PSC
  *      channels even when these are not enabled.
+ * @IWL_UCODE_TLV_CAPA_HIDDEN_6GHZ_SCAN: hidden SSID 6 GHz scan support
+ * @IWL_UCODE_TLV_CAPA_BROADCAST_TWT: broadcast TWT support
+ * @IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO: support for BT-coex high
+ *	priority for 802.1X/4-way-HS
+ * @IWL_UCODE_TLV_CAPA_BAID_ML_SUPPORT: multi-link BAID support
+ * @IWL_UCODE_TLV_CAPA_SYNCED_TIME: synced time command support
+ * @IWL_UCODE_TLV_CAPA_TIME_SYNC_BOTH_FTM_TM: time sync support
+ * @IWL_UCODE_TLV_CAPA_BIGTK_TX_SUPPORT: BIGTK TX support
+ * @IWL_UCODE_TLV_CAPA_MLD_API_SUPPORT: MLD API support
+ * @IWL_UCODE_TLV_CAPA_SCAN_DONT_TOGGLE_ANT: fixed antenna scan support
+ * @IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT: PPAG China BIOS support
+ * @IWL_UCODE_TLV_CAPA_OFFLOAD_BTM_SUPPORT: BTM protocol offload support
+ * @IWL_UCODE_TLV_CAPA_STA_EXP_MFP_SUPPORT: STA command MFP support
+ * @IWL_UCODE_TLV_CAPA_SNIFF_VALIDATE_SUPPORT: sniffer validate bits support
+ * @IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT: China 2022 regulator support
  * @IWL_UCODE_TLV_CAPA_DUMP_COMPLETE_SUPPORT: Support for indicating dump collection
  *	complete to FW.
  * @IWL_UCODE_TLV_CAPA_SPP_AMSDU_SUPPORT: Support SPP (signaling and payload
  *	protected) A-MSDU.
+ * @IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT: support for DBGC fragmented
+ *	DRAM buffers
  * @IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT: Support secure LTF measurement.
  * @IWL_UCODE_TLV_CAPA_MONITOR_PASSIVE_CHANS: Support monitor mode on otherwise
  *	passive channels
@@ -407,6 +443,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	for CA from BIOS.
  * @IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT: supports %TAS_UHB_ALLOWED_CANADA
  * @IWL_UCODE_TLV_CAPA_EXT_FSEQ_IMAGE_SUPPORT: external FSEQ image support
+ * @IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT: FW reset handshake is needed
+ *	during assert handling even if the dump isn't split
  * @IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE: Firmware has capability of
  *	handling raw DSM table data.
  *
@@ -487,12 +525,7 @@ enum iwl_ucode_tlv_capa {
 
 	/* set 3 */
 	IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA	= (__force iwl_ucode_tlv_capa_t)96,
-
-	/*
-	 * @IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT: supports PSC channels
-	 */
 	IWL_UCODE_TLV_CAPA_PSC_CHAN_SUPPORT		= (__force iwl_ucode_tlv_capa_t)98,
-
 	IWL_UCODE_TLV_CAPA_BIGTK_SUPPORT		= (__force iwl_ucode_tlv_capa_t)100,
 	IWL_UCODE_TLV_CAPA_SPP_AMSDU_SUPPORT		= (__force iwl_ucode_tlv_capa_t)103,
 	IWL_UCODE_TLV_CAPA_DRAM_FRAG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)104,
@@ -514,11 +547,8 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_EXT_FSEQ_IMAGE_SUPPORT	= (__force iwl_ucode_tlv_capa_t)125,
 
 	/* set 4 */
-	/**
-	 * @IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT: FW reset handshake is needed
-	 *	during assert handling even if the dump isn't split
-	 */
-	IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT		= (__force iwl_ucode_tlv_capa_t)(4 * 32 +  0),
+
+	IWL_UCODE_TLV_CAPA_RESET_DURING_ASSERT		= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 0),
 	IWL_UCODE_TLV_CAPA_FW_ACCEPTS_RAW_DSM_TABLE 	= (__force iwl_ucode_tlv_capa_t)(4 * 32 + 1),
 	NUM_IWL_UCODE_TLV_CAPA
 /*
@@ -852,6 +882,8 @@ struct iwl_fw_dbg_trigger_low_rssi {
  * @start_assoc_denied: number of denied association to start recording
  * @start_assoc_timeout: number of association timeout to start recording
  * @start_connection_loss: number of connection loss to start recording
+ * @reserved: reserved
+ * @reserved2: reserved
  */
 struct iwl_fw_dbg_trigger_mlme {
 	u8 stop_auth_denied;
@@ -885,6 +917,7 @@ struct iwl_fw_dbg_trigger_mlme {
  * @p2p_device: timeout for the queues of a P2P device in ms
  * @ibss: timeout for the queues of an IBSS in ms
  * @tdls: timeout for the queues of a TDLS station in ms
+ * @reserved: reserved
  */
 struct iwl_fw_dbg_trigger_txq_timer {
 	__le32 command_queue;
@@ -900,7 +933,7 @@ struct iwl_fw_dbg_trigger_txq_timer {
 
 /**
  * struct iwl_fw_dbg_trigger_time_event - configures a time event trigger
- * time_Events: a list of tuples <id, action_bitmap>. The driver will issue a
+ * @time_events: a list of tuples <id, action_bitmap>. The driver will issue a
  *	trigger each time a time event notification that relates to time event
  *	id with one of the actions in the bitmap is received and
  *	BIT(notif->status) is set in status_bitmap.
@@ -916,19 +949,19 @@ struct iwl_fw_dbg_trigger_time_event {
 
 /**
  * struct iwl_fw_dbg_trigger_ba - configures BlockAck related trigger
- * rx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ * @rx_ba_start: tid bitmap to configure on what tid the trigger should occur
  *	when an Rx BlockAck session is started.
- * rx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ * @rx_ba_stop: tid bitmap to configure on what tid the trigger should occur
  *	when an Rx BlockAck session is stopped.
- * tx_ba_start: tid bitmap to configure on what tid the trigger should occur
+ * @tx_ba_start: tid bitmap to configure on what tid the trigger should occur
  *	when a Tx BlockAck session is started.
- * tx_ba_stop: tid bitmap to configure on what tid the trigger should occur
+ * @tx_ba_stop: tid bitmap to configure on what tid the trigger should occur
  *	when a Tx BlockAck session is stopped.
- * rx_bar: tid bitmap to configure on what tid the trigger should occur
+ * @rx_bar: tid bitmap to configure on what tid the trigger should occur
  *	when a BAR is received (for a Tx BlockAck session).
- * tx_bar: tid bitmap to configure on what tid the trigger should occur
+ * @tx_bar: tid bitmap to configure on what tid the trigger should occur
  *	when a BAR is send (for an Rx BlocAck session).
- * frame_timeout: tid bitmap to configure on what tid the trigger should occur
+ * @frame_timeout: tid bitmap to configure on what tid the trigger should occur
  *	when a frame times out in the reordering buffer.
  */
 struct iwl_fw_dbg_trigger_ba {
@@ -946,6 +979,7 @@ struct iwl_fw_dbg_trigger_ba {
  * @action_bitmap: the TDLS action to trigger the collection upon
  * @peer_mode: trigger on specific peer or all
  * @peer: the TDLS peer to trigger the collection on
+ * @reserved: reserved
  */
 struct iwl_fw_dbg_trigger_tdls {
 	u8 action_bitmap;
@@ -958,6 +992,7 @@ struct iwl_fw_dbg_trigger_tdls {
  * struct iwl_fw_dbg_trigger_tx_status - configures trigger for tx response
  *  status.
  * @statuses: the list of statuses to trigger the collection on
+ * @reserved: reserved
  */
 struct iwl_fw_dbg_trigger_tx_status {
 	struct tx_status {
@@ -971,6 +1006,7 @@ struct iwl_fw_dbg_trigger_tx_status {
  * struct iwl_fw_dbg_conf_tlv - a TLV that describes a debug configuration.
  * @id: conf id
  * @usniffer: should the uSniffer image be used
+ * @reserved: reserved
  * @num_of_hcmds: how many HCMDs to send are present here
  * @hcmd: a variable length host command to be sent to apply the configuration.
  *	If there is more than one HCMD to send, they will appear one after the

@@ -535,19 +535,23 @@ int hibernate_resume_nonboot_cpu_disable(void)
  */
 #ifdef CONFIG_PM
 
-static int loongson_ipi_suspend(void)
+static int loongson_ipi_suspend(void *data)
 {
 	return 0;
 }
 
-static void loongson_ipi_resume(void)
+static void loongson_ipi_resume(void *data)
 {
 	iocsr_write32(0xffffffff, LOONGARCH_IOCSR_IPI_EN);
 }
 
-static struct syscore_ops loongson_ipi_syscore_ops = {
+static const struct syscore_ops loongson_ipi_syscore_ops = {
 	.resume         = loongson_ipi_resume,
 	.suspend        = loongson_ipi_suspend,
+};
+
+static struct syscore loongson_ipi_syscore = {
+	.ops = &loongson_ipi_syscore_ops,
 };
 
 /*
@@ -556,7 +560,7 @@ static struct syscore_ops loongson_ipi_syscore_ops = {
  */
 static int __init ipi_pm_init(void)
 {
-	register_syscore_ops(&loongson_ipi_syscore_ops);
+	register_syscore(&loongson_ipi_syscore);
 	return 0;
 }
 

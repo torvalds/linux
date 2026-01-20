@@ -21,7 +21,10 @@ struct ioptdesc {
 
 	struct list_head iopt_freelist_elm;
 	unsigned long __page_mapping;
-	pgoff_t __index;
+	union {
+		u8 incoherent;
+		pgoff_t __index;
+	};
 	void *_private;
 
 	unsigned int __page_type;
@@ -98,4 +101,48 @@ static inline void *iommu_alloc_pages_sz(gfp_t gfp, size_t size)
 	return iommu_alloc_pages_node_sz(NUMA_NO_NODE, gfp, size);
 }
 
-#endif	/* __IOMMU_PAGES_H */
+int iommu_pages_start_incoherent(void *virt, struct device *dma_dev);
+int iommu_pages_start_incoherent_list(struct iommu_pages_list *list,
+				      struct device *dma_dev);
+
+#ifdef CONFIG_X86
+#define IOMMU_PAGES_USE_DMA_API 0
+#include <linux/cacheflush.h>
+
+static inline void iommu_pages_flush_incoherent(struct device *dma_dev,
+						void *virt, size_t offset,
+						size_t len)
+{
+	clflush_cache_range(virt + offset, len);
+}
+static inline void
+iommu_pages_stop_incoherent_list(struct iommu_pages_list *list,
+				 struct device *dma_dev)
+{
+	/*
+	 * For performance leave the incoherent flag alone which turns this into
+	 * a NOP. For X86 the rest of the stop/free flow ignores the flag.
+	 */
+}
+static inline void iommu_pages_free_incoherent(void *virt,
+					       struct device *dma_dev)
+{
+	iommu_free_pages(virt);
+}
+#else
+#define IOMMU_PAGES_USE_DMA_API 1
+#include <linux/dma-mapping.h>
+
+static inline void iommu_pages_flush_incoherent(struct device *dma_dev,
+						void *virt, size_t offset,
+						size_t len)
+{
+	dma_sync_single_for_device(dma_dev, (uintptr_t)virt + offset, len,
+				   DMA_TO_DEVICE);
+}
+void iommu_pages_stop_incoherent_list(struct iommu_pages_list *list,
+				      struct device *dma_dev);
+void iommu_pages_free_incoherent(void *virt, struct device *dma_dev);
+#endif
+
+#endif /* __IOMMU_PAGES_H */

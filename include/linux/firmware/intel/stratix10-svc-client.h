@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2017-2018, Intel Corporation
+ * Copyright (C) 2025, Altera Corporation
  */
 
 #ifndef __STRATIX10_SVC_CLIENT_H
@@ -11,10 +12,12 @@
  *
  * fpga: for FPGA configuration
  * rsu: for remote status update
+ * hwmon: for hardware monitoring (voltage and temperature)
  */
 #define SVC_CLIENT_FPGA			"fpga"
 #define SVC_CLIENT_RSU			"rsu"
 #define SVC_CLIENT_FCS			"fcs"
+#define SVC_CLIENT_HWMON		"hwmon"
 
 /*
  * Status of the sent command, in bit number
@@ -70,6 +73,7 @@
 #define SVC_RSU_REQUEST_TIMEOUT_MS              300
 #define SVC_FCS_REQUEST_TIMEOUT_MS		2000
 #define SVC_COMPLETED_TIMEOUT_MS		30000
+#define SVC_HWMON_REQUEST_TIMEOUT_MS		300
 
 struct stratix10_svc_chan;
 
@@ -124,6 +128,9 @@ struct stratix10_svc_chan;
  * @COMMAND_RSU_DCMF_STATUS: query firmware for the DCMF status
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
+ * @COMMAND_RSU_GET_SPT_TABLE: query firmware for SPT table
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
  * @COMMAND_FCS_REQUEST_SERVICE: request validation of image from firmware,
  * return status is SVC_STATUS_OK, SVC_STATUS_INVALID_PARAM
  *
@@ -141,6 +148,12 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_FCS_RANDOM_NUMBER_GEN: generate a random number, return status
  * is SVC_STATUS_OK, SVC_STATUS_ERROR
+ *
+ * @COMMAND_HWMON_READTEMP: query the temperature from the hardware monitor,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_HWMON_READVOLT: query the voltage from the hardware monitor,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
 	/* for FPGA */
@@ -158,6 +171,7 @@ enum stratix10_svc_command_code {
 	COMMAND_RSU_DCMF_VERSION,
 	COMMAND_RSU_DCMF_STATUS,
 	COMMAND_FIRMWARE_VERSION,
+	COMMAND_RSU_GET_SPT_TABLE,
 	/* for FCS */
 	COMMAND_FCS_REQUEST_SERVICE = 20,
 	COMMAND_FCS_SEND_CERTIFICATE,
@@ -171,6 +185,9 @@ enum stratix10_svc_command_code {
 	COMMAND_MBOX_SEND_CMD = 100,
 	/* Non-mailbox SMC Call */
 	COMMAND_SMC_SVC_VERSION = 200,
+	/* for HWMON */
+	COMMAND_HWMON_READTEMP,
+	COMMAND_HWMON_READVOLT
 };
 
 /**
@@ -284,5 +301,92 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg);
  * request process.
  */
 void stratix10_svc_done(struct stratix10_svc_chan *chan);
+
+/**
+ * typedef async_callback_t - A type definition for an asynchronous callback function.
+ *
+ * This type defines a function pointer for an asynchronous callback.
+ * The callback function takes a single argument, which is a pointer to
+ * user-defined data.
+ *
+ * @cb_arg: Argument to be passed to the callback function.
+ */
+typedef void (*async_callback_t)(void *cb_arg);
+
+/**
+ * stratix10_svc_add_async_client - Add an asynchronous client to a Stratix 10
+ *                                  service channel.
+ * @chan: Pointer to the Stratix 10 service channel structure.
+ * @use_unique_clientid: Boolean flag indicating whether to use a unique client ID.
+ *
+ * This function registers an asynchronous client with the specified Stratix 10
+ * service channel. If the use_unique_clientid flag is set to true, a unique client
+ * ID will be assigned to the client.
+ *
+ * Return: 0 on success, or a negative error code on failure:
+ *         -EINVAL if the channel is NULL or the async controller is not initialized.
+ *         -EALREADY if the async channel is already allocated.
+ *         -ENOMEM if memory allocation fails.
+ *         Other negative values if ID allocation fails
+ */
+int stratix10_svc_add_async_client(struct stratix10_svc_chan *chan, bool use_unique_clientid);
+
+/**
+ * stratix10_svc_remove_async_client - Remove an asynchronous client from the Stratix 10
+ *                                     service channel.
+ * @chan: Pointer to the Stratix 10 service channel structure.
+ *
+ * This function removes an asynchronous client from the specified Stratix 10 service channel.
+ * It is typically used to clean up and release resources associated with the client.
+ *
+ * Return: 0 on success, -EINVAL if the channel or asynchronous channel is invalid.
+ */
+int stratix10_svc_remove_async_client(struct stratix10_svc_chan *chan);
+
+/**
+ * stratix10_svc_async_send - Send an asynchronous message to the SDM mailbox
+ *                            in EL3 secure firmware.
+ * @chan: Pointer to the service channel structure.
+ * @msg: Pointer to the message to be sent.
+ * @handler: Pointer to the handler object used by caller to track the transaction.
+ * @cb: Callback function to be called upon completion.
+ * @cb_arg: Argument to be passed to the callback function.
+ *
+ * This function sends a message asynchronously to the SDM mailbox in EL3 secure firmware.
+ * and registers a callback function to be invoked when the operation completes.
+ *
+ * Return: 0 on success,and negative error codes on failure.
+ */
+int stratix10_svc_async_send(struct stratix10_svc_chan *chan, void *msg, void **handler,
+			     async_callback_t cb, void *cb_arg);
+
+/**
+ * stratix10_svc_async_poll - Polls the status of an asynchronous service request.
+ * @chan: Pointer to the service channel structure.
+ * @tx_handle: Handle to the transaction being polled.
+ * @data: Pointer to the callback data structure to be filled with the result.
+ *
+ * This function checks the status of an asynchronous service request
+ * and fills the provided callback data structure with the result.
+ *
+ * Return: 0 on success, -EINVAL if any input parameter is invalid or if the
+ *         async controller is not initialized, -EAGAIN if the transaction is
+ *         still in progress, or other negative error codes on failure.
+ */
+int stratix10_svc_async_poll(struct stratix10_svc_chan *chan, void *tx_handle,
+			     struct stratix10_svc_cb_data *data);
+
+/**
+ * stratix10_svc_async_done - Complete an asynchronous transaction
+ * @chan: Pointer to the service channel structure
+ * @tx_handle: Pointer to the transaction handle
+ *
+ * This function completes an asynchronous transaction by removing the
+ * transaction from the hash table and deallocating the associated resources.
+ *
+ * Return: 0 on success, -EINVAL on invalid input or errors.
+ */
+int stratix10_svc_async_done(struct stratix10_svc_chan *chan, void *tx_handle);
+
 #endif
 

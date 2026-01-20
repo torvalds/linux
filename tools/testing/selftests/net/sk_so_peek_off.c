@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static char *afstr(int af, int proto)
 {

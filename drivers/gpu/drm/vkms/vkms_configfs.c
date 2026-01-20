@@ -204,6 +204,7 @@ static struct config_group *make_crtc_group(struct config_group *group,
 {
 	struct vkms_configfs_device *dev;
 	struct vkms_configfs_crtc *crtc;
+	int ret;
 
 	dev = child_group_to_vkms_configfs_device(group);
 
@@ -219,8 +220,9 @@ static struct config_group *make_crtc_group(struct config_group *group,
 
 		crtc->config = vkms_config_create_crtc(dev->config);
 		if (IS_ERR(crtc->config)) {
+			ret = PTR_ERR(crtc->config);
 			kfree(crtc);
-			return ERR_CAST(crtc->config);
+			return ERR_PTR(ret);
 		}
 
 		config_group_init_type_name(&crtc->group, name, &crtc_item_type);
@@ -358,6 +360,7 @@ static struct config_group *make_plane_group(struct config_group *group,
 {
 	struct vkms_configfs_device *dev;
 	struct vkms_configfs_plane *plane;
+	int ret;
 
 	dev = child_group_to_vkms_configfs_device(group);
 
@@ -373,8 +376,9 @@ static struct config_group *make_plane_group(struct config_group *group,
 
 		plane->config = vkms_config_create_plane(dev->config);
 		if (IS_ERR(plane->config)) {
+			ret = PTR_ERR(plane->config);
 			kfree(plane);
-			return ERR_CAST(plane->config);
+			return ERR_PTR(ret);
 		}
 
 		config_group_init_type_name(&plane->group, name, &plane_item_type);
@@ -472,6 +476,7 @@ static struct config_group *make_encoder_group(struct config_group *group,
 {
 	struct vkms_configfs_device *dev;
 	struct vkms_configfs_encoder *encoder;
+	int ret;
 
 	dev = child_group_to_vkms_configfs_device(group);
 
@@ -487,8 +492,9 @@ static struct config_group *make_encoder_group(struct config_group *group,
 
 		encoder->config = vkms_config_create_encoder(dev->config);
 		if (IS_ERR(encoder->config)) {
+			ret = PTR_ERR(encoder->config);
 			kfree(encoder);
-			return ERR_CAST(encoder->config);
+			return ERR_PTR(ret);
 		}
 
 		config_group_init_type_name(&encoder->group, name,
@@ -637,6 +643,7 @@ static struct config_group *make_connector_group(struct config_group *group,
 {
 	struct vkms_configfs_device *dev;
 	struct vkms_configfs_connector *connector;
+	int ret;
 
 	dev = child_group_to_vkms_configfs_device(group);
 
@@ -652,8 +659,9 @@ static struct config_group *make_connector_group(struct config_group *group,
 
 		connector->config = vkms_config_create_connector(dev->config);
 		if (IS_ERR(connector->config)) {
+			ret = PTR_ERR(connector->config);
 			kfree(connector);
-			return ERR_CAST(connector->config);
+			return ERR_PTR(ret);
 		}
 
 		config_group_init_type_name(&connector->group, name,
@@ -756,6 +764,7 @@ static struct config_group *make_device_group(struct config_group *group,
 					      const char *name)
 {
 	struct vkms_configfs_device *dev;
+	int ret;
 
 	if (strcmp(name, DEFAULT_DEVICE_NAME) == 0)
 		return ERR_PTR(-EINVAL);
@@ -766,8 +775,9 @@ static struct config_group *make_device_group(struct config_group *group,
 
 	dev->config = vkms_config_create(name);
 	if (IS_ERR(dev->config)) {
+		ret = PTR_ERR(dev->config);
 		kfree(dev);
-		return ERR_CAST(dev->config);
+		return ERR_PTR(ret);
 	}
 
 	config_group_init_type_name(&dev->group, name, &device_item_type);

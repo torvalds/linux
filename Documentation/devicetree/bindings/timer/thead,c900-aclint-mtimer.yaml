@@ -4,18 +4,23 @@
 $id: http://devicetree.org/schemas/timer/thead,c900-aclint-mtimer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sophgo CLINT Timer
+title: ACLINT Machine-level Timer Device
 
 maintainers:
   - Inochi Amaoto <inochiama@outlook.com>
 
 properties:
   compatible:
-    items:
-      - enum:
-          - sophgo,sg2042-aclint-mtimer
-          - sophgo,sg2044-aclint-mtimer
-      - const: thead,c900-aclint-mtimer
+    oneOf:
+      - items:
+          - enum:
+              - sophgo,sg2042-aclint-mtimer
+              - sophgo,sg2044-aclint-mtimer
+          - const: thead,c900-aclint-mtimer
+      - items:
+          - enum:
+              - anlogic,dr1v90-aclint-mtimer
+          - const: nuclei,ux900-aclint-mtimer
 
   reg:
     items:

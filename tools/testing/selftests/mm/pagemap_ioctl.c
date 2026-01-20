@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 #include <linux/types.h>
 #include <linux/memfd.h>
 #include <linux/userfaultfd.h>

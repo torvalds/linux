@@ -58,10 +58,10 @@ enum {
  * LM_FLAG_TRY_1CB
  * Send one blocking callback if TRY is set and the lock is not granted.
  *
- * LM_FLAG_NOEXP
+ * LM_FLAG_RECOVER
  * GFS sets this flag on lock requests it makes while doing journal recovery.
- * These special requests should not be blocked due to the recovery like
- * ordinary locks would be.
+ * While ordinary requests are blocked until the end of recovery, requests
+ * with this flag set do proceed.
  *
  * LM_FLAG_ANY
  * A SHARED request may also be granted in DEFERRED, or a DEFERRED request may
@@ -80,7 +80,7 @@ enum {
 
 #define LM_FLAG_TRY		0x0001
 #define LM_FLAG_TRY_1CB		0x0002
-#define LM_FLAG_NOEXP		0x0004
+#define LM_FLAG_RECOVER		0x0004
 #define LM_FLAG_ANY		0x0008
 #define LM_FLAG_NODE_SCOPE	0x0020
 #define GL_ASYNC		0x0040
@@ -136,7 +136,7 @@ struct lm_lockops {
 	void (*lm_first_done) (struct gfs2_sbd *sdp);
 	void (*lm_recovery_result) (struct gfs2_sbd *sdp, unsigned int jid,
 				    unsigned int result);
-	void (*lm_unmount) (struct gfs2_sbd *sdp);
+	void (*lm_unmount) (struct gfs2_sbd *sdp, bool clean);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
 	void (*lm_put_lock) (struct gfs2_glock *gl);
 	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
@@ -263,7 +263,7 @@ bool gfs2_queue_verify_delete(struct gfs2_glock *gl, bool later);
 void gfs2_cancel_delete_work(struct gfs2_glock *gl);
 void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
-void gfs2_gl_dq_holders(struct gfs2_sbd *sdp);
+void gfs2_withdraw_glocks(struct gfs2_sbd *sdp);
 void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 void gfs2_glock_free(struct gfs2_glock *gl);
 void gfs2_glock_free_later(struct gfs2_glock *gl);

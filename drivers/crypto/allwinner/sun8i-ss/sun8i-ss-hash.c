@@ -502,6 +502,7 @@ int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq)
 
 	algt = container_of(alg, struct sun8i_ss_alg_template, alg.hash.base);
 	ss = algt->ss;
+	j = 0;
 
 	digestsize = crypto_ahash_digestsize(tfm);
 	if (digestsize == SHA224_DIGEST_SIZE)
@@ -536,7 +537,6 @@ int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq)
 		goto err_dma_result;
 	}
 
-	j = 0;
 	len = areq->nbytes;
 	sg = areq->src;
 	i = 0;

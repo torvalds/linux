@@ -506,12 +506,6 @@ void __init padata_do_multithreaded(struct padata_mt_job *job)
 	padata_works_free(&works);
 }
 
-static void __padata_list_init(struct padata_list *pd_list)
-{
-	INIT_LIST_HEAD(&pd_list->list);
-	spin_lock_init(&pd_list->lock);
-}
-
 /* Initialize all percpu queues used by serial workers */
 static void padata_init_squeues(struct parallel_data *pd)
 {
@@ -521,7 +515,8 @@ static void padata_init_squeues(struct parallel_data *pd)
 	for_each_cpu(cpu, pd->cpumask.cbcpu) {
 		squeue = per_cpu_ptr(pd->squeue, cpu);
 		squeue->pd = pd;
-		__padata_list_init(&squeue->serial);
+		INIT_LIST_HEAD(&squeue->serial.list);
+		spin_lock_init(&squeue->serial.lock);
 		INIT_WORK(&squeue->work, padata_serial_worker);
 	}
 }
@@ -534,7 +529,8 @@ static void padata_init_reorder_list(struct parallel_data *pd)
 
 	for_each_cpu(cpu, pd->cpumask.pcpu) {
 		list = per_cpu_ptr(pd->reorder_list, cpu);
-		__padata_list_init(list);
+		INIT_LIST_HEAD(&list->list);
+		spin_lock_init(&list->lock);
 	}
 }
 

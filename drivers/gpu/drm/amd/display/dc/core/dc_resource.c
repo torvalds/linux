@@ -99,6 +99,40 @@
 
 #define UNABLE_TO_SPLIT -1
 
+static void capture_pipe_topology_data(struct dc *dc, int plane_idx, int slice_idx, int stream_idx,
+									   int dpp_inst, int opp_inst, int tg_inst, bool is_phantom_pipe)
+{
+	struct pipe_topology_snapshot *current_snapshot = &dc->debug_data.topology_history.snapshots[dc->debug_data.topology_history.current_snapshot_index];
+
+	if (current_snapshot->line_count >= MAX_PIPES)
+		return;
+
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].is_phantom_pipe = is_phantom_pipe;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].plane_idx = plane_idx;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].slice_idx = slice_idx;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].stream_idx = stream_idx;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].dpp_inst = dpp_inst;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].opp_inst = opp_inst;
+	current_snapshot->pipe_log_lines[current_snapshot->line_count].tg_inst = tg_inst;
+
+	current_snapshot->line_count++;
+}
+
+static void start_new_topology_snapshot(struct dc *dc, struct dc_state *state)
+{
+	// Move to next snapshot slot (circular buffer)
+	dc->debug_data.topology_history.current_snapshot_index = (dc->debug_data.topology_history.current_snapshot_index + 1) % MAX_TOPOLOGY_SNAPSHOTS;
+
+	// Clear the new snapshot
+	struct pipe_topology_snapshot *current_snapshot = &dc->debug_data.topology_history.snapshots[dc->debug_data.topology_history.current_snapshot_index];
+	memset(current_snapshot, 0, sizeof(*current_snapshot));
+
+	// Set metadata
+	current_snapshot->timestamp_us = dm_get_timestamp(dc->ctx);
+	current_snapshot->stream_count = state->stream_count;
+	current_snapshot->phantom_stream_count = state->phantom_stream_count;
+}
+
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -2311,10 +2345,11 @@ bool resource_is_odm_topology_changed(const struct pipe_ctx *otg_master_a,
 
 static void resource_log_pipe(struct dc *dc, struct pipe_ctx *pipe,
 		int stream_idx, int slice_idx, int plane_idx, int slice_count,
-		bool is_primary)
+		bool is_primary, bool is_phantom_pipe)
 {
 	DC_LOGGER_INIT(dc->ctx->logger);
 
+	// new format for logging: bit storing code
 	if (slice_idx == 0 && plane_idx == 0 && is_primary) {
 		/* case 0 (OTG master pipe with plane) */
 		DC_LOG_DC(" | plane%d  slice%d  stream%d|",
@@ -2323,6 +2358,10 @@ static void resource_log_pipe(struct dc *dc, struct pipe_ctx *pipe,
 				pipe->plane_res.dpp->inst,
 				pipe->stream_res.opp->inst,
 				pipe->stream_res.tg->inst);
+		capture_pipe_topology_data(dc, plane_idx, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	} else if (slice_idx == 0 && plane_idx == -1) {
 		/* case 1 (OTG master pipe without plane) */
 		DC_LOG_DC(" |         slice%d  stream%d|",
@@ -2331,6 +2370,10 @@ static void resource_log_pipe(struct dc *dc, struct pipe_ctx *pipe,
 				pipe->stream_res.opp->inst,
 				pipe->stream_res.opp->inst,
 				pipe->stream_res.tg->inst);
+		capture_pipe_topology_data(dc, 0xF, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	} else if (slice_idx != 0 && plane_idx == 0 && is_primary) {
 		/* case 2 (OPP head pipe with plane) */
 		DC_LOG_DC(" | plane%d  slice%d |       |",
@@ -2338,27 +2381,43 @@ static void resource_log_pipe(struct dc *dc, struct pipe_ctx *pipe,
 		DC_LOG_DC(" |DPP%d----OPP%d----|       |",
 				pipe->plane_res.dpp->inst,
 				pipe->stream_res.opp->inst);
+		capture_pipe_topology_data(dc, plane_idx, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	} else if (slice_idx != 0 && plane_idx == -1) {
 		/* case 3 (OPP head pipe without plane) */
 		DC_LOG_DC(" |         slice%d |       |", slice_idx);
 		DC_LOG_DC(" |DPG%d----OPP%d----|       |",
 				pipe->plane_res.dpp->inst,
 				pipe->stream_res.opp->inst);
+		capture_pipe_topology_data(dc, 0xF, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	} else if (slice_idx == slice_count - 1) {
 		/* case 4 (DPP pipe in last slice) */
 		DC_LOG_DC(" | plane%d |               |", plane_idx);
 		DC_LOG_DC(" |DPP%d----|               |",
 				pipe->plane_res.dpp->inst);
+		capture_pipe_topology_data(dc, plane_idx, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	} else {
 		/* case 5 (DPP pipe not in last slice) */
 		DC_LOG_DC(" | plane%d |       |       |", plane_idx);
 		DC_LOG_DC(" |DPP%d----|       |       |",
 				pipe->plane_res.dpp->inst);
+		capture_pipe_topology_data(dc, plane_idx, slice_idx, stream_idx,
+				pipe->plane_res.dpp->inst,
+				pipe->stream_res.opp->inst,
+				pipe->stream_res.tg->inst, is_phantom_pipe);
 	}
 }
 
 static void resource_log_pipe_for_stream(struct dc *dc, struct dc_state *state,
-		struct pipe_ctx *otg_master, int stream_idx)
+		struct pipe_ctx *otg_master, int stream_idx, bool is_phantom_pipe)
 {
 	struct pipe_ctx *opp_heads[MAX_PIPES];
 	struct pipe_ctx *dpp_pipes[MAX_PIPES];
@@ -2384,12 +2443,12 @@ static void resource_log_pipe_for_stream(struct dc *dc, struct dc_state *state,
 				resource_log_pipe(dc, dpp_pipes[dpp_idx],
 						stream_idx, slice_idx,
 						plane_idx, slice_count,
-						is_primary);
+						is_primary, is_phantom_pipe);
 			}
 		} else {
 			resource_log_pipe(dc, opp_heads[slice_idx],
 					stream_idx, slice_idx, plane_idx,
-					slice_count, true);
+					slice_count, true, is_phantom_pipe);
 		}
 
 	}
@@ -2420,6 +2479,10 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 	struct pipe_ctx *otg_master;
 	int stream_idx, phantom_stream_idx;
 	DC_LOGGER_INIT(dc->ctx->logger);
+	bool is_phantom_pipe = false;
+
+	// Start a new snapshot for this topology update
+	start_new_topology_snapshot(dc, state);
 
 	DC_LOG_DC("    pipe topology update");
 	DC_LOG_DC("  ________________________");
@@ -2433,9 +2496,10 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 		if (!otg_master)
 			continue;
 
-		resource_log_pipe_for_stream(dc, state, otg_master, stream_idx);
+		resource_log_pipe_for_stream(dc, state, otg_master, stream_idx, is_phantom_pipe);
 	}
 	if (state->phantom_stream_count > 0) {
+		is_phantom_pipe = true;
 		DC_LOG_DC(" |    (phantom pipes)     |");
 		for (stream_idx = 0; stream_idx < state->stream_count; stream_idx++) {
 			if (state->stream_status[stream_idx].mall_stream_config.type != SUBVP_MAIN)
@@ -2448,7 +2512,7 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 			if (!otg_master)
 				continue;
 
-			resource_log_pipe_for_stream(dc, state, otg_master, stream_idx);
+			resource_log_pipe_for_stream(dc, state, otg_master, stream_idx, is_phantom_pipe);
 		}
 	}
 	DC_LOG_DC(" |________________________|\n");

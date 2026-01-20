@@ -26,7 +26,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R8A779A0_CLK_OSC,
+	LAST_DT_CORE_CLK = R8A779A0_CLK_ZG,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -39,6 +39,7 @@ enum clk_ids {
 	CLK_PLL21,
 	CLK_PLL30,
 	CLK_PLL31,
+	CLK_PLL4,
 	CLK_PLL5,
 	CLK_PLL1_DIV2,
 	CLK_PLL20_DIV2,
@@ -65,6 +66,7 @@ enum clk_ids {
 #define CPG_PLL21CR	0x0838	/* PLL21 Control Register */
 #define CPG_PLL30CR	0x083c	/* PLL30 Control Register */
 #define CPG_PLL31CR	0x0840	/* PLL31 Control Register */
+#define CPG_PLL4CR	0x0844	/* PLL4 Control Register */
 
 static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	/* External Clock Inputs */
@@ -79,6 +81,7 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_PLL(".pll21", CLK_PLL21,	CPG_PLL21CR),
 	DEF_PLL(".pll30", CLK_PLL30,	CPG_PLL30CR),
 	DEF_PLL(".pll31", CLK_PLL31,	CPG_PLL31CR),
+	DEF_PLL(".pll4",  CLK_PLL4,	CPG_PLL4CR),
 
 	DEF_FIXED(".pll1_div2",		CLK_PLL1_DIV2,	CLK_PLL1,	2, 1),
 	DEF_FIXED(".pll20_div2",	CLK_PLL20_DIV2,	CLK_PLL20,	2, 1),
@@ -98,6 +101,7 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	/* Core Clock Outputs */
 	DEF_GEN4_Z("z0",	R8A779A0_CLK_Z0,	CLK_TYPE_GEN4_Z,	CLK_PLL20,	2, 0),
 	DEF_GEN4_Z("z1",	R8A779A0_CLK_Z1,	CLK_TYPE_GEN4_Z,	CLK_PLL21,	2, 8),
+	DEF_GEN4_Z("zg",	R8A779A0_CLK_ZG,	CLK_TYPE_GEN4_Z,	CLK_PLL4,	2, 88),
 	DEF_FIXED("zx",		R8A779A0_CLK_ZX,	CLK_PLL20_DIV2,	2, 1),
 	DEF_FIXED("s1d1",	R8A779A0_CLK_S1D1,	CLK_S1,		1, 1),
 	DEF_FIXED("s1d2",	R8A779A0_CLK_S1D2,	CLK_S1,		2, 1),
@@ -138,6 +142,7 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
+	DEF_MOD("3dge",		  0,	R8A779A0_CLK_ZG),
 	DEF_MOD("isp0",		 16,	R8A779A0_CLK_S1D1),
 	DEF_MOD("isp1",		 17,	R8A779A0_CLK_S1D1),
 	DEF_MOD("isp2",		 18,	R8A779A0_CLK_S1D1),

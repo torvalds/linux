@@ -56,7 +56,7 @@ static struct proto llcp_sock_proto = {
 	.obj_size = sizeof(struct nfc_llcp_sock),
 };
 
-static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
+static int llcp_sock_bind(struct socket *sock, struct sockaddr_unsized *addr, int alen)
 {
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
@@ -146,7 +146,7 @@ error:
 	return ret;
 }
 
-static int llcp_raw_sock_bind(struct socket *sock, struct sockaddr *addr,
+static int llcp_raw_sock_bind(struct socket *sock, struct sockaddr_unsized *addr,
 			      int alen)
 {
 	struct sock *sk = sock->sk;
@@ -648,7 +648,7 @@ out:
 	return err;
 }
 
-static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
+static int llcp_sock_connect(struct socket *sock, struct sockaddr_unsized *_addr,
 			     int len, int flags)
 {
 	struct sock *sk = sock->sk;

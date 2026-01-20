@@ -968,7 +968,7 @@ static int vfio_ap_mdev_verify_no_sharing(struct ap_matrix_mdev *assignee,
  *
  * Return: One of the following values:
  * o the error returned from the ap_apqn_in_matrix_owned_by_def_drv() function,
- *   most likely -EBUSY indicating the ap_perms_mutex lock is already held.
+ *   most likely -EBUSY indicating the ap_attr_mutex lock is already held.
  * o EADDRNOTAVAIL if an APQN assigned to @matrix_mdev is reserved for the
  *		   zcrypt default driver.
  * o EADDRINUSE if an APQN assigned to @matrix_mdev is assigned to another mdev
@@ -1079,7 +1079,7 @@ static ssize_t assign_adapter_store(struct device *dev,
 	DECLARE_BITMAP(apm_filtered, AP_DEVICES);
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 
-	mutex_lock(&ap_perms_mutex);
+	mutex_lock(&ap_attr_mutex);
 	get_update_locks_for_mdev(matrix_mdev);
 
 	ret = kstrtoul(buf, 0, &apid);
@@ -1114,7 +1114,7 @@ static ssize_t assign_adapter_store(struct device *dev,
 	ret = count;
 done:
 	release_update_locks_for_mdev(matrix_mdev);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return ret;
 }
@@ -1303,7 +1303,7 @@ static ssize_t assign_domain_store(struct device *dev,
 	DECLARE_BITMAP(apm_filtered, AP_DEVICES);
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 
-	mutex_lock(&ap_perms_mutex);
+	mutex_lock(&ap_attr_mutex);
 	get_update_locks_for_mdev(matrix_mdev);
 
 	ret = kstrtoul(buf, 0, &apqi);
@@ -1338,7 +1338,7 @@ static ssize_t assign_domain_store(struct device *dev,
 	ret = count;
 done:
 	release_update_locks_for_mdev(matrix_mdev);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 
 	return ret;
 }
@@ -1718,7 +1718,7 @@ static ssize_t ap_config_store(struct device *dev, struct device_attribute *attr
 		return -ENOMEM;
 	rest = newbuf;
 
-	mutex_lock(&ap_perms_mutex);
+	mutex_lock(&ap_attr_mutex);
 	get_update_locks_for_mdev(matrix_mdev);
 
 	/* Save old state */
@@ -1779,7 +1779,7 @@ static ssize_t ap_config_store(struct device *dev, struct device_attribute *attr
 	}
 out:
 	release_update_locks_for_mdev(matrix_mdev);
-	mutex_unlock(&ap_perms_mutex);
+	mutex_unlock(&ap_attr_mutex);
 	kfree(newbuf);
 	return rc;
 }

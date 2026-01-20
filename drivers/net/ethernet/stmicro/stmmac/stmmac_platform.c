@@ -95,6 +95,7 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 {
 	struct device_node *np;
 	struct stmmac_axi *axi;
+	u32 axi_blen[AXI_BLEN];
 
 	np = of_parse_phandle(pdev->dev.of_node, "snps,axi-config", 0);
 	if (!np)
@@ -117,7 +118,8 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 		axi->axi_wr_osr_lmt = 1;
 	if (of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt))
 		axi->axi_rd_osr_lmt = 1;
-	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
+	of_property_read_u32_array(np, "snps,blen", axi_blen, AXI_BLEN);
+	stmmac_axi_blen_to_mask(&axi->axi_blen_regval, axi_blen, AXI_BLEN);
 	of_node_put(np);
 
 	return axi;
@@ -137,13 +139,6 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	u8 queue = 0;
 	int ret = 0;
 
-	/* For backwards-compatibility with device trees that don't have any
-	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
-	 * to one RX and TX queues each.
-	 */
-	plat->rx_queues_to_use = 1;
-	plat->tx_queues_to_use = 1;
-
 	/* First Queue must always be in DCB mode. As MTL_QUEUE_DCB = 1 we need
 	 * to always set this, otherwise Queue will be classified as AVB
 	 * (because MTL_QUEUE_AVB = 0).
@@ -162,9 +157,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing RX queues common config */
-	if (of_property_read_u32(rx_node, "snps,rx-queues-to-use",
-				 &plat->rx_queues_to_use))
-		plat->rx_queues_to_use = 1;
+	of_property_read_u32(rx_node, "snps,rx-queues-to-use",
+			     &plat->rx_queues_to_use);
 
 	if (of_property_read_bool(rx_node, "snps,rx-sched-sp"))
 		plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
@@ -185,18 +179,13 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 		else
 			plat->rx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 
-		if (of_property_read_u32(q_node, "snps,map-to-dma-channel",
-					 &plat->rx_queues_cfg[queue].chan))
-			plat->rx_queues_cfg[queue].chan = queue;
+		of_property_read_u32(q_node, "snps,map-to-dma-channel",
+				     &plat->rx_queues_cfg[queue].chan);
 		/* TODO: Dynamic mapping to be included in the future */
 
-		if (of_property_read_u32(q_node, "snps,priority",
-					&plat->rx_queues_cfg[queue].prio)) {
-			plat->rx_queues_cfg[queue].prio = 0;
-			plat->rx_queues_cfg[queue].use_prio = false;
-		} else {
+		if (!of_property_read_u32(q_node, "snps,priority",
+					  &plat->rx_queues_cfg[queue].prio))
 			plat->rx_queues_cfg[queue].use_prio = true;
-		}
 
 		/* RX queue specific packet type routing */
 		if (of_property_read_bool(q_node, "snps,route-avcp"))
@@ -209,8 +198,6 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_UPQ;
 		else if (of_property_read_bool(q_node, "snps,route-multi-broad"))
 			plat->rx_queues_cfg[queue].pkt_route = PACKET_MCBCQ;
-		else
-			plat->rx_queues_cfg[queue].pkt_route = 0x0;
 
 		queue++;
 	}
@@ -221,9 +208,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 	}
 
 	/* Processing TX queues common config */
-	if (of_property_read_u32(tx_node, "snps,tx-queues-to-use",
-				 &plat->tx_queues_to_use))
-		plat->tx_queues_to_use = 1;
+	of_property_read_u32(tx_node, "snps,tx-queues-to-use",
+			     &plat->tx_queues_to_use);
 
 	if (of_property_read_bool(tx_node, "snps,tx-sched-wrr"))
 		plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
@@ -268,13 +254,9 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 			plat->tx_queues_cfg[queue].mode_to_use = MTL_QUEUE_DCB;
 		}
 
-		if (of_property_read_u32(q_node, "snps,priority",
-					&plat->tx_queues_cfg[queue].prio)) {
-			plat->tx_queues_cfg[queue].prio = 0;
-			plat->tx_queues_cfg[queue].use_prio = false;
-		} else {
+		if (!of_property_read_u32(q_node, "snps,priority",
+					  &plat->tx_queues_cfg[queue].prio))
 			plat->tx_queues_cfg[queue].use_prio = true;
-		}
 
 		plat->tx_queues_cfg[queue].coe_unsupported =
 			of_property_read_bool(q_node, "snps,coe-unsupported");
@@ -436,7 +418,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	void *ret;
 	int rc;
 
-	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
+	plat = stmmac_plat_dat_alloc(&pdev->dev);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
@@ -480,13 +462,6 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->bus_id = ++bus_id;
 	}
 
-	/* Default to phy auto-detection */
-	plat->phy_addr = -1;
-
-	/* Default to get clk_csr from stmmac_clk_csr_set(),
-	 * or get clk_csr from device tree.
-	 */
-	plat->clk_csr = -1;
 	if (of_property_read_u32(np, "snps,clk-csr", &plat->clk_csr))
 		of_property_read_u32(np, "clk_csr", &plat->clk_csr);
 
@@ -515,17 +490,6 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 		plat->flags |= STMMAC_FLAG_EN_TX_LPI_CLOCKGATING;
 	}
 
-	/* Set the maxmtu to a default of JUMBO_LEN in case the
-	 * parameter is not present in the device tree.
-	 */
-	plat->maxmtu = JUMBO_LEN;
-
-	/* Set default value for multicast hash bins */
-	plat->multicast_filter_bins = HASH_TABLE_SIZE;
-
-	/* Set default value for unicast filter entries */
-	plat->unicast_filter_entries = 1;
-
 	/*
 	 * Currently only the properties needed on SPEAr600
 	 * are provided. All other properties should be added
@@ -552,12 +516,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 				&pdev->dev, plat->unicast_filter_entries);
 		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
 				&pdev->dev, plat->multicast_filter_bins);
-		plat->has_gmac = 1;
+		plat->core_type = DWMAC_CORE_GMAC;
 		plat->pmt = 1;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-3.40a")) {
-		plat->has_gmac = 1;
+		plat->core_type = DWMAC_CORE_GMAC;
 		plat->enh_desc = 1;
 		plat->tx_coe = 1;
 		plat->bugged_jumbo = 1;
@@ -565,8 +529,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	}
 
 	if (of_device_compatible_match(np, stmmac_gmac4_compats)) {
-		plat->has_gmac4 = 1;
-		plat->has_gmac = 0;
+		plat->core_type = DWMAC_CORE_GMAC4;
 		plat->pmt = 1;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
@@ -580,7 +543,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	}
 
 	if (of_device_is_compatible(np, "snps,dwxgmac")) {
-		plat->has_xgmac = 1;
+		plat->core_type = DWMAC_CORE_XGMAC;
 		plat->pmt = 1;
 		if (of_property_read_bool(np, "snps,tso"))
 			plat->flags |= STMMAC_FLAG_TSO_EN;
@@ -786,40 +749,40 @@ EXPORT_SYMBOL_GPL(stmmac_get_platform_resources);
 
 /**
  * stmmac_pltfr_init
- * @pdev: pointer to the platform device
+ * @dev: pointer to the device structure
  * @plat: driver data platform structure
  * Description: Call the platform's init callback (if any) and propagate
  * the return value.
  */
-static int stmmac_pltfr_init(struct platform_device *pdev,
+static int stmmac_pltfr_init(struct device *dev,
 			     struct plat_stmmacenet_data *plat)
 {
 	int ret = 0;
 
 	if (plat->init)
-		ret = plat->init(pdev, plat->bsp_priv);
+		ret = plat->init(dev, plat->bsp_priv);
 
 	return ret;
 }
 
 /**
  * stmmac_pltfr_exit
- * @pdev: pointer to the platform device
+ * @dev: pointer to the device structure
  * @plat: driver data platform structure
  * Description: Call the platform's exit callback (if any).
  */
-static void stmmac_pltfr_exit(struct platform_device *pdev,
+static void stmmac_pltfr_exit(struct device *dev,
 			      struct plat_stmmacenet_data *plat)
 {
 	if (plat->exit)
-		plat->exit(pdev, plat->bsp_priv);
+		plat->exit(dev, plat->bsp_priv);
 }
 
 static int stmmac_plat_suspend(struct device *dev, void *bsp_priv)
 {
 	struct stmmac_priv *priv = netdev_priv(dev_get_drvdata(dev));
 
-	stmmac_pltfr_exit(to_platform_device(dev), priv->plat);
+	stmmac_pltfr_exit(dev, priv->plat);
 
 	return 0;
 }
@@ -828,7 +791,7 @@ static int stmmac_plat_resume(struct device *dev, void *bsp_priv)
 {
 	struct stmmac_priv *priv = netdev_priv(dev_get_drvdata(dev));
 
-	return stmmac_pltfr_init(to_platform_device(dev), priv->plat);
+	return stmmac_pltfr_init(dev, priv->plat);
 }
 
 /**
@@ -843,24 +806,12 @@ int stmmac_pltfr_probe(struct platform_device *pdev,
 		       struct plat_stmmacenet_data *plat,
 		       struct stmmac_resources *res)
 {
-	int ret;
-
 	if (!plat->suspend && plat->exit)
 		plat->suspend = stmmac_plat_suspend;
 	if (!plat->resume && plat->init)
 		plat->resume = stmmac_plat_resume;
 
-	ret = stmmac_pltfr_init(pdev, plat);
-	if (ret)
-		return ret;
-
-	ret = stmmac_dvr_probe(&pdev->dev, plat, res);
-	if (ret) {
-		stmmac_pltfr_exit(pdev, plat);
-		return ret;
-	}
-
-	return ret;
+	return stmmac_dvr_probe(&pdev->dev, plat, res);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
@@ -902,12 +853,7 @@ EXPORT_SYMBOL_GPL(devm_stmmac_pltfr_probe);
  */
 void stmmac_pltfr_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct plat_stmmacenet_data *plat = priv->plat;
-
 	stmmac_dvr_remove(&pdev->dev);
-	stmmac_pltfr_exit(pdev, plat);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
@@ -970,7 +916,7 @@ static int __maybe_unused stmmac_pltfr_noirq_suspend(struct device *dev)
 	if (!netif_running(ndev))
 		return 0;
 
-	if (!stmmac_wol_enabled_mac(priv)) {
+	if (!priv->wolopts) {
 		/* Disable clock in case of PWM is off */
 		clk_disable_unprepare(priv->plat->clk_ptp_ref);
 
@@ -991,7 +937,7 @@ static int __maybe_unused stmmac_pltfr_noirq_resume(struct device *dev)
 	if (!netif_running(ndev))
 		return 0;
 
-	if (!stmmac_wol_enabled_mac(priv)) {
+	if (!priv->wolopts) {
 		/* enable the clk previously disabled */
 		ret = pm_runtime_force_resume(dev);
 		if (ret)

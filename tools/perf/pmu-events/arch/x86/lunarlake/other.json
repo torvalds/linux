@@ -178,6 +178,7 @@
         "EventCode": "0xf4",
         "EventName": "XQ_PROMOTION.ALL",
         "SampleAfterValue": "1000003",
+        "UMask": "0x7",
         "Unit": "cpu_atom"
     },
     {

@@ -806,7 +806,7 @@ static void timer_set_traps(struct kvm_vcpu *vcpu, struct timer_map *map)
 		tpt = tpc = true;
 
 	/*
-	 * For the poor sods that could not correctly substract one value
+	 * For the poor sods that could not correctly subtract one value
 	 * from another, trap the full virtual timer and counter.
 	 */
 	if (has_broken_cntvoff() && timer_get_offset(map->direct_vtimer))

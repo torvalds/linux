@@ -25,6 +25,8 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,glymur-aoss-qmp
+          - qcom,kaanapali-aoss-qmp
           - qcom,milos-aoss-qmp
           - qcom,qcs615-aoss-qmp
           - qcom,qcs8300-aoss-qmp

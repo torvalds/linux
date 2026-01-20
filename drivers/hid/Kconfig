@@ -383,6 +383,7 @@ config HID_EVISION
 	help
 	Support for some EVision keyboards. Note that this is needed only when
 	applying customization using userspace programs.
+	Support for some EVision devices requiring report descriptor fixups.
 
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard"
@@ -1318,6 +1319,8 @@ config HID_WINWING
 	help
 	  Support for WinWing Orion2 throttle base with the following grips:
 
+	    * TGRIP-15E
+	    * TGRIP-15EX
 	    * TGRIP-16EX
 	    * TGRIP-18
 

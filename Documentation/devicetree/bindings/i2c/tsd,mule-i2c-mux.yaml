@@ -16,7 +16,6 @@ description: |
   can be selected by writing the appropriate device number to an I2C config
   register.
 
-
       +--------------------------------------------------+
       | Mule                                             |
   0x18|    +---------------+                             |
@@ -33,7 +32,6 @@ description: |
       |                        |   /-------->| dev #3 |  |
       |                        |__/          +--------+  |
       +--------------------------------------------------+
-
 
 allOf:
   - $ref: /schemas/i2c/i2c-mux.yaml#

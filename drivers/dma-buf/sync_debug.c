@@ -59,7 +59,7 @@ static void sync_print_fence(struct seq_file *s,
 		struct timespec64 ts64 =
 			ktime_to_timespec64(fence->timestamp);
 
-		seq_printf(s, "@%lld.%09ld", (s64)ts64.tv_sec, ts64.tv_nsec);
+		seq_printf(s, "@%ptSp", &ts64);
 	}
 
 	seq_printf(s, ": %lld", fence->seqno);

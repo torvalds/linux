@@ -41,6 +41,9 @@ properties:
       therefore discouraged.
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
   spi-cpha: true
   spi-cpol: true
 

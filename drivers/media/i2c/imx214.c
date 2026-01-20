@@ -1014,8 +1014,6 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 						   V4L2_CID_LINK_FREQ,
 						   imx214->bus_cfg.nr_of_link_frequencies - 1,
 						   0, imx214->bus_cfg.link_frequencies);
-	if (imx214->link_freq)
-		imx214->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	/*
 	 * WARNING!
@@ -1038,9 +1036,6 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 	imx214->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &imx214_ctrl_ops,
 					   V4L2_CID_HBLANK, hblank, hblank,
 					   1, hblank);
-	if (imx214->hblank)
-		imx214->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
-
 	exposure_max = mode->vts_def - IMX214_EXPOSURE_OFFSET;
 	exposure_def = min(exposure_max, IMX214_EXPOSURE_DEFAULT);
 	imx214->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &imx214_ctrl_ops,
@@ -1060,13 +1055,9 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 
 	imx214->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx214_ctrl_ops,
 					  V4L2_CID_HFLIP, 0, 1, 1, 0);
-	if (imx214->hflip)
-		imx214->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	imx214->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx214_ctrl_ops,
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
-	if (imx214->vflip)
-		imx214->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	v4l2_ctrl_cluster(2, &imx214->hflip);
 
@@ -1105,6 +1096,12 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 		dev_err(imx214->dev, "failed to add controls: %d\n", ret);
 		return ret;
 	}
+
+	/* Now that the controls have been properly created, set their flags. */
+	imx214->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	imx214->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	imx214->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+	imx214->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	ret = imx214_pll_update(imx214);
 	if (ret < 0) {

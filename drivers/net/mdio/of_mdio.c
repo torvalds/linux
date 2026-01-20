@@ -63,14 +63,11 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later.
 	 */
-	fwnode_handle_get(fwnode);
-	device_set_node(&mdiodev->dev, fwnode);
+	device_set_node(&mdiodev->dev, fwnode_handle_get(fwnode));
 
 	/* All data is now stored in the mdiodev struct; register it. */
 	rc = mdio_device_register(mdiodev);
 	if (rc) {
-		device_set_node(&mdiodev->dev, NULL);
-		fwnode_handle_put(fwnode);
 		mdio_device_free(mdiodev);
 		return rc;
 	}

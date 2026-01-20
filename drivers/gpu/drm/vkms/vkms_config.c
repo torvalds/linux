@@ -33,7 +33,8 @@ EXPORT_SYMBOL_IF_KUNIT(vkms_config_create);
 
 struct vkms_config *vkms_config_default_create(bool enable_cursor,
 					       bool enable_writeback,
-					       bool enable_overlay)
+					       bool enable_overlay,
+					       bool enable_plane_pipeline)
 {
 	struct vkms_config *config;
 	struct vkms_config_plane *plane_cfg;
@@ -58,6 +59,7 @@ struct vkms_config *vkms_config_default_create(bool enable_cursor,
 
 	if (vkms_config_plane_attach_crtc(plane_cfg, crtc_cfg))
 		goto err_alloc;
+	vkms_config_plane_set_default_pipeline(plane_cfg, enable_plane_pipeline);
 
 	if (enable_overlay) {
 		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
@@ -67,6 +69,7 @@ struct vkms_config *vkms_config_default_create(bool enable_cursor,
 
 			vkms_config_plane_set_type(plane_cfg,
 						   DRM_PLANE_TYPE_OVERLAY);
+			vkms_config_plane_set_default_pipeline(plane_cfg, enable_plane_pipeline);
 
 			if (vkms_config_plane_attach_crtc(plane_cfg, crtc_cfg))
 				goto err_alloc;
@@ -79,6 +82,7 @@ struct vkms_config *vkms_config_default_create(bool enable_cursor,
 			goto err_alloc;
 
 		vkms_config_plane_set_type(plane_cfg, DRM_PLANE_TYPE_CURSOR);
+		vkms_config_plane_set_default_pipeline(plane_cfg, enable_plane_pipeline);
 
 		if (vkms_config_plane_attach_crtc(plane_cfg, crtc_cfg))
 			goto err_alloc;
@@ -389,6 +393,7 @@ struct vkms_config_plane *vkms_config_create_plane(struct vkms_config *config)
 		return ERR_PTR(-ENOMEM);
 
 	plane_cfg->config = config;
+	plane_cfg->default_pipeline = false;
 	vkms_config_plane_set_type(plane_cfg, DRM_PLANE_TYPE_OVERLAY);
 	xa_init_flags(&plane_cfg->possible_crtcs, XA_FLAGS_ALLOC);
 

@@ -12,7 +12,7 @@
 #include <sys/mount.h>
 #include <unistd.h>
 
-#include "../../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #define MNT_NS_COUNT 11
 #define MNT_NS_LAST_INDEX 10

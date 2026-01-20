@@ -19,6 +19,7 @@
 #include <linux/irq_work.h>
 #include <linux/rculist.h>
 #include <linux/rcuwait.h>
+#include <linux/smp.h>
 #include <linux/types.h>
 #include <linux/vesa.h>
 
@@ -185,6 +186,8 @@ static inline void con_debug_leave(void) { }
  *			printing callbacks must not be called.
  * @CON_NBCON:		Console can operate outside of the legacy style console_lock
  *			constraints.
+ * @CON_NBCON_ATOMIC_UNSAFE: The write_atomic() callback is not safe and is
+ *			therefore only used by nbcon_atomic_flush_unsafe().
  */
 enum cons_flags {
 	CON_PRINTBUFFER		= BIT(0),
@@ -196,6 +199,7 @@ enum cons_flags {
 	CON_EXTENDED		= BIT(6),
 	CON_SUSPENDED		= BIT(7),
 	CON_NBCON		= BIT(8),
+	CON_NBCON_ATOMIC_UNSAFE	= BIT(9),
 };
 
 /**
@@ -602,16 +606,80 @@ static inline bool console_is_registered(const struct console *con)
 extern void nbcon_cpu_emergency_enter(void);
 extern void nbcon_cpu_emergency_exit(void);
 extern bool nbcon_can_proceed(struct nbcon_write_context *wctxt);
+extern void nbcon_write_context_set_buf(struct nbcon_write_context *wctxt,
+					char *buf, unsigned int len);
 extern bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt);
 extern bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt);
 extern void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt);
+extern bool nbcon_allow_unsafe_takeover(void);
+extern bool nbcon_kdb_try_acquire(struct console *con,
+				  struct nbcon_write_context *wctxt);
+extern void nbcon_kdb_release(struct nbcon_write_context *wctxt);
+
+/*
+ * Check if the given console is currently capable and allowed to print
+ * records. Note that this function does not consider the current context,
+ * which can also play a role in deciding if @con can be used to print
+ * records.
+ */
+static inline bool console_is_usable(struct console *con, short flags, bool use_atomic)
+{
+	if (!(flags & CON_ENABLED))
+		return false;
+
+	if ((flags & CON_SUSPENDED))
+		return false;
+
+	if (flags & CON_NBCON) {
+		if (use_atomic) {
+			/* The write_atomic() callback is optional. */
+			if (!con->write_atomic)
+				return false;
+
+			/*
+			 * An unsafe write_atomic() callback is only usable
+			 * when unsafe takeovers are allowed.
+			 */
+			if ((flags & CON_NBCON_ATOMIC_UNSAFE) && !nbcon_allow_unsafe_takeover())
+				return false;
+		}
+
+		/*
+		 * For the !use_atomic case, @printk_kthreads_running is not
+		 * checked because the write_thread() callback is also used
+		 * via the legacy loop when the printer threads are not
+		 * available.
+		 */
+	} else {
+		if (!con->write)
+			return false;
+	}
+
+	/*
+	 * Console drivers may assume that per-cpu resources have been
+	 * allocated. So unless they're explicitly marked as being able to
+	 * cope (CON_ANYTIME) don't call them until this CPU is officially up.
+	 */
+	if (!cpu_online(raw_smp_processor_id()) && !(flags & CON_ANYTIME))
+		return false;
+
+	return true;
+}
+
 #else
 static inline void nbcon_cpu_emergency_enter(void) { }
 static inline void nbcon_cpu_emergency_exit(void) { }
 static inline bool nbcon_can_proceed(struct nbcon_write_context *wctxt) { return false; }
+static inline void nbcon_write_context_set_buf(struct nbcon_write_context *wctxt,
+					       char *buf, unsigned int len) { }
 static inline bool nbcon_enter_unsafe(struct nbcon_write_context *wctxt) { return false; }
 static inline bool nbcon_exit_unsafe(struct nbcon_write_context *wctxt) { return false; }
 static inline void nbcon_reacquire_nobuf(struct nbcon_write_context *wctxt) { }
+static inline bool nbcon_kdb_try_acquire(struct console *con,
+					 struct nbcon_write_context *wctxt) { return false; }
+static inline void nbcon_kdb_release(struct nbcon_write_context *wctxt) { }
+static inline bool console_is_usable(struct console *con, short flags,
+				     bool use_atomic) { return false; }
 #endif
 
 extern int console_set_on_cmdline;

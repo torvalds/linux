@@ -62,6 +62,22 @@
 #include <internal/lib.h>
 #include "util/sample.h"
 
+#define AUXTRACE_SYNTH_EVENT_ID_OFFSET	1000000000ULL
+
+/*
+ * Event IDs are allocated sequentially, so a big offset from any
+ * existing ID will reach a unused range.
+ */
+u64 auxtrace_synth_id_range_start(struct evsel *evsel)
+{
+	u64 id = evsel->core.id[0] + AUXTRACE_SYNTH_EVENT_ID_OFFSET;
+
+	if (!id)
+		id = 1;
+
+	return id;
+}
+
 /*
  * Make a group from 'leader' to 'last', requiring that the events were not
  * already grouped to a different leader.
@@ -1363,7 +1379,8 @@ static void unleader_auxtrace(struct perf_session *session)
 	}
 }
 
-int perf_event__process_auxtrace_info(struct perf_session *session,
+int perf_event__process_auxtrace_info(const struct perf_tool *tool __maybe_unused,
+				      struct perf_session *session,
 				      union perf_event *event)
 {
 	enum auxtrace_type type = event->auxtrace_info.type;
@@ -1407,7 +1424,8 @@ int perf_event__process_auxtrace_info(struct perf_session *session,
 	return 0;
 }
 
-s64 perf_event__process_auxtrace(struct perf_session *session,
+s64 perf_event__process_auxtrace(const struct perf_tool *tool __maybe_unused,
+				 struct perf_session *session,
 				 union perf_event *event)
 {
 	s64 err;
@@ -1804,7 +1822,8 @@ void events_stats__auxtrace_error_warn(const struct events_stats *stats)
 	}
 }
 
-int perf_event__process_auxtrace_error(struct perf_session *session,
+int perf_event__process_auxtrace_error(const struct perf_tool *tool __maybe_unused,
+				       struct perf_session *session,
 				       union perf_event *event)
 {
 	if (auxtrace__dont_decode(session))

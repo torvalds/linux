@@ -13,6 +13,7 @@
 #include <sound/soc-acpi.h>
 
 #define SOC_SDW_MAX_DAI_NUM             8
+#define SOC_SDW_MAX_AUX_NUM		2
 #define SOC_SDW_MAX_NO_PROPS		2
 #define SOC_SDW_JACK_JDSRC(quirk)	((quirk) & GENMASK(3, 0))
 
@@ -45,6 +46,7 @@ struct asoc_sdw_codec_info;
 
 struct asoc_sdw_dai_info {
 	const bool direction[2]; /* playback & capture support */
+	const char *codec_name;
 	const char *dai_name;
 	const char *component_name;
 	const int dai_type;
@@ -64,16 +66,22 @@ struct asoc_sdw_dai_info {
 	bool quirk_exclude;
 };
 
+struct asoc_sdw_aux_info {
+	const char *codec_name;
+};
+
 struct asoc_sdw_codec_info {
 	const int part_id;
 	const int version_id;
-	const char *codec_name;
+	const char *name_prefix;
 	int amp_num;
 	const u8 acpi_id[ACPI_ID_LEN];
 	const bool ignore_internal_dmic;
 	const struct snd_soc_ops *ops;
 	struct asoc_sdw_dai_info dais[SOC_SDW_MAX_DAI_NUM];
 	const int dai_num;
+	struct asoc_sdw_aux_info auxs[SOC_SDW_MAX_AUX_NUM];
+	const int aux_num;
 
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 
@@ -130,7 +138,7 @@ int asoc_sdw_hw_free(struct snd_pcm_substream *substream);
 void asoc_sdw_shutdown(struct snd_pcm_substream *substream);
 
 const char *asoc_sdw_get_codec_name(struct device *dev,
-				    const struct asoc_sdw_codec_info *codec_info,
+				    const struct asoc_sdw_dai_info *dai_info,
 				    const struct snd_soc_acpi_link_adr *adr_link,
 				    int adr_index);
 
@@ -164,12 +172,15 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 				  int no_pcm, int (*init)(struct snd_soc_pcm_runtime *rtd),
 				  const struct snd_soc_ops *ops);
 
-int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends);
+int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card,
+				 int *num_devs, int *num_ends, int *num_aux);
 
 struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
 					       const struct snd_soc_acpi_endpoint *new);
+int asoc_sdw_get_dai_type(u32 type);
 
 int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
+				 struct snd_soc_aux_dev *soc_aux,
 				 struct asoc_sdw_dailink *soc_dais,
 				 struct asoc_sdw_endpoint *soc_ends,
 				 int *num_devs);
@@ -246,6 +257,8 @@ int asoc_sdw_cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_da
 int asoc_sdw_cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
+int asoc_sdw_cs42l45_hs_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
+int asoc_sdw_cs42l45_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_cs_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 int asoc_sdw_maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_soc_dai *dai);
 /* TI */

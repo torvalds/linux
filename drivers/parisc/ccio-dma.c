@@ -517,10 +517,10 @@ static u32 hint_lookup[] = {
  * ccio_io_pdir_entry - Initialize an I/O Pdir.
  * @pdir_ptr: A pointer into I/O Pdir.
  * @sid: The Space Identifier.
- * @vba: The virtual address.
+ * @pba: The physical address.
  * @hints: The DMA Hint.
  *
- * Given a virtual address (vba, arg2) and space id, (sid, arg1),
+ * Given a physical address (pba, arg2) and space id, (sid, arg1),
  * load the I/O PDIR entry pointed to by pdir_ptr (arg0). Each IO Pdir
  * entry consists of 8 bytes as shown below (MSB == bit 0):
  *
@@ -543,7 +543,7 @@ static u32 hint_lookup[] = {
  * index are bits 12:19 of the value returned by LCI.
  */ 
 static void
-ccio_io_pdir_entry(__le64 *pdir_ptr, space_t sid, unsigned long vba,
+ccio_io_pdir_entry(__le64 *pdir_ptr, space_t sid, phys_addr_t pba,
 		   unsigned long hints)
 {
 	register unsigned long pa;
@@ -557,7 +557,7 @@ ccio_io_pdir_entry(__le64 *pdir_ptr, space_t sid, unsigned long vba,
 	** "hints" parm includes the VALID bit!
 	** "dep" clobbers the physical address offset bits as well.
 	*/
-	pa = lpa(vba);
+	pa = pba;
 	asm volatile("depw  %1,31,12,%0" : "+r" (pa) : "r" (hints));
 	((u32 *)pdir_ptr)[1] = (u32) pa;
 
@@ -582,7 +582,7 @@ ccio_io_pdir_entry(__le64 *pdir_ptr, space_t sid, unsigned long vba,
 	** Grab virtual index [0:11]
 	** Deposit virt_idx bits into I/O PDIR word
 	*/
-	asm volatile ("lci %%r0(%1), %0" : "=r" (ci) : "r" (vba));
+	asm volatile ("lci %%r0(%1), %0" : "=r" (ci) : "r" (phys_to_virt(pba)));
 	asm volatile ("extru %1,19,12,%0" : "+r" (ci) : "r" (ci));
 	asm volatile ("depw  %1,15,12,%0" : "+r" (pa) : "r" (ci));
 
@@ -704,14 +704,14 @@ ccio_dma_supported(struct device *dev, u64 mask)
 /**
  * ccio_map_single - Map an address range into the IOMMU.
  * @dev: The PCI device.
- * @addr: The start address of the DMA region.
+ * @addr: The physical address of the DMA region.
  * @size: The length of the DMA region.
  * @direction: The direction of the DMA transaction (to/from device).
  *
  * This function implements the pci_map_single function.
  */
 static dma_addr_t 
-ccio_map_single(struct device *dev, void *addr, size_t size,
+ccio_map_single(struct device *dev, phys_addr_t addr, size_t size,
 		enum dma_data_direction direction)
 {
 	int idx;
@@ -730,7 +730,7 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 	BUG_ON(size <= 0);
 
 	/* save offset bits */
-	offset = ((unsigned long) addr) & ~IOVP_MASK;
+	offset = offset_in_page(addr);
 
 	/* round up to nearest IOVP_SIZE */
 	size = ALIGN(size + offset, IOVP_SIZE);
@@ -746,15 +746,15 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 
 	pdir_start = &(ioc->pdir_base[idx]);
 
-	DBG_RUN("%s() %px -> %#lx size: %zu\n",
-		__func__, addr, (long)(iovp | offset), size);
+	DBG_RUN("%s() %pa -> %#lx size: %zu\n",
+		__func__, &addr, (long)(iovp | offset), size);
 
 	/* If not cacheline aligned, force SAFE_DMA on the whole mess */
-	if((size % L1_CACHE_BYTES) || ((unsigned long)addr % L1_CACHE_BYTES))
+	if ((size % L1_CACHE_BYTES) || (addr % L1_CACHE_BYTES))
 		hint |= HINT_SAFE_DMA;
 
 	while(size > 0) {
-		ccio_io_pdir_entry(pdir_start, KERNEL_SPACE, (unsigned long)addr, hint);
+		ccio_io_pdir_entry(pdir_start, KERNEL_SPACE, addr, hint);
 
 		DBG_RUN(" pdir %p %08x%08x\n",
 			pdir_start,
@@ -773,17 +773,18 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 
 
 static dma_addr_t
-ccio_map_page(struct device *dev, struct page *page, unsigned long offset,
-		size_t size, enum dma_data_direction direction,
-		unsigned long attrs)
+ccio_map_phys(struct device *dev, phys_addr_t phys, size_t size,
+	      enum dma_data_direction direction, unsigned long attrs)
 {
-	return ccio_map_single(dev, page_address(page) + offset, size,
-			direction);
+	if (unlikely(attrs & DMA_ATTR_MMIO))
+		return DMA_MAPPING_ERROR;
+
+	return ccio_map_single(dev, phys, size, direction);
 }
 
 
 /**
- * ccio_unmap_page - Unmap an address range from the IOMMU.
+ * ccio_unmap_phys - Unmap an address range from the IOMMU.
  * @dev: The PCI device.
  * @iova: The start address of the DMA region.
  * @size: The length of the DMA region.
@@ -791,7 +792,7 @@ ccio_map_page(struct device *dev, struct page *page, unsigned long offset,
  * @attrs: attributes
  */
 static void 
-ccio_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
+ccio_unmap_phys(struct device *dev, dma_addr_t iova, size_t size,
 		enum dma_data_direction direction, unsigned long attrs)
 {
 	struct ioc *ioc;
@@ -853,7 +854,8 @@ ccio_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flag,
 
 	if (ret) {
 		memset(ret, 0, size);
-		*dma_handle = ccio_map_single(dev, ret, size, DMA_BIDIRECTIONAL);
+		*dma_handle = ccio_map_single(dev, virt_to_phys(ret), size,
+					      DMA_BIDIRECTIONAL);
 	}
 
 	return ret;
@@ -873,7 +875,7 @@ static void
 ccio_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
-	ccio_unmap_page(dev, dma_handle, size, 0, 0);
+	ccio_unmap_phys(dev, dma_handle, size, 0, 0);
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
@@ -920,7 +922,7 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	/* Fast path single entry scatterlists. */
 	if (nents == 1) {
 		sg_dma_address(sglist) = ccio_map_single(dev,
-				sg_virt(sglist), sglist->length,
+				sg_phys(sglist), sglist->length,
 				direction);
 		sg_dma_len(sglist) = sglist->length;
 		return 1;
@@ -1004,7 +1006,7 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 #ifdef CCIO_COLLECT_STATS
 		ioc->usg_pages += sg_dma_len(sglist) >> PAGE_SHIFT;
 #endif
-		ccio_unmap_page(dev, sg_dma_address(sglist),
+		ccio_unmap_phys(dev, sg_dma_address(sglist),
 				  sg_dma_len(sglist), direction, 0);
 		++sglist;
 		nents--;
@@ -1017,8 +1019,8 @@ static const struct dma_map_ops ccio_ops = {
 	.dma_supported =	ccio_dma_supported,
 	.alloc =		ccio_alloc,
 	.free =			ccio_free,
-	.map_page =		ccio_map_page,
-	.unmap_page =		ccio_unmap_page,
+	.map_phys =		ccio_map_phys,
+	.unmap_phys =		ccio_unmap_phys,
 	.map_sg =		ccio_map_sg,
 	.unmap_sg =		ccio_unmap_sg,
 	.get_sgtable =		dma_common_get_sgtable,
@@ -1072,7 +1074,7 @@ static int ccio_proc_info(struct seq_file *m, void *p)
 			   ioc->msingle_calls, ioc->msingle_pages,
 			   (int)((ioc->msingle_pages * 1000)/ioc->msingle_calls));
 
-		/* KLUGE - unmap_sg calls unmap_page for each mapped page */
+		/* KLUGE - unmap_sg calls unmap_phys for each mapped page */
 		min = ioc->usingle_calls - ioc->usg_calls;
 		max = ioc->usingle_pages - ioc->usg_pages;
 		seq_printf(m, "pci_unmap_single: %8ld calls  %8ld pages (avg %d/1000)\n",

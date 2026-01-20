@@ -1511,16 +1511,18 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5651_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+		if (SND_SOC_BIAS_STANDBY == snd_soc_dapm_get_bias_level(dapm)) {
 			if (snd_soc_component_read(component, RT5651_PLL_MODE_1) & 0x9200)
 				snd_soc_component_update_bits(component, RT5651_D_MISC,
 						    0xc00, 0xc00);
 		}
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (SND_SOC_BIAS_OFF == snd_soc_component_get_bias_level(component)) {
+		if (SND_SOC_BIAS_OFF == snd_soc_dapm_get_bias_level(dapm)) {
 			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_VREF1 | RT5651_PWR_MB |
 				RT5651_PWR_BG | RT5651_PWR_VREF2,
@@ -1557,7 +1559,7 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 
 static void rt5651_enable_micbias1_for_ovcd(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO");
@@ -1570,7 +1572,7 @@ static void rt5651_enable_micbias1_for_ovcd(struct snd_soc_component *component)
 
 static void rt5651_disable_micbias1_for_ovcd(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	snd_soc_dapm_mutex_lock(dapm);
 	snd_soc_dapm_disable_pin_unlocked(dapm, "Platform Clock");
@@ -2058,13 +2060,14 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 static int rt5651_probe(struct snd_soc_component *component)
 {
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	rt5651->component = component;
 
 	snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 		RT5651_PWR_LDO_DVO_MASK, RT5651_PWR_LDO_DVO_1_2V);
 
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(dapm, SND_SOC_BIAS_OFF);
 
 	rt5651_apply_properties(component);
 

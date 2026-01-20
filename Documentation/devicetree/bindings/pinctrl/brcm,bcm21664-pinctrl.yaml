@@ -116,7 +116,6 @@ patternProperties:
                 input-schmitt-enable: false
                 input-schmitt-disable: false
 
-
 required:
   - compatible
   - reg

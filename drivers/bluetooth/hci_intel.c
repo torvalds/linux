@@ -280,7 +280,6 @@ static irqreturn_t intel_irq(int irq, void *dev_id)
 
 	/* Host/Controller are now LPM resumed, trigger a new delayed suspend */
 	pm_runtime_get(&idev->pdev->dev);
-	pm_runtime_mark_last_busy(&idev->pdev->dev);
 	pm_runtime_put_autosuspend(&idev->pdev->dev);
 
 	return IRQ_HANDLED;
@@ -371,7 +370,6 @@ static void intel_busy_work(struct work_struct *work)
 	list_for_each_entry(idev, &intel_device_list, list) {
 		if (intel->hu->tty->dev->parent == idev->pdev->dev.parent) {
 			pm_runtime_get(&idev->pdev->dev);
-			pm_runtime_mark_last_busy(&idev->pdev->dev);
 			pm_runtime_put_autosuspend(&idev->pdev->dev);
 			break;
 		}
@@ -972,7 +970,7 @@ static int intel_recv(struct hci_uart *hu, const void *data, int count)
 	if (!test_bit(HCI_UART_REGISTERED, &hu->flags))
 		return -EUNATCH;
 
-	intel->rx_skb = h4_recv_buf(hu->hdev, intel->rx_skb, data, count,
+	intel->rx_skb = h4_recv_buf(hu, intel->rx_skb, data, count,
 				    intel_recv_pkts,
 				    ARRAY_SIZE(intel_recv_pkts));
 	if (IS_ERR(intel->rx_skb)) {
@@ -1003,7 +1001,6 @@ static int intel_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	list_for_each_entry(idev, &intel_device_list, list) {
 		if (hu->tty->dev->parent == idev->pdev->dev.parent) {
 			pm_runtime_get_sync(&idev->pdev->dev);
-			pm_runtime_mark_last_busy(&idev->pdev->dev);
 			pm_runtime_put_autosuspend(&idev->pdev->dev);
 			break;
 		}

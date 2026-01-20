@@ -551,7 +551,16 @@ struct intel_connector {
 		u8 fec_capability;
 
 		u8 dsc_hblank_expansion_quirk:1;
+		u8 dsc_throughput_quirk:1;
 		u8 dsc_decompression_enabled:1;
+
+		struct {
+			struct {
+				int rgb_yuv444;
+				int yuv422_420;
+			} overall_throughput;
+			int max_line_width;
+		} dsc_branch_caps;
 	} dp;
 
 	struct {
@@ -637,6 +646,7 @@ struct intel_plane_state {
 		enum drm_color_encoding color_encoding;
 		enum drm_color_range color_range;
 		enum drm_scaling_filter scaling_filter;
+		struct drm_property_blob *ctm, *degamma_lut, *gamma_lut, *lut_3d;
 	} hw;
 
 	struct i915_vma *ggtt_vma;
@@ -717,7 +727,6 @@ struct intel_initial_plane_config {
 	struct intel_memory_region *mem;
 	resource_size_t phys_base;
 	struct i915_vma *vma;
-	unsigned int tiling;
 	int size;
 	u32 base;
 	u8 rotation;
@@ -946,6 +955,26 @@ struct intel_csc_matrix {
 	u16 postoff[3];
 };
 
+enum intel_panel_replay_dsc_support {
+	INTEL_DP_PANEL_REPLAY_DSC_NOT_SUPPORTED,
+	INTEL_DP_PANEL_REPLAY_DSC_FULL_FRAME_ONLY,
+	INTEL_DP_PANEL_REPLAY_DSC_SELECTIVE_UPDATE,
+};
+
+struct scaler_filter_coeff {
+	u16 sign;
+	u16 exp;
+	u16 mantissa;
+};
+
+struct intel_casf {
+	#define SCALER_FILTER_NUM_TAPS 7
+	struct scaler_filter_coeff coeff[SCALER_FILTER_NUM_TAPS];
+	u8 strength;
+	u8 win_size;
+	bool casf_enable;
+};
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
@@ -982,6 +1011,7 @@ struct intel_crtc_state {
 		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
 		struct drm_display_mode mode, pipe_mode, adjusted_mode;
 		enum drm_scaling_filter scaling_filter;
+		struct intel_casf casf_params;
 	} hw;
 
 	/* actual state of LUTs */
@@ -1124,9 +1154,12 @@ struct intel_crtc_state {
 	bool has_panel_replay;
 	bool wm_level_disabled;
 	bool pkg_c_latency_used;
+	/* Only used for state verification. */
+	enum intel_panel_replay_dsc_support panel_replay_dsc_support;
 	u32 dc3co_exitline;
 	u16 su_y_granularity;
 	u8 active_non_psr_pipes;
+	const char *no_psr_reason;
 
 	/*
 	 * Frequency the dpll for the port should run at. Differs from the
@@ -1183,7 +1216,9 @@ struct intel_crtc_state {
 
 	struct intel_crtc_wm_state wm;
 
-	int min_cdclk[I915_MAX_PLANES];
+	int min_cdclk;
+
+	int plane_min_cdclk[I915_MAX_PLANES];
 
 	/* for packed/planar CbCr */
 	u32 data_rate[I915_MAX_PLANES];
@@ -1268,6 +1303,8 @@ struct intel_crtc_state {
 
 	/* Display Stream compression state */
 	struct {
+		/* Only used for state computation, not read out from the HW. */
+		bool compression_enabled_on_link;
 		bool compression_enable;
 		int num_streams;
 		/* Compressed Bpp in U6.4 format (first 4 bits for fractional part) */
@@ -1341,6 +1378,23 @@ struct intel_crtc_state {
 
 	/* LOBF flag */
 	bool has_lobf;
+
+	/* W2 window or 'set context latency' lines */
+	u16 set_context_latency;
+
+	struct {
+		u8 io_wake_lines;
+		u8 fast_wake_lines;
+
+		/* LNL and beyond */
+		u8 check_entry_lines;
+		u8 aux_less_wake_lines;
+		u8 silence_period_sym_clocks;
+		u8 lfps_half_cycle_num_of_syms;
+	} alpm_state;
+
+	/* to track changes in plane color blocks */
+	bool plane_color_changed;
 };
 
 enum intel_pipe_crc_source {
@@ -1513,8 +1567,8 @@ struct intel_plane {
 				      const struct drm_framebuffer *fb,
 				      int color_plane);
 	unsigned int (*max_stride)(struct intel_plane *plane,
-				   u32 pixel_format, u64 modifier,
-				   unsigned int rotation);
+				   const struct drm_format_info *info,
+				   u64 modifier, unsigned int rotation);
 	bool (*can_async_flip)(u64 modifier);
 	/* Write all non-self arming plane registers */
 	void (*update_noarm)(struct intel_dsb *dsb,
@@ -1679,16 +1733,22 @@ struct intel_psr {
 	bool source_panel_replay_support;
 	bool sink_panel_replay_support;
 	bool sink_panel_replay_su_support;
+	enum intel_panel_replay_dsc_support sink_panel_replay_dsc_support;
 	bool panel_replay_enabled;
 	u32 dc3co_exitline;
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
 	u8 entry_setup_frames;
 
+	u8 io_wake_lines;
+	u8 fast_wake_lines;
+
 	bool link_ok;
 	bool pkg_c_latency_used;
 
 	u8 active_non_psr_pipes;
+
+	const char *no_psr_reason;
 };
 
 struct intel_dp {
@@ -1844,19 +1904,12 @@ struct intel_dp {
 	bool colorimetry_support;
 
 	struct {
-		u8 io_wake_lines;
-		u8 fast_wake_lines;
 		enum transcoder transcoder;
 		struct mutex lock;
 
-		/* LNL and beyond */
-		u8 check_entry_lines;
-		u8 aux_less_wake_lines;
-		u8 silence_period_sym_clocks;
-		u8 lfps_half_cycle_num_of_syms;
 		bool lobf_disable_debug;
 		bool sink_alpm_error;
-	} alpm_parameters;
+	} alpm;
 
 	u8 alpm_dpcd;
 
@@ -1934,6 +1987,11 @@ struct intel_dp_mst_encoder {
 	enum pipe pipe;
 	struct intel_digital_port *primary;
 	struct intel_connector *connector;
+};
+
+struct intel_colorop {
+	struct drm_colorop base;
+	enum intel_color_block id;
 };
 
 static inline struct intel_encoder *

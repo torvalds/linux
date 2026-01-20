@@ -297,6 +297,8 @@ The ``i_flags`` field is a combination of these values:
      - Inode has inline data (EXT4_INLINE_DATA_FL).
    * - 0x20000000
      - Create children with the same project ID (EXT4_PROJINHERIT_FL).
+   * - 0x40000000
+     - Use case-insensitive lookups for directory contents (EXT4_CASEFOLD_FL).
    * - 0x80000000
      - Reserved for ext4 library (EXT4_RESERVED_FL).
    * -

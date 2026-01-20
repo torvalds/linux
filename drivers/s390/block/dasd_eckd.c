@@ -16,7 +16,6 @@
 #include <linux/hdreg.h>	/* HDIO_GETGEO			    */
 #include <linux/bio.h>
 #include <linux/module.h>
-#include <linux/compat.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -5389,16 +5388,6 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	rc = -EFAULT;
 	if (copy_from_user(&usrparm, argp, sizeof(usrparm)))
 		goto out;
-	if (is_compat_task()) {
-		/* Make sure pointers are sane even on 31 bit. */
-		rc = -EINVAL;
-		if ((usrparm.psf_data >> 32) != 0)
-			goto out;
-		if ((usrparm.rssd_result >> 32) != 0)
-			goto out;
-		usrparm.psf_data &= 0x7fffffffULL;
-		usrparm.rssd_result &= 0x7fffffffULL;
-	}
 	/* at least 2 bytes are accessed and should be allocated */
 	if (usrparm.psf_data_len < 2) {
 		DBF_DEV_EVENT(DBF_WARNING, device,
@@ -6150,6 +6139,7 @@ static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid
 	struct dasd_copy_relation *copy;
 	struct dasd_block *block;
 	struct gendisk *gdp;
+	int rc;
 
 	copy = device->copy;
 	if (!copy)
@@ -6184,6 +6174,13 @@ static int dasd_eckd_copy_pair_swap(struct dasd_device *device, char *prim_busid
 	/* swap blocklayer device link */
 	gdp = block->gdp;
 	dasd_add_link_to_gendisk(gdp, secondary);
+	rc = device_move(disk_to_dev(gdp), &secondary->cdev->dev, DPM_ORDER_NONE);
+	if (rc) {
+		dev_err(&primary->cdev->dev,
+			"copy_pair_swap: moving blockdevice parent %s->%s failed (%d)\n",
+			dev_name(&primary->cdev->dev),
+			dev_name(&secondary->cdev->dev), rc);
+	}
 
 	/* re-enable device */
 	dasd_device_remove_stop_bits(primary, DASD_STOPPED_PPRC);

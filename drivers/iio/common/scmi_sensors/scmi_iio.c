@@ -66,10 +66,9 @@ static int scmi_iio_sensor_update_cb(struct notifier_block *nb,
 		/*
 		 *  Timestamp returned by SCMI is in seconds and is equal to
 		 *  time * power-of-10 multiplier(tstamp_scale) seconds.
-		 *  Converting the timestamp to nanoseconds below.
+		 *  Converting the timestamp to nanoseconds (10⁹) below.
 		 */
-		tstamp_scale = sensor->sensor_info->tstamp_scale +
-			       const_ilog2(NSEC_PER_SEC) / const_ilog2(10);
+		tstamp_scale = sensor->sensor_info->tstamp_scale + 9;
 		if (tstamp_scale < 0) {
 			do_div(time, int_pow(10, abs(tstamp_scale)));
 			time_ns = time;

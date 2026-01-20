@@ -166,6 +166,7 @@ config I2C_I801
 	    Arrow Lake (SOC)
 	    Panther Lake (SOC)
 	    Wildcat Lake (SOC)
+	    Diamond Rapids (SOC)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -1474,7 +1475,7 @@ config I2C_ACORN
 
 config I2C_ELEKTOR
 	tristate "Elektor ISA card"
-	depends on ISA && HAS_IOPORT_MAP && BROKEN_ON_SMP
+	depends on ISA && HAS_IOPORT_MAP
 	select I2C_ALGOPCF
 	help
 	  This supports the PCF8584 ISA bus I2C adapter.  Say Y if you own

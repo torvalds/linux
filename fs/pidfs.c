@@ -39,20 +39,20 @@ void pidfs_get_root(struct path *path)
 	path_get(path);
 }
 
-/*
- * Stashes information that userspace needs to access even after the
- * process has been reaped.
- */
-struct pidfs_exit_info {
-	__u64 cgroupid;
-	__s32 exit_code;
-	__u32 coredump_mask;
+enum pidfs_attr_mask_bits {
+	PIDFS_ATTR_BIT_EXIT	= 0,
+	PIDFS_ATTR_BIT_COREDUMP	= 1,
 };
 
 struct pidfs_attr {
+	unsigned long attr_mask;
 	struct simple_xattrs *xattrs;
-	struct pidfs_exit_info __pei;
-	struct pidfs_exit_info *exit_info;
+	struct /* exit info */ {
+		__u64 cgroupid;
+		__s32 exit_code;
+	};
+	__u32 coredump_mask;
+	__u32 coredump_signal;
 };
 
 static struct rb_root pidfs_ino_tree = RB_ROOT;
@@ -293,6 +293,15 @@ static __u32 pidfs_coredump_mask(unsigned long mm_flags)
 	return 0;
 }
 
+/* This must be updated whenever a new flag is added */
+#define PIDFD_INFO_SUPPORTED (PIDFD_INFO_PID | \
+			      PIDFD_INFO_CREDS | \
+			      PIDFD_INFO_CGROUPID | \
+			      PIDFD_INFO_EXIT | \
+			      PIDFD_INFO_COREDUMP | \
+			      PIDFD_INFO_SUPPORTED_MASK | \
+			      PIDFD_INFO_COREDUMP_SIGNAL)
+
 static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
@@ -300,11 +309,12 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pid *pid = pidfd_pid(file);
 	size_t usize = _IOC_SIZE(cmd);
 	struct pidfd_info kinfo = {};
-	struct pidfs_exit_info *exit_info;
 	struct user_namespace *user_ns;
 	struct pidfs_attr *attr;
 	const struct cred *c;
 	__u64 mask;
+
+	BUILD_BUG_ON(sizeof(struct pidfd_info) != PIDFD_INFO_SIZE_VER2);
 
 	if (!uinfo)
 		return -EINVAL;
@@ -323,20 +333,24 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 
 	attr = READ_ONCE(pid->attr);
 	if (mask & PIDFD_INFO_EXIT) {
-		exit_info = READ_ONCE(attr->exit_info);
-		if (exit_info) {
+		if (test_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask)) {
+			smp_rmb();
 			kinfo.mask |= PIDFD_INFO_EXIT;
 #ifdef CONFIG_CGROUPS
-			kinfo.cgroupid = exit_info->cgroupid;
+			kinfo.cgroupid = attr->cgroupid;
 			kinfo.mask |= PIDFD_INFO_CGROUPID;
 #endif
-			kinfo.exit_code = exit_info->exit_code;
+			kinfo.exit_code = attr->exit_code;
 		}
 	}
 
 	if (mask & PIDFD_INFO_COREDUMP) {
-		kinfo.mask |= PIDFD_INFO_COREDUMP;
-		kinfo.coredump_mask = READ_ONCE(attr->__pei.coredump_mask);
+		if (test_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask)) {
+			smp_rmb();
+			kinfo.mask |= PIDFD_INFO_COREDUMP | PIDFD_INFO_COREDUMP_SIGNAL;
+			kinfo.coredump_mask = attr->coredump_mask;
+			kinfo.coredump_signal = attr->coredump_signal;
+		}
 	}
 
 	task = get_pid_task(pid, PIDTYPE_PID);
@@ -355,14 +369,15 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 	if (!c)
 		return -ESRCH;
 
-	if ((kinfo.mask & PIDFD_INFO_COREDUMP) && !(kinfo.coredump_mask)) {
-		task_lock(task);
+	if ((mask & PIDFD_INFO_COREDUMP) && !kinfo.coredump_mask) {
+		guard(task_lock)(task);
 		if (task->mm) {
 			unsigned long flags = __mm_flags_get_dumpable(task->mm);
 
 			kinfo.coredump_mask = pidfs_coredump_mask(flags);
+			kinfo.mask |= PIDFD_INFO_COREDUMP;
+			/* No coredump actually took place, so no coredump signal. */
 		}
-		task_unlock(task);
 	}
 
 	/* Unconditionally return identifiers and credentials, the rest only on request */
@@ -409,6 +424,13 @@ static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ESRCH;
 
 copy_out:
+	if (mask & PIDFD_INFO_SUPPORTED_MASK) {
+		kinfo.mask |= PIDFD_INFO_SUPPORTED_MASK;
+		kinfo.supported_mask = PIDFD_INFO_SUPPORTED;
+	}
+
+	/* Are there bits in the return mask not present in PIDFD_INFO_SUPPORTED? */
+	WARN_ON_ONCE(~PIDFD_INFO_SUPPORTED & kinfo.mask);
 	/*
 	 * If userspace and the kernel have the same struct size it can just
 	 * be copied. If userspace provides an older struct, only the bits that
@@ -454,7 +476,6 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct task_struct *task __free(put_task) = NULL;
 	struct nsproxy *nsp __free(put_nsproxy) = NULL;
 	struct ns_common *ns_common = NULL;
-	struct pid_namespace *pid_ns;
 
 	if (!pidfs_ioctl_valid(cmd))
 		return -ENOIOCTLCMD;
@@ -496,66 +517,64 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	/* Namespaces that hang of nsproxy. */
 	case PIDFD_GET_CGROUP_NAMESPACE:
-		if (IS_ENABLED(CONFIG_CGROUPS)) {
-			get_cgroup_ns(nsp->cgroup_ns);
-			ns_common = to_ns_common(nsp->cgroup_ns);
-		}
+		if (!ns_ref_get(nsp->cgroup_ns))
+			break;
+		ns_common = to_ns_common(nsp->cgroup_ns);
 		break;
 	case PIDFD_GET_IPC_NAMESPACE:
-		if (IS_ENABLED(CONFIG_IPC_NS)) {
-			get_ipc_ns(nsp->ipc_ns);
-			ns_common = to_ns_common(nsp->ipc_ns);
-		}
+		if (!ns_ref_get(nsp->ipc_ns))
+			break;
+		ns_common = to_ns_common(nsp->ipc_ns);
 		break;
 	case PIDFD_GET_MNT_NAMESPACE:
-		get_mnt_ns(nsp->mnt_ns);
+		if (!ns_ref_get(nsp->mnt_ns))
+			break;
 		ns_common = to_ns_common(nsp->mnt_ns);
 		break;
 	case PIDFD_GET_NET_NAMESPACE:
-		if (IS_ENABLED(CONFIG_NET_NS)) {
-			ns_common = to_ns_common(nsp->net_ns);
-			get_net_ns(ns_common);
-		}
+		if (!ns_ref_get(nsp->net_ns))
+			break;
+		ns_common = to_ns_common(nsp->net_ns);
 		break;
 	case PIDFD_GET_PID_FOR_CHILDREN_NAMESPACE:
-		if (IS_ENABLED(CONFIG_PID_NS)) {
-			get_pid_ns(nsp->pid_ns_for_children);
-			ns_common = to_ns_common(nsp->pid_ns_for_children);
-		}
+		if (!ns_ref_get(nsp->pid_ns_for_children))
+			break;
+		ns_common = to_ns_common(nsp->pid_ns_for_children);
 		break;
 	case PIDFD_GET_TIME_NAMESPACE:
-		if (IS_ENABLED(CONFIG_TIME_NS)) {
-			get_time_ns(nsp->time_ns);
-			ns_common = to_ns_common(nsp->time_ns);
-		}
+		if (!ns_ref_get(nsp->time_ns))
+			break;
+		ns_common = to_ns_common(nsp->time_ns);
 		break;
 	case PIDFD_GET_TIME_FOR_CHILDREN_NAMESPACE:
-		if (IS_ENABLED(CONFIG_TIME_NS)) {
-			get_time_ns(nsp->time_ns_for_children);
-			ns_common = to_ns_common(nsp->time_ns_for_children);
-		}
+		if (!ns_ref_get(nsp->time_ns_for_children))
+			break;
+		ns_common = to_ns_common(nsp->time_ns_for_children);
 		break;
 	case PIDFD_GET_UTS_NAMESPACE:
-		if (IS_ENABLED(CONFIG_UTS_NS)) {
-			get_uts_ns(nsp->uts_ns);
-			ns_common = to_ns_common(nsp->uts_ns);
-		}
+		if (!ns_ref_get(nsp->uts_ns))
+			break;
+		ns_common = to_ns_common(nsp->uts_ns);
 		break;
 	/* Namespaces that don't hang of nsproxy. */
 	case PIDFD_GET_USER_NAMESPACE:
-		if (IS_ENABLED(CONFIG_USER_NS)) {
-			rcu_read_lock();
-			ns_common = to_ns_common(get_user_ns(task_cred_xxx(task, user_ns)));
-			rcu_read_unlock();
+		scoped_guard(rcu) {
+			struct user_namespace *user_ns;
+
+			user_ns = task_cred_xxx(task, user_ns);
+			if (!ns_ref_get(user_ns))
+				break;
+			ns_common = to_ns_common(user_ns);
 		}
 		break;
 	case PIDFD_GET_PID_NAMESPACE:
-		if (IS_ENABLED(CONFIG_PID_NS)) {
-			rcu_read_lock();
+		scoped_guard(rcu) {
+			struct pid_namespace *pid_ns;
+
 			pid_ns = task_active_pid_ns(task);
-			if (pid_ns)
-				ns_common = to_ns_common(get_pid_ns(pid_ns));
-			rcu_read_unlock();
+			if (!ns_ref_get(pid_ns))
+				break;
+			ns_common = to_ns_common(pid_ns);
 		}
 		break;
 	default:
@@ -606,24 +625,25 @@ void pidfs_exit(struct task_struct *tsk)
 {
 	struct pid *pid = task_pid(tsk);
 	struct pidfs_attr *attr;
-	struct pidfs_exit_info *exit_info;
 #ifdef CONFIG_CGROUPS
 	struct cgroup *cgrp;
 #endif
 
 	might_sleep();
 
-	guard(spinlock_irq)(&pid->wait_pidfd.lock);
-	attr = pid->attr;
-	if (!attr) {
-		/*
-		 * No one ever held a pidfd for this struct pid.
-		 * Mark it as dead so no one can add a pidfs
-		 * entry anymore. We're about to be reaped and
-		 * so no exit information would be available.
-		 */
-		pid->attr = PIDFS_PID_DEAD;
-		return;
+	/* Synchronize with pidfs_register_pid(). */
+	scoped_guard(spinlock_irq, &pid->wait_pidfd.lock) {
+		attr = pid->attr;
+		if (!attr) {
+			/*
+			 * No one ever held a pidfd for this struct pid.
+			 * Mark it as dead so no one can add a pidfs
+			 * entry anymore. We're about to be reaped and
+			 * so no exit information would be available.
+			 */
+			pid->attr = PIDFS_PID_DEAD;
+			return;
+		}
 	}
 
 	/*
@@ -634,41 +654,39 @@ void pidfs_exit(struct task_struct *tsk)
 	 * is put
 	 */
 
-	exit_info = &attr->__pei;
-
 #ifdef CONFIG_CGROUPS
 	rcu_read_lock();
 	cgrp = task_dfl_cgroup(tsk);
-	exit_info->cgroupid = cgroup_id(cgrp);
+	attr->cgroupid = cgroup_id(cgrp);
 	rcu_read_unlock();
 #endif
-	exit_info->exit_code = tsk->exit_code;
+	attr->exit_code = tsk->exit_code;
 
 	/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
-	smp_store_release(&attr->exit_info, &attr->__pei);
+	smp_wmb();
+	set_bit(PIDFS_ATTR_BIT_EXIT, &attr->attr_mask);
 }
 
 #ifdef CONFIG_COREDUMP
 void pidfs_coredump(const struct coredump_params *cprm)
 {
 	struct pid *pid = cprm->pid;
-	struct pidfs_exit_info *exit_info;
 	struct pidfs_attr *attr;
-	__u32 coredump_mask = 0;
 
 	attr = READ_ONCE(pid->attr);
 
 	VFS_WARN_ON_ONCE(!attr);
 	VFS_WARN_ON_ONCE(attr == PIDFS_PID_DEAD);
 
-	exit_info = &attr->__pei;
-	/* Note how we were coredumped. */
-	coredump_mask = pidfs_coredump_mask(cprm->mm_flags);
-	/* Note that we actually did coredump. */
-	coredump_mask |= PIDFD_COREDUMPED;
+	/* Note how we were coredumped and that we coredumped. */
+	attr->coredump_mask = pidfs_coredump_mask(cprm->mm_flags) |
+			      PIDFD_COREDUMPED;
 	/* If coredumping is set to skip we should never end up here. */
-	VFS_WARN_ON_ONCE(coredump_mask & PIDFD_COREDUMP_SKIP);
-	smp_store_release(&exit_info->coredump_mask, coredump_mask);
+	VFS_WARN_ON_ONCE(attr->coredump_mask & PIDFD_COREDUMP_SKIP);
+	/* Expose the signal number that caused the coredump. */
+	attr->coredump_signal = cprm->siginfo->si_signo;
+	smp_wmb();
+	set_bit(PIDFS_ATTR_BIT_COREDUMP, &attr->attr_mask);
 }
 #endif
 
@@ -1022,6 +1040,7 @@ static int pidfs_init_fs_context(struct fs_context *fc)
 
 	fc->s_iflags |= SB_I_NOEXEC;
 	fc->s_iflags |= SB_I_NODEV;
+	ctx->s_d_flags |= DCACHE_DONTCACHE;
 	ctx->ops = &pidfs_sops;
 	ctx->eops = &pidfs_export_operations;
 	ctx->dops = &pidfs_dentry_operations;

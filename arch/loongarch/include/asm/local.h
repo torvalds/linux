@@ -8,6 +8,7 @@
 #include <linux/percpu.h>
 #include <linux/bitops.h>
 #include <linux/atomic.h>
+#include <asm/asm.h>
 #include <asm/cmpxchg.h>
 
 typedef struct {
@@ -27,6 +28,7 @@ typedef struct {
 /*
  * Same as above, but return the result value
  */
+#ifdef CONFIG_CPU_HAS_AMO
 static inline long local_add_return(long i, local_t *l)
 {
 	unsigned long result;
@@ -55,6 +57,41 @@ static inline long local_sub_return(long i, local_t *l)
 
 	return result;
 }
+#else
+static inline long local_add_return(long i, local_t *l)
+{
+        unsigned long result, temp;
+
+        __asm__ __volatile__(
+        "1:"    __LL    "%1, %2         # local_add_return      \n"
+        __stringify(LONG_ADD) "   %0, %1, %3                    \n"
+                __SC    "%0, %2                                 \n"
+        "       beq     %0, $r0, 1b                             \n"
+        __stringify(LONG_ADD) "   %0, %1, %3                    \n"
+        : "=&r" (result), "=&r" (temp), "=ZC" (l->a.counter)
+        : "r" (i), "ZC" (l->a.counter)
+        : "memory");
+
+        return result;
+}
+
+static inline long local_sub_return(long i, local_t *l)
+{
+        unsigned long result, temp;
+
+        __asm__ __volatile__(
+        "1:"    __LL    "%1, %2         # local_sub_return      \n"
+        __stringify(LONG_SUB) "   %0, %1, %3                    \n"
+                __SC    "%0, %2                                 \n"
+        "       beq     %0, $r0, 1b                             \n"
+	__stringify(LONG_SUB) "   %0, %1, %3                    \n"
+        : "=&r" (result), "=&r" (temp), "=ZC" (l->a.counter)
+        : "r" (i), "ZC" (l->a.counter)
+        : "memory");
+
+        return result;
+}
+#endif
 
 static inline long local_cmpxchg(local_t *l, long old, long new)
 {

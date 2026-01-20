@@ -12,6 +12,7 @@
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
 #include "armada_crtc.h"
 #include "armada_drm.h"

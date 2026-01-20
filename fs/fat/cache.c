@@ -29,11 +29,6 @@ struct fat_cache_id {
 	int dcluster;
 };
 
-static inline int fat_max_cache(struct inode *inode)
-{
-	return FAT_MAX_CACHE;
-}
-
 static struct kmem_cache *fat_cache_cachep;
 
 static void init_once(void *foo)
@@ -145,7 +140,7 @@ static void fat_cache_add(struct inode *inode, struct fat_cache_id *new)
 
 	cache = fat_cache_merge(inode, new);
 	if (cache == NULL) {
-		if (MSDOS_I(inode)->nr_caches < fat_max_cache(inode)) {
+		if (MSDOS_I(inode)->nr_caches < FAT_MAX_CACHE) {
 			MSDOS_I(inode)->nr_caches++;
 			spin_unlock(&MSDOS_I(inode)->cache_lru_lock);
 

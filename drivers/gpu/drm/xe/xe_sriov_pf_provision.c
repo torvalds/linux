@@ -6,6 +6,7 @@
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gt_sriov_pf_config.h"
+#include "xe_gt_sriov_pf_policy.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf_helpers.h"
 #include "xe_sriov_pf_provision.h"
@@ -151,4 +152,287 @@ int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provision
 		     mode_to_string(mode), __builtin_return_address(0));
 	xe->sriov.pf.provision.mode = mode;
 	return 0;
+}
+
+/**
+ * xe_sriov_pf_provision_bulk_apply_eq() - Change execution quantum for all VFs and PF.
+ * @xe: the PF &xe_device
+ * @eq: execution quantum in [ms] to set
+ *
+ * Change execution quantum (EQ) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_eq(struct xe_device *xe, u32 eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_bulk_set_exec_quantum_locked(gt, eq);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_apply_vf_eq() - Change VF's execution quantum.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @eq: execution quantum in [ms] to set
+ *
+ * Change VF's execution quantum (EQ) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_eq(struct xe_device *xe, unsigned int vfid, u32 eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_exec_quantum_locked(gt, vfid, eq);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+static int pf_report_unclean(struct xe_gt *gt, unsigned int vfid,
+			     const char *what, u32 found, u32 expected)
+{
+	char name[8];
+
+	xe_sriov_dbg(gt_to_xe(gt), "%s on GT%u has %s=%u (expected %u)\n",
+		     xe_sriov_function_name(vfid, name, sizeof(name)),
+		     gt->info.id, what, found, expected);
+	return -EUCLEAN;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_eq() - Query VF's execution quantum.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @eq: placeholder for the returned execution quantum in [ms]
+ *
+ * Query VF's execution quantum (EQ) provisioning from all tiles/GTs.
+ * If values across tiles/GTs are inconsistent then -EUCLEAN error will be returned.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_eq(struct xe_device *xe, unsigned int vfid, u32 *eq)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int count = 0;
+	u32 value;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		value = xe_gt_sriov_pf_config_get_exec_quantum_locked(gt, vfid);
+		if (!count++)
+			*eq = value;
+		else if (value != *eq)
+			return pf_report_unclean(gt, vfid, "EQ", value, *eq);
+	}
+
+	return !count ? -ENODATA : 0;
+}
+
+/**
+ * xe_sriov_pf_provision_bulk_apply_pt() - Change preemption timeout for all VFs and PF.
+ * @xe: the PF &xe_device
+ * @pt: preemption timeout in [us] to set
+ *
+ * Change preemption timeout (PT) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_pt(struct xe_device *xe, u32 pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_bulk_set_preempt_timeout_locked(gt, pt);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_apply_vf_pt() - Change VF's preemption timeout.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @pt: preemption timeout in [us] to set
+ *
+ * Change VF's preemption timeout (PT) provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_pt(struct xe_device *xe, unsigned int vfid, u32 pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_preempt_timeout_locked(gt, vfid, pt);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_pt() - Query VF's preemption timeout.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @pt: placeholder for the returned preemption timeout in [us]
+ *
+ * Query VF's preemption timeout (PT) provisioning from all tiles/GTs.
+ * If values across tiles/GTs are inconsistent then -EUCLEAN error will be returned.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_pt(struct xe_device *xe, unsigned int vfid, u32 *pt)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int count = 0;
+	u32 value;
+
+	guard(mutex)(xe_sriov_pf_master_mutex(xe));
+
+	for_each_gt(gt, xe, id) {
+		value = xe_gt_sriov_pf_config_get_preempt_timeout_locked(gt, vfid);
+		if (!count++)
+			*pt = value;
+		else if (value != *pt)
+			return pf_report_unclean(gt, vfid, "PT", value, *pt);
+	}
+
+	return !count ? -ENODATA : 0;
+}
+
+/**
+ * xe_sriov_pf_provision_bulk_apply_priority() - Change scheduling priority of all VFs and PF.
+ * @xe: the PF &xe_device
+ * @prio: scheduling priority to set
+ *
+ * Change the scheduling priority provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_bulk_apply_priority(struct xe_device *xe, u32 prio)
+{
+	bool sched_if_idle;
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	/*
+	 * Currently, priority changes that involves VFs are only allowed using
+	 * the 'sched_if_idle' policy KLV, so only LOW and NORMAL are supported.
+	 */
+	xe_assert(xe, prio < GUC_SCHED_PRIORITY_HIGH);
+	sched_if_idle = prio == GUC_SCHED_PRIORITY_NORMAL;
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_policy_set_sched_if_idle(gt, sched_if_idle);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_apply_vf_priority() - Change VF's scheduling priority.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @prio: scheduling priority to set
+ *
+ * Change VF's scheduling priority provisioning on all tiles/GTs.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_apply_vf_priority(struct xe_device *xe, unsigned int vfid, u32 prio)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int result = 0;
+	int err;
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_pf_config_set_sched_priority(gt, vfid, prio);
+		result = result ?: err;
+	}
+
+	return result;
+}
+
+/**
+ * xe_sriov_pf_provision_query_vf_priority() - Query VF's scheduling priority.
+ * @xe: the PF &xe_device
+ * @vfid: the VF identifier
+ * @prio: placeholder for the returned scheduling priority
+ *
+ * Query VF's scheduling priority provisioning from all tiles/GTs.
+ * If values across tiles/GTs are inconsistent then -EUCLEAN error will be returned.
+ *
+ * This function can only be called on PF.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_provision_query_vf_priority(struct xe_device *xe, unsigned int vfid, u32 *prio)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int count = 0;
+	u32 value;
+
+	for_each_gt(gt, xe, id) {
+		value = xe_gt_sriov_pf_config_get_sched_priority(gt, vfid);
+		if (!count++)
+			*prio = value;
+		else if (value != *prio)
+			return pf_report_unclean(gt, vfid, "priority", value, *prio);
+	}
+
+	return !count ? -ENODATA : 0;
 }

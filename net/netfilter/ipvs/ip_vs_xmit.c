@@ -21,8 +21,7 @@
  * - the only place where we can see skb->sk != NULL
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/kernel.h>
 #include <linux/slab.h>

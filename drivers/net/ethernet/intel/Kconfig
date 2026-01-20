@@ -146,7 +146,7 @@ config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
-	select LIBIE_FWLOG
+	select LIBIE_FWLOG if DEBUG_FS
 	select MDIO
 	select NET_DEVLINK
 	select PLDMFW
@@ -296,9 +296,10 @@ config ICE
 	depends on GNSS || GNSS = n
 	select AUXILIARY_BUS
 	select DIMLIB
+	select LIBETH_XDP
 	select LIBIE
 	select LIBIE_ADMINQ
-	select LIBIE_FWLOG
+	select LIBIE_FWLOG if DEBUG_FS
 	select NET_DEVLINK
 	select PACKING
 	select PLDMFW

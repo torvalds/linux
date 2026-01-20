@@ -5,15 +5,17 @@
 
 #include <linux/iopoll.h>
 
+#include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
 #include "i915_drv.h"
-#include "i915_utils.h"
 #include "intel_color.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display_jiffies.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_vblank.h"
 #include "intel_vrr.h"
 
@@ -681,7 +683,7 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 		else
 			evade->vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
 
-		vblank_delay = intel_vrr_vblank_delay(crtc_state);
+		vblank_delay = crtc_state->set_context_latency;
 	} else {
 		evade->vblank_start = intel_mode_vblank_start(adjusted_mode);
 
@@ -766,4 +768,14 @@ int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
 		scanline = intel_get_crtc_scanline(crtc);
 
 	return scanline;
+}
+
+int intel_crtc_vblank_length(const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	if (crtc_state->vrr.enable)
+		return crtc_state->vrr.guardband;
+	else
+		return adjusted_mode->crtc_vtotal - adjusted_mode->crtc_vblank_start;
 }

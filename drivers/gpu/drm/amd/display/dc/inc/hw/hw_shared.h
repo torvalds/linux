@@ -75,10 +75,35 @@
  */
 #define MAX_LINK_ENCODERS (MAX_DIG_LINK_ENCODERS + MAX_DAC_LINK_ENCODERS)
 
-#define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
 #define MAX_HPO_DP2_ENCODERS	4
 #define MAX_HPO_DP2_LINK_ENCODERS	4
+
+/* Pipe topology snapshot structures */
+#define MAX_TOPOLOGY_SNAPSHOTS 4
+
+struct pipe_topology_line {
+	bool is_phantom_pipe;
+	int plane_idx;
+	int slice_idx;
+	int stream_idx;
+	int dpp_inst;
+	int opp_inst;
+	int tg_inst;
+};
+
+struct pipe_topology_snapshot {
+	struct pipe_topology_line pipe_log_lines[MAX_PIPES];
+	int line_count;
+	uint64_t timestamp_us;
+	int stream_count;
+	int phantom_stream_count;
+};
+
+struct pipe_topology_history {
+	struct pipe_topology_snapshot snapshots[MAX_TOPOLOGY_SNAPSHOTS];
+	int current_snapshot_index;
+};
 
 struct gamma_curve {
 	uint32_t offset;

@@ -136,6 +136,7 @@ struct ref_scale_ops {
 	void (*cleanup)(void);
 	void (*readsection)(const int nloops);
 	void (*delaysection)(const int nloops, const int udl, const int ndl);
+	bool enable_irqs;
 	const char *name;
 };
 
@@ -184,6 +185,8 @@ static const struct ref_scale_ops rcu_ops = {
 
 // Definitions for SRCU ref scale testing.
 DEFINE_STATIC_SRCU(srcu_refctl_scale);
+DEFINE_STATIC_SRCU_FAST(srcu_fast_refctl_scale);
+DEFINE_STATIC_SRCU_FAST_UPDOWN(srcu_fast_updown_refctl_scale);
 static struct srcu_struct *srcu_ctlp = &srcu_refctl_scale;
 
 static void srcu_ref_scale_read_section(const int nloops)
@@ -216,6 +219,12 @@ static const struct ref_scale_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+static bool srcu_fast_sync_scale_init(void)
+{
+	srcu_ctlp = &srcu_fast_refctl_scale;
+	return true;
+}
+
 static void srcu_fast_ref_scale_read_section(const int nloops)
 {
 	int i;
@@ -240,10 +249,46 @@ static void srcu_fast_ref_scale_delay_section(const int nloops, const int udl, c
 }
 
 static const struct ref_scale_ops srcu_fast_ops = {
-	.init		= rcu_sync_scale_init,
+	.init		= srcu_fast_sync_scale_init,
 	.readsection	= srcu_fast_ref_scale_read_section,
 	.delaysection	= srcu_fast_ref_scale_delay_section,
 	.name		= "srcu-fast"
+};
+
+static bool srcu_fast_updown_sync_scale_init(void)
+{
+	srcu_ctlp = &srcu_fast_updown_refctl_scale;
+	return true;
+}
+
+static void srcu_fast_updown_ref_scale_read_section(const int nloops)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
+		srcu_read_unlock_fast_updown(srcu_ctlp, scp);
+	}
+}
+
+static void srcu_fast_updown_ref_scale_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast_updown(srcu_ctlp);
+		un_delay(udl, ndl);
+		srcu_read_unlock_fast_updown(srcu_ctlp, scp);
+	}
+}
+
+static const struct ref_scale_ops srcu_fast_updown_ops = {
+	.init		= srcu_fast_updown_sync_scale_init,
+	.readsection	= srcu_fast_updown_ref_scale_read_section,
+	.delaysection	= srcu_fast_updown_ref_scale_delay_section,
+	.name		= "srcu-fast-updown"
 };
 
 #ifdef CONFIG_TASKS_RCU
@@ -323,6 +368,9 @@ static const struct ref_scale_ops rcu_trace_ops = {
 // Definitions for reference count
 static atomic_t refcnt;
 
+// Definitions acquire-release.
+static DEFINE_PER_CPU(unsigned long, test_acqrel);
+
 static void ref_refcnt_section(const int nloops)
 {
 	int i;
@@ -349,6 +397,184 @@ static const struct ref_scale_ops refcnt_ops = {
 	.readsection	= ref_refcnt_section,
 	.delaysection	= ref_refcnt_delay_section,
 	.name		= "refcnt"
+};
+
+static void ref_percpuinc_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		this_cpu_inc(test_acqrel);
+		this_cpu_dec(test_acqrel);
+	}
+}
+
+static void ref_percpuinc_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		this_cpu_inc(test_acqrel);
+		un_delay(udl, ndl);
+		this_cpu_dec(test_acqrel);
+	}
+}
+
+static const struct ref_scale_ops percpuinc_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_percpuinc_section,
+	.delaysection	= ref_percpuinc_delay_section,
+	.name		= "percpuinc"
+};
+
+// Note that this can lose counts in preemptible kernels.
+static void ref_incpercpu_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap = this_cpu_ptr(&test_acqrel);
+
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+	}
+}
+
+static void ref_incpercpu_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap = this_cpu_ptr(&test_acqrel);
+
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+	}
+}
+
+static const struct ref_scale_ops incpercpu_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpu_section,
+	.delaysection	= ref_incpercpu_delay_section,
+	.name		= "incpercpu"
+};
+
+static void ref_incpercpupreempt_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		preempt_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		preempt_enable();
+	}
+}
+
+static void ref_incpercpupreempt_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		preempt_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		preempt_enable();
+	}
+}
+
+static const struct ref_scale_ops incpercpupreempt_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpupreempt_section,
+	.delaysection	= ref_incpercpupreempt_delay_section,
+	.name		= "incpercpupreempt"
+};
+
+static void ref_incpercpubh_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_bh_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_bh_enable();
+	}
+}
+
+static void ref_incpercpubh_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_bh_disable();
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_bh_enable();
+	}
+}
+
+static const struct ref_scale_ops incpercpubh_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpubh_section,
+	.delaysection	= ref_incpercpubh_delay_section,
+	.enable_irqs	= true,
+	.name		= "incpercpubh"
+};
+
+static void ref_incpercpuirqsave_section(const int nloops)
+{
+	int i;
+	unsigned long flags;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_irq_save(flags);
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_irq_restore(flags);
+	}
+}
+
+static void ref_incpercpuirqsave_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	unsigned long flags;
+
+	for (i = nloops; i >= 0; i--) {
+		unsigned long *tap;
+
+		local_irq_save(flags);
+		tap = this_cpu_ptr(&test_acqrel);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) + 1);
+		un_delay(udl, ndl);
+		WRITE_ONCE(*tap, READ_ONCE(*tap) - 1);
+		local_irq_restore(flags);
+	}
+}
+
+static const struct ref_scale_ops incpercpuirqsave_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= ref_incpercpuirqsave_section,
+	.delaysection	= ref_incpercpuirqsave_delay_section,
+	.name		= "incpercpuirqsave"
 };
 
 // Definitions for rwlock
@@ -494,9 +720,6 @@ static const struct ref_scale_ops lock_irq_ops = {
 	.name		= "lock-irq"
 };
 
-// Definitions acquire-release.
-static DEFINE_PER_CPU(unsigned long, test_acqrel);
-
 static void ref_acqrel_section(const int nloops)
 {
 	unsigned long x;
@@ -627,6 +850,133 @@ static const struct ref_scale_ops jiffies_ops = {
 	.readsection	= ref_jiffies_section,
 	.delaysection	= ref_jiffies_delay_section,
 	.name		= "jiffies"
+};
+
+static void ref_preempt_section(const int nloops)
+{
+	int i;
+
+	migrate_disable();
+	for (i = nloops; i >= 0; i--) {
+		preempt_disable();
+		preempt_enable();
+	}
+	migrate_enable();
+}
+
+static void ref_preempt_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	migrate_disable();
+	for (i = nloops; i >= 0; i--) {
+		preempt_disable();
+		un_delay(udl, ndl);
+		preempt_enable();
+	}
+	migrate_enable();
+}
+
+static const struct ref_scale_ops preempt_ops = {
+	.readsection	= ref_preempt_section,
+	.delaysection	= ref_preempt_delay_section,
+	.name		= "preempt"
+};
+
+static void ref_bh_section(const int nloops)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_bh_disable();
+		local_bh_enable();
+	}
+	preempt_enable();
+}
+
+static void ref_bh_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_bh_disable();
+		un_delay(udl, ndl);
+		local_bh_enable();
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops bh_ops = {
+	.readsection	= ref_bh_section,
+	.delaysection	= ref_bh_delay_section,
+	.enable_irqs	= true,
+	.name		= "bh"
+};
+
+static void ref_irq_section(const int nloops)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_disable();
+		local_irq_enable();
+	}
+	preempt_enable();
+}
+
+static void ref_irq_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_disable();
+		un_delay(udl, ndl);
+		local_irq_enable();
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops irq_ops = {
+	.readsection	= ref_irq_section,
+	.delaysection	= ref_irq_delay_section,
+	.name		= "irq"
+};
+
+static void ref_irqsave_section(const int nloops)
+{
+	unsigned long flags;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_save(flags);
+		local_irq_restore(flags);
+	}
+	preempt_enable();
+}
+
+static void ref_irqsave_delay_section(const int nloops, const int udl, const int ndl)
+{
+	unsigned long flags;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		local_irq_save(flags);
+		un_delay(udl, ndl);
+		local_irq_restore(flags);
+	}
+	preempt_enable();
+}
+
+static const struct ref_scale_ops irqsave_ops = {
+	.readsection	= ref_irqsave_section,
+	.delaysection	= ref_irqsave_delay_section,
+	.name		= "irqsave"
 };
 
 ////////////////////////////////////////////////////////////////////////
@@ -924,15 +1274,18 @@ repeat:
 	if (!atomic_dec_return(&n_warmedup))
 		while (atomic_read_acquire(&n_warmedup))
 			rcu_scale_one_reader();
-	// Also keep interrupts disabled.  This also has the effect
-	// of preventing entries into slow path for rcu_read_unlock().
-	local_irq_save(flags);
+	// Also keep interrupts disabled when it is safe to do so, which
+	// it is not for local_bh_enable().  This also has the effect of
+	// preventing entries into slow path for rcu_read_unlock().
+	if (!cur_ops->enable_irqs)
+		local_irq_save(flags);
 	start = ktime_get_mono_fast_ns();
 
 	rcu_scale_one_reader();
 
 	duration = ktime_get_mono_fast_ns() - start;
-	local_irq_restore(flags);
+	if (!cur_ops->enable_irqs)
+		local_irq_restore(flags);
 
 	rt->last_duration_ns = WARN_ON_ONCE(duration < 0) ? 0 : duration;
 	// To reduce runtime-skew noise, do maintain-load invocations until
@@ -1163,9 +1516,13 @@ ref_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcu_fast_ops, RCU_TRACE_OPS RCU_TASKS_OPS
-		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
-		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
+		&rcu_ops, &srcu_ops, &srcu_fast_ops, &srcu_fast_updown_ops,
+		RCU_TRACE_OPS RCU_TASKS_OPS
+		&refcnt_ops, &percpuinc_ops, &incpercpu_ops, &incpercpupreempt_ops,
+		&incpercpubh_ops, &incpercpuirqsave_ops,
+		&rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
+		&sched_clock_ops, &clock_ops, &jiffies_ops,
+		&preempt_ops, &bh_ops, &irq_ops, &irqsave_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 

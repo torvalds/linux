@@ -132,15 +132,18 @@ static inline int cpu_to_coregroup_id(int cpu)
 #include <asm/cputable.h>
 
 struct cpumask *cpu_coregroup_mask(int cpu);
+const struct cpumask *cpu_die_mask(int cpu);
+int cpu_die_id(int cpu);
 
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>
 
 #define topology_physical_package_id(cpu)	(cpu_to_chip_id(cpu))
-
-#define topology_sibling_cpumask(cpu)	(per_cpu(cpu_sibling_map, cpu))
-#define topology_core_cpumask(cpu)	(per_cpu(cpu_core_map, cpu))
-#define topology_core_id(cpu)		(cpu_to_core_id(cpu))
+#define topology_sibling_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
+#define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))
+#define topology_core_id(cpu)			(cpu_to_core_id(cpu))
+#define topology_die_id(cpu)			(cpu_die_id(cpu))
+#define topology_die_cpumask(cpu)		(cpu_die_mask(cpu))
 
 #endif
 #endif

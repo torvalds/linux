@@ -17,8 +17,7 @@ use kernel::{
     error::Result,
     pr_info,
     prelude::*,
-    sync::Arc,
-    types::ARef,
+    sync::{aref::ARef, Arc},
 };
 use pin_init::PinInit;
 

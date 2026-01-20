@@ -53,7 +53,7 @@
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;                    // from bootloader
 
-		wdt@200 {
+		watchdog@200 {
 			device_type = "watchdog";
 			compatible = "mpc83xx_wdt";
 			reg = <0x200 0x100>;

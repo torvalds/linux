@@ -3,15 +3,17 @@
 
 //! Traits for rendering or updating values exported to DebugFS.
 
+use crate::alloc::Allocator;
+use crate::fmt;
+use crate::fs::file;
 use crate::prelude::*;
+use crate::sync::atomic::{Atomic, AtomicBasicOps, AtomicType, Relaxed};
+use crate::sync::Arc;
 use crate::sync::Mutex;
-use crate::uaccess::UserSliceReader;
-use core::fmt::{self, Debug, Formatter};
+use crate::transmute::{AsBytes, FromBytes};
+use crate::uaccess::{UserSliceReader, UserSliceWriter};
+use core::ops::{Deref, DerefMut};
 use core::str::FromStr;
-use core::sync::atomic::{
-    AtomicI16, AtomicI32, AtomicI64, AtomicI8, AtomicIsize, AtomicU16, AtomicU32, AtomicU64,
-    AtomicU8, AtomicUsize, Ordering,
-};
 
 /// A trait for types that can be written into a string.
 ///
@@ -24,18 +26,122 @@ use core::sync::atomic::{
 /// explicitly instead.
 pub trait Writer {
     /// Formats the value using the given formatter.
-    fn write(&self, f: &mut Formatter<'_>) -> fmt::Result;
+    fn write(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 }
 
 impl<T: Writer> Writer for Mutex<T> {
-    fn write(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn write(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.lock().write(f)
     }
 }
 
-impl<T: Debug> Writer for T {
-    fn write(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl<T: fmt::Debug> Writer for T {
+    fn write(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "{self:?}")
+    }
+}
+
+/// Trait for types that can be written out as binary.
+pub trait BinaryWriter {
+    /// Writes the binary form of `self` into `writer`.
+    ///
+    /// `offset` is the requested offset into the binary representation of `self`.
+    ///
+    /// On success, returns the number of bytes written in to `writer`.
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize>;
+}
+
+// Base implementation for any `T: AsBytes`.
+impl<T: AsBytes> BinaryWriter for T {
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        writer.write_slice_file(self.as_bytes(), offset)
+    }
+}
+
+// Delegate for `Mutex<T>`: Support a `T` with an outer mutex.
+impl<T: BinaryWriter> BinaryWriter for Mutex<T> {
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        let guard = self.lock();
+
+        guard.write_to_slice(writer, offset)
+    }
+}
+
+// Delegate for `Box<T, A>`: Support a `Box<T, A>` with no lock or an inner lock.
+impl<T, A> BinaryWriter for Box<T, A>
+where
+    T: BinaryWriter,
+    A: Allocator,
+{
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().write_to_slice(writer, offset)
+    }
+}
+
+// Delegate for `Pin<Box<T, A>>`: Support a `Pin<Box<T, A>>` with no lock or an inner lock.
+impl<T, A> BinaryWriter for Pin<Box<T, A>>
+where
+    T: BinaryWriter,
+    A: Allocator,
+{
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().write_to_slice(writer, offset)
+    }
+}
+
+// Delegate for `Arc<T>`: Support a `Arc<T>` with no lock or an inner lock.
+impl<T> BinaryWriter for Arc<T>
+where
+    T: BinaryWriter,
+{
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().write_to_slice(writer, offset)
+    }
+}
+
+// Delegate for `Vec<T, A>`.
+impl<T, A> BinaryWriter for Vec<T, A>
+where
+    T: AsBytes,
+    A: Allocator,
+{
+    fn write_to_slice(
+        &self,
+        writer: &mut UserSliceWriter,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        let slice = self.as_slice();
+
+        // SAFETY: `T: AsBytes` allows us to treat `&[T]` as `&[u8]`.
+        let buffer = unsafe {
+            core::slice::from_raw_parts(slice.as_ptr().cast(), core::mem::size_of_val(slice))
+        };
+
+        writer.write_slice_file(buffer, offset)
     }
 }
 
@@ -50,7 +156,7 @@ pub trait Reader {
     fn read_from_slice(&self, reader: &mut UserSliceReader) -> Result;
 }
 
-impl<T: FromStr> Reader for Mutex<T> {
+impl<T: FromStr + Unpin> Reader for Mutex<T> {
     fn read_from_slice(&self, reader: &mut UserSliceReader) -> Result {
         let mut buf = [0u8; 128];
         if reader.len() > buf.len() {
@@ -66,37 +172,148 @@ impl<T: FromStr> Reader for Mutex<T> {
     }
 }
 
-macro_rules! impl_reader_for_atomic {
-    ($(($atomic_type:ty, $int_type:ty)),*) => {
-        $(
-            impl Reader for $atomic_type {
-                fn read_from_slice(&self, reader: &mut UserSliceReader) -> Result {
-                    let mut buf = [0u8; 21]; // Enough for a 64-bit number.
-                    if reader.len() > buf.len() {
-                        return Err(EINVAL);
-                    }
-                    let n = reader.len();
-                    reader.read_slice(&mut buf[..n])?;
+impl<T: AtomicType + FromStr> Reader for Atomic<T>
+where
+    T::Repr: AtomicBasicOps,
+{
+    fn read_from_slice(&self, reader: &mut UserSliceReader) -> Result {
+        let mut buf = [0u8; 21]; // Enough for a 64-bit number.
+        if reader.len() > buf.len() {
+            return Err(EINVAL);
+        }
+        let n = reader.len();
+        reader.read_slice(&mut buf[..n])?;
 
-                    let s = core::str::from_utf8(&buf[..n]).map_err(|_| EINVAL)?;
-                    let val = s.trim().parse::<$int_type>().map_err(|_| EINVAL)?;
-                    self.store(val, Ordering::Relaxed);
-                    Ok(())
-                }
-            }
-        )*
-    };
+        let s = core::str::from_utf8(&buf[..n]).map_err(|_| EINVAL)?;
+        let val = s.trim().parse::<T>().map_err(|_| EINVAL)?;
+        self.store(val, Relaxed);
+        Ok(())
+    }
 }
 
-impl_reader_for_atomic!(
-    (AtomicI16, i16),
-    (AtomicI32, i32),
-    (AtomicI64, i64),
-    (AtomicI8, i8),
-    (AtomicIsize, isize),
-    (AtomicU16, u16),
-    (AtomicU32, u32),
-    (AtomicU64, u64),
-    (AtomicU8, u8),
-    (AtomicUsize, usize)
-);
+/// Trait for types that can be constructed from a binary representation.
+///
+/// See also [`BinaryReader`] for interior mutability.
+pub trait BinaryReaderMut {
+    /// Reads the binary form of `self` from `reader`.
+    ///
+    /// Same as [`BinaryReader::read_from_slice`], but takes a mutable reference.
+    ///
+    /// `offset` is the requested offset into the binary representation of `self`.
+    ///
+    /// On success, returns the number of bytes read from `reader`.
+    fn read_from_slice_mut(
+        &mut self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize>;
+}
+
+// Base implementation for any `T: AsBytes + FromBytes`.
+impl<T: AsBytes + FromBytes> BinaryReaderMut for T {
+    fn read_from_slice_mut(
+        &mut self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        reader.read_slice_file(self.as_bytes_mut(), offset)
+    }
+}
+
+// Delegate for `Box<T, A>`: Support a `Box<T, A>` with an outer lock.
+impl<T: ?Sized + BinaryReaderMut, A: Allocator> BinaryReaderMut for Box<T, A> {
+    fn read_from_slice_mut(
+        &mut self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref_mut().read_from_slice_mut(reader, offset)
+    }
+}
+
+// Delegate for `Vec<T, A>`: Support a `Vec<T, A>` with an outer lock.
+impl<T, A> BinaryReaderMut for Vec<T, A>
+where
+    T: AsBytes + FromBytes,
+    A: Allocator,
+{
+    fn read_from_slice_mut(
+        &mut self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        let slice = self.as_mut_slice();
+
+        // SAFETY: `T: AsBytes + FromBytes` allows us to treat `&mut [T]` as `&mut [u8]`.
+        let buffer = unsafe {
+            core::slice::from_raw_parts_mut(
+                slice.as_mut_ptr().cast(),
+                core::mem::size_of_val(slice),
+            )
+        };
+
+        reader.read_slice_file(buffer, offset)
+    }
+}
+
+/// Trait for types that can be constructed from a binary representation.
+///
+/// See also [`BinaryReaderMut`] for the mutable version.
+pub trait BinaryReader {
+    /// Reads the binary form of `self` from `reader`.
+    ///
+    /// `offset` is the requested offset into the binary representation of `self`.
+    ///
+    /// On success, returns the number of bytes read from `reader`.
+    fn read_from_slice(
+        &self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize>;
+}
+
+// Delegate for `Mutex<T>`: Support a `T` with an outer `Mutex`.
+impl<T: BinaryReaderMut + Unpin> BinaryReader for Mutex<T> {
+    fn read_from_slice(
+        &self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        let mut this = self.lock();
+
+        this.read_from_slice_mut(reader, offset)
+    }
+}
+
+// Delegate for `Box<T, A>`: Support a `Box<T, A>` with an inner lock.
+impl<T: ?Sized + BinaryReader, A: Allocator> BinaryReader for Box<T, A> {
+    fn read_from_slice(
+        &self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().read_from_slice(reader, offset)
+    }
+}
+
+// Delegate for `Pin<Box<T, A>>`: Support a `Pin<Box<T, A>>` with an inner lock.
+impl<T: ?Sized + BinaryReader, A: Allocator> BinaryReader for Pin<Box<T, A>> {
+    fn read_from_slice(
+        &self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().read_from_slice(reader, offset)
+    }
+}
+
+// Delegate for `Arc<T>`: Support an `Arc<T>` with an inner lock.
+impl<T: ?Sized + BinaryReader> BinaryReader for Arc<T> {
+    fn read_from_slice(
+        &self,
+        reader: &mut UserSliceReader,
+        offset: &mut file::Offset,
+    ) -> Result<usize> {
+        self.deref().read_from_slice(reader, offset)
+    }
+}

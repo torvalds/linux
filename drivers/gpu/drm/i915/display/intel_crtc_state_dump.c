@@ -289,10 +289,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	drm_printf(&p, "scanline offset: %d\n",
 		   intel_crtc_scanline_offset(pipe_config));
 
-	drm_printf(&p, "vblank delay: %d, framestart delay: %d, MSA timing delay: %d\n",
-		   pipe_config->hw.adjusted_mode.crtc_vblank_start -
-		   pipe_config->hw.adjusted_mode.crtc_vdisplay,
-		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
+	drm_printf(&p, "framestart delay: %d, MSA timing delay: %d, set context latency: %d\n",
+		   pipe_config->framestart_delay, pipe_config->msa_timing_delay,
+		   pipe_config->set_context_latency);
 
 	drm_printf(&p, "vrr: %s, fixed rr: %s, vmin: %d, vmax: %d, flipline: %d, pipeline full: %d, guardband: %d vsync start: %d, vsync end: %d\n",
 		   str_yes_no(pipe_config->vrr.enable),
@@ -313,9 +312,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	drm_printf(&p, "pipe mode: " DRM_MODE_FMT "\n",
 		   DRM_MODE_ARG(&pipe_config->hw.pipe_mode));
 	intel_dump_crtc_timings(&p, &pipe_config->hw.pipe_mode);
-	drm_printf(&p, "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d\n",
+	drm_printf(&p, "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d, min cdclk %d\n",
 		   pipe_config->port_clock, DRM_RECT_ARG(&pipe_config->pipe_src),
-		   pipe_config->pixel_rate);
+		   pipe_config->pixel_rate, pipe_config->min_cdclk);
 
 	drm_printf(&p, "linetime: %d, ips linetime: %d\n",
 		   pipe_config->linetime, pipe_config->ips_linetime);
@@ -372,6 +371,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		vlv_dump_csc(&p, "wgc csc", &pipe_config->csc);
 
 	intel_vdsc_state_dump(&p, 0, pipe_config);
+
+	drm_printf(&p, "sharpness strength: %d, sharpness tap size: %d, sharpness enable: %d\n",
+		   pipe_config->hw.casf_params.strength,
+		   pipe_config->hw.casf_params.win_size,
+		   pipe_config->hw.casf_params.casf_enable);
 
 dump_planes:
 	if (!state)

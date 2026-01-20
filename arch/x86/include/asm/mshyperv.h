@@ -11,6 +11,7 @@
 #include <asm/paravirt.h>
 #include <asm/msr.h>
 #include <hyperv/hvhdk.h>
+#include <asm/fpu/types.h>
 
 /*
  * Hyper-V always provides a single IO-APIC at this MMIO address.
@@ -176,6 +177,8 @@ int hyperv_flush_guest_mapping_range(u64 as,
 int hyperv_fill_flush_guest_mapping_list(
 		struct hv_guest_mapping_flush_list *flush,
 		u64 start_gfn, u64 end_gfn);
+void hv_sleep_notifiers_register(void);
+void hv_machine_power_off(void);
 
 #ifdef CONFIG_X86_64
 void hv_apic_init(void);
@@ -237,6 +240,15 @@ static __always_inline u64 hv_raw_get_msr(unsigned int reg)
 }
 int hv_apicid_to_vp_index(u32 apic_id);
 
+#if IS_ENABLED(CONFIG_MSHV_ROOT) && IS_ENABLED(CONFIG_CRASH_DUMP)
+void hv_root_crash_init(void);
+void hv_crash_asm32(void);
+void hv_crash_asm64(void);
+void hv_crash_asm_end(void);
+#else   /* CONFIG_MSHV_ROOT && CONFIG_CRASH_DUMP */
+static inline void hv_root_crash_init(void) {}
+#endif  /* CONFIG_MSHV_ROOT && CONFIG_CRASH_DUMP */
+
 #else /* CONFIG_HYPERV */
 static inline void hyperv_init(void) {}
 static inline void hyperv_setup_mmu_ops(void) {}
@@ -260,13 +272,46 @@ static inline u64 hv_get_non_nested_msr(unsigned int reg) { return 0; }
 static inline int hv_apicid_to_vp_index(u32 apic_id) { return -EINVAL; }
 #endif /* CONFIG_HYPERV */
 
+struct mshv_vtl_cpu_context {
+	union {
+		struct {
+			u64 rax;
+			u64 rcx;
+			u64 rdx;
+			u64 rbx;
+			u64 cr2;
+			u64 rbp;
+			u64 rsi;
+			u64 rdi;
+			u64 r8;
+			u64 r9;
+			u64 r10;
+			u64 r11;
+			u64 r12;
+			u64 r13;
+			u64 r14;
+			u64 r15;
+		};
+		u64 gp_regs[16];
+	};
+
+	struct fxregs_state fx_state;
+};
 
 #ifdef CONFIG_HYPERV_VTL_MODE
 void __init hv_vtl_init_platform(void);
 int __init hv_vtl_early_init(void);
+void mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0);
+void mshv_vtl_return_call_init(u64 vtl_return_offset);
+void mshv_vtl_return_hypercall(void);
+void __mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0);
 #else
 static inline void __init hv_vtl_init_platform(void) {}
 static inline int __init hv_vtl_early_init(void) { return 0; }
+static inline void mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0) {}
+static inline void mshv_vtl_return_call_init(u64 vtl_return_offset) {}
+static inline void mshv_vtl_return_hypercall(void) {}
+static inline void __mshv_vtl_return_call(struct mshv_vtl_cpu_context *vtl0) {}
 #endif
 
 #include <asm-generic/mshyperv.h>

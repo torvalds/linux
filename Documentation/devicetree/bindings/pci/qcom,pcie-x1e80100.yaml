@@ -8,7 +8,7 @@ title: Qualcomm X1E80100 PCI Express Root Complex
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
-  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Manivannan Sadhasivam <mani@kernel.org>
 
 description:
   Qualcomm X1E80100 SoC (and compatible) PCIe root complex controller is based on
@@ -72,6 +72,11 @@ properties:
     items:
       - const: pci # PCIe core reset
       - const: link_down # PCIe link down reset
+
+required:
+  - power-domains
+  - resets
+  - reset-names
 
 allOf:
   - $ref: qcom,pcie-common.yaml#

@@ -70,5 +70,17 @@
     "EventName": "system_tsc_freq",
     "BriefDescription": "The amount a Time Stamp Counter (TSC) increases per second",
     "ConfigCode": "12"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "core_wide",
+    "BriefDescription": "1 if not SMT, if SMT are events being gathered on all SMT threads 1 otherwise 0",
+    "ConfigCode": "13"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "target_cpu",
+    "BriefDescription": "1 if CPUs being analyzed, 0 if threads/processes",
+    "ConfigCode": "14"
   }
 ]

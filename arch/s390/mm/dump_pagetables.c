@@ -51,7 +51,7 @@ struct pg_state {
 	struct seq_file *__m = (m);		\
 						\
 	if (__m)				\
-		seq_printf(__m, fmt);		\
+		seq_puts(__m, fmt);		\
 })
 
 static void print_prot(struct seq_file *m, unsigned int pr, int level)
@@ -291,16 +291,14 @@ static int ptdump_cmp(const void *a, const void *b)
 
 static int add_marker(unsigned long start, unsigned long end, const char *name)
 {
-	size_t oldsize, newsize;
+	struct addr_marker *new;
+	size_t newsize;
 
-	oldsize = markers_cnt * sizeof(*markers);
-	newsize = oldsize + 2 * sizeof(*markers);
-	if (!oldsize)
-		markers = kvmalloc(newsize, GFP_KERNEL);
-	else
-		markers = kvrealloc(markers, newsize, GFP_KERNEL);
-	if (!markers)
-		goto error;
+	newsize = (markers_cnt + 2) * sizeof(*markers);
+	new = kvrealloc(markers, newsize, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+	markers = new;
 	markers[markers_cnt].is_start = 1;
 	markers[markers_cnt].start_address = start;
 	markers[markers_cnt].size = end - start;
@@ -312,9 +310,6 @@ static int add_marker(unsigned long start, unsigned long end, const char *name)
 	markers[markers_cnt].name = name;
 	markers_cnt++;
 	return 0;
-error:
-	markers_cnt = 0;
-	return -ENOMEM;
 }
 
 static int pt_dump_init(void)

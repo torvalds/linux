@@ -6,6 +6,7 @@
  * Author: Paul Burton <paul.burton@mips.com>
  *
  * Copyright (C) 2021 Glider bv
+ * Copyright (C) 2025 Jean-François Lessard
  */
 
 #ifndef _LINEDISP_H
@@ -81,6 +82,9 @@ struct linedisp {
 	unsigned int id;
 };
 
+int linedisp_attach(struct linedisp *linedisp, struct device *dev,
+		    unsigned int num_chars, const struct linedisp_ops *ops);
+void linedisp_detach(struct device *dev);
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
 		      unsigned int num_chars, const struct linedisp_ops *ops);
 void linedisp_unregister(struct linedisp *linedisp);

@@ -1707,11 +1707,11 @@ attribute-sets:
       -
         name: local
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: remote
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: ttl
         type: u8
@@ -1833,11 +1833,11 @@ attribute-sets:
       -
         name: local
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: remote
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: fwmark
         type: u32
@@ -1868,7 +1868,8 @@ attribute-sets:
         type: u32
       -
         name: remote
-        type: binary
+        type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: ttl
@@ -1914,6 +1915,35 @@ attribute-sets:
         type: binary
         struct: ifla-geneve-port-range
   -
+    name: linkinfo-hsr-attrs
+    name-prefix: ifla-hsr-
+    attributes:
+      -
+        name: slave1
+        type: u32
+      -
+        name: slave2
+        type: u32
+      -
+        name: multicast-spec
+        type: u8
+      -
+        name: supervision-addr
+        type: binary
+        display-hint: mac
+      -
+        name: seq-nr
+        type: u16
+      -
+        name: version
+        type: u8
+      -
+        name: protocol
+        type: u8
+      -
+        name: interlink
+        type: u32
+  -
     name: linkinfo-iptun-attrs
     name-prefix: ifla-iptun-
     attributes:
@@ -1923,11 +1953,11 @@ attribute-sets:
       -
         name: local
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: remote
         type: binary
-        display-hint: ipv4
+        display-hint: ipv4-or-v6
       -
         name: ttl
         type: u8
@@ -1957,7 +1987,8 @@ attribute-sets:
         display-hint: ipv6
       -
         name: 6rd-relay-prefix
-        type: binary
+        type: u32
+        byte-order: big-endian
         display-hint: ipv4
       -
         name: 6rd-prefixlen
@@ -2299,6 +2330,9 @@ sub-messages:
       -
         value: geneve
         attribute-set: linkinfo-geneve-attrs
+      -
+        value: hsr
+        attribute-set: linkinfo-hsr-attrs
       -
         value: ipip
         attribute-set: linkinfo-iptun-attrs

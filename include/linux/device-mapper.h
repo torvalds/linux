@@ -538,11 +538,17 @@ void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone);
 #ifdef CONFIG_BLK_DEV_ZONED
 struct dm_report_zones_args {
 	struct dm_target *tgt;
+	struct gendisk *disk;
 	sector_t next_sector;
 
-	void *orig_data;
-	report_zones_cb orig_cb;
 	unsigned int zone_idx;
+
+	/* for block layer ->report_zones */
+	struct blk_report_zones_args *rep_args;
+
+	/* for internal users */
+	report_zones_cb cb;
+	void *data;
 
 	/* must be filled by ->report_zones before calling dm_report_zones_cb */
 	sector_t start;

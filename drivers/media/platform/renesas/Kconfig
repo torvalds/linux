@@ -42,6 +42,7 @@ config VIDEO_SH_VOU
 source "drivers/media/platform/renesas/rcar-isp/Kconfig"
 source "drivers/media/platform/renesas/rcar-vin/Kconfig"
 source "drivers/media/platform/renesas/rzg2l-cru/Kconfig"
+source "drivers/media/platform/renesas/rzv2h-ivc/Kconfig"
 
 # Mem2mem drivers
 

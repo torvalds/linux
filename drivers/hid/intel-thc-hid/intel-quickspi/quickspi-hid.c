@@ -71,7 +71,6 @@ static int quickspi_hid_raw_request(struct hid_device *hid,
 		break;
 	}
 
-	pm_runtime_mark_last_busy(qsdev->dev);
 	pm_runtime_put_autosuspend(qsdev->dev);
 
 	return ret;

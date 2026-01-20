@@ -57,7 +57,7 @@ properties:
     const: 0
 
 patternProperties:
-  "^timer@[0-2]$":
+  '^timer@[0-2]$':
     description: The timer block channels that are used as timers or counters.
     type: object
     additionalProperties: false
@@ -80,7 +80,7 @@ patternProperties:
       - compatible
       - reg
 
-  "^pwm@[0-2]$":
+  '^pwm@[0-2]$':
     description: The timer block channels that are used as PWMs.
     $ref: /schemas/pwm/pwm.yaml#
     type: object
@@ -92,7 +92,7 @@ patternProperties:
           TCB channel to use for this PWM.
         enum: [ 0, 1, 2 ]
 
-      "#pwm-cells":
+      '#pwm-cells':
         description:
           The only third cell flag supported by this binding is
           PWM_POLARITY_INVERTED.
@@ -101,10 +101,9 @@ patternProperties:
     required:
       - compatible
       - reg
-      - "#pwm-cells"
+      - '#pwm-cells'
 
     additionalProperties: false
-
 
 allOf:
   - if:

@@ -53,7 +53,7 @@ DEFINE_STATIC_SRCU(unwind_srcu);
 
 static inline bool unwind_pending(struct unwind_task_info *info)
 {
-	return test_bit(UNWIND_PENDING_BIT, &info->unwind_mask);
+	return atomic_long_read(&info->unwind_mask) & UNWIND_PENDING;
 }
 
 /*
@@ -78,6 +78,8 @@ static DEFINE_PER_CPU(u32, unwind_ctx_ctr);
 static u64 get_cookie(struct unwind_task_info *info)
 {
 	u32 cnt = 1;
+
+	lockdep_assert_irqs_disabled();
 
 	if (info->id.cpu)
 		return info->id.id;
@@ -126,23 +128,20 @@ int unwind_user_faultable(struct unwind_stacktrace *trace)
 
 	cache = info->cache;
 	trace->entries = cache->entries;
-
-	if (cache->nr_entries) {
-		/*
-		 * The user stack has already been previously unwound in this
-		 * entry context.  Skip the unwind and use the cache.
-		 */
-		trace->nr = cache->nr_entries;
+	trace->nr = cache->nr_entries;
+	/*
+	 * The user stack has already been previously unwound in this
+	 * entry context.  Skip the unwind and use the cache.
+	 */
+	if (trace->nr)
 		return 0;
-	}
 
-	trace->nr = 0;
 	unwind_user(trace, UNWIND_MAX_ENTRIES);
 
 	cache->nr_entries = trace->nr;
 
 	/* Clear nr_entries on way back to user space */
-	set_bit(UNWIND_USED_BIT, &info->unwind_mask);
+	atomic_long_or(UNWIND_USED, &info->unwind_mask);
 
 	return 0;
 }
@@ -160,7 +159,7 @@ static void process_unwind_deferred(struct task_struct *task)
 
 	/* Clear pending bit but make sure to have the current bits */
 	bits = atomic_long_fetch_andnot(UNWIND_PENDING,
-				  (atomic_long_t *)&info->unwind_mask);
+					&info->unwind_mask);
 	/*
 	 * From here on out, the callback must always be called, even if it's
 	 * just an empty trace.
@@ -231,6 +230,7 @@ void unwind_deferred_task_exit(struct task_struct *task)
 int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 {
 	struct unwind_task_info *info = &current->unwind_info;
+	int twa_mode = TWA_RESUME;
 	unsigned long old, bits;
 	unsigned long bit;
 	int ret;
@@ -246,8 +246,11 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	 * Trigger a warning to make it obvious that an architecture
 	 * is using this in NMI when it should not be.
 	 */
-	if (WARN_ON_ONCE(!CAN_USE_IN_NMI && in_nmi()))
-		return -EINVAL;
+	if (in_nmi()) {
+		if (WARN_ON_ONCE(!CAN_USE_IN_NMI))
+			return -EINVAL;
+		twa_mode = TWA_NMI_CURRENT;
+	}
 
 	/* Do not allow cancelled works to request again */
 	bit = READ_ONCE(work->bit);
@@ -261,7 +264,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 
 	*cookie = get_cookie(info);
 
-	old = READ_ONCE(info->unwind_mask);
+	old = atomic_long_read(&info->unwind_mask);
 
 	/* Is this already queued or executed */
 	if (old & bit)
@@ -274,7 +277,7 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	 * to have a callback.
 	 */
 	bits = UNWIND_PENDING | bit;
-	old = atomic_long_fetch_or(bits, (atomic_long_t *)&info->unwind_mask);
+	old = atomic_long_fetch_or(bits, &info->unwind_mask);
 	if (old & bits) {
 		/*
 		 * If the work's bit was set, whatever set it had better
@@ -285,10 +288,10 @@ int unwind_deferred_request(struct unwind_work *work, u64 *cookie)
 	}
 
 	/* The work has been claimed, now schedule it. */
-	ret = task_work_add(current, &info->work, TWA_RESUME);
+	ret = task_work_add(current, &info->work, twa_mode);
 
 	if (WARN_ON_ONCE(ret))
-		WRITE_ONCE(info->unwind_mask, 0);
+		atomic_long_set(&info->unwind_mask, 0);
 
 	return ret;
 }
@@ -320,7 +323,8 @@ void unwind_deferred_cancel(struct unwind_work *work)
 	guard(rcu)();
 	/* Clear this bit from all threads */
 	for_each_process_thread(g, t) {
-		clear_bit(bit, &t->unwind_info.unwind_mask);
+		atomic_long_andnot(BIT(bit),
+				   &t->unwind_info.unwind_mask);
 		if (t->unwind_info.cache)
 			clear_bit(bit, &t->unwind_info.cache->unwind_completed);
 	}
@@ -350,7 +354,7 @@ void unwind_task_init(struct task_struct *task)
 
 	memset(info, 0, sizeof(*info));
 	init_task_work(&info->work, unwind_deferred_task_work);
-	info->unwind_mask = 0;
+	atomic_long_set(&info->unwind_mask, 0);
 }
 
 void unwind_task_free(struct task_struct *task)

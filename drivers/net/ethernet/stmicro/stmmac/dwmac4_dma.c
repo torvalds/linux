@@ -18,7 +18,6 @@
 static void dwmac4_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 {
 	u32 value = readl(ioaddr + DMA_SYS_BUS_MODE);
-	int i;
 
 	pr_info("dwmac4: Master AXI performs %s burst length\n",
 		(value & DMA_SYS_BUS_FB) ? "fixed" : "any");
@@ -38,33 +37,10 @@ static void dwmac4_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 
 	/* Depending on the UNDEF bit the Master AXI will perform any burst
 	 * length according to the BLEN programmed (by default all BLEN are
-	 * set).
+	 * set). Note that the UNDEF bit is readonly, and is the inverse of
+	 * Bus Mode bit 16.
 	 */
-	for (i = 0; i < AXI_BLEN; i++) {
-		switch (axi->axi_blen[i]) {
-		case 256:
-			value |= DMA_AXI_BLEN256;
-			break;
-		case 128:
-			value |= DMA_AXI_BLEN128;
-			break;
-		case 64:
-			value |= DMA_AXI_BLEN64;
-			break;
-		case 32:
-			value |= DMA_AXI_BLEN32;
-			break;
-		case 16:
-			value |= DMA_AXI_BLEN16;
-			break;
-		case 8:
-			value |= DMA_AXI_BLEN8;
-			break;
-		case 4:
-			value |= DMA_AXI_BLEN4;
-			break;
-		}
-	}
+	value = (value & ~DMA_AXI_BLEN_MASK) | axi->axi_blen_regval;
 
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 }

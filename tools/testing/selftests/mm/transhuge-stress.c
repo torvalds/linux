@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 int backing_fd = -1;
 int mmap_flags = MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE;

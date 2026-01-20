@@ -917,6 +917,7 @@ static void amdgpu_virt_init_ras(struct amdgpu_device *adev)
 			    RATELIMIT_MSG_ON_RELEASE);
 
 	mutex_init(&adev->virt.ras.ras_telemetry_mutex);
+	mutex_init(&adev->virt.access_req_mutex);
 
 	adev->virt.ras.cper_rptr = 0;
 }

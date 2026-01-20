@@ -1,2 +1,2 @@
 [MASTER]
-init-hook='import sys; sys.path += ["scripts/lib/kdoc", "scripts/lib/abi", "tools/docs/lib"]'
+init-hook='import sys; sys.path += ["tools/lib/python"]'

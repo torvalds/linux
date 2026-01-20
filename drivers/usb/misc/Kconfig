@@ -182,6 +182,7 @@ config USB_LJCA
 config USB_USBIO
 	tristate "Intel USBIO Bridge support"
 	depends on USB && ACPI
+	depends on X86 || COMPILE_TEST
 	select AUXILIARY_BUS
 	help
 	  This adds support for Intel USBIO drivers.

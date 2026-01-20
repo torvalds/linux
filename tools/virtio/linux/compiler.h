@@ -31,7 +31,7 @@
  */
 #define data_race(expr)							\
 ({									\
-	__auto_type __v = (expr);					\
+	auto __v = (expr);						\
 	__v;								\
 })
 

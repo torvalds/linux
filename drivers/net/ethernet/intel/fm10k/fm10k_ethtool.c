@@ -734,22 +734,11 @@ static int fm10k_get_rssh_fields(struct net_device *dev,
 	return 0;
 }
 
-static int fm10k_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
-			   u32 __always_unused *rule_locs)
+static u32 fm10k_get_rx_ring_count(struct net_device *dev)
 {
 	struct fm10k_intfc *interface = netdev_priv(dev);
-	int ret = -EOPNOTSUPP;
 
-	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = interface->num_rx_queues;
-		ret = 0;
-		break;
-	default:
-		break;
-	}
-
-	return ret;
+	return interface->num_rx_queues;
 }
 
 static int fm10k_set_rssh_fields(struct net_device *dev,
@@ -1160,7 +1149,7 @@ static const struct ethtool_ops fm10k_ethtool_ops = {
 	.set_ringparam		= fm10k_set_ringparam,
 	.get_coalesce		= fm10k_get_coalesce,
 	.set_coalesce		= fm10k_set_coalesce,
-	.get_rxnfc		= fm10k_get_rxnfc,
+	.get_rx_ring_count	= fm10k_get_rx_ring_count,
 	.get_regs               = fm10k_get_regs,
 	.get_regs_len           = fm10k_get_regs_len,
 	.self_test		= fm10k_self_test,

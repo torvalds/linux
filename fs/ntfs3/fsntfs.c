@@ -1349,7 +1349,14 @@ int ntfs_get_bh(struct ntfs_sb_info *sbi, const struct runs_tree *run, u64 vbo,
 				}
 				if (buffer_locked(bh))
 					__wait_on_buffer(bh);
-				set_buffer_uptodate(bh);
+
+				lock_buffer(bh);
+				if (!buffer_uptodate(bh))
+				{
+					memset(bh->b_data, 0, blocksize);
+					set_buffer_uptodate(bh);
+				}
+				unlock_buffer(bh);
 			} else {
 				bh = ntfs_bread(sb, block);
 				if (!bh) {
@@ -1472,99 +1479,86 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
 }
 
 /*
- * ntfs_bio_pages - Read/write pages from/to disk.
+ * ntfs_read_write_run - Read/Write disk's page cache.
  */
-int ntfs_bio_pages(struct ntfs_sb_info *sbi, const struct runs_tree *run,
-		   struct page **pages, u32 nr_pages, u64 vbo, u32 bytes,
-		   enum req_op op)
+int ntfs_read_write_run(struct ntfs_sb_info *sbi, const struct runs_tree *run,
+			void *buf, u64 vbo, size_t bytes, int wr)
 {
-	int err = 0;
-	struct bio *new, *bio = NULL;
 	struct super_block *sb = sbi->sb;
-	struct block_device *bdev = sb->s_bdev;
-	struct page *page;
+	struct address_space *mapping = sb->s_bdev->bd_mapping;
 	u8 cluster_bits = sbi->cluster_bits;
-	CLST lcn, clen, vcn, vcn_next;
-	u32 add, off, page_idx;
+	CLST vcn_next, vcn = vbo >> cluster_bits;
+	CLST lcn, clen;
 	u64 lbo, len;
-	size_t run_idx;
-	struct blk_plug plug;
+	size_t idx;
+	u32 off, op;
+	struct folio *folio;
+	char *kaddr;
 
 	if (!bytes)
 		return 0;
 
-	blk_start_plug(&plug);
+	if (!run_lookup_entry(run, vcn, &lcn, &clen, &idx))
+		return -ENOENT;
 
-	/* Align vbo and bytes to be 512 bytes aligned. */
-	lbo = (vbo + bytes + 511) & ~511ull;
-	vbo = vbo & ~511ull;
-	bytes = lbo - vbo;
+	if (lcn == SPARSE_LCN)
+		return -EINVAL;
 
-	vcn = vbo >> cluster_bits;
-	if (!run_lookup_entry(run, vcn, &lcn, &clen, &run_idx)) {
-		err = -ENOENT;
-		goto out;
-	}
 	off = vbo & sbi->cluster_mask;
-	page_idx = 0;
-	page = pages[0];
+	lbo = ((u64)lcn << cluster_bits) + off;
+	len = ((u64)clen << cluster_bits) - off;
 
 	for (;;) {
-		lbo = ((u64)lcn << cluster_bits) + off;
-		len = ((u64)clen << cluster_bits) - off;
-new_bio:
-		new = bio_alloc(bdev, nr_pages - page_idx, op, GFP_NOFS);
-		if (bio) {
-			bio_chain(bio, new);
-			submit_bio(bio);
+		/* Read range [lbo, lbo+len). */
+		folio = read_mapping_folio(mapping, lbo >> PAGE_SHIFT, NULL);
+
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
+
+		off = offset_in_page(lbo);
+		op = PAGE_SIZE - off;
+
+		if (op > len)
+			op = len;
+		if (op > bytes)
+			op = bytes;
+
+		kaddr = kmap_local_folio(folio, 0);
+		if (wr) {
+			memcpy(kaddr + off, buf, op);
+			folio_mark_dirty(folio);
+		} else {
+			memcpy(buf, kaddr + off, op);
+			flush_dcache_folio(folio);
 		}
-		bio = new;
-		bio->bi_iter.bi_sector = lbo >> 9;
+		kunmap_local(kaddr);
+		folio_put(folio);
 
-		while (len) {
-			off = vbo & (PAGE_SIZE - 1);
-			add = off + len > PAGE_SIZE ? (PAGE_SIZE - off) : len;
+		bytes -= op;
+		if (!bytes)
+			return 0;
 
-			if (bio_add_page(bio, page, add, off) < add)
-				goto new_bio;
-
-			if (bytes <= add)
-				goto out;
-			bytes -= add;
-			vbo += add;
-
-			if (add + off == PAGE_SIZE) {
-				page_idx += 1;
-				if (WARN_ON(page_idx >= nr_pages)) {
-					err = -EINVAL;
-					goto out;
-				}
-				page = pages[page_idx];
-			}
-
-			if (len <= add)
-				break;
-			len -= add;
-			lbo += add;
+		buf += op;
+		len -= op;
+		if (len) {
+			/* next volume's page. */
+			lbo += op;
+			continue;
 		}
 
+		/* get next range. */
 		vcn_next = vcn + clen;
-		if (!run_get_entry(run, ++run_idx, &vcn, &lcn, &clen) ||
+		if (!run_get_entry(run, ++idx, &vcn, &lcn, &clen) ||
 		    vcn != vcn_next) {
-			err = -ENOENT;
-			goto out;
+			return -ENOENT;
 		}
-		off = 0;
-	}
-out:
-	if (bio) {
-		if (!err)
-			err = submit_bio_wait(bio);
-		bio_put(bio);
-	}
-	blk_finish_plug(&plug);
 
-	return err;
+		if (lcn == SPARSE_LCN)
+			return -EINVAL;
+
+		lbo = ((u64)lcn << cluster_bits);
+		len = ((u64)clen << cluster_bits);
+	}
 }
 
 /*

@@ -498,10 +498,10 @@ static bool ilk_crt_detect_hotplug(struct drm_connector *connector)
 
 		intel_de_write(display, crt->adpa_reg, adpa);
 
-		if (intel_de_wait_for_clear(display,
-					    crt->adpa_reg,
-					    ADPA_CRT_HOTPLUG_FORCE_TRIGGER,
-					    1000))
+		if (intel_de_wait_for_clear_ms(display,
+					       crt->adpa_reg,
+					       ADPA_CRT_HOTPLUG_FORCE_TRIGGER,
+					       1000))
 			drm_dbg_kms(display->drm,
 				    "timed out waiting for FORCE_TRIGGER");
 
@@ -553,8 +553,8 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 
 	intel_de_write(display, crt->adpa_reg, adpa);
 
-	if (intel_de_wait_for_clear(display, crt->adpa_reg,
-				    ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 1000)) {
+	if (intel_de_wait_for_clear_ms(display, crt->adpa_reg,
+				       ADPA_CRT_HOTPLUG_FORCE_TRIGGER, 1000)) {
 		drm_dbg_kms(display->drm,
 			    "timed out waiting for FORCE_TRIGGER");
 		intel_de_write(display, crt->adpa_reg, save_adpa);
@@ -604,8 +604,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
-		if (intel_de_wait_for_clear(display, PORT_HOTPLUG_EN(display),
-					    CRT_HOTPLUG_FORCE_DETECT, 1000))
+		if (intel_de_wait_for_clear_ms(display, PORT_HOTPLUG_EN(display),
+					       CRT_HOTPLUG_FORCE_DETECT, 1000))
 			drm_dbg_kms(display->drm,
 				    "timed out waiting for FORCE_DETECT to go off");
 	}

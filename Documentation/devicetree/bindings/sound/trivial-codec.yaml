@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/trivial-codec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Trivial Audio Codec
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      # Analog Devices SSM2602 I2S audio CODEC devices
+      - adi,ssm2602
+      - adi,ssm2603
+      - adi,ssm2604
+      - adi,ssm3515
+      # Cirrus Logic CS4265 audio DAC
+      - cirrus,cs4265
+      - cirrus,cs4341a
+      - cirrus,cs4349
+      - dlg,da9055-codec
+      # Nuvoton Technology Corporation NAU85L40 Audio CODEC
+      - nuvoton,nau8540
+      - nuvoton,nau8810
+      - nuvoton,nau8812
+      - nuvoton,nau8814
+      # NXP TFA9879 class-D audio amplifier
+      - nxp,tfa9879
+      - nxp,uda1342
+      - sdw3019f836300
+      - ti,pcm1789
+      - ti,pcm1792a
+      - ti,pcm5102a
+      - wlf,wm8510
+      - wlf,wm8523
+      - wlf,wm8580
+      - wlf,wm8581
+      - wlf,wm8711
+      - wlf,wm8728
+      - wlf,wm8737
+      - wlf,wm8750
+      - wlf,wm8753
+      - wlf,wm8770
+      - wlf,wm8776
+      - wlf,wm8961
+      - wlf,wm8974
+      - wlf,wm8987
+
+  reg:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  reset-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        codec@1a {
+            compatible = "wlf,wm8523";
+            reg = <0x1a>;
+        };
+    };

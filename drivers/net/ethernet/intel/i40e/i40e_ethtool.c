@@ -3522,6 +3522,20 @@ no_input_set:
 }
 
 /**
+ * i40e_get_rx_ring_count - get RX ring count
+ * @netdev: network interface device structure
+ *
+ * Return: number of RX rings.
+ **/
+static u32 i40e_get_rx_ring_count(struct net_device *netdev)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+
+	return vsi->rss_size;
+}
+
+/**
  * i40e_get_rxnfc - command to get RX flow classification rules
  * @netdev: network interface device structure
  * @cmd: ethtool rxnfc command
@@ -3538,10 +3552,6 @@ static int i40e_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	int ret = -EOPNOTSUPP;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = vsi->rss_size;
-		ret = 0;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = pf->fdir_pf_active_filters;
 		/* report total rule count */
@@ -5819,6 +5829,7 @@ static const struct ethtool_ops i40e_ethtool_ops = {
 	.set_msglevel		= i40e_set_msglevel,
 	.get_rxnfc		= i40e_get_rxnfc,
 	.set_rxnfc		= i40e_set_rxnfc,
+	.get_rx_ring_count	= i40e_get_rx_ring_count,
 	.self_test		= i40e_diag_test,
 	.get_strings		= i40e_get_strings,
 	.get_eee		= i40e_get_eee,

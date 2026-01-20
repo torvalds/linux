@@ -289,6 +289,9 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_unload_overlay;
 	}
 
+	if (skip_ovl)
+		of_node_put(rp1_node);
+
 	return 0;
 
 err_unload_overlay:

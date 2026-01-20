@@ -698,9 +698,9 @@ static int buck_set_hw_dvs_levels(struct device_node *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
-	struct bd718xx_regulator_data *data;
+	const struct bd718xx_regulator_data *data;
 
-	data = container_of(desc, struct bd718xx_regulator_data, desc);
+	data = container_of_const(desc, struct bd718xx_regulator_data, desc);
 
 	return rohm_regulator_set_dvs_levels(&data->dvs, np, desc, cfg->regmap);
 }
@@ -1613,6 +1613,8 @@ static int setup_feedback_loop(struct device *dev, struct device_node *np,
 				step /= r1;
 
 				new[j].min = min;
+				new[j].min_sel = desc->linear_ranges[j].min_sel;
+				new[j].max_sel = desc->linear_ranges[j].max_sel;
 				new[j].step = step;
 
 				dev_dbg(dev, "%s: old range min %d, step %d\n",

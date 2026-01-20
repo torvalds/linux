@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "clone3_selftests.h"
 
 #define MAX_PID_NS_LEVEL 32

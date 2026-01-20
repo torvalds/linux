@@ -44,6 +44,7 @@
  * but lo_hi_readq() ensures that we are safe across all e3-1200 processors.
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -138,9 +139,6 @@
 #define IE31200_CAPID0_PDCD		BIT(4)
 #define IE31200_CAPID0_DDPCD		BIT(6)
 #define IE31200_CAPID0_ECC		BIT(1)
-
-/* Non-constant mask variant of FIELD_GET() */
-#define field_get(_mask, _reg)  (((_reg) & (_mask)) >> (ffs(_mask) - 1))
 
 static int nr_channels;
 static struct pci_dev *mci_pdev;
@@ -526,6 +524,7 @@ static int ie31200_register_mci(struct pci_dev *pdev, struct res_config *cfg, in
 	ie31200_pvt.priv[mc] = priv;
 	return 0;
 fail_unmap:
+	put_device(&priv->dev);
 	iounmap(window);
 fail_free:
 	edac_mc_free(mci);
@@ -598,6 +597,7 @@ static void ie31200_unregister_mcis(void)
 		mci = priv->mci;
 		edac_mc_del_mc(mci->pdev);
 		iounmap(priv->window);
+		put_device(&priv->dev);
 		edac_mc_free(mci);
 	}
 }

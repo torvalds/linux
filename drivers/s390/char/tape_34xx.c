@@ -8,8 +8,7 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#define KMSG_COMPONENT "tape_34xx"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "tape_34xx: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>
@@ -234,31 +233,6 @@ tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 	return TAPE_IO_SUCCESS;
 }
 
-/*
- * Read Opposite Error Recovery Function:
- * Used, when Read Forward does not work
- */
-static int
-tape_34xx_erp_read_opposite(struct tape_device *device,
-			    struct tape_request *request)
-{
-	if (request->op == TO_RFO) {
-		/*
-		 * We did read forward, but the data could not be read
-		 * *correctly*. We transform the request to a read backward
-		 * and try again.
-		 */
-		tape_std_read_backward(device, request);
-		return tape_34xx_erp_retry(request);
-	}
-
-	/*
-	 * We tried to read forward and backward, but hat no
-	 * success -> failed.
-	 */
-	return tape_34xx_erp_failed(request, -EIO);
-}
-
 static int
 tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
 		  struct irb *irb, int no)
@@ -440,9 +414,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			dev_warn (&device->cdev->dev, "A write error on the "
 				"tape cannot be recovered\n");
 			return tape_34xx_erp_failed(request, -EIO);
-		case 0x26:
-			/* Data Check (read opposite) occurred. */
-			return tape_34xx_erp_read_opposite(device, request);
 		case 0x28:
 			/* ID-Mark at tape start couldn't be written */
 			dev_warn (&device->cdev->dev, "Writing the ID-mark "

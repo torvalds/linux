@@ -57,16 +57,12 @@ static int write_mmp_block_thawed(struct super_block *sb,
 
 static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 {
-	int err;
-
 	/*
 	 * We protect against freezing so that we don't create dirty buffers
 	 * on frozen filesystem.
 	 */
-	sb_start_write(sb);
-	err = write_mmp_block_thawed(sb, bh);
-	sb_end_write(sb);
-	return err;
+	scoped_guard(super_write, sb)
+		return write_mmp_block_thawed(sb, bh);
 }
 
 /*

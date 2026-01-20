@@ -302,7 +302,7 @@ static struct inode *romfs_iget(struct super_block *sb, unsigned long pos)
 	if (!i)
 		return ERR_PTR(-ENOMEM);
 
-	if (!(i->i_state & I_NEW))
+	if (!(inode_state_read_once(i) & I_NEW))
 		return i;
 
 	/* precalculate the data offset */

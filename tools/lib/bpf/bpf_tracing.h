@@ -311,7 +311,7 @@ struct pt_regs___arm64 {
 #define __PT_RET_REG regs[31]
 #define __PT_FP_REG __unsupported__
 #define __PT_RC_REG gpr[3]
-#define __PT_SP_REG sp
+#define __PT_SP_REG gpr[1]
 #define __PT_IP_REG nip
 
 #elif defined(bpf_target_sparc)

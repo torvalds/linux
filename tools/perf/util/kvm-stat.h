@@ -10,6 +10,7 @@
 #include "symbol.h"
 #include "record.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <linux/zalloc.h>
 

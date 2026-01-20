@@ -168,10 +168,10 @@ static int neigh_check_cb(struct neighbour *n)
 
 static void idle_timer_check(struct timer_list *unused)
 {
-	write_lock(&arp_tbl.lock);
+	spin_lock(&arp_tbl.lock);
 	__neigh_for_each_release(&arp_tbl, neigh_check_cb);
 	mod_timer(&idle_timer, jiffies + CLIP_CHECK_INTERVAL * HZ);
-	write_unlock(&arp_tbl.lock);
+	spin_unlock(&arp_tbl.lock);
 }
 
 static int clip_arp_rcv(struct sk_buff *skb)

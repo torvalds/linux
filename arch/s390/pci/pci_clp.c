@@ -6,10 +6,8 @@
  *   Jan Glauber <jang@linux.vnet.ibm.com>
  */
 
-#define KMSG_COMPONENT "zpci"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "zpci: " fmt
 
-#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
@@ -651,7 +649,7 @@ static long clp_misc_ioctl(struct file *filp, unsigned int cmd,
 	if (cmd != CLP_SYNC)
 		return -EINVAL;
 
-	argp = is_compat_task() ? compat_ptr(arg) : (void __user *) arg;
+	argp = (void __user *)arg;
 	if (copy_from_user(&req, argp, sizeof(req)))
 		return -EFAULT;
 	if (req.r != 0)
@@ -669,7 +667,6 @@ static const struct file_operations clp_misc_fops = {
 	.open = nonseekable_open,
 	.release = clp_misc_release,
 	.unlocked_ioctl = clp_misc_ioctl,
-	.compat_ioctl = clp_misc_ioctl,
 };
 
 static struct miscdevice clp_misc_device = {

@@ -165,11 +165,9 @@ static unsigned long *alloc_bitmap(u32 bitmap_size)
 
 	/*
 	 * GFP_NOFS doesn't work with kvmalloc(), but we really can't recurse
-	 * into the filesystem as the free space bitmap can be modified in the
-	 * critical section of a transaction commit.
-	 *
-	 * TODO: push the memalloc_nofs_{save,restore}() to the caller where we
-	 * know that recursion is unsafe.
+	 * into the filesystem here. All callers hold a transaction handle
+	 * open, so if a GFP_KERNEL allocation recurses into the filesystem
+	 * and triggers a transaction commit, we would deadlock.
 	 */
 	nofs_flag = memalloc_nofs_save();
 	ret = kvzalloc(bitmap_rounded_size, GFP_KERNEL);
@@ -218,11 +216,8 @@ int btrfs_convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 
 	bitmap_size = free_space_bitmap_size(fs_info, block_group->length);
 	bitmap = alloc_bitmap(bitmap_size);
-	if (unlikely(!bitmap)) {
-		ret = -ENOMEM;
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
+	if (unlikely(!bitmap))
+		return 0;
 
 	start = block_group->start;
 	end = block_group->start + block_group->length;
@@ -361,11 +356,8 @@ int btrfs_convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 
 	bitmap_size = free_space_bitmap_size(fs_info, block_group->length);
 	bitmap = alloc_bitmap(bitmap_size);
-	if (unlikely(!bitmap)) {
-		ret = -ENOMEM;
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
+	if (unlikely(!bitmap))
+		return 0;
 
 	start = block_group->start;
 	end = block_group->start + block_group->length;
@@ -841,7 +833,7 @@ int btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 				      u64 start, u64 size)
 {
 	struct btrfs_block_group *block_group;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	int ret;
 
 	if (!btrfs_fs_compat_ro(trans->fs_info, FREE_SPACE_TREE))
@@ -851,7 +843,7 @@ int btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 	if (unlikely(!path)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	block_group = btrfs_lookup_block_group(trans->fs_info, start);
@@ -859,7 +851,7 @@ int btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 		DEBUG_WARN("no block group found for start=%llu", start);
 		ret = -ENOENT;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	mutex_lock(&block_group->free_space_lock);
@@ -869,8 +861,7 @@ int btrfs_remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, ret);
 
 	btrfs_put_block_group(block_group);
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
@@ -1023,7 +1014,7 @@ int btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
 				 u64 start, u64 size)
 {
 	struct btrfs_block_group *block_group;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	int ret;
 
 	if (!btrfs_fs_compat_ro(trans->fs_info, FREE_SPACE_TREE))
@@ -1033,7 +1024,7 @@ int btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
 	if (unlikely(!path)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	block_group = btrfs_lookup_block_group(trans->fs_info, start);
@@ -1041,7 +1032,7 @@ int btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
 		DEBUG_WARN("no block group found for start=%llu", start);
 		ret = -ENOENT;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	mutex_lock(&block_group->free_space_lock);
@@ -1051,8 +1042,7 @@ int btrfs_add_to_free_space_tree(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, ret);
 
 	btrfs_put_block_group(block_group);
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
@@ -1466,7 +1456,7 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group *block_group)
 {
 	struct btrfs_root *root = btrfs_free_space_root(block_group);
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key, found_key;
 	struct extent_buffer *leaf;
 	u64 start, end;
@@ -1485,7 +1475,7 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 	if (unlikely(!path)) {
 		ret = -ENOMEM;
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	start = block_group->start;
@@ -1499,7 +1489,7 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 		ret = btrfs_search_prev_slot(trans, root, &key, path, -1, 1);
 		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 
 		leaf = path->nodes[0];
@@ -1530,14 +1520,13 @@ int btrfs_remove_block_group_free_space(struct btrfs_trans_handle *trans,
 		ret = btrfs_del_items(trans, root, path, path->slots[0], nr);
 		if (unlikely(ret)) {
 			btrfs_abort_transaction(trans, ret);
-			goto out;
+			return ret;
 		}
 		btrfs_release_path(path);
 	}
 
 	ret = 0;
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
@@ -1702,8 +1691,8 @@ int btrfs_load_free_space_tree(struct btrfs_caching_control *caching_ctl)
 	 * Just like caching_thread() doesn't want to deadlock on the extent
 	 * tree, we don't want to deadlock on the free space tree.
 	 */
-	path->skip_locking = 1;
-	path->search_commit_root = 1;
+	path->skip_locking = true;
+	path->search_commit_root = true;
 	path->reada = READA_FORWARD;
 
 	info = btrfs_search_free_space_info(NULL, block_group, path, 0);

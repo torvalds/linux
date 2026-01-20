@@ -7,9 +7,9 @@
  */
 
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -37,36 +37,9 @@ static void stm32_pcie_ep_init(struct dw_pcie_ep *ep)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int stm32_pcie_enable_link(struct dw_pcie *pci)
-{
-	struct stm32_pcie *stm32_pcie = to_stm32_pcie(pci);
-
-	regmap_update_bits(stm32_pcie->regmap, SYSCFG_PCIECR,
-			   STM32MP25_PCIECR_LTSSM_EN,
-			   STM32MP25_PCIECR_LTSSM_EN);
-
-	return dw_pcie_wait_for_link(pci);
-}
-
-static void stm32_pcie_disable_link(struct dw_pcie *pci)
-{
-	struct stm32_pcie *stm32_pcie = to_stm32_pcie(pci);
-
-	regmap_update_bits(stm32_pcie->regmap, SYSCFG_PCIECR, STM32MP25_PCIECR_LTSSM_EN, 0);
-}
-
 static int stm32_pcie_start_link(struct dw_pcie *pci)
 {
 	struct stm32_pcie *stm32_pcie = to_stm32_pcie(pci);
-	int ret;
-
-	dev_dbg(pci->dev, "Enable link\n");
-
-	ret = stm32_pcie_enable_link(pci);
-	if (ret) {
-		dev_err(pci->dev, "PCIe cannot establish link: %d\n", ret);
-		return ret;
-	}
 
 	enable_irq(stm32_pcie->perst_irq);
 
@@ -77,11 +50,7 @@ static void stm32_pcie_stop_link(struct dw_pcie *pci)
 {
 	struct stm32_pcie *stm32_pcie = to_stm32_pcie(pci);
 
-	dev_dbg(pci->dev, "Disable link\n");
-
 	disable_irq(stm32_pcie->perst_irq);
-
-	stm32_pcie_disable_link(pci);
 }
 
 static int stm32_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
@@ -152,6 +121,9 @@ static void stm32_pcie_perst_assert(struct dw_pcie *pci)
 
 	dev_dbg(dev, "PERST asserted by host\n");
 
+	regmap_update_bits(stm32_pcie->regmap, SYSCFG_PCIECR,
+			   STM32MP25_PCIECR_LTSSM_EN, 0);
+
 	pci_epc_deinit_notify(ep->epc);
 
 	stm32_pcie_disable_resources(stm32_pcie);
@@ -191,6 +163,11 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 	}
 
 	pci_epc_init_notify(ep->epc);
+
+	/* Enable link training */
+	regmap_update_bits(stm32_pcie->regmap, SYSCFG_PCIECR,
+			   STM32MP25_PCIECR_LTSSM_EN,
+			   STM32MP25_PCIECR_LTSSM_EN);
 
 	return;
 
@@ -236,6 +213,8 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 	reset_control_deassert(stm32_pcie->rst);
 
 	ep->ops = &stm32_pcie_ep_ops;
+
+	ep->page_size = stm32_pcie_epc_features.align;
 
 	ret = dw_pcie_ep_init(ep);
 	if (ret) {

@@ -1341,8 +1341,8 @@ static int cx2072x_set_bias_level(struct snd_soc_component *codec,
 				  enum snd_soc_bias_level level)
 {
 	struct cx2072x_priv *cx2072x = snd_soc_component_get_drvdata(codec);
-	const enum snd_soc_bias_level old_level =
-		snd_soc_component_get_bias_level(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(codec);
+	const enum snd_soc_bias_level old_level = snd_soc_dapm_get_bias_level(dapm);
 
 	if (level == SND_SOC_BIAS_STANDBY && old_level == SND_SOC_BIAS_OFF)
 		regmap_write(cx2072x->regmap, CX2072X_AFG_POWER_STATE, 0);
@@ -1363,7 +1363,7 @@ static int cx2072x_set_bias_level(struct snd_soc_component *codec,
 static void cx2072x_enable_jack_detect(struct snd_soc_component *codec)
 {
 	struct cx2072x_priv *cx2072x = snd_soc_component_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(codec);
 
 	/* No-sticky input type */
 	regmap_write(cx2072x->regmap, CX2072X_GPIO_STICKY_MASK, 0x1f);

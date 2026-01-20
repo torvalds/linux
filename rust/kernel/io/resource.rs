@@ -5,18 +5,21 @@
 //!
 //! C header: [`include/linux/ioport.h`](srctree/include/linux/ioport.h)
 
-use core::ops::Deref;
-use core::ptr::NonNull;
+use core::{
+    ops::Deref,
+    ptr::NonNull, //
+};
 
-use crate::prelude::*;
-use crate::str::{CStr, CString};
-use crate::types::Opaque;
+use crate::{
+    prelude::*,
+    str::CString,
+    types::Opaque, //
+};
 
-/// Resource Size type.
-///
-/// This is a type alias to either `u32` or `u64` depending on the config option
-/// `CONFIG_PHYS_ADDR_T_64BIT`, and it can be a u64 even on 32-bit architectures.
-pub type ResourceSize = bindings::phys_addr_t;
+pub use super::{
+    PhysAddr,
+    ResourceSize, //
+};
 
 /// A region allocated from a parent [`Resource`].
 ///
@@ -97,7 +100,7 @@ impl Resource {
     /// the region, or a part of it, is already in use.
     pub fn request_region(
         &self,
-        start: ResourceSize,
+        start: PhysAddr,
         size: ResourceSize,
         name: CString,
         flags: Flags,
@@ -131,7 +134,7 @@ impl Resource {
     }
 
     /// Returns the start address of the resource.
-    pub fn start(&self) -> ResourceSize {
+    pub fn start(&self) -> PhysAddr {
         let inner = self.0.get();
         // SAFETY: Safe as per the invariants of `Resource`.
         unsafe { (*inner).start }

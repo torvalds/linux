@@ -13,7 +13,7 @@
 #include <linux/stat.h>
 
 #include "statmount.h"
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 static const char *const known_fs[] = {
 	"9p", "adfs", "affs", "afs", "aio", "anon_inodefs", "apparmorfs",

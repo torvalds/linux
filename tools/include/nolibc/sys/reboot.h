@@ -28,7 +28,7 @@ ssize_t sys_reboot(int magic1, int magic2, int cmd, void *arg)
 static __attribute__((unused))
 int reboot(int cmd)
 {
-	return __sysret(sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, 0));
+	return __sysret(sys_reboot(LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, cmd, NULL));
 }
 
 #endif /* _NOLIBC_SYS_REBOOT_H */

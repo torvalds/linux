@@ -30,7 +30,7 @@
 #include <errno.h>
 #include <mqueue.h>
 #include <include/vdso/time64.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 
 #define TARGET_TIMEOUT		100000000	/* 100ms in nanoseconds */

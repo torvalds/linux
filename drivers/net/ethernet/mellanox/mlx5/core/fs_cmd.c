@@ -239,6 +239,10 @@ static int mlx5_cmd_update_root_ft(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(set_flow_table_root_in, in, vport_number, ft->vport);
 	MLX5_SET(set_flow_table_root_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(set_flow_table_root_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(set_flow_table_root_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 
 	err = mlx5_cmd_exec_in(dev, set_flow_table_root, in);
 	if (!err &&
@@ -302,6 +306,10 @@ static int mlx5_cmd_create_flow_table(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(create_flow_table_in, in, vport_number, ft->vport);
 	MLX5_SET(create_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(create_flow_table_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(create_flow_table_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 
 	MLX5_SET(create_flow_table_in, in, flow_table_context.decap_en,
 		 en_decap);
@@ -360,6 +368,10 @@ static int mlx5_cmd_destroy_flow_table(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(destroy_flow_table_in, in, vport_number, ft->vport);
 	MLX5_SET(destroy_flow_table_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(destroy_flow_table_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(destroy_flow_table_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 
 	err = mlx5_cmd_exec_in(dev, destroy_flow_table, in);
 	if (!err)
@@ -394,6 +406,10 @@ static int mlx5_cmd_modify_flow_table(struct mlx5_flow_root_namespace *ns,
 		MLX5_SET(modify_flow_table_in, in, vport_number, ft->vport);
 		MLX5_SET(modify_flow_table_in, in, other_vport,
 			 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+		MLX5_SET(modify_flow_table_in, in, eswitch_owner_vhca_id,
+			 ft->esw_owner_vhca_id);
+		MLX5_SET(modify_flow_table_in, in, other_eswitch,
+			 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 		MLX5_SET(modify_flow_table_in, in, modify_field_select,
 			 MLX5_MODIFY_FLOW_TABLE_MISS_TABLE_ID);
 		if (next_ft) {
@@ -429,6 +445,10 @@ static int mlx5_cmd_create_flow_group(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(create_flow_group_in, in, vport_number, ft->vport);
 	MLX5_SET(create_flow_group_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(create_flow_group_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(create_flow_group_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 	err = mlx5_cmd_exec_inout(dev, create_flow_group, in, out);
 	if (!err)
 		fg->id = MLX5_GET(create_flow_group_out, out,
@@ -451,6 +471,10 @@ static int mlx5_cmd_destroy_flow_group(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(destroy_flow_group_in, in, vport_number, ft->vport);
 	MLX5_SET(destroy_flow_group_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(destroy_flow_group_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(destroy_flow_group_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 	return mlx5_cmd_exec_in(dev, destroy_flow_group, in);
 }
 
@@ -559,6 +583,9 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(set_fte_in, in, vport_number, ft->vport);
 	MLX5_SET(set_fte_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(set_fte_in, in, eswitch_owner_vhca_id, ft->esw_owner_vhca_id);
+	MLX5_SET(set_fte_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 
 	in_flow_context = MLX5_ADDR_OF(set_fte_in, in, flow_context);
 	MLX5_SET(flow_context, in_flow_context, group_id, group_id);
@@ -788,6 +815,10 @@ static int mlx5_cmd_delete_fte(struct mlx5_flow_root_namespace *ns,
 	MLX5_SET(delete_fte_in, in, vport_number, ft->vport);
 	MLX5_SET(delete_fte_in, in, other_vport,
 		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_VPORT));
+	MLX5_SET(delete_fte_in, in, eswitch_owner_vhca_id,
+		 ft->esw_owner_vhca_id);
+	MLX5_SET(delete_fte_in, in, other_eswitch,
+		 !!(ft->flags & MLX5_FLOW_TABLE_OTHER_ESWITCH));
 
 	return mlx5_cmd_exec_in(dev, delete_fte, in);
 }

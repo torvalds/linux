@@ -87,6 +87,17 @@ static const struct mapping_table lnl_dlvr_mapping[] = {
 	{NULL, 0, NULL},
 };
 
+static const struct mmio_reg nvl_dlvr_mmio_regs[] = {
+	{ 0, 0x19208, 5, 0x1F, 0}, /* dlvr_spread_spectrum_pct */
+	{ 0, 0x19208, 1, 0x1, 5}, /* dlvr_control_mode */
+	{ 0, 0x19208, 1, 0x1, 6}, /* dlvr_control_lock */
+	{ 0, 0x19208, 1, 0x1, 7}, /* dlvr_rfim_enable */
+	{ 0, 0x19208, 12, 0xFFF, 8}, /* dlvr_freq_select */
+	{ 1, 0x19210, 2, 0x3, 30}, /* dlvr_hardware_rev */
+	{ 1, 0x19210, 16, 0xFFFF, 0}, /* dlvr_freq_mhz */
+	{ 1, 0x19210, 1, 0x1, 16}, /* dlvr_pll_busy */
+};
+
 static int match_mapping_table(const struct mapping_table *table, const char *attr_name,
 			       bool match_int_value, const u32 value, const char *value_str,
 			       char **result_str, u32 *result_int)
@@ -445,6 +456,10 @@ int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 		case PCI_DEVICE_ID_INTEL_WCL_THERMAL:
 			dlvr_mmio_regs_table = lnl_dlvr_mmio_regs;
 			dlvr_mapping = lnl_dlvr_mapping;
+			break;
+		case PCI_DEVICE_ID_INTEL_NVL_H_THERMAL:
+		case PCI_DEVICE_ID_INTEL_NVL_S_THERMAL:
+			dlvr_mmio_regs_table = nvl_dlvr_mmio_regs;
 			break;
 		default:
 			dlvr_mmio_regs_table = dlvr_mmio_regs;

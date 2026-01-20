@@ -7,6 +7,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <locale.h>
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
@@ -1477,6 +1478,8 @@ int main(int ac, char **av)
 {
 	int lines, columns;
 	char *mode;
+
+	setlocale(LC_ALL, "");
 
 	if (ac > 1 && strcmp(av[1], "-s") == 0) {
 		/* Silence conf_read() until the real callback is set up */

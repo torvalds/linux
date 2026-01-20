@@ -23,6 +23,7 @@ test_tcpnotify_user
 test_libbpf
 xdping
 test_cpp
+test_progs_verification_cert
 *.d
 *.subskel.h
 *.skel.h
@@ -32,7 +33,6 @@ test_cpp
 /cpuv4
 /host-tools
 /tools
-/runqslower
 /bench
 /veristat
 /sign-file

@@ -27,7 +27,7 @@ class NetdevSim:
         self.port_index = port_index
         self.ns = ns
         self.dfs_dir = "%s/ports/%u/" % (nsimdev.dfs_dir, port_index)
-        ret = ip("-j link show dev %s" % ifname, ns=ns)
+        ret = ip("-d -j link show dev %s" % ifname, ns=ns)
         self.dev = json.loads(ret.stdout)[0]
         self.ifindex = self.dev["ifindex"]
 

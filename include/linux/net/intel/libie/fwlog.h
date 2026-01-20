@@ -78,8 +78,20 @@ struct libie_fwlog {
 	);
 };
 
+#if IS_ENABLED(CONFIG_LIBIE_FWLOG)
 int libie_fwlog_init(struct libie_fwlog *fwlog, struct libie_fwlog_api *api);
 void libie_fwlog_deinit(struct libie_fwlog *fwlog);
 void libie_fwlog_reregister(struct libie_fwlog *fwlog);
 void libie_get_fwlog_data(struct libie_fwlog *fwlog, u8 *buf, u16 len);
+#else
+static inline int libie_fwlog_init(struct libie_fwlog *fwlog,
+				   struct libie_fwlog_api *api)
+{
+	return -EOPNOTSUPP;
+}
+static inline void libie_fwlog_deinit(struct libie_fwlog *fwlog) { }
+static inline void libie_fwlog_reregister(struct libie_fwlog *fwlog) { }
+static inline void libie_get_fwlog_data(struct libie_fwlog *fwlog, u8 *buf,
+					u16 len) { }
+#endif /* CONFIG_LIBIE_FWLOG */
 #endif /* _LIBIE_FWLOG_H_ */

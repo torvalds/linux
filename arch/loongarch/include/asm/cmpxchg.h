@@ -9,17 +9,33 @@
 #include <linux/build_bug.h>
 #include <asm/barrier.h>
 
-#define __xchg_asm(amswap_db, m, val)		\
+#define __xchg_amo_asm(amswap_db, m, val)	\
 ({						\
-		__typeof(val) __ret;		\
+	__typeof(val) __ret;			\
 						\
-		__asm__ __volatile__ (		\
-		" "amswap_db" %1, %z2, %0 \n"	\
-		: "+ZB" (*m), "=&r" (__ret)	\
-		: "Jr" (val)			\
-		: "memory");			\
+	__asm__ __volatile__ (			\
+	" "amswap_db" %1, %z2, %0 \n"		\
+	: "+ZB" (*m), "=&r" (__ret)		\
+	: "Jr" (val)				\
+	: "memory");				\
 						\
-		__ret;				\
+	__ret;					\
+})
+
+#define __xchg_llsc_asm(ld, st, m, val)			\
+({							\
+	__typeof(val) __ret, __tmp;			\
+							\
+	asm volatile (					\
+	"1:	ll.w	%0, %3		\n"		\
+	"	move	%1, %z4		\n"		\
+	"	sc.w	%1, %2		\n"		\
+	"	beqz	%1, 1b		\n"		\
+	: "=&r" (__ret), "=&r" (__tmp), "=ZC" (*m)	\
+	: "ZC" (*m), "Jr" (val)				\
+	: "memory");					\
+							\
+	__ret;						\
 })
 
 static inline unsigned int __xchg_small(volatile void *ptr, unsigned int val,
@@ -67,13 +83,23 @@ __arch_xchg(volatile void *ptr, unsigned long x, int size)
 	switch (size) {
 	case 1:
 	case 2:
-		return __xchg_small(ptr, x, size);
+		return __xchg_small((volatile void *)ptr, x, size);
 
 	case 4:
-		return __xchg_asm("amswap_db.w", (volatile u32 *)ptr, (u32)x);
+#ifdef CONFIG_CPU_HAS_AMO
+		return __xchg_amo_asm("amswap_db.w", (volatile u32 *)ptr, (u32)x);
+#else
+		return __xchg_llsc_asm("ll.w", "sc.w", (volatile u32 *)ptr, (u32)x);
+#endif /* CONFIG_CPU_HAS_AMO */
 
+#ifdef CONFIG_64BIT
 	case 8:
-		return __xchg_asm("amswap_db.d", (volatile u64 *)ptr, (u64)x);
+#ifdef CONFIG_CPU_HAS_AMO
+		return __xchg_amo_asm("amswap_db.d", (volatile u64 *)ptr, (u64)x);
+#else
+		return __xchg_llsc_asm("ll.d", "sc.d", (volatile u64 *)ptr, (u64)x);
+#endif /* CONFIG_CPU_HAS_AMO */
+#endif /* CONFIG_64BIT */
 
 	default:
 		BUILD_BUG();

@@ -57,7 +57,7 @@ MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set NPU frequency");
 
 int ivpu_sched_mode = IVPU_SCHED_MODE_AUTO;
 module_param_named(sched_mode, ivpu_sched_mode, int, 0444);
-MODULE_PARM_DESC(sched_mode, "Scheduler mode: -1 - Use default scheduler, 0 - Use OS scheduler, 1 - Use HW scheduler");
+MODULE_PARM_DESC(sched_mode, "Scheduler mode: -1 - Use default scheduler, 0 - Use OS scheduler (supported on 27XX - 50XX), 1 - Use HW scheduler");
 
 bool ivpu_disable_mmu_cont_pages;
 module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0444);
@@ -133,6 +133,8 @@ bool ivpu_is_capable(struct ivpu_device *vdev, u32 capability)
 	case DRM_IVPU_CAP_METRIC_STREAMER:
 		return true;
 	case DRM_IVPU_CAP_DMA_MEMORY_RANGE:
+		return true;
+	case DRM_IVPU_CAP_BO_CREATE_FROM_USERPTR:
 		return true;
 	case DRM_IVPU_CAP_MANAGE_CMDQ:
 		return vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW;
@@ -313,6 +315,7 @@ static const struct drm_ioctl_desc ivpu_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_CREATE, ivpu_cmdq_create_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_DESTROY, ivpu_cmdq_destroy_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(IVPU_CMDQ_SUBMIT, ivpu_cmdq_submit_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(IVPU_BO_CREATE_FROM_USERPTR, ivpu_bo_create_from_userptr_ioctl, 0),
 };
 
 static int ivpu_wait_for_ready(struct ivpu_device *vdev)
@@ -452,6 +455,9 @@ int ivpu_shutdown(struct ivpu_device *vdev)
 static const struct file_operations ivpu_fops = {
 	.owner		= THIS_MODULE,
 	DRM_ACCEL_FOPS,
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo = drm_show_fdinfo,
+#endif
 };
 
 static const struct drm_driver driver = {
@@ -466,6 +472,9 @@ static const struct drm_driver driver = {
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
 	.fops = &ivpu_fops,
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo = drm_show_memory_stats,
+#endif
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

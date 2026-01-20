@@ -634,7 +634,7 @@ static int smu_sys_get_pp_table(void *handle,
 		return -EOPNOTSUPP;
 
 	if (!smu_table->power_play_table && !smu_table->hardcode_pptable)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (smu_table->hardcode_pptable)
 		*table = smu_table->hardcode_pptable;
@@ -1669,9 +1669,12 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
 			ret = smu_system_features_control(smu, true);
-			if (ret)
+			if (ret) {
 				dev_err(adev->dev, "Failed system features control!\n");
-			return ret;
+				return ret;
+			}
+
+			return smu_enable_thermal_alert(smu);
 		}
 		break;
 	default:
@@ -2052,6 +2055,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, GC_HWIP, 0)) >= 11 &&
 	    smu->is_apu && (amdgpu_in_reset(adev) || adev->in_s0ix))
+		return 0;
+
+	/* vangogh s0ix */
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 0) ||
+	     amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 5, 2)) &&
+	    adev->in_s0ix)
 		return 0;
 
 	/*
@@ -2797,6 +2806,17 @@ const struct amdgpu_ip_block_version smu_v14_0_ip_block = {
 	.funcs = &smu_ip_funcs,
 };
 
+const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle)
+{
+	struct smu_context *smu = (struct smu_context *)handle;
+	const struct ras_smu_drv *tmp = NULL;
+	int ret;
+
+	ret = smu_get_ras_smu_drv(smu, &tmp);
+
+	return ret ? NULL : tmp;
+}
+
 static int smu_load_microcode(void *handle)
 {
 	struct smu_context *smu = handle;
@@ -2890,6 +2910,9 @@ int smu_get_power_limit(void *handle,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if  (!limit)
+		return -EINVAL;
+
 	switch (pp_power_type) {
 	case PP_PWR_TYPE_SUSTAINED:
 		limit_type = SMU_DEFAULT_PPT_LIMIT;
@@ -2921,6 +2944,8 @@ int smu_get_power_limit(void *handle,
 	if (limit_type != SMU_DEFAULT_PPT_LIMIT) {
 		if (smu->ppt_funcs->get_ppt_limit)
 			ret = smu->ppt_funcs->get_ppt_limit(smu, limit, limit_type, limit_level);
+		else
+			return -EOPNOTSUPP;
 	} else {
 		switch (limit_level) {
 		case SMU_PPT_LIMIT_CURRENT:

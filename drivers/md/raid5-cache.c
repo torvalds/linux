@@ -3104,7 +3104,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 		goto out_mempool;
 
 	spin_lock_init(&log->tree_lock);
-	INIT_RADIX_TREE(&log->big_stripe_tree, GFP_NOWAIT | __GFP_NOWARN);
+	INIT_RADIX_TREE(&log->big_stripe_tree, GFP_NOWAIT);
 
 	thread = md_register_thread(r5l_reclaim_thread, log->rdev->mddev,
 				    "reclaim");

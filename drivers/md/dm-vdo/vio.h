@@ -156,8 +156,7 @@ static inline enum vdo_completion_priority get_metadata_priority(struct vio *vio
 /**
  * continue_vio() - Enqueue a vio to run its next callback.
  * @vio: The vio to continue.
- *
- * Return: The result of the current operation.
+ * @result: The result of the current operation.
  */
 static inline void continue_vio(struct vio *vio, int result)
 {
@@ -172,6 +171,9 @@ void vdo_count_completed_bios(struct bio *bio);
 
 /**
  * continue_vio_after_io() - Continue a vio now that its I/O has returned.
+ * @vio: The vio to continue.
+ * @callback: The next operation for this vio.
+ * @thread: Which thread to run the next operation on.
  */
 static inline void continue_vio_after_io(struct vio *vio, vdo_action_fn callback,
 					 thread_id_t thread)

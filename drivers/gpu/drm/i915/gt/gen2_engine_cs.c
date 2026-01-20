@@ -292,15 +292,15 @@ int gen4_emit_bb_start(struct i915_request *rq,
 
 void gen2_irq_enable(struct intel_engine_cs *engine)
 {
-	engine->i915->irq_mask &= ~engine->irq_enable_mask;
-	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
+	engine->i915->gen2_imr_mask &= ~engine->irq_enable_mask;
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->gen2_imr_mask);
 	intel_uncore_posting_read_fw(engine->uncore, GEN2_IMR);
 }
 
 void gen2_irq_disable(struct intel_engine_cs *engine)
 {
-	engine->i915->irq_mask |= engine->irq_enable_mask;
-	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->irq_mask);
+	engine->i915->gen2_imr_mask |= engine->irq_enable_mask;
+	intel_uncore_write(engine->uncore, GEN2_IMR, engine->i915->gen2_imr_mask);
 }
 
 void gen5_irq_enable(struct intel_engine_cs *engine)

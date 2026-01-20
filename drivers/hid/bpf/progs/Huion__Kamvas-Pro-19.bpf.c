@@ -9,12 +9,15 @@
 
 #define VID_HUION 0x256C
 #define PID_KAMVAS_PRO_19 0x006B
+#define PID_KAMVAS_PRO_27 0x006c
 #define NAME_KAMVAS_PRO_19 "HUION Huion Tablet_GT1902"
+#define NAME_KAMVAS_PRO_27 "HUION Huion Tablet_GT2701"
 
 #define TEST_PREFIX "uhid test "
 
 HID_BPF_CONFIG(
 	HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8, VID_HUION, PID_KAMVAS_PRO_19),
+	HID_DEVICE(BUS_USB, HID_GROUP_MULTITOUCH_WIN_8, VID_HUION, PID_KAMVAS_PRO_27),
 );
 
 bool prev_was_out_of_range;
@@ -351,7 +354,8 @@ int probe(struct hid_bpf_probe_args *ctx)
 	if (!__builtin_memcmp(name, TEST_PREFIX, sizeof(TEST_PREFIX) - 1))
 		name += sizeof(TEST_PREFIX) - 1;
 
-	if (__builtin_memcmp(name, NAME_KAMVAS_PRO_19, sizeof(NAME_KAMVAS_PRO_19)))
+	if (__builtin_memcmp(name, NAME_KAMVAS_PRO_19, sizeof(NAME_KAMVAS_PRO_19)) &&
+	    __builtin_memcmp(name, NAME_KAMVAS_PRO_27, sizeof(NAME_KAMVAS_PRO_27)))
 		ctx->retval = -EINVAL;
 
 	hid_bpf_release_context(hctx);

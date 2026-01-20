@@ -1388,7 +1388,7 @@ static int xenhcd_get_frame(struct usb_hcd *hcd)
 	return 0;
 }
 
-static struct hc_driver xenhcd_usb20_hc_driver = {
+static const struct hc_driver xenhcd_usb20_hc_driver = {
 	.description = "xen-hcd",
 	.product_desc = "Xen USB2.0 Virtual Host Controller",
 	.hcd_priv_size = sizeof(struct xenhcd_info),
@@ -1413,7 +1413,7 @@ static struct hc_driver xenhcd_usb20_hc_driver = {
 #endif
 };
 
-static struct hc_driver xenhcd_usb11_hc_driver = {
+static const struct hc_driver xenhcd_usb11_hc_driver = {
 	.description = "xen-hcd",
 	.product_desc = "Xen USB1.1 Virtual Host Controller",
 	.hcd_priv_size = sizeof(struct xenhcd_info),

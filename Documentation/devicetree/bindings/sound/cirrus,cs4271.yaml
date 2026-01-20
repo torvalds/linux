@@ -25,6 +25,16 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    items:
+      - description:
+          Master clock connected to the MCLK pin if MCLK is an input (i.e. no
+          crystal used).
+
+  clock-names:
+    items:
+      - const: mclk
+
   spi-cpha: true
 
   spi-cpol: true

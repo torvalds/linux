@@ -32,7 +32,7 @@
 
 #include <sys/socket.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 /* defines to make checkpatch happy */
 #define strscpy strncpy

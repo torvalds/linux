@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "vdso_config.h"
 #include "vdso_call.h"
 #include "parse_vdso.h"

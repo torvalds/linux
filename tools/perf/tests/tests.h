@@ -160,7 +160,7 @@ DECLARE_SUITE(bitmap_print);
 DECLARE_SUITE(perf_hooks);
 DECLARE_SUITE(unit_number__scnprint);
 DECLARE_SUITE(mem2node);
-DECLARE_SUITE(maps__merge_in);
+DECLARE_SUITE(maps);
 DECLARE_SUITE(time_utils);
 DECLARE_SUITE(jit_write_elf);
 DECLARE_SUITE(api_io);
@@ -178,6 +178,7 @@ DECLARE_SUITE(event_groups);
 DECLARE_SUITE(symbols);
 DECLARE_SUITE(util);
 DECLARE_SUITE(subcmd_help);
+DECLARE_SUITE(kallsyms_split);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the

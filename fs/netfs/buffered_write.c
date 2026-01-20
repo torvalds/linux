@@ -535,7 +535,7 @@ vm_fault_t netfs_page_mkwrite(struct vm_fault *vmf, struct netfs_group *netfs_gr
 		folio_unlock(folio);
 		err = filemap_fdatawrite_range(mapping,
 					       folio_pos(folio),
-					       folio_pos(folio) + folio_size(folio));
+					       folio_next_pos(folio));
 		switch (err) {
 		case 0:
 			ret = VM_FAULT_RETRY;

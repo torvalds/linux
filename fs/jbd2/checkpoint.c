@@ -113,7 +113,7 @@ __releases(&journal->j_state_lock)
 				       "journal space in %s\n", __func__,
 				       journal->j_devname);
 				WARN_ON(1);
-				jbd2_journal_abort(journal, -EIO);
+				jbd2_journal_abort(journal, -ENOSPC);
 			}
 			write_lock(&journal->j_state_lock);
 		} else {

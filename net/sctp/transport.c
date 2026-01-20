@@ -37,10 +37,10 @@
 /* 1st Level Abstractions.  */
 
 /* Initialize a new transport from provided memory.  */
-static struct sctp_transport *sctp_transport_init(struct net *net,
-						  struct sctp_transport *peer,
-						  const union sctp_addr *addr,
-						  gfp_t gfp)
+static void sctp_transport_init(struct net *net,
+				struct sctp_transport *peer,
+				const union sctp_addr *addr,
+				gfp_t gfp)
 {
 	/* Copy in the address.  */
 	peer->af_specific = sctp_get_af_specific(addr->sa.sa_family);
@@ -83,8 +83,6 @@ static struct sctp_transport *sctp_transport_init(struct net *net,
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
 
 	refcount_set(&peer->refcnt, 1);
-
-	return peer;
 }
 
 /* Allocate and initialize a new transport.  */
@@ -96,20 +94,13 @@ struct sctp_transport *sctp_transport_new(struct net *net,
 
 	transport = kzalloc(sizeof(*transport), gfp);
 	if (!transport)
-		goto fail;
+		return NULL;
 
-	if (!sctp_transport_init(net, transport, addr, gfp))
-		goto fail_init;
+	sctp_transport_init(net, transport, addr, gfp);
 
 	SCTP_DBG_OBJCNT_INC(transport);
 
 	return transport;
-
-fail_init:
-	kfree(transport);
-
-fail:
-	return NULL;
 }
 
 /* This transport is no longer needed.  Free up if possible, or
@@ -495,6 +486,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 
 	if (tp->rttvar || tp->srtt) {
 		struct net *net = tp->asoc->base.net;
+		unsigned int rto_beta, rto_alpha;
 		/* 6.3.1 C3) When a new RTT measurement R' is made, set
 		 * RTTVAR <- (1 - RTO.Beta) * RTTVAR + RTO.Beta * |SRTT - R'|
 		 * SRTT <- (1 - RTO.Alpha) * SRTT + RTO.Alpha * R'
@@ -506,10 +498,14 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		 * For example, assuming the default value of RTO.Alpha of
 		 * 1/8, rto_alpha would be expressed as 3.
 		 */
-		tp->rttvar = tp->rttvar - (tp->rttvar >> net->sctp.rto_beta)
-			+ (((__u32)abs((__s64)tp->srtt - (__s64)rtt)) >> net->sctp.rto_beta);
-		tp->srtt = tp->srtt - (tp->srtt >> net->sctp.rto_alpha)
-			+ (rtt >> net->sctp.rto_alpha);
+		rto_beta = READ_ONCE(net->sctp.rto_beta);
+		if (rto_beta < 32)
+			tp->rttvar = tp->rttvar - (tp->rttvar >> rto_beta)
+				+ (((__u32)abs((__s64)tp->srtt - (__s64)rtt)) >> rto_beta);
+		rto_alpha = READ_ONCE(net->sctp.rto_alpha);
+		if (rto_alpha < 32)
+			tp->srtt = tp->srtt - (tp->srtt >> rto_alpha)
+				+ (rtt >> rto_alpha);
 	} else {
 		/* 6.3.1 C2) When the first RTT measurement R is made, set
 		 * SRTT <- R, RTTVAR <- R/2.

@@ -25,7 +25,7 @@
 #include <unistd.h>
 
 #include "vm_util.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define INLOOP_ITER 100
 

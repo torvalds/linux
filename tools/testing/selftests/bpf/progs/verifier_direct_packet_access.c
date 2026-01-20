@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Converted from tools/testing/selftests/bpf/verifier/direct_packet_access.c */
 
+#include <linux/if_ether.h>
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
@@ -797,6 +798,64 @@ l0_%=:	/* exit(0) */					\
 	: __imm(bpf_ktime_get_ns),
 	  __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
 	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+	: __clobber_all);
+}
+
+#define access_test_non_linear(name, type, desc, retval, linear_sz, off)			\
+	SEC(type)										\
+	__description("direct packet access: " #name " (non-linear, " type ", " desc ")")	\
+	__success __retval(retval)								\
+	__linear_size(linear_sz)								\
+	__naked void access_non_linear_##name(void)						\
+	{											\
+		asm volatile ("									\
+		r2 = *(u32*)(r1 + %[skb_data]);							\
+		r3 = *(u32*)(r1 + %[skb_data_end]);						\
+		r0 = r2;									\
+		r0 += %[offset];								\
+		if r0 > r3 goto l0_%=;								\
+		r0 = *(u8*)(r0 - 1);								\
+		r0 = 0;										\
+		exit;										\
+	l0_%=:	r0 = 1;										\
+		exit;										\
+	"	:										\
+		: __imm_const(skb_data, offsetof(struct __sk_buff, data)),			\
+		  __imm_const(skb_data_end, offsetof(struct __sk_buff, data_end)),		\
+		  __imm_const(offset, off)							\
+		: __clobber_all);								\
+	}
+
+access_test_non_linear(test31, "tc", "too short eth", 1, ETH_HLEN, 22);
+access_test_non_linear(test32, "tc", "too short 1", 1, 1, 22);
+access_test_non_linear(test33, "tc", "long enough", 0, 22, 22);
+access_test_non_linear(test34, "cgroup_skb/ingress", "too short eth", 1, ETH_HLEN, 8);
+access_test_non_linear(test35, "cgroup_skb/ingress", "too short 1", 1, 1, 8);
+access_test_non_linear(test36, "cgroup_skb/ingress", "long enough", 0, 22, 8);
+
+SEC("tc")
+__description("direct packet access: test37 (non-linear, linearized)")
+__success __retval(0)
+__linear_size(ETH_HLEN)
+__naked void access_non_linear_linearized(void)
+{
+	asm volatile ("				\
+	r6 = r1;				\
+	r2 = 22;				\
+	call %[bpf_skb_pull_data];		\
+	r2 = *(u32*)(r6 + %[skb_data]);		\
+	r3 = *(u32*)(r6 + %[skb_data_end]);	\
+	r0 = r2;				\
+	r0 += 22;				\
+	if r0 > r3 goto l0_%=;			\
+	r0 = *(u8*)(r0 - 1);			\
+	exit;					\
+l0_%=:	r0 = 1;					\
+	exit;					\
+"	:
+	: __imm(bpf_skb_pull_data),
+	  __imm_const(skb_data, offsetof(struct __sk_buff, data)),
+	  __imm_const(skb_data_end, offsetof(struct __sk_buff, data_end))
 	: __clobber_all);
 }
 

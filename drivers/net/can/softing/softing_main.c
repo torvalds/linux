@@ -609,7 +609,6 @@ static const struct net_device_ops softing_netdev_ops = {
 	.ndo_open = softing_netdev_open,
 	.ndo_stop = softing_netdev_stop,
 	.ndo_start_xmit	= softing_netdev_start_xmit,
-	.ndo_change_mtu = can_change_mtu,
 };
 
 static const struct ethtool_ops softing_ethtool_ops = {

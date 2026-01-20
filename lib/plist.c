@@ -47,8 +47,8 @@ static void plist_check_list(struct list_head *top)
 
 	plist_check_prev_next(top, prev, next);
 	while (next != top) {
-		WRITE_ONCE(prev, next);
-		WRITE_ONCE(next, prev->next);
+		prev = next;
+		next = prev->next;
 		plist_check_prev_next(top, prev, next);
 	}
 }

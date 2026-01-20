@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: ISC
+# SPDX-License-Identifier: BSD-3-Clause-Clear
 config MT7996E
 	tristate "MediaTek MT7996 (PCIe) support"
 	select MT76_CONNAC_LIB
@@ -12,3 +12,10 @@ config MT7996E
 	  and 2.4GHz IEEE 802.11be 4x4:4SS 4096-QAM, 320MHz channels.
 
 	  To compile this driver as a module, choose M here.
+
+config MT7996_NPU
+	bool "MT7996 (PCIe) NPU support"
+	depends on MT7996E
+	depends on NET_AIROHA_NPU=y || MT7996E=NET_AIROHA_NPU
+	select MT76_NPU
+	default n

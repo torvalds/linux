@@ -321,8 +321,8 @@ static int cmm_timeout_handler(const struct ctl_table *ctl, int write,
 		cmm_set_timeout(nr, seconds);
 		*ppos += *lenp;
 	} else {
-		len = sprintf(buf, "%ld %ld\n",
-			      cmm_timeout_pages, cmm_timeout_seconds);
+		len = scnprintf(buf, sizeof(buf), "%ld %ld\n",
+				cmm_timeout_pages, cmm_timeout_seconds);
 		if (len > *lenp)
 			len = *lenp;
 		memcpy(buffer, buf, len);

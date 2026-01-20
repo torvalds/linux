@@ -671,7 +671,6 @@
 					vbus-gpios = <&gpio
 						      TEGRA186_MAIN_GPIO(L, 4)
 						      GPIO_ACTIVE_LOW>;
-					id-gpios = <&pmic 0 GPIO_ACTIVE_HIGH>;
 				};
 			};
 

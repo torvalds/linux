@@ -14,7 +14,7 @@
 #include <stdlib.h>
 
 #include <asm/unistd.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #ifndef PR_SET_SYSCALL_USER_DISPATCH
 # define PR_SET_SYSCALL_USER_DISPATCH	59

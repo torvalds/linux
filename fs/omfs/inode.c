@@ -14,6 +14,7 @@
 #include <linux/writeback.h>
 #include <linux/seq_file.h>
 #include <linux/crc-itu-t.h>
+#include <linux/fs_struct.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include "omfs.h"
@@ -212,7 +213,7 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 	inode = iget_locked(sb, ino);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+	if (!(inode_state_read_once(inode) & I_NEW))
 		return inode;
 
 	bh = omfs_bread(inode->i_sb, ino);

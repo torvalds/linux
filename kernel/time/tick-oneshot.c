@@ -19,6 +19,10 @@
 
 /**
  * tick_program_event - program the CPU local timer device for the next event
+ * @expires: the time at which the next timer event should occur
+ * @force: flag to force reprograming even if the event time hasn't changed
+ *
+ * Return: 0 on success, negative error code on failure
  */
 int tick_program_event(ktime_t expires, int force)
 {
@@ -57,6 +61,13 @@ void tick_resume_oneshot(void)
 
 /**
  * tick_setup_oneshot - setup the event device for oneshot mode (hres or nohz)
+ * @newdev: Pointer to the clock event device to configure
+ * @handler: Function to be called when the event device triggers an interrupt
+ * @next_event: Initial expiry time for the next event (in ktime)
+ *
+ * Configures the specified clock event device for onshot mode,
+ * assigns the given handler as its event callback, and programs
+ * the device to trigger at the specified next event time.
  */
 void tick_setup_oneshot(struct clock_event_device *newdev,
 			void (*handler)(struct clock_event_device *),
@@ -69,6 +80,10 @@ void tick_setup_oneshot(struct clock_event_device *newdev,
 
 /**
  * tick_switch_to_oneshot - switch to oneshot mode
+ * @handler: function to call when an event occurs on the tick device
+ *
+ * Return: 0 on success, -EINVAL if the tick device is not present,
+ *         not functional, or does not support oneshot mode.
  */
 int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 {
@@ -101,7 +116,7 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 /**
  * tick_oneshot_mode_active - check whether the system is in oneshot mode
  *
- * returns 1 when either nohz or highres are enabled. otherwise 0.
+ * Return: 1 when either nohz or highres are enabled, otherwise 0.
  */
 int tick_oneshot_mode_active(void)
 {
@@ -120,6 +135,9 @@ int tick_oneshot_mode_active(void)
  * tick_init_highres - switch to high resolution mode
  *
  * Called with interrupts disabled.
+ *
+ * Return: 0 on success, -EINVAL if the tick device cannot switch
+ *         to oneshot/high-resolution mode.
  */
 int tick_init_highres(void)
 {

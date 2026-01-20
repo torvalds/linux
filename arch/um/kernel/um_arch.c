@@ -19,6 +19,7 @@
 #include <linux/kmsg_dump.h>
 #include <linux/suspend.h>
 #include <linux/random.h>
+#include <linux/smp-internal.h>
 
 #include <asm/processor.h>
 #include <asm/cpufeature.h>
@@ -71,6 +72,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	int i = 0;
 
+#if IS_ENABLED(CONFIG_SMP)
+	i = (uintptr_t) v - 1;
+	if (!cpu_online(i))
+		return 0;
+#endif
+
 	seq_printf(m, "processor\t: %d\n", i);
 	seq_printf(m, "vendor_id\t: User Mode Linux\n");
 	seq_printf(m, "model name\t: UML\n");
@@ -87,13 +94,14 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   loops_per_jiffy/(500000/HZ),
 		   (loops_per_jiffy/(5000/HZ)) % 100);
 
-
 	return 0;
 }
 
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
-	return *pos < nr_cpu_ids ? &boot_cpu_data + *pos : NULL;
+	if (*pos < nr_cpu_ids)
+		return (void *)(uintptr_t)(*pos + 1);
+	return NULL;
 }
 
 static void *c_next(struct seq_file *m, void *v, loff_t *pos)
@@ -239,8 +247,6 @@ static struct notifier_block panic_exit_notifier = {
 
 void uml_finishsetup(void)
 {
-	cpu_tasks[0] = &init_task;
-
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &panic_exit_notifier);
 
@@ -254,11 +260,7 @@ unsigned long stub_start;
 unsigned long task_size;
 EXPORT_SYMBOL(task_size);
 
-unsigned long host_task_size;
-
 unsigned long brk_start;
-unsigned long end_iomem;
-EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
@@ -298,16 +300,14 @@ static unsigned long __init get_top_address(char **envp)
 			top_addr = (unsigned long) envp[i];
 	}
 
-	top_addr &= ~(UM_KERN_PAGE_SIZE - 1);
-	top_addr += UM_KERN_PAGE_SIZE;
-
-	return top_addr;
+	return PAGE_ALIGN(top_addr + 1);
 }
 
 int __init linux_main(int argc, char **argv, char **envp)
 {
 	unsigned long avail, diff;
 	unsigned long virtmem_size, max_physmem;
+	unsigned long host_task_size;
 	unsigned long stack;
 	unsigned int i;
 	int add;
@@ -354,12 +354,11 @@ int __init linux_main(int argc, char **argv, char **envp)
 	 * so they actually get what they asked for. This should
 	 * add zero for non-exec shield users
 	 */
-
-	diff = UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+	diff = PAGE_ALIGN(brk_start) - PAGE_ALIGN((unsigned long) &_end);
 	if (diff > 1024 * 1024) {
 		os_info("Adding %ld bytes to physical memory to account for "
 			"exec-shield gap\n", diff);
-		physmem_size += UML_ROUND_UP(brk_start) - UML_ROUND_UP(&_end);
+		physmem_size += diff;
 	}
 
 	uml_physmem = (unsigned long) __binary_start & PAGE_MASK;
@@ -369,10 +368,8 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	setup_machinename(init_utsname()->machine);
 
-	physmem_size = (physmem_size + PAGE_SIZE - 1) & PAGE_MASK;
-	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
-
-	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
+	physmem_size = PAGE_ALIGN(physmem_size);
+	max_physmem = TASK_SIZE - uml_physmem - MIN_VMALLOC;
 	if (physmem_size > max_physmem) {
 		physmem_size = max_physmem;
 		os_info("Physical memory size shrunk to %llu bytes\n",
@@ -380,7 +377,6 @@ int __init linux_main(int argc, char **argv, char **envp)
 	}
 
 	high_physmem = uml_physmem + physmem_size;
-	end_iomem = high_physmem + iomem_size;
 
 	start_vm = VMALLOC_START;
 
@@ -421,6 +417,7 @@ void __init setup_arch(char **cmdline_p)
 	strscpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 	setup_hostinfo(host_info, sizeof host_info);
+	prefill_possible_map();
 
 	if (os_getrandom(rng_seed, sizeof(rng_seed), 0) == sizeof(rng_seed)) {
 		add_bootloader_randomness(rng_seed, sizeof(rng_seed));
@@ -454,6 +451,18 @@ void apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 }
+
+#if IS_ENABLED(CONFIG_SMP)
+void alternatives_smp_module_add(struct module *mod, char *name,
+				 void *locks, void *locks_end,
+				 void *text,  void *text_end)
+{
+}
+
+void alternatives_smp_module_del(struct module *mod)
+{
+}
+#endif
 
 void *text_poke(void *addr, const void *opcode, size_t len)
 {

@@ -934,17 +934,12 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
 #endif
 	if (page != dump->page) {
 		const unsigned int offset = pos % PAGE_SIZE;
-		/*
-		 * Maybe kmap()/kunmap() should be used here.
-		 * But remove_arg_zero() uses kmap_atomic()/kunmap_atomic().
-		 * So do I.
-		 */
-		char *kaddr = kmap_atomic(page);
+		char *kaddr = kmap_local_page(page);
 
 		dump->page = page;
 		memcpy(dump->data + offset, kaddr + offset,
 		       PAGE_SIZE - offset);
-		kunmap_atomic(kaddr);
+		kunmap_local(kaddr);
 	}
 	/* Same with put_arg_page(page) in fs/exec.c */
 #ifdef CONFIG_MMU

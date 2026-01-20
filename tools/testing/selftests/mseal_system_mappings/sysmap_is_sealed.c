@@ -11,8 +11,8 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "../kselftest.h"
-#include "../kselftest_harness.h"
+#include "kselftest.h"
+#include "kselftest_harness.h"
 
 #define VMFLAGS "VmFlags:"
 #define MSEAL_FLAGS "sl"

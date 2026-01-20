@@ -95,7 +95,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 	inode = iget_locked(sb, cramino(cramfs_inode, offset));
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+	if (!(inode_state_read_once(inode) & I_NEW))
 		return inode;
 
 	switch (cramfs_inode->mode & S_IFMT) {

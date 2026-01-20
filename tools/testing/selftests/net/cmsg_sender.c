@@ -16,7 +16,7 @@
 #include <linux/udp.h>
 #include <sys/socket.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 
 enum {
 	ERN_SUCCESS = 0,

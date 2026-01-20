@@ -68,7 +68,7 @@ struct eisa_driver {
 /* These external functions are only available when EISA support is enabled. */
 #ifdef CONFIG_EISA
 
-extern struct bus_type eisa_bus_type;
+extern const struct bus_type eisa_bus_type;
 int eisa_driver_register (struct eisa_driver *edrv);
 void eisa_driver_unregister (struct eisa_driver *edrv);
 

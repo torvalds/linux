@@ -16,8 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <dt-bindings/clock/microchip,lan966x.h>
-
 #define GCK_ENA         BIT(0)
 #define GCK_SRC_SEL     GENMASK(9, 8)
 #define GCK_PRESCALER   GENMASK(23, 16)

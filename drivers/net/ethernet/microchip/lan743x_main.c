@@ -3915,7 +3915,6 @@ static int lan743x_pm_resume(struct device *dev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_save_state(pdev);
 
 	/* Restore HW_CFG that was saved during pm suspend */
 	if (adapter->is_pci11x1x)

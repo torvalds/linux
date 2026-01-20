@@ -27,6 +27,7 @@ properties:
           - const: fsl,enetc
       - enum:
           - pci1131,e101
+          - pci1131,e110
 
   reg:
     maxItems: 1

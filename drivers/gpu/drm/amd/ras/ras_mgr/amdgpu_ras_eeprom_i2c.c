@@ -85,6 +85,7 @@ static int ras_eeprom_i2c_config(struct ras_core_context *ras_core)
 	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 10):
+	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 		control->i2c_address = EEPROM_I2C_MADDR_4;
 		return 0;

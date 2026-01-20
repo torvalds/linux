@@ -159,7 +159,6 @@
 #define GPSR5_1		FM(QSPI0_MOSI_IO0)
 #define GPSR5_0		FM(QSPI0_SPCLK)
 
-
 /* IPSRx */		/* 0 */				/* 1 */			/* 2 */		/* 3 */		/* 4 */			/* 5 */		/* 6 - F */
 #define IP0_3_0		FM(DU_DR2)			FM(HSCK0)		F_(0, 0)	FM(A0)		F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP0_7_4		FM(DU_DR3)			FM(HRTS0_N)		F_(0, 0)	FM(A1)		F_(0, 0)		F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)

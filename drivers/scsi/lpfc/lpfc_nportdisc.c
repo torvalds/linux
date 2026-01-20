@@ -432,8 +432,6 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_class_sup |= FC_COS_CLASS2;
 	if (sp->cls3.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS3;
-	if (sp->cls4.classValid)
-		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 	/* if already logged in, do implicit logout */
@@ -452,18 +450,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 */
 		if (!(ndlp->nlp_type & NLP_FABRIC) &&
 		    !(phba->nvmet_support)) {
-			/* Clear ndlp info, since follow up PRLI may have
-			 * updated ndlp information
-			 */
-			ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
-			ndlp->nlp_type &= ~(NLP_NVME_TARGET | NLP_NVME_INITIATOR);
-			ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-			ndlp->nlp_nvme_info &= ~NLP_NVME_NSLER;
-			clear_bit(NLP_FIRSTBURST, &ndlp->nlp_flag);
-
-			lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb,
-					 ndlp, NULL);
-			return 1;
+			break;
 		}
 		if (nlp_portwwn != 0 &&
 		    nlp_portwwn != wwn_to_u64(sp->portName.u.wwn))
@@ -485,7 +472,9 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		break;
 	}
-
+	/* Clear ndlp info, since follow up processes may have
+	 * updated ndlp information
+	 */
 	ndlp->nlp_type &= ~(NLP_FCP_TARGET | NLP_FCP_INITIATOR);
 	ndlp->nlp_type &= ~(NLP_NVME_TARGET | NLP_NVME_INITIATOR);
 	ndlp->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
@@ -1426,8 +1415,6 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		ndlp->nlp_class_sup |= FC_COS_CLASS2;
 	if (sp->cls3.classValid)
 		ndlp->nlp_class_sup |= FC_COS_CLASS3;
-	if (sp->cls4.classValid)
-		ndlp->nlp_class_sup |= FC_COS_CLASS4;
 	ndlp->nlp_maxframe =
 		((sp->cmn.bbRcvSizeMsb & 0x0F) << 8) | sp->cmn.bbRcvSizeLsb;
 

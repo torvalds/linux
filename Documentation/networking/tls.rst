@@ -280,6 +280,26 @@ If the record decrypted turns out to had been padded or is not a data
 record it will be decrypted again into a kernel buffer without zero copy.
 Such events are counted in the ``TlsDecryptRetry`` statistic.
 
+TLS_TX_MAX_PAYLOAD_LEN
+~~~~~~~~~~~~~~~~~~~~~~
+
+Specifies the maximum size of the plaintext payload for transmitted TLS records.
+
+When this option is set, the kernel enforces the specified limit on all outgoing
+TLS records. No plaintext fragment will exceed this size. This option can be used
+to implement the TLS Record Size Limit extension [1].
+
+* For TLS 1.2, the value corresponds directly to the record size limit.
+* For TLS 1.3, the value should be set to record_size_limit - 1, since
+  the record size limit includes one additional byte for the ContentType
+  field.
+
+The valid range for this option is 64 to 16384 bytes for TLS 1.2, and 63 to
+16384 bytes for TLS 1.3. The lower minimum for TLS 1.3 accounts for the
+extra byte used by the ContentType field.
+
+[1] https://datatracker.ietf.org/doc/html/rfc8449
+
 Statistics
 ==========
 

@@ -761,7 +761,7 @@ static int acpi_pci_link_resume(struct acpi_pci_link *link)
 	return 0;
 }
 
-static void irqrouter_resume(void)
+static void irqrouter_resume(void *data)
 {
 	struct acpi_pci_link *link;
 
@@ -888,8 +888,12 @@ static int __init acpi_irq_balance_set(char *str)
 
 __setup("acpi_irq_balance", acpi_irq_balance_set);
 
-static struct syscore_ops irqrouter_syscore_ops = {
+static const struct syscore_ops irqrouter_syscore_ops = {
 	.resume = irqrouter_resume,
+};
+
+static struct syscore irqrouter_syscore = {
+	.ops = &irqrouter_syscore_ops,
 };
 
 void __init acpi_pci_link_init(void)
@@ -904,6 +908,6 @@ void __init acpi_pci_link_init(void)
 		else
 			acpi_irq_balance = 0;
 	}
-	register_syscore_ops(&irqrouter_syscore_ops);
+	register_syscore(&irqrouter_syscore);
 	acpi_scan_add_handler(&pci_link_handler);
 }

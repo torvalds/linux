@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/etherdevice.h>
@@ -1450,6 +1450,8 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
 	cancel_delayed_work_sync(&dev->mphy.mac_work);
 	if (ext_phy)
 		cancel_delayed_work_sync(&ext_phy->mac_work);
+
+	mt76_abort_scan(&dev->mt76);
 
 	mutex_lock(&dev->mt76.mutex);
 	for (i = 0; i < 10; i++) {

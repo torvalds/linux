@@ -3,8 +3,6 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include <linux/dma-fence-array.h>
-
 #include "xe_pt.h"
 
 #include "regs/xe_gtt_defs.h"
@@ -1340,13 +1338,6 @@ static int xe_pt_vm_dependencies(struct xe_sched_job *job,
 			return err;
 	}
 
-	if (!(pt_update_ops->q->flags & EXEC_QUEUE_FLAG_KERNEL)) {
-		if (job)
-			err = xe_sched_job_last_fence_add_dep(job, vm);
-		else
-			err = xe_exec_queue_last_fence_test_dep(pt_update_ops->q, vm);
-	}
-
 	for (i = 0; job && !err && i < vops->num_syncs; i++)
 		err = xe_sync_entry_add_deps(&vops->syncs[i], job);
 
@@ -2359,10 +2350,9 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	struct xe_vm *vm = vops->vm;
 	struct xe_vm_pgtable_update_ops *pt_update_ops =
 		&vops->pt_update_ops[tile->id];
-	struct dma_fence *fence, *ifence, *mfence;
+	struct xe_exec_queue *q = pt_update_ops->q;
+	struct dma_fence *fence, *ifence = NULL, *mfence = NULL;
 	struct xe_tlb_inval_job *ijob = NULL, *mjob = NULL;
-	struct dma_fence **fences = NULL;
-	struct dma_fence_array *cf = NULL;
 	struct xe_range_fence *rfence;
 	struct xe_vma_op *op;
 	int err = 0, i;
@@ -2390,15 +2380,14 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 #endif
 
 	if (pt_update_ops->needs_invalidation) {
-		struct xe_exec_queue *q = pt_update_ops->q;
 		struct xe_dep_scheduler *dep_scheduler =
 			to_dep_scheduler(q, tile->primary_gt);
 
 		ijob = xe_tlb_inval_job_create(q, &tile->primary_gt->tlb_inval,
-					       dep_scheduler,
+					       dep_scheduler, vm,
 					       pt_update_ops->start,
 					       pt_update_ops->last,
-					       vm->usm.asid);
+					       XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
 		if (IS_ERR(ijob)) {
 			err = PTR_ERR(ijob);
 			goto kill_vm_tile1;
@@ -2410,26 +2399,15 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 
 			mjob = xe_tlb_inval_job_create(q,
 						       &tile->media_gt->tlb_inval,
-						       dep_scheduler,
+						       dep_scheduler, vm,
 						       pt_update_ops->start,
 						       pt_update_ops->last,
-						       vm->usm.asid);
+						       XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT);
 			if (IS_ERR(mjob)) {
 				err = PTR_ERR(mjob);
 				goto free_ijob;
 			}
 			update.mjob = mjob;
-
-			fences = kmalloc_array(2, sizeof(*fences), GFP_KERNEL);
-			if (!fences) {
-				err = -ENOMEM;
-				goto free_ijob;
-			}
-			cf = dma_fence_array_alloc(2);
-			if (!cf) {
-				err = -ENOMEM;
-				goto free_ijob;
-			}
 		}
 	}
 
@@ -2460,31 +2438,12 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 				  pt_update_ops->last, fence))
 		dma_fence_wait(fence, false);
 
-	/* tlb invalidation must be done before signaling unbind/rebind */
-	if (ijob) {
-		struct dma_fence *__fence;
-
+	if (ijob)
 		ifence = xe_tlb_inval_job_push(ijob, tile->migrate, fence);
-		__fence = ifence;
+	if (mjob)
+		mfence = xe_tlb_inval_job_push(mjob, tile->migrate, fence);
 
-		if (mjob) {
-			fences[0] = ifence;
-			mfence = xe_tlb_inval_job_push(mjob, tile->migrate,
-						       fence);
-			fences[1] = mfence;
-
-			dma_fence_array_init(cf, 2, fences,
-					     vm->composite_fence_ctx,
-					     vm->composite_fence_seqno++,
-					     false);
-			__fence = &cf->base;
-		}
-
-		dma_fence_put(fence);
-		fence = __fence;
-	}
-
-	if (!mjob) {
+	if (!mjob && !ijob) {
 		dma_resv_add_fence(xe_vm_resv(vm), fence,
 				   pt_update_ops->wait_vm_bookkeep ?
 				   DMA_RESV_USAGE_KERNEL :
@@ -2492,6 +2451,14 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 
 		list_for_each_entry(op, &vops->list, link)
 			op_commit(vops->vm, tile, pt_update_ops, op, fence, NULL);
+	} else if (ijob && !mjob) {
+		dma_resv_add_fence(xe_vm_resv(vm), ifence,
+				   pt_update_ops->wait_vm_bookkeep ?
+				   DMA_RESV_USAGE_KERNEL :
+				   DMA_RESV_USAGE_BOOKKEEP);
+
+		list_for_each_entry(op, &vops->list, link)
+			op_commit(vops->vm, tile, pt_update_ops, op, ifence, NULL);
 	} else {
 		dma_resv_add_fence(xe_vm_resv(vm), ifence,
 				   pt_update_ops->wait_vm_bookkeep ?
@@ -2511,16 +2478,23 @@ xe_pt_update_ops_run(struct xe_tile *tile, struct xe_vma_ops *vops)
 	if (pt_update_ops->needs_svm_lock)
 		xe_svm_notifier_unlock(vm);
 
+	/*
+	 * The last fence is only used for zero bind queue idling; migrate
+	 * queues are not exposed to user space.
+	 */
+	if (!(q->flags & EXEC_QUEUE_FLAG_MIGRATE))
+		xe_exec_queue_last_fence_set(q, vm, fence);
+
 	xe_tlb_inval_job_put(mjob);
 	xe_tlb_inval_job_put(ijob);
+	dma_fence_put(ifence);
+	dma_fence_put(mfence);
 
 	return fence;
 
 free_rfence:
 	kfree(rfence);
 free_ijob:
-	kfree(cf);
-	kfree(fences);
 	xe_tlb_inval_job_put(mjob);
 	xe_tlb_inval_job_put(ijob);
 kill_vm_tile1:

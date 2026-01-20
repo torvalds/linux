@@ -1307,6 +1307,7 @@ int mei_register(struct mei_device *dev, struct device *parent)
 err_del_cdev:
 	cdev_del(dev->cdev);
 err:
+	put_device(&dev->dev);
 	mei_minor_free(minor);
 	return ret;
 }

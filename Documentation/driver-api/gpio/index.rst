@@ -15,6 +15,7 @@ Contents:
    legacy-boards
    drivers-on-gpio
    bt8xxgpio
+   pca953x
 
 Core
 ====

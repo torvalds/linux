@@ -179,7 +179,7 @@ static int mlx5e_xdp_rx_timestamp(const struct xdp_md *ctx, u64 *timestamp)
 {
 	const struct mlx5e_xdp_buff *_ctx = (void *)ctx;
 
-	if (unlikely(!mlx5e_rx_hw_stamp(_ctx->rq->tstamp)))
+	if (unlikely(!mlx5e_rx_hw_stamp(_ctx->rq->hwtstamp_config)))
 		return -ENODATA;
 
 	*timestamp =  mlx5e_cqe_ts_to_ns(_ctx->rq->ptp_cyc2time,

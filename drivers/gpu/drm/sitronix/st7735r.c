@@ -24,6 +24,7 @@
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
+#include <drm/drm_print.h>
 
 #define ST7735R_FRMCTR1		0xb1
 #define ST7735R_FRMCTR2		0xb2

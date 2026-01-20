@@ -51,6 +51,7 @@ Supported adapters:
   * Intel Arrow Lake (SOC)
   * Intel Panther Lake (SOC)
   * Intel Wildcat Lake (SOC)
+  * Intel Diamond Rapids (SOC)
 
    Datasheets: Publicly available at the Intel website
 

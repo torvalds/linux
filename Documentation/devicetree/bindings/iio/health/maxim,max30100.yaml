@@ -27,6 +27,14 @@ properties:
       LED current whilst the engine is running. First indexed value is
       the configuration for the RED LED, and second value is for the IR LED.
 
+  maxim,pulse-width-us:
+    description: |
+      LED pulse width in microseconds. Appropriate pulse width depends on
+      factors such as optical window absorption, LED-to-sensor distance,
+      and expected reflectivity of the skin or contact surface.
+    enum: [200, 400, 800, 1600]
+    default: 1600
+
 additionalProperties: false
 
 required:

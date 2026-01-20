@@ -289,7 +289,7 @@ static int ipc4_probes_point_print(struct sof_client_dev *cdev, char *buf, size_
 			__func__, SOF_IPC4_MOD_ID_GET(desc->buffer_id),
 			SOF_IPC4_MOD_INSTANCE_GET(desc->buffer_id));
 
-	ret = snprintf(buf, size, "%#x,%#x,%#x\t%s %s buf idx %lu %s\n",
+	ret = scnprintf(buf, size, "%#x,%#x,%#x\t%s %s buf idx %lu %s\n",
 		       desc->buffer_id, desc->purpose, desc->stream_tag,
 		       swidget ? swidget->widget->name : "<unknown>",
 		       sof_probe_ipc4_type_string(SOF_IPC4_PROBE_TYPE_GET(desc->buffer_id)),

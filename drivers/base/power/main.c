@@ -34,6 +34,7 @@
 #include <linux/cpufreq.h>
 #include <linux/devfreq.h>
 #include <linux/timer.h>
+#include <linux/nmi.h>
 
 #include "../base.h"
 #include "power.h"
@@ -95,6 +96,8 @@ static const char *pm_verb(int event)
 		return "restore";
 	case PM_EVENT_RECOVER:
 		return "recover";
+	case PM_EVENT_POWEROFF:
+		return "poweroff";
 	default:
 		return "(unknown PM event)";
 	}
@@ -367,6 +370,7 @@ static pm_callback_t pm_op(const struct dev_pm_ops *ops, pm_message_t state)
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_QUIESCE:
 		return ops->freeze;
+	case PM_EVENT_POWEROFF:
 	case PM_EVENT_HIBERNATE:
 		return ops->poweroff;
 	case PM_EVENT_THAW:
@@ -401,6 +405,7 @@ static pm_callback_t pm_late_early_op(const struct dev_pm_ops *ops,
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_QUIESCE:
 		return ops->freeze_late;
+	case PM_EVENT_POWEROFF:
 	case PM_EVENT_HIBERNATE:
 		return ops->poweroff_late;
 	case PM_EVENT_THAW:
@@ -435,6 +440,7 @@ static pm_callback_t pm_noirq_op(const struct dev_pm_ops *ops, pm_message_t stat
 	case PM_EVENT_FREEZE:
 	case PM_EVENT_QUIESCE:
 		return ops->freeze_noirq;
+	case PM_EVENT_POWEROFF:
 	case PM_EVENT_HIBERNATE:
 		return ops->poweroff_noirq;
 	case PM_EVENT_THAW:
@@ -515,6 +521,11 @@ struct dpm_watchdog {
 #define DECLARE_DPM_WATCHDOG_ON_STACK(wd) \
 	struct dpm_watchdog wd
 
+static bool __read_mostly dpm_watchdog_all_cpu_backtrace;
+module_param(dpm_watchdog_all_cpu_backtrace, bool, 0644);
+MODULE_PARM_DESC(dpm_watchdog_all_cpu_backtrace,
+		 "Backtrace all CPUs on DPM watchdog timeout");
+
 /**
  * dpm_watchdog_handler - Driver suspend / resume watchdog handler.
  * @t: The timer that PM watchdog depends on.
@@ -530,8 +541,12 @@ static void dpm_watchdog_handler(struct timer_list *t)
 	unsigned int time_left;
 
 	if (wd->fatal) {
+		unsigned int this_cpu = smp_processor_id();
+
 		dev_emerg(wd->dev, "**** DPM device timeout ****\n");
 		show_stack(wd->tsk, NULL, KERN_EMERG);
+		if (dpm_watchdog_all_cpu_backtrace)
+			trigger_allbutcpu_cpu_backtrace(this_cpu);
 		panic("%s %s: unrecoverable failure\n",
 			dev_driver_string(wd->dev), dev_name(wd->dev));
 	}
@@ -888,11 +903,14 @@ static void device_resume_early(struct device *dev, pm_message_t state, bool asy
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (dev->power.syscore || dev->power.direct_complete)
+	if (dev->power.direct_complete)
 		goto Out;
 
 	if (!dev->power.is_late_suspended)
 		goto Out;
+
+	if (dev->power.syscore)
+		goto Skip;
 
 	if (!dpm_wait_for_superior(dev, async))
 		goto Out;
@@ -926,11 +944,11 @@ Run:
 
 Skip:
 	dev->power.is_late_suspended = false;
+	pm_runtime_enable(dev);
 
 Out:
 	TRACE_RESUME(error);
 
-	pm_runtime_enable(dev);
 	complete_all(&dev->power.completion);
 
 	if (error) {
@@ -1615,12 +1633,6 @@ static void device_suspend_late(struct device *dev, pm_message_t state, bool asy
 	TRACE_DEVICE(dev);
 	TRACE_SUSPEND(0);
 
-	/*
-	 * Disable runtime PM for the device without checking if there is a
-	 * pending resume request for it.
-	 */
-	__pm_runtime_disable(dev, false);
-
 	dpm_wait_for_subordinate(dev, async);
 
 	if (READ_ONCE(async_error))
@@ -1631,8 +1643,17 @@ static void device_suspend_late(struct device *dev, pm_message_t state, bool asy
 		goto Complete;
 	}
 
-	if (dev->power.syscore || dev->power.direct_complete)
+	if (dev->power.direct_complete)
 		goto Complete;
+
+	/*
+	 * Disable runtime PM for the device without checking if there is a
+	 * pending resume request for it.
+	 */
+	__pm_runtime_disable(dev, false);
+
+	if (dev->power.syscore)
+		goto Skip;
 
 	if (dev->pm_domain) {
 		info = "late power domain ";
@@ -1664,6 +1685,7 @@ Run:
 		WRITE_ONCE(async_error, error);
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async late" : " late", error);
+		pm_runtime_enable(dev);
 		goto Complete;
 	}
 	dpm_propagate_wakeup_to_parent(dev);
@@ -2126,6 +2148,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	device_lock(dev);
 
 	dev->power.wakeup_path = false;
+	dev->power.out_band_wakeup = false;
 
 	if (dev->power.no_pm_callbacks)
 		goto unlock;

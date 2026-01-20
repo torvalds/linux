@@ -1406,7 +1406,6 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 	union ubifs_key key;
 	int err, lnum, offs, len;
 	loff_t i_size;
-	uint32_t crc;
 
 	/* Locate the inode node LEB number and offset */
 	ino_key_init(c, &key, e->inum);
@@ -1428,8 +1427,7 @@ static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
 	ino = c->sbuf + offs;
 	ino->size = cpu_to_le64(e->d_size);
 	len = le32_to_cpu(ino->ch.len);
-	crc = crc32(UBIFS_CRC32_INIT, (void *)ino + 8, len - 8);
-	ino->ch.crc = cpu_to_le32(crc);
+	ubifs_crc_node((void *)ino, len);
 	/* Work out where data in the LEB ends and free space begins */
 	p = c->sbuf;
 	len = c->leb_size - 1;

@@ -421,7 +421,7 @@ static void device_run(void *priv)
 	else
 		dst_buf->sequence = q_dst->sequence++;
 	dst_buf->flags &= ~V4L2_BUF_FLAG_LAST;
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, false);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 
 	spin_lock(ctx->lock);
 	if (!ctx->comp_has_next_frame &&
@@ -555,7 +555,7 @@ static void set_last_buffer(struct vb2_v4l2_buffer *dst_buf,
 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, 0);
 	dst_buf->sequence = q_dst->sequence++;
 
-	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf, !ctx->is_enc);
+	v4l2_m2m_buf_copy_metadata(src_buf, dst_buf);
 	dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 	v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
 }
@@ -760,15 +760,10 @@ static int vidioc_enum_fmt_vid_out(struct file *file, void *priv,
 
 static int vidioc_g_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 {
-	struct vb2_queue *vq;
 	struct vicodec_q_data *q_data;
 	struct v4l2_pix_format_mplane *pix_mp;
 	struct v4l2_pix_format *pix;
 	const struct v4l2_fwht_pixfmt_info *info;
-
-	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	info = q_data->info;
@@ -976,8 +971,6 @@ static int vidioc_s_fmt(struct vicodec_ctx *ctx, struct v4l2_format *f)
 	struct v4l2_pix_format *pix;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
-	if (!vq)
-		return -EINVAL;
 
 	q_data = get_q_data(ctx, f->type);
 	if (!q_data)

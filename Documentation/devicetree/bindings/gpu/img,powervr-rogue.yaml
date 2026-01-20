@@ -20,6 +20,10 @@ properties:
           - const: img,img-gx6250
           - const: img,img-rogue
       - items:
+          - const: renesas,r8a77965-gpu
+          - const: img,img-ge7800
+          - const: img,img-rogue
+      - items:
           - enum:
               - ti,am62-gpu
           - const: img,img-axe-1-16m
@@ -100,12 +104,12 @@ allOf:
         clocks:
           maxItems: 1
 
-
   - if:
       properties:
         compatible:
           contains:
             enum:
+              - img,img-ge7800
               - img,img-gx6250
               - thead,th1520-gpu
     then:
@@ -135,8 +139,9 @@ allOf:
         compatible:
           contains:
             enum:
-              - img,img-gx6250
               - img,img-bxs-4-64
+              - img,img-ge7800
+              - img,img-gx6250
     then:
       properties:
         power-domains:

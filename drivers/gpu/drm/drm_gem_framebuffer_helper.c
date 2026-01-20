@@ -16,6 +16,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_modeset_helper.h>
+#include <drm/drm_print.h>
 
 #include "drm_internal.h"
 

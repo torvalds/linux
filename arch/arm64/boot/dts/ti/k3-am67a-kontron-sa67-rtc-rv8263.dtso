@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Microcrystal RV8263 RTC variant.
+ *
+ * Copyright (c) 2025 Kontron Europe GmbH
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+&{/} {
+	aliases {
+		rtc0 = "/bus@f0000/i2c@20000000/rtc@51"; /* &rtc */
+		rtc1 = "/bus@f0000/bus@b00000/rtc@2b1f0000"; /* &wkup_rtc0 */
+	};
+};
+
+&main_i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	rtc: rtc@51 {
+		compatible = "microcrystal,rv8263";
+		reg = <0x51>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins_default>;
+		interrupts-extended = <&main_gpio0 36 IRQ_TYPE_EDGE_FALLING>;
+	};
+};

@@ -112,9 +112,13 @@ static bool symbol_type__filter(char __symbol_type)
 	// 'N' first seen in:
 	// ffffffff9b35d130 N __pfx__RNCINvNtNtNtCsbDUBuN8AbD4_4core4iter8adapters3map12map_try_foldjNtCs6vVzKs5jPr6_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
 	// a seemingly Rust mangled name
+	// Ditto for '1':
+	// root@x1:~# grep ' 1 ' /proc/kallsyms
+	// ffffffffb098bc00 1 __pfx__RNCINvNtNtNtCsfwaGRd4cjqE_4core4iter8adapters3map12map_try_foldjNtCskFudTml27HW_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
+	// ffffffffb098bc10 1 _RNCINvNtNtNtCsfwaGRd4cjqE_4core4iter8adapters3map12map_try_foldjNtCskFudTml27HW_12drm_panic_qr7VersionuINtNtNtBa_3ops12control_flow11ControlFlowB10_ENcB10_0NCINvNvNtNtNtB8_6traits8iterator8Iterator4find5checkB10_NCNvMB12_B10_13from_segments0E0E0B12_
 	char symbol_type = toupper(__symbol_type);
 	return symbol_type == 'T' || symbol_type == 'W' || symbol_type == 'D' || symbol_type == 'B' ||
-	       __symbol_type == 'u' || __symbol_type == 'l' || __symbol_type == 'N';
+	       __symbol_type == 'u' || __symbol_type == 'l' || __symbol_type == 'N' || __symbol_type == '1';
 }
 
 static int prefix_underscores_count(const char *str)
@@ -951,7 +955,8 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				pos->end -= delta;
 			}
 
-			if (count == 0) {
+			if (map__start(initial_map) <= (pos->start + delta) &&
+			    (pos->start + delta) < map__end(initial_map)) {
 				map__zput(curr_map);
 				curr_map = map__get(initial_map);
 				goto add_symbol;
@@ -960,11 +965,11 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 			if (dso__kernel(dso) == DSO_SPACE__KERNEL_GUEST)
 				snprintf(dso_name, sizeof(dso_name),
 					"[guest.kernel].%d",
-					kernel_range++);
+					kernel_range);
 			else
 				snprintf(dso_name, sizeof(dso_name),
 					"[kernel].%d",
-					kernel_range++);
+					kernel_range);
 
 			ndso = dso__new(dso_name);
 			map__zput(curr_map);
@@ -972,6 +977,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				return -1;
 
 			dso__set_kernel(ndso, dso__kernel(dso));
+			dso__set_loaded(ndso);
 
 			curr_map = map__new2(pos->start, ndso);
 			if (curr_map == NULL) {
@@ -985,6 +991,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 				dso__put(ndso);
 				return -1;
 			}
+			dso__put(ndso);
 			++kernel_range;
 		} else if (delta) {
 			/* Kernel was relocated at boot time */
@@ -1743,14 +1750,13 @@ int dso__load(struct dso *dso, struct map *map)
 
 	/*
 	 * Read the build id if possible. This is required for
-	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work. Don't block in case path
-	 * isn't for a regular file.
+	 * DSO_BINARY_TYPE__BUILDID_DEBUGINFO to work.
 	 */
 	if (!dso__has_build_id(dso)) {
 		struct build_id bid = { .size = 0, };
 
 		__symbol__join_symfs(name, PATH_MAX, dso__long_name(dso));
-		if (filename__read_build_id(name, &bid, /*block=*/false) > 0)
+		if (filename__read_build_id(name, &bid) > 0)
 			dso__set_build_id(dso, &bid);
 	}
 
@@ -2001,6 +2007,7 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 	char sbuild_id[SBUILD_ID_SIZE];
 	bool is_host = false;
 	char path[PATH_MAX];
+	struct maps *kmaps = map__kmaps(map);
 
 	if (!dso__has_build_id(dso)) {
 		/*
@@ -2037,8 +2044,13 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 		return strdup(path);
 
 	/* Use current /proc/kallsyms if possible */
-	if (is_host) {
 proc_kallsyms:
+	if (kmaps) {
+		struct machine *machine = maps__machine(kmaps);
+
+		scnprintf(path, sizeof(path), "%s/proc/kallsyms", machine->root_dir);
+		return strdup(path);
+	} else if (is_host) {
 		return strdup("/proc/kallsyms");
 	}
 

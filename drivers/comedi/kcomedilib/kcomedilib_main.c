@@ -15,6 +15,7 @@
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/bitmap.h>
 
 #include <linux/comedi.h>
 #include <linux/comedi/comedidev.h>
@@ -24,7 +25,104 @@ MODULE_AUTHOR("David Schleef <ds@schleef.org>");
 MODULE_DESCRIPTION("Comedi kernel library");
 MODULE_LICENSE("GPL");
 
-struct comedi_device *comedi_open(const char *filename)
+static DEFINE_MUTEX(kcomedilib_to_from_lock);
+
+/*
+ * Row index is the "to" node, column index is the "from" node, element value
+ * is the number of links from the "from" node to the "to" node.
+ */
+static unsigned char
+	kcomedilib_to_from[COMEDI_NUM_BOARD_MINORS][COMEDI_NUM_BOARD_MINORS];
+
+static bool kcomedilib_set_link_from_to(unsigned int from, unsigned int to)
+{
+	DECLARE_BITMAP(destinations[2], COMEDI_NUM_BOARD_MINORS);
+	unsigned int cur = 0;
+	bool okay = true;
+
+	/*
+	 * Allow "from" node to be out of range (no loop checking),
+	 * but require "to" node to be in range.
+	 */
+	if (to >= COMEDI_NUM_BOARD_MINORS)
+		return false;
+	if (from >= COMEDI_NUM_BOARD_MINORS)
+		return true;
+
+	/*
+	 * Check that kcomedilib_to_from[to][from] can be made non-zero
+	 * without creating a loop.
+	 *
+	 * Termination of the loop-testing code relies on the assumption that
+	 * kcomedilib_to_from[][] does not contain any loops.
+	 *
+	 * Start with a set destinations set containing "from" as the only
+	 * element and work backwards looking for loops.
+	 */
+	bitmap_zero(destinations[cur], COMEDI_NUM_BOARD_MINORS);
+	set_bit(from, destinations[cur]);
+	mutex_lock(&kcomedilib_to_from_lock);
+	do {
+		unsigned int next = 1 - cur;
+		unsigned int t = 0;
+
+		if (test_bit(to, destinations[cur])) {
+			/* Loop detected. */
+			okay = false;
+			break;
+		}
+		/* Create next set of destinations. */
+		bitmap_zero(destinations[next], COMEDI_NUM_BOARD_MINORS);
+		while ((t = find_next_bit(destinations[cur],
+					  COMEDI_NUM_BOARD_MINORS,
+					  t)) < COMEDI_NUM_BOARD_MINORS) {
+			unsigned int f;
+
+			for (f = 0; f < COMEDI_NUM_BOARD_MINORS; f++) {
+				if (kcomedilib_to_from[t][f])
+					set_bit(f, destinations[next]);
+			}
+			t++;
+		}
+		cur = next;
+	} while (!bitmap_empty(destinations[cur], COMEDI_NUM_BOARD_MINORS));
+	if (okay) {
+		/* Allow a maximum of 255 links from "from" to "to". */
+		if (kcomedilib_to_from[to][from] < 255)
+			kcomedilib_to_from[to][from]++;
+		else
+			okay = false;
+	}
+	mutex_unlock(&kcomedilib_to_from_lock);
+	return okay;
+}
+
+static void kcomedilib_clear_link_from_to(unsigned int from, unsigned int to)
+{
+	if (to < COMEDI_NUM_BOARD_MINORS && from < COMEDI_NUM_BOARD_MINORS) {
+		mutex_lock(&kcomedilib_to_from_lock);
+		if (kcomedilib_to_from[to][from])
+			kcomedilib_to_from[to][from]--;
+		mutex_unlock(&kcomedilib_to_from_lock);
+	}
+}
+
+/**
+ * comedi_open_from() - Open a COMEDI device from the kernel with loop checks
+ * @filename: Fake pathname of the form "/dev/comediN".
+ * @from: Device number it is being opened from (if in range).
+ *
+ * Converts @filename to a COMEDI device number and "opens" it if it exists
+ * and is attached to a low-level COMEDI driver.
+ *
+ * If @from is in range, refuse to open the device if doing so would form a
+ * loop of devices opening each other.  There is also a limit of 255 on the
+ * number of concurrent opens from one device to another.
+ *
+ * Return: A pointer to the COMEDI device on success.
+ * Return %NULL on failure.
+ */
+struct comedi_device *comedi_open_from(const char *filename, int from)
 {
 	struct comedi_device *dev, *retval = NULL;
 	unsigned int minor;
@@ -43,7 +141,7 @@ struct comedi_device *comedi_open(const char *filename)
 		return NULL;
 
 	down_read(&dev->attach_lock);
-	if (dev->attached)
+	if (dev->attached && kcomedilib_set_link_from_to(from, minor))
 		retval = dev;
 	else
 		retval = NULL;
@@ -54,14 +152,26 @@ struct comedi_device *comedi_open(const char *filename)
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(comedi_open);
+EXPORT_SYMBOL_GPL(comedi_open_from);
 
-int comedi_close(struct comedi_device *dev)
+/**
+ * comedi_close_from() - Close a COMEDI device from the kernel with loop checks
+ * @dev: COMEDI device.
+ * @from: Device number it was opened from (if in range).
+ *
+ * Closes a COMEDI device previously opened by comedi_open_from().
+ *
+ * If @from is in range, it should be match the one used by comedi_open_from().
+ *
+ * Returns: 0
+ */
+int comedi_close_from(struct comedi_device *dev, int from)
 {
+	kcomedilib_clear_link_from_to(from, dev->minor);
 	comedi_dev_put(dev);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(comedi_close);
+EXPORT_SYMBOL_GPL(comedi_close_from);
 
 static int comedi_do_insn(struct comedi_device *dev,
 			  struct comedi_insn *insn,

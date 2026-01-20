@@ -32,7 +32,7 @@ struct restart_block {
 			u32 val;
 			u32 flags;
 			u32 bitset;
-			u64 time;
+			ktime_t time;
 			u32 __user *uaddr2;
 		} futex;
 		/* For nanosleep */
@@ -43,7 +43,7 @@ struct restart_block {
 				struct __kernel_timespec __user *rmtp;
 				struct old_timespec32 __user *compat_rmtp;
 			};
-			u64 expires;
+			ktime_t expires;
 		} nanosleep;
 		/* For poll */
 		struct {

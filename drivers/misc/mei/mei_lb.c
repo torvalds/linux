@@ -134,8 +134,7 @@ static bool mei_lb_check_response(const struct device *dev, ssize_t bytes,
 	return true;
 }
 
-static int mei_lb_push_payload(struct device *dev,
-			       enum intel_lb_type type, u32 flags,
+static int mei_lb_push_payload(struct device *dev, u32 type, u32 flags,
 			       const void *payload, size_t payload_size)
 {
 	struct mei_cl_device *cldev;

@@ -9,8 +9,8 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/module.h>
+#include <linux/math64.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -120,12 +120,6 @@
 struct ltc2947_data {
 	struct regmap *map;
 	struct device *dev;
-	/*
-	 * The mutex is needed because the device has 2 memory pages. When
-	 * reading/writing the correct page needs to be set so that, the
-	 * complete sequence select_page->read/write needs to be protected.
-	 */
-	struct mutex lock;
 	u32 lsb_energy;
 	bool gpio_out;
 };
@@ -181,13 +175,9 @@ static int ltc2947_val_read(struct ltc2947_data *st, const u8 reg,
 	int ret;
 	u64 __val = 0;
 
-	mutex_lock(&st->lock);
-
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, page);
-	if (ret) {
-		mutex_unlock(&st->lock);
+	if (ret)
 		return ret;
-	}
 
 	dev_dbg(st->dev, "Read val, reg:%02X, p:%d sz:%zu\n", reg, page,
 		size);
@@ -206,8 +196,6 @@ static int ltc2947_val_read(struct ltc2947_data *st, const u8 reg,
 		ret = -EINVAL;
 		break;
 	}
-
-	mutex_unlock(&st->lock);
 
 	if (ret)
 		return ret;
@@ -242,13 +230,10 @@ static int ltc2947_val_write(struct ltc2947_data *st, const u8 reg,
 {
 	int ret;
 
-	mutex_lock(&st->lock);
 	/* set device on correct page */
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, page);
-	if (ret) {
-		mutex_unlock(&st->lock);
+	if (ret)
 		return ret;
-	}
 
 	dev_dbg(st->dev, "Write val, r:%02X, p:%d, sz:%zu, val:%016llX\n",
 		reg, page, size, val);
@@ -264,8 +249,6 @@ static int ltc2947_val_write(struct ltc2947_data *st, const u8 reg,
 		ret = -EINVAL;
 		break;
 	}
-
-	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -295,11 +278,9 @@ static int ltc2947_alarm_read(struct ltc2947_data *st, const u8 reg,
 
 	memset(alarms, 0, sizeof(alarms));
 
-	mutex_lock(&st->lock);
-
 	ret = regmap_write(st->map, LTC2947_REG_PAGE_CTRL, LTC2947_PAGE0);
 	if (ret)
-		goto unlock;
+		return ret;
 
 	dev_dbg(st->dev, "Read alarm, reg:%02X, mask:%02X\n", reg, mask);
 	/*
@@ -310,31 +291,11 @@ static int ltc2947_alarm_read(struct ltc2947_data *st, const u8 reg,
 	ret = regmap_bulk_read(st->map, LTC2947_REG_STATUS, alarms,
 			       sizeof(alarms));
 	if (ret)
-		goto unlock;
+		return ret;
 
 	/* get the alarm */
 	*val = !!(alarms[offset] & mask);
-unlock:
-	mutex_unlock(&st->lock);
-	return ret;
-}
-
-static ssize_t ltc2947_show_value(struct device *dev,
-				  struct device_attribute *da, char *buf)
-{
-	struct ltc2947_data *st = dev_get_drvdata(dev);
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	int ret;
-	s64 val = 0;
-
-	ret = ltc2947_val_read(st, attr->index, LTC2947_PAGE0, 6, &val);
-	if (ret)
-		return ret;
-
-	/* value in microJoule. st->lsb_energy was multiplied by 10E9 */
-	val = div_s64(val * st->lsb_energy, 1000);
-
-	return sprintf(buf, "%lld\n", val);
+	return 0;
 }
 
 static int ltc2947_read_temp(struct device *dev, const u32 attr, long *val,
@@ -588,6 +549,23 @@ static int ltc2947_read_in(struct device *dev, const u32 attr, long *val,
 	return 0;
 }
 
+static int ltc2947_read_energy(struct device *dev, s64 *val, const int channel)
+{
+	int reg = channel ? LTC2947_REG_ENERGY2 : LTC2947_REG_ENERGY1;
+	struct ltc2947_data *st = dev_get_drvdata(dev);
+	s64 __val = 0;
+	int ret;
+
+	ret = ltc2947_val_read(st, reg, LTC2947_PAGE0, 6, &__val);
+	if (ret)
+		return ret;
+
+	/* value in microJoule. st->lsb_energy was multiplied by 10E9 */
+	*val = DIV_S64_ROUND_CLOSEST(__val * st->lsb_energy, 1000);
+
+	return 0;
+}
+
 static int ltc2947_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
@@ -600,6 +578,8 @@ static int ltc2947_read(struct device *dev, enum hwmon_sensor_types type,
 		return ltc2947_read_power(dev, attr, val);
 	case hwmon_temp:
 		return ltc2947_read_temp(dev, attr, val, channel);
+	case hwmon_energy64:
+		return ltc2947_read_energy(dev, (s64 *)val, channel);
 	default:
 		return -ENOTSUPP;
 	}
@@ -897,6 +877,8 @@ static umode_t ltc2947_is_visible(const void *data,
 		return ltc2947_power_is_visible(attr);
 	case hwmon_temp:
 		return ltc2947_temp_is_visible(attr);
+	case hwmon_energy64:
+		return 0444;
 	default:
 		return 0;
 	}
@@ -929,6 +911,9 @@ static const struct hwmon_channel_info * const ltc2947_info[] = {
 			   HWMON_T_LABEL,
 			   HWMON_T_MAX_ALARM | HWMON_T_MIN_ALARM | HWMON_T_MAX |
 			   HWMON_T_MIN | HWMON_T_LABEL),
+	HWMON_CHANNEL_INFO(energy64,
+			   HWMON_E_INPUT,
+			   HWMON_E_INPUT),
 	NULL
 };
 
@@ -943,19 +928,6 @@ static const struct hwmon_chip_info ltc2947_chip_info = {
 	.ops = &ltc2947_hwmon_ops,
 	.info = ltc2947_info,
 };
-
-/* energy attributes are 6bytes wide so we need u64 */
-static SENSOR_DEVICE_ATTR(energy1_input, 0444, ltc2947_show_value, NULL,
-			  LTC2947_REG_ENERGY1);
-static SENSOR_DEVICE_ATTR(energy2_input, 0444, ltc2947_show_value, NULL,
-			  LTC2947_REG_ENERGY2);
-
-static struct attribute *ltc2947_attrs[] = {
-	&sensor_dev_attr_energy1_input.dev_attr.attr,
-	&sensor_dev_attr_energy2_input.dev_attr.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(ltc2947);
 
 static int ltc2947_setup(struct ltc2947_data *st)
 {
@@ -1107,15 +1079,13 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 	st->map = map;
 	st->dev = dev;
 	dev_set_drvdata(dev, st);
-	mutex_init(&st->lock);
 
 	ret = ltc2947_setup(st);
 	if (ret)
 		return ret;
 
 	hwmon = devm_hwmon_device_register_with_info(dev, name, st,
-						     &ltc2947_chip_info,
-						     ltc2947_groups);
+						     &ltc2947_chip_info, NULL);
 	return PTR_ERR_OR_ZERO(hwmon);
 }
 EXPORT_SYMBOL_GPL(ltc2947_core_probe);

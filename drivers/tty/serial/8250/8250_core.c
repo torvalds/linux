@@ -52,6 +52,10 @@ struct irq_info {
 static DEFINE_HASHTABLE(irq_lists, IRQ_HASH_BITS);
 static DEFINE_MUTEX(hash_mutex);	/* Used to walk the hash */
 
+static bool skip_txen_test;
+module_param(skip_txen_test, bool, 0644);
+MODULE_PARM_DESC(skip_txen_test, "Skip checking for the TXEN bug at init time");
+
 /*
  * This is the serial driver's interrupt routine.
  *

@@ -183,6 +183,7 @@ const struct sof_intel_dsp_desc lnl_chip_info = {
 	.power_down_dsp = mtl_power_down_dsp,
 	.disable_interrupts = lnl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_2_0,
+	.platform = "lnl",
 };
 
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_MTL");

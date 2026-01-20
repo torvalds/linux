@@ -30,6 +30,11 @@
 static unsigned nfs_delegation_watermark = NFS_DEFAULT_DELEGATION_WATERMARK;
 module_param_named(delegation_watermark, nfs_delegation_watermark, uint, 0644);
 
+bool directory_delegations = true;
+module_param(directory_delegations, bool, 0644);
+MODULE_PARM_DESC(directory_delegations,
+		 "Enable the use of directory delegations, defaults to on.");
+
 static struct hlist_head *nfs_delegation_hash(struct nfs_server *server,
 		const struct nfs_fh *fhandle)
 {
@@ -143,6 +148,8 @@ static int nfs4_do_check_delegation(struct inode *inode, fmode_t type,
  */
 int nfs4_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
+	if (S_ISDIR(inode->i_mode) && !directory_delegations)
+		nfs_inode_evict_delegation(inode);
 	return nfs4_do_check_delegation(inode, type, flags, true);
 }
 
@@ -379,6 +386,7 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 	delegation->inode = NULL;
 	rcu_assign_pointer(nfsi->delegation, NULL);
 	spin_unlock(&delegation->lock);
+	clear_bit(NFS_INO_REQ_DIR_DELEG, &nfsi->flags);
 	return delegation;
 }
 

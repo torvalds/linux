@@ -2226,7 +2226,7 @@ static const struct regmap_config nau8825_regmap_config = {
 static int nau8825_component_probe(struct snd_soc_component *component)
 {
 	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 
 	nau8825->dapm = dapm;
 
@@ -2630,7 +2630,7 @@ static int nau8825_set_bias_level(struct snd_soc_component *component,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_dapm_get_bias_level(nau8825->dapm) == SND_SOC_BIAS_OFF) {
 			if (nau8825->mclk_freq) {
 				ret = clk_prepare_enable(nau8825->mclk);
 				if (ret) {
@@ -2673,7 +2673,7 @@ static int __maybe_unused nau8825_suspend(struct snd_soc_component *component)
 	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
 	disable_irq(nau8825->irq);
-	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_dapm_force_bias_level(nau8825->dapm, SND_SOC_BIAS_OFF);
 	/* Power down codec power; don't suppoet button wakeup */
 	snd_soc_dapm_disable_pin(nau8825->dapm, "SAR");
 	snd_soc_dapm_disable_pin(nau8825->dapm, "MICBIAS");

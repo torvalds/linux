@@ -29,7 +29,6 @@ properties:
     maxItems: 1
     description: core clock driving the MDIO block
 
-
 required:
   - compatible
   - reg

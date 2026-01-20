@@ -54,7 +54,6 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-
             display@0{
                     compatible = "waveshare,rpi-lcd-35", "ilitek,ili9486";
                     reg = <0>;

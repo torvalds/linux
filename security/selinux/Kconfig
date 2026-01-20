@@ -69,6 +69,17 @@ config SECURITY_SELINUX_SID2STR_CACHE_SIZE
 
 	  If unsure, keep the default value.
 
+config SECURITY_SELINUX_AVC_HASH_BITS
+	int "SELinux avc hashtable size"
+	depends on SECURITY_SELINUX
+	range 9 14
+	default 9
+	help
+	  This option sets the number of buckets used in the AVC hash table
+	  to 2^SECURITY_SELINUX_AVC_HASH_BITS. A higher value helps maintain
+	  shorter chain lengths especially when expanding AVC nodes via
+	  /sys/fs/selinux/avc/cache_threshold.
+
 config SECURITY_SELINUX_DEBUG
 	bool "SELinux kernel debugging support"
 	depends on SECURITY_SELINUX

@@ -51,6 +51,7 @@ BTF_ID(func, bpf_lsm_key_getsecurity)
 BTF_ID(func, bpf_lsm_audit_rule_match)
 #endif
 BTF_ID(func, bpf_lsm_ismaclabel)
+BTF_ID(func, bpf_lsm_file_alloc_security)
 BTF_SET_END(bpf_lsm_disabled_hooks)
 
 /* List of LSM hooks that should operate on 'current' cgroup regardless

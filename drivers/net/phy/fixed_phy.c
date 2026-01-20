@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/idr.h>
 #include <linux/netdevice.h>
-#include <linux/linkmode.h>
 
 #include "swphy.h"
 
@@ -125,17 +124,12 @@ static int __fixed_phy_add(int phy_addr,
 
 	fp->addr = phy_addr;
 	fp->status = *status;
+	fp->status.link = true;
 
 	list_add_tail(&fp->node, &fmb_phys);
 
 	return 0;
 }
-
-void fixed_phy_add(const struct fixed_phy_status *status)
-{
-	__fixed_phy_add(0, status);
-}
-EXPORT_SYMBOL_GPL(fixed_phy_add);
 
 static DEFINE_IDA(phy_fixed_ida);
 
@@ -179,41 +173,9 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* propagate the fixed link values to struct phy_device */
-	phy->link = status->link;
-	if (status->link) {
-		phy->speed = status->speed;
-		phy->duplex = status->duplex;
-		phy->pause = status->pause;
-		phy->asym_pause = status->asym_pause;
-	}
-
 	of_node_get(np);
 	phy->mdio.dev.of_node = np;
 	phy->is_pseudo_fixed_link = true;
-
-	switch (status->speed) {
-	case SPEED_1000:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				 phy->supported);
-		fallthrough;
-	case SPEED_100:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				 phy->supported);
-		fallthrough;
-	case SPEED_10:
-	default:
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				 phy->supported);
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				 phy->supported);
-	}
-
-	phy_advertise_supported(phy);
 
 	ret = phy_device_register(phy);
 	if (ret) {
@@ -226,6 +188,17 @@ struct phy_device *fixed_phy_register(const struct fixed_phy_status *status,
 	return phy;
 }
 EXPORT_SYMBOL_GPL(fixed_phy_register);
+
+struct phy_device *fixed_phy_register_100fd(void)
+{
+	static const struct fixed_phy_status status = {
+		.speed	= SPEED_100,
+		.duplex	= DUPLEX_FULL,
+	};
+
+	return fixed_phy_register(&status, NULL);
+}
+EXPORT_SYMBOL_GPL(fixed_phy_register_100fd);
 
 void fixed_phy_unregister(struct phy_device *phy)
 {

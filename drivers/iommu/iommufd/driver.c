@@ -161,8 +161,8 @@ int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 		vevent = &veventq->lost_events_header;
 		goto out_set_header;
 	}
-	memcpy(vevent->event_data, event_data, data_len);
 	vevent->data_len = data_len;
+	memcpy(vevent->event_data, event_data, data_len);
 	veventq->num_events++;
 
 out_set_header:

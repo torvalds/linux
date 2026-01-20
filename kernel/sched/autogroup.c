@@ -178,8 +178,8 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 	 * this process can already run with task_group() == prev->tg or we can
 	 * race with cgroup code which can read autogroup = prev under rq->lock.
 	 * In the latter case for_each_thread() can not miss a migrating thread,
-	 * cpu_cgroup_attach() must not be possible after cgroup_exit() and it
-	 * can't be removed from thread list, we hold ->siglock.
+	 * cpu_cgroup_attach() must not be possible after cgroup_task_exit()
+	 * and it can't be removed from thread list, we hold ->siglock.
 	 *
 	 * If an exiting thread was already removed from thread list we rely on
 	 * sched_autogroup_exit_task().

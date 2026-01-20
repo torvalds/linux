@@ -2529,7 +2529,7 @@ static u64 bpf_kprobe_multi_entry_ip(struct bpf_run_ctx *ctx)
 	return run_ctx->entry_ip;
 }
 
-static int
+static __always_inline int
 kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 			   unsigned long entry_ip, struct ftrace_regs *fregs,
 			   bool is_return, void *data)
@@ -3372,13 +3372,13 @@ typedef int (*copy_fn_t)(void *dst, const void *src, u32 size, struct task_struc
  * direct calls into all the specific callback implementations
  * (copy_user_data_sleepable, copy_user_data_nofault, and so on)
  */
-static __always_inline int __bpf_dynptr_copy_str(struct bpf_dynptr *dptr, u32 doff, u32 size,
+static __always_inline int __bpf_dynptr_copy_str(struct bpf_dynptr *dptr, u64 doff, u64 size,
 						 const void *unsafe_src,
 						 copy_fn_t str_copy_fn,
 						 struct task_struct *tsk)
 {
 	struct bpf_dynptr_kern *dst;
-	u32 chunk_sz, off;
+	u64 chunk_sz, off;
 	void *dst_slice;
 	int cnt, err;
 	char buf[256];
@@ -3392,7 +3392,7 @@ static __always_inline int __bpf_dynptr_copy_str(struct bpf_dynptr *dptr, u32 do
 		return -E2BIG;
 
 	for (off = 0; off < size; off += chunk_sz - 1) {
-		chunk_sz = min_t(u32, sizeof(buf), size - off);
+		chunk_sz = min_t(u64, sizeof(buf), size - off);
 		/* Expect str_copy_fn to return count of copied bytes, including
 		 * zero terminator. Next iteration increment off by chunk_sz - 1 to
 		 * overwrite NUL.
@@ -3409,14 +3409,14 @@ static __always_inline int __bpf_dynptr_copy_str(struct bpf_dynptr *dptr, u32 do
 	return off;
 }
 
-static __always_inline int __bpf_dynptr_copy(const struct bpf_dynptr *dptr, u32 doff,
-					     u32 size, const void *unsafe_src,
+static __always_inline int __bpf_dynptr_copy(const struct bpf_dynptr *dptr, u64 doff,
+					     u64 size, const void *unsafe_src,
 					     copy_fn_t copy_fn, struct task_struct *tsk)
 {
 	struct bpf_dynptr_kern *dst;
 	void *dst_slice;
 	char buf[256];
-	u32 off, chunk_sz;
+	u64 off, chunk_sz;
 	int err;
 
 	dst_slice = bpf_dynptr_slice_rdwr(dptr, doff, NULL, size);
@@ -3428,7 +3428,7 @@ static __always_inline int __bpf_dynptr_copy(const struct bpf_dynptr *dptr, u32 
 		return -E2BIG;
 
 	for (off = 0; off < size; off += chunk_sz) {
-		chunk_sz = min_t(u32, sizeof(buf), size - off);
+		chunk_sz = min_t(u64, sizeof(buf), size - off);
 		err = copy_fn(buf, unsafe_src + off, chunk_sz, tsk);
 		if (err)
 			return err;
@@ -3514,58 +3514,58 @@ __bpf_kfunc int bpf_send_signal_task(struct task_struct *task, int sig, enum pid
 	return bpf_send_signal_common(sig, type, task, value);
 }
 
-__bpf_kfunc int bpf_probe_read_user_dynptr(struct bpf_dynptr *dptr, u32 off,
-					   u32 size, const void __user *unsafe_ptr__ign)
+__bpf_kfunc int bpf_probe_read_user_dynptr(struct bpf_dynptr *dptr, u64 off,
+					   u64 size, const void __user *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy(dptr, off, size, (const void *)unsafe_ptr__ign,
 				 copy_user_data_nofault, NULL);
 }
 
-__bpf_kfunc int bpf_probe_read_kernel_dynptr(struct bpf_dynptr *dptr, u32 off,
-					     u32 size, const void *unsafe_ptr__ign)
+__bpf_kfunc int bpf_probe_read_kernel_dynptr(struct bpf_dynptr *dptr, u64 off,
+					     u64 size, const void *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy(dptr, off, size, unsafe_ptr__ign,
 				 copy_kernel_data_nofault, NULL);
 }
 
-__bpf_kfunc int bpf_probe_read_user_str_dynptr(struct bpf_dynptr *dptr, u32 off,
-					       u32 size, const void __user *unsafe_ptr__ign)
+__bpf_kfunc int bpf_probe_read_user_str_dynptr(struct bpf_dynptr *dptr, u64 off,
+					       u64 size, const void __user *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy_str(dptr, off, size, (const void *)unsafe_ptr__ign,
 				     copy_user_str_nofault, NULL);
 }
 
-__bpf_kfunc int bpf_probe_read_kernel_str_dynptr(struct bpf_dynptr *dptr, u32 off,
-						 u32 size, const void *unsafe_ptr__ign)
+__bpf_kfunc int bpf_probe_read_kernel_str_dynptr(struct bpf_dynptr *dptr, u64 off,
+						 u64 size, const void *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy_str(dptr, off, size, unsafe_ptr__ign,
 				     copy_kernel_str_nofault, NULL);
 }
 
-__bpf_kfunc int bpf_copy_from_user_dynptr(struct bpf_dynptr *dptr, u32 off,
-					  u32 size, const void __user *unsafe_ptr__ign)
+__bpf_kfunc int bpf_copy_from_user_dynptr(struct bpf_dynptr *dptr, u64 off,
+					  u64 size, const void __user *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy(dptr, off, size, (const void *)unsafe_ptr__ign,
 				 copy_user_data_sleepable, NULL);
 }
 
-__bpf_kfunc int bpf_copy_from_user_str_dynptr(struct bpf_dynptr *dptr, u32 off,
-					      u32 size, const void __user *unsafe_ptr__ign)
+__bpf_kfunc int bpf_copy_from_user_str_dynptr(struct bpf_dynptr *dptr, u64 off,
+					      u64 size, const void __user *unsafe_ptr__ign)
 {
 	return __bpf_dynptr_copy_str(dptr, off, size, (const void *)unsafe_ptr__ign,
 				     copy_user_str_sleepable, NULL);
 }
 
-__bpf_kfunc int bpf_copy_from_user_task_dynptr(struct bpf_dynptr *dptr, u32 off,
-					       u32 size, const void __user *unsafe_ptr__ign,
+__bpf_kfunc int bpf_copy_from_user_task_dynptr(struct bpf_dynptr *dptr, u64 off,
+					       u64 size, const void __user *unsafe_ptr__ign,
 					       struct task_struct *tsk)
 {
 	return __bpf_dynptr_copy(dptr, off, size, (const void *)unsafe_ptr__ign,
 				 copy_user_data_sleepable, tsk);
 }
 
-__bpf_kfunc int bpf_copy_from_user_task_str_dynptr(struct bpf_dynptr *dptr, u32 off,
-						   u32 size, const void __user *unsafe_ptr__ign,
+__bpf_kfunc int bpf_copy_from_user_task_str_dynptr(struct bpf_dynptr *dptr, u64 off,
+						   u64 size, const void __user *unsafe_ptr__ign,
 						   struct task_struct *tsk)
 {
 	return __bpf_dynptr_copy_str(dptr, off, size, (const void *)unsafe_ptr__ign,

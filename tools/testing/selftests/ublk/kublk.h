@@ -175,23 +175,20 @@ struct ublk_queue {
 
 struct ublk_thread {
 	struct ublk_dev *dev;
-	struct io_uring ring;
-	unsigned int cmd_inflight;
-	unsigned int io_inflight;
-
-	pthread_t thread;
 	unsigned idx;
 
 #define UBLKS_T_STOPPING	(1U << 0)
 #define UBLKS_T_IDLE	(1U << 1)
 	unsigned state;
+	unsigned int cmd_inflight;
+	unsigned int io_inflight;
+	struct io_uring ring;
 };
 
 struct ublk_dev {
 	struct ublk_tgt tgt;
 	struct ublksrv_ctrl_dev_info  dev_info;
 	struct ublk_queue q[UBLK_MAX_QUEUES];
-	struct ublk_thread threads[UBLK_MAX_THREADS];
 	unsigned nthreads;
 	unsigned per_io_tasks;
 

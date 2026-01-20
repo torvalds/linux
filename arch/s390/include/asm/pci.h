@@ -5,6 +5,7 @@
 #include <linux/pci.h>
 #include <linux/mutex.h>
 #include <linux/iommu.h>
+#include <linux/irqdomain.h>
 #include <linux/pci_hotplug.h>
 #include <asm/pci_clp.h>
 #include <asm/pci_debug.h>
@@ -109,6 +110,7 @@ struct zpci_bus {
 	struct list_head	resources;
 	struct list_head	bus_next;
 	struct resource		bus_resource;
+	struct irq_domain	*msi_parent_domain;
 	int			topo;		/* TID if topo_is_tid, PCHID otherwise */
 	int			domain_nr;
 	u8			multifunction	: 1;
@@ -145,7 +147,6 @@ struct zpci_dev {
 	u8		has_resources	: 1;
 	u8		is_physfn	: 1;
 	u8		util_str_avail	: 1;
-	u8		irqs_registered	: 1;
 	u8		tid_avail	: 1;
 	u8		rtr_avail	: 1; /* Relaxed translation allowed */
 	unsigned int	devfn;		/* DEVFN part of the RID*/
@@ -311,6 +312,9 @@ int zpci_dma_exit_device(struct zpci_dev *zdev);
 /* IRQ */
 int __init zpci_irq_init(void);
 void __init zpci_irq_exit(void);
+int zpci_set_irq(struct zpci_dev *zdev);
+int zpci_create_parent_msi_domain(struct zpci_bus *zbus);
+void zpci_remove_parent_msi_domain(struct zpci_bus *zbus);
 
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);

@@ -198,26 +198,28 @@ be requested with the same attribute with ``DPLL_CMD_DEVICE_SET`` command.
   ================================== ======================================
 
 Device may also provide ability to adjust a signal phase on a pin.
-If pin phase adjustment is supported, minimal and maximal values that pin
-handle shall be provide to the user on ``DPLL_CMD_PIN_GET`` respond
-with ``DPLL_A_PIN_PHASE_ADJUST_MIN`` and ``DPLL_A_PIN_PHASE_ADJUST_MAX``
+If pin phase adjustment is supported, minimal and maximal values and
+granularity that pin handle shall be provided to the user on
+``DPLL_CMD_PIN_GET`` respond with ``DPLL_A_PIN_PHASE_ADJUST_MIN``,
+``DPLL_A_PIN_PHASE_ADJUST_MAX`` and ``DPLL_A_PIN_PHASE_ADJUST_GRAN``
 attributes. Configured phase adjust value is provided with
 ``DPLL_A_PIN_PHASE_ADJUST`` attribute of a pin, and value change can be
 requested with the same attribute with ``DPLL_CMD_PIN_SET`` command.
 
-  =============================== ======================================
-  ``DPLL_A_PIN_ID``               configured pin id
-  ``DPLL_A_PIN_PHASE_ADJUST_MIN`` attr minimum value of phase adjustment
-  ``DPLL_A_PIN_PHASE_ADJUST_MAX`` attr maximum value of phase adjustment
-  ``DPLL_A_PIN_PHASE_ADJUST``     attr configured value of phase
-                                  adjustment on parent dpll device
-  ``DPLL_A_PIN_PARENT_DEVICE``    nested attribute for requesting
-                                  configuration on given parent dpll
-                                  device
-    ``DPLL_A_PIN_PARENT_ID``      parent dpll device id
-    ``DPLL_A_PIN_PHASE_OFFSET``   attr measured phase difference
-                                  between a pin and parent dpll device
-  =============================== ======================================
+  ================================ ==========================================
+  ``DPLL_A_PIN_ID``                configured pin id
+  ``DPLL_A_PIN_PHASE_ADJUST_GRAN`` attr granularity of phase adjustment value
+  ``DPLL_A_PIN_PHASE_ADJUST_MIN``  attr minimum value of phase adjustment
+  ``DPLL_A_PIN_PHASE_ADJUST_MAX``  attr maximum value of phase adjustment
+  ``DPLL_A_PIN_PHASE_ADJUST``      attr configured value of phase
+                                   adjustment on parent dpll device
+  ``DPLL_A_PIN_PARENT_DEVICE``     nested attribute for requesting
+                                   configuration on given parent dpll
+                                   device
+    ``DPLL_A_PIN_PARENT_ID``       parent dpll device id
+    ``DPLL_A_PIN_PHASE_OFFSET``    attr measured phase difference
+                                   between a pin and parent dpll device
+  ================================ ==========================================
 
 All phase related values are provided in pico seconds, which represents
 time difference between signals phase. The negative value means that
@@ -384,6 +386,8 @@ according to attribute purpose.
                                        frequencies
       ``DPLL_A_PIN_ANY_FREQUENCY_MIN`` attr minimum value of frequency
       ``DPLL_A_PIN_ANY_FREQUENCY_MAX`` attr maximum value of frequency
+    ``DPLL_A_PIN_PHASE_ADJUST_GRAN``   attr granularity of phase
+                                       adjustment value
     ``DPLL_A_PIN_PHASE_ADJUST_MIN``    attr minimum value of phase
                                        adjustment
     ``DPLL_A_PIN_PHASE_ADJUST_MAX``    attr maximum value of phase

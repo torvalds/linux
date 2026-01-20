@@ -36,7 +36,7 @@ polling mode and reenables the IRQ line.
 This mitigation in QAIC is very effective. The same lprnet usecase that
 generates 100k IRQs per second (per /proc/interrupts) is reduced to roughly 64
 IRQs over 5 minutes while keeping the host system stable, and having the same
-workload throughput performance (within run to run noise variation).
+workload throughput performance (within run-to-run noise variation).
 
 Single MSI Mode
 ---------------
@@ -49,7 +49,7 @@ useful to be able to fall back to a single MSI when needed.
 To support this fallback, we allow the case where only one MSI is able to be
 allocated, and share that one MSI between MHI and the DBCs. The device detects
 when only one MSI has been configured and directs the interrupts for the DBCs
-to the interrupt normally used for MHI. Unfortunately this means that the
+to the interrupt normally used for MHI. Unfortunately, this means that the
 interrupt handlers for every DBC and MHI wake up for every interrupt that
 arrives; however, the DBC threaded irq handlers only are started when work to be
 done is detected (MHI will always start its threaded handler).
@@ -62,9 +62,9 @@ never disabled, allowing each new entry to the FIFO to trigger a new interrupt.
 Neural Network Control (NNC) Protocol
 =====================================
 
-The implementation of NNC is split between the KMD (QAIC) and UMD. In general
+The implementation of NNC is split between the KMD (QAIC) and UMD. In general,
 QAIC understands how to encode/decode NNC wire protocol, and elements of the
-protocol which require kernel space knowledge to process (for example, mapping
+protocol which requires kernel space knowledge to process (for example, mapping
 host memory to device IOVAs). QAIC understands the structure of a message, and
 all of the transactions. QAIC does not understand commands (the payload of a
 passthrough transaction).

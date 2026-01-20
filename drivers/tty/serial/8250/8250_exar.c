@@ -40,6 +40,8 @@
 #define PCI_DEVICE_ID_ACCESSIO_COM_4SM		0x10db
 #define PCI_DEVICE_ID_ACCESSIO_COM_8SM		0x10ea
 
+#define PCI_DEVICE_ID_ADVANTECH_XR17V352	0x0018
+
 #define PCI_DEVICE_ID_COMMTECH_4224PCI335	0x0002
 #define PCI_DEVICE_ID_COMMTECH_4222PCI335	0x0004
 #define PCI_DEVICE_ID_COMMTECH_2324PCI335	0x000a
@@ -503,7 +505,7 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 	unsigned char status;
 	int err;
 
-	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift);
+	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift, priv->virt);
 	if (err)
 		return err;
 
@@ -831,7 +833,7 @@ static int cti_port_setup_common(struct exar8250 *priv,
 	port->port.port_id = idx;
 	port->port.uartclk = priv->osc_freq;
 
-	ret = serial8250_pci_setup_port(pcidev, port, 0, offset, 0);
+	ret = serial8250_pci_setup_port(pcidev, port, 0, offset, 0, priv->virt);
 	if (ret)
 		return ret;
 
@@ -1622,6 +1624,12 @@ static const struct exar8250_board pbn_fastcom35x_8 = {
 	.exit		= pci_xr17v35x_exit,
 };
 
+static const struct exar8250_board pbn_adv_XR17V352 = {
+	.num_ports	= 2,
+	.setup		= pci_xr17v35x_setup,
+	.exit		= pci_xr17v35x_exit,
+};
+
 static const struct exar8250_board pbn_exar_XR17V4358 = {
 	.num_ports	= 12,
 	.setup		= pci_xr17v35x_setup,
@@ -1695,6 +1703,9 @@ static const struct pci_device_id exar_pci_tbl[] = {
 	/* USRobotics USR298x-OEM PCI Modems */
 	USR_DEVICE(XR17C152, 2980, pbn_exar_XR17C15x),
 	USR_DEVICE(XR17C152, 2981, pbn_exar_XR17C15x),
+
+	/* ADVANTECH devices */
+	EXAR_DEVICE(ADVANTECH, XR17V352, pbn_adv_XR17V352),
 
 	/* Exar Corp. XR17C15[248] Dual/Quad/Octal UART */
 	EXAR_DEVICE(EXAR, XR17C152, pbn_exar_XR17C15x),

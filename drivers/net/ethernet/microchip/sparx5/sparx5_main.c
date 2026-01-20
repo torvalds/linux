@@ -395,6 +395,8 @@ static int sparx5_create_port(struct sparx5 *sparx5,
 
 	spx5_port->phylink = phylink;
 
+	spx5_port->ndev->dev.of_node = spx5_port->of_node;
+
 	return 0;
 }
 

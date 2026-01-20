@@ -15,7 +15,7 @@
 #include <sched.h>
 #include <fcntl.h>
 
-#include "../../kselftest.h"
+#include "kselftest.h"
 #include "log.h"
 #include "../wrappers.h"
 

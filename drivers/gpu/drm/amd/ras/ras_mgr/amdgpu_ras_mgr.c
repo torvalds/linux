@@ -37,7 +37,7 @@
 #define MAX_XCD_NUM_PER_AID			2
 
 /* typical ECC bad page rate is 1 bad page per 100MB VRAM */
-#define ESTIMATE_BAD_PAGE_THRESHOLD(size)         ((size)/(100 * 1024 * 1024ULL))
+#define TYPICAL_ECC_BAD_PAGE_RATE (100ULL * SZ_1M)
 
 #define COUNT_BAD_PAGE_THRESHOLD(size) (((size) >> 21) << 4)
 
@@ -129,7 +129,7 @@ static int amdgpu_ras_mgr_init_eeprom_config(struct amdgpu_device *adev,
 	 */
 	if (amdgpu_bad_page_threshold == NONSTOP_OVER_THRESHOLD)
 		eeprom_cfg->eeprom_record_threshold_count =
-				ESTIMATE_BAD_PAGE_THRESHOLD(adev->gmc.mc_vram_size);
+			div64_u64(adev->gmc.mc_vram_size, TYPICAL_ECC_BAD_PAGE_RATE);
 	else if (amdgpu_bad_page_threshold == WARN_NONSTOP_OVER_THRESHOLD)
 		eeprom_cfg->eeprom_record_threshold_count =
 				COUNT_BAD_PAGE_THRESHOLD(RAS_RESERVED_VRAM_SIZE_DEFAULT);
@@ -172,12 +172,13 @@ static int amdgpu_ras_mgr_init_nbio_config(struct amdgpu_device *adev,
 
 	switch (config->nbio_ip_version) {
 	case IP_VERSION(7, 9, 0):
+	case IP_VERSION(7, 9, 1):
 		nbio_cfg->nbio_sys_fn = &amdgpu_ras_nbio_sys_func_v7_9;
 		break;
 	default:
 		RAS_DEV_ERR(adev,
 			"The nbio(0x%x) ras config is not right!\n",
-			config->mp1_ip_version);
+			config->nbio_ip_version);
 		ret = -EINVAL;
 		break;
 	}
@@ -258,7 +259,8 @@ static struct ras_core_context *amdgpu_ras_mgr_create_ras_core(struct amdgpu_dev
 	init_config.nbio_ip_version = amdgpu_ip_version(adev, NBIO_HWIP, 0);
 	init_config.psp_ip_version = amdgpu_ip_version(adev, MP1_HWIP, 0);
 
-	if (init_config.umc_ip_version == IP_VERSION(12, 0, 0))
+	if (init_config.umc_ip_version == IP_VERSION(12, 0, 0) ||
+	    init_config.umc_ip_version == IP_VERSION(12, 5, 0))
 		init_config.aca_ip_version = IP_VERSION(1, 0, 0);
 
 	init_config.sys_fn = &amdgpu_ras_sys_fn;
@@ -282,6 +284,18 @@ static int amdgpu_ras_mgr_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr;
 	int ret = 0;
+
+	/* Disabled by default */
+	con->uniras_enabled = false;
+
+	/* Enabled only in debug mode */
+	if (adev->debug_enable_ras_aca) {
+		con->uniras_enabled = true;
+		RAS_DEV_INFO(adev, "Debug amdgpu uniras!");
+	}
+
+	if (!con->uniras_enabled)
+		return 0;
 
 	ras_mgr = kzalloc(sizeof(*ras_mgr), GFP_KERNEL);
 	if (!ras_mgr)
@@ -315,6 +329,9 @@ static int amdgpu_ras_mgr_sw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = (struct amdgpu_ras_mgr *)con->ras_mgr;
 
+	if (!con->uniras_enabled)
+		return 0;
+
 	if (!ras_mgr)
 		return 0;
 
@@ -332,12 +349,11 @@ static int amdgpu_ras_mgr_sw_fini(struct amdgpu_ip_block *ip_block)
 static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 	int ret;
 
-	/* Currently only debug mode can enable the ras module
-	 */
-	if (!adev->debug_enable_ras_aca)
+	if (!con->uniras_enabled)
 		return 0;
 
 	if (!ras_mgr || !ras_mgr->ras_core)
@@ -360,11 +376,10 @@ static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 static int amdgpu_ras_mgr_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 
-	/* Currently only debug mode can enable the ras module
-	 */
-	if (!adev->debug_enable_ras_aca)
+	if (!con->uniras_enabled)
 		return 0;
 
 	if (!ras_mgr || !ras_mgr->ras_core)
@@ -608,4 +623,26 @@ int amdgpu_ras_mgr_handle_ras_cmd(struct amdgpu_device *adev,
 	kfree(cmd_ctx);
 
 	return ret;
+}
+
+int amdgpu_ras_mgr_pre_reset(struct amdgpu_device *adev)
+{
+	if (!amdgpu_ras_mgr_is_ready(adev)) {
+		RAS_DEV_ERR(adev, "Invalid ras suspend!\n");
+		return -EPERM;
+	}
+
+	amdgpu_ras_process_pre_reset(adev);
+	return 0;
+}
+
+int amdgpu_ras_mgr_post_reset(struct amdgpu_device *adev)
+{
+	if (!amdgpu_ras_mgr_is_ready(adev)) {
+		RAS_DEV_ERR(adev, "Invalid ras resume!\n");
+		return -EPERM;
+	}
+
+	amdgpu_ras_process_post_reset(adev);
+	return 0;
 }

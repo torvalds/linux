@@ -55,6 +55,7 @@ struct mgmt_mbox_chann_info {
 
 static int aie2_check_protocol(struct amdxdna_dev_hdl *ndev, u32 fw_major, u32 fw_minor)
 {
+	const struct aie2_fw_feature_tbl *feature;
 	struct amdxdna_dev *xdna = ndev->xdna;
 
 	/*
@@ -78,6 +79,17 @@ static int aie2_check_protocol(struct amdxdna_dev_hdl *ndev, u32 fw_major, u32 f
 		XDNA_ERR(xdna, "Firmware minor version smaller than supported");
 		return -EINVAL;
 	}
+
+	for (feature = ndev->priv->fw_feature_tbl; feature && feature->min_minor;
+	     feature++) {
+		if (fw_minor < feature->min_minor)
+			continue;
+		if (feature->max_minor > 0 && fw_minor > feature->max_minor)
+			continue;
+
+		set_bit(feature->feature, &ndev->feature_mask);
+	}
+
 	return 0;
 }
 
@@ -169,6 +181,10 @@ int aie2_runtime_cfg(struct amdxdna_dev_hdl *ndev,
 
 	for (cfg = ndev->priv->rt_config; cfg->type; cfg++) {
 		if (cfg->category != category)
+			continue;
+
+		if (cfg->feature_mask &&
+		    bitmap_subset(&cfg->feature_mask, &ndev->feature_mask, AIE2_FEATURE_MAX))
 			continue;
 
 		value = val ? *val : cfg->value;
@@ -587,6 +603,7 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	}
 
 	release_firmware(fw);
+	aie2_msg_init(ndev);
 	amdxdna_pm_init(xdna);
 	return 0;
 
@@ -825,6 +842,119 @@ static int aie2_get_hwctx_status(struct amdxdna_client *client,
 	return 0;
 }
 
+static int aie2_query_resource_info(struct amdxdna_client *client,
+				    struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_get_resource_info res_info;
+	const struct amdxdna_dev_priv *priv;
+	struct amdxdna_dev_hdl *ndev;
+	struct amdxdna_dev *xdna;
+
+	xdna = client->xdna;
+	ndev = xdna->dev_handle;
+	priv = ndev->priv;
+
+	res_info.npu_clk_max = priv->dpm_clk_tbl[ndev->max_dpm_level].hclk;
+	res_info.npu_tops_max = ndev->max_tops;
+	res_info.npu_task_max = priv->hwctx_limit;
+	res_info.npu_tops_curr = ndev->curr_tops;
+	res_info.npu_task_curr = ndev->hwctx_num;
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), &res_info, sizeof(res_info)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int aie2_fill_hwctx_map(struct amdxdna_hwctx *hwctx, void *arg)
+{
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+	u32 *map = arg;
+
+	if (hwctx->fw_ctx_id >= xdna->dev_handle->priv->hwctx_limit) {
+		XDNA_ERR(xdna, "Invalid fw ctx id %d/%d ", hwctx->fw_ctx_id,
+			 xdna->dev_handle->priv->hwctx_limit);
+		return -EINVAL;
+	}
+
+	map[hwctx->fw_ctx_id] = hwctx->id;
+	return 0;
+}
+
+static int aie2_get_telemetry(struct amdxdna_client *client,
+			      struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_query_telemetry_header *header __free(kfree) = NULL;
+	u32 telemetry_data_sz, header_sz, elem_num;
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_client *tmp_client;
+	int ret;
+
+	elem_num = xdna->dev_handle->priv->hwctx_limit;
+	header_sz = struct_size(header, map, elem_num);
+	if (args->buffer_size <= header_sz) {
+		XDNA_ERR(xdna, "Invalid buffer size");
+		return -EINVAL;
+	}
+
+	telemetry_data_sz = args->buffer_size - header_sz;
+	if (telemetry_data_sz > SZ_4M) {
+		XDNA_ERR(xdna, "Buffer size is too big, %d", telemetry_data_sz);
+		return -EINVAL;
+	}
+
+	header = kzalloc(header_sz, GFP_KERNEL);
+	if (!header)
+		return -ENOMEM;
+
+	if (copy_from_user(header, u64_to_user_ptr(args->buffer), sizeof(*header))) {
+		XDNA_ERR(xdna, "Failed to copy telemetry header from user");
+		return -EFAULT;
+	}
+
+	header->map_num_elements = elem_num;
+	list_for_each_entry(tmp_client, &xdna->client_list, node) {
+		ret = amdxdna_hwctx_walk(tmp_client, &header->map,
+					 aie2_fill_hwctx_map);
+		if (ret)
+			return ret;
+	}
+
+	ret = aie2_query_telemetry(xdna->dev_handle,
+				   u64_to_user_ptr(args->buffer + header_sz),
+				   telemetry_data_sz, header);
+	if (ret) {
+		XDNA_ERR(xdna, "Query telemetry failed ret %d", ret);
+		return ret;
+	}
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), header, header_sz)) {
+		XDNA_ERR(xdna, "Copy header failed");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int aie2_get_preempt_state(struct amdxdna_client *client,
+				  struct amdxdna_drm_get_info *args)
+{
+	struct amdxdna_drm_attribute_state state = {};
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_dev_hdl *ndev;
+
+	ndev = xdna->dev_handle;
+	if (args->param == DRM_AMDXDNA_GET_FORCE_PREEMPT_STATE)
+		state.state = ndev->force_preempt_enabled;
+	else if (args->param == DRM_AMDXDNA_GET_FRAME_BOUNDARY_PREEMPT_STATE)
+		state.state = ndev->frame_boundary_preempt;
+
+	if (copy_to_user(u64_to_user_ptr(args->buffer), &state, sizeof(state)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_info *args)
 {
 	struct amdxdna_dev *xdna = client->xdna;
@@ -858,6 +988,16 @@ static int aie2_get_info(struct amdxdna_client *client, struct amdxdna_drm_get_i
 		break;
 	case DRM_AMDXDNA_GET_POWER_MODE:
 		ret = aie2_get_power_mode(client, args);
+		break;
+	case DRM_AMDXDNA_QUERY_TELEMETRY:
+		ret = aie2_get_telemetry(client, args);
+		break;
+	case DRM_AMDXDNA_QUERY_RESOURCE_INFO:
+		ret = aie2_query_resource_info(client, args);
+		break;
+	case DRM_AMDXDNA_GET_FORCE_PREEMPT_STATE:
+	case DRM_AMDXDNA_GET_FRAME_BOUNDARY_PREEMPT_STATE:
+		ret = aie2_get_preempt_state(client, args);
 		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);
@@ -965,6 +1105,38 @@ static int aie2_set_power_mode(struct amdxdna_client *client,
 	return aie2_pm_set_mode(xdna->dev_handle, power_mode);
 }
 
+static int aie2_set_preempt_state(struct amdxdna_client *client,
+				  struct amdxdna_drm_set_state *args)
+{
+	struct amdxdna_dev_hdl *ndev = client->xdna->dev_handle;
+	struct amdxdna_drm_attribute_state state;
+	u32 val;
+	int ret;
+
+	if (copy_from_user(&state, u64_to_user_ptr(args->buffer), sizeof(state)))
+		return -EFAULT;
+
+	if (state.state > 1)
+		return -EINVAL;
+
+	if (XDNA_MBZ_DBG(client->xdna, state.pad, sizeof(state.pad)))
+		return -EINVAL;
+
+	if (args->param == DRM_AMDXDNA_SET_FORCE_PREEMPT) {
+		ndev->force_preempt_enabled = state.state;
+	} else if (args->param == DRM_AMDXDNA_SET_FRAME_BOUNDARY_PREEMPT) {
+		val = state.state;
+		ret = aie2_runtime_cfg(ndev, AIE2_RT_CFG_FRAME_BOUNDARY_PREEMPT,
+				       &val);
+		if (ret)
+			return ret;
+
+		ndev->frame_boundary_preempt = state.state;
+	}
+
+	return 0;
+}
+
 static int aie2_set_state(struct amdxdna_client *client,
 			  struct amdxdna_drm_set_state *args)
 {
@@ -981,6 +1153,10 @@ static int aie2_set_state(struct amdxdna_client *client,
 	switch (args->param) {
 	case DRM_AMDXDNA_SET_POWER_MODE:
 		ret = aie2_set_power_mode(client, args);
+		break;
+	case DRM_AMDXDNA_SET_FORCE_PREEMPT:
+	case DRM_AMDXDNA_SET_FRAME_BOUNDARY_PREEMPT:
+		ret = aie2_set_preempt_state(client, args);
 		break;
 	default:
 		XDNA_ERR(xdna, "Not supported request parameter %u", args->param);

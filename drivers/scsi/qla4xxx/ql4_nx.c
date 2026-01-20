@@ -1552,7 +1552,7 @@ static int qla4_82xx_cmdpeg_ready(struct scsi_qla_host *ha, int pegtune_val)
 			    (val == PHAN_INITIALIZE_ACK))
 				return 0;
 			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(500);
+			schedule_timeout(msecs_to_jiffies(500));
 
 		} while (--retries);
 

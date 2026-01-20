@@ -34,4 +34,8 @@ int amdgpu_ras_process_handle_unexpected_interrupt(struct amdgpu_device *adev,
 		void *data);
 int amdgpu_ras_process_handle_consumption_interrupt(struct amdgpu_device *adev,
 		void *data);
+int amdgpu_ras_process_begin(struct amdgpu_device *adev);
+int amdgpu_ras_process_end(struct amdgpu_device *adev);
+int amdgpu_ras_process_pre_reset(struct amdgpu_device *adev);
+int amdgpu_ras_process_post_reset(struct amdgpu_device *adev);
 #endif

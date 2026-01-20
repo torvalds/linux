@@ -22,6 +22,7 @@
 #include <linux/unaligned.h>
 #include <linux/random.h>
 #include <linux/iversion.h>
+#include <linux/fs_struct.h>
 #include "fat.h"
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
@@ -1595,8 +1596,12 @@ int fat_fill_super(struct super_block *sb, struct fs_context *fc,
 
 	setup(sb); /* flavour-specific stuff that needs options */
 
+	error = -EINVAL;
+	if (!sb_min_blocksize(sb, 512)) {
+		fat_msg(sb, KERN_ERR, "unable to set blocksize");
+		goto out_fail;
+	}
 	error = -EIO;
-	sb_min_blocksize(sb, 512);
 	bh = sb_bread(sb, 0);
 	if (bh == NULL) {
 		fat_msg(sb, KERN_ERR, "unable to read boot sector");

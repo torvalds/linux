@@ -6,6 +6,7 @@
 obj-y += rcar-isp/
 obj-y += rcar-vin/
 obj-y += rzg2l-cru/
+obj-y += rzv2h-ivc/
 obj-y += vsp1/
 
 obj-$(CONFIG_VIDEO_RCAR_CSI2) += rcar-csi2.o

@@ -9,8 +9,7 @@
  *     Wensong Zhang            :     added any dest with weight=0 is quiesced
  */
 
-#define KMSG_COMPONENT "IPVS"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "IPVS: " fmt
 
 #include <linux/module.h>
 #include <linux/kernel.h>

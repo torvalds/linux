@@ -6,6 +6,8 @@
 
 #include <linux/wait_bit.h>
 
+#include <drm/drm_print.h>
+
 #include "intel_runtime_pm.h"
 #include "intel_wakeref.h"
 #include "i915_drv.h"

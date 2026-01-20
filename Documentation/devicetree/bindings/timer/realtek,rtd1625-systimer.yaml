@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/realtek,rtd1625-systimer.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek System Timer
+
+maintainers:
+  - Hao-Wen Ting <haowen.ting@realtek.com>
+
+description:
+  The Realtek SYSTIMER (System Timer) is a 64-bit global hardware counter operating
+  at a fixed 1MHz frequency. Thanks to its compare match interrupt capability,
+  the timer natively supports oneshot mode for tick broadcast functionality.
+
+properties:
+  compatible:
+    oneOf:
+      - const: realtek,rtd1625-systimer
+      - items:
+          - const: realtek,rtd1635-systimer
+          - const: realtek,rtd1625-systimer
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    timer@89420 {
+        compatible = "realtek,rtd1635-systimer",
+                     "realtek,rtd1625-systimer";
+        reg = <0x89420 0x18>;
+        interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
+    };

@@ -2,12 +2,17 @@
 
 //! Simple DMA object wrapper.
 
-use core::ops::{Deref, DerefMut};
+use core::ops::{
+    Deref,
+    DerefMut, //
+};
 
-use kernel::device;
-use kernel::dma::CoherentAllocation;
-use kernel::page::PAGE_SIZE;
-use kernel::prelude::*;
+use kernel::{
+    device,
+    dma::CoherentAllocation,
+    page::PAGE_SIZE,
+    prelude::*, //
+};
 
 pub(crate) struct DmaObject {
     dma: CoherentAllocation<u8>,
@@ -25,20 +30,11 @@ impl DmaObject {
     }
 
     pub(crate) fn from_data(dev: &device::Device<device::Bound>, data: &[u8]) -> Result<Self> {
-        Self::new(dev, data.len()).map(|mut dma_obj| {
-            // TODO[COHA]: replace with `CoherentAllocation::write()` once available.
-            // SAFETY:
-            // - `dma_obj`'s size is at least `data.len()`.
-            // - We have just created this object and there is no other user at this stage.
-            unsafe {
-                core::ptr::copy_nonoverlapping(
-                    data.as_ptr(),
-                    dma_obj.dma.start_ptr_mut(),
-                    data.len(),
-                );
-            }
-
-            dma_obj
+        Self::new(dev, data.len()).and_then(|mut dma_obj| {
+            // SAFETY: We have just allocated the DMA memory, we are the only users and
+            // we haven't made the device aware of the handle yet.
+            unsafe { dma_obj.write(data, 0)? }
+            Ok(dma_obj)
         })
     }
 }

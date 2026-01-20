@@ -453,7 +453,7 @@ static int wm8958_dsp2_busy(struct wm8994_priv *wm8994, int aif)
 static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.enumerated.item[0];
@@ -475,7 +475,7 @@ static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
 static int wm8958_get_mbc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wm8994->mbc_cfg;
@@ -497,7 +497,7 @@ static int wm8958_mbc_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int mbc = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = wm8994->mbc_ena[mbc];
@@ -509,7 +509,7 @@ static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int mbc = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (wm8994->mbc_ena[mbc] == ucontrol->value.integer.value[0])
@@ -543,7 +543,7 @@ static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
 static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.enumerated.item[0];
@@ -565,7 +565,7 @@ static int wm8958_put_vss_enum(struct snd_kcontrol *kcontrol,
 static int wm8958_get_vss_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wm8994->vss_cfg;
@@ -576,7 +576,7 @@ static int wm8958_get_vss_enum(struct snd_kcontrol *kcontrol,
 static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.enumerated.item[0];
@@ -598,7 +598,7 @@ static int wm8958_put_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 static int wm8958_get_vss_hpf_enum(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wm8994->vss_hpf_cfg;
@@ -620,7 +620,7 @@ static int wm8958_vss_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int vss = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = wm8994->vss_ena[vss];
@@ -632,7 +632,7 @@ static int wm8958_vss_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int vss = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (wm8994->vss_ena[vss] == ucontrol->value.integer.value[0])
@@ -681,7 +681,7 @@ static int wm8958_hpf_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int hpf = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (hpf < 3)
@@ -696,7 +696,7 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int hpf = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (hpf < 3) {
@@ -743,7 +743,7 @@ static int wm8958_hpf_put(struct snd_kcontrol *kcontrol,
 static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 	struct wm8994 *control = wm8994->wm8994;
 	int value = ucontrol->value.enumerated.item[0];
@@ -765,7 +765,7 @@ static int wm8958_put_enh_eq_enum(struct snd_kcontrol *kcontrol,
 static int wm8958_get_enh_eq_enum(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wm8994->enh_eq_cfg;
@@ -787,7 +787,7 @@ static int wm8958_enh_eq_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int eq = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = wm8994->enh_eq_ena[eq];
@@ -799,7 +799,7 @@ static int wm8958_enh_eq_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	int eq = kcontrol->private_value;
-	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct wm8994_priv *wm8994 = snd_soc_component_get_drvdata(component);
 
 	if (wm8994->enh_eq_ena[eq] == ucontrol->value.integer.value[0])

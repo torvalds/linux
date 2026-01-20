@@ -28,13 +28,14 @@ ignore define MAX_DTV_STATS
 ignore define DTV_IOCTL_MAX_MSGS
 
 # the same reference is used for both get and set ioctls
-replace ioctl FE_SET_PROPERTY :c:type:`FE_GET_PROPERTY`
+replace ioctl FE_SET_PROPERTY :ref:`FE_GET_PROPERTY`
+replace ioctl FE_GET_PROPERTY :ref:`FE_GET_PROPERTY`
 
 # Typedefs that use the enum reference
 replace typedef fe_sec_voltage_t :c:type:`fe_sec_voltage`
 
 # Replaces for flag constants
-replace define FE_TUNE_MODE_ONESHOT :c:func:`FE_SET_FRONTEND_TUNE_MODE`
+replace define FE_TUNE_MODE_ONESHOT :ref:`FE_SET_FRONTEND_TUNE_MODE`
 replace define LNA_AUTO dtv-lna
 replace define NO_STREAM_ID_FILTER dtv-stream-id
 

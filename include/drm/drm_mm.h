@@ -48,7 +48,7 @@
 #endif
 #include <linux/types.h>
 
-#include <drm/drm_print.h>
+struct drm_printer;
 
 #ifdef CONFIG_DRM_DEBUG_MM
 #define DRM_MM_BUG_ON(expr) BUG_ON(expr)

@@ -71,7 +71,7 @@ static void deinterlace_device_run(void *priv)
 	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
-	v4l2_m2m_buf_copy_metadata(src, dst, true);
+	v4l2_m2m_buf_copy_metadata(src, dst);
 
 	deinterlace_write(dev, DEINTERLACE_MOD_ENABLE,
 			  DEINTERLACE_MOD_ENABLE_EN);

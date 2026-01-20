@@ -8,18 +8,28 @@
 #include <linux/unwind_user.h>
 #include <linux/uaccess.h>
 
-static const struct unwind_user_frame fp_frame = {
-	ARCH_INIT_USER_FP_FRAME
-};
-
 #define for_each_user_frame(state) \
 	for (unwind_user_start(state); !(state)->done; unwind_user_next(state))
 
-static int unwind_user_next_fp(struct unwind_user_state *state)
+static inline int
+get_user_word(unsigned long *word, unsigned long base, int off, unsigned int ws)
 {
-	const struct unwind_user_frame *frame = &fp_frame;
+	unsigned long __user *addr = (void __user *)base + off;
+#ifdef CONFIG_COMPAT
+	if (ws == sizeof(int)) {
+		unsigned int data;
+		int ret = get_user(data, (unsigned int __user *)addr);
+		*word = data;
+		return ret;
+	}
+#endif
+	return get_user(*word, addr);
+}
+
+static int unwind_user_next_common(struct unwind_user_state *state,
+				   const struct unwind_user_frame *frame)
+{
 	unsigned long cfa, fp, ra;
-	unsigned int shift;
 
 	if (frame->use_fp) {
 		if (state->fp < state->sp)
@@ -37,22 +47,43 @@ static int unwind_user_next_fp(struct unwind_user_state *state)
 		return -EINVAL;
 
 	/* Make sure that the address is word aligned */
-	shift = sizeof(long) == 4 ? 2 : 3;
-	if (cfa & ((1 << shift) - 1))
+	if (cfa & (state->ws - 1))
 		return -EINVAL;
 
 	/* Find the Return Address (RA) */
-	if (get_user(ra, (unsigned long *)(cfa + frame->ra_off)))
+	if (get_user_word(&ra, cfa, frame->ra_off, state->ws))
 		return -EINVAL;
 
-	if (frame->fp_off && get_user(fp, (unsigned long __user *)(cfa + frame->fp_off)))
+	if (frame->fp_off && get_user_word(&fp, cfa, frame->fp_off, state->ws))
 		return -EINVAL;
 
 	state->ip = ra;
 	state->sp = cfa;
 	if (frame->fp_off)
 		state->fp = fp;
+	state->topmost = false;
 	return 0;
+}
+
+static int unwind_user_next_fp(struct unwind_user_state *state)
+{
+#ifdef CONFIG_HAVE_UNWIND_USER_FP
+	struct pt_regs *regs = task_pt_regs(current);
+
+	if (state->topmost && unwind_user_at_function_start(regs)) {
+		const struct unwind_user_frame fp_entry_frame = {
+			ARCH_INIT_USER_FP_ENTRY_FRAME(state->ws)
+		};
+		return unwind_user_next_common(state, &fp_entry_frame);
+	}
+
+	const struct unwind_user_frame fp_frame = {
+		ARCH_INIT_USER_FP_FRAME(state->ws)
+	};
+	return unwind_user_next_common(state, &fp_frame);
+#else
+	return -EINVAL;
+#endif
 }
 
 static int unwind_user_next(struct unwind_user_state *state)
@@ -102,6 +133,12 @@ static int unwind_user_start(struct unwind_user_state *state)
 	state->ip = instruction_pointer(regs);
 	state->sp = user_stack_pointer(regs);
 	state->fp = frame_pointer(regs);
+	state->ws = unwind_user_word_size(regs);
+	if (!state->ws) {
+		state->done = true;
+		return -EINVAL;
+	}
+	state->topmost = true;
 
 	return 0;
 }

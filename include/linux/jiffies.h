@@ -611,4 +611,16 @@ extern unsigned long nsecs_to_jiffies(u64 n);
 
 #define TIMESTAMP_SIZE	30
 
+struct ctl_table;
+int proc_dointvec_jiffies(const struct ctl_table *table, int dir, void *buffer,
+			  size_t *lenp, loff_t *ppos);
+int proc_dointvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
+				    void *buffer, size_t *lenp, loff_t *ppos);
+int proc_dointvec_userhz_jiffies(const struct ctl_table *table, int dir,
+				 void *buffer, size_t *lenp, loff_t *ppos);
+int proc_dointvec_ms_jiffies(const struct ctl_table *table, int dir, void *buffer,
+			     size_t *lenp, loff_t *ppos);
+int proc_doulongvec_ms_jiffies_minmax(const struct ctl_table *table, int dir,
+				      void *buffer, size_t *lenp, loff_t *ppos);
+
 #endif

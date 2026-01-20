@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "../kselftest.h"
+#include "kselftest.h"
 #include "rseq.h"
 
 #ifdef BUILDOPT_RSEQ_PERCPU_MM_CID

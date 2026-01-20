@@ -1693,6 +1693,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ov13b10_pm_ops, ov13b10_suspend,
 static const struct acpi_device_id ov13b10_acpi_ids[] = {
 	{"OVTIDB10"},
 	{"OVTI13B1"},
+	{"OMNI13B1"},   /* ASUS ROG Flow Z13 (GZ302) uses this ACPI ID */
 	{ /* sentinel */ }
 };
 

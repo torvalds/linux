@@ -35,7 +35,6 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/phy.h>
-#include <linux/platform_data/bcmgenet.h>
 
 #include <linux/unaligned.h>
 
@@ -1641,6 +1640,13 @@ static int bcmgenet_get_num_flows(struct bcmgenet_priv *priv)
 	return res;
 }
 
+static u32 bcmgenet_get_rx_ring_count(struct net_device *dev)
+{
+	struct bcmgenet_priv *priv = netdev_priv(dev);
+
+	return priv->hw_params->rx_queues ?: 1;
+}
+
 static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			      u32 *rule_locs)
 {
@@ -1650,9 +1656,6 @@ static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int i = 0;
 
 	switch (cmd->cmd) {
-	case ETHTOOL_GRXRINGS:
-		cmd->data = priv->hw_params->rx_queues ?: 1;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bcmgenet_get_num_flows(priv);
 		cmd->data = MAX_NUM_OF_FS_RULES | RX_CLS_LOC_SPECIAL;
@@ -1701,6 +1704,7 @@ static const struct ethtool_ops bcmgenet_ethtool_ops = {
 	.get_ts_info		= ethtool_op_get_ts_info,
 	.get_rxnfc		= bcmgenet_get_rxnfc,
 	.set_rxnfc		= bcmgenet_set_rxnfc,
+	.get_rx_ring_count	= bcmgenet_get_rx_ring_count,
 	.get_pauseparam		= bcmgenet_get_pauseparam,
 	.set_pauseparam		= bcmgenet_set_pauseparam,
 };
@@ -3926,7 +3930,6 @@ MODULE_DEVICE_TABLE(of, bcmgenet_match);
 
 static int bcmgenet_probe(struct platform_device *pdev)
 {
-	struct bcmgenet_platform_data *pd = pdev->dev.platform_data;
 	const struct bcmgenet_plat_data *pdata;
 	struct bcmgenet_priv *priv;
 	struct net_device *dev;
@@ -4010,9 +4013,6 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		priv->version = pdata->version;
 		priv->dma_max_burst_length = pdata->dma_max_burst_length;
 		priv->flags = pdata->flags;
-	} else {
-		priv->version = pd->genet_version;
-		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;
 	}
 
 	priv->clk = devm_clk_get_optional(&priv->pdev->dev, "enet");
@@ -4062,16 +4062,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (device_get_phy_mode(&pdev->dev) == PHY_INTERFACE_MODE_INTERNAL)
 		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
-	if (pd && !IS_ERR_OR_NULL(pd->mac_address))
-		eth_hw_addr_set(dev, pd->mac_address);
-	else
-		if (device_get_ethdev_address(&pdev->dev, dev))
-			if (has_acpi_companion(&pdev->dev)) {
-				u8 addr[ETH_ALEN];
+	if (device_get_ethdev_address(&pdev->dev, dev))
+		if (has_acpi_companion(&pdev->dev)) {
+			u8 addr[ETH_ALEN];
 
-				bcmgenet_get_hw_addr(priv, addr);
-				eth_hw_addr_set(dev, addr);
-			}
+			bcmgenet_get_hw_addr(priv, addr);
+			eth_hw_addr_set(dev, addr);
+		}
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		dev_warn(&pdev->dev, "using random Ethernet MAC\n");

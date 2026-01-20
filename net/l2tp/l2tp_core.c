@@ -1246,9 +1246,9 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 	else
 		l2tp_build_l2tpv3_header(session, __skb_push(skb, session->hdr_len));
 
-	/* Reset skb netfilter state */
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED | IPSKB_REROUTED);
+	/* Reset control buffer */
+	memset(skb->cb, 0, sizeof(skb->cb));
+
 	nf_reset_ct(skb);
 
 	/* L2TP uses its own lockdep subclass to avoid lockdep splats caused by
@@ -1503,7 +1503,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			memcpy(&ip6_addr.l2tp_addr, cfg->local_ip6,
 			       sizeof(ip6_addr.l2tp_addr));
 			ip6_addr.l2tp_conn_id = tunnel_id;
-			err = kernel_bind(sock, (struct sockaddr *)&ip6_addr,
+			err = kernel_bind(sock, (struct sockaddr_unsized *)&ip6_addr,
 					  sizeof(ip6_addr));
 			if (err < 0)
 				goto out;
@@ -1513,7 +1513,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			       sizeof(ip6_addr.l2tp_addr));
 			ip6_addr.l2tp_conn_id = peer_tunnel_id;
 			err = kernel_connect(sock,
-					     (struct sockaddr *)&ip6_addr,
+					     (struct sockaddr_unsized *)&ip6_addr,
 					     sizeof(ip6_addr), 0);
 			if (err < 0)
 				goto out;
@@ -1530,7 +1530,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			ip_addr.l2tp_family = AF_INET;
 			ip_addr.l2tp_addr = cfg->local_ip;
 			ip_addr.l2tp_conn_id = tunnel_id;
-			err = kernel_bind(sock, (struct sockaddr *)&ip_addr,
+			err = kernel_bind(sock, (struct sockaddr_unsized *)&ip_addr,
 					  sizeof(ip_addr));
 			if (err < 0)
 				goto out;
@@ -1538,7 +1538,7 @@ static int l2tp_tunnel_sock_create(struct net *net,
 			ip_addr.l2tp_family = AF_INET;
 			ip_addr.l2tp_addr = cfg->peer_ip;
 			ip_addr.l2tp_conn_id = peer_tunnel_id;
-			err = kernel_connect(sock, (struct sockaddr *)&ip_addr,
+			err = kernel_connect(sock, (struct sockaddr_unsized *)&ip_addr,
 					     sizeof(ip_addr), 0);
 			if (err < 0)
 				goto out;

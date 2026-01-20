@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/amd,seattle.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AMD Seattle SoC Platforms
+
+maintainers:
+  - Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
+  - Tom Lendacky <thomas.lendacky@amd.com>
+
+properties:
+  $nodename:
+    const: "/"
+  compatible:
+    oneOf:
+      - description: Boards with AMD Seattle SoC
+        items:
+          - const: amd,seattle-overdrive
+          - const: amd,seattle
+
+additionalProperties: true
+...

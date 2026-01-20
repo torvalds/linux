@@ -22,8 +22,8 @@ static inline unsigned int kfifo_unused(struct __kfifo *fifo)
 	return (fifo->mask + 1) - (fifo->in - fifo->out);
 }
 
-int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
-		size_t esize, gfp_t gfp_mask)
+int __kfifo_alloc_node(struct __kfifo *fifo, unsigned int size,
+		size_t esize, gfp_t gfp_mask, int node)
 {
 	/*
 	 * round up to the next power of 2, since our 'let the indices
@@ -41,7 +41,7 @@ int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
 		return -EINVAL;
 	}
 
-	fifo->data = kmalloc_array(esize, size, gfp_mask);
+	fifo->data = kmalloc_array_node(esize, size, gfp_mask, node);
 
 	if (!fifo->data) {
 		fifo->mask = 0;
@@ -51,7 +51,7 @@ int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
 
 	return 0;
 }
-EXPORT_SYMBOL(__kfifo_alloc);
+EXPORT_SYMBOL(__kfifo_alloc_node);
 
 void __kfifo_free(struct __kfifo *fifo)
 {

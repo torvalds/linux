@@ -15,7 +15,6 @@
 #include <asm/ptrace.h>
 
 extern const sys_call_ptr_t sys_call_table[];
-extern const sys_call_ptr_t sys_call_table_emu[];
 
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
@@ -46,15 +45,7 @@ static inline long syscall_get_error(struct task_struct *task,
 				     struct pt_regs *regs)
 {
 	unsigned long error = regs->gprs[2];
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_31BIT)) {
-		/*
-		 * Sign-extend the value so (int)-EFOO becomes (long)-EFOO
-		 * and will match correctly in comparisons.
-		 */
-		error = (long)(int)error;
-	}
-#endif
+
 	return IS_ERR_VALUE(error) ? error : 0;
 }
 
@@ -78,10 +69,6 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	unsigned long mask = -1UL;
 
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_31BIT))
-		mask = 0xffffffff;
-#endif
 	for (int i = 1; i < 6; i++)
 		args[i] = regs->gprs[2 + i] & mask;
 
@@ -99,10 +86,6 @@ static inline void syscall_set_arguments(struct task_struct *task,
 
 static inline int syscall_get_arch(struct task_struct *task)
 {
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_31BIT))
-		return AUDIT_ARCH_S390;
-#endif
 	return AUDIT_ARCH_S390X;
 }
 

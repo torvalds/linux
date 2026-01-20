@@ -21,7 +21,7 @@
 #		(default ./arch/powerpc/boot)
 # -W dir	specify working directory for temporary files (default .)
 # -z		use gzip (legacy)
-# -Z zsuffix    compression to use (gz, xz or none)
+# -Z zsuffix    compression to use (gz, xz, lzma, lzo or none)
 
 # Stop execution if any command fails
 set -e
@@ -69,7 +69,7 @@ usage() {
     echo 'Usage: wrapper [-o output] [-p platform] [-i initrd]' >&2
     echo '       [-d devtree] [-s tree.dts] [-e esm_blob]' >&2
     echo '       [-c] [-C cross-prefix] [-D datadir] [-W workingdir]' >&2
-    echo '       [-Z (gz|xz|none)] [--no-compression] [vmlinux]' >&2
+    echo '       [-Z (gz|xz|lzma|lzo|none)] [--no-compression] [vmlinux]' >&2
     exit 1
 }
 

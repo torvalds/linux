@@ -142,7 +142,6 @@ then:
     reset-names:
       minItems: 2
 
-
 additionalProperties: false
 
 examples:

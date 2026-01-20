@@ -20,7 +20,7 @@
 #include <unistd.h>
 
 #include "pidfd.h"
-#include "../kselftest.h"
+#include "kselftest.h"
 
 static int safe_int(const char *numstr, int *converted)
 {

@@ -57,12 +57,14 @@ struct drm_client_funcs {
 	 *
 	 * Note that the core does not guarantee exclusion against concurrent
 	 * drm_open(). Clients need to ensure this themselves, for example by
-	 * using drm_master_internal_acquire() and
-	 * drm_master_internal_release().
+	 * using drm_master_internal_acquire() and drm_master_internal_release().
+	 *
+	 * If the caller passes force, the client should ignore any present DRM
+	 * master and restore the display anyway.
 	 *
 	 * This callback is optional.
 	 */
-	int (*restore)(struct drm_client_dev *client);
+	int (*restore)(struct drm_client_dev *client, bool force);
 
 	/**
 	 * @hotplug:
@@ -174,19 +176,11 @@ struct drm_client_buffer {
 	struct drm_client_dev *client;
 
 	/**
-	 * @pitch: Buffer pitch
-	 */
-	u32 pitch;
-
-	/**
 	 * @gem: GEM object backing this buffer
 	 *
-	 * FIXME: The dependency on GEM here isn't required, we could
-	 * convert the driver handle to a dma-buf instead and use the
-	 * backend-agnostic dma-buf vmap support instead. This would
-	 * require that the handle2fd prime ioctl is reworked to pull the
-	 * fd_install step out of the driver backend hooks, to make that
-	 * final step optional for internal users.
+	 * FIXME: The DRM framebuffer holds a reference on its GEM
+	 * buffer objects. Do not use this field in new code and
+	 * update existing users.
 	 */
 	struct drm_gem_object *gem;
 
@@ -202,9 +196,9 @@ struct drm_client_buffer {
 };
 
 struct drm_client_buffer *
-drm_client_framebuffer_create(struct drm_client_dev *client, u32 width, u32 height, u32 format);
-void drm_client_framebuffer_delete(struct drm_client_buffer *buffer);
-int drm_client_framebuffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect);
+drm_client_buffer_create_dumb(struct drm_client_dev *client, u32 width, u32 height, u32 format);
+void drm_client_buffer_delete(struct drm_client_buffer *buffer);
+int drm_client_buffer_flush(struct drm_client_buffer *buffer, struct drm_rect *rect);
 int drm_client_buffer_vmap_local(struct drm_client_buffer *buffer,
 				 struct iosys_map *map_copy);
 void drm_client_buffer_vunmap_local(struct drm_client_buffer *buffer);

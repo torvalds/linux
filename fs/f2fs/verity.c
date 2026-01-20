@@ -263,7 +263,7 @@ static struct page *f2fs_read_merkle_tree_page(struct inode *inode,
 
 	index += f2fs_verity_metadata_pos(inode) >> PAGE_SHIFT;
 
-	folio = __filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
+	folio = f2fs_filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
 	if (IS_ERR(folio) || !folio_test_uptodate(folio)) {
 		DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 

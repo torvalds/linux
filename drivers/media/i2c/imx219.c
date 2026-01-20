@@ -68,6 +68,7 @@
 #define IMX219_EXPOSURE_STEP		1
 #define IMX219_EXPOSURE_DEFAULT		0x640
 #define IMX219_EXPOSURE_MAX		65535
+#define IMX219_EXPOSURE_OFFSET			4
 
 /* V_TIMING internal */
 #define IMX219_REG_FRM_LENGTH_A		CCI_REG16(0x0160)
@@ -409,24 +410,14 @@ static void imx219_get_binning(struct v4l2_subdev_state *state, u8 *bin_h,
 	u32 hbin = crop->width / format->width;
 	u32 vbin = crop->height / format->height;
 
-	*bin_h = IMX219_BINNING_NONE;
-	*bin_v = IMX219_BINNING_NONE;
-
-	/*
-	 * Use analog binning only if both dimensions are binned, as it crops
-	 * the other dimension.
-	 */
 	if (hbin == 2 && vbin == 2) {
 		*bin_h = IMX219_BINNING_X2_ANALOG;
 		*bin_v = IMX219_BINNING_X2_ANALOG;
-
-		return;
+	} else {
+		*bin_h = IMX219_BINNING_NONE;
+		*bin_v = IMX219_BINNING_NONE;
 	}
 
-	if (hbin == 2)
-		*bin_h = IMX219_BINNING_X2;
-	if (vbin == 2)
-		*bin_v = IMX219_BINNING_X2;
 }
 
 static inline u32 imx219_get_rate_factor(struct v4l2_subdev_state *state)
@@ -460,13 +451,17 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 		int exposure_max, exposure_def;
 
 		/* Update max exposure while meeting expected vblanking */
-		exposure_max = format->height + ctrl->val - 4;
+		exposure_max = format->height + ctrl->val - IMX219_EXPOSURE_OFFSET;
 		exposure_def = (exposure_max < IMX219_EXPOSURE_DEFAULT) ?
-			exposure_max : IMX219_EXPOSURE_DEFAULT;
-		__v4l2_ctrl_modify_range(imx219->exposure,
-					 imx219->exposure->minimum,
-					 exposure_max, imx219->exposure->step,
-					 exposure_def);
+				exposure_max : IMX219_EXPOSURE_DEFAULT;
+		ret = __v4l2_ctrl_modify_range(imx219->exposure,
+					       imx219->exposure->minimum,
+					       exposure_max,
+					       imx219->exposure->step,
+					       exposure_def);
+		if (ret)
+			return ret;
+
 	}
 
 	/*
@@ -585,9 +580,9 @@ static int imx219_init_controls(struct imx219 *imx219)
 					   IMX219_LLP_MIN - mode->width,
 					   IMX219_LLP_MAX - mode->width, 1,
 					   IMX219_LLP_MIN - mode->width);
-	exposure_max = mode->fll_def - 4;
+	exposure_max = mode->fll_def - IMX219_EXPOSURE_OFFSET;
 	exposure_def = (exposure_max < IMX219_EXPOSURE_DEFAULT) ?
-		exposure_max : IMX219_EXPOSURE_DEFAULT;
+			exposure_max : IMX219_EXPOSURE_DEFAULT;
 	imx219->exposure = v4l2_ctrl_new_std(ctrl_hdlr, &imx219_ctrl_ops,
 					     V4L2_CID_EXPOSURE,
 					     IMX219_EXPOSURE_MIN, exposure_max,
@@ -856,8 +851,9 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	const struct imx219_mode *mode;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
-	u8 bin_h, bin_v;
+	u8 bin_h, bin_v, binning;
 	u32 prev_line_len;
+	int ret;
 
 	format = v4l2_subdev_state_get_format(state, 0);
 	prev_line_len = format->width + imx219->hblank->val;
@@ -877,9 +873,12 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	bin_h = min(IMX219_PIXEL_ARRAY_WIDTH / format->width, 2U);
 	bin_v = min(IMX219_PIXEL_ARRAY_HEIGHT / format->height, 2U);
 
+	/* Ensure bin_h and bin_v are same to avoid 1:2 or 2:1 stretching */
+	binning = min(bin_h, bin_v);
+
 	crop = v4l2_subdev_state_get_crop(state, 0);
-	crop->width = format->width * bin_h;
-	crop->height = format->height * bin_v;
+	crop->width = format->width * binning;
+	crop->height = format->height * binning;
 	crop->left = (IMX219_NATIVE_WIDTH - crop->width) / 2;
 	crop->top = (IMX219_NATIVE_HEIGHT - crop->height) / 2;
 
@@ -890,19 +889,28 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 		int pixel_rate;
 
 		/* Update limits and set FPS to default */
-		__v4l2_ctrl_modify_range(imx219->vblank, IMX219_VBLANK_MIN,
-					 IMX219_FLL_MAX - mode->height, 1,
+		ret = __v4l2_ctrl_modify_range(imx219->vblank, IMX219_VBLANK_MIN,
+					       IMX219_FLL_MAX - mode->height, 1,
+					       mode->fll_def - mode->height);
+		if (ret)
+			return ret;
+
+		ret = __v4l2_ctrl_s_ctrl(imx219->vblank,
 					 mode->fll_def - mode->height);
-		__v4l2_ctrl_s_ctrl(imx219->vblank,
-				   mode->fll_def - mode->height);
+		if (ret)
+			return ret;
+
 		/* Update max exposure while meeting expected vblanking */
-		exposure_max = mode->fll_def - 4;
+		exposure_max = mode->fll_def - IMX219_EXPOSURE_OFFSET;
 		exposure_def = (exposure_max < IMX219_EXPOSURE_DEFAULT) ?
-			exposure_max : IMX219_EXPOSURE_DEFAULT;
-		__v4l2_ctrl_modify_range(imx219->exposure,
-					 imx219->exposure->minimum,
-					 exposure_max, imx219->exposure->step,
-					 exposure_def);
+				exposure_max : IMX219_EXPOSURE_DEFAULT;
+		ret = __v4l2_ctrl_modify_range(imx219->exposure,
+					       imx219->exposure->minimum,
+					       exposure_max,
+					       imx219->exposure->step,
+					       exposure_def);
+		if (ret)
+			return ret;
 
 		/*
 		 * With analog binning the default minimum line length of 3448
@@ -913,9 +921,12 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 		imx219_get_binning(state, &bin_h, &bin_v);
 		llp_min = (bin_h & bin_v) == IMX219_BINNING_X2_ANALOG ?
 				  IMX219_BINNED_LLP_MIN : IMX219_LLP_MIN;
-		__v4l2_ctrl_modify_range(imx219->hblank, llp_min - mode->width,
-					 IMX219_LLP_MAX - mode->width, 1,
-					 llp_min - mode->width);
+		ret = __v4l2_ctrl_modify_range(imx219->hblank,
+					       llp_min - mode->width,
+					       IMX219_LLP_MAX - mode->width, 1,
+					       llp_min - mode->width);
+		if (ret)
+			return ret;
 		/*
 		 * Retain PPL setting from previous mode so that the
 		 * line time does not change on a mode change.
@@ -924,13 +935,17 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 		 * mode width subtracted.
 		 */
 		hblank = prev_line_len - mode->width;
-		__v4l2_ctrl_s_ctrl(imx219->hblank, hblank);
+		ret = __v4l2_ctrl_s_ctrl(imx219->hblank, hblank);
+		if (ret)
+			return ret;
 
 		/* Scale the pixel rate based on the mode specific factor */
 		pixel_rate = imx219_get_pixel_rate(imx219) *
 			     imx219_get_rate_factor(state);
-		__v4l2_ctrl_modify_range(imx219->pixel_rate, pixel_rate,
-					 pixel_rate, 1, pixel_rate);
+		ret = __v4l2_ctrl_modify_range(imx219->pixel_rate, pixel_rate,
+					       pixel_rate, 1, pixel_rate);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -979,9 +994,7 @@ static int imx219_init_state(struct v4l2_subdev *sd,
 		},
 	};
 
-	imx219_set_pad_format(sd, state, &fmt);
-
-	return 0;
+	return imx219_set_pad_format(sd, state, &fmt);
 }
 
 static const struct v4l2_subdev_video_ops imx219_video_ops = {

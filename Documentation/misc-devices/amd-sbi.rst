@@ -28,8 +28,10 @@ MCAMSR and register xfer commands.
 Register sets is common across APML protocols. IOCTL is providing synchronization
 among protocols as transactions may create race condition.
 
-$ ls -al /dev/sbrmi-3c
-crw-------    1 root     root       10,  53 Jul 10 11:13 /dev/sbrmi-3c
+.. code-block:: bash
+
+   $ ls -al /dev/sbrmi-3c
+   crw-------    1 root     root       10,  53 Jul 10 11:13 /dev/sbrmi-3c
 
 apml_sbrmi driver registers hwmon sensors for monitoring power_cap_max,
 current power consumption and managing power_cap.

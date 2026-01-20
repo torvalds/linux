@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ISC
+// SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (C) 2022 MediaTek Inc.
  */
@@ -22,6 +22,9 @@ int mt7996_init_tx_queues(struct mt7996_phy *phy, int idx, int n_desc,
 		else
 			flags = MT_WED_Q_TX(idx);
 	}
+
+	if (mt76_npu_device_active(&dev->mt76))
+		flags = MT_NPU_Q_TX(phy->mt76->band_idx);
 
 	return mt76_connac_init_tx_queues(phy->mt76, idx, n_desc,
 					  ring_base, wed, flags);
@@ -344,7 +347,7 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 		mtk_wed_device_start(wed, wed_irq_mask);
 	}
 
-	if (!mt7996_has_wa(dev))
+	if (!mt7996_has_wa(dev) || mt76_npu_device_active(&dev->mt76))
 		irq_mask &= ~(MT_INT_RX(MT_RXQ_MAIN_WA) |
 			      MT_INT_RX(MT_RXQ_BAND1_WA));
 	irq_mask = reset ? MT_INT_MCU_CMD : irq_mask;
@@ -502,7 +505,7 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].flags = MT_WED_RRO_Q_RXDMAD_C;
 		if (mtk_wed_device_active(&mdev->mmio.wed))
 			mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].wed = &mdev->mmio.wed;
-		else
+		else if (!mt76_npu_device_active(&dev->mt76))
 			mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].flags |= MT_QFLAG_EMI_EN;
 		ret = mt76_queue_alloc(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C],
 				       MT_RXQ_ID(MT_RXQ_RRO_RXDMAD_C),
@@ -512,12 +515,15 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 		if (ret)
 			return ret;
 
-		/* We need to set cpu idx pointer before resetting the EMI
-		 * queues.
-		 */
-		mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].emi_cpu_idx =
-			&dev->wed_rro.emi_rings_cpu.ptr->ring[0].idx;
-		mt76_queue_reset(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C], true);
+		if (!mtk_wed_device_active(&mdev->mmio.wed)) {
+			/* We need to set cpu idx pointer before resetting the
+			 * EMI queues.
+			 */
+			mdev->q_rx[MT_RXQ_RRO_RXDMAD_C].emi_cpu_idx =
+				&dev->wed_rro.emi_rings_cpu.ptr->ring[0].idx;
+			mt76_queue_reset(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C],
+					 true);
+		}
 		goto start_hw_rro;
 	}
 
@@ -610,7 +616,9 @@ start_hw_rro:
 			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
 					   mt76_dma_rx_poll);
 		}
-		mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
+
+		if (!mt76_npu_device_active(&dev->mt76))
+			mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
 	}
 
 	return 0;
@@ -884,6 +892,10 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	if (ret < 0)
 		return ret;
 
+	ret = mt7996_npu_rx_queues_init(dev);
+	if (ret)
+		return ret;
+
 	netif_napi_add_tx(dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
 			  mt7996_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
@@ -941,6 +953,7 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 	if (mtk_wed_device_active(&dev->mt76.mmio.wed))
 		mtk_wed_device_dma_reset(&dev->mt76.mmio.wed);
 
+	mt76_npu_disable_irqs(&dev->mt76);
 	mt7996_dma_disable(dev, force);
 	mt76_wed_dma_reset(&dev->mt76);
 

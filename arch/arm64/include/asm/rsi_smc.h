@@ -122,7 +122,7 @@
  */
 #define SMC_RSI_ATTESTATION_TOKEN_CONTINUE	SMC_RSI_FID(0x195)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 struct realm_config {
 	union {
@@ -142,7 +142,7 @@ struct realm_config {
 	 */
 } __aligned(0x1000);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Read configuration for the current Realm.

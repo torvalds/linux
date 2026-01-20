@@ -14,8 +14,7 @@ struct drm_mode_fb_cmd2;
 
 void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj);
 
-int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
-				 struct drm_gem_object *obj,
+int intel_fb_bo_framebuffer_init(struct drm_gem_object *obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd);
 
 struct drm_gem_object *

@@ -35,7 +35,7 @@ If both fields are NULL, 'lp5523' is used by default.
 LP5523 has the internal program memory for running various LED patterns.
 There are two ways to run LED patterns.
 
-1) Legacy interface - enginex_mode, enginex_load and enginex_leds
+1) sysfs interface - enginex_mode, enginex_load and enginex_leds
 
   Control interface for the engines:
 

@@ -9,8 +9,8 @@ use crate::{
     block::mq::{request::RequestDataWrapper, Request},
     error::{from_result, Result},
     prelude::*,
-    sync::Refcount,
-    types::{ARef, ForeignOwnable},
+    sync::{aref::ARef, Refcount},
+    types::ForeignOwnable,
 };
 use core::marker::PhantomData;
 

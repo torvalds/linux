@@ -34,20 +34,19 @@ static void erofs_fileio_ki_complete(struct kiocb *iocb, long ret)
 	if (rq->bio.bi_end_io) {
 		if (ret < 0 && !rq->bio.bi_status)
 			rq->bio.bi_status = errno_to_blk_status(ret);
-		rq->bio.bi_end_io(&rq->bio);
 	} else {
 		bio_for_each_folio_all(fi, &rq->bio) {
 			DBG_BUGON(folio_test_uptodate(fi.folio));
 			erofs_onlinefolio_end(fi.folio, ret, false);
 		}
 	}
+	bio_endio(&rq->bio);
 	bio_uninit(&rq->bio);
 	kfree(rq);
 }
 
 static void erofs_fileio_rq_submit(struct erofs_fileio_rq *rq)
 {
-	const struct cred *old_cred;
 	struct iov_iter iter;
 	int ret;
 
@@ -61,9 +60,8 @@ static void erofs_fileio_rq_submit(struct erofs_fileio_rq *rq)
 		rq->iocb.ki_flags = IOCB_DIRECT;
 	iov_iter_bvec(&iter, ITER_DEST, rq->bvecs, rq->bio.bi_vcnt,
 		      rq->bio.bi_iter.bi_size);
-	old_cred = override_creds(rq->iocb.ki_filp->f_cred);
-	ret = vfs_iocb_iter_read(rq->iocb.ki_filp, &rq->iocb, &iter);
-	revert_creds(old_cred);
+	scoped_with_creds(rq->iocb.ki_filp->f_cred)
+		ret = vfs_iocb_iter_read(rq->iocb.ki_filp, &rq->iocb, &iter);
 	if (ret != -EIOCBQUEUED)
 		erofs_fileio_ki_complete(&rq->iocb, ret);
 }

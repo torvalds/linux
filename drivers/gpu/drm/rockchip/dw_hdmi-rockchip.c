@@ -361,7 +361,7 @@ static void dw_hdmi_rk3228_setup_hpd(struct dw_hdmi *dw_hdmi, void *data)
 
 	regmap_write(hdmi->regmap, RK3228_GRF_SOC_CON2,
 		     FIELD_PREP_WM16(RK3228_HDMI_SDAIN_MSK, 1) |
-		     FIELD_PREP_WM16(RK3328_HDMI_SCLIN_MSK, 1));
+		     FIELD_PREP_WM16(RK3228_HDMI_SCLIN_MSK, 1));
 }
 
 static enum drm_connector_status

@@ -500,9 +500,7 @@ static int gpio_virtuser_value_set(void *data, u64 val)
 	if (val > 1)
 		return -EINVAL;
 
-	gpiod_set_value_cansleep(ld->ad.desc, (int)val);
-
-	return 0;
+	return gpiod_set_value_cansleep(ld->ad.desc, (int)val);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(gpio_virtuser_value_fops,
@@ -543,7 +541,7 @@ static void gpio_virtuser_set_value_atomic(struct irq_work *work)
 	struct gpio_virtuser_irq_work_context *ctx =
 			to_gpio_virtuser_irq_work_context(work);
 
-	gpiod_set_value(ctx->desc, ctx->val);
+	ctx->ret = gpiod_set_value(ctx->desc, ctx->val);
 	complete(&ctx->work_completion);
 }
 
@@ -562,7 +560,7 @@ static int gpio_virtuser_value_atomic_set(void *data, u64 val)
 
 	gpio_virtuser_irq_work_queue_sync(&ctx);
 
-	return 0;
+	return ctx.ret;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(gpio_virtuser_value_atomic_fops,

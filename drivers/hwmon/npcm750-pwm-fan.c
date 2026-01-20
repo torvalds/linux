@@ -4,7 +4,6 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -198,7 +197,6 @@ struct npcm7xx_pwm_fan_data {
 	int pwm_modules;
 	struct clk *pwm_clk;
 	struct clk *fan_clk;
-	struct mutex pwm_lock[NPCM7XX_PWM_MAX_MODULES];
 	spinlock_t fan_lock[NPCM7XX_FAN_MAX_MODULE];
 	int fan_irq[NPCM7XX_FAN_MAX_MODULE];
 	bool pwm_present[NPCM7XX_PWM_MAX_CHN_NUM];
@@ -221,7 +219,6 @@ static int npcm7xx_pwm_config_set(struct npcm7xx_pwm_fan_data *data,
 	/*
 	 * Config PWM Comparator register for setting duty cycle
 	 */
-	mutex_lock(&data->pwm_lock[module]);
 
 	/* write new CMR value  */
 	iowrite32(val, NPCM7XX_PWM_REG_CMRx(data->pwm_base, module, pwm_ch));
@@ -245,7 +242,6 @@ static int npcm7xx_pwm_config_set(struct npcm7xx_pwm_fan_data *data,
 		env_bit = NPCM7XX_PWM_CTRL_CH3_INV_BIT;
 		break;
 	default:
-		mutex_unlock(&data->pwm_lock[module]);
 		return -ENODEV;
 	}
 
@@ -260,8 +256,6 @@ static int npcm7xx_pwm_config_set(struct npcm7xx_pwm_fan_data *data,
 	}
 
 	iowrite32(tmp_buf, NPCM7XX_PWM_REG_CR(data->pwm_base, module));
-	mutex_unlock(&data->pwm_lock[module]);
-
 	return 0;
 }
 
@@ -932,8 +926,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct device *hwmon;
 	char name[20];
-	int ret, cnt;
 	u32 output_freq;
+	int ret;
 	u32 i;
 
 	np = dev->of_node;
@@ -984,9 +978,6 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 
 	output_freq = npcm7xx_pwm_init(data);
 	npcm7xx_fan_init(data);
-
-	for (cnt = 0; cnt < data->pwm_modules; cnt++)
-		mutex_init(&data->pwm_lock[cnt]);
 
 	for (i = 0; i < NPCM7XX_FAN_MAX_MODULE; i++) {
 		spin_lock_init(&data->fan_lock[i]);

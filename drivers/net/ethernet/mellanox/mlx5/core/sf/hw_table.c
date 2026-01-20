@@ -30,9 +30,7 @@ enum mlx5_sf_hwc_index {
 };
 
 struct mlx5_sf_hw_table {
-	struct mlx5_core_dev *dev;
 	struct mutex table_lock; /* Serializes sf deletion and vhca state change handler. */
-	struct notifier_block vhca_nb;
 	struct mlx5_sf_hwc_table hwc[MLX5_SF_HWC_MAX];
 };
 
@@ -71,14 +69,16 @@ mlx5_sf_table_fn_to_hwc(struct mlx5_sf_hw_table *table, u16 fn_id)
 	return NULL;
 }
 
-static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 controller,
+static int mlx5_sf_hw_table_id_alloc(struct mlx5_core_dev *dev,
+				     struct mlx5_sf_hw_table *table,
+				     u32 controller,
 				     u32 usr_sfnum)
 {
 	struct mlx5_sf_hwc_table *hwc;
 	int free_idx = -1;
 	int i;
 
-	hwc = mlx5_sf_controller_to_hwc(table->dev, controller);
+	hwc = mlx5_sf_controller_to_hwc(dev, controller);
 	if (!hwc->sfs)
 		return -ENOSPC;
 
@@ -100,11 +100,13 @@ static int mlx5_sf_hw_table_id_alloc(struct mlx5_sf_hw_table *table, u32 control
 	return free_idx;
 }
 
-static void mlx5_sf_hw_table_id_free(struct mlx5_sf_hw_table *table, u32 controller, int id)
+static void mlx5_sf_hw_table_id_free(struct mlx5_core_dev *dev,
+				     struct mlx5_sf_hw_table *table,
+				     u32 controller, int id)
 {
 	struct mlx5_sf_hwc_table *hwc;
 
-	hwc = mlx5_sf_controller_to_hwc(table->dev, controller);
+	hwc = mlx5_sf_controller_to_hwc(dev, controller);
 	hwc->sfs[id].allocated = false;
 	hwc->sfs[id].pending_delete = false;
 }
@@ -120,7 +122,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 controller, u32 usr
 		return -EOPNOTSUPP;
 
 	mutex_lock(&table->table_lock);
-	sw_id = mlx5_sf_hw_table_id_alloc(table, controller, usr_sfnum);
+	sw_id = mlx5_sf_hw_table_id_alloc(dev, table, controller, usr_sfnum);
 	if (sw_id < 0) {
 		err = sw_id;
 		goto exist_err;
@@ -151,7 +153,7 @@ int mlx5_sf_hw_table_sf_alloc(struct mlx5_core_dev *dev, u32 controller, u32 usr
 vhca_err:
 	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
 err:
-	mlx5_sf_hw_table_id_free(table, controller, sw_id);
+	mlx5_sf_hw_table_id_free(dev, table, controller, sw_id);
 exist_err:
 	mutex_unlock(&table->table_lock);
 	return err;
@@ -165,7 +167,7 @@ void mlx5_sf_hw_table_sf_free(struct mlx5_core_dev *dev, u32 controller, u16 id)
 	mutex_lock(&table->table_lock);
 	hw_fn_id = mlx5_sf_sw_to_hw_id(dev, controller, id);
 	mlx5_cmd_dealloc_sf(dev, hw_fn_id);
-	mlx5_sf_hw_table_id_free(table, controller, id);
+	mlx5_sf_hw_table_id_free(dev, table, controller, id);
 	mutex_unlock(&table->table_lock);
 }
 
@@ -216,10 +218,12 @@ static void mlx5_sf_hw_table_hwc_dealloc_all(struct mlx5_core_dev *dev,
 	}
 }
 
-static void mlx5_sf_hw_table_dealloc_all(struct mlx5_sf_hw_table *table)
+static void mlx5_sf_hw_table_dealloc_all(struct mlx5_core_dev *dev,
+					 struct mlx5_sf_hw_table *table)
 {
-	mlx5_sf_hw_table_hwc_dealloc_all(table->dev, &table->hwc[MLX5_SF_HWC_EXTERNAL]);
-	mlx5_sf_hw_table_hwc_dealloc_all(table->dev, &table->hwc[MLX5_SF_HWC_LOCAL]);
+	mlx5_sf_hw_table_hwc_dealloc_all(dev,
+					 &table->hwc[MLX5_SF_HWC_EXTERNAL]);
+	mlx5_sf_hw_table_hwc_dealloc_all(dev, &table->hwc[MLX5_SF_HWC_LOCAL]);
 }
 
 static int mlx5_sf_hw_table_hwc_init(struct mlx5_sf_hwc_table *hwc, u16 max_fn, u16 base_id)
@@ -301,7 +305,6 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	}
 
 	mutex_init(&table->table_lock);
-	table->dev = dev;
 	dev->priv.sf_hw_table = table;
 
 	base_id = mlx5_sf_start_function_id(dev);
@@ -338,19 +341,22 @@ void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev)
 	mlx5_sf_hw_table_hwc_cleanup(&table->hwc[MLX5_SF_HWC_LOCAL]);
 	mutex_destroy(&table->table_lock);
 	kfree(table);
+	dev->priv.sf_hw_table = NULL;
 res_unregister:
 	mlx5_sf_hw_table_res_unregister(dev);
 }
 
 static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode, void *data)
 {
-	struct mlx5_sf_hw_table *table = container_of(nb, struct mlx5_sf_hw_table, vhca_nb);
+	struct mlx5_core_dev *dev = container_of(nb, struct mlx5_core_dev,
+						 priv.sf_hw_table_vhca_nb);
+	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
 	const struct mlx5_vhca_state_event *event = data;
 	struct mlx5_sf_hwc_table *hwc;
 	struct mlx5_sf_hw *sf_hw;
 	u16 sw_id;
 
-	if (event->new_vhca_state != MLX5_VHCA_STATE_ALLOCATED)
+	if (!table || event->new_vhca_state != MLX5_VHCA_STATE_ALLOCATED)
 		return 0;
 
 	hwc = mlx5_sf_table_fn_to_hwc(table, event->function_id);
@@ -365,20 +371,28 @@ static int mlx5_sf_hw_vhca_event(struct notifier_block *nb, unsigned long opcode
 	 * Hence recycle the sf hardware id for reuse.
 	 */
 	if (sf_hw->allocated && sf_hw->pending_delete)
-		mlx5_sf_hw_table_hwc_sf_free(table->dev, hwc, sw_id);
+		mlx5_sf_hw_table_hwc_sf_free(dev, hwc, sw_id);
 	mutex_unlock(&table->table_lock);
 	return 0;
 }
 
-int mlx5_sf_hw_table_create(struct mlx5_core_dev *dev)
+int mlx5_sf_hw_notifier_init(struct mlx5_core_dev *dev)
 {
-	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
-
-	if (!table)
+	if (mlx5_core_is_sf(dev))
 		return 0;
 
-	table->vhca_nb.notifier_call = mlx5_sf_hw_vhca_event;
-	return mlx5_vhca_event_notifier_register(dev, &table->vhca_nb);
+	dev->priv.sf_hw_table_vhca_nb.notifier_call = mlx5_sf_hw_vhca_event;
+	return mlx5_vhca_event_notifier_register(dev,
+						 &dev->priv.sf_hw_table_vhca_nb);
+}
+
+void mlx5_sf_hw_notifier_cleanup(struct mlx5_core_dev *dev)
+{
+	if (mlx5_core_is_sf(dev))
+		return;
+
+	mlx5_vhca_event_notifier_unregister(dev,
+					    &dev->priv.sf_hw_table_vhca_nb);
 }
 
 void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
@@ -388,9 +402,8 @@ void mlx5_sf_hw_table_destroy(struct mlx5_core_dev *dev)
 	if (!table)
 		return;
 
-	mlx5_vhca_event_notifier_unregister(dev, &table->vhca_nb);
 	/* Dealloc SFs whose firmware event has been missed. */
-	mlx5_sf_hw_table_dealloc_all(table);
+	mlx5_sf_hw_table_dealloc_all(dev, table);
 }
 
 bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev)

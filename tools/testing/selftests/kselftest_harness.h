@@ -14,7 +14,7 @@
  *
  * .. code-block:: c
  *
- *    #include "../kselftest_harness.h"
+ *    #include "kselftest_harness.h"
  *
  *    TEST(standalone_test) {
  *      do_some_stuff;

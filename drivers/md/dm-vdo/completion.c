@@ -65,6 +65,8 @@ static inline void assert_incomplete(struct vdo_completion *completion)
 
 /**
  * vdo_set_completion_result() - Set the result of a completion.
+ * @completion: The completion to update.
+ * @result: The result to set.
  *
  * Older errors will not be masked.
  */
@@ -77,6 +79,7 @@ void vdo_set_completion_result(struct vdo_completion *completion, int result)
 
 /**
  * vdo_launch_completion_with_priority() - Run or enqueue a completion.
+ * @completion: The completion to launch.
  * @priority: The priority at which to enqueue the completion.
  *
  * If called on the correct thread (i.e. the one specified in the completion's callback_thread_id
@@ -125,6 +128,8 @@ void vdo_enqueue_completion(struct vdo_completion *completion,
 
 /**
  * vdo_requeue_completion_if_needed() - Requeue a completion if not called on the specified thread.
+ * @completion: The completion to requeue.
+ * @callback_thread_id: The thread on which to requeue the completion.
  *
  * Return: True if the completion was requeued; callers may not access the completion in this case.
  */

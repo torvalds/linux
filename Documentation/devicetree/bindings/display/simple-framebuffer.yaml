@@ -181,7 +181,6 @@ allOf:
       required:
         - amlogic,pipeline
 
-
 additionalProperties: false
 
 examples:

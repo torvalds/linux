@@ -6,6 +6,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_print.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"

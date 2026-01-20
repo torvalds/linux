@@ -175,6 +175,7 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&main_gpio1 43 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		bootph-all;
 	};
 };
 
@@ -185,7 +186,7 @@
 };
 
 &cpsw_port1 {
-	phy-mode = "rgmii-rxid";
+	phy-mode = "rgmii-id";
 	phy-handle = <&cpsw3g_phy0>;
 	status = "okay";
 };
@@ -260,6 +261,7 @@
 		"", "", "STATUS_OUT_3", "EN_DIG_OUT_4", /* 32-35 */
 		"", "", "STATUS_OUT_4", "DIG_IN_1", /* 36-39 */
 		"DIG_IN_2", "DIG_IN_3", "DIG_IN_4"; /* 40- */
+	bootph-all;
 };
 
 &main_gpio1 {
@@ -285,6 +287,7 @@
 		"", "", "", "", /* 60-63 */
 		"", "", "", "ADC_INT#", /* 64-67 */
 		"BG95_PWRKEY", "BG95_RESET"; /* 68- */
+	bootph-all;
 
 	line50-hog {
 		/* See also usb0 */
@@ -334,6 +337,7 @@
 &main_uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins>;
+	bootph-pre-ram;
 	status = "okay";
 };
 
@@ -493,6 +497,11 @@
 
 &serdes_ln_ctrl {
 	idle-states = <AM64_SERDES0_LANE0_USB>;
+	bootph-all;
+};
+
+&serdes_refclk {
+	bootph-all;
 };
 
 &serdes0 {
@@ -500,6 +509,7 @@
 		reg = <0>;
 		#phy-cells = <0>;
 		resets = <&serdes_wiz0 1>;
+		bootph-all;
 		cdns,num-lanes = <1>;
 		cdns,phy-type = <PHY_TYPE_USB3>;
 	};
@@ -512,6 +522,7 @@
 	cd-gpios = <&main_gpio1 77 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	no-mmc;
+	bootph-all;
 	ti,fails-without-test-cd;
 	/* Enabled by overlay */
 };
@@ -535,9 +546,11 @@
 	maximum-speed = "super-speed";
 	phys = <&serdes0_usb_link>;
 	phy-names = "cdns3,usb3-phy";
+	bootph-all;
 };
 
 &usbss0 {
+	bootph-all;
 	ti,vbus-divider;
 };
 
@@ -625,6 +638,7 @@
 			/* (P19) GPMC0_CSn2.GPIO0_43 - MMC1_CTRL */
 			AM64X_IOPAD(0x00b0, PIN_OUTPUT, 7)
 		>;
+		bootph-all;
 	};
 
 	main_gpio1_hog_pins: main-gpio1-hog-pins {
@@ -748,6 +762,7 @@
 			/* (#N/A) MMC1_CLKLB */
 			AM64X_IOPAD(0x0290, PIN_INPUT, 0)
 		>;
+		bootph-all;
 	};
 
 	main_mmc1_reg_pins: main-mmc1-reg-pins {
@@ -755,6 +770,7 @@
 			/* (C13) SPI0_CS1.GPIO1_43 - MMC1_SD_EN */
 			AM64X_IOPAD(0x020c, PIN_OUTPUT, 7)
 		>;
+		bootph-all;
 	};
 
 	main_mmc1_wifi_pwrseq_pins: main-mmc1-wifi-pwrseq-pins {
@@ -797,6 +813,7 @@
 			/* (C16) UART0_TXD */
 			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0)
 		>;
+		bootph-pre-ram;
 	};
 
 	main_uart1_pins: main-uart1-pins {
@@ -865,6 +882,7 @@
 			/* (E19) USB0_DRVVBUS */
 			AM64X_IOPAD(0x02a8, PIN_OUTPUT, 0)
 		>;
+		bootph-all;
 	};
 
 	pru_icssg1_mdio_pins: pru-icssg1-mdio-pins {

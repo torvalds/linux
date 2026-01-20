@@ -2,6 +2,7 @@
 /* Do not edit directly, auto-generated from: */
 /*	Documentation/netlink/specs/lockd.yaml */
 /* YNL-GEN kernel header */
+/* To regenerate run: tools/net/ynl/ynl-regen.sh */
 
 #ifndef _LINUX_LOCKD_GEN_H
 #define _LINUX_LOCKD_GEN_H

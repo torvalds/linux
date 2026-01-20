@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/ti,omap2-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI OMAP Watchdog Timer Controller
+
+maintainers:
+  - Aaro Koskinen <aaro.koskinen@iki.fi>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ti,omap2-wdt
+          - ti,omap3-wdt
+      - items:
+          - enum:
+              - ti,am4372-wdt
+              - ti,omap4-wdt
+              - ti,omap5-wdt
+          - const: ti,omap3-wdt
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ti,hwmods:
+    description: Name of the hardware module associated with the watchdog.
+    $ref: /schemas/types.yaml#/definitions/string
+    deprecated: true
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    watchdog@48314000 {
+        compatible = "ti,omap3-wdt";
+        reg = <0x48314000 0x80>;
+        ti,hwmods = "wd_timer2";
+    };

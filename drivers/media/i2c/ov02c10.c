@@ -174,7 +174,7 @@ static const struct reg_sequence sensor_1928x1092_30fps_setting[] = {
 	{0x3816, 0x01},
 	{0x3817, 0x01},
 
-	{0x3820, 0xb0},
+	{0x3820, 0xa0},
 	{0x3821, 0x00},
 	{0x3822, 0x80},
 	{0x3823, 0x08},
@@ -385,6 +385,8 @@ struct ov02c10 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
 
 	struct clk *img_clk;
 	struct gpio_desc *reset;
@@ -462,6 +464,16 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov02c10_test_pattern(ov02c10, ctrl->val);
 		break;
 
+	case V4L2_CID_HFLIP:
+		cci_update_bits(ov02c10->regmap, OV02C10_ROTATE_CONTROL,
+				BIT(3), ov02c10->hflip->val << 3, &ret);
+		break;
+
+	case V4L2_CID_VFLIP:
+		cci_update_bits(ov02c10->regmap, OV02C10_ROTATE_CONTROL,
+				BIT(4), ov02c10->vflip->val << 4, &ret);
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -485,7 +497,7 @@ static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 	s64 exposure_max, h_blank, pixel_rate;
 	int ret;
 
-	v4l2_ctrl_handler_init(ctrl_hdlr, 10);
+	v4l2_ctrl_handler_init(ctrl_hdlr, 12);
 
 	ov02c10->link_freq = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 						    &ov02c10_ctrl_ops,
@@ -536,6 +548,17 @@ static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 					      exposure_max,
 					      OV02C10_EXPOSURE_STEP,
 					      exposure_max);
+
+	ov02c10->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops,
+					   V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (ov02c10->hflip)
+		ov02c10->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+
+	ov02c10->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops,
+					   V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (ov02c10->vflip)
+		ov02c10->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &ov02c10_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(ov02c10_test_pattern_menu) - 1,

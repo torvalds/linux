@@ -35,6 +35,7 @@ enum type_state_kind {
 	TSR_KIND_PERCPU_BASE,
 	TSR_KIND_CONST,
 	TSR_KIND_PERCPU_POINTER,
+	TSR_KIND_POINTER,
 	TSR_KIND_CANARY,
 };
 
@@ -173,6 +174,12 @@ extern struct annotated_data_stat ann_data_stat;
 struct type_state_reg {
 	Dwarf_Die type;
 	u32 imm_value;
+	/*
+	 * The offset within the struct that the register points to.
+	 * A value of 0 means the register points to the beginning.
+	 * type_offset = op->offset + reg->offset
+	 */
+	s32 offset;
 	bool ok;
 	bool caller_saved;
 	u8 kind;
@@ -184,6 +191,8 @@ struct type_state_stack {
 	struct list_head list;
 	Dwarf_Die type;
 	int offset;
+	/* pointer offset, saves tsr->offset on the stack state */
+	int ptr_offset;
 	int size;
 	bool compound;
 	u8 kind;
@@ -240,9 +249,10 @@ int annotated_data_type__get_member_name(struct annotated_data_type *adt,
 bool has_reg_type(struct type_state *state, int reg);
 struct type_state_stack *findnew_stack_state(struct type_state *state,
 						int offset, u8 kind,
-						Dwarf_Die *type_die);
+						Dwarf_Die *type_die,
+						int ptr_offset);
 void set_stack_state(struct type_state_stack *stack, int offset, u8 kind,
-				Dwarf_Die *type_die);
+				Dwarf_Die *type_die, int ptr_offset);
 struct type_state_stack *find_stack_state(struct type_state *state,
 						int offset);
 bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,

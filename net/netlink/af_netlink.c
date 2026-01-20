@@ -596,10 +596,8 @@ static void netlink_remove(struct sock *sk)
 
 	table = &nl_table[sk->sk_protocol];
 	if (!rhashtable_remove_fast(&table->hash, &nlk_sk(sk)->node,
-				    netlink_rhashtable_params)) {
-		WARN_ON(refcount_read(&sk->sk_refcnt) == 1);
+				    netlink_rhashtable_params))
 		__sock_put(sk);
-	}
 
 	netlink_table_grab();
 	if (nlk_sk(sk)->subscriptions) {
@@ -968,7 +966,7 @@ static void netlink_undo_bind(int group, long unsigned int groups,
 			nlk->netlink_unbind(sock_net(sk), undo + 1);
 }
 
-static int netlink_bind(struct socket *sock, struct sockaddr *addr,
+static int netlink_bind(struct socket *sock, struct sockaddr_unsized *addr,
 			int addr_len)
 {
 	struct sock *sk = sock->sk;
@@ -1056,7 +1054,7 @@ unlock:
 	return err;
 }
 
-static int netlink_connect(struct socket *sock, struct sockaddr *addr,
+static int netlink_connect(struct socket *sock, struct sockaddr_unsized *addr,
 			   int alen, int flags)
 {
 	int err = 0;

@@ -25,7 +25,7 @@
 
 #define MTE_CTRL_STORE_ONLY		(1UL << 19)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/build_bug.h>
 #include <linux/cache.h>
@@ -172,7 +172,12 @@ struct thread_struct {
 	unsigned long		fault_code;	/* ESR_EL1 value */
 	struct debug_info	debug;		/* debugging */
 
-	struct user_fpsimd_state	kernel_fpsimd_state;
+	/*
+	 * Set [cleared] by kernel_neon_begin() [kernel_neon_end()] to the
+	 * address of a caller provided buffer that will be used to preserve a
+	 * task's kernel mode FPSIMD state while it is scheduled out.
+	 */
+	struct user_fpsimd_state	*kernel_fpsimd_state;
 	unsigned int			kernel_fpsimd_cpu;
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys_user	keys_user;
@@ -437,5 +442,5 @@ int set_tsc_mode(unsigned int val);
 #define GET_TSC_CTL(adr)        get_tsc_mode((adr))
 #define SET_TSC_CTL(val)        set_tsc_mode((val))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_PROCESSOR_H */

@@ -220,7 +220,7 @@ struct fsi_stream {
 	/*
 	 * these are initialized by fsi_handler_init()
 	 */
-	struct fsi_stream_handler *handler;
+	const struct fsi_stream_handler *handler;
 	struct fsi_priv		*priv;
 
 	/*
@@ -1215,13 +1215,13 @@ static int fsi_pio_pop_init(struct fsi_priv *fsi, struct fsi_stream *io)
 	return 0;
 }
 
-static struct fsi_stream_handler fsi_pio_push_handler = {
+static const struct fsi_stream_handler fsi_pio_push_handler = {
 	.init		= fsi_pio_push_init,
 	.transfer	= fsi_pio_push,
 	.start_stop	= fsi_pio_start_stop,
 };
 
-static struct fsi_stream_handler fsi_pio_pop_handler = {
+static const struct fsi_stream_handler fsi_pio_pop_handler = {
 	.init		= fsi_pio_pop_init,
 	.transfer	= fsi_pio_pop,
 	.start_stop	= fsi_pio_start_stop,
@@ -1418,7 +1418,7 @@ static int fsi_dma_remove(struct fsi_priv *fsi, struct fsi_stream *io)
 	return 0;
 }
 
-static struct fsi_stream_handler fsi_dma_push_handler = {
+static const struct fsi_stream_handler fsi_dma_push_handler = {
 	.init		= fsi_dma_init,
 	.probe		= fsi_dma_probe,
 	.transfer	= fsi_dma_transfer,

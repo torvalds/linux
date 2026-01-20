@@ -758,7 +758,7 @@ static inline void alchemy_ic_resume_one(void __iomem *base, unsigned long *d)
 	wmb();
 }
 
-static int alchemy_ic_suspend(void)
+static int alchemy_ic_suspend(void *data)
 {
 	alchemy_ic_suspend_one((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR),
 			       alchemy_gpic_pmdata);
@@ -767,7 +767,7 @@ static int alchemy_ic_suspend(void)
 	return 0;
 }
 
-static void alchemy_ic_resume(void)
+static void alchemy_ic_resume(void *data)
 {
 	alchemy_ic_resume_one((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR),
 			      &alchemy_gpic_pmdata[7]);
@@ -775,7 +775,7 @@ static void alchemy_ic_resume(void)
 			      alchemy_gpic_pmdata);
 }
 
-static int alchemy_gpic_suspend(void)
+static int alchemy_gpic_suspend(void *data)
 {
 	void __iomem *base = (void __iomem *)KSEG1ADDR(AU1300_GPIC_PHYS_ADDR);
 	int i;
@@ -806,7 +806,7 @@ static int alchemy_gpic_suspend(void)
 	return 0;
 }
 
-static void alchemy_gpic_resume(void)
+static void alchemy_gpic_resume(void *data)
 {
 	void __iomem *base = (void __iomem *)KSEG1ADDR(AU1300_GPIC_PHYS_ADDR);
 	int i;
@@ -837,14 +837,22 @@ static void alchemy_gpic_resume(void)
 	wmb();
 }
 
-static struct syscore_ops alchemy_ic_pmops = {
+static const struct syscore_ops alchemy_ic_pmops = {
 	.suspend	= alchemy_ic_suspend,
 	.resume		= alchemy_ic_resume,
 };
 
-static struct syscore_ops alchemy_gpic_pmops = {
+static struct syscore alchemy_ic_pm = {
+	.ops = &alchemy_ic_pmops,
+};
+
+static const struct syscore_ops alchemy_gpic_pmops = {
 	.suspend	= alchemy_gpic_suspend,
 	.resume		= alchemy_gpic_resume,
+};
+
+static struct syscore alchemy_gpic_pm = {
+	.ops = &alchemy_gpic_pmops,
 };
 
 /******************************************************************************/
@@ -880,7 +888,7 @@ static void __init au1000_init_irq(struct alchemy_irqmap *map)
 
 	ic_init((void __iomem *)KSEG1ADDR(AU1000_IC0_PHYS_ADDR));
 	ic_init((void __iomem *)KSEG1ADDR(AU1000_IC1_PHYS_ADDR));
-	register_syscore_ops(&alchemy_ic_pmops);
+	register_syscore(&alchemy_ic_pm);
 	mips_cpu_irq_init();
 
 	/* register all 64 possible IC0+IC1 irq sources as type "none".
@@ -925,7 +933,7 @@ static void __init alchemy_gpic_init_irq(const struct alchemy_irqmap *dints)
 	int i;
 	void __iomem *bank_base;
 
-	register_syscore_ops(&alchemy_gpic_pmops);
+	register_syscore(&alchemy_gpic_pm);
 	mips_cpu_irq_init();
 
 	/* disable & ack all possible interrupt sources */

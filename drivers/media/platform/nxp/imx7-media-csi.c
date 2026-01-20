@@ -2290,4 +2290,3 @@ module_platform_driver(imx7_csi_driver);
 MODULE_DESCRIPTION("i.MX7 CSI subdev driver");
 MODULE_AUTHOR("Rui Miguel Silva <rui.silva@linaro.org>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:imx7-csi");

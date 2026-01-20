@@ -81,7 +81,6 @@ struct cc2_data {
 	struct completion complete;
 	struct device *hwmon;
 	struct i2c_client *client;
-	struct mutex dev_access_lock; /* device access lock */
 	struct regulator *regulator;
 	const char *name;
 	int irq_ready;
@@ -558,8 +557,6 @@ static int cc2_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 {
 	struct cc2_data *data = dev_get_drvdata(dev);
 
-	guard(mutex)(&data->dev_access_lock);
-
 	switch (type) {
 	case hwmon_temp:
 		return cc2_measurement(data, type, val);
@@ -599,8 +596,6 @@ static int cc2_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 
 	if (val < 0 || val > CC2_RH_MAX)
 		return -EINVAL;
-
-	guard(mutex)(&data->dev_access_lock);
 
 	switch (attr) {
 	case hwmon_humidity_min:
@@ -707,8 +702,6 @@ static int cc2_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
-
-	mutex_init(&data->dev_access_lock);
 
 	data->client = client;
 

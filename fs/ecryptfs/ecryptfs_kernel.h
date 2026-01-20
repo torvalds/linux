@@ -14,6 +14,7 @@
 #ifndef ECRYPTFS_KERNEL_H
 #define ECRYPTFS_KERNEL_H
 
+#include <crypto/md5.h>
 #include <crypto/skcipher.h>
 #include <keys/user-type.h>
 #include <keys/encrypted-type.h>
@@ -137,8 +138,6 @@ ecryptfs_get_key_payload_data(struct key *key)
 					+ MAGIC_ECRYPTFS_MARKER_SIZE_BYTES)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
-#define ECRYPTFS_DEFAULT_HASH "md5"
-#define ECRYPTFS_TAG_70_DIGEST ECRYPTFS_DEFAULT_HASH
 #define ECRYPTFS_TAG_1_PACKET_TYPE 0x01
 #define ECRYPTFS_TAG_3_PACKET_TYPE 0x8C
 #define ECRYPTFS_TAG_11_PACKET_TYPE 0xED
@@ -163,8 +162,6 @@ ecryptfs_get_key_payload_data(struct key *key)
  * ECRYPTFS_MAX_IV_BYTES */
 #define ECRYPTFS_FILENAME_MIN_RANDOM_PREPEND_BYTES 16
 #define ECRYPTFS_NON_NULL 0x42 /* A reasonable substitute for NULL */
-#define MD5_DIGEST_SIZE 16
-#define ECRYPTFS_TAG_70_DIGEST_SIZE MD5_DIGEST_SIZE
 #define ECRYPTFS_TAG_70_MIN_METADATA_SIZE (1 + ECRYPTFS_MIN_PKT_LEN_SIZE \
 					   + ECRYPTFS_SIG_SIZE + 1 + 1)
 #define ECRYPTFS_TAG_70_MAX_METADATA_SIZE (1 + ECRYPTFS_MAX_PKT_LEN_SIZE \
@@ -237,8 +234,6 @@ struct ecryptfs_crypt_stat {
 	unsigned int extent_mask;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	struct crypto_skcipher *tfm;
-	struct crypto_shash *hash_tfm; /* Crypto context for generating
-					* the initialization vectors */
 	unsigned char cipher[ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 	unsigned char key[ECRYPTFS_MAX_KEY_BYTES];
 	unsigned char root_iv[ECRYPTFS_MAX_IV_BYTES];
@@ -558,7 +553,7 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 			int sg_size);
 int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_rotate_iv(unsigned char *iv);
-int ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
+void ecryptfs_init_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_crypt_stat(struct ecryptfs_crypt_stat *crypt_stat);
 void ecryptfs_destroy_mount_crypt_stat(
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
@@ -693,8 +688,8 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 			     char *data, size_t max_packet_size);
 int ecryptfs_set_f_namelen(long *namelen, long lower_namelen,
 			   struct ecryptfs_mount_crypt_stat *mount_crypt_stat);
-int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
-		       loff_t offset);
+void ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
+			loff_t offset);
 
 extern const struct xattr_handler * const ecryptfs_xattr_handlers[];
 

@@ -81,8 +81,6 @@ struct qcom_icc_qosbox {
 /**
  * struct qcom_icc_node - Qualcomm specific interconnect nodes
  * @name: the node name used in debugfs
- * @links: an array of nodes where we can go next while traversing
- * @id: a unique node identifier
  * @link_nodes: links associated with this node
  * @node: icc_node associated with this node
  * @num_links: the total number of @links
@@ -96,9 +94,6 @@ struct qcom_icc_qosbox {
  */
 struct qcom_icc_node {
 	const char *name;
-	u16 links[MAX_LINKS];
-	u16 id;
-	struct qcom_icc_node **link_nodes;
 	struct icc_node *node;
 	u16 num_links;
 	u16 channels;
@@ -108,6 +103,7 @@ struct qcom_icc_node {
 	struct qcom_icc_bcm *bcms[MAX_BCM_PER_NODE];
 	size_t num_bcms;
 	const struct qcom_icc_qosbox *qosbox;
+	struct qcom_icc_node *link_nodes[];
 };
 
 /**
@@ -158,7 +154,6 @@ struct qcom_icc_desc {
 	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
 	bool qos_requires_clocks;
-	bool alloc_dyn_id;
 };
 
 int qcom_icc_aggregate(struct icc_node *node, u32 tag, u32 avg_bw,

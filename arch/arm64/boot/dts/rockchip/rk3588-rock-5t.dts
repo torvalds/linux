@@ -130,6 +130,10 @@
 	};
 };
 
+&usb_con {
+	power-role = "source";
+};
+
 &usbdp_phy0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&usbc_sbu_dc>;

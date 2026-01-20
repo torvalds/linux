@@ -150,12 +150,12 @@
 
 #define INTEL_LUNARLAKE_M		IFM(6, 0xBD) /* Lion Cove / Skymont */
 
-#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC) /* Cougar Cove / Crestmont */
+#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC) /* Cougar Cove / Darkmont */
 
 #define INTEL_WILDCATLAKE_L		IFM(6, 0xD5)
 
-#define INTEL_NOVALAKE			IFM(18, 0x01)
-#define INTEL_NOVALAKE_L		IFM(18, 0x03)
+#define INTEL_NOVALAKE			IFM(18, 0x01) /* Coyote Cove / Arctic Wolf */
+#define INTEL_NOVALAKE_L		IFM(18, 0x03) /* Coyote Cove / Arctic Wolf */
 
 /* "Small Core" Processors (Atom/E-Core) */
 

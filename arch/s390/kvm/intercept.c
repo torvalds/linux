@@ -471,6 +471,9 @@ static int handle_operexc(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.sie_block->ipa == 0xb256)
 		return handle_sthyi(vcpu);
 
+	if (vcpu->kvm->arch.user_operexec)
+		return -EOPNOTSUPP;
+
 	if (vcpu->arch.sie_block->ipa == 0 && vcpu->kvm->arch.user_instr0)
 		return -EOPNOTSUPP;
 	rc = read_guest_lc(vcpu, __LC_PGM_NEW_PSW, &newpsw, sizeof(psw_t));

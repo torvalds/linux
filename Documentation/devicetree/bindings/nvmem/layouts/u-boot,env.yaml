@@ -46,6 +46,12 @@ properties:
     type: object
     description: Command to use for automatic booting
 
+  env-size:
+    description:
+      Size in bytes of the environment data used by U-Boot for CRC
+      calculation. If omitted, the full NVMEM region size is used.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
   ethaddr:
     type: object
     description: Ethernet interfaces base MAC address.
@@ -104,6 +110,7 @@ examples:
 
             partition-u-boot-env {
                 compatible = "brcm,env";
+                env-size = <0x20000>;
 
                 ethaddr {
                 };

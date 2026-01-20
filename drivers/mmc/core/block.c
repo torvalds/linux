@@ -349,10 +349,10 @@ static umode_t mmc_disk_attrs_is_visible(struct kobject *kobj,
 	if (a == &dev_attr_ro_lock_until_next_power_on.attr &&
 	    (md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
 	    md->queue.card->ext_csd.boot_ro_lockable) {
-		mode = S_IRUGO;
+		mode = 0444;
 		if (!(md->queue.card->ext_csd.boot_ro_lock &
 				EXT_CSD_BOOT_WP_B_PWR_WP_DIS))
-			mode |= S_IWUSR;
+			mode |= 0200;
 	}
 
 	mmc_blk_put(md);
@@ -957,7 +957,6 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 	u32 result;
 	__be32 *blocks;
 	u8 resp_sz = mmc_card_ult_capacity(card) ? 8 : 4;
-	unsigned int noio_flag;
 
 	struct mmc_request mrq = {};
 	struct mmc_command cmd = {};
@@ -982,9 +981,7 @@ static int mmc_sd_num_wr_blocks(struct mmc_card *card, u32 *written_blocks)
 	mrq.cmd = &cmd;
 	mrq.data = &data;
 
-	noio_flag = memalloc_noio_save();
-	blocks = kmalloc(resp_sz, GFP_KERNEL);
-	memalloc_noio_restore(noio_flag);
+	blocks = kmalloc(resp_sz, GFP_NOIO);
 	if (!blocks)
 		return -ENOMEM;
 
@@ -3194,7 +3191,7 @@ static void mmc_blk_add_debugfs(struct mmc_card *card, struct mmc_blk_data *md)
 
 	if (mmc_card_mmc(card)) {
 		md->ext_csd_dentry =
-			debugfs_create_file("ext_csd", S_IRUSR, root, card,
+			debugfs_create_file("ext_csd", 0400, root, card,
 					    &mmc_dbg_ext_csd_fops);
 	}
 }
@@ -3275,7 +3272,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 	mmc_fixup_device(card, mmc_blk_fixups);
 
 	card->complete_wq = alloc_workqueue("mmc_complete",
-					WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+					WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_PERCPU,
+					0);
 	if (!card->complete_wq) {
 		pr_err("Failed to create mmc completion workqueue");
 		return -ENOMEM;

@@ -13,6 +13,7 @@
 
 本文档包含了在内核中使用Rust支持时需要了解的有用信息。
 
+.. _rust_code_documentation_zh_cn:
 
 代码文档
 --------

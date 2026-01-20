@@ -43,8 +43,7 @@
 # define MUTEX_WARN_ON(cond)
 #endif
 
-void
-__mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
+static void __mutex_init_generic(struct mutex *lock)
 {
 	atomic_long_set(&lock->owner, 0);
 	raw_spin_lock_init(&lock->wait_lock);
@@ -52,10 +51,8 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
 	osq_lock_init(&lock->osq);
 #endif
-
-	debug_mutex_init(lock, name, key);
+	debug_mutex_init(lock);
 }
-EXPORT_SYMBOL(__mutex_init);
 
 static inline struct task_struct *__owner_task(unsigned long owner)
 {
@@ -142,6 +139,11 @@ static inline bool __mutex_trylock(struct mutex *lock)
  * There is nothing that would stop spreading the lockdep annotations outwards
  * except more code.
  */
+void mutex_init_generic(struct mutex *lock)
+{
+	__mutex_init_generic(lock);
+}
+EXPORT_SYMBOL(mutex_init_generic);
 
 /*
  * Optimistic trylock that only works in the uncontended case. Make sure to
@@ -166,7 +168,21 @@ static __always_inline bool __mutex_unlock_fast(struct mutex *lock)
 
 	return atomic_long_try_cmpxchg_release(&lock->owner, &curr, 0UL);
 }
-#endif
+
+#else /* !CONFIG_DEBUG_LOCK_ALLOC */
+
+void mutex_init_lockep(struct mutex *lock, const char *name, struct lock_class_key *key)
+{
+	__mutex_init_generic(lock);
+
+	/*
+	 * Make sure we are not reinitializing a held lock:
+	 */
+	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	lockdep_init_map_wait(&lock->dep_map, name, key, 0, LD_WAIT_SLEEP);
+}
+EXPORT_SYMBOL(mutex_init_lockep);
+#endif /* !CONFIG_DEBUG_LOCK_ALLOC */
 
 static inline void __mutex_set_flag(struct mutex *lock, unsigned long flag)
 {

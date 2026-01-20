@@ -50,6 +50,7 @@ typedef __kernel_old_gid_t	old_gid_t;
 
 #if defined(__GNUC__)
 typedef __kernel_loff_t		loff_t;
+typedef __kernel_uoff_t		uoff_t;
 #endif
 
 /*

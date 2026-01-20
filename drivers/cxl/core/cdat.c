@@ -826,7 +826,7 @@ static struct xarray *cxl_switch_gather_bandwidth(struct cxl_region *cxlr,
 		cxl_coordinates_combine(coords, coords, ctx->coord);
 
 		/*
-		 * Take the min of the calculated bandwdith and the upstream
+		 * Take the min of the calculated bandwidth and the upstream
 		 * switch SSLBIS bandwidth if there's a parent switch
 		 */
 		if (!is_root)
@@ -949,7 +949,7 @@ static struct xarray *cxl_hb_gather_bandwidth(struct xarray *xa)
 /**
  * cxl_region_update_bandwidth - Update the bandwidth access coordinates of a region
  * @cxlr: The region being operated on
- * @input_xa: xarray holds cxl_perf_ctx wht calculated bandwidth per ACPI0017 instance
+ * @input_xa: xarray holds cxl_perf_ctx with calculated bandwidth per ACPI0017 instance
  */
 static void cxl_region_update_bandwidth(struct cxl_region *cxlr,
 					struct xarray *input_xa)

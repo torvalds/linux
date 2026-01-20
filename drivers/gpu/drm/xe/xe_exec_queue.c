@@ -10,6 +10,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_syncobj.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "xe_dep_scheduler.h"
@@ -368,6 +369,16 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 	}
 	xe_vm_put(migrate_vm);
 
+	if (!IS_ERR(q)) {
+		int err = drm_syncobj_create(&q->ufence_syncobj,
+					     DRM_SYNCOBJ_CREATE_SIGNALED,
+					     NULL);
+		if (err) {
+			xe_exec_queue_put(q);
+			return ERR_PTR(err);
+		}
+	}
+
 	return q;
 }
 ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
@@ -376,11 +387,20 @@ void xe_exec_queue_destroy(struct kref *ref)
 {
 	struct xe_exec_queue *q = container_of(ref, struct xe_exec_queue, refcount);
 	struct xe_exec_queue *eq, *next;
+	int i;
+
+	xe_assert(gt_to_xe(q->gt), atomic_read(&q->job_cnt) == 0);
+
+	if (q->ufence_syncobj)
+		drm_syncobj_put(q->ufence_syncobj);
 
 	if (xe_exec_queue_uses_pxp(q))
 		xe_pxp_exec_queue_remove(gt_to_xe(q->gt)->pxp, q);
 
 	xe_exec_queue_last_fence_put_unlocked(q);
+	for_each_tlb_inval(i)
+		xe_exec_queue_tlb_inval_last_fence_put_unlocked(q, i);
+
 	if (!(q->flags & EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD)) {
 		list_for_each_entry_safe(eq, next, &q->multi_gt_list,
 					 multi_gt_link)
@@ -998,7 +1018,9 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 static void xe_exec_queue_last_fence_lockdep_assert(struct xe_exec_queue *q,
 						    struct xe_vm *vm)
 {
-	if (q->flags & EXEC_QUEUE_FLAG_VM) {
+	if (q->flags & EXEC_QUEUE_FLAG_MIGRATE) {
+		xe_migrate_job_lock_assert(q);
+	} else if (q->flags & EXEC_QUEUE_FLAG_VM) {
 		lockdep_assert_held(&vm->lock);
 	} else {
 		xe_vm_assert_held(vm);
@@ -1097,32 +1119,104 @@ void xe_exec_queue_last_fence_set(struct xe_exec_queue *q, struct xe_vm *vm,
 				  struct dma_fence *fence)
 {
 	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+	xe_assert(vm->xe, !dma_fence_is_container(fence));
 
 	xe_exec_queue_last_fence_put(q, vm);
 	q->last_fence = dma_fence_get(fence);
 }
 
 /**
- * xe_exec_queue_last_fence_test_dep - Test last fence dependency of queue
+ * xe_exec_queue_tlb_inval_last_fence_put() - Drop ref to last TLB invalidation fence
  * @q: The exec queue
- * @vm: The VM the engine does a bind or exec for
- *
- * Returns:
- * -ETIME if there exists an unsignalled last fence dependency, zero otherwise.
+ * @vm: The VM the engine does a bind for
+ * @type: Either primary or media GT
  */
-int xe_exec_queue_last_fence_test_dep(struct xe_exec_queue *q, struct xe_vm *vm)
+void xe_exec_queue_tlb_inval_last_fence_put(struct xe_exec_queue *q,
+					    struct xe_vm *vm,
+					    unsigned int type)
+{
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+	xe_assert(vm->xe, type == XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT ||
+		  type == XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
+
+	xe_exec_queue_tlb_inval_last_fence_put_unlocked(q, type);
+}
+
+/**
+ * xe_exec_queue_tlb_inval_last_fence_put_unlocked() - Drop ref to last TLB
+ * invalidation fence unlocked
+ * @q: The exec queue
+ * @type: Either primary or media GT
+ *
+ * Only safe to be called from xe_exec_queue_destroy().
+ */
+void xe_exec_queue_tlb_inval_last_fence_put_unlocked(struct xe_exec_queue *q,
+						     unsigned int type)
+{
+	xe_assert(q->vm->xe, type == XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT ||
+		  type == XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
+
+	dma_fence_put(q->tlb_inval[type].last_fence);
+	q->tlb_inval[type].last_fence = NULL;
+}
+
+/**
+ * xe_exec_queue_tlb_inval_last_fence_get() - Get last fence for TLB invalidation
+ * @q: The exec queue
+ * @vm: The VM the engine does a bind for
+ * @type: Either primary or media GT
+ *
+ * Get last fence, takes a ref
+ *
+ * Returns: last fence if not signaled, dma fence stub if signaled
+ */
+struct dma_fence *xe_exec_queue_tlb_inval_last_fence_get(struct xe_exec_queue *q,
+							 struct xe_vm *vm,
+							 unsigned int type)
 {
 	struct dma_fence *fence;
-	int err = 0;
 
-	fence = xe_exec_queue_last_fence_get(q, vm);
-	if (fence) {
-		err = test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) ?
-			0 : -ETIME;
-		dma_fence_put(fence);
-	}
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+	xe_assert(vm->xe, type == XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT ||
+		  type == XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
+	xe_assert(vm->xe, q->flags & (EXEC_QUEUE_FLAG_VM |
+				      EXEC_QUEUE_FLAG_MIGRATE));
 
-	return err;
+	if (q->tlb_inval[type].last_fence &&
+	    test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+		     &q->tlb_inval[type].last_fence->flags))
+		xe_exec_queue_tlb_inval_last_fence_put(q, vm, type);
+
+	fence = q->tlb_inval[type].last_fence ?: dma_fence_get_stub();
+	dma_fence_get(fence);
+	return fence;
+}
+
+/**
+ * xe_exec_queue_tlb_inval_last_fence_set() - Set last fence for TLB invalidation
+ * @q: The exec queue
+ * @vm: The VM the engine does a bind for
+ * @fence: The fence
+ * @type: Either primary or media GT
+ *
+ * Set the last fence for the tlb invalidation type on the queue. Increases
+ * reference count for fence, when closing queue
+ * xe_exec_queue_tlb_inval_last_fence_put should be called.
+ */
+void xe_exec_queue_tlb_inval_last_fence_set(struct xe_exec_queue *q,
+					    struct xe_vm *vm,
+					    struct dma_fence *fence,
+					    unsigned int type)
+{
+	xe_exec_queue_last_fence_lockdep_assert(q, vm);
+	xe_assert(vm->xe, type == XE_EXEC_QUEUE_TLB_INVAL_MEDIA_GT ||
+		  type == XE_EXEC_QUEUE_TLB_INVAL_PRIMARY_GT);
+	xe_assert(vm->xe, q->flags & (EXEC_QUEUE_FLAG_VM |
+				      EXEC_QUEUE_FLAG_MIGRATE));
+	xe_assert(vm->xe, !dma_fence_is_container(fence));
+
+	xe_exec_queue_tlb_inval_last_fence_put(q, vm, type);
+	q->tlb_inval[type].last_fence = dma_fence_get(fence);
 }
 
 /**

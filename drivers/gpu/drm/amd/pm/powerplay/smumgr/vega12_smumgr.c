@@ -68,7 +68,7 @@ static int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return -EINVAL);
 
-	amdgpu_asic_invalidate_hdp(adev, NULL);
+	amdgpu_hdp_invalidate(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -98,7 +98,7 @@ static int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	amdgpu_asic_flush_hdp(adev, NULL);
+	amdgpu_hdp_flush(adev, NULL);
 
 	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,

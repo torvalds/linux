@@ -15,6 +15,7 @@
 #define CPU_PMU				(_ULCAST_(1) << 10)
 #define CPU_TIMER			(_ULCAST_(1) << 11)
 #define CPU_IPI				(_ULCAST_(1) << 12)
+#define CPU_AVEC                        (_ULCAST_(1) << 14)
 
 /* Controlled by 0x52 guest exception VIP aligned to estat bit 5~12 */
 #define CPU_IP0				(_ULCAST_(1))

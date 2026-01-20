@@ -17,23 +17,11 @@
 #define __NUM_VXRS_LOW		16
 #define __NUM_VXRS_HIGH		16
 
-#ifndef __s390x__
-
-/* Has to be at least _NSIG_WORDS from asm/signal.h */
-#define _SIGCONTEXT_NSIG	64
-#define _SIGCONTEXT_NSIG_BPW	32
-/* Size of stack frame allocated when calling signal handler. */
-#define __SIGNAL_FRAMESIZE	96
-
-#else /* __s390x__ */
-
 /* Has to be at least _NSIG_WORDS from asm/signal.h */
 #define _SIGCONTEXT_NSIG	64
 #define _SIGCONTEXT_NSIG_BPW	64 
 /* Size of stack frame allocated when calling signal handler. */
 #define __SIGNAL_FRAMESIZE	160
-
-#endif /* __s390x__ */
 
 #define _SIGCONTEXT_NSIG_WORDS	(_SIGCONTEXT_NSIG / _SIGCONTEXT_NSIG_BPW)
 #define _SIGMASK_COPY_SIZE	(sizeof(unsigned long)*_SIGCONTEXT_NSIG_WORDS)
@@ -66,9 +54,6 @@ typedef struct
 
 typedef struct
 {
-#ifndef __s390x__
-	unsigned long gprs_high[__NUM_GPRS];
-#endif
 	unsigned long long vxrs_low[__NUM_VXRS_LOW];
 	__vector128 vxrs_high[__NUM_VXRS_HIGH];
 	unsigned char __reserved[128];

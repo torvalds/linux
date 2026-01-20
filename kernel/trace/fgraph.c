@@ -163,7 +163,7 @@ enum {
 #define RET_STACK(t, offset) ((struct ftrace_ret_stack *)(&(t)->ret_stack[offset]))
 
 /*
- * Each fgraph_ops has a reservered unsigned long at the end (top) of the
+ * Each fgraph_ops has a reserved unsigned long at the end (top) of the
  * ret_stack to store task specific state.
  */
 #define SHADOW_STACK_TASK_VARS(ret_stack) \
@@ -497,9 +497,6 @@ found:
 		*size_bytes = __get_data_size(val) * sizeof(long);
 	return get_data_type_data(current, offset);
 }
-
-/* Both enabled by default (can be cleared by function_graph tracer flags */
-bool fgraph_sleep_time = true;
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
@@ -1019,13 +1016,9 @@ void fgraph_init_ops(struct ftrace_ops *dst_ops,
 		mutex_init(&dst_ops->local_hash.regex_lock);
 		INIT_LIST_HEAD(&dst_ops->subop_list);
 		dst_ops->flags |= FTRACE_OPS_FL_INITIALIZED;
+		dst_ops->private = src_ops->private;
 	}
 #endif
-}
-
-void ftrace_graph_sleep_time_control(bool enable)
-{
-	fgraph_sleep_time = enable;
 }
 
 /*
@@ -1098,7 +1091,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 	 * Does the user want to count the time a function was asleep.
 	 * If so, do not update the time stamps.
 	 */
-	if (fgraph_sleep_time)
+	if (!fgraph_no_sleep_time)
 		return;
 
 	timestamp = trace_clock_local();
@@ -1376,6 +1369,13 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 
 	ftrace_graph_active++;
 
+	/* Always save the function, and reset at unregistering */
+	gops->saved_func = gops->entryfunc;
+#ifdef CONFIG_DYNAMIC_FTRACE
+	if (ftrace_pids_enabled(&gops->ops))
+		gops->entryfunc = fgraph_pid_func;
+#endif
+
 	if (ftrace_graph_active == 2)
 		ftrace_graph_disable_direct(true);
 
@@ -1395,8 +1395,6 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 	} else {
 		init_task_vars(gops->idx);
 	}
-	/* Always save the function, and reset at unregistering */
-	gops->saved_func = gops->entryfunc;
 
 	gops->ops.flags |= FTRACE_OPS_FL_GRAPH;
 

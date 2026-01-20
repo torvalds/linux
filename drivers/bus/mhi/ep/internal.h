@@ -11,7 +11,7 @@
 
 #include "../common.h"
 
-extern struct bus_type mhi_ep_bus_type;
+extern const struct bus_type mhi_ep_bus_type;
 
 #define MHI_REG_OFFSET				0x100
 #define BHI_REG_OFFSET				0x200

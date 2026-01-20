@@ -155,7 +155,7 @@ static int sof_8336_trigger(struct snd_pcm_substream *substream, int cmd)
 static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
 					  struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_card *card = w->dapm->card;
+	struct snd_soc_card *card = snd_soc_dapm_to_card(w->dapm);
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
 
 	if (priv->speaker_en == !SND_SOC_DAPM_EVENT_ON(event))
@@ -163,7 +163,7 @@ static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
 
 	priv->speaker_en = !SND_SOC_DAPM_EVENT_ON(event);
 
-	queue_delayed_work(system_wq, &priv->pcm_pop_work, msecs_to_jiffies(70));
+	queue_delayed_work(system_dfl_wq, &priv->pcm_pop_work, msecs_to_jiffies(70));
 	return 0;
 }
 
@@ -231,16 +231,17 @@ static struct snd_soc_jack_pin sof_es8316_jack_pins[] = {
 static int dmic_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	int ret;
 
-	ret = snd_soc_dapm_new_controls(&card->dapm, dmic_widgets,
+	ret = snd_soc_dapm_new_controls(dapm, dmic_widgets,
 					ARRAY_SIZE(dmic_widgets));
 	if (ret) {
 		dev_err(card->dev, "DMic widget addition failed: %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, dmic_map,
+	ret = snd_soc_dapm_add_routes(dapm, dmic_map,
 				      ARRAY_SIZE(dmic_map));
 	if (ret)
 		dev_err(card->dev, "DMic map addition failed: %d\n", ret);
@@ -271,12 +272,13 @@ static int sof_es8316_init(struct snd_soc_pcm_runtime *runtime)
 {
 	struct snd_soc_component *codec = snd_soc_rtd_to_codec(runtime, 0)->component;
 	struct snd_soc_card *card = runtime->card;
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct sof_es8336_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
 	int num_routes;
 	int ret;
 
-	card->dapm.idle_bias = false;
+	snd_soc_dapm_set_idle_bias(dapm, false);
 
 	if (quirk & SOC_ES8336_HEADSET_MIC1) {
 		custom_map = sof_es8316_headset_mic1_map;
@@ -286,7 +288,7 @@ static int sof_es8316_init(struct snd_soc_pcm_runtime *runtime)
 		num_routes = ARRAY_SIZE(sof_es8316_headset_mic2_map);
 	}
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, custom_map, num_routes);
+	ret = snd_soc_dapm_add_routes(dapm, custom_map, num_routes);
 	if (ret)
 		return ret;
 

@@ -4,8 +4,7 @@
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-#define KMSG_COMPONENT "cpu"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "cpu: " fmt
 
 #include <linux/stop_machine.h>
 #include <linux/cpufeature.h>

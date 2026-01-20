@@ -986,7 +986,7 @@ static int ath10k_qmi_new_server(struct qmi_handle *qmi_hdl,
 
 	ath10k_dbg(ar, ATH10K_DBG_QMI, "wifi fw qmi service found\n");
 
-	ret = kernel_connect(qmi_hdl->sock, (struct sockaddr *)&qmi->sq,
+	ret = kernel_connect(qmi_hdl->sock, (struct sockaddr_unsized *)&qmi->sq,
 			     sizeof(qmi->sq), 0);
 	if (ret) {
 		ath10k_err(ar, "failed to connect to a remote QMI service port\n");

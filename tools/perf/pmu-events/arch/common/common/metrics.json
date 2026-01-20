@@ -1,0 +1,151 @@
+[
+    {
+        "BriefDescription": "Average CPU utilization",
+        "MetricExpr": "(software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@) / (duration_time * 1e9)",
+        "MetricGroup": "Default",
+        "MetricName": "CPUs_utilized",
+        "ScaleUnit": "1CPUs",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Context switches per CPU second",
+        "MetricExpr": "(software@context\\-switches\\,name\\=context\\-switches@ * 1e9) / (software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@)",
+        "MetricGroup": "Default",
+        "MetricName": "cs_per_second",
+        "ScaleUnit": "1cs/sec",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Process migrations to a new CPU per CPU second",
+        "MetricExpr": "(software@cpu\\-migrations\\,name\\=cpu\\-migrations@ * 1e9) / (software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@)",
+        "MetricGroup": "Default",
+        "MetricName": "migrations_per_second",
+        "ScaleUnit": "1migrations/sec",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Page faults per CPU second",
+        "MetricExpr": "(software@page\\-faults\\,name\\=page\\-faults@ * 1e9) / (software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@)",
+        "MetricGroup": "Default",
+        "MetricName": "page_faults_per_second",
+        "ScaleUnit": "1faults/sec",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Instructions Per Cycle",
+        "MetricExpr": "instructions / cpu\\-cycles",
+        "MetricGroup": "Default",
+        "MetricName": "insn_per_cycle",
+        "MetricThreshold": "insn_per_cycle < 1",
+        "ScaleUnit": "1instructions",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Max front or backend stalls per instruction",
+        "MetricExpr": "max(stalled\\-cycles\\-frontend, stalled\\-cycles\\-backend) / instructions",
+        "MetricGroup": "Default",
+        "MetricName": "stalled_cycles_per_instruction",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Frontend stalls per cycle",
+        "MetricExpr": "stalled\\-cycles\\-frontend / cpu\\-cycles",
+        "MetricGroup": "Default",
+        "MetricName": "frontend_cycles_idle",
+        "MetricThreshold": "frontend_cycles_idle > 0.1",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Backend stalls per cycle",
+        "MetricExpr": "stalled\\-cycles\\-backend / cpu\\-cycles",
+        "MetricGroup": "Default",
+        "MetricName": "backend_cycles_idle",
+        "MetricThreshold": "backend_cycles_idle > 0.2",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Cycles per CPU second",
+        "MetricExpr": "cpu\\-cycles / (software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@)",
+        "MetricGroup": "Default",
+        "MetricName": "cycles_frequency",
+        "ScaleUnit": "1GHz",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Branches per CPU second",
+        "MetricExpr": "branches / (software@cpu\\-clock\\,name\\=cpu\\-clock@ if #target_cpu else software@task\\-clock\\,name\\=task\\-clock@)",
+        "MetricGroup": "Default",
+        "MetricName": "branch_frequency",
+        "ScaleUnit": "1000M/sec",
+        "MetricConstraint": "NO_GROUP_EVENTS",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "Branch miss rate",
+        "MetricExpr": "branch\\-misses / branches",
+        "MetricGroup": "Default",
+        "MetricName": "branch_miss_rate",
+        "MetricThreshold": "branch_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "L1D  miss rate",
+        "MetricExpr": "L1\\-dcache\\-load\\-misses / L1\\-dcache\\-loads",
+        "MetricGroup": "Default2",
+        "MetricName": "l1d_miss_rate",
+        "MetricThreshold": "l1d_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "LLC miss rate",
+        "MetricExpr": "LLC\\-load\\-misses / LLC\\-loads",
+        "MetricGroup": "Default2",
+        "MetricName": "llc_miss_rate",
+        "MetricThreshold": "llc_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "L1I miss rate",
+        "MetricExpr": "L1\\-icache\\-load\\-misses / L1\\-icache\\-loads",
+        "MetricGroup": "Default3",
+        "MetricName": "l1i_miss_rate",
+        "MetricThreshold": "l1i_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "dTLB miss rate",
+        "MetricExpr": "dTLB\\-load\\-misses / dTLB\\-loads",
+        "MetricGroup": "Default3",
+        "MetricName": "dtlb_miss_rate",
+        "MetricThreshold": "dtlb_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "iTLB miss rate",
+        "MetricExpr": "iTLB\\-load\\-misses / iTLB\\-loads",
+        "MetricGroup": "Default3",
+        "MetricName": "itlb_miss_rate",
+        "MetricThreshold": "itlb_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    },
+    {
+        "BriefDescription": "L1 prefetch miss rate",
+        "MetricExpr": "L1\\-dcache\\-prefetch\\-misses / L1\\-dcache\\-prefetches",
+        "MetricGroup": "Default4",
+        "MetricName": "l1_prefetch_miss_rate",
+        "MetricThreshold": "l1_prefetch_miss_rate > 0.05",
+        "ScaleUnit": "100%",
+        "DefaultShowEvents": "1"
+    }
+]

@@ -162,6 +162,11 @@ int ras_process_handle_ras_event(struct ras_core_context *ras_core)
 	uint32_t umc_event_count;
 	int ret;
 
+	ret = ras_core_event_notify(ras_core,
+			RAS_EVENT_ID__RAS_EVENT_PROC_BEGIN, NULL);
+	if (ret)
+		return ret;
+
 	ras_aca_clear_fatal_flag(ras_core);
 	ras_umc_log_pending_bad_bank(ras_core);
 
@@ -185,6 +190,8 @@ int ras_process_handle_ras_event(struct ras_core_context *ras_core)
 		atomic_set(&ras_proc->umc_interrupt_count, 0);
 	}
 
+	ras_core_event_notify(ras_core,
+			RAS_EVENT_ID__RAS_EVENT_PROC_END, NULL);
 	return ret;
 }
 

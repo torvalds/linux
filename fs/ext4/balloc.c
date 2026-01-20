@@ -752,7 +752,7 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 		*count = ar.len;
 	/*
 	 * Account for the allocated meta blocks.  We will never
-	 * fail EDQUOT for metdata, but we do account for it.
+	 * fail EDQUOT for metadata, but we do account for it.
 	 */
 	if (!(*errp) && (flags & EXT4_MB_DELALLOC_RESERVED)) {
 		dquot_alloc_block_nofail(inode,

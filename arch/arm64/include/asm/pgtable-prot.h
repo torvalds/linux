@@ -62,7 +62,7 @@
 #define _PAGE_READONLY_EXEC	(_PAGE_DEFAULT | PTE_USER | PTE_RDONLY | PTE_NG | PTE_PXN)
 #define _PAGE_EXECONLY		(_PAGE_DEFAULT | PTE_RDONLY | PTE_NG | PTE_PXN)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/cpufeature.h>
 #include <asm/pgtable-types.h>
@@ -84,7 +84,7 @@ extern unsigned long prot_ns_shared;
 #else
 static inline bool __pure lpa2_is_enabled(void)
 {
-	return read_tcr() & TCR_DS;
+	return read_tcr() & TCR_EL1_DS;
 }
 
 #define PTE_MAYBE_SHARED	(lpa2_is_enabled() ? 0 : PTE_SHARED)
@@ -127,7 +127,7 @@ static inline bool __pure lpa2_is_enabled(void)
 #define PAGE_READONLY_EXEC	__pgprot(_PAGE_READONLY_EXEC)
 #define PAGE_EXECONLY		__pgprot(_PAGE_EXECONLY)
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define pte_pi_index(pte) ( \
 	((pte & BIT(PTE_PI_IDX_3)) >> (PTE_PI_IDX_3 - 3)) | \

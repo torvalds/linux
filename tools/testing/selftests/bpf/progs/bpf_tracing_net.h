@@ -146,6 +146,20 @@
 
 #define tcp_jiffies32 ((__u32)bpf_jiffies64())
 
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+static inline bool before(__u32 seq1, __u32 seq2)
+{
+	return (__s32)(seq1 - seq2) < 0;
+}
+
+#define after(seq2, seq1) before(seq1, seq2)
+
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {
 	return (struct inet_connection_sock *)sk;

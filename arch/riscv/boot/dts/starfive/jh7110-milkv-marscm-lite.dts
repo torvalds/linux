@@ -14,6 +14,7 @@
 &mmc0 {
 	bus-width = <4>;
 	cd-gpios = <&sysgpio 41 GPIO_ACTIVE_LOW>;
+	disable-wp;
 };
 
 &mmc0_pins {

@@ -14,7 +14,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <linux/unistd.h>
-#include "../kselftest_harness.h"
+#include "kselftest_harness.h"
 
 #ifndef FD_NSFS_ROOT
 #define FD_NSFS_ROOT -10003 /* Root of the nsfs filesystem */

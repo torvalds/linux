@@ -39,10 +39,10 @@
 #include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
-#include "i915_utils.h"
 #include "i9xx_plane.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_fb.h"
 #include "intel_frontbuffer.h"
 #include "intel_plane.h"
@@ -958,10 +958,9 @@ static int g4x_sprite_min_cdclk(const struct intel_crtc_state *crtc_state,
 
 static unsigned int
 g4x_sprite_max_stride(struct intel_plane *plane,
-		      u32 pixel_format, u64 modifier,
-		      unsigned int rotation)
+		      const struct drm_format_info *info,
+		      u64 modifier, unsigned int rotation)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	/* Limit to 4k pixels to guarantee TILEOFF.x doesn't get too big. */
@@ -973,10 +972,9 @@ g4x_sprite_max_stride(struct intel_plane *plane,
 
 static unsigned int
 hsw_sprite_max_stride(struct intel_plane *plane,
-		      u32 pixel_format, u64 modifier,
-		      unsigned int rotation)
+		      const struct drm_format_info *info,
+		      u64 modifier, unsigned int rotation)
 {
-	const struct drm_format_info *info = drm_format_info(pixel_format);
 	int cpp = info->cpp[0];
 
 	/* Limit to 8k pixels to guarantee OFFSET.x doesn't get too big. */

@@ -60,9 +60,9 @@ void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp);
 
 /* Must be to check available of PTP before call */
 void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
-				struct hwtstamp_config *config);
+				struct kernel_hwtstamp_config *config);
 int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
-			       struct hwtstamp_config *config);
+			       struct kernel_hwtstamp_config *config);
 
 /* Return either ring is belong to PTP or not*/
 bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring);
@@ -130,9 +130,9 @@ static inline int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 
 static inline void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp) {}
 static inline void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
-					      struct hwtstamp_config *config) {}
+					      struct kernel_hwtstamp_config *config) {}
 static inline int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
-					     struct hwtstamp_config *config)
+					     struct kernel_hwtstamp_config *config)
 {
 	return 0;
 }

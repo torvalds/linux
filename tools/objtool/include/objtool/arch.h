@@ -71,7 +71,7 @@ struct stack_op {
 
 struct instruction;
 
-int arch_ftrace_match(char *name);
+int arch_ftrace_match(const char *name);
 
 void arch_initial_func_cfi_state(struct cfi_init_state *state);
 
@@ -83,7 +83,8 @@ bool arch_callee_saved_reg(unsigned char reg);
 
 unsigned long arch_jump_destination(struct instruction *insn);
 
-unsigned long arch_dest_reloc_offset(int addend);
+s64 arch_insn_adjusted_addend(struct instruction *insn, struct reloc *reloc);
+u64 arch_adjusted_addend(struct reloc *reloc);
 
 const char *arch_nop_insn(int len);
 const char *arch_ret_insn(int len);
@@ -101,5 +102,16 @@ bool arch_absolute_reloc(struct elf *elf, struct reloc *reloc);
 
 unsigned int arch_reloc_size(struct reloc *reloc);
 unsigned long arch_jump_table_sym_offset(struct reloc *reloc, struct reloc *table);
+
+extern const char *arch_reg_name[CFI_NUM_REGS];
+
+#ifdef DISAS
+
+#include <bfd.h>
+#include <dis-asm.h>
+
+int arch_disas_info_init(struct disassemble_info *dinfo);
+
+#endif /* DISAS */
 
 #endif /* _ARCH_H */

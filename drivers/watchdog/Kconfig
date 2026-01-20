@@ -969,6 +969,14 @@ config RENESAS_WDT
 	  This driver adds watchdog support for the integrated watchdogs in the
 	  Renesas R-Car and other SH-Mobile SoCs (usually named RWDT or SWDT).
 
+config RENESAS_WWDT
+	tristate "Renesas Window WWDT Watchdog"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  This driver adds watchdog support for a window timer found in some
+	  Renesas R-Car Gen3 and later SoCs.
+
 config RENESAS_RZAWDT
 	tristate "Renesas RZ/A WDT Watchdog"
 	depends on ARCH_RENESAS || COMPILE_TEST
@@ -1976,10 +1984,10 @@ config LANTIQ_WDT
 
 config LOONGSON1_WDT
 	tristate "Loongson1 SoC hardware watchdog"
-	depends on MACH_LOONGSON32 || COMPILE_TEST
+	depends on MACH_LOONGSON32 || MACH_LOONGSON64 || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
-	  Hardware driver for the Loongson1 SoC Watchdog Timer.
+	  Hardware driver for the Loongson family Watchdog Timer.
 
 config RALINK_WDT
 	tristate "Ralink SoC watchdog"

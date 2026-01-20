@@ -20,8 +20,7 @@
  *    CP Programming Service, IBM document # SC24-5760
  */
 
-#define KMSG_COMPONENT "iucv"
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+#define pr_fmt(fmt) "iucv: " fmt
 
 #include <linux/kernel_stat.h>
 #include <linux/export.h>
@@ -95,7 +94,7 @@ struct device *iucv_alloc_device(const struct attribute_group **attrs,
 	if (!dev)
 		goto out_error;
 	va_start(vargs, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, vargs);
+	vscnprintf(buf, sizeof(buf), fmt, vargs);
 	rc = dev_set_name(dev, "%s", buf);
 	va_end(vargs);
 	if (rc)

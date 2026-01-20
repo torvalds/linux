@@ -974,8 +974,6 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 		}
 	}
 
-	link_hwss->setup_stream_attribute(pipe_ctx);
-
 	if (dc->res_pool->dccg->funcs->set_pixel_rate_div) {
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
 			dc->res_pool->dccg,
@@ -3674,6 +3672,8 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	if ((pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||
 	     pipe_ctx->update_flags.bits.scaler || viewport_changed == true) &&
 	    pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
+
+		hwss_add_abort_cursor_offload_update(seq_state, dc, pipe_ctx);
 
 		hwss_add_set_cursor_attribute(seq_state, dc, pipe_ctx);
 

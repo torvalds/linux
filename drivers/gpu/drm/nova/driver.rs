@@ -45,13 +45,13 @@ impl auxiliary::Driver for NovaDriver {
     type IdInfo = ();
     const ID_TABLE: auxiliary::IdTable<Self::IdInfo> = &AUX_TABLE;
 
-    fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> Result<Pin<KBox<Self>>> {
+    fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         let data = try_pin_init!(NovaData { adev: adev.into() });
 
         let drm = drm::Device::<Self>::new(adev.as_ref(), data)?;
         drm::Registration::new_foreign_owned(&drm, adev.as_ref(), 0)?;
 
-        Ok(KBox::new(Self { drm }, GFP_KERNEL)?.into())
+        Ok(Self { drm })
     }
 }
 

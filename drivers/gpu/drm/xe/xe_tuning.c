@@ -8,6 +8,7 @@
 #include <kunit/visibility.h>
 
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "regs/xe_gt_regs.h"
 #include "xe_gt_types.h"

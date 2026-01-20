@@ -207,6 +207,7 @@ static void ttm_resource_manager_init_basic(struct kunit *test)
 	struct ttm_resource_test_priv *priv = test->priv;
 	struct ttm_resource_manager *man;
 	size_t size = SZ_16K;
+	int i;
 
 	man = kunit_kzalloc(test, sizeof(*man), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, man);
@@ -216,8 +217,8 @@ static void ttm_resource_manager_init_basic(struct kunit *test)
 	KUNIT_ASSERT_PTR_EQ(test, man->bdev, priv->devs->ttm_dev);
 	KUNIT_ASSERT_EQ(test, man->size, size);
 	KUNIT_ASSERT_EQ(test, man->usage, 0);
-	KUNIT_ASSERT_NULL(test, man->move);
-	KUNIT_ASSERT_NOT_NULL(test, &man->move_lock);
+	for (i = 0; i < TTM_NUM_MOVE_FENCES; i++)
+		KUNIT_ASSERT_NULL(test, man->eviction_fences[i]);
 
 	for (int i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
 		KUNIT_ASSERT_TRUE(test, list_empty(&man->lru[i]));

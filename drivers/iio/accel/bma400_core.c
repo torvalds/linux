@@ -121,21 +121,56 @@ struct bma400_data {
 	__be16 duration;
 };
 
+struct bma400_genintr_info {
+	enum bma400_generic_intr genintr;
+	unsigned int intrmask;
+	enum iio_event_direction dir;
+	enum bma400_detect_criterion detect_mode;
+};
+
+/* Lookup struct for determining GEN1/GEN2 based on dir */
+static const struct bma400_genintr_info bma400_genintrs[] = {
+	[IIO_EV_DIR_RISING] = {
+		.genintr = BMA400_GEN1_INTR,
+		.intrmask = BMA400_INT_CONFIG0_GEN1_MASK,
+		.dir = IIO_EV_DIR_RISING,
+		.detect_mode = BMA400_DETECT_ACTIVITY,
+	},
+	[IIO_EV_DIR_FALLING] = {
+		.genintr = BMA400_GEN2_INTR,
+		.intrmask = BMA400_INT_CONFIG0_GEN2_MASK,
+		.dir = IIO_EV_DIR_FALLING,
+		.detect_mode = BMA400_DETECT_INACTIVITY,
+	}
+};
+
+static inline const struct bma400_genintr_info *
+get_bma400_genintr_info(enum iio_event_direction dir)
+{
+	switch (dir) {
+	case IIO_EV_DIR_RISING:
+	case IIO_EV_DIR_FALLING:
+		return &bma400_genintrs[dir];
+	default:
+		return NULL;
+	};
+}
+
 static bool bma400_is_writable_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case BMA400_CHIP_ID_REG:
 	case BMA400_ERR_REG:
 	case BMA400_STATUS_REG:
-	case BMA400_X_AXIS_LSB_REG:
-	case BMA400_X_AXIS_MSB_REG:
-	case BMA400_Y_AXIS_LSB_REG:
-	case BMA400_Y_AXIS_MSB_REG:
-	case BMA400_Z_AXIS_LSB_REG:
-	case BMA400_Z_AXIS_MSB_REG:
-	case BMA400_SENSOR_TIME0:
-	case BMA400_SENSOR_TIME1:
-	case BMA400_SENSOR_TIME2:
+	case BMA400_ACC_X_LSB_REG:
+	case BMA400_ACC_X_MSB_REG:
+	case BMA400_ACC_Y_LSB_REG:
+	case BMA400_ACC_Y_MSB_REG:
+	case BMA400_ACC_Z_LSB_REG:
+	case BMA400_ACC_Z_MSB_REG:
+	case BMA400_SENSOR_TIME0_REG:
+	case BMA400_SENSOR_TIME1_REG:
+	case BMA400_SENSOR_TIME2_REG:
 	case BMA400_EVENT_REG:
 	case BMA400_INT_STAT0_REG:
 	case BMA400_INT_STAT1_REG:
@@ -159,15 +194,15 @@ static bool bma400_is_volatile_reg(struct device *dev, unsigned int reg)
 	switch (reg) {
 	case BMA400_ERR_REG:
 	case BMA400_STATUS_REG:
-	case BMA400_X_AXIS_LSB_REG:
-	case BMA400_X_AXIS_MSB_REG:
-	case BMA400_Y_AXIS_LSB_REG:
-	case BMA400_Y_AXIS_MSB_REG:
-	case BMA400_Z_AXIS_LSB_REG:
-	case BMA400_Z_AXIS_MSB_REG:
-	case BMA400_SENSOR_TIME0:
-	case BMA400_SENSOR_TIME1:
-	case BMA400_SENSOR_TIME2:
+	case BMA400_ACC_X_LSB_REG:
+	case BMA400_ACC_X_MSB_REG:
+	case BMA400_ACC_Y_LSB_REG:
+	case BMA400_ACC_Y_MSB_REG:
+	case BMA400_ACC_Z_LSB_REG:
+	case BMA400_ACC_Z_MSB_REG:
+	case BMA400_SENSOR_TIME0_REG:
+	case BMA400_SENSOR_TIME1_REG:
+	case BMA400_SENSOR_TIME2_REG:
 	case BMA400_EVENT_REG:
 	case BMA400_INT_STAT0_REG:
 	case BMA400_INT_STAT1_REG:
@@ -275,11 +310,11 @@ static ssize_t in_accel_gesture_tap_maxtomin_time_show(struct device *dev,
 	struct bma400_data *data = iio_priv(indio_dev);
 	int ret, reg_val, raw, vals[2];
 
-	ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1, &reg_val);
+	ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1_REG, &reg_val);
 	if (ret)
 		return ret;
 
-	raw = FIELD_GET(BMA400_TAP_TICSTH_MSK, reg_val);
+	raw = FIELD_GET(BMA400_TAP_CONFIG1_TICSTH_MASK, reg_val);
 	vals[0] = 0;
 	vals[1] = tap_max2min_time[raw];
 
@@ -302,9 +337,9 @@ static ssize_t in_accel_gesture_tap_maxtomin_time_store(struct device *dev,
 	if (raw < 0)
 		return -EINVAL;
 
-	ret = regmap_update_bits(data->regmap, BMA400_TAP_CONFIG1,
-				 BMA400_TAP_TICSTH_MSK,
-				 FIELD_PREP(BMA400_TAP_TICSTH_MSK, raw));
+	ret = regmap_update_bits(data->regmap, BMA400_TAP_CONFIG1_REG,
+				 BMA400_TAP_CONFIG1_TICSTH_MASK,
+				 FIELD_PREP(BMA400_TAP_CONFIG1_TICSTH_MASK, raw));
 	if (ret)
 		return ret;
 
@@ -449,13 +484,13 @@ static int bma400_get_accel_reg(struct bma400_data *data,
 
 	switch (chan->channel2) {
 	case IIO_MOD_X:
-		lsb_reg = BMA400_X_AXIS_LSB_REG;
+		lsb_reg = BMA400_ACC_X_LSB_REG;
 		break;
 	case IIO_MOD_Y:
-		lsb_reg = BMA400_Y_AXIS_LSB_REG;
+		lsb_reg = BMA400_ACC_Y_LSB_REG;
 		break;
 	case IIO_MOD_Z:
-		lsb_reg = BMA400_Z_AXIS_LSB_REG;
+		lsb_reg = BMA400_ACC_Z_LSB_REG;
 		break;
 	default:
 		dev_err(data->dev, "invalid axis channel modifier\n");
@@ -475,8 +510,8 @@ static int bma400_get_accel_reg(struct bma400_data *data,
 static void bma400_output_data_rate_from_raw(int raw, unsigned int *val,
 					     unsigned int *val2)
 {
-	*val = BMA400_ACC_ODR_MAX_HZ >> (BMA400_ACC_ODR_MAX_RAW - raw);
-	if (raw > BMA400_ACC_ODR_MIN_RAW)
+	*val = BMA400_ACC_CONFIG1_ODR_MAX_HZ >> (BMA400_ACC_CONFIG1_ODR_MAX_RAW - raw);
+	if (raw > BMA400_ACC_CONFIG1_ODR_MIN_RAW)
 		*val2 = 0;
 	else
 		*val2 = 500000;
@@ -494,7 +529,7 @@ static int bma400_get_accel_output_data_rate(struct bma400_data *data)
 		 * Runs at a fixed rate in low-power mode. See section 4.3
 		 * in the datasheet.
 		 */
-		bma400_output_data_rate_from_raw(BMA400_ACC_ODR_LP_RAW,
+		bma400_output_data_rate_from_raw(BMA400_ACC_CONFIG1_ODR_LP_RAW,
 						 &data->sample_freq.hz,
 						 &data->sample_freq.uhz);
 		return 0;
@@ -507,9 +542,9 @@ static int bma400_get_accel_output_data_rate(struct bma400_data *data)
 		if (ret)
 			goto error;
 
-		odr = val & BMA400_ACC_ODR_MASK;
-		if (odr < BMA400_ACC_ODR_MIN_RAW ||
-		    odr > BMA400_ACC_ODR_MAX_RAW) {
+		odr = val & BMA400_ACC_CONFIG1_ODR_MASK;
+		if (odr < BMA400_ACC_CONFIG1_ODR_MIN_RAW ||
+		    odr > BMA400_ACC_CONFIG1_ODR_MAX_RAW) {
 			ret = -EINVAL;
 			goto error;
 		}
@@ -539,19 +574,19 @@ static int bma400_set_accel_output_data_rate(struct bma400_data *data,
 	unsigned int val;
 	int ret;
 
-	if (hz >= BMA400_ACC_ODR_MIN_WHOLE_HZ) {
-		if (uhz || hz > BMA400_ACC_ODR_MAX_HZ)
+	if (hz >= BMA400_ACC_CONFIG1_ODR_MIN_WHOLE_HZ) {
+		if (uhz || hz > BMA400_ACC_CONFIG1_ODR_MAX_HZ)
 			return -EINVAL;
 
 		/* Note this works because MIN_WHOLE_HZ is odd */
 		idx = __ffs(hz);
 
-		if (hz >> idx != BMA400_ACC_ODR_MIN_WHOLE_HZ)
+		if (hz >> idx != BMA400_ACC_CONFIG1_ODR_MIN_WHOLE_HZ)
 			return -EINVAL;
 
-		idx += BMA400_ACC_ODR_MIN_RAW + 1;
-	} else if (hz == BMA400_ACC_ODR_MIN_HZ && uhz == 500000) {
-		idx = BMA400_ACC_ODR_MIN_RAW;
+		idx += BMA400_ACC_CONFIG1_ODR_MIN_RAW + 1;
+	} else if (hz == BMA400_ACC_CONFIG1_ODR_MIN_HZ && uhz == 500000) {
+		idx = BMA400_ACC_CONFIG1_ODR_MIN_RAW;
 	} else {
 		return -EINVAL;
 	}
@@ -561,7 +596,7 @@ static int bma400_set_accel_output_data_rate(struct bma400_data *data,
 		return ret;
 
 	/* preserve the range and normal mode osr */
-	odr = (~BMA400_ACC_ODR_MASK & val) | idx;
+	odr = (~BMA400_ACC_CONFIG1_ODR_MASK & val) | idx;
 
 	ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG, odr);
 	if (ret)
@@ -592,7 +627,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 			return ret;
 		}
 
-		osr = (val & BMA400_LP_OSR_MASK) >> BMA400_LP_OSR_SHIFT;
+		osr = FIELD_GET(BMA400_ACC_CONFIG0_LP_OSR_MASK, val);
 
 		data->oversampling_ratio = osr;
 		return 0;
@@ -603,7 +638,7 @@ static int bma400_get_accel_oversampling_ratio(struct bma400_data *data)
 			return ret;
 		}
 
-		osr = (val & BMA400_NP_OSR_MASK) >> BMA400_NP_OSR_SHIFT;
+		osr = FIELD_GET(BMA400_ACC_CONFIG1_NP_OSR_MASK, val);
 
 		data->oversampling_ratio = osr;
 		return 0;
@@ -637,8 +672,8 @@ static int bma400_set_accel_oversampling_ratio(struct bma400_data *data,
 			return ret;
 
 		ret = regmap_write(data->regmap, BMA400_ACC_CONFIG0_REG,
-				   (acc_config & ~BMA400_LP_OSR_MASK) |
-				   (val << BMA400_LP_OSR_SHIFT));
+				   (acc_config & ~BMA400_ACC_CONFIG0_LP_OSR_MASK) |
+				   FIELD_PREP(BMA400_ACC_CONFIG0_LP_OSR_MASK, val));
 		if (ret) {
 			dev_err(data->dev, "Failed to write out OSR\n");
 			return ret;
@@ -653,8 +688,8 @@ static int bma400_set_accel_oversampling_ratio(struct bma400_data *data,
 			return ret;
 
 		ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG,
-				   (acc_config & ~BMA400_NP_OSR_MASK) |
-				   (val << BMA400_NP_OSR_SHIFT));
+				   (acc_config & ~BMA400_ACC_CONFIG1_NP_OSR_MASK) |
+				   FIELD_PREP(BMA400_ACC_CONFIG1_NP_OSR_MASK, val));
 		if (ret) {
 			dev_err(data->dev, "Failed to write out OSR\n");
 			return ret;
@@ -679,7 +714,7 @@ static int bma400_accel_scale_to_raw(struct bma400_data *data,
 	/* Note this works because BMA400_SCALE_MIN is odd */
 	raw = __ffs(val);
 
-	if (val >> raw != BMA400_SCALE_MIN)
+	if (val >> raw != BMA400_ACC_SCALE_MIN)
 		return -EINVAL;
 
 	return raw;
@@ -695,11 +730,11 @@ static int bma400_get_accel_scale(struct bma400_data *data)
 	if (ret)
 		return ret;
 
-	raw_scale = (val & BMA400_ACC_SCALE_MASK) >> BMA400_SCALE_SHIFT;
+	raw_scale = FIELD_GET(BMA400_ACC_CONFIG1_ACC_RANGE_MASK, val);
 	if (raw_scale > BMA400_TWO_BITS_MASK)
 		return -EINVAL;
 
-	data->scale = BMA400_SCALE_MIN << raw_scale;
+	data->scale = BMA400_ACC_SCALE_MIN << raw_scale;
 
 	return 0;
 }
@@ -719,8 +754,8 @@ static int bma400_set_accel_scale(struct bma400_data *data, unsigned int val)
 		return raw;
 
 	ret = regmap_write(data->regmap, BMA400_ACC_CONFIG1_REG,
-			   (acc_config & ~BMA400_ACC_SCALE_MASK) |
-			   (raw << BMA400_SCALE_SHIFT));
+			   (acc_config & ~BMA400_ACC_CONFIG1_ACC_RANGE_MASK) |
+			   FIELD_PREP(BMA400_ACC_CONFIG1_ACC_RANGE_MASK, raw));
 	if (ret)
 		return ret;
 
@@ -786,8 +821,8 @@ static int bma400_enable_steps(struct bma400_data *data, int val)
 		return 0;
 
 	ret = regmap_update_bits(data->regmap, BMA400_INT_CONFIG1_REG,
-				 BMA400_STEP_INT_MSK,
-				 FIELD_PREP(BMA400_STEP_INT_MSK, val ? 1 : 0));
+				 BMA400_INT_CONFIG1_STEP_INT_MASK,
+				 FIELD_PREP(BMA400_INT_CONFIG1_STEP_INT_MASK, val ? 1 : 0));
 	if (ret)
 		return ret;
 	data->steps_enabled = val;
@@ -826,7 +861,7 @@ static void bma400_init_tables(void)
 	for (i = 0; i + 1 < ARRAY_SIZE(bma400_scales); i += 2) {
 		raw = i / 2;
 		bma400_scales[i] = 0;
-		bma400_scales[i + 1] = BMA400_SCALE_MIN << raw;
+		bma400_scales[i + 1] = BMA400_ACC_SCALE_MIN << raw;
 	}
 }
 
@@ -1063,7 +1098,7 @@ static int bma400_write_raw(struct iio_dev *indio_dev,
 		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		if (val != 0 ||
-		    val2 < BMA400_SCALE_MIN || val2 > BMA400_SCALE_MAX)
+		    val2 < BMA400_ACC_SCALE_MIN || val2 > BMA400_ACC_SCALE_MAX)
 			return -EINVAL;
 
 		mutex_lock(&data->mutex);
@@ -1114,16 +1149,16 @@ static int bma400_read_event_config(struct iio_dev *indio_dev,
 	case IIO_ACCEL:
 		switch (dir) {
 		case IIO_EV_DIR_RISING:
-			return FIELD_GET(BMA400_INT_GEN1_MSK,
+			return FIELD_GET(BMA400_INT_CONFIG0_GEN1_MASK,
 					 data->generic_event_en);
 		case IIO_EV_DIR_FALLING:
-			return FIELD_GET(BMA400_INT_GEN2_MSK,
+			return FIELD_GET(BMA400_INT_CONFIG0_GEN2_MASK,
 					 data->generic_event_en);
 		case IIO_EV_DIR_SINGLETAP:
-			return FIELD_GET(BMA400_S_TAP_MSK,
+			return FIELD_GET(BMA400_INT_CONFIG1_S_TAP_MASK,
 					 data->tap_event_en_bitmask);
 		case IIO_EV_DIR_DOUBLETAP:
-			return FIELD_GET(BMA400_D_TAP_MSK,
+			return FIELD_GET(BMA400_INT_CONFIG1_D_TAP_MASK,
 					 data->tap_event_en_bitmask);
 		default:
 			return -EINVAL;
@@ -1146,8 +1181,8 @@ static int bma400_steps_event_enable(struct bma400_data *data, int state)
 		return ret;
 
 	ret = regmap_update_bits(data->regmap, BMA400_INT12_MAP_REG,
-				 BMA400_STEP_INT_MSK,
-				 FIELD_PREP(BMA400_STEP_INT_MSK,
+				 BMA400_INT_CONFIG1_STEP_INT_MASK,
+				 FIELD_PREP(BMA400_INT_CONFIG1_STEP_INT_MASK,
 					    state));
 	if (ret)
 		return ret;
@@ -1155,63 +1190,68 @@ static int bma400_steps_event_enable(struct bma400_data *data, int state)
 	return 0;
 }
 
-static int bma400_activity_event_en(struct bma400_data *data,
-				    enum iio_event_direction dir,
-				    int state)
+static int bma400_generic_event_en(struct bma400_data *data,
+				   enum iio_event_direction dir,
+				   int state)
 {
-	int ret, reg, msk, value;
-	int field_value = 0;
+	int ret;
+	unsigned int intrmask, regval;
+	enum bma400_generic_intr genintr;
+	enum bma400_detect_criterion detect_criterion;
+	const struct bma400_genintr_info *bma400_genintr;
 
-	switch (dir) {
-	case IIO_EV_DIR_RISING:
-		reg = BMA400_GEN1INT_CONFIG0;
-		msk = BMA400_INT_GEN1_MSK;
-		value = 2;
-		set_mask_bits(&field_value, BMA400_INT_GEN1_MSK,
-			      FIELD_PREP(BMA400_INT_GEN1_MSK, state));
-		break;
-	case IIO_EV_DIR_FALLING:
-		reg = BMA400_GEN2INT_CONFIG0;
-		msk = BMA400_INT_GEN2_MSK;
-		value = 0;
-		set_mask_bits(&field_value, BMA400_INT_GEN2_MSK,
-			      FIELD_PREP(BMA400_INT_GEN2_MSK, state));
-		break;
-	default:
+	bma400_genintr = get_bma400_genintr_info(dir);
+	if (!bma400_genintr)
 		return -EINVAL;
-	}
 
-	/* Enabling all axis for interrupt evaluation */
-	ret = regmap_write(data->regmap, reg, 0xF8);
+	genintr = bma400_genintr->genintr;
+	detect_criterion = bma400_genintr->detect_mode;
+	intrmask = bma400_genintr->intrmask;
+
+	/*
+	 * Enabling all axis for interrupt evaluation
+	 * Acc_filt2 is recommended as data source in datasheet (Section 4.7)
+	 */
+	ret = regmap_write(data->regmap, BMA400_GENINT_CONFIG_REG(genintr, 0),
+			   BMA400_GENINT_CONFIG0_X_EN_MASK |
+			   BMA400_GENINT_CONFIG0_Y_EN_MASK |
+			   BMA400_GENINT_CONFIG0_Z_EN_MASK|
+			   FIELD_PREP(BMA400_GENINT_CONFIG0_DATA_SRC_MASK, ACCEL_FILT2)|
+			   FIELD_PREP(BMA400_GENINT_CONFIG0_REF_UPD_MODE_MASK,
+				      BMA400_REF_EVERYTIME_UPDT_MODE));
 	if (ret)
 		return ret;
 
 	/* OR combination of all axis for interrupt evaluation */
-	ret = regmap_write(data->regmap, reg + BMA400_GEN_CONFIG1_OFF, value);
+	regval = FIELD_PREP(BMA400_GENINT_CONFIG1_AXES_COMB_MASK, BMA400_EVAL_X_OR_Y_OR_Z) |
+		 FIELD_PREP(BMA400_GENINT_CONFIG1_DETCT_CRIT_MASK, detect_criterion);
+	ret = regmap_write(data->regmap, BMA400_GENINT_CONFIG_REG(genintr, 1), regval);
 	if (ret)
 		return ret;
 
-	/* Initial value to avoid interrupts while enabling*/
-	ret = regmap_write(data->regmap, reg + BMA400_GEN_CONFIG2_OFF, 0x0A);
+	/*
+	 * Initial value to avoid interrupts while enabling
+	 * Value is in units of 8mg/lsb, i.e. effective val is val * 8mg/lsb
+	 */
+	ret = regmap_write(data->regmap, BMA400_GENINT_CONFIG_REG(genintr, 2), 0x0A);
 	if (ret)
 		return ret;
 
 	/* Initial duration value to avoid interrupts while enabling*/
-	ret = regmap_write(data->regmap, reg + BMA400_GEN_CONFIG31_OFF, 0x0F);
+	ret = regmap_write(data->regmap, BMA400_GENINT_CONFIG_REG(genintr, 4), 0x0F);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(data->regmap, BMA400_INT1_MAP_REG, msk,
-				 field_value);
+	regval = state ? intrmask : 0;
+	ret = regmap_update_bits(data->regmap, BMA400_INT1_MAP_REG, intrmask, regval);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(data->regmap, BMA400_INT_CONFIG0_REG, msk,
-				 field_value);
+	ret = regmap_update_bits(data->regmap, BMA400_INT_CONFIG0_REG, intrmask, regval);
 	if (ret)
 		return ret;
 
-	set_mask_bits(&data->generic_event_en, msk, field_value);
+	set_mask_bits(&data->generic_event_en, intrmask, regval);
 	return 0;
 }
 
@@ -1240,21 +1280,21 @@ static int bma400_tap_event_en(struct bma400_data *data,
 	}
 
 	ret = regmap_update_bits(data->regmap, BMA400_INT12_MAP_REG,
-				 BMA400_S_TAP_MSK,
-				 FIELD_PREP(BMA400_S_TAP_MSK, state));
+				 BMA400_INT_CONFIG1_S_TAP_MASK,
+				 FIELD_PREP(BMA400_INT_CONFIG1_S_TAP_MASK, state));
 	if (ret)
 		return ret;
 
 	switch (dir) {
 	case IIO_EV_DIR_SINGLETAP:
-		mask = BMA400_S_TAP_MSK;
-		set_mask_bits(&field_value, BMA400_S_TAP_MSK,
-			      FIELD_PREP(BMA400_S_TAP_MSK, state));
+		mask = BMA400_INT_CONFIG1_S_TAP_MASK;
+		set_mask_bits(&field_value, BMA400_INT_CONFIG1_S_TAP_MASK,
+			      FIELD_PREP(BMA400_INT_CONFIG1_S_TAP_MASK, state));
 		break;
 	case IIO_EV_DIR_DOUBLETAP:
-		mask = BMA400_D_TAP_MSK;
-		set_mask_bits(&field_value, BMA400_D_TAP_MSK,
-			      FIELD_PREP(BMA400_D_TAP_MSK, state));
+		mask = BMA400_INT_CONFIG1_D_TAP_MASK;
+		set_mask_bits(&field_value, BMA400_INT_CONFIG1_D_TAP_MASK,
+			      FIELD_PREP(BMA400_INT_CONFIG1_D_TAP_MASK, state));
 		break;
 	default:
 		return -EINVAL;
@@ -1303,7 +1343,7 @@ static int bma400_write_event_config(struct iio_dev *indio_dev,
 		switch (type) {
 		case IIO_EV_TYPE_MAG:
 			mutex_lock(&data->mutex);
-			ret = bma400_activity_event_en(data, dir, state);
+			ret = bma400_generic_event_en(data, dir, state);
 			mutex_unlock(&data->mutex);
 			return ret;
 		case IIO_EV_TYPE_GESTURE:
@@ -1336,18 +1376,6 @@ static int bma400_write_event_config(struct iio_dev *indio_dev,
 	}
 }
 
-static int get_gen_config_reg(enum iio_event_direction dir)
-{
-	switch (dir) {
-	case IIO_EV_DIR_FALLING:
-		return BMA400_GEN2INT_CONFIG0;
-	case IIO_EV_DIR_RISING:
-		return BMA400_GEN1INT_CONFIG0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int bma400_read_event_value(struct iio_dev *indio_dev,
 				   const struct iio_chan_spec *chan,
 				   enum iio_event_type type,
@@ -1356,22 +1384,25 @@ static int bma400_read_event_value(struct iio_dev *indio_dev,
 				   int *val, int *val2)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
-	int ret, reg, reg_val, raw;
+	int ret, reg_val, raw;
+	enum bma400_generic_intr genintr;
+	const struct bma400_genintr_info *bma400_genintr;
 
 	if (chan->type != IIO_ACCEL)
 		return -EINVAL;
 
 	switch (type) {
 	case IIO_EV_TYPE_MAG:
-		reg = get_gen_config_reg(dir);
-		if (reg < 0)
+		bma400_genintr = get_bma400_genintr_info(dir);
+		if (!bma400_genintr)
 			return -EINVAL;
+		genintr = bma400_genintr->genintr;
 
 		*val2 = 0;
 		switch (info) {
 		case IIO_EV_INFO_VALUE:
 			ret = regmap_read(data->regmap,
-					  reg + BMA400_GEN_CONFIG2_OFF,
+					  BMA400_GENINT_CONFIG_REG(genintr, 2),
 					  val);
 			if (ret)
 				return ret;
@@ -1379,7 +1410,7 @@ static int bma400_read_event_value(struct iio_dev *indio_dev,
 		case IIO_EV_INFO_PERIOD:
 			mutex_lock(&data->mutex);
 			ret = regmap_bulk_read(data->regmap,
-					       reg + BMA400_GEN_CONFIG3_OFF,
+					       BMA400_GENINT_CONFIG_REG(genintr, 3),
 					       &data->duration,
 					       sizeof(data->duration));
 			if (ret) {
@@ -1390,10 +1421,12 @@ static int bma400_read_event_value(struct iio_dev *indio_dev,
 			mutex_unlock(&data->mutex);
 			return IIO_VAL_INT;
 		case IIO_EV_INFO_HYSTERESIS:
-			ret = regmap_read(data->regmap, reg, val);
+			ret = regmap_read(data->regmap,
+					  BMA400_GENINT_CONFIG_REG(genintr, 0),
+					  val);
 			if (ret)
 				return ret;
-			*val = FIELD_GET(BMA400_GEN_HYST_MSK, *val);
+			*val = FIELD_GET(BMA400_GENINT_CONFIG0_HYST_MASK, *val);
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
@@ -1401,30 +1434,30 @@ static int bma400_read_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_TYPE_GESTURE:
 		switch (info) {
 		case IIO_EV_INFO_VALUE:
-			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG,
+			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG_REG,
 					  &reg_val);
 			if (ret)
 				return ret;
 
-			*val = FIELD_GET(BMA400_TAP_SEN_MSK, reg_val);
+			*val = FIELD_GET(BMA400_TAP_CONFIG_SEN_MASK, reg_val);
 			return IIO_VAL_INT;
 		case IIO_EV_INFO_RESET_TIMEOUT:
-			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1,
+			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1_REG,
 					  &reg_val);
 			if (ret)
 				return ret;
 
-			raw = FIELD_GET(BMA400_TAP_QUIET_MSK, reg_val);
+			raw = FIELD_GET(BMA400_TAP_CONFIG1_QUIET_MASK, reg_val);
 			*val = 0;
 			*val2 = tap_reset_timeout[raw];
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_EV_INFO_TAP2_MIN_DELAY:
-			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1,
+			ret = regmap_read(data->regmap, BMA400_TAP_CONFIG1_REG,
 					  &reg_val);
 			if (ret)
 				return ret;
 
-			raw = FIELD_GET(BMA400_TAP_QUIETDT_MSK, reg_val);
+			raw = FIELD_GET(BMA400_TAP_CONFIG1_QUIETDT_MASK, reg_val);
 			*val = 0;
 			*val2 = double_tap2_min_delay[raw];
 			return IIO_VAL_INT_PLUS_MICRO;
@@ -1444,16 +1477,19 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 				    int val, int val2)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
-	int reg, ret, raw;
+	int ret, raw;
+	enum bma400_generic_intr genintr;
+	const struct bma400_genintr_info *bma400_genintr;
 
 	if (chan->type != IIO_ACCEL)
 		return -EINVAL;
 
 	switch (type) {
 	case IIO_EV_TYPE_MAG:
-		reg = get_gen_config_reg(dir);
-		if (reg < 0)
+		bma400_genintr = get_bma400_genintr_info(dir);
+		if (!bma400_genintr)
 			return -EINVAL;
+		genintr = bma400_genintr->genintr;
 
 		switch (info) {
 		case IIO_EV_INFO_VALUE:
@@ -1461,7 +1497,7 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 				return -EINVAL;
 
 			return regmap_write(data->regmap,
-					    reg + BMA400_GEN_CONFIG2_OFF,
+					    BMA400_GENINT_CONFIG_REG(genintr, 2),
 					    val);
 		case IIO_EV_INFO_PERIOD:
 			if (val < 1 || val > 65535)
@@ -1470,7 +1506,7 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 			mutex_lock(&data->mutex);
 			put_unaligned_be16(val, &data->duration);
 			ret = regmap_bulk_write(data->regmap,
-						reg + BMA400_GEN_CONFIG3_OFF,
+						BMA400_GENINT_CONFIG_REG(genintr, 3),
 						&data->duration,
 						sizeof(data->duration));
 			mutex_unlock(&data->mutex);
@@ -1479,9 +1515,10 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 			if (val < 0 || val > 3)
 				return -EINVAL;
 
-			return regmap_update_bits(data->regmap, reg,
-						  BMA400_GEN_HYST_MSK,
-						  FIELD_PREP(BMA400_GEN_HYST_MSK,
+			return regmap_update_bits(data->regmap,
+						  BMA400_GENINT_CONFIG_REG(genintr, 0),
+						  BMA400_GENINT_CONFIG0_HYST_MASK,
+						  FIELD_PREP(BMA400_GENINT_CONFIG0_HYST_MASK,
 							     val));
 		default:
 			return -EINVAL;
@@ -1493,9 +1530,9 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 				return -EINVAL;
 
 			return regmap_update_bits(data->regmap,
-						  BMA400_TAP_CONFIG,
-						  BMA400_TAP_SEN_MSK,
-						  FIELD_PREP(BMA400_TAP_SEN_MSK,
+						  BMA400_TAP_CONFIG_REG,
+						  BMA400_TAP_CONFIG_SEN_MASK,
+						  FIELD_PREP(BMA400_TAP_CONFIG_SEN_MASK,
 							     val));
 		case IIO_EV_INFO_RESET_TIMEOUT:
 			raw = usec_to_tapreg_raw(val2, tap_reset_timeout);
@@ -1503,9 +1540,9 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 				return -EINVAL;
 
 			return regmap_update_bits(data->regmap,
-						  BMA400_TAP_CONFIG1,
-						  BMA400_TAP_QUIET_MSK,
-						  FIELD_PREP(BMA400_TAP_QUIET_MSK,
+						  BMA400_TAP_CONFIG1_REG,
+						  BMA400_TAP_CONFIG1_QUIET_MASK,
+						  FIELD_PREP(BMA400_TAP_CONFIG1_QUIET_MASK,
 							     raw));
 		case IIO_EV_INFO_TAP2_MIN_DELAY:
 			raw = usec_to_tapreg_raw(val2, double_tap2_min_delay);
@@ -1513,9 +1550,9 @@ static int bma400_write_event_value(struct iio_dev *indio_dev,
 				return -EINVAL;
 
 			return regmap_update_bits(data->regmap,
-						  BMA400_TAP_CONFIG1,
-						  BMA400_TAP_QUIETDT_MSK,
-						  FIELD_PREP(BMA400_TAP_QUIETDT_MSK,
+						  BMA400_TAP_CONFIG1_REG,
+						  BMA400_TAP_CONFIG1_QUIETDT_MASK,
+						  FIELD_PREP(BMA400_TAP_CONFIG1_QUIETDT_MASK,
 							     raw));
 		default:
 			return -EINVAL;
@@ -1533,14 +1570,14 @@ static int bma400_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	int ret;
 
 	ret = regmap_update_bits(data->regmap, BMA400_INT_CONFIG0_REG,
-				 BMA400_INT_DRDY_MSK,
-				 FIELD_PREP(BMA400_INT_DRDY_MSK, state));
+				 BMA400_INT_CONFIG0_DRDY_MASK,
+				 FIELD_PREP(BMA400_INT_CONFIG0_DRDY_MASK, state));
 	if (ret)
 		return ret;
 
 	return regmap_update_bits(data->regmap, BMA400_INT1_MAP_REG,
-				  BMA400_INT_DRDY_MSK,
-				  FIELD_PREP(BMA400_INT_DRDY_MSK, state));
+				  BMA400_INT_CONFIG0_DRDY_MASK,
+				  FIELD_PREP(BMA400_INT_CONFIG0_DRDY_MASK, state));
 }
 
 static const unsigned long bma400_avail_scan_masks[] = {
@@ -1578,7 +1615,7 @@ static irqreturn_t bma400_trigger_handler(int irq, void *p)
 	mutex_lock(&data->mutex);
 
 	/* bulk read six registers, with the base being the LSB register */
-	ret = regmap_bulk_read(data->regmap, BMA400_X_AXIS_LSB_REG,
+	ret = regmap_bulk_read(data->regmap, BMA400_ACC_X_LSB_REG,
 			       &data->buffer.buff, sizeof(data->buffer.buff));
 	if (ret)
 		goto unlock_err;
@@ -1628,13 +1665,13 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 	 * Disable all advance interrupts if interrupt engine overrun occurs.
 	 * See section 4.7 "Interrupt engine overrun" in datasheet v1.2.
 	 */
-	if (FIELD_GET(BMA400_INT_ENG_OVRUN_MSK, le16_to_cpu(data->status))) {
+	if (FIELD_GET(BMA400_INT_STAT_ENG_OVRRUN_MASK, le16_to_cpu(data->status))) {
 		bma400_disable_adv_interrupt(data);
 		dev_err(data->dev, "Interrupt engine overrun\n");
 		goto unlock_err;
 	}
 
-	if (FIELD_GET(BMA400_INT_S_TAP_MSK, le16_to_cpu(data->status)))
+	if (FIELD_GET(BMA400_INT_STAT1_S_TAP_MASK, le16_to_cpu(data->status)))
 		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
 						  IIO_MOD_X_OR_Y_OR_Z,
@@ -1642,7 +1679,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 						  IIO_EV_DIR_SINGLETAP),
 			       timestamp);
 
-	if (FIELD_GET(BMA400_INT_D_TAP_MSK, le16_to_cpu(data->status)))
+	if (FIELD_GET(BMA400_INT_STAT1_D_TAP_MASK, le16_to_cpu(data->status)))
 		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_ACCEL, 0,
 						  IIO_MOD_X_OR_Y_OR_Z,
@@ -1650,10 +1687,10 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 						  IIO_EV_DIR_DOUBLETAP),
 			       timestamp);
 
-	if (FIELD_GET(BMA400_INT_GEN1_MSK, le16_to_cpu(data->status)))
+	if (FIELD_GET(BMA400_INT_STAT0_GEN1_MASK, le16_to_cpu(data->status)))
 		ev_dir = IIO_EV_DIR_RISING;
 
-	if (FIELD_GET(BMA400_INT_GEN2_MSK, le16_to_cpu(data->status)))
+	if (FIELD_GET(BMA400_INT_STAT0_GEN2_MASK, le16_to_cpu(data->status)))
 		ev_dir = IIO_EV_DIR_FALLING;
 
 	if (ev_dir != IIO_EV_DIR_NONE) {
@@ -1664,7 +1701,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 			       timestamp);
 	}
 
-	if (FIELD_GET(BMA400_STEP_STAT_MASK, le16_to_cpu(data->status))) {
+	if (FIELD_GET(BMA400_INT_STAT1_STEP_INT_MASK, le16_to_cpu(data->status))) {
 		iio_push_event(indio_dev,
 			       IIO_MOD_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
 						  IIO_EV_TYPE_CHANGE,
@@ -1686,7 +1723,7 @@ static irqreturn_t bma400_interrupt(int irq, void *private)
 		}
 	}
 
-	if (FIELD_GET(BMA400_INT_DRDY_MSK, le16_to_cpu(data->status))) {
+	if (FIELD_GET(BMA400_INT_STAT0_DRDY_MASK, le16_to_cpu(data->status))) {
 		mutex_unlock(&data->mutex);
 		iio_trigger_poll_nested(data->trig);
 		return IRQ_HANDLED;

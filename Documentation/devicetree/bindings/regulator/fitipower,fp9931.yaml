@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/fitipower,fp9931.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: FitiPower FP9931/JD9930 Power Management Integrated Circuit
+
+maintainers:
+  - Andreas Kemnade <andreas@kemnade.info>
+
+description:
+  FP9931 is a Power Management IC to provide Power for EPDs with one 3.3V
+  switch, 2 symmetric LDOs behind 2 DC/DC converters, and one unsymmetric
+  regulator for a compensation voltage.
+  JD9930 has in addition some kind of night mode.
+
+properties:
+  compatible:
+    oneOf:
+      - const: fitipower,fp9931
+
+      - items:
+          - const: fitipower,jd9930
+          - const: fitipower,fp9931
+
+  reg:
+    maxItems: 1
+
+  enable-gpios:
+    maxItems: 1
+
+  pg-gpios:
+    maxItems: 1
+
+  en-ts-gpios:
+    maxItems: 1
+
+  xon-gpios:
+    maxItems: 1
+
+  vin-supply:
+    description:
+      Supply for the whole chip. Some vendor kernels and devicetrees
+      declare this as a non-existing GPIO named "pwrall".
+
+  fitipower,tdly-ms:
+    description:
+      Power up soft start delay settings tDLY1-4 bitfields in the
+      POWERON_DELAY register
+    items:
+      - enum: [0, 1, 2, 4]
+      - enum: [0, 1, 2, 4]
+      - enum: [0, 1, 2, 4]
+      - enum: [0, 1, 2, 4]
+
+  regulators:
+    type: object
+    additionalProperties: false
+    patternProperties:
+      "^(vcom|vposneg|v3p3)$":
+        unevaluatedProperties: false
+        type: object
+        $ref: /schemas/regulator/regulator.yaml
+
+required:
+  - compatible
+  - reg
+  - pg-gpios
+  - enable-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@18 {
+            compatible = "fitipower,fp9931";
+            reg = <0x18>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pinctrl_fp9931_gpio>;
+            vin-supply = <&epd_pmic_supply>;
+            pg-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+            en-ts-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+            enable-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
+            fitipower,tdly-ms = <2 2 4 4>;
+
+            regulators {
+                vcom {
+                    regulator-name = "vcom";
+                    regulator-min-microvolt = <2352840>;
+                    regulator-max-microvolt = <2352840>;
+                };
+
+                vposneg {
+                    regulator-name = "vposneg";
+                    regulator-min-microvolt = <15060000>;
+                    regulator-max-microvolt = <15060000>;
+                };
+
+                v3p3 {
+                    regulator-name = "v3p3";
+                };
+            };
+        };
+    };

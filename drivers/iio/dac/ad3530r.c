@@ -53,9 +53,6 @@
 #define AD3530R_MAX_CHANNELS			8
 #define AD3531R_MAX_CHANNELS			4
 
-/* Non-constant mask variant of FIELD_PREP() */
-#define field_prep(_mask, _val)	(((_val) << (ffs(_mask) - 1)) & (_mask))
-
 enum ad3530r_mode {
 	AD3530R_NORMAL_OP,
 	AD3530R_POWERDOWN_1K,

@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define MSEC_PER_SEC	1000L
 #define NSEC_PER_MSEC	1000000L

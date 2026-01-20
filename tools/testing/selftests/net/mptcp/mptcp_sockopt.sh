@@ -169,41 +169,44 @@ do_transfer()
 		cmsg+=",TCPINQ"
 	fi
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat -n
-	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-		nstat -n
+	mptcp_lib_nstat_init "${listener_ns}"
+	mptcp_lib_nstat_init "${connector_ns}"
 
-	timeout ${timeout_test} \
-		ip netns exec ${listener_ns} \
-			$mptcp_connect -t ${timeout_poll} -l -M 1 -p $port -s ${srv_proto} -c "${cmsg}" \
-				${local_addr} < "$sin" > "$sout" &
+	ip netns exec ${listener_ns} \
+		$mptcp_connect -t ${timeout_poll} -l -M 1 -p $port -s ${srv_proto} -c "${cmsg}" \
+			${local_addr} < "$sin" > "$sout" &
 	local spid=$!
 
-	sleep 1
+	mptcp_lib_wait_local_port_listen "${listener_ns}" "${port}"
 
-	timeout ${timeout_test} \
-		ip netns exec ${connector_ns} \
-			$mptcp_connect -t ${timeout_poll} -M 2 -p $port -s ${cl_proto} -c "${cmsg}" \
-				$connect_addr < "$cin" > "$cout" &
+	ip netns exec ${connector_ns} \
+		$mptcp_connect -t ${timeout_poll} -M 2 -p $port -s ${cl_proto} -c "${cmsg}" \
+			$connect_addr < "$cin" > "$cout" &
 
 	local cpid=$!
+
+	mptcp_lib_wait_timeout "${timeout_test}" "${listener_ns}" \
+		"${connector_ns}" "${port}" "${cpid}" "${spid}" &
+	local timeout_pid=$!
 
 	wait $cpid
 	local retc=$?
 	wait $spid
 	local rets=$?
 
-	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
-		nstat | grep Tcp > /tmp/${listener_ns}.out
-	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
-		nstat | grep Tcp > /tmp/${connector_ns}.out
+	if kill -0 $timeout_pid; then
+		# Finished before the timeout: kill the background job
+		mptcp_lib_kill_group_wait $timeout_pid
+		timeout_pid=0
+	fi
+
+	mptcp_lib_nstat_get "${listener_ns}"
+	mptcp_lib_nstat_get "${connector_ns}"
 
 	print_title "Transfer ${ip:2}"
-	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
+	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ] || [ ${timeout_pid} -ne 0 ]; then
 		mptcp_lib_pr_fail "client exit code $retc, server $rets"
-		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
-			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}"
 
 		mptcp_lib_result_fail "transfer ${ip}"
 

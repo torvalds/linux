@@ -66,7 +66,8 @@ void iwl_mld_pass_packet_to_mac80211(struct iwl_mld *mld,
 				     struct sk_buff *skb, int queue,
 				     struct ieee80211_sta *sta);
 
-void iwl_mld_rx_monitor_no_data(struct iwl_mld *mld, struct napi_struct *napi,
-				struct iwl_rx_packet *pkt, int queue);
+void iwl_mld_handle_phy_air_sniffer_notif(struct iwl_mld *mld,
+					  struct napi_struct *napi,
+					  struct iwl_rx_packet *pkt);
 
 #endif /* __iwl_mld_agg_h__ */

@@ -139,6 +139,7 @@ static int mtk_sof_check_tplg_be_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 
 int mtk_sof_card_late_probe(struct snd_soc_card *card)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *sof_comp = NULL;
 	struct mtk_soc_card_data *soc_card_data =
@@ -204,13 +205,13 @@ int mtk_sof_card_late_probe(struct snd_soc_card *card)
 					snd_soc_dapm_widget_for_each_sink_path(widget, p) {
 						route.source = conn->sof_dma;
 						route.sink = p->sink->name;
-						snd_soc_dapm_add_routes(&card->dapm, &route, 1);
+						snd_soc_dapm_add_routes(dapm, &route, 1);
 					}
 				} else if (conn->stream_dir == SNDRV_PCM_STREAM_PLAYBACK && widget) {
 					snd_soc_dapm_widget_for_each_source_path(widget, p) {
 						route.source = p->source->name;
 						route.sink = conn->sof_dma;
-						snd_soc_dapm_add_routes(&card->dapm, &route, 1);
+						snd_soc_dapm_add_routes(dapm, &route, 1);
 					}
 				} else {
 					dev_err(cpu_dai->dev, "stream dir and widget not pair\n");

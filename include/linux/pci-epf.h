@@ -115,8 +115,8 @@ struct pci_epf_driver {
  * @phys_addr: physical address that should be mapped to the BAR
  * @addr: virtual address corresponding to the @phys_addr
  * @size: the size of the address space present in BAR
- * @aligned_size: the size actually allocated to accommodate the iATU alignment
- *                requirement
+ * @mem_size: the size actually allocated to accommodate the iATU alignment
+ *            requirement
  * @barno: BAR number
  * @flags: flags that are set for the BAR
  */
@@ -124,7 +124,7 @@ struct pci_epf_bar {
 	dma_addr_t	phys_addr;
 	void		*addr;
 	size_t		size;
-	size_t		aligned_size;
+	size_t		mem_size;
 	enum pci_barno	barno;
 	int		flags;
 };
@@ -241,6 +241,12 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 			  enum pci_epc_interface_type type);
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 			enum pci_epc_interface_type type);
+
+int pci_epf_assign_bar_space(struct pci_epf *epf, size_t size,
+			     enum pci_barno bar,
+			     const struct pci_epc_features *epc_features,
+			     enum pci_epc_interface_type type,
+			     dma_addr_t bar_addr);
 
 int pci_epf_align_inbound_addr(struct pci_epf *epf, enum pci_barno bar,
 			       u64 addr, dma_addr_t *base, size_t *off);

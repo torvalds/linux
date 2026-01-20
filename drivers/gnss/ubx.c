@@ -66,6 +66,7 @@ static const struct gnss_serial_ops ubx_gserial_ops = {
 static int ubx_probe(struct serdev_device *serdev)
 {
 	struct gnss_serial *gserial;
+	struct gpio_desc *safeboot;
 	struct gpio_desc *reset;
 	struct ubx_data *data;
 	int ret;
@@ -91,6 +92,13 @@ static int ubx_probe(struct serdev_device *serdev)
 	ret = devm_regulator_get_enable_optional(&serdev->dev, "v-bckp");
 	if (ret < 0 && ret != -ENODEV)
 		goto err_free_gserial;
+
+	/* Deassert safeboot */
+	safeboot = devm_gpiod_get_optional(&serdev->dev, "safeboot", GPIOD_OUT_LOW);
+	if (IS_ERR(safeboot)) {
+		ret = PTR_ERR(safeboot);
+		goto err_free_gserial;
+	}
 
 	/* Deassert reset */
 	reset = devm_gpiod_get_optional(&serdev->dev, "reset", GPIOD_OUT_LOW);

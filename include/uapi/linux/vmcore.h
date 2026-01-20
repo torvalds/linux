@@ -15,4 +15,13 @@ struct vmcoredd_header {
 	__u8 dump_name[VMCOREDD_MAX_NAME_BYTES]; /* Device dump's name */
 };
 
+enum hwerr_error_type {
+	HWERR_RECOV_CPU,
+	HWERR_RECOV_MEMORY,
+	HWERR_RECOV_PCI,
+	HWERR_RECOV_CXL,
+	HWERR_RECOV_OTHERS,
+	HWERR_RECOV_MAX,
+};
+
 #endif /* _UAPI_VMCORE_H */

@@ -316,9 +316,6 @@ config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
 	depends on INET && BLOCK
 	select CEPH_LIB
-	select CRC32
-	select CRYPTO_AES
-	select CRYPTO
 	help
 	  Say Y here if you want include the Rados block device, which stripes
 	  a block device over objects stored in the Ceph distributed object

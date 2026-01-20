@@ -383,12 +383,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 
 	/* release mac id for non-bc/mc station, */
 	rtw_release_macid(pstapriv->padapter, psta);
-
-/*
-	spin_lock_bh(&pstapriv->asoc_list_lock);
-	list_del_init(&psta->asoc_list);
-	spin_unlock_bh(&pstapriv->asoc_list_lock);
-*/
 	spin_lock_bh(&pstapriv->auth_list_lock);
 	if (!list_empty(&psta->auth_list)) {
 		list_del_init(&psta->auth_list);

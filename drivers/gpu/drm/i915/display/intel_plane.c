@@ -43,12 +43,13 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_panic.h>
+#include <drm/drm_print.h>
 
 #include "gem/i915_gem_object.h"
-#include "i915_scheduler_types.h"
 #include "i9xx_plane_regs.h"
 #include "intel_cdclk.h"
 #include "intel_cursor.h"
+#include "intel_colorop.h"
 #include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
@@ -292,64 +293,21 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 				   rel_data_rate);
 }
 
-int intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
-			       struct intel_plane *plane,
-			       bool *need_cdclk_calc)
+static void intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+				       struct intel_plane *plane)
 {
-	struct intel_display *display = to_intel_display(plane);
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_crtc *crtc = to_intel_crtc(plane_state->hw.crtc);
-	const struct intel_cdclk_state *cdclk_state;
-	const struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 
 	if (!plane_state->uapi.visible || !plane->min_cdclk)
-		return 0;
+		return;
 
-	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
-	new_crtc_state->min_cdclk[plane->id] =
+	new_crtc_state->plane_min_cdclk[plane->id] =
 		plane->min_cdclk(new_crtc_state, plane_state);
-
-	/*
-	 * No need to check against the cdclk state if
-	 * the min cdclk for the plane doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to plane
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_crtc_state->min_cdclk[plane->id] <=
-	    old_crtc_state->min_cdclk[plane->id])
-		return 0;
-
-	cdclk_state = intel_atomic_get_cdclk_state(state);
-	if (IS_ERR(cdclk_state))
-		return PTR_ERR(cdclk_state);
-
-	/*
-	 * No need to recalculate the cdclk state if
-	 * the min cdclk for the pipe doesn't increase.
-	 *
-	 * Ie. we only ever increase the cdclk due to plane
-	 * requirements. This can reduce back and forth
-	 * display blinking due to constant cdclk changes.
-	 */
-	if (new_crtc_state->min_cdclk[plane->id] <=
-	    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe))
-		return 0;
-
-	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s] min cdclk (%d kHz) > [CRTC:%d:%s] min cdclk (%d kHz)\n",
-		    plane->base.base.id, plane->base.name,
-		    new_crtc_state->min_cdclk[plane->id],
-		    crtc->base.base.id, crtc->base.name,
-		    intel_cdclk_min_cdclk(cdclk_state, crtc->pipe));
-	*need_cdclk_calc = true;
-
-	return 0;
 }
 
 static void intel_plane_clear_hw_state(struct intel_plane_state *plane_state)
@@ -377,6 +335,58 @@ intel_plane_copy_uapi_plane_damage(struct intel_plane_state *new_plane_state,
 					     damage))
 		/* Incase helper fails, mark whole plane region as damage */
 		*damage = drm_plane_state_src(&new_uapi_plane_state->uapi);
+}
+
+static bool
+intel_plane_colorop_replace_blob(struct intel_plane_state *plane_state,
+				 struct intel_colorop *intel_colorop,
+				 struct drm_property_blob *blob)
+{
+	if (intel_colorop->id == INTEL_PLANE_CB_CSC)
+		return drm_property_replace_blob(&plane_state->hw.ctm, blob);
+	else if (intel_colorop->id == INTEL_PLANE_CB_PRE_CSC_LUT)
+		return	drm_property_replace_blob(&plane_state->hw.degamma_lut, blob);
+	else if (intel_colorop->id == INTEL_PLANE_CB_POST_CSC_LUT)
+		return drm_property_replace_blob(&plane_state->hw.gamma_lut, blob);
+	else if (intel_colorop->id == INTEL_PLANE_CB_3DLUT)
+		return	drm_property_replace_blob(&plane_state->hw.lut_3d, blob);
+
+	return false;
+}
+
+static void
+intel_plane_color_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
+					const struct intel_plane_state *from_plane_state,
+					struct intel_crtc *crtc)
+{
+	struct drm_colorop *iter_colorop, *colorop;
+	struct drm_colorop_state *new_colorop_state;
+	struct drm_atomic_state *state = plane_state->uapi.state;
+	struct intel_colorop *intel_colorop;
+	struct drm_property_blob *blob;
+	struct intel_atomic_state *intel_atomic_state = to_intel_atomic_state(state);
+	struct intel_crtc_state *new_crtc_state = intel_atomic_state ?
+		intel_atomic_get_new_crtc_state(intel_atomic_state, crtc) : NULL;
+	bool changed = false;
+	int i = 0;
+
+	iter_colorop = plane_state->uapi.color_pipeline;
+
+	while (iter_colorop) {
+		for_each_new_colorop_in_state(state, colorop, new_colorop_state, i) {
+			if (new_colorop_state->colorop == iter_colorop) {
+				blob = new_colorop_state->bypass ? NULL : new_colorop_state->data;
+				intel_colorop = to_intel_colorop(colorop);
+				changed |= intel_plane_colorop_replace_blob(plane_state,
+									    intel_colorop,
+									    blob);
+			}
+		}
+		iter_colorop = iter_colorop->next;
+	}
+
+	if (new_crtc_state && changed)
+		new_crtc_state->plane_color_changed = true;
 }
 
 void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
@@ -407,6 +417,8 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 
 	plane_state->uapi.src = drm_plane_state_src(&from_plane_state->uapi);
 	plane_state->uapi.dst = drm_plane_state_dest(&from_plane_state->uapi);
+
+	intel_plane_color_copy_uapi_to_hw_state(plane_state, from_plane_state, crtc);
 }
 
 void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
@@ -435,7 +447,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	crtc_state->data_rate_y[plane->id] = 0;
 	crtc_state->rel_data_rate[plane->id] = 0;
 	crtc_state->rel_data_rate_y[plane->id] = 0;
-	crtc_state->min_cdclk[plane->id] = 0;
+	crtc_state->plane_min_cdclk[plane->id] = 0;
 
 	plane_state->uapi.visible = false;
 }
@@ -1094,6 +1106,9 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 		     DISPLAY_VERx100(display) == 3002) &&
 		     src_x % 2 != 0)
 			hsub = 2;
+
+		if (DISPLAY_VER(display) == 35)
+			vsub = 2;
 	} else {
 		hsub = fb->format->hsub;
 		vsub = fb->format->vsub;
@@ -1172,7 +1187,6 @@ static int
 intel_prepare_plane_fb(struct drm_plane *_plane,
 		       struct drm_plane_state *_new_plane_state)
 {
-	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
 	struct intel_plane *plane = to_intel_plane(_plane);
 	struct intel_display *display = to_intel_display(plane);
 	struct intel_plane_state *new_plane_state =
@@ -1221,8 +1235,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		goto unpin_fb;
 
 	if (new_plane_state->uapi.fence) {
-		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
-					     &attr);
+		i915_gem_fence_wait_priority_display(new_plane_state->uapi.fence);
 
 		intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						     new_plane_state->uapi.fence);
@@ -1745,6 +1758,9 @@ int intel_plane_atomic_check(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	}
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i)
+		intel_plane_calc_min_cdclk(state, plane);
 
 	return 0;
 }

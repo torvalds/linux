@@ -96,22 +96,4 @@ static struct hash_speed generic_hash_speed_template[] = {
 	{  .blen = 0,	.plen = 0, }
 };
 
-static struct hash_speed poly1305_speed_template[] = {
-	{ .blen = 96,	.plen = 16, },
-	{ .blen = 96,	.plen = 32, },
-	{ .blen = 96,	.plen = 96, },
-	{ .blen = 288,	.plen = 16, },
-	{ .blen = 288,	.plen = 32, },
-	{ .blen = 288,	.plen = 288, },
-	{ .blen = 1056,	.plen = 32, },
-	{ .blen = 1056,	.plen = 1056, },
-	{ .blen = 2080,	.plen = 32, },
-	{ .blen = 2080,	.plen = 2080, },
-	{ .blen = 4128,	.plen = 4128, },
-	{ .blen = 8224,	.plen = 8224, },
-
-	/* End marker */
-	{  .blen = 0,	.plen = 0, }
-};
-
 #endif	/* _CRYPTO_TCRYPT_H */

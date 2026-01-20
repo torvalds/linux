@@ -7,6 +7,7 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/kvm_types.h>
 #include <linux/percpu.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -77,6 +78,10 @@
 
 DEFINE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
+
+/* Used for modules: built-in code uses runtime constants */
+unsigned long USER_PTR_MAX;
+EXPORT_SYMBOL(USER_PTR_MAX);
 
 u32 elf_hwcap2 __read_mostly;
 
@@ -401,6 +406,28 @@ out:
 	cr4_clear_bits(X86_CR4_UMIP);
 }
 
+static __always_inline void setup_lass(struct cpuinfo_x86 *c)
+{
+	if (!cpu_feature_enabled(X86_FEATURE_LASS))
+		return;
+
+	/*
+	 * Legacy vsyscall page access causes a #GP when LASS is active.
+	 * Disable LASS because the #GP handler doesn't support vsyscall
+	 * emulation.
+	 *
+	 * Also disable LASS when running under EFI, as some runtime and
+	 * boot services rely on 1:1 mappings in the lower half.
+	 */
+	if (IS_ENABLED(CONFIG_X86_VSYSCALL_EMULATION) ||
+	    IS_ENABLED(CONFIG_EFI)) {
+		setup_clear_cpu_cap(X86_FEATURE_LASS);
+		return;
+	}
+
+	cr4_set_bits(X86_CR4_LASS);
+}
+
 /* These bits should not change their value after CPU init is finished. */
 static const unsigned long cr4_pinned_mask = X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_UMIP |
 					     X86_CR4_FSGSBASE | X86_CR4_CET | X86_CR4_FRED;
@@ -460,14 +487,14 @@ void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 		__write_cr4(newval);
 	}
 }
-EXPORT_SYMBOL(cr4_update_irqsoff);
+EXPORT_SYMBOL_FOR_KVM(cr4_update_irqsoff);
 
 /* Read the CR4 shadow. */
 unsigned long cr4_read_shadow(void)
 {
 	return this_cpu_read(cpu_tlbstate.cr4);
 }
-EXPORT_SYMBOL_GPL(cr4_read_shadow);
+EXPORT_SYMBOL_FOR_KVM(cr4_read_shadow);
 
 void cr4_init(void)
 {
@@ -722,7 +749,7 @@ void load_direct_gdt(int cpu)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 }
-EXPORT_SYMBOL_GPL(load_direct_gdt);
+EXPORT_SYMBOL_FOR_KVM(load_direct_gdt);
 
 /* Load a fixmap remapping of the per-cpu GDT */
 void load_fixmap_gdt(int cpu)
@@ -1021,12 +1048,8 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_8000_0001_EDX] = edx;
 	}
 
-	if (c->extended_cpuid_level >= 0x80000007) {
-		cpuid(0x80000007, &eax, &ebx, &ecx, &edx);
-
-		c->x86_capability[CPUID_8000_0007_EBX] = ebx;
-		c->x86_power = edx;
-	}
+	if (c->extended_cpuid_level >= 0x80000007)
+		c->x86_power = cpuid_edx(0x80000007);
 
 	if (c->extended_cpuid_level >= 0x80000008) {
 		cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
@@ -2011,10 +2034,10 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	/* Disable the PN if appropriate */
 	squash_the_stupid_serial_number(c);
 
-	/* Set up SMEP/SMAP/UMIP */
 	setup_smep(c);
 	setup_smap(c);
 	setup_umip(c);
+	setup_lass(c);
 
 	/* Enable FSGSBASE instructions if available. */
 	if (cpu_has(c, X86_FEATURE_FSGSBASE)) {
@@ -2579,7 +2602,7 @@ void __init arch_cpu_finalize_init(void)
 	alternative_instructions();
 
 	if (IS_ENABLED(CONFIG_X86_64)) {
-		unsigned long USER_PTR_MAX = TASK_SIZE_MAX;
+		USER_PTR_MAX = TASK_SIZE_MAX;
 
 		/*
 		 * Enable this when LAM is gated on LASS support

@@ -90,19 +90,18 @@ static int acpi_tad_set_real_time(struct device *dev, struct acpi_tad_rt *rt)
 	args[0].buffer.pointer = (u8 *)rt;
 	args[0].buffer.length = sizeof(*rt);
 
-	pm_runtime_get_sync(dev);
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	status = acpi_evaluate_integer(handle, "_SRT", &arg_list, &retval);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status) || retval)
 		return -EIO;
 
 	return 0;
 }
 
-static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
+static int acpi_tad_evaluate_grt(struct device *dev, struct acpi_tad_rt *rt)
 {
 	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER };
@@ -111,12 +110,7 @@ static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 	acpi_status status;
 	int ret = -EIO;
 
-	pm_runtime_get_sync(dev);
-
 	status = acpi_evaluate_object(handle, "_GRT", NULL, &output);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status))
 		goto out_free;
 
@@ -137,6 +131,21 @@ static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
 out_free:
 	ACPI_FREE(output.pointer);
 	return ret;
+}
+
+static int acpi_tad_get_real_time(struct device *dev, struct acpi_tad_rt *rt)
+{
+	int ret;
+
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
+
+	ret = acpi_tad_evaluate_grt(dev, rt);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static char *acpi_tad_rt_next_field(char *s, int *val)
@@ -266,12 +275,11 @@ static int acpi_tad_wake_set(struct device *dev, char *method, u32 timer_id,
 	args[0].integer.value = timer_id;
 	args[1].integer.value = value;
 
-	pm_runtime_get_sync(dev);
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status) || retval)
 		return -EIO;
 
@@ -314,12 +322,11 @@ static ssize_t acpi_tad_wake_read(struct device *dev, char *buf, char *method,
 
 	args[0].integer.value = timer_id;
 
-	pm_runtime_get_sync(dev);
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	status = acpi_evaluate_integer(handle, method, &arg_list, &retval);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -370,12 +377,11 @@ static int acpi_tad_clear_status(struct device *dev, u32 timer_id)
 
 	args[0].integer.value = timer_id;
 
-	pm_runtime_get_sync(dev);
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	status = acpi_evaluate_integer(handle, "_CWS", &arg_list, &retval);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status) || retval)
 		return -EIO;
 
@@ -411,12 +417,11 @@ static ssize_t acpi_tad_status_read(struct device *dev, char *buf, u32 timer_id)
 
 	args[0].integer.value = timer_id;
 
-	pm_runtime_get_sync(dev);
+	PM_RUNTIME_ACQUIRE(dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	status = acpi_evaluate_integer(handle, "_GWS", &arg_list, &retval);
-
-	pm_runtime_put_sync(dev);
-
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -563,8 +568,6 @@ static void acpi_tad_remove(struct platform_device *pdev)
 
 	device_init_wakeup(dev, false);
 
-	pm_runtime_get_sync(dev);
-
 	if (dd->capabilities & ACPI_TAD_RT)
 		sysfs_remove_group(&dev->kobj, &acpi_tad_time_attr_group);
 
@@ -573,14 +576,16 @@ static void acpi_tad_remove(struct platform_device *pdev)
 
 	sysfs_remove_group(&dev->kobj, &acpi_tad_attr_group);
 
-	acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
-	acpi_tad_clear_status(dev, ACPI_TAD_AC_TIMER);
-	if (dd->capabilities & ACPI_TAD_DC_WAKE) {
-		acpi_tad_disable_timer(dev, ACPI_TAD_DC_TIMER);
-		acpi_tad_clear_status(dev, ACPI_TAD_DC_TIMER);
+	scoped_guard(pm_runtime_noresume, dev) {
+		acpi_tad_disable_timer(dev, ACPI_TAD_AC_TIMER);
+		acpi_tad_clear_status(dev, ACPI_TAD_AC_TIMER);
+		if (dd->capabilities & ACPI_TAD_DC_WAKE) {
+			acpi_tad_disable_timer(dev, ACPI_TAD_DC_TIMER);
+			acpi_tad_clear_status(dev, ACPI_TAD_DC_TIMER);
+		}
 	}
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_suspend(dev);
 	pm_runtime_disable(dev);
 	acpi_remove_cmos_rtc_space_handler(handle);
 }

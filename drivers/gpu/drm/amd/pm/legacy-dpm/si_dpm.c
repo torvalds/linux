@@ -2558,18 +2558,13 @@ static int si_enable_power_containment(struct amdgpu_device *adev,
 		if (enable) {
 			if (!si_should_disable_uvd_powertune(adev, amdgpu_new_state)) {
 				smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_TDPClampingActive);
-				if (smc_result != PPSMC_Result_OK) {
+				if (smc_result != PPSMC_Result_OK)
 					ret = -EINVAL;
-					ni_pi->pc_enabled = false;
-				} else {
-					ni_pi->pc_enabled = true;
-				}
 			}
 		} else {
 			smc_result = amdgpu_si_send_msg_to_smc(adev, PPSMC_TDPClampingInactive);
 			if (smc_result != PPSMC_Result_OK)
 				ret = -EINVAL;
-			ni_pi->pc_enabled = false;
 		}
 	}
 
@@ -7051,13 +7046,20 @@ static void si_set_vce_clock(struct amdgpu_device *adev,
 	if ((old_rps->evclk != new_rps->evclk) ||
 	    (old_rps->ecclk != new_rps->ecclk)) {
 		/* Turn the clocks on when encoding, off otherwise */
+		dev_dbg(adev->dev, "set VCE clocks: %u, %u\n", new_rps->evclk, new_rps->ecclk);
+
 		if (new_rps->evclk || new_rps->ecclk) {
-			/* Place holder for future VCE1.0 porting to amdgpu
-			vce_v1_0_enable_mgcg(adev, false, false);*/
+			amdgpu_asic_set_vce_clocks(adev, new_rps->evclk, new_rps->ecclk);
+			amdgpu_device_ip_set_clockgating_state(
+				adev, AMD_IP_BLOCK_TYPE_VCE, AMD_CG_STATE_UNGATE);
+			amdgpu_device_ip_set_powergating_state(
+				adev, AMD_IP_BLOCK_TYPE_VCE, AMD_PG_STATE_UNGATE);
 		} else {
-			/* Place holder for future VCE1.0 porting to amdgpu
-			vce_v1_0_enable_mgcg(adev, true, false);
-			amdgpu_asic_set_vce_clocks(adev, new_rps->evclk, new_rps->ecclk);*/
+			amdgpu_device_ip_set_powergating_state(
+				adev, AMD_IP_BLOCK_TYPE_VCE, AMD_PG_STATE_GATE);
+			amdgpu_device_ip_set_clockgating_state(
+				adev, AMD_IP_BLOCK_TYPE_VCE, AMD_CG_STATE_GATE);
+			amdgpu_asic_set_vce_clocks(adev, 0, 0);
 		}
 	}
 }
@@ -7509,8 +7511,6 @@ static int si_dpm_init(struct amdgpu_device *adev)
 	pi->pasi = CYPRESS_HASI_DFLT;
 	pi->vrc = SISLANDS_VRC_DFLT;
 
-	pi->gfx_clock_gating = true;
-
 	eg_pi->sclk_deep_sleep = true;
 	si_pi->sclk_deep_sleep_above_low = false;
 
@@ -7521,7 +7521,6 @@ static int si_dpm_init(struct amdgpu_device *adev)
 
 	eg_pi->dynamic_ac_timing = true;
 
-	eg_pi->light_sleep = true;
 #if defined(CONFIG_ACPI)
 	eg_pi->pcie_performance_request =
 		amdgpu_acpi_is_pcie_performance_request_supported(adev);
@@ -7582,6 +7581,7 @@ static void si_dpm_debugfs_print_current_performance_level(void *handle,
 	} else {
 		pl = &ps->performance_levels[current_index];
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
+		seq_printf(m, "vce    evclk: %d ecclk: %d\n", rps->evclk, rps->ecclk);
 		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
 			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
 	}

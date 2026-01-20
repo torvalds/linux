@@ -109,10 +109,6 @@ irq_domain维护着从hwirq号到Linux IRQ的radix的树状映射。 当一个hw
 如果hwirq号可以非常大，树状映射是一个很好的选择，因为它不需要分配一个和最大hwirq
 号一样大的表。 缺点是，hwirq到IRQ号的查找取决于表中有多少条目。
 
-irq_domain_add_tree()和irq_domain_create_tree()在功能上是等价的，除了第一
-个参数不同——前者接受一个Open Firmware特定的 'struct device_node' ，而后者接受
-一个更通用的抽象 'struct fwnode_handle' 。
-
 很少有驱动应该需要这个映射。
 
 无映射

@@ -161,3 +161,56 @@ int simplest_loop(void *ctx)
 
 	return 0;
 }
+
+__used
+static void iterator_with_diff_stack_depth(int x)
+{
+	struct bpf_iter_num iter;
+
+	asm volatile (
+		"if r1 == 42 goto 0f;"
+		"*(u64 *)(r10 - 128) = 0;"
+	"0:"
+		/* create iterator */
+		"r1 = %[iter];"
+		"r2 = 0;"
+		"r3 = 10;"
+		"call %[bpf_iter_num_new];"
+	"1:"
+		/* consume next item */
+		"r1 = %[iter];"
+		"call %[bpf_iter_num_next];"
+		"if r0 == 0 goto 2f;"
+		"goto 1b;"
+	"2:"
+		/* destroy iterator */
+		"r1 = %[iter];"
+		"call %[bpf_iter_num_destroy];"
+		:
+		: __imm_ptr(iter), ITER_HELPERS
+		: __clobber_common, "r6"
+	);
+}
+
+SEC("socket")
+__success
+__naked int widening_stack_size_bug(void *ctx)
+{
+	/*
+	 * Depending on iterator_with_diff_stack_depth() parameter value,
+	 * subprogram stack depth is either 8 or 128 bytes. Arrange values so
+	 * that it is 128 on a first call and 8 on a second. This triggered a
+	 * bug in verifier's widen_imprecise_scalars() logic.
+	 */
+	asm volatile (
+		"r6 = 0;"
+		"r1 = 0;"
+	"1:"
+		"call iterator_with_diff_stack_depth;"
+		"r1 = 42;"
+		"r6 += 1;"
+		"if r6 < 2 goto 1b;"
+		"r0 = 0;"
+		"exit;"
+		::: __clobber_all);
+}

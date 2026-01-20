@@ -7,7 +7,6 @@
 #include <linux/atomic.h>
 #include <linux/sizes.h>
 #include "btrfs_inode.h"
-#include "fs.h"
 
 struct address_space;
 struct folio;

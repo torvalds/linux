@@ -360,12 +360,11 @@ io_error:
 
 static void rt711_jack_init(struct rt711_priv *rt711)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(rt711->component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(rt711->component);
 
 	mutex_lock(&rt711->calibrate_mutex);
 	/* power on */
-	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
+	if (snd_soc_dapm_get_bias_level(dapm) <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
 			RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
 
@@ -448,7 +447,7 @@ static void rt711_jack_init(struct rt711_priv *rt711)
 	}
 
 	/* power off */
-	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
+	if (snd_soc_dapm_get_bias_level(dapm) <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
 			RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 	mutex_unlock(&rt711->calibrate_mutex);
@@ -504,8 +503,7 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
@@ -543,7 +541,7 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 		val_ll |= read_ll;
 	}
 
-	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
+	if (snd_soc_dapm_get_bias_level(dapm) <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
 				RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
 
@@ -597,7 +595,7 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 			break;
 	}
 
-	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
+	if (snd_soc_dapm_get_bias_level(dapm) <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
 				RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 
@@ -682,8 +680,7 @@ static const struct snd_kcontrol_new rt711_snd_controls[] = {
 static int rt711_mux_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
 	unsigned int reg, val = 0, nid;
 	int ret;
@@ -712,10 +709,8 @@ static int rt711_mux_get(struct snd_kcontrol *kcontrol,
 static int rt711_mux_put(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_dapm_kcontrol_component(kcontrol);
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_to_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_to_dapm(kcontrol);
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int *item = ucontrol->value.enumerated.item;
@@ -900,13 +895,12 @@ static const struct snd_soc_dapm_route rt711_audio_map[] = {
 static int rt711_set_bias_level(struct snd_soc_component *component,
 				enum snd_soc_bias_level level)
 {
-	struct snd_soc_dapm_context *dapm =
-		snd_soc_component_get_dapm(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (dapm->bias_level == SND_SOC_BIAS_STANDBY) {
+		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_STANDBY) {
 			regmap_write(rt711->regmap,
 				RT711_SET_AUDIO_POWER_STATE,
 				AC_PWRST_D0);

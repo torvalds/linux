@@ -5,6 +5,7 @@
  */
 
 #include <dirent.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <linux/coresight-pmu.h>
 #include <linux/zalloc.h>

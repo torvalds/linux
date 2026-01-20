@@ -90,7 +90,6 @@ FEATURE_TESTS_BASIC :=                  \
         timerfd                         \
         zlib                            \
         lzma                            \
-        get_cpuid                       \
         bpf                             \
         scandirat			\
         sched_getcpu			\
@@ -146,7 +145,6 @@ FEATURE_DISPLAY ?=              \
          llvm-perf              \
          zlib                   \
          lzma                   \
-         get_cpuid              \
          bpf			\
          libaio			\
          libzstd
@@ -315,5 +313,7 @@ endef
 
 ifeq ($(FEATURE_DISPLAY_DEFERRED),)
   $(call feature_display_entries)
-  $(info )
+  ifeq ($(feature_display),1)
+    $(info )
+  endif
 endif

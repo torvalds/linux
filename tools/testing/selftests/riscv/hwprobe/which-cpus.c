@@ -14,7 +14,7 @@
 #include <assert.h>
 
 #include "hwprobe.h"
-#include "../../kselftest.h"
+#include "kselftest.h"
 
 static void help(void)
 {

@@ -8,7 +8,6 @@
 #include <drm/drm_print.h>
 
 #include "i915_reg.h"
-#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_cx0_phy_regs.h"
 #include "intel_ddi.h"
@@ -18,6 +17,7 @@
 #include "intel_display_power_map.h"
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
+#include "intel_display_utils.h"
 #include "intel_dkl_phy_regs.h"
 #include "intel_dp.h"
 #include "intel_dp_mst.h"
@@ -1076,8 +1076,8 @@ xelpdp_tc_phy_wait_for_tcss_power(struct intel_tc_port *tc, bool enabled)
 static void xelpdp_tc_power_request_wa(struct intel_display *display, bool enable)
 {
 	/* check if mailbox is running busy */
-	if (intel_de_wait_for_clear(display, TCSS_DISP_MAILBOX_IN_CMD,
-				    TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
+	if (intel_de_wait_for_clear_ms(display, TCSS_DISP_MAILBOX_IN_CMD,
+				       TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
 		drm_dbg_kms(display->drm,
 			    "Timeout waiting for TCSS mailbox run/busy bit to clear\n");
 		return;
@@ -1089,8 +1089,8 @@ static void xelpdp_tc_power_request_wa(struct intel_display *display, bool enabl
 		       TCSS_DISP_MAILBOX_IN_CMD_DATA(0x1));
 
 	/* wait to clear mailbox running busy bit before continuing */
-	if (intel_de_wait_for_clear(display, TCSS_DISP_MAILBOX_IN_CMD,
-				    TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
+	if (intel_de_wait_for_clear_ms(display, TCSS_DISP_MAILBOX_IN_CMD,
+				       TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
 		drm_dbg_kms(display->drm,
 			    "Timeout after writing data to mailbox. Mailbox run/busy bit did not clear\n");
 		return;
@@ -1701,6 +1701,19 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
 		    tc->max_lane_count);
 
 	mutex_unlock(&tc->lock);
+}
+
+void intel_tc_info(struct drm_printer *p,  struct intel_digital_port *dig_port)
+{
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	intel_tc_port_lock(dig_port);
+	drm_printf(p, "\tTC Port %s: mode: %s, pin assignment: %c, max lanes: %d\n",
+		   tc->port_name,
+		   tc_port_mode_name(tc->mode),
+		   pin_assignment_name(tc->pin_assignment),
+		   tc->max_lane_count);
+	intel_tc_port_unlock(dig_port);
 }
 
 /*

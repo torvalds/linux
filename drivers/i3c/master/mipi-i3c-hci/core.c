@@ -266,9 +266,9 @@ static int i3c_hci_daa(struct i3c_master_controller *m)
 	return hci->cmd->perform_daa(hci);
 }
 
-static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
-			      struct i3c_priv_xfer *i3c_xfers,
-			      int nxfers)
+static int i3c_hci_i3c_xfers(struct i3c_dev_desc *dev,
+			     struct i3c_xfer *i3c_xfers, int nxfers,
+			     enum i3c_xfer_mode mode)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
@@ -515,7 +515,7 @@ static const struct i3c_master_controller_ops i3c_hci_ops = {
 	.bus_cleanup		= i3c_hci_bus_cleanup,
 	.do_daa			= i3c_hci_daa,
 	.send_ccc_cmd		= i3c_hci_send_ccc_cmd,
-	.priv_xfers		= i3c_hci_priv_xfers,
+	.i3c_xfers		= i3c_hci_i3c_xfers,
 	.i2c_xfers		= i3c_hci_i2c_xfers,
 	.attach_i3c_dev		= i3c_hci_attach_i3c_dev,
 	.reattach_i3c_dev	= i3c_hci_reattach_i3c_dev,

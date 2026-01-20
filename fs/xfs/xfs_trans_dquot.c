@@ -393,7 +393,7 @@ xfs_trans_dqlockedjoin(
 	unsigned int		i;
 	ASSERT(q[0].qt_dquot != NULL);
 	if (q[1].qt_dquot == NULL) {
-		xfs_dqlock(q[0].qt_dquot);
+		mutex_lock(&q[0].qt_dquot->q_qlock);
 		xfs_trans_dqjoin(tp, q[0].qt_dquot);
 	} else if (q[2].qt_dquot == NULL) {
 		xfs_dqlock2(q[0].qt_dquot, q[1].qt_dquot);
@@ -693,7 +693,7 @@ xfs_trans_unreserve_and_mod_dquots(
 			locked = already_locked;
 			if (qtrx->qt_blk_res) {
 				if (!locked) {
-					xfs_dqlock(dqp);
+					mutex_lock(&dqp->q_qlock);
 					locked = true;
 				}
 				dqp->q_blk.reserved -=
@@ -701,7 +701,7 @@ xfs_trans_unreserve_and_mod_dquots(
 			}
 			if (qtrx->qt_ino_res) {
 				if (!locked) {
-					xfs_dqlock(dqp);
+					mutex_lock(&dqp->q_qlock);
 					locked = true;
 				}
 				dqp->q_ino.reserved -=
@@ -710,14 +710,14 @@ xfs_trans_unreserve_and_mod_dquots(
 
 			if (qtrx->qt_rtblk_res) {
 				if (!locked) {
-					xfs_dqlock(dqp);
+					mutex_lock(&dqp->q_qlock);
 					locked = true;
 				}
 				dqp->q_rtb.reserved -=
 					(xfs_qcnt_t)qtrx->qt_rtblk_res;
 			}
 			if (locked && !already_locked)
-				xfs_dqunlock(dqp);
+				mutex_unlock(&dqp->q_qlock);
 
 		}
 	}
@@ -820,7 +820,7 @@ xfs_trans_dqresv(
 	struct xfs_dquot_res	*blkres;
 	struct xfs_quota_limits	*qlim;
 
-	xfs_dqlock(dqp);
+	mutex_lock(&dqp->q_qlock);
 
 	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
 
@@ -887,16 +887,16 @@ xfs_trans_dqresv(
 	    XFS_IS_CORRUPT(mp, dqp->q_ino.reserved < dqp->q_ino.count))
 		goto error_corrupt;
 
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	return 0;
 
 error_return:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	if (xfs_dquot_type(dqp) == XFS_DQTYPE_PROJ)
 		return -ENOSPC;
 	return -EDQUOT;
 error_corrupt:
-	xfs_dqunlock(dqp);
+	mutex_unlock(&dqp->q_qlock);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 	xfs_fs_mark_sick(mp, XFS_SICK_FS_QUOTACHECK);
 	return -EFSCORRUPTED;

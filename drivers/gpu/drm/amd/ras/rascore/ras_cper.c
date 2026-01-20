@@ -54,7 +54,7 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 				enum ras_cper_severity sev, struct ras_log_info *trace)
 {
 	struct device_system_info dev_info = {0};
-	char record_id[16];
+	char record_id[32];
 
 	hdr->signature[0]		= 'C';
 	hdr->signature[1]		= 'P';
@@ -62,17 +62,16 @@ static void fill_section_hdr(struct ras_core_context *ras_core,
 	hdr->signature[3]		= 'R';
 	hdr->revision			= CPER_HDR__REV_1;
 	hdr->signature_end		= 0xFFFFFFFF;
-	hdr->error_severity		= sev;
+	hdr->error_severity		= (sev == RAS_CPER_SEV_RMA ? RAS_CPER_SEV_FATAL_UE : sev);
 
 	hdr->valid_bits.platform_id	= 1;
-	hdr->valid_bits.partition_id	= 1;
 	hdr->valid_bits.timestamp	= 1;
 
 	ras_core_get_device_system_info(ras_core, &dev_info);
 
 	cper_get_timestamp(ras_core, &hdr->timestamp, trace->timestamp);
 
-	snprintf(record_id, 9, "%d:%llX", dev_info.socket_id,
+	snprintf(record_id, sizeof(record_id), "%d:%llX", dev_info.socket_id,
 		    RAS_LOG_SEQNO_TO_BATCH_IDX(trace->seqno));
 	memcpy(hdr->record_id, record_id, 8);
 
@@ -116,7 +115,7 @@ static int fill_section_descriptor(struct ras_core_context *ras_core,
 	descriptor->sec_length		= section_length;
 	descriptor->valid_bits.fru_text	= 1;
 	descriptor->flag_bits.primary	= 1;
-	descriptor->severity			= sev;
+	descriptor->severity = (sev == RAS_CPER_SEV_RMA ? RAS_CPER_SEV_FATAL_UE : sev);
 	descriptor->sec_type			= sec_type;
 
 	ras_core_get_device_system_info(ras_core, &dev_info);
@@ -147,13 +146,19 @@ static int fill_section_fatal(struct ras_core_context *ras_core,
 }
 
 static int fill_section_runtime(struct ras_core_context *ras_core,
-		struct cper_section_runtime *runtime, struct ras_log_info *trace)
+		struct cper_section_runtime *runtime, struct ras_log_info *trace,
+		enum ras_cper_severity sev)
 {
 	runtime->hdr.valid_bits.err_info_cnt = 1;
 	runtime->hdr.valid_bits.err_context_cnt = 1;
 
 	runtime->descriptor.error_type = RUNTIME;
 	runtime->descriptor.ms_chk_bits.err_type_valid = 1;
+	if (sev == RAS_CPER_SEV_RMA) {
+		runtime->descriptor.valid_bits.ms_chk = 1;
+		runtime->descriptor.ms_chk_bits.err_type = 1;
+		runtime->descriptor.ms_chk_bits.pcc = 1;
+	}
 
 	runtime->reg.reg_ctx_type = CPER_CTX_TYPE__CRASH;
 	runtime->reg.reg_arr_size = sizeof(runtime->reg.reg_dump);
@@ -189,7 +194,7 @@ static int cper_generate_runtime_record(struct ras_core_context *ras_core,
 		fill_section_descriptor(ras_core, descriptor, sev, RUNTIME,
 			RAS_NONSTD_SEC_OFFSET(hdr->sec_cnt, i),
 			sizeof(struct cper_section_runtime));
-		fill_section_runtime(ras_core, runtime, trace_arr[i]);
+		fill_section_runtime(ras_core, runtime, trace_arr[i], sev);
 	}
 
 	return 0;

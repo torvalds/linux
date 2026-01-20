@@ -12,7 +12,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <linux/types.h>
-#include "../kselftest.h"
+#include "kselftest.h"
 
 #define ARRAY_LEN(X) (sizeof (X) / sizeof (*(X)))
 #define BUILD_BUG_ON(e) ((void)(sizeof(struct { int:(-!!(e)); })))

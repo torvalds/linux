@@ -281,14 +281,11 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (host_err)
 		return nfserrno(host_err);
 
-	inode_lock_nested(inode, I_MUTEX_PARENT);
-
-	child = lookup_one(&nop_mnt_idmap,
-			   &QSTR_LEN(argp->name, argp->len),
-			   parent);
+	child = start_creating(&nop_mnt_idmap, parent,
+			       &QSTR_LEN(argp->name, argp->len));
 	if (IS_ERR(child)) {
 		status = nfserrno(PTR_ERR(child));
-		goto out;
+		goto out_write;
 	}
 
 	if (d_really_is_negative(child)) {
@@ -344,7 +341,7 @@ nfsd3_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	status = fh_fill_pre_attrs(fhp);
 	if (status != nfs_ok)
 		goto out;
-	host_err = vfs_create(&nop_mnt_idmap, inode, child, iap->ia_mode, true);
+	host_err = vfs_create(&nop_mnt_idmap, child, iap->ia_mode, NULL);
 	if (host_err < 0) {
 		status = nfserrno(host_err);
 		goto out;
@@ -367,9 +364,8 @@ set_attr:
 	status = nfsd_create_setattr(rqstp, fhp, resfhp, &attrs);
 
 out:
-	inode_unlock(inode);
-	if (child && !IS_ERR(child))
-		dput(child);
+	end_creating(child);
+out_write:
 	fh_drop_write(fhp);
 	return status;
 }

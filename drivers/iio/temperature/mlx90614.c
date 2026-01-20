@@ -22,6 +22,7 @@
  * the "wakeup" GPIO is not given, power management will be disabled.
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
@@ -67,10 +68,6 @@
 #define MLX90614_CONST_OFFSET_REM 500000 /* remainder of offset (273.15*50) */
 #define MLX90614_CONST_SCALE 20 /* Scale in milliKelvin (0.02 * 1000) */
 #define MLX90614_CONST_FIR 0x7 /* Fixed value for FIR part of low pass filter */
-
-/* Non-constant mask variant of FIELD_GET() and FIELD_PREP() */
-#define field_get(_mask, _reg)	(((_reg) & (_mask)) >> (ffs(_mask) - 1))
-#define field_prep(_mask, _val)	(((_val) << (ffs(_mask) - 1)) & (_mask))
 
 struct mlx_chip_info {
 	/* EEPROM offsets with 16-bit data, MSB first */

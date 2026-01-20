@@ -126,9 +126,7 @@ int timerlat_enable(struct osnoise_tool *tool)
 
 		nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
 
-		for (i = 0; i < nr_cpus; i++) {
-			if (params->common.cpus && !CPU_ISSET(i, &params->common.monitored_cpus))
-				continue;
+		for_each_monitored_cpu(i, nr_cpus, &params->common) {
 			if (save_cpu_idle_disable_state(i) < 0) {
 				err_msg("Could not save cpu idle state.\n");
 				return -1;
@@ -215,16 +213,14 @@ void timerlat_analyze(struct osnoise_tool *tool, bool stopped)
 void timerlat_free(struct osnoise_tool *tool)
 {
 	struct timerlat_params *params = to_timerlat_params(tool->params);
-	int nr_cpus, i;
+	int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	int i;
 
 	timerlat_aa_destroy();
 	if (dma_latency_fd >= 0)
 		close(dma_latency_fd);
 	if (params->deepest_idle_state >= -1) {
-		for (i = 0; i < nr_cpus; i++) {
-			if (params->common.cpus &&
-			    !CPU_ISSET(i, &params->common.monitored_cpus))
-				continue;
+		for_each_monitored_cpu(i, nr_cpus, &params->common) {
 			restore_cpu_idle_disable_state(i);
 		}
 	}

@@ -616,7 +616,7 @@ do {									\
 #define lockdep_assert_in_softirq()					\
 do {									\
 	WARN_ON_ONCE(__lockdep_enabled			&&		\
-		     (!in_softirq() || in_irq() || in_nmi()));		\
+		     (!in_softirq() || in_hardirq() || in_nmi()));	\
 } while (0)
 
 extern void lockdep_assert_in_softirq_func(void);

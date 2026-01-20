@@ -7,12 +7,10 @@
 
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-#include <linux/regulator/of_regulator.h>
 
 static const struct regulator_ops rzg2l_usb_vbus_reg_ops = {
 	.enable     = regulator_enable_regmap,

@@ -124,7 +124,6 @@ static int i2c_read_demod_bytes(struct lgdt330x_state *state,
 /* Software reset */
 static int lgdt3302_sw_reset(struct lgdt330x_state *state)
 {
-	u8 ret;
 	u8 reset[] = {
 		IRQ_MASK,
 		/*
@@ -133,6 +132,7 @@ static int lgdt3302_sw_reset(struct lgdt330x_state *state)
 		 */
 		0x00
 	};
+	int ret;
 
 	ret = i2c_write_demod_bytes(state,
 				    reset, sizeof(reset));
@@ -147,11 +147,11 @@ static int lgdt3302_sw_reset(struct lgdt330x_state *state)
 
 static int lgdt3303_sw_reset(struct lgdt330x_state *state)
 {
-	u8 ret;
 	u8 reset[] = {
 		0x02,
 		0x00 /* bit 0 is active low software reset */
 	};
+	int ret;
 
 	ret = i2c_write_demod_bytes(state,
 				    reset, sizeof(reset));
