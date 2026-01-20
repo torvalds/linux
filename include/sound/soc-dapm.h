@@ -585,7 +585,6 @@ struct snd_soc_dapm_context {
 
 	bool idle_bias;				/* Use BIAS_OFF instead of STANDBY when false */
 
-	struct device *dev;			/* from parent - for debug */ /* REMOVE ME */
 	struct snd_soc_component *component;	/* parent component */
 	struct snd_soc_card *card;		/* parent card */
 

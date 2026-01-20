@@ -4862,12 +4862,8 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 	dapm->component		= component;
 	dapm->bias_level	= SND_SOC_BIAS_OFF;
 
-	if (component) {
-		dapm->dev		= component->dev;
+	if (component)
 		dapm->idle_bias		= component->driver->idle_bias_on;
-	} else {
-		dapm->dev		= card->dev;
-	}
 
 	INIT_LIST_HEAD(&dapm->list);
 	/* see for_each_card_dapms */
