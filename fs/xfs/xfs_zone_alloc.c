@@ -408,31 +408,6 @@ xfs_zone_free_blocks(
 	return 0;
 }
 
-static struct xfs_group *
-xfs_find_free_zone(
-	struct xfs_mount	*mp,
-	unsigned long		start,
-	unsigned long		end)
-{
-	struct xfs_zone_info	*zi = mp->m_zone_info;
-	XA_STATE		(xas, &mp->m_groups[XG_TYPE_RTG].xa, start);
-	struct xfs_group	*xg;
-
-	xas_lock(&xas);
-	xas_for_each_marked(&xas, xg, end, XFS_RTG_FREE)
-		if (atomic_inc_not_zero(&xg->xg_active_ref))
-			goto found;
-	xas_unlock(&xas);
-	return NULL;
-
-found:
-	xas_clear_mark(&xas, XFS_RTG_FREE);
-	atomic_dec(&zi->zi_nr_free_zones);
-	zi->zi_free_zone_cursor = xg->xg_gno;
-	xas_unlock(&xas);
-	return xg;
-}
-
 static struct xfs_open_zone *
 xfs_init_open_zone(
 	struct xfs_rtgroup	*rtg,
@@ -472,13 +447,25 @@ xfs_open_zone(
 	bool			is_gc)
 {
 	struct xfs_zone_info	*zi = mp->m_zone_info;
+	XA_STATE		(xas, &mp->m_groups[XG_TYPE_RTG].xa, 0);
 	struct xfs_group	*xg;
 
-	xg = xfs_find_free_zone(mp, zi->zi_free_zone_cursor, ULONG_MAX);
-	if (!xg)
-		xg = xfs_find_free_zone(mp, 0, zi->zi_free_zone_cursor);
-	if (!xg)
-		return NULL;
+	/*
+	 * Pick the free zone with lowest index. Zones in the beginning of the
+	 * address space typically provides higher bandwidth than those at the
+	 * end of the address space on HDDs.
+	 */
+	xas_lock(&xas);
+	xas_for_each_marked(&xas, xg, ULONG_MAX, XFS_RTG_FREE)
+		if (atomic_inc_not_zero(&xg->xg_active_ref))
+			goto found;
+	xas_unlock(&xas);
+	return NULL;
+
+found:
+	xas_clear_mark(&xas, XFS_RTG_FREE);
+	atomic_dec(&zi->zi_nr_free_zones);
+	xas_unlock(&xas);
 
 	set_current_state(TASK_RUNNING);
 	return xfs_init_open_zone(to_rtg(xg), 0, write_hint, is_gc);
