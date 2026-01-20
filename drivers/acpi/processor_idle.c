@@ -1243,18 +1243,19 @@ static void acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
  * @pr: the ACPI processor
  * @dev : the cpuidle device
  */
-static int acpi_processor_setup_cpuidle_dev(struct acpi_processor *pr,
-					    struct cpuidle_device *dev)
+static void acpi_processor_setup_cpuidle_dev(struct acpi_processor *pr,
+					     struct cpuidle_device *dev)
 {
 	if (!pr->flags.power_setup_done || !pr->flags.power || !dev)
-		return -EINVAL;
+		return;
 
 	dev->cpu = pr->id;
-	if (pr->flags.has_lpi)
-		return acpi_processor_ffh_lpi_probe(pr->id);
+	if (pr->flags.has_lpi) {
+		acpi_processor_ffh_lpi_probe(pr->id);
+		return;
+	}
 
 	acpi_processor_setup_cpuidle_cx(pr, dev);
-	return 0;
 }
 
 static int acpi_processor_get_power_info(struct acpi_processor *pr)
