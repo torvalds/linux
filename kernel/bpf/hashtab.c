@@ -82,9 +82,6 @@ struct bucket {
 	rqspinlock_t raw_lock;
 };
 
-#define HASHTAB_MAP_LOCK_COUNT 8
-#define HASHTAB_MAP_LOCK_MASK (HASHTAB_MAP_LOCK_COUNT - 1)
-
 struct bpf_htab {
 	struct bpf_map map;
 	struct bpf_mem_alloc ma;
@@ -2237,11 +2234,11 @@ static u64 htab_map_mem_usage(const struct bpf_map *map)
 	bool prealloc = htab_is_prealloc(htab);
 	bool percpu = htab_is_percpu(htab);
 	bool lru = htab_is_lru(htab);
-	u64 num_entries;
-	u64 usage = sizeof(struct bpf_htab);
+	u64 num_entries, usage;
 
-	usage += sizeof(struct bucket) * htab->n_buckets;
-	usage += sizeof(int) * num_possible_cpus() * HASHTAB_MAP_LOCK_COUNT;
+	usage = sizeof(struct bpf_htab) +
+		sizeof(struct bucket) * htab->n_buckets;
+
 	if (prealloc) {
 		num_entries = map->max_entries;
 		if (htab_has_extra_elems(htab))
