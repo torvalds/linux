@@ -32,7 +32,6 @@ enum scmi_imx_misc_protocol_cmd {
 };
 
 struct scmi_imx_misc_info {
-	u32 version;
 	u32 nr_dev_ctrl;
 	u32 nr_brd_ctrl;
 	u32 nr_reason;
@@ -380,15 +379,10 @@ static const struct scmi_imx_misc_proto_ops scmi_imx_misc_proto_ops = {
 static int scmi_imx_misc_protocol_init(const struct scmi_protocol_handle *ph)
 {
 	struct scmi_imx_misc_info *minfo;
-	u32 version;
 	int ret;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_info(ph->dev, "NXP SM MISC Version %d.%d\n",
-		 PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	minfo = devm_kzalloc(ph->dev, sizeof(*minfo), GFP_KERNEL);
 	if (!minfo)
@@ -410,7 +404,7 @@ static int scmi_imx_misc_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 
-	return ph->set_priv(ph, minfo, version);
+	return ph->set_priv(ph, minfo);
 }
 
 static const struct scmi_protocol scmi_imx_misc = {

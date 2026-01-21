@@ -1627,17 +1627,15 @@ static int version_get(const struct scmi_protocol_handle *ph, u32 *version)
  *
  * @ph: A reference to the protocol handle.
  * @priv: The private data to set.
- * @version: The detected protocol version for the core to register.
  *
  * Return: 0 on Success
  */
 static int scmi_set_protocol_priv(const struct scmi_protocol_handle *ph,
-				  void *priv, u32 version)
+				  void *priv)
 {
 	struct scmi_protocol_instance *pi = ph_to_pi(ph);
 
 	pi->priv = priv;
-	pi->version = version;
 
 	return 0;
 }
@@ -1657,7 +1655,6 @@ static void *scmi_get_protocol_priv(const struct scmi_protocol_handle *ph)
 }
 
 static const struct scmi_xfer_ops xfer_ops = {
-	.version_get = version_get,
 	.xfer_get_init = xfer_get_init,
 	.reset_rx_to_maxsz = reset_rx_to_maxsz,
 	.do_xfer = do_xfer,
@@ -2113,6 +2110,76 @@ static int scmi_protocol_version_negotiate(struct scmi_protocol_handle *ph)
 }
 
 /**
+ * scmi_protocol_version_initialize  - Initialize protocol version
+ * @dev: A device reference.
+ * @pi: A reference to the protocol instance being initialized
+ *
+ * At first retrieve the newest protocol version supported by the platform for
+ * this specific protoocol.
+ *
+ * Negotiation is attempted only when the platform advertised a protocol
+ * version newer than the most recent version known to this agent, since
+ * backward compatibility is NOT assured in general between versions.
+ *
+ * Failing to negotiate a fallback version or to query supported version at
+ * all will result in an attempt to use the newest version known to this agent
+ * even though compatibility is NOT assured.
+ *
+ * Versions are defined as:
+ *
+ * pi->version: the version supported by the platform as returned by the query.
+ * pi->proto->supported_version: the newest version supported by this agent
+ *				 for this protocol.
+ * pi->negotiated_version: The version successfully negotiated with the platform.
+ * ph->version: The final version effectively chosen for this session.
+ */
+static void scmi_protocol_version_initialize(struct device *dev,
+					     struct scmi_protocol_instance *pi)
+{
+	struct scmi_protocol_handle *ph = &pi->ph;
+	int ret;
+
+	/*
+	 * Query and store platform supported protocol version: this is usually
+	 * the newest version the platfom can support.
+	 */
+	ret = version_get(ph, &pi->version);
+	if (ret) {
+		dev_warn(dev,
+			 "Failed to query supported version for protocol 0x%X.\n",
+			 pi->proto->id);
+		goto best_effort;
+	}
+
+	/* Need to negotiate at all ? */
+	if (pi->version <= pi->proto->supported_version) {
+		ph->version = pi->version;
+		return;
+	}
+
+	/* Attempt negotiation */
+	ret = scmi_protocol_version_negotiate(ph);
+	if (!ret) {
+		ph->version = pi->negotiated_version;
+		dev_info(dev,
+			 "Protocol 0x%X successfully negotiated version 0x%X\n",
+			 pi->proto->id, ph->version);
+		return;
+	}
+
+	dev_warn(dev,
+		 "Detected UNSUPPORTED higher version 0x%X for protocol 0x%X.\n",
+		 pi->version, pi->proto->id);
+
+best_effort:
+	/* Fallback to use newest version known to this agent */
+	ph->version = pi->proto->supported_version;
+	dev_warn(dev,
+		 "Trying version 0x%X. Backward compatibility is NOT assured.\n",
+		 ph->version);
+}
+
+/**
  * scmi_alloc_init_protocol_instance  - Allocate and initialize a protocol
  * instance descriptor.
  * @info: The reference to the related SCMI instance.
@@ -2157,6 +2224,13 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 	pi->ph.set_priv = scmi_set_protocol_priv;
 	pi->ph.get_priv = scmi_get_protocol_priv;
 	refcount_set(&pi->users, 1);
+
+	/*
+	 * Initialize effectively used protocol version performing any
+	 * possibly needed negotiations.
+	 */
+	scmi_protocol_version_initialize(handle->dev, pi);
+
 	/* proto->init is assured NON NULL by scmi_protocol_register */
 	ret = pi->proto->instance_init(&pi->ph);
 	if (ret)
@@ -2183,22 +2257,6 @@ scmi_alloc_init_protocol_instance(struct scmi_info *info,
 
 	devres_close_group(handle->dev, pi->gid);
 	dev_dbg(handle->dev, "Initialized protocol: 0x%X\n", pi->proto->id);
-
-	if (pi->version > proto->supported_version) {
-		ret = scmi_protocol_version_negotiate(&pi->ph);
-		if (!ret) {
-			dev_info(handle->dev,
-				 "Protocol 0x%X successfully negotiated version 0x%X\n",
-				 proto->id, pi->negotiated_version);
-		} else {
-			dev_warn(handle->dev,
-				 "Detected UNSUPPORTED higher version 0x%X for protocol 0x%X.\n",
-				 pi->version, pi->proto->id);
-			dev_warn(handle->dev,
-				 "Trying version 0x%X. Backward compatibility is NOT assured.\n",
-				 pi->proto->supported_version);
-		}
-	}
 
 	return pi;
 

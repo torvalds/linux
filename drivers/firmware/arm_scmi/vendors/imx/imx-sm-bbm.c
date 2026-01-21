@@ -48,7 +48,6 @@ enum scmi_imx_bbm_protocol_cmd {
 #define SCMI_IMX_BBM_EVENT_RTC_MASK		GENMASK(31, 24)
 
 struct scmi_imx_bbm_info {
-	u32 version;
 	int nr_rtc;
 	int nr_gpr;
 };
@@ -345,16 +344,11 @@ static const struct scmi_imx_bbm_proto_ops scmi_imx_bbm_proto_ops = {
 
 static int scmi_imx_bbm_protocol_init(const struct scmi_protocol_handle *ph)
 {
-	u32 version;
 	int ret;
 	struct scmi_imx_bbm_info *binfo;
 
-	ret = ph->xops->version_get(ph, &version);
-	if (ret)
-		return ret;
-
 	dev_info(ph->dev, "NXP SM BBM Version %d.%d\n",
-		 PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
+		 PROTOCOL_REV_MAJOR(ph->version), PROTOCOL_REV_MINOR(ph->version));
 
 	binfo = devm_kzalloc(ph->dev, sizeof(*binfo), GFP_KERNEL);
 	if (!binfo)
@@ -364,7 +358,7 @@ static int scmi_imx_bbm_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, binfo, version);
+	return ph->set_priv(ph, binfo);
 }
 
 static const struct scmi_protocol scmi_imx_bbm = {
