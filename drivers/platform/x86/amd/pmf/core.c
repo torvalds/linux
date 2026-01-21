@@ -57,6 +57,10 @@ static bool force_load;
 module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load, "Force load this driver on supported older platforms (experimental)");
 
+static bool smart_pc_support = true;
+module_param(smart_pc_support, bool, 0444);
+MODULE_PARM_DESC(smart_pc_support, "Smart PC Support (default = true)");
+
 static struct device *pmf_device;
 
 static int amd_pmf_pwr_src_notify_call(struct notifier_block *nb, unsigned long event, void *data)
@@ -493,11 +497,15 @@ static void amd_pmf_init_features(struct amd_pmf_dev *dev)
 		dev_dbg(dev->dev, "SPS enabled and Platform Profiles registered\n");
 	}
 
-	amd_pmf_init_smart_pc(dev);
-	if (dev->smart_pc_enabled) {
-		dev_dbg(dev->dev, "Smart PC Solution Enabled\n");
-		/* If Smart PC is enabled, no need to check for other features */
-		return;
+	if (smart_pc_support) {
+		amd_pmf_init_smart_pc(dev);
+		if (dev->smart_pc_enabled) {
+			dev_dbg(dev->dev, "Smart PC Solution Enabled\n");
+			/* If Smart PC is enabled, no need to check for other features */
+			return;
+		}
+	} else {
+		dev->smart_pc_enabled = false;
 	}
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_AUTO_MODE)) {
