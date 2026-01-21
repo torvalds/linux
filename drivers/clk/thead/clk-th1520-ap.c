@@ -7,11 +7,16 @@
 
 #include <dt-bindings/clock/thead,th1520-clk-ap.h>
 #include <linux/bitfield.h>
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+
+#define TH1520_PLL_STS		0x80
 
 #define TH1520_PLL_POSTDIV2	GENMASK(26, 24)
 #define TH1520_PLL_POSTDIV1	GENMASK(22, 20)
@@ -19,9 +24,20 @@
 #define TH1520_PLL_REFDIV	GENMASK(5, 0)
 #define TH1520_PLL_BYPASS	BIT(30)
 #define TH1520_PLL_VCO_RST	BIT(29)
+#define TH1520_PLL_DACPD	BIT(25)
 #define TH1520_PLL_DSMPD	BIT(24)
 #define TH1520_PLL_FRAC		GENMASK(23, 0)
 #define TH1520_PLL_FRAC_BITS    24
+
+/*
+ * All PLLs in TH1520 take 21250ns at maximum to lock, let's take its double
+ * for safety.
+ */
+#define TH1520_PLL_LOCK_TIMEOUT_US	44
+#define TH1520_PLL_STABLE_DELAY_US	30
+
+/* c910_bus_clk must be kept below 750MHz for stability */
+#define TH1520_C910_BUS_MAX_RATE	(750 * 1000 * 1000)
 
 struct ccu_internal {
 	u8	shift;
@@ -62,8 +78,19 @@ struct ccu_div {
 	struct ccu_common	common;
 };
 
+struct ccu_pll_cfg {
+	unsigned long		freq;
+	u32			fbdiv;
+	u32			frac;
+	u32			postdiv1;
+	u32			postdiv2;
+};
+
 struct ccu_pll {
 	struct ccu_common	common;
+	u32			lock_sts_mask;
+	int			cfgnum;
+	const struct ccu_pll_cfg *cfgs;
 };
 
 #define TH_CCU_ARG(_shift, _width)					\
@@ -79,16 +106,21 @@ struct ccu_pll {
 		.flags	= _flags,					\
 	}
 
-#define TH_CCU_MUX(_name, _parents, _shift, _width)			\
+#define TH_CCU_MUX_FLAGS(_name, _parents, _shift, _width, _flags,	\
+			 _mux_flags)					\
 	{								\
 		.mask		= GENMASK(_width - 1, 0),		\
 		.shift		= _shift,				\
+		.flags		= _mux_flags,				\
 		.hw.init	= CLK_HW_INIT_PARENTS_DATA(		\
 					_name,				\
 					_parents,			\
 					&clk_mux_ops,			\
-					0),				\
+					_flags),			\
 	}
+
+#define TH_CCU_MUX(_name, _parents, _shift, _width)			\
+	TH_CCU_MUX_FLAGS(_name, _parents, _shift, _width, 0, 0)
 
 #define CCU_GATE(_clkid, _struct, _name, _parent, _reg, _bit, _flags)	\
 	struct ccu_gate _struct = {					\
@@ -299,9 +331,21 @@ static void ccu_pll_disable(struct clk_hw *hw)
 static int ccu_pll_enable(struct clk_hw *hw)
 {
 	struct ccu_pll *pll = hw_to_ccu_pll(hw);
+	u32 reg;
+	int ret;
 
-	return regmap_clear_bits(pll->common.map, pll->common.cfg1,
-				 TH1520_PLL_VCO_RST);
+	regmap_clear_bits(pll->common.map, pll->common.cfg1,
+			  TH1520_PLL_VCO_RST);
+
+	ret = regmap_read_poll_timeout_atomic(pll->common.map, TH1520_PLL_STS,
+					      reg, reg & pll->lock_sts_mask,
+					      5, TH1520_PLL_LOCK_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	udelay(TH1520_PLL_STABLE_DELAY_US);
+
+	return 0;
 }
 
 static int ccu_pll_is_enabled(struct clk_hw *hw)
@@ -368,15 +412,166 @@ static unsigned long ccu_pll_recalc_rate(struct clk_hw *hw,
 	return rate;
 }
 
+static const struct ccu_pll_cfg *ccu_pll_lookup_best_cfg(struct ccu_pll *pll,
+							 unsigned long rate)
+{
+	unsigned long best_delta = ULONG_MAX;
+	const struct ccu_pll_cfg *best_cfg;
+	int i;
+
+	for (i = 0; i < pll->cfgnum; i++) {
+		const struct ccu_pll_cfg *cfg = &pll->cfgs[i];
+		unsigned long delta;
+
+		delta = abs_diff(cfg->freq, rate);
+		if (delta < best_delta) {
+			best_delta	= delta;
+			best_cfg	= cfg;
+		}
+	}
+
+	return best_cfg;
+}
+
+static int ccu_pll_determine_rate(struct clk_hw *hw,
+				  struct clk_rate_request *req)
+{
+	struct ccu_pll *pll = hw_to_ccu_pll(hw);
+
+	req->rate = ccu_pll_lookup_best_cfg(pll, req->rate)->freq;
+
+	return 0;
+}
+
+static int ccu_pll_set_rate(struct clk_hw *hw, unsigned long rate,
+			    unsigned long parent_rate)
+{
+	struct ccu_pll *pll = hw_to_ccu_pll(hw);
+	const struct ccu_pll_cfg *cfg;
+
+	cfg = ccu_pll_lookup_best_cfg(pll, rate);
+
+	ccu_pll_disable(hw);
+
+	regmap_write(pll->common.map, pll->common.cfg0,
+		     FIELD_PREP(TH1520_PLL_REFDIV,	1)		|
+		     FIELD_PREP(TH1520_PLL_FBDIV,	cfg->fbdiv)	|
+		     FIELD_PREP(TH1520_PLL_POSTDIV1,	cfg->postdiv1)	|
+		     FIELD_PREP(TH1520_PLL_POSTDIV2,	cfg->postdiv2));
+
+	regmap_update_bits(pll->common.map, pll->common.cfg1,
+			   TH1520_PLL_DACPD | TH1520_PLL_DSMPD |
+			   TH1520_PLL_FRAC,
+			   cfg->frac ? cfg->frac :
+				TH1520_PLL_DACPD | TH1520_PLL_DSMPD);
+
+	return ccu_pll_enable(hw);
+}
+
 static const struct clk_ops clk_pll_ops = {
 	.disable	= ccu_pll_disable,
 	.enable		= ccu_pll_enable,
 	.is_enabled	= ccu_pll_is_enabled,
 	.recalc_rate	= ccu_pll_recalc_rate,
+	.determine_rate	= ccu_pll_determine_rate,
+	.set_rate	= ccu_pll_set_rate,
+};
+
+/*
+ * c910_clk could be reparented glitchlessly for DVFS. There are two parents,
+ *  - c910_i0_clk, derived from cpu_pll0_clk or osc_24m.
+ *  - cpu_pll1_clk, which provides the exact same set of rates as cpu_pll0_clk.
+ *
+ * During rate setting, always forward the request to the unused parent, and
+ * then switch c910_clk to it to avoid glitch.
+ */
+static u8 c910_clk_get_parent(struct clk_hw *hw)
+{
+	return clk_mux_ops.get_parent(hw);
+}
+
+static int c910_clk_set_parent(struct clk_hw *hw, u8 index)
+{
+	return clk_mux_ops.set_parent(hw, index);
+}
+
+static unsigned long c910_clk_recalc_rate(struct clk_hw *hw,
+					  unsigned long parent_rate)
+{
+	return parent_rate;
+}
+
+static int c910_clk_determine_rate(struct clk_hw *hw,
+				   struct clk_rate_request *req)
+{
+	u8 alt_parent_index = !c910_clk_get_parent(hw);
+	struct clk_hw *alt_parent;
+
+	alt_parent = clk_hw_get_parent_by_index(hw, alt_parent_index);
+
+	req->rate		= clk_hw_round_rate(alt_parent, req->rate);
+	req->best_parent_hw	= alt_parent;
+	req->best_parent_rate	= req->rate;
+
+	return 0;
+}
+
+static int c910_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+			     unsigned long parent_rate)
+{
+	return -EOPNOTSUPP;
+}
+
+static int c910_clk_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate, u8 index)
+{
+	struct clk_hw *parent = clk_hw_get_parent_by_index(hw, index);
+
+	clk_set_rate(parent->clk, parent_rate);
+
+	c910_clk_set_parent(hw, index);
+
+	return 0;
+}
+
+static const struct clk_ops c910_clk_ops = {
+	.get_parent		= c910_clk_get_parent,
+	.set_parent		= c910_clk_set_parent,
+	.recalc_rate		= c910_clk_recalc_rate,
+	.determine_rate		= c910_clk_determine_rate,
+	.set_rate		= c910_clk_set_rate,
+	.set_rate_and_parent	= c910_clk_set_rate_and_parent,
 };
 
 static const struct clk_parent_data osc_24m_clk[] = {
 	{ .index = 0 }
+};
+
+static const struct ccu_pll_cfg cpu_pll_cfgs[] = {
+	{ 125000000,	125,	0, 6, 4 },
+	{ 200000000,	125,	0, 5, 3 },
+	{ 300000000,	125,	0, 5, 2 },
+	{ 400000000,	100,	0, 3, 2 },
+	{ 500000000,	125,	0, 6, 1 },
+	{ 600000000,	125,	0, 5, 1 },
+	{ 702000000,	117,	0, 4, 1 },
+	{ 800000000,	100,	0, 3, 1 },
+	{ 900000000,	75,	0, 2, 1 },
+	{ 1000000000,	125,	0, 3, 1 },
+	{ 1104000000,	92,	0, 2, 1 },
+	{ 1200000000,	100,	0, 2, 1 },
+	{ 1296000000,	108,	0, 2, 1 },
+	{ 1404000000,	117,	0, 2, 1 },
+	{ 1500000000,	125,	0, 2, 1 },
+	{ 1608000000,	67,	0, 1, 1 },
+	{ 1704000000,	71,	0, 1, 1 },
+	{ 1800000000,	75,	0, 1, 1 },
+	{ 1896000000,	79,	0, 1, 1 },
+	{ 1992000000,	83,	0, 1, 1 },
+	{ 2112000000,	88,	0, 1, 1 },
+	{ 2208000000,	92,	0, 1, 1 },
+	{ 2304000000,	96,	0, 1, 1 },
+	{ 2400000000,	100,	0, 1, 1 },
 };
 
 static struct ccu_pll cpu_pll0_clk = {
@@ -389,6 +584,9 @@ static struct ccu_pll cpu_pll0_clk = {
 					      &clk_pll_ops,
 					      CLK_IS_CRITICAL),
 	},
+	.lock_sts_mask		= BIT(1),
+	.cfgnum			= ARRAY_SIZE(cpu_pll_cfgs),
+	.cfgs			= cpu_pll_cfgs,
 };
 
 static struct ccu_pll cpu_pll1_clk = {
@@ -401,6 +599,17 @@ static struct ccu_pll cpu_pll1_clk = {
 					      &clk_pll_ops,
 					      CLK_IS_CRITICAL),
 	},
+	.lock_sts_mask		= BIT(4),
+	.cfgnum			= ARRAY_SIZE(cpu_pll_cfgs),
+	.cfgs			= cpu_pll_cfgs,
+};
+
+static const struct ccu_pll_cfg gmac_pll_cfg = {
+	.freq		= 1000000000,
+	.fbdiv		= 125,
+	.frac		= 0,
+	.postdiv1	= 3,
+	.postdiv2	= 1,
 };
 
 static struct ccu_pll gmac_pll_clk = {
@@ -413,6 +622,9 @@ static struct ccu_pll gmac_pll_clk = {
 					      &clk_pll_ops,
 					      CLK_IS_CRITICAL),
 	},
+	.lock_sts_mask		= BIT(3),
+	.cfgnum			= 1,
+	.cfgs			= &gmac_pll_cfg,
 };
 
 static const struct clk_hw *gmac_pll_clk_parent[] = {
@@ -421,6 +633,14 @@ static const struct clk_hw *gmac_pll_clk_parent[] = {
 
 static const struct clk_parent_data gmac_pll_clk_pd[] = {
 	{ .hw = &gmac_pll_clk.common.hw }
+};
+
+static const struct ccu_pll_cfg video_pll_cfg = {
+	.freq		= 792000000,
+	.fbdiv		= 99,
+	.frac		= 0,
+	.postdiv1	= 3,
+	.postdiv2	= 1,
 };
 
 static struct ccu_pll video_pll_clk = {
@@ -433,6 +653,9 @@ static struct ccu_pll video_pll_clk = {
 					      &clk_pll_ops,
 					      CLK_IS_CRITICAL),
 	},
+	.lock_sts_mask		= BIT(7),
+	.cfgnum			= 1,
+	.cfgs			= &video_pll_cfg,
 };
 
 static const struct clk_hw *video_pll_clk_parent[] = {
@@ -441,6 +664,14 @@ static const struct clk_hw *video_pll_clk_parent[] = {
 
 static const struct clk_parent_data video_pll_clk_pd[] = {
 	{ .hw = &video_pll_clk.common.hw }
+};
+
+static const struct ccu_pll_cfg dpu_pll_cfg = {
+	.freq		= 1188000000,
+	.fbdiv		= 99,
+	.frac		= 0,
+	.postdiv1	= 2,
+	.postdiv2	= 1,
 };
 
 static struct ccu_pll dpu0_pll_clk = {
@@ -453,6 +684,9 @@ static struct ccu_pll dpu0_pll_clk = {
 					      &clk_pll_ops,
 					      0),
 	},
+	.lock_sts_mask		= BIT(8),
+	.cfgnum			= 1,
+	.cfgs			= &dpu_pll_cfg,
 };
 
 static const struct clk_hw *dpu0_pll_clk_parent[] = {
@@ -469,10 +703,21 @@ static struct ccu_pll dpu1_pll_clk = {
 					      &clk_pll_ops,
 					      0),
 	},
+	.lock_sts_mask		= BIT(9),
+	.cfgnum			= 1,
+	.cfgs			= &dpu_pll_cfg,
 };
 
 static const struct clk_hw *dpu1_pll_clk_parent[] = {
 	&dpu1_pll_clk.common.hw
+};
+
+static const struct ccu_pll_cfg tee_pll_cfg = {
+	.freq		= 792000000,
+	.fbdiv		= 99,
+	.frac		= 0,
+	.postdiv1	= 3,
+	.postdiv2	= 1,
 };
 
 static struct ccu_pll tee_pll_clk = {
@@ -485,6 +730,9 @@ static struct ccu_pll tee_pll_clk = {
 					      &clk_pll_ops,
 					      CLK_IS_CRITICAL),
 	},
+	.lock_sts_mask		= BIT(10),
+	.cfgnum			= 1,
+	.cfgs			= &tee_pll_cfg,
 };
 
 static const struct clk_parent_data c910_i0_parents[] = {
@@ -495,7 +743,8 @@ static const struct clk_parent_data c910_i0_parents[] = {
 static struct ccu_mux c910_i0_clk = {
 	.clkid	= CLK_C910_I0,
 	.reg	= 0x100,
-	.mux	= TH_CCU_MUX("c910-i0", c910_i0_parents, 1, 1),
+	.mux	= TH_CCU_MUX_FLAGS("c910-i0", c910_i0_parents, 1, 1,
+				   CLK_SET_RATE_PARENT, CLK_MUX_ROUND_CLOSEST),
 };
 
 static const struct clk_parent_data c910_parents[] = {
@@ -506,7 +755,28 @@ static const struct clk_parent_data c910_parents[] = {
 static struct ccu_mux c910_clk = {
 	.clkid	= CLK_C910,
 	.reg	= 0x100,
-	.mux	= TH_CCU_MUX("c910", c910_parents, 0, 1),
+	.mux	= {
+		.mask		= BIT(0),
+		.shift		= 0,
+		.hw.init	= CLK_HW_INIT_PARENTS_DATA("c910",
+							   c910_parents,
+							   &c910_clk_ops,
+							   CLK_SET_RATE_PARENT),
+	},
+};
+
+static struct ccu_div c910_bus_clk = {
+	.enable		= BIT(7),
+	.div_en		= BIT(11),
+	.div		= TH_CCU_DIV_FLAGS(8, 3, 0),
+	.common		= {
+		.clkid		= CLK_C910_BUS,
+		.cfg0		= 0x100,
+		.hw.init	= CLK_HW_INIT_HW("c910-bus",
+						 &c910_clk.mux.hw,
+						 &ccu_div_ops,
+						 CLK_IS_CRITICAL),
+	},
 };
 
 static const struct clk_parent_data ahb2_cpusys_parents[] = {
@@ -1021,6 +1291,7 @@ static struct ccu_common *th1520_pll_clks[] = {
 };
 
 static struct ccu_common *th1520_div_clks[] = {
+	&c910_bus_clk.common,
 	&ahb2_cpusys_hclk.common,
 	&apb3_cpusys_pclk.common,
 	&axi4_cpusys2_aclk.common,
@@ -1164,7 +1435,7 @@ static const struct th1520_plat_data th1520_ap_platdata = {
 	.th1520_mux_clks = th1520_mux_clks,
 	.th1520_gate_clks = th1520_gate_clks,
 
-	.nr_clks = CLK_UART_SCLK + 1,
+	.nr_clks = CLK_C910_BUS + 1,
 
 	.nr_pll_clks = ARRAY_SIZE(th1520_pll_clks),
 	.nr_div_clks = ARRAY_SIZE(th1520_div_clks),
@@ -1180,11 +1451,69 @@ static const struct th1520_plat_data th1520_vo_platdata = {
 	.nr_gate_clks = ARRAY_SIZE(th1520_vo_gate_clks),
 };
 
+/*
+ * Maintain clock rate of c910_bus_clk below TH1520_C910_BUS_MAX_RATE (750MHz)
+ * when its parent, c910_clk, changes the rate.
+ *
+ * Additionally, TRM is unclear about c910_bus_clk behavior when the divisor is
+ * set below 2, thus we should ensure the new divisor stays in (2, MAXDIVISOR).
+ */
+static unsigned long c910_bus_clk_divisor(struct ccu_div *cd,
+					  unsigned long parent_rate)
+{
+	return clamp(DIV_ROUND_UP(parent_rate, TH1520_C910_BUS_MAX_RATE),
+		     2U, 1U << cd->div.width);
+}
+
+static int c910_clk_notifier_cb(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct clk_notifier_data *cnd = data;
+	unsigned long new_divisor, ref_rate;
+
+	if (action != PRE_RATE_CHANGE && action != POST_RATE_CHANGE)
+		return NOTIFY_DONE;
+
+	new_divisor	= c910_bus_clk_divisor(&c910_bus_clk, cnd->new_rate);
+
+	if (cnd->new_rate > cnd->old_rate) {
+		/*
+		 * Scaling up. Adjust c910_bus_clk divisor
+		 * - before c910_clk rate change to ensure the constraints
+		 *   aren't broken after scaling to higher rates,
+		 * - after c910_clk rate change to keep c910_bus_clk as high as
+		 *   possible
+		 */
+		ref_rate = action == PRE_RATE_CHANGE ?
+				cnd->old_rate : cnd->new_rate;
+		clk_set_rate(c910_bus_clk.common.hw.clk,
+			     ref_rate / new_divisor);
+	} else if (cnd->new_rate < cnd->old_rate &&
+		    action == POST_RATE_CHANGE) {
+		/*
+		 * Scaling down. Adjust c910_bus_clk divisor only after
+		 * c910_clk rate change to keep c910_bus_clk as high as
+		 * possible, Scaling down never breaks the constraints.
+		 */
+		clk_set_rate(c910_bus_clk.common.hw.clk,
+			     cnd->new_rate / new_divisor);
+	} else {
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block c910_clk_notifier = {
+	.notifier_call	= c910_clk_notifier_cb,
+};
+
 static int th1520_clk_probe(struct platform_device *pdev)
 {
 	const struct th1520_plat_data *plat_data;
 	struct device *dev = &pdev->dev;
 	struct clk_hw_onecell_data *priv;
+	struct clk *notifier_clk;
 
 	struct regmap *map;
 	void __iomem *base;
@@ -1269,6 +1598,13 @@ static int th1520_clk_probe(struct platform_device *pdev)
 		priv->hws[CLK_PLL_GMAC_100M] = &gmac_pll_clk_100m.hw;
 
 		ret = devm_clk_hw_register(dev, &emmc_sdio_ref_clk.hw);
+		if (ret)
+			return ret;
+
+		notifier_clk = devm_clk_hw_get_clk(dev, &c910_clk.mux.hw,
+						   "dvfs");
+		ret = devm_clk_notifier_register(dev, notifier_clk,
+						 &c910_clk_notifier);
 		if (ret)
 			return ret;
 	}
