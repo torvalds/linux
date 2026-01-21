@@ -806,6 +806,9 @@ const char *cs_amp_devm_get_vendor_specific_variant_id(struct device *dev,
 						       int ssid_vendor,
 						       int ssid_device)
 {
+	KUNIT_STATIC_STUB_REDIRECT(cs_amp_devm_get_vendor_specific_variant_id,
+				   dev, ssid_vendor, ssid_device);
+
 	if ((ssid_vendor == PCI_VENDOR_ID_DELL) || (ssid_vendor < 0))
 		return cs_amp_devm_get_dell_ssidex(dev, ssid_vendor, ssid_device);
 

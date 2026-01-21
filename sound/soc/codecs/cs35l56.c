@@ -5,6 +5,8 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <kunit/static_stub.h>
+#include <kunit/visibility.h>
 #include <linux/acpi.h>
 #include <linux/array_size.h>
 #include <linux/completion.h>
@@ -1107,7 +1109,7 @@ static const struct snd_kcontrol_new cs35l56_cal_data_restore_controls[] = {
 			SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
-static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
+VISIBLE_IF_KUNIT int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
 {
 	unsigned short vendor, device;
 	const char *vendor_id;
@@ -1175,6 +1177,7 @@ static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_set_fw_suffix);
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
