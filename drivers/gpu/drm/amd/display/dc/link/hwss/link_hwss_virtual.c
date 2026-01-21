@@ -23,7 +23,7 @@
  *
  */
 
-#include "virtual_link_hwss.h"
+#include "link_hwss_virtual.h"
 
 void virtual_setup_stream_encoder(struct pipe_ctx *pipe_ctx)
 {

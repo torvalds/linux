@@ -37,7 +37,7 @@
 #include "dpp.h"
 #include "core_types.h"
 #include "set_mode_types.h"
-#include "virtual/virtual_stream_encoder.h"
+#include "dio/virtual/virtual_stream_encoder.h"
 #include "dpcd_defs.h"
 #include "link_enc_cfg.h"
 #include "link_service.h"
@@ -45,7 +45,7 @@
 #include "dc_state_priv.h"
 #include "dc_stream_priv.h"
 
-#include "virtual/virtual_link_hwss.h"
+#include "link/hwss/link_hwss_virtual.h"
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
 #include "link/hwss/link_hwss_hpo_dp.h"
