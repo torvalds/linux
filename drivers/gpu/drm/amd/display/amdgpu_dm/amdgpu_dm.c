@@ -3614,6 +3614,11 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		if (aconnector->mst_root)
 			continue;
 
+		/* Skip eDP detection, when there is no sink present */
+		if (aconnector->dc_link->connector_signal == SIGNAL_TYPE_EDP &&
+		    !aconnector->dc_link->edp_sink_present)
+			continue;
+
 		guard(mutex)(&aconnector->hpd_lock);
 		if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type))
 			drm_err(adev_to_drm(adev), "KMS: Failed to detect connector\n");
