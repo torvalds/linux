@@ -1734,11 +1734,17 @@ tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_d_path:
 		return &bpf_d_path_proto;
 	case BPF_FUNC_get_func_arg:
-		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_arg_proto : NULL;
+		if (bpf_prog_has_trampoline(prog) ||
+		    prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			return &bpf_get_func_arg_proto;
+		return NULL;
 	case BPF_FUNC_get_func_ret:
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_ret_proto : NULL;
 	case BPF_FUNC_get_func_arg_cnt:
-		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_arg_cnt_proto : NULL;
+		if (bpf_prog_has_trampoline(prog) ||
+		    prog->expected_attach_type == BPF_TRACE_RAW_TP)
+			return &bpf_get_func_arg_cnt_proto;
+		return NULL;
 	case BPF_FUNC_get_attach_cookie:
 		if (prog->type == BPF_PROG_TYPE_TRACING &&
 		    prog->expected_attach_type == BPF_TRACE_RAW_TP)
