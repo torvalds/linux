@@ -370,11 +370,39 @@ void free_pgd_range(struct mmu_gather *tlb,
 	} while (pgd++, addr = next, addr != end);
 }
 
+/**
+ * free_pgtables() - Free a range of page tables
+ * @tlb: The mmu gather
+ * @mas: The maple state
+ * @vma: The first vma
+ * @pg_start: The lowest page table address (floor)
+ * @pg_end: The highest page table address (ceiling)
+ * @vma_end: The highest vma tree search address
+ * @mm_wr_locked: boolean indicating if the mm is write locked
+ *
+ * Note: pg_start and pg_end are provided to indicate the absolute range of the
+ * page tables that should be removed.  This can differ from the vma mappings on
+ * some archs that may have mappings that need to be removed outside the vmas.
+ * Note that the prev->vm_end and next->vm_start are often used.
+ *
+ * The vma_end differs from the pg_end when a dup_mmap() failed and the tree has
+ * unrelated data to the mm_struct being torn down.
+ */
 void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
-		   struct vm_area_struct *vma, unsigned long floor,
-		   unsigned long ceiling, bool mm_wr_locked)
+		   struct vm_area_struct *vma, unsigned long pg_start,
+		   unsigned long pg_end, unsigned long vma_end,
+		   bool mm_wr_locked)
 {
 	struct unlink_vma_file_batch vb;
+
+	/*
+	 * Note: USER_PGTABLES_CEILING may be passed as the value of pg_end and
+	 * may be 0.  Underflow is expected in this case.  Otherwise the
+	 * pagetable end is exclusive.
+	 * vma_end is exclusive.
+	 * The last vma address should never be larger than the pagetable end.
+	 */
+	WARN_ON_ONCE(vma_end - 1 > pg_end - 1);
 
 	tlb_free_vmas(tlb);
 
@@ -382,11 +410,7 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 		unsigned long addr = vma->vm_start;
 		struct vm_area_struct *next;
 
-		/*
-		 * Note: USER_PGTABLES_CEILING may be passed as ceiling and may
-		 * be 0.  This will underflow and is okay.
-		 */
-		next = mas_find(mas, ceiling - 1);
+		next = mas_find(mas, vma_end - 1);
 		if (unlikely(xa_is_zero(next)))
 			next = NULL;
 
@@ -406,7 +430,7 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 		 */
 		while (next && next->vm_start <= vma->vm_end + PMD_SIZE) {
 			vma = next;
-			next = mas_find(mas, ceiling - 1);
+			next = mas_find(mas, vma_end - 1);
 			if (unlikely(xa_is_zero(next)))
 				next = NULL;
 			if (mm_wr_locked)
@@ -417,7 +441,7 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 		unlink_file_vma_batch_final(&vb);
 
 		free_pgd_range(tlb, addr, vma->vm_end,
-			floor, next ? next->vm_start : ceiling);
+			pg_start, next ? next->vm_start : pg_end);
 		vma = next;
 	} while (vma);
 }
