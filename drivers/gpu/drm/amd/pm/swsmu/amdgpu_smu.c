@@ -619,6 +619,9 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret = -EOPNOTSUPP;
 
+	if (!smu)
+		return ret;
+
 	if (smu->ppt_funcs && smu->ppt_funcs->ras_send_msg)
 		ret = smu->ppt_funcs->ras_send_msg(smu, msg, param, read_arg);
 
