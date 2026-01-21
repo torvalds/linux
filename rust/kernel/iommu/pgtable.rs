@@ -2,7 +2,7 @@
 
 //! IOMMU page table management.
 //!
-//! C header: [`include/io-pgtable.h`](srctree/include/io-pgtable.h)
+//! C header: [`include/linux/io-pgtable.h`](srctree/include/linux/io-pgtable.h)
 
 use core::{
     marker::PhantomData,
