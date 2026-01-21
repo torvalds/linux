@@ -115,6 +115,7 @@
 #include "vcn_v5_0_2.h"
 #include "jpeg_v5_0_0.h"
 #include "jpeg_v5_0_1.h"
+#include "jpeg_v5_0_2.h"
 #include "jpeg_v5_3_0.h"
 
 #include "amdgpu_ras_mgr.h"
@@ -2652,6 +2653,7 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			break;
 		case IP_VERSION(5, 0, 2):
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_2_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_2_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,
