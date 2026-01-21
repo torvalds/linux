@@ -83,6 +83,9 @@ determined by debugfs:rseq/slice_ext_nsec. The default value is 5 usec; which
 is the minimum value. It can be incremented to 50 usecs, however doing so
 can/will affect the minimum scheduling latency.
 
+Any proposed changes to this default will have to come with a selftest and
+rseq-slice-hist.py output that shows the new value has merrit.
+
 The kernel indicates the grant by clearing rseq::slice_ctrl::request and
 setting rseq::slice_ctrl::granted to 1. If there is a reschedule of the
 thread after granting the extension, the kernel clears the granted bit to
