@@ -32,21 +32,13 @@ properties:
 
 patternProperties:
   "^partitions(-boot[12]|-gp[14])?$":
-    $ref: /schemas/mtd/partitions/partitions.yaml
+    type: object
+    additionalProperties: true
 
-    patternProperties:
-      "^partition@[0-9a-f]+$":
-        $ref: /schemas/mtd/partitions/partition.yaml
-
-        properties:
-          reg:
-            description: Must be multiple of 512 as it's converted
-              internally from bytes to SECTOR_SIZE (512 bytes)
-
-        required:
-          - reg
-
-        unevaluatedProperties: false
+    properties:
+      compatible:
+        contains:
+          const: fixed-partitions
 
 required:
   - compatible
