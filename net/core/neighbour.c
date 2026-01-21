@@ -1187,8 +1187,8 @@ out:
 	}
 
 	if (notify) {
-		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 		neigh_notify(neigh, RTM_NEWNEIGH, 0, 0);
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	}
 
 	trace_neigh_timer_handler(neigh, 0);
@@ -1523,8 +1523,8 @@ out:
 		neigh_update_managed_list(neigh);
 
 	if (notify) {
-		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 		neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	}
 
 	trace_neigh_update_done(neigh, err);
