@@ -699,6 +699,8 @@ enum {
 
 #define DEFAULT_RETRY_IO_COUNT	8	/* maximum retry read IO or flush count */
 
+#define MAX_FLUSH_RETRY_COUNT	3	/* maximum flush retry count in f2fs_enable_checkpoint() */
+
 /* IO/non-IO congestion wait timeout value, default: 1 jiffies */
 #define	DEFAULT_SCHEDULE_TIMEOUT	1
 

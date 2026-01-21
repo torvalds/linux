@@ -2687,7 +2687,7 @@ restore_flag:
 
 static int f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
 {
-	int retry = DEFAULT_RETRY_IO_COUNT;
+	int retry = MAX_FLUSH_RETRY_COUNT;
 	long long start, writeback, end;
 	int ret;
 	struct f2fs_lock_context lc;
