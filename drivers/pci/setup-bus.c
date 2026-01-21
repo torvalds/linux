@@ -2556,8 +2556,7 @@ restore:
 
 		restore_dev_resource(dev_res);
 
-		ret = pci_claim_resource(dev, i);
-		if (ret)
+		if (pci_claim_resource(dev, i))
 			continue;
 
 		if (i < PCI_BRIDGE_RESOURCES) {
