@@ -1248,17 +1248,6 @@ reboot-cmd (SPARC only)
 ROM/Flash boot loader. Maybe to tell it what to do after
 rebooting. ???
 
-rseq_slice_extension_nsec
-=========================
-
-A task can request to delay its scheduling if it is in a critical section
-via the prctl(PR_RSEQ_SLICE_EXTENSION_SET) mechanism. This sets the maximum
-allowed extension in nanoseconds before scheduling of the task is enforced.
-Default value is 10000ns (10us). The possible range is 10000ns (10us) to
-50000ns (50us).
-
-This value has a direct correlation to the worst case scheduling latency;
-increment at your own risk.
 
 sched_energy_aware
 ==================
