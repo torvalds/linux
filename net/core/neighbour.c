@@ -52,7 +52,6 @@ do {						\
 
 static void neigh_timer_handler(struct timer_list *t);
 static void neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
-static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
 static void pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm);
 
@@ -1187,8 +1186,10 @@ out:
 		write_unlock(&neigh->lock);
 	}
 
-	if (notify)
-		neigh_update_notify(neigh, 0);
+	if (notify) {
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
+		neigh_notify(neigh, RTM_NEWNEIGH, 0, 0);
+	}
 
 	trace_neigh_timer_handler(neigh, 0);
 
@@ -1520,8 +1521,12 @@ out:
 		neigh_update_gc_list(neigh);
 	if (managed_update)
 		neigh_update_managed_list(neigh);
-	if (notify)
-		neigh_update_notify(neigh, nlmsg_pid);
+
+	if (notify) {
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
+		neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+	}
+
 	trace_neigh_update_done(neigh, err);
 	return err;
 }
@@ -2748,12 +2753,6 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
-}
-
-static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid)
-{
-	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
 }
 
 static bool neigh_master_filtered(struct net_device *dev, int master_idx)
