@@ -460,6 +460,7 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev, struct t
 {
 	update_curr_idle(rq);
 	scx_update_idle(rq, false, true);
+	update_rq_avg_idle(rq);
 }
 
 static void set_next_task_idle(struct rq *rq, struct task_struct *next, bool first)
