@@ -29,7 +29,7 @@ properties:
 
 patternProperties:
   "^partition-.*$":
-    $ref: partition.yaml#
+    $ref: partition.yaml#/$defs/partition-node
 
 unevaluatedProperties: false
 

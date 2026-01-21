@@ -149,6 +149,18 @@ then:
 # This is a generic file other binding inherit from and extend
 additionalProperties: true
 
+$defs:
+  partition-node:
+    type: object
+    if:
+      not:
+        required: [ compatible ]
+    then:
+      $ref: '#'
+      unevaluatedProperties: false
+    else:
+      $ref: '#'
+
 examples:
   - |
     partitions {

@@ -33,7 +33,7 @@ properties:
 
 patternProperties:
   "@[0-9a-f]+$":
-    $ref: partition.yaml#
+    $ref: partition.yaml#/$defs/partition-node
 
 required:
   - "#address-cells"
