@@ -169,6 +169,23 @@ struct rdma_cm_id *rdma_create_user_id(rdma_cm_event_handler event_handler,
 void rdma_destroy_id(struct rdma_cm_id *id);
 
 /**
+ * rdma_restrict_node_type - Restrict an RDMA identifier to specific
+ *   RDMA device node type.
+ *
+ * @id: RDMA identifier.
+ * @node_type: The device node type. Only RDMA_NODE_UNSPECIFIED (default),
+ *   RDMA_NODE_RNIC and RDMA_NODE_IB_CA are allowed
+ *
+ * This allows the caller to restrict the possible devices
+ * used to iWarp (RDMA_NODE_RNIC) or InfiniBand/RoCEv1/RoCEv2 (RDMA_NODE_IB_CA).
+ *
+ * It needs to be called before the RDMA identifier is bound
+ * to an device, which mean it should be called before
+ * rdma_bind_addr(), rdma_bind_addr() and rdma_listen().
+ */
+int rdma_restrict_node_type(struct rdma_cm_id *id, u8 node_type);
+
+/**
  * rdma_bind_addr - Bind an RDMA identifier to a source address and
  *   associated RDMA device, if needed.
  *
