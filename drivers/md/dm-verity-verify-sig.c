@@ -192,7 +192,7 @@ int __init dm_verity_verify_sig_init(void)
 	return 0;
 }
 
-void __exit dm_verity_verify_sig_exit(void)
+void dm_verity_verify_sig_exit(void)
 {
 	key_revoke(dm_verity_keyring);
 	key_put(dm_verity_keyring);
