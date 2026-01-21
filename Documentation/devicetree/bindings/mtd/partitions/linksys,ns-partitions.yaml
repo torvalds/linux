@@ -30,13 +30,7 @@ properties:
 
 patternProperties:
   "^partition@[0-9a-f]+$":
-    $ref: partition.yaml#
-    properties:
-      compatible:
-        items:
-          - const: linksys,ns-firmware
-          - const: brcm,trx
-    unevaluatedProperties: false
+    $ref: partition.yaml#/$defs/partition-node
 
 required:
   - "#address-cells"
