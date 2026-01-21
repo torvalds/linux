@@ -23,15 +23,6 @@ uint64_t __weak arch__user_reg_mask(void)
 	return 0;
 }
 
-static const struct sample_reg sample_reg_masks[] = {
-	SMPL_REG_END
-};
-
-const struct sample_reg * __weak arch__sample_reg_masks(void)
-{
-	return sample_reg_masks;
-}
-
 const char *perf_reg_name(int id, uint16_t e_machine)
 {
 	const char *reg_name = NULL;

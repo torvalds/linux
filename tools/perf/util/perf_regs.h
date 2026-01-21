@@ -7,17 +7,6 @@
 
 struct regs_dump;
 
-struct sample_reg {
-	const char *name;
-	uint64_t mask;
-};
-
-#define SMPL_REG_MASK(b) (1ULL << (b))
-#define SMPL_REG(n, b) { .name = #n, .mask = SMPL_REG_MASK(b) }
-#define SMPL_REG2_MASK(b) (3ULL << (b))
-#define SMPL_REG2(n, b) { .name = #n, .mask = SMPL_REG2_MASK(b) }
-#define SMPL_REG_END { .name = NULL }
-
 enum {
 	SDT_ARG_VALID = 0,
 	SDT_ARG_SKIP,
@@ -26,7 +15,6 @@ enum {
 int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 uint64_t arch__intr_reg_mask(void);
 uint64_t arch__user_reg_mask(void);
-const struct sample_reg *arch__sample_reg_masks(void);
 
 const char *perf_reg_name(int id, uint16_t e_machine);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);

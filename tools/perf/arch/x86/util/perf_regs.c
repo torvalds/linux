@@ -13,48 +13,6 @@
 #include "../../../util/pmu.h"
 #include "../../../util/pmus.h"
 
-static const struct sample_reg sample_reg_masks[] = {
-	SMPL_REG(AX, PERF_REG_X86_AX),
-	SMPL_REG(BX, PERF_REG_X86_BX),
-	SMPL_REG(CX, PERF_REG_X86_CX),
-	SMPL_REG(DX, PERF_REG_X86_DX),
-	SMPL_REG(SI, PERF_REG_X86_SI),
-	SMPL_REG(DI, PERF_REG_X86_DI),
-	SMPL_REG(BP, PERF_REG_X86_BP),
-	SMPL_REG(SP, PERF_REG_X86_SP),
-	SMPL_REG(IP, PERF_REG_X86_IP),
-	SMPL_REG(FLAGS, PERF_REG_X86_FLAGS),
-	SMPL_REG(CS, PERF_REG_X86_CS),
-	SMPL_REG(SS, PERF_REG_X86_SS),
-#ifdef HAVE_ARCH_X86_64_SUPPORT
-	SMPL_REG(R8, PERF_REG_X86_R8),
-	SMPL_REG(R9, PERF_REG_X86_R9),
-	SMPL_REG(R10, PERF_REG_X86_R10),
-	SMPL_REG(R11, PERF_REG_X86_R11),
-	SMPL_REG(R12, PERF_REG_X86_R12),
-	SMPL_REG(R13, PERF_REG_X86_R13),
-	SMPL_REG(R14, PERF_REG_X86_R14),
-	SMPL_REG(R15, PERF_REG_X86_R15),
-#endif
-	SMPL_REG2(XMM0, PERF_REG_X86_XMM0),
-	SMPL_REG2(XMM1, PERF_REG_X86_XMM1),
-	SMPL_REG2(XMM2, PERF_REG_X86_XMM2),
-	SMPL_REG2(XMM3, PERF_REG_X86_XMM3),
-	SMPL_REG2(XMM4, PERF_REG_X86_XMM4),
-	SMPL_REG2(XMM5, PERF_REG_X86_XMM5),
-	SMPL_REG2(XMM6, PERF_REG_X86_XMM6),
-	SMPL_REG2(XMM7, PERF_REG_X86_XMM7),
-	SMPL_REG2(XMM8, PERF_REG_X86_XMM8),
-	SMPL_REG2(XMM9, PERF_REG_X86_XMM9),
-	SMPL_REG2(XMM10, PERF_REG_X86_XMM10),
-	SMPL_REG2(XMM11, PERF_REG_X86_XMM11),
-	SMPL_REG2(XMM12, PERF_REG_X86_XMM12),
-	SMPL_REG2(XMM13, PERF_REG_X86_XMM13),
-	SMPL_REG2(XMM14, PERF_REG_X86_XMM14),
-	SMPL_REG2(XMM15, PERF_REG_X86_XMM15),
-	SMPL_REG_END
-};
-
 struct sdt_name_reg {
 	const char *sdt_name;
 	const char *uprobe_name;
@@ -274,11 +232,6 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 		  (int)(rm[5].rm_eo - rm[5].rm_so), old_op + rm[5].rm_so);
 
 	return SDT_ARG_VALID;
-}
-
-const struct sample_reg *arch__sample_reg_masks(void)
-{
-	return sample_reg_masks;
 }
 
 uint64_t arch__intr_reg_mask(void)
