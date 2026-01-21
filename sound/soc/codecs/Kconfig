@@ -786,9 +786,14 @@ config SND_SOC_CROS_EC_CODEC
 config SND_SOC_CS_AMP_LIB
 	tristate
 
+config SND_SOC_CS_AMP_LIB_TEST_HOOKS
+	bool
+	depends on SND_SOC_CS_AMP_LIB
+
 config SND_SOC_CS_AMP_LIB_TEST
 	tristate "KUnit test for Cirrus Logic cs-amp-lib" if !KUNIT_ALL_TESTS
 	depends on SND_SOC_CS_AMP_LIB && KUNIT
+	select SND_SOC_CS_AMP_LIB_TEST_HOOKS
 	default KUNIT_ALL_TESTS
 	help
 	  This builds KUnit tests for the Cirrus Logic common

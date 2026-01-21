@@ -211,7 +211,7 @@ int cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 			    const struct cirrus_amp_cal_controls *controls,
 			    const struct cirrus_amp_cal_data *data)
 {
-	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS))
 		return _cs_amp_write_cal_coeffs(dsp, controls, data);
 	else
 		return -ENODEV;
@@ -230,7 +230,7 @@ int cs_amp_read_cal_coeffs(struct cs_dsp *dsp,
 			   const struct cirrus_amp_cal_controls *controls,
 			   struct cirrus_amp_cal_data *data)
 {
-	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS))
 		return _cs_amp_read_cal_coeffs(dsp, controls, data);
 	else
 		return -ENODEV;
@@ -249,10 +249,7 @@ int cs_amp_write_ambient_temp(struct cs_dsp *dsp,
 			      const struct cirrus_amp_cal_controls *controls,
 			      u32 temp)
 {
-	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
-		return cs_amp_write_cal_coeff(dsp, controls, controls->ambient, temp);
-	else
-		return -ENODEV;
+	return cs_amp_write_cal_coeff(dsp, controls, controls->ambient, temp);
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_write_ambient_temp, "SND_SOC_CS_AMP_LIB");
 
@@ -611,7 +608,7 @@ err:
 int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
 				    struct cirrus_amp_cal_data *out_data)
 {
-	if (IS_ENABLED(CONFIG_EFI) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+	if (IS_ENABLED(CONFIG_EFI) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS))
 		return _cs_amp_get_efi_calibration_data(dev, target_uid, amp_index, out_data);
 	else
 		return -ENOENT;
@@ -647,7 +644,7 @@ EXPORT_SYMBOL_NS_GPL(cs_amp_get_efi_calibration_data, "SND_SOC_CS_AMP_LIB");
 int cs_amp_set_efi_calibration_data(struct device *dev, int amp_index, int num_amps,
 				    const struct cirrus_amp_cal_data *in_data)
 {
-	if (IS_ENABLED(CONFIG_EFI) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST)) {
+	if (IS_ENABLED(CONFIG_EFI) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS)) {
 		scoped_guard(mutex, &cs_amp_efi_cal_write_lock) {
 			return _cs_amp_set_efi_calibration_data(dev, amp_index,
 								num_amps, in_data);
@@ -720,7 +717,7 @@ int cs_amp_get_vendor_spkid(struct device *dev)
 	int i, ret;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE) &&
-	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS))
 		return -ENOENT;
 
 	for (i = 0; i < ARRAY_SIZE(cs_amp_spkid_byte_types); i++) {
@@ -743,7 +740,7 @@ static const char *cs_amp_devm_get_dell_ssidex(struct device *dev,
 	int ret;
 
 	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE) &&
-	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS))
 		return ERR_PTR(-ENOENT);
 
 	char *ssidex_buf __free(kfree) = cs_amp_alloc_get_efi_variable(DELL_SSIDEXV2_EFI_NAME,
@@ -849,7 +846,7 @@ static const struct cs_amp_test_hooks cs_amp_test_hook_ptrs = {
 };
 
 const struct cs_amp_test_hooks * const cs_amp_test_hooks =
-	PTR_IF(IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST), &cs_amp_test_hook_ptrs);
+	PTR_IF(IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST_HOOKS), &cs_amp_test_hook_ptrs);
 EXPORT_SYMBOL_NS_GPL(cs_amp_test_hooks, "SND_SOC_CS_AMP_LIB");
 
 MODULE_DESCRIPTION("Cirrus Logic amplifier library");
