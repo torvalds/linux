@@ -25,6 +25,7 @@
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtrefcount_btree.h"
 #include "xfs_metafile.h"
+#include "xfs_healthmon.h"
 
 #include <linux/fserror.h>
 
@@ -544,6 +545,7 @@ xfs_do_force_shutdown(
 		xfs_stack_trace();
 
 	fserror_report_shutdown(mp->m_super, GFP_KERNEL);
+	xfs_healthmon_report_shutdown(mp, flags);
 }
 
 /*

@@ -6012,7 +6012,8 @@ DEFINE_HEALTHMON_EVENT(xfs_healthmon_report_unmount);
 	{ XFS_HEALTHMON_UNMOUNT,	"unmount" }, \
 	{ XFS_HEALTHMON_SICK,		"sick" }, \
 	{ XFS_HEALTHMON_CORRUPT,	"corrupt" }, \
-	{ XFS_HEALTHMON_HEALTHY,	"healthy" }
+	{ XFS_HEALTHMON_HEALTHY,	"healthy" }, \
+	{ XFS_HEALTHMON_SHUTDOWN,	"shutdown" }
 
 #define XFS_HEALTHMON_DOMAIN_STRINGS \
 	{ XFS_HEALTHMON_MOUNT,		"mount" }, \
@@ -6022,6 +6023,7 @@ DEFINE_HEALTHMON_EVENT(xfs_healthmon_report_unmount);
 	{ XFS_HEALTHMON_RTGROUP,	"rtgroup" }
 
 TRACE_DEFINE_ENUM(XFS_HEALTHMON_LOST);
+TRACE_DEFINE_ENUM(XFS_HEALTHMON_SHUTDOWN);
 TRACE_DEFINE_ENUM(XFS_HEALTHMON_UNMOUNT);
 TRACE_DEFINE_ENUM(XFS_HEALTHMON_SICK);
 TRACE_DEFINE_ENUM(XFS_HEALTHMON_CORRUPT);
@@ -6063,6 +6065,9 @@ DECLARE_EVENT_CLASS(xfs_healthmon_event_class,
 		switch (__entry->domain) {
 		case XFS_HEALTHMON_MOUNT:
 			switch (__entry->type) {
+			case XFS_HEALTHMON_SHUTDOWN:
+				__entry->mask = event->flags;
+				break;
 			case XFS_HEALTHMON_LOST:
 				__entry->lostcount = event->lostcount;
 				break;
@@ -6205,6 +6210,22 @@ TRACE_EVENT(xfs_healthmon_report_inode,
 		  __entry->imask,
 		  __entry->ino,
 		  __entry->gen)
+);
+
+TRACE_EVENT(xfs_healthmon_report_shutdown,
+	TP_PROTO(const struct xfs_healthmon *hm, uint32_t shutdown_flags),
+	TP_ARGS(hm, shutdown_flags),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint32_t, shutdown_flags)
+	),
+	TP_fast_assign(
+		__entry->dev = hm->dev;
+		__entry->shutdown_flags = shutdown_flags;
+	),
+	TP_printk("dev %d:%d shutdown_flags %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_flags(__entry->shutdown_flags, "|", XFS_SHUTDOWN_STRINGS))
 );
 
 #endif /* _TRACE_XFS_H */
