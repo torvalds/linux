@@ -442,6 +442,9 @@ struct io_ring_ctx {
 	struct list_head		defer_list;
 	unsigned			nr_drained;
 
+	/* protected by ->completion_lock */
+	unsigned			nr_req_allocated;
+
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	struct list_head	napi_list;	/* track busy poll napi_id */
 	spinlock_t		napi_lock;	/* napi_list lock */
@@ -453,10 +456,6 @@ struct io_ring_ctx {
 
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
-
-	/* protected by ->completion_lock */
-	unsigned			evfd_last_cq_tail;
-	unsigned			nr_req_allocated;
 
 	/*
 	 * Protection for resize vs mmap races - both the mmap and resize
