@@ -173,23 +173,59 @@ static struct marker **add_marker(struct marker **mi,
 	return &nm->next;
 }
 
-static void add_string_markers(struct property *prop)
+void property_add_marker(struct property *prop,
+			 enum markertype type, unsigned int offset, char *ref)
 {
-	int l, len = prop->val.len;
-	const char *p = prop->val.val;
+	add_marker(&prop->val.markers, type, offset, ref);
+}
+
+static void add_string_markers(struct property *prop, unsigned int offset, int len)
+{
+	int l;
+	const char *p = prop->val.val + offset;
 	struct marker **mi = &prop->val.markers;
 
 	for (l = strlen(p) + 1; l < len; l += strlen(p + l) + 1)
-		mi = add_marker(mi, TYPE_STRING, l, NULL);
+		mi = add_marker(mi, TYPE_STRING, offset + l, NULL);
 }
 
-static enum markertype guess_value_type(struct property *prop)
+void add_phandle_marker(struct dt_info *dti, struct property *prop, unsigned int offset)
 {
-	int len = prop->val.len;
-	const char *p = prop->val.val;
-	struct marker *m = prop->val.markers;
+	cell_t phandle;
+	struct node *refn;
+	char *ref;
+
+	if (prop->val.len < offset + 4) {
+		if (quiet < 1)
+			fprintf(stderr,
+				"Warning: property %s too short to contain a phandle at offset %u\n",
+				prop->name, offset);
+		return;
+	}
+
+	phandle = dtb_ld32(prop->val.val + offset);
+	refn = get_node_by_phandle(dti->dt, phandle);
+
+	if (!refn) {
+		if (quiet < 1)
+			fprintf(stderr,
+				"Warning: node referenced by phandle 0x%x in property %s not found\n",
+				phandle, prop->name);
+		return;
+	}
+
+	if (refn->labels)
+		ref = refn->labels->label;
+	else
+		ref = refn->fullpath;
+
+	add_marker(&prop->val.markers, REF_PHANDLE, offset, ref);
+}
+
+static enum markertype guess_value_type(struct property *prop, unsigned int offset, int len)
+{
+	const char *p = prop->val.val + offset;
 	int nnotstring = 0, nnul = 0;
-	int nnotstringlbl = 0, nnotcelllbl = 0;
 	int i;
 
 	for (i = 0; i < len; i++) {
@@ -199,30 +235,49 @@ static enum markertype guess_value_type(struct property *prop)
 			nnul++;
 	}
 
-	for_each_marker_of_type(m, LABEL) {
-		if ((m->offset > 0) && (prop->val.val[m->offset - 1] != '\0'))
-			nnotstringlbl++;
-		if ((m->offset % sizeof(cell_t)) != 0)
-			nnotcelllbl++;
-	}
-
-	if ((p[len-1] == '\0') && (nnotstring == 0) && (nnul <= (len-nnul))
-	    && (nnotstringlbl == 0)) {
+	if ((p[len-1] == '\0') && (nnotstring == 0) && (nnul <= len - nnul)) {
 		if (nnul > 1)
-			add_string_markers(prop);
+			add_string_markers(prop, offset, len);
 		return TYPE_STRING;
-	} else if (((len % sizeof(cell_t)) == 0) && (nnotcelllbl == 0)) {
+	} else if ((len % sizeof(cell_t)) == 0) {
 		return TYPE_UINT32;
 	}
 
 	return TYPE_UINT8;
 }
 
+static void guess_type_markers(struct property *prop)
+{
+	struct marker **m = &prop->val.markers;
+	unsigned int offset = 0;
+
+	for (m = &prop->val.markers; *m; m = &((*m)->next)) {
+		if (is_type_marker((*m)->type))
+			/* assume the whole property is already marked */
+			return;
+
+		if ((*m)->offset > offset) {
+			m = add_marker(m, guess_value_type(prop, offset, (*m)->offset - offset),
+				       offset, NULL);
+
+			offset = (*m)->offset;
+		}
+
+		if ((*m)->type == REF_PHANDLE) {
+			m = add_marker(m, TYPE_UINT32, offset, NULL);
+			offset += 4;
+		}
+	}
+
+	if (offset < prop->val.len)
+		add_marker(m, guess_value_type(prop, offset, prop->val.len - offset),
+			   offset, NULL);
+}
+
 static void write_propval(FILE *f, struct property *prop)
 {
 	size_t len = prop->val.len;
-	struct marker *m = prop->val.markers;
-	struct marker dummy_marker;
+	struct marker *m;
 	enum markertype emit_type = TYPE_NONE;
 	char *srcstr;
 
@@ -241,14 +296,8 @@ static void write_propval(FILE *f, struct property *prop)
 
 	fprintf(f, " =");
 
-	if (!next_type_marker(m)) {
-		/* data type information missing, need to guess */
-		dummy_marker.type = guess_value_type(prop);
-		dummy_marker.next = prop->val.markers;
-		dummy_marker.offset = 0;
-		dummy_marker.ref = NULL;
-		m = &dummy_marker;
-	}
+	guess_type_markers(prop);
+	m = prop->val.markers;
 
 	for_each_marker(m) {
 		size_t chunk_len = (m->next ? m->next->offset : len) - m->offset;
@@ -369,7 +418,10 @@ void dt_to_source(FILE *f, struct dt_info *dti)
 {
 	struct reserve_info *re;
 
-	fprintf(f, "/dts-v1/;\n\n");
+	fprintf(f, "/dts-v1/;\n");
+	if (dti->dtsflags & DTSF_PLUGIN)
+		fprintf(f, "/plugin/;\n");
+	fprintf(f, "\n");
 
 	for (re = dti->reservelist; re; re = re->next) {
 		struct label *l;

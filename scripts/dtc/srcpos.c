@@ -89,6 +89,26 @@ static char *shorten_to_initial_path(char *fname)
 }
 
 /**
+ * Returns true if the given path is an absolute one.
+ *
+ * On Windows, it either needs to begin with a forward slash or with a drive
+ * letter (e.g. "C:").
+ * On all other operating systems, it must begin with a forward slash to be
+ * considered an absolute path.
+ */
+static bool is_absolute_path(const char *path)
+{
+#ifdef WIN32
+	return (
+		path[0] == '/' ||
+		(((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) && path[1] == ':')
+	);
+#else
+	return (path[0] == '/');
+#endif
+}
+
+/**
  * Try to open a file in a given directory.
  *
  * If the filename is an absolute path, then dirname is ignored. If it is a
@@ -103,7 +123,7 @@ static char *try_open(const char *dirname, const char *fname, FILE **fp)
 {
 	char *fullname;
 
-	if (!dirname || fname[0] == '/')
+	if (!dirname || is_absolute_path(fname))
 		fullname = xstrdup(fname);
 	else
 		fullname = join_path(dirname, fname);
