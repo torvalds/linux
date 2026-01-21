@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <net/netdev_queues.h>
+#include <net/xdp_sock_drv.h>
 
 #include "netlink.h"
 #include "common.h"
@@ -169,16 +169,14 @@ ethnl_set_channels(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (ret)
 		return ret;
 
-	/* ensure channels are not busy at the moment */
+	/* Disabling channels, query zero-copy AF_XDP sockets */
 	from_channel = channels.combined_count +
 		       min(channels.rx_count, channels.tx_count);
-	for (i = from_channel; i < old_total; i++) {
-		if (netdev_queue_busy(dev, i, NULL)) {
-			GENL_SET_ERR_MSG(info,
-					 "requested channel counts are too low due to busy queues (AF_XDP or queue leasing)");
+	for (i = from_channel; i < old_total; i++)
+		if (xsk_get_pool_from_qid(dev, i)) {
+			GENL_SET_ERR_MSG(info, "requested channel counts are too low for existing zerocopy AF_XDP sockets");
 			return -EINVAL;
 		}
-	}
 
 	ret = dev->ethtool_ops->set_channels(dev, &channels);
 	return ret < 0 ? ret : 1;

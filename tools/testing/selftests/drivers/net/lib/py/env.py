@@ -1,17 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 
-import ipaddress
 import os
-import re
 import time
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
 from lib.py import ksft_setup, wait_file
 from lib.py import cmd, ethtool, ip, CmdExitFailure
 from lib.py import NetNS, NetdevSimDev
-from lib.py import NetdevFamily, EthtoolFamily
 from .remote import Remote
-from . import bpftool
 
 
 class NetDrvEnvBase:
@@ -293,156 +289,3 @@ class NetDrvEpEnv(NetDrvEnvBase):
                 data.get('stats-block-usecs', 0) / 1000 / 1000
 
         time.sleep(self._stats_settle_time)
-
-
-class NetDrvContEnv(NetDrvEpEnv):
-    """
-    Class for an environment with a netkit pair setup for forwarding traffic
-    between the physical interface and a network namespace.
-    """
-
-    def __init__(self, src_path, lease=False, **kwargs):
-        super().__init__(src_path, **kwargs)
-
-        self.require_ipver("6")
-        local_prefix = self.env.get("LOCAL_PREFIX_V6")
-        if not local_prefix:
-            raise KsftSkipEx("LOCAL_PREFIX_V6 required")
-
-        self.netdevnl = NetdevFamily()
-        self.ethnl = EthtoolFamily()
-
-        local_prefix = local_prefix.rstrip("/64").rstrip("::").rstrip(":")
-        self.ipv6_prefix = f"{local_prefix}::"
-        self.nk_host_ipv6 = f"{local_prefix}::2:1"
-        self.nk_guest_ipv6 = f"{local_prefix}::2:2"
-
-        self.netns = None
-        self._nk_host_ifname = None
-        self._nk_guest_ifname = None
-        self._tc_attached = False
-        self._bpf_prog_pref = None
-        self._bpf_prog_id = None
-        self._leased = False
-
-        nk_rxqueues = 1
-        if lease:
-            nk_rxqueues = 2
-        ip(f"link add type netkit mode l2 forward peer forward numrxqueues {nk_rxqueues}")
-
-        all_links = ip("-d link show", json=True)
-        netkit_links = [link for link in all_links
-                        if link.get('linkinfo', {}).get('info_kind') == 'netkit'
-                        and 'UP' not in link.get('flags', [])]
-
-        if len(netkit_links) != 2:
-            raise KsftSkipEx("Failed to create netkit pair")
-
-        netkit_links.sort(key=lambda x: x['ifindex'])
-        self._nk_host_ifname = netkit_links[1]['ifname']
-        self._nk_guest_ifname = netkit_links[0]['ifname']
-        self.nk_host_ifindex = netkit_links[1]['ifindex']
-        self.nk_guest_ifindex = netkit_links[0]['ifindex']
-
-        if lease:
-            self._lease_queues()
-
-        self._setup_ns()
-        self._attach_bpf()
-
-    def __del__(self):
-        if self._tc_attached:
-            cmd(f"tc filter del dev {self.ifname} ingress pref {self._bpf_prog_pref}")
-            self._tc_attached = False
-
-        if self._nk_host_ifname:
-            cmd(f"ip link del dev {self._nk_host_ifname}")
-            self._nk_host_ifname = None
-            self._nk_guest_ifname = None
-
-        if self.netns:
-            del self.netns
-            self.netns = None
-
-        if self._leased:
-            self.ethnl.rings_set({'header': {'dev-index': self.ifindex},
-                                  'tcp-data-split': 'unknown',
-                                  'hds-thresh': self._hds_thresh,
-                                  'rx': self._rx_rings})
-            self._leased = False
-
-        super().__del__()
-
-    def _lease_queues(self):
-        channels = self.ethnl.channels_get({'header': {'dev-index': self.ifindex}})
-        channels = channels['combined-count']
-        if channels < 2:
-            raise KsftSkipEx('Test requires NETIF with at least 2 combined channels')
-
-        rings = self.ethnl.rings_get({'header': {'dev-index': self.ifindex}})
-        self._rx_rings = rings['rx']
-        self._hds_thresh = rings.get('hds-thresh', 0)
-        self.ethnl.rings_set({'header': {'dev-index': self.ifindex},
-                            'tcp-data-split': 'enabled',
-                            'hds-thresh': 0,
-                            'rx': 64})
-        self.src_queue = channels - 1
-        bind_result = self.netdevnl.queue_create(
-            {
-                "ifindex": self.nk_guest_ifindex,
-                "type": "rx",
-                "lease": {
-                    "ifindex": self.ifindex,
-                    "queue": {"id": self.src_queue, "type": "rx"},
-                },
-            }
-        )
-        self.nk_queue = bind_result['id']
-        self._leased = True
-
-    def _setup_ns(self):
-        self.netns = NetNS()
-        ip(f"link set dev {self._nk_guest_ifname} netns {self.netns.name}")
-        ip(f"link set dev {self._nk_host_ifname} up")
-        ip(f"-6 addr add fe80::1/64 dev {self._nk_host_ifname} nodad")
-        ip(f"-6 route add {self.nk_guest_ipv6}/128 via fe80::2 dev {self._nk_host_ifname}")
-
-        ip("link set lo up", ns=self.netns)
-        ip(f"link set dev {self._nk_guest_ifname} up", ns=self.netns)
-        ip(f"-6 addr add fe80::2/64 dev {self._nk_guest_ifname}", ns=self.netns)
-        ip(f"-6 addr add {self.nk_guest_ipv6}/64 dev {self._nk_guest_ifname} nodad", ns=self.netns)
-        ip(f"-6 route add default via fe80::1 dev {self._nk_guest_ifname}", ns=self.netns)
-
-    def _attach_bpf(self):
-        bpf_obj = self.test_dir / "nk_forward.bpf.o"
-        if not bpf_obj.exists():
-            raise KsftSkipEx("BPF prog not found")
-
-        cmd(f"tc filter add dev {self.ifname} ingress bpf obj {bpf_obj} sec tc/ingress direct-action")
-        self._tc_attached = True
-
-        tc_info = cmd(f"tc filter show dev {self.ifname} ingress").stdout
-        match = re.search(r'pref (\d+).*nk_forward\.bpf.*id (\d+)', tc_info)
-        if not match:
-            raise Exception("Failed to get BPF prog ID")
-        self._bpf_prog_pref = int(match.group(1))
-        self._bpf_prog_id = int(match.group(2))
-
-        prog_info = bpftool(f"prog show id {self._bpf_prog_id}", json=True)
-        map_ids = prog_info.get("map_ids", [])
-
-        bss_map_id = None
-        for map_id in map_ids:
-            map_info = bpftool(f"map show id {map_id}", json=True)
-            if map_info.get("name").endswith("bss"):
-                bss_map_id = map_id
-
-        if bss_map_id is None:
-            raise Exception("Failed to find .bss map")
-
-        ipv6_addr = ipaddress.IPv6Address(self.ipv6_prefix)
-        ipv6_bytes = ipv6_addr.packed
-        ifindex_bytes = self.nk_host_ifindex.to_bytes(4, byteorder='little')
-        value = ipv6_bytes + ifindex_bytes
-        value_hex = ' '.join(f'{b:02x}' for b in value)
-        bpftool(f"map update id {bss_map_id} key hex 00 00 00 00 value hex {value_hex}")
