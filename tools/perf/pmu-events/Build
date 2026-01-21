@@ -1,5 +1,6 @@
 pmu-events-y	+= pmu-events.o
 JSON		=  $(shell find pmu-events/arch -name '*.json' -o -name '*.csv')
+JSON_DIRS	=  $(shell find pmu-events/arch -type d)
 JDIR_TEST	=  pmu-events/arch/test
 JSON_TEST	=  $(shell [ -d $(JDIR_TEST) ] &&			\
 			find $(JDIR_TEST) -name '*.json')
@@ -31,16 +32,23 @@ $(PMU_EVENTS_C): $(EMPTY_PMU_EVENTS_C)
 else
 # Copy checked-in json to OUTPUT for generation if it's an out of source build
 ifneq ($(OUTPUT),)
-$(OUTPUT)pmu-events/arch/%: pmu-events/arch/%
+# Remove all output directories when any source directory timestamp changes
+# so there are no stale deleted files
+JSON_DIRS_ROOT = $(OUTPUT)pmu-events/arch/
+$(JSON_DIRS_ROOT): $(JSON_DIRS)
+	$(Q)$(call echo-cmd,gen)rm -rf $@
+	$(Q)mkdir -p $@
+
+$(OUTPUT)pmu-events/arch/%: pmu-events/arch/% $(JSON_DIRS_ROOT)
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,gen)cp $< $@
 endif
 
-$(LEGACY_CACHE_JSON): $(LEGACY_CACHE_PY)
+$(LEGACY_CACHE_JSON): $(LEGACY_CACHE_PY) $(JSON_DIRS_ROOT)
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,gen)$(PYTHON) $(LEGACY_CACHE_PY) > $@
 
-GEN_JSON = $(patsubst %,$(OUTPUT)%,$(JSON)) $(LEGACY_CACHE_JSON)
+GEN_JSON = $(patsubst %,$(OUTPUT)%,$(JSON)) $(LEGACY_CACHE_JSON) $(JSON_DIRS)
 
 $(METRIC_TEST_LOG): $(METRIC_TEST_PY) $(METRIC_PY)
 	$(call rule_mkdir)
