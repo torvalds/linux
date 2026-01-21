@@ -49,15 +49,13 @@ static int nop_set_suspend(struct usb_phy *x, int suspend)
 	int ret = 0;
 
 	if (suspend) {
-		if (!IS_ERR(nop->clk))
-			clk_disable_unprepare(nop->clk);
+		clk_disable_unprepare(nop->clk);
 		if (!IS_ERR(nop->vcc) && !device_may_wakeup(x->dev))
 			ret = regulator_disable(nop->vcc);
 	} else {
 		if (!IS_ERR(nop->vcc) && !device_may_wakeup(x->dev))
 			ret = regulator_enable(nop->vcc);
-		if (!IS_ERR(nop->clk))
-			clk_prepare_enable(nop->clk);
+		clk_prepare_enable(nop->clk);
 	}
 
 	return ret;
@@ -137,11 +135,9 @@ int usb_gen_phy_init(struct usb_phy *phy)
 			dev_err(phy->dev, "Failed to enable power\n");
 	}
 
-	if (!IS_ERR(nop->clk)) {
-		ret = clk_prepare_enable(nop->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_prepare_enable(nop->clk);
+	if (ret)
+		return ret;
 
 	nop_reset(nop);
 
@@ -155,8 +151,7 @@ void usb_gen_phy_shutdown(struct usb_phy *phy)
 
 	gpiod_set_value_cansleep(nop->gpiod_reset, 1);
 
-	if (!IS_ERR(nop->clk))
-		clk_disable_unprepare(nop->clk);
+	clk_disable_unprepare(nop->clk);
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_disable(nop->vcc))
@@ -202,17 +197,13 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 {
 	enum usb_phy_type type = USB_PHY_TYPE_USB2;
 	int err = 0;
-
 	u32 clk_rate = 0;
-	bool needs_clk = false;
 
 	if (dev->of_node) {
 		struct device_node *node = dev->of_node;
 
 		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
 			clk_rate = 0;
-
-		needs_clk = of_property_present(node, "clocks");
 	}
 	nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_ASIS);
@@ -235,15 +226,14 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 	if (!nop->phy.otg)
 		return -ENOMEM;
 
-	nop->clk = devm_clk_get(dev, "main_clk");
+	nop->clk = devm_clk_get_optional(dev, "main_clk");
 	if (IS_ERR(nop->clk)) {
 		dev_dbg(dev, "Can't get phy clock: %ld\n",
 					PTR_ERR(nop->clk));
-		if (needs_clk)
-			return PTR_ERR(nop->clk);
+		return PTR_ERR(nop->clk);
 	}
 
-	if (!IS_ERR(nop->clk) && clk_rate) {
+	if (clk_rate) {
 		err = clk_set_rate(nop->clk, clk_rate);
 		if (err) {
 			dev_err(dev, "Error setting clock rate\n");
