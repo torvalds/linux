@@ -1160,6 +1160,34 @@ struct xfs_health_file_on_monitored_fs {
 	__u32		flags;	/* zero for now */
 };
 
+/* Verify the media of the underlying devices */
+struct xfs_verify_media {
+	__u32	me_dev;		/* I: XFS_DEV_{DATA,LOG,RT} */
+	__u32	me_flags;	/* I: XFS_VERIFY_MEDIA_* */
+
+	/*
+	 * IO: inclusive start of disk range to verify, in 512b blocks.
+	 * Will be adjusted upwards as media verification succeeds.
+	 */
+	__u64	me_start_daddr;
+
+	/*
+	 * IO: exclusive end of the disk range to verify, in 512b blocks.
+	 * Can be adjusted downwards to match device size.
+	 */
+	__u64	me_end_daddr;
+
+	__u32	me_ioerror;	/* O: I/O error (positive) */
+	__u32	me_max_io_size;	/* I: maximum IO size in bytes */
+
+	__u32	me_rest_us;	/* I: rest time between IOs, usecs */
+	__u32	me_pad;		/* zero */
+};
+
+#define XFS_VERIFY_MEDIA_REPORT	(1 << 0)	/* report to fsnotify */
+
+#define XFS_VERIFY_MEDIA_FLAGS	(XFS_VERIFY_MEDIA_REPORT)
+
 /*
  * ioctl commands that are used by Linux filesystems
  */
@@ -1202,6 +1230,8 @@ struct xfs_health_file_on_monitored_fs {
 #define XFS_IOC_HEALTH_MONITOR	_IOW ('X', 68, struct xfs_health_monitor)
 #define XFS_IOC_HEALTH_FD_ON_MONITORED_FS \
 				_IOW ('X', 69, struct xfs_health_file_on_monitored_fs)
+#define XFS_IOC_VERIFY_MEDIA	_IOWR('X', 70, struct xfs_verify_media)
+
 /*
  * ioctl commands that replace IRIX syssgi()'s
  */
