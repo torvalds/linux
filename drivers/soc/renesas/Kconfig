@@ -62,6 +62,7 @@ config ARCH_RZN1
 	select PM
 	select PM_GENERIC_DOMAINS
 	select ARM_AMBA
+	select RZN1_IRQMUX if GPIO_DWAPB
 
 if ARM && ARCH_RENESAS
 
@@ -459,6 +460,9 @@ config PWC_RZV2M
 
 config RST_RCAR
 	bool "Reset Controller support for R-Car" if COMPILE_TEST
+
+config RZN1_IRQMUX
+	bool "Renesas RZ/N1 GPIO IRQ multiplexer support" if COMPILE_TEST
 
 config SYSC_RZ
 	bool "System controller for RZ SoCs" if COMPILE_TEST
