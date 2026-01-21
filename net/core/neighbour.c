@@ -1369,6 +1369,7 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 			  struct netlink_ext_ack *extack)
 {
 	bool gc_update = false, managed_update = false;
+	bool process_arp_queue = false;
 	int update_isrouter = 0;
 	struct net_device *dev;
 	int err, notify = 0;
@@ -1504,12 +1505,17 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 		neigh_suspect(neigh);
 
 	if (!(old & NUD_VALID))
-		neigh_update_process_arp_queue(neigh);
+		process_arp_queue = true;
 
 out:
 	if (update_isrouter)
 		neigh_update_is_router(neigh, flags, &notify);
+
+	if (process_arp_queue)
+		neigh_update_process_arp_queue(neigh);
+
 	write_unlock_bh(&neigh->lock);
+
 	if (((new ^ old) & NUD_PERMANENT) || gc_update)
 		neigh_update_gc_list(neigh);
 	if (managed_update)
