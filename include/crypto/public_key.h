@@ -46,6 +46,8 @@ struct public_key_signature {
 	u8 *m;			/* Message data to pass to verifier */
 	u32 s_size;		/* Number of bytes in signature */
 	u32 m_size;		/* Number of bytes in ->m */
+	bool m_free;		/* T if ->m needs freeing */
+	bool algo_takes_data;	/* T if public key algo operates on data, not a hash */
 	const char *pkey_algo;
 	const char *hash_algo;
 	const char *encoding;

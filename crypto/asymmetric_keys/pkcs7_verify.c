@@ -30,6 +30,16 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 
 	kenter(",%u,%s", sinfo->index, sinfo->sig->hash_algo);
 
+	if (!sinfo->authattrs && sig->algo_takes_data) {
+		/* There's no intermediate digest and the signature algo
+		 * doesn't want the data prehashing.
+		 */
+		sig->m = (void *)pkcs7->data;
+		sig->m_size = pkcs7->data_len;
+		sig->m_free = false;
+		return 0;
+	}
+
 	/* The digest was calculated already. */
 	if (sig->m)
 		return 0;
@@ -48,9 +58,10 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	sig->m_size = crypto_shash_digestsize(tfm);
 
 	ret = -ENOMEM;
-	sig->m = kmalloc(sig->m_size, GFP_KERNEL);
+	sig->m = kmalloc(umax(sinfo->authattrs_len, sig->m_size), GFP_KERNEL);
 	if (!sig->m)
 		goto error_no_desc;
+	sig->m_free = true;
 
 	desc = kzalloc(desc_size, GFP_KERNEL);
 	if (!desc)
@@ -69,8 +80,6 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 	 * digest we just calculated.
 	 */
 	if (sinfo->authattrs) {
-		u8 tag;
-
 		if (!sinfo->msgdigest) {
 			pr_warn("Sig %u: No messageDigest\n", sinfo->index);
 			ret = -EKEYREJECTED;
@@ -96,21 +105,25 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 		 * as the contents of the digest instead.  Note that we need to
 		 * convert the attributes from a CONT.0 into a SET before we
 		 * hash it.
+		 *
+		 * However, for certain algorithms, such as ML-DSA, the digest
+		 * is integrated into the signing algorithm.  In such a case,
+		 * we copy the authattrs, modifying the tag type, and set that
+		 * as the digest.
 		 */
-		memset(sig->m, 0, sig->m_size);
+		memcpy(sig->m, sinfo->authattrs, sinfo->authattrs_len);
+		sig->m[0] = ASN1_CONS_BIT | ASN1_SET;
 
-
-		ret = crypto_shash_init(desc);
-		if (ret < 0)
-			goto error;
-		tag = ASN1_CONS_BIT | ASN1_SET;
-		ret = crypto_shash_update(desc, &tag, 1);
-		if (ret < 0)
-			goto error;
-		ret = crypto_shash_finup(desc, sinfo->authattrs,
-					 sinfo->authattrs_len, sig->m);
-		if (ret < 0)
-			goto error;
+		if (sig->algo_takes_data) {
+			sig->m_size = sinfo->authattrs_len;
+			ret = 0;
+		} else {
+			ret = crypto_shash_digest(desc, sig->m,
+						  sinfo->authattrs_len,
+						  sig->m);
+			if (ret < 0)
+				goto error;
+		}
 		pr_devel("AADigest = [%*ph]\n", 8, sig->m);
 	}
 
@@ -137,6 +150,11 @@ int pkcs7_get_digest(struct pkcs7_message *pkcs7, const u8 **buf, u32 *len,
 	ret = pkcs7_digest(pkcs7, sinfo);
 	if (ret)
 		return ret;
+	if (!sinfo->sig->m_free) {
+		pr_notice_once("%s: No digest available\n", __func__);
+		return -EINVAL; /* TODO: MLDSA doesn't necessarily calculate an
+				 * intermediate digest. */
+	}
 
 	*buf = sinfo->sig->m;
 	*len = sinfo->sig->m_size;

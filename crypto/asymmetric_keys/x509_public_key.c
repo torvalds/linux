@@ -50,6 +50,14 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	sig->s_size = cert->raw_sig_size;
 
+	if (sig->algo_takes_data) {
+		/* The signature algorithm does whatever passes for hashing. */
+		sig->m = (u8 *)cert->tbs;
+		sig->m_size = cert->tbs_size;
+		sig->m_free = false;
+		goto out;
+	}
+
 	/* Allocate the hashing algorithm we're going to need and find out how
 	 * big the hash operational data will be.
 	 */
@@ -69,6 +77,7 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	sig->m = kmalloc(sig->m_size, GFP_KERNEL);
 	if (!sig->m)
 		goto error;
+	sig->m_free = true;
 
 	desc = kzalloc(desc_size, GFP_KERNEL);
 	if (!desc)
@@ -84,6 +93,7 @@ error_2:
 	kfree(desc);
 error:
 	crypto_free_shash(tfm);
+out:
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 }
