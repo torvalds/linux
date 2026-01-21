@@ -304,8 +304,9 @@ void ice_ptp_extts_event(struct ice_pf *pf);
 s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
 void ice_ptp_req_tx_single_tstamp(struct ice_ptp_tx *tx, u8 idx);
 void ice_ptp_complete_tx_single_tstamp(struct ice_ptp_tx *tx);
-enum ice_tx_tstamp_work ice_ptp_process_ts(struct ice_pf *pf);
+void ice_ptp_process_ts(struct ice_pf *pf);
 irqreturn_t ice_ptp_ts_irq(struct ice_pf *pf);
+bool ice_ptp_tx_tstamps_pending(struct ice_pf *pf);
 u64 ice_ptp_read_src_clk_reg(struct ice_pf *pf,
 			     struct ptp_system_timestamp *sts);
 
@@ -345,14 +346,16 @@ static inline void ice_ptp_req_tx_single_tstamp(struct ice_ptp_tx *tx, u8 idx)
 
 static inline void ice_ptp_complete_tx_single_tstamp(struct ice_ptp_tx *tx) { }
 
-static inline bool ice_ptp_process_ts(struct ice_pf *pf)
-{
-	return true;
-}
+static inline void ice_ptp_process_ts(struct ice_pf *pf) { }
 
 static inline irqreturn_t ice_ptp_ts_irq(struct ice_pf *pf)
 {
 	return IRQ_HANDLED;
+}
+
+static inline bool ice_ptp_tx_tstamps_pending(struct ice_pf *pf)
+{
+	return false;
 }
 
 static inline u64 ice_ptp_read_src_clk_reg(struct ice_pf *pf,
