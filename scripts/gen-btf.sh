@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (c) 2025 Meta Platforms, Inc. and affiliates.
 #
@@ -81,7 +81,7 @@ gen_btf_data()
 
 gen_btf_o()
 {
-	local btf_data=${ELF_FILE}.btf.o
+	btf_data=${ELF_FILE}.btf.o
 
 	# Create ${btf_data} which contains just .BTF section but no symbols. Add
 	# SHF_ALLOC because .BTF will be part of the vmlinux image. --strip-all
@@ -107,11 +107,11 @@ embed_btf_data()
 	${OBJCOPY} --add-section .BTF=${ELF_FILE}.BTF ${ELF_FILE}
 
 	# a module might not have a .BTF_ids or .BTF.base section
-	local btf_base="${ELF_FILE}.BTF.base"
+	btf_base="${ELF_FILE}.BTF.base"
 	if [ -f "${btf_base}" ]; then
 		${OBJCOPY} --add-section .BTF.base=${btf_base} ${ELF_FILE}
 	fi
-	local btf_ids="${ELF_FILE}.BTF_ids"
+	btf_ids="${ELF_FILE}.BTF_ids"
 	if [ -f "${btf_ids}" ]; then
 		${RESOLVE_BTFIDS} --patch_btfids ${btf_ids} ${ELF_FILE}
 	fi

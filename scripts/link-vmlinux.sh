@@ -206,7 +206,7 @@ fi
 
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
 	info BTF .tmp_vmlinux1
-	if ! ${srctree}/scripts/gen-btf.sh .tmp_vmlinux1; then
+	if ! ${CONFIG_SHELL} ${srctree}/scripts/gen-btf.sh .tmp_vmlinux1; then
 		echo >&2 "Failed to generate BTF for vmlinux"
 		echo >&2 "Try to disable CONFIG_DEBUG_INFO_BTF"
 		exit 1
