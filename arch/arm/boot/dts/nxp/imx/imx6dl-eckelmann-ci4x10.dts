@@ -66,8 +66,8 @@
 };
 
 &clks {
-	clocks = <&rmii_clk>;
-	clock-names = "enet_ref_pad";
+	clocks = <&osc>, <&ckil>, <&ckih1>, <&anaclk1>, <&anaclk2>, <&rmii_clk>;
+	clock-names = "osc", "ckil", "ckih1", "anaclk1", "anaclk2", "enet_ref_pad";
 	assigned-clocks = <&clks IMX6QDL_CLK_ENET_REF_SEL>;
 	assigned-clock-parents = <&rmii_clk>;
 };
