@@ -7,6 +7,7 @@ cmsg_sender
 epoll_busy_poll
 fin_ack_lat
 hwtstamp_config
+icmp_rfc4884
 io_uring_zerocopy_tx
 ioam6_parser
 ip_defrag
