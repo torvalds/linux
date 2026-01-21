@@ -52,6 +52,7 @@ do {						\
 
 static void neigh_timer_handler(struct timer_list *t);
 static void neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
+static void __neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
 static void pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm);
 
@@ -1512,6 +1513,9 @@ out:
 	if (update_isrouter)
 		neigh_update_is_router(neigh, flags, &notify);
 
+	if (notify)
+		__neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+
 	if (process_arp_queue)
 		neigh_update_process_arp_queue(neigh);
 
@@ -1522,10 +1526,8 @@ out:
 	if (managed_update)
 		neigh_update_managed_list(neigh);
 
-	if (notify) {
-		neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+	if (notify)
 		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	}
 
 	trace_neigh_update_done(neigh, err);
 	return err;
