@@ -256,10 +256,10 @@ void virtio_transport_notify_buffer_size(struct vsock_sock *vsk, u64 *val);
 
 u64 virtio_transport_stream_rcvhiwat(struct vsock_sock *vsk);
 bool virtio_transport_stream_is_active(struct vsock_sock *vsk);
-bool virtio_transport_stream_allow(u32 cid, u32 port);
+bool virtio_transport_stream_allow(struct vsock_sock *vsk, u32 cid, u32 port);
 int virtio_transport_dgram_bind(struct vsock_sock *vsk,
 				struct sockaddr_vm *addr);
-bool virtio_transport_dgram_allow(u32 cid, u32 port);
+bool virtio_transport_dgram_allow(struct vsock_sock *vsk, u32 cid, u32 port);
 
 int virtio_transport_connect(struct vsock_sock *vsk);
 

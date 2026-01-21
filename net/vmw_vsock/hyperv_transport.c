@@ -570,7 +570,7 @@ static int hvs_dgram_enqueue(struct vsock_sock *vsk,
 	return -EOPNOTSUPP;
 }
 
-static bool hvs_dgram_allow(u32 cid, u32 port)
+static bool hvs_dgram_allow(struct vsock_sock *vsk, u32 cid, u32 port)
 {
 	return false;
 }
@@ -745,8 +745,11 @@ static bool hvs_stream_is_active(struct vsock_sock *vsk)
 	return hvs->chan != NULL;
 }
 
-static bool hvs_stream_allow(u32 cid, u32 port)
+static bool hvs_stream_allow(struct vsock_sock *vsk, u32 cid, u32 port)
 {
+	if (!vsock_net_mode_global(vsk))
+		return false;
+
 	if (cid == VMADDR_CID_HOST)
 		return true;
 
