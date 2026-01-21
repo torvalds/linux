@@ -6,6 +6,7 @@ use core::convert::TryFrom;
 
 use kernel::{
     device,
+    io::Io,
     prelude::*,
     ptr::{
         Alignable,

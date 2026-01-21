@@ -7,6 +7,7 @@
 use kernel::{
     device::Core,
     devres::Devres,
+    io::Io,
     pci,
     prelude::*,
     sync::aref::ARef, //

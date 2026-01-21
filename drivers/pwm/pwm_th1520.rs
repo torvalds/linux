@@ -26,7 +26,10 @@ use kernel::{
     clk::Clk,
     device::{Bound, Core, Device},
     devres,
-    io::mem::IoMem,
+    io::{
+        mem::IoMem,
+        Io, //
+    },
     of, platform,
     prelude::*,
     pwm, time,
