@@ -90,6 +90,7 @@ xfs_healthmon_put(
 			kfree(event);
 		}
 
+		kfree(hm->unmount_event);
 		kfree(hm->buffer);
 		mutex_destroy(&hm->lock);
 		kfree_rcu_mightsleep(hm);
@@ -166,6 +167,7 @@ xfs_healthmon_merge_events(
 
 	switch (existing->type) {
 	case XFS_HEALTHMON_RUNNING:
+	case XFS_HEALTHMON_UNMOUNT:
 		/* should only ever be one of these events anyway */
 		return false;
 
@@ -307,7 +309,10 @@ out_unlock:
 	return error;
 }
 
-/* Detach the xfs mount from this healthmon instance. */
+/*
+ * Report that the filesystem is being unmounted, then detach the xfs mount
+ * from this healthmon instance.
+ */
 void
 xfs_healthmon_unmount(
 	struct xfs_mount		*mp)
@@ -316,6 +321,17 @@ xfs_healthmon_unmount(
 
 	if (!hm)
 		return;
+
+	trace_xfs_healthmon_report_unmount(hm);
+
+	/*
+	 * Insert the unmount notification at the start of the event queue so
+	 * that userspace knows the filesystem went away as soon as possible.
+	 * There's nothing actionable for userspace after an unmount.  Once
+	 * we've inserted the unmount event, hm no longer owns that event.
+	 */
+	__xfs_healthmon_insert(hm, hm->unmount_event);
+	hm->unmount_event = NULL;
 
 	xfs_healthmon_detach(hm);
 	xfs_healthmon_put(hm);
@@ -712,6 +728,20 @@ xfs_ioc_health_monitor(
 	running_event->type = XFS_HEALTHMON_RUNNING;
 	running_event->domain = XFS_HEALTHMON_MOUNT;
 	__xfs_healthmon_insert(hm, running_event);
+
+	/*
+	 * Preallocate the unmount event so that we can't fail to notify the
+	 * filesystem later.  This is key for triggering fast exit of the
+	 * xfs_healer daemon.
+	 */
+	hm->unmount_event = kzalloc(sizeof(struct xfs_healthmon_event),
+			GFP_NOFS);
+	if (!hm->unmount_event) {
+		ret = -ENOMEM;
+		goto out_hm;
+	}
+	hm->unmount_event->type = XFS_HEALTHMON_UNMOUNT;
+	hm->unmount_event->domain = XFS_HEALTHMON_MOUNT;
 
 	/*
 	 * Try to attach this health monitor to the xfs_mount.  The monitor is
