@@ -149,14 +149,6 @@ xfs_warn_experimental(
 			.opstate	= XFS_OPSTATE_WARNED_LARP,
 			.name		= "logged extended attributes",
 		},
-		[XFS_EXPERIMENTAL_LBS] = {
-			.opstate	= XFS_OPSTATE_WARNED_LBS,
-			.name		= "large block size",
-		},
-		[XFS_EXPERIMENTAL_METADIR] = {
-			.opstate	= XFS_OPSTATE_WARNED_METADIR,
-			.name		= "metadata directory tree",
-		},
 		[XFS_EXPERIMENTAL_ZONED] = {
 			.opstate	= XFS_OPSTATE_WARNED_ZONED,
 			.name		= "zoned RT device",
