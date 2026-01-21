@@ -365,6 +365,11 @@ static void geneve_uninit(struct net_device *dev)
 	gro_cells_destroy(&geneve->gro_cells);
 }
 
+static int geneve_hlen(const struct genevehdr *gh)
+{
+	return sizeof(*gh) + gh->opt_len * 4;
+}
+
 /* Callback from net/ipv4/udp.c to receive packets */
 static int geneve_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
@@ -495,11 +500,6 @@ static struct socket *geneve_create_sock(struct net *net, bool ipv6,
 
 	udp_allow_gso(sock->sk);
 	return sock;
-}
-
-static int geneve_hlen(struct genevehdr *gh)
-{
-	return sizeof(*gh) + gh->opt_len * 4;
 }
 
 static struct sk_buff *geneve_gro_receive(struct sock *sk,
