@@ -4069,6 +4069,7 @@
 			d-cache-size = <65536>;
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
+			next-level-cache = <&l2c0>;
 		};
 
 		cpu1: cpu@10000 {
@@ -4084,7 +4085,327 @@
 			d-cache-size = <65536>;
 			d-cache-line-size = <64>;
 			d-cache-sets = <256>;
+			next-level-cache = <&l2c1>;
 		};
+
+		cpu2: cpu@20000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x20000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c2>;
+		};
+
+		cpu3: cpu@30000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x30000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c3>;
+		};
+
+		cpu4: cpu@40000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x40000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c4>;
+		};
+
+		cpu5: cpu@50000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x50000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c5>;
+		};
+
+		cpu6: cpu@60000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x60000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c6>;
+		};
+
+		cpu7: cpu@70000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x70000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c7>;
+		};
+
+		cpu8: cpu@80000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x80000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c8>;
+		};
+
+		cpu9: cpu@90000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0x90000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c9>;
+		};
+
+		cpu10: cpu@a0000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0xa0000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c10>;
+		};
+
+		cpu11: cpu@b0000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0xb0000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c11>;
+		};
+
+		cpu12: cpu@c0000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0xc0000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c12>;
+		};
+
+		cpu13: cpu@d0000 {
+			compatible = "arm,neoverse-v3ae";
+			device_type = "cpu";
+			reg = <0xd0000>;
+
+			enable-method = "psci";
+
+			i-cache-size = <65536>;
+			i-cache-line-size = <64>;
+			i-cache-sets = <256>;
+			d-cache-size = <65536>;
+			d-cache-line-size = <64>;
+			d-cache-sets = <256>;
+			next-level-cache = <&l2c13>;
+		};
+
+		l2c0: l2-cache-0 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c1: l2-cache-1 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c2: l2-cache-2 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c3: l2-cache-3 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c4: l2-cache-4 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c5: l2-cache-5 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c6: l2-cache-6 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c7: l2-cache-7 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c8: l2-cache-8 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c9: l2-cache-9 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c10: l2-cache-10 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c11: l2-cache-11 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c12: l2-cache-12 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
+		l2c13: l2-cache-13 {
+			compatible = "cache";
+			cache-level = <2>;
+			cache-size = <1048576>;
+			cache-line-size = <64>;
+			cache-sets = <2048>;
+			cache-unified;
+		};
+
 	};
 
 	bpmp: bpmp {
