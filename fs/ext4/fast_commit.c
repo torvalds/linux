@@ -1759,8 +1759,7 @@ int ext4_fc_record_regions(struct super_block *sb, int ino,
 }
 
 /* Replay add range tag */
-static int ext4_fc_replay_add_range(struct super_block *sb,
-				    struct ext4_fc_tl_mem *tl, u8 *val)
+static int ext4_fc_replay_add_range(struct super_block *sb, u8 *val)
 {
 	struct ext4_fc_add_range fc_add_ex;
 	struct ext4_extent newex, *ex;
@@ -1880,8 +1879,7 @@ out:
 
 /* Replay DEL_RANGE tag */
 static int
-ext4_fc_replay_del_range(struct super_block *sb,
-			 struct ext4_fc_tl_mem *tl, u8 *val)
+ext4_fc_replay_del_range(struct super_block *sb, u8 *val)
 {
 	struct inode *inode;
 	struct ext4_fc_del_range lrange;
@@ -2251,13 +2249,13 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 			ret = ext4_fc_replay_unlink(sb, &tl, val);
 			break;
 		case EXT4_FC_TAG_ADD_RANGE:
-			ret = ext4_fc_replay_add_range(sb, &tl, val);
+			ret = ext4_fc_replay_add_range(sb, val);
 			break;
 		case EXT4_FC_TAG_CREAT:
 			ret = ext4_fc_replay_create(sb, &tl, val);
 			break;
 		case EXT4_FC_TAG_DEL_RANGE:
-			ret = ext4_fc_replay_del_range(sb, &tl, val);
+			ret = ext4_fc_replay_del_range(sb, val);
 			break;
 		case EXT4_FC_TAG_INODE:
 			ret = ext4_fc_replay_inode(sb, &tl, val);
