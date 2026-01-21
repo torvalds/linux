@@ -14,7 +14,7 @@ use crate::{
     bindings,
     device::{
         Bound,
-        Device //
+        Device, //
     },
     devres::Devres,
     error::to_result,
