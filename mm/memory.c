@@ -373,12 +373,7 @@ void free_pgd_range(struct mmu_gather *tlb,
 /**
  * free_pgtables() - Free a range of page tables
  * @tlb: The mmu gather
- * @mas: The maple state
- * @vma: The first vma
- * @pg_start: The lowest page table address (floor)
- * @pg_end: The highest page table address (ceiling)
- * @vma_end: The highest vma tree search address
- * @mm_wr_locked: boolean indicating if the mm is write locked
+ * @unmap: The unmap_desc
  *
  * Note: pg_start and pg_end are provided to indicate the absolute range of the
  * page tables that should be removed.  This can differ from the vma mappings on
@@ -388,21 +383,19 @@ void free_pgd_range(struct mmu_gather *tlb,
  * The vma_end differs from the pg_end when a dup_mmap() failed and the tree has
  * unrelated data to the mm_struct being torn down.
  */
-void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
-		   struct vm_area_struct *vma, unsigned long pg_start,
-		   unsigned long pg_end, unsigned long vma_end,
-		   bool mm_wr_locked)
+void free_pgtables(struct mmu_gather *tlb, struct unmap_desc *unmap)
 {
 	struct unlink_vma_file_batch vb;
+	struct ma_state *mas = unmap->mas;
+	struct vm_area_struct *vma = unmap->first;
 
 	/*
 	 * Note: USER_PGTABLES_CEILING may be passed as the value of pg_end and
 	 * may be 0.  Underflow is expected in this case.  Otherwise the
-	 * pagetable end is exclusive.
-	 * vma_end is exclusive.
-	 * The last vma address should never be larger than the pagetable end.
+	 * pagetable end is exclusive.  vma_end is exclusive.  The last vma
+	 * address should never be larger than the pagetable end.
 	 */
-	WARN_ON_ONCE(vma_end - 1 > pg_end - 1);
+	WARN_ON_ONCE(unmap->vma_end - 1 > unmap->pg_end - 1);
 
 	tlb_free_vmas(tlb);
 
@@ -410,13 +403,13 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 		unsigned long addr = vma->vm_start;
 		struct vm_area_struct *next;
 
-		next = mas_find(mas, vma_end - 1);
+		next = mas_find(mas, unmap->tree_end - 1);
 
 		/*
 		 * Hide vma from rmap and truncate_pagecache before freeing
 		 * pgtables
 		 */
-		if (mm_wr_locked)
+		if (unmap->mm_wr_locked)
 			vma_start_write(vma);
 		unlink_anon_vmas(vma);
 
@@ -428,16 +421,16 @@ void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
 		 */
 		while (next && next->vm_start <= vma->vm_end + PMD_SIZE) {
 			vma = next;
-			next = mas_find(mas, vma_end - 1);
-			if (mm_wr_locked)
+			next = mas_find(mas, unmap->tree_end - 1);
+			if (unmap->mm_wr_locked)
 				vma_start_write(vma);
 			unlink_anon_vmas(vma);
 			unlink_file_vma_batch_add(&vb, vma);
 		}
 		unlink_file_vma_batch_final(&vb);
 
-		free_pgd_range(tlb, addr, vma->vm_end,
-			pg_start, next ? next->vm_start : pg_end);
+		free_pgd_range(tlb, addr, vma->vm_end, unmap->pg_start,
+			       next ? next->vm_start : unmap->pg_end);
 		vma = next;
 	} while (vma);
 }

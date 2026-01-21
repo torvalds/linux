@@ -1137,11 +1137,10 @@ static inline void unmap_vmas(struct mmu_gather *tlb, struct unmap_desc *unmap)
 {
 }
 
-static inline void free_pgtables(struct mmu_gather *tlb, struct ma_state *mas,
-		   struct vm_area_struct *vma, unsigned long floor,
-		   unsigned long ceiling, unsigned long tree_max,
-		   bool mm_wr_locked)
+static inline void free_pgtables(struct mmu_gather *tlb, struct unmap_desc *desc)
 {
+	(void)tlb;
+	(void)desc;
 }
 
 static inline void mapping_unmap_writable(struct address_space *mapping)
