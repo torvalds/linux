@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2024-2025 Amlogic, Inc. All rights reserved
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/amlogic,t7-peripherals-clkc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic T7 Peripherals Clock Controller
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+  - Jerome Brunet <jbrunet@baylibre.com>
+  - Xianwei Zhao <xianwei.zhao@amlogic.com>
+  - Jian Hu <jian.hu@amlogic.com>
+
+properties:
+  compatible:
+    const: amlogic,t7-peripherals-clkc
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    minItems: 14
+    items:
+      - description: input oscillator
+      - description: input sys clk
+      - description: input fixed pll
+      - description: input fclk div 2
+      - description: input fclk div 2p5
+      - description: input fclk div 3
+      - description: input fclk div 4
+      - description: input fclk div 5
+      - description: input fclk div 7
+      - description: input hifi pll
+      - description: input gp0 pll
+      - description: input gp1 pll
+      - description: input mpll1
+      - description: input mpll2
+      - description: external input rmii oscillator (optional)
+      - description: input video pll0 (optional)
+      - description: external pad input for rtc (optional)
+
+  clock-names:
+    minItems: 14
+    items:
+      - const: xtal
+      - const: sys
+      - const: fix
+      - const: fdiv2
+      - const: fdiv2p5
+      - const: fdiv3
+      - const: fdiv4
+      - const: fdiv5
+      - const: fdiv7
+      - const: hifi
+      - const: gp0
+      - const: gp1
+      - const: mpll1
+      - const: mpll2
+      - const: ext_rmii
+      - const: vid_pll0
+      - const: ext_rtc
+
+required:
+  - compatible
+  - '#clock-cells'
+  - reg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    apb {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        clkc_periphs:clock-controller@0 {
+            compatible = "amlogic,t7-peripherals-clkc";
+            reg = <0 0x0 0 0x1c8>;
+            #clock-cells = <1>;
+            clocks = <&xtal>,
+                     <&scmi_clk 13>,
+                     <&scmi_clk 16>,
+                     <&scmi_clk 18>,
+                     <&scmi_clk 20>,
+                     <&scmi_clk 22>,
+                     <&scmi_clk 24>,
+                     <&scmi_clk 26>,
+                     <&scmi_clk 28>,
+                     <&hifi 1>,
+                     <&gp0 1>,
+                     <&gp1 1>,
+                     <&mpll 4>,
+                     <&mpll 6>;
+            clock-names = "xtal",
+                          "sys",
+                          "fix",
+                          "fdiv2",
+                          "fdiv2p5",
+                          "fdiv3",
+                          "fdiv4",
+                          "fdiv5",
+                          "fdiv7",
+                          "hifi",
+                          "gp0",
+                          "gp1",
+                          "mpll1",
+                          "mpll2";
+        };
+    };
