@@ -88,6 +88,12 @@ struct io_ctx_config {
 			IOSQE_BUFFER_SELECT |\
 			IOSQE_CQE_SKIP_SUCCESS)
 
+/*
+ * Complaint timeout for io_uring cancelation exits, and for io-wq exit
+ * worker waiting.
+ */
+#define IO_URING_EXIT_WAIT_MAX	(HZ * 60 * 5)
+
 enum {
 	IOU_COMPLETE		= 0,
 
