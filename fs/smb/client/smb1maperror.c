@@ -666,7 +666,7 @@ static const struct {
 	ERRDOS, ERRnoaccess, NT_STATUS_NO_RECOVERY_POLICY}, {
 	ERRDOS, ERRnoaccess, NT_STATUS_NO_EFS}, {
 	ERRDOS, ERRnoaccess, NT_STATUS_WRONG_EFS}, {
-	ERRDOS, ERRnoaccess, 0xc0000290}, {
+	ERRDOS, ERRnoaccess, NT_STATUS_NO_USER_KEYS}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
 	ERRDOS, ERRsymlink, NT_STATUS_STOPPED_ON_SYMLINK}, {
 	ERRDOS, ERRunknownlevel, NT_STATUS_OS2_INVALID_LEVEL}, {
