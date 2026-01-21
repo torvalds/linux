@@ -80,7 +80,7 @@
 #define ERRinvparm		87
 #define ERRdiskfull		112
 #define ERRinvname		123
-#define ERRinvlevel		124
+#define ERRunknownlevel		124
 #define ERRdirnotempty		145
 #define ERRnotlocked		158
 #define ERRcancelviolation	173
