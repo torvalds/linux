@@ -3132,6 +3132,7 @@ F:	drivers/*/*ma35*
 K:	ma35d1
 
 ARM/NUVOTON NPCM ARCHITECTURE
+M:	Andrew Jeffery <andrew@codeconstruct.com.au>
 M:	Avi Fishman <avifishman70@gmail.com>
 M:	Tomer Maimon <tmaimon77@gmail.com>
 M:	Tali Perry <tali.perry1@gmail.com>
@@ -3140,6 +3141,7 @@ R:	Nancy Yuen <yuenn@google.com>
 R:	Benjamin Fair <benjaminfair@google.com>
 L:	openbmc@lists.ozlabs.org (moderated for non-subscribers)
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bmc/linux.git
 F:	Documentation/devicetree/bindings/*/*/*npcm*
 F:	Documentation/devicetree/bindings/*/*npcm*
 F:	Documentation/devicetree/bindings/rtc/nuvoton,nct3018y.yaml
@@ -22536,7 +22538,7 @@ F:	drivers/mailbox/riscv-sbi-mpxy-mbox.c
 F:	include/linux/mailbox/riscv-rpmi-message.h
 
 RISC-V SPACEMIT SoC Support
-M:	Yixun Lan <dlan@gentoo.org>
+M:	Yixun Lan <dlan@kernel.org>
 L:	linux-riscv@lists.infradead.org
 L:	spacemit@lists.linux.dev
 S:	Maintained
