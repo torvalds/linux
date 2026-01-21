@@ -907,6 +907,7 @@ static struct rdma_cm_id *smbd_create_id(
 {
 	struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct rdma_cm_id *id;
+	u8 node_type = RDMA_NODE_UNSPECIFIED;
 	int rc;
 	__be16 *sport;
 
@@ -916,6 +917,31 @@ static struct rdma_cm_id *smbd_create_id(
 		rc = PTR_ERR(id);
 		log_rdma_event(ERR, "rdma_create_id() failed %i\n", rc);
 		return id;
+	}
+
+	switch (port) {
+	case SMBD_PORT:
+		/*
+		 * only allow iWarp devices
+		 * for port 5445.
+		 */
+		node_type = RDMA_NODE_RNIC;
+		break;
+	case SMB_PORT:
+		/*
+		 * only allow InfiniBand, RoCEv1 or RoCEv2
+		 * devices for port 445.
+		 *
+		 * (Basically don't allow iWarp devices)
+		 */
+		node_type = RDMA_NODE_IB_CA;
+		break;
+	}
+	rc = rdma_restrict_node_type(id, node_type);
+	if (rc) {
+		log_rdma_event(ERR, "rdma_restrict_node_type(%u) failed %i\n",
+			       node_type, rc);
+		goto out;
 	}
 
 	if (dstaddr->sa_family == AF_INET6)
