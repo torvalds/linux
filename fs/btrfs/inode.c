@@ -3256,19 +3256,21 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 						logical_len);
 		btrfs_zoned_release_data_reloc_bg(fs_info, ordered_extent->disk_bytenr,
 						  ordered_extent->disk_num_bytes);
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
+		}
 	} else {
 		BUG_ON(root == fs_info->tree_root);
 		ret = insert_ordered_extent_file_extent(trans, ordered_extent);
-		if (!ret) {
-			clear_reserved_extent = false;
-			btrfs_release_delalloc_bytes(fs_info,
-						ordered_extent->disk_bytenr,
-						ordered_extent->disk_num_bytes);
+		if (unlikely(ret < 0)) {
+			btrfs_abort_transaction(trans, ret);
+			goto out;
 		}
-	}
-	if (unlikely(ret < 0)) {
-		btrfs_abort_transaction(trans, ret);
-		goto out;
+		clear_reserved_extent = false;
+		btrfs_release_delalloc_bytes(fs_info,
+					     ordered_extent->disk_bytenr,
+					     ordered_extent->disk_num_bytes);
 	}
 
 	ret = btrfs_unpin_extent_cache(inode, ordered_extent->file_offset,
