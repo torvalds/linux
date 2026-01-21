@@ -606,8 +606,7 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 	lockdep_assert_held(&caching_ctl->mutex);
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 
-	extent_root = btrfs_extent_root(fs_info, max_t(u64, block_group->start,
-						       BTRFS_SUPER_INFO_OFFSET));
+	extent_root = btrfs_extent_root(fs_info, block_group->start);
 
 	search_offset = index * div_u64(block_group->length, max_index);
 	search_key.objectid = block_group->start + search_offset;
