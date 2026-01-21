@@ -51,8 +51,7 @@ do {						\
 #define PNEIGH_HASHMASK		0xF
 
 static void neigh_timer_handler(struct timer_list *t);
-static void __neigh_notify(struct neighbour *n, int type, int flags,
-			   u32 pid);
+static void neigh_notify(struct neighbour *n, int type, int flags, u32 pid);
 static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid);
 static void pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 			  bool skip_perm);
@@ -117,7 +116,7 @@ static int neigh_blackhole(struct neighbour *neigh, struct sk_buff *skb)
 static void neigh_cleanup_and_release(struct neighbour *neigh)
 {
 	trace_neigh_cleanup_and_release(neigh, 0);
-	__neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
+	neigh_notify(neigh, RTM_DELNEIGH, 0, 0);
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
 	neigh_release(neigh);
 }
@@ -2740,7 +2739,7 @@ nla_put_failure:
 static void neigh_update_notify(struct neighbour *neigh, u32 nlmsg_pid)
 {
 	call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	__neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
+	neigh_notify(neigh, RTM_NEWNEIGH, 0, nlmsg_pid);
 }
 
 static bool neigh_master_filtered(struct net_device *dev, int master_idx)
@@ -3555,7 +3554,7 @@ static void __neigh_notify(struct neighbour *n, int type, int flags,
 	if (skb == NULL)
 		goto errout;
 
-	err = neigh_fill_info(skb, n, pid, 0, type, flags);
+	err = __neigh_fill_info(skb, n, pid, 0, type, flags);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in neigh_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
@@ -3570,9 +3569,16 @@ out:
 	rcu_read_unlock();
 }
 
+static void neigh_notify(struct neighbour *neigh, int type, int flags, u32 pid)
+{
+	read_lock_bh(&neigh->lock);
+	__neigh_notify(neigh, type, flags, pid);
+	read_unlock_bh(&neigh->lock);
+}
+
 void neigh_app_ns(struct neighbour *n)
 {
-	__neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST, 0);
+	neigh_notify(n, RTM_GETNEIGH, NLM_F_REQUEST, 0);
 }
 EXPORT_SYMBOL(neigh_app_ns);
 
