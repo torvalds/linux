@@ -2174,9 +2174,6 @@ char *aa_get_buffer(bool in_atomic)
 		cache_hold_inc(&cache->hold);
 		put_cpu_ptr(&aa_local_buffers);
 		spin_lock(&aa_buffers_lock);
-	} else {
-		cache = get_cpu_ptr(&aa_local_buffers);
-		put_cpu_ptr(&aa_local_buffers);
 	}
 retry:
 	if (buffer_count > reserve_count ||
@@ -2231,8 +2228,6 @@ void aa_put_buffer(char *buf)
 			list_add(&aa_buf->list, &aa_global_buffers);
 			buffer_count++;
 			spin_unlock(&aa_buffers_lock);
-			cache = get_cpu_ptr(&aa_local_buffers);
-			put_cpu_ptr(&aa_local_buffers);
 			return;
 		}
 		/* contention on global list, fallback to percpu */
