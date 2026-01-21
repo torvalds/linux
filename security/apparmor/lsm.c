@@ -2125,6 +2125,23 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
+/* arbitrary cap on how long to hold buffer because contention was
+ * encountered before trying to put it back into the global pool
+ */
+#define MAX_HOLD_COUNT 64
+
+/* the hold count is a heuristic for lock contention, and can be
+ * incremented async to actual buffer alloc/free.  Because buffers
+ * may be put back onto a percpu cache different than the ->hold was
+ * added to the counts can be out of sync. Guard against underflow
+ * and overflow
+ */
+static void cache_hold_inc(unsigned int *hold)
+{
+	if (*hold > MAX_HOLD_COUNT)
+		(*hold)++;
+}
+
 char *aa_get_buffer(bool in_atomic)
 {
 	union aa_buffer *aa_buf;
@@ -2143,11 +2160,18 @@ char *aa_get_buffer(bool in_atomic)
 		put_cpu_ptr(&aa_local_buffers);
 		return &aa_buf->buffer[0];
 	}
+	/* exit percpu as spinlocks may sleep on realtime kernels */
 	put_cpu_ptr(&aa_local_buffers);
 
 	if (!spin_trylock(&aa_buffers_lock)) {
+		/* had contention on lock so increase hold count. Doesn't
+		 * really matter if recorded before or after the spin lock
+		 * as there is no way to guarantee the buffer will be put
+		 * back on the same percpu cache. Instead rely on holds
+		 * roughly averaging out over time.
+		 */
 		cache = get_cpu_ptr(&aa_local_buffers);
-		cache->hold += 1;
+		cache_hold_inc(&cache->hold);
 		put_cpu_ptr(&aa_local_buffers);
 		spin_lock(&aa_buffers_lock);
 	} else {
@@ -2213,7 +2237,7 @@ void aa_put_buffer(char *buf)
 		}
 		/* contention on global list, fallback to percpu */
 		cache = get_cpu_ptr(&aa_local_buffers);
-		cache->hold += 1;
+		cache_hold_inc(&cache->hold);
 	}
 
 	/* cache in percpu list */
