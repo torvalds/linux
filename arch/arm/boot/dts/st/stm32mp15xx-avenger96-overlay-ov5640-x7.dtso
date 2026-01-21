@@ -1,0 +1,89 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2020 Marek Vasut
+ */
+#include <dt-bindings/clock/stm32mp1-clks.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/dts-v1/;
+/plugin/;
+
+&{/} {
+	camera0_1v5_pwr: regulator-camera0-1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-1v5-reg";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
+	camera0_1v8_pwr: regulator-camera0-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-1v8-reg";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	camera0_2v8_pwr: regulator-camera0-2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera0-2v8-reg";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+};
+
+&dcmi {
+	status = "okay";
+};
+
+&dcmi_0 {
+	hsync-active = <0>;
+	vsync-active = <0>;
+	pclk-sample = <0>;
+};
+
+&i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		clocks = <&rcc CK_MCO1>;
+		clock-names = "xclk";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&mco1_pins_a>;
+		pinctrl-1 = <&mco1_sleep_pins_a>;
+		assigned-clocks = <&rcc CK_MCO1>;
+		assigned-clock-parents = <&rcc CK_HSE>;
+		assigned-clock-rates = <24000000>;
+		AVDD-supply = <&camera0_2v8_pwr>;
+		DOVDD-supply = <&camera0_1v8_pwr>;
+		DVDD-supply = <&camera0_1v5_pwr>;
+		/* GPIO-J on the Dragonboard Dual-Leopard OV5640 board */
+		powerdown-gpios = <&gpiob 5 GPIO_ACTIVE_HIGH>;
+		/* GPIO-I on the Dragonboard Dual-Leopard OV5640 board */
+		reset-gpios = <&gpioa 12 GPIO_ACTIVE_LOW>;
+		rotation = <180>;
+		status = "okay";
+
+		port {
+			ov5640_0: endpoint {
+				remote-endpoint = <&stmipi_0>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&stmipi {
+	status = "okay";
+};
+
+&stmipi_0 {
+	data-lanes = <1 2>;
+	remote-endpoint = <&ov5640_0>;
+};
