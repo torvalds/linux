@@ -17,6 +17,7 @@
 #include <linux/task_work.h>
 #include <linux/audit.h>
 #include <linux/mmu_context.h>
+#include <linux/sched/sysctl.h>
 #include <uapi/linux/io_uring.h>
 
 #include "io-wq.h"
@@ -1316,6 +1317,8 @@ static void io_wq_cancel_tw_create(struct io_wq *wq)
 
 static void io_wq_exit_workers(struct io_wq *wq)
 {
+	unsigned long timeout, warn_timeout;
+
 	if (!wq->task)
 		return;
 
@@ -1325,7 +1328,24 @@ static void io_wq_exit_workers(struct io_wq *wq)
 	io_wq_for_each_worker(wq, io_wq_worker_wake, NULL);
 	rcu_read_unlock();
 	io_worker_ref_put(wq);
-	wait_for_completion(&wq->worker_done);
+
+	/*
+	 * Shut up hung task complaint, see for example
+	 *
+	 * https://lore.kernel.org/all/696fc9e7.a70a0220.111c58.0006.GAE@google.com/
+	 *
+	 * where completely overloading the system with tons of long running
+	 * io-wq items can easily trigger the hung task timeout. Only sleep
+	 * uninterruptibly for half that time, and warn if we exceeded end
+	 * up waiting more than IO_URING_EXIT_WAIT_MAX.
+	 */
+	timeout = sysctl_hung_task_timeout_secs * HZ / 2;
+	warn_timeout = jiffies + IO_URING_EXIT_WAIT_MAX;
+	do {
+		if (wait_for_completion_timeout(&wq->worker_done, timeout))
+			break;
+		WARN_ON_ONCE(time_after(jiffies, warn_timeout));
+	} while (1);
 
 	spin_lock_irq(&wq->hash->wait.lock);
 	list_del_init(&wq->wait.entry);
