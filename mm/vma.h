@@ -264,6 +264,7 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
 void remove_vma(struct vm_area_struct *vma);
 
 void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
+		unsigned long vma_start, unsigned long vma_end,
 		struct vm_area_struct *prev, struct vm_area_struct *next);
 
 /**
