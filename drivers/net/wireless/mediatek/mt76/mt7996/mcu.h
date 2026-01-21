@@ -481,6 +481,12 @@ struct bss_mld_tlv {
 	u8 __rsv[2];
 } __packed;
 
+struct bss_prot_tlv {
+	__le16 tag;
+	__le16 len;
+	__le32 prot_mode;
+} __packed;
+
 struct sta_rec_ht_uni {
 	__le16 tag;
 	__le16 len;
