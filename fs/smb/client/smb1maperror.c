@@ -669,7 +669,7 @@ static const struct {
 	ERRDOS, ERRnoaccess, 0xc0000290}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
 	ERRDOS, ERRsymlink, NT_STATUS_STOPPED_ON_SYMLINK}, {
-	ERRDOS, ERRinvlevel, 0x007c0001}, {
+	ERRDOS, ERRinvlevel, NT_STATUS_OS2_INVALID_LEVEL}, {
 	0, 0, 0 }
 };
 

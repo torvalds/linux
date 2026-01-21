@@ -552,5 +552,6 @@ extern const struct nt_err_code_struct nt_errs[];
 #define NT_STATUS_NETWORK_SESSION_EXPIRED  (0xC0000000 | 0x035c)
 #define NT_STATUS_NO_SUCH_JOB (0xC0000000 | 0xEDE)	/* scheduler */
 #define NT_STATUS_NO_PREAUTH_INTEGRITY_HASH_OVERLAP (0xC0000000 | 0x5D0000)
+#define NT_STATUS_OS2_INVALID_LEVEL 0x007c0001
 
 #endif				/* _NTERR_H */
