@@ -294,6 +294,14 @@ struct bpf_call_arg_meta {
 	s64 const_map_key;
 };
 
+struct bpf_kfunc_meta {
+	struct btf *btf;
+	const struct btf_type *proto;
+	const char *name;
+	const u32 *flags;
+	s32 id;
+};
+
 struct bpf_kfunc_call_arg_meta {
 	/* In parameters */
 	struct btf *btf;
@@ -512,7 +520,7 @@ static bool is_async_callback_calling_kfunc(u32 btf_id);
 static bool is_callback_calling_kfunc(u32 btf_id);
 static bool is_bpf_throw_kfunc(struct bpf_insn *insn);
 
-static bool is_bpf_wq_set_callback_impl_kfunc(u32 btf_id);
+static bool is_bpf_wq_set_callback_kfunc(u32 btf_id);
 static bool is_task_work_add_kfunc(u32 func_id);
 
 static bool is_sync_callback_calling_function(enum bpf_func_id func_id)
@@ -554,7 +562,7 @@ static bool is_async_cb_sleepable(struct bpf_verifier_env *env, struct bpf_insn 
 
 	/* bpf_wq and bpf_task_work callbacks are always sleepable. */
 	if (bpf_pseudo_kfunc_call(insn) && insn->off == 0 &&
-	    (is_bpf_wq_set_callback_impl_kfunc(insn->imm) || is_task_work_add_kfunc(insn->imm)))
+	    (is_bpf_wq_set_callback_kfunc(insn->imm) || is_task_work_add_kfunc(insn->imm)))
 		return true;
 
 	verifier_bug(env, "unhandled async callback in is_async_cb_sleepable");
@@ -3263,16 +3271,105 @@ static struct btf *find_kfunc_desc_btf(struct bpf_verifier_env *env, s16 offset)
 	return btf_vmlinux ?: ERR_PTR(-ENOENT);
 }
 
-static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, s16 offset)
+#define KF_IMPL_SUFFIX "_impl"
+
+static const struct btf_type *find_kfunc_impl_proto(struct bpf_verifier_env *env,
+						    struct btf *btf,
+						    const char *func_name)
+{
+	char *buf = env->tmp_str_buf;
+	const struct btf_type *func;
+	s32 impl_id;
+	int len;
+
+	len = snprintf(buf, TMP_STR_BUF_LEN, "%s%s", func_name, KF_IMPL_SUFFIX);
+	if (len < 0 || len >= TMP_STR_BUF_LEN) {
+		verbose(env, "function name %s%s is too long\n", func_name, KF_IMPL_SUFFIX);
+		return NULL;
+	}
+
+	impl_id = btf_find_by_name_kind(btf, buf, BTF_KIND_FUNC);
+	if (impl_id <= 0) {
+		verbose(env, "cannot find function %s in BTF\n", buf);
+		return NULL;
+	}
+
+	func = btf_type_by_id(btf, impl_id);
+
+	return btf_type_by_id(btf, func->type);
+}
+
+static int fetch_kfunc_meta(struct bpf_verifier_env *env,
+			    s32 func_id,
+			    s16 offset,
+			    struct bpf_kfunc_meta *kfunc)
 {
 	const struct btf_type *func, *func_proto;
+	const char *func_name;
+	u32 *kfunc_flags;
+	struct btf *btf;
+
+	if (func_id <= 0) {
+		verbose(env, "invalid kernel function btf_id %d\n", func_id);
+		return -EINVAL;
+	}
+
+	btf = find_kfunc_desc_btf(env, offset);
+	if (IS_ERR(btf)) {
+		verbose(env, "failed to find BTF for kernel function\n");
+		return PTR_ERR(btf);
+	}
+
+	/*
+	 * Note that kfunc_flags may be NULL at this point, which
+	 * means that we couldn't find func_id in any relevant
+	 * kfunc_id_set. This most likely indicates an invalid kfunc
+	 * call.  However we don't fail with an error here,
+	 * and let the caller decide what to do with NULL kfunc->flags.
+	 */
+	kfunc_flags = btf_kfunc_flags(btf, func_id, env->prog);
+
+	func = btf_type_by_id(btf, func_id);
+	if (!func || !btf_type_is_func(func)) {
+		verbose(env, "kernel btf_id %d is not a function\n", func_id);
+		return -EINVAL;
+	}
+
+	func_name = btf_name_by_offset(btf, func->name_off);
+
+	/*
+	 * An actual prototype of a kfunc with KF_IMPLICIT_ARGS flag
+	 * can be found through the counterpart _impl kfunc.
+	 */
+	if (kfunc_flags && (*kfunc_flags & KF_IMPLICIT_ARGS))
+		func_proto = find_kfunc_impl_proto(env, btf, func_name);
+	else
+		func_proto = btf_type_by_id(btf, func->type);
+
+	if (!func_proto || !btf_type_is_func_proto(func_proto)) {
+		verbose(env, "kernel function btf_id %d does not have a valid func_proto\n",
+			func_id);
+		return -EINVAL;
+	}
+
+	memset(kfunc, 0, sizeof(*kfunc));
+	kfunc->btf = btf;
+	kfunc->id = func_id;
+	kfunc->name = func_name;
+	kfunc->proto = func_proto;
+	kfunc->flags = kfunc_flags;
+
+	return 0;
+}
+
+static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, s16 offset)
+{
 	struct bpf_kfunc_btf_tab *btf_tab;
 	struct btf_func_model func_model;
 	struct bpf_kfunc_desc_tab *tab;
 	struct bpf_prog_aux *prog_aux;
+	struct bpf_kfunc_meta kfunc;
 	struct bpf_kfunc_desc *desc;
-	const char *func_name;
-	struct btf *desc_btf;
 	unsigned long addr;
 	int err;
 
@@ -3322,12 +3419,6 @@ static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, s16 offset)
 		prog_aux->kfunc_btf_tab = btf_tab;
 	}
 
-	desc_btf = find_kfunc_desc_btf(env, offset);
-	if (IS_ERR(desc_btf)) {
-		verbose(env, "failed to find BTF for kernel function\n");
-		return PTR_ERR(desc_btf);
-	}
-
 	if (find_kfunc_desc(env->prog, func_id, offset))
 		return 0;
 
@@ -3336,24 +3427,13 @@ static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, s16 offset)
 		return -E2BIG;
 	}
 
-	func = btf_type_by_id(desc_btf, func_id);
-	if (!func || !btf_type_is_func(func)) {
-		verbose(env, "kernel btf_id %u is not a function\n",
-			func_id);
-		return -EINVAL;
-	}
-	func_proto = btf_type_by_id(desc_btf, func->type);
-	if (!func_proto || !btf_type_is_func_proto(func_proto)) {
-		verbose(env, "kernel function btf_id %u does not have a valid func_proto\n",
-			func_id);
-		return -EINVAL;
-	}
+	err = fetch_kfunc_meta(env, func_id, offset, &kfunc);
+	if (err)
+		return err;
 
-	func_name = btf_name_by_offset(desc_btf, func->name_off);
-	addr = kallsyms_lookup_name(func_name);
+	addr = kallsyms_lookup_name(kfunc.name);
 	if (!addr) {
-		verbose(env, "cannot find address for kernel function %s\n",
-			func_name);
+		verbose(env, "cannot find address for kernel function %s\n", kfunc.name);
 		return -EINVAL;
 	}
 
@@ -3363,9 +3443,7 @@ static int add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, s16 offset)
 			return err;
 	}
 
-	err = btf_distill_func_proto(&env->log, desc_btf,
-				     func_proto, func_name,
-				     &func_model);
+	err = btf_distill_func_proto(&env->log, kfunc.btf, kfunc.proto, kfunc.name, &func_model);
 	if (err)
 		return err;
 
@@ -12133,11 +12211,6 @@ static bool is_kfunc_arg_irq_flag(const struct btf *btf, const struct btf_param 
 	return btf_param_match_suffix(btf, arg, "__irq_flag");
 }
 
-static bool is_kfunc_arg_prog(const struct btf *btf, const struct btf_param *arg)
-{
-	return btf_param_match_suffix(btf, arg, "__prog");
-}
-
 static bool is_kfunc_arg_scalar_with_name(const struct btf *btf,
 					  const struct btf_param *arg,
 					  const char *name)
@@ -12166,6 +12239,7 @@ enum {
 	KF_ARG_WORKQUEUE_ID,
 	KF_ARG_RES_SPIN_LOCK_ID,
 	KF_ARG_TASK_WORK_ID,
+	KF_ARG_PROG_AUX_ID
 };
 
 BTF_ID_LIST(kf_arg_btf_ids)
@@ -12177,6 +12251,7 @@ BTF_ID(struct, bpf_rb_node)
 BTF_ID(struct, bpf_wq)
 BTF_ID(struct, bpf_res_spin_lock)
 BTF_ID(struct, bpf_task_work)
+BTF_ID(struct, bpf_prog_aux)
 
 static bool __is_kfunc_ptr_arg_type(const struct btf *btf,
 				    const struct btf_param *arg, int type)
@@ -12255,6 +12330,11 @@ static bool is_kfunc_arg_callback(struct bpf_verifier_env *env, const struct btf
 		return false;
 
 	return true;
+}
+
+static bool is_kfunc_arg_prog_aux(const struct btf *btf, const struct btf_param *arg)
+{
+	return __is_kfunc_ptr_arg_type(btf, arg, KF_ARG_PROG_AUX_ID);
 }
 
 /* Returns true if struct is composed of scalars, 4 levels of nesting allowed */
@@ -12350,7 +12430,7 @@ enum special_kfunc_type {
 	KF_bpf_percpu_obj_new_impl,
 	KF_bpf_percpu_obj_drop_impl,
 	KF_bpf_throw,
-	KF_bpf_wq_set_callback_impl,
+	KF_bpf_wq_set_callback,
 	KF_bpf_preempt_disable,
 	KF_bpf_preempt_enable,
 	KF_bpf_iter_css_task_new,
@@ -12370,8 +12450,8 @@ enum special_kfunc_type {
 	KF_bpf_dynptr_from_file,
 	KF_bpf_dynptr_file_discard,
 	KF___bpf_trap,
-	KF_bpf_task_work_schedule_signal_impl,
-	KF_bpf_task_work_schedule_resume_impl,
+	KF_bpf_task_work_schedule_signal,
+	KF_bpf_task_work_schedule_resume,
 	KF_bpf_arena_alloc_pages,
 	KF_bpf_arena_free_pages,
 	KF_bpf_arena_reserve_pages,
@@ -12414,7 +12494,7 @@ BTF_ID(func, bpf_dynptr_clone)
 BTF_ID(func, bpf_percpu_obj_new_impl)
 BTF_ID(func, bpf_percpu_obj_drop_impl)
 BTF_ID(func, bpf_throw)
-BTF_ID(func, bpf_wq_set_callback_impl)
+BTF_ID(func, bpf_wq_set_callback)
 BTF_ID(func, bpf_preempt_disable)
 BTF_ID(func, bpf_preempt_enable)
 #ifdef CONFIG_CGROUPS
@@ -12447,16 +12527,16 @@ BTF_ID(func, bpf_res_spin_unlock_irqrestore)
 BTF_ID(func, bpf_dynptr_from_file)
 BTF_ID(func, bpf_dynptr_file_discard)
 BTF_ID(func, __bpf_trap)
-BTF_ID(func, bpf_task_work_schedule_signal_impl)
-BTF_ID(func, bpf_task_work_schedule_resume_impl)
+BTF_ID(func, bpf_task_work_schedule_signal)
+BTF_ID(func, bpf_task_work_schedule_resume)
 BTF_ID(func, bpf_arena_alloc_pages)
 BTF_ID(func, bpf_arena_free_pages)
 BTF_ID(func, bpf_arena_reserve_pages)
 
 static bool is_task_work_add_kfunc(u32 func_id)
 {
-	return func_id == special_kfunc_list[KF_bpf_task_work_schedule_signal_impl] ||
-	       func_id == special_kfunc_list[KF_bpf_task_work_schedule_resume_impl];
+	return func_id == special_kfunc_list[KF_bpf_task_work_schedule_signal] ||
+	       func_id == special_kfunc_list[KF_bpf_task_work_schedule_resume];
 }
 
 static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
@@ -12907,7 +12987,7 @@ static bool is_sync_callback_calling_kfunc(u32 btf_id)
 
 static bool is_async_callback_calling_kfunc(u32 btf_id)
 {
-	return btf_id == special_kfunc_list[KF_bpf_wq_set_callback_impl] ||
+	return is_bpf_wq_set_callback_kfunc(btf_id) ||
 	       is_task_work_add_kfunc(btf_id);
 }
 
@@ -12917,9 +12997,9 @@ static bool is_bpf_throw_kfunc(struct bpf_insn *insn)
 	       insn->imm == special_kfunc_list[KF_bpf_throw];
 }
 
-static bool is_bpf_wq_set_callback_impl_kfunc(u32 btf_id)
+static bool is_bpf_wq_set_callback_kfunc(u32 btf_id)
 {
-	return btf_id == special_kfunc_list[KF_bpf_wq_set_callback_impl];
+	return btf_id == special_kfunc_list[KF_bpf_wq_set_callback];
 }
 
 static bool is_callback_calling_kfunc(u32 btf_id)
@@ -13193,8 +13273,8 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		if (is_kfunc_arg_ignore(btf, &args[i]))
 			continue;
 
-		if (is_kfunc_arg_prog(btf, &args[i])) {
-			/* Used to reject repeated use of __prog. */
+		if (is_kfunc_arg_prog_aux(btf, &args[i])) {
+			/* Reject repeated use bpf_prog_aux */
 			if (meta->arg_prog) {
 				verifier_bug(env, "Only 1 prog->aux argument supported per-kfunc");
 				return -EFAULT;
@@ -13696,44 +13776,28 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 	return 0;
 }
 
-static int fetch_kfunc_meta(struct bpf_verifier_env *env,
-			    struct bpf_insn *insn,
-			    struct bpf_kfunc_call_arg_meta *meta,
-			    const char **kfunc_name)
+static int fetch_kfunc_arg_meta(struct bpf_verifier_env *env,
+				s32 func_id,
+				s16 offset,
+				struct bpf_kfunc_call_arg_meta *meta)
 {
-	const struct btf_type *func, *func_proto;
-	u32 func_id, *kfunc_flags;
-	const char *func_name;
-	struct btf *desc_btf;
+	struct bpf_kfunc_meta kfunc;
+	int err;
 
-	if (kfunc_name)
-		*kfunc_name = NULL;
-
-	if (!insn->imm)
-		return -EINVAL;
-
-	desc_btf = find_kfunc_desc_btf(env, insn->off);
-	if (IS_ERR(desc_btf))
-		return PTR_ERR(desc_btf);
-
-	func_id = insn->imm;
-	func = btf_type_by_id(desc_btf, func_id);
-	func_name = btf_name_by_offset(desc_btf, func->name_off);
-	if (kfunc_name)
-		*kfunc_name = func_name;
-	func_proto = btf_type_by_id(desc_btf, func->type);
-
-	kfunc_flags = btf_kfunc_id_set_contains(desc_btf, func_id, env->prog);
-	if (!kfunc_flags) {
-		return -EACCES;
-	}
+	err = fetch_kfunc_meta(env, func_id, offset, &kfunc);
+	if (err)
+		return err;
 
 	memset(meta, 0, sizeof(*meta));
-	meta->btf = desc_btf;
-	meta->func_id = func_id;
-	meta->kfunc_flags = *kfunc_flags;
-	meta->func_proto = func_proto;
-	meta->func_name = func_name;
+	meta->btf = kfunc.btf;
+	meta->func_id = kfunc.id;
+	meta->func_proto = kfunc.proto;
+	meta->func_name = kfunc.name;
+
+	if (!kfunc.flags || !btf_kfunc_is_allowed(kfunc.btf, kfunc.id, env->prog))
+		return -EACCES;
+
+	meta->kfunc_flags = *kfunc.flags;
 
 	return 0;
 }
@@ -13938,12 +14002,13 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	if (!insn->imm)
 		return 0;
 
-	err = fetch_kfunc_meta(env, insn, &meta, &func_name);
-	if (err == -EACCES && func_name)
-		verbose(env, "calling kernel function %s is not allowed\n", func_name);
+	err = fetch_kfunc_arg_meta(env, insn->imm, insn->off, &meta);
+	if (err == -EACCES && meta.func_name)
+		verbose(env, "calling kernel function %s is not allowed\n", meta.func_name);
 	if (err)
 		return err;
 	desc_btf = meta.btf;
+	func_name = meta.func_name;
 	insn_aux = &env->insn_aux_data[insn_idx];
 
 	insn_aux->is_iter_next = is_iter_next_kfunc(&meta);
@@ -14013,7 +14078,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		meta.r0_rdonly = false;
 	}
 
-	if (is_bpf_wq_set_callback_impl_kfunc(meta.func_id)) {
+	if (is_bpf_wq_set_callback_kfunc(meta.func_id)) {
 		err = push_callback_call(env, insn, insn_idx, meta.subprogno,
 					 set_timer_callback_state);
 		if (err) {
@@ -14151,8 +14216,12 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		}
 	}
 
-	for (i = 0; i < CALLER_SAVED_REGS; i++)
-		mark_reg_not_init(env, regs, caller_saved[i]);
+	for (i = 0; i < CALLER_SAVED_REGS; i++) {
+		u32 regno = caller_saved[i];
+
+		mark_reg_not_init(env, regs, regno);
+		regs[regno].subreg_def = DEF_NOT_SUBREG;
+	}
 
 	/* Check return type */
 	t = btf_type_skip_modifiers(desc_btf, meta.func_proto->type, NULL);
@@ -17789,7 +17858,7 @@ static bool get_call_summary(struct bpf_verifier_env *env, struct bpf_insn *call
 	if (bpf_pseudo_kfunc_call(call)) {
 		int err;
 
-		err = fetch_kfunc_meta(env, call, &meta, NULL);
+		err = fetch_kfunc_arg_meta(env, call->imm, call->off, &meta);
 		if (err < 0)
 			/* error would be reported later */
 			return false;
@@ -18297,7 +18366,7 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 		} else if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
 			struct bpf_kfunc_call_arg_meta meta;
 
-			ret = fetch_kfunc_meta(env, insn, &meta, NULL);
+			ret = fetch_kfunc_arg_meta(env, insn->imm, insn->off, &meta);
 			if (ret == 0 && is_iter_next_kfunc(&meta)) {
 				mark_prune_point(env, t);
 				/* Checking and saving state checkpoints at iter_next() call
