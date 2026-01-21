@@ -1244,6 +1244,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	struct dmub_srv *dmub_srv = adev->dm.dmub_srv;
 	struct dmub_srv_fb_info *fb_info = adev->dm.dmub_fb_info;
 	const struct firmware *dmub_fw = adev->dm.dmub_fw;
+	struct dc *dc = adev->dm.dc;
 	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
 	struct abm *abm = adev->dm.dc->res_pool->abm;
 	struct dc_context *ctx = adev->dm.dc->ctx;
@@ -1349,18 +1350,15 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	for (i = 0; i < fb_info->num_fb; ++i)
 		hw_params.fb[i] = &fb_info->fb[i];
 
-	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
-	case IP_VERSION(3, 1, 3):
-	case IP_VERSION(3, 1, 4):
-	case IP_VERSION(3, 5, 0):
-	case IP_VERSION(3, 5, 1):
-	case IP_VERSION(3, 6, 0):
-	case IP_VERSION(4, 0, 1):
+	/* Enable usb4 dpia in the FW APU */
+	if (dc->caps.is_apu &&
+		dc->res_pool->usb4_dpia_count != 0 &&
+		!dc->debug.dpia_debug.bits.disable_dpia) {
 		hw_params.dpia_supported = true;
-		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
-		break;
-	default:
-		break;
+		hw_params.disable_dpia = dc->debug.dpia_debug.bits.disable_dpia;
+		hw_params.dpia_hpd_int_enable_supported = false;
+		hw_params.enable_non_transparent_setconfig = dc->config.consolidated_dpia_dp_lt;
+		hw_params.disable_dpia_bw_allocation = !dc->config.usb4_bw_alloc_support;
 	}
 
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
