@@ -786,9 +786,14 @@ config SND_SOC_CROS_EC_CODEC
 config SND_SOC_CS_AMP_LIB
 	tristate
 
+config SND_SOC_CS_AMP_LIB_TEST_HOOKS
+	bool
+	depends on SND_SOC_CS_AMP_LIB
+
 config SND_SOC_CS_AMP_LIB_TEST
 	tristate "KUnit test for Cirrus Logic cs-amp-lib" if !KUNIT_ALL_TESTS
 	depends on SND_SOC_CS_AMP_LIB && KUNIT
+	select SND_SOC_CS_AMP_LIB_TEST_HOOKS
 	default KUNIT_ALL_TESTS
 	help
 	  This builds KUnit tests for the Cirrus Logic common
@@ -928,6 +933,19 @@ config SND_SOC_CS35L56_CAL_SET_CTRL
 	  On most platforms this is not needed.
 
 	  If unsure select "N".
+
+config SND_SOC_CS35L56_TEST
+	tristate "KUnit test for Cirrus Logic cs35l56 driver" if !KUNIT_ALL_TESTS
+	depends on SND_SOC_CS35L56 && KUNIT
+	default KUNIT_ALL_TESTS
+	select SND_SOC_CS_AMP_LIB_TEST_HOOKS
+	help
+	  This builds KUnit tests for the Cirrus Logic cs35l56
+	  codec driver.
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+	  If in doubt, say "N".
 endmenu
 
 config SND_SOC_CS40L50

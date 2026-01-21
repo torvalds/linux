@@ -5,6 +5,8 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <kunit/static_stub.h>
+#include <kunit/visibility.h>
 #include <linux/acpi.h>
 #include <linux/array_size.h>
 #include <linux/completion.h>
@@ -1107,33 +1109,75 @@ static const struct snd_kcontrol_new cs35l56_cal_data_restore_controls[] = {
 			SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE),
 };
 
-static int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
+VISIBLE_IF_KUNIT int cs35l56_set_fw_suffix(struct cs35l56_private *cs35l56)
 {
+	unsigned short vendor, device;
+	const char *vendor_id;
+	int ret;
+
 	if (cs35l56->dsp.fwf_suffix)
 		return 0;
 
-	if (!cs35l56->sdw_peripheral)
-		return 0;
+	if (cs35l56->sdw_peripheral) {
+		cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+							 "l%uu%u",
+							 cs35l56->sdw_link_num,
+							 cs35l56->sdw_unique_id);
+		if (!cs35l56->dsp.fwf_suffix)
+			return -ENOMEM;
 
-	cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
-						 "l%uu%u",
-						 cs35l56->sdw_link_num,
-						 cs35l56->sdw_unique_id);
-	if (!cs35l56->dsp.fwf_suffix)
-		return -ENOMEM;
+		/*
+		 * There are published firmware files for L56 B0 silicon using
+		 * the ALSA prefix as the filename suffix. Default to trying these
+		 * first, with the new SoundWire suffix as a fallback.
+		 * None of these older systems use a vendor-specific ID.
+		 */
+		if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0)) {
+			cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
+			cs35l56->dsp.fwf_suffix = cs35l56->component->name_prefix;
+
+			return 0;
+		}
+	}
 
 	/*
-	 * There are published firmware files for L56 B0 silicon using
-	 * the ALSA prefix as the filename suffix. Default to trying these
-	 * first, with the new name as an alternate.
+	 * Some manufacturers use the same SSID on multiple products and have
+	 * a vendor-specific qualifier to distinguish different models.
+	 * Models with the same SSID but different qualifier might require
+	 * different audio firmware, or they might all have the same audio
+	 * firmware.
+	 * Try searching for a firmware with this qualifier first, else
+	 * fallback to standard naming.
 	 */
-	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev == 0xb0)) {
-		cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
-		cs35l56->dsp.fwf_suffix = cs35l56->component->name_prefix;
+	if (snd_soc_card_get_pci_ssid(cs35l56->component->card, &vendor, &device) < 0) {
+		vendor_id = cs_amp_devm_get_vendor_specific_variant_id(cs35l56->base.dev, -1, -1);
+	} else {
+		vendor_id = cs_amp_devm_get_vendor_specific_variant_id(cs35l56->base.dev,
+								       vendor, device);
+	}
+	ret = PTR_ERR_OR_ZERO(vendor_id);
+	if (ret == -ENOENT)
+		return 0;
+	else if (ret)
+		return ret;
+
+	if (vendor_id) {
+		if (cs35l56->dsp.fwf_suffix)
+			cs35l56->fallback_fw_suffix = cs35l56->dsp.fwf_suffix;
+		else
+			cs35l56->fallback_fw_suffix = cs35l56->component->name_prefix;
+
+		cs35l56->dsp.fwf_suffix = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL,
+							 "%s-%s",
+							 vendor_id,
+							 cs35l56->fallback_fw_suffix);
+		if (!cs35l56->dsp.fwf_suffix)
+			return -ENOMEM;
 	}
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(cs35l56_set_fw_suffix);
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
