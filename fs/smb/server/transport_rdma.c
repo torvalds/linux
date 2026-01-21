@@ -61,9 +61,6 @@
  * Those may change after a SMB_DIRECT negotiation
  */
 
-/* Set 445 port to SMB Direct port by default */
-static int smb_direct_port = SMB_DIRECT_PORT_INFINIBAND;
-
 /* The local peer's maximum number of credits to grant to the peer */
 static int smb_direct_receive_credit_max = 255;
 
@@ -90,8 +87,9 @@ struct smb_direct_device {
 };
 
 static struct smb_direct_listener {
+	int			port;
 	struct rdma_cm_id	*cm_id;
-} smb_direct_listener;
+} smb_direct_ib_listener, smb_direct_iw_listener;
 
 static struct workqueue_struct *smb_direct_wq;
 
@@ -2620,6 +2618,7 @@ static bool rdma_frwr_is_supported(struct ib_device_attr *attrs)
 static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 					     struct rdma_cm_event *event)
 {
+	struct smb_direct_listener *listener = new_cm_id->context;
 	struct smb_direct_transport *t;
 	struct smbdirect_socket *sc;
 	struct smbdirect_socket_parameters *sp;
@@ -2708,7 +2707,7 @@ static int smb_direct_handle_connect_request(struct rdma_cm_id *new_cm_id,
 
 	handler = kthread_run(ksmbd_conn_handler_loop,
 			      KSMBD_TRANS(t)->conn, "ksmbd:r%u",
-			      smb_direct_port);
+			      listener->port);
 	if (IS_ERR(handler)) {
 		ret = PTR_ERR(handler);
 		pr_err("Can't start thread\n");
@@ -2745,21 +2744,52 @@ static int smb_direct_listen_handler(struct rdma_cm_id *cm_id,
 	return 0;
 }
 
-static int smb_direct_listen(int port)
+static int smb_direct_listen(struct smb_direct_listener *listener,
+			     int port)
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
+	u8 node_type = RDMA_NODE_UNSPECIFIED;
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
 		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
 
+	switch (port) {
+	case SMB_DIRECT_PORT_IWARP:
+		/*
+		 * only allow iWarp devices
+		 * for port 5445.
+		 */
+		node_type = RDMA_NODE_RNIC;
+		break;
+	case SMB_DIRECT_PORT_INFINIBAND:
+		/*
+		 * only allow InfiniBand, RoCEv1 or RoCEv2
+		 * devices for port 445.
+		 *
+		 * (Basically don't allow iWarp devices)
+		 */
+		node_type = RDMA_NODE_IB_CA;
+		break;
+	default:
+		pr_err("unsupported smbdirect port=%d!\n", port);
+		return -ENODEV;
+	}
+
 	cm_id = rdma_create_id(&init_net, smb_direct_listen_handler,
-			       &smb_direct_listener, RDMA_PS_TCP, IB_QPT_RC);
+			       listener, RDMA_PS_TCP, IB_QPT_RC);
 	if (IS_ERR(cm_id)) {
 		pr_err("Can't create cm id: %ld\n", PTR_ERR(cm_id));
 		return PTR_ERR(cm_id);
+	}
+
+	ret = rdma_restrict_node_type(cm_id, node_type);
+	if (ret) {
+		pr_err("rdma_restrict_node_type(%u) failed %d\n",
+		       node_type, ret);
+		goto err;
 	}
 
 	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
@@ -2768,16 +2798,19 @@ static int smb_direct_listen(int port)
 		goto err;
 	}
 
-	smb_direct_listener.cm_id = cm_id;
-
 	ret = rdma_listen(cm_id, 10);
 	if (ret) {
 		pr_err("Can't listen: %d\n", ret);
 		goto err;
 	}
+
+	listener->port = port;
+	listener->cm_id = cm_id;
+
 	return 0;
 err:
-	smb_direct_listener.cm_id = NULL;
+	listener->port = 0;
+	listener->cm_id = NULL;
 	rdma_destroy_id(cm_id);
 	return ret;
 }
@@ -2785,10 +2818,6 @@ err:
 static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 {
 	struct smb_direct_device *smb_dev;
-
-	/* Set 5445 port if device type is iWARP(No IB) */
-	if (ib_dev->node_type != RDMA_NODE_IB_CA)
-		smb_direct_port = SMB_DIRECT_PORT_IWARP;
 
 	if (!rdma_frwr_is_supported(&ib_dev->attrs))
 		return 0;
@@ -2832,8 +2861,9 @@ int ksmbd_rdma_init(void)
 {
 	int ret;
 
-	smb_direct_port = SMB_DIRECT_PORT_INFINIBAND;
-	smb_direct_listener.cm_id = NULL;
+	smb_direct_ib_listener = smb_direct_iw_listener = (struct smb_direct_listener) {
+		.cm_id = NULL,
+	};
 
 	ret = ib_register_client(&smb_direct_ib_client);
 	if (ret) {
@@ -2849,31 +2879,53 @@ int ksmbd_rdma_init(void)
 	smb_direct_wq = alloc_workqueue("ksmbd-smb_direct-wq",
 					WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_PERCPU,
 					0);
-	if (!smb_direct_wq)
-		return -ENOMEM;
-
-	ret = smb_direct_listen(smb_direct_port);
-	if (ret) {
-		destroy_workqueue(smb_direct_wq);
-		smb_direct_wq = NULL;
-		pr_err("Can't listen: %d\n", ret);
-		return ret;
+	if (!smb_direct_wq) {
+		ret = -ENOMEM;
+		goto err;
 	}
 
-	ksmbd_debug(RDMA, "init RDMA listener. cm_id=%p\n",
-		    smb_direct_listener.cm_id);
+	ret = smb_direct_listen(&smb_direct_ib_listener,
+				SMB_DIRECT_PORT_INFINIBAND);
+	if (ret) {
+		pr_err("Can't listen on InfiniBand/RoCEv1/RoCEv2: %d\n", ret);
+		goto err;
+	}
+
+	ksmbd_debug(RDMA, "InfiniBand/RoCEv1/RoCEv2 RDMA listener. cm_id=%p\n",
+		    smb_direct_ib_listener.cm_id);
+
+	ret = smb_direct_listen(&smb_direct_iw_listener,
+				SMB_DIRECT_PORT_IWARP);
+	if (ret) {
+		pr_err("Can't listen on iWarp: %d\n", ret);
+		goto err;
+	}
+
+	ksmbd_debug(RDMA, "iWarp RDMA listener. cm_id=%p\n",
+		    smb_direct_iw_listener.cm_id);
+
 	return 0;
+err:
+	ksmbd_rdma_stop_listening();
+	ksmbd_rdma_destroy();
+	return ret;
 }
 
 void ksmbd_rdma_stop_listening(void)
 {
-	if (!smb_direct_listener.cm_id)
+	if (!smb_direct_ib_listener.cm_id && !smb_direct_iw_listener.cm_id)
 		return;
 
 	ib_unregister_client(&smb_direct_ib_client);
-	rdma_destroy_id(smb_direct_listener.cm_id);
 
-	smb_direct_listener.cm_id = NULL;
+	if (smb_direct_ib_listener.cm_id)
+		rdma_destroy_id(smb_direct_ib_listener.cm_id);
+	if (smb_direct_iw_listener.cm_id)
+		rdma_destroy_id(smb_direct_iw_listener.cm_id);
+
+	smb_direct_ib_listener = smb_direct_iw_listener = (struct smb_direct_listener) {
+		.cm_id = NULL,
+	};
 }
 
 void ksmbd_rdma_destroy(void)
