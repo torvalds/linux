@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/overflow.h>
+#include <linux/pci_ids.h>
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
 #include <linux/types.h>
@@ -35,6 +36,10 @@
 #define HP_CALIBRATION_EFI_NAME L"SmartAmpCalibrationData"
 #define HP_CALIBRATION_EFI_GUID \
 	EFI_GUID(0x53559579, 0x8753, 0x4f5c, 0x91, 0x30, 0xe8, 0x2a, 0xcf, 0xb8, 0xd8, 0x93)
+
+#define DELL_SSIDEXV2_EFI_NAME L"SSIDexV2Data"
+#define DELL_SSIDEXV2_EFI_GUID \
+	EFI_GUID(0x6a5f35df, 0x1432, 0x4656, 0x85, 0x97, 0x31, 0x04, 0xd5, 0xbf, 0x3a, 0xb0)
 
 static const struct cs_amp_lib_cal_efivar {
 	efi_char16_t *name;
@@ -302,6 +307,29 @@ static int cs_amp_convert_efi_status(efi_status_t status)
 	default:
 		return -EIO;
 	}
+}
+
+static void *cs_amp_alloc_get_efi_variable(efi_char16_t *name,
+					   efi_guid_t *guid,
+					   u32 *returned_attr)
+{
+	efi_status_t status;
+	unsigned long size = 0;
+
+	status = cs_amp_get_efi_variable(name, guid, NULL, &size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return ERR_PTR(cs_amp_convert_efi_status(status));
+
+	/* Over-alloc to ensure strings are always NUL-terminated */
+	void *buf __free(kfree) = kzalloc(size + 1, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	status = cs_amp_get_efi_variable(name, guid, returned_attr, &size, buf);
+	if (status != EFI_SUCCESS)
+		return ERR_PTR(cs_amp_convert_efi_status(status));
+
+	return_ptr(buf);
 }
 
 static struct cirrus_amp_efi_data *cs_amp_get_cal_efi_buffer(struct device *dev,
@@ -704,6 +732,89 @@ int cs_amp_get_vendor_spkid(struct device *dev)
 	return -ENOENT;
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_get_vendor_spkid, "SND_SOC_CS_AMP_LIB");
+
+static const char *cs_amp_devm_get_dell_ssidex(struct device *dev,
+					       int ssid_vendor, int ssid_device)
+{
+	unsigned int hex_prefix;
+	char audio_id[4];
+	char delim;
+	char *p;
+	int ret;
+
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE) &&
+	    !IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
+		return ERR_PTR(-ENOENT);
+
+	char *ssidex_buf __free(kfree) = cs_amp_alloc_get_efi_variable(DELL_SSIDEXV2_EFI_NAME,
+								       &DELL_SSIDEXV2_EFI_GUID,
+								       NULL);
+	ret = PTR_ERR_OR_ZERO(ssidex_buf);
+	if (ret == -ENOENT)
+		return ERR_PTR(-ENOENT);
+	else if (ret < 0)
+		return ssidex_buf;
+
+	/*
+	 * SSIDExV2 string is a series of underscore delimited fields.
+	 * First field is all or part of the SSID. Second field should be
+	 * a 2-character audio hardware id, followed by other identifiers.
+	 * Older models did not have the 2-character audio id, so reject
+	 * the string if the second field is not 2 characters.
+	 */
+	ret = sscanf(ssidex_buf, "%8x_%2s%c", &hex_prefix, audio_id, &delim);
+	if (ret < 2)
+		return ERR_PTR(-ENOENT);
+
+	if ((ret == 3) && (delim != '_'))
+		return ERR_PTR(-ENOENT);
+
+	if (strlen(audio_id) != 2)
+		return ERR_PTR(-ENOENT);
+
+	p = devm_kstrdup(dev, audio_id, GFP_KERNEL);
+	if (!p)
+		return ERR_PTR(-ENOMEM);
+
+	return p;
+}
+
+/**
+ * cs_amp_devm_get_vendor_specific_variant_id - get variant ID string
+ * @dev:	 pointer to struct device
+ * @ssid_vendor: PCI Subsystem Vendor (-1 if unknown)
+ * @ssid_device: PCI Subsystem Device (-1 if unknown)
+ *
+ * Known vendor-specific hardware identifiers are checked and if one is
+ * found its content is returned as a NUL-terminated string. The returned
+ * string is devm-managed.
+ *
+ * The returned string is not guaranteed to be globally unique.
+ * Generally it should be combined with some other qualifier, such as
+ * PCI SSID, to create a globally unique ID.
+ *
+ * If the caller has a PCI SSID it should pass it in @ssid_vendor and
+ * @ssid_device. If the vendor-spefic ID contains this SSID it will be
+ * stripped from the returned string to prevent duplication.
+ *
+ * If the caller does not have a PCI SSID, pass -1 for @ssid_vendor and
+ * @ssid_device.
+ *
+ * Return:
+ * * a pointer to a devm-managed string
+ * * ERR_PTR(-ENOENT) if no vendor-specific qualifier
+ * * ERR_PTR error value
+ */
+const char *cs_amp_devm_get_vendor_specific_variant_id(struct device *dev,
+						       int ssid_vendor,
+						       int ssid_device)
+{
+	if ((ssid_vendor == PCI_VENDOR_ID_DELL) || (ssid_vendor < 0))
+		return cs_amp_devm_get_dell_ssidex(dev, ssid_vendor, ssid_device);
+
+	return ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL_NS_GPL(cs_amp_devm_get_vendor_specific_variant_id, "SND_SOC_CS_AMP_LIB");
 
 /**
  * cs_amp_create_debugfs - create a debugfs directory for a device
