@@ -607,6 +607,12 @@ static int sample_block_group_extent_item(struct btrfs_caching_control *caching_
 	lockdep_assert_held_read(&fs_info->commit_root_sem);
 
 	extent_root = btrfs_extent_root(fs_info, block_group->start);
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info,
+			  "missing extent root for block group at offset %llu",
+			  block_group->start);
+		return -EUCLEAN;
+	}
 
 	search_offset = index * div_u64(block_group->length, max_index);
 	search_key.objectid = block_group->start + search_offset;
