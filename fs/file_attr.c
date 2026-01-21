@@ -141,8 +141,7 @@ static int file_attr_to_fileattr(const struct file_attr *fattr,
 	if (fattr->fa_xflags & ~mask)
 		return -EINVAL;
 
-	fileattr_fill_xflags(fa, fattr->fa_xflags);
-	fa->fsx_xflags &= ~FS_XFLAG_RDONLY_MASK;
+	fileattr_fill_xflags(fa, fattr->fa_xflags & ~FS_XFLAG_RDONLY_MASK);
 	fa->fsx_extsize = fattr->fa_extsize;
 	fa->fsx_projid = fattr->fa_projid;
 	fa->fsx_cowextsize = fattr->fa_cowextsize;
@@ -162,8 +161,7 @@ static int copy_fsxattr_from_user(struct file_kattr *fa,
 	if (xfa.fsx_xflags & ~mask)
 		return -EOPNOTSUPP;
 
-	fileattr_fill_xflags(fa, xfa.fsx_xflags);
-	fa->fsx_xflags &= ~FS_XFLAG_RDONLY_MASK;
+	fileattr_fill_xflags(fa, xfa.fsx_xflags & ~FS_XFLAG_RDONLY_MASK);
 	fa->fsx_extsize = xfa.fsx_extsize;
 	fa->fsx_nextents = xfa.fsx_nextents;
 	fa->fsx_projid = xfa.fsx_projid;
