@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 
@@ -199,12 +199,7 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 	int err = 0;
 	u32 clk_rate = 0;
 
-	if (dev->of_node) {
-		struct device_node *node = dev->of_node;
-
-		if (of_property_read_u32(node, "clock-frequency", &clk_rate))
-			clk_rate = 0;
-	}
+	device_property_read_u32(dev, "clock-frequency", &clk_rate);
 	nop->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
 						   GPIOD_ASIS);
 	err = PTR_ERR_OR_ZERO(nop->gpiod_reset);
@@ -269,7 +264,6 @@ EXPORT_SYMBOL_GPL(usb_phy_gen_create_phy);
 static int usb_phy_generic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = dev->of_node;
 	struct usb_phy_generic	*nop;
 	int err;
 
@@ -305,7 +299,7 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nop);
 
 	device_set_wakeup_capable(dev,
-				  of_property_read_bool(dn, "wakeup-source"));
+				  device_property_read_bool(dev, "wakeup-source"));
 
 	return 0;
 }
