@@ -54,6 +54,8 @@
 #include "xfs_health.h"
 #include "xfs_healthmon.h"
 #include "xfs_notify_failure.h"
+#include "xfs_file.h"
+#include <linux/fserror.h>
 
 /*
  * We include this last to have the helpers above available for the trace

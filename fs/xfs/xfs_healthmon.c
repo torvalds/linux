@@ -22,10 +22,12 @@
 #include "xfs_healthmon.h"
 #include "xfs_fsops.h"
 #include "xfs_notify_failure.h"
+#include "xfs_file.h"
 
 #include <linux/anon_inodes.h>
 #include <linux/eventpoll.h>
 #include <linux/poll.h>
+#include <linux/fserror.h>
 
 /*
  * Live Health Monitoring
@@ -219,6 +221,27 @@ xfs_healthmon_merge_events(
 		if (new->daddr + new->bbcount == existing->daddr) {
 			existing->daddr = new->daddr;
 			existing->bbcount += new->bbcount;
+			return true;
+		}
+		return false;
+
+	case XFS_HEALTHMON_BUFREAD:
+	case XFS_HEALTHMON_BUFWRITE:
+	case XFS_HEALTHMON_DIOREAD:
+	case XFS_HEALTHMON_DIOWRITE:
+	case XFS_HEALTHMON_DATALOST:
+		/* logically adjacent file ranges can merge */
+		if (existing->fino != new->fino || existing->fgen != new->fgen)
+			return false;
+
+		if (existing->fpos + existing->flen == new->fpos) {
+			existing->flen += new->flen;
+			return true;
+		}
+
+		if (new->fpos + new->flen == existing->fpos) {
+			existing->fpos = new->fpos;
+			existing->flen += new->flen;
 			return true;
 		}
 		return false;
@@ -578,6 +601,55 @@ xfs_healthmon_report_media(
 	xfs_healthmon_put(hm);
 }
 
+static inline enum xfs_healthmon_type file_ioerr_type(enum fserror_type action)
+{
+	switch (action) {
+	case FSERR_BUFFERED_READ:
+		return XFS_HEALTHMON_BUFREAD;
+	case FSERR_BUFFERED_WRITE:
+		return XFS_HEALTHMON_BUFWRITE;
+	case FSERR_DIRECTIO_READ:
+		return XFS_HEALTHMON_DIOREAD;
+	case FSERR_DIRECTIO_WRITE:
+		return XFS_HEALTHMON_DIOWRITE;
+	case FSERR_DATA_LOST:
+		return XFS_HEALTHMON_DATALOST;
+	case FSERR_METADATA:
+		/* filtered out by xfs_fs_report_error */
+		break;
+	}
+
+	ASSERT(0);
+	return -1;
+}
+
+/* Add a file io error event to the reporting queue. */
+void
+xfs_healthmon_report_file_ioerror(
+	struct xfs_inode		*ip,
+	const struct fserror_event	*p)
+{
+	struct xfs_healthmon_event	event = {
+		.type			= file_ioerr_type(p->type),
+		.domain			= XFS_HEALTHMON_FILERANGE,
+		.fino			= ip->i_ino,
+		.fgen			= VFS_I(ip)->i_generation,
+		.fpos			= p->pos,
+		.flen			= p->len,
+		/* send positive error number to userspace */
+		.error			= -p->error,
+	};
+	struct xfs_healthmon		*hm = xfs_healthmon_get(ip->i_mount);
+
+	if (!hm)
+		return;
+
+	trace_xfs_healthmon_report_file_ioerror(hm, p);
+
+	xfs_healthmon_push(hm, &event);
+	xfs_healthmon_put(hm);
+}
+
 static inline void
 xfs_healthmon_reset_outbuf(
 	struct xfs_healthmon		*hm)
@@ -633,6 +705,7 @@ static const unsigned int domain_map[] = {
 	[XFS_HEALTHMON_DATADEV]		= XFS_HEALTH_MONITOR_DOMAIN_DATADEV,
 	[XFS_HEALTHMON_RTDEV]		= XFS_HEALTH_MONITOR_DOMAIN_RTDEV,
 	[XFS_HEALTHMON_LOGDEV]		= XFS_HEALTH_MONITOR_DOMAIN_LOGDEV,
+	[XFS_HEALTHMON_FILERANGE]	= XFS_HEALTH_MONITOR_DOMAIN_FILERANGE,
 };
 
 static const unsigned int type_map[] = {
@@ -644,6 +717,11 @@ static const unsigned int type_map[] = {
 	[XFS_HEALTHMON_UNMOUNT]		= XFS_HEALTH_MONITOR_TYPE_UNMOUNT,
 	[XFS_HEALTHMON_SHUTDOWN]	= XFS_HEALTH_MONITOR_TYPE_SHUTDOWN,
 	[XFS_HEALTHMON_MEDIA_ERROR]	= XFS_HEALTH_MONITOR_TYPE_MEDIA_ERROR,
+	[XFS_HEALTHMON_BUFREAD]		= XFS_HEALTH_MONITOR_TYPE_BUFREAD,
+	[XFS_HEALTHMON_BUFWRITE]	= XFS_HEALTH_MONITOR_TYPE_BUFWRITE,
+	[XFS_HEALTHMON_DIOREAD]		= XFS_HEALTH_MONITOR_TYPE_DIOREAD,
+	[XFS_HEALTHMON_DIOWRITE]	= XFS_HEALTH_MONITOR_TYPE_DIOWRITE,
+	[XFS_HEALTHMON_DATALOST]	= XFS_HEALTH_MONITOR_TYPE_DATALOST,
 };
 
 /* Render event as a V0 structure */
@@ -700,6 +778,13 @@ xfs_healthmon_format_v0(
 	case XFS_HEALTHMON_RTDEV:
 		hme.e.media.daddr = event->daddr;
 		hme.e.media.bbcount = event->bbcount;
+		break;
+	case XFS_HEALTHMON_FILERANGE:
+		hme.e.filerange.ino = event->fino;
+		hme.e.filerange.gen = event->fgen;
+		hme.e.filerange.pos = event->fpos;
+		hme.e.filerange.len = event->flen;
+		hme.e.filerange.error = abs(event->error);
 		break;
 	default:
 		break;
