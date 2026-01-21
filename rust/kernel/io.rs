@@ -225,7 +225,6 @@ macro_rules! define_read {
         }
     };
 }
-#[expect(unused)]
 pub(crate) use define_read;
 
 macro_rules! define_write {
@@ -258,7 +257,6 @@ macro_rules! define_write {
         }
     };
 }
-#[expect(unused)]
 pub(crate) use define_write;
 
 /// Checks whether an access of type `U` at the given `offset`
