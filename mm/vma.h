@@ -265,7 +265,8 @@ void remove_vma(struct vm_area_struct *vma);
 
 void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
 		unsigned long vma_start, unsigned long vma_end,
-		struct vm_area_struct *prev, struct vm_area_struct *next);
+		unsigned long pg_max, struct vm_area_struct *prev,
+		struct vm_area_struct *next);
 
 /**
  * vma_modify_flags() - Perform any necessary split/merge in preparation for
