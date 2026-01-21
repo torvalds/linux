@@ -56,6 +56,7 @@ struct geneve_config {
 	bool			collect_md;
 	bool			use_udp6_rx_checksums;
 	bool			ttl_inherit;
+	bool			gro_hint;
 	enum ifla_geneve_df	df;
 	bool			inner_proto_inherit;
 	u16			port_min;
@@ -84,6 +85,7 @@ struct geneve_dev {
 
 struct geneve_sock {
 	bool			collect_md;
+	bool			gro_hint;
 	struct list_head	list;
 	struct socket		*sock;
 	struct rcu_head		rcu;
@@ -659,13 +661,15 @@ static void geneve_sock_release(struct geneve_dev *geneve)
 
 static struct geneve_sock *geneve_find_sock(struct geneve_net *gn,
 					    sa_family_t family,
-					    __be16 dst_port)
+					    __be16 dst_port,
+					    bool gro_hint)
 {
 	struct geneve_sock *gs;
 
 	list_for_each_entry(gs, &gn->sock_list, list) {
 		if (inet_sk(gs->sock->sk)->inet_sport == dst_port &&
-		    geneve_get_sk_family(gs) == family) {
+		    geneve_get_sk_family(gs) == family &&
+		    gs->gro_hint == gro_hint) {
 			return gs;
 		}
 	}
@@ -676,12 +680,14 @@ static int geneve_sock_add(struct geneve_dev *geneve, bool ipv6)
 {
 	struct net *net = geneve->net;
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
+	bool gro_hint = geneve->cfg.gro_hint;
 	struct geneve_dev_node *node;
 	struct geneve_sock *gs;
 	__u8 vni[3];
 	__u32 hash;
 
-	gs = geneve_find_sock(gn, ipv6 ? AF_INET6 : AF_INET, geneve->cfg.info.key.tp_dst);
+	gs = geneve_find_sock(gn, ipv6 ? AF_INET6 : AF_INET,
+			      geneve->cfg.info.key.tp_dst, gro_hint);
 	if (gs) {
 		gs->refcnt++;
 		goto out;
@@ -694,6 +700,7 @@ static int geneve_sock_add(struct geneve_dev *geneve, bool ipv6)
 
 out:
 	gs->collect_md = geneve->cfg.collect_md;
+	gs->gro_hint = gro_hint;
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
 		rcu_assign_pointer(geneve->sock6, gs);
@@ -1257,6 +1264,7 @@ static const struct nla_policy geneve_policy[IFLA_GENEVE_MAX + 1] = {
 	[IFLA_GENEVE_DF]		= { .type = NLA_U8 },
 	[IFLA_GENEVE_INNER_PROTO_INHERIT]	= { .type = NLA_FLAG },
 	[IFLA_GENEVE_PORT_RANGE]	= NLA_POLICY_EXACT_LEN(sizeof(struct ifla_geneve_port_range)),
+	[IFLA_GENEVE_GRO_HINT]		= { .type = NLA_FLAG },
 };
 
 static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -1607,10 +1615,18 @@ static int geneve_nl2info(struct nlattr *tb[], struct nlattr *data[],
 		cfg->inner_proto_inherit = true;
 	}
 
+	if (data[IFLA_GENEVE_GRO_HINT]) {
+		if (changelink) {
+			attrtype = IFLA_GENEVE_GRO_HINT;
+			goto change_notsup;
+		}
+		cfg->gro_hint = true;
+	}
+
 	return 0;
 change_notsup:
 	NL_SET_ERR_MSG_ATTR(extack, data[attrtype],
-			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, and UDP checksum attributes are not supported");
+			    "Changing VNI, Port, endpoint IP address family, external, inner_proto_inherit, gro_hint and UDP checksum attributes are not supported");
 	return -EOPNOTSUPP;
 }
 
@@ -1793,6 +1809,7 @@ static size_t geneve_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) + /* IFLA_GENEVE_TTL_INHERIT */
 		nla_total_size(0) +	 /* IFLA_GENEVE_INNER_PROTO_INHERIT */
 		nla_total_size(sizeof(struct ifla_geneve_port_range)) + /* IFLA_GENEVE_PORT_RANGE */
+		nla_total_size(0) +	 /* IFLA_GENEVE_GRO_HINT */
 		0;
 }
 
@@ -1863,6 +1880,10 @@ static int geneve_fill_info(struct sk_buff *skb, const struct net_device *dev)
 		goto nla_put_failure;
 
 	if (nla_put(skb, IFLA_GENEVE_PORT_RANGE, sizeof(ports), &ports))
+		goto nla_put_failure;
+
+	if (geneve->cfg.gro_hint &&
+	    nla_put_flag(skb, IFLA_GENEVE_GRO_HINT))
 		goto nla_put_failure;
 
 	return 0;
