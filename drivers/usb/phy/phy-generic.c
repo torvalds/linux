@@ -227,18 +227,15 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		return -ENOMEM;
 
 	nop->clk = devm_clk_get_optional(dev, "main_clk");
-	if (IS_ERR(nop->clk)) {
-		dev_dbg(dev, "Can't get phy clock: %ld\n",
-					PTR_ERR(nop->clk));
-		return PTR_ERR(nop->clk);
-	}
+	if (IS_ERR(nop->clk))
+		return dev_err_probe(dev, PTR_ERR(nop->clk),
+				     "Can't get phy clock\n");
 
 	if (clk_rate) {
 		err = clk_set_rate(nop->clk, clk_rate);
-		if (err) {
-			dev_err(dev, "Error setting clock rate\n");
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err,
+					     "Error setting clock rate\n");
 	}
 
 	nop->vcc = devm_regulator_get_optional(dev, "vcc");
@@ -283,17 +280,17 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	err = usb_phy_gen_create_phy(dev, nop);
 	if (err)
 		return err;
+
 	if (nop->gpiod_vbus) {
 		err = devm_request_threaded_irq(dev,
 						gpiod_to_irq(nop->gpiod_vbus),
 						NULL, nop_gpio_vbus_thread,
 						VBUS_IRQ_FLAGS, "vbus_detect",
 						nop);
-		if (err) {
-			dev_err(dev, "can't request irq %i, err: %d\n",
-				gpiod_to_irq(nop->gpiod_vbus), err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "can't request irq %i\n",
+					     gpiod_to_irq(nop->gpiod_vbus));
+
 		nop->phy.otg->state = gpiod_get_value(nop->gpiod_vbus) ?
 			OTG_STATE_B_PERIPHERAL : OTG_STATE_B_IDLE;
 	}
@@ -302,10 +299,8 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	nop->phy.shutdown	= usb_gen_phy_shutdown;
 
 	err = usb_add_phy_dev(&nop->phy);
-	if (err) {
-		dev_err(dev, "can't register transceiver, err: %d\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "can't register transceiver\n");
 
 	platform_set_drvdata(pdev, nop);
 
