@@ -294,13 +294,13 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 	if (nop->gpiod_vbus) {
-		err = devm_request_threaded_irq(&pdev->dev,
+		err = devm_request_threaded_irq(dev,
 						gpiod_to_irq(nop->gpiod_vbus),
 						NULL, nop_gpio_vbus_thread,
 						VBUS_IRQ_FLAGS, "vbus_detect",
 						nop);
 		if (err) {
-			dev_err(&pdev->dev, "can't request irq %i, err: %d\n",
+			dev_err(dev, "can't request irq %i, err: %d\n",
 				gpiod_to_irq(nop->gpiod_vbus), err);
 			return err;
 		}
@@ -313,14 +313,13 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 
 	err = usb_add_phy_dev(&nop->phy);
 	if (err) {
-		dev_err(&pdev->dev, "can't register transceiver, err: %d\n",
-			err);
+		dev_err(dev, "can't register transceiver, err: %d\n", err);
 		return err;
 	}
 
 	platform_set_drvdata(pdev, nop);
 
-	device_set_wakeup_capable(&pdev->dev,
+	device_set_wakeup_capable(dev,
 				  of_property_read_bool(dn, "wakeup-source"));
 
 	return 0;
