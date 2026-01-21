@@ -43,24 +43,12 @@ snippet would look like::
 	MODULE_DEVICE_TABLE(tee, client_id_table);
 
 	static struct tee_client_driver client_driver = {
+		.probe		= client_probe,
+		.remove		= client_remove,
 		.id_table	= client_id_table,
 		.driver		= {
 			.name		= DRIVER_NAME,
-			.bus		= &tee_bus_type,
-			.probe		= client_probe,
-			.remove		= client_remove,
 		},
 	};
 
-	static int __init client_init(void)
-	{
-		return driver_register(&client_driver.driver);
-	}
-
-	static void __exit client_exit(void)
-	{
-		driver_unregister(&client_driver.driver);
-	}
-
-	module_init(client_init);
-	module_exit(client_exit);
+	module_tee_client_driver(client_driver);

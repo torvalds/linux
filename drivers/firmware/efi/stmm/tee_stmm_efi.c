@@ -520,8 +520,9 @@ static void tee_stmm_restore_efivars_generic_ops(void)
 	efivars_generic_ops_register();
 }
 
-static int tee_stmm_efi_probe(struct device *dev)
+static int tee_stmm_efi_probe(struct tee_client_device *tee_dev)
 {
+	struct device *dev = &tee_dev->dev;
 	struct tee_ioctl_open_session_arg sess_arg;
 	efi_status_t ret;
 	int rc;
@@ -571,37 +572,23 @@ static int tee_stmm_efi_probe(struct device *dev)
 	return 0;
 }
 
-static int tee_stmm_efi_remove(struct device *dev)
+static void tee_stmm_efi_remove(struct tee_client_device *dev)
 {
 	tee_stmm_restore_efivars_generic_ops();
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(tee, tee_stmm_efi_id_table);
 
 static struct tee_client_driver tee_stmm_efi_driver = {
 	.id_table	= tee_stmm_efi_id_table,
+	.probe		= tee_stmm_efi_probe,
+	.remove		= tee_stmm_efi_remove,
 	.driver		= {
 		.name		= "tee-stmm-efi",
-		.bus		= &tee_bus_type,
-		.probe		= tee_stmm_efi_probe,
-		.remove		= tee_stmm_efi_remove,
 	},
 };
 
-static int __init tee_stmm_efi_mod_init(void)
-{
-	return driver_register(&tee_stmm_efi_driver.driver);
-}
-
-static void __exit tee_stmm_efi_mod_exit(void)
-{
-	driver_unregister(&tee_stmm_efi_driver.driver);
-}
-
-module_init(tee_stmm_efi_mod_init);
-module_exit(tee_stmm_efi_mod_exit);
+module_tee_client_driver(tee_stmm_efi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ilias Apalodimas <ilias.apalodimas@linaro.org>");
