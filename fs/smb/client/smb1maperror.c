@@ -664,7 +664,7 @@ static const struct {
 	ERRDOS, ERRnoaccess, NT_STATUS_DECRYPTION_FAILED}, {
 	ERRHRD, ERRgeneral, NT_STATUS_RANGE_NOT_FOUND}, {
 	ERRDOS, ERRnoaccess, NT_STATUS_NO_RECOVERY_POLICY}, {
-	ERRDOS, ERRnoaccess, 0xc000028e}, {
+	ERRDOS, ERRnoaccess, NT_STATUS_NO_EFS}, {
 	ERRDOS, ERRnoaccess, 0xc000028f}, {
 	ERRDOS, ERRnoaccess, 0xc0000290}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
