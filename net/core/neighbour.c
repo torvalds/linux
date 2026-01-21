@@ -1104,6 +1104,7 @@ static void neigh_timer_handler(struct timer_list *t)
 {
 	unsigned long now, next;
 	struct neighbour *neigh = timer_container_of(neigh, t, timer);
+	bool skip_probe = false;
 	unsigned int state;
 	int notify = 0;
 
@@ -1171,8 +1172,14 @@ static void neigh_timer_handler(struct timer_list *t)
 			neigh_invalidate(neigh);
 		}
 		notify = 1;
-		goto out;
+		skip_probe = true;
 	}
+
+	if (notify)
+		__neigh_notify(neigh, RTM_NEWNEIGH, 0, 0);
+
+	if (skip_probe)
+		goto out;
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
 		if (time_before(next, jiffies + HZ/100))
@@ -1187,10 +1194,8 @@ out:
 		write_unlock(&neigh->lock);
 	}
 
-	if (notify) {
-		neigh_notify(neigh, RTM_NEWNEIGH, 0, 0);
+	if (notify)
 		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, neigh);
-	}
 
 	trace_neigh_timer_handler(neigh, 0);
 
