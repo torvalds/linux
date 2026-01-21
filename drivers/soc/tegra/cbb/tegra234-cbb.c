@@ -322,11 +322,36 @@ static void tegra234_cbb_lookup_apbslv(struct seq_file *file, const char *target
 	}
 }
 
+static struct tegra234_cbb *tegra234_cbb_get_fabric(u8 fab_id)
+{
+	struct tegra_cbb *entry;
+
+	list_for_each_entry(entry, &cbb_list, node) {
+		struct tegra234_cbb *priv = to_tegra234_cbb(entry);
+
+		if (priv->fabric->fab_id == fab_id)
+			return priv;
+	}
+
+	return NULL;
+}
+
 static void tegra234_sw_lookup_target_timeout(struct seq_file *file, struct tegra234_cbb *cbb,
 					      u8 target_id, u8 fab_id)
 {
 	const struct tegra234_target_lookup *map = cbb->fabric->fab_list[fab_id].target_map;
+	struct tegra234_cbb *target_cbb = NULL;
 	void __iomem *addr;
+
+	if (fab_id == cbb->fabric->fab_id)
+		target_cbb = cbb;
+	else
+		target_cbb = tegra234_cbb_get_fabric(fab_id);
+
+	if (!target_cbb) {
+		dev_err(cbb->base.dev, "could not find fabric for fab_id:%d\n", fab_id);
+		return;
+	}
 
 	if (target_id >= cbb->fabric->fab_list[fab_id].max_targets) {
 		tegra_cbb_print_err(file, "\t  Invalid target_id:%d\n", target_id);
@@ -350,7 +375,7 @@ static void tegra234_sw_lookup_target_timeout(struct seq_file *file, struct tegr
 	 *	e) Goto step-a till all bits are set.
 	 */
 
-	addr = cbb->regs + map[target_id].offset;
+	addr = target_cbb->regs + map[target_id].offset;
 
 	if (strstr(map[target_id].name, "AXI2APB")) {
 		addr += APB_BLOCK_TMO_STATUS_0;
