@@ -517,7 +517,7 @@ struct slice_timer {
 	void		*cookie;
 };
 
-static const unsigned int rseq_slice_ext_nsecs_min = 10 * NSEC_PER_USEC;
+static const unsigned int rseq_slice_ext_nsecs_min =  5 * NSEC_PER_USEC;
 static const unsigned int rseq_slice_ext_nsecs_max = 50 * NSEC_PER_USEC;
 unsigned int rseq_slice_ext_nsecs __read_mostly = rseq_slice_ext_nsecs_min;
 static DEFINE_PER_CPU(struct slice_timer, slice_timer);

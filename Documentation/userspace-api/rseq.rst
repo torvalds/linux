@@ -79,7 +79,7 @@ slice extension by setting rseq::slice_ctrl::request to 1. If the thread is
 interrupted and the interrupt results in a reschedule request in the
 kernel, then the kernel can grant a time slice extension and return to
 userspace instead of scheduling out. The length of the extension is
-determined by debugfs:rseq/slice_ext_nsec. The default value is 10 usec; which
+determined by debugfs:rseq/slice_ext_nsec. The default value is 5 usec; which
 is the minimum value. It can be incremented to 50 usecs, however doing so
 can/will affect the minimum scheduling latency.
 
