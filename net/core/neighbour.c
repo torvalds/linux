@@ -2622,8 +2622,8 @@ out:
 	return skb->len;
 }
 
-static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
-			   u32 pid, u32 seq, int type, unsigned int flags)
+static int __neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
+			     u32 pid, u32 seq, int type, unsigned int flags)
 {
 	u32 neigh_flags, neigh_flags_ext;
 	unsigned long now = jiffies;
@@ -2649,23 +2649,19 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 	if (nla_put(skb, NDA_DST, neigh->tbl->key_len, neigh->primary_key))
 		goto nla_put_failure;
 
-	read_lock_bh(&neigh->lock);
 	ndm->ndm_state	 = neigh->nud_state;
 	if (neigh->nud_state & NUD_VALID) {
 		char haddr[MAX_ADDR_LEN];
 
 		neigh_ha_snapshot(haddr, neigh, neigh->dev);
-		if (nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, haddr) < 0) {
-			read_unlock_bh(&neigh->lock);
+		if (nla_put(skb, NDA_LLADDR, neigh->dev->addr_len, haddr) < 0)
 			goto nla_put_failure;
-		}
 	}
 
 	ci.ndm_used	 = jiffies_to_clock_t(now - neigh->used);
 	ci.ndm_confirmed = jiffies_to_clock_t(now - neigh->confirmed);
 	ci.ndm_updated	 = jiffies_to_clock_t(now - neigh->updated);
 	ci.ndm_refcnt	 = refcount_read(&neigh->refcnt) - 1;
-	read_unlock_bh(&neigh->lock);
 
 	if (nla_put_u32(skb, NDA_PROBES, atomic_read(&neigh->probes)) ||
 	    nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
@@ -2682,6 +2678,20 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
+}
+
+static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
+			   u32 pid, u32 seq, int type, unsigned int flags)
+	__releases(neigh->lock)
+	__acquires(neigh->lock)
+{
+	int err;
+
+	read_lock_bh(&neigh->lock);
+	err = __neigh_fill_info(skb, neigh, pid, seq, type, flags);
+	read_unlock_bh(&neigh->lock);
+
+	return err;
 }
 
 static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
