@@ -74,13 +74,17 @@
 #define LLCC_CAMSRTIP	 73
 #define LLCC_CAMRTRF	 74
 #define LLCC_CAMSRTRF	 75
+#define LLCC_OOBM_NS	 81
+#define LLCC_OOBM_S	 82
 #define LLCC_VIDEO_APV	 83
 #define LLCC_COMPUTE1	 87
 #define LLCC_CPUSS_OPP	 88
 #define LLCC_CPUSSMPAM	 89
+#define LLCC_VIDSC_VSP1	 91
 #define LLCC_CAM_IPE_STROV	 92
 #define LLCC_CAM_OFE_STROV	 93
 #define LLCC_CPUSS_HEU	 94
+#define LLCC_PCIE_TCU	 97
 #define LLCC_MDM_PNG_FIXED	 100
 
 /**
