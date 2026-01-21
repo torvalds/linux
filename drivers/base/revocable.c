@@ -99,7 +99,6 @@ struct revocable_provider *revocable_provider_alloc(void *res)
 
 	init_srcu_struct(&rp->srcu);
 	rcu_assign_pointer(rp->res, res);
-	synchronize_srcu(&rp->srcu);
 	kref_init(&rp->kref);
 
 	return rp;
