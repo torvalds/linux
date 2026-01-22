@@ -26,7 +26,7 @@ extern const struct nt_err_code_struct nt_errs[];
 #define NT_STATUS_MORE_ENTRIES         0x0105
 #define NT_ERROR_INVALID_PARAMETER     0x0057
 #define NT_ERROR_INSUFFICIENT_BUFFER   0x007a
-#define NT_STATUS_1804                 0x070c
+#define NT_ERROR_INVALID_DATATYPE      0x070c
 
 /*
  * Win32 Error codes extracted using a loop in smbclient then printing a netmon
