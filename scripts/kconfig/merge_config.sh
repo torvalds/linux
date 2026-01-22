@@ -130,6 +130,8 @@ trap clean_up EXIT
 
 cat $INITFILE > $TMP_FILE
 
+PROCESSED_FILES=""
+
 # Merge files, printing warnings on overridden values
 for ORIG_MERGE_FILE in $MERGE_LIST ; do
 	echo "Merging $ORIG_MERGE_FILE"
@@ -137,6 +139,14 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 		echo "The merge file '$ORIG_MERGE_FILE' does not exist.  Exit." >&2
 		exit 1
 	fi
+
+	# Check for duplicate input files
+	case " $PROCESSED_FILES " in
+		*" $ORIG_MERGE_FILE "*)
+			${WARNOVERRIDE} "WARNING: Input file provided multiple times: $ORIG_MERGE_FILE"
+			;;
+	esac
+
 	# Use awk for single-pass processing instead of per-symbol grep/sed
 	if ! "$AWK" -v prefix="$CONFIG_PREFIX" \
 		-v warnoverride="$WARNOVERRIDE" \
@@ -259,6 +269,7 @@ for ORIG_MERGE_FILE in $MERGE_LIST ; do
 		STRICT_MODE_VIOLATED=true
 	fi
 	mv "$TMP_FILE.new" "$TMP_FILE"
+	PROCESSED_FILES="$PROCESSED_FILES $ORIG_MERGE_FILE"
 done
 if [ "$STRICT_MODE_VIOLATED" = "true" ]; then
 	echo "The fragment redefined a value and strict mode had been passed."
