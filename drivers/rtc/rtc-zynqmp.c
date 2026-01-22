@@ -349,6 +349,11 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 		xrtcdev->freq--;
 	}
 
+	if (xrtcdev->freq > RTC_TICK_MASK) {
+		dev_err(&pdev->dev, "Invalid RTC calibration value\n");
+		return -EINVAL;
+	}
+
 	ret = readl(xrtcdev->reg_base + RTC_CALIB_RD);
 	if (!ret)
 		writel(xrtcdev->freq, (xrtcdev->reg_base + RTC_CALIB_WR));
