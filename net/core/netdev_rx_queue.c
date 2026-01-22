@@ -7,6 +7,7 @@
 #include <net/netdev_rx_queue.h>
 #include <net/page_pool/memory_provider.h>
 
+#include "dev.h"
 #include "page_pool_priv.h"
 
 /* See also page_pool_is_unreadable() */
@@ -156,12 +157,18 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 
 	netdev_queue_config(dev, rxq_idx, &qcfg[0]);
 	rxq->mp_params = *p;
-	netdev_queue_config(dev, rxq_idx, &qcfg[1]);
+	ret = netdev_queue_config_validate(dev, rxq_idx, &qcfg[1], extack);
+	if (ret)
+		goto err_clear_mp;
 
 	ret = netdev_rx_queue_reconfig(dev, rxq_idx, &qcfg[0], &qcfg[1]);
 	if (ret)
-		memset(&rxq->mp_params, 0, sizeof(rxq->mp_params));
+		goto err_clear_mp;
 
+	return 0;
+
+err_clear_mp:
+	memset(&rxq->mp_params, 0, sizeof(rxq->mp_params));
 	return ret;
 }
 

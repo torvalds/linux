@@ -143,6 +143,13 @@ enum {
  *			Queue config structs are passed to this helper before
  *			the user-requested settings are applied.
  *
+ * @ndo_validate_qcfg: (Optional) Check if queue config is supported.
+ *			Called when configuration affecting a queue may be
+ *			changing, either due to NIC-wide config, or config
+ *			scoped to the queue at a specified index.
+ *			When NIC-wide config is changed the callback will
+ *			be invoked for all queues.
+ *
  * @supported_params:	Bitmask of supported parameters, see QCFG_*.
  *
  * Note that @ndo_queue_mem_alloc and @ndo_queue_mem_free may be called while
@@ -166,6 +173,9 @@ struct netdev_queue_mgmt_ops {
 				  int idx);
 	void	(*ndo_default_qcfg)(struct net_device *dev,
 				    struct netdev_queue_config *qcfg);
+	int	(*ndo_validate_qcfg)(struct net_device *dev,
+				     struct netdev_queue_config *qcfg,
+				     struct netlink_ext_ack *extack);
 	struct device *	(*ndo_queue_get_dma_dev)(struct net_device *dev,
 						 int idx);
 
