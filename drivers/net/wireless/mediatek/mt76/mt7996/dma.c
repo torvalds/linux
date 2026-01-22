@@ -756,6 +756,9 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	     (is_mt7992(&dev->mt76)))) {
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_WED_Q_TXFREE;
 		dev->mt76.q_rx[MT_RXQ_MAIN_WA].wed = wed;
+	} else if (is_mt7992(&dev->mt76) &&
+		   mt76_npu_device_active(&dev->mt76)) {
+		dev->mt76.q_rx[MT_RXQ_MAIN_WA].flags = MT_NPU_Q_TXFREE(0);
 	}
 
 	if (mt7996_has_wa(dev)) {
@@ -888,6 +891,8 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 				/* tx free notify event from WA for band0 */
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_WED_Q_TXFREE;
 				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].wed = wed;
+			} else if (mt76_npu_device_active(&dev->mt76)) {
+				dev->mt76.q_rx[MT_RXQ_TXFREE_BAND0].flags = MT_NPU_Q_TXFREE(0);
 			}
 
 			ret = mt76_queue_alloc(dev,

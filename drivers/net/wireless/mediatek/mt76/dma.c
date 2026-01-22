@@ -881,6 +881,10 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 		    mt76_queue_is_wed_rro(q))
 			continue;
 
+		if (mt76_npu_device_active(dev) &&
+		    mt76_queue_is_wed_rro(q))
+			continue;
+
 		if (!mt76_queue_is_wed_rro_rxdmad_c(q) &&
 		    !mt76_queue_is_wed_rro_ind(q))
 			mt76_put_page_pool_buf(buf, false);
@@ -921,6 +925,13 @@ mt76_dma_rx_reset(struct mt76_dev *dev, enum mt76_rxq_id qid)
 
 	if (mtk_wed_device_active(&dev->mmio.wed) &&
 	    mt76_queue_is_wed_rro(q))
+		return;
+
+	if (mt76_npu_device_active(dev) &&
+	    mt76_queue_is_wed_rro(q))
+		return;
+
+	if (mt76_queue_is_npu_txfree(q))
 		return;
 
 	mt76_dma_sync_idx(dev, q);
