@@ -844,7 +844,7 @@ struct mmap_action {
 
 	/*
 	 * If specified, this hook is invoked when an error occurred when
-	 * attempting the selection action.
+	 * attempting the selected action.
 	 *
 	 * The hook can return an error code in order to filter the error, but
 	 * it is not valid to clear the error here.
@@ -867,6 +867,8 @@ struct mmap_action {
 typedef struct {
 	DECLARE_BITMAP(__vma_flags, NUM_VMA_FLAG_BITS);
 } vma_flags_t;
+
+#define EMPTY_VMA_FLAGS ((vma_flags_t){ })
 
 /*
  * Describes a VMA that is about to be mmap()'ed. Drivers may choose to
