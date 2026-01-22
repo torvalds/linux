@@ -42,20 +42,17 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         *,
         cfg,
         is_workspace_member,
-        is_proc_macro,
         edition,
     ):
         cfg = cfg if cfg is not None else []
         is_workspace_member = (
             is_workspace_member if is_workspace_member is not None else True
         )
-        is_proc_macro = is_proc_macro if is_proc_macro is not None else False
         edition = edition if edition is not None else "2021"
-        crate = {
+        return {
             "display_name": display_name,
             "root_module": str(root_module),
             "is_workspace_member": is_workspace_member,
-            "is_proc_macro": is_proc_macro,
             "deps": [{"crate": crates_indexes[dep], "name": dep} for dep in deps],
             "cfg": cfg,
             "edition": edition,
@@ -63,13 +60,47 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
                 "RUST_MODFILE": "This is only for rust-analyzer"
             }
         }
-        if is_proc_macro:
-            proc_macro_dylib_name = subprocess.check_output(
-                [os.environ["RUSTC"], "--print", "file-names", "--crate-name", display_name, "--crate-type", "proc-macro", "-"],
+
+    def append_proc_macro_crate(
+        display_name,
+        root_module,
+        deps,
+        *,
+        cfg=None,
+        is_workspace_member=None,
+        edition=None,
+    ):
+        crate = build_crate(
+            display_name,
+            root_module,
+            deps,
+            cfg=cfg,
+            is_workspace_member=is_workspace_member,
+            edition=edition,
+        )
+        proc_macro_dylib_name = (
+            subprocess.check_output(
+                [
+                    os.environ["RUSTC"],
+                    "--print",
+                    "file-names",
+                    "--crate-name",
+                    display_name,
+                    "--crate-type",
+                    "proc-macro",
+                    "-",
+                ],
                 stdin=subprocess.DEVNULL,
-            ).decode('utf-8').strip()
-            crate["proc_macro_dylib_path"] = f"{objtree}/rust/{proc_macro_dylib_name}"
-        return crate
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        proc_macro_crate = {
+            **crate,
+            "is_proc_macro": True,
+            "proc_macro_dylib_path": str(objtree / "rust" / proc_macro_dylib_name),
+        }
+        return register_crate(proc_macro_crate)
 
     def register_crate(crate):
         crates_indexes[crate["display_name"]] = len(crates)
@@ -82,7 +113,6 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         *,
         cfg=None,
         is_workspace_member=None,
-        is_proc_macro=None,
         edition=None,
     ):
         return register_crate(
@@ -92,7 +122,6 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
                 deps,
                 cfg=cfg,
                 is_workspace_member=is_workspace_member,
-                is_proc_macro=is_proc_macro,
                 edition=edition,
             )
         )
@@ -172,11 +201,10 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         cfg=crates_cfgs["syn"],
     )
 
-    append_crate(
+    append_proc_macro_crate(
         "macros",
         srctree / "rust" / "macros" / "lib.rs",
         ["std", "proc_macro", "proc_macro2", "quote", "syn"],
-        is_proc_macro=True,
     )
 
     append_crate(
@@ -185,12 +213,11 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         ["core", "compiler_builtins"],
     )
 
-    append_crate(
+    append_proc_macro_crate(
         "pin_init_internal",
         srctree / "rust" / "pin-init" / "internal" / "src" / "lib.rs",
         ["std", "proc_macro", "proc_macro2", "quote", "syn"],
         cfg=["kernel"],
-        is_proc_macro=True,
     )
 
     append_crate(
@@ -216,7 +243,6 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
             deps,
             cfg=cfg,
             is_workspace_member=True,
-            is_proc_macro=False,
             edition=None,
         )
         crate["env"]["OBJTREE"] = str(objtree.resolve(True))
