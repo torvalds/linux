@@ -496,7 +496,7 @@ static int __create_shmem(struct drm_i915_private *i915,
 			  struct drm_gem_object *obj,
 			  resource_size_t size)
 {
-	unsigned long flags = VM_NORESERVE;
+	const vma_flags_t flags = mk_vma_flags(VMA_NORESERVE_BIT);
 	struct file *filp;
 
 	drm_gem_private_object_init(&i915->drm, obj, size);

@@ -130,14 +130,15 @@ int drm_gem_object_init_with_mnt(struct drm_device *dev,
 				 struct vfsmount *gemfs)
 {
 	struct file *filp;
+	const vma_flags_t flags = mk_vma_flags(VMA_NORESERVE_BIT);
 
 	drm_gem_private_object_init(dev, obj, size);
 
 	if (gemfs)
 		filp = shmem_file_setup_with_mnt(gemfs, "drm mm object", size,
-						 VM_NORESERVE);
+						 flags);
 	else
-		filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+		filp = shmem_file_setup("drm mm object", size, flags);
 
 	if (IS_ERR(filp))
 		return PTR_ERR(filp);

@@ -143,7 +143,7 @@ static void ttm_tt_fini_shmem(struct kunit *test)
 	err = ttm_tt_init(tt, bo, 0, caching, 0);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
-	shmem = shmem_file_setup("ttm swap", BO_SIZE, 0);
+	shmem = shmem_file_setup("ttm swap", BO_SIZE, EMPTY_VMA_FLAGS);
 	tt->swap_storage = shmem;
 
 	ttm_tt_fini(tt);

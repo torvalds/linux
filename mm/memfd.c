@@ -468,7 +468,7 @@ struct file *memfd_alloc_file(const char *name, unsigned int flags)
 					(flags >> MFD_HUGE_SHIFT) &
 					MFD_HUGE_MASK);
 	} else {
-		file = shmem_file_setup(name, 0, VM_NORESERVE);
+		file = shmem_file_setup(name, 0, mk_vma_flags(VMA_NORESERVE_BIT));
 	}
 	if (IS_ERR(file))
 		return file;
