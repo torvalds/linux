@@ -2660,8 +2660,8 @@ config BITOPS_KUNIT
 	  This option enables the KUnit test for the bitops library
 	  which provides functions for bit operations.
 
-	  Note that this is a partial copy of the original test_bitops module.
-	  For the full coverage, enable TEST_BITOPS.
+	  Note that this is derived from the original test_bitops module.
+	  For micro-benchmarks and compiler warning checks, enable TEST_BITOPS.
 
 	  If unsure, say N.
 

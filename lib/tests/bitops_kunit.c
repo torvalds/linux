@@ -66,6 +66,66 @@ static void test_set_bit_clear_bit(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, bit_set, BITOPS_LENGTH);
 }
 
+static void test_change_bit(struct kunit *test)
+{
+	const struct bitops_test_case *params = test->param_value;
+	DECLARE_BITMAP(bitmap, BITOPS_LENGTH);
+	int bit_set;
+
+	bitmap_zero(bitmap, BITOPS_LENGTH);
+
+	change_bit(params->nr, bitmap);
+	KUNIT_EXPECT_TRUE(test, test_bit(params->nr, bitmap));
+
+	change_bit(params->nr, bitmap);
+	KUNIT_EXPECT_FALSE(test, test_bit(params->nr, bitmap));
+
+	bit_set = find_first_bit(bitmap, BITOPS_LENGTH);
+	KUNIT_EXPECT_EQ(test, bit_set, BITOPS_LENGTH);
+}
+
+static void test_test_and_set_bit_test_and_clear_bit(struct kunit *test)
+{
+	const struct bitops_test_case *params = test->param_value;
+	DECLARE_BITMAP(bitmap, BITOPS_LENGTH);
+	int bit_set;
+
+	bitmap_zero(bitmap, BITOPS_LENGTH);
+
+	KUNIT_EXPECT_FALSE(test, test_and_set_bit(params->nr, bitmap));
+	KUNIT_EXPECT_TRUE(test, test_bit(params->nr, bitmap));
+
+	KUNIT_EXPECT_TRUE(test, test_and_set_bit(params->nr, bitmap));
+	KUNIT_EXPECT_TRUE(test, test_bit(params->nr, bitmap));
+
+	KUNIT_EXPECT_TRUE(test, test_and_clear_bit(params->nr, bitmap));
+	KUNIT_EXPECT_FALSE(test, test_bit(params->nr, bitmap));
+
+	KUNIT_EXPECT_FALSE(test, test_and_clear_bit(params->nr, bitmap));
+	KUNIT_EXPECT_FALSE(test, test_bit(params->nr, bitmap));
+
+	bit_set = find_first_bit(bitmap, BITOPS_LENGTH);
+	KUNIT_EXPECT_EQ(test, bit_set, BITOPS_LENGTH);
+}
+
+static void test_test_and_change_bit(struct kunit *test)
+{
+	const struct bitops_test_case *params = test->param_value;
+	DECLARE_BITMAP(bitmap, BITOPS_LENGTH);
+	int bit_set;
+
+	bitmap_zero(bitmap, BITOPS_LENGTH);
+
+	KUNIT_EXPECT_FALSE(test, test_and_change_bit(params->nr, bitmap));
+	KUNIT_EXPECT_TRUE(test, test_bit(params->nr, bitmap));
+
+	KUNIT_EXPECT_TRUE(test, test_and_change_bit(params->nr, bitmap));
+	KUNIT_EXPECT_FALSE(test, test_bit(params->nr, bitmap));
+
+	bit_set = find_first_bit(bitmap, BITOPS_LENGTH);
+	KUNIT_EXPECT_EQ(test, bit_set, BITOPS_LENGTH);
+}
+
 struct order_test_case {
 	const char *str;
 	const unsigned int count;
@@ -121,6 +181,9 @@ static void test_get_count_order_long(struct kunit *test)
 
 static struct kunit_case bitops_test_cases[] = {
 	KUNIT_CASE_PARAM(test_set_bit_clear_bit, bitops_gen_params),
+	KUNIT_CASE_PARAM(test_change_bit, bitops_gen_params),
+	KUNIT_CASE_PARAM(test_test_and_set_bit_test_and_clear_bit, bitops_gen_params),
+	KUNIT_CASE_PARAM(test_test_and_change_bit, bitops_gen_params),
 	KUNIT_CASE_PARAM(test_get_count_order, order_gen_params),
 #ifdef CONFIG_64BIT
 	KUNIT_CASE_PARAM(test_get_count_order_long, order_long_gen_params),
