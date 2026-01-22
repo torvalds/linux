@@ -33,8 +33,7 @@ static void gswip_xrx200_phylink_get_caps(struct dsa_switch *ds, int port,
 					  struct phylink_config *config)
 {
 	switch (port) {
-	case 0:
-	case 1:
+	case 0 ... 1:
 		phy_interface_set_rgmii(config->supported_interfaces);
 		__set_bit(PHY_INTERFACE_MODE_MII,
 			  config->supported_interfaces);
@@ -44,9 +43,7 @@ static void gswip_xrx200_phylink_get_caps(struct dsa_switch *ds, int port,
 			  config->supported_interfaces);
 		break;
 
-	case 2:
-	case 3:
-	case 4:
+	case 2 ... 4:
 	case 6:
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
@@ -75,10 +72,7 @@ static void gswip_xrx300_phylink_get_caps(struct dsa_switch *ds, int port,
 			  config->supported_interfaces);
 		break;
 
-	case 1:
-	case 2:
-	case 3:
-	case 4:
+	case 1 ... 4:
 	case 6:
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
