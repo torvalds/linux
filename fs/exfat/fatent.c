@@ -207,6 +207,7 @@ static int __exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain
 	if (p_chain->flags == ALLOC_NO_FAT_CHAIN) {
 		int err;
 		unsigned int last_cluster = p_chain->dir + p_chain->size - 1;
+
 		do {
 			bool sync = false;
 
