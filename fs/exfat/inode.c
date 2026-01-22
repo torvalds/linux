@@ -495,8 +495,9 @@ static ssize_t exfat_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 			exfat_write_failed(mapping, size);
 
 		return ret;
-	} else
-		size = pos + ret;
+	}
+
+	size = pos + ret;
 
 	if (rw == WRITE) {
 		/*
