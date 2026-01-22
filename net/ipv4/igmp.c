@@ -227,7 +227,7 @@ static void igmp_start_timer(struct ip_mc_list *im, int max_delay)
 
 static void igmp_gq_start_timer(struct in_device *in_dev)
 {
-	int tv = get_random_u32_below(in_dev->mr_maxdelay);
+	int tv = get_random_u32_below(READ_ONCE(in_dev->mr_maxdelay));
 	unsigned long exp = jiffies + tv + 2;
 
 	if (in_dev->mr_gq_running &&
@@ -1009,7 +1009,7 @@ static bool igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 		max_delay = IGMPV3_MRC(ih3->code)*(HZ/IGMP_TIMER_SCALE);
 		if (!max_delay)
 			max_delay = 1;	/* can't mod w/ 0 */
-		in_dev->mr_maxdelay = max_delay;
+		WRITE_ONCE(in_dev->mr_maxdelay, max_delay);
 
 		/* RFC3376, 4.1.6. QRV and 4.1.7. QQIC, when the most recently
 		 * received value was zero, use the default or statically
