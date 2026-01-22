@@ -450,10 +450,6 @@ int mt76_npu_init(struct mt76_dev *dev, phys_addr_t phy_addr, int type)
 	struct airoha_npu *npu;
 	int err = 0;
 
-	/* NPU offloading is only supported by MT7992 */
-	if (!is_mt7992(dev))
-		return 0;
-
 	mutex_lock(&dev->mutex);
 
 	npu = airoha_npu_get(dev->dev);
@@ -486,7 +482,7 @@ int mt76_npu_init(struct mt76_dev *dev, phys_addr_t phy_addr, int type)
 	dev->mmio.phy_addr = phy_addr;
 	dev->mmio.npu_type = type;
 	/* NPU offloading requires HW-RRO for RX packet reordering. */
-	dev->hwrro_mode = MT76_HWRRO_V3_1;
+	dev->hwrro_mode = is_mt7996(dev) ? MT76_HWRRO_V3 : MT76_HWRRO_V3_1;
 	dev->rx_token_size = 32768;
 
 	rcu_assign_pointer(dev->mmio.npu, npu);
