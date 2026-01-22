@@ -3118,11 +3118,26 @@ static struct mnt_namespace *create_new_namespace(struct path *path,
 	}
 
 	/*
-	 * We don't emulate unshare()ing a mount namespace. We stick
-	 * to the restrictions of creating detached bind-mounts. It
-	 * has a lot saner and simpler semantics.
+	 * We don't emulate unshare()ing a mount namespace. We stick to
+	 * the restrictions of creating detached bind-mounts. It has a
+	 * lot saner and simpler semantics.
 	 */
-	mnt = __do_loopback(path, recurse, copy_flags);
+	mnt = real_mount(path->mnt);
+	if (!mnt->mnt_ns) {
+		/*
+		 * If we're moving into a new mount namespace via
+		 * fsmount() swap the mount ids so the nullfs mount id
+		 * is the lowest in the mount namespace avoiding another
+		 * useless copy. This is fine we're not attached to any
+		 * mount namespace so the mount ids are pure decoration
+		 * at that point.
+		 */
+		swap(mnt->mnt_id_unique, new_ns_root->mnt_id_unique);
+		swap(mnt->mnt_id, new_ns_root->mnt_id);
+		mntget(&mnt->mnt);
+	} else {
+		mnt = __do_loopback(path, recurse, copy_flags);
+	}
 	scoped_guard(mount_writer) {
 		if (IS_ERR(mnt)) {
 			emptied_ns = new_ns;
@@ -4401,11 +4416,15 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	unsigned int mnt_flags = 0;
 	long ret;
 
-	if (!may_mount())
+	if ((flags & ~(FSMOUNT_CLOEXEC | FSMOUNT_NAMESPACE)) != 0)
+		return -EINVAL;
+
+	if ((flags & FSMOUNT_NAMESPACE) &&
+	    !ns_capable(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if ((flags & ~(FSMOUNT_CLOEXEC)) != 0)
-		return -EINVAL;
+	if (!(flags & FSMOUNT_NAMESPACE) && !may_mount())
+		return -EPERM;
 
 	if (attr_flags & ~FSMOUNT_VALID_FLAGS)
 		return -EINVAL;
@@ -4471,6 +4490,10 @@ SYSCALL_DEFINE3(fsmount, int, fs_fd, unsigned int, flags,
 	 * don't want to have to handle any errors incurred.
 	 */
 	vfs_clean_context(fc);
+
+	if (flags & FSMOUNT_NAMESPACE)
+		return FD_ADD((flags & FSMOUNT_CLOEXEC) ? O_CLOEXEC : 0,
+			      open_new_namespace(&new_path, 0));
 
 	ns = alloc_mnt_ns(current->nsproxy->mnt_ns->user_ns, true);
 	if (IS_ERR(ns))
