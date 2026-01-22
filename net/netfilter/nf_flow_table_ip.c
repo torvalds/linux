@@ -14,6 +14,7 @@
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
+#include <net/ip6_tunnel.h>
 #include <net/neighbour.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack_acct.h>
@@ -637,6 +638,97 @@ static int nf_flow_tunnel_v4_push(struct net *net, struct sk_buff *skb,
 	return 0;
 }
 
+struct ipv6_tel_txoption {
+	struct ipv6_txoptions ops;
+	__u8 dst_opt[8];
+};
+
+static int nf_flow_tunnel_ip6ip6_push(struct net *net, struct sk_buff *skb,
+				      struct flow_offload_tuple *tuple,
+				      struct in6_addr **ip6_daddr,
+				      int encap_limit)
+{
+	struct ipv6hdr *ip6h = (struct ipv6hdr *)skb_network_header(skb);
+	u8 hop_limit = ip6h->hop_limit, proto = IPPROTO_IPV6;
+	struct rtable *rt = dst_rtable(tuple->dst_cache);
+	__u8 dsfield = ipv6_get_dsfield(ip6h);
+	struct flowi6 fl6 = {
+		.daddr = tuple->tun.src_v6,
+		.saddr = tuple->tun.dst_v6,
+		.flowi6_proto = proto,
+	};
+	int err, mtu;
+	u32 headroom;
+
+	err = iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6);
+	if (err)
+		return err;
+
+	skb_set_inner_ipproto(skb, proto);
+	headroom = sizeof(*ip6h) + LL_RESERVED_SPACE(rt->dst.dev) +
+		   rt->dst.header_len;
+	if (encap_limit)
+		headroom += 8;
+	err = skb_cow_head(skb, headroom);
+	if (err)
+		return err;
+
+	skb_scrub_packet(skb, true);
+	mtu = dst_mtu(&rt->dst) - sizeof(*ip6h);
+	if (encap_limit)
+		mtu -= 8;
+	mtu = max(mtu, IPV6_MIN_MTU);
+	skb_dst_update_pmtu_no_confirm(skb, mtu);
+
+	if (encap_limit > 0) {
+		struct ipv6_tel_txoption opt = {
+			.dst_opt[2] = IPV6_TLV_TNL_ENCAP_LIMIT,
+			.dst_opt[3] = 1,
+			.dst_opt[4] = encap_limit,
+			.dst_opt[5] = IPV6_TLV_PADN,
+			.dst_opt[6] = 1,
+		};
+		struct ipv6_opt_hdr *hopt;
+
+		opt.ops.dst1opt = (struct ipv6_opt_hdr *)opt.dst_opt;
+		opt.ops.opt_nflen = 8;
+
+		hopt = skb_push(skb, ipv6_optlen(opt.ops.dst1opt));
+		memcpy(hopt, opt.ops.dst1opt, ipv6_optlen(opt.ops.dst1opt));
+		hopt->nexthdr = IPPROTO_IPV6;
+		proto = NEXTHDR_DEST;
+	}
+
+	skb_push(skb, sizeof(*ip6h));
+	skb_reset_network_header(skb);
+
+	ip6h = ipv6_hdr(skb);
+	ip6_flow_hdr(ip6h, dsfield,
+		     ip6_make_flowlabel(net, skb, fl6.flowlabel, true, &fl6));
+	ip6h->hop_limit = hop_limit;
+	ip6h->nexthdr = proto;
+	ip6h->daddr = tuple->tun.src_v6;
+	ip6h->saddr = tuple->tun.dst_v6;
+	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(*ip6h));
+	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
+
+	*ip6_daddr = &tuple->tun.src_v6;
+
+	return 0;
+}
+
+static int nf_flow_tunnel_v6_push(struct net *net, struct sk_buff *skb,
+				  struct flow_offload_tuple *tuple,
+				  struct in6_addr **ip6_daddr,
+				  int encap_limit)
+{
+	if (tuple->tun_num)
+		return nf_flow_tunnel_ip6ip6_push(net, skb, tuple, ip6_daddr,
+						  encap_limit);
+
+	return 0;
+}
+
 static int nf_flow_encap_push(struct sk_buff *skb,
 			      struct flow_offload_tuple *tuple)
 {
@@ -914,7 +1006,7 @@ static int nf_flow_tuple_ipv6(struct nf_flowtable_ctx *ctx, struct sk_buff *skb,
 static int nf_flow_offload_ipv6_forward(struct nf_flowtable_ctx *ctx,
 					struct nf_flowtable *flow_table,
 					struct flow_offload_tuple_rhash *tuplehash,
-					struct sk_buff *skb)
+					struct sk_buff *skb, int encap_limit)
 {
 	enum flow_offload_tuple_dir dir;
 	struct flow_offload *flow;
@@ -925,6 +1017,12 @@ static int nf_flow_offload_ipv6_forward(struct nf_flowtable_ctx *ctx,
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
 
 	mtu = flow->tuplehash[dir].tuple.mtu + ctx->offset;
+	if (flow->tuplehash[!dir].tuple.tun_num) {
+		mtu -= sizeof(*ip6h);
+		if (encap_limit > 0)
+			mtu -= 8; /* encap limit option */
+	}
+
 	if (unlikely(nf_flow_exceeds_mtu(skb, mtu)))
 		return 0;
 
@@ -977,6 +1075,7 @@ unsigned int
 nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 			  const struct nf_hook_state *state)
 {
+	int encap_limit = IPV6_DEFAULT_TNL_ENCAP_LIMIT;
 	struct flow_offload_tuple_rhash *tuplehash;
 	struct nf_flowtable *flow_table = priv;
 	struct flow_offload_tuple *other_tuple;
@@ -995,7 +1094,8 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 	if (tuplehash == NULL)
 		return NF_ACCEPT;
 
-	ret = nf_flow_offload_ipv6_forward(&ctx, flow_table, tuplehash, skb);
+	ret = nf_flow_offload_ipv6_forward(&ctx, flow_table, tuplehash, skb,
+					   encap_limit);
 	if (ret < 0)
 		return NF_DROP;
 	else if (ret == 0)
@@ -1013,6 +1113,10 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
 	other_tuple = &flow->tuplehash[!dir].tuple;
 	ip6_daddr = &other_tuple->src_v6;
+
+	if (nf_flow_tunnel_v6_push(state->net, skb, other_tuple,
+				   &ip6_daddr, encap_limit) < 0)
+		return NF_DROP;
 
 	if (nf_flow_encap_push(skb, other_tuple) < 0)
 		return NF_DROP;
