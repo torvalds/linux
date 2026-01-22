@@ -12,6 +12,7 @@ use kernel::{
 use crate::{
     driver::Bar0,
     falcon::{
+        hal::LoadMethod,
         Falcon,
         FalconBromParams,
         FalconEngine,
@@ -150,5 +151,9 @@ impl<E: FalconEngine> FalconHal<E> for Ga102<E> {
         self.reset_wait_mem_scrubbing(bar)?;
 
         Ok(())
+    }
+
+    fn load_method(&self) -> LoadMethod {
+        LoadMethod::Dma
     }
 }

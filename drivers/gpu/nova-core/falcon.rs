@@ -23,6 +23,7 @@ use kernel::{
 use crate::{
     dma::DmaObject,
     driver::Bar0,
+    falcon::hal::LoadMethod,
     gpu::Chipset,
     num::{
         FromSafeCast,
@@ -514,7 +515,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Perform a DMA load into `IMEM` and `DMEM` of `fw`, and prepare the falcon to run it.
-    pub(crate) fn dma_load<F: FalconFirmware<Target = E>>(&self, bar: &Bar0, fw: &F) -> Result {
+    fn dma_load<F: FalconFirmware<Target = E>>(&self, bar: &Bar0, fw: &F) -> Result {
         // The Non-Secure section only exists on firmware used by Turing and GA100, and
         // those platforms do not use DMA.
         if fw.imem_ns_load_params().is_some() {
@@ -637,6 +638,14 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Returns `true` if the RISC-V core is active, `false` otherwise.
     pub(crate) fn is_riscv_active(&self, bar: &Bar0) -> bool {
         self.hal.is_riscv_active(bar)
+    }
+
+    // Load a firmware image into Falcon memory
+    pub(crate) fn load<F: FalconFirmware<Target = E>>(&self, bar: &Bar0, fw: &F) -> Result {
+        match self.hal.load_method() {
+            LoadMethod::Dma => self.dma_load(bar, fw),
+            LoadMethod::Pio => Err(ENOTSUPP),
+        }
     }
 
     /// Write the application version to the OS register.
