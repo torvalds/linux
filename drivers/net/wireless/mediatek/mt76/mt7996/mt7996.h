@@ -31,6 +31,8 @@
 #define MT7996_RX_MCU_RING_SIZE_WA	1024
 #define MT7996_NPU_TX_RING_SIZE		1024
 #define MT7996_NPU_RX_RING_SIZE		1024
+#define MT7996_NPU_TXD_SIZE		3
+
 /* scatter-gather of mcu event is not supported in connac3 */
 #define MT7996_RX_MCU_BUF_SIZE		(2048 + \
 					 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
@@ -475,6 +477,8 @@ struct mt7996_dev {
 		struct list_head page_cache;
 		struct list_head page_map[MT7996_RRO_MSDU_PG_HASH_SIZE];
 	} wed_rro;
+
+	dma_addr_t npu_txd_addr[2 * MT7996_NPU_TXD_SIZE];
 
 	bool ibf;
 	u8 fw_debug_wm;

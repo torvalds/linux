@@ -344,12 +344,14 @@ static int mt7996_npu_txd_init(struct mt7996_dev *dev, struct airoha_npu *npu)
 		MT_BAND0,
 		is_mt7996(&dev->mt76) ? MT_BAND2 : MT_BAND1,
 	};
-	int i;
+	int i, index = 0;
+
+	BUILD_BUG_ON(ARRAY_SIZE(band_list) * 3 !=
+		     ARRAY_SIZE(dev->npu_txd_addr));
 
 	for (i = 0; i < ARRAY_SIZE(band_list); i++) {
 		int err, band = band_list[i], phy_id;
-		dma_addr_t dma_addr;
-		u32 val, size;
+		u32 val;
 
 		err = mt76_npu_get_msg(npu, band + 5,
 				       WLAN_FUNC_GET_WAIT_RXDESC_BASE,
@@ -364,43 +366,29 @@ static int mt7996_npu_txd_init(struct mt7996_dev *dev, struct airoha_npu *npu)
 					       : band;
 		writel(val, &dev->mt76.phys[phy_id]->q_tx[0]->regs->desc_base);
 
-		size = is_mt7996(&dev->mt76) ? band == MT_BAND2
-					     ? MT7996_NPU_TX_RING_SIZE
-					     : MT7996_NPU_RX_RING_SIZE / 2
-					     : MT7996_TX_RING_SIZE;
-		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * size,
-					 &dma_addr, GFP_KERNEL))
-			return -ENOMEM;
-
 		err = mt76_npu_send_msg(npu, band,
 					WLAN_FUNC_SET_WAIT_TX_BUF_SPACE_HW_BASE,
-					dma_addr, GFP_KERNEL);
+					dev->npu_txd_addr[index++], GFP_KERNEL);
 		if (err) {
 			dev_warn(dev->mt76.dev,
 				 "failed setting NPU wlan queue buf addr\n");
 			return err;
 		}
 
-		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * size,
-					 &dma_addr, GFP_KERNEL))
-			return -ENOMEM;
-
 		err = mt76_npu_send_msg(npu, band + 5,
 					WLAN_FUNC_SET_WAIT_TX_BUF_SPACE_HW_BASE,
-					dma_addr, GFP_KERNEL);
+					dev->npu_txd_addr[index++],
+					GFP_KERNEL);
 		if (err) {
 			dev_warn(dev->mt76.dev,
 				 "failed setting NPU wlan tx buf addr\n");
 			return err;
 		}
 
-		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * 1024,
-					 &dma_addr, GFP_KERNEL))
-			return -ENOMEM;
-
 		err = mt76_npu_send_msg(npu, band + 10,
 					WLAN_FUNC_SET_WAIT_TX_BUF_SPACE_HW_BASE,
-					dma_addr, GFP_KERNEL);
+					dev->npu_txd_addr[index++],
+					GFP_KERNEL);
 		if (err) {
 			dev_warn(dev->mt76.dev,
 				 "failed setting NPU wlan tx buf base\n");
@@ -570,7 +558,31 @@ int __mt7996_npu_hw_init(struct mt7996_dev *dev)
 
 int mt7996_npu_hw_init(struct mt7996_dev *dev)
 {
-	int err;
+	int i, err;
+
+	BUILD_BUG_ON(ARRAY_SIZE(dev->npu_txd_addr) % 3);
+
+	for (i = 0; i < ARRAY_SIZE(dev->npu_txd_addr); i += 3) {
+		int band = i && is_mt7996(&dev->mt76) ? MT_BAND2 : MT_BAND0;
+		u32 size = is_mt7996(&dev->mt76) ? band == MT_BAND2
+						 ? MT7996_NPU_TX_RING_SIZE
+						 : MT7996_NPU_RX_RING_SIZE / 2
+						 : MT7996_TX_RING_SIZE;
+
+		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * size,
+					 &dev->npu_txd_addr[i], GFP_KERNEL))
+			return -ENOMEM;
+
+		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * size,
+					 &dev->npu_txd_addr[i + 1],
+					 GFP_KERNEL))
+			return -ENOMEM;
+
+		if (!dmam_alloc_coherent(dev->mt76.dma_dev, 256 * 1024,
+					 &dev->npu_txd_addr[i + 2],
+					 GFP_KERNEL))
+			return -ENOMEM;
+	}
 
 	mutex_lock(&dev->mt76.mutex);
 	err = __mt7996_npu_hw_init(dev);
