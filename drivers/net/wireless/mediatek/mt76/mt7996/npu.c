@@ -8,33 +8,13 @@
 
 #include "mt7996.h"
 
-static int mt7996_npu_offload_init(struct mt7996_dev *dev,
-				   struct airoha_npu *npu)
+static int mt7992_npu_txrx_offload_init(struct mt7996_dev *dev,
+					struct airoha_npu *npu)
 {
+	u32 hif1_ofs = dev->hif2 ? MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0) : 0;
 	phys_addr_t phy_addr = dev->mt76.mmio.phy_addr;
-	u32 val, hif1_ofs = 0, dma_addr;
+	u32 dma_addr;
 	int i, err;
-
-	err = mt76_npu_get_msg(npu, 0, WLAN_FUNC_GET_WAIT_NPU_VERSION,
-			       &val, GFP_KERNEL);
-	if (err) {
-		dev_warn(dev->mt76.dev, "failed getting NPU fw version\n");
-		return err;
-	}
-
-	dev_info(dev->mt76.dev, "NPU version: %0d.%d\n",
-		 (val >> 16) & 0xffff, val & 0xffff);
-
-	err = mt76_npu_send_msg(npu, 0, WLAN_FUNC_SET_WAIT_PCIE_PORT_TYPE,
-				dev->mt76.mmio.npu_type, GFP_KERNEL);
-	if (err) {
-		dev_warn(dev->mt76.dev,
-			 "failed setting NPU wlan PCIe port type\n");
-		return err;
-	}
-
-	if (dev->hif2)
-		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
 
 	for (i = MT_BAND0; i < MT_BAND2; i++) {
 		dma_addr = phy_addr;
@@ -56,7 +36,7 @@ static int mt7996_npu_offload_init(struct mt7996_dev *dev,
 					MT7996_RX_RING_SIZE, GFP_KERNEL);
 		if (err) {
 			dev_warn(dev->mt76.dev,
-				 "failed setting NPU wlan PCIe desc size\n");
+				 "failed setting NPU wlan rx desc size\n");
 			return err;
 		}
 
@@ -97,9 +77,40 @@ static int mt7996_npu_offload_init(struct mt7996_dev *dev,
 				phy_addr + MT_RRO_ACK_SN_CTRL, GFP_KERNEL);
 	if (err) {
 		dev_warn(dev->mt76.dev,
-			 "failed setting NPU wlan rro_ack_sn desc addr\n");
+			 "failed setting NPU wlan tx desc addr\n");
 		return err;
 	}
+
+	return 0;
+}
+
+static int mt7996_npu_offload_init(struct mt7996_dev *dev,
+				   struct airoha_npu *npu)
+{
+	u32 val;
+	int err;
+
+	err = mt76_npu_get_msg(npu, 0, WLAN_FUNC_GET_WAIT_NPU_VERSION,
+			       &val, GFP_KERNEL);
+	if (err) {
+		dev_warn(dev->mt76.dev, "failed getting NPU fw version\n");
+		return err;
+	}
+
+	dev_info(dev->mt76.dev, "NPU version: %0d.%d\n",
+		 (val >> 16) & 0xffff, val & 0xffff);
+
+	err = mt76_npu_send_msg(npu, 0, WLAN_FUNC_SET_WAIT_PCIE_PORT_TYPE,
+				dev->mt76.mmio.npu_type, GFP_KERNEL);
+	if (err) {
+		dev_warn(dev->mt76.dev,
+			 "failed setting NPU wlan PCIe port type\n");
+		return err;
+	}
+
+	err = mt7992_npu_txrx_offload_init(dev, npu);
+	if (err)
+		return err;
 
 	err = mt76_npu_send_msg(npu, 0, WLAN_FUNC_SET_WAIT_TOKEN_ID_SIZE,
 				MT7996_HW_TOKEN_SIZE, GFP_KERNEL);
