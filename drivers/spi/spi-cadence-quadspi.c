@@ -48,6 +48,7 @@ static_assert(CQSPI_MAX_CHIPSELECT <= SPI_DEVICE_CS_CNT_MAX);
 #define CQSPI_DISABLE_STIG_MODE		BIT(9)
 #define CQSPI_DISABLE_RUNTIME_PM	BIT(10)
 #define CQSPI_NO_INDIRECT_MODE		BIT(11)
+#define CQSPI_HAS_WR_PROTECT		BIT(12)
 
 /* Capabilities */
 #define CQSPI_SUPPORTS_OCTAL		BIT(0)
@@ -219,6 +220,8 @@ struct cqspi_driver_platdata {
 
 #define CQSPI_REG_IRQSTATUS			0x40
 #define CQSPI_REG_IRQMASK			0x44
+
+#define CQSPI_REG_WR_PROT_CTRL			0x58
 
 #define CQSPI_REG_INDIRECTRD			0x60
 #define CQSPI_REG_INDIRECTRD_START_MASK		BIT(0)
@@ -1642,6 +1645,10 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 		writel(cqspi->fifo_depth * cqspi->fifo_width / 8,
 		       cqspi->iobase + CQSPI_REG_INDIRECTWRWATERMARK);
 	}
+
+	/* Disable write protection at controller level */
+	if (cqspi->ddata && cqspi->ddata->quirks & CQSPI_HAS_WR_PROTECT)
+		writel(0, cqspi->iobase + CQSPI_REG_WR_PROT_CTRL);
 
 	/* Disable direct access controller */
 	if (!cqspi->use_direct_mode) {
