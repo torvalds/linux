@@ -5,7 +5,6 @@ use core::marker::PhantomData;
 use kernel::{
     io::poll::read_poll_timeout,
     prelude::*,
-    time::delay::fsleep,
     time::Delta, //
 };
 
@@ -65,13 +64,7 @@ impl<E: FalconEngine> FalconHal<E> for Tu102<E> {
     }
 
     fn reset_eng(&self, bar: &Bar0) -> Result {
-        regs::NV_PFALCON_FALCON_ENGINE::update(bar, &E::ID, |v| v.set_reset(true));
-
-        // TIMEOUT: falcon engine should not take more than 10us to reset.
-        fsleep(Delta::from_micros(10));
-
-        regs::NV_PFALCON_FALCON_ENGINE::update(bar, &E::ID, |v| v.set_reset(false));
-
+        regs::NV_PFALCON_FALCON_ENGINE::reset_engine::<E>(bar);
         self.reset_wait_mem_scrubbing(bar)?;
 
         Ok(())
