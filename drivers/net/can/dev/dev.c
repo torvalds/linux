@@ -332,6 +332,7 @@ struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 
 	can_ml = (void *)priv + ALIGN(sizeof_priv, NETDEV_ALIGN);
 	can_set_ml_priv(dev, can_ml);
+	can_set_cap(dev, CAN_CAP_CC);
 
 	if (echo_skb_max) {
 		priv->echo_skb_max = echo_skb_max;
