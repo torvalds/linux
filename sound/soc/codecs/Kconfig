@@ -46,7 +46,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AK4554
 	imply SND_SOC_AK4613
 	imply SND_SOC_AK4619
-	imply SND_SOC_AK4641
 	imply SND_SOC_AK4642
 	imply SND_SOC_AK4671
 	imply SND_SOC_AK5386
@@ -623,11 +622,6 @@ config SND_SOC_AK4613
 config SND_SOC_AK4619
         tristate "AKM AK4619 CODEC"
         depends on I2C
-
-config SND_SOC_AK4641
-	tristate
-	depends on I2C
-	depends on GPIOLIB_LEGACY
 
 config SND_SOC_AK4642
 	tristate "AKM AK4642 CODEC"
