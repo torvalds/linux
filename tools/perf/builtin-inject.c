@@ -2729,7 +2729,7 @@ int cmd_inject(int argc, const char **argv)
 		}
 
 		evlist__for_each_entry(inject.session->evlist, evsel) {
-			if (!evsel__has_dwarf_callchain(evsel)) {
+			if (!evsel__has_dwarf_callchain(evsel) && !evsel__is_dummy_event(evsel)) {
 				pr_err("--convert-callchain requires DWARF call graph.\n");
 				goto out_delete;
 			}
