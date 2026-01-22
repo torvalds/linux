@@ -6383,6 +6383,7 @@ F:	include/linux/console*
 CONTAINER BUILD SCRIPT
 M:	Guillaume Tucker <gtucker@gtucker.io>
 S:	Maintained
+F:	Documentation/dev-tools/container.rst
 F:	scripts/container
 
 CONTEXT TRACKING
