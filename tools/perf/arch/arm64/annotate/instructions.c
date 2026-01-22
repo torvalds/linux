@@ -63,15 +63,15 @@ out_free_source:
 static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
 			  struct ins_operands *ops, int max_ins_name);
 
-static struct ins_ops arm64_mov_ops = {
+static const struct ins_ops arm64_mov_ops = {
 	.parse	   = arm64_mov__parse,
 	.scnprintf = mov__scnprintf,
 };
 
-static struct ins_ops *arm64__associate_instruction_ops(struct arch *arch, const char *name)
+static const struct ins_ops *arm64__associate_instruction_ops(struct arch *arch, const char *name)
 {
 	struct arm64_annotate *arm = arch->priv;
-	struct ins_ops *ops;
+	const struct ins_ops *ops;
 	regmatch_t match[2];
 
 	if (!regexec(&arm->jump_insn, name, 2, match, 0))

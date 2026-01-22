@@ -49,7 +49,7 @@ static int s390_call__parse(const struct arch *arch, struct ins_operands *ops,
 	return 0;
 }
 
-static struct ins_ops s390_call_ops = {
+static const struct ins_ops s390_call_ops = {
 	.parse	   = s390_call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -103,14 +103,14 @@ out_free_source:
 }
 
 
-static struct ins_ops s390_mov_ops = {
+static const struct ins_ops s390_mov_ops = {
 	.parse	   = s390_mov__parse,
 	.scnprintf = mov__scnprintf,
 };
 
-static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *name)
+static const struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *name)
 {
-	struct ins_ops *ops = NULL;
+	const struct ins_ops *ops = NULL;
 
 	/* catch all kind of jumps */
 	if (strchr(name, 'j') ||

@@ -51,7 +51,7 @@ static int loongarch_call__parse(const struct arch *arch, struct ins_operands *o
 	return 0;
 }
 
-static struct ins_ops loongarch_call_ops = {
+static const struct ins_ops loongarch_call_ops = {
 	.parse	   = loongarch_call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -100,15 +100,15 @@ static int loongarch_jump__parse(const struct arch *arch, struct ins_operands *o
 	return 0;
 }
 
-static struct ins_ops loongarch_jump_ops = {
+static const struct ins_ops loongarch_jump_ops = {
 	.parse	   = loongarch_jump__parse,
 	.scnprintf = jump__scnprintf,
 };
 
 static
-struct ins_ops *loongarch__associate_ins_ops(struct arch *arch, const char *name)
+const struct ins_ops *loongarch__associate_ins_ops(struct arch *arch, const char *name)
 {
-	struct ins_ops *ops = NULL;
+	const struct ins_ops *ops = NULL;
 
 	if (!strcmp(name, "bl"))
 		ops = &loongarch_call_ops;

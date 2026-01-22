@@ -11,10 +11,10 @@ struct arm_annotate {
 		jump_insn;
 };
 
-static struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const char *name)
+static const struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const char *name)
 {
 	struct arm_annotate *arm = arch->priv;
-	struct ins_ops *ops;
+	const struct ins_ops *ops;
 	regmatch_t match[2];
 
 	if (!regexec(&arm->call_insn, name, 2, match, 0))

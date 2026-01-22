@@ -33,15 +33,15 @@
 static regex_t	 file_lineno;
 
 /* These can be referred from the arch-dependent code */
-static struct ins_ops call_ops;
-static struct ins_ops dec_ops;
-static struct ins_ops jump_ops;
-static struct ins_ops mov_ops;
-static struct ins_ops nop_ops;
-static struct ins_ops lock_ops;
-static struct ins_ops ret_ops;
-static struct ins_ops load_store_ops;
-static struct ins_ops arithmetic_ops;
+static const struct ins_ops call_ops;
+static const struct ins_ops dec_ops;
+static const struct ins_ops jump_ops;
+static const struct ins_ops mov_ops;
+static const struct ins_ops nop_ops;
+static const struct ins_ops lock_ops;
+static const struct ins_ops ret_ops;
+static const struct ins_ops load_store_ops;
+static const struct ins_ops arithmetic_ops;
 
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops, int max_ins_name);
@@ -85,7 +85,7 @@ grow_from_non_allocated_table:
 	goto out_update_instructions;
 }
 
-static int arch__associate_ins_ops(struct arch* arch, const char *name, struct ins_ops *ops)
+static int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops)
 {
 	struct ins *ins;
 
@@ -334,7 +334,7 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 	return scnprintf(bf, size, "%-*s *%" PRIx64, max_ins_name, ins->name, ops->target.addr);
 }
 
-static struct ins_ops call_ops = {
+static const struct ins_ops call_ops = {
 	.parse	   = call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -487,7 +487,7 @@ static void jump__delete(struct ins_operands *ops __maybe_unused)
 	 */
 }
 
-static struct ins_ops jump_ops = {
+static const struct ins_ops jump_ops = {
 	.free	   = jump__delete,
 	.parse	   = jump__parse,
 	.scnprintf = jump__scnprintf,
@@ -579,7 +579,7 @@ static void lock__delete(struct ins_operands *ops)
 	zfree(&ops->target.name);
 }
 
-static struct ins_ops lock_ops = {
+static const struct ins_ops lock_ops = {
 	.free	   = lock__delete,
 	.parse	   = lock__parse,
 	.scnprintf = lock__scnprintf,
@@ -688,7 +688,7 @@ static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
 			 ops->target.name ?: ops->target.raw);
 }
 
-static struct ins_ops mov_ops = {
+static const struct ins_ops mov_ops = {
 	.parse	   = mov__parse,
 	.scnprintf = mov__scnprintf,
 };
@@ -738,7 +738,7 @@ static int arithmetic__parse(const struct arch *arch __maybe_unused, struct ins_
 	return 0;
 }
 
-static struct ins_ops arithmetic_ops = {
+static const struct ins_ops arithmetic_ops = {
 	.parse     = arithmetic__parse,
 	.scnprintf = arithmetic__scnprintf,
 };
@@ -772,7 +772,7 @@ static int load_store__parse(const struct arch *arch __maybe_unused, struct ins_
 	return 0;
 }
 
-static struct ins_ops load_store_ops = {
+static const struct ins_ops load_store_ops = {
 	.parse     = load_store__parse,
 	.scnprintf = load_store__scnprintf,
 };
@@ -813,7 +813,7 @@ static int dec__scnprintf(struct ins *ins, char *bf, size_t size,
 			 ops->target.name ?: ops->target.raw);
 }
 
-static struct ins_ops dec_ops = {
+static const struct ins_ops dec_ops = {
 	.parse	   = dec__parse,
 	.scnprintf = dec__scnprintf,
 };
@@ -824,11 +824,11 @@ static int nop__scnprintf(struct ins *ins __maybe_unused, char *bf, size_t size,
 	return scnprintf(bf, size, "%-*s", max_ins_name, "nop");
 }
 
-static struct ins_ops nop_ops = {
+static const struct ins_ops nop_ops = {
 	.scnprintf = nop__scnprintf,
 };
 
-static struct ins_ops ret_ops = {
+static const struct ins_ops ret_ops = {
 	.scnprintf = ins__raw_scnprintf,
 };
 
@@ -869,7 +869,7 @@ static void ins__sort(struct arch *arch)
 	qsort(arch->instructions, nmemb, sizeof(struct ins), ins__cmp);
 }
 
-static struct ins_ops *__ins__find(const struct arch *arch, const char *name,
+static const struct ins_ops *__ins__find(const struct arch *arch, const char *name,
 				     struct disasm_line *dl)
 {
 	struct ins *ins;
@@ -880,7 +880,7 @@ static struct ins_ops *__ins__find(const struct arch *arch, const char *name,
 		 * For powerpc, identify the instruction ops
 		 * from the opcode using raw_insn.
 		 */
-		struct ins_ops *ops;
+		const struct ins_ops *ops;
 
 		ops = check_ppc_insn(dl);
 		if (ops)
@@ -916,9 +916,9 @@ static struct ins_ops *__ins__find(const struct arch *arch, const char *name,
 	return ins ? ins->ops : NULL;
 }
 
-struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl)
+const struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl)
 {
-	struct ins_ops *ops = __ins__find(arch, name, dl);
+	const struct ins_ops *ops = __ins__find(arch, name, dl);
 
 	if (!ops && arch->associate_instruction_ops)
 		ops = arch->associate_instruction_ops((struct arch *)arch, name);

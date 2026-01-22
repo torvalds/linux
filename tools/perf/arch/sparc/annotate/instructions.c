@@ -117,9 +117,9 @@ static int is_branch_float_cond(const char *cond)
 	return 0;
 }
 
-static struct ins_ops *sparc__associate_instruction_ops(struct arch *arch, const char *name)
+static const struct ins_ops *sparc__associate_instruction_ops(struct arch *arch, const char *name)
 {
-	struct ins_ops *ops = NULL;
+	const struct ins_ops *ops = NULL;
 
 	if (!strcmp(name, "call") ||
 	    !strcmp(name, "jmp") ||

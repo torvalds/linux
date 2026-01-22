@@ -22,7 +22,7 @@ struct arch {
 	struct ins	*instructions;
 	size_t		nr_instructions;
 	size_t		nr_instructions_allocated;
-	struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
+	const struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 	bool		sorted_instructions;
 	bool		initialized;
 	const char	*insn_suffix;
@@ -52,7 +52,7 @@ struct arch {
 
 struct ins {
 	const char     *name;
-	struct ins_ops *ops;
+	const struct ins_ops *ops;
 };
 
 struct ins_operands {
@@ -108,7 +108,7 @@ struct annotate_args {
 const struct arch *arch__find(const char *name);
 bool arch__is(const struct arch *arch, const char *name);
 
-struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
+const struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
 
 bool ins__is_call(const struct ins *ins);
 bool ins__is_jump(const struct ins *ins);

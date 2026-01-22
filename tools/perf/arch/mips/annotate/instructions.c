@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
 static
-struct ins_ops *mips__associate_ins_ops(struct arch *arch, const char *name)
+const struct ins_ops *mips__associate_ins_ops(struct arch *arch, const char *name)
 {
-	struct ins_ops *ops = NULL;
+	const struct ins_ops *ops = NULL;
 
 	if (!strncmp(name, "bal", 3) ||
 	    !strncmp(name, "bgezal", 6) ||

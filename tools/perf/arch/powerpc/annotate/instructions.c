@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 
-static struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, const char *name)
+static const struct ins_ops *powerpc__associate_instruction_ops(struct arch *arch, const char *name)
 {
 	int i;
-	struct ins_ops *ops;
+	const struct ins_ops *ops;
 
 	/*
 	 * - Interested only if instruction starts with 'b'.
@@ -189,7 +189,7 @@ static int cmp_offset(const void *a, const void *b)
 	return (val1->value - val2->value);
 }
 
-static struct ins_ops *check_ppc_insn(struct disasm_line *dl)
+static const struct ins_ops *check_ppc_insn(struct disasm_line *dl)
 {
 	int raw_insn = dl->raw.raw_insn;
 	int opcode = PPC_OP(raw_insn);

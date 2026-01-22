@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
 static
-struct ins_ops *riscv64__associate_ins_ops(struct arch *arch, const char *name)
+const struct ins_ops *riscv64__associate_ins_ops(struct arch *arch, const char *name)
 {
-	struct ins_ops *ops = NULL;
+	const struct ins_ops *ops = NULL;
 
 	if (!strncmp(name, "jal", 3) ||
 	    !strncmp(name, "jr", 2) ||
