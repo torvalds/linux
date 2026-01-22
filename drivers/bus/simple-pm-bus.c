@@ -142,6 +142,12 @@ static const struct of_device_id simple_pm_bus_of_match[] = {
 	{ .compatible = "simple-mfd",	.data = ONLY_BUS },
 	{ .compatible = "isa",		.data = ONLY_BUS },
 	{ .compatible = "arm,amba-bus",	.data = ONLY_BUS },
+	{ .compatible = "fsl,ls1021a-scfg", },
+	{ .compatible = "fsl,ls1043a-scfg", },
+	{ .compatible = "fsl,ls1046a-scfg", },
+	{ .compatible = "fsl,ls1088a-isc", },
+	{ .compatible = "fsl,ls2080a-isc", },
+	{ .compatible = "fsl,lx2160a-isc", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, simple_pm_bus_of_match);
