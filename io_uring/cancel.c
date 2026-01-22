@@ -19,6 +19,7 @@
 #include "waitid.h"
 #include "futex.h"
 #include "cancel.h"
+#include "wait.h"
 
 struct io_cancel {
 	struct file			*file;

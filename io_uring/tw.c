@@ -13,6 +13,7 @@
 #include "poll.h"
 #include "rw.h"
 #include "eventfd.h"
+#include "wait.h"
 
 void io_fallback_req_func(struct work_struct *work)
 {

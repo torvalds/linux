@@ -9,14 +9,6 @@
 #define IO_LOCAL_TW_DEFAULT_MAX		20
 
 /*
- * No waiters. It's larger than any valid value of the tw counter
- * so that tests against ->cq_wait_nr would fail and skip wake_up().
- */
-#define IO_CQ_WAKE_INIT		(-1U)
-/* Forced wake up if there is a waiter regardless of ->cq_wait_nr */
-#define IO_CQ_WAKE_FORCE	(IO_CQ_WAKE_INIT >> 1)
-
-/*
  * Terminate the request if either of these conditions are true:
  *
  * 1) It's being executed by the original task, but that task is marked
