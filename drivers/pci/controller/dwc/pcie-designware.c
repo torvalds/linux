@@ -268,9 +268,10 @@ void dw_pcie_remove_ext_capability(struct dw_pcie *pci, u8 cap)
 		return;
 
 	header = dw_pcie_readl_dbi(pci, cap_pos);
+
 	/*
 	 * If the first cap at offset PCI_CFG_SPACE_SIZE is removed,
-	 * only set it's capid to zero as it cannot be skipped.
+	 * only set its capid to zero as it cannot be skipped.
 	 */
 	if (cap_pos == PCI_CFG_SPACE_SIZE) {
 		dw_pcie_dbi_ro_wr_en(pci);
