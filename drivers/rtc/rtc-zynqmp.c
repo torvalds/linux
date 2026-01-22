@@ -44,8 +44,6 @@
 #define RTC_FR_MASK		0xF0000
 #define RTC_FR_MAX_TICKS	16
 #define RTC_PPB			1000000000
-#define RTC_MIN_OFFSET		-32768000
-#define RTC_MAX_OFFSET		32767000
 
 struct xlnx_rtc_dev {
 	struct rtc_device	*rtc;
@@ -215,11 +213,12 @@ static int xlnx_rtc_set_offset(struct device *dev, long offset)
 
 	/* Tick to offset multiplier */
 	tick_mult = DIV_ROUND_CLOSEST(RTC_PPB, freq);
-	if (offset < RTC_MIN_OFFSET || offset > RTC_MAX_OFFSET)
-		return -ERANGE;
 
 	/* Number ticks for given offset */
 	max_tick = div_s64_rem(offset, tick_mult, &fract_offset);
+
+	if (freq + max_tick > RTC_TICK_MASK || (freq + max_tick < 1))
+		return -ERANGE;
 
 	/* Number fractional ticks for given offset */
 	if (fract_offset) {
