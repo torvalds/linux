@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <string.h>
+#include <linux/compiler.h>
+#include "../../util/disasm.h"
 
 static int is_branch_cond(const char *cond)
 {
@@ -157,14 +160,12 @@ static const struct ins_ops *sparc__associate_instruction_ops(struct arch *arch,
 	return ops;
 }
 
-static int sparc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int sparc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->initialized = true;
 		arch->associate_instruction_ops = sparc__associate_instruction_ops;
 		arch->objdump.comment_char = '#';
-		arch->e_machine = EM_SPARC;
-		arch->e_flags = 0;
 	}
 
 	return 0;

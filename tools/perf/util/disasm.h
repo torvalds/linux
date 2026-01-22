@@ -109,6 +109,28 @@ const struct arch *arch__find(const char *name);
 bool arch__is_x86(const struct arch *arch);
 bool arch__is_powerpc(const struct arch *arch);
 
+extern const struct ins_ops call_ops;
+extern const struct ins_ops dec_ops;
+extern const struct ins_ops jump_ops;
+extern const struct ins_ops mov_ops;
+extern const struct ins_ops nop_ops;
+extern const struct ins_ops lock_ops;
+extern const struct ins_ops ret_ops;
+
+int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops);
+
+int arc__annotate_init(struct arch *arch, char *cpuid);
+int arm__annotate_init(struct arch *arch, char *cpuid);
+int arm64__annotate_init(struct arch *arch, char *cpuid);
+int csky__annotate_init(struct arch *arch, char *cpuid);
+int loongarch__annotate_init(struct arch *arch, char *cpuid);
+int mips__annotate_init(struct arch *arch, char *cpuid);
+int powerpc__annotate_init(struct arch *arch, char *cpuid);
+int riscv64__annotate_init(struct arch *arch, char *cpuid);
+int s390__annotate_init(struct arch *arch, char *cpuid);
+int sparc__annotate_init(struct arch *arch, char *cpuid);
+int x86__annotate_init(struct arch *arch, char *cpuid);
+
 const struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
 
 bool ins__is_call(const struct ins *ins);
@@ -117,11 +139,27 @@ bool ins__is_fused(const struct arch *arch, const char *ins1, const char *ins2);
 bool ins__is_ret(const struct ins *ins);
 bool ins__is_lock(const struct ins *ins);
 
+extern const struct ins_ops s390_call_ops;
+extern const struct ins_ops loongarch_call_ops;
+extern const struct ins_ops loongarch_jump_ops;
+const struct ins_ops *check_ppc_insn(struct disasm_line *dl);
+
 struct disasm_line *disasm_line__new(struct annotate_args *args);
 void disasm_line__free(struct disasm_line *dl);
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size,
 			   bool raw, int max_ins_name);
+
+int ins__raw_scnprintf(const struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops, int max_ins_name);
+int ins__scnprintf(const struct ins *ins, char *bf, size_t size,
+		   struct ins_operands *ops, int max_ins_name);
+int call__scnprintf(const struct ins *ins, char *bf, size_t size,
+		    struct ins_operands *ops, int max_ins_name);
+int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
+		    struct ins_operands *ops, int max_ins_name);
+int mov__scnprintf(const struct ins *ins, char *bf, size_t size,
+		   struct ins_operands *ops, int max_ins_name);
 
 int symbol__disassemble(struct symbol *sym, struct annotate_args *args);
 

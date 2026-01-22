@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <stdlib.h>
 #include <linux/compiler.h>
 #include <linux/zalloc.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <regex.h>
-#include <stdlib.h>
+#include "../annotate.h"
+#include "../disasm.h"
 
 struct arm_annotate {
 	regex_t call_insn,
@@ -28,7 +29,7 @@ static const struct ins_ops *arm__associate_instruction_ops(struct arch *arch, c
 	return ops;
 }
 
-static int arm__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int arm__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	struct arm_annotate *arm;
 	int err;
@@ -54,8 +55,6 @@ static int arm__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 	arch->associate_instruction_ops   = arm__associate_instruction_ops;
 	arch->objdump.comment_char	  = ';';
 	arch->objdump.skip_functions_char = '+';
-	arch->e_machine = EM_ARM;
-	arch->e_flags = 0;
 	return 0;
 
 out_free_call:

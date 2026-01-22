@@ -4,11 +4,17 @@
  *
  * Copyright (C) 2020-2023 Loongson Technology Corporation Limited
  */
+#include <stdlib.h>
+#include <string.h>
+#include <linux/compiler.h>
+#include "../disasm.h"
+#include "../map.h"
+#include "../maps.h"
+#include "../symbol.h"
 
 static int loongarch_call__parse(const struct arch *arch, struct ins_operands *ops,
 				 struct map_symbol *ms,
 				 struct disasm_line *dl __maybe_unused)
-
 {
 	char *c, *endptr, *tok, *name;
 	struct map *map = ms->map;
@@ -51,7 +57,7 @@ static int loongarch_call__parse(const struct arch *arch, struct ins_operands *o
 	return 0;
 }
 
-static const struct ins_ops loongarch_call_ops = {
+const struct ins_ops loongarch_call_ops = {
 	.parse	   = loongarch_call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -100,7 +106,7 @@ static int loongarch_jump__parse(const struct arch *arch, struct ins_operands *o
 	return 0;
 }
 
-static const struct ins_ops loongarch_jump_ops = {
+const struct ins_ops loongarch_jump_ops = {
 	.parse	   = loongarch_jump__parse,
 	.scnprintf = jump__scnprintf,
 };
@@ -130,15 +136,12 @@ const struct ins_ops *loongarch__associate_ins_ops(struct arch *arch, const char
 	return ops;
 }
 
-static
 int loongarch__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	if (!arch->initialized) {
 		arch->associate_instruction_ops = loongarch__associate_ins_ops;
 		arch->initialized = true;
 		arch->objdump.comment_char = '#';
-		arch->e_machine = EM_LOONGARCH;
-		arch->e_flags = 0;
 	}
 
 	return 0;

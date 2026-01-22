@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2019 Hangzhou C-SKY Microsystems co.,ltd.
-
+#include <string.h>
 #include <linux/compiler.h>
+#include "../disasm.h"
 
 static const struct ins_ops *csky__associate_ins_ops(struct arch *arch,
 						     const char *name)
@@ -38,16 +39,10 @@ static const struct ins_ops *csky__associate_ins_ops(struct arch *arch,
 	return ops;
 }
 
-static int csky__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int csky__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	arch->initialized = true;
 	arch->objdump.comment_char = '/';
 	arch->associate_instruction_ops = csky__associate_ins_ops;
-	arch->e_machine = EM_CSKY;
-#if defined(__CSKYABIV2__)
-	arch->e_flags = EF_CSKY_ABIV2;
-#else
-	arch->e_flags = EF_CSKY_ABIV1;
-#endif
 	return 0;
 }

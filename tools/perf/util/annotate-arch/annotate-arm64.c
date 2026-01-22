@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <regex.h>
 #include <stdlib.h>
+#include <string.h>
+#include <linux/zalloc.h>
+#include <regex.h>
+#include "../annotate.h"
+#include "../disasm.h"
 
 struct arm64_annotate {
 	regex_t call_insn,
@@ -60,9 +63,6 @@ out_free_source:
 	return -1;
 }
 
-static int mov__scnprintf(const struct ins *ins, char *bf, size_t size,
-			  struct ins_operands *ops, int max_ins_name);
-
 static const struct ins_ops arm64_mov_ops = {
 	.parse	   = arm64_mov__parse,
 	.scnprintf = mov__scnprintf,
@@ -87,7 +87,7 @@ static const struct ins_ops *arm64__associate_instruction_ops(struct arch *arch,
 	return ops;
 }
 
-static int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	struct arm64_annotate *arm;
 	int err;
@@ -114,8 +114,6 @@ static int arm64__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 	arch->associate_instruction_ops   = arm64__associate_instruction_ops;
 	arch->objdump.comment_char	  = '/';
 	arch->objdump.skip_functions_char = '+';
-	arch->e_machine = EM_AARCH64;
-	arch->e_flags = 0;
 	return 0;
 
 out_free_call:

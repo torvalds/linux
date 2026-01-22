@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <string.h>
 #include <linux/compiler.h>
+#include "../debug.h"
+#include "../disasm.h"
+#include "../map.h"
+#include "../maps.h"
+#include "../symbol.h"
+#include "../annotate.h"
+#include "../annotate-data.h"
 
 static int s390_call__parse(const struct arch *arch, struct ins_operands *ops,
 			    struct map_symbol *ms,
@@ -49,7 +57,7 @@ static int s390_call__parse(const struct arch *arch, struct ins_operands *ops,
 	return 0;
 }
 
-static const struct ins_ops s390_call_ops = {
+const struct ins_ops s390_call_ops = {
 	.parse	   = s390_call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -159,7 +167,7 @@ static int s390__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 {
 	int err = 0;
 
@@ -170,8 +178,7 @@ static int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
 			if (s390__cpuid_parse(arch, cpuid))
 				err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
 		}
-		arch->e_machine = EM_S390;
-		arch->e_flags = 0;
+		arch->objdump.comment_char = '#';
 	}
 
 	return err;

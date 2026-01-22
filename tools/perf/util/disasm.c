@@ -33,20 +33,15 @@
 static regex_t	 file_lineno;
 
 /* These can be referred from the arch-dependent code */
-static const struct ins_ops call_ops;
-static const struct ins_ops dec_ops;
-static const struct ins_ops jump_ops;
-static const struct ins_ops mov_ops;
-static const struct ins_ops nop_ops;
-static const struct ins_ops lock_ops;
-static const struct ins_ops ret_ops;
-static const struct ins_ops load_store_ops;
-static const struct ins_ops arithmetic_ops;
-
-static int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name);
-static int call__scnprintf(const struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name);
+const struct ins_ops call_ops;
+const struct ins_ops dec_ops;
+const struct ins_ops jump_ops;
+const struct ins_ops mov_ops;
+const struct ins_ops nop_ops;
+const struct ins_ops lock_ops;
+const struct ins_ops ret_ops;
+const struct ins_ops load_store_ops;
+const struct ins_ops arithmetic_ops;
 
 static void ins__sort(struct arch *arch);
 static int disasm_line__parse(char *line, const char **namep, char **rawp);
@@ -86,7 +81,7 @@ grow_from_non_allocated_table:
 	goto out_update_instructions;
 }
 
-static int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops)
+int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops)
 {
 	struct ins *ins;
 
@@ -106,90 +101,66 @@ static int arch__associate_ins_ops(struct arch *arch, const char *name, const st
 	return 0;
 }
 
-#include "arch/arc/annotate/instructions.c"
-#include "arch/arm/annotate/instructions.c"
-#include "arch/arm64/annotate/instructions.c"
-#include "arch/csky/annotate/instructions.c"
-#include "arch/loongarch/annotate/instructions.c"
-#include "arch/mips/annotate/instructions.c"
-#include "arch/x86/annotate/instructions.c"
-#include "arch/powerpc/annotate/instructions.c"
-#include "arch/riscv64/annotate/instructions.c"
-#include "arch/s390/annotate/instructions.c"
-#include "arch/sparc/annotate/instructions.c"
-
 static struct arch architectures[] = {
 	{
 		.name = "arc",
 		.init = arc__annotate_init,
+		.e_machine = EM_ARC,
 	},
 	{
 		.name = "arm",
 		.init = arm__annotate_init,
+		.e_machine = EM_ARM,
 	},
 	{
 		.name = "arm64",
 		.init = arm64__annotate_init,
+		.e_machine = EM_AARCH64,
 	},
 	{
 		.name = "csky",
 		.init = csky__annotate_init,
+		.e_machine = EM_CSKY,
+#if defined(__CSKYABIV2__)
+		.e_flags = EF_CSKY_ABIV2,
+#else
+		.e_flags = EF_CSKY_ABIV1,
+#endif
 	},
 	{
 		.name = "mips",
 		.init = mips__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
+		.e_machine = EM_MIPS,
 	},
 	{
 		.name = "x86",
 		.init = x86__annotate_init,
-		.instructions = x86__instructions,
-		.nr_instructions = ARRAY_SIZE(x86__instructions),
-		.sorted_instructions = true,
-		.insn_suffix = "bwlq",
-		.objdump =  {
-			.comment_char = '#',
-			.register_char = '%',
-			.memory_ref_char = '(',
-			.imm_char = '$',
-		},
-#ifdef HAVE_LIBDW_SUPPORT
-		.update_insn_state = update_insn_state_x86,
-#endif
+		.e_machine = EM_X86_64, // TODO: EM_386 too.
 	},
 	{
 		.name = "powerpc",
 		.init = powerpc__annotate_init,
-#ifdef HAVE_LIBDW_SUPPORT
-		.update_insn_state = update_insn_state_powerpc,
-#endif
+		.e_machine = EM_PPC, // TODO: EM_PPC64 too.
 	},
 	{
 		.name = "riscv64",
 		.init = riscv64__annotate_init,
+		.e_machine = EM_RISCV,
 	},
 	{
 		.name = "s390",
 		.init = s390__annotate_init,
-		.objdump =  {
-			.comment_char = '#',
-		},
+		.e_machine = EM_S390,
 	},
 	{
 		.name = "sparc",
 		.init = sparc__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
+		.e_machine = EM_SPARC,
 	},
 	{
 		.name = "loongarch",
 		.init = loongarch__annotate_init,
-		.objdump = {
-			.comment_char = '#',
-		},
+		.e_machine = EM_LOONGARCH,
 	},
 };
 
@@ -248,14 +219,14 @@ static void ins_ops__delete(struct ins_operands *ops)
 	zfree(&ops->target.name);
 }
 
-static int ins__raw_scnprintf(const struct ins *ins, char *bf, size_t size,
-			      struct ins_operands *ops, int max_ins_name)
+int ins__raw_scnprintf(const struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops, int max_ins_name)
 {
 	return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->raw);
 }
 
-static int ins__scnprintf(const struct ins *ins, char *bf, size_t size,
-			  struct ins_operands *ops, int max_ins_name)
+int ins__scnprintf(const struct ins *ins, char *bf, size_t size,
+		   struct ins_operands *ops, int max_ins_name)
 {
 	if (ins->ops->scnprintf)
 		return ins->ops->scnprintf(ins, bf, size, ops, max_ins_name);
@@ -326,8 +297,8 @@ indirect_call:
 	goto find_target;
 }
 
-static int call__scnprintf(const struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
+int call__scnprintf(const struct ins *ins, char *bf, size_t size,
+		      struct ins_operands *ops, int max_ins_name)
 {
 	if (ops->target.sym)
 		return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name, ops->target.sym->name);
@@ -341,7 +312,7 @@ static int call__scnprintf(const struct ins *ins, char *bf, size_t size,
 	return scnprintf(bf, size, "%-*s *%" PRIx64, max_ins_name, ins->name, ops->target.addr);
 }
 
-static const struct ins_ops call_ops = {
+const struct ins_ops call_ops = {
 	.parse	   = call__parse,
 	.scnprintf = call__scnprintf,
 };
@@ -453,8 +424,8 @@ static int jump__parse(const struct arch *arch, struct ins_operands *ops, struct
 	return 0;
 }
 
-static int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
+int jump__scnprintf(const struct ins *ins, char *bf, size_t size,
+		      struct ins_operands *ops, int max_ins_name)
 {
 	const char *c;
 
@@ -494,7 +465,7 @@ static void jump__delete(struct ins_operands *ops __maybe_unused)
 	 */
 }
 
-static const struct ins_ops jump_ops = {
+const struct ins_ops jump_ops = {
 	.free	   = jump__delete,
 	.parse	   = jump__parse,
 	.scnprintf = jump__scnprintf,
@@ -586,7 +557,7 @@ static void lock__delete(struct ins_operands *ops)
 	zfree(&ops->target.name);
 }
 
-static const struct ins_ops lock_ops = {
+const struct ins_ops lock_ops = {
 	.free	   = lock__delete,
 	.parse	   = lock__parse,
 	.scnprintf = lock__scnprintf,
@@ -687,101 +658,17 @@ out_free_source:
 	return -1;
 }
 
-static int mov__scnprintf(const struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, int max_ins_name)
+int mov__scnprintf(const struct ins *ins, char *bf, size_t size,
+		     struct ins_operands *ops, int max_ins_name)
 {
 	return scnprintf(bf, size, "%-*s %s,%s", max_ins_name, ins->name,
 			 ops->source.name ?: ops->source.raw,
 			 ops->target.name ?: ops->target.raw);
 }
 
-static const struct ins_ops mov_ops = {
+const struct ins_ops mov_ops = {
 	.parse	   = mov__parse,
 	.scnprintf = mov__scnprintf,
-};
-
-#define PPC_22_30(R)    (((R) >> 1) & 0x1ff)
-#define MINUS_EXT_XO_FORM	234
-#define SUB_EXT_XO_FORM		232
-#define	ADD_ZERO_EXT_XO_FORM	202
-#define	SUB_ZERO_EXT_XO_FORM	200
-
-static int arithmetic__scnprintf(const struct ins *ins, char *bf, size_t size,
-		struct ins_operands *ops, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name,
-			ops->raw);
-}
-
-/*
- * Sets the fields: multi_regs and "mem_ref".
- * "mem_ref" is set for ops->source which is later used to
- * fill the objdump->memory_ref-char field. This ops is currently
- * used by powerpc and since binary instruction code is used to
- * extract opcode, regs and offset, no other parsing is needed here.
- *
- * Dont set multi regs for 4 cases since it has only one operand
- * for source:
- * - Add to Minus One Extended XO-form ( Ex: addme, addmeo )
- * - Subtract From Minus One Extended XO-form ( Ex: subfme )
- * - Add to Zero Extended XO-form ( Ex: addze, addzeo )
- * - Subtract From Zero Extended XO-form ( Ex: subfze )
- */
-static int arithmetic__parse(const struct arch *arch __maybe_unused, struct ins_operands *ops,
-		struct map_symbol *ms __maybe_unused, struct disasm_line *dl)
-{
-	int opcode = PPC_OP(dl->raw.raw_insn);
-
-	ops->source.mem_ref = false;
-	if (opcode == 31) {
-		if ((opcode != MINUS_EXT_XO_FORM) && (opcode != SUB_EXT_XO_FORM) \
-				&& (opcode != ADD_ZERO_EXT_XO_FORM) && (opcode != SUB_ZERO_EXT_XO_FORM))
-			ops->source.multi_regs = true;
-	}
-
-	ops->target.mem_ref = false;
-	ops->target.multi_regs = false;
-
-	return 0;
-}
-
-static const struct ins_ops arithmetic_ops = {
-	.parse     = arithmetic__parse,
-	.scnprintf = arithmetic__scnprintf,
-};
-
-static int load_store__scnprintf(const struct ins *ins, char *bf, size_t size,
-		struct ins_operands *ops, int max_ins_name)
-{
-	return scnprintf(bf, size, "%-*s %s", max_ins_name, ins->name,
-			ops->raw);
-}
-
-/*
- * Sets the fields: multi_regs and "mem_ref".
- * "mem_ref" is set for ops->source which is later used to
- * fill the objdump->memory_ref-char field. This ops is currently
- * used by powerpc and since binary instruction code is used to
- * extract opcode, regs and offset, no other parsing is needed here
- */
-static int load_store__parse(const struct arch *arch __maybe_unused, struct ins_operands *ops,
-		struct map_symbol *ms __maybe_unused, struct disasm_line *dl __maybe_unused)
-{
-	ops->source.mem_ref = true;
-	ops->source.multi_regs = false;
-	/* opcode 31 is of X form */
-	if (PPC_OP(dl->raw.raw_insn) == 31)
-		ops->source.multi_regs = true;
-
-	ops->target.mem_ref = false;
-	ops->target.multi_regs = false;
-
-	return 0;
-}
-
-static const struct ins_ops load_store_ops = {
-	.parse     = load_store__parse,
-	.scnprintf = load_store__scnprintf,
 };
 
 static int dec__parse(const struct arch *arch __maybe_unused, struct ins_operands *ops,
@@ -820,7 +707,7 @@ static int dec__scnprintf(const struct ins *ins, char *bf, size_t size,
 			 ops->target.name ?: ops->target.raw);
 }
 
-static const struct ins_ops dec_ops = {
+const struct ins_ops dec_ops = {
 	.parse	   = dec__parse,
 	.scnprintf = dec__scnprintf,
 };
@@ -831,11 +718,11 @@ static int nop__scnprintf(const struct ins *ins __maybe_unused, char *bf, size_t
 	return scnprintf(bf, size, "%-*s", max_ins_name, "nop");
 }
 
-static const struct ins_ops nop_ops = {
+const struct ins_ops nop_ops = {
 	.scnprintf = nop__scnprintf,
 };
 
-static const struct ins_ops ret_ops = {
+const struct ins_ops ret_ops = {
 	.scnprintf = ins__raw_scnprintf,
 };
 

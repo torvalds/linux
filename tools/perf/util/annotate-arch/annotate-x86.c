@@ -1,4 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <string.h>
+#include <linux/compiler.h>
+#include <assert.h>
+#include <inttypes.h>
+#include "../annotate-data.h"
+#include "../debug.h"
+#include "../disasm.h"
+#include "../dso.h"
+#include "../map.h"
+#include "../string2.h" // strstarts
+#include "../symbol.h"
+
 /*
  * x86 instruction nmemonic table to parse disasm lines for annotate.
  * This table is searched twice - one for exact match and another for
@@ -189,37 +201,6 @@ static int x86__cpuid_parse(struct arch *arch, char *cpuid)
 	}
 
 	return -1;
-}
-
-static int x86__annotate_init(struct arch *arch, char *cpuid)
-{
-	int err = 0;
-
-	if (arch->initialized)
-		return 0;
-
-	if (cpuid) {
-		if (x86__cpuid_parse(arch, cpuid))
-			err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
-	}
-
-#ifndef NDEBUG
-	{
-		static bool sorted_check;
-
-		if (!sorted_check) {
-			for (size_t i = 0; i < arch->nr_instructions - 1; i++) {
-				assert(strcmp(arch->instructions[i].name,
-					      arch->instructions[i + 1].name) <= 0);
-			}
-			sorted_check = true;
-		}
-	}
-#endif
-	arch->e_machine = EM_X86_64;
-	arch->e_flags = 0;
-	arch->initialized = true;
-	return err;
 }
 
 #ifdef HAVE_LIBDW_SUPPORT
@@ -795,3 +776,45 @@ retry:
 	/* Case 4. memory to memory transfers (not handled for now) */
 }
 #endif
+
+int x86__annotate_init(struct arch *arch, char *cpuid)
+{
+	int err = 0;
+
+	if (arch->initialized)
+		return 0;
+
+	if (cpuid) {
+		if (x86__cpuid_parse(arch, cpuid))
+			err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+	}
+
+	arch->instructions = x86__instructions;
+	arch->nr_instructions = ARRAY_SIZE(x86__instructions);
+#ifndef NDEBUG
+	{
+		static bool sorted_check;
+
+		if (!sorted_check) {
+			for (size_t i = 0; i < arch->nr_instructions - 1; i++) {
+				assert(strcmp(arch->instructions[i].name,
+					      arch->instructions[i + 1].name) <= 0);
+			}
+			sorted_check = true;
+		}
+	}
+#endif
+	arch->sorted_instructions = true;
+	arch->objdump.comment_char = '#';
+	arch->objdump.register_char = '%';
+	arch->objdump.memory_ref_char = '(';
+	arch->objdump.imm_char = '$';
+	arch->insn_suffix = "bwlq";
+	arch->e_machine = EM_X86_64;
+	arch->e_flags = 0;
+	arch->initialized = true;
+#ifdef HAVE_LIBDW_SUPPORT
+	arch->update_insn_state = update_insn_state_x86;
+#endif
+	return err;
+}
