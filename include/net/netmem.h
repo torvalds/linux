@@ -389,6 +389,18 @@ static inline unsigned long netmem_get_dma_addr(netmem_ref netmem)
 	return netmem_to_nmdesc(netmem)->dma_addr;
 }
 
+#if defined(CONFIG_NET_DEVMEM)
+static inline bool net_is_devmem_iov(const struct net_iov *niov)
+{
+	return niov->type == NET_IOV_DMABUF;
+}
+#else
+static inline bool net_is_devmem_iov(const struct net_iov *niov)
+{
+	return false;
+}
+#endif
+
 void get_netmem(netmem_ref netmem);
 void put_netmem(netmem_ref netmem);
 
