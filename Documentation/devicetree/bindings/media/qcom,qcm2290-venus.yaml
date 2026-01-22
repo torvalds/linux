@@ -42,7 +42,7 @@ properties:
       - const: vcodec0_bus
 
   iommus:
-    maxItems: 5
+    maxItems: 2
 
   interconnects:
     maxItems: 2
@@ -102,10 +102,7 @@ examples:
         memory-region = <&pil_video_mem>;
 
         iommus = <&apps_smmu 0x860 0x0>,
-                 <&apps_smmu 0x880 0x0>,
-                 <&apps_smmu 0x861 0x04>,
-                 <&apps_smmu 0x863 0x0>,
-                 <&apps_smmu 0x804 0xe0>;
+                 <&apps_smmu 0x880 0x0>;
 
         interconnects = <&mmnrt_virt MASTER_VIDEO_P0 RPM_ALWAYS_TAG
                          &bimc SLAVE_EBI1 RPM_ALWAYS_TAG>,
