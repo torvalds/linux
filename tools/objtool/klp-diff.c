@@ -271,7 +271,7 @@ static bool is_uncorrelated_static_local(struct symbol *sym)
  */
 static bool is_clang_tmp_label(struct symbol *sym)
 {
-	return sym->type == STT_NOTYPE &&
+	return is_notype_sym(sym) &&
 	       is_text_sec(sym->sec) &&
 	       strstarts(sym->name, ".Ltmp") &&
 	       isdigit(sym->name[5]);
@@ -480,7 +480,7 @@ static unsigned long find_sympos(struct elf *elf, struct symbol *sym)
 	if (sym->bind != STB_LOCAL)
 		return 0;
 
-	if (vmlinux && sym->type == STT_FUNC) {
+	if (vmlinux && is_func_sym(sym)) {
 		/*
 		 * HACK: Unfortunately, symbol ordering can differ between
 		 * vmlinux.o and vmlinux due to the linker script emitting
@@ -1046,8 +1046,8 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 		   sec->name, offset, patched_sym->name,				\
 		   addend >= 0 ? "+" : "-", labs(addend),				\
 		   sym_type(patched_sym),						\
-		   patched_sym->type == STT_SECTION ? "" : " ",				\
-		   patched_sym->type == STT_SECTION ? "" : sym_bind(patched_sym),	\
+		   is_sec_sym(patched_sym) ? "" : " ",					\
+		   is_sec_sym(patched_sym) ? "" : sym_bind(patched_sym),		\
 		   is_undef_sym(patched_sym) ? " UNDEF" : "",				\
 		   export ? " EXPORTED" : "",						\
 		   klp ? " KLP" : "")

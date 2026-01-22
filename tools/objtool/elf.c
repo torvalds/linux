@@ -614,7 +614,7 @@ static int read_symbols(struct elf *elf)
 		if (elf_add_symbol(elf, sym))
 			return -1;
 
-		if (sym->type == STT_FILE)
+		if (is_file_sym(sym))
 			file = sym;
 		else if (sym->bind == STB_LOCAL)
 			sym->file = file;
@@ -1335,7 +1335,7 @@ unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char 
 		return -1;
 	}
 
-	offset = ALIGN(strtab->sh.sh_size, strtab->sh.sh_addralign);
+	offset = ALIGN(sec_size(strtab), strtab->sh.sh_addralign);
 
 	if (!elf_add_data(elf, strtab, str, strlen(str) + 1))
 		return -1;
@@ -1377,7 +1377,7 @@ void *elf_add_data(struct elf *elf, struct section *sec, const void *data, size_
 	sec->data->d_size = size;
 	sec->data->d_align = 1;
 
-	offset = ALIGN(sec->sh.sh_size, sec->sh.sh_addralign);
+	offset = ALIGN(sec_size(sec), sec->sh.sh_addralign);
 	sec->sh.sh_size = offset + size;
 
 	mark_sec_changed(elf, sec, true);
