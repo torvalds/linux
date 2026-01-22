@@ -41,6 +41,14 @@ void abort(void);
  * PANIC_CPU_INVALID means no CPU has entered panic() or crash_kexec().
  */
 extern atomic_t panic_cpu;
+
+/*
+ * panic_redirect_cpu is used when panic is redirected to a specific CPU via
+ * the panic_force_cpu= boot parameter. It holds the CPU number that originally
+ * triggered the panic before redirection. A value of PANIC_CPU_INVALID means
+ * no redirection has occurred.
+ */
+extern atomic_t panic_redirect_cpu;
 #define PANIC_CPU_INVALID	-1
 
 bool panic_try_start(void);
