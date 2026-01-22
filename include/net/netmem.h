@@ -401,8 +401,24 @@ static inline bool net_is_devmem_iov(const struct net_iov *niov)
 }
 #endif
 
-void get_netmem(netmem_ref netmem);
-void put_netmem(netmem_ref netmem);
+void __get_netmem(netmem_ref netmem);
+void __put_netmem(netmem_ref netmem);
+
+static __always_inline void get_netmem(netmem_ref netmem)
+{
+	if (netmem_is_net_iov(netmem))
+		__get_netmem(netmem);
+	else
+		get_page(netmem_to_page(netmem));
+}
+
+static __always_inline void put_netmem(netmem_ref netmem)
+{
+	if (netmem_is_net_iov(netmem))
+		__put_netmem(netmem);
+	else
+		put_page(netmem_to_page(netmem));
+}
 
 #define netmem_dma_unmap_addr_set(NETMEM, PTR, ADDR_NAME, VAL)   \
 	do {                                                     \

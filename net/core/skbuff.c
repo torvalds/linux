@@ -7423,31 +7423,20 @@ bool csum_and_copy_from_iter_full(void *addr, size_t bytes,
 }
 EXPORT_SYMBOL(csum_and_copy_from_iter_full);
 
-void get_netmem(netmem_ref netmem)
+void __get_netmem(netmem_ref netmem)
 {
-	struct net_iov *niov;
+	struct net_iov *niov = netmem_to_net_iov(netmem);
 
-	if (netmem_is_net_iov(netmem)) {
-		niov = netmem_to_net_iov(netmem);
-		if (net_is_devmem_iov(niov))
-			net_devmem_get_net_iov(netmem_to_net_iov(netmem));
-		return;
-	}
-	get_page(netmem_to_page(netmem));
+	if (net_is_devmem_iov(niov))
+		net_devmem_get_net_iov(netmem_to_net_iov(netmem));
 }
-EXPORT_SYMBOL(get_netmem);
+EXPORT_SYMBOL(__get_netmem);
 
-void put_netmem(netmem_ref netmem)
+void __put_netmem(netmem_ref netmem)
 {
-	struct net_iov *niov;
+	struct net_iov *niov = netmem_to_net_iov(netmem);
 
-	if (netmem_is_net_iov(netmem)) {
-		niov = netmem_to_net_iov(netmem);
-		if (net_is_devmem_iov(niov))
-			net_devmem_put_net_iov(netmem_to_net_iov(netmem));
-		return;
-	}
-
-	put_page(netmem_to_page(netmem));
+	if (net_is_devmem_iov(niov))
+		net_devmem_put_net_iov(netmem_to_net_iov(netmem));
 }
-EXPORT_SYMBOL(put_netmem);
+EXPORT_SYMBOL(__put_netmem);
