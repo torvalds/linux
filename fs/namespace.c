@@ -5649,14 +5649,14 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 	if (mnt_ns_empty(ns))
 		return -ENOENT;
 
-	first = child = ns->root;
-	for (;;) {
-		child = listmnt_next(child, false);
-		if (!child)
-			return -ENOENT;
-		if (child->mnt_parent == first)
+	first = ns->root;
+	for (child = node_to_mount(ns->mnt_first_node); child;
+	     child = listmnt_next(child, false)) {
+		if (child != first && child->mnt_parent == first)
 			break;
 	}
+	if (!child)
+		return -ENOENT;
 
 	root->mnt = mntget(&child->mnt);
 	root->dentry = dget(root->mnt->mnt_root);
