@@ -243,22 +243,6 @@ static void omap_8250_get_divisor(struct uart_port *port, unsigned int baud,
 	unsigned int div_13, div_16;
 	unsigned int abs_d13, abs_d16;
 
-	/*
-	 * Old custom speed handling.
-	 */
-	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST) {
-		priv->quot = port->custom_divisor & UART_DIV_MAX;
-		/*
-		 * I assume that nobody is using this. But hey, if somebody
-		 * would like to specify the divisor _and_ the mode then the
-		 * driver is ready and waiting for it.
-		 */
-		if (port->custom_divisor & (1 << 16))
-			priv->mdr1 = UART_OMAP_MDR1_13X_MODE;
-		else
-			priv->mdr1 = UART_OMAP_MDR1_16X_MODE;
-		return;
-	}
 	div_13 = DIV_ROUND_CLOSEST(uartclk, 13 * baud);
 	div_16 = DIV_ROUND_CLOSEST(uartclk, 16 * baud);
 
