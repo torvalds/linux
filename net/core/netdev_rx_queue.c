@@ -39,11 +39,8 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 	if (qops->ndo_default_qcfg)
 		qops->ndo_default_qcfg(dev, &qcfg);
 
-	if (rxq->mp_params.rx_page_size) {
-		if (!(qops->supported_params & QCFG_RX_PAGE_SIZE))
-			return -EOPNOTSUPP;
+	if (rxq->mp_params.rx_page_size)
 		qcfg.rx_page_size = rxq->mp_params.rx_page_size;
-	}
 
 	new_mem = kvzalloc(qops->ndo_queue_mem_size, GFP_KERNEL);
 	if (!new_mem)
@@ -115,6 +112,7 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 		      const struct pp_memory_provider_params *p,
 		      struct netlink_ext_ack *extack)
 {
+	const struct netdev_queue_mgmt_ops *qops = dev->queue_mgmt_ops;
 	struct netdev_rx_queue *rxq;
 	int ret;
 
@@ -138,6 +136,10 @@ int __net_mp_open_rxq(struct net_device *dev, unsigned int rxq_idx,
 	if (dev_xdp_prog_count(dev)) {
 		NL_SET_ERR_MSG(extack, "unable to custom memory provider to device with XDP program attached");
 		return -EEXIST;
+	}
+	if (p->rx_page_size && !(qops->supported_params & QCFG_RX_PAGE_SIZE)) {
+		NL_SET_ERR_MSG(extack, "device does not support: rx_page_size");
+		return -EOPNOTSUPP;
 	}
 
 	rxq = __netif_get_rx_queue(dev, rxq_idx);
