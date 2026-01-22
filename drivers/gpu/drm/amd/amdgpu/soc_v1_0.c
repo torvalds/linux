@@ -46,6 +46,39 @@
 #define NORMALIZE_MID_REG_OFFSET(offset) \
 		(offset & 0x3FFFF)
 
+static const struct amdgpu_video_codecs vcn_5_0_2_video_codecs_encode_vcn0 = {
+	.codec_count = 0,
+	.codec_array = NULL,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_0_2_video_codecs_decode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 4096, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4352, 186)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 16384, 16384, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_0_2_video_codecs_decode_vcn0 = {
+	.codec_count = ARRAY_SIZE(vcn_5_0_2_video_codecs_decode_array_vcn0),
+	.codec_array = vcn_5_0_2_video_codecs_decode_array_vcn0,
+};
+
+static int soc_v1_0_query_video_codecs(struct amdgpu_device *adev, bool encode,
+					const struct amdgpu_video_codecs **codecs)
+{
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
+	case IP_VERSION(5, 0, 2):
+		if (encode)
+			*codecs = &vcn_5_0_2_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_5_0_2_video_codecs_decode_vcn0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 /* Initialized doorbells for amdgpu including multimedia
  * KFD can use all the rest in 2M doorbell bar */
 static void soc_v1_0_doorbell_index_init(struct amdgpu_device *adev)
@@ -262,6 +295,7 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
 	.reset = soc_v1_0_asic_reset,
 	.reset_method = &soc_v1_0_asic_reset_method,
+	.query_video_codecs = &soc_v1_0_query_video_codecs,
 };
 
 static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
