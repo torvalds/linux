@@ -29,12 +29,17 @@ static const char *erofs_xattr_prefix(unsigned int idx, struct dentry *dentry);
 
 static int erofs_init_inode_xattrs(struct inode *inode)
 {
-	struct erofs_inode *const vi = EROFS_I(inode);
-	struct erofs_xattr_iter it;
-	unsigned int i;
-	struct erofs_xattr_ibody_header *ih;
+	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
+	struct erofs_inode *vi = EROFS_I(inode);
 	struct super_block *sb = inode->i_sb;
+	const struct erofs_xattr_ibody_header *ih;
+	__le32 *xattr_id;
+	erofs_off_t pos;
+	unsigned int i;
 	int ret = 0;
+
+	if (!vi->xattr_isize)
+		return -ENODATA;
 
 	/* the most case is that xattrs of this inode are initialized. */
 	if (test_bit(EROFS_I_EA_INITED_BIT, &vi->flags)) {
@@ -45,7 +50,6 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 		smp_mb();
 		return 0;
 	}
-
 	if (wait_on_bit_lock(&vi->flags, EROFS_I_BL_XATTR_BIT, TASK_KILLABLE))
 		return -ERESTARTSYS;
 
@@ -62,66 +66,50 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 	 *    undefined right now (maybe use later with some new sb feature).
 	 */
 	if (vi->xattr_isize == sizeof(struct erofs_xattr_ibody_header)) {
-		erofs_err(sb,
-			  "xattr_isize %d of nid %llu is not supported yet",
+		erofs_err(sb, "xattr_isize %d of nid %llu is not supported yet",
 			  vi->xattr_isize, vi->nid);
 		ret = -EOPNOTSUPP;
 		goto out_unlock;
 	} else if (vi->xattr_isize < sizeof(struct erofs_xattr_ibody_header)) {
-		if (vi->xattr_isize) {
-			erofs_err(sb, "bogus xattr ibody @ nid %llu", vi->nid);
-			DBG_BUGON(1);
-			ret = -EFSCORRUPTED;
-			goto out_unlock;	/* xattr ondisk layout error */
-		}
-		ret = -ENODATA;
+		erofs_err(sb, "bogus xattr ibody @ nid %llu", vi->nid);
+		DBG_BUGON(1);
+		ret = -EFSCORRUPTED;
 		goto out_unlock;
 	}
 
-	it.buf = __EROFS_BUF_INITIALIZER;
-	ret = erofs_init_metabuf(&it.buf, sb, erofs_inode_in_metabox(inode));
-	if (ret)
-		goto out_unlock;
-	it.pos = erofs_iloc(inode) + vi->inode_isize;
-
-	/* read in shared xattr array (non-atomic, see kmalloc below) */
-	it.kaddr = erofs_bread(&it.buf, it.pos, true);
-	if (IS_ERR(it.kaddr)) {
-		ret = PTR_ERR(it.kaddr);
+	pos = erofs_iloc(inode) + vi->inode_isize;
+	ih = erofs_read_metabuf(&buf, sb, pos, erofs_inode_in_metabox(inode));
+	if (IS_ERR(ih)) {
+		ret = PTR_ERR(ih);
 		goto out_unlock;
 	}
-
-	ih = it.kaddr;
 	vi->xattr_name_filter = le32_to_cpu(ih->h_name_filter);
 	vi->xattr_shared_count = ih->h_shared_count;
 	vi->xattr_shared_xattrs = kmalloc_array(vi->xattr_shared_count,
 						sizeof(uint), GFP_KERNEL);
 	if (!vi->xattr_shared_xattrs) {
-		erofs_put_metabuf(&it.buf);
+		erofs_put_metabuf(&buf);
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
-	/* let's skip ibody header */
-	it.pos += sizeof(struct erofs_xattr_ibody_header);
-
+	/* skip the ibody header and read the shared xattr array */
+	pos += sizeof(struct erofs_xattr_ibody_header);
 	for (i = 0; i < vi->xattr_shared_count; ++i) {
-		it.kaddr = erofs_bread(&it.buf, it.pos, true);
-		if (IS_ERR(it.kaddr)) {
+		xattr_id = erofs_bread(&buf, pos + i * sizeof(__le32), true);
+		if (IS_ERR(xattr_id)) {
 			kfree(vi->xattr_shared_xattrs);
 			vi->xattr_shared_xattrs = NULL;
-			ret = PTR_ERR(it.kaddr);
+			ret = PTR_ERR(xattr_id);
 			goto out_unlock;
 		}
-		vi->xattr_shared_xattrs[i] = le32_to_cpu(*(__le32 *)it.kaddr);
-		it.pos += sizeof(__le32);
+		vi->xattr_shared_xattrs[i] = le32_to_cpu(*xattr_id);
 	}
-	erofs_put_metabuf(&it.buf);
+	erofs_put_metabuf(&buf);
 
 	/* paired with smp_mb() at the beginning of the function. */
 	smp_mb();
 	set_bit(EROFS_I_EA_INITED_BIT, &vi->flags);
-
 out_unlock:
 	clear_and_wake_up_bit(EROFS_I_BL_XATTR_BIT, &vi->flags);
 	return ret;
