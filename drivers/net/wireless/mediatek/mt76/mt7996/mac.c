@@ -2569,6 +2569,8 @@ void mt7996_mac_reset_work(struct work_struct *work)
 				     MT_INT_TX_RX_DONE_EXT);
 	}
 
+	__mt7996_npu_hw_init(dev);
+
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	mt7996_for_each_phy(dev, phy)
 		clear_bit(MT76_RESET, &phy->mt76->state);
@@ -2597,8 +2599,6 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	mt7996_update_beacons(dev);
 
 	mutex_unlock(&dev->mt76.mutex);
-
-	mt7996_npu_hw_init(dev);
 
 	mt7996_for_each_phy(dev, phy)
 		ieee80211_queue_delayed_work(hw, &phy->mt76->mac_work,

@@ -525,20 +525,18 @@ int mt7996_npu_rx_queues_init(struct mt7996_dev *dev)
 				      &dev->mt76.q_rx[MT_RXQ_NPU1]);
 }
 
-int mt7996_npu_hw_init(struct mt7996_dev *dev)
+int __mt7996_npu_hw_init(struct mt7996_dev *dev)
 {
 	struct airoha_npu *npu;
-	int i, err = 0;
-
-	mutex_lock(&dev->mt76.mutex);
+	int i, err;
 
 	npu = rcu_dereference_protected(dev->mt76.mmio.npu, &dev->mt76.mutex);
 	if (!npu)
-		goto unlock;
+		return 0;
 
 	err = mt7996_npu_offload_init(dev, npu);
 	if (err)
-		goto unlock;
+		return err;
 
 	if (is_mt7996(&dev->mt76))
 		err = mt7996_npu_rxd_init(dev, npu);
@@ -546,27 +544,36 @@ int mt7996_npu_hw_init(struct mt7996_dev *dev)
 		err = mt7992_npu_rxd_init(dev, npu);
 
 	if (err)
-		goto unlock;
+		return err;
 
 	err = mt7996_npu_txd_init(dev, npu);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = mt7996_npu_rx_event_init(dev, npu);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = mt7996_npu_set_pcie_addr(dev, npu);
 	if (err)
-		goto unlock;
+		return err;
 
 	err = mt7996_npu_tx_done_init(dev, npu);
 	if (err)
-		goto unlock;
+		return err;
 
 	for (i = MT_RXQ_NPU0; i <= MT_RXQ_NPU1; i++)
 		airoha_npu_wlan_enable_irq(npu, i - MT_RXQ_NPU0);
-unlock:
+
+	return 0;
+}
+
+int mt7996_npu_hw_init(struct mt7996_dev *dev)
+{
+	int err;
+
+	mutex_lock(&dev->mt76.mutex);
+	err = __mt7996_npu_hw_init(dev);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return err;
