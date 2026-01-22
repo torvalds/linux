@@ -1633,7 +1633,7 @@ static void qcom_pci_free_msi(void *ptr)
 {
 	struct dw_pcie_rp *pp = (struct dw_pcie_rp *)ptr;
 
-	if (pp && pp->has_msi_ctrl)
+	if (pp && pp->use_imsi_rx)
 		dw_pcie_free_msi(pp);
 }
 
@@ -1657,7 +1657,7 @@ static int qcom_pcie_ecam_host_init(struct pci_config_window *cfg)
 	if (ret)
 		return ret;
 
-	pp->has_msi_ctrl = true;
+	pp->use_imsi_rx = true;
 	dw_pcie_msi_init(pp);
 
 	return devm_add_action_or_reset(dev, qcom_pci_free_msi, pp);

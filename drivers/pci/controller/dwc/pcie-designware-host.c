@@ -255,7 +255,7 @@ void dw_pcie_msi_init(struct dw_pcie_rp *pp)
 	u64 msi_target = (u64)pp->msi_data;
 	u32 ctrl, num_ctrls;
 
-	if (!pci_msi_enabled() || !pp->has_msi_ctrl)
+	if (!pci_msi_enabled() || !pp->use_imsi_rx)
 		return;
 
 	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
@@ -603,15 +603,15 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 	}
 
 	if (pci_msi_enabled()) {
-		pp->has_msi_ctrl = !(pp->ops->msi_init ||
+		pp->use_imsi_rx = !(pp->ops->msi_init ||
 				     of_property_present(np, "msi-parent") ||
 				     of_property_present(np, "msi-map"));
 
 		/*
-		 * For the has_msi_ctrl case the default assignment is handled
+		 * For the use_imsi_rx case the default assignment is handled
 		 * in the dw_pcie_msi_host_init().
 		 */
-		if (!pp->has_msi_ctrl && !pp->num_vectors) {
+		if (!pp->use_imsi_rx && !pp->num_vectors) {
 			pp->num_vectors = MSI_DEF_NUM_VECTORS;
 		} else if (pp->num_vectors > MAX_MSI_IRQS) {
 			dev_err(dev, "Invalid number of vectors\n");
@@ -623,7 +623,7 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			ret = pp->ops->msi_init(pp);
 			if (ret < 0)
 				goto err_deinit_host;
-		} else if (pp->has_msi_ctrl) {
+		} else if (pp->use_imsi_rx) {
 			ret = dw_pcie_msi_host_init(pp);
 			if (ret < 0)
 				goto err_deinit_host;
@@ -701,7 +701,7 @@ err_remove_edma:
 	dw_pcie_edma_remove(pci);
 
 err_free_msi:
-	if (pp->has_msi_ctrl)
+	if (pp->use_imsi_rx)
 		dw_pcie_free_msi(pp);
 
 err_deinit_host:
@@ -729,7 +729,7 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 
 	dw_pcie_edma_remove(pci);
 
-	if (pp->has_msi_ctrl)
+	if (pp->use_imsi_rx)
 		dw_pcie_free_msi(pp);
 
 	if (pp->ops->deinit)
@@ -1170,7 +1170,7 @@ int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 	 * the MSI and MSI-X capabilities of the Root Port to allow the drivers
 	 * to fall back to INTx instead.
 	 */
-	if (pp->has_msi_ctrl) {
+	if (pp->use_imsi_rx) {
 		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSI);
 		dw_pcie_remove_capability(pci, PCI_CAP_ID_MSIX);
 	}
