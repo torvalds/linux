@@ -15983,8 +15983,12 @@ static void bnxt_queue_default_qcfg(struct net_device *dev,
 	qcfg->rx_page_size = BNXT_RX_PAGE_SIZE;
 }
 
-static int bnxt_validate_qcfg(struct bnxt *bp, struct netdev_queue_config *qcfg)
+static int bnxt_validate_qcfg(struct net_device *dev,
+			      struct netdev_queue_config *qcfg,
+			      struct netlink_ext_ack *extack)
 {
+	struct bnxt *bp = netdev_priv(dev);
+
 	/* Older chips need MSS calc so rx_page_size is not supported */
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
 	    qcfg->rx_page_size != BNXT_RX_PAGE_SIZE)
@@ -16011,10 +16015,6 @@ static int bnxt_queue_mem_alloc(struct net_device *dev,
 
 	if (!bp->rx_ring)
 		return -ENETDOWN;
-
-	rc = bnxt_validate_qcfg(bp, qcfg);
-	if (rc < 0)
-		return rc;
 
 	rxr = &bp->rx_ring[idx];
 	clone = qmem;
@@ -16311,6 +16311,7 @@ static const struct netdev_queue_mgmt_ops bnxt_queue_mgmt_ops = {
 	.ndo_queue_start	= bnxt_queue_start,
 	.ndo_queue_stop		= bnxt_queue_stop,
 	.ndo_default_qcfg	= bnxt_queue_default_qcfg,
+	.ndo_validate_qcfg	= bnxt_validate_qcfg,
 	.supported_params	= QCFG_RX_PAGE_SIZE,
 };
 
