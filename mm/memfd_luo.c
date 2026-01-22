@@ -78,6 +78,7 @@
 #include <linux/liveupdate.h>
 #include <linux/shmem_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/memfd.h>
 #include "internal.h"
 
 static int memfd_luo_preserve_folios(struct file *file,
@@ -443,8 +444,7 @@ static int memfd_luo_retrieve(struct liveupdate_file_op_args *args)
 	if (!ser)
 		return -EINVAL;
 
-	file = shmem_file_setup("", 0, VM_NORESERVE);
-
+	file = memfd_alloc_file("", 0);
 	if (IS_ERR(file)) {
 		pr_err("failed to setup file: %pe\n", file);
 		return PTR_ERR(file);
