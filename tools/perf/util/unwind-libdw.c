@@ -161,7 +161,7 @@ static int entry(u64 ip, struct unwind_info *ui)
 	}
 
 	e->ip	  = ip;
-	e->ms.maps = maps__get(al.maps);
+	e->ms.thread = thread__get(al.thread);
 	e->ms.map = map__get(al.map);
 	e->ms.sym = al.sym;
 

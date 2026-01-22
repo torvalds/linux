@@ -11,7 +11,6 @@ struct symbol;
 
 struct addr_location {
 	struct thread *thread;
-	struct maps   *maps;
 	struct map    *map;
 	struct symbol *sym;
 	const char    *srcline;

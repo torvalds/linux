@@ -6,6 +6,7 @@
 #include "../map.h"
 #include "../maps.h"
 #include "../symbol.h"
+#include "../thread.h"
 #include "../annotate.h"
 #include "../annotate-data.h"
 
@@ -49,7 +50,7 @@ static int s390_call__parse(const struct arch *arch, struct ins_operands *ops,
 		.addr = map__objdump_2mem(map, ops->target.addr),
 	};
 
-	if (maps__find_ams(ms->maps, &target) == 0 &&
+	if (maps__find_ams(thread__maps(ms->thread), &target) == 0 &&
 	    map__rip_2objdump(target.ms.map, map__map_ip(target.ms.map, target.addr)) == ops->target.addr)
 		ops->target.sym = target.ms.sym;
 
