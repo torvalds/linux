@@ -3435,6 +3435,13 @@ static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
 
 			folio = only_alloc_fresh_hugetlb_folio(h, gfp_mask, nid,
 					&node_states[N_MEMORY], NULL);
+			if (!folio && !list_empty(&folio_list) &&
+			    hugetlb_vmemmap_optimizable_size(h)) {
+				prep_and_add_allocated_folios(h, &folio_list);
+				INIT_LIST_HEAD(&folio_list);
+				folio = only_alloc_fresh_hugetlb_folio(h, gfp_mask, nid,
+						&node_states[N_MEMORY], NULL);
+			}
 			if (!folio)
 				break;
 			list_add(&folio->lru, &folio_list);
