@@ -907,12 +907,19 @@ properties:
           - const: radxa,cm3
           - const: rockchip,rk3566
 
-      - description: Radxa CM3 Industrial
+      - description: Radxa CM3I
         items:
           - enum:
               - radxa,e25
           - const: radxa,cm3i
           - const: rockchip,rk3568
+
+      - description: Radxa CM5
+        items:
+          - enum:
+              - radxa,cm5-io
+          - const: radxa,cm5
+          - const: rockchip,rk3588s
 
       - description: Radxa E20C
         items:
@@ -1297,6 +1304,12 @@ properties:
           - enum:
               - xunlong,orangepi-5
               - xunlong,orangepi-5b
+          - const: rockchip,rk3588s
+
+      - description: Xunlong Orange Pi CM5
+        items:
+          - const: xunlong,orangepi-cm5-base
+          - const: xunlong,orangepi-cm5
           - const: rockchip,rk3588s
 
       - description: Zkmagic A95X Z2
