@@ -449,6 +449,9 @@ void rds_conn_shutdown(struct rds_conn_path *cp)
 	} else {
 		rcu_read_unlock();
 	}
+
+	if (conn->c_trans->conn_slots_available)
+		conn->c_trans->conn_slots_available(conn);
 }
 
 /* destroy a single rds_conn_path. rds_conn_destroy() iterates over
