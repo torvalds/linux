@@ -35,7 +35,22 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
     crates_indexes = {}
     crates_cfgs = args_crates_cfgs(cfgs)
 
-    def append_crate(display_name, root_module, deps, cfg=[], is_workspace_member=True, is_proc_macro=False, edition="2021"):
+    def build_crate(
+        display_name,
+        root_module,
+        deps,
+        *,
+        cfg,
+        is_workspace_member,
+        is_proc_macro,
+        edition,
+    ):
+        cfg = cfg if cfg is not None else []
+        is_workspace_member = (
+            is_workspace_member if is_workspace_member is not None else True
+        )
+        is_proc_macro = is_proc_macro if is_proc_macro is not None else False
+        edition = edition if edition is not None else "2021"
         crate = {
             "display_name": display_name,
             "root_module": str(root_module),
@@ -54,19 +69,45 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
                 stdin=subprocess.DEVNULL,
             ).decode('utf-8').strip()
             crate["proc_macro_dylib_path"] = f"{objtree}/rust/{proc_macro_dylib_name}"
-        crates_indexes[display_name] = len(crates)
+        return crate
+
+    def register_crate(crate):
+        crates_indexes[crate["display_name"]] = len(crates)
         crates.append(crate)
+
+    def append_crate(
+        display_name,
+        root_module,
+        deps,
+        *,
+        cfg=None,
+        is_workspace_member=None,
+        is_proc_macro=None,
+        edition=None,
+    ):
+        return register_crate(
+            build_crate(
+                display_name,
+                root_module,
+                deps,
+                cfg=cfg,
+                is_workspace_member=is_workspace_member,
+                is_proc_macro=is_proc_macro,
+                edition=edition,
+            )
+        )
 
     def append_sysroot_crate(
         display_name,
         deps,
-        cfg=[],
+        *,
+        cfg=None,
     ):
-        append_crate(
+        return append_crate(
             display_name,
             sysroot_src / display_name / "src" / "lib.rs",
             deps,
-            cfg,
+            cfg=cfg,
             is_workspace_member=False,
             # Miguel Ojeda writes:
             #
@@ -169,20 +210,27 @@ def generate_crates(srctree, objtree, sysroot_src, external_src, cfgs, core_edit
         display_name,
         deps,
     ):
-        append_crate(
+        crate = build_crate(
             display_name,
             srctree / "rust"/ display_name / "lib.rs",
             deps,
             cfg=cfg,
+            is_workspace_member=True,
+            is_proc_macro=False,
+            edition=None,
         )
-        crates[-1]["env"]["OBJTREE"] = str(objtree.resolve(True))
-        crates[-1]["source"] = {
-            "include_dirs": [
-                str(srctree / "rust" / display_name),
-                str(objtree / "rust")
-            ],
-            "exclude_dirs": [],
+        crate["env"]["OBJTREE"] = str(objtree.resolve(True))
+        crate_with_generated = {
+            **crate,
+            "source": {
+                "include_dirs": [
+                    str(srctree / "rust" / display_name),
+                    str(objtree / "rust"),
+                ],
+                "exclude_dirs": [],
+            },
         }
+        return register_crate(crate_with_generated)
 
     append_crate_with_generated("bindings", ["core", "ffi", "pin_init"])
     append_crate_with_generated("uapi", ["core", "ffi", "pin_init"])
