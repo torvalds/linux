@@ -22,11 +22,17 @@
 void netdev_queue_config(struct net_device *dev, int rxq_idx,
 			 struct netdev_queue_config *qcfg)
 {
-	struct netdev_queue_config *stored;
+	struct pp_memory_provider_params *mpp;
 
 	memset(qcfg, 0, sizeof(*qcfg));
 
-	stored = &__netif_get_rx_queue(dev, rxq_idx)->qcfg;
-	qcfg->rx_page_size = stored->rx_page_size;
+	/* Get defaults from the driver, in case user config not set */
+	if (dev->queue_mgmt_ops->ndo_default_qcfg)
+		dev->queue_mgmt_ops->ndo_default_qcfg(dev, qcfg);
+
+	/* Apply MP overrides */
+	mpp = &__netif_get_rx_queue(dev, rxq_idx)->mp_params;
+	if (mpp->rx_page_size)
+		qcfg->rx_page_size = mpp->rx_page_size;
 }
 EXPORT_SYMBOL(netdev_queue_config);

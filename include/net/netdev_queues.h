@@ -139,7 +139,9 @@ enum {
  * @ndo_queue_get_dma_dev: Get dma device for zero-copy operations to be used
  *			   for this queue. Return NULL on error.
  *
- * @ndo_default_qcfg:	Populate queue config struct with defaults. Optional.
+ * @ndo_default_qcfg:	(Optional) Populate queue config struct with defaults.
+ *			Queue config structs are passed to this helper before
+ *			the user-requested settings are applied.
  *
  * @supported_params:	Bitmask of supported parameters, see QCFG_*.
  *
