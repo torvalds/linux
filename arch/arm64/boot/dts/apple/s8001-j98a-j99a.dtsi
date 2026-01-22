@@ -9,6 +9,10 @@
  * Copyright (c) 2024, Nick Chan <towinchenmi@gmail.com>
  */
 
+&dwi_bl {
+	status = "okay";
+};
+
 &ps_dcs4 {
 	apple,always-on; /* LPDDR4 interface */
 };

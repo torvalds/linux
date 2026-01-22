@@ -16,6 +16,7 @@
 / {
 	compatible = "apple,j313", "apple,t8103", "apple,arm-platform";
 	model = "Apple MacBook Air (M1, 2020)";
+	chassis-type = "laptop";
 
 	led-controller {
 		compatible = "pwm-leds";
@@ -40,4 +41,16 @@
 
 &fpwm1 {
 	status = "okay";
+};
+
+/*
+ * Provide labels for the USB type C ports.
+ */
+
+&typec0 {
+	label = "USB-C Left-back";
+};
+
+&typec1 {
+	label = "USB-C Left-front";
 };
