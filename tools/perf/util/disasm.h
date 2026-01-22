@@ -106,7 +106,8 @@ struct annotate_args {
 };
 
 const struct arch *arch__find(const char *name);
-bool arch__is(const struct arch *arch, const char *name);
+bool arch__is_x86(const struct arch *arch);
+bool arch__is_powerpc(const struct arch *arch);
 
 const struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
 
