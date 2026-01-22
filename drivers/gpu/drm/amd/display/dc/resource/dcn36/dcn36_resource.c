@@ -460,16 +460,22 @@ static const struct dcn30_mpc_mask mpc_mask = {
 };
 
 #define optc_regs_init(id)\
-	OPTC_COMMON_REG_LIST_DCN3_5_RI(id)
+	OPTC_COMMON_REG_LIST_DCN3_5_RI(id),\
+	SRI_ARR(OTG_CRC0_DATA_R32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC0_DATA_G32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC0_DATA_B32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_R32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_G32, OTG_CRC32, id),\
+	SRI_ARR(OTG_CRC1_DATA_B32, OTG_CRC32, id)
 
 static struct dcn_optc_registers optc_regs[4];
 
 static const struct dcn_optc_shift optc_shift = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_5(__SHIFT)
+	OPTC_COMMON_MASK_SH_LIST_DCN3_6(__SHIFT)
 };
 
 static const struct dcn_optc_mask optc_mask = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_5(_MASK)
+	OPTC_COMMON_MASK_SH_LIST_DCN3_6(_MASK)
 };
 
 #define hubp_regs_init(id)\

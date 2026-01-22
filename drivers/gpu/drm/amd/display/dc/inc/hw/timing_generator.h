@@ -122,6 +122,12 @@ enum timing_synchronization_type {
 	VBLANK_SYNCHRONIZABLE
 };
 
+enum crc_poly_mode {
+	CRC_POLY_MODE_16,
+	CRC_POLY_MODE_32,
+	CRC_POLY_MODE_MAX,
+};
+
 struct crc_params {
 	/* Regions used to calculate CRC*/
 	uint16_t windowa_x_start;
@@ -144,6 +150,7 @@ struct crc_params {
 
 	uint8_t crc_eng_inst;
 	bool reset;
+	enum crc_poly_mode crc_poly_mode;
 };
 
 struct dcn_otg_state {

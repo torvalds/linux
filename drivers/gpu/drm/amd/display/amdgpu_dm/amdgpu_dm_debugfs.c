@@ -3839,6 +3839,50 @@ static int crc_win_update_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(crc_win_update_fops, crc_win_update_get,
 			 crc_win_update_set, "%llu\n");
+
+/*
+ * Trigger to set crc polynomial mode
+ * 0: 16-bit CRC, 1: 32-bit CRC
+ * only accepts 0 or 1 for supported hwip versions
+ */
+static int crc_poly_mode_set(void *data, u64 val)
+{
+	struct drm_crtc *crtc = data;
+	struct amdgpu_crtc *acrtc;
+	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
+
+	if ((amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 6, 0)) &&
+		(amdgpu_ip_version(adev, DCE_HWIP, 0) != IP_VERSION(4, 0, 1)) &&
+		(val < 2)) {
+		acrtc = to_amdgpu_crtc(crtc);
+		mutex_lock(&adev->dm.dc_lock);
+		spin_lock_irq(&adev_to_drm(adev)->event_lock);
+		acrtc->dm_irq_params.crc_poly_mode = val;
+		spin_unlock_irq(&adev_to_drm(adev)->event_lock);
+		mutex_unlock(&adev->dm.dc_lock);
+	}
+
+	return 0;
+}
+
+/*
+ * Get crc polynomial mode (0: 16-bit CRC, 1: 32-bit CRC)
+ */
+static int crc_poly_mode_get(void *data, u64 *val)
+{
+	struct drm_crtc *crtc = data;
+	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irq(&drm_dev->event_lock);
+	*val = acrtc->dm_irq_params.crc_poly_mode;
+	spin_unlock_irq(&drm_dev->event_lock);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(crc_poly_mode_fops, crc_poly_mode_get,
+			 crc_poly_mode_set, "%llu\n");
 #endif
 void crtc_debugfs_init(struct drm_crtc *crtc)
 {
@@ -3858,6 +3902,8 @@ void crtc_debugfs_init(struct drm_crtc *crtc)
 				   &crc_win_y_end_fops);
 	debugfs_create_file_unsafe("crc_win_update", 0644, dir, crtc,
 				   &crc_win_update_fops);
+	debugfs_create_file_unsafe("crc_poly_mode", 0644, dir, crtc,
+				   &crc_poly_mode_fops);
 	dput(dir);
 #endif
 	debugfs_create_file("amdgpu_current_bpc", 0644, crtc->debugfs_entry,

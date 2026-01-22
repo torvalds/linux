@@ -701,6 +701,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  *              once.
  * @idx: Capture CRC on which CRC engine instance
  * @reset: Reset CRC engine before the configuration
+ * @crc_poly_mode: CRC polynomial mode
  *
  * By default, the entire frame is used to calculate the CRC.
  *
@@ -709,7 +710,7 @@ dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
  */
 bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 			     struct crc_params *crc_window, bool enable, bool continuous,
-			     uint8_t idx, bool reset)
+			     uint8_t idx, bool reset, enum crc_poly_mode crc_poly_mode)
 {
 	struct pipe_ctx *pipe;
 	struct crc_params param;
@@ -733,6 +734,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+	param.crc_poly_mode = crc_poly_mode;
 
 	if (crc_window) {
 		param.windowa_x_start = crc_window->windowa_x_start;
