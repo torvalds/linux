@@ -90,7 +90,7 @@ bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
 			      struct io_imu_folio_data *data);
 
 static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data,
-						       int index)
+						       unsigned int index)
 {
 	if (index < data->nr)
 		return data->nodes[array_index_nospec(index, data->nr)];
