@@ -10,7 +10,7 @@ struct arm64_annotate {
 		jump_insn;
 };
 
-static int arm64_mov__parse(struct arch *arch __maybe_unused,
+static int arm64_mov__parse(const struct arch *arch __maybe_unused,
 			    struct ins_operands *ops,
 			    struct map_symbol *ms __maybe_unused,
 			    struct disasm_line *dl __maybe_unused)

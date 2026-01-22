@@ -761,7 +761,7 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 }
 
 static struct annotated_data_type *
-__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+__hist_entry__get_data_type(struct hist_entry *he, const struct arch *arch,
 			    struct debuginfo *dbg, struct disasm_line *dl,
 			    int *type_offset);
 
@@ -980,11 +980,11 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
-int evsel__get_arch(struct evsel *evsel, struct arch **parch)
+int evsel__get_arch(struct evsel *evsel, const struct arch **parch)
 {
 	struct perf_env *env = evsel__env(evsel);
 	const char *arch_name = perf_env__arch(env);
-	struct arch *arch;
+	const struct arch *arch;
 	int err;
 
 	if (!arch_name) {
@@ -999,7 +999,7 @@ int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 	}
 
 	if (arch->init) {
-		err = arch->init(arch, env ? env->cpuid : NULL);
+		err = arch->init((struct arch *)arch, env ? env->cpuid : NULL);
 		if (err) {
 			pr_err("%s: failed to initialize %s arch priv area\n",
 			       __func__, arch->name);
@@ -1010,14 +1010,14 @@ int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 }
 
 int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
-		     struct arch **parch)
+		     const struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotate_args args = {
 		.options	= &annotate_opts,
 	};
-	struct arch *arch = NULL;
+	const struct arch *arch = NULL;
 	int err, nr;
 
 	err = evsel__get_arch(evsel, &arch);
@@ -2204,7 +2204,7 @@ print_addr:
 }
 
 int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
-		      struct arch **parch)
+		      const struct arch **parch)
 {
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
@@ -2457,7 +2457,7 @@ int annotate_check_args(void)
  * to revisit the format when it handles different architecture.
  * Fills @reg and @offset when return 0.
  */
-static int extract_reg_offset(struct arch *arch, const char *str,
+static int extract_reg_offset(const struct arch *arch, const char *str,
 			      struct annotated_op_loc *op_loc)
 {
 	char *p;
@@ -2538,7 +2538,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  *                              # dst_reg1 = rbx, dst_reg2 = rcx, dst_mem = 1
  *                              # dst_multi_regs = 1, dst_offset = 8
  */
-int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
+int annotate_get_insn_location(const struct arch *arch, struct disasm_line *dl,
 			       struct annotated_insn_loc *loc)
 {
 	struct ins_operands *ops;
@@ -2673,7 +2673,7 @@ static struct annotated_item_stat *annotate_data_stat(struct list_head *head,
 	return istat;
 }
 
-static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
+static bool is_stack_operation(const struct arch *arch, struct disasm_line *dl)
 {
 	if (arch__is(arch, "x86")) {
 		if (!strncmp(dl->ins.name, "push", 4) ||
@@ -2686,7 +2686,7 @@ static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
 	return false;
 }
 
-static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
+static bool is_stack_canary(const struct arch *arch, struct annotated_op_loc *loc)
 {
 	/* On x86_64, %gs:40 is used for stack canary */
 	if (arch__is(arch, "x86")) {
@@ -2702,7 +2702,7 @@ static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
  * Returns true if the instruction has a memory operand without
  * performing a load/store
  */
-static bool is_address_gen_insn(struct arch *arch, struct disasm_line *dl)
+static bool is_address_gen_insn(const struct arch *arch, struct disasm_line *dl)
 {
 	if (arch__is(arch, "x86")) {
 		if (!strncmp(dl->ins.name, "lea", 3))
@@ -2791,7 +2791,7 @@ void debuginfo_cache__delete(void)
 }
 
 static struct annotated_data_type *
-__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+__hist_entry__get_data_type(struct hist_entry *he, const struct arch *arch,
 			    struct debuginfo *dbg, struct disasm_line *dl,
 			    int *type_offset)
 {
@@ -2895,7 +2895,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 {
 	struct map_symbol *ms = &he->ms;
 	struct evsel *evsel = hists_to_evsel(he->hists);
-	struct arch *arch;
+	const struct arch *arch;
 	struct disasm_line *dl;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;

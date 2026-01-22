@@ -119,7 +119,7 @@ static struct ins x86__instructions[] = {
 	{ .name = "xorps",	.ops = &mov_ops, },
 };
 
-static bool amd__ins_is_fused(struct arch *arch, const char *ins1,
+static bool amd__ins_is_fused(const struct arch *arch, const char *ins1,
 			      const char *ins2)
 {
 	if (strstr(ins2, "jmp"))
@@ -142,7 +142,7 @@ static bool amd__ins_is_fused(struct arch *arch, const char *ins1,
 	return false;
 }
 
-static bool intel__ins_is_fused(struct arch *arch, const char *ins1,
+static bool intel__ins_is_fused(const struct arch *arch, const char *ins1,
 				const char *ins2)
 {
 	if (arch->family != 6 || arch->model < 0x1e || strstr(ins2, "jmp"))

@@ -30,7 +30,7 @@ struct arch {
 	unsigned int	model;
 	unsigned int	family;
 	int		(*init)(struct arch *arch, char *cpuid);
-	bool		(*ins_is_fused)(struct arch *arch, const char *ins1,
+	bool		(*ins_is_fused)(const struct arch *arch, const char *ins1,
 					const char *ins2);
 	struct		{
 		char comment_char;
@@ -89,14 +89,14 @@ struct ins_operands {
 
 struct ins_ops {
 	void (*free)(struct ins_operands *ops);
-	int (*parse)(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms,
+	int (*parse)(const struct arch *arch, struct ins_operands *ops, struct map_symbol *ms,
 			struct disasm_line *dl);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
 			 struct ins_operands *ops, int max_ins_name);
 };
 
 struct annotate_args {
-	struct arch		  *arch;
+	const struct arch	  *arch;
 	struct map_symbol	  *ms;
 	struct annotation_options *options;
 	s64			  offset;
@@ -105,14 +105,14 @@ struct annotate_args {
 	char			  *fileloc;
 };
 
-struct arch *arch__find(const char *name);
-bool arch__is(struct arch *arch, const char *name);
+const struct arch *arch__find(const char *name);
+bool arch__is(const struct arch *arch, const char *name);
 
-struct ins_ops *ins__find(struct arch *arch, const char *name, struct disasm_line *dl);
+struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
 
 bool ins__is_call(const struct ins *ins);
 bool ins__is_jump(const struct ins *ins);
-bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
+bool ins__is_fused(const struct arch *arch, const char *ins1, const char *ins2);
 bool ins__is_ret(const struct ins *ins);
 bool ins__is_lock(const struct ins *ins);
 

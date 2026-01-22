@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 
-static int s390_call__parse(struct arch *arch, struct ins_operands *ops,
-			    struct map_symbol *ms, struct disasm_line *dl __maybe_unused)
+static int s390_call__parse(const struct arch *arch, struct ins_operands *ops,
+			    struct map_symbol *ms,
+			    struct disasm_line *dl __maybe_unused)
 {
 	char *endptr, *tok, *name;
 	struct map *map = ms->map;
@@ -53,7 +54,7 @@ static struct ins_ops s390_call_ops = {
 	.scnprintf = call__scnprintf,
 };
 
-static int s390_mov__parse(struct arch *arch __maybe_unused,
+static int s390_mov__parse(const struct arch *arch __maybe_unused,
 			   struct ins_operands *ops,
 			   struct map_symbol *ms __maybe_unused,
 			   struct disasm_line *dl __maybe_unused)

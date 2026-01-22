@@ -30,7 +30,7 @@ struct annotate_browser {
 	struct rb_root		    entries;
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
-	struct arch		   *arch;
+	const struct arch	   *arch;
 	/*
 	 * perf top can delete hist_entry anytime.  Callers should make sure
 	 * its lifetime.
