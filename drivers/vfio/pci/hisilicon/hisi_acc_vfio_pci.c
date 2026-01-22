@@ -1215,8 +1215,7 @@ static void hisi_acc_vf_pci_aer_reset_done(struct pci_dev *pdev)
 	if (hisi_acc_vdev->set_reset_flag)
 		clear_bit(QM_RESETTING, &qm->misc_ctl);
 
-	if (hisi_acc_vdev->core_device.vdev.migration_flags !=
-				VFIO_MIGRATION_STOP_COPY)
+	if (!hisi_acc_vdev->core_device.vdev.mig_ops)
 		return;
 
 	mutex_lock(&hisi_acc_vdev->state_mutex);
