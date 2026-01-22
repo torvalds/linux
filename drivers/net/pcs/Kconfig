@@ -20,6 +20,7 @@ config PCS_LYNX
 
 config PCS_MTK_LYNXI
 	tristate
+	select PHY_COMMON_PROPS
 	select REGMAP
 	help
 	  This module provides helpers to phylink for managing the LynxI PCS
