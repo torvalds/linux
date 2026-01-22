@@ -122,7 +122,7 @@ static int mt7996_npu_offload_init(struct mt7996_dev *dev,
 	return 0;
 }
 
-static int mt7996_npu_rxd_init(struct mt7996_dev *dev, struct airoha_npu *npu)
+static int mt7992_npu_rxd_init(struct mt7996_dev *dev, struct airoha_npu *npu)
 {
 	u32 val;
 	int err;
@@ -304,7 +304,7 @@ int mt7996_npu_hw_init(struct mt7996_dev *dev)
 	if (err)
 		goto unlock;
 
-	err = mt7996_npu_rxd_init(dev, npu);
+	err = mt7992_npu_rxd_init(dev, npu);
 	if (err)
 		goto unlock;
 
