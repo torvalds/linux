@@ -4326,12 +4326,12 @@ static void bnxt_init_ring_struct(struct bnxt *bp)
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct netdev_queue_config qcfg;
 		struct bnxt_ring_mem_info *rmem;
 		struct bnxt_cp_ring_info *cpr;
 		struct bnxt_rx_ring_info *rxr;
 		struct bnxt_tx_ring_info *txr;
 		struct bnxt_ring_struct *ring;
-		struct netdev_rx_queue *rxq;
 
 		if (!bnapi)
 			continue;
@@ -4349,8 +4349,8 @@ static void bnxt_init_ring_struct(struct bnxt *bp)
 		if (!rxr)
 			goto skip_rx;
 
-		rxq = __netif_get_rx_queue(bp->dev, i);
-		rxr->rx_page_size = rxq->qcfg.rx_page_size;
+		netdev_queue_config(bp->dev, i, &qcfg);
+		rxr->rx_page_size = qcfg.rx_page_size;
 
 		ring = &rxr->rx_ring_struct;
 		rmem = &ring->ring_mem;

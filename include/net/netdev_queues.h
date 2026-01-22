@@ -170,6 +170,9 @@ struct netdev_queue_mgmt_ops {
 	unsigned int supported_params;
 };
 
+void netdev_queue_config(struct net_device *dev, int rxq,
+			 struct netdev_queue_config *qcfg);
+
 bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx);
 
 /**
