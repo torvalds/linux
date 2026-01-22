@@ -517,6 +517,19 @@ static void tcp_tx_timestamp(struct sock *sk, struct sockcm_cookie *sockc)
 		bpf_skops_tx_timestamping(sk, skb, BPF_SOCK_OPS_TSTAMP_SENDMSG_CB);
 }
 
+/* @wake is one when sk_stream_write_space() calls us.
+ * This sends EPOLLOUT only if notsent_bytes is half the limit.
+ * This mimics the strategy used in sock_def_write_space().
+ */
+bool tcp_stream_memory_free(const struct sock *sk, int wake)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 notsent_bytes = READ_ONCE(tp->write_seq) - READ_ONCE(tp->snd_nxt);
+
+	return (notsent_bytes << wake) < tcp_notsent_lowat(tp);
+}
+EXPORT_SYMBOL(tcp_stream_memory_free);
+
 static bool tcp_stream_is_readable(struct sock *sk, int target)
 {
 	if (tcp_epollin_ready(sk, target))
