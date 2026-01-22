@@ -1081,15 +1081,10 @@ static irqreturn_t bcmasp_isr_wol(int irq, void *data)
 	struct bcmasp_priv *priv = data;
 	u32 status;
 
-	/* No L3 IRQ, so we good */
-	if (priv->wol_irq <= 0)
-		goto irq_handled;
-
 	status = wakeup_intr2_core_rl(priv, ASP_WAKEUP_INTR2_STATUS) &
 		~wakeup_intr2_core_rl(priv, ASP_WAKEUP_INTR2_MASK_STATUS);
 	wakeup_intr2_core_wl(priv, status, ASP_WAKEUP_INTR2_CLEAR);
 
-irq_handled:
 	pm_wakeup_event(&priv->pdev->dev, 0);
 	return IRQ_HANDLED;
 }
