@@ -739,8 +739,16 @@ static void gsw1xx_shutdown(struct mdio_device *mdiodev)
 static const struct gswip_hw_info gsw12x_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
@@ -753,8 +761,16 @@ static const struct gswip_hw_info gsw12x_data = {
 static const struct gswip_hw_info gsw140_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= &gsw1xx_phylink_get_caps,
 	.supports_2500m		= true,
@@ -767,8 +783,16 @@ static const struct gswip_hw_info gsw140_data = {
 static const struct gswip_hw_info gsw141_data = {
 	.max_ports		= GSW1XX_PORTS,
 	.allowed_cpu_ports	= BIT(GSW1XX_MII_PORT) | BIT(GSW1XX_SGMII_PORT),
-	.mii_ports		= BIT(GSW1XX_MII_PORT),
-	.mii_port_reg_offset	= -GSW1XX_MII_PORT,
+	.mii_cfg = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_CFGp(0),
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
+	.mii_pcdu = {
+		[0 ... GSW1XX_MII_PORT - 1] = -1,
+		[GSW1XX_MII_PORT] = GSWIP_MII_PCDU0,
+		[GSW1XX_MII_PORT + 1 ... GSWIP_MAX_PORTS - 1] = -1,
+	},
 	.mac_select_pcs		= gsw1xx_phylink_mac_select_pcs,
 	.phylink_get_caps	= gsw1xx_phylink_get_caps,
 	.port_setup		= gsw1xx_port_setup,
