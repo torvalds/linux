@@ -321,7 +321,6 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
 	int irq;
-	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
 
 	ac97_reg_base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(ac97_reg_base)) {
@@ -329,32 +328,12 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 		return PTR_ERR(ac97_reg_base);
 	}
 
-	if (pdata) {
-		switch (pdata->reset_gpio) {
-		case 95:
-		case 113:
-			reset_gpio = pdata->reset_gpio;
-			break;
-		case 0:
-			reset_gpio = 113;
-			break;
-		case -1:
-			break;
-		default:
-			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
-				pdata->reset_gpio);
-		}
-	} else if (!pdata && dev->dev.of_node) {
-		pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
-		pdata->reset_gpio = of_get_named_gpio(dev->dev.of_node,
-						      "reset-gpios", 0);
-		if (pdata->reset_gpio == -ENOENT)
-			pdata->reset_gpio = -1;
-		else if (pdata->reset_gpio < 0)
-			return pdata->reset_gpio;
-		reset_gpio = pdata->reset_gpio;
+	if (dev->dev.of_node) {
+		reset_gpio = of_get_named_gpio(dev->dev.of_node, "reset-gpios", 0);
+		if (reset_gpio == -ENOENT)
+			reset_gpio = -1;
+		else if (reset_gpio < 0)
+			return reset_gpio;
 	} else {
 		if (cpu_is_pxa27x())
 			reset_gpio = 113;
