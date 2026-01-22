@@ -3,9 +3,13 @@
 #ifndef __STATMOUNT_H
 #define __STATMOUNT_H
 
+#include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <linux/mount.h>
 #include <asm/unistd.h>
+
+#define STATMOUNT_BUFSIZE (1 << 15)
 
 #ifndef __NR_statmount
 	#if defined __alpha__
@@ -82,6 +86,53 @@ static inline ssize_t listmount(uint64_t mnt_id, uint64_t mnt_ns_id,
 	}
 
 	return syscall(__NR_listmount, &req, list, num, flags);
+}
+
+static inline struct statmount *statmount_alloc(uint64_t mnt_id, uint64_t mnt_ns_id,
+						 uint64_t mask, unsigned int flags)
+{
+	struct statmount *buf;
+	size_t bufsize = STATMOUNT_BUFSIZE;
+	int ret;
+
+	for (;;) {
+		buf = malloc(bufsize);
+		if (!buf)
+			return NULL;
+
+		ret = statmount(mnt_id, mnt_ns_id, 0, mask, buf, bufsize, flags);
+		if (ret == 0)
+			return buf;
+
+		free(buf);
+		if (errno != EOVERFLOW)
+			return NULL;
+
+		bufsize <<= 1;
+	}
+}
+
+static inline struct statmount *statmount_alloc_by_fd(int fd, uint64_t mask)
+{
+	struct statmount *buf;
+	size_t bufsize = STATMOUNT_BUFSIZE;
+	int ret;
+
+	for (;;) {
+		buf = malloc(bufsize);
+		if (!buf)
+			return NULL;
+
+		ret = statmount(0, 0, fd, mask, buf, bufsize, STATMOUNT_BY_FD);
+		if (ret == 0)
+			return buf;
+
+		free(buf);
+		if (errno != EOVERFLOW)
+			return NULL;
+
+		bufsize <<= 1;
+	}
 }
 
 #endif /* __STATMOUNT_H */
