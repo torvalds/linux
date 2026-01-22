@@ -887,6 +887,7 @@ int mt7996_mtk_init_debugfs(struct mt7996_phy *phy, struct dentry *dir);
 #endif
 
 int mt7996_dma_rro_init(struct mt7996_dev *dev);
+void mt7996_dma_rro_start(struct mt7996_dev *dev);
 
 #ifdef CONFIG_MT7996_NPU
 int __mt7996_npu_hw_init(struct mt7996_dev *dev);

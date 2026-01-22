@@ -521,7 +521,7 @@ static void mt7996_dma_enable(struct mt7996_dev *dev, bool reset)
 int mt7996_dma_rro_init(struct mt7996_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
-	u32 irq_mask, size;
+	u32 size;
 	int ret;
 
 	if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
@@ -548,7 +548,8 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			mt76_queue_reset(dev, &mdev->q_rx[MT_RXQ_RRO_RXDMAD_C],
 					 true);
 		}
-		goto start_hw_rro;
+
+		return 0;
 	}
 
 	/* ind cmd */
@@ -615,43 +616,49 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			return ret;
 	}
 
-start_hw_rro:
-	if (mtk_wed_device_active(&mdev->mmio.wed)) {
-		irq_mask = mdev->mmio.irqmask |
+	return 0;
+}
+
+void mt7996_dma_rro_start(struct mt7996_dev *dev)
+{
+	u32 irq_mask;
+
+	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
+		irq_mask = dev->mt76.mmio.irqmask |
 			   MT_INT_TX_DONE_BAND2;
 
 		mt76_wr(dev, MT_INT_MASK_CSR, irq_mask);
-		mtk_wed_device_start_hw_rro(&mdev->mmio.wed, irq_mask, false);
+		mtk_wed_device_start_hw_rro(&dev->mt76.mmio.wed, irq_mask,
+					    false);
 		mt7996_irq_enable(dev, irq_mask);
-	} else {
-		if (is_mt7996(&dev->mt76)) {
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND1,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND2,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND2,
-					   mt76_dma_rx_poll);
-		} else {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND1,
-					   mt76_dma_rx_poll);
-		}
-
-		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
-		if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_RXDMAD_C,
-					   mt76_dma_rx_poll);
-		} else {
-			mt76_queue_rx_init(dev, MT_RXQ_RRO_IND,
-					   mt76_dma_rx_poll);
-			mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
-					   mt76_dma_rx_poll);
-		}
-
-		if (!mt76_npu_device_active(&dev->mt76))
-			mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
+		return;
 	}
 
-	return 0;
+	if (is_mt7996(&dev->mt76)) {
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND1,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND2,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND2,
+				   mt76_dma_rx_poll);
+	} else {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND1,
+				   mt76_dma_rx_poll);
+	}
+
+	mt76_queue_rx_init(dev, MT_RXQ_RRO_BAND0, mt76_dma_rx_poll);
+	if (dev->mt76.hwrro_mode == MT76_HWRRO_V3_1) {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_RXDMAD_C,
+				   mt76_dma_rx_poll);
+	} else {
+		mt76_queue_rx_init(dev, MT_RXQ_RRO_IND,
+				   mt76_dma_rx_poll);
+		mt76_queue_rx_init(dev, MT_RXQ_MSDU_PAGE_BAND0,
+				   mt76_dma_rx_poll);
+	}
+
+	if (!mt76_npu_device_active(&dev->mt76))
+		mt7996_irq_enable(dev, MT_INT_RRO_RX_DONE);
 }
 
 int mt7996_dma_init(struct mt7996_dev *dev)
