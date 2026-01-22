@@ -1,132 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "generated/bit-length.h"
-
-#include "maple-shared.h"
-#include "vma_internal.h"
-
-/* Include so header guard set. */
-#include "../../../mm/vma.h"
-
-static bool fail_prealloc;
-
-/* Then override vma_iter_prealloc() so we can choose to fail it. */
-#define vma_iter_prealloc(vmi, vma)					\
-	(fail_prealloc ? -ENOMEM : mas_preallocate(&(vmi)->mas, (vma), GFP_KERNEL))
-
-#define CONFIG_DEFAULT_MMAP_MIN_ADDR 65536
-
-unsigned long mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
-unsigned long dac_mmap_min_addr = CONFIG_DEFAULT_MMAP_MIN_ADDR;
-unsigned long stack_guard_gap = 256UL<<PAGE_SHIFT;
-
-/*
- * Directly import the VMA implementation here. Our vma_internal.h wrapper
- * provides userland-equivalent functionality for everything vma.c uses.
- */
-#include "../../../mm/vma_init.c"
-#include "../../../mm/vma_exec.c"
-#include "../../../mm/vma.c"
-
-const struct vm_operations_struct vma_dummy_vm_ops;
-static struct anon_vma dummy_anon_vma;
-
-#define ASSERT_TRUE(_expr)						\
-	do {								\
-		if (!(_expr)) {						\
-			fprintf(stderr,					\
-				"Assert FAILED at %s:%d:%s(): %s is FALSE.\n", \
-				__FILE__, __LINE__, __FUNCTION__, #_expr); \
-			return false;					\
-		}							\
-	} while (0)
-#define ASSERT_FALSE(_expr) ASSERT_TRUE(!(_expr))
-#define ASSERT_EQ(_val1, _val2) ASSERT_TRUE((_val1) == (_val2))
-#define ASSERT_NE(_val1, _val2) ASSERT_TRUE((_val1) != (_val2))
-
-#define IS_SET(_val, _flags) ((_val & _flags) == _flags)
-
-static struct task_struct __current;
-
-struct task_struct *get_current(void)
-{
-	return &__current;
-}
-
-unsigned long rlimit(unsigned int limit)
-{
-	return (unsigned long)-1;
-}
-
-/* Helper function to simply allocate a VMA. */
-static struct vm_area_struct *alloc_vma(struct mm_struct *mm,
-					unsigned long start,
-					unsigned long end,
-					pgoff_t pgoff,
-					vm_flags_t vm_flags)
-{
-	struct vm_area_struct *vma = vm_area_alloc(mm);
-
-	if (vma == NULL)
-		return NULL;
-
-	vma->vm_start = start;
-	vma->vm_end = end;
-	vma->vm_pgoff = pgoff;
-	vm_flags_reset(vma, vm_flags);
-	vma_assert_detached(vma);
-
-	return vma;
-}
-
-/* Helper function to allocate a VMA and link it to the tree. */
-static int attach_vma(struct mm_struct *mm, struct vm_area_struct *vma)
-{
-	int res;
-
-	res = vma_link(mm, vma);
-	if (!res)
-		vma_assert_attached(vma);
-	return res;
-}
-
-static void detach_free_vma(struct vm_area_struct *vma)
-{
-	vma_mark_detached(vma);
-	vm_area_free(vma);
-}
-
-/* Helper function to allocate a VMA and link it to the tree. */
-static struct vm_area_struct *alloc_and_link_vma(struct mm_struct *mm,
-						 unsigned long start,
-						 unsigned long end,
-						 pgoff_t pgoff,
-						 vm_flags_t vm_flags)
-{
-	struct vm_area_struct *vma = alloc_vma(mm, start, end, pgoff, vm_flags);
-
-	if (vma == NULL)
-		return NULL;
-
-	if (attach_vma(mm, vma)) {
-		detach_free_vma(vma);
-		return NULL;
-	}
-
-	/*
-	 * Reset this counter which we use to track whether writes have
-	 * begun. Linking to the tree will have caused this to be incremented,
-	 * which means we will get a false positive otherwise.
-	 */
-	vma->vm_lock_seq = UINT_MAX;
-
-	return vma;
-}
-
 /* Helper function which provides a wrapper around a merge new VMA operation. */
 static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
 {
@@ -147,20 +20,6 @@ static struct vm_area_struct *merge_new(struct vma_merge_struct *vmg)
 }
 
 /*
- * Helper function which provides a wrapper around a merge existing VMA
- * operation.
- */
-static struct vm_area_struct *merge_existing(struct vma_merge_struct *vmg)
-{
-	struct vm_area_struct *vma;
-
-	vma = vma_merge_existing_range(vmg);
-	if (vma)
-		vma_assert_attached(vma);
-	return vma;
-}
-
-/*
  * Helper function which provides a wrapper around the expansion of an existing
  * VMA.
  */
@@ -173,8 +32,8 @@ static int expand_existing(struct vma_merge_struct *vmg)
  * Helper function to reset merge state the associated VMA iterator to a
  * specified new range.
  */
-static void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
-			  unsigned long end, pgoff_t pgoff, vm_flags_t vm_flags)
+void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
+		   unsigned long end, pgoff_t pgoff, vm_flags_t vm_flags)
 {
 	vma_iter_set(vmg->vmi, start);
 
@@ -197,8 +56,8 @@ static void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
 
 /* Helper function to set both the VMG range and its anon_vma. */
 static void vmg_set_range_anon_vma(struct vma_merge_struct *vmg, unsigned long start,
-				   unsigned long end, pgoff_t pgoff, vm_flags_t vm_flags,
-				   struct anon_vma *anon_vma)
+		unsigned long end, pgoff_t pgoff, vm_flags_t vm_flags,
+		struct anon_vma *anon_vma)
 {
 	vmg_set_range(vmg, start, end, pgoff, vm_flags);
 	vmg->anon_vma = anon_vma;
@@ -211,10 +70,9 @@ static void vmg_set_range_anon_vma(struct vma_merge_struct *vmg, unsigned long s
  * VMA, link it to the maple tree and return it.
  */
 static struct vm_area_struct *try_merge_new_vma(struct mm_struct *mm,
-						struct vma_merge_struct *vmg,
-						unsigned long start, unsigned long end,
-						pgoff_t pgoff, vm_flags_t vm_flags,
-						bool *was_merged)
+		struct vma_merge_struct *vmg, unsigned long start,
+		unsigned long end, pgoff_t pgoff, vm_flags_t vm_flags,
+		bool *was_merged)
 {
 	struct vm_area_struct *merged;
 
@@ -232,72 +90,6 @@ static struct vm_area_struct *try_merge_new_vma(struct mm_struct *mm,
 	ASSERT_EQ(vmg->state, VMA_MERGE_NOMERGE);
 
 	return alloc_and_link_vma(mm, start, end, pgoff, vm_flags);
-}
-
-/*
- * Helper function to reset the dummy anon_vma to indicate it has not been
- * duplicated.
- */
-static void reset_dummy_anon_vma(void)
-{
-	dummy_anon_vma.was_cloned = false;
-	dummy_anon_vma.was_unlinked = false;
-}
-
-/*
- * Helper function to remove all VMAs and destroy the maple tree associated with
- * a virtual address space. Returns a count of VMAs in the tree.
- */
-static int cleanup_mm(struct mm_struct *mm, struct vma_iterator *vmi)
-{
-	struct vm_area_struct *vma;
-	int count = 0;
-
-	fail_prealloc = false;
-	reset_dummy_anon_vma();
-
-	vma_iter_set(vmi, 0);
-	for_each_vma(*vmi, vma) {
-		detach_free_vma(vma);
-		count++;
-	}
-
-	mtree_destroy(&mm->mm_mt);
-	mm->map_count = 0;
-	return count;
-}
-
-/* Helper function to determine if VMA has had vma_start_write() performed. */
-static bool vma_write_started(struct vm_area_struct *vma)
-{
-	int seq = vma->vm_lock_seq;
-
-	/* We reset after each check. */
-	vma->vm_lock_seq = UINT_MAX;
-
-	/* The vma_start_write() stub simply increments this value. */
-	return seq > -1;
-}
-
-/* Helper function providing a dummy vm_ops->close() method.*/
-static void dummy_close(struct vm_area_struct *)
-{
-}
-
-static void __vma_set_dummy_anon_vma(struct vm_area_struct *vma,
-				     struct anon_vma_chain *avc,
-				     struct anon_vma *anon_vma)
-{
-	vma->anon_vma = anon_vma;
-	INIT_LIST_HEAD(&vma->anon_vma_chain);
-	list_add(&avc->same_vma, &vma->anon_vma_chain);
-	avc->anon_vma = vma->anon_vma;
-}
-
-static void vma_set_dummy_anon_vma(struct vm_area_struct *vma,
-				   struct anon_vma_chain *avc)
-{
-	__vma_set_dummy_anon_vma(vma, avc, &dummy_anon_vma);
 }
 
 static bool test_simple_merge(void)
@@ -1616,39 +1408,6 @@ static bool test_merge_extend(void)
 	return true;
 }
 
-static bool test_copy_vma(void)
-{
-	vm_flags_t vm_flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE;
-	struct mm_struct mm = {};
-	bool need_locks = false;
-	VMA_ITERATOR(vmi, &mm, 0);
-	struct vm_area_struct *vma, *vma_new, *vma_next;
-
-	/* Move backwards and do not merge. */
-
-	vma = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, vm_flags);
-	vma_new = copy_vma(&vma, 0, 0x2000, 0, &need_locks);
-	ASSERT_NE(vma_new, vma);
-	ASSERT_EQ(vma_new->vm_start, 0);
-	ASSERT_EQ(vma_new->vm_end, 0x2000);
-	ASSERT_EQ(vma_new->vm_pgoff, 0);
-	vma_assert_attached(vma_new);
-
-	cleanup_mm(&mm, &vmi);
-
-	/* Move a VMA into position next to another and merge the two. */
-
-	vma = alloc_and_link_vma(&mm, 0, 0x2000, 0, vm_flags);
-	vma_next = alloc_and_link_vma(&mm, 0x6000, 0x8000, 6, vm_flags);
-	vma_new = copy_vma(&vma, 0x4000, 0x2000, 4, &need_locks);
-	vma_assert_attached(vma_new);
-
-	ASSERT_EQ(vma_new, vma_next);
-
-	cleanup_mm(&mm, &vmi);
-	return true;
-}
-
 static bool test_expand_only_mode(void)
 {
 	vm_flags_t vm_flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE;
@@ -1689,73 +1448,8 @@ static bool test_expand_only_mode(void)
 	return true;
 }
 
-static bool test_mmap_region_basic(void)
+static void run_merge_tests(int *num_tests, int *num_fail)
 {
-	struct mm_struct mm = {};
-	unsigned long addr;
-	struct vm_area_struct *vma;
-	VMA_ITERATOR(vmi, &mm, 0);
-
-	current->mm = &mm;
-
-	/* Map at 0x300000, length 0x3000. */
-	addr = __mmap_region(NULL, 0x300000, 0x3000,
-			     VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE,
-			     0x300, NULL);
-	ASSERT_EQ(addr, 0x300000);
-
-	/* Map at 0x250000, length 0x3000. */
-	addr = __mmap_region(NULL, 0x250000, 0x3000,
-			     VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE,
-			     0x250, NULL);
-	ASSERT_EQ(addr, 0x250000);
-
-	/* Map at 0x303000, merging to 0x300000 of length 0x6000. */
-	addr = __mmap_region(NULL, 0x303000, 0x3000,
-			     VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE,
-			     0x303, NULL);
-	ASSERT_EQ(addr, 0x303000);
-
-	/* Map at 0x24d000, merging to 0x250000 of length 0x6000. */
-	addr = __mmap_region(NULL, 0x24d000, 0x3000,
-			     VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE,
-			     0x24d, NULL);
-	ASSERT_EQ(addr, 0x24d000);
-
-	ASSERT_EQ(mm.map_count, 2);
-
-	for_each_vma(vmi, vma) {
-		if (vma->vm_start == 0x300000) {
-			ASSERT_EQ(vma->vm_end, 0x306000);
-			ASSERT_EQ(vma->vm_pgoff, 0x300);
-		} else if (vma->vm_start == 0x24d000) {
-			ASSERT_EQ(vma->vm_end, 0x253000);
-			ASSERT_EQ(vma->vm_pgoff, 0x24d);
-		} else {
-			ASSERT_FALSE(true);
-		}
-	}
-
-	cleanup_mm(&mm, &vmi);
-	return true;
-}
-
-int main(void)
-{
-	int num_tests = 0, num_fail = 0;
-
-	maple_tree_init();
-	vma_state_init();
-
-#define TEST(name)							\
-	do {								\
-		num_tests++;						\
-		if (!test_##name()) {					\
-			num_fail++;					\
-			fprintf(stderr, "Test " #name " FAILED\n");	\
-		}							\
-	} while (0)
-
 	/* Very simple tests to kick the tyres. */
 	TEST(simple_merge);
 	TEST(simple_modify);
@@ -1771,15 +1465,5 @@ int main(void)
 	TEST(dup_anon_vma);
 	TEST(vmi_prealloc_fail);
 	TEST(merge_extend);
-	TEST(copy_vma);
 	TEST(expand_only_mode);
-
-	TEST(mmap_region_basic);
-
-#undef TEST
-
-	printf("%d tests run, %d passed, %d failed.\n",
-	       num_tests, num_tests - num_fail, num_fail);
-
-	return num_fail == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
