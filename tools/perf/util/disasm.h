@@ -17,21 +17,23 @@ struct data_loc_info;
 struct type_state;
 struct disasm_line;
 
+struct e_machine_and_e_flags {
+	uint16_t e_machine;
+	uint32_t e_flags;
+};
+
 struct arch {
-	const char	*name;
+	/** @id: ELF machine and flags associated with arch. */
+	struct e_machine_and_e_flags id;
+	/** @name: name such as "x86" or "powerpc". */
+	const char		*name;
 	const struct ins	*instructions;
-	size_t		nr_instructions;
-	size_t		nr_instructions_allocated;
-	const struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
-	bool		sorted_instructions;
-	bool		initialized;
-	const char	*insn_suffix;
-	void		*priv;
-	unsigned int	model;
-	unsigned int	family;
-	int		(*init)(struct arch *arch, char *cpuid);
-	bool		(*ins_is_fused)(const struct arch *arch, const char *ins1,
-					const char *ins2);
+	size_t			nr_instructions;
+	size_t			nr_instructions_allocated;
+	bool			sorted_instructions;
+	const char		*insn_suffix;
+	unsigned int		model;
+	unsigned int		family;
 	struct		{
 		char comment_char;
 		char skip_functions_char;
@@ -39,15 +41,14 @@ struct arch {
 		char memory_ref_char;
 		char imm_char;
 	} objdump;
+	bool		(*ins_is_fused)(const struct arch *arch, const char *ins1,
+					const char *ins2);
+	const struct ins_ops  *(*associate_instruction_ops)(struct arch *arch, const char *name);
 #ifdef HAVE_LIBDW_SUPPORT
 	void		(*update_insn_state)(struct type_state *state,
 				struct data_loc_info *dloc, Dwarf_Die *cu_die,
 				struct disasm_line *dl);
 #endif
-	/** @e_machine: ELF machine associated with arch. */
-	unsigned int e_machine;
-	/** @e_flags: Optional ELF flags associated with arch. */
-	unsigned int e_flags;
 };
 
 struct ins {
@@ -107,7 +108,7 @@ struct annotate_args {
 	char			  *fileloc;
 };
 
-const struct arch *arch__find(const char *name);
+const struct arch *arch__find(uint16_t e_machine, const char *cpuid);
 bool arch__is_x86(const struct arch *arch);
 bool arch__is_powerpc(const struct arch *arch);
 
@@ -121,17 +122,17 @@ extern const struct ins_ops ret_ops;
 
 int arch__associate_ins_ops(struct arch *arch, const char *name, const struct ins_ops *ops);
 
-int arc__annotate_init(struct arch *arch, char *cpuid);
-int arm__annotate_init(struct arch *arch, char *cpuid);
-int arm64__annotate_init(struct arch *arch, char *cpuid);
-int csky__annotate_init(struct arch *arch, char *cpuid);
-int loongarch__annotate_init(struct arch *arch, char *cpuid);
-int mips__annotate_init(struct arch *arch, char *cpuid);
-int powerpc__annotate_init(struct arch *arch, char *cpuid);
-int riscv64__annotate_init(struct arch *arch, char *cpuid);
-int s390__annotate_init(struct arch *arch, char *cpuid);
-int sparc__annotate_init(struct arch *arch, char *cpuid);
-int x86__annotate_init(struct arch *arch, char *cpuid);
+const struct arch *arch__new_arc(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_arm(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_arm64(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_csky(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_loongarch(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_mips(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_powerpc(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_riscv64(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_s390(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_sparc(const struct e_machine_and_e_flags *id, const char *cpuid);
+const struct arch *arch__new_x86(const struct e_machine_and_e_flags *id, const char *cpuid);
 
 const struct ins_ops *ins__find(const struct arch *arch, const char *name, struct disasm_line *dl);
 

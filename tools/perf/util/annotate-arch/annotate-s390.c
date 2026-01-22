@@ -148,7 +148,7 @@ static const struct ins_ops *s390__associate_ins_ops(struct arch *arch, const ch
 	return ops;
 }
 
-static int s390__cpuid_parse(struct arch *arch, char *cpuid)
+static int s390__cpuid_parse(struct arch *arch, const char *cpuid)
 {
 	unsigned int family;
 	char model[16], model_c[16], cpumf_v[16], cpumf_a[16];
@@ -169,19 +169,22 @@ static int s390__cpuid_parse(struct arch *arch, char *cpuid)
 	return -1;
 }
 
-int s390__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_s390(const struct e_machine_and_e_flags *id, const char *cpuid)
 {
-	int err = 0;
+	struct arch *arch = zalloc(sizeof(*arch));
 
-	if (!arch->initialized) {
-		arch->initialized = true;
-		arch->associate_instruction_ops = s390__associate_ins_ops;
-		if (cpuid) {
-			if (s390__cpuid_parse(arch, cpuid))
-				err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+	if (!arch)
+		return NULL;
+
+	arch->name = "s390";
+	arch->id = *id;
+	arch->associate_instruction_ops = s390__associate_ins_ops;
+	if (cpuid) {
+		if (s390__cpuid_parse(arch, cpuid)) {
+			errno = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+			return NULL;
 		}
-		arch->objdump.comment_char = '#';
 	}
-
-	return err;
+	arch->objdump.comment_char = '#';
+	return arch;
 }

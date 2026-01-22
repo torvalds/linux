@@ -390,17 +390,21 @@ static void update_insn_state_powerpc(struct type_state *state,
 }
 #endif /* HAVE_LIBDW_SUPPORT */
 
-int powerpc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_powerpc(const struct e_machine_and_e_flags *id,
+				     const char *cpuid __maybe_unused)
 {
-	if (!arch->initialized) {
-		arch->initialized = true;
-		arch->associate_instruction_ops = powerpc__associate_instruction_ops;
-		arch->objdump.comment_char      = '#';
-		annotate_opts.show_asm_raw = true;
-#ifdef HAVE_LIBDW_SUPPORT
-		arch->update_insn_state = update_insn_state_powerpc;
-#endif
-	}
+	struct arch *arch = zalloc(sizeof(*arch));
 
-	return 0;
+	if (!arch)
+		return NULL;
+
+	arch->name = "powerpc";
+	arch->id = *id;
+	arch->objdump.comment_char = '#';
+	annotate_opts.show_asm_raw = true;
+	arch->associate_instruction_ops = powerpc__associate_instruction_ops;
+#ifdef HAVE_LIBDW_SUPPORT
+	arch->update_insn_state = update_insn_state_powerpc;
+#endif
+	return arch;
 }

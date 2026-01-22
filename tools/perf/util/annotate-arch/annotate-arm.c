@@ -7,14 +7,15 @@
 #include "../annotate.h"
 #include "../disasm.h"
 
-struct arm_annotate {
-	regex_t call_insn,
-		jump_insn;
+struct arch_arm {
+	struct arch arch;
+	regex_t call_insn;
+	regex_t jump_insn;
 };
 
 static const struct ins_ops *arm__associate_instruction_ops(struct arch *arch, const char *name)
 {
-	struct arm_annotate *arm = arch->priv;
+	struct arch_arm *arm = container_of(arch, struct arch_arm, arch);
 	const struct ins_ops *ops;
 	regmatch_t match[2];
 
@@ -29,37 +30,39 @@ static const struct ins_ops *arm__associate_instruction_ops(struct arch *arch, c
 	return ops;
 }
 
-int arm__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_arm(const struct e_machine_and_e_flags *id,
+				 const char *cpuid __maybe_unused)
 {
-	struct arm_annotate *arm;
 	int err;
+	struct arch_arm *arm = zalloc(sizeof(*arm));
+	struct arch *arch;
 
-	if (arch->initialized)
-		return 0;
-
-	arm = zalloc(sizeof(*arm));
 	if (!arm)
-		return ENOMEM;
+		return NULL;
+
+	arch = &arm->arch;
+	arch->name = "arm";
+	arch->id = *id;
+	arch->objdump.comment_char	  = ';';
+	arch->objdump.skip_functions_char = '+';
+	arch->associate_instruction_ops   = arm__associate_instruction_ops;
 
 #define ARM_CONDS "(cc|cs|eq|ge|gt|hi|le|ls|lt|mi|ne|pl|vc|vs)"
 	err = regcomp(&arm->call_insn, "^blx?" ARM_CONDS "?$", REG_EXTENDED);
 	if (err)
 		goto out_free_arm;
+
 	err = regcomp(&arm->jump_insn, "^bx?" ARM_CONDS "?$", REG_EXTENDED);
 	if (err)
 		goto out_free_call;
 #undef ARM_CONDS
 
-	arch->initialized = true;
-	arch->priv	  = arm;
-	arch->associate_instruction_ops   = arm__associate_instruction_ops;
-	arch->objdump.comment_char	  = ';';
-	arch->objdump.skip_functions_char = '+';
-	return 0;
+	return arch;
 
 out_free_call:
 	regfree(&arm->call_insn);
 out_free_arm:
 	free(arm);
-	return SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP;
+	errno = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_REGEXP;
+	return NULL;
 }

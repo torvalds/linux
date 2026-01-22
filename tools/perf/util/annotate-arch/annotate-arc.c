@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include "../disasm.h"
 
-int arc__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_arc(const struct e_machine_and_e_flags *id,
+				 const char *cpuid __maybe_unused)
 {
-	arch->initialized = true;
+	struct arch *arch = zalloc(sizeof(*arch));
+
+	if (!arch)
+		return NULL;
+
+	arch->name = "arc";
+	arch->id = *id;
 	arch->objdump.comment_char = ';';
-	return 0;
+	return arch;
 }

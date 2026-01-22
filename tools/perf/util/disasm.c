@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <ctype.h>
+#include <elf.h>
+#ifndef EF_CSKY_ABIMASK
+#define EF_CSKY_ABIMASK	0XF0000000
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -102,112 +106,101 @@ int arch__associate_ins_ops(struct arch *arch, const char *name, const struct in
 	return 0;
 }
 
-static struct arch architectures[] = {
-	{
-		.name = "arc",
-		.init = arc__annotate_init,
-		.e_machine = EM_ARC,
-	},
-	{
-		.name = "arm",
-		.init = arm__annotate_init,
-		.e_machine = EM_ARM,
-	},
-	{
-		.name = "arm64",
-		.init = arm64__annotate_init,
-		.e_machine = EM_AARCH64,
-	},
-	{
-		.name = "csky",
-		.init = csky__annotate_init,
-		.e_machine = EM_CSKY,
-#if defined(__CSKYABIV2__)
-		.e_flags = EF_CSKY_ABIV2,
-#else
-		.e_flags = EF_CSKY_ABIV1,
-#endif
-	},
-	{
-		.name = "mips",
-		.init = mips__annotate_init,
-		.e_machine = EM_MIPS,
-	},
-	{
-		.name = "x86",
-		.init = x86__annotate_init,
-		.e_machine = EM_X86_64, // TODO: EM_386 too.
-	},
-	{
-		.name = "powerpc",
-		.init = powerpc__annotate_init,
-		.e_machine = EM_PPC, // TODO: EM_PPC64 too.
-	},
-	{
-		.name = "riscv64",
-		.init = riscv64__annotate_init,
-		.e_machine = EM_RISCV,
-	},
-	{
-		.name = "s390",
-		.init = s390__annotate_init,
-		.e_machine = EM_S390,
-	},
-	{
-		.name = "sparc",
-		.init = sparc__annotate_init,
-		.e_machine = EM_SPARC,
-	},
-	{
-		.name = "loongarch",
-		.init = loongarch__annotate_init,
-		.e_machine = EM_LOONGARCH,
-	},
-};
-
-static int arch__key_cmp(const void *name, const void *archp)
+static int e_machine_and_eflags__cmp(const struct e_machine_and_e_flags *val1,
+				     const struct e_machine_and_e_flags *val2)
 {
-	const struct arch *arch = archp;
+	if (val1->e_machine == val2->e_machine) {
+		if (val1->e_machine != EM_CSKY)
+			return 0;
+		if ((val1->e_flags & EF_CSKY_ABIMASK) < (val2->e_flags & EF_CSKY_ABIMASK))
+			return -1;
+		return (val1->e_flags & EF_CSKY_ABIMASK) > (val2->e_flags & EF_CSKY_ABIMASK);
+	}
+	return val1->e_machine < val2->e_machine ? -1 : 1;
+}
 
-	return strcmp(name, arch->name);
+static int arch__key_cmp(const void *key, const void *archp)
+{
+	const struct arch *const *arch = archp;
+
+	return e_machine_and_eflags__cmp(key, &(*arch)->id);
 }
 
 static int arch__cmp(const void *a, const void *b)
 {
-	const struct arch *aa = a;
-	const struct arch *ab = b;
+	const struct arch *const *aa = a;
+	const struct arch *const *ab = b;
 
-	return strcmp(aa->name, ab->name);
+	return e_machine_and_eflags__cmp(&(*aa)->id, &(*ab)->id);
 }
 
-static void arch__sort(void)
+const struct arch *arch__find(uint16_t e_machine, const char *cpuid)
 {
-	const int nmemb = ARRAY_SIZE(architectures);
+	static const struct arch *(*const arch_new_fn[])(const struct e_machine_and_e_flags *id,
+							 const char *cpuid) = {
+		[EM_386]	= arch__new_x86,
+		[EM_ARC]	= arch__new_arc,
+		[EM_ARM]	= arch__new_arm,
+		[EM_AARCH64]	= arch__new_arm64,
+		[EM_CSKY]	= arch__new_csky,
+		[EM_LOONGARCH]	= arch__new_loongarch,
+		[EM_MIPS]	= arch__new_mips,
+		[EM_PPC64]	= arch__new_powerpc,
+		[EM_PPC]	= arch__new_powerpc,
+		[EM_RISCV]	= arch__new_riscv64,
+		[EM_S390]	= arch__new_s390,
+		[EM_SPARC]	= arch__new_sparc,
+		[EM_SPARCV9]	= arch__new_sparc,
+		[EM_X86_64]	= arch__new_x86,
+	};
+	static const struct arch **archs;
+	static size_t num_archs;
+	struct e_machine_and_e_flags key = {
+		.e_machine = e_machine,
+		// TODO: e_flags should really come from the same source as e_machine.
+		.e_flags = EF_HOST,
+	};
+	const struct arch *result = NULL, **tmp;
 
-	qsort(architectures, nmemb, sizeof(struct arch), arch__cmp);
-}
-
-const struct arch *arch__find(const char *name)
-{
-	const int nmemb = ARRAY_SIZE(architectures);
-	static bool sorted;
-
-	if (!sorted) {
-		arch__sort();
-		sorted = true;
+	if (num_archs > 0) {
+		tmp = bsearch(&key, archs, num_archs, sizeof(*archs), arch__key_cmp);
+		if (tmp)
+			result = *tmp;
 	}
 
-	return bsearch(name, architectures, nmemb, sizeof(struct arch), arch__key_cmp);
+	if (result)
+		return result;
+
+	if (e_machine >= ARRAY_SIZE(arch_new_fn) || arch_new_fn[e_machine] == NULL) {
+		errno = ENOTSUP;
+		return NULL;
+	}
+
+	tmp = reallocarray(archs, num_archs + 1, sizeof(*archs));
+	if (!tmp)
+		return NULL;
+
+	result = arch_new_fn[e_machine](&key, cpuid);
+	if (!result) {
+		pr_err("%s: failed to initialize %s (%u) arch priv area\n",
+			__func__, result->name, e_machine);
+		free(tmp);
+		return NULL;
+	}
+	archs = tmp;
+	archs[num_archs++] = result;
+	qsort(archs, num_archs, sizeof(*archs), arch__cmp);
+	return result;
 }
 
 bool arch__is_x86(const struct arch *arch)
 {
-	return arch->e_machine == EM_386 || arch->e_machine == EM_X86_64;
+	return arch->id.e_machine == EM_386 || arch->id.e_machine == EM_X86_64;
 }
 
 bool arch__is_powerpc(const struct arch *arch)
 {
-	return arch->e_machine == EM_PPC || arch->e_machine == EM_PPC64;
+	return arch->id.e_machine == EM_PPC || arch->id.e_machine == EM_PPC64;
 }
 
 static void ins_ops__delete(struct ins_operands *ops)

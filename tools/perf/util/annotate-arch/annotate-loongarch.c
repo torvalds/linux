@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include "../disasm.h"
 #include "../map.h"
 #include "../maps.h"
@@ -139,13 +140,17 @@ const struct ins_ops *loongarch__associate_ins_ops(struct arch *arch, const char
 	return ops;
 }
 
-int loongarch__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_loongarch(const struct e_machine_and_e_flags *id,
+				       const char *cpuid __maybe_unused)
 {
-	if (!arch->initialized) {
-		arch->associate_instruction_ops = loongarch__associate_ins_ops;
-		arch->initialized = true;
-		arch->objdump.comment_char = '#';
-	}
+	struct arch *arch = zalloc(sizeof(*arch));
 
-	return 0;
+	if (!arch)
+		return NULL;
+
+	arch->name = "loongarch";
+	arch->id = *id;
+	arch->associate_instruction_ops = loongarch__associate_ins_ops;
+	arch->objdump.comment_char = '#';
+	return arch;
 }

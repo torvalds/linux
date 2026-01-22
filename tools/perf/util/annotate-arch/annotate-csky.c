@@ -2,6 +2,7 @@
 // Copyright (C) 2019 Hangzhou C-SKY Microsystems co.,ltd.
 #include <string.h>
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 #include "../disasm.h"
 
 static const struct ins_ops *csky__associate_ins_ops(struct arch *arch,
@@ -39,10 +40,17 @@ static const struct ins_ops *csky__associate_ins_ops(struct arch *arch,
 	return ops;
 }
 
-int csky__annotate_init(struct arch *arch, char *cpuid __maybe_unused)
+const struct arch *arch__new_csky(const struct e_machine_and_e_flags *id,
+				  const char *cpuid __maybe_unused)
 {
-	arch->initialized = true;
+	struct arch *arch = zalloc(sizeof(*arch));
+
+	if (!arch)
+		return NULL;
+
+	arch->name = "csky";
+	arch->id = *id;
 	arch->objdump.comment_char = '/';
 	arch->associate_instruction_ops = csky__associate_ins_ops;
-	return 0;
+	return arch;
 }

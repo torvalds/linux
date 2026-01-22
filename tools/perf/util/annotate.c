@@ -980,32 +980,27 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
-int evsel__get_arch(struct evsel *evsel, const struct arch **parch)
+int thread__get_arch(struct thread *thread, const struct arch **parch)
 {
-	struct perf_env *env = evsel__env(evsel);
-	const char *arch_name = perf_env__arch(env);
 	const struct arch *arch;
-	int err;
+	struct machine *machine;
+	uint16_t e_machine;
 
-	if (!arch_name) {
+	if (!thread) {
 		*parch = NULL;
+		return -1;
+	}
+
+	machine = maps__machine(thread__maps(thread));
+	e_machine = thread__e_machine(thread, machine);
+	arch = arch__find(e_machine, machine->env ? machine->env->cpuid : NULL);
+	if (arch == NULL) {
+		pr_err("%s: unsupported arch %d\n", __func__, e_machine);
 		return errno;
 	}
+	if (parch)
+		*parch = arch;
 
-	*parch = arch = arch__find(arch_name);
-	if (arch == NULL) {
-		pr_err("%s: unsupported arch %s\n", __func__, arch_name);
-		return ENOTSUP;
-	}
-
-	if (arch->init) {
-		err = arch->init((struct arch *)arch, env ? env->cpuid : NULL);
-		if (err) {
-			pr_err("%s: failed to initialize %s arch priv area\n",
-			       __func__, arch->name);
-			return err;
-		}
-	}
 	return 0;
 }
 
@@ -1020,7 +1015,7 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	const struct arch *arch = NULL;
 	int err, nr;
 
-	err = evsel__get_arch(evsel, &arch);
+	err = thread__get_arch(ms->thread, &arch);
 	if (err)
 		return err;
 
@@ -1268,7 +1263,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 
 	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
 							      notes->src->start);
-	evsel__get_arch(evsel, &apd.arch);
+	thread__get_arch(ms->thread, &apd.arch);
 	apd.dbg = dso__debuginfo(dso);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
@@ -1373,7 +1368,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp,
 	struct annotation_line *al;
 
 	if (annotate_opts.code_with_type) {
-		evsel__get_arch(apd->evsel, &apd->arch);
+		thread__get_arch(apd->he->ms.thread, &apd->arch);
 		apd->dbg = dso__debuginfo(map__dso(apd->he->ms.map));
 	}
 
@@ -2495,7 +2490,7 @@ static int extract_reg_offset(const struct arch *arch, const char *str,
 	if (regname == NULL)
 		return -1;
 
-	op_loc->reg1 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
+	op_loc->reg1 = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
 	free(regname);
 
 	/* Get the second register */
@@ -2508,7 +2503,7 @@ static int extract_reg_offset(const struct arch *arch, const char *str,
 		if (regname == NULL)
 			return -1;
 
-		op_loc->reg2 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
+		op_loc->reg2 = get_dwarf_regnum(regname, arch->id.e_machine, arch->id.e_flags);
 		free(regname);
 	}
 	return 0;
@@ -2607,8 +2602,11 @@ int annotate_get_insn_location(const struct arch *arch, struct disasm_line *dl,
 			if (s == NULL)
 				return -1;
 
-			if (*s == arch->objdump.register_char)
-				op_loc->reg1 = get_dwarf_regnum(s, arch->e_machine, arch->e_flags);
+			if (*s == arch->objdump.register_char) {
+				op_loc->reg1 = get_dwarf_regnum(s,
+								arch->id.e_machine,
+								arch->id.e_flags);
+			}
 			else if (*s == arch->objdump.imm_char) {
 				op_loc->offset = strtol(s + 1, &p, 0);
 				if (p && p != s + 1)

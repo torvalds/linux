@@ -182,7 +182,7 @@ static bool intel__ins_is_fused(const struct arch *arch, const char *ins1,
 	return false;
 }
 
-static int x86__cpuid_parse(struct arch *arch, char *cpuid)
+static int x86__cpuid_parse(struct arch *arch, const char *cpuid)
 {
 	unsigned int family, model, stepping;
 	int ret;
@@ -777,18 +777,21 @@ retry:
 }
 #endif
 
-int x86__annotate_init(struct arch *arch, char *cpuid)
+const struct arch *arch__new_x86(const struct e_machine_and_e_flags *id, const char *cpuid)
 {
-	int err = 0;
+	struct arch *arch = zalloc(sizeof(*arch));
 
-	if (arch->initialized)
-		return 0;
+	if (!arch)
+		return NULL;
 
+	arch->name = "x86";
+	arch->id = *id;
 	if (cpuid) {
-		if (x86__cpuid_parse(arch, cpuid))
-			err = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+		if (x86__cpuid_parse(arch, cpuid)) {
+			errno = SYMBOL_ANNOTATE_ERRNO__ARCH_INIT_CPUID_PARSING;
+			return NULL;
+		}
 	}
-
 	arch->instructions = x86__instructions;
 	arch->nr_instructions = ARRAY_SIZE(x86__instructions);
 #ifndef NDEBUG
@@ -810,11 +813,8 @@ int x86__annotate_init(struct arch *arch, char *cpuid)
 	arch->objdump.memory_ref_char = '(';
 	arch->objdump.imm_char = '$';
 	arch->insn_suffix = "bwlq";
-	arch->e_machine = EM_X86_64;
-	arch->e_flags = 0;
-	arch->initialized = true;
 #ifdef HAVE_LIBDW_SUPPORT
 	arch->update_insn_state = update_insn_state_x86;
 #endif
-	return err;
+	return arch;
 }
