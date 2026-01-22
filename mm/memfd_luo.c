@@ -447,7 +447,8 @@ static int memfd_luo_retrieve(struct liveupdate_file_op_args *args)
 	file = memfd_alloc_file("", 0);
 	if (IS_ERR(file)) {
 		pr_err("failed to setup file: %pe\n", file);
-		return PTR_ERR(file);
+		err = PTR_ERR(file);
+		goto free_ser;
 	}
 
 	vfs_setpos(file, ser->pos, MAX_LFS_FILESIZE);
@@ -473,7 +474,8 @@ static int memfd_luo_retrieve(struct liveupdate_file_op_args *args)
 
 put_file:
 	fput(file);
-
+free_ser:
+	kho_restore_free(ser);
 	return err;
 }
 
