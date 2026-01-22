@@ -35,7 +35,7 @@ extern const struct nt_err_code_struct nt_errs[];
 
 #define NT_STATUS_OK                   0x0000
 #define NT_STATUS_PENDING              0x0103
-#define NT_STATUS_SOME_UNMAPPED        0x0107
+#define NT_STATUS_SOME_NOT_MAPPED      0x0107
 #define NT_STATUS_NOTIFY_ENUM_DIR      0x010c
 #define NT_STATUS_BUFFER_OVERFLOW  0x80000005
 #define NT_STATUS_NO_MORE_ENTRIES  0x8000001a
