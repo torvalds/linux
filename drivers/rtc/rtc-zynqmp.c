@@ -208,13 +208,13 @@ static int xlnx_rtc_read_offset(struct device *dev, long *offset)
 static int xlnx_rtc_set_offset(struct device *dev, long offset)
 {
 	struct xlnx_rtc_dev *xrtcdev = dev_get_drvdata(dev);
-	unsigned long long rtc_ppb = RTC_PPB;
-	unsigned int tick_mult = do_div(rtc_ppb, xrtcdev->freq);
-	unsigned char fract_tick = 0;
+	int max_tick, tick_mult, fract_offset, fract_part;
+	int freq = xrtcdev->freq;
 	unsigned int calibval;
-	short int  max_tick;
-	int fract_offset;
+	int fract_data = 0;
 
+	/* Tick to offset multiplier */
+	tick_mult = DIV_ROUND_CLOSEST(RTC_PPB, freq);
 	if (offset < RTC_MIN_OFFSET || offset > RTC_MAX_OFFSET)
 		return -ERANGE;
 
@@ -223,29 +223,22 @@ static int xlnx_rtc_set_offset(struct device *dev, long offset)
 
 	/* Number fractional ticks for given offset */
 	if (fract_offset) {
-		if (fract_offset < 0) {
-			fract_offset = fract_offset + tick_mult;
+		fract_part = DIV_ROUND_UP(tick_mult, RTC_FR_MAX_TICKS);
+		fract_data = fract_offset / fract_part;
+		/* Subtract one from max_tick while adding fract_offset */
+		if (fract_offset < 0 && fract_data) {
 			max_tick--;
-		}
-		if (fract_offset > (tick_mult / RTC_FR_MAX_TICKS)) {
-			for (fract_tick = 1; fract_tick < 16; fract_tick++) {
-				if (fract_offset <=
-				    (fract_tick *
-				     (tick_mult / RTC_FR_MAX_TICKS)))
-					break;
-			}
+			fract_data += RTC_FR_MAX_TICKS;
 		}
 	}
 
 	/* Zynqmp RTC uses second and fractional tick
 	 * counters for compensation
 	 */
-	calibval = max_tick + RTC_CALIB_DEF;
+	calibval = max_tick + freq;
 
-	if (fract_tick)
-		calibval |= RTC_FR_EN;
-
-	calibval |= (fract_tick << RTC_FR_DATSHIFT);
+	if (fract_data)
+		calibval |= (RTC_FR_EN | (fract_data << RTC_FR_DATSHIFT));
 
 	writel(calibval, (xrtcdev->reg_base + RTC_CALIB_WR));
 
