@@ -101,3 +101,19 @@ static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt)
 	if (reset_refcnt)
 		refcount_set(&vma->vm_refcnt, 0);
 }
+
+static inline vma_flags_t __mk_vma_flags(size_t count, const vma_flag_t *bits)
+{
+	vma_flags_t flags;
+	int i;
+
+	/*
+	 * For testing purposes: allow invalid bit specification so we can
+	 * easily test.
+	 */
+	vma_flags_clear_all(&flags);
+	for (i = 0; i < count; i++)
+		if (bits[i] < NUM_VMA_FLAG_BITS)
+			vma_flag_set(&flags, bits[i]);
+	return flags;
+}
