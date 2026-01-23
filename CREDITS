@@ -2231,6 +2231,10 @@ S: Markham, Ontario
 S: L3R 8B2
 S: Canada
 
+N: Krzysztof Kozlowski
+E: krzk@kernel.org
+D: NFC network subsystem and drivers maintainer
+
 N: Christian Krafft
 D: PowerPC Cell support
 

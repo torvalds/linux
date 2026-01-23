@@ -314,6 +314,7 @@ R:	Mauro Carvalho Chehab <mchehab@kernel.org>
 R:	Shuai Xue <xueshuai@linux.alibaba.com>
 L:	linux-acpi@vger.kernel.org
 F:	drivers/acpi/apei/
+F:	drivers/firmware/efi/cper*
 
 ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
@@ -3131,6 +3132,7 @@ F:	drivers/*/*ma35*
 K:	ma35d1
 
 ARM/NUVOTON NPCM ARCHITECTURE
+M:	Andrew Jeffery <andrew@codeconstruct.com.au>
 M:	Avi Fishman <avifishman70@gmail.com>
 M:	Tomer Maimon <tmaimon77@gmail.com>
 M:	Tali Perry <tali.perry1@gmail.com>
@@ -3139,6 +3141,7 @@ R:	Nancy Yuen <yuenn@google.com>
 R:	Benjamin Fair <benjaminfair@google.com>
 L:	openbmc@lists.ozlabs.org (moderated for non-subscribers)
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bmc/linux.git
 F:	Documentation/devicetree/bindings/*/*/*npcm*
 F:	Documentation/devicetree/bindings/*/*npcm*
 F:	Documentation/devicetree/bindings/rtc/nuvoton,nct3018y.yaml
@@ -6420,6 +6423,7 @@ F:	include/linux/blk-cgroup.h
 
 CONTROL GROUP - CPUSET
 M:	Waiman Long <longman@redhat.com>
+R:	Chen Ridong <chenridong@huaweicloud.com>
 L:	cgroups@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
@@ -9303,12 +9307,12 @@ M:	Lukasz Luba <lukasz.luba@arm.com>
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
-F:	kernel/power/energy_model.c
-F:	include/linux/energy_model.h
+F:	Documentation/netlink/specs/dev-energymodel.yaml
 F:	Documentation/power/energy-model.rst
-F:	Documentation/netlink/specs/em.yaml
-F:	include/uapi/linux/energy_model.h
+F:	include/linux/energy_model.h
+F:	include/uapi/linux/dev_energymodel.h
 F:	kernel/power/em_netlink*.*
+F:	kernel/power/energy_model.c
 
 EPAPR HYPERVISOR BYTE CHANNEL DEVICE DRIVER
 M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
@@ -9519,6 +9523,7 @@ F:	arch/arm/boot/compressed/efi-header.S
 F:	arch/x86/platform/efi/
 F:	drivers/firmware/efi/
 F:	include/linux/efi*.h
+X:	drivers/firmware/efi/cper*
 
 EXTERNAL CONNECTOR SUBSYSTEM (EXTCON)
 M:	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -18490,9 +18495,8 @@ F:	include/uapi/linux/nexthop.h
 F:	net/ipv4/nexthop.c
 
 NFC SUBSYSTEM
-M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	Documentation/devicetree/bindings/net/nfc/
 F:	drivers/nfc/
 F:	include/net/nfc/
@@ -21119,6 +21123,10 @@ S:	Maintained
 F:	rust/helpers/pwm.c
 F:	rust/kernel/pwm.rs
 
+PWM SUBSYSTEM DRIVERS [RUST]
+R:	Michal Wilczynski <m.wilczynski@samsung.com>
+F:	drivers/pwm/*.rs
+
 PXA GPIO DRIVER
 M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	linux-gpio@vger.kernel.org
@@ -22548,7 +22556,7 @@ F:	drivers/mailbox/riscv-sbi-mpxy-mbox.c
 F:	include/linux/mailbox/riscv-rpmi-message.h
 
 RISC-V SPACEMIT SoC Support
-M:	Yixun Lan <dlan@gentoo.org>
+M:	Yixun Lan <dlan@kernel.org>
 L:	linux-riscv@lists.infradead.org
 L:	spacemit@lists.linux.dev
 S:	Maintained

@@ -202,19 +202,6 @@
 
 			nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
 			nvidia,head = <0>;
-
-			interconnects = <&mc TEGRA210_MC_DISPLAY0A &emc>,
-					<&mc TEGRA210_MC_DISPLAY0B &emc>,
-					<&mc TEGRA210_MC_DISPLAY0C &emc>,
-					<&mc TEGRA210_MC_DISPLAYHC &emc>,
-					<&mc TEGRA210_MC_DISPLAYD &emc>,
-					<&mc TEGRA210_MC_DISPLAYT &emc>;
-			interconnect-names = "wina",
-					     "winb",
-					     "winc",
-					     "cursor",
-					     "wind",
-					     "wint";
 		};
 
 		dc@54240000 {
@@ -230,15 +217,6 @@
 
 			nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
 			nvidia,head = <1>;
-
-			interconnects = <&mc TEGRA210_MC_DISPLAY0AB &emc>,
-					<&mc TEGRA210_MC_DISPLAY0BB &emc>,
-					<&mc TEGRA210_MC_DISPLAY0CB &emc>,
-					<&mc TEGRA210_MC_DISPLAYHCB &emc>;
-			interconnect-names = "wina",
-					     "winb",
-					     "winc",
-					     "cursor";
 		};
 
 		dsia: dsi@54300000 {
@@ -1052,7 +1030,6 @@
 
 		#iommu-cells = <1>;
 		#reset-cells = <1>;
-		#interconnect-cells = <1>;
 	};
 
 	emc: external-memory-controller@7001b000 {
@@ -1066,7 +1043,6 @@
 		nvidia,memory-controller = <&mc>;
 		operating-points-v2 = <&emc_icc_dvfs_opp_table>;
 
-		#interconnect-cells = <0>;
 		#cooling-cells = <2>;
 	};
 
