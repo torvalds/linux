@@ -22,7 +22,17 @@
 	CFI_OFFSET	cs,     IA32_SIGCONTEXT_cs
 	CFI_OFFSET	ss,     IA32_SIGCONTEXT_ss
 	CFI_OFFSET	ds,     IA32_SIGCONTEXT_ds
+/*
+ * .cfi_offset eflags requires LLVM 16 or newer:
+ *
+ *   https://github.com/llvm/llvm-project/commit/67bd3c58c0c7389e39c5a2f4d3b1a30459ccf5b7
+ *
+ * Check for 16.0.1 to ensure the support is present, as 16.0.0 may be a
+ * prerelease version.
+ */
+#if defined(CONFIG_AS_IS_GNU) || (defined(CONFIG_AS_IS_LLVM) && CONFIG_AS_VERSION >= 160001)
 	CFI_OFFSET	eflags, IA32_SIGCONTEXT_flags
+#endif
 .endm
 
 	.text
