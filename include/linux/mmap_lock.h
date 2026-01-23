@@ -211,8 +211,8 @@ static inline void vma_refcount_put(struct vm_area_struct *vma)
 	newcnt = __vma_refcount_put_return(vma);
 
 	/*
-	 * __vma_enter_locked() may be sleeping waiting for readers to drop
-	 * their reference count, so wake it up if we were the last reader
+	 * __vma_start_exclude_readers() may be sleeping waiting for readers to
+	 * drop their reference count, so wake it up if we were the last reader
 	 * blocking it from being acquired.
 	 *
 	 * We may be raced by other readers temporarily incrementing the
