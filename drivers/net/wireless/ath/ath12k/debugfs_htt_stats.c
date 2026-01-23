@@ -5661,6 +5661,67 @@ ath12k_htt_print_rx_pdev_fw_stats_tlv(const void *tag_buf, u16 tag_len,
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_tx_hwq_stats_cmn_tlv(const void *tag_buf, u16 tag_len,
+				      struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_tx_hwq_stats_cmn_tlv *htt_stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_TX_HWQ_STATS_CMN_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			le32_to_cpu(htt_stats_buf->mac_id__hwq_id__word) & 0xFF);
+	len += scnprintf(buf + len, buf_len - len, "hwq_id = %u\n",
+			(le32_to_cpu(htt_stats_buf->mac_id__hwq_id__word) & 0xFF00) >> 8);
+	len += scnprintf(buf + len, buf_len - len, "xretry = %u\n",
+			le32_to_cpu(htt_stats_buf->xretry));
+	len += scnprintf(buf + len, buf_len - len, "underrun_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->underrun_cnt));
+	len += scnprintf(buf + len, buf_len - len, "flush_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->flush_cnt));
+	len += scnprintf(buf + len, buf_len - len, "filt_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->filt_cnt));
+	len += scnprintf(buf + len, buf_len - len, "null_mpdu_bmap = %u\n",
+			le32_to_cpu(htt_stats_buf->null_mpdu_bmap));
+	len += scnprintf(buf + len, buf_len - len, "user_ack_failure = %u\n",
+			le32_to_cpu(htt_stats_buf->user_ack_failure));
+	len += scnprintf(buf + len, buf_len - len, "ack_tlv_proc = %u\n",
+			le32_to_cpu(htt_stats_buf->ack_tlv_proc));
+	len += scnprintf(buf + len, buf_len - len, "sched_id_proc = %u\n",
+			le32_to_cpu(htt_stats_buf->sched_id_proc));
+	len += scnprintf(buf + len, buf_len - len, "null_mpdu_tx_count = %u\n",
+			le32_to_cpu(htt_stats_buf->null_mpdu_tx_count));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_bmap_not_recvd = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_bmap_not_recvd));
+	len += scnprintf(buf + len, buf_len - len, "num_bar = %u\n",
+			le32_to_cpu(htt_stats_buf->num_bar));
+	len += scnprintf(buf + len, buf_len - len, "rts = %u\n",
+			le32_to_cpu(htt_stats_buf->rts));
+	len += scnprintf(buf + len, buf_len - len, "cts2self = %u\n",
+			le32_to_cpu(htt_stats_buf->cts2self));
+	len += scnprintf(buf + len, buf_len - len, "qos_null = %u\n",
+			le32_to_cpu(htt_stats_buf->qos_null));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_tried_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_tried_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_queued_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_queued_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_ack_fail_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_ack_fail_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_filt_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_filt_cnt));
+	len += scnprintf(buf + len, buf_len - len, "false_mpdu_ack_count = %u\n",
+			le32_to_cpu(htt_stats_buf->false_mpdu_ack_count));
+	len += scnprintf(buf + len, buf_len - len, "txq_timeout = %u\n",
+			le32_to_cpu(htt_stats_buf->txq_timeout));
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -5959,6 +6020,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_PDEV_RTT_TBR_CMD_RESULT_STATS_TAG:
 		ath12k_htt_print_pdev_rtt_tbr_cmd_res_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_TX_HWQ_CMN_TAG:
+		ath12k_htt_print_tx_hwq_stats_cmn_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;

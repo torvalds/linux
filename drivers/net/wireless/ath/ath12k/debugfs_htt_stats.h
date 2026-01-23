@@ -128,6 +128,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_RESET				= 0,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX			= 1,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_RX			= 2,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_HWQ			= 3,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_SCHED			= 4,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_ERROR			= 5,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TQM			= 6,
@@ -174,6 +175,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_PDEV_SIFS_TAG			= 2,
 	HTT_STATS_TX_PDEV_FLUSH_TAG			= 3,
 	HTT_STATS_STRING_TAG				= 5,
+	HTT_STATS_TX_HWQ_CMN_TAG                        = 6,
 	HTT_STATS_TX_TQM_GEN_MPDU_TAG			= 11,
 	HTT_STATS_TX_TQM_LIST_MPDU_TAG			= 12,
 	HTT_STATS_TX_TQM_LIST_MPDU_CNT_TAG		= 13,
@@ -2128,6 +2130,30 @@ struct htt_rx_pdev_fw_stats_tlv {
 	__le32 rx_hwm_prom_filter_en;
 	__le32 bytes_received_low_32;
 	__le32 bytes_received_high_32;
+} __packed;
+
+struct htt_tx_hwq_stats_cmn_tlv {
+	__le32 mac_id__hwq_id__word;
+	__le32 xretry;
+	__le32 underrun_cnt;
+	__le32 flush_cnt;
+	__le32 filt_cnt;
+	__le32 null_mpdu_bmap;
+	__le32 user_ack_failure;
+	__le32 ack_tlv_proc;
+	__le32 sched_id_proc;
+	__le32 null_mpdu_tx_count;
+	__le32 mpdu_bmap_not_recvd;
+	__le32 num_bar;
+	__le32 rts;
+	__le32 cts2self;
+	__le32 qos_null;
+	__le32 mpdu_tried_cnt;
+	__le32 mpdu_queued_cnt;
+	__le32 mpdu_ack_fail_cnt;
+	__le32 mpdu_filt_cnt;
+	__le32 false_mpdu_ack_count;
+	__le32 txq_timeout;
 } __packed;
 
 #endif
