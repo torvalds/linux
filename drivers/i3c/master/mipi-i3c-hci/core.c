@@ -769,6 +769,49 @@ static int i3c_hci_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int i3c_hci_suspend(struct device *dev)
+{
+	struct i3c_hci *hci = dev_get_drvdata(dev);
+
+	if (!(hci->quirks & HCI_QUIRK_RPM_ALLOWED))
+		return 0;
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int i3c_hci_resume_common(struct device *dev, bool rstdaa)
+{
+	struct i3c_hci *hci = dev_get_drvdata(dev);
+	int ret;
+
+	if (!(hci->quirks & HCI_QUIRK_RPM_ALLOWED))
+		return 0;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
+
+	ret = i3c_master_do_daa_ext(&hci->master, rstdaa);
+	if (ret)
+		dev_err(dev, "Dynamic Address Assignment failed on resume, error %d\n", ret);
+
+	/*
+	 * I3C devices may have retained their dynamic address anyway. Do not
+	 * fail the resume because of DAA error.
+	 */
+	return 0;
+}
+
+static int i3c_hci_resume(struct device *dev)
+{
+	return i3c_hci_resume_common(dev, false);
+}
+
+static int i3c_hci_restore(struct device *dev)
+{
+	return i3c_hci_resume_common(dev, true);
+}
+
 #define DEFAULT_AUTOSUSPEND_DELAY_MS 1000
 
 static void i3c_hci_rpm_enable(struct device *dev)
@@ -945,6 +988,12 @@ static const struct platform_device_id i3c_hci_driver_ids[] = {
 MODULE_DEVICE_TABLE(platform, i3c_hci_driver_ids);
 
 static const struct dev_pm_ops i3c_hci_pm_ops = {
+	.suspend  = pm_sleep_ptr(i3c_hci_suspend),
+	.resume   = pm_sleep_ptr(i3c_hci_resume),
+	.freeze   = pm_sleep_ptr(i3c_hci_suspend),
+	.thaw     = pm_sleep_ptr(i3c_hci_resume),
+	.poweroff = pm_sleep_ptr(i3c_hci_suspend),
+	.restore  = pm_sleep_ptr(i3c_hci_restore),
 	RUNTIME_PM_OPS(i3c_hci_runtime_suspend, i3c_hci_runtime_resume, NULL)
 };
 
