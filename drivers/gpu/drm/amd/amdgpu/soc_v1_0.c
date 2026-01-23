@@ -322,7 +322,7 @@ static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
 	case IP_VERSION(12, 1, 0):
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_CGCG |
 			AMD_CG_SUPPORT_GFX_CGLS;
-		adev->pg_flags = 0;
+		adev->pg_flags = AMD_PG_SUPPORT_VCN_DPG;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
 	default:
