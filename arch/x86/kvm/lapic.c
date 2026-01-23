@@ -3498,7 +3498,6 @@ int kvm_apic_accept_events(struct kvm_vcpu *vcpu)
 	 * wait-for-SIPI (WFS).
 	 */
 	if (!kvm_apic_init_sipi_allowed(vcpu)) {
-		WARN_ON_ONCE(vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED);
 		clear_bit(KVM_APIC_SIPI, &apic->pending_events);
 		return 0;
 	}
