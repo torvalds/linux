@@ -213,7 +213,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 {
 	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
 	struct unwind_info *ui = dwfl_ui_ti->ui;
-	uint16_t e_machine = thread__e_machine(ui->thread, ui->machine);
+	uint16_t e_machine = thread__e_machine(ui->thread, ui->machine, /*e_flags=*/NULL);
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
@@ -348,7 +348,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 {
 	struct maps *maps = thread__maps(thread);
 	struct machine *machine = maps__machine(maps);
-	uint16_t e_machine = thread__e_machine(thread, machine);
+	uint16_t e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 	struct dwfl_ui_thread_info *dwfl_ui_ti;
 	static struct unwind_info *ui;
 	Dwfl *dwfl;

@@ -134,7 +134,7 @@ static int arch__cmp(const void *a, const void *b)
 	return e_machine_and_eflags__cmp(&(*aa)->id, &(*ab)->id);
 }
 
-const struct arch *arch__find(uint16_t e_machine, const char *cpuid)
+const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *cpuid)
 {
 	static const struct arch *(*const arch_new_fn[])(const struct e_machine_and_e_flags *id,
 							 const char *cpuid) = {
@@ -157,8 +157,7 @@ const struct arch *arch__find(uint16_t e_machine, const char *cpuid)
 	static size_t num_archs;
 	struct e_machine_and_e_flags key = {
 		.e_machine = e_machine,
-		// TODO: e_flags should really come from the same source as e_machine.
-		.e_flags = EF_HOST,
+		.e_flags = e_flags,
 	};
 	const struct arch *result = NULL, **tmp;
 

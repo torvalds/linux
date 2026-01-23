@@ -1220,14 +1220,20 @@ static enum dso_swap_type dso_swap_type__from_elf_data(unsigned char eidata)
 }
 
 /* Reads e_machine from fd, optionally caching data in dso. */
-uint16_t dso__read_e_machine(struct dso *optional_dso, int fd)
+uint16_t dso__read_e_machine(struct dso *optional_dso, int fd, uint32_t *e_flags)
 {
 	uint16_t e_machine = EM_NONE;
 	unsigned char e_ident[EI_NIDENT];
 	enum dso_swap_type swap_type;
+	bool need_e_flags;
 
-	_Static_assert(offsetof(Elf32_Ehdr, e_ident) == 0, "Unexpected offset");
-	_Static_assert(offsetof(Elf64_Ehdr, e_ident) == 0, "Unexpected offset");
+	if (e_flags)
+		*e_flags = 0;
+
+	{
+		_Static_assert(offsetof(Elf32_Ehdr, e_ident) == 0, "Unexpected offset");
+		_Static_assert(offsetof(Elf64_Ehdr, e_ident) == 0, "Unexpected offset");
+	}
 	if (pread(fd, &e_ident, sizeof(e_ident), 0) != sizeof(e_ident))
 		return EM_NONE; // Read failed.
 
@@ -1254,18 +1260,35 @@ uint16_t dso__read_e_machine(struct dso *optional_dso, int fd)
 	{
 		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
 		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
-		if (pread(fd, &e_machine, sizeof(e_machine), 18) != sizeof(e_machine))
-			return EM_NONE; // e_machine read failed.
 	}
+	if (pread(fd, &e_machine, sizeof(e_machine), 18) != sizeof(e_machine))
+		return EM_NONE; // e_machine read failed.
 
 	e_machine = DSO_SWAP_TYPE__SWAP(swap_type, uint16_t, e_machine);
 	if (e_machine >= EM_NUM)
 		return EM_NONE; // Bad ELF machine number.
 
+#ifdef NDEBUG
+	/* In production code the e_flags are only needed on CSKY. */
+	need_e_flags = e_flags && e_machine == EM_CSKY;
+#else
+	/* Debug code will always read the e_flags. */
+	need_e_flags = e_flags != NULL;
+#endif
+	if (need_e_flags) {
+		off_t offset = e_ident[EI_CLASS] == ELFCLASS32
+			? offsetof(Elf32_Ehdr, e_flags)
+			: offsetof(Elf64_Ehdr, e_flags);
+
+		if (pread(fd, e_flags, sizeof(*e_flags), offset) != sizeof(*e_flags)) {
+			*e_flags = 0;
+			return EM_NONE; // e_flags read failed.
+		}
+	}
 	return e_machine;
 }
 
-uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
+uint16_t dso__e_machine(struct dso *dso, struct machine *machine, uint32_t *e_flags)
 {
 	uint16_t e_machine = EM_NONE;
 	int fd;
@@ -1285,6 +1308,8 @@ uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 	case DSO_BINARY_TYPE__BPF_IMAGE:
 	case DSO_BINARY_TYPE__OOL:
 	case DSO_BINARY_TYPE__JAVA_JIT:
+		if (e_flags)
+			*e_flags = EF_HOST;
 		return EM_HOST;
 	case DSO_BINARY_TYPE__DEBUGLINK:
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
@@ -1299,6 +1324,8 @@ uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 		break;
 	case DSO_BINARY_TYPE__NOT_FOUND:
 	default:
+		if (e_flags)
+			*e_flags = 0;
 		return EM_NONE;
 	}
 
@@ -1311,7 +1338,9 @@ uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 	try_to_open_dso(dso, machine);
 	fd = dso__data(dso)->fd;
 	if (fd >= 0)
-		e_machine = dso__read_e_machine(dso, fd);
+		e_machine = dso__read_e_machine(dso, fd, e_flags);
+	else if (e_flags)
+		*e_flags = 0;
 
 	mutex_unlock(dso__data_open_lock());
 	return e_machine;

@@ -984,6 +984,7 @@ int thread__get_arch(struct thread *thread, const struct arch **parch)
 {
 	const struct arch *arch;
 	struct machine *machine;
+	uint32_t e_flags;
 	uint16_t e_machine;
 
 	if (!thread) {
@@ -992,8 +993,8 @@ int thread__get_arch(struct thread *thread, const struct arch **parch)
 	}
 
 	machine = maps__machine(thread__maps(thread));
-	e_machine = thread__e_machine(thread, machine);
-	arch = arch__find(e_machine, machine->env ? machine->env->cpuid : NULL);
+	e_machine = thread__e_machine(thread, machine, &e_flags);
+	arch = arch__find(e_machine, e_flags, machine->env ? machine->env->cpuid : NULL);
 	if (arch == NULL) {
 		pr_err("%s: unsupported arch %d\n", __func__, e_machine);
 		return errno;

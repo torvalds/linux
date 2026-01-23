@@ -108,7 +108,7 @@ struct annotate_args {
 	char			  *fileloc;
 };
 
-const struct arch *arch__find(uint16_t e_machine, const char *cpuid);
+const struct arch *arch__find(uint16_t e_machine, uint32_t e_flags, const char *cpuid);
 bool arch__is_x86(const struct arch *arch);
 bool arch__is_powerpc(const struct arch *arch);
 

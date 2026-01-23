@@ -925,7 +925,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 
 	if (al->thread) {
 		machine = maps__machine(thread__maps(al->thread));
-		e_machine = thread__e_machine(al->thread, machine);
+		e_machine = thread__e_machine(al->thread, machine, /*e_flags=*/NULL);
 	}
 	if (set_regs_in_dict(dict, sample, evsel, e_machine))
 		Py_FatalError("Failed to setting regs in dict");

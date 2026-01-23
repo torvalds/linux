@@ -1124,7 +1124,7 @@ static void dump_sample(struct machine *machine, struct evsel *evsel, union perf
 	if (sample_type & (PERF_SAMPLE_REGS_USER | PERF_SAMPLE_REGS_INTR)) {
 		struct thread *thread = machine__find_thread(machine, sample->pid, sample->pid);
 
-		e_machine = thread__e_machine(thread, machine);
+		e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 	}
 
 	printf("(IP, 0x%x): %d/%d: %#" PRIx64 " period: %" PRIu64 " addr: %#" PRIx64 "\n",
@@ -2965,7 +2965,7 @@ static int perf_session__e_machine_cb(struct thread *thread,
 	uint16_t *result = arg;
 	struct machine *machine = maps__machine(thread__maps(thread));
 
-	*result = thread__e_machine(thread, machine);
+	*result = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 	return *result != EM_NONE ? 1 : 0;
 }
 
