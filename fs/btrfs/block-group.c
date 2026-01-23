@@ -1108,8 +1108,10 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	bool remove_rsv = false;
 
 	block_group = btrfs_lookup_block_group(fs_info, map->start);
-	if (!block_group)
+	if (unlikely(!block_group)) {
+		btrfs_abort_transaction(trans, -ENOENT);
 		return -ENOENT;
+	}
 
 	BUG_ON(!block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED));
 
@@ -1143,8 +1145,9 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	btrfs_clear_data_reloc_bg(block_group);
 
 	path = btrfs_alloc_path();
-	if (!path) {
+	if (unlikely(!path)) {
 		ret = -ENOMEM;
+		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
@@ -1180,8 +1183,10 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	mutex_unlock(&trans->transaction->cache_write_mutex);
 
 	ret = btrfs_remove_free_space_inode(trans, inode, block_group);
-	if (ret)
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	write_lock(&fs_info->block_group_cache_lock);
 	rb_erase_cached(&block_group->cache_node,
@@ -1268,13 +1273,17 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 */
 	if (!(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED)) {
 		ret = btrfs_remove_block_group_free_space(trans, block_group);
-		if (ret)
+		if (unlikely(ret)) {
+			btrfs_abort_transaction(trans, ret);
 			goto out;
+		}
 	}
 
 	ret = remove_block_group_item(trans, path, block_group);
-	if (ret < 0)
+	if (unlikely(ret < 0)) {
+		btrfs_abort_transaction(trans, ret);
 		goto out;
+	}
 
 	spin_lock(&block_group->lock);
 	/*

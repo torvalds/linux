@@ -3384,11 +3384,10 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	 */
 	btrfs_trans_release_chunk_metadata(trans);
 
+	/* On error, btrfs_remove_block_group() aborts the transaction. */
 	ret = btrfs_remove_block_group(trans, map);
-	if (unlikely(ret)) {
-		btrfs_abort_transaction(trans, ret);
-		goto out;
-	}
+	if (unlikely(ret))
+		ASSERT(BTRFS_FS_ERROR(fs_info) != 0);
 
 out:
 	if (trans->removing_chunk) {
