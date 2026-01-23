@@ -67,6 +67,9 @@ static void imx8qxp_pxl2dpi_bridge_destroy(struct drm_bridge *bridge)
 {
 	struct imx8qxp_pxl2dpi *p2d = bridge->driver_private;
 
+	if (!p2d)
+		return;
+
 	drm_bridge_put(p2d->companion);
 }
 
