@@ -19,12 +19,6 @@
 
 MODULE_IMPORT_NS("PCI_IDE");
 
-#define TIO_DEFAULT_NR_IDE_STREAMS	1
-
-static uint nr_ide_streams = TIO_DEFAULT_NR_IDE_STREAMS;
-module_param_named(ide_nr, nr_ide_streams, uint, 0644);
-MODULE_PARM_DESC(ide_nr, "Set the maximum number of IDE streams per PHB");
-
 #define dev_to_sp(dev)		((struct sp_device *)dev_get_drvdata(dev))
 #define dev_to_psp(dev)		((struct psp_device *)(dev_to_sp(dev)->psp_data))
 #define dev_to_sev(dev)		((struct sev_device *)(dev_to_psp(dev)->sev_data))
@@ -193,18 +187,12 @@ static void streams_teardown(struct pci_ide **ide)
 static int stream_alloc(struct pci_dev *pdev, struct pci_ide **ide,
 			unsigned int tc)
 {
-	struct pci_dev *rp = pcie_find_root_port(pdev);
 	struct pci_ide *ide1;
 
 	if (ide[tc]) {
 		pci_err(pdev, "Stream for class=%d already registered", tc);
 		return -EBUSY;
 	}
-
-	/* FIXME: find a better way */
-	if (nr_ide_streams != TIO_DEFAULT_NR_IDE_STREAMS)
-		pci_notice(pdev, "Enable non-default %d streams", nr_ide_streams);
-	pci_ide_set_nr_streams(to_pci_host_bridge(rp->bus->bridge), nr_ide_streams);
 
 	ide1 = pci_ide_stream_alloc(pdev);
 	if (!ide1)
