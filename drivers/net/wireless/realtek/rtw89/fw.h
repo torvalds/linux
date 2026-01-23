@@ -4912,9 +4912,9 @@ struct rtw89_h2c_rf_txgapk {
 } __packed;
 
 struct rtw89_h2c_rf_dack {
-	__le32 len;
-	__le32 phy;
-	__le32 type;
+	u8 len;
+	u8 phy;
+	u8 type;
 } __packed;
 
 struct rtw89_h2c_rf_rxdck_v0 {

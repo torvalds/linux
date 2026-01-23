@@ -7503,9 +7503,9 @@ int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_rf_dack *)skb->data;
 
-	h2c->len = cpu_to_le32(len);
-	h2c->phy = cpu_to_le32(phy_idx);
-	h2c->type = cpu_to_le32(0);
+	h2c->len = len;
+	h2c->phy = phy_idx;
+	h2c->type = 0;
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_RFK,
