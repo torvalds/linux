@@ -139,7 +139,16 @@ enum {
  * @ndo_queue_get_dma_dev: Get dma device for zero-copy operations to be used
  *			   for this queue. Return NULL on error.
  *
- * @ndo_default_qcfg:	Populate queue config struct with defaults. Optional.
+ * @ndo_default_qcfg:	(Optional) Populate queue config struct with defaults.
+ *			Queue config structs are passed to this helper before
+ *			the user-requested settings are applied.
+ *
+ * @ndo_validate_qcfg: (Optional) Check if queue config is supported.
+ *			Called when configuration affecting a queue may be
+ *			changing, either due to NIC-wide config, or config
+ *			scoped to the queue at a specified index.
+ *			When NIC-wide config is changed the callback will
+ *			be invoked for all queues.
  *
  * @supported_params:	Bitmask of supported parameters, see QCFG_*.
  *
@@ -164,11 +173,17 @@ struct netdev_queue_mgmt_ops {
 				  int idx);
 	void	(*ndo_default_qcfg)(struct net_device *dev,
 				    struct netdev_queue_config *qcfg);
+	int	(*ndo_validate_qcfg)(struct net_device *dev,
+				     struct netdev_queue_config *qcfg,
+				     struct netlink_ext_ack *extack);
 	struct device *	(*ndo_queue_get_dma_dev)(struct net_device *dev,
 						 int idx);
 
 	unsigned int supported_params;
 };
+
+void netdev_queue_config(struct net_device *dev, int rxq,
+			 struct netdev_queue_config *qcfg);
 
 bool netif_rxq_has_unreadable_mp(struct net_device *dev, int idx);
 
