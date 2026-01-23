@@ -126,13 +126,12 @@ impl PinnedDrop for LockClassKey {
 /// # Examples
 ///
 /// ```
-/// use kernel::c_str;
 /// use kernel::sync::{static_lock_class, Arc, SpinLock};
 ///
 /// fn new_locked_int() -> Result<Arc<SpinLock<u32>>> {
 ///     Arc::pin_init(SpinLock::new(
 ///         42,
-///         c_str!("new_locked_int"),
+///         c"new_locked_int",
 ///         static_lock_class!(),
 ///     ), GFP_KERNEL)
 /// }
