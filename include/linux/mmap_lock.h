@@ -374,6 +374,52 @@ static inline void vma_assert_locked(struct vm_area_struct *vma)
 	vma_assert_write_locked(vma);
 }
 
+/**
+ * vma_assert_stabilised() - assert that this VMA cannot be changed from
+ * underneath us either by having a VMA or mmap lock held.
+ * @vma: The VMA whose stability we wish to assess.
+ *
+ * If lockdep is enabled we can precisely ensure stability via either an mmap
+ * lock owned by us or a specific VMA lock.
+ *
+ * With lockdep disabled we may sometimes race with other threads acquiring the
+ * mmap read lock simultaneous with our VMA read lock.
+ */
+static inline void vma_assert_stabilised(struct vm_area_struct *vma)
+{
+	/*
+	 * If another thread owns an mmap lock, it may go away at any time, and
+	 * thus is no guarantee of stability.
+	 *
+	 * If lockdep is enabled we can accurately determine if an mmap lock is
+	 * held and owned by us. Otherwise we must approximate.
+	 *
+	 * It doesn't necessarily mean we are not stabilised however, as we may
+	 * hold a VMA read lock (not a write lock as this would require an owned
+	 * mmap lock).
+	 *
+	 * If (assuming lockdep is not enabled) we were to assert a VMA read
+	 * lock first we may also run into issues, as other threads can hold VMA
+	 * read locks simlutaneous to us.
+	 *
+	 * Therefore if lockdep is not enabled we risk a false negative (i.e. no
+	 * assert fired). If accurate checking is required, enable lockdep.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		if (lockdep_is_held(&vma->vm_mm->mmap_lock))
+			return;
+	} else {
+		if (rwsem_is_locked(&vma->vm_mm->mmap_lock))
+			return;
+	}
+
+	/*
+	 * We're not stabilised by the mmap lock, so assert that we're
+	 * stabilised by a VMA lock.
+	 */
+	vma_assert_locked(vma);
+}
+
 static inline bool vma_is_attached(struct vm_area_struct *vma)
 {
 	return refcount_read(&vma->vm_refcnt);
@@ -473,6 +519,12 @@ static inline struct vm_area_struct *lock_vma_under_rcu(struct mm_struct *mm,
 
 static inline void vma_assert_locked(struct vm_area_struct *vma)
 {
+	mmap_assert_locked(vma->vm_mm);
+}
+
+static inline void vma_assert_stabilised(struct vm_area_struct *vma)
+{
+	/* If no VMA locks, then either mmap lock suffices to stabilise. */
 	mmap_assert_locked(vma->vm_mm);
 }
 
