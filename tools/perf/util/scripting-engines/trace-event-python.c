@@ -714,7 +714,8 @@ static void set_sample_datasrc_in_dict(PyObject *dict,
 			_PyUnicode_FromString(decode));
 }
 
-static void regs_map(struct regs_dump *regs, uint64_t mask, uint16_t e_machine, char *bf, int size)
+static void regs_map(struct regs_dump *regs, uint64_t mask, uint16_t e_machine, uint32_t e_flags,
+		     char *bf, int size)
 {
 	unsigned int i = 0, r;
 	int printed = 0;
@@ -732,7 +733,7 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, uint16_t e_machine, 
 
 		printed += scnprintf(bf + printed, size - printed,
 				     "%5s:0x%" PRIx64 " ",
-				     perf_reg_name(r, e_machine), val);
+				     perf_reg_name(r, e_machine, e_flags), val);
 	}
 }
 
@@ -741,7 +742,8 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, uint16_t e_machine, 
 static int set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
 			     struct evsel *evsel,
-			     uint16_t e_machine)
+			     uint16_t e_machine,
+			     uint32_t e_flags)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 
@@ -753,7 +755,7 @@ static int set_regs_in_dict(PyObject *dict,
 		if (!bf)
 			return -1;
 
-		regs_map(sample->intr_regs, attr->sample_regs_intr, e_machine, bf, size);
+		regs_map(sample->intr_regs, attr->sample_regs_intr, e_machine, e_flags, bf, size);
 
 		pydict_set_item_string_decref(dict, "iregs",
 					_PyUnicode_FromString(bf));
@@ -765,7 +767,7 @@ static int set_regs_in_dict(PyObject *dict,
 			if (!bf)
 				return -1;
 		}
-		regs_map(sample->user_regs, attr->sample_regs_user, e_machine, bf, size);
+		regs_map(sample->user_regs, attr->sample_regs_user, e_machine, e_flags, bf, size);
 
 		pydict_set_item_string_decref(dict, "uregs",
 					_PyUnicode_FromString(bf));
@@ -837,6 +839,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	PyObject *dict, *dict_sample, *brstack, *brstacksym;
 	struct machine *machine;
 	uint16_t e_machine = EM_HOST;
+	uint32_t e_flags = EF_HOST;
 
 	dict = PyDict_New();
 	if (!dict)
@@ -925,9 +928,9 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 
 	if (al->thread) {
 		machine = maps__machine(thread__maps(al->thread));
-		e_machine = thread__e_machine(al->thread, machine, /*e_flags=*/NULL);
+		e_machine = thread__e_machine(al->thread, machine, &e_flags);
 	}
-	if (set_regs_in_dict(dict, sample, evsel, e_machine))
+	if (set_regs_in_dict(dict, sample, evsel, e_machine, e_flags))
 		Py_FatalError("Failed to setting regs in dict");
 
 	return dict;

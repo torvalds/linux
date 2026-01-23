@@ -16,7 +16,7 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 uint64_t arch__intr_reg_mask(void);
 uint64_t arch__user_reg_mask(void);
 
-const char *perf_reg_name(int id, uint16_t e_machine);
+const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
 uint64_t perf_arch_reg_ip(uint16_t e_machine);
 uint64_t perf_arch_reg_sp(uint16_t e_machine);
@@ -26,7 +26,7 @@ uint64_t __perf_reg_sp_arm64(void);
 const char *__perf_reg_name_arm(int id);
 uint64_t __perf_reg_ip_arm(void);
 uint64_t __perf_reg_sp_arm(void);
-const char *__perf_reg_name_csky(int id);
+const char *__perf_reg_name_csky(int id, uint32_t e_flags);
 uint64_t __perf_reg_ip_csky(void);
 uint64_t __perf_reg_sp_csky(void);
 const char *__perf_reg_name_loongarch(int id);

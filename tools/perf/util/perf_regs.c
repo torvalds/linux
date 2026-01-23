@@ -23,7 +23,7 @@ uint64_t __weak arch__user_reg_mask(void)
 	return 0;
 }
 
-const char *perf_reg_name(int id, uint16_t e_machine)
+const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags)
 {
 	const char *reg_name = NULL;
 
@@ -35,7 +35,7 @@ const char *perf_reg_name(int id, uint16_t e_machine)
 		reg_name = __perf_reg_name_arm64(id);
 		break;
 	case EM_CSKY:
-		reg_name = __perf_reg_name_csky(id);
+		reg_name = __perf_reg_name_csky(id, e_flags);
 		break;
 	case EM_LOONGARCH:
 		reg_name = __perf_reg_name_loongarch(id);
