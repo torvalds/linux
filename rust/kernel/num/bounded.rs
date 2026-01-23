@@ -282,9 +282,6 @@ where
     /// All instances of [`Bounded`] must be created through this method as it enforces most of the
     /// type invariants.
     ///
-    /// The caller remains responsible for checking, either statically or dynamically, that `value`
-    /// can be represented as a `T` using at most `N` bits.
-    ///
     /// # Safety
     ///
     /// The caller must ensure that `value` can be represented within `N` bits.
@@ -297,6 +294,7 @@ where
             assert!(N <= T::BITS);
         }
 
+        // INVARIANT: The caller ensures `value` fits within `N` bits.
         Self(value)
     }
 
