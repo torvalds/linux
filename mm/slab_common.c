@@ -162,9 +162,6 @@ int slab_unmergeable(struct kmem_cache *s)
 		return 1;
 #endif
 
-	if (s->cpu_sheaves)
-		return 1;
-
 	/*
 	 * We may have set a slab to be unmergeable during bootstrap.
 	 */
@@ -187,9 +184,6 @@ static struct kmem_cache *find_mergeable(unsigned int size, slab_flags_t flags,
 		return NULL;
 
 	if (IS_ENABLED(CONFIG_HARDENED_USERCOPY) && args->usersize)
-		return NULL;
-
-	if (args->sheaf_capacity)
 		return NULL;
 
 	flags = kmem_cache_flags(flags, name);
@@ -335,6 +329,13 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 #else
 	flags &= ~SLAB_DEBUG_FLAGS;
 #endif
+
+	/*
+	 * Caches with specific capacity are special enough. It's simpler to
+	 * make them unmergeable.
+	 */
+	if (args->sheaf_capacity)
+		flags |= SLAB_NO_MERGE;
 
 	mutex_lock(&slab_mutex);
 
