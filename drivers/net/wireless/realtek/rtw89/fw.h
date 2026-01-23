@@ -5102,6 +5102,33 @@ struct rtw89_c2h_rf_txiqk_rpt_log {
 	__le32 tx_xym[2][6][14];
 } __packed;
 
+struct rtw89_c2h_rf_cim3k_rpt_log {
+	u8 cim3k_band[2];
+	u8 cim3k_ch[2];
+	u8 cim3k_bw[2];
+	u8 su_path_ok[2];
+	u8 ru_path_ok[2];
+	u8 txagc_cim3k[2];
+	u8 ther_cim3k[2];
+	u8 cim3k_gs[2];
+	__le16 cim3k_pwsf[2];
+	bool cim3k_nctldone[2];
+	u8 rsvd[2];
+	__le32 cim3k_rxiqc[2];
+	__le32 cim3k_su_coef[2][3];
+	__le16 dc_i[2];
+	__le16 dc_q[2];
+	u8 corr_val[2];
+	u8 corr_idx[2];
+	u8 rxbb_ov[2];
+	u8 cim3k_txiqc[2];
+	u8 kidx[2];
+	u8 fw_cim3k_ver;
+	bool su_cim3k_en[2];
+	bool ru_cim3k_en[2];
+	u8 rsvd1;
+} __packed;
+
 struct rtw89_c2h_rfk_report {
 	struct rtw89_c2h_hdr hdr;
 	u8 state; /* enum rtw89_rfk_report_state */
