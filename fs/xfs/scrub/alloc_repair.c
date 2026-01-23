@@ -850,7 +850,6 @@ xrep_allocbt(
 	struct xrep_abt		*ra;
 	struct xfs_mount	*mp = sc->mp;
 	unsigned int		busy_gen;
-	char			*descr;
 	int			error;
 
 	/* We require the rmapbt to rebuild anything. */
@@ -876,11 +875,9 @@ xrep_allocbt(
 	}
 
 	/* Set up enough storage to handle maximally fragmented free space. */
-	descr = xchk_xfile_ag_descr(sc, "free space records");
-	error = xfarray_create(descr, mp->m_sb.sb_agblocks / 2,
+	error = xfarray_create("free space records", mp->m_sb.sb_agblocks / 2,
 			sizeof(struct xfs_alloc_rec_incore),
 			&ra->free_records);
-	kfree(descr);
 	if (error)
 		goto out_ra;
 

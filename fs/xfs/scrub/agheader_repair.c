@@ -1708,7 +1708,6 @@ xrep_agi(
 {
 	struct xrep_agi		*ragi;
 	struct xfs_mount	*mp = sc->mp;
-	char			*descr;
 	unsigned int		i;
 	int			error;
 
@@ -1742,17 +1741,13 @@ xrep_agi(
 	xagino_bitmap_init(&ragi->iunlink_bmp);
 	sc->buf_cleanup = xrep_agi_buf_cleanup;
 
-	descr = xchk_xfile_ag_descr(sc, "iunlinked next pointers");
-	error = xfarray_create(descr, 0, sizeof(xfs_agino_t),
-			&ragi->iunlink_next);
-	kfree(descr);
+	error = xfarray_create("iunlinked next pointers", 0,
+			sizeof(xfs_agino_t), &ragi->iunlink_next);
 	if (error)
 		return error;
 
-	descr = xchk_xfile_ag_descr(sc, "iunlinked prev pointers");
-	error = xfarray_create(descr, 0, sizeof(xfs_agino_t),
-			&ragi->iunlink_prev);
-	kfree(descr);
+	error = xfarray_create("iunlinked prev pointers", 0,
+			sizeof(xfs_agino_t), &ragi->iunlink_prev);
 	if (error)
 		return error;
 

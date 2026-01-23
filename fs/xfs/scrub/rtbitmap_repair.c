@@ -43,7 +43,6 @@ xrep_setup_rtbitmap(
 	struct xchk_rtbitmap	*rtb)
 {
 	struct xfs_mount	*mp = sc->mp;
-	char			*descr;
 	unsigned long long	blocks = mp->m_sb.sb_rbmblocks;
 	int			error;
 
@@ -52,9 +51,8 @@ xrep_setup_rtbitmap(
 		return error;
 
 	/* Create an xfile to hold our reconstructed bitmap. */
-	descr = xchk_xfile_rtgroup_descr(sc, "bitmap file");
-	error = xfile_create(descr, blocks * mp->m_sb.sb_blocksize, &sc->xfile);
-	kfree(descr);
+	error = xfile_create("realtime bitmap file",
+			blocks * mp->m_sb.sb_blocksize, &sc->xfile);
 	if (error)
 		return error;
 
