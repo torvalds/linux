@@ -776,7 +776,6 @@ static int emit_atomic_ld_st(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	return 0;
 }
 
-#ifdef CONFIG_ARM64_LSE_ATOMICS
 static int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {
 	const u8 code = insn->code;
@@ -843,12 +842,6 @@ static int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 
 	return 0;
 }
-#else
-static inline int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
-{
-	return -EINVAL;
-}
-#endif
 
 static int emit_ll_sc_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {

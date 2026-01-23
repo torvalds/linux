@@ -1700,7 +1700,6 @@ int __kvm_find_s1_desc_level(struct kvm_vcpu *vcpu, u64 va, u64 ipa, int *level)
 	}
 }
 
-#ifdef CONFIG_ARM64_LSE_ATOMICS
 static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
 {
 	u64 tmp = old;
@@ -1725,12 +1724,6 @@ static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
 
 	return ret;
 }
-#else
-static int __lse_swap_desc(u64 __user *ptep, u64 old, u64 new)
-{
-	return -EINVAL;
-}
-#endif
 
 static int __llsc_swap_desc(u64 __user *ptep, u64 old, u64 new)
 {
