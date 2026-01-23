@@ -2941,6 +2941,15 @@ int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 		return -EPERM;
 
 	/*
+	 * Only 4KiB mappings can become unsync, and KVM disallows hugepages
+	 * when accounting 4KiB shadow pages.  Upper-level gPTEs are always
+	 * write-protected (see above), thus if the gfn can be mapped with a
+	 * hugepage and isn't write-tracked, it can't have a shadow page.
+	 */
+	if (!lpage_info_slot(gfn, slot, PG_LEVEL_2M)->disallow_lpage)
+		return 0;
+
+	/*
 	 * The page is not write-tracked, mark existing shadow pages unsync
 	 * unless KVM is synchronizing an unsync SP.  In that case, KVM must
 	 * complete emulation of the guest TLB flush before allowing shadow
