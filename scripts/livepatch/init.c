@@ -19,7 +19,7 @@ static int __init livepatch_mod_init(void)
 	unsigned int nr_objs;
 	int ret;
 
-	obj_exts = klp_find_section_by_name(THIS_MODULE, "__klp_objects",
+	obj_exts = klp_find_section_by_name(THIS_MODULE, ".init.klp_objects",
 					    &obj_exts_sec_size);
 	nr_objs = obj_exts_sec_size / sizeof(*obj_exts);
 	if (!nr_objs) {
