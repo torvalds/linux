@@ -9027,12 +9027,9 @@ static void rtw89_hw_scan_set_extra_op_info(struct rtw89_dev *rtwdev,
 		if (tmp == scan_rtwvif)
 			continue;
 
-		tmp_link = rtw89_vif_get_link_inst(tmp, 0);
-		if (unlikely(!tmp_link)) {
-			rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
-				    "hw scan: no HW-0 link for extra op\n");
+		tmp_link = rtw89_get_designated_link(tmp);
+		if (unlikely(!tmp_link))
 			continue;
-		}
 
 		tmp_chan = rtw89_chan_get(rtwdev, tmp_link->chanctx_idx);
 		*ext = (struct rtw89_hw_scan_extra_op){

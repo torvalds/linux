@@ -372,8 +372,8 @@ static void rtw89_normalize_link_chanctx(struct rtw89_dev *rtwdev,
 	if (unlikely(!rtwvif_link->chanctx_assigned))
 		return;
 
-	cur = rtw89_vif_get_link_inst(rtwvif, 0);
-	if (!cur || !cur->chanctx_assigned)
+	cur = rtw89_get_designated_link(rtwvif);
+	if (unlikely(!cur) || !cur->chanctx_assigned)
 		return;
 
 	if (cur == rtwvif_link)
@@ -522,8 +522,8 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 	}
 
 	/* To be consistent with legacy behavior, expect the first active role
-	 * which uses RTW89_CHANCTX_0 to put at position 0, and make its first
-	 * link instance take RTW89_CHANCTX_0. (normalizing)
+	 * which uses RTW89_CHANCTX_0 to put at position 0 and its designated
+	 * link take RTW89_CHANCTX_0. (normalizing)
 	 */
 	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
 		for (i = 0; i < role->links_inst_valid_num; i++) {
