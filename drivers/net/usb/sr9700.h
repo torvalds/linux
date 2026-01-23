@@ -150,8 +150,8 @@
 
 /* Register access commands and flags */
 #define	SR_RD_REGS		0x00
-#define	SR_WR_REGS		0x01
-#define	SR_WR_REG		0x03
+#define	SR_WR_MULTIPLE_REGS	0x01
+#define	SR_WR_SINGLE_REG	0x03
 #define	SR_REQ_RD_REG	(USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE)
 #define	SR_REQ_WR_REG	(USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE)
 

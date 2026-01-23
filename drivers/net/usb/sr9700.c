@@ -37,7 +37,7 @@ static int sr_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
 	int err;
 
-	err = usbnet_write_cmd(dev, SR_WR_REGS, SR_REQ_WR_REG, 0, reg, data,
+	err = usbnet_write_cmd(dev, SR_WR_MULTIPLE_REGS, SR_REQ_WR_REG, 0, reg, data,
 			       length);
 	if ((err >= 0) && (err < length))
 		err = -EINVAL;
@@ -51,20 +51,20 @@ static int sr_read_reg(struct usbnet *dev, u8 reg, u8 *value)
 
 static int sr_write_reg(struct usbnet *dev, u8 reg, u8 value)
 {
-	return usbnet_write_cmd(dev, SR_WR_REG, SR_REQ_WR_REG,
+	return usbnet_write_cmd(dev, SR_WR_SINGLE_REG, SR_REQ_WR_REG,
 				value, reg, NULL, 0);
 }
 
 static void sr_write_async(struct usbnet *dev, u8 reg, u16 length,
 			   const void *data)
 {
-	usbnet_write_cmd_async(dev, SR_WR_REGS, SR_REQ_WR_REG,
+	usbnet_write_cmd_async(dev, SR_WR_MULTIPLE_REGS, SR_REQ_WR_REG,
 			       0, reg, data, length);
 }
 
 static void sr_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 {
-	usbnet_write_cmd_async(dev, SR_WR_REG, SR_REQ_WR_REG,
+	usbnet_write_cmd_async(dev, SR_WR_SINGLE_REG, SR_REQ_WR_REG,
 			       value, reg, NULL, 0);
 }
 
