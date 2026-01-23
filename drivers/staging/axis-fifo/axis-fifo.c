@@ -141,7 +141,7 @@ static ssize_t axis_fifo_read(struct file *f, char __user *buf,
 		mutex_lock(&fifo->read_lock);
 
 		ret = wait_event_interruptible(fifo->read_queue,
-				ioread32(fifo->base_addr + XLLF_RDFO_OFFSET));
+					       ioread32(fifo->base_addr + XLLF_RDFO_OFFSET));
 		if (ret)
 			goto end_unlock;
 	}
