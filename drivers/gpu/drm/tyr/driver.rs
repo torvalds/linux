@@ -34,7 +34,7 @@ pub(crate) type TyrDevice = drm::Device<TyrDriver>;
 
 #[pin_data(PinnedDrop)]
 pub(crate) struct TyrDriver {
-    device: ARef<TyrDevice>,
+    _device: ARef<TyrDevice>,
 }
 
 #[pin_data(PinnedDrop)]
@@ -127,8 +127,8 @@ impl platform::Driver for TyrDriver {
                     coregroup: coregroup_clk,
                 }),
                 regulators <- new_mutex!(Regulators {
-                    mali: mali_regulator,
-                    sram: sram_regulator,
+                    _mali: mali_regulator,
+                    _sram: sram_regulator,
                 }),
                 gpu_info,
         });
@@ -136,7 +136,7 @@ impl platform::Driver for TyrDriver {
         let tdev: ARef<TyrDevice> = drm::Device::new(pdev.as_ref(), data)?;
         drm::driver::Registration::new_foreign_owned(&tdev, pdev.as_ref(), 0)?;
 
-        let driver = TyrDriver { device: tdev };
+        let driver = TyrDriver { _device: tdev };
 
         // We need this to be dev_info!() because dev_dbg!() does not work at
         // all in Rust for now, and we need to see whether probe succeeded.
@@ -193,6 +193,6 @@ struct Clocks {
 
 #[pin_data]
 struct Regulators {
-    mali: Regulator<regulator::Enabled>,
-    sram: Regulator<regulator::Enabled>,
+    _mali: Regulator<regulator::Enabled>,
+    _sram: Regulator<regulator::Enabled>,
 }
