@@ -73,10 +73,11 @@ static int hmem_register_device(struct device *host, int target_nid,
 		return 0;
 	}
 
-	rc = region_intersects(res->start, resource_size(res), IORESOURCE_MEM,
-			       IORES_DESC_SOFT_RESERVED);
+	rc = region_intersects_soft_reserve(res->start, resource_size(res));
 	if (rc != REGION_INTERSECTS)
 		return 0;
+
+	/* TODO: Add Soft-Reserved memory back to iomem */
 
 	id = memregion_alloc(GFP_KERNEL);
 	if (id < 0) {
