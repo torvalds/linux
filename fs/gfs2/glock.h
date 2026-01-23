@@ -222,11 +222,11 @@ void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
 			BUG(); } } while(0)
 #define gfs2_glock_assert_warn(gl, x) do { if (unlikely(!(x))) {	\
 			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_warn((gl)->gl_name.ln_sbd, (x)); } } \
+			gfs2_assert_warn(glock_sbd(gl), (x)); } } \
 	while (0)
 #define gfs2_glock_assert_withdraw(gl, x) do { if (unlikely(!(x))) {	\
 			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_withdraw((gl)->gl_name.ln_sbd, (x)); } } \
+			gfs2_assert_withdraw(glock_sbd(gl), (x)); } } \
 	while (0)
 
 __printf(2, 3)

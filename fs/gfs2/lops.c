@@ -65,15 +65,15 @@ void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 static bool buffer_is_rgrp(const struct gfs2_bufdata *bd)
 {
-	return bd->bd_gl->gl_name.ln_type == LM_TYPE_RGRP;
+	return glock_type(bd->bd_gl) == LM_TYPE_RGRP;
 }
 
 static void maybe_release_space(struct gfs2_bufdata *bd)
 {
 	struct gfs2_glock *gl = bd->bd_gl;
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct gfs2_sbd *sdp = glock_sbd(gl);
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
-	unsigned int index = bd->bd_bh->b_blocknr - gl->gl_name.ln_number;
+	unsigned int index = bd->bd_bh->b_blocknr - glock_number(gl);
 	struct gfs2_bitmap *bi = rgd->rd_bits + index;
 
 	rgrp_lock_local(rgd);
