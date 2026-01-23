@@ -122,15 +122,22 @@ static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt)
 	vma->vm_lock_seq = UINT_MAX;
 }
 
-static inline bool is_vma_writer_only(int refcnt)
+/*
+ * This function determines whether the input VMA reference count describes a
+ * VMA which has excluded all VMA read locks.
+ *
+ * In the case of a detached VMA, we may incorrectly indicate that readers are
+ * excluded when one remains, because in that scenario we target a refcount of
+ * VM_REFCNT_EXCLUDE_READERS_FLAG, rather than the attached target of
+ * VM_REFCNT_EXCLUDE_READERS_FLAG + 1.
+ *
+ * However, the race window for that is very small so it is unlikely.
+ *
+ * Returns: true if readers are excluded, false otherwise.
+ */
+static inline bool __vma_are_readers_excluded(int refcnt)
 {
 	/*
-	 * With a writer and no readers, refcnt is VM_REFCNT_EXCLUDE_READERS_FLAG
-	 * if the vma is detached and (VM_REFCNT_EXCLUDE_READERS_FLAG + 1) if it is
-	 * attached. Waiting on a detached vma happens only in
-	 * vma_mark_detached() and is a rare case, therefore most of the time
-	 * there will be no unnecessary wakeup.
-	 *
 	 * See the comment describing the vm_area_struct->vm_refcnt field for
 	 * details of possible refcnt values.
 	 */
@@ -138,18 +145,51 @@ static inline bool is_vma_writer_only(int refcnt)
 		refcnt <= VM_REFCNT_EXCLUDE_READERS_FLAG + 1;
 }
 
-static inline void vma_refcount_put(struct vm_area_struct *vma)
+/*
+ * Actually decrement the VMA reference count.
+ *
+ * The function returns the reference count as it was immediately after the
+ * decrement took place. If it returns zero, the VMA is now detached.
+ */
+static inline __must_check unsigned int
+__vma_refcount_put_return(struct vm_area_struct *vma)
 {
-	/* Use a copy of vm_mm in case vma is freed after we drop vm_refcnt */
-	struct mm_struct *mm = vma->vm_mm;
 	int oldcnt;
 
-	rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
-	if (!__refcount_dec_and_test(&vma->vm_refcnt, &oldcnt)) {
+	if (__refcount_dec_and_test(&vma->vm_refcnt, &oldcnt))
+		return 0;
 
-		if (is_vma_writer_only(oldcnt - 1))
-			rcuwait_wake_up(&mm->vma_writer_wait);
-	}
+	return oldcnt - 1;
+}
+
+/**
+ * vma_refcount_put() - Drop reference count in VMA vm_refcnt field due to a
+ * read-lock being dropped.
+ * @vma: The VMA whose reference count we wish to decrement.
+ *
+ * If we were the last reader, wake up threads waiting to obtain an exclusive
+ * lock.
+ */
+static inline void vma_refcount_put(struct vm_area_struct *vma)
+{
+	/* Use a copy of vm_mm in case vma is freed after we drop vm_refcnt. */
+	struct mm_struct *mm = vma->vm_mm;
+	int newcnt;
+
+	rwsem_release(&vma->vmlock_dep_map, _RET_IP_);
+
+	newcnt = __vma_refcount_put_return(vma);
+	/*
+	 * __vma_enter_locked() may be sleeping waiting for readers to drop
+	 * their reference count, so wake it up if we were the last reader
+	 * blocking it from being acquired.
+	 *
+	 * We may be raced by other readers temporarily incrementing the
+	 * reference count, though the race window is very small, this might
+	 * cause spurious wakeups.
+	 */
+	if (newcnt && __vma_are_readers_excluded(newcnt))
+		rcuwait_wake_up(&mm->vma_writer_wait);
 }
 
 /*
