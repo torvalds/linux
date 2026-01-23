@@ -26,12 +26,16 @@ class EnrichFormatter(argparse.HelpFormatter):
     and how they're used at the __doc__ description.
     """
     def __init__(self, *args, **kwargs):
-        """Initialize class and check if is TTY"""
+        """
+        Initialize class and check if is TTY.
+        """
         super().__init__(*args, **kwargs)
         self._tty = sys.stdout.isatty()
 
     def enrich_text(self, text):
-        """Handle ReST markups (currently, only ``foo``)"""
+        r"""
+        Handle ReST markups (currently, only \`\`text\`\` markups).
+        """
         if self._tty and text:
             # Replace ``text`` with ANSI SGR (bold)
             return re.sub(r'\`\`(.+?)\`\`',
@@ -39,12 +43,16 @@ class EnrichFormatter(argparse.HelpFormatter):
         return text
 
     def _fill_text(self, text, width, indent):
-        """Enrich descriptions with markups on it"""
+        """
+        Enrich descriptions with markups on it.
+        """
         enriched = self.enrich_text(text)
         return "\n".join(indent + line for line in enriched.splitlines())
 
     def _format_usage(self, usage, actions, groups, prefix):
-        """Enrich positional arguments at usage: line"""
+        """
+        Enrich positional arguments at usage: line.
+        """
 
         prog = self._prog
         parts = []
@@ -63,7 +71,9 @@ class EnrichFormatter(argparse.HelpFormatter):
         return usage_text
 
     def _format_action_invocation(self, action):
-        """Enrich argument names"""
+        """
+        Enrich argument names.
+        """
         if not action.option_strings:
             return self.enrich_text(f"``{action.dest.upper()}``")
 

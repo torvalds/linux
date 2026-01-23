@@ -21,14 +21,17 @@ from abi.helpers import AbiDebug, ABI_DIR
 
 
 class AbiParser:
-    """Main class to parse ABI files"""
+    """Main class to parse ABI files."""
 
+    #: Valid tags at Documentation/ABI.
     TAGS = r"(what|where|date|kernelversion|contact|description|users)"
+
+    #: ABI elements that will auto-generate cross-references.
     XREF = r"(?:^|\s|\()(\/(?:sys|config|proc|dev|kvd)\/[^,.:;\)\s]+)(?:[,.:;\)\s]|\Z)"
 
     def __init__(self, directory, logger=None,
                  enable_lineno=False, show_warnings=True, debug=0):
-        """Stores arguments for the class and initialize class vars"""
+        """Stores arguments for the class and initialize class vars."""
 
         self.directory = directory
         self.enable_lineno = enable_lineno
@@ -65,7 +68,7 @@ class AbiParser:
         self.re_xref_node = re.compile(self.XREF)
 
     def warn(self, fdata, msg, extra=None):
-        """Displays a parse error if warning is enabled"""
+        """Displays a parse error if warning is enabled."""
 
         if not self.show_warnings:
             return
@@ -77,7 +80,7 @@ class AbiParser:
         self.log.warning(msg)
 
     def add_symbol(self, what, fname, ln=None, xref=None):
-        """Create a reference table describing where each 'what' is located"""
+        """Create a reference table describing where each 'what' is located."""
 
         if what not in self.what_symbols:
             self.what_symbols[what] = {"file": {}}
@@ -92,7 +95,7 @@ class AbiParser:
             self.what_symbols[what]["xref"] = xref
 
     def _parse_line(self, fdata, line):
-        """Parse a single line of an ABI file"""
+        """Parse a single line of an ABI file."""
 
         new_what = False
         new_tag = False
@@ -264,7 +267,7 @@ class AbiParser:
             self.warn(fdata, "Unexpected content", line)
 
     def parse_readme(self, nametag, fname):
-        """Parse ABI README file"""
+        """Parse ABI README file."""
 
         nametag["what"] = ["Introduction"]
         nametag["path"] = "README"
@@ -282,7 +285,7 @@ class AbiParser:
                 nametag["description"] += line
 
     def parse_file(self, fname, path, basename):
-        """Parse a single file"""
+        """Parse a single file."""
 
         ref = f"abi_file_{path}_{basename}"
         ref = self.re_unprintable.sub("_", ref).strip("_")
@@ -348,7 +351,7 @@ class AbiParser:
                     self.add_symbol(what=w, fname=fname, xref=fdata.key)
 
     def _parse_abi(self, root=None):
-        """Internal function to parse documentation ABI recursively"""
+        """Internal function to parse documentation ABI recursively."""
 
         if not root:
             root = self.directory
@@ -377,7 +380,7 @@ class AbiParser:
                 self.parse_file(name, path, basename)
 
     def parse_abi(self, root=None):
-        """Parse documentation ABI"""
+        """Parse documentation ABI."""
 
         self._parse_abi(root)
 
@@ -385,7 +388,7 @@ class AbiParser:
             self.log.debug(pformat(self.data))
 
     def desc_txt(self, desc):
-        """Print description as found inside ABI files"""
+        """Print description as found inside ABI files."""
 
         desc = desc.strip(" \t\n")
 
@@ -393,7 +396,7 @@ class AbiParser:
 
     def xref(self, fname):
         """
-        Converts a Documentation/ABI + basename into a ReST cross-reference
+        Converts a Documentation/ABI + basename into a ReST cross-reference.
         """
 
         xref = self.file_refs.get(fname)
@@ -403,7 +406,7 @@ class AbiParser:
             return xref
 
     def desc_rst(self, desc):
-        """Enrich ReST output by creating cross-references"""
+        """Enrich ReST output by creating cross-references."""
 
         # Remove title markups from the description
         # Having titles inside ABI files will only work if extra
@@ -459,7 +462,7 @@ class AbiParser:
 
     def doc(self, output_in_txt=False, show_symbols=True, show_file=True,
             filter_path=None):
-        """Print ABI at stdout"""
+        """Print ABI at stdout."""
 
         part = None
         for key, v in sorted(self.data.items(),
@@ -549,7 +552,7 @@ class AbiParser:
             yield (msg, file_ref[0][0], ln)
 
     def check_issues(self):
-        """Warn about duplicated ABI entries"""
+        """Warn about duplicated ABI entries."""
 
         for what, v in self.what_symbols.items():
             files = v.get("file")
@@ -575,7 +578,7 @@ class AbiParser:
             self.log.warning("%s is defined %d times: %s", what, len(f), "; ".join(f))
 
     def search_symbols(self, expr):
-        """ Searches for ABI symbols """
+        """ Searches for ABI symbols."""
 
         regex = re.compile(expr, re.I)
 

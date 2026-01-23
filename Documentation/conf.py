@@ -13,10 +13,15 @@ from  textwrap import dedent
 
 import sphinx
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath("sphinx"))
+# Location of Documentation/ directory
+kern_doc_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Add location of Sphinx extensions
+sys.path.insert(0, os.path.join(kern_doc_dir, "sphinx"))
+
+# Allow sphinx.ext.autodoc to document files at tools and scripts
+sys.path.append(os.path.join(kern_doc_dir, "..", "tools"))
+sys.path.append(os.path.join(kern_doc_dir, "..", "scripts"))
 
 # Minimal supported version
 needs_sphinx = "3.4.3"
@@ -31,9 +36,6 @@ else:
     has_include_patterns = True
     # Include patterns that don't contain directory names, in glob format
     include_patterns = ["**.rst"]
-
-# Location of Documentation/ directory
-doctree = os.path.abspath(".")
 
 # Exclude of patterns that don't contain directory names, in glob format.
 exclude_patterns = []
@@ -73,7 +75,7 @@ def config_init(app, config):
     # setup include_patterns dynamically
     if has_include_patterns:
         for p in dyn_include_patterns:
-            full = os.path.join(doctree, p)
+            full = os.path.join(kern_doc_dir, p)
 
             rel_path = os.path.relpath(full, start=app.srcdir)
             if rel_path.startswith("../"):
@@ -83,7 +85,7 @@ def config_init(app, config):
 
     # setup exclude_patterns dynamically
     for p in dyn_exclude_patterns:
-        full = os.path.join(doctree, p)
+        full = os.path.join(kern_doc_dir, p)
 
         rel_path = os.path.relpath(full, start=app.srcdir)
         if rel_path.startswith("../"):
@@ -95,7 +97,7 @@ def config_init(app, config):
     # of the app.srcdir. Add them here
 
     # Handle the case where SPHINXDIRS is used
-    if not os.path.samefile(doctree, app.srcdir):
+    if not os.path.samefile(kern_doc_dir, app.srcdir):
         # Add a tag to mark that the build is actually a subproject
         tags.add("subproject")
 
@@ -154,6 +156,7 @@ extensions = [
     "maintainers_include",
     "parser_yaml",
     "rstFlatTable",
+    "sphinx.ext.autodoc",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.ifconfig",
     "translations",

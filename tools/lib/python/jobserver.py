@@ -11,20 +11,23 @@ Interacts with the POSIX jobserver during the Kernel build time.
 A "normal" jobserver task, like the one initiated by a make subrocess would do:
 
     - open read/write file descriptors to communicate with the job server;
-    - ask for one slot by calling:
+    - ask for one slot by calling::
+
         claim = os.read(reader, 1)
-    - when the job finshes, call:
+
+    - when the job finshes, call::
+
         os.write(writer, b"+")  # os.write(writer, claim)
 
 Here, the goal is different: This script aims to get the remaining number
 of slots available, using all of them to run a command which handle tasks in
 parallel. To to that, it has a loop that ends only after there are no
 slots left. It then increments the number by one, in order to allow a
-call equivalent to make -j$((claim+1)), e.g. having a parent make creating
+call equivalent to ``make -j$((claim+1))``, e.g. having a parent make creating
 $claim child to do the actual work.
 
 The end goal here is to keep the total number of build tasks under the
-limit established by the initial make -j$n_proc call.
+limit established by the initial ``make -j$n_proc`` call.
 
 See:
     https://www.gnu.org/software/make/manual/html_node/POSIX-Jobserver.html#POSIX-Jobserver
@@ -43,13 +46,14 @@ class JobserverExec:
     Claim all slots from make using POSIX Jobserver.
 
     The main methods here are:
+
     - open(): reserves all slots;
     - close(): method returns all used slots back to make;
-    - run(): executes a command setting PARALLELISM=<available slots jobs + 1>
+    - run(): executes a command setting PARALLELISM=<available slots jobs + 1>.
     """
 
     def __init__(self):
-        """Initialize internal vars"""
+        """Initialize internal vars."""
         self.claim = 0
         self.jobs = b""
         self.reader = None
@@ -57,7 +61,7 @@ class JobserverExec:
         self.is_open = False
 
     def open(self):
-        """Reserve all available slots to be claimed later on"""
+        """Reserve all available slots to be claimed later on."""
 
         if self.is_open:
             return
@@ -155,7 +159,7 @@ class JobserverExec:
         self.claim = len(self.jobs) + 1
 
     def close(self):
-        """Return all reserved slots to Jobserver"""
+        """Return all reserved slots to Jobserver."""
 
         if not self.is_open:
             return
