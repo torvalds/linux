@@ -14,12 +14,15 @@
 /*
  * SD0 can be connected to either eMMC (IC49) or SD card slot CN31
  * Lets by default enable the eMMC, note we need the below SW settings
- * for eMMC.
+ * for eMMC. Also ensure that CN78 pins 5 and 6 are connected with a jumper
+ * to provide the SD0 power supply when using eMMC.
  * SW2[1] = ON; SW2[2] = ON
  *
  * To enable SD card and disable eMMC on SDHI0 disable the below macro
- * and set the below switch setting:
- * SW2[1] = OFF; SW2[2] = ON
+ * and set the switch as follows. Also ensure that CN78 pins 3 and 4 are connected
+ * with a jumper to provide the SD0 power supply when using an SD card.
+ *
+ * SW2[1] = OFF; SW2[2] = ON.
  */
 #define SD0_EMMC	1
 #define SD0_SD		(!SD0_EMMC)
