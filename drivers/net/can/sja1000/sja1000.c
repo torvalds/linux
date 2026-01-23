@@ -407,10 +407,9 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
+	enum can_state state, rx_state, tx_state;
 	struct can_frame *cf;
 	struct sk_buff *skb;
-	enum can_state state = priv->can.state;
-	enum can_state rx_state, tx_state;
 	struct can_berr_counter bec;
 	uint8_t ecc, alc;
 	int ret = 0;
@@ -418,6 +417,12 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	skb = alloc_can_err_skb(dev, &cf);
 
 	sja1000_get_berr_counter(dev, &bec);
+	can_state_get_by_berr_counter(dev, &bec, &tx_state, &rx_state);
+
+	if (status & SR_BS)
+		rx_state = CAN_STATE_BUS_OFF;
+
+	state = max(tx_state, rx_state);
 
 	if (isrc & IRQ_DOI) {
 		/* data overrun interrupt */
@@ -439,18 +444,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		 */
 		if (priv->flags & SJA1000_QUIRK_RESET_ON_OVERRUN)
 			ret = IRQ_WAKE_THREAD;
-	}
-
-	if (isrc & IRQ_EI) {
-		/* error warning interrupt */
-		netdev_dbg(dev, "error warning interrupt\n");
-
-		if (status & SR_BS)
-			state = CAN_STATE_BUS_OFF;
-		else if (status & SR_ES)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_ACTIVE;
 	}
 	if (state != CAN_STATE_BUS_OFF && skb) {
 		cf->can_id |= CAN_ERR_CNT;
@@ -493,15 +486,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 			stats->rx_errors++;
 		}
 	}
-	if (isrc & IRQ_EPI) {
-		/* error passive interrupt */
-		netdev_dbg(dev, "error passive interrupt\n");
-
-		if (state == CAN_STATE_ERROR_PASSIVE)
-			state = CAN_STATE_ERROR_WARNING;
-		else
-			state = CAN_STATE_ERROR_PASSIVE;
-	}
 	if (isrc & IRQ_ALI) {
 		/* arbitration lost interrupt */
 		netdev_dbg(dev, "arbitration lost interrupt\n");
@@ -514,9 +498,6 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 
 	if (state != priv->can.state) {
-		tx_state = bec.txerr >= bec.rxerr ? state : 0;
-		rx_state = bec.txerr <= bec.rxerr ? state : 0;
-
 		can_change_state(dev, cf, tx_state, rx_state);
 
 		if(state == CAN_STATE_BUS_OFF)
