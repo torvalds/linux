@@ -289,6 +289,7 @@ static void batch_clear(struct pfn_batch *batch)
 	batch->end = 0;
 	batch->pfns[0] = 0;
 	batch->npfns[0] = 0;
+	batch->kind = 0;
 }
 
 /*

@@ -3472,6 +3472,11 @@ Kernel parameters
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
+	liveupdate=	[KNL,EARLY]
+			Format: <bool>
+			Enable Live Update Orchestrator (LUO).
+			Default: off.
+
 	load_ramdisk=	[RAM] [Deprecated]
 
 	lockd.nlm_grace_period=P  [NFS] Assign grace period.

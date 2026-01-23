@@ -1078,6 +1078,9 @@ static int tegra241_vcmdq_hw_init_user(struct tegra241_vcmdq *vcmdq)
 {
 	char header[64];
 
+	/* Reset VCMDQ */
+	tegra241_vcmdq_hw_deinit(vcmdq);
+
 	/* Configure the vcmdq only; User space does the enabling */
 	writeq_relaxed(vcmdq->cmdq.q.q_base, REG_VCMDQ_PAGE1(vcmdq, BASE));
 

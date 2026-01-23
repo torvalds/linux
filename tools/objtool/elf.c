@@ -18,14 +18,13 @@
 #include <errno.h>
 #include <libgen.h>
 #include <ctype.h>
+#include <linux/align.h>
+#include <linux/kernel.h>
 #include <linux/interval_tree_generic.h>
+#include <linux/log2.h>
 #include <objtool/builtin.h>
 #include <objtool/elf.h>
 #include <objtool/warn.h>
-
-#define ALIGN_UP(x, align_to) (((x) + ((align_to)-1)) & ~((align_to)-1))
-#define ALIGN_UP_POW2(x) (1U << ((8 * sizeof(x)) - __builtin_clz((x) - 1U)))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static inline u32 str_hash(const char *str)
 {
@@ -1336,7 +1335,7 @@ unsigned int elf_add_string(struct elf *elf, struct section *strtab, const char 
 		return -1;
 	}
 
-	offset = ALIGN_UP(strtab->sh.sh_size, strtab->sh.sh_addralign);
+	offset = ALIGN(strtab->sh.sh_size, strtab->sh.sh_addralign);
 
 	if (!elf_add_data(elf, strtab, str, strlen(str) + 1))
 		return -1;
@@ -1378,7 +1377,7 @@ void *elf_add_data(struct elf *elf, struct section *sec, const void *data, size_
 	sec->data->d_size = size;
 	sec->data->d_align = 1;
 
-	offset = ALIGN_UP(sec->sh.sh_size, sec->sh.sh_addralign);
+	offset = ALIGN(sec->sh.sh_size, sec->sh.sh_addralign);
 	sec->sh.sh_size = offset + size;
 
 	mark_sec_changed(elf, sec, true);
@@ -1502,7 +1501,7 @@ static int elf_alloc_reloc(struct elf *elf, struct section *rsec)
 	rsec->data->d_size = nr_relocs_new * elf_rela_size(elf);
 	rsec->sh.sh_size   = rsec->data->d_size;
 
-	nr_alloc = MAX(64, ALIGN_UP_POW2(nr_relocs_new));
+	nr_alloc = max(64UL, roundup_pow_of_two(nr_relocs_new));
 	if (nr_alloc <= rsec->nr_alloc_relocs)
 		return 0;
 

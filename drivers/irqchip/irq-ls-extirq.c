@@ -168,40 +168,34 @@ ls_extirq_parse_map(struct ls_extirq_data *priv, struct device_node *node)
 	return 0;
 }
 
-static int __init
-ls_extirq_of_init(struct device_node *node, struct device_node *parent)
+static int ls_extirq_probe(struct platform_device *pdev)
 {
 	struct irq_domain *domain, *parent_domain;
+	struct device_node *node, *parent;
+	struct device *dev = &pdev->dev;
 	struct ls_extirq_data *priv;
 	int ret;
 
+	node = dev->of_node;
+	parent = of_irq_find_parent(node);
+	if (!parent)
+		return dev_err_probe(dev, -ENODEV, "Failed to get IRQ parent node\n");
+
 	parent_domain = irq_find_host(parent);
-	if (!parent_domain) {
-		pr_err("Cannot find parent domain\n");
-		ret = -ENODEV;
-		goto err_irq_find_host;
-	}
+	if (!parent_domain)
+		return dev_err_probe(dev, -EPROBE_DEFER, "Cannot find parent domain\n");
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		ret = -ENOMEM;
-		goto err_alloc_priv;
-	}
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return dev_err_probe(dev, -ENOMEM, "Failed to allocate memory\n");
 
-	/*
-	 * All extirq OF nodes are under a scfg/syscon node with
-	 * the 'ranges' property
-	 */
-	priv->intpcr = of_iomap(node, 0);
-	if (!priv->intpcr) {
-		pr_err("Cannot ioremap OF node %pOF\n", node);
-		ret = -ENOMEM;
-		goto err_iomap;
-	}
+	priv->intpcr = devm_of_iomap(dev, node, 0, NULL);
+	if (!priv->intpcr)
+		return dev_err_probe(dev, -ENOMEM, "Cannot ioremap OF node %pOF\n", node);
 
 	ret = ls_extirq_parse_map(priv, node);
 	if (ret)
-		goto err_parse_map;
+		return dev_err_probe(dev, ret, "Failed to parse IRQ map\n");
 
 	priv->big_endian = of_device_is_big_endian(node->parent);
 	priv->is_ls1021a_or_ls1043a = of_device_is_compatible(node, "fsl,ls1021a-extirq") ||
@@ -210,23 +204,26 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 
 	domain = irq_domain_create_hierarchy(parent_domain, 0, priv->nirq, of_fwnode_handle(node),
 					     &extirq_domain_ops, priv);
-	if (!domain) {
-		ret = -ENOMEM;
-		goto err_add_hierarchy;
-	}
+	if (!domain)
+		return dev_err_probe(dev, -ENOMEM, "Failed to add IRQ domain\n");
 
 	return 0;
-
-err_add_hierarchy:
-err_parse_map:
-	iounmap(priv->intpcr);
-err_iomap:
-	kfree(priv);
-err_alloc_priv:
-err_irq_find_host:
-	return ret;
 }
 
-IRQCHIP_DECLARE(ls1021a_extirq, "fsl,ls1021a-extirq", ls_extirq_of_init);
-IRQCHIP_DECLARE(ls1043a_extirq, "fsl,ls1043a-extirq", ls_extirq_of_init);
-IRQCHIP_DECLARE(ls1088a_extirq, "fsl,ls1088a-extirq", ls_extirq_of_init);
+static const struct of_device_id ls_extirq_dt_ids[] = {
+	{ .compatible = "fsl,ls1021a-extirq" },
+	{ .compatible = "fsl,ls1043a-extirq" },
+	{ .compatible = "fsl,ls1088a-extirq" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ls_extirq_dt_ids);
+
+static struct platform_driver ls_extirq_driver = {
+	.probe = ls_extirq_probe,
+	.driver = {
+		.name = "ls-extirq",
+		.of_match_table = ls_extirq_dt_ids,
+	}
+};
+
+builtin_platform_driver(ls_extirq_driver);

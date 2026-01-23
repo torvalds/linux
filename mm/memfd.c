@@ -456,7 +456,7 @@ err_name:
 	return ERR_PTR(error);
 }
 
-static struct file *alloc_file(const char *name, unsigned int flags)
+struct file *memfd_alloc_file(const char *name, unsigned int flags)
 {
 	unsigned int *file_seals;
 	struct file *file;
@@ -520,5 +520,5 @@ SYSCALL_DEFINE2(memfd_create,
 		return PTR_ERR(name);
 
 	fd_flags = (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0;
-	return FD_ADD(fd_flags, alloc_file(name, flags));
+	return FD_ADD(fd_flags, memfd_alloc_file(name, flags));
 }

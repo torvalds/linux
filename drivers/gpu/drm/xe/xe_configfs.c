@@ -347,11 +347,10 @@ static bool is_bound(struct xe_config_group_device *dev)
 		return false;
 
 	ret = pci_get_drvdata(pdev);
-	pci_dev_put(pdev);
-
 	if (ret)
 		pci_dbg(pdev, "Already bound to driver\n");
 
+	pci_dev_put(pdev);
 	return ret;
 }
 

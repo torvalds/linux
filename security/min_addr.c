@@ -5,8 +5,6 @@
 #include <linux/sysctl.h>
 #include <linux/minmax.h>
 
-#include "lsm.h"
-
 /* amount of vm to protect from userspace access by both DAC and the LSM*/
 unsigned long mmap_min_addr;
 /* amount of vm to protect from userspace using CAP_SYS_RAWIO (DAC) */
@@ -54,10 +52,11 @@ static const struct ctl_table min_addr_sysctl_table[] = {
 	},
 };
 
-int __init min_addr_init(void)
+static int __init mmap_min_addr_init(void)
 {
 	register_sysctl_init("vm", min_addr_sysctl_table);
 	update_mmap_min_addr();
 
 	return 0;
 }
+pure_initcall(mmap_min_addr_init);

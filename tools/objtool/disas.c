@@ -108,6 +108,8 @@ static int sprint_name(char *str, const char *name, unsigned long offset)
 
 #define DINFO_FPRINTF(dinfo, ...)	\
 	((*(dinfo)->fprintf_func)((dinfo)->stream, __VA_ARGS__))
+#define bfd_vma_fmt			\
+	__builtin_choose_expr(sizeof(bfd_vma) == sizeof(unsigned long), "%#lx <%s>", "%#llx <%s>")
 
 static int disas_result_fprintf(struct disas_context *dctx,
 				const char *fmt, va_list ap)
@@ -170,10 +172,10 @@ static void disas_print_addr_sym(struct section *sec, struct symbol *sym,
 
 	if (sym) {
 		sprint_name(symstr, sym->name, addr - sym->offset);
-		DINFO_FPRINTF(dinfo, "0x%lx <%s>", addr, symstr);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, symstr);
 	} else {
 		str = offstr(sec, addr);
-		DINFO_FPRINTF(dinfo, "0x%lx <%s>", addr, str);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, str);
 		free(str);
 	}
 }
@@ -252,7 +254,7 @@ static void disas_print_addr_reloc(bfd_vma addr, struct disassemble_info *dinfo)
 		 * example: "lea 0x0(%rip),%rdi". The kernel can reference
 		 * the next IP with _THIS_IP_ macro.
 		 */
-		DINFO_FPRINTF(dinfo, "0x%lx <_THIS_IP_>", addr);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, "_THIS_IP_");
 		return;
 	}
 
@@ -264,11 +266,11 @@ static void disas_print_addr_reloc(bfd_vma addr, struct disassemble_info *dinfo)
 	 */
 	if (reloc->sym->type == STT_SECTION) {
 		str = offstr(reloc->sym->sec, reloc->sym->offset + offset);
-		DINFO_FPRINTF(dinfo, "0x%lx <%s>", addr, str);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, str);
 		free(str);
 	} else {
 		sprint_name(symstr, reloc->sym->name, offset);
-		DINFO_FPRINTF(dinfo, "0x%lx <%s>", addr, symstr);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, symstr);
 	}
 }
 
@@ -311,7 +313,7 @@ static void disas_print_address(bfd_vma addr, struct disassemble_info *dinfo)
 	 */
 	sym = insn_call_dest(insn);
 	if (sym && (sym->offset == addr || (sym->offset == 0 && is_reloc))) {
-		DINFO_FPRINTF(dinfo, "0x%lx <%s>", addr, sym->name);
+		DINFO_FPRINTF(dinfo, bfd_vma_fmt, addr, sym->name);
 		return;
 	}
 

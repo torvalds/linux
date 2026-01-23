@@ -40,11 +40,11 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
     fits_within!(value, T, num_bits)
 }
 
-/// An integer value that requires only the `N` less significant bits of the wrapped type to be
+/// An integer value that requires only the `N` least significant bits of the wrapped type to be
 /// encoded.
 ///
 /// This limits the number of usable bits in the wrapped integer type, and thus the stored value to
-/// a narrower range, which provides guarantees that can be useful when working with in e.g.
+/// a narrower range, which provides guarantees that can be useful when working within e.g.
 /// bitfields.
 ///
 /// # Invariants
@@ -56,7 +56,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// # Examples
 ///
 /// The preferred way to create values is through constants and the [`Bounded::new`] family of
-/// constructors, as they trigger a build error if the type invariants cannot be withheld.
+/// constructors, as they trigger a build error if the type invariants cannot be upheld.
 ///
 /// ```
 /// use kernel::num::Bounded;
@@ -82,7 +82,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// ```
 /// use kernel::num::Bounded;
 ///
-/// //  This succeeds because `15` can be represented with 4 unsigned bits.
+/// // This succeeds because `15` can be represented with 4 unsigned bits.
 /// assert!(Bounded::<u8, 4>::try_new(15).is_some());
 ///
 /// // This fails because `16` cannot be represented with 4 unsigned bits.
@@ -221,7 +221,7 @@ fn fits_within<T: Integer>(value: T, num_bits: u32) -> bool {
 /// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
-/// // Fails because `128` doesn't fits into 6 bits.
+/// // Fails because `128` doesn't fit into 6 bits.
 /// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
@@ -259,9 +259,9 @@ macro_rules! impl_const_new {
                     assert!(fits_within!(VALUE, $type, N));
                 }
 
-                // INVARIANT: `fits_within` confirmed that `VALUE` can be represented within
+                // SAFETY: `fits_within` confirmed that `VALUE` can be represented within
                 // `N` bits.
-                Self::__new(VALUE)
+                unsafe { Self::__new(VALUE) }
             }
         }
         )*
@@ -282,9 +282,10 @@ where
     /// All instances of [`Bounded`] must be created through this method as it enforces most of the
     /// type invariants.
     ///
-    /// The caller remains responsible for checking, either statically or dynamically, that `value`
-    /// can be represented as a `T` using at most `N` bits.
-    const fn __new(value: T) -> Self {
+    /// # Safety
+    ///
+    /// The caller must ensure that `value` can be represented within `N` bits.
+    const unsafe fn __new(value: T) -> Self {
         // Enforce the type invariants.
         const {
             // `N` cannot be zero.
@@ -293,6 +294,7 @@ where
             assert!(N <= T::BITS);
         }
 
+        // INVARIANT: The caller ensures `value` fits within `N` bits.
         Self(value)
     }
 
@@ -328,8 +330,8 @@ where
     /// ```
     pub fn try_new(value: T) -> Option<Self> {
         fits_within(value, N).then(|| {
-            // INVARIANT: `fits_within` confirmed that `value` can be represented within `N` bits.
-            Self::__new(value)
+            // SAFETY: `fits_within` confirmed that `value` can be represented within `N` bits.
+            unsafe { Self::__new(value) }
         })
     }
 
@@ -363,6 +365,7 @@ where
     /// assert_eq!(Bounded::<u8, 1>::from_expr(1).get(), 1);
     /// assert_eq!(Bounded::<u16, 8>::from_expr(0xff).get(), 0xff);
     /// ```
+    // Always inline to optimize out error path of `build_assert`.
     #[inline(always)]
     pub fn from_expr(expr: T) -> Self {
         crate::build_assert!(
@@ -370,8 +373,8 @@ where
             "Requested value larger than maximal representable value."
         );
 
-        // INVARIANT: `fits_within` confirmed that `expr` can be represented within `N` bits.
-        Self::__new(expr)
+        // SAFETY: `fits_within` confirmed that `expr` can be represented within `N` bits.
+        unsafe { Self::__new(expr) }
     }
 
     /// Returns the wrapped value as the backing type.
@@ -410,9 +413,9 @@ where
             );
         }
 
-        // INVARIANT: The value did fit within `N` bits, so it will all the more fit within
+        // SAFETY: The value did fit within `N` bits, so it will all the more fit within
         // the larger `M` bits.
-        Bounded::__new(self.0)
+        unsafe { Bounded::__new(self.0) }
     }
 
     /// Attempts to shrink the number of bits usable for `self`.
@@ -466,9 +469,9 @@ where
         // `U` and `T` have the same sign, hence this conversion cannot fail.
         let value = unsafe { U::try_from(self.get()).unwrap_unchecked() };
 
-        // INVARIANT: Although the backing type has changed, the value is still represented within
+        // SAFETY: Although the backing type has changed, the value is still represented within
         // `N` bits, and with the same signedness.
-        Bounded::__new(value)
+        unsafe { Bounded::__new(value) }
     }
 }
 
@@ -501,7 +504,7 @@ where
 /// let v: Option<Bounded<u16, 8>> = 128u32.try_into_bounded();
 /// assert_eq!(v.as_deref().copied(), Some(128));
 ///
-/// // Fails because `128` doesn't fits into 6 bits.
+/// // Fails because `128` doesn't fit into 6 bits.
 /// let v: Option<Bounded<u16, 6>> = 128u32.try_into_bounded();
 /// assert_eq!(v, None);
 /// ```
@@ -944,9 +947,9 @@ macro_rules! impl_from_primitive {
             Self: AtLeastXBits<{ <$type as Integer>::BITS as usize }>,
         {
             fn from(value: $type) -> Self {
-                // INVARIANT: The trait bound on `Self` guarantees that `N` bits is
+                // SAFETY: The trait bound on `Self` guarantees that `N` bits is
                 // enough to hold any value of the source type.
-                Self::__new(T::from(value))
+                unsafe { Self::__new(T::from(value)) }
             }
         }
         )*
@@ -1051,8 +1054,8 @@ where
     T: Integer + From<bool>,
 {
     fn from(value: bool) -> Self {
-        // INVARIANT: A boolean can be represented using a single bit, and thus fits within any
+        // SAFETY: A boolean can be represented using a single bit, and thus fits within any
         // integer type for any `N` > 0.
-        Self::__new(T::from(value))
+        unsafe { Self::__new(T::from(value)) }
     }
 }
