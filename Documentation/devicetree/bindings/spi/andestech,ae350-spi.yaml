@@ -45,10 +45,12 @@ patternProperties:
 
     properties:
       spi-rx-bus-width:
-        enum: [1, 4]
+        items:
+          - enum: [1, 4]
 
       spi-tx-bus-width:
-        enum: [1, 4]
+        items:
+          - enum: [1, 4]
 
 allOf:
   - $ref: spi-controller.yaml#
