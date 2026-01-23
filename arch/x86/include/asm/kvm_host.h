@@ -1442,12 +1442,22 @@ struct kvm_arch {
 	bool apic_access_memslot_inhibited;
 
 	/*
+	 * Force apicv_update_lock and apicv_nr_irq_window_req to reside in a
+	 * dedicated cacheline.  They are write-mostly, whereas most everything
+	 * else in kvm_arch is read-mostly.  Note that apicv_inhibit_reasons is
+	 * read-mostly: toggling VM-wide inhibits is rare; _checking_ for
+	 * inhibits is common.
+	 */
+	____cacheline_aligned
+	/*
 	 * Protects apicv_inhibit_reasons and apicv_nr_irq_window_req (with an
 	 * asterisk, see kvm_inc_or_dec_irq_window_inhibit() for details).
 	 */
 	struct rw_semaphore apicv_update_lock;
-	unsigned long apicv_inhibit_reasons;
 	atomic_t apicv_nr_irq_window_req;
+	____cacheline_aligned
+
+	unsigned long apicv_inhibit_reasons;
 
 	gpa_t wall_clock;
 
