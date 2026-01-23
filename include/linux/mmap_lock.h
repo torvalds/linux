@@ -78,6 +78,12 @@ static inline void mmap_assert_write_locked(const struct mm_struct *mm)
 
 #ifdef CONFIG_PER_VMA_LOCK
 
+#ifdef CONFIG_LOCKDEP
+#define __vma_lockdep_map(vma) (&vma->vmlock_dep_map)
+#else
+#define __vma_lockdep_map(vma) NULL
+#endif
+
 /*
  * VMA locks do not behave like most ordinary locks found in the kernel, so we
  * cannot quite have full lockdep tracking in the way we would ideally prefer.
@@ -98,16 +104,16 @@ static inline void mmap_assert_write_locked(const struct mm_struct *mm)
  * so we utilise lockdep to do so.
  */
 #define __vma_lockdep_acquire_read(vma) \
-	lock_acquire_shared(&vma->vmlock_dep_map, 0, 1, NULL, _RET_IP_)
+	lock_acquire_shared(__vma_lockdep_map(vma), 0, 1, NULL, _RET_IP_)
 #define __vma_lockdep_release_read(vma) \
-	lock_release(&vma->vmlock_dep_map, _RET_IP_)
+	lock_release(__vma_lockdep_map(vma), _RET_IP_)
 #define __vma_lockdep_acquire_exclusive(vma) \
-	lock_acquire_exclusive(&vma->vmlock_dep_map, 0, 0, NULL, _RET_IP_)
+	lock_acquire_exclusive(__vma_lockdep_map(vma), 0, 0, NULL, _RET_IP_)
 #define __vma_lockdep_release_exclusive(vma) \
-	lock_release(&vma->vmlock_dep_map, _RET_IP_)
+	lock_release(__vma_lockdep_map(vma), _RET_IP_)
 /* Only meaningful if CONFIG_LOCK_STAT is defined. */
 #define __vma_lockdep_stat_mark_acquired(vma) \
-	lock_acquired(&vma->vmlock_dep_map, _RET_IP_)
+	lock_acquired(__vma_lockdep_map(vma), _RET_IP_)
 
 static inline void mm_lock_seqcount_init(struct mm_struct *mm)
 {
@@ -146,7 +152,7 @@ static inline void vma_lock_init(struct vm_area_struct *vma, bool reset_refcnt)
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	static struct lock_class_key lockdep_key;
 
-	lockdep_init_map(&vma->vmlock_dep_map, "vm_lock", &lockdep_key, 0);
+	lockdep_init_map(__vma_lockdep_map(vma), "vm_lock", &lockdep_key, 0);
 #endif
 	if (reset_refcnt)
 		refcount_set(&vma->vm_refcnt, 0);
@@ -319,19 +325,53 @@ int vma_start_write_killable(struct vm_area_struct *vma)
 	return __vma_start_write(vma, TASK_KILLABLE);
 }
 
+/**
+ * vma_assert_write_locked() - assert that @vma holds a VMA write lock.
+ * @vma: The VMA to assert.
+ */
 static inline void vma_assert_write_locked(struct vm_area_struct *vma)
 {
 	VM_WARN_ON_ONCE_VMA(!__is_vma_write_locked(vma), vma);
 }
 
+/**
+ * vma_assert_locked() - assert that @vma holds either a VMA read or a VMA write
+ * lock and is not detached.
+ * @vma: The VMA to assert.
+ */
 static inline void vma_assert_locked(struct vm_area_struct *vma)
 {
+	unsigned int refcnt;
+
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		if (!lock_is_held(__vma_lockdep_map(vma)))
+			vma_assert_write_locked(vma);
+		return;
+	}
+
 	/*
 	 * See the comment describing the vm_area_struct->vm_refcnt field for
 	 * details of possible refcnt values.
 	 */
-	VM_WARN_ON_ONCE_VMA(refcount_read(&vma->vm_refcnt) <= 1 &&
-			    !__is_vma_write_locked(vma), vma);
+	refcnt = refcount_read(&vma->vm_refcnt);
+
+	/*
+	 * In this case we're either read-locked, write-locked with temporary
+	 * readers, or in the midst of excluding readers, all of which means
+	 * we're locked.
+	 */
+	if (refcnt > 1)
+		return;
+
+	/* It is a bug for the VMA to be detached here. */
+	VM_WARN_ON_ONCE_VMA(!refcnt, vma);
+
+	/*
+	 * OK, the VMA has a reference count of 1 which means it is either
+	 * unlocked and attached or write-locked, so assert that it is
+	 * write-locked.
+	 */
+	vma_assert_write_locked(vma);
 }
 
 static inline bool vma_is_attached(struct vm_area_struct *vma)
