@@ -65,6 +65,9 @@ static inline int __vma_enter_locked(struct vm_area_struct *vma,
 	/*
 	 * If vma is detached then only vma_mark_attached() can raise the
 	 * vm_refcnt. mmap_write_lock prevents racing with vma_mark_attached().
+	 *
+	 * See the comment describing the vm_area_struct->vm_refcnt field for
+	 * details of possible refcnt values.
 	 */
 	if (!refcount_add_not_zero(VM_REFCNT_EXCLUDE_READERS_FLAG, &vma->vm_refcnt))
 		return 0;
@@ -137,6 +140,9 @@ void vma_mark_detached(struct vm_area_struct *vma)
 	 * before they check vm_lock_seq, realize the vma is locked and drop
 	 * back the vm_refcnt. That is a narrow window for observing a raised
 	 * vm_refcnt.
+	 *
+	 * See the comment describing the vm_area_struct->vm_refcnt field for
+	 * details of possible refcnt values.
 	 */
 	if (unlikely(!refcount_dec_and_test(&vma->vm_refcnt))) {
 		/* Wait until vma is detached with no readers. */

@@ -130,6 +130,9 @@ static inline bool is_vma_writer_only(int refcnt)
 	 * attached. Waiting on a detached vma happens only in
 	 * vma_mark_detached() and is a rare case, therefore most of the time
 	 * there will be no unnecessary wakeup.
+	 *
+	 * See the comment describing the vm_area_struct->vm_refcnt field for
+	 * details of possible refcnt values.
 	 */
 	return (refcnt & VM_REFCNT_EXCLUDE_READERS_FLAG) &&
 		refcnt <= VM_REFCNT_EXCLUDE_READERS_FLAG + 1;
@@ -249,6 +252,10 @@ static inline void vma_assert_locked(struct vm_area_struct *vma)
 {
 	unsigned int mm_lock_seq;
 
+	/*
+	 * See the comment describing the vm_area_struct->vm_refcnt field for
+	 * details of possible refcnt values.
+	 */
 	VM_BUG_ON_VMA(refcount_read(&vma->vm_refcnt) <= 1 &&
 		      !__is_vma_write_locked(vma, &mm_lock_seq), vma);
 }
