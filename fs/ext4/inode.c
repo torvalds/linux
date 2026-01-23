@@ -48,6 +48,8 @@
 #include "acl.h"
 #include "truncate.h"
 
+#include <kunit/static_stub.h>
+
 #include <trace/events/ext4.h>
 
 static void ext4_journalled_zero_new_buffers(handle_t *handle,
@@ -399,6 +401,8 @@ int ext4_issue_zeroout(struct inode *inode, ext4_lblk_t lblk, ext4_fsblk_t pblk,
 		       ext4_lblk_t len)
 {
 	int ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_issue_zeroout, inode, lblk, pblk, len);
 
 	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode))
 		return fscrypt_zeroout_range(inode, lblk, pblk, len);

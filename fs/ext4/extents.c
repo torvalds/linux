@@ -32,6 +32,7 @@
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 #include "xattr.h"
+#include <kunit/static_stub.h>
 
 #include <trace/events/ext4.h>
 
@@ -196,6 +197,9 @@ static int __ext4_ext_dirty(const char *where, unsigned int line,
 			    struct ext4_ext_path *path)
 {
 	int err;
+
+	KUNIT_STATIC_STUB_REDIRECT(__ext4_ext_dirty, where, line, handle, inode,
+				   path);
 
 	WARN_ON(!rwsem_is_locked(&EXT4_I(inode)->i_data_sem));
 	if (path->p_bh) {
@@ -534,6 +538,8 @@ static void ext4_cache_extents(struct inode *inode,
 	struct ext4_extent *ex = EXT_FIRST_EXTENT(eh);
 	ext4_lblk_t prev = 0;
 	int i;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_cache_extents, inode, eh);
 
 	for (i = le16_to_cpu(eh->eh_entries); i > 0; i--, ex++) {
 		unsigned int status = EXTENT_STATUS_WRITTEN;
@@ -897,6 +903,8 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 	short int depth, i, ppos = 0;
 	int ret;
 	gfp_t gfp_flags = GFP_NOFS;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_find_extent, inode, block, path, flags);
 
 	if (flags & EXT4_EX_NOFAIL)
 		gfp_flags |= __GFP_NOFAIL;
@@ -1989,6 +1997,9 @@ ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	int depth, len, err = 0;
 	ext4_lblk_t next;
 	int mb_flags = 0, unwritten;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_ext_insert_extent, handle, inode, path,
+				   newext, gb_flags);
 
 	if (gb_flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		mb_flags |= EXT4_MB_DELALLOC_RESERVED;
@@ -3134,8 +3145,10 @@ static void ext4_zeroout_es(struct inode *inode, struct ext4_extent *ex)
 	ext4_fsblk_t ee_pblock;
 	unsigned int ee_len;
 
-	ee_block  = le32_to_cpu(ex->ee_block);
-	ee_len    = ext4_ext_get_actual_len(ex);
+	KUNIT_STATIC_STUB_REDIRECT(ext4_zeroout_es, inode, ex);
+
+	ee_block = le32_to_cpu(ex->ee_block);
+	ee_len = ext4_ext_get_actual_len(ex);
 	ee_pblock = ext4_ext_pblock(ex);
 
 	if (ee_len == 0)
@@ -3150,6 +3163,8 @@ static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 {
 	ext4_fsblk_t ee_pblock;
 	unsigned int ee_len;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_ext_zeroout, inode, ex);
 
 	ee_len    = ext4_ext_get_actual_len(ex);
 	ee_pblock = ext4_ext_pblock(ex);
@@ -6177,3 +6192,7 @@ out:
 	ext4_free_ext_path(path);
 	return 0;
 }
+
+#ifdef CONFIG_EXT4_KUNIT_TESTS
+#include "extents-test.c"
+#endif

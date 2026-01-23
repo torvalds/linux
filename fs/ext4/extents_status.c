@@ -16,6 +16,7 @@
 #include "ext4.h"
 
 #include <trace/events/ext4.h>
+#include <kunit/static_stub.h>
 
 /*
  * According to previous discussion in Ext4 Developer Workshop, we
@@ -1626,6 +1627,8 @@ void ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 	int err = 0;
 	int reserved = 0;
 	struct extent_status *es = NULL;
+
+	KUNIT_STATIC_STUB_REDIRECT(ext4_es_remove_extent, inode, lblk, len);
 
 	if (EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
