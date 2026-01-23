@@ -228,6 +228,23 @@ static void wmi_string_to_utf8s_oversized_test(struct kunit *test)
 	KUNIT_EXPECT_MEMEQ(test, result, test_utf8_string, sizeof(test_utf8_string));
 }
 
+static void wmi_string_from_utf8s_oversized_test(struct kunit *test)
+{
+	struct wmi_string *result;
+	size_t max_chars;
+	ssize_t ret;
+
+	max_chars = (TEST_WMI_STRING_LENGTH - sizeof(*result)) / 2;
+	result = kunit_kzalloc(test, TEST_WMI_STRING_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, result);
+
+	ret = wmi_string_from_utf8s(result, max_chars, oversized_test_utf8_string,
+				    sizeof(oversized_test_utf8_string));
+
+	KUNIT_EXPECT_EQ(test, ret, sizeof(test_utf8_string) - 1);
+	KUNIT_EXPECT_MEMEQ(test, result, &test_wmi_string, sizeof(test_wmi_string));
+}
+
 static void wmi_string_to_utf8s_invalid_test(struct kunit *test)
 {
 	u8 result[sizeof(invalid_test_utf8_string)];
@@ -261,6 +278,7 @@ static struct kunit_case wmi_string_test_cases[] = {
 	KUNIT_CASE(wmi_string_to_utf8s_padded_test),
 	KUNIT_CASE(wmi_string_from_utf8s_padded_test),
 	KUNIT_CASE(wmi_string_to_utf8s_oversized_test),
+	KUNIT_CASE(wmi_string_from_utf8s_oversized_test),
 	KUNIT_CASE(wmi_string_to_utf8s_invalid_test),
 	KUNIT_CASE(wmi_string_from_utf8s_invalid_test),
 	{}
