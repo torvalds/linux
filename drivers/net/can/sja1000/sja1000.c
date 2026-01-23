@@ -411,14 +411,13 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	struct sk_buff *skb;
 	enum can_state state = priv->can.state;
 	enum can_state rx_state, tx_state;
-	unsigned int rxerr, txerr;
+	struct can_berr_counter bec;
 	uint8_t ecc, alc;
 	int ret = 0;
 
 	skb = alloc_can_err_skb(dev, &cf);
 
-	txerr = priv->read_reg(priv, SJA1000_TXERR);
-	rxerr = priv->read_reg(priv, SJA1000_RXERR);
+	sja1000_get_berr_counter(dev, &bec);
 
 	if (isrc & IRQ_DOI) {
 		/* data overrun interrupt */
@@ -455,8 +454,8 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 	if (state != CAN_STATE_BUS_OFF && skb) {
 		cf->can_id |= CAN_ERR_CNT;
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
+		cf->data[6] = bec.txerr;
+		cf->data[7] = bec.rxerr;
 	}
 	if (isrc & IRQ_BEI) {
 		/* bus error interrupt */
@@ -515,8 +514,8 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 
 	if (state != priv->can.state) {
-		tx_state = txerr >= rxerr ? state : 0;
-		rx_state = txerr <= rxerr ? state : 0;
+		tx_state = bec.txerr >= bec.rxerr ? state : 0;
+		rx_state = bec.txerr <= bec.rxerr ? state : 0;
 
 		can_change_state(dev, cf, tx_state, rx_state);
 
