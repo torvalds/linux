@@ -3751,9 +3751,14 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 	struct r5dev *dev = &sh->dev[disk_idx];
 	struct r5dev *fdev[2] = { &sh->dev[s->failed_num[0]],
 				  &sh->dev[s->failed_num[1]] };
+	struct mddev *mddev = sh->raid_conf->mddev;
+	bool force_rcw = false;
 	int i;
-	bool force_rcw = (sh->raid_conf->rmw_level == PARITY_DISABLE_RMW);
 
+	if (sh->raid_conf->rmw_level == PARITY_DISABLE_RMW ||
+	    (mddev->bitmap_ops && mddev->bitmap_ops->blocks_synced &&
+	     !mddev->bitmap_ops->blocks_synced(mddev, sh->sector)))
+		force_rcw = true;
 
 	if (test_bit(R5_LOCKED, &dev->flags) ||
 	    test_bit(R5_UPTODATE, &dev->flags))
