@@ -4719,6 +4719,7 @@ enum rtw89_rfk_offload_h2c_func {
 	H2C_FUNC_RFK_PRE_NOTIFY = 0x8,
 	H2C_FUNC_RFK_TAS_OFFLOAD = 0x9,
 	H2C_FUNC_RFK_TXIQK_OFFOAD = 0xc,
+	H2C_FUNC_RFK_CIM3K_OFFOAD = 0xe,
 };
 
 struct rtw89_fw_h2c_rf_get_mccch {
@@ -4946,6 +4947,18 @@ struct rtw89_h2c_rf_txiqk {
 	u8 cur_bw;
 	u8 cur_ch;
 	u8 txiqk_dbg_en;
+} __packed;
+
+struct rtw89_h2c_rf_cim3k {
+	u8 len;
+	u8 phy;
+	u8 su_cim3k_enable[2];
+	u8 ru_cim3k_enable[2];
+	u8 kpath;
+	u8 cur_band;
+	u8 cur_bw;
+	u8 cur_ch;
+	u8 cim3k_dbg_en;
 } __packed;
 
 enum rtw89_rf_log_type {
@@ -5269,6 +5282,8 @@ int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			  const struct rtw89_chan *chan, bool is_chl_k);
 int rtw89_fw_h2c_rf_tas_trigger(struct rtw89_dev *rtwdev, bool enable);
 int rtw89_fw_h2c_rf_txiqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			  const struct rtw89_chan *chan);
+int rtw89_fw_h2c_rf_cim3k(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 			  const struct rtw89_chan *chan);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
