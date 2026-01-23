@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/uio.h>
 
 struct io_sq_ring {
 	unsigned int *head;
@@ -55,6 +56,7 @@ struct io_uring {
 	struct io_uring_sq sq;
 	struct io_uring_cq cq;
 	int ring_fd;
+	unsigned flags;
 };
 
 #if defined(__x86_64) || defined(__i386__)
@@ -72,7 +74,14 @@ static inline int io_uring_mmap(int fd, struct io_uring_params *p,
 	void *ptr;
 	int ret;
 
-	sq->ring_sz = p->sq_off.array + p->sq_entries * sizeof(unsigned int);
+	if (p->flags & IORING_SETUP_NO_SQARRAY) {
+		sq->ring_sz = p->cq_off.cqes;
+		sq->ring_sz += p->cq_entries * sizeof(struct io_uring_cqe);
+	} else {
+		sq->ring_sz = p->sq_off.array;
+		sq->ring_sz += p->sq_entries * sizeof(unsigned int);
+	}
+
 	ptr = mmap(0, sq->ring_sz, PROT_READ | PROT_WRITE,
 		   MAP_SHARED | MAP_POPULATE, fd, IORING_OFF_SQ_RING);
 	if (ptr == MAP_FAILED)
@@ -83,7 +92,8 @@ static inline int io_uring_mmap(int fd, struct io_uring_params *p,
 	sq->kring_entries = ptr + p->sq_off.ring_entries;
 	sq->kflags = ptr + p->sq_off.flags;
 	sq->kdropped = ptr + p->sq_off.dropped;
-	sq->array = ptr + p->sq_off.array;
+	if (!(p->flags & IORING_SETUP_NO_SQARRAY))
+		sq->array = ptr + p->sq_off.array;
 
 	size = p->sq_entries * sizeof(struct io_uring_sqe);
 	sq->sqes = mmap(0, size, PROT_READ | PROT_WRITE,
@@ -126,26 +136,37 @@ static inline int io_uring_enter(int fd, unsigned int to_submit,
 		       flags, sig, _NSIG / 8);
 }
 
+static inline int io_uring_queue_init_params(unsigned int entries,
+					     struct io_uring *ring,
+					     struct io_uring_params *p)
+{
+	int fd, ret;
+
+	memset(ring, 0, sizeof(*ring));
+
+	fd = io_uring_setup(entries, p);
+	if (fd < 0)
+		return fd;
+	ret = io_uring_mmap(fd, p, &ring->sq, &ring->cq);
+	if (!ret) {
+		ring->ring_fd = fd;
+		ring->flags = p->flags;
+	} else {
+		close(fd);
+	}
+	return ret;
+}
+
 static inline int io_uring_queue_init(unsigned int entries,
 				      struct io_uring *ring,
 				      unsigned int flags)
 {
 	struct io_uring_params p;
-	int fd, ret;
 
-	memset(ring, 0, sizeof(*ring));
 	memset(&p, 0, sizeof(p));
 	p.flags = flags;
 
-	fd = io_uring_setup(entries, &p);
-	if (fd < 0)
-		return fd;
-	ret = io_uring_mmap(fd, &p, &ring->sq, &ring->cq);
-	if (!ret)
-		ring->ring_fd = fd;
-	else
-		close(fd);
-	return ret;
+	return io_uring_queue_init_params(entries, ring, &p);
 }
 
 /* Get a sqe */
@@ -199,10 +220,18 @@ static inline int io_uring_submit(struct io_uring *ring)
 
 	ktail = *sq->ktail;
 	to_submit = sq->sqe_tail - sq->sqe_head;
-	for (submitted = 0; submitted < to_submit; submitted++) {
-		read_barrier();
-		sq->array[ktail++ & mask] = sq->sqe_head++ & mask;
+
+	if (!(ring->flags & IORING_SETUP_NO_SQARRAY)) {
+		for (submitted = 0; submitted < to_submit; submitted++) {
+			read_barrier();
+			sq->array[ktail++ & mask] = sq->sqe_head++ & mask;
+		}
+	} else {
+		ktail += to_submit;
+		sq->sqe_head += to_submit;
+		submitted = to_submit;
 	}
+
 	if (!submitted)
 		return 0;
 
