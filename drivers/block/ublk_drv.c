@@ -1509,10 +1509,16 @@ enum auto_buf_reg_res {
 	AUTO_BUF_REG_OK,
 };
 
-static void ublk_prep_auto_buf_reg_io(const struct ublk_queue *ubq,
-				      struct request *req, struct ublk_io *io,
-				      struct io_uring_cmd *cmd,
-				      enum auto_buf_reg_res res)
+/*
+ * Setup io state after auto buffer registration.
+ *
+ * Must be called after ublk_auto_buf_register() is done.
+ * Caller must hold io->lock in batch context.
+ */
+static void ublk_auto_buf_io_setup(const struct ublk_queue *ubq,
+				   struct request *req, struct ublk_io *io,
+				   struct io_uring_cmd *cmd,
+				   enum auto_buf_reg_res res)
 {
 	if (res == AUTO_BUF_REG_OK) {
 		io->task_registered_buffers = 1;
@@ -1523,8 +1529,9 @@ static void ublk_prep_auto_buf_reg_io(const struct ublk_queue *ubq,
 	__ublk_prep_compl_io_cmd(io, req);
 }
 
+/* Register request bvec to io_uring for auto buffer registration. */
 static enum auto_buf_reg_res
-__ublk_do_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
+ublk_auto_buf_register(const struct ublk_queue *ubq, struct request *req,
 		       struct ublk_io *io, struct io_uring_cmd *cmd,
 		       unsigned int issue_flags)
 {
@@ -1544,15 +1551,21 @@ __ublk_do_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
 	return AUTO_BUF_REG_OK;
 }
 
-static void ublk_do_auto_buf_reg(const struct ublk_queue *ubq, struct request *req,
-				 struct ublk_io *io, struct io_uring_cmd *cmd,
-				 unsigned int issue_flags)
+/*
+ * Dispatch IO to userspace with auto buffer registration.
+ *
+ * Only called in non-batch context from task work, io->lock not held.
+ */
+static void ublk_auto_buf_dispatch(const struct ublk_queue *ubq,
+				   struct request *req, struct ublk_io *io,
+				   struct io_uring_cmd *cmd,
+				   unsigned int issue_flags)
 {
-	enum auto_buf_reg_res res = __ublk_do_auto_buf_reg(ubq, req, io, cmd,
+	enum auto_buf_reg_res res = ublk_auto_buf_register(ubq, req, io, cmd,
 			issue_flags);
 
 	if (res != AUTO_BUF_REG_FAIL) {
-		ublk_prep_auto_buf_reg_io(ubq, req, io, cmd, res);
+		ublk_auto_buf_io_setup(ubq, req, io, cmd, res);
 		io_uring_cmd_done(cmd, UBLK_IO_RES_OK, issue_flags);
 	}
 }
@@ -1627,7 +1640,7 @@ static void ublk_dispatch_req(struct ublk_queue *ubq, struct request *req)
 		return;
 
 	if (ublk_support_auto_buf_reg(ubq) && ublk_rq_has_data(req)) {
-		ublk_do_auto_buf_reg(ubq, req, io, io->cmd, issue_flags);
+		ublk_auto_buf_dispatch(ubq, req, io, io->cmd, issue_flags);
 	} else {
 		ublk_init_req_ref(ubq, io);
 		ublk_complete_io_cmd(io, req, UBLK_IO_RES_OK, issue_flags);
@@ -1648,7 +1661,7 @@ static bool __ublk_batch_prep_dispatch(struct ublk_queue *ubq,
 		return false;
 
 	if (ublk_support_auto_buf_reg(ubq) && ublk_rq_has_data(req)) {
-		res = __ublk_do_auto_buf_reg(ubq, req, io, cmd,
+		res = ublk_auto_buf_register(ubq, req, io, cmd,
 				data->issue_flags);
 
 		if (res == AUTO_BUF_REG_FAIL)
@@ -1656,7 +1669,7 @@ static bool __ublk_batch_prep_dispatch(struct ublk_queue *ubq,
 	}
 
 	ublk_io_lock(io);
-	ublk_prep_auto_buf_reg_io(ubq, req, io, cmd, res);
+	ublk_auto_buf_io_setup(ubq, req, io, cmd, res);
 	ublk_io_unlock(io);
 
 	return true;
