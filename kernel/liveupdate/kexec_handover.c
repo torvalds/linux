@@ -299,7 +299,7 @@ EXPORT_SYMBOL_GPL(kho_restore_folio);
  * Restore a contiguous list of order 0 pages that was preserved with
  * kho_preserve_pages().
  *
- * Return: 0 on success, error code on failure
+ * Return: the first page on success, NULL on failure.
  */
 struct page *kho_restore_pages(phys_addr_t phys, unsigned long nr_pages)
 {
