@@ -9609,6 +9609,11 @@ static int check_reg_const_str(struct bpf_verifier_env *env,
 	if (reg->type != PTR_TO_MAP_VALUE)
 		return -EINVAL;
 
+	if (map->map_type == BPF_MAP_TYPE_INSN_ARRAY) {
+		verbose(env, "R%d points to insn_array map which cannot be used as const string\n", regno);
+		return -EACCES;
+	}
+
 	if (!bpf_map_is_rdonly(map)) {
 		verbose(env, "R%d does not point to a readonly map'\n", regno);
 		return -EACCES;

@@ -47,6 +47,7 @@ void test_xdp_context_test_run(void)
 	struct test_xdp_context_test_run *skel = NULL;
 	char data[sizeof(pkt_v4) + sizeof(__u32)];
 	char bad_ctx[sizeof(struct xdp_md) + 1];
+	char large_data[256];
 	struct xdp_md ctx_in, ctx_out;
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
 			    .data_in = &data,
@@ -94,9 +95,6 @@ void test_xdp_context_test_run(void)
 	test_xdp_context_error(prog_fd, opts, 4, sizeof(__u32), sizeof(data),
 			       0, 0, 0);
 
-	/* Meta data must be 255 bytes or smaller */
-	test_xdp_context_error(prog_fd, opts, 0, 256, sizeof(data), 0, 0, 0);
-
 	/* Total size of data must be data_end - data_meta or larger */
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32),
 			       sizeof(data) + 1, 0, 0, 0);
@@ -115,6 +113,16 @@ void test_xdp_context_test_run(void)
 	/* The egress cannot be specified */
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32), sizeof(data),
 			       0, 0, 1);
+
+	/* Meta data must be 216 bytes or smaller (256 - sizeof(struct
+	 * xdp_frame)). Test both nearest invalid size and nearest invalid
+	 * 4-byte-aligned size, and make sure data_in is large enough that we
+	 * actually hit the check on metadata length
+	 */
+	opts.data_in = large_data;
+	opts.data_size_in = sizeof(large_data);
+	test_xdp_context_error(prog_fd, opts, 0, 217, sizeof(large_data), 0, 0, 0);
+	test_xdp_context_error(prog_fd, opts, 0, 220, sizeof(large_data), 0, 0, 0);
 
 	test_xdp_context_test_run__destroy(skel);
 }

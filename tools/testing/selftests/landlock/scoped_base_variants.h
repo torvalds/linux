@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Landlock scoped_domains variants
+ * Landlock scoped_domains test variant definition.
  *
- * See the hierarchy variants from ptrace_test.c
+ * This file defines a fixture variant "scoped_domains" that has all
+ * permutations of parent/child process being in separate or shared
+ * Landlock domain, or not being in a Landlock domain at all.
+ *
+ * Scoped access tests can include this file to avoid repeating these
+ * combinations.
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2019-2020 ANSSI
