@@ -230,6 +230,10 @@
 #define FSL_SAI_DL_I2S		BIT(0)
 #define FSL_SAI_DL_PDM		BIT(1)
 
+#define FSL_SAI_AMIX_BYPASS	0
+#define FSL_SAI_AMIX_AUDMIX	1
+#define FSL_SAI_AMIX_NONE	2
+
 struct fsl_sai_soc_data {
 	bool use_imx_pcm;
 	bool use_edma;
