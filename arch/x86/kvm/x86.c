@@ -11014,6 +11014,25 @@ void kvm_set_or_clear_apicv_inhibit(struct kvm *kvm,
 }
 EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_set_or_clear_apicv_inhibit);
 
+void kvm_inc_or_dec_irq_window_inhibit(struct kvm *kvm, bool inc)
+{
+	int add = inc ? 1 : -1;
+
+	if (!enable_apicv)
+		return;
+
+	/*
+	 * Strictly speaking, the lock is only needed if going 0->1 or 1->0,
+	 * a la atomic_dec_and_mutex_lock.  However, ExtINTs are rare and
+	 * only target a single CPU, so that is the common case; do not
+	 * bother eliding the down_write()/up_write() pair.
+	 */
+	guard(rwsem_write)(&kvm->arch.apicv_update_lock);
+	if (atomic_add_return(add, &kvm->arch.apicv_nr_irq_window_req) == inc)
+		__kvm_set_or_clear_apicv_inhibit(kvm, APICV_INHIBIT_REASON_IRQWIN, inc);
+}
+EXPORT_SYMBOL_FOR_KVM_INTERNAL(kvm_inc_or_dec_irq_window_inhibit);
+
 static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 {
 	if (!kvm_apic_present(vcpu))
