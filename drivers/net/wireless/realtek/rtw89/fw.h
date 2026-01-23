@@ -5069,6 +5069,26 @@ struct rtw89_c2h_rf_txgapk_rpt_log {
 	u8 rsv1;
 } __packed;
 
+struct rtw89_c2h_rf_txiqk_rpt_log {
+	u8 fw_txiqk_ver;
+	u8 rsvd;
+	u8 iqk_band[2];
+	u8 iqk_ch[2];
+	u8 iqk_bw[2];
+	bool tx_iqk_fail[2];
+	bool is_iqk_init;
+	bool txiqk_en;
+	bool lok_en;
+	bool lok_fail[2];
+	u8 rsvd2;
+	__le32 iqk_times;
+	bool txiqk_nctldone[2];
+	u8 rsvd3[2];
+	__le32 txgain[2][6];
+	__le32 tx_iqc[2][6];
+	__le32 tx_xym[2][6][14];
+} __packed;
+
 struct rtw89_c2h_rfk_report {
 	struct rtw89_c2h_hdr hdr;
 	u8 state; /* enum rtw89_rfk_report_state */
