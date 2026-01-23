@@ -458,10 +458,7 @@ static uint16_t read_proc_e_machine_for_pid(pid_t pid)
 	snprintf(path, sizeof(path), "/proc/%d/exe", pid);
 	fd = open(path, O_RDONLY);
 	if (fd >= 0) {
-		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
-		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
-		if (pread(fd, &e_machine, sizeof(e_machine), 18) != sizeof(e_machine))
-			e_machine = EM_NONE;
+		e_machine = dso__read_e_machine(/*optional_dso=*/NULL, fd);
 		close(fd);
 	}
 	return e_machine;

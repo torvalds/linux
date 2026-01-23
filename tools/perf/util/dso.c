@@ -1203,6 +1203,68 @@ ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 	return data_read_write_offset(dso, machine, offset, data, size, true);
 }
 
+static enum dso_swap_type dso_swap_type__from_elf_data(unsigned char eidata)
+{
+	static const unsigned int endian = 1;
+
+	switch (eidata) {
+	case ELFDATA2LSB:
+		/* We are big endian, DSO is little endian. */
+		return (*(unsigned char const *)&endian != 1) ? DSO_SWAP__YES : DSO_SWAP__NO;
+	case ELFDATA2MSB:
+		/* We are little endian, DSO is big endian. */
+		return (*(unsigned char const *)&endian != 0) ? DSO_SWAP__YES : DSO_SWAP__NO;
+	default:
+		return DSO_SWAP__UNSET;
+	}
+}
+
+/* Reads e_machine from fd, optionally caching data in dso. */
+uint16_t dso__read_e_machine(struct dso *optional_dso, int fd)
+{
+	uint16_t e_machine = EM_NONE;
+	unsigned char e_ident[EI_NIDENT];
+	enum dso_swap_type swap_type;
+
+	_Static_assert(offsetof(Elf32_Ehdr, e_ident) == 0, "Unexpected offset");
+	_Static_assert(offsetof(Elf64_Ehdr, e_ident) == 0, "Unexpected offset");
+	if (pread(fd, &e_ident, sizeof(e_ident), 0) != sizeof(e_ident))
+		return EM_NONE; // Read failed.
+
+	if (memcmp(e_ident, ELFMAG, SELFMAG) != 0)
+		return EM_NONE; // Not an ELF file.
+
+	if (e_ident[EI_CLASS] == ELFCLASSNONE || e_ident[EI_CLASS] >= ELFCLASSNUM)
+		return EM_NONE; // Bad ELF class (32 or 64-bit objects).
+
+	if (e_ident[EI_VERSION] != EV_CURRENT)
+		return EM_NONE; // Bad ELF version.
+
+	swap_type = dso_swap_type__from_elf_data(e_ident[EI_DATA]);
+	if (swap_type == DSO_SWAP__UNSET)
+		return EM_NONE; // Bad ELF data encoding.
+
+	/* Cache the need for swapping. */
+	if (optional_dso) {
+		assert(dso__needs_swap(optional_dso) == DSO_SWAP__UNSET ||
+		       dso__needs_swap(optional_dso) == swap_type);
+		dso__set_needs_swap(optional_dso, swap_type);
+	}
+
+	{
+		_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
+		_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
+		if (pread(fd, &e_machine, sizeof(e_machine), 18) != sizeof(e_machine))
+			return EM_NONE; // e_machine read failed.
+	}
+
+	e_machine = DSO_SWAP_TYPE__SWAP(swap_type, uint16_t, e_machine);
+	if (e_machine >= EM_NUM)
+		return EM_NONE; // Bad ELF machine number.
+
+	return e_machine;
+}
+
 uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 {
 	uint16_t e_machine = EM_NONE;
@@ -1248,30 +1310,9 @@ uint16_t dso__e_machine(struct dso *dso, struct machine *machine)
 	 */
 	try_to_open_dso(dso, machine);
 	fd = dso__data(dso)->fd;
-	if (fd >= 0) {
-		unsigned char e_ident[EI_NIDENT];
+	if (fd >= 0)
+		e_machine = dso__read_e_machine(dso, fd);
 
-		_Static_assert(offsetof(Elf32_Ehdr, e_ident) == 0, "Unexpected offset");
-		_Static_assert(offsetof(Elf64_Ehdr, e_ident) == 0, "Unexpected offset");
-		if (pread(fd, &e_ident, sizeof(e_ident), 0) == sizeof(e_ident) &&
-		    memcmp(e_ident, ELFMAG, SELFMAG) == 0 &&
-		    e_ident[EI_CLASS] > ELFCLASSNONE && e_ident[EI_CLASS] < ELFCLASSNUM &&
-		    e_ident[EI_DATA] > ELFDATANONE && e_ident[EI_DATA] < ELFDATANUM &&
-		    e_ident[EI_VERSION] == EV_CURRENT) {
-			_Static_assert(offsetof(Elf32_Ehdr, e_machine) == 18, "Unexpected offset");
-			_Static_assert(offsetof(Elf64_Ehdr, e_machine) == 18, "Unexpected offset");
-
-			if (dso__needs_swap(dso) == DSO_SWAP__UNSET)
-				dso__swap_init(dso, e_ident[EI_DATA]);
-
-			if (dso__needs_swap(dso) != DSO_SWAP__UNSET &&
-			    pread(fd, &e_machine, sizeof(e_machine), 18) == sizeof(e_machine) &&
-			    e_machine < EM_NUM)
-				e_machine = DSO__SWAP(dso, uint16_t, e_machine);
-			else
-				e_machine = EM_NONE;
-		}
-	}
 	mutex_unlock(dso__data_open_lock());
 	return e_machine;
 }
@@ -1656,28 +1697,13 @@ void dso__put(struct dso *dso)
 
 int dso__swap_init(struct dso *dso, unsigned char eidata)
 {
-	static unsigned int const endian = 1;
+	enum dso_swap_type type = dso_swap_type__from_elf_data(eidata);
 
-	dso__set_needs_swap(dso, DSO_SWAP__NO);
-
-	switch (eidata) {
-	case ELFDATA2LSB:
-		/* We are big endian, DSO is little endian. */
-		if (*(unsigned char const *)&endian != 1)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	case ELFDATA2MSB:
-		/* We are little endian, DSO is big endian. */
-		if (*(unsigned char const *)&endian != 0)
-			dso__set_needs_swap(dso, DSO_SWAP__YES);
-		break;
-
-	default:
+	dso__set_needs_swap(dso, type);
+	if (type == DSO_SWAP__UNSET) {
 		pr_err("unrecognized DSO data encoding %d\n", eidata);
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
