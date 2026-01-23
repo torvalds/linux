@@ -26,7 +26,7 @@ impl Module for SampleModule {
 
         let reg = faux::Registration::new(c"rust-faux-sample-device", None)?;
 
-        dev_info!(reg.as_ref(), "Hello from faux device!\n");
+        dev_info!(reg, "Hello from faux device!\n");
 
         Ok(Self { _reg: reg })
     }

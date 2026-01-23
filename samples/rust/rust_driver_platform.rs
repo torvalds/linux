@@ -180,7 +180,7 @@ impl SampleDriver {
 
 impl Drop for SampleDriver {
     fn drop(&mut self) {
-        dev_dbg!(self.pdev.as_ref(), "Remove Rust Platform driver sample.\n");
+        dev_dbg!(self.pdev, "Remove Rust Platform driver sample.\n");
     }
 }
 

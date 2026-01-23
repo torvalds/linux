@@ -39,7 +39,7 @@ impl auxiliary::Driver for AuxiliaryDriver {
 
     fn probe(adev: &auxiliary::Device<Core>, _info: &Self::IdInfo) -> impl PinInit<Self, Error> {
         dev_info!(
-            adev.as_ref(),
+            adev,
             "Probing auxiliary driver for auxiliary device with id={}\n",
             adev.id()
         );

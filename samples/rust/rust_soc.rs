@@ -44,9 +44,7 @@ impl platform::Driver for SampleSocDriver {
         pdev: &platform::Device<Core>,
         _info: Option<&Self::IdInfo>,
     ) -> impl PinInit<Self, Error> {
-        let dev = pdev.as_ref();
-
-        dev_dbg!(dev, "Probe Rust SoC driver sample.\n");
+        dev_dbg!(pdev, "Probe Rust SoC driver sample.\n");
 
         let pdev = pdev.into();
         pin_init_scope(move || {
