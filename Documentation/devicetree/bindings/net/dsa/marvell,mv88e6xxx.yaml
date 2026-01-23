@@ -72,7 +72,7 @@ properties:
 
   '#interrupt-cells':
     description: The internal interrupt controller only supports triggering
-      on active high level interrupts so the second cell must alway be set to
+      on active high level interrupts so the second cell must always be set to
       IRQ_TYPE_LEVEL_HIGH.
     const: 2
 
