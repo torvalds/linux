@@ -1011,15 +1011,15 @@ struct vm_area_struct {
 	 * decrementing it again.
 	 *
 	 * VM_REFCNT_EXCLUDE_READERS_FLAG - Detached, pending
-	 * __vma_exit_locked() completion which will decrement the reference
-	 * count to zero. IMPORTANT - at this stage no further readers can
-	 * increment the reference count. It can only be reduced.
+	 * __vma_end_exclude_readers() completion which will decrement the
+	 * reference count to zero. IMPORTANT - at this stage no further readers
+	 * can increment the reference count. It can only be reduced.
 	 *
 	 * VM_REFCNT_EXCLUDE_READERS_FLAG + 1 - A thread is either write-locking
-	 * an attached VMA and has yet to invoke __vma_exit_locked(), OR a
-	 * thread is detaching a VMA and is waiting on a single spurious reader
-	 * in order to decrement the reference count. IMPORTANT - as above, no
-	 * further readers can increment the reference count.
+	 * an attached VMA and has yet to invoke __vma_end_exclude_readers(),
+	 * OR a thread is detaching a VMA and is waiting on a single spurious
+	 * reader in order to decrement the reference count. IMPORTANT - as
+	 * above, no further readers can increment the reference count.
 	 *
 	 * > VM_REFCNT_EXCLUDE_READERS_FLAG + 1 - A thread is either
 	 * write-locking or detaching a VMA is waiting on readers to
