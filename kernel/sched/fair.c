@@ -8828,16 +8828,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	if ((wake_flags & WF_FORK) || pse->sched_delayed)
 		return;
 
-	/*
-	 * If @p potentially is completing work required by current then
-	 * consider preemption.
-	 *
-	 * Reschedule if waker is no longer eligible. */
-	if (in_task() && !entity_eligible(cfs_rq, se)) {
-		preempt_action = PREEMPT_WAKEUP_RESCHED;
-		goto preempt;
-	}
-
 	/* Prefer picking wakee soon if appropriate. */
 	if (sched_feat(NEXT_BUDDY) &&
 	    set_preempt_buddy(cfs_rq, wake_flags, pse, se)) {
