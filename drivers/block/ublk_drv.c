@@ -3064,7 +3064,6 @@ static int __ublk_fetch(struct io_uring_cmd *cmd, struct ublk_device *ub,
 		WRITE_ONCE(io->task, NULL);
 	else
 		WRITE_ONCE(io->task, get_task_struct(current));
-	ublk_mark_io_ready(ub, q_id);
 
 	return 0;
 }
@@ -3083,6 +3082,8 @@ static int ublk_fetch(struct io_uring_cmd *cmd, struct ublk_device *ub,
 	ret = __ublk_fetch(cmd, ub, io, q_id);
 	if (!ret)
 		ret = ublk_config_io_buf(ub, io, cmd, buf_addr, NULL);
+	if (!ret)
+		ublk_mark_io_ready(ub, q_id);
 	mutex_unlock(&ub->mutex);
 	return ret;
 }
@@ -3483,6 +3484,9 @@ static int ublk_batch_prep_io(struct ublk_queue *ubq,
 	if (!ret)
 		io->buf = buf;
 	ublk_io_unlock(io);
+
+	if (!ret)
+		ublk_mark_io_ready(data->ub, ubq->q_id);
 
 	return ret;
 }
