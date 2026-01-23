@@ -30,6 +30,8 @@ static ssize_t name##_show(struct device *d, struct device_attribute *attr,	\
 
 security_attribute_show(fused_part)
 static DEVICE_ATTR_RO(fused_part);
+security_attribute_show(boot_integrity)
+static DEVICE_ATTR_RO(boot_integrity);
 security_attribute_show(debug_lock_on)
 static DEVICE_ATTR_RO(debug_lock_on);
 security_attribute_show(tsme_status)
@@ -47,6 +49,7 @@ static DEVICE_ATTR_RO(rom_armor_enforced);
 
 static struct attribute *psp_security_attrs[] = {
 	&dev_attr_fused_part.attr,
+	&dev_attr_boot_integrity.attr,
 	&dev_attr_debug_lock_on.attr,
 	&dev_attr_tsme_status.attr,
 	&dev_attr_anti_rollback_status.attr,

@@ -36,7 +36,7 @@ union psp_cap_register {
 			     rsvd1			:3,
 			     security_reporting		:1,
 			     fused_part			:1,
-			     rsvd2			:1,
+			     boot_integrity		:1,
 			     debug_lock_on		:1,
 			     rsvd3			:2,
 			     tsme_status		:1,
