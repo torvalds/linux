@@ -223,7 +223,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	bat_psy_desc.properties = prop;
 	bat_psy_desc.num_properties = props;
 
-	bat_psy = power_supply_register(&dev->dev, &bat_psy_desc, &cfg);
+	bat_psy = devm_power_supply_register(&dev->dev, &bat_psy_desc, &cfg);
 	if (IS_ERR(bat_psy))
 		return PTR_ERR(bat_psy);
 
@@ -232,19 +232,12 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	if (charge_gpiod) {
 		ret = request_irq(gpiod_to_irq(charge_gpiod), wm97xx_chrg_irq,
 				  0, "AC Detect", dev);
-		if (ret) {
-			dev_err_probe(&dev->dev, ret,
-				      "failed to request GPIO irq\n");
-			goto unregister;
-		}
+		if (ret)
+			return dev_err_probe(&dev->dev, ret,
+					     "failed to request GPIO irq\n");
 	}
 
 	return 0;
-
-unregister:
-	power_supply_unregister(bat_psy);
-
-	return ret;
 }
 
 static void wm97xx_bat_remove(struct platform_device *dev)
@@ -252,7 +245,6 @@ static void wm97xx_bat_remove(struct platform_device *dev)
 	if (charge_gpiod)
 		free_irq(gpiod_to_irq(charge_gpiod), dev);
 	cancel_work_sync(&bat_work);
-	power_supply_unregister(bat_psy);
 }
 
 static struct platform_driver wm97xx_bat_driver = {
