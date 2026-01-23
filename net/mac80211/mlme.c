@@ -8,7 +8,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2025 Intel Corporation
+ * Copyright (C) 2018 - 2026 Intel Corporation
  */
 
 #include <linux/delay.h>
@@ -6190,8 +6190,10 @@ ieee80211_parse_adv_t2l(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
-	link_map_presence = *pos;
-	pos++;
+	if (!(control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP)) {
+		link_map_presence = *pos;
+		pos++;
+	}
 
 	if (control & IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT) {
 		ttlm_info->switch_time = get_unaligned_le16(pos);

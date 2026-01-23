@@ -9260,7 +9260,6 @@ F:	drivers/scsi/be2iscsi/
 EMULEX 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER (be2net)
 M:	Ajit Khaparde <ajit.khaparde@broadcom.com>
 M:	Sriharsha Basavapatna <sriharsha.basavapatna@broadcom.com>
-M:	Somnath Kotur <somnath.kotur@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 W:	http://www.emulex.com
@@ -13167,6 +13166,7 @@ F:	Documentation/devicetree/bindings/interconnect/
 F:	Documentation/driver-api/interconnect.rst
 F:	drivers/interconnect/
 F:	include/dt-bindings/interconnect/
+F:	include/linux/interconnect-clk.h
 F:	include/linux/interconnect-provider.h
 F:	include/linux/interconnect.h
 

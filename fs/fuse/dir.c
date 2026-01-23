@@ -32,9 +32,9 @@ struct dentry_bucket {
 	spinlock_t lock;
 };
 
-#define HASH_BITS	5
-#define HASH_SIZE	(1 << HASH_BITS)
-static struct dentry_bucket dentry_hash[HASH_SIZE];
+#define FUSE_HASH_BITS	5
+#define FUSE_HASH_SIZE	(1 << FUSE_HASH_BITS)
+static struct dentry_bucket dentry_hash[FUSE_HASH_SIZE];
 struct delayed_work dentry_tree_work;
 
 /* Minimum invalidation work queue frequency */
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(inval_wq,
 
 static inline struct dentry_bucket *get_dentry_bucket(struct dentry *dentry)
 {
-	int i = hash_ptr(dentry, HASH_BITS);
+	int i = hash_ptr(dentry, FUSE_HASH_BITS);
 
 	return &dentry_hash[i];
 }
@@ -164,25 +164,31 @@ static void fuse_dentry_tree_work(struct work_struct *work)
 	struct rb_node *node;
 	int i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < FUSE_HASH_SIZE; i++) {
 		spin_lock(&dentry_hash[i].lock);
 		node = rb_first(&dentry_hash[i].tree);
 		while (node) {
 			fd = rb_entry(node, struct fuse_dentry, node);
-			if (time_after64(get_jiffies_64(), fd->time)) {
-				rb_erase(&fd->node, &dentry_hash[i].tree);
-				RB_CLEAR_NODE(&fd->node);
+			if (!time_before64(fd->time, get_jiffies_64()))
+				break;
+
+			rb_erase(&fd->node, &dentry_hash[i].tree);
+			RB_CLEAR_NODE(&fd->node);
+			spin_lock(&fd->dentry->d_lock);
+			/* If dentry is still referenced, let next dput release it */
+			fd->dentry->d_flags |= DCACHE_OP_DELETE;
+			spin_unlock(&fd->dentry->d_lock);
+			d_dispose_if_unused(fd->dentry, &dispose);
+			if (need_resched()) {
 				spin_unlock(&dentry_hash[i].lock);
-				d_dispose_if_unused(fd->dentry, &dispose);
 				cond_resched();
 				spin_lock(&dentry_hash[i].lock);
-			} else
-				break;
+			}
 			node = rb_first(&dentry_hash[i].tree);
 		}
 		spin_unlock(&dentry_hash[i].lock);
-		shrink_dentry_list(&dispose);
 	}
+	shrink_dentry_list(&dispose);
 
 	if (inval_wq)
 		schedule_delayed_work(&dentry_tree_work,
@@ -213,7 +219,7 @@ void fuse_dentry_tree_init(void)
 {
 	int i;
 
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < FUSE_HASH_SIZE; i++) {
 		spin_lock_init(&dentry_hash[i].lock);
 		dentry_hash[i].tree = RB_ROOT;
 	}
@@ -227,7 +233,7 @@ void fuse_dentry_tree_cleanup(void)
 	inval_wq = 0;
 	cancel_delayed_work_sync(&dentry_tree_work);
 
-	for (i = 0; i < HASH_SIZE; i++)
+	for (i = 0; i < FUSE_HASH_SIZE; i++)
 		WARN_ON_ONCE(!RB_EMPTY_ROOT(&dentry_hash[i].tree));
 }
 
@@ -479,18 +485,12 @@ static int fuse_dentry_init(struct dentry *dentry)
 	return 0;
 }
 
-static void fuse_dentry_prune(struct dentry *dentry)
+static void fuse_dentry_release(struct dentry *dentry)
 {
 	struct fuse_dentry *fd = dentry->d_fsdata;
 
 	if (!RB_EMPTY_NODE(&fd->node))
 		fuse_dentry_tree_del_node(dentry);
-}
-
-static void fuse_dentry_release(struct dentry *dentry)
-{
-	struct fuse_dentry *fd = dentry->d_fsdata;
-
 	kfree_rcu(fd, rcu);
 }
 
@@ -527,7 +527,6 @@ const struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 	.d_delete	= fuse_dentry_delete,
 	.d_init		= fuse_dentry_init,
-	.d_prune	= fuse_dentry_prune,
 	.d_release	= fuse_dentry_release,
 	.d_automount	= fuse_dentry_automount,
 };
@@ -1584,8 +1583,8 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 {
 	int err = -ENOTDIR;
 	struct inode *parent;
-	struct dentry *dir;
-	struct dentry *entry;
+	struct dentry *dir = NULL;
+	struct dentry *entry = NULL;
 
 	parent = fuse_ilookup(fc, parent_nodeid, NULL);
 	if (!parent)
@@ -1598,11 +1597,19 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 	dir = d_find_alias(parent);
 	if (!dir)
 		goto put_parent;
-
-	entry = start_removing_noperm(dir, name);
-	dput(dir);
-	if (IS_ERR(entry))
-		goto put_parent;
+	while (!entry) {
+		struct dentry *child = try_lookup_noperm(name, dir);
+		if (!child || IS_ERR(child))
+			goto put_parent;
+		entry = start_removing_dentry(dir, child);
+		dput(child);
+		if (IS_ERR(entry))
+			goto put_parent;
+		if (!d_same_name(entry, dir, name)) {
+			end_removing(entry);
+			entry = NULL;
+		}
+	}
 
 	fuse_dir_changed(parent);
 	if (!(flags & FUSE_EXPIRE_ONLY))
@@ -1640,6 +1647,7 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 
 	end_removing(entry);
  put_parent:
+	dput(dir);
 	iput(parent);
 	return err;
 }

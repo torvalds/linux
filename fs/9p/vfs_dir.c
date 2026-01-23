@@ -242,6 +242,7 @@ const struct file_operations v9fs_dir_operations = {
 	.iterate_shared = v9fs_dir_readdir,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
+	.setlease = simple_nosetlease,
 };
 
 const struct file_operations v9fs_dir_operations_dotl = {
@@ -251,4 +252,5 @@ const struct file_operations v9fs_dir_operations_dotl = {
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 	.fsync = v9fs_file_fsync_dotl,
+	.setlease = simple_nosetlease,
 };

@@ -139,6 +139,7 @@ static int copy_data_into_buffer(struct address_space *mapping,
 		data_in = kmap_local_folio(folio, offset);
 		memcpy(workspace->buf + cur - filepos, data_in, copy_length);
 		kunmap_local(data_in);
+		folio_put(folio);
 		cur += copy_length;
 	}
 	return 0;
