@@ -39,6 +39,10 @@ use core::{
     sync::atomic::{AtomicU32, Ordering},
 };
 
+fn is_aligned(value: usize, to: usize) -> bool {
+    value % to == 0
+}
+
 /// Stores the layout of the scatter-gather entries. This is used during the `translate_objects`
 /// call and is discarded when it returns.
 struct ScatterGatherState {
@@ -795,6 +799,10 @@ impl Thread {
                 let num_fds = usize::try_from(obj.num_fds).map_err(|_| EINVAL)?;
                 let fds_len = num_fds.checked_mul(size_of::<u32>()).ok_or(EINVAL)?;
 
+                if !is_aligned(parent_offset, size_of::<u32>()) {
+                    return Err(EINVAL.into());
+                }
+
                 let info = sg_state.validate_parent_fixup(parent_index, parent_offset, fds_len)?;
                 view.alloc.info_add_fd_reserve(num_fds)?;
 
@@ -808,6 +816,10 @@ impl Thread {
                         return Err(EINVAL.into());
                     }
                 };
+
+                if !is_aligned(parent_entry.sender_uaddr, size_of::<u32>()) {
+                    return Err(EINVAL.into());
+                }
 
                 parent_entry.fixup_min_offset = info.new_min_offset;
                 parent_entry
@@ -825,6 +837,7 @@ impl Thread {
                     .sender_uaddr
                     .checked_add(parent_offset)
                     .ok_or(EINVAL)?;
+
                 let mut fda_bytes = KVec::new();
                 UserSlice::new(UserPtr::from_addr(fda_uaddr as _), fds_len)
                     .read_all(&mut fda_bytes, GFP_KERNEL)?;
@@ -958,25 +971,30 @@ impl Thread {
 
         let data_size = trd.data_size.try_into().map_err(|_| EINVAL)?;
         let aligned_data_size = ptr_align(data_size).ok_or(EINVAL)?;
-        let offsets_size = trd.offsets_size.try_into().map_err(|_| EINVAL)?;
-        let aligned_offsets_size = ptr_align(offsets_size).ok_or(EINVAL)?;
-        let buffers_size = tr.buffers_size.try_into().map_err(|_| EINVAL)?;
-        let aligned_buffers_size = ptr_align(buffers_size).ok_or(EINVAL)?;
+        let offsets_size: usize = trd.offsets_size.try_into().map_err(|_| EINVAL)?;
+        let buffers_size: usize = tr.buffers_size.try_into().map_err(|_| EINVAL)?;
         let aligned_secctx_size = match secctx.as_ref() {
             Some((_offset, ctx)) => ptr_align(ctx.len()).ok_or(EINVAL)?,
             None => 0,
         };
 
+        if !is_aligned(offsets_size, size_of::<u64>()) {
+            return Err(EINVAL.into());
+        }
+        if !is_aligned(buffers_size, size_of::<u64>()) {
+            return Err(EINVAL.into());
+        }
+
         // This guarantees that at least `sizeof(usize)` bytes will be allocated.
         let len = usize::max(
             aligned_data_size
-                .checked_add(aligned_offsets_size)
-                .and_then(|sum| sum.checked_add(aligned_buffers_size))
+                .checked_add(offsets_size)
+                .and_then(|sum| sum.checked_add(buffers_size))
                 .and_then(|sum| sum.checked_add(aligned_secctx_size))
                 .ok_or(ENOMEM)?,
-            size_of::<usize>(),
+            size_of::<u64>(),
         );
-        let secctx_off = aligned_data_size + aligned_offsets_size + aligned_buffers_size;
+        let secctx_off = aligned_data_size + offsets_size + buffers_size;
         let mut alloc =
             match to_process.buffer_alloc(debug_id, len, is_oneway, self.process.task.pid()) {
                 Ok(alloc) => alloc,
@@ -1008,13 +1026,13 @@ impl Thread {
             }
 
             let offsets_start = aligned_data_size;
-            let offsets_end = aligned_data_size + aligned_offsets_size;
+            let offsets_end = aligned_data_size + offsets_size;
 
             // This state is used for BINDER_TYPE_PTR objects.
             let sg_state = sg_state.insert(ScatterGatherState {
                 unused_buffer_space: UnusedBufferSpace {
                     offset: offsets_end,
-                    limit: len,
+                    limit: offsets_end + buffers_size,
                 },
                 sg_entries: KVec::new(),
                 ancestors: KVec::new(),
@@ -1023,12 +1041,16 @@ impl Thread {
             // Traverse the objects specified.
             let mut view = AllocationView::new(&mut alloc, data_size);
             for (index, index_offset) in (offsets_start..offsets_end)
-                .step_by(size_of::<usize>())
+                .step_by(size_of::<u64>())
                 .enumerate()
             {
-                let offset = view.alloc.read(index_offset)?;
+                let offset: usize = view
+                    .alloc
+                    .read::<u64>(index_offset)?
+                    .try_into()
+                    .map_err(|_| EINVAL)?;
 
-                if offset < end_of_previous_object {
+                if offset < end_of_previous_object || !is_aligned(offset, size_of::<u32>()) {
                     pr_warn!("Got transaction with invalid offset.");
                     return Err(EINVAL.into());
                 }
@@ -1060,7 +1082,7 @@ impl Thread {
                 }
 
                 // Update the indexes containing objects to clean up.
-                let offset_after_object = index_offset + size_of::<usize>();
+                let offset_after_object = index_offset + size_of::<u64>();
                 view.alloc
                     .set_info_offsets(offsets_start..offset_after_object);
             }
