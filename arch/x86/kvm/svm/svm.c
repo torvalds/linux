@@ -3130,20 +3130,6 @@ static int interrupt_window_interception(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	svm_clear_vintr(to_svm(vcpu));
 
-	/*
-	 * If not running nested, for AVIC, the only reason to end up here is ExtINTs.
-	 * In this case AVIC was temporarily disabled for
-	 * requesting the IRQ window and we have to re-enable it.
-	 *
-	 * If running nested, still remove the VM wide AVIC inhibit to
-	 * support case in which the interrupt window was requested when the
-	 * vCPU was not running nested.
-
-	 * All vCPUs which run still run nested, will remain to have their
-	 * AVIC still inhibited due to per-cpu AVIC inhibition.
-	 */
-	kvm_clear_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_IRQWIN);
-
 	++vcpu->stat.irq_window_exits;
 	return 1;
 }
@@ -3731,6 +3717,20 @@ static void svm_inject_irq(struct kvm_vcpu *vcpu, bool reinjected)
 	} else {
 		type = SVM_EVTINJ_TYPE_INTR;
 	}
+
+	/*
+	 * If AVIC was inhibited in order to detect an IRQ window, and there's
+	 * no other injectable interrupts pending or L2 is active (see below),
+	 * then drop the inhibit as the window has served its purpose.
+	 *
+	 * If L2 is active, this path is reachable if L1 is not intercepting
+	 * IRQs, i.e. if KVM is injecting L1 IRQs into L2.  AVIC is locally
+	 * inhibited while L2 is active; drop the VM-wide inhibit to optimize
+	 * the case in which the interrupt window was requested while L1 was
+	 * active (the vCPU was not running nested).
+	 */
+	if (!kvm_cpu_has_injectable_intr(vcpu) || is_guest_mode(vcpu))
+		kvm_clear_apicv_inhibit(vcpu->kvm, APICV_INHIBIT_REASON_IRQWIN);
 
 	trace_kvm_inj_virq(intr->nr, intr->soft, reinjected);
 	++vcpu->stat.irq_injections;
