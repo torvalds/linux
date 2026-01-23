@@ -213,7 +213,6 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 {
 	struct dwfl_ui_thread_info *dwfl_ui_ti = arg;
 	struct unwind_info *ui = dwfl_ui_ti->ui;
-	uint16_t e_machine = thread__e_machine(ui->thread, ui->machine, /*e_flags=*/NULL);
 	struct stack_dump *stack = &ui->sample->user_stack;
 	u64 start, end;
 	int offset;
@@ -223,7 +222,7 @@ static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *
 		return false;
 
 	ret = perf_reg_value(&start, ui->sample->user_regs,
-			     perf_arch_reg_sp(e_machine));
+			     perf_arch_reg_sp(ui->e_machine));
 	if (ret)
 		return false;
 
@@ -260,7 +259,7 @@ static bool libdw_set_initial_registers(Dwfl_Thread *thread, void *arg)
 	int max_dwarf_reg = 0;
 	bool ret;
 	uint16_t e_machine = ui->e_machine;
-	int e_flags = 0;
+	int e_flags = ui->e_flags;
 	uint64_t ip_perf_reg = perf_arch_reg_ip(e_machine);
 	Dwarf_Word val = 0;
 
@@ -348,7 +347,8 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 {
 	struct maps *maps = thread__maps(thread);
 	struct machine *machine = maps__machine(maps);
-	uint16_t e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
+	uint32_t e_flags = 0;
+	uint16_t e_machine = thread__e_machine(thread, machine, &e_flags);
 	struct dwfl_ui_thread_info *dwfl_ui_ti;
 	static struct unwind_info *ui;
 	Dwfl *dwfl;
@@ -370,6 +370,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.arg		= arg,
 		.max_stack	= max_stack,
 		.e_machine	= e_machine,
+		.e_flags	= e_flags,
 		.best_effort    = best_effort
 	};
 

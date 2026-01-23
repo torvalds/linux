@@ -20,6 +20,7 @@ struct unwind_info {
 	void			*arg;
 	int			max_stack;
 	int			idx;
+	uint32_t		e_flags;
 	uint16_t		e_machine;
 	bool			best_effort;
 	struct unwind_entry	entries[];
