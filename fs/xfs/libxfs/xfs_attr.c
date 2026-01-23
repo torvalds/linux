@@ -1029,6 +1029,91 @@ trans_cancel:
 }
 
 /*
+ * Decide if it is theoretically possible to try to bypass the attr intent
+ * mechanism for better performance.  Other constraints (e.g. available space
+ * in the existing structure) are not considered here.
+ */
+static inline bool
+xfs_attr_can_shortcut(
+	const struct xfs_inode	*ip)
+{
+	return xfs_inode_has_attr_fork(ip) && xfs_attr_is_shortform(ip);
+}
+
+/* Try to set an attr in one transaction or fall back to attr intents. */
+int
+xfs_attr_setname(
+	struct xfs_da_args	*args,
+	int			rmt_blks)
+{
+	int			error;
+
+	if (!rmt_blks && xfs_attr_can_shortcut(args->dp)) {
+		args->op_flags |= XFS_DA_OP_ADDNAME;
+
+		error = xfs_attr_try_sf_addname(args);
+		if (error != -ENOSPC)
+			return error;
+	}
+
+	xfs_attr_defer_add(args, XFS_ATTR_DEFER_SET);
+	return 0;
+}
+
+/* Try to remove an attr in one transaction or fall back to attr intents. */
+int
+xfs_attr_removename(
+	struct xfs_da_args	*args)
+{
+	if (xfs_attr_can_shortcut(args->dp))
+		return xfs_attr_sf_removename(args);
+
+	xfs_attr_defer_add(args, XFS_ATTR_DEFER_REMOVE);
+	return 0;
+}
+
+/* Try to replace an attr in one transaction or fall back to attr intents. */
+int
+xfs_attr_replacename(
+	struct xfs_da_args	*args,
+	int			rmt_blks)
+{
+	int			error;
+
+	if (rmt_blks || !xfs_attr_can_shortcut(args->dp)) {
+		xfs_attr_defer_add(args, XFS_ATTR_DEFER_REPLACE);
+		return 0;
+	}
+
+	args->op_flags |= XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE;
+
+	error = xfs_attr_sf_removename(args);
+	if (error)
+		return error;
+
+	if (args->attr_filter & XFS_ATTR_PARENT) {
+		/*
+		 * Move the new name/value to the regular name/value slots and
+		 * zero out the new name/value slots because we don't need to
+		 * log them for a PPTR_SET operation.
+		 */
+		xfs_attr_update_pptr_replace_args(args);
+		args->new_name = NULL;
+		args->new_namelen = 0;
+		args->new_value = NULL;
+		args->new_valuelen = 0;
+	}
+	args->op_flags &= ~XFS_DA_OP_REPLACE;
+
+	error = xfs_attr_try_sf_addname(args);
+	if (error != -ENOSPC)
+		return error;
+
+	xfs_attr_defer_add(args, XFS_ATTR_DEFER_SET);
+	return 0;
+}
+
+/*
  * Make a change to the xattr structure.
  *
  * The caller must have initialized @args, attached dquots, and must not hold
@@ -1108,14 +1193,19 @@ xfs_attr_set(
 	case -EEXIST:
 		if (op == XFS_ATTRUPDATE_REMOVE) {
 			/* if no value, we are performing a remove operation */
-			xfs_attr_defer_add(args, XFS_ATTR_DEFER_REMOVE);
+			error = xfs_attr_removename(args);
+			if (error)
+				goto out_trans_cancel;
 			break;
 		}
 
 		/* Pure create fails if the attr already exists */
 		if (op == XFS_ATTRUPDATE_CREATE)
 			goto out_trans_cancel;
-		xfs_attr_defer_add(args, XFS_ATTR_DEFER_REPLACE);
+
+		error = xfs_attr_replacename(args, rmt_blks);
+		if (error)
+			goto out_trans_cancel;
 		break;
 	case -ENOATTR:
 		/* Can't remove what isn't there. */
@@ -1125,7 +1215,10 @@ xfs_attr_set(
 		/* Pure replace fails if no existing attr to replace. */
 		if (op == XFS_ATTRUPDATE_REPLACE)
 			goto out_trans_cancel;
-		xfs_attr_defer_add(args, XFS_ATTR_DEFER_SET);
+
+		error = xfs_attr_setname(args, rmt_blks);
+		if (error)
+			goto out_trans_cancel;
 		break;
 	default:
 		goto out_trans_cancel;
