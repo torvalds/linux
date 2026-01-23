@@ -136,14 +136,14 @@ static int __vma_start_exclude_readers(struct vma_exclude_readers_state *ves)
 	return 0;
 }
 
-int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
-		int state)
+int __vma_start_write(struct vm_area_struct *vma, int state)
 {
-	int err;
+	const unsigned int mm_lock_seq = __vma_raw_mm_seqnum(vma);
 	struct vma_exclude_readers_state ves = {
 		.vma = vma,
 		.state = state,
 	};
+	int err;
 
 	err = __vma_start_exclude_readers(&ves);
 	if (err) {

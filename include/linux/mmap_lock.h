@@ -258,21 +258,31 @@ static inline void vma_end_read(struct vm_area_struct *vma)
 	vma_refcount_put(vma);
 }
 
-/* WARNING! Can only be used if mmap_lock is expected to be write-locked */
-static inline bool __is_vma_write_locked(struct vm_area_struct *vma, unsigned int *mm_lock_seq)
+static inline unsigned int __vma_raw_mm_seqnum(struct vm_area_struct *vma)
 {
-	mmap_assert_write_locked(vma->vm_mm);
+	const struct mm_struct *mm = vma->vm_mm;
 
+	/* We must hold an exclusive write lock for this access to be valid. */
+	mmap_assert_write_locked(vma->vm_mm);
+	return mm->mm_lock_seq.sequence;
+}
+
+/*
+ * Determine whether a VMA is write-locked. Must be invoked ONLY if the mmap
+ * write lock is held.
+ *
+ * Returns true if write-locked, otherwise false.
+ */
+static inline bool __is_vma_write_locked(struct vm_area_struct *vma)
+{
 	/*
 	 * current task is holding mmap_write_lock, both vma->vm_lock_seq and
 	 * mm->mm_lock_seq can't be concurrently modified.
 	 */
-	*mm_lock_seq = vma->vm_mm->mm_lock_seq.sequence;
-	return (vma->vm_lock_seq == *mm_lock_seq);
+	return vma->vm_lock_seq == __vma_raw_mm_seqnum(vma);
 }
 
-int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
-		int state);
+int __vma_start_write(struct vm_area_struct *vma, int state);
 
 /*
  * Begin writing to a VMA.
@@ -281,12 +291,10 @@ int __vma_start_write(struct vm_area_struct *vma, unsigned int mm_lock_seq,
  */
 static inline void vma_start_write(struct vm_area_struct *vma)
 {
-	unsigned int mm_lock_seq;
-
-	if (__is_vma_write_locked(vma, &mm_lock_seq))
+	if (__is_vma_write_locked(vma))
 		return;
 
-	__vma_start_write(vma, mm_lock_seq, TASK_UNINTERRUPTIBLE);
+	__vma_start_write(vma, TASK_UNINTERRUPTIBLE);
 }
 
 /**
@@ -305,30 +313,25 @@ static inline void vma_start_write(struct vm_area_struct *vma)
 static inline __must_check
 int vma_start_write_killable(struct vm_area_struct *vma)
 {
-	unsigned int mm_lock_seq;
-
-	if (__is_vma_write_locked(vma, &mm_lock_seq))
+	if (__is_vma_write_locked(vma))
 		return 0;
-	return __vma_start_write(vma, mm_lock_seq, TASK_KILLABLE);
+
+	return __vma_start_write(vma, TASK_KILLABLE);
 }
 
 static inline void vma_assert_write_locked(struct vm_area_struct *vma)
 {
-	unsigned int mm_lock_seq;
-
-	VM_BUG_ON_VMA(!__is_vma_write_locked(vma, &mm_lock_seq), vma);
+	VM_WARN_ON_ONCE_VMA(!__is_vma_write_locked(vma), vma);
 }
 
 static inline void vma_assert_locked(struct vm_area_struct *vma)
 {
-	unsigned int mm_lock_seq;
-
 	/*
 	 * See the comment describing the vm_area_struct->vm_refcnt field for
 	 * details of possible refcnt values.
 	 */
-	VM_BUG_ON_VMA(refcount_read(&vma->vm_refcnt) <= 1 &&
-		      !__is_vma_write_locked(vma, &mm_lock_seq), vma);
+	VM_WARN_ON_ONCE_VMA(refcount_read(&vma->vm_refcnt) <= 1 &&
+			    !__is_vma_write_locked(vma), vma);
 }
 
 static inline bool vma_is_attached(struct vm_area_struct *vma)
