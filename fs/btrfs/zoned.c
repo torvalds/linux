@@ -1438,13 +1438,13 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 	bg->zone_capacity = min_not_zero(zone_info[0].capacity, zone_info[1].capacity);
 
 	if (unlikely(zone_info[0].alloc_offset == WP_MISSING_DEV)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[0].physical);
 		return -EIO;
 	}
 	if (unlikely(zone_info[1].alloc_offset == WP_MISSING_DEV)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: cannot recover write pointer for zone %llu",
 			  zone_info[1].physical);
 		return -EIO;
@@ -1471,7 +1471,7 @@ static int btrfs_load_block_group_dup(struct btrfs_block_group *bg,
 		zone_info[1].alloc_offset = last_alloc;
 
 	if (unlikely(zone_info[0].alloc_offset != zone_info[1].alloc_offset)) {
-		btrfs_err(bg->fs_info,
+		btrfs_err(fs_info,
 			  "zoned: write pointer offset mismatch of zones in DUP profile");
 		return -EIO;
 	}
