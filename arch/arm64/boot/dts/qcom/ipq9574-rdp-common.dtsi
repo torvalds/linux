@@ -88,11 +88,27 @@
 	status = "okay";
 };
 
+&cpu0 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu1 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu2 {
+	cpu-supply = <&mp5496_s1>;
+};
+
+&cpu3 {
+	cpu-supply = <&mp5496_s1>;
+};
+
 &rpm_requests {
 	regulators {
 		compatible = "qcom,rpm-mp5496-regulators";
 
-		ipq9574_s1: s1 {
+		mp5496_s1: s1 {
 		/*
 		 * During kernel bootup, the SoC runs at 800MHz with 875mV set by the bootloaders.
 		 * During regulator registration, kernel not knowing the initial voltage,
