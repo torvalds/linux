@@ -5249,6 +5249,7 @@ int rtw89_fw_h2c_dctl_sec_cam_v3(struct rtw89_dev *rtwdev,
 void rtw89_fw_c2h_irqsafe(struct rtw89_dev *rtwdev, struct sk_buff *c2h);
 void rtw89_fw_c2h_work(struct wiphy *wiphy, struct wiphy_work *work);
 void rtw89_fw_c2h_purge_obsoleted_scan_events(struct rtw89_dev *rtwdev);
+void rtw89_fw_c2h_dummy_handler(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len);
 int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link,
 			       struct rtw89_sta_link *rtwsta_link,
