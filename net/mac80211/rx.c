@@ -1880,7 +1880,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	link_sta->rx_stats.fragments++;
 
 	u64_stats_update_begin(&link_sta->rx_stats.syncp);
-	link_sta->rx_stats.bytes += rx->skb->len;
+	u64_stats_add(&link_sta->rx_stats.bytes, rx->skb->len);
 	u64_stats_update_end(&link_sta->rx_stats.syncp);
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
@@ -2785,7 +2785,7 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		 * frame, so count MSDUs.
 		 */
 		u64_stats_update_begin(&rx->link_sta->rx_stats.syncp);
-		rx->link_sta->rx_stats.msdu[rx->seqno_idx]++;
+		u64_stats_inc(&rx->link_sta->rx_stats.msdu[rx->seqno_idx]);
 		u64_stats_update_end(&rx->link_sta->rx_stats.syncp);
 	}
 
@@ -4878,8 +4878,8 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 	 * frame, so count MSDUs.
 	 */
 	u64_stats_update_begin(&stats->syncp);
-	stats->msdu[rx->seqno_idx]++;
-	stats->bytes += orig_len;
+	u64_stats_inc(&stats->msdu[rx->seqno_idx]);
+	u64_stats_add(&stats->bytes, orig_len);
 	u64_stats_update_end(&stats->syncp);
 
 	if (fast_rx->internal_forward) {

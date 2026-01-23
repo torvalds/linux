@@ -434,8 +434,8 @@ struct ieee80211_sta_rx_stats {
 	s8 chain_signal_last[IEEE80211_MAX_CHAINS];
 	u32 last_rate;
 	struct u64_stats_sync syncp;
-	u64 bytes;
-	u64 msdu[IEEE80211_NUM_TIDS + 1];
+	u64_stats_t bytes;
+	u64_stats_t msdu[IEEE80211_NUM_TIDS + 1];
 };
 
 /*
