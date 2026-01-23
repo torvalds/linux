@@ -348,7 +348,7 @@ impl Device {
     ///     // Get an instance of `Vendor`.
     ///     let vendor = pdev.vendor_id();
     ///     dev_info!(
-    ///         pdev.as_ref(),
+    ///         pdev,
     ///         "Device: Vendor={}, Device=0x{:x}\n",
     ///         vendor,
     ///         pdev.device_id()

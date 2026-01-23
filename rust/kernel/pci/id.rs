@@ -22,7 +22,7 @@ use crate::{
 /// fn probe_device(pdev: &pci::Device<Core>) -> Result {
 ///     let pci_class = pdev.pci_class();
 ///     dev_info!(
-///         pdev.as_ref(),
+///         pdev,
 ///         "Detected PCI class: {}\n",
 ///         pci_class
 ///     );

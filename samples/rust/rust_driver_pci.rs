@@ -101,7 +101,7 @@ impl pci::Driver for SampleDriver {
         pin_init::pin_init_scope(move || {
             let vendor = pdev.vendor_id();
             dev_dbg!(
-                pdev.as_ref(),
+                pdev,
                 "Probe Rust PCI driver sample (PCI ID: {}, 0x{:x}).\n",
                 vendor,
                 pdev.device_id()
@@ -117,7 +117,7 @@ impl pci::Driver for SampleDriver {
                     let bar = bar.access(pdev.as_ref())?;
 
                     dev_info!(
-                        pdev.as_ref(),
+                        pdev,
                         "pci-testdev data-match count: {}\n",
                         Self::testdev(info, bar)?
                     );
@@ -139,7 +139,7 @@ impl pci::Driver for SampleDriver {
 #[pinned_drop]
 impl PinnedDrop for SampleDriver {
     fn drop(self: Pin<&mut Self>) {
-        dev_dbg!(self.pdev.as_ref(), "Remove Rust PCI driver sample.\n");
+        dev_dbg!(self.pdev, "Remove Rust PCI driver sample.\n");
     }
 }
 
