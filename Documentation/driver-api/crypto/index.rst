@@ -11,10 +11,3 @@ configuration.
    :maxdepth: 1
 
    iaa/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

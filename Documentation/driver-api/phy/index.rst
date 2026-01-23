@@ -8,11 +8,3 @@ Generic PHY Framework
 
    phy
    samsung-usb2
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`
-

@@ -34,12 +34,5 @@ that goes into great technical depth about the BPF Architecture.
    other
    redirect
 
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`
-
 .. Links:
 .. _BPF and XDP Reference Guide: https://docs.cilium.io/en/latest/bpf/

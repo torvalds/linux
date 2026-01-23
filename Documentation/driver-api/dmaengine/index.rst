@@ -46,10 +46,3 @@ This book adds some notes about PXA DMA
    :maxdepth: 1
 
    pxa_dma
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

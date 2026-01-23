@@ -75,11 +75,3 @@ SoC-specific documents
    sti/overview
 
    vfp/release-notes
-
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

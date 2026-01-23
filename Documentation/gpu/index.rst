@@ -22,10 +22,3 @@ GPU Driver Developer's Guide
    implementation_guidelines
    todo
    rfc/index
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -149,10 +149,3 @@ Subsystem-specific APIs
    wmi
    xilinx/index
    zorro
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

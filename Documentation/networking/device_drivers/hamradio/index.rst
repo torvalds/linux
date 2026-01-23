@@ -10,10 +10,3 @@ Contents:
 
    baycom
    z8530drv
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

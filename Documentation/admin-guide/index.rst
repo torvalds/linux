@@ -189,10 +189,3 @@ A few hard-to-categorize and generally obsolete documents.
 
    ldm
    unicode
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

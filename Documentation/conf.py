@@ -42,7 +42,7 @@ exclude_patterns = []
 
 # List of patterns that contain directory names in glob format.
 dyn_include_patterns = []
-dyn_exclude_patterns = ["output"]
+dyn_exclude_patterns = ["output", "sphinx-includes"]
 
 # Currently, only netlink/specs has a parser for yaml.
 # Prefer using include patterns if available, as it is faster
@@ -587,7 +587,30 @@ pdf_documents = [
 
 kerneldoc_srctree = ".."
 
+# Add index link at the end of the root document for SPHINXDIRS builds.
+def add_subproject_index(app, docname, content):
+    # Only care about root documents
+    if docname != master_doc:
+        return
+
+    # Add the index link at the root of translations, but not at the root of
+    # individual translations. They have their own language specific links.
+    rel = os.path.relpath(app.srcdir, start=kern_doc_dir).split('/')
+    if rel[0] == 'translations' and len(rel) > 1:
+        return
+
+    # Only add the link for SPHINXDIRS HTML builds
+    if not app.builder.tags.has('subproject') or not app.builder.tags.has('html'):
+        return
+
+    # The include directive needs a relative path from the srcdir
+    rel = os.path.relpath(os.path.join(kern_doc_dir, 'sphinx-includes/subproject-index.rst'),
+                          start=app.srcdir)
+
+    content[0] += f'\n.. include:: {rel}\n\n'
+
 def setup(app):
     """Patterns need to be updated at init time on older Sphinx versions"""
 
     app.connect('config-inited', config_init)
+    app.connect('source-read', add_subproject_index)

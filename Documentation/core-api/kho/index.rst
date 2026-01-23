@@ -9,5 +9,3 @@ Kexec Handover Subsystem
 
    concepts
    fdt
-
-.. only::  subproject and html

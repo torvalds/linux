@@ -12,10 +12,3 @@ Serial Peripheral Interface (SPI)
    butterfly
    spi-lm70llp
    spi-sc18is602
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

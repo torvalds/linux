@@ -18,10 +18,3 @@ Serial drivers
 
     serial-iso7816
     serial-rs485
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

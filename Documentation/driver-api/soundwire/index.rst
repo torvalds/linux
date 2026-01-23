@@ -11,10 +11,3 @@ SoundWire Documentation
    locking
    bra
    bra_cadence
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`

@@ -9,10 +9,3 @@ MHI
 
    mhi
    topology
-
-.. only::  subproject and html
-
-   Indices
-   =======
-
-   * :ref:`genindex`
