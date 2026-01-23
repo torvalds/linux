@@ -1340,6 +1340,8 @@ static void io_wq_exit_workers(struct io_wq *wq)
 	 * up waiting more than IO_URING_EXIT_WAIT_MAX.
 	 */
 	timeout = sysctl_hung_task_timeout_secs * HZ / 2;
+	if (!timeout)
+		timeout = MAX_SCHEDULE_TIMEOUT;
 	warn_timeout = jiffies + IO_URING_EXIT_WAIT_MAX;
 	do {
 		if (wait_for_completion_timeout(&wq->worker_done, timeout))
