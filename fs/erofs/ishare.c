@@ -11,6 +11,12 @@
 
 static struct vfsmount *erofs_ishare_mnt;
 
+static inline bool erofs_is_ishare_inode(struct inode *inode)
+{
+	/* assumed FS_ONDEMAND is excluded with FS_PAGE_CACHE_SHARE feature */
+	return inode->i_sb->s_type == &erofs_anon_fs_type;
+}
+
 static int erofs_ishare_iget5_eq(struct inode *inode, void *data)
 {
 	struct erofs_inode_fingerprint *fp1 = &EROFS_I(inode)->fingerprint;
@@ -38,6 +44,8 @@ bool erofs_ishare_fill_inode(struct inode *inode)
 	struct inode *sharedinode;
 	unsigned long hash;
 
+	if (erofs_inode_is_data_compressed(vi->datalayout))
+		return false;
 	if (erofs_xattr_fill_inode_fingerprint(&fp, inode, sbi->domain_id))
 		return false;
 	hash = xxh32(fp.opaque, fp.size, 0);
@@ -154,6 +162,32 @@ const struct file_operations erofs_ishare_fops = {
 	.get_unmapped_area = thp_get_unmapped_area,
 	.splice_read	= filemap_splice_read,
 };
+
+struct inode *erofs_real_inode(struct inode *inode, bool *need_iput)
+{
+	struct erofs_inode *vi, *vi_share;
+	struct inode *realinode;
+
+	*need_iput = false;
+	if (!erofs_is_ishare_inode(inode))
+		return inode;
+
+	vi_share = EROFS_I(inode);
+	spin_lock(&vi_share->ishare_lock);
+	/* fetch any one as real inode */
+	DBG_BUGON(list_empty(&vi_share->ishare_list));
+	list_for_each_entry(vi, &vi_share->ishare_list, ishare_list) {
+		realinode = igrab(&vi->vfs_inode);
+		if (realinode) {
+			*need_iput = true;
+			break;
+		}
+	}
+	spin_unlock(&vi_share->ishare_lock);
+
+	DBG_BUGON(!realinode);
+	return realinode;
+}
 
 int __init erofs_init_ishare(void)
 {
