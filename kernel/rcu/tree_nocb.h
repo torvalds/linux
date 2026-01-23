@@ -526,8 +526,6 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 				 __releases(rdp->nocb_lock)
 {
 	long bypass_len;
-	unsigned long cur_gp_seq;
-	unsigned long j;
 	long lazy_len;
 	long len;
 	struct task_struct *t;
@@ -562,16 +560,6 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 		}
 
 		return;
-	} else if (len > rdp->qlen_last_fqs_check + qhimark) {
-		/* ... or if many callbacks queued. */
-		rdp->qlen_last_fqs_check = len;
-		j = jiffies;
-		if (j != rdp->nocb_gp_adv_time &&
-		    rcu_segcblist_nextgp(&rdp->cblist, &cur_gp_seq) &&
-		    rcu_seq_done(&rdp->mynode->gp_seq, cur_gp_seq)) {
-			rcu_advance_cbs_nowake(rdp->mynode, rdp);
-			rdp->nocb_gp_adv_time = j;
-		}
 	}
 
 	rcu_nocb_unlock(rdp);
