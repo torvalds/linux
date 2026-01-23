@@ -5005,12 +5005,16 @@ struct rtw89_c2h_rf_iqk_rpt_log {
 	u8 rsvd;
 	__le32 reload_cnt;
 	__le32 iqk_fail_cnt;
+	__le32 rf_0x18[2];
 	__le32 lok_idac[2];
 	__le32 lok_vbuf[2];
-	__le32 rftxgain[2][4];
-	__le32 rfrxgain[2][4];
-	__le32 tx_xym[2][4];
-	__le32 rx_xym[2][4];
+	__le32 rftxgain[2][6];
+	__le32 rfrxgain[2][6];
+	__le32 tx_xym[2][6];
+	__le32 rx_xym[2][6];
+	__le32 rx_wb_xym[2][32];
+	bool is_radar;
+	u8 rsvd1[3];
 } __packed;
 
 struct rtw89_c2h_rf_dpk_rpt_log {
@@ -5053,6 +5057,7 @@ struct rtw89_c2h_rf_dack_rpt_log {
 	u8 dack_fail;
 	u8 wbdck_d[2];
 	u8 rck_d;
+	u8 adgaink_ex_d;
 } __packed;
 
 struct rtw89_c2h_rf_rxdck_rpt_log {
@@ -5079,12 +5084,14 @@ struct rtw89_c2h_rf_txgapk_rpt_log {
 	u8 is_txgapk_ok;
 	u8 chk_id;
 	u8 ver;
-	u8 rsv1;
+	u8 d_bnd_ok;
+	__le32 stage[2];
+	__le16 failcode[2];
+	u8 rsvd[4];
 } __packed;
 
 struct rtw89_c2h_rf_txiqk_rpt_log {
 	u8 fw_txiqk_ver;
-	u8 rsvd;
 	u8 iqk_band[2];
 	u8 iqk_ch[2];
 	u8 iqk_bw[2];
@@ -5093,13 +5100,14 @@ struct rtw89_c2h_rf_txiqk_rpt_log {
 	bool txiqk_en;
 	bool lok_en;
 	bool lok_fail[2];
-	u8 rsvd2;
+	u8 rsvd[2];
 	__le32 iqk_times;
 	bool txiqk_nctldone[2];
-	u8 rsvd3[2];
+	u8 rsvd2[2];
 	__le32 txgain[2][6];
 	__le32 tx_iqc[2][6];
 	__le32 tx_xym[2][6][14];
+	__le32 kidx[2];
 } __packed;
 
 struct rtw89_c2h_rf_cim3k_rpt_log {

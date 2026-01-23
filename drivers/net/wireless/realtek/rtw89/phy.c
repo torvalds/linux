@@ -3512,6 +3512,8 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 				    i, iqk->iqk_ch[i]);
 			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_bw[%d] = %x\n",
 				    i, iqk->iqk_bw[i]);
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->rf_0x18[%d] = %x\n",
+				    i, le32_to_cpu(iqk->rf_0x18[i]));
 			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->lok_idac[%d] = %x\n",
 				    i, le32_to_cpu(iqk->lok_idac[i]));
 			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->lok_vbuf[%d] = %x\n",
@@ -3520,22 +3522,30 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 				    i, iqk->iqk_tx_fail[i]);
 			rtw89_debug(rtwdev, RTW89_DBG_RFK, "[IQK] iqk->iqk_rx_fail[%d] = %x\n",
 				    i, iqk->iqk_rx_fail[i]);
-			for (j = 0; j < 4; j++)
+			for (j = 0; j < 6; j++)
 				rtw89_debug(rtwdev, RTW89_DBG_RFK,
 					    "[IQK] iqk->rftxgain[%d][%d] = %x\n",
 					    i, j, le32_to_cpu(iqk->rftxgain[i][j]));
-			for (j = 0; j < 4; j++)
+			for (j = 0; j < 6; j++)
 				rtw89_debug(rtwdev, RTW89_DBG_RFK,
 					    "[IQK] iqk->tx_xym[%d][%d] = %x\n",
 					    i, j, le32_to_cpu(iqk->tx_xym[i][j]));
-			for (j = 0; j < 4; j++)
+			for (j = 0; j < 6; j++)
 				rtw89_debug(rtwdev, RTW89_DBG_RFK,
 					    "[IQK] iqk->rfrxgain[%d][%d] = %x\n",
 					    i, j, le32_to_cpu(iqk->rfrxgain[i][j]));
-			for (j = 0; j < 4; j++)
+			for (j = 0; j < 6; j++)
 				rtw89_debug(rtwdev, RTW89_DBG_RFK,
 					    "[IQK] iqk->rx_xym[%d][%d] = %x\n",
 					    i, j, le32_to_cpu(iqk->rx_xym[i][j]));
+
+			if (!iqk->iqk_xym_en)
+				continue;
+
+			for (j = 0; j < 32; j++)
+				rtw89_debug(rtwdev, RTW89_DBG_RFK,
+					    "[IQK] iqk->rx_wb_xym[%d][%d] = %x\n",
+					    i, j, iqk->rx_wb_xym[i][j]);
 		}
 		return;
 	case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
@@ -3691,8 +3701,16 @@ static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
 			    le32_to_cpu(txgapk->chk_cnt));
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt ver = 0x%x\n",
 			    txgapk->ver);
-		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt rsv1 = %d\n",
-			    txgapk->rsv1);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt d_bnd_ok = %d\n",
+			    txgapk->d_bnd_ok);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt stage[0] = 0x%x\n",
+			    le32_to_cpu(txgapk->stage[0]));
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt stage[1] = 0x%x\n",
+			    le32_to_cpu(txgapk->stage[1]));
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]failcode[0] = 0x%x\n",
+			    le16_to_cpu(txgapk->failcode[0]));
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]failcode[1] = 0x%x\n",
+			    le16_to_cpu(txgapk->failcode[1]));
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt track_d[0] = %*ph\n",
 			    (int)sizeof(txgapk->track_d[0]), txgapk->track_d[0]);
