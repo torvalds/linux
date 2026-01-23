@@ -108,7 +108,6 @@ TEST_PROGS := test_kmod.sh \
 	test_xdping.sh \
 	test_bpftool_build.sh \
 	test_bpftool.sh \
-	test_bpftool_map.sh \
 	test_doc_build.sh \
 	test_xsk.sh \
 	test_xdp_features.sh
