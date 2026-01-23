@@ -241,6 +241,7 @@ static const struct regmap_config tegra210_admaif_regmap_config = {
 	.volatile_reg		= tegra_admaif_volatile_reg,
 	.reg_defaults		= tegra210_admaif_reg_defaults,
 	.num_reg_defaults	= TEGRA210_ADMAIF_CHANNEL_COUNT * 6 + 1,
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 
@@ -254,6 +255,7 @@ static const struct regmap_config tegra186_admaif_regmap_config = {
 	.volatile_reg		= tegra_admaif_volatile_reg,
 	.reg_defaults		= tegra186_admaif_reg_defaults,
 	.num_reg_defaults	= TEGRA186_ADMAIF_CHANNEL_COUNT * 6 + 1,
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 
@@ -267,6 +269,7 @@ static const struct regmap_config tegra264_admaif_regmap_config = {
 	.volatile_reg		= tegra_admaif_volatile_reg,
 	.reg_defaults		= tegra264_admaif_reg_defaults,
 	.num_reg_defaults	= TEGRA264_ADMAIF_CHANNEL_COUNT * 6 + 1,
+	.reg_default_cb		= regmap_default_zero_cb,
 	.cache_type		= REGCACHE_FLAT,
 };
 
