@@ -3462,6 +3462,15 @@ try_zeroout:
 	if (!(split_flag & EXT4_EXT_MAY_ZEROOUT))
 		goto out_orig_err;
 
+	if (flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN) {
+		int max_zeroout_blks =
+			EXT4_SB(inode->i_sb)->s_extent_max_zeroout_kb >>
+			(inode->i_sb->s_blocksize_bits - 10);
+
+		if (map->m_len > max_zeroout_blks)
+			goto out_orig_err;
+	}
+
 	path = ext4_find_extent(inode, map->m_lblk, NULL, flags);
 	if (IS_ERR(path))
 		goto out_orig_err;
@@ -3811,15 +3820,10 @@ static struct ext4_ext_path *ext4_split_convert_extents(handle_t *handle,
 		goto convert;
 
 	/*
-	 * We don't use zeroout fallback for written to unwritten conversion as
-	 * it is not as critical as endio and it might take unusually long.
-	 * Also, it is only safe to convert extent to initialized via explicit
+	 * It is only safe to convert extent to initialized via explicit
 	 * zeroout only if extent is fully inside i_size or new_size.
 	 */
-	if (!(flags & EXT4_GET_BLOCKS_CONVERT_UNWRITTEN))
-		split_flag |= ee_block + ee_len <= eof_block ?
-				      EXT4_EXT_MAY_ZEROOUT :
-				      0;
+	split_flag |= ee_block + ee_len <= eof_block ? EXT4_EXT_MAY_ZEROOUT : 0;
 
 	/*
 	 * pass SPLIT_NOMERGE explicitly so we don't end up merging extents we
@@ -3941,7 +3945,20 @@ convert_initialized_extent(handle_t *handle, struct inode *inode,
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 
-	map->m_flags |= EXT4_MAP_UNWRITTEN;
+	/*
+	 * The extent might be initialized in case of zeroout.
+	 */
+	path = ext4_find_extent(inode, map->m_lblk, path, flags);
+	if (IS_ERR(path))
+		return path;
+
+	depth = ext_depth(inode);
+	ex = path[depth].p_ext;
+
+	if (ext4_ext_is_unwritten(ex))
+		map->m_flags |= EXT4_MAP_UNWRITTEN;
+	else
+		map->m_flags |= EXT4_MAP_MAPPED;
 	if (*allocated > map->m_len)
 		*allocated = map->m_len;
 	map->m_len = *allocated;
