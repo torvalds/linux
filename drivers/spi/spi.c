@@ -2354,8 +2354,8 @@ static void of_spi_parse_dt_cs_delay(struct device_node *nc,
 static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			   struct device_node *nc)
 {
-	u32 value, cs[SPI_DEVICE_CS_CNT_MAX];
-	int rc, idx;
+	u32 value, cs[SPI_DEVICE_CS_CNT_MAX], map[SPI_DEVICE_DATA_LANE_CNT_MAX];
+	int rc, idx, max_num_data_lanes;
 
 	/* Mode (clock phase/polarity/etc.) */
 	if (of_property_read_bool(nc, "spi-cpha"))
@@ -2370,7 +2370,65 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		spi->mode |= SPI_CS_HIGH;
 
 	/* Device DUAL/QUAD mode */
-	if (!of_property_read_u32(nc, "spi-tx-bus-width", &value)) {
+
+	rc = of_property_read_variable_u32_array(nc, "spi-tx-lane-map", map, 1,
+						 ARRAY_SIZE(map));
+	if (rc >= 0) {
+		max_num_data_lanes = rc;
+		for (idx = 0; idx < max_num_data_lanes; idx++)
+			spi->tx_lane_map[idx] = map[idx];
+	} else if (rc == -EINVAL) {
+		/* Default lane map is identity mapping. */
+		max_num_data_lanes = ARRAY_SIZE(spi->tx_lane_map);
+		for (idx = 0; idx < max_num_data_lanes; idx++)
+			spi->tx_lane_map[idx] = idx;
+	} else {
+		dev_err(&ctlr->dev,
+			"failed to read spi-tx-lane-map property: %d\n", rc);
+		return rc;
+	}
+
+	rc = of_property_count_u32_elems(nc, "spi-tx-bus-width");
+	if (rc < 0 && rc != -EINVAL) {
+		dev_err(&ctlr->dev,
+			"failed to read spi-tx-bus-width property: %d\n", rc);
+		return rc;
+	}
+	if (rc > max_num_data_lanes) {
+		dev_err(&ctlr->dev,
+			"spi-tx-bus-width has more elements (%d) than spi-tx-lane-map (%d)\n",
+			rc, max_num_data_lanes);
+		return -EINVAL;
+	}
+
+	if (rc == -EINVAL) {
+		/* Default when property is not present. */
+		spi->num_tx_lanes = 1;
+	} else {
+		u32 first_value;
+
+		spi->num_tx_lanes = rc;
+
+		for (idx = 0; idx < spi->num_tx_lanes; idx++) {
+			rc = of_property_read_u32_index(nc, "spi-tx-bus-width",
+							idx, &value);
+			if (rc)
+				return rc;
+
+			/*
+			 * For now, we only support all lanes having the same
+			 * width so we can keep using the existing mode flags.
+			 */
+			if (!idx)
+				first_value = value;
+			else if (first_value != value) {
+				dev_err(&ctlr->dev,
+					"spi-tx-bus-width has inconsistent values: first %d vs later %d\n",
+					first_value, value);
+				return -EINVAL;
+			}
+		}
+
 		switch (value) {
 		case 0:
 			spi->mode |= SPI_NO_TX;
@@ -2394,7 +2452,74 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		}
 	}
 
-	if (!of_property_read_u32(nc, "spi-rx-bus-width", &value)) {
+	for (idx = 0; idx < spi->num_tx_lanes; idx++) {
+		if (spi->tx_lane_map[idx] >= spi->controller->num_data_lanes) {
+			dev_err(&ctlr->dev,
+				"spi-tx-lane-map has invalid value %d (num_data_lanes=%d)\n",
+				spi->tx_lane_map[idx],
+				spi->controller->num_data_lanes);
+			return -EINVAL;
+		}
+	}
+
+	rc = of_property_read_variable_u32_array(nc, "spi-rx-lane-map", map, 1,
+						 ARRAY_SIZE(map));
+	if (rc >= 0) {
+		max_num_data_lanes = rc;
+		for (idx = 0; idx < max_num_data_lanes; idx++)
+			spi->rx_lane_map[idx] = map[idx];
+	} else if (rc == -EINVAL) {
+		/* Default lane map is identity mapping. */
+		max_num_data_lanes = ARRAY_SIZE(spi->rx_lane_map);
+		for (idx = 0; idx < max_num_data_lanes; idx++)
+			spi->rx_lane_map[idx] = idx;
+	} else {
+		dev_err(&ctlr->dev,
+			"failed to read spi-rx-lane-map property: %d\n", rc);
+		return rc;
+	}
+
+	rc = of_property_count_u32_elems(nc, "spi-rx-bus-width");
+	if (rc < 0 && rc != -EINVAL) {
+		dev_err(&ctlr->dev,
+			"failed to read spi-rx-bus-width property: %d\n", rc);
+		return rc;
+	}
+	if (rc > max_num_data_lanes) {
+		dev_err(&ctlr->dev,
+			"spi-rx-bus-width has more elements (%d) than spi-rx-lane-map (%d)\n",
+			rc, max_num_data_lanes);
+		return -EINVAL;
+	}
+
+	if (rc == -EINVAL) {
+		/* Default when property is not present. */
+		spi->num_rx_lanes = 1;
+	} else {
+		u32 first_value;
+
+		spi->num_rx_lanes = rc;
+
+		for (idx = 0; idx < spi->num_rx_lanes; idx++) {
+			rc = of_property_read_u32_index(nc, "spi-rx-bus-width",
+							idx, &value);
+			if (rc)
+				return rc;
+
+			/*
+			 * For now, we only support all lanes having the same
+			 * width so we can keep using the existing mode flags.
+			 */
+			if (!idx)
+				first_value = value;
+			else if (first_value != value) {
+				dev_err(&ctlr->dev,
+					"spi-rx-bus-width has inconsistent values: first %d vs later %d\n",
+					first_value, value);
+				return -EINVAL;
+			}
+		}
+
 		switch (value) {
 		case 0:
 			spi->mode |= SPI_NO_RX;
@@ -2415,6 +2540,16 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 				"spi-rx-bus-width %d not supported\n",
 				value);
 			break;
+		}
+	}
+
+	for (idx = 0; idx < spi->num_rx_lanes; idx++) {
+		if (spi->rx_lane_map[idx] >= spi->controller->num_data_lanes) {
+			dev_err(&ctlr->dev,
+				"spi-rx-lane-map has invalid value %d (num_data_lanes=%d)\n",
+				spi->rx_lane_map[idx],
+				spi->controller->num_data_lanes);
+			return -EINVAL;
 		}
 	}
 
@@ -3066,6 +3201,7 @@ struct spi_controller *__spi_alloc_controller(struct device *dev,
 	mutex_init(&ctlr->add_lock);
 	ctlr->bus_num = -1;
 	ctlr->num_chipselect = 1;
+	ctlr->num_data_lanes = 1;
 	ctlr->target = target;
 	if (IS_ENABLED(CONFIG_SPI_SLAVE) && target)
 		ctlr->dev.class = &spi_target_class;
