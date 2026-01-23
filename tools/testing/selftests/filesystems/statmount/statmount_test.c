@@ -33,45 +33,6 @@ static const char *const known_fs[] = {
 	"sysv", "tmpfs", "tracefs", "ubifs", "udf", "ufs", "v7", "vboxsf",
 	"vfat", "virtiofs", "vxfs", "xenfs", "xfs", "zonefs", NULL };
 
-static struct statmount *statmount_alloc(uint64_t mnt_id, int fd, uint64_t mask, unsigned int flags)
-{
-	size_t bufsize = 1 << 15;
-	struct statmount *buf = NULL, *tmp = NULL;
-	int tofree = 0;
-	int ret;
-
-	if (flags & STATMOUNT_BY_FD && fd < 0)
-		return NULL;
-
-	tmp = alloca(bufsize);
-
-	for (;;) {
-		if (flags & STATMOUNT_BY_FD)
-			ret = statmount(0, 0, (uint32_t) fd, mask, tmp, bufsize, flags);
-		else
-			ret = statmount(mnt_id, 0, 0, mask, tmp, bufsize, flags);
-
-		if (ret != -1)
-			break;
-		if (tofree)
-			free(tmp);
-		if (errno != EOVERFLOW)
-			return NULL;
-		bufsize <<= 1;
-		tofree = 1;
-		tmp = malloc(bufsize);
-		if (!tmp)
-			return NULL;
-	}
-	buf = malloc(tmp->size);
-	if (buf)
-		memcpy(buf, tmp, tmp->size);
-	if (tofree)
-		free(tmp);
-
-	return buf;
-}
-
 static void write_file(const char *path, const char *val)
 {
 	int fd = open(path, O_WRONLY);
@@ -715,7 +676,7 @@ static void test_statmount_by_fd(void)
 		goto err_fd;
 	}
 
-	sm = statmount_alloc(0, fd, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT, STATMOUNT_BY_FD);
+	sm = statmount_alloc_by_fd(fd, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT);
 	if (!sm) {
 		ksft_test_result_fail("statmount by fd failed: %s\n", strerror(errno));
 		goto err_chroot;
@@ -750,7 +711,7 @@ static void test_statmount_by_fd(void)
 	}
 
 	free(sm);
-	sm = statmount_alloc(0, fd, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT, STATMOUNT_BY_FD);
+	sm = statmount_alloc_by_fd(fd, STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT);
 	if (!sm) {
 		ksft_test_result_fail("statmount by fd failed: %s\n", strerror(errno));
 		goto err_fd;
@@ -844,7 +805,7 @@ static void test_statmount_by_fd_unmounted(void)
 		goto err_fd;
 	}
 
-	sm = statmount_alloc(0, fd, STATMOUNT_MNT_POINT | STATMOUNT_MNT_ROOT, STATMOUNT_BY_FD);
+	sm = statmount_alloc_by_fd(fd, STATMOUNT_MNT_POINT | STATMOUNT_MNT_ROOT);
 	if (!sm) {
 		ksft_test_result_fail("statmount by fd unmounted: %s\n",
 				      strerror(errno));
