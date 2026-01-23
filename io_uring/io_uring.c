@@ -2740,7 +2740,7 @@ static int io_uring_sanitise_params(struct io_uring_params *p)
 	if (flags & IORING_SETUP_SQ_REWIND) {
 		if ((flags & IORING_SETUP_SQPOLL) ||
 		    !(flags & IORING_SETUP_NO_SQARRAY))
-		return -EINVAL;
+			return -EINVAL;
 	}
 
 	/* There is no way to mmap rings without a real fd */
