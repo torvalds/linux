@@ -398,6 +398,7 @@ static void erofs_default_options(struct erofs_sb_info *sbi)
 enum {
 	Opt_user_xattr, Opt_acl, Opt_cache_strategy, Opt_dax, Opt_dax_enum,
 	Opt_device, Opt_fsid, Opt_domain_id, Opt_directio, Opt_fsoffset,
+	Opt_inode_share,
 };
 
 static const struct constant_table erofs_param_cache_strategy[] = {
@@ -425,6 +426,7 @@ static const struct fs_parameter_spec erofs_fs_parameters[] = {
 	fsparam_string("domain_id",	Opt_domain_id),
 	fsparam_flag_no("directio",	Opt_directio),
 	fsparam_u64("fsoffset",		Opt_fsoffset),
+	fsparam_flag("inode_share",	Opt_inode_share),
 	{}
 };
 
@@ -526,6 +528,8 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		if (!sbi->fsid)
 			return -ENOMEM;
 		break;
+#endif
+#if defined(CONFIG_EROFS_FS_ONDEMAND) || defined(CONFIG_EROFS_FS_PAGE_CACHE_SHARE)
 	case Opt_domain_id:
 		kfree_sensitive(sbi->domain_id);
 		sbi->domain_id = no_free_ptr(param->string);
@@ -548,6 +552,13 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 		break;
 	case Opt_fsoffset:
 		sbi->dif0.fsoff = result.uint_64;
+		break;
+	case Opt_inode_share:
+#ifdef CONFIG_EROFS_FS_PAGE_CACHE_SHARE
+		set_opt(&sbi->opt, INODE_SHARE);
+#else
+		errorfc(fc, "%s option not supported", erofs_fs_parameters[opt].name);
+#endif
 		break;
 	}
 	return 0;
@@ -647,6 +658,15 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_op = &erofs_sops;
 
+	if (!sbi->domain_id && test_opt(&sbi->opt, INODE_SHARE)) {
+		errorfc(fc, "domain_id is needed when inode_ishare is on");
+		return -EINVAL;
+	}
+	if (test_opt(&sbi->opt, DAX_ALWAYS) && test_opt(&sbi->opt, INODE_SHARE)) {
+		errorfc(fc, "FSDAX is not allowed when inode_ishare is on");
+		return -EINVAL;
+	}
+
 	sbi->blkszbits = PAGE_SHIFT;
 	if (!sb->s_bdev) {
 		/*
@@ -724,6 +744,12 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		erofs_info(sb, "unsupported blocksize for DAX");
 		clear_opt(&sbi->opt, DAX_ALWAYS);
 	}
+	if (test_opt(&sbi->opt, INODE_SHARE) && !erofs_sb_has_ishare_xattrs(sbi)) {
+		erofs_info(sb, "on-disk ishare xattrs not found. Turning off inode_share.");
+		clear_opt(&sbi->opt, INODE_SHARE);
+	}
+	if (test_opt(&sbi->opt, INODE_SHARE))
+		erofs_info(sb, "EXPERIMENTAL EROFS page cache share support in use. Use at your own risk!");
 
 	sb->s_time_gran = 1;
 	sb->s_xattr = erofs_xattr_handlers;
@@ -953,10 +979,32 @@ static struct file_system_type erofs_fs_type = {
 };
 MODULE_ALIAS_FS("erofs");
 
-#if defined(CONFIG_EROFS_FS_ONDEMAND)
+#if defined(CONFIG_EROFS_FS_ONDEMAND) || defined(CONFIG_EROFS_FS_PAGE_CACHE_SHARE)
+static void erofs_free_anon_inode(struct inode *inode)
+{
+	struct erofs_inode *vi = EROFS_I(inode);
+
+#ifdef CONFIG_EROFS_FS_PAGE_CACHE_SHARE
+	kfree(vi->fingerprint.opaque);
+#endif
+	kmem_cache_free(erofs_inode_cachep, vi);
+}
+
+static const struct super_operations erofs_anon_sops = {
+	.alloc_inode = erofs_alloc_inode,
+	.drop_inode = inode_just_drop,
+	.free_inode = erofs_free_anon_inode,
+};
+
 static int erofs_anon_init_fs_context(struct fs_context *fc)
 {
-	return init_pseudo(fc, EROFS_SUPER_MAGIC) ? 0 : -ENOMEM;
+	struct pseudo_fs_context *ctx;
+
+	ctx = init_pseudo(fc, EROFS_SUPER_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &erofs_anon_sops;
+	return 0;
 }
 
 struct file_system_type erofs_anon_fs_type = {
@@ -991,6 +1039,10 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto sysfs_err;
 
+	err = erofs_init_ishare();
+	if (err)
+		goto ishare_err;
+
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
 		goto fs_err;
@@ -998,6 +1050,8 @@ static int __init erofs_module_init(void)
 	return 0;
 
 fs_err:
+	erofs_exit_ishare();
+ishare_err:
 	erofs_exit_sysfs();
 sysfs_err:
 	z_erofs_exit_subsystem();
@@ -1015,6 +1069,7 @@ static void __exit erofs_module_exit(void)
 	/* Ensure all RCU free inodes / pclusters are safe to be destroyed. */
 	rcu_barrier();
 
+	erofs_exit_ishare();
 	erofs_exit_sysfs();
 	z_erofs_exit_subsystem();
 	erofs_exit_shrinker();
@@ -1069,6 +1124,8 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 #endif
 	if (sbi->dif0.fsoff)
 		seq_printf(seq, ",fsoffset=%llu", sbi->dif0.fsoff);
+	if (test_opt(opt, INODE_SHARE))
+		seq_puts(seq, ",inode_share");
 	return 0;
 }
 
@@ -1079,6 +1136,7 @@ static void erofs_evict_inode(struct inode *inode)
 		dax_break_layout_final(inode);
 #endif
 
+	erofs_ishare_free_inode(inode);
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);
 }

@@ -131,7 +131,12 @@ fsid=%s                Specify a filesystem image ID for Fscache back-end.
 domain_id=%s           Specify a trusted domain ID for fscache mode so that
                        different images with the same blobs, identified by blob IDs,
                        can share storage within the same trusted domain.
+                       Also used for different filesystems with inode page sharing
+                       enabled to share page cache within the trusted domain.
 fsoffset=%llu          Specify block-aligned filesystem offset for the primary device.
+inode_share            Enable inode page sharing for this filesystem.  Inodes with
+                       identical content within the same domain ID can share the
+                       page cache.
 ===================    =========================================================
 
 Sysfs Entries

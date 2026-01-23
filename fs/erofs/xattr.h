@@ -30,4 +30,7 @@ struct posix_acl *erofs_get_acl(struct inode *inode, int type, bool rcu);
 #define erofs_get_acl	(NULL)
 #endif
 
+int erofs_xattr_fill_inode_fingerprint(struct erofs_inode_fingerprint *fp,
+				       struct inode *inode, const char *domain_id);
+
 #endif
