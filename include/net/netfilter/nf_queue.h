@@ -6,11 +6,13 @@
 #include <linux/ipv6.h>
 #include <linux/jhash.h>
 #include <linux/netfilter.h>
+#include <linux/rhashtable-types.h>
 #include <linux/skbuff.h>
 
 /* Each queued (to userspace) skbuff has one of these. */
 struct nf_queue_entry {
 	struct list_head	list;
+	struct rhash_head	hash_node;
 	struct sk_buff		*skb;
 	unsigned int		id;
 	unsigned int		hook_index;	/* index in hook_entries->hook[] */
@@ -20,6 +22,7 @@ struct nf_queue_entry {
 #endif
 	struct nf_hook_state	state;
 	u16			size; /* sizeof(entry) + saved route keys */
+	u16			queue_num;
 
 	/* extra space to store route keys */
 };
