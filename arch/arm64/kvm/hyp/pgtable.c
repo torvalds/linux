@@ -653,13 +653,12 @@ void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
 
 #define KVM_S2_MEMATTR(pgt, attr)					\
 	({								\
-		bool __fwb = cpus_have_final_cap(ARM64_HAS_STAGE2_FWB);	\
 		kvm_pte_t __attr;					\
 									\
 		if ((pgt)->flags & KVM_PGTABLE_S2_AS_S1)		\
-			__attr = PAGE_S2_MEMATTR(AS_S1,	__fwb);		\
+			__attr = PAGE_S2_MEMATTR(AS_S1);		\
 		else							\
-			__attr = PAGE_S2_MEMATTR(attr, __fwb);		\
+			__attr = PAGE_S2_MEMATTR(attr);			\
 									\
 		__attr;							\
 	})

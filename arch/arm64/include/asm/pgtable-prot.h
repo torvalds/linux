@@ -109,10 +109,10 @@ static inline bool __pure lpa2_is_enabled(void)
 #define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL_EXEC)
 #define PAGE_KERNEL_EXEC_CONT	__pgprot(_PAGE_KERNEL_EXEC_CONT)
 
-#define PAGE_S2_MEMATTR(attr, has_fwb)					\
+#define PAGE_S2_MEMATTR(attr)						\
 	({								\
 		u64 __val;						\
-		if (has_fwb)						\
+		if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))		\
 			__val = PTE_S2_MEMATTR(MT_S2_FWB_ ## attr);	\
 		else							\
 			__val = PTE_S2_MEMATTR(MT_S2_ ## attr);		\
