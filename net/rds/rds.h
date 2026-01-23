@@ -506,33 +506,6 @@ struct rds_notifier {
  */
 #define	RDS_TRANS_LOOP	3
 
-/**
- * struct rds_transport -  transport specific behavioural hooks
- *
- * @xmit: .xmit is called by rds_send_xmit() to tell the transport to send
- *        part of a message.  The caller serializes on the send_sem so this
- *        doesn't need to be reentrant for a given conn.  The header must be
- *        sent before the data payload.  .xmit must be prepared to send a
- *        message with no data payload.  .xmit should return the number of
- *        bytes that were sent down the connection, including header bytes.
- *        Returning 0 tells the caller that it doesn't need to perform any
- *        additional work now.  This is usually the case when the transport has
- *        filled the sending queue for its connection and will handle
- *        triggering the rds thread to continue the send when space becomes
- *        available.  Returning -EAGAIN tells the caller to retry the send
- *        immediately.  Returning -ENOMEM tells the caller to retry the send at
- *        some point in the future.
- *
- * @conn_shutdown: conn_shutdown stops traffic on the given connection.  Once
- *                 it returns the connection can not call rds_recv_incoming().
- *                 This will only be called once after conn_connect returns
- *                 non-zero success and will The caller serializes this with
- *                 the send and connecting paths (xmit_* and conn_*).  The
- *                 transport is responsible for other serialization, including
- *                 rds_recv_incoming().  This is called in process context but
- *                 should try hard not to block.
- */
-
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
@@ -545,10 +518,49 @@ struct rds_transport {
 			   __u32 scope_id);
 	int (*conn_alloc)(struct rds_connection *conn, gfp_t gfp);
 	void (*conn_free)(void *data);
+
+	/*
+	 * conn_slots_available is invoked when a previously unavailable
+	 * connection slot becomes available again. rds_tcp_accept_one_path may
+	 * return -ENOBUFS if it cannot find an available slot, and then stashes
+	 * the new socket in "rds_tcp_accepted_sock". This function re-issues
+	 * `rds_tcp_accept_one_path`, which picks up the stashed socket and
+	 * continuing where it left with "-ENOBUFS" last time.  This ensures
+	 * messages received on the new socket are not discarded when no
+	 * connection path was available at the time.
+	 */
+	void (*conn_slots_available)(struct rds_connection *conn);
 	int (*conn_path_connect)(struct rds_conn_path *cp);
+
+	/*
+	 * conn_shutdown stops traffic on the given connection.  Once
+	 * it returns the connection can not call rds_recv_incoming().
+	 * This will only be called once after conn_connect returns
+	 * non-zero success and will The caller serializes this with
+	 * the send and connecting paths (xmit_* and conn_*).  The
+	 * transport is responsible for other serialization, including
+	 * rds_recv_incoming().  This is called in process context but
+	 * should try hard not to block.
+	 */
 	void (*conn_path_shutdown)(struct rds_conn_path *conn);
 	void (*xmit_path_prepare)(struct rds_conn_path *cp);
 	void (*xmit_path_complete)(struct rds_conn_path *cp);
+
+	/*
+	 * .xmit is called by rds_send_xmit() to tell the transport to send
+	 * part of a message.  The caller serializes on the send_sem so this
+	 * doesn't need to be reentrant for a given conn.  The header must be
+	 * sent before the data payload.  .xmit must be prepared to send a
+	 * message with no data payload.  .xmit should return the number of
+	 * bytes that were sent down the connection, including header bytes.
+	 * Returning 0 tells the caller that it doesn't need to perform any
+	 * additional work now.  This is usually the case when the transport has
+	 * filled the sending queue for its connection and will handle
+	 * triggering the rds thread to continue the send when space becomes
+	 * available.  Returning -EAGAIN tells the caller to retry the send
+	 * immediately.  Returning -ENOMEM tells the caller to retry the send at
+	 * some point in the future.
+	 */
 	int (*xmit)(struct rds_connection *conn, struct rds_message *rm,
 		    unsigned int hdr_off, unsigned int sg, unsigned int off);
 	int (*xmit_rdma)(struct rds_connection *conn, struct rm_rdma_op *op);
