@@ -149,12 +149,6 @@ static void extents_kunit_exit(struct kunit *test)
 	kfree(k_ctx.k_data);
 }
 
-static void ext4_cache_extents_stub(struct inode *inode,
-				    struct ext4_extent_header *eh)
-{
-	return;
-}
-
 static int __ext4_ext_dirty_stub(const char *where, unsigned int line,
 				 handle_t *handle, struct inode *inode,
 				 struct ext4_ext_path *path)
@@ -168,24 +162,6 @@ ext4_ext_insert_extent_stub(handle_t *handle, struct inode *inode,
 			    struct ext4_extent *newext, int gb_flags)
 {
 	return ERR_PTR(-ENOSPC);
-}
-
-static void ext4_es_remove_extent_stub(struct inode *inode, ext4_lblk_t lblk,
-				       ext4_lblk_t len)
-{
-	return;
-}
-
-void ext4_es_insert_extent_stub(struct inode *inode, ext4_lblk_t lblk,
-				ext4_lblk_t len, ext4_fsblk_t pblk,
-				unsigned int status, bool delalloc_reserve_used)
-{
-	return;
-}
-
-static void ext4_zeroout_es_stub(struct inode *inode, struct ext4_extent *ex)
-{
-	return;
 }
 
 /*
@@ -244,13 +220,7 @@ static int extents_kunit_init(struct kunit *test)
 	struct ext4_sb_info *sbi = NULL;
 	struct kunit_ext_test_param *param =
 		(struct kunit_ext_test_param *)(test->param_value);
-
-	/* setup the mock inode */
-	k_ctx.k_ei = kzalloc(sizeof(struct ext4_inode_info), GFP_KERNEL);
-	if (k_ctx.k_ei == NULL)
-		return -ENOMEM;
-	ei = k_ctx.k_ei;
-	inode = &ei->vfs_inode;
+	int err;
 
 	sb = sget(&ext_fs_type, NULL, ext_set, 0, NULL);
 	if (IS_ERR(sb))
@@ -268,6 +238,24 @@ static int extents_kunit_init(struct kunit *test)
 
 	if (!param || !param->disable_zeroout)
 		sbi->s_extent_max_zeroout_kb = 32;
+
+	/* setup the mock inode */
+	k_ctx.k_ei = kzalloc(sizeof(struct ext4_inode_info), GFP_KERNEL);
+	if (k_ctx.k_ei == NULL)
+		return -ENOMEM;
+	ei = k_ctx.k_ei;
+	inode = &ei->vfs_inode;
+
+	err = ext4_es_register_shrinker(sbi);
+	if (err)
+		return err;
+
+	ext4_es_init_tree(&ei->i_es_tree);
+	rwlock_init(&ei->i_es_lock);
+	INIT_LIST_HEAD(&ei->i_es_list);
+	ei->i_es_all_nr = 0;
+	ei->i_es_shk_nr = 0;
+	ei->i_es_shrink_lblk = 0;
 
 	ei->i_disksize = (EXT_DATA_LBLK + EXT_DATA_LEN + 10)
 			 << sb->s_blocksize_bits;
@@ -307,16 +295,15 @@ static int extents_kunit_init(struct kunit *test)
 	if (!param || param->is_unwrit_at_start)
 		ext4_ext_mark_unwritten(EXT_FIRST_EXTENT(eh));
 
+	ext4_es_insert_extent(inode, EXT_DATA_LBLK, EXT_DATA_LEN, EXT_DATA_PBLK,
+			      ext4_ext_is_unwritten(EXT_FIRST_EXTENT(eh)) ?
+				      EXTENT_STATUS_UNWRITTEN :
+				      EXTENT_STATUS_WRITTEN,
+			      0);
+
 	/* Add stubs */
-	kunit_activate_static_stub(test, ext4_cache_extents,
-				   ext4_cache_extents_stub);
 	kunit_activate_static_stub(test, __ext4_ext_dirty,
 				   __ext4_ext_dirty_stub);
-	kunit_activate_static_stub(test, ext4_es_remove_extent,
-				   ext4_es_remove_extent_stub);
-	kunit_activate_static_stub(test, ext4_es_insert_extent,
-				   ext4_es_insert_extent_stub);
-	kunit_activate_static_stub(test, ext4_zeroout_es, ext4_zeroout_es_stub);
 	kunit_activate_static_stub(test, ext4_ext_zeroout, ext4_ext_zeroout_stub);
 	kunit_activate_static_stub(test, ext4_issue_zeroout,
 				   ext4_issue_zeroout_stub);
@@ -381,7 +368,7 @@ static void test_split_convert(struct kunit *test)
 		kunit_activate_static_stub(test, ext4_ext_insert_extent,
 					   ext4_ext_insert_extent_stub);
 
-	path = ext4_find_extent(inode, EXT_DATA_LBLK, NULL, 0);
+	path = ext4_find_extent(inode, EXT_DATA_LBLK, NULL, EXT4_EX_NOCACHE);
 	ex = path->p_ext;
 	KUNIT_EXPECT_EQ(test, EXT_DATA_LBLK, le32_to_cpu(ex->ee_block));
 	KUNIT_EXPECT_EQ(test, EXT_DATA_LEN, ext4_ext_get_actual_len(ex));
@@ -407,11 +394,14 @@ static void test_split_convert(struct kunit *test)
 		KUNIT_FAIL(test, "param->type %d not support.", param->type);
 	}
 
-	path = ext4_find_extent(inode, EXT_DATA_LBLK, NULL, 0);
+	path = ext4_find_extent(inode, EXT_DATA_LBLK, NULL, EXT4_EX_NOCACHE);
 	ex = path->p_ext;
 
 	for (int i = 0; i < param->nr_exp_ext; i++) {
 		struct kunit_ext_state exp_ext = param->exp_ext_state[i];
+		bool es_check_needed = param->type != TEST_SPLIT_CONVERT;
+		struct extent_status es;
+		int contains_ex, ex_end, es_end, es_pblk;
 
 		KUNIT_EXPECT_EQ(test, exp_ext.ex_lblk,
 				le32_to_cpu(ex->ee_block));
@@ -419,6 +409,33 @@ static void test_split_convert(struct kunit *test)
 				ext4_ext_get_actual_len(ex));
 		KUNIT_EXPECT_EQ(test, exp_ext.is_unwrit,
 				ext4_ext_is_unwritten(ex));
+		/*
+		 * Confirm extent cache is in sync. Note that es cache can be
+		 * merged even when on-disk extents are not so take that into
+		 * account.
+		 *
+		 * Also, ext4_split_convert_extents() forces EXT4_EX_NOCACHE hence
+		 * es status are ignored for that case.
+		 */
+		if (es_check_needed) {
+			ext4_es_lookup_extent(inode, le32_to_cpu(ex->ee_block),
+					      NULL, &es, NULL);
+
+			ex_end = exp_ext.ex_lblk + exp_ext.ex_len;
+			es_end = es.es_lblk + es.es_len;
+			contains_ex = es.es_lblk <= exp_ext.ex_lblk &&
+				      es_end >= ex_end;
+			es_pblk = ext4_es_pblock(&es) +
+				  (exp_ext.ex_lblk - es.es_lblk);
+
+			KUNIT_EXPECT_EQ(test, contains_ex, 1);
+			KUNIT_EXPECT_EQ(test, ext4_ext_pblock(ex), es_pblk);
+			KUNIT_EXPECT_EQ(test, 1,
+					(exp_ext.is_unwrit &&
+					 ext4_es_is_unwritten(&es)) ||
+						(!exp_ext.is_unwrit &&
+						 ext4_es_is_written(&es)));
+		}
 
 		/* Only printed on failure */
 		kunit_log(KERN_INFO, test,
@@ -429,6 +446,12 @@ static void test_split_convert(struct kunit *test)
 			  le32_to_cpu(ex->ee_block),
 			  ext4_ext_get_actual_len(ex),
 			  ext4_ext_is_unwritten(ex));
+		if (es_check_needed)
+			kunit_log(
+				KERN_INFO, test,
+				"# [extent %d] es: lblk:%d len:%d pblk:%lld type:0x%x\n",
+				i, es.es_lblk, es.es_len, ext4_es_pblock(&es),
+				ext4_es_type(&es));
 		kunit_log(KERN_INFO, test, "------------------\n");
 
 		ex = ex + 1;
