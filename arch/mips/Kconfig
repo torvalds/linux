@@ -1131,7 +1131,6 @@ config CSRC_IOASIC
 	bool
 
 config CSRC_R4K
-	select CLOCKSOURCE_WATCHDOG if CPU_FREQ
 	bool
 
 config CSRC_SB1250
