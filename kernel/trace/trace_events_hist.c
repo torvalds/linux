@@ -3163,7 +3163,7 @@ static inline void __update_field_vars(struct tracing_map_elt *elt,
 	u64 var_val;
 
 	/* Make sure stacktrace can fit in the string variable length */
-	BUILD_BUG_ON((HIST_STACKTRACE_DEPTH + 1) * sizeof(long) >= STR_VAR_LEN_MAX);
+	BUILD_BUG_ON((HIST_STACKTRACE_DEPTH + 1) * sizeof(long) > STR_VAR_LEN_MAX);
 
 	for (i = 0, j = field_var_str_start; i < n_field_vars; i++) {
 		struct field_var *field_var = field_vars[i];

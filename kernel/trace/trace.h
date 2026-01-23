@@ -128,7 +128,7 @@ enum trace_type {
 
 #define FAULT_STRING "(fault)"
 
-#define HIST_STACKTRACE_DEPTH	16
+#define HIST_STACKTRACE_DEPTH	31
 #define HIST_STACKTRACE_SIZE	(HIST_STACKTRACE_DEPTH * sizeof(unsigned long))
 #define HIST_STACKTRACE_SKIP	5
 
