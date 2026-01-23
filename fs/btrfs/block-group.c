@@ -1113,7 +1113,12 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		return -ENOENT;
 	}
 
-	BUG_ON(!block_group->ro && !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED));
+	if (unlikely(!block_group->ro &&
+		     !(block_group->flags & BTRFS_BLOCK_GROUP_REMAPPED))) {
+		ret = -EUCLEAN;
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 
 	trace_btrfs_remove_block_group(block_group);
 	/*
