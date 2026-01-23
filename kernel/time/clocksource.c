@@ -651,6 +651,13 @@ static void clocksource_select_watchdog(bool fallback)
 		if (cs->flags & CLOCK_SOURCE_MUST_VERIFY)
 			continue;
 
+		/*
+		 * If it's not continuous, don't put the fox in charge of
+		 * the henhouse.
+		 */
+		if (!(cs->flags & CLOCK_SOURCE_IS_CONTINUOUS))
+			continue;
+
 		/* Skip current if we were requested for a fallback. */
 		if (fallback && cs == old_wd)
 			continue;
