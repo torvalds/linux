@@ -198,8 +198,7 @@ static int stream_alloc(struct pci_dev *pdev, struct pci_ide **ide,
 	if (!ide1)
 		return -EFAULT;
 
-	/* Blindly assign streamid=0 to TC=0, and so on */
-	ide1->stream_id = tc;
+	ide1->stream_id = ide1->host_bridge_stream;
 
 	ide[tc] = ide1;
 
