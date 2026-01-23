@@ -1200,7 +1200,6 @@ static struct clocksource clocksource_tsc = {
 	.read			= read_tsc,
 	.mask			= CLOCKSOURCE_MASK(64),
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS |
-				  CLOCK_SOURCE_VALID_FOR_HRES |
 				  CLOCK_SOURCE_CAN_INLINE_READ |
 				  CLOCK_SOURCE_MUST_VERIFY |
 				  CLOCK_SOURCE_VERIFY_PERCPU |
@@ -1411,6 +1410,15 @@ out:
 		have_art = true;
 		clocksource_tsc.base = &art_base_clk;
 	}
+
+	/*
+	 * Transfer the valid for high resolution flag if it was set on the
+	 * early TSC already. That guarantees that there is no intermediate
+	 * clocksource selected once the early TSC is unregistered.
+	 */
+	if (clocksource_tsc_early.flags & CLOCK_SOURCE_VALID_FOR_HRES)
+		clocksource_tsc.flags |= CLOCK_SOURCE_VALID_FOR_HRES;
+
 	clocksource_register_khz(&clocksource_tsc, tsc_khz);
 unreg:
 	clocksource_unregister(&clocksource_tsc_early);
