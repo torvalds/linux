@@ -158,15 +158,9 @@ static void rk3066_hdmi_set_power_mode(struct rk3066_hdmi *hdmi, int mode)
 		hdmi->tmdsclk = DEFAULT_PLLA_RATE;
 }
 
-static int rk3066_hdmi_bridge_clear_infoframe(struct drm_bridge *bridge,
-					      enum hdmi_infoframe_type type)
+static int rk3066_hdmi_bridge_clear_avi_infoframe(struct drm_bridge *bridge)
 {
 	struct rk3066_hdmi *hdmi = bridge_to_rk3066_hdmi(bridge);
-
-	if (type != HDMI_INFOFRAME_TYPE_AVI) {
-		drm_err(bridge->dev, "Unsupported infoframe type: %u\n", type);
-		return 0;
-	}
 
 	hdmi_writeb(hdmi, HDMI_CP_BUF_INDEX, HDMI_INFOFRAME_AVI);
 
@@ -174,22 +168,37 @@ static int rk3066_hdmi_bridge_clear_infoframe(struct drm_bridge *bridge,
 }
 
 static int
-rk3066_hdmi_bridge_write_infoframe(struct drm_bridge *bridge,
-				   enum hdmi_infoframe_type type,
-				   const u8 *buffer, size_t len)
+rk3066_hdmi_bridge_clear_hdmi_infoframe(struct drm_bridge *bridge)
+{
+	/* FIXME: add support for this InfoFrame */
+
+	drm_warn_once(bridge->encoder->dev, "HDMI VSI not supported\n");
+
+	return 0;
+}
+
+static int
+rk3066_hdmi_bridge_write_avi_infoframe(struct drm_bridge *bridge,
+				       const u8 *buffer, size_t len)
 {
 	struct rk3066_hdmi *hdmi = bridge_to_rk3066_hdmi(bridge);
 	ssize_t i;
 
-	if (type != HDMI_INFOFRAME_TYPE_AVI) {
-		drm_err(bridge->dev, "Unsupported infoframe type: %u\n", type);
-		return 0;
-	}
-
-	rk3066_hdmi_bridge_clear_infoframe(bridge, type);
+	rk3066_hdmi_bridge_clear_avi_infoframe(bridge);
 
 	for (i = 0; i < len; i++)
 		hdmi_writeb(hdmi, HDMI_CP_BUF_ACC_HB0 + i * 4, buffer[i]);
+
+	return 0;
+}
+
+static int
+rk3066_hdmi_bridge_write_hdmi_infoframe(struct drm_bridge *bridge,
+					const u8 *buffer, size_t len)
+{
+	rk3066_hdmi_bridge_clear_hdmi_infoframe(bridge);
+
+	/* FIXME: add support for this InfoFrame */
 
 	return 0;
 }
@@ -493,8 +502,10 @@ static const struct drm_bridge_funcs rk3066_hdmi_bridge_funcs = {
 	.atomic_disable = rk3066_hdmi_bridge_atomic_disable,
 	.detect = rk3066_hdmi_bridge_detect,
 	.edid_read = rk3066_hdmi_bridge_edid_read,
-	.hdmi_clear_infoframe = rk3066_hdmi_bridge_clear_infoframe,
-	.hdmi_write_infoframe = rk3066_hdmi_bridge_write_infoframe,
+	.hdmi_clear_avi_infoframe = rk3066_hdmi_bridge_clear_avi_infoframe,
+	.hdmi_write_avi_infoframe = rk3066_hdmi_bridge_write_avi_infoframe,
+	.hdmi_clear_hdmi_infoframe = rk3066_hdmi_bridge_clear_hdmi_infoframe,
+	.hdmi_write_hdmi_infoframe = rk3066_hdmi_bridge_write_hdmi_infoframe,
 	.mode_valid = rk3066_hdmi_bridge_mode_valid,
 };
 

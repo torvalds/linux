@@ -1518,11 +1518,14 @@ EXPORT_SYMBOL(of_drm_find_and_get_bridge);
  * The bridge returned by this function is not refcounted. This is
  * dangerous because the bridge might be deallocated even before the caller
  * has a chance to use it. To use this function you have to do one of:
+ *
  * - get a reference with drm_bridge_get() as soon as possible to
  *   minimize the race window, and then drm_bridge_put() when no longer
  *   using the pointer
+ *
  * - not call drm_bridge_get() or drm_bridge_put() at all, which used to
  *   be the correct practice before dynamic bridge lifetime was introduced
+ *
  * - again, convert to of_drm_find_and_get_bridge(), which is the only safe
  *   thing to do
  *

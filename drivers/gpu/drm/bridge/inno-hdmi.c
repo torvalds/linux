@@ -584,37 +584,40 @@ static void inno_hdmi_init_hw(struct inno_hdmi *hdmi)
 	hdmi_modb(hdmi, HDMI_STATUS, m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(1));
 }
 
-static int inno_hdmi_bridge_clear_infoframe(struct drm_bridge *bridge,
-					    enum hdmi_infoframe_type type)
+static int inno_hdmi_bridge_clear_avi_infoframe(struct drm_bridge *bridge)
 {
 	struct inno_hdmi *hdmi = bridge_to_inno_hdmi(bridge);
-
-	if (type != HDMI_INFOFRAME_TYPE_AVI) {
-		drm_err(bridge->dev, "Unsupported infoframe type: %u\n", type);
-		return 0;
-	}
 
 	hdmi_writeb(hdmi, HDMI_CONTROL_PACKET_BUF_INDEX, INFOFRAME_AVI);
 
 	return 0;
 }
 
-static int inno_hdmi_bridge_write_infoframe(struct drm_bridge *bridge,
-					    enum hdmi_infoframe_type type,
-					    const u8 *buffer, size_t len)
+static int inno_hdmi_bridge_write_avi_infoframe(struct drm_bridge *bridge,
+						const u8 *buffer, size_t len)
 {
 	struct inno_hdmi *hdmi = bridge_to_inno_hdmi(bridge);
 	ssize_t i;
 
-	if (type != HDMI_INFOFRAME_TYPE_AVI) {
-		drm_err(bridge->dev, "Unsupported infoframe type: %u\n", type);
-		return 0;
-	}
-
-	inno_hdmi_bridge_clear_infoframe(bridge, type);
+	inno_hdmi_bridge_clear_avi_infoframe(bridge);
 
 	for (i = 0; i < len; i++)
 		hdmi_writeb(hdmi, HDMI_CONTROL_PACKET_ADDR + i, buffer[i]);
+
+	return 0;
+}
+
+static int inno_hdmi_bridge_clear_hdmi_infoframe(struct drm_bridge *bridge)
+{
+	drm_warn_once(bridge->encoder->dev, "HDMI VSI not implemented\n");
+
+	return 0;
+}
+
+static int inno_hdmi_bridge_write_hdmi_infoframe(struct drm_bridge *bridge,
+						 const u8 *buffer, size_t len)
+{
+	drm_warn_once(bridge->encoder->dev, "HDMI VSI not implemented\n");
 
 	return 0;
 }
@@ -883,8 +886,10 @@ static const struct drm_bridge_funcs inno_hdmi_bridge_funcs = {
 	.atomic_disable = inno_hdmi_bridge_atomic_disable,
 	.detect = inno_hdmi_bridge_detect,
 	.edid_read = inno_hdmi_bridge_edid_read,
-	.hdmi_clear_infoframe = inno_hdmi_bridge_clear_infoframe,
-	.hdmi_write_infoframe = inno_hdmi_bridge_write_infoframe,
+	.hdmi_clear_avi_infoframe = inno_hdmi_bridge_clear_avi_infoframe,
+	.hdmi_write_avi_infoframe = inno_hdmi_bridge_write_avi_infoframe,
+	.hdmi_clear_hdmi_infoframe = inno_hdmi_bridge_clear_hdmi_infoframe,
+	.hdmi_write_hdmi_infoframe = inno_hdmi_bridge_write_hdmi_infoframe,
 	.mode_valid = inno_hdmi_bridge_mode_valid,
 };
 

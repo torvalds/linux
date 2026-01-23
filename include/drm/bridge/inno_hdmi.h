@@ -6,6 +6,8 @@
 #ifndef __INNO_HDMI__
 #define __INNO_HDMI__
 
+#include <linux/types.h>
+
 struct device;
 struct drm_encoder;
 struct drm_display_mode;

@@ -33,8 +33,6 @@
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
 
-#include "dma-buf-sysfs-stats.h"
-
 #define CREATE_TRACE_POINTS
 #include <trace/events/dma_buf.h>
 
@@ -48,12 +46,10 @@
  */
 #define DMA_BUF_TRACE(FUNC, ...)					\
 	do {								\
-		if (FUNC##_enabled()) {					\
+		/* Always expose lock if lockdep is enabled */		\
+		if (IS_ENABLED(CONFIG_LOCKDEP) || FUNC##_enabled()) {	\
 			guard(spinlock)(&dmabuf->name_lock);		\
 			FUNC(__VA_ARGS__);				\
-		} else if (IS_ENABLED(CONFIG_LOCKDEP)) {		\
-			/* Expose this lock when lockdep is enabled */	\
-			guard(spinlock)(&dmabuf->name_lock);		\
 		}							\
 	} while (0)
 
@@ -184,7 +180,6 @@ static void dma_buf_release(struct dentry *dentry)
 	 */
 	BUG_ON(dmabuf->cb_in.active || dmabuf->cb_out.active);
 
-	dma_buf_stats_teardown(dmabuf);
 	dmabuf->ops->release(dmabuf);
 
 	if (dmabuf->resv == (struct dma_resv *)&dmabuf[1])
@@ -765,10 +760,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		dmabuf->resv = resv;
 	}
 
-	ret = dma_buf_stats_setup(dmabuf, file);
-	if (ret)
-		goto err_dmabuf;
-
 	file->private_data = dmabuf;
 	file->f_path.dentry->d_fsdata = dmabuf;
 	dmabuf->file = file;
@@ -779,10 +770,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	return dmabuf;
 
-err_dmabuf:
-	if (!resv)
-		dma_resv_fini(dmabuf->resv);
-	kfree(dmabuf);
 err_file:
 	fput(file);
 err_module:
@@ -806,8 +793,7 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 		return -EINVAL;
 
 	fd = FD_ADD(flags, dmabuf->file);
-	if (fd >= 0)
-		DMA_BUF_TRACE(trace_dma_buf_fd, dmabuf, fd);
+	DMA_BUF_TRACE(trace_dma_buf_fd, dmabuf, fd);
 
 	return fd;
 }
@@ -1802,12 +1788,6 @@ static inline void dma_buf_uninit_debugfs(void)
 
 static int __init dma_buf_init(void)
 {
-	int ret;
-
-	ret = dma_buf_init_sysfs_statistics();
-	if (ret)
-		return ret;
-
 	dma_buf_mnt = kern_mount(&dma_buf_fs_type);
 	if (IS_ERR(dma_buf_mnt))
 		return PTR_ERR(dma_buf_mnt);
@@ -1821,6 +1801,5 @@ static void __exit dma_buf_deinit(void)
 {
 	dma_buf_uninit_debugfs();
 	kern_unmount(dma_buf_mnt);
-	dma_buf_uninit_sysfs_statistics();
 }
 __exitcall(dma_buf_deinit);

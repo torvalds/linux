@@ -20,7 +20,6 @@ powervr-y := \
 	pvr_hwrt.o \
 	pvr_job.o \
 	pvr_mmu.o \
-	pvr_params.o \
 	pvr_power.o \
 	pvr_queue.o \
 	pvr_stream.o \
@@ -33,3 +32,5 @@ powervr-$(CONFIG_DEBUG_FS) += \
 	pvr_debugfs.o
 
 obj-$(CONFIG_DRM_POWERVR) += powervr.o
+
+obj-$(CONFIG_DRM_POWERVR_KUNIT_TEST) += pvr_test.o

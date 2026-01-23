@@ -8,6 +8,7 @@ use kernel::platform;
 use kernel::prelude::*;
 use kernel::time;
 use kernel::transmute::AsBytes;
+use kernel::uapi;
 
 use crate::driver::IoMem;
 use crate::regs;
@@ -34,7 +35,7 @@ pub(crate) struct GpuInfo {
     pub(crate) coherency_features: u32,
     pub(crate) texture_features: [u32; 4],
     pub(crate) as_present: u32,
-    pub(crate) pad0: u32,
+    pub(crate) selected_coherency: u32,
     pub(crate) shader_present: u64,
     pub(crate) l2_present: u64,
     pub(crate) tiler_present: u64,
@@ -89,7 +90,7 @@ impl GpuInfo {
             // TODO: Add texture_features_{1,2,3}.
             texture_features: [texture_features, 0, 0, 0],
             as_present,
-            pad0: 0,
+            selected_coherency: uapi::drm_panthor_gpu_coherency_DRM_PANTHOR_GPU_COHERENCY_NONE,
             shader_present,
             l2_present,
             tiler_present,

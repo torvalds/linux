@@ -857,6 +857,40 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 	drm_buddy_fini(&mm);
 }
 
+static void drm_test_buddy_alloc_exceeds_max_order(struct kunit *test)
+{
+	u64 mm_size = SZ_8G + SZ_2G, size = SZ_8G + SZ_1G, min_block_size = SZ_8G;
+	struct drm_buddy mm;
+	LIST_HEAD(blocks);
+	int err;
+
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, SZ_4K),
+			       "buddy_init failed\n");
+
+	/* CONTIGUOUS allocation should succeed via try_harder fallback */
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size, size,
+							    SZ_4K, &blocks,
+							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc hit an error size=%llu\n", size);
+	drm_buddy_free_list(&mm, &blocks, 0);
+
+	/* Non-CONTIGUOUS with large min_block_size should return -EINVAL */
+	err = drm_buddy_alloc_blocks(&mm, 0, mm_size, size, min_block_size, &blocks, 0);
+	KUNIT_EXPECT_EQ(test, err, -EINVAL);
+
+	/* Non-CONTIGUOUS + RANGE with large min_block_size should return -EINVAL */
+	err = drm_buddy_alloc_blocks(&mm, 0, mm_size, size, min_block_size, &blocks,
+				     DRM_BUDDY_RANGE_ALLOCATION);
+	KUNIT_EXPECT_EQ(test, err, -EINVAL);
+
+	/* CONTIGUOUS + RANGE should return -EINVAL (no try_harder for RANGE) */
+	err = drm_buddy_alloc_blocks(&mm, 0, mm_size, size, SZ_4K, &blocks,
+				     DRM_BUDDY_CONTIGUOUS_ALLOCATION | DRM_BUDDY_RANGE_ALLOCATION);
+	KUNIT_EXPECT_EQ(test, err, -EINVAL);
+
+	drm_buddy_fini(&mm);
+}
+
 static int drm_buddy_suite_init(struct kunit_suite *suite)
 {
 	while (!random_seed)
@@ -877,6 +911,7 @@ static struct kunit_case drm_buddy_tests[] = {
 	KUNIT_CASE(drm_test_buddy_alloc_clear),
 	KUNIT_CASE(drm_test_buddy_alloc_range_bias),
 	KUNIT_CASE(drm_test_buddy_fragmentation_performance),
+	KUNIT_CASE(drm_test_buddy_alloc_exceeds_max_order),
 	{}
 };
 
