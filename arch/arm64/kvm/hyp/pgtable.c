@@ -659,7 +659,19 @@ void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
 	}
 }
 
-#define KVM_S2_MEMATTR(pgt, attr) PAGE_S2_MEMATTR(attr, stage2_has_fwb(pgt))
+#define KVM_S2_MEMATTR(pgt, attr)					\
+	({								\
+		kvm_pte_t __attr;					\
+									\
+		if ((pgt)->flags & KVM_PGTABLE_S2_AS_S1)		\
+			__attr = PAGE_S2_MEMATTR(AS_S1,			\
+						 stage2_has_fwb(pgt));	\
+		else							\
+			__attr = PAGE_S2_MEMATTR(attr,			\
+						 stage2_has_fwb(pgt));	\
+									\
+		__attr;							\
+	})
 
 static int stage2_set_xn_attr(enum kvm_pgtable_prot prot, kvm_pte_t *attr)
 {
