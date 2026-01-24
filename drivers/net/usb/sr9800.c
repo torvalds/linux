@@ -478,13 +478,6 @@ static void sr_get_drvinfo(struct net_device *net,
 	strscpy(info->version, DRIVER_VERSION, sizeof(info->version));
 }
 
-static u32 sr_get_link(struct net_device *net)
-{
-	struct usbnet *dev = netdev_priv(net);
-
-	return mii_link_ok(&dev->mii);
-}
-
 static int sr_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -519,7 +512,7 @@ static int sr_set_mac_address(struct net_device *net, void *p)
 
 static const struct ethtool_ops sr9800_ethtool_ops = {
 	.get_drvinfo	= sr_get_drvinfo,
-	.get_link	= sr_get_link,
+	.get_link	= usbnet_get_link,
 	.get_msglevel	= usbnet_get_msglevel,
 	.set_msglevel	= usbnet_set_msglevel,
 	.get_wol	= sr_get_wol,
