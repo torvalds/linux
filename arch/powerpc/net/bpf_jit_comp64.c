@@ -247,6 +247,47 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	bpf_jit_build_fentry_stubs(image, ctx);
 }
 
+/*
+ * arch_bpf_stack_walk() - BPF stack walker for PowerPC
+ *
+ * Based on arch_stack_walk() from stacktrace.c.
+ * PowerPC uses stack frames rather than stack pointers. See [1] for
+ * the equivalence between frame pointers and stack pointers.
+ * Additional reference at [2].
+ * TODO: refactor with arch_stack_walk()
+ *
+ * [1]: https://lore.kernel.org/all/20200220115141.2707-1-mpe@ellerman.id.au/
+ * [2]: https://lore.kernel.org/bpf/20260122211854.5508-5-adubey@linux.ibm.com/
+ */
+
+void arch_bpf_stack_walk(bool (*consume_fn)(void *, u64, u64, u64), void *cookie)
+{
+	// callback processing always in current context
+	unsigned long sp = current_stack_frame();
+
+	for (;;) {
+		unsigned long *stack = (unsigned long *) sp;
+		unsigned long ip;
+
+		if (!validate_sp(sp, current))
+			return;
+
+		ip = stack[STACK_FRAME_LR_SAVE];
+		if (!ip)
+			break;
+
+		/*
+		 * consume_fn common code expects stack pointer in third
+		 * argument. There is no sp in ppc64, rather pass frame
+		 * pointer(named sp here).
+		 */
+		if (ip && !consume_fn(cookie, ip, sp, sp))
+			break;
+
+		sp = stack[0];
+	}
+}
+
 int bpf_jit_emit_func_call_rel(u32 *image, u32 *fimage, struct codegen_context *ctx, u64 func)
 {
 	unsigned long func_addr = func ? ppc_function_entry((void *)func) : 0;
