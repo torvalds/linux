@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Overlay for Mayqueen (Open-EP Community) pixpaper display
+ * support on Renesas RZ/V2H platform (KAKIP board).
+ *
+ * Copyright (C) 2026 Wig Cheng <onlywig@gmail.com>
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/renesas,r9a09g057-pinctrl.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&pinctrl {
+	rspi0_pins: rspi0 {
+		pinmux = <RZV2H_PORT_PINMUX(9, 0, 1)>, /* SPI0 MOSI */
+			 <RZV2H_PORT_PINMUX(9, 1, 1)>, /* SPI0 MISO */
+			 <RZV2H_PORT_PINMUX(9, 2, 1)>, /* SPI0 CLK */
+			 <RZV2H_PORT_PINMUX(9, 3, 1)>; /* SPI0 CE0 */
+	};
+};
+
+&rspi0 {
+	pinctrl-0 = <&rspi0_pins>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	display@0 {
+		compatible = "mayqueen,pixpaper";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		reset-gpios = <&pinctrl RZV2H_GPIO(A, 7) GPIO_ACTIVE_HIGH>;
+		busy-gpios = <&pinctrl RZV2H_GPIO(B, 3) GPIO_ACTIVE_HIGH>;
+		dc-gpios = <&pinctrl RZV2H_GPIO(7, 4) GPIO_ACTIVE_HIGH>;
+	};
+};
