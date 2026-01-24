@@ -20,13 +20,15 @@
 #include "bpf_jit.h"
 
 /*
- * Stack layout:
+ * Stack layout with frame:
+ * Layout when setting up our own stack frame.
+ * Note: r1 at bottom, component offsets positive wrt r1.
  * Ensure the top half (upto local_tmp_var) stays consistent
  * with our redzone usage.
  *
  *		[	prev sp		] <-------------
- *		[   nv gpr save area	] 6*8		|
  *		[    tail_call_cnt	] 8		|
+ *		[   nv gpr save area	] 6*8		|
  *		[    local_tmp_var	] 24		|
  * fp (r31) -->	[   ebpf stack space	] upto 512	|
  *		[     frame header	] 32/112	|
@@ -36,10 +38,12 @@
 /* for gpr non volatile registers BPG_REG_6 to 10 */
 #define BPF_PPC_STACK_SAVE	(6*8)
 /* for bpf JIT code internal usage */
-#define BPF_PPC_STACK_LOCALS	32
+#define BPF_PPC_STACK_LOCALS	24
 /* stack frame excluding BPF stack, ensure this is quadword aligned */
 #define BPF_PPC_STACKFRAME	(STACK_FRAME_MIN_SIZE + \
-				 BPF_PPC_STACK_LOCALS + BPF_PPC_STACK_SAVE)
+				 BPF_PPC_STACK_LOCALS + \
+				 BPF_PPC_STACK_SAVE   + \
+				 BPF_PPC_TAILCALL)
 
 /* BPF register usage */
 #define TMP_REG_1	(MAX_BPF_JIT_REG + 0)
@@ -87,27 +91,32 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 }
 
 /*
+ * Stack layout with redzone:
  * When not setting up our own stackframe, the redzone (288 bytes) usage is:
+ * Note: r1 from prev frame. Component offset negative wrt r1.
  *
  *		[	prev sp		] <-------------
  *		[	  ...       	] 		|
  * sp (r1) --->	[    stack pointer	] --------------
- *		[   nv gpr save area	] 6*8
  *		[    tail_call_cnt	] 8
+ *		[   nv gpr save area	] 6*8
  *		[    local_tmp_var	] 24
  *		[   unused red zone	] 224
  */
 static int bpf_jit_stack_local(struct codegen_context *ctx)
 {
-	if (bpf_has_stack_frame(ctx))
+	if (bpf_has_stack_frame(ctx)) {
+		/* Stack layout with frame */
 		return STACK_FRAME_MIN_SIZE + ctx->stack_size;
-	else
-		return -(BPF_PPC_STACK_SAVE + 32);
+	} else {
+		/* Stack layout with redzone */
+		return -(BPF_PPC_TAILCALL + BPF_PPC_STACK_SAVE + BPF_PPC_STACK_LOCALS);
+	}
 }
 
 static int bpf_jit_stack_tailcallcnt(struct codegen_context *ctx)
 {
-	return bpf_jit_stack_local(ctx) + 24;
+	return bpf_jit_stack_local(ctx) + BPF_PPC_STACK_LOCALS + BPF_PPC_STACK_SAVE;
 }
 
 static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
@@ -115,7 +124,7 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 	if (reg >= BPF_PPC_NVR_MIN && reg < 32)
 		return (bpf_has_stack_frame(ctx) ?
 			(BPF_PPC_STACKFRAME + ctx->stack_size) : 0)
-				- (8 * (32 - reg));
+				- (8 * (32 - reg)) - BPF_PPC_TAILCALL;
 
 	pr_err("BPF JIT is asking about unknown registers");
 	BUG();
@@ -145,7 +154,7 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	if (ctx->seen & SEEN_TAILCALL) {
 		EMIT(PPC_RAW_LI(bpf_to_ppc(TMP_REG_1), 0));
 		/* this goes in the redzone */
-		EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, -(BPF_PPC_STACK_SAVE + 8)));
+		EMIT(PPC_RAW_STD(bpf_to_ppc(TMP_REG_1), _R1, -(BPF_PPC_TAILCALL)));
 	} else {
 		EMIT(PPC_RAW_NOP());
 		EMIT(PPC_RAW_NOP());

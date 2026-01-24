@@ -24,6 +24,7 @@
 
 #define SZL			sizeof(unsigned long)
 #define BPF_INSN_SAFETY		64
+#define BPF_PPC_TAILCALL	8
 
 #define PLANT_INSTR(d, idx, instr)					      \
 	do { if (d) { (d)[idx] = instr; } idx++; } while (0)
