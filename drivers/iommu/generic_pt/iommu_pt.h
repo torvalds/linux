@@ -931,6 +931,8 @@ static __maybe_unused int __unmap_range(struct pt_range *range, void *arg,
 					struct pt_table_p *table)
 {
 	struct pt_state pts = pt_init(range, level, table);
+	unsigned int flush_start_index = UINT_MAX;
+	unsigned int flush_end_index = UINT_MAX;
 	struct pt_unmap_args *unmap = arg;
 	unsigned int num_oas = 0;
 	unsigned int start_index;
@@ -986,6 +988,9 @@ static __maybe_unused int __unmap_range(struct pt_range *range, void *arg,
 				iommu_pages_list_add(&unmap->free_list,
 						     pts.table_lower);
 				pt_clear_entries(&pts, ilog2(1));
+				if (pts.index < flush_start_index)
+					flush_start_index = pts.index;
+				flush_end_index = pts.index + 1;
 			}
 			pts.index++;
 		} else {
@@ -999,7 +1004,10 @@ start_oa:
 			num_contig_lg2 = pt_entry_num_contig_lg2(&pts);
 			pt_clear_entries(&pts, num_contig_lg2);
 			num_oas += log2_to_int(num_contig_lg2);
+			if (pts.index < flush_start_index)
+				flush_start_index = pts.index;
 			pts.index += log2_to_int(num_contig_lg2);
+			flush_end_index = pts.index;
 		}
 		if (pts.index >= pts.end_index)
 			break;
@@ -1007,7 +1015,8 @@ start_oa:
 	} while (true);
 
 	unmap->unmapped += log2_mul(num_oas, pt_table_item_lg2sz(&pts));
-	flush_writes_range(&pts, start_index, pts.index);
+	if (flush_start_index != flush_end_index)
+		flush_writes_range(&pts, flush_start_index, flush_end_index);
 
 	return ret;
 }
