@@ -4987,7 +4987,8 @@ void linked_status_chk(struct adapter *padapter)
 		link_count_limit = 7; /*  16 sec */
 
 		/*  Marked by Kurt 20130715 */
-		/*  For WiDi 3.5 and latered on, they don't ask WiDi sink to do roaming, so we could not check rx limit that strictly. */
+		/*  For WiDi 3.5 and latered on, they don't ask WiDi sink to do roaming, */
+		/* so we could not check rx limit that strictly. */
 		/*  todo: To check why we under miracast session, rx_chk would be false */
 		psta = rtw_get_stainfo(pstapriv, pmlmeinfo->network.mac_address);
 		if (psta) {
@@ -5968,9 +5969,10 @@ u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf)
 /*  TDLS_ESTABLISHED	: write RCR DATA BIT */
 /*  TDLS_CS_OFF		: go back to the channel linked with AP, terminating channel switch procedure */
 /*  TDLS_INIT_CH_SEN	: init channel sensing, receive all data and mgnt frame */
-/*  TDLS_DONE_CH_SEN: channel sensing and report candidate channel */
+/*  TDLS_DONE_CH_SEN	: channel sensing and report candidate channel */
 /*  TDLS_OFF_CH		: first time set channel to off channel */
-/*  TDLS_BASE_CH		: go back tp the channel linked with AP when set base channel as target channel */
+/*  TDLS_BASE_CH	: go back tp the channel linked with AP when set */
+/*			  base channel as target channel */
 /*  TDLS_P_OFF_CH	: periodically go to off channel */
 /*  TDLS_P_BASE_CH	: periodically go back to base channel */
 /*  TDLS_RS_RCR		: restore RCR */
