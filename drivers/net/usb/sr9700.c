@@ -366,7 +366,7 @@ static int sr9700_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 	/* one skb may contains multiple packets */
 	while (skb->len > SR_RX_OVERHEAD) {
-		if (skb->data[0] != 0x40)
+		if (skb->data[0] != RSR_MF)
 			return 0;
 
 		/* ignore the CRC length */
@@ -455,7 +455,7 @@ static void sr9700_status(struct usbnet *dev, struct urb *urb)
 
 	buf = urb->transfer_buffer;
 
-	link = !!(buf[0] & 0x40);
+	link = !!(buf[0] & NSR_LINKST);
 	sr9700_handle_link_change(dev->net, link);
 }
 
