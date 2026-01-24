@@ -306,7 +306,8 @@
 #define DMA_LLP_MEM_SIZE		PAGE_SIZE
 
 /* Common struct pci_epc_feature bits among DWC EP glue drivers */
-#define DWC_EPC_COMMON_FEATURES		.dynamic_inbound_mapping = true
+#define DWC_EPC_COMMON_FEATURES		.dynamic_inbound_mapping = true, \
+					.subrange_mapping = true
 
 struct dw_pcie;
 struct dw_pcie_rp;
@@ -486,6 +487,10 @@ struct dw_pcie_ep {
 	void __iomem		*msi_mem;
 	phys_addr_t		msi_mem_phys;
 	struct pci_epf_bar	*epf_bar[PCI_STD_NUM_BARS];
+
+	/* Only for Address Match Mode inbound iATU */
+	u32			*ib_atu_indexes[PCI_STD_NUM_BARS];
+	unsigned int		num_ib_atu_indexes[PCI_STD_NUM_BARS];
 
 	/* MSI outbound iATU state */
 	bool			msi_iatu_mapped;
