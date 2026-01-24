@@ -4932,7 +4932,9 @@ void _linked_info_dump(struct adapter *padapter)
 	if (padapter->bLinkInfoDump) {
 
 		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE)
-			rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
+			rtw_hal_get_def_var(padapter,
+					    HAL_DEF_UNDERCORATEDSMOOTHEDPWDB,
+					    &UndecoratedSmoothedPWDB);
 
 		for (i = 0; i < NUM_STA; i++) {
 			if (pdvobj->macid[i]) {
@@ -5000,9 +5002,18 @@ void linked_status_chk(struct adapter *padapter)
 			{
 				if (rx_chk != _SUCCESS) {
 					if (pmlmeext->retry == 0) {
-						issue_probereq_ex(padapter, &pmlmeinfo->network.ssid, pmlmeinfo->network.mac_address, 0, 0, 0, 0);
-						issue_probereq_ex(padapter, &pmlmeinfo->network.ssid, pmlmeinfo->network.mac_address, 0, 0, 0, 0);
-						issue_probereq_ex(padapter, &pmlmeinfo->network.ssid, pmlmeinfo->network.mac_address, 0, 0, 0, 0);
+						issue_probereq_ex(padapter,
+								  &pmlmeinfo->network.ssid,
+								  pmlmeinfo->network.mac_address,
+								  0, 0, 0, 0);
+						issue_probereq_ex(padapter,
+								  &pmlmeinfo->network.ssid,
+								  pmlmeinfo->network.mac_address,
+								  0, 0, 0, 0);
+						issue_probereq_ex(padapter,
+								  &pmlmeinfo->network.ssid,
+								  pmlmeinfo->network.mac_address,
+								  0, 0, 0, 0);
 					}
 				}
 
@@ -5507,8 +5518,11 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 
 		for (i = 0; i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (pparm->ssid[i].ssid_length) {
-				memcpy(pmlmeext->sitesurvey_res.ssid[i].ssid, pparm->ssid[i].ssid, IW_ESSID_MAX_SIZE);
-				pmlmeext->sitesurvey_res.ssid[i].ssid_length = pparm->ssid[i].ssid_length;
+				memcpy(pmlmeext->sitesurvey_res.ssid[i].ssid,
+				       pparm->ssid[i].ssid,
+				       IW_ESSID_MAX_SIZE);
+				pmlmeext->sitesurvey_res.ssid[i].ssid_length =
+					pparm->ssid[i].ssid_length;
 			} else {
 				pmlmeext->sitesurvey_res.ssid[i].ssid_length = 0;
 			}
@@ -5536,7 +5550,8 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		}
 	}
 
-	if ((pmlmeext->sitesurvey_res.state == SCAN_START) || (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
+	if ((pmlmeext->sitesurvey_res.state == SCAN_START) ||
+	    (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
 		/* disable dynamic functions, such as high power, DIG */
 		Save_DM_Func_Flag(padapter);
 		Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, false);
@@ -5799,7 +5814,7 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	/*  checking if event size match the event parm size */
 	if ((wlanevents[evt_code].parmsize != 0) &&
-			(wlanevents[evt_code].parmsize != evt_sz))
+	    (wlanevents[evt_code].parmsize != evt_sz))
 		goto _abort_event_;
 
 	atomic_inc(&pevt_priv->event_seq);
@@ -5937,8 +5952,13 @@ u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	setChannelPlan_param = (struct SetChannelPlan_param *)pbuf;
 
-	pmlmeext->max_chan_nums = init_channel_set(padapter, setChannelPlan_param->channel_plan, pmlmeext->channel_set);
-	init_channel_list(padapter, pmlmeext->channel_set, pmlmeext->max_chan_nums, &pmlmeext->channel_list);
+	pmlmeext->max_chan_nums = init_channel_set(padapter,
+						   setChannelPlan_param->channel_plan,
+						   pmlmeext->channel_set);
+	init_channel_list(padapter,
+			  pmlmeext->channel_set,
+			  pmlmeext->max_chan_nums,
+			  &pmlmeext->channel_list);
 
 	if (padapter->rtw_wdev && padapter->rtw_wdev->wiphy) {
 		struct regulatory_request request;
