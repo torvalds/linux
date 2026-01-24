@@ -33,6 +33,8 @@
 #define COMMAND_COPY			BIT(5)
 #define COMMAND_ENABLE_DOORBELL		BIT(6)
 #define COMMAND_DISABLE_DOORBELL	BIT(7)
+#define COMMAND_BAR_SUBRANGE_SETUP	BIT(8)
+#define COMMAND_BAR_SUBRANGE_CLEAR	BIT(9)
 
 #define STATUS_READ_SUCCESS		BIT(0)
 #define STATUS_READ_FAIL		BIT(1)
@@ -48,6 +50,10 @@
 #define STATUS_DOORBELL_ENABLE_FAIL	BIT(11)
 #define STATUS_DOORBELL_DISABLE_SUCCESS BIT(12)
 #define STATUS_DOORBELL_DISABLE_FAIL	BIT(13)
+#define STATUS_BAR_SUBRANGE_SETUP_SUCCESS	BIT(14)
+#define STATUS_BAR_SUBRANGE_SETUP_FAIL		BIT(15)
+#define STATUS_BAR_SUBRANGE_CLEAR_SUCCESS	BIT(16)
+#define STATUS_BAR_SUBRANGE_CLEAR_FAIL		BIT(17)
 
 #define FLAG_USE_DMA			BIT(0)
 
@@ -57,6 +63,9 @@
 #define CAP_MSI				BIT(1)
 #define CAP_MSIX			BIT(2)
 #define CAP_INTX			BIT(3)
+#define CAP_SUBRANGE_MAPPING		BIT(4)
+
+#define PCI_EPF_TEST_BAR_SUBRANGE_NSUB	2
 
 static struct workqueue_struct *kpcitest_workqueue;
 
@@ -102,7 +111,7 @@ static struct pci_epf_header test_header = {
 	.interrupt_pin	= PCI_INTERRUPT_INTA,
 };
 
-static size_t bar_size[] = { 512, 512, 1024, 16384, 131072, 1048576 };
+static size_t bar_size[] = { 131072, 131072, 131072, 131072, 131072, 1048576 };
 
 static void pci_epf_test_dma_callback(void *param)
 {
@@ -806,6 +815,155 @@ set_status_err:
 	reg->status = cpu_to_le32(status);
 }
 
+static u8 pci_epf_test_subrange_sig_byte(enum pci_barno barno,
+					 unsigned int subno)
+{
+	return 0x50 + (barno * 8) + subno;
+}
+
+static void pci_epf_test_bar_subrange_setup(struct pci_epf_test *epf_test,
+					    struct pci_epf_test_reg *reg)
+{
+	struct pci_epf_bar_submap *submap, *old_submap;
+	struct pci_epf *epf = epf_test->epf;
+	struct pci_epc *epc = epf->epc;
+	struct pci_epf_bar *bar;
+	unsigned int nsub = PCI_EPF_TEST_BAR_SUBRANGE_NSUB, old_nsub;
+	/* reg->size carries BAR number for BAR_SUBRANGE_* commands. */
+	enum pci_barno barno = le32_to_cpu(reg->size);
+	u32 status = le32_to_cpu(reg->status);
+	unsigned int i, phys_idx;
+	size_t sub_size;
+	u8 *addr;
+	int ret;
+
+	if (barno >= PCI_STD_NUM_BARS) {
+		dev_err(&epf->dev, "Invalid barno: %d\n", barno);
+		goto err;
+	}
+
+	/* Host side should've avoided test_reg_bar, this is a safeguard. */
+	if (barno == epf_test->test_reg_bar) {
+		dev_err(&epf->dev, "test_reg_bar cannot be used for subrange test\n");
+		goto err;
+	}
+
+	if (!epf_test->epc_features->dynamic_inbound_mapping ||
+	    !epf_test->epc_features->subrange_mapping) {
+		dev_err(&epf->dev, "epc driver does not support subrange mapping\n");
+		goto err;
+	}
+
+	bar = &epf->bar[barno];
+	if (!bar->size || !bar->addr) {
+		dev_err(&epf->dev, "bar size/addr (%zu/%p) is invalid\n",
+			bar->size, bar->addr);
+		goto err;
+	}
+
+	if (bar->size % nsub) {
+		dev_err(&epf->dev, "BAR size %zu is not divisible by %u\n",
+			bar->size, nsub);
+		goto err;
+	}
+
+	sub_size = bar->size / nsub;
+
+	submap = kcalloc(nsub, sizeof(*submap), GFP_KERNEL);
+	if (!submap)
+		goto err;
+
+	for (i = 0; i < nsub; i++) {
+		/* Swap the two halves so RC can verify ordering. */
+		phys_idx = i ^ 1;
+		submap[i].phys_addr = bar->phys_addr + (phys_idx * sub_size);
+		submap[i].size = sub_size;
+	}
+
+	old_submap = bar->submap;
+	old_nsub = bar->num_submap;
+
+	bar->submap = submap;
+	bar->num_submap = nsub;
+
+	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, bar);
+	if (ret) {
+		dev_err(&epf->dev, "pci_epc_set_bar() failed: %d\n", ret);
+		bar->submap = old_submap;
+		bar->num_submap = old_nsub;
+		kfree(submap);
+		goto err;
+	}
+	kfree(old_submap);
+
+	/*
+	 * Fill deterministic signatures into the physical regions that
+	 * each BAR subrange maps to. RC verifies these to ensure the
+	 * submap order is really applied.
+	 */
+	addr = (u8 *)bar->addr;
+	for (i = 0; i < nsub; i++) {
+		phys_idx = i ^ 1;
+		memset(addr + (phys_idx * sub_size),
+		       pci_epf_test_subrange_sig_byte(barno, i),
+		       sub_size);
+	}
+
+	status |= STATUS_BAR_SUBRANGE_SETUP_SUCCESS;
+	reg->status = cpu_to_le32(status);
+	return;
+
+err:
+	status |= STATUS_BAR_SUBRANGE_SETUP_FAIL;
+	reg->status = cpu_to_le32(status);
+}
+
+static void pci_epf_test_bar_subrange_clear(struct pci_epf_test *epf_test,
+					    struct pci_epf_test_reg *reg)
+{
+	struct pci_epf *epf = epf_test->epf;
+	struct pci_epf_bar_submap *submap;
+	struct pci_epc *epc = epf->epc;
+	/* reg->size carries BAR number for BAR_SUBRANGE_* commands. */
+	enum pci_barno barno = le32_to_cpu(reg->size);
+	u32 status = le32_to_cpu(reg->status);
+	struct pci_epf_bar *bar;
+	unsigned int nsub;
+	int ret;
+
+	if (barno >= PCI_STD_NUM_BARS) {
+		dev_err(&epf->dev, "Invalid barno: %d\n", barno);
+		goto err;
+	}
+
+	bar = &epf->bar[barno];
+	submap = bar->submap;
+	nsub = bar->num_submap;
+
+	if (!submap || !nsub)
+		goto err;
+
+	bar->submap = NULL;
+	bar->num_submap = 0;
+
+	ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no, bar);
+	if (ret) {
+		bar->submap = submap;
+		bar->num_submap = nsub;
+		dev_err(&epf->dev, "pci_epc_set_bar() failed: %d\n", ret);
+		goto err;
+	}
+	kfree(submap);
+
+	status |= STATUS_BAR_SUBRANGE_CLEAR_SUCCESS;
+	reg->status = cpu_to_le32(status);
+	return;
+
+err:
+	status |= STATUS_BAR_SUBRANGE_CLEAR_FAIL;
+	reg->status = cpu_to_le32(status);
+}
+
 static void pci_epf_test_cmd_handler(struct work_struct *work)
 {
 	u32 command;
@@ -859,6 +1017,14 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 		break;
 	case COMMAND_DISABLE_DOORBELL:
 		pci_epf_test_disable_doorbell(epf_test, reg);
+		pci_epf_test_raise_irq(epf_test, reg);
+		break;
+	case COMMAND_BAR_SUBRANGE_SETUP:
+		pci_epf_test_bar_subrange_setup(epf_test, reg);
+		pci_epf_test_raise_irq(epf_test, reg);
+		break;
+	case COMMAND_BAR_SUBRANGE_CLEAR:
+		pci_epf_test_bar_subrange_clear(epf_test, reg);
 		pci_epf_test_raise_irq(epf_test, reg);
 		break;
 	default:
@@ -932,6 +1098,10 @@ static void pci_epf_test_set_capabilities(struct pci_epf *epf)
 
 	if (epf_test->epc_features->intx_capable)
 		caps |= CAP_INTX;
+
+	if (epf_test->epc_features->dynamic_inbound_mapping &&
+	    epf_test->epc_features->subrange_mapping)
+		caps |= CAP_SUBRANGE_MAPPING;
 
 	reg->caps = cpu_to_le32(caps);
 }
