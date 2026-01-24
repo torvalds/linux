@@ -5029,8 +5029,8 @@ inline bool mpi3mr_allow_scmd_to_fw(struct scsi_cmnd *scmd)
  *         SCSI_MLQUEUE_DEVICE_BUSY when the device is busy.
  *         SCSI_MLQUEUE_HOST_BUSY when the host queue is full.
  */
-static int mpi3mr_qcmd(struct Scsi_Host *shost,
-	struct scsi_cmnd *scmd)
+static enum scsi_qc_status mpi3mr_qcmd(struct Scsi_Host *shost,
+				       struct scsi_cmnd *scmd)
 {
 	struct mpi3mr_ioc *mrioc = shost_priv(shost);
 	struct mpi3mr_stgt_priv_data *stgt_priv_data;

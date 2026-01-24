@@ -903,7 +903,8 @@ Details::
     *
     *      Defined in: LLD
     **/
-	int queuecommand(struct Scsi_Host *shost, struct scsi_cmnd * scp)
+	enum scsi_qc_status queuecommand(struct Scsi_Host *shost,
+					 struct scsi_cmnd *scp)
 
 
     /**

@@ -1920,8 +1920,8 @@ mptsas_sdev_init(struct scsi_device *sdev)
 	return 0;
 }
 
-static int
-mptsas_qcmd(struct Scsi_Host *shost, struct scsi_cmnd *SCpnt)
+static enum scsi_qc_status mptsas_qcmd(struct Scsi_Host *shost,
+				       struct scsi_cmnd *SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
 	MPT_ADAPTER	*ioc;

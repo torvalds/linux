@@ -9284,8 +9284,9 @@ static void scsi_debug_abort_cmd(struct Scsi_Host *shost, struct scsi_cmnd *scp)
 	set_host_byte(scp, res ? DID_OK : DID_ERROR);
 }
 
-static int scsi_debug_process_reserved_command(struct Scsi_Host *shost,
-					       struct scsi_cmnd *scp)
+static enum scsi_qc_status
+scsi_debug_process_reserved_command(struct Scsi_Host *shost,
+				    struct scsi_cmnd *scp)
 {
 	struct sdebug_internal_cmd *internal_cmd = scsi_cmd_priv(scp);
 
@@ -9303,8 +9304,8 @@ static int scsi_debug_process_reserved_command(struct Scsi_Host *shost,
 	return 0;
 }
 
-static int scsi_debug_queuecommand(struct Scsi_Host *shost,
-				   struct scsi_cmnd *scp)
+static enum scsi_qc_status scsi_debug_queuecommand(struct Scsi_Host *shost,
+						   struct scsi_cmnd *scp)
 {
 	u8 sdeb_i;
 	struct scsi_device *sdp = scp->device;

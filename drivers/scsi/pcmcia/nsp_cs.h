@@ -294,7 +294,8 @@ static struct Scsi_Host *nsp_detect     (struct scsi_host_template *sht);
 static const  char      *nsp_info       (struct Scsi_Host *shpnt);
 static        int        nsp_show_info  (struct seq_file *m,
 	                                 struct Scsi_Host *host);
-static int nsp_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *SCpnt);
+static enum scsi_qc_status nsp_queuecommand(struct Scsi_Host *h,
+					    struct scsi_cmnd *SCpnt);
 
 /* Error handler */
 /*static int nsp_eh_abort       (struct scsi_cmnd *SCpnt);*/

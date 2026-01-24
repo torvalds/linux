@@ -24,7 +24,8 @@ DEFINE_IDR(bfad_im_port_index);
 struct scsi_transport_template *bfad_im_scsi_transport_template;
 struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 static void bfad_im_itnim_work_handler(struct work_struct *work);
-static int bfad_im_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmnd);
+static enum scsi_qc_status bfad_im_queuecommand(struct Scsi_Host *h,
+						struct scsi_cmnd *cmnd);
 static int bfad_im_sdev_init(struct scsi_device *sdev);
 static void bfad_im_fc_rport_add(struct bfad_im_port_s  *im_port,
 				struct bfad_itnim_s *itnim);
@@ -1199,7 +1200,7 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 /*
  * Scsi_Host template entry, queue a SCSI command to the BFAD.
  */
-static int bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
+static enum scsi_qc_status bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct bfad_im_port_s *im_port =
