@@ -1429,8 +1429,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	unsigned int addr, size;
 	unsigned int func, value;
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
-	char vendor[128], product[128], sku[128];
-	char *ptr_vendor, *ptr_product, *ptr_sku;
+	int len_vendor, len_product, len_sku;
 	char rae_filename[512];
 	char tag[5];
 	int ret = 0;
@@ -1441,21 +1440,13 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	dmi_sku = dmi_get_system_info(DMI_PRODUCT_SKU);
 
 	if (dmi_vendor && dmi_product && dmi_sku) {
-		strscpy(vendor, dmi_vendor);
-		strscpy(product, dmi_product);
-		strscpy(sku, dmi_sku);
-		ptr_vendor = &vendor[0];
-		ptr_product = &product[0];
-		ptr_sku = &sku[0];
-		ptr_vendor = strsep(&ptr_vendor, " ");
-		ptr_product = strsep(&ptr_product, " ");
-		ptr_sku = strsep(&ptr_sku, " ");
-
-		dev_dbg(dev, "%s: DMI vendor=%s, product=%s, sku=%s\n", __func__,
-			vendor, product, sku);
+		len_vendor = strchrnul(dmi_vendor, ' ') - dmi_vendor;
+		len_product = strchrnul(dmi_product, ' ') - dmi_product;
+		len_sku = strchrnul(dmi_sku, ' ') - dmi_sku;
 
 		snprintf(rae_filename, sizeof(rae_filename),
-			 "realtek/rt1320/rt1320_RAE_%s_%s_%s.dat", vendor, product, sku);
+			 "realtek/rt1320/rt1320_RAE_%.*s_%.*s_%.*s.dat",
+			 len_vendor, dmi_vendor, len_product, dmi_product, len_sku, dmi_sku);
 		dev_dbg(dev, "%s: try to load RAE file %s\n", __func__, rae_filename);
 	} else {
 		dev_warn(dev, "%s: Can't find proper RAE file name\n", __func__);
@@ -1595,8 +1586,7 @@ struct rt1320_dspfwheader {
 	static const char hdr_sig[] = "AFX";
 	unsigned int hdr_size = 0;
 	const char *dmi_vendor, *dmi_product, *dmi_sku;
-	char vendor[128], product[128], sku[128];
-	char *ptr_vendor, *ptr_product, *ptr_sku;
+	int len_vendor, len_product, len_sku;
 	char filename[512];
 
 	switch (rt1320->dev_id) {
@@ -1616,21 +1606,14 @@ struct rt1320_dspfwheader {
 	dmi_sku = dmi_get_system_info(DMI_PRODUCT_SKU);
 
 	if (dmi_vendor && dmi_product && dmi_sku) {
-		strscpy(vendor, dmi_vendor);
-		strscpy(product, dmi_product);
-		strscpy(sku, dmi_sku);
-		ptr_vendor = &vendor[0];
-		ptr_product = &product[0];
-		ptr_sku = &sku[0];
-		ptr_vendor = strsep(&ptr_vendor, " ");
-		ptr_product = strsep(&ptr_product, " ");
-		ptr_sku = strsep(&ptr_sku, " ");
-
-		dev_dbg(dev, "%s: DMI vendor=%s, product=%s, sku=%s\n", __func__,
-			vendor, product, sku);
+		len_vendor = strchrnul(dmi_vendor, ' ') - dmi_vendor;
+		len_product = strchrnul(dmi_product, ' ') - dmi_product;
+		len_sku = strchrnul(dmi_sku, ' ') - dmi_sku;
 
 		snprintf(filename, sizeof(filename),
-			 "realtek/rt1320/rt1320_%s_%s_%s.dat", vendor, product, sku);
+			 "realtek/rt1320/rt1320_%.*s_%.*s_%.*s.dat",
+			 len_vendor, dmi_vendor, len_product, dmi_product, len_sku, dmi_sku);
+
 		dev_dbg(dev, "%s: try to load FW file %s\n", __func__, filename);
 	} else if (rt1320->dspfw_name) {
 		snprintf(filename, sizeof(filename), "rt1320_%s.dat",
