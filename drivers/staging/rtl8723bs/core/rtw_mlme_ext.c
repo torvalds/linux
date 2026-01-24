@@ -4971,7 +4971,6 @@ void linked_status_chk(struct adapter *padapter)
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
-
 	if (is_client_associated_to_ap(padapter)) {
 		/* linked infrastructure client mode */
 
@@ -5045,7 +5044,6 @@ void linked_status_chk(struct adapter *padapter)
 					continue;
 
 				if (pmlmeinfo->FW_sta_info[i].rx_pkt == sta_rx_pkts(psta)) {
-
 					if (pmlmeinfo->FW_sta_info[i].retry < 3) {
 						pmlmeinfo->FW_sta_info[i].retry++;
 					} else {
@@ -5063,9 +5061,7 @@ void linked_status_chk(struct adapter *padapter)
 		}
 
 		/* set_link_timer(pmlmeext, DISCONNECT_TO); */
-
 	}
-
 }
 
 void survey_timer_hdl(struct timer_list *t)
@@ -5208,7 +5204,6 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 	}
 
 	return H2C_SUCCESS;
-
 }
 
 u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
@@ -5565,7 +5560,6 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	site_survey(padapter);
 
 	return H2C_SUCCESS;
-
 }
 
 u8 setauth_hdl(struct adapter *padapter, unsigned char *pbuf)
@@ -5695,7 +5689,6 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 	return	H2C_SUCCESS;
 }
 
-
 u8 chk_bmc_sleepq_cmd(struct adapter *padapter)
 {
 	struct cmd_obj *ph2c;
@@ -5820,12 +5813,8 @@ u8 mlme_evt_hdl(struct adapter *padapter, unsigned char *pbuf)
 		pevt_priv->evt_done_cnt++;
 	}
 
-
 _abort_event_:
-
-
 	return H2C_SUCCESS;
-
 }
 
 u8 h2c_msg_hdl(struct adapter *padapter, unsigned char *pbuf)
