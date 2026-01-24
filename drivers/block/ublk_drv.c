@@ -985,6 +985,95 @@ static inline bool ublk_dev_need_req_ref(const struct ublk_device *ub)
 	       ublk_dev_support_auto_buf_reg(ub);
 }
 
+/*
+ * ublk IO Reference Counting Design
+ * ==================================
+ *
+ * For user-copy and zero-copy modes, ublk uses a split reference model with
+ * two counters that together track IO lifetime:
+ *
+ *   - io->ref: refcount for off-task buffer registrations and user-copy ops
+ *   - io->task_registered_buffers: count of buffers registered on the IO task
+ *
+ * Key Invariant:
+ * --------------
+ * When IO is dispatched to the ublk server (UBLK_IO_FLAG_OWNED_BY_SRV set),
+ * the sum (io->ref + io->task_registered_buffers) must equal UBLK_REFCOUNT_INIT
+ * when no active references exist. After IO completion, both counters become
+ * zero. For I/Os not currently dispatched to the ublk server, both ref and
+ * task_registered_buffers are 0.
+ *
+ * This invariant is checked by ublk_check_and_reset_active_ref() during daemon
+ * exit to determine if all references have been released.
+ *
+ * Why Split Counters:
+ * -------------------
+ * Buffers registered on the IO daemon task can use the lightweight
+ * task_registered_buffers counter (simple increment/decrement) instead of
+ * atomic refcount operations. The ublk_io_release() callback checks if
+ * current == io->task to decide which counter to update.
+ *
+ * This optimization only applies before IO completion. At completion,
+ * ublk_sub_req_ref() collapses task_registered_buffers into the atomic ref.
+ * After that, all subsequent buffer unregistrations must use the atomic ref
+ * since they may be releasing the last reference.
+ *
+ * Reference Lifecycle:
+ * --------------------
+ * 1. ublk_init_req_ref(): Sets io->ref = UBLK_REFCOUNT_INIT at IO dispatch
+ *
+ * 2. During IO processing:
+ *    - On-task buffer reg: task_registered_buffers++ (no ref change)
+ *    - Off-task buffer reg: ref++ via ublk_get_req_ref()
+ *    - Buffer unregister callback (ublk_io_release):
+ *      * If on-task: task_registered_buffers--
+ *      * If off-task: ref-- via ublk_put_req_ref()
+ *
+ * 3. ublk_sub_req_ref() at IO completion:
+ *    - Computes: sub_refs = UBLK_REFCOUNT_INIT - task_registered_buffers
+ *    - Subtracts sub_refs from ref and zeroes task_registered_buffers
+ *    - This effectively collapses task_registered_buffers into the atomic ref,
+ *      accounting for the initial UBLK_REFCOUNT_INIT minus any on-task
+ *      buffers that were already counted
+ *
+ * Example (zero-copy, register on-task, unregister off-task):
+ *   - Dispatch: ref = UBLK_REFCOUNT_INIT, task_registered_buffers = 0
+ *   - Register buffer on-task: task_registered_buffers = 1
+ *   - Unregister off-task: ref-- (UBLK_REFCOUNT_INIT - 1), task_registered_buffers stays 1
+ *   - Completion via ublk_sub_req_ref():
+ *     sub_refs = UBLK_REFCOUNT_INIT - 1,
+ *     ref = (UBLK_REFCOUNT_INIT - 1) - (UBLK_REFCOUNT_INIT - 1) = 0
+ *
+ * Example (auto buffer registration):
+ *   Auto buffer registration sets task_registered_buffers = 1 at dispatch.
+ *
+ *   - Dispatch: ref = UBLK_REFCOUNT_INIT, task_registered_buffers = 1
+ *   - Buffer unregister: task_registered_buffers-- (becomes 0)
+ *   - Completion via ublk_sub_req_ref():
+ *     sub_refs = UBLK_REFCOUNT_INIT - 0, ref becomes 0
+ *
+ * Example (zero-copy, ublk server killed):
+ *   When daemon is killed, io_uring cleanup unregisters buffers off-task.
+ *   ublk_check_and_reset_active_ref() waits for the invariant to hold.
+ *
+ *   - Dispatch: ref = UBLK_REFCOUNT_INIT, task_registered_buffers = 0
+ *   - Register buffer on-task: task_registered_buffers = 1
+ *   - Daemon killed, io_uring cleanup unregisters buffer (off-task):
+ *     ref-- (UBLK_REFCOUNT_INIT - 1), task_registered_buffers stays 1
+ *   - Daemon exit check: sum = (UBLK_REFCOUNT_INIT - 1) + 1 = UBLK_REFCOUNT_INIT
+ *   - Sum equals UBLK_REFCOUNT_INIT, then both two counters are zeroed by
+ *     ublk_check_and_reset_active_ref(), so ublk_abort_queue() can proceed
+ *     and abort pending requests
+ *
+ * Batch IO Special Case:
+ * ----------------------
+ * In batch IO mode, io->task is NULL. This means ublk_io_release() always
+ * takes the off-task path (ublk_put_req_ref), decrementing io->ref. The
+ * task_registered_buffers counter still tracks registered buffers for the
+ * invariant check, even though the callback doesn't decrement it.
+ *
+ * Note: updating task_registered_buffers is protected by io->lock.
+ */
 static inline void ublk_init_req_ref(const struct ublk_queue *ubq,
 		struct ublk_io *io)
 {
