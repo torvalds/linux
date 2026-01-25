@@ -1168,6 +1168,33 @@ __bpf_kfunc int bpf_kfunc_implicit_arg(int a, struct bpf_prog_aux *aux);
 __bpf_kfunc int bpf_kfunc_implicit_arg_legacy(int a, int b, struct bpf_prog_aux *aux);
 __bpf_kfunc int bpf_kfunc_implicit_arg_legacy_impl(int a, int b, struct bpf_prog_aux *aux);
 
+/* hook targets */
+noinline void bpf_testmod_test_hardirq_fn(void) { barrier(); }
+noinline void bpf_testmod_test_softirq_fn(void) { barrier(); }
+
+/* Tasklet for SoftIRQ context */
+static void ctx_check_tasklet_fn(struct tasklet_struct *t)
+{
+	bpf_testmod_test_softirq_fn();
+}
+
+DECLARE_TASKLET(ctx_check_tasklet, ctx_check_tasklet_fn);
+
+/* IRQ Work for HardIRQ context */
+static void ctx_check_irq_fn(struct irq_work *work)
+{
+	bpf_testmod_test_hardirq_fn();
+	tasklet_schedule(&ctx_check_tasklet);
+}
+
+static struct irq_work ctx_check_irq = IRQ_WORK_INIT_HARD(ctx_check_irq_fn);
+
+/* The kfunc trigger */
+__bpf_kfunc void bpf_kfunc_trigger_ctx_check(void)
+{
+	irq_work_queue(&ctx_check_irq);
+}
+
 BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
@@ -1213,6 +1240,7 @@ BTF_ID_FLAGS(func, bpf_kfunc_multi_st_ops_test_1_assoc, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_kfunc_implicit_arg, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_kfunc_implicit_arg_legacy, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_kfunc_implicit_arg_legacy_impl)
+BTF_ID_FLAGS(func, bpf_kfunc_trigger_ctx_check)
 BTF_KFUNCS_END(bpf_testmod_check_kfunc_ids)
 
 static int bpf_testmod_ops_init(struct btf *btf)
@@ -1843,6 +1871,10 @@ static void bpf_testmod_exit(void)
          */
 	while (refcount_read(&prog_test_struct.cnt) > 1)
 		msleep(20);
+
+	/* Clean up irqwork and tasklet */
+	irq_work_sync(&ctx_check_irq);
+	tasklet_kill(&ctx_check_tasklet);
 
 	bpf_kfunc_close_sock();
 	sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
