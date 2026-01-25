@@ -501,7 +501,7 @@ static union recv_frame *portctrl(struct adapter *adapter, union recv_frame *pre
 {
 	u8 *psta_addr = NULL;
 	u8 *ptr;
-	uint  auth_alg;
+	unsigned int auth_alg;
 	struct recv_frame_hdr *pfhdr;
 	struct sta_info *psta;
 	struct sta_priv *pstapriv;
