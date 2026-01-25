@@ -210,7 +210,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "NMI", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "CPU%c1e", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "pct_idle", NULL, 0, 0, 0, NULL, 0 },
-	{ 0x0, "LLCkRPS", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "LLCMRPS", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "LLC%hit", NULL, 0, 0, 0, NULL, 0 },
 };
 
@@ -281,7 +281,7 @@ enum bic_names {
 	BIC_NMI,
 	BIC_CPU_c1e,
 	BIC_pct_idle,
-	BIC_LLC_RPS,
+	BIC_LLC_MRPS,
 	BIC_LLC_HIT,
 	MAX_BIC
 };
@@ -424,7 +424,7 @@ static void bic_groups_init(void)
 	SET_BIC(BIC_pct_idle, &bic_group_idle);
 
 	BIC_INIT(&bic_group_cache);
-	SET_BIC(BIC_LLC_RPS, &bic_group_cache);
+	SET_BIC(BIC_LLC_MRPS, &bic_group_cache);
 	SET_BIC(BIC_LLC_HIT, &bic_group_cache);
 
 	BIC_INIT(&bic_group_other);
@@ -2440,7 +2440,7 @@ static void bic_disable_msr_access(void)
 static void bic_disable_perf_access(void)
 {
 	CLR_BIC(BIC_IPC, &bic_enabled);
-	CLR_BIC(BIC_LLC_RPS, &bic_enabled);
+	CLR_BIC(BIC_LLC_MRPS, &bic_enabled);
 	CLR_BIC(BIC_LLC_HIT, &bic_enabled);
 }
 
@@ -2814,8 +2814,8 @@ void print_header(char *delim)
 	if (DO_BIC(BIC_SMI))
 		outp += sprintf(outp, "%sSMI", (printed++ ? delim : ""));
 
-	if (DO_BIC(BIC_LLC_RPS))
-		outp += sprintf(outp, "%sLLCkRPS", (printed++ ? delim : ""));
+	if (DO_BIC(BIC_LLC_MRPS))
+		outp += sprintf(outp, "%sLLCMRPS", (printed++ ? delim : ""));
 
 	if (DO_BIC(BIC_LLC_HIT))
 		outp += sprintf(outp, "%sLLC%%hit", (printed++ ? delim : ""));
@@ -3306,9 +3306,9 @@ int format_counters(PER_THREAD_PARAMS)
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->smi_count);
 
 	/* LLC Stats */
-	if (DO_BIC(BIC_LLC_RPS) || DO_BIC(BIC_LLC_HIT)) {
-		if (DO_BIC(BIC_LLC_RPS))
-			outp += sprintf(outp, "%s%.0f", (printed++ ? delim : ""), t->llc.references / interval_float / 1000);
+	if (DO_BIC(BIC_LLC_MRPS) || DO_BIC(BIC_LLC_HIT)) {
+		if (DO_BIC(BIC_LLC_MRPS))
+			outp += sprintf(outp, "%s%.0f", (printed++ ? delim : ""), t->llc.references / interval_float / 1000000);
 
 		if (DO_BIC(BIC_LLC_HIT))
 			outp += sprintf(outp, fmt8, (printed++ ? delim : ""), pct((t->llc.references - t->llc.misses), t->llc.references));
@@ -3855,7 +3855,7 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 	if (DO_BIC(BIC_SMI))
 		old->smi_count = new->smi_count - old->smi_count;
 
-	if (DO_BIC(BIC_LLC_RPS))
+	if (DO_BIC(BIC_LLC_MRPS))
 		old->llc.references = new->llc.references - old->llc.references;
 
 	if (DO_BIC(BIC_LLC_HIT))
@@ -5067,7 +5067,7 @@ int get_counters(PER_THREAD_PARAMS)
 
 	get_smi_aperf_mperf(cpu, t);
 
-	if (DO_BIC(BIC_LLC_RPS) || DO_BIC(BIC_LLC_HIT))
+	if (DO_BIC(BIC_LLC_MRPS) || DO_BIC(BIC_LLC_HIT))
 		get_perf_llc_stats(cpu, &t->llc);
 
 	if (DO_BIC(BIC_IPC))
@@ -8344,7 +8344,7 @@ void linux_perf_init(void)
 		if (fd_instr_count_percpu == NULL)
 			err(-1, "calloc fd_instr_count_percpu");
 	}
-	if (BIC_IS_ENABLED(BIC_LLC_RPS)) {
+	if (BIC_IS_ENABLED(BIC_LLC_MRPS)) {
 		fd_llc_percpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 		if (fd_llc_percpu == NULL)
 			err(-1, "calloc fd_llc_percpu");
@@ -9066,7 +9066,7 @@ void perf_llc_init(void)
 
 	if (no_perf)
 		return;
-	if (!(BIC_IS_ENABLED(BIC_LLC_RPS) && BIC_IS_ENABLED(BIC_LLC_HIT)))
+	if (!(BIC_IS_ENABLED(BIC_LLC_MRPS) && BIC_IS_ENABLED(BIC_LLC_HIT)))
 		return;
 
 	for (cpu = 0; cpu <= topo.max_cpu_num; ++cpu) {
@@ -9089,7 +9089,7 @@ void perf_llc_init(void)
 			return;
 		}
 	}
-	BIC_PRESENT(BIC_LLC_RPS);
+	BIC_PRESENT(BIC_LLC_MRPS);
 	BIC_PRESENT(BIC_LLC_HIT);
 }
 
@@ -9518,7 +9518,7 @@ void check_perf_access(void)
 		if (!has_perf_instr_count_access())
 			no_perf = 1;
 
-	if (BIC_IS_ENABLED(BIC_LLC_RPS) || BIC_IS_ENABLED(BIC_LLC_HIT))
+	if (BIC_IS_ENABLED(BIC_LLC_MRPS) || BIC_IS_ENABLED(BIC_LLC_HIT))
 		if (!has_perf_llc_access())
 			no_perf = 1;
 
