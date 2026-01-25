@@ -833,12 +833,6 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 	if (!(thread->mm && mmget_not_zero(thread->mm)))
 		return ERR_PTR(-EINVAL);
 
-	/* Only the pthreads threading model is supported. */
-	if (thread->group_leader->mm != thread->mm) {
-		mmput(thread->mm);
-		return ERR_PTR(-EINVAL);
-	}
-
 	/* If the process just called exec(3), it is possible that the
 	 * cleanup of the kfd_process (following the release of the mm
 	 * of the old process image) is still in the cleanup work queue.
@@ -916,10 +910,6 @@ struct kfd_process *kfd_get_process(const struct task_struct *thread)
 	struct kfd_process *process;
 
 	if (!thread->mm)
-		return ERR_PTR(-EINVAL);
-
-	/* Only the pthreads threading model is supported. */
-	if (thread->group_leader->mm != thread->mm)
 		return ERR_PTR(-EINVAL);
 
 	process = find_process(thread, false);
