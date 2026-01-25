@@ -6,17 +6,17 @@
 #include "xdp.h"
 #include "xsk.h"
 
-static int idpf_rxq_for_each(const struct idpf_vport *vport,
+static int idpf_rxq_for_each(const struct idpf_q_vec_rsrc *rsrc,
 			     int (*fn)(struct idpf_rx_queue *rxq, void *arg),
 			     void *arg)
 {
-	bool splitq = idpf_is_queue_model_split(vport->rxq_model);
+	bool splitq = idpf_is_queue_model_split(rsrc->rxq_model);
 
-	if (!vport->rxq_grps)
+	if (!rsrc->rxq_grps)
 		return -ENETDOWN;
 
-	for (u32 i = 0; i < vport->num_rxq_grp; i++) {
-		const struct idpf_rxq_group *rx_qgrp = &vport->rxq_grps[i];
+	for (u32 i = 0; i < rsrc->num_rxq_grp; i++) {
+		const struct idpf_rxq_group *rx_qgrp = &rsrc->rxq_grps[i];
 		u32 num_rxq;
 
 		if (splitq)
@@ -45,7 +45,8 @@ static int idpf_rxq_for_each(const struct idpf_vport *vport,
 static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 {
 	const struct idpf_vport *vport = rxq->q_vector->vport;
-	bool split = idpf_is_queue_model_split(vport->rxq_model);
+	const struct idpf_q_vec_rsrc *rsrc;
+	bool split;
 	int err;
 
 	err = __xdp_rxq_info_reg(&rxq->xdp_rxq, vport->netdev, rxq->idx,
@@ -53,6 +54,9 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 				 rxq->rx_buf_size);
 	if (err)
 		return err;
+
+	rsrc = &vport->dflt_qv_rsrc;
+	split = idpf_is_queue_model_split(rsrc->rxq_model);
 
 	if (idpf_queue_has(XSK, rxq)) {
 		err = xdp_rxq_info_reg_mem_model(&rxq->xdp_rxq,
@@ -70,7 +74,7 @@ static int __idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq, void *arg)
 	if (!split)
 		return 0;
 
-	rxq->xdpsqs = &vport->txqs[vport->xdp_txq_offset];
+	rxq->xdpsqs = &vport->txqs[rsrc->xdp_txq_offset];
 	rxq->num_xdp_txq = vport->num_xdp_txq;
 
 	return 0;
@@ -86,9 +90,9 @@ int idpf_xdp_rxq_info_init(struct idpf_rx_queue *rxq)
 	return __idpf_xdp_rxq_info_init(rxq, NULL);
 }
 
-int idpf_xdp_rxq_info_init_all(const struct idpf_vport *vport)
+int idpf_xdp_rxq_info_init_all(const struct idpf_q_vec_rsrc *rsrc)
 {
-	return idpf_rxq_for_each(vport, __idpf_xdp_rxq_info_init, NULL);
+	return idpf_rxq_for_each(rsrc, __idpf_xdp_rxq_info_init, NULL);
 }
 
 static int __idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, void *arg)
@@ -111,10 +115,10 @@ void idpf_xdp_rxq_info_deinit(struct idpf_rx_queue *rxq, u32 model)
 	__idpf_xdp_rxq_info_deinit(rxq, (void *)(size_t)model);
 }
 
-void idpf_xdp_rxq_info_deinit_all(const struct idpf_vport *vport)
+void idpf_xdp_rxq_info_deinit_all(const struct idpf_q_vec_rsrc *rsrc)
 {
-	idpf_rxq_for_each(vport, __idpf_xdp_rxq_info_deinit,
-			  (void *)(size_t)vport->rxq_model);
+	idpf_rxq_for_each(rsrc, __idpf_xdp_rxq_info_deinit,
+			  (void *)(size_t)rsrc->rxq_model);
 }
 
 static int idpf_xdp_rxq_assign_prog(struct idpf_rx_queue *rxq, void *arg)
@@ -132,10 +136,10 @@ static int idpf_xdp_rxq_assign_prog(struct idpf_rx_queue *rxq, void *arg)
 	return 0;
 }
 
-void idpf_xdp_copy_prog_to_rqs(const struct idpf_vport *vport,
+void idpf_xdp_copy_prog_to_rqs(const struct idpf_q_vec_rsrc *rsrc,
 			       struct bpf_prog *xdp_prog)
 {
-	idpf_rxq_for_each(vport, idpf_xdp_rxq_assign_prog, xdp_prog);
+	idpf_rxq_for_each(rsrc, idpf_xdp_rxq_assign_prog, xdp_prog);
 }
 
 static void idpf_xdp_tx_timer(struct work_struct *work);
@@ -165,7 +169,7 @@ int idpf_xdpsqs_get(const struct idpf_vport *vport)
 	}
 
 	dev = vport->netdev;
-	sqs = vport->xdp_txq_offset;
+	sqs = vport->dflt_qv_rsrc.xdp_txq_offset;
 
 	for (u32 i = sqs; i < vport->num_txq; i++) {
 		struct idpf_tx_queue *xdpsq = vport->txqs[i];
@@ -202,7 +206,7 @@ void idpf_xdpsqs_put(const struct idpf_vport *vport)
 		return;
 
 	dev = vport->netdev;
-	sqs = vport->xdp_txq_offset;
+	sqs = vport->dflt_qv_rsrc.xdp_txq_offset;
 
 	for (u32 i = sqs; i < vport->num_txq; i++) {
 		struct idpf_tx_queue *xdpsq = vport->txqs[i];
@@ -358,12 +362,15 @@ int idpf_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 {
 	const struct idpf_netdev_priv *np = netdev_priv(dev);
 	const struct idpf_vport *vport = np->vport;
+	u32 xdp_txq_offset;
 
 	if (unlikely(!netif_carrier_ok(dev) || !vport->link_up))
 		return -ENETDOWN;
 
+	xdp_txq_offset = vport->dflt_qv_rsrc.xdp_txq_offset;
+
 	return libeth_xdp_xmit_do_bulk(dev, n, frames, flags,
-				       &vport->txqs[vport->xdp_txq_offset],
+				       &vport->txqs[xdp_txq_offset],
 				       vport->num_xdp_txq,
 				       idpf_xdp_xmit_flush_bulk,
 				       idpf_xdp_tx_finalize);
@@ -397,7 +404,7 @@ static const struct xdp_metadata_ops idpf_xdpmo = {
 
 void idpf_xdp_set_features(const struct idpf_vport *vport)
 {
-	if (!idpf_is_queue_model_split(vport->rxq_model))
+	if (!idpf_is_queue_model_split(vport->dflt_qv_rsrc.rxq_model))
 		return;
 
 	libeth_xdp_set_features_noredir(vport->netdev, &idpf_xdpmo,
@@ -409,6 +416,7 @@ static int idpf_xdp_setup_prog(struct idpf_vport *vport,
 			       const struct netdev_bpf *xdp)
 {
 	const struct idpf_netdev_priv *np = netdev_priv(vport->netdev);
+	const struct idpf_q_vec_rsrc *rsrc = &vport->dflt_qv_rsrc;
 	struct bpf_prog *old, *prog = xdp->prog;
 	struct idpf_vport_config *cfg;
 	int ret;
@@ -419,7 +427,7 @@ static int idpf_xdp_setup_prog(struct idpf_vport *vport,
 	    !test_bit(IDPF_VPORT_REG_NETDEV, cfg->flags) ||
 	    !!vport->xdp_prog == !!prog) {
 		if (test_bit(IDPF_VPORT_UP, np->state))
-			idpf_xdp_copy_prog_to_rqs(vport, prog);
+			idpf_xdp_copy_prog_to_rqs(rsrc, prog);
 
 		old = xchg(&vport->xdp_prog, prog);
 		if (old)
@@ -464,7 +472,7 @@ int idpf_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	idpf_vport_ctrl_lock(dev);
 	vport = idpf_netdev_to_vport(dev);
 
-	if (!idpf_is_queue_model_split(vport->txq_model))
+	if (!idpf_is_queue_model_split(vport->dflt_qv_rsrc.txq_model))
 		goto notsupp;
 
 	switch (xdp->command) {
