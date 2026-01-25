@@ -1664,7 +1664,7 @@ static int logi_dj_dj_event(struct hid_device *hdev,
 		 * so ignore those reports too.
 		 */
 		if (dj_report->device_index != DJ_RECEIVER_INDEX)
-			hid_err(hdev, "%s: invalid device index:%d\n",
+			hid_err(hdev, "%s: invalid receiver index:%d\n",
 				__func__, dj_report->device_index);
 		return false;
 	}
