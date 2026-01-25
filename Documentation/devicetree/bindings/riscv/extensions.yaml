@@ -262,6 +262,23 @@ properties:
             ratified in RISC-V Profiles Version 1.0, with commit b1d806605f87
             ("Updated to ratified state.")
 
+        - const: supm
+          description: |
+            The standard Supm extension for pointer masking support in user
+            mode (U-mode) as ratified at commit d70011dde6c2 ("Update to
+            ratified state") of riscv-j-extension.
+
+            Supm represents a combination of underlying hardware capability
+            (Smnpm or Ssnpm), U-mode consumer privilege level, and M/S-mode
+            software configuration that enables pointer masking for U-mode.
+
+            DO NOT include this property in device trees targeting privileged
+            system software (S-mode or M-mode).
+
+            This property is only appropriate in device trees provided to
+            U-mode software where the next-higher-privilege-mode supports
+            Smnpm or Ssnpm and enables it for U-mode.
+
         - const: svade
           description: |
             The standard Svade supervisor-level extension for SW-managed PTE A/D
@@ -907,6 +924,16 @@ properties:
         then:
           contains:
             const: b
+      # Supm depends on Smnpm or Ssnpm
+      - if:
+          contains:
+            const: supm
+        then:
+          oneOf:
+            - contains:
+                const: smnpm
+            - contains:
+                const: ssnpm
       # Za64rs and Ziccrse depend on Zalrsc or A
       - if:
           contains:
