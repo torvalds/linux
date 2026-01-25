@@ -610,6 +610,8 @@ extern int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
 #define HARDIRQ_MASK	(__IRQ_MASK(HARDIRQ_BITS) << HARDIRQ_SHIFT)
 #define NMI_MASK	(__IRQ_MASK(NMI_BITS)     << NMI_SHIFT)
 
+#define SOFTIRQ_OFFSET	(1UL << SOFTIRQ_SHIFT)
+
 extern bool CONFIG_PREEMPT_RT __kconfig __weak;
 #ifdef bpf_target_x86
 extern const int __preempt_count __ksym;
@@ -648,4 +650,60 @@ static inline int bpf_in_interrupt(void)
 	       (tsk->softirq_disable_cnt & SOFTIRQ_MASK);
 }
 
+/* Description
+ *	Report whether it is in NMI context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_nmi(void)
+{
+	return get_preempt_count() & NMI_MASK;
+}
+
+/* Description
+ *	Report whether it is in hard IRQ context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_hardirq(void)
+{
+	return get_preempt_count() & HARDIRQ_MASK;
+}
+
+/* Description
+ *	Report whether it is in softirq context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_serving_softirq(void)
+{
+	struct task_struct___preempt_rt *tsk;
+	int pcnt;
+
+	pcnt = get_preempt_count();
+	if (!CONFIG_PREEMPT_RT)
+		return (pcnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET;
+
+	tsk = (void *) bpf_get_current_task_btf();
+	return (tsk->softirq_disable_cnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET;
+}
+
+/* Description
+ *	Report whether it is in task context. Only works on the following archs:
+ *	* x86
+ *	* arm64
+ */
+static inline int bpf_in_task(void)
+{
+	struct task_struct___preempt_rt *tsk;
+	int pcnt;
+
+	pcnt = get_preempt_count();
+	if (!CONFIG_PREEMPT_RT)
+		return !(pcnt & (NMI_MASK | HARDIRQ_MASK | SOFTIRQ_OFFSET));
+
+	tsk = (void *) bpf_get_current_task_btf();
+	return !((pcnt & (NMI_MASK | HARDIRQ_MASK)) |
+		 ((tsk->softirq_disable_cnt & SOFTIRQ_MASK) & SOFTIRQ_OFFSET));
+}
 #endif
