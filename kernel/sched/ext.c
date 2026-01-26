@@ -545,6 +545,7 @@ static void scx_task_iter_start(struct scx_task_iter *iter)
 static void __scx_task_iter_rq_unlock(struct scx_task_iter *iter)
 {
 	if (iter->locked_task) {
+		__balance_callbacks(iter->rq, &iter->rf);
 		task_rq_unlock(iter->rq, iter->locked_task, &iter->rf);
 		iter->locked_task = NULL;
 	}

@@ -165,16 +165,12 @@ static const struct reg_sequence sensor_1928x1092_30fps_setting[] = {
 	{0x3809, 0x88},
 	{0x380a, 0x04},
 	{0x380b, 0x44},
-	{0x3810, 0x00},
-	{0x3811, 0x02},
-	{0x3812, 0x00},
-	{0x3813, 0x02},
 	{0x3814, 0x01},
 	{0x3815, 0x01},
 	{0x3816, 0x01},
 	{0x3817, 0x01},
 
-	{0x3820, 0xa0},
+	{0x3820, 0xa8},
 	{0x3821, 0x00},
 	{0x3822, 0x80},
 	{0x3823, 0x08},
@@ -385,8 +381,6 @@ struct ov02c10 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
-	struct v4l2_ctrl *hflip;
-	struct v4l2_ctrl *vflip;
 
 	struct clk *img_clk;
 	struct gpio_desc *reset;
@@ -465,13 +459,17 @@ static int ov02c10_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_HFLIP:
+		cci_write(ov02c10->regmap, OV02C10_ISP_X_WIN_CONTROL,
+			  ctrl->val ? 2 : 1, &ret);
 		cci_update_bits(ov02c10->regmap, OV02C10_ROTATE_CONTROL,
-				BIT(3), ov02c10->hflip->val << 3, &ret);
+				BIT(3), ctrl->val ? 0 : BIT(3), &ret);
 		break;
 
 	case V4L2_CID_VFLIP:
+		cci_write(ov02c10->regmap, OV02C10_ISP_Y_WIN_CONTROL,
+			  ctrl->val ? 2 : 1, &ret);
 		cci_update_bits(ov02c10->regmap, OV02C10_ROTATE_CONTROL,
-				BIT(4), ov02c10->vflip->val << 4, &ret);
+				BIT(4), ctrl->val << 4, &ret);
 		break;
 
 	default:
@@ -549,15 +547,11 @@ static int ov02c10_init_controls(struct ov02c10 *ov02c10)
 					      OV02C10_EXPOSURE_STEP,
 					      exposure_max);
 
-	ov02c10->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops,
-					   V4L2_CID_HFLIP, 0, 1, 1, 0);
-	if (ov02c10->hflip)
-		ov02c10->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+	v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops, V4L2_CID_HFLIP,
+			  0, 1, 1, 0);
 
-	ov02c10->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops,
-					   V4L2_CID_VFLIP, 0, 1, 1, 0);
-	if (ov02c10->vflip)
-		ov02c10->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
+	v4l2_ctrl_new_std(ctrl_hdlr, &ov02c10_ctrl_ops, V4L2_CID_VFLIP,
+			  0, 1, 1, 0);
 
 	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &ov02c10_ctrl_ops,
 				     V4L2_CID_TEST_PATTERN,

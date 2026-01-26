@@ -611,7 +611,6 @@ mshv_partition_region_by_gfn(struct mshv_partition *partition, u64 gfn)
 	return NULL;
 }
 
-#ifdef CONFIG_X86_64
 static struct mshv_mem_region *
 mshv_partition_region_by_gfn_get(struct mshv_partition *p, u64 gfn)
 {
@@ -643,12 +642,17 @@ static bool mshv_handle_gpa_intercept(struct mshv_vp *vp)
 {
 	struct mshv_partition *p = vp->vp_partition;
 	struct mshv_mem_region *region;
-	struct hv_x64_memory_intercept_message *msg;
 	bool ret;
 	u64 gfn;
-
-	msg = (struct hv_x64_memory_intercept_message *)
+#if defined(CONFIG_X86_64)
+	struct hv_x64_memory_intercept_message *msg =
+		(struct hv_x64_memory_intercept_message *)
 		vp->vp_intercept_msg_page->u.payload;
+#elif defined(CONFIG_ARM64)
+	struct hv_arm64_memory_intercept_message *msg =
+		(struct hv_arm64_memory_intercept_message *)
+		vp->vp_intercept_msg_page->u.payload;
+#endif
 
 	gfn = HVPFN_DOWN(msg->guest_physical_address);
 
@@ -666,9 +670,6 @@ static bool mshv_handle_gpa_intercept(struct mshv_vp *vp)
 
 	return ret;
 }
-#else  /* CONFIG_X86_64 */
-static bool mshv_handle_gpa_intercept(struct mshv_vp *vp) { return false; }
-#endif /* CONFIG_X86_64 */
 
 static bool mshv_vp_handle_intercept(struct mshv_vp *vp)
 {
@@ -1280,7 +1281,7 @@ mshv_map_user_memory(struct mshv_partition *partition,
 	long ret;
 
 	if (mem.flags & BIT(MSHV_SET_MEM_BIT_UNMAP) ||
-	    !access_ok((const void *)mem.userspace_addr, mem.size))
+	    !access_ok((const void __user *)mem.userspace_addr, mem.size))
 		return -EINVAL;
 
 	mmap_read_lock(current->mm);

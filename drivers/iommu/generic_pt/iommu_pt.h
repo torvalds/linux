@@ -645,7 +645,7 @@ static __always_inline int __do_map_single_page(struct pt_range *range,
 	struct pt_iommu_map_args *map = arg;
 
 	pts.type = pt_load_single_entry(&pts);
-	if (level == 0) {
+	if (pts.level == 0) {
 		if (pts.type != PT_ENTRY_EMPTY)
 			return -EADDRINUSE;
 		pt_install_leaf_entry(&pts, map->oa, PAGE_SHIFT,

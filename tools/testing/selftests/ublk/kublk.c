@@ -753,7 +753,7 @@ static int ublk_thread_is_idle(struct ublk_thread *t)
 
 static int ublk_thread_is_done(struct ublk_thread *t)
 {
-	return (t->state & UBLKS_T_STOPPING) && ublk_thread_is_idle(t);
+	return (t->state & UBLKS_T_STOPPING) && ublk_thread_is_idle(t) && !t->cmd_inflight;
 }
 
 static inline void ublksrv_handle_tgt_cqe(struct ublk_thread *t,
@@ -1054,7 +1054,9 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	}
 	if (ret < 0) {
 		ublk_err("%s: ublk_ctrl_start_dev failed: %d\n", __func__, ret);
-		goto fail;
+		/* stop device so that inflight uring_cmd can be cancelled */
+		ublk_ctrl_stop_dev(dev);
+		goto fail_start;
 	}
 
 	ublk_ctrl_get_info(dev);
@@ -1062,7 +1064,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		ublk_ctrl_dump(dev);
 	else
 		ublk_send_dev_event(ctx, dev, dev->dev_info.dev_id);
-
+fail_start:
 	/* wait until we are terminated */
 	for (i = 0; i < dev->nthreads; i++)
 		pthread_join(tinfo[i].thread, &thread_ret);
@@ -1272,7 +1274,7 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	}
 
 	ret = ublk_start_daemon(ctx, dev);
-	ublk_dbg(UBLK_DBG_DEV, "%s: daemon exit %d\b", ret);
+	ublk_dbg(UBLK_DBG_DEV, "%s: daemon exit %d\n", __func__, ret);
 	if (ret < 0)
 		ublk_ctrl_del_dev(dev);
 
@@ -1618,6 +1620,7 @@ int main(int argc, char *argv[])
 	int option_idx, opt;
 	const char *cmd = argv[1];
 	struct dev_ctx ctx = {
+		._evtfd         =       -1,
 		.queue_depth	=	128,
 		.nr_hw_queues	=	2,
 		.dev_id		=	-1,

@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/processor.h>
 #include <linux/smp.h>
+#include <linux/sys_info.h>
 
 #include <asm/interrupt.h>
 #include <asm/paca.h>
@@ -235,7 +236,11 @@ static void watchdog_smp_panic(int cpu)
 	pr_emerg("CPU %d TB:%lld, last SMP heartbeat TB:%lld (%lldms ago)\n",
 		 cpu, tb, last_reset, tb_to_ns(tb - last_reset) / 1000000);
 
-	if (!sysctl_hardlockup_all_cpu_backtrace) {
+	if (sysctl_hardlockup_all_cpu_backtrace ||
+	    (hardlockup_si_mask & SYS_INFO_ALL_BT)) {
+		trigger_allbutcpu_cpu_backtrace(cpu);
+		cpumask_clear(&wd_smp_cpus_ipi);
+	} else {
 		/*
 		 * Try to trigger the stuck CPUs, unless we are going to
 		 * get a backtrace on all of them anyway.
@@ -244,11 +249,9 @@ static void watchdog_smp_panic(int cpu)
 			smp_send_nmi_ipi(c, wd_lockup_ipi, 1000000);
 			__cpumask_clear_cpu(c, &wd_smp_cpus_ipi);
 		}
-	} else {
-		trigger_allbutcpu_cpu_backtrace(cpu);
-		cpumask_clear(&wd_smp_cpus_ipi);
 	}
 
+	sys_info(hardlockup_si_mask & ~SYS_INFO_ALL_BT);
 	if (hardlockup_panic)
 		nmi_panic(NULL, "Hard LOCKUP");
 
@@ -415,9 +418,11 @@ DEFINE_INTERRUPT_HANDLER_NMI(soft_nmi_interrupt)
 
 		xchg(&__wd_nmi_output, 1); // see wd_lockup_ipi
 
-		if (sysctl_hardlockup_all_cpu_backtrace)
+		if (sysctl_hardlockup_all_cpu_backtrace ||
+		    (hardlockup_si_mask & SYS_INFO_ALL_BT))
 			trigger_allbutcpu_cpu_backtrace(cpu);
 
+		sys_info(hardlockup_si_mask & ~SYS_INFO_ALL_BT);
 		if (hardlockup_panic)
 			nmi_panic(regs, "Hard LOCKUP");
 
