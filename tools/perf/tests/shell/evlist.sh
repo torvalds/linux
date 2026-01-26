@@ -21,13 +21,13 @@ trap trap_cleanup EXIT TERM INT
 
 test_evlist_simple() {
 	echo "Simple evlist test"
-	if ! perf record -e cycles -o "${perfdata}" true 2> /dev/null
+	if ! perf record -e cpu-clock -o "${perfdata}" true 2> /dev/null
 	then
 		echo "Simple evlist [Failed record]"
 		err=1
 		return
 	fi
-	if ! perf evlist -i "${perfdata}" | grep -q "cycles"
+	if ! perf evlist -i "${perfdata}" | grep -q "cpu-clock"
 	then
 		echo "Simple evlist [Failed to list event]"
 		err=1
