@@ -51,8 +51,7 @@ void clear_page(void *page);
 #define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
 
 #define clear_user_page(pgaddr, vaddr, page)	clear_page(pgaddr)
-#define copy_user_page(vto, vfrom, vaddr, topg) \
-			memcpy((vto), (vfrom), PAGE_SIZE)
+#define copy_user_page(vto, vfrom, vaddr, topg) copy_page(vto, vfrom)
 
 /*
  * Use struct definitions to apply C type checking
