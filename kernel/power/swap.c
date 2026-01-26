@@ -902,8 +902,8 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			if (data[thr].cr)
-				acomp_request_free(data[thr].cr);
+
+			acomp_request_free(data[thr].cr);
 
 			if (!IS_ERR_OR_NULL(data[thr].cc))
 				crypto_free_acomp(data[thr].cc);
@@ -1502,8 +1502,8 @@ out_clean:
 		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
-			if (data[thr].cr)
-				acomp_request_free(data[thr].cr);
+
+			acomp_request_free(data[thr].cr);
 
 			if (!IS_ERR_OR_NULL(data[thr].cc))
 				crypto_free_acomp(data[thr].cc);
