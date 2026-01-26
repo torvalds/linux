@@ -8,17 +8,20 @@ ALL_TESTS="
 "
 DEV=$1
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 ##############################################################################
 # Sanity checks
 
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 if [[ "$DEV" == "" ]]; then
 	echo "SKIP: PTP device not provided"
-	exit 0
+	exit $ksft_skip
 fi
 
 require_command()
@@ -27,7 +30,7 @@ require_command()
 
 	if [[ ! -x "$(command -v "$cmd")" ]]; then
 		echo "SKIP: $cmd not installed"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
@@ -37,7 +40,7 @@ phc_sanity()
 
 	if [ $? != 0 ]; then
 		echo "SKIP: unknown clock $DEV: No such device"
-		exit 1
+		exit $ksft_skip
 	fi
 }
 
