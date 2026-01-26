@@ -1266,6 +1266,185 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 	return bio_iov_iter_align_down(bio, iter, len_align_mask);
 }
 
+static struct folio *folio_alloc_greedy(gfp_t gfp, size_t *size)
+{
+	struct folio *folio;
+
+	while (*size > PAGE_SIZE) {
+		folio = folio_alloc(gfp | __GFP_NORETRY, get_order(*size));
+		if (folio)
+			return folio;
+		*size = rounddown_pow_of_two(*size - 1);
+	}
+
+	return folio_alloc(gfp, get_order(*size));
+}
+
+static void bio_free_folios(struct bio *bio)
+{
+	struct bio_vec *bv;
+	int i;
+
+	bio_for_each_bvec_all(bv, bio, i) {
+		struct folio *folio = page_folio(bv->bv_page);
+
+		if (!is_zero_folio(folio))
+			folio_put(folio);
+	}
+}
+
+static int bio_iov_iter_bounce_write(struct bio *bio, struct iov_iter *iter)
+{
+	size_t total_len = iov_iter_count(iter);
+
+	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+		return -EINVAL;
+	if (WARN_ON_ONCE(bio->bi_iter.bi_size))
+		return -EINVAL;
+	if (WARN_ON_ONCE(bio->bi_vcnt >= bio->bi_max_vecs))
+		return -EINVAL;
+
+	do {
+		size_t this_len = min(total_len, SZ_1M);
+		struct folio *folio;
+
+		if (this_len > PAGE_SIZE * 2)
+			this_len = rounddown_pow_of_two(this_len);
+
+		if (bio->bi_iter.bi_size > BIO_MAX_SIZE - this_len)
+			break;
+
+		folio = folio_alloc_greedy(GFP_KERNEL, &this_len);
+		if (!folio)
+			break;
+		bio_add_folio_nofail(bio, folio, this_len, 0);
+
+		if (copy_from_iter(folio_address(folio), this_len, iter) !=
+				this_len) {
+			bio_free_folios(bio);
+			return -EFAULT;
+		}
+
+		total_len -= this_len;
+	} while (total_len && bio->bi_vcnt < bio->bi_max_vecs);
+
+	if (!bio->bi_iter.bi_size)
+		return -ENOMEM;
+	return 0;
+}
+
+static int bio_iov_iter_bounce_read(struct bio *bio, struct iov_iter *iter)
+{
+	size_t len = min(iov_iter_count(iter), SZ_1M);
+	struct folio *folio;
+
+	folio = folio_alloc_greedy(GFP_KERNEL, &len);
+	if (!folio)
+		return -ENOMEM;
+
+	do {
+		ssize_t ret;
+
+		ret = iov_iter_extract_bvecs(iter, bio->bi_io_vec + 1, len,
+				&bio->bi_vcnt, bio->bi_max_vecs - 1, 0);
+		if (ret <= 0) {
+			if (!bio->bi_vcnt)
+				return ret;
+			break;
+		}
+		len -= ret;
+		bio->bi_iter.bi_size += ret;
+	} while (len && bio->bi_vcnt < bio->bi_max_vecs - 1);
+
+	/*
+	 * Set the folio directly here.  The above loop has already calculated
+	 * the correct bi_size, and we use bi_vcnt for the user buffers.  That
+	 * is safe as bi_vcnt is only used by the submitter and not the actual
+	 * I/O path.
+	 */
+	bvec_set_folio(&bio->bi_io_vec[0], folio, bio->bi_iter.bi_size, 0);
+	if (iov_iter_extract_will_pin(iter))
+		bio_set_flag(bio, BIO_PAGE_PINNED);
+	return 0;
+}
+
+/**
+ * bio_iov_iter_bounce - bounce buffer data from an iter into a bio
+ * @bio:	bio to send
+ * @iter:	iter to read from / write into
+ *
+ * Helper for direct I/O implementations that need to bounce buffer because
+ * we need to checksum the data or perform other operations that require
+ * consistency.  Allocates folios to back the bounce buffer, and for writes
+ * copies the data into it.  Needs to be paired with bio_iov_iter_unbounce()
+ * called on completion.
+ */
+int bio_iov_iter_bounce(struct bio *bio, struct iov_iter *iter)
+{
+	if (op_is_write(bio_op(bio)))
+		return bio_iov_iter_bounce_write(bio, iter);
+	return bio_iov_iter_bounce_read(bio, iter);
+}
+
+static void bvec_unpin(struct bio_vec *bv, bool mark_dirty)
+{
+	struct folio *folio = page_folio(bv->bv_page);
+	size_t nr_pages = (bv->bv_offset + bv->bv_len - 1) / PAGE_SIZE -
+			bv->bv_offset / PAGE_SIZE + 1;
+
+	if (mark_dirty)
+		folio_mark_dirty_lock(folio);
+	unpin_user_folio(folio, nr_pages);
+}
+
+static void bio_iov_iter_unbounce_read(struct bio *bio, bool is_error,
+		bool mark_dirty)
+{
+	unsigned int len = bio->bi_io_vec[0].bv_len;
+
+	if (likely(!is_error)) {
+		void *buf = bvec_virt(&bio->bi_io_vec[0]);
+		struct iov_iter to;
+
+		iov_iter_bvec(&to, ITER_DEST, bio->bi_io_vec + 1, bio->bi_vcnt,
+				len);
+		/* copying to pinned pages should always work */
+		WARN_ON_ONCE(copy_to_iter(buf, len, &to) != len);
+	} else {
+		/* No need to mark folios dirty if never copied to them */
+		mark_dirty = false;
+	}
+
+	if (bio_flagged(bio, BIO_PAGE_PINNED)) {
+		int i;
+
+		for (i = 0; i < bio->bi_vcnt; i++)
+			bvec_unpin(&bio->bi_io_vec[1 + i], mark_dirty);
+	}
+
+	folio_put(page_folio(bio->bi_io_vec[0].bv_page));
+}
+
+/**
+ * bio_iov_iter_unbounce - finish a bounce buffer operation
+ * @bio:	completed bio
+ * @is_error:	%true if an I/O error occurred and data should not be copied
+ * @mark_dirty:	If %true, folios will be marked dirty.
+ *
+ * Helper for direct I/O implementations that need to bounce buffer because
+ * we need to checksum the data or perform other operations that require
+ * consistency.  Called to complete a bio set up by bio_iov_iter_bounce().
+ * Copies data back for reads, and marks the original folios dirty if
+ * requested and then frees the bounce buffer.
+ */
+void bio_iov_iter_unbounce(struct bio *bio, bool is_error, bool mark_dirty)
+{
+	if (op_is_write(bio_op(bio)))
+		bio_free_folios(bio);
+	else
+		bio_iov_iter_unbounce_read(bio, is_error, mark_dirty);
+}
+
 static void submit_bio_wait_endio(struct bio *bio)
 {
 	complete(bio->bi_private);
