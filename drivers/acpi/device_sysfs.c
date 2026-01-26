@@ -27,7 +27,7 @@ static ssize_t acpi_object_path(acpi_handle handle, char *buf)
 	if (result)
 		return result;
 
-	result = sprintf(buf, "%s\n", (char *)path.pointer);
+	result = sysfs_emit(buf, "%s\n", (char *)path.pointer);
 	kfree(path.pointer);
 	return result;
 }
@@ -347,7 +347,7 @@ static ssize_t real_power_state_show(struct device *dev,
 	if (ret)
 		return ret;
 
-	return sprintf(buf, "%s\n", acpi_power_state_string(state));
+	return sysfs_emit(buf, "%s\n", acpi_power_state_string(state));
 }
 
 static DEVICE_ATTR_RO(real_power_state);
@@ -357,7 +357,7 @@ static ssize_t power_state_show(struct device *dev,
 {
 	struct acpi_device *adev = to_acpi_device(dev);
 
-	return sprintf(buf, "%s\n", acpi_power_state_string(adev->power.state));
+	return sysfs_emit(buf, "%s\n", acpi_power_state_string(adev->power.state));
 }
 
 static DEVICE_ATTR_RO(power_state);
@@ -399,7 +399,7 @@ hid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	return sprintf(buf, "%s\n", acpi_device_hid(acpi_dev));
+	return sysfs_emit(buf, "%s\n", acpi_device_hid(acpi_dev));
 }
 static DEVICE_ATTR_RO(hid);
 
@@ -435,7 +435,7 @@ static ssize_t uid_show(struct device *dev,
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	return sprintf(buf, "%s\n", acpi_device_uid(acpi_dev));
+	return sysfs_emit(buf, "%s\n", acpi_device_uid(acpi_dev));
 }
 static DEVICE_ATTR_RO(uid);
 
@@ -445,9 +445,9 @@ static ssize_t adr_show(struct device *dev,
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	if (acpi_dev->pnp.bus_address > U32_MAX)
-		return sprintf(buf, "0x%016llx\n", acpi_dev->pnp.bus_address);
+		return sysfs_emit(buf, "0x%016llx\n", acpi_dev->pnp.bus_address);
 	else
-		return sprintf(buf, "0x%08llx\n", acpi_dev->pnp.bus_address);
+		return sysfs_emit(buf, "0x%08llx\n", acpi_dev->pnp.bus_address);
 }
 static DEVICE_ATTR_RO(adr);
 
@@ -509,7 +509,7 @@ sun_show(struct device *dev, struct device_attribute *attr,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	return sprintf(buf, "%llu\n", sun);
+	return sysfs_emit(buf, "%llu\n", sun);
 }
 static DEVICE_ATTR_RO(sun);
 
@@ -525,7 +525,7 @@ hrv_show(struct device *dev, struct device_attribute *attr,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	return sprintf(buf, "%llu\n", hrv);
+	return sysfs_emit(buf, "%llu\n", hrv);
 }
 static DEVICE_ATTR_RO(hrv);
 
@@ -540,7 +540,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	return sprintf(buf, "%llu\n", sta);
+	return sysfs_emit(buf, "%llu\n", sta);
 }
 static DEVICE_ATTR_RO(status);
 
