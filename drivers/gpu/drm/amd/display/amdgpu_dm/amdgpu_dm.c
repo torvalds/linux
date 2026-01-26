@@ -13149,6 +13149,7 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 	u8 *edid_ext = NULL;
 	int i;
 	int j = 0;
+	int total_ext_block_len;
 
 	if (edid == NULL || edid->extensions == 0)
 		return -ENODEV;
@@ -13160,7 +13161,8 @@ static int parse_amd_vsdb(struct amdgpu_dm_connector *aconnector,
 			break;
 	}
 
-	while (j < EDID_LENGTH - sizeof(struct amd_vsdb_block)) {
+	total_ext_block_len = EDID_LENGTH * edid->extensions;
+	while (j < total_ext_block_len - sizeof(struct amd_vsdb_block)) {
 		struct amd_vsdb_block *amd_vsdb = (struct amd_vsdb_block *)&edid_ext[j];
 		unsigned int ieeeId = (amd_vsdb->ieee_id[2] << 16) | (amd_vsdb->ieee_id[1] << 8) | (amd_vsdb->ieee_id[0]);
 
