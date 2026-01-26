@@ -9,7 +9,7 @@ title: Samsung Exynos SoC G-Scaler
 maintainers:
   - Inki Dae <inki.dae@samsung.com>
   - Krzysztof Kozlowski <krzk@kernel.org>
-  - Seung-Woo Kim <sw0312.kim@samsung.com
+  - Seung-Woo Kim <sw0312.kim@samsung.com>
 
 description:
   G-Scaler is used for scaling and color space conversion on Samsung Exynos
