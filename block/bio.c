@@ -1216,7 +1216,7 @@ static unsigned int get_contig_folio_len(struct page **pages,
  * For a multi-segment *iter, this function only adds pages from the next
  * non-empty segment of the iov iterator.
  */
-static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
+static ssize_t __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
 	iov_iter_extraction_t extraction_flags = 0;
 	unsigned short nr_pages = bio->bi_max_vecs - bio->bi_vcnt;
@@ -1226,7 +1226,6 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	ssize_t size;
 	unsigned int i = 0;
 	size_t offset, left, len;
-	int ret = 0;
 
 	/*
 	 * Move page array up in the allocated memory for the bio vecs as far as
@@ -1247,37 +1246,26 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 
 	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
 	for (left = size; left > 0; left -= len) {
-		unsigned int old_vcnt = bio->bi_vcnt;
 		unsigned int nr_to_add;
 
-		len = get_contig_folio_len(&pages[i], &nr_to_add, left, offset);
-		if (!bio_add_page(bio, pages[i], len, offset)) {
-			WARN_ON_ONCE(1);
-			ret = -EINVAL;
-			goto out;
+		if (bio->bi_vcnt > 0) {
+			struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+			if (!zone_device_pages_have_same_pgmap(prev->bv_page,
+					pages[i]))
+				break;
 		}
 
-		if (bio_flagged(bio, BIO_PAGE_PINNED)) {
-			/*
-			 * We're adding another fragment of a page that already
-			 * was part of the last segment.  Undo our pin as the
-			 * page was pinned when an earlier fragment of it was
-			 * added to the bio and __bio_release_pages expects a
-			 * single pin per page.
-			 */
-			if (offset && bio->bi_vcnt == old_vcnt)
-				unpin_user_folio(page_folio(pages[i]), 1);
-		}
+		len = get_contig_folio_len(&pages[i], &nr_to_add, left, offset);
+		__bio_add_page(bio, pages[i], len, offset);
 		i += nr_to_add;
 		offset = 0;
 	}
 
 	iov_iter_revert(iter, left);
-out:
 	while (i < nr_pages)
 		bio_release_page(bio, pages[i++]);
-
-	return ret;
+	return size - left;
 }
 
 /*
@@ -1337,7 +1325,7 @@ static int bio_iov_iter_align_down(struct bio *bio, struct iov_iter *iter,
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 			   unsigned len_align_mask)
 {
-	int ret = 0;
+	ssize_t ret;
 
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return -EIO;
@@ -1350,9 +1338,10 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 
 	if (iov_iter_extract_will_pin(iter))
 		bio_set_flag(bio, BIO_PAGE_PINNED);
+
 	do {
 		ret = __bio_iov_iter_get_pages(bio, iter);
-	} while (!ret && iov_iter_count(iter) && !bio_full(bio, 0));
+	} while (ret > 0 && iov_iter_count(iter) && !bio_full(bio, 0));
 
 	if (bio->bi_vcnt)
 		return bio_iov_iter_align_down(bio, iter, len_align_mask);
