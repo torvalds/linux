@@ -333,10 +333,10 @@ bool dp_pr_copy_settings(struct dc_link *link, struct replay_context *replay_con
 			pipe_ctx->stream->timing.dsc_cfg.num_slices_v;
 
 	if (dc_is_embedded_signal(link->connector_signal))
-		cmd.pr_copy_settings.data.main_link_activity_option = 0x03;//OPTION_1C;
+		cmd.pr_copy_settings.data.main_link_activity_option = OPTION_1C;
 	else
 		// For external DP, use option 1-A
-		cmd.pr_copy_settings.data.main_link_activity_option = 0x01;//OPTION_1A;
+		cmd.pr_copy_settings.data.main_link_activity_option = OPTION_1A;
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
