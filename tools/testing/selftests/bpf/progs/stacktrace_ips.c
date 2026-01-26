@@ -53,4 +53,24 @@ int rawtp_test(void *ctx)
 	return 0;
 }
 
+SEC("fentry/bpf_testmod_stacktrace_test")
+int fentry_test(struct pt_regs *ctx)
+{
+	/*
+	 * Skip 2 bpf_program/trampoline stack entries:
+	 * - bpf_prog_bd1f7a949f55fb03_fentry_test
+	 * - bpf_trampoline_182536277701
+	 */
+	stack_key = bpf_get_stackid(ctx, &stackmap, 2);
+	return 0;
+}
+
+SEC("fexit/bpf_testmod_stacktrace_test")
+int fexit_test(struct pt_regs *ctx)
+{
+	/* Skip 2 bpf_program/trampoline stack entries, check fentry_test. */
+	stack_key = bpf_get_stackid(ctx, &stackmap, 2);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
