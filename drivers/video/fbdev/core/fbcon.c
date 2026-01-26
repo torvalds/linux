@@ -1608,12 +1608,10 @@ static void fbcon_redraw_move(struct vc_data *vc, struct fbcon_display *p,
 					start = s;
 				}
 			}
-			console_conditional_schedule();
 			s++;
 		} while (s < le);
 		if (s > start)
 			fbcon_putcs(vc, start, s - start, dy, x);
-		console_conditional_schedule();
 		dy++;
 	}
 }
@@ -1649,14 +1647,12 @@ static void fbcon_redraw_blit(struct vc_data *vc, struct fb_info *info,
 			}
 
 			scr_writew(c, d);
-			console_conditional_schedule();
 			s++;
 			d++;
 		} while (s < le);
 		if (s > start)
 			par->bitops->bmove(vc, info, line + ycount, x, line, x, 1,
 					     s - start);
-		console_conditional_schedule();
 		if (ycount > 0)
 			line++;
 		else {
@@ -1704,13 +1700,11 @@ static void fbcon_redraw(struct vc_data *vc, int line, int count, int offset)
 				}
 			}
 			scr_writew(c, d);
-			console_conditional_schedule();
 			s++;
 			d++;
 		} while (s < le);
 		if (s > start)
 			fbcon_putcs(vc, start, s - start, line, x);
-		console_conditional_schedule();
 		if (offset > 0)
 			line++;
 		else {
