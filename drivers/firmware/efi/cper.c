@@ -162,7 +162,7 @@ int cper_bits_to_str(char *buf, int buf_size, unsigned long bits,
 		len -= size;
 		str += size;
 	}
-	return len - buf_size;
+	return buf_size - len;
 }
 EXPORT_SYMBOL_GPL(cper_bits_to_str);
 

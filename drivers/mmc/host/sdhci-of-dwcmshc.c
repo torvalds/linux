@@ -739,6 +739,13 @@ static void dwcmshc_rk3568_set_clock(struct sdhci_host *host, unsigned int clock
 	sdhci_writel(host, extra, reg);
 
 	if (clock <= 52000000) {
+		if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
+		    host->mmc->ios.timing == MMC_TIMING_MMC_HS400) {
+			dev_err(mmc_dev(host->mmc),
+				"Can't reduce the clock below 52MHz in HS200/HS400 mode");
+			return;
+		}
+
 		/*
 		 * Disable DLL and reset both of sample and drive clock.
 		 * The bypass bit and start bit need to be set if DLL is not locked.
@@ -1588,6 +1595,7 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 {
 	u32 emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
 	unsigned int val, hsp_int_status, hsp_pwr_ctrl;
+	static const char * const clk_ids[] = {"axi"};
 	struct of_phandle_args args;
 	struct eic7700_priv *priv;
 	struct regmap *hsp_regmap;
@@ -1604,6 +1612,11 @@ static int eic7700_init(struct device *dev, struct sdhci_host *host, struct dwcm
 		dev_err(dev, "failed to reset\n");
 		return ret;
 	}
+
+	ret = dwcmshc_get_enable_other_clks(mmc_dev(host->mmc), dwc_priv,
+					    ARRAY_SIZE(clk_ids), clk_ids);
+	if (ret)
+		return ret;
 
 	ret = of_parse_phandle_with_fixed_args(dev->of_node, "eswin,hsp-sp-csr", 2, 0, &args);
 	if (ret) {
@@ -1726,6 +1739,7 @@ static const struct sdhci_ops sdhci_dwcmshc_eic7700_ops = {
 	.set_uhs_signaling = sdhci_eic7700_set_uhs_wrapper,
 	.set_power = sdhci_set_power_and_bus_voltage,
 	.irq = dwcmshc_cqe_irq_handler,
+	.adma_write_desc = dwcmshc_adma_write_desc,
 	.platform_execute_tuning = sdhci_eic7700_executing_tuning,
 };
 

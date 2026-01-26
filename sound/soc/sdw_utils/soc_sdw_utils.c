@@ -841,6 +841,19 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_part(const u64 adr)
 }
 EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_part, "SND_SOC_SDW_UTILS");
 
+static struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_sdw_id(const struct sdw_slave_id *id)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
+		if (id->part_id == codec_info_list[i].part_id &&
+		    (!codec_info_list[i].version_id ||
+		     id->sdw_version == codec_info_list[i].version_id))
+			return &codec_info_list[i];
+
+	return NULL;
+}
+
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_acpi(const u8 *acpi_id)
 {
 	int i;
@@ -873,21 +886,45 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_dai(const char *dai_name, i
 }
 EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_dai, "SND_SOC_SDW_UTILS");
 
+static int asoc_sdw_find_codec_info_dai_index(const struct asoc_sdw_codec_info *codec_info,
+					      const char *dai_name)
+{
+	int i;
+
+	for (i = 0; i < codec_info->dai_num; i++) {
+		if (!strcmp(codec_info->dais[i].dai_name, dai_name))
+			return i;
+	}
+
+	return -ENOENT;
+}
+
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dapm_context *dapm = snd_soc_card_to_dapm(card);
 	struct asoc_sdw_codec_info *codec_info;
 	struct snd_soc_dai *dai;
+	struct sdw_slave *sdw_peripheral;
 	const char *spk_components="";
 	int dai_index;
 	int ret;
 	int i;
 
 	for_each_rtd_codec_dais(rtd, i, dai) {
-		codec_info = asoc_sdw_find_codec_info_dai(dai->name, &dai_index);
+		if (is_sdw_slave(dai->component->dev))
+			sdw_peripheral = dev_to_sdw_dev(dai->component->dev);
+		else if (dai->component->dev->parent && is_sdw_slave(dai->component->dev->parent))
+			sdw_peripheral = dev_to_sdw_dev(dai->component->dev->parent);
+		else
+			continue;
+
+		codec_info = asoc_sdw_find_codec_info_sdw_id(&sdw_peripheral->id);
 		if (!codec_info)
 			return -EINVAL;
+
+		dai_index = asoc_sdw_find_codec_info_dai_index(codec_info, dai->name);
+		WARN_ON(dai_index < 0);
 
 		/*
 		 * A codec dai can be connected to different dai links for capture and playback,
@@ -897,6 +934,10 @@ int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 		 */
 		if (codec_info->dais[dai_index].rtd_init_done)
 			continue;
+
+		dev_dbg(card->dev, "%#x/%s initializing for %s/%s\n",
+			codec_info->part_id, codec_info->dais[dai_index].dai_name,
+			dai->component->name, dai->name);
 
 		/*
 		 * Add card controls and dapm widgets for the first codec dai.
