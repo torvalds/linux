@@ -256,12 +256,6 @@ static inline struct folio *bio_first_folio_all(struct bio *bio)
 	return page_folio(bio_first_page_all(bio));
 }
 
-static inline struct bio_vec *bio_last_bvec_all(struct bio *bio)
-{
-	WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED));
-	return &bio->bi_io_vec[bio->bi_vcnt - 1];
-}
-
 /**
  * struct folio_iter - State for iterating all folios in a bio.
  * @folio: The current folio we're iterating.  NULL after the last folio.
