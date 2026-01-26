@@ -7,9 +7,9 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: CoreSight TMC Control Unit
 
 maintainers:
-  - Yuanfang Zhang <quic_yuanfang@quicinc.com>
-  - Mao Jinlong <quic_jinlmao@quicinc.com>
-  - Jie Gan <quic_jiegan@quicinc.com>
+  - Yuanfang Zhang <yuanfang.zhang@oss.qualcomm.com>
+  - Mao Jinlong <jinlong.mao@oss.qualcomm.com>
+  - Jie Gan <jie.gan@oss.qualcomm.com>
 
 description: |
   The Trace Memory Controller(TMC) is used for Embedded Trace Buffer(ETB),
@@ -26,8 +26,13 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - qcom,sa8775p-ctcu
+    oneOf:
+      - items:
+          - enum:
+              - qcom,qcs8300-ctcu
+          - const: qcom,sa8775p-ctcu
+      - enum:
+          - qcom,sa8775p-ctcu
 
   reg:
     maxItems: 1
