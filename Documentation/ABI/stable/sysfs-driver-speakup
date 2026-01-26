@@ -23,8 +23,7 @@ What:		/sys/accessibility/speakup/bleep_time
 KernelVersion:	2.6
 Contact:	speakup@linux-speakup.org
 Description:	This controls the duration of the PC speaker beeps speakup
-		produces.
-		TODO: What are the units? Jiffies?
+		produces, in milliseconds.
 
 What:		/sys/accessibility/speakup/cursor_time
 KernelVersion:	2.6
