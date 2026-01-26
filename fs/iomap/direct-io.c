@@ -214,7 +214,15 @@ static void iomap_dio_done(struct iomap_dio *dio)
 static void __iomap_dio_bio_end_io(struct bio *bio, bool inline_completion)
 {
 	struct iomap_dio *dio = bio->bi_private;
-	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
+
+	if (dio->flags & IOMAP_DIO_DIRTY) {
+		bio_check_pages_dirty(bio);
+	} else {
+		bio_release_pages(bio, false);
+		bio_put(bio);
+	}
+
+	/* Do not touch bio below, we just gave up our reference. */
 
 	if (atomic_dec_and_test(&dio->ref)) {
 		/*
@@ -224,13 +232,6 @@ static void __iomap_dio_bio_end_io(struct bio *bio, bool inline_completion)
 		if (inline_completion)
 			dio->flags &= ~IOMAP_DIO_COMP_WORK;
 		iomap_dio_done(dio);
-	}
-
-	if (should_dirty) {
-		bio_check_pages_dirty(bio);
-	} else {
-		bio_release_pages(bio, false);
-		bio_put(bio);
 	}
 }
 
