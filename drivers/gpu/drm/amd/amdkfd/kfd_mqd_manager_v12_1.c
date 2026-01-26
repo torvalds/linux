@@ -145,9 +145,10 @@ static void set_priority(struct v12_1_compute_mqd *m, struct queue_properties *q
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
+static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		struct queue_properties *q)
 {
+	struct kfd_node *node = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj;
 	unsigned int size;
 
