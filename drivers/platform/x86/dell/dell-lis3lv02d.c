@@ -44,6 +44,7 @@ static const struct dmi_system_id lis3lv02d_devices[] __initconst = {
 	/*
 	 * Additional individual entries were added after verification.
 	 */
+	DELL_LIS3LV02D_DMI_ENTRY("Latitude 5400",      0x29),
 	DELL_LIS3LV02D_DMI_ENTRY("Latitude 5480",      0x29),
 	DELL_LIS3LV02D_DMI_ENTRY("Latitude 5500",      0x29),
 	DELL_LIS3LV02D_DMI_ENTRY("Latitude E6330",     0x29),
