@@ -281,7 +281,8 @@ struct bio {
 };
 
 #define BIO_RESET_BYTES		offsetof(struct bio, bi_max_vecs)
-#define BIO_MAX_SECTORS		(UINT_MAX >> SECTOR_SHIFT)
+#define BIO_MAX_SIZE		UINT_MAX /* max value of bi_iter.bi_size */
+#define BIO_MAX_SECTORS		(BIO_MAX_SIZE >> SECTOR_SHIFT)
 
 static inline struct bio_vec *bio_inline_vecs(struct bio *bio)
 {
