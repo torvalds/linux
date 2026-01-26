@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/sched/isolation.h>
+#include <linux/hex.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
