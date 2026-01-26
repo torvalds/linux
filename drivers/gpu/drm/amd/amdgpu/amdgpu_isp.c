@@ -318,12 +318,36 @@ void isp_kernel_buffer_free(void **buf_obj, u64 *gpu_addr, void **cpu_addr)
 }
 EXPORT_SYMBOL(isp_kernel_buffer_free);
 
+static int isp_resume(struct amdgpu_ip_block *ip_block)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_isp *isp = &adev->isp;
+
+	if (isp->funcs->hw_resume)
+		return isp->funcs->hw_resume(isp);
+
+	return -ENODEV;
+}
+
+static int isp_suspend(struct amdgpu_ip_block *ip_block)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_isp *isp = &adev->isp;
+
+	if (isp->funcs->hw_suspend)
+		return isp->funcs->hw_suspend(isp);
+
+	return -ENODEV;
+}
+
 static const struct amd_ip_funcs isp_ip_funcs = {
 	.name = "isp_ip",
 	.early_init = isp_early_init,
 	.hw_init = isp_hw_init,
 	.hw_fini = isp_hw_fini,
 	.is_idle = isp_is_idle,
+	.suspend = isp_suspend,
+	.resume = isp_resume,
 	.set_clockgating_state = isp_set_clockgating_state,
 	.set_powergating_state = isp_set_powergating_state,
 };
