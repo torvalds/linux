@@ -211,16 +211,20 @@ static void iomap_dio_done(struct iomap_dio *dio)
 	iomap_dio_complete_work(&dio->aio.work);
 }
 
-void iomap_dio_bio_end_io(struct bio *bio)
+static void __iomap_dio_bio_end_io(struct bio *bio, bool inline_completion)
 {
 	struct iomap_dio *dio = bio->bi_private;
 	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
 
-	if (bio->bi_status)
-		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
-
-	if (atomic_dec_and_test(&dio->ref))
+	if (atomic_dec_and_test(&dio->ref)) {
+		/*
+		 * Avoid another context switch for the completion when already
+		 * called from the ioend completion workqueue.
+		 */
+		if (inline_completion)
+			dio->flags &= ~IOMAP_DIO_COMP_WORK;
 		iomap_dio_done(dio);
+	}
 
 	if (should_dirty) {
 		bio_check_pages_dirty(bio);
@@ -229,33 +233,25 @@ void iomap_dio_bio_end_io(struct bio *bio)
 		bio_put(bio);
 	}
 }
+
+void iomap_dio_bio_end_io(struct bio *bio)
+{
+	struct iomap_dio *dio = bio->bi_private;
+
+	if (bio->bi_status)
+		iomap_dio_set_error(dio, blk_status_to_errno(bio->bi_status));
+	__iomap_dio_bio_end_io(bio, false);
+}
 EXPORT_SYMBOL_GPL(iomap_dio_bio_end_io);
 
 u32 iomap_finish_ioend_direct(struct iomap_ioend *ioend)
 {
 	struct iomap_dio *dio = ioend->io_bio.bi_private;
-	bool should_dirty = (dio->flags & IOMAP_DIO_DIRTY);
 	u32 vec_count = ioend->io_bio.bi_vcnt;
 
 	if (ioend->io_error)
 		iomap_dio_set_error(dio, ioend->io_error);
-
-	if (atomic_dec_and_test(&dio->ref)) {
-		/*
-		 * Try to avoid another context switch for the completion given
-		 * that we are already called from the ioend completion
-		 * workqueue.
-		 */
-		dio->flags &= ~IOMAP_DIO_COMP_WORK;
-		iomap_dio_done(dio);
-	}
-
-	if (should_dirty) {
-		bio_check_pages_dirty(&ioend->io_bio);
-	} else {
-		bio_release_pages(&ioend->io_bio, false);
-		bio_put(&ioend->io_bio);
-	}
+	__iomap_dio_bio_end_io(&ioend->io_bio, true);
 
 	/*
 	 * Return the number of bvecs completed as even direct I/O completions
