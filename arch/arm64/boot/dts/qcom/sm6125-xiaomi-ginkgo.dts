@@ -31,9 +31,9 @@
 		#size-cells = <2>;
 		ranges;
 
-		framebuffer0: framebuffer@5c000000 {
+		framebuffer {
 			compatible = "simple-framebuffer";
-			reg = <0 0x5c000000 0 (2340 * 1080 * 4)>;
+			memory-region = <&framebuffer_mem>;
 			width = <1080>;
 			height = <2340>;
 			stride = <(1080 * 4)>;
@@ -62,7 +62,7 @@
 			no-map;
 		};
 
-		framebuffer@5c000000 {
+		framebuffer_mem: framebuffer@5c000000 {
 			reg = <0x0 0x5c000000 0x0 (2340 * 1080 * 4)>;
 			no-map;
 		};
