@@ -160,11 +160,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
 	fsl,use-minimum-ecc;
-	nand-on-flash-bbt;
-	nand-ecc-mode = "hw";
-	nand-ecc-strength = <8>;
-	nand-ecc-step-size = <512>;
 	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		nand-on-flash-bbt;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+	};
 };
 
 /* I2C3_SDA/SCL on SODIMM 194/196 (e.g. RTC on carrier board) */

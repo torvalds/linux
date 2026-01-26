@@ -43,11 +43,15 @@
 &gpmi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpmi_nand>;
-	nand-ecc-mode = "hw";
-	nand-ecc-strength = <0>;
-	nand-ecc-step-size = <0>;
-	nand-on-flash-bbt;
 	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <0>;
+		nand-ecc-step-size = <0>;
+		nand-on-flash-bbt;
+	};
 };
 
 &iomuxc {
