@@ -1172,33 +1172,35 @@ void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter)
 	bio_set_flag(bio, BIO_CLONED);
 }
 
-static unsigned int get_contig_folio_len(unsigned int *num_pages,
-					 struct page **pages, unsigned int i,
-					 struct folio *folio, size_t left,
+static unsigned int get_contig_folio_len(struct page **pages,
+					 unsigned int *num_pages, size_t left,
 					 size_t offset)
 {
-	size_t bytes = left;
-	size_t contig_sz = min_t(size_t, PAGE_SIZE - offset, bytes);
-	unsigned int j;
+	struct folio *folio = page_folio(pages[0]);
+	size_t contig_sz = min_t(size_t, PAGE_SIZE - offset, left);
+	unsigned int max_pages, i;
+	size_t folio_offset, len;
+
+	folio_offset = PAGE_SIZE * folio_page_idx(folio, pages[0]) + offset;
+	len = min(folio_size(folio) - folio_offset, left);
 
 	/*
-	 * We might COW a single page in the middle of
-	 * a large folio, so we have to check that all
-	 * pages belong to the same folio.
+	 * We might COW a single page in the middle of a large folio, so we have
+	 * to check that all pages belong to the same folio.
 	 */
-	bytes -= contig_sz;
-	for (j = i + 1; j < i + *num_pages; j++) {
-		size_t next = min_t(size_t, PAGE_SIZE, bytes);
+	left -= contig_sz;
+	max_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	for (i = 1; i < max_pages; i++) {
+		size_t next = min_t(size_t, PAGE_SIZE, left);
 
-		if (page_folio(pages[j]) != folio ||
-		    pages[j] != pages[j - 1] + 1) {
+		if (page_folio(pages[i]) != folio ||
+		    pages[i] != pages[i - 1] + 1)
 			break;
-		}
 		contig_sz += next;
-		bytes -= next;
+		left -= next;
 	}
-	*num_pages = j - i;
 
+	*num_pages = i;
 	return contig_sz;
 }
 
@@ -1222,8 +1224,8 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
 	struct page **pages = (struct page **)bv;
 	ssize_t size;
-	unsigned int num_pages, i = 0;
-	size_t offset, folio_offset, left, len;
+	unsigned int i = 0;
+	size_t offset, left, len;
 	int ret = 0;
 
 	/*
@@ -1244,23 +1246,12 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		return size ? size : -EFAULT;
 
 	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
-	for (left = size, i = 0; left > 0; left -= len, i += num_pages) {
-		struct page *page = pages[i];
-		struct folio *folio = page_folio(page);
+	for (left = size; left > 0; left -= len) {
 		unsigned int old_vcnt = bio->bi_vcnt;
+		unsigned int nr_to_add;
 
-		folio_offset = ((size_t)folio_page_idx(folio, page) <<
-			       PAGE_SHIFT) + offset;
-
-		len = min(folio_size(folio) - folio_offset, left);
-
-		num_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
-
-		if (num_pages > 1)
-			len = get_contig_folio_len(&num_pages, pages, i,
-						   folio, left, offset);
-
-		if (!bio_add_folio(bio, folio, len, folio_offset)) {
+		len = get_contig_folio_len(&pages[i], &nr_to_add, left, offset);
+		if (!bio_add_page(bio, pages[i], len, offset)) {
 			WARN_ON_ONCE(1);
 			ret = -EINVAL;
 			goto out;
@@ -1275,8 +1266,9 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 			 * single pin per page.
 			 */
 			if (offset && bio->bi_vcnt == old_vcnt)
-				unpin_user_folio(folio, 1);
+				unpin_user_folio(page_folio(pages[i]), 1);
 		}
+		i += nr_to_add;
 		offset = 0;
 	}
 
