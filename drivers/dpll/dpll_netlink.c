@@ -389,7 +389,15 @@ static int dpll_msg_add_ffo(struct sk_buff *msg, struct dpll_pin *pin,
 			return 0;
 		return ret;
 	}
-	return nla_put_sint(msg, DPLL_A_PIN_FRACTIONAL_FREQUENCY_OFFSET, ffo);
+	/* Put the FFO value in PPM to preserve compatibility with older
+	 * programs.
+	 */
+	ret = nla_put_sint(msg, DPLL_A_PIN_FRACTIONAL_FREQUENCY_OFFSET,
+			   div_s64(ffo, 1000000));
+	if (ret)
+		return -EMSGSIZE;
+	return nla_put_sint(msg, DPLL_A_PIN_FRACTIONAL_FREQUENCY_OFFSET_PPT,
+			    ffo);
 }
 
 static int

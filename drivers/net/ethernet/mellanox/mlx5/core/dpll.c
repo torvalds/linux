@@ -136,7 +136,7 @@ mlx5_dpll_pin_ffo_get(struct mlx5_dpll_synce_status *synce_status,
 {
 	if (!synce_status->oper_freq_measure)
 		return -ENODATA;
-	*ffo = synce_status->frequency_diff;
+	*ffo = 1000000LL * synce_status->frequency_diff;
 	return 0;
 }
 
