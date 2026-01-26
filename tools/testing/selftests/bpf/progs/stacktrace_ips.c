@@ -31,6 +31,13 @@ int unused(void)
 
 __u32 stack_key;
 
+SEC("kprobe")
+int kprobe_test(struct pt_regs *ctx)
+{
+	stack_key = bpf_get_stackid(ctx, &stackmap, 0);
+	return 0;
+}
+
 SEC("kprobe.multi")
 int kprobe_multi_test(struct pt_regs *ctx)
 {
