@@ -420,7 +420,7 @@
 					compatible = "arm,vexpress,config-bus";
 					arm,vexpress,config-bridge = <&v2m_sysreg>;
 
-					oscclk0 {
+					clock-controller-0 {
 						/* MCC static memory clock */
 						compatible = "arm,vexpress-osc";
 						arm,vexpress-sysreg,func = <1 0>;
@@ -429,7 +429,7 @@
 						clock-output-names = "v2m:oscclk0";
 					};
 
-					v2m_oscclk1: oscclk1 {
+					v2m_oscclk1: clock-controller-1 {
 						/* CLCD clock */
 						compatible = "arm,vexpress-osc";
 						arm,vexpress-sysreg,func = <1 1>;
@@ -438,7 +438,7 @@
 						clock-output-names = "v2m:oscclk1";
 					};
 
-					v2m_oscclk2: oscclk2 {
+					v2m_oscclk2: clock-controller-2 {
 						/* IO FPGA peripheral clock */
 						compatible = "arm,vexpress-osc";
 						arm,vexpress-sysreg,func = <1 2>;
@@ -447,7 +447,7 @@
 						clock-output-names = "v2m:oscclk2";
 					};
 
-					volt-vio {
+					regulator-vio {
 						/* Logic level voltage */
 						compatible = "arm,vexpress-volt";
 						arm,vexpress-sysreg,func = <2 0>;

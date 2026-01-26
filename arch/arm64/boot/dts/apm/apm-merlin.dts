@@ -38,6 +38,7 @@
 
 	poweroff: poweroff@10548010 {
 		compatible = "syscon-poweroff";
+		reg = <0x0 0x10548010 0x0 0x4>;
 		regmap = <&poweroff_mbox>;
 		offset = <0x10>;
 		mask = <0x1>;
