@@ -32,17 +32,6 @@
 #include "amdgpu_amdkfd.h"
 #include "kfd_device_queue_manager.h"
 
-#define MQD_SIZE	(2 * PAGE_SIZE)
-
-static uint64_t mqd_stride_v12_1(struct mqd_manager *mm,
-				struct queue_properties *q)
-{
-	if (q->type == KFD_QUEUE_TYPE_COMPUTE)
-		return MQD_SIZE;
-	else
-		return PAGE_SIZE;
-}
-
 static inline struct v12_1_compute_mqd *get_mqd(void *mqd)
 {
 	return (struct v12_1_compute_mqd *)mqd;
@@ -148,21 +137,14 @@ static void set_priority(struct v12_1_compute_mqd *m, struct queue_properties *q
 static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		struct queue_properties *q)
 {
+	u32 mqd_size = AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
 	struct kfd_node *node = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj;
-	unsigned int size;
 
-	/*
-	 * Allocate two PAGE_SIZE memory for Compute MQD as MES writes to areas beyond
-	 * struct MQD size. Size of the Compute MQD is 1 PAGE_SIZE.
-	 * For SDMA MQD, we allocate 1 Page_size.
-	 */
 	if (q->type == KFD_QUEUE_TYPE_COMPUTE)
-		size = MQD_SIZE * NUM_XCC(node->xcc_mask);
-	else
-		size = PAGE_SIZE;
+		mqd_size *= NUM_XCC(node->xcc_mask);
 
-	if (kfd_gtt_sa_allocate(node, size, &mqd_mem_obj))
+	if (kfd_gtt_sa_allocate(node, mqd_size, &mqd_mem_obj))
 		return NULL;
 
 	return mqd_mem_obj;
@@ -174,11 +156,12 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 {
 	uint64_t addr;
 	struct v12_1_compute_mqd *m;
+	u32 mqd_size = AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
 
 	m = (struct v12_1_compute_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
 
-	memset(m, 0, MQD_SIZE);
+	memset(m, 0, mqd_size);
 
 	m->header = 0xC0310800;
 	m->compute_pipelinestat_enable = 1;
@@ -681,7 +664,7 @@ struct mqd_manager *mqd_manager_init_v12_1(enum KFD_MQD_TYPE type,
 		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct v12_1_compute_mqd);
 		mqd->get_wave_state = get_wave_state_v12_1;
-		mqd->mqd_stride = mqd_stride_v12_1;
+		mqd->mqd_stride = kfd_mqd_stride;
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif

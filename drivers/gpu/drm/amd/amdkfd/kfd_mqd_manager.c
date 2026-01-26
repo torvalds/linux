@@ -292,6 +292,9 @@ void kfd_get_hiq_xcc_mqd(struct kfd_node *dev, struct kfd_mem_obj *mqd_mem_obj,
 uint64_t kfd_mqd_stride(struct mqd_manager *mm,
 			struct queue_properties *q)
 {
+	if (KFD_GC_VERSION(mm->dev) >= IP_VERSION(11, 0, 0))
+		return AMDGPU_MQD_SIZE_ALIGN(mm->mqd_size);
+
 	return mm->mqd_size;
 }
 
