@@ -99,6 +99,15 @@ void btrfs_check_active_zone_reservation(struct btrfs_fs_info *fs_info);
 int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num_bytes);
 void btrfs_show_zoned_stats(struct btrfs_fs_info *fs_info, struct seq_file *seq);
 
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct zone_info;
+
+int btrfs_load_block_group_by_raid_type(struct btrfs_block_group *bg,
+					struct btrfs_chunk_map *map,
+					struct zone_info *zone_info,
+					unsigned long *active, u64 last_alloc);
+#endif
+
 #else /* CONFIG_BLK_DEV_ZONED */
 
 static inline int btrfs_get_dev_zone_info_all_devices(struct btrfs_fs_info *fs_info)

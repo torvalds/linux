@@ -1823,6 +1823,62 @@ static int btrfs_load_block_group_raid10(struct btrfs_block_group *bg,
 	return 0;
 }
 
+EXPORT_FOR_TESTS
+int btrfs_load_block_group_by_raid_type(struct btrfs_block_group *bg,
+					struct btrfs_chunk_map *map,
+					struct zone_info *zone_info,
+					unsigned long *active, u64 last_alloc)
+{
+	struct btrfs_fs_info *fs_info = bg->fs_info;
+	u64 profile;
+	int ret;
+
+	profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	switch (profile) {
+	case 0: /* single */
+		ret = btrfs_load_block_group_single(bg, &zone_info[0], active);
+		break;
+	case BTRFS_BLOCK_GROUP_DUP:
+		ret = btrfs_load_block_group_dup(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID1:
+	case BTRFS_BLOCK_GROUP_RAID1C3:
+	case BTRFS_BLOCK_GROUP_RAID1C4:
+		ret = btrfs_load_block_group_raid1(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID0:
+		ret = btrfs_load_block_group_raid0(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID10:
+		ret = btrfs_load_block_group_raid10(bg, map, zone_info, active, last_alloc);
+		break;
+	case BTRFS_BLOCK_GROUP_RAID5:
+	case BTRFS_BLOCK_GROUP_RAID6:
+	default:
+		btrfs_err(fs_info, "zoned: profile %s not yet supported",
+			  btrfs_bg_type_to_raid_name(map->type));
+		return -EINVAL;
+	}
+
+	if (ret == -EIO && profile != 0 && profile != BTRFS_BLOCK_GROUP_RAID0 &&
+	    profile != BTRFS_BLOCK_GROUP_RAID10) {
+		/*
+		 * Detected broken write pointer.  Make this block group
+		 * unallocatable by setting the allocation pointer at the end of
+		 * allocatable region. Relocating this block group will fix the
+		 * mismatch.
+		 *
+		 * Currently, we cannot handle RAID0 or RAID10 case like this
+		 * because we don't have a proper zone_capacity value. But,
+		 * reading from this block group won't work anyway by a missing
+		 * stripe.
+		 */
+		bg->alloc_offset = bg->zone_capacity;
+	}
+
+	return ret;
+}
+
 int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
@@ -1835,7 +1891,6 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	unsigned long *active = NULL;
 	u64 last_alloc = 0;
 	u32 num_sequential = 0, num_conventional = 0;
-	u64 profile;
 
 	if (!btrfs_is_zoned(fs_info))
 		return 0;
@@ -1895,53 +1950,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 		}
 	}
 
-	profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-	switch (profile) {
-	case 0: /* single */
-		ret = btrfs_load_block_group_single(cache, &zone_info[0], active);
-		break;
-	case BTRFS_BLOCK_GROUP_DUP:
-		ret = btrfs_load_block_group_dup(cache, map, zone_info, active,
-						 last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID1:
-	case BTRFS_BLOCK_GROUP_RAID1C3:
-	case BTRFS_BLOCK_GROUP_RAID1C4:
-		ret = btrfs_load_block_group_raid1(cache, map, zone_info,
-						   active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID0:
-		ret = btrfs_load_block_group_raid0(cache, map, zone_info,
-						   active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID10:
-		ret = btrfs_load_block_group_raid10(cache, map, zone_info,
-						    active, last_alloc);
-		break;
-	case BTRFS_BLOCK_GROUP_RAID5:
-	case BTRFS_BLOCK_GROUP_RAID6:
-	default:
-		btrfs_err(fs_info, "zoned: profile %s not yet supported",
-			  btrfs_bg_type_to_raid_name(map->type));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (ret == -EIO && profile != 0 && profile != BTRFS_BLOCK_GROUP_RAID0 &&
-	    profile != BTRFS_BLOCK_GROUP_RAID10) {
-		/*
-		 * Detected broken write pointer.  Make this block group
-		 * unallocatable by setting the allocation pointer at the end of
-		 * allocatable region. Relocating this block group will fix the
-		 * mismatch.
-		 *
-		 * Currently, we cannot handle RAID0 or RAID10 case like this
-		 * because we don't have a proper zone_capacity value. But,
-		 * reading from this block group won't work anyway by a missing
-		 * stripe.
-		 */
-		cache->alloc_offset = cache->zone_capacity;
-	}
+	ret = btrfs_load_block_group_by_raid_type(cache, map, zone_info, active, last_alloc);
 
 out:
 	/* Reject non SINGLE data profiles without RST */
