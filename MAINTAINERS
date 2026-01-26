@@ -28355,7 +28355,7 @@ F:	lib/xarray.c
 F:	tools/testing/radix-tree
 
 XARRAY API [RUST]
-M:	Tamir Duberstein <tamird@gmail.com>
+M:	Tamir Duberstein <tamird@kernel.org>
 M:	Andreas Hindborg <a.hindborg@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Supported
