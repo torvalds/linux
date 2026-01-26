@@ -851,6 +851,11 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			    !bridge->funcs->hdmi_clear_hdmi_infoframe)
 				return ERR_PTR(-EINVAL);
 
+			if (bridge->ops & DRM_BRIDGE_OP_HDMI_AUDIO &&
+			    (!bridge->funcs->hdmi_write_audio_infoframe ||
+			     !bridge->funcs->hdmi_clear_audio_infoframe))
+				return ERR_PTR(-EINVAL);
+
 			if (bridge->ops & DRM_BRIDGE_OP_HDMI_HDR_DRM_INFOFRAME &&
 			    (!bridge->funcs->hdmi_write_hdr_drm_infoframe ||
 			     !bridge->funcs->hdmi_clear_hdr_drm_infoframe))
@@ -880,9 +885,7 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 			    !bridge->hdmi_audio_spdif_playback)
 				return ERR_PTR(-EINVAL);
 
-			if (!bridge->funcs->hdmi_write_audio_infoframe ||
-			    !bridge->funcs->hdmi_clear_audio_infoframe ||
-			    !bridge->funcs->hdmi_audio_prepare ||
+			if (!bridge->funcs->hdmi_audio_prepare ||
 			    !bridge->funcs->hdmi_audio_shutdown)
 				return ERR_PTR(-EINVAL);
 
