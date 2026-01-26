@@ -1238,6 +1238,7 @@ enum count_type {
 	F2FS_RD_META,
 	F2FS_DIO_WRITE,
 	F2FS_DIO_READ,
+	F2FS_SKIPPED_WRITE,	/* skip or fail during f2fs_enable_checkpoint() */
 	NR_COUNT_TYPE,
 };
 
@@ -1476,6 +1477,7 @@ enum {
 	SBI_IS_RESIZEFS,			/* resizefs is in process */
 	SBI_IS_FREEZING,			/* freezefs is in process */
 	SBI_IS_WRITABLE,			/* remove ro mountoption transiently */
+	SBI_ENABLE_CHECKPOINT,			/* indicate it's during f2fs_enable_checkpoint() */
 	MAX_SBI_FLAG,
 };
 
