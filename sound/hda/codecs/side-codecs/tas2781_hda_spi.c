@@ -727,6 +727,9 @@ static int tas2781_hda_bind(struct device *dev, struct device *master,
 	if (!ret)
 		comp->playback_hook = tas2781_hda_playback_hook;
 
+	/* Only HP Laptop support SPI-based TAS2781 */
+	tas_hda->catlog_id = HP;
+
 	return ret;
 }
 
