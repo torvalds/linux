@@ -1284,16 +1284,16 @@ static inline int move_dirty_folio_in_page_array(struct address_space *mapping,
 }
 
 static
-int ceph_process_folio_batch(struct address_space *mapping,
-			     struct writeback_control *wbc,
-			     struct ceph_writeback_ctl *ceph_wbc)
+void ceph_process_folio_batch(struct address_space *mapping,
+			      struct writeback_control *wbc,
+			      struct ceph_writeback_ctl *ceph_wbc)
 {
 	struct inode *inode = mapping->host;
 	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
 	struct ceph_client *cl = fsc->client;
 	struct folio *folio = NULL;
 	unsigned i;
-	int rc = 0;
+	int rc;
 
 	for (i = 0; can_next_page_be_processed(ceph_wbc, i); i++) {
 		folio = ceph_wbc->fbatch.folios[i];
@@ -1323,12 +1323,10 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		rc = ceph_check_page_before_write(mapping, wbc,
 						  ceph_wbc, folio);
 		if (rc == -ENODATA) {
-			rc = 0;
 			folio_unlock(folio);
 			ceph_wbc->fbatch.folios[i] = NULL;
 			continue;
 		} else if (rc == -E2BIG) {
-			rc = 0;
 			folio_unlock(folio);
 			ceph_wbc->fbatch.folios[i] = NULL;
 			break;
@@ -1370,7 +1368,6 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		rc = move_dirty_folio_in_page_array(mapping, wbc, ceph_wbc,
 				folio);
 		if (rc) {
-			rc = 0;
 			folio_redirty_for_writepage(wbc, folio);
 			folio_unlock(folio);
 			break;
@@ -1381,8 +1378,6 @@ int ceph_process_folio_batch(struct address_space *mapping,
 	}
 
 	ceph_wbc->processed_in_fbatch = i;
-
-	return rc;
 }
 
 static inline
@@ -1686,10 +1681,8 @@ get_more_pages:
 			break;
 
 process_folio_batch:
-		rc = ceph_process_folio_batch(mapping, wbc, &ceph_wbc);
+		ceph_process_folio_batch(mapping, wbc, &ceph_wbc);
 		ceph_shift_unused_folios_left(&ceph_wbc.fbatch);
-		if (rc)
-			goto release_folios;
 
 		/* did we get anything? */
 		if (!ceph_wbc.locked_pages)
