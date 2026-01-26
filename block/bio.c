@@ -1172,102 +1172,6 @@ void bio_iov_bvec_set(struct bio *bio, const struct iov_iter *iter)
 	bio_set_flag(bio, BIO_CLONED);
 }
 
-static unsigned int get_contig_folio_len(struct page **pages,
-					 unsigned int *num_pages, size_t left,
-					 size_t offset)
-{
-	struct folio *folio = page_folio(pages[0]);
-	size_t contig_sz = min_t(size_t, PAGE_SIZE - offset, left);
-	unsigned int max_pages, i;
-	size_t folio_offset, len;
-
-	folio_offset = PAGE_SIZE * folio_page_idx(folio, pages[0]) + offset;
-	len = min(folio_size(folio) - folio_offset, left);
-
-	/*
-	 * We might COW a single page in the middle of a large folio, so we have
-	 * to check that all pages belong to the same folio.
-	 */
-	left -= contig_sz;
-	max_pages = DIV_ROUND_UP(offset + len, PAGE_SIZE);
-	for (i = 1; i < max_pages; i++) {
-		size_t next = min_t(size_t, PAGE_SIZE, left);
-
-		if (page_folio(pages[i]) != folio ||
-		    pages[i] != pages[i - 1] + 1)
-			break;
-		contig_sz += next;
-		left -= next;
-	}
-
-	*num_pages = i;
-	return contig_sz;
-}
-
-#define PAGE_PTRS_PER_BVEC     (sizeof(struct bio_vec) / sizeof(struct page *))
-
-/**
- * __bio_iov_iter_get_pages - pin user or kernel pages and add them to a bio
- * @bio: bio to add pages to
- * @iter: iov iterator describing the region to be mapped
- *
- * Extracts pages from *iter and appends them to @bio's bvec array.  The pages
- * will have to be cleaned up in the way indicated by the BIO_PAGE_PINNED flag.
- * For a multi-segment *iter, this function only adds pages from the next
- * non-empty segment of the iov iterator.
- */
-static ssize_t __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
-{
-	iov_iter_extraction_t extraction_flags = 0;
-	unsigned short nr_pages = bio->bi_max_vecs - bio->bi_vcnt;
-	unsigned short entries_left = bio->bi_max_vecs - bio->bi_vcnt;
-	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
-	struct page **pages = (struct page **)bv;
-	ssize_t size;
-	unsigned int i = 0;
-	size_t offset, left, len;
-
-	/*
-	 * Move page array up in the allocated memory for the bio vecs as far as
-	 * possible so that we can start filling biovecs from the beginning
-	 * without overwriting the temporary page array.
-	 */
-	BUILD_BUG_ON(PAGE_PTRS_PER_BVEC < 2);
-	pages += entries_left * (PAGE_PTRS_PER_BVEC - 1);
-
-	if (bio->bi_bdev && blk_queue_pci_p2pdma(bio->bi_bdev->bd_disk->queue))
-		extraction_flags |= ITER_ALLOW_P2PDMA;
-
-	size = iov_iter_extract_pages(iter, &pages,
-				      BIO_MAX_SIZE - bio->bi_iter.bi_size,
-				      nr_pages, extraction_flags, &offset);
-	if (unlikely(size <= 0))
-		return size ? size : -EFAULT;
-
-	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
-	for (left = size; left > 0; left -= len) {
-		unsigned int nr_to_add;
-
-		if (bio->bi_vcnt > 0) {
-			struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
-
-			if (!zone_device_pages_have_same_pgmap(prev->bv_page,
-					pages[i]))
-				break;
-		}
-
-		len = get_contig_folio_len(&pages[i], &nr_to_add, left, offset);
-		__bio_add_page(bio, pages[i], len, offset);
-		i += nr_to_add;
-		offset = 0;
-	}
-
-	iov_iter_revert(iter, left);
-	while (i < nr_pages)
-		bio_release_page(bio, pages[i++]);
-	return size - left;
-}
-
 /*
  * Aligns the bio size to the len_align_mask, releasing excessive bio vecs that
  * __bio_iov_iter_get_pages may have inserted, and reverts the trimmed length
@@ -1325,7 +1229,7 @@ static int bio_iov_iter_align_down(struct bio *bio, struct iov_iter *iter,
 int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 			   unsigned len_align_mask)
 {
-	ssize_t ret;
+	iov_iter_extraction_t flags = 0;
 
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return -EIO;
@@ -1338,14 +1242,26 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter,
 
 	if (iov_iter_extract_will_pin(iter))
 		bio_set_flag(bio, BIO_PAGE_PINNED);
+	if (bio->bi_bdev && blk_queue_pci_p2pdma(bio->bi_bdev->bd_disk->queue))
+		flags |= ITER_ALLOW_P2PDMA;
 
 	do {
-		ret = __bio_iov_iter_get_pages(bio, iter);
-	} while (ret > 0 && iov_iter_count(iter) && !bio_full(bio, 0));
+		ssize_t ret;
 
-	if (bio->bi_vcnt)
-		return bio_iov_iter_align_down(bio, iter, len_align_mask);
-	return ret;
+		ret = iov_iter_extract_bvecs(iter, bio->bi_io_vec,
+				BIO_MAX_SIZE - bio->bi_iter.bi_size,
+				&bio->bi_vcnt, bio->bi_max_vecs, flags);
+		if (ret <= 0) {
+			if (!bio->bi_vcnt)
+				return ret;
+			break;
+		}
+		bio->bi_iter.bi_size += ret;
+	} while (iov_iter_count(iter) && !bio_full(bio, 0));
+
+	if (is_pci_p2pdma_page(bio->bi_io_vec->bv_page))
+		bio->bi_opf |= REQ_NOMERGE;
+	return bio_iov_iter_align_down(bio, iter, len_align_mask);
 }
 
 static void submit_bio_wait_endio(struct bio *bio)
