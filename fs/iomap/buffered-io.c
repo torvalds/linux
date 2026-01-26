@@ -409,8 +409,6 @@ static void iomap_read_init(struct folio *folio)
 	struct iomap_folio_state *ifs = folio->private;
 
 	if (ifs) {
-		size_t len = folio_size(folio);
-
 		/*
 		 * ifs->read_bytes_pending is used to track how many bytes are
 		 * read in asynchronously by the IO helper. We need to track
@@ -418,23 +416,19 @@ static void iomap_read_init(struct folio *folio)
 		 * reading in all the necessary ranges of the folio and can end
 		 * the read.
 		 *
-		 * Increase ->read_bytes_pending by the folio size to start, and
-		 * add a +1 bias. We'll subtract the bias and any uptodate /
-		 * zeroed ranges that did not require IO in iomap_read_end()
-		 * after we're done processing the folio.
+		 * Increase ->read_bytes_pending by the folio size to start.
+		 * We'll subtract any uptodate / zeroed ranges that did not
+		 * require IO in iomap_read_end() after we're done processing
+		 * the folio.
 		 *
 		 * We do this because otherwise, we would have to increment
 		 * ifs->read_bytes_pending every time a range in the folio needs
 		 * to be read in, which can get expensive since the spinlock
 		 * needs to be held whenever modifying ifs->read_bytes_pending.
-		 *
-		 * We add the bias to ensure the read has not been ended on the
-		 * folio when iomap_read_end() is called, even if the IO helper
-		 * has already finished reading in the entire folio.
 		 */
 		spin_lock_irq(&ifs->state_lock);
 		WARN_ON_ONCE(ifs->read_bytes_pending != 0);
-		ifs->read_bytes_pending = len + 1;
+		ifs->read_bytes_pending = folio_size(folio);
 		spin_unlock_irq(&ifs->state_lock);
 	}
 }
@@ -465,11 +459,9 @@ static void iomap_read_end(struct folio *folio, size_t bytes_submitted)
 
 		/*
 		 * Subtract any bytes that were initially accounted to
-		 * read_bytes_pending but skipped for IO. The +1 accounts for
-		 * the bias we added in iomap_read_init().
+		 * read_bytes_pending but skipped for IO.
 		 */
-		ifs->read_bytes_pending -=
-			(folio_size(folio) + 1 - bytes_submitted);
+		ifs->read_bytes_pending -= folio_size(folio) - bytes_submitted;
 
 		/*
 		 * If !ifs->read_bytes_pending, this means all pending reads by
@@ -483,14 +475,16 @@ static void iomap_read_end(struct folio *folio, size_t bytes_submitted)
 		spin_unlock_irq(&ifs->state_lock);
 		if (end_read)
 			folio_end_read(folio, uptodate);
-	} else if (!bytes_submitted) {
+	} else {
 		/*
-		 * If there were no bytes submitted, this means we are
-		 * responsible for unlocking the folio here, since no IO helper
-		 * has taken ownership of it. If there were bytes submitted,
-		 * then the IO helper will end the read via
-		 * iomap_finish_folio_read().
+		 * If a folio without an ifs is submitted to the IO helper, the
+		 * read must be on the entire folio and the IO helper takes
+		 * ownership of the folio. This means we should only enter
+		 * iomap_read_end() for the !ifs case if no bytes were submitted
+		 * to the IO helper, in which case we are responsible for
+		 * unlocking the folio here.
 		 */
+		WARN_ON_ONCE(bytes_submitted);
 		folio_unlock(folio);
 	}
 }
@@ -502,6 +496,7 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 	loff_t pos = iter->pos;
 	loff_t length = iomap_length(iter);
 	struct folio *folio = ctx->cur_folio;
+	size_t folio_len = folio_size(folio);
 	size_t poff, plen;
 	loff_t pos_diff;
 	int ret;
@@ -515,8 +510,7 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 
 	ifs_alloc(iter->inode, folio, iter->flags);
 
-	length = min_t(loff_t, length,
-			folio_size(folio) - offset_in_folio(folio, pos));
+	length = min_t(loff_t, length, folio_len - offset_in_folio(folio, pos));
 	while (length) {
 		iomap_adjust_read_range(iter->inode, folio, &pos, length, &poff,
 				&plen);
@@ -542,7 +536,15 @@ static int iomap_read_folio_iter(struct iomap_iter *iter,
 			ret = ctx->ops->read_folio_range(iter, ctx, plen);
 			if (ret)
 				return ret;
+
 			*bytes_submitted += plen;
+			/*
+			 * If the entire folio has been read in by the IO
+			 * helper, then the helper owns the folio and will end
+			 * the read on it.
+			 */
+			if (*bytes_submitted == folio_len)
+				ctx->cur_folio = NULL;
 		}
 
 		ret = iomap_iter_advance(iter, plen);
@@ -576,7 +578,8 @@ void iomap_read_folio(const struct iomap_ops *ops,
 	if (ctx->ops->submit_read)
 		ctx->ops->submit_read(ctx);
 
-	iomap_read_end(folio, bytes_submitted);
+	if (ctx->cur_folio)
+		iomap_read_end(ctx->cur_folio, bytes_submitted);
 }
 EXPORT_SYMBOL_GPL(iomap_read_folio);
 
