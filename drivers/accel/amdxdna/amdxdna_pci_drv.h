@@ -6,7 +6,10 @@
 #ifndef _AMDXDNA_PCI_DRV_H_
 #define _AMDXDNA_PCI_DRV_H_
 
+#include <drm/amdxdna_accel.h>
 #include <drm/drm_print.h>
+#include <linux/iommu.h>
+#include <linux/iova.h>
 #include <linux/workqueue.h>
 #include <linux/xarray.h>
 
@@ -101,6 +104,10 @@ struct amdxdna_dev {
 	struct amdxdna_fw_ver		fw_ver;
 	struct rw_semaphore		notifier_lock; /* for mmu notifier*/
 	struct workqueue_struct		*notifier_wq;
+
+	struct iommu_group		*group;
+	struct iommu_domain		*domain;
+	struct iova_domain		iovad;
 };
 
 /*
@@ -145,4 +152,21 @@ extern const struct amdxdna_dev_info dev_npu6_info;
 int amdxdna_sysfs_init(struct amdxdna_dev *xdna);
 void amdxdna_sysfs_fini(struct amdxdna_dev *xdna);
 
+int amdxdna_iommu_init(struct amdxdna_dev *xdna);
+void amdxdna_iommu_fini(struct amdxdna_dev *xdna);
+int amdxdna_iommu_map_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo);
+void amdxdna_iommu_unmap_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo);
+void *amdxdna_iommu_alloc(struct amdxdna_dev *xdna, size_t size, dma_addr_t *dma_addr);
+void amdxdna_iommu_free(struct amdxdna_dev *xdna, size_t size,
+			void *cpu_addr, dma_addr_t dma_addr);
+
+static inline bool amdxdna_iova_on(struct amdxdna_dev *xdna)
+{
+	return !!xdna->domain;
+}
+
+static inline bool amdxdna_pasid_on(struct amdxdna_client *client)
+{
+	return client->pasid != IOMMU_PASID_INVALID;
+}
 #endif /* _AMDXDNA_PCI_DRV_H_ */

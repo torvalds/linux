@@ -61,11 +61,27 @@ void *aie2_alloc_msg_buffer(struct amdxdna_dev_hdl *ndev, u32 *size,
 	*size = max(*size, SZ_8K);
 	order = get_order(*size);
 	if (order > MAX_PAGE_ORDER)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	*size = PAGE_SIZE << order;
 
+	if (amdxdna_iova_on(xdna))
+		return amdxdna_iommu_alloc(xdna, *size, dma_addr);
+
 	return dma_alloc_noncoherent(xdna->ddev.dev, *size, dma_addr,
-				     DMA_FROM_DEVICE, GFP_KERNEL);
+				      DMA_FROM_DEVICE, GFP_KERNEL);
+}
+
+void aie2_free_msg_buffer(struct amdxdna_dev_hdl *ndev, size_t size,
+			  void *cpu_addr, dma_addr_t dma_addr)
+{
+	struct amdxdna_dev *xdna = ndev->xdna;
+
+	if (amdxdna_iova_on(xdna)) {
+		amdxdna_iommu_free(xdna, size, cpu_addr, dma_addr);
+		return;
+	}
+
+	dma_free_noncoherent(xdna->ddev.dev, size, cpu_addr, dma_addr, DMA_FROM_DEVICE);
 }
 
 int aie2_suspend_fw(struct amdxdna_dev_hdl *ndev)
@@ -256,7 +272,7 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 	req.num_col = hwctx->num_col;
 	req.num_unused_col = hwctx->num_unused_col;
 	req.num_cq_pairs_requested = 1;
-	req.pasid = hwctx->client->pasid;
+	req.pasid = amdxdna_pasid_on(hwctx->client) ? hwctx->client->pasid : 0;
 	req.context_priority = aie2_get_context_priority(ndev, hwctx);
 
 	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
@@ -380,8 +396,8 @@ int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
 	int ret;
 
 	buff_addr = aie2_alloc_msg_buffer(ndev, &buf_sz, &dma_addr);
-	if (!buff_addr)
-		return -ENOMEM;
+	if (IS_ERR(buff_addr))
+		return PTR_ERR(buff_addr);
 
 	/* Go through each hardware context and mark the AIE columns that are active */
 	list_for_each_entry(client, &xdna->client_list, node)
@@ -436,8 +452,8 @@ int aie2_query_telemetry(struct amdxdna_dev_hdl *ndev,
 		return -EINVAL;
 
 	addr = aie2_alloc_msg_buffer(ndev, &buf_sz, &dma_addr);
-	if (!addr)
-		return -ENOMEM;
+	if (IS_ERR(addr))
+		return PTR_ERR(addr);
 
 	req.buf_addr = dma_addr;
 	req.buf_size = buf_sz;
