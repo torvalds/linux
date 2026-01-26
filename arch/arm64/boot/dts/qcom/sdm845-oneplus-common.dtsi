@@ -31,7 +31,20 @@
 	};
 
 	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
 		stdout-path = "serial0:115200n8";
+
+		framebuffer: framebuffer@9d400000 {
+			compatible = "simple-framebuffer";
+			memory-region = <&cont_splash_mem>;
+
+			format = "a8r8g8b8";
+			stride = <(1080 * 4)>;
+			width = <1080>;
+		};
 	};
 
 	gpio-hall-sensor {
@@ -75,6 +88,11 @@
 	};
 
 	reserved-memory {
+		cont_splash_mem: splash@9d400000 {
+			reg = <0 0x9d400000 0 0x02400000>;
+			no-map;
+		};
+
 		/*
 		 * The rmtfs memory region in downstream is 'dynamically allocated'
 		 * but given the same address every time. Hard code it as this address is
@@ -148,7 +166,6 @@
 
 		gpio = <&tlmm 88 0>;
 		enable-active-high;
-		regulator-boot-on;
 	};
 
 	panel_vci_3v3: panel-vci-3v3-regulator {
@@ -181,8 +198,9 @@
 };
 
 &adsp_pas {
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/adsp.mbn";
+
 	status = "okay";
-	firmware-name = "qcom/sdm845/oneplus6/adsp.mbn";
 };
 
 &apps_rsc {
@@ -273,7 +291,7 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		vreg_l17a_1p3: ldo17 {
@@ -353,8 +371,9 @@
 };
 
 &cdsp_pas {
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/cdsp.mbn";
+
 	status = "okay";
-	firmware-name = "qcom/sdm845/oneplus6/cdsp.mbn";
 };
 
 &gcc {
@@ -370,7 +389,7 @@
 };
 
 &gpu_zap_shader {
-	firmware-name = "qcom/sdm845/oneplus6/a630_zap.mbn";
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/a630_zap.mbn";
 };
 
 &i2c10 {
@@ -422,7 +441,8 @@
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/sdm845/oneplus6/ipa_fws.mbn";
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/ipa_fws.mbn";
+
 	status = "okay";
 };
 
@@ -474,8 +494,10 @@
 
 /* Modem/wifi */
 &mss_pil {
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/mba.mbn",
+			"qcom/sdm845/OnePlus/enchilada/modem.mbn";
+
 	status = "okay";
-	firmware-name = "qcom/sdm845/oneplus6/mba.mbn", "qcom/sdm845/oneplus6/modem.mbn";
 };
 
 &pm8998_gpios {
@@ -593,7 +615,8 @@
 };
 
 &slpi_pas {
-	firmware-name = "qcom/sdm845/oneplus6/slpi.mbn";
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/slpi.mbn";
+
 	status = "okay";
 };
 
@@ -744,7 +767,7 @@
 		 * This path is relative to the qca/
 		 * subdir under lib/firmware.
 		 */
-		firmware-name = "oneplus6/crnv21.bin";
+		firmware-name = "OnePlus/enchilada/crnv21.bin";
 
 		vddio-supply = <&vreg_s4a_1p8>;
 		vddxo-supply = <&vreg_l7a_1p8>;
@@ -906,8 +929,9 @@
 };
 
 &venus {
+	firmware-name = "qcom/sdm845/OnePlus/enchilada/venus.mbn";
+
 	status = "okay";
-	firmware-name = "qcom/sdm845/oneplus6/venus.mbn";
 };
 
 &wcd9340 {
@@ -929,5 +953,6 @@
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
 
+	qcom,calibration-variant = "oneplus_sdm845";
 	qcom,snoc-host-cap-8bit-quirk;
 };

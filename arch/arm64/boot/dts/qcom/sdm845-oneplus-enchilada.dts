@@ -30,14 +30,18 @@
 	};
 };
 
+&bq27441_fg {
+	monitored-battery = <&battery>;
+};
+
 &display_panel {
 	status = "okay";
 
 	compatible = "samsung,sofef00";
 };
 
-&bq27441_fg {
-	monitored-battery = <&battery>;
+&framebuffer {
+	height = <2280>;
 };
 
 &i2c4 {

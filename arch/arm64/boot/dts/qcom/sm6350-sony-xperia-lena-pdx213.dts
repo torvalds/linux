@@ -14,7 +14,7 @@
 	compatible = "sony,pdx213", "qcom,sm6350";
 	chassis-type = "handset";
 	qcom,msm-id = <434 0x10000>, <459 0x10000>;
-	qcom,board-id = <0x1000B 0>;
+	qcom,board-id = <0x1000b 0>;
 
 	chosen {
 		#address-cells = <2>;

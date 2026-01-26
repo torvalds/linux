@@ -16,7 +16,7 @@
 	chassis-type = "handset";
 	/* required for bootloader to select correct board */
 	qcom,msm-id = <207 0x20000>;
-	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
+	qcom,pmic-id = <0x10009 0x1000a 0x0 0x0>;
 	qcom,board-id = <8026 0>;
 
 	aliases {

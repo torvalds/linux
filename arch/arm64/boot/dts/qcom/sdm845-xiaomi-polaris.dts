@@ -370,7 +370,8 @@
 };
 
 &cdsp_pas {
-	firmware-name = "qcom/sdm845/polaris/cdsp.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/polaris/cdsp.mbn";
+
 	status = "okay";
 };
 
@@ -395,7 +396,7 @@
 };
 
 &gpu_zap_shader {
-	firmware-name = "qcom/sdm845/polaris/a630_zap.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/polaris/a630_zap.mbn";
 };
 
 &ibb {
@@ -410,7 +411,8 @@
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
-	firmware-name = "qcom/sdm845/polaris/ipa_fws.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/polaris/ipa_fws.mbn";
+
 	status = "okay";
 };
 
@@ -502,7 +504,9 @@
 };
 
 &mss_pil {
-	firmware-name = "qcom/sdm845/polaris/mba.mbn", "qcom/sdm845/polaris/modem.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/polaris/mba.mbn",
+			"qcom/sdm845/Xiaomi/polaris/modem.mbn";
+
 	status = "okay";
 };
 
@@ -623,7 +627,7 @@
 		compatible = "qcom,wcn3990-bt";
 
 		/* This path is relative to the qca/ subdir under lib/firmware. */
-		firmware-name = "polaris/crnv21.bin";
+		firmware-name = "Xiaomi/polaris/crnv21.bin";
 
 		vddio-supply = <&vreg_s4a_1p8>;
 		vddxo-supply = <&vreg_l7a_1p8>;
@@ -683,7 +687,8 @@
 };
 
 &venus {
-	firmware-name = "qcom/sdm845/polaris/venus.mbn";
+	firmware-name = "qcom/sdm845/Xiaomi/polaris/venus.mbn";
+
 	status = "okay";
 };
 
