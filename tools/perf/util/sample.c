@@ -98,7 +98,7 @@ void perf_sample__fetch_insn(struct perf_sample *sample,
 	if (!sample->ip || sample->insn_len != 0)
 		return;
 
-	e_machine = thread__e_machine(thread, machine);
+	e_machine = thread__e_machine(thread, machine, /*e_flags=*/NULL);
 	len = elf_machine_max_instruction_length(e_machine);
 	len = thread__memcpy(thread, machine, sample->insn,
 			     sample->ip, len,
