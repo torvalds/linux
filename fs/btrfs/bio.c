@@ -97,7 +97,13 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 		bbio->orig_logical = orig_bbio->orig_logical;
 		orig_bbio->orig_logical += map_length;
 	}
+
 	bbio->csum_search_commit_root = orig_bbio->csum_search_commit_root;
+	bbio->can_use_append = orig_bbio->can_use_append;
+	bbio->is_scrub = orig_bbio->is_scrub;
+	bbio->is_remap = orig_bbio->is_remap;
+	bbio->async_csum = orig_bbio->async_csum;
+
 	atomic_inc(&orig_bbio->pending_ios);
 	return bbio;
 }
