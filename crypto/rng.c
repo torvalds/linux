@@ -202,17 +202,13 @@ int crypto_register_rngs(struct rng_alg *algs, int count)
 
 	for (i = 0; i < count; i++) {
 		ret = crypto_register_rng(algs + i);
-		if (ret)
-			goto err;
+		if (ret) {
+			crypto_unregister_rngs(algs, i);
+			return ret;
+		}
 	}
 
 	return 0;
-
-err:
-	for (--i; i >= 0; --i)
-		crypto_unregister_rng(algs + i);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_register_rngs);
 
