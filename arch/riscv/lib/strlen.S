@@ -21,13 +21,11 @@ SYM_FUNC_START(strlen)
 	 * Clobbers:
 	 *   t0, t1
 	 */
-	mv	t1, a0
+	addi	t1, a0, -1
 1:
-	lbu	t0, 0(t1)
-	beqz	t0, 2f
 	addi	t1, t1, 1
-	j	1b
-2:
+	lbu	t0, 0(t1)
+	bnez	t0, 1b
 	sub	a0, t1, a0
 	ret
 
