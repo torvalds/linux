@@ -12,9 +12,13 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - samsung,exynos5250-trng
-      - samsung,exynos850-trng
+    oneOf:
+      - enum:
+          - samsung,exynos5250-trng
+          - samsung,exynos850-trng
+      - items:
+          - const: google,gs101-trng
+          - const: samsung,exynos850-trng
 
   clocks:
     minItems: 1
@@ -23,6 +27,9 @@ properties:
   clock-names:
     minItems: 1
     maxItems: 2
+
+  power-domains:
+    maxItems: 1
 
   reg:
     maxItems: 1
