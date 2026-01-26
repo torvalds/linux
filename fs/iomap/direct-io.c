@@ -215,7 +215,11 @@ static void __iomap_dio_bio_end_io(struct bio *bio, bool inline_completion)
 {
 	struct iomap_dio *dio = bio->bi_private;
 
-	if (dio->flags & IOMAP_DIO_USER_BACKED) {
+	if (dio->flags & IOMAP_DIO_BOUNCE) {
+		bio_iov_iter_unbounce(bio, !!dio->error,
+				dio->flags & IOMAP_DIO_USER_BACKED);
+		bio_put(bio);
+	} else if (dio->flags & IOMAP_DIO_USER_BACKED) {
 		bio_check_pages_dirty(bio);
 	} else {
 		bio_release_pages(bio, false);
@@ -303,12 +307,16 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 		struct iomap_dio *dio, loff_t pos, unsigned int alignment,
 		blk_opf_t op)
 {
+	unsigned int nr_vecs;
 	struct bio *bio;
 	ssize_t ret;
 
-	bio = iomap_dio_alloc_bio(iter, dio,
-			bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS),
-			op);
+	if (dio->flags & IOMAP_DIO_BOUNCE)
+		nr_vecs = bio_iov_bounce_nr_vecs(dio->submit.iter, op);
+	else
+		nr_vecs = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
+
+	bio = iomap_dio_alloc_bio(iter, dio, nr_vecs, op);
 	fscrypt_set_bio_crypt_ctx(bio, iter->inode,
 			pos >> iter->inode->i_blkbits, GFP_KERNEL);
 	bio->bi_iter.bi_sector = iomap_sector(&iter->iomap, pos);
@@ -317,7 +325,11 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 	bio->bi_private = dio;
 	bio->bi_end_io = iomap_dio_bio_end_io;
 
-	ret = bio_iov_iter_get_pages(bio, dio->submit.iter, alignment - 1);
+	if (dio->flags & IOMAP_DIO_BOUNCE)
+		ret = bio_iov_iter_bounce(bio, dio->submit.iter);
+	else
+		ret = bio_iov_iter_get_pages(bio, dio->submit.iter,
+					     alignment - 1);
 	if (unlikely(ret))
 		goto out_put_bio;
 	ret = bio->bi_iter.bi_size;
@@ -333,7 +345,8 @@ static ssize_t iomap_dio_bio_iter_one(struct iomap_iter *iter,
 
 	if (dio->flags & IOMAP_DIO_WRITE)
 		task_io_account_write(ret);
-	else if (dio->flags & IOMAP_DIO_USER_BACKED)
+	else if ((dio->flags & IOMAP_DIO_USER_BACKED) &&
+		 !(dio->flags & IOMAP_DIO_BOUNCE))
 		bio_set_pages_dirty(bio);
 
 	/*
@@ -662,7 +675,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 	dio->i_size = i_size_read(inode);
 	dio->dops = dops;
 	dio->error = 0;
-	dio->flags = 0;
+	dio->flags = dio_flags & (IOMAP_DIO_FSBLOCK_ALIGNED | IOMAP_DIO_BOUNCE);
 	dio->done_before = done_before;
 
 	dio->submit.iter = iter;
@@ -670,9 +683,6 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		iomi.flags |= IOMAP_NOWAIT;
-
-	if (dio_flags & IOMAP_DIO_FSBLOCK_ALIGNED)
-		dio->flags |= IOMAP_DIO_FSBLOCK_ALIGNED;
 
 	if (iov_iter_rw(iter) == READ) {
 		if (iomi.pos >= dio->i_size)
