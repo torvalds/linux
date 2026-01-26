@@ -14,6 +14,5 @@ perf-util-y += iostat.o
 perf-util-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
 
 perf-util-y += auxtrace.o
-perf-util-y += archinsn.o
 perf-util-y += intel-pt.o
 perf-util-y += intel-bts.o
