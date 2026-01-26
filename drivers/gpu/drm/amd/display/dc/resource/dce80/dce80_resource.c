@@ -740,7 +740,8 @@ static struct link_encoder *dce80_link_encoder_create(
 	if (!enc110)
 		return NULL;
 
-	if (enc_init_data->connector.id == CONNECTOR_ID_VGA) {
+	if (enc_init_data->connector.id == CONNECTOR_ID_VGA &&
+	    enc_init_data->analog_engine != ENGINE_ID_UNKNOWN) {
 		dce110_link_encoder_construct(enc110,
 			enc_init_data,
 			&link_enc_feature,
