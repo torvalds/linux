@@ -148,6 +148,69 @@ amdgpu_userq_detect_and_reset_queues(struct amdgpu_userq_mgr *uq_mgr)
 	return r;
 }
 
+static void amdgpu_userq_hang_detect_work(struct work_struct *work)
+{
+	struct amdgpu_usermode_queue *queue = container_of(work,
+							  struct amdgpu_usermode_queue,
+							  hang_detect_work.work);
+	struct dma_fence *fence;
+	struct amdgpu_userq_mgr *uq_mgr;
+
+	if (!queue || !queue->userq_mgr)
+		return;
+
+	uq_mgr = queue->userq_mgr;
+	fence = READ_ONCE(queue->hang_detect_fence);
+	/* Fence already signaled – no action needed */
+	if (!fence || dma_fence_is_signaled(fence))
+		return;
+
+	mutex_lock(&uq_mgr->userq_mutex);
+	amdgpu_userq_detect_and_reset_queues(uq_mgr);
+	mutex_unlock(&uq_mgr->userq_mutex);
+}
+
+/*
+ * Start hang detection for a user queue fence. A delayed work will be scheduled
+ * to check if the fence is still pending after the timeout period.
+*/
+void amdgpu_userq_start_hang_detect_work(struct amdgpu_usermode_queue *queue)
+{
+	struct amdgpu_device *adev;
+	unsigned long timeout_ms;
+
+	if (!queue || !queue->userq_mgr || !queue->userq_mgr->adev)
+		return;
+
+	adev = queue->userq_mgr->adev;
+	/* Determine timeout based on queue type */
+	switch (queue->queue_type) {
+	case AMDGPU_RING_TYPE_GFX:
+		timeout_ms = adev->gfx_timeout;
+		break;
+	case AMDGPU_RING_TYPE_COMPUTE:
+		timeout_ms = adev->compute_timeout;
+		break;
+	case AMDGPU_RING_TYPE_SDMA:
+		timeout_ms = adev->sdma_timeout;
+		break;
+	default:
+		timeout_ms = adev->gfx_timeout;
+		break;
+	}
+
+	/* Store the fence to monitor and schedule hang detection */
+	WRITE_ONCE(queue->hang_detect_fence, queue->last_fence);
+	schedule_delayed_work(&queue->hang_detect_work,
+		     msecs_to_jiffies(timeout_ms));
+}
+
+static void amdgpu_userq_init_hang_detect_work(struct amdgpu_usermode_queue *queue)
+{
+	INIT_DELAYED_WORK(&queue->hang_detect_work, amdgpu_userq_hang_detect_work);
+	queue->hang_detect_fence = NULL;
+}
+
 static int amdgpu_userq_buffer_va_list_add(struct amdgpu_usermode_queue *queue,
 					   struct amdgpu_bo_va_mapping *va_map, u64 addr)
 {
@@ -572,7 +635,6 @@ amdgpu_userq_destroy(struct drm_file *filp, int queue_id)
 
 	cancel_delayed_work_sync(&uq_mgr->resume_work);
 	mutex_lock(&uq_mgr->userq_mutex);
-
 	queue = amdgpu_userq_find(uq_mgr, queue_id);
 	if (!queue) {
 		drm_dbg_driver(adev_to_drm(uq_mgr->adev), "Invalid queue id to destroy\n");
@@ -580,6 +642,11 @@ amdgpu_userq_destroy(struct drm_file *filp, int queue_id)
 		return -EINVAL;
 	}
 	amdgpu_userq_wait_for_last_fence(queue);
+	/* Cancel any pending hang detection work and cleanup */
+	if (queue->hang_detect_fence) {
+		cancel_delayed_work_sync(&queue->hang_detect_work);
+		queue->hang_detect_fence = NULL;
+	}
 	r = amdgpu_bo_reserve(queue->db_obj.obj, true);
 	if (!r) {
 		amdgpu_bo_unpin(queue->db_obj.obj);
@@ -819,6 +886,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	queue->debugfs_queue = debugfs_create_dir(queue_name, filp->debugfs_client);
 	debugfs_create_file("mqd_info", 0444, queue->debugfs_queue, queue, &amdgpu_mqd_info_fops);
 #endif
+	amdgpu_userq_init_hang_detect_work(queue);
 	kfree(queue_name);
 
 	args->out.queue_id = qid;

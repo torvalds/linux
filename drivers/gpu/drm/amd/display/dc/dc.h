@@ -63,7 +63,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.365"
+#define DC_VER "3.2.366"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -962,6 +962,7 @@ struct dc_qos_info {
 	uint32_t actual_avg_bw_in_mbps;
 	uint32_t calculated_avg_bw_in_mbps;
 	uint32_t actual_max_latency_in_ns;
+	uint32_t actual_min_latency_in_ns;
 	uint32_t qos_max_latency_ub_in_ns;
 	uint32_t actual_avg_latency_in_ns;
 	uint32_t qos_avg_latency_ub_in_ns;
@@ -1208,6 +1209,7 @@ struct dc_debug_options {
 	uint32_t custom_psp_footer_size;
 	bool disable_deferred_minimal_transitions;
 	unsigned int num_fast_flips_to_steady_state_override;
+	bool enable_dmu_recovery;
 };
 
 
@@ -1733,6 +1735,7 @@ struct dc_scratch_space {
 	bool link_powered_externally;	// Used to bypass hardware sequencing delays when panel is powered down forcibly
 
 	struct dc_panel_config panel_config;
+	enum dc_panel_type panel_type;
 	struct phy_state phy_state;
 	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY

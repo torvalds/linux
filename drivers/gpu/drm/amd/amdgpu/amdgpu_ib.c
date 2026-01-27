@@ -302,7 +302,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned int num_ibs,
 		if (job && job->vmid)
 			amdgpu_vmid_reset(adev, ring->vm_hub, job->vmid);
 		amdgpu_ring_undo(ring);
-		return r;
+		goto free_fence;
 	}
 	*f = &af->base;
 	/* get a ref for the job */

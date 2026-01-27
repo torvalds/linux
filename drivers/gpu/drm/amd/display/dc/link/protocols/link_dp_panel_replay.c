@@ -156,13 +156,23 @@ bool dp_pr_get_panel_inst(const struct dc *dc,
 		const struct dc_link *link,
 		unsigned int *inst_out)
 {
-	if (dc_is_embedded_signal(link->connector_signal)) {
-		/* TODO: just get edp link panel inst for now, fix it */
-		return dc_get_edp_link_panel_inst(dc, link, inst_out);
-	} else if (dc_is_dp_sst_signal(link->connector_signal)) {
-		/* TODO: just set to 1 for now, fix it */
-		*inst_out = 1;
-		return true;
+	if (!dc || !link || !inst_out)
+		return false;
+
+	if (!dc_is_dp_sst_signal(link->connector_signal)) /* only supoprt DP sst (eDP included) for now */
+		return false;
+
+	for (unsigned int i = 0; i < MAX_PIPES; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].stream &&
+			dc->current_state->res_ctx.pipe_ctx[i].stream->link == link) {
+			/* *inst_out is equal to otg number */
+			if (dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg)
+				*inst_out = dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg->inst;
+			else
+				*inst_out = 0;
+
+			return true;
+		}
 	}
 
 	return false;
@@ -280,12 +290,12 @@ bool dp_pr_update_state(struct dc_link *link, struct dmub_cmd_pr_update_state_da
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.pr_update_state.data, update_state_data, sizeof(struct dmub_cmd_pr_update_state_data));
+
 	cmd.pr_update_state.header.type = DMUB_CMD__PR;
 	cmd.pr_update_state.header.sub_type = DMUB_CMD__PR_UPDATE_STATE;
 	cmd.pr_update_state.header.payload_bytes = sizeof(struct dmub_cmd_pr_update_state_data);
 	cmd.pr_update_state.data.panel_inst = panel_inst;
-
-	memcpy(&cmd.pr_update_state.data, update_state_data, sizeof(struct dmub_cmd_pr_update_state_data));
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;
@@ -301,12 +311,12 @@ bool dp_pr_set_general_cmd(struct dc_link *link, struct dmub_cmd_pr_general_cmd_
 		return false;
 
 	memset(&cmd, 0, sizeof(cmd));
+	memcpy(&cmd.pr_general_cmd.data, general_cmd_data, sizeof(struct dmub_cmd_pr_general_cmd_data));
+
 	cmd.pr_general_cmd.header.type = DMUB_CMD__PR;
 	cmd.pr_general_cmd.header.sub_type = DMUB_CMD__PR_GENERAL_CMD;
 	cmd.pr_general_cmd.header.payload_bytes = sizeof(struct dmub_cmd_pr_general_cmd_data);
 	cmd.pr_general_cmd.data.panel_inst = panel_inst;
-
-	memcpy(&cmd.pr_general_cmd.data, general_cmd_data, sizeof(struct dmub_cmd_pr_general_cmd_data));
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	return true;

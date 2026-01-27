@@ -109,6 +109,17 @@ static void set_priority(struct v9_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
+static bool mqd_on_vram(struct amdgpu_device *adev)
+{
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 5, 0):
+		return true;
+	default:
+		return false;
+	}
+}
+
 static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		struct queue_properties *q)
 {
@@ -139,7 +150,8 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 			(ALIGN(q->ctl_stack_size, PAGE_SIZE) +
 			ALIGN(sizeof(struct v9_mqd), PAGE_SIZE)) *
 			NUM_XCC(node->xcc_mask),
-			AMDGPU_GEM_DOMAIN_GTT,
+			mqd_on_vram(node->adev) ? AMDGPU_GEM_DOMAIN_VRAM :
+						  AMDGPU_GEM_DOMAIN_GTT,
 			&(mqd_mem_obj->mem),
 			&(mqd_mem_obj->gpu_addr),
 			(void *)&(mqd_mem_obj->cpu_ptr), true);
@@ -739,6 +751,9 @@ static void init_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 			*gart_addr = xcc_gart_addr;
 		}
 	}
+
+	if (mqd_on_vram(mm->dev->adev))
+		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
 }
 
 static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
@@ -775,6 +790,9 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 			m->pm4_target_xcc_in_xcp = q->pm4_target_xcc;
 		}
 	}
+
+	if (mqd_on_vram(mm->dev->adev))
+		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
 }
 
 static void restore_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
@@ -813,6 +831,9 @@ static void restore_mqd_v9_4_3(struct mqd_manager *mm, void **mqd,
 					(uint8_t *)ctl_stack_src + xcc *  mqd_ctl_stack_size,
 					mqd_ctl_stack_size);
 	}
+
+	if (mqd_on_vram(mm->dev->adev))
+		amdgpu_device_flush_hdp(mm->dev->adev, NULL);
 }
 static int destroy_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 		   enum kfd_preempt_type type, unsigned int timeout,

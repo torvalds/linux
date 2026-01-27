@@ -380,10 +380,21 @@ static uint16_t amdgpu_discovery_calculate_checksum(uint8_t *data, uint32_t size
 	return checksum;
 }
 
-static inline bool amdgpu_discovery_verify_checksum(uint8_t *data, uint32_t size,
+static inline bool amdgpu_discovery_verify_checksum(struct amdgpu_device *adev,
+							uint8_t *data, uint32_t size,
 						    uint16_t expected)
 {
-	return !!(amdgpu_discovery_calculate_checksum(data, size) == expected);
+	uint16_t calculated;
+
+	calculated = amdgpu_discovery_calculate_checksum(data, size);
+
+	if (calculated != expected) {
+		dev_err(adev->dev, "Discovery checksum failed: calc 0x%04x != exp 0x%04x, size %u.\n",
+				calculated, expected, size);
+		return false;
+	}
+
+	return true;
 }
 
 static inline bool amdgpu_discovery_verify_binary_signature(uint8_t *binary)
@@ -439,7 +450,7 @@ static int amdgpu_discovery_verify_npsinfo(struct amdgpu_device *adev,
 		return -EINVAL;
 	}
 
-	if (!amdgpu_discovery_verify_checksum(discovery_bin + offset,
+	if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
 					      le32_to_cpu(nhdr->size_bytes),
 					      checksum)) {
 		dev_dbg(adev->dev, "invalid nps info data table checksum\n");
@@ -529,7 +540,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 	size = le16_to_cpu(bhdr->binary_size) - offset;
 	checksum = le16_to_cpu(bhdr->binary_checksum);
 
-	if (!amdgpu_discovery_verify_checksum(discovery_bin + offset, size,
+	if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset, size,
 					      checksum)) {
 		dev_err(adev->dev, "invalid ip discovery binary checksum\n");
 		r = -EINVAL;
@@ -549,7 +560,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 
-		if (!amdgpu_discovery_verify_checksum(discovery_bin + offset,
+		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
 						      le16_to_cpu(ihdr->size),
 						      checksum)) {
 			dev_err(adev->dev, "invalid ip discovery data table checksum\n");
@@ -572,7 +583,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 
-		if (!amdgpu_discovery_verify_checksum(discovery_bin + offset,
+		if (!amdgpu_discovery_verify_checksum(adev, discovery_bin + offset,
 						      le32_to_cpu(ghdr->size),
 						      checksum)) {
 			dev_err(adev->dev, "invalid gc data table checksum\n");
@@ -595,7 +606,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 
-		if (!amdgpu_discovery_verify_checksum(
+		if (!amdgpu_discovery_verify_checksum(adev,
 			    discovery_bin + offset,
 			    sizeof(struct harvest_table), checksum)) {
 			dev_err(adev->dev, "invalid harvest data table checksum\n");
@@ -618,7 +629,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 
-		if (!amdgpu_discovery_verify_checksum(
+		if (!amdgpu_discovery_verify_checksum(adev,
 			    discovery_bin + offset,
 			    le32_to_cpu(vhdr->size_bytes), checksum)) {
 			dev_err(adev->dev, "invalid vcn data table checksum\n");
@@ -641,7 +652,7 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 			goto out;
 		}
 
-		if (!amdgpu_discovery_verify_checksum(
+		if (!amdgpu_discovery_verify_checksum(adev,
 			    discovery_bin + offset,
 			    le32_to_cpu(mhdr->size_bytes), checksum)) {
 			dev_err(adev->dev, "invalid mall data table checksum\n");
@@ -1867,7 +1878,7 @@ static int amdgpu_discovery_refresh_nps_info(struct amdgpu_device *adev,
 				  sizeof(*nps_data), false);
 
 	nhdr = (struct nps_info_header *)(nps_data);
-	if (!amdgpu_discovery_verify_checksum((uint8_t *)nps_data,
+	if (!amdgpu_discovery_verify_checksum(adev, (uint8_t *)nps_data,
 					      le32_to_cpu(nhdr->size_bytes),
 					      checksum)) {
 		dev_err(adev->dev, "nps data refresh, checksum mismatch\n");

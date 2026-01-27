@@ -2784,6 +2784,10 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			if (!data->bps[i].ts)
 				continue;
 
+			/* U64_MAX is used to mark the record as invalid */
+			if (data->bps[i].retired_page == U64_MAX)
+				continue;
+
 			bps[r].bp = data->bps[i].retired_page;
 			r++;
 			if (r >= count)
@@ -3090,6 +3094,8 @@ static int __amdgpu_ras_restore_bad_pages(struct amdgpu_device *adev,
 
 		if (amdgpu_ras_check_bad_page_unlock(con,
 			bps[j].retired_page << AMDGPU_GPU_PAGE_SHIFT)) {
+			/* set to U64_MAX to mark it as invalid */
+			data->bps[data->count].retired_page = U64_MAX;
 			data->count++;
 			data->space_left--;
 			continue;

@@ -35,6 +35,8 @@
 #define HAVE_BANKED_VGPRS (ASIC_FAMILY == CHIP_GC_12_0_3)
 #define NUM_NAMED_BARRIERS (ASIC_FAMILY == CHIP_GC_12_0_3 ? 0x10 : 0)
 #define HAVE_CLUSTER_BARRIER (ASIC_FAMILY == CHIP_GC_12_0_3)
+#define CLUSTER_BARRIER_SERIALIZE_WORKAROUND (ASIC_FAMILY == CHIP_GC_12_0_3)
+#define RELAXED_SCHEDULING_IN_TRAP (ASIC_FAMILY == CHIP_GFX12)
 
 #define SINGLE_STEP_MISSED_WORKAROUND 1	//workaround for lost TRAP_AFTER_INST exception when SAVECTX raised
 #define HAVE_VALU_SGPR_HAZARD (ASIC_FAMILY == CHIP_GFX12)
@@ -104,9 +106,16 @@ var SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT		= 0
 var SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE		= 2
 
 var BARRIER_STATE_SIGNAL_OFFSET			= 16
+var BARRIER_STATE_SIGNAL_SIZE			= 7
 var BARRIER_STATE_MEMBER_OFFSET			= 4
 var BARRIER_STATE_MEMBER_SIZE			= 7
 var BARRIER_STATE_VALID_OFFSET			= 0
+
+#if RELAXED_SCHEDULING_IN_TRAP
+var TTMP11_SCHED_MODE_SHIFT			= 26
+var TTMP11_SCHED_MODE_SIZE			= 2
+var TTMP11_SCHED_MODE_MASK			= 0xC000000
+#endif
 
 var NAMED_BARRIERS_SR_OFFSET_FROM_HWREG		= 0x80
 var S_BARRIER_INIT_MEMBERCNT_MASK		= 0x7F0000
@@ -220,18 +229,22 @@ L_JUMP_TO_RESTORE:
 	s_branch	L_RESTORE
 
 L_SKIP_RESTORE:
+#if RELAXED_SCHEDULING_IN_TRAP
 	// Assume most relaxed scheduling mode is set. Save and revert to normal mode.
 	s_getreg_b32	ttmp2, hwreg(HW_REG_WAVE_SCHED_MODE)
 	s_wait_alu	0
 	s_setreg_imm32_b32	hwreg(HW_REG_WAVE_SCHED_MODE, \
 		SQ_WAVE_SCHED_MODE_DEP_MODE_SHIFT, SQ_WAVE_SCHED_MODE_DEP_MODE_SIZE), 0
+#endif
 
 	s_getreg_b32	s_save_state_priv, hwreg(HW_REG_WAVE_STATE_PRIV)	//save STATUS since we will change SCC
 
+#if RELAXED_SCHEDULING_IN_TRAP
 	// Save SCHED_MODE[1:0] into ttmp11[27:26].
 	s_andn2_b32	ttmp11, ttmp11, TTMP11_SCHED_MODE_MASK
 	s_lshl_b32	ttmp2, ttmp2, TTMP11_SCHED_MODE_SHIFT
 	s_or_b32	ttmp11, ttmp11, ttmp2
+#endif
 
 	// Clear SPI_PRIO: do not save with elevated priority.
 	// Clear ECC_ERR: prevents SQC store and triggers FATAL_HALT if setreg'd.
@@ -313,7 +326,7 @@ L_FETCH_2ND_TRAP:
 	s_cbranch_scc0	L_NO_SIGN_EXTEND_TMA
 	s_or_b32	ttmp15, ttmp15, ~ADDRESS_HI32_MASK
 L_NO_SIGN_EXTEND_TMA:
-#if ASIC_FAMILY == CHIP_GFX12
+#if RELAXED_SCHEDULING_IN_TRAP
 	// Move SCHED_MODE[1:0] from ttmp11 to unused bits in ttmp1[27:26] (return PC_HI).
 	// The second-level trap will restore from ttmp1 for backwards compatibility.
 	s_and_b32	ttmp2, ttmp11, TTMP11_SCHED_MODE_MASK
@@ -379,8 +392,10 @@ L_EXIT_TRAP:
 	// Only restore fields which the trap handler changes.
 	s_lshr_b32	s_save_state_priv, s_save_state_priv, SQ_WAVE_STATE_PRIV_SCC_SHIFT
 
+#if RELAXED_SCHEDULING_IN_TRAP
 	// Assume relaxed scheduling mode after this point.
 	restore_sched_mode(ttmp2)
+#endif
 
 	s_setreg_b32	hwreg(HW_REG_WAVE_STATE_PRIV, SQ_WAVE_STATE_PRIV_SCC_SHIFT, \
 		SQ_WAVE_STATE_PRIV_POISON_ERR_SHIFT - SQ_WAVE_STATE_PRIV_SCC_SHIFT + 1), s_save_state_priv
@@ -519,9 +534,11 @@ L_SAVE_HWREG:
 	v_mov_b32	v2, 0x0							//Set of SGPRs for TCP store
 	s_mov_b32	m0, 0x0							//Next lane of v2 to write to
 
+	write_hwreg_to_v2(s_save_m0)
+
 	// Ensure no further changes to barrier or LDS state.
 	// STATE_PRIV.*BARRIER_COMPLETE may change up to this point.
-	wait_trap_barriers(s_save_tmp)
+	wait_trap_barriers(s_save_tmp, s_save_m0, 1)
 
 	// Re-read final state of *BARRIER_COMPLETE fields for save.
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_STATE_PRIV)
@@ -529,9 +546,8 @@ L_SAVE_HWREG:
 	s_andn2_b32	s_save_state_priv, s_save_state_priv, SQ_WAVE_STATE_PRIV_ALL_BARRIER_COMPLETE_MASK
 	s_or_b32	s_save_state_priv, s_save_state_priv, s_save_tmp
 
-	write_hwreg_to_v2(s_save_m0)
 	write_hwreg_to_v2(s_save_pc_lo)
-	s_andn2_b32	s_save_tmp, s_save_pc_hi, S_SAVE_PC_HI_FIRST_WAVE_MASK
+	s_and_b32       s_save_tmp, s_save_pc_hi, ADDRESS_HI32_MASK
 	write_hwreg_to_v2(s_save_tmp)
 	write_hwreg_to_v2(s_save_exec_lo)
 #if WAVE32_ONLY
@@ -587,8 +603,18 @@ L_SAVE_HWREG:
 	write_hwreg_to_v2(s_save_tmp)
 #endif
 
+#if ASIC_FAMILY >= CHIP_GC_12_0_3
+	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_SCHED_MODE)
+	write_hwreg_to_v2(s_save_tmp)
+#endif
+
+#if ! SAVE_TTMPS_IN_SGPR_BLOCK
 	// Write HWREGs with 16 VGPR lanes. TTMPs occupy space after this.
 	s_mov_b32       exec_lo, 0xFFFF
+#else
+	// All 128 bytes are available for HWREGs.
+	s_mov_b32       exec_lo, 0xFFFFFFFF
+#endif
 	s_mov_b32	exec_hi, 0x0
 	s_add_u32	s_save_addr_lo, s_save_base_addr_lo, s_save_mem_offset
 	s_addc_u32	s_save_addr_hi, s_save_base_addr_hi, 0x0
@@ -1151,6 +1177,12 @@ L_SKIP_TRAP_CLUSTER_BARRIER_SIGNAL:
 L_SKIP_CLUSTER_BARRIER_RESTORE:
 #endif
 
+#if ASIC_FAMILY >= CHIP_GC_12_0_3
+	s_load_b32	s_restore_tmp, [s_restore_addr_lo, s_restore_addr_hi], null scope:SCOPE_SYS offset:0x40
+	s_wait_kmcnt	0
+	s_setreg_b32	hwreg(HW_REG_WAVE_SCHED_MODE), s_restore_tmp
+#endif
+
 	s_mov_b32	m0, s_restore_m0
 	s_mov_b32	exec_lo, s_restore_exec_lo
 	s_mov_b32	exec_hi, s_restore_exec_hi
@@ -1190,14 +1222,16 @@ L_SKIP_CLUSTER_BARRIER_RESTORE:
 	s_and_b64	exec, exec, exec					// Restore STATUS.EXECZ, not writable by s_setreg_b32
 	s_and_b64	vcc, vcc, vcc						// Restore STATUS.VCCZ, not writable by s_setreg_b32
 
+#if RELAXED_SCHEDULING_IN_TRAP
 	// Assume relaxed scheduling mode after this point.
 	restore_sched_mode(s_restore_tmp)
+#endif
 
 	s_setreg_b32	hwreg(HW_REG_WAVE_STATE_PRIV), s_restore_state_priv	// SCC is included, which is changed by previous salu
 
 	// Make barrier and LDS state visible to all waves in the group/cluster.
 	// STATE_PRIV.*BARRIER_COMPLETE may change after this point.
-	wait_trap_barriers(s_restore_tmp)
+	wait_trap_barriers(s_restore_tmp, 0, 0)
 
 #if HAVE_CLUSTER_BARRIER
 	// SCC is changed by wait_trap_barriers, restore it separately.
@@ -1210,7 +1244,7 @@ L_SKIP_CLUSTER_BARRIER_RESTORE:
 L_END_PGM:
 	// Make sure that no wave of the group/cluster can exit the trap handler
 	// before the group/cluster barrier state is saved.
-	wait_trap_barriers(s_restore_tmp)
+	wait_trap_barriers(s_restore_tmp, 0, 0)
 
 	s_endpgm_saved
 end
@@ -1300,11 +1334,11 @@ function restore_xnack_state_priv(s_tmp)
 end
 #endif
 
-function wait_trap_barriers(s_tmp)
+function wait_trap_barriers(s_tmp1, s_tmp2, serialize_wa)
 #if HAVE_CLUSTER_BARRIER
 	// If not in a WG then wave cannot use s_barrier_signal_isfirst.
-	s_getreg_b32	s_tmp, hwreg(HW_REG_WAVE_STATUS)
-	s_bitcmp0_b32	s_tmp, SQ_WAVE_STATUS_IN_WG_SHIFT
+	s_getreg_b32	s_tmp1, hwreg(HW_REG_WAVE_STATUS)
+	s_bitcmp0_b32	s_tmp1, SQ_WAVE_STATUS_IN_WG_SHIFT
 	s_cbranch_scc1	L_TRAP_CLUSTER_BARRIER_SIGNAL
 
 	s_barrier_signal_isfirst	-2
@@ -1318,15 +1352,37 @@ L_TRAP_CLUSTER_BARRIER_SIGNAL:
 
 L_SKIP_TRAP_CLUSTER_BARRIER_SIGNAL:
 	s_barrier_wait	-4
+
+#if CLUSTER_BARRIER_SERIALIZE_WORKAROUND
+if serialize_wa
+	// Trap cluster barrier may complete with a user cluster barrier in-flight.
+	// This is indicated if user cluster member count and signal count are equal.
+L_WAIT_USER_CLUSTER_BARRIER_COMPLETE:
+	s_sendmsg_rtn_b32	s_tmp1, sendmsg(MSG_RTN_GET_CLUSTER_BARRIER_STATE)
+	s_wait_kmcnt	0
+	s_bitcmp0_b32	s_tmp1, BARRIER_STATE_VALID_OFFSET
+	s_cbranch_scc1	L_NOT_IN_CLUSTER
+
+	s_bfe_u32	s_tmp2, s_tmp1, (BARRIER_STATE_MEMBER_OFFSET | (BARRIER_STATE_MEMBER_SIZE << 0x10))
+	s_bfe_u32	s_tmp1, s_tmp1, (BARRIER_STATE_SIGNAL_OFFSET | (BARRIER_STATE_SIGNAL_SIZE << 0x10))
+	s_cmp_eq_u32	s_tmp1, s_tmp2
+	s_cbranch_scc1	L_WAIT_USER_CLUSTER_BARRIER_COMPLETE
+end
+L_NOT_IN_CLUSTER:
+#endif
+
 #else
 	s_barrier_signal	-2
 	s_barrier_wait	-2
 #endif
 end
 
+#if RELAXED_SCHEDULING_IN_TRAP
 function restore_sched_mode(s_tmp)
 	s_bfe_u32	s_tmp, ttmp11, (TTMP11_SCHED_MODE_SHIFT | (TTMP11_SCHED_MODE_SIZE << 0x10))
 	s_setreg_b32	hwreg(HW_REG_WAVE_SCHED_MODE), s_tmp
+end
+#endif
 
 function restore_barrier_signal_count(barrier_id)
 	// extract the saved signal count from s_restore_tmp
@@ -1354,8 +1410,8 @@ function fixup_vgpr_bank_selection
 	// ttmp[0:1]: {7b'0} PC[56:0]
 	// ttmp2, 3, 10, 13, 14, 15: free
 	s_load_b64	[ttmp14, ttmp15], [ttmp0, ttmp1], 0 scope:SCOPE_CU	// Load the 2 instruction DW we are returning to
+	s_wait_kmcnt	0
 	s_load_b64	[ttmp2, ttmp3], [ttmp0, ttmp1], 8 scope:SCOPE_CU	// Load the next 2 instruction DW, just in case
-	s_wait_kmcnt	1
 	s_and_b32	ttmp10, ttmp14, 0x80000000				// Check bit 31 in the first DWORD
 										// SCC set if ttmp10 is != 0, i.e. if bit 31 == 1
 	s_cbranch_scc1	L_FIXUP_NOT_VOP12C					// If bit 31 is 1, we are not VOP1, VOP2, or VOP3C

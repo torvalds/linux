@@ -574,6 +574,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 
 	dma_fence_put(queue->last_fence);
 	queue->last_fence = dma_fence_get(fence);
+	amdgpu_userq_start_hang_detect_work(queue);
 	mutex_unlock(&userq_mgr->userq_mutex);
 
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
