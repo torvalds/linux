@@ -320,6 +320,102 @@ def IntelCtxSw() -> MetricGroup:
                                     "retired & core cycles between context switches"))
 
 
+def IntelFpu() -> Optional[MetricGroup]:
+    cyc = Event("cycles")
+    try:
+        s_64 = Event("FP_ARITH_INST_RETIRED.SCALAR_SINGLE",
+                     "SIMD_INST_RETIRED.SCALAR_SINGLE")
+    except:
+        return None
+    d_64 = Event("FP_ARITH_INST_RETIRED.SCALAR_DOUBLE",
+                 "SIMD_INST_RETIRED.SCALAR_DOUBLE")
+    s_128 = Event("FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE",
+                  "SIMD_INST_RETIRED.PACKED_SINGLE")
+
+    flop = s_64 + d_64 + 4 * s_128
+
+    d_128 = None
+    s_256 = None
+    d_256 = None
+    s_512 = None
+    d_512 = None
+    try:
+        d_128 = Event("FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE")
+        flop += 2 * d_128
+        s_256 = Event("FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE")
+        flop += 8 * s_256
+        d_256 = Event("FP_ARITH_INST_RETIRED.256B_PACKED_DOUBLE")
+        flop += 4 * d_256
+        s_512 = Event("FP_ARITH_INST_RETIRED.512B_PACKED_SINGLE")
+        flop += 16 * s_512
+        d_512 = Event("FP_ARITH_INST_RETIRED.512B_PACKED_DOUBLE")
+        flop += 8 * d_512
+    except:
+        pass
+
+    f_assist = Event("ASSISTS.FP", "FP_ASSIST.ANY", "FP_ASSIST.S")
+    if f_assist in [
+        "ASSISTS.FP",
+        "FP_ASSIST.S",
+    ]:
+        f_assist += "/cmask=1/"
+
+    flop_r = d_ratio(flop, interval_sec)
+    flop_c = d_ratio(flop, cyc)
+    nmi_constraint = MetricConstraint.GROUPED_EVENTS
+    if f_assist.name == "ASSISTS.FP":  # Icelake+
+        nmi_constraint = MetricConstraint.NO_GROUP_EVENTS_NMI
+
+    def FpuMetrics(group: str, fl: Optional[Event], mult: int, desc: str) -> Optional[MetricGroup]:
+        if not fl:
+            return None
+
+        f = fl * mult
+        fl_r = d_ratio(f, interval_sec)
+        r_s = d_ratio(fl, interval_sec)
+        return MetricGroup(group, [
+            Metric(f"{group}_of_total", desc + " floating point operations per second",
+                   d_ratio(f, flop), "100%"),
+            Metric(f"{group}_flops", desc + " floating point operations per second",
+                   fl_r, "flops/s"),
+            Metric(f"{group}_ops", desc + " operations per second",
+                   r_s, "ops/s"),
+        ])
+
+    return MetricGroup("lpm_fpu", [
+        MetricGroup("lpm_fpu_total", [
+            Metric("lpm_fpu_total_flops", "Floating point operations per second",
+                   flop_r, "flops/s"),
+            Metric("lpm_fpu_total_flopc", "Floating point operations per cycle",
+                   flop_c, "flops/cycle", constraint=nmi_constraint),
+        ]),
+        MetricGroup("lpm_fpu_64", [
+            FpuMetrics("lpm_fpu_64_single", s_64, 1, "64-bit single"),
+            FpuMetrics("lpm_fpu_64_double", d_64, 1, "64-bit double"),
+        ]),
+        MetricGroup("lpm_fpu_128", [
+            FpuMetrics("lpm_fpu_128_single", s_128,
+                       4, "128-bit packed single"),
+            FpuMetrics("lpm_fpu_128_double", d_128,
+                       2, "128-bit packed double"),
+        ]),
+        MetricGroup("lpm_fpu_256", [
+            FpuMetrics("lpm_fpu_256_single", s_256,
+                       8, "128-bit packed single"),
+            FpuMetrics("lpm_fpu_256_double", d_256,
+                       4, "128-bit packed double"),
+        ]),
+        MetricGroup("lpm_fpu_512", [
+            FpuMetrics("lpm_fpu_512_single", s_512,
+                       16, "128-bit packed single"),
+            FpuMetrics("lpm_fpu_512_double", d_512,
+                       8, "128-bit packed double"),
+        ]),
+        Metric("lpm_fpu_assists", "FP assists as a percentage of cycles",
+               d_ratio(f_assist, cyc), "100%"),
+    ])
+
+
 def IntelIlp() -> MetricGroup:
     tsc = Event("msr/tsc/")
     c0 = Event("msr/mperf/")
@@ -736,6 +832,7 @@ def main() -> None:
         Tsx(),
         IntelBr(),
         IntelCtxSw(),
+        IntelFpu(),
         IntelIlp(),
         IntelL2(),
         IntelLdSt(),
