@@ -646,12 +646,16 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 	return VMCI_SUCCESS;
 }
 
-static bool vmci_transport_stream_allow(u32 cid, u32 port)
+static bool vmci_transport_stream_allow(struct vsock_sock *vsk, u32 cid,
+					u32 port)
 {
 	static const u32 non_socket_contexts[] = {
 		VMADDR_CID_LOCAL,
 	};
 	int i;
+
+	if (!vsock_net_mode_global(vsk))
+		return false;
 
 	BUILD_BUG_ON(sizeof(cid) != sizeof(*non_socket_contexts));
 
@@ -682,12 +686,10 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	err = VMCI_SUCCESS;
 	bh_process_pkt = false;
 
-	/* Ignore incoming packets from contexts without sockets, or resources
-	 * that aren't vsock implementations.
+	/* Ignore incoming packets from resources that aren't vsock
+	 * implementations.
 	 */
-
-	if (!vmci_transport_stream_allow(dg->src.context, -1)
-	    || vmci_transport_peer_rid(dg->src.context) != dg->src.resource)
+	if (vmci_transport_peer_rid(dg->src.context) != dg->src.resource)
 		return VMCI_ERROR_NO_ACCESS;
 
 	if (VMCI_DG_SIZE(dg) < sizeof(*pkt))
@@ -745,6 +747,12 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	 */
 	vsk = vsock_sk(sk);
 	if (!vmci_transport_allow_dgram(vsk, pkt->dg.src.context)) {
+		err = VMCI_ERROR_NO_ACCESS;
+		goto out;
+	}
+
+	/* Ignore incoming packets from contexts without sockets. */
+	if (!vmci_transport_stream_allow(vsk, dg->src.context, -1)) {
 		err = VMCI_ERROR_NO_ACCESS;
 		goto out;
 	}
@@ -1784,8 +1792,12 @@ out:
 	return err;
 }
 
-static bool vmci_transport_dgram_allow(u32 cid, u32 port)
+static bool vmci_transport_dgram_allow(struct vsock_sock *vsk, u32 cid,
+				       u32 port)
 {
+	if (!vsock_net_mode_global(vsk))
+		return false;
+
 	if (cid == VMADDR_CID_HYPERVISOR) {
 		/* Registrations of PBRPC Servers do not modify VMX/Hypervisor
 		 * state and are allowed.
