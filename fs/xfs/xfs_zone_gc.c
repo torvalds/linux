@@ -131,10 +131,13 @@ struct xfs_zone_gc_data {
 	/*
 	 * Scratchpad to buffer GC data, organized as a ring buffer over
 	 * discontiguous folios.  scratch_head is where the buffer is filled,
-	 * and scratch_tail tracks the buffer space freed.
+	 * scratch_tail tracks the buffer space freed, and scratch_available
+	 * counts the space available in the ring buffer between the head and
+	 * the tail.
 	 */
 	struct folio			*scratch_folios[XFS_GC_NR_BUFS];
 	unsigned int			scratch_size;
+	unsigned int			scratch_available;
 	unsigned int			scratch_head;
 	unsigned int			scratch_tail;
 
@@ -212,6 +215,7 @@ xfs_zone_gc_data_alloc(
 			goto out_free_scratch;
 	}
 	data->scratch_size = XFS_GC_BUF_SIZE * XFS_GC_NR_BUFS;
+	data->scratch_available = data->scratch_size;
 	INIT_LIST_HEAD(&data->reading);
 	INIT_LIST_HEAD(&data->writing);
 	INIT_LIST_HEAD(&data->resetting);
@@ -574,18 +578,6 @@ xfs_zone_gc_ensure_target(
 	return oz;
 }
 
-static unsigned int
-xfs_zone_gc_scratch_available(
-	struct xfs_zone_gc_data	*data)
-{
-	if (!data->scratch_tail)
-		return data->scratch_size - data->scratch_head;
-
-	if (!data->scratch_head)
-		return data->scratch_tail;
-	return (data->scratch_size - data->scratch_head) + data->scratch_tail;
-}
-
 static bool
 xfs_zone_gc_space_available(
 	struct xfs_zone_gc_data	*data)
@@ -596,7 +588,7 @@ xfs_zone_gc_space_available(
 	if (!oz)
 		return false;
 	return oz->oz_allocated < rtg_blocks(oz->oz_rtg) &&
-		xfs_zone_gc_scratch_available(data);
+		data->scratch_available;
 }
 
 static void
@@ -625,8 +617,7 @@ xfs_zone_gc_alloc_blocks(
 	if (!oz)
 		return NULL;
 
-	*count_fsb = min(*count_fsb,
-		XFS_B_TO_FSB(mp, xfs_zone_gc_scratch_available(data)));
+	*count_fsb = min(*count_fsb, XFS_B_TO_FSB(mp, data->scratch_available));
 
 	/*
 	 * Directly allocate GC blocks from the reserved pool.
@@ -730,6 +721,7 @@ xfs_zone_gc_start_chunk(
 	bio->bi_end_io = xfs_zone_gc_end_io;
 	xfs_zone_gc_add_data(chunk);
 	data->scratch_head = (data->scratch_head + len) % data->scratch_size;
+	data->scratch_available -= len;
 
 	WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 	list_add_tail(&chunk->entry, &data->reading);
@@ -862,6 +854,7 @@ xfs_zone_gc_finish_chunk(
 
 	data->scratch_tail =
 		(data->scratch_tail + chunk->len) % data->scratch_size;
+	data->scratch_available += chunk->len;
 
 	/*
 	 * Cycle through the iolock and wait for direct I/O and layouts to
