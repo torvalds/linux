@@ -166,49 +166,6 @@ void tcp_rack_reo_timeout(struct sock *sk)
 		tcp_rearm_rto(sk);
 }
 
-/* Updates the RACK's reo_wnd based on DSACK and no. of recoveries.
- *
- * If a DSACK is received that seems like it may have been due to reordering
- * triggering fast recovery, increment reo_wnd by min_rtt/4 (upper bounded
- * by srtt), since there is possibility that spurious retransmission was
- * due to reordering delay longer than reo_wnd.
- *
- * Persist the current reo_wnd value for TCP_RACK_RECOVERY_THRESH (16)
- * no. of successful recoveries (accounts for full DSACK-based loss
- * recovery undo). After that, reset it to default (min_rtt/4).
- *
- * At max, reo_wnd is incremented only once per rtt. So that the new
- * DSACK on which we are reacting, is due to the spurious retx (approx)
- * after the reo_wnd has been updated last time.
- *
- * reo_wnd is tracked in terms of steps (of min_rtt/4), rather than
- * absolute value to account for change in rtt.
- */
-void tcp_rack_update_reo_wnd(struct sock *sk, struct rate_sample *rs)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if ((READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_recovery) &
-	     TCP_RACK_STATIC_REO_WND) ||
-	    !rs->prior_delivered)
-		return;
-
-	/* Disregard DSACK if a rtt has not passed since we adjusted reo_wnd */
-	if (before(rs->prior_delivered, tp->rack.last_delivered))
-		tp->rack.dsack_seen = 0;
-
-	/* Adjust the reo_wnd if update is pending */
-	if (tp->rack.dsack_seen) {
-		tp->rack.reo_wnd_steps = min_t(u32, 0xFF,
-					       tp->rack.reo_wnd_steps + 1);
-		tp->rack.dsack_seen = 0;
-		tp->rack.last_delivered = tp->delivered;
-		tp->rack.reo_wnd_persist = TCP_RACK_RECOVERY_THRESH;
-	} else if (!tp->rack.reo_wnd_persist) {
-		tp->rack.reo_wnd_steps = 1;
-	}
-}
-
 /* RFC6582 NewReno recovery for non-SACK connection. It simply retransmits
  * the next unacked packet upon receiving
  * a) three or more DUPACKs to start the fast recovery
