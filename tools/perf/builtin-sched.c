@@ -55,6 +55,7 @@
 #define SYM_LEN			129
 #define MAX_PID			1024000
 #define MAX_PRIO		140
+#define SEP_LEN			100
 
 static const char *cpu_list;
 static struct perf_cpu_map *user_requested_cpus;
@@ -3997,7 +3998,7 @@ static inline void print_cpu_stats(struct perf_record_schedstat_cpu *cs1,
 		       "PCT_CHANGE1", "PCT_CHANGE2");
 
 	printf("\n");
-	print_separator2(100, "", 0);
+	print_separator2(SEP_LEN, "", 0);
 
 #define CALC_PCT(_x, _y)	((_y) ? ((double)(_x) / (_y)) * 100 : 0.0)
 
@@ -4047,8 +4048,8 @@ static inline void print_domain_stats(struct perf_record_schedstat_domain *ds1,
 #define DOMAIN_CATEGORY(_desc)							\
 	do {									\
 		size_t _len = strlen(_desc);					\
-		size_t _pre_dash_cnt = (100 - _len) / 2;			\
-		size_t _post_dash_cnt = 100 - _len - _pre_dash_cnt;		\
+		size_t _pre_dash_cnt = (SEP_LEN - _len) / 2;			\
+		size_t _post_dash_cnt = SEP_LEN - _len - _pre_dash_cnt;		\
 		print_separator2((int)_pre_dash_cnt, _desc, (int)_post_dash_cnt);\
 	} while (0)
 
@@ -4238,14 +4239,14 @@ static int show_schedstat_data(struct list_head *head1, struct cpu_domain_map **
 	int ret = 0;
 
 	printf("Description\n");
-	print_separator2(100, "", 0);
+	print_separator2(SEP_LEN, "", 0);
 	printf("%-30s-> %s\n", "DESC", "Description of the field");
 	printf("%-30s-> %s\n", "COUNT", "Value of the field");
 	printf("%-30s-> %s\n", "PCT_CHANGE", "Percent change with corresponding base value");
 	printf("%-30s-> %s\n", "AVG_JIFFIES",
 	       "Avg time in jiffies between two consecutive occurrence of event");
 
-	print_separator2(100, "", 0);
+	print_separator2(SEP_LEN, "", 0);
 	printf("\n");
 
 	printf("%-65s: ", "Time elapsed (in jiffies)");
@@ -4286,16 +4287,16 @@ static int show_schedstat_data(struct list_head *head1, struct cpu_domain_map **
 			return -1;
 		}
 
-		print_separator2(100, "", 0);
+		print_separator2(SEP_LEN, "", 0);
 
 		if (is_summary)
 			printf("CPU: <ALL CPUS SUMMARY>\n");
 		else
 			printf("CPU: %d\n", cs1->cpu);
 
-		print_separator2(100, "", 0);
+		print_separator2(SEP_LEN, "", 0);
 		print_cpu_stats(cs1, cs2);
-		print_separator2(100, "", 0);
+		print_separator2(SEP_LEN, "", 0);
 
 		list_for_each_entry(dptr1, &cptr1->domain_head, domain_list) {
 			struct domain_info *dinfo1 = NULL, *dinfo2 = NULL;
@@ -4329,9 +4330,9 @@ static int show_schedstat_data(struct list_head *head1, struct cpu_domain_map **
 
 				printf("%s\n", dinfo1->cpulist);
 			}
-			print_separator2(100, "", 0);
+			print_separator2(SEP_LEN, "", 0);
 			print_domain_stats(ds1, ds2, jiffies1, jiffies2);
-			print_separator2(100, "", 0);
+			print_separator2(SEP_LEN, "", 0);
 
 			if (dptr2)
 				dptr2 = list_next_entry(dptr2, domain_list);
