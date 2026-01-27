@@ -39,7 +39,12 @@ do
 		X*)
 			;;
 		*)
-			kvm-recheck-${TORTURE_SUITE}.sh $i
+			if test -f tools/testing/selftests/rcutorture/bin/kvm-recheck-${TORTURE_SUITE}.sh
+			then
+				kvm-recheck-${TORTURE_SUITE}.sh $i
+			else
+				echo No kvm-recheck-${TORTURE_SUITE}.sh, so no ${TORTURE_SUITE}-specific analysis.
+			fi
 		esac
 		if test -f "$i/qemu-retval" && test "`cat $i/qemu-retval`" -ne 0 && test "`cat $i/qemu-retval`" -ne 137
 		then
