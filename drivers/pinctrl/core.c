@@ -2323,16 +2323,6 @@ static void devm_pinctrl_dev_release(struct device *dev, void *res)
 	pinctrl_unregister(pctldev);
 }
 
-static int devm_pinctrl_dev_match(struct device *dev, void *res, void *data)
-{
-	struct pctldev **r = res;
-
-	if (WARN_ON(!r || !*r))
-		return 0;
-
-	return *r == data;
-}
-
 /**
  * devm_pinctrl_register() - Resource managed version of pinctrl_register().
  * @dev: parent device for this pin controller
@@ -2402,18 +2392,6 @@ int devm_pinctrl_register_and_init(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_register_and_init);
-
-/**
- * devm_pinctrl_unregister() - Resource managed version of pinctrl_unregister().
- * @dev: device for which resource was allocated
- * @pctldev: the pinctrl device to unregister.
- */
-void devm_pinctrl_unregister(struct device *dev, struct pinctrl_dev *pctldev)
-{
-	WARN_ON(devres_release(dev, devm_pinctrl_dev_release,
-			       devm_pinctrl_dev_match, pctldev));
-}
-EXPORT_SYMBOL_GPL(devm_pinctrl_unregister);
 
 static int __init pinctrl_init(void)
 {
