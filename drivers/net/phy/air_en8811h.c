@@ -448,6 +448,11 @@ static int en8811h_wait_mcu_ready(struct phy_device *phydev)
 {
 	int ret, reg_value;
 
+	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
+				     EN8811H_FW_CTRL_1_FINISH);
+	if (ret)
+		return ret;
+
 	/* Because of mdio-lock, may have to wait for multiple loads */
 	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_VEND1,
 					EN8811H_PHY_FW_STATUS, reg_value,
@@ -461,9 +466,18 @@ static int en8811h_wait_mcu_ready(struct phy_device *phydev)
 	return 0;
 }
 
-static int en8811h_load_firmware(struct phy_device *phydev)
+static void en8811h_print_fw_version(struct phy_device *phydev)
 {
 	struct en8811h_priv *priv = phydev->priv;
+
+	air_buckpbus_reg_read(phydev, EN8811H_FW_VERSION,
+			      &priv->firmware_version);
+	phydev_info(phydev, "MD32 firmware version: %08x\n",
+		    priv->firmware_version);
+}
+
+static int en8811h_load_firmware(struct phy_device *phydev)
+{
 	struct device *dev = &phydev->mdio.dev;
 	const struct firmware *fw1, *fw2;
 	int ret;
@@ -500,17 +514,11 @@ static int en8811h_load_firmware(struct phy_device *phydev)
 	if (ret < 0)
 		goto en8811h_load_firmware_out;
 
-	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
-				     EN8811H_FW_CTRL_1_FINISH);
+	ret = en8811h_wait_mcu_ready(phydev);
 	if (ret < 0)
 		goto en8811h_load_firmware_out;
 
-	ret = en8811h_wait_mcu_ready(phydev);
-
-	air_buckpbus_reg_read(phydev, EN8811H_FW_VERSION,
-			      &priv->firmware_version);
-	phydev_info(phydev, "MD32 firmware version: %08x\n",
-		    priv->firmware_version);
+	en8811h_print_fw_version(phydev);
 
 en8811h_load_firmware_out:
 	release_firmware(fw2);
@@ -530,11 +538,6 @@ static int en8811h_restart_mcu(struct phy_device *phydev)
 
 	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
 				     EN8811H_FW_CTRL_1_START);
-	if (ret < 0)
-		return ret;
-
-	ret = air_buckpbus_reg_write(phydev, EN8811H_FW_CTRL_1,
-				     EN8811H_FW_CTRL_1_FINISH);
 	if (ret < 0)
 		return ret;
 
@@ -919,6 +922,23 @@ static int en8811h_clk_provider_setup(struct device *dev, struct clk_hw *hw)
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, hw);
 }
 
+static int en8811h_leds_setup(struct phy_device *phydev)
+{
+	struct en8811h_priv *priv = phydev->priv;
+	int ret;
+
+	priv->led[0].rules = AIR_DEFAULT_TRIGGER_LED0;
+	priv->led[1].rules = AIR_DEFAULT_TRIGGER_LED1;
+	priv->led[2].rules = AIR_DEFAULT_TRIGGER_LED2;
+
+	ret = air_leds_init(phydev, EN8811H_LED_COUNT, AIR_PHY_LED_DUR,
+			    AIR_LED_MODE_DISABLE);
+	if (ret < 0)
+		phydev_err(phydev, "Failed to disable leds: %d\n", ret);
+
+	return ret;
+}
+
 static int en8811h_probe(struct phy_device *phydev)
 {
 	struct en8811h_priv *priv;
@@ -937,19 +957,12 @@ static int en8811h_probe(struct phy_device *phydev)
 	/* mcu has just restarted after firmware load */
 	priv->mcu_needs_restart = false;
 
-	priv->led[0].rules = AIR_DEFAULT_TRIGGER_LED0;
-	priv->led[1].rules = AIR_DEFAULT_TRIGGER_LED1;
-	priv->led[2].rules = AIR_DEFAULT_TRIGGER_LED2;
-
 	/* MDIO_DEVS1/2 empty, so set mmds_present bits here */
 	phydev->c45_ids.mmds_present |= MDIO_DEVS_PMAPMD | MDIO_DEVS_AN;
 
-	ret = air_leds_init(phydev, EN8811H_LED_COUNT, AIR_PHY_LED_DUR,
-			    AIR_LED_MODE_DISABLE);
-	if (ret < 0) {
-		phydev_err(phydev, "Failed to disable leds: %d\n", ret);
+	ret = en8811h_leds_setup(phydev);
+	if (ret < 0)
 		return ret;
-	}
 
 	priv->phydev = phydev;
 	/* Co-Clock Output */
