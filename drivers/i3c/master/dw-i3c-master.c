@@ -416,17 +416,14 @@ static void dw_i3c_master_start_xfer_locked(struct dw_i3c_master *master)
 static void dw_i3c_master_enqueue_xfer(struct dw_i3c_master *master,
 				       struct dw_i3c_xfer *xfer)
 {
-	unsigned long flags;
-
 	init_completion(&xfer->comp);
-	spin_lock_irqsave(&master->xferqueue.lock, flags);
+	guard(spinlock_irqsave)(&master->xferqueue.lock);
 	if (master->xferqueue.cur) {
 		list_add_tail(&xfer->node, &master->xferqueue.list);
 	} else {
 		master->xferqueue.cur = xfer;
 		dw_i3c_master_start_xfer_locked(master);
 	}
-	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
 static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
@@ -451,11 +448,8 @@ static void dw_i3c_master_dequeue_xfer_locked(struct dw_i3c_master *master,
 static void dw_i3c_master_dequeue_xfer(struct dw_i3c_master *master,
 				       struct dw_i3c_xfer *xfer)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&master->xferqueue.lock, flags);
+	guard(spinlock_irqsave)(&master->xferqueue.lock);
 	dw_i3c_master_dequeue_xfer_locked(master, xfer);
-	spin_unlock_irqrestore(&master->xferqueue.lock, flags);
 }
 
 static void dw_i3c_master_end_xfer_locked(struct dw_i3c_master *master, u32 isr)
@@ -1195,15 +1189,13 @@ static int dw_i3c_master_request_ibi(struct i3c_dev_desc *dev,
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
-	unsigned long flags;
 
 	data->ibi_pool = i3c_generic_ibi_alloc_pool(dev, req);
 	if (IS_ERR(data->ibi_pool))
 		return PTR_ERR(data->ibi_pool);
 
-	spin_lock_irqsave(&master->devs_lock, flags);
+	guard(spinlock_irqsave)(&master->devs_lock);
 	master->devs[data->index].ibi_dev = dev;
-	spin_unlock_irqrestore(&master->devs_lock, flags);
 
 	return 0;
 }
@@ -1213,11 +1205,10 @@ static void dw_i3c_master_free_ibi(struct i3c_dev_desc *dev)
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
-	unsigned long flags;
 
-	spin_lock_irqsave(&master->devs_lock, flags);
-	master->devs[data->index].ibi_dev = NULL;
-	spin_unlock_irqrestore(&master->devs_lock, flags);
+	scoped_guard(spinlock_irqsave, &master->devs_lock) {
+		master->devs[data->index].ibi_dev = NULL;
+	}
 
 	i3c_generic_ibi_free_pool(data->ibi_pool);
 	data->ibi_pool = NULL;
@@ -1244,13 +1235,12 @@ static void dw_i3c_master_set_sir_enabled(struct dw_i3c_master *master,
 					  struct i3c_dev_desc *dev,
 					  u8 idx, bool enable)
 {
-	unsigned long flags;
 	u32 dat_entry, reg;
 	bool global;
 
 	dat_entry = DEV_ADDR_TABLE_LOC(master->datstartaddr, idx);
 
-	spin_lock_irqsave(&master->devs_lock, flags);
+	guard(spinlock_irqsave)(&master->devs_lock);
 	reg = readl(master->regs + dat_entry);
 	if (enable) {
 		reg &= ~DEV_ADDR_TABLE_SIR_REJECT;
@@ -1275,9 +1265,6 @@ static void dw_i3c_master_set_sir_enabled(struct dw_i3c_master *master,
 
 	if (global)
 		dw_i3c_master_enable_sir_signal(master, enable);
-
-
-	spin_unlock_irqrestore(&master->devs_lock, flags);
 }
 
 static int dw_i3c_master_enable_hotjoin(struct i3c_master_controller *m)
@@ -1378,7 +1365,6 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	struct dw_i3c_i2c_dev_data *data;
 	struct i3c_ibi_slot *slot;
 	struct i3c_dev_desc *dev;
-	unsigned long flags;
 	u8 addr, len;
 	int idx;
 
@@ -1396,7 +1382,7 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	 * a new platform op to validate it.
 	 */
 
-	spin_lock_irqsave(&master->devs_lock, flags);
+	guard(spinlock_irqsave)(&master->devs_lock);
 	idx = dw_i3c_master_get_addr_pos(master, addr);
 	if (idx < 0) {
 		dev_dbg_ratelimited(&master->base.dev,
@@ -1432,14 +1418,10 @@ static void dw_i3c_master_handle_ibi_sir(struct dw_i3c_master *master,
 	}
 	i3c_master_queue_ibi(dev, slot);
 
-	spin_unlock_irqrestore(&master->devs_lock, flags);
-
 	return;
 
 err_drain:
 	dw_i3c_master_drain_ibi_queue(master, len);
-
-	spin_unlock_irqrestore(&master->devs_lock, flags);
 }
 
 /* "ibis": referring to In-Band Interrupts, and not
