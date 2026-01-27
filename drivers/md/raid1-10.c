@@ -3,11 +3,6 @@
 #define RESYNC_BLOCK_SIZE (64*1024)
 #define RESYNC_PAGES ((RESYNC_BLOCK_SIZE + PAGE_SIZE-1) / PAGE_SIZE)
 
-/*
- * Number of guaranteed raid bios in case of extreme VM load:
- */
-#define	NR_RAID_BIOS 256
-
 /* when we get a read error on a read-only array, we redirect to another
  * device without failing the first device, or trying to over-write to
  * correct the read error.  To keep track of bad blocks on a per-bio
