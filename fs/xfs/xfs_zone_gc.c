@@ -578,19 +578,6 @@ xfs_zone_gc_ensure_target(
 	return oz;
 }
 
-static bool
-xfs_zone_gc_space_available(
-	struct xfs_zone_gc_data	*data)
-{
-	struct xfs_open_zone	*oz;
-
-	oz = xfs_zone_gc_ensure_target(data->mp);
-	if (!oz)
-		return false;
-	return oz->oz_allocated < rtg_blocks(oz->oz_rtg) &&
-		data->scratch_available;
-}
-
 static void
 xfs_zone_gc_end_io(
 	struct bio		*bio)
@@ -989,9 +976,15 @@ static bool
 xfs_zone_gc_should_start_new_work(
 	struct xfs_zone_gc_data	*data)
 {
+	struct xfs_open_zone	*oz;
+
 	if (xfs_is_shutdown(data->mp))
 		return false;
-	if (!xfs_zone_gc_space_available(data))
+	if (!data->scratch_available)
+		return false;
+
+	oz = xfs_zone_gc_ensure_target(data->mp);
+	if (!oz || oz->oz_allocated == rtg_blocks(oz->oz_rtg))
 		return false;
 
 	if (!data->iter.victim_rtg) {
