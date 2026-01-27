@@ -228,14 +228,18 @@ class NestedMatch:
             yield line[t[0]:t[2]]
 
     def sub(self, regex, sub, line, count=0):
-        """
+        r"""
         This is similar to re.sub:
 
         It matches a regex that it is followed by a delimiter,
         replacing occurrences only if all delimiters are paired.
 
-        if r'\1' is used, it works just like re: it places there the
-        matched paired data with the delimiter stripped.
+        if the sub argument contains::
+
+            r'\1'
+
+        it will work just like re: it places there the matched paired data
+        with the delimiter stripped.
 
         If count is different than zero, it will replace at most count
         items.
