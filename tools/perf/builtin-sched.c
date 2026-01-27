@@ -3946,7 +3946,7 @@ static struct schedstat_domain *domain_second_pass;
 static bool after_workload_flag;
 static bool verbose_field;
 
-static void store_schedtstat_cpu_diff(struct schedstat_cpu *after_workload)
+static void store_schedstat_cpu_diff(struct schedstat_cpu *after_workload)
 {
 	struct perf_record_schedstat_cpu *before = cpu_second_pass->cpu_data;
 	struct perf_record_schedstat_cpu *after = after_workload->cpu_data;
@@ -4437,7 +4437,7 @@ static int perf_sched__process_schedstat(const struct perf_tool *tool __maybe_un
 			}
 			domain_second_pass = list_first_entry(&cpu_second_pass->domain_head,
 							      struct schedstat_domain, domain_list);
-			store_schedtstat_cpu_diff(temp);
+			store_schedstat_cpu_diff(temp);
 		}
 	} else if (event->header.type == PERF_RECORD_SCHEDSTAT_DOMAIN) {
 		struct schedstat_cpu *cpu_tail;
