@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ *
+ * Monaco specific modifications required to boot in EL2.
+ */
+
+/dts-v1/;
+/plugin/;
+
+&gpu_zap_shader {
+	status = "disabled";
+};
+
+&iris {
+	status = "disabled";
+};
+
+&remoteproc_adsp {
+	iommus = <&apps_smmu 0x2000 0x0>;
+};
+
+&remoteproc_cdsp {
+	iommus = <&apps_smmu 0x19c0 0x0400>;
+};
+
+&remoteproc_gpdsp {
+	iommus = <&apps_smmu 0x28a0 0x0>;
+};
