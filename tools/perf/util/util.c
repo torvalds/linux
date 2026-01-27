@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "perf.h"
 #include "util.h"
 #include "debug.h"
 #include "event.h"
@@ -262,7 +263,7 @@ void cpumask_to_cpulist(char *cpumask, char *cpulist)
 	int i, j, bm_size, nbits;
 	int len = strlen(cpumask);
 	unsigned long *bm;
-	char cpus[1024];
+	char cpus[MAX_NR_CPUS];
 
 	for (i = 0; i < len; i++) {
 		if (cpumask[i] == ',') {

@@ -76,6 +76,7 @@ static const u64 __perf_magic2    = 0x32454c4946524550ULL;
 static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
 #define PERF_MAGIC	__perf_magic2
+#define DNAME_LEN	16
 
 const char perf_version_string[] = PERF_VERSION;
 
@@ -1616,10 +1617,10 @@ static int write_pmu_caps(struct feat_fd *ff,
 
 struct cpu_domain_map **build_cpu_domain_map(u32 *schedstat_version, u32 *max_sched_domains, u32 nr)
 {
+	char dname[DNAME_LEN], cpumask[MAX_NR_CPUS];
 	struct domain_info *domain_info;
 	struct cpu_domain_map **cd_map;
-	char dname[16], cpumask[256];
-	char cpulist[1024];
+	char cpulist[MAX_NR_CPUS];
 	char *line = NULL;
 	u32 cpu, domain;
 	u32 dcount = 0;
