@@ -21,19 +21,22 @@ void _rtw_open_pktfile(struct sk_buff *pktptr, struct pkt_file *pfile)
 	pfile->cur_buffer = pfile->buf_start;
 }
 
-uint _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
+int _rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
-	uint	len = 0;
+	int ret;
 
-	len =  rtw_remainder_len(pfile);
-	len = (rlen > len) ? len : rlen;
+	if (rtw_remainder_len(pfile) < rlen)
+		return -EINVAL;
 
-	if (rmem)
-		skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, len);
+	if (rmem) {
+		ret = skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, rlen);
+		if (ret < 0)
+			return ret;
+	}
 
-	pfile->cur_addr += len;
-	pfile->pkt_len -= len;
-	return len;
+	pfile->cur_addr += rlen;
+	pfile->pkt_len -= rlen;
+	return rlen;
 }
 
 signed int rtw_endofpktfile(struct pkt_file *pfile)
