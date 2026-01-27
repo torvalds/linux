@@ -1742,11 +1742,11 @@ static int vcn_v4_0_3_ring_reset(struct amdgpu_ring *ring,
 		goto unlock;
 	}
 
-	r = vcn_v4_0_3_reset_jpeg_post_helper(adev, ring->me);
 	if (pg_state)
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
 						       AMD_PG_STATE_GATE);
 	mutex_unlock(&adev->jpeg.jpeg_pg_lock);
+	r = vcn_v4_0_3_reset_jpeg_post_helper(adev, ring->me);
 
 unlock:
 	mutex_unlock(&vinst->engine_reset_mutex);
