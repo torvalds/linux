@@ -13,7 +13,7 @@ set -euo pipefail
 
 SCRIPTDIR=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
-source "${SCRIPTDIR}"/lib/sh/lib_netcons.sh
+source "${SCRIPTDIR}"/../lib/sh/lib_netcons.sh
 # This is coming from netconsole code. Check for it in drivers/net/netconsole.c
 MAX_USERDATA_ITEMS=256
 

@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPTDIR=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
-source "${SCRIPTDIR}"/lib/sh/lib_netcons.sh
+source "${SCRIPTDIR}"/../lib/sh/lib_netcons.sh
 
 modprobe netdevsim 2> /dev/null || true
 modprobe netconsole 2> /dev/null || true
