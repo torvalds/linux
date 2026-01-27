@@ -752,6 +752,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 void PHY_ConvertTxPowerLimitToPowerIndex(struct adapter *Adapter)
 {
 	struct hal_com_data	*pHalData = GET_HAL_DATA(Adapter);
+	struct registry_priv *r = &Adapter->registrypriv;
 	u8 BW40PwrBasedBm2_4G = 0x2E;
 	u8 regulation, bw, channel, rateSection;
 	s8 tempValue = 0, tempPwrLmt = 0;
@@ -772,7 +773,7 @@ void PHY_ConvertTxPowerLimitToPowerIndex(struct adapter *Adapter)
 							else if (rateSection == 0) /*  CCK */
 								BW40PwrBasedBm2_4G = PHY_GetTxPowerByRateBase(Adapter, rfPath, CCK);
 						} else
-							BW40PwrBasedBm2_4G = Adapter->registrypriv.RegPowerBase * 2;
+							BW40PwrBasedBm2_4G = r->reg_power_base * 2;
 
 						if (tempPwrLmt != MAX_POWER_INDEX) {
 							tempValue = tempPwrLmt - BW40PwrBasedBm2_4G;
