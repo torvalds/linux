@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 import argparse
 import os
-from metric import (
-    JsonEncodeMetric, JsonEncodeMetricGroupDescriptions, MetricGroup)
+from metric import (JsonEncodeMetric, JsonEncodeMetricGroupDescriptions, LoadEvents,
+                    MetricGroup)
 
 # Global command line arguments.
 _args = None
@@ -30,6 +30,9 @@ def main() -> None:
         help='Root of tree containing architecture directories containing json files'
     )
     _args = parser.parse_args()
+
+    directory = f"{_args.events_path}/arm64/{_args.vendor}/{_args.model}/"
+    LoadEvents(directory)
 
     all_metrics = MetricGroup("", [])
 
