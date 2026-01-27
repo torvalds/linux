@@ -78,7 +78,7 @@ def generate_crates(
         is_workspace_member: Optional[bool],
         edition: Optional[str],
     ) -> Crate:
-        cfg = cfg if cfg is not None else []
+        cfg = cfg if cfg is not None else crates_cfgs.get(display_name, [])
         is_workspace_member = (
             is_workspace_member if is_workspace_member is not None else True
         )
@@ -203,7 +203,7 @@ def generate_crates(
     # NB: sysroot crates reexport items from one another so setting up our transitive dependencies
     # here is important for ensuring that rust-analyzer can resolve symbols. The sources of truth
     # for this dependency graph are `(sysroot_src / crate / "Cargo.toml" for crate in crates)`.
-    core = append_sysroot_crate("core", [], cfg=crates_cfgs.get("core", []))
+    core = append_sysroot_crate("core", [])
     alloc = append_sysroot_crate("alloc", [core])
     std = append_sysroot_crate("std", [alloc, core])
     proc_macro = append_sysroot_crate("proc_macro", [core, std])
@@ -218,14 +218,12 @@ def generate_crates(
         "proc_macro2",
         srctree / "rust" / "proc-macro2" / "lib.rs",
         [core, alloc, std, proc_macro],
-        cfg=crates_cfgs["proc_macro2"],
     )
 
     quote = append_crate(
         "quote",
         srctree / "rust" / "quote" / "lib.rs",
         [core, alloc, std, proc_macro, proc_macro2],
-        cfg=crates_cfgs["quote"],
         edition="2018",
     )
 
@@ -233,7 +231,6 @@ def generate_crates(
         "syn",
         srctree / "rust" / "syn" / "lib.rs",
         [std, proc_macro, proc_macro2, quote],
-        cfg=crates_cfgs["syn"],
     )
 
     macros = append_proc_macro_crate(
@@ -252,14 +249,12 @@ def generate_crates(
         "pin_init_internal",
         srctree / "rust" / "pin-init" / "internal" / "src" / "lib.rs",
         [std, proc_macro, proc_macro2, quote, syn],
-        cfg=["kernel"],
     )
 
     pin_init = append_crate(
         "pin_init",
         srctree / "rust" / "pin-init" / "src" / "lib.rs",
         [core, compiler_builtins, pin_init_internal, macros],
-        cfg=["kernel"],
     )
 
     ffi = append_crate(
