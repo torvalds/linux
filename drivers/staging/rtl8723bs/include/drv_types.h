@@ -156,7 +156,7 @@ struct registry_priv {
 	u8 notch_filter;
 
 	/* define for tx power adjust */
-	u8 RegEnableTxPowerLimit;
+	u8 reg_enable_tx_power_limit;
 	u8 RegEnableTxPowerByRate;
 	u8 RegPowerBase;
 	u8 RegPwrTblSel;

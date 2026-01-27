@@ -690,9 +690,9 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	struct hal_com_data *hal_data = GET_HAL_DATA(adapter);
 	s8 limits[10] = {0}; u8 i = 0;
 
-	if (((adapter->registrypriv.RegEnableTxPowerLimit == 2) &&
+	if (((adapter->registrypriv.reg_enable_tx_power_limit == 2) &&
 	     (hal_data->EEPROMRegulatory != 1)) ||
-	    (adapter->registrypriv.RegEnableTxPowerLimit == 0))
+	    (adapter->registrypriv.reg_enable_tx_power_limit == 0))
 		return MAX_POWER_INDEX;
 
 	switch (adapter->registrypriv.RegPwrTblSel) {

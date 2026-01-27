@@ -338,13 +338,10 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 
 	/*  Read Tx Power Limit File */
 	PHY_InitTxPowerLimit(Adapter);
-	if (
-		Adapter->registrypriv.RegEnableTxPowerLimit == 1 ||
-		(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
-	) {
-		ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv,
-					   CONFIG_RF_TXPWR_LMT, 0);
-	}
+	if (Adapter->registrypriv.reg_enable_tx_power_limit == 1 ||
+	    (Adapter->registrypriv.reg_enable_tx_power_limit == 2 &&
+	   pHalData->EEPROMRegulatory == 1))
+		ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, 0);
 
 	/*  */
 	/*  1. Read PHY_REG.TXT BB INIT!! */
@@ -363,10 +360,9 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 		if (pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE)
 			PHY_TxPowerByRateConfiguration(Adapter);
 
-		if (
-			Adapter->registrypriv.RegEnableTxPowerLimit == 1 ||
-			(Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1)
-		)
+		if (Adapter->registrypriv.reg_enable_tx_power_limit == 1 ||
+		    (Adapter->registrypriv.reg_enable_tx_power_limit == 2 &&
+		   pHalData->EEPROMRegulatory == 1))
 			PHY_ConvertTxPowerLimitToPowerIndex(Adapter);
 	}
 
