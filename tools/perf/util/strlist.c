@@ -139,21 +139,25 @@ out:
 	return err;
 }
 
-static int strlist__parse_list(struct strlist *slist, const char *s, const char *subst_dir)
+static int strlist__parse_list(struct strlist *slist, const char *list, const char *subst_dir)
 {
-	char *sep;
+	char *sep, *s = strdup(list), *sdup = s;
 	int err;
+
+	if (s == NULL)
+		return -ENOMEM;
 
 	while ((sep = strchr(s, ',')) != NULL) {
 		*sep = '\0';
 		err = strlist__parse_list_entry(slist, s, subst_dir);
-		*sep = ',';
 		if (err != 0)
 			return err;
 		s = sep + 1;
 	}
 
-	return *s ? strlist__parse_list_entry(slist, s, subst_dir) : 0;
+	err = *s ? strlist__parse_list_entry(slist, s, subst_dir) : 0;
+	free(sdup);
+	return err;
 }
 
 struct strlist *strlist__new(const char *list, const struct strlist_config *config)
