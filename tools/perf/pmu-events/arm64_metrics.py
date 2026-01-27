@@ -4,6 +4,7 @@ import argparse
 import os
 from metric import (JsonEncodeMetric, JsonEncodeMetricGroupDescriptions, LoadEvents,
                     MetricGroup)
+from common_metrics import Cycles
 
 # Global command line arguments.
 _args = None
@@ -34,7 +35,9 @@ def main() -> None:
     directory = f"{_args.events_path}/arm64/{_args.vendor}/{_args.model}/"
     LoadEvents(directory)
 
-    all_metrics = MetricGroup("", [])
+    all_metrics = MetricGroup("", [
+        Cycles(),
+    ])
 
     if _args.metricgroups:
         print(JsonEncodeMetricGroupDescriptions(all_metrics))
