@@ -216,6 +216,7 @@ config SPI_AXI_SPI_ENGINE
 config SPI_AXIADO
 	tristate "Axiado DB-H SPI controller"
 	depends on SPI_MEM
+	depends on ARCH_AXIADO || COMPILE_TEST
 	help
 	  Enable support for the SPI controller present on Axiado AX3000 SoCs.
 
