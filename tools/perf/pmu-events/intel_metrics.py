@@ -3,6 +3,7 @@
 import argparse
 import math
 import os
+from typing import Optional
 from metric import (d_ratio, has_event, max, CheckPmu, Event, JsonEncodeMetric,
                     JsonEncodeMetricGroupDescriptions, LoadEvents, Metric,
                     MetricGroup, MetricRef, Select)
@@ -75,6 +76,54 @@ def Smi() -> MetricGroup:
     ], description='System Management Interrupt metrics')
 
 
+def Tsx() -> Optional[MetricGroup]:
+    pmu = "cpu_core" if CheckPmu("cpu_core") else "cpu"
+    cycles = Event('cycles')
+    cycles_in_tx = Event(f'{pmu}/cycles\\-t/')
+    cycles_in_tx_cp = Event(f'{pmu}/cycles\\-ct/')
+    try:
+        # Test if the tsx event is present in the json, prefer the
+        # sysfs version so that we can detect its presence at runtime.
+        transaction_start = Event("RTM_RETIRED.START")
+        transaction_start = Event(f'{pmu}/tx\\-start/')
+    except:
+        return None
+
+    elision_start = None
+    try:
+        # Elision start isn't supported by all models, but we'll not
+        # generate the tsx_cycles_per_elision metric in that
+        # case. Again, prefer the sysfs encoding of the event.
+        elision_start = Event("HLE_RETIRED.START")
+        elision_start = Event(f'{pmu}/el\\-start/')
+    except:
+        pass
+
+    return MetricGroup('transaction', [
+        Metric('tsx_transactional_cycles',
+               'Percentage of cycles within a transaction region.',
+               Select(cycles_in_tx / cycles, has_event(cycles_in_tx), 0),
+               '100%'),
+        Metric('tsx_aborted_cycles', 'Percentage of cycles in aborted transactions.',
+               Select(max(cycles_in_tx - cycles_in_tx_cp, 0) / cycles,
+                      has_event(cycles_in_tx),
+                      0),
+               '100%'),
+        Metric('tsx_cycles_per_transaction',
+               'Number of cycles within a transaction divided by the number of transactions.',
+               Select(cycles_in_tx / transaction_start,
+                      has_event(cycles_in_tx),
+                      0),
+               "cycles / transaction"),
+        Metric('tsx_cycles_per_elision',
+               'Number of cycles within a transaction divided by the number of elisions.',
+               Select(cycles_in_tx / elision_start,
+                      has_event(elision_start),
+                      0),
+               "cycles / elision") if elision_start else None,
+    ], description="Breakdown of transactional memory statistics")
+
+
 def main() -> None:
     global _args
 
@@ -103,6 +152,7 @@ def main() -> None:
         Idle(),
         Rapl(),
         Smi(),
+        Tsx(),
     ])
 
     if _args.metricgroups:
