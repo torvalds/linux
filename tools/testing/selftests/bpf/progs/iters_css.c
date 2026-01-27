@@ -12,8 +12,7 @@ char _license[] SEC("license") = "GPL";
 pid_t target_pid;
 u64 root_cg_id, leaf_cg_id;
 u64 first_cg_id, last_cg_id;
-
-int pre_order_cnt, post_order_cnt, tree_high;
+int pre_order_cnt, post_order_cnt, children_cnt, tree_high;
 
 struct cgroup *bpf_cgroup_from_id(u64 cgid) __ksym;
 void bpf_cgroup_release(struct cgroup *p) __ksym;
@@ -43,7 +42,7 @@ int iter_css_for_each(const void *ctx)
 	}
 	root_css = &root_cgrp->self;
 	leaf_css = &leaf_cgrp->self;
-	pre_order_cnt = post_order_cnt = tree_high = 0;
+	pre_order_cnt = post_order_cnt = children_cnt = tree_high = 0;
 	first_cg_id = last_cg_id = 0;
 
 	bpf_rcu_read_lock();
@@ -58,6 +57,10 @@ int iter_css_for_each(const void *ctx)
 		pre_order_cnt++;
 		if (!first_cg_id)
 			first_cg_id = cur_cgrp->kn->id;
+	}
+
+	bpf_for_each(css, pos, root_css, BPF_CGROUP_ITER_CHILDREN) {
+		children_cnt++;
 	}
 
 	bpf_for_each(css, pos, leaf_css, BPF_CGROUP_ITER_ANCESTORS_UP)
