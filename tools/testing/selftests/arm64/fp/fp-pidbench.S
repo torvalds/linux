@@ -33,7 +33,7 @@
 function _start
 	puts	"Iterations per test: "
 	mov	x20, #10000
-	lsl	x20, x20, #8
+	lsl	x20, x20, #12
 	mov	x0, x20
 	bl	putdec
 	puts	"\n"
