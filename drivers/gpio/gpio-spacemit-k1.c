@@ -199,7 +199,7 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	struct gpio_chip *gc = &gb->chip.gc;
 	struct device *dev = sg->dev;
 	struct gpio_irq_chip *girq;
-	void __iomem *dat, *set, *clr, *dirin, *dirout;
+	void __iomem *dat, *set, *clr, *dirout;
 	int ret;
 
 	gb->base = regs + sg->data->bank_offsets[index];
@@ -208,8 +208,7 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 	dat	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPLR];
 	set	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPSR];
 	clr	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPCR];
-	dirin	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GCDR];
-	dirout	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GSDR];
+	dirout	= gb->base + to_spacemit_gpio_regs(gb)[SPACEMIT_GPDR];
 
 	config = (struct gpio_generic_chip_config) {
 		.dev = dev,
@@ -218,9 +217,7 @@ static int spacemit_gpio_add_bank(struct spacemit_gpio *sg,
 		.set = set,
 		.clr = clr,
 		.dirout = dirout,
-		.dirin = dirin,
-		.flags = GPIO_GENERIC_UNREADABLE_REG_SET |
-			 GPIO_GENERIC_UNREADABLE_REG_DIR,
+		.flags = GPIO_GENERIC_UNREADABLE_REG_SET,
 	};
 
 	/* This registers 32 GPIO lines per bank */
