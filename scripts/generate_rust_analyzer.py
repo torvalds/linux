@@ -313,9 +313,10 @@ def generate_crates(
 
     def is_root_crate(build_file: pathlib.Path, target: str) -> bool:
         try:
-            return f"{target}.o" in open(build_file).read()
+            contents = build_file.read_text()
         except FileNotFoundError:
             return False
+        return f"{target}.o" in contents
 
     # Then, the rest outside of `rust/`.
     #
