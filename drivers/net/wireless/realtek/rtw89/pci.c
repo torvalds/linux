@@ -970,6 +970,9 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 	if (unlikely(isrs.halt_c2h_isrs & isr_def->isr_wdt_timeout))
 		rtw89_ser_notify(rtwdev, MAC_AX_ERR_L2_ERR_WDT_TIMEOUT_INT);
 
+	if (unlikely(isrs.halt_c2h_isrs & isr_def->isr_sps_ocp))
+		rtw89_warn(rtwdev, "SPS OCP alarm 0x%x\n", isrs.halt_c2h_isrs);
+
 	if (unlikely(rtwpci->under_recovery))
 		goto enable_intr;
 
@@ -4005,7 +4008,8 @@ static void rtw89_pci_recovery_intr_mask_v3(struct rtw89_dev *rtwdev)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
-	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
+	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN |
+				 B_BE_SPSANA_OCP_INT_EN | B_BE_SPS_OCP_INT_EN;
 	rtwpci->intrs[0] = 0;
 	rtwpci->intrs[1] = 0;
 }
@@ -4015,7 +4019,8 @@ static void rtw89_pci_default_intr_mask_v3(struct rtw89_dev *rtwdev)
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 
 	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
-	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
+	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN |
+				 B_BE_SPSANA_OCP_INT_EN | B_BE_SPS_OCP_INT_EN;
 	rtwpci->intrs[0] = 0;
 	rtwpci->intrs[1] = B_BE_PCIE_RDU_CH1_IMR |
 			   B_BE_PCIE_RDU_CH0_IMR |
@@ -4657,6 +4662,7 @@ const struct rtw89_pci_isr_def rtw89_pci_isr_ax = {
 	.isr_rdu = B_AX_RDU_INT,
 	.isr_halt_c2h = B_AX_HALT_C2H_INT_EN,
 	.isr_wdt_timeout = B_AX_WDT_TIMEOUT_INT_EN,
+	.isr_sps_ocp = 0,
 	.isr_clear_rpq = {R_AX_PCIE_HISR00, B_AX_RPQDMA_INT | B_AX_RPQBD_FULL_INT},
 	.isr_clear_rxq = {R_AX_PCIE_HISR00, B_AX_RXP1DMA_INT | B_AX_RXDMA_INT |
 					    B_AX_RDU_INT},
