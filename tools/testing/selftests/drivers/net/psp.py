@@ -266,6 +266,7 @@ def assoc_sk_only_mismatch(cfg):
         the_exception = cm.exception
         ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
         ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+        _close_conn(cfg, s)
 
 
 def assoc_sk_only_mismatch_tx(cfg):
@@ -283,6 +284,7 @@ def assoc_sk_only_mismatch_tx(cfg):
         the_exception = cm.exception
         ksft_eq(the_exception.nl_msg.extack['bad-attr'], ".dev-id")
         ksft_eq(the_exception.nl_msg.error, -errno.EINVAL)
+        _close_conn(cfg, s)
 
 
 def assoc_sk_only_unconn(cfg):
