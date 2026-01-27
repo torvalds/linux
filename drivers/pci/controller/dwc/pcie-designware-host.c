@@ -892,9 +892,10 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct dw_pcie_ob_atu_cfg atu = { 0 };
 	struct resource_entry *entry;
+	int ob_iatu_index;
+	int ib_iatu_index;
 	int i, ret;
 
-	/* Note the very first outbound ATU is used for CFG IOs */
 	if (!pci->num_ob_windows) {
 		dev_err(pci->dev, "No outbound iATU found\n");
 		return -EINVAL;
@@ -910,15 +911,17 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	for (i = 0; i < pci->num_ib_windows; i++)
 		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_IB, i);
 
-	i = 0;
+	/*
+	 * NOTE: For outbound address translation, outbound iATU at index 0 is
+	 * reserved for CFG IOs (dw_pcie_other_conf_map_bus()), thus start at
+	 * index 1.
+	 */
+	ob_iatu_index = 1;
 	resource_list_for_each_entry(entry, &pp->bridge->windows) {
 		resource_size_t res_size;
 
 		if (resource_type(entry->res) != IORESOURCE_MEM)
 			continue;
-
-		if (pci->num_ob_windows <= i + 1)
-			break;
 
 		atu.type = PCIE_ATU_TYPE_MEM;
 		atu.parent_bus_addr = entry->res->start - pci->parent_bus_offset;
@@ -937,13 +940,13 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 			 * middle. Otherwise, we would end up only partially
 			 * mapping a single resource.
 			 */
-			if (pci->num_ob_windows <= ++i) {
-				dev_err(pci->dev, "Exhausted outbound windows for region: %pr\n",
+			if (ob_iatu_index >= pci->num_ob_windows) {
+				dev_err(pci->dev, "Cannot add outbound window for region: %pr\n",
 					entry->res);
 				return -ENOMEM;
 			}
 
-			atu.index = i;
+			atu.index = ob_iatu_index;
 			atu.size = MIN(pci->region_limit + 1, res_size);
 
 			ret = dw_pcie_prog_outbound_atu(pci, &atu);
@@ -953,6 +956,7 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 				return ret;
 			}
 
+			ob_iatu_index++;
 			atu.parent_bus_addr += atu.size;
 			atu.pci_addr += atu.size;
 			res_size -= atu.size;
@@ -960,8 +964,8 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	}
 
 	if (pp->io_size) {
-		if (pci->num_ob_windows > ++i) {
-			atu.index = i;
+		if (ob_iatu_index < pci->num_ob_windows) {
+			atu.index = ob_iatu_index;
 			atu.type = PCIE_ATU_TYPE_IO;
 			atu.parent_bus_addr = pp->io_base - pci->parent_bus_offset;
 			atu.pci_addr = pp->io_bus_addr;
@@ -973,33 +977,34 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 					entry->res);
 				return ret;
 			}
+			ob_iatu_index++;
 		} else {
+			/*
+			 * If there are not enough outbound windows to give I/O
+			 * space its own iATU, the outbound iATU at index 0 will
+			 * be shared between I/O space and CFG IOs, by
+			 * temporarily reconfiguring the iATU to CFG space, in
+			 * order to do a CFG IO, and then immediately restoring
+			 * it to I/O space.
+			 */
 			pp->cfg0_io_shared = true;
 		}
 	}
 
-	if (pci->num_ob_windows <= i)
-		dev_warn(pci->dev, "Ranges exceed outbound iATU size (%d)\n",
-			 pci->num_ob_windows);
-
 	if (pp->use_atu_msg) {
-		if (pci->num_ob_windows > ++i) {
-			pp->msg_atu_index = i;
-		} else {
+		if (ob_iatu_index >= pci->num_ob_windows) {
 			dev_err(pci->dev, "Cannot add outbound window for MSG TLP\n");
 			return -ENOMEM;
 		}
+		pp->msg_atu_index = ob_iatu_index++;
 	}
 
-	i = 0;
+	ib_iatu_index = 0;
 	resource_list_for_each_entry(entry, &pp->bridge->dma_ranges) {
 		resource_size_t res_start, res_size, window_size;
 
 		if (resource_type(entry->res) != IORESOURCE_MEM)
 			continue;
-
-		if (pci->num_ib_windows <= i)
-			break;
 
 		res_size = resource_size(entry->res);
 		res_start = entry->res->start;
@@ -1009,14 +1014,15 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 			 * middle. Otherwise, we would end up only partially
 			 * mapping a single resource.
 			 */
-			if (pci->num_ib_windows <= i) {
-				dev_err(pci->dev, "Exhausted inbound windows for region: %pr\n",
+			if (ib_iatu_index >= pci->num_ib_windows) {
+				dev_err(pci->dev, "Cannot add inbound window for region: %pr\n",
 					entry->res);
 				return -ENOMEM;
 			}
 
 			window_size = MIN(pci->region_limit + 1, res_size);
-			ret = dw_pcie_prog_inbound_atu(pci, i++, PCIE_ATU_TYPE_MEM, res_start,
+			ret = dw_pcie_prog_inbound_atu(pci, ib_iatu_index,
+						       PCIE_ATU_TYPE_MEM, res_start,
 						       res_start - entry->offset, window_size);
 			if (ret) {
 				dev_err(pci->dev, "Failed to set DMA range %pr\n",
@@ -1024,14 +1030,11 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 				return ret;
 			}
 
+			ib_iatu_index++;
 			res_start += window_size;
 			res_size -= window_size;
 		}
 	}
-
-	if (pci->num_ib_windows <= i)
-		dev_warn(pci->dev, "Dma-ranges exceed inbound iATU size (%u)\n",
-			 pci->num_ib_windows);
 
 	return 0;
 }
