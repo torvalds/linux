@@ -536,7 +536,7 @@ u8 PHY_GetTxPowerIndex(
 
 	limit = phy_get_tx_pwr_lmt(
 		padapter,
-		padapter->registrypriv.RegPwrTblSel,
+		padapter->registrypriv.reg_pwr_tbl_sel,
 		pHalData->CurrentChannelBW,
 		RFPath,
 		Rate,

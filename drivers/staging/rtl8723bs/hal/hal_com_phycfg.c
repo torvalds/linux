@@ -696,7 +696,7 @@ s8 phy_get_tx_pwr_lmt(struct adapter *adapter, u32 reg_pwr_tbl_sel,
 	    (adapter->registrypriv.reg_enable_tx_power_limit == 0))
 		return MAX_POWER_INDEX;
 
-	switch (adapter->registrypriv.RegPwrTblSel) {
+	switch (adapter->registrypriv.reg_pwr_tbl_sel) {
 	case 1:
 		idx_regulation = TXPWR_LMT_ETSI;
 		break;

@@ -159,7 +159,7 @@ struct registry_priv {
 	u8 reg_enable_tx_power_limit;
 	u8 reg_enable_tx_power_by_rate;
 	u8 reg_power_base;
-	u8 RegPwrTblSel;
+	u8 reg_pwr_tbl_sel;
 	s8	TxBBSwing_2G;
 	u8 AmplifierType_2G;
 	u8 bEn_RFE;
