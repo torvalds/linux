@@ -86,7 +86,7 @@ There are several variants of 'perf sched':
    exposed through the file ``/proc/schedstat``. These counters are enabled or disabled
    via the sysctl governed by the file ``/proc/sys/kernel/sched_schedstats``. These
    counters accounts for many scheduler events such as ``schedule()`` calls, load-balancing
-   events, ``try_to_wakeup()`` call among others. This is useful in understading the
+   events, ``try_to_wakeup()`` call among others. This is useful in understanding the
    scheduler behavior for the workload.
 
    Note: The tool will not give correct results if there is topological reordering or
@@ -100,7 +100,7 @@ There are several variants of 'perf sched':
    A detailed description of the schedstats can be found in the Kernel Documentation:
    https://www.kernel.org/doc/html/latest/scheduler/sched-stats.html
 
-   The result can be interprested as follows:
+   The result can be interpreted as follows:
 
    The `perf sched stats report` starts with description of the columns present in
    the report. These column names are given before cpu and domain stats to improve
@@ -116,7 +116,7 @@ There are several variants of 'perf sched':
    Next is the total profiling time in terms of jiffies:
 
    ----------------------------------------------------------------------------------------------------
-   Time elapsed (in jiffies)                                   :       24537
+   Time elapsed (in jiffies)                                   :        2323
    ----------------------------------------------------------------------------------------------------
 
    Next is CPU scheduling statistics. These are simple diffs of /proc/schedstat CPU lines
@@ -210,7 +210,7 @@ There are several variants of 'perf sched':
 
    While profiling was active, the load-balancer found 28490 times the load
    needs to be balanced on a newly idle CPU 0. Following value encapsulated
-   inside $ is average jiffies between two events (28490 / 24537 = 0.08).
+   inside $ is average jiffies between two events (2323 / 28490 = 0.08).
 
    Next are active_load_balance() stats. alb did not trigger while the
    profiling was active, hence it's all 0s.
