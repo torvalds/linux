@@ -157,7 +157,7 @@ struct registry_priv {
 
 	/* define for tx power adjust */
 	u8 reg_enable_tx_power_limit;
-	u8 RegEnableTxPowerByRate;
+	u8 reg_enable_tx_power_by_rate;
 	u8 RegPowerBase;
 	u8 RegPwrTblSel;
 	s8	TxBBSwing_2G;

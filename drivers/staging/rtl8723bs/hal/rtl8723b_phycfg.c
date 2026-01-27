@@ -350,12 +350,11 @@ static int phy_BB8723b_Config_ParaFile(struct adapter *Adapter)
 
 	/*  If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
 	PHY_InitTxPowerByRate(Adapter);
-	if (
-		Adapter->registrypriv.RegEnableTxPowerByRate == 1 ||
-		(Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2)
-	) {
-		ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv,
-					   CONFIG_BB_PHY_REG_PG);
+
+	if (Adapter->registrypriv.reg_enable_tx_power_by_rate == 1 ||
+	    (Adapter->registrypriv.reg_enable_tx_power_by_rate == 2 &&
+	   pHalData->EEPROMRegulatory != 2)) {
+		ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG);
 
 		if (pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE)
 			PHY_TxPowerByRateConfiguration(Adapter);

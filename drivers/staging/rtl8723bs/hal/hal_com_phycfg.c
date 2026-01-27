@@ -573,8 +573,9 @@ s8 PHY_GetTxPowerByRate(struct adapter *padapter, u8 RFPath, u8 Rate)
 	s8 value = 0;
 	u8 rateIndex = PHY_GetRateIndexOfTxPowerByRate(Rate);
 
-	if ((padapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory == 2) ||
-		   padapter->registrypriv.RegEnableTxPowerByRate == 0)
+	if ((padapter->registrypriv.reg_enable_tx_power_by_rate == 2 &&
+	     pHalData->EEPROMRegulatory == 2) ||
+	   padapter->registrypriv.reg_enable_tx_power_by_rate == 0)
 		return 0;
 
 	if (RFPath >= RF_PATH_MAX)
