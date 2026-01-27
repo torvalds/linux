@@ -813,25 +813,27 @@ enum hal_mon_reception_type {
 			(HAL_RU(ru_per80, num_80mhz, ru_idx_per80mhz))
 
 void ath12k_wifi7_hal_reo_status_queue_stats(struct ath12k_base *ab,
-					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_get_queue_stats_status *desc,
 					     struct hal_reo_status *status);
 void ath12k_wifi7_hal_reo_flush_queue_status(struct ath12k_base *ab,
-					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_flush_queue_status *desc,
 					     struct hal_reo_status *status);
 void ath12k_wifi7_hal_reo_flush_cache_status(struct ath12k_base *ab,
-					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_flush_cache_status *desc,
 					     struct hal_reo_status *status);
 void ath12k_wifi7_hal_reo_unblk_cache_status(struct ath12k_base *ab,
-					     struct hal_tlv_64_hdr *tlv,
+					     struct hal_reo_unblock_cache_status *desc,
 					     struct hal_reo_status *status);
-void ath12k_wifi7_hal_reo_flush_timeout_list_status(struct ath12k_base *ab,
-						    struct hal_tlv_64_hdr *tlv,
-						    struct hal_reo_status *status);
-void ath12k_wifi7_hal_reo_desc_thresh_reached_status(struct ath12k_base *ab,
-						     struct hal_tlv_64_hdr *tlv,
-						     struct hal_reo_status *status);
+void
+ath12k_wifi7_hal_reo_flush_timeout_list_status(struct ath12k_base *ab,
+					       struct hal_reo_flush_timeout_list_status *desc,
+					       struct hal_reo_status *status);
+void
+ath12k_wifi7_hal_reo_desc_thresh_reached_status(struct ath12k_base *ab,
+						struct hal_reo_desc_thresh_reached_status *desc,
+						struct hal_reo_status *status);
 void ath12k_wifi7_hal_reo_update_rx_reo_queue_status(struct ath12k_base *ab,
-						     struct hal_tlv_64_hdr *tlv,
+						     struct hal_reo_status_hdr *desc,
 						     struct hal_reo_status *status);
 void ath12k_wifi7_hal_rx_msdu_link_info_get(struct hal_rx_msdu_link *link, u32 *num_msdus,
 					    u32 *msdu_cookies,
@@ -860,8 +862,10 @@ void ath12k_wifi7_hal_rx_msdu_list_get(struct ath12k *ar,
 				       void *link_desc,
 				       void *msdu_list_opaque,
 				       u16 *num_msdus);
-void ath12k_wifi7_hal_reo_init_cmd_ring(struct ath12k_base *ab,
-					struct hal_srng *srng);
+void ath12k_wifi7_hal_reo_init_cmd_ring_tlv64(struct ath12k_base *ab,
+					      struct hal_srng *srng);
+void ath12k_wifi7_hal_reo_init_cmd_ring_tlv32(struct ath12k_base *ab,
+					      struct hal_srng *srng);
 void ath12k_wifi7_hal_reo_shared_qaddr_cache_clear(struct ath12k_base *ab);
 void ath12k_wifi7_hal_reo_hw_setup(struct ath12k_base *ab, u32 ring_hash_map);
 void ath12k_wifi7_hal_reo_qdesc_setup(struct hal_rx_reo_queue *qdesc,

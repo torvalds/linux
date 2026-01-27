@@ -58,7 +58,7 @@ union wil_tx_desc;
  */
 #define WIL_MAX_VIFS 4
 
-/**
+/*
  * extract bits [@b0:@b1] (inclusive) from the value @x
  * it should be @b0 <= @b1, or result is incorrect
  */
@@ -433,7 +433,7 @@ extern struct fw_map fw_mapping[MAX_FW_MAPPING_TABLE_SIZE];
  * @cid: CID value
  * @tid: TID value
  *
- * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ * Returns: @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
  */
 static inline u8 mk_cidxtid(u8 cid, u8 tid)
 {
@@ -444,8 +444,7 @@ static inline u8 mk_cidxtid(u8 cid, u8 tid)
  * parse_cidxtid - parse @cidxtid field
  * @cid: store CID value here
  * @tid: store TID value here
- *
- * @cidxtid field encoded as bits 0..3 - CID; 4..7 - TID
+ * @cidxtid: field encoded as bits 0..3 - CID; 4..7 - TID
  */
 static inline void parse_cidxtid(u8 cidxtid, u8 *cid, u8 *tid)
 {
@@ -500,7 +499,7 @@ enum { /* for wil_ctx.mapped_as */
 	wil_mapped_as_page = 2,
 };
 
-/**
+/*
  * struct wil_ctx - software context for ring descriptor
  */
 struct wil_ctx {
@@ -514,7 +513,7 @@ struct wil_desc_ring_rx_swtail { /* relevant for enhanced DMA only */
 	dma_addr_t pa;
 };
 
-/**
+/*
  * A general ring structure, used for RX and TX.
  * In legacy DMA it represents the vring,
  * In enahnced DMA it represents the descriptor ring (vrings are handled by FW)
@@ -531,7 +530,7 @@ struct wil_ring {
 	bool is_rx;
 };
 
-/**
+/*
  * Additional data for Rx ring.
  * Used for enhanced DMA RX chaining.
  */
@@ -543,7 +542,7 @@ struct wil_ring_rx_data {
 	u16 buff_size;
 };
 
-/**
+/*
  * Status ring structure, used for enhanced DMA completions for RX and TX.
  */
 struct wil_status_ring {
@@ -586,8 +585,8 @@ struct wil_net_stats {
 	u32 ft_roams; /* relevant in STA mode */
 };
 
-/**
- * struct tx_rx_ops - different TX/RX ops for legacy and enhanced
+/*
+ * struct wil_txrx_ops - different TX/RX ops for legacy and enhanced
  * DMA flow
  */
 struct wil_txrx_ops {
@@ -627,7 +626,7 @@ struct wil_txrx_ops {
 	irqreturn_t (*irq_rx)(int irq, void *cookie);
 };
 
-/**
+/*
  * Additional data for Tx ring
  */
 struct wil_ring_tx_data {
@@ -658,7 +657,7 @@ enum { /* for wil6210_priv.status */
 struct pci_dev;
 
 /**
- * struct tid_ampdu_rx - TID aggregation information (Rx).
+ * struct wil_tid_ampdu_rx - TID aggregation information (Rx).
  *
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
  * @last_rx: jiffies of last rx activity
@@ -728,7 +727,7 @@ enum wil_rekey_state {
 	WIL_REKEY_WAIT_M4_SENT = 2,
 };
 
-/**
+/*
  * struct wil_sta_info - data for peer
  *
  * Peer identified by its CID (connection ID)
@@ -741,7 +740,7 @@ struct wil_sta_info {
 	u8 mid;
 	enum wil_sta_status status;
 	struct wil_net_stats stats;
-	/**
+	/*
 	 * 20 latency bins. 1st bin counts packets with latency
 	 * of 0..tx_latency_res, last bin counts packets with latency
 	 * of 19*tx_latency_res and above.
@@ -882,7 +881,7 @@ struct wil6210_vif {
 	struct work_struct enable_tx_key_worker;
 };
 
-/**
+/*
  * RX buffer allocated for enhanced DMA RX descriptors
  */
 struct wil_rx_buff {
@@ -891,7 +890,7 @@ struct wil_rx_buff {
 	int id;
 };
 
-/**
+/*
  * During Rx completion processing, the driver extracts a buffer ID which
  * is used as an index to the rx_buff_mgmt.buff_arr array and then the SKB
  * is given to the network stack and the buffer is moved from the 'active'
@@ -1147,7 +1146,7 @@ static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
 }
 
-/**
+/*
  * wil_cid_valid - check cid is valid
  */
 static inline bool wil_cid_valid(struct wil6210_priv *wil, int cid)
