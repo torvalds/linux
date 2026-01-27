@@ -1383,9 +1383,9 @@ int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 }
 EXPORT_SYMBOL_GPL(pinctrl_select_state);
 
-static void devm_pinctrl_release(struct device *dev, void *res)
+static void devm_pinctrl_release(void *p)
 {
-	pinctrl_put(*(struct pinctrl **)res);
+	pinctrl_put(p);
 }
 
 /**
@@ -1397,30 +1397,20 @@ static void devm_pinctrl_release(struct device *dev, void *res)
  */
 struct pinctrl *devm_pinctrl_get(struct device *dev)
 {
-	struct pinctrl **ptr, *p;
-
-	ptr = devres_alloc(devm_pinctrl_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+	struct pinctrl *p;
+	int ret;
 
 	p = pinctrl_get(dev);
-	if (!IS_ERR(p)) {
-		*ptr = p;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
+	if (IS_ERR(p))
+		return p;
+
+	ret = devm_add_action_or_reset(dev, devm_pinctrl_release, p);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return p;
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_get);
-
-static int devm_pinctrl_match(struct device *dev, void *res, void *data)
-{
-	struct pinctrl **p = res;
-
-	return *p == data;
-}
 
 /**
  * devm_pinctrl_put() - Resource managed pinctrl_put()
@@ -1432,8 +1422,7 @@ static int devm_pinctrl_match(struct device *dev, void *res, void *data)
  */
 void devm_pinctrl_put(struct pinctrl *p)
 {
-	WARN_ON(devres_release(p->dev, devm_pinctrl_release,
-			       devm_pinctrl_match, p));
+	devm_release_action(p->dev, devm_pinctrl_release, p);
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_put);
 
@@ -2316,10 +2305,8 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 }
 EXPORT_SYMBOL_GPL(pinctrl_unregister);
 
-static void devm_pinctrl_dev_release(struct device *dev, void *res)
+static void devm_pinctrl_dev_release(void *pctldev)
 {
-	struct pinctrl_dev *pctldev = *(struct pinctrl_dev **)res;
-
 	pinctrl_unregister(pctldev);
 }
 
@@ -2338,20 +2325,16 @@ struct pinctrl_dev *devm_pinctrl_register(struct device *dev,
 					  const struct pinctrl_desc *pctldesc,
 					  void *driver_data)
 {
-	struct pinctrl_dev **ptr, *pctldev;
-
-	ptr = devres_alloc(devm_pinctrl_dev_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+	struct pinctrl_dev *pctldev;
+	int ret;
 
 	pctldev = pinctrl_register(pctldesc, dev, driver_data);
-	if (IS_ERR(pctldev)) {
-		devres_free(ptr);
+	if (IS_ERR(pctldev))
 		return pctldev;
-	}
 
-	*ptr = pctldev;
-	devres_add(dev, ptr);
+	ret = devm_add_action_or_reset(dev, devm_pinctrl_dev_release, pctldev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return pctldev;
 }
@@ -2373,23 +2356,13 @@ int devm_pinctrl_register_and_init(struct device *dev,
 				   void *driver_data,
 				   struct pinctrl_dev **pctldev)
 {
-	struct pinctrl_dev **ptr;
 	int error;
 
-	ptr = devres_alloc(devm_pinctrl_dev_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
 	error = pinctrl_register_and_init(pctldesc, dev, driver_data, pctldev);
-	if (error) {
-		devres_free(ptr);
+	if (error)
 		return error;
-	}
 
-	*ptr = *pctldev;
-	devres_add(dev, ptr);
-
-	return 0;
+	return devm_add_action_or_reset(dev, devm_pinctrl_dev_release, *pctldev);
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_register_and_init);
 
