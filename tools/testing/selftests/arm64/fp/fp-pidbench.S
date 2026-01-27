@@ -63,6 +63,10 @@ function _start
 	puts	"SVE used per syscall: "
 	test_loop "rdvl x0, #8"
 
+	// Test non-SVE execution after SVE
+	puts	"No SVE after SVE: "
+	test_loop
+
 	//  And we're done
 out:
 	mov	x0, #0
