@@ -1558,6 +1558,38 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
+/* Record the most recently (re)sent time among the (s)acked packets
+ * This is "Step 3: Advance RACK.xmit_time and update RACK.RTT" from
+ * draft-cheng-tcpm-rack-00.txt
+ */
+static void tcp_rack_advance(struct tcp_sock *tp, u8 sacked,
+			     u32 end_seq, u64 xmit_time)
+{
+	u32 rtt_us;
+
+	rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, xmit_time);
+	if (rtt_us < tcp_min_rtt(tp) && (sacked & TCPCB_RETRANS)) {
+		/* If the sacked packet was retransmitted, it's ambiguous
+		 * whether the retransmission or the original (or the prior
+		 * retransmission) was sacked.
+		 *
+		 * If the original is lost, there is no ambiguity. Otherwise
+		 * we assume the original can be delayed up to aRTT + min_rtt.
+		 * the aRTT term is bounded by the fast recovery or timeout,
+		 * so it's at least one RTT (i.e., retransmission is at least
+		 * an RTT later).
+		 */
+		return;
+	}
+	tp->rack.advanced = 1;
+	tp->rack.rtt_us = rtt_us;
+	if (tcp_skb_sent_after(xmit_time, tp->rack.mstamp,
+			       end_seq, tp->rack.end_seq)) {
+		tp->rack.mstamp = xmit_time;
+		tp->rack.end_seq = end_seq;
+	}
+}
+
 /* Mark the given newly-SACKed range as such, adjusting counters and hints. */
 static u8 tcp_sacktag_one(struct sock *sk,
 			  struct tcp_sacktag_state *state, u8 sacked,
