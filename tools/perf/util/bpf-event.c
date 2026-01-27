@@ -733,7 +733,8 @@ kallsyms_process_symbol(void *data, const char *_name,
 			char type __maybe_unused, u64 start)
 {
 	char disp[KSYM_NAME_LEN];
-	char *module, *name;
+	const char *module;
+	char *name;
 	unsigned long id;
 	int err = 0;
 
