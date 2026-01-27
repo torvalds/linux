@@ -279,7 +279,7 @@ void cpumask_to_cpulist(char *cpumask, char *cpulist)
 		return;
 
 	bm = calloc(bm_size, sizeof(unsigned long));
-	if (!cpumask)
+	if (!bm)
 		goto free_bm;
 
 	for (i = 0; i < bm_size; i++) {
