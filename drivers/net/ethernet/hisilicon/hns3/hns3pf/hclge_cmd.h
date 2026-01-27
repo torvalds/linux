@@ -26,6 +26,7 @@ struct hclge_misc_vector {
 #define HCLGE_TQP_REG_OFFSET		0x80000
 #define HCLGE_TQP_REG_SIZE		0x200
 
+#define HCLGE_FD_COUNTER_MAX_SIZE_DEV_V2	128
 #define HCLGE_TQP_MAX_SIZE_DEV_V2	1024
 #define HCLGE_TQP_EXT_REG_OFFSET	0x100
 
@@ -727,11 +728,11 @@ struct hclge_fd_tcam_config_3_cmd {
 
 #define HCLGE_FD_AD_DROP_B		0
 #define HCLGE_FD_AD_DIRECT_QID_B	1
-#define HCLGE_FD_AD_QID_S		2
-#define HCLGE_FD_AD_QID_M		GENMASK(11, 2)
+#define HCLGE_FD_AD_QID_L_S		2
+#define HCLGE_FD_AD_QID_L_M		GENMASK(11, 2)
 #define HCLGE_FD_AD_USE_COUNTER_B	12
-#define HCLGE_FD_AD_COUNTER_NUM_S	13
-#define HCLGE_FD_AD_COUNTER_NUM_M	GENMASK(19, 13)
+#define HCLGE_FD_AD_COUNTER_NUM_L_S	13
+#define HCLGE_FD_AD_COUNTER_NUM_L_M	GENMASK(19, 13)
 #define HCLGE_FD_AD_NXT_STEP_B		20
 #define HCLGE_FD_AD_NXT_KEY_S		21
 #define HCLGE_FD_AD_NXT_KEY_M		GENMASK(25, 21)
@@ -741,6 +742,8 @@ struct hclge_fd_tcam_config_3_cmd {
 #define HCLGE_FD_AD_TC_OVRD_B		16
 #define HCLGE_FD_AD_TC_SIZE_S		17
 #define HCLGE_FD_AD_TC_SIZE_M		GENMASK(20, 17)
+#define HCLGE_FD_AD_QID_H_B		21
+#define HCLGE_FD_AD_COUNTER_NUM_H_B	26
 
 struct hclge_fd_ad_config_cmd {
 	u8 stage;
