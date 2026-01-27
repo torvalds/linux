@@ -984,7 +984,7 @@ static void xilinx_aes_aead_remove(struct platform_device *pdev)
 	for (int i = 0; aead_dev->aead_algs[i].dma_bit_mask; i++)
 		crypto_engine_unregister_aead(&aead_dev->aead_algs[i].aead);
 
-	 aead_dev = NULL;
+	aead_dev = NULL;
 }
 
 static struct platform_driver xilinx_aes_driver = {
