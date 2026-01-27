@@ -62,6 +62,12 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
 };
 
+static const struct rtw89_mac_mu_gid_addr rtw89_mac_mu_gid_addr_be = {
+	.position_en = {R_BE_GID_POSITION_EN0, R_BE_GID_POSITION_EN1},
+	.position = {R_BE_GID_POSITION0, R_BE_GID_POSITION1,
+		     R_BE_GID_POSITION2, R_BE_GID_POSITION3},
+};
+
 static int rtw89_mac_check_mac_en_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 				     enum rtw89_mac_hwmod_sel sel)
 {
@@ -3170,6 +3176,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.port_base = &rtw89_port_base_be,
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
 	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
+	.mu_gid = &rtw89_mac_mu_gid_addr_be,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,

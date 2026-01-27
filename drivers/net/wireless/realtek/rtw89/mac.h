@@ -1015,6 +1015,11 @@ struct rtw89_mac_size_set {
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;
 
+struct rtw89_mac_mu_gid_addr {
+	u32 position_en[2];
+	u32 position[4];
+};
+
 struct rtw89_mac_gen_def {
 	u32 band1_offset;
 	u32 filter_model_addr;
@@ -1025,6 +1030,7 @@ struct rtw89_mac_gen_def {
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
 	u32 ps_status;
+	const struct rtw89_mac_mu_gid_addr *mu_gid;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
