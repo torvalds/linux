@@ -143,6 +143,64 @@ end:
 	return ret;
 }
 
+static ssize_t color_mapping_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct video_device *vdev = to_video_device(dev);
+	struct mgb4_vout_dev *voutdev = video_get_drvdata(vdev);
+	u32 config = mgb4_read_reg(&voutdev->mgbdev->video,
+	  voutdev->config->regs.config);
+
+	switch ((config >> 6) & 3) {
+	case 0: /* SPWG/VESA */
+		return sprintf(buf, "1\n");
+	case 1: /* ZDML */
+		return sprintf(buf, "2\n");
+	case 2: /* OLDI/JEIDA */
+		return sprintf(buf, "0\n");
+	default:
+		return -EIO;
+	}
+}
+
+/*
+ * Color mapping change is expected to be called on live streams. Video device
+ * locking/queue check is not needed.
+ */
+static ssize_t color_mapping_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct video_device *vdev = to_video_device(dev);
+	struct mgb4_vout_dev *voutdev = video_get_drvdata(vdev);
+	u32 fpga_data;
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+
+	switch (val) {
+	case 0: /* OLDI/JEIDA */
+		fpga_data = 2;
+		break;
+	case 1: /* SPWG/VESA */
+		fpga_data = 0;
+		break;
+	case 2: /* ZDML */
+		fpga_data = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	mgb4_mask_reg(&voutdev->mgbdev->video, voutdev->config->regs.config,
+		      3U << 6, fpga_data << 6);
+
+	return count;
+}
+
 static ssize_t display_width_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -711,6 +769,7 @@ static DEVICE_ATTR_RW(hback_porch);
 static DEVICE_ATTR_RW(hfront_porch);
 static DEVICE_ATTR_RW(vback_porch);
 static DEVICE_ATTR_RW(vfront_porch);
+static DEVICE_ATTR_RW(color_mapping);
 
 static DEVICE_ATTR_RW(fpdl3_output_width);
 
@@ -731,6 +790,7 @@ struct attribute *mgb4_fpdl3_out_attrs[] = {
 	&dev_attr_vback_porch.attr,
 	&dev_attr_vfront_porch.attr,
 	&dev_attr_fpdl3_output_width.attr,
+	&dev_attr_color_mapping.attr,
 	NULL
 };
 
@@ -740,6 +800,7 @@ struct attribute *mgb4_gmsl3_out_attrs[] = {
 	&dev_attr_display_width.attr,
 	&dev_attr_display_height.attr,
 	&dev_attr_frame_rate.attr,
+	&dev_attr_color_mapping.attr,
 	NULL
 };
 
@@ -759,5 +820,6 @@ struct attribute *mgb4_gmsl1_out_attrs[] = {
 	&dev_attr_hfront_porch.attr,
 	&dev_attr_vback_porch.attr,
 	&dev_attr_vfront_porch.attr,
+	&dev_attr_color_mapping.attr,
 	NULL
 };
