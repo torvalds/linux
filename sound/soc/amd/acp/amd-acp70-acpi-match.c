@@ -187,6 +187,33 @@ static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
 	},
 };
 
+static const struct snd_soc_acpi_adr_device cs35l56x4_l1u3210_adr[] = {
+	{
+		.adr = 0x00013301FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_l_endpoint,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00013201FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
+		.name_prefix = "AMP2"
+	},
+	{
+		.adr = 0x00013101FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_2_endpoint,
+		.name_prefix = "AMP3"
+	},
+	{
+		.adr = 0x00013001FA355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_3_endpoint,
+		.name_prefix = "AMP4"
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs42l43_l0u0_adr[] = {
 	{
 		.adr = 0x00003001FA424301ull,
@@ -229,38 +256,11 @@ static const struct snd_soc_acpi_adr_device cs42l43_l1u0_cs35l56x4_l1u0123_adr[]
 	},
 };
 
-static const struct snd_soc_acpi_adr_device cs35l56x4_l1u3210_adr[] = {
-	{
-		.adr = 0x00013301FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_l_endpoint,
-		.name_prefix = "AMP1"
-	},
-	{
-		.adr = 0x00013201FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_r_endpoint,
-		.name_prefix = "AMP2"
-	},
-	{
-		.adr = 0x00013101FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_2_endpoint,
-		.name_prefix = "AMP3"
-	},
-	{
-		.adr = 0x00013001FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_3_endpoint,
-		.name_prefix = "AMP4"
-	},
-};
-
-static const struct snd_soc_acpi_link_adr acp70_cs42l43_l1u0_cs35l56x4_l1u0123[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs35l56x4_l1u3210[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs42l43_l1u0_cs35l56x4_l1u0123_adr),
-		.adr_d = cs42l43_l1u0_cs35l56x4_l1u0123_adr,
+		.num_adr = ARRAY_SIZE(cs35l56x4_l1u3210_adr),
+		.adr_d = cs35l56x4_l1u3210_adr,
 	},
 	{}
 };
@@ -279,11 +279,11 @@ static const struct snd_soc_acpi_link_adr acp70_cs42l43_l0u0_cs35l56x4_l1u3210[]
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr acp70_cs35l56x4_l1u3210[] = {
+static const struct snd_soc_acpi_link_adr acp70_cs42l43_l1u0_cs35l56x4_l1u0123[] = {
 	{
 		.mask = BIT(1),
-		.num_adr = ARRAY_SIZE(cs35l56x4_l1u3210_adr),
-		.adr_d = cs35l56x4_l1u3210_adr,
+		.num_adr = ARRAY_SIZE(cs42l43_l1u0_cs35l56x4_l1u0123_adr),
+		.adr_d = cs42l43_l1u0_cs35l56x4_l1u0123_adr,
 	},
 	{}
 };
