@@ -2187,10 +2187,8 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 	int error;
 
 	error = pinctrl_claim_hogs(pctldev);
-	if (error) {
-		dev_err(pctldev->dev, "could not claim hogs: %i\n", error);
+	if (error)
 		return error;
-	}
 
 	mutex_lock(&pinctrldev_list_mutex);
 	list_add_tail(&pctldev->node, &pinctrldev_list);
