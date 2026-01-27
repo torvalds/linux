@@ -150,6 +150,11 @@ void iwl_mld_emlsr_check_chan_load(struct ieee80211_hw *hw,
  */
 void iwl_mld_retry_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif);
 
+int iwl_mld_emlsr_check_nan_block(struct iwl_mld *mld, struct ieee80211_vif *vif);
+
+int iwl_mld_update_emlsr_block(struct iwl_mld *mld, bool block,
+			       enum iwl_mld_emlsr_blocked reason);
+
 struct iwl_mld_link_sel_data {
 	u8 link_id;
 	const struct cfg80211_chan_def *chandef;
