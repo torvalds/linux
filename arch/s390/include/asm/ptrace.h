@@ -120,7 +120,10 @@ struct pt_regs {
 			unsigned long gprs[NUM_GPRS];
 		};
 	};
-	unsigned long orig_gpr2;
+	union {
+		unsigned long orig_gpr2;
+		unsigned long monitor_code;
+	};
 	union {
 		struct {
 			unsigned int int_code;
