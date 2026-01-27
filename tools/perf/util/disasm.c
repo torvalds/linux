@@ -761,7 +761,7 @@ static void ins__sort(struct arch *arch)
 static const struct ins_ops *__ins__find(const struct arch *arch, const char *name,
 				     struct disasm_line *dl)
 {
-	struct ins *ins;
+	const struct ins *ins;
 	const int nmemb = arch->nr_instructions;
 
 	if (arch__is_powerpc(arch)) {
