@@ -312,40 +312,107 @@ err:
 	return rc;
 }
 
+/**
+ * plpks_get_version() - Get the version of the PLPKS config structure.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the PLPKS config structure version and saves it in a file local static
+ * version variable.
+ *
+ * Returns: On success the saved PLPKS config structure version is returned, 0
+ * if not.
+ */
 u8 plpks_get_version(void)
 {
 	return version;
 }
 
+/**
+ * plpks_get_objoverhead() - Get the hypervisor storage overhead per object.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the per object hypervisor storage overhead in bytes into the local
+ * static objoverhead variable, excluding the size of the object or the label.
+ * This value can be treated as valid only when the PLPKS config structure
+ * version >= 2.
+ *
+ * Returns: If PLPKS config structure version >= 2 then the storage overhead is
+ * returned, 0 otherwise.
+ */
 u16 plpks_get_objoverhead(void)
 {
 	return objoverhead;
 }
 
+/**
+ * plpks_get_maxpwsize() - Get the maximum password size.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the maximum password size and checks if it is 32 bytes at the least
+ * before storing it in the local static maxpwsize variable.
+ *
+ * Returns: On success the maximum password size is returned, 0 if not.
+ */
 u16 plpks_get_maxpwsize(void)
 {
 	return maxpwsize;
 }
 
+/**
+ * plpks_get_maxobjectsize() - Get the maximum object size supported by the
+ * PLPKS.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the maximum object size into the file local static maxobjsize variable.
+ *
+ * Returns: On success the maximum object size is returned, 0 if not.
+ */
 u16 plpks_get_maxobjectsize(void)
 {
 	return maxobjsize;
 }
 
+/**
+ * plpks_get_maxobjectlabelsize() - Get the maximum object label size supported
+ * by the PLPKS.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the maximum object label size into the local static maxobjlabelsize
+ * variable.
+ *
+ * Returns: On success the maximum object label size is returned, 0 if not.
+ */
 u16 plpks_get_maxobjectlabelsize(void)
 {
 	return maxobjlabelsize;
 }
 
+/**
+ * plpks_get_totalsize() - Get the total size of the PLPKS that is configured.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the total size of the PLPKS that is configured for the LPAR into the
+ * file local static totalsize variable.
+ *
+ * Returns: On success the total size of the PLPKS configured is returned, 0 if
+ * not.
+ */
 u32 plpks_get_totalsize(void)
 {
 	return totalsize;
 }
 
+/**
+ * plpks_get_usedspace() - Get the used space from the total size of the PLPKS.
+ *
+ * Invoke the H_PKS_GET_CONFIG HCALL to refresh the latest value for the used
+ * space as this keeps changing with the creation and removal of objects in the
+ * PLPKS.
+ *
+ * Returns: On success the used space is returned, 0 if not.
+ */
 u32 plpks_get_usedspace(void)
 {
-	// Unlike other config values, usedspace regularly changes as objects
-	// are updated, so we need to refresh.
 	int rc = _plpks_get_config();
 	if (rc) {
 		pr_err("Couldn't get config, rc: %d\n", rc);
@@ -354,26 +421,84 @@ u32 plpks_get_usedspace(void)
 	return usedspace;
 }
 
+/**
+ * plpks_get_supportedpolicies() - Get a bitmask of the policies supported by
+ * the hypervisor.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads a bitmask of the policies supported by the hypervisor into the file
+ * local static supportedpolicies variable.
+ *
+ * Returns: On success the bitmask of the policies supported by the hypervisor
+ * are returned, 0 if not.
+ */
 u32 plpks_get_supportedpolicies(void)
 {
 	return supportedpolicies;
 }
 
+/**
+ * plpks_get_maxlargeobjectsize() - Get the maximum object size supported for
+ * PLPKS config structure version >= 3
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads the maximum object size into the local static maxlargeobjectsize
+ * variable for PLPKS config structure version >= 3. This was introduced
+ * starting with PLPKS config structure version 3 to allow for objects of
+ * size >= 64K.
+ *
+ * Returns: If PLPKS config structure version >= 3 then the new maximum object
+ * size is returned, 0 if not.
+ */
 u32 plpks_get_maxlargeobjectsize(void)
 {
 	return maxlargeobjectsize;
 }
 
+/**
+ * plpks_get_signedupdatealgorithms() - Get a bitmask of the signature
+ * algorithms supported for signed updates.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * reads a bitmask of the signature algorithms supported for signed updates into
+ * the file local static signedupdatealgorithms variable. This is valid only
+ * when the PLPKS config structure version >= 3.
+ *
+ * Returns: On success the bitmask of the signature algorithms supported for
+ * signed updates is returned, 0 if not.
+ */
 u64 plpks_get_signedupdatealgorithms(void)
 {
 	return signedupdatealgorithms;
 }
 
+/**
+ * plpks_get_passwordlen() - Get the length of the PLPKS password in bytes.
+ *
+ * The H_PKS_GEN_PASSWORD HCALL makes the hypervisor generate a random password
+ * for the specified consumer, apply that password to the PLPKS and return it to
+ * the caller. In this process, the password length for the OS consumer is
+ * stored in the local static ospasswordlength variable.
+ *
+ * Returns: On success the password length for the OS consumer in bytes is
+ * returned, 0 if not.
+ */
 u16 plpks_get_passwordlen(void)
 {
 	return ospasswordlength;
 }
 
+/**
+ * plpks_is_available() - Get the PLPKS availability status for the LPAR.
+ *
+ * The availability of PLPKS is inferred based upon the successful execution of
+ * the H_PKS_GET_CONFIG HCALL provided the firmware supports this feature. The
+ * H_PKS_GET_CONFIG HCALL reads the configuration and status information related
+ * to the PLPKS. The configuration structure provides a version number to inform
+ * the caller of the supported features.
+ *
+ * Returns: true is returned if PLPKS is available, false if not.
+ */
 bool plpks_is_available(void)
 {
 	int rc;
@@ -425,6 +550,35 @@ static int plpks_confirm_object_flushed(struct label *label,
 	return pseries_status_to_err(rc);
 }
 
+/**
+ * plpks_signed_update_var() - Update the specified authenticated variable.
+ * @var: authenticated variable to be updated
+ * @flags: signed update request operation flags
+ *
+ * The H_PKS_SIGNED_UPDATE HCALL performs a signed update to an object in the
+ * PLPKS. The object must have the signed update policy flag set.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid or unsupported policy declaration
+ *		if invalid signed update flags
+ *		if invalid input data parameter
+ *		if invalid input data len parameter
+ *		if invalid continue token parameter
+ * -EPERM	if access is denied
+ * -ENOMEM	if there is inadequate memory to perform the operation
+ * -EBUSY	if unable to handle the request or long running operation
+ *		initiated, retry later
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_signed_update_var(struct plpks_var *var, u64 flags)
 {
 	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = {0};
@@ -481,6 +635,33 @@ out:
 	return rc;
 }
 
+/**
+ * plpks_write_var() - Write the specified variable and its data to PLPKS.
+ * @var: variable to be written into the PLPKS
+ *
+ * The H_PKS_WRITE_OBJECT HCALL writes an object into the PLPKS. The caller must
+ * provide a valid component type for the variable, and the signed update policy
+ * flag must not be set.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid or unsupported policy declaration
+ *		if invalid input data parameter
+ *		if invalid input data len parameter
+ * -EPERM	if access is denied
+ * -ENOMEM	if unable to store the requested object in the space available
+ * -EBUSY	if unable to handle the request
+ * -EEXIST	if the object label already exists
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_write_var(struct plpks_var var)
 {
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE] = { 0 };
@@ -520,6 +701,30 @@ out:
 	return rc;
 }
 
+/**
+ * plpks_remove_var() - Remove the specified variable and its data from PLPKS.
+ * @component: metadata prefix in the object label metadata structure
+ * @varos: metadata OS flags in the object label metadata structure
+ * @vname: object label for the object that needs to be removed
+ *
+ * The H_PKS_REMOVE_OBJECT HCALL removes an object from the PLPKS. The removal
+ * is independent of the policy bits that are set.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ * -EPERM	if access is denied
+ * -ENOENT	if the requested object was not found
+ * -EBUSY	if unable to handle the request
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_remove_var(char *component, u8 varos, struct plpks_var_name vname)
 {
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE] = { 0 };
@@ -619,21 +824,119 @@ out_free_auth:
 	return rc;
 }
 
+/**
+ * plpks_read_os_var() - Fetch the data for the specified variable that is
+ * owned by the OS consumer.
+ * @var: variable to be read from the PLPKS
+ *
+ * The consumer or the owner of the object is the os kernel. The
+ * H_PKS_READ_OBJECT HCALL reads an object from the PLPKS. The caller must
+ * allocate the buffer var->data and specify the length for this buffer in
+ * var->datalen. If no buffer is provided, var->datalen will be populated with
+ * the requested object's size.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid output data parameter
+ *		if invalid output data len parameter
+ * -EPERM	if access is denied
+ * -ENOENT	if the requested object was not found
+ * -EFBIG	if the requested object couldn't be
+ *		stored in the buffer provided
+ * -EBUSY	if unable to handle the request
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_read_os_var(struct plpks_var *var)
 {
 	return plpks_read_var(PLPKS_OS_OWNER, var);
 }
 
+/**
+ * plpks_read_fw_var() - Fetch the data for the specified variable that is
+ * owned by the firmware consumer.
+ * @var: variable to be read from the PLPKS
+ *
+ * The consumer or the owner of the object is the firmware. The
+ * H_PKS_READ_OBJECT HCALL reads an object from the PLPKS. The caller must
+ * allocate the buffer var->data and specify the length for this buffer in
+ * var->datalen. If no buffer is provided, var->datalen will be populated with
+ * the requested object's size.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid output data parameter
+ *		if invalid output data len parameter
+ * -EPERM	if access is denied
+ * -ENOENT	if the requested object was not found
+ * -EFBIG	if the requested object couldn't be
+ *		stored in the buffer provided
+ * -EBUSY	if unable to handle the request
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_read_fw_var(struct plpks_var *var)
 {
 	return plpks_read_var(PLPKS_FW_OWNER, var);
 }
 
+/**
+ * plpks_read_bootloader_var() - Fetch the data for the specified variable
+ * owned by the bootloader consumer.
+ * @var: variable to be read from the PLPKS
+ *
+ * The consumer or the owner of the object is the bootloader. The
+ * H_PKS_READ_OBJECT HCALL reads an object from the PLPKS. The caller must
+ * allocate the buffer var->data and specify the length for this buffer in
+ * var->datalen. If no buffer is provided, var->datalen will be populated with
+ * the requested object's size.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid output data parameter
+ *		if invalid output data len parameter
+ * -EPERM	if access is denied
+ * -ENOENT	if the requested object was not found
+ * -EFBIG	if the requested object couldn't be
+ *		stored in the buffer provided
+ * -EBUSY	if unable to handle the request
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
 int plpks_read_bootloader_var(struct plpks_var *var)
 {
 	return plpks_read_var(PLPKS_BOOTLOADER_OWNER, var);
 }
 
+/**
+ * plpks_populate_fdt(): Populates the FDT with the PLPKS password to prepare
+ * for kexec.
+ * @fdt: pointer to the device tree blob
+ *
+ * Upon confirming the existence of the chosen node, invoke fdt_setprop to
+ * populate the device tree with the PLPKS password in order to prepare for
+ * kexec.
+ *
+ * Returns: On success 0 is returned, a negative value if not.
+ */
 int plpks_populate_fdt(void *fdt)
 {
 	int chosen_offset = fdt_path_offset(fdt, "/chosen");
@@ -647,14 +950,19 @@ int plpks_populate_fdt(void *fdt)
 	return fdt_setprop(fdt, chosen_offset, "ibm,plpks-pw", ospassword, ospasswordlength);
 }
 
-// Once a password is registered with the hypervisor it cannot be cleared without
-// rebooting the LPAR, so to keep using the PLPKS across kexec boots we need to
-// recover the previous password from the FDT.
-//
-// There are a few challenges here.  We don't want the password to be visible to
-// users, so we need to clear it from the FDT.  This has to be done in early boot.
-// Clearing it from the FDT would make the FDT's checksum invalid, so we have to
-// manually cause the checksum to be recalculated.
+/**
+ * plpks_early_init_devtree() - Retrieves and clears the PLPKS password from the
+ * DT in early init.
+ *
+ * Once a password is registered with the hypervisor it cannot be cleared
+ * without rebooting the LPAR, so to keep using the PLPKS across kexec boots we
+ * need to recover the previous password from the FDT.
+ *
+ * There are a few challenges here.  We don't want the password to be visible to
+ * users, so we need to clear it from the FDT.  This has to be done in early
+ * boot. Clearing it from the FDT would make the FDT's checksum invalid, so we
+ * have to manually cause the checksum to be recalculated.
+ */
 void __init plpks_early_init_devtree(void)
 {
 	void *fdt = initial_boot_params;
