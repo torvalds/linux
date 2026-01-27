@@ -4714,6 +4714,11 @@ static int perf_sched__schedstat_live(struct perf_sched *sched,
 
 	nr = cpu__max_present_cpu().cpu;
 	cd_map = build_cpu_domain_map(&sv, &md, nr);
+	if (!cd_map) {
+		pr_err("Unable to generate cpu-domain relation info");
+		goto out;
+	}
+
 	show_schedstat_data(&cpu_head, cd_map, NULL, NULL, false);
 	free_cpu_domain_info(cd_map, sv, nr);
 out:
