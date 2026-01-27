@@ -8382,7 +8382,8 @@ static int calculate_sizes(struct kmem_cache_args *args, struct kmem_cache *s)
 	 */
 	aligned_size = ALIGN(size, s->align);
 #if defined(CONFIG_SLAB_OBJ_EXT) && defined(CONFIG_64BIT)
-	if (aligned_size - size >= sizeof(struct slabobj_ext))
+	if (slab_args_unmergeable(args, s->flags) &&
+			(aligned_size - size >= sizeof(struct slabobj_ext)))
 		s->flags |= SLAB_OBJ_EXT_IN_OBJ;
 #endif
 	size = aligned_size;

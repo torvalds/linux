@@ -174,8 +174,7 @@ int slab_unmergeable(struct kmem_cache *s)
 	return 0;
 }
 
-static bool slab_args_unmergeable(struct kmem_cache_args *args,
-				  slab_flags_t flags)
+bool slab_args_unmergeable(struct kmem_cache_args *args, slab_flags_t flags)
 {
 	if (slab_nomerge)
 		return true;

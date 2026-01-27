@@ -411,6 +411,7 @@ extern void create_boot_cache(struct kmem_cache *, const char *name,
 			unsigned int useroffset, unsigned int usersize);
 
 int slab_unmergeable(struct kmem_cache *s);
+bool slab_args_unmergeable(struct kmem_cache_args *args, slab_flags_t flags);
 
 slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name);
 
