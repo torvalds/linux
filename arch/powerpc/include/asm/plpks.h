@@ -113,6 +113,16 @@ void plpks_early_init_devtree(void);
 int plpks_populate_fdt(void *fdt);
 
 int plpks_config_create_softlink(struct kobject *from);
+
+bool plpks_wrapping_is_supported(void);
+
+int plpks_gen_wrapping_key(void);
+
+int plpks_wrap_object(u8 **input_buf, u32 input_len, u16 wrap_flags,
+		      u8 **output_buf, u32 *output_len);
+
+int plpks_unwrap_object(u8 **input_buf, u32 input_len,
+			u8 **output_buf, u32 *output_len);
 #else // CONFIG_PSERIES_PLPKS
 static inline bool plpks_is_available(void) { return false; }
 static inline u16 plpks_get_passwordlen(void) { BUILD_BUG(); }

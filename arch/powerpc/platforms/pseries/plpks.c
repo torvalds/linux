@@ -9,6 +9,32 @@
 
 #define pr_fmt(fmt) "plpks: " fmt
 
+#define PLPKS_WRAPKEY_COMPONENT	"PLPKSWR"
+#define PLPKS_WRAPKEY_NAME	"default-wrapping-key"
+
+/*
+ * To 4K align the {input, output} buffers to the {UN}WRAP H_CALLs
+ */
+#define PLPKS_WRAPPING_BUF_ALIGN	4096
+
+/*
+ * To ensure the output buffer's length is at least 1024 bytes greater
+ * than the input buffer's length during the WRAP H_CALL
+ */
+#define PLPKS_WRAPPING_BUF_DIFF	1024
+
+#define PLPKS_WRAP_INTERFACE_BIT	3
+#define PLPKS_WRAPPING_KEY_LENGTH	32
+
+#define WRAPFLAG_BE_BIT_SET(be_bit) \
+	BIT_ULL(63 - (be_bit))
+
+#define WRAPFLAG_BE_GENMASK(be_bit_hi, be_bit_lo) \
+	GENMASK_ULL(63 - (be_bit_hi), 63 - (be_bit_lo))
+
+#define WRAPFLAG_BE_FIELD_PREP(be_bit_hi, be_bit_lo, val) \
+	FIELD_PREP(WRAPFLAG_BE_GENMASK(be_bit_hi, be_bit_lo), (val))
+
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/io.h>
@@ -19,6 +45,7 @@
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/memblock.h>
+#include <linux/bitfield.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
 #include <asm/plpks.h>
@@ -39,6 +66,7 @@ static u32 supportedpolicies;
 static u32 maxlargeobjectsize;
 static u64 signedupdatealgorithms;
 static u64 wrappingfeatures;
+static bool wrapsupport;
 
 struct plpks_auth {
 	u8 version;
@@ -283,6 +311,7 @@ static int _plpks_get_config(void)
 	maxlargeobjectsize = be32_to_cpu(config->maxlargeobjectsize);
 	signedupdatealgorithms = be64_to_cpu(config->signedupdatealgorithms);
 	wrappingfeatures = be64_to_cpu(config->wrappingfeatures);
+	wrapsupport = config->flags & PPC_BIT8(PLPKS_WRAP_INTERFACE_BIT);
 
 	// Validate that the numbers we get back match the requirements of the spec
 	if (maxpwsize < 32) {
@@ -614,6 +643,9 @@ int plpks_signed_update_var(struct plpks_var *var, u64 flags)
 	if (!(var->policy & PLPKS_SIGNEDUPDATE))
 		return -EINVAL;
 
+	if (var->policy & PLPKS_WRAPPINGKEY)
+		return -EINVAL;
+
 	// Signed updates need the component to be NULL.
 	if (var->component)
 		return -EINVAL;
@@ -694,6 +726,9 @@ int plpks_write_var(struct plpks_var var)
 		return -EINVAL;
 
 	if (var.policy & PLPKS_SIGNEDUPDATE)
+		return -EINVAL;
+
+	if (var.policy & PLPKS_WRAPPINGKEY)
 		return -EINVAL;
 
 	auth = construct_auth(PLPKS_OS_OWNER);
@@ -790,6 +825,9 @@ static int plpks_read_var(u8 consumer, struct plpks_var *var)
 	if (var->namelen > PLPKS_MAX_NAME_SIZE)
 		return -EINVAL;
 
+	if (var->policy & PLPKS_WRAPPINGKEY)
+		return -EINVAL;
+
 	auth = construct_auth(consumer);
 	if (IS_ERR(auth))
 		return PTR_ERR(auth);
@@ -845,8 +883,309 @@ out_free_auth:
 }
 
 /**
- * plpks_read_os_var() - Fetch the data for the specified variable that is
- * owned by the OS consumer.
+ * plpks_wrapping_is_supported() - Get the H_PKS_WRAP_OBJECT interface
+ * availability status for the LPAR.
+ *
+ * Successful execution of the H_PKS_GET_CONFIG HCALL during initialization
+ * sets bit 3 of the flags variable in the PLPKS config structure if the
+ * H_PKS_WRAP_OBJECT interface is supported.
+ *
+ * Returns: true if the H_PKS_WRAP_OBJECT interface is supported, false if not.
+ */
+bool plpks_wrapping_is_supported(void)
+{
+	return wrapsupport;
+}
+
+/**
+ * plpks_gen_wrapping_key() - Generate a new random key with the 'wrapping key'
+ * policy set.
+ *
+ * The H_PKS_GEN_KEY HCALL makes the hypervisor generate a new random key and
+ * store the key in a PLPKS object with the provided object label. With the
+ * 'wrapping key' policy set, only the label to the newly generated random key
+ * would be visible to the user.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid object label parameter
+ *		if invalid object label len parameter
+ *		if invalid or unsupported policy declaration
+ *		if invalid output buffer parameter
+ *		if invalid output buffer length parameter
+ * -EPERM	if access is denied
+ * -ENOMEM	if there is inadequate memory to perform this operation
+ * -EBUSY	if unable to handle the request
+ * -EEXIST	if the object label already exists
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
+int plpks_gen_wrapping_key(void)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE] = { 0 };
+	struct plpks_auth *auth;
+	struct label *label;
+	int rc = 0, pseries_status = 0;
+	struct plpks_var var = {
+		.name = PLPKS_WRAPKEY_NAME,
+		.namelen = strlen(var.name),
+		.policy = PLPKS_WRAPPINGKEY,
+		.os = PLPKS_VAR_LINUX,
+		.component = PLPKS_WRAPKEY_COMPONENT
+	};
+
+	auth = construct_auth(PLPKS_OS_OWNER);
+	if (IS_ERR(auth))
+		return PTR_ERR(auth);
+
+	label = construct_label(var.component, var.os, var.name, var.namelen);
+	if (IS_ERR(label)) {
+		rc = PTR_ERR(label);
+		goto out;
+	}
+
+	rc = plpar_hcall(H_PKS_GEN_KEY, retbuf,
+			 virt_to_phys(auth), virt_to_phys(label),
+			 label->size, var.policy,
+			 NULL, PLPKS_WRAPPING_KEY_LENGTH);
+
+	if (!rc)
+		rc = plpks_confirm_object_flushed(label, auth);
+
+	pseries_status = rc;
+	rc = pseries_status_to_err(rc);
+
+	if (rc && rc != -EEXIST) {
+		pr_err("H_PKS_GEN_KEY failed. pseries_status=%d, rc=%d",
+		       pseries_status, rc);
+	} else {
+		rc = 0;
+	}
+
+	kfree(label);
+out:
+	kfree(auth);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(plpks_gen_wrapping_key);
+
+/**
+ * plpks_wrap_object() - Wrap an object using the default wrapping key stored in
+ * the PLPKS.
+ * @input_buf: buffer containing the data to be wrapped
+ * @input_len: length of the input buffer
+ * @wrap_flags: object wrapping flags
+ * @output_buf: buffer to store the wrapped data
+ * @output_len: length of the output buffer
+ *
+ * The H_PKS_WRAP_OBJECT HCALL wraps an object using a wrapping key stored in
+ * the PLPKS and returns the wrapped object to the caller. The caller provides a
+ * label to the wrapping key with the 'wrapping key' policy set that must have
+ * been previously created with the H_PKS_GEN_KEY HCALL. The provided object is
+ * then encrypted with the wrapping key and additional metadata and the result
+ * is returned to the user. The metadata includes the wrapping algorithm and the
+ * wrapping key name so those parameters are not required during unwrap.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid wrapping key label parameter
+ *		if invalid wrapping key label length parameter
+ *		if invalid or unsupported object wrapping flags
+ *		if invalid input buffer parameter
+ *		if invalid input buffer length parameter
+ *		if invalid output buffer parameter
+ *		if invalid output buffer length parameter
+ *		if invalid continue token parameter
+ *		if the wrapping key is not compatible with the wrapping
+ *		algorithm
+ * -EPERM	if access is denied
+ * -ENOENT	if the requested wrapping key was not found
+ * -EBUSY	if unable to handle the request or long running operation
+ *		initiated, retry later.
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
+int plpks_wrap_object(u8 **input_buf, u32 input_len, u16 wrap_flags,
+		      u8 **output_buf, u32 *output_len)
+{
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = { 0 };
+	struct plpks_auth *auth;
+	struct label *label;
+	u64 continuetoken = 0;
+	u64 objwrapflags = 0;
+	int rc = 0, pseries_status = 0;
+	bool sb_audit_or_enforce_bit = wrap_flags & BIT(0);
+	bool sb_enforce_bit = wrap_flags & BIT(1);
+	struct plpks_var var = {
+		.name = PLPKS_WRAPKEY_NAME,
+		.namelen = strlen(var.name),
+		.os = PLPKS_VAR_LINUX,
+		.component = PLPKS_WRAPKEY_COMPONENT
+	};
+
+	auth = construct_auth(PLPKS_OS_OWNER);
+	if (IS_ERR(auth))
+		return PTR_ERR(auth);
+
+	label = construct_label(var.component, var.os, var.name, var.namelen);
+	if (IS_ERR(label)) {
+		rc = PTR_ERR(label);
+		goto out;
+	}
+
+	/* Set the consumer password requirement bit. A must have. */
+	objwrapflags |= WRAPFLAG_BE_BIT_SET(3);
+
+	/* Set the wrapping algorithm bit. Just one algorithm option for now */
+	objwrapflags |= WRAPFLAG_BE_FIELD_PREP(60, 63, 0x1);
+
+	if (sb_audit_or_enforce_bit & sb_enforce_bit) {
+		pr_err("Cannot set both audit/enforce and enforce bits.");
+		rc = -EINVAL;
+		goto out_free_label;
+	} else if (sb_audit_or_enforce_bit) {
+		objwrapflags |= WRAPFLAG_BE_BIT_SET(1);
+	} else if (sb_enforce_bit) {
+		objwrapflags |= WRAPFLAG_BE_BIT_SET(2);
+	}
+
+	*output_len = input_len + PLPKS_WRAPPING_BUF_DIFF;
+
+	*output_buf = kzalloc(ALIGN(*output_len, PLPKS_WRAPPING_BUF_ALIGN),
+			      GFP_KERNEL);
+	if (!(*output_buf)) {
+		pr_err("Output buffer allocation failed. Returning -ENOMEM.");
+		rc = -ENOMEM;
+		goto out_free_label;
+	}
+
+	do {
+		rc = plpar_hcall9(H_PKS_WRAP_OBJECT, retbuf,
+				  virt_to_phys(auth), virt_to_phys(label),
+				  label->size, objwrapflags,
+				  virt_to_phys(*input_buf), input_len,
+				  virt_to_phys(*output_buf), *output_len,
+				  continuetoken);
+
+		continuetoken = retbuf[0];
+		pseries_status = rc;
+		rc = pseries_status_to_err(rc);
+	} while (rc == -EBUSY);
+
+	if (rc) {
+		pr_err("H_PKS_WRAP_OBJECT failed. pseries_status=%d, rc=%d",
+		       pseries_status, rc);
+		kfree(*output_buf);
+		*output_buf = NULL;
+	} else {
+		*output_len = retbuf[1];
+	}
+
+out_free_label:
+	kfree(label);
+out:
+	kfree(auth);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(plpks_wrap_object);
+
+/**
+ * plpks_unwrap_object() - Unwrap an object using the default wrapping key
+ * stored in the PLPKS.
+ * @input_buf: buffer containing the data to be unwrapped
+ * @input_len: length of the input buffer
+ * @output_buf: buffer to store the unwrapped data
+ * @output_len: length of the output buffer
+ *
+ * The H_PKS_UNWRAP_OBJECT HCALL unwraps an object that was previously wrapped
+ * using the H_PKS_WRAP_OBJECT HCALL.
+ *
+ * Possible reasons for the returned errno values:
+ *
+ * -ENXIO	if PLPKS is not supported
+ * -EIO		if PLPKS access is blocked due to the LPAR's state
+ *		if PLPKS modification is blocked due to the LPAR's state
+ *		if an error occurred while processing the request
+ * -EINVAL	if invalid authorization parameter
+ *		if invalid or unsupported object unwrapping flags
+ *		if invalid input buffer parameter
+ *		if invalid input buffer length parameter
+ *		if invalid output buffer parameter
+ *		if invalid output buffer length parameter
+ *		if invalid continue token parameter
+ *		if the wrapping key is not compatible with the wrapping
+ *		algorithm
+ *		if the wrapped object's format is not supported
+ *		if the wrapped object is invalid
+ * -EPERM	if access is denied
+ * -ENOENT	if the wrapping key for the provided object was not found
+ * -EBUSY	if unable to handle the request or long running operation
+ *		initiated, retry later.
+ *
+ * Returns: On success 0 is returned, a negative errno if not.
+ */
+int plpks_unwrap_object(u8 **input_buf, u32 input_len, u8 **output_buf,
+			u32 *output_len)
+{
+	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE] = { 0 };
+	struct plpks_auth *auth;
+	u64 continuetoken = 0;
+	u64 objwrapflags = 0;
+	int rc = 0, pseries_status = 0;
+
+	auth = construct_auth(PLPKS_OS_OWNER);
+	if (IS_ERR(auth))
+		return PTR_ERR(auth);
+
+	*output_len = input_len - PLPKS_WRAPPING_BUF_DIFF;
+	*output_buf = kzalloc(ALIGN(*output_len, PLPKS_WRAPPING_BUF_ALIGN),
+			      GFP_KERNEL);
+	if (!(*output_buf)) {
+		pr_err("Output buffer allocation failed. Returning -ENOMEM.");
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	do {
+		rc = plpar_hcall9(H_PKS_UNWRAP_OBJECT, retbuf,
+				  virt_to_phys(auth), objwrapflags,
+				  virt_to_phys(*input_buf), input_len,
+				  virt_to_phys(*output_buf), *output_len,
+				  continuetoken);
+
+		continuetoken = retbuf[0];
+		pseries_status = rc;
+		rc = pseries_status_to_err(rc);
+	} while (rc == -EBUSY);
+
+	if (rc) {
+		pr_err("H_PKS_UNWRAP_OBJECT failed. pseries_status=%d, rc=%d",
+		       pseries_status, rc);
+		kfree(*output_buf);
+		*output_buf = NULL;
+	} else {
+		*output_len = retbuf[1];
+	}
+
+out:
+	kfree(auth);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(plpks_unwrap_object);
+
+/**
+ * plpks_read_os_var() - Fetch the data for the specified variable that is owned
+ * by the OS consumer.
  * @var: variable to be read from the PLPKS
  *
  * The consumer or the owner of the object is the os kernel. The
