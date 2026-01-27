@@ -170,6 +170,52 @@ static int fbnic_dbg_ipo_dst_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(fbnic_dbg_ipo_dst);
 
+static void fbnic_dbg_fw_mbx_display(struct seq_file *s,
+				     struct fbnic_dev *fbd, int mbx_idx)
+{
+	struct fbnic_fw_mbx *mbx = &fbd->mbx[mbx_idx];
+	char hdr[80];
+	int i;
+
+	/* Generate header */
+	seq_puts(s, mbx_idx == FBNIC_IPC_MBX_RX_IDX ? "Rx\n" : "Tx\n");
+
+	seq_printf(s, "Rdy: %d Head: %d Tail: %d\n",
+		   mbx->ready, mbx->head, mbx->tail);
+
+	snprintf(hdr, sizeof(hdr), "%3s %-4s %s %-12s %s %-3s %-16s\n",
+		 "Idx", "Len", "E", "Addr", "F", "H", "Raw");
+	seq_puts(s, hdr);
+	fbnic_dbg_desc_break(s, strnlen(hdr, sizeof(hdr)));
+
+	for (i = 0; i < FBNIC_IPC_MBX_DESC_LEN; i++) {
+		u64 desc = __fbnic_mbx_rd_desc(fbd, mbx_idx, i);
+
+		seq_printf(s, "%-3.2d %04lld %d %012llx %d %-3d %016llx\n",
+			   i, FIELD_GET(FBNIC_IPC_MBX_DESC_LEN_MASK, desc),
+			   !!(desc & FBNIC_IPC_MBX_DESC_EOM),
+			   desc & FBNIC_IPC_MBX_DESC_ADDR_MASK,
+			   !!(desc & FBNIC_IPC_MBX_DESC_FW_CMPL),
+			   !!(desc & FBNIC_IPC_MBX_DESC_HOST_CMPL),
+			   desc);
+	}
+}
+
+static int fbnic_dbg_fw_mbx_show(struct seq_file *s, void *v)
+{
+	struct fbnic_dev *fbd = s->private;
+
+	fbnic_dbg_fw_mbx_display(s, fbd, FBNIC_IPC_MBX_RX_IDX);
+
+	/* Add blank line between Rx and Tx */
+	seq_puts(s, "\n");
+
+	fbnic_dbg_fw_mbx_display(s, fbd, FBNIC_IPC_MBX_TX_IDX);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(fbnic_dbg_fw_mbx);
+
 static int fbnic_dbg_fw_log_show(struct seq_file *s, void *v)
 {
 	struct fbnic_dev *fbd = s->private;
@@ -249,6 +295,8 @@ void fbnic_dbg_fbd_init(struct fbnic_dev *fbd)
 			    &fbnic_dbg_ipo_src_fops);
 	debugfs_create_file("ipo_dst", 0400, fbd->dbg_fbd, fbd,
 			    &fbnic_dbg_ipo_dst_fops);
+	debugfs_create_file("fw_mbx", 0400, fbd->dbg_fbd, fbd,
+			    &fbnic_dbg_fw_mbx_fops);
 	debugfs_create_file("fw_log", 0400, fbd->dbg_fbd, fbd,
 			    &fbnic_dbg_fw_log_fops);
 }
