@@ -36,3 +36,21 @@ Documentation/devicetree/bindings/submitting-patches.rst を読んでくださ�
 いくつかのサブシステムやメンテナツリーには、各々のワークフローや
 期待事項に関する追加情報があります。次を参照してください:
 :ref:`Documentation/process/maintainer-handbooks.rst <maintainer_handbooks_main>`.
+
+現在のソースツリーを入手する
+----------------------------
+
+もし手元に最新のカーネルソースのリポジトリがなければ、``git`` を使って取得して
+ください。まずは mainline のリポジトリから始めるのがよいでしょう。これは
+次のようにして取得できます::
+
+  git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+
+ただし、直接 mainline のツリーを対象に作業すればよいとは限らないことに注意
+してください。多くのサブシステムのメンテナはそれぞれ独自のツリーを運用しており、
+そのツリーに対して作成されたパッチを見たいと考えています。該当サブシステムの
+ツリーは MAINTAINERS ファイル内の **T:** エントリを参照して見つけてください。
+そこに掲載されていない場合は、メンテナに問い合わせてください。
+
+変更内容を説明する
+------------------
