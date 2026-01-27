@@ -263,7 +263,6 @@ static void loadparam(struct adapter *padapter, struct net_device *pnetdev)
 	registry_par->reg_enable_tx_power_by_rate = (u8)rtw_tx_pwr_by_rate;
 
 	registry_par->reg_power_base = 14;
-	registry_par->bEn_RFE = 1;
 	registry_par->RFE_Type = 64;
 
 	registry_par->qos_opt_enable = (u8)rtw_qos_opt_enable;

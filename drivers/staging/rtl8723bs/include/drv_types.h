@@ -160,7 +160,6 @@ struct registry_priv {
 	u8 reg_enable_tx_power_by_rate;
 	u8 reg_power_base;
 	u8 reg_pwr_tbl_sel;
-	u8 bEn_RFE;
 	u8 RFE_Type;
 	u8  check_fw_ps;
 
