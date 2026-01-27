@@ -6,9 +6,10 @@ import math
 import os
 import re
 from typing import Optional
-from metric import (d_ratio, has_event, max, CheckPmu, Event, JsonEncodeMetric,
-                    JsonEncodeMetricGroupDescriptions, Literal, LoadEvents,
-                    Metric, MetricConstraint, MetricGroup, MetricRef, Select)
+from metric import (d_ratio, has_event, max, source_count, CheckPmu, Event,
+                    JsonEncodeMetric, JsonEncodeMetricGroupDescriptions,
+                    Literal, LoadEvents, Metric, MetricConstraint, MetricGroup,
+                    MetricRef, Select)
 
 # Global command line arguments.
 _args = None
@@ -624,6 +625,68 @@ def IntelL2() -> Optional[MetricGroup]:
     ], description="L2 data cache analysis")
 
 
+def IntelMissLat() -> Optional[MetricGroup]:
+    try:
+        ticks = Event("UNC_CHA_CLOCKTICKS", "UNC_C_CLOCKTICKS")
+        data_rd_loc_occ = Event("UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_LOCAL",
+                                "UNC_CHA_TOR_OCCUPANCY.IA_MISS",
+                                "UNC_C_TOR_OCCUPANCY.MISS_LOCAL_OPCODE",
+                                "UNC_C_TOR_OCCUPANCY.MISS_OPCODE")
+        data_rd_loc_ins = Event("UNC_CHA_TOR_INSERTS.IA_MISS_DRD_LOCAL",
+                                "UNC_CHA_TOR_INSERTS.IA_MISS",
+                                "UNC_C_TOR_INSERTS.MISS_LOCAL_OPCODE",
+                                "UNC_C_TOR_INSERTS.MISS_OPCODE")
+        data_rd_rem_occ = Event("UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_REMOTE",
+                                "UNC_CHA_TOR_OCCUPANCY.IA_MISS",
+                                "UNC_C_TOR_OCCUPANCY.MISS_REMOTE_OPCODE",
+                                "UNC_C_TOR_OCCUPANCY.NID_MISS_OPCODE")
+        data_rd_rem_ins = Event("UNC_CHA_TOR_INSERTS.IA_MISS_DRD_REMOTE",
+                                "UNC_CHA_TOR_INSERTS.IA_MISS",
+                                "UNC_C_TOR_INSERTS.MISS_REMOTE_OPCODE",
+                                "UNC_C_TOR_INSERTS.NID_MISS_OPCODE")
+    except:
+        return None
+
+    if (data_rd_loc_occ.name == "UNC_C_TOR_OCCUPANCY.MISS_LOCAL_OPCODE" or
+            data_rd_loc_occ.name == "UNC_C_TOR_OCCUPANCY.MISS_OPCODE"):
+        data_rd = 0x182
+        for e in [data_rd_loc_occ, data_rd_loc_ins, data_rd_rem_occ, data_rd_rem_ins]:
+            e.name += f"/filter_opc={hex(data_rd)}/"
+    elif data_rd_loc_occ.name == "UNC_CHA_TOR_OCCUPANCY.IA_MISS":
+        # Demand Data Read - Full cache-line read requests from core for
+        # lines to be cached in S or E, typically for data
+        demand_data_rd = 0x202
+        #  LLC Prefetch Data - Uncore will first look up the line in the
+        #  LLC; for a cache hit, the LRU will be updated, on a miss, the
+        #  DRd will be initiated
+        llc_prefetch_data = 0x25a
+        local_filter = (f"/filter_opc0={hex(demand_data_rd)},"
+                        f"filter_opc1={hex(llc_prefetch_data)},"
+                        "filter_loc,filter_nm,filter_not_nm/")
+        remote_filter = (f"/filter_opc0={hex(demand_data_rd)},"
+                         f"filter_opc1={hex(llc_prefetch_data)},"
+                         "filter_rem,filter_nm,filter_not_nm/")
+        for e in [data_rd_loc_occ, data_rd_loc_ins]:
+            e.name += local_filter
+        for e in [data_rd_rem_occ, data_rd_rem_ins]:
+            e.name += remote_filter
+    else:
+        assert data_rd_loc_occ.name == "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_LOCAL", data_rd_loc_occ
+
+    ticks_per_cha = ticks / source_count(data_rd_loc_ins)
+    loc_lat = interval_sec * 1e9 * data_rd_loc_occ / \
+        (ticks_per_cha * data_rd_loc_ins)
+    ticks_per_cha = ticks / source_count(data_rd_rem_ins)
+    rem_lat = interval_sec * 1e9 * data_rd_rem_occ / \
+        (ticks_per_cha * data_rd_rem_ins)
+    return MetricGroup("lpm_miss_lat", [
+        Metric("lpm_miss_lat_loc", "Local to a socket miss latency in nanoseconds",
+               loc_lat, "ns"),
+        Metric("lpm_miss_lat_rem", "Remote to a socket miss latency in nanoseconds",
+               rem_lat, "ns"),
+    ])
+
+
 def IntelMlp() -> Optional[Metric]:
     try:
         l1d = Event("L1D_PEND_MISS.PENDING")
@@ -1005,6 +1068,7 @@ def main() -> None:
         IntelIlp(),
         IntelL2(),
         IntelLdSt(),
+        IntelMissLat(),
         IntelMlp(),
         IntelPorts(),
         IntelSwpf(),
