@@ -1113,11 +1113,6 @@ static void detached_dev_do_request(struct bcache_device *d,
 
 	clone_bio = bio_alloc_clone(dc->bdev, orig_bio, GFP_NOIO,
 				    &d->bio_detached);
-	if (!clone_bio) {
-		orig_bio->bi_status = BLK_STS_RESOURCE;
-		bio_endio(orig_bio);
-		return;
-	}
 
 	ddip = container_of(clone_bio, struct detached_dev_io_private, bio);
 	/* Count on the bcache device */
