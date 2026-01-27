@@ -3538,7 +3538,7 @@ out:
 	return count;
 }
 
-static int rtw89_dbg_trigger_ctrl_error_by_halt_h2c(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l1_error_by_halt_h2c(struct rtw89_dev *rtwdev)
 {
 	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		return -EBUSY;
@@ -3546,7 +3546,7 @@ static int rtw89_dbg_trigger_ctrl_error_by_halt_h2c(struct rtw89_dev *rtwdev)
 	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RESET_FORCE);
 }
 
-static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l1_error(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_cpuio_ctrl ctrl_para = {0};
@@ -3554,7 +3554,7 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	int ret;
 
 	if (RTW89_CHK_FW_FEATURE(SIM_SER_L0L1_BY_HALT_H2C, &rtwdev->fw))
-		return rtw89_dbg_trigger_ctrl_error_by_halt_h2c(rtwdev);
+		return rtw89_dbg_trigger_l1_error_by_halt_h2c(rtwdev);
 
 	rtw89_leave_ps_mode(rtwdev);
 
@@ -3576,7 +3576,7 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_dbg_trigger_mac_error_ax(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l0_error_ax(struct rtw89_dev *rtwdev)
 {
 	u16 val16;
 	u8 val8;
@@ -3598,7 +3598,7 @@ static int rtw89_dbg_trigger_mac_error_ax(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_dbg_trigger_mac_error_be(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l0_error_be(struct rtw89_dev *rtwdev)
 {
 	int ret;
 
@@ -3612,7 +3612,7 @@ static int rtw89_dbg_trigger_mac_error_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_dbg_trigger_mac_error_by_halt_h2c(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l0_error_by_halt_h2c(struct rtw89_dev *rtwdev)
 {
 	if (!test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags))
 		return -EBUSY;
@@ -3620,20 +3620,20 @@ static int rtw89_dbg_trigger_mac_error_by_halt_h2c(struct rtw89_dev *rtwdev)
 	return rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L0_RESET_FORCE);
 }
 
-static int rtw89_dbg_trigger_mac_error(struct rtw89_dev *rtwdev)
+static int rtw89_dbg_trigger_l0_error(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
 	if (RTW89_CHK_FW_FEATURE(SIM_SER_L0L1_BY_HALT_H2C, &rtwdev->fw))
-		return rtw89_dbg_trigger_mac_error_by_halt_h2c(rtwdev);
+		return rtw89_dbg_trigger_l0_error_by_halt_h2c(rtwdev);
 
 	rtw89_leave_ps_mode(rtwdev);
 
 	switch (chip->chip_gen) {
 	case RTW89_CHIP_AX:
-		return rtw89_dbg_trigger_mac_error_ax(rtwdev);
+		return rtw89_dbg_trigger_l0_error_ax(rtwdev);
 	case RTW89_CHIP_BE:
-		return rtw89_dbg_trigger_mac_error_be(rtwdev);
+		return rtw89_dbg_trigger_l0_error_be(rtwdev);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3653,8 +3653,8 @@ rtw89_debug_priv_fw_crash_get(struct rtw89_dev *rtwdev,
 
 enum rtw89_dbg_crash_simulation_type {
 	RTW89_DBG_SIM_CPU_EXCEPTION = 1,
-	RTW89_DBG_SIM_CTRL_ERROR = 2,
-	RTW89_DBG_SIM_MAC_ERROR = 3,
+	RTW89_DBG_SIM_L1_ERROR = 2,
+	RTW89_DBG_SIM_L0_ERROR = 3,
 };
 
 static ssize_t
@@ -3679,11 +3679,11 @@ rtw89_debug_priv_fw_crash_set(struct rtw89_dev *rtwdev,
 			return -EOPNOTSUPP;
 		sim = rtw89_fw_h2c_trigger_cpu_exception;
 		break;
-	case RTW89_DBG_SIM_CTRL_ERROR:
-		sim = rtw89_dbg_trigger_ctrl_error;
+	case RTW89_DBG_SIM_L1_ERROR:
+		sim = rtw89_dbg_trigger_l1_error;
 		break;
-	case RTW89_DBG_SIM_MAC_ERROR:
-		sim = rtw89_dbg_trigger_mac_error;
+	case RTW89_DBG_SIM_L0_ERROR:
+		sim = rtw89_dbg_trigger_l0_error;
 
 		/* Driver SER flow won't get involved; only FW will. */
 		announce = false;
