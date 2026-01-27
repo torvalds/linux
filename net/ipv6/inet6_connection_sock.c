@@ -55,12 +55,6 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	return dst;
 }
 
-static inline
-struct dst_entry *__inet6_csk_dst_check(struct sock *sk, u32 cookie)
-{
-	return __sk_dst_check(sk, cookie);
-}
-
 static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 						struct flowi6 *fl6)
 {
@@ -86,7 +80,7 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	final_p = fl6_update_dst(fl6, rcu_dereference(np->opt), &final);
 	rcu_read_unlock();
 
-	dst = __inet6_csk_dst_check(sk, np->dst_cookie);
+	dst = __sk_dst_check(sk, np->dst_cookie);
 	if (!dst) {
 		dst = ip6_dst_lookup_flow(sock_net(sk), sk, fl6, final_p);
 
