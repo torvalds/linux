@@ -138,7 +138,6 @@ struct tty_port {
 					   kernel */
 
 void tty_port_init(struct tty_port *port);
-void tty_port_link_wq(struct tty_port *port, struct workqueue_struct *flip_wq);
 void tty_port_link_device(struct tty_port *port, struct tty_driver *driver,
 		unsigned index);
 struct device *tty_port_register_device(struct tty_port *port,
@@ -164,18 +163,6 @@ static inline struct tty_port *tty_port_get(struct tty_port *port)
 	if (port && kref_get_unless_zero(&port->kref))
 		return port;
 	return NULL;
-}
-
-/*
- * Never overwrite the workqueue set by tty_port_link_wq().
- * No effect when %TTY_DRIVER_CUSTOM_WORKQUEUE is set, as driver->flip_wq is
- * %NULL.
- */
-static inline void tty_port_link_driver_wq(struct tty_port *port,
-					   struct tty_driver *driver)
-{
-	if (!port->buf.flip_wq)
-		port->buf.flip_wq = driver->flip_wq;
 }
 
 /* If the cts flow control is enabled, return true. */
