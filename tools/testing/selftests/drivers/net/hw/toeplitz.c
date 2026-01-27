@@ -59,7 +59,7 @@
 #include "../../../net/lib/ksft.h"
 
 #define TOEPLITZ_KEY_MIN_LEN	40
-#define TOEPLITZ_KEY_MAX_LEN	60
+#define TOEPLITZ_KEY_MAX_LEN	256
 
 #define TOEPLITZ_STR_LEN(K)	(((K) * 3) - 1)	/* hex encoded: AA:BB:CC:...:ZZ */
 #define TOEPLITZ_STR_MIN_LEN	TOEPLITZ_STR_LEN(TOEPLITZ_KEY_MIN_LEN)
