@@ -4283,7 +4283,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	tcp_in_ack_event(sk, flag);
 
-	if (tp->tlp_high_seq)
+	if (unlikely(tp->tlp_high_seq))
 		tcp_process_tlp_ack(sk, ack, flag);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
@@ -4333,7 +4333,7 @@ no_queue:
 	 */
 	tcp_ack_probe(sk);
 
-	if (tp->tlp_high_seq)
+	if (unlikely(tp->tlp_high_seq))
 		tcp_process_tlp_ack(sk, ack, flag);
 	return 1;
 
