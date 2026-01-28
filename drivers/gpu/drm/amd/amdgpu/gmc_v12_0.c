@@ -728,9 +728,13 @@ static int gmc_v12_0_mc_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	/* size in MB on si */
-	adev->gmc.mc_vram_size =
-		adev->nbio.funcs->get_memsize(adev) * 1024ULL * 1024ULL;
+	if (adev->gmc.xgmi.connected_to_cpu)
+		adev->gmc.mc_vram_size =
+			adev->gmc.xgmi.node_segment_size * adev->gmc.xgmi.num_physical_nodes;
+	else
+		adev->gmc.mc_vram_size =
+			adev->nbio.funcs->get_memsize(adev) * 1024ULL * 1024ULL;
+
 	adev->gmc.real_vram_size = adev->gmc.mc_vram_size;
 
 	if (!(adev->flags & AMD_IS_APU) &&
