@@ -1040,14 +1040,14 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 		"mod_path_hpa_%08lx = {\n", hpa);
 	pr_cont("\t.path = { ");
 	pr_cont(".flags = 0x%x, ", mod_path.path.flags);
-	pr_cont(".bc = { 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x }, ",
+	pr_cont(".bc = { 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x }, ",
 		(unsigned char)mod_path.path.bc[0],
 		(unsigned char)mod_path.path.bc[1],
 		(unsigned char)mod_path.path.bc[2],
 		(unsigned char)mod_path.path.bc[3],
 		(unsigned char)mod_path.path.bc[4],
 		(unsigned char)mod_path.path.bc[5]);
-	pr_cont(".mod = 0x%x }\n", mod_path.path.mod);
+	pr_cont(".mod = 0x%02x }\n", (unsigned char)mod_path.path.mod);
 	pr_cont("};\n");
 
 	pr_info("static struct pdc_iodc iodc_data_hpa_%08lx = {\n", hpa);
