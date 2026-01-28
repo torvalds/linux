@@ -8,6 +8,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/refcount.h>
 #include "bnge_db.h"
+#include "bnge_hw_def.h"
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -173,9 +174,15 @@ enum {
 #define RING_RX_AGG(bn, idx)	((idx) & (bn)->rx_agg_ring_mask)
 #define NEXT_RX_AGG(idx)	((idx) + 1)
 
+#define BNGE_NQ_HDL_IDX_MASK	0x00ffffff
+#define BNGE_NQ_HDL_TYPE_MASK	0xff000000
 #define BNGE_NQ_HDL_TYPE_SHIFT	24
 #define BNGE_NQ_HDL_TYPE_RX	0x00
 #define BNGE_NQ_HDL_TYPE_TX	0x01
+
+#define BNGE_NQ_HDL_IDX(hdl)	((hdl) & BNGE_NQ_HDL_IDX_MASK)
+#define BNGE_NQ_HDL_TYPE(hdl)	(((hdl) & BNGE_NQ_HDL_TYPE_MASK) >>	\
+				 BNGE_NQ_HDL_TYPE_SHIFT)
 
 struct bnge_net {
 	struct bnge_dev		*bd;
@@ -232,6 +239,9 @@ struct bnge_net {
 	u8			rss_hash_key_updated:1;
 	int			rsscos_nr_ctxs;
 	u32			stats_coal_ticks;
+
+	unsigned long		state;
+#define BNGE_STATE_NAPI_DISABLED	0
 };
 
 #define BNGE_DEFAULT_RX_RING_SIZE	511
@@ -278,8 +288,24 @@ void bnge_set_ring_params(struct bnge_dev *bd);
 	     txr = (iter < BNGE_MAX_TXR_PER_NAPI - 1) ?	\
 	     (bnapi)->tx_ring[++iter] : NULL)
 
+#define DB_EPOCH(db, idx)	(((idx) & (db)->db_epoch_mask) <<	\
+				 ((db)->db_epoch_shift))
+
+#define DB_TOGGLE(tgl)		((tgl) << DBR_TOGGLE_SFT)
+
+#define DB_RING_IDX(db, idx)	(((idx) & (db)->db_ring_mask) |		\
+				 DB_EPOCH(db, idx))
+
 #define BNGE_SET_NQ_HDL(cpr)						\
 	(((cpr)->cp_ring_type << BNGE_NQ_HDL_TYPE_SHIFT) | (cpr)->cp_idx)
+
+#define BNGE_DB_NQ(bd, db, idx)						\
+	bnge_writeq(bd, (db)->db_key64 | DBR_TYPE_NQ | DB_RING_IDX(db, idx),\
+		    (db)->doorbell)
+
+#define BNGE_DB_NQ_ARM(bd, db, idx)					\
+	bnge_writeq(bd, (db)->db_key64 | DBR_TYPE_NQ_ARM |	\
+		    DB_RING_IDX(db, idx), (db)->doorbell)
 
 struct bnge_stats_mem {
 	u64		*sw_stats;
@@ -288,6 +314,25 @@ struct bnge_stats_mem {
 	dma_addr_t	hw_stats_map;
 	int		len;
 };
+
+struct nqe_cn {
+	__le16	type;
+	#define NQ_CN_TYPE_MASK			0x3fUL
+	#define NQ_CN_TYPE_SFT			0
+	#define NQ_CN_TYPE_CQ_NOTIFICATION	0x30UL
+	#define NQ_CN_TYPE_LAST			NQ_CN_TYPE_CQ_NOTIFICATION
+	#define NQ_CN_TOGGLE_MASK		0xc0UL
+	#define NQ_CN_TOGGLE_SFT		6
+	__le16	reserved16;
+	__le32	cq_handle_low;
+	__le32	v;
+	#define NQ_CN_V				0x1UL
+	__le32	cq_handle_high;
+};
+
+#define NQE_CN_TYPE(type)	((type) & NQ_CN_TYPE_MASK)
+#define NQE_CN_TOGGLE(type)	(((type) & NQ_CN_TOGGLE_MASK) >>	\
+				 NQ_CN_TOGGLE_SFT)
 
 struct bnge_cp_ring_info {
 	struct bnge_napi	*bnapi;
@@ -298,6 +343,10 @@ struct bnge_cp_ring_info {
 	u8			cp_idx;
 	u32			cp_raw_cons;
 	struct bnge_db_info	cp_db;
+	bool			had_work_done;
+	bool			has_more_work;
+	bool			had_nqe_notify;
+	u8			toggle;
 };
 
 struct bnge_nq_ring_info {
@@ -310,8 +359,9 @@ struct bnge_nq_ring_info {
 
 	struct bnge_stats_mem	stats;
 	u32			hw_stats_ctx_id;
+	bool			has_more_work;
 
-	int				cp_ring_count;
+	u16				cp_ring_count;
 	struct bnge_cp_ring_info	*cp_ring_arr;
 };
 
@@ -374,6 +424,13 @@ struct bnge_napi {
 	struct bnge_nq_ring_info	nq_ring;
 	struct bnge_rx_ring_info	*rx_ring;
 	struct bnge_tx_ring_info	*tx_ring[BNGE_MAX_TXR_PER_NAPI];
+	u8				events;
+#define BNGE_RX_EVENT			1
+#define BNGE_AGG_EVENT			2
+#define BNGE_TX_EVENT			4
+#define BNGE_REDIRECT_EVENT		8
+#define BNGE_TX_CMP_EVENT		0x10
+	bool				in_reset;
 };
 
 #define INVALID_STATS_CTX_ID	-1
@@ -452,4 +509,6 @@ struct bnge_l2_filter {
 u16 bnge_cp_ring_for_rx(struct bnge_rx_ring_info *rxr);
 u16 bnge_cp_ring_for_tx(struct bnge_tx_ring_info *txr);
 void bnge_fill_hw_rss_tbl(struct bnge_net *bn, struct bnge_vnic_info *vnic);
+int bnge_alloc_rx_data(struct bnge_net *bn, struct bnge_rx_ring_info *rxr,
+		       u16 prod, gfp_t gfp);
 #endif /* _BNGE_NETDEV_H_ */

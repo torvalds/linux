@@ -21,6 +21,7 @@
 #include "bnge_hwrm_lib.h"
 #include "bnge_ethtool.h"
 #include "bnge_rmem.h"
+#include "bnge_txrx.h"
 
 #define BNGE_RING_TO_TC_OFF(bd, tx)	\
 	((tx) % (bd)->tx_nr_rings_per_tc)
@@ -857,6 +858,13 @@ u16 bnge_cp_ring_for_tx(struct bnge_tx_ring_info *txr)
 	return txr->tx_cpr->ring_struct.fw_ring_id;
 }
 
+static void bnge_db_nq_arm(struct bnge_net *bn,
+			   struct bnge_db_info *db, u32 idx)
+{
+	bnge_writeq(bn->bd, db->db_key64 | DBR_TYPE_NQ_ARM |
+		    DB_RING_IDX(db, idx), db->doorbell);
+}
+
 static void bnge_db_nq(struct bnge_net *bn, struct bnge_db_info *db, u32 idx)
 {
 	bnge_writeq(bn->bd, db->db_key64 | DBR_TYPE_NQ_MASK |
@@ -877,12 +885,6 @@ static int bnge_cp_num_to_irq_num(struct bnge_net *bn, int n)
 	nqr = &bnapi->nq_ring;
 
 	return nqr->ring_struct.map_idx;
-}
-
-static irqreturn_t bnge_msix(int irq, void *dev_instance)
-{
-	/* NAPI scheduling to be added in a future patch */
-	return IRQ_HANDLED;
 }
 
 static void bnge_init_nq_tree(struct bnge_net *bn)
@@ -942,9 +944,8 @@ static u8 *__bnge_alloc_rx_frag(struct bnge_net *bn, dma_addr_t *mapping,
 	return page_address(page) + offset;
 }
 
-static int bnge_alloc_rx_data(struct bnge_net *bn,
-			      struct bnge_rx_ring_info *rxr,
-			      u16 prod, gfp_t gfp)
+int bnge_alloc_rx_data(struct bnge_net *bn, struct bnge_rx_ring_info *rxr,
+		       u16 prod, gfp_t gfp)
 {
 	struct bnge_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[RING_RX(bn, prod)];
 	struct rx_bd *rxbd;
@@ -1756,6 +1757,84 @@ skip_uc:
 	return rc;
 }
 
+static void bnge_disable_int(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	if (!bn->bnapi)
+		return;
+
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+		struct bnge_nq_ring_info *nqr;
+		struct bnge_ring_struct *ring;
+
+		nqr = &bnapi->nq_ring;
+		ring = &nqr->ring_struct;
+
+		if (ring->fw_ring_id != INVALID_HW_RING_ID)
+			bnge_db_nq(bn, &nqr->nq_db, nqr->nq_raw_cons);
+	}
+}
+
+static void bnge_disable_int_sync(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	bnge_disable_int(bn);
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		int map_idx = bnge_cp_num_to_irq_num(bn, i);
+
+		synchronize_irq(bd->irq_tbl[map_idx].vector);
+	}
+}
+
+static void bnge_enable_int(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+		struct bnge_nq_ring_info *nqr;
+
+		nqr = &bnapi->nq_ring;
+		bnge_db_nq_arm(bn, &nqr->nq_db, nqr->nq_raw_cons);
+	}
+}
+
+static void bnge_disable_napi(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	if (test_and_set_bit(BNGE_STATE_NAPI_DISABLED, &bn->state))
+		return;
+
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+
+		napi_disable_locked(&bnapi->napi);
+	}
+}
+
+static void bnge_enable_napi(struct bnge_net *bn)
+{
+	struct bnge_dev *bd = bn->bd;
+	int i;
+
+	clear_bit(BNGE_STATE_NAPI_DISABLED, &bn->state);
+	for (i = 0; i < bd->nq_nr_rings; i++) {
+		struct bnge_napi *bnapi = bn->bnapi[i];
+
+		bnapi->in_reset = false;
+
+		napi_enable_locked(&bnapi->napi);
+	}
+}
+
 static void bnge_hwrm_vnic_free(struct bnge_net *bn)
 {
 	int i;
@@ -1886,6 +1965,12 @@ static void bnge_hwrm_ring_free(struct bnge_net *bn, bool close_path)
 		bnge_hwrm_rx_ring_free(bn, &bn->rx_ring[i], close_path);
 		bnge_hwrm_rx_agg_ring_free(bn, &bn->rx_ring[i], close_path);
 	}
+
+	/* The completion rings are about to be freed.  After that the
+	 * IRQ doorbell will not work anymore.  So we need to disable
+	 * IRQ here.
+	 */
+	bnge_disable_int_sync(bn);
 
 	for (i = 0; i < bd->nq_nr_rings; i++) {
 		struct bnge_napi *bnapi = bn->bnapi[i];
@@ -2086,16 +2171,6 @@ err_out:
 	return rc;
 }
 
-static int bnge_napi_poll(struct napi_struct *napi, int budget)
-{
-	int work_done = 0;
-
-	/* defer NAPI implementation to next patch series */
-	napi_complete_done(napi, work_done);
-
-	return work_done;
-}
-
 static void bnge_init_napi(struct bnge_net *bn)
 {
 	struct bnge_dev *bd = bn->bd;
@@ -2193,7 +2268,12 @@ static int bnge_open_core(struct bnge_net *bn)
 		netdev_err(bn->netdev, "bnge_init_nic err: %d\n", rc);
 		goto err_free_irq;
 	}
+
+	bnge_enable_napi(bn);
+
 	set_bit(BNGE_STATE_OPEN, &bd->state);
+
+	bnge_enable_int(bn);
 	return 0;
 
 err_free_irq:
@@ -2236,6 +2316,7 @@ static void bnge_close_core(struct bnge_net *bn)
 
 	clear_bit(BNGE_STATE_OPEN, &bd->state);
 	bnge_shutdown_nic(bn);
+	bnge_disable_napi(bn);
 	bnge_free_all_rings_bufs(bn);
 	bnge_free_irq(bn);
 	bnge_del_napi(bn);
