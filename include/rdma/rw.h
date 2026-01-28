@@ -5,6 +5,7 @@
 #ifndef _RDMA_RW_H
 #define _RDMA_RW_H
 
+#include <linux/bvec.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <rdma/ib_verbs.h>
@@ -48,6 +49,16 @@ int rdma_rw_ctx_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u32 port_num,
 void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 			 u32 port_num, struct scatterlist *sg, u32 sg_cnt,
 			 enum dma_data_direction dir);
+
+struct bio_vec;
+
+int rdma_rw_ctx_init_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
+		u32 port_num, const struct bio_vec *bvecs, u32 nr_bvec,
+		struct bvec_iter iter, u64 remote_addr, u32 rkey,
+		enum dma_data_direction dir);
+void rdma_rw_ctx_destroy_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
+		u32 port_num, const struct bio_vec *bvecs, u32 nr_bvec,
+		enum dma_data_direction dir);
 
 int rdma_rw_ctx_signature_init(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		u32 port_num, struct scatterlist *sg, u32 sg_cnt,

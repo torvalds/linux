@@ -15,6 +15,7 @@
 #include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/bvec.h>
 #include <linux/dma-mapping.h>
 #include <linux/kref.h>
 #include <linux/list.h>
@@ -4264,6 +4265,47 @@ static inline void ib_dma_unmap_page(struct ib_device *dev,
 {
 	if (!ib_uses_virt_dma(dev))
 		dma_unmap_page(dev->dma_device, addr, size, direction);
+}
+
+/**
+ * ib_dma_map_bvec - Map a bio_vec to DMA address
+ * @dev: The device for which the dma_addr is to be created
+ * @bvec: The bio_vec to map
+ * @direction: The direction of the DMA
+ *
+ * Returns a DMA address for the bio_vec. The caller must check the
+ * result with ib_dma_mapping_error() before use; a failed mapping
+ * must not be passed to ib_dma_unmap_bvec().
+ *
+ * For software RDMA devices (rxe, siw), returns a virtual address
+ * and no actual DMA mapping occurs.
+ */
+static inline u64 ib_dma_map_bvec(struct ib_device *dev,
+				  struct bio_vec *bvec,
+				  enum dma_data_direction direction)
+{
+	if (ib_uses_virt_dma(dev))
+		return (uintptr_t)bvec_virt(bvec);
+	return dma_map_phys(dev->dma_device, bvec_phys(bvec),
+			    bvec->bv_len, direction, 0);
+}
+
+/**
+ * ib_dma_unmap_bvec - Unmap a bio_vec DMA mapping
+ * @dev: The device for which the DMA address was created
+ * @addr: The DMA address returned by ib_dma_map_bvec()
+ * @size: The size of the region in bytes
+ * @direction: The direction of the DMA
+ *
+ * Releases a DMA mapping created by ib_dma_map_bvec(). For software
+ * RDMA devices this is a no-op since no actual mapping occurred.
+ */
+static inline void ib_dma_unmap_bvec(struct ib_device *dev,
+				     u64 addr, size_t size,
+				     enum dma_data_direction direction)
+{
+	if (!ib_uses_virt_dma(dev))
+		dma_unmap_phys(dev->dma_device, addr, size, direction, 0);
 }
 
 int ib_dma_virt_map_sg(struct ib_device *dev, struct scatterlist *sg, int nents);
