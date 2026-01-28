@@ -958,7 +958,7 @@ mshv_vp_release(struct inode *inode, struct file *filp)
 }
 
 static void mshv_vp_stats_unmap(u64 partition_id, u32 vp_index,
-				void *stats_pages[])
+				struct hv_stats_page *stats_pages[])
 {
 	union hv_stats_object_identity identity = {
 		.vp.partition_id = partition_id,
@@ -973,7 +973,7 @@ static void mshv_vp_stats_unmap(u64 partition_id, u32 vp_index,
 }
 
 static int mshv_vp_stats_map(u64 partition_id, u32 vp_index,
-			     void *stats_pages[])
+			     struct hv_stats_page *stats_pages[])
 {
 	union hv_stats_object_identity identity = {
 		.vp.partition_id = partition_id,
@@ -1011,7 +1011,7 @@ mshv_partition_ioctl_create_vp(struct mshv_partition *partition,
 	struct mshv_create_vp args;
 	struct mshv_vp *vp;
 	struct page *intercept_msg_page, *register_page, *ghcb_page;
-	void *stats_pages[2];
+	struct hv_stats_page *stats_pages[2];
 	long ret;
 
 	if (copy_from_user(&args, arg, sizeof(args)))
@@ -1730,7 +1730,7 @@ static void destroy_partition(struct mshv_partition *partition)
 
 			if (hv_scheduler_type == HV_SCHEDULER_TYPE_ROOT)
 				mshv_vp_stats_unmap(partition->pt_id, vp->vp_index,
-						    (void **)vp->vp_stats_pages);
+						    vp->vp_stats_pages);
 
 			if (vp->vp_register_page) {
 				(void)hv_unmap_vp_state_page(partition->pt_id,
