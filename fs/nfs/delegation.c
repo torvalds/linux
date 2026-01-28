@@ -336,10 +336,8 @@ nfs_start_delegation_return(struct nfs_inode *nfsi)
 
 	spin_lock(&delegation->lock);
 	if (delegation->inode &&
-	    !test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
-		clear_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
+	    !test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags))
 		return_now = true;
-	}
 	spin_unlock(&delegation->lock);
 
 	if (!return_now) {
@@ -586,8 +584,11 @@ static int nfs_end_delegation_return(struct inode *inode,
 out_return:
 	return nfs_do_return_delegation(inode, delegation, issync);
 delay:
-	set_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
-	set_bit(NFS4SERV_DELEGRETURN_DELAYED, &server->delegation_flags);
+	spin_lock(&server->delegations_lock);
+	if (list_empty(&delegation->entry))
+		refcount_inc(&delegation->refcount);
+	list_move_tail(&delegation->entry, &server->delegations_return);
+	spin_unlock(&server->delegations_lock);
 	set_bit(NFS4CLNT_DELEGRETURN_DELAYED, &server->nfs_client->cl_state);
 abort:
 	clear_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
@@ -616,22 +617,16 @@ static int nfs_return_one_delegation(struct nfs_server *server)
 		spin_unlock(&delegation->lock);
 		goto out_put_delegation;
 	}
-	if (test_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags) ||
-	    test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) ||
+	if (test_bit(NFS_DELEGATION_REVOKED, &delegation->flags) ||
 	    test_and_set_bit(NFS_DELEGATION_RETURNING, &delegation->flags)) {
 		spin_unlock(&delegation->lock);
 		goto out_put_inode;
 	}
-	clear_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
 	spin_unlock(&delegation->lock);
 
 	nfs_clear_verifier_delegated(inode);
 
 	err = nfs_end_delegation_return(inode, delegation, false);
-	if (err) {
-		nfs_mark_return_delegation(server, delegation);
-		goto out_put_inode;
-	}
 
 out_put_inode:
 	iput(inode);
@@ -708,19 +703,18 @@ static void nfs_delegation_add_lru(struct nfs_server *server,
 
 static bool nfs_server_clear_delayed_delegations(struct nfs_server *server)
 {
-	struct nfs_delegation *d;
 	bool ret = false;
 
-	if (!test_and_clear_bit(NFS4SERV_DELEGRETURN_DELAYED,
-				&server->delegation_flags))
+	if (list_empty_careful(&server->delegations_delayed))
 		return false;
 
 	spin_lock(&server->delegations_lock);
-	list_for_each_entry_rcu(d, &server->delegations_return, entry) {
-		if (test_bit(NFS_DELEGATION_RETURN_DELAYED, &d->flags))
-			clear_bit(NFS_DELEGATION_RETURN_DELAYED, &d->flags);
+	if (!list_empty(&server->delegations_delayed)) {
+		list_splice_tail_init(&server->delegations_delayed,
+				      &server->delegations_return);
 		ret = true;
 	}
+	spin_unlock(&server->delegations_lock);
 
 	return ret;
 }
