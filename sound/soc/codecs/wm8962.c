@@ -85,6 +85,8 @@ struct wm8962_priv {
 
 	int irq;
 	bool master_flag;
+	int tdm_width;
+	int tdm_slots;
 };
 
 /* We can't use the same notifier block for more than one supply and
@@ -2612,6 +2614,19 @@ static int wm8962_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int wm8962_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+			       unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_component *component = dai->component;
+	struct wm8962_priv *wm8962 = snd_soc_component_get_drvdata(component);
+
+	wm8962->tdm_width = slot_width;
+	/* External is one slot one channel, but internal is one slot two channels */
+	wm8962->tdm_slots = slots / 2;
+
+	return 0;
+}
+
 static const struct {
 	int rate;
 	int reg;
@@ -2639,10 +2654,21 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	int i;
 	int aif0 = 0;
 	int adctl3 = 0;
+	int width;
 
-	wm8962->bclk = snd_soc_params_to_bclk(params);
-	if (params_channels(params) == 1)
-		wm8962->bclk *= 2;
+	if (wm8962->tdm_width && wm8962->tdm_slots) {
+		wm8962->bclk = snd_soc_calc_bclk(params_rate(params),
+						 wm8962->tdm_width,
+						 params_channels(params),
+						 wm8962->tdm_slots);
+		width = wm8962->tdm_width;
+	} else {
+		wm8962->bclk = snd_soc_params_to_bclk(params);
+		width = params_width(params);
+
+		if (params_channels(params) == 1)
+			wm8962->bclk *= 2;
+	}
 
 	wm8962->lrclk = params_rate(params);
 
@@ -2660,7 +2686,7 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	if (wm8962->lrclk % 8000 == 0)
 		adctl3 |= WM8962_SAMPLE_RATE_INT_MODE;
 
-	switch (params_width(params)) {
+	switch (width) {
 	case 16:
 		break;
 	case 20:
@@ -3039,6 +3065,7 @@ static const struct snd_soc_dai_ops wm8962_dai_ops = {
 	.hw_params = wm8962_hw_params,
 	.set_sysclk = wm8962_set_dai_sysclk,
 	.set_fmt = wm8962_set_dai_fmt,
+	.set_tdm_slot = wm8962_set_tdm_slot,
 	.mute_stream = wm8962_mute,
 	.no_capture_mute = 1,
 };
