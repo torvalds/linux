@@ -21,7 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/mailbox_controller.h>
-#include <linux/mailbox_client.h>
 
 #include "mailbox.h"
 
