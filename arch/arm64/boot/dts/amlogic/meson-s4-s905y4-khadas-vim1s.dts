@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2026 Khadas Technology Co., Ltd.
  */
 
 /dts-v1/;
@@ -8,19 +8,22 @@
 #include "meson-s4.dtsi"
 
 / {
-	model = "Amlogic Meson S4 AQ222 Development Board";
-	compatible = "amlogic,aq222", "amlogic,s805x2", "amlogic,s4";
+	model = "Khadas VIM1S";
+	compatible = "khadas,vim1s", "amlogic,s905y4", "amlogic,s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 
 	aliases {
+		mmc0 = &emmc; /* eMMC */
+		mmc1 = &sd; /* SD card */
+		mmc2 = &sdio; /* SDIO */
 		serial0 = &uart_b;
 	};
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x0 0x0 0x40000000>;
+		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	reserved-memory {
@@ -33,6 +36,11 @@
 			reg = <0x0 0x05000000 0x0 0x3400000>;
 			no-map;
 		};
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio GPIOB_9 GPIO_ACTIVE_LOW>;
 	};
 
 	sdio_32k: sdio-32k {
@@ -49,12 +57,32 @@
 		clock-names = "ext_clock";
 	};
 
-	main_12v: regulator-main-12v {
+	main_5v: regulator-main-5v {
 		compatible = "regulator-fixed";
-		regulator-name = "12V";
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
+		regulator-name = "5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
+	};
+
+	sd_3v3: regulator-sd-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "SD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
+	};
+
+	vddio_sd: regulator-vddio-sd {
+		compatible = "regulator-gpio";
+		regulator-name = "VDDIO_SD";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <1800000 1
+				3300000 0>;
 	};
 
 	vddao_3v3: regulator-vddao-3v3 {
@@ -62,17 +90,17 @@
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&main_12v>;
+		vin-supply = <&main_5v>;
 		regulator-always-on;
 	};
 
 	vddio_ao1v8: regulator-vddio-ao1v8 {
-	       compatible = "regulator-fixed";
-	       regulator-name = "VDDIO_AO1V8";
-	       regulator-min-microvolt = <1800000>;
-	       regulator-max-microvolt = <1800000>;
-	       vin-supply = <&vddao_3v3>;
-	       regulator-always-on;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_AO1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vddao_3v3>;
+		regulator-always-on;
 	};
 
 	/* SY8120B1ABC DC/DC Regulator. */
@@ -83,7 +111,7 @@
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
 
-		vin-supply = <&main_12v>;
+		vin-supply = <&main_5v>;
 
 		pwms = <&pwm_ij 1 1500 0>;
 		pwm-dutycycle-range = <100 0>;
@@ -131,6 +159,37 @@
 	};
 };
 
+&emmc {
+	status = "okay";
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
+	vmmc-supply = <&vddao_3v3>;
+	vqmmc-supply = <&vddio_ao1v8>;
+};
+
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
+};
+
+&ir {
+	status = "okay";
+	pinctrl-0 = <&remote_pins>;
+	pinctrl-names = "default";
+};
+
 &pwm_ef {
 	status = "okay";
 	pinctrl-0 = <&pwm_e_pins1>;
@@ -141,17 +200,28 @@
 	status = "okay";
 };
 
-&uart_b {
+&sd {
 	status = "okay";
-};
+	pinctrl-0 = <&sdcard_pins>;
+	pinctrl-1 = <&sdcard_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+	bus-width = <4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
+	disable-wp;
 
-&ir {
-	status = "okay";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
+
+	vmmc-supply = <&sd_3v3>;
+	vqmmc-supply = <&vddio_sd>;
 };
 
 &sdio {
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -161,65 +231,19 @@
 	cap-sd-highspeed;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	max-frequency = <200000000>;
+	max-frequency = <50000000>;
 	non-removable;
 	disable-wp;
+
 	no-sd;
 	no-mmc;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	vmmc-supply = <&vddao_3v3>;
 	vqmmc-supply = <&vddio_ao1v8>;
-};
 
-&sd {
-	status = "okay";
-	pinctrl-0 = <&sdcard_pins>;
-	pinctrl-1 = <&sdcard_clk_gate_pins>;
-	pinctrl-names = "default", "clk-gate";
-	bus-width = <4>;
-	cap-sd-highspeed;
-	max-frequency = <200000000>;
-	disable-wp;
-
-	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_LOW>;
-	vmmc-supply = <&vddao_3v3>;
-	vqmmc-supply = <&vddao_3v3>;
-};
-
-&nand {
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	pinctrl-0 = <&nand_pins>;
-	pinctrl-names = "default";
-
-	nand@0 {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		nand-on-flash-bbt;
-
-		partition@0 {
-			label = "boot";
-			reg = <0x0 0x00200000>;
-		};
-		partition@200000 {
-			label = "env";
-			reg = <0x00200000 0x00400000>;
-		};
-		partition@600000 {
-			label = "system";
-			reg = <0x00600000 0x00a00000>;
-		};
-		partition@1000000 {
-			label = "rootfs";
-			reg = <0x01000000 0x03000000>;
-		};
-		partition@4000000 {
-			label = "media";
-			reg = <0x04000000 0x8000000>;
-		};
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm43456-fmac", "brcm,bcm4329-fmac";
 	};
 };
 
@@ -230,8 +254,6 @@
 	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
 };
 
-&ethmac {
+&uart_b {
 	status = "okay";
-	phy-handle = <&internal_ephy>;
-	phy-mode = "rmii";
 };
