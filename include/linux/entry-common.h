@@ -122,17 +122,12 @@ static __always_inline long syscall_enter_from_user_mode(struct pt_regs *regs, l
 void syscall_exit_work(struct pt_regs *regs, unsigned long work);
 
 /**
- * syscall_exit_to_user_mode_work - Handle work before returning to user mode
+ * syscall_exit_to_user_mode_work - Handle one time work before returning to user mode
  * @regs:	Pointer to currents pt_regs
  *
- * Same as step 1 and 2 of syscall_exit_to_user_mode() but without calling
- * exit_to_user_mode() to perform the final transition to user mode.
+ * Step 1 of syscall_exit_to_user_mode() with the same calling convention.
  *
- * Calling convention is the same as for syscall_exit_to_user_mode() and it
- * returns with all work handled and interrupts disabled. The caller must
- * invoke exit_to_user_mode() before actually switching to user mode to
- * make the final state transitions. Interrupts must stay disabled between
- * return from this function and the invocation of exit_to_user_mode().
+ * The caller must invoke steps 2-3 of syscall_exit_to_user_mode() afterwards.
  */
 static __always_inline void syscall_exit_to_user_mode_work(struct pt_regs *regs)
 {
@@ -155,15 +150,13 @@ static __always_inline void syscall_exit_to_user_mode_work(struct pt_regs *regs)
 	 */
 	if (unlikely(work & SYSCALL_WORK_EXIT))
 		syscall_exit_work(regs, work);
-	local_irq_disable_exit_to_user();
-	syscall_exit_to_user_mode_prepare(regs);
 }
 
 /**
  * syscall_exit_to_user_mode - Handle work before returning to user mode
  * @regs:	Pointer to currents pt_regs
  *
- * Invoked with interrupts enabled and fully valid regs. Returns with all
+ * Invoked with interrupts enabled and fully valid @regs. Returns with all
  * work handled, interrupts disabled such that the caller can immediately
  * switch to user mode. Called from architecture specific syscall and ret
  * from fork code.
@@ -176,6 +169,7 @@ static __always_inline void syscall_exit_to_user_mode_work(struct pt_regs *regs)
  *	- ptrace (single stepping)
  *
  *  2) Preparatory work
+ *	- Disable interrupts
  *	- Exit to user mode loop (common TIF handling). Invokes
  *	  arch_exit_to_user_mode_work() for architecture specific TIF work
  *	- Architecture specific one time work arch_exit_to_user_mode_prepare()
@@ -184,14 +178,17 @@ static __always_inline void syscall_exit_to_user_mode_work(struct pt_regs *regs)
  *  3) Final transition (lockdep, tracing, context tracking, RCU), i.e. the
  *     functionality in exit_to_user_mode().
  *
- * This is a combination of syscall_exit_to_user_mode_work() (1,2) and
- * exit_to_user_mode(). This function is preferred unless there is a
- * compelling architectural reason to use the separate functions.
+ * This is a combination of syscall_exit_to_user_mode_work() (1), disabling
+ * interrupts followed by syscall_exit_to_user_mode_prepare() (2) and
+ * exit_to_user_mode() (3). This function is preferred unless there is a
+ * compelling architectural reason to invoke the functions separately.
  */
 static __always_inline void syscall_exit_to_user_mode(struct pt_regs *regs)
 {
 	instrumentation_begin();
 	syscall_exit_to_user_mode_work(regs);
+	local_irq_disable_exit_to_user();
+	syscall_exit_to_user_mode_prepare(regs);
 	instrumentation_end();
 	exit_to_user_mode();
 }
