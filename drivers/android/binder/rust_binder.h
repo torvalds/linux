@@ -79,7 +79,7 @@ static inline rust_binder_node rust_binder_transaction_target_node(rust_binder_t
 
 	if (p)
 		p = p + RUST_BINDER_LAYOUT.n.arc_offset;
-	return NULL;
+	return p;
 }
 
 static inline rust_binder_process rust_binder_transaction_to_proc(rust_binder_transaction t)
