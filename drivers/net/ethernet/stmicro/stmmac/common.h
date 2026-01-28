@@ -323,6 +323,10 @@ struct stmmac_safety_stats {
 #define PHY_INTF_SEL_SMII	6
 #define PHY_INTF_SEL_REVMII	7
 
+/* XGMAC uses a different encoding - from the AgileX5 documentation */
+#define PHY_INTF_GMII		0
+#define PHY_INTF_RGMII		1
+
 /* MSI defines */
 #define STMMAC_MSI_VEC_MAX	32
 
@@ -512,6 +516,8 @@ struct dma_features {
 	unsigned int dbgmem;
 	/* Number of Policing Counters */
 	unsigned int pcsel;
+	/* Active PHY interface, PHY_INTF_SEL_xxx */
+	u8 actphyif;
 };
 
 /* RX Buffer size must be multiple of 4/8/16 bytes */
