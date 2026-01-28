@@ -45,7 +45,7 @@
 				 SYSCALL_WORK_SYSCALL_EXIT_TRAP	|	\
 				 ARCH_SYSCALL_WORK_EXIT)
 
-long syscall_trace_enter(struct pt_regs *regs, long syscall, unsigned long work);
+long syscall_trace_enter(struct pt_regs *regs, unsigned long work);
 
 /**
  * syscall_enter_from_user_mode_work - Check and handle work before invoking
@@ -75,7 +75,7 @@ static __always_inline long syscall_enter_from_user_mode_work(struct pt_regs *re
 	unsigned long work = READ_ONCE(current_thread_info()->syscall_work);
 
 	if (work & SYSCALL_WORK_ENTER)
-		syscall = syscall_trace_enter(regs, syscall, work);
+		syscall = syscall_trace_enter(regs, work);
 
 	return syscall;
 }

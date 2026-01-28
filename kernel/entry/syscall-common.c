@@ -17,10 +17,9 @@ static inline void syscall_enter_audit(struct pt_regs *regs, long syscall)
 	}
 }
 
-long syscall_trace_enter(struct pt_regs *regs, long syscall,
-				unsigned long work)
+long syscall_trace_enter(struct pt_regs *regs, unsigned long work)
 {
-	long ret = 0;
+	long syscall, ret = 0;
 
 	/*
 	 * Handle Syscall User Dispatch.  This must comes first, since
