@@ -35,6 +35,7 @@ struct rk_reg_speed_data {
 };
 
 struct rk_gmac_ops {
+	int (*init)(struct rk_priv_data *bsp_priv);
 	void (*set_to_rgmii)(struct rk_priv_data *bsp_priv,
 			     int tx_delay, int rx_delay);
 	void (*set_to_rmii)(struct rk_priv_data *bsp_priv);
@@ -1617,6 +1618,15 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 		 bsp_priv->integrated_phy ? "yes" : "no");
 
 	bsp_priv->dev = dev;
+
+	if (ops->init) {
+		ret = ops->init(bsp_priv);
+		if (ret) {
+			reset_control_put(bsp_priv->phy_reset);
+			dev_err_probe(dev, ret, "failed to init BSP\n");
+			return ERR_PTR(ret);
+		}
+	}
 
 	return bsp_priv;
 }
