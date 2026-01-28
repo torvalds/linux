@@ -32,6 +32,14 @@ struct rdma_rw_ctx {
 			struct ib_rdma_wr	*wrs;
 		} map;
 
+		/* for IOVA-based mapping of bvecs into contiguous DMA range: */
+		struct {
+			struct dma_iova_state	state;
+			struct ib_sge		sge;
+			struct ib_rdma_wr	wr;
+			size_t			mapped_len;
+		} iova;
+
 		/* for registering multiple WRs: */
 		struct rdma_rw_reg_ctx {
 			struct ib_sge		sge;
