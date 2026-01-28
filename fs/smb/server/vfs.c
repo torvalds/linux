@@ -1227,7 +1227,7 @@ int ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
 }
 
 /**
- * ksmbd_vfs_kern_path_start_remove() - lookup a file and get path info prior to removal
+ * ksmbd_vfs_kern_path_start_removing() - lookup a file and get path info prior to removal
  * @work:		work
  * @filepath:		file path that is relative to share
  * @flags:		lookup flags
