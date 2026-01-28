@@ -483,7 +483,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&q7_thermal_pin &bios_disable_override_hog_pin>;
 
-	gpios {
+	gpio-pins {
 		bios_disable_override_hog_pin: bios-disable-override-hog-pin {
 			rockchip,pins =
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_down>;

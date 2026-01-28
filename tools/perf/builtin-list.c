@@ -4,7 +4,7 @@
  *
  * Builtin list command: list all event types
  *
- * Copyright (C) 2009, Thomas Gleixner <tglx@linutronix.de>
+ * Copyright (C) 2009, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  * Copyright (C) 2008-2009, Red Hat Inc, Ingo Molnar <mingo@redhat.com>
  * Copyright (C) 2011, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  */

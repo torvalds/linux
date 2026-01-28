@@ -44,7 +44,7 @@ member and userspace must populate the type member with a value from
 	struct v4l2_isp_params_buffer *params =
 		(struct v4l2_isp_params_buffer *)buffer;
 
-	params->version = MALI_C55_PARAM_BUFFER_V1;
+	params->version = V4L2_ISP_PARAMS_VERSION_V1;
 	params->data_size = 0;
 
 	void *data = (void *)params->data;

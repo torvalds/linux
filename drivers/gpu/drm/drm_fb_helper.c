@@ -366,6 +366,9 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper, damage_work);
 
+	if (helper->info->state != FBINFO_STATE_RUNNING)
+		return;
+
 	drm_fb_helper_fb_dirty(helper);
 }
 
@@ -731,6 +734,13 @@ void drm_fb_helper_set_suspend_unlocked(struct drm_fb_helper *fb_helper,
 	if (suspend) {
 		if (fb_helper->info->state != FBINFO_STATE_RUNNING)
 			return;
+
+		/*
+		 * Cancel pending damage work. During GPU reset, VBlank
+		 * interrupts are disabled and drm_fb_helper_fb_dirty()
+		 * would wait for VBlank timeout otherwise.
+		 */
+		cancel_work_sync(&fb_helper->damage_work);
 
 		console_lock();
 

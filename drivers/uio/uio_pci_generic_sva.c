@@ -29,7 +29,7 @@ static int uio_pci_sva_open(struct uio_info *info, struct inode *inode)
 	struct uio_pci_sva_dev *udev = info->priv;
 	struct iommu_domain *domain;
 
-	if (!udev && !udev->pdev)
+	if (!udev || !udev->pdev)
 		return -ENODEV;
 
 	domain = iommu_get_domain_for_dev(&udev->pdev->dev);
@@ -51,7 +51,7 @@ static int uio_pci_sva_release(struct uio_info *info, struct inode *inode)
 {
 	struct uio_pci_sva_dev *udev = info->priv;
 
-	if (!udev && !udev->pdev)
+	if (!udev || !udev->pdev)
 		return -ENODEV;
 
 	iommu_sva_unbind_device(udev->sva_handle);

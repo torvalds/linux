@@ -34,16 +34,11 @@
 /* Interrupts */
 #define RP1_INT_END		61
 
-/* Embedded dtbo symbols created by cmd_wrap_S_dtb in scripts/Makefile.lib */
-extern char __dtbo_rp1_pci_begin[];
-extern char __dtbo_rp1_pci_end[];
-
 struct rp1_dev {
 	struct pci_dev *pdev;
 	struct irq_domain *domain;
 	struct irq_data *pcie_irqds[64];
 	void __iomem *bar1;
-	int ovcs_id;	/* overlay changeset id */
 	bool level_triggered_irq[RP1_INT_END];
 };
 
@@ -184,24 +179,13 @@ static void rp1_unregister_interrupts(struct pci_dev *pdev)
 
 static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	u32 dtbo_size = __dtbo_rp1_pci_end - __dtbo_rp1_pci_begin;
-	void *dtbo_start = __dtbo_rp1_pci_begin;
 	struct device *dev = &pdev->dev;
 	struct device_node *rp1_node;
-	bool skip_ovl = true;
 	struct rp1_dev *rp1;
 	int err = 0;
 	int i;
 
-	/*
-	 * Either use rp1_nexus node if already present in DT, or
-	 * set a flag to load it from overlay at runtime
-	 */
-	rp1_node = of_find_node_by_name(NULL, "rp1_nexus");
-	if (!rp1_node) {
-		rp1_node = dev_of_node(dev);
-		skip_ovl = false;
-	}
+	rp1_node = dev_of_node(dev);
 
 	if (!rp1_node) {
 		dev_err(dev, "Missing of_node for device\n");
@@ -276,42 +260,29 @@ static int rp1_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 						 rp1_chained_handle_irq, rp1);
 	}
 
-	if (!skip_ovl) {
-		err = of_overlay_fdt_apply(dtbo_start, dtbo_size, &rp1->ovcs_id,
-					   rp1_node);
-		if (err)
-			goto err_unregister_interrupts;
-	}
-
 	err = of_platform_default_populate(rp1_node, NULL, dev);
 	if (err) {
 		dev_err_probe(&pdev->dev, err, "Error populating devicetree\n");
-		goto err_unload_overlay;
+		goto err_unregister_interrupts;
 	}
 
-	if (skip_ovl)
-		of_node_put(rp1_node);
+	of_node_put(rp1_node);
 
 	return 0;
 
-err_unload_overlay:
-	of_overlay_remove(&rp1->ovcs_id);
 err_unregister_interrupts:
 	rp1_unregister_interrupts(pdev);
 err_put_node:
-	if (skip_ovl)
-		of_node_put(rp1_node);
+	of_node_put(rp1_node);
 
 	return err;
 }
 
 static void rp1_remove(struct pci_dev *pdev)
 {
-	struct rp1_dev *rp1 = pci_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	of_platform_depopulate(dev);
-	of_overlay_remove(&rp1->ovcs_id);
 	rp1_unregister_interrupts(pdev);
 }
 
