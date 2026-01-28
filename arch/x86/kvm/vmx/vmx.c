@@ -2921,8 +2921,23 @@ int vmx_check_processor_compat(void)
 	}
 	if (nested)
 		nested_vmx_setup_ctls_msrs(&vmcs_conf, vmx_cap.ept);
+
 	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config))) {
-		pr_err("Inconsistent VMCS config on CPU %d\n", cpu);
+		u32 *gold = (void *)&vmcs_config;
+		u32 *mine = (void *)&vmcs_conf;
+		int i;
+
+		BUILD_BUG_ON(sizeof(struct vmcs_config) % sizeof(u32));
+
+		pr_err("VMCS config on CPU %d doesn't match reference config:", cpu);
+		for (i = 0; i < sizeof(struct vmcs_config) / sizeof(u32); i++) {
+			if (gold[i] == mine[i])
+				continue;
+
+			pr_cont("\n  Offset %u REF = 0x%08x, CPU%u = 0x%08x, mismatch = 0x%08x",
+				i * (int)sizeof(u32), gold[i], cpu, mine[i], gold[i] ^ mine[i]);
+		}
+		pr_cont("\n");
 		return -EIO;
 	}
 	return 0;
