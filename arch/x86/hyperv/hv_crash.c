@@ -628,7 +628,9 @@ void hv_root_crash_init(void)
 	if (rc)
 		goto err_out;
 
+#ifdef CONFIG_SMP
 	smp_ops.crash_stop_other_cpus = hv_crash_stop_other_cpus;
+#endif
 
 	crash_kexec_post_notifiers = true;
 	hv_crash_enabled = true;
