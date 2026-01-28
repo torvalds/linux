@@ -244,7 +244,7 @@ Example 2.
 
 
     From these calculations, the Case 1 has the lowest total energy. So CPU 1
-    is be the best candidate from an energy-efficiency standpoint.
+    is the best candidate from an energy-efficiency standpoint.
 
 Big CPUs are generally more power hungry than the little ones and are thus used
 mainly when a task doesn't fit the littles. However, little CPUs aren't always
@@ -252,7 +252,7 @@ necessarily more energy-efficient than big CPUs. For some systems, the high OPPs
 of the little CPUs can be less energy-efficient than the lowest OPPs of the
 bigs, for example. So, if the little CPUs happen to have enough utilization at
 a specific point in time, a small task waking up at that moment could be better
-of executing on the big side in order to save energy, even though it would fit
+off executing on the big side in order to save energy, even though it would fit
 on the little side.
 
 And even in the case where all OPPs of the big CPUs are less energy-efficient
@@ -285,7 +285,7 @@ much that can be done by the scheduler to save energy without severely harming
 throughput. In order to avoid hurting performance with EAS, CPUs are flagged as
 'over-utilized' as soon as they are used at more than 80% of their compute
 capacity. As long as no CPUs are over-utilized in a root domain, load balancing
-is disabled and EAS overridess the wake-up balancing code. EAS is likely to load
+is disabled and EAS overrides the wake-up balancing code. EAS is likely to load
 the most energy efficient CPUs of the system more than the others if that can be
 done without harming throughput. So, the load-balancer is disabled to prevent
 it from breaking the energy-efficient task placement found by EAS. It is safe to
@@ -385,7 +385,7 @@ Using EAS with any other governor than schedutil is not supported.
 6.5 Scale-invariant utilization signals
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to make accurate prediction across CPUs and for all performance
+In order to make accurate predictions across CPUs and for all performance
 states, EAS needs frequency-invariant and CPU-invariant PELT signals. These can
 be obtained using the architecture-defined arch_scale{cpu,freq}_capacity()
 callbacks.
