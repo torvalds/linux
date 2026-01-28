@@ -2679,6 +2679,8 @@ static inline char *fmt_multiple_name(struct device *dev,
 
 void snd_soc_unregister_dai(struct snd_soc_dai *dai)
 {
+	lockdep_assert_held(&client_mutex);
+
 	dev_dbg(dai->dev, "ASoC: Unregistered DAI '%s'\n", dai->name);
 	list_del(&dai->list);
 }
