@@ -1133,7 +1133,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x4000 0x1000>;
 
-			wdt2: wdt@0 {
+			wdt2: watchdog@0 {
 				compatible = "ti,omap4-wdt", "ti,omap3-wdt";
 				reg = <0x0 0x80>;
 				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;

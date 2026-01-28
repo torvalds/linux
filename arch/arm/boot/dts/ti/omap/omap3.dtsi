@@ -553,7 +553,7 @@
 			status = "disabled";
 		};
 
-		wdt2: wdt@48314000 {
+		wdt2: watchdog@48314000 {
 			compatible = "ti,omap3-wdt";
 			reg = <0x48314000 0x80>;
 			ti,hwmods = "wd_timer2";
