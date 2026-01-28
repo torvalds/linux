@@ -122,6 +122,36 @@ static int rdma_rw_init_one_mr(struct ib_qp *qp, u32 port_num,
 	return count;
 }
 
+static int rdma_rw_init_reg_wr(struct rdma_rw_reg_ctx *reg,
+		struct rdma_rw_reg_ctx *prev, struct ib_qp *qp, u32 port_num,
+		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
+{
+	if (prev) {
+		if (reg->mr->need_inval)
+			prev->wr.wr.next = &reg->inv_wr;
+		else
+			prev->wr.wr.next = &reg->reg_wr.wr;
+	}
+
+	reg->reg_wr.wr.next = &reg->wr.wr;
+
+	reg->wr.wr.sg_list = &reg->sge;
+	reg->wr.wr.num_sge = 1;
+	reg->wr.remote_addr = remote_addr;
+	reg->wr.rkey = rkey;
+
+	if (dir == DMA_TO_DEVICE) {
+		reg->wr.wr.opcode = IB_WR_RDMA_WRITE;
+	} else if (!rdma_cap_read_inv(qp->device, port_num)) {
+		reg->wr.wr.opcode = IB_WR_RDMA_READ;
+	} else {
+		reg->wr.wr.opcode = IB_WR_RDMA_READ_WITH_INV;
+		reg->wr.wr.ex.invalidate_rkey = reg->mr->lkey;
+	}
+
+	return 1;
+}
+
 static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		u32 port_num, struct scatterlist *sg, u32 sg_cnt, u32 offset,
 		u64 remote_addr, u32 rkey, enum dma_data_direction dir)
@@ -147,30 +177,8 @@ static int rdma_rw_init_mr_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		if (ret < 0)
 			goto out_free;
 		count += ret;
-
-		if (prev) {
-			if (reg->mr->need_inval)
-				prev->wr.wr.next = &reg->inv_wr;
-			else
-				prev->wr.wr.next = &reg->reg_wr.wr;
-		}
-
-		reg->reg_wr.wr.next = &reg->wr.wr;
-
-		reg->wr.wr.sg_list = &reg->sge;
-		reg->wr.wr.num_sge = 1;
-		reg->wr.remote_addr = remote_addr;
-		reg->wr.rkey = rkey;
-		if (dir == DMA_TO_DEVICE) {
-			reg->wr.wr.opcode = IB_WR_RDMA_WRITE;
-		} else if (!rdma_cap_read_inv(qp->device, port_num)) {
-			reg->wr.wr.opcode = IB_WR_RDMA_READ;
-		} else {
-			reg->wr.wr.opcode = IB_WR_RDMA_READ_WITH_INV;
-			reg->wr.wr.ex.invalidate_rkey = reg->mr->lkey;
-		}
-		count++;
-
+		count += rdma_rw_init_reg_wr(reg, prev, qp, port_num,
+				remote_addr, rkey, dir);
 		remote_addr += reg->sge.length;
 		sg_cnt -= nents;
 		for (j = 0; j < nents; j++)
@@ -190,6 +198,92 @@ out_free:
 		ib_mr_pool_put(qp, &qp->rdma_mrs, ctx->reg[i].mr);
 	kfree(ctx->reg);
 out:
+	return ret;
+}
+
+static int rdma_rw_init_mr_wrs_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
+		u32 port_num, const struct bio_vec *bvecs, u32 nr_bvec,
+		struct bvec_iter *iter, u64 remote_addr, u32 rkey,
+		enum dma_data_direction dir)
+{
+	struct ib_device *dev = qp->pd->device;
+	struct rdma_rw_reg_ctx *prev = NULL;
+	u32 pages_per_mr = rdma_rw_fr_page_list_len(dev, qp->integrity_en);
+	struct scatterlist *sg;
+	int i, ret, count = 0;
+	u32 nents = 0;
+
+	ctx->reg = kcalloc(DIV_ROUND_UP(nr_bvec, pages_per_mr),
+			   sizeof(*ctx->reg), GFP_KERNEL);
+	if (!ctx->reg)
+		return -ENOMEM;
+
+	/*
+	 * Build scatterlist from bvecs using the iterator. This follows
+	 * the pattern from __blk_rq_map_sg.
+	 */
+	ctx->reg[0].sgt.sgl = kmalloc_array(nr_bvec,
+					    sizeof(*ctx->reg[0].sgt.sgl),
+					    GFP_KERNEL);
+	if (!ctx->reg[0].sgt.sgl) {
+		ret = -ENOMEM;
+		goto out_free_reg;
+	}
+	sg_init_table(ctx->reg[0].sgt.sgl, nr_bvec);
+
+	for (sg = ctx->reg[0].sgt.sgl; iter->bi_size; sg = sg_next(sg)) {
+		struct bio_vec bv = mp_bvec_iter_bvec(bvecs, *iter);
+
+		if (nents >= nr_bvec) {
+			ret = -EINVAL;
+			goto out_free_sgl;
+		}
+		sg_set_page(sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+		bvec_iter_advance(bvecs, iter, bv.bv_len);
+		nents++;
+	}
+	sg_mark_end(sg_last(ctx->reg[0].sgt.sgl, nents));
+	ctx->reg[0].sgt.orig_nents = nents;
+
+	/* DMA map the scatterlist */
+	ret = ib_dma_map_sgtable_attrs(dev, &ctx->reg[0].sgt, dir, 0);
+	if (ret)
+		goto out_free_sgl;
+
+	ctx->nr_ops = DIV_ROUND_UP(ctx->reg[0].sgt.nents, pages_per_mr);
+
+	sg = ctx->reg[0].sgt.sgl;
+	nents = ctx->reg[0].sgt.nents;
+	for (i = 0; i < ctx->nr_ops; i++) {
+		struct rdma_rw_reg_ctx *reg = &ctx->reg[i];
+		u32 sge_cnt = min(nents, pages_per_mr);
+
+		ret = rdma_rw_init_one_mr(qp, port_num, reg, sg, sge_cnt, 0);
+		if (ret < 0)
+			goto out_free_mrs;
+		count += ret;
+		count += rdma_rw_init_reg_wr(reg, prev, qp, port_num,
+				remote_addr, rkey, dir);
+		remote_addr += reg->sge.length;
+		nents -= sge_cnt;
+		sg += sge_cnt;
+		prev = reg;
+	}
+
+	if (prev)
+		prev->wr.wr.next = NULL;
+
+	ctx->type = RDMA_RW_MR;
+	return count;
+
+out_free_mrs:
+	while (--i >= 0)
+		ib_mr_pool_put(qp, &qp->rdma_mrs, ctx->reg[i].mr);
+	ib_dma_unmap_sgtable_attrs(dev, &ctx->reg[0].sgt, dir, 0);
+out_free_sgl:
+	kfree(ctx->reg[0].sgt.sgl);
+out_free_reg:
+	kfree(ctx->reg);
 	return ret;
 }
 
@@ -547,19 +641,13 @@ EXPORT_SYMBOL(rdma_rw_ctx_init);
  * @rkey:	remote key to operate on
  * @dir:	%DMA_TO_DEVICE for RDMA WRITE, %DMA_FROM_DEVICE for RDMA READ
  *
- * Accepts bio_vec arrays directly, avoiding scatterlist conversion for
- * callers that already have data in bio_vec form. Prefer this over
- * rdma_rw_ctx_init() when the source data is a bio_vec array.
- *
- * This function does not support devices requiring memory registration.
- * iWARP devices and configurations with force_mr=1 should use
- * rdma_rw_ctx_init() with a scatterlist instead.
+ * Maps the bio_vec array directly, avoiding intermediate scatterlist
+ * conversion. Supports MR registration for iWARP devices and force_mr mode.
  *
  * Returns the number of WQEs that will be needed on the workqueue if
  * successful, or a negative error code:
  *
  *   * -EINVAL  - @nr_bvec is zero or @iter.bi_size is zero
- *   * -EOPNOTSUPP - device requires MR path (iWARP or force_mr=1)
  *   * -ENOMEM - DMA mapping or memory allocation failed
  */
 int rdma_rw_ctx_init_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
@@ -567,14 +655,24 @@ int rdma_rw_ctx_init_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 		struct bvec_iter iter, u64 remote_addr, u32 rkey,
 		enum dma_data_direction dir)
 {
+	struct ib_device *dev = qp->pd->device;
 	int ret;
 
 	if (nr_bvec == 0 || iter.bi_size == 0)
 		return -EINVAL;
 
-	/* MR path not supported for bvec - reject iWARP and force_mr */
-	if (rdma_rw_io_needs_mr(qp->device, port_num, dir, nr_bvec))
-		return -EOPNOTSUPP;
+	/*
+	 * iWARP requires MR registration for all RDMA READs. The force_mr
+	 * debug option also mandates MR usage.
+	 */
+	if (dir == DMA_FROM_DEVICE && rdma_protocol_iwarp(dev, port_num))
+		return rdma_rw_init_mr_wrs_bvec(ctx, qp, port_num, bvecs,
+						nr_bvec, &iter, remote_addr,
+						rkey, dir);
+	if (unlikely(rdma_rw_force_mr))
+		return rdma_rw_init_mr_wrs_bvec(ctx, qp, port_num, bvecs,
+						nr_bvec, &iter, remote_addr,
+						rkey, dir);
 
 	if (nr_bvec == 1)
 		return rdma_rw_init_single_wr_bvec(ctx, qp, bvecs, &iter,
@@ -582,12 +680,22 @@ int rdma_rw_ctx_init_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 
 	/*
 	 * Try IOVA-based mapping first for multi-bvec transfers.
-	 * This reduces IOTLB sync overhead by batching all mappings.
+	 * IOVA coalesces bvecs into a single DMA-contiguous region,
+	 * reducing the number of WRs needed and avoiding MR overhead.
 	 */
 	ret = rdma_rw_init_iova_wrs_bvec(ctx, qp, bvecs, &iter, remote_addr,
 			rkey, dir);
 	if (ret != -EOPNOTSUPP)
 		return ret;
+
+	/*
+	 * IOVA mapping not available. Check if MR registration provides
+	 * better performance than multiple SGE entries.
+	 */
+	if (rdma_rw_io_needs_mr(dev, port_num, dir, nr_bvec))
+		return rdma_rw_init_mr_wrs_bvec(ctx, qp, port_num, bvecs,
+						nr_bvec, &iter, remote_addr,
+						rkey, dir);
 
 	return rdma_rw_init_map_wrs_bvec(ctx, qp, bvecs, nr_bvec, &iter,
 			remote_addr, rkey, dir);
@@ -833,6 +941,8 @@ void rdma_rw_ctx_destroy(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 
 	switch (ctx->type) {
 	case RDMA_RW_MR:
+		/* Bvec MR contexts must use rdma_rw_ctx_destroy_bvec() */
+		WARN_ON_ONCE(ctx->reg[0].sgt.sgl);
 		for (i = 0; i < ctx->nr_ops; i++)
 			ib_mr_pool_put(qp, &qp->rdma_mrs, ctx->reg[i].mr);
 		kfree(ctx->reg);
@@ -880,6 +990,13 @@ void rdma_rw_ctx_destroy_bvec(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 	u32 i;
 
 	switch (ctx->type) {
+	case RDMA_RW_MR:
+		for (i = 0; i < ctx->nr_ops; i++)
+			ib_mr_pool_put(qp, &qp->rdma_mrs, ctx->reg[i].mr);
+		ib_dma_unmap_sgtable_attrs(dev, &ctx->reg[0].sgt, dir, 0);
+		kfree(ctx->reg[0].sgt.sgl);
+		kfree(ctx->reg);
+		break;
 	case RDMA_RW_IOVA:
 		dma_iova_destroy(dev->dma_device, &ctx->iova.state,
 				 ctx->iova.mapped_len, dir, 0);

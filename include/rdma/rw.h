@@ -47,6 +47,7 @@ struct rdma_rw_ctx {
 			struct ib_reg_wr	reg_wr;
 			struct ib_send_wr	inv_wr;
 			struct ib_mr		*mr;
+			struct sg_table		sgt;
 		} *reg;
 	};
 };
