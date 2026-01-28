@@ -823,6 +823,9 @@ static struct notifier_block kfence_check_canary_notifier = {
 static struct delayed_work kfence_timer;
 
 #ifdef CONFIG_KFENCE_STATIC_KEYS
+/* Wait queue to wake up allocation-gate timer task. */
+static DECLARE_WAIT_QUEUE_HEAD(allocation_wait);
+
 static int kfence_reboot_callback(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
@@ -832,7 +835,12 @@ static int kfence_reboot_callback(struct notifier_block *nb,
 	 */
 	WRITE_ONCE(kfence_enabled, false);
 	/* Cancel any pending timer work */
-	cancel_delayed_work_sync(&kfence_timer);
+	cancel_delayed_work(&kfence_timer);
+	/*
+	 * Wake up any blocked toggle_allocation_gate() so it can complete
+	 * early while the system is still able to handle IPIs.
+	 */
+	wake_up(&allocation_wait);
 
 	return NOTIFY_OK;
 }
@@ -841,9 +849,6 @@ static struct notifier_block kfence_reboot_notifier = {
 	.notifier_call = kfence_reboot_callback,
 	.priority = INT_MAX, /* Run early to stop timers ASAP */
 };
-
-/* Wait queue to wake up allocation-gate timer task. */
-static DECLARE_WAIT_QUEUE_HEAD(allocation_wait);
 
 static void wake_up_kfence_timer(struct irq_work *work)
 {
@@ -873,7 +878,9 @@ static void toggle_allocation_gate(struct work_struct *work)
 	/* Enable static key, and await allocation to happen. */
 	static_branch_enable(&kfence_allocation_key);
 
-	wait_event_idle(allocation_wait, atomic_read(&kfence_allocation_gate) > 0);
+	wait_event_idle(allocation_wait,
+			atomic_read(&kfence_allocation_gate) > 0 ||
+			!READ_ONCE(kfence_enabled));
 
 	/* Disable static key and reset timer. */
 	static_branch_disable(&kfence_allocation_key);
