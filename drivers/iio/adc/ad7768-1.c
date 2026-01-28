@@ -1711,9 +1711,8 @@ static int ad7768_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_request_irq(&spi->dev, spi->irq,
-			       &ad7768_interrupt,
-			       IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+	ret = devm_request_irq(&spi->dev, spi->irq, &ad7768_interrupt,
+			       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
 			       indio_dev->name, indio_dev);
 	if (ret)
 		return ret;

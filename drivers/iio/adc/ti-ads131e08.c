@@ -827,7 +827,7 @@ static int ads131e08_probe(struct spi_device *spi)
 	if (spi->irq) {
 		ret = devm_request_irq(&spi->dev, spi->irq,
 			ads131e08_interrupt,
-			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+			IRQF_TRIGGER_FALLING | IRQF_NO_THREAD,
 			spi->dev.driver->name, indio_dev);
 		if (ret)
 			return dev_err_probe(&spi->dev, ret,
