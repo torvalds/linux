@@ -350,21 +350,6 @@ nfs_start_delegation_return(struct nfs_inode *nfsi)
 	return delegation;
 }
 
-static void nfs_abort_delegation_return(struct nfs_delegation *delegation,
-					struct nfs_server *server, int err)
-{
-	spin_lock(&delegation->lock);
-	clear_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
-	if (err == -EAGAIN) {
-		set_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
-		set_bit(NFS4SERV_DELEGRETURN_DELAYED,
-			&server->delegation_flags);
-		set_bit(NFS4CLNT_DELEGRETURN_DELAYED,
-			&server->nfs_client->cl_state);
-	}
-	spin_unlock(&delegation->lock);
-}
-
 static bool
 nfs_detach_delegations_locked(struct nfs_inode *nfsi,
 		struct nfs_delegation *delegation,
@@ -593,13 +578,23 @@ static int nfs_end_delegation_return(struct inode *inode,
 		err = nfs4_wait_clnt_recover(server->nfs_client);
 	}
 
-	if (err) {
-		nfs_abort_delegation_return(delegation, server, err);
-		return err;
-	}
+	if (err)
+		goto abort;
 
 out_return:
 	return nfs_do_return_delegation(inode, delegation, issync);
+abort:
+	spin_lock(&delegation->lock);
+	clear_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
+	if (err == -EAGAIN) {
+		set_bit(NFS_DELEGATION_RETURN_DELAYED, &delegation->flags);
+		set_bit(NFS4SERV_DELEGRETURN_DELAYED,
+			&server->delegation_flags);
+		set_bit(NFS4CLNT_DELEGRETURN_DELAYED,
+			&server->nfs_client->cl_state);
+	}
+	spin_unlock(&delegation->lock);
+	return err;
 }
 
 static int nfs_return_one_delegation(struct nfs_server *server)
