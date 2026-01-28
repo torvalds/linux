@@ -814,23 +814,21 @@ void nfs_inode_evict_delegation(struct inode *inode)
  *
  * Returns zero on success, or a negative errno value.
  */
-int nfs4_inode_return_delegation(struct inode *inode)
+void nfs4_inode_return_delegation(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
-	int err;
 
 	delegation = nfs_start_delegation_return(nfsi);
 	if (!delegation)
-		return 0;
+		return;
 
 	/* Synchronous recall of any application leases */
 	break_lease(inode, O_WRONLY | O_RDWR);
 	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	err = nfs_end_delegation_return(inode, delegation, 1);
+	nfs_end_delegation_return(inode, delegation, 1);
 	nfs_put_delegation(delegation);
-	return err;
 }
 
 /**
