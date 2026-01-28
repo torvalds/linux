@@ -912,23 +912,19 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
  * @inode: pointer to inode
  *
  * Make the inode writeable by returning the delegation if necessary
- *
- * Returns zero on success, or a negative errno value.
  */
-int nfs4_inode_make_writeable(struct inode *inode)
+void nfs4_inode_make_writeable(struct inode *inode)
 {
 	struct nfs_delegation *delegation;
-	int error = 0;
 
 	delegation = nfs4_get_valid_delegation(inode);
 	if (!delegation)
-		return 0;
+		return;
 
 	if (!nfs4_has_session(NFS_SERVER(inode)->nfs_client) ||
 	    !(delegation->type & FMODE_WRITE))
-		error = nfs4_inode_return_delegation(inode);
+		nfs4_inode_return_delegation(inode);
 	nfs_put_delegation(delegation);
-	return error;
 }
 
 static void
