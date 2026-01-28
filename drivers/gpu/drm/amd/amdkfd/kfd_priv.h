@@ -1525,7 +1525,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 		       bool all, uint32_t *user_timeout_ms,
 		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
-				uint32_t valid_id_bits);
+				uint32_t valid_id_bits, bool signal_mailbox_updated);
 void kfd_signal_hw_exception_event(u32 pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);

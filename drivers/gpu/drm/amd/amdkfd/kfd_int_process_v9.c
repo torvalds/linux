@@ -379,7 +379,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 	    client_id == SOC15_IH_CLIENTID_SE2SH ||
 	    client_id == SOC15_IH_CLIENTID_SE3SH) {
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
-			kfd_signal_event_interrupt(pasid, context_id0, 32);
+			kfd_signal_event_interrupt(pasid, context_id0, 32, true);
 		else if (source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG) {
 			sq_int_data = KFD_CONTEXT_ID_GET_SQ_INT_DATA(context_id0, context_id1);
 			encoding = REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, ENCODING);
@@ -513,7 +513,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 			default:
 				break;
 			}
-			kfd_signal_event_interrupt(pasid, sq_int_data, 24);
+			kfd_signal_event_interrupt(pasid, sq_int_data, 24, true);
 		} else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
 			   KFD_DBG_EC_TYPE_IS_PACKET(KFD_DEBUG_CP_BAD_OP_ECODE(context_id0))) {
 			kfd_set_dbg_ev_from_interrupt(dev, pasid,
@@ -530,7 +530,7 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_SDMA6 ||
 		   client_id == SOC15_IH_CLIENTID_SDMA7) {
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
+			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28, true);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
 			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 			return;

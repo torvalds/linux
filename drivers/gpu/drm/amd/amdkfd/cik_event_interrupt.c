@@ -97,11 +97,11 @@ static void cik_event_interrupt_wq(struct kfd_node *dev,
 		return;
 
 	if (ihre->source_id == CIK_INTSRC_CP_END_OF_PIPE)
-		kfd_signal_event_interrupt(pasid, context_id, 28);
+		kfd_signal_event_interrupt(pasid, context_id, 28, true);
 	else if (ihre->source_id == CIK_INTSRC_SDMA_TRAP)
-		kfd_signal_event_interrupt(pasid, context_id, 28);
+		kfd_signal_event_interrupt(pasid, context_id, 28, true);
 	else if (ihre->source_id == CIK_INTSRC_SQ_INTERRUPT_MSG)
-		kfd_signal_event_interrupt(pasid, context_id & 0xff, 8);
+		kfd_signal_event_interrupt(pasid, context_id & 0xff, 8, true);
 	else if (ihre->source_id == CIK_INTSRC_CP_BAD_OPCODE)
 		kfd_signal_hw_exception_event(pasid);
 	else if (ihre->source_id == CIK_INTSRC_GFX_PAGE_INV_FAULT ||
