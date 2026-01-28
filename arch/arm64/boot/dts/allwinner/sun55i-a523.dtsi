@@ -214,6 +214,43 @@
 				allwinner,pinmux = <2>;
 			};
 
+			/omit-if-no-ref/
+			spi0_pc_pins: spi0-pc-pins {
+				pins = "PC2", "PC4", "PC12";
+				function = "spi0";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
+			spi0_cs0_pc_pin: spi0-cs0-pc-pin {
+				pins = "PC3";
+				function = "spi0";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
+			spi0_cs1_pc_pin: spi0-cs1-pc-pin {
+				pins = "PC7";
+				function = "spi0";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
+			spi0_hold_pc_pin: spi0-hold-pc-pin {
+				/* conflicts with eMMC D7 */
+				pins = "PC16";
+				function = "spi0";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
+			spi0_wp_pc_pin: spi0-wp-pc-pin {
+				/* conflicts with eMMC D2 */
+				pins = "PC15";
+				function = "spi0";
+				allwinner,pinmux = <4>;
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB9", "PB10";
 				allwinner,pinmux = <2>;
@@ -563,6 +600,49 @@
 			#size-cells = <0>;
 		};
 
+		spi0: spi@4025000 {
+			compatible = "allwinner,sun55i-a523-spi";
+			reg = <0x04025000 0x1000>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_SPI0>, <&ccu CLK_SPI0>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma 22>, <&dma 22>;
+			dma-names = "rx", "tx";
+			resets = <&ccu RST_BUS_SPI0>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		spi1: spi@4026000 {
+			compatible = "allwinner,sun55i-a523-spi-dbi",
+				     "allwinner,sun55i-a523-spi";
+			reg = <0x04026000 0x1000>;
+			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_SPI1>, <&ccu CLK_SPI1>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma 23>, <&dma 23>;
+			dma-names = "rx", "tx";
+			resets = <&ccu RST_BUS_SPI1>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		spi2: spi@4027000 {
+			compatible = "allwinner,sun55i-a523-spi";
+			reg = <0x04027000 0x1000>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_SPI2>, <&ccu CLK_SPI2>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma 24>, <&dma 24>;
+			dma-names = "rx", "tx";
+			resets = <&ccu RST_BUS_SPI2>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		usb_otg: usb@4100000 {
 			compatible = "allwinner,sun55i-a523-musb",
 				     "allwinner,sun8i-a33-musb";
@@ -813,6 +893,20 @@
 				 <&r_ccu CLK_R_AHB>;
 			clock-names = "bus", "hosc", "ahb";
 			#clock-cells = <1>;
+		};
+
+		r_spi0: spi@7092000 {
+			compatible = "allwinner,sun55i-a523-spi";
+			reg = <0x07092000 0x1000>;
+			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&r_ccu CLK_BUS_R_SPI>, <&r_ccu CLK_R_SPI>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma 53>, <&dma 53>;
+			dma-names = "rx", "tx";
+			resets = <&r_ccu RST_BUS_R_SPI>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		mcu_ccu: clock-controller@7102000 {
