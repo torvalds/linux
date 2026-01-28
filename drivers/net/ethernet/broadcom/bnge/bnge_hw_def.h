@@ -206,4 +206,241 @@ struct rx_agg_cmp {
 
 #define RX_CMP_HASH_VALID(rxcmp)				\
 	((rxcmp)->rx_cmp_len_flags_type & cpu_to_le32(RX_CMP_FLAGS_RSS_VALID))
+
+#define TPA_AGG_AGG_ID(rx_agg)				\
+	((le32_to_cpu((rx_agg)->rx_agg_cmp_v) &		\
+	 RX_AGG_CMP_AGG_ID) >> RX_AGG_CMP_AGG_ID_SHIFT)
+
+#define RX_TPA_START_CMP_TYPE				GENMASK(5, 0)
+#define RX_TPA_START_CMP_FLAGS				GENMASK(15, 6)
+#define RX_TPA_START_CMP_FLAGS_SHIFT			6
+#define RX_TPA_START_CMP_FLAGS_ERROR			BIT(6)
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT		GENMASK(9, 7)
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT_SHIFT		7
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT_JUMBO		BIT(7)
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT_HDS		(0x2 << 7)
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT_GRO_JUMBO	(0x5 << 7)
+#define RX_TPA_START_CMP_FLAGS_PLACEMENT_GRO_HDS	(0x6 << 7)
+#define RX_TPA_START_CMP_FLAGS_RSS_VALID		BIT(10)
+#define RX_TPA_START_CMP_FLAGS_TIMESTAMP		BIT(11)
+#define RX_TPA_START_CMP_FLAGS_ITYPES			GENMASK(15, 12)
+#define RX_TPA_START_CMP_FLAGS_ITYPES_SHIFT		12
+#define RX_TPA_START_CMP_FLAGS_ITYPE_TCP		(0x2 << 12)
+#define RX_TPA_START_CMP_LEN				GENMASK(31, 16)
+#define RX_TPA_START_CMP_LEN_SHIFT			16
+#define RX_TPA_START_CMP_V1				BIT(0)
+#define RX_TPA_START_CMP_RSS_HASH_TYPE			GENMASK(15, 9)
+#define RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT		9
+#define RX_TPA_START_CMP_V3_RSS_HASH_TYPE		GENMASK(15, 7)
+#define RX_TPA_START_CMP_V3_RSS_HASH_TYPE_SHIFT		7
+#define RX_TPA_START_CMP_AGG_ID				GENMASK(25, 16)
+#define RX_TPA_START_CMP_AGG_ID_SHIFT			16
+#define RX_TPA_START_CMP_METADATA1			GENMASK(31, 28)
+#define RX_TPA_START_CMP_METADATA1_SHIFT		28
+#define RX_TPA_START_METADATA1_TPID_SEL			GENMASK(30, 28)
+#define RX_TPA_START_METADATA1_TPID_8021Q		BIT(28)
+#define RX_TPA_START_METADATA1_TPID_8021AD		(0x0 << 28)
+#define RX_TPA_START_METADATA1_VALID			BIT(31)
+
+struct rx_tpa_start_cmp {
+	__le32 rx_tpa_start_cmp_len_flags_type;
+	u32 rx_tpa_start_cmp_opaque;
+	__le32 rx_tpa_start_cmp_misc_v1;
+	__le32 rx_tpa_start_cmp_rss_hash;
+};
+
+#define TPA_START_HASH_VALID(rx_tpa_start)				\
+	((rx_tpa_start)->rx_tpa_start_cmp_len_flags_type &		\
+	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_RSS_VALID))
+
+#define TPA_START_HASH_TYPE(rx_tpa_start)				\
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
+	  RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
+
+#define TPA_START_V3_HASH_TYPE(rx_tpa_start)				\
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_V3_RSS_HASH_TYPE) >>			\
+	  RX_TPA_START_CMP_V3_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
+
+#define TPA_START_AGG_ID(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	 RX_TPA_START_CMP_AGG_ID) >> RX_TPA_START_CMP_AGG_ID_SHIFT)
+
+#define TPA_START_ERROR(rx_tpa_start)					\
+	((rx_tpa_start)->rx_tpa_start_cmp_len_flags_type &		\
+	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_ERROR))
+
+#define TPA_START_VLAN_VALID(rx_tpa_start)				\
+	((rx_tpa_start)->rx_tpa_start_cmp_misc_v1 &			\
+	 cpu_to_le32(RX_TPA_START_METADATA1_VALID))
+
+#define TPA_START_VLAN_TPID_SEL(rx_tpa_start)				\
+	(le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	 RX_TPA_START_METADATA1_TPID_SEL)
+
+#define RX_TPA_START_CMP_FLAGS2_IP_CS_CALC		BIT(0)
+#define RX_TPA_START_CMP_FLAGS2_L4_CS_CALC		BIT(1)
+#define RX_TPA_START_CMP_FLAGS2_T_IP_CS_CALC		BIT(2)
+#define RX_TPA_START_CMP_FLAGS2_T_L4_CS_CALC		BIT(3)
+#define RX_TPA_START_CMP_FLAGS2_IP_TYPE			BIT(8)
+#define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL_VALID		BIT(9)
+#define RX_TPA_START_CMP_FLAGS2_EXT_META_FORMAT		GENMASK(11, 10)
+#define RX_TPA_START_CMP_FLAGS2_EXT_META_FORMAT_SHIFT	10
+#define RX_TPA_START_CMP_V3_FLAGS2_T_IP_TYPE		BIT(10)
+#define RX_TPA_START_CMP_V3_FLAGS2_AGG_GRO		BIT(11)
+#define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL		GENMASK(31, 16)
+#define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL_SHIFT		16
+#define RX_TPA_START_CMP_V2				BIT(0)
+#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_MASK	GENMASK(3, 1)
+#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_SHIFT	1
+#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_NO_BUFFER	(0x0 << 1)
+#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_BAD_FORMAT	(0x3 << 1)
+#define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_FLUSH	(0x5 << 1)
+#define RX_TPA_START_CMP_CFA_CODE			GENMASK(31, 16)
+#define RX_TPA_START_CMPL_CFA_CODE_SHIFT		16
+#define RX_TPA_START_CMP_METADATA0_TCI_MASK		GENMASK(31, 16)
+#define RX_TPA_START_CMP_METADATA0_VID_MASK		GENMASK(27, 16)
+#define RX_TPA_START_CMP_METADATA0_SFT			16
+
+struct rx_tpa_start_cmp_ext {
+	__le32 rx_tpa_start_cmp_flags2;
+	__le32 rx_tpa_start_cmp_metadata;
+	__le32 rx_tpa_start_cmp_cfa_code_v2;
+	__le32 rx_tpa_start_cmp_hdr_info;
+};
+
+#define TPA_START_CFA_CODE(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	 RX_TPA_START_CMP_CFA_CODE) >> RX_TPA_START_CMPL_CFA_CODE_SHIFT)
+
+#define TPA_START_IS_IPV6(rx_tpa_start)				\
+	(!!((rx_tpa_start)->rx_tpa_start_cmp_flags2 &		\
+	    cpu_to_le32(RX_TPA_START_CMP_FLAGS2_IP_TYPE)))
+
+#define TPA_START_ERROR_CODE(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	  RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_MASK) >>			\
+	 RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_SHIFT)
+
+#define TPA_START_METADATA0_TCI(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	  RX_TPA_START_CMP_METADATA0_TCI_MASK) >>			\
+	 RX_TPA_START_CMP_METADATA0_SFT)
+
+#define RX_TPA_END_CMP_TYPE				GENMASK(5, 0)
+#define RX_TPA_END_CMP_FLAGS				GENMASK(15, 6)
+#define RX_TPA_END_CMP_FLAGS_SHIFT			6
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT			GENMASK(9, 7)
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_SHIFT		7
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_JUMBO		BIT(7)
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_HDS		(0x2 << 7)
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_GRO_JUMBO	(0x5 << 7)
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_GRO_HDS		(0x6 << 7)
+#define RX_TPA_END_CMP_FLAGS_RSS_VALID			BIT(10)
+#define RX_TPA_END_CMP_FLAGS_ITYPES			GENMASK(15, 12)
+#define RX_TPA_END_CMP_FLAGS_ITYPES_SHIFT		12
+#define RX_TPA_END_CMP_FLAGS_ITYPE_TCP			(0x2 << 12)
+#define RX_TPA_END_CMP_LEN				GENMASK(31, 16)
+#define RX_TPA_END_CMP_LEN_SHIFT			16
+#define RX_TPA_END_CMP_V1				BIT(0)
+#define RX_TPA_END_CMP_TPA_SEGS				GENMASK(15, 8)
+#define RX_TPA_END_CMP_TPA_SEGS_SHIFT			8
+#define RX_TPA_END_CMP_AGG_ID				GENMASK(25, 16)
+#define RX_TPA_END_CMP_AGG_ID_SHIFT			16
+#define RX_TPA_END_GRO_TS				BIT(31)
+
+struct rx_tpa_end_cmp {
+	__le32 rx_tpa_end_cmp_len_flags_type;
+	u32 rx_tpa_end_cmp_opaque;
+	__le32 rx_tpa_end_cmp_misc_v1;
+	__le32 rx_tpa_end_cmp_tsdelta;
+};
+
+#define TPA_END_AGG_ID(rx_tpa_end)					\
+	((le32_to_cpu((rx_tpa_end)->rx_tpa_end_cmp_misc_v1) &		\
+	 RX_TPA_END_CMP_AGG_ID) >> RX_TPA_END_CMP_AGG_ID_SHIFT)
+
+#define TPA_END_TPA_SEGS(rx_tpa_end)					\
+	((le32_to_cpu((rx_tpa_end)->rx_tpa_end_cmp_misc_v1) &		\
+	 RX_TPA_END_CMP_TPA_SEGS) >> RX_TPA_END_CMP_TPA_SEGS_SHIFT)
+
+#define RX_TPA_END_CMP_FLAGS_PLACEMENT_ANY_GRO				\
+	cpu_to_le32(RX_TPA_END_CMP_FLAGS_PLACEMENT_GRO_JUMBO &		\
+		    RX_TPA_END_CMP_FLAGS_PLACEMENT_GRO_HDS)
+
+#define TPA_END_GRO(rx_tpa_end)						\
+	((rx_tpa_end)->rx_tpa_end_cmp_len_flags_type &			\
+	 RX_TPA_END_CMP_FLAGS_PLACEMENT_ANY_GRO)
+
+#define TPA_END_GRO_TS(rx_tpa_end)					\
+	(!!((rx_tpa_end)->rx_tpa_end_cmp_tsdelta &			\
+	    cpu_to_le32(RX_TPA_END_GRO_TS)))
+
+#define RX_TPA_END_CMP_TPA_DUP_ACKS			GENMASK(3, 0)
+#define RX_TPA_END_CMP_PAYLOAD_OFFSET			GENMASK(23, 16)
+#define RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT		16
+#define RX_TPA_END_CMP_AGG_BUFS				GENMASK(31, 24)
+#define RX_TPA_END_CMP_AGG_BUFS_SHIFT			24
+#define RX_TPA_END_CMP_TPA_SEG_LEN			GENMASK(15, 0)
+#define RX_TPA_END_CMP_V2				BIT(0)
+#define RX_TPA_END_CMP_ERRORS				GENMASK(2, 1)
+#define RX_TPA_END_CMPL_ERRORS_SHIFT			1
+#define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_NO_BUFFER	(0x0 << 1)
+#define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_NOT_ON_CHIP	(0x2 << 1)
+#define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_BAD_FORMAT	(0x3 << 1)
+#define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_RSV_ERROR	(0x4 << 1)
+#define RX_TPA_END_CMP_ERRORS_BUFFER_ERROR_FLUSH	(0x5 << 1)
+
+struct rx_tpa_end_cmp_ext {
+	__le32 rx_tpa_end_cmp_dup_acks;
+	__le32 rx_tpa_end_cmp_seg_len;
+	__le32 rx_tpa_end_cmp_errors_v2;
+	u32 rx_tpa_end_cmp_start_opaque;
+};
+
+#define TPA_END_ERRORS(rx_tpa_end_ext)					\
+	((rx_tpa_end_ext)->rx_tpa_end_cmp_errors_v2 &			\
+	 cpu_to_le32(RX_TPA_END_CMP_ERRORS))
+
+#define TPA_END_PAYLOAD_OFF(rx_tpa_end_ext)				\
+	((le32_to_cpu((rx_tpa_end_ext)->rx_tpa_end_cmp_dup_acks) &	\
+	 RX_TPA_END_CMP_PAYLOAD_OFFSET) >>				\
+	RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT)
+
+#define TPA_END_AGG_BUFS(rx_tpa_end_ext)				\
+	((le32_to_cpu((rx_tpa_end_ext)->rx_tpa_end_cmp_dup_acks) &	\
+	 RX_TPA_END_CMP_AGG_BUFS) >> RX_TPA_END_CMP_AGG_BUFS_SHIFT)
+
+#define EVENT_DATA1_RESET_NOTIFY_FATAL(data1)				\
+	(((data1) &							\
+	  ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	 ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_EXCEPTION_FATAL)
+
+#define EVENT_DATA1_RESET_NOTIFY_FW_ACTIVATION(data1)			\
+	(((data1) &							\
+	  ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_MASK) ==\
+	ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA1_REASON_CODE_FW_ACTIVATION)
+
+#define EVENT_DATA2_RESET_NOTIFY_FW_STATUS_CODE(data2)			\
+	((data2) &							\
+	ASYNC_EVENT_CMPL_RESET_NOTIFY_EVENT_DATA2_FW_STATUS_CODE_MASK)
+
+#define EVENT_DATA1_RECOVERY_MASTER_FUNC(data1)				\
+	(!!((data1) &							\
+	   ASYNC_EVENT_CMPL_ERROR_RECOVERY_EVENT_DATA1_FLAGS_MASTER_FUNC))
+
+#define EVENT_DATA1_RECOVERY_ENABLED(data1)				\
+	(!!((data1) &							\
+	   ASYNC_EVENT_CMPL_ERROR_RECOVERY_EVENT_DATA1_FLAGS_RECOVERY_ENABLED))
+
+#define BNGE_EVENT_ERROR_REPORT_TYPE(data1)				\
+	(((data1) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_MASK) >>\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_SFT)
+
+#define BNGE_EVENT_INVALID_SIGNAL_DATA(data2)				\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_MASK) >>\
+	 ASYNC_EVENT_CMPL_ERROR_REPORT_INVALID_SIGNAL_EVENT_DATA2_PIN_ID_SFT)
 #endif /* _BNGE_HW_DEF_H_ */
