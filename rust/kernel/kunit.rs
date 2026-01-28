@@ -189,9 +189,6 @@ pub fn is_test_result_ok(t: impl TestResult) -> bool {
 }
 
 /// Represents an individual test case.
-///
-/// The [`kunit_unsafe_test_suite!`] macro expects a `NULL`-terminated list of valid test cases.
-/// Use [`kunit_case_null`] to generate such a delimiter.
 #[doc(hidden)]
 pub const fn kunit_case(
     name: &'static kernel::str::CStr,
@@ -204,27 +201,6 @@ pub const fn kunit_case(
             speed: kernel::bindings::kunit_speed_KUNIT_SPEED_NORMAL,
         },
         generate_params: None,
-        status: kernel::bindings::kunit_status_KUNIT_SUCCESS,
-        module_name: core::ptr::null_mut(),
-        log: core::ptr::null_mut(),
-        param_init: None,
-        param_exit: None,
-    }
-}
-
-/// Represents the `NULL` test case delimiter.
-///
-/// The [`kunit_unsafe_test_suite!`] macro expects a `NULL`-terminated list of test cases. This
-/// function returns such a delimiter.
-#[doc(hidden)]
-pub const fn kunit_case_null() -> kernel::bindings::kunit_case {
-    kernel::bindings::kunit_case {
-        run_case: None,
-        name: core::ptr::null_mut(),
-        generate_params: None,
-        attr: kernel::bindings::kunit_attributes {
-            speed: kernel::bindings::kunit_speed_KUNIT_SPEED_NORMAL,
-        },
         status: kernel::bindings::kunit_status_KUNIT_SUCCESS,
         module_name: core::ptr::null_mut(),
         log: core::ptr::null_mut(),
@@ -251,7 +227,7 @@ pub const fn kunit_case_null() -> kernel::bindings::kunit_case {
 ///
 /// static mut KUNIT_TEST_CASES: [kernel::bindings::kunit_case; 2] = [
 ///     kernel::kunit::kunit_case(c"name", test_fn),
-///     kernel::kunit::kunit_case_null(),
+///     pin_init::zeroed(),
 /// ];
 /// kernel::kunit_unsafe_test_suite!(suite_name, KUNIT_TEST_CASES);
 /// ```
