@@ -26,16 +26,11 @@
 	};
 
 	vcc_sd_reg1: regulator {
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		regulator-name = "vcc_sd1";
-		regulator-min-microvolt = <1800000>;
+		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-
-		gpios-states = <0>;
-		states = <1800000 0x1
-			3300000 0x0>;
-		enable-active-high;
 	};
 
 	keys {

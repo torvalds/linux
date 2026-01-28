@@ -28,6 +28,7 @@
 
 	cp2_usb3_0_phy0: usb-phy-4 {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 		vcc-supply = <&cp2_reg_usb3_vbus0>;
 	};
 
@@ -42,6 +43,7 @@
 
 	cp2_usb3_0_phy1: usb-phy-5 {
 		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
 		vcc-supply = <&cp2_reg_usb3_vbus1>;
 	};
 
@@ -140,7 +142,6 @@
 			/* U12 */
 			cp2_module_expander1: pca9555@21 {
 				compatible = "nxp,pca9555";
-				pinctrl-names = "default";
 				gpio-controller;
 				#gpio-cells = <2>;
 				reg = <0x21>;
