@@ -571,9 +571,6 @@ static int nfs_end_delegation_return(struct inode *inode,
 	unsigned int mode = O_WRONLY | O_RDWR;
 	int err = 0;
 
-	if (delegation == NULL)
-		return 0;
-
 	/* Directory delegations don't require any state recovery */
 	if (!S_ISREG(inode->i_mode))
 		goto out_return;
