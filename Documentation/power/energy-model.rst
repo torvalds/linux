@@ -308,12 +308,12 @@ EM framework::
   05
   06		/* Use the 'foo' protocol to ceil the frequency */
   07		freq = foo_get_freq_ceil(dev, *KHz);
-  08		if (freq < 0);
+  08		if (freq < 0)
   09			return freq;
   10
   11		/* Estimate the power cost for the dev at the relevant freq. */
   12		power = foo_estimate_power(dev, freq);
-  13		if (power < 0);
+  13		if (power < 0)
   14			return power;
   15
   16		/* Return the values to the EM framework */
