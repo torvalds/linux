@@ -45,6 +45,8 @@
 };
 
 &i2c4 {
+	clock-frequency = <100000>;
+
 	status = "okay";
 
 	max98927_codec: max98927@3a {
