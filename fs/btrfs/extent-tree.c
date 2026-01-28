@@ -6513,10 +6513,12 @@ void btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info, u64 start, u6
  * it while performing the free space search since we have already
  * held back allocations.
  */
-static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
+static int btrfs_trim_free_extents_throttle(struct btrfs_device *device,
+					    u64 *trimmed, u64 pos, u64 *ret_next_pos)
 {
-	u64 start = BTRFS_DEVICE_RANGE_RESERVED, len = 0, end = 0;
 	int ret;
+	u64 start = pos;
+	u64 trim_len = 0;
 
 	*trimmed = 0;
 
@@ -6536,15 +6538,20 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 
 	while (1) {
 		struct btrfs_fs_info *fs_info = device->fs_info;
+		u64 cur_start;
+		u64 end;
+		u64 len;
 		u64 bytes;
 
 		ret = mutex_lock_interruptible(&fs_info->chunk_mutex);
 		if (ret)
 			break;
 
+		cur_start = start;
 		btrfs_find_first_clear_extent_bit(&device->alloc_state, start,
 						  &start, &end,
 						  CHUNK_TRIMMED | CHUNK_ALLOCATED);
+		start = max(start, cur_start);
 
 		/* Check if there are any CHUNK_* bits left */
 		if (start > device->total_bytes) {
@@ -6570,6 +6577,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 		end = min(end, device->total_bytes - 1);
 
 		len = end - start + 1;
+		len = min(len, BTRFS_MAX_TRIM_LENGTH);
 
 		/* We didn't find any extents */
 		if (!len) {
@@ -6590,6 +6598,12 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 
 		start += len;
 		*trimmed += bytes;
+		trim_len += len;
+		if (trim_len >= BTRFS_MAX_TRIM_LENGTH) {
+			*ret_next_pos = start;
+			ret = -EAGAIN;
+			break;
+		}
 
 		if (btrfs_trim_interrupted()) {
 			ret = -ERESTARTSYS;
@@ -6600,6 +6614,122 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 	}
 
 	return ret;
+}
+
+static int btrfs_trim_free_extents(struct btrfs_fs_info *fs_info, u64 *trimmed,
+				   u64 *dev_failed, int *dev_ret)
+{
+	struct btrfs_device *dev;
+	struct btrfs_device *working_dev = NULL;
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	u8 uuid[BTRFS_UUID_SIZE];
+	u64 start = BTRFS_DEVICE_RANGE_RESERVED;
+
+	*trimmed = 0;
+	*dev_failed = 0;
+	*dev_ret = 0;
+
+	/* Find the device with the smallest UUID to start. */
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_for_each_entry(dev, &fs_devices->devices, dev_list) {
+		if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
+			continue;
+		if (!working_dev ||
+		    memcmp(dev->uuid, working_dev->uuid, BTRFS_UUID_SIZE) < 0)
+			working_dev = dev;
+	}
+	if (working_dev)
+		memcpy(uuid, working_dev->uuid, BTRFS_UUID_SIZE);
+	mutex_unlock(&fs_devices->device_list_mutex);
+
+	if (!working_dev)
+		return 0;
+
+	while (1) {
+		u64 group_trimmed = 0;
+		u64 next_pos = 0;
+		int ret = 0;
+
+		mutex_lock(&fs_devices->device_list_mutex);
+
+		/* Find and trim the current device. */
+		list_for_each_entry(dev, &fs_devices->devices, dev_list) {
+			if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
+				continue;
+			if (dev == working_dev) {
+				ret = btrfs_trim_free_extents_throttle(working_dev,
+						&group_trimmed, start, &next_pos);
+				break;
+			}
+		}
+
+		/* Throttle: continue the same device from the new position. */
+		if (ret == -EAGAIN && next_pos > start) {
+			mutex_unlock(&fs_devices->device_list_mutex);
+			*trimmed += group_trimmed;
+			start = next_pos;
+			cond_resched();
+			continue;
+		}
+
+		/* User interrupted. */
+		if (ret == -ERESTARTSYS || ret == -EINTR) {
+			mutex_unlock(&fs_devices->device_list_mutex);
+			*trimmed += group_trimmed;
+			return ret;
+		}
+
+		/*
+		 * Device completed (ret == 0), failed, or EAGAIN with no progress.
+		 * Record error if any, then move to next device.
+		 */
+		if (ret == -EAGAIN) {
+			/* No progress - log and skip device. */
+			btrfs_warn(fs_info,
+				   "trim throttle: no progress, offset=%llu device %s, skipping",
+				   start, btrfs_dev_name(working_dev));
+			(*dev_failed)++;
+			if (!*dev_ret)
+				*dev_ret = ret;
+		} else if (ret) {
+			/* Device failed with error. */
+			(*dev_failed)++;
+			if (!*dev_ret)
+				*dev_ret = ret;
+		}
+
+		/*
+		 * Find next device: smallest UUID larger than current.
+		 * Devices added during trim with smaller UUID will be skipped.
+		 */
+		working_dev = NULL;
+		list_for_each_entry(dev, &fs_devices->devices, dev_list) {
+			if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
+				continue;
+			/* Must larger than current UUID. */
+			if (memcmp(dev->uuid, uuid, BTRFS_UUID_SIZE) <= 0)
+				continue;
+			/* Find the smallest. */
+			if (!working_dev ||
+			    memcmp(dev->uuid, working_dev->uuid, BTRFS_UUID_SIZE) < 0)
+				working_dev = dev;
+		}
+		if (working_dev)
+			memcpy(uuid, working_dev->uuid, BTRFS_UUID_SIZE);
+
+		mutex_unlock(&fs_devices->device_list_mutex);
+
+		*trimmed += group_trimmed;
+		start = BTRFS_DEVICE_RANGE_RESERVED;
+
+		/* No more devices. */
+		if (!working_dev)
+			break;
+
+		cond_resched();
+	}
+
+	return 0;
 }
 
 /*
@@ -6613,9 +6743,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
  */
 int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 {
-	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_block_group *cache = NULL;
-	struct btrfs_device *device;
 	u64 group_trimmed;
 	u64 range_end = U64_MAX;
 	u64 start;
@@ -6686,24 +6814,8 @@ int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range)
 	if (ret == -ERESTARTSYS || ret == -EINTR)
 		return ret;
 
-	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-		if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
-			continue;
-
-		ret = btrfs_trim_free_extents(device, &group_trimmed);
-
-		trimmed += group_trimmed;
-		if (ret == -ERESTARTSYS || ret == -EINTR)
-			break;
-		if (ret) {
-			dev_failed++;
-			if (!dev_ret)
-				dev_ret = ret;
-			continue;
-		}
-	}
-	mutex_unlock(&fs_devices->device_list_mutex);
+	ret = btrfs_trim_free_extents(fs_info, &group_trimmed, &dev_failed, &dev_ret);
+	trimmed += group_trimmed;
 
 	if (dev_failed)
 		btrfs_warn(fs_info,

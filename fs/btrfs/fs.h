@@ -65,6 +65,12 @@ struct btrfs_space_info;
 
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
+/*
+ * Maximum length to trim in a single iteration to avoid holding device list
+ * mutex for too long.
+ */
+#define BTRFS_MAX_TRIM_LENGTH			SZ_2G
+
 #define BTRFS_OLDEST_GENERATION	0ULL
 
 #define BTRFS_EMPTY_DIR_SIZE 0
