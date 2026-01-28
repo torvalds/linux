@@ -132,7 +132,11 @@ static int rfd77402_measure(struct i2c_client *client)
 			goto err;
 		if (ret & RFD77402_ICSR_RESULT)
 			break;
-		msleep(20);
+		/*
+		 * As per RFD77402 datasheet section '3.1.1 Single Measure',
+		 * the suggested timeout value for single measure is 100ms.
+		 */
+		msleep(10);
 	}
 
 	if (tries < 0) {
