@@ -315,20 +315,19 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 
 	/* Already reserved? */
 	if (reserved_by_other(global_state->mixer_to_crtc_id, lm_idx, crtc_id)) {
-		DPU_DEBUG("lm %d already reserved\n", lm_idx + LM_0);
+		DPU_DEBUG("LM_%d already reserved\n", lm_idx);
 		return false;
 	}
 
 	lm_cfg = to_dpu_hw_mixer(rm->mixer_blks[lm_idx])->cap;
 	idx = lm_cfg->pingpong - PINGPONG_0;
-	if (idx < 0 || idx >= ARRAY_SIZE(rm->pingpong_blks)) {
-		DPU_ERROR("failed to get pp on lm %d\n", lm_cfg->pingpong);
+	if (idx < 0 || idx >= ARRAY_SIZE(rm->pingpong_blks) || !rm->pingpong_blks[idx]) {
+		DPU_ERROR("LM_%d, invalid PP_%d\n", lm_idx, idx);
 		return false;
 	}
 
 	if (reserved_by_other(global_state->pingpong_to_crtc_id, idx, crtc_id)) {
-		DPU_DEBUG("lm %d pp %d already reserved\n", lm_cfg->id,
-				lm_cfg->pingpong);
+		DPU_DEBUG("LM_%d PP_%d already reserved\n", lm_idx, idx);
 		return false;
 	}
 	*pp_idx = idx;
@@ -337,14 +336,13 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 		return true;
 
 	idx = lm_cfg->dspp - DSPP_0;
-	if (idx < 0 || idx >= ARRAY_SIZE(rm->dspp_blks)) {
-		DPU_ERROR("failed to get dspp on lm %d\n", lm_cfg->dspp);
+	if (idx < 0 || idx >= ARRAY_SIZE(rm->dspp_blks) || !rm->dspp_blks[idx]) {
+		DPU_ERROR("LM_%d, invalid DSPP_%d\n", lm_idx, idx);
 		return false;
 	}
 
 	if (reserved_by_other(global_state->dspp_to_crtc_id, idx, crtc_id)) {
-		DPU_DEBUG("lm %d dspp %d already reserved\n", lm_cfg->id,
-				lm_cfg->dspp);
+		DPU_DEBUG("LM_%d DSPP_%d already reserved\n", lm_idx, idx);
 		return false;
 	}
 	*dspp_idx = idx;
@@ -352,27 +350,25 @@ static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 	return true;
 }
 
-static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
-			       struct dpu_global_state *global_state,
-			       uint32_t crtc_id,
-			       struct msm_display_topology *topology)
+static bool dpu_rm_find_lms(struct dpu_rm *rm,
+			    struct dpu_global_state *global_state,
+			    uint32_t crtc_id, bool skip_dspp,
+			    struct msm_display_topology *topology,
+			    int *lm_idx, int *pp_idx, int *dspp_idx)
 
 {
-	int lm_idx[MAX_BLOCKS];
-	int pp_idx[MAX_BLOCKS];
-	int dspp_idx[MAX_BLOCKS] = {0};
 	int i, lm_count = 0;
-
-	if (!topology->num_lm) {
-		DPU_ERROR("invalid number of lm: %d\n", topology->num_lm);
-		return -EINVAL;
-	}
 
 	/* Find a primary mixer */
 	for (i = 0; i < ARRAY_SIZE(rm->mixer_blks) &&
 			lm_count < topology->num_lm; i++) {
 		if (!rm->mixer_blks[i])
 			continue;
+
+		if (skip_dspp && to_dpu_hw_mixer(rm->mixer_blks[i])->cap->dspp) {
+			DPU_DEBUG("Skipping LM_%d, skipping LMs with DSPPs\n", i);
+			continue;
+		}
 
 		/*
 		 * Reset lm_count to an even index. This will drop the previous
@@ -412,12 +408,38 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
 		}
 	}
 
-	if (lm_count != topology->num_lm) {
+	return lm_count == topology->num_lm;
+}
+
+static int _dpu_rm_reserve_lms(struct dpu_rm *rm,
+			       struct dpu_global_state *global_state,
+			       uint32_t crtc_id,
+			       struct msm_display_topology *topology)
+
+{
+	int lm_idx[MAX_BLOCKS];
+	int pp_idx[MAX_BLOCKS];
+	int dspp_idx[MAX_BLOCKS] = {0};
+	int i;
+	bool found;
+
+	if (!topology->num_lm) {
+		DPU_ERROR("zero LMs in topology\n");
+		return -EINVAL;
+	}
+
+	/* Try using non-DSPP LM blocks first */
+	found = dpu_rm_find_lms(rm, global_state, crtc_id, !topology->num_dspp,
+				topology, lm_idx, pp_idx, dspp_idx);
+	if (!found && !topology->num_dspp)
+		found = dpu_rm_find_lms(rm, global_state, crtc_id, false,
+					topology, lm_idx, pp_idx, dspp_idx);
+	if (!found) {
 		DPU_DEBUG("unable to find appropriate mixers\n");
 		return -ENAVAIL;
 	}
 
-	for (i = 0; i < lm_count; i++) {
+	for (i = 0; i < topology->num_lm; i++) {
 		global_state->mixer_to_crtc_id[lm_idx[i]] = crtc_id;
 		global_state->pingpong_to_crtc_id[pp_idx[i]] = crtc_id;
 		global_state->dspp_to_crtc_id[dspp_idx[i]] =
@@ -468,13 +490,13 @@ static int _dpu_rm_reserve_ctls(
 		features = ctl->caps->features;
 		has_split_display = BIT(DPU_CTL_SPLIT_DISPLAY) & features;
 
-		DPU_DEBUG("ctl %d caps 0x%lX\n", j + CTL_0, features);
+		DPU_DEBUG("CTL_%d caps 0x%lX\n", j, features);
 
 		if (needs_split_display != has_split_display)
 			continue;
 
 		ctl_idx[i] = j;
-		DPU_DEBUG("ctl %d match\n", j + CTL_0);
+		DPU_DEBUG("CTL_%d match\n", j);
 
 		if (++i == num_ctls)
 			break;
