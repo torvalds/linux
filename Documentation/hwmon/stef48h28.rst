@@ -42,7 +42,7 @@ The driver supports standard PMBus driver platform data.
 Sysfs entries
 -------------
 
-=========================================================
+======================  ========================================================
 in1_label		"vin".
 in1_input		Measured voltage. From READ_VIN register.
 in1_min			Minimum Voltage. From VIN_UV_WARN_LIMIT register.
@@ -53,11 +53,9 @@ in2_input		Measured voltage. From READ_VOUT register.
 in2_min			Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
 in2_max			Maximum voltage. From VOUT_OV_WARN_LIMIT register.
 
-curr1_label "iin".
-curr1_input Measured current. From READ_IIN register.
+curr1_label "iin".      curr1_input Measured current. From READ_IIN register.
 
-curr2_label "iout1".
-curr2_input Measured current. From READ_IOUT register.
+curr2_label "iout1".    curr2_input Measured current. From READ_IOUT register.
 
 power1_label		"pin"
 power1_input		Measured input power. From READ_PIN register.
@@ -70,4 +68,4 @@ temp1_max		Maximum temperature. From OT_WARN_LIMIT register.
 temp1_crit		Critical high temperature. From OT_FAULT_LIMIT register.
 
 temp2_input		Measured temperature. From READ_TEMPERATURE_2 register.
-=========================================================
+======================  ========================================================
