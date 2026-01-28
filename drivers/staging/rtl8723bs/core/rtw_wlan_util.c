@@ -63,11 +63,10 @@ u8 networktype_to_raid_ex(struct adapter *adapter, struct sta_info *psta)
 		break;
 	case WIRELESS_11B_24N:
 	case WIRELESS_11BG_24N:
-		if (psta->bw_mode == CHANNEL_WIDTH_20) {
+		if (psta->bw_mode == CHANNEL_WIDTH_20)
 			raid = RATEID_IDX_BGN_20M_1SS_BN;
-		} else {
+		else
 			raid = RATEID_IDX_BGN_40M_1SS;
-		}
 		break;
 	default:
 		raid = RATEID_IDX_BGN_40M_2SS;
