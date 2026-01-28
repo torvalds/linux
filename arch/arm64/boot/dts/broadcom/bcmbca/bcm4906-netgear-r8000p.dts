@@ -146,9 +146,6 @@
 		partition@0 {
 			label = "cferom";
 			reg = <0x0 0x100000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x0 0x100000>;
 
 			nvmem-layout {
 				compatible = "fixed-layout";
