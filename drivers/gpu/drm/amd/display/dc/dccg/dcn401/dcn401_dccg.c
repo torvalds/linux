@@ -595,22 +595,17 @@ void dccg401_set_dp_dto(
 
 	bool enable = false;
 
-	if (params->otg_inst > 3) {
-		/* dcn401 only has 4 instances */
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-	if (!params->refclk_hz) {
-		BREAK_TO_DEBUGGER();
-		return;
-	}
-
 	if (!dc_is_tmds_signal(params->signal)) {
 		uint64_t dto_integer;
 		uint64_t dto_phase_hz;
 		uint64_t dto_modulo_hz = params->refclk_hz;
 
 		enable = true;
+
+		if (!params->refclk_hz) {
+			BREAK_TO_DEBUGGER();
+			return;
+		}
 
 		/* Set DTO values:
 		 * int = target_pix_rate / reference_clock
