@@ -2239,7 +2239,7 @@ void irdma_pble_free_paged_mem(struct irdma_chunk *chunk)
 				 chunk->pg_cnt);
 
 done:
-	kfree(chunk->dmainfo.dmaaddrs);
+	kvfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
 	vfree(chunk->vaddr);
 	chunk->vaddr = NULL;
@@ -2256,7 +2256,7 @@ int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 	u32 size;
 	void *va;
 
-	chunk->dmainfo.dmaaddrs = kzalloc(pg_cnt << 3, GFP_KERNEL);
+	chunk->dmainfo.dmaaddrs = kvzalloc(pg_cnt << 3, GFP_KERNEL);
 	if (!chunk->dmainfo.dmaaddrs)
 		return -ENOMEM;
 
@@ -2277,7 +2277,7 @@ int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt)
 
 	return 0;
 err:
-	kfree(chunk->dmainfo.dmaaddrs);
+	kvfree(chunk->dmainfo.dmaaddrs);
 	chunk->dmainfo.dmaaddrs = NULL;
 
 	return -ENOMEM;
