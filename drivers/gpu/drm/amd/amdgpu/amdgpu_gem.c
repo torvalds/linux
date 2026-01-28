@@ -263,13 +263,7 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	else
 		++bo_va->ref_count;
 
-	/* attach gfx eviction fence */
-	r = amdgpu_eviction_fence_attach(&fpriv->evf_mgr, abo);
-	if (r) {
-		DRM_DEBUG_DRIVER("Failed to attach eviction fence to BO\n");
-		amdgpu_bo_unreserve(abo);
-		return r;
-	}
+	amdgpu_evf_mgr_attach_fence(&fpriv->evf_mgr, abo);
 	drm_exec_fini(&exec);
 
 	/* Validate and add eviction fence to DMABuf imports with dynamic
@@ -337,7 +331,7 @@ static void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	}
 
 	if (!amdgpu_vm_is_bo_always_valid(vm, bo))
-		amdgpu_eviction_fence_detach(&fpriv->evf_mgr, bo);
+		amdgpu_evf_mgr_detach_fence(&fpriv->evf_mgr, bo);
 
 	bo_va = amdgpu_vm_bo_find(vm, bo);
 	if (!bo_va || --bo_va->ref_count)
