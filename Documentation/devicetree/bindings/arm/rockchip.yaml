@@ -60,6 +60,12 @@ properties:
               - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
+      - description: Anbernic RK3568 Handheld Gaming Console
+        items:
+          - enum:
+              - anbernic,rg-ds
+          - const: rockchip,rk3568
+
       - description: Ariaboard Photonicat
         items:
           - const: ariaboard,photonicat
@@ -894,11 +900,15 @@ properties:
           - const: rockchip,rk3568
 
       - description: QNAP TS-x33 NAS devices
-        items:
-          - enum:
-              - qnap,ts233
-              - qnap,ts433
-          - const: rockchip,rk3568
+        oneOf:
+          - items:
+              - const: qnap,ts133
+              - const: rockchip,rk3566
+          - items:
+              - enum:
+                  - qnap,ts233
+                  - qnap,ts433
+              - const: rockchip,rk3568
 
       - description: Radxa Compute Module 3 (CM3)
         items:
@@ -912,6 +922,13 @@ properties:
           - enum:
               - radxa,e25
           - const: radxa,cm3i
+          - const: rockchip,rk3568
+
+      - description: Radxa CM3J
+        items:
+          - enum:
+              - radxa,cm3j-rpi-cm4
+          - const: radxa,cm3j
           - const: rockchip,rk3568
 
       - description: Radxa CM5
