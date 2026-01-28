@@ -2421,6 +2421,7 @@ static const struct net_device_ops bnge_netdev_ops = {
 	.ndo_open		= bnge_open,
 	.ndo_stop		= bnge_close,
 	.ndo_start_xmit		= bnge_start_xmit,
+	.ndo_features_check	= bnge_features_check,
 };
 
 static void bnge_init_mac_addr(struct bnge_dev *bd)

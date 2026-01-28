@@ -966,3 +966,27 @@ tx_kick_pending:
 	dev_core_stats_tx_dropped_inc(dev);
 	return NETDEV_TX_OK;
 }
+
+netdev_features_t bnge_features_check(struct sk_buff *skb,
+				      struct net_device *dev,
+				      netdev_features_t features)
+{
+	u32 len;
+
+	features = vlan_features_check(skb, features);
+#if (MAX_SKB_FRAGS > TX_MAX_FRAGS)
+	if (skb_shinfo(skb)->nr_frags > TX_MAX_FRAGS)
+		features &= ~NETIF_F_SG;
+#endif
+
+	if (skb_is_gso(skb))
+		len = bnge_get_gso_hdr_len(skb) + skb_shinfo(skb)->gso_size;
+	else
+		len = skb->len;
+
+	len >>= 9;
+	if (unlikely(len >= ARRAY_SIZE(bnge_lhint_arr)))
+		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+
+	return features;
+}
