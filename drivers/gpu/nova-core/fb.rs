@@ -80,7 +80,7 @@ impl SysmemFlush {
             let _ = hal.write_sysmem_flush_page(bar, 0).inspect_err(|e| {
                 dev_warn!(
                     &self.device,
-                    "failed to unregister sysmem flush page: {:?}",
+                    "failed to unregister sysmem flush page: {:?}\n",
                     e
                 )
             });

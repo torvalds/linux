@@ -41,8 +41,15 @@ trait [1] from the num crate.
 Having this generalization also helps with implementing a generic macro that
 automatically generates the corresponding mappings between a value and a number.
 
+FromPrimitive support has been worked on in the past, but hasn't been followed
+since then [1].
+
+There also have been considerations of ToPrimitive [2].
+
 | Complexity: Beginner
 | Link: https://docs.rs/num/latest/num/trait.FromPrimitive.html
+| Link: https://lore.kernel.org/all/cover.1750689857.git.y.j3ms.n@gmail.com/ [1]
+| Link: https://rust-for-linux.zulipchat.com/#narrow/channel/288089-General/topic/Implement.20.60FromPrimitive.60.20trait.20.2B.20derive.20macro.20for.20nova-core/with/541971854 [2]
 
 Generic register abstraction [REGA]
 -----------------------------------
@@ -134,21 +141,6 @@ A `num` core kernel module is being designed to provide these operations.
 | Complexity: Intermediate
 | Contact: Alexandre Courbot
 
-IRQ abstractions
-----------------
-
-Rust abstractions for IRQ handling.
-
-There is active ongoing work from Daniel Almeida [1] for the "core" abstractions
-to request IRQs.
-
-Besides optional review and testing work, the required ``pci::Device`` code
-around those core abstractions needs to be worked out.
-
-| Complexity: Intermediate
-| Link: https://lore.kernel.org/lkml/20250122163932.46697-1-daniel.almeida@collabora.com/ [1]
-| Contact: Daniel Almeida
-
 Page abstraction for foreign pages
 ----------------------------------
 
@@ -161,40 +153,16 @@ There is active onging work from Abdiel Janulgue [1] and Lina [2].
 | Link: https://lore.kernel.org/linux-mm/20241119112408.779243-1-abdiel.janulgue@gmail.com/ [1]
 | Link: https://lore.kernel.org/rust-for-linux/20250202-rust-page-v1-0-e3170d7fe55e@asahilina.net/ [2]
 
-Scatterlist / sg_table abstractions
------------------------------------
-
-Rust abstractions for scatterlist / sg_table.
-
-There is preceding work from Abdiel Janulgue, which hasn't made it to the
-mailing list yet.
-
-| Complexity: Intermediate
-| Contact: Abdiel Janulgue
-
 PCI MISC APIs
 -------------
 
-Extend the existing PCI device / driver abstractions by SR-IOV, config space,
-capability, MSI API abstractions.
+Extend the existing PCI device / driver abstractions by SR-IOV, capability, MSI
+API abstractions.
+
+SR-IOV [1] is work in progress.
 
 | Complexity: Beginner
-
-XArray bindings [XARR]
-----------------------
-
-We need bindings for `xa_alloc`/`xa_alloc_cyclic` in order to generate the
-auxiliary device IDs.
-
-| Complexity: Intermediate
-
-Debugfs abstractions
---------------------
-
-Rust abstraction for debugfs APIs.
-
-| Reference: Export GSP log buffers
-| Complexity: Intermediate
+| Link: https://lore.kernel.org/all/20251119-rust-pci-sriov-v1-0-883a94599a97@redhat.com/ [1]
 
 GPU (general)
 =============
@@ -233,7 +201,10 @@ Some possible options:
     - maple_tree
   - native Rust collections
 
+There is work in progress for using drm_buddy [1].
+
 | Complexity: Advanced
+| Link: https://lore.kernel.org/all/20251219203805.1246586-4-joelagnelf@nvidia.com/ [1]
 
 Instance Memory
 ---------------
