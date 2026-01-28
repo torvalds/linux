@@ -117,7 +117,7 @@ then the flags argument should include a value that is equivalent to setting
 the timing window between ``xyzzy()`` and calling
 ``fcntl(fd, F_SETFD, FD_CLOEXEC)``, where an unexpected ``fork()`` and
 ``execve()`` in another thread could leak a descriptor to
-the exec'ed program. (However, resist the temptation to re-use the actual value
+the exec'ed program. (However, resist the temptation to reuse the actual value
 of the ``O_CLOEXEC`` constant, as it is architecture-specific and is part of a
 numbering space of ``O_*`` flags that is fairly full.)
 
@@ -459,7 +459,7 @@ the compatibility wrapper::
     ...
     555   x32      xyzzy     __x32_compat_sys_xyzzy
 
-If no pointers are involved, then it is preferable to re-use the 64-bit system
+If no pointers are involved, then it is preferable to reuse the 64-bit system
 call for the x32 ABI (and consequently the entry in
 arch/x86/entry/syscalls/syscall_64.tbl is unchanged).
 

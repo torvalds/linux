@@ -89,7 +89,7 @@ In those cases, however, the above validity considerations must be taken into
 account in the first place and returning invalid property sets from _DSD must be
 avoided.  For this reason, it may not be possible to make _DSD return a property
 set following the given DT binding literally and completely.  Still, for the
-sake of code re-use, it may make sense to provide as much of the configuration
+sake of code reuse, it may make sense to provide as much of the configuration
 data as possible in the form of device properties and complement that with an
 ACPI-specific mechanism suitable for the use case at hand.
 

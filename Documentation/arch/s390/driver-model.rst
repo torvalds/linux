@@ -279,7 +279,7 @@ status
        - Can be 'online' or 'offline'.
 	 Piping 'on' or 'off' sets the chpid logically online/offline.
 	 Piping 'on' to an online chpid triggers path reprobing for all devices
-	 the chpid connects to. This can be used to force the kernel to re-use
+	 the chpid connects to. This can be used to force the kernel to reuse
 	 a channel path the user knows to be online, but the machine hasn't
 	 created a machine check for.
 
