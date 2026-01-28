@@ -35,6 +35,7 @@ struct user_namespace;
 struct workqueue_struct;
 struct writeback_control;
 struct xattr_handler;
+struct fserror_event;
 
 extern struct super_block *blockdev_superblock;
 
@@ -124,6 +125,9 @@ struct super_operations {
 	 */
 	int (*remove_bdev)(struct super_block *sb, struct block_device *bdev);
 	void (*shutdown)(struct super_block *sb);
+
+	/* Report a filesystem error */
+	void (*report_error)(const struct fserror_event *event);
 };
 
 struct super_block {
@@ -268,6 +272,9 @@ struct super_block {
 	spinlock_t				s_inode_wblist_lock;
 	struct list_head			s_inodes_wb;	/* writeback inodes */
 	long					s_min_writeback_pages;
+
+	/* number of fserrors that are being sent to fsnotify/filesystems */
+	refcount_t				s_pending_errors;
 } __randomize_layout;
 
 /*
