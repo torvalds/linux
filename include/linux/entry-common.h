@@ -45,6 +45,24 @@
 				 SYSCALL_WORK_SYSCALL_EXIT_TRAP	|	\
 				 ARCH_SYSCALL_WORK_EXIT)
 
+/**
+ * arch_ptrace_report_syscall_entry - Architecture specific ptrace_report_syscall_entry() wrapper
+ *
+ * Invoked from syscall_trace_enter() to wrap ptrace_report_syscall_entry().
+ *
+ * This allows architecture specific ptrace_report_syscall_entry()
+ * implementations. If not defined by the architecture this falls back to
+ * to ptrace_report_syscall_entry().
+ */
+static __always_inline int arch_ptrace_report_syscall_entry(struct pt_regs *regs);
+
+#ifndef arch_ptrace_report_syscall_entry
+static __always_inline int arch_ptrace_report_syscall_entry(struct pt_regs *regs)
+{
+	return ptrace_report_syscall_entry(regs);
+}
+#endif
+
 long syscall_trace_enter(struct pt_regs *regs, unsigned long work);
 
 /**
@@ -111,6 +129,24 @@ static __always_inline long syscall_enter_from_user_mode(struct pt_regs *regs, l
 
 	return ret;
 }
+
+/**
+ * arch_ptrace_report_syscall_exit - Architecture specific ptrace_report_syscall_exit()
+ *
+ * This allows architecture specific ptrace_report_syscall_exit()
+ * implementations. If not defined by the architecture this falls back to
+ * to ptrace_report_syscall_exit().
+ */
+static __always_inline void arch_ptrace_report_syscall_exit(struct pt_regs *regs,
+							    int step);
+
+#ifndef arch_ptrace_report_syscall_exit
+static __always_inline void arch_ptrace_report_syscall_exit(struct pt_regs *regs,
+							    int step)
+{
+	ptrace_report_syscall_exit(regs, step);
+}
+#endif
 
 /**
  * syscall_exit_work - Handle work before returning to user mode
