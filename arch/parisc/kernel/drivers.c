@@ -916,14 +916,18 @@ static __init void qemu_header(void)
 {
 	int num;
 	unsigned long *p;
+	char name_mpe[80];
 
 	pr_info("--- cut here ---\n");
 	pr_info("/* AUTO-GENERATED HEADER FILE FOR SEABIOS FIRMWARE */\n");
 	pr_cont("/* generated with Linux kernel */\n");
 	pr_cont("/* search for PARISC_QEMU_MACHINE_HEADER in Linux */\n\n");
 
-	pr_info("#define PARISC_MODEL \"%s\"\n\n",
+	pr_info("#define PARISC_MODEL     \"%s\"\n",
 			boot_cpu_data.pdc.sys_model_name);
+	strcpy(name_mpe, boot_cpu_data.pdc.sys_model_name);
+	pdc_model_sysmodel(OS_ID_MPEXL, name_mpe);
+	pr_info("#define PARISC_MODEL_MPE \"%s\"\n\n", name_mpe);
 
 	#define p ((unsigned long *)&boot_cpu_data.pdc.model)
 	pr_info("#define PARISC_PDC_MODEL 0x%lx, 0x%lx, 0x%lx, "
