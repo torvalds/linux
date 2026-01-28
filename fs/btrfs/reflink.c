@@ -705,7 +705,6 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	struct inode *src = file_inode(file_src);
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	int ret;
-	int wb_ret;
 	u64 len = olen;
 	u64 bs = fs_info->sectorsize;
 	u64 end;
@@ -750,25 +749,29 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	btrfs_lock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, 0);
 	btrfs_unlock_extent(&BTRFS_I(inode)->io_tree, destoff, end, &cached_state);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We may have copied an inline extent into a page of the destination
-	 * range, so wait for writeback to complete before truncating pages
+	 * range, so wait for writeback to complete before invalidating pages
 	 * from the page cache. This is a rare case.
 	 */
-	wb_ret = btrfs_wait_ordered_range(BTRFS_I(inode), destoff, len);
-	ret = ret ? ret : wb_ret;
+	ret = btrfs_wait_ordered_range(BTRFS_I(inode), destoff, len);
+	if (ret < 0)
+		return ret;
+
 	/*
-	 * Truncate page cache pages so that future reads will see the cloned
-	 * data immediately and not the previous data.
+	 * Invalidate page cache so that future reads will see the cloned data
+	 * immediately and not the previous data.
 	 */
-	truncate_inode_pages_range(&inode->i_data,
-				round_down(destoff, PAGE_SIZE),
-				round_up(destoff + len, PAGE_SIZE) - 1);
+	ret = filemap_invalidate_inode(inode, false, destoff, end);
+	if (ret < 0)
+		return ret;
 
 	btrfs_btree_balance_dirty(fs_info);
 
-	return ret;
+	return 0;
 }
 
 static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,

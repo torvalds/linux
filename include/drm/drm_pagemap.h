@@ -243,6 +243,8 @@ struct drm_pagemap_devmem_ops {
 			   struct dma_fence *pre_migrate_fence);
 };
 
+#if IS_ENABLED(CONFIG_ZONE_DEVICE)
+
 int drm_pagemap_init(struct drm_pagemap *dpagemap,
 		     struct dev_pagemap *pagemap,
 		     struct drm_device *drm,
@@ -252,17 +254,22 @@ struct drm_pagemap *drm_pagemap_create(struct drm_device *drm,
 				       struct dev_pagemap *pagemap,
 				       const struct drm_pagemap_ops *ops);
 
-#if IS_ENABLED(CONFIG_DRM_GPUSVM)
+struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page);
 
 void drm_pagemap_put(struct drm_pagemap *dpagemap);
 
 #else
 
+static inline struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page)
+{
+	return NULL;
+}
+
 static inline void drm_pagemap_put(struct drm_pagemap *dpagemap)
 {
 }
 
-#endif /* IS_ENABLED(CONFIG_DRM_GPUSVM) */
+#endif /* IS_ENABLED(CONFIG_ZONE_DEVICE) */
 
 /**
  * drm_pagemap_get() - Obtain a reference on a struct drm_pagemap
@@ -334,6 +341,8 @@ struct drm_pagemap_migrate_details {
 	u32 source_peer_migrates : 1;
 };
 
+#if IS_ENABLED(CONFIG_ZONE_DEVICE)
+
 int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 				  struct mm_struct *mm,
 				  unsigned long start, unsigned long end,
@@ -342,8 +351,6 @@ int drm_pagemap_migrate_to_devmem(struct drm_pagemap_devmem *devmem_allocation,
 int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation);
 
 const struct dev_pagemap_ops *drm_pagemap_pagemap_ops_get(void);
-
-struct drm_pagemap *drm_pagemap_page_to_dpagemap(struct page *page);
 
 void drm_pagemap_devmem_init(struct drm_pagemap_devmem *devmem_allocation,
 			     struct device *dev, struct mm_struct *mm,
@@ -359,4 +366,7 @@ int drm_pagemap_populate_mm(struct drm_pagemap *dpagemap,
 void drm_pagemap_destroy(struct drm_pagemap *dpagemap, bool is_atomic_or_reclaim);
 
 int drm_pagemap_reinit(struct drm_pagemap *dpagemap);
+
+#endif /* IS_ENABLED(CONFIG_ZONE_DEVICE) */
+
 #endif

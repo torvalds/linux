@@ -85,7 +85,7 @@ static void sbi_cpu_stop(void)
 	int ret;
 
 	ret = sbi_hsm_hart_stop();
-	pr_crit("Unable to stop the cpu %u (%d)\n", smp_processor_id(), ret);
+	pr_crit("Unable to stop the cpu %d (%d)\n", smp_processor_id(), ret);
 }
 
 static int sbi_cpu_is_stopped(unsigned int cpuid)

@@ -555,6 +555,22 @@ ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size);
 
 /**
+ * drm_dp_dpcd_readb() - read a single byte from the DPCD
+ * @aux: DisplayPort AUX channel
+ * @offset: address of the register to read
+ * @valuep: location where the value of the register will be stored
+ *
+ * Returns the number of bytes transferred (1) on success, or a negative
+ * error code on failure. In most of the cases you should be using
+ * drm_dp_dpcd_read_byte() instead.
+ */
+static inline ssize_t drm_dp_dpcd_readb(struct drm_dp_aux *aux,
+					unsigned int offset, u8 *valuep)
+{
+	return drm_dp_dpcd_read(aux, offset, valuep, 1);
+}
+
+/**
  * drm_dp_dpcd_read_data() - read a series of bytes from the DPCD
  * @aux: DisplayPort AUX channel (SST or MST)
  * @offset: address of the (first) register to read
@@ -573,12 +589,29 @@ static inline int drm_dp_dpcd_read_data(struct drm_dp_aux *aux,
 					void *buffer, size_t size)
 {
 	int ret;
+	size_t i;
+	u8 *buf = buffer;
 
 	ret = drm_dp_dpcd_read(aux, offset, buffer, size);
-	if (ret < 0)
-		return ret;
-	if (ret < size)
-		return -EPROTO;
+	if (ret >= 0) {
+		if (ret < size)
+			return -EPROTO;
+		return 0;
+	}
+
+	/*
+	 * Workaround for USB-C hubs/adapters with buggy firmware that fail
+	 * multi-byte AUX reads but work with single-byte reads.
+	 * Known affected devices:
+	 * - Lenovo USB-C to VGA adapter (VIA VL817, idVendor=17ef, idProduct=7217)
+	 * - Dell DA310 USB-C hub (idVendor=413c, idProduct=c010)
+	 * Attempt byte-by-byte reading as a fallback.
+	 */
+	for (i = 0; i < size; i++) {
+		ret = drm_dp_dpcd_readb(aux, offset + i, &buf[i]);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -610,22 +643,6 @@ static inline int drm_dp_dpcd_write_data(struct drm_dp_aux *aux,
 		return -EPROTO;
 
 	return 0;
-}
-
-/**
- * drm_dp_dpcd_readb() - read a single byte from the DPCD
- * @aux: DisplayPort AUX channel
- * @offset: address of the register to read
- * @valuep: location where the value of the register will be stored
- *
- * Returns the number of bytes transferred (1) on success, or a negative
- * error code on failure. In most of the cases you should be using
- * drm_dp_dpcd_read_byte() instead.
- */
-static inline ssize_t drm_dp_dpcd_readb(struct drm_dp_aux *aux,
-					unsigned int offset, u8 *valuep)
-{
-	return drm_dp_dpcd_read(aux, offset, valuep, 1);
 }
 
 /**

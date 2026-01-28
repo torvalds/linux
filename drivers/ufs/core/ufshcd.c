@@ -10359,7 +10359,7 @@ static int ufshcd_suspend(struct ufs_hba *hba)
 	ret = ufshcd_setup_clocks(hba, false);
 	if (ret) {
 		ufshcd_enable_irq(hba);
-		return ret;
+		goto out;
 	}
 	if (ufshcd_is_clkgating_allowed(hba)) {
 		hba->clk_gating.state = CLKS_OFF;
@@ -10371,6 +10371,9 @@ static int ufshcd_suspend(struct ufs_hba *hba)
 	/* Put the host controller in low power mode if possible */
 	ufshcd_hba_vreg_set_lpm(hba);
 	ufshcd_pm_qos_update(hba, false);
+out:
+	if (ret)
+		ufshcd_update_evt_hist(hba, UFS_EVT_SUSPEND_ERR, (u32)ret);
 	return ret;
 }
 
@@ -10733,9 +10736,7 @@ static int ufshcd_add_scsi_host(struct ufs_hba *hba)
 	if (is_mcq_supported(hba)) {
 		ufshcd_mcq_enable(hba);
 		err = ufshcd_alloc_mcq(hba);
-		if (!err) {
-			ufshcd_config_mcq(hba);
-		} else {
+		if (err) {
 			/* Continue with SDB mode */
 			ufshcd_mcq_disable(hba);
 			use_mcq_mode = false;
@@ -11007,6 +11008,9 @@ int ufshcd_init(struct ufs_hba *hba, void __iomem *mmio_base, unsigned int irq)
 	err = ufshcd_link_startup(hba);
 	if (err)
 		goto out_disable;
+
+	if (hba->mcq_enabled)
+		ufshcd_config_mcq(hba);
 
 	if (hba->quirks & UFSHCD_QUIRK_SKIP_PH_CONFIGURATION)
 		goto initialized;

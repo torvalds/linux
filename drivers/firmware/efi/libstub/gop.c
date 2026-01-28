@@ -513,15 +513,15 @@ efi_status_t efi_setup_graphics(struct screen_info *si, struct edid_info *edid)
 		status = efi_bs_call(handle_protocol, handle, &EFI_EDID_ACTIVE_PROTOCOL_GUID,
 				     (void **)&active_edid);
 		if (status == EFI_SUCCESS) {
-			gop_size_of_edid = active_edid->size_of_edid;
-			gop_edid = active_edid->edid;
+			gop_size_of_edid = efi_table_attr(active_edid, size_of_edid);
+			gop_edid = efi_table_attr(active_edid, edid);
 		} else {
 			status = efi_bs_call(handle_protocol, handle,
 					     &EFI_EDID_DISCOVERED_PROTOCOL_GUID,
 					     (void **)&discovered_edid);
 			if (status == EFI_SUCCESS) {
-				gop_size_of_edid = discovered_edid->size_of_edid;
-				gop_edid = discovered_edid->edid;
+				gop_size_of_edid = efi_table_attr(discovered_edid, size_of_edid);
+				gop_edid = efi_table_attr(discovered_edid, edid);
 			}
 		}
 

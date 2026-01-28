@@ -9,7 +9,7 @@
  * This fix addresses an issue where signal scoping was overly restrictive,
  * preventing sandboxed threads from signaling other threads within the same
  * process if they belonged to different domains.  Because threads are not
- * security boundaries, user space might assume that any thread within the same
+ * security boundaries, user space might assume that all threads within the same
  * process can send signals between themselves (see :manpage:`nptl(7)` and
  * :manpage:`libpsx(3)`).  Consistent with :manpage:`ptrace(2)` behavior, direct
  * interaction between threads of the same process should always be allowed.

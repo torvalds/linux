@@ -40,7 +40,7 @@ struct imsic_local_priv {
 #endif
 
 	/* Local vector table */
-	struct imsic_vector			vectors[];
+	struct imsic_vector			*vectors;
 };
 
 struct imsic_priv {

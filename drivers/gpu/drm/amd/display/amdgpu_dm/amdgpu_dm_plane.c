@@ -1790,12 +1790,13 @@ dm_atomic_plane_get_property(struct drm_plane *plane,
 static int
 dm_plane_init_colorops(struct drm_plane *plane)
 {
-	struct drm_prop_enum_list pipelines[MAX_COLOR_PIPELINES];
+	struct drm_prop_enum_list pipelines[MAX_COLOR_PIPELINES] = {};
 	struct drm_device *dev = plane->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct dc *dc = adev->dm.dc;
 	int len = 0;
-	int ret;
+	int ret = 0;
+	int i;
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR)
 		return 0;
@@ -1806,7 +1807,7 @@ dm_plane_init_colorops(struct drm_plane *plane)
 		if (ret) {
 			drm_err(plane->dev, "Failed to create color pipeline for plane %d: %d\n",
 				plane->base.id, ret);
-			return ret;
+			goto out;
 		}
 		len++;
 
@@ -1814,7 +1815,11 @@ dm_plane_init_colorops(struct drm_plane *plane)
 		drm_plane_create_color_pipeline_property(plane, pipelines, len);
 	}
 
-	return 0;
+out:
+	for (i = 0; i < len; i++)
+		kfree(pipelines[i].name);
+
+	return ret;
 }
 #endif
 

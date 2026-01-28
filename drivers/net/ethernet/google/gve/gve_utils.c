@@ -112,11 +112,13 @@ void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
 
 	netif_napi_add_locked(priv->dev, &block->napi, gve_poll);
 	netif_napi_set_irq_locked(&block->napi, block->irq);
+	enable_irq(block->irq);
 }
 
 void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
 {
 	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
+	disable_irq(block->irq);
 	netif_napi_del_locked(&block->napi);
 }

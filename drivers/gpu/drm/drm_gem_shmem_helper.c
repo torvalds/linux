@@ -96,10 +96,10 @@ err_release:
 }
 
 /**
- * drm_gem_shmem_init - Initialize an allocated object of the given size
+ * drm_gem_shmem_init - Initialize an allocated object.
  * @dev: DRM device
  * @shmem: shmem GEM object to initialize
- * @size: Size of the object to initialize
+ * @size: Buffer size in bytes
  *
  * This function initializes an allocated shmem GEM object.
  *
@@ -966,4 +966,4 @@ EXPORT_SYMBOL_IF_KUNIT(drm_gem_shmem_purge);
 
 MODULE_DESCRIPTION("DRM SHMEM memory-management helpers");
 MODULE_IMPORT_NS("DMA_BUF");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -23,7 +23,6 @@
 #include <linux/workqueue.h>
 
 #include "access.h"
-#include "audit.h"
 #include "domain.h"
 #include "limits.h"
 #include "object.h"

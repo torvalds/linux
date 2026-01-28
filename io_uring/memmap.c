@@ -268,8 +268,7 @@ static void *io_region_validate_mmap(struct io_ring_ctx *ctx,
 	return io_region_get_ptr(mr);
 }
 
-static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
-					    size_t sz)
+static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff)
 {
 	struct io_ring_ctx *ctx = file->private_data;
 	struct io_mapped_region *region;
@@ -304,7 +303,7 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 
 	guard(mutex)(&ctx->mmap_lock);
 
-	ptr = io_uring_validate_mmap_request(file, vma->vm_pgoff, sz);
+	ptr = io_uring_validate_mmap_request(file, vma->vm_pgoff);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
@@ -336,7 +335,7 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	guard(mutex)(&ctx->mmap_lock);
 
-	ptr = io_uring_validate_mmap_request(filp, pgoff, len);
+	ptr = io_uring_validate_mmap_request(filp, pgoff);
 	if (IS_ERR(ptr))
 		return -ENOMEM;
 
@@ -386,7 +385,7 @@ unsigned long io_uring_get_unmapped_area(struct file *file, unsigned long addr,
 
 	guard(mutex)(&ctx->mmap_lock);
 
-	ptr = io_uring_validate_mmap_request(file, pgoff, len);
+	ptr = io_uring_validate_mmap_request(file, pgoff);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 

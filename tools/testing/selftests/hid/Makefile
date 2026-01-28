@@ -184,6 +184,8 @@ MENDIAN=$(if $(IS_LITTLE_ENDIAN),-mlittle-endian,-mbig-endian)
 
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG))
 BPF_CFLAGS = -g -Werror -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN) 		\
+	     -Wno-microsoft-anon-tag                                    \
+	     -fms-extensions                                            \
 	     -I$(INCLUDE_DIR)
 
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES) \

@@ -2499,7 +2499,7 @@ void xe_migrate_job_lock(struct xe_migrate *m, struct xe_exec_queue *q)
 	if (is_migrate)
 		mutex_lock(&m->job_mutex);
 	else
-		xe_vm_assert_held(q->vm);	/* User queues VM's should be locked */
+		xe_vm_assert_held(q->user_vm);	/* User queues VM's should be locked */
 }
 
 /**
@@ -2517,7 +2517,7 @@ void xe_migrate_job_unlock(struct xe_migrate *m, struct xe_exec_queue *q)
 	if (is_migrate)
 		mutex_unlock(&m->job_mutex);
 	else
-		xe_vm_assert_held(q->vm);	/* User queues VM's should be locked */
+		xe_vm_assert_held(q->user_vm);	/* User queues VM's should be locked */
 }
 
 #if IS_ENABLED(CONFIG_PROVE_LOCKING)

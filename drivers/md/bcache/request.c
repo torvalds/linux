@@ -1077,68 +1077,58 @@ static CLOSURE_CALLBACK(cached_dev_nodata)
 	continue_at(cl, cached_dev_bio_complete, NULL);
 }
 
-struct detached_dev_io_private {
-	struct bcache_device	*d;
-	unsigned long		start_time;
-	bio_end_io_t		*bi_end_io;
-	void			*bi_private;
-	struct block_device	*orig_bdev;
-};
-
 static void detached_dev_end_io(struct bio *bio)
 {
-	struct detached_dev_io_private *ddip;
-
-	ddip = bio->bi_private;
-	bio->bi_end_io = ddip->bi_end_io;
-	bio->bi_private = ddip->bi_private;
+	struct detached_dev_io_private *ddip =
+		container_of(bio, struct detached_dev_io_private, bio);
+	struct bio *orig_bio = ddip->orig_bio;
 
 	/* Count on the bcache device */
-	bio_end_io_acct_remapped(bio, ddip->start_time, ddip->orig_bdev);
+	bio_end_io_acct(orig_bio, ddip->start_time);
 
 	if (bio->bi_status) {
-		struct cached_dev *dc = container_of(ddip->d,
-						     struct cached_dev, disk);
+		struct cached_dev *dc = bio->bi_private;
+
 		/* should count I/O error for backing device here */
 		bch_count_backing_io_errors(dc, bio);
+		orig_bio->bi_status = bio->bi_status;
 	}
 
-	kfree(ddip);
-	bio_endio(bio);
+	bio_put(bio);
+	bio_endio(orig_bio);
 }
 
-static void detached_dev_do_request(struct bcache_device *d, struct bio *bio,
-		struct block_device *orig_bdev, unsigned long start_time)
+static void detached_dev_do_request(struct bcache_device *d,
+		struct bio *orig_bio, unsigned long start_time)
 {
 	struct detached_dev_io_private *ddip;
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+	struct bio *clone_bio;
 
-	/*
-	 * no need to call closure_get(&dc->disk.cl),
-	 * because upper layer had already opened bcache device,
-	 * which would call closure_get(&dc->disk.cl)
-	 */
-	ddip = kzalloc(sizeof(struct detached_dev_io_private), GFP_NOIO);
-	if (!ddip) {
-		bio->bi_status = BLK_STS_RESOURCE;
-		bio_endio(bio);
+	if (bio_op(orig_bio) == REQ_OP_DISCARD &&
+	    !bdev_max_discard_sectors(dc->bdev)) {
+		bio_endio(orig_bio);
 		return;
 	}
 
-	ddip->d = d;
-	/* Count on the bcache device */
-	ddip->orig_bdev = orig_bdev;
-	ddip->start_time = start_time;
-	ddip->bi_end_io = bio->bi_end_io;
-	ddip->bi_private = bio->bi_private;
-	bio->bi_end_io = detached_dev_end_io;
-	bio->bi_private = ddip;
+	clone_bio = bio_alloc_clone(dc->bdev, orig_bio, GFP_NOIO,
+				    &d->bio_detached);
+	if (!clone_bio) {
+		orig_bio->bi_status = BLK_STS_RESOURCE;
+		bio_endio(orig_bio);
+		return;
+	}
 
-	if ((bio_op(bio) == REQ_OP_DISCARD) &&
-	    !bdev_max_discard_sectors(dc->bdev))
-		detached_dev_end_io(bio);
-	else
-		submit_bio_noacct(bio);
+	ddip = container_of(clone_bio, struct detached_dev_io_private, bio);
+	/* Count on the bcache device */
+	ddip->d = d;
+	ddip->start_time = start_time;
+	ddip->orig_bio = orig_bio;
+
+	clone_bio->bi_end_io = detached_dev_end_io;
+	clone_bio->bi_private = dc;
+
+	submit_bio_noacct(clone_bio);
 }
 
 static void quit_max_writeback_rate(struct cache_set *c,
@@ -1214,10 +1204,10 @@ void cached_dev_submit_bio(struct bio *bio)
 
 	start_time = bio_start_io_acct(bio);
 
-	bio_set_dev(bio, dc->bdev);
 	bio->bi_iter.bi_sector += dc->sb.data_offset;
 
 	if (cached_dev_get(dc)) {
+		bio_set_dev(bio, dc->bdev);
 		s = search_alloc(bio, d, orig_bdev, start_time);
 		trace_bcache_request_start(s->d, bio);
 
@@ -1237,9 +1227,10 @@ void cached_dev_submit_bio(struct bio *bio)
 			else
 				cached_dev_read(dc, s);
 		}
-	} else
+	} else {
 		/* I/O request sent to backing device */
-		detached_dev_do_request(d, bio, orig_bdev, start_time);
+		detached_dev_do_request(d, bio, start_time);
+	}
 }
 
 static int cached_dev_ioctl(struct bcache_device *d, blk_mode_t mode,

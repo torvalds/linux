@@ -783,16 +783,12 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 
 	pm_runtime_enable(&i2c->dev);
 	regcache_cache_only(ak4458->regmap, true);
-	ak4458_reset(ak4458, false);
 
 	return 0;
 }
 
 static void ak4458_i2c_remove(struct i2c_client *i2c)
 {
-	struct ak4458_priv *ak4458 = i2c_get_clientdata(i2c);
-
-	ak4458_reset(ak4458, true);
 	pm_runtime_disable(&i2c->dev);
 }
 

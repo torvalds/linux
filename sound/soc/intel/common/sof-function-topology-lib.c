@@ -28,7 +28,7 @@ enum tplg_device_id {
 #define SOF_INTEL_PLATFORM_NAME_MAX 4
 
 int sof_sdw_get_tplg_files(struct snd_soc_card *card, const struct snd_soc_acpi_mach *mach,
-			   const char *prefix, const char ***tplg_files)
+			   const char *prefix, const char ***tplg_files, bool best_effort)
 {
 	struct snd_soc_acpi_mach_params mach_params = mach->mach_params;
 	struct snd_soc_dai_link *dai_link;
@@ -87,6 +87,9 @@ int sof_sdw_get_tplg_files(struct snd_soc_card *card, const struct snd_soc_acpi_
 			dev_dbg(card->dev,
 				"dai_link %s is not supported by separated tplg yet\n",
 				dai_link->name);
+			if (best_effort)
+				continue;
+
 			return 0;
 		}
 		if (tplg_mask & BIT(tplg_dev))

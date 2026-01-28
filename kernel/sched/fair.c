@@ -15,7 +15,7 @@
  *  Author: Srivatsa Vaddagiri <vatsa@linux.vnet.ibm.com>
  *
  *  Scaled math optimizations by Thomas Gleixner
- *  Copyright (C) 2007, Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (C) 2007, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  *
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
@@ -8828,16 +8828,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	if ((wake_flags & WF_FORK) || pse->sched_delayed)
 		return;
 
-	/*
-	 * If @p potentially is completing work required by current then
-	 * consider preemption.
-	 *
-	 * Reschedule if waker is no longer eligible. */
-	if (in_task() && !entity_eligible(cfs_rq, se)) {
-		preempt_action = PREEMPT_WAKEUP_RESCHED;
-		goto preempt;
-	}
-
 	/* Prefer picking wakee soon if appropriate. */
 	if (sched_feat(NEXT_BUDDY) &&
 	    set_preempt_buddy(cfs_rq, wake_flags, pse, se)) {
@@ -8994,12 +8984,6 @@ idle:
 		if (new_tasks > 0)
 			goto again;
 	}
-
-	/*
-	 * rq is about to be idle, check if we need to update the
-	 * lost_idle_time of clock_pelt
-	 */
-	update_idle_rq_clock_pelt(rq);
 
 	return NULL;
 }
