@@ -139,6 +139,20 @@ struct rx_cmp_ext {
 	__le32 rx_cmp_timestamp;
 };
 
+#define RX_AGG_CMP_TYPE			GENMASK(5, 0)
+#define RX_AGG_CMP_LEN			GENMASK(31, 16)
+#define RX_AGG_CMP_LEN_SHIFT		16
+#define RX_AGG_CMP_V			BIT(0)
+#define RX_AGG_CMP_AGG_ID		GENMASK(25, 16)
+#define RX_AGG_CMP_AGG_ID_SHIFT		16
+
+struct rx_agg_cmp {
+	__le32 rx_agg_cmp_len_flags_type;
+	u32 rx_agg_cmp_opaque;
+	__le32 rx_agg_cmp_v;
+	__le32 rx_agg_cmp_unused;
+};
+
 #define RX_CMP_L2_ERRORS						\
 	cpu_to_le32(RX_CMPL_ERRORS_BUFFER_ERROR_MASK | RX_CMPL_ERRORS_CRC_ERROR)
 
