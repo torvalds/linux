@@ -789,8 +789,15 @@ static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
 	tar_addr = (__force u64)otx2_get_regaddr(pfvf, NPA_LF_AURA_BATCH_FREE0);
 	/* LMTID is same as AURA Id */
 	val = (lmt_info->lmt_id & 0x7FF) | BIT_ULL(63);
-	/* Set if [127:64] of last 128bit word has a valid pointer */
-	count_eot = (num_ptrs % 2) ? 0ULL : 1ULL;
+	/* Meaning of count_eot
+	 * CN10K: count_eot = 0 if the number of pointers to free is even,
+	 *	  count_eot = 1 if the number of pointers to free is odd.
+	 *
+	 * CN20K: count_eot represents the least significant 2 bits of the
+	 *	  total number of valid pointers to free.
+	 *        Example: if 7 pointers are freed (0b111), count_eot = 0b11.
+	 */
+	count_eot = (num_ptrs - 1) & 0x3ULL;
 	/* Set AURA ID to free pointer */
 	ptrs[0] = (count_eot << 32) | (aura & 0xFFFFF);
 	/* Target address for LMTST flush tells HW how many 128bit
@@ -800,7 +807,7 @@ static inline void __cn10k_aura_freeptr(struct otx2_nic *pfvf, u64 aura,
 	 */
 	if (num_ptrs > 2) {
 		size = (sizeof(u64) * num_ptrs) / 16;
-		if (!count_eot)
+		if (!(count_eot & 1))
 			size++;
 		tar_addr |=  ((size - 1) & 0x7) << 4;
 	}
