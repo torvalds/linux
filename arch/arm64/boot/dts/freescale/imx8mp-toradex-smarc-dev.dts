@@ -107,6 +107,10 @@
 	pinctrl-0 = <&pinctrl_gpio4>, <&pinctrl_gpio6>;
 };
 
+&hdmi_pai {
+	status = "okay";
+};
+
 &hdmi_pvi {
 	status = "okay";
 };

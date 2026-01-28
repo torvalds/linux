@@ -234,7 +234,7 @@
 		arm,no-tick-in-suspend;
 	};
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		cpu-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <2000>;

@@ -1044,7 +1044,7 @@
 	};
 
 	pinctrl_mcu_int: mcuintgrp {
-		fsl,pins = <MX8MP_IOMUXC_NAND_DATA02__GPIO3_IO08	0x1C0>; /* MCU_INT# */
+		fsl,pins = <MX8MP_IOMUXC_NAND_DATA02__GPIO3_IO08	0x1c0>; /* MCU_INT# */
 	};
 
 	/* SMARC LCD1_BKLT_PWM */
@@ -1096,12 +1096,12 @@
 
 	/* SMARC SLEEP# */
 	pinctrl_sleep: sleepgrp {
-		fsl,pins = <MX8MP_IOMUXC_NAND_CE0_B__GPIO3_IO01	0x1C0>; /* SMARC S149 - SLEEP# */
+		fsl,pins = <MX8MP_IOMUXC_NAND_CE0_B__GPIO3_IO01	0x1c0>; /* SMARC S149 - SLEEP# */
 	};
 
 	/* SMARC SMB_ALERT# */
 	pinctrl_smb_alert: smbalertgrp {
-		fsl,pins = <MX8MP_IOMUXC_NAND_READY_B__GPIO3_IO16	0x1C0>; /* SMARC P1 - SMB_ALERT# */
+		fsl,pins = <MX8MP_IOMUXC_NAND_READY_B__GPIO3_IO16	0x1c0>; /* SMARC P1 - SMB_ALERT# */
 	};
 
 	/* TPM_CS# */

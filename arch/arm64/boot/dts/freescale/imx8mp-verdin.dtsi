@@ -832,10 +832,6 @@
 	#pwm-cells = <3>;
 };
 
-/* TODO: Verdin I2S_1 */
-
-/* TODO: Verdin I2S_2 */
-
 &snvs_pwrkey {
 	status = "okay";
 };
