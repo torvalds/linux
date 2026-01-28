@@ -560,9 +560,12 @@ out:
 }
 
 /*
- * Basic procedure for returning a delegation to the server
+ * Basic procedure for returning a delegation to the server.
+ * If @issync is set, wait until state recovery has finished.  Otherwise
+ * return -EAGAIN to the caller if we need more time.
  */
-static int nfs_end_delegation_return(struct inode *inode, struct nfs_delegation *delegation, int issync)
+static int nfs_end_delegation_return(struct inode *inode,
+		struct nfs_delegation *delegation, bool issync)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	unsigned int mode = O_WRONLY | O_RDWR;
@@ -635,7 +638,7 @@ static int nfs_return_one_delegation(struct nfs_server *server)
 
 	nfs_clear_verifier_delegated(inode);
 
-	err = nfs_end_delegation_return(inode, delegation, 0);
+	err = nfs_end_delegation_return(inode, delegation, false);
 	if (err) {
 		nfs_mark_return_delegation(server, delegation);
 		goto out_put_inode;
@@ -827,7 +830,7 @@ void nfs4_inode_return_delegation(struct inode *inode)
 	break_lease(inode, O_WRONLY | O_RDWR);
 	if (S_ISREG(inode->i_mode))
 		nfs_wb_all(inode);
-	nfs_end_delegation_return(inode, delegation, 1);
+	nfs_end_delegation_return(inode, delegation, true);
 	nfs_put_delegation(delegation);
 }
 
@@ -863,7 +866,7 @@ out_unlock:
 	spin_unlock(&delegation->lock);
 	if (return_now) {
 		nfs_clear_verifier_delegated(inode);
-		nfs_end_delegation_return(inode, delegation, 0);
+		nfs_end_delegation_return(inode, delegation, false);
 	}
 	nfs_put_delegation(delegation);
 }
@@ -898,7 +901,7 @@ void nfs4_inode_return_delegation_on_close(struct inode *inode)
 
 	if (return_now) {
 		nfs_clear_verifier_delegated(inode);
-		nfs_end_delegation_return(inode, delegation, 0);
+		nfs_end_delegation_return(inode, delegation, false);
 	} else {
 		nfs_delegation_add_lru(server, delegation);
 	}
