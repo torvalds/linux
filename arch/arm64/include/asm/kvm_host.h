@@ -201,7 +201,7 @@ struct kvm_s2_mmu {
 	 * host to parse the guest S2.
 	 * This either contains:
 	 * - the virtual VTTBR programmed by the guest hypervisor with
-         *   CnP cleared
+	 *   CnP cleared
 	 * - The value 1 (VMID=0, BADDR=0, CnP=1) if invalid
 	 *
 	 * We also cache the full VTCR which gets used for TLB invalidation,
