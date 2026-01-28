@@ -4539,6 +4539,8 @@
 			snps,hird-threshold = /bits/ 8 <0x10>;
 			snps,usb3_lpm_capable;
 
+			wakeup-source;
+
 			status = "disabled";
 		};
 
@@ -4593,6 +4595,7 @@
 			snps,hird-threshold = /bits/ 8 <0x10>;
 
 			maximum-speed = "high-speed";
+			wakeup-source;
 
 			status = "disabled";
 		};
