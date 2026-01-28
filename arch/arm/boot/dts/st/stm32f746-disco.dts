@@ -46,6 +46,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "STMicroelectronics STM32F746-DISCO board";
@@ -80,7 +81,9 @@
 
 	leds {
 		compatible = "gpio-leds";
-		led-usr {
+		led_usr: led-usr {
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&gpioi 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
@@ -93,6 +96,13 @@
 			label = "User";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpioi 11 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			boot-led = <&led_usr>;
 		};
 	};
 
