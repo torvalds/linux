@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: November 2025
+:Date: January 2026
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -142,11 +142,11 @@ This enables the creation of an inclusive ruleset that will contain our rules.
     }
 
 We can now add a new rule to this ruleset thanks to the returned file
-descriptor referring to this ruleset.  The rule will only allow reading the
-file hierarchy ``/usr``.  Without another rule, write actions would then be
-denied by the ruleset.  To add ``/usr`` to the ruleset, we open it with the
-``O_PATH`` flag and fill the &struct landlock_path_beneath_attr with this file
-descriptor.
+descriptor referring to this ruleset.  The rule will allow reading and
+executing the file hierarchy ``/usr``.  Without another rule, write actions
+would then be denied by the ruleset.  To add ``/usr`` to the ruleset, we open
+it with the ``O_PATH`` flag and fill the &struct landlock_path_beneath_attr with
+this file descriptor.
 
 .. code-block:: c
 
@@ -191,10 +191,24 @@ number for a specific action: HTTPS connections.
     err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
                             &net_port, 0);
 
+When passing a non-zero ``flags`` argument to ``landlock_restrict_self()``, a
+similar backwards compatibility check is needed for the restrict flags
+(see sys_landlock_restrict_self() documentation for available flags):
+
+.. code-block:: c
+
+    __u32 restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON;
+    if (abi < 7) {
+        /* Clear logging flags unsupported before ABI 7. */
+        restrict_flags &= ~(LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF |
+                            LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON |
+                            LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF);
+    }
+
 The next step is to restrict the current thread from gaining more privileges
 (e.g. through a SUID binary).  We now have a ruleset with the first rule
-allowing read access to ``/usr`` while denying all other handled accesses for
-the filesystem, and a second rule allowing HTTPS connections.
+allowing read and execute access to ``/usr`` while denying all other handled
+accesses for the filesystem, and a second rule allowing HTTPS connections.
 
 .. code-block:: c
 
@@ -208,7 +222,7 @@ The current thread is now ready to sandbox itself with the ruleset.
 
 .. code-block:: c
 
-    if (landlock_restrict_self(ruleset_fd, 0)) {
+    if (landlock_restrict_self(ruleset_fd, restrict_flags)) {
         perror("Failed to enforce ruleset");
         close(ruleset_fd);
         return 1;
