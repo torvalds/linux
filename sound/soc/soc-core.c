@@ -2556,6 +2556,10 @@ int snd_soc_register_card(struct snd_soc_card *card)
 	if (!card->name || !card->dev)
 		return -EINVAL;
 
+	card->dapm = snd_soc_dapm_alloc(card->dev);
+	if (!card->dapm)
+		return -ENOMEM;
+
 	dev_set_drvdata(card->dev, card);
 
 	INIT_LIST_HEAD(&card->widgets);
@@ -2840,6 +2844,10 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 				 const struct snd_soc_component_driver *driver,
 				 struct device *dev)
 {
+	component->dapm = snd_soc_dapm_alloc(dev);
+	if (!component->dapm)
+		return -ENOMEM;
+
 	INIT_LIST_HEAD(&component->dai_list);
 	INIT_LIST_HEAD(&component->dobj_list);
 	INIT_LIST_HEAD(&component->card_list);
