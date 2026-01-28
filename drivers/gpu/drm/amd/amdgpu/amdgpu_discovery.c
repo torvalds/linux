@@ -793,7 +793,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 	struct harvest_table *harvest_info;
 	u16 offset;
 	int i;
-	uint32_t umc_harvest_config = 0;
+	u64 umc_harvest_config = 0;
 
 	if (amdgpu_discovery_get_table_info(adev, &info, HARVEST_INFO))
 		return;
@@ -850,7 +850,7 @@ static void amdgpu_discovery_read_from_harvest_table(struct amdgpu_device *adev,
 		}
 	}
 
-	adev->umc.active_mask = ((1 << adev->umc.node_inst_num) - 1) &
+	adev->umc.active_mask = ((1ULL << adev->umc.node_inst_num) - 1ULL) &
 				~umc_harvest_config;
 }
 
