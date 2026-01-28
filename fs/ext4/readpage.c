@@ -130,7 +130,8 @@ static void bio_post_read_processing(struct bio_post_read_ctx *ctx)
 		ctx->cur_step++;
 		fallthrough;
 	case STEP_VERITY:
-		if (ctx->enabled_steps & (1 << STEP_VERITY)) {
+		if (IS_ENABLED(CONFIG_FS_VERITY) &&
+		    ctx->enabled_steps & (1 << STEP_VERITY)) {
 			INIT_WORK(&ctx->work, verity_work);
 			fsverity_enqueue_verify_work(&ctx->work);
 			return;
