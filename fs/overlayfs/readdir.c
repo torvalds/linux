@@ -76,7 +76,8 @@ static int ovl_casefold(struct ovl_readdir_data *rdd, const char *str, int len,
 	char *cf_name;
 	int cf_len;
 
-	if (!IS_ENABLED(CONFIG_UNICODE) || !rdd->map || is_dot_dotdot(str, len))
+	if (!IS_ENABLED(CONFIG_UNICODE) || !rdd->map ||
+	    name_is_dot_dotdot(str, len))
 		return 0;
 
 	cf_name = kmalloc(NAME_MAX, GFP_KERNEL);
