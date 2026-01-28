@@ -1897,6 +1897,8 @@ void __init acpi_ghes_init(void)
  */
 static struct acpi_platform_list plat_list[] = {
 	{"HPE   ", "Server  ", 0, ACPI_SIG_FADT, all_versions},
+	{"__ZX__", "EDK2    ", 3, ACPI_SIG_FADT, greater_than_or_equal},
+	{"_BYO_ ", "BYOSOFT ", 3, ACPI_SIG_FADT, greater_than_or_equal},
 	{ } /* End */
 };
 
