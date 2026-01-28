@@ -50,7 +50,7 @@ do
 		do
 			err=
 			val=$((d*1000+t*10+c))
-			tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 5s --configs "SRCU-P" --kconfig "CONFIG_FORCE_NEED_SRCU_NMI_SAFE=y" --bootargs "rcutorture.test_srcu_lockdep=$val rcutorture.reader_flavor=0x2" --trust-make --datestamp "$ds/$val" > "$T/kvm.sh.out" 2>&1
+			tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration 5s --configs "SRCU-P" --kconfig "CONFIG_FORCE_NEED_SRCU_NMI_SAFE=y" --bootargs "rcutorture.test_srcu_lockdep=$val rcutorture.reader_flavor=0x4" --trust-make --datestamp "$ds/$val" > "$T/kvm.sh.out" 2>&1
 			ret=$?
 			mv "$T/kvm.sh.out" "$RCUTORTURE/res/$ds/$val"
 			if ! grep -q '^CONFIG_PROVE_LOCKING=y' .config
@@ -92,12 +92,12 @@ do
 		nerrs=$((nerrs+1))
 		err=1
 	fi
-	if test "$val" -eq 0xf && test "$ret" -eq 0
+	if test "$val" = 0xf && test "$ret" -eq 0
 	then
 		err=1
 		echo -n Unexpected success for > "$RCUTORTURE/res/$ds/$val/kvm.sh.err"
 	fi
-	if test "$val" -eq 0x1 && test "$ret" -ne 0
+	if test "$val" = 0x1 && test "$ret" -ne 0
 	then
 		err=1
 		echo -n Unexpected failure for > "$RCUTORTURE/res/$ds/$val/kvm.sh.err"
