@@ -206,11 +206,9 @@
 
 &dsi0 {
 	status = "okay";
-	ports {
-		port {
-			dsi0_out: endpoint {
-				remote-endpoint = <&ps8640_in>;
-			};
+	port {
+		dsi0_out: endpoint {
+			remote-endpoint = <&ps8640_in>;
 		};
 	};
 };
@@ -432,19 +430,19 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	btmrvl: btmrvl@2 {
+	mwifiex: wifi@1 {
+		compatible = "marvell,sd8897";
+		reg = <1>;
+		interrupts-extended = <&pio 38 IRQ_TYPE_LEVEL_LOW>;
+		marvell,wakeup-pin = <3>;
+	};
+
+	btmrvl: bluetooth@2 {
 		compatible = "marvell,sd8897-bt";
 		reg = <2>;
 		interrupts-extended = <&pio 119 IRQ_TYPE_LEVEL_LOW>;
 		marvell,wakeup-pin = /bits/ 16 <0x0d>;
 		marvell,wakeup-gap-ms = /bits/ 16 <0x64>;
-	};
-
-	mwifiex: mwifiex@1 {
-		compatible = "marvell,sd8897";
-		reg = <1>;
-		interrupts-extended = <&pio 38 IRQ_TYPE_LEVEL_LOW>;
-		marvell,wakeup-pin = <3>;
 	};
 };
 
@@ -601,8 +599,8 @@
 			  "SOC_I2C4_1V8_SDA_400K",
 			  "SOC_I2C4_1V8_SCL_400K";
 
-	aud_i2s2: aud_i2s2 {
-		pins1 {
+	aud_i2s2: aud-i2s2-pins {
+		pins-bus {
 			pinmux = <MT8173_PIN_128_I2S0_LRCK__FUNC_I2S1_WS>,
 				 <MT8173_PIN_129_I2S0_BCK__FUNC_I2S1_BCK>,
 				 <MT8173_PIN_130_I2S0_MCK__FUNC_I2S1_MCK>,
@@ -614,55 +612,55 @@
 		};
 	};
 
-	bl_fixed_pins: bl_fixed_pins {
-		pins1 {
+	bl_fixed_pins: backlight-pins {
+		pins-blon {
 			pinmux = <MT8173_PIN_32_UTXD2__FUNC_GPIO32>;
 			output-low;
 		};
 	};
 
-	bt_wake_pins: bt_wake_pins {
-		pins1 {
+	bt_wake_pins: bt-pins {
+		pins-wake {
 			pinmux = <MT8173_PIN_119_KPROW0__FUNC_GPIO119>;
 			bias-pull-up;
 		};
 	};
 
-	disp_pwm0_pins: disp_pwm0_pins {
+	disp_pwm0_pins: disp-pwm0-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_87_DISP_PWM0__FUNC_DISP_PWM0>;
 			output-low;
 		};
 	};
 
-	gpio_keys_pins: gpio_keys_pins {
-		volume_pins {
+	gpio_keys_pins: gpio-keys-pins {
+		pins-volumeupdn {
 			pinmux = <MT8173_PIN_123_KPCOL1__FUNC_GPIO123>,
 				 <MT8173_PIN_124_KPCOL2__FUNC_GPIO124>;
 			bias-pull-up;
 		};
 
-		tablet_mode_pins {
+		pins-tabletmode {
 			pinmux = <MT8173_PIN_121_KPROW2__FUNC_GPIO121>;
 			bias-pull-up;
 		};
 	};
 
-	hdmi_mux_pins: hdmi_mux_pins {
-		pins1 {
+	hdmi_mux_pins: hdmi-pins {
+		pins-mux {
 			pinmux = <MT8173_PIN_36_DAISYNC__FUNC_GPIO36>;
 		};
 	};
 
-	i2c1_pins_a: i2c1 {
-		da9211_pins {
+	i2c1_pins_a: i2c1-pins {
+		pins-da9211 {
 			pinmux = <MT8173_PIN_15_EINT15__FUNC_GPIO15>;
 			bias-pull-up;
 		};
 	};
 
-	mmc0_pins_default: mmc0default {
-		pins_cmd_dat {
+	mmc0_pins_default: mmc0-default-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_57_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
 				 <MT8173_PIN_58_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
 				 <MT8173_PIN_59_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
@@ -675,68 +673,68 @@
 			bias-pull-up;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_65_MSDC0_CLK__FUNC_MSDC0_CLK>;
 			bias-pull-down;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT8173_PIN_68_MSDC0_RST___FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
-	mmc1_pins_default: mmc1default {
-		pins_cmd_dat {
+	mmc1_pins_default: mmc1-default-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_73_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
 				 <MT8173_PIN_74_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
 				 <MT8173_PIN_75_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
 				 <MT8173_PIN_76_MSDC1_DAT3__FUNC_MSDC1_DAT3>,
 				 <MT8173_PIN_78_MSDC1_CMD__FUNC_MSDC1_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_77_MSDC1_CLK__FUNC_MSDC1_CLK>;
 			bias-pull-down;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 		};
 
-		pins_insert {
+		pins-insert {
 			pinmux = <MT8173_PIN_1_EINT1__FUNC_GPIO1>;
 			bias-pull-up;
 		};
 	};
 
-	mmc3_pins_default: mmc3default {
-		pins_dat {
+	mmc3_pins_default: mmc3-default-pins {
+		pins-dat {
 			pinmux = <MT8173_PIN_22_MSDC3_DAT0__FUNC_MSDC3_DAT0>,
 				 <MT8173_PIN_23_MSDC3_DAT1__FUNC_MSDC3_DAT1>,
 				 <MT8173_PIN_24_MSDC3_DAT2__FUNC_MSDC3_DAT2>,
 				 <MT8173_PIN_25_MSDC3_DAT3__FUNC_MSDC3_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_cmd {
+		pins-cmd {
 			pinmux = <MT8173_PIN_27_MSDC3_CMD__FUNC_MSDC3_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_26_MSDC3_CLK__FUNC_MSDC3_CLK>;
 			bias-pull-down;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 	};
 
-	mmc0_pins_uhs: mmc0 {
-		pins_cmd_dat {
+	mmc0_pins_uhs: mmc0-uhs-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_57_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
 				 <MT8173_PIN_58_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
 				 <MT8173_PIN_59_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
@@ -747,109 +745,109 @@
 				 <MT8173_PIN_64_MSDC0_DAT7__FUNC_MSDC0_DAT7>,
 				 <MT8173_PIN_66_MSDC0_CMD__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_65_MSDC0_CLK__FUNC_MSDC0_CLK>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_ds {
+		pins-ds {
 			pinmux = <MT8173_PIN_67_MSDC0_DSL__FUNC_MSDC0_DSL>;
 			drive-strength = <MTK_DRIVE_10mA>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT8173_PIN_68_MSDC0_RST___FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
-	mmc1_pins_uhs: mmc1 {
-		pins_cmd_dat {
+	mmc1_pins_uhs: mmc1-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_73_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
 				 <MT8173_PIN_74_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
 				 <MT8173_PIN_75_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
 				 <MT8173_PIN_76_MSDC1_DAT3__FUNC_MSDC1_DAT3>,
 				 <MT8173_PIN_78_MSDC1_CMD__FUNC_MSDC1_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_77_MSDC1_CLK__FUNC_MSDC1_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
 
-	mmc3_pins_uhs: mmc3 {
-		pins_dat {
+	mmc3_pins_uhs: mmc3-pins {
+		pins-dat {
 			pinmux = <MT8173_PIN_22_MSDC3_DAT0__FUNC_MSDC3_DAT0>,
 				 <MT8173_PIN_23_MSDC3_DAT1__FUNC_MSDC3_DAT1>,
 				 <MT8173_PIN_24_MSDC3_DAT2__FUNC_MSDC3_DAT2>,
 				 <MT8173_PIN_25_MSDC3_DAT3__FUNC_MSDC3_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_cmd {
+		pins-cmd {
 			pinmux = <MT8173_PIN_27_MSDC3_CMD__FUNC_MSDC3_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_26_MSDC3_CLK__FUNC_MSDC3_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
 
-	nor_gpio1_pins: nor {
+	nor_gpio1_pins: nor-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_6_EINT6__FUNC_SFCS0>,
 				 <MT8173_PIN_7_EINT7__FUNC_SFHOLD>,
 				 <MT8173_PIN_8_EINT8__FUNC_SFIN>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			bias-pull-up;
 		};
 
 		pins2 {
 			pinmux = <MT8173_PIN_5_EINT5__FUNC_SFOUT>;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			bias-pull-up;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_9_EINT9__FUNC_SFCK>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			bias-pull-up;
 		};
 	};
 
-	panel_backlight_en_pins: panel_backlight_en_pins {
+	panel_backlight_en_pins: panel-backlight-en-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_95_PCM_TX__FUNC_GPIO95>;
 		};
 	};
 
-	panel_fixed_pins: panel_fixed_pins {
+	panel_fixed_pins: panel-fixed-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_41_CMMCLK__FUNC_GPIO41>;
 		};
 	};
 
-	ps8640_pins: ps8640_pins {
+	ps8640_pins: ps8640-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_92_PCM_CLK__FUNC_GPIO92>,
 				 <MT8173_PIN_115_URTS0__FUNC_GPIO115>,
@@ -857,33 +855,33 @@
 		};
 	};
 
-	ps8640_fixed_pins: ps8640_fixed_pins {
+	ps8640_fixed_pins: ps8640-fixed-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_30_URTS2__FUNC_GPIO30>;
 		};
 	};
 
-	rt5650_irq: rt5650_irq {
-		pins1 {
+	rt5650_irq: rt5650-pins {
+		pins-intn {
 			pinmux = <MT8173_PIN_3_EINT3__FUNC_GPIO3>;
 			bias-pull-down;
 		};
 	};
 
-	sdio_fixed_3v3_pins: sdio_fixed_3v3_pins {
+	sdio_fixed_3v3_pins: sdio-vreg-3v3-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_85_AUD_DAT_MOSI__FUNC_GPIO85>;
 			output-low;
 		};
 	};
 
-	spi_pins_a: spi1 {
+	spi_pins_a: spi1-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_0_EINT0__FUNC_GPIO0>;
 			bias-pull-up;
 		};
 
-		pins_spi {
+		pins-spi {
 			pinmux = <MT8173_PIN_102_MSDC2_DAT2__FUNC_SPI_CK_1_>,
 				 <MT8173_PIN_103_MSDC2_DAT3__FUNC_SPI_MI_1_>,
 				 <MT8173_PIN_104_MSDC2_CLK__FUNC_SPI_MO_1_>,
@@ -892,15 +890,15 @@
 		};
 	};
 
-	trackpad_irq: trackpad_irq {
-		pins1 {
+	trackpad_irq: trackpad-pins {
+		pins-intn {
 			pinmux = <MT8173_PIN_117_URXD3__FUNC_GPIO117>;
 			input-enable;
 			bias-pull-up;
 		};
 	};
 
-	usb_pins: usb {
+	usb_pins: usb-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_101_MSDC2_DAT1__FUNC_GPIO101>;
 			output-high;
@@ -908,8 +906,8 @@
 		};
 	};
 
-	wifi_wake_pins: wifi_wake_pins {
-		pins1 {
+	wifi_wake_pins: wifi-pins {
+		pins-wake {
 			pinmux = <MT8173_PIN_38_CONN_RST__FUNC_GPIO38>;
 			bias-pull-up;
 		};
@@ -1147,11 +1145,6 @@
 	wakeup-source;
 	vusb33-supply = <&mt6397_vusb_reg>;
 	status = "okay";
-};
-
-&thermal {
-	bank0-supply = <&mt6397_vpca15_reg>;
-	bank1-supply = <&da9211_vcpu_reg>;
 };
 
 &uart0 {

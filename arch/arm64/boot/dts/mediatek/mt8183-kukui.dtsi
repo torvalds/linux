@@ -44,10 +44,10 @@
 		clock-output-names = "clk32k";
 	};
 
-	it6505_pp18_reg: regulator0 {
+	pp1800_it6505: regulator0 {
 		compatible = "regulator-fixed";
-		regulator-name = "it6505_pp18";
-		gpio = <&pio 178 0>;
+		regulator-name = "pp1800_it6505";
+		gpios = <&pio 178 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&pp1800_alw>;
 	};

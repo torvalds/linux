@@ -344,7 +344,6 @@
 	status = "okay";
 
 	clock-frequency = <400000>;
-	clock-stretch-ns = <12600>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
 

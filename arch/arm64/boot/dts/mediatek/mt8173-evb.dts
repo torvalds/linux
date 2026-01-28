@@ -117,6 +117,7 @@
 	buck: da9211@68 {
 		compatible = "dlg,da9211";
 		reg = <0x68>;
+		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
 
 		regulators {
 			da9211_vcpu_reg: BUCKA {
@@ -172,15 +173,22 @@
 };
 
 &pio {
-	disp_pwm0_pins: disp_pwm0_pins {
+	disp_pwm0_pins: disp-pwm0-pins {
 		pins1 {
 			pinmux = <MT8173_PIN_87_DISP_PWM0__FUNC_DISP_PWM0>;
 			output-low;
 		};
 	};
 
-	mmc0_pins_default: mmc0default {
-		pins_cmd_dat {
+	i2c1_pins_a: i2c1-pins {
+		pins-da9211 {
+			pinmux = <MT8173_PIN_15_EINT15__FUNC_GPIO15>;
+			bias-pull-up;
+		};
+	};
+
+	mmc0_pins_default: mmc0-default-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_57_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
 				 <MT8173_PIN_58_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
 				 <MT8173_PIN_59_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
@@ -194,19 +202,19 @@
 			bias-pull-up;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_65_MSDC0_CLK__FUNC_MSDC0_CLK>;
 			bias-pull-down;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT8173_PIN_68_MSDC0_RST___FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
-	mmc1_pins_default: mmc1default {
-		pins_cmd_dat {
+	mmc1_pins_default: mmc1-default-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_73_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
 				 <MT8173_PIN_74_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
 				 <MT8173_PIN_75_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
@@ -217,20 +225,20 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_77_MSDC1_CLK__FUNC_MSDC1_CLK>;
 			bias-pull-down;
 			drive-strength = <4>;
 		};
 
-		pins_insert {
+		pins-insert {
 			pinmux = <MT8173_PIN_132_I2S0_DATA1__FUNC_GPIO132>;
 			bias-pull-up;
 		};
 	};
 
-	mmc0_pins_uhs: mmc0 {
-		pins_cmd_dat {
+	mmc0_pins_uhs: mmc0-uhs-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_57_MSDC0_DAT0__FUNC_MSDC0_DAT0>,
 				 <MT8173_PIN_58_MSDC0_DAT1__FUNC_MSDC0_DAT1>,
 				 <MT8173_PIN_59_MSDC0_DAT2__FUNC_MSDC0_DAT2>,
@@ -245,20 +253,29 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_65_MSDC0_CLK__FUNC_MSDC0_CLK>;
 			drive-strength = <2>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_01>;
 		};
 
-		pins_rst {
+		pins-rst {
 			pinmux = <MT8173_PIN_68_MSDC0_RST___FUNC_MSDC0_RSTB>;
 			bias-pull-up;
 		};
 	};
 
-	mmc1_pins_uhs: mmc1 {
-		pins_cmd_dat {
+	spi_pins_a: spi0-pins {
+		pins-bus {
+			pinmux = <MT8173_PIN_69_SPI_CK__FUNC_SPI_CK_0_>,
+				<MT8173_PIN_70_SPI_MI__FUNC_SPI_MI_0_>,
+				<MT8173_PIN_71_SPI_MO__FUNC_SPI_MO_0_>,
+				<MT8173_PIN_72_SPI_CS__FUNC_SPI_CS_0_>;
+		};
+	};
+
+	mmc1_pins_uhs: mmc1-uhs-pins {
+		pins-cmd-dat {
 			pinmux = <MT8173_PIN_73_MSDC1_DAT0__FUNC_MSDC1_DAT0>,
 				 <MT8173_PIN_74_MSDC1_DAT1__FUNC_MSDC1_DAT1>,
 				 <MT8173_PIN_75_MSDC1_DAT2__FUNC_MSDC1_DAT2>,
@@ -269,22 +286,22 @@
 			bias-pull-up = <MTK_PUPD_SET_R1R0_10>;
 		};
 
-		pins_clk {
+		pins-clk {
 			pinmux = <MT8173_PIN_77_MSDC1_CLK__FUNC_MSDC1_CLK>;
 			drive-strength = <4>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 	};
 
-	usb_id_pins_float: usb_iddig_pull_up {
-		pins_iddig {
+	usb_id_pins_float: usb-iddig-pu-pins {
+		pins-iddig-pu {
 			pinmux = <MT8173_PIN_16_IDDIG__FUNC_IDDIG>;
 			bias-pull-up;
 		};
 	};
 
-	usb_id_pins_ground: usb_iddig_pull_down {
-		pins_iddig {
+	usb_id_pins_ground: usb-iddig-pd-pins {
+		pins-iddig-pd {
 			pinmux = <MT8173_PIN_16_IDDIG__FUNC_IDDIG>;
 			bias-pull-down;
 		};
@@ -469,17 +486,6 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-enable-ramp-delay = <218>;
 			};
-		};
-	};
-};
-
-&pio {
-	spi_pins_a: spi0 {
-		pins_spi {
-			pinmux = <MT8173_PIN_69_SPI_CK__FUNC_SPI_CK_0_>,
-				<MT8173_PIN_70_SPI_MI__FUNC_SPI_MI_0_>,
-				<MT8173_PIN_71_SPI_MO__FUNC_SPI_MO_0_>,
-				<MT8173_PIN_72_SPI_CS__FUNC_SPI_CS_0_>;
 		};
 	};
 };

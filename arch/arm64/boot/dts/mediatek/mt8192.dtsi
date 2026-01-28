@@ -973,7 +973,7 @@
 			reg = <0 0x11210000 0 0x2000>;
 			#clock-cells = <1>;
 
-			afe: mt8192-afe-pcm {
+			afe: audio-controller {
 				compatible = "mediatek,mt8192-audio";
 				interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH 0>;
 				resets = <&watchdog 17>;

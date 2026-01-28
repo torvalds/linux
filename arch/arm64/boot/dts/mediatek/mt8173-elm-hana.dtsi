@@ -5,6 +5,14 @@
 
 #include "mt8173-elm.dtsi"
 
+&hdmi_mux_pins {
+	pins-mux {
+		pinmux = <MT8173_PIN_98_URTS1__FUNC_GPIO98>;
+		bias-pull-up;
+		output-high;
+	};
+};
+
 &i2c0 {
 	clock-frequency = <200000>;
 };
@@ -67,26 +75,16 @@
 	};
 };
 
-&mmc1 {
-	wp-gpios = <&pio 42 GPIO_ACTIVE_HIGH>;
+&mmc1_pins_default {
+	pins-wp {
+		pinmux = <MT8173_PIN_42_DSI_TE__FUNC_GPIO42>;
+		input-enable;
+		bias-pull-up;
+	};
 };
 
-&pio {
-	hdmi_mux_pins: hdmi_mux_pins {
-		pins2 {
-			pinmux = <MT8173_PIN_98_URTS1__FUNC_GPIO98>;
-			bias-pull-up;
-			output-high;
-		};
-	};
-
-	mmc1_pins_default: mmc1default {
-		pins_wp {
-			pinmux = <MT8173_PIN_42_DSI_TE__FUNC_GPIO42>;
-			input-enable;
-			bias-pull-up;
-		};
-	};
+&mmc1 {
+	wp-gpios = <&pio 42 GPIO_ACTIVE_HIGH>;
 };
 
 &touchscreen {
