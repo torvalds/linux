@@ -86,37 +86,6 @@ bool btrfs_compress_is_valid_type(const char *str, size_t len)
 	return false;
 }
 
-static int compression_compress_pages(int type, struct list_head *ws,
-				      struct btrfs_inode *inode, u64 start,
-				      struct folio **folios, unsigned long *out_folios,
-				      unsigned long *total_in, unsigned long *total_out)
-{
-	switch (type) {
-	case BTRFS_COMPRESS_ZLIB:
-		return zlib_compress_folios(ws, inode, start, folios,
-					    out_folios, total_in, total_out);
-	case BTRFS_COMPRESS_LZO:
-		return lzo_compress_folios(ws, inode, start, folios,
-					   out_folios, total_in, total_out);
-	case BTRFS_COMPRESS_ZSTD:
-		return zstd_compress_folios(ws, inode, start, folios,
-					    out_folios, total_in, total_out);
-	case BTRFS_COMPRESS_NONE:
-	default:
-		/*
-		 * This can happen when compression races with remount setting
-		 * it to 'no compress', while caller doesn't call
-		 * inode_need_compress() to check if we really need to
-		 * compress.
-		 *
-		 * Not a big deal, just need to inform caller that we
-		 * haven't allocated any pages yet.
-		 */
-		*out_folios = 0;
-		return -E2BIG;
-	}
-}
-
 static int compression_decompress_bio(struct list_head *ws,
 				      struct compressed_bio *cb)
 {
@@ -1021,45 +990,6 @@ int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
 	}
 	*in_folio_ret = in_folio;
 	return 0;
-}
-
-/*
- * Given an address space and start and length, compress the bytes into @pages
- * that are allocated on demand.
- *
- * @type_level is encoded algorithm and level, where level 0 means whatever
- * default the algorithm chooses and is opaque here;
- * - compression algo are 0-3
- * - the level are bits 4-7
- *
- * @out_folios is an in/out parameter, holds maximum number of folios to allocate
- * and returns number of actually allocated folios
- *
- * @total_in is used to return the number of bytes actually read.  It
- * may be smaller than the input length if we had to exit early because we
- * ran out of room in the folios array or because we cross the
- * max_out threshold.
- *
- * @total_out is an in/out parameter, must be set to the input length and will
- * be also used to return the total number of compressed bytes
- */
-int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inode,
-			 u64 start, struct folio **folios, unsigned long *out_folios,
-			 unsigned long *total_in, unsigned long *total_out)
-{
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	const unsigned long orig_len = *total_out;
-	struct list_head *workspace;
-	int ret;
-
-	level = btrfs_compress_set_level(type, level);
-	workspace = get_workspace(fs_info, type, level);
-	ret = compression_compress_pages(type, workspace, inode, start, folios,
-					 out_folios, total_in, total_out);
-	/* The total read-in bytes should be no larger than the input. */
-	ASSERT(*total_in <= orig_len);
-	put_workspace(fs_info, type, workspace);
-	return ret;
 }
 
 /*

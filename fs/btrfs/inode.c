@@ -966,7 +966,7 @@ static void compress_file_range(struct btrfs_work *work)
 	/*
 	 * All the folios should have been locked thus no failure.
 	 *
-	 * And even if some folios are missing, btrfs_compress_folios()
+	 * And even if some folios are missing, btrfs_compress_bio()
 	 * would handle them correctly, so here just do an ASSERT() check for
 	 * early logic errors.
 	 */
