@@ -200,6 +200,10 @@ struct handle_to_path_ctx {
  * @get_parent:     find the parent of a given directory
  * @commit_metadata: commit metadata changes to stable storage
  *
+ * Methods for open_by_handle(2) syscall with special kernel file systems:
+ * @permission:     custom permission for opening a file by handle
+ * @open:           custom open routine for opening file by handle
+ *
  * See Documentation/filesystems/nfs/exporting.rst for details on how to use
  * this interface correctly and the definition of the flags.
  *
@@ -244,10 +248,14 @@ struct handle_to_path_ctx {
  *    space cannot be allocated, a %ERR_PTR should be returned.
  *
  * @permission:
- *    Allow filesystems to specify a custom permission function.
+ *    Allow filesystems to specify a custom permission function for the
+ *    open_by_handle_at(2) syscall instead of the default permission check.
+ *    This custom permission function is not respected by nfsd.
  *
  * @open:
- *    Allow filesystems to specify a custom open function.
+ *    Allow filesystems to specify a custom open function for the
+ *    open_by_handle_at(2) syscall instead of the default file_open_root().
+ *    This custom open function is not respected by nfsd.
  *
  * @commit_metadata:
  *    @commit_metadata should commit metadata changes to stable storage.
