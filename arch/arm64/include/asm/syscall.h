@@ -77,23 +77,29 @@ static inline void syscall_set_nr(struct task_struct *task,
 	}
 }
 
-#define SYSCALL_MAX_ARGS 6
-
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
 					 unsigned long *args)
 {
 	args[0] = regs->orig_x0;
-	args++;
-
-	memcpy(args, &regs->regs[1], 5 * sizeof(args[0]));
+	args[1] = regs->regs[1];
+	args[2] = regs->regs[2];
+	args[3] = regs->regs[3];
+	args[4] = regs->regs[4];
+	args[5] = regs->regs[5];
 }
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
 					 const unsigned long *args)
 {
-	memcpy(&regs->regs[0], args, 6 * sizeof(args[0]));
+	regs->regs[0] = args[0];
+	regs->regs[1] = args[1];
+	regs->regs[2] = args[2];
+	regs->regs[3] = args[3];
+	regs->regs[4] = args[4];
+	regs->regs[5] = args[5];
+
 	/*
 	 * Also copy the first argument into orig_x0
 	 * so that syscall_get_arguments() would return it
