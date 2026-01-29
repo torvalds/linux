@@ -295,7 +295,6 @@ struct adxl372_state {
 	u32				inact_time_ms;
 	u8				fifo_set_size;
 	unsigned long			int1_bitmask;
-	unsigned long			int2_bitmask;
 	u16				watermark;
 	__be16				fifo_buf[ADXL372_FIFO_SIZE];
 	bool				peak_fifo_mode_en;
