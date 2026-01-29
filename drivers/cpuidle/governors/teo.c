@@ -48,12 +48,11 @@
  * in accordance with what happened last time.
  *
  * The "hits" metric reflects the relative frequency of situations in which the
- * sleep length and the idle duration measured after CPU wakeup fall into the
- * same bin (that is, the CPU appears to wake up "on time" relative to the sleep
- * length).  In turn, the "intercepts" metric reflects the relative frequency of
- * non-timer wakeup events for which the measured idle duration falls into a bin
- * that corresponds to an idle state shallower than the one whose bin is fallen
- * into by the sleep length (these events are also referred to as "intercepts"
+ * sleep length and the idle duration measured after CPU wakeup are close enough
+ * (that is, the CPU appears to wake up "on time" relative to the sleep length).
+ * In turn, the "intercepts" metric reflects the relative frequency of non-timer
+ * wakeup events for which the measured idle duration is significantly different
+ * from the sleep length (these events are also referred to as "intercepts"
  * below).
  *
  * The governor also counts "intercepts" with the measured idle duration below
@@ -167,6 +166,7 @@ static void teo_decay(unsigned int *metric)
  */
 static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 {
+	s64 lat_ns = drv->states[dev->last_state_idx].exit_latency_ns;
 	struct teo_cpu *cpu_data = this_cpu_ptr(&teo_cpus);
 	int i, idx_timer = 0, idx_duration = 0;
 	s64 target_residency_ns, measured_ns;
@@ -182,8 +182,6 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		 */
 		measured_ns = S64_MAX;
 	} else {
-		s64 lat_ns = drv->states[dev->last_state_idx].exit_latency_ns;
-
 		measured_ns = dev->last_residency_ns;
 		/*
 		 * The delay between the wakeup and the first instruction
@@ -253,12 +251,17 @@ static void teo_update(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	}
 
 	/*
-	 * If the measured idle duration falls into the same bin as the sleep
-	 * length, this is a "hit", so update the "hits" metric for that bin.
+	 * If the measured idle duration (adjusted for the entered state exit
+	 * latency) falls into the same bin as the sleep length and the latter
+	 * is less than the "raw" measured idle duration (so the wakeup appears
+	 * to have occurred after the anticipated timer event), this is a "hit",
+	 * so update the "hits" metric for that bin.
+	 *
 	 * Otherwise, update the "intercepts" metric for the bin fallen into by
 	 * the measured idle duration.
 	 */
-	if (idx_timer == idx_duration) {
+	if (idx_timer == idx_duration &&
+	    cpu_data->sleep_length_ns - measured_ns < lat_ns / 2) {
 		cpu_data->state_bins[idx_timer].hits += PULSE;
 	} else {
 		cpu_data->state_bins[idx_duration].intercepts += PULSE;
