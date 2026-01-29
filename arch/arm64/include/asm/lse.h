@@ -4,8 +4,6 @@
 
 #include <asm/atomic_ll_sc.h>
 
-#ifdef CONFIG_ARM64_LSE_ATOMICS
-
 #define __LSE_PREAMBLE	".arch_extension lse\n"
 
 #include <linux/compiler_types.h>
@@ -27,11 +25,4 @@
 #define ARM64_LSE_ATOMIC_INSN(llsc, lse)				\
 	ALTERNATIVE(llsc, __LSE_PREAMBLE lse, ARM64_HAS_LSE_ATOMICS)
 
-#else	/* CONFIG_ARM64_LSE_ATOMICS */
-
-#define __lse_ll_sc_body(op, ...)		__ll_sc_##op(__VA_ARGS__)
-
-#define ARM64_LSE_ATOMIC_INSN(llsc, lse)	llsc
-
-#endif	/* CONFIG_ARM64_LSE_ATOMICS */
 #endif	/* __ASM_LSE_H */
