@@ -1265,18 +1265,11 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 	else
 		pstat->flags &= ~WLAN_STA_SHORT_PREAMBLE;
 
-
-
-	if (status != WLAN_STATUS_SUCCESS)
-		goto OnAssocReqFail;
-
 	/* TODO: identify_proprietary_vendor_ie(); */
 	/*  Realtek proprietary IE */
 	/*  identify if this is Broadcom sta */
 	/*  identify if this is ralink sta */
 	/*  Customer proprietary IE */
-
-
 
 	/* get a unique AID */
 	if (pstat->aid == 0) {
