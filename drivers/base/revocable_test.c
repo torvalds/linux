@@ -17,9 +17,14 @@
  *
  * - Provider Use-after-free: Verifies revocable_init() correctly handles
  *   race conditions where the provider is being released.
+ *
+ * - Concurrent Access: Verifies multiple threads can access the resource.
  */
 
 #include <kunit/test.h>
+#include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/kthread.h>
 #include <linux/refcount.h>
 #include <linux/revocable.h>
 
@@ -160,12 +165,111 @@ static void revocable_test_provider_use_after_free(struct kunit *test)
 	KUNIT_EXPECT_NE(test, ret, 0);
 }
 
+struct test_concurrent_access_context {
+	struct kunit *test;
+	struct revocable_provider __rcu *rp;
+	struct revocable rev;
+	struct completion started, enter, exit;
+	struct task_struct *thread;
+	void *expected_res;
+};
+
+static int test_concurrent_access_provider(void *data)
+{
+	struct test_concurrent_access_context *ctx = data;
+
+	complete(&ctx->started);
+
+	wait_for_completion(&ctx->enter);
+	revocable_provider_revoke(&ctx->rp);
+	KUNIT_EXPECT_PTR_EQ(ctx->test, unrcu_pointer(ctx->rp), NULL);
+
+	return 0;
+}
+
+static int test_concurrent_access_consumer(void *data)
+{
+	struct test_concurrent_access_context *ctx = data;
+	void *res;
+
+	complete(&ctx->started);
+
+	wait_for_completion(&ctx->enter);
+	res = revocable_try_access(&ctx->rev);
+	KUNIT_EXPECT_PTR_EQ(ctx->test, res, ctx->expected_res);
+
+	wait_for_completion(&ctx->exit);
+	revocable_withdraw_access(&ctx->rev);
+
+	return 0;
+}
+
+static void revocable_test_concurrent_access(struct kunit *test)
+{
+	struct revocable_provider __rcu *rp;
+	void *real_res = (void *)0x12345678;
+	struct test_concurrent_access_context *ctx;
+	int ret, i;
+
+	rp = revocable_provider_alloc(real_res);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
+
+	ctx = kunit_kmalloc_array(test, 3, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	for (i = 0; i < 3; ++i) {
+		ctx[i].test = test;
+		init_completion(&ctx[i].started);
+		init_completion(&ctx[i].enter);
+		init_completion(&ctx[i].exit);
+
+		if (i == 0) {
+			ctx[i].rp = rp;
+			ctx[i].thread = kthread_run(
+				test_concurrent_access_provider, ctx + i,
+				"revocable_provider_%d", i);
+		} else {
+			ret = revocable_init(rp, &ctx[i].rev);
+			KUNIT_ASSERT_EQ(test, ret, 0);
+
+			ctx[i].thread = kthread_run(
+				test_concurrent_access_consumer, ctx + i,
+				"revocable_consumer_%d", i);
+		}
+		KUNIT_ASSERT_FALSE(test, IS_ERR(ctx[i].thread));
+
+		wait_for_completion(&ctx[i].started);
+	}
+	ctx[1].expected_res = real_res;
+	ctx[2].expected_res = NULL;
+
+	/* consumer1 enters read-side critical section */
+	complete(&ctx[1].enter);
+	msleep(100);
+	/* provider0 revokes the resource */
+	complete(&ctx[0].enter);
+	msleep(100);
+	/* consumer2 enters read-side critical section */
+	complete(&ctx[2].enter);
+	msleep(100);
+
+	/* consumer{1,2} exit read-side critical section */
+	complete(&ctx[1].exit);
+	complete(&ctx[2].exit);
+
+	for (i = 0; i < 3; ++i)
+		kthread_stop(ctx[i].thread);
+	for (i = 1; i < 3; ++i)
+		revocable_deinit(&ctx[i].rev);
+}
+
 static struct kunit_case revocable_test_cases[] = {
 	KUNIT_CASE(revocable_test_basic),
 	KUNIT_CASE(revocable_test_revocation),
 	KUNIT_CASE(revocable_test_try_access_macro),
 	KUNIT_CASE(revocable_test_try_access_macro2),
 	KUNIT_CASE(revocable_test_provider_use_after_free),
+	KUNIT_CASE(revocable_test_concurrent_access),
 	{}
 };
 
