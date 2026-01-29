@@ -575,3 +575,17 @@ bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev
 	return plen && flen && flen == plen &&
 		!memcmp(fsystem_guid, psystem_guid, flen);
 }
+
+void mlx5_core_reps_aux_devs_remove(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_ETH])
+		device_lock_assert(&priv->adev[MLX5_INTERFACE_PROTOCOL_ETH]->adev.dev);
+	else
+		mlx5_core_err(dev, "ETH driver already removed\n");
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_IB_REP])
+		del_adev(&priv->adev[MLX5_INTERFACE_PROTOCOL_IB_REP]->adev);
+	if (priv->adev[MLX5_INTERFACE_PROTOCOL_ETH_REP])
+		del_adev(&priv->adev[MLX5_INTERFACE_PROTOCOL_ETH_REP]->adev);
+}
