@@ -96,10 +96,10 @@ int btrfs_decompress(int type, const u8 *data_in, struct folio *dest_folio,
 int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 			      struct compressed_bio *cb, u32 decompressed);
 
+struct compressed_bio *btrfs_alloc_compressed_write(struct btrfs_inode *inode,
+						    u64 start, u64 len);
 void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
-				   struct folio **compressed_folios,
-				   unsigned int nr_folios, blk_opf_t write_flags,
-				   bool writeback);
+				   struct compressed_bio *cb);
 void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 int btrfs_compress_str2level(unsigned int type, const char *str, int *level_ret);

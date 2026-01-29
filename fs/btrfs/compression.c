@@ -304,25 +304,6 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 	bio_put(&cb->bbio.bio);
 }
 
-static void btrfs_add_compressed_bio_folios(struct compressed_bio *cb)
-{
-	struct bio *bio = &cb->bbio.bio;
-	u32 offset = 0;
-	unsigned int findex = 0;
-
-	while (offset < cb->compressed_len) {
-		struct folio *folio = cb->compressed_folios[findex];
-		u32 len = min_t(u32, cb->compressed_len - offset, folio_size(folio));
-		int ret;
-
-		/* Maximum compressed extent is smaller than bio size limit. */
-		ret = bio_add_folio(bio, folio, len, 0);
-		ASSERT(ret);
-		offset += len;
-		findex++;
-	}
-}
-
 /*
  * worker function to build and submit bios for previously compressed pages.
  * The corresponding pages in the inode should be marked for writeback
@@ -333,32 +314,41 @@ static void btrfs_add_compressed_bio_folios(struct compressed_bio *cb)
  * the end io hooks.
  */
 void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
-				   struct folio **compressed_folios,
-				   unsigned int nr_folios,
-				   blk_opf_t write_flags,
-				   bool writeback)
+				   struct compressed_bio *cb)
 {
 	struct btrfs_inode *inode = ordered->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
-	struct compressed_bio *cb;
 
 	ASSERT(IS_ALIGNED(ordered->file_offset, fs_info->sectorsize));
 	ASSERT(IS_ALIGNED(ordered->num_bytes, fs_info->sectorsize));
+	ASSERT(cb->writeback);
 
-	cb = alloc_compressed_bio(inode, ordered->file_offset,
-				  REQ_OP_WRITE | write_flags,
-				  end_bbio_compressed_write);
 	cb->start = ordered->file_offset;
 	cb->len = ordered->num_bytes;
-	cb->compressed_folios = compressed_folios;
 	cb->compressed_len = ordered->disk_num_bytes;
-	cb->writeback = writeback;
-	cb->nr_folios = nr_folios;
 	cb->bbio.bio.bi_iter.bi_sector = ordered->disk_bytenr >> SECTOR_SHIFT;
 	cb->bbio.ordered = ordered;
-	btrfs_add_compressed_bio_folios(cb);
 
 	btrfs_submit_bbio(&cb->bbio, 0);
+}
+
+/*
+ * Allocate a compressed write bio for @inode file offset @start length @len.
+ *
+ * The caller still needs to properly queue all folios and populate involved
+ * members.
+ */
+struct compressed_bio *btrfs_alloc_compressed_write(struct btrfs_inode *inode,
+						    u64 start, u64 len)
+{
+	struct compressed_bio *cb;
+
+	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE, end_bbio_compressed_write);
+	cb->start = start;
+	cb->len = len;
+	cb->writeback = true;
+
+	return cb;
 }
 
 /*

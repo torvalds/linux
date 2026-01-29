@@ -9828,12 +9828,12 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	struct extent_state *cached_state = NULL;
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_file_extent file_extent;
+	struct compressed_bio *cb = NULL;
 	int compression;
 	size_t orig_count;
+	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	u64 start, end;
 	u64 num_bytes, ram_bytes, disk_num_bytes;
-	unsigned long nr_folios, i;
-	struct folio **folios;
 	struct btrfs_key ins;
 	bool extent_reserved = false;
 	struct extent_map *em;
@@ -9922,39 +9922,46 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	 * isn't.
 	 */
 	disk_num_bytes = ALIGN(orig_count, fs_info->sectorsize);
-	nr_folios = DIV_ROUND_UP(disk_num_bytes, PAGE_SIZE);
-	folios = kvcalloc(nr_folios, sizeof(struct folio *), GFP_KERNEL_ACCOUNT);
-	if (!folios)
-		return -ENOMEM;
-	for (i = 0; i < nr_folios; i++) {
-		size_t bytes = min_t(size_t, PAGE_SIZE, iov_iter_count(from));
+
+	cb = btrfs_alloc_compressed_write(inode, start, num_bytes);
+	for (int i = 0; i * min_folio_size < disk_num_bytes; i++) {
+		struct folio *folio;
+		size_t bytes = min(min_folio_size, iov_iter_count(from));
 		char *kaddr;
 
-		folios[i] = folio_alloc(GFP_KERNEL_ACCOUNT, 0);
-		if (!folios[i]) {
+		folio = btrfs_alloc_compr_folio(fs_info);
+		if (!folio) {
 			ret = -ENOMEM;
-			goto out_folios;
+			goto out_cb;
 		}
-		kaddr = kmap_local_folio(folios[i], 0);
-		if (copy_from_iter(kaddr, bytes, from) != bytes) {
-			kunmap_local(kaddr);
-			ret = -EFAULT;
-			goto out_folios;
-		}
-		if (bytes < PAGE_SIZE)
-			memset(kaddr + bytes, 0, PAGE_SIZE - bytes);
+		kaddr = kmap_local_folio(folio, 0);
+		ret = copy_from_iter(kaddr, bytes, from);
 		kunmap_local(kaddr);
+		if (ret != bytes) {
+			folio_put(folio);
+			ret = -EFAULT;
+			goto out_cb;
+		}
+		if (bytes < min_folio_size)
+			folio_zero_range(folio, bytes, min_folio_size - bytes);
+		ret = bio_add_folio(&cb->bbio.bio, folio, folio_size(folio), 0);
+		if (unlikely(!ret)) {
+			folio_put(folio);
+			ret = -EINVAL;
+			goto out_cb;
+		}
 	}
+	ASSERT(cb->bbio.bio.bi_iter.bi_size == disk_num_bytes);
 
 	for (;;) {
 		ret = btrfs_wait_ordered_range(inode, start, num_bytes);
 		if (ret)
-			goto out_folios;
+			goto out_cb;
 		ret = invalidate_inode_pages2_range(inode->vfs_inode.i_mapping,
 						    start >> PAGE_SHIFT,
 						    end >> PAGE_SHIFT);
 		if (ret)
-			goto out_folios;
+			goto out_cb;
 		btrfs_lock_extent(io_tree, start, end, &cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, start, num_bytes);
 		if (!ordered &&
@@ -9986,7 +9993,8 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	    encoded->unencoded_offset == 0 &&
 	    can_cow_file_range_inline(inode, start, encoded->len, orig_count)) {
 		ret = __cow_file_range_inline(inode, encoded->len,
-					      orig_count, compression, folios[0],
+					      orig_count, compression,
+					      bio_first_folio_all(&cb->bbio.bio),
 					      true);
 		if (ret <= 0) {
 			if (ret == 0)
@@ -10031,7 +10039,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 	btrfs_delalloc_release_extents(inode, num_bytes);
 
-	btrfs_submit_compressed_write(ordered, folios, nr_folios, 0, false);
+	btrfs_submit_compressed_write(ordered, cb);
 	ret = orig_count;
 	goto out;
 
@@ -10053,12 +10061,9 @@ out_free_data_space:
 		btrfs_free_reserved_data_space_noquota(inode, disk_num_bytes);
 out_unlock:
 	btrfs_unlock_extent(io_tree, start, end, &cached_state);
-out_folios:
-	for (i = 0; i < nr_folios; i++) {
-		if (folios[i])
-			folio_put(folios[i]);
-	}
-	kvfree(folios);
+out_cb:
+	if (cb)
+		cleanup_compressed_bio(cb);
 out:
 	if (ret >= 0)
 		iocb->ki_pos += encoded->len;
