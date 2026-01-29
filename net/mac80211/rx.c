@@ -3928,6 +3928,14 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 					      u.action.u.epcs))
 				goto invalid;
 			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
+			if (sdata->vif.type != NL80211_IFTYPE_AP)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.eml_omn))
+				goto invalid;
+			goto queue;
 		default:
 			break;
 		}

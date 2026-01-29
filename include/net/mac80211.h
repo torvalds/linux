@@ -1918,6 +1918,31 @@ enum ieee80211_offload_flags {
 };
 
 /**
+ * struct ieee80211_eml_params - EHT Operating mode notification parameters
+ *
+ * EML Operating mode notification parameters received in the Operating mode
+ * notification frame. This struct is used as a container to pass the info to
+ * the underlay driver.
+ *
+ * @link_id: the link ID where the Operating mode notification frame has been
+ *	received.
+ * @control: EML control field defined in P802.11be section 9.4.1.76.
+ * @link_bitmap: eMLSR/eMLMR enabled links defined in P802.11be
+ *	section 9.4.1.76.
+ * @emlmr_mcs_map_count: eMLMR number of valid mcs_map_bw fields according to
+ *	P802.11be section 9.4.1.76 (valid if eMLMR mode control bit is set).
+ * @emlmr_mcs_map_bw: eMLMR supported MCS and NSS set subfileds defined in
+ *	P802.11be section 9.4.1.76 (valid if eMLMR mode control bit is set).
+ */
+struct ieee80211_eml_params {
+	u8 link_id;
+	u8 control;
+	u16 link_bitmap;
+	u8 emlmr_mcs_map_count;
+	u8 emlmr_mcs_map_bw[9];
+};
+
+/**
  * struct ieee80211_vif_cfg - interface configuration
  * @assoc: association status
  * @ibss_joined: indicates whether this station is part of an IBSS or not
@@ -4530,6 +4555,9 @@ struct ieee80211_prep_tx_info {
  *      interface with the specified type would be added, and thus drivers that
  *      implement this callback need to handle such cases. The type is the full
  *      &enum nl80211_iftype.
+ * @set_eml_op_mode: Configure eMLSR/eMLMR operation mode in the underlay
+ *	driver according to the parameter received in the EML Operating mode
+ *	notification frame.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -4925,6 +4953,10 @@ struct ieee80211_ops {
 			struct ieee80211_neg_ttlm *ttlm);
 	void (*prep_add_interface)(struct ieee80211_hw *hw,
 				   enum nl80211_iftype type);
+	int (*set_eml_op_mode)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta,
+			       struct ieee80211_eml_params *eml_params);
 };
 
 /**
