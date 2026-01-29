@@ -270,9 +270,9 @@ imx_dwmac_parse_dt(struct imx_priv_data *dwmac, struct device *dev)
 	if (of_machine_is_compatible("fsl,imx8mp") ||
 	    of_machine_is_compatible("fsl,imx91") ||
 	    of_machine_is_compatible("fsl,imx93")) {
-		/* Binding doc describes the propety:
+		/* Binding doc describes the property:
 		 * is required by i.MX8MP, i.MX91, i.MX93.
-		 * is optinoal for i.MX8DXL.
+		 * is optional for i.MX8DXL.
 		 */
 		dwmac->intf_regmap =
 			syscon_regmap_lookup_by_phandle_args(np, "intf_mode", 1,

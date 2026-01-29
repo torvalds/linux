@@ -1130,7 +1130,7 @@ static int stmmac_mac_enable_tx_lpi(struct phylink_config *config, u32 timer,
 	stmmac_set_eee_timer(priv, priv->hw, STMMAC_DEFAULT_LIT_LS,
 			     STMMAC_DEFAULT_TWT_LS);
 
-	/* Try to cnfigure the hardware timer. */
+	/* Try to configure the hardware timer. */
 	ret = stmmac_set_lpi_mode(priv, priv->hw, STMMAC_LPI_TIMER,
 				  priv->tx_lpi_clk_stop, priv->tx_lpi_timer);
 
@@ -3511,7 +3511,7 @@ static void stmmac_mac_config_rss(struct stmmac_priv *priv)
 /**
  *  stmmac_mtl_configuration - Configure MTL
  *  @priv: driver private structure
- *  Description: It is used for configurring MTL
+ *  Description: It is used for configuring MTL
  */
 static void stmmac_mtl_configuration(struct stmmac_priv *priv)
 {
@@ -4389,7 +4389,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Always insert VLAN tag to SKB payload for TSO frames.
 	 *
-	 * Never insert VLAN tag by HW, since segments splited by
+	 * Never insert VLAN tag by HW, since segments split by
 	 * TSO engine will be un-tagged by mistake.
 	 */
 	if (skb_vlan_tag_present(skb)) {
@@ -5962,7 +5962,7 @@ static int stmmac_napi_poll_rxtx(struct napi_struct *napi, int budget)
 		unsigned long flags;
 
 		spin_lock_irqsave(&ch->lock, flags);
-		/* Both RX and TX work done are compelte,
+		/* Both RX and TX work done are complete,
 		 * so enable both RX & TX IRQs.
 		 */
 		stmmac_enable_dma_irq(priv, priv->ioaddr, chan, 1, 1);
@@ -6294,7 +6294,7 @@ static irqreturn_t stmmac_msi_intr_rx(int irq, void *data)
 /**
  *  stmmac_ioctl - Entry point for the Ioctl
  *  @dev: Device pointer.
- *  @rq: An IOCTL specefic structure, that can contain a pointer to
+ *  @rq: An IOCTL specific structure, that can contain a pointer to
  *  a proprietary structure used to pass information to the driver.
  *  @cmd: IOCTL command
  *  Description:

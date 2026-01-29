@@ -108,7 +108,7 @@ static void dwmac100_set_filter(struct mac_device_info *hw,
 		memset(mc_filter, 0, sizeof(mc_filter));
 		netdev_for_each_mc_addr(ha, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
-			 * index the contens of the hash table
+			 * index the contents of the hash table
 			 */
 			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			/* The most significant bit determines the register to
