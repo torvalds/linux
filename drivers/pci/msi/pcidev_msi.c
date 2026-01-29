@@ -24,7 +24,7 @@ void pci_msi_init(struct pci_dev *dev)
 	}
 
 	if (!(ctrl & PCI_MSI_FLAGS_64BIT))
-		dev->no_64bit_msi = 1;
+		dev->msi_addr_mask = DMA_BIT_MASK(32);
 }
 
 void pci_msix_init(struct pci_dev *dev)

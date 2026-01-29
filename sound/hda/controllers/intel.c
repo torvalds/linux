@@ -1905,7 +1905,7 @@ static int azx_first_init(struct azx *chip)
 
 	if (chip->msi && chip->driver_caps & AZX_DCAPS_NO_MSI64) {
 		dev_dbg(card->dev, "Disabling 64bit MSI\n");
-		pci->no_64bit_msi = true;
+		pci->msi_addr_mask = DMA_BIT_MASK(32);
 	}
 
 	pci_set_master(pci);
