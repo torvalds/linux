@@ -2222,27 +2222,20 @@ static void update_sibling_cpumasks(struct cpuset *parent, struct cpuset *cs,
 	 * It is possible a change in parent's effective_cpus
 	 * due to a change in a child partition's effective_xcpus will impact
 	 * its siblings even if they do not inherit parent's effective_cpus
-	 * directly.
+	 * directly. It should not impact valid partition.
 	 *
 	 * The update_cpumasks_hier() function may sleep. So we have to
 	 * release the RCU read lock before calling it.
 	 */
 	rcu_read_lock();
 	cpuset_for_each_child(sibling, pos_css, parent) {
-		if (sibling == cs)
+		if (sibling == cs || is_partition_valid(sibling))
 			continue;
-		if (!is_partition_valid(sibling)) {
-			compute_effective_cpumask(tmp->new_cpus, sibling,
-						  parent);
-			if (cpumask_equal(tmp->new_cpus, sibling->effective_cpus))
-				continue;
-		} else if (is_remote_partition(sibling)) {
-			/*
-			 * Change in a sibling cpuset won't affect a remote
-			 * partition root.
-			 */
+
+		compute_effective_cpumask(tmp->new_cpus, sibling,
+					  parent);
+		if (cpumask_equal(tmp->new_cpus, sibling->effective_cpus))
 			continue;
-		}
 
 		if (!css_tryget_online(&sibling->css))
 			continue;
