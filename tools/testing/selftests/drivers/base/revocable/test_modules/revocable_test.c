@@ -24,23 +24,7 @@ struct revocable_test_provider_priv {
 
 static int revocable_test_consumer_open(struct inode *inode, struct file *filp)
 {
-	struct revocable *rev;
-	struct revocable_provider __rcu *rp = inode->i_private;
-
-	rev = revocable_alloc(rp);
-	if (!rev)
-		return -ENOMEM;
-	filp->private_data = rev;
-
-	return 0;
-}
-
-static int revocable_test_consumer_release(struct inode *inode,
-					   struct file *filp)
-{
-	struct revocable *rev = filp->private_data;
-
-	revocable_free(rev);
+	filp->private_data = inode->i_private;
 	return 0;
 }
 
@@ -48,25 +32,33 @@ static ssize_t revocable_test_consumer_read(struct file *filp,
 					    char __user *buf,
 					    size_t count, loff_t *offset)
 {
+	int ret;
 	char *res;
 	char data[16];
 	size_t len;
-	struct revocable *rev = filp->private_data;
+	struct revocable rev;
+	struct revocable_provider __rcu *rp = filp->private_data;
 
 	switch (*offset) {
 	case 0:
-		res = revocable_try_access(rev);
+		ret = revocable_init(rp, &rev);
+		if (ret) {
+			snprintf(data, sizeof(data), "%s", "(null)");
+			break;
+		}
+		res = revocable_try_access(&rev);
 		snprintf(data, sizeof(data), "%s", res ?: "(null)");
-		revocable_withdraw_access(rev);
+		revocable_withdraw_access(&rev);
+		revocable_deinit(&rev);
 		break;
 	case TEST_MAGIC_OFFSET:
 		{
-			REVOCABLE_TRY_ACCESS_WITH(rev, res);
+			REVOCABLE_TRY_ACCESS_WITH(rp, res);
 			snprintf(data, sizeof(data), "%s", res ?: "(null)");
 		}
 		break;
 	case TEST_MAGIC_OFFSET2:
-		REVOCABLE_TRY_ACCESS_SCOPED(rev, res)
+		REVOCABLE_TRY_ACCESS_SCOPED(rp, res)
 			snprintf(data, sizeof(data), "%s", res ?: "(null)");
 		break;
 	default:
@@ -83,7 +75,6 @@ static ssize_t revocable_test_consumer_read(struct file *filp,
 
 static const struct file_operations revocable_test_consumer_fops = {
 	.open = revocable_test_consumer_open,
-	.release = revocable_test_consumer_release,
 	.read = revocable_test_consumer_read,
 	.llseek = default_llseek,
 };

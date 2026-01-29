@@ -81,14 +81,14 @@ For Resource Providers
 
 For Resource Consumers
 ----------------------
-.. kernel-doc:: drivers/base/revocable.c
+.. kernel-doc:: include/linux/revocable.h
    :identifiers: revocable
 
 .. kernel-doc:: drivers/base/revocable.c
-   :identifiers: revocable_alloc
+   :identifiers: revocable_init
 
 .. kernel-doc:: drivers/base/revocable.c
-   :identifiers: revocable_free
+   :identifiers: revocable_deinit
 
 .. kernel-doc:: drivers/base/revocable.c
    :identifiers: revocable_try_access
@@ -104,11 +104,11 @@ Example Usage
 
 .. code-block:: c
 
-    void consumer_use_resource(struct revocable *rev)
+    void consumer_use_resource(struct revocable_provider *rp)
     {
         struct foo_resource *res;
 
-        REVOCABLE_TRY_ACCESS_WITH(rev, res);
+        REVOCABLE_TRY_ACCESS_WITH(rp, res);
         // Always check if the resource is valid.
         if (!res) {
             pr_warn("Resource is not available\n");
@@ -129,11 +129,11 @@ Example Usage
 
 .. code-block:: c
 
-    void consumer_use_resource(struct revocable *rev)
+    void consumer_use_resource(struct revocable_provider *rp)
     {
         struct foo_resource *res;
 
-        REVOCABLE_TRY_ACCESS_SCOPED(rev, res) {
+        REVOCABLE_TRY_ACCESS_SCOPED(rp, res) {
             // Always check if the resource is valid.
             if (!res) {
                 pr_warn("Resource is not available\n");

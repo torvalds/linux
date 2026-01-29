@@ -15,7 +15,7 @@
  * - Try Access Macro: Same as "Revocation" but uses the
  *   REVOCABLE_TRY_ACCESS_WITH() and REVOCABLE_TRY_ACCESS_SCOPED().
  *
- * - Provider Use-after-free: Verifies revocable_alloc() correctly handles
+ * - Provider Use-after-free: Verifies revocable_init() correctly handles
  *   race conditions where the provider is being released.
  */
 
@@ -26,20 +26,21 @@
 static void revocable_test_basic(struct kunit *test)
 {
 	struct revocable_provider __rcu *rp;
-	struct revocable *rev;
+	struct revocable rev;
 	void *real_res = (void *)0x12345678, *res;
+	int ret;
 
 	rp = revocable_provider_alloc(real_res);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
 
-	rev = revocable_alloc(rp);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rev);
+	ret = revocable_init(rp, &rev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	res = revocable_try_access(rev);
+	res = revocable_try_access(&rev);
 	KUNIT_EXPECT_PTR_EQ(test, res, real_res);
-	revocable_withdraw_access(rev);
+	revocable_withdraw_access(&rev);
 
-	revocable_free(rev);
+	revocable_deinit(&rev);
 	revocable_provider_revoke(&rp);
 	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 }
@@ -47,43 +48,40 @@ static void revocable_test_basic(struct kunit *test)
 static void revocable_test_revocation(struct kunit *test)
 {
 	struct revocable_provider __rcu *rp;
-	struct revocable *rev;
+	struct revocable rev;
 	void *real_res = (void *)0x12345678, *res;
+	int ret;
 
 	rp = revocable_provider_alloc(real_res);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
 
-	rev = revocable_alloc(rp);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rev);
+	ret = revocable_init(rp, &rev);
+	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	res = revocable_try_access(rev);
+	res = revocable_try_access(&rev);
 	KUNIT_EXPECT_PTR_EQ(test, res, real_res);
-	revocable_withdraw_access(rev);
+	revocable_withdraw_access(&rev);
 
 	revocable_provider_revoke(&rp);
 	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
-	res = revocable_try_access(rev);
+	res = revocable_try_access(&rev);
 	KUNIT_EXPECT_PTR_EQ(test, res, NULL);
-	revocable_withdraw_access(rev);
+	revocable_withdraw_access(&rev);
 
-	revocable_free(rev);
+	revocable_deinit(&rev);
 }
 
 static void revocable_test_try_access_macro(struct kunit *test)
 {
 	struct revocable_provider __rcu *rp;
-	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 
 	rp = revocable_provider_alloc(real_res);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
 
-	rev = revocable_alloc(rp);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rev);
-
 	{
-		REVOCABLE_TRY_ACCESS_WITH(rev, res);
+		REVOCABLE_TRY_ACCESS_WITH(rp, res);
 		KUNIT_EXPECT_PTR_EQ(test, res, real_res);
 	}
 
@@ -91,28 +89,22 @@ static void revocable_test_try_access_macro(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
 	{
-		REVOCABLE_TRY_ACCESS_WITH(rev, res);
+		REVOCABLE_TRY_ACCESS_WITH(rp, res);
 		KUNIT_EXPECT_PTR_EQ(test, res, NULL);
 	}
-
-	revocable_free(rev);
 }
 
 static void revocable_test_try_access_macro2(struct kunit *test)
 {
 	struct revocable_provider __rcu *rp;
-	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 	bool accessed;
 
 	rp = revocable_provider_alloc(real_res);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
 
-	rev = revocable_alloc(rp);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rev);
-
 	accessed = false;
-	REVOCABLE_TRY_ACCESS_SCOPED(rev, res) {
+	REVOCABLE_TRY_ACCESS_SCOPED(rp, res) {
 		KUNIT_EXPECT_PTR_EQ(test, res, real_res);
 		accessed = true;
 	}
@@ -122,32 +114,31 @@ static void revocable_test_try_access_macro2(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
 	accessed = false;
-	REVOCABLE_TRY_ACCESS_SCOPED(rev, res) {
+	REVOCABLE_TRY_ACCESS_SCOPED(rp, res) {
 		KUNIT_EXPECT_PTR_EQ(test, res, NULL);
 		accessed = true;
 	}
 	KUNIT_EXPECT_TRUE(test, accessed);
-
-	revocable_free(rev);
 }
 
 static void revocable_test_provider_use_after_free(struct kunit *test)
 {
 	struct revocable_provider __rcu *rp;
 	struct revocable_provider *old_rp;
+	struct revocable rev;
 	void *real_res = (void *)0x12345678;
-	struct revocable *rev;
+	int ret;
 
 	rp = revocable_provider_alloc(real_res);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rp);
 
-	rev = revocable_alloc(NULL);
-	KUNIT_EXPECT_PTR_EQ(test, rev, NULL);
+	ret = revocable_init(NULL, &rev);
+	KUNIT_EXPECT_NE(test, ret, 0);
 
 	/* Simulate the provider has been freed. */
 	old_rp = rcu_replace_pointer(rp, NULL, 1);
-	rev = revocable_alloc(rp);
-	KUNIT_EXPECT_PTR_EQ(test, rev, NULL);
+	ret = revocable_init(rp, &rev);
+	KUNIT_EXPECT_NE(test, ret, 0);
 	rcu_replace_pointer(rp, old_rp, 1);
 
 	struct {
@@ -159,12 +150,14 @@ static void revocable_test_provider_use_after_free(struct kunit *test)
 
 	/* Simulate the provider is releasing. */
 	refcount_set(&rp_internal->kref.refcount, 0);
-	rev = revocable_alloc(rp);
-	KUNIT_EXPECT_PTR_EQ(test, rev, NULL);
+	ret = revocable_init(rp, &rev);
+	KUNIT_EXPECT_NE(test, ret, 0);
 	refcount_set(&rp_internal->kref.refcount, 1);
 
 	revocable_provider_revoke(&rp);
 	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
+	ret = revocable_init(rp, &rev);
+	KUNIT_EXPECT_NE(test, ret, 0);
 }
 
 static struct kunit_case revocable_test_cases[] = {

@@ -74,16 +74,6 @@ struct revocable_provider {
 };
 
 /**
- * struct revocable - A handle for resource consumer.
- * @rp: The pointer of resource provider.
- * @idx: The index for the RCU critical section.
- */
-struct revocable {
-	struct revocable_provider *rp;
-	int idx;
-};
-
-/**
  * revocable_provider_alloc() - Allocate struct revocable_provider.
  * @res: The pointer of resource.
  *
@@ -145,20 +135,20 @@ void revocable_provider_revoke(struct revocable_provider __rcu **rp_ptr)
 EXPORT_SYMBOL_GPL(revocable_provider_revoke);
 
 /**
- * revocable_alloc() - Allocate struct revocable.
+ * revocable_init() - Initialize struct revocable.
  * @_rp: The pointer of resource provider.
+ * @rev: The pointer of resource consumer.
  *
  * This holds a refcount to the resource provider.
  *
- * Return: The pointer of struct revocable.  NULL on errors.
+ * Return: 0 on success, -errno otherwise.
  */
-struct revocable *revocable_alloc(struct revocable_provider __rcu *_rp)
+int revocable_init(struct revocable_provider __rcu *_rp, struct revocable *rev)
 {
 	struct revocable_provider *rp;
-	struct revocable *rev;
 
 	if (!_rp)
-		return NULL;
+		return -ENODEV;
 
 	/*
 	 * Enter a read-side critical section.
@@ -170,43 +160,36 @@ struct revocable *revocable_alloc(struct revocable_provider __rcu *_rp)
 		rp = rcu_dereference(_rp);
 		if (!rp)
 			/* The revocable provider has been revoked. */
-			return NULL;
+			return -ENODEV;
 
 		if (!kref_get_unless_zero(&rp->kref))
 			/*
 			 * The revocable provider is releasing (i.e.,
 			 * revocable_provider_release() has been called).
 			 */
-			return NULL;
+			return -ENODEV;
 	}
 	/* At this point, `rp` is safe to access as holding a kref of it */
 
-	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
-	if (!rev) {
-		kref_put(&rp->kref, revocable_provider_release);
-		return NULL;
-	}
-
 	rev->rp = rp;
-	return rev;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(revocable_alloc);
+EXPORT_SYMBOL_GPL(revocable_init);
 
 /**
- * revocable_free() - Free struct revocable.
+ * revocable_deinit() - Deinitialize struct revocable.
  * @rev: The pointer of struct revocable.
  *
  * This drops a refcount to the resource provider.  If it is the final
  * reference, revocable_provider_release() will be called to free the struct.
  */
-void revocable_free(struct revocable *rev)
+void revocable_deinit(struct revocable *rev)
 {
 	struct revocable_provider *rp = rev->rp;
 
 	kref_put(&rp->kref, revocable_provider_release);
-	kfree(rev);
 }
-EXPORT_SYMBOL_GPL(revocable_free);
+EXPORT_SYMBOL_GPL(revocable_deinit);
 
 /**
  * revocable_try_access() - Try to access the resource.
