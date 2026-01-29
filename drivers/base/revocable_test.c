@@ -21,7 +21,7 @@
 
 static void revocable_test_basic(struct kunit *test)
 {
-	struct revocable_provider *rp;
+	struct revocable_provider __rcu *rp;
 	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 
@@ -36,12 +36,13 @@ static void revocable_test_basic(struct kunit *test)
 	revocable_withdraw_access(rev);
 
 	revocable_free(rev);
-	revocable_provider_revoke(rp);
+	revocable_provider_revoke(&rp);
+	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 }
 
 static void revocable_test_revocation(struct kunit *test)
 {
-	struct revocable_provider *rp;
+	struct revocable_provider __rcu *rp;
 	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 
@@ -55,7 +56,8 @@ static void revocable_test_revocation(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, res, real_res);
 	revocable_withdraw_access(rev);
 
-	revocable_provider_revoke(rp);
+	revocable_provider_revoke(&rp);
+	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
 	res = revocable_try_access(rev);
 	KUNIT_EXPECT_PTR_EQ(test, res, NULL);
@@ -66,7 +68,7 @@ static void revocable_test_revocation(struct kunit *test)
 
 static void revocable_test_try_access_macro(struct kunit *test)
 {
-	struct revocable_provider *rp;
+	struct revocable_provider __rcu *rp;
 	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 
@@ -81,7 +83,8 @@ static void revocable_test_try_access_macro(struct kunit *test)
 		KUNIT_EXPECT_PTR_EQ(test, res, real_res);
 	}
 
-	revocable_provider_revoke(rp);
+	revocable_provider_revoke(&rp);
+	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
 	{
 		REVOCABLE_TRY_ACCESS_WITH(rev, res);
@@ -93,7 +96,7 @@ static void revocable_test_try_access_macro(struct kunit *test)
 
 static void revocable_test_try_access_macro2(struct kunit *test)
 {
-	struct revocable_provider *rp;
+	struct revocable_provider __rcu *rp;
 	struct revocable *rev;
 	void *real_res = (void *)0x12345678, *res;
 	bool accessed;
@@ -111,7 +114,8 @@ static void revocable_test_try_access_macro2(struct kunit *test)
 	}
 	KUNIT_EXPECT_TRUE(test, accessed);
 
-	revocable_provider_revoke(rp);
+	revocable_provider_revoke(&rp);
+	KUNIT_EXPECT_PTR_EQ(test, unrcu_pointer(rp), NULL);
 
 	accessed = false;
 	REVOCABLE_TRY_ACCESS_SCOPED(rev, res) {

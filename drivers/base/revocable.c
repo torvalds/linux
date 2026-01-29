@@ -64,11 +64,13 @@
  * @srcu: The SRCU to protect the resource.
  * @res:  The pointer of resource.  It can point to anything.
  * @kref: The refcount for this handle.
+ * @rcu: The RCU to protect pointer to itself.
  */
 struct revocable_provider {
 	struct srcu_struct srcu;
 	void __rcu *res;
 	struct kref kref;
+	struct rcu_head rcu;
 };
 
 /**
@@ -88,8 +90,9 @@ struct revocable {
  * This holds an initial refcount to the struct.
  *
  * Return: The pointer of struct revocable_provider.  NULL on errors.
+ * It enforces the caller handles the returned pointer in RCU ways.
  */
-struct revocable_provider *revocable_provider_alloc(void *res)
+struct revocable_provider __rcu *revocable_provider_alloc(void *res)
 {
 	struct revocable_provider *rp;
 
@@ -98,10 +101,10 @@ struct revocable_provider *revocable_provider_alloc(void *res)
 		return NULL;
 
 	init_srcu_struct(&rp->srcu);
-	rcu_assign_pointer(rp->res, res);
+	RCU_INIT_POINTER(rp->res, res);
 	kref_init(&rp->kref);
 
-	return rp;
+	return (struct revocable_provider __rcu *)rp;
 }
 EXPORT_SYMBOL_GPL(revocable_provider_alloc);
 
@@ -111,82 +114,80 @@ static void revocable_provider_release(struct kref *kref)
 			struct revocable_provider, kref);
 
 	cleanup_srcu_struct(&rp->srcu);
-	kfree(rp);
+	kfree_rcu(rp, rcu);
 }
 
 /**
  * revocable_provider_revoke() - Revoke the managed resource.
- * @rp: The pointer of resource provider.
+ * @rp_ptr: The pointer of pointer of resource provider.
  *
  * This sets the resource `(struct revocable_provider *)->res` to NULL to
  * indicate the resource has gone.
  *
  * This drops the refcount to the resource provider.  If it is the final
  * reference, revocable_provider_release() will be called to free the struct.
+ *
+ * It enforces the caller to pass a pointer of pointer of resource provider so
+ * that it sets \*rp_ptr to NULL to prevent from keeping a dangling pointer.
  */
-void revocable_provider_revoke(struct revocable_provider *rp)
+void revocable_provider_revoke(struct revocable_provider __rcu **rp_ptr)
 {
+	struct revocable_provider *rp;
+
+	rp = rcu_replace_pointer(*rp_ptr, NULL, 1);
+	if (!rp)
+		return;
+
 	rcu_assign_pointer(rp->res, NULL);
 	synchronize_srcu(&rp->srcu);
 	kref_put(&rp->kref, revocable_provider_release);
 }
 EXPORT_SYMBOL_GPL(revocable_provider_revoke);
 
-static void devm_revocable_provider_revoke(void *data)
-{
-	struct revocable_provider *rp = data;
-
-	revocable_provider_revoke(rp);
-}
-
-/**
- * devm_revocable_provider_alloc() - Dev-managed revocable_provider_alloc().
- * @dev: The device.
- * @res: The pointer of resource.
- *
- * It is convenient to allocate providers via this function if the @res is
- * also tied to the lifetime of the @dev.  revocable_provider_revoke() will
- * be called automatically when the device is unbound.
- *
- * This holds an initial refcount to the struct.
- *
- * Return: The pointer of struct revocable_provider.  NULL on errors.
- */
-struct revocable_provider *devm_revocable_provider_alloc(struct device *dev,
-							 void *res)
-{
-	struct revocable_provider *rp;
-
-	rp = revocable_provider_alloc(res);
-	if (!rp)
-		return NULL;
-
-	if (devm_add_action_or_reset(dev, devm_revocable_provider_revoke, rp))
-		return NULL;
-
-	return rp;
-}
-EXPORT_SYMBOL_GPL(devm_revocable_provider_alloc);
-
 /**
  * revocable_alloc() - Allocate struct revocable.
- * @rp: The pointer of resource provider.
+ * @_rp: The pointer of resource provider.
  *
  * This holds a refcount to the resource provider.
  *
  * Return: The pointer of struct revocable.  NULL on errors.
  */
-struct revocable *revocable_alloc(struct revocable_provider *rp)
+struct revocable *revocable_alloc(struct revocable_provider __rcu *_rp)
 {
+	struct revocable_provider *rp;
 	struct revocable *rev;
 
-	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
-	if (!rev)
+	if (!_rp)
 		return NULL;
 
-	rev->rp = rp;
-	kref_get(&rp->kref);
+	/*
+	 * Enter a read-side critical section.
+	 *
+	 * This prevents kfree_rcu() from freeing the struct revocable_provider
+	 * memory, for the duration of this scope.
+	 */
+	scoped_guard(rcu) {
+		rp = rcu_dereference(_rp);
+		if (!rp)
+			/* The revocable provider has been revoked. */
+			return NULL;
 
+		if (!kref_get_unless_zero(&rp->kref))
+			/*
+			 * The revocable provider is releasing (i.e.,
+			 * revocable_provider_release() has been called).
+			 */
+			return NULL;
+	}
+	/* At this point, `rp` is safe to access as holding a kref of it */
+
+	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
+	if (!rev) {
+		kref_put(&rp->kref, revocable_provider_release);
+		return NULL;
+	}
+
+	rev->rp = rp;
 	return rev;
 }
 EXPORT_SYMBOL_GPL(revocable_alloc);

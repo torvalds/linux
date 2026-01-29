@@ -17,7 +17,7 @@
 static struct dentry *debugfs_dir;
 
 struct revocable_test_provider_priv {
-	struct revocable_provider *rp;
+	struct revocable_provider __rcu *rp;
 	struct dentry *dentry;
 	char res[16];
 };
@@ -25,7 +25,7 @@ struct revocable_test_provider_priv {
 static int revocable_test_consumer_open(struct inode *inode, struct file *filp)
 {
 	struct revocable *rev;
-	struct revocable_provider *rp = inode->i_private;
+	struct revocable_provider __rcu *rp = inode->i_private;
 
 	rev = revocable_alloc(rp);
 	if (!rev)
@@ -106,8 +106,8 @@ static int revocable_test_provider_release(struct inode *inode,
 	struct revocable_test_provider_priv *priv = filp->private_data;
 
 	debugfs_remove(priv->dentry);
-	if (priv->rp)
-		revocable_provider_revoke(priv->rp);
+	if (unrcu_pointer(priv->rp))
+		revocable_provider_revoke(&priv->rp);
 	kfree(priv);
 
 	return 0;
@@ -137,8 +137,8 @@ static ssize_t revocable_test_provider_write(struct file *filp,
 	 * gone.
 	 */
 	if (!strcmp(data, TEST_CMD_RESOURCE_GONE)) {
-		revocable_provider_revoke(priv->rp);
-		priv->rp = NULL;
+		revocable_provider_revoke(&priv->rp);
+		rcu_assign_pointer(priv->rp, NULL);
 	} else {
 		if (priv->res[0] != '\0')
 			return 0;
@@ -146,14 +146,15 @@ static ssize_t revocable_test_provider_write(struct file *filp,
 		strscpy(priv->res, data);
 
 		priv->rp = revocable_provider_alloc(&priv->res);
-		if (!priv->rp)
+		if (!unrcu_pointer(priv->rp))
 			return -ENOMEM;
 
 		priv->dentry = debugfs_create_file("consumer", 0400,
-						   debugfs_dir, priv->rp,
+						   debugfs_dir,
+						   unrcu_pointer(priv->rp),
 						   &revocable_test_consumer_fops);
 		if (!priv->dentry) {
-			revocable_provider_revoke(priv->rp);
+			revocable_provider_revoke(&priv->rp);
 			return -ENOMEM;
 		}
 	}

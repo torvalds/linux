@@ -13,12 +13,10 @@ struct device;
 struct revocable;
 struct revocable_provider;
 
-struct revocable_provider *revocable_provider_alloc(void *res);
-void revocable_provider_revoke(struct revocable_provider *rp);
-struct revocable_provider *devm_revocable_provider_alloc(struct device *dev,
-							 void *res);
+struct revocable_provider __rcu *revocable_provider_alloc(void *res);
+void revocable_provider_revoke(struct revocable_provider __rcu **rp);
 
-struct revocable *revocable_alloc(struct revocable_provider *rp);
+struct revocable *revocable_alloc(struct revocable_provider __rcu *rp);
 void revocable_free(struct revocable *rev);
 void *revocable_try_access(struct revocable *rev) __acquires(&rev->rp->srcu);
 void revocable_withdraw_access(struct revocable *rev) __releases(&rev->rp->srcu);

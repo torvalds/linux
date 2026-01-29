@@ -77,9 +77,6 @@ For Resource Providers
    :identifiers: revocable_provider_alloc
 
 .. kernel-doc:: drivers/base/revocable.c
-   :identifiers: devm_revocable_provider_alloc
-
-.. kernel-doc:: drivers/base/revocable.c
    :identifiers: revocable_provider_revoke
 
 For Resource Consumers
