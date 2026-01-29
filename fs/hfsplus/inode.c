@@ -396,14 +396,14 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 	.fileattr_set	= hfsplus_fileattr_set,
 };
 
-const struct inode_operations hfsplus_symlink_inode_operations = {
+static const struct inode_operations hfsplus_symlink_inode_operations = {
 	.get_link	= page_get_link,
 	.setattr	= hfsplus_setattr,
 	.getattr	= hfsplus_getattr,
 	.listxattr	= hfsplus_listxattr,
 };
 
-const struct inode_operations hfsplus_special_inode_operations = {
+static const struct inode_operations hfsplus_special_inode_operations = {
 	.setattr	= hfsplus_setattr,
 	.getattr	= hfsplus_getattr,
 	.listxattr	= hfsplus_listxattr,
