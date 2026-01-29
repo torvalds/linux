@@ -705,13 +705,26 @@ amdgpu_userq_wait_count_fences(struct drm_file *filp,
 			num_fences++;
 	}
 
-	wait_info->num_fences = num_fences;
+	wait_info->num_fences = min(num_fences, USHRT_MAX);
 	r = 0;
 
 error_unlock:
 	/* Unlock all the GEM objects */
 	drm_exec_fini(&exec);
 	return r;
+}
+
+static int
+amdgpu_userq_wait_add_fence(struct drm_amdgpu_userq_wait *wait_info,
+			    struct dma_fence **fences, unsigned int *num_fences,
+			    struct dma_fence *fence)
+{
+	/* As fallback shouldn't userspace allocate enough space */
+	if (*num_fences >= wait_info->num_fences)
+		return dma_fence_wait(fence, true);
+
+	fences[(*num_fences)++] = dma_fence_get(fence);
+	return 0;
 }
 
 static int
@@ -757,13 +770,12 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 			goto free_fences;
 
 		dma_fence_unwrap_for_each(f, &iter, fence) {
-			if (num_fences >= wait_info->num_fences) {
-				r = -EINVAL;
+			r = amdgpu_userq_wait_add_fence(wait_info, fences,
+							&num_fences, f);
+			if (r) {
 				dma_fence_put(fence);
 				goto free_fences;
 			}
-
-			fences[num_fences++] = dma_fence_get(f);
 		}
 
 		dma_fence_put(fence);
@@ -780,14 +792,12 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 		if (r)
 			goto free_fences;
 
-		if (num_fences >= wait_info->num_fences) {
-			dma_fence_put(fence);
-			r = -EINVAL;
+		r = amdgpu_userq_wait_add_fence(wait_info, fences,
+						&num_fences, fence);
+		dma_fence_put(fence);
+		if (r)
 			goto free_fences;
-		}
 
-		/* Give the reference to the fence array */
-		fences[num_fences++] = fence;
 	}
 
 	/* Lock all the GEM objects */
@@ -817,12 +827,10 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 
 		dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
 					DMA_RESV_USAGE_READ, fence) {
-			if (num_fences >= wait_info->num_fences) {
-				r = -EINVAL;
+			r = amdgpu_userq_wait_add_fence(wait_info, fences,
+							&num_fences, fence);
+			if (r)
 				goto error_unlock;
-			}
-
-			fences[num_fences++] = dma_fence_get(fence);
 		}
 	}
 
@@ -833,12 +841,10 @@ amdgpu_userq_wait_return_fence_info(struct drm_file *filp,
 
 		dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
 					DMA_RESV_USAGE_WRITE, fence) {
-			if (num_fences >= wait_info->num_fences) {
-				r = -EINVAL;
+			r = amdgpu_userq_wait_add_fence(wait_info, fences,
+							&num_fences, fence);
+			if (r)
 				goto error_unlock;
-			}
-
-			fences[num_fences++] = dma_fence_get(fence);
 		}
 	}
 
