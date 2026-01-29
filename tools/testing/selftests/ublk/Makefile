@@ -22,7 +22,6 @@ TEST_PROGS += test_generic_11.sh
 TEST_PROGS += test_generic_12.sh
 TEST_PROGS += test_generic_13.sh
 TEST_PROGS += test_generic_14.sh
-TEST_PROGS += test_generic_15.sh
 TEST_PROGS += test_generic_16.sh
 
 TEST_PROGS += test_batch_01.sh
@@ -49,6 +48,7 @@ TEST_PROGS += test_stripe_05.sh
 TEST_PROGS += test_stripe_06.sh
 
 TEST_PROGS += test_part_01.sh
+TEST_PROGS += test_part_02.sh
 
 TEST_PROGS += test_stress_01.sh
 TEST_PROGS += test_stress_02.sh
