@@ -222,6 +222,8 @@ static int enable_verity(struct file *filp,
 	if (err)
 		goto out;
 
+	trace_fsverity_enable(inode, &params);
+
 	/*
 	 * Start enabling verity on this file, serialized by the inode lock.
 	 * Fail if verity is already enabled or is already being enabled.
@@ -263,6 +265,8 @@ static int enable_verity(struct file *filp,
 		err = PTR_ERR(vi);
 		goto rollback;
 	}
+
+	trace_fsverity_tree_done(inode, vi, &params);
 
 	/*
 	 * Tell the filesystem to finish enabling verity on the file.
