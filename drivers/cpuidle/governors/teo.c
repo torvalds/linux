@@ -74,12 +74,17 @@
  *      than the candidate one (it represents the cases in which the CPU was
  *      likely woken up by a non-timer wakeup source).
  *
+ *    Also find the idle state with the maximum intercepts metric (if there are
+ *    multiple states with the maximum intercepts metric, choose the one with
+ *    the highest index).
+ *
  * 2. If the second sum computed in step 1 is greater than a half of the sum of
  *    both metrics for the candidate state bin and all subsequent bins (if any),
  *    a shallower idle state is likely to be more suitable, so look for it.
  *
  *    - Traverse the enabled idle states shallower than the candidate one in the
- *      descending order.
+ *      descending order, starting at the state with the maximum intercepts
+ *      metric found in step 1.
  *
  *    - For each of them compute the sum of the "intercepts" metrics over all
  *      of the idle states between it and the candidate one (including the
@@ -308,8 +313,10 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	ktime_t delta_tick = TICK_NSEC / 2;
 	unsigned int idx_intercept_sum = 0;
 	unsigned int intercept_sum = 0;
+	unsigned int intercept_max = 0;
 	unsigned int idx_hit_sum = 0;
 	unsigned int hit_sum = 0;
+	int intercept_max_idx = -1;
 	int constraint_idx = 0;
 	int idx0 = 0, idx = -1;
 	s64 duration_ns;
@@ -340,17 +347,32 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	if (!dev->states_usage[0].disable)
 		idx = 0;
 
-	/* Compute the sums of metrics for early wakeup pattern detection. */
+	/*
+	 * Compute the sums of metrics for early wakeup pattern detection and
+	 * look for the state bin with the maximum intercepts metric below the
+	 * deepest enabled one (if there are multiple states with the maximum
+	 * intercepts metric, choose the one with the highest index).
+	 */
 	for (i = 1; i < drv->state_count; i++) {
 		struct teo_bin *prev_bin = &cpu_data->state_bins[i-1];
+		unsigned int prev_intercepts = prev_bin->intercepts;
 		struct cpuidle_state *s = &drv->states[i];
 
 		/*
 		 * Update the sums of idle state metrics for all of the states
 		 * shallower than the current one.
 		 */
-		intercept_sum += prev_bin->intercepts;
 		hit_sum += prev_bin->hits;
+		intercept_sum += prev_intercepts;
+		/*
+		 * Check if this is the bin with the maximum number of
+		 * intercepts so far and in that case update the index of
+		 * the state with the maximum intercepts metric.
+		 */
+		if (prev_intercepts >= intercept_max) {
+			intercept_max = prev_intercepts;
+			intercept_max_idx = i - 1;
+		}
 
 		if (dev->states_usage[i].disable)
 			continue;
@@ -414,9 +436,22 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		}
 
 		/*
-		 * Look for the deepest idle state whose target residency had
-		 * not exceeded the idle duration in over a half of the relevant
-		 * cases in the past.
+		 * If the minimum state index is greater than or equal to the
+		 * index of the state with the maximum intercepts metric and
+		 * the corresponding state is enabled, there is no need to look
+		 * at the deeper states.
+		 */
+		if (min_idx >= intercept_max_idx &&
+		    !dev->states_usage[min_idx].disable) {
+			idx = min_idx;
+			goto constraint;
+		}
+
+		/*
+		 * Look for the deepest enabled idle state, at most as deep as
+		 * the one with the maximum intercepts metric, whose target
+		 * residency had not been greater than the idle duration in over
+		 * a half of the relevant cases in the past.
 		 *
 		 * Take the possible duration limitation present if the tick
 		 * has been stopped already into account.
@@ -428,7 +463,8 @@ static int teo_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 				continue;
 
 			idx = i;
-			if (2 * intercept_sum > idx_intercept_sum)
+			if (2 * intercept_sum > idx_intercept_sum &&
+			    i <= intercept_max_idx)
 				break;
 		}
 	}
