@@ -442,7 +442,7 @@ static const struct snd_soc_acpi_adr_device rt1320_2_group2_adr[] = {
 		.adr = 0x000230025D132001ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
-		.name_prefix = "rt1320-1"
+		.name_prefix = "rt1320-2"
 	}
 };
 
