@@ -79,6 +79,25 @@ static int regcache_flat_populate(struct regmap *map)
 		__set_bit(index, cache->valid);
 	}
 
+	if (map->reg_default_cb) {
+		dev_dbg(map->dev,
+			"Populating regcache_flat using reg_default_cb callback\n");
+
+		for (i = 0; i <= map->max_register; i += map->reg_stride) {
+			unsigned int index = regcache_flat_get_index(map, i);
+			unsigned int value;
+
+			if (test_bit(index, cache->valid))
+				continue;
+
+			if (map->reg_default_cb(map->dev, i, &value))
+				continue;
+
+			cache->data[index] = value;
+			__set_bit(index, cache->valid);
+		}
+	}
+
 	return 0;
 }
 
