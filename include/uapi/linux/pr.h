@@ -79,4 +79,6 @@ struct pr_read_reservation {
 #define IOC_PR_READ_KEYS	_IOWR('p', 206, struct pr_read_keys)
 #define IOC_PR_READ_RESERVATION	_IOR('p', 207, struct pr_read_reservation)
 
+#define PR_KEYS_MAX		(1u << 16)
+
 #endif /* _UAPI_PR_H */

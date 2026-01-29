@@ -42,6 +42,7 @@ SYM_DATA(kernel_fsize, .long _kernel_fsize);
 	.align 12
 
 SYM_CODE_START(kernel_entry)			# kernel entry point
+	UNWIND_HINT_END_OF_STACK
 
 	SETUP_TWINS
 	SETUP_MODES	t0
@@ -113,6 +114,7 @@ SYM_CODE_END(kernel_entry)
  * function after setting up the stack and tp registers.
  */
 SYM_CODE_START(smpboot_entry)
+	UNWIND_HINT_END_OF_STACK
 
 	SETUP_TWINS
 	SETUP_MODES	t0
@@ -142,5 +144,3 @@ SYM_CODE_START(smpboot_entry)
 SYM_CODE_END(smpboot_entry)
 
 #endif /* CONFIG_SMP */
-
-SYM_ENTRY(kernel_entry_end, SYM_L_GLOBAL, SYM_A_NONE)

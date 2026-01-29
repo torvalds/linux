@@ -8,11 +8,7 @@
 #ifndef _UAPI_REGULATOR_H
 #define _UAPI_REGULATOR_H
 
-#ifdef __KERNEL__
 #include <linux/types.h>
-#else
-#include <stdint.h>
-#endif
 
 /*
  * Regulator notifier events.
@@ -62,7 +58,7 @@
 
 struct reg_genl_event {
 	char reg_name[32];
-	uint64_t event;
+	__u64 event;
 };
 
 /* attributes of reg_genl_family */

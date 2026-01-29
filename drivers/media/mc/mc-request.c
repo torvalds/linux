@@ -315,11 +315,11 @@ int media_request_alloc(struct media_device *mdev, int *alloc_fd)
 
 	fd_prepare_file(fdf)->private_data = req;
 
-	*alloc_fd = fd_publish(fdf);
-
 	snprintf(req->debug_str, sizeof(req->debug_str), "%u:%d",
-		 atomic_inc_return(&mdev->request_id), *alloc_fd);
+		 atomic_inc_return(&mdev->request_id), fd_prepare_fd(fdf));
 	dev_dbg(mdev->dev, "request: allocated %s\n", req->debug_str);
+
+	*alloc_fd = fd_publish(fdf);
 
 	return 0;
 

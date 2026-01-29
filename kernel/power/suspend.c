@@ -349,9 +349,12 @@ static int suspend_test(int level)
 	if (pm_test_level == level) {
 		pr_info("suspend debug: Waiting for %d second(s).\n",
 				pm_test_delay);
-		for (i = 0; i < pm_test_delay && !pm_wakeup_pending(); i++)
-			msleep(1000);
-
+		for (i = 0; i < pm_test_delay && !pm_wakeup_pending(); i++) {
+			if (level > TEST_CORE)
+				msleep(1000);
+			else
+				mdelay(1000);
+		}
 		return 1;
 	}
 #endif /* !CONFIG_PM_DEBUG */

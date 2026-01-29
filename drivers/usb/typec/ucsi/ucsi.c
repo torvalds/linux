@@ -55,7 +55,8 @@ void ucsi_notify_common(struct ucsi *ucsi, u32 cci)
 }
 EXPORT_SYMBOL_GPL(ucsi_notify_common);
 
-int ucsi_sync_control_common(struct ucsi *ucsi, u64 command, u32 *cci)
+int ucsi_sync_control_common(struct ucsi *ucsi, u64 command, u32 *cci,
+			     void *data, size_t size)
 {
 	bool ack = UCSI_COMMAND(command) == UCSI_ACK_CC_CI;
 	int ret;
@@ -66,20 +67,6 @@ int ucsi_sync_control_common(struct ucsi *ucsi, u64 command, u32 *cci)
 		set_bit(COMMAND_PENDING, &ucsi->flags);
 
 	reinit_completion(&ucsi->complete);
-
-	if (ucsi->message_out_size > 0) {
-		if (!ucsi->ops->write_message_out) {
-			ucsi->message_out_size = 0;
-			ret = -EOPNOTSUPP;
-			goto out_clear_bit;
-		}
-
-		ret = ucsi->ops->write_message_out(ucsi, ucsi->message_out,
-						   ucsi->message_out_size);
-		ucsi->message_out_size = 0;
-		if (ret)
-			goto out_clear_bit;
-	}
 
 	ret = ucsi->ops->async_control(ucsi, command);
 	if (ret)
@@ -97,10 +84,9 @@ out_clear_bit:
 	if (!ret && cci)
 		ret = ucsi->ops->read_cci(ucsi, cci);
 
-	if (!ret && ucsi->message_in_size > 0 &&
+	if (!ret && data &&
 	    (*cci & UCSI_CCI_COMMAND_COMPLETE))
-		ret = ucsi->ops->read_message_in(ucsi, ucsi->message_in,
-						 ucsi->message_in_size);
+		ret = ucsi->ops->read_message_in(ucsi, data, size);
 
 	return ret;
 }
@@ -117,25 +103,23 @@ static int ucsi_acknowledge(struct ucsi *ucsi, bool conn_ack)
 		ctrl |= UCSI_ACK_CONNECTOR_CHANGE;
 	}
 
-	ucsi->message_in_size = 0;
-	return ucsi->ops->sync_control(ucsi, ctrl, NULL);
+	return ucsi->ops->sync_control(ucsi, ctrl, NULL, NULL, 0);
 }
 
-static int ucsi_run_command(struct ucsi *ucsi, u64 command, u32 *cci, bool conn_ack)
+static int ucsi_run_command(struct ucsi *ucsi, u64 command, u32 *cci,
+			    void *data, size_t size, bool conn_ack)
 {
 	int ret, err;
 
 	*cci = 0;
 
-	if (ucsi->message_in_size > UCSI_MAX_DATA_LENGTH(ucsi))
+	if (size > UCSI_MAX_DATA_LENGTH(ucsi))
 		return -EINVAL;
 
-	ret = ucsi->ops->sync_control(ucsi, command, cci);
+	ret = ucsi->ops->sync_control(ucsi, command, cci, data, size);
 
-	if (*cci & UCSI_CCI_BUSY) {
-		ucsi->message_in_size = 0;
-		return ucsi_run_command(ucsi, UCSI_CANCEL, cci, false) ?: -EBUSY;
-	}
+	if (*cci & UCSI_CCI_BUSY)
+		return ucsi_run_command(ucsi, UCSI_CANCEL, cci, NULL, 0, false) ?: -EBUSY;
 	if (ret)
 		return ret;
 
@@ -167,12 +151,9 @@ static int ucsi_read_error(struct ucsi *ucsi, u8 connector_num)
 	int ret;
 
 	command = UCSI_GET_ERROR_STATUS | UCSI_CONNECTOR_NUMBER(connector_num);
-	ucsi->message_in_size = sizeof(error);
-	ret = ucsi_run_command(ucsi, command, &cci, false);
+	ret = ucsi_run_command(ucsi, command, &cci, &error, sizeof(error), false);
 	if (ret < 0)
 		return ret;
-
-	memcpy(&error, ucsi->message_in, sizeof(error));
 
 	switch (error) {
 	case UCSI_ERROR_INCOMPATIBLE_PARTNER:
@@ -219,7 +200,8 @@ static int ucsi_read_error(struct ucsi *ucsi, u8 connector_num)
 	return -EIO;
 }
 
-static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd, bool conn_ack)
+static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd,
+				    void *data, size_t size, bool conn_ack)
 {
 	u8 connector_num;
 	u32 cci;
@@ -247,7 +229,7 @@ static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd, bool conn_ack)
 
 	mutex_lock(&ucsi->ppm_lock);
 
-	ret = ucsi_run_command(ucsi, cmd, &cci, conn_ack);
+	ret = ucsi_run_command(ucsi, cmd, &cci, data, size, conn_ack);
 
 	if (cci & UCSI_CCI_ERROR)
 		ret = ucsi_read_error(ucsi, connector_num);
@@ -256,9 +238,10 @@ static int ucsi_send_command_common(struct ucsi *ucsi, u64 cmd, bool conn_ack)
 	return ret;
 }
 
-int ucsi_send_command(struct ucsi *ucsi, u64 command)
+int ucsi_send_command(struct ucsi *ucsi, u64 command,
+		      void *data, size_t size)
 {
-	return ucsi_send_command_common(ucsi, command, false);
+	return ucsi_send_command_common(ucsi, command, data, size, false);
 }
 EXPORT_SYMBOL_GPL(ucsi_send_command);
 
@@ -336,8 +319,7 @@ void ucsi_altmode_update_active(struct ucsi_connector *con)
 	int i;
 
 	command = UCSI_GET_CURRENT_CAM | UCSI_CONNECTOR_NUMBER(con->num);
-	con->ucsi->message_in_size = sizeof(cur);
-	ret = ucsi_send_command(con->ucsi, command);
+	ret = ucsi_send_command(con->ucsi, command, &cur, sizeof(cur));
 	if (ret < 0) {
 		if (con->ucsi->version > 0x0100) {
 			dev_err(con->ucsi->dev,
@@ -345,8 +327,6 @@ void ucsi_altmode_update_active(struct ucsi_connector *con)
 			return;
 		}
 		cur = 0xff;
-	} else {
-		memcpy(&cur, con->ucsi->message_in, sizeof(cur));
 	}
 
 	if (cur < UCSI_MAX_ALTMODES)
@@ -530,8 +510,7 @@ ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
 		command |= UCSI_GET_ALTMODE_RECIPIENT(recipient);
 		command |= UCSI_GET_ALTMODE_CONNECTOR_NUMBER(con->num);
 		command |= UCSI_GET_ALTMODE_OFFSET(i);
-		ucsi->message_in_size = sizeof(alt);
-		len = ucsi_send_command(con->ucsi, command);
+		len = ucsi_send_command(con->ucsi, command, &alt, sizeof(alt));
 		/*
 		 * We are collecting all altmodes first and then registering.
 		 * Some type-C device will return zero length data beyond last
@@ -539,8 +518,6 @@ ucsi_register_altmodes_nvidia(struct ucsi_connector *con, u8 recipient)
 		 */
 		if (len < 0)
 			return len;
-
-		memcpy(&alt, ucsi->message_in, sizeof(alt));
 
 		/* We got all altmodes, now break out and register them */
 		if (!len || !alt.svid)
@@ -609,14 +586,11 @@ static int ucsi_register_altmodes(struct ucsi_connector *con, u8 recipient)
 		command |= UCSI_GET_ALTMODE_RECIPIENT(recipient);
 		command |= UCSI_GET_ALTMODE_CONNECTOR_NUMBER(con->num);
 		command |= UCSI_GET_ALTMODE_OFFSET(i);
-		con->ucsi->message_in_size = sizeof(alt);
-		len = ucsi_send_command(con->ucsi, command);
+		len = ucsi_send_command(con->ucsi, command, alt, sizeof(alt));
 		if (len == -EBUSY)
 			continue;
 		if (len <= 0)
 			return len;
-
-		memcpy(&alt, con->ucsi->message_in, sizeof(alt));
 
 		/*
 		 * This code is requesting one alt mode at a time, but some PPMs
@@ -685,9 +659,7 @@ static int ucsi_get_connector_status(struct ucsi_connector *con, bool conn_ack)
 			  UCSI_MAX_DATA_LENGTH(con->ucsi));
 	int ret;
 
-	con->ucsi->message_in_size = size;
-	ret = ucsi_send_command_common(con->ucsi, command, conn_ack);
-	memcpy(&con->status, con->ucsi->message_in, size);
+	ret = ucsi_send_command_common(con->ucsi, command, &con->status, size, conn_ack);
 
 	return ret < 0 ? ret : 0;
 }
@@ -710,9 +682,8 @@ static int ucsi_read_pdos(struct ucsi_connector *con,
 	command |= UCSI_GET_PDOS_PDO_OFFSET(offset);
 	command |= UCSI_GET_PDOS_NUM_PDOS(num_pdos - 1);
 	command |= is_source(role) ? UCSI_GET_PDOS_SRC_PDOS : 0;
-	ucsi->message_in_size = num_pdos * sizeof(u32);
-	ret = ucsi_send_command(ucsi, command);
-	memcpy(pdos + offset, ucsi->message_in, num_pdos * sizeof(u32));
+	ret = ucsi_send_command(ucsi, command, pdos + offset,
+				num_pdos * sizeof(u32));
 	if (ret < 0 && ret != -ETIMEDOUT)
 		dev_err(ucsi->dev, "UCSI_GET_PDOS failed (%d)\n", ret);
 
@@ -799,9 +770,7 @@ static int ucsi_get_pd_message(struct ucsi_connector *con, u8 recipient,
 		command |= UCSI_GET_PD_MESSAGE_BYTES(len);
 		command |= UCSI_GET_PD_MESSAGE_TYPE(type);
 
-		con->ucsi->message_in_size = len;
-		ret = ucsi_send_command(con->ucsi, command);
-		memcpy(data + offset, con->ucsi->message_in, len);
+		ret = ucsi_send_command(con->ucsi, command, data + offset, len);
 		if (ret < 0)
 			return ret;
 	}
@@ -966,9 +935,7 @@ static int ucsi_register_cable(struct ucsi_connector *con)
 	int ret;
 
 	command = UCSI_GET_CABLE_PROPERTY | UCSI_CONNECTOR_NUMBER(con->num);
-	con->ucsi->message_in_size = sizeof(cable_prop);
-	ret = ucsi_send_command(con->ucsi, command);
-	memcpy(&cable_prop, con->ucsi->message_in, sizeof(cable_prop));
+	ret = ucsi_send_command(con->ucsi, command, &cable_prop, sizeof(cable_prop));
 	if (ret < 0) {
 		dev_err(con->ucsi->dev, "GET_CABLE_PROPERTY failed (%d)\n", ret);
 		return ret;
@@ -1029,9 +996,7 @@ static int ucsi_check_connector_capability(struct ucsi_connector *con)
 		return 0;
 
 	command = UCSI_GET_CONNECTOR_CAPABILITY | UCSI_CONNECTOR_NUMBER(con->num);
-	con->ucsi->message_in_size = sizeof(con->cap);
-	ret = ucsi_send_command(con->ucsi, command);
-	memcpy(&con->cap, con->ucsi->message_in, sizeof(con->cap));
+	ret = ucsi_send_command(con->ucsi, command, &con->cap, sizeof(con->cap));
 	if (ret < 0) {
 		dev_err(con->ucsi->dev, "GET_CONNECTOR_CAPABILITY failed (%d)\n", ret);
 		return ret;
@@ -1415,8 +1380,7 @@ static int ucsi_reset_connector(struct ucsi_connector *con, bool hard)
 	else if (con->ucsi->version >= UCSI_VERSION_2_0)
 		command |= hard ? 0 : UCSI_CONNECTOR_RESET_DATA_VER_2_0;
 
-	con->ucsi->message_in_size = 0;
-	return ucsi_send_command(con->ucsi, command);
+	return ucsi_send_command(con->ucsi, command, NULL, 0);
 }
 
 static int ucsi_reset_ppm(struct ucsi *ucsi)
@@ -1497,8 +1461,7 @@ static int ucsi_role_cmd(struct ucsi_connector *con, u64 command)
 {
 	int ret;
 
-	con->ucsi->message_in_size = 0;
-	ret = ucsi_send_command(con->ucsi, command);
+	ret = ucsi_send_command(con->ucsi, command, NULL, 0);
 	if (ret == -ETIMEDOUT) {
 		u64 c;
 
@@ -1506,8 +1469,7 @@ static int ucsi_role_cmd(struct ucsi_connector *con, u64 command)
 		ucsi_reset_ppm(con->ucsi);
 
 		c = UCSI_SET_NOTIFICATION_ENABLE | con->ucsi->ntfy;
-		con->ucsi->message_in_size = 0;
-		ucsi_send_command(con->ucsi, c);
+		ucsi_send_command(con->ucsi, c, NULL, 0);
 
 		ucsi_reset_connector(con, true);
 	}
@@ -1660,12 +1622,9 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	/* Get connector capability */
 	command = UCSI_GET_CONNECTOR_CAPABILITY;
 	command |= UCSI_CONNECTOR_NUMBER(con->num);
-	ucsi->message_in_size = sizeof(con->cap);
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, &con->cap, sizeof(con->cap));
 	if (ret < 0)
 		goto out_unlock;
-
-	memcpy(&con->cap, ucsi->message_in, sizeof(con->cap));
 
 	if (UCSI_CONCAP(con, OPMODE_DRP))
 		cap->data = TYPEC_PORT_DRD;
@@ -1863,19 +1822,16 @@ static int ucsi_init(struct ucsi *ucsi)
 	/* Enable basic notifications */
 	ntfy = UCSI_ENABLE_NTFY_CMD_COMPLETE | UCSI_ENABLE_NTFY_ERROR;
 	command = UCSI_SET_NOTIFICATION_ENABLE | ntfy;
-	ucsi->message_in_size = 0;
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_reset;
 
 	/* Get PPM capabilities */
 	command = UCSI_GET_CAPABILITY;
-	ucsi->message_in_size = BITS_TO_BYTES(UCSI_GET_CAPABILITY_SIZE);
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, &ucsi->cap,
+				BITS_TO_BYTES(UCSI_GET_CAPABILITY_SIZE));
 	if (ret < 0)
 		goto err_reset;
-
-	memcpy(&ucsi->cap, ucsi->message_in, BITS_TO_BYTES(UCSI_GET_CAPABILITY_SIZE));
 
 	if (!ucsi->cap.num_connectors) {
 		ret = -ENODEV;
@@ -1906,8 +1862,7 @@ static int ucsi_init(struct ucsi *ucsi)
 	/* Enable all supported notifications */
 	ntfy = ucsi_get_supported_notifications(ucsi);
 	command = UCSI_SET_NOTIFICATION_ENABLE | ntfy;
-	ucsi->message_in_size = 0;
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto err_unregister;
 
@@ -1958,8 +1913,7 @@ static void ucsi_resume_work(struct work_struct *work)
 
 	/* Restore UCSI notification enable mask after system resume */
 	command = UCSI_SET_NOTIFICATION_ENABLE | ucsi->ntfy;
-	ucsi->message_in_size = 0;
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, NULL, 0);
 	if (ret < 0) {
 		dev_err(ucsi->dev, "failed to re-enable notifications (%d)\n", ret);
 		return;

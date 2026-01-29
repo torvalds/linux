@@ -8,7 +8,7 @@ title: Common GPIO lines
 
 maintainers:
   - Bartosz Golaszewski <brgl@bgdev.pl>
-  - Linus Walleij <linus.walleij@linaro.org>
+  - Linus Walleij <linusw@kernel.org>
 
 description:
   Pay attention to using proper GPIO flag (e.g. GPIO_ACTIVE_LOW) for the GPIOs

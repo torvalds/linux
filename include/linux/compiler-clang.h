@@ -145,6 +145,7 @@
  */
 #define ASM_INPUT_G "ir"
 #define ASM_INPUT_RM "r"
+#define ASM_OUTPUT_RM "=r"
 
 /*
  * Declare compiler support for __typeof_unqual__() operator.

@@ -932,7 +932,7 @@ static bool link_detect_dac_load_detect(struct dc_link *link)
 	struct link_encoder *link_enc = link->link_enc;
 	enum engine_id engine_id = link_enc->preferred_engine;
 	enum dal_device_type device_type = DEVICE_TYPE_CRT;
-	enum bp_result bp_result;
+	enum bp_result bp_result = BP_RESULT_UNSUPPORTED;
 	uint32_t enum_id;
 
 	switch (engine_id) {
@@ -946,7 +946,9 @@ static bool link_detect_dac_load_detect(struct dc_link *link)
 		break;
 	}
 
-	bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
+	if (bios->funcs->dac_load_detection)
+		bp_result = bios->funcs->dac_load_detection(bios, engine_id, device_type, enum_id);
+
 	return bp_result == BP_RESULT_OK;
 }
 

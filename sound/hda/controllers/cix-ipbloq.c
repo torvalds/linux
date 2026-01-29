@@ -115,10 +115,8 @@ static int cix_ipbloq_hda_init(struct cix_ipbloq_hda *hda,
 	bus->addr = res->start;
 
 	irq_id = platform_get_irq(pdev, 0);
-	if (irq_id < 0) {
-		dev_err(hda->dev, "failed to get the irq, err = %d\n", irq_id);
+	if (irq_id < 0)
 		return irq_id;
-	}
 
 	err = devm_request_irq(hda->dev, irq_id, azx_interrupt,
 			       0, KBUILD_MODNAME, chip);

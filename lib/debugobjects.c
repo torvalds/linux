@@ -2,7 +2,7 @@
 /*
  * Generic infrastructure for lifetime debugging of objects.
  *
- * Copyright (C) 2008, Thomas Gleixner <tglx@linutronix.de>
+ * Copyright (C) 2008, Linutronix GmbH, Thomas Gleixner <tglx@kernel.org>
  */
 
 #define pr_fmt(fmt) "ODEBUG: " fmt

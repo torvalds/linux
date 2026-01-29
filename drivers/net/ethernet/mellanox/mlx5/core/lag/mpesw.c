@@ -67,12 +67,19 @@ err_metadata:
 
 static int enable_mpesw(struct mlx5_lag *ldev)
 {
-	int idx = mlx5_lag_get_dev_index_by_seq(ldev, MLX5_LAG_P1);
 	struct mlx5_core_dev *dev0;
 	int err;
+	int idx;
 	int i;
 
-	if (idx < 0 || ldev->mode != MLX5_LAG_MODE_NONE)
+	if (ldev->mode == MLX5_LAG_MODE_MPESW)
+		return 0;
+
+	if (ldev->mode != MLX5_LAG_MODE_NONE)
+		return -EINVAL;
+
+	idx = mlx5_lag_get_dev_index_by_seq(ldev, MLX5_LAG_P1);
+	if (idx < 0)
 		return -EINVAL;
 
 	dev0 = ldev->pf[idx].dev;

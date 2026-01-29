@@ -1251,7 +1251,7 @@ configure_monitor:
 	if (!creator_sdata) {
 		struct ieee80211_sub_if_data *other;
 
-		list_for_each_entry(other, &local->mon_list, list) {
+		list_for_each_entry_rcu(other, &local->mon_list, u.mntr.list) {
 			if (!other->vif.bss_conf.mu_mimo_owner)
 				continue;
 
