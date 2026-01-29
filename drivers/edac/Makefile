@@ -38,7 +38,6 @@ obj-$(CONFIG_EDAC_PND2)			+= pnd2_edac.o
 obj-$(CONFIG_EDAC_IGEN6)			+= igen6_edac.o
 obj-$(CONFIG_EDAC_E7XXX)		+= e7xxx_edac.o
 obj-$(CONFIG_EDAC_E752X)		+= e752x_edac.o
-obj-$(CONFIG_EDAC_I82443BXGX)		+= i82443bxgx_edac.o
 obj-$(CONFIG_EDAC_I82875P)		+= i82875p_edac.o
 obj-$(CONFIG_EDAC_I82975X)		+= i82975x_edac.o
 obj-$(CONFIG_EDAC_I3000)		+= i3000_edac.o
