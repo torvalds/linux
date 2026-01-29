@@ -155,13 +155,6 @@ static int compression_decompress(int type, struct list_head *ws,
 	}
 }
 
-static void btrfs_free_compressed_folios(struct compressed_bio *cb)
-{
-	for (unsigned int i = 0; i < cb->nr_folios; i++)
-		btrfs_free_compr_folio(cb->compressed_folios[i]);
-	kfree(cb->compressed_folios);
-}
-
 static int btrfs_decompress_bio(struct compressed_bio *cb);
 
 /*
@@ -270,12 +263,14 @@ static void end_bbio_compressed_read(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	blk_status_t status = bbio->bio.bi_status;
+	struct folio_iter fi;
 
 	if (!status)
 		status = errno_to_blk_status(btrfs_decompress_bio(cb));
 
-	btrfs_free_compressed_folios(cb);
 	btrfs_bio_end_io(cb->orig_bbio, status);
+	bio_for_each_folio_all(fi, &bbio->bio)
+		folio_put(fi.folio);
 	bio_put(&bbio->bio);
 }
 
@@ -326,6 +321,7 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = to_compressed_bio(bbio);
+	struct folio_iter fi;
 
 	btrfs_finish_ordered_extent(cb->bbio.ordered, NULL, cb->start, cb->len,
 				    cb->bbio.bio.bi_status == BLK_STS_OK);
@@ -333,7 +329,9 @@ static void end_bbio_compressed_write(struct btrfs_bio *bbio)
 	if (cb->writeback)
 		end_compressed_writeback(cb);
 	/* Note, our inode could be gone now. */
-	btrfs_free_compressed_folios(cb);
+	bio_for_each_folio_all(fi, &bbio->bio)
+		btrfs_free_compr_folio(fi.folio);
+	kfree(cb->compressed_folios);
 	bio_put(&cb->bbio.bio);
 }
 

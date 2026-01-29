@@ -755,10 +755,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode,
 struct async_extent {
 	u64 start;
 	u64 ram_size;
-	u64 compressed_size;
-	struct folio **folios;
-	unsigned long nr_folios;
-	int compress_type;
+	struct compressed_bio *cb;
 	struct list_head list;
 };
 
@@ -779,24 +776,18 @@ struct async_cow {
 	struct async_chunk chunks[];
 };
 
-static noinline int add_async_extent(struct async_chunk *cow,
-				     u64 start, u64 ram_size,
-				     u64 compressed_size,
-				     struct folio **folios,
-				     unsigned long nr_folios,
-				     int compress_type)
+static int add_async_extent(struct async_chunk *cow, u64 start, u64 ram_size,
+			    struct compressed_bio *cb)
 {
 	struct async_extent *async_extent;
 
 	async_extent = kmalloc(sizeof(*async_extent), GFP_NOFS);
 	if (!async_extent)
 		return -ENOMEM;
+	ASSERT(ram_size < U32_MAX);
 	async_extent->start = start;
 	async_extent->ram_size = ram_size;
-	async_extent->compressed_size = compressed_size;
-	async_extent->folios = folios;
-	async_extent->nr_folios = nr_folios;
-	async_extent->compress_type = compress_type;
+	async_extent->cb = cb;
 	list_add_tail(&async_extent->list, &cow->extents);
 	return 0;
 }
@@ -870,6 +861,61 @@ static int extent_range_clear_dirty_for_io(struct btrfs_inode *inode, u64 start,
 	return ret;
 }
 
+static struct folio *compressed_bio_last_folio(struct compressed_bio *cb)
+{
+	struct bio *bio = &cb->bbio.bio;
+	struct bio_vec *bvec;
+	phys_addr_t paddr;
+
+	/*
+	 * Make sure all folios have the same min_folio_size.
+	 *
+	 * Otherwise we cannot simply use offset_in_offset(folio, bi_size) to
+	 * calculate the end of the last folio.
+	 */
+	if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
+		struct btrfs_fs_info *fs_info = cb_to_fs_info(cb);
+		const u32 min_folio_size = btrfs_min_folio_size(fs_info);
+		struct folio_iter fi;
+
+		bio_for_each_folio_all(fi, bio)
+			ASSERT(folio_size(fi.folio) == min_folio_size);
+	}
+
+	/* The bio must not be empty. */
+	ASSERT(bio->bi_vcnt);
+
+	bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
+	paddr = page_to_phys(bvec->bv_page) + bvec->bv_offset + bvec->bv_len - 1;
+	return page_folio(phys_to_page(paddr));
+}
+
+static void zero_last_folio(struct compressed_bio *cb)
+{
+	struct bio *bio = &cb->bbio.bio;
+	struct folio *last_folio = compressed_bio_last_folio(cb);
+	const u32 bio_size = bio->bi_iter.bi_size;
+	const u32 foffset = offset_in_folio(last_folio, bio_size);
+
+	folio_zero_range(last_folio, foffset, folio_size(last_folio) - foffset);
+}
+
+static void round_up_last_block(struct compressed_bio *cb, u32 blocksize)
+{
+	struct bio *bio = &cb->bbio.bio;
+	struct folio *last_folio = compressed_bio_last_folio(cb);
+	const u32 bio_size = bio->bi_iter.bi_size;
+	const u32 foffset = offset_in_folio(last_folio, bio_size);
+	bool ret;
+
+	if (IS_ALIGNED(bio_size, blocksize))
+		return;
+
+	ret = bio_add_folio(bio, last_folio, round_up(foffset, blocksize) - foffset, foffset);
+	/* The remaining part should be merged thus never fail. */
+	ASSERT(ret);
+}
+
 /*
  * Work queue call back to started compression on a file and pages.
  *
@@ -890,20 +936,18 @@ static void compress_file_range(struct btrfs_work *work)
 	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
-	const u32 min_folio_shift = PAGE_SHIFT + fs_info->block_min_order;
+	struct compressed_bio *cb = NULL;
 	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
 	u64 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
 	u64 actual_end;
 	u64 i_size;
+	u32 cur_len;
 	int ret = 0;
-	struct folio **folios = NULL;
-	unsigned long nr_folios;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
 	unsigned int loff;
-	int i;
 	int compress_type = fs_info->compress_type;
 	int compress_level = fs_info->compress_level;
 
@@ -942,9 +986,10 @@ static void compress_file_range(struct btrfs_work *work)
 	barrier();
 	actual_end = min_t(u64, i_size, end + 1);
 again:
-	folios = NULL;
-	nr_folios = (end >> min_folio_shift) - (start >> min_folio_shift) + 1;
-	nr_folios = min_t(unsigned long, nr_folios, BTRFS_MAX_COMPRESSED >> min_folio_shift);
+	total_in = 0;
+	cur_len = min(end + 1 - start, BTRFS_MAX_UNCOMPRESSED);
+	ret = 0;
+	cb = NULL;
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -959,10 +1004,6 @@ again:
 	if (actual_end <= start)
 		goto cleanup_and_bail_uncompressed;
 
-	total_compressed = min_t(unsigned long, actual_end - start, BTRFS_MAX_UNCOMPRESSED);
-	total_in = 0;
-	ret = 0;
-
 	/*
 	 * We do compression for mount -o compress and when the inode has not
 	 * been flagged as NOCOMPRESS.  This flag can change at any time if we
@@ -970,15 +1011,6 @@ again:
 	 */
 	if (!inode_need_compress(inode, start, end))
 		goto cleanup_and_bail_uncompressed;
-
-	folios = kcalloc(nr_folios, sizeof(struct folio *), GFP_NOFS);
-	if (!folios) {
-		/*
-		 * Memory allocation failure is not a fatal error, we can fall
-		 * back to uncompressed code.
-		 */
-		goto cleanup_and_bail_uncompressed;
-	}
 
 	if (0 < inode->defrag_compress && inode->defrag_compress < BTRFS_NR_COMPRESS_TYPES) {
 		compress_type = inode->defrag_compress;
@@ -988,11 +1020,15 @@ again:
 	}
 
 	/* Compression level is applied here. */
-	ret = btrfs_compress_folios(compress_type, compress_level,
-				    inode, start, folios, &nr_folios, &total_in,
-				    &total_compressed);
-	if (ret)
+	cb = btrfs_compress_bio(inode, start, cur_len, compress_type,
+				 compress_level, async_chunk->write_flags);
+	if (IS_ERR(cb)) {
+		cb = NULL;
 		goto mark_incompressible;
+	}
+
+	total_compressed = cb->bbio.bio.bi_iter.bi_size;
+	total_in = cur_len;
 
 	/*
 	 * Zero the tail end of the last folio, as we might be sending it down
@@ -1000,7 +1036,7 @@ again:
 	 */
 	loff = (total_compressed & (min_folio_size - 1));
 	if (loff)
-		folio_zero_range(folios[nr_folios - 1], loff, min_folio_size - loff);
+		zero_last_folio(cb);
 
 	/*
 	 * Try to create an inline extent.
@@ -1016,11 +1052,13 @@ again:
 					    BTRFS_COMPRESS_NONE, NULL, false);
 	else
 		ret = cow_file_range_inline(inode, NULL, start, end, total_compressed,
-					    compress_type, folios[0], false);
+					    compress_type,
+					    bio_first_folio_all(&cb->bbio.bio), false);
 	if (ret <= 0) {
+		cleanup_compressed_bio(cb);
 		if (ret < 0)
 			mapping_set_error(mapping, -EIO);
-		goto free_pages;
+		return;
 	}
 
 	/*
@@ -1028,6 +1066,7 @@ again:
 	 * block size boundary so the allocator does sane things.
 	 */
 	total_compressed = ALIGN(total_compressed, blocksize);
+	round_up_last_block(cb, blocksize);
 
 	/*
 	 * One last check to make sure the compression is really a win, compare
@@ -1038,12 +1077,12 @@ again:
 	if (total_compressed + blocksize > total_in)
 		goto mark_incompressible;
 
+
 	/*
 	 * The async work queues will take care of doing actual allocation on
 	 * disk for these compressed pages, and will submit the bios.
 	 */
-	ret = add_async_extent(async_chunk, start, total_in, total_compressed, folios,
-			       nr_folios, compress_type);
+	ret = add_async_extent(async_chunk, start, total_in, cb);
 	BUG_ON(ret);
 	if (start + total_in < end) {
 		start += total_in;
@@ -1056,33 +1095,10 @@ mark_incompressible:
 	if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) && !inode->prop_compress)
 		inode->flags |= BTRFS_INODE_NOCOMPRESS;
 cleanup_and_bail_uncompressed:
-	ret = add_async_extent(async_chunk, start, end - start + 1, 0, NULL, 0,
-			       BTRFS_COMPRESS_NONE);
+	ret = add_async_extent(async_chunk, start, end - start + 1, NULL);
 	BUG_ON(ret);
-free_pages:
-	if (folios) {
-		for (i = 0; i < nr_folios; i++) {
-			WARN_ON(folios[i]->mapping);
-			btrfs_free_compr_folio(folios[i]);
-		}
-		kfree(folios);
-	}
-}
-
-static void free_async_extent_pages(struct async_extent *async_extent)
-{
-	int i;
-
-	if (!async_extent->folios)
-		return;
-
-	for (i = 0; i < async_extent->nr_folios; i++) {
-		WARN_ON(async_extent->folios[i]->mapping);
-		btrfs_free_compr_folio(async_extent->folios[i]);
-	}
-	kfree(async_extent->folios);
-	async_extent->nr_folios = 0;
-	async_extent->folios = NULL;
+	if (cb)
+		cleanup_compressed_bio(cb);
 }
 
 static void submit_uncompressed_range(struct btrfs_inode *inode,
@@ -1129,7 +1145,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	struct extent_state *cached = NULL;
 	struct extent_map *em;
 	int ret = 0;
-	bool free_pages = false;
+	u32 compressed_size;
 	u64 start = async_extent->start;
 	u64 end = async_extent->start + async_extent->ram_size - 1;
 
@@ -1149,17 +1165,14 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 			locked_folio = async_chunk->locked_folio;
 	}
 
-	if (async_extent->compress_type == BTRFS_COMPRESS_NONE) {
-		ASSERT(!async_extent->folios);
-		ASSERT(async_extent->nr_folios == 0);
+	if (!async_extent->cb) {
 		submit_uncompressed_range(inode, async_extent, locked_folio);
-		free_pages = true;
 		goto done;
 	}
 
+	compressed_size = async_extent->cb->bbio.bio.bi_iter.bi_size;
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
-				   async_extent->compressed_size,
-				   async_extent->compressed_size,
+				   compressed_size, compressed_size,
 				   0, *alloc_hint, &ins, true, true);
 	if (ret) {
 		/*
@@ -1169,7 +1182,8 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		 * fall back to uncompressed.
 		 */
 		submit_uncompressed_range(inode, async_extent, locked_folio);
-		free_pages = true;
+		cleanup_compressed_bio(async_extent->cb);
+		async_extent->cb = NULL;
 		goto done;
 	}
 
@@ -1181,7 +1195,9 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	file_extent.ram_bytes = async_extent->ram_size;
 	file_extent.num_bytes = async_extent->ram_size;
 	file_extent.offset = 0;
-	file_extent.compression = async_extent->compress_type;
+	file_extent.compression = async_extent->cb->compress_type;
+
+	async_extent->cb->bbio.bio.bi_iter.bi_sector = ins.objectid >> SECTOR_SHIFT;
 
 	em = btrfs_create_io_em(inode, start, &file_extent, BTRFS_ORDERED_COMPRESSED);
 	if (IS_ERR(em)) {
@@ -1197,22 +1213,20 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		ret = PTR_ERR(ordered);
 		goto out_free_reserve;
 	}
+	async_extent->cb->bbio.ordered = ordered;
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 	/* Clear dirty, set writeback and unlock the pages. */
 	extent_clear_unlock_delalloc(inode, start, end,
 			NULL, &cached, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
-	btrfs_submit_compressed_write(ordered,
-			    async_extent->folios,	/* compressed_folios */
-			    async_extent->nr_folios,
-			    async_chunk->write_flags, true);
+	btrfs_submit_bbio(&async_extent->cb->bbio, 0);
+	async_extent->cb = NULL;
+
 	*alloc_hint = ins.objectid + ins.offset;
 done:
 	if (async_chunk->blkcg_css)
 		kthread_associate_blkcg(NULL);
-	if (free_pages)
-		free_async_extent_pages(async_extent);
 	kfree(async_extent);
 	return;
 
@@ -1227,7 +1241,8 @@ out_free_reserve:
 				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
-	free_async_extent_pages(async_extent);
+	if (async_extent->cb)
+		cleanup_compressed_bio(async_extent->cb);
 	if (async_chunk->blkcg_css)
 		kthread_associate_blkcg(NULL);
 	btrfs_debug(fs_info,
