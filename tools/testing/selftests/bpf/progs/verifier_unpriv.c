@@ -950,4 +950,26 @@ l3_%=:	r0 = 0;						\
 "	::: __clobber_all);
 }
 
+SEC("socket")
+__description("unpriv: nospec after dead stack write in helper")
+__success __success_unpriv
+__retval(0)
+/* Dead code sanitizer rewrites the call to `goto -1`. */
+__naked void unpriv_dead_helper_stack_write_nospec_result(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	if r0 != 1 goto l0_%=;				\
+	r2 = 0;						\
+	r3 = r10;					\
+	r3 += -16;					\
+	r4 = 4;						\
+	r5 = 0;						\
+	call %[bpf_skb_load_bytes_relative];		\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_skb_load_bytes_relative)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
