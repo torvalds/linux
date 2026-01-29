@@ -1616,7 +1616,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 
 	vg->pctldev = devm_pinctrl_register(dev, &vg->pctldesc, vg);
 	if (IS_ERR(vg->pctldev))
-		return dev_err_probe(dev, PTR_ERR(vg->pctldev), "failed to register pinctrl\n");
+		return PTR_ERR(vg->pctldev);
 
 	ret = byt_gpio_probe(vg);
 	if (ret)

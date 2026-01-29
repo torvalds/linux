@@ -735,7 +735,7 @@ static int lp_gpio_probe(struct platform_device *pdev)
 
 	lg->pctldev = devm_pinctrl_register(dev, &lg->pctldesc, lg);
 	if (IS_ERR(lg->pctldev))
-		return dev_err_probe(dev, PTR_ERR(lg->pctldev), "failed to register pinctrl\n");
+		return PTR_ERR(lg->pctldev);
 
 	platform_set_drvdata(pdev, lg);
 
