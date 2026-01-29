@@ -31,7 +31,6 @@ static bool CheckPositive(struct dm_odm_t *pDM_Odm, const u32 Condition1, const 
 		pDM_Odm->TypeALNA << 16 |
 		pDM_Odm->TypeAPA << 24;
 
-
 	/*  Value Defined Check =============== */
 	/* QFN Type [15:12] and Cut Version [27:24] need to do value check */
 
