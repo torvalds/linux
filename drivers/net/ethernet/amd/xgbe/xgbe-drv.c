@@ -1838,6 +1838,7 @@ static void xgbe_get_stats64(struct net_device *netdev,
 	s->rx_length_errors = pstats->rxlengtherror;
 	s->rx_crc_errors = pstats->rxcrcerror;
 	s->rx_over_errors = pstats->rxfifooverflow;
+	s->rx_frame_errors = pstats->rxalignmenterror;
 
 	s->tx_packets = pstats->txframecount_gb;
 	s->tx_bytes = pstats->txoctetcount_gb;
