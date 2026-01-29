@@ -686,7 +686,6 @@ err_remove_eqs:
 	}
 
 	destroy_workqueue(aeqs->workq);
-
 err_free_aeqs:
 	kfree(aeqs);
 
