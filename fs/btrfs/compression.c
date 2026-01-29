@@ -1064,6 +1064,74 @@ int btrfs_compress_folios(unsigned int type, int level, struct btrfs_inode *inod
 	return ret;
 }
 
+/*
+ * Given an address space and start and length, compress the page cache
+ * contents into @cb.
+ *
+ * @type_level:      is encoded algorithm and level, where level 0 means whatever
+ *                   default the algorithm chooses and is opaque here;
+ *                   - compression algo are 0-3
+ *                   - the level are bits 4-7
+ *
+ * @cb->bbio.bio.bi_iter.bi_size will indicate the compressed data size.
+ * The bi_size may not be sectorsize aligned, thus the caller still need
+ * to do the round up before submission.
+ *
+ * This function will allocate compressed folios with btrfs_alloc_compr_folio(),
+ * thus callers must make sure the endio function and error handling are using
+ * btrfs_free_compr_folio() to release those folios.
+ * This is already done in end_bbio_compressed_write() and cleanup_compressed_bio().
+ */
+struct compressed_bio *btrfs_compress_bio(struct btrfs_inode *inode,
+					  u64 start, u32 len, unsigned int type,
+					  int level, blk_opf_t write_flags)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct list_head *workspace;
+	struct compressed_bio *cb;
+	int ret;
+
+	cb = alloc_compressed_bio(inode, start, REQ_OP_WRITE | write_flags,
+				  end_bbio_compressed_write);
+	cb->start = start;
+	cb->len = len;
+	cb->writeback = true;
+	cb->compress_type = type;
+
+	level = btrfs_compress_set_level(type, level);
+	workspace = get_workspace(fs_info, type, level);
+	switch (type) {
+	case BTRFS_COMPRESS_ZLIB:
+		ret = zlib_compress_bio(workspace, cb);
+		break;
+	case BTRFS_COMPRESS_LZO:
+		ret = lzo_compress_bio(workspace, cb);
+		break;
+	case BTRFS_COMPRESS_ZSTD:
+		ret = zstd_compress_bio(workspace, cb);
+		break;
+	case BTRFS_COMPRESS_NONE:
+	default:
+		/*
+		 * This can happen when compression races with remount setting
+		 * it to 'no compress', while caller doesn't call
+		 * inode_need_compress() to check if we really need to
+		 * compress.
+		 *
+		 * Not a big deal, just need to inform caller that we
+		 * haven't allocated any pages yet.
+		 */
+		ret = -E2BIG;
+	}
+
+	put_workspace(fs_info, type, workspace);
+	if (ret < 0) {
+		cleanup_compressed_bio(cb);
+		return ERR_PTR(ret);
+	}
+	return cb;
+}
+
 static int btrfs_decompress_bio(struct compressed_bio *cb)
 {
 	struct btrfs_fs_info *fs_info = cb_to_fs_info(cb);
