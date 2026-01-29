@@ -1699,8 +1699,7 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
 
 	if (ops->write_waveform) {
 		if (!ops->round_waveform_tohw ||
-		    !ops->round_waveform_fromhw ||
-		    !ops->write_waveform)
+		    !ops->round_waveform_fromhw)
 			return false;
 
 		if (PWM_WFHWSIZE < ops->sizeof_wfhw) {
