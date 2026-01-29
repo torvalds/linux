@@ -198,7 +198,7 @@ static void xe_tlb_inval_job_destroy(struct kref *ref)
 }
 
 /**
- * xe_tlb_inval_alloc_dep() - TLB invalidation job alloc dependency
+ * xe_tlb_inval_job_alloc_dep() - TLB invalidation job alloc dependency
  * @job: TLB invalidation job to alloc dependency for
  *
  * Allocate storage for a dependency in the TLB invalidation fence. This
