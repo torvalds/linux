@@ -744,26 +744,23 @@ static int dp83867_config_init(struct phy_device *phydev)
 	 */
 	phy_disable_eee(phydev);
 
-	if (phy_interface_is_rgmii(phydev) ||
-	    phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-		val = phy_read(phydev, MII_DP83867_PHYCTRL);
-		if (val < 0)
-			return val;
+	val = phy_read(phydev, MII_DP83867_PHYCTRL);
+	if (val < 0)
+		return val;
 
-		val &= ~DP83867_PHYCR_TX_FIFO_DEPTH_MASK;
-		val |= (dp83867->tx_fifo_depth <<
-			DP83867_PHYCR_TX_FIFO_DEPTH_SHIFT);
+	val &= ~DP83867_PHYCR_TX_FIFO_DEPTH_MASK;
+	val |= (dp83867->tx_fifo_depth <<
+		DP83867_PHYCR_TX_FIFO_DEPTH_SHIFT);
 
-		if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
-			val &= ~DP83867_PHYCR_RX_FIFO_DEPTH_MASK;
-			val |= (dp83867->rx_fifo_depth <<
-				DP83867_PHYCR_RX_FIFO_DEPTH_SHIFT);
-		}
-
-		ret = phy_write(phydev, MII_DP83867_PHYCTRL, val);
-		if (ret)
-			return ret;
+	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
+		val &= ~DP83867_PHYCR_RX_FIFO_DEPTH_MASK;
+		val |= (dp83867->rx_fifo_depth <<
+			DP83867_PHYCR_RX_FIFO_DEPTH_SHIFT);
 	}
+
+	ret = phy_write(phydev, MII_DP83867_PHYCTRL, val);
+	if (ret)
+		return ret;
 
 	if (phy_interface_is_rgmii(phydev)) {
 		val = phy_read(phydev, MII_DP83867_PHYCTRL);
