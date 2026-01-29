@@ -295,13 +295,13 @@ static int mshv_irqfd_wakeup(wait_queue_entry_t *wait, unsigned int mode,
 {
 	struct mshv_irqfd *irqfd = container_of(wait, struct mshv_irqfd,
 						irqfd_wait);
-	unsigned long flags = (unsigned long)key;
+	__poll_t flags = key_to_poll(key);
 	int idx;
 	unsigned int seq;
 	struct mshv_partition *pt = irqfd->irqfd_partn;
 	int ret = 0;
 
-	if (flags & POLLIN) {
+	if (flags & EPOLLIN) {
 		u64 cnt;
 
 		eventfd_ctx_do_read(irqfd->irqfd_eventfd_ctx, &cnt);
@@ -320,7 +320,7 @@ static int mshv_irqfd_wakeup(wait_queue_entry_t *wait, unsigned int mode,
 		ret = 1;
 	}
 
-	if (flags & POLLHUP) {
+	if (flags & EPOLLHUP) {
 		/* The eventfd is closing, detach from the partition */
 		unsigned long flags;
 
@@ -506,7 +506,7 @@ static int mshv_irqfd_assign(struct mshv_partition *pt,
 	 */
 	events = vfs_poll(fd_file(f), &irqfd->irqfd_polltbl);
 
-	if (events & POLLIN)
+	if (events & EPOLLIN)
 		mshv_assert_irq_slow(irqfd);
 
 	srcu_read_unlock(&pt->pt_irq_srcu, idx);
