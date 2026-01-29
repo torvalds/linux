@@ -76,7 +76,8 @@ static int ovl_casefold(struct ovl_readdir_data *rdd, const char *str, int len,
 	char *cf_name;
 	int cf_len;
 
-	if (!IS_ENABLED(CONFIG_UNICODE) || !rdd->map || is_dot_dotdot(str, len))
+	if (!IS_ENABLED(CONFIG_UNICODE) || !rdd->map ||
+	    name_is_dot_dotdot(str, len))
 		return 0;
 
 	cf_name = kmalloc(NAME_MAX, GFP_KERNEL);
@@ -153,7 +154,7 @@ static bool ovl_calc_d_ino(struct ovl_readdir_data *rdd,
 		return true;
 
 	/* Always recalc d_ino for parent */
-	if (strcmp(p->name, "..") == 0)
+	if (name_is_dotdot(p->name, p->len))
 		return true;
 
 	/* If this is lower, then native d_ino will do */
@@ -164,7 +165,7 @@ static bool ovl_calc_d_ino(struct ovl_readdir_data *rdd,
 	 * Recalc d_ino for '.' and for all entries if dir is impure (contains
 	 * copied up entries)
 	 */
-	if ((p->name[0] == '.' && p->len == 1) ||
+	if (name_is_dot(p->name, p->len) ||
 	    ovl_test_flag(OVL_IMPURE, d_inode(rdd->dentry)))
 		return true;
 
@@ -560,12 +561,12 @@ static int ovl_cache_update(const struct path *path, struct ovl_cache_entry *p, 
 	if (!ovl_same_dev(ofs) && !p->check_xwhiteout)
 		goto out;
 
-	if (p->name[0] == '.') {
+	if (name_is_dot_dotdot(p->name, p->len)) {
 		if (p->len == 1) {
 			this = dget(dir);
 			goto get;
 		}
-		if (p->len == 2 && p->name[1] == '.') {
+		if (p->len == 2) {
 			/* we shall not be moved */
 			this = dget(dir->d_parent);
 			goto get;
@@ -665,8 +666,7 @@ static int ovl_dir_read_impure(const struct path *path,  struct list_head *list,
 		return err;
 
 	list_for_each_entry_safe(p, n, list, l_node) {
-		if (strcmp(p->name, ".") != 0 &&
-		    strcmp(p->name, "..") != 0) {
+		if (!name_is_dot_dotdot(p->name, p->len)) {
 			err = ovl_cache_update(path, p, true);
 			if (err)
 				return err;
@@ -755,7 +755,7 @@ static bool ovl_fill_real(struct dir_context *ctx, const char *name,
 	struct dir_context *orig_ctx = rdt->orig_ctx;
 	bool res;
 
-	if (rdt->parent_ino && strcmp(name, "..") == 0) {
+	if (rdt->parent_ino && name_is_dotdot(name, namelen)) {
 		ino = rdt->parent_ino;
 	} else if (rdt->cache) {
 		struct ovl_cache_entry *p;
@@ -1096,12 +1096,8 @@ int ovl_check_empty_dir(struct dentry *dentry, struct list_head *list)
 			goto del_entry;
 		}
 
-		if (p->name[0] == '.') {
-			if (p->len == 1)
-				goto del_entry;
-			if (p->len == 2 && p->name[1] == '.')
-				goto del_entry;
-		}
+		if (name_is_dot_dotdot(p->name, p->len))
+			goto del_entry;
 		err = -ENOTEMPTY;
 		break;
 
@@ -1145,7 +1141,7 @@ static bool ovl_check_d_type(struct dir_context *ctx, const char *name,
 		container_of(ctx, struct ovl_readdir_data, ctx);
 
 	/* Even if d_type is not supported, DT_DIR is returned for . and .. */
-	if (!strncmp(name, ".", namelen) || !strncmp(name, "..", namelen))
+	if (name_is_dot_dotdot(name, namelen))
 		return true;
 
 	if (d_type != DT_UNKNOWN)
@@ -1208,11 +1204,8 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 	list_for_each_entry(p, &list, l_node) {
 		struct dentry *dentry;
 
-		if (p->name[0] == '.') {
-			if (p->len == 1)
-				continue;
-			if (p->len == 2 && p->name[1] == '.')
-				continue;
+		if (name_is_dot_dotdot(p->name, p->len)) {
+			continue;
 		} else if (incompat) {
 			pr_err("overlay with incompat feature '%s' cannot be mounted\n",
 				p->name);
@@ -1277,12 +1270,8 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 		goto out;
 
 	list_for_each_entry(p, &list, l_node) {
-		if (p->name[0] == '.') {
-			if (p->len == 1)
-				continue;
-			if (p->len == 2 && p->name[1] == '.')
-				continue;
-		}
+		if (name_is_dot_dotdot(p->name, p->len))
+			continue;
 		index = ovl_lookup_upper_unlocked(ofs, p->name, indexdir, p->len);
 		if (IS_ERR(index)) {
 			err = PTR_ERR(index);
