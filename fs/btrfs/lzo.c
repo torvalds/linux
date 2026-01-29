@@ -214,6 +214,157 @@ out:
 	return 0;
 }
 
+/*
+ * Write data into @out_folio and queue it into @out_bio.
+ *
+ * Return 0 if everything is fine and @total_out will be increased.
+ * Return <0 for error.
+ *
+ * The @out_folio can be NULL after a full folio is queued.
+ * Thus the caller should check and allocate a new folio when needed.
+ */
+static int write_and_queue_folio(struct bio *out_bio, struct folio **out_folio,
+				 u32 *total_out, u32 write_len)
+{
+	const u32 fsize = folio_size(*out_folio);
+	const u32 foffset = offset_in_folio(*out_folio, *total_out);
+
+	ASSERT(out_folio && *out_folio);
+	/* Should not cross folio boundary. */
+	ASSERT(foffset + write_len <= fsize);
+
+	/* We can not use bio_add_folio_nofail() which doesn't do any merge. */
+	if (!bio_add_folio(out_bio, *out_folio, write_len, foffset)) {
+		/*
+		 * We have allocated a bio that havs BTRFS_MAX_COMPRESSED_PAGES
+		 * vecs, and all ranges inside the same folio should have been
+		 * merged.  If bio_add_folio() still failed, that means we have
+		 * reached the bvec limits.
+		 *
+		 * This should only happen at the beginning of a folio, and
+		 * caller is responsible for releasing the folio, since it's
+		 * not yet queued into the bio.
+		 */
+		ASSERT(IS_ALIGNED(*total_out, fsize));
+		return -E2BIG;
+	}
+
+	*total_out += write_len;
+	/*
+	 * The full folio has been filled and queued, reset @out_folio to NULL,
+	 * so that error handling is fully handled by the bio.
+	 */
+	if (IS_ALIGNED(*total_out, fsize))
+		*out_folio = NULL;
+	return 0;
+}
+
+/*
+ * Copy compressed data to bio.
+ *
+ * @out_bio:		The bio that will contain all the compressed data.
+ * @compressed_data:	The compressed data of this segment.
+ * @compressed_size:	The size of the compressed data.
+ * @out_folio:		The current output folio, will be updated if a new
+ *			folio is allocated.
+ * @total_out:		The total bytes of current output.
+ * @max_out:		The maximum size of the compressed data.
+ *
+ * Will do:
+ *
+ * - Write a segment header into the destination
+ * - Copy the compressed buffer into the destination
+ * - Make sure we have enough space in the last sector to fit a segment header
+ *   If not, we will pad at most (LZO_LEN (4)) - 1 bytes of zeros.
+ * - If a full folio is filled, it will be queued into @out_bio, and @out_folio
+ *   will be updated.
+ *
+ * Will allocate new pages when needed.
+ */
+static int copy_compressed_data_to_bio(struct btrfs_fs_info *fs_info,
+				       struct bio *out_bio,
+				       const char *compressed_data,
+				       size_t compressed_size,
+				       struct folio **out_folio,
+				       u32 *total_out, u32 max_out)
+{
+	const u32 sectorsize = fs_info->sectorsize;
+	const u32 sectorsize_bits = fs_info->sectorsize_bits;
+	const u32 fsize = btrfs_min_folio_size(fs_info);
+	const u32 old_size = out_bio->bi_iter.bi_size;
+	u32 copy_start;
+	u32 sector_bytes_left;
+	char *kaddr;
+	int ret;
+
+	ASSERT(out_folio);
+
+	/* There should be at least a lzo header queued. */
+	ASSERT(old_size);
+	ASSERT(old_size == *total_out);
+
+	/*
+	 * We never allow a segment header crossing sector boundary, previous
+	 * run should ensure we have enough space left inside the sector.
+	 */
+	ASSERT((old_size >> sectorsize_bits) == (old_size + LZO_LEN - 1) >> sectorsize_bits);
+
+	if (!*out_folio) {
+		*out_folio = btrfs_alloc_compr_folio(fs_info);
+		if (!*out_folio)
+			return -ENOMEM;
+	}
+
+	/* Write the segment header first. */
+	kaddr = kmap_local_folio(*out_folio, offset_in_folio(*out_folio, *total_out));
+	write_compress_length(kaddr, compressed_size);
+	kunmap_local(kaddr);
+	ret = write_and_queue_folio(out_bio, out_folio, total_out, LZO_LEN);
+	if (ret < 0)
+		return ret;
+
+	copy_start = *total_out;
+
+	/* Copy compressed data. */
+	while (*total_out - copy_start < compressed_size) {
+		u32 copy_len = min_t(u32, sectorsize - *total_out % sectorsize,
+				     copy_start + compressed_size - *total_out);
+		u32 foffset = *total_out & (fsize - 1);
+
+		/* With the range copied, we're larger than the original range. */
+		if (((*total_out + copy_len) >> sectorsize_bits) >=
+		    max_out >> sectorsize_bits)
+			return -E2BIG;
+
+		if (!*out_folio) {
+			*out_folio = btrfs_alloc_compr_folio(fs_info);
+			if (!*out_folio)
+				return -ENOMEM;
+		}
+
+		kaddr = kmap_local_folio(*out_folio, foffset);
+		memcpy(kaddr, compressed_data + *total_out - copy_start, copy_len);
+		kunmap_local(kaddr);
+		ret = write_and_queue_folio(out_bio, out_folio, total_out, copy_len);
+		if (ret < 0)
+			return ret;
+	}
+
+	/*
+	 * Check if we can fit the next segment header into the remaining space
+	 * of the sector.
+	 */
+	sector_bytes_left = round_up(*total_out, sectorsize) - *total_out;
+	if (sector_bytes_left >= LZO_LEN || sector_bytes_left == 0)
+		return 0;
+
+	ASSERT(*out_folio);
+
+	/* The remaining size is not enough, pad it with zeros */
+	folio_zero_range(*out_folio, offset_in_folio(*out_folio, *total_out), sector_bytes_left);
+	return write_and_queue_folio(out_bio, out_folio, total_out, sector_bytes_left);
+}
+
 int lzo_compress_folios(struct list_head *ws, struct btrfs_inode *inode,
 			u64 start, struct folio **folios, unsigned long *out_folios,
 			unsigned long *total_in, unsigned long *total_out)
@@ -307,6 +458,113 @@ out:
 	if (folio_in)
 		folio_put(folio_in);
 	*out_folios = DIV_ROUND_UP(cur_out, min_folio_size);
+	return ret;
+}
+
+int lzo_compress_bio(struct list_head *ws, struct compressed_bio *cb)
+{
+	struct btrfs_inode *inode = cb->bbio.inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct bio *bio = &cb->bbio.bio;
+	const u64 start = cb->start;
+	const u32 len = cb->len;
+	const u32 sectorsize = fs_info->sectorsize;
+	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	struct folio *folio_in = NULL;
+	struct folio *folio_out = NULL;
+	char *sizes_ptr;
+	int ret = 0;
+	/* Points to the file offset of input data. */
+	u64 cur_in = start;
+	/* Points to the current output byte. */
+	u32 total_out = 0;
+
+	ASSERT(bio->bi_iter.bi_size == 0);
+	ASSERT(len);
+
+	folio_out = btrfs_alloc_compr_folio(fs_info);
+	if (!folio_out)
+		return -ENOMEM;
+
+	/* Queue a segment header first. */
+	ret = write_and_queue_folio(bio, &folio_out, &total_out, LZO_LEN);
+	/* The first header should not fail. */
+	ASSERT(ret == 0);
+
+	while (cur_in < start + len) {
+		char *data_in;
+		const u32 sectorsize_mask = sectorsize - 1;
+		u32 sector_off = (cur_in - start) & sectorsize_mask;
+		u32 in_len;
+		size_t out_len;
+
+		/* Get the input page first. */
+		if (!folio_in) {
+			ret = btrfs_compress_filemap_get_folio(mapping, cur_in, &folio_in);
+			if (ret < 0)
+				goto out;
+		}
+
+		/* Compress at most one sector of data each time. */
+		in_len = min_t(u32, start + len - cur_in, sectorsize - sector_off);
+		ASSERT(in_len);
+		data_in = kmap_local_folio(folio_in, offset_in_folio(folio_in, cur_in));
+		ret = lzo1x_1_compress(data_in, in_len, workspace->cbuf, &out_len,
+				       workspace->mem);
+		kunmap_local(data_in);
+		if (unlikely(ret < 0)) {
+			/* lzo1x_1_compress never fails. */
+			ret = -EIO;
+			goto out;
+		}
+
+		ret = copy_compressed_data_to_bio(fs_info, bio, workspace->cbuf, out_len,
+						  &folio_out, &total_out, len);
+		if (ret < 0)
+			goto out;
+
+		cur_in += in_len;
+
+		/*
+		 * Check if we're making it bigger after two sectors.  And if
+		 * it is so, give up.
+		 */
+		if (cur_in - start > sectorsize * 2 && cur_in - start < total_out) {
+			ret = -E2BIG;
+			goto out;
+		}
+
+		/* Check if we have reached input folio boundary. */
+		if (IS_ALIGNED(cur_in, min_folio_size)) {
+			folio_put(folio_in);
+			folio_in = NULL;
+		}
+	}
+	/*
+	 * The last folio is already queued. Bio is responsible for freeing
+	 * those folios now.
+	 */
+	folio_out = NULL;
+
+	/* Store the size of all chunks of compressed data */
+	sizes_ptr = kmap_local_folio(bio_first_folio_all(bio), 0);
+	write_compress_length(sizes_ptr, total_out);
+	kunmap_local(sizes_ptr);
+out:
+	/*
+	 * We can only free the folio that has no part queued into the bio.
+	 *
+	 * As any folio that is already queued into bio will be released by
+	 * the endio function of bio.
+	 */
+	if (folio_out && IS_ALIGNED(total_out, min_folio_size)) {
+		btrfs_free_compr_folio(folio_out);
+		folio_out = NULL;
+	}
+	if (folio_in)
+		folio_put(folio_in);
 	return ret;
 }
 
