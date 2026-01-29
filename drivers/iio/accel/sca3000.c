@@ -153,7 +153,6 @@
  * struct sca3000_state - device instance state information
  * @us:			the associated spi device
  * @info:			chip variant information
- * @last_timestamp:		the timestamp of the last event
  * @mo_det_use_count:		reference counter for the motion detection unit
  * @lock:			lock used to protect elements of sca3000_state
  *				and the underlying device state.
@@ -163,7 +162,6 @@
 struct sca3000_state {
 	struct spi_device		*us;
 	const struct sca3000_chip_info	*info;
-	s64				last_timestamp;
 	int				mo_det_use_count;
 	struct mutex			lock;
 	/* Can these share a cacheline ? */
