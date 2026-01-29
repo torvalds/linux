@@ -78,12 +78,13 @@ struct dev_ctx {
 	unsigned int	auto_zc_fallback:1;
 	unsigned int	per_io_tasks:1;
 	unsigned int	no_ublk_fixed_fd:1;
+	unsigned int	safe_stop:1;
+	unsigned int	no_auto_part_scan:1;
 	__u32 integrity_flags;
 	__u8 metadata_size;
 	__u8 pi_offset;
 	__u8 csum_type;
 	__u8 tag_size;
-	unsigned int	safe_stop:1;
 
 	int _evtfd;
 	int _shmid;

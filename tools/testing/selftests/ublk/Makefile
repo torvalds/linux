@@ -48,6 +48,8 @@ TEST_PROGS += test_stripe_04.sh
 TEST_PROGS += test_stripe_05.sh
 TEST_PROGS += test_stripe_06.sh
 
+TEST_PROGS += test_part_01.sh
+
 TEST_PROGS += test_stress_01.sh
 TEST_PROGS += test_stress_02.sh
 TEST_PROGS += test_stress_03.sh
