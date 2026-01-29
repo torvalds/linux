@@ -310,6 +310,11 @@ static inline pid_t task_ppid_nr_ns(const struct task_struct *tsk, struct pid_na
 	return pid;
 }
 
+static inline pid_t task_ppid_vnr(const struct task_struct *tsk)
+{
+	return task_ppid_nr_ns(tsk, NULL);
+}
+
 static inline pid_t task_ppid_nr(const struct task_struct *tsk)
 {
 	return task_ppid_nr_ns(tsk, &init_pid_ns);
