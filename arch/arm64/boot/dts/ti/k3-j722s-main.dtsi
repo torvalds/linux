@@ -429,6 +429,11 @@
 	firmware-name = "j722s-wkup-r5f0_0-fw";
 };
 
+/* MAIN domain overrides */
+&hsm {
+	firmware-name = "j722s-hsm-m4f-fw";
+};
+
 &main_conf {
 	serdes_ln_ctrl: mux-controller@4080 {
 		compatible = "reg-mux";

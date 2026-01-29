@@ -41,7 +41,7 @@
 			reg = <0x000>;
 			device_type = "cpu";
 			enable-method = "psci";
-			i-cache-size = <0xC000>;
+			i-cache-size = <0xc000>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <256>;
 			d-cache-size = <0x8000>;
@@ -55,7 +55,7 @@
 			reg = <0x001>;
 			device_type = "cpu";
 			enable-method = "psci";
-			i-cache-size = <0xC000>;
+			i-cache-size = <0xc000>;
 			i-cache-line-size = <64>;
 			i-cache-sets = <256>;
 			d-cache-size = <0x8000>;

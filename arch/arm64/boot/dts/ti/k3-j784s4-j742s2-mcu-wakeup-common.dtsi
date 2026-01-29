@@ -762,4 +762,21 @@
 		/* reserved for MCU_R5F0_1 */
 		status = "reserved";
 	};
+
+	hsm: remoteproc@43c00000 {
+		compatible = "ti,hsm-m4fss";
+		/* contiguous regions but instantiated separately in HW */
+		reg = <0x00 0x43c00000 0x00 0x20000>,
+		      <0x00 0x43c20000 0x00 0x10000>,
+		      <0x00 0x43c30000 0x00 0x10000>;
+		reg-names = "sram0_0", "sram0_1", "sram1";
+		resets = <&k3_reset 371 1>;
+		firmware-name = "j784s4-hsm-m4f-fw";
+		bootph-pre-ram;
+		ti,sci = <&sms>;
+		ti,sci-dev-id = <371>;
+		ti,sci-proc-ids = <0x80 0xff>;
+		/* reserved for early-stage bootloader */
+		status = "reserved";
+	};
 };
