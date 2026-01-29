@@ -34,7 +34,10 @@ static int z_erofs_load_lz4_config(struct super_block *sb,
 		}
 	} else {
 		distance = le16_to_cpu(dsb->u1.lz4_max_distance);
+		if (!distance && !erofs_sb_has_lz4_0padding(sbi))
+			return 0;
 		sbi->lz4.max_pclusterblks = 1;
+		sbi->available_compr_algs = 1 << Z_EROFS_COMPRESSION_LZ4;
 	}
 
 	sbi->lz4.max_distance_pages = distance ?
@@ -198,7 +201,6 @@ const char *z_erofs_fixup_insize(struct z_erofs_decompress_req *rq,
 static const char *__z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 					    u8 *dst)
 {
-	bool zeropadded = erofs_sb_has_zero_padding(EROFS_SB(rq->sb));
 	bool may_inplace = false;
 	unsigned int inputmargin;
 	u8 *out, *headpage, *src;
@@ -206,18 +208,15 @@ static const char *__z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 	int ret, maptype;
 
 	headpage = kmap_local_page(*rq->in);
-	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
-	if (zeropadded) {
-		reason = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
-				min_t(unsigned int, rq->inputsize,
-				      rq->sb->s_blocksize - rq->pageofs_in));
-		if (reason) {
-			kunmap_local(headpage);
-			return reason;
-		}
-		may_inplace = !((rq->pageofs_in + rq->inputsize) &
-				(rq->sb->s_blocksize - 1));
+	reason = z_erofs_fixup_insize(rq, headpage + rq->pageofs_in,
+			min_t(unsigned int, rq->inputsize,
+			      rq->sb->s_blocksize - rq->pageofs_in));
+	if (reason) {
+		kunmap_local(headpage);
+		return reason;
 	}
+	may_inplace = !((rq->pageofs_in + rq->inputsize) &
+			(rq->sb->s_blocksize - 1));
 
 	inputmargin = rq->pageofs_in;
 	src = z_erofs_lz4_handle_overlap(rq, headpage, dst, &inputmargin,
@@ -226,8 +225,7 @@ static const char *__z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 		return ERR_CAST(src);
 
 	out = dst + rq->pageofs_out;
-	/* legacy format could compress extra data in a pcluster. */
-	if (rq->partial_decoding || !zeropadded)
+	if (rq->partial_decoding)
 		ret = LZ4_decompress_safe_partial(src + inputmargin, out,
 				rq->inputsize, rq->outputsize, rq->outputsize);
 	else
@@ -454,10 +452,8 @@ int z_erofs_parse_cfgs(struct super_block *sb, struct erofs_super_block *dsb)
 	erofs_off_t offset;
 	int size, ret = 0;
 
-	if (!erofs_sb_has_compr_cfgs(sbi)) {
-		sbi->available_compr_algs = 1 << Z_EROFS_COMPRESSION_LZ4;
+	if (!erofs_sb_has_compr_cfgs(sbi))
 		return z_erofs_load_lz4_config(sb, dsb, NULL, 0);
-	}
 
 	algs = le16_to_cpu(dsb->u1.available_compr_algs);
 	sbi->available_compr_algs = algs;

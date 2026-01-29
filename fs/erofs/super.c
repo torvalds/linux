@@ -122,18 +122,6 @@ void *erofs_read_metadata(struct super_block *sb, struct erofs_buf *buf,
 	return buffer;
 }
 
-#ifndef CONFIG_EROFS_FS_ZIP
-static int z_erofs_parse_cfgs(struct super_block *sb,
-			      struct erofs_super_block *dsb)
-{
-	if (!dsb->u1.available_compr_algs)
-		return 0;
-
-	erofs_err(sb, "compression disabled, unable to mount compressed EROFS");
-	return -EOPNOTSUPP;
-}
-#endif
-
 static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 			     struct erofs_device_info *dif, erofs_off_t *pos)
 {
@@ -363,10 +351,16 @@ static int erofs_read_superblock(struct super_block *sb)
 		}
 	}
 
-	/* parse on-disk compression configurations */
-	ret = z_erofs_parse_cfgs(sb, dsb);
-	if (ret < 0)
+	if (IS_ENABLED(CONFIG_EROFS_FS_ZIP)) {
+		ret = z_erofs_parse_cfgs(sb, dsb);
+		if (ret < 0)
+			goto out;
+	} else if (dsb->u1.available_compr_algs ||
+		   erofs_sb_has_lz4_0padding(sbi)) {
+		erofs_err(sb, "compression disabled, unable to mount compressed EROFS");
+		ret = -EOPNOTSUPP;
 		goto out;
+	}
 
 	ret = erofs_scan_devices(sb, dsb);
 

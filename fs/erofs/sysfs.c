@@ -86,7 +86,6 @@ static struct attribute *erofs_attrs[] = {
 ATTRIBUTE_GROUPS(erofs);
 
 /* Features this copy of erofs supports */
-EROFS_ATTR_FEATURE(zero_padding);
 EROFS_ATTR_FEATURE(compr_cfgs);
 EROFS_ATTR_FEATURE(big_pcluster);
 EROFS_ATTR_FEATURE(chunked_file);
@@ -100,7 +99,6 @@ EROFS_ATTR_FEATURE(48bit);
 EROFS_ATTR_FEATURE(metabox);
 
 static struct attribute *erofs_feat_attrs[] = {
-	ATTR_LIST(zero_padding),
 	ATTR_LIST(compr_cfgs),
 	ATTR_LIST(big_pcluster),
 	ATTR_LIST(chunked_file),

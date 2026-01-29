@@ -183,11 +183,17 @@ static int erofs_read_inode(struct inode *inode)
 		goto err_out;
 	}
 
-	if (erofs_inode_is_data_compressed(vi->datalayout))
-		inode->i_blocks = le32_to_cpu(copied.i_u.blocks_lo) <<
-					(sb->s_blocksize_bits - 9);
-	else
+	if (!erofs_inode_is_data_compressed(vi->datalayout)) {
 		inode->i_blocks = round_up(inode->i_size, sb->s_blocksize) >> 9;
+	} else if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP) || !sbi->available_compr_algs) {
+		erofs_err(sb, "compressed inode (nid %llu) is invalid in a plain filesystem",
+			  vi->nid);
+		err = -EFSCORRUPTED;
+		goto err_out;
+	} else {
+		inode->i_blocks = le32_to_cpu(copied.i_u.blocks_lo) <<
+				(sb->s_blocksize_bits - 9);
+	}
 
 	if (vi->datalayout == EROFS_INODE_CHUNK_BASED) {
 		/* fill chunked inode summary info */
