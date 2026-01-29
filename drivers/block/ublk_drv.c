@@ -80,7 +80,8 @@
 		| UBLK_F_BUF_REG_OFF_DAEMON \
 		| (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) ? UBLK_F_INTEGRITY : 0) \
 		| UBLK_F_SAFE_STOP_DEV \
-		| UBLK_F_BATCH_IO)
+		| UBLK_F_BATCH_IO \
+		| UBLK_F_NO_AUTO_PART_SCAN)
 
 #define UBLK_F_ALL_RECOVERY_FLAGS (UBLK_F_USER_RECOVERY \
 		| UBLK_F_USER_RECOVERY_REISSUE \
@@ -4430,9 +4431,14 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub,
 
 	set_bit(UB_STATE_USED, &ub->state);
 
-	/* Schedule async partition scan for trusted daemons */
-	if (!ub->unprivileged_daemons)
-		schedule_work(&ub->partition_scan_work);
+	/* Skip partition scan if disabled by user */
+	if (ub->dev_info.flags & UBLK_F_NO_AUTO_PART_SCAN) {
+		clear_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
+	} else {
+		/* Schedule async partition scan for trusted daemons */
+		if (!ub->unprivileged_daemons)
+			schedule_work(&ub->partition_scan_work);
+	}
 
 out_put_cdev:
 	if (ret) {

@@ -367,6 +367,9 @@
  */
 #define UBLK_F_SAFE_STOP_DEV	(1ULL << 17)
 
+/* Disable automatic partition scanning when device is started */
+#define UBLK_F_NO_AUTO_PART_SCAN (1ULL << 18)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
