@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID=null_04
 
 _prep_test "null" "integrity params"
 

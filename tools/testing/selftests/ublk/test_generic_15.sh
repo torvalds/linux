@@ -3,7 +3,6 @@
 
 . "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
-TID="generic_15"
 ERR_CODE=0
 
 _test_partition_scan_no_hang()

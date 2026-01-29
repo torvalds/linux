@@ -1,6 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+# Derive TID from script name: test_<type>_<num>.sh -> <type>_<num>
+# Can be overridden in test script after sourcing this file
+TID=$(basename "$0" .sh)
+TID=${TID#test_}
+
 UBLK_SKIP_CODE=4
 
 _have_program() {

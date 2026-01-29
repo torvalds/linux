@@ -13,7 +13,6 @@ if [[ "$fio_version" =~ fio-[0-9]+\.[0-9]+$ ]]; then
 	exit $UBLK_SKIP_CODE
 fi
 
-TID=loop_08
 
 _prep_test "loop" "end-to-end integrity"
 
