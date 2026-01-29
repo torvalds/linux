@@ -2856,20 +2856,9 @@ done:
 	return 0;
 }
 
-/*
- * struct damon_system_ram_region - System RAM resource address region of
- *				    [@start, @end).
- * @start:	Start address of the region (inclusive).
- * @end:	End address of the region (exclusive).
- */
-struct damon_system_ram_region {
-	unsigned long start;
-	unsigned long end;
-};
-
 static int walk_system_ram(struct resource *res, void *arg)
 {
-	struct damon_system_ram_region *a = arg;
+	struct damon_addr_range *a = arg;
 
 	if (a->end - a->start < resource_size(res)) {
 		a->start = res->start;
@@ -2886,7 +2875,7 @@ static bool damon_find_biggest_system_ram(unsigned long *start,
 						unsigned long *end)
 
 {
-	struct damon_system_ram_region arg = {};
+	struct damon_addr_range arg = {};
 
 	walk_system_ram_res(0, ULONG_MAX, &arg, walk_system_ram);
 	if (arg.end <= arg.start)
