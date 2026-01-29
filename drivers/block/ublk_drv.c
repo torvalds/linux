@@ -738,7 +738,7 @@ static void ublk_batch_deinit_fetch_buf(struct ublk_queue *ubq,
 					int res)
 {
 	spin_lock(&ubq->evts_lock);
-	list_del(&fcmd->node);
+	list_del_init(&fcmd->node);
 	WARN_ON_ONCE(fcmd != ubq->active_fcmd);
 	__ublk_release_fcmd(ubq);
 	spin_unlock(&ubq->evts_lock);
@@ -2693,6 +2693,16 @@ static void ublk_cancel_cmd(struct ublk_queue *ubq, unsigned tag,
 		io_uring_cmd_done(io->cmd, UBLK_IO_RES_ABORT, issue_flags);
 }
 
+/*
+ * Cancel a batch fetch command if it hasn't been claimed by another path.
+ *
+ * An fcmd can only be cancelled if:
+ * 1. It's not the active_fcmd (which is currently being processed)
+ * 2. It's still on the list (!list_empty check) - once removed from the list,
+ *    the fcmd is considered claimed and will be freed by whoever removed it
+ *
+ * Use list_del_init() so subsequent list_empty() checks work correctly.
+ */
 static void ublk_batch_cancel_cmd(struct ublk_queue *ubq,
 				  struct ublk_batch_fetch_cmd *fcmd,
 				  unsigned int issue_flags)
@@ -2700,9 +2710,9 @@ static void ublk_batch_cancel_cmd(struct ublk_queue *ubq,
 	bool done;
 
 	spin_lock(&ubq->evts_lock);
-	done = (READ_ONCE(ubq->active_fcmd) != fcmd);
+	done = (READ_ONCE(ubq->active_fcmd) != fcmd) && !list_empty(&fcmd->node);
 	if (done)
-		list_del(&fcmd->node);
+		list_del_init(&fcmd->node);
 	spin_unlock(&ubq->evts_lock);
 
 	if (done) {
