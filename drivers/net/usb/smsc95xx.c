@@ -27,7 +27,6 @@
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
-#define SMSC_DRIVER_VERSION		"2.0.0"
 #define HS_USB_PKT_SIZE			(512)
 #define FS_USB_PKT_SIZE			(64)
 #define DEFAULT_HS_BURST_CAP_SIZE	(16 * 1024 + 5 * HS_USB_PKT_SIZE)
@@ -1151,8 +1150,6 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	char usb_path[64];
 	int ret, phy_irq;
 	u32 val;
-
-	printk(KERN_INFO SMSC_CHIPNAME " v" SMSC_DRIVER_VERSION "\n");
 
 	ret = usbnet_get_endpoints(dev, intf);
 	if (ret < 0) {
