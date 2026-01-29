@@ -231,7 +231,7 @@ static struct kmem_cache *bfq_pool;
 #define BFQ_RQ_SEEKY(bfqd, last_pos, rq) \
 	(get_sdist(last_pos, rq) >			\
 	 BFQQ_SEEK_THR &&				\
-	 (!blk_queue_nonrot(bfqd->queue) ||		\
+	 (blk_queue_rot(bfqd->queue) ||			\
 	  blk_rq_sectors(rq) < BFQQ_SECT_THR_NONROT))
 #define BFQQ_CLOSE_THR		(sector_t)(8 * 1024)
 #define BFQQ_SEEKY(bfqq)	(hweight32(bfqq->seek_history) > 19)
@@ -4165,7 +4165,7 @@ static bool bfq_bfqq_is_slow(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	/* don't use too short time intervals */
 	if (delta_usecs < 1000) {
-		if (blk_queue_nonrot(bfqd->queue))
+		if (!blk_queue_rot(bfqd->queue))
 			 /*
 			  * give same worst-case guarantees as idling
 			  * for seeky
@@ -4487,7 +4487,7 @@ static bool idling_boosts_thr_without_issues(struct bfq_data *bfqd,
 					     struct bfq_queue *bfqq)
 {
 	bool rot_without_queueing =
-		!blk_queue_nonrot(bfqd->queue) && !bfqd->hw_tag,
+		blk_queue_rot(bfqd->queue) && !bfqd->hw_tag,
 		bfqq_sequential_and_IO_bound,
 		idling_boosts_thr;
 
@@ -4521,7 +4521,7 @@ static bool idling_boosts_thr_without_issues(struct bfq_data *bfqd,
 	 * flash-based device.
 	 */
 	idling_boosts_thr = rot_without_queueing ||
-		((!blk_queue_nonrot(bfqd->queue) || !bfqd->hw_tag) &&
+		((blk_queue_rot(bfqd->queue) || !bfqd->hw_tag) &&
 		 bfqq_sequential_and_IO_bound);
 
 	/*
@@ -4722,7 +4722,7 @@ bfq_choose_bfqq_for_injection(struct bfq_data *bfqd)
 			 * there is only one in-flight large request
 			 * at a time.
 			 */
-			if (blk_queue_nonrot(bfqd->queue) &&
+			if (!blk_queue_rot(bfqd->queue) &&
 			    blk_rq_sectors(bfqq->next_rq) >=
 			    BFQQ_SECT_THR_NONROT &&
 			    bfqd->tot_rq_in_driver >= 1)
@@ -6340,7 +6340,7 @@ static void bfq_update_hw_tag(struct bfq_data *bfqd)
 	bfqd->hw_tag_samples = 0;
 
 	bfqd->nonrot_with_queueing =
-		blk_queue_nonrot(bfqd->queue) && bfqd->hw_tag;
+		!blk_queue_rot(bfqd->queue) && bfqd->hw_tag;
 }
 
 static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
@@ -7293,7 +7293,7 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_queue *eq)
 	INIT_HLIST_HEAD(&bfqd->burst_list);
 
 	bfqd->hw_tag = -1;
-	bfqd->nonrot_with_queueing = blk_queue_nonrot(bfqd->queue);
+	bfqd->nonrot_with_queueing = !blk_queue_rot(bfqd->queue);
 
 	bfqd->bfq_max_budget = bfq_default_max_budget;
 
@@ -7328,9 +7328,9 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_queue *eq)
 	 * Begin by assuming, optimistically, that the device peak
 	 * rate is equal to 2/3 of the highest reference rate.
 	 */
-	bfqd->rate_dur_prod = ref_rate[blk_queue_nonrot(bfqd->queue)] *
-		ref_wr_duration[blk_queue_nonrot(bfqd->queue)];
-	bfqd->peak_rate = ref_rate[blk_queue_nonrot(bfqd->queue)] * 2 / 3;
+	bfqd->rate_dur_prod = ref_rate[!blk_queue_rot(bfqd->queue)] *
+		ref_wr_duration[!blk_queue_rot(bfqd->queue)];
+	bfqd->peak_rate = ref_rate[!blk_queue_rot(bfqd->queue)] * 2 / 3;
 
 	/* see comments on the definition of next field inside bfq_data */
 	bfqd->actuator_load_threshold = 4;

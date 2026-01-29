@@ -988,10 +988,7 @@ static void iolatency_pd_init(struct blkg_policy_data *pd)
 	u64 now = blk_time_get_ns();
 	int cpu;
 
-	if (blk_queue_nonrot(blkg->q))
-		iolat->ssd = true;
-	else
-		iolat->ssd = false;
+	iolat->ssd = !blk_queue_rot(blkg->q);
 
 	for_each_possible_cpu(cpu) {
 		struct latency_stat *stat;
