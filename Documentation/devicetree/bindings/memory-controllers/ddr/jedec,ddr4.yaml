@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/memory-controllers/ddr/jedec,lpddr4.yaml#
+$id: http://devicetree.org/schemas/memory-controllers/ddr/jedec,ddr4.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: LPDDR4 SDRAM compliant to JEDEC JESD209-4
+title: DDR4 SDRAM compliant to JEDEC JESD79-4D
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -15,8 +15,8 @@ allOf:
 properties:
   compatible:
     items:
-      - pattern: "^lpddr4-[0-9a-f]{2},[0-9a-f]{4}$"
-      - const: jedec,lpddr4
+      - pattern: "^ddr4-[0-9a-f]{4},[a-z]{1,20}-[0-9a-f]{2}$"
+      - const: jedec,ddr4
 
 required:
   - compatible
@@ -27,9 +27,8 @@ unevaluatedProperties: false
 
 examples:
   - |
-    lpddr {
-        compatible = "lpddr4-ff,0100", "jedec,lpddr4";
+    ddr {
+        compatible = "ddr4-00ff,azaz-ff", "jedec,ddr4";
         density = <8192>;
-        io-width = <16>;
-        revision-id = <1 0>;
+        io-width = <8>;
     };
