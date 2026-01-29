@@ -340,13 +340,12 @@ typedef unsigned int __bitwise blk_features_t;
 /* skip this queue in blk_mq_(un)quiesce_tagset */
 #define BLK_FEAT_SKIP_TAGSET_QUIESCE	((__force blk_features_t)(1u << 13))
 
+/* atomic writes enabled */
+#define BLK_FEAT_ATOMIC_WRITES		((__force blk_features_t)(1u << 14))
+
 /* undocumented magic for bcache */
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
-
-/* atomic writes enabled */
-#define BLK_FEAT_ATOMIC_WRITES \
-	((__force blk_features_t)(1u << 16))
 
 /*
  * Flags automatically inherited when stacking limits.
