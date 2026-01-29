@@ -524,13 +524,16 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 	bool ext_coherent = bo->flags & AMDGPU_GEM_CREATE_EXT_COHERENT;
 	uint32_t gc_ip_version = amdgpu_ip_version(adev, GC_HWIP, 0);
 	bool uncached = bo->flags & AMDGPU_GEM_CREATE_UNCACHED;
-	unsigned int mtype, mtype_local;
+	unsigned int mtype, mtype_local, mtype_remote;
 	bool snoop = false;
 	bool is_local = false;
 
 	switch (gc_ip_version) {
 	case IP_VERSION(12, 1, 0):
-		mtype_local = MTYPE_RW;
+		bool is_aid_a1 = (adev->rev_id & 0x10);
+
+		mtype_local = is_aid_a1 ? MTYPE_RW : MTYPE_NC;
+		mtype_remote = is_aid_a1 ? MTYPE_NC : MTYPE_UC;
 		if (amdgpu_mtype_local == 1) {
 			DRM_INFO_ONCE("Using MTYPE_NC for local memory\n");
 			mtype_local = MTYPE_NC;
@@ -547,10 +550,7 @@ static void gmc_v12_1_get_coherence_flags(struct amdgpu_device *adev,
 		} else if (ext_coherent) {
 			mtype = is_local ? mtype_local : MTYPE_UC;
 		} else {
-			if (is_local)
-				mtype = mtype_local;
-			else
-				mtype = MTYPE_NC;
+			mtype = is_local ? mtype_local : mtype_remote;
 		}
 		break;
 	default:
