@@ -21,7 +21,7 @@ _check_value() {
 _test_metadata_only() {
 	local dev_id
 
-	dev_id=$(_add_ublk_dev -t null -u --metadata_size 8)
+	dev_id=$(_add_ublk_dev -t null -u --no_auto_part_scan --metadata_size 8)
 	_check_add_dev "$TID" $?
 
 	_check_value "metadata_size" "$(_get_metadata_size "$dev_id" metadata_size)" 8 &&
@@ -40,7 +40,7 @@ _test_metadata_only() {
 _test_integrity_capable_ip() {
 	local dev_id
 
-	dev_id=$(_add_ublk_dev -t null -u --integrity_capable --metadata_size 64 --pi_offset 56 --csum_type ip)
+	dev_id=$(_add_ublk_dev -t null -u --no_auto_part_scan --integrity_capable --metadata_size 64 --pi_offset 56 --csum_type ip)
 	_check_add_dev "$TID" $?
 
 	_check_value "metadata_size" "$(_get_metadata_size "$dev_id" metadata_size)" 64 &&
@@ -59,7 +59,7 @@ _test_integrity_capable_ip() {
 _test_integrity_reftag_t10dif() {
 	local dev_id
 
-	dev_id=$(_add_ublk_dev -t null -u --integrity_reftag --metadata_size 8 --csum_type t10dif)
+	dev_id=$(_add_ublk_dev -t null -u --no_auto_part_scan --integrity_reftag --metadata_size 8 --csum_type t10dif)
 	_check_add_dev "$TID" $?
 
 	_check_value "metadata_size" "$(_get_metadata_size "$dev_id" metadata_size)" 8 &&
@@ -78,7 +78,7 @@ _test_integrity_reftag_t10dif() {
 _test_nvme_csum() {
 	local dev_id
 
-	dev_id=$(_add_ublk_dev -t null -u --metadata_size 16 --csum_type nvme --tag_size 8)
+	dev_id=$(_add_ublk_dev -t null -u --no_auto_part_scan --metadata_size 16 --csum_type nvme --tag_size 8)
 	_check_add_dev "$TID" $?
 
 	_check_value "metadata_size" "$(_get_metadata_size "$dev_id" metadata_size)" 16 &&
