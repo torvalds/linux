@@ -1794,14 +1794,32 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (unlikely(to_drop)) {
+		int err_ipv4 = 0;
+		int err_ipv6 = 0;
+
 		for (nb = 0; to_drop != NULL; nb++) {
 			skb = to_drop;
+			if (skb->protocol == htons(ETH_P_IP))
+				err_ipv4++;
+			else
+				err_ipv6++;
 			to_drop = skb->next;
 			skb_mark_not_on_list(skb);
-			/* TODO: update SNMP values. */
 			sk_skb_reason_drop(sk, skb, SKB_DROP_REASON_PROTO_MEM);
 		}
 		numa_drop_add(&udp_sk(sk)->drop_counters, nb);
+		if (err_ipv4 > 0) {
+			SNMP_ADD_STATS(__UDPX_MIB(sk, true), UDP_MIB_MEMERRORS,
+				       err_ipv4);
+			SNMP_ADD_STATS(__UDPX_MIB(sk, true), UDP_MIB_INERRORS,
+				       err_ipv4);
+		}
+		if (err_ipv6 > 0) {
+			SNMP_ADD_STATS(__UDPX_MIB(sk, false), UDP_MIB_MEMERRORS,
+				       err_ipv6);
+			SNMP_ADD_STATS(__UDPX_MIB(sk, false), UDP_MIB_INERRORS,
+				       err_ipv6);
+		}
 	}
 
 	atomic_sub(total_size, &udp_prod_queue->rmem_alloc);
