@@ -334,6 +334,200 @@ out:
 	return ret;
 }
 
+int zlib_compress_bio(struct list_head *ws, struct compressed_bio *cb)
+{
+	struct btrfs_inode *inode = cb->bbio.inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct address_space *mapping = inode->vfs_inode.i_mapping;
+	struct bio *bio = &cb->bbio.bio;
+	u64 start = cb->start;
+	u32 len = cb->len;
+	const u32 min_folio_size = btrfs_min_folio_size(fs_info);
+	int ret;
+	char *data_in = NULL;
+	char *cfolio_out;
+	struct folio *in_folio = NULL;
+	struct folio *out_folio = NULL;
+	const u32 blocksize = fs_info->sectorsize;
+	const u64 orig_end = start + len;
+
+	ret = zlib_deflateInit(&workspace->strm, workspace->level);
+	if (unlikely(ret != Z_OK)) {
+		btrfs_err(fs_info,
+	"zlib compression init failed, error %d root %llu inode %llu offset %llu",
+			  ret, btrfs_root_id(inode->root), btrfs_ino(inode), start);
+		ret = -EIO;
+		goto out;
+	}
+
+	workspace->strm.total_in = 0;
+	workspace->strm.total_out = 0;
+
+	out_folio = btrfs_alloc_compr_folio(fs_info);
+	if (out_folio == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	cfolio_out = folio_address(out_folio);
+
+	workspace->strm.next_in = workspace->buf;
+	workspace->strm.avail_in = 0;
+	workspace->strm.next_out = cfolio_out;
+	workspace->strm.avail_out = min_folio_size;
+
+	while (workspace->strm.total_in < len) {
+		/*
+		 * Get next input pages and copy the contents to the workspace
+		 * buffer if required.
+		 */
+		if (workspace->strm.avail_in == 0) {
+			unsigned long bytes_left = len - workspace->strm.total_in;
+			unsigned int copy_length = min(bytes_left, workspace->buf_size);
+
+			/*
+			 * For s390 hardware accelerated zlib, and our folio is smaller
+			 * than the copy_length, we need to fill the buffer so that
+			 * we can take full advantage of hardware acceleration.
+			 */
+			if (need_special_buffer(fs_info)) {
+				ret = copy_data_into_buffer(mapping, workspace,
+							    start, copy_length);
+				if (ret < 0)
+					goto out;
+				start += copy_length;
+				workspace->strm.next_in = workspace->buf;
+				workspace->strm.avail_in = copy_length;
+			} else {
+				unsigned int cur_len;
+
+				if (data_in) {
+					kunmap_local(data_in);
+					folio_put(in_folio);
+					data_in = NULL;
+				}
+				ret = btrfs_compress_filemap_get_folio(mapping,
+						start, &in_folio);
+				if (ret < 0)
+					goto out;
+				cur_len = btrfs_calc_input_length(in_folio, orig_end, start);
+				data_in = kmap_local_folio(in_folio,
+							   offset_in_folio(in_folio, start));
+				start += cur_len;
+				workspace->strm.next_in = data_in;
+				workspace->strm.avail_in = cur_len;
+			}
+		}
+
+		ret = zlib_deflate(&workspace->strm, Z_SYNC_FLUSH);
+		if (unlikely(ret != Z_OK)) {
+			btrfs_warn(fs_info,
+		"zlib compression failed, error %d root %llu inode %llu offset %llu",
+				   ret, btrfs_root_id(inode->root), btrfs_ino(inode),
+				   start);
+			zlib_deflateEnd(&workspace->strm);
+			ret = -EIO;
+			goto out;
+		}
+
+		/* We're making it bigger, give up. */
+		if (workspace->strm.total_in > blocksize * 2 &&
+		    workspace->strm.total_in < workspace->strm.total_out) {
+			ret = -E2BIG;
+			goto out;
+		}
+		if (workspace->strm.total_out >= len) {
+			ret = -E2BIG;
+			goto out;
+		}
+		/* Queue the full folio and allocate a new one. */
+		if (workspace->strm.avail_out == 0) {
+			if (!bio_add_folio(bio, out_folio, folio_size(out_folio), 0)) {
+				ret = -E2BIG;
+				goto out;
+			}
+
+			out_folio = btrfs_alloc_compr_folio(fs_info);
+			if (out_folio == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			cfolio_out = folio_address(out_folio);
+			workspace->strm.avail_out = min_folio_size;
+			workspace->strm.next_out = cfolio_out;
+		}
+		/* We're all done. */
+		if (workspace->strm.total_in >= len)
+			break;
+	}
+
+	workspace->strm.avail_in = 0;
+
+	/*
+	 * Call deflate with Z_FINISH flush parameter providing more output
+	 * space but no more input data, until it returns with Z_STREAM_END.
+	 */
+	while (ret != Z_STREAM_END) {
+		ret = zlib_deflate(&workspace->strm, Z_FINISH);
+		if (ret == Z_STREAM_END)
+			break;
+		if (unlikely(ret != Z_OK && ret != Z_BUF_ERROR)) {
+			zlib_deflateEnd(&workspace->strm);
+			ret = -EIO;
+			goto out;
+		} else if (workspace->strm.avail_out == 0) {
+			if (workspace->strm.total_out >= len) {
+				ret = -E2BIG;
+				goto out;
+			}
+			if (!bio_add_folio(bio, out_folio, folio_size(out_folio), 0)) {
+				ret = -E2BIG;
+				goto out;
+			}
+			/* Get another folio for the stream end. */
+			out_folio = btrfs_alloc_compr_folio(fs_info);
+			if (out_folio == NULL) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			cfolio_out = folio_address(out_folio);
+			workspace->strm.avail_out = min_folio_size;
+			workspace->strm.next_out = cfolio_out;
+		}
+	}
+	/* Queue the remaining part of the folio. */
+	if (workspace->strm.total_out > bio->bi_iter.bi_size) {
+		u32 cur_len = offset_in_folio(out_folio, workspace->strm.total_out);
+
+		if (!bio_add_folio(bio, out_folio, cur_len, 0)) {
+			ret = -E2BIG;
+			goto out;
+		}
+	} else {
+		/* The last folio hasn't' been utilized. */
+		btrfs_free_compr_folio(out_folio);
+	}
+	out_folio = NULL;
+	ASSERT(bio->bi_iter.bi_size == workspace->strm.total_out);
+	zlib_deflateEnd(&workspace->strm);
+
+	if (workspace->strm.total_out >= workspace->strm.total_in) {
+		ret = -E2BIG;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	if (out_folio)
+		btrfs_free_compr_folio(out_folio);
+	if (data_in) {
+		kunmap_local(data_in);
+		folio_put(in_folio);
+	}
+
+	return ret;
+}
+
 int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct btrfs_fs_info *fs_info = cb_to_fs_info(cb);
