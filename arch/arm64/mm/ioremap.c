@@ -24,7 +24,8 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 		return NULL;
 
 	/* Don't allow RAM to be mapped. */
-	if (WARN_ON(pfn_is_map_memory(__phys_to_pfn(phys_addr))))
+	if (WARN_ONCE(pfn_is_map_memory(__phys_to_pfn(phys_addr)),
+		      "ioremap attempted on RAM pfn\n"))
 		return NULL;
 
 	/*
