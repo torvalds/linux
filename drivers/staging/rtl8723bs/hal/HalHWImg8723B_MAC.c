@@ -47,6 +47,7 @@ static bool CheckPositive(struct dm_odm_t *pDM_Odm, const u32 Condition1, const 
 
 	if ((cond1 & driver1) == cond1) {
 		u32 bitMask = 0;
+
 		if ((cond1 & 0x0F) == 0) /*  BoardType is DONTCARE */
 			return true;
 
