@@ -40,19 +40,10 @@ bool xfs_errortag_test(struct xfs_mount *mp, const char *file, int line,
 		unsigned int error_tag);
 #define XFS_TEST_ERROR(mp, tag)		\
 	xfs_errortag_test((mp), __FILE__, __LINE__, (tag))
-bool xfs_errortag_enabled(struct xfs_mount *mp, unsigned int tag);
+void xfs_errortag_delay(struct xfs_mount *mp, const char *file, int line,
+		unsigned int error_tag);
 #define XFS_ERRORTAG_DELAY(mp, tag)		\
-	do { \
-		might_sleep(); \
-		if (!mp->m_errortag[tag]) \
-			break; \
-		xfs_warn_ratelimited((mp), \
-"Injecting %ums delay at file %s, line %d, on filesystem \"%s\"", \
-				(mp)->m_errortag[(tag)], __FILE__, __LINE__, \
-				(mp)->m_super->s_id); \
-		mdelay((mp)->m_errortag[(tag)]); \
-	} while (0)
-
+	xfs_errortag_delay((mp), __FILE__, __LINE__, (tag))
 int xfs_errortag_add(struct xfs_mount *mp, unsigned int error_tag);
 int xfs_errortag_clearall(struct xfs_mount *mp);
 #else

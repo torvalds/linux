@@ -144,6 +144,27 @@ xfs_errortag_test(
 	return true;
 }
 
+void
+xfs_errortag_delay(
+	struct xfs_mount	*mp,
+	const char		*file,
+	int			line,
+	unsigned int		error_tag)
+{
+	unsigned int		delay = mp->m_errortag[error_tag];
+
+	might_sleep();
+
+	if (!delay)
+		return;
+
+	xfs_warn_ratelimited(mp,
+"Injecting %ums delay at file %s, line %d, on filesystem \"%s\"",
+		delay, file, line,
+		mp->m_super->s_id);
+	mdelay(delay);
+}
+
 int
 xfs_errortag_add(
 	struct xfs_mount	*mp,
