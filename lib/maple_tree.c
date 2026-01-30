@@ -3720,24 +3720,6 @@ static void mas_split(struct ma_state *mas, struct maple_big_node *b_node)
 }
 
 /*
- * mas_commit_b_node() - Commit the big node into the tree.
- * @wr_mas: The maple write state
- * @b_node: The maple big node
- */
-static noinline_for_kasan void mas_commit_b_node(struct ma_wr_state *wr_mas,
-			    struct maple_big_node *b_node)
-{
-	enum store_type type = wr_mas->mas->store_type;
-
-	WARN_ON_ONCE(type != wr_rebalance && type != wr_split_store);
-
-	if (type == wr_rebalance)
-		return mas_rebalance(wr_mas->mas, b_node);
-
-	return mas_split(wr_mas->mas, b_node);
-}
-
-/*
  * mas_root_expand() - Expand a root to a node
  * @mas: The maple state
  * @entry: The entry to store into the tree
@@ -4373,19 +4355,34 @@ static inline void mas_wr_append(struct ma_wr_state *wr_mas,
 }
 
 /*
- * mas_wr_bnode() - Slow path for a modification.
+ * mas_wr_split() - Expand one node into two
  * @wr_mas: The write maple state
- *
- * This is where split, rebalance end up.
  */
-static void mas_wr_bnode(struct ma_wr_state *wr_mas)
+static noinline_for_kasan void mas_wr_split(struct ma_wr_state *wr_mas)
 {
 	struct maple_big_node b_node;
 
 	trace_ma_write(TP_FCT, wr_mas->mas, 0, wr_mas->entry);
 	memset(&b_node, 0, sizeof(struct maple_big_node));
 	mas_store_b_node(wr_mas, &b_node, wr_mas->offset_end);
-	mas_commit_b_node(wr_mas, &b_node);
+	WARN_ON_ONCE(wr_mas->mas->store_type != wr_split_store);
+	return mas_split(wr_mas->mas, &b_node);
+}
+
+/*
+ * mas_wr_rebalance() - Insufficient data in one node needs to either get data
+ * from a sibling or absorb a sibling all together.
+ * @wr_mas: The write maple state
+ */
+static noinline_for_kasan void mas_wr_rebalance(struct ma_wr_state *wr_mas)
+{
+	struct maple_big_node b_node;
+
+	trace_ma_write(__func__, wr_mas->mas, 0, wr_mas->entry);
+	memset(&b_node, 0, sizeof(struct maple_big_node));
+	mas_store_b_node(wr_mas, &b_node, wr_mas->offset_end);
+	WARN_ON_ONCE(wr_mas->mas->store_type != wr_rebalance);
+	return mas_rebalance(wr_mas->mas, &b_node);
 }
 
 /*
@@ -4416,8 +4413,10 @@ static inline void mas_wr_store_entry(struct ma_wr_state *wr_mas)
 		mas_wr_spanning_store(wr_mas);
 		break;
 	case wr_split_store:
+		mas_wr_split(wr_mas);
+		break;
 	case wr_rebalance:
-		mas_wr_bnode(wr_mas);
+		mas_wr_rebalance(wr_mas);
 		break;
 	case wr_new_root:
 		mas_new_root(mas, wr_mas->entry);
