@@ -171,8 +171,14 @@ static const struct cmn2asic_mapping smu_v15_0_8_table_map[SMU_TABLE_COUNT] = {
 	TAB_MAP(I2C_COMMANDS),
 };
 
+static size_t smu_v15_0_8_get_system_metrics_size(void)
+{
+	return sizeof(SystemMetricsTable_t);
+}
+
 static int smu_v15_0_8_tables_init(struct smu_context *smu)
 {
+	struct smu_v15_0_8_gpuboard_temp_metrics *gpuboard_temp_metrics;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	int ret, gpu_metrcs_size = sizeof(MetricsTable_t);
 	struct smu_table *tables = smu_table->tables;
@@ -186,6 +192,9 @@ static int smu_v15_0_8_tables_init(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
 		       gpu_metrcs_size,
 		       PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
+	SMU_TABLE_INIT(tables, SMU_TABLE_PMFW_SYSTEM_METRICS,
+		       smu_v15_0_8_get_system_metrics_size(), PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
 	metrics_table = kzalloc(gpu_metrcs_size, GFP_KERNEL);
@@ -207,6 +216,25 @@ static int smu_v15_0_8_tables_init(struct smu_context *smu)
 	gpu_metrics = (struct smu_v15_0_8_gpu_metrics *)smu_driver_table_ptr(smu,
 		       SMU_DRIVER_TABLE_GPU_METRICS);
 	smu_v15_0_8_gpu_metrics_init(gpu_metrics, 1, 9);
+
+	ret = smu_table_cache_init(smu, SMU_TABLE_PMFW_SYSTEM_METRICS,
+				   smu_v15_0_8_get_system_metrics_size(), 5);
+
+	if (ret)
+		return ret;
+
+	/* Initialize GPU board temperature metrics */
+	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS,
+				    sizeof(*gpuboard_temp_metrics), 50);
+	if (ret) {
+		smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
+		return ret;
+	}
+	gpuboard_temp_metrics = (struct smu_v15_0_8_gpuboard_temp_metrics *)
+		smu_driver_table_ptr(smu,
+				     SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
+	smu_v15_0_8_gpuboard_temp_metrics_init(gpuboard_temp_metrics, 1, 1);
+
 	smu_table->metrics_table = no_free_ptr(metrics_table);
 	smu_table->driver_pptable = no_free_ptr(driver_pptable);
 
@@ -252,6 +280,8 @@ static int smu_v15_0_8_tables_fini(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
+	smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
 	mutex_destroy(&smu_table->metrics_lock);
 
 	return 0;
@@ -485,6 +515,33 @@ static int smu_v15_0_8_thermal_get_temperature(struct smu_context *smu,
 	}
 
 	return ret;
+}
+
+static int smu_v15_0_8_get_system_metrics_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *table = &smu_table->driver_table;
+	struct smu_table *tables = smu_table->tables;
+	struct smu_table *sys_table;
+	int ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	if (smu_table_cache_is_valid(sys_table))
+		return 0;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetSystemMetricsTable, NULL);
+	if (ret) {
+		dev_info(smu->adev->dev,
+			 "Failed to export system metrics table!\n");
+		return ret;
+	}
+
+	amdgpu_hdp_invalidate(smu->adev, NULL);
+	smu_table_cache_update_time(sys_table, jiffies);
+	memcpy(sys_table->cache.buffer, table->cpu_addr,
+	       sizeof(SystemMetricsTable_t));
+
+	return 0;
 }
 
 static int smu_v15_0_8_read_sensor(struct smu_context *smu,
@@ -1292,6 +1349,115 @@ out:
 	return ret;
 }
 
+static bool smu_v15_0_8_is_temp_metrics_supported(struct smu_context *smu,
+						  enum smu_temp_metric_type type)
+{
+	switch (type) {
+	case SMU_TEMP_METRIC_GPUBOARD:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void smu_v15_0_8_fill_gpuboard_temp_metrics(
+	struct smu_v15_0_8_gpuboard_temp_metrics *gpuboard_temp_metrics,
+	const SystemMetricsTable_t *metrics)
+{
+	gpuboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
+	gpuboard_temp_metrics->label_version = metrics->LabelVersion;
+	gpuboard_temp_metrics->node_id = metrics->NodeIdentifier;
+
+	gpuboard_temp_metrics->node_temp_retimer =
+		metrics->NodeTemperatures[NODE_TEMP_RETIMER];
+	gpuboard_temp_metrics->node_temp_ibc =
+		metrics->NodeTemperatures[NODE_TEMP_IBC_TEMP];
+	gpuboard_temp_metrics->node_temp_ibc_2 =
+		metrics->NodeTemperatures[NODE_TEMP_IBC_2_TEMP];
+	gpuboard_temp_metrics->node_temp_vdd18_vr =
+		metrics->NodeTemperatures[NODE_TEMP_VDD18_VR_TEMP];
+	gpuboard_temp_metrics->node_temp_04_hbm_b_vr =
+		metrics->NodeTemperatures[NODE_TEMP_04_HBM_B_VR_TEMP];
+	gpuboard_temp_metrics->node_temp_04_hbm_d_vr =
+		metrics->NodeTemperatures[NODE_TEMP_04_HBM_D_VR_TEMP];
+
+	gpuboard_temp_metrics->vr_temp_vddcr_socio_a =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_SOCIO_A_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_socio_c =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_SOCIO_C_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_x0 =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_X0_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_x1 =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_X1_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_hbm_b =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_HBM_B_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_hbm_d =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_HBM_D_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_04_hbm_b =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_04_HBM_B_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_04_hbm_d =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_04_HBM_D_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_hbm_b =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_HBM_B_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_hbm_d =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_HBM_D_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_075_hbm_b =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_075_HBM_B_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_075_hbm_d =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_075_HBM_D_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_11_gta_a =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_11_GTA_A_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_11_gta_c =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_11_GTA_C_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddan_075_gta_a =
+		metrics->VrTemperatures[SVI_PLANE_VDDAN_075_GTA_A_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddan_075_gta_c =
+		metrics->VrTemperatures[SVI_PLANE_VDDAN_075_GTA_C_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddcr_075_ucie =
+		metrics->VrTemperatures[SVI_PLANE_VDDCR_075_UCIE_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_065_ucieaa =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_065_UCIEAA_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_065_ucieam_a =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_065_UCIEAM_A_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddio_065_ucieam_c =
+		metrics->VrTemperatures[SVI_PLANE_VDDIO_065_UCIEAM_C_TEMP];
+	gpuboard_temp_metrics->vr_temp_vddan_075 =
+		metrics->VrTemperatures[SVI_PLANE_VDDAN_075_TEMP];
+}
+
+static ssize_t smu_v15_0_8_get_temp_metrics(struct smu_context *smu,
+					    enum smu_temp_metric_type type,
+					    void *table)
+{
+	struct smu_v15_0_8_gpuboard_temp_metrics *gpuboard_temp_metrics;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	enum smu_driver_table_id table_id;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	ssize_t size;
+	int ret;
+
+	table_id = SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
+	gpuboard_temp_metrics =
+		(struct smu_v15_0_8_gpuboard_temp_metrics *)
+		smu_driver_table_ptr(smu, table_id);
+	size = sizeof(*gpuboard_temp_metrics);
+
+	ret = smu_v15_0_8_get_system_metrics_table(smu);
+	if (ret)
+		return ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+	smu_driver_table_update_cache_time(smu, table_id);
+
+	smu_v15_0_8_fill_gpuboard_temp_metrics(gpuboard_temp_metrics,
+						      metrics);
+	memcpy(table, gpuboard_temp_metrics, size);
+	return size;
+}
+
 static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
@@ -1954,6 +2120,11 @@ static void smu_v15_0_8_init_msg_ctl(struct smu_context *smu,
 	ctl->message_map = message_map;
 }
 
+static const struct smu_temp_funcs smu_v15_0_8_temp_funcs = {
+	.temp_metrics_is_supported = smu_v15_0_8_is_temp_metrics_supported,
+	.get_temp_metrics = smu_v15_0_8_get_temp_metrics,
+};
+
 void smu_v15_0_8_set_ppt_funcs(struct smu_context *smu)
 {
 	smu->ppt_funcs = &smu_v15_0_8_ppt_funcs;
@@ -1961,5 +2132,6 @@ void smu_v15_0_8_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = smu_v15_0_8_feature_mask_map;
 	smu->table_map = smu_v15_0_8_table_map;
 	smu_v15_0_8_init_msg_ctl(smu, smu_v15_0_8_message_map);
+	smu->smu_temp.temp_funcs = &smu_v15_0_8_temp_funcs;
 	smu->smc_driver_if_version = SMU15_DRIVER_IF_VERSION_SMU_V15_0_8;
 }

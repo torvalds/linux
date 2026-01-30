@@ -180,5 +180,76 @@ typedef struct {
 		  SMU_15_0_8_MAX_XCC);
 
 DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_gpu_metrics, SMU_15_0_8_METRICS_FIELDS);
+
+/* Maximum temperature sensor counts for system metrics */
+#define SMU_15_0_8_MAX_NODE_TEMP_ENTRIES	12
+#define SMU_15_0_8_MAX_VR_TEMP_ENTRIES		22
+
+/* SMUv 15.0.8 GPU board temperature metrics */
+#define SMU_15_0_8_GPUBOARD_TEMP_METRICS_FIELDS(SMU_SCALAR, SMU_ARRAY)         \
+	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
+		   SMU_MTYPE(U64), accumulation_counter);                      \
+	SMU_SCALAR(SMU_MATTR(LABEL_VERSION), SMU_MUNIT(NONE),                  \
+		   SMU_MTYPE(U16), label_version);                             \
+	SMU_SCALAR(SMU_MATTR(NODE_ID), SMU_MUNIT(NONE),                        \
+		   SMU_MTYPE(U16), node_id);                                   \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_RETIMER), SMU_MUNIT(TEMP_1),            \
+		   SMU_MTYPE(S16), node_temp_retimer);                         \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_IBC), SMU_MUNIT(TEMP_1),                \
+		   SMU_MTYPE(S16), node_temp_ibc);                             \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_IBC_2), SMU_MUNIT(TEMP_1),              \
+		   SMU_MTYPE(S16), node_temp_ibc_2);                           \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_VDD18_VR), SMU_MUNIT(TEMP_1),           \
+		   SMU_MTYPE(S16), node_temp_vdd18_vr);                        \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_04_HBM_B_VR), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), node_temp_04_hbm_b_vr);                     \
+	SMU_SCALAR(SMU_MATTR(NODE_TEMP_04_HBM_D_VR), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), node_temp_04_hbm_d_vr);                     \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_SOCIO_A), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), vr_temp_vddcr_socio_a);                     \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_SOCIO_C), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), vr_temp_vddcr_socio_c);                     \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_X0), SMU_MUNIT(TEMP_1),             \
+		   SMU_MTYPE(S16), vr_temp_vddcr_x0);                          \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_X1), SMU_MUNIT(TEMP_1),             \
+		   SMU_MTYPE(S16), vr_temp_vddcr_x1);                          \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_HBM_B), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), vr_temp_vddio_hbm_b);                       \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_HBM_D), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), vr_temp_vddio_hbm_d);                       \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_04_HBM_B), SMU_MUNIT(TEMP_1),       \
+		   SMU_MTYPE(S16), vr_temp_vddio_04_hbm_b);                    \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_04_HBM_D), SMU_MUNIT(TEMP_1),       \
+		   SMU_MTYPE(S16), vr_temp_vddio_04_hbm_d);                    \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_HBM_B), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), vr_temp_vddcr_hbm_b);                       \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_HBM_D), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), vr_temp_vddcr_hbm_d);                       \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_075_HBM_B), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), vr_temp_vddcr_075_hbm_b);                   \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_075_HBM_D), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), vr_temp_vddcr_075_hbm_d);                   \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_11_GTA_A), SMU_MUNIT(TEMP_1),       \
+		   SMU_MTYPE(S16), vr_temp_vddio_11_gta_a);                    \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_11_GTA_C), SMU_MUNIT(TEMP_1),       \
+		   SMU_MTYPE(S16), vr_temp_vddio_11_gta_c);                    \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDAN_075_GTA_A), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), vr_temp_vddan_075_gta_a);                   \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDAN_075_GTA_C), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), vr_temp_vddan_075_gta_c);                   \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDCR_075_UCIE), SMU_MUNIT(TEMP_1),       \
+		   SMU_MTYPE(S16), vr_temp_vddcr_075_ucie);                    \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_065_UCIEAA), SMU_MUNIT(TEMP_1),     \
+		   SMU_MTYPE(S16), vr_temp_vddio_065_ucieaa);                  \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_065_UCIEAM_A), SMU_MUNIT(TEMP_1),   \
+		   SMU_MTYPE(S16), vr_temp_vddio_065_ucieam_a);                \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDIO_065_UCIEAM_C), SMU_MUNIT(TEMP_1),   \
+		   SMU_MTYPE(S16), vr_temp_vddio_065_ucieam_c);                \
+	SMU_SCALAR(SMU_MATTR(VR_TEMP_VDDAN_075), SMU_MUNIT(TEMP_1),            \
+		   SMU_MTYPE(S16), vr_temp_vddan_075);
+
+DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_gpuboard_temp_metrics,
+			  SMU_15_0_8_GPUBOARD_TEMP_METRICS_FIELDS);
+
 #endif
 #endif
