@@ -592,21 +592,26 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
+	int ret;
 	u8 dac_mode = 0;
 	u8 adc_mode = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBP_CFP:
 		/* Master serial port mode, with BCLK generated automatically */
-		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-				    ES8328_MASTERMODE_MSC,
-				    ES8328_MASTERMODE_MSC);
+		ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+						    ES8328_MASTERMODE_MSC,
+						    ES8328_MASTERMODE_MSC);
+		if (ret < 0)
+			return ret;
 		es8328->provider = true;
 		break;
 	case SND_SOC_DAIFMT_CBC_CFC:
 		/* Slave serial port mode */
-		snd_soc_component_update_bits(component, ES8328_MASTERMODE,
-				    ES8328_MASTERMODE_MSC, 0);
+		ret = snd_soc_component_update_bits(component, ES8328_MASTERMODE,
+						    ES8328_MASTERMODE_MSC, 0);
+		if (ret < 0)
+			return ret;
 		es8328->provider = false;
 		break;
 	default:
@@ -635,10 +640,17 @@ static int es8328_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF)
 		return -EINVAL;
 
-	snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
-			ES8328_DACCONTROL1_DACFORMAT_MASK, dac_mode);
-	snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
-			ES8328_ADCCONTROL4_ADCFORMAT_MASK, adc_mode);
+	ret = snd_soc_component_update_bits(component, ES8328_DACCONTROL1,
+					    ES8328_DACCONTROL1_DACFORMAT_MASK,
+					    dac_mode);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
+					    ES8328_ADCCONTROL4_ADCFORMAT_MASK,
+					    adc_mode);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
