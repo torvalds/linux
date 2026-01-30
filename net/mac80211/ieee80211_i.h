@@ -1099,7 +1099,7 @@ struct ieee80211_link_data {
 	int ap_power_level; /* in dBm */
 
 	bool radar_required;
-	struct wiphy_delayed_work dfs_cac_timer_work;
+	struct wiphy_hrtimer_work dfs_cac_timer_work;
 
 	union {
 		struct ieee80211_link_data_managed mgd;
