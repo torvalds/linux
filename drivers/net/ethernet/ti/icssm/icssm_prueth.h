@@ -182,10 +182,12 @@ enum pruss_device {
  * struct prueth_private_data - PRU Ethernet private data
  * @driver_data: PRU Ethernet device name
  * @fw_pru: firmware names to be used for PRUSS ethernet usecases
+ * @support_switch: boolean to indicate if switch is enabled
  */
 struct prueth_private_data {
 	enum pruss_device driver_data;
 	const struct prueth_firmware fw_pru[PRUSS_NUM_PRUS];
+	bool support_switch;
 };
 
 struct prueth_emac_stats {
@@ -233,6 +235,7 @@ struct prueth_emac {
 
 	struct hrtimer tx_hrtimer;
 	struct prueth_emac_stats stats;
+	int offload_fwd_mark;
 };
 
 struct prueth {
@@ -261,7 +264,10 @@ struct prueth {
 	unsigned int eth_type;
 	size_t ocmc_ram_size;
 	u8 emac_configured;
+	u8 br_members;
 };
+
+extern const struct prueth_queue_desc queue_descs[][NUM_QUEUES];
 
 void icssm_parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 			     struct prueth_packet_info *pkt_info);

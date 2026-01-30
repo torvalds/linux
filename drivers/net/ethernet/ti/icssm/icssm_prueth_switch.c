@@ -29,6 +29,176 @@ struct icssm_prueth_sw_fdb_work {
 	int event;
 };
 
+const struct prueth_queue_info sw_queue_infos[][NUM_QUEUES] = {
+	[PRUETH_PORT_QUEUE_HOST] = {
+		[PRUETH_QUEUE1] = {
+			P0_Q1_BUFFER_OFFSET,
+			P0_QUEUE_DESC_OFFSET,
+			P0_Q1_BD_OFFSET,
+			P0_Q1_BD_OFFSET + ((HOST_QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P0_Q2_BUFFER_OFFSET,
+			P0_QUEUE_DESC_OFFSET + 8,
+			P0_Q2_BD_OFFSET,
+			P0_Q2_BD_OFFSET + ((HOST_QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P0_Q3_BUFFER_OFFSET,
+			P0_QUEUE_DESC_OFFSET + 16,
+			P0_Q3_BD_OFFSET,
+			P0_Q3_BD_OFFSET + ((HOST_QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P0_Q4_BUFFER_OFFSET,
+			P0_QUEUE_DESC_OFFSET + 24,
+			P0_Q4_BD_OFFSET,
+			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII0] = {
+		[PRUETH_QUEUE1] = {
+			P1_Q1_BUFFER_OFFSET,
+			P1_Q1_BUFFER_OFFSET +
+				((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q1_BD_OFFSET,
+			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P1_Q2_BUFFER_OFFSET,
+			P1_Q2_BUFFER_OFFSET +
+				((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q2_BD_OFFSET,
+			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P1_Q3_BUFFER_OFFSET,
+			P1_Q3_BUFFER_OFFSET +
+				((QUEUE_3_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q3_BD_OFFSET,
+			P1_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P1_Q4_BUFFER_OFFSET,
+			P1_Q4_BUFFER_OFFSET +
+				((QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P1_Q4_BD_OFFSET,
+			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII1] = {
+		[PRUETH_QUEUE1] = {
+			P2_Q1_BUFFER_OFFSET,
+			P2_Q1_BUFFER_OFFSET +
+				((QUEUE_1_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q1_BD_OFFSET,
+			P2_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P2_Q2_BUFFER_OFFSET,
+			P2_Q2_BUFFER_OFFSET +
+				((QUEUE_2_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q2_BD_OFFSET,
+			P2_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P2_Q3_BUFFER_OFFSET,
+			P2_Q3_BUFFER_OFFSET +
+				((QUEUE_3_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q3_BD_OFFSET,
+			P2_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P2_Q4_BUFFER_OFFSET,
+			P2_Q4_BUFFER_OFFSET +
+				((QUEUE_4_SIZE - 1) * ICSS_BLOCK_SIZE),
+			P2_Q4_BD_OFFSET,
+			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+};
+
+static const struct prueth_queue_info rx_queue_infos[][NUM_QUEUES] = {
+	[PRUETH_PORT_QUEUE_HOST] = {
+		[PRUETH_QUEUE1] = {
+			P0_Q1_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET,
+			P0_Q1_BD_OFFSET,
+			P0_Q1_BD_OFFSET + ((HOST_QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P0_Q2_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 8,
+			P0_Q2_BD_OFFSET,
+			P0_Q2_BD_OFFSET + ((HOST_QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P0_Q3_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 16,
+			P0_Q3_BD_OFFSET,
+			P0_Q3_BD_OFFSET + ((HOST_QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P0_Q4_BUFFER_OFFSET,
+			HOST_QUEUE_DESC_OFFSET + 24,
+			P0_Q4_BD_OFFSET,
+			P0_Q4_BD_OFFSET + ((HOST_QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII0] = {
+		[PRUETH_QUEUE1] = {
+			P1_Q1_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET,
+			P1_Q1_BD_OFFSET,
+			P1_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P1_Q2_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 8,
+			P1_Q2_BD_OFFSET,
+			P1_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P1_Q3_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 16,
+			P1_Q3_BD_OFFSET,
+			P1_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P1_Q4_BUFFER_OFFSET,
+			P1_QUEUE_DESC_OFFSET + 24,
+			P1_Q4_BD_OFFSET,
+			P1_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+	[PRUETH_PORT_QUEUE_MII1] = {
+		[PRUETH_QUEUE1] = {
+			P2_Q1_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET,
+			P2_Q1_BD_OFFSET,
+			P2_Q1_BD_OFFSET + ((QUEUE_1_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE2] = {
+			P2_Q2_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 8,
+			P2_Q2_BD_OFFSET,
+			P2_Q2_BD_OFFSET + ((QUEUE_2_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE3] = {
+			P2_Q3_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 16,
+			P2_Q3_BD_OFFSET,
+			P2_Q3_BD_OFFSET + ((QUEUE_3_SIZE - 1) * BD_SIZE),
+		},
+		[PRUETH_QUEUE4] = {
+			P2_Q4_BUFFER_OFFSET,
+			P2_QUEUE_DESC_OFFSET + 24,
+			P2_Q4_BD_OFFSET,
+			P2_Q4_BD_OFFSET + ((QUEUE_4_SIZE - 1) * BD_SIZE),
+		},
+	},
+};
+
 void icssm_prueth_sw_free_fdb_table(struct prueth *prueth)
 {
 	if (prueth->emac_configured)
@@ -676,5 +846,220 @@ int icssm_prueth_sw_purge_fdb(struct prueth_emac *emac)
 
 	netdev_hold(emac->ndev, &fdb_work->ndev_tracker, GFP_ATOMIC);
 	queue_work(system_long_wq, &fdb_work->work);
+	return 0;
+}
+
+void icssm_prueth_sw_hostconfig(struct prueth *prueth)
+{
+	void __iomem *dram1_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+	void __iomem *dram;
+
+	/* queue information table */
+	dram = dram1_base + P0_Q1_RX_CONTEXT_OFFSET;
+	memcpy_toio(dram, sw_queue_infos[PRUETH_PORT_QUEUE_HOST],
+		    sizeof(sw_queue_infos[PRUETH_PORT_QUEUE_HOST]));
+
+	/* buffer descriptor offset table*/
+	dram = dram1_base + QUEUE_DESCRIPTOR_OFFSET_ADDR;
+	writew(P0_Q1_BD_OFFSET, dram);
+	writew(P0_Q2_BD_OFFSET, dram + 2);
+	writew(P0_Q3_BD_OFFSET, dram + 4);
+	writew(P0_Q4_BD_OFFSET, dram + 6);
+
+	/* buffer offset table */
+	dram = dram1_base + QUEUE_OFFSET_ADDR;
+	writew(P0_Q1_BUFFER_OFFSET, dram);
+	writew(P0_Q2_BUFFER_OFFSET, dram + 2);
+	writew(P0_Q3_BUFFER_OFFSET, dram + 4);
+	writew(P0_Q4_BUFFER_OFFSET, dram + 6);
+
+	/* queue size lookup table */
+	dram = dram1_base + QUEUE_SIZE_ADDR;
+	writew(HOST_QUEUE_1_SIZE, dram);
+	writew(HOST_QUEUE_1_SIZE, dram + 2);
+	writew(HOST_QUEUE_1_SIZE, dram + 4);
+	writew(HOST_QUEUE_1_SIZE, dram + 6);
+
+	/* queue table */
+	dram = dram1_base + P0_QUEUE_DESC_OFFSET;
+	memcpy_toio(dram, queue_descs[PRUETH_PORT_QUEUE_HOST],
+		    sizeof(queue_descs[PRUETH_PORT_QUEUE_HOST]));
+}
+
+static int icssm_prueth_sw_port_config(struct prueth *prueth,
+				       enum prueth_port port_id)
+{
+	unsigned int tx_context_ofs_addr, rx_context_ofs, queue_desc_ofs;
+	void __iomem *dram, *dram_base, *dram_mac;
+	struct prueth_emac *emac;
+	void __iomem *dram1_base;
+
+	dram1_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+	emac = prueth->emac[port_id - 1];
+	switch (port_id) {
+	case PRUETH_PORT_MII0:
+		tx_context_ofs_addr     = TX_CONTEXT_P1_Q1_OFFSET_ADDR;
+		rx_context_ofs          = P1_Q1_RX_CONTEXT_OFFSET;
+		queue_desc_ofs          = P1_QUEUE_DESC_OFFSET;
+
+		/* for switch PORT MII0 mac addr is in DRAM0. */
+		dram_mac = prueth->mem[PRUETH_MEM_DRAM0].va;
+		break;
+	case PRUETH_PORT_MII1:
+		tx_context_ofs_addr     = TX_CONTEXT_P2_Q1_OFFSET_ADDR;
+		rx_context_ofs          = P2_Q1_RX_CONTEXT_OFFSET;
+		queue_desc_ofs          = P2_QUEUE_DESC_OFFSET;
+
+		/* for switch PORT MII1 mac addr is in DRAM1. */
+		dram_mac = prueth->mem[PRUETH_MEM_DRAM1].va;
+		break;
+	default:
+		netdev_err(emac->ndev, "invalid port\n");
+		return -EINVAL;
+	}
+
+	/* setup mac address */
+	memcpy_toio(dram_mac + PORT_MAC_ADDR, emac->mac_addr, 6);
+
+	/* Remaining switch port configs are in DRAM1 */
+	dram_base = prueth->mem[PRUETH_MEM_DRAM1].va;
+
+	/* queue information table */
+	memcpy_toio(dram_base + tx_context_ofs_addr,
+		    sw_queue_infos[port_id],
+		    sizeof(sw_queue_infos[port_id]));
+
+	memcpy_toio(dram_base + rx_context_ofs,
+		    rx_queue_infos[port_id],
+		    sizeof(rx_queue_infos[port_id]));
+
+	/* buffer descriptor offset table*/
+	dram = dram_base + QUEUE_DESCRIPTOR_OFFSET_ADDR +
+	       (port_id * NUM_QUEUES * sizeof(u16));
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE1].buffer_desc_offset, dram);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE2].buffer_desc_offset,
+	       dram + 2);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE3].buffer_desc_offset,
+	       dram + 4);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE4].buffer_desc_offset,
+	       dram + 6);
+
+	/* buffer offset table */
+	dram = dram_base + QUEUE_OFFSET_ADDR +
+	       port_id * NUM_QUEUES * sizeof(u16);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE1].buffer_offset, dram);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE2].buffer_offset,
+	       dram + 2);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE3].buffer_offset,
+	       dram + 4);
+	writew(sw_queue_infos[port_id][PRUETH_QUEUE4].buffer_offset,
+	       dram + 6);
+
+	/* queue size lookup table */
+	dram = dram_base + QUEUE_SIZE_ADDR +
+	       port_id * NUM_QUEUES * sizeof(u16);
+	writew(QUEUE_1_SIZE, dram);
+	writew(QUEUE_2_SIZE, dram + 2);
+	writew(QUEUE_3_SIZE, dram + 4);
+	writew(QUEUE_4_SIZE, dram + 6);
+
+	/* queue table */
+	memcpy_toio(dram_base + queue_desc_ofs,
+		    &queue_descs[port_id][0],
+		    4 * sizeof(queue_descs[port_id][0]));
+
+	emac->rx_queue_descs = dram1_base + P0_QUEUE_DESC_OFFSET;
+	emac->tx_queue_descs = dram1_base +
+		rx_queue_infos[port_id][PRUETH_QUEUE1].queue_desc_offset;
+
+	return 0;
+}
+
+int icssm_prueth_sw_emac_config(struct prueth_emac *emac)
+{
+	struct prueth *prueth = emac->prueth;
+	u32 sharedramaddr, ocmcaddr;
+	int ret;
+
+	/* PRU needs local shared RAM address for C28 */
+	sharedramaddr = ICSS_LOCAL_SHARED_RAM;
+	/* PRU needs real global OCMC address for C30*/
+	ocmcaddr = (u32)prueth->mem[PRUETH_MEM_OCMC].pa;
+
+	if (prueth->emac_configured & BIT(emac->port_id))
+		return 0;
+
+	ret = icssm_prueth_sw_port_config(prueth, emac->port_id);
+	if (ret)
+		return ret;
+
+	if (!prueth->emac_configured) {
+		/* Set in constant table C28 of PRUn to ICSS Shared memory */
+		pru_rproc_set_ctable(prueth->pru0, PRU_C28, sharedramaddr);
+		pru_rproc_set_ctable(prueth->pru1, PRU_C28, sharedramaddr);
+
+		/* Set in constant table C30 of PRUn to OCMC memory */
+		pru_rproc_set_ctable(prueth->pru0, PRU_C30, ocmcaddr);
+		pru_rproc_set_ctable(prueth->pru1, PRU_C30, ocmcaddr);
+	}
+	return 0;
+}
+
+int icssm_prueth_sw_boot_prus(struct prueth *prueth, struct net_device *ndev)
+{
+	const struct prueth_firmware *pru_firmwares;
+	const char *fw_name, *fw_name1;
+	int ret;
+
+	if (prueth->emac_configured)
+		return 0;
+
+	pru_firmwares = &prueth->fw_data->fw_pru[PRUSS_PRU0];
+	fw_name = pru_firmwares->fw_name[prueth->eth_type];
+	pru_firmwares = &prueth->fw_data->fw_pru[PRUSS_PRU1];
+	fw_name1 = pru_firmwares->fw_name[prueth->eth_type];
+
+	ret = rproc_set_firmware(prueth->pru0, fw_name);
+	if (ret) {
+		netdev_err(ndev, "failed to set PRU0 firmware %s: %d\n",
+			   fw_name, ret);
+		return ret;
+	}
+	ret = rproc_boot(prueth->pru0);
+	if (ret) {
+		netdev_err(ndev, "failed to boot PRU0: %d\n", ret);
+		return ret;
+	}
+
+	ret = rproc_set_firmware(prueth->pru1, fw_name1);
+	if (ret) {
+		netdev_err(ndev, "failed to set PRU1 firmware %s: %d\n",
+			   fw_name1, ret);
+		goto rproc0_shutdown;
+	}
+	ret = rproc_boot(prueth->pru1);
+	if (ret) {
+		netdev_err(ndev, "failed to boot PRU1: %d\n", ret);
+		goto rproc0_shutdown;
+	}
+
+	return 0;
+
+rproc0_shutdown:
+	rproc_shutdown(prueth->pru0);
+	return ret;
+}
+
+int icssm_prueth_sw_shutdown_prus(struct prueth_emac *emac,
+				  struct net_device *ndev)
+{
+	struct prueth *prueth = emac->prueth;
+
+	if (prueth->emac_configured)
+		return 0;
+
+	rproc_shutdown(prueth->pru0);
+	rproc_shutdown(prueth->pru1);
+
 	return 0;
 }
