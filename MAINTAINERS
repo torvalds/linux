@@ -9141,12 +9141,6 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/qcom_edac.c
 
-EDAC-R82600
-M:	Tim Small <tim@buttersideup.com>
-L:	linux-edac@vger.kernel.org
-S:	Maintained
-F:	drivers/edac/r82600_edac.c
-
 EDAC-SBRIDGE
 M:	Tony Luck <tony.luck@intel.com>
 R:	Qiuxu Zhuo <qiuxu.zhuo@intel.com>

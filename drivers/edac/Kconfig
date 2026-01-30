@@ -215,13 +215,6 @@ config EDAC_I82860
 	  Support for error detection and correction on the Intel
 	  82860 chipset.
 
-config EDAC_R82600
-	tristate "Radisys 82600 embedded chipset"
-	depends on PCI && X86_32
-	help
-	  Support for error detection and correction on the Radisys
-	  82600 embedded chipset.
-
 config EDAC_I5000
 	tristate "Intel Greencreek/Blackford chipset"
 	depends on X86 && PCI
