@@ -7754,10 +7754,12 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
 
 	/* Cancel and flush any pending HDMI HPD debounce work */
-	cancel_delayed_work_sync(&aconnector->hdmi_hpd_debounce_work);
-	if (aconnector->hdmi_prev_sink) {
-		dc_sink_release(aconnector->hdmi_prev_sink);
-		aconnector->hdmi_prev_sink = NULL;
+	if (aconnector->hdmi_hpd_debounce_delay_ms) {
+		cancel_delayed_work_sync(&aconnector->hdmi_hpd_debounce_work);
+		if (aconnector->hdmi_prev_sink) {
+			dc_sink_release(aconnector->hdmi_prev_sink);
+			aconnector->hdmi_prev_sink = NULL;
+		}
 	}
 
 	if (aconnector->bl_idx != -1) {
