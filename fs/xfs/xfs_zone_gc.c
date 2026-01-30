@@ -905,7 +905,8 @@ xfs_zone_gc_prepare_reset(
 	if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
 		if (!bdev_max_discard_sectors(bio->bi_bdev))
 			return false;
-		bio->bi_opf = REQ_OP_DISCARD | REQ_SYNC;
+		bio->bi_opf &= ~REQ_OP_ZONE_RESET;
+		bio->bi_opf |= REQ_OP_DISCARD;
 		bio->bi_iter.bi_size =
 			XFS_FSB_TO_B(rtg_mount(rtg), rtg_blocks(rtg));
 	}
