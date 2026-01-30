@@ -84,6 +84,25 @@ device, the following commands can be used::
 	# echo 32 > functions/pci_epf_test/func1/msi_interrupts
 	# echo 2048 > functions/pci_epf_test/func1/msix_interrupts
 
+By default, pci-epf-test uses the following BAR sizes::
+
+	# grep . functions/pci_epf_test/func1/pci_epf_test.0/bar?_size
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar0_size:131072
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar1_size:131072
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar2_size:131072
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar3_size:131072
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar4_size:131072
+	  functions/pci_epf_test/func1/pci_epf_test.0/bar5_size:1048576
+
+The user can override a default value using e.g.::
+	# echo 1048576 > functions/pci_epf_test/func1/pci_epf_test.0/bar1_size
+
+Overriding the default BAR sizes can only be done before binding the
+pci-epf-test device to a PCI endpoint controller driver.
+
+Note: Some endpoint controllers might have fixed-size BARs or reserved BARs;
+for such controllers, the corresponding BAR size in configfs will be ignored.
+
 
 Binding pci-epf-test Device to EP Controller
 --------------------------------------------
