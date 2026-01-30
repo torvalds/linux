@@ -3337,6 +3337,43 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 	mas_spanning_rebalance_loop(mas, mast, count);
 }
 
+static inline bool cp_is_new_root(struct maple_copy *cp, struct ma_state *mas)
+{
+	if (cp->min || cp->max != ULONG_MAX)
+		return false;
+
+	if (cp->d_count != 1) {
+		enum maple_type mt = maple_arange_64;
+
+		if (!mt_is_alloc(mas->tree))
+			mt = maple_range_64;
+
+		cp->data = cp->d_count;
+		cp->s_count = 0;
+		dst_setup(cp, mas, mt);
+		init_cp_src(cp);
+		node_copy(mas, cp->src[0].node, 0, cp->data, cp->max, maple_copy,
+			  cp->dst[0].node, 0, mt);
+		node_finalise(cp->dst[0].node, mt, cp->end + 1);
+		/*
+		 * Warning, see cp_leaf_init() comment and rcu_assign_pointer()
+		 * documentation.  Since this is a new root, there are no
+		 * read-side operations that can view it until it is insert into
+		 * the tree after an rcu_assign_pointer() call.
+		 */
+		ma_init_slot(&cp->slot[0], cp->dst[0].node, mt);
+		cp->height++;
+	}
+	WARN_ON_ONCE(cp->dst[0].node != mte_to_node(
+				mt_slot_locked(mas->tree, cp->slot, 0)));
+	cp->dst[0].node->parent = ma_parent_ptr(mas_tree_parent(mas));
+	mas->min = 0;
+	mas->max = ULONG_MAX;
+	mas->depth = 0;
+	mas->node = mas_root_locked(mas);
+	return true;
+}
+
 /*
  * spanning_ascend() - See if a spanning store operation has to keep walking up
  * the tree
@@ -3359,39 +3396,8 @@ static bool spanning_ascend(struct maple_copy *cp, struct ma_state *mas,
 	}
 
 	cp_dst_to_slots(cp, l_wr_mas->mas->min, r_wr_mas->mas->max, mas);
-	if (!cp->min && cp->max == ULONG_MAX) {
-		/* New root */
-		if (cp->d_count != 1) {
-			enum maple_type mt = maple_arange_64;
-
-			if (!mt_is_alloc(mas->tree))
-				mt = maple_range_64;
-
-			cp->data = cp->d_count;
-			cp->s_count = 0;
-			dst_setup(cp, mas, mt);
-			init_cp_src(cp);
-			node_copy(mas, cp->src[0].node, 0, cp->data, cp->max, maple_copy,
-				  cp->dst[0].node, 0, mt);
-			node_finalise(cp->dst[0].node, mt, cp->end + 1);
-			/*
-			 * Warning, see cp_leaf_init() comment and rcu_assign_pointer()
-			 * documentation.  Since this is a new root, there are no
-			 * read-side operations that can view it until it is insert into
-			 * the tree after an rcu_assign_pointer() call.
-			 */
-			ma_init_slot(&cp->slot[0], cp->dst[0].node, mt);
-			cp->height++;
-		}
-		WARN_ON_ONCE(cp->dst[0].node != mte_to_node(
-				mt_slot_locked(mas->tree, cp->slot, 0)));
-		cp->dst[0].node->parent = ma_parent_ptr(mas_tree_parent(mas));
-		mas->min = 0;
-		mas->max = ULONG_MAX;
-		mas->depth = 0;
-		mas->node = mas_root_locked(mas);
+	if (cp_is_new_root(cp, mas))
 		return false;
-	}
 
 	/* Converged and has a single destination */
 	if ((cp->d_count == 1) &&
