@@ -2953,6 +2953,8 @@ static int amdgpu_drm_release(struct inode *inode, struct file *filp)
 
 	if (fpriv && drm_dev_enter(dev, &idx)) {
 		amdgpu_evf_mgr_shutdown(&fpriv->evf_mgr);
+		amdgpu_userq_mgr_cancel_resume(&fpriv->userq_mgr);
+		amdgpu_evf_mgr_flush_suspend(&fpriv->evf_mgr);
 		amdgpu_userq_mgr_fini(&fpriv->userq_mgr);
 		amdgpu_evf_mgr_fini(&fpriv->evf_mgr);
 		drm_dev_exit(idx);
