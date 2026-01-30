@@ -3349,7 +3349,6 @@ static int ublk_ch_uring_cmd_local(struct io_uring_cmd *cmd,
 			io_buffer_unregister_bvec(cmd, buf_idx, issue_flags);
 		compl = ublk_need_complete_req(ub, io);
 
-		/* can't touch 'ublk_io' any more */
 		if (req_op(req) == REQ_OP_ZONE_APPEND)
 			req->__sector = addr;
 		if (compl)
@@ -3681,7 +3680,6 @@ static int ublk_batch_commit_io(struct ublk_queue *ubq,
 		return ret;
 	}
 
-	/* can't touch 'ublk_io' any more */
 	if (buf_idx != UBLK_INVALID_BUF_IDX)
 		io_buffer_unregister_bvec(data->cmd, buf_idx, data->issue_flags);
 	if (req_op(req) == REQ_OP_ZONE_APPEND)
