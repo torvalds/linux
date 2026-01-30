@@ -163,11 +163,10 @@ static int es8328_put_deemph(struct snd_kcontrol *kcontrol,
 	if (es8328->deemph == deemph)
 		return 0;
 
+	es8328->deemph = deemph;
 	ret = es8328_set_deemph(component);
 	if (ret < 0)
 		return ret;
-
-	es8328->deemph = deemph;
 
 	return 1;
 }
@@ -530,7 +529,9 @@ static int es8328_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 
 		es8328->playback_fs = params_rate(params);
-		es8328_set_deemph(component);
+		ret = es8328_set_deemph(component);
+		if (ret < 0)
+			return ret;
 	} else {
 		ret = snd_soc_component_update_bits(component, ES8328_ADCCONTROL4,
 						    ES8328_ADCCONTROL4_ADCWL_MASK,
