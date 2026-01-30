@@ -2564,9 +2564,10 @@ static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
 	const u8 num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS_4_0_3;
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	struct smu_v13_0_6_partition_metrics *xcp_metrics;
-	MetricsTableV0_t *metrics_v0 __free(kfree) = NULL;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret, inst, i, j, k, idx;
+	MetricsTableV0_t *metrics_v0;
 	MetricsTableV1_t *metrics_v1;
 	MetricsTableV2_t *metrics_v2;
 	struct amdgpu_xcp *xcp;
@@ -2586,13 +2587,11 @@ static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
 	xcp_metrics = (struct smu_v13_0_6_partition_metrics *)table;
 	smu_v13_0_6_partition_metrics_init(xcp_metrics, 1, 1);
 
-	metrics_v0 = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
-	if (!metrics_v0)
-		return -ENOMEM;
-
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, false);
+	ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
 	if (ret)
 		return ret;
+
+	metrics_v0 = (MetricsTableV0_t *)smu_table->metrics_table;
 
 	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) ==
 		    IP_VERSION(13, 0, 12) &&
@@ -2600,8 +2599,8 @@ static ssize_t smu_v13_0_6_get_xcp_metrics(struct smu_context *smu, int xcp_id,
 		return smu_v13_0_12_get_xcp_metrics(smu, xcp, table,
 						    metrics_v0);
 
-	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
-	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
+	metrics_v1 = (MetricsTableV1_t *)smu_table->metrics_table;
+	metrics_v2 = (MetricsTableV2_t *)smu_table->metrics_table;
 
 	per_inst = smu_v13_0_6_cap_supported(smu, SMU_CAP(PER_INST_METRICS));
 
@@ -2677,21 +2676,21 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 {
 	struct smu_v13_0_6_gpu_metrics *gpu_metrics;
 	int version = smu_v13_0_6_get_metrics_version(smu);
-	MetricsTableV0_t *metrics_v0 __free(kfree) = NULL;
+	struct smu_table_context *smu_table = &smu->smu_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, xcc_id, inst, i, j;
+	MetricsTableV0_t *metrics_v0;
 	MetricsTableV1_t *metrics_v1;
 	MetricsTableV2_t *metrics_v2;
 	u16 link_width_level;
 	u8 num_jpeg_rings;
 	bool per_inst;
 
-	metrics_v0 = kzalloc(METRICS_TABLE_SIZE, GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics_v0, false);
+	ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
 	if (ret)
 		return ret;
 
-	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
+	metrics_v0 = (MetricsTableV0_t *)smu_table->metrics_table;
 	gpu_metrics = (struct smu_v13_0_6_gpu_metrics *)smu_driver_table_ptr(
 		smu, SMU_DRIVER_TABLE_GPU_METRICS);
 
@@ -2702,8 +2701,8 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		goto fill;
 	}
 
-	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
-	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
+	metrics_v1 = (MetricsTableV1_t *)smu_table->metrics_table;
+	metrics_v2 = (MetricsTableV2_t *)smu_table->metrics_table;
 
 	gpu_metrics->temperature_hotspot =
 		SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature, version));
