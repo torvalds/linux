@@ -8,6 +8,7 @@
 #include "tailcall_freplace.skel.h"
 #include "tc_bpf2bpf.skel.h"
 #include "tailcall_fail.skel.h"
+#include "tailcall_sleepable.skel.h"
 
 /* test_tailcall_1 checks basic functionality by patching multiple locations
  * in a single program for a single tail call slot with nop->jmp, jmp->nop
@@ -1653,6 +1654,77 @@ static void test_tailcall_failure()
 	RUN_TESTS(tailcall_fail);
 }
 
+noinline void uprobe_sleepable_trigger(void)
+{
+	asm volatile ("");
+}
+
+static void test_tailcall_sleepable(void)
+{
+	LIBBPF_OPTS(bpf_uprobe_opts, opts);
+	struct tailcall_sleepable *skel;
+	int prog_fd, map_fd;
+	int err, key;
+
+	skel = tailcall_sleepable__open();
+	if (!ASSERT_OK_PTR(skel, "tailcall_sleepable__open"))
+		return;
+
+	/*
+	 * Test that we can't load uprobe_normal and uprobe_sleepable_1,
+	 * because they share tailcall map.
+	 */
+	bpf_program__set_autoload(skel->progs.uprobe_normal, true);
+	bpf_program__set_autoload(skel->progs.uprobe_sleepable_1, true);
+
+	err = tailcall_sleepable__load(skel);
+	if (!ASSERT_ERR(err, "tailcall_sleepable__load"))
+		goto out;
+
+	tailcall_sleepable__destroy(skel);
+
+	/*
+	 * Test that we can tail call from sleepable to sleepable program.
+	 */
+	skel = tailcall_sleepable__open();
+	if (!ASSERT_OK_PTR(skel, "tailcall_sleepable__open"))
+		return;
+
+	bpf_program__set_autoload(skel->progs.uprobe_sleepable_1, true);
+	bpf_program__set_autoload(skel->progs.uprobe_sleepable_2, true);
+
+	err = tailcall_sleepable__load(skel);
+	if (!ASSERT_OK(err, "tailcall_sleepable__load"))
+		goto out;
+
+	/* Add sleepable uprobe_sleepable_2 to jmp_table[0]. */
+	key = 0;
+	prog_fd = bpf_program__fd(skel->progs.uprobe_sleepable_2);
+	map_fd = bpf_map__fd(skel->maps.jmp_table);
+	err = bpf_map_update_elem(map_fd, &key, &prog_fd, BPF_ANY);
+	if (!ASSERT_OK(err, "update jmp_table"))
+		goto out;
+
+	skel->bss->my_pid = getpid();
+
+	/* Attach uprobe_sleepable_1 to uprobe_sleepable_trigger and hit it.  */
+	opts.func_name = "uprobe_sleepable_trigger";
+	skel->links.uprobe_sleepable_1 = bpf_program__attach_uprobe_opts(
+						skel->progs.uprobe_sleepable_1,
+						-1,
+						"/proc/self/exe",
+						0 /* offset */,
+						&opts);
+	if (!ASSERT_OK_PTR(skel->links.uprobe_sleepable_1, "bpf_program__attach_uprobe_opts"))
+		goto out;
+
+	uprobe_sleepable_trigger();
+	ASSERT_EQ(skel->bss->executed, 1, "executed");
+
+out:
+	tailcall_sleepable__destroy(skel);
+}
+
 void test_tailcalls(void)
 {
 	if (test__start_subtest("tailcall_1"))
@@ -1707,4 +1779,6 @@ void test_tailcalls(void)
 		test_tailcall_bpf2bpf_freplace();
 	if (test__start_subtest("tailcall_failure"))
 		test_tailcall_failure();
+	if (test__start_subtest("tailcall_sleepable"))
+		test_tailcall_sleepable();
 }
