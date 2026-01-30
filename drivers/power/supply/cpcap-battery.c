@@ -404,6 +404,30 @@ static int cpcap_battery_match_nvmem(struct device *dev, const void *data)
 		return 0;
 }
 
+static void cpcap_battery_update_battery_data(struct cpcap_battery_ddata *ddata)
+{
+	struct power_supply_battery_info *info;
+
+	if (power_supply_get_battery_info(ddata->psy, &info) < 0)
+		return;
+
+	if (info->technology > 0)
+		ddata->config.info.technology = info->technology;
+
+	if (info->voltage_max_design_uv > 0)
+		ddata->config.info.voltage_max_design = info->voltage_max_design_uv;
+
+	if (info->voltage_min_design_uv > 0)
+		ddata->config.info.voltage_min_design = info->voltage_min_design_uv;
+
+	if (info->charge_full_design_uah > 0)
+		ddata->config.info.charge_full_design = info->charge_full_design_uah;
+
+	if (info->constant_charge_voltage_max_uv > 0)
+		ddata->config.bat.constant_charge_voltage_max_uv =
+			info->constant_charge_voltage_max_uv;
+}
+
 static void cpcap_battery_detect_battery_type(struct cpcap_battery_ddata *ddata)
 {
 	struct nvmem_device *nvmem;
@@ -431,6 +455,9 @@ static void cpcap_battery_detect_battery_type(struct cpcap_battery_ddata *ddata)
 	default:
 		ddata->config = cpcap_battery_unknown_data;
 	}
+
+	if (ddata->psy)
+		cpcap_battery_update_battery_data(ddata);
 }
 
 /**
