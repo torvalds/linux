@@ -14,10 +14,13 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -524,7 +527,7 @@ vmclock_acpi_notification_handler(acpi_handle __always_unused handle,
 	wake_up_interruptible(&st->disrupt_wait);
 }
 
-static int vmclock_setup_notification(struct device *dev, struct vmclock_state *st)
+static int vmclock_setup_acpi_notification(struct device *dev)
 {
 	struct acpi_device *adev = ACPI_COMPANION(dev);
 	acpi_status status;
@@ -536,10 +539,6 @@ static int vmclock_setup_notification(struct device *dev, struct vmclock_state *
 	 */
 	if (!adev)
 		return -ENODEV;
-
-	/* The device does not support notifications. Nothing else to do */
-	if (!(le64_to_cpu(st->clk->flags) & VMCLOCK_FLAG_NOTIFICATION_PRESENT))
-		return 0;
 
 	status = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
 					     vmclock_acpi_notification_handler,
@@ -573,6 +572,55 @@ static int vmclock_probe_acpi(struct device *dev, struct vmclock_state *st)
 	}
 
 	return 0;
+}
+
+static irqreturn_t vmclock_of_irq_handler(int __always_unused irq, void *_st)
+{
+	struct vmclock_state *st = _st;
+
+	wake_up_interruptible(&st->disrupt_wait);
+	return IRQ_HANDLED;
+}
+
+static int vmclock_probe_dt(struct device *dev, struct vmclock_state *st)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
+
+	st->res = *res;
+
+	return 0;
+}
+
+static int vmclock_setup_of_notification(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	int irq;
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	return devm_request_irq(dev, irq, vmclock_of_irq_handler, IRQF_SHARED,
+				"vmclock", dev->driver_data);
+}
+
+static int vmclock_setup_notification(struct device *dev,
+				      struct vmclock_state *st)
+{
+	/* The device does not support notifications. Nothing else to do */
+	if (!(le64_to_cpu(st->clk->flags) & VMCLOCK_FLAG_NOTIFICATION_PRESENT))
+		return 0;
+
+	if (has_acpi_companion(dev)) {
+		return vmclock_setup_acpi_notification(dev);
+	} else {
+		return vmclock_setup_of_notification(dev);
+	}
 }
 
 static void vmclock_remove(void *data)
@@ -619,7 +667,7 @@ static int vmclock_probe(struct platform_device *pdev)
 	if (has_acpi_companion(dev))
 		ret = vmclock_probe_acpi(dev, st);
 	else
-		ret = -EINVAL; /* Only ACPI for now */
+		ret = vmclock_probe_dt(dev, st);
 
 	if (ret) {
 		dev_info(dev, "Failed to obtain physical address: %d\n", ret);
@@ -719,11 +767,18 @@ static const struct acpi_device_id vmclock_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, vmclock_acpi_ids);
 
+static const struct of_device_id vmclock_of_ids[] = {
+	{ .compatible = "amazon,vmclock", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, vmclock_of_ids);
+
 static struct platform_driver vmclock_platform_driver = {
 	.probe		= vmclock_probe,
 	.driver	= {
 		.name	= "vmclock",
 		.acpi_match_table = vmclock_acpi_ids,
+		.of_match_table = vmclock_of_ids,
 	},
 };
 
