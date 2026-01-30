@@ -2766,7 +2766,7 @@ static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 		b_node.b_end++;
 
 	/* Stop spanning searches by searching for just index. */
-	mast->orig_l->index = mast->orig_l->last = mas->index;
+	mast->orig_l->last = mas->index;
 
 	mast->bn = &b_node;
 	/* Combine l_mas and r_mas and split them up evenly again. */
