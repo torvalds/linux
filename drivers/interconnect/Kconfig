@@ -22,4 +22,18 @@ config INTERCONNECT_CLK
 	help
 	  Support for wrapping clocks into the interconnect nodes.
 
+config INTERCONNECT_KUNIT_TEST
+	tristate "KUnit tests for Interconnect framework"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the KUnit test suite for the generic system interconnect
+	  framework.
+
+	  The tests cover the core functionality of the interconnect subsystem,
+	  including provider/consumer APIs, topology management, and bandwidth
+	  aggregation logic.
+
+	  If unsure, say N.
+
 endif

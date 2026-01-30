@@ -10,3 +10,5 @@ obj-$(CONFIG_INTERCONNECT_QCOM)		+= qcom/
 obj-$(CONFIG_INTERCONNECT_SAMSUNG)	+= samsung/
 
 obj-$(CONFIG_INTERCONNECT_CLK)		+= icc-clk.o
+
+obj-$(CONFIG_INTERCONNECT_KUNIT_TEST) += icc-kunit.o

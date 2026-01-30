@@ -27,3 +27,10 @@ config INTERCONNECT_MTK_MT8195
 	help
 	  This is a driver for the MediaTek bus interconnect on MT8195-based
 	  platforms.
+
+config INTERCONNECT_MTK_MT8196
+	tristate "MediaTek MT8196 interconnect driver"
+	depends on INTERCONNECT_MTK_DVFSRC_EMI
+	help
+	  This is a driver for the MediaTek bus interconnect on MT8196-based
+	  platforms.

@@ -14,7 +14,6 @@
 #include "icc-rpm.h"
 
 #define RPM_KEY_BW		0x00007762
-#define QCOM_RPM_SMD_KEY_RATE	0x007a484b
 
 static struct qcom_smd_rpm *icc_smd_rpm;
 
