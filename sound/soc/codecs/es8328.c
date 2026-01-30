@@ -647,6 +647,7 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_to_dapm(component);
+	int ret;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -654,43 +655,56 @@ static int es8328_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VREF, VMID=2x50k, digital enabled */
-		snd_soc_component_write(component, ES8328_CHIPPOWER, 0);
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				ES8328_CONTROL1_VMIDSEL_50k |
-				ES8328_CONTROL1_ENREF);
+		ret = snd_soc_component_write(component, ES8328_CHIPPOWER, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    ES8328_CONTROL1_VMIDSEL_50k |
+						    ES8328_CONTROL1_ENREF);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
 		if (snd_soc_dapm_get_bias_level(dapm) == SND_SOC_BIAS_OFF) {
-			snd_soc_component_update_bits(component, ES8328_CONTROL1,
-					ES8328_CONTROL1_VMIDSEL_MASK |
-					ES8328_CONTROL1_ENREF,
-					ES8328_CONTROL1_VMIDSEL_5k |
-					ES8328_CONTROL1_ENREF);
+			ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+							    ES8328_CONTROL1_VMIDSEL_MASK |
+							    ES8328_CONTROL1_ENREF,
+							    ES8328_CONTROL1_VMIDSEL_5k |
+							    ES8328_CONTROL1_ENREF);
+			if (ret < 0)
+				return ret;
 
 			/* Charge caps */
 			msleep(100);
 		}
 
-		snd_soc_component_write(component, ES8328_CONTROL2,
-				ES8328_CONTROL2_OVERCURRENT_ON |
-				ES8328_CONTROL2_THERMAL_SHUTDOWN_ON);
+		ret = snd_soc_component_write(component, ES8328_CONTROL2,
+					      ES8328_CONTROL2_OVERCURRENT_ON |
+					      ES8328_CONTROL2_THERMAL_SHUTDOWN_ON);
+		if (ret < 0)
+			return ret;
 
 		/* VREF, VMID=2*500k, digital stopped */
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				ES8328_CONTROL1_VMIDSEL_500k |
-				ES8328_CONTROL1_ENREF);
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    ES8328_CONTROL1_VMIDSEL_500k |
+						    ES8328_CONTROL1_ENREF);
+		if (ret < 0)
+			return ret;
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_component_update_bits(component, ES8328_CONTROL1,
-				ES8328_CONTROL1_VMIDSEL_MASK |
-				ES8328_CONTROL1_ENREF,
-				0);
+		ret = snd_soc_component_update_bits(component, ES8328_CONTROL1,
+						    ES8328_CONTROL1_VMIDSEL_MASK |
+						    ES8328_CONTROL1_ENREF,
+						    0);
+		if (ret < 0)
+			return ret;
 		break;
 	}
 	return 0;
