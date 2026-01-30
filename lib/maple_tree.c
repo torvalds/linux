@@ -2751,7 +2751,7 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 
 static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 		struct maple_subtree_state *mast, unsigned char height,
-		struct ma_wr_state *l_wr_mas)
+		struct ma_wr_state *wr_mas)
 {
 	struct maple_big_node b_node;
 	MA_STATE(l_mas, mas->tree, mas->index, mas->index);
@@ -2760,7 +2760,7 @@ static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 
 	memset(&b_node, 0, sizeof(struct maple_big_node));
 	/* Copy l_mas and store the value in b_node. */
-	mas_store_b_node(l_wr_mas, &b_node, mast->orig_l->end);
+	mas_store_b_node(wr_mas, &b_node, mast->orig_l->end);
 	/* Copy r_mas into b_node if there is anything to copy. */
 	if (mast->orig_r->max > mast->orig_r->last)
 		mas_mab_cp(mast->orig_r, mast->orig_r->offset,
@@ -3454,7 +3454,6 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 	MA_STATE(l_mas, NULL, 0, 0);
 	MA_STATE(r_mas, NULL, 0, 0);
 	MA_WR_STATE(r_wr_mas, &r_mas, wr_mas->entry);
-	MA_WR_STATE(l_wr_mas, &l_mas, wr_mas->entry);
 
 	/*
 	 * A store operation that spans multiple nodes is called a spanning
@@ -3494,25 +3493,23 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 	r_mas.last = r_mas.index = mas->last;
 
 	/* Set up left side. */
-	l_mas = *mas;
-	mas_wr_walk_index(&l_wr_mas);
+	mas_wr_walk_index(wr_mas);
 
 	if (!wr_mas->entry) {
-		mas_extend_spanning_null(&l_wr_mas, &r_wr_mas);
-		mas->offset = l_mas.offset;
-		mas->index = l_mas.index;
-		mas->last = l_mas.last = r_mas.last;
+		mas_extend_spanning_null(wr_mas, &r_wr_mas);
+		mas->last = r_mas.last;
 	}
 
 	/* expanding NULLs may make this cover the entire range */
-	if (!l_mas.index && r_mas.last == ULONG_MAX) {
+	if (!mas->index && r_mas.last == ULONG_MAX) {
 		mas_set_range(mas, 0, ULONG_MAX);
 		return mas_new_root(mas, wr_mas->entry);
 	}
 
+	l_mas = *mas;
 	mast.orig_l = &l_mas;
 	mast.orig_r = &r_mas;
-	mas_wr_spanning_rebalance(mas, &mast, height + 1, &l_wr_mas);
+	mas_wr_spanning_rebalance(mas, &mast, height + 1, wr_mas);
 }
 
 /*
