@@ -156,6 +156,17 @@ enum store_type {
 };
 
 struct maple_copy {
+	/*
+	 * min, max, and pivots are values
+	 * start, end, split are indexes into arrays
+	 * data is a size
+	 */
+
+	struct {
+		struct maple_node *node;
+		unsigned long max;
+		enum maple_type mt;
+	} dst[3];
 	struct {
 		struct maple_node *node;
 		unsigned long max;
@@ -178,7 +189,10 @@ struct maple_copy {
 
 	/*Avoid passing these around */
 	unsigned char s_count;
+	unsigned char d_count;
+	unsigned char split;
 	unsigned char data;
+	unsigned char height;
 };
 
 /**

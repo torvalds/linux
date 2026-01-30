@@ -353,6 +353,13 @@ static inline struct maple_enode *mt_mk_node(const struct maple_node *node,
 			(type << MAPLE_ENODE_TYPE_SHIFT) | MAPLE_ENODE_NULL);
 }
 
+static inline void ma_init_slot(void __rcu **slot, const struct maple_node *mn,
+				const enum maple_type mt)
+{
+	/* WARNING: this is unsafe if the slot is exposed to readers. */
+	RCU_INIT_POINTER(*slot, (void *)mt_mk_node(mn, mt));
+}
+
 static inline void *mte_mk_root(const struct maple_enode *node)
 {
 	return (void *)((unsigned long)node | MAPLE_ROOT_NODE);
@@ -1320,6 +1327,21 @@ void wr_mas_setup(struct ma_wr_state *wr_mas, struct ma_state *mas)
 	wr_mas->r_max = mas_safe_pivot(mas, wr_mas->pivots, mas->offset,
 				       wr_mas->type);
 }
+
+static inline
+void wr_mas_ascend(struct ma_wr_state *wr_mas)
+{
+	struct ma_state *mas = wr_mas->mas;
+
+	mas_ascend(mas);
+	wr_mas_setup(wr_mas, mas);
+	mas->end = ma_data_end(wr_mas->node, wr_mas->type, wr_mas->pivots,
+			       mas->max);
+	/* Careful, this may be wrong.. */
+	wr_mas->end_piv = wr_mas->r_max;
+	wr_mas->offset_end = mas->offset;
+}
+
 static inline unsigned long ma_leaf_max_gap(struct maple_node *mn,
 		enum maple_type mt, unsigned long min, unsigned long max,
 		unsigned long *pivots, void __rcu **slots)
@@ -2508,6 +2530,112 @@ static inline void mas_wmb_replace(struct ma_state *mas,
 }
 
 /*
+ * node_copy() - Copy from one node to another.
+ *
+ * @mas: The maple state
+ * @src: The source node
+ * @start: The offset into the src to start copying
+ * @size: The size to copy (non-zero)
+ * @s_max: The source node max
+ * @s_mt: The source maple node type
+ * @dst: The destination
+ * @d_start: The start location in the destination node
+ * @d_mt: The destination maple node type
+ */
+static inline
+unsigned long node_copy(struct ma_state *mas, struct maple_node *src,
+	unsigned char start, unsigned char size, unsigned long s_max,
+	enum maple_type s_mt, struct maple_node *dst, unsigned char d_start,
+	enum maple_type d_mt)
+{
+	unsigned long *s_pivots, *d_pivots;
+	void __rcu **s_slots, **d_slots;
+	unsigned long *s_gaps, *d_gaps;
+	unsigned long d_max;
+
+	d_slots = ma_slots(dst, d_mt) + d_start;
+	d_pivots = ma_pivots(dst, d_mt) + d_start;
+	s_slots = ma_slots(src, s_mt) + start;
+	s_pivots = ma_pivots(src, s_mt) + start;
+	memcpy(d_slots, s_slots, size * sizeof(void __rcu *));
+	if (!ma_is_leaf(d_mt) && s_mt == maple_copy) {
+		struct maple_enode *edst = mt_mk_node(dst, d_mt);
+
+
+		for (int i = 0; i < size; i++)
+			mas_set_parent(mas,
+				       mt_slot_locked(mas->tree, d_slots, i),
+				       edst, d_start + i);
+	}
+
+	d_gaps = ma_gaps(dst, d_mt);
+	if (d_gaps) {
+		s_gaps = ma_gaps(src, s_mt) + start;
+		d_gaps += d_start;
+		memcpy(d_gaps, s_gaps, size * sizeof(unsigned long));
+	}
+
+	if (start + size - 1 < mt_pivots[s_mt])
+		d_max = s_pivots[size - 1];
+	else
+		d_max = s_max;
+
+	if (d_start + size <= mt_pivots[d_mt])
+		d_pivots[size - 1] = d_max;
+
+	size--;
+	if (size)
+		memcpy(d_pivots, s_pivots, size * sizeof(unsigned long));
+
+	return d_max;
+}
+
+/*
+ * node_finalise() - Zero out unused area and populate metadata
+ * @node: The maple node
+ * @mt: The maple node type
+ * @end: The end of the used area
+ */
+static inline
+void node_finalise(struct maple_node *node, enum maple_type mt,
+		   unsigned char end)
+{
+	unsigned char max_end = mt_slots[mt];
+	unsigned char size;
+	unsigned long *gaps;
+	unsigned char gap_slot;
+
+	gaps = ma_gaps(node, mt);
+	if (end < max_end - 1) {
+		size = max_end - end;
+		memset(ma_slots(node, mt) + end, 0, size * sizeof(void *));
+
+		if (gaps)
+			memset(gaps + end, 0, size * sizeof(unsigned long));
+
+		if (--size)
+			memset(ma_pivots(node, mt) + end, 0, size * sizeof(unsigned long));
+	}
+
+	gap_slot = 0;
+	if (gaps && !ma_is_leaf(mt)) {
+		unsigned long max_gap;
+
+		max_gap = 0;
+		for (int i = 0; i <= end; i++)
+			if (gaps[i] > max_gap) {
+				gap_slot = i;
+				max_gap = gaps[i];
+			}
+	}
+
+	if (mt == maple_arange_64)
+		ma_set_meta(node, mt, gap_slot, end - 1);
+	else if (end <= max_end - 1)
+		ma_set_meta(node, mt, gap_slot, end - 1);
+}
+
+/*
  * mast_cp_to_nodes() - Copy data out to nodes.
  * @mast: The maple subtree state
  * @left: The left encoded maple node
@@ -2684,6 +2812,7 @@ static inline void cp_leaf_init(struct maple_copy *cp,
 	 * result in buggy code when a compiler reorders the instructions.
 	 */
 
+	cp->height = 1;
 	/* Create entries to insert including split entries to left and right */
 	if (l_wr_mas->r_min < mas->index) {
 		end++;
@@ -2724,6 +2853,100 @@ static inline void cp_data_calc(struct maple_copy *cp,
 	cp->data += cp->end + 1;
 	/* Data from right (offset + 1 to end), +1 for zero */
 	cp->data += r_wr_mas->mas->end - r_wr_mas->offset_end;
+}
+
+/*
+ * spanning_data() - Calculate the @cp data and populate @sib if insufficient
+ * @cp: The maple copy node
+ * @l_wr_mas: The left write maple state
+ * @r_wr_mas: The right write maple state
+ * @sib: The maple state of the sibling.
+ *
+ * Note: @cp->data is a size and not indexed by 0. @sib->end may be set to 0 to
+ * indicate it will not be used.
+ */
+static inline void spanning_data(struct maple_copy *cp,
+		struct ma_wr_state *l_wr_mas, struct ma_wr_state *r_wr_mas,
+		struct ma_state *sib)
+{
+	cp_data_calc(cp, l_wr_mas, r_wr_mas);
+	if (((l_wr_mas->mas->min != 0) || (r_wr_mas->mas->max != ULONG_MAX)) &&
+	    (cp->data <= mt_min_slots[l_wr_mas->type])) {
+		spanning_sib(l_wr_mas, r_wr_mas, sib);
+		cp->data += sib->end + 1;
+	} else {
+		sib->end = 0;
+	}
+}
+
+/*
+ * dst_setup() - Set up one or more destinations for the new data.
+ * @cp: The maple copy node
+ * @mas: The maple state
+ * @mt: The source node type
+ */
+static inline
+void dst_setup(struct maple_copy *cp, struct ma_state *mas, enum maple_type mt)
+{
+	/* Data is 1 indexed, every src has +1 added.  */
+
+	if (cp->data <= mt_slots[mt]) {
+		cp->split = cp->data - 1;
+		cp->d_count = 1;
+		goto node_setup;
+	}
+
+	cp->split = (cp->data - 1) / 2;
+	cp->d_count = 2;
+	if (cp->data < mt_slots[mt] * 2)
+		goto node_setup;
+
+	if (cp->data == mt_slots[mt] * 2) {
+		unsigned char off;
+		unsigned char s;
+
+		if (!ma_is_leaf(mt))
+			goto node_setup;
+
+		/*
+		 * Leaf nodes are a bit tricky because we cannot assume the data
+		 * can fit due to the NULL limitation on node ends.
+		 */
+		off = cp->split;
+		for (s = 0; s < cp->s_count; s++) {
+			unsigned char s_off;
+
+			s_off = cp->src[s].end - cp->src[s].start;
+			if (s_off >= off)
+				break;
+
+			s_off++;
+			off -= s_off;
+		}
+
+		off += cp->src[s].start;
+		if (ma_slots(cp->src[s].node, cp->src[s].mt)[off])
+			goto node_setup;
+
+		cp->split++;
+		if (cp->split < mt_slots[mt])
+			goto node_setup;
+
+		cp->split -= 2;
+		if (cp->data - 2 - cp->split < mt_slots[mt])
+			goto node_setup;
+
+	}
+
+	/* No other choice but to 3-way split the data */
+	cp->split = (cp->data + 2) / 3;
+	cp->d_count = 3;
+
+node_setup:
+	for (int i = 0; i < cp->d_count; i++) {
+		cp->dst[i].mt = mt;
+		cp->dst[i].node = ma_mnode_ptr(mas_pop_node(mas));
+	}
 }
 
 static inline void append_mas_cp(struct maple_copy *cp,
@@ -2813,38 +3036,153 @@ void multi_src_setup(struct maple_copy *cp, struct ma_wr_state *l_wr_mas,
 }
 
 static inline
-void cp_data_write(struct maple_copy *cp, struct maple_big_node *b_node)
+void cp_data_write(struct maple_copy *cp, struct ma_state *mas)
 {
-	struct maple_node *src;
-	unsigned char s;
+	struct maple_node *dst, *src;
+	unsigned char s, d;
+	unsigned char dst_offset;
+	unsigned char data_offset;
 	unsigned char src_end, s_offset;
-	unsigned long *b_pivots, *cp_pivots;
-	void __rcu **b_slots, **cp_slots;
-	enum maple_type s_mt;
+	unsigned char split;
+	unsigned long s_max, d_max;
+	unsigned char dst_size;
+	enum maple_type s_mt, d_mt;
 
-	b_node->b_end = 0;
-
-	s = 0;
-	b_pivots = b_node->pivot;
-	b_slots = (void __rcu **)b_node->slot;
+	data_offset = 0;
+	s = d = 0;
+	/* Readability help */
+	src = cp->src[s].node;
+	dst = cp->dst[d].node;
+	s_offset = cp->src[s].start;
+	src_end = cp->src[s].end;
+	split = cp->split;
+	s_max = cp->src[s].max;
+	s_mt = cp->src[s].mt;
+	d_mt = cp->dst[d].mt;
 	do {
-		unsigned char size;
+		dst_offset = 0;
+		d_max = 0;
+		dst = cp->dst[d].node;
+		d_mt = cp->dst[d].mt;
+		dst_size = split + 1;
 
-		src = cp->src[s].node;
-		s_mt = cp->src[s].mt;
-		s_offset = cp->src[s].start;
-		src_end = cp->src[s].end;
-		size = src_end - s_offset + 1;
-		cp_pivots = ma_pivots(src, s_mt) + s_offset;
-		cp_slots = ma_slots(src, s_mt) + s_offset;
-		memcpy(b_slots, cp_slots, size * sizeof(void __rcu *));
-		if (size > 1)
-			memcpy(b_pivots, cp_pivots, (size - 1) * sizeof(unsigned long));
-		b_pivots[size - 1] = cp->src[s].max;
-		b_pivots += size;
-		b_slots += size;
-		b_node->b_end += size;
-	} while (++s < cp->s_count);
+		while (dst_size) {
+			unsigned char size;
+
+			if (src_end - s_offset + 1 < dst_size)
+				size = src_end - s_offset + 1;
+			else
+				size = dst_size;
+
+			d_max = node_copy(mas, src, s_offset, size, s_max, s_mt,
+					  dst, dst_offset, d_mt);
+
+			dst_offset += size;
+			s_offset += size;
+			if (s_offset > src_end) {
+				/* This source is exhausted */
+				s++;
+				if (s >= cp->s_count) {
+					cp->dst[d].max = d_max;
+					node_finalise(dst, d_mt, dst_offset);
+					return;
+				}
+				/* Reset local src */
+				src = cp->src[s].node;
+				s_offset = cp->src[s].start;
+				src_end = cp->src[s].end;
+				s_max = cp->src[s].max;
+				s_mt = cp->src[s].mt;
+			}
+
+			dst_size -= size;
+			data_offset += size;
+		}
+
+		split = cp->split;
+		cp->dst[d].max = d_max;
+		/* Handle null entries */
+		if (cp->dst[d].max != ULONG_MAX &&
+		    !ma_slots(dst, d_mt)[dst_offset - 1]) {
+			if (s_offset == cp->src[s].start) {
+				s--;
+				src = cp->src[s].node;
+				src_end = cp->src[s].end;
+				s_max = cp->src[s].max;
+				s_mt = cp->src[s].mt;
+				s_offset = src_end;
+			} else {
+				s_offset--;
+			}
+			/* Set dst max and clear pivot */
+			split++;
+			data_offset--;
+			dst_offset--;
+			cp->dst[d].max = ma_pivots(dst, d_mt)[dst_offset - 1];
+		}
+
+		node_finalise(dst, d_mt, dst_offset);
+		++d; /* Next destination */
+		if (d == cp->d_count - 1)
+			split = cp->data - data_offset;
+
+		if (d >= cp->d_count) {
+			WARN_ON(data_offset < cp->data);
+			return;
+		}
+
+	} while (data_offset <= cp->data);
+}
+
+/*
+ * cp_dst_to_slots() - Migrate the maple copy destination to the maple copy
+ * slots
+ * @cp: The maple copy node
+ * @min: The minimal value represented
+ * @max: The maximum value represented
+ * @mas: The maple state
+ */
+static inline void cp_dst_to_slots(struct maple_copy *cp, unsigned long min,
+		unsigned long max, struct ma_state *mas)
+{
+	unsigned char d;
+	unsigned long slot_min = min;
+
+	for (d = 0; d < cp->d_count; d++) {
+		struct maple_node *mn = cp->dst[d].node;
+		enum maple_type mt = cp->dst[d].mt;
+		unsigned long slot_max = cp->dst[d].max;
+
+		/*
+		 * Warning, see cp_leaf_init() comment and rcu_assign_pointer()
+		 * documentation.  Since these are new nodes, there are no
+		 * read-side operations that can view them until they are
+		 * inserted into the tree after an rcu_assign_pointer() call.
+		 */
+		ma_init_slot(&cp->slot[d], mn, mt);
+		cp->pivot[d] = slot_max;
+		if (mt_is_alloc(mas->tree)) {
+			if (ma_is_leaf(mt)) {
+				cp->gap[d] = ma_leaf_max_gap(mn, mt, slot_min,
+						 slot_max, ma_pivots(mn, mt),
+						 ma_slots(mn, mt));
+			} else {
+				unsigned long *gaps = ma_gaps(mn, mt);
+
+				if (gaps) {
+					unsigned char gap_slot;
+
+					gap_slot = ma_meta_gap(mn);
+					cp->gap[d] = gaps[gap_slot];
+				}
+			}
+		}
+		slot_min = slot_max + 1;
+	}
+
+	cp->end = cp->d_count - 1;
+	cp->min = min;
+	cp->max = max;
 }
 
 static void mas_spanning_rebalance_loop(struct ma_state *mas,
@@ -3000,173 +3338,97 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 	mas_spanning_rebalance_loop(mas, mast, count);
 }
 
+/*
+ * spanning_ascend() - See if a spanning store operation has to keep walking up
+ * the tree
+ * @cp: The maple_copy node
+ * @l_wr_mas: The left maple write state
+ * @r_wr_mas: The right maple write state
+ * @sib: the maple state of the sibling
+ *
+ * Returns: True if another iteration is necessary.
+ */
+static bool spanning_ascend(struct maple_copy *cp, struct ma_state *mas,
+			    struct ma_wr_state *l_wr_mas, struct ma_wr_state *r_wr_mas,
+			    struct ma_state *sib)
+{
+	if (sib->end) {
+		if (sib->max < l_wr_mas->mas->min)
+			*l_wr_mas->mas = *sib;
+		else
+			*r_wr_mas->mas = *sib;
+	}
+
+	cp_dst_to_slots(cp, l_wr_mas->mas->min, r_wr_mas->mas->max, mas);
+	if (!cp->min && cp->max == ULONG_MAX) {
+		/* New root */
+		if (cp->d_count != 1) {
+			enum maple_type mt = maple_arange_64;
+
+			if (!mt_is_alloc(mas->tree))
+				mt = maple_range_64;
+
+			cp->data = cp->d_count;
+			cp->s_count = 0;
+			dst_setup(cp, mas, mt);
+			init_cp_src(cp);
+			node_copy(mas, cp->src[0].node, 0, cp->data, cp->max, maple_copy,
+				  cp->dst[0].node, 0, mt);
+			node_finalise(cp->dst[0].node, mt, cp->end + 1);
+			/*
+			 * Warning, see cp_leaf_init() comment and rcu_assign_pointer()
+			 * documentation.  Since this is a new root, there are no
+			 * read-side operations that can view it until it is insert into
+			 * the tree after an rcu_assign_pointer() call.
+			 */
+			ma_init_slot(&cp->slot[0], cp->dst[0].node, mt);
+			cp->height++;
+		}
+		WARN_ON_ONCE(cp->dst[0].node != mte_to_node(
+				mt_slot_locked(mas->tree, cp->slot, 0)));
+		cp->dst[0].node->parent = ma_parent_ptr(mas_tree_parent(mas));
+		mas->min = 0;
+		mas->max = ULONG_MAX;
+		mas->depth = 0;
+		mas->node = mas_root_locked(mas);
+		return false;
+	}
+
+	/* Converged and has a single destination */
+	if ((cp->d_count == 1) &&
+	    (l_wr_mas->mas->node == r_wr_mas->mas->node)) {
+		cp->dst[0].node->parent = ma_parent_ptr(mas_mn(mas)->parent);
+		return false;
+	}
+
+	cp->height++;
+	wr_mas_ascend(l_wr_mas);
+	wr_mas_ascend(r_wr_mas);
+	return true;
+}
 
 static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 		struct ma_wr_state *l_wr_mas, struct ma_wr_state *r_wr_mas)
 {
 
-	unsigned char split, mid_split;
-	unsigned char slot = 0;
-	unsigned char new_height = 0; /* used if node is a new root */
-	struct maple_enode *left = NULL, *middle = NULL, *right = NULL;
 	struct maple_enode *old_enode;
-
-	struct maple_subtree_state mast;
-	struct maple_big_node b_node;
 	struct maple_copy cp;
-	unsigned char height;
 	struct ma_state sib;
-	MA_STATE(l_mas, mas->tree, mas->index, mas->index);
-	MA_STATE(r_mas, mas->tree, mas->index, mas->last);
-	MA_STATE(m_mas, mas->tree, mas->index, mas->index);
-	MA_STATE(mast_l_mas, NULL, 0, 0);
 
-
-	memset(&b_node, 0, sizeof(struct maple_big_node));
-	mast_l_mas = *mas;
-	cp.s_count = 0;
 	cp_leaf_init(&cp, mas, l_wr_mas, r_wr_mas);
-	cp_data_calc(&cp, l_wr_mas, r_wr_mas);
-	if (((l_wr_mas->mas->min != 0) || (r_wr_mas->mas->max != ULONG_MAX)) &&
-	    (cp.data <= mt_min_slots[l_wr_mas->type])) {
-		spanning_sib(l_wr_mas, r_wr_mas, &sib);
-		cp.data += sib.end + 1;
-	} else {
-		sib.end = 0;
-	}
+	do {
+		spanning_data(&cp, l_wr_mas, r_wr_mas, &sib);
+		multi_src_setup(&cp, l_wr_mas, r_wr_mas, &sib);
+		dst_setup(&cp, mas, l_wr_mas->type);
+		cp_data_write(&cp, mas);
+	} while (spanning_ascend(&cp, mas, l_wr_mas, r_wr_mas, &sib));
 
-	multi_src_setup(&cp, l_wr_mas, r_wr_mas, &sib);
-	b_node.type = l_wr_mas->type;
-	cp_data_write(&cp, &b_node);
-	if (sib.end) {
-		if (sib.max < l_wr_mas->mas->min) {
-			*l_wr_mas->mas = sib;
-			wr_mas_setup(l_wr_mas, &sib);
-			mast_l_mas = sib;
-		} else {
-			*r_wr_mas->mas = sib;
-			wr_mas_setup(r_wr_mas, &sib);
-		}
-	}
-
-	mast.orig_l = &mast_l_mas;
-	mast.orig_r = r_wr_mas->mas;
-	/* Stop spanning searches by searching for just index. */
-	mast.orig_l->last = mas->index;
-
-	mast.bn = &b_node;
-	/* Combine l_mas and r_mas and split them up evenly again. */
-
-	/*
-	 * The tree needs to be rebalanced and leaves need to be kept at the same level.
-	 * Rebalancing is done by use of the ``struct maple_topiary``.
-	 */
-	mast.l = &l_mas;
-	mast.m = &m_mas;
-	mast.r = &r_mas;
-	l_mas.status = r_mas.status = m_mas.status = ma_none;
-	height = mas_mt_height(mas) + 1;
-
-	/*
-	 * Each level of the tree is examined and balanced, pushing data to the left or
-	 * right, or rebalancing against left or right nodes is employed to avoid
-	 * rippling up the tree to limit the amount of churn.  Once a new sub-section of
-	 * the tree is created, there may be a mix of new and old nodes.  The old nodes
-	 * will have the incorrect parent pointers and currently be in two trees: the
-	 * original tree and the partially new tree.  To remedy the parent pointers in
-	 * the old tree, the new data is swapped into the active tree and a walk down
-	 * the tree is performed and the parent pointers are updated.
-	 * See mas_topiary_replace() for more information.
-	 */
-	while (height--) {
-		mast.bn->b_end--;
-		mast.bn->type = mte_node_type(mast.orig_l->node);
-		split = mas_mab_to_node(mas, mast.bn, &left, &right, &middle,
-					&mid_split);
-		mast_set_split_parents(&mast, left, middle, right, split,
-				       mid_split);
-		mast_cp_to_nodes(&mast, left, middle, right, split, mid_split);
-		new_height++;
-
-		/*
-		 * Copy data from next level in the tree to mast.bn from next
-		 * iteration
-		 */
-		memset(mast.bn, 0, sizeof(struct maple_big_node));
-		mast.bn->type = mte_node_type(left);
-
-		/* Root already stored in l->node. */
-		if (mas_is_root_limits(mast.l))
-			goto new_root;
-
-		mast_ascend(&mast);
-		mast_combine_cp_left(&mast);
-		mast.l->offset = mast.bn->b_end;
-		mab_set_b_end(mast.bn, mast.l, left);
-		mab_set_b_end(mast.bn, mast.m, middle);
-		mab_set_b_end(mast.bn, mast.r, right);
-
-		/* Copy anything necessary out of the right node. */
-		mast_combine_cp_right(&mast);
-		mast.orig_l->last = mast.orig_l->max;
-
-		if (mast_sufficient(&mast)) {
-			if (mast_overflow(&mast))
-				continue;
-
-			if (mast.orig_l->node == mast.orig_r->node) {
-			       /*
-				* The data in b_node should be stored in one
-				* node and in the tree
-				*/
-				slot = mast.l->offset;
-				break;
-			}
-
-			continue;
-		}
-
-		/* May be a new root stored in mast.bn */
-		if (mas_is_root_limits(mast.orig_l))
-			break;
-
-		mast_spanning_rebalance(&mast);
-
-		/* rebalancing from other nodes may require another loop. */
-		if (!height)
-			height++;
-	}
-
-	mast.l->node = mt_mk_node(ma_mnode_ptr(mas_pop_node(mas)),
-				mte_node_type(mast.orig_l->node));
-
-	mab_mas_cp(mast.bn, 0, mt_slots[mast.bn->type] - 1, mast.l, true);
-	new_height++;
-	mas_set_parent(mas, left, mast.l->node, slot);
-	if (middle)
-		mas_set_parent(mas, middle, mast.l->node, ++slot);
-
-	if (right)
-		mas_set_parent(mas, right, mast.l->node, ++slot);
-
-	if (mas_is_root_limits(mast.l)) {
-new_root:
-		mas_mn(mast.l)->parent = ma_parent_ptr(mas_tree_parent(mas));
-		while (!mte_is_root(mast.orig_l->node))
-			mast_ascend(&mast);
-	} else {
-		mas_mn(mast.l)->parent = mas_mn(mast.orig_l)->parent;
-	}
-
-	old_enode = mast.orig_l->node;
-	mas->depth = mast.l->depth;
-	mas->node = mast.l->node;
-	mas->min = mast.l->min;
-	mas->max = mast.l->max;
-	mas->offset = mast.l->offset;
-	mas_wmb_replace(mas, old_enode, new_height);
+	old_enode = mas->node;
+	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
+	mas_wmb_replace(mas, old_enode, cp.height);
 	mtree_range_walk(mas);
 }
+
 /*
  * mas_rebalance() - Rebalance a given node.
  * @mas: The maple state

@@ -35508,7 +35508,7 @@ static noinline void __init check_spanning_write(struct maple_tree *mt)
 	/* Store a value across a node boundary that causes a 3 way split */
 
 	if (MAPLE_32BIT)
-		i = 49590; /* 0xc1b6 */
+		i = 49430; /* 0xc116 */
 	else
 		i = 49670; /* 0xC206 */
 
