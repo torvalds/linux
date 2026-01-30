@@ -2305,6 +2305,19 @@ static inline void mte_mid_split_check(struct maple_enode **l,
 	*split = mid_split;
 }
 
+static inline void rebalance_sib(struct ma_state *parent, struct ma_state *sib)
+{
+	*sib = *parent;
+	/* Prioritize move right to pull data left */
+	if (sib->offset < sib->end)
+		sib->offset++;
+	else
+		sib->offset--;
+
+	mas_descend(sib);
+	sib->end = mas_data_end(sib);
+}
+
 static inline
 void spanning_sib(struct ma_wr_state *l_wr_mas,
 		struct ma_wr_state *r_wr_mas, struct ma_state *nneighbour)
@@ -2853,6 +2866,112 @@ static inline void cp_data_calc(struct maple_copy *cp,
 	cp->data += cp->end + 1;
 	/* Data from right (offset + 1 to end), +1 for zero */
 	cp->data += r_wr_mas->mas->end - r_wr_mas->offset_end;
+}
+
+static bool data_fits(struct ma_state *sib, struct ma_state *mas,
+		struct maple_copy *cp)
+{
+	unsigned char new_data;
+	enum maple_type type;
+	unsigned char space;
+	unsigned char end;
+
+	type = mte_node_type(mas->node);
+	space = 2 * mt_slots[type];
+	end = sib->end;
+
+	new_data = end + 1 + cp->data;
+	if (new_data > space)
+		return false;
+
+	/*
+	 * This is off by one by design.  The extra space is left to reduce
+	 * jitter in operations that add then remove two entries.
+	 *
+	 * end is an index while new space and data are both sizes.  Adding one
+	 * to end to convert the index to a size means that the below
+	 * calculation should be <=, but we want to keep an extra space in nodes
+	 * to reduce jitter.
+	 *
+	 * Note that it is still possible to get a full node on the left by the
+	 * NULL landing exactly on the split.  The NULL ending of a node happens
+	 * in the dst_setup() function, where we will either increase the split
+	 * by one or decrease it by one, if possible.  In the case of split
+	 * (this case), it is always possible to shift the spilt by one - again
+	 * because there is at least one slot free by the below checking.
+	 */
+	if (new_data < space)
+		return true;
+
+	return false;
+}
+
+static inline void push_data_sib(struct maple_copy *cp, struct ma_state *mas,
+		struct ma_state *sib, struct ma_state *parent)
+{
+
+	if (mte_is_root(mas->node))
+		goto no_push;
+
+
+	*sib = *parent;
+	if (sib->offset) {
+		sib->offset--;
+		mas_descend(sib);
+		sib->end = mas_data_end(sib);
+		if (data_fits(sib, mas, cp))	/* Push left */
+			return;
+
+		*sib = *parent;
+	}
+
+	if (sib->offset >= sib->end)
+		goto no_push;
+
+	sib->offset++;
+	mas_descend(sib);
+	sib->end = mas_data_end(sib);
+	if (data_fits(sib, mas, cp))		/* Push right*/
+		return;
+
+no_push:
+	sib->end = 0;
+}
+
+/*
+ * rebalance_data() - Calculate the @cp data, populate @sib if insufficient or
+ * if the data can be pushed into a sibling.
+ * @cp: The maple copy node
+ * @wr_mas: The left write maple state
+ * @sib: The maple state of the sibling.
+ *
+ * Note: @cp->data is a size and not indexed by 0. @sib->end may be set to 0 to
+ * indicate it will not be used.
+ *
+ */
+static inline void rebalance_data(struct maple_copy *cp,
+		struct ma_wr_state *wr_mas, struct ma_state *sib,
+		struct ma_state *parent)
+{
+	cp_data_calc(cp, wr_mas, wr_mas);
+	sib->end = 0;
+	if (cp->data > mt_slots[wr_mas->type]) {
+		push_data_sib(cp, wr_mas->mas, sib, parent);
+		if (sib->end)
+			goto use_sib;
+	} else if (cp->data <= mt_min_slots[wr_mas->type]) {
+		if ((wr_mas->mas->min != 0) ||
+		    (wr_mas->mas->max != ULONG_MAX)) {
+			rebalance_sib(parent, sib);
+			goto use_sib;
+		}
+	}
+
+	return;
+
+use_sib:
+
+	cp->data += sib->end + 1;
 }
 
 /*
@@ -3409,6 +3528,55 @@ static bool spanning_ascend(struct maple_copy *cp, struct ma_state *mas,
 	cp->height++;
 	wr_mas_ascend(l_wr_mas);
 	wr_mas_ascend(r_wr_mas);
+	return true;
+}
+
+/*
+ * rebalance_ascend() - Ascend the tree and set up for the next loop - if
+ * necessary
+ *
+ * Return: True if there another rebalancing operation on the next level is
+ * needed, false otherwise.
+ */
+static inline bool rebalance_ascend(struct maple_copy *cp,
+		struct ma_wr_state *wr_mas, struct ma_state *sib,
+		struct ma_state *parent)
+{
+	struct ma_state *mas;
+	unsigned long min, max;
+
+	mas = wr_mas->mas;
+	if (!sib->end) {
+		min = mas->min;
+		max = mas->max;
+	} else if (sib->min > mas->max) { /* Move right succeeded */
+		min = mas->min;
+		max = sib->max;
+		wr_mas->offset_end = parent->offset + 1;
+	} else {
+		min = sib->min;
+		max = mas->max;
+		wr_mas->offset_end = parent->offset;
+		parent->offset--;
+	}
+
+	cp_dst_to_slots(cp, min, max, mas);
+	if (cp_is_new_root(cp, mas))
+		return false;
+
+	if (cp->d_count == 1 && !sib->end) {
+		cp->dst[0].node->parent = ma_parent_ptr(mas_mn(mas)->parent);
+		return false;
+	}
+
+	cp->height++;
+	mas->node = parent->node;
+	mas->offset = parent->offset;
+	mas->min = parent->min;
+	mas->max = parent->max;
+	mas->end = parent->end;
+	mas->depth = parent->depth;
+	wr_mas_setup(wr_mas, mas);
 	return true;
 }
 
@@ -4379,16 +4547,47 @@ static noinline_for_kasan void mas_wr_split(struct ma_wr_state *wr_mas)
  * mas_wr_rebalance() - Insufficient data in one node needs to either get data
  * from a sibling or absorb a sibling all together.
  * @wr_mas: The write maple state
+ *
+ * Rebalance is different than a spanning store in that the write state is
+ * already at the leaf node that's being altered.
  */
-static noinline_for_kasan void mas_wr_rebalance(struct ma_wr_state *wr_mas)
+static void mas_wr_rebalance(struct ma_wr_state *wr_mas)
 {
-	struct maple_big_node b_node;
+	struct maple_enode *old_enode;
+	struct ma_state parent;
+	struct ma_state *mas;
+	struct maple_copy cp;
+	struct ma_state sib;
 
-	trace_ma_write(__func__, wr_mas->mas, 0, wr_mas->entry);
-	memset(&b_node, 0, sizeof(struct maple_big_node));
-	mas_store_b_node(wr_mas, &b_node, wr_mas->offset_end);
-	WARN_ON_ONCE(wr_mas->mas->store_type != wr_rebalance);
-	return mas_rebalance(wr_mas->mas, &b_node);
+	/*
+	 * Rebalancing occurs if a node is insufficient.  Data is rebalanced
+	 * against the node to the right if it exists, otherwise the node to the
+	 * left of this node is rebalanced against this node.  If rebalancing
+	 * causes just one node to be produced instead of two, then the parent
+	 * is also examined and rebalanced if it is insufficient.  Every level
+	 * tries to combine the data in the same way.  If one node contains the
+	 * entire range of the tree, then that node is used as a new root node.
+	 */
+
+	mas = wr_mas->mas;
+	trace_ma_op(TP_FCT, mas);
+	parent = *mas;
+	cp_leaf_init(&cp, mas, wr_mas, wr_mas);
+	do {
+		if (!mte_is_root(parent.node)) {
+			mas_ascend(&parent);
+			parent.end = mas_data_end(&parent);
+		}
+		rebalance_data(&cp, wr_mas, &sib, &parent);
+		multi_src_setup(&cp, wr_mas, wr_mas, &sib);
+		dst_setup(&cp, mas, wr_mas->type);
+		cp_data_write(&cp, mas);
+	} while (rebalance_ascend(&cp, wr_mas, &sib, &parent));
+
+	old_enode = mas->node;
+	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
+	mas_wmb_replace(mas, old_enode, cp.height);
+	mtree_range_walk(mas);
 }
 
 /*
