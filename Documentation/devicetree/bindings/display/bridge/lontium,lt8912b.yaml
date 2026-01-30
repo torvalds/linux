@@ -79,7 +79,6 @@ properties:
 required:
   - compatible
   - reg
-  - reset-gpios
   - ports
 
 additionalProperties: false
