@@ -146,6 +146,7 @@ static void setup_ctx(void)
 	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, true);
 
 	ctx.skel->rodata->batch_iters = args.batch_iters;
+	ctx.skel->rodata->stacktrace = env.stacktrace;
 }
 
 static void load_ctx(void)
