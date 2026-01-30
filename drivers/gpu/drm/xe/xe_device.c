@@ -1017,6 +1017,7 @@ int xe_device_probe(struct xe_device *xe)
 
 err_unregister_display:
 	xe_display_unregister(xe);
+	drm_dev_unregister(&xe->drm);
 
 	return err;
 }
