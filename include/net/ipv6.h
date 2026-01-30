@@ -1107,8 +1107,7 @@ void ip6_flush_pending_frames(struct sock *sk);
 int ip6_send_skb(struct sk_buff *skb);
 
 struct sk_buff *__ip6_make_skb(struct sock *sk, struct sk_buff_head *queue,
-			       struct inet_cork_full *cork,
-			       struct inet6_cork *v6_cork);
+			       struct inet_cork_full *cork);
 struct sk_buff *ip6_make_skb(struct sock *sk,
 			     int getfrag(void *from, char *to, int offset,
 					 int len, int odd, struct sk_buff *skb),
@@ -1119,8 +1118,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 {
-	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork,
-			      &inet6_sk(sk)->cork);
+	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork);
 }
 
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,

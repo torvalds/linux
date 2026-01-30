@@ -205,13 +205,6 @@ struct ipv6_mc_socklist;
 struct ipv6_ac_socklist;
 struct ipv6_fl_socklist;
 
-struct inet6_cork {
-	struct ipv6_txoptions *opt;
-	u8 hop_limit;
-	u8 tclass;
-	u8 dontfrag:1;
-};
-
 /* struct ipv6_pinfo - ipv6 private area */
 struct ipv6_pinfo {
 	/* Used in tx path (inet6_csk_route_socket(), ip6_xmit()) */
@@ -267,7 +260,6 @@ struct ipv6_pinfo {
 
 	struct sk_buff		*pktoptions;
 	struct sk_buff		*rxpmtu;
-	struct inet6_cork	cork;
 
 	struct ipv6_mc_socklist	__rcu *ipv6_mc_list;
 	struct ipv6_ac_socklist	*ipv6_ac_list;
