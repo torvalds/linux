@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 - 2024 Intel Corporation
+ * Copyright (C) 2022 - 2025 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <net/mac80211.h>
@@ -43,11 +43,11 @@ static u32 iwl_mvm_get_sec_sta_mask(struct iwl_mvm *mvm,
 	 * group keys have no sta pointer), so we don't have a STA now.
 	 * Since this happens for group keys only, just use the link_info as
 	 * the group keys are per link; make sure that is the case by checking
-	 * we do have a link_id or are not doing MLO.
+	 * we do have a link_id.
 	 * Of course the same can be done during add as well, but we must do
 	 * it during remove, since we don't have the mvmvif->ap_sta pointer.
 	 */
-	if (!sta && (keyconf->link_id >= 0 || !ieee80211_vif_is_mld(vif)))
+	if (!sta && keyconf->link_id >= 0)
 		return BIT(link_info->ap_sta_id);
 
 	/* STA should be non-NULL now, but iwl_mvm_sta_fw_id_mask() checks */

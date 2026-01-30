@@ -16,7 +16,7 @@
 
 static int rtw89_fw_receive_lps_h2c_check(struct rtw89_dev *rtwdev, u8 macid)
 {
-	struct rtw89_mac_c2h_info c2h_info = {};
+	struct rtw89_mac_c2h_info c2h_info = {.timeout = 5000};
 	u16 c2hreg_macid;
 	u32 c2hreg_ret;
 	int ret;

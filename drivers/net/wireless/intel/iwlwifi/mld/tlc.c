@@ -8,6 +8,7 @@
 #include "tlc.h"
 #include "hcmd.h"
 #include "sta.h"
+#include "phy.h"
 
 #include "fw/api/rs.h"
 #include "fw/api/context.h"
@@ -447,11 +448,48 @@ iwl_mld_fill_supp_rates(struct iwl_mld *mld, struct ieee80211_vif *vif,
 	}
 }
 
-static void iwl_mld_convert_tlc_cmd_to_v4(struct iwl_tlc_config_cmd *cmd,
-					  struct iwl_tlc_config_cmd_v4 *cmd_v4)
+static int iwl_mld_convert_tlc_cmd_to_v5(struct iwl_tlc_config_cmd *cmd,
+					 struct iwl_tlc_config_cmd_v5 *cmd_v5)
 {
+	if (WARN_ON_ONCE(hweight32(le32_to_cpu(cmd->sta_mask)) != 1))
+		return -EINVAL;
+
+	/* Convert sta_mask to sta_id */
+	cmd_v5->sta_id = __ffs(le32_to_cpu(cmd->sta_mask));
+
+	/* Copy all the rest */
+	cmd_v5->max_ch_width = cmd->max_ch_width;
+	cmd_v5->mode = cmd->mode;
+	cmd_v5->chains = cmd->chains;
+	cmd_v5->sgi_ch_width_supp = cmd->sgi_ch_width_supp;
+	cmd_v5->flags = cmd->flags;
+	cmd_v5->non_ht_rates = cmd->non_ht_rates;
+
+	BUILD_BUG_ON(sizeof(cmd_v5->ht_rates) != sizeof(cmd->ht_rates));
+	memcpy(cmd_v5->ht_rates, cmd->ht_rates, sizeof(cmd->ht_rates));
+
+	cmd_v5->max_mpdu_len = cmd->max_mpdu_len;
+	cmd_v5->max_tx_op = cmd->max_tx_op;
+
+	return 0;
+}
+
+static int iwl_mld_convert_tlc_cmd_to_v4(struct iwl_tlc_config_cmd *cmd,
+					 struct iwl_tlc_config_cmd_v4 *cmd_v4)
+{
+	if (WARN_ON_ONCE(hweight32(le32_to_cpu(cmd->sta_mask)) != 1))
+		return -EINVAL;
+
+	/* Convert sta_mask to sta_id */
+	cmd_v4->sta_id = __ffs(le32_to_cpu(cmd->sta_mask));
+
 	/* Copy everything until ht_rates */
-	memcpy(cmd_v4, cmd, offsetof(struct iwl_tlc_config_cmd, ht_rates));
+	cmd_v4->max_ch_width = cmd->max_ch_width;
+	cmd_v4->mode = cmd->mode;
+	cmd_v4->chains = cmd->chains;
+	cmd_v4->sgi_ch_width_supp = cmd->sgi_ch_width_supp;
+	cmd_v4->flags = cmd->flags;
+	cmd_v4->non_ht_rates = cmd->non_ht_rates;
 
 	/* Convert ht_rates from __le32 to __le16 */
 	BUILD_BUG_ON(ARRAY_SIZE(cmd_v4->ht_rates) != ARRAY_SIZE(cmd->ht_rates));
@@ -465,14 +503,17 @@ static void iwl_mld_convert_tlc_cmd_to_v4(struct iwl_tlc_config_cmd *cmd,
 	/* Copy the rest */
 	cmd_v4->max_mpdu_len = cmd->max_mpdu_len;
 	cmd_v4->max_tx_op = cmd->max_tx_op;
+
+	return 0;
 }
 
 static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_link_sta *link_sta,
-				 enum nl80211_band band)
+				 struct ieee80211_bss_conf *link)
 {
 	struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(link_sta->sta);
+	enum nl80211_band band = link->chanreq.oper.chan->band;
 	struct ieee80211_supported_band *sband = mld->hw->wiphy->bands[band];
 	const struct ieee80211_sta_he_cap *own_he_cap =
 		ieee80211_get_he_iftype_cap_vif(sband, vif);
@@ -492,25 +533,44 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 	int fw_sta_id = iwl_mld_fw_sta_id_from_link_sta(mld, link_sta);
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, TLC_MNG_CONFIG_CMD);
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mld->fw, cmd_id, 0);
-	struct iwl_tlc_config_cmd_v4 cmd_v4;
+	struct ieee80211_chanctx_conf *chan_ctx;
+	struct iwl_tlc_config_cmd_v5 cmd_v5 = {};
+	struct iwl_tlc_config_cmd_v4 cmd_v4 = {};
 	void *cmd_ptr;
 	u8 cmd_size;
+	u32 phy_id;
 	int ret;
 
 	if (fw_sta_id < 0)
 		return;
 
-	cmd.sta_id = fw_sta_id;
+	cmd.sta_mask = cpu_to_le32(BIT(fw_sta_id));
+
+	chan_ctx = rcu_dereference_wiphy(mld->wiphy, link->chanctx_conf);
+	if (WARN_ON(!chan_ctx))
+		return;
+
+	phy_id = iwl_mld_phy_from_mac80211(chan_ctx)->fw_id;
+	cmd.phy_id = cpu_to_le32(phy_id);
 
 	iwl_mld_fill_supp_rates(mld, vif, link_sta, sband,
 				own_he_cap, own_eht_cap,
 				&cmd);
 
-	if (cmd_ver == 5) {
+	if (cmd_ver == 6) {
 		cmd_ptr = &cmd;
 		cmd_size = sizeof(cmd);
+	} else if (cmd_ver == 5) {
+		/* TODO: remove support once FW moves to version 6 */
+		ret = iwl_mld_convert_tlc_cmd_to_v5(&cmd, &cmd_v5);
+		if (ret)
+			return;
+		cmd_ptr = &cmd_v5;
+		cmd_size = sizeof(cmd_v5);
 	} else if (cmd_ver == 4) {
-		iwl_mld_convert_tlc_cmd_to_v4(&cmd, &cmd_v4);
+		ret = iwl_mld_convert_tlc_cmd_to_v4(&cmd, &cmd_v4);
+		if (ret)
+			return;
 		cmd_ptr = &cmd_v4;
 		cmd_size = sizeof(cmd_v4);
 	} else {
@@ -520,8 +580,9 @@ static void iwl_mld_send_tlc_cmd(struct iwl_mld *mld,
 	}
 
 	IWL_DEBUG_RATE(mld,
-		       "TLC CONFIG CMD, sta_id=%d, max_ch_width=%d, mode=%d\n",
-		       cmd.sta_id, cmd.max_ch_width, cmd.mode);
+		       "TLC CONFIG CMD, sta_mask=0x%x, max_ch_width=%d, mode=%d, phy_id=%d\n",
+		       le32_to_cpu(cmd.sta_mask), cmd.max_ch_width, cmd.mode,
+		       le32_to_cpu(cmd.phy_id));
 
 	/* Send async since this can be called within a RCU-read section */
 	ret = iwl_mld_send_cmd_with_flags_pdu(mld, cmd_id, CMD_ASYNC, cmd_ptr,
@@ -561,7 +622,6 @@ void iwl_mld_config_tlc_link(struct iwl_mld *mld,
 			     struct ieee80211_link_sta *link_sta)
 {
 	struct iwl_mld_sta *mld_sta = iwl_mld_sta_from_mac80211(link_sta->sta);
-	enum nl80211_band band;
 
 	if (WARN_ON_ONCE(!link_conf->chanreq.oper.chan))
 		return;
@@ -575,8 +635,7 @@ void iwl_mld_config_tlc_link(struct iwl_mld *mld,
 		ieee80211_sta_recalc_aggregates(link_sta->sta);
 	}
 
-	band = link_conf->chanreq.oper.chan->band;
-	iwl_mld_send_tlc_cmd(mld, vif, link_sta, band);
+	iwl_mld_send_tlc_cmd(mld, vif, link_sta, link_conf);
 }
 
 void iwl_mld_config_tlc(struct iwl_mld *mld, struct ieee80211_vif *vif,

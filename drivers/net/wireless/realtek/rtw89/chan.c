@@ -295,6 +295,8 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 			mgnt->chanctx_tbl[i][j] = RTW89_CHANCTX_IDLE;
 	}
 
+	hal->entity_force_hw = RTW89_PHY_NUM;
+
 	rtw89_config_default_chandef(rtwdev);
 }
 
@@ -417,11 +419,42 @@ dflt:
 }
 EXPORT_SYMBOL(__rtw89_mgnt_chan_get);
 
+bool rtw89_entity_check_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	switch (rtwdev->mlo_dbcc_mode) {
+	case MLO_2_PLUS_0_1RF:
+		return phy_idx == RTW89_PHY_0;
+	case MLO_0_PLUS_2_1RF:
+		return phy_idx == RTW89_PHY_1;
+	default:
+		return false;
+	}
+}
+
+void rtw89_entity_force_hw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	rtwdev->hal.entity_force_hw = phy_idx;
+
+	if (phy_idx != RTW89_PHY_NUM)
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN, "%s: %d\n", __func__, phy_idx);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN, "%s: (none)\n", __func__);
+}
+
 static enum rtw89_mlo_dbcc_mode
 rtw89_entity_sel_mlo_dbcc_mode(struct rtw89_dev *rtwdev, u8 active_hws)
 {
 	if (rtwdev->chip->chip_gen != RTW89_CHIP_BE)
 		return MLO_DBCC_NOT_SUPPORT;
+
+	switch (rtwdev->hal.entity_force_hw) {
+	case RTW89_PHY_0:
+		return MLO_2_PLUS_0_1RF;
+	case RTW89_PHY_1:
+		return MLO_0_PLUS_2_1RF;
+	default:
+		break;
+	}
 
 	switch (active_hws) {
 	case BIT(0):
@@ -2608,17 +2641,20 @@ bool rtw89_mcc_detect_go_bcn(struct rtw89_dev *rtwdev,
 static void rtw89_mcc_detect_connection(struct rtw89_dev *rtwdev,
 					struct rtw89_mcc_role *role)
 {
+	struct rtw89_vif_link *rtwvif_link = role->rtwvif_link;
 	struct ieee80211_vif *vif;
 	bool start_detect;
 	int ret;
 
 	ret = rtw89_core_send_nullfunc(rtwdev, role->rtwvif_link, true, false,
 				       RTW89_MCC_PROBE_TIMEOUT);
-	if (ret)
+	if (ret &&
+	    READ_ONCE(rtwvif_link->sync_bcn_tsf) == rtwvif_link->last_sync_bcn_tsf)
 		role->probe_count++;
 	else
 		role->probe_count = 0;
 
+	rtwvif_link->last_sync_bcn_tsf = READ_ONCE(rtwvif_link->sync_bcn_tsf);
 	if (role->probe_count < RTW89_MCC_PROBE_MAX_TRIES)
 		return;
 

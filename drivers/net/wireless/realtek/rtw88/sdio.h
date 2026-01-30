@@ -166,7 +166,7 @@ extern const struct dev_pm_ops rtw_sdio_pm_ops;
 int rtw_sdio_probe(struct sdio_func *sdio_func,
 		   const struct sdio_device_id *id);
 void rtw_sdio_remove(struct sdio_func *sdio_func);
-void rtw_sdio_shutdown(struct device *dev);
+void rtw_sdio_shutdown(struct sdio_func *sdio_func);
 
 static inline bool rtw_sdio_is_sdio30_supported(struct rtw_dev *rtwdev)
 {

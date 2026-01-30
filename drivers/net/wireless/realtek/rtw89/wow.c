@@ -809,6 +809,10 @@ static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
 	switch (reason) {
+	case RTW89_WOW_RSN_RX_DISASSOC:
+		wakeup.disconnect = true;
+		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx disassoc\n");
+		break;
 	case RTW89_WOW_RSN_RX_DEAUTH:
 		wakeup.disconnect = true;
 		rtw89_debug(rtwdev, RTW89_DBG_WOW, "WOW: Rx deauth\n");
@@ -1070,7 +1074,7 @@ static void rtw89_wow_pattern_clear_cam(struct rtw89_dev *rtwdev)
 	for (i = 0; i < rtw_wow->pattern_cnt; i++) {
 		rtw_pattern = &rtw_wow->patterns[i];
 		rtw_pattern->valid = false;
-		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern);
+		rtw89_chip_h2c_wow_cam_update(rtwdev, rtw_pattern);
 	}
 }
 
@@ -1081,7 +1085,7 @@ static void rtw89_wow_pattern_write(struct rtw89_dev *rtwdev)
 	int i;
 
 	for (i = 0; i < rtw_wow->pattern_cnt; i++)
-		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern + i);
+		rtw89_chip_h2c_wow_cam_update(rtwdev, rtw_pattern + i);
 }
 
 static void rtw89_wow_pattern_clear(struct rtw89_dev *rtwdev)

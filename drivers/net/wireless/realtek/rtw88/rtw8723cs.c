@@ -23,9 +23,9 @@ static struct sdio_driver rtw_8723cs_driver = {
 	.id_table = rtw_8723cs_id_table,
 	.probe = rtw_sdio_probe,
 	.remove = rtw_sdio_remove,
+	.shutdown = rtw_sdio_shutdown,
 	.drv = {
 		.pm = &rtw_sdio_pm_ops,
-		.shutdown = rtw_sdio_shutdown
 	}};
 module_sdio_driver(rtw_8723cs_driver);
 
