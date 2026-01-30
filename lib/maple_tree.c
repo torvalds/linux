@@ -3531,6 +3531,17 @@ static bool spanning_ascend(struct maple_copy *cp, struct ma_state *mas,
 	return true;
 }
 
+static inline
+void copy_tree_location(const struct ma_state *src, struct ma_state *dst)
+{
+	dst->node = src->node;
+	dst->offset = src->offset;
+	dst->min = src->min;
+	dst->max = src->max;
+	dst->end = src->end;
+	dst->depth = src->depth;
+}
+
 /*
  * rebalance_ascend() - Ascend the tree and set up for the next loop - if
  * necessary
@@ -3570,12 +3581,7 @@ static inline bool rebalance_ascend(struct maple_copy *cp,
 	}
 
 	cp->height++;
-	mas->node = parent->node;
-	mas->offset = parent->offset;
-	mas->min = parent->min;
-	mas->max = parent->max;
-	mas->end = parent->end;
-	mas->depth = parent->depth;
+	copy_tree_location(parent, mas);
 	wr_mas_setup(wr_mas, mas);
 	return true;
 }
