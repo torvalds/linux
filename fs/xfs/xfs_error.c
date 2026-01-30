@@ -50,17 +50,18 @@ xfs_errortag_attr_store(
 {
 	struct xfs_mount	*mp = to_mp(kobject);
 	unsigned int		error_tag = to_attr(attr)->tag;
+	unsigned int		val;
 	int			ret;
 
 	if (strcmp(buf, "default") == 0) {
-		mp->m_errortag[error_tag] =
-			xfs_errortag_random_default[error_tag];
+		val = xfs_errortag_random_default[error_tag];
 	} else {
-		ret = kstrtouint(buf, 0, &mp->m_errortag[error_tag]);
+		ret = kstrtouint(buf, 0, &val);
 		if (ret)
 			return ret;
 	}
 
+	WRITE_ONCE(mp->m_errortag[error_tag], val);
 	return count;
 }
 
@@ -71,9 +72,9 @@ xfs_errortag_attr_show(
 	char			*buf)
 {
 	struct xfs_mount	*mp = to_mp(kobject);
-	unsigned int		error_tag = to_attr(attr)->tag;
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", mp->m_errortag[error_tag]);
+	return snprintf(buf, PAGE_SIZE, "%u\n",
+			READ_ONCE(mp->m_errortag[to_attr(attr)->tag]));
 }
 
 static const struct sysfs_ops xfs_errortag_sysfs_ops = {
@@ -134,7 +135,7 @@ xfs_errortag_test(
 {
 	unsigned int		randfactor;
 
-	randfactor = mp->m_errortag[error_tag];
+	randfactor = READ_ONCE(mp->m_errortag[error_tag]);
 	if (!randfactor || get_random_u32_below(randfactor))
 		return false;
 
@@ -151,7 +152,7 @@ xfs_errortag_delay(
 	int			line,
 	unsigned int		error_tag)
 {
-	unsigned int		delay = mp->m_errortag[error_tag];
+	unsigned int		delay = READ_ONCE(mp->m_errortag[error_tag]);
 
 	might_sleep();
 
@@ -183,7 +184,8 @@ xfs_errortag_add(
 		break;
 	}
 
-	mp->m_errortag[error_tag] = xfs_errortag_random_default[error_tag];
+	WRITE_ONCE(mp->m_errortag[error_tag],
+		   xfs_errortag_random_default[error_tag]);
 	return 0;
 }
 
@@ -191,7 +193,10 @@ int
 xfs_errortag_clearall(
 	struct xfs_mount	*mp)
 {
-	memset(mp->m_errortag, 0, sizeof(unsigned int) * XFS_ERRTAG_MAX);
+	unsigned int		i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++)
+		WRITE_ONCE(mp->m_errortag[i], 0);
 	return 0;
 }
 #endif /* DEBUG */
