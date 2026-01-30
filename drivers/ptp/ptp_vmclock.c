@@ -83,13 +83,13 @@ static uint64_t mul_u64_u64_shr_add_u64(uint64_t *res_hi, uint64_t delta,
 
 static bool tai_adjust(struct vmclock_abi *clk, uint64_t *sec)
 {
-	if (likely(clk->time_type == VMCLOCK_TIME_UTC))
+	if (clk->time_type == VMCLOCK_TIME_TAI)
 		return true;
 
-	if (clk->time_type == VMCLOCK_TIME_TAI &&
+	if (clk->time_type == VMCLOCK_TIME_UTC &&
 	    (le64_to_cpu(clk->flags) & VMCLOCK_FLAG_TAI_OFFSET_VALID)) {
 		if (sec)
-			*sec += (int16_t)le16_to_cpu(clk->tai_offset_sec);
+			*sec -= (int16_t)le16_to_cpu(clk->tai_offset_sec);
 		return true;
 	}
 	return false;
@@ -350,9 +350,9 @@ static struct ptp_clock *vmclock_ptp_register(struct device *dev,
 		return NULL;
 	}
 
-	/* Only UTC, or TAI with offset */
+	/* Accept TAI directly, or UTC with valid offset for conversion to TAI */
 	if (!tai_adjust(st->clk, NULL)) {
-		dev_info(dev, "vmclock does not provide unambiguous UTC\n");
+		dev_info(dev, "vmclock does not provide unambiguous time\n");
 		return NULL;
 	}
 
