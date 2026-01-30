@@ -3407,28 +3407,6 @@ static bool spanning_ascend(struct maple_copy *cp, struct ma_state *mas,
 	return true;
 }
 
-static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
-		struct ma_wr_state *l_wr_mas, struct ma_wr_state *r_wr_mas)
-{
-
-	struct maple_enode *old_enode;
-	struct maple_copy cp;
-	struct ma_state sib;
-
-	cp_leaf_init(&cp, mas, l_wr_mas, r_wr_mas);
-	do {
-		spanning_data(&cp, l_wr_mas, r_wr_mas, &sib);
-		multi_src_setup(&cp, l_wr_mas, r_wr_mas, &sib);
-		dst_setup(&cp, mas, l_wr_mas->type);
-		cp_data_write(&cp, mas);
-	} while (spanning_ascend(&cp, mas, l_wr_mas, r_wr_mas, &sib));
-
-	old_enode = mas->node;
-	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
-	mas_wmb_replace(mas, old_enode, cp.height);
-	mtree_range_walk(mas);
-}
-
 /*
  * mas_rebalance() - Rebalance a given node.
  * @mas: The maple state
@@ -4085,7 +4063,10 @@ done:
  */
 static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
+	struct maple_enode *old_enode;
+	struct maple_copy cp;
 	struct ma_state *mas;
+	struct ma_state sib;
 
 	/* Left and Right side of spanning store */
 	MA_STATE(r_mas, NULL, 0, 0);
@@ -4142,7 +4123,18 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 		return mas_new_root(mas, wr_mas->entry);
 	}
 
-	mas_wr_spanning_rebalance(mas, wr_mas, &r_wr_mas);
+	cp_leaf_init(&cp, mas, wr_mas, &r_wr_mas);
+	do {
+		spanning_data(&cp, wr_mas, &r_wr_mas, &sib);
+		multi_src_setup(&cp, wr_mas, &r_wr_mas, &sib);
+		dst_setup(&cp, mas, wr_mas->type);
+		cp_data_write(&cp, mas);
+	} while (spanning_ascend(&cp, mas, wr_mas, &r_wr_mas, &sib));
+
+	old_enode = mas->node;
+	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
+	mas_wmb_replace(mas, old_enode, cp.height);
+	mtree_range_walk(mas);
 }
 
 /*
