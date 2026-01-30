@@ -6260,8 +6260,15 @@ static inline void mas_dup_alloc(struct ma_state *mas, struct ma_state *new_mas,
 	for (i = 0; i < count; i++) {
 		val = (unsigned long)mt_slot_locked(mas->tree, slots, i);
 		val &= MAPLE_NODE_MASK;
-		new_slots[i] = ma_mnode_ptr((unsigned long)mas_pop_node(mas) |
-					    val);
+		/*
+		 * Warning, see rcu_assign_pointer() documentation.  Since this
+		 * is a duplication of a tree, there are no readers walking the
+		 * tree until after the rcu_assign_pointer() call in
+		 * mas_dup_build().
+		 */
+		RCU_INIT_POINTER(new_slots[i],
+				 ma_mnode_ptr((unsigned long)mas_pop_node(mas) |
+					      val));
 	}
 }
 
