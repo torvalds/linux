@@ -2750,46 +2750,52 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 
 
 static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
-		struct maple_subtree_state *mast, struct ma_wr_state *wr_mas)
+		struct ma_wr_state *wr_mas, struct ma_wr_state *r_wr_mas)
 {
+	struct maple_subtree_state mast;
 	struct maple_big_node b_node;
 	unsigned char height;
 	MA_STATE(l_mas, mas->tree, mas->index, mas->index);
 	MA_STATE(r_mas, mas->tree, mas->index, mas->last);
 	MA_STATE(m_mas, mas->tree, mas->index, mas->index);
+	MA_STATE(mast_l_mas, NULL, 0, 0);
 
+
+	mast_l_mas = *mas;
+	mast.orig_l = &mast_l_mas;
+	mast.orig_r = r_wr_mas->mas;
 	memset(&b_node, 0, sizeof(struct maple_big_node));
 	/* Copy l_mas and store the value in b_node. */
-	mas_store_b_node(wr_mas, &b_node, mast->orig_l->end);
+	mas_store_b_node(wr_mas, &b_node, mast.orig_l->end);
 	/* Copy r_mas into b_node if there is anything to copy. */
-	if (mast->orig_r->max > mast->orig_r->last)
-		mas_mab_cp(mast->orig_r, mast->orig_r->offset,
-			   mast->orig_r->end, &b_node, b_node.b_end + 1);
+	if (mast.orig_r->max > mast.orig_r->last)
+		mas_mab_cp(mast.orig_r, mast.orig_r->offset,
+			   mast.orig_r->end, &b_node, b_node.b_end + 1);
 	else
 		b_node.b_end++;
 
 	/* Stop spanning searches by searching for just index. */
-	mast->orig_l->last = mas->index;
+	mast.orig_l->last = mas->index;
 
-	mast->bn = &b_node;
+	mast.bn = &b_node;
 	/* Combine l_mas and r_mas and split them up evenly again. */
 
 	/*
 	 * The tree needs to be rebalanced and leaves need to be kept at the same level.
 	 * Rebalancing is done by use of the ``struct maple_topiary``.
 	 */
-	mast->l = &l_mas;
-	mast->m = &m_mas;
-	mast->r = &r_mas;
+	mast.l = &l_mas;
+	mast.m = &m_mas;
+	mast.r = &r_mas;
 	l_mas.status = r_mas.status = m_mas.status = ma_none;
 
 	/* Check if this is not root and has sufficient data.  */
-	if (((mast->orig_l->min != 0) || (mast->orig_r->max != ULONG_MAX)) &&
-	    unlikely(mast->bn->b_end <= mt_min_slots[mast->bn->type]))
-		mast_spanning_rebalance(mast);
+	if (((mast.orig_l->min != 0) || (mast.orig_r->max != ULONG_MAX)) &&
+	    unlikely(mast.bn->b_end <= mt_min_slots[mast.bn->type]))
+		mast_spanning_rebalance(&mast);
 
 	height = mas_mt_height(mas) + 1;
-	mas_spanning_rebalance_loop(mas, mast, height);
+	mas_spanning_rebalance_loop(mas, &mast, height);
 }
 /*
  * mas_rebalance() - Rebalance a given node.
@@ -3447,11 +3453,9 @@ done:
  */
 static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
-	struct maple_subtree_state mast;
 	struct ma_state *mas;
 
 	/* Left and Right side of spanning store */
-	MA_STATE(l_mas, NULL, 0, 0);
 	MA_STATE(r_mas, NULL, 0, 0);
 	MA_WR_STATE(r_wr_mas, &r_mas, wr_mas->entry);
 
@@ -3505,10 +3509,7 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 		return mas_new_root(mas, wr_mas->entry);
 	}
 
-	l_mas = *mas;
-	mast.orig_l = &l_mas;
-	mast.orig_r = &r_mas;
-	mas_wr_spanning_rebalance(mas, &mast, wr_mas);
+	mas_wr_spanning_rebalance(mas, wr_mas, &r_wr_mas);
 }
 
 /*
