@@ -8610,7 +8610,8 @@ static int process_spin_lock(struct bpf_verifier_env *env, int regno, int flags)
 
 /* Check if @regno is a pointer to a specific field in a map value */
 static int check_map_field_pointer(struct bpf_verifier_env *env, u32 regno,
-				   enum btf_field_type field_type)
+				   enum btf_field_type field_type,
+				   struct bpf_map_desc *map_desc)
 {
 	struct bpf_reg_state *reg = reg_state(env, regno);
 	bool is_const = tnum_is_const(reg->var_off);
@@ -8653,72 +8654,23 @@ static int check_map_field_pointer(struct bpf_verifier_env *env, u32 regno,
 			val + reg->off, struct_name, field_off);
 		return -EINVAL;
 	}
+	if (map_desc->ptr) {
+		verifier_bug(env, "Two map pointers in a %s helper", struct_name);
+		return -EFAULT;
+	}
+	map_desc->uid = reg->map_uid;
+	map_desc->ptr = map;
 	return 0;
 }
 
 static int process_timer_func(struct bpf_verifier_env *env, int regno,
 			      struct bpf_call_arg_meta *meta)
 {
-	struct bpf_reg_state *reg = reg_state(env, regno);
-	struct bpf_map *map = reg->map_ptr;
-	int err;
-
-	err = check_map_field_pointer(env, regno, BPF_TIMER);
-	if (err)
-		return err;
-
-	if (meta->map.ptr) {
-		verifier_bug(env, "Two map pointers in a timer helper");
-		return -EFAULT;
-	}
 	if (IS_ENABLED(CONFIG_PREEMPT_RT)) {
 		verbose(env, "bpf_timer cannot be used for PREEMPT_RT.\n");
 		return -EOPNOTSUPP;
 	}
-	meta->map.uid = reg->map_uid;
-	meta->map.ptr = map;
-	return 0;
-}
-
-static int process_wq_func(struct bpf_verifier_env *env, int regno,
-			   struct bpf_kfunc_call_arg_meta *meta)
-{
-	struct bpf_reg_state *reg = reg_state(env, regno);
-	struct bpf_map *map = reg->map_ptr;
-	int err;
-
-	err = check_map_field_pointer(env, regno, BPF_WORKQUEUE);
-	if (err)
-		return err;
-
-	if (meta->map.ptr) {
-		verifier_bug(env, "Two map pointers in a bpf_wq helper");
-		return -EFAULT;
-	}
-
-	meta->map.uid = reg->map_uid;
-	meta->map.ptr = map;
-	return 0;
-}
-
-static int process_task_work_func(struct bpf_verifier_env *env, int regno,
-				  struct bpf_kfunc_call_arg_meta *meta)
-{
-	struct bpf_reg_state *reg = reg_state(env, regno);
-	struct bpf_map *map = reg->map_ptr;
-	int err;
-
-	err = check_map_field_pointer(env, regno, BPF_TASK_WORK);
-	if (err)
-		return err;
-
-	if (meta->map.ptr) {
-		verifier_bug(env, "Two map pointers in a bpf_task_work helper");
-		return -EFAULT;
-	}
-	meta->map.uid = reg->map_uid;
-	meta->map.ptr = map;
-	return 0;
+	return check_map_field_pointer(env, regno, BPF_TIMER, &meta->map);
 }
 
 static int process_kptr_func(struct bpf_verifier_env *env, int regno,
@@ -13754,7 +13706,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				verbose(env, "arg#%d doesn't point to a map value\n", i);
 				return -EINVAL;
 			}
-			ret = process_wq_func(env, regno, meta);
+			ret = check_map_field_pointer(env, regno, BPF_WORKQUEUE, &meta->map);
 			if (ret < 0)
 				return ret;
 			break;
@@ -13763,7 +13715,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				verbose(env, "arg#%d doesn't point to a map value\n", i);
 				return -EINVAL;
 			}
-			ret = process_task_work_func(env, regno, meta);
+			ret = check_map_field_pointer(env, regno, BPF_TASK_WORK, &meta->map);
 			if (ret < 0)
 				return ret;
 			break;
