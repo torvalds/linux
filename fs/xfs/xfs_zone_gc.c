@@ -16,6 +16,8 @@
 #include "xfs_rmap.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_errortag.h"
+#include "xfs_error.h"
 #include "xfs_zone_alloc.h"
 #include "xfs_zone_priv.h"
 #include "xfs_zones.h"
@@ -898,9 +900,17 @@ xfs_submit_zone_reset_bio(
 	struct xfs_rtgroup	*rtg,
 	struct bio		*bio)
 {
+	struct xfs_mount	*mp = rtg_mount(rtg);
+
 	trace_xfs_zone_reset(rtg);
 
 	ASSERT(rtg_rmap(rtg)->i_used_blocks == 0);
+
+	if (XFS_TEST_ERROR(mp, XFS_ERRTAG_ZONE_RESET)) {
+		bio_io_error(bio);
+		return;
+	}
+
 	bio->bi_iter.bi_sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
 	if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
 		/*
@@ -913,8 +923,7 @@ xfs_submit_zone_reset_bio(
 		}
 		bio->bi_opf &= ~REQ_OP_ZONE_RESET;
 		bio->bi_opf |= REQ_OP_DISCARD;
-		bio->bi_iter.bi_size =
-			XFS_FSB_TO_B(rtg_mount(rtg), rtg_blocks(rtg));
+		bio->bi_iter.bi_size = XFS_FSB_TO_B(mp, rtg_blocks(rtg));
 	}
 
 	submit_bio(bio);
