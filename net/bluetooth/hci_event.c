@@ -2869,6 +2869,31 @@ static void hci_cs_le_ext_create_conn(struct hci_dev *hdev, u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_le_set_phy(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_le_set_phy *cp;
+	struct hci_conn *conn;
+
+	bt_dev_dbg(hdev, "status 0x%2.2x", status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_PHY);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn) {
+		conn->le_tx_def_phys = cp->tx_phys;
+		conn->le_rx_def_phys = cp->rx_phys;
+	}
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_le_read_remote_features(struct hci_dev *hdev, u8 status)
 {
 	struct hci_cp_le_read_remote_features *cp;
@@ -4359,6 +4384,7 @@ static const struct hci_cs {
 	HCI_CS(HCI_OP_LE_CREATE_CONN, hci_cs_le_create_conn),
 	HCI_CS(HCI_OP_LE_READ_REMOTE_FEATURES, hci_cs_le_read_remote_features),
 	HCI_CS(HCI_OP_LE_START_ENC, hci_cs_le_start_enc),
+	HCI_CS(HCI_OP_LE_SET_PHY, hci_cs_le_set_phy),
 	HCI_CS(HCI_OP_LE_EXT_CREATE_CONN, hci_cs_le_ext_create_conn),
 	HCI_CS(HCI_OP_LE_CREATE_CIS, hci_cs_le_create_cis),
 	HCI_CS(HCI_OP_LE_CREATE_BIG, hci_cs_le_create_big),
@@ -6607,8 +6633,20 @@ static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev, void *data,
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
-		if (!ev->status)
-			memcpy(conn->features[0], ev->features, 8);
+		if (!ev->status) {
+			memcpy(conn->le_features, ev->features, 8);
+
+			/* Update supported PHYs */
+			if (!(conn->le_features[1] & HCI_LE_PHY_2M)) {
+				conn->le_tx_def_phys &= ~HCI_LE_SET_PHY_2M;
+				conn->le_rx_def_phys &= ~HCI_LE_SET_PHY_2M;
+			}
+
+			if (!(conn->le_features[1] & HCI_LE_PHY_CODED)) {
+				conn->le_tx_def_phys &= ~HCI_LE_SET_PHY_CODED;
+				conn->le_rx_def_phys &= ~HCI_LE_SET_PHY_CODED;
+			}
+		}
 
 		if (conn->state == BT_CONFIG) {
 			__u8 status;
@@ -6829,6 +6867,21 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+/* Convert LE PHY to QoS PHYs */
+static u8 le_phy_qos(u8 phy)
+{
+	switch (phy) {
+	case 0x01:
+		return HCI_LE_SET_PHY_1M;
+	case 0x02:
+		return HCI_LE_SET_PHY_2M;
+	case 0x03:
+		return HCI_LE_SET_PHY_CODED;
+	}
+
+	return 0;
+}
+
 static void hci_le_cis_established_evt(struct hci_dev *hdev, void *data,
 				       struct sk_buff *skb)
 {
@@ -6890,8 +6943,8 @@ static void hci_le_cis_established_evt(struct hci_dev *hdev, void *data,
 					  1000);
 		qos->ucast.in.sdu = ev->c_bn ? le16_to_cpu(ev->c_mtu) : 0;
 		qos->ucast.out.sdu = ev->p_bn ? le16_to_cpu(ev->p_mtu) : 0;
-		qos->ucast.in.phy = ev->c_phy;
-		qos->ucast.out.phy = ev->p_phy;
+		qos->ucast.in.phys = le_phy_qos(ev->c_phy);
+		qos->ucast.out.phys = le_phy_qos(ev->p_phy);
 		break;
 	case HCI_ROLE_MASTER:
 		qos->ucast.in.interval = p_sdu_interval;
@@ -6905,8 +6958,8 @@ static void hci_le_cis_established_evt(struct hci_dev *hdev, void *data,
 					  1000);
 		qos->ucast.out.sdu = ev->c_bn ? le16_to_cpu(ev->c_mtu) : 0;
 		qos->ucast.in.sdu = ev->p_bn ? le16_to_cpu(ev->p_mtu) : 0;
-		qos->ucast.out.phy = ev->c_phy;
-		qos->ucast.in.phy = ev->p_phy;
+		qos->ucast.out.phys = le_phy_qos(ev->c_phy);
+		qos->ucast.in.phys = le_phy_qos(ev->p_phy);
 		break;
 	}
 
@@ -7221,8 +7274,20 @@ static void hci_le_read_all_remote_features_evt(struct hci_dev *hdev,
 	if (!conn)
 		goto unlock;
 
-	if (!ev->status)
+	if (!ev->status) {
 		memcpy(conn->le_features, ev->features, 248);
+
+		/* Update supported PHYs */
+		if (!(conn->le_features[1] & HCI_LE_PHY_2M)) {
+			conn->le_tx_def_phys &= ~HCI_LE_SET_PHY_2M;
+			conn->le_rx_def_phys &= ~HCI_LE_SET_PHY_2M;
+		}
+
+		if (!(conn->le_features[1] & HCI_LE_PHY_CODED)) {
+			conn->le_tx_def_phys &= ~HCI_LE_SET_PHY_CODED;
+			conn->le_rx_def_phys &= ~HCI_LE_SET_PHY_CODED;
+		}
+	}
 
 	if (conn->state == BT_CONFIG) {
 		__u8 status;
