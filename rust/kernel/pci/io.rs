@@ -148,8 +148,6 @@ impl<'a, S: ConfigSpaceKind> IoCapable<u16> for ConfigSpace<'a, S> {}
 impl<'a, S: ConfigSpaceKind> IoCapable<u32> for ConfigSpace<'a, S> {}
 
 impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
-    const MIN_SIZE: usize = S::SIZE;
-
     /// Returns the base address of the I/O region. It is always 0 for configuration space.
     #[inline]
     fn addr(&self) -> usize {
@@ -174,8 +172,9 @@ impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
     define_write!(infallible, write32, call_config_write(pci_write_config_dword) <- u32);
 }
 
-/// Marker trait indicating ConfigSpace has a known size at compile time.
-impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {}
+impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {
+    const MIN_SIZE: usize = S::SIZE;
+}
 
 /// A PCI BAR to perform I/O-Operations on.
 ///

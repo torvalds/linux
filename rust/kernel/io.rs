@@ -301,9 +301,6 @@ pub trait IoCapable<T> {}
 /// For MMIO regions, all widths (u8, u16, u32, and u64 on 64-bit systems) are typically
 /// supported. For PCI configuration space, u8, u16, and u32 are supported but u64 is not.
 pub trait Io {
-    /// Minimum usable size of this region.
-    const MIN_SIZE: usize;
-
     /// Returns the base address of this mapping.
     fn addr(&self) -> usize;
 
@@ -321,16 +318,6 @@ pub trait Io {
         // Probably no need to check, since the safety requirements of `Self::new` guarantee that
         // this can't overflow.
         self.addr().checked_add(offset).ok_or(EINVAL)
-    }
-
-    /// Returns the absolute I/O address for a given `offset`,
-    /// performing compile-time bound checks.
-    // Always inline to optimize out error path of `build_assert`.
-    #[inline(always)]
-    fn io_addr_assert<U>(&self, offset: usize) -> usize {
-        build_assert!(offset_valid::<U>(offset, Self::MIN_SIZE));
-
-        self.addr() + offset
     }
 
     /// Fallible 8-bit read with runtime bounds check.
@@ -478,14 +465,27 @@ pub trait Io {
     }
 }
 
-/// Marker trait for types with a known size at compile time.
+/// Trait for types with a known size at compile time.
 ///
 /// This trait is implemented by I/O backends that have a compile-time known size,
 /// enabling the use of infallible I/O accessors with compile-time bounds checking.
 ///
 /// Types implementing this trait can use the infallible methods in [`Io`] trait
 /// (e.g., `read8`, `write32`), which require `Self: IoKnownSize` bound.
-pub trait IoKnownSize: Io {}
+pub trait IoKnownSize: Io {
+    /// Minimum usable size of this region.
+    const MIN_SIZE: usize;
+
+    /// Returns the absolute I/O address for a given `offset`,
+    /// performing compile-time bound checks.
+    // Always inline to optimize out error path of `build_assert`.
+    #[inline(always)]
+    fn io_addr_assert<U>(&self, offset: usize) -> usize {
+        build_assert!(offset_valid::<U>(offset, Self::MIN_SIZE));
+
+        self.addr() + offset
+    }
+}
 
 // MMIO regions support 8, 16, and 32-bit accesses.
 impl<const SIZE: usize> IoCapable<u8> for Mmio<SIZE> {}
@@ -497,8 +497,6 @@ impl<const SIZE: usize> IoCapable<u32> for Mmio<SIZE> {}
 impl<const SIZE: usize> IoCapable<u64> for Mmio<SIZE> {}
 
 impl<const SIZE: usize> Io for Mmio<SIZE> {
-    const MIN_SIZE: usize = SIZE;
-
     /// Returns the base address of this mapping.
     #[inline]
     fn addr(&self) -> usize {
@@ -552,7 +550,9 @@ impl<const SIZE: usize> Io for Mmio<SIZE> {
     );
 }
 
-impl<const SIZE: usize> IoKnownSize for Mmio<SIZE> {}
+impl<const SIZE: usize> IoKnownSize for Mmio<SIZE> {
+    const MIN_SIZE: usize = SIZE;
+}
 
 impl<const SIZE: usize> Mmio<SIZE> {
     /// Converts an `MmioRaw` into an `Mmio` instance, providing the accessors to the MMIO mapping.
