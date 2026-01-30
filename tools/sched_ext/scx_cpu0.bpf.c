@@ -71,7 +71,15 @@ void BPF_STRUCT_OPS(cpu0_dispatch, s32 cpu, struct task_struct *prev)
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(cpu0_init)
 {
-	return scx_bpf_create_dsq(DSQ_CPU0, -1);
+	int ret;
+
+	ret = scx_bpf_create_dsq(DSQ_CPU0, -1);
+	if (ret) {
+		scx_bpf_error("failed to create DSQ %d (%d)", DSQ_CPU0, ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 void BPF_STRUCT_OPS(cpu0_exit, struct scx_exit_info *ei)
