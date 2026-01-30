@@ -40,6 +40,7 @@
 #include "xfs_defer.h"
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
+#include "xfs_error.h"
 #include "xfs_errortag.h"
 #include "xfs_iunlink_item.h"
 #include "xfs_dahash_test.h"
@@ -114,7 +115,7 @@ enum {
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
 	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum, Opt_max_open_zones,
-	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write,
+	Opt_lifetime, Opt_nolifetime, Opt_max_atomic_write, Opt_errortag,
 };
 
 #define fsparam_dead(NAME) \
@@ -173,6 +174,7 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_flag("lifetime",	Opt_lifetime),
 	fsparam_flag("nolifetime",	Opt_nolifetime),
 	fsparam_string("max_atomic_write",	Opt_max_atomic_write),
+	fsparam_string("errortag",	Opt_errortag),
 	{}
 };
 
@@ -1593,6 +1595,8 @@ xfs_fs_parse_param(
 			return -EINVAL;
 		}
 		return 0;
+	case Opt_errortag:
+		return xfs_errortag_add_name(parsing_mp, param->string);
 	default:
 		xfs_warn(parsing_mp, "unknown mount option [%s].", param->key);
 		return -EINVAL;
@@ -2183,6 +2187,8 @@ xfs_fs_reconfigure(
 	error = xfs_fs_validate_params(new_mp);
 	if (error)
 		return error;
+
+	xfs_errortag_copy(mp, new_mp);
 
 	/* Validate new max_atomic_write option before making other changes */
 	if (mp->m_awu_max_bytes != new_mp->m_awu_max_bytes) {

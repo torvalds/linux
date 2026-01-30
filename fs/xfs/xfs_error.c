@@ -22,6 +22,12 @@
 static const unsigned int xfs_errortag_random_default[] = { XFS_ERRTAGS };
 #undef XFS_ERRTAG
 
+#define XFS_ERRTAG(_tag, _name, _default) \
+        [XFS_ERRTAG_##_tag]	=  __stringify(_name),
+#include "xfs_errortag.h"
+static const char *xfs_errortag_names[] = { XFS_ERRTAGS };
+#undef XFS_ERRTAG
+
 struct xfs_errortag_attr {
 	struct attribute	attr;
 	unsigned int		tag;
@@ -187,6 +193,36 @@ xfs_errortag_add(
 	WRITE_ONCE(mp->m_errortag[error_tag],
 		   xfs_errortag_random_default[error_tag]);
 	return 0;
+}
+
+int
+xfs_errortag_add_name(
+	struct xfs_mount	*mp,
+	const char		*tag_name)
+{
+	unsigned int		i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++) {
+		if (xfs_errortag_names[i] &&
+		    !strcmp(xfs_errortag_names[i], tag_name))
+			return xfs_errortag_add(mp, i);
+	}
+
+	return -EINVAL;
+}
+
+void
+xfs_errortag_copy(
+	struct xfs_mount	*dst_mp,
+	struct xfs_mount	*src_mp)
+{
+	unsigned int		val, i;
+
+	for (i = 0; i < XFS_ERRTAG_MAX; i++) {
+		val = READ_ONCE(src_mp->m_errortag[i]);
+		if (val)
+			WRITE_ONCE(dst_mp->m_errortag[i], val);
+	}
 }
 
 int

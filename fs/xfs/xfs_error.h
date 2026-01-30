@@ -45,6 +45,8 @@ void xfs_errortag_delay(struct xfs_mount *mp, const char *file, int line,
 #define XFS_ERRORTAG_DELAY(mp, tag)		\
 	xfs_errortag_delay((mp), __FILE__, __LINE__, (tag))
 int xfs_errortag_add(struct xfs_mount *mp, unsigned int error_tag);
+int xfs_errortag_add_name(struct xfs_mount *mp, const char *tag_name);
+void xfs_errortag_copy(struct xfs_mount *dst_mp, struct xfs_mount *src_mp);
 int xfs_errortag_clearall(struct xfs_mount *mp);
 #else
 #define xfs_errortag_init(mp)			(0)
@@ -52,6 +54,8 @@ int xfs_errortag_clearall(struct xfs_mount *mp);
 #define XFS_TEST_ERROR(mp, tag)			(false)
 #define XFS_ERRORTAG_DELAY(mp, tag)		((void)0)
 #define xfs_errortag_add(mp, tag)		(-ENOSYS)
+#define xfs_errortag_copy(dst_mp, src_mp)	((void)0)
+#define xfs_errortag_add_name(mp, tag_name)	(-ENOSYS)
 #define xfs_errortag_clearall(mp)		(-ENOSYS)
 #endif /* DEBUG */
 
