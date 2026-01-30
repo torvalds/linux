@@ -4872,8 +4872,7 @@ static int ublk_ctrl_set_params(struct ublk_device *ub,
 	return ret;
 }
 
-static int ublk_ctrl_start_recovery(struct ublk_device *ub,
-		const struct ublksrv_ctrl_cmd *header)
+static int ublk_ctrl_start_recovery(struct ublk_device *ub)
 {
 	int ret = -EINVAL;
 
@@ -4902,7 +4901,7 @@ static int ublk_ctrl_start_recovery(struct ublk_device *ub,
 		ret = -EBUSY;
 		goto out_unlock;
 	}
-	pr_devel("%s: start recovery for dev id %d.\n", __func__, header->dev_id);
+	pr_devel("%s: start recovery for dev id %d\n", __func__, ub->ub_number);
 	init_completion(&ub->completion);
 	ret = 0;
  out_unlock:
@@ -5283,7 +5282,7 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_ctrl_set_params(ub, &header);
 		break;
 	case UBLK_CMD_START_USER_RECOVERY:
-		ret = ublk_ctrl_start_recovery(ub, &header);
+		ret = ublk_ctrl_start_recovery(ub);
 		break;
 	case UBLK_CMD_END_USER_RECOVERY:
 		ret = ublk_ctrl_end_recovery(ub, &header);
