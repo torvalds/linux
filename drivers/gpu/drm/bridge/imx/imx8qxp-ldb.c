@@ -65,9 +65,12 @@ static inline struct imx8qxp_ldb *base_to_imx8qxp_ldb(struct ldb *base)
 static void imx8qxp_ldb_bridge_destroy(struct drm_bridge *bridge)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
-	struct ldb *ldb = ldb_ch->ldb;
-	struct imx8qxp_ldb *imx8qxp_ldb = base_to_imx8qxp_ldb(ldb);
+	struct imx8qxp_ldb *imx8qxp_ldb;
 
+	if (!ldb_ch)
+		return;
+
+	imx8qxp_ldb = base_to_imx8qxp_ldb(ldb_ch->ldb);
 	drm_bridge_put(imx8qxp_ldb->companion);
 }
 
