@@ -14,10 +14,6 @@
  * and TI CAL camera interface driver by
  *    Benoit Parrot <bparrot@ti.com>
  *
- *
- * There are two camera drivers in the kernel for BCM283x - this one and
- * bcm2835-camera (currently in staging).
- *
  * This driver directly controls the Unicam peripheral - there is no
  * involvement with the VideoCore firmware. Unicam receives CSI-2 or CCP2 data
  * and writes it into SDRAM. The only potential processing options are to
