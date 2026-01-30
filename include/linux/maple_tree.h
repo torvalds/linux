@@ -165,6 +165,7 @@ struct maple_copy {
 	} src[4];
 	/* Simulated node */
 	void __rcu *slot[3];
+	unsigned long gap[3];
 	unsigned long min;
 	union {
 		unsigned long pivot[3];
