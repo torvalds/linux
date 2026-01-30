@@ -3122,20 +3122,28 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
  *
  * Attempts to reuse the node, but may allocate.
  */
-static inline void mas_wr_node_store(struct ma_wr_state *wr_mas,
-				     unsigned char new_end)
+static inline void mas_wr_node_store(struct ma_wr_state *wr_mas)
 {
-	struct ma_state *mas = wr_mas->mas;
-	void __rcu **dst_slots;
-	unsigned long *dst_pivots;
-	unsigned char dst_offset, offset_end = wr_mas->offset_end;
+	unsigned char dst_offset, offset_end;
+	unsigned char copy_size, node_pivots;
 	struct maple_node reuse, *newnode;
-	unsigned char copy_size, node_pivots = mt_pivots[wr_mas->type];
-	bool in_rcu = mt_in_rcu(mas->tree);
-	unsigned char height = mas_mt_height(mas);
+	unsigned long *dst_pivots;
+	void __rcu **dst_slots;
+	unsigned char new_end;
+	struct ma_state *mas;
+	bool in_rcu;
 
-	if (mas->last == wr_mas->end_piv)
+	mas = wr_mas->mas;
+	trace_ma_op(TP_FCT, mas);
+	in_rcu = mt_in_rcu(mas->tree);
+	offset_end = wr_mas->offset_end;
+	node_pivots = mt_pivots[wr_mas->type];
+	/* Assume last adds an entry */
+	new_end = mas->end + 1 - offset_end + mas->offset;
+	if (mas->last == wr_mas->end_piv) {
 		offset_end++; /* don't copy this offset */
+		new_end--;
+	}
 
 	/* set up node. */
 	if (in_rcu) {
@@ -3149,13 +3157,16 @@ static inline void mas_wr_node_store(struct ma_wr_state *wr_mas,
 	dst_pivots = ma_pivots(newnode, wr_mas->type);
 	dst_slots = ma_slots(newnode, wr_mas->type);
 	/* Copy from start to insert point */
-	memcpy(dst_pivots, wr_mas->pivots, sizeof(unsigned long) * mas->offset);
-	memcpy(dst_slots, wr_mas->slots, sizeof(void *) * mas->offset);
+	if (mas->offset) {
+		memcpy(dst_pivots, wr_mas->pivots, sizeof(unsigned long) * mas->offset);
+		memcpy(dst_slots, wr_mas->slots, sizeof(void __rcu *) * mas->offset);
+	}
 
 	/* Handle insert of new range starting after old range */
 	if (wr_mas->r_min < mas->index) {
 		rcu_assign_pointer(dst_slots[mas->offset], wr_mas->content);
 		dst_pivots[mas->offset++] = mas->index - 1;
+		new_end++;
 	}
 
 	/* Store the new entry and range end. */
@@ -3174,7 +3185,7 @@ static inline void mas_wr_node_store(struct ma_wr_state *wr_mas,
 	/* Copy to the end of node if necessary. */
 	copy_size = mas->end - offset_end + 1;
 	memcpy(dst_slots + dst_offset, wr_mas->slots + offset_end,
-	       sizeof(void *) * copy_size);
+	       sizeof(void __rcu *) * copy_size);
 	memcpy(dst_pivots + dst_offset, wr_mas->pivots + offset_end,
 	       sizeof(unsigned long) * (copy_size - 1));
 
@@ -3187,7 +3198,7 @@ done:
 		struct maple_enode *old_enode = mas->node;
 
 		mas->node = mt_mk_node(newnode, wr_mas->type);
-		mas_replace_node(mas, old_enode, height);
+		mas_replace_node(mas, old_enode, mas_mt_height(mas));
 	} else {
 		memcpy(wr_mas->node, newnode, sizeof(struct maple_node));
 	}
@@ -3503,7 +3514,6 @@ static void mas_wr_rebalance(struct ma_wr_state *wr_mas)
 static inline void mas_wr_store_entry(struct ma_wr_state *wr_mas)
 {
 	struct ma_state *mas = wr_mas->mas;
-	unsigned char new_end = mas_wr_new_end(wr_mas);
 
 	switch (mas->store_type) {
 	case wr_exact_fit:
@@ -3518,7 +3528,7 @@ static inline void mas_wr_store_entry(struct ma_wr_state *wr_mas)
 		mas_wr_slot_store(wr_mas);
 		break;
 	case wr_node_store:
-		mas_wr_node_store(wr_mas, new_end);
+		mas_wr_node_store(wr_mas);
 		break;
 	case wr_spanning_store:
 		mas_wr_spanning_store(wr_mas);
