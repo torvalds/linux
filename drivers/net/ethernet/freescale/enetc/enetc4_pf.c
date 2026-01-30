@@ -73,7 +73,7 @@ static void enetc4_pf_get_si_primary_mac(struct enetc_hw *hw, int si,
 	u16 lower;
 
 	upper = __raw_readl(hw->port + ENETC4_PSIPMAR0(si));
-	lower = __raw_readw(hw->port + ENETC4_PSIPMAR1(si));
+	lower = __raw_readl(hw->port + ENETC4_PSIPMAR1(si));
 
 	put_unaligned_le32(upper, addr);
 	put_unaligned_le16(lower, addr + 4);
