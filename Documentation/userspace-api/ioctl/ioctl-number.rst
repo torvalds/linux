@@ -15,7 +15,7 @@ macros defined in <linux/ioctl.h>:
     ====== ===========================
     _IO    none
     _IOW   write (read from userspace)
-    _IOR   read (write to userpace)
+    _IOR   read (write to userspace)
     _IOWR  write and read
     ====== ===========================
 
