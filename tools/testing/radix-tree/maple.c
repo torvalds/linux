@@ -35888,6 +35888,127 @@ unlock:
 	return ret;
 }
 
+static noinline void __init check_erase_rebalance(struct maple_tree *mt)
+{
+	unsigned long val;
+	void *enode;
+	int ret;
+
+	MA_STATE(mas, mt, 0, 0);
+
+	/*
+	 * During removal of big node, the rebalance started going too high,
+	 * which resulted in too many nodes trying to be used.
+	 *
+	 * Create a rebalance which results in an exactly full parent (0-9) that
+	 * does not need to be rebalanced.  This required two full levels,
+	 * followed by an insufficient level which will be rebalanced into two
+	 * nodes, finally leaves that need to be rebalanced into one node.
+	 *
+	 * The bugs tree:
+	 * root    4      Label     R
+	 *        /\               /\
+	 *       9   X            F
+	 *      /\   /\          /
+	 *     9   X            E
+	 *    /\   /\          /\
+	 *   4  8             C  D
+	 *  /\               /\
+	 * 6  9             A  B
+	 * ^ becomes 5 with the write.
+	 *
+	 * Below, the reconstruction leaves the root with 2 entries, the setup
+	 * uses the letter labels above.
+	 */
+
+	ret = build_full_tree(mt, MT_FLAGS_ALLOC_RANGE, 4);
+	MT_BUG_ON(mt, ret);
+
+	/* Cheap expansion to 5 levels */
+	mtree_store(mt, ULONG_MAX, xa_mk_value(0), GFP_KERNEL);
+	/* rcu is used to ensure node use */
+	mt_set_in_rcu(mt);
+	mas_lock(&mas);
+
+	/* Node A had 6 entries */
+	mas_walk(&mas);
+	MAS_BUG_ON(&mas, mas_data_end(&mas) < 6);
+	while (mas_data_end(&mas) > 6) {
+		mas_erase(&mas);
+		mas_next(&mas, ULONG_MAX);
+	}
+
+	/* Move to Node B */
+	enode = (void*) mas.node;
+	while (mas.node == enode)
+		mas_next(&mas, ULONG_MAX);
+
+	/* Node B had 9 entries */
+	MAS_BUG_ON(&mas, mas_data_end(&mas) < 9);
+	while (mas_data_end(&mas) > 9) {
+		mas_erase(&mas);
+		mas_next(&mas, ULONG_MAX);
+	}
+
+	/* Move to Node C */
+	mas_ascend(&mas);
+	val = mas.max;
+	/* Adjust entries to be 4 */
+	while (mas_data_end(&mas) > 4) {
+		mas_set(&mas, val);
+		mas_erase(&mas);
+		mas_prev(&mas, 0);
+		val = mas.index;
+		mas_ascend(&mas);
+	}
+
+	/* Move to Node D */
+	mas_ascend(&mas);
+	mas.offset = 1;
+	mas_descend(&mas);
+	val = mas.max;
+	/* Adjust entries to be 8 */
+	while (mas_data_end(&mas) < 8) {
+		mas_set(&mas, val--);
+		mas_store_gfp(&mas, &mas, GFP_KERNEL);
+		mas_ascend(&mas);
+	}
+
+	/* Move to Node E */
+	mas_ascend(&mas);
+	val = mas.max;
+	MAS_BUG_ON(&mas, mas_data_end(&mas) > 9);
+	/* Adjust Node E to 9 entries */
+	while (mas_data_end(&mas) < 9) {
+		mas_set(&mas, val--);
+		mas_store_gfp(&mas, &mas, GFP_KERNEL);
+		mas_ascend(&mas);
+		mas_ascend(&mas);
+	}
+
+	/* Move to Node F */
+	mas_ascend(&mas);
+	val = mas.max;
+	MAS_BUG_ON(&mas, mas_data_end(&mas) > 9);
+	/* Adjust Node F to 9 entries */
+	while (mas_data_end(&mas) < 9) {
+		mas_set(&mas, val--);
+		mas_store_gfp(&mas, &mas, GFP_KERNEL);
+		mas_ascend(&mas);
+		mas_ascend(&mas);
+		mas_ascend(&mas);
+	}
+
+	/* Test is set up, walk to first entry */
+	mas_set(&mas, 0);
+	mas_next(&mas, ULONG_MAX);
+	/* overwrite the entry to cause a rebalance, which was 1 too few */
+	mas_set_range(&mas, 0, mas.last);
+	mas_preallocate(&mas, NULL, GFP_KERNEL);
+	mas_store_prealloc(&mas, NULL);
+	mas_unlock(&mas);
+}
+
 static noinline void __init check_mtree_dup(struct maple_tree *mt)
 {
 	DEFINE_MTREE(new);
@@ -36247,6 +36368,10 @@ void farmer_tests(void)
 
 	mt_init_flags(&tree, 0);
 	check_mtree_dup(&tree);
+	mtree_destroy(&tree);
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_erase_rebalance(&tree);
 	mtree_destroy(&tree);
 
 	/* RCU testing */
