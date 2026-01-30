@@ -254,4 +254,30 @@
 #define P0_COL_BUFFER_OFFSET	0xEE00
 #define P0_Q1_BUFFER_OFFSET	0x0000
 
+#define V2_1_FDB_TBL_LOC          PRUETH_MEM_SHARED_RAM
+#define V2_1_FDB_TBL_OFFSET       0x2000
+
+#define FDB_INDEX_TBL_MAX_ENTRIES     256
+#define FDB_MAC_TBL_MAX_ENTRIES       256
+
+#define FDB_INDEX_TBL_OFFSET    V2_1_FDB_TBL_OFFSET
+#define FDB_INDEX_TBL_SIZE      (FDB_INDEX_TBL_MAX_ENTRIES * \
+				 sizeof(struct fdb_index_tbl_entry))
+
+#define FDB_MAC_TBL_OFFSET      (FDB_INDEX_TBL_OFFSET + FDB_INDEX_TBL_SIZE)
+#define FDB_MAC_TBL_SIZE        (FDB_MAC_TBL_MAX_ENTRIES * \
+				 sizeof(struct fdb_mac_tbl_entry))
+
+#define FDB_PORT1_STP_CFG_OFFSET        (FDB_MAC_TBL_OFFSET + FDB_MAC_TBL_SIZE)
+#define FDB_PORT_STP_CFG_SIZE           sizeof(struct fdb_stp_config)
+#define FDB_PORT2_STP_CFG_OFFSET        (FDB_PORT1_STP_CFG_OFFSET + \
+					 FDB_PORT_STP_CFG_SIZE)
+
+#define FDB_FLOOD_ENABLE_FLAGS_OFFSET   (FDB_PORT2_STP_CFG_OFFSET + \
+					FDB_PORT_STP_CFG_SIZE)
+#define FDB_FLOOD_ENABLE_FLAGS_SIZE     sizeof(struct fdb_flood_config)
+
+#define FDB_LOCKS_OFFSET        (FDB_FLOOD_ENABLE_FLAGS_OFFSET + \
+				 FDB_FLOOD_ENABLE_FLAGS_SIZE)
+
 #endif /* __ICSS_SWITCH_H */

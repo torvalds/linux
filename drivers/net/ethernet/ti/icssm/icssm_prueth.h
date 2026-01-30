@@ -15,6 +15,7 @@
 
 #include "icssm_switch.h"
 #include "icssm_prueth_ptp.h"
+#include "icssm_prueth_fdb_tbl.h"
 
 /* ICSSM size of redundancy tag */
 #define ICSSM_LRE_TAG_SIZE	6
@@ -247,6 +248,8 @@ struct prueth {
 	struct device_node *eth_node[PRUETH_NUM_MACS];
 	struct prueth_emac *emac[PRUETH_NUM_MACS];
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
+
+	struct fdb_tbl *fdb_tbl;
 
 	unsigned int eth_type;
 	size_t ocmc_ram_size;
