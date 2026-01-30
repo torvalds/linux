@@ -906,6 +906,9 @@ static unsigned long stmmac_mac_get_caps(struct phylink_config *config,
 	/* Refresh the MAC-specific capabilities */
 	stmmac_mac_update_caps(priv);
 
+	if (priv->hw_cap_support && !priv->dma_cap.half_duplex)
+		priv->hw->link.caps &= ~(MAC_1000HD | MAC_100HD | MAC_10HD);
+
 	config->mac_capabilities = priv->hw->link.caps;
 
 	if (priv->plat->max_speed)
