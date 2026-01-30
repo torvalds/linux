@@ -35406,7 +35406,18 @@ static noinline void __init check_spanning_write(struct maple_tree *mt)
 	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
 	for (i = 0; i <= max; i++)
 		mtree_test_store_range(mt, i * 10, i * 10 + 5, &i);
+
 	mtree_lock(mt);
+	if (MAPLE_32BIT) {
+		i = 47811;
+		do {
+			mas_set(&mas, i);
+			mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
+			i++;
+			mas_ascend(&mas);
+		} while (mas_data_end(&mas) < mt_slot_count(mas.node) - 1);
+	}
+
 	mas_set(&mas, 47606);
 	mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
 	mas_set(&mas, 47607);

@@ -4543,18 +4543,105 @@ static inline void mas_wr_append(struct ma_wr_state *wr_mas,
 }
 
 /*
+ * split_ascend() - See if a split operation has to keep walking up the tree
+ * @cp: The maple_copy node
+ * @wr_mas: The maple write state
+ * @sib: the maple state of the sibling
+ *
+ * Return: true if another split operation on the next level is needed, false
+ * otherwise
+ */
+static inline bool split_ascend(struct maple_copy *cp,
+		struct ma_wr_state *wr_mas, struct ma_state *sib,
+		struct ma_state *parent)
+{
+	struct ma_state *mas;
+	unsigned long min, max;
+
+	mas = wr_mas->mas;
+	min = mas->min; /* push right, or normal split */
+	max = mas->max;
+	wr_mas->offset_end = parent->offset;
+	if (sib->end) {
+		if (sib->max < mas->min) {
+			min = sib->min; /* push left */
+			parent->offset--;
+		} else {
+			max = sib->max; /* push right */
+			wr_mas->offset_end++;
+		}
+	}
+
+	cp_dst_to_slots(cp, min, max, mas);
+	if (cp_is_new_root(cp, mas))
+		return false;
+
+	if (cp_converged(cp, mas, sib))
+		return false;
+
+	cp->height++;
+	copy_tree_location(parent, mas);
+	wr_mas_setup(wr_mas, mas);
+	return true;
+}
+
+/*
+ * split_data() - Calculate the @cp data, populate @sib if the data can be
+ * pushed into a sibling.
+ * @cp: The maple copy node
+ * @wr_mas: The left write maple state
+ * @sib: The maple state of the sibling.
+ *
+ * Note: @cp->data is a size and not indexed by 0. @sib->end may be set to 0 to
+ * indicate it will not be used.
+ *
+ */
+static inline void split_data(struct maple_copy *cp,
+		struct ma_wr_state *wr_mas, struct ma_state *sib,
+		struct ma_state *parent)
+{
+	cp_data_calc(cp, wr_mas, wr_mas);
+	if (cp->data <= mt_slots[wr_mas->type]) {
+		sib->end = 0;
+		return;
+	}
+
+	push_data_sib(cp, wr_mas->mas, sib, parent);
+	if (sib->end)
+		cp->data += sib->end + 1;
+}
+
+/*
  * mas_wr_split() - Expand one node into two
  * @wr_mas: The write maple state
  */
-static noinline_for_kasan void mas_wr_split(struct ma_wr_state *wr_mas)
+static void mas_wr_split(struct ma_wr_state *wr_mas)
 {
-	struct maple_big_node b_node;
+	struct maple_enode *old_enode;
+	struct ma_state parent;
+	struct ma_state *mas;
+	struct maple_copy cp;
+	struct ma_state sib;
 
+	mas = wr_mas->mas;
 	trace_ma_write(TP_FCT, wr_mas->mas, 0, wr_mas->entry);
-	memset(&b_node, 0, sizeof(struct maple_big_node));
-	mas_store_b_node(wr_mas, &b_node, wr_mas->offset_end);
-	WARN_ON_ONCE(wr_mas->mas->store_type != wr_split_store);
-	return mas_split(wr_mas->mas, &b_node);
+	parent = *mas;
+	cp_leaf_init(&cp, mas, wr_mas, wr_mas);
+	do {
+		if (!mte_is_root(parent.node)) {
+			mas_ascend(&parent);
+			parent.end = mas_data_end(&parent);
+		}
+		split_data(&cp, wr_mas, &sib, &parent);
+		multi_src_setup(&cp, wr_mas, wr_mas, &sib);
+		dst_setup(&cp, mas, wr_mas->type);
+		cp_data_write(&cp, mas);
+	} while (split_ascend(&cp, wr_mas, &sib, &parent));
+
+	old_enode = mas->node;
+	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
+	mas_wmb_replace(mas, old_enode, cp.height);
+	mtree_range_walk(mas);
 }
 
 /*
