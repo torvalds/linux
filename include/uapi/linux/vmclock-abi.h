@@ -121,6 +121,11 @@ struct vmclock_abi {
 	 * loaded from some save state (restored from a snapshot).
 	 */
 #define VMCLOCK_FLAG_VM_GEN_COUNTER_PRESENT     (1 << 8)
+	/*
+	 * If the NOTIFICATION_PRESENT flag is set, the hypervisor will send
+	 * a notification every time it updates seq_count to a new even number.
+	 */
+#define VMCLOCK_FLAG_NOTIFICATION_PRESENT       (1 << 9)
 
 	__u8 pad[2];
 	__u8 clock_status;
