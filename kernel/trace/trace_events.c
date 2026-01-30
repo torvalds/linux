@@ -649,6 +649,22 @@ bool trace_event_ignore_this_pid(struct trace_event_file *trace_file)
 }
 EXPORT_SYMBOL_GPL(trace_event_ignore_this_pid);
 
+/**
+ * trace_event_buffer_reserve - reserve space on the ring buffer for an event
+ * @fbuffer: information about how to save the event
+ * @trace_file: the instance file descriptor for the event
+ * @len: The length of the event
+ *
+ * The @fbuffer has information about the ring buffer and data will
+ * be added to it to be used by the call to trace_event_buffer_commit().
+ * The @trace_file is the desrciptor with information about the status
+ * of the given event for a specific trace_array instance.
+ * The @len is the length of data to save for the event.
+ *
+ * Returns a pointer to the data on the ring buffer or NULL if the
+ *   event was not reserved (event was filtered, too big, or the buffer
+ *   simply was disabled for write).
+ */
 void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 				 struct trace_event_file *trace_file,
 				 unsigned long len)
