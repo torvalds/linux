@@ -1461,9 +1461,14 @@ bdev_write_zeroes_unmap_sectors(struct block_device *bdev)
 	return bdev_limits(bdev)->max_wzeroes_unmap_sectors;
 }
 
+static inline bool bdev_rot(struct block_device *bdev)
+{
+	return blk_queue_rot(bdev_get_queue(bdev));
+}
+
 static inline bool bdev_nonrot(struct block_device *bdev)
 {
-	return !blk_queue_rot(bdev_get_queue(bdev));
+	return !bdev_rot(bdev);
 }
 
 static inline bool bdev_synchronous(struct block_device *bdev)
