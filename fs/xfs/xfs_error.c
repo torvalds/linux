@@ -125,30 +125,6 @@ xfs_errortag_del(
 	xfs_sysfs_del(&mp->m_errortag_kobj);
 }
 
-static bool
-xfs_errortag_valid(
-	unsigned int		error_tag)
-{
-	if (error_tag >= XFS_ERRTAG_MAX)
-		return false;
-
-	/* Error out removed injection types */
-	if (error_tag == XFS_ERRTAG_DROP_WRITES)
-		return false;
-	return true;
-}
-
-bool
-xfs_errortag_enabled(
-	struct xfs_mount	*mp,
-	unsigned int		tag)
-{
-	if (!xfs_errortag_valid(tag))
-		return false;
-
-	return mp->m_errortag[tag] != 0;
-}
-
 bool
 xfs_errortag_test(
 	struct xfs_mount	*mp,
@@ -157,9 +133,6 @@ xfs_errortag_test(
 	unsigned int		error_tag)
 {
 	unsigned int		randfactor;
-
-	if (!xfs_errortag_valid(error_tag))
-		return false;
 
 	randfactor = mp->m_errortag[error_tag];
 	if (!randfactor || get_random_u32_below(randfactor))
@@ -178,8 +151,17 @@ xfs_errortag_add(
 {
 	BUILD_BUG_ON(ARRAY_SIZE(xfs_errortag_random_default) != XFS_ERRTAG_MAX);
 
-	if (!xfs_errortag_valid(error_tag))
+	if (error_tag >= XFS_ERRTAG_MAX)
 		return -EINVAL;
+
+	/* Error out removed injection types */
+	switch (error_tag) {
+	case XFS_ERRTAG_DROP_WRITES:
+		return -EINVAL;
+	default:
+		break;
+	}
+
 	mp->m_errortag[error_tag] = xfs_errortag_random_default[error_tag];
 	return 0;
 }

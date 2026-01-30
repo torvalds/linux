@@ -44,7 +44,7 @@ bool xfs_errortag_enabled(struct xfs_mount *mp, unsigned int tag);
 #define XFS_ERRORTAG_DELAY(mp, tag)		\
 	do { \
 		might_sleep(); \
-		if (!xfs_errortag_enabled((mp), (tag))) \
+		if (!mp->m_errortag[tag]) \
 			break; \
 		xfs_warn_ratelimited((mp), \
 "Injecting %ums delay at file %s, line %d, on filesystem \"%s\"", \
