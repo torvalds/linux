@@ -138,7 +138,7 @@ impl Context {
     {
         let lock = self.manager.lock();
         for proc in &lock.all_procs {
-            func(&proc);
+            func(proc);
         }
     }
 
