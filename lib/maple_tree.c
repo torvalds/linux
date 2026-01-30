@@ -2750,10 +2750,10 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 
 
 static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
-		struct maple_subtree_state *mast, unsigned char height,
-		struct ma_wr_state *wr_mas)
+		struct maple_subtree_state *mast, struct ma_wr_state *wr_mas)
 {
 	struct maple_big_node b_node;
+	unsigned char height;
 	MA_STATE(l_mas, mas->tree, mas->index, mas->index);
 	MA_STATE(r_mas, mas->tree, mas->index, mas->last);
 	MA_STATE(m_mas, mas->tree, mas->index, mas->index);
@@ -2788,6 +2788,7 @@ static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 	    unlikely(mast->bn->b_end <= mt_min_slots[mast->bn->type]))
 		mast_spanning_rebalance(mast);
 
+	height = mas_mt_height(mas) + 1;
 	mas_spanning_rebalance_loop(mas, mast, height);
 }
 /*
@@ -3448,7 +3449,6 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
 	struct maple_subtree_state mast;
 	struct ma_state *mas;
-	unsigned char height;
 
 	/* Left and Right side of spanning store */
 	MA_STATE(l_mas, NULL, 0, 0);
@@ -3476,7 +3476,6 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 	 * Node rebalancing may occur due to this store, so there may be three new
 	 * entries per level plus a new root.
 	 */
-	height = mas_mt_height(mas);
 
 	/*
 	 * Set up right side.  Need to get to the next offset after the spanning
@@ -3509,7 +3508,7 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 	l_mas = *mas;
 	mast.orig_l = &l_mas;
 	mast.orig_r = &r_mas;
-	mas_wr_spanning_rebalance(mas, &mast, height + 1, wr_mas);
+	mas_wr_spanning_rebalance(mas, &mast, wr_mas);
 }
 
 /*
