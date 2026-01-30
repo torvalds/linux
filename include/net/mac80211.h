@@ -7,7 +7,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2025 Intel Corporation
+ * Copyright (C) 2018 - 2026 Intel Corporation
  */
 
 #ifndef MAC80211_H
@@ -706,6 +706,7 @@ struct ieee80211_parsed_tpe {
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
  * @epcs_support: does this BSS support EPCS
+ * @uhr_support: does this BSS support UHR
  * @csa_active: marks whether a channel switch is going on.
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
@@ -832,6 +833,8 @@ struct ieee80211_bss_conf {
 	u8 pwr_reduction;
 	bool eht_support;
 	bool epcs_support;
+	bool uhr_support;
+
 	bool csa_active;
 
 	bool mu_mimo_owner;
@@ -1598,6 +1601,7 @@ enum mac80211_rx_encoding {
 	RX_ENC_VHT,
 	RX_ENC_HE,
 	RX_ENC_EHT,
+	RX_ENC_UHR,
 };
 
 /**
@@ -1631,7 +1635,7 @@ enum mac80211_rx_encoding {
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
- * @nss: number of streams (VHT, HE and EHT only)
+ * @nss: number of streams (VHT, HE, EHT and UHR only)
  * @flag: %RX_FLAG_\*
  * @encoding: &enum mac80211_rx_encoding
  * @bw: &enum rate_info_bw
@@ -1642,6 +1646,11 @@ enum mac80211_rx_encoding {
  * @eht: EHT specific rate information
  * @eht.ru: EHT RU, from &enum nl80211_eht_ru_alloc
  * @eht.gi: EHT GI, from &enum nl80211_eht_gi
+ * @uhr: UHR specific rate information
+ * @uhr.ru: UHR RU, from &enum nl80211_eht_ru_alloc
+ * @uhr.gi: UHR GI, from &enum nl80211_eht_gi
+ * @uhr.elr: UHR ELR MCS was used
+ * @uhr.im: UHR interference mitigation was used
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
@@ -1673,6 +1682,12 @@ struct ieee80211_rx_status {
 			u8 ru:4;
 			u8 gi:2;
 		} eht;
+		struct {
+			u8 ru:4;
+			u8 gi:2;
+			u8 elr:1;
+			u8 im:1;
+		} uhr;
 	};
 	u8 rate_idx;
 	u8 nss;
@@ -2434,6 +2449,7 @@ struct ieee80211_sta_aggregates {
  * @he_cap: HE capabilities of this STA
  * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
  * @eht_cap: EHT capabilities of this STA
+ * @uhr_cap: UHR capabilities of this STA
  * @s1g_cap: S1G capabilities of this STA
  * @agg: per-link data for multi-link aggregation
  * @bandwidth: current bandwidth the station can receive with
@@ -2457,6 +2473,7 @@ struct ieee80211_link_sta {
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
 	struct ieee80211_sta_eht_cap eht_cap;
+	struct ieee80211_sta_uhr_cap uhr_cap;
 	struct ieee80211_sta_s1g_cap s1g_cap;
 
 	struct ieee80211_sta_aggregates agg;
@@ -7287,6 +7304,20 @@ ieee80211_get_eht_iftype_cap_vif(const struct ieee80211_supported_band *sband,
 				 struct ieee80211_vif *vif)
 {
 	return ieee80211_get_eht_iftype_cap(sband, ieee80211_vif_type_p2p(vif));
+}
+
+/**
+ * ieee80211_get_uhr_iftype_cap_vif - return UHR capabilities for sband/vif
+ * @sband: the sband to search for the iftype on
+ * @vif: the vif to get the iftype from
+ *
+ * Return: pointer to the struct ieee80211_sta_uhr_cap, or %NULL is none found
+ */
+static inline const struct ieee80211_sta_uhr_cap *
+ieee80211_get_uhr_iftype_cap_vif(const struct ieee80211_supported_band *sband,
+				 struct ieee80211_vif *vif)
+{
+	return ieee80211_get_uhr_iftype_cap(sband, ieee80211_vif_type_p2p(vif));
 }
 
 /**

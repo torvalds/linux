@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -1608,6 +1608,13 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		link_conf->eht_mu_beamformer = false;
 	}
 
+	if (params->uhr_oper) {
+		if (!link_conf->eht_support)
+			return -EOPNOTSUPP;
+
+		link_conf->uhr_support = true;
+	}
+
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
 	    params->mbssid_config.tx_wdev) {
 		err = ieee80211_set_ap_mbssid_options(sdata,
@@ -2085,6 +2092,7 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 		       params->vht_capa ||
 		       params->he_capa ||
 		       params->eht_capa ||
+		       params->uhr_capa ||
 		       params->s1g_capa ||
 		       params->opmode_notif_used;
 
@@ -2161,6 +2169,12 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 						    params->he_capa_len,
 						    params->eht_capa,
 						    params->eht_capa_len,
+						    link_sta);
+
+	if (params->uhr_capa)
+		ieee80211_uhr_cap_ie_to_sta_uhr_cap(sdata, sband,
+						    params->uhr_capa,
+						    params->uhr_capa_len,
 						    link_sta);
 
 	if (params->s1g_capa)

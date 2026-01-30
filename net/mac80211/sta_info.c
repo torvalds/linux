@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/module.h>
@@ -2566,6 +2566,17 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u32 rate,
 		rinfo->nss = STA_STATS_GET(EHT_NSS, rate);
 		rinfo->eht_gi = STA_STATS_GET(EHT_GI, rate);
 		rinfo->eht_ru_alloc = STA_STATS_GET(EHT_RU, rate);
+		break;
+	case STA_STATS_RATE_TYPE_UHR:
+		rinfo->flags = RATE_INFO_FLAGS_UHR_MCS;
+		rinfo->mcs = STA_STATS_GET(UHR_MCS, rate);
+		rinfo->nss = STA_STATS_GET(UHR_NSS, rate);
+		rinfo->eht_gi = STA_STATS_GET(UHR_GI, rate);
+		rinfo->eht_ru_alloc = STA_STATS_GET(UHR_RU, rate);
+		if (STA_STATS_GET(UHR_ELR, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_UHR_ELR_MCS;
+		if (STA_STATS_GET(UHR_IM, rate))
+			rinfo->flags |= RATE_INFO_FLAGS_UHR_IM;
 		break;
 	}
 }
