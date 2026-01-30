@@ -90,16 +90,72 @@ static inline void trace_lock_elapsed_time_end(struct f2fs_rwsem *sem,
 			runnable_time, io_sleep_time, other_time);
 }
 
+static bool need_uplift_priority(struct f2fs_rwsem *sem, bool is_write)
+{
+	if (!(sem->sbi->adjust_lock_priority & BIT(sem->name - 1)))
+		return false;
+
+	switch (sem->name) {
+	/*
+	 * writer is checkpoint which has high priority, let's just uplift
+	 * priority for reader
+	 */
+	case LOCK_NAME_CP_RWSEM:
+	case LOCK_NAME_NODE_CHANGE:
+	case LOCK_NAME_NODE_WRITE:
+		return !is_write;
+	case LOCK_NAME_GC_LOCK:
+	case LOCK_NAME_CP_GLOBAL:
+	case LOCK_NAME_IO_RWSEM:
+		return true;
+	default:
+		f2fs_bug_on(sem->sbi, 1);
+	}
+	return false;
+}
+
+static void uplift_priority(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc,
+						bool is_write)
+{
+	lc->need_restore = false;
+	if (!sem->sbi->adjust_lock_priority)
+		return;
+	if (rt_task(current))
+		return;
+	if (!need_uplift_priority(sem, is_write))
+		return;
+	lc->orig_nice = task_nice(current);
+	lc->new_nice = PRIO_TO_NICE(sem->sbi->lock_duration_priority);
+	if (lc->orig_nice <= lc->new_nice)
+		return;
+	set_user_nice(current, lc->new_nice);
+	lc->need_restore = true;
+}
+
+static void restore_priority(struct f2fs_lock_context *lc)
+{
+	if (!lc->need_restore)
+		return;
+	/* someone has updated the priority */
+	if (task_nice(current) != lc->new_nice)
+		return;
+	set_user_nice(current, lc->orig_nice);
+}
+
 void f2fs_down_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
+	uplift_priority(sem, lc, false);
 	f2fs_down_read(sem);
 	trace_lock_elapsed_time_start(sem, lc);
 }
 
 int f2fs_down_read_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
-	if (!f2fs_down_read_trylock(sem))
+	uplift_priority(sem, lc, false);
+	if (!f2fs_down_read_trylock(sem)) {
+		restore_priority(lc);
 		return 0;
+	}
 	trace_lock_elapsed_time_start(sem, lc);
 	return 1;
 }
@@ -107,19 +163,24 @@ int f2fs_down_read_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_contex
 void f2fs_up_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
 	f2fs_up_read(sem);
+	restore_priority(lc);
 	trace_lock_elapsed_time_end(sem, lc, false);
 }
 
 void f2fs_down_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
+	uplift_priority(sem, lc, true);
 	f2fs_down_write(sem);
 	trace_lock_elapsed_time_start(sem, lc);
 }
 
 int f2fs_down_write_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
-	if (!f2fs_down_write_trylock(sem))
+	uplift_priority(sem, lc, true);
+	if (!f2fs_down_write_trylock(sem)) {
+		restore_priority(lc);
 		return 0;
+	}
 	trace_lock_elapsed_time_start(sem, lc);
 	return 1;
 }
@@ -127,6 +188,7 @@ int f2fs_down_write_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_conte
 void f2fs_up_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
 {
 	f2fs_up_write(sem);
+	restore_priority(lc);
 	trace_lock_elapsed_time_end(sem, lc, true);
 }
 
