@@ -614,7 +614,13 @@ extern int bpf_cgroup_read_xattr(struct cgroup *cgroup, const char *name__str,
 
 extern bool CONFIG_PREEMPT_RT __kconfig __weak;
 #ifdef bpf_target_x86
-extern const int __preempt_count __ksym;
+extern const int __preempt_count __ksym __weak;
+
+struct pcpu_hot___local {
+	int preempt_count;
+} __attribute__((preserve_access_index));
+
+extern struct pcpu_hot___local pcpu_hot __ksym __weak;
 #endif
 
 struct task_struct___preempt_rt {
@@ -624,7 +630,19 @@ struct task_struct___preempt_rt {
 static inline int get_preempt_count(void)
 {
 #if defined(bpf_target_x86)
-	return *(int *) bpf_this_cpu_ptr(&__preempt_count);
+	/* By default, read the per-CPU __preempt_count. */
+	if (bpf_ksym_exists(&__preempt_count))
+		return *(int *) bpf_this_cpu_ptr(&__preempt_count);
+
+	/*
+	 * If __preempt_count does not exist, try to read preempt_count under
+	 * struct pcpu_hot. Between v6.1 and v6.14 -- more specifically,
+	 * [64701838bf057, 46e8fff6d45fe), preempt_count had been managed
+	 * under struct pcpu_hot.
+	 */
+	if (bpf_core_field_exists(pcpu_hot.preempt_count))
+		return ((struct pcpu_hot___local *)
+			bpf_this_cpu_ptr(&pcpu_hot))->preempt_count;
 #elif defined(bpf_target_arm64)
 	return bpf_get_current_task_btf()->thread_info.preempt.count;
 #endif
