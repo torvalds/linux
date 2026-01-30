@@ -558,6 +558,46 @@ static int smu_v15_0_8_get_system_metrics_table(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v15_0_8_get_npm_data(struct smu_context *smu,
+				    enum amd_pp_sensors sensor,
+				    uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	SystemMetricsTable_t *metrics;
+	struct smu_table *sys_table;
+	int ret;
+
+	if (sensor == AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT) {
+		/*TBD as of now put 0 */
+		*value = 0;
+		return 0;
+	}
+
+	ret = smu_v15_0_8_get_system_metrics_table(smu);
+	if (ret)
+		return ret;
+
+	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
+	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_NODEPOWERLIMIT:
+		*value = SMUQ10_ROUND(metrics->NodePowerLimit);
+		break;
+	case AMDGPU_PP_SENSOR_NODEPOWER:
+		*value = SMUQ10_ROUND(metrics->NodePower);
+		break;
+	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
+		*value = SMUQ10_ROUND(metrics->GlobalPPTResidencyAcc);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int smu_v15_0_8_read_sensor(struct smu_context *smu,
 				   enum amd_pp_sensors sensor, void *data,
 				   uint32_t *size)
@@ -605,6 +645,15 @@ static int smu_v15_0_8_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_VDDBOARD:
 		*(uint32_t *)data = dpm_context->board_volt;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_NODEPOWERLIMIT:
+	case AMDGPU_PP_SENSOR_NODEPOWER:
+	case AMDGPU_PP_SENSOR_GPPTRESIDENCY:
+	case AMDGPU_PP_SENSOR_MAXNODEPOWERLIMIT:
+		ret = smu_v15_0_8_get_npm_data(smu, sensor, (uint32_t *)data);
+		if (ret)
+			return ret;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
