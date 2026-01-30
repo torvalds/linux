@@ -1526,8 +1526,8 @@ error_bdev_put:
  * may still be modified, to something outside the range and should not
  * be used.
  */
-static bool first_pending_extent(struct btrfs_device *device, u64 start, u64 len,
-				 u64 *pending_start, u64 *pending_end)
+bool btrfs_first_pending_extent(struct btrfs_device *device, u64 start, u64 len,
+				u64 *pending_start, u64 *pending_end)
 {
 	lockdep_assert_held(&device->fs_info->chunk_mutex);
 
@@ -1566,8 +1566,8 @@ static bool first_pending_extent(struct btrfs_device *device, u64 start, u64 len
  * If there are no holes at all, then *start is set to the end of the range and
  * *len is set to 0.
  */
-static bool find_hole_in_pending_extents(struct btrfs_device *device, u64 *start,
-					 u64 *len, u64 min_hole_size)
+bool btrfs_find_hole_in_pending_extents(struct btrfs_device *device, u64 *start,
+					u64 *len, u64 min_hole_size)
 {
 	u64 pending_start, pending_end;
 	u64 end;
@@ -1588,7 +1588,7 @@ static bool find_hole_in_pending_extents(struct btrfs_device *device, u64 *start
 	 * At the end of the iteration, set the output variables to the max hole.
 	 */
 	while (true) {
-		if (first_pending_extent(device, *start, *len, &pending_start, &pending_end)) {
+		if (btrfs_first_pending_extent(device, *start, *len, &pending_start, &pending_end)) {
 			/*
 			 * Case 1: the pending extent overlaps the start of
 			 * candidate hole. That means the true hole is after the
@@ -1758,7 +1758,7 @@ static bool dev_extent_hole_check(struct btrfs_device *device, u64 *hole_start,
 
 again:
 	*hole_size = hole_end - *hole_start + 1;
-	found = find_hole_in_pending_extents(device, hole_start, hole_size, num_bytes);
+	found = btrfs_find_hole_in_pending_extents(device, hole_start, hole_size, num_bytes);
 	if (!found)
 		return found;
 	ASSERT(*hole_size >= num_bytes);
@@ -5190,7 +5190,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	 * in-memory chunks are synced to disk so that the loop below sees them
 	 * and relocates them accordingly.
 	 */
-	if (first_pending_extent(device, start, diff, &pending_start, &pending_end)) {
+	if (btrfs_first_pending_extent(device, start, diff, &pending_start, &pending_end)) {
 		mutex_unlock(&fs_info->chunk_mutex);
 		ret = btrfs_commit_transaction(trans);
 		if (ret)
