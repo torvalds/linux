@@ -59,10 +59,10 @@ static void enetc4_pf_set_si_primary_mac(struct enetc_hw *hw, int si,
 
 	if (si != 0) {
 		__raw_writel(upper, hw->port + ENETC4_PSIPMAR0(si));
-		__raw_writew(lower, hw->port + ENETC4_PSIPMAR1(si));
+		__raw_writel(lower, hw->port + ENETC4_PSIPMAR1(si));
 	} else {
 		__raw_writel(upper, hw->port + ENETC4_PMAR0);
-		__raw_writew(lower, hw->port + ENETC4_PMAR1);
+		__raw_writel(lower, hw->port + ENETC4_PMAR1);
 	}
 }
 
