@@ -382,6 +382,8 @@ static int dwmac4_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->vlins = (hw_cap & GMAC_HW_FEAT_SAVLANINS) >> 27;
 	dma_cap->arpoffsel = (hw_cap & GMAC_HW_FEAT_ARPOFFSEL) >> 9;
 
+	dma_cap->actphyif = FIELD_GET(DMA_HW_FEAT_ACTPHYIF, hw_cap);
+
 	/* MAC HW feature1 */
 	hw_cap = readl(ioaddr + GMAC_HW_FEATURE1);
 	dma_cap->l3l4fnum = (hw_cap & GMAC_HW_FEAT_L3L4FNUM) >> 27;
