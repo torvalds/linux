@@ -1304,6 +1304,18 @@ static inline unsigned char mas_data_end(struct ma_state *mas)
 	return mt_pivots[type];
 }
 
+static inline
+void wr_mas_setup(struct ma_wr_state *wr_mas, struct ma_state *mas)
+{
+	wr_mas->node = mas_mn(mas);
+	wr_mas->type = mte_node_type(mas->node);
+	wr_mas->pivots = ma_pivots(wr_mas->node, wr_mas->type);
+	wr_mas->slots = ma_slots(wr_mas->node, wr_mas->type);
+	wr_mas->r_min = mas_safe_min(mas, wr_mas->pivots, mas->offset);
+	wr_mas->r_max = mas_safe_pivot(mas, wr_mas->pivots, mas->offset,
+				       wr_mas->type);
+}
+
 /*
  * mas_leaf_max_gap() - Returns the largest gap in a leaf node
  * @mas: the maple state
@@ -2258,6 +2270,44 @@ static inline void mte_mid_split_check(struct maple_enode **l,
 	*split = mid_split;
 }
 
+static inline
+void spanning_sib(struct ma_wr_state *l_wr_mas,
+		struct ma_wr_state *r_wr_mas, struct ma_state *nneighbour)
+{
+	struct ma_state l_tmp = *l_wr_mas->mas;
+	struct ma_state r_tmp = *r_wr_mas->mas;
+	unsigned char depth = 0;
+
+	do {
+		mas_ascend(&r_tmp);
+		mas_ascend(&l_tmp);
+		depth++;
+		if (r_tmp.offset < mas_data_end(&r_tmp)) {
+			r_tmp.offset++;
+			mas_descend(&r_tmp);
+			r_tmp.offset = 0;
+			while (--depth)
+				mas_descend(&r_tmp);
+
+			r_tmp.end = mas_data_end(&r_tmp);
+			*nneighbour = r_tmp;
+			return;
+		} else if (l_tmp.offset) {
+			l_tmp.offset--;
+			do {
+				mas_descend(&l_tmp);
+				l_tmp.offset = mas_data_end(&l_tmp);
+			} while (--depth);
+
+			l_tmp.end = l_tmp.offset;
+			*nneighbour = l_tmp;
+			return;
+		}
+	} while (!mte_is_root(r_tmp.node));
+
+	WARN_ON_ONCE(1);
+}
+
 /*
  * mast_set_split_parents() - Helper function to set three nodes parents.  Slot
  * is taken from @mast->l.
@@ -2642,6 +2692,49 @@ static inline void cp_leaf_init(struct maple_copy *cp,
 	cp->end = end;
 }
 
+/*
+ * cp_data_calc() - Calculate the size of the data (1 indexed).
+ * @cp: The maple copy struct with the new data populated.
+ * @l_wr_mas: The maple write state containing the data to the left of the write
+ * @r_wr_mas: The maple write state containing the data to the right of the
+ * write
+ *
+ * cp->data is a size (not indexed by 0).
+ */
+static inline void cp_data_calc(struct maple_copy *cp,
+		struct ma_wr_state *l_wr_mas, struct ma_wr_state *r_wr_mas)
+{
+
+	/* Add 1 every time for the 0th element */
+	cp->data = l_wr_mas->mas->offset;
+	/* Add the new data and any partial overwrites */
+	cp->data += cp->end + 1;
+	/* Data from right (offset + 1 to end), +1 for zero */
+	cp->data += r_wr_mas->mas->end - r_wr_mas->offset_end;
+}
+
+static inline void append_mas_cp(struct maple_copy *cp,
+	struct ma_state *mas, unsigned char start, unsigned char end)
+{
+	struct maple_node *node;
+	enum maple_type mt;
+	unsigned char count;
+
+	count = cp->s_count;
+	node = mas_mn(mas);
+	mt = mte_node_type(mas->node);
+	cp->src[count].node = node;
+	cp->src[count].mt = mt;
+	if (mas->end <= end)
+		cp->src[count].max = mas->max;
+	else
+		cp->src[count].max = ma_pivots(node, mt)[end];
+
+	cp->src[count].start = start;
+	cp->src[count].end = end;
+	cp->s_count++;
+}
+
 static inline void append_wr_mas_cp(struct maple_copy *cp,
 	struct ma_wr_state *wr_mas, unsigned char start, unsigned char end)
 {
@@ -2668,6 +2761,42 @@ static inline void init_cp_src(struct maple_copy *cp)
 	cp->src[cp->s_count].start = 0;
 	cp->src[cp->s_count].end = cp->end;
 	cp->s_count++;
+}
+
+/*
+ * multi_src_setup() - Set the @cp node up with multiple sources to copy from.
+ * @cp: The maple copy node
+ * @l_wr_mas: The left write maple state
+ * @r_wr_mas: The right write maple state
+ * @sib: The sibling maple state
+ *
+ * Note: @sib->end == 0 indicates no sibling will be used.
+ */
+static inline
+void multi_src_setup(struct maple_copy *cp, struct ma_wr_state *l_wr_mas,
+		struct ma_wr_state *r_wr_mas, struct ma_state *sib)
+{
+	cp->s_count = 0;
+	if (sib->end && sib->max < l_wr_mas->mas->min)
+		append_mas_cp(cp, sib, 0, sib->end);
+
+	/* Copy left 0 - offset */
+	if (l_wr_mas->mas->offset) {
+		unsigned char off = l_wr_mas->mas->offset - 1;
+
+		append_wr_mas_cp(cp, l_wr_mas, 0, off);
+		cp->src[cp->s_count - 1].max = cp->min - 1;
+	}
+
+	init_cp_src(cp);
+
+	/* Copy right either from offset or offset + 1 pending on r_max */
+	if (r_wr_mas->mas->end != r_wr_mas->offset_end)
+		append_wr_mas_cp(cp, r_wr_mas, r_wr_mas->offset_end + 1,
+			       r_wr_mas->mas->end);
+
+	if (sib->end && sib->min > r_wr_mas->mas->max)
+		append_mas_cp(cp, sib, 0, sib->end);
 }
 
 static inline
@@ -2873,36 +3002,42 @@ static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 	struct maple_big_node b_node;
 	struct maple_copy cp;
 	unsigned char height;
+	struct ma_state sib;
 	MA_STATE(l_mas, mas->tree, mas->index, mas->index);
 	MA_STATE(r_mas, mas->tree, mas->index, mas->last);
 	MA_STATE(m_mas, mas->tree, mas->index, mas->index);
 	MA_STATE(mast_l_mas, NULL, 0, 0);
 
 
-	mast_l_mas = *mas;
-	mast.orig_l = &mast_l_mas;
-	mast.orig_r = r_wr_mas->mas;
 	memset(&b_node, 0, sizeof(struct maple_big_node));
+	mast_l_mas = *mas;
 	cp.s_count = 0;
 	cp_leaf_init(&cp, mas, l_wr_mas, r_wr_mas);
-	/* Copy left 0 - offset */
-	if (l_wr_mas->mas->offset) {
-		unsigned char off = l_wr_mas->mas->offset - 1;
-
-		append_wr_mas_cp(&cp, l_wr_mas, 0, off);
-		cp.src[cp.s_count - 1].max = cp.min - 1;
+	cp_data_calc(&cp, l_wr_mas, r_wr_mas);
+	if (((l_wr_mas->mas->min != 0) || (r_wr_mas->mas->max != ULONG_MAX)) &&
+	    (cp.data <= mt_min_slots[l_wr_mas->type])) {
+		spanning_sib(l_wr_mas, r_wr_mas, &sib);
+		cp.data += sib.end + 1;
+	} else {
+		sib.end = 0;
 	}
 
-	init_cp_src(&cp);
-
-	/* Copy right from offset_end + 1 to end */
-	if (r_wr_mas->mas->end != r_wr_mas->offset_end)
-		append_wr_mas_cp(&cp, r_wr_mas, r_wr_mas->offset_end + 1,
-			       r_wr_mas->mas->end);
-
-
+	multi_src_setup(&cp, l_wr_mas, r_wr_mas, &sib);
 	b_node.type = l_wr_mas->type;
 	cp_data_write(&cp, &b_node);
+	if (sib.end) {
+		if (sib.max < l_wr_mas->mas->min) {
+			*l_wr_mas->mas = sib;
+			wr_mas_setup(l_wr_mas, &sib);
+			mast_l_mas = sib;
+		} else {
+			*r_wr_mas->mas = sib;
+			wr_mas_setup(r_wr_mas, &sib);
+		}
+	}
+
+	mast.orig_l = &mast_l_mas;
+	mast.orig_r = r_wr_mas->mas;
 	/* Stop spanning searches by searching for just index. */
 	mast.orig_l->last = mas->index;
 
@@ -2917,12 +3052,6 @@ static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
 	mast.m = &m_mas;
 	mast.r = &r_mas;
 	l_mas.status = r_mas.status = m_mas.status = ma_none;
-
-	/* Check if this is not root and has sufficient data.  */
-	if (((mast.orig_l->min != 0) || (mast.orig_r->max != ULONG_MAX)) &&
-	    unlikely(mast.bn->b_end <= mt_min_slots[mast.bn->type]))
-		mast_spanning_rebalance(&mast);
-
 	height = mas_mt_height(mas) + 1;
 
 	/*

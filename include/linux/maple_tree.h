@@ -177,6 +177,7 @@ struct maple_copy {
 
 	/*Avoid passing these around */
 	unsigned char s_count;
+	unsigned char data;
 };
 
 /**
