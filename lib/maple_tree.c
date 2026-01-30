@@ -3494,6 +3494,7 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 	r_mas.index = r_mas.last;
 	mas_wr_walk_index(&r_wr_mas);
 	r_mas.last = r_mas.index = mas->last;
+	r_wr_mas.end_piv = r_wr_mas.r_max;
 
 	/* Set up left side. */
 	mas_wr_walk_index(wr_mas);
