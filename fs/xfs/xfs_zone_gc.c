@@ -712,6 +712,8 @@ xfs_zone_gc_start_chunk(
 	data->scratch_head = (data->scratch_head + len) % data->scratch_size;
 	data->scratch_available -= len;
 
+	XFS_STATS_INC(mp, xs_gc_read_calls);
+
 	WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 	list_add_tail(&chunk->entry, &data->reading);
 	xfs_zone_gc_iter_advance(iter, irec.rm_blockcount);
@@ -815,6 +817,9 @@ xfs_zone_gc_write_chunk(
 		return;
 	}
 
+	XFS_STATS_INC(mp, xs_gc_write_calls);
+	XFS_STATS_ADD(mp, xs_gc_bytes, chunk->len);
+
 	WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 	list_move_tail(&chunk->entry, &data->writing);
 
@@ -910,6 +915,8 @@ xfs_submit_zone_reset_bio(
 		bio_io_error(bio);
 		return;
 	}
+
+	XFS_STATS_INC(mp, xs_gc_zone_reset_calls);
 
 	bio->bi_iter.bi_sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
 	if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
