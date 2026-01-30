@@ -38,6 +38,7 @@ struct rcu_test_struct2 {
 
 	unsigned long index[RCU_RANGE_COUNT];
 	unsigned long last[RCU_RANGE_COUNT];
+	pthread_mutex_t dump;
 };
 
 struct rcu_test_struct3 {
@@ -33997,8 +33998,25 @@ static void *rcu_reader_fwd(void *ptr)
 				}
 			}
 
-			RCU_MT_BUG_ON(test, mas.index != r_start);
-			RCU_MT_BUG_ON(test, mas.last != r_end);
+			if (mas.index != r_start) {
+				if (pthread_mutex_trylock(&test->dump) != 0) {
+					rcu_read_unlock();
+					goto quit;
+				}
+				printk("start is wrong: %lx (%lu) vs expected %lx (%lu)\n",
+				       mas.index, mas.index, r_start, r_start);
+				RCU_MT_BUG_ON(test, mas.index != r_start);
+			}
+
+			if (mas.last != r_end) {
+				if (pthread_mutex_trylock(&test->dump) != 0) {
+					rcu_read_unlock();
+					goto quit;
+				}
+				printk("last is wrong: %lx (%lu) vs expected %lx (%lu)\n",
+				       mas.last, mas.last, r_end, r_end);
+				RCU_MT_BUG_ON(test, mas.last != r_end);
+			}
 
 			if (i == reader->flip) {
 				alt = xa_mk_value(index + i + RCU_RANGE_COUNT);
@@ -34014,7 +34032,8 @@ static void *rcu_reader_fwd(void *ptr)
 				else if (entry == alt)
 					toggled  = true;
 				else {
-					printk("!!%lu-%lu -> %p not %p or %p\n", mas.index, mas.last, entry, expected, alt);
+					printk("!!%lu-%lu -> %p not %p or %p\n",
+					       mas.index, mas.last, entry, expected, alt);
 					RCU_MT_BUG_ON(test, 1);
 				}
 
@@ -34047,9 +34066,11 @@ static void *rcu_reader_fwd(void *ptr)
 		usleep(test->pause);
 	}
 
+quit:
 	rcu_unregister_thread();
 	return NULL;
 }
+
 /* RCU reader in decreasing index */
 static void *rcu_reader_rev(void *ptr)
 {
@@ -34119,13 +34140,17 @@ static void *rcu_reader_rev(void *ptr)
 				line = __LINE__;
 
 			if (mas.index != r_start) {
+				if (pthread_mutex_trylock(&test->dump) != 0) {
+					rcu_read_unlock();
+					goto quit;
+				}
+
 				alt = xa_mk_value(index + i * 2 + 1 +
 						  RCU_RANGE_COUNT);
 				mt_dump(test->mt, mt_dump_dec);
-				printk("Error: %lu-%lu %p != %lu-%lu %p %p line %d i %d\n",
-				       mas.index, mas.last, entry,
-				       r_start, r_end, expected, alt,
-				       line, i);
+				printk("Error: %p %lu-%lu %p != %lu-%lu %p %p line %d i %d\n",
+				       mas.node, mas.index, mas.last, entry,
+				       r_start, r_end, expected, alt, line, i);
 			}
 			RCU_MT_BUG_ON(test, mas.index != r_start);
 			RCU_MT_BUG_ON(test, mas.last != r_end);
@@ -34180,6 +34205,7 @@ static void *rcu_reader_rev(void *ptr)
 		usleep(test->pause);
 	}
 
+quit:
 	rcu_unregister_thread();
 	return NULL;
 }
@@ -34329,6 +34355,7 @@ static void rcu_stress(struct maple_tree *mt, bool forward)
 	test.seen_modified = 0;
 	test.thread_count = 0;
 	test.start = test.stop = false;
+	pthread_mutex_init(&test.dump, NULL);
 	seed = time(NULL);
 	srand(seed);
 	for (i = 0; i < RCU_RANGE_COUNT; i++) {
@@ -34414,6 +34441,7 @@ struct rcu_test_struct {
 	unsigned long removed;		/* The index of the removed entry */
 	unsigned long added;		/* The index of the removed entry */
 	unsigned long toggle;		/* The index of the removed entry */
+	pthread_mutex_t dump;
 };
 
 static inline
@@ -34506,7 +34534,9 @@ static void *rcu_loop(void *ptr)
 			/* Out of the interesting range */
 			if (mas.index < test->index || mas.index > test->last) {
 				if (entry != expected) {
-					printk("%lx - %lx = %p not %p\n",
+					if (pthread_mutex_trylock(&test->dump) != 0)
+						break;
+					printk("\nERROR: %lx - %lx = %p not %p\n",
 					       mas.index, mas.last, entry, expected);
 				}
 				MT_BUG_ON(test->mt, entry != expected);
@@ -34854,6 +34884,7 @@ static noinline void __init check_rcu_threaded(struct maple_tree *mt)
 	vals.range_end = ULONG_MAX;
 	vals.seen_entry2 = 0;
 	vals.seen_entry3 = 0;
+	pthread_mutex_init(&vals.dump, NULL);
 
 	run_check_rcu(mt, &vals);
 	mtree_destroy(mt);
@@ -35250,6 +35281,8 @@ static noinline void __init check_spanning_write(struct maple_tree *mt)
 {
 	unsigned long i, max = 5000;
 	MA_STATE(mas, mt, 1200, 2380);
+	struct maple_enode *enode;
+	struct maple_node *pnode;
 
 	for (i = 0; i <= max; i++)
 		mtree_test_store_range(mt, i * 10, i * 10 + 5, &i);
@@ -35410,6 +35443,128 @@ static noinline void __init check_spanning_write(struct maple_tree *mt)
 	mas_set_range(&mas, 76, 875);
 	mas_store_gfp(&mas, NULL, GFP_KERNEL);
 	mtree_unlock(mt);
+	mtree_destroy(mt);
+
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	for (i = 0; i <= max; i++)
+		mtree_test_store_range(mt, i * 10, i * 10 + 5, &i);
+
+	if (MAPLE_32BIT)
+		i = 49750; /* 0xC25B */
+	else
+		i = 49835; /* 0xC2AB */
+
+	mtree_lock(mt);
+	/* Store a null across a boundary that ends in a null */
+	mas_set(&mas, i); /* 0xC2AB */
+	MT_BUG_ON(mt, mas_walk(&mas) == NULL);
+	MT_BUG_ON(mt, mas.end != mas.offset);
+	MT_BUG_ON(mt, mas_next_range(&mas, ULONG_MAX) != NULL);
+	mas_set_range(&mas, i, mas.last - 1);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	mt_validate(mt);
+
+	/* Store a null across a boundary that starts and ends in a null */
+	mas_set(&mas, 49849);
+	MT_BUG_ON(mt, mas_walk(&mas) != NULL);
+	MT_BUG_ON(mt, mas.index != 49846);
+	mas_set(&mas, 49876);
+	MT_BUG_ON(mt, mas_walk(&mas) != NULL);
+	MT_BUG_ON(mt, mas.last != 49879);
+	mas_set_range(&mas, 49849, 49876);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	/* Results in 49846-49879: (nil) */
+	MT_BUG_ON(mt, mas.index != 49846);
+	MT_BUG_ON(mt, mas.last != 49879);
+	mt_validate(mt);
+
+	/* Store a null across a boundary that starts and ends next to nulls */
+	mas_set(&mas, 49800);
+	MT_BUG_ON(mt, mas_walk(&mas) == NULL);
+	MT_BUG_ON(mt, mas.index != 49800);
+	mas_set(&mas, 49815);
+	MT_BUG_ON(mt, mas_walk(&mas) == NULL);
+	MT_BUG_ON(mt, mas.last != 49815);
+	mas_set_range(&mas, 49800, 49815);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	/* Results in 49846-49879: (nil) */
+	MT_BUG_ON(mt, mas.index != 49796);
+	MT_BUG_ON(mt, mas.last != 49819);
+	mt_validate(mt);
+
+	/* Store a value across a boundary that starts and ends in a null */
+	mas_set(&mas, 49907);
+	MT_BUG_ON(mt, mas_walk(&mas) != NULL);
+	MT_BUG_ON(mt, mas.index != 49906);
+	mas_set(&mas, 49928);
+	MT_BUG_ON(mt, mas_walk(&mas) != NULL);
+	MT_BUG_ON(mt, mas.last != 49929);
+	mas_set_range(&mas, 49907, 49928);
+	mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
+	MT_BUG_ON(mt, mas.index != 49907);
+	MT_BUG_ON(mt, mas.last != 49928);
+	mt_validate(mt);
+
+	/* Store a value across a node boundary that causes a 3 way split */
+
+	if (MAPLE_32BIT)
+		i = 49590; /* 0xc1b6 */
+	else
+		i = 49670; /* 0xC206 */
+
+	mas_set(&mas, i);
+	MT_BUG_ON(mt, mas_walk(&mas) == NULL);
+	MT_BUG_ON(mt, mas.index != i);
+	MT_BUG_ON(mt, mas.end != mt_slot_count(mas.node) - 1);
+	enode = mas.node;
+	MT_BUG_ON(mt, mas_next_range(&mas, ULONG_MAX) != NULL);
+	MT_BUG_ON(mt, mas.index != i + 6);
+	MT_BUG_ON(mt, mas.end != mt_slot_count(mas.node) - 1);
+	MT_BUG_ON(mt, enode == mas.node);
+	mas_set_range(&mas, i + 2, i + 7);
+	mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
+	MT_BUG_ON(mt, mas.index != i + 2);
+	MT_BUG_ON(mt, mas.last != i + 7);
+	mt_validate(mt);
+
+	/* 2 levels of basically the same testing */
+
+	if (MAPLE_32BIT) {
+		/* 32bit needs a bit more work to fill the nodes.
+		 * The two parent nodes need to be filled (they have one space
+		 * vacant) without causing a split at the store locations (or
+		 * the siblings).
+		 */
+		i = 44426;
+		mas_set(&mas, i);
+		mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
+		i = 45126;
+		mas_set(&mas, i);
+		mas_store_gfp(&mas, check_spanning_write, GFP_KERNEL);
+		i = 44790;
+	} else {
+		/* 48950 - 48955 => ptr, 48956 - 48959 => NULL */
+		i = 48950;
+
+	}
+	mas_set(&mas, i);
+	MT_BUG_ON(mt, mas_walk(&mas) == NULL);
+	MT_BUG_ON(mt, mas.index != i);
+	MT_BUG_ON(mt, mas.end != mt_slot_count(mas.node) - 1);
+	enode = mas.node;
+	pnode = mte_parent(enode);
+	MT_BUG_ON(mt, mas_next_range(&mas, ULONG_MAX) != NULL);
+	MT_BUG_ON(mt, mas.index != i + 6);
+	MT_BUG_ON(mt, mas.end != mt_slot_count(mas.node) - 1);
+	MT_BUG_ON(mt, enode == mas.node);
+	MT_BUG_ON(mt, pnode == mte_parent(mas.node));
+	mas_set_range(&mas, i + 2, i + 8);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	mt_validate(mt);
+
+	mtree_unlock(mt);
+	mtree_destroy(mt);
+	rcu_barrier();
 }
 /* End of spanning write testing */
 
@@ -36028,7 +36183,6 @@ static inline int check_vma_modification(struct maple_tree *mt)
 
 	return 0;
 }
-
 
 void farmer_tests(void)
 {
