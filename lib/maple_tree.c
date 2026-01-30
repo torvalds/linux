@@ -3493,6 +3493,16 @@ static inline bool cp_is_new_root(struct maple_copy *cp, struct ma_state *mas)
 	return true;
 }
 
+static inline bool cp_converged(struct maple_copy *cp, struct ma_state *mas,
+				struct ma_state *sib)
+{
+	if (cp->d_count != 1 || sib->end)
+		return false;
+
+	cp->dst[0].node->parent = ma_parent_ptr(mas_mn(mas)->parent);
+	return true;
+}
+
 /*
  * spanning_ascend() - See if a spanning store operation has to keep walking up
  * the tree
@@ -3575,10 +3585,8 @@ static inline bool rebalance_ascend(struct maple_copy *cp,
 	if (cp_is_new_root(cp, mas))
 		return false;
 
-	if (cp->d_count == 1 && !sib->end) {
-		cp->dst[0].node->parent = ma_parent_ptr(mas_mn(mas)->parent);
+	if (cp_converged(cp, mas, sib))
 		return false;
-	}
 
 	cp->height++;
 	copy_tree_location(parent, mas);
