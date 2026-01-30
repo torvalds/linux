@@ -60,8 +60,8 @@ int xfs_errortag_clearall(struct xfs_mount *mp);
 #define xfs_errortag_del(mp)
 #define XFS_TEST_ERROR(mp, tag)			(false)
 #define XFS_ERRORTAG_DELAY(mp, tag)		((void)0)
-#define xfs_errortag_add(mp, tag)		(ENOSYS)
-#define xfs_errortag_clearall(mp)		(ENOSYS)
+#define xfs_errortag_add(mp, tag)		(-ENOSYS)
+#define xfs_errortag_clearall(mp)		(-ENOSYS)
 #endif /* DEBUG */
 
 /*
