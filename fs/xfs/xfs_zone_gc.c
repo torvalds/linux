@@ -893,40 +893,55 @@ out:
 	bio_put(&chunk->bio);
 }
 
-static bool
-xfs_zone_gc_prepare_reset(
-	struct bio		*bio,
-	struct xfs_rtgroup	*rtg)
+static void
+xfs_submit_zone_reset_bio(
+	struct xfs_rtgroup	*rtg,
+	struct bio		*bio)
 {
 	trace_xfs_zone_reset(rtg);
 
 	ASSERT(rtg_rmap(rtg)->i_used_blocks == 0);
 	bio->bi_iter.bi_sector = xfs_gbno_to_daddr(&rtg->rtg_group, 0);
 	if (!bdev_zone_is_seq(bio->bi_bdev, bio->bi_iter.bi_sector)) {
-		if (!bdev_max_discard_sectors(bio->bi_bdev))
-			return false;
+		/*
+		 * Also use the bio to drive the state machine when neither
+		 * zone reset nor discard is supported to keep things simple.
+		 */
+		if (!bdev_max_discard_sectors(bio->bi_bdev)) {
+			bio_endio(bio);
+			return;
+		}
 		bio->bi_opf &= ~REQ_OP_ZONE_RESET;
 		bio->bi_opf |= REQ_OP_DISCARD;
 		bio->bi_iter.bi_size =
 			XFS_FSB_TO_B(rtg_mount(rtg), rtg_blocks(rtg));
 	}
 
-	return true;
+	submit_bio(bio);
+}
+
+static void xfs_bio_wait_endio(struct bio *bio)
+{
+	complete(bio->bi_private);
 }
 
 int
 xfs_zone_gc_reset_sync(
 	struct xfs_rtgroup	*rtg)
 {
-	int			error = 0;
+	DECLARE_COMPLETION_ONSTACK(done);
 	struct bio		bio;
+	int			error;
 
 	bio_init(&bio, rtg_mount(rtg)->m_rtdev_targp->bt_bdev, NULL, 0,
-			REQ_OP_ZONE_RESET);
-	if (xfs_zone_gc_prepare_reset(&bio, rtg))
-		error = submit_bio_wait(&bio);
-	bio_uninit(&bio);
+			REQ_OP_ZONE_RESET | REQ_SYNC);
+	bio.bi_private = &done;
+	bio.bi_end_io = xfs_bio_wait_endio;
+	xfs_submit_zone_reset_bio(rtg, &bio);
+	wait_for_completion_io(&done);
 
+	error = blk_status_to_errno(bio.bi_status);
+	bio_uninit(&bio);
 	return error;
 }
 
@@ -961,15 +976,7 @@ xfs_zone_gc_reset_zones(
 		chunk->data = data;
 		WRITE_ONCE(chunk->state, XFS_GC_BIO_NEW);
 		list_add_tail(&chunk->entry, &data->resetting);
-
-		/*
-		 * Also use the bio to drive the state machine when neither
-		 * zone reset nor discard is supported to keep things simple.
-		 */
-		if (xfs_zone_gc_prepare_reset(bio, rtg))
-			submit_bio(bio);
-		else
-			bio_endio(bio);
+		xfs_submit_zone_reset_bio(rtg, bio);
 	} while (next);
 }
 
