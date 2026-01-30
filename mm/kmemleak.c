@@ -1507,10 +1507,8 @@ static int scan_should_stop(void)
 	 */
 	if (current->mm)
 		return signal_pending(current);
-	else
-		return kthread_should_stop();
 
-	return 0;
+	return kthread_should_stop();
 }
 
 /*
