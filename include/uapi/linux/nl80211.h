@@ -2977,6 +2977,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_EPP_PEER: A flag attribute to indicate if the peer is an EPP
  *	STA. Used with %NL80211_CMD_NEW_STA and %NL80211_CMD_ADD_LINK_STA
  *
+ * @NL80211_ATTR_UHR_CAPABILITY: UHR Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION). Can be set
+ *	only if HE/EHT are also available.
+ * @NL80211_ATTR_DISABLE_UHR: Force UHR capable interfaces to disable
+ *	this feature during association. This is a flag attribute.
+ *	Currently only supported in mac80211 drivers.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3547,6 +3554,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_EPP_PEER,
 
+	NL80211_ATTR_UHR_CAPABILITY,
+	NL80211_ATTR_DISABLE_UHR,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -3899,6 +3909,12 @@ enum nl80211_eht_ru_alloc {
  * @NL80211_RATE_INFO_4_MHZ_WIDTH: 4 MHz S1G rate
  * @NL80211_RATE_INFO_8_MHZ_WIDTH: 8 MHz S1G rate
  * @NL80211_RATE_INFO_16_MHZ_WIDTH: 16 MHz S1G rate
+ * @NL80211_RATE_INFO_UHR_MCS: UHR MCS index (u8, 0-15, 17, 19, 20, 23)
+ *	Note that the other EHT attributes (such as @NL80211_RATE_INFO_EHT_NSS)
+ *	are used in conjunction with this where applicable
+ * @NL80211_RATE_INFO_UHR_ELR: UHR ELR flag, which restricts NSS to 1,
+ *	MCS to 0 or 1, and GI to %NL80211_RATE_INFO_EHT_GI_1_6.
+ * @NL80211_RATE_INFO_UHR_IM: UHR Interference Mitigation flag
  * @__NL80211_RATE_INFO_AFTER_LAST: internal use
  */
 enum nl80211_rate_info {
@@ -3932,6 +3948,9 @@ enum nl80211_rate_info {
 	NL80211_RATE_INFO_4_MHZ_WIDTH,
 	NL80211_RATE_INFO_8_MHZ_WIDTH,
 	NL80211_RATE_INFO_16_MHZ_WIDTH,
+	NL80211_RATE_INFO_UHR_MCS,
+	NL80211_RATE_INFO_UHR_ELR,
+	NL80211_RATE_INFO_UHR_IM,
 
 	/* keep last */
 	__NL80211_RATE_INFO_AFTER_LAST,
@@ -4254,6 +4273,10 @@ enum nl80211_mpath_info {
  *	capabilities element
  * @NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE: EHT PPE thresholds information as
  *	defined in EHT capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_UHR_CAP_MAC: UHR MAC capabilities as in UHR
+ *	capabilities element
+ * @NL80211_BAND_IFTYPE_ATTR_UHR_CAP_PHY: UHR PHY capabilities as in UHR
+ *	capabilities element
  * @__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST: internal use
  * @NL80211_BAND_IFTYPE_ATTR_MAX: highest band attribute currently defined
  */
@@ -4271,6 +4294,8 @@ enum nl80211_band_iftype_attr {
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY,
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MCS_SET,
 	NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PPE,
+	NL80211_BAND_IFTYPE_ATTR_UHR_CAP_MAC,
+	NL80211_BAND_IFTYPE_ATTR_UHR_CAP_PHY,
 
 	/* keep last */
 	__NL80211_BAND_IFTYPE_ATTR_AFTER_LAST,
@@ -4453,6 +4478,8 @@ enum nl80211_wmm_rule {
  * @NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY: Channel is not permitted for use
  *	as a primary channel. Does not prevent the channel from existing
  *	as a non-primary subchannel. Only applicable to S1G channels.
+ * @NL80211_FREQUENCY_ATTR_NO_UHR: UHR operation is not allowed on this channel
+ *	in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -4502,6 +4529,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_8MHZ,
 	NL80211_FREQUENCY_ATTR_NO_16MHZ,
 	NL80211_FREQUENCY_ATTR_S1G_NO_PRIMARY,
+	NL80211_FREQUENCY_ATTR_NO_UHR,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4715,6 +4743,7 @@ enum nl80211_sched_scan_match_attr {
  *	despite NO_IR configuration.
  * @NL80211_RRF_ALLOW_20MHZ_ACTIVITY: Allow activity in 20 MHz bandwidth,
  *	despite NO_IR configuration.
+ * @NL80211_RRF_NO_UHR: UHR operation not allowed
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM                 = 1 << 0,
@@ -4741,6 +4770,7 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_6GHZ_AFC_CLIENT      = 1 << 23,
 	NL80211_RRF_ALLOW_6GHZ_VLP_AP       = 1 << 24,
 	NL80211_RRF_ALLOW_20MHZ_ACTIVITY    = 1 << 25,
+	NL80211_RRF_NO_UHR		    = 1 << 26,
 };
 
 #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR

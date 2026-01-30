@@ -7,7 +7,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2026 Intel Corporation
  */
 
 #include <linux/ethtool.h>
@@ -126,6 +126,7 @@ struct wiphy;
  * @IEEE80211_CHAN_NO_4MHZ: 4 MHz bandwidth is not permitted on this channel.
  * @IEEE80211_CHAN_NO_8MHZ: 8 MHz bandwidth is not permitted on this channel.
  * @IEEE80211_CHAN_NO_16MHZ: 16 MHz bandwidth is not permitted on this channel.
+ * @IEEE80211_CHAN_NO_UHR: UHR operation is not permitted on this channel.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED			= BIT(0),
@@ -143,6 +144,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_10MHZ			= BIT(12),
 	IEEE80211_CHAN_NO_HE			= BIT(13),
 	/* can use free bits here */
+	IEEE80211_CHAN_NO_UHR			= BIT(18),
 	IEEE80211_CHAN_NO_320MHZ		= BIT(19),
 	IEEE80211_CHAN_NO_EHT			= BIT(20),
 	IEEE80211_CHAN_DFS_CONCURRENT		= BIT(21),
@@ -429,6 +431,18 @@ struct ieee80211_sta_eht_cap {
 	u8 eht_ppe_thres[IEEE80211_EHT_PPE_THRES_MAX_LEN];
 };
 
+/**
+ * struct ieee80211_sta_uhr_cap - STA's UHR capabilities
+ * @has_uhr: true iff UHR is supported and data is valid
+ * @mac: fixed MAC capabilities
+ * @phy: fixed PHY capabilities
+ */
+struct ieee80211_sta_uhr_cap {
+	bool has_uhr;
+	struct ieee80211_uhr_cap_mac mac;
+	struct ieee80211_uhr_cap_phy phy;
+};
+
 /* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
 /*
@@ -454,6 +468,7 @@ struct ieee80211_sta_eht_cap {
  * @he_6ghz_capa: HE 6 GHz capabilities, must be filled in for a
  *	6 GHz band channel (and 0 may be valid value).
  * @eht_cap: STA's EHT capabilities
+ * @uhr_cap: STA's UHR capabilities
  * @vendor_elems: vendor element(s) to advertise
  * @vendor_elems.data: vendor element(s) data
  * @vendor_elems.len: vendor element(s) length
@@ -463,6 +478,7 @@ struct ieee80211_sband_iftype_data {
 	struct ieee80211_sta_he_cap he_cap;
 	struct ieee80211_he_6ghz_capa he_6ghz_capa;
 	struct ieee80211_sta_eht_cap eht_cap;
+	struct ieee80211_sta_uhr_cap uhr_cap;
 	struct {
 		const u8 *data;
 		unsigned int len;
@@ -700,6 +716,26 @@ ieee80211_get_eht_iftype_cap(const struct ieee80211_supported_band *sband,
 
 	if (data && data->eht_cap.has_eht)
 		return &data->eht_cap;
+
+	return NULL;
+}
+
+/**
+ * ieee80211_get_uhr_iftype_cap - return UHR capabilities for an sband's iftype
+ * @sband: the sband to search for the iftype on
+ * @iftype: enum nl80211_iftype
+ *
+ * Return: pointer to the struct ieee80211_sta_uhr_cap, or NULL is none found
+ */
+static inline const struct ieee80211_sta_uhr_cap *
+ieee80211_get_uhr_iftype_cap(const struct ieee80211_supported_band *sband,
+			     enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (data && data->uhr_cap.has_uhr)
+		return &data->uhr_cap;
 
 	return NULL;
 }
@@ -1486,6 +1522,7 @@ struct cfg80211_s1g_short_beacon {
  * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
  * @eht_cap: EHT capabilities (or %NULL if EHT isn't enabled)
  * @eht_oper: EHT operation IE (or %NULL if EHT isn't enabled)
+ * @uhr_oper: UHR operation (or %NULL if UHR isn't enabled)
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
  * @twt_responder: Enable Target Wait Time
@@ -1525,6 +1562,7 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_he_operation *he_oper;
 	const struct ieee80211_eht_cap_elem *eht_cap;
 	const struct ieee80211_eht_operation *eht_oper;
+	const struct ieee80211_uhr_operation *uhr_oper;
 	bool ht_required, vht_required, he_required, sae_h2e_required;
 	bool twt_responder;
 	u32 flags;
@@ -1698,6 +1736,8 @@ struct sta_txpwr {
  * @eht_capa: EHT capabilities of station
  * @eht_capa_len: the length of the EHT capabilities
  * @s1g_capa: S1G capabilities of station
+ * @uhr_capa: UHR capabilities of the station
+ * @uhr_capa_len: the length of the UHR capabilities
  */
 struct link_station_parameters {
 	const u8 *mld_mac;
@@ -1717,6 +1757,8 @@ struct link_station_parameters {
 	const struct ieee80211_eht_cap_elem *eht_capa;
 	u8 eht_capa_len;
 	const struct ieee80211_s1g_cap *s1g_capa;
+	const struct ieee80211_uhr_cap *uhr_capa;
+	u8 uhr_capa_len;
 };
 
 /**
@@ -1898,6 +1940,11 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
  * @RATE_INFO_FLAGS_EXTENDED_SC_DMG: 60GHz extended SC MCS
  * @RATE_INFO_FLAGS_EHT_MCS: EHT MCS information
  * @RATE_INFO_FLAGS_S1G_MCS: MCS field filled with S1G MCS
+ * @RATE_INFO_FLAGS_UHR_MCS: UHR MCS information
+ * @RATE_INFO_FLAGS_UHR_ELR_MCS: UHR ELR MCS was used
+ *	(set together with @RATE_INFO_FLAGS_UHR_MCS)
+ * @RATE_INFO_FLAGS_UHR_IM: UHR Interference Mitigation
+ *	was used
  */
 enum rate_info_flags {
 	RATE_INFO_FLAGS_MCS			= BIT(0),
@@ -1909,6 +1956,9 @@ enum rate_info_flags {
 	RATE_INFO_FLAGS_EXTENDED_SC_DMG		= BIT(6),
 	RATE_INFO_FLAGS_EHT_MCS			= BIT(7),
 	RATE_INFO_FLAGS_S1G_MCS			= BIT(8),
+	RATE_INFO_FLAGS_UHR_MCS			= BIT(9),
+	RATE_INFO_FLAGS_UHR_ELR_MCS		= BIT(10),
+	RATE_INFO_FLAGS_UHR_IM			= BIT(11),
 };
 
 /**
@@ -1924,7 +1974,7 @@ enum rate_info_flags {
  * @RATE_INFO_BW_160: 160 MHz bandwidth
  * @RATE_INFO_BW_HE_RU: bandwidth determined by HE RU allocation
  * @RATE_INFO_BW_320: 320 MHz bandwidth
- * @RATE_INFO_BW_EHT_RU: bandwidth determined by EHT RU allocation
+ * @RATE_INFO_BW_EHT_RU: bandwidth determined by EHT/UHR RU allocation
  * @RATE_INFO_BW_1: 1 MHz bandwidth
  * @RATE_INFO_BW_2: 2 MHz bandwidth
  * @RATE_INFO_BW_4: 4 MHz bandwidth
@@ -1955,7 +2005,7 @@ enum rate_info_bw {
  *
  * @flags: bitflag of flags from &enum rate_info_flags
  * @legacy: bitrate in 100kbit/s for 802.11abg
- * @mcs: mcs index if struct describes an HT/VHT/HE/EHT/S1G rate
+ * @mcs: mcs index if struct describes an HT/VHT/HE/EHT/S1G/UHR rate
  * @nss: number of streams (VHT & HE only)
  * @bw: bandwidth (from &enum rate_info_bw)
  * @he_gi: HE guard interval (from &enum nl80211_he_gi)
@@ -3262,6 +3312,7 @@ struct cfg80211_ml_reconf_req {
  *	Drivers shall disable MLO features for the current association if this
  *	flag is not set.
  * @ASSOC_REQ_SPP_AMSDU: SPP A-MSDUs will be used on this connection (if any)
+ * @ASSOC_REQ_DISABLE_UHR: Disable UHR
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
@@ -3272,6 +3323,7 @@ enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_EHT			= BIT(5),
 	CONNECT_REQ_MLO_SUPPORT			= BIT(6),
 	ASSOC_REQ_SPP_AMSDU			= BIT(7),
+	ASSOC_REQ_DISABLE_UHR			= BIT(8),
 };
 
 /**
