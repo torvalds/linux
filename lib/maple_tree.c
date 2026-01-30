@@ -2748,6 +2748,30 @@ static void mas_spanning_rebalance(struct ma_state *mas,
 	mas_spanning_rebalance_loop(mas, mast, count);
 }
 
+
+static noinline void mas_wr_spanning_rebalance(struct ma_state *mas,
+		struct maple_subtree_state *mast, unsigned char height,
+		struct ma_wr_state *l_wr_mas)
+{
+	struct maple_big_node b_node;
+
+	memset(&b_node, 0, sizeof(struct maple_big_node));
+	/* Copy l_mas and store the value in b_node. */
+	mas_store_b_node(l_wr_mas, &b_node, mast->orig_l->end);
+	/* Copy r_mas into b_node if there is anything to copy. */
+	if (mast->orig_r->max > mast->orig_r->last)
+		mas_mab_cp(mast->orig_r, mast->orig_r->offset,
+			   mast->orig_r->end, &b_node, b_node.b_end + 1);
+	else
+		b_node.b_end++;
+
+	/* Stop spanning searches by searching for just index. */
+	mast->orig_l->index = mast->orig_l->last = mas->index;
+
+	mast->bn = &b_node;
+	/* Combine l_mas and r_mas and split them up evenly again. */
+	return mas_spanning_rebalance(mas, mast, height);
+}
 /*
  * mas_rebalance() - Rebalance a given node.
  * @mas: The maple state
@@ -3400,10 +3424,9 @@ done:
  * span.
  * @wr_mas: The maple write state
  */
-static noinline void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
+static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
 	struct maple_subtree_state mast;
-	struct maple_big_node b_node;
 	struct ma_state *mas;
 	unsigned char height;
 
@@ -3467,24 +3490,9 @@ static noinline void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 		return mas_new_root(mas, wr_mas->entry);
 	}
 
-	memset(&b_node, 0, sizeof(struct maple_big_node));
-	/* Copy l_mas and store the value in b_node. */
-	mas_store_b_node(&l_wr_mas, &b_node, l_mas.end);
-	/* Copy r_mas into b_node if there is anything to copy. */
-	if (r_mas.max > r_mas.last)
-		mas_mab_cp(&r_mas, r_mas.offset, r_mas.end,
-			   &b_node, b_node.b_end + 1);
-	else
-		b_node.b_end++;
-
-	/* Stop spanning searches by searching for just index. */
-	l_mas.index = l_mas.last = mas->index;
-
-	mast.bn = &b_node;
 	mast.orig_l = &l_mas;
 	mast.orig_r = &r_mas;
-	/* Combine l_mas and r_mas and split them up evenly again. */
-	return mas_spanning_rebalance(mas, &mast, height + 1);
+	mas_wr_spanning_rebalance(mas, &mast, height + 1, &l_wr_mas);
 }
 
 /*
