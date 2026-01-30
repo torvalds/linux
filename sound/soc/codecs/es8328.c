@@ -771,11 +771,8 @@ static int es8328_suspend(struct snd_soc_component *component)
 
 static int es8328_resume(struct snd_soc_component *component)
 {
-	struct regmap *regmap = dev_get_regmap(component->dev, NULL);
-	struct es8328_priv *es8328;
+	struct es8328_priv *es8328 = snd_soc_component_get_drvdata(component);
 	int ret;
-
-	es8328 = snd_soc_component_get_drvdata(component);
 
 	ret = clk_prepare_enable(es8328->clk);
 	if (ret) {
@@ -790,8 +787,8 @@ static int es8328_resume(struct snd_soc_component *component)
 		return ret;
 	}
 
-	regcache_mark_dirty(regmap);
-	ret = regcache_sync(regmap);
+	regcache_mark_dirty(es8328->regmap);
+	ret = regcache_sync(es8328->regmap);
 	if (ret) {
 		dev_err(component->dev, "unable to sync regcache\n");
 		return ret;
