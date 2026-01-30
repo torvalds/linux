@@ -296,8 +296,8 @@ static int amd_i2c_dw_xfer_quirk(struct dw_i2c_dev *dev, struct i2c_msg *msgs, i
 	u8 *tx_buf;
 	unsigned int val;
 
-	ACQUIRE(pm_runtime_active_auto_try, pm)(dev->dev);
-	if (ACQUIRE_ERR(pm_runtime_active_auto_try, &pm))
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev->dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
 		return -ENXIO;
 
 	/*
@@ -846,11 +846,13 @@ i2c_dw_xfer_common(struct dw_i2c_dev *dev, struct i2c_msg msgs[], int num)
 
 	dev_dbg(dev->dev, "msgs: %d\n", num);
 
-	pm_runtime_get_sync(dev->dev);
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev->dev, pm);
+	if (PM_RUNTIME_ACQUIRE_ERR(&pm))
+		return -ENXIO;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
-		goto done_nolock;
+		return ret;
 
 	/*
 	 * If the I2C_M_STOP is present in some the messages,
@@ -866,13 +868,15 @@ i2c_dw_xfer_common(struct dw_i2c_dev *dev, struct i2c_msg msgs[], int num)
 		for (cnt = 1; ; cnt++) {
 			if (!i2c_dw_msg_is_valid(dev, msgs_part, cnt - 1)) {
 				ret = -EINVAL;
-				goto done;
+				break;
 			}
 
 			if ((msgs_part[cnt - 1].flags & I2C_M_STOP) ||
 			    (msgs_part + cnt == msgs + num))
 				break;
 		}
+		if (ret < 0)
+			break;
 
 		/* transfer one part up to a STOP */
 		ret = __i2c_dw_xfer_one_part(dev, msgs_part, cnt);
@@ -880,13 +884,9 @@ i2c_dw_xfer_common(struct dw_i2c_dev *dev, struct i2c_msg msgs[], int num)
 			break;
 	}
 
-done:
 	i2c_dw_set_mode(dev, DW_IC_SLAVE);
 
 	i2c_dw_release_lock(dev);
-
-done_nolock:
-	pm_runtime_put_autosuspend(dev->dev);
 
 	if (ret < 0)
 		return ret;
