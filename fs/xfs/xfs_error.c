@@ -114,18 +114,8 @@ int
 xfs_errortag_init(
 	struct xfs_mount	*mp)
 {
-	int ret;
-
-	mp->m_errortag = kzalloc(sizeof(unsigned int) * XFS_ERRTAG_MAX,
-				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
-	if (!mp->m_errortag)
-		return -ENOMEM;
-
-	ret = xfs_sysfs_init(&mp->m_errortag_kobj, &xfs_errortag_ktype,
+	return xfs_sysfs_init(&mp->m_errortag_kobj, &xfs_errortag_ktype,
 				&mp->m_kobj, "errortag");
-	if (ret)
-		kfree(mp->m_errortag);
-	return ret;
 }
 
 void
@@ -133,7 +123,6 @@ xfs_errortag_del(
 	struct xfs_mount	*mp)
 {
 	xfs_sysfs_del(&mp->m_errortag_kobj);
-	kfree(mp->m_errortag);
 }
 
 static bool
@@ -154,8 +143,6 @@ xfs_errortag_enabled(
 	struct xfs_mount	*mp,
 	unsigned int		tag)
 {
-	if (!mp->m_errortag)
-		return false;
 	if (!xfs_errortag_valid(tag))
 		return false;
 
@@ -170,17 +157,6 @@ xfs_errortag_test(
 	unsigned int		error_tag)
 {
 	unsigned int		randfactor;
-
-	/*
-	 * To be able to use error injection anywhere, we need to ensure error
-	 * injection mechanism is already initialized.
-	 *
-	 * Code paths like I/O completion can be called before the
-	 * initialization is complete, but be able to inject errors in such
-	 * places is still useful.
-	 */
-	if (!mp->m_errortag)
-		return false;
 
 	if (!xfs_errortag_valid(error_tag))
 		return false;

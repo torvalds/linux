@@ -40,6 +40,7 @@
 #include "xfs_defer.h"
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
+#include "xfs_errortag.h"
 #include "xfs_iunlink_item.h"
 #include "xfs_dahash_test.h"
 #include "xfs_rtbitmap.h"
@@ -824,6 +825,9 @@ xfs_mount_free(
 	debugfs_remove(mp->m_debugfs);
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
+#ifdef DEBUG
+	kfree(mp->m_errortag);
+#endif
 	kfree(mp);
 }
 
@@ -2266,6 +2270,14 @@ xfs_init_fs_context(
 	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
 	if (!mp)
 		return -ENOMEM;
+#ifdef DEBUG
+	mp->m_errortag = kcalloc(XFS_ERRTAG_MAX, sizeof(*mp->m_errortag),
+			GFP_KERNEL);
+	if (!mp->m_errortag) {
+		kfree(mp);
+		return -ENOMEM;
+	}
+#endif
 
 	spin_lock_init(&mp->m_sb_lock);
 	for (i = 0; i < XG_TYPE_MAX; i++)
