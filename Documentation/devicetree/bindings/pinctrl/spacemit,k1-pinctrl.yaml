@@ -80,7 +80,7 @@ patternProperties:
           drive-strength:
             description:
               typical current (in mA) when the output at high level.
-            oneOf:
+            anyOf:
               - enum: [ 11, 21, 32, 42 ]
                 description: For K1 SoC, 1.8V voltage output
 
