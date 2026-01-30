@@ -1901,26 +1901,6 @@ static inline void mas_topiary_replace(struct ma_state *mas,
 }
 
 /*
- * mas_wmb_replace() - Write memory barrier and replace
- * @mas: The maple state
- * @old_enode: The old maple encoded node that is being replaced.
- * @new_height: The new height of the tree as a result of the operation
- *
- * Updates gap as necessary.
- */
-static inline void mas_wmb_replace(struct ma_state *mas,
-		struct maple_enode *old_enode, unsigned char new_height)
-{
-	/* Insert the new data in the tree */
-	mas_topiary_replace(mas, old_enode, new_height);
-
-	if (mte_is_leaf(mas->node))
-		return;
-
-	mas_update_gap(mas);
-}
-
-/*
  * node_copy() - Copy from one node to another.
  *
  * @mas: The maple state
@@ -2085,6 +2065,28 @@ dead_node:
 	mas_reset(mas);
 	return NULL;
 }
+
+/*
+ * mas_wmb_replace() - Write memory barrier and replace
+ * @mas: The maple state
+ * @cp: The maple copy node
+ *
+ * Updates gap as necessary.
+ */
+static inline void mas_wmb_replace(struct ma_state *mas, struct maple_copy *cp)
+{
+	struct maple_enode *old_enode;
+
+	old_enode = mas->node;
+	mas->node = mt_slot_locked(mas->tree, cp->slot, 0);
+	/* Insert the new data in the tree */
+	mas_topiary_replace(mas, old_enode, cp->height);
+	if (!mte_is_leaf(mas->node))
+		mas_update_gap(mas);
+
+	mtree_range_walk(mas);
+}
+
 
 /*
  * cp_leaf_init() - Initialize a maple_copy node for the leaf level of a
@@ -3044,7 +3046,6 @@ done:
  */
 static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 {
-	struct maple_enode *old_enode;
 	struct maple_copy cp;
 	struct ma_state *mas;
 	struct ma_state sib;
@@ -3112,10 +3113,7 @@ static void mas_wr_spanning_store(struct ma_wr_state *wr_mas)
 		cp_data_write(&cp, mas);
 	} while (spanning_ascend(&cp, mas, wr_mas, &r_wr_mas, &sib));
 
-	old_enode = mas->node;
-	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
-	mas_wmb_replace(mas, old_enode, cp.height);
-	mtree_range_walk(mas);
+	mas_wmb_replace(mas, &cp);
 }
 
 /*
@@ -3433,7 +3431,6 @@ static inline void split_data(struct maple_copy *cp,
  */
 static void mas_wr_split(struct ma_wr_state *wr_mas)
 {
-	struct maple_enode *old_enode;
 	struct ma_state parent;
 	struct ma_state *mas;
 	struct maple_copy cp;
@@ -3454,10 +3451,7 @@ static void mas_wr_split(struct ma_wr_state *wr_mas)
 		cp_data_write(&cp, mas);
 	} while (split_ascend(&cp, wr_mas, &sib, &parent));
 
-	old_enode = mas->node;
-	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
-	mas_wmb_replace(mas, old_enode, cp.height);
-	mtree_range_walk(mas);
+	mas_wmb_replace(mas, &cp);
 }
 
 /*
@@ -3470,7 +3464,6 @@ static void mas_wr_split(struct ma_wr_state *wr_mas)
  */
 static void mas_wr_rebalance(struct ma_wr_state *wr_mas)
 {
-	struct maple_enode *old_enode;
 	struct ma_state parent;
 	struct ma_state *mas;
 	struct maple_copy cp;
@@ -3501,10 +3494,7 @@ static void mas_wr_rebalance(struct ma_wr_state *wr_mas)
 		cp_data_write(&cp, mas);
 	} while (rebalance_ascend(&cp, wr_mas, &sib, &parent));
 
-	old_enode = mas->node;
-	mas->node = mt_slot_locked(mas->tree, cp.slot, 0);
-	mas_wmb_replace(mas, old_enode, cp.height);
-	mtree_range_walk(mas);
+	mas_wmb_replace(mas, &cp);
 }
 
 /*
