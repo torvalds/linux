@@ -6079,7 +6079,10 @@ static struct pci_driver mpi3mr_pci_driver = {
 	.remove = mpi3mr_remove,
 	.shutdown = mpi3mr_shutdown,
 	.err_handler = &mpi3mr_err_handler,
-	.driver.pm = &mpi3mr_pm_ops,
+	.driver = {
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.pm = &mpi3mr_pm_ops,
+	},
 };
 
 static ssize_t event_counter_show(struct device_driver *dd, char *buf)
