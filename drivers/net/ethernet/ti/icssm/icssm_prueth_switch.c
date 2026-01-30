@@ -18,6 +18,17 @@
 #define FLAG_IS_STATIC	BIT(0)
 #define FLAG_ACTIVE	BIT(1)
 
+#define FDB_LEARN  1
+#define FDB_PURGE  2
+
+struct icssm_prueth_sw_fdb_work {
+	netdevice_tracker ndev_tracker;
+	struct work_struct work;
+	struct prueth_emac *emac;
+	u8 addr[ETH_ALEN];
+	int event;
+};
+
 void icssm_prueth_sw_free_fdb_table(struct prueth *prueth)
 {
 	if (prueth->emac_configured)
@@ -600,4 +611,70 @@ void icssm_prueth_sw_fdb_del(struct prueth_emac *emac,
 			     struct switchdev_notifier_fdb_info *fdb)
 {
 	icssm_prueth_sw_delete_fdb_entry(emac, fdb->addr, 1);
+}
+
+static void icssm_prueth_sw_fdb_work(struct work_struct *work)
+{
+	struct icssm_prueth_sw_fdb_work *fdb_work =
+		container_of(work, struct icssm_prueth_sw_fdb_work, work);
+	struct prueth_emac *emac = fdb_work->emac;
+
+	rtnl_lock();
+
+	/* Interface is not up */
+	if (!emac->prueth->fdb_tbl)
+		goto free;
+
+	switch (fdb_work->event) {
+	case FDB_LEARN:
+		icssm_prueth_sw_insert_fdb_entry(emac, fdb_work->addr, 0);
+		break;
+	case FDB_PURGE:
+		icssm_prueth_sw_do_purge_fdb(emac);
+		break;
+	default:
+		break;
+	}
+
+free:
+	rtnl_unlock();
+	netdev_put(emac->ndev, &fdb_work->ndev_tracker);
+	kfree(fdb_work);
+}
+
+int icssm_prueth_sw_learn_fdb(struct prueth_emac *emac, u8 *src_mac)
+{
+	struct icssm_prueth_sw_fdb_work *fdb_work;
+
+	fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
+	if (WARN_ON(!fdb_work))
+		return -ENOMEM;
+
+	INIT_WORK(&fdb_work->work, icssm_prueth_sw_fdb_work);
+
+	fdb_work->event = FDB_LEARN;
+	fdb_work->emac  = emac;
+	ether_addr_copy(fdb_work->addr, src_mac);
+
+	netdev_hold(emac->ndev, &fdb_work->ndev_tracker, GFP_ATOMIC);
+	queue_work(system_long_wq, &fdb_work->work);
+	return 0;
+}
+
+int icssm_prueth_sw_purge_fdb(struct prueth_emac *emac)
+{
+	struct icssm_prueth_sw_fdb_work *fdb_work;
+
+	fdb_work = kzalloc(sizeof(*fdb_work), GFP_ATOMIC);
+	if (WARN_ON(!fdb_work))
+		return -ENOMEM;
+
+	INIT_WORK(&fdb_work->work, icssm_prueth_sw_fdb_work);
+
+	fdb_work->event = FDB_PURGE;
+	fdb_work->emac  = emac;
+
+	netdev_hold(emac->ndev, &fdb_work->ndev_tracker, GFP_ATOMIC);
+	queue_work(system_long_wq, &fdb_work->work);
+	return 0;
 }

@@ -222,12 +222,14 @@ struct prueth_emac {
 	const char *phy_id;
 	u32 msg_enable;
 	u8 mac_addr[6];
+	unsigned char mc_filter_mask[ETH_ALEN]; /* for multicast filtering */
 	phy_interface_t phy_if;
 
 	/* spin lock used to protect
 	 * during link configuration
 	 */
 	spinlock_t lock;
+	spinlock_t addr_lock;   /* serialize access to VLAN/MC filter table */
 
 	struct hrtimer tx_hrtimer;
 	struct prueth_emac_stats stats;
@@ -249,7 +251,12 @@ struct prueth {
 	struct prueth_emac *emac[PRUETH_NUM_MACS];
 	struct net_device *registered_netdevs[PRUETH_NUM_MACS];
 
+	struct net_device *hw_bridge_dev;
 	struct fdb_tbl *fdb_tbl;
+
+	struct notifier_block prueth_netdevice_nb;
+	struct notifier_block prueth_switchdev_nb;
+	struct notifier_block prueth_switchdev_bl_nb;
 
 	unsigned int eth_type;
 	size_t ocmc_ram_size;
@@ -261,5 +268,7 @@ void icssm_parse_packet_info(struct prueth *prueth, u32 buffer_descriptor,
 int icssm_emac_rx_packet(struct prueth_emac *emac, u16 *bd_rd_ptr,
 			 struct prueth_packet_info *pkt_info,
 			 const struct prueth_queue_info *rxqueue);
-
+void icssm_emac_mc_filter_bin_allow(struct prueth_emac *emac, u8 hash);
+void icssm_emac_mc_filter_bin_disallow(struct prueth_emac *emac, u8 hash);
+u8 icssm_emac_get_mc_hash(u8 *mac, u8 *mask);
 #endif /* __NET_TI_PRUETH_H */
