@@ -218,17 +218,6 @@ void rtw_hal_add_ra_tid(struct adapter *padapter, u32 bitmap, u8 *arg, u8 rssi_l
 	rtl8723b_Add_RateATid(padapter, bitmap, arg, rssi_level);
 }
 
-/*Start specifical interface thread		*/
-void rtw_hal_start_thread(struct adapter *padapter)
-{
-	rtl8723b_start_thread(padapter);
-}
-/*Start specifical interface thread		*/
-void rtw_hal_stop_thread(struct adapter *padapter)
-{
-	rtl8723b_stop_thread(padapter);
-}
-
 u32 rtw_hal_read_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask)
 {
 	return PHY_QueryBBReg_8723B(padapter, RegAddr, BitMask);

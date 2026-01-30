@@ -6,6 +6,7 @@
  ******************************************************************************/
 #include <drv_types.h>
 #include <hal_data.h>
+#include <rtl8723b_xmit.h>
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
@@ -477,7 +478,13 @@ u32 rtw_start_drv_threads(struct adapter *padapter)
 	else
 		wait_for_completion(&padapter->cmdpriv.terminate_cmdthread_comp); /* wait for cmd_thread to run */
 
-	rtw_hal_start_thread(padapter);
+	padapter->xmitpriv.SdioXmitThread = kthread_run(rtl8723bs_xmit_thread,
+							padapter, "RTWHALXT");
+	if (IS_ERR(padapter->xmitpriv.SdioXmitThread)) {
+		padapter->xmitpriv.SdioXmitThread = NULL;
+		_status = _FAIL;
+	}
+
 	return _status;
 }
 
@@ -489,7 +496,12 @@ void rtw_stop_drv_threads(struct adapter *padapter)
 	complete(&padapter->xmitpriv.xmit_comp);
 	wait_for_completion(&padapter->xmitpriv.terminate_xmitthread_comp);
 
-	rtw_hal_stop_thread(padapter);
+	/* stop SdioXmitThread */
+	if (padapter->xmitpriv.SdioXmitThread) {
+		complete(&padapter->xmitpriv.SdioXmitStart);
+		wait_for_completion(&padapter->xmitpriv.SdioXmitTerminate);
+		padapter->xmitpriv.SdioXmitThread = NULL;
+	}
 }
 
 static void rtw_init_default_value(struct adapter *padapter)
