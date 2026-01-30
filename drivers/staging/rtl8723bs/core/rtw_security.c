@@ -5,6 +5,7 @@
  *
  ******************************************************************************/
 #include <linux/crc32.h>
+#include <linux/unaligned.h>
 #include <drv_types.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -128,29 +129,6 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 
 /* 3		=====TKIP related ===== */
 
-static u32 secmicgetuint32(u8 *p)
-/*  Convert from Byte[] to Us3232 in a portable way */
-{
-	s32 i;
-	u32 res = 0;
-
-	for (i = 0; i < 4; i++)
-		res |= ((u32)(*p++)) << (8 * i);
-
-	return res;
-}
-
-static void secmicputuint32(u8 *p, u32 val)
-/*  Convert from Us3232 to Byte[] in a portable way */
-{
-	long i;
-
-	for (i = 0; i < 4; i++) {
-		*p++ = (u8) (val & 0xff);
-		val >>= 8;
-	}
-}
-
 static void secmicclear(struct mic_data *pmicdata)
 {
 /*  Reset the state to the empty message. */
@@ -163,8 +141,8 @@ static void secmicclear(struct mic_data *pmicdata)
 void rtw_secmicsetkey(struct mic_data *pmicdata, u8 *key)
 {
 	/*  Set the key */
-	pmicdata->K0 = secmicgetuint32(key);
-	pmicdata->K1 = secmicgetuint32(key + 4);
+	pmicdata->K0 = get_unaligned_le32(key);
+	pmicdata->K1 = get_unaligned_le32(key + 4);
 	/*  and reset the message */
 	secmicclear(pmicdata);
 }
@@ -212,8 +190,8 @@ void rtw_secgetmic(struct mic_data *pmicdata, u8 *dst)
 	while (pmicdata->nBytesInM != 0)
 		rtw_secmicappendbyte(pmicdata, 0);
 	/*  The appendByte function has already computed the result. */
-	secmicputuint32(dst, pmicdata->L);
-	secmicputuint32(dst + 4, pmicdata->R);
+	put_unaligned_le32(pmicdata->L, dst);
+	put_unaligned_le32(pmicdata->R, dst + 4);
 	/*  Reset to the empty message. */
 	secmicclear(pmicdata);
 }
