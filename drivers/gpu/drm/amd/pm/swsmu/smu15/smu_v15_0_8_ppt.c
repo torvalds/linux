@@ -178,6 +178,7 @@ static size_t smu_v15_0_8_get_system_metrics_size(void)
 
 static int smu_v15_0_8_tables_init(struct smu_context *smu)
 {
+	struct smu_v15_0_8_baseboard_temp_metrics *baseboard_temp_metrics;
 	struct smu_v15_0_8_gpuboard_temp_metrics *gpuboard_temp_metrics;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	int ret, gpu_metrcs_size = sizeof(MetricsTable_t);
@@ -223,11 +224,23 @@ static int smu_v15_0_8_tables_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	/* Initialize base board temperature metrics */
+	ret = smu_driver_table_init(smu,
+				    SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS,
+				    sizeof(*baseboard_temp_metrics), 50);
+	if (ret)
+		return ret;
+	baseboard_temp_metrics = (struct smu_v15_0_8_baseboard_temp_metrics *)
+		smu_driver_table_ptr(smu,
+				     SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
+	smu_v15_0_8_baseboard_temp_metrics_init(baseboard_temp_metrics, 1, 1);
 	/* Initialize GPU board temperature metrics */
 	ret = smu_driver_table_init(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS,
 				    sizeof(*gpuboard_temp_metrics), 50);
 	if (ret) {
 		smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
+		smu_driver_table_fini(smu,
+				      SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
 		return ret;
 	}
 	gpuboard_temp_metrics = (struct smu_v15_0_8_gpuboard_temp_metrics *)
@@ -280,6 +293,7 @@ static int smu_v15_0_8_tables_fini(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
+	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
 	smu_driver_table_fini(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
 	smu_table_cache_fini(smu, SMU_TABLE_PMFW_SYSTEM_METRICS);
 	mutex_destroy(&smu_table->metrics_lock);
@@ -1353,11 +1367,71 @@ static bool smu_v15_0_8_is_temp_metrics_supported(struct smu_context *smu,
 						  enum smu_temp_metric_type type)
 {
 	switch (type) {
+	case SMU_TEMP_METRIC_BASEBOARD:
+		if (smu->adev->gmc.xgmi.physical_node_id == 0)
+			return true;
+		return false;
 	case SMU_TEMP_METRIC_GPUBOARD:
 		return true;
 	default:
 		return false;
 	}
+}
+
+static void smu_v15_0_8_fill_baseboard_temp_metrics(
+	struct smu_v15_0_8_baseboard_temp_metrics *baseboard_temp_metrics,
+	const SystemMetricsTable_t *metrics)
+{
+	baseboard_temp_metrics->accumulation_counter = metrics->AccumulationCounter;
+	baseboard_temp_metrics->label_version = metrics->LabelVersion;
+	baseboard_temp_metrics->node_id = metrics->NodeIdentifier;
+
+	baseboard_temp_metrics->system_temp_ubb_fpga =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_FPGA];
+	baseboard_temp_metrics->system_temp_ubb_front =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_FRONT];
+	baseboard_temp_metrics->system_temp_ubb_back =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_BACK];
+	baseboard_temp_metrics->system_temp_ubb_oam7 =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_OAM7];
+	baseboard_temp_metrics->system_temp_ubb_ibc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_IBC];
+	baseboard_temp_metrics->system_temp_ubb_ufpga =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_UFPGA];
+	baseboard_temp_metrics->system_temp_ubb_oam1 =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_OAM1];
+	baseboard_temp_metrics->system_temp_oam_0_1_hsc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_0_1_HSC];
+	baseboard_temp_metrics->system_temp_oam_2_3_hsc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_2_3_HSC];
+	baseboard_temp_metrics->system_temp_oam_4_5_hsc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_4_5_HSC];
+	baseboard_temp_metrics->system_temp_oam_6_7_hsc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_6_7_HSC];
+	baseboard_temp_metrics->system_temp_ubb_fpga_0v72_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_FPGA_0V72_VR];
+	baseboard_temp_metrics->system_temp_ubb_fpga_3v3_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_UBB_FPGA_3V3_VR];
+	baseboard_temp_metrics->system_temp_retimer_0_1_2_3_1v2_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_0_1_2_3_1V2_VR];
+	baseboard_temp_metrics->system_temp_retimer_4_5_6_7_1v2_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_4_5_6_7_1V2_VR];
+	baseboard_temp_metrics->system_temp_retimer_0_1_0v9_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_0_1_0V9_VR];
+	baseboard_temp_metrics->system_temp_retimer_4_5_0v9_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_4_5_0V9_VR];
+	baseboard_temp_metrics->system_temp_retimer_2_3_0v9_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_2_3_0V9_VR];
+	baseboard_temp_metrics->system_temp_retimer_6_7_0v9_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_RETIMER_6_7_0V9_VR];
+	baseboard_temp_metrics->system_temp_oam_0_1_2_3_3v3_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_0_1_2_3_3V3_VR];
+	baseboard_temp_metrics->system_temp_oam_4_5_6_7_3v3_vr =
+		metrics->SystemTemperatures[SYSTEM_TEMP_OAM_4_5_6_7_3V3_VR];
+	baseboard_temp_metrics->system_temp_ibc_hsc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_IBC_HSC];
+	baseboard_temp_metrics->system_temp_ibc =
+		metrics->SystemTemperatures[SYSTEM_TEMP_IBC];
 }
 
 static void smu_v15_0_8_fill_gpuboard_temp_metrics(
@@ -1429,20 +1503,13 @@ static ssize_t smu_v15_0_8_get_temp_metrics(struct smu_context *smu,
 					    enum smu_temp_metric_type type,
 					    void *table)
 {
+	struct smu_v15_0_8_baseboard_temp_metrics *baseboard_temp_metrics;
 	struct smu_v15_0_8_gpuboard_temp_metrics *gpuboard_temp_metrics;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	enum smu_driver_table_id table_id;
 	SystemMetricsTable_t *metrics;
 	struct smu_table *sys_table;
-	ssize_t size;
 	int ret;
-
-	table_id = SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS;
-	gpuboard_temp_metrics =
-		(struct smu_v15_0_8_gpuboard_temp_metrics *)
-		smu_driver_table_ptr(smu, table_id);
-	size = sizeof(*gpuboard_temp_metrics);
 
 	ret = smu_v15_0_8_get_system_metrics_table(smu);
 	if (ret)
@@ -1450,12 +1517,29 @@ static ssize_t smu_v15_0_8_get_temp_metrics(struct smu_context *smu,
 
 	sys_table = &tables[SMU_TABLE_PMFW_SYSTEM_METRICS];
 	metrics = (SystemMetricsTable_t *)sys_table->cache.buffer;
-	smu_driver_table_update_cache_time(smu, table_id);
 
-	smu_v15_0_8_fill_gpuboard_temp_metrics(gpuboard_temp_metrics,
-						      metrics);
-	memcpy(table, gpuboard_temp_metrics, size);
-	return size;
+	switch (type) {
+	case SMU_TEMP_METRIC_GPUBOARD:
+		gpuboard_temp_metrics =
+			(struct smu_v15_0_8_gpuboard_temp_metrics *)
+			smu_driver_table_ptr(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
+		smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_GPUBOARD_TEMP_METRICS);
+		smu_v15_0_8_fill_gpuboard_temp_metrics(gpuboard_temp_metrics,
+						       metrics);
+		memcpy(table, gpuboard_temp_metrics, sizeof(*gpuboard_temp_metrics));
+		return sizeof(*gpuboard_temp_metrics);
+	case SMU_TEMP_METRIC_BASEBOARD:
+		baseboard_temp_metrics =
+			(struct smu_v15_0_8_baseboard_temp_metrics *)
+			smu_driver_table_ptr(smu, SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
+		smu_driver_table_update_cache_time(smu, SMU_DRIVER_TABLE_BASEBOARD_TEMP_METRICS);
+		smu_v15_0_8_fill_baseboard_temp_metrics(baseboard_temp_metrics,
+							metrics);
+		memcpy(table, baseboard_temp_metrics, sizeof(*baseboard_temp_metrics));
+		return sizeof(*baseboard_temp_metrics);
+	default:
+		return -EINVAL;
+	}
 }
 
 static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table)

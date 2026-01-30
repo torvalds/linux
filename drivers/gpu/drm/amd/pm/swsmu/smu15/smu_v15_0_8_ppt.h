@@ -182,6 +182,7 @@ typedef struct {
 DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_gpu_metrics, SMU_15_0_8_METRICS_FIELDS);
 
 /* Maximum temperature sensor counts for system metrics */
+#define SMU_15_0_8_MAX_SYSTEM_TEMP_ENTRIES	32
 #define SMU_15_0_8_MAX_NODE_TEMP_ENTRIES	12
 #define SMU_15_0_8_MAX_VR_TEMP_ENTRIES		22
 
@@ -251,5 +252,62 @@ DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_gpu_metrics, SMU_15_0_8_METRICS_FIELDS);
 DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_gpuboard_temp_metrics,
 			  SMU_15_0_8_GPUBOARD_TEMP_METRICS_FIELDS);
 
+/* SMUv 15.0.8 Baseboard temperature metrics - ID-based approach */
+#define SMU_15_0_8_BASEBOARD_TEMP_METRICS_FIELDS(SMU_SCALAR, SMU_ARRAY)        \
+	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
+		   SMU_MTYPE(U64), accumulation_counter);                      \
+	SMU_SCALAR(SMU_MATTR(LABEL_VERSION), SMU_MUNIT(NONE),                  \
+		   SMU_MTYPE(U16), label_version);                             \
+	SMU_SCALAR(SMU_MATTR(NODE_ID), SMU_MUNIT(NONE),                        \
+		   SMU_MTYPE(U16), node_id);                                   \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_FPGA), SMU_MUNIT(TEMP_1),         \
+		   SMU_MTYPE(S16), system_temp_ubb_fpga);                      \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_FRONT), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), system_temp_ubb_front);                     \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_BACK), SMU_MUNIT(TEMP_1),         \
+		   SMU_MTYPE(S16), system_temp_ubb_back);                      \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_OAM7), SMU_MUNIT(TEMP_1),         \
+		   SMU_MTYPE(S16), system_temp_ubb_oam7);                      \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_IBC), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), system_temp_ubb_ibc);                       \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_UFPGA), SMU_MUNIT(TEMP_1),        \
+		   SMU_MTYPE(S16), system_temp_ubb_ufpga);                     \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_OAM1), SMU_MUNIT(TEMP_1),         \
+		   SMU_MTYPE(S16), system_temp_ubb_oam1);                      \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_0_1_HSC), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), system_temp_oam_0_1_hsc);                   \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_2_3_HSC), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), system_temp_oam_2_3_hsc);                   \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_4_5_HSC), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), system_temp_oam_4_5_hsc);                   \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_6_7_HSC), SMU_MUNIT(TEMP_1),      \
+		   SMU_MTYPE(S16), system_temp_oam_6_7_hsc);                   \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_FPGA_0V72_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_ubb_fpga_0v72_vr);              \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_UBB_FPGA_3V3_VR), SMU_MUNIT(TEMP_1),  \
+		   SMU_MTYPE(S16), system_temp_ubb_fpga_3v3_vr);               \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_0_1_2_3_1V2_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_0_1_2_3_1v2_vr);        \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_4_5_6_7_1V2_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_4_5_6_7_1v2_vr);        \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_0_1_0V9_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_0_1_0v9_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_4_5_0V9_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_4_5_0v9_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_2_3_0V9_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_2_3_0v9_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_RETIMER_6_7_0V9_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_retimer_6_7_0v9_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_0_1_2_3_3V3_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_oam_0_1_2_3_3v3_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_OAM_4_5_6_7_3V3_VR), SMU_MUNIT(TEMP_1), \
+		   SMU_MTYPE(S16), system_temp_oam_4_5_6_7_3v3_vr);            \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_IBC_HSC), SMU_MUNIT(TEMP_1),          \
+		   SMU_MTYPE(S16), system_temp_ibc_hsc);                       \
+	SMU_SCALAR(SMU_MATTR(SYSTEM_TEMP_IBC), SMU_MUNIT(TEMP_1),              \
+		   SMU_MTYPE(S16), system_temp_ibc);
+
+DECLARE_SMU_METRICS_CLASS(smu_v15_0_8_baseboard_temp_metrics,
+			  SMU_15_0_8_BASEBOARD_TEMP_METRICS_FIELDS);
 #endif
 #endif
