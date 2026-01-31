@@ -73,15 +73,10 @@ static void __init setup_pcimap(void)
 #endif
 }
 
-static int __init pcibios_init(void)
+void __init loongson2ef_pcibios_init(void)
 {
 	setup_pcimap();
 
 	loongson_pci_controller.io_map_base = mips_io_port_base;
 	register_pci_controller(&loongson_pci_controller);
-
-
-	return 0;
 }
-
-arch_initcall(pcibios_init);
