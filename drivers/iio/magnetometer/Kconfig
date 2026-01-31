@@ -141,9 +141,10 @@ config MMC35240
 
 config MMC5633
 	tristate "MEMSIC MMC5633 3-axis magnetic sensor"
-	select REGMAP_I2C if I2C
+	select REGMAP_I2C
 	select REGMAP_I3C if I3C
-	depends on I2C || I3C
+	depends on I2C
+	depends on I3C || !I3C
 	help
 	  Say yes here to build support for the MEMSIC MMC5633 3-axis
 	  magnetic sensor.
