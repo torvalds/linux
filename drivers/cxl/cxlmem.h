@@ -415,7 +415,7 @@ struct cxl_dpa_partition {
  * @dev: The device associated with this CXL state
  * @cxlmd: The device representing the CXL.mem capabilities of @dev
  * @reg_map: component and ras register mapping parameters
- * @regs: Parsed register blocks
+ * @regs: Class device "Device" registers
  * @cxl_dvsec: Offset to the PCIe device DVSEC
  * @rcd: operating in RCD mode (CXL 3.0 9.11.8 CXL Devices Attached to an RCH)
  * @media_ready: Indicate whether the device media is usable
@@ -431,7 +431,7 @@ struct cxl_dev_state {
 	struct device *dev;
 	struct cxl_memdev *cxlmd;
 	struct cxl_register_map reg_map;
-	struct cxl_regs regs;
+	struct cxl_device_regs regs;
 	int cxl_dvsec;
 	bool rcd;
 	bool media_ready;

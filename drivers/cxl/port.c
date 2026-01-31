@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2022 Intel Corporation. All rights reserved. */
+#include <linux/aer.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -68,6 +69,55 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	return 0;
 }
 
+static int cxl_ras_unmask(struct cxl_port *port)
+{
+	struct pci_dev *pdev;
+	void __iomem *addr;
+	u32 orig_val, val, mask;
+	u16 cap;
+	int rc;
+
+	if (!dev_is_pci(port->uport_dev))
+		return 0;
+	pdev = to_pci_dev(port->uport_dev);
+
+	if (!port->regs.ras) {
+		pci_dbg(pdev, "No RAS registers.\n");
+		return 0;
+	}
+
+	/* BIOS has PCIe AER error control */
+	if (!pcie_aer_is_native(pdev))
+		return 0;
+
+	rc = pcie_capability_read_word(pdev, PCI_EXP_DEVCTL, &cap);
+	if (rc)
+		return rc;
+
+	if (cap & PCI_EXP_DEVCTL_URRE) {
+		addr = port->regs.ras + CXL_RAS_UNCORRECTABLE_MASK_OFFSET;
+		orig_val = readl(addr);
+
+		mask = CXL_RAS_UNCORRECTABLE_MASK_MASK |
+		       CXL_RAS_UNCORRECTABLE_MASK_F256B_MASK;
+		val = orig_val & ~mask;
+		writel(val, addr);
+		pci_dbg(pdev, "Uncorrectable RAS Errors Mask: %#x -> %#x\n",
+			orig_val, val);
+	}
+
+	if (cap & PCI_EXP_DEVCTL_CERE) {
+		addr = port->regs.ras + CXL_RAS_CORRECTABLE_MASK_OFFSET;
+		orig_val = readl(addr);
+		val = orig_val & ~CXL_RAS_CORRECTABLE_MASK_MASK;
+		writel(val, addr);
+		pci_dbg(pdev, "Correctable RAS Errors Mask: %#x -> %#x\n",
+			orig_val, val);
+	}
+
+	return 0;
+}
+
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
@@ -97,6 +147,10 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	 */
 	if (dport->rch)
 		devm_cxl_dport_rch_ras_setup(dport);
+
+	devm_cxl_port_ras_setup(port);
+	if (cxl_ras_unmask(port))
+		dev_dbg(&port->dev, "failed to unmask RAS interrupts\n");
 
 	/*
 	 * Now that all endpoint decoders are successfully enumerated, try to
