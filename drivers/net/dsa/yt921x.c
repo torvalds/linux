@@ -1770,6 +1770,18 @@ yt921x_dsa_port_mdb_add(struct dsa_switch *ds, int port,
 }
 
 static int
+yt921x_vlan_aware_set(struct yt921x_priv *priv, int port, bool vlan_aware)
+{
+	u32 ctrl;
+
+	if (!vlan_aware)
+		ctrl = 0;
+	else
+		ctrl = YT921X_PORT_IGR_TPIDn_CTAG(0);
+	return yt921x_reg_write(priv, YT921X_PORTn_IGR_TPID(port), ctrl);
+}
+
+static int
 yt921x_port_set_pvid(struct yt921x_priv *priv, int port, u16 vid)
 {
 	u32 mask;
@@ -1818,14 +1830,7 @@ yt921x_vlan_filtering(struct yt921x_priv *priv, int port, bool vlan_filtering)
 	if (res)
 		return res;
 
-	/* Turn on / off VLAN awareness */
-	mask = YT921X_PORT_IGR_TPIDn_CTAG_M;
-	if (!vlan_filtering)
-		ctrl = 0;
-	else
-		ctrl = YT921X_PORT_IGR_TPIDn_CTAG(0);
-	res = yt921x_reg_update_bits(priv, YT921X_PORTn_IGR_TPID(port),
-				     mask, ctrl);
+	res = yt921x_vlan_aware_set(priv, port, vlan_filtering);
 	if (res)
 		return res;
 
@@ -2022,8 +2027,7 @@ static int yt921x_userport_standalone(struct yt921x_priv *priv, int port)
 		return res;
 
 	/* Turn off VLAN awareness */
-	mask = YT921X_PORT_IGR_TPIDn_CTAG_M;
-	res = yt921x_reg_clear_bits(priv, YT921X_PORTn_IGR_TPID(port), mask);
+	res = yt921x_vlan_aware_set(priv, port, false);
 	if (res)
 		return res;
 
