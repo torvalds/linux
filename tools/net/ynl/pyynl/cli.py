@@ -44,6 +44,10 @@ def color(text, modifiers):
         return f"{modifiers}{text}{Colors.RESET}"
     return text
 
+def term_width():
+    """ Get terminal width in columns (80 if stdout is not a terminal) """
+    return shutil.get_terminal_size().columns
+
 def schema_dir():
     """
     Return the effective schema directory, preferring in-tree before
@@ -103,8 +107,7 @@ def print_attr_list(ynl, attr_names, attr_set, indent=2):
 
             if attr.yaml.get('doc'):
                 doc_prefix = prefix + ' ' * 4
-                term_width = shutil.get_terminal_size().columns
-                doc_text = textwrap.fill(attr.yaml['doc'], width=term_width,
+                doc_text = textwrap.fill(attr.yaml['doc'], width=term_width(),
                                          initial_indent=doc_prefix,
                                          subsequent_indent=doc_prefix)
                 attr_info += f"\n{doc_text}"
@@ -264,7 +267,7 @@ def main():
         if args.output_json:
             print(json.dumps(msg, cls=YnlEncoder))
         else:
-            pprint.PrettyPrinter().pprint(msg)
+            pprint.pprint(msg, width=term_width(), compact=True)
 
     if args.list_families:
         for filename in sorted(os.listdir(spec_dir())):
