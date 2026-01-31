@@ -29,8 +29,16 @@ static void test_fsession_basic(void)
 	struct fsession_test *skel = NULL;
 	int err;
 
-	skel = fsession_test__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "fsession_test__open_and_load"))
+	skel = fsession_test__open();
+	if (!ASSERT_OK_PTR(skel, "fsession_test__open"))
+		return;
+
+	err = fsession_test__load(skel);
+	if (err == -EOPNOTSUPP) {
+		test__skip();
+		goto cleanup;
+	}
+	if (!ASSERT_OK(err, "fsession_test__load"))
 		goto cleanup;
 
 	err = fsession_test__attach(skel);
@@ -47,8 +55,16 @@ static void test_fsession_reattach(void)
 	struct fsession_test *skel = NULL;
 	int err;
 
-	skel = fsession_test__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "fsession_test__open_and_load"))
+	skel = fsession_test__open();
+	if (!ASSERT_OK_PTR(skel, "fsession_test__open"))
+		return;
+
+	err = fsession_test__load(skel);
+	if (err == -EOPNOTSUPP) {
+		test__skip();
+		goto cleanup;
+	}
+	if (!ASSERT_OK(err, "fsession_test__load"))
 		goto cleanup;
 
 	/* first attach */
@@ -94,6 +110,10 @@ static void test_fsession_cookie(void)
 	bpf_program__set_autoload(skel->progs.test6, false);
 
 	err = fsession_test__load(skel);
+	if (err == -EOPNOTSUPP) {
+		test__skip();
+		goto cleanup;
+	}
 	if (!ASSERT_OK(err, "fsession_test__load"))
 		goto cleanup;
 
@@ -111,10 +131,6 @@ cleanup:
 
 void test_fsession_test(void)
 {
-#if !defined(__x86_64__)
-	test__skip();
-	return;
-#endif
 	if (test__start_subtest("fsession_test"))
 		test_fsession_basic();
 	if (test__start_subtest("fsession_reattach"))
