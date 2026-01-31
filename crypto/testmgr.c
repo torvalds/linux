@@ -4124,6 +4124,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_null,
 		.fips_allowed = 1,
 	}, {
+		.alg = "authenc(hmac(sha224),cbc(aes))",
+		.generic_driver = "authenc(hmac-sha224-lib,cbc(aes-generic))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(hmac_sha224_aes_cbc_tv_temp)
+		}
+	}, {
 		.alg = "authenc(hmac(sha224),cbc(des))",
 		.generic_driver = "authenc(hmac-sha224-lib,cbc(des-generic))",
 		.test = alg_test_aead,
