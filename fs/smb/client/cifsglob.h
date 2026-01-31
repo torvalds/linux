@@ -1945,6 +1945,8 @@ require use of the stronger protocol */
  */
 
 /****************************************************************************
+ * LOCK ORDERING NOTES:
+ ****************************************************************************
  * Here are all the locks (spinlock, mutex, semaphore) in cifs.ko, arranged according
  * to the locking order. i.e. if two locks are to be held together, the lock that
  * appears higher in this list needs to be taken before the other.
@@ -1973,18 +1975,21 @@ require use of the stronger protocol */
  * =====================================================================================
  * Lock				Protects			Initialization fn
  * =====================================================================================
+ * cifs_mount_mutex		mount/unmount operations
  * vol_list_lock
  * vol_info->ctx_lock		vol_info->ctx
  * cifs_sb_info->tlink_tree_lock	cifs_sb_info->tlink_tree	cifs_setup_cifs_sb
  * TCP_Server_Info->		TCP_Server_Info			cifs_get_tcp_session
  * reconnect_mutex
- * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
  * cifs_ses->session_mutex	cifs_ses			sesInfoAlloc
+ * TCP_Server_Info->srv_mutex	TCP_Server_Info			cifs_get_tcp_session
+ * cifs_tcp_ses_lock		cifs_tcp_ses_list		sesInfoAlloc
  * cifs_tcon->open_file_lock	cifs_tcon->openFileList		tconInfoAlloc
  *				cifs_tcon->pending_opens
  * cifs_tcon->stat_lock		cifs_tcon->bytes_read		tconInfoAlloc
  *				cifs_tcon->bytes_written
- * cifs_tcp_ses_lock		cifs_tcp_ses_list		sesInfoAlloc
+ * cifs_tcon->fscache_lock	cifs_tcon->fscache		tconInfoAlloc
+ * cifs_tcon->sb_list_lock	cifs_tcon->cifs_sb_list		tconInfoAlloc
  * GlobalMid_Lock		GlobalMaxActiveXid		init_cifs
  *				GlobalCurrentXid
  *				GlobalTotalActiveXid
@@ -2007,6 +2012,8 @@ require use of the stronger protocol */
  *				->chans_in_reconnect
  * cifs_tcon->tc_lock		(anything that is not protected by another lock and can change)
  *								tcon_info_alloc
+ * cifs_swnreg_idr_mutex	cifs_swnreg_idr			cifs_swn.c
+ *				(witness service registration, accesses tcon fields under tc_lock)
  * inode->i_rwsem, taken by fs/netfs/locking.c e.g. should be taken before cifsInodeInfo locks
  * cifsInodeInfo->open_file_lock	cifsInodeInfo->openFileList	cifs_alloc_inode
  * cifsInodeInfo->writers_lock	cifsInodeInfo->writers		cifsInodeInfo_alloc
@@ -2014,12 +2021,12 @@ require use of the stronger protocol */
  *				->can_cache_brlcks
  * cifsInodeInfo->deferred_lock	cifsInodeInfo->deferred_closes	cifsInodeInfo_alloc
  * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	init_cached_dirs
- * cached_fid->fid_lock		(anything that is not protected by another lock and can change)
- *								init_cached_dir
+ * cached_fid->dirents.de_mutex	cached_fid->dirents		alloc_cached_dir
  * cifsFileInfo->fh_mutex	cifsFileInfo			cifs_new_fileinfo
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
  *				->oplock_break_cancelled
+ * smbdirect_mr->mutex		RDMA memory region management	(SMBDirect only)
  * mid_q_entry->mid_lock	mid_q_entry->callback           alloc_mid
  *								smb2_mid_entry_alloc
  *				(Any fields of mid_q_entry that will need protection)
