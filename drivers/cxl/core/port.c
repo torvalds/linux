@@ -1118,6 +1118,57 @@ static void cxl_dport_unlink(void *data)
 	sysfs_remove_link(&port->dev.kobj, link_name);
 }
 
+static struct device *dport_to_host(struct cxl_dport *dport)
+{
+	struct cxl_port *port = dport->port;
+
+	if (is_cxl_root(port))
+		return port->uport_dev;
+	return &port->dev;
+}
+
+static void free_dport(void *dport)
+{
+	kfree(dport);
+}
+
+/*
+ * Upon return either a group is established with one action (free_dport()), or
+ * no group established and @dport is freed.
+ */
+static void *cxl_dport_open_dr_group_or_free(struct cxl_dport *dport)
+{
+	int rc;
+	struct device *host = dport_to_host(dport);
+	void *group = devres_open_group(host, dport, GFP_KERNEL);
+
+	if (!group) {
+		kfree(dport);
+		return NULL;
+	}
+
+	rc = devm_add_action_or_reset(host, free_dport, dport);
+	if (rc) {
+		devres_release_group(host, group);
+		return NULL;
+	}
+
+	return group;
+}
+
+static void cxl_dport_close_dr_group(struct cxl_dport *dport, void *group)
+{
+	devres_close_group(dport_to_host(dport), group);
+}
+
+static void del_dport(struct cxl_dport *dport)
+{
+	devres_release_group(dport_to_host(dport), dport);
+}
+
+/* The dport group id is the dport */
+DEFINE_FREE(cxl_dport_release_dr_group, void *, if (_T) del_dport(_T))
+
 static struct cxl_dport *
 __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		     int port_id, resource_size_t component_reg_phys,
@@ -1143,13 +1194,19 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 	    CXL_TARGET_STRLEN)
 		return ERR_PTR(-EINVAL);
 
-	dport = devm_kzalloc(host, sizeof(*dport), GFP_KERNEL);
+	dport = kzalloc(sizeof(*dport), GFP_KERNEL);
 	if (!dport)
 		return ERR_PTR(-ENOMEM);
 
+	/* Just enough init to manage the devres group */
 	dport->dport_dev = dport_dev;
 	dport->port_id = port_id;
 	dport->port = port;
+
+	void *dport_dr_group __free(cxl_dport_release_dr_group) =
+		cxl_dport_open_dr_group_or_free(dport);
+	if (!dport_dr_group)
+		return ERR_PTR(-ENOMEM);
 
 	if (rcrb == CXL_RESOURCE_NONE) {
 		rc = cxl_dport_setup_regs(&port->dev, dport,
@@ -1202,6 +1259,9 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dport->link_latency = cxl_pci_get_latency(to_pci_dev(dport_dev));
 
 	cxl_debugfs_create_dport_dir(dport);
+
+	/* keep the group, and mark the end of devm actions */
+	cxl_dport_close_dr_group(dport, no_free_ptr(dport_dr_group));
 
 	return dport;
 }
@@ -1427,15 +1487,6 @@ static void delete_switch_port(struct cxl_port *port)
 	devm_release_action(port->dev.parent, cxl_unlink_parent_dport, port);
 	devm_release_action(port->dev.parent, cxl_unlink_uport, port);
 	devm_release_action(port->dev.parent, unregister_port, port);
-}
-
-static void del_dport(struct cxl_dport *dport)
-{
-	struct cxl_port *port = dport->port;
-
-	devm_release_action(&port->dev, cxl_dport_unlink, dport);
-	devm_release_action(&port->dev, cxl_dport_remove, dport);
-	devm_kfree(&port->dev, dport);
 }
 
 static void del_dports(struct cxl_port *port)
