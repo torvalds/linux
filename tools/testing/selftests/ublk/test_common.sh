@@ -164,7 +164,12 @@ _check_add_dev()
 }
 
 _cleanup_test() {
-	"${UBLK_PROG}" del -a
+	if [ -f "${UBLK_TEST_DIR}/.ublk_devs" ]; then
+		while read -r dev_id; do
+			${UBLK_PROG} del -n "${dev_id}"
+		done < "${UBLK_TEST_DIR}/.ublk_devs"
+		rm -f "${UBLK_TEST_DIR}/.ublk_devs"
+	fi
 
 	_remove_files
 	rmdir ${UBLK_TEST_DIR}
@@ -205,6 +210,7 @@ _create_ublk_dev() {
 	fi
 
 	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
+		echo "$dev_id" >> "${UBLK_TEST_DIR}/.ublk_devs"
 		echo "${dev_id}"
 	else
 		return 255
@@ -276,6 +282,11 @@ _ublk_del_dev() {
 	local dev_id=$1
 
 	${UBLK_PROG} del -n "${dev_id}"
+
+	# Remove from tracking file
+	if [ -f "${UBLK_TEST_DIR}/.ublk_devs" ]; then
+		sed -i "/^${dev_id}$/d" "${UBLK_TEST_DIR}/.ublk_devs"
+	fi
 }
 
 __remove_ublk_dev_return() {
