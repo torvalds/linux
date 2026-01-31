@@ -142,10 +142,14 @@ void fbnic_up(struct fbnic_net *fbn)
 	netif_tx_start_all_queues(fbn->netdev);
 
 	fbnic_service_task_start(fbn);
+
+	fbnic_dbg_up(fbn);
 }
 
 void fbnic_down_noidle(struct fbnic_net *fbn)
 {
+	fbnic_dbg_down(fbn);
+
 	fbnic_service_task_stop(fbn);
 
 	/* Disable Tx/Rx Processing */
