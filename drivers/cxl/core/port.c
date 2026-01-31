@@ -1651,10 +1651,14 @@ static bool dport_exists(struct cxl_port *port, struct device *dport_dev)
 	return false;
 }
 
-DEFINE_FREE(del_cxl_dport, struct cxl_dport *, if (!IS_ERR_OR_NULL(_T)) del_dport(_T))
+/* note this implicitly casts the group back to its @port */
+DEFINE_FREE(cxl_port_release_dr_group, struct cxl_port *,
+	    if (_T) devres_release_group(&_T->dev, _T))
+
 static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 					    struct device *dport_dev)
 {
+	struct cxl_dport *dport;
 	int rc;
 
 	device_lock_assert(&port->dev);
@@ -1664,14 +1668,13 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 	if (dport_exists(port, dport_dev))
 		return ERR_PTR(-EBUSY);
 
-	struct cxl_dport *dport __free(del_cxl_dport) =
-		devm_cxl_add_dport_by_dev(port, dport_dev);
-	if (IS_ERR(dport))
-		return dport;
+	/* Temp group for all "first dport" and "per dport" setup actions */
+	void *port_dr_group __free(cxl_port_release_dr_group) =
+		devres_open_group(&port->dev, port, GFP_KERNEL);
+	if (!port_dr_group)
+		return ERR_PTR(-ENOMEM);
 
-	cxl_switch_parse_cdat(dport);
-
-	if (port->nr_dports == 1) {
+	if (port->nr_dports == 0) {
 		/*
 		 * Some host bridges are known to not have component regsisters
 		 * available until a root port has trained CXL. Perform that
@@ -1684,10 +1687,16 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 		rc = devm_cxl_switch_port_decoders_setup(port);
 		if (rc)
 			return ERR_PTR(rc);
-		dev_dbg(&port->dev, "first dport%d:%s added with decoders\n",
-			dport->port_id, dev_name(dport_dev));
-		return no_free_ptr(dport);
 	}
+
+	dport = devm_cxl_add_dport_by_dev(port, dport_dev);
+	if (IS_ERR(dport))
+		return dport;
+
+	/* This group was only needed for early exit above */
+	devres_remove_group(&port->dev, no_free_ptr(port_dr_group));
+
+	cxl_switch_parse_cdat(dport);
 
 	/* New dport added, update the decoder targets */
 	device_for_each_child(&port->dev, dport, update_decoder_targets);
@@ -1695,7 +1704,7 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 	dev_dbg(&port->dev, "dport%d:%s added\n", dport->port_id,
 		dev_name(dport_dev));
 
-	return no_free_ptr(dport);
+	return dport;
 }
 
 static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
