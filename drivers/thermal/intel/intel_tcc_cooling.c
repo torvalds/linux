@@ -76,10 +76,8 @@ MODULE_DEVICE_TABLE(x86cpu, tcc_ids);
 
 static int __init tcc_cooling_init(void)
 {
-	int ret;
 	u64 val;
 	const struct x86_cpu_id *id;
-
 	int err;
 
 	id = x86_match_cpu(tcc_ids);
@@ -107,10 +105,9 @@ static int __init tcc_cooling_init(void)
 	tcc_cdev =
 	    thermal_cooling_device_register("TCC Offset", NULL,
 					    &tcc_cooling_ops);
-	if (IS_ERR(tcc_cdev)) {
-		ret = PTR_ERR(tcc_cdev);
-		return ret;
-	}
+	if (IS_ERR(tcc_cdev))
+		return PTR_ERR(tcc_cdev);
+
 	return 0;
 }
 
