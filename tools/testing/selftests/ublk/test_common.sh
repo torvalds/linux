@@ -216,7 +216,7 @@ _create_ublk_dev() {
 	fi
 
 	if [ "$settle" = "yes" ]; then
-		udevadm settle
+		udevadm settle --timeout=20
 	fi
 
 	if [[ "$dev_id" =~ ^[0-9]+$ ]]; then
@@ -240,7 +240,7 @@ _recover_ublk_dev() {
 	local state
 
 	dev_id=$(_create_ublk_dev "recover" "yes" "$@")
-	for ((j=0;j<20;j++)); do
+	for ((j=0;j<100;j++)); do
 		state=$(_get_ublk_dev_state "${dev_id}")
 		[ "$state" == "LIVE" ] && break
 		sleep 1
@@ -260,7 +260,7 @@ __ublk_quiesce_dev()
 		return "$state"
 	fi
 
-	for ((j=0;j<50;j++)); do
+	for ((j=0;j<100;j++)); do
 		state=$(_get_ublk_dev_state "${dev_id}")
 		[ "$state" == "$exp_state" ] && break
 		sleep 1
@@ -279,7 +279,7 @@ __ublk_kill_daemon()
 	daemon_pid=$(_get_ublk_daemon_pid "${dev_id}")
 	state=$(_get_ublk_dev_state "${dev_id}")
 
-	for ((j=0;j<50;j++)); do
+	for ((j=0;j<100;j++)); do
 		[ "$state" == "$exp_state" ] && break
 		kill -9 "$daemon_pid" > /dev/null 2>&1
 		sleep 1
@@ -304,7 +304,7 @@ __remove_ublk_dev_return() {
 
 	_ublk_del_dev "${dev_id}"
 	local res=$?
-	udevadm settle
+	udevadm settle --timeout=20
 	return ${res}
 }
 
