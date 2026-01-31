@@ -71,6 +71,7 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+	struct cxl_dport *dport = port->parent_dport;
 	int rc;
 
 	/* Cache the data early to ensure is_visible() works */
@@ -85,6 +86,17 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	rc = devm_cxl_endpoint_decoders_setup(port);
 	if (rc)
 		return rc;
+
+	/*
+	 * With VH (CXL Virtual Host) topology the cxl_port::add_dport() method
+	 * handles RAS setup for downstream ports. With RCH (CXL Restricted CXL
+	 * Host) topologies the downstream port is enumerated early by platform
+	 * firmware, but the RCRB (root complex register block) is not mapped
+	 * until after the cxl_pci driver attaches to the RCIeP (root complex
+	 * integrated endpoint).
+	 */
+	if (dport->rch)
+		devm_cxl_dport_rch_ras_setup(dport);
 
 	/*
 	 * Now that all endpoint decoders are successfully enumerated, try to

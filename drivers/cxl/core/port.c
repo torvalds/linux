@@ -1119,15 +1119,6 @@ static void cxl_dport_unlink(void *data)
 	sysfs_remove_link(&port->dev.kobj, link_name);
 }
 
-static struct device *dport_to_host(struct cxl_dport *dport)
-{
-	struct cxl_port *port = dport->port;
-
-	if (is_cxl_root(port))
-		return port->uport_dev;
-	return &port->dev;
-}
-
 static void free_dport(void *dport)
 {
 	kfree(dport);
@@ -1260,6 +1251,9 @@ __devm_cxl_add_dport(struct cxl_port *port, struct device *dport_dev,
 		dport->link_latency = cxl_pci_get_latency(to_pci_dev(dport_dev));
 
 	cxl_debugfs_create_dport_dir(dport);
+
+	if (!dport->rch)
+		devm_cxl_dport_ras_setup(dport);
 
 	/* keep the group, and mark the end of devm actions */
 	cxl_dport_close_dr_group(dport, no_free_ptr(dport_dr_group));
