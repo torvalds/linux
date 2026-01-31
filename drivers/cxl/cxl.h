@@ -840,8 +840,11 @@ struct cxl_endpoint_dvsec_info {
 };
 
 int devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
-int __devm_cxl_switch_port_decoders_setup(struct cxl_port *port);
 int devm_cxl_endpoint_decoders_setup(struct cxl_port *port);
+void cxl_port_update_decoder_targets(struct cxl_port *port,
+				     struct cxl_dport *dport);
+int cxl_port_setup_regs(struct cxl_port *port,
+			resource_size_t component_reg_phys);
 
 struct cxl_dev_state;
 int cxl_dvsec_rr_decode(struct cxl_dev_state *cxlds,
@@ -851,10 +854,18 @@ bool is_cxl_region(struct device *dev);
 
 extern const struct bus_type cxl_bus_type;
 
+/*
+ * Note, add_dport() is expressly for the cxl_port driver. TODO: investigate a
+ * type-safe driver model where probe()/remove() take the type of object implied
+ * by @id and the add_dport() op only defined for the CXL_DEVICE_PORT driver
+ * template.
+ */
 struct cxl_driver {
 	const char *name;
 	int (*probe)(struct device *dev);
 	void (*remove)(struct device *dev);
+	struct cxl_dport *(*add_dport)(struct cxl_port *port,
+				       struct device *dport_dev);
 	struct device_driver drv;
 	int id;
 };
@@ -939,8 +950,6 @@ void cxl_coordinates_combine(struct access_coordinate *out,
 bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port);
 struct cxl_dport *devm_cxl_add_dport_by_dev(struct cxl_port *port,
 					    struct device *dport_dev);
-struct cxl_dport *__devm_cxl_add_dport_by_dev(struct cxl_port *port,
-					      struct device *dport_dev);
 
 /*
  * Unit test builds overrides this to __weak, find the 'strong' version
@@ -951,21 +960,5 @@ struct cxl_dport *__devm_cxl_add_dport_by_dev(struct cxl_port *port,
 #endif
 
 u16 cxl_gpf_get_dvsec(struct device *dev);
-
-/*
- * Declaration for functions that are mocked by cxl_test that are called by
- * cxl_core. The respective functions are defined as __foo() and called by
- * cxl_core as foo(). The macros below ensures that those functions would
- * exist as foo(). See tools/testing/cxl/cxl_core_exports.c and
- * tools/testing/cxl/exports.h for setting up the mock functions. The dance
- * is done to avoid a circular dependency where cxl_core calls a function that
- * ends up being a mock function and goes to * cxl_test where it calls a
- * cxl_core function.
- */
-#ifndef CXL_TEST_ENABLE
-#define DECLARE_TESTABLE(x) __##x
-#define devm_cxl_add_dport_by_dev DECLARE_TESTABLE(devm_cxl_add_dport_by_dev)
-#define devm_cxl_switch_port_decoders_setup DECLARE_TESTABLE(devm_cxl_switch_port_decoders_setup)
-#endif
 
 #endif /* __CXL_H__ */

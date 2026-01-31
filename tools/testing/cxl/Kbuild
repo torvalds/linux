@@ -10,6 +10,8 @@ ldflags-y += --wrap=cxl_endpoint_parse_cdat
 ldflags-y += --wrap=cxl_dport_init_ras_reporting
 ldflags-y += --wrap=devm_cxl_endpoint_decoders_setup
 ldflags-y += --wrap=hmat_get_extended_linear_cache_size
+ldflags-y += --wrap=devm_cxl_add_dport_by_dev
+ldflags-y += --wrap=devm_cxl_switch_port_decoders_setup
 
 DRIVERS := ../../../drivers
 CXL_SRC := $(DRIVERS)/cxl

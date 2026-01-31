@@ -778,7 +778,7 @@ static int cxl_setup_comp_regs(struct device *host, struct cxl_register_map *map
 	return cxl_setup_regs(map);
 }
 
-static int cxl_port_setup_regs(struct cxl_port *port,
+int cxl_port_setup_regs(struct cxl_port *port,
 			resource_size_t component_reg_phys)
 {
 	if (dev_is_platform(port->uport_dev))
@@ -786,6 +786,7 @@ static int cxl_port_setup_regs(struct cxl_port *port,
 	return cxl_setup_comp_regs(&port->dev, &port->reg_map,
 				   component_reg_phys);
 }
+EXPORT_SYMBOL_NS_GPL(cxl_port_setup_regs, "CXL");
 
 static int cxl_dport_setup_regs(struct device *host, struct cxl_dport *dport,
 				resource_size_t component_reg_phys)
@@ -1638,6 +1639,13 @@ static int update_decoder_targets(struct device *dev, void *data)
 	return 0;
 }
 
+void cxl_port_update_decoder_targets(struct cxl_port *port,
+				     struct cxl_dport *dport)
+{
+	device_for_each_child(&port->dev, dport, update_decoder_targets);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_port_update_decoder_targets, "CXL");
+
 static bool dport_exists(struct cxl_port *port, struct device *dport_dev)
 {
 	struct cxl_dport *dport = cxl_find_dport_by_dev(port, dport_dev);
@@ -1651,15 +1659,10 @@ static bool dport_exists(struct cxl_port *port, struct device *dport_dev)
 	return false;
 }
 
-/* note this implicitly casts the group back to its @port */
-DEFINE_FREE(cxl_port_release_dr_group, struct cxl_port *,
-	    if (_T) devres_release_group(&_T->dev, _T))
-
-static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
-					    struct device *dport_dev)
+static struct cxl_dport *probe_dport(struct cxl_port *port,
+				     struct device *dport_dev)
 {
-	struct cxl_dport *dport;
-	int rc;
+	struct cxl_driver *drv;
 
 	device_lock_assert(&port->dev);
 	if (!port->dev.driver)
@@ -1668,43 +1671,12 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 	if (dport_exists(port, dport_dev))
 		return ERR_PTR(-EBUSY);
 
-	/* Temp group for all "first dport" and "per dport" setup actions */
-	void *port_dr_group __free(cxl_port_release_dr_group) =
-		devres_open_group(&port->dev, port, GFP_KERNEL);
-	if (!port_dr_group)
-		return ERR_PTR(-ENOMEM);
+	drv = container_of(port->dev.driver, struct cxl_driver, drv);
+	if (!drv->add_dport)
+		return ERR_PTR(-ENXIO);
 
-	if (port->nr_dports == 0) {
-		/*
-		 * Some host bridges are known to not have component regsisters
-		 * available until a root port has trained CXL. Perform that
-		 * setup now.
-		 */
-		rc = cxl_port_setup_regs(port, port->component_reg_phys);
-		if (rc)
-			return ERR_PTR(rc);
-
-		rc = devm_cxl_switch_port_decoders_setup(port);
-		if (rc)
-			return ERR_PTR(rc);
-	}
-
-	dport = devm_cxl_add_dport_by_dev(port, dport_dev);
-	if (IS_ERR(dport))
-		return dport;
-
-	/* This group was only needed for early exit above */
-	devres_remove_group(&port->dev, no_free_ptr(port_dr_group));
-
-	cxl_switch_parse_cdat(dport);
-
-	/* New dport added, update the decoder targets */
-	device_for_each_child(&port->dev, dport, update_decoder_targets);
-
-	dev_dbg(&port->dev, "dport%d:%s added\n", dport->port_id,
-		dev_name(dport_dev));
-
-	return dport;
+	/* see cxl_port_add_dport() */
+	return drv->add_dport(port, dport_dev);
 }
 
 static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
@@ -1751,7 +1723,7 @@ static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
 	}
 
 	guard(device)(&port->dev);
-	return cxl_port_add_dport(port, dport_dev);
+	return probe_dport(port, dport_dev);
 }
 
 static int add_port_attach_ep(struct cxl_memdev *cxlmd,
@@ -1783,7 +1755,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 	scoped_guard(device, &parent_port->dev) {
 		parent_dport = cxl_find_dport_by_dev(parent_port, dparent);
 		if (!parent_dport) {
-			parent_dport = cxl_port_add_dport(parent_port, dparent);
+			parent_dport = probe_dport(parent_port, dparent);
 			if (IS_ERR(parent_dport))
 				return PTR_ERR(parent_dport);
 		}
@@ -1819,7 +1791,7 @@ static struct cxl_dport *find_or_add_dport(struct cxl_port *port,
 	device_lock_assert(&port->dev);
 	dport = cxl_find_dport_by_dev(port, dport_dev);
 	if (!dport) {
-		dport = cxl_port_add_dport(port, dport_dev);
+		dport = probe_dport(port, dport_dev);
 		if (IS_ERR(dport))
 			return dport;
 
