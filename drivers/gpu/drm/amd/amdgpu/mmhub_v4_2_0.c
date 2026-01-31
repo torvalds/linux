@@ -191,10 +191,10 @@ static void mmhub_v4_2_0_mid_init_gart_aperture_regs(struct amdgpu_device *adev,
 
 			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_LO32,
-				     (u32)(adev->gmc.fb_end >> 12));
+				     (u32)(adev->gmc.gart_end >> 12));
 			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
 				     regMMVM_CONTEXT0_PAGE_TABLE_END_ADDR_HI32,
-				     (u32)(adev->gmc.fb_end >> 44));
+				     (u32)(adev->gmc.gart_end >> 44));
 		} else {
 			WREG32_SOC15(MMHUB, GET_INST(MMHUB, i),
 				     regMMVM_CONTEXT0_PAGE_TABLE_START_ADDR_LO32,
