@@ -69,7 +69,9 @@ yt921x_tag_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tag[0] = htons(ETH_P_YT921X);
 	/* VLAN tag unrelated when TX */
 	tag[1] = 0;
-	tag[2] = 0;
+	ctrl = YT921X_TAG_CODE(YT921X_TAG_CODE_FORWARD) | YT921X_TAG_CODE_EN |
+	       YT921X_TAG_PRIO(skb->priority);
+	tag[2] = htons(ctrl);
 	ctrl = YT921X_TAG_TX_PORTS(dsa_xmit_port_mask(skb, netdev)) |
 	       YT921X_TAG_PORT_EN;
 	tag[3] = htons(ctrl);
@@ -111,6 +113,8 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 				     "Couldn't decode source port %u\n", port);
 		return NULL;
 	}
+
+	skb->priority = FIELD_GET(YT921X_TAG_PRIO_M, rx);
 
 	if (!(rx & YT921X_TAG_CODE_EN)) {
 		dev_warn_ratelimited(&netdev->dev,
