@@ -29,7 +29,6 @@ struct mdio_device {
 	struct device dev;
 
 	struct mii_bus *bus;
-	char modalias[MDIO_NAME_SIZE];
 
 	int (*bus_match)(struct device *dev, const struct device_driver *drv);
 	void (*device_free)(struct mdio_device *mdiodev);
