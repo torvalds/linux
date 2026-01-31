@@ -124,8 +124,7 @@ _prep_test() {
 	local type=$1
 	shift 1
 	modprobe ublk_drv > /dev/null 2>&1
-	TDIR=$(mktemp -d ${TMPDIR:-.}/ublktest-dir.XXXXXX)
-	export UBLK_TEST_DIR=${TDIR}
+	UBLK_TEST_DIR=$(mktemp -d ${TMPDIR:-.}/ublktest-dir.XXXXXX)
 	UBLK_TMP=$(mktemp ${UBLK_TEST_DIR}/ublk_test_XXXXX)
 	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "ublk $type: $*"
 	echo "ublk selftest: $TID starting at $(date '+%F %T')" | tee /dev/kmsg
@@ -408,8 +407,6 @@ UBLK_PROG=$(_ublk_test_top_dir)/kublk
 UBLK_TEST_QUIET=1
 UBLK_TEST_SHOW_RESULT=1
 UBLK_BACKFILES=()
-UBLK_TEST_DIR=${TMPDIR:-.}
 export UBLK_PROG
 export UBLK_TEST_QUIET
 export UBLK_TEST_SHOW_RESULT
-export UBLK_TEST_DIR
