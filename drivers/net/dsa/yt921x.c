@@ -2902,7 +2902,7 @@ static int yt921x_chip_reset(struct yt921x_priv *priv)
 	return 0;
 }
 
-static int yt921x_chip_setup(struct yt921x_priv *priv)
+static int yt921x_chip_setup_dsa(struct yt921x_priv *priv)
 {
 	struct dsa_switch *ds = &priv->ds;
 	unsigned long cpu_ports_mask;
@@ -2917,16 +2917,6 @@ static int yt921x_chip_setup(struct yt921x_priv *priv)
 	ctrl = YT921X_EXT_CPU_PORT_TAG_EN | YT921X_EXT_CPU_PORT_PORT_EN |
 	       YT921X_EXT_CPU_PORT_PORT(__ffs(priv->cpu_ports_mask));
 	res = yt921x_reg_write(priv, YT921X_EXT_CPU_PORT, ctrl);
-	if (res)
-		return res;
-
-	/* Enable and clear MIB */
-	res = yt921x_reg_set_bits(priv, YT921X_FUNC, YT921X_FUNC_MIB);
-	if (res)
-		return res;
-
-	ctrl = YT921X_MIB_CTRL_CLEAN | YT921X_MIB_CTRL_ALL_PORT;
-	res = yt921x_reg_write(priv, YT921X_MIB_CTRL, ctrl);
 	if (res)
 		return res;
 
@@ -2979,6 +2969,29 @@ static int yt921x_chip_setup(struct yt921x_priv *priv)
 	 */
 	ctrl64 = YT921X_VLAN_CTRL_LEARN_DIS | YT921X_VLAN_CTRL_PORTS_M;
 	res = yt921x_reg64_write(priv, YT921X_VLANn_CTRL(0), ctrl64);
+	if (res)
+		return res;
+
+	return 0;
+}
+
+static int yt921x_chip_setup(struct yt921x_priv *priv)
+{
+	u32 ctrl;
+	int res;
+
+	ctrl = YT921X_FUNC_MIB;
+	res = yt921x_reg_set_bits(priv, YT921X_FUNC, ctrl);
+	if (res)
+		return res;
+
+	res = yt921x_chip_setup_dsa(priv);
+	if (res)
+		return res;
+
+	/* Clear MIB */
+	ctrl = YT921X_MIB_CTRL_CLEAN | YT921X_MIB_CTRL_ALL_PORT;
+	res = yt921x_reg_write(priv, YT921X_MIB_CTRL, ctrl);
 	if (res)
 		return res;
 
