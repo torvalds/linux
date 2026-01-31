@@ -106,11 +106,6 @@ _check_root() {
 	fi
 }
 
-_remove_ublk_devices() {
-	${UBLK_PROG} del -a
-	modprobe -r ublk_drv > /dev/null 2>&1
-}
-
 _get_ublk_dev_state() {
 	${UBLK_PROG} list -n "$1" | grep "state" | awk '{print $11}'
 }
@@ -277,10 +272,16 @@ __ublk_kill_daemon()
 	echo "$state"
 }
 
-__remove_ublk_dev_return() {
+_ublk_del_dev() {
 	local dev_id=$1
 
 	${UBLK_PROG} del -n "${dev_id}"
+}
+
+__remove_ublk_dev_return() {
+	local dev_id=$1
+
+	_ublk_del_dev "${dev_id}"
 	local res=$?
 	udevadm settle
 	return ${res}

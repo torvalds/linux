@@ -46,13 +46,13 @@ _test_partition_scan_no_hang()
 	if [ "$state" != "${expected_state}" ]; then
 		echo "FAIL: Device state is $state, expected ${expected_state}"
 		ERR_CODE=255
-		${UBLK_PROG} del -n "${dev_id}" > /dev/null 2>&1
+		_ublk_del_dev "${dev_id}" > /dev/null 2>&1
 		return
 	fi
 	echo "PASS: Device transitioned to ${expected_state} in ${elapsed}s without hanging"
 
 	# Clean up the device
-	${UBLK_PROG} del -n "${dev_id}" > /dev/null 2>&1
+	_ublk_del_dev "${dev_id}" > /dev/null 2>&1
 }
 
 _prep_test "partition_scan" "verify async partition scan prevents IO hang"

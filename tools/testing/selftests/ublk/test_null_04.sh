@@ -34,7 +34,7 @@ _test_metadata_only() {
 		"$(cat "/sys/block/ublkb$dev_id/integrity/protection_interval_bytes")" 512 &&
 	_check_value "tag_size" "$(cat "/sys/block/ublkb$dev_id/integrity/tag_size")" 0
 
-	${UBLK_PROG} del -n "${dev_id}"
+	_ublk_del_dev "${dev_id}"
 }
 
 _test_integrity_capable_ip() {
@@ -53,7 +53,7 @@ _test_integrity_capable_ip() {
 		"$(cat "/sys/block/ublkb$dev_id/integrity/protection_interval_bytes")" 512 &&
 	_check_value "tag_size" "$(cat "/sys/block/ublkb$dev_id/integrity/tag_size")" 0
 
-	${UBLK_PROG} del -n "${dev_id}"
+	_ublk_del_dev "${dev_id}"
 }
 
 _test_integrity_reftag_t10dif() {
@@ -72,7 +72,7 @@ _test_integrity_reftag_t10dif() {
 		"$(cat "/sys/block/ublkb$dev_id/integrity/protection_interval_bytes")" 512 &&
 	_check_value "tag_size" "$(cat "/sys/block/ublkb$dev_id/integrity/tag_size")" 0
 
-	${UBLK_PROG} del -n "${dev_id}"
+	_ublk_del_dev "${dev_id}"
 }
 
 _test_nvme_csum() {
@@ -91,7 +91,7 @@ _test_nvme_csum() {
 		"$(cat "/sys/block/ublkb$dev_id/integrity/protection_interval_bytes")" 512 &&
 	_check_value "tag_size" "$(cat "/sys/block/ublkb$dev_id/integrity/tag_size")" 8
 
-	${UBLK_PROG} del -n "${dev_id}"
+	_ublk_del_dev "${dev_id}"
 }
 
 _prep_test "null" "integrity params"
