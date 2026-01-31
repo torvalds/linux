@@ -2196,13 +2196,18 @@ static inline int bpf_fsession_cnt(struct bpf_tramp_links *links)
 	return cnt;
 }
 
+static inline bool bpf_prog_calls_session_cookie(struct bpf_tramp_link *link)
+{
+	return link->link.prog->call_session_cookie;
+}
+
 static inline int bpf_fsession_cookie_cnt(struct bpf_tramp_links *links)
 {
 	struct bpf_tramp_links fentries = links[BPF_TRAMP_FENTRY];
 	int cnt = 0;
 
 	for (int i = 0; i < links[BPF_TRAMP_FENTRY].nr_links; i++) {
-		if (fentries.links[i]->link.prog->call_session_cookie)
+		if (bpf_prog_calls_session_cookie(fentries.links[i]))
 			cnt++;
 	}
 
