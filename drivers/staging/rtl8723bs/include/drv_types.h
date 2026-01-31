@@ -173,45 +173,6 @@ struct registry_priv {
 #define GET_IFACE_NUMS(padapter) (((struct adapter *)padapter)->dvobj->iface_nums)
 #define GET_ADAPTER(padapter, iface_id) (((struct adapter *)padapter)->dvobj->padapters[iface_id])
 
-struct debug_priv {
-	u32 dbg_sdio_free_irq_error_cnt;
-	u32 dbg_sdio_alloc_irq_error_cnt;
-	u32 dbg_sdio_free_irq_cnt;
-	u32 dbg_sdio_alloc_irq_cnt;
-	u32 dbg_sdio_deinit_error_cnt;
-	u32 dbg_sdio_init_error_cnt;
-	u32 dbg_suspend_error_cnt;
-	u32 dbg_suspend_cnt;
-	u32 dbg_resume_cnt;
-	u32 dbg_resume_error_cnt;
-	u32 dbg_deinit_fail_cnt;
-	u32 dbg_carddisable_cnt;
-	u32 dbg_carddisable_error_cnt;
-	u32 dbg_ps_insuspend_cnt;
-	u32 dbg_dev_unload_inIPS_cnt;
-	u32 dbg_wow_leave_ps_fail_cnt;
-	u32 dbg_scan_pwr_state_cnt;
-	u32 dbg_downloadfw_pwr_state_cnt;
-	u32 dbg_fw_read_ps_state_fail_cnt;
-	u32 dbg_leave_ips_fail_cnt;
-	u32 dbg_leave_lps_fail_cnt;
-	u32 dbg_h2c_leave32k_fail_cnt;
-	u32 dbg_diswow_dload_fw_fail_cnt;
-	u32 dbg_enwow_dload_fw_fail_cnt;
-	u32 dbg_ips_drvopen_fail_cnt;
-	u32 dbg_poll_fail_cnt;
-	u32 dbg_rpwm_toggle_cnt;
-	u32 dbg_rpwm_timeout_fail_cnt;
-	u64 dbg_rx_fifo_last_overflow;
-	u64 dbg_rx_fifo_curr_overflow;
-	u64 dbg_rx_fifo_diff_overflow;
-	u64 dbg_rx_ampdu_drop_count;
-	u64 dbg_rx_ampdu_forced_indicate_count;
-	u64 dbg_rx_ampdu_loss_count;
-	u64 dbg_rx_dup_mgt_frame_drop_count;
-	u64 dbg_rx_ampdu_window_shift_cnt;
-};
-
 struct rtw_traffic_statistics {
 	/*  tx statistics */
 	u64	tx_bytes;
@@ -246,8 +207,6 @@ struct dvobj_priv {
 	struct adapter *if1; /* PRIMARY_ADAPTER */
 
 	s32	processing_dev_remove;
-
-	struct debug_priv drv_dbg;
 
 	/* for local/global synchronization */
 	/*  */

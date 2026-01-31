@@ -304,8 +304,6 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	const struct firmware *fw;
 	struct device *device = dvobj_to_dev(padapter->dvobj);
 	u8 *fwfilepath;
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 	u8 tmp_ps;
 
 	pFirmware = kzalloc(sizeof(struct rt_firmware), GFP_KERNEL);
@@ -324,8 +322,6 @@ s32 rtl8723b_FirmwareDownload(struct adapter *padapter, bool  bUsedWoWLANFw)
 	/* 2. read power_state = 0xA0[1:0] */
 	tmp_ps = rtw_read8(padapter, 0xa0);
 	tmp_ps &= 0x03;
-	if (tmp_ps != 0x01)
-		pdbgpriv->dbg_downloadfw_pwr_state_cnt++;
 
 	fwfilepath = "rtlwifi/rtl8723bs_nic.bin";
 

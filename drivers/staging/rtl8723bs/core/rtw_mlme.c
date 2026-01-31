@@ -819,15 +819,6 @@ static void free_scanqueue(struct	mlme_priv *pmlmepriv)
 	spin_unlock_bh(&scan_queue->lock);
 }
 
-static void rtw_reset_rx_info(struct debug_priv *pdbgpriv)
-{
-	pdbgpriv->dbg_rx_ampdu_drop_count = 0;
-	pdbgpriv->dbg_rx_ampdu_forced_indicate_count = 0;
-	pdbgpriv->dbg_rx_ampdu_loss_count = 0;
-	pdbgpriv->dbg_rx_dup_mgt_frame_drop_count = 0;
-	pdbgpriv->dbg_rx_ampdu_window_shift_cnt = 0;
-}
-
 static void find_network(struct adapter *adapter)
 {
 	struct wlan_network *pwlan = NULL;
@@ -848,8 +839,6 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 {
 	struct	mlme_priv *pmlmepriv = &adapter->mlmepriv;
 	struct wlan_network *tgt_network = &pmlmepriv->cur_network;
-	struct dvobj_priv *psdpriv = adapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE | WIFI_AP_STATE)) {
 		struct sta_info *psta;
@@ -873,8 +862,6 @@ void rtw_free_assoc_resources(struct adapter *adapter, int lock_scanned_queue)
 
 	if (lock_scanned_queue)
 		adapter->securitypriv.key_mask = 0;
-
-	rtw_reset_rx_info(pdbgpriv);
 }
 
 /* rtw_indicate_connect: the caller has to lock pmlmepriv->lock */

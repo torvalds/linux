@@ -886,9 +886,6 @@ static void CardDisableRTL8723BSdio(struct adapter *padapter)
 
 u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 {
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
-
 	if (padapter->hw_init_completed) {
 		if (adapter_to_pwrctl(padapter)->bips_processing) {
 			if (padapter->netif_up) {
@@ -921,18 +918,15 @@ u32 rtl8723bs_hal_deinit(struct adapter *padapter)
 				adapter_to_pwrctl(padapter)->pre_ips_type = 0;
 
 			} else {
-				pdbgpriv->dbg_carddisable_cnt++;
 				CardDisableRTL8723BSdio(padapter);
 
 				adapter_to_pwrctl(padapter)->pre_ips_type = 1;
 			}
 
 		} else {
-			pdbgpriv->dbg_carddisable_cnt++;
 			CardDisableRTL8723BSdio(padapter);
 		}
-	} else
-		pdbgpriv->dbg_deinit_fail_cnt++;
+	}
 
 	return _SUCCESS;
 }

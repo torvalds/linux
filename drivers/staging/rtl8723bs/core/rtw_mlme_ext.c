@@ -438,8 +438,6 @@ void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	u8 *pframe = precv_frame->u.hdr.rx_data;
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
-	struct dvobj_priv *psdpriv = padapter->dvobj;
-	struct debug_priv *pdbgpriv = &psdpriv->drv_dbg;
 
 	if (GetFrameType(pframe) != WIFI_MGT_TYPE)
 		return;
@@ -463,7 +461,6 @@ void mgt_dispatcher(struct adapter *padapter, union recv_frame *precv_frame)
 		if (GetRetry(pframe)) {
 			if (precv_frame->u.hdr.attrib.seq_num == psta->RxMgmtFrameSeqNum) {
 				/* drop the duplicate management frame */
-				pdbgpriv->dbg_rx_dup_mgt_frame_drop_count++;
 				return;
 			}
 		}
