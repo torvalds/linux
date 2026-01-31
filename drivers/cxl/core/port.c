@@ -1587,30 +1587,38 @@ static int update_decoder_targets(struct device *dev, void *data)
 	return 0;
 }
 
+static bool dport_exists(struct cxl_port *port, struct device *dport_dev)
+{
+	struct cxl_dport *dport = cxl_find_dport_by_dev(port, dport_dev);
+
+	if (dport) {
+		dev_dbg(&port->dev, "dport%d:%s already exists\n",
+			dport->port_id, dev_name(dport_dev));
+		return true;
+	}
+
+	return false;
+}
+
 DEFINE_FREE(del_cxl_dport, struct cxl_dport *, if (!IS_ERR_OR_NULL(_T)) del_dport(_T))
 static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 					    struct device *dport_dev)
 {
-	struct cxl_dport *dport;
 	int rc;
 
 	device_lock_assert(&port->dev);
 	if (!port->dev.driver)
 		return ERR_PTR(-ENXIO);
 
-	dport = cxl_find_dport_by_dev(port, dport_dev);
-	if (dport) {
-		dev_dbg(&port->dev, "dport%d:%s already exists\n",
-			dport->port_id, dev_name(dport_dev));
+	if (dport_exists(port, dport_dev))
 		return ERR_PTR(-EBUSY);
-	}
 
-	struct cxl_dport *new_dport __free(del_cxl_dport) =
+	struct cxl_dport *dport __free(del_cxl_dport) =
 		devm_cxl_add_dport_by_dev(port, dport_dev);
-	if (IS_ERR(new_dport))
-		return new_dport;
+	if (IS_ERR(dport))
+		return dport;
 
-	cxl_switch_parse_cdat(new_dport);
+	cxl_switch_parse_cdat(dport);
 
 	if (port->nr_dports == 1) {
 		/*
@@ -1626,17 +1634,17 @@ static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
 		if (rc)
 			return ERR_PTR(rc);
 		dev_dbg(&port->dev, "first dport%d:%s added with decoders\n",
-			new_dport->port_id, dev_name(dport_dev));
-		return no_free_ptr(new_dport);
+			dport->port_id, dev_name(dport_dev));
+		return no_free_ptr(dport);
 	}
 
 	/* New dport added, update the decoder targets */
-	device_for_each_child(&port->dev, new_dport, update_decoder_targets);
+	device_for_each_child(&port->dev, dport, update_decoder_targets);
 
-	dev_dbg(&port->dev, "dport%d:%s added\n", new_dport->port_id,
+	dev_dbg(&port->dev, "dport%d:%s added\n", dport->port_id,
 		dev_name(dport_dev));
 
-	return no_free_ptr(new_dport);
+	return no_free_ptr(dport);
 }
 
 static struct cxl_dport *devm_cxl_create_port(struct device *ep_dev,
