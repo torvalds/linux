@@ -78,6 +78,7 @@ check:
 # JOBS>1: parallel execution with xargs -P
 # Usage: make run_null JOBS=4
 JOBS ?= 1
+export JOBS
 
 # Auto-detect test groups from TEST_PROGS (test_<group>_<num>.sh -> group)
 TEST_GROUPS := $(shell echo "$(TEST_PROGS)" | tr ' ' '\n' | \

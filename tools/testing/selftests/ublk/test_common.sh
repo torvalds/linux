@@ -15,6 +15,16 @@ _have_program() {
 	return 1
 }
 
+# Sleep with awareness of parallel execution.
+# Usage: _ublk_sleep <normal_secs> <parallel_secs>
+_ublk_sleep() {
+	if [ "${JOBS:-1}" -gt 1 ]; then
+		sleep "$2"
+	else
+		sleep "$1"
+	fi
+}
+
 _get_disk_dev_t() {
 	local dev_id=$1
 	local dev

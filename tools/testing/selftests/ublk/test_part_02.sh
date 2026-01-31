@@ -33,7 +33,7 @@ _test_partition_scan_no_hang()
 	# The add command should return quickly because partition scan is async.
 	# Now sleep briefly to let the async partition scan work start and hit
 	# the delay in the fault_inject handler.
-	sleep 1
+	_ublk_sleep 1 5
 
 	# Kill the ublk daemon while partition scan is potentially blocked
 	# And check state transitions properly
