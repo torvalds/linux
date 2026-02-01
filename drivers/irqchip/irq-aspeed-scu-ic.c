@@ -104,11 +104,10 @@ static void aspeed_scu_ic_irq_handler_split(struct irq_desc *desc)
 	struct aspeed_scu_ic *scu_ic = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned long bit, enabled, max, status;
-	unsigned int sts, mask;
+	unsigned int sts;
 
 	chained_irq_enter(chip, desc);
 
-	mask = scu_ic->irq_enable;
 	sts = readl(scu_ic->base + scu_ic->isr);
 	enabled = sts & scu_ic->irq_enable;
 	sts = readl(scu_ic->base + scu_ic->isr);
