@@ -1721,8 +1721,8 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%ld\n",
-		       in_from_reg(data->in[nr][index], nr, data->scale_in));
+	return sysfs_emit(buf, "%ld\n",
+			  in_from_reg(data->in[nr][index], nr, data->scale_in));
 }
 
 static ssize_t
@@ -1757,8 +1757,8 @@ nct6775_show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 		return PTR_ERR(data);
 
 	nr = data->ALARM_BITS[sattr->index];
-	return sprintf(buf, "%u\n",
-		       (unsigned int)((data->alarms >> nr) & 0x01));
+	return sysfs_emit(buf, "%u\n",
+			  (unsigned int)((data->alarms >> nr) & 0x01));
 }
 EXPORT_SYMBOL_GPL(nct6775_show_alarm);
 
@@ -1800,7 +1800,7 @@ show_temp_alarm(struct device *dev, struct device_attribute *attr, char *buf)
 
 		alarm = (data->alarms >> bit) & 0x01;
 	}
-	return sprintf(buf, "%u\n", alarm);
+	return sysfs_emit(buf, "%u\n", alarm);
 }
 
 ssize_t
@@ -1815,8 +1815,8 @@ nct6775_show_beep(struct device *dev, struct device_attribute *attr, char *buf)
 
 	nr = data->BEEP_BITS[sattr->index];
 
-	return sprintf(buf, "%u\n",
-		       (unsigned int)((data->beeps >> nr) & 0x01));
+	return sysfs_emit(buf, "%u\n",
+			  (unsigned int)((data->beeps >> nr) & 0x01));
 }
 EXPORT_SYMBOL_GPL(nct6775_show_beep);
 
@@ -1870,7 +1870,7 @@ show_temp_beep(struct device *dev, struct device_attribute *attr, char *buf)
 
 		beep = (data->beeps >> bit) & 0x01;
 	}
-	return sprintf(buf, "%u\n", beep);
+	return sysfs_emit(buf, "%u\n", beep);
 }
 
 static ssize_t
@@ -1960,7 +1960,7 @@ show_fan(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->rpm[nr]);
+	return sysfs_emit(buf, "%d\n", data->rpm[nr]);
 }
 
 static ssize_t
@@ -1973,9 +1973,9 @@ show_fan_min(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n",
-		       data->fan_from_reg_min(data->fan_min[nr],
-					      data->fan_div[nr]));
+	return sysfs_emit(buf, "%d\n",
+			  data->fan_from_reg_min(data->fan_min[nr],
+						 data->fan_div[nr]));
 }
 
 static ssize_t
@@ -1988,7 +1988,7 @@ show_fan_div(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%u\n", div_from_reg(data->fan_div[nr]));
+	return sysfs_emit(buf, "%u\n", div_from_reg(data->fan_div[nr]));
 }
 
 static ssize_t
@@ -2098,7 +2098,7 @@ show_fan_pulses(struct device *dev, struct device_attribute *attr, char *buf)
 		return PTR_ERR(data);
 
 	p = data->fan_pulses[sattr->index];
-	return sprintf(buf, "%d\n", p ? : 4);
+	return sysfs_emit(buf, "%d\n", p ? : 4);
 }
 
 static ssize_t
@@ -2197,7 +2197,7 @@ show_temp_label(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%s\n", data->temp_label[data->temp_src[nr]]);
+	return sysfs_emit(buf, "%s\n", data->temp_label[data->temp_src[nr]]);
 }
 
 static ssize_t
@@ -2211,7 +2211,8 @@ show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", LM75_TEMP_FROM_REG(data->temp[index][nr]));
+	return sysfs_emit(buf, "%d\n",
+			  LM75_TEMP_FROM_REG(data->temp[index][nr]));
 }
 
 static ssize_t
@@ -2245,7 +2246,7 @@ show_temp_offset(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->temp_offset[sattr->index] * 1000);
+	return sysfs_emit(buf, "%d\n", data->temp_offset[sattr->index] * 1000);
 }
 
 static ssize_t
@@ -2282,7 +2283,7 @@ show_temp_type(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", (int)data->temp_type[nr]);
+	return sysfs_emit(buf, "%d\n", (int)data->temp_type[nr]);
 }
 
 static ssize_t
@@ -2468,7 +2469,7 @@ show_pwm_mode(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->pwm_mode[sattr->index]);
+	return sysfs_emit(buf, "%d\n", data->pwm_mode[sattr->index]);
 }
 
 static ssize_t
@@ -2535,7 +2536,7 @@ show_pwm(struct device *dev, struct device_attribute *attr, char *buf)
 		pwm = data->pwm[index][nr];
 	}
 
-	return sprintf(buf, "%d\n", pwm);
+	return sysfs_emit(buf, "%d\n", pwm);
 }
 
 static ssize_t
@@ -2667,7 +2668,7 @@ show_pwm_enable(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->pwm_enable[sattr->index]);
+	return sysfs_emit(buf, "%d\n", data->pwm_enable[sattr->index]);
 }
 
 static ssize_t
@@ -2736,7 +2737,7 @@ show_pwm_temp_sel_common(struct nct6775_data *data, char *buf, int src)
 		}
 	}
 
-	return sprintf(buf, "%d\n", sel);
+	return sysfs_emit(buf, "%d\n", sel);
 }
 
 static ssize_t
@@ -2861,7 +2862,7 @@ show_target_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->target_temp[sattr->index] * 1000);
+	return sysfs_emit(buf, "%d\n", data->target_temp[sattr->index] * 1000);
 }
 
 static ssize_t
@@ -2897,9 +2898,9 @@ show_target_speed(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n",
-		       fan_from_reg16(data->target_speed[nr],
-				      data->fan_div[nr]));
+	return sysfs_emit(buf, "%d\n",
+			  fan_from_reg16(data->target_speed[nr],
+					 data->fan_div[nr]));
 }
 
 static ssize_t
@@ -2939,7 +2940,7 @@ show_temp_tolerance(struct device *dev, struct device_attribute *attr,
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->temp_tolerance[index][nr] * 1000);
+	return sysfs_emit(buf, "%d\n", data->temp_tolerance[index][nr] * 1000);
 }
 
 static ssize_t
@@ -3006,7 +3007,7 @@ show_speed_tolerance(struct device *dev, struct device_attribute *attr,
 			     - fan_from_reg16(high, data->fan_div[nr])) / 2;
 	}
 
-	return sprintf(buf, "%d\n", tolerance);
+	return sysfs_emit(buf, "%d\n", tolerance);
 }
 
 static ssize_t
@@ -3066,7 +3067,7 @@ show_weight_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->weight_temp[index][nr] * 1000);
+	return sysfs_emit(buf, "%d\n", data->weight_temp[index][nr] * 1000);
 }
 
 static ssize_t
@@ -3115,9 +3116,9 @@ show_fan_time(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n",
-		       step_time_from_reg(data->fan_time[index][nr],
-					  data->pwm_mode[nr]));
+	return sysfs_emit(buf, "%d\n",
+			  step_time_from_reg(data->fan_time[index][nr],
+					     data->pwm_mode[nr]));
 }
 
 static ssize_t
@@ -3152,7 +3153,8 @@ show_auto_pwm(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%d\n", data->auto_pwm[sattr->nr][sattr->index]);
+	return sysfs_emit(buf, "%d\n",
+			  data->auto_pwm[sattr->nr][sattr->index]);
 }
 
 static ssize_t
@@ -3244,7 +3246,7 @@ show_auto_temp(struct device *dev, struct device_attribute *attr, char *buf)
 	 * We don't know for sure if the temperature is signed or unsigned.
 	 * Assume it is unsigned.
 	 */
-	return sprintf(buf, "%d\n", data->auto_temp[nr][point] * 1000);
+	return sysfs_emit(buf, "%d\n", data->auto_temp[nr][point] * 1000);
 }
 
 static ssize_t
