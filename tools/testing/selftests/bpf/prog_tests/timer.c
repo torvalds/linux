@@ -23,13 +23,14 @@ static void *spin_lock_thread(void *arg)
 }
 
 
-static int timer_stress(struct timer *timer_skel)
+static int timer_stress_runner(struct timer *timer_skel, bool async_cancel)
 {
 	int i, err = 1, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
 	pthread_t thread_id[NUM_THR];
 	void *ret;
 
+	timer_skel->bss->async_cancel = async_cancel;
 	prog_fd = bpf_program__fd(timer_skel->progs.race);
 	for (i = 0; i < NUM_THR; i++) {
 		err = pthread_create(&thread_id[i], NULL,
@@ -44,6 +45,16 @@ static int timer_stress(struct timer *timer_skel)
 			ASSERT_EQ(ret, (void *)&prog_fd, "pthread_join");
 	}
 	return err;
+}
+
+static int timer_stress(struct timer *timer_skel)
+{
+	return timer_stress_runner(timer_skel, false);
+}
+
+static int timer_stress_async_cancel(struct timer *timer_skel)
+{
+	return timer_stress_runner(timer_skel, true);
 }
 
 static int timer(struct timer *timer_skel)
@@ -116,6 +127,11 @@ void serial_test_timer(void)
 void serial_test_timer_stress(void)
 {
 	test_timer(timer_stress);
+}
+
+void serial_test_timer_stress_async_cancel(void)
+{
+	test_timer(timer_stress_async_cancel);
 }
 
 void test_timer_interrupt(void)
