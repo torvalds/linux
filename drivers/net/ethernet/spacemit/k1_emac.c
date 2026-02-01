@@ -1634,6 +1634,8 @@ static int emac_phy_connect(struct net_device *ndev)
 
 	emac_update_delay_line(priv);
 
+	phy_attached_info(phydev);
+
 err_node_put:
 	of_node_put(np);
 	return ret;
