@@ -56,6 +56,7 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_COUNTERS,
 	UVERBS_OBJECT_ASYNC_EVENT,
 	UVERBS_OBJECT_DMAH,
+	UVERBS_OBJECT_DMABUF,
 };
 
 enum {
@@ -261,6 +262,15 @@ enum uverbs_attrs_free_dmah_cmd_attr_ids {
 enum uverbs_methods_dmah {
 	UVERBS_METHOD_DMAH_ALLOC,
 	UVERBS_METHOD_DMAH_FREE,
+};
+
+enum uverbs_attrs_alloc_dmabuf_cmd_attr_ids {
+	UVERBS_ATTR_ALLOC_DMABUF_HANDLE,
+	UVERBS_ATTR_ALLOC_DMABUF_PGOFF,
+};
+
+enum uverbs_methods_dmabuf {
+	UVERBS_METHOD_DMABUF_ALLOC,
 };
 
 enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
