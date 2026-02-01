@@ -896,6 +896,7 @@ bool plpks_wrapping_is_supported(void)
 {
 	return wrapsupport;
 }
+EXPORT_SYMBOL_GPL(plpks_wrapping_is_supported);
 
 /**
  * plpks_gen_wrapping_key() - Generate a new random key with the 'wrapping key'
