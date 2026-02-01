@@ -688,7 +688,9 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
 	struct gsw1xx_priv *priv;
-	u32 version;
+	u32 version, val;
+	u8 shellver;
+	u16 pnum;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -736,6 +738,27 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	if (IS_ERR(priv->shell))
 		return PTR_ERR(priv->shell);
 
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_MANU_ID, &val);
+	if (ret < 0)
+		return ret;
+
+	/* validate chip ID */
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_FIX1, val) != 1)
+		return -ENODEV;
+
+	if (FIELD_GET(GSW1XX_SHELL_MANU_ID_MANID, val) !=
+	    GSW1XX_SHELL_MANU_ID_MANID_VAL)
+		return -ENODEV;
+
+	pnum = FIELD_GET(GSW1XX_SHELL_MANU_ID_PNUML, val);
+
+	ret = regmap_read(priv->shell, GSW1XX_SHELL_PNUM_ID, &val);
+	if (ret < 0)
+		return ret;
+
+	pnum |= FIELD_GET(GSW1XX_SHELL_PNUM_ID_PNUMM, val) << 4;
+	shellver = FIELD_GET(GSW1XX_SHELL_PNUM_ID_VER, val);
+
 	ret = gsw1xx_serdes_pcs_init(priv);
 	if (ret < 0)
 		return ret;
@@ -755,6 +778,8 @@ static int gsw1xx_probe(struct mdio_device *mdiodev)
 	ret = gswip_probe_common(&priv->gswip, version);
 	if (ret)
 		return ret;
+
+	dev_info(dev, "standalone switch part number 0x%x v1.%u\n", pnum, shellver);
 
 	dev_set_drvdata(dev, &priv->gswip);
 
