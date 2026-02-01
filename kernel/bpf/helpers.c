@@ -4426,6 +4426,53 @@ __bpf_kfunc int bpf_dynptr_file_discard(struct bpf_dynptr *dynptr)
 	return 0;
 }
 
+/**
+ * bpf_timer_cancel_async - try to deactivate a timer
+ * @timer:	bpf_timer to stop
+ *
+ * Returns:
+ *
+ *  *  0 when the timer was not active
+ *  *  1 when the timer was active
+ *  * -1 when the timer is currently executing the callback function and
+ *       cannot be stopped
+ *  * -ECANCELED when the timer will be cancelled asynchronously
+ *  * -ENOMEM when out of memory
+ *  * -EINVAL when the timer was not initialized
+ *  * -ENOENT when this kfunc is racing with timer deletion
+ */
+__bpf_kfunc int bpf_timer_cancel_async(struct bpf_timer *timer)
+{
+	struct bpf_async_kern *async = (void *)timer;
+	struct bpf_async_cb *cb;
+	int ret;
+
+	cb = READ_ONCE(async->cb);
+	if (!cb)
+		return -EINVAL;
+
+	/*
+	 * Unlike hrtimer_start() it's ok to synchronously call
+	 * hrtimer_try_to_cancel() when refcnt reached zero, but deferring to
+	 * irq_work is not, since irq callback may execute after RCU GP and
+	 * cb could be freed at that time. Check for refcnt zero for
+	 * consistency.
+	 */
+	if (!refcount_inc_not_zero(&cb->refcnt))
+		return -ENOENT;
+
+	if (!in_hardirq()) {
+		struct bpf_hrtimer *t = container_of(cb, struct bpf_hrtimer, cb);
+
+		ret = hrtimer_try_to_cancel(&t->timer);
+		bpf_async_refcount_put(cb);
+		return ret;
+	} else {
+		ret = bpf_async_schedule_op(cb, BPF_ASYNC_CANCEL, 0, 0);
+		return ret ? ret : -ECANCELED;
+	}
+}
+
 __bpf_kfunc_end_defs();
 
 static void bpf_task_work_cancel_scheduled(struct irq_work *irq_work)
@@ -4609,6 +4656,7 @@ BTF_ID_FLAGS(func, bpf_task_work_schedule_signal, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_task_work_schedule_resume, KF_IMPLICIT_ARGS)
 BTF_ID_FLAGS(func, bpf_dynptr_from_file)
 BTF_ID_FLAGS(func, bpf_dynptr_file_discard)
+BTF_ID_FLAGS(func, bpf_timer_cancel_async)
 BTF_KFUNCS_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {
