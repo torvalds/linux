@@ -105,6 +105,8 @@ patternProperties:
     patternProperties:
       "^(ethernet-)?port@[0-6]$":
         $ref: dsa-port.yaml#
+        allOf:
+          - $ref: /schemas/phy/phy-common-props.yaml#
         unevaluatedProperties: false
 
         properties:
@@ -288,6 +290,7 @@ examples:
 
   - |
     #include <dt-bindings/leds/common.h>
+    #include <dt-bindings/phy/phy.h>
 
     mdio {
         #address-cells = <1>;
@@ -320,6 +323,7 @@ examples:
                     label = "wan";
                     phy-mode = "1000base-x";
                     managed = "in-band-status";
+                    tx-polarity = <PHY_POL_INVERT>;
                 };
 
                 port@5 {
