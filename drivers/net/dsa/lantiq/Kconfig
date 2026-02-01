@@ -15,6 +15,7 @@ config NET_DSA_MXL_GSW1XX
 	tristate "MaxLinear GSW1xx Ethernet switch support"
 	select NET_DSA_TAG_MXL_GSW1XX
 	select NET_DSA_LANTIQ_COMMON
+	select PHY_COMMON_PROPS
 	help
 	  This enables support for the Intel/MaxLinear GSW1xx family of 1GE
 	  switches.
