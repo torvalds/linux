@@ -25,6 +25,7 @@
 #include <linux/perf_event.h>
 #include <linux/bsearch.h>
 #include <linux/kobject.h>
+#include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/overflow.h>
 
@@ -6324,7 +6325,7 @@ static struct btf *btf_parse_base(struct btf_verifier_env *env, const char *name
 	btf->data_size = data_size;
 	btf->kernel_btf = true;
 	btf->named_start_id = 0;
-	snprintf(btf->name, sizeof(btf->name), "%s", name);
+	strscpy(btf->name, name);
 
 	err = btf_parse_hdr(env);
 	if (err)
@@ -6443,7 +6444,7 @@ static struct btf *btf_parse_module(const char *module_name, const void *data,
 	btf->start_str_off = base_btf->hdr.str_len;
 	btf->kernel_btf = true;
 	btf->named_start_id = 0;
-	snprintf(btf->name, sizeof(btf->name), "%s", module_name);
+	strscpy(btf->name, module_name);
 
 	btf->data = kvmemdup(data, data_size, GFP_KERNEL | __GFP_NOWARN);
 	if (!btf->data) {
