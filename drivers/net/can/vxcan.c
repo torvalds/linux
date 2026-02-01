@@ -77,7 +77,7 @@ static netdev_tx_t vxcan_xmit(struct sk_buff *oskb, struct net_device *dev)
 	}
 
 	/* reset CAN GW hop counter */
-	skb->csum_start = 0;
+	csx->can_gw_hops = 0;
 	skb->pkt_type   = PACKET_BROADCAST;
 	skb->dev        = peer;
 	skb->ip_summed  = CHECKSUM_UNNECESSARY;
