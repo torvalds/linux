@@ -953,8 +953,8 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		goto put_dev;
 	}
 
-	skb = sock_alloc_send_skb(sk, size + sizeof(struct can_skb_priv),
-				  msg->msg_flags & MSG_DONTWAIT, &err);
+	skb = sock_alloc_send_skb(sk, size, msg->msg_flags & MSG_DONTWAIT,
+				  &err);
 	if (!skb)
 		goto put_dev;
 
@@ -965,7 +965,6 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		goto put_dev;
 	}
 
-	can_skb_reserve(skb);
 	csx->can_iif = dev->ifindex;
 
 	/* fill the skb before testing for valid CAN frames */
