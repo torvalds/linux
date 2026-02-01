@@ -104,13 +104,6 @@ static void rtsn_ctrl_data_irq(struct rtsn_private *priv, bool enable)
 	}
 }
 
-static void rtsn_get_timestamp(struct rtsn_private *priv, struct timespec64 *ts)
-{
-	struct rcar_gen4_ptp_private *ptp_priv = priv->ptp_priv;
-
-	ptp_priv->info.gettime64(&ptp_priv->info, ts);
-}
-
 static int rtsn_tx_free(struct net_device *ndev, bool free_txed_only)
 {
 	struct rtsn_private *priv = netdev_priv(ndev);
@@ -133,7 +126,7 @@ static int rtsn_tx_free(struct net_device *ndev, bool free_txed_only)
 				struct skb_shared_hwtstamps shhwtstamps;
 				struct timespec64 ts;
 
-				rtsn_get_timestamp(priv, &ts);
+				rcar_gen4_ptp_gettime64(priv->ptp_priv, &ts);
 				memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 				shhwtstamps.hwtstamp = timespec64_to_ktime(ts);
 				skb_tstamp_tx(skb, &shhwtstamps);

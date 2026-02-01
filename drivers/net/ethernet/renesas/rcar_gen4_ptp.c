@@ -194,6 +194,16 @@ int rcar_gen4_ptp_clock_index(struct rcar_gen4_ptp_private *priv)
 }
 EXPORT_SYMBOL_GPL(rcar_gen4_ptp_clock_index);
 
+void rcar_gen4_ptp_gettime64(struct rcar_gen4_ptp_private *priv,
+			     struct timespec64 *ts)
+{
+	if (!priv->initialized)
+		return;
+
+	priv->info.gettime64(&priv->info, ts);
+}
+EXPORT_SYMBOL_GPL(rcar_gen4_ptp_gettime64);
+
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas R-Car Gen4 gPTP driver");
 MODULE_LICENSE("GPL");

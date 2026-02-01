@@ -24,5 +24,7 @@ struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
 						  void __iomem *addr);
 
 int rcar_gen4_ptp_clock_index(struct rcar_gen4_ptp_private *priv);
+void rcar_gen4_ptp_gettime64(struct rcar_gen4_ptp_private *priv,
+			     struct timespec64 *ts);
 
 #endif	/* #ifndef __RCAR_GEN4_PTP_H__ */
