@@ -870,25 +870,18 @@ static int img_register_algs(struct img_hash_dev *hdev)
 
 	for (i = 0; i < ARRAY_SIZE(img_algs); i++) {
 		err = crypto_register_ahash(&img_algs[i]);
-		if (err)
-			goto err_reg;
+		if (err) {
+			crypto_unregister_ahashes(img_algs, i);
+			return err;
+		}
 	}
+
 	return 0;
-
-err_reg:
-	for (; i--; )
-		crypto_unregister_ahash(&img_algs[i]);
-
-	return err;
 }
 
-static int img_unregister_algs(struct img_hash_dev *hdev)
+static void img_unregister_algs(struct img_hash_dev *hdev)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(img_algs); i++)
-		crypto_unregister_ahash(&img_algs[i]);
-	return 0;
+	crypto_unregister_ahashes(img_algs, ARRAY_SIZE(img_algs));
 }
 
 static void img_hash_done_task(unsigned long data)
