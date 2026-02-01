@@ -519,4 +519,8 @@ bool hubbub1_program_pstate_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 
+void dcn10_hubbub_global_timer_enable(struct hubbub *hubbub, bool enable, uint32_t refdiv);
+
+void dcn10_hubbub_read_fb_aperture(struct hubbub *hubbub, uint32_t *fb_base_value, uint32_t *fb_offset_value);
+
 #endif

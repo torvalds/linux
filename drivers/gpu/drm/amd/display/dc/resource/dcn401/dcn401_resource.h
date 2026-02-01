@@ -28,6 +28,8 @@ enum dc_status dcn401_validate_bandwidth(struct dc *dc,
 
 void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 
+unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx);
+
 /* Following are definitions for run time init of reg offsets */
 
 /* HUBP */

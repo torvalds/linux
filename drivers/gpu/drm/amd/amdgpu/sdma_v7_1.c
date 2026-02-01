@@ -1494,24 +1494,13 @@ static int sdma_v7_1_process_trap_irq(struct amdgpu_device *adev,
 				      struct amdgpu_iv_entry *entry)
 {
 	int inst, instances, queue, xcc_id = 0;
-	uint32_t mes_queue_id = entry->src_data[0];
 
 	DRM_DEBUG("IH: SDMA trap\n");
 
-	if (adev->enable_mes && (mes_queue_id & AMDGPU_FENCE_MES_QUEUE_FLAG)) {
-		struct amdgpu_mes_queue *queue;
-
-		mes_queue_id &= AMDGPU_FENCE_MES_QUEUE_ID_MASK;
-
-		spin_lock(&adev->mes.queue_id_lock);
-		queue = idr_find(&adev->mes.queue_id_idr, mes_queue_id);
-		if (queue) {
-			DRM_DEBUG("process smda queue id = %d\n", mes_queue_id);
-			amdgpu_fence_process(queue->ring);
-		}
-		spin_unlock(&adev->mes.queue_id_lock);
+	if (drm_WARN_ON_ONCE(&adev->ddev,
+			     adev->enable_mes &&
+			     (entry->src_data[0] & AMDGPU_FENCE_MES_QUEUE_FLAG)))
 		return 0;
-	}
 
 	queue = entry->ring_id & 0xf;
 	if (adev->gfx.funcs && adev->gfx.funcs->ih_node_to_logical_xcc)

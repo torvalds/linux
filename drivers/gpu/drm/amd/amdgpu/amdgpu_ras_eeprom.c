@@ -1712,6 +1712,10 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 			dev_warn(adev->dev, "RAS records:%u exceeds 90%% of threshold:%d",
 					control->ras_num_bad_pages,
 					ras->bad_page_cnt_threshold);
+		if (amdgpu_bad_page_threshold != 0 &&
+			control->ras_num_bad_pages >= ras->bad_page_cnt_threshold)
+			amdgpu_dpm_send_rma_reason(adev);
+
 	} else if (hdr->header == RAS_TABLE_HDR_BAD &&
 		   amdgpu_bad_page_threshold != 0) {
 		if (hdr->version >= RAS_TABLE_VER_V2_1) {

@@ -7506,7 +7506,7 @@ struct dc_update_scratch_space *dc_update_planes_and_stream_init(
 		.stream = stream,
 		.stream_update = stream_update,
 		.update_v3 = version >= DCN_VERSION_4_01 || version == DCN_VERSION_3_2 || version == DCN_VERSION_3_21,
-		.do_clear_update_flags = version >= DCN_VERSION_3_2 || version == DCN_VERSION_3_01,
+		.do_clear_update_flags = version >= DCN_VERSION_1_0,
 	};
 
 	return scratch;

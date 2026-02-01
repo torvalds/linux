@@ -345,14 +345,9 @@ static int arcturus_init_smc_tables(struct smu_context *smu)
 }
 
 static int
-arcturus_get_allowed_feature_mask(struct smu_context *smu,
-				  uint32_t *feature_mask, uint32_t num)
+arcturus_init_allowed_features(struct smu_context *smu)
 {
-	if (num > 2)
-		return -EINVAL;
-
-	/* pptable will handle the features to enable */
-	memset(feature_mask, 0xFF, sizeof(uint32_t) * num);
+	smu_feature_list_set_all(smu, SMU_FEATURE_LIST_ALLOWED);
 
 	return 0;
 }
@@ -1877,7 +1872,7 @@ static ssize_t arcturus_get_gpu_metrics(struct smu_context *smu,
 
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* init dpm */
-	.get_allowed_feature_mask = arcturus_get_allowed_feature_mask,
+	.init_allowed_features = arcturus_init_allowed_features,
 	/* btc */
 	.run_btc = arcturus_run_btc,
 	/* dpm/clk tables */

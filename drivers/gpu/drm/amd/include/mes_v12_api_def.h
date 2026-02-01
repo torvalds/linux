@@ -492,8 +492,10 @@ union MESAPI__SUSPEND {
 		union MES_API_HEADER	header;
 		/* false - suspend all gangs; true - specific gang */
 		struct {
-			uint32_t	suspend_all_gangs : 1;
-			uint32_t	reserved : 31;
+			uint32_t      suspend_all_gangs : 1; // suspend all compute gangs (can be set together with suspend_all_sdma_gangs)
+			uint32_t      query_status : 1;
+			uint32_t      suspend_all_sdma_gangs : 1; // suspend all sdma gangs (can be set together with suspend_all_gangs)
+			uint32_t      reserved : 29;
 		};
 		/* gang_context_addr is valid only if suspend_all = false */
 

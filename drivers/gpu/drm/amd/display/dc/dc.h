@@ -63,7 +63,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.366"
+#define DC_VER "3.2.367"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -1210,6 +1210,7 @@ struct dc_debug_options {
 	bool disable_deferred_minimal_transitions;
 	unsigned int num_fast_flips_to_steady_state_override;
 	bool enable_dmu_recovery;
+	unsigned int force_vmin_threshold;
 };
 
 

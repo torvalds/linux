@@ -77,9 +77,6 @@ struct amdgpu_mes {
 
 	struct mutex                    mutex_hidden;
 
-	struct idr                      pasid_idr;
-	struct idr                      gang_id_idr;
-	struct idr                      queue_id_idr;
 	struct ida                      doorbell_ida;
 
 	spinlock_t                      queue_id_lock;

@@ -39,6 +39,7 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "reg_helper.h"
+#include "dcn10/dcn10_hubbub.h"
 
 #define CTX \
 	hws->ctx

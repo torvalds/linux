@@ -472,10 +472,20 @@ struct smu_power_context {
 };
 
 #define SMU_FEATURE_MAX	(64)
+
+struct smu_feature_bits {
+	DECLARE_BITMAP(bits, SMU_FEATURE_MAX);
+};
+
+enum smu_feature_list {
+	SMU_FEATURE_LIST_SUPPORTED,
+	SMU_FEATURE_LIST_ALLOWED,
+	SMU_FEATURE_LIST_MAX,
+};
+
 struct smu_feature {
 	uint32_t feature_num;
-	DECLARE_BITMAP(supported, SMU_FEATURE_MAX);
-	DECLARE_BITMAP(allowed, SMU_FEATURE_MAX);
+	struct smu_feature_bits bits[SMU_FEATURE_LIST_MAX];
 };
 
 struct smu_clocks {
@@ -802,11 +812,10 @@ struct pptable_funcs {
 	int (*run_btc)(struct smu_context *smu);
 
 	/**
-	 * @get_allowed_feature_mask: Get allowed feature mask.
-	 * &feature_mask: Array to store feature mask.
-	 * &num: Elements in &feature_mask.
+	 * @init_allowed_features: Initialize allowed features bitmap.
+	 * Directly sets allowed features using smu_feature wrapper functions.
 	 */
-	int (*get_allowed_feature_mask)(struct smu_context *smu, uint32_t *feature_mask, uint32_t num);
+	int (*init_allowed_features)(struct smu_context *smu);
 
 	/**
 	 * @get_current_power_state: Get the current power state.
@@ -1974,4 +1983,158 @@ int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type ms
 
 void smu_feature_cap_set(struct smu_context *smu, enum smu_feature_cap_id fea_id);
 bool smu_feature_cap_test(struct smu_context *smu, enum smu_feature_cap_id fea_id);
+
+static inline bool smu_feature_bits_is_set(const struct smu_feature_bits *bits,
+					   unsigned int bit)
+{
+	if (bit >= SMU_FEATURE_MAX)
+		return false;
+
+	return test_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_set_bit(struct smu_feature_bits *bits,
+					    unsigned int bit)
+{
+	if (bit < SMU_FEATURE_MAX)
+		__set_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_clear_bit(struct smu_feature_bits *bits,
+					      unsigned int bit)
+{
+	if (bit < SMU_FEATURE_MAX)
+		__clear_bit(bit, bits->bits);
+}
+
+static inline void smu_feature_bits_clearall(struct smu_feature_bits *bits)
+{
+	bitmap_zero(bits->bits, SMU_FEATURE_MAX);
+}
+
+static inline void smu_feature_bits_fill(struct smu_feature_bits *bits)
+{
+	bitmap_fill(bits->bits, SMU_FEATURE_MAX);
+}
+
+static inline bool
+smu_feature_bits_test_mask(const struct smu_feature_bits *bits,
+			   const unsigned long *mask)
+{
+	return bitmap_intersects(bits->bits, mask, SMU_FEATURE_MAX);
+}
+
+static inline void smu_feature_bits_from_arr32(struct smu_feature_bits *bits,
+					       const uint32_t *arr,
+					       unsigned int nbits)
+{
+	bitmap_from_arr32(bits->bits, arr, nbits);
+}
+
+static inline void
+smu_feature_bits_to_arr32(const struct smu_feature_bits *bits, uint32_t *arr,
+			  unsigned int nbits)
+{
+	bitmap_to_arr32(arr, bits->bits, nbits);
+}
+
+static inline bool smu_feature_bits_empty(const struct smu_feature_bits *bits,
+					  unsigned int nbits)
+{
+	return bitmap_empty(bits->bits, nbits);
+}
+
+static inline void smu_feature_bits_copy(struct smu_feature_bits *dst,
+					 const unsigned long *src,
+					 unsigned int nbits)
+{
+	bitmap_copy(dst->bits, src, nbits);
+}
+
+static inline struct smu_feature_bits *
+__smu_feature_get_list(struct smu_context *smu, enum smu_feature_list list)
+{
+	if (unlikely(list >= SMU_FEATURE_LIST_MAX)) {
+		dev_warn(smu->adev->dev, "Invalid feature list: %d\n", list);
+		return &smu->smu_feature.bits[SMU_FEATURE_LIST_SUPPORTED];
+	}
+
+	return &smu->smu_feature.bits[list];
+}
+
+static inline bool smu_feature_list_is_set(struct smu_context *smu,
+					   enum smu_feature_list list,
+					   unsigned int bit)
+{
+	if (bit >= smu->smu_feature.feature_num)
+		return false;
+
+	return smu_feature_bits_is_set(__smu_feature_get_list(smu, list), bit);
+}
+
+static inline void smu_feature_list_set_bit(struct smu_context *smu,
+					    enum smu_feature_list list,
+					    unsigned int bit)
+{
+	if (bit >= smu->smu_feature.feature_num)
+		return;
+
+	smu_feature_bits_set_bit(__smu_feature_get_list(smu, list), bit);
+}
+
+static inline void smu_feature_list_clear_bit(struct smu_context *smu,
+					      enum smu_feature_list list,
+					      unsigned int bit)
+{
+	if (bit >= smu->smu_feature.feature_num)
+		return;
+
+	smu_feature_bits_clear_bit(__smu_feature_get_list(smu, list), bit);
+}
+
+static inline void smu_feature_list_set_all(struct smu_context *smu,
+					    enum smu_feature_list list)
+{
+	smu_feature_bits_fill(__smu_feature_get_list(smu, list));
+}
+
+static inline void smu_feature_list_clear_all(struct smu_context *smu,
+					      enum smu_feature_list list)
+{
+	smu_feature_bits_clearall(__smu_feature_get_list(smu, list));
+}
+
+static inline bool smu_feature_list_is_empty(struct smu_context *smu,
+					     enum smu_feature_list list)
+{
+	return smu_feature_bits_empty(__smu_feature_get_list(smu, list),
+				      smu->smu_feature.feature_num);
+}
+
+static inline void smu_feature_list_set_bits(struct smu_context *smu,
+					     enum smu_feature_list dst_list,
+					     const unsigned long *src)
+{
+	smu_feature_bits_copy(__smu_feature_get_list(smu, dst_list), src,
+			      smu->smu_feature.feature_num);
+}
+
+static inline void smu_feature_list_to_arr32(struct smu_context *smu,
+					     enum smu_feature_list list,
+					     uint32_t *arr)
+{
+	smu_feature_bits_to_arr32(__smu_feature_get_list(smu, list), arr,
+				  smu->smu_feature.feature_num);
+}
+
+static inline void smu_feature_init(struct smu_context *smu, int feature_num)
+{
+	if (!feature_num || smu->smu_feature.feature_num != 0)
+		return;
+
+	smu->smu_feature.feature_num = feature_num;
+	smu_feature_list_clear_all(smu, SMU_FEATURE_LIST_SUPPORTED);
+	smu_feature_list_clear_all(smu, SMU_FEATURE_LIST_ALLOWED);
+}
+
 #endif

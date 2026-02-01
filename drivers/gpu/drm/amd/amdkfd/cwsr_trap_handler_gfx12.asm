@@ -37,6 +37,7 @@
 #define HAVE_CLUSTER_BARRIER (ASIC_FAMILY == CHIP_GC_12_0_3)
 #define CLUSTER_BARRIER_SERIALIZE_WORKAROUND (ASIC_FAMILY == CHIP_GC_12_0_3)
 #define RELAXED_SCHEDULING_IN_TRAP (ASIC_FAMILY == CHIP_GFX12)
+#define HAVE_INSTRUCTION_FIXUP (ASIC_FAMILY == CHIP_GC_12_0_3)
 
 #define SINGLE_STEP_MISSED_WORKAROUND 1	//workaround for lost TRAP_AFTER_INST exception when SAVECTX raised
 #define HAVE_VALU_SGPR_HAZARD (ASIC_FAMILY == CHIP_GFX12)
@@ -375,9 +376,9 @@ L_TRAP_CASE:
 L_EXIT_TRAP:
 	s_and_b32	ttmp1, ttmp1, ADDRESS_HI32_MASK
 
-#if HAVE_BANKED_VGPRS
+#if HAVE_INSTRUCTION_FIXUP
 	s_getreg_b32	s_save_excp_flag_priv, hwreg(HW_REG_WAVE_EXCP_FLAG_PRIV)
-	fixup_vgpr_bank_selection()
+	fixup_instruction()
 #endif
 
 #if HAVE_XNACK
@@ -418,8 +419,8 @@ L_HAVE_VGPRS:
 	save_and_clear_xnack_state_priv(s_save_tmp)
 #endif
 
-#if HAVE_BANKED_VGPRS
-	fixup_vgpr_bank_selection()
+#if HAVE_INSTRUCTION_FIXUP
+	fixup_instruction()
 #endif
 
 	/* inform SPI the readiness and wait for SPI's go signal */
@@ -1400,8 +1401,8 @@ L_BARRIER_RESTORE_LOOP:
 L_BARRIER_RESTORE_DONE:
 end
 
-#if HAVE_BANKED_VGPRS
-function fixup_vgpr_bank_selection
+#if HAVE_INSTRUCTION_FIXUP
+function fixup_instruction
 	// PC read may fault if memory violation has been asserted.
 	// In this case no further progress is expected so fixup is not needed.
 	s_bitcmp1_b32	s_save_excp_flag_priv, SQ_WAVE_EXCP_FLAG_PRIV_MEM_VIOL_SHIFT
@@ -1480,8 +1481,13 @@ L_FIXUP_NOT_VOP12C:
 	s_cmp_eq_u32	ttmp10, 0xcf000000					// If 31:24 = 0xcf, this is VOPD3
 	s_cbranch_scc1	L_FIXUP_THREE_DWORD					// If VOPD3, 3 DWORD inst
 	// Not VOP1, VOP2, VOPC, VOP3, VOP3SD, VOPD, or VOPD3.
-	// Might be in VOP3P, but we must ensure we are not VOP3PX2
+	// Check if we are in the middle of VOP3PX.
 	s_and_b32	ttmp13, ttmp14, 0xffff0000				// Bits 31:16
+	s_cmp_eq_u32	ttmp13, 0xcc330000					// If 31:16 = 0xcc33, this is 8 bytes past VOP3PX
+	s_cbranch_scc1	L_FIXUP_VOP3PX_MIDDLE
+	s_cmp_eq_u32	ttmp13, 0xcc880000					// If 31:16 = 0xcc88, this is 8 bytes past VOP3PX
+	s_cbranch_scc1	L_FIXUP_VOP3PX_MIDDLE
+	// Might be in VOP3P, but we must ensure we are not VOP3PX2
 	s_cmp_eq_u32	ttmp13, 0xcc350000					// If 31:16 = 0xcc35, this is VOP3PX2
 	s_cbranch_scc1	L_FIXUP_DONE						// If VOP3PX2, no fixup needed
 	s_cmp_eq_u32	ttmp13, 0xcc3a0000					// If 31:16 = 0xcc3a, this is VOP3PX2
@@ -1541,6 +1547,11 @@ L_FIXUP_THREE_DWORD:
 	s_wait_kmcnt	0							// Wait for PC+2 and PC+3 to arrive in ttmp2 and ttmp3
 	s_mov_b32	ttmp15, ttmp3						// Move possible S_SET_VGPR_MSB into ttmp15
 	s_branch	L_FIXUP_ONE_DWORD					// Go to common logic that checks if it is S_SET_VGPR_MSB
+
+L_FIXUP_VOP3PX_MIDDLE:
+	s_sub_co_u32	ttmp0, ttmp0, 8						// Rewind PC 8 bytes to beginning of instruction
+	s_sub_co_ci_u32	ttmp1, ttmp1, 0
+	s_branch	L_FIXUP_TWO_DWORD					// 2 DWORD inst (2nd half of a 4 DWORD inst)
 
 L_FIXUP_DONE:
 	s_wait_kmcnt	0							// Ensure load of ttmp2 and ttmp3 is done

@@ -120,10 +120,11 @@ static bool mqd_on_vram(struct amdgpu_device *adev)
 	}
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
+static struct kfd_mem_obj *allocate_mqd(struct mqd_manager *mm,
 		struct queue_properties *q)
 {
 	int retval;
+	struct kfd_node *node = mm->dev;
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
 	/* For V9 only, due to a HW bug, the control stack of a user mode
