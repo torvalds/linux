@@ -197,6 +197,7 @@ static int io_import_umem(struct io_zcrx_ifq *ifq,
 					GFP_KERNEL_ACCOUNT);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
+		kvfree(pages);
 		return ret;
 	}
 
