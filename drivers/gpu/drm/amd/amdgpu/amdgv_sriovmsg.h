@@ -161,7 +161,8 @@ union amd_sriov_msg_feature_flags {
 		uint32_t ras_telemetry		: 1;
 		uint32_t ras_cper		: 1;
 		uint32_t xgmi_ta_ext_peer_link	: 1;
-		uint32_t reserved		: 19;
+		uint32_t xgmi_connected_to_cpu  : 1;
+		uint32_t reserved		: 18;
 	} flags;
 	uint32_t all;
 };

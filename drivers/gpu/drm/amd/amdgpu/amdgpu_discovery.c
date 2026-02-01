@@ -356,10 +356,15 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	int ret = 0;
 
 	if (!is_tmr_in_sysmem) {
-		amdgpu_device_vram_access(adev, adev->discovery.offset,
-					  (uint32_t *)binary,
-					  adev->discovery.size, false);
-		adev->discovery.reserve_tmr = true;
+		if (amdgpu_sriov_vf(adev) &&
+		    amdgpu_sriov_xgmi_connected_to_cpu(adev)) {
+			ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
+		} else {
+			amdgpu_device_vram_access(adev, adev->discovery.offset,
+						  (uint32_t *)binary,
+						  adev->discovery.size, false);
+			adev->discovery.reserve_tmr = true;
+		}
 	} else {
 		ret = amdgpu_discovery_read_binary_from_sysmem(adev, binary);
 	}
