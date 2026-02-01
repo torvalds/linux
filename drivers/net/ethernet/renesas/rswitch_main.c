@@ -1891,7 +1891,7 @@ static int rswitch_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 
-	info->phc_index = ptp_clock_index(rdev->priv->ptp_priv->clock);
+	info->phc_index = rcar_gen4_ptp_clock_index(rdev->priv->ptp_priv);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |

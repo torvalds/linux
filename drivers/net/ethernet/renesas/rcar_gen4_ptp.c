@@ -185,6 +185,15 @@ struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(rcar_gen4_ptp_alloc);
 
+int rcar_gen4_ptp_clock_index(struct rcar_gen4_ptp_private *priv)
+{
+	if (!priv->initialized)
+		return -1;
+
+	return ptp_clock_index(priv->clock);
+}
+EXPORT_SYMBOL_GPL(rcar_gen4_ptp_clock_index);
+
 MODULE_AUTHOR("Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas R-Car Gen4 gPTP driver");
 MODULE_LICENSE("GPL");

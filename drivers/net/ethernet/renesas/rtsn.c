@@ -1197,7 +1197,7 @@ static int rtsn_get_ts_info(struct net_device *ndev,
 {
 	struct rtsn_private *priv = netdev_priv(ndev);
 
-	info->phc_index = ptp_clock_index(priv->ptp_priv->clock);
+	info->phc_index = rcar_gen4_ptp_clock_index(priv->ptp_priv);
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
