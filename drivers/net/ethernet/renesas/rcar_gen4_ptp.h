@@ -7,16 +7,7 @@
 #ifndef __RCAR_GEN4_PTP_H__
 #define __RCAR_GEN4_PTP_H__
 
-#include <linux/ptp_clock_kernel.h>
-
-struct rcar_gen4_ptp_private {
-	void __iomem *addr;
-	struct ptp_clock *clock;
-	struct ptp_clock_info info;
-	spinlock_t lock;	/* For multiple registers access */
-	s64 default_addend;
-	bool initialized;
-};
+struct rcar_gen4_ptp_private;
 
 int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv, u32 rate);
 int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv);

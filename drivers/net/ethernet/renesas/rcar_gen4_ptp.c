@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/slab.h>
 
 #include "rcar_gen4_ptp.h"
@@ -22,6 +23,15 @@
 #define PTPGPTPTM00_REG		0x0050
 #define PTPGPTPTM10_REG		0x0054
 #define PTPGPTPTM20_REG		0x0058
+
+struct rcar_gen4_ptp_private {
+	void __iomem *addr;
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	spinlock_t lock;	/* For multiple registers access */
+	s64 default_addend;
+	bool initialized;
+};
 
 #define ptp_to_priv(ptp)	container_of(ptp, struct rcar_gen4_ptp_private, info)
 
