@@ -168,7 +168,8 @@ int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv)
 }
 EXPORT_SYMBOL_GPL(rcar_gen4_ptp_unregister);
 
-struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev)
+struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
+						  void __iomem *addr)
 {
 	struct rcar_gen4_ptp_private *ptp;
 
@@ -177,6 +178,8 @@ struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev)
 		return NULL;
 
 	ptp->info = rcar_gen4_ptp_info;
+
+	ptp->addr = addr;
 
 	return ptp;
 }

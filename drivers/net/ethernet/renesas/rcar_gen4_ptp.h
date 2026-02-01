@@ -20,6 +20,7 @@ struct rcar_gen4_ptp_private {
 
 int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv, u32 rate);
 int rcar_gen4_ptp_unregister(struct rcar_gen4_ptp_private *ptp_priv);
-struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev);
+struct rcar_gen4_ptp_private *rcar_gen4_ptp_alloc(struct platform_device *pdev,
+						  void __iomem *addr);
 
 #endif	/* #ifndef __RCAR_GEN4_PTP_H__ */

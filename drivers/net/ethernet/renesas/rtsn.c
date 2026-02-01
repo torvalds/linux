@@ -1227,6 +1227,7 @@ static int rtsn_probe(struct platform_device *pdev)
 {
 	struct rtsn_private *priv;
 	struct net_device *ndev;
+	void __iomem *ptpaddr;
 	struct resource *res;
 	int ret;
 
@@ -1238,12 +1239,6 @@ static int rtsn_probe(struct platform_device *pdev)
 	priv = netdev_priv(ndev);
 	priv->pdev = pdev;
 	priv->ndev = ndev;
-
-	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev);
-	if (!priv->ptp_priv) {
-		ret = -ENOMEM;
-		goto error_free;
-	}
 
 	spin_lock_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
@@ -1288,9 +1283,15 @@ static int rtsn_probe(struct platform_device *pdev)
 		goto error_free;
 	}
 
-	priv->ptp_priv->addr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(priv->ptp_priv->addr)) {
-		ret = PTR_ERR(priv->ptp_priv->addr);
+	ptpaddr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ptpaddr)) {
+		ret = PTR_ERR(ptpaddr);
+		goto error_free;
+	}
+
+	priv->ptp_priv = rcar_gen4_ptp_alloc(pdev, ptpaddr);
+	if (!priv->ptp_priv) {
+		ret = -ENOMEM;
 		goto error_free;
 	}
 
