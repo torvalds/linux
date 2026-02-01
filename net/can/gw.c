@@ -55,6 +55,7 @@
 #include <linux/can/core.h>
 #include <linux/can/skb.h>
 #include <linux/can/gw.h>
+#include <net/can.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -459,6 +460,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 	struct cgw_job *gwj = (struct cgw_job *)data;
 	struct canfd_frame *cf;
 	struct sk_buff *nskb;
+	struct can_skb_ext *csx, *ncsx;
 	struct cf_mod *mod;
 	int modidx = 0;
 
@@ -470,6 +472,10 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		if (!can_is_can_skb(skb))
 			return;
 	}
+
+	csx = can_skb_ext_find(skb);
+	if (!csx)
+		return;
 
 	/* Do not handle CAN frames routed more than 'max_hops' times.
 	 * In general we should never catch this delimiter which is intended
@@ -514,6 +520,17 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		nskb = skb_clone(skb, GFP_ATOMIC);
 
 	if (!nskb) {
+		gwj->dropped_frames++;
+		return;
+	}
+
+	/* the cloned/copied nskb points to the skb extension of the original
+	 * skb with an increased refcount. skb_ext_add() creates a copy to
+	 * separate the skb extension data to modify the can_gw_hops.
+	 */
+	ncsx = skb_ext_add(nskb, SKB_EXT_CAN);
+	if (!ncsx) {
+		kfree_skb(nskb);
 		gwj->dropped_frames++;
 		return;
 	}

@@ -6,6 +6,7 @@
 
 #include <linux/can/dev.h>
 #include <linux/module.h>
+#include <net/can.h>
 
 #define MOD_DESC "CAN device driver interface"
 
@@ -207,13 +208,17 @@ static void init_can_skb_reserve(struct sk_buff *skb)
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 {
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 
 	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
 			       sizeof(struct can_frame));
-	if (unlikely(!skb)) {
-		*cf = NULL;
+	if (unlikely(!skb))
+		goto out_error_cc;
 
-		return NULL;
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		goto out_error_cc;
 	}
 
 	skb->protocol = htons(ETH_P_CAN);
@@ -223,6 +228,11 @@ struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf)
 	*cf = skb_put_zero(skb, sizeof(struct can_frame));
 
 	return skb;
+
+out_error_cc:
+	*cf = NULL;
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(alloc_can_skb);
 
@@ -230,13 +240,17 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 				struct canfd_frame **cfd)
 {
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 
 	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
 			       sizeof(struct canfd_frame));
-	if (unlikely(!skb)) {
-		*cfd = NULL;
+	if (unlikely(!skb))
+		goto out_error_fd;
 
-		return NULL;
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		goto out_error_fd;
 	}
 
 	skb->protocol = htons(ETH_P_CANFD);
@@ -249,6 +263,11 @@ struct sk_buff *alloc_canfd_skb(struct net_device *dev,
 	(*cfd)->flags = CANFD_FDF;
 
 	return skb;
+
+out_error_fd:
+	*cfd = NULL;
+
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(alloc_canfd_skb);
 
@@ -257,14 +276,21 @@ struct sk_buff *alloc_canxl_skb(struct net_device *dev,
 				unsigned int data_len)
 {
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 
 	if (data_len < CANXL_MIN_DLEN || data_len > CANXL_MAX_DLEN)
-		goto out_error;
+		goto out_error_xl;
 
 	skb = netdev_alloc_skb(dev, sizeof(struct can_skb_priv) +
 			       CANXL_HDR_SIZE + data_len);
 	if (unlikely(!skb))
-		goto out_error;
+		goto out_error_xl;
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		goto out_error_xl;
+	}
 
 	skb->protocol = htons(ETH_P_CANXL);
 	init_can_skb_reserve(skb);
@@ -278,7 +304,7 @@ struct sk_buff *alloc_canxl_skb(struct net_device *dev,
 
 	return skb;
 
-out_error:
+out_error_xl:
 	*cxl = NULL;
 
 	return NULL;
@@ -303,13 +329,21 @@ EXPORT_SYMBOL_GPL(alloc_can_err_skb);
 /* Check for outgoing skbs that have not been created by the CAN subsystem */
 static bool can_skb_headroom_valid(struct net_device *dev, struct sk_buff *skb)
 {
+	struct can_skb_ext *csx = can_skb_ext_find(skb);
+
 	/* af_packet creates a headroom of HH_DATA_MOD bytes which is fine */
 	if (WARN_ON_ONCE(skb_headroom(skb) < sizeof(struct can_skb_priv)))
 		return false;
 
 	/* af_packet does not apply CAN skb specific settings */
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		/* init headroom */
+	if (skb->ip_summed == CHECKSUM_NONE || !csx) {
+		/* init CAN skb content */
+		if (!csx) {
+			csx = can_skb_ext_add(skb);
+			if (!csx)
+				return false;
+		}
+
 		can_skb_prv(skb)->ifindex = dev->ifindex;
 
 		skb->ip_summed = CHECKSUM_UNNECESSARY;

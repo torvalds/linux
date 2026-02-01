@@ -17,6 +17,7 @@
 #include <linux/can/skb.h>
 #include <linux/errqueue.h>
 #include <linux/if_arp.h>
+#include <net/can.h>
 
 #include "j1939-priv.h"
 
@@ -884,6 +885,7 @@ static struct sk_buff *j1939_sk_alloc_skb(struct net_device *ndev,
 	struct j1939_sock *jsk = j1939_sk(sk);
 	struct j1939_sk_buff_cb *skcb;
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 	int ret;
 
 	skb = sock_alloc_send_skb(sk,
@@ -894,6 +896,13 @@ static struct sk_buff *j1939_sk_alloc_skb(struct net_device *ndev,
 				  msg->msg_flags & MSG_DONTWAIT, &ret);
 	if (!skb)
 		goto failure;
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		ret = -ENOMEM;
+		goto failure;
+	}
 
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = ndev->ifindex;

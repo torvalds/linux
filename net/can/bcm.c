@@ -59,6 +59,7 @@
 #include <linux/can/bcm.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <net/can.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
@@ -291,6 +292,7 @@ static int bcm_proc_show(struct seq_file *m, void *v)
 static void bcm_can_tx(struct bcm_op *op)
 {
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 	struct net_device *dev;
 	struct canfd_frame *cf;
 	int err;
@@ -313,6 +315,12 @@ static void bcm_can_tx(struct bcm_op *op)
 	skb = alloc_skb(op->cfsiz + sizeof(struct can_skb_priv), gfp_any());
 	if (!skb)
 		goto out;
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		goto out;
+	}
 
 	can_skb_reserve(skb);
 	can_skb_prv(skb)->ifindex = dev->ifindex;
@@ -1317,6 +1325,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk,
 		       int cfsiz)
 {
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 	struct net_device *dev;
 	int err;
 
@@ -1327,6 +1336,12 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk,
 	skb = alloc_skb(cfsiz + sizeof(struct can_skb_priv), GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
 
 	can_skb_reserve(skb);
 

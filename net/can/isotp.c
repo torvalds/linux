@@ -69,6 +69,7 @@
 #include <linux/can/skb.h>
 #include <linux/can/isotp.h>
 #include <linux/slab.h>
+#include <net/can.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
@@ -214,6 +215,7 @@ static int isotp_send_fc(struct sock *sk, int ae, u8 flowstatus)
 {
 	struct net_device *dev;
 	struct sk_buff *nskb;
+	struct can_skb_ext *csx;
 	struct canfd_frame *ncf;
 	struct isotp_sock *so = isotp_sk(sk);
 	int can_send_ret;
@@ -221,6 +223,12 @@ static int isotp_send_fc(struct sock *sk, int ae, u8 flowstatus)
 	nskb = alloc_skb(so->ll.mtu + sizeof(struct can_skb_priv), gfp_any());
 	if (!nskb)
 		return 1;
+
+	csx = can_skb_ext_add(nskb);
+	if (!csx) {
+		kfree_skb(nskb);
+		return 1;
+	}
 
 	dev = dev_get_by_index(sock_net(sk), so->ifindex);
 	if (!dev) {
@@ -762,6 +770,7 @@ static void isotp_send_cframe(struct isotp_sock *so)
 {
 	struct sock *sk = &so->sk;
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 	struct net_device *dev;
 	struct canfd_frame *cf;
 	int can_send_ret;
@@ -774,6 +783,13 @@ static void isotp_send_cframe(struct isotp_sock *so)
 	skb = alloc_skb(so->ll.mtu + sizeof(struct can_skb_priv), GFP_ATOMIC);
 	if (!skb) {
 		dev_put(dev);
+		return;
+	}
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		netdev_put(dev, NULL);
 		return;
 	}
 
@@ -938,6 +954,7 @@ static int isotp_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	struct sock *sk = sock->sk;
 	struct isotp_sock *so = isotp_sk(sk);
 	struct sk_buff *skb;
+	struct can_skb_ext *csx;
 	struct net_device *dev;
 	struct canfd_frame *cf;
 	int ae = (so->opt.flags & CAN_ISOTP_EXTEND_ADDR) ? 1 : 0;
@@ -1002,6 +1019,14 @@ static int isotp_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 				  msg->msg_flags & MSG_DONTWAIT, &err);
 	if (!skb) {
 		dev_put(dev);
+		goto err_out_drop;
+	}
+
+	csx = can_skb_ext_add(skb);
+	if (!csx) {
+		kfree_skb(skb);
+		netdev_put(dev, NULL);
+		err = -ENOMEM;
 		goto err_out_drop;
 	}
 

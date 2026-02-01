@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/can.h>
+#include <net/can.h>
 #include <net/sock.h>
 
 void can_flush_echo_skb(struct net_device *dev);
@@ -66,6 +67,22 @@ static inline struct can_skb_priv *can_skb_prv(struct sk_buff *skb)
 static inline void can_skb_reserve(struct sk_buff *skb)
 {
 	skb_reserve(skb, sizeof(struct can_skb_priv));
+}
+
+static inline struct can_skb_ext *can_skb_ext_add(struct sk_buff *skb)
+{
+	struct can_skb_ext *csx = skb_ext_add(skb, SKB_EXT_CAN);
+
+	/* skb_ext_add() returns uninitialized space */
+	if (csx)
+		csx->can_gw_hops = 0;
+
+	return csx;
+}
+
+static inline struct can_skb_ext *can_skb_ext_find(struct sk_buff *skb)
+{
+	return skb_ext_find(skb, SKB_EXT_CAN);
 }
 
 static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
