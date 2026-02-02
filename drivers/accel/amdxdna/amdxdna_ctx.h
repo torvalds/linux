@@ -99,11 +99,6 @@ struct amdxdna_hwctx {
 	u32				start_col;
 	u32				num_col;
 	u32				num_unused_col;
-#define HWCTX_STAT_INIT  0
-#define HWCTX_STAT_READY 1
-#define HWCTX_STAT_STOP  2
-	u32				status;
-	u32				old_status;
 
 	struct amdxdna_qos_info		     qos;
 	struct amdxdna_hwctx_param_config_cu *cus;

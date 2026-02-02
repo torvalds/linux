@@ -47,17 +47,6 @@ static void aie2_job_put(struct amdxdna_sched_job *job)
 	kref_put(&job->refcnt, aie2_job_release);
 }
 
-static void aie2_hwctx_status_shift_stop(struct amdxdna_hwctx *hwctx)
-{
-	 hwctx->old_status = hwctx->status;
-	 hwctx->status = HWCTX_STAT_STOP;
-}
-
-static void aie2_hwctx_status_restore(struct amdxdna_hwctx *hwctx)
-{
-	hwctx->status = hwctx->old_status;
-}
-
 /* The bad_job is used in aie2_sched_job_timedout, otherwise, set it to NULL */
 static void aie2_hwctx_stop(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hwctx,
 			    struct drm_sched_job *bad_job)
@@ -81,11 +70,6 @@ static int aie2_hwctx_restart(struct amdxdna_dev *xdna, struct amdxdna_hwctx *hw
 				heap->mem.userptr, heap->mem.size);
 	if (ret) {
 		XDNA_ERR(xdna, "Map host buf failed, ret %d", ret);
-		goto out;
-	}
-
-	if (hwctx->status != HWCTX_STAT_READY) {
-		XDNA_DBG(xdna, "hwctx is not ready, status %d", hwctx->status);
 		goto out;
 	}
 
@@ -140,7 +124,6 @@ static int aie2_hwctx_suspend_cb(struct amdxdna_hwctx *hwctx, void *arg)
 
 	aie2_hwctx_wait_for_idle(hwctx);
 	aie2_hwctx_stop(xdna, hwctx, NULL);
-	aie2_hwctx_status_shift_stop(hwctx);
 
 	return 0;
 }
@@ -162,7 +145,6 @@ static int aie2_hwctx_resume_cb(struct amdxdna_hwctx *hwctx, void *arg)
 {
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
 
-	aie2_hwctx_status_restore(hwctx);
 	return aie2_hwctx_restart(xdna, hwctx);
 }
 
@@ -315,7 +297,7 @@ aie2_sched_job_run(struct drm_sched_job *sched_job)
 	struct dma_fence *fence;
 	int ret;
 
-	if (hwctx->status != HWCTX_STAT_READY)
+	if (!hwctx->priv->mbox_chann)
 		return NULL;
 
 	if (!mmget_not_zero(job->mm))
@@ -666,7 +648,6 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	}
 	amdxdna_pm_suspend_put(xdna);
 
-	hwctx->status = HWCTX_STAT_INIT;
 	init_waitqueue_head(&priv->job_free_wq);
 
 	XDNA_DBG(xdna, "hwctx %s init completed", hwctx->name);
@@ -710,7 +691,6 @@ void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx)
 	/* Request fw to destroy hwctx and cancel the rest pending requests */
 	drm_sched_stop(&hwctx->priv->sched, NULL);
 	aie2_release_resource(hwctx);
-	hwctx->status = HWCTX_STAT_STOP;
 	drm_sched_start(&hwctx->priv->sched, 0);
 
 	mutex_unlock(&xdna->dev_lock);
@@ -755,7 +735,7 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	if (XDNA_MBZ_DBG(xdna, config->pad, sizeof(config->pad)))
 		return -EINVAL;
 
-	if (hwctx->status != HWCTX_STAT_INIT) {
+	if (hwctx->cus) {
 		XDNA_ERR(xdna, "Not support re-config CU");
 		return -EINVAL;
 	}
@@ -786,7 +766,6 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	}
 
 	wmb(); /* To avoid locking in command submit when check status */
-	hwctx->status = HWCTX_STAT_READY;
 
 	return 0;
 

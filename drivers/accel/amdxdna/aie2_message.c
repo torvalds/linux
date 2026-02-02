@@ -493,6 +493,9 @@ int aie2_config_cu(struct amdxdna_hwctx *hwctx,
 	if (!chann)
 		return -ENODEV;
 
+	if (!hwctx->cus)
+		return 0;
+
 	if (hwctx->cus->num_cus > MAX_NUM_CUS) {
 		XDNA_DBG(xdna, "Exceed maximum CU %d", MAX_NUM_CUS);
 		return -EINVAL;
