@@ -1226,22 +1226,26 @@ static int cmp_type_names(const void *a, const void *b, void *priv)
 	const struct btf_type *ta = btf__type_by_id(btf, *(__u32 *)a);
 	const struct btf_type *tb = btf__type_by_id(btf, *(__u32 *)b);
 	const char *na, *nb;
+	int r;
 
 	na = btf__str_by_offset(btf, ta->name_off);
 	nb = btf__str_by_offset(btf, tb->name_off);
-	return strcmp(na, nb);
+	r = strcmp(na, nb);
+	if (r != 0)
+		return r;
+
+	/* preserve original relative order of anonymous or same-named types */
+	return *(__u32 *)a < *(__u32 *)b ? -1 : 1;
 }
 
 static int sort_btf_by_name(struct btf *btf)
 {
 	__u32 *permute_ids = NULL, *id_map = NULL;
 	int nr_types, i, err = 0;
-	__u32 start_id = 0, start_offs = 1, id;
+	__u32 start_id = 0, id;
 
-	if (btf__base_btf(btf)) {
+	if (btf__base_btf(btf))
 		start_id = btf__type_cnt(btf__base_btf(btf));
-		start_offs = 0;
-	}
 	nr_types = btf__type_cnt(btf) - start_id;
 
 	permute_ids = calloc(nr_types, sizeof(*permute_ids));
@@ -1259,8 +1263,8 @@ static int sort_btf_by_name(struct btf *btf)
 	for (i = 0, id = start_id; i < nr_types; i++, id++)
 		permute_ids[i] = id;
 
-	qsort_r(permute_ids + start_offs, nr_types - start_offs,
-		sizeof(*permute_ids), cmp_type_names, btf);
+	qsort_r(permute_ids, nr_types, sizeof(*permute_ids), cmp_type_names,
+		btf);
 
 	for (i = 0; i < nr_types; i++) {
 		id = permute_ids[i] - start_id;
