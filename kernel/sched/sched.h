@@ -3816,7 +3816,8 @@ static __always_inline void mm_cid_update_pcpu_cid(struct mm_struct *mm, unsigne
 	__this_cpu_write(mm->mm_cid.pcpu->cid, cid);
 }
 
-static __always_inline void mm_cid_from_cpu(struct task_struct *t, unsigned int cpu_cid)
+static __always_inline void mm_cid_from_cpu(struct task_struct *t, unsigned int cpu_cid,
+					    unsigned int mode)
 {
 	unsigned int max_cids, tcid = t->mm_cid.cid;
 	struct mm_struct *mm = t->mm;
@@ -3842,15 +3843,16 @@ static __always_inline void mm_cid_from_cpu(struct task_struct *t, unsigned int 
 		if (!cid_on_cpu(cpu_cid))
 			cpu_cid = cid_to_cpu_cid(mm_get_cid(mm));
 
-		/* Set the transition mode flag if required */
-		if (READ_ONCE(mm->mm_cid.transit))
+		/* Handle the transition mode flag if required */
+		if (mode & MM_CID_TRANSIT)
 			cpu_cid = cpu_cid_to_cid(cpu_cid) | MM_CID_TRANSIT;
 	}
 	mm_cid_update_pcpu_cid(mm, cpu_cid);
 	mm_cid_update_task_cid(t, cpu_cid);
 }
 
-static __always_inline void mm_cid_from_task(struct task_struct *t, unsigned int cpu_cid)
+static __always_inline void mm_cid_from_task(struct task_struct *t, unsigned int cpu_cid,
+					     unsigned int mode)
 {
 	unsigned int max_cids, tcid = t->mm_cid.cid;
 	struct mm_struct *mm = t->mm;
@@ -3876,7 +3878,7 @@ static __always_inline void mm_cid_from_task(struct task_struct *t, unsigned int
 		if (!cid_on_task(tcid))
 			tcid = mm_get_cid(mm);
 		/* Set the transition mode flag if required */
-		tcid |= READ_ONCE(mm->mm_cid.transit);
+		tcid |= mode & MM_CID_TRANSIT;
 	}
 	mm_cid_update_pcpu_cid(mm, tcid);
 	mm_cid_update_task_cid(t, tcid);
@@ -3885,16 +3887,17 @@ static __always_inline void mm_cid_from_task(struct task_struct *t, unsigned int
 static __always_inline void mm_cid_schedin(struct task_struct *next)
 {
 	struct mm_struct *mm = next->mm;
-	unsigned int cpu_cid;
+	unsigned int cpu_cid, mode;
 
 	if (!next->mm_cid.active)
 		return;
 
 	cpu_cid = __this_cpu_read(mm->mm_cid.pcpu->cid);
-	if (likely(!READ_ONCE(mm->mm_cid.percpu)))
-		mm_cid_from_task(next, cpu_cid);
+	mode = READ_ONCE(mm->mm_cid.mode);
+	if (likely(!cid_on_cpu(mode)))
+		mm_cid_from_task(next, cpu_cid, mode);
 	else
-		mm_cid_from_cpu(next, cpu_cid);
+		mm_cid_from_cpu(next, cpu_cid, mode);
 }
 
 static __always_inline void mm_cid_schedout(struct task_struct *prev)
