@@ -635,6 +635,21 @@ struct kvm_sysreg_masks {
 	struct resx mask[NR_SYS_REGS - __SANITISED_REG_START__];
 };
 
+static inline struct resx __kvm_get_sysreg_resx(struct kvm_arch *arch,
+						enum vcpu_sysreg sr)
+{
+	struct kvm_sysreg_masks *masks;
+
+	masks = arch->sysreg_masks;
+	if (likely(masks &&
+		   sr >= __SANITISED_REG_START__ && sr < NR_SYS_REGS))
+		return masks->mask[sr - __SANITISED_REG_START__];
+
+	return (struct resx){};
+}
+
+#define kvm_get_sysreg_resx(k, sr) __kvm_get_sysreg_resx(&(k)->arch, (sr))
+
 static inline void __kvm_set_sysreg_resx(struct kvm_arch *arch,
 					 enum vcpu_sysreg sr, struct resx resx)
 {

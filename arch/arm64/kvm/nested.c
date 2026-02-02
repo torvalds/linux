@@ -1669,16 +1669,11 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *vcpu,
 			     enum vcpu_sysreg sr, u64 v)
 {
-	struct kvm_sysreg_masks *masks;
+	struct resx resx;
 
-	masks = vcpu->kvm->arch.sysreg_masks;
-
-	if (masks) {
-		sr -= __SANITISED_REG_START__;
-
-		v &= ~masks->mask[sr].res0;
-		v |= masks->mask[sr].res1;
-	}
+	resx = kvm_get_sysreg_resx(vcpu->kvm, sr);
+	v &= ~resx.res0;
+	v |= resx.res1;
 
 	return v;
 }
