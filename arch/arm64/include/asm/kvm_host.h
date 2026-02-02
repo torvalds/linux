@@ -626,12 +626,23 @@ enum vcpu_sysreg {
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
-struct kvm_sysreg_masks {
-	struct {
-		u64	res0;
-		u64	res1;
-	} mask[NR_SYS_REGS - __SANITISED_REG_START__];
+struct resx {
+	u64	res0;
+	u64	res1;
 };
+
+struct kvm_sysreg_masks {
+	struct resx mask[NR_SYS_REGS - __SANITISED_REG_START__];
+};
+
+static inline void __kvm_set_sysreg_resx(struct kvm_arch *arch,
+					 enum vcpu_sysreg sr, struct resx resx)
+{
+	arch->sysreg_masks->mask[sr - __SANITISED_REG_START__] = resx;
+}
+
+#define kvm_set_sysreg_resx(k, sr, resx)		\
+	__kvm_set_sysreg_resx(&(k)->arch, (sr), (resx))
 
 struct fgt_masks {
 	const char	*str;
@@ -1607,7 +1618,7 @@ static inline bool kvm_arch_has_irq_bypass(void)
 }
 
 void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt);
-void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1);
+struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg);
 void check_feature_map(void);
 void kvm_vcpu_load_fgt(struct kvm_vcpu *vcpu);
 

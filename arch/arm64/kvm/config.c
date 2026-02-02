@@ -1290,14 +1290,14 @@ static bool idreg_feat_match(struct kvm *kvm, const struct reg_bits_to_feat_map 
 	}
 }
 
-static u64 __compute_fixed_bits(struct kvm *kvm,
-				const struct reg_bits_to_feat_map *map,
-				int map_size,
-				u64 *fixed_bits,
-				unsigned long require,
-				unsigned long exclude)
+static struct resx __compute_fixed_bits(struct kvm *kvm,
+					const struct reg_bits_to_feat_map *map,
+					int map_size,
+					u64 *fixed_bits,
+					unsigned long require,
+					unsigned long exclude)
 {
-	u64 val = 0;
+	struct resx resx = {};
 
 	for (int i = 0; i < map_size; i++) {
 		bool match;
@@ -1316,53 +1316,62 @@ static u64 __compute_fixed_bits(struct kvm *kvm,
 			match = idreg_feat_match(kvm, &map[i]);
 
 		if (!match || (map[i].flags & FIXED_VALUE))
-			val |= reg_feat_map_bits(&map[i]);
+			resx.res0 |= reg_feat_map_bits(&map[i]);
 	}
 
-	return val;
+	return resx;
 }
 
-static u64 compute_res0_bits(struct kvm *kvm,
-			     const struct reg_bits_to_feat_map *map,
-			     int map_size,
-			     unsigned long require,
-			     unsigned long exclude)
+static struct resx compute_resx_bits(struct kvm *kvm,
+				     const struct reg_bits_to_feat_map *map,
+				     int map_size,
+				     unsigned long require,
+				     unsigned long exclude)
 {
 	return __compute_fixed_bits(kvm, map, map_size, NULL,
 				    require, exclude | FIXED_VALUE);
 }
 
-static u64 compute_reg_res0_bits(struct kvm *kvm,
-				 const struct reg_feat_map_desc *r,
-				 unsigned long require, unsigned long exclude)
+static struct resx compute_reg_resx_bits(struct kvm *kvm,
+					 const struct reg_feat_map_desc *r,
+					 unsigned long require,
+					 unsigned long exclude)
 {
-	u64 res0;
+	struct resx resx, tmp;
 
-	res0 = compute_res0_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
+	resx = compute_resx_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
 				 require, exclude);
 
-	res0 |= compute_res0_bits(kvm, &r->feat_map, 1, require, exclude);
-	res0 |= ~reg_feat_map_bits(&r->feat_map);
+	tmp = compute_resx_bits(kvm, &r->feat_map, 1, require, exclude);
 
-	return res0;
+	resx.res0 |= tmp.res0;
+	resx.res0 |= ~reg_feat_map_bits(&r->feat_map);
+	resx.res1 |= tmp.res1;
+
+	return resx;
 }
 
 static u64 compute_fgu_bits(struct kvm *kvm, const struct reg_feat_map_desc *r)
 {
+	struct resx resx;
+
 	/*
 	 * If computing FGUs, we collect the unsupported feature bits as
-	 * RES0 bits, but don't take the actual RES0 bits or register
+	 * RESx bits, but don't take the actual RESx bits or register
 	 * existence into account -- we're not computing bits for the
 	 * register itself.
 	 */
-	return compute_res0_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
+	resx = compute_resx_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
 				 0, NEVER_FGU);
+
+	return resx.res0 | resx.res1;
 }
 
-static u64 compute_reg_fixed_bits(struct kvm *kvm,
-				  const struct reg_feat_map_desc *r,
-				  u64 *fixed_bits, unsigned long require,
-				  unsigned long exclude)
+static struct resx compute_reg_fixed_bits(struct kvm *kvm,
+					  const struct reg_feat_map_desc *r,
+					  u64 *fixed_bits,
+					  unsigned long require,
+					  unsigned long exclude)
 {
 	return __compute_fixed_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
 				    fixed_bits, require | FIXED_VALUE, exclude);
@@ -1405,91 +1414,94 @@ void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
 	kvm->arch.fgu[fgt] = val;
 }
 
-void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1)
+struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg)
 {
 	u64 fixed = 0, mask;
+	struct resx resx;
 
 	switch (reg) {
 	case HFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgrtr_desc, 0, 0);
-		*res1 = HFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgrtr_desc, 0, 0);
+		resx.res1 |= HFGRTR_EL2_RES1;
 		break;
 	case HFGWTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgwtr_desc, 0, 0);
-		*res1 = HFGWTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgwtr_desc, 0, 0);
+		resx.res1 |= HFGWTR_EL2_RES1;
 		break;
 	case HFGITR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgitr_desc, 0, 0);
-		*res1 = HFGITR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgitr_desc, 0, 0);
+		resx.res1 |= HFGITR_EL2_RES1;
 		break;
 	case HDFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgrtr_desc, 0, 0);
-		*res1 = HDFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgrtr_desc, 0, 0);
+		resx.res1 |= HDFGRTR_EL2_RES1;
 		break;
 	case HDFGWTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgwtr_desc, 0, 0);
-		*res1 = HDFGWTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgwtr_desc, 0, 0);
+		resx.res1 |= HDFGWTR_EL2_RES1;
 		break;
 	case HAFGRTR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hafgrtr_desc, 0, 0);
-		*res1 = HAFGRTR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hafgrtr_desc, 0, 0);
+		resx.res1 |= HAFGRTR_EL2_RES1;
 		break;
 	case HFGRTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgrtr2_desc, 0, 0);
-		*res1 = HFGRTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgrtr2_desc, 0, 0);
+		resx.res1 |= HFGRTR2_EL2_RES1;
 		break;
 	case HFGWTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgwtr2_desc, 0, 0);
-		*res1 = HFGWTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgwtr2_desc, 0, 0);
+		resx.res1 |= HFGWTR2_EL2_RES1;
 		break;
 	case HFGITR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hfgitr2_desc, 0, 0);
-		*res1 = HFGITR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hfgitr2_desc, 0, 0);
+		resx.res1 |= HFGITR2_EL2_RES1;
 		break;
 	case HDFGRTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgrtr2_desc, 0, 0);
-		*res1 = HDFGRTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgrtr2_desc, 0, 0);
+		resx.res1 |= HDFGRTR2_EL2_RES1;
 		break;
 	case HDFGWTR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hdfgwtr2_desc, 0, 0);
-		*res1 = HDFGWTR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hdfgwtr2_desc, 0, 0);
+		resx.res1 |= HDFGWTR2_EL2_RES1;
 		break;
 	case HCRX_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &hcrx_desc, 0, 0);
-		*res1 = __HCRX_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &hcrx_desc, 0, 0);
+		resx.res1 |= __HCRX_EL2_RES1;
 		break;
 	case HCR_EL2:
-		mask = compute_reg_fixed_bits(kvm, &hcr_desc, &fixed, 0, 0);
-		*res0 = compute_reg_res0_bits(kvm, &hcr_desc, 0, 0);
-		*res0 |= (mask & ~fixed);
-		*res1 = HCR_EL2_RES1 | (mask & fixed);
+		mask = compute_reg_fixed_bits(kvm, &hcr_desc, &fixed, 0, 0).res0;
+		resx = compute_reg_resx_bits(kvm, &hcr_desc, 0, 0);
+		resx.res0 |= (mask & ~fixed);
+		resx.res1 |= HCR_EL2_RES1 | (mask & fixed);
 		break;
 	case SCTLR2_EL1:
 	case SCTLR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &sctlr2_desc, 0, 0);
-		*res1 = SCTLR2_EL1_RES1;
+		resx = compute_reg_resx_bits(kvm, &sctlr2_desc, 0, 0);
+		resx.res1 |= SCTLR2_EL1_RES1;
 		break;
 	case TCR2_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &tcr2_el2_desc, 0, 0);
-		*res1 = TCR2_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &tcr2_el2_desc, 0, 0);
+		resx.res1 |= TCR2_EL2_RES1;
 		break;
 	case SCTLR_EL1:
-		*res0 = compute_reg_res0_bits(kvm, &sctlr_el1_desc, 0, 0);
-		*res1 = SCTLR_EL1_RES1;
+		resx = compute_reg_resx_bits(kvm, &sctlr_el1_desc, 0, 0);
+		resx.res1 |= SCTLR_EL1_RES1;
 		break;
 	case MDCR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &mdcr_el2_desc, 0, 0);
-		*res1 = MDCR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &mdcr_el2_desc, 0, 0);
+		resx.res1 |= MDCR_EL2_RES1;
 		break;
 	case VTCR_EL2:
-		*res0 = compute_reg_res0_bits(kvm, &vtcr_el2_desc, 0, 0);
-		*res1 = VTCR_EL2_RES1;
+		resx = compute_reg_resx_bits(kvm, &vtcr_el2_desc, 0, 0);
+		resx.res1 |= VTCR_EL2_RES1;
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		*res0 = *res1 = 0;
+		resx = (typeof(resx)){};
 		break;
 	}
+
+	return resx;
 }
 
 static __always_inline struct fgt_masks *__fgt_reg_to_masks(enum vcpu_sysreg reg)
