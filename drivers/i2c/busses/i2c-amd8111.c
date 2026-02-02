@@ -17,7 +17,7 @@
 #include <linux/io.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR ("Vojtech Pavlik <vojtech@suse.cz>");
+MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("AMD8111 SMBus 2.0 driver");
 
 struct amd_smbus {
@@ -417,7 +417,7 @@ static const struct pci_device_id amd8111_ids[] = {
 	{ 0, }
 };
 
-MODULE_DEVICE_TABLE (pci, amd8111_ids);
+MODULE_DEVICE_TABLE(pci, amd8111_ids);
 
 static int amd8111_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
