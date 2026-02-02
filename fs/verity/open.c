@@ -12,6 +12,14 @@
 #include <linux/slab.h>
 
 static struct kmem_cache *fsverity_info_cachep;
+static struct rhashtable fsverity_info_hash;
+
+static const struct rhashtable_params fsverity_info_hash_params = {
+	.key_len		= sizeof_field(struct fsverity_info, inode),
+	.key_offset		= offsetof(struct fsverity_info, inode),
+	.head_offset		= offsetof(struct fsverity_info, rhash_head),
+	.automatic_shrinking	= true,
+};
 
 /**
  * fsverity_init_merkle_tree_params() - initialize Merkle tree parameters
@@ -241,33 +249,19 @@ fail:
 	return ERR_PTR(err);
 }
 
-void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
+int fsverity_set_info(struct fsverity_info *vi)
 {
-	/*
-	 * Multiple tasks may race to set the inode's verity info pointer, so
-	 * use cmpxchg_release().  This pairs with the smp_load_acquire() in
-	 * fsverity_get_info().  I.e., publish the pointer with a RELEASE
-	 * barrier so that other tasks can ACQUIRE it.
-	 */
-	if (cmpxchg_release(fsverity_info_addr(inode), NULL, vi) != NULL) {
-		/* Lost the race, so free the verity info we allocated. */
-		fsverity_free_info(vi);
-		/*
-		 * Afterwards, the caller may access the inode's verity info
-		 * directly, so make sure to ACQUIRE the winning verity info.
-		 */
-		(void)fsverity_get_info(inode);
-	}
+	return rhashtable_lookup_insert_fast(&fsverity_info_hash,
+					     &vi->rhash_head,
+					     fsverity_info_hash_params);
 }
 
-void fsverity_free_info(struct fsverity_info *vi)
+struct fsverity_info *__fsverity_get_info(const struct inode *inode)
 {
-	if (!vi)
-		return;
-	kfree(vi->tree_params.hashstate);
-	kvfree(vi->hash_block_verified);
-	kmem_cache_free(fsverity_info_cachep, vi);
+	return rhashtable_lookup_fast(&fsverity_info_hash, &inode,
+				      fsverity_info_hash_params);
 }
+EXPORT_SYMBOL_GPL(__fsverity_get_info);
 
 static bool validate_fsverity_descriptor(struct inode *inode,
 					 const struct fsverity_descriptor *desc,
@@ -352,7 +346,7 @@ int fsverity_get_descriptor(struct inode *inode,
 
 static int ensure_verity_info(struct inode *inode)
 {
-	struct fsverity_info *vi = fsverity_get_info(inode);
+	struct fsverity_info *vi = fsverity_get_info(inode), *found;
 	struct fsverity_descriptor *desc;
 	int err;
 
@@ -369,8 +363,19 @@ static int ensure_verity_info(struct inode *inode)
 		goto out_free_desc;
 	}
 
-	fsverity_set_info(inode, vi);
-	err = 0;
+	/*
+	 * Multiple tasks may race to set the inode's verity info, in which case
+	 * we might find an existing fsverity_info in the hash table.
+	 */
+	found = rhashtable_lookup_get_insert_fast(&fsverity_info_hash,
+						  &vi->rhash_head,
+						  fsverity_info_hash_params);
+	if (found) {
+		fsverity_free_info(vi);
+		if (IS_ERR(found))
+			err = PTR_ERR(found);
+	}
+
 out_free_desc:
 	kfree(desc);
 	return err;
@@ -384,16 +389,32 @@ int __fsverity_file_open(struct inode *inode, struct file *filp)
 }
 EXPORT_SYMBOL_GPL(__fsverity_file_open);
 
+void fsverity_free_info(struct fsverity_info *vi)
+{
+	kfree(vi->tree_params.hashstate);
+	kvfree(vi->hash_block_verified);
+	kmem_cache_free(fsverity_info_cachep, vi);
+}
+
+void fsverity_remove_info(struct fsverity_info *vi)
+{
+	rhashtable_remove_fast(&fsverity_info_hash, &vi->rhash_head,
+			       fsverity_info_hash_params);
+	fsverity_free_info(vi);
+}
+
 void fsverity_cleanup_inode(struct inode *inode)
 {
-	struct fsverity_info **vi_addr = fsverity_info_addr(inode);
+	struct fsverity_info *vi = fsverity_get_info(inode);
 
-	fsverity_free_info(*vi_addr);
-	*vi_addr = NULL;
+	if (vi)
+		fsverity_remove_info(vi);
 }
 
 void __init fsverity_init_info_cache(void)
 {
+	if (rhashtable_init(&fsverity_info_hash, &fsverity_info_hash_params))
+		panic("failed to initialize fsverity hash\n");
 	fsverity_info_cachep = KMEM_CACHE_USERCOPY(
 					fsverity_info,
 					SLAB_RECLAIM_ACCOUNT | SLAB_PANIC,

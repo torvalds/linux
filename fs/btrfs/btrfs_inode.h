@@ -339,10 +339,6 @@ struct btrfs_inode {
 
 	struct rw_semaphore i_mmap_lock;
 
-#ifdef CONFIG_FS_VERITY
-	struct fsverity_info *i_verity_info;
-#endif
-
 	struct inode vfs_inode;
 };
 
