@@ -415,7 +415,7 @@ foreach my $module (keys(%modules)) {
 	}
     } else {
 	# Most likely, someone has a custom (binary?) module loaded.
-	print STDERR "$module config not found!!\n";
+	print STDERR "$module config not found!\n";
     }
 }
 
