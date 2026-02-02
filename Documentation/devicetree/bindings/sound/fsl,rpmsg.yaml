@@ -34,6 +34,7 @@ properties:
       - items:
           - enum:
               - fsl,imx94-rpmsg-audio
+              - fsl,imx952-rpmsg-audio
           - const: fsl,imx95-rpmsg-audio
 
   clocks:
