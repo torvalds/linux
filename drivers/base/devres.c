@@ -18,10 +18,12 @@
 
 struct devres_node;
 typedef void (*dr_node_release_t)(struct device *dev, struct devres_node *node);
+typedef void (*dr_node_free_t)(struct devres_node *node);
 
 struct devres_node {
 	struct list_head		entry;
 	dr_node_release_t		release;
+	dr_node_free_t			free_node;
 	const char			*name;
 	size_t				size;
 };
@@ -46,10 +48,18 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
-static void devres_node_init(struct devres_node *node, dr_node_release_t release)
+static void devres_node_init(struct devres_node *node,
+			     dr_node_release_t release,
+			     dr_node_free_t free_node)
 {
 	INIT_LIST_HEAD(&node->entry);
 	node->release = release;
+	node->free_node = free_node;
+}
+
+static inline void free_node(struct devres_node *node)
+{
+	node->free_node(node);
 }
 
 static void set_node_dbginfo(struct devres_node *node, const char *name,
@@ -124,6 +134,13 @@ static void dr_node_release(struct device *dev, struct devres_node *node)
 	dr->release(dev, dr->data);
 }
 
+static void dr_node_free(struct devres_node *node)
+{
+	struct devres *dr = container_of(node, struct devres, node);
+
+	kfree(dr);
+}
+
 static __always_inline struct devres *alloc_dr(dr_release_t release,
 					       size_t size, gfp_t gfp, int nid)
 {
@@ -141,7 +158,7 @@ static __always_inline struct devres *alloc_dr(dr_release_t release,
 	if (!(gfp & __GFP_ZERO))
 		memset(dr, 0, offsetof(struct devres, data));
 
-	devres_node_init(&dr->node, dr_node_release);
+	devres_node_init(&dr->node, dr_node_release, dr_node_free);
 	dr->release = release;
 	return dr;
 }
@@ -233,6 +250,11 @@ void devres_for_each_res(struct device *dev, dr_release_t release,
 }
 EXPORT_SYMBOL_GPL(devres_for_each_res);
 
+static inline void free_dr(struct devres *dr)
+{
+	free_node(&dr->node);
+}
+
 /**
  * devres_free - Free device resource data
  * @res: Pointer to devres data to free
@@ -245,7 +267,7 @@ void devres_free(void *res)
 		struct devres *dr = container_of(res, struct devres, data);
 
 		BUG_ON(!list_empty(&dr->node.entry));
-		kfree(dr);
+		free_dr(dr);
 	}
 }
 EXPORT_SYMBOL_GPL(devres_free);
@@ -522,13 +544,10 @@ static void release_nodes(struct device *dev, struct list_head *todo)
 {
 	struct devres_node *node, *tmp;
 
-	/* Release.  Note that devres, devres_action and devres_group are
-	 * handled as devres_node in the following loop.  This is safe.
-	 */
 	list_for_each_entry_safe_reverse(node, tmp, todo, entry) {
 		devres_log(dev, node, "REL");
 		node->release(dev, node);
-		kfree(node);
+		free_node(node);
 	}
 }
 
@@ -561,6 +580,13 @@ int devres_release_all(struct device *dev)
 	return cnt;
 }
 
+static void devres_group_free(struct devres_node *node)
+{
+	struct devres_group *grp = container_of(node, struct devres_group, node[0]);
+
+	kfree(grp);
+}
+
 /**
  * devres_open_group - Open a new devres group
  * @dev: Device to open devres group for
@@ -582,8 +608,8 @@ void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 	if (unlikely(!grp))
 		return NULL;
 
-	devres_node_init(&grp->node[0], &group_open_release);
-	devres_node_init(&grp->node[1], &group_close_release);
+	devres_node_init(&grp->node[0], &group_open_release, devres_group_free);
+	devres_node_init(&grp->node[1], &group_close_release, NULL);
 	set_node_dbginfo(&grp->node[0], "grp<", 0);
 	set_node_dbginfo(&grp->node[1], "grp>", 0);
 	grp->id = grp;
@@ -754,6 +780,13 @@ static void devm_action_release(struct device *dev, struct devres_node *node)
 	devres->action.action(devres->action.data);
 }
 
+static void devm_action_free(struct devres_node *node)
+{
+	struct devres_action *action = container_of(node, struct devres_action, node);
+
+	kfree(action);
+}
+
 /**
  * __devm_add_action() - add a custom action to list of managed resources
  * @dev: Device that owns the action
@@ -772,7 +805,7 @@ int __devm_add_action(struct device *dev, void (*action)(void *), void *data, co
 	if (!devres)
 		return -ENOMEM;
 
-	devres_node_init(&devres->node, devm_action_release);
+	devres_node_init(&devres->node, devm_action_release, devm_action_free);
 	set_node_dbginfo(&devres->node, name, sizeof(*devres));
 
 	devres->action.data = data;
@@ -1015,7 +1048,7 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 	old_dr = find_dr(dev, devm_kmalloc_release, devm_kmalloc_match, ptr);
 	if (!old_dr) {
 		spin_unlock_irqrestore(&dev->devres_lock, flags);
-		kfree(new_dr);
+		free_dr(new_dr);
 		WARN(1, "Memory chunk not managed or managed by a different device.");
 		return NULL;
 	}
@@ -1035,7 +1068,7 @@ void *devm_krealloc(struct device *dev, void *ptr, size_t new_size, gfp_t gfp)
 	 * list. This is also the reason why we must not use devm_kfree() - the
 	 * links are no longer valid.
 	 */
-	kfree(old_dr);
+	free_dr(old_dr);
 
 	return new_dr->data;
 }
