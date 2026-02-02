@@ -42,6 +42,12 @@ struct devres_group {
 	/* -- 8 pointers */
 };
 
+static void devres_node_init(struct devres_node *node, dr_release_t release)
+{
+	INIT_LIST_HEAD(&node->entry);
+	node->release = release;
+}
+
 static void set_node_dbginfo(struct devres_node *node, const char *name,
 			     size_t size)
 {
@@ -124,8 +130,7 @@ static __always_inline struct devres *alloc_dr(dr_release_t release,
 	if (!(gfp & __GFP_ZERO))
 		memset(dr, 0, offsetof(struct devres, data));
 
-	INIT_LIST_HEAD(&dr->node.entry);
-	dr->node.release = release;
+	devres_node_init(&dr->node, release);
 	return dr;
 }
 
@@ -561,10 +566,8 @@ void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 	if (unlikely(!grp))
 		return NULL;
 
-	grp->node[0].release = &group_open_release;
-	grp->node[1].release = &group_close_release;
-	INIT_LIST_HEAD(&grp->node[0].entry);
-	INIT_LIST_HEAD(&grp->node[1].entry);
+	devres_node_init(&grp->node[0], &group_open_release);
+	devres_node_init(&grp->node[1], &group_close_release);
 	set_node_dbginfo(&grp->node[0], "grp<", 0);
 	set_node_dbginfo(&grp->node[1], "grp>", 0);
 	grp->id = grp;
