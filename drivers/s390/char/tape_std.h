@@ -11,8 +11,6 @@
 #ifndef _TAPE_STD_H
 #define _TAPE_STD_H
 
-#include <asm/tape390.h>
-
 /*
  * Biggest block size of 256K to handle.
  */
@@ -41,7 +39,6 @@
 #define ASSIGN			0xB7	/* 3420 REJECT,3480 OK	*/
 #define CONTROL_ACCESS		0xE3	/* Set high speed */
 #define DIAG_MODE_SET		0x0B	/* 3420 NOP, 3480 REJECT */
-#define LOAD_DISPLAY		0x9F	/* 3420 REJECT,3480 OK */
 #define LOCATE			0x4F	/* 3420 REJ, 3480 NOP */
 #define LOOP_WRITE_TO_READ	0x8B	/* 3480 REJECT */
 #define MODE_SET_DB		0xDB	/* 3420 REJECT,3480 OK */
@@ -105,7 +102,6 @@ struct tape_request *tape_std_write_block(struct tape_device *);
 int tape_std_assign(struct tape_device *);
 int tape_std_unassign(struct tape_device *);
 int tape_std_read_block_id(struct tape_device *device, __u64 *id);
-int tape_std_display(struct tape_device *, struct display_struct *disp);
 int tape_std_terminate_write(struct tape_device *);
 
 /* Standard magnetic tape commands. */

@@ -151,8 +151,6 @@ struct tape_discipline {
 	struct tape_request *(*read_block)(struct tape_device *);
 	struct tape_request *(*write_block)(struct tape_device *);
 	void (*process_eov)(struct tape_device*);
-	/* ioctl function for additional ioctls. */
-	int (*ioctl_fn)(struct tape_device *, unsigned int, unsigned long);
 	/* Array of tape commands with TAPE_NR_MTOPS entries */
 	tape_mtop_fn *mtop_array;
 };

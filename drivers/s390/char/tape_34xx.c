@@ -835,23 +835,6 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 	return TAPE_IO_STOP;
 }
 
-/*
- * ioctl_overload
- */
-static int
-tape_34xx_ioctl(struct tape_device *device, unsigned int cmd, unsigned long arg)
-{
-	if (cmd == TAPE390_DISPLAY) {
-		struct display_struct disp;
-
-		if (copy_from_user(&disp, (char __user *) arg, sizeof(disp)) != 0)
-			return -EFAULT;
-
-		return tape_std_display(device, &disp);
-	} else
-		return -EINVAL;
-}
-
 static inline void
 tape_34xx_append_new_sbid(struct tape_34xx_block_id bid, struct list_head *l)
 {
@@ -1134,7 +1117,6 @@ static struct tape_discipline tape_discipline_34xx = {
 	.irq = tape_34xx_irq,
 	.read_block = tape_std_read_block,
 	.write_block = tape_std_write_block,
-	.ioctl_fn = tape_34xx_ioctl,
 	.mtop_array = tape_34xx_mtop
 };
 
