@@ -268,6 +268,11 @@ void dce110_link_encoder_enable_lvds_output(
 	enum clock_source_id clock_source,
 	uint32_t pixel_clock);
 
+/* enables analog output from the DAC */
+void dce110_link_encoder_enable_analog_output(
+	struct link_encoder *enc,
+	uint32_t pixel_clock);
+
 /* disable PHY output */
 void dce110_link_encoder_disable_output(
 	struct link_encoder *enc,

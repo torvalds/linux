@@ -102,6 +102,7 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.enable_dp_output = dce110_link_encoder_enable_dp_output,
 	.enable_dp_mst_output = dce110_link_encoder_enable_dp_mst_output,
 	.enable_lvds_output = dce110_link_encoder_enable_lvds_output,
+	.enable_analog_output = dce110_link_encoder_enable_analog_output,
 	.disable_output = dce110_link_encoder_disable_output,
 	.dp_set_lane_settings = dce110_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = dce110_link_encoder_dp_set_phy_pattern,
@@ -1200,6 +1201,22 @@ void dce110_link_encoder_enable_lvds_output(
 	}
 }
 
+void dce110_link_encoder_enable_analog_output(
+	struct link_encoder *enc,
+	uint32_t pixel_clock)
+{
+	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
+	enum bp_result result;
+
+	result = link_dac_encoder_control(enc110, ENCODER_CONTROL_ENABLE, pixel_clock);
+
+	if (result != BP_RESULT_OK) {
+		DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n",
+			__func__);
+		BREAK_TO_DEBUGGER();
+	}
+}
+
 /* enables DP PHY output */
 void dce110_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
@@ -1818,6 +1835,7 @@ static const struct link_encoder_funcs dce60_lnk_enc_funcs = {
 	.enable_dp_output = dce60_link_encoder_enable_dp_output,
 	.enable_dp_mst_output = dce60_link_encoder_enable_dp_mst_output,
 	.enable_lvds_output = dce110_link_encoder_enable_lvds_output,
+	.enable_analog_output = dce110_link_encoder_enable_analog_output,
 	.disable_output = dce110_link_encoder_disable_output,
 	.dp_set_lane_settings = dce110_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = dce60_link_encoder_dp_set_phy_pattern,
