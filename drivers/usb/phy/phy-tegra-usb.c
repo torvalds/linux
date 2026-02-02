@@ -965,17 +965,10 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy)
 		writel_relaxed(val, base + USB_TXFILLTUNING);
 	}
 
-	if (phy->soc_config->has_hostpc) {
-		val = readl_relaxed(base + TEGRA30_USB_PORTSC1);
-		val &= ~(TEGRA_USB_PORTSC1_WKOC | TEGRA_USB_PORTSC1_WKDS |
-			 TEGRA_USB_PORTSC1_WKCN);
-		writel_relaxed(val, base + TEGRA30_USB_PORTSC1);
-	} else {
-		val = readl_relaxed(base + TEGRA_USB_PORTSC1);
-		val &= ~(TEGRA_USB_PORTSC1_WKOC | TEGRA_USB_PORTSC1_WKDS |
-			 TEGRA_USB_PORTSC1_WKCN);
-		writel_relaxed(val, base + TEGRA_USB_PORTSC1);
-	}
+	val = readl_relaxed(base + phy->soc_config->portsc1_offset);
+	val &= ~(TEGRA_USB_PORTSC1_WKOC | TEGRA_USB_PORTSC1_WKDS |
+		 TEGRA_USB_PORTSC1_WKCN);
+	writel_relaxed(val, base + phy->soc_config->portsc1_offset);
 
 	val = tegra_hsic_readl(phy, UHSIC_PADS_CFG0);
 	val &= ~UHSIC_TX_RTUNEN;
@@ -1472,6 +1465,7 @@ static const struct tegra_phy_soc_config tegra20_soc_config = {
 	.uhsic_registers_offset = 0,
 	.uhsic_tx_rtune = 0, /* 40 ohm */
 	.uhsic_pts_value = 0, /* UTMI */
+	.portsc1_offset = TEGRA_USB_PORTSC1,
 };
 
 static const struct tegra_phy_soc_config tegra30_soc_config = {
@@ -1483,6 +1477,7 @@ static const struct tegra_phy_soc_config tegra30_soc_config = {
 	.uhsic_registers_offset = 0x400,
 	.uhsic_tx_rtune = 8,  /* 50 ohm */
 	.uhsic_pts_value = TEGRA_USB_HOSTPC1_DEVLC_PTS_HSIC,
+	.portsc1_offset = TEGRA30_USB_PORTSC1,
 };
 
 static const struct of_device_id tegra_usb_phy_id_table[] = {
