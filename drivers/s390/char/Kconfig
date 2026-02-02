@@ -123,10 +123,10 @@ comment "S/390 tape hardware support"
 
 config S390_TAPE_34XX
 	def_tristate m
-	prompt "Support for 3480/3490 tape hardware"
+	prompt "Support for 3490 tape hardware"
 	depends on S390_TAPE
 	help
-	  Select this option if you want to access IBM 3480/3490 magnetic
+	  Select this option if you want to access IBM 3490 magnetic
 	  tape subsystems and 100% compatibles.
 	  It is safe to say "Y" here.
 

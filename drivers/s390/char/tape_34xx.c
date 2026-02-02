@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    tape device discipline for 3480/3490 tapes.
+ *    tape device discipline for 3490 tapes.
  *
  *    Copyright IBM Corp. 2001, 2009
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
@@ -398,13 +398,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			dev_warn (&device->cdev->dev, "The tape contains an "
 				"incorrect block ID sequence\n");
 			return tape_34xx_erp_failed(request, -EIO);
-		default:
-			/* all data checks for 3480 should result in one of
-			 * the above erpa-codes. For 3490, other data-check
-			 * conditions do exist. */
-			if (device->cdev->id.driver_info == tape_3480)
-				return tape_34xx_erp_bug(device, request,
-							 irb, -6);
 		}
 	}
 
@@ -535,11 +528,8 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			" on the tape unit\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x36:
-		if (device->cdev->id.driver_info == tape_3490)
-			/* End of data. */
-			return tape_34xx_erp_failed(request, -EIO);
-		/* This erpa is reserved for 3480 */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		/* End of data. */
+		return tape_34xx_erp_failed(request, -EIO);
 	case 0x37:
 		/*
 		 * Tape length error. The tape is shorter than reported in
@@ -648,28 +638,21 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		return tape_34xx_erp_retry(request);
 	case 0x4d:
-		if (device->cdev->id.driver_info == tape_3490)
-			/*
-			 * Resetting event received. Since the driver does
-			 * not support resetting event recovery (which has to
-			 * be handled by the I/O Layer), retry our command.
-			 */
-			return tape_34xx_erp_retry(request);
-		/* This erpa is reserved for 3480. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		/*
+		 * Resetting event received. Since the driver does
+		 * not support resetting event recovery (which has to
+		 * be handled by the I/O Layer), retry our command.
+		 */
+		return tape_34xx_erp_retry(request);
 	case 0x4e:
-		if (device->cdev->id.driver_info == tape_3490) {
-			/*
-			 * Maximum block size exceeded. This indicates, that
-			 * the block to be written is larger than allowed for
-			 * buffered mode.
-			 */
-			dev_warn (&device->cdev->dev, "The maximum block size"
-				" for buffered mode is exceeded\n");
-			return tape_34xx_erp_failed(request, -ENOBUFS);
-		}
-		/* This erpa is reserved for 3480. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		/*
+		 * Maximum block size exceeded. This indicates, that
+		 * the block to be written is larger than allowed for
+		 * buffered mode.
+		 */
+		dev_warn (&device->cdev->dev,
+			  "The maximum block size for buffered mode is exceeded\n");
+		return tape_34xx_erp_failed(request, -ENOBUFS);
 	case 0x50:
 		/*
 		 * Read buffered log (Overflow). CU is running in extended
@@ -710,10 +693,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			"occurred\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x57:
-		/*
-		 * 3480: Attention intercept.
-		 * 3490: Global status intercept.
-		 */
+		/* Global status intercept. */
 		return tape_34xx_erp_retry(request);
 	case 0x5a:
 		/*
@@ -722,19 +702,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit does not support "
 			"the tape length\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x5b:
-		/* Format 3480 XF incompatible */
-		if (sense[1] & SENSE_BEGINNING_OF_TAPE)
-			/* The tape will get overwritten. */
-			return tape_34xx_erp_retry(request);
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
-			" format 3480 XF\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x5c:
-		/* Format 3480-2 XF incompatible */
-		dev_warn (&device->cdev->dev, "The tape unit does not support tape "
-			"format 3480-2 XF\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x5d:
 		/* Tape length violation. */
@@ -762,7 +729,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 }
 
 /*
- * 3480/3490 interrupt handler
+ * 3490 interrupt handler
  */
 static int
 tape_34xx_irq(struct tape_device *device, struct tape_request *request,
@@ -870,7 +837,7 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 }
 
 /*
- * List of 3480/3490 magnetic tape commands.
+ * List of 3490 tape commands.
  */
 static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
 	[MTRESET]	 = tape_std_mtreset,
@@ -908,7 +875,7 @@ static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
 };
 
 /*
- * Tape discipline structure for 3480 and 3490.
+ * Tape discipline structure for 3490.
  */
 static struct tape_discipline tape_discipline_34xx = {
 	.owner = THIS_MODULE,
@@ -922,7 +889,6 @@ static struct tape_discipline tape_discipline_34xx = {
 };
 
 static struct ccw_device_id tape_34xx_ids[] = {
-	{ CCW_DEVICE_DEVTYPE(0x3480, 0, 0x3480, 0), .driver_info = tape_3480},
 	{ CCW_DEVICE_DEVTYPE(0x3490, 0, 0x3490, 0), .driver_info = tape_3490},
 	{ /* end of list */ },
 };
@@ -961,7 +927,7 @@ tape_34xx_init (void)
 #endif
 
 	DBF_EVENT(3, "34xx init\n");
-	/* Register driver for 3480/3490 tapes. */
+	/* Register driver for 3490 tapes. */
 	rc = ccw_driver_register(&tape_34xx_driver);
 	if (rc)
 		DBF_EVENT(3, "34xx init failed\n");
@@ -980,7 +946,7 @@ tape_34xx_exit(void)
 
 MODULE_DEVICE_TABLE(ccw, tape_34xx_ids);
 MODULE_AUTHOR("(C) 2001-2002 IBM Deutschland Entwicklung GmbH");
-MODULE_DESCRIPTION("Linux on zSeries channel attached 3480 tape device driver");
+MODULE_DESCRIPTION("Linux on zSeries channel attached 3490 tape device driver");
 MODULE_LICENSE("GPL");
 
 module_init(tape_34xx_init);

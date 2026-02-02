@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    tape device driver for 3480/3490E tapes.
+ *    tape device driver for 3490E tapes.
  *
  *  S390 and zSeries version
  *    Copyright IBM Corp. 2001, 2009

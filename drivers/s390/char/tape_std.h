@@ -101,7 +101,6 @@ void tape_std_process_eov(struct tape_device *);
 
 /* S390 tape types */
 enum s390_tape_type {
-        tape_3480,
         tape_3490,
 };
 
