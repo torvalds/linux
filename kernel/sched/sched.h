@@ -3902,12 +3902,31 @@ static __always_inline void mm_cid_schedin(struct task_struct *next)
 
 static __always_inline void mm_cid_schedout(struct task_struct *prev)
 {
+	struct mm_struct *mm = prev->mm;
+	unsigned int mode, cid;
+
 	/* During mode transitions CIDs are temporary and need to be dropped */
 	if (likely(!cid_in_transit(prev->mm_cid.cid)))
 		return;
 
-	mm_drop_cid(prev->mm, cid_from_transit_cid(prev->mm_cid.cid));
-	prev->mm_cid.cid = MM_CID_UNSET;
+	mode = READ_ONCE(mm->mm_cid.mode);
+	cid = cid_from_transit_cid(prev->mm_cid.cid);
+
+	/*
+	 * If transition mode is done, transfer ownership when the CID is
+	 * within the convergence range to optimize the next schedule in.
+	 */
+	if (!cid_in_transit(mode) && cid < READ_ONCE(mm->mm_cid.max_cids)) {
+		if (cid_on_cpu(mode))
+			cid = cid_to_cpu_cid(cid);
+
+		/* Update both so that the next schedule in goes into the fast path */
+		mm_cid_update_pcpu_cid(mm, cid);
+		prev->mm_cid.cid = cid;
+	} else {
+		mm_drop_cid(mm, cid);
+		prev->mm_cid.cid = MM_CID_UNSET;
+	}
 }
 
 static inline void mm_cid_switch_to(struct task_struct *prev, struct task_struct *next)
