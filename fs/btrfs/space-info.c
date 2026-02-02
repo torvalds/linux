@@ -492,10 +492,10 @@ static u64 calc_available_free_space(const struct btrfs_space_info *space_info,
 	/*
 	 * If we aren't flushing all things, let us overcommit up to
 	 * 1/2th of the space. If we can flush, don't let us overcommit
-	 * too much, let it overcommit up to 1/8 of the space.
+	 * too much, let it overcommit up to 1/64th of the space.
 	 */
-	if (flush == BTRFS_RESERVE_FLUSH_ALL)
-		avail >>= 3;
+	if (flush == BTRFS_RESERVE_FLUSH_ALL || flush == BTRFS_RESERVE_FLUSH_ALL_STEAL)
+		avail >>= 6;
 	else
 		avail >>= 1;
 
