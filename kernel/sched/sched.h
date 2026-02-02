@@ -3841,6 +3841,10 @@ static __always_inline void mm_cid_from_cpu(struct task_struct *t, unsigned int 
 		/* Still nothing, allocate a new one */
 		if (!cid_on_cpu(cpu_cid))
 			cpu_cid = cid_to_cpu_cid(mm_get_cid(mm));
+
+		/* Set the transition mode flag if required */
+		if (READ_ONCE(mm->mm_cid.transit))
+			cpu_cid = cpu_cid_to_cid(cpu_cid) | MM_CID_TRANSIT;
 	}
 	mm_cid_update_pcpu_cid(mm, cpu_cid);
 	mm_cid_update_task_cid(t, cpu_cid);
