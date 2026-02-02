@@ -106,7 +106,7 @@ xfs_inode_alloc(
 	mapping_set_folio_min_order(VFS_I(ip)->i_mapping,
 				    M_IGEO(mp)->min_folio_order);
 
-	XFS_STATS_INC(mp, vn_active);
+	XFS_STATS_INC(mp, xs_inodes_active);
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(ip->i_ino == 0);
 
@@ -172,7 +172,7 @@ __xfs_inode_free(
 	/* asserts to verify all state is correct here */
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!ip->i_itemp || list_empty(&ip->i_itemp->ili_item.li_bio_list));
-	XFS_STATS_DEC(ip->i_mount, vn_active);
+	XFS_STATS_DEC(ip->i_mount, xs_inodes_active);
 
 	call_rcu(&VFS_I(ip)->i_rcu, xfs_inode_free_callback);
 }
@@ -2234,7 +2234,7 @@ xfs_inode_mark_reclaimable(
 	struct xfs_mount	*mp = ip->i_mount;
 	bool			need_inactive;
 
-	XFS_STATS_INC(mp, vn_reclaim);
+	XFS_STATS_INC(mp, xs_inode_mark_reclaimable);
 
 	/*
 	 * We should never get here with any of the reclaim flags already set.
