@@ -73,19 +73,19 @@ impl SampleDriver {
         // TODO: use the register!() macro for defining PCI configuration space registers once it
         // has been move out of nova-core.
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "pci-testdev config space read8 rev ID: {:x}\n",
             config.read8(0x8)
         );
 
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "pci-testdev config space read16 vendor ID: {:x}\n",
             config.read16(0)
         );
 
         dev_info!(
-            pdev.as_ref(),
+            pdev,
             "pci-testdev config space read32 BAR 0: {:x}\n",
             config.read32(0x10)
         );
