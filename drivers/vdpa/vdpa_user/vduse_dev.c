@@ -1301,7 +1301,7 @@ static int vduse_dev_iotlb_entry(struct vduse_dev *dev,
 	int r = -EINVAL;
 	struct vhost_iotlb_map *map;
 
-	if (entry->v1.start > entry->v1.last || entry->asid >= dev->nas)
+	if (entry->start > entry->last || entry->asid >= dev->nas)
 		return -EINVAL;
 
 	asid = array_index_nospec(entry->asid, dev->nas);
@@ -1312,18 +1312,18 @@ static int vduse_dev_iotlb_entry(struct vduse_dev *dev,
 
 	spin_lock(&dev->as[asid].domain->iotlb_lock);
 	map = vhost_iotlb_itree_first(dev->as[asid].domain->iotlb,
-				      entry->v1.start, entry->v1.last);
+				      entry->start, entry->last);
 	if (map) {
 		if (f) {
 			const struct vdpa_map_file *map_file;
 
 			map_file = (struct vdpa_map_file *)map->opaque;
-			entry->v1.offset = map_file->offset;
+			entry->offset = map_file->offset;
 			*f = get_file(map_file->file);
 		}
-		entry->v1.start = map->start;
-		entry->v1.last = map->last;
-		entry->v1.perm = map->perm;
+		entry->start = map->start;
+		entry->last = map->last;
+		entry->perm = map->perm;
 		if (capability) {
 			*capability = 0;
 
@@ -1363,14 +1363,8 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			break;
 
 		ret = -EFAULT;
-		if (cmd == VDUSE_IOTLB_GET_FD2) {
-			if (copy_from_user(&entry, argp, sizeof(entry)))
-				break;
-		} else {
-			if (copy_from_user(&entry.v1, argp,
-					   sizeof(entry.v1)))
-				break;
-		}
+		if (copy_from_user(&entry, argp, _IOC_SIZE(cmd)))
+			break;
 
 		ret = -EINVAL;
 		if (!is_mem_zero((const char *)entry.reserved,
@@ -1385,19 +1379,13 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		if (!f)
 			break;
 
-		if (cmd == VDUSE_IOTLB_GET_FD2)
-			ret = copy_to_user(argp, &entry,
-					   sizeof(entry));
-		else
-			ret = copy_to_user(argp, &entry.v1,
-					   sizeof(entry.v1));
-
+		ret = copy_to_user(argp, &entry, _IOC_SIZE(cmd));
 		if (ret) {
 			ret = -EFAULT;
 			fput(f);
 			break;
 		}
-		ret = receive_fd(f, NULL, perm_to_file_flags(entry.v1.perm));
+		ret = receive_fd(f, NULL, perm_to_file_flags(entry.perm));
 		fput(f);
 		break;
 	}
@@ -1603,16 +1591,16 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		} else if (info.asid >= dev->nas)
 			break;
 
-		entry.v1.start = info.start;
-		entry.v1.last = info.last;
+		entry.start = info.start;
+		entry.last = info.last;
 		entry.asid = info.asid;
 		ret = vduse_dev_iotlb_entry(dev, &entry, NULL,
 					    &info.capability);
 		if (ret < 0)
 			break;
 
-		info.start = entry.v1.start;
-		info.last = entry.v1.last;
+		info.start = entry.start;
+		info.last = entry.last;
 		info.asid = entry.asid;
 
 		ret = -EFAULT;

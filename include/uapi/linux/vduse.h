@@ -293,9 +293,13 @@ struct vduse_iova_info {
  * Structure used by VDUSE_IOTLB_GET_FD2 ioctl to find an overlapped IOVA region.
  */
 struct vduse_iotlb_entry_v2 {
-	struct vduse_iotlb_entry v1;
+	__u64 offset;
+	__u64 start;
+	__u64 last;
+	__u8 perm;
+	__u8 padding[7];
 	__u32 asid;
-	__u32 reserved[12];
+	__u32 reserved[11];
 };
 
 /*
@@ -365,6 +369,7 @@ struct vduse_iova_range_v2 {
 	__u64 start;
 	__u64 last;
 	__u32 asid;
+	__u32 padding;
 };
 
 /**
