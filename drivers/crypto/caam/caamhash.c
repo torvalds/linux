@@ -1913,16 +1913,12 @@ caam_hash_alloc(struct caam_hash_template *template,
 	alg = &halg->halg.base;
 
 	if (keyed) {
-		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->hmac_name);
-		snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->hmac_driver_name);
+		strscpy(alg->cra_name, template->hmac_name);
+		strscpy(alg->cra_driver_name, template->hmac_driver_name);
 		t_alg->is_hmac = true;
 	} else {
-		snprintf(alg->cra_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->name);
-		snprintf(alg->cra_driver_name, CRYPTO_MAX_ALG_NAME, "%s",
-			 template->driver_name);
+		strscpy(alg->cra_name, template->name);
+		strscpy(alg->cra_driver_name, template->driver_name);
 		halg->setkey = NULL;
 		t_alg->is_hmac = false;
 	}
