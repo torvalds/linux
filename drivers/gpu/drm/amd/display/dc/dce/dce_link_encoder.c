@@ -1036,6 +1036,16 @@ void dce110_link_encoder_hw_init(
 	cntl.coherent = false;
 	cntl.hpd_sel = enc110->base.hpd_source;
 
+	if (enc110->base.analog_engine != ENGINE_ID_UNKNOWN) {
+		result = link_dac_encoder_control(enc110, ENCODER_CONTROL_INIT, 0);
+		if (result != BP_RESULT_OK) {
+			DC_LOG_ERROR("%s: Failed to execute VBIOS command table for DAC!\n",
+				__func__);
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	}
+
 	/* The code below is only applicable to encoders with a digital transmitter. */
 	if (enc110->base.transmitter == TRANSMITTER_UNKNOWN)
 		return;
