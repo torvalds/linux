@@ -891,6 +891,7 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy)
 	struct tegra_utmip_config *config = phy->config;
 	void __iomem *base = phy->regs;
 	u32 val;
+	int err = 0;
 
 	val = tegra_hsic_readl(phy, UHSIC_PADS_CFG1);
 	val &= ~(UHSIC_PD_BG | UHSIC_PD_TX | UHSIC_PD_TRK | UHSIC_PD_RX |
@@ -984,12 +985,14 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy)
 	val |= UHSIC_TX_RTUNE(phy->soc_config->uhsic_tx_rtune);
 	tegra_hsic_writel(phy, UHSIC_PADS_CFG0, val);
 
-	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
-			       USB_PHY_CLK_VALID))
+	err = utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
+				 USB_PHY_CLK_VALID);
+
+	if (err)
 		dev_err(phy->u_phy.dev,
 			"Timeout waiting for PHY to stabilize on enable (HSIC)\n");
 
-	return 0;
+	return err;
 }
 
 static int uhsic_phy_power_off(struct tegra_usb_phy *phy)
