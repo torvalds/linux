@@ -2026,10 +2026,10 @@ struct lightbar_program {
  * EC RAM.
  */
 struct lightbar_program_ex {
-	uint16_t offset;
 	uint8_t size;
+	uint16_t offset;
 	uint8_t data[0];
-} __ec_todo_unpacked;
+} __ec_todo_packed;
 
 struct ec_params_lightbar {
 	uint8_t cmd;		      /* Command (see enum lightbar_command) */
