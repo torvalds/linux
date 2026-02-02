@@ -4,6 +4,7 @@
  * Copyright (c) 2023 David Vernet <dvernet@meta.com>
  * Copyright (c) 2023 Tejun Heo <tj@kernel.org>
  */
+#include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sched.h>
@@ -23,6 +24,9 @@ static enum scx_test_status run_test(bool global)
 	int ret, i, status;
 	struct sched_param param = {};
 	pid_t pids[num_pre_forks];
+	int pipe_fds[2];
+
+	SCX_FAIL_IF(pipe(pipe_fds) < 0, "Failed to create pipe");
 
 	skel = init_enable_count__open();
 	SCX_FAIL_IF(!skel, "Failed to open");
@@ -38,26 +42,34 @@ static enum scx_test_status run_test(bool global)
 	 * ensure (at least in practical terms) that there are more tasks that
 	 * transition from SCHED_OTHER -> SCHED_EXT than there are tasks that
 	 * take the fork() path either below or in other processes.
+	 *
+	 * All children will block on read() on the pipe until the parent closes
+	 * the write end after attaching the scheduler, which signals all of
+	 * them to exit simultaneously. Auto-reap so we don't have to wait on
+	 * them.
 	 */
+	signal(SIGCHLD, SIG_IGN);
 	for (i = 0; i < num_pre_forks; i++) {
-		pids[i] = fork();
-		SCX_FAIL_IF(pids[i] < 0, "Failed to fork child");
-		if (pids[i] == 0) {
-			sleep(1);
+		pid_t pid = fork();
+
+		SCX_FAIL_IF(pid < 0, "Failed to fork child");
+		if (pid == 0) {
+			char buf;
+
+			close(pipe_fds[1]);
+			read(pipe_fds[0], &buf, 1);
+			close(pipe_fds[0]);
 			exit(0);
 		}
 	}
+	close(pipe_fds[0]);
 
 	link = bpf_map__attach_struct_ops(skel->maps.init_enable_count_ops);
 	SCX_FAIL_IF(!link, "Failed to attach struct_ops");
 
-	for (i = 0; i < num_pre_forks; i++) {
-		SCX_FAIL_IF(waitpid(pids[i], &status, 0) != pids[i],
-			    "Failed to wait for pre-forked child\n");
-
-		SCX_FAIL_IF(status != 0, "Pre-forked child %d exited with status %d\n", i,
-			    status);
-	}
+	/* Signal all pre-forked children to exit. */
+	close(pipe_fds[1]);
+	signal(SIGCHLD, SIG_DFL);
 
 	bpf_link__destroy(link);
 	SCX_GE(skel->bss->init_task_cnt, num_pre_forks);
