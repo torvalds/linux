@@ -19,7 +19,6 @@ struct fsverity_pending_block {
 };
 
 struct fsverity_verification_context {
-	struct inode *inode;
 	struct fsverity_info *vi;
 
 	/*
@@ -316,7 +315,6 @@ static void
 fsverity_init_verification_context(struct fsverity_verification_context *ctx,
 				   struct fsverity_info *vi)
 {
-	ctx->inode = vi->inode;
 	ctx->vi = vi;
 	ctx->num_pending = 0;
 	if (vi->tree_params.hash_alg->algo_id == HASH_ALGO_SHA256 &&
