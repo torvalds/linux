@@ -142,7 +142,8 @@ struct __xfsstats {
 	uint32_t		xs_gc_read_calls;
 	uint32_t		xs_gc_write_calls;
 	uint32_t		xs_gc_zone_reset_calls;
-	uint32_t		__pad1;
+/* Metafile counters */
+	uint32_t		xs_inodes_meta;
 /* Extra precision counters */
 	uint64_t		xs_xstrat_bytes;
 	uint64_t		xs_write_bytes;
