@@ -10727,8 +10727,14 @@ void sched_mm_cid_exit(struct task_struct *t)
 			scoped_guard(raw_spinlock_irq, &mm->mm_cid.lock) {
 				if (!__sched_mm_cid_exit(t))
 					return;
-				/* Mode change required. Transfer currents CID */
-				mm_cid_transit_to_task(current, this_cpu_ptr(mm->mm_cid.pcpu));
+				/*
+				 * Mode change. The task has the CID unset
+				 * already. The CPU CID is still valid and
+				 * does not have MM_CID_TRANSIT set as the
+				 * mode change has just taken effect under
+				 * mm::mm_cid::lock. Drop it.
+				 */
+				mm_drop_cid_on_cpu(mm, this_cpu_ptr(mm->mm_cid.pcpu));
 			}
 			mm_cid_fixup_cpus_to_tasks(mm);
 			return;
