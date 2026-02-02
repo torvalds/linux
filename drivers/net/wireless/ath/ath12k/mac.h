@@ -138,6 +138,9 @@ struct ath12k_reg_tpc_power_info {
 	struct ath12k_chan_power_info chan_power_info[ATH12K_NUM_PWR_LEVELS];
 };
 
+#define ATH12K_OBSS_PD_MAX_THRESHOLD		-82
+#define ATH12K_OBSS_PD_NON_SRG_MAX_THRESHOLD	-62
+
 extern const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default;
 
 #define ATH12K_SCAN_11D_INTERVAL		600000

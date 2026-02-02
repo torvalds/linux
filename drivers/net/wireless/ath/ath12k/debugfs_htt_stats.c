@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/vmalloc.h>
@@ -29,8 +29,10 @@ print_array_to_buf_index(u8 *buf, u32 offset, const char *header, u32 stats_inde
 				   " %u:%u,", stats_index++, le32_to_cpu(array[i]));
 	}
 	/* To overwrite the last trailing comma */
-	index--;
-	*(buf + offset + index) = '\0';
+	if (array_len > 0) {
+		index--;
+		*(buf + offset + index) = '\0';
+	}
 
 	if (footer) {
 		index += scnprintf(buf + offset + index,
@@ -5537,6 +5539,189 @@ ath12k_htt_print_pdev_rtt_tbr_cmd_res_stats_tlv(const void *tag_buf, u16 tag_len
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_rx_pdev_fw_stats_tlv(const void *tag_buf, u16 tag_len,
+				      struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_rx_pdev_fw_stats_tlv *htt_stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_RX_PDEV_FW_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			le32_to_cpu(htt_stats_buf->mac_id__word) & 0xFF);
+	len += scnprintf(buf + len, buf_len - len, "ppdu_recvd = %u\n",
+			le32_to_cpu(htt_stats_buf->ppdu_recvd));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_cnt_fcs_ok = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_cnt_fcs_ok));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_cnt_fcs_err = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_cnt_fcs_err));
+	len += scnprintf(buf + len, buf_len - len, "tcp_msdu_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->tcp_msdu_cnt));
+	len += scnprintf(buf + len, buf_len - len, "tcp_ack_msdu_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->tcp_ack_msdu_cnt));
+	len += scnprintf(buf + len, buf_len - len, "udp_msdu_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->udp_msdu_cnt));
+	len += scnprintf(buf + len, buf_len - len, "other_msdu_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->other_msdu_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_mpdu_ind = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_mpdu_ind));
+	len += print_array_to_buf(buf, len, "fw_ring_mgmt_subtype",
+			htt_stats_buf->fw_ring_mgmt_subtype,
+			ATH12K_HTT_STATS_SUBTYPE_MAX, "\n");
+	len += print_array_to_buf(buf, len, "fw_ring_ctrl_subtype",
+			htt_stats_buf->fw_ring_ctrl_subtype,
+			ATH12K_HTT_STATS_SUBTYPE_MAX, "\n");
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_mcast_data_msdu = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_mcast_data_msdu));
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_bcast_data_msdu = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_bcast_data_msdu));
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_ucast_data_msdu = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_ucast_data_msdu));
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_null_data_msdu = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_null_data_msdu));
+	len += scnprintf(buf + len, buf_len - len, "fw_ring_mpdu_drop = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_ring_mpdu_drop));
+	len += scnprintf(buf + len, buf_len - len, "ofld_local_data_ind_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->ofld_local_data_ind_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			"ofld_local_data_buf_recycle_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->ofld_local_data_buf_recycle_cnt));
+	len += scnprintf(buf + len, buf_len - len, "drx_local_data_ind_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->drx_local_data_ind_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			"drx_local_data_buf_recycle_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->drx_local_data_buf_recycle_cnt));
+	len += scnprintf(buf + len, buf_len - len, "local_nondata_ind_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->local_nondata_ind_cnt));
+	len += scnprintf(buf + len, buf_len - len, "local_nondata_buf_recycle_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->local_nondata_buf_recycle_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_status_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_status_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_status_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_status_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_pkt_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_pkt_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_pkt_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_pkt_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_link_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_link_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "fw_link_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->fw_link_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "host_pkt_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->host_pkt_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "host_pkt_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->host_pkt_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_pkt_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_pkt_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_pkt_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_pkt_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len,
+			"mon_status_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_status_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_status_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_status_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_desc_buf_ring_refill_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_desc_buf_ring_refill_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_desc_buf_ring_empty_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_desc_buf_ring_empty_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_dest_ring_update_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_dest_ring_update_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mon_dest_ring_full_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mon_dest_ring_full_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_suspend_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_suspend_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_suspend_fail_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_suspend_fail_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_resume_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_resume_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_resume_fail_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_resume_fail_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_ring_switch_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_ring_switch_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_ring_restore_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_ring_restore_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_flush_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_flush_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_recovery_reset_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_recovery_reset_cnt));
+	len += scnprintf(buf + len, buf_len - len, "rx_lwm_prom_filter_dis = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_lwm_prom_filter_dis));
+	len += scnprintf(buf + len, buf_len - len, "rx_hwm_prom_filter_en = %u\n",
+			le32_to_cpu(htt_stats_buf->rx_hwm_prom_filter_en));
+	len += scnprintf(buf + len, buf_len - len, "bytes_received_low_32 = %u\n",
+			le32_to_cpu(htt_stats_buf->bytes_received_low_32));
+	len += scnprintf(buf + len, buf_len - len, "bytes_received_high_32 = %u\n",
+			le32_to_cpu(htt_stats_buf->bytes_received_high_32));
+
+	stats_req->buf_len = len;
+}
+
+static void
+ath12k_htt_print_tx_hwq_stats_cmn_tlv(const void *tag_buf, u16 tag_len,
+				      struct debug_htt_stats_req *stats_req)
+{
+	const struct htt_tx_hwq_stats_cmn_tlv *htt_stats_buf = tag_buf;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 len = stats_req->buf_len;
+	u8 *buf = stats_req->buf;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_TX_HWQ_STATS_CMN_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			le32_to_cpu(htt_stats_buf->mac_id__hwq_id__word) & 0xFF);
+	len += scnprintf(buf + len, buf_len - len, "hwq_id = %u\n",
+			(le32_to_cpu(htt_stats_buf->mac_id__hwq_id__word) & 0xFF00) >> 8);
+	len += scnprintf(buf + len, buf_len - len, "xretry = %u\n",
+			le32_to_cpu(htt_stats_buf->xretry));
+	len += scnprintf(buf + len, buf_len - len, "underrun_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->underrun_cnt));
+	len += scnprintf(buf + len, buf_len - len, "flush_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->flush_cnt));
+	len += scnprintf(buf + len, buf_len - len, "filt_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->filt_cnt));
+	len += scnprintf(buf + len, buf_len - len, "null_mpdu_bmap = %u\n",
+			le32_to_cpu(htt_stats_buf->null_mpdu_bmap));
+	len += scnprintf(buf + len, buf_len - len, "user_ack_failure = %u\n",
+			le32_to_cpu(htt_stats_buf->user_ack_failure));
+	len += scnprintf(buf + len, buf_len - len, "ack_tlv_proc = %u\n",
+			le32_to_cpu(htt_stats_buf->ack_tlv_proc));
+	len += scnprintf(buf + len, buf_len - len, "sched_id_proc = %u\n",
+			le32_to_cpu(htt_stats_buf->sched_id_proc));
+	len += scnprintf(buf + len, buf_len - len, "null_mpdu_tx_count = %u\n",
+			le32_to_cpu(htt_stats_buf->null_mpdu_tx_count));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_bmap_not_recvd = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_bmap_not_recvd));
+	len += scnprintf(buf + len, buf_len - len, "num_bar = %u\n",
+			le32_to_cpu(htt_stats_buf->num_bar));
+	len += scnprintf(buf + len, buf_len - len, "rts = %u\n",
+			le32_to_cpu(htt_stats_buf->rts));
+	len += scnprintf(buf + len, buf_len - len, "cts2self = %u\n",
+			le32_to_cpu(htt_stats_buf->cts2self));
+	len += scnprintf(buf + len, buf_len - len, "qos_null = %u\n",
+			le32_to_cpu(htt_stats_buf->qos_null));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_tried_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_tried_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_queued_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_queued_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_ack_fail_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_ack_fail_cnt));
+	len += scnprintf(buf + len, buf_len - len, "mpdu_filt_cnt = %u\n",
+			le32_to_cpu(htt_stats_buf->mpdu_filt_cnt));
+	len += scnprintf(buf + len, buf_len - len, "false_mpdu_ack_count = %u\n",
+			le32_to_cpu(htt_stats_buf->false_mpdu_ack_count));
+	len += scnprintf(buf + len, buf_len - len, "txq_timeout = %u\n",
+			le32_to_cpu(htt_stats_buf->txq_timeout));
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -5690,6 +5875,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 	case HTT_STATS_SFM_CLIENT_USER_TAG:
 		ath12k_htt_print_sfm_client_user_tlv(tag_buf, len, stats_req);
 		break;
+	case HTT_STATS_RX_PDEV_FW_STATS_TAG:
+		ath12k_htt_print_rx_pdev_fw_stats_tlv(tag_buf, len, stats_req);
+		break;
 	case HTT_STATS_TX_PDEV_MU_MIMO_STATS_TAG:
 		ath12k_htt_print_tx_pdev_mu_mimo_sch_stats_tlv(tag_buf, len, stats_req);
 		break;
@@ -5832,6 +6020,9 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_PDEV_RTT_TBR_CMD_RESULT_STATS_TAG:
 		ath12k_htt_print_pdev_rtt_tbr_cmd_res_stats_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_TX_HWQ_CMN_TAG:
+		ath12k_htt_print_tx_hwq_stats_cmn_tlv(tag_buf, len, stats_req);
 		break;
 	default:
 		break;
