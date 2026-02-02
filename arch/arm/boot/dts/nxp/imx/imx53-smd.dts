@@ -31,6 +31,20 @@
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &esdhc1 {
@@ -253,6 +267,10 @@
 	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
+		clocks = <&clks IMX5_CLK_DUMMY>;
+		VDDA-supply = <&reg_1v8>;
+		VDDIO-supply = <&reg_3v3>;
 	};
 
 	magnetometer: mag3110@e {
