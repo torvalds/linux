@@ -18,16 +18,7 @@
 #define _LINUX_TASKSTATS_H
 
 #include <linux/types.h>
-#ifdef __KERNEL__
-#include <linux/time64.h>
-#else
-#ifndef _LINUX_TIME64_H
-struct timespec64 {
-	__s64   tv_sec;         /* seconds */
-	long    tv_nsec;        /* nanoseconds */
-};
-#endif
-#endif
+#include <linux/time_types.h>
 
 /* Format for per-task data returned to userland when
  *	- a task exits
@@ -242,14 +233,14 @@ struct taskstats {
 	__u64	irq_delay_min;
 
 	/*v17: delay max timestamp record*/
-	struct timespec64 cpu_delay_max_ts;
-	struct timespec64 blkio_delay_max_ts;
-	struct timespec64 swapin_delay_max_ts;
-	struct timespec64 freepages_delay_max_ts;
-	struct timespec64 thrashing_delay_max_ts;
-	struct timespec64 compact_delay_max_ts;
-	struct timespec64 wpcopy_delay_max_ts;
-	struct timespec64 irq_delay_max_ts;
+	struct __kernel_timespec cpu_delay_max_ts;
+	struct __kernel_timespec blkio_delay_max_ts;
+	struct __kernel_timespec swapin_delay_max_ts;
+	struct __kernel_timespec freepages_delay_max_ts;
+	struct __kernel_timespec thrashing_delay_max_ts;
+	struct __kernel_timespec compact_delay_max_ts;
+	struct __kernel_timespec wpcopy_delay_max_ts;
+	struct __kernel_timespec irq_delay_max_ts;
 };
 
 
