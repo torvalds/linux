@@ -26,10 +26,13 @@ struct page *generic_read_merkle_tree_page(struct inode *inode, pgoff_t index,
 	    (!IS_ERR(folio) && !folio_test_uptodate(folio))) {
 		DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 
-		if (!IS_ERR(folio))
+		if (!IS_ERR(folio)) {
 			folio_put(folio);
-		else if (num_ra_pages > 1)
+		} else if (num_ra_pages > 1) {
+			filemap_invalidate_lock_shared(inode->i_mapping);
 			page_cache_ra_unbounded(&ractl, num_ra_pages, 0);
+			filemap_invalidate_unlock_shared(inode->i_mapping);
+		}
 		folio = read_mapping_folio(inode->i_mapping, index, NULL);
 	}
 	if (IS_ERR(folio))
