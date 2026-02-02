@@ -1123,6 +1123,84 @@ static const struct reg_bits_to_feat_map sctlr_el1_feat_map[] = {
 static const DECLARE_FEAT_MAP(sctlr_el1_desc, SCTLR_EL1,
 			      sctlr_el1_feat_map, FEAT_AA64EL1);
 
+static const struct reg_bits_to_feat_map sctlr_el2_feat_map[] = {
+	NEEDS_FEAT_FLAG(SCTLR_EL2_CP15BEN,
+			RES1_WHEN_E2H0 | REQUIRES_E2H1,
+			FEAT_AA32EL0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_ITD	|
+			SCTLR_EL2_SED,
+			RES1_WHEN_E2H1 | REQUIRES_E2H1,
+			FEAT_AA32EL0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_BT0, REQUIRES_E2H1, FEAT_BTI),
+	NEEDS_FEAT(SCTLR_EL2_BT, FEAT_BTI),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_CMOW, REQUIRES_E2H1, FEAT_CMOW),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TSCXT,
+			RES1_WHEN_E2H1 | REQUIRES_E2H1,
+			feat_csv2_2_csv2_1p2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EIS	|
+			SCTLR_EL2_EOS,
+			AS_RES1, FEAT_ExS),
+	NEEDS_FEAT(SCTLR_EL2_EnFPM, FEAT_FPMR),
+	NEEDS_FEAT(SCTLR_EL2_IESB, FEAT_IESB),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnALS, REQUIRES_E2H1, FEAT_LS64),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnAS0, REQUIRES_E2H1, FEAT_LS64_ACCDATA),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnASR, REQUIRES_E2H1, FEAT_LS64_V),
+	NEEDS_FEAT(SCTLR_EL2_nAA, FEAT_LSE2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_LSMAOE	|
+			SCTLR_EL2_nTLSMD,
+			AS_RES1 | REQUIRES_E2H1, FEAT_LSMAOC),
+	NEEDS_FEAT(SCTLR_EL2_EE, FEAT_MixedEnd),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_E0E, REQUIRES_E2H1, feat_mixedendel0),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_MSCEn, REQUIRES_E2H1, FEAT_MOPS),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_ATA0	|
+			SCTLR_EL2_TCF0,
+			REQUIRES_E2H1, FEAT_MTE2),
+	NEEDS_FEAT(SCTLR_EL2_ATA	|
+		   SCTLR_EL2_TCF,
+		   FEAT_MTE2),
+	NEEDS_FEAT(SCTLR_EL2_ITFSB, feat_mte_async),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TCSO0, REQUIRES_E2H1, FEAT_MTE_STORE_ONLY),
+	NEEDS_FEAT(SCTLR_EL2_TCSO,
+		   FEAT_MTE_STORE_ONLY),
+	NEEDS_FEAT(SCTLR_EL2_NMI	|
+		   SCTLR_EL2_SPINTMASK,
+		   FEAT_NMI),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_SPAN,	AS_RES1 | REQUIRES_E2H1, FEAT_PAN),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EPAN, REQUIRES_E2H1, FEAT_PAN3),
+	NEEDS_FEAT(SCTLR_EL2_EnDA	|
+		   SCTLR_EL2_EnDB	|
+		   SCTLR_EL2_EnIA	|
+		   SCTLR_EL2_EnIB,
+		   feat_pauth),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_EnTP2, REQUIRES_E2H1, FEAT_SME),
+	NEEDS_FEAT(SCTLR_EL2_EnRCTX, FEAT_SPECRES),
+	NEEDS_FEAT(SCTLR_EL2_DSSBS, FEAT_SSBS),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TIDCP, REQUIRES_E2H1, FEAT_TIDCP1),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_TWEDEL	|
+			SCTLR_EL2_TWEDEn,
+			REQUIRES_E2H1, FEAT_TWED),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_nTWE	|
+			SCTLR_EL2_nTWI,
+			AS_RES1 | REQUIRES_E2H1, FEAT_AA64EL2),
+	NEEDS_FEAT_FLAG(SCTLR_EL2_UCI	|
+			SCTLR_EL2_UCT	|
+			SCTLR_EL2_DZE	|
+			SCTLR_EL2_SA0,
+			REQUIRES_E2H1, FEAT_AA64EL2),
+	NEEDS_FEAT(SCTLR_EL2_WXN	|
+		   SCTLR_EL2_I		|
+		   SCTLR_EL2_SA		|
+		   SCTLR_EL2_C		|
+		   SCTLR_EL2_A		|
+		   SCTLR_EL2_M,
+		   FEAT_AA64EL2),
+	FORCE_RES0(SCTLR_EL2_RES0),
+	FORCE_RES1(SCTLR_EL2_RES1),
+};
+
+static const DECLARE_FEAT_MAP(sctlr_el2_desc, SCTLR_EL2,
+			      sctlr_el2_feat_map, FEAT_AA64EL2);
+
 static const struct reg_bits_to_feat_map mdcr_el2_feat_map[] = {
 	NEEDS_FEAT(MDCR_EL2_EBWE, FEAT_Debugv8p9),
 	NEEDS_FEAT(MDCR_EL2_TDOSA, FEAT_DoubleLock),
@@ -1247,6 +1325,7 @@ void __init check_feature_map(void)
 	check_reg_desc(&sctlr2_desc);
 	check_reg_desc(&tcr2_el2_desc);
 	check_reg_desc(&sctlr_el1_desc);
+	check_reg_desc(&sctlr_el2_desc);
 	check_reg_desc(&mdcr_el2_desc);
 	check_reg_desc(&vtcr_el2_desc);
 }
@@ -1442,6 +1521,9 @@ struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg)
 		break;
 	case SCTLR_EL1:
 		resx = compute_reg_resx_bits(kvm, &sctlr_el1_desc, 0, 0);
+		break;
+	case SCTLR_EL2:
+		resx = compute_reg_resx_bits(kvm, &sctlr_el2_desc, 0, 0);
 		break;
 	case MDCR_EL2:
 		resx = compute_reg_resx_bits(kvm, &mdcr_el2_desc, 0, 0);
