@@ -474,7 +474,7 @@ static int process_strs_entry(char *str, int size, bool multi)
 			if (!*str) {
 				AA_DEBUG(DEBUG_UNPACK,
 					 "starting with null save=%lu size %d c=%d",
-					 str - save, size, c);
+					 (unsigned long)(str - save), size, c);
 				return -4;
 			}
 			if (isspace(*str))
@@ -545,7 +545,8 @@ static int unpack_strs_table(struct aa_ext *e, const char *name, bool multi,
 			c = process_strs_entry(str, size2, multi);
 			if (c <= 0) {
 				AA_DEBUG(DEBUG_UNPACK, "process_strs %d i %d pos %ld",
-					 c, i, e->pos - saved_pos);
+					 c, i,
+					 (unsigned_long) e->pos - saved_pos);
 				goto fail;
 			}
 			if (!multi && c > 1) {
