@@ -635,9 +635,13 @@ void hyperv_cleanup(void)
 	hv_ivm_msr_write(HV_X64_MSR_GUEST_OS_ID, 0);
 
 	/*
-	 * Reset hypercall page reference before reset the page,
-	 * let hypercall operations fail safely rather than
-	 * panic the kernel for using invalid hypercall page
+	 * Reset hv_hypercall_pg before resetting it in the hypervisor.
+	 * hv_set_hypercall_pg(NULL) is not used because at this point in the
+	 * panic path other CPUs have been stopped, causing static_call_update()
+	 * to hang. So resetting hv_hypercall_pg to cause hypercalls to fail
+	 * cleanly is only operative on 32-bit builds. But this is OK as it is
+	 * just a preventative measure to ease detecting a hypercall being made
+	 * after this point, which shouldn't be happening anyway.
 	 */
 	hv_hypercall_pg = NULL;
 
