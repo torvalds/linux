@@ -23072,7 +23072,8 @@ F:	include/uapi/linux/vfio_ccw.h
 
 S390 VFIO-PCI DRIVER
 M:	Matthew Rosato <mjrosato@linux.ibm.com>
-M:	Eric Farman <farman@linux.ibm.com>
+M:	Farhan Ali <alifm@linux.ibm.com>
+R:	Eric Farman <farman@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 L:	kvm@vger.kernel.org
 S:	Supported
