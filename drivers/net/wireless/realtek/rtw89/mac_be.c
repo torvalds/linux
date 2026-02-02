@@ -62,6 +62,12 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
 };
 
+static const struct rtw89_mac_mu_gid_addr rtw89_mac_mu_gid_addr_be = {
+	.position_en = {R_BE_GID_POSITION_EN0, R_BE_GID_POSITION_EN1},
+	.position = {R_BE_GID_POSITION0, R_BE_GID_POSITION1,
+		     R_BE_GID_POSITION2, R_BE_GID_POSITION3},
+};
+
 static int rtw89_mac_check_mac_en_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 				     enum rtw89_mac_hwmod_sel sel)
 {
@@ -1328,6 +1334,9 @@ static int nav_ctrl_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_SPECIAL_TX_SETTING, mac_idx);
 	rtw89_write32_clr(rtwdev, reg, B_BE_BMC_NAV_PROTECT);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_0, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_WMAC_MBA_DUR_FORCE);
+
 	return 0;
 }
 
@@ -1352,6 +1361,7 @@ static int spatial_reuse_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 static int tmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 reg;
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TB_PPDU_CTRL, mac_idx);
@@ -1363,7 +1373,7 @@ static int tmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 		rtw89_write32_mask(rtwdev, reg, B_BE_EHT_HE_PPDU_2XLTF_ZLD_USTIMER_MASK, 0xe);
 	}
 
-	if (chip->chip_id == RTL8922D) {
+	if (chip->chip_id == RTL8922D && hal->cid != RTL8922D_CID7090) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_COMMON_PHYINTF_CTRL_0, mac_idx);
 		rtw89_write32_clr(rtwdev, reg, CLEAR_DTOP_DIS);
 	}
@@ -1988,6 +1998,15 @@ static int preload_init_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 	rtw89_write32(rtwdev, reg, val32);
 
 	return 0;
+}
+
+static void clr_aon_intr_be(struct rtw89_dev *rtwdev)
+{
+	if (rtwdev->hci.type != RTW89_HCI_TYPE_PCIE)
+		return;
+
+	rtw89_write32_clr(rtwdev, R_BE_FWS0IMR, B_BE_FS_GPIOA_INT_EN);
+	rtw89_write32_set(rtwdev, R_BE_FWS0ISR, B_BE_FS_GPIOA_INT);
 }
 
 static int dbcc_bb_ctrl_be(struct rtw89_dev *rtwdev, bool bb1_en)
@@ -3157,6 +3176,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.port_base = &rtw89_port_base_be,
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
 	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
+	.mu_gid = &rtw89_mac_mu_gid_addr_be,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,
@@ -3179,6 +3199,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.sys_init = sys_init_be,
 	.trx_init = trx_init_be,
 	.preload_init = preload_init_be,
+	.clr_aon_intr = clr_aon_intr_be,
 	.err_imr_ctrl = err_imr_ctrl_be,
 	.mac_func_en = mac_func_en_be,
 	.hci_func_en = rtw89_mac_hci_func_en_be,
