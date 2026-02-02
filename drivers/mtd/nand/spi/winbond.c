@@ -408,7 +408,7 @@ static int w35n0xjw_vcr_cfg(struct spinand_device *spinand,
 		break;
 	default:
 		return -EOPNOTSUPP;
-	};
+	}
 
 	dummy_cycles = ((ref_op->dummy.nbytes * 8) / ref_op->dummy.buswidth) /
 		(ref_op->dummy.dtr ? 2 : 1);
