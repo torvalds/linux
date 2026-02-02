@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *    tape device driver for 3480/3490E/3590 tapes.
+ *    tape device driver for 3480/3490E tapes.
  *
  *  S390 and zSeries version
  *    Copyright IBM Corp. 2001, 2009
@@ -98,10 +98,6 @@ enum tape_op {
 	TO_DIS,		/* Tape display */
 	TO_ASSIGN,	/* Assign tape to channel path */
 	TO_UNASSIGN,	/* Unassign tape from channel path */
-	TO_CRYPT_ON,	/* Enable encrpytion */
-	TO_CRYPT_OFF,	/* Disable encrpytion */
-	TO_KEKL_SET,	/* Set KEK label */
-	TO_KEKL_QUERY,	/* Query KEK label */
 	TO_RDC,		/* Read device characteristics */
 	TO_SIZE,	/* #entries in tape_op_t */
 };

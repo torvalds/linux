@@ -74,9 +74,7 @@ const char *tape_op_verbose[TO_SIZE] =
 	[TO_LOAD] = "LOA",	[TO_READ_CONFIG] = "RCF",
 	[TO_READ_ATTMSG] = "RAT",
 	[TO_DIS] = "DIS",	[TO_ASSIGN] = "ASS",
-	[TO_UNASSIGN] = "UAS",  [TO_CRYPT_ON] = "CON",
-	[TO_CRYPT_OFF] = "COF",	[TO_KEKL_SET] = "KLS",
-	[TO_KEKL_QUERY] = "KLQ",[TO_RDC] = "RDC",
+	[TO_UNASSIGN] = "UAS",  [TO_RDC] = "RDC",
 };
 
 static int devid_to_int(struct ccw_dev_id *dev_id)
