@@ -774,6 +774,7 @@ EXPORT_SYMBOL_GPL(wbt_enable_default);
 
 void wbt_init_enable_default(struct gendisk *disk)
 {
+	struct request_queue *q = disk->queue;
 	struct rq_wb *rwb;
 
 	if (!__wbt_enable_default(disk))
@@ -783,8 +784,14 @@ void wbt_init_enable_default(struct gendisk *disk)
 	if (WARN_ON_ONCE(!rwb))
 		return;
 
-	if (WARN_ON_ONCE(wbt_init(disk, rwb)))
+	if (WARN_ON_ONCE(wbt_init(disk, rwb))) {
 		wbt_free(rwb);
+		return;
+	}
+
+	mutex_lock(&q->debugfs_mutex);
+	blk_mq_debugfs_register_rq_qos(q);
+	mutex_unlock(&q->debugfs_mutex);
 }
 
 static u64 wbt_default_latency_nsec(struct request_queue *q)
@@ -1008,5 +1015,9 @@ int wbt_set_lat(struct gendisk *disk, s64 val)
 	blk_mq_unquiesce_queue(q);
 out:
 	blk_mq_unfreeze_queue(q, memflags);
+	mutex_lock(&q->debugfs_mutex);
+	blk_mq_debugfs_register_rq_qos(q);
+	mutex_unlock(&q->debugfs_mutex);
+
 	return ret;
 }
