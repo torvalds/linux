@@ -50,6 +50,7 @@ config GENERIC_PHY_MIPI_DPHY
 config PHY_GOOGLE_USB
 	tristate "Google Tensor SoC USB PHY driver"
 	select GENERIC_PHY
+	depends on TYPEC
 	help
 	  Enable support for the USB PHY on Google Tensor SoCs, starting with
 	  the G5 generation (Laguna). This driver provides the PHY interfaces
