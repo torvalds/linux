@@ -365,12 +365,10 @@ int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 u64 start, u64 len)
 {
 	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
-#ifdef CONFIG_EROFS_FS_ZIP
+		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
+			return -EOPNOTSUPP;
 		return iomap_fiemap(inode, fieinfo, start, len,
 				    &z_erofs_iomap_report_ops);
-#else
-		return -EOPNOTSUPP;
-#endif
 	}
 	return iomap_fiemap(inode, fieinfo, start, len, &erofs_iomap_ops);
 }
@@ -428,10 +426,9 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (!iov_iter_count(to))
 		return 0;
 
-#ifdef CONFIG_FS_DAX
-	if (IS_DAX(inode))
+	if (IS_ENABLED(CONFIG_FS_DAX) && IS_DAX(inode))
 		return dax_iomap_rw(iocb, to, &erofs_iomap_ops);
-#endif
+
 	if ((iocb->ki_flags & IOCB_DIRECT) && inode->i_sb->s_bdev) {
 		struct erofs_iomap_iter_ctx iter_ctx = {
 			.realinode = inode,
@@ -491,12 +488,11 @@ static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
 	struct inode *inode = file->f_mapping->host;
 	const struct iomap_ops *ops = &erofs_iomap_ops;
 
-	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
-#ifdef CONFIG_EROFS_FS_ZIP
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout)) {
+		if (!IS_ENABLED(CONFIG_EROFS_FS_ZIP))
+			return generic_file_llseek(file, offset, whence);
 		ops = &z_erofs_iomap_report_ops;
-#else
-		return generic_file_llseek(file, offset, whence);
-#endif
+	}
 
 	if (whence == SEEK_HOLE)
 		offset = iomap_seek_hole(inode, offset, ops);

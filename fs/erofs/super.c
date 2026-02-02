@@ -381,12 +381,10 @@ static void erofs_default_options(struct erofs_sb_info *sbi)
 	sbi->opt.cache_strategy = EROFS_ZIP_CACHE_READAROUND;
 	sbi->sync_decompress = EROFS_SYNC_DECOMPRESS_AUTO;
 #endif
-#ifdef CONFIG_EROFS_FS_XATTR
-	set_opt(&sbi->opt, XATTR_USER);
-#endif
-#ifdef CONFIG_EROFS_FS_POSIX_ACL
-	set_opt(&sbi->opt, POSIX_ACL);
-#endif
+	if (IS_ENABLED(CONFIG_EROFS_FS_XATTR))
+		set_opt(&sbi->opt, XATTR_USER);
+	if (IS_ENABLED(CONFIG_EROFS_FS_POSIX_ACL))
+		set_opt(&sbi->opt, POSIX_ACL);
 }
 
 enum {
@@ -1125,11 +1123,8 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 
 static void erofs_evict_inode(struct inode *inode)
 {
-#ifdef CONFIG_FS_DAX
 	if (IS_DAX(inode))
 		dax_break_layout_final(inode);
-#endif
-
 	erofs_ishare_free_inode(inode);
 	truncate_inode_pages_final(&inode->i_data);
 	clear_inode(inode);

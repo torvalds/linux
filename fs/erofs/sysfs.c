@@ -168,11 +168,10 @@ static ssize_t erofs_attr_store(struct kobject *kobj, struct attribute *attr,
 			return ret;
 		if (t != (unsigned int)t)
 			return -ERANGE;
-#ifdef CONFIG_EROFS_FS_ZIP
-		if (!strcmp(a->attr.name, "sync_decompress") &&
+		if (IS_ENABLED(CONFIG_EROFS_FS_ZIP) &&
+		    !strcmp(a->attr.name, "sync_decompress") &&
 		    (t > EROFS_SYNC_DECOMPRESS_FORCE_OFF))
 			return -EINVAL;
-#endif
 		*(unsigned int *)ptr = t;
 		return len;
 	case attr_pointer_bool:
