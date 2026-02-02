@@ -280,6 +280,7 @@ struct bnxt_qplib_qp {
 	u8				state;
 	u8				cur_qp_state;
 	u64				modify_flags;
+	u32				ext_modify_flags;
 	u32				max_inline_data;
 	u32				mtu;
 	u8				path_mtu;
@@ -346,6 +347,8 @@ struct bnxt_qplib_qp {
 	bool				is_host_msn_tbl;
 	u8				tos_dscp;
 	u32				ugid_index;
+	u32				rate_limit;
+	u8				shaper_allocation_status;
 };
 
 #define BNXT_RE_MAX_MSG_SIZE	0x80000000
