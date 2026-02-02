@@ -525,7 +525,6 @@ static size_t encode_w1(u8 out[MAX_W1_ENCODED_LEN],
 	return pos;
 }
 
-/* Reference: FIPS 204 Section 6.3 "ML-DSA Verifying (Internal)" */
 int mldsa_verify(enum mldsa_alg alg, const u8 *sig, size_t sig_len,
 		 const u8 *msg, size_t msg_len, const u8 *pk, size_t pk_len)
 {

@@ -39,7 +39,9 @@ enum mldsa_alg {
  *	    otherwise -EBADMSG will be returned.
  *
  * This verifies a signature using pure ML-DSA with the specified parameter set.
- * The context string is assumed to be empty.
+ * The context string is assumed to be empty.  This corresponds to FIPS 204
+ * Algorithm 3 "ML-DSA.Verify" with the ctx parameter set to the empty string
+ * and the lengths of the signature and key given explicitly by the caller.
  *
  * Context: Might sleep
  *
