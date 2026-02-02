@@ -6537,6 +6537,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 		/* free the new_direct_functions */
 		old_direct_functions = new_direct_functions;
 	} else {
+		old_direct_functions = direct_functions;
 		rcu_assign_pointer(direct_functions, new_direct_functions);
 	}
 
