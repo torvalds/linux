@@ -242,7 +242,7 @@ static const struct dce110_link_enc_registers link_enc_regs[] = {
 	link_regs(4),
 	link_regs(5),
 	link_regs(6),
-	{ .DAC_ENABLE = mmDAC_ENABLE },
+	{0}
 };
 
 #define stream_enc_regs(id)\

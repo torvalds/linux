@@ -101,8 +101,7 @@
 	SRI(DP_SEC_CNTL, DP, id), \
 	SRI(DP_VID_STREAM_CNTL, DP, id), \
 	SRI(DP_DPHY_FAST_TRAINING, DP, id), \
-	SRI(DP_SEC_CNTL1, DP, id), \
-	SR(DAC_ENABLE)
+	SRI(DP_SEC_CNTL1, DP, id)
 #endif
 
 #define LE_DCE80_REG_LIST(id)\
