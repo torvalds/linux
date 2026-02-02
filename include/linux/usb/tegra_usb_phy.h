@@ -26,6 +26,7 @@ struct gpio_desc;
  * uhsic_registers_offset: for Tegra30+ where HSIC registers were offset
  *      comparing to Tegra20 by 0x400, since Tegra20 has no UTMIP on PHY2
  * uhsic_tx_rtune: fine tuned 50 Ohm termination resistor for NMOS/PMOS driver
+ * uhsic_pts_value: parallel transceiver select enumeration value
  */
 
 struct tegra_phy_soc_config {
@@ -36,6 +37,7 @@ struct tegra_phy_soc_config {
 	bool requires_pmc_ao_power_up;
 	u32 uhsic_registers_offset;
 	u32 uhsic_tx_rtune;
+	u32 uhsic_pts_value;
 };
 
 struct tegra_utmip_config {

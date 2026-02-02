@@ -957,10 +957,7 @@ static int uhsic_phy_power_on(struct tegra_usb_phy *phy)
 		writel_relaxed(val, base + USB_USBMODE);
 	}
 
-	if (phy->soc_config->has_hostpc)
-		set_pts(phy, TEGRA_USB_HOSTPC1_DEVLC_PTS_HSIC);
-	else
-		set_pts(phy, 0);
+	set_pts(phy, phy->soc_config->uhsic_pts_value);
 
 	val = readl_relaxed(base + USB_TXFILLTUNING);
 	if ((val & USB_FIFO_TXFILL_MASK) != USB_FIFO_TXFILL_THRES(0x10)) {
@@ -1474,6 +1471,7 @@ static const struct tegra_phy_soc_config tegra20_soc_config = {
 	.requires_pmc_ao_power_up = false,
 	.uhsic_registers_offset = 0,
 	.uhsic_tx_rtune = 0, /* 40 ohm */
+	.uhsic_pts_value = 0, /* UTMI */
 };
 
 static const struct tegra_phy_soc_config tegra30_soc_config = {
@@ -1484,6 +1482,7 @@ static const struct tegra_phy_soc_config tegra30_soc_config = {
 	.requires_pmc_ao_power_up = true,
 	.uhsic_registers_offset = 0x400,
 	.uhsic_tx_rtune = 8,  /* 50 ohm */
+	.uhsic_pts_value = TEGRA_USB_HOSTPC1_DEVLC_PTS_HSIC,
 };
 
 static const struct of_device_id tegra_usb_phy_id_table[] = {
