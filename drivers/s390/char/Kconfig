@@ -121,7 +121,7 @@ config S390_TAPE
 comment "S/390 tape hardware support"
 	depends on S390_TAPE
 
-config S390_TAPE_34XX
+config S390_TAPE_3490
 	def_tristate m
 	prompt "Support for 3490 tape hardware"
 	depends on S390_TAPE

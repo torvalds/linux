@@ -8,7 +8,7 @@
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
-#define pr_fmt(fmt) "tape_34xx: " fmt
+#define pr_fmt(fmt) "tape_3490: " fmt
 
 #include <linux/export.h>
 #include <linux/module.h>
@@ -17,7 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 
-#define TAPE_DBF_AREA	tape_34xx_dbf
+#define TAPE_DBF_AREA	tape_3490_dbf
 
 #include "tape.h"
 #include "tape_std.h"
@@ -28,16 +28,16 @@
 debug_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
-struct tape_34xx_block_id {
+struct tape_3490_block_id {
 	unsigned int	unused		: 10;
 	unsigned int	block		: 22;
 };
 
 /*
- * Medium sense for 34xx tapes. There is no 'real' medium sense call.
+ * Medium sense for 3490 tapes. There is no 'real' medium sense call.
  * So we just do a normal sense.
  */
-static void __tape_34xx_medium_sense(struct tape_request *request)
+static void __tape_3490_medium_sense(struct tape_request *request)
 {
 	struct tape_device *device = request->device;
 	unsigned char *sense;
@@ -61,12 +61,12 @@ static void __tape_34xx_medium_sense(struct tape_request *request)
 		else
 			device->tape_generic_status &= ~GMT_WR_PROT(~0);
 	} else
-		DBF_EVENT(4, "tape_34xx: medium sense failed with rc=%d\n",
+		DBF_EVENT(4, "tape_3490: medium sense failed with rc=%d\n",
 			request->rc);
 	tape_free_request(request);
 }
 
-static int tape_34xx_medium_sense(struct tape_device *device)
+static int tape_3490_medium_sense(struct tape_device *device)
 {
 	struct tape_request *request;
 	int rc;
@@ -80,11 +80,11 @@ static int tape_34xx_medium_sense(struct tape_device *device)
 	request->op = TO_MSEN;
 	tape_ccw_end(request->cpaddr, SENSE, 32, request->cpdata);
 	rc = tape_do_io_interruptible(device, request);
-	__tape_34xx_medium_sense(request);
+	__tape_3490_medium_sense(request);
 	return rc;
 }
 
-static void tape_34xx_medium_sense_async(struct tape_device *device)
+static void tape_3490_medium_sense_async(struct tape_device *device)
 {
 	struct tape_request *request;
 
@@ -96,12 +96,12 @@ static void tape_34xx_medium_sense_async(struct tape_device *device)
 
 	request->op = TO_MSEN;
 	tape_ccw_end(request->cpaddr, SENSE, 32, request->cpdata);
-	request->callback = (void *) __tape_34xx_medium_sense;
+	request->callback = (void *) __tape_3490_medium_sense;
 	request->callback_data = NULL;
 	tape_do_io_async(device, request);
 }
 
-struct tape_34xx_work {
+struct tape_3490_work {
 	struct tape_device	*device;
 	enum tape_op		 op;
 	struct work_struct	 work;
@@ -118,32 +118,32 @@ struct tape_34xx_work {
  * a deadlock can occur e.g. in case of a deferred cc=1 (see __tape_do_irq).
  */
 static void
-tape_34xx_work_handler(struct work_struct *work)
+tape_3490_work_handler(struct work_struct *work)
 {
-	struct tape_34xx_work *p =
-		container_of(work, struct tape_34xx_work, work);
+	struct tape_3490_work *p =
+		container_of(work, struct tape_3490_work, work);
 	struct tape_device *device = p->device;
 
 	switch(p->op) {
 		case TO_MSEN:
-			tape_34xx_medium_sense_async(device);
+			tape_3490_medium_sense_async(device);
 			break;
 		default:
-			DBF_EVENT(3, "T34XX: internal error: unknown work\n");
+			DBF_EVENT(3, "T3490: internal error: unknown work\n");
 	}
 	tape_put_device(device);
 	kfree(p);
 }
 
 static int
-tape_34xx_schedule_work(struct tape_device *device, enum tape_op op)
+tape_3490_schedule_work(struct tape_device *device, enum tape_op op)
 {
-	struct tape_34xx_work *p;
+	struct tape_3490_work *p;
 
 	if ((p = kzalloc(sizeof(*p), GFP_ATOMIC)) == NULL)
 		return -ENOMEM;
 
-	INIT_WORK(&p->work, tape_34xx_work_handler);
+	INIT_WORK(&p->work, tape_3490_work_handler);
 
 	p->device = tape_get_device(device);
 	p->op     = op;
@@ -156,14 +156,14 @@ tape_34xx_schedule_work(struct tape_device *device, enum tape_op op)
  * Done Handler is called when dev stat = DEVICE-END (successful operation)
  */
 static inline int
-tape_34xx_done(struct tape_request *request)
+tape_3490_done(struct tape_request *request)
 {
 	DBF_EVENT(6, "%s done\n", tape_op_verbose[request->op]);
 	return TAPE_IO_SUCCESS;
 }
 
 static inline int
-tape_34xx_erp_failed(struct tape_request *request, int rc)
+tape_3490_erp_failed(struct tape_request *request, int rc)
 {
 	DBF_EVENT(3, "Error recovery failed for %s (RC=%d)\n",
 		  tape_op_verbose[request->op], rc);
@@ -171,15 +171,15 @@ tape_34xx_erp_failed(struct tape_request *request, int rc)
 }
 
 static inline int
-tape_34xx_erp_succeeded(struct tape_request *request)
+tape_3490_erp_succeeded(struct tape_request *request)
 {
 	DBF_EVENT(3, "Error Recovery successful for %s\n",
 		  tape_op_verbose[request->op]);
-	return tape_34xx_done(request);
+	return tape_3490_done(request);
 }
 
 static inline int
-tape_34xx_erp_retry(struct tape_request *request)
+tape_3490_erp_retry(struct tape_request *request)
 {
 	DBF_EVENT(3, "xerp retr %s\n", tape_op_verbose[request->op]);
 	return TAPE_IO_RETRY;
@@ -190,12 +190,12 @@ tape_34xx_erp_retry(struct tape_request *request)
  * interrupt
  */
 static int
-tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
+tape_3490_unsolicited_irq(struct tape_device *device, struct irb *irb)
 {
 	if (irb->scsw.cmd.dstat == 0x85) { /* READY */
 		/* A medium was inserted in the drive. */
 		DBF_EVENT(6, "xuud med\n");
-		tape_34xx_schedule_work(device, TO_MSEN);
+		tape_3490_schedule_work(device, TO_MSEN);
 	} else {
 		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
 		tape_dump_sense_dbf(device, NULL, irb);
@@ -204,7 +204,7 @@ tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 }
 
 static int
-tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
+tape_3490_erp_bug(struct tape_device *device, struct tape_request *request,
 		  struct irb *irb, int no)
 {
 	if (request->op != TO_ASSIGN) {
@@ -212,7 +212,7 @@ tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
 			"occurred in tape error recovery\n", no);
 		tape_dump_sense_dbf(device, request, irb);
 	}
-	return tape_34xx_erp_failed(request, -EIO);
+	return tape_3490_erp_failed(request, -EIO);
 }
 
 /*
@@ -220,22 +220,22 @@ tape_34xx_erp_bug(struct tape_device *device, struct tape_request *request,
  * be too slow.
  */
 static int
-tape_34xx_erp_overrun(struct tape_device *device, struct tape_request *request,
+tape_3490_erp_overrun(struct tape_device *device, struct tape_request *request,
 		      struct irb *irb)
 {
 	if (irb->ecw[3] == 0x40) {
 		dev_warn (&device->cdev->dev, "A data overrun occurred between"
 			" the control unit and tape unit\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	}
-	return tape_34xx_erp_bug(device, request, irb, -1);
+	return tape_3490_erp_bug(device, request, irb, -1);
 }
 
 /*
  * Handle record sequence error.
  */
 static int
-tape_34xx_erp_sequence(struct tape_device *device,
+tape_3490_erp_sequence(struct tape_device *device,
 		       struct tape_request *request, struct irb *irb)
 {
 	if (irb->ecw[3] == 0x41) {
@@ -244,13 +244,13 @@ tape_34xx_erp_sequence(struct tape_device *device,
 		 */
 		dev_warn (&device->cdev->dev, "The block ID sequence on the "
 			"tape is incorrect\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	}
 	/*
 	 * Record sequence error bit is set, but erpa does not
 	 * show record sequence error.
 	 */
-	return tape_34xx_erp_bug(device, request, irb, -2);
+	return tape_3490_erp_bug(device, request, irb, -2);
 }
 
 /*
@@ -259,7 +259,7 @@ tape_34xx_erp_sequence(struct tape_device *device,
  * informed about the problem.
  */
 static int
-tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
+tape_3490_unit_check(struct tape_device *device, struct tape_request *request,
 		     struct irb *irb)
 {
 	int inhibit_cu_recovery;
@@ -278,9 +278,9 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 			request->op == TO_WTM
 		) {
 			/* medium is write protected */
-			return tape_34xx_erp_failed(request, -EACCES);
+			return tape_3490_erp_failed(request, -EACCES);
 		} else {
-			return tape_34xx_erp_bug(device, request, irb, -3);
+			return tape_3490_erp_bug(device, request, irb, -3);
 		}
 	}
 
@@ -315,9 +315,9 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		case TO_FSF:
 		case TO_FSB:
 			/* Trying to seek beyond end of recorded area */
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_3490_erp_failed(request, -ENOSPC);
 		case TO_BSB:
-			return tape_34xx_erp_retry(request);
+			return tape_3490_erp_retry(request);
 
 		/*
 		 * sense[0] == SENSE_DATA_CHECK   &&
@@ -326,11 +326,11 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		case TO_LBL:
 			/* Block could not be located. */
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 
 		case TO_RFO:
 			/* Read beyond end of recorded area -> 0 bytes read */
-			return tape_34xx_erp_failed(request, 0);
+			return tape_3490_erp_failed(request, 0);
 
 		/*
 		 * sense[0] == SENSE_EQUIPMENT_CHECK &&
@@ -339,15 +339,15 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		case TO_WRI:
 			/* Writing at physical end of volume */
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_3490_erp_failed(request, -ENOSPC);
 		default:
-			return tape_34xx_erp_failed(request, 0);
+			return tape_3490_erp_failed(request, 0);
 		}
 	}
 
 	/* Sensing special bits */
 	if (sense[0] & SENSE_BUS_OUT_CHECK)
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 
 	if (sense[0] & SENSE_DATA_CHECK) {
 		/*
@@ -362,13 +362,13 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				// data check is not permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
-				return tape_34xx_erp_bug(device, request,
+				return tape_3490_erp_bug(device, request,
 							 irb, -4);
 
 			/* data check is permanent, CU recovery has failed */
 			dev_warn (&device->cdev->dev, "A read error occurred "
 				"that cannot be recovered\n");
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 		case 0x25:
 			// a write data check occurred
 			if ((sense[2] & SENSE_TAPE_SYNC_MODE) ||
@@ -376,36 +376,36 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				// data check is not permanent, may be
 				// recovered. We always use async-mode with
 				// cu-recovery, so this should *never* happen.
-				return tape_34xx_erp_bug(device, request,
+				return tape_3490_erp_bug(device, request,
 							 irb, -5);
 
 			// data check is permanent, cu-recovery has failed
 			dev_warn (&device->cdev->dev, "A write error on the "
 				"tape cannot be recovered\n");
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 		case 0x28:
 			/* ID-Mark at tape start couldn't be written */
 			dev_warn (&device->cdev->dev, "Writing the ID-mark "
 				"failed\n");
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 		case 0x31:
 			/* Tape void. Tried to read beyond end of device. */
 			dev_warn (&device->cdev->dev, "Reading the tape beyond"
 				" the end of the recorded area failed\n");
-			return tape_34xx_erp_failed(request, -ENOSPC);
+			return tape_3490_erp_failed(request, -ENOSPC);
 		case 0x41:
 			/* Record sequence error. */
 			dev_warn (&device->cdev->dev, "The tape contains an "
 				"incorrect block ID sequence\n");
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 		}
 	}
 
 	if (sense[0] & SENSE_OVERRUN)
-		return tape_34xx_erp_overrun(device, request, irb);
+		return tape_3490_erp_overrun(device, request, irb);
 
 	if (sense[1] & SENSE_RECORD_SEQUENCE_ERR)
-		return tape_34xx_erp_sequence(device, request, irb);
+		return tape_3490_erp_sequence(device, request, irb);
 
 	/* Sensing erpa codes */
 	switch (sense[3]) {
@@ -419,14 +419,14 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * issued by this driver and ought be correct, we assume a
 		 * over/underrun situation and retry the channel program.
 		 */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x29:
 		/*
 		 * Function incompatible. Either the tape is idrc compressed
 		 * but the hardware isn't capable to do idrc, or a perform
 		 * subsystem func is issued and the CU is not on-line.
 		 */
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x2b:
 		/*
 		 * Environmental data present. Indicates either unload
@@ -435,22 +435,22 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (request->op == TO_RUN) {
 			/* Rewind unload completed ok. */
 			tape_med_state_set(device, MS_UNLOADED);
-			return tape_34xx_erp_succeeded(request);
+			return tape_3490_erp_succeeded(request);
 		}
-		/* tape_34xx doesn't use read buffered log commands. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		/* tape_3490 doesn't use read buffered log commands. */
+		return tape_3490_erp_bug(device, request, irb, sense[3]);
 	case 0x2c:
 		/*
 		 * Permanent equipment check. CU has tried recovery, but
 		 * did not succeed.
 		 */
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x2d:
 		/* Data security erase failure. */
 		if (request->op == TO_DSE)
-			return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -EIO);
 		/* Data security erase failure, but no such command issued. */
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_3490_erp_bug(device, request, irb, sense[3]);
 	case 0x2e:
 		/*
 		 * Not capable. This indicates either that the drive fails
@@ -459,12 +459,12 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit cannot process "
 			"the tape format\n");
-		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
+		return tape_3490_erp_failed(request, -EMEDIUMTYPE);
 	case 0x30:
 		/* The medium is write protected. */
 		dev_warn (&device->cdev->dev, "The tape medium is write-"
 			"protected\n");
-		return tape_34xx_erp_failed(request, -EACCES);
+		return tape_3490_erp_failed(request, -EACCES);
 	case 0x35:
 		/*
 		 * Drive equipment check. One of the following:
@@ -475,10 +475,10 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev, "An equipment check has occurred"
 			" on the tape unit\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x36:
 		/* End of data. */
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x38:
 		/*
 		 * Physical end of tape. A read/write operation reached
@@ -487,11 +487,11 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		if (request->op==TO_WRI ||
 		    request->op==TO_DSE ||
 		    request->op==TO_WTM)
-			return tape_34xx_erp_failed(request, -ENOSPC);
-		return tape_34xx_erp_failed(request, -EIO);
+			return tape_3490_erp_failed(request, -ENOSPC);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x39:
 		/* Backward at Beginning of tape. */
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x42:
 		/*
 		 * Degraded mode. A condition that can cause degraded
@@ -499,7 +499,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev, "The tape subsystem is running "
 			"in degraded mode\n");
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x43:
 		/* Drive not ready. */
 		tape_med_state_set(device, MS_UNLOADED);
@@ -510,40 +510,40 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 				case TO_UNASSIGN:
 				case TO_DIS:
 				case TO_NOP:
-					return tape_34xx_done(request);
+					return tape_3490_done(request);
 					break;
 				default:
 					break;
 			}
 		}
-		return tape_34xx_erp_failed(request, -ENOMEDIUM);
+		return tape_3490_erp_failed(request, -ENOMEDIUM);
 	case 0x44:
 		/* Locate Block unsuccessful. */
 		if (request->op != TO_BLOCK && request->op != TO_LBL)
 			/* No locate block was issued. */
-			return tape_34xx_erp_bug(device, request,
+			return tape_3490_erp_bug(device, request,
 						 irb, sense[3]);
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x45:
 		/* The drive is assigned to a different channel path. */
 		dev_warn (&device->cdev->dev, "The tape unit is already "
 			"assigned\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x47:
 		/* Volume fenced. CU reports volume integrity is lost. */
 		dev_warn (&device->cdev->dev, "The control unit has fenced "
 			"access to the tape volume\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x48:
 		/* Log sense data and retry request. */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x4d:
 		/*
 		 * Resetting event received. Since the driver does
 		 * not support resetting event recovery (which has to
 		 * be handled by the I/O Layer), retry our command.
 		 */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x4e:
 		/*
 		 * Maximum block size exceeded. This indicates, that
@@ -552,7 +552,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev,
 			  "The maximum block size for buffered mode is exceeded\n");
-		return tape_34xx_erp_failed(request, -ENOBUFS);
+		return tape_3490_erp_failed(request, -ENOBUFS);
 	case 0x50:
 		/*
 		 * Read buffered log (Overflow). CU is running in extended
@@ -560,7 +560,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * never happen, since we're never running in extended
 		 * buffered log mode.
 		 */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x51:
 		/*
 		 * Read buffered log (EOV). EOF processing occurs while the
@@ -568,33 +568,33 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * happen, since we're never running in extended buffered
 		 * log mode.
 		 */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x52:
 		/* End of Volume complete. Rewind unload completed ok. */
 		if (request->op == TO_RUN) {
 			tape_med_state_set(device, MS_UNLOADED);
-			return tape_34xx_erp_succeeded(request);
+			return tape_3490_erp_succeeded(request);
 		}
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_3490_erp_bug(device, request, irb, sense[3]);
 	case 0x53:
 		/* Global command intercept. */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x54:
 		/* Channel interface recovery (temporary). */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 	case 0x55:
 		/* Channel interface recovery (permanent). */
 		dev_warn (&device->cdev->dev, "A channel interface error cannot be"
 			" recovered\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x56:
 		/* Channel protocol error. */
 		dev_warn (&device->cdev->dev, "A channel protocol error "
 			"occurred\n");
-		return tape_34xx_erp_failed(request, -EIO);
+		return tape_3490_erp_failed(request, -EIO);
 	case 0x57:
 		/* Global status intercept. */
-		return tape_34xx_erp_retry(request);
+		return tape_3490_erp_retry(request);
 		/* The following erpas should have been covered earlier. */
 	case 0x23: /* Read data check. */
 	case 0x25: /* Write data check. */
@@ -604,7 +604,7 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x41: /* Record sequence error. */
 		/* All other erpas are reserved for future use. */
 	default:
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
+		return tape_3490_erp_bug(device, request, irb, sense[3]);
 	}
 }
 
@@ -612,21 +612,21 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
  * 3490 interrupt handler
  */
 static int
-tape_34xx_irq(struct tape_device *device, struct tape_request *request,
+tape_3490_irq(struct tape_device *device, struct tape_request *request,
 	      struct irb *irb)
 {
 	if (request == NULL)
-		return tape_34xx_unsolicited_irq(device, irb);
+		return tape_3490_unsolicited_irq(device, irb);
 
 	if ((irb->scsw.cmd.dstat & DEV_STAT_UNIT_EXCEP) &&
 	    (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) &&
 	    (request->op == TO_WRI)) {
 		/* Write at end of volume */
-		return tape_34xx_erp_failed(request, -ENOSPC);
+		return tape_3490_erp_failed(request, -ENOSPC);
 	}
 
 	if (irb->scsw.cmd.dstat & DEV_STAT_UNIT_CHECK)
-		return tape_34xx_unit_check(device, request, irb);
+		return tape_3490_unit_check(device, request, irb);
 
 	if (irb->scsw.cmd.dstat & DEV_STAT_DEV_END) {
 		/*
@@ -638,7 +638,7 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 			else
 				DBF_EVENT(5, "Unit Exception!\n");
 		}
-		return tape_34xx_done(request);
+		return tape_3490_done(request);
 	}
 
 	DBF_EVENT(6, "xunknownirq\n");
@@ -647,21 +647,21 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 }
 
 static int
-tape_34xx_setup_device(struct tape_device * device)
+tape_3490_setup_device(struct tape_device * device)
 {
 	int rc;
 
-	DBF_EVENT(6, "34xx device setup\n");
+	DBF_EVENT(6, "3490 device setup\n");
 	if ((rc = tape_std_assign(device)) == 0) {
-		if ((rc = tape_34xx_medium_sense(device)) != 0) {
-			DBF_LH(3, "34xx medium sense returned %d\n", rc);
+		if ((rc = tape_3490_medium_sense(device)) != 0) {
+			DBF_LH(3, "3490 medium sense returned %d\n", rc);
 		}
 	}
 	return rc;
 }
 
 static void
-tape_34xx_cleanup_device(struct tape_device *device)
+tape_3490_cleanup_device(struct tape_device *device)
 {
 	tape_std_unassign(device);
 }
@@ -671,11 +671,11 @@ tape_34xx_cleanup_device(struct tape_device *device)
  * MTTELL: Tell block. Return the number of block relative to current file.
  */
 static int
-tape_34xx_mttell(struct tape_device *device, int mt_count)
+tape_3490_mttell(struct tape_device *device, int mt_count)
 {
 	struct {
-		struct tape_34xx_block_id	cbid;
-		struct tape_34xx_block_id	dbid;
+		struct tape_3490_block_id	cbid;
+		struct tape_3490_block_id	dbid;
 	} __attribute__ ((packed)) block_id;
 	int rc;
 
@@ -690,10 +690,10 @@ tape_34xx_mttell(struct tape_device *device, int mt_count)
  * MTSEEK: seek to the specified block.
  */
 static int
-tape_34xx_mtseek(struct tape_device *device, int mt_count)
+tape_3490_mtseek(struct tape_device *device, int mt_count)
 {
 	struct tape_request *request;
-	struct tape_34xx_block_id *	bid;
+	struct tape_3490_block_id *	bid;
 
 	if (mt_count > 0x3fffff) {
 		DBF_EXCEPTION(6, "xsee parm\n");
@@ -705,7 +705,7 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 
 	/* setup ccws */
 	request->op = TO_LBL;
-	bid         = (struct tape_34xx_block_id *) request->cpdata;
+	bid         = (struct tape_3490_block_id *) request->cpdata;
 	bid->block  = mt_count;
 
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
@@ -719,7 +719,7 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 /*
  * List of 3490 tape commands.
  */
-static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
+static tape_mtop_fn tape_3490_mtop[TAPE_NR_MTOPS] = {
 	[MTRESET]	 = tape_std_mtreset,
 	[MTFSF]		 = tape_std_mtfsf,
 	[MTBSF]		 = tape_std_mtbsf,
@@ -739,8 +739,8 @@ static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
 	[MTRAS3]	 = NULL,
 	[MTSETBLK]	 = tape_std_mtsetblk,
 	[MTSETDENSITY]	 = NULL,
-	[MTSEEK]	 = tape_34xx_mtseek,
-	[MTTELL]	 = tape_34xx_mttell,
+	[MTSEEK]	 = tape_3490_mtseek,
+	[MTTELL]	 = tape_3490_mttell,
 	[MTSETDRVBUFFER] = NULL,
 	[MTFSS]		 = NULL,
 	[MTBSS]		 = NULL,
@@ -757,77 +757,77 @@ static tape_mtop_fn tape_34xx_mtop[TAPE_NR_MTOPS] = {
 /*
  * Tape discipline structure for 3490.
  */
-static struct tape_discipline tape_discipline_34xx = {
+static struct tape_discipline tape_discipline_3490 = {
 	.owner = THIS_MODULE,
-	.setup_device = tape_34xx_setup_device,
-	.cleanup_device = tape_34xx_cleanup_device,
+	.setup_device = tape_3490_setup_device,
+	.cleanup_device = tape_3490_cleanup_device,
 	.process_eov = tape_std_process_eov,
-	.irq = tape_34xx_irq,
+	.irq = tape_3490_irq,
 	.read_block = tape_std_read_block,
 	.write_block = tape_std_write_block,
-	.mtop_array = tape_34xx_mtop
+	.mtop_array = tape_3490_mtop
 };
 
-static struct ccw_device_id tape_34xx_ids[] = {
+static struct ccw_device_id tape_3490_ids[] = {
 	{ CCW_DEVICE_DEVTYPE(0x3490, 0, 0x3490, 0), .driver_info = tape_3490},
 	{ /* end of list */ },
 };
 
 static int
-tape_34xx_online(struct ccw_device *cdev)
+tape_3490_online(struct ccw_device *cdev)
 {
 	return tape_generic_online(
 		dev_get_drvdata(&cdev->dev),
-		&tape_discipline_34xx
+		&tape_discipline_3490
 	);
 }
 
-static struct ccw_driver tape_34xx_driver = {
+static struct ccw_driver tape_3490_driver = {
 	.driver = {
-		.name = "tape_34xx",
+		.name = "tape_3490",
 		.owner = THIS_MODULE,
 	},
-	.ids = tape_34xx_ids,
+	.ids = tape_3490_ids,
 	.probe = tape_generic_probe,
 	.remove = tape_generic_remove,
-	.set_online = tape_34xx_online,
+	.set_online = tape_3490_online,
 	.set_offline = tape_generic_offline,
 	.int_class = IRQIO_TAP,
 };
 
 static int
-tape_34xx_init (void)
+tape_3490_init (void)
 {
 	int rc;
 
-	TAPE_DBF_AREA = debug_register ( "tape_34xx", 2, 2, 4*sizeof(long));
+	TAPE_DBF_AREA = debug_register ( "tape_3490", 2, 2, 4*sizeof(long));
 	debug_register_view(TAPE_DBF_AREA, &debug_sprintf_view);
 #ifdef DBF_LIKE_HELL
 	debug_set_level(TAPE_DBF_AREA, 6);
 #endif
 
-	DBF_EVENT(3, "34xx init\n");
+	DBF_EVENT(3, "3490 init\n");
 	/* Register driver for 3490 tapes. */
-	rc = ccw_driver_register(&tape_34xx_driver);
+	rc = ccw_driver_register(&tape_3490_driver);
 	if (rc)
-		DBF_EVENT(3, "34xx init failed\n");
+		DBF_EVENT(3, "3490 init failed\n");
 	else
-		DBF_EVENT(3, "34xx registered\n");
+		DBF_EVENT(3, "3490 registered\n");
 	return rc;
 }
 
 static void
-tape_34xx_exit(void)
+tape_3490_exit(void)
 {
-	ccw_driver_unregister(&tape_34xx_driver);
+	ccw_driver_unregister(&tape_3490_driver);
 
 	debug_unregister(TAPE_DBF_AREA);
 }
 
-MODULE_DEVICE_TABLE(ccw, tape_34xx_ids);
+MODULE_DEVICE_TABLE(ccw, tape_3490_ids);
 MODULE_AUTHOR("(C) 2001-2002 IBM Deutschland Entwicklung GmbH");
 MODULE_DESCRIPTION("Linux on zSeries channel attached 3490 tape device driver");
 MODULE_LICENSE("GPL");
 
-module_init(tape_34xx_init);
-module_exit(tape_34xx_exit);
+module_init(tape_3490_init);
+module_exit(tape_3490_exit);
