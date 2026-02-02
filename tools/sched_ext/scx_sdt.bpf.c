@@ -312,7 +312,7 @@ int scx_alloc_free_idx(struct scx_allocator *alloc, __u64 idx)
 	pos = idx & mask;
 	data = chunk->data[pos];
 	if (likely(data)) {
-		data[pos] = (struct sdt_data) {
+		*data = (struct sdt_data) {
 			.tid.genn = data->tid.genn + 1,
 		};
 
