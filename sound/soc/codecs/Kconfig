@@ -1801,9 +1801,10 @@ config SND_SOC_RT5575
 	depends on I2C
 
 config SND_SOC_RT5575_SPI
-	tristate "Realtek ALC5575 Codec - SPI"
+	bool "Realtek ALC5575 Codec - SPI"
 	depends on SPI_MASTER && I2C
 	depends on SND_SOC_RT5575
+	depends on SPI_MASTER=y || SND_SOC_RT5575=m
 
 config SND_SOC_RT5616
 	tristate "Realtek RT5616 CODEC"
