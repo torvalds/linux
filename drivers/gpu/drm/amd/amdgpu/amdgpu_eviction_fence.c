@@ -64,8 +64,17 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 		container_of(evf_mgr, struct amdgpu_fpriv, evf_mgr);
 	struct amdgpu_userq_mgr *uq_mgr = &fpriv->userq_mgr;
 	struct dma_fence *ev_fence;
+	bool cookie;
 
 	mutex_lock(&uq_mgr->userq_mutex);
+
+	/*
+	 * This is intentionally after taking the userq_mutex since we do
+	 * allocate memory while holding this lock, but only after ensuring that
+	 * the eviction fence is signaled.
+	 */
+	cookie = dma_fence_begin_signalling();
+
 	ev_fence = amdgpu_evf_mgr_get_fence(evf_mgr);
 	amdgpu_userq_evict(uq_mgr, !evf_mgr->shutdown);
 
@@ -75,6 +84,7 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	 * next fence.
 	 */
 	dma_fence_signal(ev_fence);
+	dma_fence_end_signalling(cookie);
 	dma_fence_put(ev_fence);
 	mutex_unlock(&uq_mgr->userq_mutex);
 }
