@@ -540,11 +540,10 @@ static int afe4403_probe(struct spi_device *spi)
 			return ret;
 		}
 
-		ret = devm_request_threaded_irq(dev, afe->irq,
-						iio_trigger_generic_data_rdy_poll,
-						NULL, IRQF_ONESHOT,
-						AFE4403_DRIVER_NAME,
-						afe->trig);
+		ret = devm_request_irq(dev, afe->irq,
+				       iio_trigger_generic_data_rdy_poll,
+				       IRQF_NO_THREAD, AFE4403_DRIVER_NAME,
+				       afe->trig);
 		if (ret) {
 			dev_err(dev, "Unable to request IRQ\n");
 			return ret;

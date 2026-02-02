@@ -148,7 +148,7 @@ static void device_drop_group(struct config_group *group,
 	config_item_put(item);
 }
 
-static struct configfs_group_operations device_ops = {
+static const struct configfs_group_operations device_ops = {
 	.make_group	= &device_make_group,
 	.drop_item	= &device_drop_group,
 };

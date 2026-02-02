@@ -3,6 +3,7 @@
  * MPRLS0025PA - Honeywell MicroPressure pressure sensor series driver
  *
  * Copyright (c) Andreas Klinger <ak@it-klinger.de>
+ * Copyright (c) 2023-2025 Petre Rodan <petre.rodan@subdimension.ro>
  *
  * Data sheet:
  *  https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/micropressure-mpr-series/documents/sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
@@ -12,15 +13,24 @@
 #include <linux/array_size.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
+#include <linux/completion.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/export.h>
+#include <linux/interrupt.h>
+#include <linux/jiffies.h>
 #include <linux/math64.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/string.h>
+#include <linux/time.h>
 #include <linux/units.h>
 
 #include <linux/gpio/consumer.h>
 
 #include <linux/iio/buffer.h>
+#include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
@@ -33,10 +43,6 @@
 /* bits in status byte */
 #define MPR_ST_POWER  BIT(6) /* device is powered */
 #define MPR_ST_BUSY   BIT(5) /* device is busy */
-#define MPR_ST_MEMORY BIT(2) /* integrity test passed */
-#define MPR_ST_MATH   BIT(0) /* internal math saturation */
-
-#define MPR_ST_ERR_FLAG  (MPR_ST_BUSY | MPR_ST_MEMORY | MPR_ST_MATH)
 
 /*
  * support _RAW sysfs interface:
@@ -59,7 +65,7 @@
  *
  * Values given to the userspace in sysfs interface:
  * * raw	- press_cnt
- * * offset	- (-1 * outputmin) - pmin / scale
+ * * offset	- (-1 * outputmin) + pmin / scale
  *                note: With all sensors from the datasheet pmin = 0
  *                which reduces the offset to (-1 * outputmin)
  */
@@ -160,8 +166,8 @@ static const struct iio_chan_spec mpr_channels[] = {
 					BIT(IIO_CHAN_INFO_OFFSET),
 		.scan_index = 0,
 		.scan_type = {
-			.sign = 's',
-			.realbits = 32,
+			.sign = 'u',
+			.realbits = 24,
 			.storagebits = 32,
 			.endianness = IIO_CPU,
 		},
@@ -190,15 +196,15 @@ static void mpr_reset(struct mpr_data *data)
  *
  * Context: The function can sleep and data->lock should be held when calling it
  * Return:
- * * 0		- OK, the pressure value could be read
- * * -ETIMEDOUT	- Timeout while waiting for the EOC interrupt or busy flag is
- *		  still set after nloops attempts of reading
+ * * 0          - OK, the pressure value could be read
+ * * -EBUSY     - Sensor does not have a new conversion ready
+ * * -ETIMEDOUT - Timeout while waiting for the EOC interrupt
+ * * -EIO       - Invalid status byte received from sensor
  */
 static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 {
 	struct device *dev = data->dev;
-	int ret, i;
-	int nloops = 10;
+	int ret;
 
 	reinit_completion(&data->completion);
 
@@ -215,44 +221,38 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 			return -ETIMEDOUT;
 		}
 	} else {
-		/* wait until status indicates data is ready */
-		for (i = 0; i < nloops; i++) {
-			/*
-			 * datasheet only says to wait at least 5 ms for the
-			 * data but leave the maximum response time open
-			 * --> let's try it nloops (10) times which seems to be
-			 *     quite long
-			 */
-			usleep_range(5000, 10000);
-			ret = data->ops->read(data, MPR_CMD_NOP, 1);
-			if (ret < 0) {
-				dev_err(dev,
-					"error while reading, status: %d\n",
-					ret);
-				return ret;
-			}
-			if (!(data->buffer[0] & MPR_ST_ERR_FLAG))
-				break;
-		}
-		if (i == nloops) {
-			dev_err(dev, "timeout while reading\n");
-			return -ETIMEDOUT;
-		}
+		fsleep(5 * USEC_PER_MSEC);
 	}
 
+	memset(data->rx_buf, 0, sizeof(data->rx_buf));
 	ret = data->ops->read(data, MPR_CMD_NOP, MPR_PKT_NOP_LEN);
 	if (ret < 0)
 		return ret;
 
-	if (data->buffer[0] & MPR_ST_ERR_FLAG) {
+	/*
+	 * Status byte flags
+	 *  bit7 SANITY_CHK   - must always be 0
+	 *  bit6 MPR_ST_POWER - 1 if device is powered
+	 *  bit5 MPR_ST_BUSY  - 1 if device has no new conversion ready
+	 *  bit4 SANITY_CHK   - must always be 0
+	 *  bit3 SANITY_CHK   - must always be 0
+	 *  bit2 MEMORY_ERR   - 1 if integrity test has failed
+	 *  bit1 SANITY_CHK   - must always be 0
+	 *  bit0 MATH_ERR     - 1 during internal math saturation error
+	 */
+
+	if (data->rx_buf[0] == (MPR_ST_POWER | MPR_ST_BUSY))
+		return -EBUSY;
+
+	if (data->rx_buf[0] != MPR_ST_POWER) {
 		dev_err(data->dev,
-			"unexpected status byte %02x\n", data->buffer[0]);
-		return -ETIMEDOUT;
+			"unexpected status byte 0x%02x\n", data->rx_buf[0]);
+		return -EIO;
 	}
 
-	*press = get_unaligned_be24(&data->buffer[1]);
+	*press = get_unaligned_be24(&data->rx_buf[1]);
 
-	dev_dbg(dev, "received: %*ph cnt: %d\n", ret, data->buffer, *press);
+	dev_dbg(dev, "received: %*ph cnt: %d\n", ret, data->rx_buf, *press);
 
 	return 0;
 }
@@ -313,8 +313,7 @@ static int mpr_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = data->offset;
-		*val2 = data->offset2;
-		return IIO_VAL_INT_PLUS_NANO;
+		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
@@ -330,8 +329,9 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 	struct mpr_data *data;
 	struct iio_dev *indio_dev;
 	const char *triplet;
-	s64 scale, offset;
+	s64 odelta, pdelta;
 	u32 func;
+	s32 tmp;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -355,10 +355,6 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "can't get and enable vdd supply\n");
-
-	ret = data->ops->init(data->dev);
-	if (ret)
-		return ret;
 
 	ret = device_property_read_u32(dev,
 				       "honeywell,transfer-function", &func);
@@ -405,26 +401,19 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 	data->outmin = mpr_func_spec[data->function].output_min;
 	data->outmax = mpr_func_spec[data->function].output_max;
 
-	/* use 64 bit calculation for preserving a reasonable precision */
-	scale = div_s64(((s64)(data->pmax - data->pmin)) * NANO,
-			data->outmax - data->outmin);
-	data->scale = div_s64_rem(scale, NANO, &data->scale2);
-	/*
-	 * multiply with NANO before dividing by scale and later divide by NANO
-	 * again.
-	 */
-	offset = ((-1LL) * (s64)data->outmin) * NANO -
-		  div_s64(div_s64((s64)data->pmin * NANO, scale), NANO);
-	data->offset = div_s64_rem(offset, NANO, &data->offset2);
+	odelta = data->outmax - data->outmin;
+	pdelta = data->pmax - data->pmin;
+
+	data->scale = div_s64_rem(div_s64(pdelta * NANO, odelta), NANO, &tmp);
+	data->scale2 = tmp;
+
+	data->offset = div_s64(odelta * data->pmin, pdelta) - data->outmin;
 
 	if (data->irq > 0) {
-		ret = devm_request_irq(dev, data->irq, mpr_eoc_handler,
-				       IRQF_TRIGGER_RISING,
-				       dev_name(dev),
-				       data);
+		ret = devm_request_irq(dev, data->irq, mpr_eoc_handler, 0,
+				       dev_name(dev), data);
 		if (ret)
-			return dev_err_probe(dev, ret,
-					  "request irq %d failed\n", data->irq);
+			return ret;
 	}
 
 	data->gpiod_reset = devm_gpiod_get_optional(dev, "reset",

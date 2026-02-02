@@ -45,7 +45,7 @@ enum ref_sel_mode {
  * @output_dis: Disables, powers down the entire channel.
  * @driver_mode: Output driver mode (logic level family).
  * @divider_phase: Divider initial phase after a SYNC. Range 0..63
-		   LSB = 1/2 of a period of the divider input clock.
+ *		   LSB = 1/2 of a period of the divider input clock.
  * @channel_divider: 10-bit channel divider.
  * @extended_name: Optional descriptive channel name.
  */

@@ -1,0 +1,302 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/microchip,mcp47feb02.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip MCP47F(E/V)B(0/1/2)(1/2/4/8) DAC with I2C Interface Families
+
+maintainers:
+  - Ariana Lazar <ariana.lazar@microchip.com>
+
+description: |
+  Datasheet for MCP47FEB01, MCP47FEB11, MCP47FEB21, MCP47FEB02, MCP47FEB12,
+  MCP47FEB22 can be found here:
+    https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20005375A.pdf
+  Datasheet for MCP47FVB01, MCP47FVB11, MCP47FVB21, MCP47FVB02, MCP47FVB12,
+  MCP47FVB22 can be found here:
+    https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20005405A.pdf
+  Datasheet for MCP47FEB04, MCP47FEB14, MCP47FEB24, MCP47FEB08, MCP47FEB18,
+  MCP47FEB28, MCP47FVB04, MCP47FVB14, MCP47FVB24, MCP47FVB08, MCP47FVB18,
+  MCP47FVB28 can be found here:
+    https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/MCP47FXBX48-Data-Sheet-DS200006368A.pdf
+
+  +------------+--------------+-------------+-------------+------------+
+  | Device     |  Resolution  |   Channels  | Vref number | Memory     |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FEB01 |     8-bit    |      1      |      1      |   EEPROM   |
+  | MCP47FEB11 |    10-bit    |      1      |      1      |   EEPROM   |
+  | MCP47FEB21 |    12-bit    |      1      |      1      |   EEPROM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FEB02 |     8-bit    |      2      |      1      |   EEPROM   |
+  | MCP47FEB12 |    10-bit    |      2      |      1      |   EEPROM   |
+  | MCP47FEB22 |    12-bit    |      2      |      1      |   EEPROM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FVB01 |     8-bit    |      1      |      1      |      RAM   |
+  | MCP47FVB11 |    10-bit    |      1      |      1      |      RAM   |
+  | MCP47FVB21 |    12-bit    |      1      |      1      |      RAM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FVB02 |     8-bit    |      2      |      1      |      RAM   |
+  | MCP47FVB12 |    10-bit    |      2      |      1      |      RAM   |
+  | MCP47FVB22 |    12-bit    |      2      |      1      |      RAM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FVB04 |     8-bit    |      4      |      2      |      RAM   |
+  | MCP47FVB14 |    10-bit    |      4      |      2      |      RAM   |
+  | MCP47FVB24 |    12-bit    |      4      |      2      |      RAM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FVB08 |     8-bit    |      8      |      2      |      RAM   |
+  | MCP47FVB18 |    10-bit    |      8      |      2      |      RAM   |
+  | MCP47FVB28 |    12-bit    |      8      |      2      |      RAM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FEB04 |     8-bit    |      4      |      2      |   EEPROM   |
+  | MCP47FEB14 |    10-bit    |      4      |      2      |   EEPROM   |
+  | MCP47FEB24 |    12-bit    |      4      |      2      |   EEPROM   |
+  |------------|--------------|-------------|-------------|------------|
+  | MCP47FEB08 |     8-bit    |      8      |      2      |   EEPROM   |
+  | MCP47FEB18 |    10-bit    |      8      |      2      |   EEPROM   |
+  | MCP47FEB28 |    12-bit    |      8      |      2      |   EEPROM   |
+  +------------+--------------+-------------+-------------+------------+
+
+properties:
+  compatible:
+    enum:
+      - microchip,mcp47feb01
+      - microchip,mcp47feb11
+      - microchip,mcp47feb21
+      - microchip,mcp47feb02
+      - microchip,mcp47feb12
+      - microchip,mcp47feb22
+      - microchip,mcp47fvb01
+      - microchip,mcp47fvb11
+      - microchip,mcp47fvb21
+      - microchip,mcp47fvb02
+      - microchip,mcp47fvb12
+      - microchip,mcp47fvb22
+      - microchip,mcp47fvb04
+      - microchip,mcp47fvb14
+      - microchip,mcp47fvb24
+      - microchip,mcp47fvb08
+      - microchip,mcp47fvb18
+      - microchip,mcp47fvb28
+      - microchip,mcp47feb04
+      - microchip,mcp47feb14
+      - microchip,mcp47feb24
+      - microchip,mcp47feb08
+      - microchip,mcp47feb18
+      - microchip,mcp47feb28
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  vdd-supply:
+    description:
+      Provides power to the chip and it could be used as reference voltage. The
+      voltage is used to calculate scale. For parts without EEPROM at powerup
+      this will be the selected as voltage reference.
+
+  vref-supply:
+    description: |
+      Vref pin (it could be found as Vref0 into the datasheet) may be used as a
+      voltage reference when this supply is specified. The internal reference
+      will be taken into account for voltage reference besides VDD if this supply
+      does not exist.
+
+      This supply will be voltage reference for the following outputs:
+        - for single-channel device: Vout0;
+        - for dual-channel device: Vout0, Vout1;
+        - for quad-channel device: Vout0, Vout2;
+        - for octal-channel device: Vout0, Vout2, Vout6, Vout8;
+
+  vref1-supply:
+    description: |
+      Vref1 pin may be used as a voltage reference when this supply is specified.
+      The internal reference will be taken into account for voltage reference
+      beside VDD if this supply does not exist.
+
+      This supply will be voltage reference for the following outputs:
+        - for quad-channel device: Vout1, Vout3;
+        - for octal-channel device: Vout1, Vout3, Vout5, Vout7;
+
+  lat-gpios:
+    description:
+      LAT pin to be used as a hardware trigger to synchronously update the DAC
+      channels. The pin is active Low. It could be also found as LAT0 in
+      datasheet.
+    maxItems: 1
+
+  lat1-gpios:
+    description:
+      LAT1 pin to be used as a hardware trigger to synchronously update the odd
+      DAC channels on devices with 4 and 8 channels. The pin is active Low.
+    maxItems: 1
+
+  microchip,vref-buffered:
+    type: boolean
+    description:
+      Enable buffering of the external Vref/Vref0 pin in cases where the
+      external reference voltage does not have sufficient current capability in
+      order not to drop it’s voltage when connected to the internal resistor
+      ladder circuit.
+
+  microchip,vref1-buffered:
+    type: boolean
+    description:
+      Enable buffering of the external Vref1 pin in cases where the external
+      reference voltage does not have sufficient current capability in order not
+      to drop it’s voltage when connected to the internal resistor ladder
+      circuit.
+
+patternProperties:
+  "^channel@[0-7]$":
+    $ref: dac.yaml
+    type: object
+    description: Voltage output channel.
+
+    properties:
+      reg:
+        description: The channel number.
+        minItems: 1
+        maxItems: 8
+
+      label:
+        description: Unique name to identify which channel this is.
+
+    required:
+      - reg
+
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - vdd-supply
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,mcp47feb01
+              - microchip,mcp47feb11
+              - microchip,mcp47feb21
+              - microchip,mcp47fvb01
+              - microchip,mcp47fvb11
+              - microchip,mcp47fvb21
+    then:
+      properties:
+        lat1-gpios: false
+        vref1-supply: false
+        microchip,vref1-buffered: false
+        channel@0:
+          properties:
+            reg:
+              const: 0
+      patternProperties:
+        "^channel@[1-7]$": false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,mcp47feb02
+              - microchip,mcp47feb12
+              - microchip,mcp47feb22
+              - microchip,mcp47fvb02
+              - microchip,mcp47fvb12
+              - microchip,mcp47fvb22
+    then:
+      properties:
+        lat1-gpios: false
+        vref1-supply: false
+        microchip,vref1-buffered: false
+      patternProperties:
+        "^channel@[0-1]$":
+          properties:
+            reg:
+              enum: [0, 1]
+        "^channel@[2-7]$": false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,mcp47fvb04
+              - microchip,mcp47fvb14
+              - microchip,mcp47fvb24
+              - microchip,mcp47feb04
+              - microchip,mcp47feb14
+              - microchip,mcp47feb24
+    then:
+      patternProperties:
+        "^channel@[0-3]$":
+          properties:
+            reg:
+              enum: [0, 1, 2, 3]
+        "^channel@[4-7]$": false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,mcp47fvb08
+              - microchip,mcp47fvb18
+              - microchip,mcp47fvb28
+              - microchip,mcp47feb08
+              - microchip,mcp47feb18
+              - microchip,mcp47feb28
+    then:
+      patternProperties:
+        "^channel@[0-7]$":
+          properties:
+            reg:
+              enum: [0, 1, 2, 3, 4, 5, 6, 7]
+  - if:
+      not:
+        required:
+          - vref-supply
+    then:
+      properties:
+        microchip,vref-buffered: false
+  - if:
+      not:
+        required:
+          - vref1-supply
+    then:
+      properties:
+        microchip,vref1-buffered: false
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+          compatible = "microchip,mcp47feb02";
+          reg = <0>;
+          vdd-supply = <&vdac_vdd>;
+          vref-supply = <&vref_reg>;
+
+          #address-cells = <1>;
+          #size-cells = <0>;
+          channel@0 {
+            reg = <0>;
+            label = "Adjustable_voltage_ch0";
+          };
+
+          channel@1 {
+            reg = <0x1>;
+            label = "Adjustable_voltage_ch1";
+          };
+      };
+    };
+...
