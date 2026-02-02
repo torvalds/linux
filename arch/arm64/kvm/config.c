@@ -388,16 +388,6 @@ static bool feat_vmid16(struct kvm *kvm)
 	return kvm_has_feat_enum(kvm, ID_AA64MMFR1_EL1, VMIDBits, 16);
 }
 
-static bool compute_hcr_e2h(struct kvm *kvm, struct resx *bits)
-{
-	if (kvm_has_feat(kvm, FEAT_E2H0))
-		bits->res0 |= HCR_EL2_E2H;
-	else
-		bits->res1 |= HCR_EL2_E2H;
-
-	return true;
-}
-
 static const struct reg_bits_to_feat_map hfgrtr_feat_map[] = {
 	NEEDS_FEAT(HFGRTR_EL2_nAMAIR2_EL1	|
 		   HFGRTR_EL2_nMAIR2_EL1,
@@ -1017,7 +1007,7 @@ static const struct reg_bits_to_feat_map hcr_feat_map[] = {
 	NEEDS_FEAT(HCR_EL2_TWEDEL	|
 		   HCR_EL2_TWEDEn,
 		   FEAT_TWED),
-	NEEDS_FEAT_FIXED(HCR_EL2_E2H, compute_hcr_e2h),
+	NEEDS_FEAT_FLAG(HCR_EL2_E2H, RES1_WHEN_E2H1 | FORCE_RESx),
 	FORCE_RES0(HCR_EL2_RES0),
 	FORCE_RES1(HCR_EL2_RES1),
 };
