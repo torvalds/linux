@@ -1334,7 +1334,7 @@ fail:
  * @request: permissions to request
  * @perms: an initialized perms struct to add accumulation to
  *
- * Returns: 0 on success else ERROR
+ * Returns: the state the match finished in, may be the none matching state
  *
  * For the label A//&B//&C this does the perm match for each of A and B and C
  * @perms should be preinitialized with allperms OR a previous permission
@@ -1362,7 +1362,7 @@ static int label_components_match(struct aa_profile *profile,
 	}
 
 	/* no subcomponents visible - no change in perms */
-	return 0;
+	return state;
 
 next:
 	tmp = *aa_lookup_perms(rules->policy, state);
@@ -1378,13 +1378,13 @@ next:
 	}
 
 	if ((perms->allow & request) != request)
-		return -EACCES;
+		return DFA_NOMATCH;
 
-	return 0;
+	return state;
 
 fail:
 	*perms = nullperms;
-	return -EACCES;
+	return DFA_NOMATCH;
 }
 
 /**
@@ -1406,7 +1406,7 @@ int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
 	aa_state_t tmp = label_compound_match(profile, rules, label, state,
 					      inview, request, perms);
 	if ((perms->allow & request) == request)
-		return 0;
+		return tmp;
 
 	/* failed compound_match try component matches */
 	*perms = allperms;
