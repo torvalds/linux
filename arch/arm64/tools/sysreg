@@ -3834,8 +3834,7 @@ Field	43	NV1
 Field	42	NV
 Field	41	API
 Field	40	APK
-Res0	39
-Field	38	MIOCNCE
+Res0	39:38
 Field	37	TEA
 Field	36	TERR
 Field	35	TLOR
