@@ -105,11 +105,8 @@ static int cv1800b_adc_setbclk_div(struct cv1800b_priv *priv, unsigned int rate)
 	if (!priv->mclk_rate || !rate)
 		return -EINVAL;
 
-	tmp = priv->mclk_rate;
-	tmp /= CV1800B_RXADC_WORD_LEN;
-	tmp /= CV1800B_RXADC_CHANNELS;
-	tmp /= rate;
-	tmp /= 2;
+	tmp = div_u64(priv->mclk_rate, CV1800B_RXADC_WORD_LEN *
+		      CV1800B_RXADC_CHANNELS * rate * 2);
 
 	if (!tmp) {
 		dev_err(priv->dev, "computed BCLK divider is zero\n");
