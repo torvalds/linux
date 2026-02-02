@@ -1855,6 +1855,8 @@ struct dir_context {
 	 * INT_MAX  unlimited
 	 */
 	int count;
+	/* @actor supports these flags in d_type high bits */
+	unsigned int dt_flags_mask;
 };
 
 /* If OR-ed with d_type, pending signals are not checked */
@@ -3524,7 +3526,9 @@ static inline bool dir_emit(struct dir_context *ctx,
 			    const char *name, int namelen,
 			    u64 ino, unsigned type)
 {
-	return ctx->actor(ctx, name, namelen, ctx->pos, ino, type);
+	unsigned int dt_mask = S_DT_MASK | ctx->dt_flags_mask;
+
+	return ctx->actor(ctx, name, namelen, ctx->pos, ino, type & dt_mask);
 }
 static inline bool dir_emit_dot(struct file *file, struct dir_context *ctx)
 {

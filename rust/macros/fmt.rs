@@ -67,7 +67,7 @@ pub(crate) fn fmt(input: TokenStream) -> TokenStream {
                     }
                     (None, acc)
                 })();
-                args.extend(quote_spanned!(first_span => #lhs #adapter(&#rhs)));
+                args.extend(quote_spanned!(first_span => #lhs #adapter(&(#rhs))));
             }
         };
 
