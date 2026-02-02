@@ -423,7 +423,7 @@ static void dmemcg_free_region(struct kref *ref)
  */
 void dmem_cgroup_unregister_region(struct dmem_cgroup_region *region)
 {
-	struct list_head *entry;
+	struct dmem_cgroup_pool_state *pool, *next;
 
 	if (!region)
 		return;
@@ -433,10 +433,7 @@ void dmem_cgroup_unregister_region(struct dmem_cgroup_region *region)
 	/* Remove from global region list */
 	list_del_rcu(&region->region_node);
 
-	list_for_each_rcu(entry, &region->pools) {
-		struct dmem_cgroup_pool_state *pool =
-			container_of(entry, typeof(*pool), region_node);
-
+	list_for_each_entry_safe(pool, next, &region->pools, region_node) {
 		list_del_rcu(&pool->css_node);
 	}
 
