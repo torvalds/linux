@@ -133,6 +133,21 @@ static enum bp_result link_transmitter_control(
 	return result;
 }
 
+static enum bp_result link_dac_encoder_control(
+	struct dce110_link_encoder *link_enc,
+	enum bp_encoder_control_action action,
+	uint32_t pix_clk_100hz)
+{
+	struct dc_bios *bios = link_enc->base.ctx->dc_bios;
+	struct bp_encoder_control encoder_control = {0};
+
+	encoder_control.action = action;
+	encoder_control.engine_id = link_enc->base.analog_engine;
+	encoder_control.pixel_clock = pix_clk_100hz / 10;
+
+	return bios->funcs->encoder_control(bios, &encoder_control);
+}
+
 static void enable_phy_bypass_mode(
 	struct dce110_link_encoder *enc110,
 	bool enable)
@@ -1345,19 +1360,8 @@ void dce110_link_encoder_disable_output(
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
-	switch (enc->analog_engine) {
-	case ENGINE_ID_DACA:
-		REG_UPDATE(DAC_ENABLE, DAC_ENABLE, 0);
-		break;
-	case ENGINE_ID_DACB:
-		/* DACB doesn't seem to be present on DCE6+,
-		 * although there are references to it in the register file.
-		 */
-		DC_LOG_ERROR("%s DACB is unsupported\n", __func__);
-		break;
-	default:
-		break;
-	}
+	if (enc->analog_engine != ENGINE_ID_UNKNOWN)
+		link_dac_encoder_control(enc110, ENCODER_CONTROL_DISABLE, 0);
 
 	/* The code below only applies to connectors that support digital signals. */
 	if (enc->transmitter == TRANSMITTER_UNKNOWN)
