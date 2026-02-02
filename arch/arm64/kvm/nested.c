@@ -1505,11 +1505,6 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 	u64 orig_val = val;
 
 	switch (reg) {
-	case SYS_ID_AA64ISAR0_EL1:
-		/* Support everything but TME */
-		val &= ~ID_AA64ISAR0_EL1_TME;
-		break;
-
 	case SYS_ID_AA64ISAR1_EL1:
 		/* Support everything but LS64 and Spec Invalidation */
 		val &= ~(ID_AA64ISAR1_EL1_LS64	|

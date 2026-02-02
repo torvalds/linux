@@ -176,7 +176,6 @@ and inv_event_filter are:
   bit 10    - Remote access (FEAT_SPEv1p4)
   bit 11    - Misaligned access (FEAT_SPEv1p1)
   bit 12-15 - IMPLEMENTATION DEFINED events (when implemented)
-  bit 16    - Transaction (FEAT_TME)
   bit 17    - Partial or empty SME or SVE predicate (FEAT_SPEv1p1)
   bit 18    - Empty SME or SVE predicate (FEAT_SPEv1p1)
   bit 19    - L2D access (FEAT_SPEv1p4)
