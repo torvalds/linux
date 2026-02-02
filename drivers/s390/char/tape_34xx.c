@@ -28,26 +28,10 @@
 debug_info_t *TAPE_DBF_AREA = NULL;
 EXPORT_SYMBOL(TAPE_DBF_AREA);
 
-#define TAPE34XX_FMT_3480	0
-#define TAPE34XX_FMT_3480_2_XF	1
-#define TAPE34XX_FMT_3480_XF	2
-
 struct tape_34xx_block_id {
-	unsigned int	wrap		: 1;
-	unsigned int	segment		: 7;
-	unsigned int	format		: 2;
+	unsigned int	unused		: 10;
 	unsigned int	block		: 22;
 };
-
-/*
- * A list of block ID's is used to faster seek blocks.
- */
-struct tape_34xx_sbid {
-	struct list_head		list;
-	struct tape_34xx_block_id	bid;
-};
-
-static void tape_34xx_delete_sbid_from(struct tape_device *, int);
 
 /*
  * Medium sense for 34xx tapes. There is no 'real' medium sense call.
@@ -175,19 +159,6 @@ static inline int
 tape_34xx_done(struct tape_request *request)
 {
 	DBF_EVENT(6, "%s done\n", tape_op_verbose[request->op]);
-
-	switch (request->op) {
-		case TO_DSE:
-		case TO_RUN:
-		case TO_WRI:
-		case TO_WTM:
-		case TO_ASSIGN:
-		case TO_UNASSIGN:
-			tape_34xx_delete_sbid_from(request->device, 0);
-			break;
-		default:
-			;
-	}
 	return TAPE_IO_SUCCESS;
 }
 
@@ -224,7 +195,6 @@ tape_34xx_unsolicited_irq(struct tape_device *device, struct irb *irb)
 	if (irb->scsw.cmd.dstat == 0x85) { /* READY */
 		/* A medium was inserted in the drive. */
 		DBF_EVENT(6, "xuud med\n");
-		tape_34xx_delete_sbid_from(device, 0);
 		tape_34xx_schedule_work(device, TO_MSEN);
 	} else {
 		DBF_EVENT(3, "unsol.irq! dev end: %08x\n", device->cdev_id);
@@ -356,7 +326,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		case TO_LBL:
 			/* Block could not be located. */
-			tape_34xx_delete_sbid_from(device, 0);
 			return tape_34xx_erp_failed(request, -EIO);
 
 		case TO_RFO:
@@ -543,7 +512,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 */
 		dev_warn (&device->cdev->dev, "The tape unit failed to load"
 			" the cartridge\n");
-		tape_34xx_delete_sbid_from(device, 0);
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x34:
 		/*
@@ -601,7 +569,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		/* Manual rewind or unload. This causes an I/O error. */
 		dev_warn (&device->cdev->dev, "The tape medium has been "
 			"rewound or unloaded manually\n");
-		tape_34xx_delete_sbid_from(device, 0);
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x42:
 		/*
@@ -613,7 +580,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_retry(request);
 	case 0x43:
 		/* Drive not ready. */
-		tape_34xx_delete_sbid_from(device, 0);
 		tape_med_state_set(device, MS_UNLOADED);
 		/* Some commands commands are successful even in this case */
 		if (sense[1] & SENSE_DRIVE_ONLINE) {
@@ -653,7 +619,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		/* Volume fenced. CU reports volume integrity is lost. */
 		dev_warn (&device->cdev->dev, "The control unit has fenced "
 			"access to the tape volume\n");
-		tape_34xx_delete_sbid_from(device, 0);
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x48:
 		/* Log sense data and retry request. */
@@ -725,7 +690,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		/* End of Volume complete. Rewind unload completed ok. */
 		if (request->op == TO_RUN) {
 			tape_med_state_set(device, MS_UNLOADED);
-			tape_34xx_delete_sbid_from(device, 0);
 			return tape_34xx_erp_succeeded(request);
 		}
 		return tape_34xx_erp_bug(device, request, irb, sense[3]);
@@ -835,157 +799,10 @@ tape_34xx_irq(struct tape_device *device, struct tape_request *request,
 	return TAPE_IO_STOP;
 }
 
-static inline void
-tape_34xx_append_new_sbid(struct tape_34xx_block_id bid, struct list_head *l)
-{
-	struct tape_34xx_sbid *	new_sbid;
-
-	new_sbid = kmalloc(sizeof(*new_sbid), GFP_ATOMIC);
-	if (!new_sbid)
-		return;
-
-	new_sbid->bid = bid;
-	list_add(&new_sbid->list, l);
-}
-
-/*
- * Build up the search block ID list. The block ID consists of a logical
- * block number and a hardware specific part. The hardware specific part
- * helps the tape drive to speed up searching for a specific block.
- */
-static void
-tape_34xx_add_sbid(struct tape_device *device, struct tape_34xx_block_id bid)
-{
-	struct list_head *	sbid_list;
-	struct tape_34xx_sbid *	sbid;
-	struct list_head *	l;
-
-	/*
-	 * immediately return if there is no list at all or the block to add
-	 * is located in segment 1 of wrap 0 because this position is used
-	 * if no hardware position data is supplied.
-	 */
-	sbid_list = (struct list_head *) device->discdata;
-	if (!sbid_list || (bid.segment < 2 && bid.wrap == 0))
-		return;
-
-	/*
-	 * Search the position where to insert the new entry. Hardware
-	 * acceleration uses only the segment and wrap number. So we
-	 * need only one entry for a specific wrap/segment combination.
-	 * If there is a block with a lower number but the same hard-
-	 * ware position data we just update the block number in the
-	 * existing entry.
-	 */
-	list_for_each(l, sbid_list) {
-		sbid = list_entry(l, struct tape_34xx_sbid, list);
-
-		if (
-			(sbid->bid.segment == bid.segment) &&
-			(sbid->bid.wrap    == bid.wrap)
-		) {
-			if (bid.block < sbid->bid.block)
-				sbid->bid = bid;
-			else return;
-			break;
-		}
-
-		/* Sort in according to logical block number. */
-		if (bid.block < sbid->bid.block) {
-			tape_34xx_append_new_sbid(bid, l->prev);
-			break;
-		}
-	}
-	/* List empty or new block bigger than last entry. */
-	if (l == sbid_list)
-		tape_34xx_append_new_sbid(bid, l->prev);
-
-	DBF_LH(4, "Current list is:\n");
-	list_for_each(l, sbid_list) {
-		sbid = list_entry(l, struct tape_34xx_sbid, list);
-		DBF_LH(4, "%d:%03d@%05d\n",
-			sbid->bid.wrap,
-			sbid->bid.segment,
-			sbid->bid.block
-		);
-	}
-}
-
-/*
- * Delete all entries from the search block ID list that belong to tape blocks
- * equal or higher than the given number.
- */
-static void
-tape_34xx_delete_sbid_from(struct tape_device *device, int from)
-{
-	struct list_head *	sbid_list;
-	struct tape_34xx_sbid *	sbid;
-	struct list_head *	l;
-	struct list_head *	n;
-
-	sbid_list = (struct list_head *) device->discdata;
-	if (!sbid_list)
-		return;
-
-	list_for_each_safe(l, n, sbid_list) {
-		sbid = list_entry(l, struct tape_34xx_sbid, list);
-		if (sbid->bid.block >= from) {
-			DBF_LH(4, "Delete sbid %d:%03d@%05d\n",
-				sbid->bid.wrap,
-				sbid->bid.segment,
-				sbid->bid.block
-			);
-			list_del(l);
-			kfree(sbid);
-		}
-	}
-}
-
-/*
- * Merge hardware position data into a block id.
- */
-static void
-tape_34xx_merge_sbid(
-	struct tape_device *		device,
-	struct tape_34xx_block_id *	bid
-) {
-	struct tape_34xx_sbid *	sbid;
-	struct tape_34xx_sbid *	sbid_to_use;
-	struct list_head *	sbid_list;
-	struct list_head *	l;
-
-	sbid_list = (struct list_head *) device->discdata;
-	bid->wrap    = 0;
-	bid->segment = 1;
-
-	if (!sbid_list || list_empty(sbid_list))
-		return;
-
-	sbid_to_use = NULL;
-	list_for_each(l, sbid_list) {
-		sbid = list_entry(l, struct tape_34xx_sbid, list);
-
-		if (sbid->bid.block >= bid->block)
-			break;
-		sbid_to_use = sbid;
-	}
-	if (sbid_to_use) {
-		bid->wrap    = sbid_to_use->bid.wrap;
-		bid->segment = sbid_to_use->bid.segment;
-		DBF_LH(4, "Use %d:%03d@%05d for %05d\n",
-			sbid_to_use->bid.wrap,
-			sbid_to_use->bid.segment,
-			sbid_to_use->bid.block,
-			bid->block
-		);
-	}
-}
-
 static int
 tape_34xx_setup_device(struct tape_device * device)
 {
-	int			rc;
-	struct list_head *	discdata;
+	int rc;
 
 	DBF_EVENT(6, "34xx device setup\n");
 	if ((rc = tape_std_assign(device)) == 0) {
@@ -993,12 +810,6 @@ tape_34xx_setup_device(struct tape_device * device)
 			DBF_LH(3, "34xx medium sense returned %d\n", rc);
 		}
 	}
-	discdata = kmalloc(sizeof(struct list_head), GFP_KERNEL);
-	if (discdata) {
-			INIT_LIST_HEAD(discdata);
-			device->discdata = discdata;
-	}
-
 	return rc;
 }
 
@@ -1006,12 +817,6 @@ static void
 tape_34xx_cleanup_device(struct tape_device *device)
 {
 	tape_std_unassign(device);
-	
-	if (device->discdata) {
-		tape_34xx_delete_sbid_from(device, 0);
-		kfree(device->discdata);
-		device->discdata = NULL;
-	}
 }
 
 
@@ -1031,7 +836,6 @@ tape_34xx_mttell(struct tape_device *device, int mt_count)
 	if (rc)
 		return rc;
 
-	tape_34xx_add_sbid(device, block_id.cbid);
 	return block_id.cbid.block;
 }
 
@@ -1055,10 +859,7 @@ tape_34xx_mtseek(struct tape_device *device, int mt_count)
 	/* setup ccws */
 	request->op = TO_LBL;
 	bid         = (struct tape_34xx_block_id *) request->cpdata;
-	bid->format = (*device->modeset_byte & 0x08) ?
-			TAPE34XX_FMT_3480_XF : TAPE34XX_FMT_3480;
 	bid->block  = mt_count;
-	tape_34xx_merge_sbid(device, bid);
 
 	tape_ccw_cc(request->cpaddr, MODE_SET_DB, 1, device->modeset_byte);
 	tape_ccw_cc(request->cpaddr + 1, LOCATE, 4, request->cpdata);

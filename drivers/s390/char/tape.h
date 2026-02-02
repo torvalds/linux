@@ -186,7 +186,6 @@ struct tape_device {
 
 	/* Device discipline information. */
 	struct tape_discipline *	discipline;
-	void *				discdata;
 
 	/* Generic status flags */
 	long				tape_generic_status;
