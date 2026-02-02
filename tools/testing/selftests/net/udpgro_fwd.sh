@@ -162,6 +162,39 @@ run_test() {
 	echo " ok"
 }
 
+run_test_csum() {
+	local -r msg="$1"
+	local -r dst="$2"
+	local csum_error_filter=UdpInCsumErrors
+	local csum_errors
+
+	printf "%-40s" "$msg"
+
+	is_ipv6 "$dst" && csum_error_filter=Udp6InCsumErrors
+
+	ip netns exec "$NS_DST" iperf3 -s -1 >/dev/null &
+	wait_local_port_listen "$NS_DST" 5201 tcp
+	local spid="$!"
+	ip netns exec "$NS_SRC" iperf3 -c "$dst" -t 2 >/dev/null
+	local retc="$?"
+	wait "$spid"
+	local rets="$?"
+	if [ "$rets" -ne 0 ] || [ "$retc" -ne 0 ]; then
+		echo " fail client exit code $retc, server $rets"
+		ret=1
+		return
+	fi
+
+	csum_errors=$(ip netns exec "$NS_DST" nstat -as "$csum_error_filter" |
+		      grep "$csum_error_filter" | awk '{print $2}')
+	if [ -n "$csum_errors" ] && [ "$csum_errors" -gt 0 ]; then
+		echo " fail - csum error on receive $csum_errors, expected 0"
+		ret=1
+		return
+	fi
+	echo " ok"
+}
+
 run_bench() {
 	local -r msg=$1
 	local -r dst=$2
@@ -259,6 +292,37 @@ for family in 4 6; do
 	# stray traffic on top of the UDP tunnel
 	ip netns exec $NS_SRC $PING -q -c 1 $OL_NET$DST_NAT >/dev/null
 	run_test "GRO fwd over UDP tunnel" $OL_NET$DST_NAT 10 10 $OL_NET$DST
+	cleanup
+
+	# force segmentation and re-aggregation
+	create_vxlan_pair
+	ip netns exec "$NS_DST" ethtool -K veth"$DST" generic-receive-offload on
+	ip netns exec "$NS_SRC" ethtool -K veth"$SRC" tso off
+	ip -n "$NS_SRC" link set dev veth"$SRC" mtu 1430
+
+	# forward to a 2nd veth pair
+	ip -n "$NS_DST" link add br0 type bridge
+	ip -n "$NS_DST" link set dev veth"$DST" master br0
+
+	# segment the aggregated TSO packet, without csum offload
+	ip -n "$NS_DST" link add veth_segment type veth peer veth_rx
+	for FEATURE in tso tx-udp-segmentation tx-checksumming; do
+		ip netns exec "$NS_DST" ethtool -K veth_segment "$FEATURE" off
+	done
+	ip -n "$NS_DST" link set dev veth_segment master br0 up
+	ip -n "$NS_DST" link set dev br0 up
+	ip -n "$NS_DST" link set dev veth_rx up
+
+	# move the lower layer IP in the last added veth
+	for ADDR in "$BM_NET_V4$DST/24" "$BM_NET_V6$DST/64"; do
+		# the dad argument will let iproute emit a unharmful warning
+		# with ipv4 addresses
+		ip -n "$NS_DST" addr del dev veth"$DST" "$ADDR"
+		ip -n "$NS_DST" addr add dev veth_rx "$ADDR" \
+			nodad 2>/dev/null
+	done
+
+	run_test_csum "GSO after GRO" "$OL_NET$DST"
 	cleanup
 done
 
