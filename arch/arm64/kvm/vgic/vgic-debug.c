@@ -104,58 +104,42 @@ static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
 	struct kvm *kvm = s->private;
 	struct vgic_state_iter *iter;
 
-	mutex_lock(&kvm->arch.config_lock);
-	iter = kvm->arch.vgic.iter;
-	if (iter) {
-		iter = ERR_PTR(-EBUSY);
-		goto out;
-	}
-
 	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter) {
-		iter = ERR_PTR(-ENOMEM);
-		goto out;
-	}
+	if (!iter)
+		return ERR_PTR(-ENOMEM);
 
 	iter_init(kvm, iter, *pos);
-	kvm->arch.vgic.iter = iter;
 
-	if (end_of_vgic(iter))
+	if (end_of_vgic(iter)) {
+		kfree(iter);
 		iter = NULL;
-out:
-	mutex_unlock(&kvm->arch.config_lock);
+	}
+
 	return iter;
 }
 
 static void *vgic_debug_next(struct seq_file *s, void *v, loff_t *pos)
 {
 	struct kvm *kvm = s->private;
-	struct vgic_state_iter *iter = kvm->arch.vgic.iter;
+	struct vgic_state_iter *iter = v;
 
 	++*pos;
 	iter_next(kvm, iter);
-	if (end_of_vgic(iter))
+	if (end_of_vgic(iter)) {
+		kfree(iter);
 		iter = NULL;
+	}
 	return iter;
 }
 
 static void vgic_debug_stop(struct seq_file *s, void *v)
 {
-	struct kvm *kvm = s->private;
-	struct vgic_state_iter *iter;
+	struct vgic_state_iter *iter = v;
 
-	/*
-	 * If the seq file wasn't properly opened, there's nothing to clearn
-	 * up.
-	 */
-	if (IS_ERR(v))
+	if (IS_ERR_OR_NULL(v))
 		return;
 
-	mutex_lock(&kvm->arch.config_lock);
-	iter = kvm->arch.vgic.iter;
 	kfree(iter);
-	kvm->arch.vgic.iter = NULL;
-	mutex_unlock(&kvm->arch.config_lock);
 }
 
 static void print_dist_state(struct seq_file *s, struct vgic_dist *dist,

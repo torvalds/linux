@@ -302,9 +302,6 @@ struct vgic_dist {
 
 	struct xarray		lpi_xa;
 
-	/* used by vgic-debug */
-	struct vgic_state_iter *iter;
-
 	/*
 	 * GICv4 ITS per-VM data, containing the IRQ domain, the VPE
 	 * array, the property table pointer as well as allocation
