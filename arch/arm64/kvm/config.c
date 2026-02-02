@@ -1342,6 +1342,11 @@ static struct resx compute_reg_resx_bits(struct kvm *kvm,
 	resx = compute_resx_bits(kvm, r->bit_feat_map, r->bit_feat_map_sz,
 				 require, exclude);
 
+	if (r->feat_map.flags & MASKS_POINTER) {
+		resx.res0 |= r->feat_map.masks->res0;
+		resx.res1 |= r->feat_map.masks->res1;
+	}
+
 	tmp = compute_resx_bits(kvm, &r->feat_map, 1, require, exclude);
 
 	resx.res0 |= tmp.res0;
@@ -1422,47 +1427,36 @@ struct resx get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg)
 	switch (reg) {
 	case HFGRTR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgrtr_desc, 0, 0);
-		resx.res1 |= HFGRTR_EL2_RES1;
 		break;
 	case HFGWTR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgwtr_desc, 0, 0);
-		resx.res1 |= HFGWTR_EL2_RES1;
 		break;
 	case HFGITR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgitr_desc, 0, 0);
-		resx.res1 |= HFGITR_EL2_RES1;
 		break;
 	case HDFGRTR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hdfgrtr_desc, 0, 0);
-		resx.res1 |= HDFGRTR_EL2_RES1;
 		break;
 	case HDFGWTR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hdfgwtr_desc, 0, 0);
-		resx.res1 |= HDFGWTR_EL2_RES1;
 		break;
 	case HAFGRTR_EL2:
 		resx = compute_reg_resx_bits(kvm, &hafgrtr_desc, 0, 0);
-		resx.res1 |= HAFGRTR_EL2_RES1;
 		break;
 	case HFGRTR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgrtr2_desc, 0, 0);
-		resx.res1 |= HFGRTR2_EL2_RES1;
 		break;
 	case HFGWTR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgwtr2_desc, 0, 0);
-		resx.res1 |= HFGWTR2_EL2_RES1;
 		break;
 	case HFGITR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &hfgitr2_desc, 0, 0);
-		resx.res1 |= HFGITR2_EL2_RES1;
 		break;
 	case HDFGRTR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &hdfgrtr2_desc, 0, 0);
-		resx.res1 |= HDFGRTR2_EL2_RES1;
 		break;
 	case HDFGWTR2_EL2:
 		resx = compute_reg_resx_bits(kvm, &hdfgwtr2_desc, 0, 0);
-		resx.res1 |= HDFGWTR2_EL2_RES1;
 		break;
 	case HCRX_EL2:
 		resx = compute_reg_resx_bits(kvm, &hcrx_desc, 0, 0);
