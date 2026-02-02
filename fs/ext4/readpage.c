@@ -45,6 +45,7 @@
 #include <linux/pagevec.h>
 
 #include "ext4.h"
+#include <trace/events/ext4.h>
 
 #define NUM_PREALLOC_POST_READ_CTXS	128
 
@@ -209,7 +210,7 @@ static inline loff_t ext4_readpage_limit(struct inode *inode)
 	return i_size_read(inode);
 }
 
-int ext4_mpage_readpages(struct inode *inode,
+static int ext4_mpage_readpages(struct inode *inode,
 		struct readahead_control *rac, struct folio *folio)
 {
 	struct bio *bio = NULL;
@@ -392,6 +393,33 @@ next_page:
 	if (bio)
 		submit_bio(bio);
 	return 0;
+}
+
+int ext4_read_folio(struct file *file, struct folio *folio)
+{
+	int ret = -EAGAIN;
+	struct inode *inode = folio->mapping->host;
+
+	trace_ext4_read_folio(inode, folio);
+
+	if (ext4_has_inline_data(inode))
+		ret = ext4_readpage_inline(inode, folio);
+
+	if (ret == -EAGAIN)
+		return ext4_mpage_readpages(inode, NULL, folio);
+
+	return ret;
+}
+
+void ext4_readahead(struct readahead_control *rac)
+{
+	struct inode *inode = rac->mapping->host;
+
+	/* If the file has inline data, no need to do readahead. */
+	if (ext4_has_inline_data(inode))
+		return;
+
+	ext4_mpage_readpages(inode, rac, NULL);
 }
 
 int __init ext4_init_post_read_processing(void)
