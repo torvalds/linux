@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2022 Intel Corporation. All rights reserved. */
+#include <linux/aer.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -68,9 +69,59 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	return 0;
 }
 
+static int cxl_ras_unmask(struct cxl_port *port)
+{
+	struct pci_dev *pdev;
+	void __iomem *addr;
+	u32 orig_val, val, mask;
+	u16 cap;
+	int rc;
+
+	if (!dev_is_pci(port->uport_dev))
+		return 0;
+	pdev = to_pci_dev(port->uport_dev);
+
+	if (!port->regs.ras) {
+		pci_dbg(pdev, "No RAS registers.\n");
+		return 0;
+	}
+
+	/* BIOS has PCIe AER error control */
+	if (!pcie_aer_is_native(pdev))
+		return 0;
+
+	rc = pcie_capability_read_word(pdev, PCI_EXP_DEVCTL, &cap);
+	if (rc)
+		return rc;
+
+	if (cap & PCI_EXP_DEVCTL_URRE) {
+		addr = port->regs.ras + CXL_RAS_UNCORRECTABLE_MASK_OFFSET;
+		orig_val = readl(addr);
+
+		mask = CXL_RAS_UNCORRECTABLE_MASK_MASK |
+		       CXL_RAS_UNCORRECTABLE_MASK_F256B_MASK;
+		val = orig_val & ~mask;
+		writel(val, addr);
+		pci_dbg(pdev, "Uncorrectable RAS Errors Mask: %#x -> %#x\n",
+			orig_val, val);
+	}
+
+	if (cap & PCI_EXP_DEVCTL_CERE) {
+		addr = port->regs.ras + CXL_RAS_CORRECTABLE_MASK_OFFSET;
+		orig_val = readl(addr);
+		val = orig_val & ~CXL_RAS_CORRECTABLE_MASK_MASK;
+		writel(val, addr);
+		pci_dbg(pdev, "Correctable RAS Errors Mask: %#x -> %#x\n",
+			orig_val, val);
+	}
+
+	return 0;
+}
+
 static int cxl_endpoint_port_probe(struct cxl_port *port)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+	struct cxl_dport *dport = port->parent_dport;
 	int rc;
 
 	/* Cache the data early to ensure is_visible() works */
@@ -85,6 +136,21 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	rc = devm_cxl_endpoint_decoders_setup(port);
 	if (rc)
 		return rc;
+
+	/*
+	 * With VH (CXL Virtual Host) topology the cxl_port::add_dport() method
+	 * handles RAS setup for downstream ports. With RCH (CXL Restricted CXL
+	 * Host) topologies the downstream port is enumerated early by platform
+	 * firmware, but the RCRB (root complex register block) is not mapped
+	 * until after the cxl_pci driver attaches to the RCIeP (root complex
+	 * integrated endpoint).
+	 */
+	if (dport->rch)
+		devm_cxl_dport_rch_ras_setup(dport);
+
+	devm_cxl_port_ras_setup(port);
+	if (cxl_ras_unmask(port))
+		dev_dbg(&port->dev, "failed to unmask RAS interrupts\n");
 
 	/*
 	 * Now that all endpoint decoders are successfully enumerated, try to
@@ -151,9 +217,65 @@ static const struct attribute_group *cxl_port_attribute_groups[] = {
 	NULL,
 };
 
+/* note this implicitly casts the group back to its @port */
+DEFINE_FREE(cxl_port_release_dr_group, struct cxl_port *,
+	    if (_T) devres_release_group(&_T->dev, _T))
+
+static struct cxl_dport *cxl_port_add_dport(struct cxl_port *port,
+					    struct device *dport_dev)
+{
+	struct cxl_dport *dport;
+	int rc;
+
+	/* Temp group for all "first dport" and "per dport" setup actions */
+	void *port_dr_group __free(cxl_port_release_dr_group) =
+		devres_open_group(&port->dev, port, GFP_KERNEL);
+	if (!port_dr_group)
+		return ERR_PTR(-ENOMEM);
+
+	if (port->nr_dports == 0) {
+		/*
+		 * Some host bridges are known to not have component regsisters
+		 * available until a root port has trained CXL. Perform that
+		 * setup now.
+		 */
+		rc = cxl_port_setup_regs(port, port->component_reg_phys);
+		if (rc)
+			return ERR_PTR(rc);
+
+		rc = devm_cxl_switch_port_decoders_setup(port);
+		if (rc)
+			return ERR_PTR(rc);
+
+		/*
+		 * RAS setup is optional, either driver operation can continue
+		 * on failure, or the device does not implement RAS registers.
+		 */
+		devm_cxl_port_ras_setup(port);
+	}
+
+	dport = devm_cxl_add_dport_by_dev(port, dport_dev);
+	if (IS_ERR(dport))
+		return dport;
+
+	/* This group was only needed for early exit above */
+	devres_remove_group(&port->dev, no_free_ptr(port_dr_group));
+
+	cxl_switch_parse_cdat(dport);
+
+	/* New dport added, update the decoder targets */
+	cxl_port_update_decoder_targets(port, dport);
+
+	dev_dbg(&port->dev, "dport%d:%s added\n", dport->port_id,
+		dev_name(dport_dev));
+
+	return dport;
+}
+
 static struct cxl_driver cxl_port_driver = {
 	.name = "cxl_port",
 	.probe = cxl_port_probe,
+	.add_dport = cxl_port_add_dport,
 	.id = CXL_DEVICE_PORT,
 	.drv = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,

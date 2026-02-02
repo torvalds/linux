@@ -1218,12 +1218,12 @@ static int devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 }
 
 /**
- * __devm_cxl_switch_port_decoders_setup - allocate and setup switch decoders
+ * devm_cxl_switch_port_decoders_setup - allocate and setup switch decoders
  * @port: CXL port context
  *
  * Return 0 or -errno on error
  */
-int __devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
+int devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
 {
 	struct cxl_hdm *cxlhdm;
 
@@ -1247,7 +1247,7 @@ int __devm_cxl_switch_port_decoders_setup(struct cxl_port *port)
 	dev_err(&port->dev, "HDM decoder capability not found\n");
 	return -ENXIO;
 }
-EXPORT_SYMBOL_NS_GPL(__devm_cxl_switch_port_decoders_setup, "CXL");
+EXPORT_SYMBOL_NS_GPL(devm_cxl_switch_port_decoders_setup, "CXL");
 
 /**
  * devm_cxl_endpoint_decoders_setup - allocate and setup endpoint decoders

@@ -139,26 +139,48 @@ static void cxl_dport_map_ras(struct cxl_dport *dport)
 }
 
 /**
- * cxl_dport_init_ras_reporting - Setup CXL RAS report on this dport
+ * devm_cxl_dport_ras_setup - Setup CXL RAS report on this dport
  * @dport: the cxl_dport that needs to be initialized
- * @host: host device for devm operations
  */
-void cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device *host)
+void devm_cxl_dport_ras_setup(struct cxl_dport *dport)
 {
-	dport->reg_map.host = host;
+	dport->reg_map.host = dport_to_host(dport);
 	cxl_dport_map_ras(dport);
-
-	if (dport->rch) {
-		struct pci_host_bridge *host_bridge = to_pci_host_bridge(dport->dport_dev);
-
-		if (!host_bridge->native_aer)
-			return;
-
-		cxl_dport_map_rch_aer(dport);
-		cxl_disable_rch_root_ints(dport);
-	}
 }
-EXPORT_SYMBOL_NS_GPL(cxl_dport_init_ras_reporting, "CXL");
+
+void devm_cxl_dport_rch_ras_setup(struct cxl_dport *dport)
+{
+	struct pci_host_bridge *host_bridge;
+
+	if (!dev_is_pci(dport->dport_dev))
+		return;
+
+	devm_cxl_dport_ras_setup(dport);
+
+	host_bridge = to_pci_host_bridge(dport->dport_dev);
+	if (!host_bridge->native_aer)
+		return;
+
+	cxl_dport_map_rch_aer(dport);
+	cxl_disable_rch_root_ints(dport);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_dport_rch_ras_setup, "CXL");
+
+void devm_cxl_port_ras_setup(struct cxl_port *port)
+{
+	struct cxl_register_map *map = &port->reg_map;
+
+	if (!map->component_map.ras.valid) {
+		dev_dbg(&port->dev, "RAS registers not found\n");
+		return;
+	}
+
+	map->host = &port->dev;
+	if (cxl_map_component_regs(map, &port->regs,
+				   BIT(CXL_CM_CAP_CAP_ID_RAS)))
+		dev_dbg(&port->dev, "Failed to map RAS capability\n");
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_port_ras_setup, "CXL");
 
 void cxl_handle_cor_ras(struct device *dev, void __iomem *ras_base)
 {
@@ -233,6 +255,7 @@ bool cxl_handle_ras(struct device *dev, void __iomem *ras_base)
 void cxl_cor_error_detected(struct pci_dev *pdev)
 {
 	struct cxl_dev_state *cxlds = pci_get_drvdata(pdev);
+	struct cxl_memdev *cxlmd = cxlds->cxlmd;
 	struct device *dev = &cxlds->cxlmd->dev;
 
 	scoped_guard(device, dev) {
@@ -246,7 +269,7 @@ void cxl_cor_error_detected(struct pci_dev *pdev)
 		if (cxlds->rcd)
 			cxl_handle_rdport_errors(cxlds);
 
-		cxl_handle_cor_ras(&cxlds->cxlmd->dev, cxlds->regs.ras);
+		cxl_handle_cor_ras(&cxlds->cxlmd->dev, cxlmd->endpoint->regs.ras);
 	}
 }
 EXPORT_SYMBOL_NS_GPL(cxl_cor_error_detected, "CXL");
@@ -275,9 +298,8 @@ pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
 		 * chance the situation is recoverable dump the status of the RAS
 		 * capability registers and bounce the active state of the memdev.
 		 */
-		ue = cxl_handle_ras(&cxlds->cxlmd->dev, cxlds->regs.ras);
+		ue = cxl_handle_ras(&cxlds->cxlmd->dev, cxlmd->endpoint->regs.ras);
 	}
-
 
 	switch (state) {
 	case pci_channel_io_normal:
