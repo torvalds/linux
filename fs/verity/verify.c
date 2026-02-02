@@ -38,7 +38,7 @@ static struct workqueue_struct *fsverity_read_workqueue;
 
 /**
  * fsverity_readahead() - kick off readahead on fsverity hashes
- * @inode:		inode that is being read
+ * @vi:			fsverity_info for the inode to be read
  * @index:		first file data page index that is being read
  * @nr_pages:		number of file data pages to be read
  *
@@ -49,10 +49,10 @@ static struct workqueue_struct *fsverity_read_workqueue;
  * ensure that the hashes are already cached on completion of the file data
  * read if possible.
  */
-void fsverity_readahead(struct inode *inode, pgoff_t index,
+void fsverity_readahead(struct fsverity_info *vi, pgoff_t index,
 			unsigned long nr_pages)
 {
-	const struct fsverity_info *vi = *fsverity_info_addr(inode);
+	struct inode *inode = vi->inode;
 	const struct merkle_tree_params *params = &vi->tree_params;
 	u64 start_hidx = (u64)index << params->log_blocks_per_page;
 	u64 end_hidx =
@@ -314,11 +314,9 @@ error:
 
 static void
 fsverity_init_verification_context(struct fsverity_verification_context *ctx,
-				   struct inode *inode)
+				   struct fsverity_info *vi)
 {
-	struct fsverity_info *vi = *fsverity_info_addr(inode);
-
-	ctx->inode = inode;
+	ctx->inode = vi->inode;
 	ctx->vi = vi;
 	ctx->num_pending = 0;
 	if (vi->tree_params.hash_alg->algo_id == HASH_ALGO_SHA256 &&
@@ -398,6 +396,7 @@ static bool fsverity_add_data_blocks(struct fsverity_verification_context *ctx,
 
 /**
  * fsverity_verify_blocks() - verify data in a folio
+ * @vi: fsverity_info for the inode to be read
  * @folio: the folio containing the data to verify
  * @len: the length of the data to verify in the folio
  * @offset: the offset of the data to verify in the folio
@@ -408,11 +407,12 @@ static bool fsverity_add_data_blocks(struct fsverity_verification_context *ctx,
  *
  * Return: %true if the data is valid, else %false.
  */
-bool fsverity_verify_blocks(struct folio *folio, size_t len, size_t offset)
+bool fsverity_verify_blocks(struct fsverity_info *vi, struct folio *folio,
+			    size_t len, size_t offset)
 {
 	struct fsverity_verification_context ctx;
 
-	fsverity_init_verification_context(&ctx, folio->mapping->host);
+	fsverity_init_verification_context(&ctx, vi);
 
 	if (fsverity_add_data_blocks(&ctx, folio, len, offset) &&
 	    fsverity_verify_pending_blocks(&ctx))
@@ -425,6 +425,7 @@ EXPORT_SYMBOL_GPL(fsverity_verify_blocks);
 #ifdef CONFIG_BLOCK
 /**
  * fsverity_verify_bio() - verify a 'read' bio that has just completed
+ * @vi: fsverity_info for the inode to be read
  * @bio: the bio to verify
  *
  * Verify the bio's data against the file's Merkle tree.  All bio data segments
@@ -437,13 +438,12 @@ EXPORT_SYMBOL_GPL(fsverity_verify_blocks);
  * filesystems) must instead call fsverity_verify_page() directly on each page.
  * All filesystems must also call fsverity_verify_page() on holes.
  */
-void fsverity_verify_bio(struct bio *bio)
+void fsverity_verify_bio(struct fsverity_info *vi, struct bio *bio)
 {
-	struct inode *inode = bio_first_folio_all(bio)->mapping->host;
 	struct fsverity_verification_context ctx;
 	struct folio_iter fi;
 
-	fsverity_init_verification_context(&ctx, inode);
+	fsverity_init_verification_context(&ctx, vi);
 
 	bio_for_each_folio_all(fi, bio) {
 		if (!fsverity_add_data_blocks(&ctx, fi.folio, fi.length,
