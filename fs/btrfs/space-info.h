@@ -21,7 +21,24 @@ struct btrfs_block_group;
  * The higher the level, the more methods we try to reclaim space.
  */
 enum btrfs_reserve_flush_enum {
-	/* If we are in the transaction, we can't flush anything.*/
+	/*
+	 * Used when we can't flush or don't need:
+	 *
+	 * 1) We are holding a transaction handle open, so we can't flush as
+	 *    that could deadlock.
+	 *
+	 * 2) For a nowait write we don't want to block when reserving delalloc.
+	 *
+	 * 3) Joining a transaction or attaching a transaction, we don't want
+	 *    to wait and we don't need to reserve anything (any needed space
+	 *    was reserved before in a dedicated block reserve, or we rely on
+	 *    the global block reserve, see btrfs_init_root_block_rsv()).
+	 *
+	 * 4) Starting a transaction when we don't need to reserve space, as
+	 *    we don't need it because we previously reserved in a dedicated
+	 *    block reserve or rely on the global block reserve, like the above
+	 *    case.
+	 */
 	BTRFS_RESERVE_NO_FLUSH,
 
 	/*
