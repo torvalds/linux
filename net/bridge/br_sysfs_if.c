@@ -47,7 +47,7 @@ const struct brport_attribute brport_attr_##_name = { 	        \
 #define BRPORT_ATTR_FLAG(_name, _mask)				\
 static ssize_t show_##_name(struct net_bridge_port *p, char *buf) \
 {								\
-	return sprintf(buf, "%d\n", !!(p->flags & _mask));	\
+	return sysfs_emit(buf, "%d\n", !!(p->flags & _mask));	\
 }								\
 static int store_##_name(struct net_bridge_port *p, unsigned long v) \
 {								\
@@ -83,7 +83,7 @@ static int store_flag(struct net_bridge_port *p, unsigned long v,
 
 static ssize_t show_path_cost(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->path_cost);
+	return sysfs_emit(buf, "%d\n", p->path_cost);
 }
 
 static BRPORT_ATTR(path_cost, 0644,
@@ -91,7 +91,7 @@ static BRPORT_ATTR(path_cost, 0644,
 
 static ssize_t show_priority(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->priority);
+	return sysfs_emit(buf, "%d\n", p->priority);
 }
 
 static BRPORT_ATTR(priority, 0644,
@@ -111,65 +111,65 @@ static BRPORT_ATTR(designated_bridge, 0444, show_designated_bridge, NULL);
 
 static ssize_t show_designated_port(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->designated_port);
+	return sysfs_emit(buf, "%d\n", p->designated_port);
 }
 static BRPORT_ATTR(designated_port, 0444, show_designated_port, NULL);
 
 static ssize_t show_designated_cost(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->designated_cost);
+	return sysfs_emit(buf, "%d\n", p->designated_cost);
 }
 static BRPORT_ATTR(designated_cost, 0444, show_designated_cost, NULL);
 
 static ssize_t show_port_id(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "0x%x\n", p->port_id);
+	return sysfs_emit(buf, "0x%x\n", p->port_id);
 }
 static BRPORT_ATTR(port_id, 0444, show_port_id, NULL);
 
 static ssize_t show_port_no(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "0x%x\n", p->port_no);
+	return sysfs_emit(buf, "0x%x\n", p->port_no);
 }
 
 static BRPORT_ATTR(port_no, 0444, show_port_no, NULL);
 
 static ssize_t show_change_ack(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->topology_change_ack);
+	return sysfs_emit(buf, "%d\n", p->topology_change_ack);
 }
 static BRPORT_ATTR(change_ack, 0444, show_change_ack, NULL);
 
 static ssize_t show_config_pending(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->config_pending);
+	return sysfs_emit(buf, "%d\n", p->config_pending);
 }
 static BRPORT_ATTR(config_pending, 0444, show_config_pending, NULL);
 
 static ssize_t show_port_state(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->state);
+	return sysfs_emit(buf, "%d\n", p->state);
 }
 static BRPORT_ATTR(state, 0444, show_port_state, NULL);
 
 static ssize_t show_message_age_timer(struct net_bridge_port *p,
 					    char *buf)
 {
-	return sprintf(buf, "%ld\n", br_timer_value(&p->message_age_timer));
+	return sysfs_emit(buf, "%ld\n", br_timer_value(&p->message_age_timer));
 }
 static BRPORT_ATTR(message_age_timer, 0444, show_message_age_timer, NULL);
 
 static ssize_t show_forward_delay_timer(struct net_bridge_port *p,
 					    char *buf)
 {
-	return sprintf(buf, "%ld\n", br_timer_value(&p->forward_delay_timer));
+	return sysfs_emit(buf, "%ld\n", br_timer_value(&p->forward_delay_timer));
 }
 static BRPORT_ATTR(forward_delay_timer, 0444, show_forward_delay_timer, NULL);
 
 static ssize_t show_hold_timer(struct net_bridge_port *p,
 					    char *buf)
 {
-	return sprintf(buf, "%ld\n", br_timer_value(&p->hold_timer));
+	return sysfs_emit(buf, "%ld\n", br_timer_value(&p->hold_timer));
 }
 static BRPORT_ATTR(hold_timer, 0444, show_hold_timer, NULL);
 
@@ -182,7 +182,7 @@ static BRPORT_ATTR(flush, 0200, NULL, store_flush);
 
 static ssize_t show_group_fwd_mask(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%#x\n", p->group_fwd_mask);
+	return sysfs_emit(buf, "%#x\n", p->group_fwd_mask);
 }
 
 static int store_group_fwd_mask(struct net_bridge_port *p,
@@ -205,7 +205,7 @@ static ssize_t show_backup_port(struct net_bridge_port *p, char *buf)
 	rcu_read_lock();
 	backup_p = rcu_dereference(p->backup_port);
 	if (backup_p)
-		ret = sprintf(buf, "%s\n", backup_p->dev->name);
+		ret = sysfs_emit(buf, "%s\n", backup_p->dev->name);
 	rcu_read_unlock();
 
 	return ret;
@@ -244,7 +244,7 @@ BRPORT_ATTR_FLAG(isolated, BR_ISOLATED);
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t show_multicast_router(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "%d\n", p->multicast_ctx.multicast_router);
+	return sysfs_emit(buf, "%d\n", p->multicast_ctx.multicast_router);
 }
 
 static int store_multicast_router(struct net_bridge_port *p,

@@ -344,8 +344,8 @@ int br_stp_set_path_cost(struct net_bridge_port *p, unsigned long path_cost)
 
 ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id)
 {
-	return sprintf(buf, "%.2x%.2x.%.2x%.2x%.2x%.2x%.2x%.2x\n",
-	       id->prio[0], id->prio[1],
-	       id->addr[0], id->addr[1], id->addr[2],
-	       id->addr[3], id->addr[4], id->addr[5]);
+	return sysfs_emit(buf, "%.2x%.2x.%.2x%.2x%.2x%.2x%.2x%.2x\n",
+			  id->prio[0], id->prio[1],
+			  id->addr[0], id->addr[1], id->addr[2],
+			  id->addr[3], id->addr[4], id->addr[5]);
 }
