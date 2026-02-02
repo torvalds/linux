@@ -412,28 +412,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x00:
 		/* Unit check with erpa code 0. Report and ignore. */
 		return TAPE_IO_SUCCESS;
-	case 0x21:
-		/*
-		 * Data streaming not operational. CU will switch to
-		 * interlock mode. Reissue the command.
-		 */
-		return tape_34xx_erp_retry(request);
-	case 0x22:
-		/*
-		 * Path equipment check. Might be drive adapter error, buffer
-		 * error on the lower interface, internal path not usable,
-		 * or error during cartridge load.
-		 */
-		dev_warn (&device->cdev->dev, "A path equipment check occurred"
-			" for the tape device\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x24:
-		/*
-		 * Load display check. Load display was command was issued,
-		 * but the drive is displaying a drive check message. Can
-		 * be threated as "device end".
-		 */
-		return tape_34xx_erp_succeeded(request);
 	case 0x27:
 		/*
 		 * Command reject. May indicate illegal channel program or
@@ -449,12 +427,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		 * subsystem func is issued and the CU is not on-line.
 		 */
 		return tape_34xx_erp_failed(request, -EIO);
-	case 0x2a:
-		/*
-		 * Unsolicited environmental data. An internal counter
-		 * overflows, we can ignore this and reissue the cmd.
-		 */
-		return tape_34xx_erp_retry(request);
 	case 0x2b:
 		/*
 		 * Environmental data present. Indicates either unload
@@ -493,29 +465,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		dev_warn (&device->cdev->dev, "The tape medium is write-"
 			"protected\n");
 		return tape_34xx_erp_failed(request, -EACCES);
-	case 0x32:
-		// Tension loss. We cannot recover this, it's an I/O error.
-		dev_warn (&device->cdev->dev, "The tape does not have the "
-			"required tape tension\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x33:
-		/*
-		 * Load Failure. The cartridge was not inserted correctly or
-		 * the tape is not threaded correctly.
-		 */
-		dev_warn (&device->cdev->dev, "The tape unit failed to load"
-			" the cartridge\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x34:
-		/*
-		 * Unload failure. The drive cannot maintain tape tension
-		 * and control tape movement during an unload operation.
-		 */
-		dev_warn (&device->cdev->dev, "Automatic unloading of the tape"
-			" cartridge failed\n");
-		if (request->op == TO_RUN)
-			return tape_34xx_erp_failed(request, -EIO);
-		return tape_34xx_erp_bug(device, request, irb, sense[3]);
 	case 0x35:
 		/*
 		 * Drive equipment check. One of the following:
@@ -530,14 +479,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x36:
 		/* End of data. */
 		return tape_34xx_erp_failed(request, -EIO);
-	case 0x37:
-		/*
-		 * Tape length error. The tape is shorter than reported in
-		 * the beginning-of-tape data.
-		 */
-		dev_warn (&device->cdev->dev, "The tape information states an"
-			" incorrect length\n");
-		return tape_34xx_erp_failed(request, -EIO);
 	case 0x38:
 		/*
 		 * Physical end of tape. A read/write operation reached
@@ -550,15 +491,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x39:
 		/* Backward at Beginning of tape. */
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x3a:
-		/* Drive switched to not ready. */
-		dev_warn (&device->cdev->dev, "The tape unit is not ready\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x3b:
-		/* Manual rewind or unload. This causes an I/O error. */
-		dev_warn (&device->cdev->dev, "The tape medium has been "
-			"rewound or unloaded manually\n");
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x42:
 		/*
@@ -597,14 +529,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		dev_warn (&device->cdev->dev, "The tape unit is already "
 			"assigned\n");
 		return tape_34xx_erp_failed(request, -EIO);
-	case 0x46:
-		/*
-		 * Drive not on-line. Drive may be switched offline,
-		 * the power supply may be switched off or
-		 * the drive address may not be set correctly.
-		 */
-		dev_warn (&device->cdev->dev, "The tape unit is not online\n");
-		return tape_34xx_erp_failed(request, -EIO);
 	case 0x47:
 		/* Volume fenced. CU reports volume integrity is lost. */
 		dev_warn (&device->cdev->dev, "The control unit has fenced "
@@ -612,30 +536,6 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 		return tape_34xx_erp_failed(request, -EIO);
 	case 0x48:
 		/* Log sense data and retry request. */
-		return tape_34xx_erp_retry(request);
-	case 0x49:
-		/* Bus out check. A parity check error on the bus was found. */
-		dev_warn (&device->cdev->dev, "A parity error occurred on the "
-			"tape bus\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x4a:
-		/* Control unit erp failed. */
-		dev_warn (&device->cdev->dev, "I/O error recovery failed on "
-			"the tape control unit\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x4b:
-		/*
-		 * CU and drive incompatible. The drive requests micro-program
-		 * patches, which are not available on the CU.
-		 */
-		dev_warn (&device->cdev->dev, "The tape unit requires a "
-			"firmware update\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x4c:
-		/*
-		 * Recovered Check-One failure. Cu develops a hardware error,
-		 * but is able to recover.
-		 */
 		return tape_34xx_erp_retry(request);
 	case 0x4d:
 		/*
@@ -695,29 +595,9 @@ tape_34xx_unit_check(struct tape_device *device, struct tape_request *request,
 	case 0x57:
 		/* Global status intercept. */
 		return tape_34xx_erp_retry(request);
-	case 0x5a:
-		/*
-		 * Tape length incompatible. The tape inserted is too long,
-		 * which could cause damage to the tape or the drive.
-		 */
-		dev_warn (&device->cdev->dev, "The tape unit does not support "
-			"the tape length\n");
-		return tape_34xx_erp_failed(request, -EIO);
-	case 0x5d:
-		/* Tape length violation. */
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
-			" the current tape length\n");
-		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
-	case 0x5e:
-		/* Compaction algorithm incompatible. */
-		dev_warn (&device->cdev->dev, "The tape unit does not support"
-			" the compaction algorithm\n");
-		return tape_34xx_erp_failed(request, -EMEDIUMTYPE);
-
 		/* The following erpas should have been covered earlier. */
 	case 0x23: /* Read data check. */
 	case 0x25: /* Write data check. */
-	case 0x26: /* Data check (read opposite). */
 	case 0x28: /* Write id mark check. */
 	case 0x31: /* Tape void. */
 	case 0x40: /* Overrun error. */
