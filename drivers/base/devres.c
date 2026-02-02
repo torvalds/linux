@@ -231,6 +231,13 @@ void devres_free(void *res)
 }
 EXPORT_SYMBOL_GPL(devres_free);
 
+static void devres_node_add(struct device *dev, struct devres_node *node)
+{
+	guard(spinlock_irqsave)(&dev->devres_lock);
+
+	add_dr(dev, node);
+}
+
 /**
  * devres_add - Register device resource
  * @dev: Device to add resource to
@@ -243,11 +250,8 @@ EXPORT_SYMBOL_GPL(devres_free);
 void devres_add(struct device *dev, void *res)
 {
 	struct devres *dr = container_of(res, struct devres, data);
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &dr->node);
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
+	devres_node_add(dev, &dr->node);
 }
 EXPORT_SYMBOL_GPL(devres_add);
 
@@ -552,7 +556,6 @@ int devres_release_all(struct device *dev)
 void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 {
 	struct devres_group *grp;
-	unsigned long flags;
 
 	grp = kmalloc_obj(*grp, gfp);
 	if (unlikely(!grp))
@@ -569,9 +572,7 @@ void *devres_open_group(struct device *dev, void *id, gfp_t gfp)
 		grp->id = id;
 	grp->color = 0;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &grp->node[0]);
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
+	devres_node_add(dev, &grp->node[0]);
 	return grp->id;
 }
 EXPORT_SYMBOL_GPL(devres_open_group);
