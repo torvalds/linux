@@ -24,6 +24,7 @@ struct reg_bits_to_feat_map {
 #define	CALL_FUNC	BIT(1)	/* Needs to evaluate tons of crap */
 #define	FIXED_VALUE	BIT(2)	/* RAZ/WI or RAO/WI in KVM */
 #define	MASKS_POINTER	BIT(3)	/* Pointer to fgt_masks struct instead of bits */
+#define	AS_RES1		BIT(4)	/* RES1 when not supported */
 
 	unsigned long	flags;
 
@@ -1315,8 +1316,12 @@ static struct resx __compute_fixed_bits(struct kvm *kvm,
 		else
 			match = idreg_feat_match(kvm, &map[i]);
 
-		if (!match || (map[i].flags & FIXED_VALUE))
-			resx.res0 |= reg_feat_map_bits(&map[i]);
+		if (!match || (map[i].flags & FIXED_VALUE)) {
+			if (map[i].flags & AS_RES1)
+				resx.res1 |= reg_feat_map_bits(&map[i]);
+			else
+				resx.res0 |= reg_feat_map_bits(&map[i]);
+		}
 	}
 
 	return resx;
