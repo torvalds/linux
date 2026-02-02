@@ -258,7 +258,8 @@ static const struct dce110_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(3),
 	stream_enc_regs(4),
 	stream_enc_regs(5),
-	stream_enc_regs(6)
+	stream_enc_regs(6),
+	{SR(DAC_SOURCE_SELECT),} /* DACA */
 };
 
 static const struct dce_stream_encoder_shift se_shift = {
@@ -614,7 +615,8 @@ static struct stream_encoder *dce80_stream_encoder_create(
 		return NULL;
 
 	if (eng_id == ENGINE_ID_DACA || eng_id == ENGINE_ID_DACB) {
-		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id);
+		dce110_analog_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
+			&stream_enc_regs[eng_id], &se_shift, &se_mask);
 		return &enc110->base;
 	}
 

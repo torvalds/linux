@@ -65,6 +65,7 @@
 	SRI(AFMT_60958_1, DIG, id), \
 	SRI(AFMT_60958_2, DIG, id), \
 	SRI(DIG_FE_CNTL, DIG, id), \
+	SR(DAC_SOURCE_SELECT), \
 	SRI(HDMI_CONTROL, DIG, id), \
 	SRI(HDMI_GC, DIG, id), \
 	SRI(HDMI_GENERIC_PACKET_CONTROL0, DIG, id), \
@@ -290,7 +291,8 @@
 #define SE_COMMON_MASK_SH_LIST_DCE80_100(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_DCE_COMMON(mask_sh),\
 	SE_SF(TMDS_CNTL, TMDS_PIXEL_ENCODING, mask_sh),\
-	SE_SF(TMDS_CNTL, TMDS_COLOR_FORMAT, mask_sh)
+	SE_SF(TMDS_CNTL, TMDS_COLOR_FORMAT, mask_sh),\
+	SE_SF(DAC_SOURCE_SELECT, DAC_SOURCE_SELECT, mask_sh)
 
 #define SE_COMMON_MASK_SH_LIST_DCE110(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_DCE_COMMON(mask_sh),\
@@ -494,6 +496,7 @@ struct dce_stream_encoder_shift {
 	uint8_t DP_VID_N_MUL;
 	uint8_t DP_VID_M_DOUBLE_VALUE_EN;
 	uint8_t DIG_SOURCE_SELECT;
+	uint8_t DAC_SOURCE_SELECT;
 };
 
 struct dce_stream_encoder_mask {
@@ -626,6 +629,7 @@ struct dce_stream_encoder_mask {
 	uint32_t DP_VID_N_MUL;
 	uint32_t DP_VID_M_DOUBLE_VALUE_EN;
 	uint32_t DIG_SOURCE_SELECT;
+	uint32_t DAC_SOURCE_SELECT;
 };
 
 struct dce110_stream_enc_registers {
@@ -653,6 +657,7 @@ struct dce110_stream_enc_registers {
 	uint32_t AFMT_60958_1;
 	uint32_t AFMT_60958_2;
 	uint32_t DIG_FE_CNTL;
+	uint32_t DAC_SOURCE_SELECT;
 	uint32_t DP_MSE_RATE_CNTL;
 	uint32_t DP_MSE_RATE_UPDATE;
 	uint32_t DP_PIXEL_FORMAT;
@@ -712,7 +717,10 @@ void dce110_analog_stream_encoder_construct(
 	struct dce110_stream_encoder *enc110,
 	struct dc_context *ctx,
 	struct dc_bios *bp,
-	enum engine_id eng_id);
+	enum engine_id eng_id,
+	const struct dce110_stream_enc_registers *regs,
+	const struct dce_stream_encoder_shift *se_shift,
+	const struct dce_stream_encoder_mask *se_mask);
 
 void dce110_se_audio_mute_control(
 	struct stream_encoder *enc, bool mute);

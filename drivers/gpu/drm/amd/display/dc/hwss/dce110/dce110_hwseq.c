@@ -1581,25 +1581,6 @@ static enum dc_status dce110_enable_stream_timing(
 	return DC_OK;
 }
 
-static void
-dce110_select_crtc_source(struct pipe_ctx *pipe_ctx)
-{
-	struct dc_link *link = pipe_ctx->stream->link;
-	struct dc_bios *bios = link->ctx->dc_bios;
-	struct bp_crtc_source_select crtc_source_select = {0};
-	enum engine_id engine_id = link->link_enc->preferred_engine;
-
-	if (dc_is_rgb_signal(pipe_ctx->stream->signal))
-		engine_id = link->link_enc->analog_engine;
-
-	crtc_source_select.controller_id = CONTROLLER_ID_D0 + pipe_ctx->stream_res.tg->inst;
-	crtc_source_select.color_depth = pipe_ctx->stream->timing.display_color_depth;
-	crtc_source_select.engine_id = engine_id;
-	crtc_source_select.sink_signal = pipe_ctx->stream->signal;
-
-	bios->funcs->select_crtc_source(bios, &crtc_source_select);
-}
-
 enum dc_status dce110_apply_single_controller_ctx_to_hw(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -1617,10 +1598,6 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 
 	if (hws->funcs.disable_stream_gating) {
 		hws->funcs.disable_stream_gating(dc, pipe_ctx);
-	}
-
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_RGB) {
-		dce110_select_crtc_source(pipe_ctx);
 	}
 
 	if (pipe_ctx->stream_res.audio != NULL) {
@@ -1702,8 +1679,7 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
 				pipe_ctx->stream_res.tg, event_triggers, 2);
 
-	if (!dc_is_virtual_signal(pipe_ctx->stream->signal) &&
-		!dc_is_rgb_signal(pipe_ctx->stream->signal))
+	if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dig_connect_to_otg(
 			pipe_ctx->stream_res.stream_enc,
 			pipe_ctx->stream_res.tg->inst);
