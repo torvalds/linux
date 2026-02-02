@@ -48,7 +48,7 @@
 #define TEGRA_USB_HOSTPC1_DEVLC			0x1b4
 #define   TEGRA_USB_HOSTPC1_DEVLC_PTS(x)	(((x) & 0x7) << 29)
 #define   TEGRA_USB_HOSTPC1_DEVLC_PHCD		BIT(22)
-#define   TEGRA_USB_HOSTPC1_DEVLC_PTS_HSIC	BIT(2)
+#define   TEGRA_USB_HOSTPC1_DEVLC_PTS_HSIC	4
 
 /* Bits of PORTSC1, which will get cleared by writing 1 into them */
 #define TEGRA_PORTSC1_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_OCC)
@@ -169,7 +169,7 @@
 /*
  * Tegra20 has no UTMIP registers on PHY2 and UHSIC registers start from 0x800
  * just where UTMIP registers should have been. This is the case only with Tegra20
- * Tegra30+ have UTMIP registers at 0x800 and UHSIC registers shifter by 0x400
+ * Tegra30+ have UTMIP registers at 0x800 and UHSIC registers are shifted by 0x400
  * to 0xc00, but register layout is preserved.
  */
 #define UHSIC_PLL_CFG1				0x804
@@ -873,7 +873,7 @@ static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 static u32 tegra_hsic_readl(struct tegra_usb_phy *phy, u32 reg)
 {
 	void __iomem *base = phy->regs;
-	u32 shift = phy->soc_config->uhsic_registers_shift;
+	u32 shift = phy->soc_config->uhsic_registers_offset;
 
 	return readl_relaxed(base + shift + reg);
 }
@@ -881,7 +881,7 @@ static u32 tegra_hsic_readl(struct tegra_usb_phy *phy, u32 reg)
 static void tegra_hsic_writel(struct tegra_usb_phy *phy, u32 reg, u32 value)
 {
 	void __iomem *base = phy->regs;
-	u32 shift = phy->soc_config->uhsic_registers_shift;
+	u32 shift = phy->soc_config->uhsic_registers_offset;
 
 	writel_relaxed(value, base + shift + reg);
 }
@@ -1469,7 +1469,7 @@ static const struct tegra_phy_soc_config tegra20_soc_config = {
 	.requires_usbmode_setup = false,
 	.requires_extra_tuning_parameters = false,
 	.requires_pmc_ao_power_up = false,
-	.uhsic_registers_shift = 0,
+	.uhsic_registers_offset = 0,
 	.uhsic_tx_rtune = 0, /* 40 ohm */
 };
 
@@ -1479,7 +1479,7 @@ static const struct tegra_phy_soc_config tegra30_soc_config = {
 	.requires_usbmode_setup = true,
 	.requires_extra_tuning_parameters = true,
 	.requires_pmc_ao_power_up = true,
-	.uhsic_registers_shift = 0x400,
+	.uhsic_registers_offset = 0x400,
 	.uhsic_tx_rtune = 8,  /* 50 ohm */
 };
 
