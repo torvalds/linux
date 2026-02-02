@@ -397,18 +397,20 @@ next_page:
 
 int ext4_read_folio(struct file *file, struct folio *folio)
 {
-	int ret = -EAGAIN;
 	struct inode *inode = folio->mapping->host;
+	int ret;
 
 	trace_ext4_read_folio(inode, folio);
 
-	if (ext4_has_inline_data(inode))
+	if (ext4_has_inline_data(inode)) {
 		ret = ext4_readpage_inline(inode, folio);
+		if (ret != -EAGAIN)
+			return ret;
+	}
 
-	if (ret == -EAGAIN)
-		return ext4_mpage_readpages(inode, NULL, folio);
-
-	return ret;
+	if (ext4_need_verity(inode, folio->index))
+		fsverity_readahead(inode, folio->index, folio_nr_pages(folio));
+	return ext4_mpage_readpages(inode, NULL, folio);
 }
 
 void ext4_readahead(struct readahead_control *rac)
@@ -419,6 +421,9 @@ void ext4_readahead(struct readahead_control *rac)
 	if (ext4_has_inline_data(inode))
 		return;
 
+	if (ext4_need_verity(inode, readahead_index(rac)))
+		fsverity_readahead(inode, readahead_index(rac),
+				   readahead_count(rac));
 	ext4_mpage_readpages(inode, rac, NULL);
 }
 

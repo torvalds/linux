@@ -2458,7 +2458,7 @@ next_page:
 static int f2fs_read_data_folio(struct file *file, struct folio *folio)
 {
 	struct inode *inode = folio->mapping->host;
-	int ret = -EAGAIN;
+	int ret;
 
 	trace_f2fs_readpage(folio, DATA);
 
@@ -2468,11 +2468,15 @@ static int f2fs_read_data_folio(struct file *file, struct folio *folio)
 	}
 
 	/* If the file has inline data, try to read it directly */
-	if (f2fs_has_inline_data(inode))
+	if (f2fs_has_inline_data(inode)) {
 		ret = f2fs_read_inline_data(inode, folio);
-	if (ret == -EAGAIN)
-		ret = f2fs_mpage_readpages(inode, NULL, folio);
-	return ret;
+		if (ret != -EAGAIN)
+			return ret;
+	}
+
+	if (f2fs_need_verity(inode, folio->index))
+		fsverity_readahead(inode, folio->index, folio_nr_pages(folio));
+	return f2fs_mpage_readpages(inode, NULL, folio);
 }
 
 static void f2fs_readahead(struct readahead_control *rac)
@@ -2488,6 +2492,9 @@ static void f2fs_readahead(struct readahead_control *rac)
 	if (f2fs_has_inline_data(inode))
 		return;
 
+	if (f2fs_need_verity(inode, readahead_index(rac)))
+		fsverity_readahead(inode, readahead_index(rac),
+				   readahead_count(rac));
 	f2fs_mpage_readpages(inode, rac, NULL);
 }
 
