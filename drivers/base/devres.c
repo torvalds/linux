@@ -228,12 +228,11 @@ void devres_for_each_res(struct device *dev, dr_release_t release,
 {
 	struct devres_node *node;
 	struct devres_node *tmp;
-	unsigned long flags;
 
 	if (!fn)
 		return;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
+	guard(spinlock_irqsave)(&dev->devres_lock);
 	list_for_each_entry_safe_reverse(node, tmp,
 			&dev->devres_head, entry) {
 		struct devres *dr = container_of(node, struct devres, node);
@@ -246,7 +245,6 @@ void devres_for_each_res(struct device *dev, dr_release_t release,
 			continue;
 		fn(dev, dr->data, data);
 	}
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
 }
 EXPORT_SYMBOL_GPL(devres_for_each_res);
 
@@ -334,14 +332,12 @@ void *devres_find(struct device *dev, dr_release_t release,
 		  dr_match_t match, void *match_data)
 {
 	struct devres *dr;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
+	guard(spinlock_irqsave)(&dev->devres_lock);
 	dr = find_dr(dev, release, match, match_data);
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
-
 	if (dr)
 		return dr->data;
+
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(devres_find);
@@ -400,18 +396,15 @@ void *devres_remove(struct device *dev, dr_release_t release,
 		    dr_match_t match, void *match_data)
 {
 	struct devres *dr;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
+	guard(spinlock_irqsave)(&dev->devres_lock);
 	dr = find_dr(dev, release, match, match_data);
 	if (dr) {
 		list_del_init(&dr->node.entry);
 		devres_log(dev, &dr->node, "REM");
-	}
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
-
-	if (dr)
 		return dr->data;
+	}
+
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(devres_remove);
@@ -659,17 +652,13 @@ static struct devres_group *find_group(struct device *dev, void *id)
 void devres_close_group(struct device *dev, void *id)
 {
 	struct devres_group *grp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->devres_lock, flags);
-
+	guard(spinlock_irqsave)(&dev->devres_lock);
 	grp = find_group(dev, id);
 	if (grp)
 		add_dr(dev, &grp->node[1]);
 	else
 		WARN_ON(1);
-
-	spin_unlock_irqrestore(&dev->devres_lock, flags);
 }
 EXPORT_SYMBOL_GPL(devres_close_group);
 
