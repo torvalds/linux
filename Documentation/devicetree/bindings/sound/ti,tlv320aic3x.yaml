@@ -46,6 +46,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - ti,tlv320aic23
       - ti,tlv320aic3x
       - ti,tlv320aic33
       - ti,tlv320aic3007
