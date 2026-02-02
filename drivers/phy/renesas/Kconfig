@@ -29,6 +29,7 @@ config PHY_RCAR_GEN3_USB2
 	depends on ARCH_RENESAS
 	depends on EXTCON || !EXTCON # if EXTCON=m, this cannot be built-in
 	depends on USB_SUPPORT
+	depends on REGULATOR
 	select GENERIC_PHY
 	select MULTIPLEXER
 	select USB_COMMON
