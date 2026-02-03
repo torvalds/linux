@@ -8,21 +8,29 @@
 #include <linux/compat.h>
 #include <trace/events/erofs.h>
 
-static int erofs_fill_symlink(struct inode *inode, void *kaddr,
-			      unsigned int m_pofs)
+static int erofs_fill_symlink(struct inode *inode, void *bptr, unsigned int ofs)
 {
 	struct erofs_inode *vi = EROFS_I(inode);
-	loff_t off;
+	char *link;
+	loff_t end;
 
-	m_pofs += vi->xattr_isize;
-	/* check if it cannot be handled with fast symlink scheme */
-	if (vi->datalayout != EROFS_INODE_FLAT_INLINE ||
-	    check_add_overflow(m_pofs, inode->i_size, &off) ||
-	    off > i_blocksize(inode))
-		return 0;
-
-	inode->i_link = kmemdup_nul(kaddr + m_pofs, inode->i_size, GFP_KERNEL);
-	return inode->i_link ? 0 : -ENOMEM;
+	ofs += vi->xattr_isize;
+	/* check whether the symlink data is small enough to be inlined */
+	if (vi->datalayout == EROFS_INODE_FLAT_INLINE &&
+	    !check_add_overflow(ofs, inode->i_size, &end) &&
+	    end <= i_blocksize(inode)) {
+		link = kmemdup_nul(bptr + ofs, inode->i_size, GFP_KERNEL);
+		if (!link)
+			return -ENOMEM;
+		if (unlikely(!inode->i_size || strlen(link) != inode->i_size)) {
+			erofs_err(inode->i_sb, "invalid fast symlink size %llu @ nid %llu",
+				  inode->i_size | 0ULL, vi->nid);
+			kfree(link);
+			return -EFSCORRUPTED;
+		}
+		inode_set_cached_link(inode, link, inode->i_size);
+	}
+	return 0;
 }
 
 static int erofs_read_inode(struct inode *inode)
