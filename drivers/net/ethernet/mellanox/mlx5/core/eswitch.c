@@ -1304,24 +1304,52 @@ vf_err:
 	return err;
 }
 
-static int host_pf_enable_hca(struct mlx5_core_dev *dev)
+int mlx5_esw_host_pf_enable_hca(struct mlx5_core_dev *dev)
 {
-	if (!mlx5_core_is_ecpf(dev))
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_vport *vport;
+	int err;
+
+	if (!mlx5_core_is_ecpf(dev) || !mlx5_esw_allowed(esw))
 		return 0;
+
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
 
 	/* Once vport and representor are ready, take out the external host PF
 	 * out of initializing state. Enabling HCA clears the iser->initializing
 	 * bit and host PF driver loading can progress.
 	 */
-	return mlx5_cmd_host_pf_enable_hca(dev);
+	err = mlx5_cmd_host_pf_enable_hca(dev);
+	if (err)
+		return err;
+
+	vport->pf_activated = true;
+
+	return 0;
 }
 
-static void host_pf_disable_hca(struct mlx5_core_dev *dev)
+int mlx5_esw_host_pf_disable_hca(struct mlx5_core_dev *dev)
 {
-	if (!mlx5_core_is_ecpf(dev))
-		return;
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_vport *vport;
+	int err;
 
-	mlx5_cmd_host_pf_disable_hca(dev);
+	if (!mlx5_core_is_ecpf(dev) || !mlx5_esw_allowed(esw))
+		return 0;
+
+	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
+	if (IS_ERR(vport))
+		return PTR_ERR(vport);
+
+	err = mlx5_cmd_host_pf_disable_hca(dev);
+	if (err)
+		return err;
+
+	vport->pf_activated = false;
+
+	return 0;
 }
 
 /* mlx5_eswitch_enable_pf_vf_vports() enables vports of PF, ECPF and VFs
@@ -1347,7 +1375,7 @@ mlx5_eswitch_enable_pf_vf_vports(struct mlx5_eswitch *esw,
 
 	if (mlx5_esw_host_functions_enabled(esw->dev)) {
 		/* Enable external host PF HCA */
-		ret = host_pf_enable_hca(esw->dev);
+		ret = mlx5_esw_host_pf_enable_hca(esw->dev);
 		if (ret)
 			goto pf_hca_err;
 	}
@@ -1391,7 +1419,7 @@ ec_vf_err:
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_ECPF);
 ecpf_err:
 	if (mlx5_esw_host_functions_enabled(esw->dev))
-		host_pf_disable_hca(esw->dev);
+		mlx5_esw_host_pf_disable_hca(esw->dev);
 pf_hca_err:
 	if (pf_needed && mlx5_esw_host_functions_enabled(esw->dev))
 		mlx5_eswitch_unload_pf_vf_vport(esw, MLX5_VPORT_PF);
@@ -1416,7 +1444,7 @@ void mlx5_eswitch_disable_pf_vf_vports(struct mlx5_eswitch *esw)
 	}
 
 	if (mlx5_esw_host_functions_enabled(esw->dev))
-		host_pf_disable_hca(esw->dev);
+		mlx5_esw_host_pf_disable_hca(esw->dev);
 
 	if ((mlx5_core_is_ecpf_esw_manager(esw->dev) ||
 	     esw->mode == MLX5_ESWITCH_LEGACY) &&
