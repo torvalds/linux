@@ -2369,6 +2369,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		adev->mman.clear_entities = kcalloc(num_clear_entities,
 						    sizeof(struct amdgpu_ttm_buffer_entity),
 						    GFP_KERNEL);
+		atomic_set(&adev->mman.next_clear_entity, 0);
 		if (!adev->mman.clear_entities)
 			goto error_free_default_entity;
 
@@ -2642,11 +2643,8 @@ int amdgpu_fill_buffer(struct amdgpu_ttm_buffer_entity *entity,
 	struct amdgpu_res_cursor dst;
 	int r;
 
-	if (!adev->mman.buffer_funcs_enabled) {
-		dev_err(adev->dev,
-			"Trying to clear memory with ring turned off.\n");
+	if (!entity)
 		return -EINVAL;
-	}
 
 	amdgpu_res_first(bo->tbo.resource, 0, amdgpu_bo_size(bo), &dst);
 
@@ -2680,6 +2678,20 @@ error:
 		*f = dma_fence_get(fence);
 	dma_fence_put(fence);
 	return r;
+}
+
+struct amdgpu_ttm_buffer_entity *
+amdgpu_ttm_next_clear_entity(struct amdgpu_device *adev)
+{
+	struct amdgpu_mman *mman = &adev->mman;
+	u32 i;
+
+	if (mman->num_clear_entities == 0)
+		return NULL;
+
+	i = atomic_inc_return(&mman->next_clear_entity) %
+			      mman->num_clear_entities;
+	return &mman->clear_entities[i];
 }
 
 /**
