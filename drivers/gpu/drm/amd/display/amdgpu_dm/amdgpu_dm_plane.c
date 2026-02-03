@@ -954,11 +954,9 @@ static int amdgpu_dm_plane_helper_prepare_fb(struct drm_plane *plane,
 		return r;
 	}
 
-	r = dma_resv_reserve_fences(rbo->tbo.base.resv, 1);
-	if (r) {
-		drm_err(adev_to_drm(adev), "reserving fence slot failed (%d)\n", r);
+	r = dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
+	if (r)
 		goto error_unlock;
-	}
 
 	if (plane->type != DRM_PLANE_TYPE_CURSOR)
 		domain = amdgpu_display_supported_domains(adev, rbo->flags);

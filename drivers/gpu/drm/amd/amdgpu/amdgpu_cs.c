@@ -908,9 +908,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			goto out_free_user_pages;
 
 		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
-			/* One fence for TTM and one for each CS job */
 			r = drm_exec_prepare_obj(&p->exec, &e->bo->tbo.base,
-						 1 + p->gang_size);
+						 TTM_NUM_MOVE_FENCES + p->gang_size);
 			drm_exec_retry_on_contention(&p->exec);
 			if (unlikely(r))
 				goto out_free_user_pages;
@@ -920,7 +919,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 		if (p->uf_bo) {
 			r = drm_exec_prepare_obj(&p->exec, &p->uf_bo->tbo.base,
-						 1 + p->gang_size);
+						 TTM_NUM_MOVE_FENCES + p->gang_size);
 			drm_exec_retry_on_contention(&p->exec);
 			if (unlikely(r))
 				goto out_free_user_pages;
