@@ -180,10 +180,16 @@ static void mcasp_set_ctl_reg(struct davinci_mcasp *mcasp, u32 ctl_reg, u32 val)
 
 static bool mcasp_is_synchronous(struct davinci_mcasp *mcasp)
 {
-	u32 rxfmctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
 	u32 aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
 
-	return !(aclkxctl & TX_ASYNC) && rxfmctl & AFSRE;
+	return !(aclkxctl & TX_ASYNC);
+}
+
+static bool mcasp_is_frame_producer(struct davinci_mcasp *mcasp)
+{
+	u32 rxfmctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
+
+	return rxfmctl & AFSRE;
 }
 
 static inline void mcasp_set_clk_pdir(struct davinci_mcasp *mcasp, bool enable)
@@ -227,7 +233,7 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	 * synchronously from the transmit clock and frame sync. We need to make
 	 * sure that the TX signlas are enabled when starting reception.
 	 */
-	if (mcasp_is_synchronous(mcasp)) {
+	if (mcasp_is_frame_producer(mcasp) && mcasp_is_synchronous(mcasp)) {
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
 		mcasp_set_clk_pdir(mcasp, true);
@@ -240,7 +246,7 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXSMRST);
 	/* Release Frame Sync generator */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXFSRST);
-	if (mcasp_is_synchronous(mcasp))
+	if (mcasp_is_frame_producer(mcasp) && mcasp_is_synchronous(mcasp))
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
 
 	/* enable receive IRQs */
@@ -306,7 +312,7 @@ static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 	 * In synchronous mode stop the TX clocks if no other stream is
 	 * running
 	 */
-	if (mcasp_is_synchronous(mcasp) && !mcasp->streams) {
+	if (mcasp_is_frame_producer(mcasp) && mcasp_is_synchronous(mcasp) && !mcasp->streams) {
 		mcasp_set_clk_pdir(mcasp, false);
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, 0);
 	}
@@ -333,7 +339,7 @@ static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 	 * In synchronous mode keep TX clocks running if the capture stream is
 	 * still running.
 	 */
-	if (mcasp_is_synchronous(mcasp) && mcasp->streams)
+	if (mcasp_is_frame_producer(mcasp) && mcasp_is_synchronous(mcasp) && mcasp->streams)
 		val =  TXHCLKRST | TXCLKRST | TXFSRST;
 	else
 		mcasp_set_clk_pdir(mcasp, false);
@@ -1042,7 +1048,8 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 		 * not running already we need to configure the TX slots in
 		 * order to have correct FSX on the bus
 		 */
-		if (mcasp_is_synchronous(mcasp) && !mcasp->channels)
+		if (mcasp_is_frame_producer(mcasp) && mcasp_is_synchronous(mcasp) &&
+		    !mcasp->channels)
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
 				       FSXMOD(total_slots), FSXMOD(0x1FF));
 	}
