@@ -1344,6 +1344,9 @@ int btmtk_usb_setup(struct hci_dev *hdev)
 		err = btmtk_setup_firmware_79xx(hdev, fw_bin_name,
 						btmtk_usb_hci_wmt_sync);
 		if (err < 0) {
+			/* retry once if setup firmware error */
+			if (!test_and_set_bit(BTMTK_FIRMWARE_DL_RETRY, &btmtk_data->flags))
+				btmtk_reset_sync(hdev);
 			bt_dev_err(hdev, "Failed to set up firmware (%d)", err);
 			return err;
 		}
@@ -1370,6 +1373,9 @@ int btmtk_usb_setup(struct hci_dev *hdev)
 
 		hci_set_msft_opcode(hdev, 0xFD30);
 		hci_set_aosp_capable(hdev);
+
+		/* Clear BTMTK_FIRMWARE_DL_RETRY if setup successfully */
+		test_and_clear_bit(BTMTK_FIRMWARE_DL_RETRY, &btmtk_data->flags);
 
 		/* Set up ISO interface after protocol enabled */
 		if (test_bit(BTMTK_ISOPKT_OVER_INTR, &btmtk_data->flags)) {

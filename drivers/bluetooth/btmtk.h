@@ -147,6 +147,7 @@ enum {
 	BTMTK_HW_RESET_ACTIVE,
 	BTMTK_ISOPKT_OVER_INTR,
 	BTMTK_ISOPKT_RUNNING,
+	BTMTK_FIRMWARE_DL_RETRY,
 };
 
 typedef int (*btmtk_reset_sync_func_t)(struct hci_dev *, void *);
