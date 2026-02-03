@@ -1498,6 +1498,21 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 	param.ledstate = kbd->ledflagstate;
 	key_map = key_maps[shift_final];
 
+	/*
+	 * Fall back to the plain map if modifiers are active, the modifier-
+	 * specific map is missing or has no entry, and the plain map has a
+	 * modifier-aware key type (KT_CUR or KT_CSI). These handlers encode
+	 * the modifier state into the emitted escape sequence.
+	 */
+	if (shift_final && keycode < NR_KEYS &&
+	    (!key_map || key_map[keycode] == K_HOLE) && key_maps[0]) {
+		unsigned short plain = key_maps[0][keycode];
+		unsigned char type = KTYP(plain);
+
+		if (type >= 0xf0 && (type - 0xf0 == KT_CUR || type - 0xf0 == KT_CSI))
+			key_map = key_maps[0];
+	}
+
 	rc = atomic_notifier_call_chain(&keyboard_notifier_list,
 					KBD_KEYCODE, &param);
 	if (rc == NOTIFY_STOP || !key_map) {
