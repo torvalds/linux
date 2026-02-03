@@ -5016,7 +5016,7 @@ static void nfs4_proc_rename_setup(struct rpc_message *msg,
 	if (same_parent)
 		nfs_request_directory_delegation(same_parent);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
-	res->server = server,
+	res->server = server;
 	nfs4_init_sequence(server->nfs_client, &arg->seq_args,
 			   &res->seq_res, 1, 0);
 }
