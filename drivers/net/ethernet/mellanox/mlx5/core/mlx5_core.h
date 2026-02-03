@@ -345,10 +345,10 @@ int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *tc_bw);
 int mlx5_query_port_tc_bw_alloc(struct mlx5_core_dev *mdev,
 				u8 tc, u8 *bw_pct);
 int mlx5_modify_port_ets_rate_limit(struct mlx5_core_dev *mdev,
-				    u8 *max_bw_value,
+				    u16 *max_bw_value,
 				    u8 *max_bw_unit);
 int mlx5_query_port_ets_rate_limit(struct mlx5_core_dev *mdev,
-				   u8 *max_bw_value,
+				   u16 *max_bw_value,
 				   u8 *max_bw_unit);
 int mlx5_set_port_wol(struct mlx5_core_dev *mdev, u8 wol_mode);
 int mlx5_query_port_wol(struct mlx5_core_dev *mdev, u8 *wol_mode);
