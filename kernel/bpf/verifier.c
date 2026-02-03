@@ -19461,6 +19461,72 @@ static void clean_verifier_state(struct bpf_verifier_env *env,
  * doesn't meant that the states are DONE. The verifier has to compare
  * the callsites
  */
+
+/* Find id in idset and increment its count, or add new entry */
+static void idset_cnt_inc(struct bpf_idset *idset, u32 id)
+{
+	u32 i;
+
+	for (i = 0; i < idset->num_ids; i++) {
+		if (idset->entries[i].id == id) {
+			idset->entries[i].cnt++;
+			return;
+		}
+	}
+	/* New id */
+	if (idset->num_ids < BPF_ID_MAP_SIZE) {
+		idset->entries[idset->num_ids].id = id;
+		idset->entries[idset->num_ids].cnt = 1;
+		idset->num_ids++;
+	}
+}
+
+/* Find id in idset and return its count, or 0 if not found */
+static u32 idset_cnt_get(struct bpf_idset *idset, u32 id)
+{
+	u32 i;
+
+	for (i = 0; i < idset->num_ids; i++) {
+		if (idset->entries[i].id == id)
+			return idset->entries[i].cnt;
+	}
+	return 0;
+}
+
+/*
+ * Clear singular scalar ids in a state.
+ * A register with a non-zero id is called singular if no other register shares
+ * the same base id. Such registers can be treated as independent (id=0).
+ */
+static void clear_singular_ids(struct bpf_verifier_env *env,
+			       struct bpf_verifier_state *st)
+{
+	struct bpf_idset *idset = &env->idset_scratch;
+	struct bpf_func_state *func;
+	struct bpf_reg_state *reg;
+
+	idset->num_ids = 0;
+
+	bpf_for_each_reg_in_vstate(st, func, reg, ({
+		if (reg->type != SCALAR_VALUE)
+			continue;
+		if (!reg->id)
+			continue;
+		idset_cnt_inc(idset, reg->id & ~BPF_ADD_CONST);
+	}));
+
+	bpf_for_each_reg_in_vstate(st, func, reg, ({
+		if (reg->type != SCALAR_VALUE)
+			continue;
+		if (!reg->id)
+			continue;
+		if (idset_cnt_get(idset, reg->id & ~BPF_ADD_CONST) == 1) {
+			reg->id = 0;
+			reg->off = 0;
+		}
+	}));
+}
+
 static void clean_live_states(struct bpf_verifier_env *env, int insn,
 			      struct bpf_verifier_state *cur)
 {
@@ -20458,6 +20524,8 @@ miss:
 	/* forget precise markings we inherited, see __mark_chain_precision */
 	if (env->bpf_capable)
 		mark_all_scalars_imprecise(env, cur);
+
+	clear_singular_ids(env, cur);
 
 	/* add new state to the head of linked list */
 	new = &new_sl->state;
