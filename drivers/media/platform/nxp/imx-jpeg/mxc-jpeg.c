@@ -1417,9 +1417,30 @@ static void mxc_jpeg_enc_finish_config_manually(struct mxc_jpeg_ctx *ctx)
 	mxc_jpeg_enc_mode_go(dev, reg, ctx->extseq);
 }
 
+static void mxc_jpeg_enc_configure_desc(struct mxc_jpeg_ctx *ctx)
+{
+	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
+	struct mxc_jpeg_desc *desc = jpeg->slot_data.desc;
+	struct mxc_jpeg_desc *cfg_desc = jpeg->slot_data.cfg_desc;
+
+	ctx->enc_state = MXC_JPEG_ENCODING;
+	cfg_desc->mode = (ctx->extseq) ? 0xb0 : 0xa0;
+	cfg_desc->cfg_mode = 0x3ff;
+
+	desc->mode = (ctx->extseq) ? 0x150 : 0x140;
+	desc->cfg_mode = 0x3ff;
+	desc->quality = ctx->jpeg_quality;
+	desc->lumth = 0xffff;
+	desc->chrth = 0xffff;
+}
+
 static const struct mxc_jpeg_enc_ops mxc_jpeg_enc_cfg_ops_v0 = {
 	.enter_config_mode = mxc_jpeg_enc_start_config_manually,
 	.exit_config_mode = mxc_jpeg_enc_finish_config_manually
+};
+
+static const struct mxc_jpeg_enc_ops mxc_jpeg_enc_cfg_ops_v1 = {
+	.setup_desc = mxc_jpeg_enc_configure_desc
 };
 
 static const struct mxc_jpeg_fmt *mxc_jpeg_get_sibling_format(const struct mxc_jpeg_fmt *fmt)
@@ -2874,6 +2895,14 @@ fail:
 	return ret;
 }
 
+static int mxc_jpeg_get_version(void __iomem *reg)
+{
+	u32 regval;
+
+	regval = readl(reg + GLB_CTRL);
+	return GLB_CTRL_CUR_VERSION(regval);
+}
+
 static int mxc_jpeg_probe(struct platform_device *pdev)
 {
 	struct mxc_jpeg_dev *jpeg;
@@ -3012,8 +3041,18 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		goto err_pm;
 	}
 
-	if (mode == MXC_JPEG_ENCODE)
-		jpeg->enc_cfg_ops = &mxc_jpeg_enc_cfg_ops_v0;
+	if (mode == MXC_JPEG_ENCODE) {
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0)
+			goto err_pm;
+
+		if (mxc_jpeg_get_version(jpeg->base_reg) == 0)
+			jpeg->enc_cfg_ops = &mxc_jpeg_enc_cfg_ops_v0;
+		else
+			jpeg->enc_cfg_ops = &mxc_jpeg_enc_cfg_ops_v1;
+
+		pm_runtime_put_sync(dev);
+	}
 
 	return 0;
 

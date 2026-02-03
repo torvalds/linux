@@ -5,6 +5,8 @@
  * Copyright 2018-2019 NXP
  */
 
+#include <linux/bitfield.h>
+
 #ifndef _MXC_JPEG_HW_H
 #define _MXC_JPEG_HW_H
 
@@ -73,6 +75,7 @@
 #define GLB_CTRL_DEC_GO					(0x1 << 2)
 #define GLB_CTRL_L_ENDIAN(le)				((le) << 3)
 #define GLB_CTRL_SLOT_EN(slot)				(0x1 << ((slot) + 4))
+#define GLB_CTRL_CUR_VERSION(r)				FIELD_GET(GENMASK_U32(19, 16), r)
 
 /* COM_STAUS fields */
 #define COM_STATUS_DEC_ONGOING(r)		(((r) & (1 << 31)) >> 31)
