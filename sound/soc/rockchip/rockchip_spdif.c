@@ -5,10 +5,11 @@
  *
  * Copyright (c) 2014 Rockchip Electronics Co. Ltd.
  * Author: Jianqun <jay.xu@rock-chips.com>
- * Copyright (c) 2015 Collabora Ltd.
+ * Copyright (c) 2015-2026 Collabora Ltd.
  * Author: Sjoerd Simons <sjoerd.simons@collabora.co.uk>
  */
 
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
@@ -159,7 +160,7 @@ static int rk_spdif_hw_params(struct snd_pcm_substream *substream,
 
 	ret = regmap_update_bits(spdif->regmap, SPDIF_CFGR,
 				 SPDIF_CFGR_CLK_DIV_MASK |
-				 SPDIF_CFGR_HALFWORD_ENABLE |
+				 SPDIF_CFGR_HALFWORD_MASK |
 				 SDPIF_CFGR_VDW_MASK |
 				 SPDIF_CFGR_ADJ_MASK, val);
 
@@ -177,7 +178,7 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-					 SPDIF_DMACR_TDE_ENABLE |
+					 SPDIF_DMACR_TDE_MASK |
 					 SPDIF_DMACR_TDL_MASK,
 					 SPDIF_DMACR_TDE_ENABLE |
 					 SPDIF_DMACR_TDL(16));
@@ -186,21 +187,21 @@ static int rk_spdif_trigger(struct snd_pcm_substream *substream,
 			return ret;
 
 		ret = regmap_update_bits(spdif->regmap, SPDIF_XFER,
-					 SPDIF_XFER_TXS_START,
+					 SPDIF_XFER_TXS_MASK,
 					 SPDIF_XFER_TXS_START);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = regmap_update_bits(spdif->regmap, SPDIF_DMACR,
-					 SPDIF_DMACR_TDE_ENABLE,
+					 SPDIF_DMACR_TDE_MASK,
 					 SPDIF_DMACR_TDE_DISABLE);
 
 		if (ret != 0)
 			return ret;
 
 		ret = regmap_update_bits(spdif->regmap, SPDIF_XFER,
-					 SPDIF_XFER_TXS_START,
+					 SPDIF_XFER_TXS_MASK,
 					 SPDIF_XFER_TXS_STOP);
 		break;
 	default:
