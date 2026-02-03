@@ -1,5 +1,4 @@
 .. SPDX-License-Identifier: GPL-2.0
-.. include:: <isonum.txt>
 
 =======================================
 Compute Express Link: Linux Conventions
