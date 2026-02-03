@@ -1680,11 +1680,7 @@ int __cgroup_bpf_run_filter_sock_addr(struct sock *sk,
 	struct cgroup *cgrp;
 	int ret;
 
-	/* Check socket family since not all sockets represent network
-	 * endpoint (e.g. AF_UNIX).
-	 */
-	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6 &&
-	    sk->sk_family != AF_UNIX)
+	if (!sk_is_inet(sk) && !sk_is_unix(sk))
 		return 0;
 
 	if (!ctx.uaddr) {
