@@ -58,10 +58,9 @@ static void gather_range_pages(struct iommu_iotlb_gather *iotlb_gather,
 		 * Note that the sync frees the gather's free list, so we must
 		 * not have any pages on that list that are covered by iova/len
 		 */
-	} else if (pt_feature(common, PT_FEAT_FLUSH_RANGE)) {
-		iommu_iotlb_gather_add_range(iotlb_gather, iova, len);
 	}
 
+	iommu_iotlb_gather_add_range(iotlb_gather, iova, len);
 	iommu_pages_list_splice(free_list, &iotlb_gather->freelist);
 }
 
