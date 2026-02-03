@@ -105,6 +105,7 @@ struct mxc_jpeg_ctx {
 	unsigned int			source_change;
 	bool				need_initial_source_change_evt;
 	bool				header_parsed;
+	bool				extseq;
 	struct v4l2_ctrl_handler	ctrl_handler;
 	u8				jpeg_quality;
 	struct delayed_work		task_timer;
@@ -125,6 +126,15 @@ struct mxc_jpeg_slot_data {
 	dma_addr_t cfg_dec_daddr;
 };
 
+struct mxc_jpeg_enc_ops {
+	/* Manual configuration (v0 hardware) - two-phase process */
+	void (*enter_config_mode)(struct mxc_jpeg_ctx *ctx);
+	void (*exit_config_mode)(struct mxc_jpeg_ctx *ctx);
+
+	/* Descriptor-based configuration (v1 hardware) - single-phase */
+	void (*setup_desc)(struct mxc_jpeg_ctx *ctx);
+};
+
 struct mxc_jpeg_dev {
 	spinlock_t			hw_lock; /* hardware access lock */
 	unsigned int			mode;
@@ -142,6 +152,7 @@ struct mxc_jpeg_dev {
 	struct device			**pd_dev;
 	struct device_link		**pd_link;
 	struct gen_pool			*sram_pool;
+	const struct mxc_jpeg_enc_ops	*enc_cfg_ops;
 };
 
 /**

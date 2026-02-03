@@ -64,6 +64,12 @@
 #include "mxc-jpeg-hw.h"
 #include "mxc-jpeg.h"
 
+#define call_void_jpeg_enc_ops(jpeg, op, args...)			\
+	do {								\
+		if ((jpeg)->enc_cfg_ops && (jpeg)->enc_cfg_ops->op)	\
+			(jpeg)->enc_cfg_ops->op(args);			\
+	} while (0)
+
 static const struct mxc_jpeg_fmt mxc_formats[] = {
 	{
 		.name		= "JPEG",
@@ -1030,11 +1036,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 
 	if (jpeg->mode == MXC_JPEG_ENCODE &&
 	    ctx->enc_state == MXC_JPEG_ENC_CONF) {
-		q_data = mxc_jpeg_get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-		ctx->enc_state = MXC_JPEG_ENCODING;
-		dev_dbg(dev, "Encoder config finished. Start encoding...\n");
-		mxc_jpeg_enc_set_quality(dev, reg, ctx->jpeg_quality);
-		mxc_jpeg_enc_mode_go(dev, reg, mxc_jpeg_is_extended_sequential(q_data->fmt));
+		call_void_jpeg_enc_ops(jpeg, exit_config_mode, ctx);
 		goto job_unlock;
 	}
 	if (jpeg->mode == MXC_JPEG_DECODE && jpeg_src_buf->dht_needed &&
@@ -1272,6 +1274,7 @@ static void mxc_jpeg_config_dec_desc(struct vb2_buffer *out_buf,
 
 	jpeg_src_buf = vb2_to_mxc_buf(src_buf);
 
+	ctx->extseq = mxc_jpeg_is_extended_sequential(jpeg_src_buf->fmt);
 	/* setup the decoding descriptor */
 	desc->next_descpt_ptr = 0; /* end of chain */
 	q_data_cap = mxc_jpeg_get_q_data(ctx, cap_type);
@@ -1335,8 +1338,12 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	struct mxc_jpeg_q_data *q_data;
 	enum mxc_jpeg_image_format img_fmt;
 	int w, h;
+	bool extseq;
 
 	q_data = mxc_jpeg_get_q_data(ctx, src_buf->vb2_queue->type);
+	extseq = mxc_jpeg_is_extended_sequential(q_data->fmt);
+
+	ctx->extseq = extseq;
 
 	memset(desc, 0, sizeof(struct mxc_jpeg_desc));
 	memset(cfg_desc, 0, sizeof(struct mxc_jpeg_desc));
@@ -1369,11 +1376,14 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	desc->stm_ctrl = STM_CTRL_CONFIG_MOD(0) |
 			 STM_CTRL_IMAGE_FORMAT(img_fmt);
 	desc->stm_ctrl |= STM_CTRL_BITBUF_PTR_CLR(1);
-	if (mxc_jpeg_is_extended_sequential(q_data->fmt))
+	if (extseq)
 		desc->stm_ctrl |= STM_CTRL_PIXEL_PRECISION;
 	else
 		desc->stm_ctrl &= ~STM_CTRL_PIXEL_PRECISION;
 	mxc_jpeg_addrs(desc, src_buf, dst_buf, 0);
+
+	call_void_jpeg_enc_ops(jpeg, setup_desc, ctx);
+
 	dev_dbg(jpeg->dev, "cfg_desc:\n");
 	print_descriptor_info(jpeg->dev, cfg_desc);
 	dev_dbg(jpeg->dev, "enc desc:\n");
@@ -1384,6 +1394,33 @@ static void mxc_jpeg_config_enc_desc(struct vb2_buffer *out_buf,
 	/* validate the configuration descriptor */
 	mxc_jpeg_set_desc(cfg_desc_handle, reg, slot);
 }
+
+static void mxc_jpeg_enc_start_config_manually(struct mxc_jpeg_ctx *ctx)
+{
+	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
+	void __iomem *reg = jpeg->base_reg;
+	struct device *dev = jpeg->dev;
+
+	ctx->enc_state = MXC_JPEG_ENC_CONF;
+	mxc_jpeg_enc_mode_conf(dev, reg, ctx->extseq);
+}
+
+static void mxc_jpeg_enc_finish_config_manually(struct mxc_jpeg_ctx *ctx)
+{
+	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
+	void __iomem *reg = jpeg->base_reg;
+	struct device *dev = jpeg->dev;
+
+	ctx->enc_state = MXC_JPEG_ENCODING;
+	dev_dbg(dev, "Encoder config finished. Start encoding...\n");
+	mxc_jpeg_enc_set_quality(dev, reg, ctx->jpeg_quality);
+	mxc_jpeg_enc_mode_go(dev, reg, ctx->extseq);
+}
+
+static const struct mxc_jpeg_enc_ops mxc_jpeg_enc_cfg_ops_v0 = {
+	.enter_config_mode = mxc_jpeg_enc_start_config_manually,
+	.exit_config_mode = mxc_jpeg_enc_finish_config_manually
+};
 
 static const struct mxc_jpeg_fmt *mxc_jpeg_get_sibling_format(const struct mxc_jpeg_fmt *fmt)
 {
@@ -1590,12 +1627,10 @@ static void mxc_jpeg_device_run(void *priv)
 
 	if (jpeg->mode == MXC_JPEG_ENCODE) {
 		dev_dbg(dev, "Encoding on slot %d\n", ctx->slot);
-		ctx->enc_state = MXC_JPEG_ENC_CONF;
 		mxc_jpeg_config_enc_desc(&dst_buf->vb2_buf, ctx,
 					 &src_buf->vb2_buf, &dst_buf->vb2_buf);
 		/* start config phase */
-		mxc_jpeg_enc_mode_conf(dev, reg,
-				       mxc_jpeg_is_extended_sequential(q_data_out->fmt));
+		call_void_jpeg_enc_ops(jpeg, enter_config_mode, ctx);
 	} else {
 		dev_dbg(dev, "Decoding on slot %d\n", ctx->slot);
 		print_mxc_buf(jpeg, &src_buf->vb2_buf, 0);
@@ -2976,6 +3011,9 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to enable runtime PM: %d\n", ret);
 		goto err_pm;
 	}
+
+	if (mode == MXC_JPEG_ENCODE)
+		jpeg->enc_cfg_ops = &mxc_jpeg_enc_cfg_ops_v0;
 
 	return 0;
 
