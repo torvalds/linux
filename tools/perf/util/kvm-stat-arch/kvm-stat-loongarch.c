@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <memory.h>
-#include "util/kvm-stat.h"
-#include "util/parse-events.h"
-#include "util/debug.h"
-#include "util/evsel.h"
-#include "util/evlist.h"
-#include "util/pmus.h"
+#include "../kvm-stat.h"
+#include "../parse-events.h"
+#include "../debug.h"
+#include "../evsel.h"
+#include "../evlist.h"
+#include "../pmus.h"
 
 #define LOONGARCH_EXCEPTION_INT		0
 #define LOONGARCH_EXCEPTION_PIL		1
@@ -43,12 +43,8 @@
 
 define_exit_reasons_table(loongarch_exit_reasons, loongarch_exception_type);
 
-const char *vcpu_id_str = "vcpu_id";
-const char *kvm_exit_reason = "reason";
-const char *kvm_entry_trace = "kvm:kvm_enter";
-const char *kvm_reenter_trace = "kvm:kvm_reenter";
-const char *kvm_exit_trace = "kvm:kvm_exit";
-const char *kvm_events_tp[] = {
+static const char *kvm_reenter_trace = "kvm:kvm_reenter";
+static const char * const __kvm_events_tp[] = {
 	"kvm:kvm_enter",
 	"kvm:kvm_reenter",
 	"kvm:kvm_exit",
@@ -74,7 +70,8 @@ static bool event_end(struct evsel *evsel,
 	 *   kvm:kvm_enter   means returning to vmm and then to guest
 	 *   kvm:kvm_reenter means returning to guest immediately
 	 */
-	return evsel__name_is(evsel, kvm_entry_trace) || evsel__name_is(evsel, kvm_reenter_trace);
+	return evsel__name_is(evsel, kvm_entry_trace()) ||
+	       evsel__name_is(evsel, kvm_reenter_trace);
 }
 
 static void event_gspr_get_key(struct evsel *evsel,
@@ -109,12 +106,12 @@ static void event_gspr_get_key(struct evsel *evsel,
 	}
 }
 
-static struct child_event_ops child_events[] = {
+static const struct child_event_ops child_events[] = {
 	{ .name = "kvm:kvm_exit_gspr", .get_key = event_gspr_get_key },
 	{ NULL, NULL },
 };
 
-static struct kvm_events_ops exit_events = {
+static const struct kvm_events_ops exit_events = {
 	.is_begin_event = event_begin,
 	.is_end_event = event_end,
 	.child_ops = child_events,
@@ -122,18 +119,33 @@ static struct kvm_events_ops exit_events = {
 	.name = "VM-EXIT"
 };
 
-struct kvm_reg_events_ops kvm_reg_events_ops[] = {
+static const struct kvm_reg_events_ops __kvm_reg_events_ops[] = {
 	{ .name	= "vmexit", .ops = &exit_events, },
 	{ NULL, NULL },
 };
 
-const char * const kvm_skip_events[] = {
+static const char * const __kvm_skip_events[] = {
 	NULL,
 };
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
+int __cpu_isa_init_loongarch(struct perf_kvm_stat *kvm)
 {
 	kvm->exit_reasons_isa = "loongarch64";
 	kvm->exit_reasons = loongarch_exit_reasons;
 	return 0;
+}
+
+const char * const *__kvm_events_tp_loongarch(void)
+{
+	return __kvm_events_tp;
+}
+
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_loongarch(void)
+{
+	return __kvm_reg_events_ops;
+}
+
+const char * const *__kvm_skip_events_loongarch(void)
+{
+	return __kvm_skip_events;
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
-#include "util/kvm-stat.h"
-#include "util/parse-events.h"
-#include "util/debug.h"
-#include "util/evsel.h"
-#include "util/evlist.h"
-#include "util/pmus.h"
+#include "../kvm-stat.h"
+#include "../parse-events.h"
+#include "../debug.h"
+#include "../evsel.h"
+#include "../evlist.h"
+#include "../pmus.h"
 
 #include "book3s_hv_exits.h"
 #include "book3s_hcalls.h"
@@ -13,15 +13,11 @@
 
 #define NR_TPS 4
 
-const char *vcpu_id_str = "vcpu_id";
-const char *kvm_entry_trace = "kvm_hv:kvm_guest_enter";
-const char *kvm_exit_trace = "kvm_hv:kvm_guest_exit";
-
 define_exit_reasons_table(hv_exit_reasons, kvm_trace_symbol_exit);
 define_exit_reasons_table(hcall_reasons, kvm_trace_symbol_hcall);
 
 /* Tracepoints specific to ppc_book3s_hv */
-const char *ppc_book3s_hv_kvm_tp[] = {
+static const char * const ppc_book3s_hv_kvm_tp[] = {
 	"kvm_hv:kvm_guest_enter",
 	"kvm_hv:kvm_guest_exit",
 	"kvm_hv:kvm_hcall_enter",
@@ -30,8 +26,7 @@ const char *ppc_book3s_hv_kvm_tp[] = {
 };
 
 /* 1 extra placeholder for NULL */
-const char *kvm_events_tp[NR_TPS + 1];
-const char *kvm_exit_reason;
+static const char *__kvm_events_tp[NR_TPS + 1];
 
 static void hcall_event_get_key(struct evsel *evsel,
 				struct perf_sample *sample,
@@ -60,13 +55,13 @@ static bool hcall_event_end(struct evsel *evsel,
 			    struct perf_sample *sample __maybe_unused,
 			    struct event_key *key __maybe_unused)
 {
-	return (evsel__name_is(evsel, kvm_events_tp[3]));
+	return evsel__name_is(evsel, __kvm_events_tp[3]);
 }
 
 static bool hcall_event_begin(struct evsel *evsel,
 			      struct perf_sample *sample, struct event_key *key)
 {
-	if (evsel__name_is(evsel, kvm_events_tp[2])) {
+	if (evsel__name_is(evsel, __kvm_events_tp[2])) {
 		hcall_event_get_key(evsel, sample, key);
 		return true;
 	}
@@ -82,27 +77,27 @@ static void hcall_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 	scnprintf(decode, KVM_EVENT_NAME_LEN, "%s", hcall_reason);
 }
 
-static struct kvm_events_ops hcall_events = {
+static const struct kvm_events_ops hcall_events = {
 	.is_begin_event = hcall_event_begin,
 	.is_end_event = hcall_event_end,
 	.decode_key = hcall_event_decode_key,
 	.name = "HCALL-EVENT",
 };
 
-static struct kvm_events_ops exit_events = {
+static const struct kvm_events_ops exit_events = {
 	.is_begin_event = exit_event_begin,
 	.is_end_event = exit_event_end,
 	.decode_key = exit_event_decode_key,
 	.name = "VM-EXIT"
 };
 
-struct kvm_reg_events_ops kvm_reg_events_ops[] = {
+static const struct kvm_reg_events_ops __kvm_reg_events_ops[] = {
 	{ .name = "vmexit", .ops = &exit_events },
 	{ .name = "hcall", .ops = &hcall_events },
 	{ NULL, NULL },
 };
 
-const char * const kvm_skip_events[] = {
+static const char * const __kvm_skip_events[] = {
 	NULL,
 };
 
@@ -123,7 +118,7 @@ static int is_tracepoint_available(const char *str, struct evlist *evlist)
 static int ppc__setup_book3s_hv(struct perf_kvm_stat *kvm,
 				struct evlist *evlist)
 {
-	const char **events_ptr;
+	const char * const *events_ptr;
 	int i, nr_tp = 0, err = -1;
 
 	/* Check for book3s_hv tracepoints */
@@ -135,10 +130,9 @@ static int ppc__setup_book3s_hv(struct perf_kvm_stat *kvm,
 	}
 
 	for (i = 0; i < nr_tp; i++)
-		kvm_events_tp[i] = ppc_book3s_hv_kvm_tp[i];
+		__kvm_events_tp[i] = ppc_book3s_hv_kvm_tp[i];
 
-	kvm_events_tp[i] = NULL;
-	kvm_exit_reason = "trap";
+	__kvm_events_tp[i] = NULL;
 	kvm->exit_reasons = hv_exit_reasons;
 	kvm->exit_reasons_isa = "HV";
 
@@ -157,12 +151,12 @@ static int ppc__setup_kvm_tp(struct perf_kvm_stat *kvm)
 	return ppc__setup_book3s_hv(kvm, evlist);
 }
 
-int setup_kvm_events_tp(struct perf_kvm_stat *kvm)
+int __setup_kvm_events_tp_powerpc(struct perf_kvm_stat *kvm)
 {
 	return ppc__setup_kvm_tp(kvm);
 }
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
+int __cpu_isa_init_powerpc(struct perf_kvm_stat *kvm)
 {
 	int ret;
 
@@ -184,7 +178,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid __maybe_unused)
  *
  * Function to parse the arguments and return appropriate values.
  */
-int kvm_add_default_arch_event(int *argc, const char **argv)
+int __kvm_add_default_arch_event_powerpc(int *argc, const char **argv)
 {
 	const char **tmp;
 	bool event = false;
@@ -216,4 +210,19 @@ int kvm_add_default_arch_event(int *argc, const char **argv)
 
 	free(tmp);
 	return 0;
+}
+
+const char * const *__kvm_events_tp_powerpc(void)
+{
+	return __kvm_events_tp;
+}
+
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_powerpc(void)
+{
+	return __kvm_reg_events_ops;
+}
+
+const char * const *__kvm_skip_events_powerpc(void)
+{
+	return __kvm_skip_events;
 }

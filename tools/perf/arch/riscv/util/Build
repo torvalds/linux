@@ -1,4 +1,2 @@
 perf-util-y += perf_regs.o
 perf-util-y += header.o
-
-perf-util-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o

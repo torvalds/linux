@@ -52,7 +52,7 @@
 #include <math.h>
 #include <perf/mmap.h>
 
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 #define GET_EVENT_KEY(func, field)					\
 static u64 get_event_ ##func(struct kvm_event *event, int vcpu)		\
 {									\
@@ -597,7 +597,7 @@ static void kvm_display(struct perf_kvm_stat *kvm)
 
 #endif /* HAVE_SLANG_SUPPORT */
 
-#endif // defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#endif // defined(HAVE_LIBTRACEEVENT)
 
 static const char *get_filename_for_perf_kvm(void)
 {
@@ -613,13 +613,13 @@ static const char *get_filename_for_perf_kvm(void)
 	return filename;
 }
 
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 
 static bool register_kvm_events_ops(struct perf_kvm_stat *kvm)
 {
-	struct kvm_reg_events_ops *events_ops = kvm_reg_events_ops;
+	const struct kvm_reg_events_ops *events_ops;
 
-	for (events_ops = kvm_reg_events_ops; events_ops->name; events_ops++) {
+	for (events_ops = kvm_reg_events_ops(); events_ops->name; events_ops++) {
 		if (!strcmp(events_ops->name, kvm->report_event)) {
 			kvm->events_ops = events_ops->ops;
 			return true;
@@ -809,7 +809,7 @@ static bool is_child_event(struct perf_kvm_stat *kvm,
 			   struct perf_sample *sample,
 			   struct event_key *key)
 {
-	struct child_event_ops *child_ops;
+	const struct child_event_ops *child_ops;
 
 	child_ops = kvm->events_ops->child_ops;
 
@@ -845,7 +845,7 @@ static bool skip_event(const char *event)
 {
 	const char * const *skip_events;
 
-	for (skip_events = kvm_skip_events; *skip_events; skip_events++)
+	for (skip_events = kvm_skip_events(); *skip_events; skip_events++)
 		if (!strcmp(event, *skip_events))
 			return true;
 
@@ -928,7 +928,7 @@ struct vcpu_event_record *per_vcpu_record(struct thread *thread,
 			return NULL;
 		}
 
-		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str);
+		vcpu_record->vcpu_id = evsel__intval(evsel, sample, vcpu_id_str());
 		thread__set_priv(thread, vcpu_record);
 	}
 
@@ -1636,11 +1636,6 @@ exit:
 	return ret;
 }
 
-int __weak setup_kvm_events_tp(struct perf_kvm_stat *kvm __maybe_unused)
-{
-	return 0;
-}
-
 static int
 kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 {
@@ -1666,7 +1661,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 		return ret;
 	}
 
-	for (events_tp = kvm_events_tp; *events_tp; events_tp++)
+	for (events_tp = kvm_events_tp(); *events_tp; events_tp++)
 		events_tp_size++;
 
 	rec_argc = ARRAY_SIZE(record_args) + argc + 2 +
@@ -1681,7 +1676,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 
 	for (j = 0; j < events_tp_size; j++) {
 		rec_argv[i++] = STRDUP_FAIL_EXIT("-e");
-		rec_argv[i++] = STRDUP_FAIL_EXIT(kvm_events_tp[j]);
+		rec_argv[i++] = STRDUP_FAIL_EXIT(kvm_events_tp()[j]);
 	}
 
 	rec_argv[i++] = STRDUP_FAIL_EXIT("-o");
@@ -1775,7 +1770,7 @@ static struct evlist *kvm_live_event_list(void)
 	if (evlist == NULL)
 		return NULL;
 
-	for (events_tp = kvm_events_tp; *events_tp; events_tp++) {
+	for (events_tp = kvm_events_tp(); *events_tp; events_tp++) {
 
 		tp = strdup(*events_tp);
 		if (tp == NULL)
@@ -1985,13 +1980,7 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 perf_stat:
 	return cmd_stat(argc, argv);
 }
-#endif /* HAVE_KVM_STAT_SUPPORT */
-
-int __weak kvm_add_default_arch_event(int *argc __maybe_unused,
-					const char **argv __maybe_unused)
-{
-	return 0;
-}
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int __cmd_record(const char *file_name, int argc, const char **argv)
 {
@@ -2179,7 +2168,7 @@ int cmd_kvm(int argc, const char **argv)
 		return __cmd_top(argc, argv);
 	else if (strlen(argv[0]) > 2 && strstarts("buildid-list", argv[0]))
 		return __cmd_buildid_list(file_name, argc, argv);
-#if defined(HAVE_KVM_STAT_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+#if defined(HAVE_LIBTRACEEVENT)
 	else if (strlen(argv[0]) > 2 && strstarts("stat", argv[0]))
 		return kvm_cmd_stat(file_name, argc, argv);
 #endif

@@ -8,9 +8,9 @@
 
 #include <errno.h>
 #include <string.h>
-#include "../../util/kvm-stat.h"
-#include "../../util/evsel.h"
-#include <asm/sie.h>
+#include "../kvm-stat.h"
+#include "../evsel.h"
+#include "../../../arch/s390/include/uapi/asm/sie.h"
 
 define_exit_reasons_table(sie_exit_reasons, sie_intercept_code);
 define_exit_reasons_table(sie_icpt_insn_codes, icpt_insn_codes);
@@ -18,16 +18,11 @@ define_exit_reasons_table(sie_sigp_order_codes, sigp_order_codes);
 define_exit_reasons_table(sie_diagnose_codes, diagnose_codes);
 define_exit_reasons_table(sie_icpt_prog_codes, icpt_prog_codes);
 
-const char *vcpu_id_str = "id";
-const char *kvm_exit_reason = "icptcode";
-const char *kvm_entry_trace = "kvm:kvm_s390_sie_enter";
-const char *kvm_exit_trace = "kvm:kvm_s390_sie_exit";
-
 static void event_icpt_insn_get_key(struct evsel *evsel,
 				    struct perf_sample *sample,
 				    struct event_key *key)
 {
-	unsigned long insn;
+	u64 insn;
 
 	insn = evsel__intval(evsel, sample, "instruction");
 	key->key = icpt_insn_decoder(insn);
@@ -58,7 +53,7 @@ static void event_icpt_prog_get_key(struct evsel *evsel,
 	key->exit_reasons = sie_icpt_prog_codes;
 }
 
-static struct child_event_ops child_events[] = {
+static const struct child_event_ops child_events[] = {
 	{ .name = "kvm:kvm_s390_intercept_instruction",
 	  .get_key = event_icpt_insn_get_key },
 	{ .name = "kvm:kvm_s390_handle_sigp",
@@ -70,7 +65,7 @@ static struct child_event_ops child_events[] = {
 	{ NULL, NULL },
 };
 
-static struct kvm_events_ops exit_events = {
+static const struct kvm_events_ops exit_events = {
 	.is_begin_event = exit_event_begin,
 	.is_end_event = exit_event_end,
 	.child_ops = child_events,
@@ -78,7 +73,7 @@ static struct kvm_events_ops exit_events = {
 	.name = "VM-EXIT"
 };
 
-const char *kvm_events_tp[] = {
+static const char * const __kvm_events_tp[] = {
 	"kvm:kvm_s390_sie_enter",
 	"kvm:kvm_s390_sie_exit",
 	"kvm:kvm_s390_intercept_instruction",
@@ -88,17 +83,17 @@ const char *kvm_events_tp[] = {
 	NULL,
 };
 
-struct kvm_reg_events_ops kvm_reg_events_ops[] = {
+static const struct kvm_reg_events_ops __kvm_reg_events_ops[] = {
 	{ .name = "vmexit", .ops = &exit_events },
 	{ NULL, NULL },
 };
 
-const char * const kvm_skip_events[] = {
+static const char * const __kvm_skip_events[] = {
 	"Wait state",
 	NULL,
 };
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
+int __cpu_isa_init_s390(struct perf_kvm_stat *kvm, const char *cpuid)
 {
 	if (strstr(cpuid, "IBM")) {
 		kvm->exit_reasons = sie_exit_reasons;
@@ -107,4 +102,19 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 		return -ENOTSUP;
 
 	return 0;
+}
+
+const char * const *__kvm_events_tp_s390(void)
+{
+	return __kvm_events_tp;
+}
+
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_s390(void)
+{
+	return __kvm_reg_events_ops;
+}
+
+const char * const *__kvm_skip_events_s390(void)
+{
+	return __kvm_skip_events;
 }

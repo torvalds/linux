@@ -3,7 +3,7 @@
 #define ARCH_PERF_RISCV_TRAP_TYPES_H
 
 /* Exception cause high bit - is an interrupt if set */
-#define CAUSE_IRQ_FLAG		(_AC(1, UL) << (__riscv_xlen - 1))
+#define CAUSE_IRQ_FLAG(xlen)		(_AC(1, UL) << (xlen - 1))
 
 /* Interrupt causes (minus the high bit) */
 #define IRQ_S_SOFT 1

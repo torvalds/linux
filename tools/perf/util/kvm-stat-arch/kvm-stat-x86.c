@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <string.h>
-#include "../../../util/kvm-stat.h"
-#include "../../../util/evsel.h"
-#include "../../../util/env.h"
+#include "../kvm-stat.h"
+#include "../evsel.h"
+#include "../env.h"
 #include <asm/svm.h>
 #include <asm/vmx.h>
 #include <asm/kvm.h>
@@ -12,17 +12,12 @@
 define_exit_reasons_table(vmx_exit_reasons, VMX_EXIT_REASONS);
 define_exit_reasons_table(svm_exit_reasons, SVM_EXIT_REASONS);
 
-static struct kvm_events_ops exit_events = {
+static const struct kvm_events_ops exit_events = {
 	.is_begin_event = exit_event_begin,
 	.is_end_event = exit_event_end,
 	.decode_key = exit_event_decode_key,
 	.name = "VM-EXIT"
 };
-
-const char *vcpu_id_str = "vcpu_id";
-const char *kvm_exit_reason = "exit_reason";
-const char *kvm_entry_trace = "kvm:kvm_entry";
-const char *kvm_exit_trace = "kvm:kvm_exit";
 
 /*
  * For the mmio events, we treat:
@@ -83,7 +78,7 @@ static void mmio_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 		  key->info == KVM_TRACE_MMIO_WRITE ? "W" : "R");
 }
 
-static struct kvm_events_ops mmio_events = {
+static const struct kvm_events_ops mmio_events = {
 	.is_begin_event = mmio_event_begin,
 	.is_end_event = mmio_event_end,
 	.decode_key = mmio_event_decode_key,
@@ -127,7 +122,7 @@ static void ioport_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 		  key->info ? "POUT" : "PIN");
 }
 
-static struct kvm_events_ops ioport_events = {
+static const struct kvm_events_ops ioport_events = {
 	.is_begin_event = ioport_event_begin,
 	.is_end_event = ioport_event_end,
 	.decode_key = ioport_event_decode_key,
@@ -171,14 +166,14 @@ static void msr_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 		  key->info ? "W" : "R");
 }
 
-static struct kvm_events_ops msr_events = {
+static const struct kvm_events_ops msr_events = {
 	.is_begin_event = msr_event_begin,
 	.is_end_event = msr_event_end,
 	.decode_key = msr_event_decode_key,
 	.name = "MSR Access"
 };
 
-const char *kvm_events_tp[] = {
+static const char * const __kvm_events_tp[] = {
 	"kvm:kvm_entry",
 	"kvm:kvm_exit",
 	"kvm:kvm_mmio",
@@ -187,7 +182,7 @@ const char *kvm_events_tp[] = {
 	NULL,
 };
 
-struct kvm_reg_events_ops kvm_reg_events_ops[] = {
+static const struct kvm_reg_events_ops __kvm_reg_events_ops[] = {
 	{ .name = "vmexit", .ops = &exit_events },
 	{ .name = "mmio", .ops = &mmio_events },
 	{ .name = "ioport", .ops = &ioport_events },
@@ -195,12 +190,12 @@ struct kvm_reg_events_ops kvm_reg_events_ops[] = {
 	{ NULL, NULL },
 };
 
-const char * const kvm_skip_events[] = {
+static const char * const __kvm_skip_events[] = {
 	"HLT",
 	NULL,
 };
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
+int __cpu_isa_init_x86(struct perf_kvm_stat *kvm, const char *cpuid)
 {
 	if (strstr(cpuid, "Intel")) {
 		kvm->exit_reasons = vmx_exit_reasons;
@@ -226,7 +221,7 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
  * So, to avoid this issue explicitly use "cycles" instead of "cycles:P" event
  * by default to sample guest on Intel platforms.
  */
-int kvm_add_default_arch_event(int *argc, const char **argv)
+int __kvm_add_default_arch_event_x86(int *argc, const char **argv)
 {
 	const char **tmp;
 	bool event = false;
@@ -261,4 +256,19 @@ int kvm_add_default_arch_event(int *argc, const char **argv)
 EXIT:
 	free(tmp);
 	return ret;
+}
+
+const char * const *__kvm_events_tp_x86(void)
+{
+	return __kvm_events_tp;
+}
+
+const struct kvm_reg_events_ops *__kvm_reg_events_ops_x86(void)
+{
+	return __kvm_reg_events_ops;
+}
+
+const char * const *__kvm_skip_events_x86(void)
+{
+	return __kvm_skip_events;
 }
