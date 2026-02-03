@@ -303,6 +303,7 @@ struct stmmac_priv {
 	bool eee_enabled;
 	bool eee_active;
 	bool eee_sw_timer_en;
+	bool legacy_serdes_is_powered;
 	unsigned int mode;
 	unsigned int chain_mode;
 	int extend_desc;

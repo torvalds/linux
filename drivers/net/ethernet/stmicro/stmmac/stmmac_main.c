@@ -884,8 +884,10 @@ static void stmmac_release_ptp(struct stmmac_priv *priv)
 
 static void stmmac_legacy_serdes_power_down(struct stmmac_priv *priv)
 {
-	if (priv->plat->serdes_powerdown)
+	if (priv->plat->serdes_powerdown && priv->legacy_serdes_is_powered)
 		priv->plat->serdes_powerdown(priv->dev, priv->plat->bsp_priv);
+
+	priv->legacy_serdes_is_powered = false;
 }
 
 static int stmmac_legacy_serdes_power_up(struct stmmac_priv *priv)
@@ -898,6 +900,8 @@ static int stmmac_legacy_serdes_power_up(struct stmmac_priv *priv)
 	ret = priv->plat->serdes_powerup(priv->dev, priv->plat->bsp_priv);
 	if (ret < 0)
 		netdev_err(priv->dev, "SerDes powerup failed\n");
+	else
+		priv->legacy_serdes_is_powered = true;
 
 	return ret;
 }
