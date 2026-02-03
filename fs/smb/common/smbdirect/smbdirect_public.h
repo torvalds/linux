@@ -92,6 +92,29 @@ __SMBDIRECT_PUBLIC__
 void smbdirect_socket_release(struct smbdirect_socket *sc);
 
 __SMBDIRECT_PUBLIC__
+int smbdirect_connection_send_batch_flush(struct smbdirect_socket *sc,
+					  struct smbdirect_send_batch *batch,
+					  bool is_last);
+
+/*
+ * This is only temporary and only needed
+ * as long as the client still requires
+ * to use smbdirect_connection_send_single_iter()
+ */
+struct smbdirect_send_batch_storage {
+	union {
+		struct list_head __msg_list;
+		__aligned_u64 __space[5];
+	};
+};
+
+__SMBDIRECT_PUBLIC__
+struct smbdirect_send_batch *
+smbdirect_init_send_batch_storage(struct smbdirect_send_batch_storage *storage,
+				  bool need_invalidate_rkey,
+				  unsigned int remote_key);
+
+__SMBDIRECT_PUBLIC__
 int smbdirect_connection_send_single_iter(struct smbdirect_socket *sc,
 					  struct smbdirect_send_batch *batch,
 					  struct iov_iter *iter,

@@ -910,9 +910,10 @@ static void smbdirect_connection_send_batch_init(struct smbdirect_send_batch *ba
 	batch->credit = 0;
 }
 
-static int smbdirect_connection_send_batch_flush(struct smbdirect_socket *sc,
-						 struct smbdirect_send_batch *batch,
-						 bool is_last)
+__SMBDIRECT_PUBLIC__
+int smbdirect_connection_send_batch_flush(struct smbdirect_socket *sc,
+					  struct smbdirect_send_batch *batch,
+					  bool is_last)
 {
 	struct smbdirect_send_io *first, *last;
 	int ret = 0;
@@ -969,6 +970,26 @@ release_credit:
 
 	return ret;
 }
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_batch_flush);
+
+__SMBDIRECT_PUBLIC__
+struct smbdirect_send_batch *
+smbdirect_init_send_batch_storage(struct smbdirect_send_batch_storage *storage,
+				  bool need_invalidate_rkey,
+				  unsigned int remote_key)
+{
+	struct smbdirect_send_batch *batch = (struct smbdirect_send_batch *)storage;
+
+	memset(storage, 0, sizeof(*storage));
+	BUILD_BUG_ON(sizeof(*batch) > sizeof(*storage));
+
+	smbdirect_connection_send_batch_init(batch,
+					     need_invalidate_rkey,
+					     remote_key);
+
+	return batch;
+}
+__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_init_send_batch_storage);
 
 static int smbdirect_connection_wait_for_send_bcredit(struct smbdirect_socket *sc,
 						      struct smbdirect_send_batch *batch)
