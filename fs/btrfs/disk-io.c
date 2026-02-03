@@ -4037,7 +4037,6 @@ int write_all_supers(struct btrfs_trans_handle *trans)
 	int do_barriers;
 	int max_errors;
 	int total_errors = 0;
-	u64 flags;
 
 	do_barriers = !btrfs_test_opt(fs_info, NOBARRIER);
 
@@ -4070,6 +4069,8 @@ int write_all_supers(struct btrfs_trans_handle *trans)
 		}
 	}
 
+	btrfs_set_super_flags(sb, btrfs_super_flags(sb) | BTRFS_HEADER_FLAG_WRITTEN);
+
 	list_for_each_entry(dev, head, dev_list) {
 		if (unlikely(!dev->bdev)) {
 			total_errors++;
@@ -4092,9 +4093,6 @@ int write_all_supers(struct btrfs_trans_handle *trans)
 		memcpy(dev_item->uuid, dev->uuid, BTRFS_UUID_SIZE);
 		memcpy(dev_item->fsid, dev->fs_devices->metadata_uuid,
 		       BTRFS_FSID_SIZE);
-
-		flags = btrfs_super_flags(sb);
-		btrfs_set_super_flags(sb, flags | BTRFS_HEADER_FLAG_WRITTEN);
 
 		ret = btrfs_validate_write_super(fs_info, sb);
 		if (unlikely(ret < 0)) {
