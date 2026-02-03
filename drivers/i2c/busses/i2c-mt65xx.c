@@ -24,6 +24,7 @@
 #include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #define I2C_RS_TRANSFER			(1 << 4)
 #define I2C_ARB_LOST			(1 << 3)
@@ -685,7 +686,7 @@ static int mtk_i2c_get_clk_div_restri(struct mtk_i2c *i2c,
  * Check and Calculate i2c ac-timing
  *
  * Hardware design:
- * sample_ns = (1000000000 * (sample_cnt + 1)) / clk_src
+ * sample_ns = (HZ_PER_GHZ * (sample_cnt + 1)) / clk_src
  * xxx_cnt_div =  spec->min_xxx_ns / sample_ns
  *
  * Sample_ns is rounded down for xxx_cnt_div would be greater
@@ -701,9 +702,8 @@ static int mtk_i2c_check_ac_timing(struct mtk_i2c *i2c,
 {
 	const struct i2c_spec_values *spec;
 	unsigned int su_sta_cnt, low_cnt, high_cnt, max_step_cnt;
-	unsigned int sda_max, sda_min, clk_ns, max_sta_cnt = 0x3f;
-	unsigned int sample_ns = div_u64(1000000000ULL * (sample_cnt + 1),
-					 clk_src);
+	unsigned int sda_max, sda_min, max_sta_cnt = 0x3f;
+	unsigned int clk_ns, sample_ns;
 
 	if (!i2c->dev_comp->timing_adjust)
 		return 0;
@@ -713,8 +713,9 @@ static int mtk_i2c_check_ac_timing(struct mtk_i2c *i2c,
 
 	spec = mtk_i2c_get_spec(check_speed);
 
+	sample_ns = div_u64(1ULL * HZ_PER_GHZ * (sample_cnt + 1), clk_src);
 	if (i2c->dev_comp->ltiming_adjust)
-		clk_ns = 1000000000 / clk_src;
+		clk_ns = HZ_PER_GHZ / clk_src;
 	else
 		clk_ns = sample_ns / 2;
 

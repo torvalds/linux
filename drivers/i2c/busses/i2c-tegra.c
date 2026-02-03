@@ -264,7 +264,6 @@ struct tegra_i2c_hw_feature {
  * @div_clk: clock reference for div clock of I2C controller
  * @clocks: array of I2C controller clocks
  * @nclocks: number of clocks in the array
- * @rst: reset control for the I2C controller
  * @base: ioremapped registers cookie
  * @base_phys: physical base address of the I2C controller
  * @cont_id: I2C controller ID, used for packet header
@@ -293,7 +292,6 @@ struct tegra_i2c_dev {
 	struct i2c_adapter adapter;
 
 	const struct tegra_i2c_hw_feature *hw;
-	struct reset_control *rst;
 	unsigned int cont_id;
 	unsigned int irq;
 

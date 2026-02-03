@@ -21,74 +21,33 @@
 
 #include "i2c-designware-core.h"
 
-static void i2c_dw_configure_fifo_slave(struct dw_i2c_dev *dev)
+int i2c_dw_reg_slave(struct i2c_client *slave)
 {
-	/* Configure Tx/Rx FIFO threshold levels. */
-	regmap_write(dev->map, DW_IC_TX_TL, 0);
-	regmap_write(dev->map, DW_IC_RX_TL, 0);
-
-	/* Configure the I2C slave. */
-	regmap_write(dev->map, DW_IC_CON, dev->slave_cfg);
-	regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_SLAVE_MASK);
-}
-
-/**
- * i2c_dw_init_slave() - Initialize the DesignWare i2c slave hardware
- * @dev: device private data
- *
- * This function configures and enables the I2C in slave mode.
- * This function is called during I2C init function, and in case of timeout at
- * run time.
- *
- * Return: 0 on success, or negative errno otherwise.
- */
-static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
-{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 	int ret;
+
+	if (!i2c_check_functionality(slave->adapter, I2C_FUNC_SLAVE))
+		return -EOPNOTSUPP;
+	if (dev->slave)
+		return -EBUSY;
+	if (slave->flags & I2C_CLIENT_TEN)
+		return -EAFNOSUPPORT;
 
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
 
-	/* Disable the adapter. */
-	__i2c_dw_disable(dev);
+	pm_runtime_get_sync(dev->dev);
+	__i2c_dw_disable_nowait(dev);
+	dev->slave = slave;
+	i2c_dw_set_mode(dev, DW_IC_SLAVE);
 
-	/* Write SDA hold time if supported */
-	if (dev->sda_hold_time)
-		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
-
-	i2c_dw_configure_fifo_slave(dev);
 	i2c_dw_release_lock(dev);
 
 	return 0;
 }
 
-static int i2c_dw_reg_slave(struct i2c_client *slave)
-{
-	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
-
-	if (dev->slave)
-		return -EBUSY;
-	if (slave->flags & I2C_CLIENT_TEN)
-		return -EAFNOSUPPORT;
-	pm_runtime_get_sync(dev->dev);
-
-	/*
-	 * Set slave address in the IC_SAR register,
-	 * the address to which the DW_apb_i2c responds.
-	 */
-	__i2c_dw_disable_nowait(dev);
-	regmap_write(dev->map, DW_IC_SAR, slave->addr);
-	dev->slave = slave;
-
-	__i2c_dw_enable(dev);
-
-	dev->status = 0;
-
-	return 0;
-}
-
-static int i2c_dw_unreg_slave(struct i2c_client *slave)
+int i2c_dw_unreg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 
@@ -96,6 +55,7 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 	i2c_dw_disable(dev);
 	synchronize_irq(dev->irq);
 	dev->slave = NULL;
+	i2c_dw_set_mode(dev, DW_IC_MASTER);
 	pm_runtime_put_sync_suspend(dev->dev);
 
 	return 0;
@@ -152,9 +112,8 @@ static u32 i2c_dw_read_clear_intrbits_slave(struct dw_i2c_dev *dev)
  * Interrupt service routine. This gets called whenever an I2C slave interrupt
  * occurs.
  */
-static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
+irqreturn_t i2c_dw_isr_slave(struct dw_i2c_dev *dev)
 {
-	struct dw_i2c_dev *dev = dev_id;
 	unsigned int raw_stat, stat, enabled, tmp;
 	u8 val = 0, slave_activity;
 
@@ -217,67 +176,17 @@ static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct i2c_algorithm i2c_dw_algo = {
-	.functionality = i2c_dw_func,
-	.reg_slave = i2c_dw_reg_slave,
-	.unreg_slave = i2c_dw_unreg_slave,
-};
-
 void i2c_dw_configure_slave(struct dw_i2c_dev *dev)
 {
-	dev->functionality = I2C_FUNC_SLAVE;
+	if (dev->flags & ACCESS_POLLING)
+		return;
+
+	dev->functionality |= I2C_FUNC_SLAVE;
 
 	dev->slave_cfg = DW_IC_CON_RX_FIFO_FULL_HLD_CTRL |
 			 DW_IC_CON_RESTART_EN | DW_IC_CON_STOP_DET_IFADDRESSED;
-
-	dev->mode = DW_IC_SLAVE;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_configure_slave);
-
-int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
-{
-	struct i2c_adapter *adap = &dev->adapter;
-	int ret;
-
-	dev->init = i2c_dw_init_slave;
-
-	ret = i2c_dw_init_regmap(dev);
-	if (ret)
-		return ret;
-
-	ret = i2c_dw_set_sda_hold(dev);
-	if (ret)
-		return ret;
-
-	ret = i2c_dw_set_fifo_size(dev);
-	if (ret)
-		return ret;
-
-	ret = dev->init(dev);
-	if (ret)
-		return ret;
-
-	snprintf(adap->name, sizeof(adap->name),
-		 "Synopsys DesignWare I2C Slave adapter");
-	adap->retries = 3;
-	adap->algo = &i2c_dw_algo;
-	adap->dev.parent = dev->dev;
-	i2c_set_adapdata(adap, dev);
-
-	ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr_slave,
-			       IRQF_SHARED, dev_name(dev->dev), dev);
-	if (ret)
-		return dev_err_probe(dev->dev, ret,
-				     "failure requesting IRQ %i: %d\n",
-				     dev->irq, ret);
-
-	ret = i2c_add_numbered_adapter(adap);
-	if (ret)
-		dev_err(dev->dev, "failure adding adapter: %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i2c_dw_probe_slave);
 
 MODULE_AUTHOR("Luis Oliveira <lolivei@synopsys.com>");
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus slave adapter");

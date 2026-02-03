@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/units.h>
 
 /* SSC registers */
 #define SSC_BRG				0x000
@@ -285,7 +286,7 @@ static void st_i2c_hw_config(struct st_i2c_dev *i2c_dev)
 	writel_relaxed(val, i2c_dev->base + SSC_CTL);
 
 	rate = clk_get_rate(i2c_dev->clk);
-	ns_per_clk = 1000000000 / rate;
+	ns_per_clk = HZ_PER_GHZ / rate;
 
 	/* Baudrate */
 	val = rate / (2 * t->rate);

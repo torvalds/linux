@@ -31,6 +31,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 
 #define DRIVER_NAME "nmk-i2c"
 
@@ -419,10 +420,10 @@ static void setup_i2c_controller(struct nmk_i2c_dev *priv)
 	 * modes are 250ns, 100ns, 10ns respectively.
 	 *
 	 * As the time for one cycle T in nanoseconds is
-	 * T = (1/f) * 1000000000 =>
-	 * slsu = cycles / (1000000000 / f) + 1
+	 * T = (1/f) * HZ_PER_GHZ =>
+	 * slsu = cycles / (HZ_PER_GHZ / f) + 1
 	 */
-	ns = DIV_ROUND_UP_ULL(1000000000ULL, i2c_clk);
+	ns = DIV_ROUND_UP(HZ_PER_GHZ, i2c_clk);
 	switch (priv->sm) {
 	case I2C_FREQ_MODE_FAST:
 	case I2C_FREQ_MODE_FAST_PLUS:

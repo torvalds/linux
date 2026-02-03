@@ -569,24 +569,17 @@ config I2C_DESIGNWARE_CORE
 	help
 	  This option enables support for the Synopsys DesignWare I2C adapter.
 	  This driver includes support for the I2C host on the Synopsys
-	  Designware I2C adapter.
+	  Designware I2C adapter, and the I2C slave when enabled (select
+	  I2C_SLAVE).
 
 	  To compile the driver as a module, choose M here: the module will be
 	  called i2c-designware-core.
 
 if I2C_DESIGNWARE_CORE
 
-config I2C_DESIGNWARE_SLAVE
-	bool "Synopsys DesignWare Slave"
-	select I2C_SLAVE
-	help
-	  If you say yes to this option, support will be included for the
-	  Synopsys DesignWare I2C slave adapter.
-
 config I2C_DESIGNWARE_PLATFORM
 	tristate "Synopsys DesignWare Platform driver"
 	depends on (ACPI && COMMON_CLK) || !ACPI
-	select MFD_SYSCON if MIPS_BAIKAL_T1
 	default I2C_DESIGNWARE_CORE
 	help
 	  If you say yes to this option, support will be included for the

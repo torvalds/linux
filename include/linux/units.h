@@ -25,9 +25,12 @@
 #define MICROHZ_PER_HZ		1000000UL
 #define MILLIHZ_PER_HZ		1000UL
 
+/* Hz based multipliers */
 #define HZ_PER_KHZ		1000UL
 #define HZ_PER_MHZ		1000000UL
+#define HZ_PER_GHZ		1000000000UL
 
+/* kHz based multipliers */
 #define KHZ_PER_MHZ		1000UL
 #define KHZ_PER_GHZ		1000000UL
 
