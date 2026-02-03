@@ -1,3 +1,10 @@
+ARCH ?= $(shell uname -m)
+
+ifeq (,$(filter $(ARCH),arm64 x86_64))
+# Do nothing on unsupported architectures
+include ../lib.mk
+else
+
 CFLAGS = $(KHDR_INCLUDES)
 TEST_GEN_PROGS += vfio_dma_mapping_test
 TEST_GEN_PROGS += vfio_dma_mapping_mmio_test
@@ -28,3 +35,5 @@ TEST_DEP_FILES = $(patsubst %.o, %.d, $(TEST_GEN_PROGS_O) $(LIBVFIO_O))
 -include $(TEST_DEP_FILES)
 
 EXTRA_CLEAN += $(TEST_GEN_PROGS_O) $(TEST_DEP_FILES)
+
+endif
