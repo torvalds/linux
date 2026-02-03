@@ -283,14 +283,14 @@ static const struct regmap_config rk_spdif_regmap_config = {
 static int rk_spdif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
+	enum rk_spdif_type spdif_type;
 	struct rk_spdif_dev *spdif;
-	const struct of_device_id *match;
 	struct resource *res;
 	void __iomem *regs;
 	int ret;
 
-	match = of_match_node(rk_spdif_match, np);
-	if (match->data == (void *)RK_SPDIF_RK3288) {
+	spdif_type = (uintptr_t) device_get_match_data(&pdev->dev);
+	if (spdif_type == RK_SPDIF_RK3288) {
 		struct regmap *grf;
 
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
