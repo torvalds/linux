@@ -4134,12 +4134,6 @@ static int __stmmac_open(struct net_device *dev,
 
 	stmmac_reset_queues_param(priv);
 
-	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)) {
-		ret = stmmac_legacy_serdes_power_up(priv);
-		if (ret < 0)
-			return ret;
-	}
-
 	ret = stmmac_hw_setup(dev);
 	if (ret < 0) {
 		netdev_err(priv->dev, "%s: Hw setup failed\n", __func__);
@@ -4170,7 +4164,6 @@ irq_error:
 
 	stmmac_release_ptp(priv);
 init_error:
-	stmmac_legacy_serdes_power_down(priv);
 	return ret;
 }
 
@@ -4196,9 +4189,15 @@ static int stmmac_open(struct net_device *dev)
 	if (ret)
 		goto err_runtime_pm;
 
+	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)) {
+		ret = stmmac_legacy_serdes_power_up(priv);
+		if (ret < 0)
+			goto err_disconnect_phy;
+	}
+
 	ret = __stmmac_open(dev, dma_conf);
 	if (ret)
-		goto err_disconnect_phy;
+		goto err_serdes;
 
 	kfree(dma_conf);
 
@@ -4207,6 +4206,8 @@ static int stmmac_open(struct net_device *dev)
 
 	return ret;
 
+err_serdes:
+	stmmac_legacy_serdes_power_down(priv);
 err_disconnect_phy:
 	phylink_disconnect_phy(priv->phylink);
 err_runtime_pm:
@@ -4241,9 +4242,6 @@ static void __stmmac_release(struct net_device *dev)
 	/* Release and free the Rx/Tx resources */
 	free_dma_desc_resources(priv, &priv->dma_conf);
 
-	/* Powerdown Serdes if there is */
-	stmmac_legacy_serdes_power_down(priv);
-
 	stmmac_release_ptp(priv);
 
 	if (stmmac_fpe_supported(priv))
@@ -4269,6 +4267,7 @@ static int stmmac_release(struct net_device *dev)
 
 	__stmmac_release(dev);
 
+	stmmac_legacy_serdes_power_down(priv);
 	phylink_disconnect_phy(priv->phylink);
 	pm_runtime_put(priv->device);
 
