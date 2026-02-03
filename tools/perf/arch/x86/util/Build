@@ -1,7 +1,6 @@
 perf-util-y += header.o
 perf-util-y += tsc.o
 perf-util-y += pmu.o
-perf-util-y += perf_regs.o
 perf-util-y += topdown.o
 perf-util-y += machine.o
 perf-util-y += event.o

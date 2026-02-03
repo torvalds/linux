@@ -7,10 +7,29 @@
 #include "util/sample.h"
 #include "debug.h"
 
-int __weak arch_sdt_arg_parse_op(char *old_op __maybe_unused,
-				 char **new_op __maybe_unused)
+int perf_sdt_arg_parse_op(uint16_t e_machine, char *old_op, char **new_op)
 {
-	return SDT_ARG_SKIP;
+	int ret = SDT_ARG_SKIP;
+
+	switch (e_machine) {
+	case EM_AARCH64:
+		ret = __perf_sdt_arg_parse_op_arm64(old_op, new_op);
+		break;
+	case EM_PPC:
+	case EM_PPC64:
+		ret = __perf_sdt_arg_parse_op_powerpc(old_op, new_op);
+		break;
+	case EM_386:
+	case EM_X86_64:
+		ret = __perf_sdt_arg_parse_op_x86(old_op, new_op);
+		break;
+	default:
+		pr_debug("Unknown ELF machine %d, standard arguments parse will be skipped.\n",
+			 e_machine);
+		break;
+	}
+
+	return ret;
 }
 
 uint64_t perf_intr_reg_mask(uint16_t e_machine)
