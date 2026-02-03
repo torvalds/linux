@@ -6118,16 +6118,11 @@ static void tcp_new_space(struct sock *sk)
  *    small enough that tcp_stream_memory_free() decides it
  *    is time to generate EPOLLOUT.
  */
-void tcp_check_space(struct sock *sk)
+void __tcp_check_space(struct sock *sk)
 {
-	/* pairs with tcp_poll() */
-	smp_mb();
-	if (sk->sk_socket &&
-	    test_bit(SOCK_NOSPACE, &sk->sk_socket->flags)) {
-		tcp_new_space(sk);
-		if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
-			tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
-	}
+	tcp_new_space(sk);
+	if (!test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
 }
 
 static inline void tcp_data_snd_check(struct sock *sk)

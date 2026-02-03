@@ -763,7 +763,15 @@ void tcp_synack_rtt_meas(struct sock *sk, struct request_sock *req);
 void tcp_done_with_error(struct sock *sk, int err);
 void tcp_reset(struct sock *sk, struct sk_buff *skb);
 void tcp_fin(struct sock *sk);
-void tcp_check_space(struct sock *sk);
+void __tcp_check_space(struct sock *sk);
+static inline void tcp_check_space(struct sock *sk)
+{
+	/* pairs with tcp_poll() */
+	smp_mb();
+
+	if (sk->sk_socket && test_bit(SOCK_NOSPACE, &sk->sk_socket->flags))
+		__tcp_check_space(sk);
+}
 void tcp_sack_compress_send_ack(struct sock *sk);
 
 static inline void tcp_cleanup_skb(struct sk_buff *skb)
