@@ -1574,7 +1574,7 @@ static inline bool mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 				      struct mlx5e_rq *rq,
 				      struct sk_buff *skb)
 {
-	u8 lro_num_seg = be32_to_cpu(cqe->srqn) >> 24;
+	u8 lro_num_seg = get_cqe_lro_num_seg(cqe);
 	struct mlx5e_rq_stats *stats = rq->stats;
 	struct net_device *netdev = rq->netdev;
 
@@ -2057,6 +2057,15 @@ mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *w
 	u16 linear_data_len;
 	u16 linear_hr;
 	void *va;
+
+	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
+		u8 lro_num_seg = get_cqe_lro_num_seg(cqe);
+
+		if (lro_num_seg <= 1) {
+			rq->stats->oversize_pkts_sw_drop++;
+			return NULL;
+		}
+	}
 
 	prog = rcu_dereference(rq->xdp_prog);
 

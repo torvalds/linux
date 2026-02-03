@@ -4716,7 +4716,6 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_params new_params;
 	struct mlx5e_params *params;
-	bool reset = true;
 	int err = 0;
 
 	mutex_lock(&priv->state_lock);
@@ -4742,28 +4741,8 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		goto out;
 	}
 
-	if (params->packet_merge.type == MLX5E_PACKET_MERGE_LRO)
-		reset = false;
-
-	if (params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
-	    params->packet_merge.type != MLX5E_PACKET_MERGE_SHAMPO) {
-		bool is_linear_old = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev, params, NULL);
-		bool is_linear_new = mlx5e_rx_mpwqe_is_linear_skb(priv->mdev,
-								  &new_params, NULL);
-		u8 sz_old = mlx5e_mpwqe_get_log_rq_size(priv->mdev, params, NULL);
-		u8 sz_new = mlx5e_mpwqe_get_log_rq_size(priv->mdev, &new_params, NULL);
-
-		/* Always reset in linear mode - hw_mtu is used in data path.
-		 * Check that the mode was non-linear and didn't change.
-		 * If XSK is active, XSK RQs are linear.
-		 * Reset if the RQ size changed, even if it's non-linear.
-		 */
-		if (!is_linear_old && !is_linear_new && !priv->xsk.refcnt &&
-		    sz_old == sz_new)
-			reset = false;
-	}
-
-	err = mlx5e_safe_switch_params(priv, &new_params, preactivate, NULL, reset);
+	err = mlx5e_safe_switch_params(priv, &new_params, preactivate, NULL,
+				       true);
 
 out:
 	WRITE_ONCE(netdev->mtu, params->sw_mtu);
