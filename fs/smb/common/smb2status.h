@@ -9,6 +9,9 @@
  *
  */
 
+#ifndef FS_SMB_COMMON_SMB2STATUS_H
+#define FS_SMB_COMMON_SMB2STATUS_H
+
 /*
  *  0 1 2 3 4 5 6 7 8 9 0 A B C D E F 0 1 2 3 4 5 6 7 8 9 A B C D E F
  *  SEV C N <-------Facility--------> <------Error Status Code------>
@@ -1782,3 +1785,5 @@ struct ntstatus {
 #define STATUS_IPSEC_CLEAR_TEXT_DROP		cpu_to_le32(0xC0360007) // -EIO
 /* See MS-SMB2 3.3.5.4 */
 #define STATUS_SMB_NO_PREAUTH_INTEGRITY_HASH_OVERLAP cpu_to_le32(0xC05D0000) // -EIO
+
+#endif /* FS_SMB_COMMON_SMB2STATUS_H */
