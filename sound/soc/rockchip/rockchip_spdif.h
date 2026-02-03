@@ -21,6 +21,10 @@
 #define SPDIF_CFGR_CLR_EN		BIT(7)
 #define SPDIF_CFGR_CLR_DIS		0
 
+#define SPDIF_CFGR_CSE_MASK		BIT(6)
+#define SPDIF_CFGR_CSE_EN		BIT(6)
+#define SPDIF_CFGR_CSE_DIS		0
+
 #define SPDIF_CFGR_ADJ_MASK		BIT(3)
 #define SPDIF_CFGR_ADJ_LEFT_J		BIT(3)
 #define SPDIF_CFGR_ADJ_RIGHT_J		0
@@ -64,5 +68,9 @@
 #define SPDIF_INTSR	(0x0010)
 #define SPDIF_XFER	(0x0018)
 #define SPDIF_SMPDR	(0x0020)
+#define SPDIF_VLDFRn(x)	(0x0060 + (x) * 4)
+#define SPDIF_USRDRn(x)	(0x0090 + (x) * 4)
+#define SPDIF_CHNSRn(x)	(0x00c0 + (x) * 4)
+#define SPDIF_VERSION	(0x01c0)
 
 #endif /* _ROCKCHIP_SPDIF_H */
