@@ -438,7 +438,7 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, mdpll);
 
 	/* Multiple mdev instances might share one DPLL device. */
-	mdpll->dpll = dpll_device_get(clock_id, 0, THIS_MODULE);
+	mdpll->dpll = dpll_device_get(clock_id, 0, THIS_MODULE, NULL);
 	if (IS_ERR(mdpll->dpll)) {
 		err = PTR_ERR(mdpll->dpll);
 		goto err_free_mdpll;
@@ -451,7 +451,8 @@ static int mlx5_dpll_probe(struct auxiliary_device *adev,
 
 	/* Multiple mdev instances might share one DPLL pin. */
 	mdpll->dpll_pin = dpll_pin_get(clock_id, mlx5_get_dev_index(mdev),
-				       THIS_MODULE, &mlx5_dpll_pin_properties);
+				       THIS_MODULE, &mlx5_dpll_pin_properties,
+				       NULL);
 	if (IS_ERR(mdpll->dpll_pin)) {
 		err = PTR_ERR(mdpll->dpll_pin);
 		goto err_unregister_dpll_device;
@@ -479,11 +480,11 @@ err_unregister_dpll_pin:
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,
 			    &mlx5_dpll_pins_ops, mdpll);
 err_put_dpll_pin:
-	dpll_pin_put(mdpll->dpll_pin);
+	dpll_pin_put(mdpll->dpll_pin, NULL);
 err_unregister_dpll_device:
 	dpll_device_unregister(mdpll->dpll, &mlx5_dpll_device_ops, mdpll);
 err_put_dpll_device:
-	dpll_device_put(mdpll->dpll);
+	dpll_device_put(mdpll->dpll, NULL);
 err_free_mdpll:
 	kfree(mdpll);
 	return err;
@@ -499,9 +500,9 @@ static void mlx5_dpll_remove(struct auxiliary_device *adev)
 	destroy_workqueue(mdpll->wq);
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,
 			    &mlx5_dpll_pins_ops, mdpll);
-	dpll_pin_put(mdpll->dpll_pin);
+	dpll_pin_put(mdpll->dpll_pin, NULL);
 	dpll_device_unregister(mdpll->dpll, &mlx5_dpll_device_ops, mdpll);
-	dpll_device_put(mdpll->dpll);
+	dpll_device_put(mdpll->dpll, NULL);
 	kfree(mdpll);
 
 	mlx5_dpll_synce_status_set(mdev,
