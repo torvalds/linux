@@ -9,7 +9,12 @@
 #include "../perf_regs.h"
 #undef __CSKYABIV2__
 #define __CSKYABIV2__ 1  // Always want the V2 register definitions.
-#include "../../arch/csky/include/uapi/asm/perf_regs.h"
+#include "../../arch/csky/include/perf_regs.h"
+
+uint64_t __perf_reg_mask_csky(bool intr __maybe_unused)
+{
+	return PERF_REGS_MASK;
+}
 
 const char *__perf_reg_name_csky(int id, uint32_t e_flags)
 {

@@ -1,7 +1,58 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
+#include <regex.h>
+#include <string.h>
+#include <sys/auxv.h>
+#include <linux/kernel.h>
+#include <linux/zalloc.h>
 
+#include "../debug.h"
+#include "../event.h"
 #include "../perf_regs.h"
-#include "../../../arch/arm64/include/uapi/asm/perf_regs.h"
+#include "../../perf-sys.h"
+#include "../../arch/arm64/include/perf_regs.h"
+
+#define SMPL_REG_MASK(b) (1ULL << (b))
+
+#ifndef HWCAP_SVE
+#define HWCAP_SVE	(1 << 22)
+#endif
+
+uint64_t __perf_reg_mask_arm64(bool intr)
+{
+	struct perf_event_attr attr = {
+		.type                   = PERF_TYPE_HARDWARE,
+		.config                 = PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type            = PERF_SAMPLE_REGS_USER,
+		.disabled               = 1,
+		.exclude_kernel         = 1,
+		.sample_period		= 1,
+		.sample_regs_user	= PERF_REGS_MASK
+	};
+	int fd;
+
+	if (intr)
+		return PERF_REGS_MASK;
+
+	if (getauxval(AT_HWCAP) & HWCAP_SVE)
+		attr.sample_regs_user |= SMPL_REG_MASK(PERF_REG_ARM64_VG);
+
+	/*
+	 * Check if the pmu supports perf extended regs, before
+	 * returning the register mask to sample. Open the event
+	 * on the perf process to check this.
+	 */
+	if (attr.sample_regs_user != PERF_REGS_MASK) {
+		event_attr_init(&attr);
+		fd = sys_perf_event_open(&attr, /*pid=*/0, /*cpu=*/-1,
+					 /*group_fd=*/-1, /*flags=*/0);
+		if (fd != -1) {
+			close(fd);
+			return attr.sample_regs_user;
+		}
+	}
+	return PERF_REGS_MASK;
+}
 
 const char *__perf_reg_name_arm64(int id)
 {

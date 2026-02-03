@@ -1,7 +1,82 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <errno.h>
+#include <string.h>
+#include <regex.h>
+#include <linux/zalloc.h>
+
+#include "../debug.h"
+#include "../event.h"
+#include "../header.h"
 #include "../perf_regs.h"
-#include "../../../arch/powerpc/include/uapi/asm/perf_regs.h"
+#include "../../perf-sys.h"
+#include "../../arch/powerpc/util/utils_header.h"
+#include "../../arch/powerpc/include/perf_regs.h"
+
+#include <linux/kernel.h>
+
+#define PVR_POWER9		0x004E
+#define PVR_POWER10		0x0080
+#define PVR_POWER11		0x0082
+
+/*
+ * mfspr is a POWERPC specific instruction, ensure it's only
+ * built and called on POWERPC by guarding with __powerpc64__
+ * or __powerpc__.
+ */
+#if defined(__powerpc64__) && defined(__powerpc__)
+uint64_t __perf_reg_mask_powerpc(bool intr)
+{
+	struct perf_event_attr attr = {
+		.type                   = PERF_TYPE_HARDWARE,
+		.config                 = PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type            = PERF_SAMPLE_REGS_INTR,
+		.precise_ip             = 1,
+		.disabled               = 1,
+		.exclude_kernel         = 1,
+	};
+	int fd;
+	u32 version;
+	u64 extended_mask = 0, mask = PERF_REGS_MASK;
+
+	if (!intr)
+		return PERF_REGS_MASK;
+
+	/*
+	 * Get the PVR value to set the extended
+	 * mask specific to platform.
+	 */
+	version = (((mfspr(SPRN_PVR)) >>  16) & 0xFFFF);
+	if (version == PVR_POWER9)
+		extended_mask = PERF_REG_PMU_MASK_300;
+	else if ((version == PVR_POWER10) || (version == PVR_POWER11))
+		extended_mask = PERF_REG_PMU_MASK_31;
+	else
+		return mask;
+
+	attr.sample_regs_intr = extended_mask;
+	attr.sample_period = 1;
+	event_attr_init(&attr);
+
+	/*
+	 * Check if the pmu supports perf extended regs, before
+	 * returning the register mask to sample. Open the event
+	 * on the perf process to check this.
+	 */
+	fd = sys_perf_event_open(&attr, /*pid=*/0, /*cpu=*/-1,
+				 /*group_fd=*/-1, /*flags=*/0);
+	if (fd != -1) {
+		close(fd);
+		mask |= extended_mask;
+	}
+	return mask;
+}
+#else
+uint64_t __perf_reg_mask_powerpc(bool intr __maybe_unused)
+{
+	return PERF_REGS_MASK;
+}
+#endif
 
 const char *__perf_reg_name_powerpc(int id)
 {

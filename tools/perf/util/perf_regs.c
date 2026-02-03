@@ -13,14 +13,90 @@ int __weak arch_sdt_arg_parse_op(char *old_op __maybe_unused,
 	return SDT_ARG_SKIP;
 }
 
-uint64_t __weak arch__intr_reg_mask(void)
+uint64_t perf_intr_reg_mask(uint16_t e_machine)
 {
-	return 0;
+	uint64_t mask = 0;
+
+	switch (e_machine) {
+	case EM_ARM:
+		mask = __perf_reg_mask_arm(/*intr=*/true);
+		break;
+	case EM_AARCH64:
+		mask = __perf_reg_mask_arm64(/*intr=*/true);
+		break;
+	case EM_CSKY:
+		mask = __perf_reg_mask_csky(/*intr=*/true);
+		break;
+	case EM_LOONGARCH:
+		mask = __perf_reg_mask_loongarch(/*intr=*/true);
+		break;
+	case EM_MIPS:
+		mask = __perf_reg_mask_mips(/*intr=*/true);
+		break;
+	case EM_PPC:
+	case EM_PPC64:
+		mask = __perf_reg_mask_powerpc(/*intr=*/true);
+		break;
+	case EM_RISCV:
+		mask = __perf_reg_mask_riscv(/*intr=*/true);
+		break;
+	case EM_S390:
+		mask = __perf_reg_mask_s390(/*intr=*/true);
+		break;
+	case EM_386:
+	case EM_X86_64:
+		mask = __perf_reg_mask_x86(/*intr=*/true);
+		break;
+	default:
+		pr_debug("Unknown ELF machine %d, interrupt sampling register mask will be empty.\n",
+			 e_machine);
+		break;
+	}
+
+	return mask;
 }
 
-uint64_t __weak arch__user_reg_mask(void)
+uint64_t perf_user_reg_mask(uint16_t e_machine)
 {
-	return 0;
+	uint64_t mask = 0;
+
+	switch (e_machine) {
+	case EM_ARM:
+		mask = __perf_reg_mask_arm(/*intr=*/false);
+		break;
+	case EM_AARCH64:
+		mask = __perf_reg_mask_arm64(/*intr=*/false);
+		break;
+	case EM_CSKY:
+		mask = __perf_reg_mask_csky(/*intr=*/false);
+		break;
+	case EM_LOONGARCH:
+		mask = __perf_reg_mask_loongarch(/*intr=*/false);
+		break;
+	case EM_MIPS:
+		mask = __perf_reg_mask_mips(/*intr=*/false);
+		break;
+	case EM_PPC:
+	case EM_PPC64:
+		mask = __perf_reg_mask_powerpc(/*intr=*/false);
+		break;
+	case EM_RISCV:
+		mask = __perf_reg_mask_riscv(/*intr=*/false);
+		break;
+	case EM_S390:
+		mask = __perf_reg_mask_s390(/*intr=*/false);
+		break;
+	case EM_386:
+	case EM_X86_64:
+		mask = __perf_reg_mask_x86(/*intr=*/false);
+		break;
+	default:
+		pr_debug("Unknown ELF machine %d, user sampling register mask will be empty.\n",
+			 e_machine);
+		break;
+	}
+
+	return mask;
 }
 
 const char *perf_reg_name(int id, uint16_t e_machine, uint32_t e_flags)
