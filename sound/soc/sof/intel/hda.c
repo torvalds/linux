@@ -482,7 +482,7 @@ static int mclk_id_override = -1;
 module_param_named(mclk_id, mclk_id_override, int, 0444);
 MODULE_PARM_DESC(mclk_id, "SOF SSP mclk_id");
 
-static int bt_link_mask_override;
+static int bt_link_mask_override = -1;
 module_param_named(bt_link_mask, bt_link_mask_override, int, 0444);
 MODULE_PARM_DESC(bt_link_mask, "SOF BT offload link mask");
 
@@ -1532,7 +1532,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		 mach->mach_params.bt_link_mask);
 
 	/* allow for module parameter override */
-	if (bt_link_mask_override) {
+	if (bt_link_mask_override != -1) {
 		dev_dbg(sdev->dev, "overriding BT link detected in NHLT tables %#x by kernel param %#x\n",
 			mach->mach_params.bt_link_mask, bt_link_mask_override);
 		mach->mach_params.bt_link_mask = bt_link_mask_override;
