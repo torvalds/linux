@@ -27,6 +27,7 @@
 #include "core_types.h"
 #include "dcn401_dccg.h"
 #include "dcn31/dcn31_dccg.h"
+#include "dcn20/dcn20_dccg.h"
 
 /*
 #include "dmub_common.h"
@@ -861,6 +862,7 @@ static const struct dccg_funcs dccg401_funcs = {
 	.update_dpp_dto = dccg401_update_dpp_dto,
 	.get_dccg_ref_freq = dccg401_get_dccg_ref_freq,
 	.dccg_init = dccg401_init,
+	.allow_clock_gating = dccg2_allow_clock_gating,
 	.set_dpstreamclk = dccg401_set_dpstreamclk,
 	.enable_symclk32_se = dccg31_enable_symclk32_se,
 	.disable_symclk32_se = dccg31_disable_symclk32_se,

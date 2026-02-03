@@ -286,7 +286,8 @@ void dcn35_init_hw(struct dc *dc)
 	}
 
 	if (dc->debug.disable_mem_low_power) {
-		REG_UPDATE(DC_MEM_GLOBAL_PWR_REQ_CNTL, DC_MEM_GLOBAL_PWR_REQ_DIS, 1);
+		if (dc->res_pool->dccg && dc->res_pool->dccg->funcs && dc->res_pool->dccg->funcs->enable_memory_low_power)
+			dc->res_pool->dccg->funcs->enable_memory_low_power(dc->res_pool->dccg, false);
 	}
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);

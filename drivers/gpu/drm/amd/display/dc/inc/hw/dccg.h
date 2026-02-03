@@ -224,6 +224,10 @@ struct dccg_funcs {
 	void (*otg_drop_pixel)(struct dccg *dccg,
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
+	void (*refclk_setup)(struct dccg *dccg); /* Deprecated - for backward compatibility only */
+	void (*allow_clock_gating)(struct dccg *dccg, bool allow);
+	void (*enable_memory_low_power)(struct dccg *dccg, bool enable);
+	bool (*is_s0i3_golden_init_wa_done)(struct dccg *dccg);
 	void (*set_dpstreamclk_root_clock_gating)(
 			struct dccg *dccg,
 			int dp_hpo_inst,
