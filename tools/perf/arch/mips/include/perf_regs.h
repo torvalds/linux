@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 #include <linux/types.h>
-#include <asm/perf_regs.h>
+#include "../../../../arch/mips/include/uapi/asm/perf_regs.h"
 
 #define PERF_REGS_MAX PERF_REG_MIPS_MAX
 
