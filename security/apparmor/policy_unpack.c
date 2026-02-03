@@ -546,7 +546,7 @@ static int unpack_strs_table(struct aa_ext *e, const char *name, bool multi,
 			if (c <= 0) {
 				AA_DEBUG(DEBUG_UNPACK, "process_strs %d i %d pos %ld",
 					 c, i,
-					 (unsigned_long) e->pos - saved_pos);
+					 (unsigned long)(e->pos - saved_pos));
 				goto fail;
 			}
 			if (!multi && c > 1) {
