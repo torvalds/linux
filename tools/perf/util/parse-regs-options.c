@@ -66,11 +66,13 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 	if (*mode)
 		return -1;
 
-	/* str may be NULL in case no arg is passed to -I */
-	if (!str)
-		return -1;
-
 	mask = intr ? arch__intr_reg_mask() : arch__user_reg_mask();
+
+	/* str may be NULL in case no arg is passed to -I */
+	if (!str) {
+		*mode = mask;
+		return 0;
+	}
 
 	/* because str is read-only */
 	s = os = strdup(str);
@@ -104,9 +106,6 @@ __parse_regs(const struct option *opt, const char *str, int unset, bool intr)
 	}
 	ret = 0;
 
-	/* default to all possible regs */
-	if (*mode == 0)
-		*mode = mask;
 error:
 	free(os);
 	return ret;
