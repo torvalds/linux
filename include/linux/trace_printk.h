@@ -107,7 +107,6 @@ do {									\
 		__trace_printk(_THIS_IP_, fmt, ##args);			\
 } while (0)
 
-extern __printf(2, 3)
 int __trace_bprintk(unsigned long ip, const char *fmt, ...);
 
 extern __printf(2, 3)
