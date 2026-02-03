@@ -20,6 +20,12 @@ enum ice_dpll_pin_sw {
 	ICE_DPLL_PIN_SW_NUM
 };
 
+struct ice_dpll_pin_work {
+	struct work_struct work;
+	unsigned long action;
+	struct ice_dpll_pin *pin;
+};
+
 /** ice_dpll_pin - store info about pins
  * @pin: dpll pin structure
  * @pf: pointer to pf, which has registered the dpll_pin
@@ -39,6 +45,8 @@ struct ice_dpll_pin {
 	struct dpll_pin *pin;
 	struct ice_pf *pf;
 	dpll_tracker tracker;
+	struct fwnode_handle *fwnode;
+	struct notifier_block nb;
 	u8 idx;
 	u8 num_parents;
 	u8 parent_idx[ICE_DPLL_RCLK_NUM_MAX];
@@ -118,7 +126,9 @@ struct ice_dpll {
 struct ice_dplls {
 	struct kthread_worker *kworker;
 	struct kthread_delayed_work work;
+	struct workqueue_struct *wq;
 	struct mutex lock;
+	struct completion dpll_init;
 	struct ice_dpll eec;
 	struct ice_dpll pps;
 	struct ice_dpll_pin *inputs;
@@ -147,3 +157,19 @@ static inline void ice_dpll_deinit(struct ice_pf *pf) { }
 #endif
 
 #endif
+
+#define ICE_CGU_R10				0x28
+#define ICE_CGU_R10_SYNCE_CLKO_SEL		GENMASK(8, 5)
+#define ICE_CGU_R10_SYNCE_CLKODIV_M1		GENMASK(13, 9)
+#define ICE_CGU_R10_SYNCE_CLKODIV_LOAD		BIT(14)
+#define ICE_CGU_R10_SYNCE_DCK_RST		BIT(15)
+#define ICE_CGU_R10_SYNCE_ETHCLKO_SEL		GENMASK(18, 16)
+#define ICE_CGU_R10_SYNCE_ETHDIV_M1		GENMASK(23, 19)
+#define ICE_CGU_R10_SYNCE_ETHDIV_LOAD		BIT(24)
+#define ICE_CGU_R10_SYNCE_DCK2_RST		BIT(25)
+#define ICE_CGU_R10_SYNCE_S_REF_CLK		GENMASK(31, 27)
+
+#define ICE_CGU_R11				0x2C
+#define ICE_CGU_R11_SYNCE_S_BYP_CLK		GENMASK(6, 1)
+
+#define ICE_CGU_BYPASS_MUX_OFFSET_E825C		3
