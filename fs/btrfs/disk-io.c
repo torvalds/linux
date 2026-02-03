@@ -2591,7 +2591,7 @@ static int btrfs_validate_write_super(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	ret = btrfs_validate_super(fs_info, sb, -1);
-	if (ret < 0)
+	if (unlikely(ret < 0))
 		goto out;
 	if (unlikely(!btrfs_supported_super_csum(btrfs_super_csum_type(sb)))) {
 		ret = -EUCLEAN;
@@ -2608,7 +2608,7 @@ static int btrfs_validate_write_super(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 out:
-	if (ret < 0)
+	if (unlikely(ret < 0))
 		btrfs_err(fs_info,
 		"super block corruption detected before writing it to disk");
 	return ret;
@@ -3869,7 +3869,7 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 		ret = btrfs_sb_log_location(device, i, READ, &bytenr);
 		if (ret == -ENOENT) {
 			break;
-		} else if (ret < 0) {
+		} else if (unlikely(ret < 0)) {
 			errors++;
 			if (i == 0)
 				primary_failed = true;
@@ -3891,9 +3891,8 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 	}
 
 	errors += atomic_read(&device->sb_write_errors);
-	if (errors >= BTRFS_SUPER_PRIMARY_WRITE_ERROR)
-		primary_failed = true;
-	if (primary_failed) {
+
+	if (unlikely(primary_failed || errors >= BTRFS_SUPER_PRIMARY_WRITE_ERROR)) {
 		btrfs_err(device->fs_info, "error writing primary super block to device %llu",
 			  device->devid);
 		return -1;
@@ -3944,7 +3943,7 @@ static bool wait_dev_flush(struct btrfs_device *device)
 
 	wait_for_completion_io(&device->flush_wait);
 
-	if (bio->bi_status) {
+	if (unlikely(bio->bi_status)) {
 		set_bit(BTRFS_DEV_STATE_FLUSH_FAILED, &device->dev_state);
 		btrfs_dev_stat_inc_and_print(device, BTRFS_DEV_STAT_FLUSH_ERRS);
 		return true;
@@ -3982,7 +3981,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 	list_for_each_entry(dev, head, dev_list) {
 		if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
 			continue;
-		if (!dev->bdev) {
+		if (unlikely(!dev->bdev)) {
 			errors_wait++;
 			continue;
 		}
@@ -3990,7 +3989,7 @@ static int barrier_all_devices(struct btrfs_fs_info *info)
 		    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state))
 			continue;
 
-		if (wait_dev_flush(dev))
+		if (unlikely(wait_dev_flush(dev)))
 			errors_wait++;
 	}
 
@@ -4068,7 +4067,7 @@ int write_all_supers(struct btrfs_trans_handle *trans, int max_mirrors)
 
 	if (do_barriers) {
 		ret = barrier_all_devices(fs_info);
-		if (ret) {
+		if (unlikely(ret)) {
 			mutex_unlock(
 				&fs_info->fs_devices->device_list_mutex);
 			btrfs_abort_transaction(trans, ret);
@@ -4078,7 +4077,7 @@ int write_all_supers(struct btrfs_trans_handle *trans, int max_mirrors)
 	}
 
 	list_for_each_entry(dev, head, dev_list) {
-		if (!dev->bdev) {
+		if (unlikely(!dev->bdev)) {
 			total_errors++;
 			continue;
 		}
@@ -4113,7 +4112,7 @@ int write_all_supers(struct btrfs_trans_handle *trans, int max_mirrors)
 		}
 
 		ret = write_dev_supers(dev, sb, max_mirrors);
-		if (ret)
+		if (unlikely(ret))
 			total_errors++;
 	}
 	if (unlikely(total_errors > max_errors)) {
@@ -4129,14 +4128,14 @@ int write_all_supers(struct btrfs_trans_handle *trans, int max_mirrors)
 
 	total_errors = 0;
 	list_for_each_entry(dev, head, dev_list) {
-		if (!dev->bdev)
+		if (unlikely(!dev->bdev))
 			continue;
 		if (!test_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &dev->dev_state) ||
 		    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state))
 			continue;
 
 		ret = wait_dev_supers(dev, max_mirrors);
-		if (ret)
+		if (unlikely(ret))
 			total_errors++;
 	}
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
