@@ -159,7 +159,7 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 			   cq_head & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
 		if (cqe32)
-			seq_printf(m, ", extra1:%llu, extra2:%llu\n",
+			seq_printf(m, ", extra1:%llu, extra2:%llu",
 					cqe->big_cqe[0], cqe->big_cqe[1]);
 		seq_printf(m, "\n");
 		cq_head++;
