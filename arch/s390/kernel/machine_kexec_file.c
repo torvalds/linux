@@ -270,8 +270,10 @@ void *kexec_file_add_components(struct kimage *image,
 	if (image->kernel_buf_len < minsize + max_command_line_size)
 		goto out;
 
-	if (image->cmdline_buf_len >= max_command_line_size)
+	if (image->cmdline_buf_len >= max_command_line_size) {
+		pr_err("Kernel command line exceeds supported limit of %lu", max_command_line_size);
 		goto out;
+	}
 
 	memcpy(data.parm->command_line, image->cmdline_buf,
 	       image->cmdline_buf_len);
