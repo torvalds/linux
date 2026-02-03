@@ -1573,7 +1573,7 @@ static int __tcp_transmit_skb(struct sock *sk, struct sk_buff *skb,
 	 */
 	skb->pfmemalloc = 0;
 
-	skb_push(skb, tcp_header_size);
+	__skb_push(skb, tcp_header_size);
 	skb_reset_transport_header(skb);
 
 	skb_orphan(skb);
