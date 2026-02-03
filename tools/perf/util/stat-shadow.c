@@ -83,7 +83,7 @@ static int prepare_metric(struct perf_stat_config *config,
 		}
 		/* Time events are always on CPU0, the first aggregation index. */
 		aggr = &ps->aggr[is_tool_time ? tool_aggr_idx : aggr_idx];
-		if (!aggr || !metric_events[i]->supported) {
+		if (!aggr || !metric_events[i]->supported || aggr->counts.run == 0) {
 			/*
 			 * Not supported events will have a count of 0, which
 			 * can be confusing in a metric. Explicitly set the
@@ -335,14 +335,10 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
  * perf_stat__skip_metric_event - Skip the evsel in the Default metricgroup,
  *				  if it's not running or not the metric event.
  */
-bool perf_stat__skip_metric_event(struct evsel *evsel,
-				  u64 ena, u64 run)
+bool perf_stat__skip_metric_event(struct evsel *evsel)
 {
 	if (!evsel->default_metricgroup)
 		return false;
-
-	if (!ena || !run)
-		return true;
 
 	return !metricgroup__lookup(&evsel->evlist->metric_events, evsel, false);
 }
