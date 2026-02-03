@@ -1153,11 +1153,19 @@ void dm_helpers_init_panel_settings(
 
 void dm_helpers_override_panel_settings(
 	struct dc_context *ctx,
-	struct dc_panel_config *panel_config)
+	struct dc_link *link)
 {
+	unsigned int panel_inst = 0;
+
 	// Feature DSC
 	if (amdgpu_dc_debug_mask & DC_DISABLE_DSC)
-		panel_config->dsc.disable_dsc_edp = true;
+		link->panel_config.dsc.disable_dsc_edp = true;
+
+	if (dc_get_edp_link_panel_inst(ctx->dc, link, &panel_inst) && panel_inst == 1) {
+			link->panel_config.psr.disable_psr = true;
+			link->panel_config.psr.disallow_psrsu = true;;
+			link->panel_config.psr.disallow_replay = true;
+	}
 }
 
 void *dm_helpers_allocate_gpu_mem(

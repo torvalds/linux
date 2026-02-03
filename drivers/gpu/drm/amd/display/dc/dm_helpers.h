@@ -209,7 +209,7 @@ void dm_helpers_init_panel_settings(
 	struct dc_sink *sink);
 void dm_helpers_override_panel_settings(
 	struct dc_context *ctx,
-	struct dc_panel_config *config);
+	struct dc_link *link);
 int dm_helper_dmub_aux_transfer_sync(
 		struct dc_context *ctx,
 		const struct dc_link *link,
