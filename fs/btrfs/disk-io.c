@@ -2374,11 +2374,11 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	const bool ignore_flags = btrfs_test_opt(fs_info, IGNORESUPERFLAGS);
 
-	if (btrfs_super_magic(sb) != BTRFS_MAGIC) {
+	if (unlikely(btrfs_super_magic(sb) != BTRFS_MAGIC)) {
 		btrfs_err(fs_info, "no valid FS found");
 		ret = -EINVAL;
 	}
-	if ((btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP)) {
+	if (unlikely(btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP)) {
 		if (!ignore_flags) {
 			btrfs_err(fs_info,
 			"unrecognized or unsupported super flag 0x%llx",
@@ -2390,17 +2390,17 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 				   btrfs_super_flags(sb) & ~BTRFS_SUPER_FLAG_SUPP);
 		}
 	}
-	if (btrfs_super_root_level(sb) >= BTRFS_MAX_LEVEL) {
+	if (unlikely(btrfs_super_root_level(sb) >= BTRFS_MAX_LEVEL)) {
 		btrfs_err(fs_info, "tree_root level too big: %d >= %d",
 				btrfs_super_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
-	if (btrfs_super_chunk_root_level(sb) >= BTRFS_MAX_LEVEL) {
+	if (unlikely(btrfs_super_chunk_root_level(sb) >= BTRFS_MAX_LEVEL)) {
 		btrfs_err(fs_info, "chunk_root level too big: %d >= %d",
 				btrfs_super_chunk_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
 	}
-	if (btrfs_super_log_root_level(sb) >= BTRFS_MAX_LEVEL) {
+	if (unlikely(btrfs_super_log_root_level(sb) >= BTRFS_MAX_LEVEL)) {
 		btrfs_err(fs_info, "log_root level too big: %d >= %d",
 				btrfs_super_log_root_level(sb), BTRFS_MAX_LEVEL);
 		ret = -EINVAL;
@@ -2410,65 +2410,65 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 	 * Check sectorsize and nodesize first, other check will need it.
 	 * Check all possible sectorsize(4K, 8K, 16K, 32K, 64K) here.
 	 */
-	if (!is_power_of_2(sectorsize) || sectorsize < BTRFS_MIN_BLOCKSIZE ||
-	    sectorsize > BTRFS_MAX_METADATA_BLOCKSIZE) {
+	if (unlikely(!is_power_of_2(sectorsize) || sectorsize < BTRFS_MIN_BLOCKSIZE ||
+		     sectorsize > BTRFS_MAX_METADATA_BLOCKSIZE)) {
 		btrfs_err(fs_info, "invalid sectorsize %llu", sectorsize);
 		ret = -EINVAL;
 	}
 
-	if (!btrfs_supported_blocksize(sectorsize)) {
+	if (unlikely(!btrfs_supported_blocksize(sectorsize))) {
 		btrfs_err(fs_info,
 			"sectorsize %llu not yet supported for page size %lu",
 			sectorsize, PAGE_SIZE);
 		ret = -EINVAL;
 	}
 
-	if (!is_power_of_2(nodesize) || nodesize < sectorsize ||
-	    nodesize > BTRFS_MAX_METADATA_BLOCKSIZE) {
+	if (unlikely(!is_power_of_2(nodesize) || nodesize < sectorsize ||
+		     nodesize > BTRFS_MAX_METADATA_BLOCKSIZE)) {
 		btrfs_err(fs_info, "invalid nodesize %llu", nodesize);
 		ret = -EINVAL;
 	}
-	if (nodesize != le32_to_cpu(sb->__unused_leafsize)) {
+	if (unlikely(nodesize != le32_to_cpu(sb->__unused_leafsize))) {
 		btrfs_err(fs_info, "invalid leafsize %u, should be %llu",
 			  le32_to_cpu(sb->__unused_leafsize), nodesize);
 		ret = -EINVAL;
 	}
 
 	/* Root alignment check */
-	if (!IS_ALIGNED(btrfs_super_root(sb), sectorsize)) {
+	if (unlikely(!IS_ALIGNED(btrfs_super_root(sb), sectorsize))) {
 		btrfs_err(fs_info, "tree_root block unaligned: %llu",
 			  btrfs_super_root(sb));
 		ret = -EINVAL;
 	}
-	if (!IS_ALIGNED(btrfs_super_chunk_root(sb), sectorsize)) {
+	if (unlikely(!IS_ALIGNED(btrfs_super_chunk_root(sb), sectorsize))) {
 		btrfs_err(fs_info, "chunk_root block unaligned: %llu",
 			   btrfs_super_chunk_root(sb));
 		ret = -EINVAL;
 	}
-	if (!IS_ALIGNED(btrfs_super_log_root(sb), sectorsize)) {
+	if (unlikely(!IS_ALIGNED(btrfs_super_log_root(sb), sectorsize))) {
 		btrfs_err(fs_info, "log_root block unaligned: %llu",
 			  btrfs_super_log_root(sb));
 		ret = -EINVAL;
 	}
 
-	if (!fs_info->fs_devices->temp_fsid &&
-	    memcmp(fs_info->fs_devices->fsid, sb->fsid, BTRFS_FSID_SIZE) != 0) {
+	if (unlikely(!fs_info->fs_devices->temp_fsid &&
+		     memcmp(fs_info->fs_devices->fsid, sb->fsid, BTRFS_FSID_SIZE) != 0)) {
 		btrfs_err(fs_info,
 		"superblock fsid doesn't match fsid of fs_devices: %pU != %pU",
 			  sb->fsid, fs_info->fs_devices->fsid);
 		ret = -EINVAL;
 	}
 
-	if (memcmp(fs_info->fs_devices->metadata_uuid, btrfs_sb_fsid_ptr(sb),
-		   BTRFS_FSID_SIZE) != 0) {
+	if (unlikely(memcmp(fs_info->fs_devices->metadata_uuid, btrfs_sb_fsid_ptr(sb),
+			    BTRFS_FSID_SIZE) != 0)) {
 		btrfs_err(fs_info,
 "superblock metadata_uuid doesn't match metadata uuid of fs_devices: %pU != %pU",
 			  btrfs_sb_fsid_ptr(sb), fs_info->fs_devices->metadata_uuid);
 		ret = -EINVAL;
 	}
 
-	if (memcmp(fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid,
-		   BTRFS_FSID_SIZE) != 0) {
+	if (unlikely(memcmp(fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid,
+			    BTRFS_FSID_SIZE) != 0)) {
 		btrfs_err(fs_info,
 			"dev_item UUID does not match metadata fsid: %pU != %pU",
 			fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid);
@@ -2479,9 +2479,9 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 	 * Artificial requirement for block-group-tree to force newer features
 	 * (free-space-tree, no-holes) so the test matrix is smaller.
 	 */
-	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE) &&
-	    (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID) ||
-	     !btrfs_fs_incompat(fs_info, NO_HOLES))) {
+	if (unlikely(btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE) &&
+		     (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID) ||
+		      !btrfs_fs_incompat(fs_info, NO_HOLES)))) {
 		btrfs_err(fs_info,
 		"block-group-tree feature requires free-space-tree and no-holes");
 		ret = -EINVAL;
@@ -2492,25 +2492,25 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 		 * Reduce test matrix for remap tree by requiring block-group-tree
 		 * and no-holes. Free-space-tree is a hard requirement.
 		 */
-		if (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID) ||
-		    !btrfs_fs_incompat(fs_info, NO_HOLES) ||
-		    !btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE)) {
+		if (unlikely(!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID) ||
+			     !btrfs_fs_incompat(fs_info, NO_HOLES) ||
+			     !btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE))) {
 			btrfs_err(fs_info,
 "remap-tree feature requires free-space-tree, no-holes, and block-group-tree");
 			ret = -EINVAL;
 		}
 
-		if (btrfs_fs_incompat(fs_info, MIXED_GROUPS)) {
+		if (unlikely(btrfs_fs_incompat(fs_info, MIXED_GROUPS))) {
 			btrfs_err(fs_info, "remap-tree not supported with mixed-bg");
 			ret = -EINVAL;
 		}
 
-		if (btrfs_fs_incompat(fs_info, ZONED)) {
+		if (unlikely(btrfs_fs_incompat(fs_info, ZONED))) {
 			btrfs_err(fs_info, "remap-tree not supported with zoned devices");
 			ret = -EINVAL;
 		}
 
-		if (sectorsize > PAGE_SIZE) {
+		if (unlikely(sectorsize > PAGE_SIZE)) {
 			btrfs_err(fs_info, "remap-tree not supported when block size > page size");
 			ret = -EINVAL;
 		}
@@ -2520,32 +2520,32 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 	 * Hint to catch really bogus numbers, bitflips or so, more exact checks are
 	 * done later
 	 */
-	if (btrfs_super_bytes_used(sb) < 6 * btrfs_super_nodesize(sb)) {
+	if (unlikely(btrfs_super_bytes_used(sb) < 6 * btrfs_super_nodesize(sb))) {
 		btrfs_err(fs_info, "bytes_used is too small %llu",
 			  btrfs_super_bytes_used(sb));
 		ret = -EINVAL;
 	}
-	if (!is_power_of_2(btrfs_super_stripesize(sb))) {
+	if (unlikely(!is_power_of_2(btrfs_super_stripesize(sb)))) {
 		btrfs_err(fs_info, "invalid stripesize %u",
 			  btrfs_super_stripesize(sb));
 		ret = -EINVAL;
 	}
-	if (btrfs_super_num_devices(sb) > (1UL << 31))
+	if (unlikely(btrfs_super_num_devices(sb) > (1UL << 31)))
 		btrfs_warn(fs_info, "suspicious number of devices: %llu",
 			   btrfs_super_num_devices(sb));
-	if (btrfs_super_num_devices(sb) == 0) {
+	if (unlikely(btrfs_super_num_devices(sb) == 0)) {
 		btrfs_err(fs_info, "number of devices is 0");
 		ret = -EINVAL;
 	}
 
-	if (mirror_num >= 0 &&
-	    btrfs_super_bytenr(sb) != btrfs_sb_offset(mirror_num)) {
+	if (unlikely(mirror_num >= 0 &&
+		     btrfs_super_bytenr(sb) != btrfs_sb_offset(mirror_num))) {
 		btrfs_err(fs_info, "super offset mismatch %llu != %llu",
 			  btrfs_super_bytenr(sb), btrfs_sb_offset(mirror_num));
 		ret = -EINVAL;
 	}
 
-	if (ret)
+	if (unlikely(ret))
 		return ret;
 
 	ret = validate_sys_chunk_array(fs_info, sb);
@@ -2554,13 +2554,13 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 	 * The generation is a global counter, we'll trust it more than the others
 	 * but it's still possible that it's the one that's wrong.
 	 */
-	if (btrfs_super_generation(sb) < btrfs_super_chunk_root_generation(sb))
+	if (unlikely(btrfs_super_generation(sb) < btrfs_super_chunk_root_generation(sb)))
 		btrfs_warn(fs_info,
 			"suspicious: generation < chunk_root_generation: %llu < %llu",
 			btrfs_super_generation(sb),
 			btrfs_super_chunk_root_generation(sb));
-	if (btrfs_super_generation(sb) < btrfs_super_cache_generation(sb)
-	    && btrfs_super_cache_generation(sb) != (u64)-1)
+	if (unlikely(btrfs_super_generation(sb) < btrfs_super_cache_generation(sb) &&
+		     btrfs_super_cache_generation(sb) != (u64)-1))
 		btrfs_warn(fs_info,
 			"suspicious: generation < cache_generation: %llu < %llu",
 			btrfs_super_generation(sb),
