@@ -159,6 +159,13 @@ static inline bool inet_sk_bound_dev_eq(const struct net *net,
 #endif
 }
 
+struct inet6_cork {
+	struct ipv6_txoptions *opt;
+	u8 hop_limit;
+	u8 tclass;
+	u8 dontfrag:1;
+};
+
 struct inet_cork {
 	unsigned int		flags;
 	__be32			addr;
@@ -179,6 +186,9 @@ struct inet_cork {
 struct inet_cork_full {
 	struct inet_cork	base;
 	struct flowi		fl;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct inet6_cork	base6;
+#endif
 };
 
 struct ip_mc_socklist;
