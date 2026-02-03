@@ -140,10 +140,10 @@ bool kvm_entry_event(struct evsel *evsel);
 /*
  * arch specific callbacks and data structures
  */
-int setup_kvm_events_tp(struct perf_kvm_stat *kvm);
+int setup_kvm_events_tp(struct perf_kvm_stat *kvm, uint16_t e_machine);
 int __setup_kvm_events_tp_powerpc(struct perf_kvm_stat *kvm);
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid);
+int cpu_isa_init(struct perf_kvm_stat *kvm, uint16_t e_machine, const char *cpuid);
 int __cpu_isa_init_arm64(struct perf_kvm_stat *kvm);
 int __cpu_isa_init_loongarch(struct perf_kvm_stat *kvm);
 int __cpu_isa_init_powerpc(struct perf_kvm_stat *kvm);
@@ -151,12 +151,12 @@ int __cpu_isa_init_riscv(struct perf_kvm_stat *kvm);
 int __cpu_isa_init_s390(struct perf_kvm_stat *kvm, const char *cpuid);
 int __cpu_isa_init_x86(struct perf_kvm_stat *kvm, const char *cpuid);
 
-const char *vcpu_id_str(void);
-const char *kvm_exit_reason(void);
-const char *kvm_entry_trace(void);
-const char *kvm_exit_trace(void);
+const char *vcpu_id_str(uint16_t e_machine);
+const char *kvm_exit_reason(uint16_t e_machine);
+const char *kvm_entry_trace(uint16_t e_machine);
+const char *kvm_exit_trace(uint16_t e_machine);
 
-const char * const *kvm_events_tp(void);
+const char * const *kvm_events_tp(uint16_t e_machine);
 const char * const *__kvm_events_tp_arm64(void);
 const char * const *__kvm_events_tp_loongarch(void);
 const char * const *__kvm_events_tp_powerpc(void);
@@ -164,7 +164,7 @@ const char * const *__kvm_events_tp_riscv(void);
 const char * const *__kvm_events_tp_s390(void);
 const char * const *__kvm_events_tp_x86(void);
 
-const struct kvm_reg_events_ops *kvm_reg_events_ops(void);
+const struct kvm_reg_events_ops *kvm_reg_events_ops(uint16_t e_machine);
 const struct kvm_reg_events_ops *__kvm_reg_events_ops_arm64(void);
 const struct kvm_reg_events_ops *__kvm_reg_events_ops_loongarch(void);
 const struct kvm_reg_events_ops *__kvm_reg_events_ops_powerpc(void);
@@ -172,7 +172,7 @@ const struct kvm_reg_events_ops *__kvm_reg_events_ops_riscv(void);
 const struct kvm_reg_events_ops *__kvm_reg_events_ops_s390(void);
 const struct kvm_reg_events_ops *__kvm_reg_events_ops_x86(void);
 
-const char * const *kvm_skip_events(void);
+const char * const *kvm_skip_events(uint16_t e_machine);
 const char * const *__kvm_skip_events_arm64(void);
 const char * const *__kvm_skip_events_loongarch(void);
 const char * const *__kvm_skip_events_powerpc(void);
@@ -180,13 +180,14 @@ const char * const *__kvm_skip_events_riscv(void);
 const char * const *__kvm_skip_events_s390(void);
 const char * const *__kvm_skip_events_x86(void);
 
-int kvm_add_default_arch_event(int *argc, const char **argv);
+int kvm_add_default_arch_event(uint16_t e_machine, int *argc, const char **argv);
 int __kvm_add_default_arch_event_powerpc(int *argc, const char **argv);
 int __kvm_add_default_arch_event_x86(int *argc, const char **argv);
 
 #else /* !HAVE_LIBTRACEEVENT */
 
-static inline int kvm_add_default_arch_event(int *argc __maybe_unused,
+static inline int kvm_add_default_arch_event(uint16_t e_machine __maybe_unused,
+					     int *argc __maybe_unused,
 					     const char **argv __maybe_unused)
 {
 	return 0;

@@ -27,7 +27,7 @@ static void event_get_key(struct evsel *evsel,
 	int xlen = 64; // TODO: 32-bit support.
 
 	key->info = 0;
-	key->key = evsel__intval(evsel, sample, kvm_exit_reason()) & ~CAUSE_IRQ_FLAG(xlen);
+	key->key = evsel__intval(evsel, sample, kvm_exit_reason(EM_RISCV)) & ~CAUSE_IRQ_FLAG(xlen);
 	key->exit_reasons = riscv_exit_reasons;
 }
 
@@ -35,14 +35,14 @@ static bool event_begin(struct evsel *evsel,
 			struct perf_sample *sample __maybe_unused,
 			struct event_key *key __maybe_unused)
 {
-	return evsel__name_is(evsel, kvm_entry_trace());
+	return evsel__name_is(evsel, kvm_entry_trace(EM_RISCV));
 }
 
 static bool event_end(struct evsel *evsel,
 		      struct perf_sample *sample,
 		      struct event_key *key)
 {
-	if (evsel__name_is(evsel, kvm_exit_trace())) {
+	if (evsel__name_is(evsel, kvm_exit_trace(EM_RISCV))) {
 		event_get_key(evsel, sample, key);
 		return true;
 	}

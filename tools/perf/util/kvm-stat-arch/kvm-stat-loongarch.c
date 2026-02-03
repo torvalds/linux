@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <memory.h>
+#include <dwarf-regs.h>
 #include "../kvm-stat.h"
 #include "../parse-events.h"
 #include "../debug.h"
@@ -70,7 +71,7 @@ static bool event_end(struct evsel *evsel,
 	 *   kvm:kvm_enter   means returning to vmm and then to guest
 	 *   kvm:kvm_reenter means returning to guest immediately
 	 */
-	return evsel__name_is(evsel, kvm_entry_trace()) ||
+	return evsel__name_is(evsel, kvm_entry_trace(EM_LOONGARCH)) ||
 	       evsel__name_is(evsel, kvm_reenter_trace);
 }
 

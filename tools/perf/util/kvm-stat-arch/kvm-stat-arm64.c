@@ -22,7 +22,7 @@ static void event_get_key(struct evsel *evsel,
 			  struct event_key *key)
 {
 	key->info = 0;
-	key->key = evsel__intval(evsel, sample, kvm_exit_reason());
+	key->key = evsel__intval(evsel, sample, kvm_exit_reason(EM_AARCH64));
 	key->exit_reasons = arm64_exit_reasons;
 
 	/*
@@ -40,14 +40,14 @@ static bool event_begin(struct evsel *evsel,
 			struct perf_sample *sample __maybe_unused,
 			struct event_key *key __maybe_unused)
 {
-	return evsel__name_is(evsel, kvm_entry_trace());
+	return evsel__name_is(evsel, kvm_entry_trace(EM_AARCH64));
 }
 
 static bool event_end(struct evsel *evsel,
 		      struct perf_sample *sample,
 		      struct event_key *key)
 {
-	if (evsel__name_is(evsel, kvm_exit_trace())) {
+	if (evsel__name_is(evsel, kvm_exit_trace(EM_AARCH64))) {
 		event_get_key(evsel, sample, key);
 		return true;
 	}

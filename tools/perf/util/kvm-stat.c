@@ -6,7 +6,7 @@
 
 bool kvm_exit_event(struct evsel *evsel)
 {
-	return evsel__name_is(evsel, kvm_exit_trace());
+	return evsel__name_is(evsel, kvm_exit_trace(evsel__e_machine(evsel)));
 }
 
 void exit_event_get_key(struct evsel *evsel,
@@ -14,7 +14,7 @@ void exit_event_get_key(struct evsel *evsel,
 			struct event_key *key)
 {
 	key->info = 0;
-	key->key  = evsel__intval(evsel, sample, kvm_exit_reason());
+	key->key  = evsel__intval(evsel, sample, kvm_exit_reason(evsel__e_machine(evsel)));
 }
 
 
@@ -31,7 +31,7 @@ bool exit_event_begin(struct evsel *evsel,
 
 bool kvm_entry_event(struct evsel *evsel)
 {
-	return evsel__name_is(evsel, kvm_entry_trace());
+	return evsel__name_is(evsel, kvm_entry_trace(evsel__e_machine(evsel)));
 }
 
 bool exit_event_end(struct evsel *evsel,
@@ -66,9 +66,9 @@ void exit_event_decode_key(struct perf_kvm_stat *kvm,
 	scnprintf(decode, KVM_EVENT_NAME_LEN, "%s", exit_reason);
 }
 
-int setup_kvm_events_tp(struct perf_kvm_stat *kvm)
+int setup_kvm_events_tp(struct perf_kvm_stat *kvm, uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_PPC:
 	case EM_PPC64:
 		return __setup_kvm_events_tp_powerpc(kvm);
@@ -77,9 +77,9 @@ int setup_kvm_events_tp(struct perf_kvm_stat *kvm)
 	}
 }
 
-int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
+int cpu_isa_init(struct perf_kvm_stat *kvm, uint16_t e_machine, const char *cpuid)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 		return __cpu_isa_init_arm64(kvm);
 	case EM_LOONGARCH:
@@ -95,14 +95,14 @@ int cpu_isa_init(struct perf_kvm_stat *kvm, const char *cpuid)
 	case EM_386:
 		return __cpu_isa_init_x86(kvm, cpuid);
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return -1;
 	}
 }
 
-const char *vcpu_id_str(void)
+const char *vcpu_id_str(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 	case EM_RISCV:
 	case EM_S390:
@@ -114,14 +114,14 @@ const char *vcpu_id_str(void)
 	case EM_386:
 		return "vcpu_id";
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const char *kvm_exit_reason(void)
+const char *kvm_exit_reason(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 		return "ret";
 	case EM_LOONGARCH:
@@ -137,14 +137,14 @@ const char *kvm_exit_reason(void)
 	case EM_386:
 		return "exit_reason";
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const char *kvm_entry_trace(void)
+const char *kvm_entry_trace(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 	case EM_RISCV:
 	case EM_X86_64:
@@ -158,14 +158,14 @@ const char *kvm_entry_trace(void)
 	case EM_S390:
 		return "kvm:kvm_s390_sie_enter";
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const char *kvm_exit_trace(void)
+const char *kvm_exit_trace(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 	case EM_LOONGARCH:
 	case EM_RISCV:
@@ -178,14 +178,14 @@ const char *kvm_exit_trace(void)
 	case EM_S390:
 		return "kvm:kvm_s390_sie_exit";
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const char * const *kvm_events_tp(void)
+const char * const *kvm_events_tp(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 		return __kvm_events_tp_arm64();
 	case EM_LOONGARCH:
@@ -201,14 +201,14 @@ const char * const *kvm_events_tp(void)
 	case EM_386:
 		return __kvm_events_tp_x86();
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const struct kvm_reg_events_ops *kvm_reg_events_ops(void)
+const struct kvm_reg_events_ops *kvm_reg_events_ops(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 		return __kvm_reg_events_ops_arm64();
 	case EM_LOONGARCH:
@@ -224,14 +224,14 @@ const struct kvm_reg_events_ops *kvm_reg_events_ops(void)
 	case EM_386:
 		return __kvm_reg_events_ops_x86();
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-const char * const *kvm_skip_events(void)
+const char * const *kvm_skip_events(uint16_t e_machine)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_AARCH64:
 		return __kvm_skip_events_arm64();
 	case EM_LOONGARCH:
@@ -247,14 +247,14 @@ const char * const *kvm_skip_events(void)
 	case EM_386:
 		return __kvm_skip_events_x86();
 	default:
-		pr_err("Unsupported kvm-stat host %d\n", EM_HOST);
+		pr_err("Unsupported kvm-stat host %d\n", e_machine);
 		return NULL;
 	}
 }
 
-int kvm_add_default_arch_event(int *argc, const char **argv)
+int kvm_add_default_arch_event(uint16_t e_machine, int *argc, const char **argv)
 {
-	switch (EM_HOST) {
+	switch (e_machine) {
 	case EM_PPC:
 	case EM_PPC64:
 		return __kvm_add_default_arch_event_powerpc(argc, argv);
