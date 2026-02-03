@@ -209,6 +209,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 	bool new_with_sport_idx = false;
 	u32 new_peer_gen_num = 0;
 	int new_npaths;
+	bool fan_out;
 
 	new_npaths = conn->c_npaths;
 
@@ -248,7 +249,11 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 		spin_lock_irqsave(&cp0->cp_lock, flags);
 		conn->c_cp0_mprds_catchup_tx_seq = cp0->cp_next_tx_seq;
 		spin_unlock_irqrestore(&cp0->cp_lock, flags);
+		fan_out = true;
+	} else {
+		fan_out = false;
 	}
+
 	/* if RDS_EXTHDR_NPATHS was not found, default to a single-path */
 	conn->c_npaths = max_t(int, new_npaths, 1);
 
@@ -257,7 +262,7 @@ static void rds_recv_hs_exthdrs(struct rds_header *hdr,
 
 	if (conn->c_npaths > 1 &&
 	    conn->c_trans->conn_slots_available)
-		conn->c_trans->conn_slots_available(conn);
+		conn->c_trans->conn_slots_available(conn, fan_out);
 }
 
 /* rds_start_mprds() will synchronously start multiple paths when appropriate.

@@ -56,14 +56,8 @@ void rds_tcp_keepalive(struct socket *sock)
 	tcp_sock_set_keepintvl(sock->sk, keepidle);
 }
 
-/* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
- * client's ipaddr < server's ipaddr. Otherwise, close the accepted
- * socket and force a reconneect from smaller -> larger ip addr. The reason
- * we special case cp_index 0 is to allow the rds probe ping itself to itself
- * get through efficiently.
- */
-static struct rds_tcp_connection *
-rds_tcp_accept_one_path(struct rds_connection *conn, struct socket *sock)
+static int
+rds_tcp_get_peer_sport(struct socket *sock)
 {
 	union {
 		struct sockaddr_storage storage;
@@ -71,11 +65,9 @@ rds_tcp_accept_one_path(struct rds_connection *conn, struct socket *sock)
 		struct sockaddr_in sin;
 		struct sockaddr_in6 sin6;
 	} saddr;
-	int sport, npaths, i_min, i_max, i;
+	int sport;
 
-	if (conn->c_with_sport_idx &&
-	    kernel_getpeername(sock, &saddr.addr) >= 0) {
-		/* cp->cp_index is encoded in lowest bits of source-port */
+	if (kernel_getpeername(sock, &saddr.addr) >= 0) {
 		switch (saddr.addr.sa_family) {
 		case AF_INET:
 			sport = ntohs(saddr.sin.sin_port);
@@ -89,6 +81,26 @@ rds_tcp_accept_one_path(struct rds_connection *conn, struct socket *sock)
 	} else {
 		sport = -1;
 	}
+
+	return sport;
+}
+
+/* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
+ * client's ipaddr < server's ipaddr. Otherwise, close the accepted
+ * socket and force a reconneect from smaller -> larger ip addr. The reason
+ * we special case cp_index 0 is to allow the rds probe ping itself to itself
+ * get through efficiently.
+ */
+static struct rds_tcp_connection *
+rds_tcp_accept_one_path(struct rds_connection *conn, struct socket *sock)
+{
+	int sport, npaths, i_min, i_max, i;
+
+	if (conn->c_with_sport_idx)
+		/* cp->cp_index is encoded in lowest bits of source-port */
+		sport = rds_tcp_get_peer_sport(sock);
+	else
+		sport = -1;
 
 	npaths = max_t(int, 1, conn->c_npaths);
 
@@ -111,10 +123,12 @@ rds_tcp_accept_one_path(struct rds_connection *conn, struct socket *sock)
 	return NULL;
 }
 
-void rds_tcp_conn_slots_available(struct rds_connection *conn)
+void rds_tcp_conn_slots_available(struct rds_connection *conn, bool fan_out)
 {
 	struct rds_tcp_connection *tc;
 	struct rds_tcp_net *rtn;
+	struct socket *sock;
+	int sport, npaths;
 
 	if (rds_destroy_pending(conn))
 		return;
@@ -123,6 +137,21 @@ void rds_tcp_conn_slots_available(struct rds_connection *conn)
 	rtn = tc->t_rtn;
 	if (!rtn)
 		return;
+
+	sock = tc->t_sock;
+
+	/* During fan-out, check that the connection we already
+	 * accepted in slot#0 carried the proper source port modulo.
+	 */
+	if (fan_out && conn->c_with_sport_idx && sock &&
+	    rds_addr_cmp(&conn->c_laddr, &conn->c_faddr) > 0) {
+		/* cp->cp_index is encoded in lowest bits of source-port */
+		sport = rds_tcp_get_peer_sport(sock);
+		npaths = max_t(int, 1, conn->c_npaths);
+		if (sport >= 0 && sport % npaths != 0)
+			/* peer initiated with a non-#0 lane first */
+			rds_conn_path_drop(conn->c_path, 0);
+	}
 
 	/* As soon as a connection went down,
 	 * it is safe to schedule a "rds_tcp_accept_one"
