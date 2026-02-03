@@ -765,14 +765,39 @@ static void k_fn(struct vc_data *vc, unsigned char value, char up_flag)
 		pr_err("k_fn called with value=%d\n", value);
 }
 
+/*
+ * Compute xterm-style modifier parameter for CSI sequences.
+ * Returns 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0)
+ */
+static int csi_modifier_param(void)
+{
+	int mod = 1;
+
+	if (shift_state & (BIT(KG_SHIFT) | BIT(KG_SHIFTL) | BIT(KG_SHIFTR)))
+		mod += 1;
+	if (shift_state & (BIT(KG_ALT) | BIT(KG_ALTGR)))
+		mod += 2;
+	if (shift_state & (BIT(KG_CTRL) | BIT(KG_CTRLL) | BIT(KG_CTRLR)))
+		mod += 4;
+	return mod;
+}
+
 static void k_cur(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	static const char cur_chars[] = "BDCA";
+	int mod;
 
 	if (up_flag)
 		return;
 
-	applkey(vc, cur_chars[value], vc_kbd_mode(kbd, VC_CKMODE));
+	mod = csi_modifier_param();
+	if (mod > 1) {
+		char buf[] = { 0x1b, '[', '1', ';', '0' + mod, cur_chars[value], 0x00 };
+
+		puts_queue(vc, buf);
+	} else {
+		applkey(vc, cur_chars[value], vc_kbd_mode(kbd, VC_CKMODE));
+	}
 }
 
 static void k_pad(struct vc_data *vc, unsigned char value, char up_flag)
