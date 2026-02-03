@@ -41,16 +41,6 @@ void __lockfunc
 _raw_write_unlock_irqrestore(rwlock_t *lock, unsigned long flags)
 							__releases(lock);
 
-static inline bool _raw_write_trylock_irqsave(rwlock_t *lock, unsigned long *flags)
-	__cond_acquires(true, lock)
-{
-	local_irq_save(*flags);
-	if (_raw_write_trylock(lock))
-		return true;
-	local_irq_restore(*flags);
-	return false;
-}
-
 #ifdef CONFIG_INLINE_READ_LOCK
 #define _raw_read_lock(lock) __raw_read_lock(lock)
 #endif
@@ -145,6 +135,16 @@ static inline int __raw_write_trylock(rwlock_t *lock)
 	}
 	preempt_enable();
 	return 0;
+}
+
+static inline bool _raw_write_trylock_irqsave(rwlock_t *lock, unsigned long *flags)
+	__cond_acquires(true, lock) __no_context_analysis
+{
+	local_irq_save(*flags);
+	if (_raw_write_trylock(lock))
+		return true;
+	local_irq_restore(*flags);
+	return false;
 }
 
 /*
