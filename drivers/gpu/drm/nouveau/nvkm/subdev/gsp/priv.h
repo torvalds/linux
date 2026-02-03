@@ -7,9 +7,8 @@ enum nvkm_acr_lsf_id;
 
 int nvkm_gsp_fwsec_frts(struct nvkm_gsp *);
 
-int nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *);
 int nvkm_gsp_fwsec_sb(struct nvkm_gsp *);
-void nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *);
+int nvkm_gsp_fwsec_sb_init(struct nvkm_gsp *gsp);
 
 struct nvkm_gsp_fwif {
 	int version;
@@ -52,6 +51,11 @@ struct nvkm_gsp_func {
 			    struct nvkm_falcon *, struct nvkm_falcon_fw *);
 	} booter;
 
+	struct {
+		int (*ctor)(struct nvkm_gsp *);
+		void (*dtor)(struct nvkm_gsp *);
+	} fwsec_sb;
+
 	void (*dtor)(struct nvkm_gsp *);
 	int (*oneinit)(struct nvkm_gsp *);
 	int (*init)(struct nvkm_gsp *);
@@ -67,6 +71,8 @@ extern const struct nvkm_falcon_func tu102_gsp_flcn;
 extern const struct nvkm_falcon_fw_func tu102_gsp_fwsec;
 int tu102_gsp_booter_ctor(struct nvkm_gsp *, const char *, const struct firmware *,
 			  struct nvkm_falcon *, struct nvkm_falcon_fw *);
+int tu102_gsp_fwsec_sb_ctor(struct nvkm_gsp *);
+void tu102_gsp_fwsec_sb_dtor(struct nvkm_gsp *);
 int tu102_gsp_oneinit(struct nvkm_gsp *);
 int tu102_gsp_init(struct nvkm_gsp *);
 int tu102_gsp_fini(struct nvkm_gsp *, bool suspend);
@@ -90,6 +96,19 @@ int r535_gsp_fini(struct nvkm_gsp *, bool suspend);
 
 int nvkm_gsp_new_(const struct nvkm_gsp_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gsp **);
+
+static inline int nvkm_gsp_fwsec_sb_ctor(struct nvkm_gsp *gsp)
+{
+	if (gsp->func->fwsec_sb.ctor)
+		return gsp->func->fwsec_sb.ctor(gsp);
+	return 0;
+}
+
+static inline void nvkm_gsp_fwsec_sb_dtor(struct nvkm_gsp *gsp)
+{
+	if (gsp->func->fwsec_sb.dtor)
+		gsp->func->fwsec_sb.dtor(gsp);
+}
 
 extern const struct nvkm_gsp_func gv100_gsp;
 #endif

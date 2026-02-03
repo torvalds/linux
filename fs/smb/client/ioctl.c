@@ -588,6 +588,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");
+			trace_smb3_unsupported_ioctl(xid,
+				pSMBFile ? pSMBFile->fid.persistent_fid : 0,
+				command);
 			break;
 	}
 cifs_ioc_exit:

@@ -173,6 +173,11 @@ static inline struct protection_domain *to_pdomain(struct iommu_domain *dom)
 bool translation_pre_enabled(struct amd_iommu *iommu);
 int __init add_special_device(u8 type, u8 id, u32 *devid, bool cmd_line);
 
+int amd_iommu_pdom_id_alloc(void);
+int amd_iommu_pdom_id_reserve(u16 id, gfp_t gfp);
+void amd_iommu_pdom_id_free(int id);
+void amd_iommu_pdom_id_destroy(void);
+
 #ifdef CONFIG_DMI
 void amd_iommu_apply_ivrs_quirks(void);
 #else

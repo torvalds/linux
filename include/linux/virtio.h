@@ -13,6 +13,8 @@
 #include <linux/completion.h>
 #include <linux/virtio_features.h>
 
+struct module;
+
 /**
  * struct virtqueue - a queue to register buffers for sending or receiving.
  * @list: the chain of virtqueues for this device

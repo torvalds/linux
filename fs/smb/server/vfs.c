@@ -702,7 +702,7 @@ retry:
 	rd.old_parent		= NULL;
 	rd.new_parent		= new_path.dentry;
 	rd.flags		= flags;
-	rd.delegated_inode	= NULL,
+	rd.delegated_inode	= NULL;
 	err = start_renaming_dentry(&rd, lookup_flags, old_child, &new_last);
 	if (err)
 		goto out_drop_write;
@@ -1227,7 +1227,7 @@ int ksmbd_vfs_kern_path(struct ksmbd_work *work, char *filepath,
 }
 
 /**
- * ksmbd_vfs_kern_path_start_remove() - lookup a file and get path info prior to removal
+ * ksmbd_vfs_kern_path_start_removing() - lookup a file and get path info prior to removal
  * @work:		work
  * @filepath:		file path that is relative to share
  * @flags:		lookup flags

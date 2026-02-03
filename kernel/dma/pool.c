@@ -184,6 +184,12 @@ static __init struct gen_pool *__dma_atomic_pool_init(size_t pool_size,
 	return pool;
 }
 
+#ifdef CONFIG_ZONE_DMA32
+#define has_managed_dma32 has_managed_zone(ZONE_DMA32)
+#else
+#define has_managed_dma32 false
+#endif
+
 static int __init dma_atomic_pool_init(void)
 {
 	int ret = 0;
@@ -199,17 +205,20 @@ static int __init dma_atomic_pool_init(void)
 	}
 	INIT_WORK(&atomic_pool_work, atomic_pool_work_fn);
 
-	atomic_pool_kernel = __dma_atomic_pool_init(atomic_pool_size,
+	/* All memory might be in the DMA zone(s) to begin with */
+	if (has_managed_zone(ZONE_NORMAL)) {
+		atomic_pool_kernel = __dma_atomic_pool_init(atomic_pool_size,
 						    GFP_KERNEL);
-	if (!atomic_pool_kernel)
-		ret = -ENOMEM;
+		if (!atomic_pool_kernel)
+			ret = -ENOMEM;
+	}
 	if (has_managed_dma()) {
 		atomic_pool_dma = __dma_atomic_pool_init(atomic_pool_size,
 						GFP_KERNEL | GFP_DMA);
 		if (!atomic_pool_dma)
 			ret = -ENOMEM;
 	}
-	if (IS_ENABLED(CONFIG_ZONE_DMA32)) {
+	if (has_managed_dma32) {
 		atomic_pool_dma32 = __dma_atomic_pool_init(atomic_pool_size,
 						GFP_KERNEL | GFP_DMA32);
 		if (!atomic_pool_dma32)
@@ -224,11 +233,11 @@ postcore_initcall(dma_atomic_pool_init);
 static inline struct gen_pool *dma_guess_pool(struct gen_pool *prev, gfp_t gfp)
 {
 	if (prev == NULL) {
-		if (IS_ENABLED(CONFIG_ZONE_DMA32) && (gfp & GFP_DMA32))
-			return atomic_pool_dma32;
-		if (atomic_pool_dma && (gfp & GFP_DMA))
-			return atomic_pool_dma;
-		return atomic_pool_kernel;
+		if (gfp & GFP_DMA)
+			return atomic_pool_dma ?: atomic_pool_dma32 ?: atomic_pool_kernel;
+		if (gfp & GFP_DMA32)
+			return atomic_pool_dma32 ?: atomic_pool_dma ?: atomic_pool_kernel;
+		return atomic_pool_kernel ?: atomic_pool_dma32 ?: atomic_pool_dma;
 	}
 	if (prev == atomic_pool_kernel)
 		return atomic_pool_dma32 ? atomic_pool_dma32 : atomic_pool_dma;
@@ -268,15 +277,20 @@ struct page *dma_alloc_from_pool(struct device *dev, size_t size,
 {
 	struct gen_pool *pool = NULL;
 	struct page *page;
+	bool pool_found = false;
 
 	while ((pool = dma_guess_pool(pool, gfp))) {
+		pool_found = true;
 		page = __dma_alloc_from_pool(dev, size, pool, cpu_addr,
 					     phys_addr_ok);
 		if (page)
 			return page;
 	}
 
-	WARN(1, "Failed to get suitable pool for %s\n", dev_name(dev));
+	if (pool_found)
+		WARN(!(gfp & __GFP_NOWARN), "DMA pool exhausted for %s\n", dev_name(dev));
+	else
+		WARN(1, "Failed to get suitable pool for %s\n", dev_name(dev));
 	return NULL;
 }
 

@@ -18,6 +18,7 @@
 /**
  * msm_dp_bridge_detect - callback to determine if connector is connected
  * @bridge: Pointer to drm bridge structure
+ * @connector: Pointer to drm connector structure
  * Returns: Bridge's 'is connected' status
  */
 static enum drm_connector_status

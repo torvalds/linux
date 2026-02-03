@@ -140,7 +140,7 @@ static ssize_t reasons_show(struct kobject *kobj,
 		struct throttle_attribute *other_ta = kobj_attribute_to_throttle(kattr);
 
 		if (other_ta->mask != U32_MAX && reasons & other_ta->mask)
-			ret += sysfs_emit_at(buff, ret, "%s ", (*pother)->name);
+			ret += sysfs_emit_at(buff, ret, "%s ", (*pother)->name + strlen("reason_"));
 	}
 
 	if (drm_WARN_ONCE(&xe->drm, !ret, "Unknown reason: %#x\n", reasons))

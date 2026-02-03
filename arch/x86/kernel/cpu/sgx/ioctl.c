@@ -242,7 +242,7 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 /*
  * If the caller requires measurement of the page as a proof for the content,
  * use EEXTEND to add a measurement for 256 bytes of the page. Repeat this
- * operation until the entire page is measured."
+ * operation until the entire page is measured.
  */
 static int __sgx_encl_extend(struct sgx_encl *encl,
 			     struct sgx_epc_page *epc_page)

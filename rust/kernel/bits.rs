@@ -27,7 +27,8 @@ macro_rules! impl_bit_fn {
             ///
             /// This version is the default and should be used if `n` is known at
             /// compile time.
-            #[inline]
+            // Always inline to optimize out error path of `build_assert`.
+            #[inline(always)]
             pub const fn [<bit_ $ty>](n: u32) -> $ty {
                 build_assert!(n < <$ty>::BITS);
                 (1 as $ty) << n
@@ -75,7 +76,8 @@ macro_rules! impl_genmask_fn {
             /// This version is the default and should be used if the range is known
             /// at compile time.
             $(#[$genmask_ex])*
-            #[inline]
+            // Always inline to optimize out error path of `build_assert`.
+            #[inline(always)]
             pub const fn [<genmask_ $ty>](range: RangeInclusive<u32>) -> $ty {
                 let start = *range.start();
                 let end = *range.end();

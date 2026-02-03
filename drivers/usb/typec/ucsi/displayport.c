@@ -67,14 +67,11 @@ static int ucsi_displayport_enter(struct typec_altmode *alt, u32 *vdo)
 	}
 
 	command = UCSI_GET_CURRENT_CAM | UCSI_CONNECTOR_NUMBER(dp->con->num);
-	ucsi->message_in_size = sizeof(cur);
-	ret = ucsi_send_command(ucsi, command);
+	ret = ucsi_send_command(ucsi, command, &cur, sizeof(cur));
 	if (ret < 0) {
 		if (ucsi->version > 0x0100)
 			goto err_unlock;
 		cur = 0xff;
-	} else {
-		memcpy(&cur, ucsi->message_in, ucsi->message_in_size);
 	}
 
 	if (cur != 0xff) {
@@ -129,8 +126,7 @@ static int ucsi_displayport_exit(struct typec_altmode *alt)
 	}
 
 	command = UCSI_CMD_SET_NEW_CAM(dp->con->num, 0, dp->offset, 0);
-	dp->con->ucsi->message_in_size = 0;
-	ret = ucsi_send_command(dp->con->ucsi, command);
+	ret = ucsi_send_command(dp->con->ucsi, command, NULL, 0);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -197,8 +193,7 @@ static int ucsi_displayport_configure(struct ucsi_dp *dp)
 
 	command = UCSI_CMD_SET_NEW_CAM(dp->con->num, 1, dp->offset, pins);
 
-	dp->con->ucsi->message_in_size = 0;
-	return ucsi_send_command(dp->con->ucsi, command);
+	return ucsi_send_command(dp->con->ucsi, command, NULL, 0);
 }
 
 static int ucsi_displayport_vdm(struct typec_altmode *alt,

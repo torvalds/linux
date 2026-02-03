@@ -140,14 +140,21 @@ EXPORT_SYMBOL_GPL(blk_rq_integrity_map_user);
 bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 			    struct request *next)
 {
+	struct bio_integrity_payload *bip, *bip_next;
+
 	if (blk_integrity_rq(req) == 0 && blk_integrity_rq(next) == 0)
 		return true;
 
 	if (blk_integrity_rq(req) == 0 || blk_integrity_rq(next) == 0)
 		return false;
 
-	if (bio_integrity(req->bio)->bip_flags !=
-	    bio_integrity(next->bio)->bip_flags)
+	bip = bio_integrity(req->bio);
+	bip_next = bio_integrity(next->bio);
+	if (bip->bip_flags != bip_next->bip_flags)
+		return false;
+
+	if (bip->bip_flags & BIP_CHECK_APPTAG &&
+	    bip->app_tag != bip_next->app_tag)
 		return false;
 
 	if (req->nr_integrity_segments + next->nr_integrity_segments >
@@ -163,15 +170,21 @@ bool blk_integrity_merge_rq(struct request_queue *q, struct request *req,
 bool blk_integrity_merge_bio(struct request_queue *q, struct request *req,
 			     struct bio *bio)
 {
+	struct bio_integrity_payload *bip, *bip_bio = bio_integrity(bio);
 	int nr_integrity_segs;
 
-	if (blk_integrity_rq(req) == 0 && bio_integrity(bio) == NULL)
+	if (blk_integrity_rq(req) == 0 && bip_bio == NULL)
 		return true;
 
-	if (blk_integrity_rq(req) == 0 || bio_integrity(bio) == NULL)
+	if (blk_integrity_rq(req) == 0 || bip_bio == NULL)
 		return false;
 
-	if (bio_integrity(req->bio)->bip_flags != bio_integrity(bio)->bip_flags)
+	bip = bio_integrity(req->bio);
+	if (bip->bip_flags != bip_bio->bip_flags)
+		return false;
+
+	if (bip->bip_flags & BIP_CHECK_APPTAG &&
+	    bip->app_tag != bip_bio->app_tag)
 		return false;
 
 	nr_integrity_segs = blk_rq_count_integrity_sg(q, bio);

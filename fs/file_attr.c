@@ -2,6 +2,7 @@
 #include <linux/fs.h>
 #include <linux/security.h>
 #include <linux/fscrypt.h>
+#include <linux/fsnotify.h>
 #include <linux/fileattr.h>
 #include <linux/export.h>
 #include <linux/syscalls.h>
@@ -298,6 +299,7 @@ int vfs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
 		err = inode->i_op->fileattr_set(idmap, dentry, fa);
 		if (err)
 			goto out;
+		fsnotify_xattr(dentry);
 	}
 
 out:
