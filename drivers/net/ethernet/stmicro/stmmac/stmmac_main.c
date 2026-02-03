@@ -4137,7 +4137,7 @@ static int __stmmac_open(struct net_device *dev,
 	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)) {
 		ret = stmmac_legacy_serdes_power_up(priv);
 		if (ret < 0)
-			goto init_error;
+			return ret;
 	}
 
 	ret = stmmac_hw_setup(dev);
@@ -4170,6 +4170,7 @@ irq_error:
 
 	stmmac_release_ptp(priv);
 init_error:
+	stmmac_legacy_serdes_power_down(priv);
 	return ret;
 }
 
@@ -8273,6 +8274,7 @@ int stmmac_resume(struct device *dev)
 	ret = stmmac_hw_setup(ndev);
 	if (ret < 0) {
 		netdev_err(priv->dev, "%s: Hw setup failed\n", __func__);
+		stmmac_legacy_serdes_power_down(priv);
 		mutex_unlock(&priv->lock);
 		rtnl_unlock();
 		return ret;
