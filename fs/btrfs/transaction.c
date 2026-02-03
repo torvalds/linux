@@ -2573,7 +2573,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = write_all_supers(fs_info, 0);
+	ret = write_all_supers(trans, 0);
 	/*
 	 * the super is written, we can safely allow the tree-loggers
 	 * to go about their business
