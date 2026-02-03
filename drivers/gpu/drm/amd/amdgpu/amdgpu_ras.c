@@ -4650,6 +4650,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 			amdgpu_ras_block_late_init_default(adev, &obj->ras_comm);
 	}
 
+	amdgpu_ras_check_bad_page_status(adev);
+
 	return 0;
 }
 
