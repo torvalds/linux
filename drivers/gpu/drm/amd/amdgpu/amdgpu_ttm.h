@@ -72,9 +72,10 @@ struct amdgpu_mman {
 
 	/* @default_entity: for workarounds, has no gart windows */
 	struct amdgpu_ttm_buffer_entity default_entity;
-	struct amdgpu_ttm_buffer_entity move_entity;
 	struct amdgpu_ttm_buffer_entity *clear_entities;
 	u32 num_clear_entities;
+	struct amdgpu_ttm_buffer_entity move_entities[TTM_NUM_MOVE_FENCES];
+	u32 num_move_entities;
 
 	struct amdgpu_vram_mgr vram_mgr;
 	struct amdgpu_gtt_mgr gtt_mgr;

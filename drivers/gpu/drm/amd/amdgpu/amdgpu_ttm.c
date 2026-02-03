@@ -399,7 +399,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	dst.offset = 0;
 
 	r = amdgpu_ttm_copy_mem_to_mem(adev,
-				       &adev->mman.move_entity,
+				       &adev->mman.move_entities[0],
 				       &src, &dst,
 				       new_mem->size,
 				       amdgpu_bo_encrypted(abo),
@@ -412,7 +412,7 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 	    (abo->flags & AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE)) {
 		struct dma_fence *wipe_fence = NULL;
 
-		r = amdgpu_fill_buffer(&adev->mman.move_entity,
+		r = amdgpu_fill_buffer(&adev->mman.move_entities[0],
 				       abo, 0, NULL, &wipe_fence,
 				       AMDGPU_KERNEL_JOB_ID_MOVE_BLIT);
 		if (r) {
@@ -2335,7 +2335,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 {
 	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
-	u32 num_clear_entities;
+	u32 num_clear_entities, num_move_entities;
 	uint64_t size;
 	int r, i, j;
 
@@ -2353,6 +2353,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		}
 
 		num_clear_entities = 1;
+		num_move_entities = 1;
 		ring = adev->mman.buffer_funcs_ring;
 		sched = &ring->sched;
 		r = amdgpu_ttm_buffer_entity_init(&adev->mman.gtt_mgr,
@@ -2389,14 +2390,20 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 			}
 		}
 
-		r = amdgpu_ttm_buffer_entity_init(&adev->mman.gtt_mgr,
-						  &adev->mman.move_entity,
-						  DRM_SCHED_PRIORITY_NORMAL,
-						  &sched, 1, 2);
-		if (r < 0) {
-			dev_err(adev->dev,
-				"Failed setting up TTM BO move entity (%d)\n", r);
-			goto error_free_clear_entities;
+		adev->mman.num_move_entities = num_move_entities;
+		for (i = 0; i < num_move_entities; i++) {
+			r = amdgpu_ttm_buffer_entity_init(
+				&adev->mman.gtt_mgr,
+				&adev->mman.move_entities[i],
+				DRM_SCHED_PRIORITY_NORMAL, &sched, 1, 2);
+
+			if (r < 0) {
+				for (j = 0; j < i; j++)
+					amdgpu_ttm_buffer_entity_fini(
+						&adev->mman.gtt_mgr, &adev->mman.move_entities[j]);
+				adev->mman.num_move_entities = 0;
+				goto error_free_clear_entities;
+			}
 		}
 	} else {
 		amdgpu_ttm_buffer_entity_fini(&adev->mman.gtt_mgr,
@@ -2404,8 +2411,9 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		for (i = 0; i < adev->mman.num_clear_entities; i++)
 			amdgpu_ttm_buffer_entity_fini(&adev->mman.gtt_mgr,
 						      &adev->mman.clear_entities[i]);
-		amdgpu_ttm_buffer_entity_fini(&adev->mman.gtt_mgr,
-					      &adev->mman.move_entity);
+		for (i = 0; i < adev->mman.num_move_entities; i++)
+			amdgpu_ttm_buffer_entity_fini(&adev->mman.gtt_mgr,
+						      &adev->mman.move_entities[i]);
 		/* Drop all the old fences since re-creating the scheduler entities
 		 * will allocate new contexts.
 		 */
@@ -2413,6 +2421,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 		kfree(adev->mman.clear_entities);
 		adev->mman.clear_entities = NULL;
 		adev->mman.num_clear_entities = 0;
+		adev->mman.num_move_entities = 0;
 	}
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
