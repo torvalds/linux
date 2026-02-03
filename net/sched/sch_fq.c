@@ -665,7 +665,7 @@ static struct sk_buff *fq_dequeue(struct Qdisc *sch)
 		return NULL;
 
 	skb = fq_peek(&q->internal);
-	if (unlikely(skb)) {
+	if (skb) {
 		q->internal.qlen--;
 		fq_dequeue_skb(sch, &q->internal, skb);
 		goto out;
@@ -716,7 +716,7 @@ begin:
 		}
 		prefetch(&skb->end);
 		fq_dequeue_skb(sch, f, skb);
-		if ((s64)(now - time_next_packet - q->ce_threshold) > 0) {
+		if (unlikely((s64)(now - time_next_packet - q->ce_threshold) > 0)) {
 			INET_ECN_set_ce(skb);
 			q->stat_ce_mark++;
 		}
