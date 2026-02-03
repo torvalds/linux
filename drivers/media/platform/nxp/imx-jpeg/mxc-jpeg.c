@@ -2971,12 +2971,22 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 			  jpeg->dec_vdev->minor);
 
 	platform_set_drvdata(pdev, jpeg);
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret) {
+		dev_err(dev, "Failed to enable runtime PM: %d\n", ret);
+		goto err_pm;
+	}
 
 	return 0;
 
+err_pm:
+	video_unregister_device(jpeg->dec_vdev);
+	/* set NULL to prevent double-free */
+	jpeg->dec_vdev = NULL;
 err_vdev_register:
-	video_device_release(jpeg->dec_vdev);
+	/* Only release if allocation succeeded but registration failed */
+	if (jpeg->dec_vdev)
+		video_device_release(jpeg->dec_vdev);
 
 err_vdev_alloc:
 	v4l2_m2m_release(jpeg->m2m_dev);
@@ -3047,7 +3057,6 @@ static void mxc_jpeg_remove(struct platform_device *pdev)
 
 	mxc_jpeg_free_slot_data(jpeg);
 
-	pm_runtime_disable(&pdev->dev);
 	video_unregister_device(jpeg->dec_vdev);
 	v4l2_m2m_release(jpeg->m2m_dev);
 	v4l2_device_unregister(&jpeg->v4l2_dev);
