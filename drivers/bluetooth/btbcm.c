@@ -223,7 +223,7 @@ int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw)
 		err = PTR_ERR(skb);
 		bt_dev_err(hdev, "BCM: Download Minidrv command failed (%d)",
 			   err);
-		goto done;
+		return err;
 	}
 	kfree_skb(skb);
 
@@ -242,8 +242,7 @@ int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw)
 
 		if (fw_size < cmd->plen) {
 			bt_dev_err(hdev, "BCM: Patch is corrupted");
-			err = -EINVAL;
-			goto done;
+			return -EINVAL;
 		}
 
 		cmd_param = fw_ptr;
@@ -258,7 +257,7 @@ int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw)
 			err = PTR_ERR(skb);
 			bt_dev_err(hdev, "BCM: Patch command %04x failed (%d)",
 				   opcode, err);
-			goto done;
+			return err;
 		}
 		kfree_skb(skb);
 	}
@@ -266,8 +265,7 @@ int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw)
 	/* 250 msec delay after Launch Ram completes */
 	msleep(250);
 
-done:
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(btbcm_patchram);
 
