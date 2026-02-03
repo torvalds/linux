@@ -631,17 +631,15 @@ wait_rm_sf()
 	done
 }
 
+# $1: expected MPJ ACK Rx counter in $ns1
 wait_mpj()
 {
-	local ns="${1}"
-	local cnt old_cnt
+	local exp_cnt="${1}"
+	local cnt
 
-	old_cnt=$(mptcp_lib_get_counter ${ns} "MPTcpExtMPJoinAckRx")
-
-	local i
-	for i in $(seq 10); do
-		cnt=$(mptcp_lib_get_counter ${ns} "MPTcpExtMPJoinAckRx")
-		[ "$cnt" = "${old_cnt}" ] || break
+	for _ in $(seq 10); do
+		cnt=$(mptcp_lib_get_counter ${ns1} "MPTcpExtMPJoinAckRx")
+		[ "${cnt}" = "${exp_cnt}" ] && break
 		sleep 0.1
 	done
 }
@@ -4207,7 +4205,7 @@ endpoint_tests()
 		chk_mptcp_info subflows 0 subflows 0
 
 		pm_nl_add_endpoint $ns2 10.0.2.2 id 2 dev ns2eth2 flags subflow
-		wait_mpj $ns2
+		wait_mpj 2
 		chk_subflow_nr "after re-add id 2" 2
 		chk_mptcp_info subflows 1 subflows 1
 
@@ -4219,7 +4217,7 @@ endpoint_tests()
 		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
 		pm_nl_del_endpoint $ns2 3 10.0.3.2
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
-		wait_mpj $ns2
+		wait_mpj 3
 		chk_subflow_nr "after no reject" 3
 		chk_mptcp_info subflows 2 subflows 2
 
@@ -4231,7 +4229,7 @@ endpoint_tests()
 			chk_mptcp_info subflows 2 subflows 2 # only decr for additional sf
 
 			pm_nl_add_endpoint $ns2 10.0.1.2 id 1 dev ns2eth1 flags subflow
-			wait_mpj $ns2
+			wait_mpj $((3 + i))
 			chk_subflow_nr "after re-add id 0 ($i)" 3
 			chk_mptcp_info subflows 3 subflows 3
 		done
@@ -4289,7 +4287,7 @@ endpoint_tests()
 
 		pm_nl_add_endpoint $ns1 10.0.2.1 id 1 flags signal
 		pm_nl_add_endpoint $ns1 10.0.3.1 id 2 flags signal
-		wait_mpj $ns2
+		wait_mpj 3
 		chk_subflow_nr "after re-add" 3
 		chk_mptcp_info subflows 2 subflows 2
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
@@ -4301,7 +4299,7 @@ endpoint_tests()
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 
 		pm_nl_add_endpoint $ns1 10.0.1.1 id 99 flags signal
-		wait_mpj $ns2
+		wait_mpj 4
 		chk_subflow_nr "after re-add ID 0" 3
 		chk_mptcp_info subflows 3 subflows 3
 		chk_mptcp_info add_addr_signal 3 add_addr_accepted 2
@@ -4313,7 +4311,7 @@ endpoint_tests()
 		chk_mptcp_info add_addr_signal 2 add_addr_accepted 2
 
 		pm_nl_add_endpoint $ns1 10.0.1.1 id 88 flags signal
-		wait_mpj $ns2
+		wait_mpj 5
 		chk_subflow_nr "after re-re-add ID 0" 3
 		chk_mptcp_info subflows 3 subflows 3
 		chk_mptcp_info add_addr_signal 3 add_addr_accepted 2
@@ -4362,9 +4360,9 @@ endpoint_tests()
 		wait_rm_addr $ns2 0
 		ip netns exec "${ns2}" ${iptables} -D OUTPUT -s "10.0.3.2" -p tcp -j REJECT
 		pm_nl_add_endpoint $ns2 10.0.3.2 id 3 flags subflow
-		wait_mpj $ns2
+		wait_mpj 1
 		pm_nl_add_endpoint $ns1 10.0.3.1 id 2 flags signal
-		wait_mpj $ns2
+		wait_mpj 2
 		mptcp_lib_kill_group_wait $tests_pid
 
 		join_syn_tx=3 join_connect_err=1 \
