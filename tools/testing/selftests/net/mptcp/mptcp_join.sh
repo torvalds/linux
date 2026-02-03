@@ -603,8 +603,7 @@ wait_rm_addr()
 	local old_cnt="${2}"
 	local cnt
 
-	local i
-	for i in $(seq 10); do
+	for _ in $(seq 10); do
 		cnt=$(rm_addr_count ${ns})
 		[ "$cnt" = "${old_cnt}" ] || break
 		sleep 0.1
@@ -623,8 +622,7 @@ wait_rm_sf()
 	local old_cnt="${2}"
 	local cnt
 
-	local i
-	for i in $(seq 10); do
+	for _ in $(seq 10); do
 		cnt=$(rm_sf_count ${ns})
 		[ "$cnt" = "${old_cnt}" ] || break
 		sleep 0.1
@@ -648,8 +646,7 @@ wait_ll_ready()
 {
 	local ns="${1}"
 
-	local i
-	for i in $(seq 50); do
+	for _ in $(seq 50); do
 		ip -n "${ns}" -6 addr show scope link | grep "inet6 fe80" |
 			grep -qw "tentative" || break
 		sleep 0.1
