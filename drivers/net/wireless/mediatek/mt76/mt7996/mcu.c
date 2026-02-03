@@ -1304,6 +1304,61 @@ int mt7996_mcu_set_protection(struct mt7996_phy *phy, struct mt7996_vif_link *li
 				     MCU_WM_UNI_CMD(BSS_INFO_UPDATE), true);
 }
 
+int mt7996_mcu_set_emlsr_mode(struct mt7996_dev *dev,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct ieee80211_eml_params *eml_params)
+{
+	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct mt7996_sta_link *msta_link;
+	struct sta_rec_eml_op *eml_op;
+	struct mt7996_vif_link *link;
+	struct sk_buff *skb;
+	struct tlv *tlv;
+
+	msta_link = mt76_dereference(msta->link[eml_params->link_id],
+				     &dev->mt76);
+	if (!msta_link)
+		return -EINVAL;
+
+	link = mt7996_vif_link(dev, vif, eml_params->link_id);
+	if (!link)
+		return -EINVAL;
+
+	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &link->mt76,
+					      &msta_link->wcid,
+					      MT7996_STA_UPDATE_MAX_SIZE);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_EML_OP, sizeof(*eml_op));
+	eml_op = (struct sta_rec_eml_op *)tlv;
+	eml_op->link_bitmap = 0;
+
+	if (eml_params->control & IEEE80211_EML_CTRL_EMLSR_MODE) {
+		unsigned long link_bitmap = eml_params->link_bitmap;
+		unsigned int link_id;
+
+		for_each_set_bit(link_id, &link_bitmap,
+				 IEEE80211_MLD_MAX_NUM_LINKS) {
+			struct mt76_phy *mphy;
+
+			link = mt7996_vif_link(dev, vif, link_id);
+			if (!link)
+				continue;
+
+			mphy = mt76_vif_link_phy(&link->mt76);
+			if (!mphy)
+				continue;
+
+			eml_op->link_bitmap |= BIT(mphy->band_idx);
+		}
+	}
+
+	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
+				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
+}
+
 int mt7996_mcu_set_timing(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *link_conf)
 {
