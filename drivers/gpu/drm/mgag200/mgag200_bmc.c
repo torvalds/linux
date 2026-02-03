@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/delay.h>
+#include <linux/iopoll.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
@@ -12,7 +13,7 @@
 void mgag200_bmc_stop_scanout(struct mga_device *mdev)
 {
 	u8 tmp;
-	int iter_max;
+	int ret;
 
 	/*
 	 * 1 - The first step is to inform the BMC of an upcoming mode
@@ -42,30 +43,22 @@ void mgag200_bmc_stop_scanout(struct mga_device *mdev)
 
 	/*
 	 * 3a- The third step is to verify if there is an active scan.
-	 * We are waiting for a 0 on remhsyncsts <XSPAREREG<0>).
+	 * We are waiting for a 0 on remhsyncsts (<XSPAREREG<0>).
 	 */
-	iter_max = 300;
-	while (!(tmp & 0x1) && iter_max) {
-		WREG8(DAC_INDEX, MGA1064_SPAREREG);
-		tmp = RREG8(DAC_DATA);
-		udelay(1000);
-		iter_max--;
-	}
+	ret = read_poll_timeout(RREG_DAC, tmp, !(tmp & 0x1),
+				1000, 300000, false,
+				MGA1064_SPAREREG);
+	if (ret == -ETIMEDOUT)
+		return;
 
 	/*
-	 * 3b- This step occurs only if the remove is actually
+	 * 3b- This step occurs only if the remote BMC is actually
 	 * scanning. We are waiting for the end of the frame which is
 	 * a 1 on remvsyncsts (XSPAREREG<1>)
 	 */
-	if (iter_max) {
-		iter_max = 300;
-		while ((tmp & 0x2) && iter_max) {
-			WREG8(DAC_INDEX, MGA1064_SPAREREG);
-			tmp = RREG8(DAC_DATA);
-			udelay(1000);
-			iter_max--;
-		}
-	}
+	(void)read_poll_timeout(RREG_DAC, tmp, (tmp & 0x2),
+				1000, 300000, false,
+				MGA1064_SPAREREG);
 }
 
 void mgag200_bmc_start_scanout(struct mga_device *mdev)
