@@ -2299,6 +2299,15 @@ static int validate_sys_chunk_array(const struct btrfs_fs_info *fs_info,
 		return -EUCLEAN;
 	}
 
+	/* It must hold at least one key and one chunk. */
+	if (unlikely(sys_array_size < sizeof(struct btrfs_disk_key) +
+		     sizeof(struct btrfs_chunk))) {
+		btrfs_err(fs_info, "system chunk array too small %u < %zu",
+			  sys_array_size,
+			  sizeof(struct btrfs_disk_key) + sizeof(struct btrfs_chunk));
+		return -EUCLEAN;
+	}
+
 	while (cur < sys_array_size) {
 		struct btrfs_disk_key *disk_key;
 		struct btrfs_chunk *chunk;
@@ -2540,19 +2549,6 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 		return ret;
 
 	ret = validate_sys_chunk_array(fs_info, sb);
-
-	/*
-	 * Obvious sys_chunk_array corruptions, it must hold at least one key
-	 * and one chunk
-	 */
-	if (btrfs_super_sys_array_size(sb) < sizeof(struct btrfs_disk_key)
-			+ sizeof(struct btrfs_chunk)) {
-		btrfs_err(fs_info, "system chunk array too small %u < %zu",
-			  btrfs_super_sys_array_size(sb),
-			  sizeof(struct btrfs_disk_key)
-			  + sizeof(struct btrfs_chunk));
-		ret = -EINVAL;
-	}
 
 	/*
 	 * The generation is a global counter, we'll trust it more than the others
