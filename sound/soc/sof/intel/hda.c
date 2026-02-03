@@ -1138,6 +1138,12 @@ static bool is_endpoint_present(struct sdw_slave *sdw_device,
 {
 	int i;
 
+	/* If SDCA is not present, assume the endpoint is present */
+	if (!sdw_device->sdca_data.interface_revision) {
+		dev_warn(&sdw_device->dev, "SDCA properties not found in BIOS\n");
+		return true;
+	}
+
 	for (i = 0; i < sdw_device->sdca_data.num_functions; i++) {
 		if (dai_type == dai_info->dais[i].dai_type)
 			return true;
