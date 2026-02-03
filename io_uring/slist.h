@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef INTERNAL_IO_SLIST_H
 #define INTERNAL_IO_SLIST_H
 

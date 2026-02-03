@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef IOU_CORE_H
 #define IOU_CORE_H
 
