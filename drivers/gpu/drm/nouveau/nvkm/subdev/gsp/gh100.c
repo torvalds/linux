@@ -17,7 +17,7 @@
 #include <nvhw/ref/gh100/dev_riscv_pri.h>
 
 int
-gh100_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
+gh100_gsp_fini(struct nvkm_gsp *gsp, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_falcon *falcon = &gsp->falcon;
 	int ret, time = 4000;

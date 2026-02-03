@@ -37,7 +37,7 @@ nvkm_sec2_finimsg(void *priv, struct nvfw_falcon_msg *hdr)
 }
 
 static int
-nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
+nvkm_sec2_fini(struct nvkm_engine *engine, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
 	struct nvkm_subdev *subdev = &sec2->engine.subdev;

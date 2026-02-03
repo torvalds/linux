@@ -2330,7 +2330,7 @@ gf100_gr_reset(struct nvkm_gr *base)
 
 	WARN_ON(gf100_gr_fecs_halt_pipeline(gr));
 
-	subdev->func->fini(subdev, false);
+	subdev->func->fini(subdev, NVKM_POWEROFF);
 	nvkm_mc_disable(device, subdev->type, subdev->inst);
 	if (gr->func->gpccs.reset)
 		gr->func->gpccs.reset(gr);

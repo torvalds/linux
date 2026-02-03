@@ -46,7 +46,7 @@ ga100_ce_nonstall(struct nvkm_engine *engine)
 }
 
 int
-ga100_ce_fini(struct nvkm_engine *engine, bool suspend)
+ga100_ce_fini(struct nvkm_engine *engine, enum nvkm_suspend_state suspend)
 {
 	nvkm_inth_block(&engine->subdev.inth);
 	return 0;

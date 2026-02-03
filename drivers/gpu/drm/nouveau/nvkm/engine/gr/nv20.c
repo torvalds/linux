@@ -27,7 +27,7 @@ nv20_gr_chan_init(struct nvkm_object *object)
 }
 
 int
-nv20_gr_chan_fini(struct nvkm_object *object, bool suspend)
+nv20_gr_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nv20_gr_chan *chan = nv20_gr_chan(object);
 	struct nv20_gr *gr = chan->gr;

@@ -41,7 +41,7 @@ nvkm_engine_reset(struct nvkm_engine *engine)
 	if (engine->func->reset)
 		return engine->func->reset(engine);
 
-	nvkm_subdev_fini(&engine->subdev, false);
+	nvkm_subdev_fini(&engine->subdev, NVKM_POWEROFF);
 	return nvkm_subdev_init(&engine->subdev);
 }
 
@@ -98,7 +98,7 @@ nvkm_engine_info(struct nvkm_subdev *subdev, u64 mthd, u64 *data)
 }
 
 static int
-nvkm_engine_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_engine_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_engine *engine = nvkm_engine(subdev);
 	if (engine->func->fini)

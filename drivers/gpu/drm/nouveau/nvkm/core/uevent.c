@@ -73,7 +73,7 @@ nvkm_uevent_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 }
 
 static int
-nvkm_uevent_fini(struct nvkm_object *object, bool suspend)
+nvkm_uevent_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_uevent *uevent = nvkm_uevent(object);
 

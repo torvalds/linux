@@ -144,7 +144,7 @@ nvkm_gpio_intr(struct nvkm_subdev *subdev)
 }
 
 static int
-nvkm_gpio_fini(struct nvkm_subdev *subdev, bool suspend)
+nvkm_gpio_fini(struct nvkm_subdev *subdev, enum nvkm_suspend_state suspend)
 {
 	struct nvkm_gpio *gpio = nvkm_gpio(subdev);
 	u32 mask = (1ULL << gpio->func->lines) - 1;

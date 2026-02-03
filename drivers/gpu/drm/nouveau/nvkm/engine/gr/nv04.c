@@ -1158,7 +1158,7 @@ nv04_gr_chan_dtor(struct nvkm_object *object)
 }
 
 static int
-nv04_gr_chan_fini(struct nvkm_object *object, bool suspend)
+nv04_gr_chan_fini(struct nvkm_object *object, enum nvkm_suspend_state suspend)
 {
 	struct nv04_gr_chan *chan = nv04_gr_chan(object);
 	struct nv04_gr *gr = chan->gr;
