@@ -74,7 +74,7 @@ static inline int kbd_defleds(void)
 	k_self,		k_fn,		k_spec,		k_pad,\
 	k_dead,		k_cons,		k_cur,		k_shift,\
 	k_meta,		k_ascii,	k_lock,		k_lowercase,\
-	k_slock,	k_dead2,	k_brl,		k_ignore
+	k_slock,	k_dead2,	k_brl,		k_csi
 
 typedef void (k_handler_fn)(struct vc_data *vc, unsigned char value,
 			    char up_flag);
@@ -127,6 +127,7 @@ static const unsigned char max_vals[] = {
 	[ KT_SLOCK	] = NR_LOCK - 1,
 	[ KT_DEAD2	] = 255,
 	[ KT_BRL	] = NR_BRL - 1,
+	[ KT_CSI	] = 99,
 };
 
 static const int NR_TYPES = ARRAY_SIZE(max_vals);
@@ -644,10 +645,6 @@ static void fn_null(struct vc_data *vc)
 /*
  * Special key handlers
  */
-static void k_ignore(struct vc_data *vc, unsigned char value, char up_flag)
-{
-}
-
 static void k_spec(struct vc_data *vc, unsigned char value, char up_flag)
 {
 	if (up_flag)
@@ -1027,6 +1024,37 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 		}
 		pressed &= ~BIT(value - 1);
 	}
+}
+
+/*
+ * Handle KT_CSI keysym type: generate CSI tilde sequences with modifier
+ * support. The value encodes the CSI parameter number, producing sequences
+ * like ESC [ <value> ~ or ESC [ <value> ; <mod> ~ when modifiers are held.
+ */
+static void k_csi(struct vc_data *vc, unsigned char value, char up_flag)
+{
+	char buf[10];
+	int i = 0;
+	int mod;
+
+	if (up_flag)
+		return;
+
+	mod = csi_modifier_param();
+
+	buf[i++] = 0x1b;
+	buf[i++] = '[';
+	if (value >= 10)
+		buf[i++] = '0' + value / 10;
+	buf[i++] = '0' + value % 10;
+	if (mod > 1) {
+		buf[i++] = ';';
+		buf[i++] = '0' + mod;
+	}
+	buf[i++] = '~';
+	buf[i] = 0x00;
+
+	puts_queue(vc, buf);
 }
 
 #if IS_ENABLED(CONFIG_INPUT_LEDS) && IS_ENABLED(CONFIG_LEDS_TRIGGERS)
