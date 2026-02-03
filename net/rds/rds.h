@@ -170,6 +170,8 @@ struct rds_connection {
 
 	u32			c_my_gen_num;
 	u32			c_peer_gen_num;
+
+	u64			c_cp0_mprds_catchup_tx_seq;
 };
 
 static inline
@@ -749,6 +751,7 @@ struct rds_statistics {
 	u64	s_recv_bytes_added_to_socket;
 	u64	s_recv_bytes_removed_from_socket;
 	u64	s_send_stuck_rm;
+	u64	s_mprds_catchup_tx0_retries;
 };
 
 /* af_rds.c */
