@@ -183,10 +183,11 @@ void rds_conn_net_set(struct rds_connection *conn, struct net *net)
 	write_pnet(&conn->c_net, net);
 }
 
-#define RDS_FLAG_CONG_BITMAP	0x01
-#define RDS_FLAG_ACK_REQUIRED	0x02
-#define RDS_FLAG_RETRANSMITTED	0x04
-#define RDS_MAX_ADV_CREDIT	255
+#define RDS_FLAG_CONG_BITMAP		0x01
+#define RDS_FLAG_ACK_REQUIRED		0x02
+#define RDS_FLAG_RETRANSMITTED		0x04
+#define RDS_FLAG_EXTHDR_EXTENSION	0x20
+#define RDS_MAX_ADV_CREDIT		255
 
 /* RDS_FLAG_PROBE_PORT is the reserved sport used for sending a ping
  * probe to exchange control information before establishing a connection.
@@ -257,6 +258,20 @@ struct rds_ext_header_rdma_dest {
 	__be32			h_rdma_rkey;
 	__be32			h_rdma_offset;
 };
+
+/*
+ * This extension header tells the peer about delivered RDMA byte count.
+ */
+#define RDS_EXTHDR_RDMA_BYTES	4
+
+struct rds_ext_header_rdma_bytes {
+	__be32		h_rdma_bytes;	/* byte count */
+	u8		h_rflags;	/* direction of RDMA, write or read */
+	u8		h_pad[3];
+};
+
+#define RDS_FLAG_RDMA_WR_BYTES	0x01
+#define RDS_FLAG_RDMA_RD_BYTES	0x02
 
 /* Extension header announcing number of paths.
  * Implicit length = 2 bytes.
@@ -871,7 +886,7 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 void rds_message_populate_header(struct rds_header *hdr, __be16 sport,
 				 __be16 dport, u64 seq);
 int rds_message_add_extension(struct rds_header *hdr,
-			      unsigned int type, const void *data, unsigned int len);
+			      unsigned int type, const void *data);
 int rds_message_next_extension(struct rds_header *hdr,
 			       unsigned int *pos, void *buf, unsigned int *buflen);
 int rds_message_add_rdma_dest_extension(struct rds_header *hdr, u32 r_key, u32 offset);

@@ -1459,12 +1459,10 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 		__be32 my_gen_num = cpu_to_be32(cp->cp_conn->c_my_gen_num);
 
 		rds_message_add_extension(&rm->m_inc.i_hdr,
-					  RDS_EXTHDR_NPATHS, &npaths,
-					  sizeof(npaths));
+					  RDS_EXTHDR_NPATHS, &npaths);
 		rds_message_add_extension(&rm->m_inc.i_hdr,
 					  RDS_EXTHDR_GEN_NUM,
-					  &my_gen_num,
-					  sizeof(u32));
+					  &my_gen_num);
 	}
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
 
