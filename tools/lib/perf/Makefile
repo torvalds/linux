@@ -50,9 +50,9 @@ INCLUDES = \
 -I$(srctree)/tools/include/uapi
 
 # Append required CFLAGS
+override CFLAGS := $(INCLUDES) $(CFLAGS)
 override CFLAGS += -g -Werror -Wall
 override CFLAGS += -fPIC
-override CFLAGS += $(INCLUDES)
 override CFLAGS += -fvisibility=hidden
 override CFLAGS += $(EXTRA_WARNINGS)
 override CFLAGS += $(EXTRA_CFLAGS)
