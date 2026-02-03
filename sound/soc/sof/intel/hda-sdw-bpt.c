@@ -118,7 +118,8 @@ static int hda_sdw_bpt_dma_prepare(struct device *dev, struct hdac_ext_stream **
 
 	dev_dbg(dev, "direction %d format_val %#x\n", direction, format);
 
-	bpt_stream = hda_cl_prepare(dev, format, bpt_num_bytes, dmab_bdl, false, direction, false);
+	bpt_stream = hda_data_stream_prepare(dev, format, bpt_num_bytes, dmab_bdl,
+					     false, direction, false, true);
 	if (IS_ERR(bpt_stream)) {
 		dev_err(sdev->dev, "%s: SDW BPT DMA prepare failed: dir %d\n",
 			__func__, direction);
@@ -162,7 +163,7 @@ static int hda_sdw_bpt_dma_deprepare(struct device *dev, struct hdac_ext_stream 
 	u32 mask;
 	int ret;
 
-	ret = hda_cl_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream);
+	ret = hda_data_stream_cleanup(sdev->dev, dmab_bdl, false, sdw_bpt_stream, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "%s: SDW BPT DMA cleanup failed\n",
 			__func__);
