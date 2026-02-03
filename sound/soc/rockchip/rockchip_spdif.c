@@ -257,6 +257,14 @@ static const struct regmap_config rk_spdif_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static void rk_spdif_suspend(void *data)
+{
+	struct device *dev = data;
+
+	if (!pm_runtime_status_suspended(dev))
+		rk_spdif_runtime_suspend(dev);
+}
+
 static int rk_spdif_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -311,11 +319,16 @@ static int rk_spdif_probe(struct platform_device *pdev)
 	spdif->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, spdif);
 
-	pm_runtime_enable(&pdev->dev);
+	ret = devm_add_action_or_reset(&pdev->dev, rk_spdif_suspend, &pdev->dev);
+	if (ret)
+		return ret;
+
+	devm_pm_runtime_enable(&pdev->dev);
+
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = rk_spdif_runtime_resume(&pdev->dev);
 		if (ret)
-			goto err_pm_runtime;
+			return ret;
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
@@ -323,31 +336,16 @@ static int rk_spdif_probe(struct platform_device *pdev)
 					      &rk_spdif_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
-		goto err_pm_suspend;
+		return ret;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
-		goto err_pm_suspend;
+		return ret;
 	}
 
 	return 0;
-
-err_pm_suspend:
-	if (!pm_runtime_status_suspended(&pdev->dev))
-		rk_spdif_runtime_suspend(&pdev->dev);
-err_pm_runtime:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
-}
-
-static void rk_spdif_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
-	if (!pm_runtime_status_suspended(&pdev->dev))
-		rk_spdif_runtime_suspend(&pdev->dev);
 }
 
 static const struct dev_pm_ops rk_spdif_pm_ops = {
@@ -379,7 +377,6 @@ MODULE_DEVICE_TABLE(of, rk_spdif_match);
 
 static struct platform_driver rk_spdif_driver = {
 	.probe = rk_spdif_probe,
-	.remove = rk_spdif_remove,
 	.driver = {
 		.name = "rockchip-spdif",
 		.of_match_table = rk_spdif_match,
