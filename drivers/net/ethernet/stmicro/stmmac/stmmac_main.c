@@ -882,6 +882,26 @@ static void stmmac_release_ptp(struct stmmac_priv *priv)
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
 }
 
+static void stmmac_legacy_serdes_power_down(struct stmmac_priv *priv)
+{
+	if (priv->plat->serdes_powerdown)
+		priv->plat->serdes_powerdown(priv->dev, priv->plat->bsp_priv);
+}
+
+static int stmmac_legacy_serdes_power_up(struct stmmac_priv *priv)
+{
+	int ret;
+
+	if (!priv->plat->serdes_powerup)
+		return 0;
+
+	ret = priv->plat->serdes_powerup(priv->dev, priv->plat->bsp_priv);
+	if (ret < 0)
+		netdev_err(priv->dev, "SerDes powerup failed\n");
+
+	return ret;
+}
+
 /**
  *  stmmac_mac_flow_ctrl - Configure flow control in all queues
  *  @priv: driver private structure
@@ -981,9 +1001,8 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	u32 old_ctrl, ctrl;
 	int ret;
 
-	if ((priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP) &&
-	    priv->plat->serdes_powerup)
-		priv->plat->serdes_powerup(priv->dev, priv->plat->bsp_priv);
+	if (priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)
+		stmmac_legacy_serdes_power_up(priv);
 
 	old_ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 	ctrl = old_ctrl & ~priv->hw->link.speed_mask;
@@ -4111,14 +4130,10 @@ static int __stmmac_open(struct net_device *dev,
 
 	stmmac_reset_queues_param(priv);
 
-	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP) &&
-	    priv->plat->serdes_powerup) {
-		ret = priv->plat->serdes_powerup(dev, priv->plat->bsp_priv);
-		if (ret < 0) {
-			netdev_err(priv->dev, "%s: Serdes powerup failed\n",
-				   __func__);
+	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)) {
+		ret = stmmac_legacy_serdes_power_up(priv);
+		if (ret < 0)
 			goto init_error;
-		}
 	}
 
 	ret = stmmac_hw_setup(dev);
@@ -4222,8 +4237,7 @@ static void __stmmac_release(struct net_device *dev)
 	free_dma_desc_resources(priv, &priv->dma_conf);
 
 	/* Powerdown Serdes if there is */
-	if (priv->plat->serdes_powerdown)
-		priv->plat->serdes_powerdown(dev, priv->plat->bsp_priv);
+	stmmac_legacy_serdes_power_down(priv);
 
 	stmmac_release_ptp(priv);
 
@@ -8130,8 +8144,7 @@ int stmmac_suspend(struct device *dev)
 	/* Stop TX/RX DMA */
 	stmmac_stop_all_dma(priv);
 
-	if (priv->plat->serdes_powerdown)
-		priv->plat->serdes_powerdown(ndev, priv->plat->bsp_priv);
+	stmmac_legacy_serdes_power_down(priv);
 
 	/* Enable Power down mode by programming the PMT regs */
 	if (priv->wolopts) {
@@ -8233,11 +8246,8 @@ int stmmac_resume(struct device *dev)
 			stmmac_mdio_reset(priv->mii);
 	}
 
-	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP) &&
-	    priv->plat->serdes_powerup) {
-		ret = priv->plat->serdes_powerup(ndev,
-						 priv->plat->bsp_priv);
-
+	if (!(priv->plat->flags & STMMAC_FLAG_SERDES_UP_AFTER_PHY_LINKUP)) {
+		ret = stmmac_legacy_serdes_power_up(priv);
 		if (ret < 0)
 			return ret;
 	}
